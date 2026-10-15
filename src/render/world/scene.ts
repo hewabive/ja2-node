@@ -82,6 +82,7 @@ export interface SceneSource {
   frame(tile: number): FrameGeometry | null;
   mercsAt?(gridNo: number): readonly SceneMerc[];
   substitute?(gridNo: number, tile: number): number;
+  roofHidden?(gridNo: number, tile: number): boolean;
 }
 
 export function tileOrigin(x: number, y: number, o: SceneOptions): { x: number; y: number } {
@@ -330,7 +331,11 @@ function emitRow(ctx: Context, rows: readonly number[][], passes: readonly Pass[
           emitMercs(ctx, g);
           continue;
         }
-        for (const t of levelTilesAt(layerOf(ctx.source, pass), g)) emitNode(ctx, pass, g, ctx.source.substitute?.(g, t) ?? t);
+        const roofPass = pass === 'roofs' || pass === 'dynRoofs';
+        for (const t of levelTilesAt(layerOf(ctx.source, pass), g)) {
+          if (roofPass && ctx.source.roofHidden?.(g, t)) continue;
+          emitNode(ctx, pass, g, ctx.source.substitute?.(g, t) ?? t);
+        }
       }
     }
   }

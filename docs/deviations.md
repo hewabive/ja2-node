@@ -23,4 +23,4 @@ reference, see `01-architecture.md` D1). Add an entry whenever a port departs fr
 | YELLOW alert | `DecideActionYellow`: turn to the noise, radio, seek the noise, 50% green behaviour | Not ported: a YELLOW soldier waits until his noise is forgotten | Temporary, M2 |
 | Vision and hearing modifiers | Light sprites, goggles, NIGHTOPS, extended ear, walkman, camouflage, smoke | Ambient light only (day 3), no gear or traits | Temporary until items and lighting are simulated |
 | Noise memory | `MostImportantNoiseHeard` forgets a personal noise seen up close via an LOS test | Forgotten within 6 tiles on the same level without the LOS test | Temporary, M2 |
-| Fog of war | `RevealRoofsAndItems` reveals tiles and removes room roofs | Not ported yet; roofs follow the client toggle | Temporary |
+| Fog of war | `RevealRoofsAndItems` also reveals items, wireframes and slanted roofs | Tiles and room roofs only; items, wireframes and slanted roofs come with M3/M4 | Temporary |

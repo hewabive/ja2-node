@@ -1,5 +1,6 @@
 import { soldierSheetFrame } from '../../content/anim/soldier-sprite.ts';
 import { WORLD_COLS } from '../../content/world/grid.ts';
+import { typeIndex } from '../../content/world/tile-tables.ts';
 import type { SoldierView } from '../../protocol/view.ts';
 import { TextureAtlas } from '../../render/atlas.ts';
 import { createContext } from '../../render/gl.ts';
@@ -87,6 +88,7 @@ let hoverGridNo: number | null = null;
 let selected: number | null = null;
 let mercsByGrid = new Map<number, SceneMerc[]>();
 let openDoors: ReadonlySet<number> = new Set();
+let revealedRooms: ReadonlySet<number> = new Set();
 const lastDrawn = new Map<number, { spec: MercDrawSpec; frame: FrameGeometry }>();
 const radar = new Radar(el<HTMLCanvasElement>('radar'), (cellX, cellY) => {
   camera = { centerX: cellX, centerY: cellY };
@@ -174,6 +176,7 @@ function render(): void {
   }
   client?.playUntil(client.latestTick);
   openDoors = new Set(client?.openDoors ?? []);
+  revealedRooms = new Set(client?.revealedRooms ?? []);
   gl.clearColor(0, 0, 0, 1);
   gl.clearDepth(0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -293,6 +296,8 @@ async function start(): Promise<void> {
     const loaded = await loadWorld(mapPath, available);
     world = loaded;
     atlas = new TileAtlas(gl, loaded.surfaces);
+    const firstRoofType = typeIndex(loaded.tables, 'FIRSTROOF');
+    const lastRoofType = typeIndex(loaded.tables, 'SECONDSLANTROOF');
     const underground = loaded.map.ambient?.basement === true || loaded.map.ambient?.caves === true;
     source = {
       level: loaded.level,
@@ -304,6 +309,12 @@ async function start(): Promise<void> {
         return f ? { offsetX: f.offsetX, offsetY: f.offsetY, width: f.width, height: f.height } : null;
       },
       mercsAt: (g) => mercsByGrid.get(g) ?? [],
+      roofHidden: (g, tile) => {
+        const room = loaded.level.rooms[g] ?? 0;
+        if (room === 0 || !revealedRooms.has(room)) return false;
+        const type = loaded.tiles[tile]?.type ?? -1;
+        return type >= firstRoofType && type <= lastRoofType;
+      },
       substitute: (g, tile) => {
         if (!openDoors.has(g)) return tile;
         const def = loaded.tiles[tile]?.structure;

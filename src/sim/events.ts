@@ -52,6 +52,11 @@ export interface EnemySightedEvent extends SimEventBase {
   readonly revealedEnemies: number;
 }
 
+export interface RoomRevealedEvent extends SimEventBase {
+  readonly type: 'roomRevealed';
+  readonly room: number;
+}
+
 export type SimEvent =
   | TickBudgetEvent
   | ArrivedEvent
@@ -60,5 +65,6 @@ export type SimEvent =
   | CombatWouldStartEvent
   | DoorChangedEvent
   | NoiseHeardEvent
-  | EnemySightedEvent;
+  | EnemySightedEvent
+  | RoomRevealedEvent;
 export type SimEventType = SimEvent['type'];

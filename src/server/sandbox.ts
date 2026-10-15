@@ -14,6 +14,7 @@ import {
   SANDBOX_POPULATION,
 } from '../sim/tactical/creation.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
+import { revealedRooms } from '../sim/tactical/perception/fov.ts';
 import { createSoldier, NO_PROFILE, type Soldier, Team } from '../sim/tactical/soldier.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import type { SessionSim } from './session.ts';
@@ -62,6 +63,7 @@ export class TacticalSession implements SessionSim {
       soldiers: this.sim.snapshot((s) => s.team === Team.OUR || s.visible >= 0),
       openDoors: this.sim.openDoors(),
       combatPending: this.sim.state.combatPending,
+      revealedRooms: revealedRooms(this.sim.state),
     };
   }
 }

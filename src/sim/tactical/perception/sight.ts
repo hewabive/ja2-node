@@ -9,6 +9,7 @@ import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { endHeight, states } from '../animation.ts';
 import { AlertStatus, OKLIFE, type Soldier, SoldierClass, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
+import { revealRoofsAndItems } from './fov.ts';
 import { type HeightClass, type LosSubject, soldierToSoldierLineOfSight } from './los.ts';
 
 export const Opp = {
@@ -345,6 +346,7 @@ export function handleSight(t: TacticalState, s: Soldier, flags: number): void {
     if (s.team === Team.OUR) {
       radioSightings(t, s, null, s.team);
       radioSightings(t, s, null, Team.MILITIA);
+      revealRoofsAndItems(t, s);
     } else if (enemyRadio(s)) radioSightings(t, s, null, Team.ENEMY);
     s.newOppCnt = 0;
     if (s.team !== Team.OUR) ourTeamRadiosRandomlyAbout(t, s);

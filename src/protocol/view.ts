@@ -20,6 +20,7 @@ export interface PlayerView {
   readonly soldiers: readonly SoldierView[];
   readonly openDoors?: readonly number[];
   readonly combatPending?: boolean;
+  readonly revealedRooms?: readonly number[];
 }
 
 export interface ViewFrame {
@@ -28,6 +29,7 @@ export interface ViewFrame {
   readonly removed: readonly number[];
   readonly openDoors?: readonly number[];
   readonly combatPending?: boolean;
+  readonly revealedRooms?: readonly number[];
 }
 
 function sameList(a: readonly number[] | undefined, b: readonly number[] | undefined): boolean {
@@ -40,6 +42,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
   let frame = diffView(previous.soldiers, next.soldiers, next.tick);
   if (!sameList(previous.openDoors, next.openDoors))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), openDoors: next.openDoors ?? [] };
+  if (!sameList(previous.revealedRooms, next.revealedRooms))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), revealedRooms: next.revealedRooms ?? [] };
   if ((previous.combatPending ?? false) !== (next.combatPending ?? false))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), combatPending: next.combatPending ?? false };
   return frame;

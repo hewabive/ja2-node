@@ -16,6 +16,7 @@ import type { TacticalContent } from '../content.ts';
 import { setSoldierPosition } from '../movement.ts';
 import { createSoldier, type Soldier, Team } from '../soldier.ts';
 import { createTacticalState, type TacticalState } from '../state.ts';
+import { revealedRooms } from './fov.ts';
 import { HeightClass, lineOfSightTest, soldierToSoldierLineOfSight } from './los.ts';
 import { allTeamsLookForAll, handleSight, Opp, SightFlags } from './sight.ts';
 import { perceptionHooks } from './wiring.ts';
@@ -130,5 +131,34 @@ describe('sighting', () => {
     expect(enemy.visible).toBe(-1);
     expect(civ.visible).toBe(1);
     expect(t.combatPending).toBe(false);
+  });
+});
+
+describe('fog of war', () => {
+  function markRoom(t: TacticalState, room: number, x0: number, x1: number, y0: number, y1: number): void {
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) t.world.level.rooms[gridNo(x, y)] = room;
+  }
+
+  it('reveals a room in view and reports it once', () => {
+    const t = tactical();
+    markRoom(t, 5, 78, 82, 84, 87);
+    spawn(t, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    allTeamsLookForAll(t);
+    allTeamsLookForAll(t);
+    expect(revealedRooms(t)).toEqual([5]);
+    expect(t.events.filter((e) => e.type === 'roomRevealed')).toEqual([{ type: 'roomRevealed', room: 5 }]);
+  });
+
+  it('keeps rooms behind walls, behind the viewer and in enemy view hidden', () => {
+    const t = tactical((w) => {
+      for (let x = 70; x <= 90; x++) w.add(gridNo(x, 85), 0, syntheticStructure(StructureFlags.WALL, Orientation.INSIDE_LEFT));
+    });
+    markRoom(t, 6, 78, 82, 86, 89);
+    markRoom(t, 7, 78, 82, 74, 77);
+    markRoom(t, 8, 58, 62, 84, 87);
+    spawn(t, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    spawn(t, Team.ENEMY, gridNo(60, 80), Direction.SOUTH);
+    allTeamsLookForAll(t);
+    expect(revealedRooms(t)).toEqual([]);
   });
 });

@@ -5,6 +5,7 @@ import { PreRandom, type Rng } from '../../core/rng.ts';
 import type { SimEvent } from '../events.ts';
 import type { TacticalContent } from './content.ts';
 import type { DoorStatus, PathEnv, PathSoldier, PathWorld } from './pathfinding.ts';
+import { createFogOfWar, type FogOfWar } from './perception/fov.ts';
 import { createPerception, type Perception } from './perception/sight.ts';
 import { type Soldier, TOTAL_SOLDIERS } from './soldier.ts';
 
@@ -65,6 +66,7 @@ export interface TacticalState {
   readonly pathEnv: PathEnv;
   hooks: TacticalHooks;
   readonly perception: Perception;
+  readonly fog: FogOfWar;
   perceptionHooks: PerceptionHooks;
   combatPending: boolean;
 }
@@ -105,6 +107,7 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
     pathEnv,
     hooks: NO_HOOKS,
     perception: createPerception(TOTAL_SOLDIERS),
+    fog: createFogOfWar(),
     perceptionHooks: {
       checkForChangingOrders: () => {},
       setNewSituation: () => {},
