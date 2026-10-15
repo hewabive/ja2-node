@@ -25,6 +25,7 @@ export interface TacticalHooks {
   turnFinished(t: TacticalState, s: Soldier): void;
   stanceChanged(t: TacticalState, s: Soldier): void;
   doorOpened(t: TacticalState, s: Soldier): void;
+  endAiGuysTurn(t: TacticalState, s: Soldier): void;
 }
 
 export const NO_HOOKS: TacticalHooks = {
@@ -34,6 +35,7 @@ export const NO_HOOKS: TacticalHooks = {
   turnFinished: () => {},
   stanceChanged: () => {},
   doorOpened: () => {},
+  endAiGuysTurn: () => {},
 };
 
 export interface PerceptionHooks {

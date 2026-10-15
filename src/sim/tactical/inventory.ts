@@ -74,3 +74,21 @@ export function profileInventory(items: ItemTable, profile: MercProfile): Invent
   }
   return inv;
 }
+
+export function objectWeight(items: ItemTable, o: ItemObject): number {
+  const def = items.byIndex.get(o.item);
+  if (!def) return 0;
+  let grams = 100 * def.weight;
+  if (def.perPocket <= 1) {
+    for (const a of o.attachments) grams += 100 * (items.byIndex.get(a.item)?.weight ?? 0);
+    if (def.itemClass === ItemClass.GUN && o.gunShotsLeft > 0) grams += 100 * (items.byIndex.get(o.gunAmmoItem)?.weight ?? 0);
+  }
+  return def.perPocket > 1 ? grams * o.count : grams;
+}
+
+export function carriedWeightPercent(items: ItemTable, inv: Inventory, effectiveStrength: number): number {
+  let grams = 0;
+  for (const o of inv) if (o) grams += objectWeight(items, o);
+  const strength = effectiveStrength > 80 ? (effectiveStrength + effectiveStrength - 80) & 0xff : effectiveStrength;
+  return Math.trunc((100 * grams) / (strength * 500));
+}

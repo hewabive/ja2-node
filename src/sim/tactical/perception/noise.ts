@@ -8,6 +8,7 @@ import { Terrain } from '../../../content/world/terrain.ts';
 import { endHeight, states } from '../animation.ts';
 import { directionToward } from '../movement.ts';
 import { isWater } from '../pathfinding.ts';
+import { effectiveDexterity, effectiveExpLevel, effectiveLife } from '../skills.ts';
 import { AlertStatus, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { type HeightClass, soldierToLocationLineOfSight, soldierToSoldierLineOfSight } from './los.ts';
@@ -58,13 +59,9 @@ const ARMY_FOOTSTEP = 9;
 const RED_ALERT_VOLUME = 3;
 const IRRELEVANT = -1;
 
-function effectiveLife(s: Soldier): number {
-  return s.life + Math.trunc((s.lifeMax - s.life) / 2);
-}
-
 export function movementNoise(t: TacticalState, s: Soldier): number {
   if (s.team === Team.ENEMY) return ARMY_FOOTSTEP - t.pre.int(2);
-  let stealth = 20 + 4 * s.stats.experience + Math.trunc((s.stats.dexterity * 4) / 10);
+  let stealth = 20 + 4 * effectiveExpLevel(s) + Math.trunc((effectiveDexterity(s) * 4) / 10);
   const life = effectiveLife(s);
   if (life < 50) stealth -= Math.trunc((stealth * (50 - life)) / 100);
   if (s.breath < 50) stealth -= Math.trunc((stealth * (50 - s.breath)) / 100);

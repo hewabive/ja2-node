@@ -12,22 +12,8 @@ import { initNewSoldierAnim, states } from './animation.ts';
 import { profileInventory } from './inventory.ts';
 import { setSoldierPosition } from './movement.ts';
 import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
-import { createSoldier, NO_PROFILE, type Soldier, SoldierClass, type SoldierPalettes, type SoldierStats, Team } from './soldier.ts';
+import { Body, createSoldier, NO_PROFILE, type Soldier, SoldierClass, type SoldierPalettes, type SoldierStats, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
-
-export const Body = {
-  REGMALE: 0,
-  BIGMALE: 1,
-  STOCKYMALE: 2,
-  REGFEMALE: 3,
-  FATCIV: 11,
-  MANCIV: 12,
-  MINICIV: 13,
-  DRESSCIV: 14,
-  HATKIDCIV: 15,
-  KIDCIV: 16,
-  CRIPPLECIV: 17,
-} as const;
 
 const HAIR = { WHITE: 0, BLACK: 1, BROWN: 2, BLONDE: 3, RED: 4 } as const;
 const HAIR_IDS = ['WHITEHEAD', 'BLACKHEAD', 'BROWNHEAD', 'BLONDHEAD', 'REDHEAD'];

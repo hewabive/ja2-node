@@ -24,8 +24,8 @@ import { MOVE_SIN_COS } from './constants.ts';
 import { DIRECTION_INCREMENT, Direction } from './directions.ts';
 import { interactWithDoor, toggleDoorAt } from './doors.ts';
 import { findBestPath, isWater, MAX_PATH_LIST_SIZE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
-import { deductBreath, doorTravelCost, type PointsContext, terrainBreathPoints } from './points.ts';
-import { cellCentre, NOWHERE, OKBREATH, Orders, type Soldier, Team } from './soldier.ts';
+import { AP, actionPointCost, deductPoints, doorTravelCost, enoughPoints, type PointsContext, terrainBreathPoints } from './points.ts';
+import { cellCentre, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, OKBREATH, Orders, type Soldier, Team } from './soldier.ts';
 import { placeOccupant, removeOccupant, type TacticalState, whoIsThere } from './state.ts';
 
 export const MoveTile = { CLEAR: 0, TEMP_BLOCKED: -1, STATIONARY_BLOCKED: -2 } as const;
@@ -248,6 +248,10 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
   const next = newGridNo(s.gridNo, step(direction));
   const cost = t.world.costs.get(next, direction, s.level);
   if (cost === TravelCost.FENCE) {
+    if (!enoughPoints(t.inCombat, s, AP.JUMPFENCE)) {
+      haltGuyBecauseOfNoAPs(t, s);
+      return { ok: false, keepMoving: false };
+    }
     const nextDirection = s.path[s.pathIndex + 1] ?? 0;
     const overFence = newGridNo(next, step(nextDirection));
     if (handleNextTile(t, s, nextDirection, overFence, s.finalDestination)) {
@@ -277,7 +281,8 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
     }
     return { ok: false, keepMoving: false };
   }
-  const bp = terrainBreathPoints(ctx, next, direction, animState);
+  const ap = actionPointCost(ctx, s, next, direction, animState);
+  const bp = terrainBreathPoints(ctx, s, next, direction, animState);
   if (!handleNextTile(t, s, direction, next, s.finalDestination)) {
     s.endDoorOpenCode = 0;
     return { ok: false, keepMoving: true };
@@ -290,10 +295,29 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
     s.endDoorOpenCode = 0;
     return { ok: true, keepMoving: false };
   }
-  deductBreath(s, bp);
+  if (!enoughPoints(t.inCombat, s, ap)) {
+    haltGuyBecauseOfNoAPs(t, s);
+    s.endDoorOpenCode = 0;
+    return { ok: true, keepMoving: false };
+  }
+  deductPoints(t.inCombat, s, ap, bp);
   setSoldierDestination(t, s, direction, animState);
   adjustNoAPToFinishMove(s, false);
   return { ok: true, keepMoving: true };
+}
+
+export function haltMoveForSoldierOutOfPoints(t: TacticalState, s: Soldier): void {
+  if (hasAnimFlag(t.content, s.state, AnimFlags.SPECIALMOVE)) return;
+  adjustNoAPToFinishMove(s, true);
+  if (s.underAiControl) t.hooks.endAiGuysTurn(t, s);
+}
+
+function haltGuyBecauseOfNoAPs(t: TacticalState, s: Soldier): void {
+  haltMoveForSoldierOutOfPoints(t, s);
+  s.pendingAnimation = NO_PENDING_ANIMATION;
+  s.pendingDirection = NO_PENDING_DIRECTION;
+  unmarkMovementReserved(t, s);
+  if (s.team === Team.OUR && t.inCombat) t.events.push({ type: 'stopped', soldier: s.id, gridNo: s.gridNo, reason: 'outOfAPs' });
 }
 
 function haltForDoor(t: TacticalState, s: Soldier): void {

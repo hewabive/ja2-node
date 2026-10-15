@@ -4,6 +4,37 @@
 
 import { emptyInventory, type Inventory } from './inventory.ts';
 
+export const Body = {
+  REGMALE: 0,
+  BIGMALE: 1,
+  STOCKYMALE: 2,
+  REGFEMALE: 3,
+  ADULTFEMALEMONSTER: 4,
+  AM_MONSTER: 5,
+  YAF_MONSTER: 6,
+  YAM_MONSTER: 7,
+  LARVAE_MONSTER: 8,
+  INFANT_MONSTER: 9,
+  QUEENMONSTER: 10,
+  FATCIV: 11,
+  MANCIV: 12,
+  MINICIV: 13,
+  DRESSCIV: 14,
+  HATKIDCIV: 15,
+  KIDCIV: 16,
+  CRIPPLECIV: 17,
+  COW: 18,
+  CROW: 19,
+  BLOODCAT: 20,
+  ROBOTNOWEAPON: 21,
+  HUMVEE: 22,
+  TANK_NW: 23,
+  TANK_NE: 24,
+  ELDORADO: 25,
+  ICECREAMTRUCK: 26,
+  JEEP: 27,
+} as const;
+
 export const Team = { OUR: 0, ENEMY: 1, CREATURE: 2, MILITIA: 3, CIV: 4 } as const;
 export const Side = { FRIENDLY: 0, ENEMY: 1, HOSTILE: 2, NONE: 3 } as const;
 export const NO_PROFILE = 200;
@@ -112,9 +143,13 @@ export interface Soldier {
   readonly stats: SoldierStats;
   life: number;
   readonly lifeMax: number;
+  bleeding: number;
   breath: number;
   breathMax: number;
   breathRed: number;
+  actionPoints: number;
+  initialActionPoints: number;
+  weightCarriedAtTurnStart: number;
   stealthMode: boolean;
   cowering: boolean;
   civilianGroup: number;
@@ -182,6 +217,8 @@ export interface Soldier {
   pendingDoorGridNo: number;
   breathCollapsed: boolean;
   collapsed: boolean;
+  dontChargeReadyAPs: boolean;
+  dontChargeAPsForStanceChange: boolean;
 
   ai: AiState;
   readonly oppList: Int8Array;
@@ -235,9 +272,13 @@ export function createSoldier(init: SoldierInit): Soldier {
     stats: init.stats,
     life: init.life,
     lifeMax: init.lifeMax ?? init.life,
+    bleeding: 0,
     breath: init.breath ?? 100,
     breathMax: init.breath ?? 100,
     breathRed: 0,
+    actionPoints: 0,
+    initialActionPoints: 0,
+    weightCarriedAtTurnStart: 0,
     stealthMode: false,
     cowering: false,
     civilianGroup: init.civilianGroup ?? 0,
@@ -302,6 +343,8 @@ export function createSoldier(init: SoldierInit): Soldier {
     pendingDoorGridNo: NOWHERE,
     breathCollapsed: false,
     collapsed: false,
+    dontChargeReadyAPs: false,
+    dontChargeAPsForStanceChange: false,
     ai: {
       alertStatus: AlertStatus.GREEN,
       orders: Orders.STATIONARY,

@@ -607,8 +607,8 @@ and in CI only on them.
 
 **How the oracle works:**
 - **Rule tracing.**
-  - A set of patches to Stracciatella (`oracle/patches/`) adds a
-    `TRACE_RULE(name, inputs, output)` macro. It writes JSONL if `JA2_TRACE` is set.
+  - A set of patches to Stracciatella (`tools/oracle/patches/`) adds a
+    `TRACE_RULE(name, inputs, output)` macro (planned). It writes JSONL if `JA2_TRACE` is set.
   - Trace points: `CalcActionPoints`, AP costs, `CalcChanceToHitGun`, the hit
     roll, `BulletImpact`, armor, crits, `MovementNoise`, `DistanceVisible`,
     `CalcInterruptDuelPts`, suppression, stat growth, autoresolve rolls, travel time, prices,
@@ -620,8 +620,11 @@ and in CI only on them.
   moment, load it in ours and compare derived values: hit chance, path
   cost, visibility, AI decision. Later this also becomes a feature for players: "continue your
   campaign in the browser".
+- **Probe mode** (exists, `tools/oracle/README.md`). With `JA2_ORACLE=<script>` the patched build
+  starts headless, loads a sector map or a save, runs scripted probes (`FindBestPath`, `LineOfSightTest`,
+  `SoldierToSoldierLineOfSightTest`, the `gubWorldMovementCosts` dump) and prints JSONL.
 - **The native Stracciatella build** (CMake + Rust) is done outside the repository by the
-  `oracle/build.sh` script.
+  `tools/oracle/build.sh` script.
 
 **Deliberate deviations** from the original (the list is kept in `docs/deviations.md`):
 - dependencies on FPS and CPU speed are replaced with deterministic constants: bullet speed
@@ -657,7 +660,7 @@ ja2-node/
   data/          JSON that we distribute: externalized (from Stracciatella) + transcribed tables
   stubs/         stub pack sources: authored JSON, generators; build → dist/stubs
   tools/         Node CLI: inspect, stubs, sim, oracle, save-import; spikes/ (exploratory scripts)
-  oracle/        Stracciatella patches, build.sh, trace adapters
+    oracle/      Stracciatella patches, harness, build.sh, run.sh, probe scripts
   tests/         scenarios/ fixtures/
   docs/
   reference/     (gitignored)

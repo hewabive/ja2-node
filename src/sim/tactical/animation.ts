@@ -14,21 +14,13 @@ import { DIRECTION_COUNT, DIRECTION_INCREMENT, quickestTurnIncrement } from './d
 import { handlePendingDoor } from './doors.ts';
 import { getNewSoldierPath, handleGotoNewGridNo, isJumpableFenceAt, moveMercFacingDirection, setSoldierPosition } from './movement.ts';
 import { newOKDestination } from './pathfinding.ts';
-import { deductBreath } from './points.ts';
+import { AP, apsToReadyWeapon, BP, deductPoints } from './points.ts';
 import { NO_PENDING_ANIMATION, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
 export const AnimHeight = { STAND: 6, CROUCH: 3, PRONE: 1 } as const;
 export const NO_DESIRED_HEIGHT = 255;
 export const LOCKED_NO_NEWGRIDNO = 2;
-
-const Flag = {
-  IGNORE_AUTOSTANCE: 0x00000001,
-  OK_CHARGE_AP_FOR_TURN: 0x00000002,
-  FIREREADY: 0x00000040,
-  NONINTERRUPT: 0x00000080,
-  RT_NONINTERRUPT: 0x04000000,
-} as const;
 
 const STATIONARY_COMPUTED_DELAY = 40;
 const MIN_BREATH_DELAY = 40;
@@ -249,7 +241,7 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
   if (
     startCode === 0 &&
     height(content, next) !== endHeight(content, s.state) &&
-    !hasAnimFlag(content, next, AnimFlags.STANCECHANGEANIM | Flag.IGNORE_AUTOSTANCE)
+    !hasAnimFlag(content, next, AnimFlags.STANCECHANGEANIM | AnimFlags.IGNORE_AUTOSTANCE)
   ) {
     const fromEnd = endHeight(content, s.state);
     const toEnd = endHeight(content, next);
@@ -293,17 +285,12 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
   if (nextMoving && s.dontUpdateNewGridNoOnMoveAnimChange !== LOCKED_NO_NEWGRIDNO) s.dontUpdateNewGridNoOnMoveAnimChange = 0;
   if (tryingToRestart) return;
 
-  if (hasAnimFlag(content, next, Flag.NONINTERRUPT)) s.inNonInterruptibleAnimation = true;
-  if (hasAnimFlag(content, next, Flag.RT_NONINTERRUPT)) s.rtNonInterruptible = true;
+  if (hasAnimFlag(content, next, AnimFlags.NONINTERRUPT)) s.inNonInterruptibleAnimation = true;
+  if (hasAnimFlag(content, next, AnimFlags.RT_NONINTERRUPT)) s.rtNonInterruptible = true;
   if (hasAnimFlag(content, next, AnimFlags.SPECIALMOVE)) adjustNoAPToFinishMove(s, false);
   if (!nextMoving) s.reverse = false;
 
-  if (next === st.STANDING) s.desiredHeight = AnimHeight.STAND;
-  else if (next === st.CROUCHING) s.desiredHeight = AnimHeight.CROUCH;
-  else if (next === st.PRONE) s.desiredHeight = AnimHeight.PRONE;
-  else if (next === st.WALKING || next === st.SWATTING || next === st.RUNNING || next === st.CRAWLING)
-    s.pendingAnimation = NO_PENDING_ANIMATION;
-  else if (next === st.HOPFENCE) deductBreath(s, 200);
+  chargeForNewState(t, s, next);
 
   s.state = next;
   s.pc = startCode;
@@ -494,4 +481,88 @@ export function turnSoldier(t: TacticalState, s: Soldier): void {
   else if (direction < 0) direction = 7;
   if (hasAnimFlag(content, s.state, AnimFlags.STATIONARY)) s.lookOnNextTurn = true;
   setSoldierDirection(t, s, direction);
+}
+
+const READY_STATES = [
+  'READY_RIFLE_STAND',
+  'READY_RIFLE_PRONE',
+  'READY_RIFLE_CROUCH',
+  'READY_DUAL_STAND',
+  'READY_DUAL_CROUCH',
+  'READY_DUAL_PRONE',
+];
+const CROUCH_TRANSITIONS = ['KNEEL_UP', 'KNEEL_DOWN', 'BIGMERC_CROUCH_TRANS_INTO', 'BIGMERC_CROUCH_TRANS_OUTOF'];
+
+function chargeForNewState(t: TacticalState, s: Soldier, next: number): void {
+  const name = t.content.animations.controls[next]?.id ?? '';
+  const charge = (ap: number, bp: number) => deductPoints(t.inCombat, s, ap, bp);
+  if (READY_STATES.includes(name)) {
+    if (!s.dontChargeReadyAPs) charge(apsToReadyWeapon(t.content, s), 0);
+    else s.dontChargeReadyAPs = false;
+    return;
+  }
+  if (CROUCH_TRANSITIONS.includes(name)) {
+    if (!s.dontChargeAPsForStanceChange) charge(AP.CROUCH, BP.CROUCH);
+    s.dontChargeAPsForStanceChange = false;
+    return;
+  }
+  switch (name) {
+    case 'STANDING':
+      s.desiredHeight = AnimHeight.STAND;
+      break;
+    case 'CROUCHING':
+      s.desiredHeight = AnimHeight.CROUCH;
+      break;
+    case 'PRONE':
+      s.desiredHeight = AnimHeight.PRONE;
+      break;
+    case 'RUNNING':
+      if (t.content.animations.controls[s.state]?.id !== 'RUNNING') charge(AP.START_RUN_COST, 0);
+      s.pendingAnimation = NO_PENDING_ANIMATION;
+      break;
+    case 'WALKING':
+    case 'SWATTING':
+    case 'CRAWLING':
+      s.pendingAnimation = NO_PENDING_ANIMATION;
+      break;
+    case 'PRONE_UP':
+    case 'PRONE_DOWN':
+      if (!s.dontChargeAPsForStanceChange && (s.gridNo === s.finalDestination || s.pathIndex === 0)) charge(AP.PRONE, BP.PRONE);
+      s.dontChargeAPsForStanceChange = false;
+      break;
+    case 'START_AID':
+      charge(AP.START_FIRST_AID, BP.START_FIRST_AID);
+      break;
+    case 'CUTTING_FENCE':
+      charge(AP.USEWIRECUTTERS, BP.USEWIRECUTTERS);
+      break;
+    case 'PLANT_BOMB':
+      charge(AP.DROP_BOMB, 0);
+      break;
+    case 'STEAL_ITEM':
+      charge(AP.STEAL_ITEM, 0);
+      break;
+    case 'USE_REMOTE':
+      charge(AP.USE_REMOTE, 0);
+      break;
+    case 'HOPFENCE':
+      charge(AP.JUMPFENCE, BP.JUMPFENCE);
+      break;
+    case 'FALLBACK_HIT_STAND':
+    case 'FALLFORWARD_FROMHIT_STAND':
+      charge(AP.FALL_DOWN, BP.FALL_DOWN);
+      break;
+    case 'FALLFORWARD_FROMHIT_CROUCH':
+      charge(Math.trunc(AP.FALL_DOWN / 2), Math.trunc(BP.FALL_DOWN / 2));
+      break;
+    case 'CLIMBDOWNROOF':
+      charge(AP.CLIMBOFFROOF, BP.CLIMBOFFROOF);
+      break;
+    case 'CLIMBUPROOF':
+      charge(AP.CLIMBROOF, BP.CLIMBROOF);
+      break;
+    case 'JUMP_OVER_BLOCKING_PERSON':
+      charge(AP.JUMP_OVER, BP.JUMP_OVER);
+      break;
+  }
 }
