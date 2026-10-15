@@ -28,3 +28,65 @@ export function gridY(g: GridNo): number {
 export function isOnMap(x: number, y: number): boolean {
   return x >= 0 && y >= 0 && x < WORLD_COLS && y < WORLD_ROWS;
 }
+
+const VISIBLE_MIN_SUM = 86;
+const VISIBLE_MAX_SUM = 235;
+const VISIBLE_MAX_SKEW = 78;
+const LAST_ROW_START = WORLD_MAX - WORLD_COLS;
+
+export function isVisibleTile(g: GridNo): boolean {
+  if (g < 0 || g >= WORLD_MAX) return false;
+  const x = g % WORLD_COLS;
+  const y = Math.floor(g / WORLD_COLS);
+  return x + y >= VISIBLE_MIN_SUM && x + y <= VISIBLE_MAX_SUM && Math.abs(x - y) <= VISIBLE_MAX_SKEW;
+}
+
+function outOfBounds(g: GridNo, proposed: GridNo): boolean {
+  const mod = g % WORLD_COLS;
+  if (mod !== 0 && mod !== WORLD_COLS - 1 && g < LAST_ROW_START && g > WORLD_COLS) return false;
+  if (proposed < 0) return true;
+  const proposedMod = proposed % WORLD_COLS;
+  if (mod === 0 && proposedMod === WORLD_COLS - 1) return true;
+  if (mod === WORLD_COLS - 1 && proposedMod === 0) return true;
+  return g >= LAST_ROW_START && proposed >= WORLD_MAX;
+}
+
+export function newGridNo(g: GridNo, increment: number): GridNo {
+  const proposed = g + increment;
+  return outOfBounds(g, proposed) ? g : proposed;
+}
+
+export function pythSpacesAway(a: GridNo, b: GridNo): number {
+  const rows = Math.trunc(a / WORLD_COLS) - Math.trunc(b / WORLD_COLS);
+  const cols = (a % WORLD_ROWS) - (b % WORLD_ROWS);
+  return Math.trunc(Math.sqrt(rows * rows + cols * cols));
+}
+
+export function spacesAway(a: GridNo, b: GridNo): number {
+  const rows = Math.abs(Math.trunc(a / WORLD_COLS) - Math.trunc(b / WORLD_COLS));
+  const cols = Math.abs((a % WORLD_ROWS) - (b % WORLD_ROWS));
+  return Math.max(rows, cols);
+}
+
+export function cardinalSpacesAway(a: GridNo, b: GridNo): number {
+  const rows = Math.abs(Math.trunc(a / WORLD_COLS) - Math.trunc(b / WORLD_COLS));
+  const cols = Math.abs((a % WORLD_ROWS) - (b % WORLD_ROWS));
+  return rows + cols;
+}
+
+export const Direction = { NORTH: 0, NORTHEAST: 1, EAST: 2, SOUTHEAST: 3, SOUTH: 4, SOUTHWEST: 5, WEST: 6, NORTHWEST: 7 } as const;
+export const DIRECTION_COUNT = 8;
+export const DIRECTION_INCREMENT: readonly number[] = [
+  -WORLD_COLS,
+  1 - WORLD_COLS,
+  1,
+  WORLD_COLS + 1,
+  WORLD_COLS,
+  WORLD_COLS - 1,
+  -1,
+  -WORLD_COLS - 1,
+];
+
+export function directionIncrement(direction: number): number {
+  return DIRECTION_INCREMENT[direction > 7 ? 1 : direction] ?? 0;
+}

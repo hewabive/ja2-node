@@ -1,6 +1,7 @@
 import { parseTilesetDatabase, TILESET_DATABASE_PATH } from '../../content/formats/ja2set.ts';
 import { type MapDef, parseMap } from '../../content/formats/map.ts';
 import { buildLevel, type Level } from '../../content/world/level.ts';
+import { placeWorldStructures } from '../../content/world/placement.ts';
 import { buildTileDatabase, type TileElement } from '../../content/world/tile-database.ts';
 import { parseTileTables, TILE_TABLES_PATH, type TileTables } from '../../content/world/tile-tables.ts';
 import { type LoadedTileSurface, loadTileSurfaces } from '../../content/world/tileset-loader.ts';
@@ -30,6 +31,7 @@ export async function loadWorld(mapPath: string, available: ReadonlySet<string>)
   const tables = parseTileTables(JSON.parse(new TextDecoder().decode(tablesJson)));
   const map = parseMap(mapBytes);
   const surfaces = await loadTileSurfaces(readOptional, tables, parseTilesetDatabase(tilesetBytes), map.tilesetId, root);
-  const tiles = buildTileDatabase(tables, surfaces);
-  return { mapPath, map, level: buildLevel(map, tables, tiles), tables, tiles, surfaces };
+  const tiles = buildTileDatabase(tables, surfaces, map.tilesetId);
+  const { level } = placeWorldStructures(buildLevel(map, tables, tiles), tiles);
+  return { mapPath, map, level, tables, tiles, surfaces };
 }

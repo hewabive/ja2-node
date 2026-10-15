@@ -1,7 +1,6 @@
-import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { REPO_ROOT } from '../../src/node/repo.ts';
-import { arrayItems, bracedBody, readSource, STRACCIATELLA_COMMIT, sequentialEnum, stripCComments } from './c-source.ts';
+import { arrayItems, bracedBody, readSource, STRACCIATELLA_COMMIT, sequentialEnum, stripCComments, writeTable } from './c-source.ts';
 
 const header = readSource('game/Tactical/Animation_Control.h');
 const source = readSource('game/Tactical/Animation_Control.cc');
@@ -79,5 +78,5 @@ const out = {
   },
 };
 const target = join(REPO_ROOT, 'data/tables/anim-control.json');
-writeFileSync(target, `${JSON.stringify(out, null, 1)}\n`);
+writeTable(target, out);
 console.log(`${animations.length} animation states, ${bodyTypes.length} body types → ${target}`);

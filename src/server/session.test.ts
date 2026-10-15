@@ -38,6 +38,7 @@ function walker(): SessionSim & { target: number } {
           y: 0,
           level: 0,
           direction: 2,
+          hand: 'nothing',
           animation: 0,
           frame: 0,
           palettes: ['', '', '', ''],

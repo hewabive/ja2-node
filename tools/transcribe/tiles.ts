@@ -1,7 +1,6 @@
-import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { REPO_ROOT } from '../../src/node/repo.ts';
-import { arrayItems, evaluateIntExpression, readSource, STRACCIATELLA_COMMIT, sequentialEnum } from './c-source.ts';
+import { arrayItems, evaluateIntExpression, readSource, STRACCIATELLA_COMMIT, sequentialEnum, writeTable } from './c-source.ts';
 
 const header = readSource('game/TileEngine/TileDat.h');
 const tables = readSource('game/TileEngine/TileDat.cc');
@@ -63,5 +62,5 @@ const out = {
   tileNames: tileNameList,
 };
 const target = join(REPO_ROOT, 'data/tables/tiles.json');
-writeFileSync(target, `${JSON.stringify(out, null, 1)}\n`);
+writeTable(target, out);
 console.log(`${types.length} tile types, ${numberOfTiles} tiles → ${target}`);

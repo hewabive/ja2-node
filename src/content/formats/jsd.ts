@@ -164,7 +164,7 @@ export function parseStructureFile(bytes: Uint8Array): StructureFile {
       structures[number] = {
         number,
         armour,
-        hitPoints: Math.trunc((filled * 100) / MAX_HIT_POINT_SCALE),
+        hitPoints: Math.trunc((filled * 100) / MAX_HIT_POINT_SCALE) & 0xff,
         density,
         flags,
         wallOrientation,

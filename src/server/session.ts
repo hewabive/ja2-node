@@ -2,15 +2,13 @@ import type { CommandEnvelope, DriverMode, ServerMessage } from '../protocol/mes
 import { diffView, type PlayerView, type SoldierView, type ViewFrame } from '../protocol/view.ts';
 import { advance, type Steppable, type StopCondition, type StopReport } from '../sim/advance.ts';
 import { TICK_MS } from '../sim/clock.ts';
+import type { CommandResult } from '../sim/command.ts';
 
 export const FRAME_TICKS = 10;
 const REALTIME_INTERVAL_MS = 16;
 const MAX_FRAMES_PER_MESSAGE = 500;
 
-export interface CommandResult {
-  readonly ok: boolean;
-  readonly reason?: string;
-}
+export type { CommandResult };
 
 export interface SessionSim extends Steppable {
   dispatch(cmd: CommandEnvelope): CommandResult;

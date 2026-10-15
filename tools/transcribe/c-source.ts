@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { REPO_ROOT } from '../../src/node/repo.ts';
 
@@ -72,4 +73,9 @@ export function evaluateIntExpression(expression: string, names: ReadonlyMap<str
     return v;
   };
   return sum();
+}
+
+export function writeTable(target: string, value: unknown): void {
+  writeFileSync(target, `${JSON.stringify(value, null, 1)}\n`);
+  execFileSync(join(REPO_ROOT, 'node_modules/.bin/biome'), ['format', '--write', target], { stdio: 'ignore' });
 }

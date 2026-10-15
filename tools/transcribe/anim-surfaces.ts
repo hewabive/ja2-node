@@ -1,7 +1,6 @@
-import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { REPO_ROOT } from '../../src/node/repo.ts';
-import { arrayItems, bracedBody, readSource, STRACCIATELLA_COMMIT, sequentialEnum, stripCComments } from './c-source.ts';
+import { arrayItems, bracedBody, readSource, STRACCIATELLA_COMMIT, sequentialEnum, stripCComments, writeTable } from './c-source.ts';
 
 const dataHeader = readSource('game/Tactical/Animation_Data.h');
 const dataSource = readSource('game/Tactical/Animation_Data.cc');
@@ -93,6 +92,6 @@ const out = {
   doubleHandedStanding: subType('gDoubleHandledSub'),
 };
 const target = join(REPO_ROOT, 'data/tables/anim-surfaces.json');
-writeFileSync(target, `${JSON.stringify(out, null, 1)}\n`);
+writeTable(target, out);
 const count = (r: Record<number, Record<number, unknown>>) => Object.values(r).reduce((a, s) => a + Object.keys(s).length, 0);
 console.log(`${surfaces.length} surfaces, ${count(out.bodySurfaces)} body entries, ${count(out.itemSubSurfaces)} item subs → ${target}`);

@@ -27,7 +27,7 @@ Loading (`TileEngine/Structure.cc:311-377`, already mirrored by `src/content/for
 - `sPosRelToBase = bX + bY*160` (`:350`), then `NormalizeStructureTiles` makes the tile closest to 0 the base (`:273-309`).
 - Contiguous wall orientations 3/4 become `ORIENT_OUTSIDE_LEFT/RIGHT`, only when the file has aux data (`:357-371`).
 - `ubHitPoints` from the file is **replaced** by `filledCubes*100/255`, stored as **UINT8** (`:351, 374-375`).
-  `jsd.ts` currently keeps the untruncated value: it must be `& 0xFF` (wraps for structures with more than ~6 full tiles).
+  `jsd.ts` currently keeps the untruncated value: it must be `& 0xFF` (wraps above 650 filled cubes).
 
 **Instance level** (`STRUCTURE`, one per covered tile; `Structure_Internals.h:176-191`), built by `CreateStructureFromDB`
 (`Structure.cc:399-442`) and `AddStructureToWorld` (`:675-810`):
@@ -143,6 +143,11 @@ Roof and on-roof tiles are added with `level = 1`, so their structures get `sCub
 | `IsDestinationBlocked`: any non-`PASSABLE` `BLOCKSMOVES` structure with `sCubeOffset == level*4` (`Tactical/Overhead.cc:2922-2948`) | `NewOKDestination` (`:2952-3008`) |
 | `OkayToAddStructureToWorld` with the soldier's animation JSD | multi-tile soldiers only (prone, vehicles, monsters); turning (`OKToAddMercToWorld`, `WorldMan.cc:1095-1121`) |
 | Full list walk with `sCubeOffset` + `pShape` bits; `GetTallestStructureHeight`, `GetBlockingStructureInfo` (`Structure.cc:1023-1057, 1695`) | bullets and LOS (`Tactical/LOS.cc:835-1180, 2487-2760`), FOV |
+
+`NewOKDestination(s, g, people, level)` (`Overhead.cc:2952-3008`): FALSE if `g` is not visible; if `people`:
+`p = WhoIsThere2(g, level)` blocks when `p && (p != s || g == s.sGridNo) && (s.bTeam != OUR_TEAM || p.bVisible >= 0 ||
+SHOW_ALL_MERCS)` (players are not blocked by unseen soldiers here, unlike the path people check of §3.2); multi-tile
+soldiers: TRUE if their animation JSD fits in any of the 8 directions; otherwise `!IsDestinationBlocked(g, level)`.
 
 Soldiers own a person structure built from their animation JSD for the current direction
 (`AddMercStructureInfoFromAnimSurface`, `WorldMan.cc:1062-1092`), rebuilt on every direction change
@@ -277,7 +282,8 @@ else:
    corner tiles): nothing.
 
 All neighbour writes use raw `g ± k` (no `NewGridNo`); visible tiles never touch the array border (§2.5), and
-non-visible tiles with structures may raise costs of visible neighbours.
+non-visible tiles with structures may raise costs of visible neighbours. A structure on the array border would make
+the original write out of bounds or into the wrapped row; guard the indices (inferred: no shipped map does this).
 
 ### 2.5 Map edges
 
@@ -306,7 +312,9 @@ non-visible tiles with structures may raise costs of visible neighbours.
 - `PlotPath` / `UIPlotPath` / `EstimatePlotPath` / `RecalculatePathCost` (`PathAI.cc:1968-2405`) wrap it for AP
   estimates (§3.6). `EstimatePlotPath` does *not* ignore people for single-tile soldiers despite its comment
   (only `gfEstimatePath` changes, which only multi-tile code reads) (inferred).
-- The path search orders by **travel cost** (§2.2), never by AP.
+- The path search orders by **travel cost** (§2.2), never by AP, so walk/run/swat/crawl yield the same path; the
+  movement mode only matters for budget pruning (§3.5), multi-tile JSDs and the AP totals. There is no climbing in the
+  search: a different `level` than the soldier's returns 0 (§6).
 
 ### 3.2 Algorithm (single-tile soldiers; exact)
 
@@ -381,10 +389,12 @@ FindBestPath(s, dest, level, mode, copy, flags, budget, distLimit, circular):
 Consequences worth testing:
 - The goal test is "destination at the head of the open list", and the last step costs 0, so the step into the
   destination ignores its terrain.
-- The heuristic underestimates (5 per flat step vs. real 9/10), so searches are broad. The pool (1022 simultaneous open
-  nodes) and trail (16382 insertions) limits can make long searches **fail**; reproduce them exactly.
-- Stale nodes and the unmarked origin create extra trail entries and pool usage; in non-budget mode they can never
-  change the chosen path (inferred: proof via monotone costs), but they count toward the limits.
+- The heuristic underestimates strongly (about 3.6 per straight step vs. a real 9–10), so searches are broad. The pool
+  (1022 simultaneous open nodes) and trail (16382 insertions) limits can make long searches **fail**; reproduce them
+  exactly.
+- The unmarked origin can be re-inserted (one more trail entry and pool node each time); stale nodes are re-expanded in
+  7 directions. In non-budget mode neither can change the chosen path (inferred: costs are monotone, so a stale
+  expansion never finds a strictly cheaper cost), but the origin re-insertions count toward the limits.
 - Paths are truncated to 30 steps for `COPYROUTE`; walking re-paths when they run out (§4.6).
 - RNG: the original draws from the shared `Random()` per inserted node. Path choice does not depend on it; recommend
   no draws in the TS pathfinder and a line in `docs/deviations.md`.
@@ -793,7 +803,7 @@ stationary; `ChangeSoldierStance` and `sFinalDestination = sGridNo` (`:2843-2857
 
 ## 5. Soldier position representation
 
-| Field (`Soldier_Control.h:383-774`) | Meaning |
+| Field (`Soldier_Control.h:355-774`) | Meaning |
 |---|---|
 | `dXPos, dYPos` (float32) | world units, 10 per tile; centre = `x*10+5` (`ConvertGridNoToCenterCellXY`, `Isometric_Utils.cc:349-353`); `sX, sY` = truncations |
 | `sGridNo`, `sOldGridNo` | occupied tile (person structure, level node); switches at the half step (§4.4) |

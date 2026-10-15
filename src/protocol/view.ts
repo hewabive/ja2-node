@@ -11,6 +11,7 @@ export interface SoldierView {
   readonly animation: number;
   readonly frame: number;
   readonly palettes: readonly [string, string, string, string];
+  readonly hand: string;
 }
 
 export interface PlayerView {
@@ -35,7 +36,8 @@ function sameSoldier(a: SoldierView, b: SoldierView): boolean {
     a.animation === b.animation &&
     a.frame === b.frame &&
     a.team === b.team &&
-    a.bodyType === b.bodyType
+    a.bodyType === b.bodyType &&
+    a.hand === b.hand
   );
 }
 

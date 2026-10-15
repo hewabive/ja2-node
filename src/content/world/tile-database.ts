@@ -3,8 +3,10 @@
 // @src src/game/TileEngine/TileDef.cc CreateTileDatabase; TileDat.cc SetSpecificDatabaseValues;
 // @src src/game/TileEngine/Tile_Surface.cc LoadTileSurface, SetRaisedObjectFlag
 
-import type { StructureDef, StructureFile, TileLocation } from '../formats/jsd.ts';
+import { Orientation, type StructureDef, type StructureFile, type TileLocation } from '../formats/jsd.ts';
 import type { StiAppData } from '../formats/sti.ts';
+import { StructureFlags } from './structures.ts';
+import { isShorePiece, surfaceTerrainTable, Terrain } from './terrain.ts';
 import { type TileTables, tileIndex, typeIndex } from './tile-tables.ts';
 import { type FrameGeometry, tileSurfaceZStrips, type ZStripInfo } from './zstrip.ts';
 
@@ -24,6 +26,7 @@ export const TileFlags = {
   UNDERFLOW_FILLER: 1 << 12,
 } as const;
 
+const MATERIAL_PLYWOOD_WALL = 2;
 const AUX_FULL_TILE = 0x01;
 const AUX_ANIMATED_TILE = 0x02;
 const DOOR_ANIMATION_FRAMES = 5;
@@ -61,7 +64,9 @@ export interface TileElement {
   readonly wallOrientation: number;
   readonly fullTile: number;
   readonly buddy: number;
+  readonly terrain: number;
   readonly structure: StructureDef | null;
+  readonly structureFile: StructureFile | null;
   readonly zStrip: ZStripInfo | null;
   readonly tileLocations: readonly TileLocation[];
   readonly animationFrames: readonly number[] | null;
@@ -76,7 +81,9 @@ interface MutableTile {
   wallOrientation: number;
   fullTile: number;
   buddy: number;
+  terrain: number;
   structure: StructureDef | null;
+  structureFile: StructureFile | null;
   zStrip: ZStripInfo | null;
   tileLocations: readonly TileLocation[];
   animationFrames: number[] | null;
@@ -153,6 +160,7 @@ function applySpecificValues(tables: TileTables, db: MutableTile[], te: MutableT
   if (type === typeIndex(tables, 'BULLETTILE')) te.flags |= TileFlags.DYNAMIC;
   if (between(tables, 'FIRSTFLOOR1', 'FOURTHFLOOR8', i)) te.fullTile = 1;
   if (i <= tileIndex(tables, 'DEEPWATERTEXTURE10')) te.fullTile = tables.fullBaseTileValues[i] ?? 0;
+  if (isShorePiece(tables, i)) te.terrain = Terrain.FLAT_GROUND;
   if (
     typeBetween(tables, 'FIRSTROOF', 'SECONDSLANTROOF', type) ||
     type === typeIndex(tables, 'FIRSTHIGHROOF') ||
@@ -162,8 +170,35 @@ function applySpecificValues(tables: TileTables, db: MutableTile[], te: MutableT
   }
 }
 
-export function buildTileDatabase(tables: TileTables, surfaces: readonly (TileSurface | null)[]): TileElement[] {
+function withFlags(def: StructureDef, set: number, clear: number): StructureDef {
+  return { ...def, flags: ((def.flags & ~clear) | set) >>> 0 };
+}
+
+function fixDoubleDoors(file: StructureFile, orientation0: number): { file: StructureFile; orientation0: number } {
+  const s = file.structures;
+  const ddoor = StructureFlags.DDOOR_LEFT | StructureFlags.DDOOR_RIGHT;
+  const first = s[0];
+  if (!first || !(first.flags & ddoor) || orientation0 !== Orientation.OUTSIDE_RIGHT || s[4]?.tiles.length !== 1)
+    return { file, orientation0 };
+  const fixed = [...s];
+  const edit = (n: number, f: (d: StructureDef) => StructureDef) => {
+    const d = fixed[n];
+    if (d) fixed[n] = f(d);
+  };
+  edit(0, (d) => ({ ...d, wallOrientation: Orientation.INSIDE_RIGHT }));
+  edit(4, (d) => ({ ...d, wallOrientation: Orientation.INSIDE_RIGHT, armour: MATERIAL_PLYWOOD_WALL }));
+  edit(5, (d) => ({ ...d, wallOrientation: Orientation.INSIDE_LEFT }));
+  edit(9, (d) => ({ ...d, wallOrientation: Orientation.INSIDE_LEFT }));
+  for (const n of [10, 14]) edit(n, (d) => withFlags(d, StructureFlags.DDOOR_LEFT, StructureFlags.DDOOR_RIGHT));
+  for (const n of [15, 19]) edit(n, (d) => withFlags(d, StructureFlags.DDOOR_RIGHT, StructureFlags.DDOOR_LEFT));
+  return { file: { ...file, structures: fixed }, orientation0: Orientation.INSIDE_RIGHT };
+}
+
+export function buildTileDatabase(tables: TileTables, surfaces: readonly (TileSurface | null)[], tilesetId = 0): TileElement[] {
   const db: MutableTile[] = [];
+  const surfaceTerrain = surfaceTerrainTable(tables, tilesetId);
+  const firstDoorType = typeIndex(tables, 'FIRSTDOOR');
+  const lastDoorType = typeIndex(tables, 'FOURTHDOOR');
   const fresh = (type: number, surfacePath: string, regionIndex: number): MutableTile => ({
     index: db.length,
     type,
@@ -173,7 +208,9 @@ export function buildTileDatabase(tables: TileTables, surfaces: readonly (TileSu
     wallOrientation: 0,
     fullTile: 0,
     buddy: -1,
+    terrain: Terrain.NONE,
     structure: null,
+    structureFile: null,
     zStrip: null,
     tileLocations: [],
     animationFrames: null,
@@ -187,11 +224,12 @@ export function buildTileDatabase(tables: TileTables, surfaces: readonly (TileSu
     const zStrips = surface.structures ? tileSurfaceZStrips(surface.frames, surface.structures) : surface.frames.map(() => null);
     const raised = isRaisedObjectSurface(tables, surface);
     const regions = Math.min(surface.frames.length, t.count);
+    let structureFile = surface.structures;
     for (let k = 0; k < regions; k++) {
       const te = fresh(t.index, surface.path, k);
       te.zStrip = zStrips[k] ?? null;
       if (te.zStrip) te.flags |= TileFlags.MULTI_Z;
-      te.structure = surface.structures?.structures[k] ?? null;
+      te.terrain = surfaceTerrain.get(t.index) ?? Terrain.NONE;
       const aux = surface.auxData?.[k];
       if (aux) {
         if (aux.flags & AUX_FULL_TILE) te.fullTile = 1;
@@ -206,6 +244,13 @@ export function buildTileDatabase(tables: TileTables, surfaces: readonly (TileSu
         }
       }
       applySpecificValues(tables, db, te, raised);
+      if (structureFile?.structures[k] && k === 0 && firstDoorType <= t.index && t.index <= lastDoorType) {
+        const fixed = fixDoubleDoors(structureFile, te.wallOrientation);
+        structureFile = fixed.file;
+        te.wallOrientation = fixed.orientation0;
+      }
+      te.structure = structureFile?.structures[k] ?? null;
+      te.structureFile = structureFile;
       db.push(te);
     }
     for (let k = regions; k < t.count; k++) db.push({ ...fresh(t.index, surface.path, 0), flags: TileFlags.UNDERFLOW_FILLER });

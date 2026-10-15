@@ -11,3 +11,9 @@ reference, see `01-architecture.md` D1). Add an entry whenever a port departs fr
 | Watchdogs | 15 s AI deadlock breaker, 25 s UI busy breaker | Not ported | A hang is a bug and must fail tests |
 | Real-time pause | Pause masks the screen; no orders while paused | Orders may be issued while paused (manual driver) | Agent API (`04` §4.3) |
 | Map files | 178 of 261 maps carry trailing bytes after the last section | Ignored and reported as `trailingBytes` | Same as the original loader, which stops reading after the schedules |
+| Pathfinder RNG | `FindBestPath` draws `Random(4)` for every skip-list node it inserts | No draws; the open list is a heap with the same pop order | Path choice never depended on the draws (`07` §3.2) |
+| Frame timers | `TIMECOUNTERDONE` against the wall clock, polled every 5 ms | Absolute game-ms deadlines checked on 5 ms ticks, same reset points | Same frame cadence without wall-clock jitter (`03` §7) |
+| Sandbox population | Garrison size and stats from strategic state, `CalcDifficultyModifier`, `SortSoldierInitList` order, `GenerateRandomEquipment` | Fixed garrison of 4 ARMY troops, difficulty modifier 30, placement groups in map order, no equipment | Temporary for the M2 sandbox; replaced when the strategic layer exists (M4) |
+| Breath regeneration | Real-time breath recovers every 5 s turn (`HandleTacticalEndTurn`) | Breath is spent per step but does not recover yet | Temporary, M2; ported with the real-time turn |
+| AI doors | AI soldiers open closed doors on their path and close them behind | They stop in front of a closed door | Temporary until door handling lands (`09` §3) |
+| Waiting sweet spot | `FindGridNoFromSweetSpotThroughPeople` ranks by cell-coordinate distance after a reachability flood | Plain Pythagorean ranking over occupied-or-free tiles without the flood | Temporary; only used when a blocked final destination must be replaced |

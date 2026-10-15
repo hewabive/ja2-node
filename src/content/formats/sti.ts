@@ -64,7 +64,7 @@ export function isSti(bytes: Uint8Array): boolean {
   return bytes.length >= 4 && bytes[0] === 0x53 && bytes[1] === 0x54 && bytes[2] === 0x43 && bytes[3] === 0x49;
 }
 
-export function decodeSti(bytes: Uint8Array): Sti {
+export function decodeSti(bytes: Uint8Array, decodePixels = true): Sti {
   if (!isSti(bytes)) throw new FormatError('not an STCI file');
   if (bytes.length < STCI_HEADER_BYTES) throw new FormatError('STCI header truncated');
   const r = new BinaryReader(bytes, 4);
@@ -121,6 +121,7 @@ export function decodeSti(bytes: Uint8Array): Sti {
     const start = dataStart + h.dataOffset;
     const end = start + h.dataLength;
     if (end > bytes.length) throw new FormatError(`sub image ${i} data points outside the file`);
+    if (!decodePixels) return { offsetX: h.ox, offsetY: h.oy, width: h.w, height: h.h, pixels: new Uint8Array(0) };
     const decoded = etrleDecode(bytes.subarray(start, end), h.w, h.h);
     anomalies += decoded.anomalies;
     return { offsetX: h.ox, offsetY: h.oy, width: h.w, height: h.h, pixels: decoded.pixels };

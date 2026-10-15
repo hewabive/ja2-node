@@ -32,6 +32,8 @@ export interface MercProfile {
   readonly skillTrait: number;
   readonly skillTrait2: number;
   readonly civilianGroup: number;
+  readonly sectorX: number;
+  readonly sectorY: number;
   readonly inventory: readonly number[];
 }
 
@@ -98,6 +100,8 @@ export function parseProfile(id: number, plain: Uint8Array): MercProfile {
     wisdom: i8(355),
     agility: i8(405),
     civilianGroup: v.getUint8(682),
+    sectorX: v.getUint16(288, true),
+    sectorY: v.getUint16(290, true),
     inventory: Array.from({ length: 19 }, (_, k) => v.getUint16(416 + k * 2, true)),
   };
 }

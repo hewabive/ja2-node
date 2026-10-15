@@ -1,9 +1,12 @@
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { writeTilesetDatabase } from '../src/content/formats/ja2set.ts';
+import { Orientation, type StructureDef, writeStructureFile } from '../src/content/formats/jsd.ts';
 import { writeMap } from '../src/content/formats/map.ts';
 import { parseStubMapSource, stubMapToMapDef } from '../src/content/formats/stub-map.ts';
 import { STUB_SPRITE_SUFFIX } from '../src/content/picture/stub-sprite.ts';
+import { StructureFlags } from '../src/content/world/structures.ts';
+import { syntheticStructure } from '../src/content/world/synthetic.ts';
 import { parseTileTables, typeIndex } from '../src/content/world/tile-tables.ts';
 import { Rng } from '../src/core/rng.ts';
 import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
@@ -49,15 +52,25 @@ function barrel(): StubFrame {
   return { raster: r, ox: 12, oy: -14 };
 }
 
-const SURFACES: readonly { readonly type: string; readonly sprite: StubSprite }[] = [
+function numbered(defs: readonly StructureDef[]): StructureDef[] {
+  return defs.map((d, number) => ({ ...d, number }));
+}
+
+const WALL_STRUCTURES = numbered([
+  syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT),
+  syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT),
+]);
+const BARREL_STRUCTURES = numbered([syntheticStructure(StructureFlags.GENERIC, Orientation.NONE, { height: 2 })]);
+
+const SURFACES: readonly { readonly type: string; readonly sprite: StubSprite; readonly structures?: readonly StructureDef[] }[] = [
   { type: 'FIRSTTEXTURE', sprite: { path: 'grass', frames: [groundTile('green', 7, 1), groundTile('green', 6, 2)] } },
   { type: 'SECONDTEXTURE', sprite: { path: 'dirt', frames: [groundTile('brown', 8, 3), groundTile('brown', 7, 4)] } },
   { type: 'THIRDTEXTURE', sprite: { path: 'road', frames: [groundTile('gray', 7, 5)] } },
   { type: 'REGWATERTEXTURE', sprite: { path: 'water', frames: [groundTile('water', 7, 6)] } },
   { type: 'FIRSTFLOOR', sprite: { path: 'floor', frames: [groundTile('khaki', 9, 7)] } },
-  { type: 'FIRSTWALL', sprite: { path: 'wall', frames: [wall('left'), wall('right')] } },
+  { type: 'FIRSTWALL', sprite: { path: 'wall', frames: [wall('left'), wall('right')] }, structures: WALL_STRUCTURES },
   { type: 'FIRSTROOF', sprite: { path: 'roof', frames: [groundTile('red', 6, 8)] } },
-  { type: 'FIRSTOSTRUCT', sprite: { path: 'barrel', frames: [barrel()] } },
+  { type: 'FIRSTOSTRUCT', sprite: { path: 'barrel', frames: [barrel()] }, structures: BARREL_STRUCTURES },
 ];
 
 export interface StubWorldWriter {
@@ -72,6 +85,10 @@ export async function buildStubWorld(outDir: string, writer: StubWorldWriter): P
   for (const s of SURFACES) {
     await writer.writeSprite(tilesetDir, s.sprite);
     surfaceFiles[typeIndex(tables, s.type)] = `${s.sprite.path}${STUB_SPRITE_SUFFIX}`;
+    if (s.structures) {
+      const jsd = writeStructureFile({ structureCount: s.sprite.frames.length, structures: s.structures });
+      await writeFile(join(tilesetDir, `${s.sprite.path}.jsd`), jsd);
+    }
   }
   const db = writeTilesetDatabase({
     tileTypeCount: tables.types.length,

@@ -1,0 +1,416 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/TileEngine/WorldDef.cc CompileTileMovementCosts (ANYDOOR branch), src/game/Tactical/PathAI.h",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "rules apply in order to a door structure matching kind, orientation, tile and sliding; set = [dx, dy, direction, cost] raised with SET semantics",
+  "travelCosts": {
+    "TRAVELCOST_NONE": 0,
+    "TRAVELCOST_FLAT": 10,
+    "TRAVELCOST_BUMPY": 12,
+    "TRAVELCOST_GRASS": 12,
+    "TRAVELCOST_THICK": 16,
+    "TRAVELCOST_DEBRIS": 20,
+    "TRAVELCOST_SHORE": 30,
+    "TRAVELCOST_KNEEDEEP": 36,
+    "TRAVELCOST_DEEPWATER": 50,
+    "TRAVELCOST_FENCE": 40,
+    "TRAVELCOST_DOORS_CLOSED_W_SW": 212,
+    "TRAVELCOST_DOORS_CLOSED_HERE_S": 213,
+    "TRAVELCOST_DOORS_CLOSED_N_NW": 214,
+    "TRAVELCOST_DOORS_CLOSED_HERE_W": 215,
+    "TRAVELCOST_DOORS_CLOSED_W_NW": 216,
+    "TRAVELCOST_DOORS_CLOSED_HERE_N": 217,
+    "TRAVELCOST_DOORS_CLOSED_N_NE": 218,
+    "TRAVELCOST_DOORS_CLOSED_HERE_E": 219,
+    "TRAVELCOST_DOOR_CLOSED_HERE": 220,
+    "TRAVELCOST_DOOR_CLOSED_N": 221,
+    "TRAVELCOST_DOOR_CLOSED_W": 222,
+    "TRAVELCOST_DOOR_OPEN_HERE": 223,
+    "TRAVELCOST_DOOR_OPEN_N": 224,
+    "TRAVELCOST_DOOR_OPEN_NE": 225,
+    "TRAVELCOST_DOOR_OPEN_E": 226,
+    "TRAVELCOST_DOOR_OPEN_SE": 227,
+    "TRAVELCOST_DOOR_OPEN_S": 228,
+    "TRAVELCOST_DOOR_OPEN_SW": 229,
+    "TRAVELCOST_DOOR_OPEN_W": 230,
+    "TRAVELCOST_DOOR_OPEN_NW": 231,
+    "TRAVELCOST_DOOR_OPEN_N_N": 232,
+    "TRAVELCOST_DOOR_OPEN_NW_N": 233,
+    "TRAVELCOST_DOOR_OPEN_NE_N": 234,
+    "TRAVELCOST_DOOR_OPEN_W_W": 235,
+    "TRAVELCOST_DOOR_OPEN_SW_W": 236,
+    "TRAVELCOST_DOOR_OPEN_NW_W": 237,
+    "TRAVELCOST_NOT_STANDING": 248,
+    "TRAVELCOST_OFF_MAP": 249,
+    "TRAVELCOST_CAVEWALL": 250,
+    "TRAVELCOST_HIDDENOBSTACLE": 251,
+    "TRAVELCOST_DOOR": 252,
+    "TRAVELCOST_OBSTACLE": 253,
+    "TRAVELCOST_WALL": 254,
+    "TRAVELCOST_EXITGRID": 255,
+    "TRAVELCOST_TRAINTRACKS": 30,
+    "TRAVELCOST_DIRTROAD": 9,
+    "TRAVELCOST_PAVEDROAD": 9,
+    "TRAVELCOST_FLATFLOOR": 10
+  },
+  "rules": [
+    {
+      "kind": "DDOOR_LEFT",
+      "orientation": "OUTSIDE_RIGHT",
+      "tile": "base",
+      "notSliding": false,
+      "set": [
+        [0, 0, 7, 253],
+        [0, 0, 6, 220],
+        [0, 0, 5, 217],
+        [1, 0, 1, 253],
+        [1, 0, 2, 222],
+        [1, 0, 3, 216],
+        [1, -1, 1, 212],
+        [0, -1, 7, 213],
+        [1, 1, 3, 253]
+      ]
+    },
+    {
+      "kind": "DDOOR_LEFT",
+      "orientation": "OUTSIDE_RIGHT",
+      "tile": "nonBase",
+      "notSliding": false,
+      "set": [[0, 0, 0, 230], [0, 0, 7, 230], [0, 1, 4, 231], [0, 1, 5, 231], [1, 0, 1, 235], [1, 1, 3, 237]]
+    },
+    {
+      "kind": "DDOOR_LEFT",
+      "orientation": "OUTSIDE_LEFT",
+      "tile": "base",
+      "notSliding": false,
+      "set": [
+        [0, 0, 1, 253],
+        [0, 0, 0, 220],
+        [0, 0, 7, 219],
+        [0, 1, 3, 253],
+        [0, 1, 4, 221],
+        [0, 1, 5, 218],
+        [-1, 0, 7, 253],
+        [1, 0, 1, 215],
+        [-1, 1, 5, 253],
+        [1, 1, 3, 214]
+      ]
+    },
+    {
+      "kind": "DDOOR_LEFT",
+      "orientation": "OUTSIDE_LEFT",
+      "tile": "nonBase",
+      "notSliding": false,
+      "set": [[0, 0, 1, 224], [0, 0, 2, 224], [-1, 0, 6, 225], [-1, 0, 7, 225], [0, 1, 3, 232], [-1, 1, 5, 234]]
+    },
+    {
+      "kind": "DDOOR_LEFT",
+      "orientation": "INSIDE_LEFT",
+      "tile": "any",
+      "notSliding": false,
+      "set": [
+        [0, 0, 1, 253],
+        [0, 0, 0, 220],
+        [0, 0, 7, 219],
+        [0, 1, 3, 253],
+        [0, 1, 4, 221],
+        [0, 1, 5, 218],
+        [-1, 0, 7, 253],
+        [1, 0, 1, 215],
+        [-1, 1, 5, 253],
+        [1, 1, 3, 214],
+        [0, 0, 2, 223],
+        [0, 0, 3, 223],
+        [-1, 0, 6, 226],
+        [-1, 0, 5, 226],
+        [0, -1, 1, 228],
+        [-1, -1, 7, 227]
+      ]
+    },
+    {
+      "kind": "DDOOR_LEFT",
+      "orientation": "INSIDE_RIGHT",
+      "tile": "any",
+      "notSliding": false,
+      "set": [
+        [0, 0, 7, 253],
+        [0, 0, 6, 220],
+        [0, 0, 5, 217],
+        [1, 0, 3, 216],
+        [1, 0, 2, 222],
+        [1, 0, 1, 253],
+        [1, -1, 1, 212],
+        [0, -1, 7, 213],
+        [1, 1, 3, 253],
+        [0, 1, 5, 253],
+        [0, 0, 0, 223],
+        [0, 0, 1, 223],
+        [0, 1, 4, 224],
+        [0, 1, 3, 224],
+        [-1, 0, 7, 226],
+        [-1, 1, 5, 225]
+      ]
+    },
+    {
+      "kind": "DDOOR_RIGHT",
+      "orientation": "OUTSIDE_LEFT",
+      "tile": "base",
+      "notSliding": false,
+      "set": [
+        [0, 0, 7, 253],
+        [0, 0, 0, 220],
+        [0, 0, 1, 215],
+        [0, 1, 5, 253],
+        [0, 1, 4, 221],
+        [0, 1, 3, 214],
+        [1, 1, 3, 253],
+        [-1, 0, 7, 219],
+        [-1, 1, 5, 218],
+        [1, 0, 1, 253]
+      ]
+    },
+    {
+      "kind": "DDOOR_RIGHT",
+      "orientation": "OUTSIDE_LEFT",
+      "tile": "nonBase",
+      "notSliding": false,
+      "set": [[0, 0, 7, 224], [0, 0, 6, 224], [1, 0, 2, 231], [1, 0, 1, 231], [0, 1, 5, 232], [1, 1, 3, 233]]
+    },
+    {
+      "kind": "DDOOR_RIGHT",
+      "orientation": "OUTSIDE_RIGHT",
+      "tile": "base",
+      "notSliding": false,
+      "set": [
+        [0, 0, 5, 253],
+        [0, 0, 6, 220],
+        [0, 0, 7, 213],
+        [1, 0, 3, 253],
+        [1, 0, 2, 222],
+        [1, 0, 1, 212],
+        [1, -1, 1, 253],
+        [0, -1, 7, 253],
+        [1, 1, 3, 216],
+        [0, 1, 5, 217]
+      ]
+    },
+    {
+      "kind": "DDOOR_RIGHT",
+      "orientation": "OUTSIDE_RIGHT",
+      "tile": "nonBase",
+      "notSliding": false,
+      "set": [[0, 0, 4, 230], [0, 0, 5, 230], [0, -1, 0, 229], [0, -1, 7, 229], [1, 0, 3, 235], [1, -1, 1, 236]]
+    },
+    {
+      "kind": "DDOOR_RIGHT",
+      "orientation": "INSIDE_RIGHT",
+      "tile": "any",
+      "notSliding": false,
+      "set": [
+        [0, 0, 5, 253],
+        [0, 0, 6, 220],
+        [0, 0, 7, 213],
+        [1, 0, 3, 253],
+        [1, 0, 2, 222],
+        [1, 0, 1, 212],
+        [1, -1, 1, 253],
+        [0, -1, 7, 253],
+        [1, 1, 3, 216],
+        [0, 1, 5, 217],
+        [0, 0, 4, 223],
+        [0, 0, 3, 223],
+        [0, -1, 0, 228],
+        [0, -1, 1, 228],
+        [-1, 0, 5, 226],
+        [-1, -1, 7, 227]
+      ]
+    },
+    {
+      "kind": "DDOOR_RIGHT",
+      "orientation": "INSIDE_LEFT",
+      "tile": "any",
+      "notSliding": false,
+      "set": [
+        [0, 0, 1, 215],
+        [0, 0, 0, 220],
+        [0, 0, 7, 253],
+        [0, 1, 3, 214],
+        [0, 1, 4, 221],
+        [0, 1, 5, 253],
+        [-1, 0, 7, 219],
+        [1, 0, 1, 253],
+        [-1, 1, 5, 218],
+        [1, 1, 3, 253],
+        [0, 0, 6, 223],
+        [0, 0, 5, 223],
+        [1, 0, 2, 230],
+        [1, 0, 3, 230],
+        [0, -1, 7, 228],
+        [1, -1, 1, 229]
+      ]
+    },
+    {
+      "kind": "GARAGEDOOR",
+      "orientation": "LEFT",
+      "tile": "base",
+      "notSliding": false,
+      "set": [
+        [0, 0, 7, 254],
+        [0, 0, 0, 220],
+        [0, 0, 1, 220],
+        [0, 1, 5, 254],
+        [0, 1, 4, 221],
+        [0, 1, 3, 221],
+        [1, 0, 1, 254],
+        [1, 1, 3, 254]
+      ]
+    },
+    {
+      "kind": "GARAGEDOOR",
+      "orientation": "LEFT",
+      "tile": "nonBase",
+      "notSliding": false,
+      "set": [
+        [0, 0, 7, 220],
+        [0, 0, 0, 220],
+        [0, 0, 1, 254],
+        [0, 1, 5, 221],
+        [0, 1, 4, 221],
+        [0, 1, 3, 254],
+        [-1, 1, 5, 254],
+        [-1, 0, 7, 254]
+      ]
+    },
+    {
+      "kind": "GARAGEDOOR",
+      "orientation": "RIGHT",
+      "tile": "base",
+      "notSliding": false,
+      "set": [
+        [0, 0, 7, 254],
+        [0, 0, 6, 220],
+        [0, 0, 5, 220],
+        [1, 0, 1, 254],
+        [1, 0, 2, 222],
+        [1, 0, 3, 222],
+        [0, 1, 5, 254],
+        [1, 1, 3, 254]
+      ]
+    },
+    {
+      "kind": "GARAGEDOOR",
+      "orientation": "RIGHT",
+      "tile": "nonBase",
+      "notSliding": false,
+      "set": [
+        [0, 0, 7, 220],
+        [0, 0, 6, 220],
+        [0, 0, 5, 254],
+        [1, 0, 1, 222],
+        [1, 0, 2, 222],
+        [1, 0, 3, 254],
+        [0, -1, 7, 254],
+        [1, -1, 1, 254]
+      ]
+    },
+    {
+      "kind": "STANDARD",
+      "orientation": "OUTSIDE_LEFT",
+      "tile": "base",
+      "notSliding": false,
+      "set": [
+        [0, 0, 1, 254],
+        [0, 0, 0, 220],
+        [0, 0, 7, 254],
+        [0, 1, 3, 254],
+        [0, 1, 4, 221],
+        [0, 1, 5, 254],
+        [-1, 0, 7, 254],
+        [1, 0, 1, 254],
+        [-1, 1, 5, 254],
+        [1, 1, 3, 254]
+      ]
+    },
+    {
+      "kind": "STANDARD",
+      "orientation": "OUTSIDE_LEFT",
+      "tile": "nonBase",
+      "notSliding": true,
+      "set": [[0, 0, 1, 254], [0, 0, 2, 224], [-1, 0, 6, 225], [-1, 0, 7, 254], [0, 1, 3, 232], [-1, 1, 5, 234]]
+    },
+    {
+      "kind": "STANDARD",
+      "orientation": "INSIDE_LEFT",
+      "tile": "any",
+      "notSliding": false,
+      "set": [
+        [0, 0, 1, 254],
+        [0, 0, 0, 220],
+        [0, 0, 7, 254],
+        [0, 1, 3, 253],
+        [0, 1, 4, 221],
+        [0, 1, 5, 253],
+        [-1, 0, 7, 253],
+        [1, 0, 1, 253],
+        [-1, 1, 5, 253],
+        [1, 1, 3, 253]
+      ]
+    },
+    {
+      "kind": "STANDARD",
+      "orientation": "INSIDE_LEFT",
+      "tile": "any",
+      "notSliding": true,
+      "set": [[0, 0, 2, 223], [0, 0, 3, 223], [-1, 0, 6, 226], [-1, 0, 5, 226], [0, -1, 1, 228], [-1, -1, 7, 227]]
+    },
+    {
+      "kind": "STANDARD",
+      "orientation": "OUTSIDE_RIGHT",
+      "tile": "base",
+      "notSliding": false,
+      "set": [
+        [0, 0, 5, 253],
+        [0, 0, 6, 220],
+        [0, 0, 7, 253],
+        [1, 0, 3, 253],
+        [1, 0, 2, 222],
+        [1, 0, 1, 253],
+        [1, -1, 1, 253],
+        [0, -1, 7, 253],
+        [1, 1, 3, 253],
+        [0, 1, 5, 253]
+      ]
+    },
+    {
+      "kind": "STANDARD",
+      "orientation": "OUTSIDE_RIGHT",
+      "tile": "nonBase",
+      "notSliding": true,
+      "set": [[0, 0, 4, 230], [0, 0, 5, 230], [0, -1, 0, 229], [0, -1, 7, 229], [1, 0, 3, 235], [1, -1, 1, 236]]
+    },
+    {
+      "kind": "STANDARD",
+      "orientation": "INSIDE_RIGHT",
+      "tile": "any",
+      "notSliding": false,
+      "set": [
+        [0, 0, 5, 253],
+        [0, 0, 6, 220],
+        [0, 0, 7, 253],
+        [1, 0, 3, 253],
+        [1, 0, 2, 222],
+        [1, 0, 1, 253],
+        [1, -1, 1, 253],
+        [0, -1, 7, 253],
+        [1, 1, 3, 253],
+        [0, 1, 5, 253]
+      ]
+    },
+    {
+      "kind": "STANDARD",
+      "orientation": "INSIDE_RIGHT",
+      "tile": "any",
+      "notSliding": true,
+      "set": [[0, 0, 4, 223], [0, 0, 3, 223], [0, -1, 0, 228], [0, -1, 1, 228], [-1, 0, 5, 226], [-1, -1, 7, 227]]
+    }
+  ]
+}
