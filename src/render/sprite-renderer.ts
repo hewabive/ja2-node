@@ -26,12 +26,20 @@ uniform usampler2D u_atlas;
 uniform sampler2D u_palette;
 uniform float u_alpha;
 uniform float u_shadowFactor;
+uniform int u_indexFilter;
+uniform float u_checkerScale;
 in vec2 v_src;
 flat in int v_row;
 out vec4 o_color;
 void main() {
   uint index = texelFetch(u_atlas, ivec2(floor(v_src)), 0).r;
   if (index == 0u) discard;
+  if (u_indexFilter == 1 && index != 254u) discard;
+  if (u_indexFilter == 2 && index == 254u) discard;
+  if (u_checkerScale > 0.0) {
+    ivec2 cell = ivec2(floor(gl_FragCoord.xy / u_checkerScale));
+    if (((cell.x + cell.y) & 1) != 0) discard;
+  }
   if (u_shadowFactor > 0.0) {
     o_color = vec4(vec3(u_shadowFactor), 1.0);
     return;
@@ -61,7 +69,12 @@ export const DepthMode = {
   NEARER: 1,
   NEARER_OR_EQUAL: 2,
   NEARER_OR_EQUAL_NO_WRITE: 3,
+  NEARER_NO_WRITE: 4,
+  FARTHER_NO_WRITE: 5,
 } as const;
+
+export const IndexFilter = { ALL: 0, ONLY_SHADOW: 1, EXCEPT_SHADOW: 2 } as const;
+export type IndexFilter = (typeof IndexFilter)[keyof typeof IndexFilter];
 export type DepthMode = (typeof DepthMode)[keyof typeof DepthMode];
 
 export interface DrawOptions {
@@ -73,6 +86,9 @@ export interface DrawOptions {
   readonly srcX?: number;
   readonly srcWidth?: number;
   readonly shadowFactor?: number;
+  readonly indexFilter?: IndexFilter;
+  readonly checkerScale?: number;
+  readonly palettes?: PaletteTexture;
 }
 
 interface Batch {
@@ -81,6 +97,9 @@ interface Batch {
   readonly depthMode: DepthMode;
   readonly alpha: number;
   readonly shadowFactor: number;
+  readonly indexFilter: IndexFilter;
+  readonly checkerScale: number;
+  readonly palettes: PaletteTexture | null;
   readonly data: number[];
 }
 
@@ -93,7 +112,12 @@ interface Program {
 
 export class SpriteRenderer {
   readonly #gl: WebGL2RenderingContext;
-  readonly #indexed: Program & { palette: WebGLUniformLocation; shadowFactor: WebGLUniformLocation };
+  readonly #indexed: Program & {
+    palette: WebGLUniformLocation;
+    shadowFactor: WebGLUniformLocation;
+    indexFilter: WebGLUniformLocation;
+    checkerScale: WebGLUniformLocation;
+  };
   readonly #rgba: Program;
   readonly #vao: WebGLVertexArrayObject;
   readonly #buffer: WebGLBuffer;
@@ -111,6 +135,8 @@ export class SpriteRenderer {
       ...indexed,
       palette: uniform(gl, indexed.program, 'u_palette'),
       shadowFactor: uniform(gl, indexed.program, 'u_shadowFactor'),
+      indexFilter: uniform(gl, indexed.program, 'u_indexFilter'),
+      checkerScale: uniform(gl, indexed.program, 'u_checkerScale'),
     };
     this.#rgba = program(FRAGMENT_RGBA);
     this.#vao = gl.createVertexArray();
@@ -148,6 +174,9 @@ export class SpriteRenderer {
     const depthMode = o.depthMode ?? DepthMode.NONE;
     const alpha = o.alpha ?? 1;
     const shadowFactor = o.shadowFactor ?? 0;
+    const indexFilter = o.indexFilter ?? IndexFilter.ALL;
+    const checkerScale = o.checkerScale ?? 0;
+    const palettes = o.palettes ?? null;
     let batch = this.#batches.at(-1);
     if (
       !batch ||
@@ -155,9 +184,12 @@ export class SpriteRenderer {
       batch.page !== region.page ||
       batch.depthMode !== depthMode ||
       batch.alpha !== alpha ||
-      batch.shadowFactor !== shadowFactor
+      batch.shadowFactor !== shadowFactor ||
+      batch.indexFilter !== indexFilter ||
+      batch.checkerScale !== checkerScale ||
+      batch.palettes !== palettes
     ) {
-      batch = { atlas, page: region.page, depthMode, alpha, shadowFactor, data: [] };
+      batch = { atlas, page: region.page, depthMode, alpha, shadowFactor, indexFilter, checkerScale, palettes, data: [] };
       this.#batches.push(batch);
     }
     const depth = Math.min(Math.max(o.z ?? 0, 0), MAX_DEPTH) / MAX_DEPTH;
@@ -182,8 +214,14 @@ export class SpriteRenderer {
       return;
     }
     gl.enable(gl.DEPTH_TEST);
-    gl.depthFunc(mode === DepthMode.NEARER ? gl.GREATER : gl.GEQUAL);
-    gl.depthMask(mode !== DepthMode.NEARER_OR_EQUAL_NO_WRITE);
+    const func =
+      mode === DepthMode.NEARER || mode === DepthMode.NEARER_NO_WRITE
+        ? gl.GREATER
+        : mode === DepthMode.FARTHER_NO_WRITE
+          ? gl.LESS
+          : gl.GEQUAL;
+    gl.depthFunc(func);
+    gl.depthMask(mode === DepthMode.NEARER || mode === DepthMode.NEARER_OR_EQUAL);
   }
 
   end(width: number, height: number, palettes: PaletteTexture | null): void {
@@ -201,15 +239,20 @@ export class SpriteRenderer {
       gl.uniform1f(p.alpha, b.alpha);
       if (b.shadowFactor > 0) gl.blendFunc(gl.ZERO, gl.SRC_COLOR);
       else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-      if (indexed) gl.uniform1f(this.#indexed.shadowFactor, b.shadowFactor);
+      if (indexed) {
+        gl.uniform1f(this.#indexed.shadowFactor, b.shadowFactor);
+        gl.uniform1i(this.#indexed.indexFilter, b.indexFilter);
+        gl.uniform1f(this.#indexed.checkerScale, b.checkerScale);
+      }
       this.#applyDepthMode(b.depthMode);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, b.atlas.texture(b.page));
       gl.uniform1i(p.atlas, 0);
       if (indexed) {
-        if (!palettes) throw new Error('indexed sprites need a palette texture');
+        const palette = b.palettes ?? palettes;
+        if (!palette) throw new Error('indexed sprites need a palette texture');
         gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, palettes.texture);
+        gl.bindTexture(gl.TEXTURE_2D, palette.texture);
         gl.uniform1i(this.#indexed.palette, 1);
       }
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(b.data), gl.STREAM_DRAW);

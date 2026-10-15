@@ -3,6 +3,7 @@
 // @src src/game/TileEngine/RenderWorld.cc RenderStaticWorld, RenderDynamicWorld, RenderTiles, MultiZBlitter
 // See docs/05-render-pipeline.md.
 
+import { MERC_Z_LEVEL, soldierShade } from '../../content/anim/soldier-sprite.ts';
 import { WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import { type Level, type LevelLayer, levelTilesAt } from '../../content/world/level.ts';
 import { clampShade } from '../../content/world/shading.ts';
@@ -26,6 +27,7 @@ const SWEEP_MARGIN_X = 120;
 const SWEEP_MARGIN_Y = 200;
 const CLIFF_HEIGHT_STEP = 80;
 const LIGHT_DUSK_CUTOFF = 8;
+const MERC_SCREEN_OFFSET_Y = 10;
 
 export interface FrameGeometry {
   readonly offsetX: number;
@@ -49,7 +51,19 @@ export interface SceneOptions {
   readonly topY?: number;
 }
 
+export type MercPart = 'shadow' | 'body' | 'obscured';
+
+export interface SceneMerc {
+  readonly key: number;
+  readonly gridNo: number;
+  readonly x: number;
+  readonly y: number;
+  readonly level: number;
+  readonly frame: FrameGeometry;
+}
+
 export interface DrawItem {
+  readonly merc?: { readonly key: number; readonly part: MercPart };
   readonly tile: number;
   readonly x: number;
   readonly y: number;
@@ -66,6 +80,7 @@ export interface SceneSource {
   readonly tiles: readonly TileElement[];
   readonly prepared: LevelRenderData;
   frame(tile: number): FrameGeometry | null;
+  mercsAt?(gridNo: number): readonly SceneMerc[];
 }
 
 export function tileOrigin(x: number, y: number, o: SceneOptions): { x: number; y: number } {
@@ -101,6 +116,7 @@ type Pass =
   | 'onRoof'
   | 'dynObjects'
   | 'dynShadows'
+  | 'dynMercs'
   | 'dynStructs'
   | 'dynRoofs'
   | 'dynOnRoof';
@@ -249,7 +265,48 @@ function layerOf(source: SceneSource, pass: Pass): LevelLayer {
     case 'dynOnRoof':
       return l.onRoof;
     case 'land':
+    case 'dynMercs':
       return l.land;
+  }
+}
+
+const MERC_PARTS: readonly (readonly [MercPart, DepthMode])[] = [
+  ['shadow', DepthMode.NEARER_NO_WRITE],
+  ['body', DepthMode.NEARER_OR_EQUAL_NO_WRITE],
+  ['obscured', DepthMode.FARTHER_NO_WRITE],
+];
+
+function emitMercs(ctx: Context, g: number): void {
+  const mercs = ctx.source.mercsAt?.(g);
+  if (!mercs || mercs.length === 0) return;
+  const o = ctx.options;
+  const cx = Math.floor(o.width / 2);
+  const cy = Math.floor(o.height / 2);
+  const height = ctx.source.level.heights[g] ?? 0;
+  const x = g % WORLD_COLS;
+  const y = Math.floor(g / WORLD_COLS);
+  const z = wrap16(worldY(x, y, ctx.topY) * Z_SUBLAYERS + MERC_Z_LEVEL);
+  const shade = soldierShade(clampShade(o.ambientShade));
+  for (const m of mercs) {
+    if (m.level > 0) continue;
+    const dx = Math.fround(m.x - o.camera.centerX);
+    const dy = Math.fround(m.y - o.camera.centerY);
+    const sx = cx + Math.trunc(Math.fround(2 * dx - 2 * dy));
+    const sy = cy + Math.trunc(Math.fround(dx + dy)) - height - MERC_SCREEN_OFFSET_Y + ctx.source.prepared.renderHeight;
+    for (const [part, depthMode] of MERC_PARTS) {
+      ctx.out.push({
+        merc: { key: m.key, part },
+        tile: -1,
+        x: sx + m.frame.offsetX,
+        y: sy + m.frame.offsetY,
+        z,
+        depthMode,
+        shade,
+        shadow: part === 'shadow',
+        srcX: 0,
+        srcWidth: m.frame.width,
+      });
+    }
   }
 }
 
@@ -268,6 +325,10 @@ function emitRow(ctx: Context, rows: readonly number[][], passes: readonly Pass[
           emitLand(ctx, g);
           continue;
         }
+        if (pass === 'dynMercs') {
+          emitMercs(ctx, g);
+          continue;
+        }
         for (const t of levelTilesAt(layerOf(ctx.source, pass), g)) emitNode(ctx, pass, g, t);
       }
     }
@@ -282,7 +343,7 @@ export function buildScene(source: SceneSource, options: SceneOptions): DrawItem
   emitRow(ctx, rows, ['objects']);
   if (shadows) emitRow(ctx, rows, ['shadows']);
   emitRow(ctx, rows, ['structs', 'roofs', 'onRoof']);
-  emitRow(ctx, rows, ['dynObjects', 'dynShadows', 'dynStructs']);
+  emitRow(ctx, rows, ['dynObjects', 'dynShadows', 'dynMercs', 'dynStructs']);
   emitRow(ctx, rows, ['dynRoofs', 'dynOnRoof']);
   return ctx.out;
 }

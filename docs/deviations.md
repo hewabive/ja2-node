@@ -17,3 +17,5 @@ reference, see `01-architecture.md` D1). Add an entry whenever a port departs fr
 | Breath regeneration | Real-time breath recovers every 5 s turn (`HandleTacticalEndTurn`) | Breath is spent per step but does not recover yet | Temporary, M2; ported with the real-time turn |
 | AI doors | AI soldiers open closed doors on their path and close them behind | They stop in front of a closed door | Temporary until door handling lands (`09` §3) |
 | Waiting sweet spot | `FindGridNoFromSweetSpotThroughPeople` ranks by cell-coordinate distance after a reachability flood | Plain Pythagorean ranking over occupied-or-free tiles without the flood | Temporary; only used when a blocked final destination must be replaced |
+| Soldier frame on turning | `usAniFrame` keeps the old direction block until the next frame code | The client derives the sprite from (script frame, current direction), so a new facing shows at once | At most one frame of visual difference (`06` §1.3) |
+| Enemy glow | Enemies pulse red every 3 s and jump to the top z at the peak; unseen ones are drawn grey | Not drawn yet; soldiers use the normal shade | Cosmetic; later with the UI |
