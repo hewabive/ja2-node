@@ -6,6 +6,8 @@ import { getCookie, setCookie } from 'hono/cookie';
 import { createMiddleware } from 'hono/factory';
 import { vfsExtension } from '../content/vfs/path.ts';
 import { type Vfs, VfsNotFoundError } from '../content/vfs/vfs.ts';
+import { handleMcpRequest } from './mcp.ts';
+import type { Session } from './session.ts';
 
 export interface AppInfo {
   readonly originalData: boolean;
@@ -20,6 +22,8 @@ export interface AppOptions {
   readonly allowedHosts?: readonly string[];
   readonly clientDir?: string;
   readonly vfsGeneration?: string;
+  readonly sessions?: ReadonlyMap<string, Session>;
+  readonly defaultSession?: string;
 }
 
 export const TOKEN_COOKIE = 'ja2_token';
@@ -81,6 +85,8 @@ export function createApp(options: AppOptions): Hono {
   });
   app.use('/api/*', requireToken);
   app.use('/vfs/*', requireToken);
+  app.use('/mcp', requireToken);
+  app.all('/mcp', (c) => handleMcpRequest(c.req.raw, options.sessions ?? new Map(), options.defaultSession ?? 'sandbox'));
   app.get('/login', (c) => {
     if (!sameToken(c.req.query('token'), token)) return c.json({ error: 'unauthorized' }, 401);
     setCookie(c, TOKEN_COOKIE, token, { httpOnly: true, sameSite: 'Strict', path: '/' });

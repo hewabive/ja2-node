@@ -1,0 +1,3637 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Tactical/Animation_Control.h/.cc, Animation_Data.h",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "flags": {
+    "ANIM_IGNORE_AUTOSTANCE": 1,
+    "ANIM_OK_CHARGE_AP_FOR_TURN": 2,
+    "ANIM_STATIONARY": 4,
+    "ANIM_MOVING": 8,
+    "ANIM_TURNING": 16,
+    "ANIM_FASTTURN": 32,
+    "ANIM_FIREREADY": 64,
+    "ANIM_NONINTERRUPT": 128,
+    "ANIM_HITFINISH": 256,
+    "ANIM_HITSTART": 512,
+    "ANIM_HITWHENDOWN": 1024,
+    "ANIM_NOSHOW_MARKER": 2048,
+    "ANIM_NOMOVE_MARKER": 4096,
+    "ANIM_NORESTART": 8192,
+    "ANIM_HITSTOP": 16384,
+    "ANIM_SPECIALMOVE": 32768,
+    "ANIM_MERCIDLE": 65536,
+    "ANIM_STANCECHANGEANIM": 131072,
+    "ANIM_LOWER_WEAPON": 262144,
+    "ANIM_RAISE_WEAPON": 524288,
+    "ANIM_NOCHANGE_WEAPON": 1048576,
+    "ANIM_NOCHANGE_PENDINGCOUNT": 2097152,
+    "ANIM_NO_EFFORT": 4194304,
+    "ANIM_MIN_EFFORT": 8388608,
+    "ANIM_LIGHT_EFFORT": 16777216,
+    "ANIM_MODERATE_EFFORT": 33554432,
+    "ANIM_RT_NONINTERRUPT": 67108864,
+    "ANIM_VARIABLE_EFFORT": 134217728,
+    "ANIM_FIRE": 536870912,
+    "ANIM_BREATH": 1073741824,
+    "ANIM_IGNOREHITFINISH": 2147483648
+  },
+  "bodyTypes": [
+    "REGMALE",
+    "BIGMALE",
+    "STOCKYMALE",
+    "REGFEMALE",
+    "ADULTFEMALEMONSTER",
+    "AM_MONSTER",
+    "YAF_MONSTER",
+    "YAM_MONSTER",
+    "LARVAE_MONSTER",
+    "INFANT_MONSTER",
+    "QUEENMONSTER",
+    "FATCIV",
+    "MANCIV",
+    "MINICIV",
+    "DRESSCIV",
+    "HATKIDCIV",
+    "KIDCIV",
+    "CRIPPLECIV",
+    "COW",
+    "CROW",
+    "BLOODCAT",
+    "ROBOTNOWEAPON",
+    "HUMVEE",
+    "TANK_NW",
+    "TANK_NE",
+    "ELDORADO",
+    "ICECREAMTRUCK",
+    "JEEP"
+  ],
+  "animations": [
+    {
+      "index": 0,
+      "id": "WALKING",
+      "name": "WALKING",
+      "movement": 1.6,
+      "flags": 134750232,
+      "speed": 0,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 1,
+      "id": "STANDING",
+      "name": "STANDING",
+      "movement": 0,
+      "flags": 1208492084,
+      "speed": 0,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 2,
+      "id": "KNEEL_DOWN",
+      "name": "KNEEL DOWN",
+      "movement": 0,
+      "flags": 9572372,
+      "speed": 90,
+      "height": 6,
+      "endHeight": 3
+    },
+    {
+      "index": 3,
+      "id": "CROUCHING",
+      "name": "CROUCHED",
+      "movement": 0,
+      "flags": 1078460468,
+      "speed": 0,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 4,
+      "id": "KNEEL_UP",
+      "name": "KNEEL UP",
+      "movement": 0,
+      "flags": 9572372,
+      "speed": 90,
+      "height": 3,
+      "endHeight": 6
+    },
+    {
+      "index": 5,
+      "id": "SWATTING",
+      "name": "SWAT",
+      "movement": 2.2,
+      "flags": 17309720,
+      "speed": 0,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 6,
+      "id": "RUNNING",
+      "name": "RUN",
+      "movement": 2.6,
+      "flags": 34086936,
+      "speed": 0,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 7,
+      "id": "PRONE_DOWN",
+      "name": "PRONE DOWN",
+      "movement": 0,
+      "flags": 9572356,
+      "speed": 100,
+      "height": 3,
+      "endHeight": 1
+    },
+    {
+      "index": 8,
+      "id": "CRAWLING",
+      "name": "CRAWL",
+      "movement": 0.8,
+      "flags": 34086936,
+      "speed": 0,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 9,
+      "id": "PRONE_UP",
+      "name": "PRONE UP",
+      "movement": 0,
+      "flags": 9572356,
+      "speed": 100,
+      "height": 1,
+      "endHeight": 3
+    },
+    {
+      "index": 10,
+      "id": "PRONE",
+      "name": "PRONE",
+      "movement": 0,
+      "flags": 1078460452,
+      "speed": 0,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 11,
+      "id": "READY_RIFLE_STAND",
+      "name": "READY AIM (R) STAND",
+      "movement": 0,
+      "flags": 8921142,
+      "speed": 0,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 12,
+      "id": "AIM_RIFLE_STAND",
+      "name": "AIM (R) STAND",
+      "movement": 0,
+      "flags": 17301620,
+      "speed": 250,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 13,
+      "id": "SHOOT_RIFLE_STAND",
+      "name": "SHOOT (R) STAND",
+      "movement": 0,
+      "flags": 621289492,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 14,
+      "id": "END_RIFLE_STAND",
+      "name": "END RIFLE STAND",
+      "movement": 0,
+      "flags": 11010068,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 15,
+      "id": "START_SWAT",
+      "name": "CROUCH TO SWAT",
+      "movement": 1.3,
+      "flags": 16777240,
+      "speed": 40,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 16,
+      "id": "END_SWAT",
+      "name": "SWAT TO CROUCH",
+      "movement": 0,
+      "flags": 16777236,
+      "speed": 40,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 17,
+      "id": "FLYBACK_HIT",
+      "name": "FLYBACK HIT",
+      "movement": 1.6,
+      "flags": 5278593,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 18,
+      "id": "READY_RIFLE_PRONE",
+      "name": "READY (R) PRONE",
+      "movement": 0,
+      "flags": 8921110,
+      "speed": 150,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 19,
+      "id": "AIM_RIFLE_PRONE",
+      "name": "AIM (R) PRONE",
+      "movement": 0,
+      "flags": 17301620,
+      "speed": 250,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 20,
+      "id": "SHOOT_RIFLE_PRONE",
+      "name": "SHOOT (R) PRONE",
+      "movement": 0,
+      "flags": 621281300,
+      "speed": 100,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 21,
+      "id": "END_RIFLE_PRONE",
+      "name": "END (R) AIM PRONE",
+      "movement": 0,
+      "flags": 11010068,
+      "speed": 150,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 22,
+      "id": "FALLBACK_DEATHTWICH",
+      "name": "DEATH TWITCH ONE",
+      "movement": 0,
+      "flags": 5244932,
+      "speed": 100,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 23,
+      "id": "GENERIC_HIT_STAND",
+      "name": "GENERIC HIT STAND",
+      "movement": 0,
+      "flags": 5243541,
+      "speed": 130,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 24,
+      "id": "FLYBACK_HIT_BLOOD_STAND",
+      "name": "FLYBACK HIT w/B",
+      "movement": 1.6,
+      "flags": 5278593,
+      "speed": 80,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 25,
+      "id": "FLYBACK_HIT_DEATH",
+      "name": "FLYBACK HIT DEATH",
+      "movement": 0,
+      "flags": 5245060,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 26,
+      "id": "READY_RIFLE_CROUCH",
+      "name": "READY (R) CROUCH",
+      "movement": 0,
+      "flags": 8921110,
+      "speed": 150,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 27,
+      "id": "AIM_RIFLE_CROUCH",
+      "name": "AIM (R) CROUCH",
+      "movement": 0,
+      "flags": 17301620,
+      "speed": 250,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 28,
+      "id": "SHOOT_RIFLE_CROUCH",
+      "name": "SHOOT (R) CROUCH",
+      "movement": 0,
+      "flags": 621281300,
+      "speed": 100,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 29,
+      "id": "END_RIFLE_CROUCH",
+      "name": "END (R) CROUCH",
+      "movement": 0,
+      "flags": 11010068,
+      "speed": 150,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 30,
+      "id": "FALLBACK_HIT_STAND",
+      "name": "FALLBACK HIT STAND",
+      "movement": 1.6,
+      "flags": 5276033,
+      "speed": 130,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 31,
+      "id": "ROLLOVER",
+      "name": "ROOLOVER",
+      "movement": 0,
+      "flags": 5242900,
+      "speed": 100,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 32,
+      "id": "CLIMBUPROOF",
+      "name": "CLIMBROOF",
+      "movement": 0,
+      "flags": 33826948,
+      "speed": 30,
+      "height": 6,
+      "endHeight": 3
+    },
+    {
+      "index": 33,
+      "id": "FALLOFF",
+      "name": "FALL",
+      "movement": 0,
+      "flags": 5245317,
+      "speed": 60,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 34,
+      "id": "GETUP_FROM_ROLLOVER",
+      "name": "GETUP FROM ROLLOVER",
+      "movement": 0,
+      "flags": 5242884,
+      "speed": 100,
+      "height": 1,
+      "endHeight": 6
+    },
+    {
+      "index": 35,
+      "id": "CLIMBDOWNROOF",
+      "name": "CLIMBDOWNROOF",
+      "movement": 0,
+      "flags": 33826948,
+      "speed": 30,
+      "height": 3,
+      "endHeight": 6
+    },
+    {
+      "index": 36,
+      "id": "FALLFORWARD_ROOF",
+      "name": "FALL FORWARD ROOF",
+      "movement": 0,
+      "flags": 5245317,
+      "speed": 60,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 37,
+      "id": "GENERIC_HIT_DEATHTWITCHNB",
+      "name": "BELLY DEATHHIT NB",
+      "movement": 0,
+      "flags": 5246084,
+      "speed": 100,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 38,
+      "id": "GENERIC_HIT_DEATHTWITCHB",
+      "name": "BELLY DEATHHIT B",
+      "movement": 0,
+      "flags": 5246084,
+      "speed": 100,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 39,
+      "id": "FALLBACK_HIT_DEATHTWITCHNB",
+      "name": "FALLBACK DEATHHIT NB",
+      "movement": 0,
+      "flags": 5246084,
+      "speed": 100,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 40,
+      "id": "FALLBACK_HIT_DEATHTWITCHB",
+      "name": "FALLBACK DEATHHIT B",
+      "movement": 0,
+      "flags": 5246084,
+      "speed": 100,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 41,
+      "id": "GENERIC_HIT_DEATH",
+      "name": "BELLY HIT DEATH",
+      "movement": 0,
+      "flags": 5243012,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 42,
+      "id": "FALLBACK_HIT_DEATH",
+      "name": "FALLBACK HIT DEATH",
+      "movement": 0,
+      "flags": 5243012,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 43,
+      "id": "GENERIC_HIT_CROUCH",
+      "name": "GENERIC HIT CROUCH",
+      "movement": 0,
+      "flags": 5243540,
+      "speed": 80,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 44,
+      "id": "STANDING_BURST",
+      "name": "STAND BURST SHOOT",
+      "movement": 0,
+      "flags": 555229204,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 45,
+      "id": "STANDING_BURST_HIT",
+      "name": "STAND BUTST HIT",
+      "movement": 0,
+      "flags": 5243413,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 46,
+      "id": "FALLFORWARD_FROMHIT_STAND",
+      "name": "FALL FROM STAND",
+      "movement": 0,
+      "flags": 5247380,
+      "speed": 120,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 47,
+      "id": "FALLFORWARD_FROMHIT_CROUCH",
+      "name": "FALL FROM CROUCH",
+      "movement": 0,
+      "flags": 5247380,
+      "speed": 120,
+      "height": 3,
+      "endHeight": 1
+    },
+    {
+      "index": 48,
+      "id": "ENDFALLFORWARD_FROMHIT_CROUCH",
+      "name": "END FALL F CROUCH",
+      "movement": 0,
+      "flags": 5243284,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 49,
+      "id": "GENERIC_HIT_PRONE",
+      "name": "GENERIC HIT PRONE",
+      "movement": 0,
+      "flags": 5243540,
+      "speed": 80,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 50,
+      "id": "PRONE_HIT_DEATH",
+      "name": "PRONE HIT DEATH",
+      "movement": 0,
+      "flags": 5245060,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 51,
+      "id": "PRONE_LAY_FROMHIT",
+      "name": "PRONE LAY FROM HIT",
+      "movement": 0,
+      "flags": 5243284,
+      "speed": 160,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 52,
+      "id": "PRONE_HIT_DEATHTWITCHNB",
+      "name": "PRONE DEATHHIT NB",
+      "movement": 0,
+      "flags": 5246084,
+      "speed": 100,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 53,
+      "id": "PRONE_HIT_DEATHTWITCHB",
+      "name": "PRONE DEATHHIT B",
+      "movement": 0,
+      "flags": 5246084,
+      "speed": 100,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 54,
+      "id": "ADULTMONSTER_BREATHING",
+      "name": "FEMADMON BREATHING",
+      "movement": 0,
+      "flags": 5251092,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 55,
+      "id": "ADULTMONSTER_WALKING",
+      "name": "FEMADMON WALKING",
+      "movement": 2.5,
+      "flags": 17834008,
+      "speed": 30,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 56,
+      "id": "ADULTMONSTER_ATTACKING",
+      "name": "FEMADMON ATTACK",
+      "movement": 2.5,
+      "flags": 17834004,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 57,
+      "id": "FLYBACK_HITDEATH_STOP",
+      "name": "FLYBACK HIT DEATH STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 58,
+      "id": "FALLFORWARD_HITDEATH_STOP",
+      "name": "BELLY HIT DEATH STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 59,
+      "id": "FALLBACK_HITDEATH_STOP",
+      "name": "FALLBACK HIT DEATH STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 60,
+      "id": "PRONE_HITDEATH_STOP",
+      "name": "PRONE HIT DEATH STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 61,
+      "id": "FLYBACKHIT_STOP",
+      "name": "FLYBACK HIT STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 70,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 62,
+      "id": "FALLBACKHIT_STOP",
+      "name": "FALLBACK HIT STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 350,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 63,
+      "id": "FALLOFF_STOP",
+      "name": "FALLOFF STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 350,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 64,
+      "id": "FALLOFF_FORWARD_STOP",
+      "name": "FALLOFF FORWARD HIT STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 350,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 65,
+      "id": "STAND_FALLFORWARD_STOP",
+      "name": "FALLFORWARD HIT STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 650,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 66,
+      "id": "PRONE_LAYFROMHIT_STOP",
+      "name": "PRONE_LAYFROMHIT STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 70,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 67,
+      "id": "HOPFENCE",
+      "name": "HOP FENCE",
+      "movement": 0,
+      "flags": 35924100,
+      "speed": 50,
+      "height": 6,
+      "endHeight": 3
+    },
+    {
+      "index": 68,
+      "id": "ADULTMONSTER_HIT",
+      "name": "FEMMONS HIT",
+      "movement": 0,
+      "flags": 5243540,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 69,
+      "id": "ADULTMONSTER_DYING",
+      "name": "FEMMONS DIE",
+      "movement": 0,
+      "flags": 5247380,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 70,
+      "id": "ADULTMONSTER_DYING_STOP",
+      "name": "FEMMONS DIE STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 350,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 71,
+      "id": "PUNCH_BREATH",
+      "name": "PUNCH BREATH",
+      "movement": 0,
+      "flags": 17834100,
+      "speed": 150,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 72,
+      "id": "PUNCH",
+      "name": "PUNCH",
+      "movement": 0,
+      "flags": 5251092,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 73,
+      "id": "NOTHING_STAND",
+      "name": "NOTHING_STAND",
+      "movement": 0,
+      "flags": 5251124,
+      "speed": 150,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 74,
+      "id": "JFK_HITDEATH",
+      "name": "JFK HIT DEATH",
+      "movement": 0,
+      "flags": 5243780,
+      "speed": 160,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 75,
+      "id": "JFK_HITDEATH_STOP",
+      "name": "JFK HIT DEATH STOP",
+      "movement": 0,
+      "flags": 5261316,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 76,
+      "id": "JFK_HITDEATH_TWITCHB",
+      "name": "JFK DEATHHIT B",
+      "movement": 0,
+      "flags": 5246084,
+      "speed": 100,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 77,
+      "id": "FIRE_STAND_BURST_SPREAD",
+      "name": "STAND BURST SPREAD",
+      "movement": 0,
+      "flags": 16777236,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 78,
+      "id": "FALLOFF_DEATH",
+      "name": "FALLOFF DEATH",
+      "movement": 0,
+      "flags": 5243012,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 79,
+      "id": "FALLOFF_DEATH_STOP",
+      "name": "FALLOFF DEATH STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 80,
+      "id": "FALLOFF_TWITCHB",
+      "name": "FALLOFF TWITCH BLOOD",
+      "movement": 0,
+      "flags": 5244036,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 81,
+      "id": "FALLOFF_TWITCHNB",
+      "name": "FALLOFF TWITCH NOBLOOD",
+      "movement": 0,
+      "flags": 5244036,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 82,
+      "id": "FALLOFF_FORWARD_DEATH",
+      "name": "FALLOFF FORWARD DEATH",
+      "movement": 0,
+      "flags": 5243012,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 83,
+      "id": "FALLOFF_FORWARD_DEATH_STOP",
+      "name": "FALLOFF FORWARD DEATH STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 84,
+      "id": "FALLOFF_FORWARD_TWITCHB",
+      "name": "FALLOFF FORWARD TWITCH BLOOD",
+      "movement": 0,
+      "flags": 5244036,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 85,
+      "id": "FALLOFF_FORWARD_TWITCHNB",
+      "name": "FALLOFF FORWARD TWITCH NOBLOOD",
+      "movement": 0,
+      "flags": 5244036,
+      "speed": 120,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 86,
+      "id": "OPEN_DOOR",
+      "name": "OPEN DOOR",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 87,
+      "id": "OPEN_STRUCT",
+      "name": "OPEN STRUCT",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 88,
+      "id": "PICKUP_ITEM",
+      "name": "PICKUP ITEM",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 89,
+      "id": "DROP_ITEM",
+      "name": "DROP ITEM",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 90,
+      "id": "SLICE",
+      "name": "SLICE",
+      "movement": 0,
+      "flags": 16785460,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 91,
+      "id": "STAB",
+      "name": "STAB",
+      "movement": 0,
+      "flags": 16785460,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 92,
+      "id": "CROUCH_STAB",
+      "name": "CROUCH STAB",
+      "movement": 0,
+      "flags": 16785460,
+      "speed": 70,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 93,
+      "id": "START_AID",
+      "name": "START AID",
+      "movement": 0,
+      "flags": 17047732,
+      "speed": 90,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 94,
+      "id": "GIVING_AID",
+      "name": "GIVING AID",
+      "movement": 0,
+      "flags": 16785460,
+      "speed": 120,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 95,
+      "id": "END_AID",
+      "name": "END AID",
+      "movement": 0,
+      "flags": 6823988,
+      "speed": 90,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 96,
+      "id": "DODGE_ONE",
+      "name": "DODGE ONE",
+      "movement": 0,
+      "flags": 5251124,
+      "speed": 40,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 97,
+      "id": "FATCIV_ASS_SCRATCH",
+      "name": "FATCIV ASS SCRATCH",
+      "movement": 0,
+      "flags": 4202548,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 98,
+      "id": "READY_DUAL_STAND",
+      "name": "READY AIM (DW) STAND",
+      "movement": 0,
+      "flags": 16785462,
+      "speed": 150,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 99,
+      "id": "AIM_DUAL_STAND",
+      "name": "AIM (DW) STAND",
+      "movement": 0,
+      "flags": 16777332,
+      "speed": 250,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 100,
+      "id": "SHOOT_DUAL_STAND",
+      "name": "SHOOT (DW) STAND",
+      "movement": 0,
+      "flags": 553648148,
+      "speed": 150,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 101,
+      "id": "END_DUAL_STAND",
+      "name": "END DUAL STAND",
+      "movement": 0,
+      "flags": 18874388,
+      "speed": 150,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 102,
+      "id": "RAISE_RIFLE",
+      "name": "RAISE RIFLE",
+      "movement": 0,
+      "flags": 5246980,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 103,
+      "id": "LOWER_RIFLE",
+      "name": "LOWER RIFLE",
+      "movement": 0,
+      "flags": 5246980,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 104,
+      "id": "BODYEXPLODING",
+      "name": "BOD BLOW",
+      "movement": 0,
+      "flags": 5247109,
+      "speed": 200,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 105,
+      "id": "THROW_ITEM",
+      "name": "THROW ITEM",
+      "movement": 0,
+      "flags": 8392836,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 106,
+      "id": "LOB_ITEM",
+      "name": "LOB ITEM",
+      "movement": 0,
+      "flags": 8392836,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 107,
+      "id": "QUEEN_MONSTER_BREATHING",
+      "name": "MONSTER_STATIONARY",
+      "movement": 0,
+      "flags": 1077940228,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 108,
+      "id": "CROUCHED_BURST",
+      "name": "CROUCHED BURST SHOOT",
+      "movement": 0,
+      "flags": 553648148,
+      "speed": 100,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 109,
+      "id": "PRONE_BURST",
+      "name": "PRONE BURST SHOOT",
+      "movement": 0,
+      "flags": 553648148,
+      "speed": 100,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 110,
+      "id": "NOTUSEDANIM1",
+      "name": "NOT USED 1",
+      "movement": 0.9,
+      "flags": 4202520,
+      "speed": 20,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 111,
+      "id": "BIGBUY_FLEX",
+      "name": "BIG GUY FLEX",
+      "movement": 0,
+      "flags": 4259860,
+      "speed": 150,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 112,
+      "id": "BIGBUY_STRECH",
+      "name": "BIG GUY STRECH",
+      "movement": 0,
+      "flags": 4259860,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 113,
+      "id": "BIGBUY_SHOEDUST",
+      "name": "BIG GUY SHOE DUST",
+      "movement": 0,
+      "flags": 5308436,
+      "speed": 90,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 114,
+      "id": "BIGBUY_HEADTURN",
+      "name": "BIG GUY HEAD TURN",
+      "movement": 0,
+      "flags": 5308436,
+      "speed": 180,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 115,
+      "id": "MINIGIRL_STOCKING",
+      "name": "MINI GIRL STOCKING",
+      "movement": 0,
+      "flags": 4194324,
+      "speed": 120,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 116,
+      "id": "GIVE_ITEM",
+      "name": "GIVE ITEM",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 117,
+      "id": "CLIMB_CLIFF",
+      "name": "CLIMB MOUNTAIN",
+      "movement": 0,
+      "flags": 33564724,
+      "speed": 50,
+      "height": 6,
+      "endHeight": 3
+    },
+    {
+      "index": 118,
+      "id": "COW_EATING",
+      "name": "COW EATING",
+      "movement": 0,
+      "flags": 4194324,
+      "speed": 200,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 119,
+      "id": "COW_HIT",
+      "name": "COW HIT",
+      "movement": 0,
+      "flags": 4194964,
+      "speed": 150,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 120,
+      "id": "COW_DYING",
+      "name": "COW DIE",
+      "movement": 0,
+      "flags": 4198804,
+      "speed": 150,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 121,
+      "id": "COW_DYING_STOP",
+      "name": "COW DIE STOP",
+      "movement": 0,
+      "flags": 4210692,
+      "speed": 350,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 122,
+      "id": "WATER_HIT",
+      "name": "WATER HIT",
+      "movement": 0,
+      "flags": 5243540,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 123,
+      "id": "WATER_DIE",
+      "name": "WATER DIE",
+      "movement": 0,
+      "flags": 5247380,
+      "speed": 160,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 124,
+      "id": "WATER_DIE_STOP",
+      "name": "WATER DIE STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 340,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 125,
+      "id": "CROW_WALK",
+      "name": "CROW WALK",
+      "movement": 1.6,
+      "flags": 16785432,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 126,
+      "id": "CROW_TAKEOFF",
+      "name": "CROW TAKEOFF",
+      "movement": 1.6,
+      "flags": 4202520,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 127,
+      "id": "CROW_LAND",
+      "name": "CROW LAND",
+      "movement": 1.6,
+      "flags": 4202520,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 128,
+      "id": "CROW_FLY",
+      "name": "CROW FLY",
+      "movement": 0.5,
+      "flags": 16818200,
+      "speed": 20,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 129,
+      "id": "CROW_EAT",
+      "name": "CROW EAT",
+      "movement": 0,
+      "flags": 8396820,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 130,
+      "id": "HELIDROP",
+      "name": "HELIDROP",
+      "movement": 0,
+      "flags": 4204564,
+      "speed": 60,
+      "height": 6,
+      "endHeight": 3
+    },
+    {
+      "index": 131,
+      "id": "FEM_CLEAN",
+      "name": "FEM CLEAN",
+      "movement": 0,
+      "flags": 5308436,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 132,
+      "id": "FEM_KICKSN",
+      "name": "FEM KICKSN",
+      "movement": 0,
+      "flags": 5308436,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 133,
+      "id": "FEM_LOOK",
+      "name": "FEM LOOK",
+      "movement": 0,
+      "flags": 5308436,
+      "speed": 180,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 134,
+      "id": "FEM_WIPE",
+      "name": "FEM WIPE",
+      "movement": 0,
+      "flags": 5308436,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 135,
+      "id": "REG_SQUISH",
+      "name": "REG SQUISH",
+      "movement": 0,
+      "flags": 5308436,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 136,
+      "id": "REG_PULL",
+      "name": "REG PULL",
+      "movement": 0,
+      "flags": 5308436,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 137,
+      "id": "REG_SPIT",
+      "name": "REG SPIT",
+      "movement": 0,
+      "flags": 5308436,
+      "speed": 130,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 138,
+      "id": "HATKID_YOYO",
+      "name": "KID YOYO",
+      "movement": 0,
+      "flags": 4194324,
+      "speed": 140,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 139,
+      "id": "KID_ARMPIT",
+      "name": "KID ARMPIT",
+      "movement": 0,
+      "flags": 4194324,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 140,
+      "id": "MONSTER_CLOSE_ATTACK",
+      "name": "ADULT MONSTER CLOSE ATTACK",
+      "movement": 0,
+      "flags": 17834132,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 141,
+      "id": "MONSTER_SPIT_ATTACK",
+      "name": "ADULT MONSTER SPIT ATTACK",
+      "movement": 0,
+      "flags": 17834132,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 142,
+      "id": "MONSTER_BEGIN_EATTING_FLESH",
+      "name": "ADULT MONSTER BEGIN EATING",
+      "movement": 0,
+      "flags": 4202644,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 143,
+      "id": "MONSTER_EATTING_FLESH",
+      "name": "ADULT MONSTER EATING",
+      "movement": 0,
+      "flags": 16785428,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 144,
+      "id": "MONSTER_END_EATTING_FLESH",
+      "name": "ADULT MONSTER END EATING",
+      "movement": 0,
+      "flags": 4202644,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 145,
+      "id": "BLOODCAT_RUN",
+      "name": "BLOODCAT RUN",
+      "movement": 5.4,
+      "flags": 33562648,
+      "speed": 50,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 146,
+      "id": "BLOODCAT_STARTREADY",
+      "name": "BLOODCAT BEGIN READY",
+      "movement": 0,
+      "flags": 4202518,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 147,
+      "id": "BLOODCAT_READY",
+      "name": "BLOODCAT READY",
+      "movement": 0,
+      "flags": 4202516,
+      "speed": 130,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 148,
+      "id": "BLOODCAT_ENDREADY",
+      "name": "BLOODCAT END READY",
+      "movement": 0,
+      "flags": 4202516,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 149,
+      "id": "BLOODCAT_HIT",
+      "name": "BLOODCAT HIT",
+      "movement": 0,
+      "flags": 4194964,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 150,
+      "id": "BLOODCAT_DYING",
+      "name": "BLOODCAT DIE",
+      "movement": 0,
+      "flags": 4500,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 151,
+      "id": "BLOODCAT_DYING_STOP",
+      "name": "BLOODCAT DIE STOP",
+      "movement": 0,
+      "flags": 4210692,
+      "speed": 100,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 152,
+      "id": "BLOODCAT_SWIPE",
+      "name": "BLOODCAT SWIPE",
+      "movement": 0,
+      "flags": 8396948,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 153,
+      "id": "NINJA_GOTOBREATH",
+      "name": "NINJA GOTO BREATH",
+      "movement": 0,
+      "flags": 17834164,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 154,
+      "id": "NINJA_BREATH",
+      "name": "NINJA BREATH",
+      "movement": 0,
+      "flags": 17825812,
+      "speed": 0,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 155,
+      "id": "NINJA_LOWKICK",
+      "name": "NINJA LOWKICK",
+      "movement": 0,
+      "flags": 17834132,
+      "speed": 50,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 156,
+      "id": "NINJA_PUNCH",
+      "name": "NINJA PUNCH",
+      "movement": 0,
+      "flags": 17834132,
+      "speed": 50,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 157,
+      "id": "NINJA_SPINKICK",
+      "name": "NINJA SPIN KICK",
+      "movement": 0,
+      "flags": 34611348,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 158,
+      "id": "END_OPEN_DOOR",
+      "name": "END OPEN DOOR",
+      "movement": 0,
+      "flags": 8658996,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 159,
+      "id": "END_OPEN_LOCKED_DOOR",
+      "name": "END OPEN LOCKED DOOR",
+      "movement": 0,
+      "flags": 8659124,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 160,
+      "id": "KICK_DOOR",
+      "name": "KICK DOOR",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 161,
+      "id": "CLOSE_DOOR",
+      "name": "CLOSE DOOR",
+      "movement": 0,
+      "flags": 8658996,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 162,
+      "id": "RIFLE_STAND_HIT",
+      "name": "HIT STAND RIFLE",
+      "movement": 0,
+      "flags": 5243540,
+      "speed": 150,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 163,
+      "id": "DEEP_WATER_TRED",
+      "name": "DEEP WATER TREAD",
+      "movement": 0,
+      "flags": 34603028,
+      "speed": 200,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 164,
+      "id": "DEEP_WATER_SWIM",
+      "name": "DEEP WATER SWIM",
+      "movement": 1.3,
+      "flags": 34611224,
+      "speed": 160,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 165,
+      "id": "DEEP_WATER_HIT",
+      "name": "DEEP WATER HIT",
+      "movement": 0,
+      "flags": 4194964,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 166,
+      "id": "DEEP_WATER_DIE",
+      "name": "DEEP WATER DIE",
+      "movement": 0,
+      "flags": 5247380,
+      "speed": 210,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 167,
+      "id": "DEEP_WATER_DIE_STOPPING",
+      "name": "DEEP WATER DIE STOPPING",
+      "movement": 0,
+      "flags": 5259396,
+      "speed": 340,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 168,
+      "id": "DEEP_WATER_DIE_STOP",
+      "name": "DEEP WATER DIE STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 340,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 169,
+      "id": "LOW_TO_DEEP_WATER",
+      "name": "LOW TO DEEP WATER",
+      "movement": 0,
+      "flags": 5242884,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 170,
+      "id": "DEEP_TO_LOW_WATER",
+      "name": "DEEP TO LOW WATER",
+      "movement": 0,
+      "flags": 5242884,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 171,
+      "id": "GOTO_SLEEP",
+      "name": "GOTO SLEEP",
+      "movement": 0,
+      "flags": 4456580,
+      "speed": 100,
+      "height": 3,
+      "endHeight": 1
+    },
+    {
+      "index": 172,
+      "id": "SLEEPING",
+      "name": "SLEEPING",
+      "movement": 0,
+      "flags": 5242884,
+      "speed": 2000,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 173,
+      "id": "WKAEUP_FROM_SLEEP",
+      "name": "WAKEUP",
+      "movement": 0,
+      "flags": 4718596,
+      "speed": 100,
+      "height": 1,
+      "endHeight": 3
+    },
+    {
+      "index": 174,
+      "id": "FIRE_LOW_STAND",
+      "name": "SHOOT (R) STAND LOW",
+      "movement": 0,
+      "flags": 554172436,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 175,
+      "id": "FIRE_BURST_LOW_STAND",
+      "name": "BURST SHOOT (R) STAND LOW",
+      "movement": 0,
+      "flags": 554172436,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 176,
+      "id": "LARVAE_BREATH",
+      "name": "LARVAE BREATH",
+      "movement": 0,
+      "flags": 5251092,
+      "speed": 250,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 177,
+      "id": "LARVAE_HIT",
+      "name": "LARVAE HIT",
+      "movement": 0,
+      "flags": 5243540,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 178,
+      "id": "LARVAE_DIE",
+      "name": "LARVAE DIE",
+      "movement": 0,
+      "flags": 5247380,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 179,
+      "id": "LARVAE_DIE_STOP",
+      "name": "LARVAE DIE STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 350,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 180,
+      "id": "LARVAE_WALK",
+      "name": "LARVAE WALKING",
+      "movement": 0.5,
+      "flags": 17834008,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 181,
+      "id": "INFANT_HIT",
+      "name": "INFANT HIT",
+      "movement": 0,
+      "flags": 5243540,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 182,
+      "id": "INFANT_DIE",
+      "name": "INFANT DIE",
+      "movement": 0,
+      "flags": 5247380,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 183,
+      "id": "INFANT_DIE_STOP",
+      "name": "INFANT DIE STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 350,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 184,
+      "id": "INFANT_ATTACK",
+      "name": "INFANT MONSTER SPIT ATTACK",
+      "movement": 0,
+      "flags": 17834132,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 185,
+      "id": "INFANT_BEGIN_EATTING_FLESH",
+      "name": "INFANT MONSTER BEGIN EATING",
+      "movement": 0,
+      "flags": 5251220,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 186,
+      "id": "INFANT_EATTING_FLESH",
+      "name": "INFANT MONSTER EATING",
+      "movement": 0,
+      "flags": 17834004,
+      "speed": 120,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 187,
+      "id": "INFANT_END_EATTING_FLESH",
+      "name": "INFANT MONSTER END EATING",
+      "movement": 0,
+      "flags": 5251220,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 188,
+      "id": "MONSTER_UP",
+      "name": "ADULT MONSTER UP",
+      "movement": 0,
+      "flags": 5251220,
+      "speed": 130,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 189,
+      "id": "MONSTER_JUMP",
+      "name": "ADULT MONSTER JUMP",
+      "movement": 0,
+      "flags": 5251220,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 190,
+      "id": "STANDING_SHOOT_UNJAM",
+      "name": "UNJAM STANDING",
+      "movement": 0,
+      "flags": 9437236,
+      "speed": 150,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 191,
+      "id": "CROUCH_SHOOT_UNJAM",
+      "name": "UNJAM CROUCH",
+      "movement": 0,
+      "flags": 9437236,
+      "speed": 150,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 192,
+      "id": "PRONE_SHOOT_UNJAM",
+      "name": "UNJAM PRONE",
+      "movement": 0,
+      "flags": 9437236,
+      "speed": 150,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 193,
+      "id": "STANDING_SHOOT_DWEL_UNJAM",
+      "name": "UNJAM STAND DWEL",
+      "movement": 0,
+      "flags": 9437236,
+      "speed": 150,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 194,
+      "id": "STANDING_SHOOT_LOW_UNJAM",
+      "name": "UNJAM STAND LOW",
+      "movement": 0,
+      "flags": 9437236,
+      "speed": 150,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 195,
+      "id": "READY_DUAL_CROUCH",
+      "name": "READY AIM (DW) CROUCH",
+      "movement": 0,
+      "flags": 16785462,
+      "speed": 150,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 196,
+      "id": "AIM_DUAL_CROUCH",
+      "name": "AIM (DW) CROUCH",
+      "movement": 0,
+      "flags": 16777332,
+      "speed": 250,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 197,
+      "id": "SHOOT_DUAL_CROUCH",
+      "name": "SHOOT (DW) CROUCH",
+      "movement": 0,
+      "flags": 553648148,
+      "speed": 150,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 198,
+      "id": "END_DUAL_CROUCH",
+      "name": "END DUAL CROUCH",
+      "movement": 0,
+      "flags": 18874388,
+      "speed": 150,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 199,
+      "id": "CROUCH_SHOOT_DWEL_UNJAM",
+      "name": "UNJAM CROUCH DWEL",
+      "movement": 0,
+      "flags": 9437236,
+      "speed": 150,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 200,
+      "id": "ADJACENT_GET_ITEM",
+      "name": "GET ADJACENT ITEM",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 201,
+      "id": "CUTTING_FENCE",
+      "name": "CUTTING FENCE",
+      "movement": 0,
+      "flags": 17047732,
+      "speed": 90,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 202,
+      "id": "CRIPPLE_BEG",
+      "name": "CRIPPLE BEG",
+      "movement": 0,
+      "flags": 5308436,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 203,
+      "id": "CRIPPLE_HIT",
+      "name": "CRIPPLE HIT",
+      "movement": 0,
+      "flags": 5243540,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 204,
+      "id": "CRIPPLE_DIE",
+      "name": "CRIPPLE DIE",
+      "movement": 0,
+      "flags": 5247380,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 205,
+      "id": "CRIPPLE_DIE_STOP",
+      "name": "CRIPPLE DIE STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 350,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 206,
+      "id": "CRIPPLE_DIE_FLYBACK",
+      "name": "CRIPPLE FLYBACK DIE",
+      "movement": 0,
+      "flags": 5247380,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 207,
+      "id": "CRIPPLE_DIE_FLYBACK_STOP",
+      "name": "CRIPPLE FLYBACK DIE STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 350,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 208,
+      "id": "CRIPPLE_KICKOUT",
+      "name": "CRIPPLE KICK",
+      "movement": 0,
+      "flags": 9441428,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 209,
+      "id": "FROM_INJURED_TRANSITION",
+      "name": "INJURED TRANSITION",
+      "movement": 0,
+      "flags": 9441428,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 210,
+      "id": "THROW_KNIFE",
+      "name": "THROW KNIFE",
+      "movement": 0,
+      "flags": 8392836,
+      "speed": 50,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 211,
+      "id": "KNIFE_BREATH",
+      "name": "KNIFE BREATH",
+      "movement": 0,
+      "flags": 17834100,
+      "speed": 150,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 212,
+      "id": "KNIFE_GOTOBREATH",
+      "name": "KNIFE GOTO BREATH",
+      "movement": 0,
+      "flags": 17834228,
+      "speed": 150,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 213,
+      "id": "KNIFE_ENDBREATH",
+      "name": "KNIFE END BREATH",
+      "movement": 0,
+      "flags": 17834228,
+      "speed": 150,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 214,
+      "id": "ROBOTNW_HIT",
+      "name": "ROBOT HIT",
+      "movement": 0,
+      "flags": 5243540,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 215,
+      "id": "ROBOTNW_DIE",
+      "name": "ROBOT DIE",
+      "movement": 0,
+      "flags": 5247380,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 216,
+      "id": "ROBOTNW_DIE_STOP",
+      "name": "ROBOT DIE STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 350,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 217,
+      "id": "CATCH_STANDING",
+      "name": "Catch Standing",
+      "movement": 0,
+      "flags": 17047668,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 218,
+      "id": "CATCH_CROUCHED",
+      "name": "Catch Crouched",
+      "movement": 0,
+      "flags": 17047668,
+      "speed": 80,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 219,
+      "id": "PLANT_BOMB",
+      "name": "PLANT BOMB",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 120,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 220,
+      "id": "USE_REMOTE",
+      "name": "Use Remote",
+      "movement": 0,
+      "flags": 17834228,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 221,
+      "id": "START_COWER",
+      "name": "START Cower",
+      "movement": 0,
+      "flags": 17834229,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 3
+    },
+    {
+      "index": 222,
+      "id": "COWERING",
+      "name": "Cowering",
+      "movement": 0,
+      "flags": 17834101,
+      "speed": 80,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 223,
+      "id": "END_COWER",
+      "name": "End Cower",
+      "movement": 0,
+      "flags": 17834101,
+      "speed": 80,
+      "height": 3,
+      "endHeight": 6
+    },
+    {
+      "index": 224,
+      "id": "STEAL_ITEM",
+      "name": "STEAL ITEM",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 225,
+      "id": "SHOOT_ROCKET",
+      "name": "LAUNCH ROCKET",
+      "movement": 0,
+      "flags": 16785460,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 226,
+      "id": "CIV_DIE2",
+      "name": "CIV ALT DIE",
+      "movement": 0,
+      "flags": 5247380,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 227,
+      "id": "SHOOT_MORTAR",
+      "name": "SHOOT MORTAR",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 110,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 228,
+      "id": "CROW_DIE",
+      "name": "CROW_DIE",
+      "movement": 0,
+      "flags": 17834148,
+      "speed": 130,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 229,
+      "id": "SIDE_STEP",
+      "name": "SIDE STEPPING",
+      "movement": 0.4,
+      "flags": 134750216,
+      "speed": 50,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 230,
+      "id": "WALK_BACKWARDS",
+      "name": "WALK BACKWARDS",
+      "movement": 1.4,
+      "flags": 134750232,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 231,
+      "id": "BEGIN_OPENSTRUCT",
+      "name": "BEGIN OPEN STRUCT",
+      "movement": 0,
+      "flags": 17047732,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 232,
+      "id": "END_OPENSTRUCT",
+      "name": "END OPEN STRUCT",
+      "movement": 0,
+      "flags": 17047732,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 233,
+      "id": "END_OPENSTRUCT_LOCKED",
+      "name": "END OPEN LOCKED STRUCT",
+      "movement": 0,
+      "flags": 17047732,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 234,
+      "id": "PUNCH_LOW",
+      "name": "LOW PUNCH",
+      "movement": 0,
+      "flags": 5242900,
+      "speed": 70,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 235,
+      "id": "PISTOL_SHOOT_LOW",
+      "name": "SHOOT (P) STAND LOW",
+      "movement": 0,
+      "flags": 554172436,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 236,
+      "id": "DECAPITATE",
+      "name": "DECAPITATE",
+      "movement": 0,
+      "flags": 16785588,
+      "speed": 70,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 237,
+      "id": "BLOODCAT_BITE_ANIM",
+      "name": "BLOODCAT BITE",
+      "movement": 0,
+      "flags": 8396948,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 238,
+      "id": "BIGMERC_IDLE_NECK",
+      "name": "BIGMERC S NECK",
+      "movement": 0,
+      "flags": 5308436,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 239,
+      "id": "BIGMERC_CROUCH_TRANS_INTO",
+      "name": "BIGMERC CROUCH TRANS INTO",
+      "movement": 0,
+      "flags": 9048084,
+      "speed": 90,
+      "height": 6,
+      "endHeight": 3
+    },
+    {
+      "index": 240,
+      "id": "BIGMERC_CROUCH_TRANS_OUTOF",
+      "name": "BIGMERC CROUCH TRANS OUTOF",
+      "movement": 0,
+      "flags": 9048084,
+      "speed": 90,
+      "height": 3,
+      "endHeight": 6
+    },
+    {
+      "index": 241,
+      "id": "GOTO_PATIENT",
+      "name": "GOTO PATIENT",
+      "movement": 0,
+      "flags": 5242916,
+      "speed": 1000,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 242,
+      "id": "BEING_PATIENT",
+      "name": "BEING PATIENT",
+      "movement": 0,
+      "flags": 5242916,
+      "speed": 1000,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 243,
+      "id": "GOTO_DOCTOR",
+      "name": "GOTO DOCTOR",
+      "movement": 0,
+      "flags": 17047732,
+      "speed": 90,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 244,
+      "id": "BEING_DOCTOR",
+      "name": "BEING DOCTOR",
+      "movement": 0,
+      "flags": 16785460,
+      "speed": 120,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 245,
+      "id": "END_DOCTOR",
+      "name": "END DOCTOR",
+      "movement": 0,
+      "flags": 6823988,
+      "speed": 90,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 246,
+      "id": "GOTO_REPAIRMAN",
+      "name": "GOTO REPAIRMAN",
+      "movement": 0,
+      "flags": 17047732,
+      "speed": 90,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 247,
+      "id": "BEING_REPAIRMAN",
+      "name": "BEING REPAIRMAN",
+      "movement": 0,
+      "flags": 16785460,
+      "speed": 120,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 248,
+      "id": "END_REPAIRMAN",
+      "name": "END REPAIRMAN",
+      "movement": 0,
+      "flags": 6823988,
+      "speed": 90,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 249,
+      "id": "FALL_INTO_PIT",
+      "name": "FALL INTO PIT",
+      "movement": 0,
+      "flags": 5245316,
+      "speed": 60,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 250,
+      "id": "ROBOT_WALK",
+      "name": "ROBOT WALKING",
+      "movement": 1.5,
+      "flags": 17834008,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 251,
+      "id": "ROBOT_SHOOT",
+      "name": "ROBOT SHOOT",
+      "movement": 0,
+      "flags": 554172436,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 252,
+      "id": "QUEEN_HIT",
+      "name": "QUEEN HIT",
+      "movement": 0,
+      "flags": 5243412,
+      "speed": 200,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 253,
+      "id": "QUEEN_DIE",
+      "name": "QUEEN DIE",
+      "movement": 0,
+      "flags": 5247252,
+      "speed": 120,
+      "height": 6,
+      "endHeight": 1
+    },
+    {
+      "index": 254,
+      "id": "QUEEN_DIE_STOP",
+      "name": "QUEEN DIE STOP",
+      "movement": 0,
+      "flags": 5259268,
+      "speed": 350,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 255,
+      "id": "QUEEN_INTO_READY",
+      "name": "QUEEN INTO READY",
+      "movement": 0,
+      "flags": 4202516,
+      "speed": 130,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 256,
+      "id": "QUEEN_READY",
+      "name": "QUEEN READY",
+      "movement": 0,
+      "flags": 4202516,
+      "speed": 130,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 257,
+      "id": "QUEEN_END_READY",
+      "name": "QUEEN END READY",
+      "movement": 0,
+      "flags": 4202516,
+      "speed": 130,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 258,
+      "id": "QUEEN_CALL",
+      "name": "QUEEN CALL",
+      "movement": 0,
+      "flags": 4202516,
+      "speed": 130,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 259,
+      "id": "QUEEN_SPIT",
+      "name": "QUEEN MONSTER SPIT ATTACK",
+      "movement": 0,
+      "flags": 17834132,
+      "speed": 130,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 260,
+      "id": "QUEEN_SWIPE",
+      "name": "QUEEN MONSTER SWIPE ATTACK",
+      "movement": 0,
+      "flags": 17834132,
+      "speed": 130,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 261,
+      "id": "RELOAD_ROBOT",
+      "name": "RELOAD ROBOT",
+      "movement": 0,
+      "flags": 17047732,
+      "speed": 70,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 262,
+      "id": "END_CATCH",
+      "name": "Catch Standing",
+      "movement": 0,
+      "flags": 17834228,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 263,
+      "id": "END_CROUCH_CATCH",
+      "name": "Catch Crouched",
+      "movement": 0,
+      "flags": 17834228,
+      "speed": 80,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 264,
+      "id": "AI_RADIO",
+      "name": "RADIO",
+      "movement": 0,
+      "flags": 4202516,
+      "speed": 130,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 265,
+      "id": "AI_CR_RADIO",
+      "name": "CROUCH RADIO",
+      "movement": 0,
+      "flags": 4202516,
+      "speed": 130,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 266,
+      "id": "TANK_SHOOT",
+      "name": "TANK SHOOT",
+      "movement": 0,
+      "flags": 554696724,
+      "speed": 200,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 267,
+      "id": "TANK_BURST",
+      "name": "TANK BURST",
+      "movement": 0,
+      "flags": 554696724,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 268,
+      "id": "QUEEN_SLAP",
+      "name": "QUEEN SLAP",
+      "movement": 0,
+      "flags": 17834036,
+      "speed": 120,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 269,
+      "id": "SLAP_HIT",
+      "name": "SLAP HIT",
+      "movement": 0,
+      "flags": 17834036,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 270,
+      "id": "TAKE_BLOOD_FROM_CORPSE",
+      "name": "GET BLOOD",
+      "movement": 0,
+      "flags": 17047732,
+      "speed": 70,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 271,
+      "id": "VEHICLE_DIE",
+      "name": "VEHICLE DIE",
+      "movement": 0,
+      "flags": 17834164,
+      "speed": 150,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 272,
+      "id": "QUEEN_FRUSTRATED_SLAP",
+      "name": "QUEEN FRUSTRATED SLAP",
+      "movement": 0,
+      "flags": 17834036,
+      "speed": 120,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 273,
+      "id": "CHARIOTS_OF_FIRE",
+      "name": "FIRE FIRE",
+      "movement": 0,
+      "flags": 17834165,
+      "speed": 150,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 274,
+      "id": "AI_PULL_SWITCH",
+      "name": "AI TRIGGER",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 275,
+      "id": "MONSTER_MELT",
+      "name": "MONSTERMELT",
+      "movement": 0,
+      "flags": 5247380,
+      "speed": 80,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 276,
+      "id": "MERC_HURT_IDLE_ANIM",
+      "name": "MERC INJURED IDLE ANIM",
+      "movement": 0,
+      "flags": 5308436,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 277,
+      "id": "END_HURT_WALKING",
+      "name": "END INJURED WALK",
+      "movement": 0,
+      "flags": 9441300,
+      "speed": 80,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 278,
+      "id": "PASS_OBJECT",
+      "name": "PASS OBJECT",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 279,
+      "id": "DROP_ADJACENT_OBJECT",
+      "name": "ADJACENT DROP OBJECT",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 280,
+      "id": "READY_DUAL_PRONE",
+      "name": "READY AIM (DW) PRONE",
+      "movement": 0,
+      "flags": 16785460,
+      "speed": 150,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 281,
+      "id": "AIM_DUAL_PRONE",
+      "name": "AIM (DW) PRONE",
+      "movement": 0,
+      "flags": 16777332,
+      "speed": 250,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 282,
+      "id": "SHOOT_DUAL_PRONE",
+      "name": "SHOOT (DW) PRONE",
+      "movement": 0,
+      "flags": 553648148,
+      "speed": 150,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 283,
+      "id": "END_DUAL_PRONE",
+      "name": "END DUAL PRONE",
+      "movement": 0,
+      "flags": 18874388,
+      "speed": 150,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 284,
+      "id": "PRONE_SHOOT_DWEL_UNJAM",
+      "name": "UNJAM PRONE DWEL",
+      "movement": 0,
+      "flags": 9437236,
+      "speed": 150,
+      "height": 1,
+      "endHeight": 1
+    },
+    {
+      "index": 285,
+      "id": "PICK_LOCK",
+      "name": "PICK LOCK",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 286,
+      "id": "OPEN_DOOR_CROUCHED",
+      "name": "OPEN DOOR CROUCHED",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 70,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 287,
+      "id": "BEGIN_OPENSTRUCT_CROUCHED",
+      "name": "BEGIN OPEN STRUCT CROUCHED",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 70,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 288,
+      "id": "CLOSE_DOOR_CROUCHED",
+      "name": "CLOSE DOOR CROUCHED",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 70,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 289,
+      "id": "OPEN_STRUCT_CROUCHED",
+      "name": "OPEN STRUCT CROUCHED",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 70,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 290,
+      "id": "END_OPEN_DOOR_CROUCHED",
+      "name": "END OPEN DOOR CROUCHED",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 70,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 291,
+      "id": "END_OPENSTRUCT_CROUCHED",
+      "name": "END OPENSTRUCT CROUCHED",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 70,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 292,
+      "id": "END_OPEN_LOCKED_DOOR_CROUCHED",
+      "name": "END OPNE LOCKED DOOR CR",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 70,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 293,
+      "id": "END_OPENSTRUCT_LOCKED_CROUCHED",
+      "name": "END OPEN STRUCT LOCKED CR",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 70,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 294,
+      "id": "DRUNK_IDLE",
+      "name": "DRUNK IDLE",
+      "movement": 0,
+      "flags": 5308436,
+      "speed": 170,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 295,
+      "id": "CROWBAR_ATTACK",
+      "name": "CROWBAR",
+      "movement": 0,
+      "flags": 5251092,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 296,
+      "id": "CIV_COWER_HIT",
+      "name": "COWER HIT",
+      "movement": 1.6,
+      "flags": 5245825,
+      "speed": 80,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 297,
+      "id": "BLOODCAT_WALK_BACKWARDS",
+      "name": "BLOODCAT WALKING BACKWARDS",
+      "movement": 1.2,
+      "flags": 17834008,
+      "speed": 30,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 298,
+      "id": "MONSTER_WALK_BACKWARDS",
+      "name": "MONSTER WALKING BACKWARDS",
+      "movement": 2.5,
+      "flags": 17834008,
+      "speed": 30,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 299,
+      "id": "KID_SKIPPING",
+      "name": "KID SKIPPING",
+      "movement": 2,
+      "flags": 17834008,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 300,
+      "id": "ROBOT_BURST_SHOOT",
+      "name": "STAND BURST SHOOT",
+      "movement": 0,
+      "flags": 555229204,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 301,
+      "id": "ATTACH_CAN_TO_STRING",
+      "name": "Attach String",
+      "movement": 0,
+      "flags": 17047732,
+      "speed": 70,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 302,
+      "id": "SWAT_BACKWARDS",
+      "name": "SWAT BACKWARDS",
+      "movement": 1.4,
+      "flags": 16785432,
+      "speed": 110,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 303,
+      "id": "JUMP_OVER_BLOCKING_PERSON",
+      "name": "JUMP OVER",
+      "movement": 3.6,
+      "flags": 33857552,
+      "speed": 110,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 304,
+      "id": "REFUEL_VEHICLE",
+      "name": "REFUEL VEHICLE",
+      "movement": 0,
+      "flags": 17047732,
+      "speed": 70,
+      "height": 3,
+      "endHeight": 3
+    },
+    {
+      "index": 305,
+      "id": "ROBOT_CAMERA_NOT_MOVING",
+      "name": "ROBOT CAMERA",
+      "movement": 0,
+      "flags": 1208492084,
+      "speed": 0,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 306,
+      "id": "CRIPPLE_OPEN_DOOR",
+      "name": "CRIPPLE OPEN DOOR",
+      "movement": 0,
+      "flags": 16785460,
+      "speed": 70,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 307,
+      "id": "CRIPPLE_CLOSE_DOOR",
+      "name": "CRIPPLE CLOSE DOOR",
+      "movement": 0,
+      "flags": 8396852,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 308,
+      "id": "CRIPPLE_END_OPEN_DOOR",
+      "name": "END OPEN DOOR",
+      "movement": 0,
+      "flags": 8396852,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 309,
+      "id": "CRIPPLE_END_OPEN_LOCKED_DOOR",
+      "name": "END OPEN LOCKED DOOR",
+      "movement": 0,
+      "flags": 8396980,
+      "speed": 100,
+      "height": 6,
+      "endHeight": 6
+    },
+    {
+      "index": 310,
+      "id": "LOCKPICK_CROUCHED",
+      "name": "CROUCH PICK LOCK",
+      "movement": 0,
+      "flags": 17047604,
+      "speed": 70,
+      "height": 3,
+      "endHeight": 3
+    }
+  ],
+  "bodySpeeds": {
+    "walk": [
+      {
+        "speed": -5,
+        "movement": 1.6
+      },
+      {
+        "speed": -10,
+        "movement": 1.6
+      },
+      {
+        "speed": -5,
+        "movement": 1.6
+      },
+      {
+        "speed": -15,
+        "movement": 1.6
+      },
+      {
+        "speed": 0,
+        "movement": 1.6
+      },
+      {
+        "speed": 0,
+        "movement": 1.6
+      },
+      {
+        "speed": 0,
+        "movement": 1.6
+      },
+      {
+        "speed": 0,
+        "movement": 1.6
+      },
+      {
+        "speed": 0,
+        "movement": 1.6
+      },
+      {
+        "speed": 0,
+        "movement": 2.2
+      },
+      {
+        "speed": 0,
+        "movement": 1.6
+      },
+      {
+        "speed": 40,
+        "movement": 1.3
+      },
+      {
+        "speed": 10,
+        "movement": 1.3
+      },
+      {
+        "speed": -10,
+        "movement": 1.3
+      },
+      {
+        "speed": -10,
+        "movement": 1.3
+      },
+      {
+        "speed": -20,
+        "movement": 1.6
+      },
+      {
+        "speed": -20,
+        "movement": 1.6
+      },
+      {
+        "speed": -20,
+        "movement": 1.6
+      },
+      {
+        "speed": 60,
+        "movement": 0.9
+      },
+      {
+        "speed": 20,
+        "movement": 1.6
+      },
+      {
+        "speed": 0,
+        "movement": 1.2
+      },
+      {
+        "speed": 20,
+        "movement": 1.1
+      },
+      {
+        "speed": -10,
+        "movement": 4
+      },
+      {
+        "speed": -10,
+        "movement": 4
+      },
+      {
+        "speed": -10,
+        "movement": 4
+      },
+      {
+        "speed": -10,
+        "movement": 4
+      },
+      {
+        "speed": -10,
+        "movement": 4
+      },
+      {
+        "speed": -10,
+        "movement": 4
+      }
+    ],
+    "run": [
+      {
+        "speed": 0,
+        "movement": 2.6
+      },
+      {
+        "speed": 5,
+        "movement": 2.6
+      },
+      {
+        "speed": 0,
+        "movement": 2.6
+      },
+      {
+        "speed": -10,
+        "movement": 2.6
+      },
+      {
+        "speed": 0,
+        "movement": 2.6
+      },
+      {
+        "speed": 0,
+        "movement": 2.6
+      },
+      {
+        "speed": 0,
+        "movement": 2.6
+      },
+      {
+        "speed": 0,
+        "movement": 2.6
+      },
+      {
+        "speed": 0,
+        "movement": 2.6
+      },
+      {
+        "speed": 0,
+        "movement": 2.6
+      },
+      {
+        "speed": 0,
+        "movement": 2.8
+      },
+      {
+        "speed": 10,
+        "movement": 2.3
+      },
+      {
+        "speed": -10,
+        "movement": 2.3
+      },
+      {
+        "speed": -20,
+        "movement": 2.3
+      },
+      {
+        "speed": -30,
+        "movement": 2.3
+      },
+      {
+        "speed": -40,
+        "movement": 2.6
+      },
+      {
+        "speed": -40,
+        "movement": 2.6
+      },
+      {
+        "speed": -20,
+        "movement": 2.3
+      },
+      {
+        "speed": 30,
+        "movement": 2
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      }
+    ],
+    "swat": [
+      {
+        "speed": 0,
+        "movement": 2.2
+      },
+      {
+        "speed": 20,
+        "movement": 2.2
+      },
+      {
+        "speed": 0,
+        "movement": 2.2
+      },
+      {
+        "speed": -10,
+        "movement": 2.2
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      }
+    ],
+    "crawl": [
+      {
+        "speed": 0,
+        "movement": 0.8
+      },
+      {
+        "speed": 20,
+        "movement": 0.8
+      },
+      {
+        "speed": 0,
+        "movement": 0.8
+      },
+      {
+        "speed": -10,
+        "movement": 0.8
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      },
+      {
+        "speed": 0,
+        "movement": 0
+      }
+    ]
+  }
+}

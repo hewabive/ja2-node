@@ -2,7 +2,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join, relative, resolve, sep } from 'node:path';
 import { REPO_ROOT } from '../src/node/repo.ts';
 
-type Layer = 'core' | 'content' | 'node' | 'server' | 'render' | 'devtools' | 'stubs' | 'tools' | 'test';
+type Layer = 'core' | 'content' | 'sim' | 'protocol' | 'node' | 'server' | 'render' | 'devtools' | 'stubs' | 'tools' | 'test';
 
 interface Rule {
   readonly layers: readonly Layer[];
@@ -15,25 +15,27 @@ const NONDETERMINISM = [/\bMath\.random\b/, /\bDate\.now\b/, /\bnew Date\b/, /\b
 const RULES: Record<Layer, Rule> = {
   core: { layers: ['core'], packages: [], forbid: NONDETERMINISM },
   content: { layers: ['core', 'content'], packages: ['fflate'], forbid: NONDETERMINISM },
+  sim: { layers: ['core', 'content', 'sim'], packages: [], forbid: NONDETERMINISM },
+  protocol: { layers: ['core', 'content', 'sim', 'protocol'], packages: [] },
   node: { layers: ['core', 'content', 'node'], packages: ['node:*'] },
   server: {
-    layers: ['core', 'content', 'node', 'server'],
-    packages: ['node:*', 'hono', 'hono/*', '@hono/node-server', '@hono/node-server/*'],
+    layers: ['core', 'content', 'sim', 'protocol', 'node', 'server'],
+    packages: ['node:*', 'hono', 'hono/*', '@hono/node-server', '@hono/node-server/*', 'ws', 'zod', '@modelcontextprotocol/sdk/*'],
   },
-  render: { layers: ['core', 'content', 'render'], packages: [] },
-  devtools: { layers: ['core', 'content', 'render', 'devtools'], packages: [] },
+  render: { layers: ['core', 'content', 'protocol', 'render'], packages: [] },
+  devtools: { layers: ['core', 'content', 'protocol', 'render', 'devtools'], packages: [] },
   stubs: { layers: ['core', 'content', 'node', 'stubs'], packages: ['node:*'] },
-  tools: { layers: ['core', 'content', 'node', 'server', 'stubs', 'tools'], packages: ['node:*'] },
+  tools: { layers: ['core', 'content', 'sim', 'protocol', 'node', 'server', 'stubs', 'tools'], packages: ['node:*'] },
   test: {
-    layers: ['core', 'content', 'node', 'server', 'render', 'devtools', 'stubs', 'tools', 'test'],
-    packages: ['node:*', 'vitest', 'vitest/*', '@playwright/test', 'fflate', 'vite', 'hono', 'hono/*'],
+    layers: ['core', 'content', 'sim', 'protocol', 'node', 'server', 'render', 'devtools', 'stubs', 'tools', 'test'],
+    packages: ['node:*', 'vitest', 'vitest/*', '@playwright/test', 'fflate', 'vite', 'hono', 'hono/*', 'ws', '@modelcontextprotocol/sdk/*'],
   },
 };
 
 function layerOf(file: string): Layer | null {
   const rel = relative(REPO_ROOT, file).split(sep).join('/');
   if (rel.endsWith('.test.ts') || rel.startsWith('tests/') || /^[^/]+\.config\.ts$/.test(rel)) return 'test';
-  const m = /^src\/(core|content|node|server|render|devtools)\//.exec(rel);
+  const m = /^src\/(core|content|sim|protocol|node|server|render|devtools)\//.exec(rel);
   if (m) return m[1] as Layer;
   if (rel.startsWith('stubs/')) return 'stubs';
   if (rel.startsWith('tools/')) return 'tools';

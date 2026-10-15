@@ -1,14 +1,38 @@
 {
   "files": [],
   "references": [
-    { "path": "src/core" },
-    { "path": "src/content" },
-    { "path": "src/node" },
-    { "path": "src/server" },
-    { "path": "src/render" },
-    { "path": "src/devtools" },
-    { "path": "stubs" },
-    { "path": "tools" },
-    { "path": "tests" }
+    {
+      "path": "src/core"
+    },
+    {
+      "path": "src/content"
+    },
+    {
+      "path": "src/sim"
+    },
+    {
+      "path": "src/protocol"
+    },
+    {
+      "path": "src/node"
+    },
+    {
+      "path": "src/server"
+    },
+    {
+      "path": "src/render"
+    },
+    {
+      "path": "src/devtools"
+    },
+    {
+      "path": "stubs"
+    },
+    {
+      "path": "tools"
+    },
+    {
+      "path": "tests"
+    }
   ]
 }
