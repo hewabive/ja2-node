@@ -7,7 +7,7 @@
 import type { Placement } from '../../content/formats/map.ts';
 import { type DetailedPlacement, parseDetailedPlacement } from '../../content/formats/placement.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
-import { handClass } from '../../content/items/weapons.ts';
+import { handClass } from '../../content/items/items.ts';
 import { cardinalSpacesAway, WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import { initNewSoldierAnim, states } from './animation.ts';
 import { setSoldierPosition } from './movement.ts';
@@ -267,7 +267,7 @@ export function createMercFromProfile(t: TacticalState, id: number, profile: Mer
       pants: profile.palettes.pants || 'BLACKPANTS',
     },
     handItem: hand,
-    hand: handClass(t.content.weapons, hand),
+    hand: handClass(t.content.items, hand),
     stats: {
       agility: profile.agility,
       dexterity: profile.dexterity,
@@ -339,7 +339,7 @@ function createProfiledFromPlacement(t: TacticalState, id: number, placement: Pl
       pants: profile.palettes.pants || 'BLACKPANTS',
     },
     handItem: hand,
-    hand: handClass(t.content.weapons, hand),
+    hand: handClass(t.content.items, hand),
     stats: {
       agility: profile.agility,
       dexterity: profile.dexterity,

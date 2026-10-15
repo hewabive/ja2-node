@@ -2,7 +2,7 @@ import { ANIM_CONTROL_PATH, ANIM_SURFACES_PATH, parseAnimationTables } from '../
 import { FormatError } from '../../content/binary/errors.ts';
 import { ANIMATION_SCRIPTS_PATH, parseAnimationScripts } from '../../content/formats/ja2bin.ts';
 import { PROFILES_PATH, parseProfiles } from '../../content/formats/prof.ts';
-import { parseWeapons, WEAPONS_PATH } from '../../content/items/weapons.ts';
+import { loadItemTable } from '../../content/items/items.ts';
 import type { ReadFile } from '../../content/world/tileset-loader.ts';
 import type { TacticalContent } from './content.ts';
 
@@ -17,16 +17,16 @@ async function json(read: ReadFile, path: string): Promise<unknown> {
 export async function loadTacticalContent(read: ReadFile): Promise<TacticalContent> {
   const scriptBytes = (await read(ANIMATION_SCRIPTS_PATH)) ?? (await read(STUB_ANIMATION_SCRIPTS_PATH));
   if (!scriptBytes) throw new FormatError(`missing ${ANIMATION_SCRIPTS_PATH} (and no stub pack)`);
-  const [control, surfaces, weapons, profileBytes] = await Promise.all([
+  const [control, surfaces, items, profileBytes] = await Promise.all([
     json(read, ANIM_CONTROL_PATH),
     json(read, ANIM_SURFACES_PATH),
-    json(read, WEAPONS_PATH),
+    loadItemTable((path) => json(read, path)),
     read(PROFILES_PATH),
   ]);
   return {
     scripts: parseAnimationScripts(scriptBytes),
     animations: parseAnimationTables(control, surfaces),
-    weapons: parseWeapons(weapons),
+    items,
     profiles: profileBytes ? parseProfiles(profileBytes) : [],
   };
 }

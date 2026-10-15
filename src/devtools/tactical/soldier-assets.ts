@@ -10,7 +10,7 @@ import {
 } from '../../content/anim/tables.ts';
 import { parseSoldierPalettes, SOLDIER_PALETTES_PATH, type SoldierPalettes } from '../../content/formats/ja2pal.ts';
 import { decodeSti } from '../../content/formats/sti.ts';
-import type { HandClass } from '../../content/items/weapons.ts';
+import type { HandClass } from '../../content/items/items.ts';
 import { pictureFromSti } from '../../content/picture/from-sti.ts';
 import type { IndexedPicture } from '../../content/picture/picture.ts';
 import { parseStubSpriteManifest, pictureFromStubSprite } from '../../content/picture/stub-sprite.ts';

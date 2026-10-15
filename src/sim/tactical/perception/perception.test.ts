@@ -1,13 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { buildStubAnimationScripts } from '../../../../stubs/anim-scripts.ts';
-import { ANIM_CONTROL_PATH, ANIM_SURFACES_PATH, parseAnimationTables } from '../../../content/anim/tables.ts';
-import { parseAnimationScripts } from '../../../content/formats/ja2bin.ts';
+import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
 import { Orientation } from '../../../content/formats/jsd.ts';
-import { parseWeapons, WEAPONS_PATH } from '../../../content/items/weapons.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
-import { parseDoorCostTable } from '../../../content/world/movement-costs.ts';
 import { StructureFlags, type WorldStructures } from '../../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import { Rng } from '../../../core/rng.ts';
@@ -21,18 +15,11 @@ import { HeightClass, lineOfSightTest, soldierToSoldierLineOfSight } from './los
 import { allTeamsLookForAll, handleSight, Opp, SightFlags } from './sight.ts';
 import { perceptionHooks } from './wiring.ts';
 
-const dataDir = join(import.meta.dirname, '../../../../data');
-const json = (path: string) => JSON.parse(readFileSync(join(dataDir, path), 'utf8'));
-const doorCosts = parseDoorCostTable(json('tables/door-costs.json'));
+const doorCosts = testDoorCosts();
 let content: TacticalContent;
 
 beforeAll(async () => {
-  content = {
-    scripts: parseAnimationScripts(await buildStubAnimationScripts()),
-    animations: parseAnimationTables(json(ANIM_CONTROL_PATH), json(ANIM_SURFACES_PATH)),
-    weapons: parseWeapons(json(WEAPONS_PATH)),
-    profiles: [],
-  };
+  content = await loadTestContent();
 });
 
 const STATS = {

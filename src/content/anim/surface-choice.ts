@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Animation_Control.cc DetermineSoldierAnimationSurface; see docs/06 §1.2
 
-import type { HandClass } from '../items/weapons.ts';
+import type { HandClass } from '../items/items.ts';
 import { type AnimationTables, INVALID_SURFACE, stateId } from './tables.ts';
 
 export const BodyType = { REGMALE: 0, BIGMALE: 1, STOCKYMALE: 2, REGFEMALE: 3 } as const;
