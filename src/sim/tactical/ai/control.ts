@@ -283,7 +283,7 @@ function nextAIToHandle(t: TacticalState, control: AiControl): boolean {
 
 export function beginAiPass(t: TacticalState, control: AiControl): void {
   control.handleThisPass = false;
-  if (control.paused || t.inCombat) return;
+  if (control.paused || t.inCombat || t.combatPending) return;
   if (t.clockMs - control.lastTickMs > RT_DELAY_BETWEEN_AI_HANDLING) {
     control.lastTickMs = t.clockMs;
     control.handleThisPass = nextAIToHandle(t, control);
@@ -291,7 +291,7 @@ export function beginAiPass(t: TacticalState, control: AiControl): void {
 }
 
 export function aiForSlot(t: TacticalState, s: Soldier, slot: number, control: AiControl): void {
-  if (control.paused) return;
+  if (control.paused || t.combatPending) return;
   const scheduled = control.handleThisPass && control.cursor === slot;
   if (!scheduled && !s.ai.handleEveryFrame) return;
   handleSoldierAI(t, s, control);

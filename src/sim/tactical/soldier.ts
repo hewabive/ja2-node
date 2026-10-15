@@ -12,6 +12,8 @@ export const NO_PENDING_ANIMATION = -1;
 export const NO_PENDING_DIRECTION = -1;
 export const OKLIFE = 15;
 export const OKBREATH = 10;
+export const TOTAL_SOLDIERS = 156;
+export const NO_INTERRUPT = 127;
 
 export const AlertStatus = { GREEN: 0, YELLOW: 1, RED: 2, BLACK: 3 } as const;
 
@@ -88,6 +90,7 @@ export interface AiState {
   blackList: number;
   dominantDir: number;
   noiseGridNo: number;
+  noiseLevel: number;
   noiseVolume: number;
   oppCount: number;
   underFire: boolean;
@@ -182,6 +185,11 @@ export interface Soldier {
   collapsed: boolean;
 
   ai: AiState;
+  readonly oppList: Int8Array;
+  readonly lastKnownOpp: Int16Array;
+  newOppCnt: number;
+  interruptDuelPts: number;
+  movementNoiseHeard: number;
 }
 
 export interface SoldierInit {
@@ -317,6 +325,7 @@ export function createSoldier(init: SoldierInit): Soldier {
       blackList: NOWHERE,
       dominantDir: init.direction,
       noiseGridNo: NOWHERE,
+      noiseLevel: 0,
       noiseVolume: 0,
       oppCount: 0,
       underFire: false,
@@ -324,5 +333,10 @@ export function createSoldier(init: SoldierInit): Soldier {
       cautious: false,
       ...init.ai,
     },
+    oppList: new Int8Array(TOTAL_SOLDIERS),
+    lastKnownOpp: new Int16Array(TOTAL_SOLDIERS).fill(NOWHERE),
+    newOppCnt: 0,
+    interruptDuelPts: NO_INTERRUPT,
+    movementNoiseHeard: 0,
   };
 }

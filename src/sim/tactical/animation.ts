@@ -398,7 +398,10 @@ export function adjustToNextAnimationFrame(t: TacticalState, s: Soldier): void {
         return 'continue';
       case OP_OPEN_STRUCT:
       case OP_OPEN_DOOR:
-        if (handlePendingDoor(t, s)) t.hooks.newAiSituation(t, s);
+        if (handlePendingDoor(t, s)) {
+          t.hooks.doorOpened(t, s);
+          t.hooks.newAiSituation(t, s);
+        }
         return 'continue';
       case OP_END_HOP_FENCE:
         return endHopFence(t, s);

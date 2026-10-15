@@ -61,6 +61,7 @@ export class TacticalSession implements SessionSim {
       mapPath: this.sim.mapPath,
       soldiers: this.sim.snapshot((s) => s.team === Team.OUR || s.visible >= 0),
       openDoors: this.sim.openDoors(),
+      combatPending: this.sim.state.combatPending,
     };
   }
 }
@@ -136,5 +137,6 @@ export async function createSandboxSession(read: ReadFile, originalData: boolean
   const [world, content] = await Promise.all([loadTacticalWorld(read, mapPath), loadTacticalContent(read)]);
   const sim = new TacticalSim(world, content, seed);
   populateSandbox(sim);
+  sim.lookAround();
   return new TacticalSession(sim);
 }

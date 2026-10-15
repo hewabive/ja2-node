@@ -14,6 +14,7 @@ export class SessionClient {
   #nextId = 1;
   #shown: SoldierView[] = [];
   #openDoors: readonly number[] = [];
+  #combatPending = false;
   #shownTick = 0;
   #latestTick = 0;
 
@@ -38,6 +39,10 @@ export class SessionClient {
 
   get soldiers(): readonly SoldierView[] {
     return this.#shown;
+  }
+
+  get combatPending(): boolean {
+    return this.#combatPending;
   }
 
   get openDoors(): readonly number[] {
@@ -70,6 +75,7 @@ export class SessionClient {
         this.driver = m.driver;
         this.#shown = [...m.view.soldiers];
         this.#openDoors = m.view.openDoors ?? [];
+        this.#combatPending = m.view.combatPending ?? false;
         this.#shownTick = m.view.tick;
         this.#latestTick = m.view.tick;
         break;
@@ -98,6 +104,7 @@ export class SessionClient {
       const frame = this.#frames.shift() as ViewFrame;
       this.#shown = applyFrame(this.#shown, frame);
       if (frame.openDoors) this.#openDoors = frame.openDoors;
+      if (frame.combatPending !== undefined) this.#combatPending = frame.combatPending;
       changed = true;
     }
     const target = Math.min(tick, this.#latestTick);

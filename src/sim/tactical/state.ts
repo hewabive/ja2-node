@@ -5,7 +5,8 @@ import { PreRandom, type Rng } from '../../core/rng.ts';
 import type { SimEvent } from '../events.ts';
 import type { TacticalContent } from './content.ts';
 import type { DoorStatus, PathEnv, PathSoldier, PathWorld } from './pathfinding.ts';
-import type { Soldier } from './soldier.ts';
+import { createPerception, type Perception } from './perception/sight.ts';
+import { type Soldier, TOTAL_SOLDIERS } from './soldier.ts';
 
 export interface TacticalWorldData extends MovementWorld {
   readonly costs: MovementCosts;
@@ -22,6 +23,7 @@ export interface TacticalHooks {
   look(t: TacticalState, s: Soldier): void;
   turnFinished(t: TacticalState, s: Soldier): void;
   stanceChanged(t: TacticalState, s: Soldier): void;
+  doorOpened(t: TacticalState, s: Soldier): void;
 }
 
 export const NO_HOOKS: TacticalHooks = {
@@ -30,7 +32,16 @@ export const NO_HOOKS: TacticalHooks = {
   look: () => {},
   turnFinished: () => {},
   stanceChanged: () => {},
+  doorOpened: () => {},
 };
+
+export interface PerceptionHooks {
+  checkForChangingOrders(s: Soldier): void;
+  setNewSituation(s: Soldier): void;
+  haltFromSighting(s: Soldier): void;
+  ourTeamSeesSomeone(s: Soldier, revealed: number, unknown: number): void;
+  enterCombatMode(team: number, s: Soldier): void;
+}
 
 export interface DesiredDirectionEvent {
   readonly soldier: number;
@@ -53,6 +64,9 @@ export interface TacticalState {
   readonly pathWorld: PathWorld;
   readonly pathEnv: PathEnv;
   hooks: TacticalHooks;
+  readonly perception: Perception;
+  perceptionHooks: PerceptionHooks;
+  combatPending: boolean;
 }
 
 export function createTacticalState(world: TacticalWorldData, content: TacticalContent, rng: Rng): TacticalState {
@@ -90,6 +104,15 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
     pathWorld,
     pathEnv,
     hooks: NO_HOOKS,
+    perception: createPerception(TOTAL_SOLDIERS),
+    perceptionHooks: {
+      checkForChangingOrders: () => {},
+      setNewSituation: () => {},
+      haltFromSighting: () => {},
+      ourTeamSeesSomeone: () => {},
+      enterCombatMode: () => {},
+    },
+    combatPending: false,
   };
 }
 

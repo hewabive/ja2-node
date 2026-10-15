@@ -9,15 +9,20 @@ import {
   aiForSlot,
   applyDesiredDirectionEvents,
   beginAiPass,
+  cancelAIAction,
   createAiControl,
   freeUpFromStanceChange,
   freeUpFromTurning,
 } from './ai/control.ts';
+import { checkForChangingOrders, setNewSituation } from './ai/decide.ts';
 import { hasAnimFlag, states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { isDoorOpenAt } from './doors.ts';
 import { getNewSoldierPath, stopMerc } from './movement.ts';
 import { executeOverhead, type OverheadHooks } from './overhead.ts';
+import { mostImportantNoiseHeard } from './perception/knowledge.ts';
+import { allTeamsLookForAll } from './perception/sight.ts';
+import { handleRealtimeTurn, perceptionHooks, type RealtimeTurns, sightHooks } from './perception/wiring.ts';
 import { type Soldier, Team } from './soldier.ts';
 import { createTacticalState, type TacticalState } from './state.ts';
 
@@ -49,6 +54,7 @@ export class TacticalSim {
   readonly ai: AiControl;
   readonly hooks: OverheadHooks;
   #tick = 0;
+  readonly #turns: RealtimeTurns = { lastTurnMs: 0, lastDecayMs: 0 };
 
   constructor(world: TacticalWorld, content: TacticalContent, seed: number) {
     this.world = world;
@@ -58,12 +64,23 @@ export class TacticalSim {
       content,
       Rng.fromSeed(seed),
     );
-    this.ai = createAiControl();
+    const t = this.state;
+    this.ai = createAiControl({
+      awareOfOpposition: (state, team) => state.perception.awareOfOpposition[team] === true,
+      mostImportantNoiseHeard: (state, s) => mostImportantNoiseHeard(state, s),
+    });
     const ai = this.ai;
-    this.state.hooks = { ...this.state.hooks, turnFinished: freeUpFromTurning, stanceChanged: freeUpFromStanceChange };
+    t.hooks = sightHooks({ ...t.hooks, turnFinished: freeUpFromTurning, stanceChanged: freeUpFromStanceChange });
+    t.perceptionHooks = perceptionHooks(t, { checkForChangingOrders, setNewSituation: (s) => setNewSituation(t, s) }, (s) =>
+      cancelAIAction(t, s),
+    );
+    const turns = this.#turns;
     this.hooks = {
-      beforePass: (t) => beginAiPass(t, ai),
-      ai: (t, s, slot) => aiForSlot(t, s, slot, ai),
+      beforePass: (state) => {
+        handleRealtimeTurn(state, turns);
+        beginAiPass(state, ai);
+      },
+      ai: (state, s, slot) => aiForSlot(state, s, slot, ai),
       afterPass: applyDesiredDirectionEvents,
     };
   }
@@ -87,7 +104,11 @@ export class TacticalSim {
   }
 
   hasPendingDecision(): boolean {
-    return false;
+    return this.state.combatPending;
+  }
+
+  lookAround(): void {
+    allTeamsLookForAll(this.state);
   }
 
   step(): void {
@@ -108,6 +129,11 @@ export class TacticalSim {
     switch (cmd.type) {
       case 'move':
         return this.#move(cmd);
+      case 'endCombat':
+        if (!this.state.combatPending) return { ok: false, reason: 'no combat is pending' };
+        this.state.combatPending = false;
+        for (const s of this.state.soldiers) if (s?.placed) s.ai.oppCount = 0;
+        return { ok: true };
       case 'stop': {
         const s = this.soldier(cmd.soldier);
         if (!s || s.team !== Team.OUR) return { ok: false, reason: 'no such soldier of yours' };
@@ -123,6 +149,8 @@ export class TacticalSim {
   #move(cmd: TacticalCommand): CommandResult {
     const s = this.soldier(cmd.soldier);
     if (!s?.placed || s.team !== Team.OUR) return { ok: false, reason: 'no such soldier of yours' };
+    if (this.state.combatPending)
+      return { ok: false, reason: 'combat would start: turn-based play is not implemented yet (send endCombat)' };
     const to = cmd.to;
     if (typeof to !== 'number' || !Number.isInteger(to) || !isVisibleTile(to))
       return { ok: false, reason: 'destination must be a visible gridNo' };

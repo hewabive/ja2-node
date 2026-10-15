@@ -197,6 +197,7 @@ function render(): void {
 
 function describe(): string {
   const lines = [`tick ${client?.shownTick ?? 0}  ·  ${client?.driver.mode === 'realtime' ? `${client.driver.speed}×` : 'paused'}`];
+  if (client?.combatPending) lines.push('COMBAT WOULD START: turn-based play comes in M3 (press "end combat")');
   const sel = soldiers().find((s) => s.id === selected);
   if (sel) lines.push(`selected: ${sel.name || `#${sel.id}`} at ${sel.gridNo}`);
   if (hoverGridNo !== null) lines.push(`tile ${hoverGridNo} (${hoverGridNo % WORLD_COLS}, ${Math.floor(hoverGridNo / WORLD_COLS)})`);
@@ -270,6 +271,11 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-speed]')) {
     void client?.drive(speed === 0 ? { mode: 'manual' } : { mode: 'realtime', speed });
   });
 }
+el<HTMLButtonElement>('endCombat').addEventListener('click', () => {
+  void client?.command({ type: 'endCombat' }).then((r) => {
+    debug.lastResult = r.ok ? 'combat cleared' : `end combat: ${r.reason ?? 'refused'}`;
+  });
+});
 el<HTMLButtonElement>('idle').addEventListener('click', () => {
   void client?.advance({ idle: true }).then((report) => {
     debug.lastResult = report ? `advanced to ${report.tick}: ${report.reason}` : 'advance failed';
