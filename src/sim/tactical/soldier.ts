@@ -5,7 +5,7 @@
 import type { HandClass } from '../../content/items/weapons.ts';
 
 export const Team = { OUR: 0, ENEMY: 1, CREATURE: 2, MILITIA: 3, CIV: 4 } as const;
-export const Side = { FRIENDLY: 0, HOSTILE: 1, NEUTRAL: 2 } as const;
+export const Side = { FRIENDLY: 0, ENEMY: 1, HOSTILE: 2, NONE: 3 } as const;
 export const NO_PROFILE = 200;
 export const NOWHERE = -1;
 export const NO_PENDING_ANIMATION = -1;
@@ -26,7 +26,15 @@ export const Orders = {
   RNDPTPATROL: 7,
 } as const;
 
-export const Attitude = { DEFENSIVE: 0, BRAVESOLO: 1, BRAVEAID: 2, CUNNINGSOLO: 3, CUNNINGAID: 4, AGGRESSIVE: 5 } as const;
+export const Attitude = {
+  DEFENSIVE: 0,
+  BRAVESOLO: 1,
+  BRAVEAID: 2,
+  CUNNINGSOLO: 3,
+  CUNNINGAID: 4,
+  AGGRESSIVE: 5,
+  ATTACKSLAYONLY: 6,
+} as const;
 
 export const SoldierClass = {
   NONE: 0,
@@ -71,19 +79,27 @@ export interface AiState {
   actionData: number;
   nextAction: number;
   nextActionData: number;
+  lastAction: number;
   actionInProgress: boolean;
-  aiDelayUntil: number;
-  nextActionAt: number;
+  counter: number;
   handleEveryFrame: boolean;
   newSituation: number;
-  lastActionTime: number;
-  bypassToGreen: boolean;
+  bypassToGreen: number;
+  blackList: number;
+  dominantDir: number;
+  noiseGridNo: number;
+  noiseVolume: number;
+  oppCount: number;
+  underFire: boolean;
+  morale: number;
+  cautious: boolean;
 }
 
 export interface Soldier {
   readonly id: number;
   readonly team: number;
   side: number;
+  neutral: boolean;
   readonly name: string;
   readonly profile: number;
   readonly soldierClass: number;
@@ -98,6 +114,8 @@ export interface Soldier {
   breathMax: number;
   breathRed: number;
   stealthMode: boolean;
+  cowering: boolean;
+  civilianGroup: number;
   hasKeys: boolean;
   visible: number;
   underAiControl: boolean;
@@ -158,6 +176,8 @@ export interface Soldier {
   blockedByAnotherMercDirection: number;
   reservedGridNo: number;
   endDoorOpenCode: number;
+  endDoorOpenCodeData: number;
+  pendingDoorGridNo: number;
   breathCollapsed: boolean;
   collapsed: boolean;
 
@@ -183,6 +203,7 @@ export interface SoldierInit {
   readonly level?: number;
   readonly direction: number;
   readonly state: number;
+  readonly civilianGroup?: number;
   readonly ai?: Partial<AiState>;
 }
 
@@ -195,7 +216,10 @@ export function createSoldier(init: SoldierInit): Soldier {
   return {
     id: init.id,
     team: init.team,
-    side: init.side ?? (init.team === Team.OUR ? Side.FRIENDLY : init.team === Team.CIV ? Side.NEUTRAL : Side.HOSTILE),
+    side:
+      init.side ??
+      (init.team === Team.OUR || init.team === Team.MILITIA ? Side.FRIENDLY : init.team === Team.CREATURE ? Side.NONE : Side.ENEMY),
+    neutral: init.team === Team.CIV,
     name: init.name,
     profile: init.profile ?? NO_PROFILE,
     soldierClass: init.soldierClass ?? SoldierClass.NONE,
@@ -210,6 +234,8 @@ export function createSoldier(init: SoldierInit): Soldier {
     breathMax: init.breath ?? 100,
     breathRed: 0,
     stealthMode: false,
+    cowering: false,
+    civilianGroup: init.civilianGroup ?? 0,
     hasKeys: false,
     visible: init.team === Team.OUR ? 1 : -1,
     underAiControl: false,
@@ -267,6 +293,8 @@ export function createSoldier(init: SoldierInit): Soldier {
     blockedByAnotherMercDirection: 0,
     reservedGridNo: NOWHERE,
     endDoorOpenCode: 0,
+    endDoorOpenCodeData: NOWHERE,
+    pendingDoorGridNo: NOWHERE,
     breathCollapsed: false,
     collapsed: false,
     ai: {
@@ -277,16 +305,23 @@ export function createSoldier(init: SoldierInit): Soldier {
       patrolCount: 0,
       nextPatrolPoint: 1,
       action: 0,
-      actionData: 0,
+      actionData: NOWHERE,
       nextAction: 0,
       nextActionData: 0,
+      lastAction: 0,
       actionInProgress: false,
-      aiDelayUntil: 0,
-      nextActionAt: 0,
+      counter: 0,
       handleEveryFrame: false,
       newSituation: 0,
-      lastActionTime: 0,
-      bypassToGreen: false,
+      bypassToGreen: 0,
+      blackList: NOWHERE,
+      dominantDir: init.direction,
+      noiseGridNo: NOWHERE,
+      noiseVolume: 0,
+      oppCount: 0,
+      underFire: false,
+      morale: 0,
+      cautious: false,
       ...init.ai,
     },
   };

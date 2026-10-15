@@ -140,6 +140,31 @@ describe('walking', () => {
     expect(s.gridNo).toBe(gridNo(80, 77));
   });
 
+  it('lets an enemy open a closed door on the way and close it behind him', () => {
+    const closed = {
+      ...syntheticStructure(StructureFlags.DOOR | StructureFlags.OPENABLE, Orientation.INSIDE_LEFT),
+      number: 0,
+      partnerDelta: 1,
+    };
+    const open = {
+      ...syntheticStructure(StructureFlags.DOOR | StructureFlags.OPENABLE | StructureFlags.OPEN, Orientation.INSIDE_LEFT),
+      number: 1,
+      partnerDelta: -1,
+    };
+    const file = { structureCount: 2, auxData: null, tileLocations: [], structures: [closed, open] };
+    const t = tactical((w) => {
+      for (let x = 70; x <= 90; x++) {
+        if (x === 80) w.add(gridNo(x, 79), 0, closed, undefined, file);
+        else w.add(gridNo(x, 79), 0, syntheticStructure(StructureFlags.WALL, Orientation.INSIDE_LEFT));
+      }
+    });
+    const s = spawn(t, START, Team.ENEMY);
+    expect(getNewSoldierPath(t, s, gridNo(80, 77), s.uiMovementMode)).toBe(true);
+    runUntilStill(t, 100_000);
+    expect(s.gridNo).toBe(gridNo(80, 77));
+    expect(t.events.filter((e) => e.type === 'doorChanged').map((e) => (e.type === 'doorChanged' ? e.open : null))).toEqual([true, false]);
+  });
+
   it('walks around a wall', () => {
     const t = tactical((w) => {
       for (let x = 70; x <= 90; x++) w.add(gridNo(x, 79), 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT));

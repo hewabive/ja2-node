@@ -72,6 +72,7 @@ export interface PathEnv {
   readonly showAllMercs: boolean;
   readonly autoBandage: boolean;
   readonly minAPsToStartMovement?: (s: PathSoldier, mode: MoveMode) => number;
+  readonly stats?: { searches: number };
 }
 
 export interface PathOptions {
@@ -333,6 +334,7 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
     if (closeLimit <= 0) return NO_PATH;
   }
   const personAtDestIsObstacle = forPlayer && aroundPeople && !(flags & PathFlags.IGNORE_PERSON_AT_DEST);
+  if (env.stats) env.stats.searches = (env.stats.searches + 1) & 0xff;
 
   let dest = destination;
   if (dest !== NOWHERE) {

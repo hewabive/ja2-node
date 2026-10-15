@@ -56,7 +56,12 @@ export class TacticalSession implements SessionSim {
   }
 
   view(): PlayerView {
-    return { tick: this.sim.tick, mapPath: this.sim.mapPath, soldiers: this.sim.snapshot((s) => s.team === Team.OUR || s.visible >= 0) };
+    return {
+      tick: this.sim.tick,
+      mapPath: this.sim.mapPath,
+      soldiers: this.sim.snapshot((s) => s.team === Team.OUR || s.visible >= 0),
+      openDoors: this.sim.openDoors(),
+    };
   }
 }
 

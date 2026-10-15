@@ -13,6 +13,7 @@ export class SessionClient {
   readonly #frames: ViewFrame[] = [];
   #nextId = 1;
   #shown: SoldierView[] = [];
+  #openDoors: readonly number[] = [];
   #shownTick = 0;
   #latestTick = 0;
 
@@ -37,6 +38,10 @@ export class SessionClient {
 
   get soldiers(): readonly SoldierView[] {
     return this.#shown;
+  }
+
+  get openDoors(): readonly number[] {
+    return this.#openDoors;
   }
 
   get shownTick(): number {
@@ -64,6 +69,7 @@ export class SessionClient {
         this.view = m.view;
         this.driver = m.driver;
         this.#shown = [...m.view.soldiers];
+        this.#openDoors = m.view.openDoors ?? [];
         this.#shownTick = m.view.tick;
         this.#latestTick = m.view.tick;
         break;
@@ -91,6 +97,7 @@ export class SessionClient {
     while (this.#frames.length > 0 && (this.#frames[0]?.tick ?? 0) <= tick) {
       const frame = this.#frames.shift() as ViewFrame;
       this.#shown = applyFrame(this.#shown, frame);
+      if (frame.openDoors) this.#openDoors = frame.openDoors;
       changed = true;
     }
     const target = Math.min(tick, this.#latestTick);

@@ -1,5 +1,5 @@
 import type { CommandEnvelope, DriverMode, ServerMessage } from '../protocol/messages.ts';
-import { diffView, type PlayerView, type SoldierView, type ViewFrame } from '../protocol/view.ts';
+import { diffPlayerView, type PlayerView, type ViewFrame } from '../protocol/view.ts';
 import { advance, type Steppable, type StopCondition, type StopReport } from '../sim/advance.ts';
 import { TICK_MS } from '../sim/clock.ts';
 import type { CommandResult } from '../sim/command.ts';
@@ -24,13 +24,13 @@ export class Session {
   #timer: ReturnType<typeof setInterval> | null = null;
   #lastRealtime = 0;
   #carryMs = 0;
-  #lastSoldiers: readonly SoldierView[];
+  #lastView: PlayerView;
   readonly #listeners = new Set<Listener>();
 
   constructor(id: string, sim: SessionSim) {
     this.id = id;
     this.sim = sim;
-    this.#lastSoldiers = sim.view().soldiers;
+    this.#lastView = sim.view();
   }
 
   get driver(): DriverMode {
@@ -69,9 +69,9 @@ export class Session {
   }
 
   #capture(frames: ViewFrame[]): void {
-    const soldiers = this.sim.view().soldiers;
-    const frame = diffView(this.#lastSoldiers, soldiers, this.sim.tick);
-    this.#lastSoldiers = soldiers;
+    const view = this.sim.view();
+    const frame = diffPlayerView(this.#lastView, view);
+    this.#lastView = view;
     if (frame) frames.push(frame);
   }
 

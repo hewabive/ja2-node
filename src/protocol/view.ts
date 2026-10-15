@@ -18,12 +18,26 @@ export interface PlayerView {
   readonly tick: number;
   readonly mapPath: string | null;
   readonly soldiers: readonly SoldierView[];
+  readonly openDoors?: readonly number[];
 }
 
 export interface ViewFrame {
   readonly tick: number;
   readonly changed: readonly SoldierView[];
   readonly removed: readonly number[];
+  readonly openDoors?: readonly number[];
+}
+
+function sameList(a: readonly number[] | undefined, b: readonly number[] | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((v, i) => v === b[i]);
+}
+
+export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFrame | null {
+  const frame = diffView(previous.soldiers, next.soldiers, next.tick);
+  if (sameList(previous.openDoors, next.openDoors)) return frame;
+  return { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), openDoors: next.openDoors ?? [] };
 }
 
 function sameSoldier(a: SoldierView, b: SoldierView): boolean {

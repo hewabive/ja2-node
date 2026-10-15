@@ -3,7 +3,7 @@
 // @src src/game/TileEngine/Structure.cc CreateStructureFromDB, OkayToAddStructureToTile, InternalOkayToAddStructureToWorld,
 // @src AddStructureToWorld, AddStructureToTile, FindStructure, FindStructureByID, StructureHeight; Structure_Internals.h
 
-import { Orientation, type StructureDef, type StructureTile } from '../formats/jsd.ts';
+import { Orientation, type StructureDef, type StructureFile, type StructureTile } from '../formats/jsd.ts';
 import { Direction, directionIncrement, newGridNo, WORLD_MAX } from './grid.ts';
 
 export const StructureFlags = {
@@ -70,6 +70,7 @@ export interface StructureInstance {
   readonly wallOrientation: number;
   readonly def: StructureDef;
   readonly tile: StructureTile;
+  readonly file: StructureFile | null;
 }
 
 export type StructureOwner = { readonly kind: 'world' } | { readonly kind: 'soldier'; readonly id: number };
@@ -219,7 +220,13 @@ export class WorldStructures {
     return true;
   }
 
-  add(base: number, level: number, def: StructureDef, owner: StructureOwner = WORLD_OWNER): StructureInstance | null {
+  add(
+    base: number,
+    level: number,
+    def: StructureDef,
+    owner: StructureOwner = WORLD_OWNER,
+    file: StructureFile | null = null,
+  ): StructureInstance | null {
     if (def.tiles.length === 0) return null;
     if (!this.okayToAdd(base, level, def)) return null;
     const created = def.tiles.map((tile): StructureInstance => {
@@ -245,6 +252,7 @@ export class WorldStructures {
           def.wallOrientation !== Orientation.NONE && (!has(flags, StructureFlags.WALL) || isBase) ? def.wallOrientation : Orientation.NONE,
         def,
         tile,
+        file,
       };
     });
     const id = owner.kind === 'soldier' ? owner.id : this.allocateId();

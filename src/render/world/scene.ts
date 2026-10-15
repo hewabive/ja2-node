@@ -81,6 +81,7 @@ export interface SceneSource {
   readonly prepared: LevelRenderData;
   frame(tile: number): FrameGeometry | null;
   mercsAt?(gridNo: number): readonly SceneMerc[];
+  substitute?(gridNo: number, tile: number): number;
 }
 
 export function tileOrigin(x: number, y: number, o: SceneOptions): { x: number; y: number } {
@@ -329,7 +330,7 @@ function emitRow(ctx: Context, rows: readonly number[][], passes: readonly Pass[
           emitMercs(ctx, g);
           continue;
         }
-        for (const t of levelTilesAt(layerOf(ctx.source, pass), g)) emitNode(ctx, pass, g, t);
+        for (const t of levelTilesAt(layerOf(ctx.source, pass), g)) emitNode(ctx, pass, g, ctx.source.substitute?.(g, t) ?? t);
       }
     }
   }

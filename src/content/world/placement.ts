@@ -43,8 +43,9 @@ export function placeWorldStructures(level: Level, db: readonly TileElement[]): 
     for (let g = 0; g < WORLD_MAX; g++) {
       const start = layer.offsets[g] ?? 0;
       levelTilesAt(layer, g).forEach((tile, k) => {
-        const def = db[tile]?.structure;
-        if (!def || structures.add(g, z, def)) return;
+        const te = db[tile];
+        const def = te?.structure;
+        if (!def || structures.add(g, z, def, undefined, te.structureFile)) return;
         if (name !== 'structs') throw new Error(`structure of tile ${tile} rejected on the ${name} layer at ${g}`);
         rejected.push({ gridNo: g, tile });
         dropped.add(start + k);

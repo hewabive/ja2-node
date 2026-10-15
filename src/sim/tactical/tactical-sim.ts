@@ -4,8 +4,18 @@ import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { Rng } from '../../core/rng.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
+import {
+  type AiControl,
+  aiForSlot,
+  applyDesiredDirectionEvents,
+  beginAiPass,
+  createAiControl,
+  freeUpFromStanceChange,
+  freeUpFromTurning,
+} from './ai/control.ts';
 import { hasAnimFlag, states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
+import { isDoorOpenAt } from './doors.ts';
 import { getNewSoldierPath, stopMerc } from './movement.ts';
 import { executeOverhead, type OverheadHooks } from './overhead.ts';
 import { type Soldier, Team } from './soldier.ts';
@@ -36,7 +46,8 @@ export class TacticalSim {
   readonly state: TacticalState;
   readonly world: TacticalWorld;
   readonly mapPath: string;
-  hooks: OverheadHooks = {};
+  readonly ai: AiControl;
+  readonly hooks: OverheadHooks;
   #tick = 0;
 
   constructor(world: TacticalWorld, content: TacticalContent, seed: number) {
@@ -47,6 +58,14 @@ export class TacticalSim {
       content,
       Rng.fromSeed(seed),
     );
+    this.ai = createAiControl();
+    const ai = this.ai;
+    this.state.hooks = { ...this.state.hooks, turnFinished: freeUpFromTurning, stanceChanged: freeUpFromStanceChange };
+    this.hooks = {
+      beforePass: (t) => beginAiPass(t, ai),
+      ai: (t, s, slot) => aiForSlot(t, s, slot, ai),
+      afterPass: applyDesiredDirectionEvents,
+    };
   }
 
   get tick(): number {
@@ -112,6 +131,13 @@ export class TacticalSim {
     s.pathStored = false;
     if (!getNewSoldierPath(this.state, s, to, s.uiMovementMode, 1, s.noAPToFinishMove)) return { ok: false, reason: 'no path' };
     return { ok: true };
+  }
+
+  openDoors(): number[] {
+    return [...this.state.doorStatus.entries()]
+      .filter(([g]) => isDoorOpenAt(this.state, g))
+      .map(([g]) => g)
+      .sort((a, b) => a - b);
   }
 
   snapshot(filter: (s: Soldier) => boolean = () => true): SoldierSnapshot[] {

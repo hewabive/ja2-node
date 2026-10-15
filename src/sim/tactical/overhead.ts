@@ -65,11 +65,13 @@ function handleSoldierFrame(t: TacticalState, s: Soldier): boolean {
 }
 
 export interface OverheadHooks {
+  readonly beforePass?: (t: TacticalState) => void;
   readonly ai?: (t: TacticalState, s: Soldier, slot: number) => void;
   readonly afterPass?: (t: TacticalState) => void;
 }
 
 export function executeOverhead(t: TacticalState, hooks: OverheadHooks = {}): void {
+  hooks.beforePass?.(t);
   t.soldiers.forEach((s, slot) => {
     if (!s.placed) return;
     if (frameTimerDone(t, s) && !handleSoldierFrame(t, s)) return;

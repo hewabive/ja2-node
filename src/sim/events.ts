@@ -31,5 +31,11 @@ export interface CombatWouldStartEvent extends SimEventBase {
   readonly seen: number;
 }
 
-export type SimEvent = TickBudgetEvent | ArrivedEvent | StoppedEvent | NoPathEvent | CombatWouldStartEvent;
+export interface DoorChangedEvent extends SimEventBase {
+  readonly type: 'doorChanged';
+  readonly gridNo: number;
+  readonly open: boolean;
+}
+
+export type SimEvent = TickBudgetEvent | ArrivedEvent | StoppedEvent | NoPathEvent | CombatWouldStartEvent | DoorChangedEvent;
 export type SimEventType = SimEvent['type'];

@@ -56,6 +56,8 @@ const debug: TacticalHook = {
 window.__ja2Tactical = debug;
 
 const OUR_TEAM = 0;
+const DOOR_FLAGS = 0x00cc0008;
+const OPEN_FLAG = 0x2;
 
 function el<T extends HTMLElement>(id: string): T {
   const e = document.getElementById(id);
@@ -84,6 +86,7 @@ let zoom = 2;
 let hoverGridNo: number | null = null;
 let selected: number | null = null;
 let mercsByGrid = new Map<number, SceneMerc[]>();
+let openDoors: ReadonlySet<number> = new Set();
 const lastDrawn = new Map<number, { spec: MercDrawSpec; frame: FrameGeometry }>();
 const radar = new Radar(el<HTMLCanvasElement>('radar'), (cellX, cellY) => {
   camera = { centerX: cellX, centerY: cellY };
@@ -170,6 +173,7 @@ function render(): void {
     canvas.height = h;
   }
   client?.playUntil(client.latestTick);
+  openDoors = new Set(client?.openDoors ?? []);
   gl.clearColor(0, 0, 0, 1);
   gl.clearDepth(0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -294,6 +298,11 @@ async function start(): Promise<void> {
         return f ? { offsetX: f.offsetX, offsetY: f.offsetY, width: f.width, height: f.height } : null;
       },
       mercsAt: (g) => mercsByGrid.get(g) ?? [],
+      substitute: (g, tile) => {
+        if (!openDoors.has(g)) return tile;
+        const def = loaded.tiles[tile]?.structure;
+        return def && def.flags & DOOR_FLAGS && !(def.flags & OPEN_FLAG) ? tile + def.partnerDelta : tile;
+      },
     };
     await radar.load(mapPath, available);
     const squad = soldiers().filter((s) => s.team === OUR_TEAM);

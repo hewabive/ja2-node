@@ -1,17 +1,13 @@
 import type { MapDoor } from '../../content/formats/map.ts';
 import { isVisibleTile, WORLD_MAX } from '../../content/world/grid.ts';
-import type { MovementCosts } from '../../content/world/movement-costs.ts';
-import type { WorldStructures } from '../../content/world/structures.ts';
-import type { Rng } from '../../core/rng.ts';
+import type { MovementCosts, MovementWorld } from '../../content/world/movement-costs.ts';
+import { PreRandom, type Rng } from '../../core/rng.ts';
 import type { SimEvent } from '../events.ts';
 import type { TacticalContent } from './content.ts';
 import type { DoorStatus, PathEnv, PathSoldier, PathWorld } from './pathfinding.ts';
 import type { Soldier } from './soldier.ts';
 
-export interface TacticalWorldData {
-  readonly level: { readonly heights: Uint8Array };
-  readonly structures: WorldStructures;
-  readonly terrain: Uint8Array;
+export interface TacticalWorldData extends MovementWorld {
   readonly costs: MovementCosts;
   readonly mapDoors: ReadonlyMap<number, MapDoor>;
 }
@@ -24,13 +20,22 @@ export interface TacticalHooks {
   atNewGridNo(t: TacticalState, s: Soldier): boolean;
   newAiSituation(t: TacticalState, s: Soldier): void;
   look(t: TacticalState, s: Soldier): void;
+  turnFinished(t: TacticalState, s: Soldier): void;
+  stanceChanged(t: TacticalState, s: Soldier): void;
 }
 
 export const NO_HOOKS: TacticalHooks = {
   atNewGridNo: () => false,
   newAiSituation: () => {},
   look: () => {},
+  turnFinished: () => {},
+  stanceChanged: () => {},
 };
+
+export interface DesiredDirectionEvent {
+  readonly soldier: number;
+  readonly direction: number;
+}
 
 export interface TacticalState {
   clockMs: number;
@@ -41,8 +46,10 @@ export interface TacticalState {
   readonly reserved: Int16Array;
   readonly doorStatus: Map<number, DoorStatus>;
   readonly rng: Rng;
+  readonly pre: PreRandom;
   inCombat: boolean;
   readonly events: TacticalEvent[];
+  readonly desiredDirectionEvents: DesiredDirectionEvent[];
   readonly pathWorld: PathWorld;
   readonly pathEnv: PathEnv;
   hooks: TacticalHooks;
@@ -65,6 +72,7 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
     doorStatus: (g) => doorStatus.get(g) ?? null,
     showAllMercs: false,
     autoBandage: false,
+    stats: { searches: 0 },
   };
   return {
     clockMs: 0,
@@ -75,8 +83,10 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
     reserved: new Int16Array(WORLD_MAX).fill(-1),
     doorStatus,
     rng,
+    pre: PreRandom.create(rng),
     inCombat: false,
     events: [],
+    desiredDirectionEvents: [],
     pathWorld,
     pathEnv,
     hooks: NO_HOOKS,

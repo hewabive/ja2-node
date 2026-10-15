@@ -21,7 +21,8 @@ import {
   states,
 } from './animation.ts';
 import { MOVE_SIN_COS } from './constants.ts';
-import { DIRECTION_INCREMENT } from './directions.ts';
+import { DIRECTION_INCREMENT, Direction } from './directions.ts';
+import { interactWithDoor, toggleDoorAt } from './doors.ts';
 import { findBestPath, isWater, MAX_PATH_LIST_SIZE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { deductBreath, doorTravelCost, type PointsContext, terrainBreathPoints } from './points.ts';
 import { cellCentre, NOWHERE, OKBREATH, Orders, type Soldier, Team } from './soldier.ts';
@@ -90,6 +91,10 @@ function setSoldierGridNo(t: TacticalState, s: Soldier, requested: number): void
   s.gridNo = g;
   s.placed = false;
   if (!isVisibleTile(g)) return;
+  if (s.endDoorOpenCode === 2) {
+    s.endDoorOpenCode = 0;
+    toggleDoorAt(t, s.endDoorOpenCodeData);
+  }
   unmarkMovementReserved(t, s);
   if (s.ai.patrolGrid.length === 0) s.ai.patrolGrid[0] = g;
   placeOccupant(t, s);
@@ -255,7 +260,21 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
   }
   const ctx = pointsContext(t);
   if (doorTravelCost(ctx, s, next, cost, s.team === Team.OUR, true) === TravelCost.DOOR) {
-    haltForDoor(t, s);
+    const doorGridNo =
+      direction === Direction.NORTH || direction === Direction.WEST
+        ? next
+        : direction === Direction.SOUTH || direction === Direction.EAST
+          ? s.gridNo
+          : NOWHERE;
+    if (doorGridNo === NOWHERE || !t.world.structures.find(doorGridNo, StructureFlags.ANYDOOR)) {
+      haltForDoor(t, s);
+      return { ok: false, keepMoving: false };
+    }
+    interactWithDoor(t, s, doorGridNo, direction);
+    if (s.team !== Team.OUR || s.underAiControl) {
+      s.endDoorOpenCode = 1;
+      s.endDoorOpenCodeData = doorGridNo;
+    }
     return { ok: false, keepMoving: false };
   }
   const bp = terrainBreathPoints(ctx, next, direction, animState);
@@ -321,6 +340,25 @@ export function getNewSoldierPath(t: TacticalState, s: Soldier, dest: number, mo
   s.pastY = false;
   initNewSoldierAnim(t, s, mode, 0, forceRestart);
   return true;
+}
+
+const FACING_SIN_COS: readonly (readonly [number, number])[] = [
+  [-1.5099579909783707e-7, -0.9999999999999886],
+  [0.7071067769704656, -0.7071067854026294],
+  [0.9999999999999971, 7.549789954891874e-8],
+  [0.7071067544940086, 0.7071068078790854],
+  [0, 1],
+  [-0.7075322252792844, 0.7066810809632191],
+  [-0.9999999999999971, 7.549789954891874e-8],
+  [-0.7071067769704656, -0.7071067854026294],
+];
+
+export function moveMercFacingDirection(t: TacticalState, s: Soldier, distance: number): void {
+  const [sin, cos] = FACING_SIN_COS[s.direction] ?? [0, 0];
+  const d = Math.fround(distance);
+  const x = Math.fround(s.x + Math.fround(d * sin));
+  const y = Math.fround(s.y + Math.fround(d * cos));
+  setSoldierPositionXY(t, s, x, y, { keepDestination: true, keepFinalDestination: true });
 }
 
 export function moveMerc(t: TacticalState, s: Soldier, speed: number, direction: number): void {

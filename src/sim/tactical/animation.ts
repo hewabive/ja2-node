@@ -11,7 +11,8 @@ import { newGridNo } from '../../content/world/grid.ts';
 import { TERRAIN_SPEED_DELAY } from './constants.ts';
 import type { TacticalContent } from './content.ts';
 import { DIRECTION_COUNT, DIRECTION_INCREMENT, quickestTurnIncrement } from './directions.ts';
-import { handleGotoNewGridNo, isJumpableFenceAt, setSoldierPosition } from './movement.ts';
+import { handlePendingDoor } from './doors.ts';
+import { getNewSoldierPath, handleGotoNewGridNo, isJumpableFenceAt, moveMercFacingDirection, setSoldierPosition } from './movement.ts';
 import { newOKDestination } from './pathfinding.ts';
 import { deductBreath } from './points.ts';
 import { NO_PENDING_ANIMATION, type Soldier, Team } from './soldier.ts';
@@ -39,11 +40,19 @@ const REGFEMALE = 3;
 
 const OP_PAUSE_ONE_FRAME = 402;
 const OP_NONINT_DONE = 442;
+const OP_HOP_FENCE_STEP = 443;
 const OP_END_HOP_FENCE = 444;
+const OP_HOP_FENCE_FULL_STEP = 445;
 const OP_PAUSE_ANIMOVE_ON = 446;
 const OP_BEGIN_HOP_FENCE = 450;
 const OP_PAUSE_ANIMOVE_OFF = 471;
+const OP_OPEN_STRUCT = 494;
+const OP_OPEN_DOOR = 495;
 const OP_END_OF_ANIMATION = 499;
+const HOP_FENCE_FORWARD_SE: readonly number[] = [2.2, 0.7, 3.2, 0.7];
+const HOP_FENCE_FORWARD_NW: readonly number[] = [2.7, 1.0, 2.7, 1.0];
+const HOP_FENCE_FORWARD_FULL_SE: readonly number[] = [1.1, 1.0, 2.1, 1.1];
+const HOP_FENCE_FORWARD_FULL_NW: readonly number[] = [0.8, 0.2, 2.7, 0.8];
 const OP_RT_NONINT_DONE = 772;
 
 export interface NamedStates {
@@ -310,7 +319,11 @@ function handleEndOfAnimation(t: TacticalState, s: Soldier): void {
   const currentEnd = endHeight(content, s.state);
   if (s.desiredHeight === currentEnd || s.desiredHeight === NO_DESIRED_HEIGHT) {
     s.desiredHeight = NO_DESIRED_HEIGHT;
-    if (hasAnimFlag(content, s.state, AnimFlags.STANCECHANGEANIM)) t.hooks.newAiSituation(t, s);
+    if (hasAnimFlag(content, s.state, AnimFlags.STANCECHANGEANIM)) {
+      t.hooks.newAiSituation(t, s);
+      t.hooks.stanceChanged(t, s);
+    }
+    if (continueAfterDoor(t, s)) return;
     if (s.pendingAnimation !== NO_PENDING_ANIMATION) {
       const pending = s.pendingAnimation;
       s.pendingAnimation = NO_PENDING_ANIMATION;
@@ -339,6 +352,22 @@ function handleEndOfAnimation(t: TacticalState, s: Soldier): void {
   else changeSoldierState(t, s, next);
 }
 
+function hopFenceStep(t: TacticalState, s: Soldier, southEast: readonly number[], northWest: readonly number[]): void {
+  if (s.direction === 4 || s.direction === 2) moveMercFacingDirection(t, s, southEast[s.bodyType] ?? 0);
+  else if (s.direction === 0 || s.direction === 6) moveMercFacingDirection(t, s, northWest[s.bodyType] ?? 0);
+}
+
+const END_OPEN_DOOR_STATES = ['END_OPEN_DOOR', 'END_OPEN_DOOR_CROUCHED'];
+
+function continueAfterDoor(t: TacticalState, s: Soldier): boolean {
+  const name = t.content.animations.controls[s.state]?.id ?? '';
+  if (!END_OPEN_DOOR_STATES.includes(name) || s.endDoorOpenCode !== 1) return false;
+  s.endDoorOpenCode = 2;
+  getNewSoldierPath(t, s, s.finalDestination, s.uiMovementMode);
+  if (!hasAnimFlag(t.content, s.state, AnimFlags.MOVING) && s.absoluteFinalDestination !== -1) t.hooks.newAiSituation(t, s);
+  return true;
+}
+
 function endHopFence(t: TacticalState, s: Soldier): OpOutcome {
   setSoldierPosition(t, s, s.forecastGridNo, { keepDestination: true, keepFinalDestination: true });
   setSoldierDirection(t, s, (s.direction + 2) % DIRECTION_COUNT);
@@ -360,6 +389,16 @@ export function adjustToNextAnimationFrame(t: TacticalState, s: Soldier): void {
         return 'continue';
       case OP_NONINT_DONE:
         s.inNonInterruptibleAnimation = false;
+        return 'continue';
+      case OP_HOP_FENCE_STEP:
+        hopFenceStep(t, s, HOP_FENCE_FORWARD_SE, HOP_FENCE_FORWARD_NW);
+        return 'continue';
+      case OP_HOP_FENCE_FULL_STEP:
+        hopFenceStep(t, s, HOP_FENCE_FORWARD_FULL_SE, HOP_FENCE_FORWARD_FULL_NW);
+        return 'continue';
+      case OP_OPEN_STRUCT:
+      case OP_OPEN_DOOR:
+        if (handlePendingDoor(t, s)) t.hooks.newAiSituation(t, s);
         return 'continue';
       case OP_END_HOP_FENCE:
         return endHopFence(t, s);
@@ -443,6 +482,7 @@ export function turnSoldier(t: TacticalState, s: Soldier): void {
   }
   if (s.direction === s.desiredDirection) {
     s.lookOnNextTurn = false;
+    t.hooks.turnFinished(t, s);
     return;
   }
   if (s.noAPToFinishMove) adjustNoAPToFinishMove(s, false);

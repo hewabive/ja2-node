@@ -27,6 +27,31 @@ function stateJump(state: number): number {
   return state < 100 ? 600 + state : 700 + state;
 }
 
+const OPEN_DOOR = 495;
+type ScriptBuilder = (tables: Parameters<typeof stateId>[0]) => number[];
+const DOOR_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
+  OPEN_DOOR: (t) => [1, 2, 3, 4, 5, 6, 6, 6, 6, 5, NONINTERRUPTIBLE_DONE, OPEN_DOOR, stateJump(stateId(t, 'END_OPEN_DOOR'))],
+  OPEN_DOOR_CROUCHED: (t) => [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    6,
+    6,
+    6,
+    5,
+    NONINTERRUPTIBLE_DONE,
+    OPEN_DOOR,
+    stateJump(stateId(t, 'END_OPEN_DOOR_CROUCHED')),
+  ],
+  END_OPEN_DOOR: () => [5, 4, 3, 2, 1, NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
+  END_OPEN_DOOR_CROUCHED: () => [5, 4, 3, 2, 1, NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
+  CLOSE_DOOR: () => [1, 2, 3, 4, 5, 6, OPEN_DOOR, 5, 4, 3, 2, 1, NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
+  CLOSE_DOOR_CROUCHED: () => [1, 2, 3, 4, 5, 6, OPEN_DOOR, 5, 4, 3, 2, 1, NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
+};
+
 export async function buildStubAnimationScripts(): Promise<Uint8Array> {
   const read = async (path: string) => JSON.parse(await readFile(join(PROJECT_DATA_DIR, path), 'utf8'));
   const tables = parseAnimationTables(await read(ANIM_CONTROL_PATH), await read(ANIM_SURFACES_PATH));
@@ -40,7 +65,9 @@ export async function buildStubAnimationScripts(): Promise<Uint8Array> {
       ...(control.flags & RT_NONINTERRUPT_FLAG ? [RT_NONINTERRUPTIBLE_DONE] : []),
     ];
     let script: number[];
-    if (control.index === startSwat) script = [...frames(START_SWAT_FRAMES), stateJump(stateId(tables, 'SWATTING'))];
+    const door = DOOR_SCRIPTS[control.id];
+    if (door) script = door(tables);
+    else if (control.index === startSwat) script = [...frames(START_SWAT_FRAMES), stateJump(stateId(tables, 'SWATTING'))];
     else if (control.index === hopFence)
       script = [
         BEGIN_HOP_FENCE,
