@@ -1,0 +1,48 @@
+# CLAUDE.md
+
+ja2-node is a non-commercial TypeScript reimplementation of Jagged Alliance 2. The goal is the
+original's behaviour (formulas, constants, check order, integer truncation, PreRandom semantics),
+not a line-by-line port; the behaviour reference is JA2 Stracciatella with default settings.
+The simulation is server-side (Node), the browser is a client, agents play through an API.
+
+## Rules
+
+- Keep this file compact: add only what cannot be learned quickly from the code or `docs/`.
+- No comments in code. Make code self-explanatory through names, small functions and named
+  constants. The only exception is the SFI-SCLA header below.
+- Everything in the repository is English (code, docs, commit messages). Talk to the maintainer
+  in Russian.
+- Never commit original game data or anything derived from it (extracted files, JSON produced
+  from `Ja2bin.dat`, screenshots). The data lives outside the repo, in `$JA2_DATA_DIR`.
+- `reference/` holds third-party sources: read-only, gitignored. Never copy code from
+  `reference/ja2-web` (GPL claim).
+
+## Commands
+
+- `pnpm check`: Biome, `tsc -b`, layer imports, unit tests. Run before calling a change done.
+- `pnpm e2e`: Playwright against the stub pack.
+- `pnpm dev`: server (7420) + Vite (5173). Add `JA2_DATA_DIR="…/Data"` for the original data.
+- `pnpm stubs`, `pnpm cli inspect …` (`pnpm cli --help`).
+
+## Conventions
+
+- Node runs `.ts` directly: no `enum`, `namespace` or constructor parameter properties; relative
+  imports end in `.ts`; type-only imports use `import type`.
+- Layer boundaries: tsconfig project references + `tools/check-imports.ts`. `core` and `content`
+  (later `sim`) are DOM-free, Node-free and deterministic: no `Math.random`, `Date`, timers.
+- Fixed-width integer fields of the original go through `src/core/int.ts` (`u8`, `i16`, `idiv`…).
+- Files derived from original or Stracciatella logic start with:
+  ```ts
+  // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
+  // Modified for ja2-node: reimplemented in TypeScript, <YYYY-MM-DD>. See LICENSE (SFI-SCLA).
+  // @src <path in Stracciatella>
+  ```
+- Tests live next to the code (`*.test.ts`). Tests that need original data use
+  `describe.skipIf(!process.env.JA2_DATA_DIR)`; CI runs on stubs only.
+
+## Docs
+
+- `docs/01-architecture.md`: decisions D1–D16, layers, milestones (current status in §12).
+- `docs/04-time-and-server.md`: tick model, time drivers, server, agent API.
+- `docs/02-mechanics-catalog.md`, `docs/03-logic-animation-coupling.md`: formulas and engine
+  behaviour with `file:line` references into `reference/stracciatella`.

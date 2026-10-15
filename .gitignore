@@ -1,0 +1,15 @@
+# Third-party reference sources (see reference/README.md)
+reference/*
+!reference/README.md
+
+node_modules/
+dist/
+
+# Original commercial JA2 data must never be committed
+/gamedata/
+*.slf
+.cache/
+.ja2/
+test-results/
+playwright-report/
+out/

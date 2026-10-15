@@ -1,0 +1,29 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "rootDir": "..",
+    "outDir": "../.cache/tsc/tests",
+    "tsBuildInfoFile": "../.cache/tsc/tests.tsbuildinfo"
+  },
+  "include": [
+    "**/*.ts",
+    "../src/**/*.test.ts",
+    "../stubs/**/*.test.ts",
+    "../tools/**/*.test.ts",
+    "../vite.config.ts",
+    "../vitest.config.ts",
+    "../playwright.config.ts"
+  ],
+  "references": [
+    { "path": "../src/core" },
+    { "path": "../src/content" },
+    { "path": "../src/node" },
+    { "path": "../src/server" },
+    { "path": "../src/render" },
+    { "path": "../src/devtools" },
+    { "path": "../stubs" },
+    { "path": "../tools" }
+  ]
+}

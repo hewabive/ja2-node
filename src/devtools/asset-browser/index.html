@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Assets · ja2-node</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header>
+      <a href="/" class="brand">ja2-node</a>
+      <span class="title">asset browser</span>
+      <span id="status" class="status">connecting…</span>
+    </header>
+    <main>
+      <aside>
+        <input id="filter" type="search" placeholder="Filter: s_merc, .sti, stubs/…" autocomplete="off" spellcheck="false" />
+        <div id="tree" class="tree" role="tree"></div>
+      </aside>
+      <section class="view">
+        <div class="toolbar">
+          <div class="group" id="modes">
+            <button type="button" data-mode="grid" class="active">Frames</button>
+            <button type="button" data-mode="anim">Animation</button>
+          </div>
+          <div class="group">
+            <span>Zoom</span>
+            <button type="button" data-zoom="1">1×</button><button type="button" data-zoom="2" class="active">2×</button><button type="button" data-zoom="3">3×</button><button type="button" data-zoom="4">4×</button>
+          </div>
+          <div class="group anim-only">
+            <button type="button" id="play">▶</button>
+            <button type="button" id="step">Step</button>
+            <label>fps <input id="fps" type="number" min="1" max="60" value="10" /></label>
+            <label>frames per group <input id="group-size" type="number" min="1" value="1" /></label>
+            <label>group <input id="group" type="number" min="0" value="0" /></label>
+          </div>
+          <div class="group">
+            <button type="button" id="bg" title="Background">▦</button>
+          </div>
+        </div>
+        <div id="stage" class="stage checker">
+          <canvas id="canvas"></canvas>
+          <div id="crosshair" class="crosshair anim-only"></div>
+          <pre id="text" class="text" hidden></pre>
+          <div id="empty" class="empty">Pick a file on the left. STI, PNG and stub sprites (*.sprite.json) are supported.</div>
+        </div>
+      </section>
+      <aside class="details">
+        <div id="info"></div>
+        <canvas id="palette" width="192" height="192" hidden></canvas>
+        <div id="hover"></div>
+      </aside>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2024"],
+    "types": ["node"],
+    "outDir": "../.cache/tsc/stubs",
+    "tsBuildInfoFile": "../.cache/tsc/stubs.tsbuildinfo"
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["**/*.test.ts"],
+  "references": [{ "path": "../src/core" }, { "path": "../src/content" }, { "path": "../src/node" }]
+}
