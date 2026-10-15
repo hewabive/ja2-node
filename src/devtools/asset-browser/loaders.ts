@@ -1,5 +1,8 @@
+import { decodePcx } from '../../content/formats/pcx.ts';
 import { decodePng, PngColorType } from '../../content/formats/png.ts';
 import { decodeSti, type Sti } from '../../content/formats/sti.ts';
+import { decodeTga } from '../../content/formats/tga.ts';
+import { pictureFromPcx, pictureFromTga } from '../../content/picture/from-pcx-tga.ts';
 import { pictureFromSti } from '../../content/picture/from-sti.ts';
 import type { Picture } from '../../content/picture/picture.ts';
 import { parseStubSpriteManifest, pictureFromStubSprite, STUB_SPRITE_SUFFIX } from '../../content/picture/stub-sprite.ts';
@@ -47,6 +50,8 @@ export async function loadAsset(path: string): Promise<Asset> {
     return { kind: 'picture', picture: pictureFromSti(sti), format: sti.kind === 'rgb' ? 'STI RGB565' : 'STI 8-bit, ETRLE', sti };
   }
   if (ext === 'png') return { kind: 'picture', picture: pictureFromPng(bytes), format: 'PNG' };
+  if (ext === 'pcx') return { kind: 'picture', picture: pictureFromPcx(decodePcx(bytes)), format: 'PCX' };
+  if (ext === 'tga') return { kind: 'picture', picture: pictureFromTga(decodeTga(bytes)), format: 'TGA' };
   if (TEXT_EXT.has(ext)) return { kind: 'text', text: new TextDecoder().decode(bytes) };
   return { kind: 'binary', bytes };
 }

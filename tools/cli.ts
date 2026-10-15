@@ -1,13 +1,18 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
+import { parseTilesetDatabase, TILESET_DATABASE_PATH } from '../src/content/formats/ja2set.ts';
+import { parseStructureFile } from '../src/content/formats/jsd.ts';
+import { LAYER_NAMES, parseMap } from '../src/content/formats/map.ts';
+import { decodePcx } from '../src/content/formats/pcx.ts';
 import { encodePngIndexed, encodePngRgba } from '../src/content/formats/png.ts';
 import { rgb565ToRgba } from '../src/content/formats/rgb565.ts';
 import { readSlf } from '../src/content/formats/slf.ts';
 import { decodeSti, type Sti } from '../src/content/formats/sti.ts';
+import { decodeTga } from '../src/content/formats/tga.ts';
 import { vfsExtension } from '../src/content/vfs/path.ts';
 import { openDataVfs } from '../src/node/data-vfs.ts';
-import { DEFAULT_STUBS_DIR } from '../src/node/repo.ts';
+import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR } from '../src/node/repo.ts';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -27,8 +32,10 @@ const USAGE = `usage: pnpm cli inspect <command> [--data DIR] [--stubs DIR]
   ls [prefix] [--limit N]     list VFS files
   slf <file.slf> [--limit N]  archive header and directory
   sti <path> [--png DIR]      describe an STI, optionally dump frames as PNG
+  map <path>                  describe a map (.dat)
+  tilesets                    list tilesets from ja2set.dat
   cat <path> --out <file>     extract a file from the VFS
-  verify                      decode every STI and report failures
+  verify                      decode every STI, JSD and map and report failures
 
 --data defaults to $JA2_DATA_DIR, --stubs to dist/stubs.`;
 
@@ -36,7 +43,11 @@ const mb = (n: number) => `${(n / 1048576).toFixed(1)} MB`;
 
 async function withVfs<T>(fn: (v: Awaited<ReturnType<typeof openDataVfs>>) => Promise<T>): Promise<T> {
   const dataDir = values.data ?? process.env.JA2_DATA_DIR;
-  const data = await openDataVfs({ dataDir: dataDir || undefined, stubsDir: values.stubs ?? DEFAULT_STUBS_DIR });
+  const data = await openDataVfs({
+    projectDataDir: PROJECT_DATA_DIR,
+    dataDir: dataDir || undefined,
+    stubsDir: values.stubs ?? DEFAULT_STUBS_DIR,
+  });
   try {
     return await fn(data);
   } finally {
@@ -139,35 +150,95 @@ async function main(): Promise<void> {
         await writeFile(values.out, await vfs.read(arg));
         console.log(`${arg} → ${values.out}`);
       });
+    case 'map':
+      return withVfs(async ({ vfs }) => {
+        if (!arg) throw new Error('usage: inspect map <vfs path>');
+        const map = parseMap(await vfs.read(arg));
+        console.log(`${arg}: version ${map.majorVersion}/${map.minorVersion}, tileset ${map.tilesetId}, flags 0x${map.flags.toString(16)}`);
+        for (const name of LAYER_NAMES) console.log(`  ${name.padEnd(8)} ${map.layers[name].types.length} tiles`);
+        const rooms = new Set(map.rooms).size - 1;
+        console.log(`  trailing bytes ${map.trailingBytes}`);
+        console.log(
+          `  rooms ${rooms}, items ${map.items.length}, lights ${map.lights?.sprites.length ?? 0}, placements ${map.placements.length}`,
+        );
+        console.log(`  exit grids ${map.exitGrids.length}, doors ${map.doors.length}, schedules ${map.schedules.length}`);
+        console.log(`  ambient ${JSON.stringify(map.ambient)}, info ${JSON.stringify(map.info)}`);
+      });
+    case 'tilesets':
+      return withVfs(async ({ vfs }) => {
+        const db = parseTilesetDatabase(await vfs.read(TILESET_DATABASE_PATH));
+        console.log(`${db.tilesets.length} tilesets, ${db.tileTypeCount} tile types each`);
+        for (const t of db.tilesets)
+          console.log(
+            `  ${String(t.id).padStart(2)} ${t.name.padEnd(32)} ambient ${t.ambientId}, own files ${t.surfaceFiles.filter((f) => f).length}`,
+          );
+      });
     case 'verify':
       return withVfs(async ({ vfs }) => {
-        const files = vfs.list().filter((f) => vfsExtension(f.path) === 'sti');
-        const t0 = performance.now();
-        let ok = 0;
-        let frames = 0;
-        let rgb = 0;
-        let bytes = 0;
+        const all = vfs.list();
         const failed: string[] = [];
         const anomalous: string[] = [];
-        for (const f of files) {
-          try {
-            const data = await vfs.read(f.path);
-            bytes += data.length;
-            const sti = decodeSti(data);
-            ok++;
-            if (sti.kind === 'rgb') rgb++;
-            else {
-              frames += sti.subImages.length;
-              if (sti.anomalies > 0) anomalous.push(`${f.path} (${sti.anomalies})`);
+        const trailing: string[] = [];
+        const run = async (label: string, files: typeof all, check: (bytes: Uint8Array, path: string) => void) => {
+          const t0 = performance.now();
+          let bytes = 0;
+          for (const f of files) {
+            try {
+              const data = await vfs.read(f.path);
+              bytes += data.length;
+              check(data, f.path);
+            } catch (err) {
+              failed.push(`${f.path}: ${(err as Error).message}`);
             }
-          } catch (err) {
-            failed.push(`${f.path}: ${(err as Error).message}`);
           }
+          console.log(`${label}: ${files.length} files, ${mb(bytes)} in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+        };
+        let frames = 0;
+        await run(
+          'STI',
+          all.filter((f) => vfsExtension(f.path) === 'sti'),
+          (data, path) => {
+            const sti = decodeSti(data);
+            if (sti.kind === 'indexed') {
+              frames += sti.subImages.length;
+              if (sti.anomalies > 0) anomalous.push(`${path} (${sti.anomalies})`);
+            }
+          },
+        );
+        console.log(`  indexed frames: ${frames}`);
+        await run(
+          'PCX',
+          all.filter((f) => vfsExtension(f.path) === 'pcx'),
+          (data) => void decodePcx(data),
+        );
+        await run(
+          'TGA',
+          all.filter((f) => vfsExtension(f.path) === 'tga'),
+          (data) => void decodeTga(data),
+        );
+        await run(
+          'JSD',
+          all.filter((f) => vfsExtension(f.path) === 'jsd'),
+          (data) => void parseStructureFile(data),
+        );
+        await run(
+          'maps',
+          all.filter((f) => f.path.startsWith('maps/') && vfsExtension(f.path) === 'dat'),
+          (data, path) => {
+            const map = parseMap(data);
+            if (map.trailingBytes > 0) trailing.push(`${path} (${map.trailingBytes})`);
+          },
+        );
+        console.log(`  maps with ignored trailing bytes: ${trailing.length}`);
+        if (vfs.stat(TILESET_DATABASE_PATH)) {
+          await run(
+            'tileset database',
+            all.filter((f) => f.path === TILESET_DATABASE_PATH),
+            (data) => void parseTilesetDatabase(data),
+          );
         }
-        const sec = ((performance.now() - t0) / 1000).toFixed(1);
-        console.log(`STI: ${files.length} files, ${mb(bytes)}, decoded ${ok} (${rgb} RGB565, ${frames} indexed frames) in ${sec} s`);
         console.log(`failed: ${failed.length}, with ETRLE anomalies: ${anomalous.length}`);
-        for (const line of failed.slice(0, 30)) console.log(`  FAIL ${line}`);
+        for (const line of failed.slice(0, 40)) console.log(`  FAIL ${line}`);
         for (const line of anomalous.slice(0, 30)) console.log(`  ANOMALY ${line}`);
         if (failed.length > 0) process.exitCode = 1;
       });

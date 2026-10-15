@@ -6,8 +6,10 @@ import { DirLayer } from './dir-layer.ts';
 import { SlfFileLayer } from './slf-layer.ts';
 
 export const STUBS_PREFIX = 'stubs';
+export const PROJECT_DATA_LAYER = 'ja2-node-data';
 
 export interface DataVfsOptions {
+  readonly projectDataDir?: string | undefined;
   readonly dataDir?: string | undefined;
   readonly stubsDir?: string | undefined;
 }
@@ -41,6 +43,9 @@ export async function openDataVfs(options: DataVfsOptions): Promise<DataVfs> {
   const slfs: SlfFileLayer[] = [];
   let dataDir: string | null = null;
   try {
+    if (options.projectDataDir && existsSync(options.projectDataDir)) {
+      layers.push(await DirLayer.open(PROJECT_DATA_LAYER, resolve(options.projectDataDir)));
+    }
     if (options.dataDir) {
       dataDir = await resolveDataDir(options.dataDir);
       layers.push(await DirLayer.open('data-dir', dataDir, { skipExtensions: ['slf'] }));

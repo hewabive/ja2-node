@@ -1,12 +1,13 @@
 import { serve } from '@hono/node-server';
 import { openDataVfs } from '../node/data-vfs.ts';
-import { DEFAULT_STUBS_DIR } from '../node/repo.ts';
+import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR } from '../node/repo.ts';
 import { loadOrCreateToken } from '../node/token.ts';
 import { createApp } from './app.ts';
 
 const host = process.env.JA2_HOST ?? '127.0.0.1';
 const port = Number(process.env.JA2_PORT ?? 7420);
 const data = await openDataVfs({
+  projectDataDir: PROJECT_DATA_DIR,
   dataDir: process.env.JA2_DATA_DIR || undefined,
   stubsDir: process.env.JA2_STUBS_DIR ?? DEFAULT_STUBS_DIR,
 });
