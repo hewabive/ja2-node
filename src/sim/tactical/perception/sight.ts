@@ -6,9 +6,18 @@
 // @src DecayOppListValue, VerifyAndDecayOpplist, DecayPublicOpplist. See docs/08 §2.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
-import { endHeight, states } from '../animation.ts';
-import { AlertStatus, OKLIFE, type Soldier, SoldierClass, Team } from '../soldier.ts';
-import { mercs, type TacticalState } from '../state.ts';
+import { endHeight, setSoldierAniSpeed, states } from '../animation.ts';
+import { AlertStatus, Body, NO_INTERRUPT, OKLIFE, type Soldier, SoldierClass, Team } from '../soldier.ts';
+import { mercs, type TacticalState, teamMembers } from '../state.ts';
+import { addToIntList, doneAddingToIntList, InterruptKind, resolveInterruptsVs } from '../turns/turns.ts';
+import {
+  calcInterruptDuelPts,
+  clearWatchedLocIncrements,
+  incrementWatchedLoc,
+  markSeenOpponent,
+  setWatchedLocAsUsed,
+  standardInterruptConditionsMet,
+} from './duel.ts';
 import { revealRoofsAndItems } from './fov.ts';
 import { type HeightClass, type LosSubject, soldierToSoldierLineOfSight } from './los.ts';
 import { atan8, Caller, Opp, SightFlags } from './opp.ts';
@@ -36,8 +45,6 @@ const KNOWLEDGE_VALUE: readonly (readonly number[])[] = [
 const OLDEST_HEARD_VALUE = -4;
 const BEST_SIGHTING_ALL = 6;
 const BEST_SIGHTING_NONCOMBAT = 3;
-const NO_INTERRUPT = 127;
-const SIGHTING_POINTS = 1;
 const TEAM_COUNT = 6;
 const DIFFICULTY_MEDIUM = 2;
 
@@ -50,7 +57,7 @@ export interface Perception {
   ambientLight: number;
   difficulty: number;
   bestSize: number;
-  best: Soldier[];
+  best: (Soldier | null)[];
   combatTeam: number;
   disallowSight: boolean;
 }
@@ -65,7 +72,7 @@ export function createPerception(maxSoldiers: number): Perception {
     ambientLight: 3,
     difficulty: DIFFICULTY_MEDIUM,
     bestSize: BEST_SIGHTING_NONCOMBAT,
-    best: [],
+    best: new Array<Soldier | null>(BEST_SIGHTING_ALL).fill(null),
     combatTeam: -1,
     disallowSight: false,
   };
@@ -137,7 +144,7 @@ function removeOneOpponent(s: Soldier): void {
   if (s.ai.oppCount === 0) s.ai.alertStatus = AlertStatus.RED;
 }
 
-function teamNoLongerSeesMan(t: TacticalState, team: number, opp: Soldier, exclude: Soldier, iteration: number): boolean {
+export function teamNoLongerSeesMan(t: TacticalState, team: number, opp: Soldier, exclude: Soldier | null, iteration: number): boolean {
   for (const mate of mercs(t)) {
     if (mate.team !== team || mate === exclude || mate.life < OKLIFE) continue;
     if (mate.oppList[opp.id] === Opp.SEEN_CURRENTLY) return false;
@@ -161,19 +168,45 @@ function handleManNoLongerSeen(t: TacticalState, me: Soldier, opp: Soldier): voi
 
 const SEEK_ACTIONS = new Set([1, 3, 2, 6, 7, 8]);
 
+function initSightArrays(t: TacticalState): void {
+  t.perception.best.fill(null);
+}
+
 function reevaluateBestSighting(t: TacticalState, s: Soldier, points: number): void {
   if (points === NO_INTERRUPT) return;
   const p = t.perception;
-  if (p.best.includes(s)) return;
-  const index = p.best.length;
-  if (index < p.bestSize) {
+  const best = p.best;
+  const size = p.bestSize;
+  if (s.interruptDuelPts !== NO_INTERRUPT && points < s.interruptDuelPts) {
+    const index = best.slice(0, size - 1).indexOf(s);
+    if (index >= 0) {
+      s.interruptDuelPts = points;
+      for (let k = index + 1; k < size; k++) {
+        const here = best[k];
+        const above = best[k - 1];
+        if (here && above && above.interruptDuelPts < here.interruptDuelPts) {
+          best[k - 1] = here;
+          best[k] = above;
+        } else break;
+      }
+    } else if (best[size - 1] === s) s.interruptDuelPts = points;
+    return;
+  }
+  if (best.slice(0, size).includes(s)) return;
+  for (let k = 0; k < size; k++) {
+    const entry = best[k];
+    if (entry && points <= entry.interruptDuelPts) continue;
+    const last = best[size - 1];
+    if (last) last.interruptDuelPts = NO_INTERRUPT;
     s.interruptDuelPts = points;
-    p.best.push(s);
+    for (let m = size - 1; m > k; m--) best[m] = best[m - 1] ?? null;
+    best[k] = s;
+    return;
   }
 }
 
 export function manSeesMan(t: TacticalState, s: Soldier, opp: Soldier, caller: number): void {
-  if (!validForSightings(s) || s.life < OKLIFE || !validForSightings(opp)) return;
+  if (!validForSightings(s) || s.life < OKLIFE || !validForSightings(opp) || s.team === opp.team) return;
   const old = s.oppList[opp.id] ?? 0;
   let newOpp = false;
   if (old !== Opp.SEEN_CURRENTLY && hostile(s, opp)) {
@@ -181,16 +214,24 @@ export function manSeesMan(t: TacticalState, s: Soldier, opp: Soldier, caller: n
     if (old !== Opp.SEEN_THIS_TURN) {
       newOpp = true;
       s.newOppCnt++;
-    }
+      incrementWatchedLoc(t, s, opp.gridNo, opp.level);
+    } else setWatchedLocAsUsed(t, s.id, opp.gridNo, opp.level);
     if (old !== Opp.SEEN_THIS_TURN || s.lastKnownOpp[opp.id] !== opp.gridNo) t.perceptionHooks.setNewSituation(s);
     else if (SEEK_ACTIONS.has(s.ai.action)) t.perceptionHooks.setNewSituation(s);
   }
   updatePersonal(s, opp, Opp.SEEN_CURRENTLY, opp.gridNo);
   const sightingCaller = caller === Caller.MANLOOKSFOROTHERTEAMS || caller === Caller.OTHERTEAMSLOOKFORMAN || caller === Caller.UNKNOWN;
-  if (sightingCaller && t.perception.bestSize !== 0 && newOpp && !t.inCombat && (s.team !== Team.OUR || opp.life >= OKLIFE)) {
-    reevaluateBestSighting(t, s, hostile(s, opp) ? SIGHTING_POINTS : NO_INTERRUPT);
+  if (sightingCaller && t.perception.bestSize !== 0 && newOpp) {
+    if (t.inCombat) {
+      if (standardInterruptConditionsMet(t, s, opp, old)) reevaluateBestSighting(t, s, calcInterruptDuelPts(t, s, opp, true));
+    } else if (s.team !== Team.OUR || opp.life >= OKLIFE) reevaluateBestSighting(t, s, calcInterruptDuelPts(t, s, opp, true));
   }
-  if ((s.team === Team.OUR || s.team === Team.MILITIA) && opp.visible <= 0) opp.visible = 1;
+  markSeenOpponent(t, s.id, opp.id);
+  if ((s.team === Team.OUR || s.team === Team.MILITIA) && opp.visible <= 0) {
+    const locate = opp.visible === -1;
+    opp.visible = 1;
+    if (locate) setSoldierAniSpeed(t, opp);
+  }
 }
 
 export function manLooksForMan(t: TacticalState, me: Soldier, opp: Soldier, caller: number): boolean {
@@ -243,8 +284,20 @@ function radioSightings(t: TacticalState, s: Soldier, about: Soldier | null, toT
       toTeam !== Team.MILITIA &&
       opp.life >= OKLIFE
     ) {
-      if (publ === Opp.NOT_HEARD_OR_SEEN) unknown++;
-      else if (publ !== Opp.SEEN_CURRENTLY && publ !== Opp.SEEN_THIS_TURN) revealed++;
+      let contact = false;
+      if (publ === Opp.NOT_HEARD_OR_SEEN) {
+        unknown++;
+        contact = true;
+      } else if (publ !== Opp.SEEN_CURRENTLY && publ !== Opp.SEEN_THIS_TURN) {
+        revealed++;
+        contact = true;
+      }
+      if (contact && t.turn.currentTeam !== Team.OUR) {
+        const pause = t.turn.enemySightingOnTheirTurn;
+        if (pause) pause.enemy.pauseAllAnimation = false;
+        t.turn.enemySightingOnTheirTurn = { enemy: opp, since: t.clockMs };
+        opp.pauseAllAnimation = true;
+      }
     }
     updatePublic(t, toTeam, opp, pers, s.lastKnownOpp[opp.id] ?? -1);
   }
@@ -277,36 +330,93 @@ function manLooksForOtherTeams(t: TacticalState, s: Soldier): void {
 function otherTeamsLookForMan(t: TacticalState, opp: Soldier): void {
   if (opp.team !== Team.OUR && opp.team !== Team.MILITIA && opp.visible >= 0 && opp.visible < 2 && opp.life > 0) opp.visible = 0;
   for (const looker of mercs(t)) {
-    if (looker.team === opp.team || looker.life < OKLIFE) continue;
-    manLooksForMan(t, looker, opp, Caller.OTHERTEAMSLOOKFORMAN);
+    if (looker.team === opp.team || looker.life < OKLIFE || looker.bodyType === Body.LARVAE_MONSTER) continue;
+    const oldOpp = looker.oppList[opp.id] ?? 0;
+    if (!manLooksForMan(t, looker, opp, Caller.OTHERTEAMSLOOKFORMAN)) continue;
+    if (t.perception.bestSize === 0 && t.inCombat && looker.newOppCnt) {
+      looker.interruptDuelPts =
+        t.turn.sightFlags & SightFlags.INTERRUPT && standardInterruptConditionsMet(t, looker, opp, oldOpp)
+          ? calcInterruptDuelPts(t, looker, opp, true)
+          : NO_INTERRUPT;
+    }
   }
   if (opp.team !== Team.OUR && opp.visible === 0) opp.visible = -1;
 }
 
 function handleBestSightingInRealtime(t: TacticalState): void {
   const p = t.perception;
+  if (t.turn.delayResolvingBestSightingDueToDoor) return;
   const [first, second, third] = p.best;
-  if (first) {
-    if (!second || first.team === second.team || !third || first.team === third.team) t.perceptionHooks.enterCombatMode(first.team, first);
-    else t.perceptionHooks.enterCombatMode(second.team, second);
+  if (!first) return;
+  if (!second || first.team === second.team || !third || first.team === third.team) t.perceptionHooks.enterCombatMode(first.team, first);
+  else {
+    t.perceptionHooks.enterCombatMode(second.team, second);
+    addToIntList(t, second, false);
+    addToIntList(t, first, true);
+    doneAddingToIntList(t);
   }
-  for (const s of p.best) s.interruptDuelPts = NO_INTERRUPT;
-  p.best = [];
+  for (const s of p.best) if (s) s.interruptDuelPts = NO_INTERRUPT;
+}
+
+export function resolveBestSightingAfterNoise(t: TacticalState): void {
+  handleBestSightingInRealtime(t);
+}
+
+function handleBestSightingInTurnbased(t: TacticalState): void {
+  const p = t.perception;
+  const best = p.best;
+  const first = best[0];
+  if (!first) return;
+  if (first.team !== t.turn.currentTeam) {
+    let found = -1;
+    for (let k = 0; k < p.bestSize; k++) {
+      const entry = best[k];
+      if (!entry) {
+        if (!t.turn.interruptProvoker) return;
+        best[k] = t.turn.interruptProvoker;
+        found = k;
+        break;
+      }
+      if (entry.team === t.turn.currentTeam) {
+        found = k;
+        break;
+      }
+    }
+    if (found >= 0) {
+      addToIntList(t, best[found] as Soldier, false);
+      for (let k = 0; k < found; k++) addToIntList(t, best[k] as Soldier, true);
+      doneAddingToIntList(t);
+    }
+  }
+  for (const s of best) if (s) s.interruptDuelPts = NO_INTERRUPT;
+}
+
+export function initOpplistForDoorOpening(t: TacticalState): void {
+  t.perception.bestSize = BEST_SIGHTING_ALL;
+  t.turn.delayResolvingBestSightingDueToDoor = true;
+  initSightArrays(t);
+}
+
+export function addDoorNoiseSighting(t: TacticalState, s: Soldier, points: number): void {
+  reevaluateBestSighting(t, s, points);
 }
 
 export function handleSight(t: TacticalState, s: Soldier, flags: number): void {
   if (!validForSightings(s)) return;
   const p = t.perception;
+  t.turn.sightFlags = flags;
   if (p.bestSize !== BEST_SIGHTING_ALL) {
     p.bestSize = t.inCombat ? 0 : BEST_SIGHTING_NONCOMBAT;
-    p.best = [];
+    initSightArrays(t);
   }
+  clearWatchedLocIncrements(t, s.id);
   const saved = s.ai.newSituation;
   s.ai.newSituation = 0;
   if (flags & SightFlags.LOOK) {
     if (s.life >= OKLIFE) manLooksForOtherTeams(t, s);
     otherTeamsLookForMan(t, s);
   }
+  if (t.inCombat && flags & SightFlags.INTERRUPT) resolveInterruptsVs(t, s, InterruptKind.SIGHT);
   if (p.bestSize === BEST_SIGHTING_NONCOMBAT) handleBestSightingInRealtime(t);
   if (s.ai.newSituation && s.team !== Team.OUR) t.perceptionHooks.haltFromSighting(s);
   s.ai.newSituation = Math.max(s.ai.newSituation, saved);
@@ -329,16 +439,26 @@ export function handleSight(t: TacticalState, s: Soldier, flags: number): void {
       them.newOppCnt = 0;
     }
   }
+  t.turn.sightFlags |= SightFlags.INTERRUPT;
 }
 
-export function allTeamsLookForAll(t: TacticalState): void {
+export function allTeamsLookForAll(t: TacticalState, allowInterrupts = false): void {
   const p = t.perception;
-  p.bestSize = BEST_SIGHTING_ALL;
-  p.best = [];
+  if (allowInterrupts || !t.inCombat) {
+    p.bestSize = BEST_SIGHTING_ALL;
+    if (t.turn.delayResolvingBestSightingDueToDoor) t.turn.delayResolvingBestSightingDueToDoor = false;
+    else initSightArrays(t);
+  }
   for (const s of mercs(t)) if (s.life >= OKLIFE) handleSight(t, s, SightFlags.LOOK);
-  for (const s of mercs(t)) if (s.team === Team.OUR) handleSight(t, s, SightFlags.RADIO);
-  if (!t.inCombat) handleBestSightingInRealtime(t);
-  p.bestSize = t.inCombat ? 0 : BEST_SIGHTING_NONCOMBAT;
+  for (const s of teamMembers(t, Team.OUR)) handleSight(t, s, SightFlags.RADIO);
+  if (!t.inCombat) {
+    handleBestSightingInRealtime(t);
+    p.bestSize = t.inCombat ? 0 : BEST_SIGHTING_NONCOMBAT;
+  } else if (allowInterrupts) {
+    handleBestSightingInTurnbased(t);
+    p.bestSize = 0;
+  }
+  t.turn.interruptProvoker = null;
 }
 
 export function decayOppListValue(value: number): number {

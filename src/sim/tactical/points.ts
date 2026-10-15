@@ -327,6 +327,45 @@ export function actionPointCost(ctx: PointsContext, s: Soldier, g: number, dir: 
   return points;
 }
 
+export function estimateActionPointCost(
+  ctx: PointsContext,
+  s: Soldier,
+  g: number,
+  dir: number,
+  mode: number,
+  pathIndex: number,
+  pathLength: number,
+): number {
+  const tile = terrainActionPoints(ctx, s, g, dir, s.level);
+  let points = 0;
+  if (tile > 0) {
+    switch (moveClassOf(ctx.content, mode)) {
+      case 'run':
+        points = Math.trunc(tile / RUN_DIVISOR);
+        break;
+      case 'walk':
+        points = tile + WALK_COST;
+        break;
+      case 'swat':
+        points = tile + SWAT_COST;
+        break;
+      case 'crawl':
+        points = tile + CRAWL_COST;
+        break;
+      default:
+        points = 1;
+    }
+  }
+  const sw = ctx.env.world.costs.get(g, dir, s.level);
+  const name = stateName(ctx.content, mode);
+  if (sw === TravelCost.FENCE) {
+    if (['SIDE_STEP', 'WALK_BACKWARDS', 'RUNNING', 'WALKING'].includes(name)) {
+      if (pathIndex + 2 < pathLength) points += AP.CROUCH;
+    } else if (['SWATTING', 'START_SWAT', 'SWAT_BACKWARDS'].includes(name)) points += AP.CROUCH;
+  } else if (sw === TravelCost.NOT_STANDING && ['RUNNING', 'WALKING', 'SIDE_STEP', 'WALK_BACKWARDS'].includes(name)) points += AP.CROUCH;
+  return points;
+}
+
 function walkingState(content: TacticalContent): number {
   return content.animations.controls.findIndex((c) => c.id === 'WALKING');
 }
@@ -449,14 +488,27 @@ function breathPerAP(ctx: PointsContext, s: Soldier, state: number): number {
 }
 
 export function unusedAPsToBreath(ctx: PointsContext, s: Soldier, gassed: boolean): void {
-  if (s.actionPoints <= MAX_AP_CARRIED) {
-    deductPoints(ctx.inCombat, s, 0, 0);
+  const adjustment = () => breathAdjustmentForCarriedWeight(carriedWeightPercentOf(ctx.content, s));
+  if (!ctx.inCombat) {
+    let change = 3 * Math.trunc((breathPerAP(ctx, s, s.state) * 100) / adjustment());
+    if (change > 0) change = 0;
+    else if (s.tilesMovedPerRTBreathUpdate > 0) {
+      const moved = breathPerAP(ctx, s, s.lastMovementAnimPerRTBreathUpdate) * s.tilesMovedPerRTBreathUpdate;
+      if (moved > 0) change += moved;
+      if (change < 0) change = 0;
+    }
+    deductPoints(ctx.inCombat, s, 0, change);
+    s.tilesMovedPerRTBreathUpdate = 0;
     return;
   }
-  let perAP = breathPerAP(ctx, s, s.state);
-  if (perAP < 0 && gassed) return;
-  perAP = Math.trunc((perAP * 100) / breathAdjustmentForCarriedWeight(carriedWeightPercentOf(ctx.content, s)));
-  deductPoints(ctx.inCombat, s, 0, (s.actionPoints - MAX_AP_CARRIED) * perAP);
+  let change = 0;
+  if (s.actionPoints > MAX_AP_CARRIED) {
+    let perAP = breathPerAP(ctx, s, s.state);
+    if (perAP < 0 && gassed) return;
+    perAP = Math.trunc((perAP * 100) / adjustment());
+    change = (s.actionPoints - MAX_AP_CARRIED) * perAP;
+  }
+  deductPoints(ctx.inCombat, s, 0, change);
 }
 
 export function maxActionPoints(bodyType: number): number {

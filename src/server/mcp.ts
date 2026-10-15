@@ -39,7 +39,7 @@ export function buildMcpServer(sessions: ReadonlyMap<string, Session>, defaultSe
     'observe',
     {
       description:
-        'What the player can see right now: own soldiers and the others the squad sees, with gridNo, sub-tile position, direction and animation; open doors; whether combat would start.',
+        'What the player can see right now: own soldiers (with AP, life and breath) and the others the squad sees, with gridNo, sub-tile position, direction and animation; open doors; and in turn-based combat whose turn it is, the round and whether an interrupt is open.',
       inputSchema: sessionArg,
     },
     async ({ session }) => text(pick(session).sim.view()),
@@ -48,7 +48,7 @@ export function buildMcpServer(sessions: ReadonlyMap<string, Session>, defaultSe
     'act',
     {
       description:
-        'Issue one game command and get whether it was accepted. Commands: {"type":"move","soldier":<id>,"to":<gridNo>,"mode":"walk"|"run"}, {"type":"stop","soldier":<id>}, {"type":"endCombat"} (sandbox: resume real time after combat would start). gridNo = y*160 + x.',
+        'Issue one game command and get whether it was accepted (refusals say why). Commands: {"type":"move","soldier":<id>,"to":<gridNo>,"mode":"walk"|"run"|"swat"|"crawl"} (mode defaults to the current stance), {"type":"turn","soldier":<id>,"direction":0-7} or {"type":"turn","soldier":<id>,"toward":<gridNo>}, {"type":"stance","soldier":<id>,"stance":"stand"|"crouch"|"prone"}, {"type":"stop","soldier":<id>}, {"type":"endTurn"} (turn-based combat; also closes an interrupt). In combat every action costs AP and only soldiers that have not finished their turn may act. gridNo = y*160 + x; direction 0 = north (up-right on screen), clockwise.',
       inputSchema: { ...sessionArg, command: z.object({ type: z.string() }).passthrough() },
     },
     async ({ session, command }) => text(pick(session).dispatch(command)),
@@ -57,7 +57,7 @@ export function buildMcpServer(sessions: ReadonlyMap<string, Session>, defaultSe
     'advance',
     {
       description:
-        'Let game time run until our soldiers are idle, a listed event happens (arrived, stopped, noPath, doorChanged, noiseHeard, enemySighted, combatWouldStart), a decision is pending, or a tick limit (5 ms per tick) is reached.',
+        'Let game time run until our soldiers are idle (in combat: it is our turn again and nobody is acting), a listed event happens (arrived, stopped, noPath, doorChanged, noiseHeard, enemySighted, combatStarted, turnStarted, interrupt, combatEnded), a decision is pending (an interrupt in our favour: act with the listed soldiers, then endTurn), or a tick limit (5 ms per tick) is reached.',
       inputSchema: {
         ...sessionArg,
         idle: z.boolean().optional(),

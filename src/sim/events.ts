@@ -25,10 +25,31 @@ export interface NoPathEvent extends SimEventBase {
   readonly to: number;
 }
 
-export interface CombatWouldStartEvent extends SimEventBase {
-  readonly type: 'combatWouldStart';
+export interface CombatStartedEvent extends SimEventBase {
+  readonly type: 'combatStarted';
   readonly team: number;
-  readonly soldier: number;
+}
+
+export interface TurnStartedEvent extends SimEventBase {
+  readonly type: 'turnStarted';
+  readonly team: number;
+  readonly round: number;
+}
+
+export interface InterruptEvent extends SimEventBase {
+  readonly type: 'interrupt';
+  readonly team: number;
+  readonly soldiers?: readonly number[];
+}
+
+export interface InterruptEndedEvent extends SimEventBase {
+  readonly type: 'interruptEnded';
+  readonly team: number;
+}
+
+export interface CombatEndedEvent extends SimEventBase {
+  readonly type: 'combatEnded';
+  readonly reason: 'lull' | 'won' | 'lost';
 }
 
 export interface DoorChangedEvent extends SimEventBase {
@@ -62,7 +83,11 @@ export type SimEvent =
   | ArrivedEvent
   | StoppedEvent
   | NoPathEvent
-  | CombatWouldStartEvent
+  | CombatStartedEvent
+  | TurnStartedEvent
+  | InterruptEvent
+  | InterruptEndedEvent
+  | CombatEndedEvent
   | DoorChangedEvent
   | NoiseHeardEvent
   | EnemySightedEvent

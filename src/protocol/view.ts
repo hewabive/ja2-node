@@ -12,6 +12,16 @@ export interface SoldierView {
   readonly frame: number;
   readonly palettes: readonly [string, string, string, string];
   readonly hand: string;
+  readonly ap?: number;
+  readonly life?: number;
+  readonly lifeMax?: number;
+  readonly breath?: number;
+}
+
+export interface CombatView {
+  readonly team: number;
+  readonly round: number;
+  readonly interrupt: boolean;
 }
 
 export interface PlayerView {
@@ -19,7 +29,7 @@ export interface PlayerView {
   readonly mapPath: string | null;
   readonly soldiers: readonly SoldierView[];
   readonly openDoors?: readonly number[];
-  readonly combatPending?: boolean;
+  readonly combat?: CombatView | null;
   readonly revealedRooms?: readonly number[];
 }
 
@@ -28,8 +38,13 @@ export interface ViewFrame {
   readonly changed: readonly SoldierView[];
   readonly removed: readonly number[];
   readonly openDoors?: readonly number[];
-  readonly combatPending?: boolean;
+  readonly combat?: CombatView | null;
   readonly revealedRooms?: readonly number[];
+}
+
+function sameCombat(a: CombatView | null | undefined, b: CombatView | null | undefined): boolean {
+  if (!a || !b) return !a === !b;
+  return a.team === b.team && a.round === b.round && a.interrupt === b.interrupt;
 }
 
 function sameList(a: readonly number[] | undefined, b: readonly number[] | undefined): boolean {
@@ -44,8 +59,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), openDoors: next.openDoors ?? [] };
   if (!sameList(previous.revealedRooms, next.revealedRooms))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), revealedRooms: next.revealedRooms ?? [] };
-  if ((previous.combatPending ?? false) !== (next.combatPending ?? false))
-    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), combatPending: next.combatPending ?? false };
+  if (!sameCombat(previous.combat, next.combat))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), combat: next.combat ?? null };
   return frame;
 }
 
@@ -60,7 +75,11 @@ function sameSoldier(a: SoldierView, b: SoldierView): boolean {
     a.frame === b.frame &&
     a.team === b.team &&
     a.bodyType === b.bodyType &&
-    a.hand === b.hand
+    a.hand === b.hand &&
+    a.ap === b.ap &&
+    a.life === b.life &&
+    a.lifeMax === b.lifeMax &&
+    a.breath === b.breath
   );
 }
 

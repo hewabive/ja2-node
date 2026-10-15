@@ -57,6 +57,7 @@ export interface TurnHooks {
   decideAlertStatus(t: TacticalState, s: Soldier): void;
   setNewSituation(t: TacticalState, s: Soldier): void;
   checkForChangingOrders(t: TacticalState, s: Soldier): void;
+  minAPsToAttack(t: TacticalState, s: Soldier, target: number): number;
 }
 
 export const NO_TURN_HOOKS: TurnHooks = {
@@ -65,6 +66,7 @@ export const NO_TURN_HOOKS: TurnHooks = {
   decideAlertStatus: () => {},
   setNewSituation: () => {},
   checkForChangingOrders: () => {},
+  minAPsToAttack: () => 0,
 };
 
 export interface DesiredDirectionEvent {
@@ -95,7 +97,6 @@ export interface TacticalState {
   perceptionHooks: PerceptionHooks;
   readonly turn: TurnState;
   turnHooks: TurnHooks;
-  combatPending: boolean;
 }
 
 export function createTacticalState(world: TacticalWorldData, content: TacticalContent, rng: Rng): TacticalState {
@@ -146,7 +147,6 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
     },
     turn: createTurnState(TOTAL_SOLDIERS),
     turnHooks: NO_TURN_HOOKS,
-    combatPending: false,
   };
 }
 

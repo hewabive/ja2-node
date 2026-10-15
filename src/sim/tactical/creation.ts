@@ -12,6 +12,7 @@ import { initNewSoldierAnim, states } from './animation.ts';
 import { hiredMercInventory, type InventoryContext, npcProfileInventory } from './inventory.ts';
 import { setSoldierPosition } from './movement.ts';
 import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
+import { calcActionPoints } from './points.ts';
 import { Body, createSoldier, NO_PROFILE, type Soldier, SoldierClass, type SoldierPalettes, type SoldierStats, Team } from './soldier.ts';
 import { registerSoldier, type TacticalState } from './state.ts';
 
@@ -229,6 +230,7 @@ export function findGridNoFromSweetSpot(t: TacticalState, s: Soldier, sweet: num
 
 export function addSoldierToSector(t: TacticalState, s: Soldier, insertionGridNo: number): boolean {
   s.gridNo = NOWHERE;
+  s.actionPoints = calcActionPoints(t.content, s);
   const spot = findGridNoFromSweetSpot(t, s, insertionGridNo, SWEET_SPOT_RADIUS);
   if (spot === NOWHERE) return false;
   registerSoldier(t, s);

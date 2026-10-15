@@ -54,7 +54,7 @@ function handleMovementFrame(t: TacticalState, s: Soldier): boolean {
 
 function handleSoldierFrame(t: TacticalState, s: Soldier): boolean {
   const moving = hasAnimFlag(t.content, s.state, AnimFlags.MOVING | AnimFlags.SPECIALMOVE);
-  if (moving && s.noAPToFinishMove) return true;
+  if ((moving && s.noAPToFinishMove) || s.pauseAllAnimation) return true;
   adjustToNextAnimationFrame(t, s);
   if (!hasAnimFlag(t.content, s.state, AnimFlags.SPECIALMOVE)) handleNextTileWaiting(t, s);
   if (hasAnimFlag(t.content, s.state, AnimFlags.MOVING | AnimFlags.SPECIALMOVE) && !s.pauseAnimMove) {

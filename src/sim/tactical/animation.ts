@@ -177,9 +177,19 @@ export function setSoldierDirection(t: TacticalState, s: Soldier, direction: num
   }
 }
 
-export function setDesiredDirection(t: TacticalState, s: Soldier, direction: number, animState = s.state): void {
+const TURN_CHARGE_FLAGS = AnimFlags.BREATH | AnimFlags.OK_CHARGE_AP_FOR_TURN | AnimFlags.FIREREADY;
+
+export function setDesiredDirection(t: TacticalState, s: Soldier, direction: number, animState = s.state, initialMove = false): void {
   s.desiredDirection = s.reverse ? (direction + 4) % DIRECTION_COUNT : direction;
   if (s.noAPToFinishMove && hasAnimFlag(t.content, animState, AnimFlags.MOVING)) adjustNoAPToFinishMove(s, false);
+  if (s.desiredDirection !== s.direction) {
+    if (hasAnimFlag(t.content, animState, TURN_CHARGE_FLAGS) && !initialMove && !s.dontChargeTurningAPs) {
+      const end = endHeight(t.content, animState);
+      const cost = end === AnimHeight.STAND ? AP.LOOK_STANDING : end === AnimHeight.CROUCH ? AP.LOOK_CROUCHED : AP.LOOK_PRONE;
+      deductPoints(t.inCombat, s, cost, 0);
+    }
+    s.dontChargeTurningAPs = false;
+  }
   s.turnIncrement = quickestTurnIncrement(s.direction, s.desiredDirection);
 }
 

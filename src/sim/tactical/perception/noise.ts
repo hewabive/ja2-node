@@ -9,16 +9,21 @@ import { endHeight, states } from '../animation.ts';
 import { directionToward } from '../movement.ts';
 import { isWater } from '../pathfinding.ts';
 import { effectiveDexterity, effectiveExpLevel, effectiveLife } from '../skills.ts';
-import { AlertStatus, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, NO_INTERRUPT, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
+import { InterruptKind, resolveInterruptsVs } from '../turns/turns.ts';
+import { AUTOMATIC_INTERRUPT, calcInterruptDuelPts, standardInterruptConditionsMet } from './duel.ts';
 import { type HeightClass, soldierToLocationLineOfSight, soldierToSoldierLineOfSight } from './los.ts';
 import {
+  addDoorNoiseSighting,
   atan8,
   distanceVisible,
+  hostile,
   manSeesMan,
   Opp,
   ourTeamRadiosRandomlyAbout,
   publicOpp,
+  resolveBestSightingAfterNoise,
   updatePersonal,
   updatePublic,
   validForSightings,
@@ -100,13 +105,30 @@ function decideHearing(t: TacticalState, s: Soldier): number {
 }
 
 function calcEffVolume(t: TacticalState, l: Soldier, g: number, level: number, base: number, sourceTerrain: number): number {
-  if (t.inCombat) return 0;
+  if (t.inCombat && t.turn.currentTeam === l.team) return 0;
   let eff = base + decideHearing(t, l) - l.ai.oppCount - (pythSpacesAway(l.gridNo, g) - 1);
   if (l.state === states(t.content.animations).RUNNING) eff -= 5;
   if (level > l.level) eff += 5;
   else if (level < l.level) eff -= 5;
   if (eff > 0 && (l.overTerrain === Terrain.FLAT_FLOOR) !== (sourceTerrain === Terrain.FLAT_FLOOR)) eff -= 5;
   return Math.max(eff, 0);
+}
+
+const SIGHT_INTERRUPT_KIND = 1;
+
+function raiseToRed(t: TacticalState, l: Soldier): void {
+  if (l.ai.alertStatus < AlertStatus.RED) {
+    l.ai.alertStatus = AlertStatus.RED;
+    t.perceptionHooks.checkForChangingOrders(l);
+  }
+}
+
+function rememberNoise(t: TacticalState, l: Soldier, g: number, level: number, volume: number): void {
+  if (volume < l.ai.noiseVolume) return;
+  l.ai.noiseGridNo = g;
+  l.ai.noiseLevel = level;
+  l.ai.noiseVolume = Math.min(volume, MAX_NOISE_VOLUME);
+  t.perceptionHooks.setNewSituation(l);
 }
 
 function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: number, level: number, volume: number, kind: number): boolean {
@@ -119,58 +141,67 @@ function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: numb
   };
   const occupant = t.occupant[level > 0 ? 1 : 0][g] ?? -1;
   const target = occupant >= 0 ? t.soldiers[occupant] : undefined;
-  const los = target
-    ? soldierToSoldierLineOfSight(
-        losWorld,
-        eye,
-        {
-          gridNo: target.gridNo,
-          level: target.level,
-          heightClass: endHeight(t.content, target.state) as (typeof HeightClass)[keyof typeof HeightClass],
-        },
-        d & 0xff,
-        true,
-        t.perception.disallowSight,
-      )
-    : soldierToLocationLineOfSight(losWorld, eye, g, level, d & 0xff, t.perception.disallowSight);
-  const sourceSeen = pythSpacesAway(l.gridNo, g) <= d && los !== 0;
   const hadToTurn = l.direction !== atan8(Math.trunc(l.x), Math.trunc(l.y), (g % WORLD_COLS) * 10 + 5, Math.trunc(g / WORLD_COLS) * 10 + 5);
+  let sourceSeen = false;
+  if (pythSpacesAway(l.gridNo, g) <= d) {
+    const los = target
+      ? soldierToSoldierLineOfSight(
+          losWorld,
+          eye,
+          {
+            gridNo: target.gridNo,
+            level: target.level,
+            heightClass: endHeight(t.content, target.state) as (typeof HeightClass)[keyof typeof HeightClass],
+          },
+          d & 0xff,
+          true,
+          t.perception.disallowSight,
+        )
+      : soldierToLocationLineOfSight(losWorld, eye, g, level, d & 0xff, t.perception.disallowSight);
+    sourceSeen = los !== 0;
+  }
   const hooks = t.perceptionHooks;
   let seen = false;
   if (source) {
+    const oldOpp = l.oppList[source.id] ?? 0;
+    const gunshot = (kind === NoiseKind.GUNFIRE || kind === NoiseKind.BULLET_IMPACT) && volume >= RED_ALERT_VOLUME;
     if (sourceSeen) {
       manSeesMan(t, l, source, 5);
       if (l.team !== Team.OUR) l.newOppCnt = 0;
       seen = true;
-      if (
-        l.neutral &&
-        (kind === NoiseKind.GUNFIRE || kind === NoiseKind.BULLET_IMPACT) &&
-        volume >= RED_ALERT_VOLUME &&
-        l.ai.alertStatus < AlertStatus.RED
-      )
-        l.ai.alertStatus = AlertStatus.RED;
+      if (l.neutral && gunshot) raiseToRed(t, l);
     } else {
       hooks.setNewSituation(l);
-      if ((kind === NoiseKind.GUNFIRE || kind === NoiseKind.BULLET_IMPACT) && volume >= RED_ALERT_VOLUME)
-        l.ai.alertStatus = AlertStatus.RED;
+      if (gunshot) raiseToRed(t, l);
       updatePersonal(l, source, Opp.HEARD_THIS_TURN, g);
-      if (volume >= l.ai.noiseVolume) {
-        l.ai.noiseGridNo = g;
-        l.ai.noiseLevel = level;
-        l.ai.noiseVolume = Math.min(volume, MAX_NOISE_VOLUME);
-        hooks.setNewSituation(l);
-      }
+      rememberNoise(t, l, g, level, volume);
     }
-  } else if (!sourceSeen || (kind === NoiseKind.ROCK_IMPACT && hadToTurn) || kind === NoiseKind.SILENT_ALARM) {
-    if (volume >= l.ai.noiseVolume) {
-      l.ai.noiseGridNo = g;
-      l.ai.noiseLevel = level;
-      l.ai.noiseVolume = Math.min(volume, MAX_NOISE_VOLUME);
-      hooks.setNewSituation(l);
+    if (hostile(l, source)) {
+      if (t.turn.delayResolvingBestSightingDueToDoor) {
+        if (
+          sourceSeen &&
+          (!t.inCombat || (t.turn.sightFlags & SIGHT_INTERRUPT_KIND && standardInterruptConditionsMet(t, l, source, oldOpp)))
+        ) {
+          const points = calcInterruptDuelPts(t, l, source, true);
+          if (points !== NO_INTERRUPT && (l.team !== Team.OUR || source.life >= OKLIFE))
+            addDoorNoiseSighting(t, l, (points + Math.trunc(volume / 2)) & 0xff);
+        }
+      } else if (t.inCombat) {
+        l.interruptDuelPts = standardInterruptConditionsMet(t, l, source, oldOpp) ? calcInterruptDuelPts(t, l, source, true) : NO_INTERRUPT;
+      } else if (sourceSeen) resolveBestSightingAfterNoise(t);
     }
   } else {
-    hooks.setNewSituation(l);
-    if (l.ai.alertStatus < AlertStatus.RED) l.ai.alertStatus = AlertStatus.RED;
+    if (l.team !== Team.OUR && (kind === NoiseKind.EXPLOSION || kind === NoiseKind.SILENT_ALARM) && volume >= RED_ALERT_VOLUME)
+      raiseToRed(t, l);
+    if (!sourceSeen || (kind === NoiseKind.ROCK_IMPACT && hadToTurn) || kind === NoiseKind.SILENT_ALARM)
+      rememberNoise(t, l, g, level, volume);
+    else {
+      hooks.setNewSituation(l);
+      raiseToRed(t, l);
+    }
+  }
+  if (t.perception.bestSize === 0 && t.inCombat && kind === NoiseKind.ROCK_IMPACT) {
+    l.interruptDuelPts = standardInterruptConditionsMet(t, l, null, 0) ? AUTOMATIC_INTERRUPT : NO_INTERRUPT;
   }
   return seen;
 }
@@ -183,6 +214,24 @@ function volumeClass(eff: number): number {
 }
 
 export function makeNoise(t: TacticalState, maker: Soldier | null, g: number, level: number, base: number, kind: number): void {
+  if (t.turn.attackBusyCount > 0) {
+    t.turn.deferredNoises.push({ maker: maker?.id ?? -1, gridNo: g, level, volume: base, kind });
+    return;
+  }
+  ourNoise(t, maker, g, level, base, kind);
+}
+
+export function dequeueDeferredNoises(t: TacticalState): void {
+  for (const n of t.turn.deferredNoises.splice(0))
+    ourNoise(t, n.maker >= 0 ? (t.soldiers[n.maker] ?? null) : null, n.gridNo, n.level, n.volume, n.kind);
+}
+
+function ourNoise(t: TacticalState, maker: Soldier | null, g: number, level: number, base: number, kind: number): void {
+  processNoise(t, maker, g, level, base, kind);
+  if (maker && t.inCombat && !t.turn.delayResolvingBestSightingDueToDoor) resolveInterruptsVs(t, maker, InterruptKind.NOISE);
+}
+
+function processNoise(t: TacticalState, maker: Soldier | null, g: number, level: number, base: number, kind: number): void {
   if (base === 0) return;
   if (maker && kind !== NoiseKind.EXPLOSION && (!validForSightings(maker) || (maker.life === 0 && kind !== NoiseKind.SCREAM))) return;
   const sourceTerrain = t.world.terrain[g] ?? 0;

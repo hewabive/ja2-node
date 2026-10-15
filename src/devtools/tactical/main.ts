@@ -200,9 +200,16 @@ function render(): void {
 
 function describe(): string {
   const lines = [`tick ${client?.shownTick ?? 0}  ·  ${client?.driver.mode === 'realtime' ? `${client.driver.speed}×` : 'paused'}`];
-  if (client?.combatPending) lines.push('COMBAT WOULD START: turn-based play comes in M3 (press "end combat")');
+  const combat = client?.combat;
+  if (combat)
+    lines.push(
+      `COMBAT round ${combat.round}: ${combat.team === 0 ? 'your turn' : `team ${combat.team} acting`}${combat.interrupt ? ' (interrupt)' : ''}`,
+    );
   const sel = soldiers().find((s) => s.id === selected);
-  if (sel) lines.push(`selected: ${sel.name || `#${sel.id}`} at ${sel.gridNo}`);
+  if (sel)
+    lines.push(
+      `selected: ${sel.name || `#${sel.id}`} at ${sel.gridNo}${sel.ap !== undefined ? `  AP ${sel.ap}  life ${sel.life}/${sel.lifeMax}  breath ${sel.breath}` : ''}`,
+    );
   if (hoverGridNo !== null) lines.push(`tile ${hoverGridNo} (${hoverGridNo % WORLD_COLS}, ${Math.floor(hoverGridNo / WORLD_COLS)})`);
   if (debug.lastResult) lines.push(debug.lastResult);
   return lines.join('\n');
@@ -274,9 +281,9 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-speed]')) {
     void client?.drive(speed === 0 ? { mode: 'manual' } : { mode: 'realtime', speed });
   });
 }
-el<HTMLButtonElement>('endCombat').addEventListener('click', () => {
-  void client?.command({ type: 'endCombat' }).then((r) => {
-    debug.lastResult = r.ok ? 'combat cleared' : `end combat: ${r.reason ?? 'refused'}`;
+el<HTMLButtonElement>('endTurn').addEventListener('click', () => {
+  void client?.command({ type: 'endTurn' }).then((r) => {
+    debug.lastResult = r.ok ? 'turn ended' : `end turn: ${r.reason ?? 'refused'}`;
   });
 });
 el<HTMLButtonElement>('idle').addEventListener('click', () => {

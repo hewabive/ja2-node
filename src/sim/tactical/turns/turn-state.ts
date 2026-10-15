@@ -56,6 +56,7 @@ export interface TurnState {
   readonly seenOpponents: Int8Array;
   readonly watched: WatchedLocations;
   round: number;
+  forceRealtimeTurn: boolean;
 }
 
 export function createTurnState(maxSoldiers: number): TurnState {
@@ -92,5 +93,6 @@ export function createTurnState(maxSoldiers: number): TurnState {
       incremented: new Uint8Array(maxSoldiers * NUM_WATCHED_LOCS),
     },
     round: 0,
+    forceRealtimeTurn: false,
   };
 }

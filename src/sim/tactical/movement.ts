@@ -153,14 +153,14 @@ export function setDelayedTileWaiting(t: TacticalState, s: Soldier, cause: numbe
   s.nextTileCheckAt = t.clockMs + NEXT_TILE_CHECK_DELAY;
 }
 
-export function setSoldierDestination(t: TacticalState, s: Soldier, direction: number, animState: number): void {
+export function setSoldierDestination(t: TacticalState, s: Soldier, direction: number, animState: number, initialMove = false): void {
   const g = newGridNo(s.gridNo, step(direction));
   const centre = cellCentre(g);
   s.destination = g;
   s.destX = centre.x;
   s.destY = centre.y;
   s.movementDirection = direction;
-  if (!hasAnimFlag(t.content, animState, AnimFlags.SPECIALMOVE)) setDesiredDirection(t, s, direction, animState);
+  if (!hasAnimFlag(t.content, animState, AnimFlags.SPECIALMOVE)) setDesiredDirection(t, s, direction, animState, initialMove);
 }
 
 function tileIsClear(t: TacticalState, s: Soldier, direction: number, g: number, level: number): MoveTileResult {
@@ -301,7 +301,7 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
     return { ok: true, keepMoving: false };
   }
   deductPoints(t.inCombat, s, ap, bp);
-  setSoldierDestination(t, s, direction, animState);
+  setSoldierDestination(t, s, direction, animState, initial);
   adjustNoAPToFinishMove(s, false);
   return { ok: true, keepMoving: true };
 }
@@ -309,7 +309,7 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
 export function haltMoveForSoldierOutOfPoints(t: TacticalState, s: Soldier): void {
   if (hasAnimFlag(t.content, s.state, AnimFlags.SPECIALMOVE)) return;
   adjustNoAPToFinishMove(s, true);
-  if (s.underAiControl) t.hooks.endAiGuysTurn(t, s);
+  if (s.aiTurnControl) t.hooks.endAiGuysTurn(t, s);
 }
 
 function haltGuyBecauseOfNoAPs(t: TacticalState, s: Soldier): void {
@@ -408,13 +408,26 @@ export function handleAtNewGridNo(t: TacticalState, s: Soldier): boolean {
   let keepMoving = true;
   s.tilesMoved++;
   if (s.state === states(t.content.animations).RUNNING) s.tilesMoved++;
+  if (!t.inCombat) {
+    s.tilesMovedPerRTBreathUpdate++;
+    s.lastMovementAnimPerRTBreathUpdate = s.state;
+  }
   const interrupted = t.hooks.atNewGridNo(t, s);
+  const pause = t.turn.enemySightingOnTheirTurn;
   if (interrupted) {
     adjustNoAPToFinishMove(s, true);
     keepMoving = false;
     s.pendingAnimation = -1;
     s.pendingDirection = -1;
+    t.turn.interruptOccurred = false;
+    if (pause?.enemy === s) {
+      s.pauseAllAnimation = false;
+      t.turn.enemySightingOnTheirTurn = null;
+    }
   } else if (s.noAPToFinishMove || (s.pathIndex === s.pathSize && s.pathSize === 0)) {
+    keepMoving = false;
+  } else if (pause) {
+    adjustNoAPToFinishMove(s, true);
     keepMoving = false;
   }
   t.hooks.newAiSituation(t, s);

@@ -38,7 +38,7 @@ const STATS = {
 function tactical(place: (s: WorldStructures) => void = () => {}): TacticalState {
   const w = syntheticWorld(doorCosts, place);
   const t = createTacticalState({ ...w, mapDoors: new Map() }, content, Rng.fromSeed(11));
-  t.perceptionHooks = perceptionHooks(t, { checkForChangingOrders: () => {}, setNewSituation: () => {} }, () => {});
+  t.perceptionHooks = perceptionHooks(t, { checkForChangingOrders: () => {}, setNewSituation: () => {} });
   return t;
 }
 
@@ -105,8 +105,8 @@ describe('sighting', () => {
     allTeamsLookForAll(t);
     expect(merc.oppList[enemy.id]).toBe(Opp.SEEN_CURRENTLY);
     expect(enemy.visible).toBe(1);
-    expect(t.combatPending).toBe(true);
-    expect(t.events.some((e) => e.type === 'combatWouldStart')).toBe(true);
+    expect(t.inCombat).toBe(true);
+    expect(t.events.some((e) => e.type === 'combatStarted')).toBe(true);
   });
 
   it('does not see behind and keeps neutral civilians out of combat', () => {
@@ -117,7 +117,7 @@ describe('sighting', () => {
     handleSight(t, t.soldiers[0] as Soldier, SightFlags.LOOK | SightFlags.RADIO);
     expect(enemy.visible).toBe(-1);
     expect(civ.visible).toBe(1);
-    expect(t.combatPending).toBe(false);
+    expect(t.inCombat).toBe(false);
   });
 });
 

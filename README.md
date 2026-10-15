@@ -38,8 +38,9 @@ between paused and real time. Without `JA2_DATA_DIR` only the stubs (`stubs/…`
 village map) are visible.
 
 Agents connect to `http://127.0.0.1:7420/mcp` with `Authorization: Bearer <.ja2/token>` and use the
-tools `status`, `observe`, `act` (`{"type":"move","soldier":0,"to":12880,"mode":"run"}`, `stop`,
-`endCombat`) and `advance` (`{"idle":true}` or `{"ticks":n}`, 5 ms per tick).
+tools `status`, `observe`, `act` (`{"type":"move","soldier":0,"to":12880,"mode":"run"}`, `turn`,
+`stance`, `stop`, `endTurn`) and `advance` (`{"idle":true}` or `{"ticks":n}`, 5 ms per tick). A hostile
+sighting starts turn-based combat: every action then costs AP, and `endTurn` hands the turn to the enemy.
 
 The server listens on `127.0.0.1` only and requires the token from `.ja2/token`, which it creates
 itself. The Vite proxy adds the token, so it never appears in page code.

@@ -1,5 +1,5 @@
 import type { ClientMessage, CommandEnvelope, DriverMode, ServerMessage, StopCondition, StopReport } from '../../protocol/messages.ts';
-import { applyFrame, type PlayerView, type SoldierView, type ViewFrame } from '../../protocol/view.ts';
+import { applyFrame, type CombatView, type PlayerView, type SoldierView, type ViewFrame } from '../../protocol/view.ts';
 
 type Pending = { resolve: (m: ServerMessage) => void; reject: (e: Error) => void };
 
@@ -14,7 +14,7 @@ export class SessionClient {
   #nextId = 1;
   #shown: SoldierView[] = [];
   #openDoors: readonly number[] = [];
-  #combatPending = false;
+  #combat: CombatView | null = null;
   #revealedRooms: readonly number[] = [];
   #shownTick = 0;
   #latestTick = 0;
@@ -46,8 +46,8 @@ export class SessionClient {
     return this.#revealedRooms;
   }
 
-  get combatPending(): boolean {
-    return this.#combatPending;
+  get combat(): CombatView | null {
+    return this.#combat;
   }
 
   get openDoors(): readonly number[] {
@@ -80,7 +80,7 @@ export class SessionClient {
         this.driver = m.driver;
         this.#shown = [...m.view.soldiers];
         this.#openDoors = m.view.openDoors ?? [];
-        this.#combatPending = m.view.combatPending ?? false;
+        this.#combat = m.view.combat ?? null;
         this.#revealedRooms = m.view.revealedRooms ?? [];
         this.#shownTick = m.view.tick;
         this.#latestTick = m.view.tick;
@@ -110,7 +110,7 @@ export class SessionClient {
       const frame = this.#frames.shift() as ViewFrame;
       this.#shown = applyFrame(this.#shown, frame);
       if (frame.openDoors) this.#openDoors = frame.openDoors;
-      if (frame.combatPending !== undefined) this.#combatPending = frame.combatPending;
+      if (frame.combat !== undefined) this.#combat = frame.combat;
       if (frame.revealedRooms) this.#revealedRooms = frame.revealedRooms;
       changed = true;
     }

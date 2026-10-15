@@ -63,7 +63,7 @@ export class TacticalSession implements SessionSim {
       mapPath: this.sim.mapPath,
       soldiers: this.sim.snapshot((s) => s.team === Team.OUR || s.visible >= 0),
       openDoors: this.sim.openDoors(),
-      combatPending: this.sim.state.combatPending,
+      combat: this.sim.combatView(),
       revealedRooms: revealedRooms(this.sim.state),
     };
   }

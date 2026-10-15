@@ -10,8 +10,10 @@ import { adjustNoAPToFinishMove, changeSoldierStance, hasAnimFlag, height, setDe
 import { DIRECTION_INCREMENT } from '../directions.ts';
 import { getNewSoldierPath, stopMerc } from '../movement.ts';
 import { isMercBody, NOWHERE, newOKDestination } from '../pathfinding.ts';
-import { OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { estimateActionPointCost } from '../points.ts';
+import { AlertStatus, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
+import { displayHiddenInterrupt } from '../turns/turns.ts';
 import { AI_DELAY, AiAction, FIRST_MOVEMENT_ACTION, LAST_MOVEMENT_ACTION, RT_DELAY_BETWEEN_AI_HANDLING, Situation } from './actions.ts';
 import {
   type AiHooks,
@@ -26,6 +28,7 @@ import {
   realtimeCivDelay,
 } from './decide.ts';
 import { legalNPCDestination, PathMode } from './destinations.ts';
+import { endAIGuysTurn, isActionAffordable, turnBasedHandleNPCAI } from './turn-based.ts';
 
 const OFF_MAP_CURSOR = 0xffff;
 
@@ -71,7 +74,8 @@ export function cancelAIAction(t: TacticalState, s: Soldier): void {
   actionDone(t, s);
 }
 
-function npcDoesAct(s: Soldier): void {
+function npcDoesAct(t: TacticalState, s: Soldier): void {
+  if (t.turn.hiddenInterrupt) displayHiddenInterrupt(t);
   if (s.desiredDirection !== s.direction) s.desiredDirection = s.direction;
 }
 
@@ -134,13 +138,26 @@ function executeMovement(t: TacticalState, s: Soldier): boolean {
   return true;
 }
 
+function detectMovementLoop(t: TacticalState, s: Soldier): void {
+  const last = s.lastTwoLocations;
+  if (last[0] === NOWHERE) last[0] = s.gridNo;
+  else if (last[1] === NOWHERE) last[1] = s.gridNo;
+  else if (s.ai.actionData === last[1] && s.gridNo === last[0]) {
+    actionDone(t, s);
+    t.hooks.endAiGuysTurn(t, s);
+  } else {
+    last[0] = last[1];
+    last[1] = s.gridNo;
+  }
+}
+
 export function executeAction(t: TacticalState, s: Soldier): boolean {
   const ai = s.ai;
   switch (ai.action) {
     case AiAction.NONE:
       return true;
     case AiAction.WAIT:
-      ai.counter = t.clockMs + ai.actionData;
+      if (!t.inCombat) ai.counter = t.clockMs + ai.actionData;
       actionDone(t, s);
       return true;
     case AiAction.CHANGE_FACING:
@@ -162,7 +179,10 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
       changeSoldierStance(t, s, ai.actionData);
       return true;
     default:
-      if (isMovementAction(ai.action)) return executeMovement(t, s);
+      if (isMovementAction(ai.action)) {
+        if (t.inCombat && ai.alertStatus < AlertStatus.BLACK) detectMovementLoop(t, s);
+        return executeMovement(t, s);
+      }
       return false;
   }
 }
@@ -207,7 +227,7 @@ function rtHandleAI(t: TacticalState, s: Soldier, control: AiControl): void {
       ai.action = AiAction.NONE;
     }
   }
-  npcDoesAct(s);
+  npcDoesAct(t, s);
   ai.actionInProgress = executeAction(t, s);
 }
 
@@ -222,44 +242,79 @@ function triesToContinueAlongPath(t: TacticalState, s: Soldier): void {
     cancelAIAction(t, s);
     return;
   }
-  if (!ai.actionInProgress) {
-    npcDoesAct(s);
-    ai.actionInProgress = executeAction(t, s);
-  }
+  if (isActionAffordable(t, s)) {
+    if (!ai.actionInProgress) {
+      npcDoesAct(t, s);
+      ai.actionInProgress = executeAction(t, s);
+    }
+  } else cancelAIAction(t, s);
   const direction = s.path[s.pathIndex] ?? 0;
-  newDest(t, s, newGridNo(s.gridNo, DIRECTION_INCREMENT[direction] ?? 0));
-  ai.actionInProgress = true;
+  const next = newGridNo(s.gridNo, DIRECTION_INCREMENT[direction] ?? 0);
+  const ctx = { env: t.pathEnv, content: t.content, inCombat: t.inCombat };
+  if (s.actionPoints >= estimateActionPointCost(ctx, s, next, direction, s.uiMovementMode, s.pathIndex, s.pathSize)) {
+    newDest(t, s, next);
+    ai.actionInProgress = true;
+  } else cancelAIAction(t, s);
 }
 
 export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl): void {
   const ai = s.ai;
+  if (t.turn.enemySightingOnTheirTurn) return;
   if (s.team === Team.OUR) {
     ai.handleEveryFrame = false;
     return;
   }
-  if (!ai.handleEveryFrame) {
+  const turnBased = t.inCombat;
+  if (turnBased) {
+    if (t.turn.currentTeam === Team.OUR) return;
+    if (!s.aiTurnControl) return;
+    if (s.team !== t.turn.currentTeam) {
+      s.aiTurnControl = false;
+      return;
+    }
+    if (s.moved) {
+      endAIGuysTurn(t, s, control);
+      return;
+    }
+  } else if (!ai.handleEveryFrame) {
     if (t.clockMs < ai.counter) return;
     ai.counter = t.clockMs + AI_DELAY;
   }
   ai.handleEveryFrame = false;
-  if (s.life < OKLIFE || !s.placed) return;
+  if (s.life < OKLIFE || !s.placed) {
+    endAIGuysTurn(t, s, control);
+    return;
+  }
   if (s.collapsed) {
     cancelAIAction(t, s);
+    endAIGuysTurn(t, s, control);
     return;
   }
   if (ai.newSituation === Situation.IS_NEW) {
-    cancelAIAction(t, s);
-    ai.nextAction = AiAction.NONE;
-    decideAlertStatus(t, s, control.hooks);
+    if (t.turn.attackBusyCount === 0) {
+      cancelAIAction(t, s);
+      if (ai.action !== AiAction.END_COWER_AND_MOVE) ai.nextAction = AiAction.NONE;
+      decideAlertStatus(t, s, control.hooks);
+    }
   } else {
     ai.newSituation = Situation.NOT_NEW;
   }
   if (ai.action === AiAction.NONE) {
-    rtHandleAI(t, s, control);
+    if (turnBased) turnBasedHandleNPCAI(t, s, control, { npcDoesAct, executeAction });
+    else rtHandleAI(t, s, control);
     return;
   }
   if (ai.action >= FIRST_MOVEMENT_ACTION && ai.action <= LAST_MOVEMENT_ACTION && !s.delayedMovement) {
-    if (s.pathIndex === s.pathSize) actionDone(t, s);
+    if (s.pathIndex === s.pathSize) {
+      if (s.gridNo === s.finalDestination && ai.action === AiAction.MOVE_TO_CLIMB) {
+        ai.action = AiAction.CLIMB_ROOF;
+        if (isActionAffordable(t, s)) {
+          ai.action = AiAction.NONE;
+          ai.nextAction = AiAction.CLIMB_ROOF;
+        }
+      }
+      actionDone(t, s);
+    }
     if (s.noAPToFinishMove) triesToContinueAlongPath(t, s);
     else if (hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY) && !s.continueMoveAfterStanceChange && !s.endDoorOpenCode) {
       const pendingMove = s.pendingAnimation !== -1 && hasAnimFlag(t.content, s.pendingAnimation, AnimFlags.MOVING);
@@ -283,7 +338,7 @@ function nextAIToHandle(t: TacticalState, control: AiControl): boolean {
 
 export function beginAiPass(t: TacticalState, control: AiControl): void {
   control.handleThisPass = false;
-  if (control.paused || t.inCombat || t.combatPending) return;
+  if (control.paused || t.inCombat || t.clockMs < t.turn.pauseAiUntil) return;
   if (t.clockMs - control.lastTickMs > RT_DELAY_BETWEEN_AI_HANDLING) {
     control.lastTickMs = t.clockMs;
     control.handleThisPass = nextAIToHandle(t, control);
@@ -291,7 +346,11 @@ export function beginAiPass(t: TacticalState, control: AiControl): void {
 }
 
 export function aiForSlot(t: TacticalState, s: Soldier, slot: number, control: AiControl): void {
-  if (control.paused || t.combatPending) return;
+  if (control.paused || t.clockMs < t.turn.pauseAiUntil) return;
+  if (t.inCombat) {
+    handleSoldierAI(t, s, control);
+    return;
+  }
   const scheduled = control.handleThisPass && control.cursor === slot;
   if (!scheduled && !s.ai.handleEveryFrame) return;
   handleSoldierAI(t, s, control);

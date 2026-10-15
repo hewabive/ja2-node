@@ -261,6 +261,8 @@ export interface Soldier {
   dontChargeTurningAPs: boolean;
   contPathLocation: number;
   collapsedTurns: number;
+  tilesMovedPerRTBreathUpdate: number;
+  lastMovementAnimPerRTBreathUpdate: number;
 }
 
 export interface SoldierInit {
@@ -436,5 +438,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     dontChargeTurningAPs: false,
     contPathLocation: NOWHERE,
     collapsedTurns: 0,
+    tilesMovedPerRTBreathUpdate: 0,
+    lastMovementAnimPerRTBreathUpdate: init.state,
   };
 }
