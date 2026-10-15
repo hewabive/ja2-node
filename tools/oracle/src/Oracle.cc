@@ -10,7 +10,6 @@
 #include "Isometric_Utils.h"
 #include "LOS.h"
 #include "Map_Information.h"
-#include "Logger.h"
 #include "Overhead.h"
 #include "Overhead_Types.h"
 #include "PathAI.h"
@@ -36,6 +35,8 @@
 #include <string>
 #include <vector>
 
+#include <unistd.h>
+
 INT32 OracleLineOfSightTest(GridNo start_pos, FLOAT dStartZ, GridNo end_pos, FLOAT dEndZ, UINT8 ubTileSightLimit, UINT8 ubTreeSightReduction, INT8 bAware, INT8 bCamouflage, BOOLEAN fSmell, INT16* psWindowGridNo);
 UINT8 OracleTreeSightReduction(UINT8 ubEndHeight);
 
@@ -50,6 +51,7 @@ constexpr std::uint32_t FNV_PRIME = 16777619u;
 constexpr char const BASE64_ALPHABET[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 std::FILE* gOutput = stdout;
+int gStdoutFd = -1;
 
 struct Command
 {
@@ -261,6 +263,14 @@ std::string Describe(SOLDIERTYPE const& s)
 		.text();
 }
 
+void SetStanceImmediately(SOLDIERTYPE& s, UINT16 stance)
+{
+	UINT32 const savedFlags = gTacticalStatus.uiFlags;
+	gTacticalStatus.uiFlags |= LOADING_SAVED_GAME;
+	EVENT_InitNewSoldierAnim(&s, stance, 0, TRUE);
+	gTacticalStatus.uiFlags = savedFlags;
+}
+
 class ProbeSoldier
 {
 public:
@@ -281,7 +291,7 @@ public:
 		if (!soldier_) throw std::runtime_error("TacticalCreateSoldier failed");
 		AddSoldierToSectorNoCalculateDirection(soldier_);
 		if (soldier_->sGridNo != gridNo) EVENT_SetSoldierPosition(soldier_, gridNo, SSP_NONE);
-		if (stance != STANDING) EVENT_InitNewSoldierAnim(soldier_, stance, 0, TRUE);
+		if (stance != STANDING) SetStanceImmediately(*soldier_, stance);
 	}
 
 	ProbeSoldier(ProbeSoldier const&) = delete;
@@ -546,8 +556,7 @@ void Dispatch(Command const& c)
 void OpenOutput()
 {
 	char const* const path = std::getenv(OUTPUT_ENV);
-	if (!path || !*path) return;
-	std::FILE* const file = std::fopen(path, "w");
+	std::FILE* const file = path && *path ? std::fopen(path, "w") : gStdoutFd >= 0 ? fdopen(gStdoutFd, "w") : stdout;
 	if (!file) throw std::runtime_error(std::string("cannot open ") + OUTPUT_ENV + " file " + path);
 	gOutput = file;
 }
@@ -566,9 +575,11 @@ bool Oracle_IsRequested()
 	return script && *script;
 }
 
-void Oracle_ConfigureLogging()
+void Oracle_PrepareProcess()
 {
-	Logger_setLevel(LogLevel::Warn);
+	std::fflush(stdout);
+	gStdoutFd = dup(STDOUT_FILENO);
+	dup2(STDERR_FILENO, STDOUT_FILENO);
 }
 
 int Oracle_Run()

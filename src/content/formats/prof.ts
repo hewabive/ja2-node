@@ -28,6 +28,10 @@ export interface MercProfile {
   readonly dexterity: number;
   readonly wisdom: number;
   readonly marksmanship: number;
+  readonly medical: number;
+  readonly mechanical: number;
+  readonly explosives: number;
+  readonly leadership: number;
   readonly experience: number;
   readonly skillTrait: number;
   readonly skillTrait2: number;
@@ -35,6 +39,10 @@ export interface MercProfile {
   readonly sectorX: number;
   readonly sectorY: number;
   readonly inventory: readonly number[];
+  readonly inventoryStatus: readonly number[];
+  readonly inventoryCount: readonly number[];
+  readonly inventoryUndroppable: number;
+  readonly money: number;
 }
 
 export function decryptRecord(encrypted: Uint8Array): Uint8Array {
@@ -97,12 +105,20 @@ export function parseProfile(id: number, plain: Uint8Array): MercProfile {
     skillTrait2: i8(340),
     experience: i8(352),
     marksmanship: i8(353),
+    medical: i8(261),
+    mechanical: i8(411),
+    explosives: i8(339),
+    leadership: i8(341),
     wisdom: i8(355),
     agility: i8(405),
     civilianGroup: v.getUint8(682),
     sectorX: v.getUint16(288, true),
     sectorY: v.getUint16(290, true),
     inventory: Array.from({ length: 19 }, (_, k) => v.getUint16(416 + k * 2, true)),
+    inventoryStatus: Array.from(plain.subarray(358, 377)),
+    inventoryCount: Array.from(plain.subarray(377, 396)),
+    inventoryUndroppable: v.getUint8(412),
+    money: v.getUint32(684, true),
   };
 }
 

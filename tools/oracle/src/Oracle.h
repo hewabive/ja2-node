@@ -4,5 +4,5 @@
 #pragma once
 
 bool Oracle_IsRequested();
-void Oracle_ConfigureLogging();
+void Oracle_PrepareProcess();
 int Oracle_Run();

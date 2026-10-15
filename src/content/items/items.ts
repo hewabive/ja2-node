@@ -205,6 +205,7 @@ export interface ItemDef {
 export interface ItemTable {
   readonly byIndex: ReadonlyMap<number, ItemDef>;
   readonly byName: ReadonlyMap<string, ItemDef>;
+  readonly magazines: readonly ItemDef[];
 }
 
 type Json = Record<string, unknown>;
@@ -400,7 +401,7 @@ export function parseItemTable(sources: ItemTableSources): ItemTable {
     if (byIndex.has(item.index)) throw new Error(`duplicate item index ${item.index}`);
     byIndex.set(item.index, item);
   }
-  return { byIndex, byName: new Map(all.map((item) => [item.name, item])) };
+  return { byIndex, byName: new Map(all.map((item) => [item.name, item])), magazines: all.filter((item) => item.magazine) };
 }
 
 export async function loadItemTable(readJson: (path: string) => Promise<unknown>): Promise<ItemTable> {
