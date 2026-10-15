@@ -38,7 +38,8 @@ export function buildMcpServer(sessions: ReadonlyMap<string, Session>, defaultSe
   server.registerTool(
     'observe',
     {
-      description: 'What the player can see right now: own soldiers and visible enemies with positions, stance and animation.',
+      description:
+        'What the player can see right now: own soldiers and the others the squad sees, with gridNo, sub-tile position, direction and animation; open doors; whether combat would start.',
       inputSchema: sessionArg,
     },
     async ({ session }) => text(pick(session).sim.view()),
@@ -46,7 +47,8 @@ export function buildMcpServer(sessions: ReadonlyMap<string, Session>, defaultSe
   server.registerTool(
     'act',
     {
-      description: 'Issue one game command, e.g. {"type":"move","soldier":1,"to":12345,"mode":"run"}. Returns whether it was accepted.',
+      description:
+        'Issue one game command and get whether it was accepted. Commands: {"type":"move","soldier":<id>,"to":<gridNo>,"mode":"walk"|"run"}, {"type":"stop","soldier":<id>}, {"type":"endCombat"} (sandbox: resume real time after combat would start). gridNo = y*160 + x.',
       inputSchema: { ...sessionArg, command: z.object({ type: z.string() }).passthrough() },
     },
     async ({ session, command }) => text(pick(session).dispatch(command)),
@@ -54,7 +56,8 @@ export function buildMcpServer(sessions: ReadonlyMap<string, Session>, defaultSe
   server.registerTool(
     'advance',
     {
-      description: 'Let game time run until the simulation is idle, a listed event happens, or a tick limit (5 ms per tick) is reached.',
+      description:
+        'Let game time run until our soldiers are idle, a listed event happens (arrived, stopped, noPath, doorChanged, noiseHeard, enemySighted, combatWouldStart), a decision is pending, or a tick limit (5 ms per tick) is reached.',
       inputSchema: {
         ...sessionArg,
         idle: z.boolean().optional(),
@@ -68,7 +71,7 @@ export function buildMcpServer(sessions: ReadonlyMap<string, Session>, defaultSe
         ...(ticks ? { ticks } : {}),
         ...(events ? { events: events as never } : {}),
       });
-      return text({ tick: report.tick, reason: report.reason, events: report.events.length });
+      return text({ tick: report.tick, reason: report.reason, events: report.events });
     },
   );
   return server;

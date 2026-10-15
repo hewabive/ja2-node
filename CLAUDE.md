@@ -28,8 +28,8 @@ The simulation is server-side (Node), the browser is a client, agents play throu
 
 - Node runs `.ts` directly: no `enum`, `namespace` or constructor parameter properties; relative
   imports end in `.ts`; type-only imports use `import type`.
-- Layer boundaries: tsconfig project references + `tools/check-imports.ts`. `core` and `content`
-  (later `sim`) are DOM-free, Node-free and deterministic: no `Math.random`, `Date`, timers.
+- Layer boundaries: tsconfig project references + `tools/check-imports.ts`. `core`, `content` and
+  `sim` are DOM-free, Node-free and deterministic: no `Math.random`, `Date`, timers.
 - Fixed-width integer fields of the original go through `src/core/int.ts` (`u8`, `i16`, `idiv`…).
 - Files derived from original or Stracciatella logic start with:
   ```ts
@@ -47,6 +47,7 @@ The simulation is server-side (Node), the browser is a client, agents play throu
 - `docs/01-architecture.md`: decisions D1–D16, layers, milestones (current status in §12).
 - `docs/04-time-and-server.md`: tick model, time drivers, server, agent API.
 - `docs/05-render-pipeline.md`: how the original draws the tactical map (order, z, shading).
+- `docs/06`–`09`: soldiers and animation, structures/pathing/walking, sight and noise, green AI.
 - `docs/deviations.md`: every deliberate difference from the original; add to it when diverging.
 - `docs/02-mechanics-catalog.md`, `docs/03-logic-animation-coupling.md`: formulas and engine
   behaviour with `file:line` references into `reference/stracciatella`.

@@ -4,13 +4,15 @@ A non-commercial reimplementation of Jagged Alliance 2 in TypeScript. The game s
 server (Node), the browser is a client, and agents play through an API. The goal is the
 original's behaviour (mechanics, formulas, order of checks), not a line-by-line port of its code.
 
-**Status:** milestone M1 "World": the original maps, tilesets and structures load, and the tactical
-map renders in the browser with the original draw order, depth, shadows, roofs and shading. There is
-no game yet.
+**Status:** milestone M2 "Soldier and time": a tactical sandbox (Omerta on the original data, a stub
+village otherwise) where mercs walk, run and hop fences along the original's paths, the garrison and the
+civilians behave as in green alert, everyone sees and hears everyone, and the first hostile sighting stops
+the sector at the combat boundary. An agent can play it through MCP. Turn-based combat comes next (M3).
 
 Documents in [`docs/`](docs/): scope and license (`00`), architecture (`01`), mechanics catalog
 (`02`), how logic is tied to animation (`03`), time, server and agent API (`04`), the original's
-static render pipeline (`05`) and the deviation log.
+static render pipeline (`05`), soldiers and animation (`06`), structures, pathing and walking (`07`),
+sight and noise (`08`), green-alert AI (`09`) and the deviation log.
 
 ## License and data
 
@@ -30,8 +32,14 @@ export JA2_DATA_DIR="/path/to/Jagged Alliance 2 Gold/Data"   # optional
 pnpm dev                           # server (7420) + Vite (5173)
 ```
 
-Open http://127.0.0.1:5173/ → "Asset browser" or "Map viewer". Without `JA2_DATA_DIR` only the
-stubs (`stubs/…`, including the stub village map) are visible.
+Open http://127.0.0.1:5173/ → "Tactical sandbox", "Asset browser" or "Map viewer". In the sandbox
+click a merc to select him, click a tile to walk there, right-click to run; the time buttons switch
+between paused and real time. Without `JA2_DATA_DIR` only the stubs (`stubs/…`, including the stub
+village map) are visible.
+
+Agents connect to `http://127.0.0.1:7420/mcp` with `Authorization: Bearer <.ja2/token>` and use the
+tools `status`, `observe`, `act` (`{"type":"move","soldier":0,"to":12880,"mode":"run"}`, `stop`,
+`endCombat`) and `advance` (`{"idle":true}` or `{"ticks":n}`, 5 ms per tick).
 
 The server listens on `127.0.0.1` only and requires the token from `.ja2/token`, which it creates
 itself. The Vite proxy adds the token, so it never appears in page code.
@@ -64,9 +72,11 @@ Layers (details in `docs/01-architecture.md`, §2):
 | `src/core`: RNG, C integer semantics | everywhere, no DOM or Node | — |
 | `src/content`: VFS, formats (SLF, STI, PNG), picture model | everywhere, no DOM or Node | core |
 | `src/node`: VFS over the disk, token | Node | core, content |
-| `src/server`: HTTP `/api/health`, `/api/vfs`, `/vfs/<path>` | Node | core, content, node |
+| `src/sim`: deterministic tactical simulation (soldiers, pathing, AI, sight) | everywhere, no DOM or Node | core, content |
+| `src/protocol`: view frames and messages | everywhere | core, content, sim |
+| `src/server`: HTTP, WebSocket sessions, MCP, the sandbox | Node | core, content, sim, protocol, node |
 | `src/render`: WebGL2 R8UI atlases, palette texture, sprites | browser | core, content |
-| `src/devtools`: asset browser | browser | core, content, render |
+| `src/devtools`: asset browser, map viewer, tactical page | browser | core, content, protocol, render |
 | `stubs/`: stub pack generator | Node | core, content, node |
 | `tools/`: CLI, dev runner, import checker | Node | everything except browser code |
 
@@ -74,7 +84,7 @@ Boundaries are enforced three ways:
 - project references in `tsconfig`;
 - `lib` and `types` settings: no DOM and no `@types/node` in shared layers;
 - `tools/check-imports.ts`: allowed layers and packages per layer, plus a ban on
-  nondeterminism (`Math.random`, `Date`, timers) in `core` and `content`.
+  nondeterminism (`Math.random`, `Date`, timers) in `core`, `content` and `sim`.
 
 Node runs TypeScript without a build step (type stripping), so the code uses no `enum` or
 `namespace`, and relative imports carry the `.ts` extension.

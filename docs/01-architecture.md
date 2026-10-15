@@ -780,3 +780,38 @@ our server. How to run it is described in `README.md`.
 - structure placement collisions on load (`FailedToAddNode` skips a few overlapping structs; M2
   with the structure database);
 - scroll limits and restricted-scroll maps.
+
+### M2: what's done (2026-10-15)
+
+Result: in the sandbox (A9 on the original data, the stub village otherwise) mercs walk and run where they
+are sent, the A9 garrison and the civilians behave as in green alert, everyone sees and hears everyone, and a
+hostile sighting stops the sector at the combat boundary. An agent drives the squad through MCP, and the
+tactical page plays the session back. The specs behind it are `docs/06`–`09`.
+
+1. **World for the simulation** (`content/world`): structure instances per tile with the original collision
+   rules (the struct nodes they reject are dropped for the renderer too), terrain ids, the movement-cost table
+   compiled with SET/FORCE semantics including fences, sandbags, walls and the door tables transcribed into
+   `data/tables/door-costs.json`, local recompiles, the visible-tile diamond.
+2. **Pathfinding** (`sim/tactical/pathfinding.ts`): a port of `FindBestPath` with the original open-list order,
+   direction order, stale-node and origin quirks, pool and trail limits, 30-step routes, doors, people,
+   distance and AP-budget modes and the reachability flood used by sweet-spot searches.
+3. **Soldiers and animation**: creation from profiles and placements (body, stats, palettes, priority
+   placements), `EVENT_InitNewSoldierAnim` with stance chaining, frame timers in game ms, the opcodes that
+   matter for movement (pauses, fence hop moves, door opening, end of animation), turning one octant per
+   frame with the fast-turn rule.
+4. **Walking protocol**: first step, float32 `MoveMerc` with glibc sin/cos, half-step occupancy, tile
+   reservations, waiting and re-pathing around people, path exhaustion every 30 steps, fence hops, AI door
+   opening and closing behind, breath spending, stops.
+5. **Green-alert AI**: the real-time AI cadence, `HandleSoldierAI`, `RTHandleAI`, `ExecuteAction`, the whole
+   `DecideActionGreen`, alert status, delays.
+6. **Sight and hearing**: `LineOfSightTest`, `DistanceVisible`, the opplist state machine with radio and
+   `bVisible`, decay on the 5 s real-time turn, footsteps and door creaks, hearing feeding the AI.
+7. **Server, protocol and agents**: the sandbox session, view frames with open doors and the combat flag,
+   MCP tools `status`, `observe`, `act` (`move`, `stop`, `endCombat`), `advance`.
+8. **Client**: soldier sheets chosen by the original surface rules, per-soldier palettes from `ja2pal.dat`,
+   the merc pass in the scene (z, shadows, checkerboard behind structures), the tactical page.
+9. **Stubs**: stub animation scripts, soldier sheets, `ja2pal.dat`, wall and barrel structures, door scripts.
+
+**Not in M2** (see `docs/deviations.md`): turn-based combat after `combatWouldStart` (M3), `DecideActionYellow`,
+light sprites and gear for vision, FOV roof reveal and wireframes, breath recovery, door busy windows, enemy
+glow, equipment generation, prone/multi-tile soldiers.

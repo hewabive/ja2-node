@@ -191,6 +191,17 @@ changed (`src/protocol/view.ts` `diffView`/`applyFrame`, `src/server/session.ts`
 animation between frames is reconstructed by the client from the same animation scripts. The richer
 event log above stays the target once combat effects (bullets, explosions) appear.
 
+The player view lists our soldiers, the militia and only those others the squad currently sees
+(`bVisible ≥ 0`, `docs/08` §2.7), plus the gridnos of open doors and the `combatPending` flag; frames
+carry the changed soldiers and, when they change, the full door list and the flag. Simulation events
+(`arrived`, `stopped`, `noPath`, `doorChanged`, `noiseHeard` with a direction but never a grid,
+`enemySighted`, `combatWouldStart`) are returned by `advance`. A hostile sighting makes `advance`
+stop with reason `decision`: until turn-based play exists (M3) the sector stays frozen, and the
+sandbox command `endCombat` resumes real time.
+
+**Commands in M2:** `move {soldier, to, mode: walk|run}` (the original's real-time click: re-path from
+the tile being entered when already walking), `stop {soldier}`, `endCombat`.
+
 ### 4.5. CPU cost
 
 **Estimate for a turn of 15 enemies.** Each moves ~6 tiles (≈0.7 s), shoots (0.35–1.15 s),
