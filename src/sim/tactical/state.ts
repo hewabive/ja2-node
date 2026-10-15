@@ -18,6 +18,10 @@ export type TacticalEvent = DistributiveOmit<SimEvent, 'tick'>;
 
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
 
+export interface GameOptions {
+  gunNut: boolean;
+}
+
 export interface TacticalHooks {
   atNewGridNo(t: TacticalState, s: Soldier): boolean;
   newAiSituation(t: TacticalState, s: Soldier): void;
@@ -62,6 +66,7 @@ export interface TacticalState {
   readonly rng: Rng;
   readonly pre: PreRandom;
   inCombat: boolean;
+  options: GameOptions;
   readonly events: TacticalEvent[];
   readonly desiredDirectionEvents: DesiredDirectionEvent[];
   readonly pathWorld: PathWorld;
@@ -103,6 +108,7 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
     rng,
     pre: PreRandom.create(rng),
     inCombat: false,
+    options: { gunNut: false },
     events: [],
     desiredDirectionEvents: [],
     pathWorld,

@@ -2,6 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Item_Types.h, Weapons.h; src/externalized/{Item,Weapon,Magazine,Armour,Explosive}Model.cc
 
+import { ITEM_RULES_PATH, type ItemRules, parseItemRules } from './rules.ts';
+
 export const ITEM_TABLE_PATHS = {
   items: 'externalized/items.json',
   weapons: 'externalized/weapons.json',
@@ -10,6 +12,7 @@ export const ITEM_TABLE_PATHS = {
   explosives: 'externalized/explosives.json',
   calibres: 'externalized/calibres.json',
   ammoTypes: 'externalized/ammo-types.json',
+  rules: ITEM_RULES_PATH,
 } as const;
 
 export type ItemTableSources = { readonly [K in keyof typeof ITEM_TABLE_PATHS]: unknown };
@@ -206,6 +209,7 @@ export interface ItemTable {
   readonly byIndex: ReadonlyMap<number, ItemDef>;
   readonly byName: ReadonlyMap<string, ItemDef>;
   readonly magazines: readonly ItemDef[];
+  readonly rules: ItemRules;
 }
 
 type Json = Record<string, unknown>;
@@ -401,7 +405,8 @@ export function parseItemTable(sources: ItemTableSources): ItemTable {
     if (byIndex.has(item.index)) throw new Error(`duplicate item index ${item.index}`);
     byIndex.set(item.index, item);
   }
-  return { byIndex, byName: new Map(all.map((item) => [item.name, item])), magazines: all.filter((item) => item.magazine) };
+  const byName = new Map(all.map((item) => [item.name, item]));
+  return { byIndex, byName, magazines: all.filter((item) => item.magazine), rules: parseItemRules(sources.rules, byName) };
 }
 
 export async function loadItemTable(readJson: (path: string) => Promise<unknown>): Promise<ItemTable> {

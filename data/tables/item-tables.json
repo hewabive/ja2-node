@@ -1,0 +1,510 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Tactical/Items.cc AttachmentInfo, g_attachments, CompatibleFaceItems, Merge, AttachmentComboMerge; src/externalized/ArmourModel.cc platesCanBeAttached",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "item names are ITEMDEFINE / internalName values; NOTHING is item 0",
+  "attachmentInfo": [
+    {
+      "item": "SILENCER",
+      "itemClass": "IC_GUN",
+      "check": "NO_CHECK",
+      "mod": 0
+    },
+    {
+      "item": "SNIPERSCOPE",
+      "itemClass": "IC_GUN",
+      "check": "NO_CHECK",
+      "mod": 0
+    },
+    {
+      "item": "LASERSCOPE",
+      "itemClass": "IC_GUN",
+      "check": "NO_CHECK",
+      "mod": 0
+    },
+    {
+      "item": "BIPOD",
+      "itemClass": "IC_GUN",
+      "check": "NO_CHECK",
+      "mod": 0
+    },
+    {
+      "item": "UNDER_GLAUNCHER",
+      "itemClass": "IC_GUN",
+      "check": "NO_CHECK",
+      "mod": 0
+    },
+    {
+      "item": "DUCKBILL",
+      "itemClass": "IC_GUN",
+      "check": "NO_CHECK",
+      "mod": 0
+    },
+    {
+      "item": "SPRING_AND_BOLT_UPGRADE",
+      "itemClass": "IC_GUN",
+      "check": "ATTACHING_SPECIAL_ITEM_CHECK",
+      "mod": 0
+    },
+    {
+      "item": "GUN_BARREL_EXTENDER",
+      "itemClass": "IC_GUN",
+      "check": "ATTACHING_SPECIAL_ITEM_CHECK",
+      "mod": 0
+    },
+    {
+      "item": "DETONATOR",
+      "itemClass": "IC_BOMB",
+      "check": "ATTACHING_DETONATOR_CHECK",
+      "mod": 0
+    },
+    {
+      "item": "REMDETONATOR",
+      "itemClass": "IC_BOMB",
+      "check": "ATTACHING_REMOTE_DETONATOR_CHECK",
+      "mod": -10
+    },
+    {
+      "item": "XRAY_BULB",
+      "itemClass": "IC_NONE",
+      "check": "ATTACHING_SPECIAL_ELECTRONIC_ITEM_CHECK",
+      "mod": -15
+    },
+    {
+      "item": "COPPER_WIRE",
+      "itemClass": "IC_NONE",
+      "check": "ATTACHING_SPECIAL_ELECTRONIC_ITEM_CHECK",
+      "mod": 20
+    },
+    {
+      "item": "CERAMIC_PLATES",
+      "itemClass": "IC_ARMOUR",
+      "check": "NO_CHECK",
+      "mod": 0
+    },
+    {
+      "item": "NIGHTGOGGLES",
+      "itemClass": "IC_ARMOUR",
+      "check": "NO_CHECK",
+      "mod": 0
+    },
+    {
+      "item": "UVGOGGLES",
+      "itemClass": "IC_ARMOUR",
+      "check": "NO_CHECK",
+      "mod": 0
+    },
+    {
+      "item": "SUNGOGGLES",
+      "itemClass": "IC_ARMOUR",
+      "check": "NO_CHECK",
+      "mod": 0
+    },
+    {
+      "item": "ROBOT_REMOTE_CONTROL",
+      "itemClass": "IC_ARMOUR",
+      "check": "NO_CHECK",
+      "mod": 0
+    },
+    {
+      "item": "ADRENALINE_BOOSTER",
+      "itemClass": "IC_ARMOUR",
+      "check": "NO_CHECK",
+      "mod": 0
+    },
+    {
+      "item": "REGEN_BOOSTER",
+      "itemClass": "IC_ARMOUR",
+      "check": "NO_CHECK",
+      "mod": 0
+    },
+    {
+      "item": "BREAK_LIGHT",
+      "itemClass": "IC_ARMOUR",
+      "check": "NO_CHECK",
+      "mod": 0
+    }
+  ],
+  "attachments": {
+    "DETONATOR": ["TNT", "HMX", "C1", "C4"],
+    "REMDETONATOR": ["TNT", "HMX", "C1", "C4"],
+    "SPRING": ["ALUMINUM_ROD"],
+    "QUICK_GLUE": ["STEEL_ROD"],
+    "DUCT_TAPE": ["STEEL_ROD"],
+    "XRAY_BULB": ["FUMBLE_PAK"],
+    "CHEWING_GUM": ["FUMBLE_PAK"],
+    "BATTERIES": ["XRAY_DEVICE"],
+    "COPPER_WIRE": ["LAME_BOY"]
+  },
+  "compatibleFaceItems": [
+    ["NIGHTGOGGLES", "EXTENDEDEAR"],
+    ["NIGHTGOGGLES", "WALKMAN"],
+    ["SUNGOGGLES", "EXTENDEDEAR"],
+    ["SUNGOGGLES", "WALKMAN"],
+    ["UVGOGGLES", "EXTENDEDEAR"],
+    ["UVGOGGLES", "WALKMAN"],
+    ["GASMASK", "EXTENDEDEAR"],
+    ["GASMASK", "WALKMAN"]
+  ],
+  "merges": [
+    {
+      "item1": "FIRSTAIDKIT",
+      "item2": "FIRSTAIDKIT",
+      "result": "FIRSTAIDKIT",
+      "action": "COMBINE_POINTS"
+    },
+    {
+      "item1": "MEDICKIT",
+      "item2": "MEDICKIT",
+      "result": "MEDICKIT",
+      "action": "COMBINE_POINTS"
+    },
+    {
+      "item1": "LOCKSMITHKIT",
+      "item2": "LOCKSMITHKIT",
+      "result": "LOCKSMITHKIT",
+      "action": "COMBINE_POINTS"
+    },
+    {
+      "item1": "TOOLKIT",
+      "item2": "TOOLKIT",
+      "result": "TOOLKIT",
+      "action": "COMBINE_POINTS"
+    },
+    {
+      "item1": "GAS_CAN",
+      "item2": "GAS_CAN",
+      "result": "GAS_CAN",
+      "action": "COMBINE_POINTS"
+    },
+    {
+      "item1": "CAMOUFLAGEKIT",
+      "item2": "CAMOUFLAGEKIT",
+      "result": "CAMOUFLAGEKIT",
+      "action": "COMBINE_POINTS"
+    },
+    {
+      "item1": "BEER",
+      "item2": "BEER",
+      "result": "BEER",
+      "action": "COMBINE_POINTS"
+    },
+    {
+      "item1": "WINE",
+      "item2": "WINE",
+      "result": "WINE",
+      "action": "COMBINE_POINTS"
+    },
+    {
+      "item1": "ALCOHOL",
+      "item2": "ALCOHOL",
+      "result": "ALCOHOL",
+      "action": "COMBINE_POINTS"
+    },
+    {
+      "item1": "CANTEEN",
+      "item2": "CANTEEN",
+      "result": "CANTEEN",
+      "action": "COMBINE_POINTS"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "FLAK_JACKET",
+      "result": "FLAK_JACKET_18",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "KEVLAR_VEST",
+      "result": "KEVLAR_VEST_18",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "KEVLAR2_VEST",
+      "result": "KEVLAR2_VEST_18",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "SPECTRA_VEST",
+      "result": "SPECTRA_VEST_18",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "LEATHER_JACKET_W_KEVLAR",
+      "result": "LEATHER_JACKET_W_KEVLAR_18",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "KEVLAR_LEGGINGS",
+      "result": "KEVLAR_LEGGINGS_18",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "SPECTRA_LEGGINGS",
+      "result": "SPECTRA_LEGGINGS_18",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "KEVLAR_HELMET",
+      "result": "KEVLAR_HELMET_18",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "SPECTRA_HELMET",
+      "result": "SPECTRA_HELMET_18",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "FLAK_JACKET_Y",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "KEVLAR_VEST_Y",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "KEVLAR2_VEST_Y",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "SPECTRA_VEST_Y",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "LEATHER_JACKET_W_KEVLAR_Y",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "KEVLAR_LEGGINGS_Y",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "SPECTRA_LEGGINGS_Y",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "KEVLAR_HELMET_Y",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "COMPOUND18",
+      "item2": "SPECTRA_HELMET_Y",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "FLAK_JACKET",
+      "result": "FLAK_JACKET_Y",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "KEVLAR_VEST",
+      "result": "KEVLAR_VEST_Y",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "SPECTRA_VEST",
+      "result": "SPECTRA_VEST_Y",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "LEATHER_JACKET_W_KEVLAR",
+      "result": "LEATHER_JACKET_W_KEVLAR_Y",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "KEVLAR2_VEST",
+      "result": "KEVLAR2_VEST_Y",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "KEVLAR_LEGGINGS",
+      "result": "KEVLAR_LEGGINGS_Y",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "SPECTRA_LEGGINGS",
+      "result": "SPECTRA_LEGGINGS_Y",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "KEVLAR_HELMET",
+      "result": "KEVLAR_HELMET_Y",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "SPECTRA_HELMET",
+      "result": "SPECTRA_HELMET_Y",
+      "action": "TREAT_ARMOUR"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "FLAK_JACKET_18",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "KEVLAR_VEST_18",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "KEVLAR2_VEST_18",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "SPECTRA_VEST_18",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "LEATHER_JACKET_W_KEVLAR_18",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "KEVLAR_LEGGINGS_18",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "SPECTRA_LEGGINGS_18",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "KEVLAR_HELMET_18",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "JAR_QUEEN_CREATURE_BLOOD",
+      "item2": "SPECTRA_HELMET_18",
+      "result": "NOTHING",
+      "action": "DESTRUCTION"
+    },
+    {
+      "item1": "RDX",
+      "item2": "TNT",
+      "result": "HMX",
+      "action": "EXPLOSIVE"
+    },
+    {
+      "item1": "RDX",
+      "item2": "C1",
+      "result": "C4",
+      "action": "EXPLOSIVE"
+    },
+    {
+      "item1": "TNT",
+      "item2": "RDX",
+      "result": "HMX",
+      "action": "EXPLOSIVE"
+    },
+    {
+      "item1": "C1",
+      "item2": "RDX",
+      "result": "C4",
+      "action": "EXPLOSIVE"
+    },
+    {
+      "item1": "STRING",
+      "item2": "TIN_CAN",
+      "result": "STRING_TIED_TO_TIN_CAN",
+      "action": "EASY_MERGE"
+    },
+    {
+      "item1": "TIN_CAN",
+      "item2": "STRING",
+      "result": "STRING_TIED_TO_TIN_CAN",
+      "action": "EASY_MERGE"
+    },
+    {
+      "item1": "FLASH_DEVICE",
+      "item2": "DISPLAY_UNIT",
+      "result": "XRAY_DEVICE",
+      "action": "ELECTRONIC_MERGE"
+    },
+    {
+      "item1": "DISPLAY_UNIT",
+      "item2": "FLASH_DEVICE",
+      "result": "XRAY_DEVICE",
+      "action": "ELECTRONIC_MERGE"
+    }
+  ],
+  "comboMerges": [
+    {
+      "item": "ALUMINUM_ROD",
+      "attachments": ["SPRING", "NOTHING"],
+      "result": "SPRING_AND_BOLT_UPGRADE"
+    },
+    {
+      "item": "STEEL_ROD",
+      "attachments": ["QUICK_GLUE", "DUCT_TAPE"],
+      "result": "GUN_BARREL_EXTENDER"
+    },
+    {
+      "item": "FUMBLE_PAK",
+      "attachments": ["XRAY_BULB", "CHEWING_GUM"],
+      "result": "FLASH_DEVICE"
+    },
+    {
+      "item": "LAME_BOY",
+      "attachments": ["COPPER_WIRE", "NOTHING"],
+      "result": "DISPLAY_UNIT"
+    }
+  ],
+  "platesCanBeAttached": [
+    "FLAK_JACKET",
+    "FLAK_JACKET_18",
+    "FLAK_JACKET_Y",
+    "KEVLAR_VEST",
+    "KEVLAR_VEST_18",
+    "KEVLAR_VEST_Y",
+    "KEVLAR2_VEST",
+    "KEVLAR2_VEST_18",
+    "KEVLAR2_VEST_Y",
+    "SPECTRA_VEST",
+    "SPECTRA_VEST_18",
+    "SPECTRA_VEST_Y"
+  ]
+}

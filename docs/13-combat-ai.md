@@ -46,8 +46,8 @@ Same function as the RT path of `09` §1.2, with these TB differences, in order:
 1. Gates `:91-99` as in RT. `gfTurnBasedAI = TRUE` (`:118-126`).
 2. `:128-158`: return if `bTeam != OUR && ubCurrentTeam == OUR`; return unless `SOLDIER_UNDERAICONTROL`; a soldier not
    on `ubCurrentTeam` loses the flag and returns; `bMoved` → `EndAIGuysTurn`, return. No `AICounter` gate.
-3. `fGettingHit` → return; boxing, dying (`bLife < OKLIFE`), `AI_ASLEEP` (a **visible** sleeper wakes up in TB,
-   `:216-235`), `!bInSector`, vehicle/robot, `bCollapsed` (`CancelAIAction` first) → each `EndAIGuysTurn`, return.
+3. `fGettingHit` → return; boxing, dying (`bLife < OKLIFE`), `AI_ASLEEP` (in TB a sleeper with `bVisible != 0` wakes
+   up; −1 counts as true, so nearly every sleeper does, `:216-235`), `!bInSector`, vehicle/robot, `bCollapsed` (`CancelAIAction` first) → each `EndAIGuysTurn`, return.
 4. Profiles SERGEANT/MIKE/JOE in combat with a talk panel or a non-empty dialogue queue → return (`:281-284`).
 5. **New situation** (`:288-357`): if `bNewSituation == IS`: with `ubAttackBusyCount > 0` it is processed only if the
    soldier's action is FIRE_GUN and no bullet is in flight (`guiNumBullets == 0`), or TOSS_PROJECTILE and no physics
@@ -383,9 +383,10 @@ Notes:
 - In RT none of the YELLOW actions queues a WAIT (unlike green): after CHANGE_FACING, SEEK_NOISE, SEEK_FRIEND,
   YELLOW_ALERT or CHANGE_STANCE the soldier re-decides at the first visit after the action ends. NONE becomes WAIT
   `REALTIME_AI_DELAY` / `REALTIME_CIV_AI_DELAY` in `RTHandleAI` (`09` §1.3).
-- The bypass: in RT `DecideAction` clears `bBypassToGreen` only when it enters through the bypass branch, so the
-  decision after a step-8 bypass is green again (+15) and then YELLOW resumes. In TB the bypass lasts until
-  `CancelAIAction` (new situation, the truncation of §1.4) or `EndAIGuysTurn`.
+- The bypass: `DecideAction` clears `bBypassToGreen` (RT only) when it enters through the bypass branch; any
+  `CancelAIAction` clears it too (a new situation, or the continue-branch cancel after a move, turn or stance change
+  ends, §1.4). So in RT the decision after a step-8 bypass is green again (+15) only if that green decision was NONE
+  (a WAIT ends through `ActionDone`, not `CancelAIAction`); after a green move or turn YELLOW resumes (inferred). In TB it also lasts until `EndAIGuysTurn`.
 - Movement mode at YELLOW: `Urgency[YELLOW] = {HIGH, MED, MED, LOW, LOW}` by `bAIMorale`. `bAIMorale` is only
   recomputed by `CalcMorale` (§4.1) at RED/BLACK or in step 7d, and it starts at the placement value: 0 = HOPELESS for
   basic placements (zero-initialised create struct; `Soldier_Create.cc:823`; inferred for map placements, check the
@@ -1258,7 +1259,7 @@ Same deciders as soldiers (`fCivilian` false), with these differences:
 - `CheckForChangingOrders` at RED/BLACK: non-ONGUARD/CLOSEPATROL militia become SEEKENEMY (roam the whole map).
 - BLACK §6.4: `PreRandom(20)` instead of `PreRandom(40)`; §6.8: the militia-only radio at the end.
 - `RadioSightings` to the militia team triggers `HandleInitialRedAlert(MILITIA)` (`08` §2.5).
-- Militia have no `AICounter` difference; they are AI-controlled on their own team turn in TB (AI list, §10.3).
+- In TB militia act on their own team turn through the AI list (§10.3).
 - Movement modes, cover and attack evaluation are identical; militia are `bSide` friendly, so their opponents are the
   enemies and hostile civilians.
 
@@ -1363,6 +1364,10 @@ the civilian `PreRandom`s in slot order. The `PreRandom(10)` is drawn before the
   the friend list; equal throw values keep the first tile; equal shot values switch to the new target.
 - Spotters: the soldier calling for spotters loses all remaining APs (`bActionPoints = 0`).
 - `ManChecksOnFriends` makes a GREEN soldier "hear" a YELLOW friend at the friend's grid with volume 3.
+- `FindSpotMaxDistFromOpponents` sets `ubQuoteActionID = TRAVERSE_*` for an edge spot and nothing clears it on a
+  cancel, so a later move of any kind is extended off the map and ends in `HandleAITacticalTraversal` (inferred).
+- `ClosestReachableDisturbance` ignores its `unconsciousOK` argument and shifts the public noise *grid* by −2 when the
+  soldier stands next to it in view.
 
 ---
 
@@ -1408,7 +1413,17 @@ replace `decideActionYellow` / the RED/BLACK `NONE` in `decideAction` with the r
    for unconscious targets, and RED is the state between sightings.
 8. **Civilians and militia** (§9.1, §9.2): the cowering blocks (RED and BLACK), flee via `FindSpotMaxDistFromOpponents`,
    militia differences.
-9. **Tests**: chance tables per orders/attitude/morale (YELLOW turn, radio, seek noise, seek friend, cover; RED radio,
+9. **Map-edge escape** (§8.3): `ubQuoteActionID = TRAVERSE_*`, `AdjustSoldierPathToGoOffEdge` in the movement case of
+   `ExecuteAction` (`AIMain.cc:1521-1541`), and at path end `HandleAITacticalTraversal` (`:2013-2044`): end the turn,
+   remove the soldier from the sector; the strategic part (`ProcessQueenCmdImplicationsOfDeath`, group bookkeeping) is
+   an M4 hook. HOPELESS enemies reach this quickly, so it cannot wait.
+10. **State** to add: soldier `actionPoints`, `initialActionPoints`, `moved`, `shock`, `bleeding`, `lastTarget`
+   (`sLastTarget`), `attackingWeapon`, `aimTime`, `doBurst`, `aimShotLocation`, `targetLevel`, `nextTargetLevel`,
+   `lastAttackHit`, `lastTwoLocations[2]`, `turnInProgress`, `quoteActionID`, `blackList` (exists); perception: last-known
+   **levels** (personal and public), `gbSeenOpponents`, public noise level, `lastMercToRadio[team]`, watched locations;
+   tactical status: `spottersCalledForBy`, `consNumTurnsWeHaventSeenButEnemyDoes`, `fEnemyInSector`, `menInSector`
+   per team, `gfHiddenInterrupt` (TB core), AI-control `skipCoverCheck`.
+11. **Tests**: chance tables per orders/attitude/morale (YELLOW turn, radio, seek noise, seek friend, cover; RED radio,
    seek/help/hide/watch points; BLACK offense/defense, stance, burst); RNG-sequence tests per decider with stubbed
    oracles (§3.1, §5.1, §6.9); `CalcBestShot` aim/switch rule tables; `FindBestNearbyCover` on a stub map with a wall;
    a TB scenario where a BLACK soldier shoots, then takes cover when outgunned, then RED seeks; the YELLOW → radio →
@@ -1441,6 +1456,29 @@ off), the 15 s deadlock breaker (never).
 - Prone invalid until multi-tile soldiers exist.
 - Armed-civilian infinite loop in §6.2 replaced by "cannot attack".
 - If the oracle disproves the truncation of §1.4, or if we choose vanilla's `LAST_MOVEMENT_ACTION`: record it.
-- `FindBestPath` `Random(4)` draws (already logged); Fisher–Yates instead of `std::shuffle` (already logged in M2).
-- Surrender never offered (strategic layer, M4).
+- `FindBestPath` `Random(4)` draws (already logged as "Pathfinder RNG"); the 15 s deadlock breaker (already logged as
+  "Watchdogs").
+- `GoAsFar`'s `std::shuffle` fallback as Fisher–Yates on the main stream (`09` §2.4 asked for this entry; it is not in
+  `deviations.md` yet).
+- Surrender never offered and edge escapes without strategic effects (M4).
+- The YELLOW-alert entry of `deviations.md` is removed once §12.1 item 3 lands.
+
+---
+
+## 13. Verified vs inferred
+
+**Verified** by reading Strac (vanilla cross-checked where marked): the TB branches of `HandleSoldierAI`,
+`TurnBasedHandleNPCAI` (and that `ActionInProgress` is unreachable), `IsActionAffordable`, the completion hooks,
+`ExecuteAction` for every combat action, `DecideActionYellow`/`Red`/`Black` line by line, `ShootingStanceChange`,
+`StanceChange`, `RangeChangeDesire`, `CalcMorale`, `ClosestReachableDisturbance`, `ClosestKnownOpponent`,
+`ClosestReachableFriendInTrouble`, climbing helpers, watched locations, `FindBestNearbyCover` setup and loop,
+`FindSpotMaxDistFromOpponents` loop, the `CalcBestShot` switch rule, the AI list, policy defaults (`game.json`), and the
+vanilla equality of the BLACK aim-time bug and the RED/BLACK structure. The rest of §7 and §8 (throws, stabs, spread
+bursts, damage estimates, `CalcCoverValue` internals, CTGT helpers, darker spot, item search) comes from a full read
+of `Attacks.cc` and `FindLocations.cc` with spot checks.
+
+**Inferred**: the TB truncation of CHANGE_FACING/CHANGE_STANCE and its AP drain (§1.4, check first); `bAIMorale = 0` for
+map placements; the BLACK civilian infinite loop; the THROW_KNIFE double queue; the cowering alternation of §9.1; tired
+soldiers re-deciding every pass; `ubQuoteActionID` persisting after a cancelled flight; costs in `gubAIPathCosts`
+excluding the start cost; `SoldierToLocationChanceToGetThrough` drawing no RNG; RT AP checks passing.
 

@@ -9,7 +9,7 @@ import { type DetailedPlacement, parseDetailedPlacement } from '../../content/fo
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { cardinalSpacesAway, WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import { initNewSoldierAnim, states } from './animation.ts';
-import { profileInventory } from './inventory.ts';
+import { hiredMercInventory, type InventoryContext, npcProfileInventory } from './inventory.ts';
 import { setSoldierPosition } from './movement.ts';
 import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { Body, createSoldier, NO_PROFILE, type Soldier, SoldierClass, type SoldierPalettes, type SoldierStats, Team } from './soldier.ts';
@@ -238,6 +238,10 @@ export function addSoldierToSector(t: TacticalState, s: Soldier, insertionGridNo
   return true;
 }
 
+function creationContext(t: TacticalState): InventoryContext {
+  return { items: t.content.items, inCombat: false, actionPoints: () => 0, spendActionPoints: () => {}, dropAtFeet: () => {} };
+}
+
 export function createMercFromProfile(t: TacticalState, id: number, profile: MercProfile, direction: number): Soldier {
   return createSoldier({
     id,
@@ -251,7 +255,7 @@ export function createMercFromProfile(t: TacticalState, id: number, profile: Mer
       vest: profile.palettes.vest || 'WHITEVEST',
       pants: profile.palettes.pants || 'BLACKPANTS',
     },
-    inv: profileInventory(t.content.items, profile),
+    inv: hiredMercInventory(creationContext(t), profile, !t.options.gunNut),
     stats: {
       agility: profile.agility,
       dexterity: profile.dexterity,
@@ -321,7 +325,7 @@ function createProfiledFromPlacement(t: TacticalState, id: number, placement: Pl
       vest: profile.palettes.vest || 'WHITEVEST',
       pants: profile.palettes.pants || 'BLACKPANTS',
     },
-    inv: profileInventory(t.content.items, profile),
+    inv: npcProfileInventory(t.content.items, profile, !t.options.gunNut),
     stats: {
       agility: profile.agility,
       dexterity: profile.dexterity,

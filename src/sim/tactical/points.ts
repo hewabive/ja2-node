@@ -85,6 +85,9 @@ export const AP = {
   USE_SURV_CAM: 5,
   START_RUN_COST: 1,
   JUMP_OVER: 6,
+  PICKUP_ITEM: 3,
+  GIVE_ITEM: 1,
+  MERGE: 8,
 } as const;
 
 export const DOOR_APS = [0, 3, 4, 5] as const;
