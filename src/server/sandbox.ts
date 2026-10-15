@@ -15,7 +15,8 @@ import {
 } from '../sim/tactical/creation.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
 import { revealedRooms } from '../sim/tactical/perception/fov.ts';
-import { createSoldier, NO_PROFILE, type Soldier, Team } from '../sim/tactical/soldier.ts';
+import { createSoldier, firstFreeSoldierId, NO_PROFILE, type Soldier, Team } from '../sim/tactical/soldier.ts';
+import { teamMembers } from '../sim/tactical/state.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import type { SessionSim } from './session.ts';
 
@@ -112,25 +113,27 @@ export function populateSandbox(sim: TacticalSim): void {
   const mapPlacements = sim.world.map.placements;
   const t = sim.state;
   const entry = entryGridNo(sim);
-  let nextId = 0;
+  const idFor = (team: number) => firstFreeSoldierId((id) => t.soldiers[id] !== undefined, team);
   const profiles = t.content.profiles;
-  const squad =
-    profiles.length > 0 ? SANDBOX_SQUAD.flatMap((p) => (profiles[p] ? [createMercFromProfile(t, nextId++, profiles[p], 4)] : [])) : [];
-  if (squad.length === 0) for (let i = 0; i < STUB_SQUAD_SIZE; i++) squad.push(stubMerc(sim, nextId++));
-  for (const merc of squad) addSoldierToSector(t, merc, entry);
+  for (const p of profiles.length > 0 ? SANDBOX_SQUAD : []) {
+    const profile = profiles[p];
+    if (profile) addSoldierToSector(t, createMercFromProfile(t, idFor(Team.OUR), profile, 4), entry);
+  }
+  if (teamMembers(t, Team.OUR).length === 0)
+    for (let i = 0; i < STUB_SQUAD_SIZE; i++) addSoldierToSector(t, stubMerc(sim, idFor(Team.OUR)), entry);
   const sector = sectorOf(sim.mapPath);
   for (const placement of chooseEnemyPlacements(t, mapPlacements, SANDBOX_POPULATION.enemyTroops)) {
-    const soldier = createFromPlacement(t, nextId, placement, SANDBOX_POPULATION);
-    if (soldier && addSoldierToSector(t, soldier, placement.basic.startingGridNo)) nextId++;
+    const soldier = createFromPlacement(t, idFor(placement.basic.team), placement, SANDBOX_POPULATION);
+    if (soldier) addSoldierToSector(t, soldier, placement.basic.startingGridNo);
   }
   for (const placement of mapPlacements.filter((p) => p.basic.team === Team.CIV)) {
-    const soldier = createFromPlacement(t, nextId, placement, SANDBOX_POPULATION);
+    const soldier = createFromPlacement(t, idFor(Team.CIV), placement, SANDBOX_POPULATION);
     if (!soldier) continue;
     if (soldier.profile !== NO_PROFILE) {
       const profile = profiles[soldier.profile];
       if (!profile || !sector || profile.sectorX !== sector.x || profile.sectorY !== sector.y) continue;
     }
-    if (addSoldierToSector(t, soldier, placement.basic.startingGridNo)) nextId++;
+    addSoldierToSector(t, soldier, placement.basic.startingGridNo);
   }
 }
 

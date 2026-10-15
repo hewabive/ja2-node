@@ -10,7 +10,7 @@ import type { TacticalContent } from './content.ts';
 import { getNewSoldierPath, moveMerc, setSoldierDestination, setSoldierPosition } from './movement.ts';
 import { executeOverhead } from './overhead.ts';
 import { createSoldier, type Soldier, Team } from './soldier.ts';
-import { createTacticalState, type TacticalState, whoIsThere } from './state.ts';
+import { createTacticalState, registerSoldier, type TacticalState, whoIsThere } from './state.ts';
 
 const doorCosts = testDoorCosts();
 let content: TacticalContent;
@@ -51,7 +51,7 @@ function spawn(t: TacticalState, at: number, team: number = Team.OUR): Soldier {
     direction: Direction.EAST,
     state: st.STANDING,
   });
-  t.soldiers.push(s);
+  registerSoldier(t, s);
   setSoldierPosition(t, s, at);
   initNewSoldierAnim(t, s, st.STANDING, 0, true);
   s.uiMovementMode = st.WALKING;

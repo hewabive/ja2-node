@@ -35,6 +35,8 @@ export const Body = {
   JEEP: 27,
 } as const;
 
+export const ReasonCantFinishMove = { NO_APS: 0, STOPPED_SIGHT: 1 } as const;
+
 export const Team = { OUR: 0, ENEMY: 1, CREATURE: 2, MILITIA: 3, CIV: 4 } as const;
 export const Side = { FRIENDLY: 0, ENEMY: 1, HOSTILE: 2, NONE: 3 } as const;
 export const NO_PROFILE = 200;
@@ -44,6 +46,15 @@ export const NO_PENDING_DIRECTION = -1;
 export const OKLIFE = 15;
 export const OKBREATH = 10;
 export const TOTAL_SOLDIERS = 156;
+export const TEAM_SIZES = [20, 32, 32, 32, 32, 8] as const;
+export const TEAM_FIRST_ID = [0, 20, 52, 84, 116, 148] as const;
+
+export function firstFreeSoldierId(taken: (id: number) => boolean, team: number): number {
+  const first = TEAM_FIRST_ID[team] ?? 0;
+  const size = TEAM_SIZES[team] ?? 0;
+  for (let id = first; id < first + size; id++) if (!taken(id)) return id;
+  return -1;
+}
 export const NO_INTERRUPT = 127;
 
 export const AlertStatus = { GREEN: 0, YELLOW: 1, RED: 2, BLACK: 3 } as const;
@@ -124,7 +135,7 @@ export interface AiState {
   noiseLevel: number;
   noiseVolume: number;
   oppCount: number;
-  underFire: boolean;
+  underFire: number;
   morale: number;
   cautious: boolean;
 }
@@ -226,6 +237,30 @@ export interface Soldier {
   newOppCnt: number;
   interruptDuelPts: number;
   movementNoiseHeard: number;
+
+  moved: boolean;
+  movedPriorToInterrupt: boolean;
+  passedLastInterrupt: boolean;
+  aiTurnControl: boolean;
+  turnInProgress: boolean;
+  intStartAPs: number;
+  lastTwoLocations: [number, number];
+  shock: number;
+  nextBleed: number;
+  suppressionPoints: number;
+  apsLostToSuppression: number;
+  reasonCantFinishMove: number;
+  oldLife: number;
+  lastRenderVisible: number;
+  fadeStep: number;
+  nextFadeAt: number;
+  pauseAllAnimation: boolean;
+  numHitsThisTurn: number;
+  closeCall: boolean;
+  lastTarget: number;
+  dontChargeTurningAPs: boolean;
+  contPathLocation: number;
+  collapsedTurns: number;
 }
 
 export interface SoldierInit {
@@ -368,7 +403,7 @@ export function createSoldier(init: SoldierInit): Soldier {
       noiseLevel: 0,
       noiseVolume: 0,
       oppCount: 0,
-      underFire: false,
+      underFire: 0,
       morale: 0,
       cautious: false,
       ...init.ai,
@@ -378,5 +413,28 @@ export function createSoldier(init: SoldierInit): Soldier {
     newOppCnt: 0,
     interruptDuelPts: NO_INTERRUPT,
     movementNoiseHeard: 0,
+    moved: false,
+    movedPriorToInterrupt: false,
+    passedLastInterrupt: false,
+    aiTurnControl: false,
+    turnInProgress: false,
+    intStartAPs: 0,
+    lastTwoLocations: [NOWHERE, NOWHERE],
+    shock: 0,
+    nextBleed: 0,
+    suppressionPoints: 0,
+    apsLostToSuppression: 0,
+    reasonCantFinishMove: ReasonCantFinishMove.NO_APS,
+    oldLife: init.life,
+    lastRenderVisible: -1,
+    fadeStep: 0,
+    nextFadeAt: 0,
+    pauseAllAnimation: false,
+    numHitsThisTurn: 0,
+    closeCall: false,
+    lastTarget: NOWHERE,
+    dontChargeTurningAPs: false,
+    contPathLocation: NOWHERE,
+    collapsedTurns: 0,
   };
 }

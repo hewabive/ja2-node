@@ -13,7 +13,7 @@ import { hiredMercInventory, type InventoryContext, npcProfileInventory } from '
 import { setSoldierPosition } from './movement.ts';
 import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { Body, createSoldier, NO_PROFILE, type Soldier, SoldierClass, type SoldierPalettes, type SoldierStats, Team } from './soldier.ts';
-import type { TacticalState } from './state.ts';
+import { registerSoldier, type TacticalState } from './state.ts';
 
 const HAIR = { WHITE: 0, BLACK: 1, BROWN: 2, BLONDE: 3, RED: 4 } as const;
 const HAIR_IDS = ['WHITEHEAD', 'BLACKHEAD', 'BROWNHEAD', 'BLONDHEAD', 'REDHEAD'];
@@ -231,7 +231,7 @@ export function addSoldierToSector(t: TacticalState, s: Soldier, insertionGridNo
   s.gridNo = NOWHERE;
   const spot = findGridNoFromSweetSpot(t, s, insertionGridNo, SWEET_SPOT_RADIUS);
   if (spot === NOWHERE) return false;
-  t.soldiers[s.id] = s;
+  registerSoldier(t, s);
   setSoldierPosition(t, s, spot);
   s.direction = s.desiredDirection;
   initNewSoldierAnim(t, s, states(t.content.animations).STANDING, t.rng.int(INITIAL_STANDING_CODES), true);

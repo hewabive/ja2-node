@@ -9,7 +9,7 @@ import { initNewSoldierAnim, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { setSoldierPosition } from '../movement.ts';
 import { createSoldier, type Soldier, Team } from '../soldier.ts';
-import { createTacticalState, type TacticalState } from '../state.ts';
+import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
 import { revealedRooms } from './fov.ts';
 import { HeightClass, lineOfSightTest, soldierToSoldierLineOfSight } from './los.ts';
 import { allTeamsLookForAll, handleSight, Opp, SightFlags } from './sight.ts';
@@ -55,7 +55,7 @@ function spawn(t: TacticalState, team: number, at: number, direction: number): S
     direction,
     state: states(content.animations).STANDING,
   });
-  t.soldiers.push(s);
+  registerSoldier(t, s);
   setSoldierPosition(t, s, at);
   initNewSoldierAnim(t, s, states(content.animations).STANDING, 0, true);
   return s;

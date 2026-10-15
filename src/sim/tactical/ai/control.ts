@@ -269,9 +269,9 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
 }
 
 function nextAIToHandle(t: TacticalState, control: AiControl): boolean {
-  const start = control.cursor >= t.soldiers.length ? 0 : control.cursor + 1;
-  for (let c = start; c < t.soldiers.length; c++) {
-    const s = t.soldiers[c];
+  const start = control.cursor >= t.mercSlots.length ? 0 : control.cursor + 1;
+  for (let c = start; c < t.mercSlots.length; c++) {
+    const s = t.mercSlots[c];
     if (s?.placed && s.team !== Team.OUR) {
       control.cursor = c;
       return true;

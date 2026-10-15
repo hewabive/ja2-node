@@ -8,7 +8,7 @@ import type { TacticalContent } from '../content.ts';
 import { setSoldierPosition } from '../movement.ts';
 import { executeOverhead, type OverheadHooks } from '../overhead.ts';
 import { createSoldier, Orders, type Soldier, Team } from '../soldier.ts';
-import { createTacticalState, type TacticalState } from '../state.ts';
+import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
 import { AiAction } from './actions.ts';
 import {
   aiForSlot,
@@ -68,7 +68,7 @@ function spawn(t: TacticalState, team: number, at: number, orders: number): Sold
     state: states(content.animations).STANDING,
     ai: { orders, attitude: 5 },
   });
-  t.soldiers.push(s);
+  registerSoldier(t, s);
   setSoldierPosition(t, s, at);
   initNewSoldierAnim(t, s, states(content.animations).STANDING, 0, true);
   return s;

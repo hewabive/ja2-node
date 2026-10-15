@@ -8,25 +8,12 @@
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { endHeight, states } from '../animation.ts';
 import { AlertStatus, OKLIFE, type Soldier, SoldierClass, Team } from '../soldier.ts';
-import type { TacticalState } from '../state.ts';
+import { mercs, type TacticalState } from '../state.ts';
 import { revealRoofsAndItems } from './fov.ts';
 import { type HeightClass, type LosSubject, soldierToSoldierLineOfSight } from './los.ts';
+import { atan8, Caller, Opp, SightFlags } from './opp.ts';
 
-export const Opp = {
-  NOT_HEARD_OR_SEEN: 0,
-  SEEN_CURRENTLY: 1,
-  SEEN_THIS_TURN: 2,
-  SEEN_LAST_TURN: 3,
-  SEEN_2_TURNS_AGO: 4,
-  SEEN_3_TURNS_AGO: 5,
-  HEARD_THIS_TURN: -1,
-  HEARD_LAST_TURN: -2,
-  HEARD_2_TURNS_AGO: -3,
-  HEARD_3_TURNS_AGO: -4,
-} as const;
-
-export const SightFlags = { LOOK: 0x01, RADIO: 0x02, INTERRUPT: 0x04 } as const;
-export const Caller = { MANLOOKSFOROTHERTEAMS: 0, OTHERTEAMSLOOKFORMAN: 1, VERIFYANDDECAYOPPLIST: 2, UPDATEPUBLIC: 4, UNKNOWN: 5 } as const;
+export { atan8, atan8Of, Caller, Opp, SightFlags } from './opp.ts';
 
 const IRRELEVANT = -1;
 const MAX_DISTANCE_VISIBLE = 26;
@@ -92,22 +79,8 @@ export function hostile(a: Soldier, b: Soldier): boolean {
   return !a.neutral && !b.neutral && a.side !== b.side;
 }
 
-function mercs(t: TacticalState): Soldier[] {
-  return t.soldiers.filter((s) => s?.placed);
-}
-
 function losSubject(t: TacticalState, s: Soldier): LosSubject {
   return { gridNo: s.gridNo, level: s.level, heightClass: endHeight(t.content, s.state) as (typeof HeightClass)[keyof typeof HeightClass] };
-}
-
-export function atan8(x1: number, y1: number, x2: number, y2: number): number {
-  const x = x2 - x1;
-  const y = -(y2 - y1);
-  if (x === 0 && y === 0) return 2;
-  let theta = Math.atan2(y, x);
-  if (theta < 0) theta += 2 * Math.PI;
-  const index = Math.trunc((8 * theta + Math.PI) / (2 * Math.PI)) % 8;
-  return [2, 1, 0, 7, 6, 5, 4, 3][index] ?? 2;
 }
 
 export function distanceVisible(t: TacticalState, viewer: Soldier, facing: number, subjectDir: number, g: number, level: number): number {

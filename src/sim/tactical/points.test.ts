@@ -19,7 +19,7 @@ import {
   unusedAPsToBreath,
 } from './points.ts';
 import { createSoldier, type Soldier, Team } from './soldier.ts';
-import { createTacticalState, type TacticalState } from './state.ts';
+import { createTacticalState, registerSoldier, type TacticalState } from './state.ts';
 
 let content: TacticalContent;
 
@@ -58,7 +58,7 @@ function spawn(t: TacticalState, at: number): Soldier {
     direction: Direction.EAST,
     state: st.STANDING,
   });
-  t.soldiers.push(s);
+  registerSoldier(t, s);
   setSoldierPosition(t, s, at);
   initNewSoldierAnim(t, s, st.STANDING, 0, true);
   s.uiMovementMode = st.WALKING;

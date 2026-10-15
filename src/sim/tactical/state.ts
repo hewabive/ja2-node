@@ -8,6 +8,7 @@ import type { DoorStatus, PathEnv, PathSoldier, PathWorld } from './pathfinding.
 import { createFogOfWar, type FogOfWar } from './perception/fov.ts';
 import { createPerception, type Perception } from './perception/sight.ts';
 import { type Soldier, TOTAL_SOLDIERS } from './soldier.ts';
+import { createTurnState, type TurnState } from './turns/turn-state.ts';
 
 export interface TacticalWorldData extends MovementWorld {
   readonly costs: MovementCosts;
@@ -50,6 +51,22 @@ export interface PerceptionHooks {
   enterCombatMode(team: number, s: Soldier): void;
 }
 
+export interface TurnHooks {
+  startNPCAI(t: TacticalState, s: Soldier): void;
+  cancelAIAction(t: TacticalState, s: Soldier): void;
+  decideAlertStatus(t: TacticalState, s: Soldier): void;
+  setNewSituation(t: TacticalState, s: Soldier): void;
+  checkForChangingOrders(t: TacticalState, s: Soldier): void;
+}
+
+export const NO_TURN_HOOKS: TurnHooks = {
+  startNPCAI: () => {},
+  cancelAIAction: () => {},
+  decideAlertStatus: () => {},
+  setNewSituation: () => {},
+  checkForChangingOrders: () => {},
+};
+
 export interface DesiredDirectionEvent {
   readonly soldier: number;
   readonly direction: number;
@@ -60,6 +77,7 @@ export interface TacticalState {
   readonly world: TacticalWorldData;
   readonly content: TacticalContent;
   readonly soldiers: Soldier[];
+  readonly mercSlots: (Soldier | null)[];
   readonly occupant: readonly [Int16Array, Int16Array];
   readonly reserved: Int16Array;
   readonly doorStatus: Map<number, DoorStatus>;
@@ -75,6 +93,8 @@ export interface TacticalState {
   readonly perception: Perception;
   readonly fog: FogOfWar;
   perceptionHooks: PerceptionHooks;
+  readonly turn: TurnState;
+  turnHooks: TurnHooks;
   combatPending: boolean;
 }
 
@@ -102,6 +122,7 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
     world,
     content,
     soldiers,
+    mercSlots: [],
     occupant,
     reserved: new Int16Array(WORLD_MAX).fill(-1),
     doorStatus,
@@ -123,6 +144,8 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
       ourTeamSeesSomeone: () => {},
       enterCombatMode: () => {},
     },
+    turn: createTurnState(TOTAL_SOLDIERS),
+    turnHooks: NO_TURN_HOOKS,
     combatPending: false,
   };
 }
@@ -145,4 +168,28 @@ export function removeOccupant(state: TacticalState, s: Soldier): void {
 
 export function asPathSoldier(s: Soldier): PathSoldier {
   return s;
+}
+
+export function registerSoldier(t: TacticalState, s: Soldier): void {
+  t.soldiers[s.id] = s;
+  const free = t.mercSlots.indexOf(null);
+  if (free >= 0) t.mercSlots[free] = s;
+  else t.mercSlots.push(s);
+}
+
+export function unregisterSoldier(t: TacticalState, s: Soldier): void {
+  const slot = t.mercSlots.indexOf(s);
+  if (slot >= 0) t.mercSlots[slot] = null;
+}
+
+export function mercs(t: Pick<TacticalState, 'mercSlots'>): Soldier[] {
+  return t.mercSlots.filter((s): s is Soldier => s !== null && s.placed);
+}
+
+export function soldiersById(t: Pick<TacticalState, 'soldiers'>): Soldier[] {
+  return t.soldiers.filter((s): s is Soldier => s !== undefined && s.placed);
+}
+
+export function teamMembers(t: Pick<TacticalState, 'soldiers'>, team: number): Soldier[] {
+  return t.soldiers.filter((s): s is Soldier => s !== undefined && s.placed && s.team === team);
 }
