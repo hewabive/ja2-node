@@ -25,6 +25,12 @@ FEARLESS 4`. Stance heights: `ANIM_STAND 6, ANIM_CROUCH 3, ANIM_PRONE 1` (`06`).
 (`TacticalAI/AIInternals.h:70-123`). Weapons: `MIN_PRONE_RANGE 50`, `POINT_BLANK_RANGE 16` (cell units, 10 per tile),
 `AIM_BONUS_CROUCHING 10`, `AIM_PENALTY_TARGET_CROUCHED 20` (`Tactical/Weapons.h`).
 
+**Stance validity.** `InternalIsValidStance(s, dir, stance)` (`Tactical/Soldier_Control.cc:7606-7697`): vehicles and
+`ROBOTNOWEAPON` only stand; in water no crouch/prone; EPCs never prone; a collapsed soldier with `bBreath < OKBREATH`
+cannot stand or crouch; then the stance's animation structure (`STANDING`/`CROUCHING`/`PRONE` surface for the body)
+must fit at `sGridNo, bLevel` in direction `dir` (`OkayToAddStructureToWorld`). The prone structure is the 2-tile
+footprint, so prone tests need multi-tile soldiers (not in M2). `IsValidStance(s, st)` uses `bDirection`.
+
 **Dependencies kept abstract.** Attacks (chance to hit, damage estimates, AP costs, bursts, throws, stabs) and items
 (inventory slots, ammo, item classes, pocket swaps, item search) are specified by the attack and item docs (11/12).
 This doc names the queries the AI makes (§7.5, §12) and assumes they exist. The turn-based core (team turns, AP
@@ -802,4 +808,99 @@ usActionData = NOWHERE → NONE
 (§8.2) → §6.6 stance `PreRandom(100)` → `ShootingStanceChange` (none) → burst `PreRandom(100)` → `CalcSpreadBurst`
 (§7.4) → fallbacks: `FindSpotMaxDistFromOpponents`, spotter `PreRandom(100)`, militia radio `PreRandom(100)` →
 execution: `Random(50)` civ quote, then the attack's own draws (attack doc).
+
+---
+
+## 7. Attack evaluation (`TacticalAI/Attacks.cc`)
+
+(filled below)
+
+---
+
+## 8. Cover, flight and locations (`TacticalAI/FindLocations.cc`)
+
+(filled below)
+
+---
+
+## 9. Civilians, militia, special cases
+
+### 9.1 Civilian cowering
+
+RED block (`DecideAction.cc:1553-1617`, repeated at `:1655-1719`), for `fCivilian` (RED definition), body not COW or
+CRIPPLECIV, and no usable weapon (`FindAIUsableObjClass(s, IC_WEAPON) == ITEM_NOT_FOUND`):
+```
+battle = TB or fEnemyInSector
+cowering:
+   battle: bLastAction == COWER → NOWHERE, NONE
+           else next = FindSpotMaxDistFromOpponents(s) (§8.3) into usNextActionData;
+                != NOWHERE → bNextAction = RUN_AWAY, usActionData = ANIM_STAND → STOP_COWERING; else NONE
+   not battle: bNewSituation == NOT → bAlertStatus = GREEN (direct write) → STOP_COWERING; else NONE
+not cowering:
+   battle → usActionData = ANIM_CROUCH → COWER
+   else → bNextAction = WAIT, usNextActionData = REALTIME_CIV_AI_DELAY (draws Random(3)), ANIM_CROUCH → COWER
+```
+BLACK block (`:2679-2714`, inside the `CanNPCAttack` loop, `NOSHOOT_NOWEAPON`, not boxer, not COW/CRIPPLECIV):
+cowering → `bLastAction == COWER` ? NONE : (flee spot → `RUN_AWAY` queued + STOP_COWERING, else NONE); not cowering →
+COWER (no battle test, no WAIT).
+- `bLastAction` is reset to NONE by `RefreshAI` each TB turn start, so a cowering civilian alternates: turn start →
+  STOP_COWERING + queued RUN_AWAY (if a flee spot exists), and after the run, COWER again at the next decision
+  (inferred from the flow; verify).
+- `fEnemyInSector` is set by `SetEnemyPresence` only on the first enemy sighting in a *virgin* sector
+  (`Overhead.cc:4105-4132`) and cleared when a battle is won or lost (`:4463, :4524`) and on sector load
+  (`Strategic/StrategicMap.cc:2922, 3115`). In RT without it, a RED civilian cowers for one `REALTIME_CIV_AI_DELAY`,
+  then (no new situation) stands up and is forced GREEN.
+- Armed civilians (hostile civ groups, e.g. Kingpin's men) skip cowering and use the soldier logic, except they are
+  `fCivilian` for radio (never), RED main loop (never), and RED step 16 (always try to run away).
+- GREEN civilians who are still cowering stop (`09` §2.3); YELLOW civilians likewise (§3 step 1).
+
+### 9.2 Militia
+
+Same deciders as soldiers (`fCivilian` false), with these differences:
+- `REALTIME_CIV_AI_DELAY` for RT waits and green seek-friend waits (`09` §1.4); `fCivOrMilitia` in green.
+- YELLOW step 7a: RT militia within 5 tiles who see the noise spot forget it.
+- RED step 8: with the light policy on they never avoid light (policy default off).
+- `CheckForChangingOrders` at RED/BLACK: non-ONGUARD/CLOSEPATROL militia become SEEKENEMY (roam the whole map).
+- BLACK §6.4: `PreRandom(20)` instead of `PreRandom(40)`; §6.8: the militia-only radio at the end.
+- `RadioSightings` to the militia team triggers `HandleInitialRedAlert(MILITIA)` (`08` §2.5).
+- Militia have no `AICounter` difference; they are AI-controlled on their own team turn in TB (AI list, §10.3).
+- Movement modes, cover and attack evaluation are identical; militia are `bSide` friendly, so their opponents are the
+  enemies and hostile civilians.
+
+### 9.3 Profiled NPCs, Queen, Joe, Warden, boxers, tanks, creatures
+
+All hooks for M3: `DecideActionNamedNPC` (RT YELLOW/GREEN only), `HeadForTheStairCase` (Meduna), Warden and
+`the_chosen_one` (Tixa panic), boxing (`DecideActionBoxerEnteringRing`, punch-only BLACK), tanks (`TANK()` branches),
+creatures (`CreatureDecideAction`, separate file), crows. None occurs in Omerta/A9.
+
+### 9.4 Panic AI (`TacticalAI/PanicButtons.cc`)
+
+(filled below)
+
+---
+
+## 10. Cadence: real time at YELLOW+, green in TB, the AI list
+
+### 10.1 Real time at YELLOW, RED, BLACK
+
+- Same scheduler as green (`09` §1): visits every 110 ms, `RTHandleAI`, NONE → WAIT. YELLOW/RED/BLACK queue no WAIT
+  after their actions, so an alerted soldier re-decides about one visit after each action ends, and waits
+  `REALTIME_AI_DELAY` (10–11 s) only after NONE.
+- RT-only branches: YELLOW forget-the-noise (§3 7a), named NPCs; RT disables YELLOW cover, RED long-range toss and RED
+  hiding (`hide = −99`), and skips every AP test written `(!gfTurnBasedAI || …)`.
+- BLACK in RT exists only until combat starts: the first hostile sighting enters combat in the same look (`08` §2.9),
+  except when `EnterCombatMode` refuses (no capable enemy). RED in RT is common after combat ends (RED never drops,
+  `09` §2.2) and after a team radio.
+- `NewDest` swat roll applies at RED in RT too (ENEMY team).
+
+### 10.2 GREEN and YELLOW soldiers in TB
+
+`DecideActionGreen` in TB (`09` §2.3 with the TB guards): civilians skip the schedule/named-NPC prelude; the look
+branch needs `GetAPsToLook <= AP`; no WAIT is queued after anything; `RandDestWithinRange` makes 10 tries. YELLOW
+soldiers use the AP-gated turn and crouch and may take cover. A GREEN/YELLOW soldier's unfinished move is kept into
+his next turn (§1.2), and `RefreshAI` runs `ManChecksOnFriends` for them.
+
+### 10.3 AI list (`TacticalAI/AIList.cc`)
+
+(filled below)
 

@@ -1,0 +1,17 @@
+sector A9
+path from=11742 to=11765
+path from=11742 to=11765 mode=run
+path from=11742 to=11765 mode=swat
+path from=11742 to=11765 mode=crawl
+path from=12382 to=14626
+path from=12390 to=13829
+path from=12390 to=13829 team=player
+path from=13829 to=12390 team=player mode=run
+path from=11742 to=15145 mode=run
+path from=3614 to=3618
+path from=3614 to=3618 mode=crawl
+path from=9050 to=16890
+path from=5818 to=19260
+path from=13900 to=17000
+path from=6455 to=6461 level=1
+path from=11742 to=12880

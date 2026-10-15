@@ -7,9 +7,9 @@
 import type { Placement } from '../../content/formats/map.ts';
 import { type DetailedPlacement, parseDetailedPlacement } from '../../content/formats/placement.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
-import { handClass } from '../../content/items/items.ts';
 import { cardinalSpacesAway, WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import { initNewSoldierAnim, states } from './animation.ts';
+import { profileInventory } from './inventory.ts';
 import { setSoldierPosition } from './movement.ts';
 import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { createSoldier, NO_PROFILE, type Soldier, SoldierClass, type SoldierPalettes, type SoldierStats, Team } from './soldier.ts';
@@ -253,7 +253,6 @@ export function addSoldierToSector(t: TacticalState, s: Soldier, insertionGridNo
 }
 
 export function createMercFromProfile(t: TacticalState, id: number, profile: MercProfile, direction: number): Soldier {
-  const hand = profile.inventory[5] ?? 0;
   return createSoldier({
     id,
     team: Team.OUR,
@@ -266,8 +265,7 @@ export function createMercFromProfile(t: TacticalState, id: number, profile: Mer
       vest: profile.palettes.vest || 'WHITEVEST',
       pants: profile.palettes.pants || 'BLACKPANTS',
     },
-    handItem: hand,
-    hand: handClass(t.content.items, hand),
+    inv: profileInventory(t.content.items, profile),
     stats: {
       agility: profile.agility,
       dexterity: profile.dexterity,
@@ -325,7 +323,6 @@ function createProfiledFromPlacement(t: TacticalState, id: number, placement: Pl
   const profile = t.content.profiles[d.profile];
   if (!profile) return null;
   const b = placement.basic;
-  const hand = profile.inventory[5] ?? 0;
   return createSoldier({
     id,
     team: b.team,
@@ -338,8 +335,7 @@ function createProfiledFromPlacement(t: TacticalState, id: number, placement: Pl
       vest: profile.palettes.vest || 'WHITEVEST',
       pants: profile.palettes.pants || 'BLACKPANTS',
     },
-    handItem: hand,
-    hand: handClass(t.content.items, hand),
+    inv: profileInventory(t.content.items, profile),
     stats: {
       agility: profile.agility,
       dexterity: profile.dexterity,

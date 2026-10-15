@@ -1,4 +1,5 @@
 import { AnimFlags } from '../../content/anim/tables.ts';
+import { handClass } from '../../content/items/items.ts';
 import { isVisibleTile } from '../../content/world/grid.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { Rng } from '../../core/rng.ts';
@@ -18,6 +19,7 @@ import { checkForChangingOrders, setNewSituation } from './ai/decide.ts';
 import { hasAnimFlag, states } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { isDoorOpenAt } from './doors.ts';
+import { InvSlot, itemIn } from './inventory.ts';
 import { getNewSoldierPath, stopMerc } from './movement.ts';
 import { executeOverhead, type OverheadHooks } from './overhead.ts';
 import { mostImportantNoiseHeard } from './perception/knowledge.ts';
@@ -184,7 +186,7 @@ export class TacticalSim {
         animation: s.state,
         frame: s.frame,
         palettes: [s.palettes.hair, s.palettes.skin, s.palettes.vest, s.palettes.pants] as const,
-        hand: s.hand,
+        hand: handClass(this.state.content.items, itemIn(s.inv, InvSlot.HAND)),
       }));
   }
 }

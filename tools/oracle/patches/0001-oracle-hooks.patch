@@ -1,0 +1,64 @@
+Oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-15. See LICENSE (SFI-SCLA).
+Adds Oracle.cc to the build, runs the oracle from main() when JA2_ORACLE is set, and exports a
+wrapper around the static LineOfSightTest. Applied by tools/oracle/build.sh with patch -p1.
+
+--- a/src/game/CMakeLists.txt
++++ b/src/game/CMakeLists.txt
+@@ -30,6 +30,7 @@
+     ${CMAKE_CURRENT_SOURCE_DIR}/MercPortrait.cc
+     ${CMAKE_CURRENT_SOURCE_DIR}/MessageBoxScreen.cc
+     ${CMAKE_CURRENT_SOURCE_DIR}/Options_Screen.cc
++    ${CMAKE_CURRENT_SOURCE_DIR}/Oracle.cc
+     ${CMAKE_CURRENT_SOURCE_DIR}/SaveLoadGame.cc
+     ${CMAKE_CURRENT_SOURCE_DIR}/SaveLoadGameStates.cc
+     ${CMAKE_CURRENT_SOURCE_DIR}/SaveLoadScreen.cc
+--- a/src/sgp/SGP.cc
++++ b/src/sgp/SGP.cc
+@@ -22,6 +22,7 @@
+ #include "policy/GamePolicy.h"
+ #include "RustInterface.h"
+ #include "EnumCodeGen.h"
++#include "Oracle.h"
+ 
+ #include "Logger.h"
+ #include <SDL3/SDL_events.h>
+@@ -301,6 +302,8 @@
+ 		}
+ 		#endif
+ 
++		if (Oracle_IsRequested()) Oracle_PrepareProcess();
++
+ 		// init locale and logging
+ 		{
+ 			std::vector<ST::string> problems = InitGlobalLocale();
+@@ -438,6 +441,13 @@
+ 
+ 		gfGameInitialized = TRUE;
+ 
++		if (Oracle_IsRequested())
++		{
++			int const oracleStatus = Oracle_Run();
++			shutdownGame();
++			return oracleStatus;
++		}
++
+ 		if(isEnglishVersion() || isChineseVersion())
+ 		{
+ 			SetIntroType(INTRO_SPLASH);
+--- a/src/game/Tactical/LOS.cc
++++ b/src/game/Tactical/LOS.cc
+@@ -4239,3 +4239,14 @@
+ 	// but we shouldn't(?) need to check it because the target is there!
+ 
+ }
++
++
++INT32 OracleLineOfSightTest(GridNo start_pos, FLOAT dStartZ, GridNo end_pos, FLOAT dEndZ, UINT8 ubTileSightLimit, UINT8 ubTreeSightReduction, INT8 bAware, INT8 bCamouflage, BOOLEAN fSmell, INT16* psWindowGridNo)
++{
++	return LineOfSightTest(start_pos, dStartZ, end_pos, dEndZ, ubTileSightLimit, ubTreeSightReduction, bAware, bCamouflage, fSmell, psWindowGridNo);
++}
++
++UINT8 OracleTreeSightReduction(UINT8 ubEndHeight)
++{
++	return ubEndHeight <= ANIM_STAND ? gubTreeSightReduction[ubEndHeight] : 0;
++}
