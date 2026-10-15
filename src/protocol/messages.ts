@@ -1,6 +1,8 @@
 import type { StopCondition, StopReport } from '../sim/advance.ts';
 import type { PlayerView, ViewFrame } from './view.ts';
 
+export type { StopCondition, StopReport };
+
 export type DriverMode = { readonly mode: 'manual' } | { readonly mode: 'realtime'; readonly speed: number };
 
 export interface CommandEnvelope {

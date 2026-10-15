@@ -184,6 +184,13 @@ From this log and the same timelines, the client reconstructs the picture frame 
 While playback catches up with the simulation, input is blocked, just as the original blocks the UI during actions.
 Rewind and replay come for free: the log is deterministic.
 
+**Implemented in v0 (M2).** Instead of reconstructing the picture from gameplay events, the session
+records *view frames*: every 10 ticks (50 ms) it diffs the player view and keeps only soldiers that
+changed (`src/protocol/view.ts` `diffView`/`applyFrame`, `src/server/session.ts`). An instant
+`advance` therefore produces a compact frame stream that the browser plays back at any speed. Fine
+animation between frames is reconstructed by the client from the same animation scripts. The richer
+event log above stays the target once combat effects (bullets, explosions) appear.
+
 ### 4.5. CPU cost
 
 **Estimate for a turn of 15 enemies.** Each moves ~6 tiles (≈0.7 s), shoots (0.35–1.15 s),
