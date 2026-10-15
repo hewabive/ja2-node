@@ -3,11 +3,10 @@
 // @src src/game/Tactical/LoadSaveSoldierCreate.cc ExtractSoldierCreateFromFile (Windows layout). See docs/06 §7.1.
 
 import { FormatError } from '../binary/errors.ts';
+import { decodeObject, OBJECT_RECORD_BYTES, type ObjectRecord } from './object.ts';
 
 export const DETAILED_PLACEMENT_BYTES = 1040;
 const INVENTORY_SLOTS = 19;
-const OBJECT_BYTES = 36;
-const OBJECT_FLAGS_OFFSET = 28;
 const PALETTE_BYTES = 30;
 const PATROL_POINTS = 10;
 const NAME_CHARS = 10;
@@ -39,7 +38,7 @@ export interface DetailedPlacement {
   readonly attitude: number;
   readonly orders: number;
   readonly stats: DetailedStats;
-  readonly inventory: readonly { readonly item: number; readonly flags: number }[];
+  readonly inventory: readonly ObjectRecord[];
   readonly palettes: { readonly hair: string; readonly pants: string; readonly vest: string; readonly skin: string };
   readonly patrolGrid: readonly number[];
   readonly patrolCount: number;
@@ -97,10 +96,7 @@ export function parseDetailedPlacement(raw: Uint8Array): DetailedPlacement {
       morale: i8(30),
       aiMorale: i8(31),
     },
-    inventory: Array.from({ length: INVENTORY_SLOTS }, (_, k) => ({
-      item: v.getUint16(32 + k * OBJECT_BYTES, true),
-      flags: raw[32 + k * OBJECT_BYTES + OBJECT_FLAGS_OFFSET] ?? 0,
-    })),
+    inventory: Array.from({ length: INVENTORY_SLOTS }, (_, k) => decodeObject(raw, 32 + k * OBJECT_RECORD_BYTES)),
     palettes: { hair: ascii(raw, 716), pants: ascii(raw, 746), vest: ascii(raw, 776), skin: ascii(raw, 806) },
     patrolGrid: Array.from({ length: PATROL_POINTS }, (_, k) => v.getInt16(866 + k * 2, true)),
     patrolCount: i8(886),

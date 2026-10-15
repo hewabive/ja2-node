@@ -13,6 +13,8 @@ export const ITEM_TABLE_PATHS = {
   calibres: 'externalized/calibres.json',
   ammoTypes: 'externalized/ammo-types.json',
   rules: ITEM_RULES_PATH,
+  gunChoiceNormal: 'externalized/army-gun-choice-normal.json',
+  gunChoiceExtended: 'externalized/army-gun-choice-extended.json',
 } as const;
 
 export type ItemTableSources = { readonly [K in keyof typeof ITEM_TABLE_PATHS]: unknown };
@@ -208,8 +210,10 @@ export interface ItemDef {
 export interface ItemTable {
   readonly byIndex: ReadonlyMap<number, ItemDef>;
   readonly byName: ReadonlyMap<string, ItemDef>;
+  readonly ordered: readonly ItemDef[];
   readonly magazines: readonly ItemDef[];
   readonly rules: ItemRules;
+  readonly gunChoice: { readonly normal: readonly (readonly number[])[]; readonly extended: readonly (readonly number[])[] };
 }
 
 type Json = Record<string, unknown>;
@@ -394,11 +398,11 @@ export function parseItemTable(sources: ItemTableSources): ItemTable {
   };
   const all: ItemDef[] = [
     nothing,
-    ...(sources.weapons as Json[]).map((o) => weaponItem(o, calibres)).filter((w) => w.itemClass !== ItemClass.NONE),
-    ...(sources.magazines as Json[]).filter((o) => str(o, 'calibre') !== 'NOAMMO').map((o) => magazineItem(o, calibres, ammoTypes)),
-    ...(sources.armours as Json[]).map(armourItem),
-    ...(sources.explosives as Json[]).map(explosiveItem),
     ...(sources.items as Json[]).map(plainItem).filter((i) => !(i.itemClass & (ItemClass.NONE | EXPLOSIVE_CLASSES | ItemClass.ARMOUR))),
+    ...(sources.magazines as Json[]).filter((o) => str(o, 'calibre') !== 'NOAMMO').map((o) => magazineItem(o, calibres, ammoTypes)),
+    ...(sources.weapons as Json[]).map((o) => weaponItem(o, calibres)).filter((w) => w.itemClass !== ItemClass.NONE),
+    ...(sources.explosives as Json[]).map(explosiveItem),
+    ...(sources.armours as Json[]).map(armourItem),
   ];
   const byIndex = new Map<number, ItemDef>();
   for (const item of all) {
@@ -406,7 +410,22 @@ export function parseItemTable(sources: ItemTableSources): ItemTable {
     byIndex.set(item.index, item);
   }
   const byName = new Map(all.map((item) => [item.name, item]));
-  return { byIndex, byName, magazines: all.filter((item) => item.magazine), rules: parseItemRules(sources.rules, byName) };
+  const gunLevels = (json: unknown) =>
+    (json as string[][]).map((level) =>
+      level.map((name) => {
+        const def = byName.get(name);
+        if (!def) throw new Error(`unknown gun ${name} in the army gun choice`);
+        return def.index;
+      }),
+    );
+  return {
+    byIndex,
+    byName,
+    ordered: all,
+    magazines: all.filter((item) => item.magazine),
+    rules: parseItemRules(sources.rules, byName),
+    gunChoice: { normal: gunLevels(sources.gunChoiceNormal), extended: gunLevels(sources.gunChoiceExtended) },
+  };
 }
 
 export async function loadItemTable(readJson: (path: string) => Promise<unknown>): Promise<ItemTable> {

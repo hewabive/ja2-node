@@ -4,6 +4,7 @@ import type { MovementCosts, MovementWorld } from '../../content/world/movement-
 import { PreRandom, type Rng } from '../../core/rng.ts';
 import type { SimEvent } from '../events.ts';
 import type { TacticalContent } from './content.ts';
+import { createEquipmentState, type EquipmentState } from './equipment.ts';
 import type { DoorStatus, PathEnv, PathSoldier, PathWorld } from './pathfinding.ts';
 import { createFogOfWar, type FogOfWar } from './perception/fov.ts';
 import { createPerception, type Perception } from './perception/sight.ts';
@@ -97,6 +98,7 @@ export interface TacticalState {
   perceptionHooks: PerceptionHooks;
   readonly turn: TurnState;
   turnHooks: TurnHooks;
+  readonly equipment: EquipmentState;
 }
 
 export function createTacticalState(world: TacticalWorldData, content: TacticalContent, rng: Rng): TacticalState {
@@ -147,6 +149,7 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
     },
     turn: createTurnState(TOTAL_SOLDIERS),
     turnHooks: NO_TURN_HOOKS,
+    equipment: createEquipmentState(content.items),
   };
 }
 

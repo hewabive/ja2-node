@@ -8,8 +8,10 @@ import type { Placement } from '../../content/formats/map.ts';
 import { type DetailedPlacement, parseDetailedPlacement } from '../../content/formats/placement.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { cardinalSpacesAway, WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
+import { ObjectFlags, objectFromRecord } from '../items/object.ts';
 import { initNewSoldierAnim, states } from './animation.ts';
-import { hiredMercInventory, type InventoryContext, npcProfileInventory } from './inventory.ts';
+import { generateRandomEquipment, replaceExtendedGuns } from './equipment.ts';
+import { emptyInventory, hiredMercInventory, type InventoryContext, npcProfileInventory } from './inventory.ts';
 import { setSoldierPosition } from './movement.ts';
 import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { calcActionPoints } from './points.ts';
@@ -284,6 +286,29 @@ export function createFromPlacement(t: TacticalState, id: number, placement: Pla
   if (detailed && detailed.profile !== NO_PROFILE) return createProfiledFromPlacement(t, id, placement, detailed);
   let generated = generateBasic(t, b.team, b.soldierClass, b.bodyType, b.relativeAttributeLevel, options.difficultyModifier);
   if (detailed) generated = applyStaticStats(generated, detailed);
+  const inv = emptyInventory();
+  if (detailed) {
+    detailed.inventory.forEach((rec, k) => {
+      if (rec.flags & ObjectFlags.NO_OVERWRITE) inv[k] = objectFromRecord(rec);
+    });
+    if (!t.options.gunNut) replaceExtendedGuns(t.content.items, t.rng, t.equipment, inv, b.soldierClass);
+  }
+  if (b.soldierClass !== SoldierClass.NONE && b.soldierClass !== SoldierClass.CREATURE && b.soldierClass !== SoldierClass.MINER) {
+    generateRandomEquipment(
+      t.content.items,
+      t.rng,
+      t.equipment,
+      {
+        inv,
+        soldierClass: b.soldierClass,
+        bodyType: generated.body,
+        experience: generated.stats.experience,
+        marksmanship: generated.stats.marksmanship,
+      },
+      b.relativeEquipmentLevel,
+      options.difficultyModifier,
+    );
+  }
   const given = detailed?.visible ? { vest: detailed.palettes.vest, pants: detailed.palettes.pants } : {};
   const palettes = generatePalettes(t, generated.body, b.team, b.soldierClass, given);
   let body = generated.body;
@@ -295,6 +320,7 @@ export function createFromPlacement(t: TacticalState, id: number, placement: Pla
     soldierClass: b.soldierClass,
     bodyType: body,
     palettes,
+    inv,
     stats: generated.stats,
     life: generated.life,
     lifeMax: generated.lifeMax,

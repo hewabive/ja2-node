@@ -122,6 +122,7 @@ export function populateSandbox(sim: TacticalSim): void {
   if (teamMembers(t, Team.OUR).length === 0)
     for (let i = 0; i < STUB_SQUAD_SIZE; i++) addSoldierToSector(t, stubMerc(sim, idFor(Team.OUR)), entry);
   const sector = sectorOf(sim.mapPath);
+  t.equipment.mortarsRolledByTeam = 0;
   for (const placement of chooseEnemyPlacements(t, mapPlacements, SANDBOX_POPULATION.enemyTroops)) {
     const soldier = createFromPlacement(t, idFor(placement.basic.team), placement, SANDBOX_POPULATION);
     if (soldier) addSoldierToSector(t, soldier, placement.basic.startingGridNo);

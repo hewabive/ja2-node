@@ -3,6 +3,7 @@
 // @src src/game/Tactical/Item_Types.h OBJECTTYPE; Items.cc DefaultMagazine, FindReplacementMagazine, CreateGun,
 // @src CreateMagazine, CreateItem, CreateItems, CreateMoney
 
+import type { ObjectRecord } from '../../content/formats/object.ts';
 import { AmmoType, ItemClass, ItemFlags, type ItemTable, NOTHING, WeaponClass } from '../../content/items/items.ts';
 import { validAttachment, validLaunchable } from '../../content/items/rules.ts';
 
@@ -270,4 +271,25 @@ function applyComboMerge(table: ItemTable, target: ItemObject): void {
   }
   target.item = m.result;
   target.status[0] = Math.trunc(total / contributors);
+}
+
+export function objectFromRecord(rec: ObjectRecord): ItemObject {
+  const o = emptyObject();
+  if (rec.item === NOTHING) {
+    o.flags = rec.flags;
+    return o;
+  }
+  o.item = rec.item;
+  o.count = rec.count;
+  o.status = rec.status.slice(0, Math.max(rec.count, 1));
+  o.gunAmmoType = rec.gunAmmoType;
+  o.gunShotsLeft = rec.gunShotsLeft;
+  o.gunAmmoItem = rec.gunAmmoItem;
+  o.gunAmmoStatus = rec.gunAmmoStatus;
+  o.money = rec.money;
+  o.attachments = rec.attachments.map((a) => ({ ...a }));
+  o.flags = rec.flags;
+  o.trap = rec.trap;
+  o.imprintId = rec.imprintId;
+  return o;
 }
