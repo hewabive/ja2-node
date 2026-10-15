@@ -1,0 +1,103 @@
+// Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
+// Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
+// @src src/game/TileEngine/WorldMan.cc AddLandToHead, AddStructToTailCommon; WorldDef.cc OptimizeMapForShadows,
+// @src GridNoIndoors; Tactical/Handle_UI.cc SetInterfaceHeightLevel
+
+import type { MapInformation } from '../../content/formats/map.ts';
+import { WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
+import { type Level, type LevelLayer, levelTilesAt } from '../../content/world/level.ts';
+import { type TileElement, TileFlags } from '../../content/world/tile-database.ts';
+import { type TileTables, typeIndex } from '../../content/world/tile-tables.ts';
+
+const STRUCTURE_TREE = 0x00000200;
+const NO_LAND_START = -1;
+const SHADOW_SEARCH_DIRECTIONS: readonly [number, number][] = [
+  [-1, 0],
+  [-1, 1],
+  [0, 1],
+  [1, 1],
+  [1, 0],
+];
+
+export interface LevelRenderData {
+  readonly landStart: Int8Array;
+  readonly shadows: LevelLayer;
+  readonly renderHeight: number;
+}
+
+function firstFullLandFromHead(land: Uint16Array, tiles: readonly TileElement[]): number {
+  for (let i = 0; i < land.length; i++) if (tiles[land[i] ?? 0]?.fullTile) return i;
+  return NO_LAND_START;
+}
+
+function neighbourOrSelf(g: number, dx: number, dy: number): number {
+  const x = (g % WORLD_COLS) + dx;
+  const y = Math.floor(g / WORLD_COLS) + dy;
+  return x < 0 || y < 0 || x >= WORLD_COLS || y >= WORLD_ROWS ? g : y * WORLD_COLS + x;
+}
+
+function structureFootprints(level: Level, tiles: readonly TileElement[]): { hasStructure: Uint8Array; hasTree: Uint8Array } {
+  const hasStructure = new Uint8Array(WORLD_MAX);
+  const hasTree = new Uint8Array(WORLD_MAX);
+  for (const layer of [level.layers.structs, level.layers.roofs, level.layers.onRoof]) {
+    for (let g = 0; g < WORLD_MAX; g++) {
+      for (const t of levelTilesAt(layer, g)) {
+        const s = tiles[t]?.structure;
+        if (!s) continue;
+        for (const piece of s.tiles) {
+          const at = g + piece.posRelToBase;
+          if (at < 0 || at >= WORLD_MAX) continue;
+          hasStructure[at] = 1;
+          if (s.flags & STRUCTURE_TREE) hasTree[at] = 1;
+        }
+      }
+    }
+  }
+  return { hasStructure, hasTree };
+}
+
+function renderHeight(level: Level, info: MapInformation, underground: boolean): number {
+  if (underground) return 0;
+  const entry = [info.northGridNo, info.eastGridNo, info.southGridNo, info.westGridNo].find((g) => g >= 0 && g < WORLD_MAX);
+  return entry === undefined ? 0 : (level.heights[entry] ?? 0);
+}
+
+export function prepareLevelRenderData(
+  level: Level,
+  tiles: readonly TileElement[],
+  tables: TileTables,
+  info: MapInformation,
+  underground: boolean,
+): LevelRenderData {
+  const firstFloor = typeIndex(tables, 'FIRSTFLOOR');
+  const lastFloor = typeIndex(tables, 'FIRSTROOF') - 1;
+  const landStart = new Int8Array(WORLD_MAX);
+  const shadowLists: number[][] = [];
+  const { hasStructure, hasTree } = structureFootprints(level, tiles);
+  for (let g = 0; g < WORLD_MAX; g++) {
+    const land = levelTilesAt(level.layers.land, g);
+    landStart[g] = firstFullLandFromHead(land, tiles);
+    const indoors = [...land].some((t) => {
+      const type = tiles[t]?.type ?? -1;
+      return type >= firstFloor && type <= lastFloor;
+    });
+    const buddies: number[] = [];
+    if (!indoors) {
+      for (const t of levelTilesAt(level.layers.structs, g)) {
+        const te = tiles[t];
+        if (te && te.flags & TileFlags.HAS_SHADOW_BUDDY && te.buddy !== -1) buddies.unshift(te.buddy);
+      }
+    }
+    const surrounded = hasTree[g] === 1 && SHADOW_SEARCH_DIRECTIONS.every(([dx, dy]) => hasStructure[neighbourOrSelf(g, dx, dy)] === 1);
+    shadowLists.push(surrounded ? [] : [...buddies, ...levelTilesAt(level.layers.shadows, g)]);
+  }
+  const offsets = new Uint32Array(WORLD_MAX + 1);
+  shadowLists.forEach((l, g) => {
+    offsets[g + 1] = (offsets[g] ?? 0) + l.length;
+  });
+  const shadowTiles = new Uint16Array(offsets[WORLD_MAX] ?? 0);
+  shadowLists.forEach((l, g) => {
+    shadowTiles.set(l, offsets[g] ?? 0);
+  });
+  return { landStart, shadows: { offsets, tiles: shadowTiles }, renderHeight: renderHeight(level, info, underground) };
+}

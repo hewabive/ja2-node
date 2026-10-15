@@ -1,6 +1,8 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { serve } from '@hono/node-server';
 import { openDataVfs } from '../node/data-vfs.ts';
-import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR } from '../node/repo.ts';
+import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR, REPO_ROOT } from '../node/repo.ts';
 import { loadOrCreateToken } from '../node/token.ts';
 import { createApp } from './app.ts';
 
@@ -12,9 +14,12 @@ const data = await openDataVfs({
   stubsDir: process.env.JA2_STUBS_DIR ?? DEFAULT_STUBS_DIR,
 });
 const token = loadOrCreateToken();
+const clientDir = join(REPO_ROOT, 'dist/client');
 const app = createApp({
   vfs: data.vfs,
   token,
+  vfsGeneration: Date.now().toString(36),
+  ...(existsSync(clientDir) ? { clientDir } : {}),
   info: { originalData: data.dataDir !== null, slfCount: data.slfCount, stubs: data.stubsDir !== null },
 });
 
@@ -24,6 +29,7 @@ const server = serve({ fetch: app.fetch, hostname: host, port }, (addr) => {
   console.log(`  stubs: ${data.stubsDir ?? 'missing (run pnpm stubs)'}`);
   console.log(`  files in VFS: ${data.vfs.size}`);
   console.log('  token: .ja2/token (or $JA2_TOKEN)');
+  if (existsSync(clientDir)) console.log(`  built client: http://${host}:${addr.port}/login?token=${token}`);
 });
 
 const shutdown = (): void => {

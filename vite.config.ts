@@ -17,6 +17,7 @@ export default defineConfig(() => {
         input: {
           index: fileURLToPath(new URL('./index.html', import.meta.url)),
           assets: fileURLToPath(new URL('./src/devtools/asset-browser/index.html', import.meta.url)),
+          maps: fileURLToPath(new URL('./src/devtools/map-viewer/index.html', import.meta.url)),
         },
       },
     },

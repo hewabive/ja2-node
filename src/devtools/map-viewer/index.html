@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Maps · ja2-node</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header>
+      <a href="/" class="brand">ja2-node</a>
+      <span class="title">map viewer</span>
+      <select id="map"></select>
+      <select id="light"><option value="3">day</option><option value="8">dusk</option><option value="12">night</option></select>
+      <label><input id="roofs" type="checkbox" checked /> roofs</label>
+      <label><input id="shadows" type="checkbox" checked /> shadows</label>
+      <span class="group">zoom <button type="button" data-zoom="1">1×</button><button type="button" data-zoom="2">2×</button></span>
+      <span id="status" class="status">connecting…</span>
+    </header>
+    <main>
+      <canvas id="canvas"></canvas>
+      <div id="hover" class="hover" hidden></div>
+      <canvas id="radar" class="radar" width="88" height="44" hidden></canvas>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

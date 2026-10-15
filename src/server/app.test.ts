@@ -1,3 +1,6 @@
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { MemoryLayer, Vfs } from '../content/vfs/vfs.ts';
 import { createApp, parseRange } from './app.ts';
@@ -44,6 +47,30 @@ describe('server', () => {
     expect((await app.request('http://localhost/vfs/nope.sti', { headers: auth })).status).toBe(404);
     expect((await app.request('http://localhost/vfs/a/..%2Fb', { headers: auth })).status).toBe(400);
     expect((await app.request('http://localhost/vfs/%E0%A4%A', { headers: auth })).status).toBe(400);
+  });
+
+  it('answers 304 for a matching ETag', async () => {
+    const first = await app.request('http://localhost/vfs/interface/panel.sti', { headers: auth });
+    const etag = first.headers.get('etag') ?? '';
+    expect(etag).toMatch(/^"dev-mem-10"$/);
+    const again = await app.request('http://localhost/vfs/interface/panel.sti', { headers: { ...auth, 'if-none-match': etag } });
+    expect(again.status).toBe(304);
+  });
+
+  it('logs in with a token link and serves the built client without a token', async () => {
+    const clientDir = mkdtempSync(join(tmpdir(), 'ja2-client-'));
+    writeFileSync(join(clientDir, 'index.html'), '<!doctype html><title>client</title>');
+    const withClient = createApp({ vfs: new Vfs([]), token, info: { originalData: false, slfCount: 0, stubs: false }, clientDir });
+    const page = await withClient.request('http://localhost/');
+    expect(page.status).toBe(200);
+    expect(await page.text()).toContain('client');
+    expect((await withClient.request('http://localhost/login?token=wrong')).status).toBe(401);
+    const login = await withClient.request(`http://localhost/login?token=${token}`);
+    expect(login.status).toBe(302);
+    const cookie = login.headers.get('set-cookie') ?? '';
+    expect(cookie).toMatch(/ja2_token=.*HttpOnly.*SameSite=Strict/);
+    const health = await withClient.request('http://localhost/api/health', { headers: { cookie: cookie.split(';')[0] ?? '' } });
+    expect(health.status).toBe(200);
   });
 
   it('parseRange', () => {

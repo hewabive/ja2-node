@@ -711,7 +711,9 @@ build tactics without strategy and the laptop.
 
 ---
 
-## 12. M0: what's done (2026-10-15)
+## 12. Status
+
+### M0: what's done (2026-10-15)
 
 The milestone is closed. Result: any sprite from the original and the stubs is visible in the browser, with the data served by
 our server. How to run it is described in `README.md`.
@@ -746,8 +748,35 @@ our server. How to run it is described in `README.md`.
    (6 types × 2), walls, a button. The build is deterministic.
 9. **CLI:** `pnpm cli inspect vfs | ls | slf | sti --png | cat | verify`.
 
-**Not included in M0, carried over to M1:**
-- PCX (78 files: 60 in tilesets, 13 in the interface, 3 in the laptop) and TGA (3);
-- body palettes from `ja2pal.dat`;
-- caching of `/vfs` responses;
-- serving the built client from the server itself.
+**Carried over from M0** and closed in M1: PCX and TGA decoders, body palettes from `ja2pal.dat`,
+`/vfs` ETags, serving the built client (`/login?token=…` sets an HttpOnly cookie).
+
+### M1: what's done (2026-10-15)
+
+1. **Formats.** Tileset database (`ja2set.dat`), JSD structure files, map `.dat` reader and writer
+   for every section, PCX, TGA, soldier palettes. `pnpm cli inspect verify` parses every original
+   file: 7,523 STI, 78 PCX, 3 TGA, 1,442 JSD, 261 maps. 178 maps carry trailing bytes that the
+   original loader ignores (`docs/deviations.md`).
+2. **Tables.** `data/tables/tiles.json` is transcribed from `TileDat.h/.cc` by
+   `tools/transcribe/tiles.ts`. The repo `data/` directory is the top VFS layer.
+3. **World model** (`content/world`). Tile database with the original flags, shadow buddies, door
+   animations and underflow fillers; ZStripInfo; level building with the original layer list
+   order; tileset loading from STI or stub sprites; shade palettes that match all 305 vanilla
+   `.sha` tables exactly for shades 1–15.
+4. **Renderer** (`render/world`), following `docs/05-render-pipeline.md`: sweep by `X+Y` rows,
+   passes land → objects → shadows (day only) → structs/roofs/on-roof per row → dynamic layers;
+   original z per layer, 20 px strips for multi-tile structures, strict and non-strict depth tests,
+   shadows as ×0.48 darkening, buddy shadows and the tree shadow cleanup, map height offsets.
+5. **Map viewer** (`devtools/map-viewer`): original maps and the stub village, camera drag and
+   keys, zoom, tile picking with the original inverse projection, hover info, roofs and shadows
+   toggles, day/dusk/night shading, radar with the viewport rectangle.
+6. **Stub world:** stub tileset sprites, a stub `ja2set.dat` and an ASCII map format
+   (`stubs/maps/*.map.txt`) compiled into real `.dat` files, so stubs take the same loading path.
+
+**Not in M1 yet** (each needs systems from later milestones):
+- map light sprites and their ray casting (needs structure blocking; M2 with vision);
+- room reveal, hidden roofs and the obscured (show-through) pass (needs FOV; M2);
+- load-time wall wireframes (with room reveal);
+- structure placement collisions on load (`FailedToAddNode` skips a few overlapping structs; M2
+  with the structure database);
+- scroll limits and restricted-scroll maps.

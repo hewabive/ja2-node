@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
+import { parseSoldierPalettes, SOLDIER_PALETTES_PATH } from '../src/content/formats/ja2pal.ts';
 import { parseTilesetDatabase, TILESET_DATABASE_PATH } from '../src/content/formats/ja2set.ts';
 import { parseStructureFile } from '../src/content/formats/jsd.ts';
 import { LAYER_NAMES, parseMap } from '../src/content/formats/map.ts';
@@ -230,6 +231,16 @@ async function main(): Promise<void> {
           },
         );
         console.log(`  maps with ignored trailing bytes: ${trailing.length}`);
+        if (vfs.stat(SOLDIER_PALETTES_PATH)) {
+          await run(
+            'soldier palettes',
+            all.filter((f) => f.path === SOLDIER_PALETTES_PATH),
+            (data) => {
+              const p = parseSoldierPalettes(data);
+              console.log(`  ${p.subRanges.length} sub-ranges, ${p.replacements.length} replacements`);
+            },
+          );
+        }
         if (vfs.stat(TILESET_DATABASE_PATH)) {
           await run(
             'tileset database',

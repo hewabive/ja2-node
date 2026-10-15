@@ -16,7 +16,10 @@ const RULES: Record<Layer, Rule> = {
   core: { layers: ['core'], packages: [], forbid: NONDETERMINISM },
   content: { layers: ['core', 'content'], packages: ['fflate'], forbid: NONDETERMINISM },
   node: { layers: ['core', 'content', 'node'], packages: ['node:*'] },
-  server: { layers: ['core', 'content', 'node', 'server'], packages: ['node:*', 'hono', 'hono/*', '@hono/node-server'] },
+  server: {
+    layers: ['core', 'content', 'node', 'server'],
+    packages: ['node:*', 'hono', 'hono/*', '@hono/node-server', '@hono/node-server/*'],
+  },
   render: { layers: ['core', 'content', 'render'], packages: [] },
   devtools: { layers: ['core', 'content', 'render', 'devtools'], packages: [] },
   stubs: { layers: ['core', 'content', 'node', 'stubs'], packages: ['node:*'] },

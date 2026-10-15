@@ -4,11 +4,13 @@ A non-commercial reimplementation of Jagged Alliance 2 in TypeScript. The game s
 server (Node), the browser is a client, and agents play through an API. The goal is the
 original's behaviour (mechanics, formulas, order of checks), not a line-by-line port of its code.
 
-**Status:** milestone M0 "Foundation": reading the original archives and sprites, a data server,
-WebGL2 sprite rendering, an asset browser and a stub pack. There is no game yet.
+**Status:** milestone M1 "World": the original maps, tilesets and structures load, and the tactical
+map renders in the browser with the original draw order, depth, shadows, roofs and shading. There is
+no game yet.
 
 Documents in [`docs/`](docs/): scope and license (`00`), architecture (`01`), mechanics catalog
-(`02`), how logic is tied to animation (`03`), time, server and agent API (`04`).
+(`02`), how logic is tied to animation (`03`), time, server and agent API (`04`), the original's
+static render pipeline (`05`) and the deviation log.
 
 ## License and data
 
@@ -28,8 +30,8 @@ export JA2_DATA_DIR="/path/to/Jagged Alliance 2 Gold/Data"   # optional
 pnpm dev                           # server (7420) + Vite (5173)
 ```
 
-Open http://127.0.0.1:5173/ → "Asset browser". Without `JA2_DATA_DIR` only the stubs
-(`stubs/…`) are visible.
+Open http://127.0.0.1:5173/ → "Asset browser" or "Map viewer". Without `JA2_DATA_DIR` only the
+stubs (`stubs/…`, including the stub village map) are visible.
 
 The server listens on `127.0.0.1` only and requires the token from `.ja2/token`, which it creates
 itself. The Vite proxy adds the token, so it never appears in page code.
@@ -47,7 +49,8 @@ itself. The Vite proxy adds the token, so it never appears in page code.
 | `pnpm cli inspect vfs` | VFS layers and per-file-type statistics |
 | `pnpm cli inspect ls <prefix>` | File list |
 | `pnpm cli inspect sti <path> --png <dir>` | Describe an STI, dump frames to PNG |
-| `pnpm cli inspect verify` | Decode every STI and report errors |
+| `pnpm cli inspect verify` | Decode every STI, PCX, TGA, JSD and map and report errors |
+| `pnpm cli inspect map <path>` / `tilesets` | Describe a map, list tilesets |
 | `pnpm cli inspect slf <file>` / `cat <path> --out <file>` | Archive directory, file extraction |
 
 The original-data test runs only when `JA2_DATA_DIR` is set.
