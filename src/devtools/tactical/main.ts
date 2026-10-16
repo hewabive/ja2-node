@@ -23,6 +23,7 @@ import { fetchVfsList } from '../asset-browser/api.ts';
 import { Radar } from '../map-viewer/radar.ts';
 import { type LoadedWorld, loadWorld } from '../map-viewer/world-loader.ts';
 import { SessionClient } from '../net/session-client.ts';
+import { DoorPanel } from './door-panel.ts';
 import { nearestMerchant, ShopPanel } from './shop-panel.ts';
 import { SoldierAssets } from './soldier-assets.ts';
 
@@ -36,6 +37,7 @@ interface TacticalHook {
   tick: number;
   error: string | null;
   lastResult: string | null;
+  doorResult: string;
 }
 
 declare global {
@@ -54,6 +56,7 @@ const debug: TacticalHook = {
   tick: 0,
   error: null,
   lastResult: null,
+  doorResult: '',
 };
 window.__ja2Tactical = debug;
 
@@ -73,6 +76,7 @@ const status = el('status');
 const info = el('info');
 const roofs = el<HTMLInputElement>('roofs');
 const tradeButton = el<HTMLButtonElement>('trade');
+const doorPanel = new DoorPanel((cmd) => client?.command(cmd) ?? Promise.resolve({ ok: false, reason: 'not connected' }));
 const shopPanel = new ShopPanel((cmd) => client?.command(cmd) ?? Promise.resolve({ ok: false, reason: 'not connected' }));
 const gl = createContext(canvas, { depth: true, preserveDrawingBuffer: true });
 const renderer = new SpriteRenderer(gl);
@@ -207,6 +211,8 @@ function render(): void {
   radar.drawViewport(options);
   info.textContent = describe();
   shopPanel.update(client?.shop ?? null, soldiers());
+  doorPanel.update(client?.doors ?? [], openDoors);
+  debug.doorResult = doorPanel.result;
   tradeButton.disabled = !!client?.shop || !nearestMerchant(soldiers(), sel);
 }
 
@@ -271,7 +277,9 @@ canvas.addEventListener('pointerup', (e) => {
   drag = null;
   if (wasDrag) return;
   const g = gridAt(e);
-  if (g !== null) void clickTile(g, e.button === 2 || e.shiftKey);
+  if (g === null) return;
+  if ((e.ctrlKey || e.altKey) && selected !== null) doorPanel.act(selected, g);
+  else void clickTile(g, e.button === 2 || e.shiftKey);
 });
 canvas.addEventListener('pointermove', (e) => {
   const dpr = window.devicePixelRatio || 1;

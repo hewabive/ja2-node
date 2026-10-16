@@ -13,6 +13,7 @@ import {
   type ClockView,
   type CombatView,
   type ContractPromptView,
+  type DoorView,
   type ItemView,
   type LaptopView,
   type PlayerView,
@@ -53,6 +54,7 @@ export class SessionClient {
   #contractPrompt: ContractPromptView | null = null;
   #shop: ShopView | null = null;
   #laptop: LaptopView | null = null;
+  #doors: readonly DoorView[] = [];
   #shownTick = 0;
   #latestTick = 0;
 
@@ -127,6 +129,10 @@ export class SessionClient {
     return this.#laptop;
   }
 
+  get doors(): readonly DoorView[] {
+    return this.#doors;
+  }
+
   get shownTick(): number {
     return this.#shownTick;
   }
@@ -164,6 +170,7 @@ export class SessionClient {
         this.#contractPrompt = m.view.contractPrompt ?? null;
         this.#shop = m.view.shop ?? null;
         this.#laptop = m.view.laptop ?? null;
+        this.#doors = m.view.doors ?? [];
         this.#shownTick = m.view.tick;
         this.#latestTick = m.view.tick;
         break;
@@ -203,6 +210,7 @@ export class SessionClient {
       if (frame.contractPrompt !== undefined) this.#contractPrompt = frame.contractPrompt;
       if (frame.shop !== undefined) this.#shop = frame.shop;
       if (frame.laptop !== undefined) this.#laptop = frame.laptop;
+      if (frame.doors) this.#doors = frame.doors;
       changed = true;
     }
     const target = Math.min(tick, this.#latestTick);

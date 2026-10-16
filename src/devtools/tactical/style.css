@@ -6,3 +6,6 @@
 .shop .actions { margin-top: 6px; }
 .shop-result { margin-top: 4px; white-space: pre-wrap; }
 .shop-result.error { color: #f88; }
+.door { position: absolute; left: 8px; top: 8px; width: min(320px, calc(100% - 16px)); padding: 8px 12px; background: rgb(0 0 0 / 85%); font: 12px ui-monospace, monospace; }
+.door h2 { margin: 4px 0; font-size: 13px; }
+.door .actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
