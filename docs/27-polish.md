@@ -1254,7 +1254,7 @@ session factory and the protocol.
 - *Video pacing*: frames paced by the audio clock instead of the wall clock.
 - *Display language*: UI strings may be in another language than the data's text.
 
-**Findings outside M7's scope** (from the audit; each to confirm and fix where it belongs):
+**Findings outside M7's scope** (from the audit; 1–4 and 6 fixed or recorded on 2026-10-16: the terrorist set, the militia prompts as battle prompts, the economy events drained into the campaign events, the stub text probe, the D5/D7 notes in `01`; 5 waits for decision 11):
 
 1. `TERRORIST_PROFILES` is an empty `Set` (`src/sim/tactical/combat/death.ts:63`), so the terrorist exclusion of the
    fall-back hit animation (`Tactical/Soldier_Ani.cc:3116-3117`, `!IsProfileATerrorist`) never applies.

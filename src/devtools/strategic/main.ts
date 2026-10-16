@@ -351,6 +351,10 @@ function promptSummary(prompt: PromptView): string {
       return `group ${prompt.group} meets someone in ${prompt.sector}`;
     case 'surrender':
       return 'the enemy offers to take the squad prisoner';
+    case 'militiaPayment':
+      return `pay $${prompt.cost} to train militia in ${prompt.sectors.join(', ')}? (balance $${prompt.balance})`;
+    case 'militiaContinue':
+      return `continue training militia in ${prompt.sector} for $${prompt.cost}? (balance $${prompt.balance})`;
   }
 }
 

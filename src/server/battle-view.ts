@@ -1,4 +1,4 @@
-import { type Sector, sectorShortString } from '../content/strategic/sector-ids.ts';
+import { type Sector, sectorFromId, sectorShortString } from '../content/strategic/sector-ids.ts';
 import type {
   AutoresolveCellView,
   AutoresolveView,
@@ -122,6 +122,26 @@ export function promptView(campaign: CampaignSim): PromptView | null {
       const g = campaign.strategic ? getGroup(campaign.strategic, groupId) : undefined;
       return { id: prompt.id, kind: 'npcOfNote', group: groupId, sector: g ? sectorName(g.sector) : '', choices: ['continue', 'stop'] };
     }
+    case PromptKind.MILITIA_PAYMENT:
+      return {
+        id: prompt.id,
+        kind: 'militiaPayment',
+        trainer: prompt.trainer,
+        sectors: prompt.sectors.map((id) => sectorShortString(sectorFromId(id))),
+        cost: prompt.cost,
+        balance: campaign.state.finances.balance,
+        choices: ['yes', 'no'],
+      };
+    case PromptKind.MILITIA_CONTINUE:
+      return {
+        id: prompt.id,
+        kind: 'militiaContinue',
+        trainer: prompt.trainer,
+        sector: sectorShortString(sectorFromId(prompt.sector)),
+        cost: prompt.cost,
+        balance: campaign.state.finances.balance,
+        choices: ['yes', 'no'],
+      };
     case PromptKind.CONTRACT_RENEWAL:
     case PromptKind.MERC_DEPARTURE:
     case PromptKind.INSURANCE_EXTENSION:

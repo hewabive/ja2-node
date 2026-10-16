@@ -40,6 +40,7 @@ export interface MilitiaPromotions {
 export interface MilitiaPaymentPrompt {
   readonly kind: 'militiaPayment';
   readonly trainer: number;
+  readonly leader: number;
   readonly soldiers: readonly number[];
   readonly sectors: readonly number[];
   readonly cost: number;

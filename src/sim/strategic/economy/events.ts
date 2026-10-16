@@ -19,7 +19,7 @@ export type EconomyEvent =
   | { readonly type: 'mineReopened'; readonly mine: number }
   | { readonly type: 'headMinerQuote'; readonly mine: number; readonly profile: number; readonly quote: number }
   | { readonly type: 'moneyChanged'; readonly code: number; readonly amount: number; readonly balance: number }
-  | { readonly type: 'prompt'; readonly prompt: EconomyPrompt }
+  | { readonly type: 'militiaPrompt'; readonly prompt: EconomyPrompt }
   | { readonly type: 'militiaTrainingRejected'; readonly soldiers: readonly number[]; readonly reason: RejectReason };
 
 export type AbortReason = 'noMedkits' | 'insufficientDoctorSkill' | 'noToolkits' | 'insufficientRepairSkill';

@@ -146,7 +146,7 @@ export async function buildNewCampaign(
     laptop: {
       content: laptopContent,
       merchants: merchantContent,
-      dialogueProfiles: dialogueProfiles(exists, economyContent.mercTypes, laptopContent),
+      dialogueProfiles: dialogueProfiles(exists, economyContent.mercTypes, laptopContent, content !== baseContent),
     },
     narrative,
   });

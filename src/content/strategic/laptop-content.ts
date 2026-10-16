@@ -347,6 +347,7 @@ export function mailOffset(content: LaptopContent, name: string): number {
 }
 
 const NUM_PROFILES = 200;
+const STUB_TEXT_PREFIX = 'stubs/';
 const MERC_TYPE_RPC = 4;
 const MERC_TYPE_NPC = 5;
 
@@ -358,6 +359,7 @@ export function dialogueProfiles(
   exists: (path: string) => boolean,
   mercTypes: ReadonlyMap<number, number>,
   content: Pick<LaptopContent, 'namedProfiles'>,
+  stubbed = false,
 ): Set<number> {
   const herve = content.namedProfiles.HERVE ?? -1;
   const carlo = content.namedProfiles.CARLO ?? -1;
@@ -366,7 +368,7 @@ export function dialogueProfiles(
     const type = mercTypes.get(id);
     const npc = type === MERC_TYPE_RPC || type === MERC_TYPE_NPC;
     const file = npc ? `npcdata/${edtName(id >= herve && id <= carlo ? herve : id)}` : `mercedt/${edtName(id)}`;
-    if (exists(file)) found.add(id);
+    if (exists(file) || (stubbed && exists(`${STUB_TEXT_PREFIX}${file}`))) found.add(id);
   }
   return found;
 }

@@ -274,6 +274,24 @@ export type PromptView =
       readonly group: number;
       readonly sector: string;
       readonly choices: readonly string[];
+    }
+  | {
+      readonly id: string;
+      readonly kind: 'militiaPayment';
+      readonly trainer: number;
+      readonly sectors: readonly string[];
+      readonly cost: number;
+      readonly balance: number;
+      readonly choices: readonly string[];
+    }
+  | {
+      readonly id: string;
+      readonly kind: 'militiaContinue';
+      readonly trainer: number;
+      readonly sector: string;
+      readonly cost: number;
+      readonly balance: number;
+      readonly choices: readonly string[];
     };
 
 export interface NpcRequestPromptView {

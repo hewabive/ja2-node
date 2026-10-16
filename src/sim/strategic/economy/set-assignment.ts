@@ -23,11 +23,12 @@ import {
 } from './conditions.ts';
 import { Assignment, MAX_MILITIA_TRAINERS_PER_SECTOR, Town } from './constants.ts';
 import { kitItems, makeSureMedKitIsInHand, makeSureToolKitIsInHand } from './kits.ts';
-import { type MilitiaPaymentOutcome, startMilitiaPaymentFlow } from './militia.ts';
+import { answerMilitiaPayment, type MilitiaPaymentOutcome, startMilitiaPaymentFlow } from './militia.ts';
 import { isAreaFullOfMilitia, militiaTrainingAllowedInSector, sectorHasSufficientLoyaltyToTrainMilitia } from './militia-rules.ts';
 import type { CrewMember, EconomyContext } from './ports.ts';
 import { canCharacterRepair, canCharacterRepairRobot, canCharacterRepairVehicle } from './repair-rules.ts';
 import { putMercInAwakeState, setMercAsleep, setMercAwake } from './rest.ts';
+import type { MilitiaPaymentPrompt } from './state.ts';
 import { townOf } from './towns.ts';
 
 export type AssignTarget =
@@ -215,7 +216,7 @@ function setForListPromptingOnce(
     if (!setForListMember(ctx, o, leader, to)) continue;
     if (!firstUnpaid && !sectorInfo(ctx.state.map, o.sector).militiaTrainingPaid) firstUnpaid = o;
   }
-  return firstUnpaid ? startMilitiaPaymentFlow(ctx, firstUnpaid, others, { setAssignmentForList: setForList }) : null;
+  return firstUnpaid ? startMilitiaPaymentFlow(ctx, firstUnpaid, others, { leader: leader.id, setAssignmentForList: setForList }) : null;
 }
 
 function assignLeader(ctx: EconomyContext, s: CrewMember, others: readonly CrewMember[], to: AssignTarget): AssignResult {
@@ -233,7 +234,7 @@ function assignLeader(ctx: EconomyContext, s: CrewMember, others: readonly CrewM
       const nested = setForListPromptingOnce(ctx, s, others, setForList);
       return { ok: true, militia: nested ?? 'alreadyPaid' };
     }
-    return { ok: true, militia: startMilitiaPaymentFlow(ctx, s, others, { setAssignmentForList: setForList }) };
+    return { ok: true, militia: startMilitiaPaymentFlow(ctx, s, others, { leader: s.id, setAssignmentForList: setForList }) };
   }
   if (to.kind === 'repair') {
     const ok = setSoldierAssignmentRepair(ctx, s, to.robot === true, to.vehicle ?? -1);
@@ -287,4 +288,14 @@ export function wakeSoldier(ctx: EconomyContext, id: number): SleepResult {
 
 export function forceAwake(s: CrewMember): void {
   putMercInAwakeState(s);
+}
+
+export function resumeMilitiaPayment(ctx: EconomyContext, prompt: MilitiaPaymentPrompt, yes: boolean): MilitiaPaymentOutcome {
+  const leader = ctx.crew.get(prompt.leader);
+  const others = prompt.soldiers.flatMap((id) => ctx.crew.get(id) ?? []);
+  const to: AssignTarget = { kind: 'trainMilitia' };
+  const setAssignmentForList = () => {
+    if (leader) for (const o of others) setForListMember(ctx, o, leader, to);
+  };
+  return answerMilitiaPayment(ctx, prompt, yes, { leader: prompt.leader, setAssignmentForList });
 }

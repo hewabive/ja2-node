@@ -459,6 +459,7 @@ export class CampaignSim {
   }
 
   #collectEvents(): void {
+    if (this.economy) for (const e of this.economy.events.splice(0)) this.#events.push({ ...e, tick: this.#tick } as SimEvent);
     if (this.sectors) this.#events.push(...this.sectors.drainEvents());
     if (this.battle) this.#events.push(...this.battle.drainEvents());
     if (this.talk) this.#events.push(...this.talk.drainEvents());

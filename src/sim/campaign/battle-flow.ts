@@ -24,8 +24,11 @@ import { clearSurfaceCreatures, determineCreatureTownComposition } from '../stra
 import { reEvaluateEveryonesNothingToDo } from '../strategic/economy/assignment-done.ts';
 import { Assignment, LoyaltyEvent } from '../strategic/economy/constants.ts';
 import { handleGlobalLoyaltyEvent } from '../strategic/economy/loyalty.ts';
+import { answerMilitiaContinue } from '../strategic/economy/militia.ts';
 import { countAllMilitiaInSector } from '../strategic/economy/militia-rules.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
+import { resumeMilitiaPayment } from '../strategic/economy/set-assignment.ts';
+import type { EconomyPrompt } from '../strategic/economy/state.ts';
 import { autoBandageMercs, canBandage } from '../strategic/forces/autoresolve/bandage.ts';
 import { closeAutoresolve } from '../strategic/forces/autoresolve/close.ts';
 import { answerSurrender, orderRetreat } from '../strategic/forces/autoresolve/end.ts';
@@ -286,6 +289,25 @@ export class BattleFlow implements FateContext {
     return !ar || ar.status !== BattleStatus.IN_PROGRESS || ar.pendingSurrender;
   }
 
+  #openMilitiaPrompt(p: EconomyPrompt): void {
+    if (p.kind === 'militiaPayment') this.#openPrompt(PromptKind.MILITIA_PAYMENT, { trainer: p.trainer, sectors: p.sectors, cost: p.cost });
+    else this.#openPrompt(PromptKind.MILITIA_CONTINUE, { trainer: p.trainer, sector: p.sector, cost: p.cost });
+  }
+
+  #answerMilitia(choice: string): CommandResult {
+    if (choice !== 'yes' && choice !== 'no') return { ok: false, reason: 'choose one of yes, no' };
+    const pending = this.state.economy.prompts[0];
+    this.state.battle.prompt = null;
+    if (!pending) return { ok: true };
+    const yes = choice === 'yes';
+    const outcome =
+      pending.kind === 'militiaPayment'
+        ? resumeMilitiaPayment(this.economy, pending, yes)
+        : answerMilitiaContinue(this.economy, pending, yes);
+    this.settle();
+    return { ok: true, data: { outcome } };
+  }
+
   #openPrompt(kind: PromptKind, extra: Partial<BattlePrompt> = {}): BattlePrompt {
     const battle = this.state.battle;
     const prompt = { id: nextPromptId(battle, kind), kind, ...extra } as BattlePrompt;
@@ -307,7 +329,11 @@ export class BattleFlow implements FateContext {
       }
       if (s.battle.enterPreBattlePending) this.#openNonPersistent();
       else if (s.encounter.preBattle) this.#openFromHandoff();
-      else return;
+      else {
+        const militia = s.economy.prompts[0];
+        if (militia) this.#openMilitiaPrompt(militia);
+        return;
+      }
     }
   }
 
@@ -813,6 +839,9 @@ export class BattleFlow implements FateContext {
         return this.campaign.contracts?.answer(prompt, choice) ?? { ok: false, reason: 'contracts are not available' };
       case PromptKind.NPC_REQUEST:
         return this.campaign.talk?.npcActions.answer(prompt, choice) ?? { ok: false, reason: 'conversations are not available' };
+      case PromptKind.MILITIA_PAYMENT:
+      case PromptKind.MILITIA_CONTINUE:
+        return this.#answerMilitia(choice);
     }
   }
 

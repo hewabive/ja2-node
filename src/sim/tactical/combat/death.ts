@@ -26,6 +26,7 @@ import { dropKeysInKeyRing } from '../doors/keys.ts';
 import { worldSeconds } from '../explosions/state.ts';
 import { putOutMuzzleFlash } from '../lighting/muzzle-flash.ts';
 import { directionToward } from '../movement.ts';
+import { TERRORISTS } from '../narrative/constants.ts';
 import { civilianDeathRules, playerTeamDeathRules } from '../narrative/death-rules.ts';
 import { inMeanwhile, slapCheckWhenIncapacitated } from '../narrative/meanwhile-rules.ts';
 import { atan8Of, SightFlags } from '../perception/opp.ts';
@@ -60,7 +61,6 @@ const isMercBody = (s: Soldier) => s.bodyType <= Body.REGFEMALE;
 const oneC = (d: number) => (d + 1) % 8;
 const oneCC = (d: number) => (d + 7) % 8;
 const opposite = (d: number) => (d + 4) % 8;
-const TERRORIST_PROFILES = new Set<number>();
 const VEHICLE_CORPSE_DIRECTION = 7;
 
 const DEATH_FROM_FALL: Readonly<Record<string, string>> = {
@@ -170,7 +170,7 @@ function checkForAndHandleSoldierIncapacitated(t: TacticalState, s: Soldier): vo
   if (name === 'GENERIC_HIT_STAND' || name === 'STANDING_BURST_HIT' || name === 'RIFLE_STAND_HIT' || name === 'CIV_COWER_HIT') {
     let testDirection = s.direction;
     let forced = false;
-    if (t.rng.int(100) > 40 && isMercBody(s) && !TERRORIST_PROFILES.has(s.profile)) {
+    if (t.rng.int(100) > 40 && isMercBody(s) && !TERRORISTS.has(s.profile)) {
       if (s.attacker) {
         testDirection = directionToward(s.gridNo, s.attacker.gridNo);
         forced = true;

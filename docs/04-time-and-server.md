@@ -445,6 +445,15 @@ battle ones (`docs/19` §5.3): `civiliansEaten {sector, count}`; `preBattle` may
 `autoStart: true`. Complaints about hated teammates are `mercQuote` events and a merc who quits leaves through the
 `mercDeparture` prompt (§6.8).
 
+Militia training asks before it charges: `assign {to: {kind: 'trainMilitia'}}` returns `militia: 'pending'` and opens a
+`militiaPayment` prompt (`{trainer, sectors, cost, balance, choices: [yes, no]}`), and a finished training session asks
+`militiaContinue` (`{trainer, sector, cost, balance}`), both answered with `answer {choice: yes|no}` (`data.outcome`:
+`paid`, `continued`, `declined` or `cannotAfford`); they stop compression and count as decisions like the battle prompts.
+The economy's own events reach the reports as well: `assignmentDone`, `assignmentAborted`, `fellAsleep`, `wokeUp`,
+`tiredComplaint`, `itemRepaired`, `gunUnjammed`, `militiaTrained`, `militiaPromoted`, `militiaDefected`,
+`militiaTrainingRejected`, `militiaPrompt`, `loyaltyChanged`, `mineIncome`, `mineRunningOut`, `mineEmpty`, `mineShutDown`,
+`mineReopened`, `headMinerQuote` and `moneyChanged`.
+
 ### 6.7. Merchants (M5)
 
 A shop is a modal session like a prompt (`docs/23` §13): `openShop {dealer, soldier}` (the original's talk-and-trade,

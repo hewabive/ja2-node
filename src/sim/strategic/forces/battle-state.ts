@@ -41,6 +41,8 @@ export const PromptKind = {
   MERC_DEPARTURE: 'mercDeparture',
   INSURANCE_EXTENSION: 'insuranceExtension',
   NPC_REQUEST: 'npcRequest',
+  MILITIA_PAYMENT: 'militiaPayment',
+  MILITIA_CONTINUE: 'militiaContinue',
 } as const;
 export type PromptKind = (typeof PromptKind)[keyof typeof PromptKind];
 
@@ -81,6 +83,20 @@ export type BattlePrompt =
       readonly amount?: number;
       readonly pair?: boolean;
       readonly choices: readonly string[];
+    }
+  | {
+      readonly id: string;
+      readonly kind: typeof PromptKind.MILITIA_PAYMENT;
+      readonly trainer: number;
+      readonly sectors: readonly number[];
+      readonly cost: number;
+    }
+  | {
+      readonly id: string;
+      readonly kind: typeof PromptKind.MILITIA_CONTINUE;
+      readonly trainer: number;
+      readonly sector: number;
+      readonly cost: number;
     };
 
 export interface AutoresolveSession {

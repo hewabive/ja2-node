@@ -189,6 +189,7 @@ function trainersInSector(ctx: EconomyContext, sector: Sector): CrewMember[] {
 export type MilitiaPaymentOutcome = 'paid' | 'alreadyPaid' | 'declined' | 'cannotAfford' | 'pending';
 
 export interface MilitiaPaymentFlow {
+  readonly leader: number;
   readonly setAssignmentForList: () => void;
 }
 
@@ -207,6 +208,7 @@ export function startMilitiaPaymentFlow(
   const prompt: MilitiaPaymentPrompt = {
     kind: 'militiaPayment',
     trainer: trainer.id,
+    leader: flow.leader,
     soldiers: selected.map((m) => m.id),
     sectors,
     cost,
@@ -215,7 +217,7 @@ export function startMilitiaPaymentFlow(
   const answer = ctx.decisions.militiaPayment(prompt);
   if (answer === 'defer') {
     ctx.state.economy.prompts.push(prompt);
-    ctx.events.push({ type: 'prompt', prompt });
+    ctx.events.push({ type: 'militiaPrompt', prompt });
     stopTimeCompression(ctx.clock, CompressionStop.MILITIA_TRAINING);
     return 'pending';
   }
@@ -272,7 +274,7 @@ export function handleInterfaceMessageForContinuingTrainingMilitia(ctx: EconomyC
   const answer = ctx.decisions.militiaContinue(prompt);
   if (answer === 'defer') {
     ctx.state.economy.prompts.push(prompt);
-    ctx.events.push({ type: 'prompt', prompt });
+    ctx.events.push({ type: 'militiaPrompt', prompt });
     stopTimeCompression(ctx.clock, CompressionStop.MILITIA_TRAINING);
     return 'pending';
   }
