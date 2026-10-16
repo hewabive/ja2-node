@@ -643,6 +643,8 @@ export interface SavedSoldier {
   readonly lastTwoLocations: readonly number[];
   readonly offWorldGridNo: number;
   readonly strategicInsertionCode: number;
+  readonly prevSectorId: number;
+  readonly insertionDirection: number;
   readonly strategicInsertionData: number;
   readonly actionPoints: number;
   readonly initialActionPoints: number;
@@ -752,6 +754,8 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
     lastTwoLocations: r.nums('sLastTwoLocations'),
     offWorldGridNo: n('sOffWorldGridNo'),
     strategicInsertionCode: n('ubStrategicInsertionCode'),
+    prevSectorId: n('ubPrevSectorID'),
+    insertionDirection: n('ubInsertionDirection'),
     strategicInsertionData: n('usStrategicInsertionData'),
     actionPoints: n('bActionPoints'),
     initialActionPoints: n('bInitialActionPoints'),

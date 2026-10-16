@@ -198,6 +198,26 @@ function importSoldiers(t: TacticalState, save: SaveGame): number {
 
 function placeSoldier(t: TacticalState, save: SaveGame, entry: SavedSoldierEntry): Soldier {
   const r = entry.soldier;
+  const s = createSavedSoldier(save, entry);
+  registerSoldier(t, s);
+  s.destination = r.gridNo;
+  setSoldierPosition(t, s, r.gridNo, { keepDestination: true, keepFinalDestination: true });
+  s.destination = grid(r.destination);
+  s.finalDestination = grid(r.finalDestination);
+  s.oldGridNo = grid(r.oldGridNo);
+  s.direction = r.direction;
+  s.desiredDirection = r.desiredDirection;
+  s.overTerrain = r.overTerrainType;
+  s.pc = r.aniCode;
+  s.frame = r.aniFrame;
+  s.nextFrameAt = t.clockMs;
+  s.reservedGridNo = grid(r.motion.reservedGridNo);
+  if (s.reservedGridNo !== NOWHERE && s.reservedGridNo >= 0 && s.reservedGridNo < WORLD_MAX) t.reserved[s.reservedGridNo] = s.id;
+  return s;
+}
+
+export function createSavedSoldier(save: SaveGame, entry: SavedSoldierEntry): Soldier {
+  const r = entry.soldier;
   const profile = save.profiles[r.profile];
   const s = createSoldier({
     id: r.id,
@@ -235,20 +255,6 @@ function placeSoldier(t: TacticalState, save: SaveGame, entry: SavedSoldierEntry
     civilianGroup: r.civilianGroup,
   });
   copyScalars(s, r);
-  registerSoldier(t, s);
-  s.destination = r.gridNo;
-  setSoldierPosition(t, s, r.gridNo, { keepDestination: true, keepFinalDestination: true });
-  s.destination = grid(r.destination);
-  s.finalDestination = grid(r.finalDestination);
-  s.oldGridNo = grid(r.oldGridNo);
-  s.direction = r.direction;
-  s.desiredDirection = r.desiredDirection;
-  s.overTerrain = r.overTerrainType;
-  s.pc = r.aniCode;
-  s.frame = r.aniFrame;
-  s.nextFrameAt = t.clockMs;
-  s.reservedGridNo = grid(r.motion.reservedGridNo);
-  if (s.reservedGridNo !== NOWHERE && s.reservedGridNo >= 0 && s.reservedGridNo < WORLD_MAX) t.reserved[s.reservedGridNo] = s.id;
   return s;
 }
 

@@ -1,6 +1,7 @@
 import type { CommandEnvelope } from '../protocol/messages.ts';
 import type { PlayerView } from '../protocol/view.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
+import type { Roster } from '../sim/campaign/roster.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { isTimeBeingCompressed, worldDay, worldHour, worldMinute } from '../sim/strategic/time/world-clock.ts';
@@ -10,9 +11,11 @@ import type { SessionSim } from './session.ts';
 
 export class CampaignSession implements SessionSim {
   readonly campaign: CampaignSim;
+  readonly roster: Roster | null;
 
-  constructor(campaign: CampaignSim) {
+  constructor(campaign: CampaignSim, roster: Roster | null = null) {
     this.campaign = campaign;
+    this.roster = roster;
   }
 
   get sim(): TacticalSim {

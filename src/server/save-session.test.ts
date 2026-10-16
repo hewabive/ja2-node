@@ -64,6 +64,16 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('native savegames imported into the t
         expect((l.flags & LightSpriteFlags.ON) !== 0).toBe(scheduled === 0 || (scheduled & lightTime) !== 0);
       }
       expect(t.inCombat).toBe(save.tactical.inCombat);
+      const roster = session.roster;
+      const mercs = save.soldiers.filter((e) => e.soldier.team === Team.OUR && e.soldier.active !== 0);
+      expect(roster?.all().map((m) => m.id)).toEqual(mercs.map((e) => e.soldier.id).sort((a, b) => a - b));
+      const here =
+        roster
+          ?.inSector(save.tactical.worldSector)
+          .filter((m) => m.life > 0)
+          .map((m) => m.id) ?? [];
+      expect(here.every((id) => t.soldiers[id]?.placed)).toBe(true);
+      expect(session.campaign.state.forces.groups.length).toBe(save.groups.length);
       const clock = session.campaign.state.clock;
       const before = clock.seconds;
       if (!t.inCombat) {
