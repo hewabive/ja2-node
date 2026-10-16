@@ -273,6 +273,24 @@ function applyComboMerge(table: ItemTable, target: ItemObject): void {
   target.status[0] = Math.trunc(total / contributors);
 }
 
+export function objectToRecord(o: ItemObject): ObjectRecord {
+  return {
+    item: o.item,
+    count: o.count,
+    status: [...o.status],
+    gunStatus: o.status[0] ?? 0,
+    gunAmmoType: o.gunAmmoType,
+    gunShotsLeft: o.gunShotsLeft,
+    gunAmmoItem: o.gunAmmoItem,
+    gunAmmoStatus: o.gunAmmoStatus,
+    money: o.money,
+    attachments: o.attachments.map((a) => ({ ...a })),
+    flags: o.flags,
+    trap: o.trap,
+    imprintId: o.imprintId,
+  };
+}
+
 export function objectFromRecord(rec: ObjectRecord): ItemObject {
   const o = emptyObject();
   if (rec.item === NOTHING) {

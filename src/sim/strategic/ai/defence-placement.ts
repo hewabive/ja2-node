@@ -21,16 +21,16 @@ export interface DefenceTotals {
   elites: number;
 }
 
-export type AddPlacement = (node: PlacementNode) => boolean;
+export type AddPlacement<N extends PlacementNode = PlacementNode> = (node: N) => boolean;
 
 type Matcher = (n: PlacementNode) => boolean;
 
-function moveMatchingToFront(list: readonly PlacementNode[], match: Matcher): PlacementNode[] {
+function moveMatchingToFront<N extends PlacementNode>(list: readonly N[], match: Matcher): N[] {
   const moved = list.filter(match).reverse();
   return [...moved, ...list.filter((n) => !match(n))];
 }
 
-export function sortSoldierInitList(nodes: readonly PlacementNode[]): PlacementNode[] {
+export function sortSoldierInitList<N extends PlacementNode>(nodes: readonly N[]): N[] {
   if (nodes.length === 0) return [];
   const tail = nodes[nodes.length - 1];
   const withSoldier = (n: PlacementNode) => n.hasSoldier && n !== tail;
@@ -54,14 +54,14 @@ function blockOf(n: PlacementNode): Block {
   return Block.B;
 }
 
-class Filler {
+class Filler<N extends PlacementNode> {
   readonly #rolls: RollSource;
-  readonly #add: AddPlacement;
+  readonly #add: AddPlacement<N>;
   readonly #totals: Record<EnemyClass, number>;
   readonly #slots: Record<EnemyClass, number[]>;
   maxNum: number;
 
-  constructor(list: readonly PlacementNode[], totals: DefenceTotals, rolls: RollSource, add: AddPlacement) {
+  constructor(list: readonly N[], totals: DefenceTotals, rolls: RollSource, add: AddPlacement<N>) {
     this.#rolls = rolls;
     this.#add = add;
     this.#totals = {
@@ -84,7 +84,7 @@ class Filler {
     return this.maxNum !== 0 && this.#totals[cls] !== 0 && (this.#slots[cls][block] ?? 0) !== 0;
   }
 
-  offer(n: PlacementNode, cls: EnemyClass, block: Block): boolean {
+  offer(n: N, cls: EnemyClass, block: Block): boolean {
     if (n.hasSoldier || n.team !== Team.ENEMY || n.soldierClass !== cls) return true;
     const slots = this.#slots[cls];
     const free = slots[block] ?? 0;
@@ -98,13 +98,13 @@ class Filler {
     return true;
   }
 
-  place(n: PlacementNode): boolean {
+  place(n: N): boolean {
     if (!this.#add(n)) return false;
     n.hasSoldier = true;
     return true;
   }
 
-  chooseClass(n: PlacementNode): boolean {
+  chooseClass(n: N): boolean {
     const roll = this.#rolls.int(this.maxNum);
     const t = this.#totals;
     const elites = t[SoldierClass.ELITE];
@@ -131,7 +131,7 @@ function isEnemyClass(c: number): c is EnemyClass {
 
 const PD_PASS_STRIDE = 2;
 
-function priorityDetailedPass(list: readonly PlacementNode[], f: Filler): boolean {
+function priorityDetailedPass<N extends PlacementNode>(list: readonly N[], f: Filler<N>): boolean {
   for (const cls of ENEMY_CLASSES) {
     for (let i = 0; i < list.length; i += PD_PASS_STRIDE) {
       const n = list[i];
@@ -142,7 +142,7 @@ function priorityDetailedPass(list: readonly PlacementNode[], f: Filler): boolea
   return true;
 }
 
-function blockPass(list: readonly PlacementNode[], start: number, inBlock: Matcher, block: Block, f: Filler): boolean {
+function blockPass<N extends PlacementNode>(list: readonly N[], start: number, inBlock: Matcher, block: Block, f: Filler<N>): boolean {
   for (const cls of ENEMY_CLASSES) {
     for (let i = start; i < list.length; i++) {
       const n = list[i];
@@ -164,7 +164,7 @@ const isP: Matcher = (n) => !n.detailed && n.priorityExistence;
 const isD: Matcher = (n) => n.detailed && !n.priorityExistence;
 const anyNode: Matcher = () => true;
 
-function fillPrioritySlots(list: readonly PlacementNode[], f: Filler): boolean {
+function fillPrioritySlots<N extends PlacementNode>(list: readonly N[], f: Filler<N>): boolean {
   for (const n of list) {
     if (f.maxNum === 0 || !n.priorityExistence) break;
     if (n.hasSoldier || n.team !== Team.ENEMY) continue;
@@ -173,7 +173,7 @@ function fillPrioritySlots(list: readonly PlacementNode[], f: Filler): boolean {
   return true;
 }
 
-function fillLeftovers(list: readonly PlacementNode[], f: Filler, rolls: RollSource): void {
+function fillLeftovers<N extends PlacementNode>(list: readonly N[], f: Filler<N>, rolls: RollSource): void {
   let free = 0;
   for (const n of list) if (!n.hasSoldier && n.team === Team.ENEMY) free = u8(free + 1);
   for (const n of list) {
@@ -186,11 +186,11 @@ function fillLeftovers(list: readonly PlacementNode[], f: Filler, rolls: RollSou
   }
 }
 
-export function addSoldierInitListEnemyDefenceSoldiers(
-  sorted: readonly PlacementNode[],
+export function addSoldierInitListEnemyDefenceSoldiers<N extends PlacementNode>(
+  sorted: readonly N[],
   totals: DefenceTotals,
   rolls: RollSource,
-  add: AddPlacement,
+  add: AddPlacement<N>,
 ): void {
   const f = new Filler(sorted, totals, rolls, add);
   if (!priorityDetailedPass(sorted, f) || f.maxNum === 0) return;

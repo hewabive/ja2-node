@@ -31,6 +31,7 @@ import {
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import { dispatchStrategicCommand } from './commands.ts';
 import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
+import { dispatchSectorCommand, loadStartSector, SectorFlow, type SectorSetup, sectorWorldPort } from './sector-flow.ts';
 
 export interface CampaignCommand {
   readonly type: string;
@@ -45,6 +46,7 @@ export interface CampaignHooks {
   readonly strategic?: StrategicSetup;
   readonly economy?: EconomySetup;
   readonly queen?: QueenContextOptions;
+  readonly sectors?: SectorSetup;
 }
 
 export class CampaignSim {
@@ -54,6 +56,7 @@ export class CampaignSim {
   readonly strategic: StrategicContext | null;
   readonly economy: EconomyContext | null;
   readonly queen: QueenContext | null;
+  readonly sectors: SectorFlow | null;
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
   readonly #clock: ClockContext;
@@ -67,10 +70,17 @@ export class CampaignSim {
     this.#clock = this.#clockContext();
     const ai = hooks.queen ? new StrategicAi({ mines: queenMineIncome(() => this.economy), ...hooks.queen }) : null;
     this.strategic = hooks.strategic
-      ? createStrategicContext({ ...hooks.strategic, ...this.#economyPorts(), ...(ai ? { ai } : {}), state, clock: this.#clock })
+      ? createStrategicContext({
+          ...hooks.strategic,
+          ...this.#sectorPorts(this.#economyPorts()),
+          ...(ai ? { ai } : {}),
+          state,
+          clock: this.#clock,
+        })
       : null;
     this.queen = ai && this.strategic ? ai.bind(this.strategic) : null;
     this.economy = this.strategic && hooks.economy ? createEconomyContext(this.strategic, this.#economySetup(hooks.economy)) : null;
+    this.sectors = this.strategic && hooks.sectors ? new SectorFlow(this, hooks.sectors) : null;
     this.#registerEnvironment();
     this.#registerMovement();
     if (this.economy) registerEconomyEvents(this.dispatchTable, this.economy);
@@ -92,6 +102,12 @@ export class CampaignSim {
     return { mercs: economy.crew, world };
   }
 
+  #sectorPorts(ports: Pick<StrategicSetup, 'mercs' | 'world'>): Pick<StrategicSetup, 'mercs' | 'world'> {
+    if (!this.#hooks.sectors) return ports;
+    const base = ports.world ?? this.#hooks.strategic?.world ?? defaultTacticalWorldPort;
+    return { ...ports, world: sectorWorldPort(base, () => this.sectors) };
+  }
+
   get tick(): number {
     return this.#tick;
   }
@@ -105,7 +121,7 @@ export class CampaignSim {
       inCombat: () => this.tactical?.state.inCombat === true,
       execute: (e) => this.dispatchTable.execute(this, e),
       afterAdvance: () => {},
-      compressionModeSet: () => teamJackedInAndGearedToGo(this, () => this.#hooks.loadStartSector?.(this)),
+      compressionModeSet: () => teamJackedInAndGearedToGo(this, () => (this.#hooks.loadStartSector ?? loadStartSector)(this)),
       firstCompressionSinceMapEntry: () => {},
       compressionRefusal: () => this.#hooks.compressionRefusal?.(this) ?? this.#defaultRefusal(),
     };
@@ -164,8 +180,10 @@ export class CampaignSim {
       this.tactical.step();
       s.realMs = this.tactical.state.clockMs;
       this.#events.push(...this.tactical.drainEvents());
+      this.sectors?.afterTacticalStep();
     } else s.realMs += TICK_MS;
     updateClock(this.#clock, s.realMs);
+    if (this.sectors) this.#events.push(...this.sectors.drainEvents());
   }
 
   isIdle(): boolean {
@@ -179,6 +197,7 @@ export class CampaignSim {
   }
 
   drainEvents(): SimEvent[] {
+    if (this.sectors) this.#events.push(...this.sectors.drainEvents());
     return this.#events.splice(0);
   }
 
@@ -191,6 +210,7 @@ export class CampaignSim {
         return { ok: true };
       default:
         return (
+          dispatchSectorCommand(this, cmd) ??
           dispatchStrategicCommand(this, cmd) ??
           (this.tactical ? this.tactical.dispatch(cmd) : { ok: false, reason: `unknown command ${cmd.type}` })
         );
@@ -205,6 +225,7 @@ export class CampaignSim {
     if (typeof mode === 'number') {
       const refused = setGameTimeCompressionLevel(this.#clock, mode);
       if (refused) return { ok: false, reason: refused };
+      if (this.state.flow !== 'strategic') return { ok: true };
     }
     const refused = startTimeCompression(this.#clock);
     return refused ? { ok: false, reason: refused } : { ok: true };

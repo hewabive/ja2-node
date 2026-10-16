@@ -7,6 +7,8 @@
 // @src src/game/TileEngine/Lighting.cc LightTrueLevel, LightSetBaseLevel, LightSprites; src/game/Strategic/Game_Clock.cc
 // @src UpdateGameClockGlobals; src/game/Strategic/Strategic_Movement.cc GetSectorMvtTimeForGroup, CalculateTravelTimeOfGroup;
 // @src src/game/Strategic/Strategic_Pathing.cc BuildAStrategicPath, RebuildWayPointsForGroupPath
+// @src src/game/Strategic/StrategicMap.cc OKForSectorExit, SetupTacticalTraversalInformation; src/game/TileEngine/Map_Edgepoints.cc
+// @src GenerateMapEdgepoints, CalcMapEdgepointClassInsertionCode; src/game/Tactical/Soldier_Init_List.cc AddSoldierInitListEnemyDefenceSoldiers
 #include "Oracle.h"
 
 #include "AIInternals.h"
@@ -70,6 +72,9 @@
 #include "Strategic_AI.h"
 #include "MapScreen.h"
 #include "Quests.h"
+#include "Map_Edgepoints.h"
+#include "Soldier_Init_List.h"
+#include "Strategic.h"
 
 #include <string_theory/string>
 
@@ -91,6 +96,11 @@
 
 INT32 OracleLineOfSightTest(GridNo start_pos, FLOAT dStartZ, GridNo end_pos, FLOAT dEndZ, UINT8 ubTileSightLimit, UINT8 ubTreeSightReduction, INT8 bAware, INT8 bCamouflage, BOOLEAN fSmell, INT16* psWindowGridNo);
 UINT8 OracleTreeSightReduction(UINT8 ubEndHeight);
+INT16 OraclePickGridNoNearestEdge(SOLDIERTYPE* s, UINT8 direction);
+INT16 OraclePickGridNoToWalkIn(SOLDIERTYPE* s, UINT8 insertionCode, UINT32* attempts);
+BOOLEAN OracleSoldierOKForSectorExit(SOLDIERTYPE* s, INT8 exitDirection, UINT16 additional);
+void OracleSortSoldierInitList();
+extern UINT8 gubTacticalDirection;
 extern INT16 gsEnemyGainedControlOfSectorID;
 extern INT16 gsCiviliansEatenByMonsters;
 extern INT8 SquadMovementGroups[];
@@ -2259,6 +2269,213 @@ void ProbeDifficultyModifier(Command const& c)
 		.num("palaceDistance", GetPythDistanceFromPalace(battle)));
 }
 
+std::map<std::string, UINT8> const TACTICAL_EXIT_DIRECTIONS{
+	{"N", NORTH}, {"E", EAST}, {"S", SOUTH}, {"W", WEST},
+};
+
+std::map<std::string, INT8> const STRATEGIC_EXIT_DIRECTIONS{
+	{"N", NORTH_STRATEGIC_MOVE}, {"E", EAST_STRATEGIC_MOVE}, {"S", SOUTH_STRATEGIC_MOVE}, {"W", WEST_STRATEGIC_MOVE},
+};
+
+std::map<std::string, UINT8> const INSERTION_SIDES{
+	{"N", INSERTION_CODE_NORTH}, {"S", INSERTION_CODE_SOUTH}, {"E", INSERTION_CODE_EAST}, {"W", INSERTION_CODE_WEST},
+};
+
+SoldierKeys const EXIT_SOLDIER{"who", "from", "level", "stance", "team", "body", "facing", "player"};
+
+constexpr INT8 EXIT_GRID_DIRECTION = -1;
+constexpr INT16 MIRROR_NORTH_Y = 1520;
+constexpr INT16 MIRROR_SOUTH_Y = 0;
+constexpr INT16 MIRROR_EAST_X = 0;
+constexpr INT16 MIRROR_WEST_X = 3160;
+constexpr UINT32 UNSET_MINUTES = 0xFFFFFFFFu;
+
+std::string EdgepointList(std::vector<INT16> const& points, UINT16 middle)
+{
+	return Json{}.num("middle", middle).nums("gridNos", std::vector<long long>(points.begin(), points.end())).text();
+}
+
+void DumpEdgepoints(Command const& c)
+{
+	bool const generate = Integer(c, "generate", 0) != 0;
+	if (generate) GenerateMapEdgepoints();
+	Emit(Json{}
+		.str("probe", "edgepoints")
+		.num("line", c.line)
+		.flag("generated", generate)
+		.str("sector", gWorldSector.AsShortString().to_std_string())
+		.num("z", gWorldSector.z)
+		.raw("primary", JsonArray({
+			EdgepointList(gps1stNorthEdgepointArray, gus1stNorthEdgepointMiddleIndex),
+			EdgepointList(gps1stEastEdgepointArray, gus1stEastEdgepointMiddleIndex),
+			EdgepointList(gps1stSouthEdgepointArray, gus1stSouthEdgepointMiddleIndex),
+			EdgepointList(gps1stWestEdgepointArray, gus1stWestEdgepointMiddleIndex)}))
+		.raw("secondary", JsonArray({
+			EdgepointList(gps2ndNorthEdgepointArray, gus2ndNorthEdgepointMiddleIndex),
+			EdgepointList(gps2ndEastEdgepointArray, gus2ndEastEdgepointMiddleIndex),
+			EdgepointList(gps2ndSouthEdgepointArray, gus2ndSouthEdgepointMiddleIndex),
+			EdgepointList(gps2ndWestEdgepointArray, gus2ndWestEdgepointMiddleIndex)})));
+}
+
+void ProbeWalkOff(Command const& c)
+{
+	auto const probe = MakeSoldier(c, EXIT_SOLDIER);
+	SOLDIERTYPE& s = probe->get();
+	UINT8 const direction = Lookup(TACTICAL_EXIT_DIRECTIONS, c, "dir", "E");
+	INT16 const gridNo = OraclePickGridNoNearestEdge(&s, direction);
+	Emit(Json{}
+		.str("probe", "walkoff")
+		.num("line", c.line)
+		.num("direction", direction)
+		.raw("soldier", Describe(s))
+		.num("gridNo", gridNo));
+}
+
+void ProbeWalkIn(Command const& c)
+{
+	auto const probe = MakeSoldier(c, EXIT_SOLDIER);
+	SOLDIERTYPE& s = probe->get();
+	UINT8 const code = Lookup(INSERTION_SIDES, c, "code", "W");
+	UINT32 attempts = 0;
+	INT16 const gridNo = OraclePickGridNoToWalkIn(&s, code, &attempts);
+	Emit(Json{}
+		.str("probe", "walkin")
+		.num("line", c.line)
+		.num("insertionCode", code)
+		.raw("soldier", Describe(s))
+		.num("gridNo", gridNo)
+		.num("attempts", attempts));
+}
+
+void ProbeMirror(Command const& c)
+{
+	auto const probe = MakeSoldier(c, EXIT_SOLDIER);
+	SOLDIERTYPE const& s = probe->get();
+	UINT8 const direction = Lookup(TACTICAL_EXIT_DIRECTIONS, c, "dir", "E");
+	INT16 x;
+	INT16 y;
+	GetAbsoluteScreenXYFromMapPos(GETWORLDINDEXFROMWORLDCOORDS(s.sY, s.sX), &x, &y);
+	if (direction == NORTH) y = MIRROR_NORTH_Y;
+	else if (direction == SOUTH) y = MIRROR_SOUTH_Y;
+	else if (direction == EAST) x = MIRROR_EAST_X;
+	else x = MIRROR_WEST_X;
+	GridNo const mirror = GetMapPosFromAbsoluteScreenXY(x, y);
+	gubTacticalDirection = direction;
+	UINT8 const classCode = CalcMapEdgepointClassInsertionCode(s.sGridNo);
+	Emit(Json{}
+		.str("probe", "mirror")
+		.num("line", c.line)
+		.num("direction", direction)
+		.raw("soldier", Describe(s))
+		.num("gridNo", mirror)
+		.num("classCode", classCode));
+}
+
+INT8 ExitDirectionArgument(Command const& c)
+{
+	return Has(c, "grid") ? EXIT_GRID_DIRECTION : Lookup(STRATEGIC_EXIT_DIRECTIONS, c, "dir", "E");
+}
+
+UINT16 ExitGridArgument(Command const& c)
+{
+	return Has(c, "grid") ? static_cast<UINT16>(GridArgument(c, "grid")) : 0;
+}
+
+void ProbeSoldierExit(Command const& c)
+{
+	auto const probe = MakeSoldier(c, EXIT_SOLDIER);
+	SOLDIERTYPE& s = probe->get();
+	INT8 const direction = ExitDirectionArgument(c);
+	UINT16 const exitGrid = ExitGridArgument(c);
+	INT16 x;
+	INT16 y;
+	GetAbsoluteScreenXYFromMapPos(s.sGridNo, &x, &y);
+	BOOLEAN const ok = OracleSoldierOKForSectorExit(&s, direction, exitGrid);
+	Emit(Json{}
+		.str("probe", "soldierexit")
+		.num("line", c.line)
+		.num("exitDirection", direction)
+		.num("exitGrid", exitGrid)
+		.raw("soldier", Describe(s))
+		.num("screenX", x)
+		.num("screenY", y)
+		.flag("ok", ok != FALSE));
+}
+
+void ProbeExitCheck(Command const& c)
+{
+	SOLDIERTYPE& selected = ExistingSoldier(Required(c, "who"));
+	SetSelectedMan(&selected);
+	iCurrentTacticalSquad = selected.bAssignment;
+	INT8 const direction = ExitDirectionArgument(c);
+	UINT16 const exitGrid = ExitGridArgument(c);
+	UINT32 minutes = UNSET_MINUTES;
+	BOOLEAN const result = OKForSectorExit(direction, exitGrid, &minutes);
+	std::vector<std::string> soldiers;
+	FOR_EACH_IN_TEAM(s, OUR_TEAM)
+	{
+		if (!s->bInSector) continue;
+		soldiers.push_back(Numbers({s->ubID, s->bAssignment, OracleSoldierOKForSectorExit(s, direction, exitGrid) ? 1 : 0}));
+	}
+	Emit(Json{}
+		.str("probe", "exitcheck")
+		.num("line", c.line)
+		.num("who", selected.ubID)
+		.num("squad", iCurrentTacticalSquad)
+		.num("exitDirection", direction)
+		.num("exitGrid", exitGrid)
+		.num("result", result)
+		.num("minutes", minutes == UNSET_MINUTES ? -1 : static_cast<long long>(minutes))
+		.flag("invalidTraversal", gfInvalidTraversal != FALSE)
+		.flag("loneEpc", gfLoneEPCAttemptingTraversal != FALSE)
+		.num("abandonedEpcs", gubLoneMercAttemptingToAbandonEPCs)
+		.raw("soldiers", JsonArray(soldiers)));
+}
+
+void MoveSoldier(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	EVENT_SetSoldierPositionNoCenter(&s, GridArgument(c, "to"), SSP_NONE);
+	Emit(Json{}.str("probe", "move").num("line", c.line).num("who", s.ubID).num("gridNo", s.sGridNo));
+}
+
+std::string DescribeInitList()
+{
+	std::vector<std::string> nodes;
+	CFOR_EACH_SOLDIERINITNODE(n)
+	{
+		BASIC_SOLDIERCREATE_STRUCT const& b = *n->pBasicPlacement;
+		nodes.push_back(Numbers({n->ubNodeID, b.bTeam, b.ubSoldierClass, b.fPriorityExistance ? 1 : 0, n->pDetailedPlacement ? 1 : 0,
+			n->pSoldier ? n->pSoldier->ubID : -1, n->pSoldier ? n->pSoldier->ubSoldierClass : -1}));
+	}
+	return JsonArray(nodes);
+}
+
+void ProbeInitList(Command const& c)
+{
+	std::string const before = DescribeInitList();
+	OracleSortSoldierInitList();
+	Emit(Json{}.str("probe", "initlist").num("line", c.line).raw("before", before).raw("sorted", DescribeInitList()));
+}
+
+void ProbeDefence(Command const& c)
+{
+	UINT8 const admins = static_cast<UINT8>(Integer(c, "admins", 0));
+	UINT8 const troops = static_cast<UINT8>(Integer(c, "troops", 0));
+	UINT8 const elites = static_cast<UINT8>(Integer(c, "elites", 0));
+	std::string const before = DescribeInitList();
+	std::string const draws = TracedSaiDraws([&] { AddSoldierInitListEnemyDefenceSoldiers(admins, troops, elites); });
+	Emit(Json{}
+		.str("probe", "defence")
+		.num("line", c.line)
+		.num("admins", admins)
+		.num("troops", troops)
+		.num("elites", elites)
+		.raw("before", before)
+		.raw("nodes", DescribeInitList())
+		.raw("draws", draws));
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -2292,6 +2509,15 @@ void Dispatch(Command const& c)
 	if (c.name == "saiwake") return ProbeSaiWake(c);
 	if (c.name == "diffmod") return ProbeDifficultyModifier(c);
 	if (c.name == "saiarrive") return ProbeSaiArrive(c);
+	if (c.name == "edgepoints") return DumpEdgepoints(c);
+	if (c.name == "walkoff") return ProbeWalkOff(c);
+	if (c.name == "walkin") return ProbeWalkIn(c);
+	if (c.name == "mirror") return ProbeMirror(c);
+	if (c.name == "soldierexit") return ProbeSoldierExit(c);
+	if (c.name == "exitcheck") return ProbeExitCheck(c);
+	if (c.name == "move") return MoveSoldier(c);
+	if (c.name == "initlist") return ProbeInitList(c);
+	if (c.name == "defence") return ProbeDefence(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

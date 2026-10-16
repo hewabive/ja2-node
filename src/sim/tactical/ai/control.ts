@@ -22,12 +22,14 @@ import { DIRECTION_INCREMENT } from '../directions.ts';
 import { getNewSoldierPath, stopMerc } from '../movement.ts';
 import { isMercBody, NOWHERE, newOKDestination } from '../pathfinding.ts';
 import { mostImportantNoiseHeard } from '../perception/knowledge.ts';
-import { radioSightings } from '../perception/sight.ts';
+import { radioSightings, removeManAsTarget } from '../perception/sight.ts';
 import { deductPoints, enoughPoints, estimateActionPointCost } from '../points.ts';
 import { beginSoldierClimbDownRoof, beginSoldierClimbUpRoof } from '../roofs.ts';
+import { adjustSoldierPathToGoOffEdge } from '../sector-exit.ts';
+import { removeSoldierFromTacticalSector } from '../sector-presence.ts';
 import { AlertStatus, Attitude, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
-import { displayHiddenInterrupt } from '../turns/turns.ts';
+import { checkForEndOfBattle, displayHiddenInterrupt } from '../turns/turns.ts';
 import {
   AI_DELAY,
   AiAction,
@@ -40,7 +42,7 @@ import {
 } from './actions.ts';
 import { loadWeaponIfNeeded } from './attack-choice.ts';
 import { type CombatDeciderHooks, decideActionBlack, decideActionRed, decideActionYellow } from './combat-decide.ts';
-import { findNearestUngassedLand } from './cover.ts';
+import { findNearestUngassedLand, isTraversalQuoteAction, traversalDirection } from './cover.ts';
 import {
   type AiHooks,
   decideAction,
@@ -277,6 +279,11 @@ function executeMovement(t: TacticalState, s: Soldier): boolean {
       return false;
     }
   }
+  const escapeDirection = traversalDirection(s.quoteActionId);
+  if (escapeDirection !== null) {
+    s.offWorldGridNo = ai.actionData;
+    adjustSoldierPathToGoOffEdge(s, ai.actionData, escapeDirection);
+  }
   newDest(t, s, ai.actionData);
   if (s.finalDestination !== ai.actionData) {
     ai.blackList = ai.actionData;
@@ -478,6 +485,15 @@ function triesToContinueAlongPath(t: TacticalState, s: Soldier): void {
   } else cancelAIAction(t, s);
 }
 
+function handleAITacticalTraversal(t: TacticalState, s: Soldier, control: AiControl): void {
+  s.quoteActionId = 0;
+  endAIGuysTurn(t, s, control);
+  removeManAsTarget(t, s);
+  t.sectorHooks.soldierLeftMap(t, s);
+  removeSoldierFromTacticalSector(t, s);
+  checkForEndOfBattle(t);
+}
+
 export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl): void {
   const ai = s.ai;
   if (t.turn.enemySightingOnTheirTurn) return;
@@ -502,7 +518,7 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
     ai.counter = t.clockMs + AI_DELAY;
   }
   ai.handleEveryFrame = false;
-  if (s.life < OKLIFE || !s.placed) {
+  if (s.life < OKLIFE || !(s.placed || s.offMap)) {
     endAIGuysTurn(t, s, control);
     return;
   }
@@ -511,8 +527,9 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
     endAIGuysTurn(t, s, control);
     return;
   }
+  const traversingOffMap = s.aiTurnControl && isTraversalQuoteAction(s.quoteActionId) && s.offMap;
   if (ai.newSituation === Situation.IS_NEW) {
-    if (t.turn.attackBusyCount === 0) {
+    if (t.turn.attackBusyCount === 0 && !traversingOffMap) {
       cancelAIAction(t, s);
       if (ai.action !== AiAction.END_COWER_AND_MOVE) ai.nextAction = AiAction.NONE;
       decideAlertStatus(t, s, control.hooks);
@@ -527,6 +544,10 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
   }
   if (ai.action >= FIRST_MOVEMENT_ACTION && ai.action <= LAST_MOVEMENT_ACTION && !s.delayedMovement) {
     if (s.pathIndex === s.pathSize) {
+      if (s.absoluteFinalDestination === NOWHERE && isTraversalQuoteAction(s.quoteActionId)) {
+        handleAITacticalTraversal(t, s, control);
+        return;
+      }
       if (s.gridNo === s.finalDestination && ai.action === AiAction.MOVE_TO_CLIMB) {
         ai.action = AiAction.CLIMB_ROOF;
         if (isActionAffordable(t, s)) {
@@ -548,7 +569,7 @@ function nextAIToHandle(t: TacticalState, control: AiControl): boolean {
   const start = control.cursor >= t.mercSlots.length ? 0 : control.cursor + 1;
   for (let c = start; c < t.mercSlots.length; c++) {
     const s = t.mercSlots[c];
-    if (s?.placed && s.team !== Team.OUR) {
+    if (s && (s.placed || s.offMap) && s.team !== Team.OUR) {
       control.cursor = c;
       return true;
     }

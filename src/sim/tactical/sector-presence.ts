@@ -22,4 +22,5 @@ export function removeSoldierFromTacticalSector(t: TacticalState, s: Soldier): v
   if (t.reserved[s.reservedGridNo] === s.id) t.reserved[s.reservedGridNo] = -1;
   unregisterSoldier(t, s);
   s.placed = false;
+  s.offMap = false;
 }

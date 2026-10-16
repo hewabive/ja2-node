@@ -1,0 +1,175 @@
+# Sector transitions (docs/16 §9.4): map edgepoints, the screen-space exit checks, walking off and on, the mirror
+# position of a quick traversal, OKForSectorExit on saves, the soldier init list and the enemy defence placement.
+# Every defence probe adds soldiers and changes placement classes, so a fresh sector load follows it.
+newgame difficulty=2
+
+sector A9
+edgepoints
+soldierexit from=7156 dir=E
+soldierexit from=7155 dir=E
+soldierexit from=18444 dir=W
+soldierexit from=18445 dir=W
+soldierexit from=8371 dir=N
+soldierexit from=8372 dir=N
+soldierexit from=17549 dir=S
+soldierexit from=17548 dir=S
+soldierexit from=12880 dir=E
+walkoff from=12880 dir=N
+walkoff from=12880 dir=E
+walkoff from=12880 dir=S
+walkoff from=12880 dir=W
+walkoff from=7315 dir=E
+walkoff from=18445 dir=W
+walkoff from=8050 dir=N
+walkoff from=18032 dir=S
+walkoff from=10000 dir=E
+walkoff from=10000 dir=S
+walkoff from=15000 dir=W
+walkoff from=15000 dir=N
+walkin from=12880 code=N
+walkin from=12880 code=S
+walkin from=12880 code=E
+walkin from=12880 code=W
+walkin from=7315 code=W
+walkin from=18445 code=E
+walkin from=10000 code=S
+walkin from=15000 code=N
+mirror from=7315 dir=E
+mirror from=18445 dir=W
+mirror from=8050 dir=N
+mirror from=18032 dir=S
+mirror from=12880 dir=E
+mirror from=12880 dir=W
+initlist
+sector A9
+defence admins=0 troops=4 elites=1
+sector A9
+defence admins=2 troops=10 elites=3
+sector A9
+defence admins=5 troops=20 elites=10
+sector A9
+defence admins=0 troops=0 elites=6
+sector A9
+initlist
+defence admins=1 troops=3 elites=0
+sector A9
+edgepoints generate=1
+
+sector D13
+edgepoints
+soldierexit from=20059 grid=20539
+soldierexit from=20541 grid=20539
+soldierexit from=18619 grid=20539
+soldierexit from=20059 grid=20059
+soldierexit from=20059 dir=W
+walkoff from=20059 dir=W
+walkoff from=12880 dir=N
+walkoff from=12880 dir=S
+walkin from=12880 code=E
+walkin from=12880 code=N
+mirror from=8519 dir=N
+initlist
+sector D13
+defence admins=1 troops=6 elites=2
+sector D13
+defence admins=0 troops=0 elites=8
+sector D13
+defence admins=10 troops=30 elites=24
+sector D13
+edgepoints generate=1
+
+sector C13
+initlist
+sector C13
+defence admins=3 troops=8 elites=1
+sector B13
+defence admins=0 troops=12 elites=4
+
+sector H13
+edgepoints
+mirror from=4906 dir=E
+mirror from=10219 dir=E
+mirror from=7320 dir=E
+mirror from=1043 dir=E
+mirror from=3296 dir=E
+mirror from=18200 dir=S
+mirror from=14384 dir=S
+mirror from=24878 dir=S
+mirror from=20745 dir=S
+walkin from=12148 code=E
+walkoff from=12148 dir=E
+edgepoints generate=1
+mirror from=4906 dir=E
+mirror from=20745 dir=S
+
+sector I14
+edgepoints
+mirror from=10583 dir=N
+mirror from=8835 dir=N
+mirror from=4383 dir=N
+mirror from=16023 dir=W
+mirror from=17956 dir=W
+mirror from=22625 dir=W
+edgepoints generate=1
+mirror from=10583 dir=N
+mirror from=16023 dir=W
+
+sector I13
+edgepoints generate=1
+sector G1
+edgepoints generate=1
+sector D6
+edgepoints generate=1
+
+sector A10 z=1
+edgepoints
+soldierexit from=10972 dir=E
+soldierexit from=10971 dir=E
+soldierexit from=12880 dir=E
+soldierexit from=12242 grid=12562
+walkoff from=12880 dir=N
+walkoff from=12880 dir=E
+walkoff from=12880 dir=S
+walkoff from=12880 dir=W
+walkin from=12880 code=N
+walkin from=12880 code=S
+walkin from=12880 code=E
+walkin from=12880 code=W
+mirror from=12880 dir=E
+mirror from=10654 dir=E
+mirror from=15106 dir=W
+mirror from=11270 dir=N
+mirror from=14651 dir=S
+edgepoints generate=1
+
+save SaveGame10
+exitcheck who=0 dir=N
+exitcheck who=0 dir=E
+exitcheck who=0 dir=S
+exitcheck who=0 dir=W
+exitcheck who=2 dir=N
+move who=0 to=20059
+exitcheck who=0 grid=20539
+exitcheck who=1 grid=20539
+exitcheck who=1 dir=N
+exitcheck who=0 dir=N
+
+save SaveGame07
+exitcheck who=0 dir=N
+exitcheck who=2 dir=N
+exitcheck who=2 dir=E
+move who=0 to=20059
+exitcheck who=0 grid=20539
+
+save SaveGame01
+exitcheck who=0 dir=N
+exitcheck who=0 dir=E
+exitcheck who=0 dir=S
+exitcheck who=0 dir=W
+move who=0 to=7156
+exitcheck who=0 dir=E
+exitcheck who=1 dir=E
+move who=1 to=7317
+move who=2 to=7478
+exitcheck who=0 dir=E
+exitcheck who=2 dir=E

@@ -603,7 +603,24 @@ export function findFleeSpot(t: TacticalState, s: Soldier): FleeSpot {
 }
 
 export function findSpotMaxDistFromOpponents(t: TacticalState, s: Soldier): number {
-  return findFleeSpot(t, s).gridNo;
+  const spot = findFleeSpot(t, s);
+  if (spot.traversalQuoteAction !== QuoteAction.NONE) s.quoteActionId = spot.traversalQuoteAction;
+  return spot.gridNo;
+}
+
+export function isTraversalQuoteAction(action: number): boolean {
+  return action >= QuoteAction.TRAVERSE_EAST && action <= QuoteAction.TRAVERSE_NORTH;
+}
+
+const TRAVERSAL_DIRECTIONS: Readonly<Record<number, number>> = {
+  [QuoteAction.TRAVERSE_EAST]: Direction.EAST,
+  [QuoteAction.TRAVERSE_SOUTH]: Direction.SOUTH,
+  [QuoteAction.TRAVERSE_WEST]: Direction.WEST,
+  [QuoteAction.TRAVERSE_NORTH]: Direction.NORTH,
+};
+
+export function traversalDirection(action: number): number | null {
+  return TRAVERSAL_DIRECTIONS[action] ?? null;
 }
 
 export function findNearestUngassedLand(t: TacticalState, s: Soldier): number {

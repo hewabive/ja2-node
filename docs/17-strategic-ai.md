@@ -1467,12 +1467,8 @@ with an economy it wires the mine income, the mine-ran-out and meanwhile hooks a
 **Callers still to wire.** New-game init: `initStrategicLayerMap(ctx, {initStrategicAI: () =>
 initStrategicAiForNewCampaign(campaign.queen)})`. Autoresolve: `getNumberOfEnemiesInSector`,
 `processQueenCmdImplicationsOfDeath(q, dead, sector)`, `trackEnemiesKilled`, `removeGroupFromStrategicAILists`,
-`recalculateSectorWeight`, `handleFirstBattleEndingWhileInTown(q, sector, true)`. Sector loader: `prepareEnemyForSectorBattle`
-→ `sortSoldierInitList` + `addSoldierInitListEnemyDefenceSoldiers` → `assignEnemyGroupIds`; deaths and map-edge escapes →
-`processQueenCmdImplicationsOfDeath`; tactical turn ends and `enemyReinforcementsArrived` →
-`addPossiblePendingEnemiesToBattle` + `nextArrivingSoldierClass`; unload → `endTacticalBattleForEnemy` and
-`handleFirstMeanwhileSetUpWithTrashWorld`; soldier creation → `difficultyModifierAt`. The tactical sandbox still uses its
-fixed population ("Sandbox population" stays open).
+`recalculateSectorWeight`, `handleFirstBattleEndingWhileInTown(q, sector, true)`. The sector loader callers are wired
+(`docs/16` §14).
 
 **Decisions on §17.** Stracciatella is followed everywhere, including the PD every-second-node quirk; the undefined
 cases are defined as `deviations.md` "Strategic AI undefined behaviour" lists; the load-time recomputation runs only on
@@ -1490,7 +1486,7 @@ times, the AI events) and 18 `diffmod` results identical. Unit tests cover §16.
 maximum streams, weights, evaluation, orders, detection, reactions, Queen_Command, placements, difficulty) and a headless
 scenario (wake after three victories on medium, grace period, attack on Drassen).
 
-**Not yet.** The `prepare` probe (needs placement-level output from `AddSoldierInitListEnemyDefenceSoldiers`), periodic
+**Not yet.** The `prepare` probe (the placement level is covered by the `defence` probes of `docs/16` §14), periodic
 checks that reach a notice roll in the oracle (none of the probed situations had an important undefended neighbour),
-the tactical switch-over (§16.2 steps 7–8 inside `src/sim/tactical`), creatures and bloodcat placements (step 10),
+creatures and bloodcat placements (step 10),
 `ReinitializeUnvisitedGarrisons` and the SAI version patches.

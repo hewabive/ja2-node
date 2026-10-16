@@ -41,6 +41,10 @@ function reject(socket: Duplex, status: string): void {
 function serve(ws: WebSocket, options: WebSocketOptions): void {
   let unsubscribe: (() => void) | null = null;
   let session: Session | null = null;
+  let pending: Promise<unknown> = Promise.resolve();
+  const inOrder = (work: () => unknown) => {
+    pending = pending.then(work);
+  };
   const send = (m: ServerMessage) => {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m));
   };
@@ -54,17 +58,21 @@ function serve(ws: WebSocket, options: WebSocketOptions): void {
       unsubscribe = session.subscribe(send);
       return;
     }
-    if (!session) return send({ t: 'error', message: 'say hello first' });
+    const current = session;
+    if (!current) return send({ t: 'error', message: 'say hello first' });
     switch (message.t) {
-      case 'cmd': {
-        const r = session.dispatch(message.cmd);
-        return send({ t: 'result', id: message.id, ok: r.ok, ...(r.reason ? { reason: r.reason } : {}) });
-      }
+      case 'cmd':
+        return inOrder(async () => {
+          const r = await current.prepareAndDispatch(message.cmd);
+          send({ t: 'result', id: message.id, ok: r.ok, ...(r.reason ? { reason: r.reason } : {}) });
+        });
       case 'advance':
-        return send({ t: 'stopped', id: message.id, report: session.advance(message.until) });
+        return inOrder(() => send({ t: 'stopped', id: message.id, report: current.advance(message.until) }));
       case 'drive':
-        session.setDriver(message.driver);
-        return send({ t: 'result', id: message.id, ok: true });
+        return inOrder(() => {
+          current.setDriver(message.driver);
+          send({ t: 'result', id: message.id, ok: true });
+        });
     }
   });
   ws.on('close', () => unsubscribe?.());

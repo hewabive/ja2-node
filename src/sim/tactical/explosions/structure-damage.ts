@@ -9,6 +9,7 @@ import { recompileLocalMovementCosts } from '../../../content/world/movement-cos
 import { has, ORIENT_LEFT, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
 import { u8 } from '../../../core/int.ts';
 import { swapStructureForPartner } from '../doors.ts';
+import { recordStructureAdded, recordStructureDamaged, recordStructureRemoved } from '../map-changes.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import type { Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
@@ -47,17 +48,27 @@ export function damageStructureByExplosion(t: TacticalState, s: StructureInstanc
   if (!root) return StructureDamage.NOT_DAMAGED;
   if (root.hitPoints <= damage) return StructureDamage.DESTROYED;
   root.hitPoints -= damage;
+  recordStructureDamaged(t, root);
   return StructureDamage.DAMAGED;
 }
 
 export function windowHit(t: TacticalState, g: number, structureId: number): void {
   let window = t.world.structures.findById(g, structureId);
   if (!window) return;
-  window = swapStructureForPartner(t, window);
+  window = swapRecorded(t, window);
   if (!window) return;
-  if (window.def.partnerDelta !== 0) window = swapStructureForPartner(t, window) ?? window;
+  if (window.def.partnerDelta !== 0) window = swapRecorded(t, window) ?? window;
   if (window.def.armour === MATERIAL_THICKER_METAL_WITH_SCREEN_WINDOWS) return;
   makeNoise(t, null, g, 0, window.def.partnerDelta !== 0 ? WINDOW_CRACK_VOLUME : WINDOW_SMASH_VOLUME, NoiseKind.BULLET_IMPACT);
+}
+
+function swapRecorded(t: TacticalState, s: StructureInstance): StructureInstance | null {
+  const base = t.world.structures.findBase(s);
+  const swapped = swapStructureForPartner(t, s);
+  if (!swapped || !base) return swapped;
+  recordStructureRemoved(t, base);
+  recordStructureAdded(t, swapped);
+  return swapped;
 }
 
 function removeAllUnburiedItems(t: TacticalState, g: number, level: number): void {
@@ -72,6 +83,7 @@ function removeOnWall(t: TacticalState, g: number, flag: number): void {
   for (let attached = t.world.structures.find(g, flag); attached; attached = t.world.structures.find(g, flag)) {
     const base = t.world.structures.findBase(attached);
     if (!base) return;
+    recordStructureRemoved(t, base);
     t.world.structures.remove(base);
   }
 }
@@ -88,7 +100,8 @@ function removeWallAttachments(t: TacticalState, s: StructureInstance, baseG: nu
 
 function addDamagedGraphic(t: TacticalState, base: StructureInstance, partner: number): void {
   const def = base.file?.structures[partner - 1];
-  if (def) t.world.structures.add(base.gridNo, 0, def, undefined, base.file);
+  const added = def ? t.world.structures.add(base.gridNo, 0, def, undefined, base.file) : null;
+  if (added) recordStructureAdded(t, added);
 }
 
 function explosiveDamageStructureAtGridNo(
@@ -117,6 +130,7 @@ function explosiveDamageStructureAtGridNo(
   if (result !== StructureDamage.DESTROYED && !swap) return true;
   if (has(current.flags, StructureFlags.WALLSTUFF)) removeWallAttachments(t, current, baseG);
   if (has(current.flags, StructureFlags.HASITEMONTOP)) putItemPoolOnGround(t, g, level);
+  recordStructureRemoved(t, base);
   t.world.structures.remove(base);
   if (swap) addDamagedGraphic(t, base, -partner);
   for (const tile of base.def.tiles) changes.gridNos.add(baseG + tile.posRelToBase);

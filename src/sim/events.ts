@@ -164,8 +164,27 @@ export interface StructureDamagedEvent extends SimEventBase {
   readonly destroyed: boolean;
 }
 
+export interface SectorLoadedEvent extends SimEventBase {
+  readonly type: 'sectorLoaded';
+  readonly sector: string;
+}
+
+export interface SectorUnloadedEvent extends SimEventBase {
+  readonly type: 'sectorUnloaded';
+  readonly sector: string;
+}
+
+export interface MercsLeftSectorEvent extends SimEventBase {
+  readonly type: 'mercsLeftSector';
+  readonly sector: string;
+  readonly to: string;
+}
+
 export type SimEvent =
   | TickBudgetEvent
+  | SectorLoadedEvent
+  | SectorUnloadedEvent
+  | MercsLeftSectorEvent
   | ArrivedEvent
   | StoppedEvent
   | NoPathEvent

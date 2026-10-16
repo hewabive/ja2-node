@@ -74,7 +74,7 @@ export interface OverheadHooks {
 export function executeOverhead(t: TacticalState, hooks: OverheadHooks = {}): void {
   hooks.beforePass?.(t);
   t.mercSlots.forEach((s, slot) => {
-    if (!s?.placed) return;
+    if (!s || !(s.placed || s.offMap)) return;
     updateDamageDisplay(t, s);
     if (frameTimerDone(t, s) && !handleSoldierFrame(t, s)) return;
     hooks.ai?.(t, s, slot);

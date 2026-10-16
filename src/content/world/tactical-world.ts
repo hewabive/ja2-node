@@ -73,7 +73,15 @@ export function buildTacticalWorld(
   };
 }
 
-export async function loadTacticalWorld(read: ReadFile, mapPath: string): Promise<TacticalWorld> {
+export interface TacticalWorldInputs {
+  readonly mapPath: string;
+  readonly map: MapDef;
+  readonly tables: TileTables;
+  readonly surfaces: readonly (TileSurface | null)[];
+  readonly doorCostsJson: unknown;
+}
+
+export async function loadTacticalWorldInputs(read: ReadFile, mapPath: string): Promise<TacticalWorldInputs> {
   const root = worldRootOf(mapPath);
   const [tablesJson, doorCostsJson, tilesetBytes, mapBytes] = await Promise.all([
     readJson(read, TILE_TABLES_PATH),
@@ -84,5 +92,13 @@ export async function loadTacticalWorld(read: ReadFile, mapPath: string): Promis
   const tables = parseTileTables(tablesJson);
   const map = parseMap(mapBytes);
   const surfaces = await loadTileSurfaceGeometry(read, tables, parseTilesetDatabase(tilesetBytes), map.tilesetId, root);
-  return buildTacticalWorld(mapPath, map, tables, surfaces, doorCostsJson);
+  return { mapPath, map, tables, surfaces, doorCostsJson };
+}
+
+export function buildTacticalWorldFromInputs(inputs: TacticalWorldInputs): TacticalWorld {
+  return buildTacticalWorld(inputs.mapPath, inputs.map, inputs.tables, inputs.surfaces, inputs.doorCostsJson);
+}
+
+export async function loadTacticalWorld(read: ReadFile, mapPath: string): Promise<TacticalWorld> {
+  return buildTacticalWorldFromInputs(await loadTacticalWorldInputs(read, mapPath));
 }

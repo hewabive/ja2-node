@@ -142,6 +142,11 @@ export function newSmokeEffect(t: TacticalState, g: number, item: number, level:
   spreadEffectSmoke(t, cloud, Spread.NORMAL, level);
 }
 
+export function restoreSmokeCloud(t: TacticalState, cloud: SmokeCloud): void {
+  t.explosives.smokeClouds.push(cloud);
+  spreadEffectSmoke(t, cloud, Spread.SUBSEQUENT, levelOf(cloud));
+}
+
 export function addSmokeEffectToTile(t: TacticalState, cloud: SmokeCloud, type: SmokeEffectType, g: number, level: number): void {
   if (cloud.duration - cloud.age < DISSIPATING_TURNS) removeSmokeEffectFromTile(t, g, level);
   const tiles = t.explosives.smokeTiles[level > 0 ? 1 : 0];

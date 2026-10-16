@@ -1,7 +1,8 @@
-import { parseSaveGame } from '../content/formats/savegame.ts';
+import { parseSaveGame, type SaveGame } from '../content/formats/savegame.ts';
 import { readSavedEconomy, readSoldierAssignments } from '../content/formats/savegame-economy.ts';
 import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../content/formats/savegame-header.ts';
 import { readStrategicAiSections } from '../content/formats/savegame-strategic-ai.ts';
+import { decodePreservedSoldierLinks, type PreservedSoldierLink } from '../content/formats/savegame-temp-files.ts';
 import { loadArmyContent } from '../content/strategic/army.ts';
 import { loadEconomyContent } from '../content/strategic/economy-content.ts';
 import { loadStrategicContent } from '../content/strategic/strategic-content.ts';
@@ -20,6 +21,7 @@ import { importSave, type SaveImportReport, saveMapPath, worldWithSavedDoors } f
 import { removeSoldierFromTacticalSector } from '../sim/tactical/sector-presence.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { CampaignSession } from './campaign-session.ts';
+import { type FileExists, WorldCache } from './world-cache.ts';
 
 const DEFAULT_SEED = 1;
 
@@ -28,7 +30,25 @@ export interface SaveSession {
   readonly report: SaveImportReport;
 }
 
-export async function createSaveSession(read: ReadFile, saveBytes: Uint8Array, seed = DEFAULT_SEED): Promise<SaveSession> {
+function savedSoldierLinks(save: SaveGame): PreservedSoldierLink[] {
+  const sector = save.tactical.worldSector;
+  return save.tempFiles
+    .filter(
+      (f) =>
+        (f.kind === 'enemyPreserved' || f.kind === 'civilianPreserved') &&
+        f.sector.x === sector.x &&
+        f.sector.y === sector.y &&
+        f.sector.z === sector.z,
+    )
+    .flatMap((f) => decodePreservedSoldierLinks(f.bytes));
+}
+
+export async function createSaveSession(
+  read: ReadFile,
+  saveBytes: Uint8Array,
+  seed = DEFAULT_SEED,
+  exists: FileExists | null = null,
+): Promise<SaveSession> {
   const table = await read(SAVE_ENCRYPTION_PATH);
   if (!table) throw new Error(`missing ${SAVE_ENCRYPTION_PATH}`);
   const encryption = parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode(table)));
@@ -49,17 +69,22 @@ export async function createSaveSession(read: ReadFile, saveBytes: Uint8Array, s
   strategic.clock.driver.lastSecondMs = strategic.realMs;
   strategic.clock.paused = false;
   strategic.clock.pauseLocked = false;
+  let current: CampaignSim | null = null;
+  const tacticalState = () => current?.tactical?.state ?? sim.state;
   const roster = new Roster({
     content,
-    combat: () => sim.state,
-    hooks: { ...NO_ROSTER_HOOKS, removeFromTacticalSector: (merc) => removeSoldierFromTacticalSector(sim.state, merc.soldier) },
+    combat: tacticalState,
+    hooks: { ...NO_ROSTER_HOOKS, removeFromTacticalSector: (merc) => removeSoldierFromTacticalSector(tacticalState(), merc.soldier) },
   });
   addSavedMercsToRoster(roster, save, sim.state);
+  const worlds = exists ? new WorldCache(read, exists) : null;
   const campaign = new CampaignSim(strategic, sim, {
     strategic: { content: strategicContent, mercs: roster },
     economy: { economy: economyContent, items: content.items, crew: roster },
     queen: { army },
+    ...(worlds ? { sectors: { worlds, content, roster } } : {}),
   });
+  current = campaign;
   if (campaign.strategic) importStrategicMap(campaign.strategic, save);
   if (campaign.queen) importStrategicAi(campaign.queen, readStrategicAiSections(saveBytes, save), { runLoadHooks: true });
   importEconomy(strategic, readSavedEconomy(saveBytes, save.sections), save.laptop.currentBalance);
@@ -67,5 +92,6 @@ export async function createSaveSession(read: ReadFile, saveBytes: Uint8Array, s
     const merc = roster.get(saved.id);
     if (merc) applySavedAssignment(merc, saved);
   }
-  return { session: new CampaignSession(campaign, roster), report };
+  campaign.sectors?.adoptLoadedSector(savedSoldierLinks(save));
+  return { session: new CampaignSession(campaign, roster, worlds), report };
 }

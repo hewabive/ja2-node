@@ -3,7 +3,7 @@ import { AnimFlags } from '../../content/anim/tables.ts';
 import { handClass, ItemClass, ItemCursor, NOTHING } from '../../content/items/items.ts';
 import { isVisibleTile } from '../../content/world/grid.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
-import { Rng } from '../../core/rng.ts';
+import { type PreRandom, Rng } from '../../core/rng.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import type { ItemObject } from '../items/object.ts';
@@ -75,6 +75,7 @@ import { mostImportantNoiseHeard } from './perception/knowledge.ts';
 import { allTeamsLookForAll } from './perception/sight.ts';
 import { perceptionHooks, sightHooks } from './perception/wiring.ts';
 import { AP, apsToChangeStance, apsToLook, deductPoints, enoughPoints, ptsToMoveDirection } from './points.ts';
+import type { ProfileProgress } from './profiles.ts';
 import {
   apsToClimbRoof,
   beginSoldierClimbDownRoof,
@@ -83,6 +84,7 @@ import {
   findLowerLevel,
   roofOpcode,
 } from './roofs.ts';
+import { checkMercsWaiting } from './sector-exit.ts';
 import { OKLIFE, type Soldier, Team } from './soldier.ts';
 import { createTacticalState, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { endTurn, handleEnemySightingPause, handleRealtimeTurns, type RealtimeClock, selectSoldier } from './turns/turns.ts';
@@ -143,6 +145,15 @@ export interface TacticalCommand {
   readonly [key: string]: unknown;
 }
 
+export interface TacticalSimOptions {
+  readonly streams?: { readonly rng: Rng; readonly pre: PreRandom };
+  readonly profiles?: Map<number, ProfileProgress>;
+  readonly startMs?: number;
+  readonly realtimeClock?: RealtimeClock;
+  readonly hour?: number;
+  readonly dayAmbient?: number;
+}
+
 export class TacticalSim {
   readonly state: TacticalState;
   readonly world: TacticalWorld;
@@ -150,17 +161,20 @@ export class TacticalSim {
   readonly ai: AiControl;
   readonly hooks: OverheadHooks;
   #tick = 0;
-  readonly #clock: RealtimeClock = { lastTurnMs: 0, lastDecayMs: 0, lastOverheadMs: 0 };
+  readonly #clock: RealtimeClock;
 
-  constructor(world: TacticalWorld, content: TacticalContent, seed: number) {
+  constructor(world: TacticalWorld, content: TacticalContent, seed: number, options: TacticalSimOptions = {}) {
     this.world = world;
     this.mapPath = world.mapPath;
     this.state = createTacticalState(
       { ...world, mapDoors: new Map(world.map.doors.map((d) => [d.gridNo, d])) },
       content,
-      Rng.fromSeed(seed),
+      options.streams?.rng ?? Rng.fromSeed(seed),
+      { ...(options.streams ? { pre: options.streams.pre } : {}), ...(options.profiles ? { profiles: options.profiles } : {}) },
     );
     const t = this.state;
+    t.clockMs = options.startMs ?? 0;
+    this.#clock = options.realtimeClock ?? { lastTurnMs: 0, lastDecayMs: 0, lastOverheadMs: 0 };
     this.ai = createAiControl({
       awareOfOpposition: (state, team) => state.perception.awareOfOpposition[team] === true,
       mostImportantNoiseHeard: (state, s) => mostImportantNoiseHeard(state, s),
@@ -217,10 +231,13 @@ export class TacticalSim {
         beginAiPass(state, ai);
       },
       ai: (state, s, slot) => aiForSlot(state, s, slot, ai),
-      afterPass: dequeueAllGameEvents,
+      afterPass: (state) => {
+        dequeueAllGameEvents(state);
+        checkMercsWaiting(state);
+      },
     };
     generateBuildings(t);
-    initLighting(t, world.map, SANDBOX_WORLD_HOUR, NORMAL_LIGHTLEVEL_DAY);
+    initLighting(t, world.map, options.hour ?? SANDBOX_WORLD_HOUR, options.dayAmbient ?? NORMAL_LIGHTLEVEL_DAY);
   }
 
   attachWorldClock(clock: WorldClockSource): void {
@@ -265,6 +282,7 @@ export class TacticalSim {
   isIdle(): boolean {
     const t = this.state;
     if (t.turn.attackBusyCount > 0 || t.bullets.length > 0 || t.gameEvents.length > 0 || explosivesBusy(t.explosives)) return false;
+    if (t.mercsWaiting) return false;
     if (t.inCombat && t.turn.currentTeam !== Team.OUR) return false;
     return !teamMembers(t, Team.OUR).some((s) => this.isBusy(s));
   }
@@ -310,6 +328,8 @@ export class TacticalSim {
   }
 
   dispatch(cmd: TacticalCommand): CommandResult {
+    if (this.state.mercsWaiting && cmd.type !== 'estimateAttack')
+      return { ok: false, reason: 'the interface is locked while mercs leave the sector' };
     switch (cmd.type) {
       case 'move':
         return this.#move(cmd);

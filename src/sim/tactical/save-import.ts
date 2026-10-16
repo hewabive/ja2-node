@@ -139,6 +139,7 @@ function importCorpses(t: TacticalState, corpses: readonly SavedCorpse[]): numbe
       state: 0,
       profile: c.profile,
       type: c.type,
+      timeOfDeath: c.timeOfDeath,
     });
     addCorpseStructure(t, c.gridNo, c.level, c.type, c.direction);
   }

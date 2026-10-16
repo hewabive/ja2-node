@@ -93,6 +93,7 @@ export const MoraleEvent = {
   SAM_SITE_LIBERATED: 'SAM_SITE_LIBERATED',
   SAM_SITE_LOST: 'SAM_SITE_LOST',
   KILLED_CIVILIAN: 'KILLED_CIVILIAN',
+  RAN_AWAY: 'RAN_AWAY',
 } as const;
 export type MoraleEvent = (typeof MoraleEvent)[keyof typeof MoraleEvent];
 

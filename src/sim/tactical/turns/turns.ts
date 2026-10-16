@@ -136,6 +136,7 @@ export function handleRealtimeTurns(t: TacticalState, clock: RealtimeClock): voi
 export function handleTacticalEndTurn(t: TacticalState, clock: RealtimeClock): void {
   decaySmokeEffects(t);
   decayLightEffects(t);
+  t.sectorHooks.addPendingEnemies(t);
   if (t.clockMs - clock.lastDecayMs >= OPPLIST_DECAY_MS) {
     for (const s of mercs(t)) verifyAndDecayOpplist(t, s);
     for (let team = 0; team < TEAM_COUNT; team++) if (isTeamActive(t, team)) decayPublicOpplist(t, team);
@@ -206,6 +207,7 @@ export function endTurn(t: TacticalState, nextTeam: number): void {
     endInterrupt(t, false);
     return;
   }
+  t.sectorHooks.addPendingEnemies(t);
   const ctx = pointsContext(t);
   for (const s of teamMembers(t, t.turn.currentTeam)) {
     s.moved = true;
@@ -255,7 +257,7 @@ export function numCapableEnemyInSector(t: TacticalState): number {
   return n;
 }
 
-function checkForPotentialAddToBattleIncrement(t: TacticalState, s: Soldier): void {
+export function checkForPotentialAddToBattleIncrement(t: TacticalState, s: Soldier): void {
   if (s.neutral || s.side === Side.FRIENDLY) return;
   if (s.team === Team.CIV) return;
   t.turn.numFoughtInBattle[s.team] = (t.turn.numFoughtInBattle[s.team] ?? 0) + 1;

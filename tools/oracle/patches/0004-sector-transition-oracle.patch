@@ -1,0 +1,59 @@
+Sector transition oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE (SFI-SCLA).
+Exposes the static PickGridNoNearestEdge, PickGridNoToWalkIn, SoldierOKForSectorExit and SortSoldierInitList to
+src/game/Oracle.cc, and marks every AddPlacementToWorld call in the Random draw trace of 0002 (begin: 1000 + node id,
+end: 999), so tools/oracle/sector-compare.ts can replay only the placement decisions of
+AddSoldierInitListEnemyDefenceSoldiers. Applied by tools/oracle/build.sh after 0003.
+
+--- a/src/game/Strategic/StrategicMap.cc
++++ b/src/game/Strategic/StrategicMap.cc
+@@ -3229,3 +3229,19 @@
+ 	if (!gWorldSector.IsValid()) return NO_SECTOR;
+ 	return gWorldSector.AsByte();
+ }
++
++
++INT16 OraclePickGridNoNearestEdge(SOLDIERTYPE* const s, UINT8 const direction)
++{
++	return PickGridNoNearestEdge(s, direction);
++}
++
++INT16 OraclePickGridNoToWalkIn(SOLDIERTYPE* const s, UINT8 const insertionCode, UINT32* const attempts)
++{
++	return PickGridNoToWalkIn(s, insertionCode, attempts);
++}
++
++BOOLEAN OracleSoldierOKForSectorExit(SOLDIERTYPE* const s, INT8 const exitDirection, UINT16 const additional)
++{
++	return SoldierOKForSectorExit(s, exitDirection, additional);
++}
+--- a/src/game/Tactical/Soldier_Init_List.cc
++++ b/src/game/Tactical/Soldier_Init_List.cc
+@@ -409,8 +409,18 @@
+ }
+ 
+ 
++#define ORACLE_MARK_PLACEMENT_BEGIN 1000
++#define ORACLE_MARK_PLACEMENT_END   999
++
++struct OraclePlacementMarks
++{
++	explicit OraclePlacementMarks(UINT8 const node) { OracleTraceMark(ORACLE_MARK_PLACEMENT_BEGIN + node); }
++	~OraclePlacementMarks() { OracleTraceMark(ORACLE_MARK_PLACEMENT_END); }
++};
++
+ bool AddPlacementToWorld(SOLDIERINITNODE* const init)
+ {
++	OraclePlacementMarks const oracleMarks(init->ubNodeID);
+ 	SOLDIERCREATE_STRUCT dp{};
+ 
+ 	// First check if this guy has a profile and if so check his location such that it matches
+@@ -1818,3 +1828,9 @@
+ 		RandomizeRelativeLevel(&bp.bRelativeEquipmentLevel, bp.ubSoldierClass);
+ 	}
+ }
++
++
++void OracleSortSoldierInitList()
++{
++	SortSoldierInitList();
++}

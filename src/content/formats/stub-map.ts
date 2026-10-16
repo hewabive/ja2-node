@@ -68,6 +68,7 @@ export interface StubMapSource {
   readonly lights: readonly StubLight[];
   readonly entries: ReadonlyMap<StubEntryName, { readonly x: number; readonly y: number }>;
   readonly exits: readonly StubExit[];
+  readonly basement: boolean;
 }
 
 const AVERAGE_LEVEL = 2;
@@ -143,6 +144,16 @@ function parseExit(spec: string, line: number): StubExit {
   return { x: Number(x), y: Number(y), sector: target, destinationGridNo: Number(toY) * WORLD_COLS + Number(toX) };
 }
 
+const SCROLL_BASEMENT = 'basement';
+const SCROLL_DEFAULT = 'default';
+const BASEMENT_RESTRICTED_SCROLL = 1;
+const BASEMENT_AMBIENT_LIGHT = 10;
+
+function parseScroll(spec: string, line: number): boolean {
+  if (spec !== SCROLL_BASEMENT && spec !== SCROLL_DEFAULT) throw new FormatError(`line ${line}: expected 'scroll: basement|default'`);
+  return spec === SCROLL_BASEMENT;
+}
+
 function parseLight(spec: string, line: number): StubLight {
   const [x, y, template, time] = spec.split(/\s+/);
   if (!template) throw new FormatError(`line ${line}: expected '<x> <y> <TEMPLATE.LHT> [ALWAYS|PRIME|NIGHT]'`);
@@ -180,6 +191,7 @@ export function parseStubMapSource(text: string, tables: TileTables): StubMapSou
   const entries = new Map<StubEntryName, { x: number; y: number }>();
   const exits: StubExit[] = [];
   let inMap = false;
+  let basement = false;
   lines.slice(1).forEach((raw, i) => {
     const lineNo = i + 2;
     if (inMap) {
@@ -206,6 +218,7 @@ export function parseStubMapSource(text: string, tables: TileTables): StubMapSou
     else if (key === 'light') lights.push(parseLight(value, lineNo));
     else if (key === 'entry') entries.set(...parseEntry(value, lineNo));
     else if (key === 'exit') exits.push(parseExit(value, lineNo));
+    else if (key === 'scroll') basement = parseScroll(value, lineNo);
     else throw new FormatError(`line ${lineNo}: unknown key '${key}'`);
   });
   if (!fill) throw new FormatError('stub map needs a fill legend');
@@ -214,7 +227,7 @@ export function parseStubMapSource(text: string, tables: TileTables): StubMapSou
     throw new FormatError('stub map does not fit into the world');
   }
   for (const row of rows) for (const ch of row) if (!legend.has(ch)) throw new FormatError(`unknown map symbol '${ch}'`);
-  return { name, tilesetId, origin, fill, legend, rows, soldiers, lights, entries, exits };
+  return { name, tilesetId, origin, fill, legend, rows, soldiers, lights, entries, exits, basement };
 }
 
 function localGridNo(source: StubMapSource, x: number, y: number): number {
@@ -251,14 +264,15 @@ export function stubMapToMapDef(source: StubMapSource): Omit<MapDef, 'trailingBy
     flags:
       (source.soldiers.length > 0 ? MapFlags.FULL_SOLDIER : 0) |
       (source.lights.length > 0 ? MapFlags.WORLD_LIGHTS : 0) |
-      (source.exits.length > 0 ? MapFlags.EXIT_GRIDS : 0),
+      (source.exits.length > 0 ? MapFlags.EXIT_GRIDS : 0) |
+      (source.basement ? MapFlags.AMBIENT_LIGHT_LEVEL : 0),
     tilesetId: source.tilesetId,
     heights: new Uint8Array(WORLD_MAX),
     worldFlags: new Uint8Array(WORLD_MAX),
     layers: Object.fromEntries(LAYER_NAMES.map((n) => [n, tileLayerFromLists(lists[n])])) as MapDef['layers'],
     rooms,
     items: [],
-    ambient: null,
+    ambient: source.basement ? { basement: true, caves: false, lightLevel: BASEMENT_AMBIENT_LIGHT } : null,
     lights:
       source.lights.length > 0 ? { colors: [BLACK_LIGHT_COLOUR], sprites: source.lights.map((l) => stubLightSprite(source, l)) } : null,
     info: {
@@ -268,7 +282,7 @@ export function stubMapToMapDef(source: StubMapSource): Omit<MapDef, 'trailingBy
       westGridNo: entryGridNo(source, StubEntry.WEST, -1),
       numIndividuals: source.soldiers.length,
       mapVersion: STUB_MAP_MINOR_VERSION,
-      restrictedScrollId: 0,
+      restrictedScrollId: source.basement ? BASEMENT_RESTRICTED_SCROLL : 0,
       editorSmoothingType: 0,
       centerGridNo: entryGridNo(source, StubEntry.CENTER, center),
       isolatedGridNo: entryGridNo(source, StubEntry.ISOLATED, -1),

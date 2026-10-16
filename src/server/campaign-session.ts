@@ -9,14 +9,23 @@ import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { tacticalPlayerView } from './sandbox.ts';
 import type { SessionSim } from './session.ts';
 import { strategicView } from './strategic-view.ts';
+import type { WorldCache } from './world-cache.ts';
 
 export class CampaignSession implements SessionSim {
   readonly campaign: CampaignSim;
   readonly roster: Roster | null;
+  readonly worlds: WorldCache | null;
 
-  constructor(campaign: CampaignSim, roster: Roster | null = null) {
+  constructor(campaign: CampaignSim, roster: Roster | null = null, worlds: WorldCache | null = null) {
     this.campaign = campaign;
     this.roster = roster;
+    this.worlds = worlds;
+  }
+
+  async prepare(cmd: CommandEnvelope): Promise<void> {
+    const flow = this.campaign.sectors;
+    if (!flow || !this.worlds) return;
+    await this.worlds.prepare(flow.mapsNeededSoon(cmd.type === 'enterSector' ? cmd.sector : undefined));
   }
 
   get sim(): TacticalSim {

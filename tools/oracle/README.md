@@ -21,6 +21,7 @@ commit them.
 | `patches/0001-oracle-hooks.patch` | Hooks every probe needs (see "Hooks") |
 | `patches/0002-autoresolve-oracle.patch` | Draw trace, engine reseed and a headless autoresolve (see "Hooks") |
 | `patches/0003-strategic-ai-oracle.patch` | Trace marks around the load-time recomputation of the strategic AI (see "Hooks") |
+| `patches/0004-sector-transition-oracle.patch` | Wrappers for the static sector-exit helpers and trace marks around each placement (see "Hooks") |
 | `autoresolve-compare.ts` | Core replay of `autoresolve` probes through ja2-node's autoresolve |
 | `probes/a9-*.txt` | Probe scripts for sector A9 (Omerta) |
 | `save-probes.ts` | Writes a probe script for the user's native saves (see "Savegames") |
@@ -33,6 +34,8 @@ commit them.
 | `probes/autoresolve-*.txt` | Autoresolve probe scripts (see "Autoresolve") |
 | `sai-compare.ts` | The strategic AI probes of `compare.ts` (`newgame`, `sai`, `saievaluate`, `saicheck`, `saiwake`, `saiarrive`, `diffmod`, `draws`) |
 | `probes/sai-*.txt` | Strategic AI probe scripts (see "Strategic AI") |
+| `sector-compare.ts` | The sector transition probes of `compare.ts` (`edgepoints`, `soldierexit`, `walkoff`, `walkin`, `mirror`, `exitcheck`, `move`, `initlist`, `defence`) |
+| `probes/sectors.txt` | Probe script for sector loading and exits (see "Sector transitions") |
 
 `reference/` is never modified. The work dir (`$JA2_ORACLE_DIR`, default `~/ja2-oracle`) holds:
 `src/` (patched copy), `build/` (CMake build, binary `build/ja2`), `home/` (isolated Stracciatella
@@ -149,6 +152,15 @@ an `error` line and the script continues. The last line is always
 | `saiwake` | | `WakeUpQueen()` (mass fortification on the first call), draws traced |
 | `saiarrive` | `count=<n>` | `n` times: the enemy group between sectors with the earliest arrival (first in the list on ties), `WarpGameTime` to its arrival without processing events, `GroupArrivedAtSector(group, TRUE, FALSE)`; draws traced, group ids listed |
 | `diffmod` | `class=<soldier class>` | `CalcDifficultyModifier(class)` with its inputs: progress (highest and current), mine income, battle sector, town id, palace distance |
+| `edgepoints` | `generate=0\|1` | The four primary and four secondary edgepoint lists with their middle indices (north, east, south, west), as `LoadWorld` left them or after `GenerateMapEdgepoints()` |
+| `soldierexit` | `from=<g>` (or `who=<id>`), `dir=N\|E\|S\|W` or `grid=<exit grid gridno>`, soldier keys as `path` (`facing` for the direction, default team `player`) | `SoldierOKForSectorExit` (patch 0004) and `GetAbsoluteScreenXYFromMapPos` of the soldier |
+| `walkoff` | `from=<g>`, `dir=N\|E\|S\|W` | `PickGridNoNearestEdge` (patch 0004) for a probe soldier |
+| `walkin` | `from=<g>`, `code=N\|S\|E\|W` | `PickGridNoToWalkIn` (patch 0004): gridno and attempts |
+| `mirror` | `from=<g>`, `dir=N\|E\|S\|W` | The "mirror" gridno of `SetupTacticalTraversalInformation` and `CalcMapEdgepointClassInsertionCode(from)` with `gubTacticalDirection = dir` |
+| `exitcheck` | `who=<id>`, `dir=N\|E\|S\|W` or `grid=<g>` | After a `save`: selects the soldier, makes his squad current and runs `OKForSectorExit`: result, minutes (−1 when untouched), `gfInvalidTraversal`, `gfLoneEPCAttemptingTraversal`, `gubLoneMercAttemptingToAbandonEPCs`, and `SoldierOKForSectorExit` per merc in the sector |
+| `move` | `who=<id>`, `to=<g>` | `EVENT_SetSoldierPositionNoCenter` on a soldier of the loaded save |
+| `initlist` | | The soldier init list in list order, then `SortSoldierInitList()` (patch 0004) and the sorted list: node id, team, class, priority existence, detailed, soldier id and class |
+| `defence` | `admins=`, `troops=`, `elites=` | `AddSoldierInitListEnemyDefenceSoldiers` with its draws traced (placements marked by patch 0004) and the init list before and after |
 
 `sector` is a bare map load: `LoadWorld` compiles movement costs, builds structures, rooms and
 buildings, but there is no strategic layer, no enemy or NPC placement, no `PrepareLoadedSector`,
@@ -473,6 +485,32 @@ probe plus a summary; the exit status is 1 on any mismatch or oracle error. It c
 
 On 2026-10-15 all three shipped A9 scripts matched exactly.
 
+### Sector transitions
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data"
+tools/oracle/run.sh tools/oracle/probes/sectors.txt ~/ja2-oracle/sectors.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle/sectors.jsonl
+```
+
+`sector-compare.ts` keeps the loaded map's edgepoints (`loadMapEdgepoints`, replaced by `generateMapEdgepoints` after
+`edgepoints generate=1`) and an init list built from the map (`buildSoldierInitList`), mutated like the native one by
+`initlist` (the sort is not idempotent) and `defence`. Probe soldiers are rebuilt from the dumped soldier (gridno, level,
+stance, team, body). `defence` replays only the placement decisions: draws between a placement begin mark (1000 + node
+id) and the end mark (999) are skipped, the rest go through `addSoldierInitListEnemyDefenceSoldiers` of
+`strategic/ai/defence-placement.ts` with a roll source that asserts each range, `AddPlacementToWorld` is answered with
+the native outcome, and the order of the offered nodes, the final list (classes, soldiers) and the consumed draws are
+compared. `exitcheck` and `move` run on a second session of the save created with the data VFS as `FileExists`, so it
+has a `SectorFlow`; `okForSectorExit` gets the selected merc (whose squad is the current one, as in the oracle).
+
+On 2026-10-16 the shipped script matched exactly: 13 edgepoint dumps (loaded and generated, A9, D13, H13, I14, I13,
+G1, D6 and the A10 basement; I14 regenerates differently from its saved lists and ja2-node follows the generator),
+18 `soldierexit`, 20 `walkoff`, 15 `walkin`, 31 `mirror` (class codes 7 and 8 on H13 and I14), 4 `initlist`,
+10 `defence` (4 to 64 enemies on 32 to 64 placements) and 21 `exitcheck` on SaveGame10, 07 and 01.
+
+Probe soldiers made prone by the harness cannot path at all in the oracle (they become `SOLDIER_MULTITILE` and every
+`FindBestPath` returns 0, crawling included), so the script has no prone walk-off probes.
+
 ### Strategic movement
 
 ```sh
@@ -592,6 +630,7 @@ codes, retreats, `pre=keep` and `pre=reseed`).
 | `probes/strategic.txt` | The travel table for the five transports, A9→P3 for every mask and other long, unreachable, tactical-traversal and trivial routes, then `save` + `groups` for SaveGame01, 02, 07, 08, 09, 10 |
 | `probes/sai-newgame.txt` | Seven seeded new games on every difficulty (draw log of `InitNewCampaign`, `sai`), three of them followed by `saiwake`, `saievaluate`, `saicheck` and `saiarrive count=60` with dumps, the others by `saiarrive count=40` |
 | `probes/sai-saves.txt` | For each of the six saves: the draws of the load, `sai`, `diffmod` for three classes, a seeded `saievaluate awake=1`, four `saicheck`, a second evaluation and `saiarrive count=40`, each followed by `sai` |
+| `probes/sectors.txt` | Edgepoints loaded and generated on eight maps, screen-space exit thresholds on both sides of every edge (A9, A10 basement), exit-grid checks in D13 and the basement, walk-off/walk-in/mirror from the centre and near the edges, class codes on the isolated maps H13 and I14, init list sorts and ten defence placements (A9, B13, C13, D13), and `OKForSectorExit` on SaveGame10, 07 (in combat) and 01 before and after moving mercs to an edge or an exit grid |
 
 All three were run on the user's Steam JA2 Gold 1.12 data: every command succeeds, and on these
 inputs `lineOfSight` and `soldierToSoldier` agree.
@@ -646,6 +685,12 @@ To change 0002, edit the four files in `$JA2_ORACLE_DIR/src`, rebuild, and regen
 `OracleTraceMark` calls (codes 101 and 102) around the load-time recomputation at the end of `LoadStrategicAI`
 (`UpdateAirspaceControl`, `EvolveQueenPriorityPhase(TRUE)`, the repoll of idle enemy groups), so the comparison can
 replay exactly those draws out of the whole `LoadSavedGame` trace. Regenerate it like 0002 with that path.
+
+`patches/0004-sector-transition-oracle.patch` (applied after 0003) appends `OraclePickGridNoNearestEdge`,
+`OraclePickGridNoToWalkIn` and `OracleSoldierOKForSectorExit` (wrappers around the `static` functions) to
+`src/game/Strategic/StrategicMap.cc`, and to `src/game/Tactical/Soldier_Init_List.cc` `OracleSortSoldierInitList` plus a
+scope guard at the top of `AddPlacementToWorld` that writes `OracleTraceMark(1000 + node id)` on entry and
+`OracleTraceMark(999)` on every return. Regenerate it like 0002 with those two paths.
 
 ## Notes
 

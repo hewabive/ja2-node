@@ -1,5 +1,6 @@
 import { PreRandom, Rng } from '../../core/rng.ts';
 import { createFinanceState, type FinanceState } from '../campaign/finances.ts';
+import type { SectorDiff } from '../campaign/sector-diff.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
 import {
   createMeanwhileState,
@@ -47,6 +48,7 @@ export interface StrategicState {
   readonly meanwhile: MeanwhileState;
   readonly economy: EconomyState;
   readonly finances: FinanceState;
+  readonly sectorDiffs: Map<string, SectorDiff>;
 }
 
 export interface GameOptions {
@@ -95,5 +97,6 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     meanwhile: createMeanwhileState(),
     economy: createEconomyState(),
     finances: createFinanceState(),
+    sectorDiffs: new Map(),
   };
 }

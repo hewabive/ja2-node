@@ -1632,3 +1632,77 @@ helicopter (§3.16), vehicle boarding and passenger hand-over, NPC-of-note detec
 existence off). `stubs/maps/a9.map.txt` is the start village with entry points and garrison placements of every class,
 `stubs/maps/wilderness.map.txt` the generic sector. `content/strategic/sector-maps.ts` `sectorMapPath` picks the original
 map, else a stub of the same sector, else the generic wilderness stub, so the campaign runs on stubs anywhere.
+
+## 14. Implemented (2026-10-16): §9.2 steps 7–10
+
+**Tactical side** (`src/sim/tactical/`):
+
+| Module | Public API |
+|---|---|
+| `edgepoints.ts` | `MapEdgepoints` (primary and secondary lists with middle indices, N/E/S/W), `savedMapEdgepoints` (map version ≥ 22), `generateMapEdgepoints(t, sector)` (global reachability from the first entry point, two rows per side from the corner gridnos, `ValidateEdgepoints`, classification against the isolated gridno, the I14 range), `loadMapEdgepoints`, `chooseMapEdgepoint(s)`, `begin/endMapEdgepointSearch`, `searchForClosestPrimary/SecondaryMapEdgepoint`, `calcMapEdgepointClassInsertionCode`, `findNearestEdgepointOnSpecifiedEdge` |
+| `insertion.ts` | `Insertion` codes, `updateMercInSector(t, s, order, ctx)` (the §5.6 table: edgepoints, gridno, entry points, exit-grid re-entry, sleep and patient animations), `addSoldierToSector` (sweet spot, facing the centre, exit-grid facing) |
+| `init-list.ts` | `SoldierInitNode`, `buildSoldierInitList`, `sortInitList`, `PopulationEnv`, `addPlacementToWorld`, `addSoldierInitListTeamToWorld`, `addSoldierInitListEnemyDefenceSoldiers`, `addSoldierInitListMilitia` (with the loop-stops-at-the-first-soldier quirk), `evaluateDeathEffectsToSoldierInitList`, `stripEnemyDetailedPlacements`, `randomizeRelativeLevel`, `tacticalCreateEnemySoldier`, `addEnemiesToBattle` |
+| `map-changes.ts` | `MapChange` records written by structure damage (damage, destroy, partner swap, wall-hung removal, window hits) and `applyMapChanges` |
+| `sector-exit.ts` | render bounds and screen coordinates (default and basement), `soldierOKForSectorExit`, `pickGridNoNearestEdge`, `adjustSoldierPathToGoOffEdge`, `pickGridNoToWalkIn`, `mirrorGridNo`, `findGridNoFromSweetSpotCloseToExitGrid`, `setActionToDoOnceMercsGetToLocation`, `checkMercsWaiting` (2500 ms) |
+
+`new TacticalSim(world, content, seed, {streams, profiles, startMs, realtimeClock, hour, dayAmbient})` shares the
+campaign's `Random`/`PreRandom` streams, profile progress, real-time clock and light schedule. `TacticalState` gains the
+edgepoints, the init list, the map changes, the merc wait (`mercsWaiting`; tactical commands are refused while it runs,
+as `LU_BEGINUILOCK`) and `sectorHooks` (`soldierDied`, `soldierLeftMap`, `addPendingEnemies`, `mercsWaitOver`). Fleeing AI
+soldiers keep the traversal quote action of `FindFleeSpot` and leave the map (`handleAITacticalTraversal`), which closes
+"Map-edge escapes".
+
+**Campaign side** (`src/sim/campaign/`):
+
+| Module | Public API |
+|---|---|
+| `sector-diff.ts` | `SectorDiff` (items incl. non-existing slots, corpses with time of death, map changes, door table and status, revealed and room-hidden bits, preserved enemies and civilians with their init-list links, smoke and light records), `sectorKey`, the `capture*`/`restore*` pairs, `preserveSoldiers`, `agedCorpse`, `loadPreservedCivilians` |
+| `sector-flow.ts` | `SectorFlow`: `setCurrentWorldSector(sector, {autoPlacement, battleLocatorShown})` (§5.2–§5.5 with the diff, flags, enemies from the strategic counts or the preserved records, militia, civilians, the ambush call, guide flag, cosmetic draws), `adoptLoadedSector(links)` for save sessions, `checkAndHandleUnloadingOfCurrentWorld`, `handleDefiniteUnloadingOfWorld`, `saveCurrentSectorsInformation`, `trashWorld`, `prepareEnemyForSectorBattle`, `addPossiblePendingEnemiesToBattle`, `prepareMilitiaForTactical`, `resetMilitia`, `difficultyModifier`, `populationEnv`, `mapsNeededSoon(target)`, `enterSectorRefusal`; free functions `sectorWorldPort`, `dispatchSectorCommand`, `loadStartSector` |
+| `sector-exits.ts` | `okForSectorExit`, `exitMenu` (the dialog's checkbox table), `singleMoveAction`, `allMoveAction`, `jumpCodeOf`, `jumpIntoAdjacentSector`, `allMercsHaveWalkedOffSector` (warp to the start of minute + 5 or + 1, `WARPTIME_PROCESS_TARGET_TIME_FIRST`, 300 s retreat warp), `allMercsWalkedToExitGrid`, `exitCheck`, `exitSectorCommand` |
+
+**Integration.** `CampaignSim` takes `hooks.sectors = {worlds: SectorWorlds, content, roster}` and exposes
+`campaign.sectors`. Commands: `enterSector {sector: 'B9' | {x, y, z}}` and `exitSector {soldier, direction:
+'north'|'east'|'south'|'west' | exitGrid: gridNo, who: 'squad'|'merc', load?: boolean}`; the result carries `minutes`,
+`who`, `load`, `target` and `level`, a refusal one of `tooFar`, `invalidTraversal`, `loneEPC`, `abandonEPC`,
+`squadNotAllowed`, `mercNotAllowed`, `loadDisabled`. Events: `sectorLoaded`, `sectorUnloaded`, `mercsLeftSector`.
+`loadStartSector(campaign)` is the default `CampaignHooks.loadStartSector`. `server/world-cache.ts` (`WorldCache`) loads
+the maps of `mapsNeededSoon` before a command (`CampaignSession.prepare`, `Session.prepareAndDispatch`, used by the
+WebSocket queue and MCP `act`); save sessions get a flow when `createSaveSession` receives a `FileExists`. The strategic
+world port (`sectorWorldPort`) answers `enemyReinforcementsArrived` and the reinforcement checks with the loaded sector.
+
+**For the PBI (`docs/19`).** "Enter sector" clears `encounter.preBattle` and `movement.disableMapInterfaceDueToBattle`,
+then calls `campaign.sectors.setCurrentWorldSector(sector, {autoPlacement: firstVisit, battleLocatorShown: true})` or
+dispatches `enterSector`; retreat and the end of a battle unload through `checkAndHandleUnloadingOfCurrentWorld()`. The
+tactical end of battle (`docs/19` §3.2: control, `LogBattleResults`, morale and loyalty) is not wired: `checkForEndOfBattle`
+only emits `combatEnded`.
+
+**`docs/17` callers wired:** `prepareEnemyForSectorBattle` → `sortSoldierInitList` + `addSoldierInitListEnemyDefenceSoldiers`
+→ `assignEnemyGroupIds`; deaths and map-edge escapes → `trackEnemiesKilled`, `processQueenCmdImplicationsOfDeath`;
+tactical turn ends and `enemyReinforcementsArrived` → `addPossiblePendingEnemiesToBattle` (arrivals through the edgepoints);
+unload → `endTacticalBattleForEnemy` and, whenever the world is trashed, `handleFirstMeanwhileSetUpWithTrashWorld`; soldier
+creation → `difficultyModifierAt`.
+
+**Sandbox.** `server/sandbox.ts` populates A9 through the init list (civilians, then `addSoldierInitListEnemyDefenceSoldiers`
+with 4 troops and the modifier of a medium game without progress, 11); `SANDBOX_POPULATION`, `chooseEnemyPlacements` and
+the old `addSoldierToSector` are gone ("Sandbox population" narrowed in `deviations.md`).
+
+**Tests** (stubs: `stubs/maps/a10.map.txt` with an exit grid to `a10_b1.map.txt`, a basement with `scroll: basement`):
+`edgepoints.test.ts`, `sector-exit.test.ts` (thresholds on a default and a basement map, walk-off and walk-in targets, the
+2500 ms release), `init-list.test.ts` (sort, defence placement, militia, death and strip rules, relative levels),
+`sector-flow.test.ts` (landing with the garrison, guide flags, Queen notification, walk-off to A10 within 2505 ms and
++5 minutes with the UI lock, items/corpses/revealed tiles after a day away, `tooFar`, a lone merc leaving without load,
+preserved enemies at 300/301 minutes and on a count change, civilians healed, militia, the ambush call, pending
+reinforcements through the edgepoints, the A10 stairs into the basement and back), `sector-scenario.test.ts` (A9 → B9 by
+`route`, PBI hand-off, `enterSector`, the battle fought to the end, leave, re-enter after an hour, the same digest under
+the instant and the manual driver).
+
+**Verified against the oracle** (`tools/oracle/probes/sectors.txt`, patch `0004`, README "Sector transitions"): 13
+edgepoint dumps (loaded and generated on A9, D13, H13, I14, I13, G1, D6 and the A10 basement), 18 `soldierexit`, 20
+`walkoff`, 15 `walkin`, 31 `mirror` (class codes on H13 and I14), 4 `initlist` sorts, 10 `defence` placements
+(4–64 enemies on 32–64 placements, decision draws replayed with the native placement outcomes) and 21 `exitcheck` on
+SaveGame10, 07 (in combat) and 01 match exactly.
+
+**Not yet:** native temp files of other sectors in save sessions (only the loaded sector's preserved-soldier links), the
+placement GUI (auto placement only), creatures and bloodcats, NPC profile insertion and quest placements (M6), rotting
+and crows in the loaded sector, the API side of step 11 (MCP tools and `PlayerView.strategic` for the new commands) and
+the tactical end of battle (above).

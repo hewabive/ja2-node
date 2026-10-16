@@ -1,29 +1,24 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Create.cc CreateDetailedPlacementGivenBasicPlacementInfo, ChooseHairColor,
-// @src GeneratePaletteForSoldier, TacticalCreateSoldier; Soldier_Init_List.cc AddSoldierInitListEnemyDefenceSoldiers;
-// @src Soldier_Add.cc FindGridNoFromSweetSpot, AddSoldierToSectorNoCalculateDirection. See docs/06 §3.2, §7.
+// @src GeneratePaletteForSoldier, TacticalCreateSoldier; Soldier_Add.cc FindGridNoFromSweetSpot. See docs/06 §3.2, §7.
 
-import type { Placement } from '../../content/formats/map.ts';
+import type { BasicPlacement, Placement } from '../../content/formats/map.ts';
 import { type DetailedPlacement, parseDetailedPlacement } from '../../content/formats/placement.ts';
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { cardinalSpacesAway, WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import { ObjectFlags, objectFromRecord } from '../items/object.ts';
-import { initNewSoldierAnim, states } from './animation.ts';
+import { states } from './animation.ts';
 import { generateRandomEquipment, replaceExtendedGuns } from './equipment.ts';
 import { emptyInventory, hiredMercInventory, type InventoryContext, npcProfileInventory } from './inventory.ts';
-import { setSoldierPosition } from './movement.ts';
 import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
-import { calcActionPoints } from './points.ts';
 import { Body, createSoldier, NO_PROFILE, type Soldier, SoldierClass, type SoldierPalettes, type SoldierStats, Team } from './soldier.ts';
-import { registerSoldier, type TacticalState } from './state.ts';
+import type { TacticalState } from './state.ts';
 
 const HAIR = { WHITE: 0, BLACK: 1, BROWN: 2, BLONDE: 3, RED: 4 } as const;
 const HAIR_IDS = ['WHITEHEAD', 'BLACKHEAD', 'BROWNHEAD', 'BLONDHEAD', 'REDHEAD'];
 const SKIN_IDS = ['PINKSKIN', 'TANSKIN', 'DARKSKIN', 'BLACKSKIN'];
 const NO_WHITE_HAIR_BODIES = new Set<number>([Body.REGFEMALE, Body.MINICIV, Body.DRESSCIV, Body.HATKIDCIV, Body.KIDCIV]);
-const SWEET_SPOT_RADIUS = 7;
-const INITIAL_STANDING_CODES = 10;
 const UNSET_STAT = -1;
 
 const CLASS_CLOTHES: Readonly<Record<number, readonly [string, string]>> = {
@@ -38,10 +33,7 @@ const CLASS_CLOTHES: Readonly<Record<number, readonly [string, string]>> = {
 
 export interface PopulationOptions {
   readonly difficultyModifier: number;
-  readonly enemyTroops: number;
 }
-
-export const SANDBOX_POPULATION: PopulationOptions = { difficultyModifier: 30, enemyTroops: 4 };
 
 function chooseHair(t: TacticalState, body: number, skin: number): number {
   const r = t.rng.int(100);
@@ -233,18 +225,6 @@ export function findGridNoFromSweetSpot(t: TacticalState, s: Soldier, sweet: num
   return best;
 }
 
-export function addSoldierToSector(t: TacticalState, s: Soldier, insertionGridNo: number): boolean {
-  s.gridNo = NOWHERE;
-  s.actionPoints = calcActionPoints(t.content, s);
-  const spot = findGridNoFromSweetSpot(t, s, insertionGridNo, SWEET_SPOT_RADIUS);
-  if (spot === NOWHERE) return false;
-  registerSoldier(t, s);
-  setSoldierPosition(t, s, spot);
-  s.direction = s.desiredDirection;
-  initNewSoldierAnim(t, s, states(t.content.animations).STANDING, t.rng.int(INITIAL_STANDING_CODES), true);
-  return true;
-}
-
 function creationContext(t: Pick<TacticalState, 'content'>): InventoryContext {
   return { items: t.content.items, inCombat: false, actionPoints: () => 0, spendActionPoints: () => {}, dropAtFeet: () => {} };
 }
@@ -292,9 +272,18 @@ export function createMercFromProfile(
 }
 
 export function createFromPlacement(t: TacticalState, id: number, placement: Placement, options: PopulationOptions): Soldier | null {
-  const b = placement.basic;
   const detailed = placement.detailedRaw ? parseDetailedPlacement(placement.detailedRaw) : null;
-  if (detailed && detailed.profile !== NO_PROFILE) return createProfiledFromPlacement(t, id, placement, detailed);
+  return createFromPlacementParts(t, id, placement.basic, detailed, options);
+}
+
+export function createFromPlacementParts(
+  t: TacticalState,
+  id: number,
+  b: BasicPlacement,
+  detailed: DetailedPlacement | null,
+  options: PopulationOptions,
+): Soldier | null {
+  if (detailed && detailed.profile !== NO_PROFILE) return createProfiledFromPlacement(t, id, b, detailed);
   let generated = generateBasic(t, b.team, b.soldierClass, b.bodyType, b.relativeAttributeLevel, options.difficultyModifier);
   if (detailed) generated = applyStaticStats(generated, detailed);
   const inv = emptyInventory();
@@ -338,6 +327,7 @@ export function createFromPlacement(t: TacticalState, id: number, placement: Pla
     morale: generated.morale,
     breath: 99,
     gridNo: NOWHERE,
+    level: b.onRoof ? 1 : 0,
     direction: b.direction,
     state: states(t.content.animations).STANDING,
     ai: {
@@ -349,10 +339,9 @@ export function createFromPlacement(t: TacticalState, id: number, placement: Pla
   });
 }
 
-function createProfiledFromPlacement(t: TacticalState, id: number, placement: Placement, d: DetailedPlacement): Soldier | null {
+function createProfiledFromPlacement(t: TacticalState, id: number, b: BasicPlacement, d: DetailedPlacement): Soldier | null {
   const profile = t.content.profiles[d.profile];
   if (!profile) return null;
-  const b = placement.basic;
   return createSoldier({
     id,
     team: b.team,
@@ -389,28 +378,4 @@ function createProfiledFromPlacement(t: TacticalState, id: number, placement: Pl
     state: states(t.content.animations).STANDING,
     ai: { orders: b.orders, attitude: b.attitude, patrolGrid: [], patrolCount: b.patrolCount },
   });
-}
-
-export function chooseEnemyPlacements(t: TacticalState, placements: readonly Placement[], troops: number): Placement[] {
-  const candidates = placements.filter((p) => p.basic.team === Team.ENEMY && p.basic.soldierClass === SoldierClass.ARMY);
-  const groups = [
-    candidates.filter((p) => p.basic.priorityExistence && p.basic.detailed),
-    candidates.filter((p) => p.basic.priorityExistence && !p.basic.detailed),
-    candidates.filter((p) => !p.basic.priorityExistence && p.basic.detailed),
-    candidates.filter((p) => !p.basic.priorityExistence && !p.basic.detailed),
-  ];
-  const chosen: Placement[] = [];
-  let remaining = troops;
-  for (const group of groups) {
-    let slots = group.length;
-    for (const p of group) {
-      if (remaining <= 0) break;
-      if (slots <= remaining || t.rng.int(slots) < remaining) {
-        chosen.push(p);
-        remaining--;
-      }
-      slots--;
-    }
-  }
-  return chosen;
 }

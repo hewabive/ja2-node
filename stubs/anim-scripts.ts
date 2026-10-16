@@ -257,7 +257,7 @@ function combatScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> 
     m.set(name, [...frames(6), Op.DEAD]);
   for (const name of ['WATER_DIE', 'DEEP_WATER_DIE']) m.set(name, [...frames(8), Op.LIFE_ZERO, Op.DEAD]);
   for (const name of ['GENERIC_HIT_DEATHTWITCHNB', 'FALLBACK_HIT_DEATHTWITCHNB', 'PRONE_HIT_DEATHTWITCHNB'])
-    m.set(name, [...frames(3), Op.DEATH_OR_RELEASE]);
+    m.set(name, [...frames(3), NONINTERRUPTIBLE_DONE, Op.DEATH_OR_RELEASE]);
   for (const name of ['GENERIC_HIT_DEATHTWITCHB', 'FALLBACK_HIT_DEATHTWITCHB', 'PRONE_HIT_DEATHTWITCHB', 'JFK_HITDEATH_TWITCHB'])
     m.set(name, [...frames(3), Op.PREVIOUS]);
   for (const [name, script] of meleeScripts(t)) m.set(name, script);

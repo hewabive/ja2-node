@@ -6,19 +6,24 @@ import type { PlayerView } from '../protocol/view.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { createItem, createItems } from '../sim/items/object.ts';
+import { calcDifficultyModifier } from '../sim/strategic/ai/difficulty.ts';
+import { Difficulty } from '../sim/strategic/forces/constants.ts';
 import { states } from '../sim/tactical/animation.ts';
+import { createMercFromProfile } from '../sim/tactical/creation.ts';
+import { loadMapEdgepoints } from '../sim/tactical/edgepoints.ts';
 import {
-  addSoldierToSector,
-  chooseEnemyPlacements,
-  createFromPlacement,
-  createMercFromProfile,
-  SANDBOX_POPULATION,
-} from '../sim/tactical/creation.ts';
+  addSoldierInitListEnemyDefenceSoldiers,
+  addSoldierInitListTeamToWorld,
+  buildSoldierInitList,
+  drawStandingFrame,
+  type PopulationEnv,
+} from '../sim/tactical/init-list.ts';
+import { addSoldierToSector, Insertion } from '../sim/tactical/insertion.ts';
 import { InvSlot } from '../sim/tactical/inventory.ts';
 import { lightSpriteRenderAll } from '../sim/tactical/lighting/lighting.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
 import { revealedRooms } from '../sim/tactical/perception/fov.ts';
-import { createSoldier, firstFreeSoldierId, NO_PROFILE, type Soldier, Team } from '../sim/tactical/soldier.ts';
+import { createSoldier, firstFreeSoldierId, type Soldier, SoldierClass, Team } from '../sim/tactical/soldier.ts';
 import { teamMembers } from '../sim/tactical/state.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { loadWorldItemsFromMap } from '../sim/tactical/world-items.ts';
@@ -83,6 +88,35 @@ function sectorOf(mapPath: string): { x: number; y: number } | null {
   return m ? { x: Number(m[2]), y: (m[1] as string).toLowerCase().charCodeAt(0) - 96 } : null;
 }
 
+const SANDBOX_SECTOR = { x: 9, y: 1 };
+const SANDBOX_GARRISON = { admins: 0, troops: 4, elites: 0 };
+const NO_TOWN = 0;
+
+function sandboxPopulation(sim: TacticalSim): PopulationEnv {
+  const sector = sectorOf(sim.mapPath) ?? SANDBOX_SECTOR;
+  const profiles = sim.state.content.profiles;
+  const inputs = {
+    difficulty: Difficulty.MEDIUM,
+    highestProgress: 0,
+    predictedMineIncome: 0,
+    battleSector: sector,
+    battleSectorTownId: NO_TOWN,
+  };
+  return {
+    difficultyModifier: (soldierClass) => calcDifficultyModifier(inputs, soldierClass),
+    locationModifier: 0,
+    autoResolveActive: false,
+    profileHere: (p) => profiles[p]?.sectorX === sector.x && profiles[p]?.sectorY === sector.y,
+    civilianWithheld: () => false,
+  };
+}
+
+function placeMerc(t: TacticalSim['state'], s: Soldier, entry: number): void {
+  drawStandingFrame(t);
+  s.insertionGridNo = entry;
+  addSoldierToSector(t, s, { code: Insertion.GRIDNO, data: entry, direction: s.direction }, {}, true);
+}
+
 const FALLBACK_ENTRY = 12880;
 
 function entryGridNo(sim: TacticalSim): number {
@@ -135,34 +169,23 @@ function stubMerc(sim: TacticalSim, id: number): Soldier {
 }
 
 export function populateSandbox(sim: TacticalSim): void {
-  const mapPlacements = sim.world.map.placements;
   const t = sim.state;
   const entry = entryGridNo(sim);
   const idFor = (team: number) => firstFreeSoldierId((id) => t.soldiers[id] !== undefined, team);
   const profiles = t.content.profiles;
+  const env = sandboxPopulation(sim);
+  t.campaign = { difficultyModifier: env.difficultyModifier(SoldierClass.ARMY), progress: 0 };
+  t.edgepoints = loadMapEdgepoints(t, { ...(sectorOf(sim.mapPath) ?? SANDBOX_SECTOR), z: 0 });
+  t.initList = buildSoldierInitList(sim.world.map);
   loadWorldItemsFromMap(t, sim.world.map.items);
   lightSpriteRenderAll(t);
   for (const p of profiles.length > 0 ? SANDBOX_SQUAD : []) {
     const profile = profiles[p];
-    if (profile) addSoldierToSector(t, createMercFromProfile(t, idFor(Team.OUR), profile, 4), entry);
+    if (profile) placeMerc(t, createMercFromProfile(t, idFor(Team.OUR), profile, 4), entry);
   }
-  if (teamMembers(t, Team.OUR).length === 0)
-    for (let i = 0; i < STUB_SQUAD_SIZE; i++) addSoldierToSector(t, stubMerc(sim, idFor(Team.OUR)), entry);
-  const sector = sectorOf(sim.mapPath);
-  t.equipment.mortarsRolledByTeam = 0;
-  for (const placement of chooseEnemyPlacements(t, mapPlacements, SANDBOX_POPULATION.enemyTroops)) {
-    const soldier = createFromPlacement(t, idFor(placement.basic.team), placement, SANDBOX_POPULATION);
-    if (soldier) addSoldierToSector(t, soldier, placement.basic.startingGridNo);
-  }
-  for (const placement of mapPlacements.filter((p) => p.basic.team === Team.CIV)) {
-    const soldier = createFromPlacement(t, idFor(Team.CIV), placement, SANDBOX_POPULATION);
-    if (!soldier) continue;
-    if (soldier.profile !== NO_PROFILE) {
-      const profile = profiles[soldier.profile];
-      if (!profile || !sector || profile.sectorX !== sector.x || profile.sectorY !== sector.y) continue;
-    }
-    addSoldierToSector(t, soldier, placement.basic.startingGridNo);
-  }
+  if (teamMembers(t, Team.OUR).length === 0) for (let i = 0; i < STUB_SQUAD_SIZE; i++) placeMerc(t, stubMerc(sim, idFor(Team.OUR)), entry);
+  addSoldierInitListTeamToWorld(t, Team.CIV, env);
+  addSoldierInitListEnemyDefenceSoldiers(t, SANDBOX_GARRISON, env);
 }
 
 export async function createSandboxSession(read: ReadFile, originalData: boolean, seed = DEFAULT_SEED): Promise<TacticalSession> {

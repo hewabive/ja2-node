@@ -29,6 +29,7 @@ const PATH_CLOSE_RADIUS = 5;
 const MAX_PATHQ = 1024;
 const POOL_NODES = MAX_PATHQ - 2;
 const MAX_TRAIL_TREE = 16384;
+export const ABSMAX_TRAIL_TREE = 65536;
 const PLAIN_PATH_LIMIT = 256;
 const DIRECTION_ORDER = [0, 7, 6, 5, 4, 3, 2, 1] as const;
 const EASYWATERCOST = 5;
@@ -93,6 +94,7 @@ export interface PathResult {
   readonly steps: readonly number[];
   readonly reachable?: Uint8Array;
   readonly apCosts?: Int8Array;
+  readonly reachedDestination?: boolean;
 }
 
 const NO_PATH: PathResult = { length: 0, steps: [] };
@@ -474,8 +476,13 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
     }
   }
 
-  if (reachable) return apCosts ? { length: 0, steps: [], reachable, apCosts } : { length: 0, steps: [], reachable };
   const head = open.head();
+  if (reachable) {
+    const reachedDestination = dest !== NOWHERE && head?.loc === dest;
+    return apCosts
+      ? { length: 0, steps: [], reachable, apCosts, reachedDestination }
+      : { length: 0, steps: [], reachable, reachedDestination };
+  }
   if (!head || head.loc !== dest) return NO_PATH;
   const steps: number[] = [];
   for (let z = head.trail; z !== 0; z = trailPrev[z] as number) steps.push(trailDir[z] as number);

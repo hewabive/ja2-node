@@ -398,6 +398,16 @@ export interface Soldier {
   tempObject: ItemObject | null;
   tempNewGridNo: number;
   heightAdjustment: number;
+  groupId: number;
+  insertionGridNo: number;
+  insertionData: number;
+  useExitGridForReentryDirection: boolean;
+  preTraversalGridNo: number;
+  waitActionToDo: number;
+  quoteActionId: number;
+  offWorldGridNo: number;
+  militiaKills: number;
+  offMap: boolean;
 }
 
 export interface PendingPickup {
@@ -664,5 +674,15 @@ export function createSoldier(init: SoldierInit): Soldier {
     tempObject: null,
     tempNewGridNo: NOWHERE,
     heightAdjustment: 0,
+    groupId: 0,
+    insertionGridNo: NOWHERE,
+    insertionData: 0,
+    useExitGridForReentryDirection: false,
+    preTraversalGridNo: NOWHERE,
+    waitActionToDo: 0,
+    quoteActionId: 0,
+    offWorldGridNo: NOWHERE,
+    militiaKills: 0,
+    offMap: false,
   };
 }

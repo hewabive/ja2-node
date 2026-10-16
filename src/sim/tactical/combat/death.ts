@@ -22,6 +22,7 @@ import {
   setDesiredDirection,
   setSoldierDirection,
 } from '../animation.ts';
+import { worldSeconds } from '../explosions/state.ts';
 import { putOutMuzzleFlash } from '../lighting/muzzle-flash.ts';
 import { directionToward } from '../movement.ts';
 import { atan8Of, SightFlags } from '../perception/opp.ts';
@@ -48,6 +49,7 @@ export interface Corpse {
   readonly state: number;
   readonly profile: number;
   readonly type: number;
+  readonly timeOfDeath: number;
 }
 
 const isMercBody = (s: Soldier) => s.bodyType <= Body.REGFEMALE;
@@ -241,6 +243,8 @@ function handleNPCTeamMemberDeath(t: TacticalState, old: Soldier): void {
     if (assister?.placed && assister.team === Team.OUR)
       statChange(t, assister, StatKind.EXPERIENCE, 5 * old.stats.experience, StatCause.SUCCESS);
   }
+  if (killer?.team === Team.MILITIA) killer.militiaKills++;
+  t.sectorHooks.soldierDied(t, old);
   checkForEndOfBattle(t);
 }
 
@@ -271,7 +275,16 @@ function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
   if (s.team !== Team.OUR) unregisterSoldier(t, s);
   s.placed = false;
   if (type === NO_CORPSE) return true;
-  t.corpses.push({ gridNo: s.gridNo, level: s.level, bodyType: s.bodyType, direction, state: s.state, profile: s.profile, type });
+  t.corpses.push({
+    gridNo: s.gridNo,
+    level: s.level,
+    bodyType: s.bodyType,
+    direction,
+    state: s.state,
+    profile: s.profile,
+    type,
+    timeOfDeath: Math.trunc(worldSeconds(t) / SECONDS_PER_MINUTE),
+  });
   addCorpseStructure(t, s.gridNo, s.level, type, direction);
   return true;
 }
@@ -306,13 +319,14 @@ export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDea
       if (attacker?.team === Team.OUR) {
         const p = profileProgress(t, attacker.profile);
         if (p) p.kills++;
-      }
+      } else if (attacker?.team === Team.MILITIA) attacker.militiaKills += MILITIA_KILL_POINTS;
       let assister = s.previousAttacker;
       if (assister === attacker) assister = s.nextToPreviousAttacker;
       if (assister?.placed && assister !== attacker && assister.team === Team.OUR) {
         const p = profileProgress(t, assister.profile);
         if (p) p.assists++;
-      }
+      } else if (assister?.placed && assister !== attacker && assister.team === Team.MILITIA)
+        assister.militiaKills += MILITIA_ASSIST_POINTS;
     }
     t.events.push({ type: 'soldierDied', soldier: s.id, killer: s.attacker?.id ?? null, gridNo: s.gridNo });
     madeCorpse = turnSoldierIntoCorpse(t, s);
@@ -326,6 +340,9 @@ export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDea
 }
 
 const SKULL_UI_MS = 1920;
+const SECONDS_PER_MINUTE = 60;
+const MILITIA_KILL_POINTS = 2;
+const MILITIA_ASSIST_POINTS = 1;
 
 export function updateSkullReleases(t: TacticalState): void {
   if (t.pendingSkullReleases.length === 0) return;

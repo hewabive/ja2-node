@@ -41,7 +41,7 @@ export function isVisibleTile(g: GridNo): boolean {
   return x + y >= VISIBLE_MIN_SUM && x + y <= VISIBLE_MAX_SUM && Math.abs(x - y) <= VISIBLE_MAX_SKEW;
 }
 
-function outOfBounds(g: GridNo, proposed: GridNo): boolean {
+export function outOfBounds(g: GridNo, proposed: GridNo): boolean {
   const mod = g % WORLD_COLS;
   if (mod !== 0 && mod !== WORLD_COLS - 1 && g < LAST_ROW_START && g > WORLD_COLS) return false;
   if (proposed < 0) return true;

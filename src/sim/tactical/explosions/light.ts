@@ -25,6 +25,12 @@ function updateLightingSprite(t: TacticalState, light: LightEffect): void {
   lightSpritePosition(t, sprite, light.gridNo % WORLD_COLS, Math.trunc(light.gridNo / WORLD_COLS));
 }
 
+export function restoreLightEffect(t: TacticalState, record: Omit<LightEffect, 'sprite'>): void {
+  const light: LightEffect = { ...record, sprite: null };
+  t.explosives.lights.push(light);
+  updateLightingSprite(t, light);
+}
+
 export function newLightEffect(t: TacticalState, g: number, radius: number, duration: number): LightEffect | null {
   const lights = t.explosives.lights;
   let slot = lights.indexOf(null);

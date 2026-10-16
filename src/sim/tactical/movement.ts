@@ -26,8 +26,9 @@ import { interactWithDoor, toggleDoorAt } from './doors.ts';
 import { findBestPath, isWater, MAX_PATH_LIST_SIZE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { addMercStructure, removeMercStructure } from './person-structure.ts';
 import { AP, actionPointCost, deductPoints, doorTravelCost, enoughPoints, type PointsContext, terrainBreathPoints } from './points.ts';
+import { handleWaitActionOnArrival } from './sector-exit.ts';
 import { cellCentre, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, OKBREATH, Orders, type Soldier, Team } from './soldier.ts';
-import { placeOccupant, removeOccupant, type TacticalState, whoIsThere } from './state.ts';
+import { placeOccupant, removeOccupant, type TacticalState, WaitForMercs, whoIsThere } from './state.ts';
 
 export const MoveTile = { CLEAR: 0, TEMP_BLOCKED: -1, STATIONARY_BLOCKED: -2 } as const;
 type MoveTileResult = (typeof MoveTile)[keyof typeof MoveTile];
@@ -92,7 +93,8 @@ function setSoldierGridNo(t: TacticalState, s: Soldier, requested: number): void
   removeMercStructure(t, s);
   s.gridNo = g;
   s.placed = false;
-  if (!isVisibleTile(g)) return;
+  s.offMap = !isVisibleTile(g);
+  if (s.offMap) return;
   if (s.endDoorOpenCode === 2) {
     s.endDoorOpenCode = 0;
     toggleDoorAt(t, s.endDoorOpenCodeData);
@@ -335,8 +337,13 @@ function haltForDoor(t: TacticalState, s: Soldier): void {
   s.finalDestination = savedFinal;
 }
 
+function plottingToExitGrid(t: TacticalState, s: Soldier): boolean {
+  return s.waitActionToDo === 1 && t.mercsWaiting?.code === WaitForMercs.WALK_TO_GRIDNO;
+}
+
 export function getNewSoldierPath(t: TacticalState, s: Soldier, dest: number, mode: number, fromUI = 0, forceRestart = true): boolean {
   let flags = 0;
+  const plotToExitGrid = plottingToExitGrid(t, s);
   const ui = fromUI === 3 ? (s.team === Team.OUR ? 1 : 0) : fromUI;
   s.goodContPath = false;
   if (s.delayedMovement) {
@@ -346,8 +353,8 @@ export function getNewSoldierPath(t: TacticalState, s: Soldier, dest: number, mo
   if ((!t.inCombat && hasAnimFlag(t.content, s.state, AnimFlags.MOVING) && ui === 1) || ui === 2) {
     if (s.collapsed) return false;
     const planner = { ...s, gridNo: s.destination };
-    if (findBestPath(t.pathEnv, planner, dest, s.level, { flags }).length === 0) return false;
-    const route = findBestPath(t.pathEnv, planner, dest, s.level, { flags, copy: PathCopy.ROUTE });
+    if (findBestPath(t.pathEnv, planner, dest, s.level, { flags, plotToExitGrid }).length === 0) return false;
+    const route = findBestPath(t.pathEnv, planner, dest, s.level, { flags, copy: PathCopy.ROUTE, plotToExitGrid });
     s.finalDestination = dest;
     if (route.length === 0) return false;
     s.path = [route.steps[0] ?? 0, ...route.steps.slice(0, MAX_PATH_LIST_SIZE - 1)];
@@ -360,7 +367,7 @@ export function getNewSoldierPath(t: TacticalState, s: Soldier, dest: number, mo
     return true;
   }
   if (!s.pathStored) {
-    const route = findBestPath(t.pathEnv, s, dest, s.level, { flags, copy: PathCopy.ROUTE });
+    const route = findBestPath(t.pathEnv, s, dest, s.level, { flags, copy: PathCopy.ROUTE, plotToExitGrid });
     if (route.length === 0) return false;
     s.path = [...route.steps];
     s.pathIndex = 0;
@@ -456,7 +463,11 @@ export function arriveAtFinalDestination(t: TacticalState, s: Soldier): void {
       s.pendingDirection = -1;
     }
   }
-  if (!t.hooks.pendingAction(t, s) && !hadPendingAnimation && s.life >= 15) soldierGotoStationaryStance(t, s);
+  if (s.waitActionToDo) {
+    const walkingOffEdge = s.waitActionToDo === 2;
+    handleWaitActionOnArrival(t, s);
+    if (walkingOffEdge) return;
+  } else if (!t.hooks.pendingAction(t, s) && !hadPendingAnimation && s.life >= 15) soldierGotoStationaryStance(t, s);
   t.events.push({ type: 'arrived', soldier: s.id, gridNo: s.gridNo });
 }
 
@@ -518,12 +529,13 @@ export function handleNextTileWaiting(t: TacticalState, s: Soldier): void {
       target = sweetSpotNear(t, s, s.finalDestination, 6, throughPeople);
       if (target === NOWHERE) target = sweetSpotNear(t, s, s.finalDestination, 16, throughPeople);
     } else target = s.finalDestination;
-    let path = findBestPath(t.pathEnv, s, target, s.level, { flags: PathFlags.THROUGH_PEOPLE });
+    const plotToExitGrid = plottingToExitGrid(t, s);
+    let path = findBestPath(t.pathEnv, s, target, s.level, { flags: PathFlags.THROUGH_PEOPLE, plotToExitGrid });
     if (path.length > 0) {
       let first = path.steps[0] ?? 0;
       let pathBlocked = tileIsClear(t, s, first, newGridNo(s.gridNo, step(first)), s.level);
       if (pathBlocked === MoveTile.STATIONARY_BLOCKED) {
-        path = findBestPath(t.pathEnv, s, target, s.level, { flags: PathFlags.IGNORE_PERSON_AT_DEST });
+        path = findBestPath(t.pathEnv, s, target, s.level, { flags: PathFlags.IGNORE_PERSON_AT_DEST, plotToExitGrid });
         first = path.steps[0] ?? 0;
         pathBlocked = tileIsClear(t, s, first, newGridNo(s.gridNo, step(first)), s.level);
         s.delayedMovementFlags &= ~DELAYED_MOVEMENT_FLAG_PATH_THROUGH_PEOPLE;

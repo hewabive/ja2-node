@@ -30,7 +30,7 @@ const createSession = async (id: string, request: SessionRequest): Promise<Sessi
   if (!savesDir || data.dataDir === null) throw new Error('savegames need the original data (JA2_DATA_DIR)');
   if (!SAVE_NAME.test(request.save)) throw new Error(`invalid save name ${request.save}`);
   const bytes = new Uint8Array(await readFile(join(savesDir, `${request.save}.sav`)));
-  return new Session(id, (await createSaveSession(readVfs, bytes, request.seed)).session);
+  return new Session(id, (await createSaveSession(readVfs, bytes, request.seed, (path) => data.vfs.stat(path) !== undefined)).session);
 };
 try {
   const seed = Number(process.env.JA2_SEED ?? 1);

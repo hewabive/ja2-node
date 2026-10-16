@@ -1,17 +1,21 @@
 import type { OpOutcome } from '../../content/anim/script.ts';
-import type { MapDoor } from '../../content/formats/map.ts';
+import type { MapDef, MapDoor } from '../../content/formats/map.ts';
 import { isVisibleTile, WORLD_MAX } from '../../content/world/grid.ts';
 import type { MovementCosts, MovementWorld } from '../../content/world/movement-costs.ts';
+import type { TileElement } from '../../content/world/tile-database.ts';
 import { PreRandom, type Rng } from '../../core/rng.ts';
 import type { SimEvent } from '../events.ts';
 import { type Buildings, createBuildings } from './buildings.ts';
 import type { Bullet, MissAnimation } from './combat/bullets.ts';
 import type { Corpse } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
+import type { MapEdgepoints } from './edgepoints.ts';
 import { createEquipmentState, type EquipmentState } from './equipment.ts';
 import { createExplosivesState, type ExplosivesState, type WorldClockSource } from './explosions/state.ts';
 import type { GameEvent } from './game-events.ts';
+import type { SoldierInitNode } from './init-list.ts';
 import { createLightingState, type LightingState } from './lighting/lighting.ts';
+import type { MapChange } from './map-changes.ts';
 import type { DoorStatus, PathEnv, PathSoldier, PathWorld } from './pathfinding.ts';
 import { createFogOfWar, type FogOfWar } from './perception/fov.ts';
 import { createPerception, type Perception } from './perception/sight.ts';
@@ -20,9 +24,39 @@ import { type Soldier, TOTAL_SOLDIERS } from './soldier.ts';
 import { createTurnState, type TurnState } from './turns/turn-state.ts';
 import type { WorldItem } from './world-items.ts';
 
+export type SectorMapData = Pick<MapDef, 'info' | 'rooms' | 'ambient' | 'placements' | 'exitGrids' | 'edgepoints' | 'tilesetId'>;
+
 export interface TacticalWorldData extends MovementWorld {
   readonly costs: MovementCosts;
   readonly mapDoors: ReadonlyMap<number, MapDoor>;
+  readonly map?: SectorMapData;
+  readonly tiles?: readonly TileElement[];
+}
+
+const NO_ENTRY = -1;
+const NO_SECTOR_MAP: SectorMapData = {
+  info: {
+    northGridNo: NO_ENTRY,
+    eastGridNo: NO_ENTRY,
+    southGridNo: NO_ENTRY,
+    westGridNo: NO_ENTRY,
+    numIndividuals: 0,
+    mapVersion: 0,
+    restrictedScrollId: 0,
+    editorSmoothingType: 0,
+    centerGridNo: NO_ENTRY,
+    isolatedGridNo: NO_ENTRY,
+  },
+  rooms: new Uint8Array(WORLD_MAX),
+  ambient: null,
+  placements: [],
+  exitGrids: [],
+  edgepoints: null,
+  tilesetId: 0,
+};
+
+export function sectorMapOf(t: { readonly world: TacticalWorldData }): SectorMapData {
+  return t.world.map ?? NO_SECTOR_MAP;
 }
 
 export type TacticalEvent = DistributiveOmit<SimEvent, 'tick'>;
@@ -114,6 +148,28 @@ export const NO_TURN_HOOKS: TurnHooks = {
   aiDropHandItem: () => {},
 };
 
+export const WaitForMercs = { NONE: 0, WALKOFF_SCREEN: 1, WALKON_SCREEN: 2, WALK_TO_GRIDNO: 3 } as const;
+
+export interface MercsWaiting {
+  readonly code: number;
+  remaining: number;
+  readonly sinceMs: number;
+}
+
+export interface SectorHooks {
+  soldierDied(t: TacticalState, s: Soldier): void;
+  addPendingEnemies(t: TacticalState): void;
+  soldierLeftMap(t: TacticalState, s: Soldier): void;
+  mercsWaitOver(t: TacticalState, code: number): void;
+}
+
+export const NO_SECTOR_HOOKS: SectorHooks = {
+  soldierDied: () => {},
+  addPendingEnemies: () => {},
+  soldierLeftMap: () => {},
+  mercsWaitOver: () => {},
+};
+
 export interface TacticalState {
   clockMs: number;
   readonly world: TacticalWorldData;
@@ -149,9 +205,26 @@ export interface TacticalState {
   readonly pendingSkullReleases: { readonly soldier: Soldier; readonly at: number }[];
   readonly explosives: ExplosivesState;
   worldClock: WorldClockSource | null;
+  edgepoints: MapEdgepoints | null;
+  edgepointReservations: number[] | null;
+  initList: SoldierInitNode[];
+  readonly mapChanges: MapChange[];
+  mercsWaiting: MercsWaiting | null;
+  ignoreAllObstacles: boolean;
+  sectorHooks: SectorHooks;
 }
 
-export function createTacticalState(world: TacticalWorldData, content: TacticalContent, rng: Rng): TacticalState {
+export interface SharedCampaignState {
+  readonly pre?: PreRandom;
+  readonly profiles?: Map<number, ProfileProgress>;
+}
+
+export function createTacticalState(
+  world: TacticalWorldData,
+  content: TacticalContent,
+  rng: Rng,
+  shared: SharedCampaignState = {},
+): TacticalState {
   const occupant: [Int16Array, Int16Array] = [new Int16Array(WORLD_MAX).fill(-1), new Int16Array(WORLD_MAX).fill(-1)];
   const soldiers: Soldier[] = [];
   const doorStatus = new Map<number, DoorStatus>();
@@ -180,7 +253,7 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
     reserved: new Int16Array(WORLD_MAX).fill(-1),
     doorStatus,
     rng,
-    pre: PreRandom.create(rng),
+    pre: shared.pre ?? PreRandom.create(rng),
     inCombat: false,
     options: { gunNut: false, bloodAndGore: true },
     campaign: { difficultyModifier: 30, progress: 0 },
@@ -203,7 +276,7 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
     turn: createTurnState(TOTAL_SOLDIERS),
     turnHooks: NO_TURN_HOOKS,
     equipment: createEquipmentState(content.items),
-    profiles: new Map(),
+    profiles: shared.profiles ?? new Map(),
     worldItems: [],
     buildings: createBuildings(),
     bullets: [],
@@ -212,6 +285,13 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
     pendingSkullReleases: [],
     explosives: createExplosivesState(),
     worldClock: null,
+    edgepoints: null,
+    edgepointReservations: null,
+    initList: [],
+    mapChanges: [],
+    mercsWaiting: null,
+    ignoreAllObstacles: false,
+    sectorHooks: NO_SECTOR_HOOKS,
   };
 }
 

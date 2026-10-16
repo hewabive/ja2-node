@@ -13,6 +13,7 @@ export type { CommandResult };
 export interface SessionSim extends Steppable {
   dispatch(cmd: CommandEnvelope): CommandResult;
   view(): PlayerView;
+  prepare?(cmd: CommandEnvelope): Promise<void>;
 }
 
 export type Listener = (message: ServerMessage) => void;
@@ -73,6 +74,11 @@ export class Session {
     const frame = diffPlayerView(this.#lastView, view);
     this.#lastView = view;
     if (frame) frames.push(frame);
+  }
+
+  async prepareAndDispatch(cmd: CommandEnvelope): Promise<CommandResult> {
+    await this.sim.prepare?.(cmd);
+    return this.dispatch(cmd);
   }
 
   dispatch(cmd: CommandEnvelope): CommandResult {

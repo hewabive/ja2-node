@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Tactical_Save.cc LoadMapTempFilesFromSavedGameFile, sectorFlagBits, GetMapTempFileName,
-// @src LoadWorldItemsFromTempItemFile; Tactical/World_Items.h WORLDITEM; Tactical/Keys.cc door table and door status files
+// @src LoadWorldItemsFromTempItemFile; Tactical/World_Items.h WORLDITEM; Tactical/Keys.cc door table and door status files;
+// @src Tactical/Soldier_Init_List.cc NewWayOfLoadingEnemySoldierInitListLinks (link records)
 
 import { FormatError } from '../binary/errors.ts';
 import { decodeObject, OBJECT_RECORD_BYTES, type ObjectRecord } from './object.ts';
@@ -242,4 +243,18 @@ export function decodeMapModificationsFile(bytes: Uint8Array): SavedMapModificat
     type: c.u8(),
     extra: c.u8(),
   }));
+}
+
+export interface PreservedSoldierLink {
+  readonly nodeId: number;
+  readonly soldierId: number;
+}
+
+export function decodePreservedSoldierLinks(bytes: Uint8Array): PreservedSoldierLink[] {
+  const c = new SaveCursor(bytes, 0);
+  c.skip(2);
+  const count = c.u8();
+  const links: PreservedSoldierLink[] = [];
+  for (let i = 0; i < count; i++) links.push({ nodeId: c.u8(), soldierId: c.u8() });
+  return links;
 }
