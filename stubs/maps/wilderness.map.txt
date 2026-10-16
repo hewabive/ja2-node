@@ -1,0 +1,38 @@
+ja2-node.map/1
+name: Stub wilderness
+tileset: 0
+origin: 66 66
+fill: land FIRSTTEXTURE 1
+legend '.': land FIRSTTEXTURE 1
+legend ':': land FIRSTTEXTURE 2
+legend ',': land SECONDTEXTURE 1
+legend '=': land THIRDTEXTURE 1
+legend '~': land REGWATERTEXTURE 1
+legend '_': land FIRSTFLOOR 1; roofs FIRSTROOF 1; room 1
+legend 'L': land FIRSTFLOOR 1; structs FIRSTWALL 1; roofs FIRSTROOF 1; room 1
+legend 'R': land FIRSTFLOOR 1; structs FIRSTWALL 2; roofs FIRSTROOF 1; room 1
+legend 'C': land FIRSTFLOOR 1; structs FIRSTWALL 1; structs FIRSTWALL 2; roofs FIRSTROOF 1; room 1
+legend 'b': land SECONDTEXTURE 2; structs FIRSTOSTRUCT 1
+entry: north 11 0
+entry: east 26 5
+entry: south 11 10
+entry: west 0 5
+entry: center 13 5
+soldier: ENEMY 14 30 NORTH ONGUARD AGGRESSIVE ARMY
+soldier: ENEMY 18 32 NORTH CLOSEPATROL BRAVESOLO ARMY
+soldier: ENEMY 8 31 NORTHEAST ONGUARD DEFENSIVE ADMINISTRATOR
+soldier: ENEMY 22 28 WEST STATIONARY DEFENSIVE ELITE optional
+soldier: ENEMY 4 28 EAST ONGUARD CUNNINGSOLO ARMY optional
+soldier: ENEMY 12 26 SOUTH FARPATROL AGGRESSIVE ARMY optional
+map:
+..........,=,..............
+...b......,=,.......b......
+..........,=,..............
+.....b....,=,....:.........
+..:.......,=,..........b...
+==========,=,==============
+==========,=,==============
+..........,=,.....b........
+....b.....,=,..............
+..........,=,.........:....
+.......:..,=,....b.........

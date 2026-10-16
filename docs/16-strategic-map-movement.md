@@ -1626,3 +1626,9 @@ battle delay, insertion codes, about-to-arrive), and the encounter matrix with s
 helicopter (§3.16), vehicle boarding and passenger hand-over, NPC-of-note detection (a `TacticalWorldPort` hook),
 §3.3's `CanCharacterMoveInStrategic`, theft and loyalty effects of control changes (ports for `docs/17`/`18`), and wiring
 `importStrategicMap` and a roster-backed `MercPort` into `createSaveSession` (campaign integration).
+
+**Stubs (2026-10-16).** The stub map format gained `entry: north|east|south|west|center|isolated <x> <y>`,
+`exit: <x> <y> -> <SECTOR> [z=<n>] at <worldX> <worldY>` and an `optional` flag on `soldier:` lines (priority
+existence off). `stubs/maps/a9.map.txt` is the start village with entry points and garrison placements of every class,
+`stubs/maps/wilderness.map.txt` the generic sector. `content/strategic/sector-maps.ts` `sectorMapPath` picks the original
+map, else a stub of the same sector, else the generic wilderness stub, so the campaign runs on stubs anywhere.
