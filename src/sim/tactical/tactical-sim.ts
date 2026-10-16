@@ -76,6 +76,7 @@ import {
 } from './lighting/lighting.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
 import { checkHostileOrSayQuoteList } from './narrative/civ-hostility.ts';
+import { handlePendingTalkOnArrival } from './narrative/talk-arrival.ts';
 import { executeOverhead, type OverheadHooks } from './overhead.ts';
 import { findBestPath, PathCopy } from './pathfinding.ts';
 import { mostImportantNoiseHeard } from './perception/knowledge.ts';
@@ -227,7 +228,10 @@ export class TacticalSim {
       turnFinished: freeUpFromTurning,
       stanceFreeUp: freeUpFromStanceChange,
       pendingAction: (state, s) =>
-        handlePendingMeleeOnArrival(state, s) || handlePendingPickupOnArrival(state, s) || handlePendingDoorOnArrival(state, s),
+        handlePendingMeleeOnArrival(state, s) ||
+        handlePendingPickupOnArrival(state, s) ||
+        handlePendingDoorOnArrival(state, s) ||
+        handlePendingTalkOnArrival(state, s),
       runningIntoGas: checkForRunningIntoGas,
       enteredGridNo: updateGassedOnNewGridNo,
       endAiGuysTurn: (state, s) => endAIGuysTurn(state, s, ai),
@@ -392,6 +396,7 @@ export class TacticalSim {
         const s = this.soldier(cmd.soldier);
         if (!s || s.team !== Team.OUR) return { ok: false, reason: 'no such soldier of yours' };
         s.pendingDoorAction = null;
+        s.pendingTalk = null;
         stopMerc(this.state, s);
         s.finalDestination = s.gridNo;
         return { ok: true };
@@ -527,6 +532,7 @@ export class TacticalSim {
     s.uiMovementMode = this.#movementMode(s, cmd.mode);
     s.pathStored = false;
     s.pendingDoorAction = null;
+    s.pendingTalk = null;
     if (t.inCombat) {
       const route = findBestPath(t.pathEnv, s, to, s.level, { copy: PathCopy.ROUTE });
       if (route.length === 0) return { ok: false, reason: 'no path' };

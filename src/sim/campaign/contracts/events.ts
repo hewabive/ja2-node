@@ -9,6 +9,8 @@ export interface MercQuoteEvent extends ContractEventBase {
   readonly quote: string;
   readonly id: number;
   readonly subject?: number;
+  readonly textKey?: { readonly file: string; readonly row: number; readonly width: number };
+  readonly chars?: number;
 }
 
 export interface ContractsExpiringSoonEvent extends ContractEventBase {

@@ -1,0 +1,28 @@
+{
+  "format": "ja2-node stub dialogue v1",
+  "note": "Invented lines for the stub NPCs, compiled by pnpm stubs into ROT-1 EDT files. Original writing for ja2-node.",
+  "files": {
+    "npcdata/094.edt": [
+      "You are new around here. I am Vasko, I keep an eye on the square.",
+      "Back again? The square has not moved since you left.",
+      "Fine weather for walking, if you like dust.",
+      "Every road out of here leads to more dust.",
+      "I have no use for that.",
+      "Ask a clear question and you get a clear answer.",
+      "Threats do not frighten an old man with nothing to lose.",
+      "I am too old to carry a rifle for you.",
+      "Go well.",
+      "Enough talk. Leave me be.",
+      "Strangers with guns usually mean trouble for the square.",
+      "Still, you look like you can keep your word.",
+      "You came back. Have you seen the old hermit yet?",
+      "The well water is sweeter since the rains came.",
+      "There is a hermit in the hills nobody has seen for a month.",
+      "If you find him, tell me he is alive.",
+      "Wait here. I want to show you something by the trees.",
+      "Follow me, quietly now.",
+      "From here you can see the path to the hills. That is where he went.",
+      "That is all you get from me today."
+    ]
+  }
+}

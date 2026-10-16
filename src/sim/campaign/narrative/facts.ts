@@ -1,9 +1,11 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Facts.h (fact ids), Quests.h NUM_FACTS, MAX_QUESTS; Quests.cc gubFact, gubQuest, SetFactTrue,
-// @src SetFactFalse, CheckFact (the stored part). See docs/21 §5.5, docs/23 §16.1, docs/25.
+// @src SetFactFalse, CheckFact (the stored part); Interface_Dialogue.cc gpSrcSoldier, gpDestSoldier, gubSrcSoldierProfile (the talk
+// @src context, docs/25 §1.4). See docs/21 §5.5, docs/23 §16.1, docs/25.
 
 import { u8 } from '../../../core/int.ts';
+import { createTalkContext, type TalkContext } from '../../narrative/talk-state.ts';
 
 export const NUM_FACTS = 500;
 export const MAX_QUESTS = 30;
@@ -34,10 +36,11 @@ export const Fact = {
 export interface NarrativeState {
   readonly facts: Uint8Array;
   readonly quests: Uint8Array;
+  readonly talk: TalkContext;
 }
 
 export function createNarrativeState(): NarrativeState {
-  return { facts: new Uint8Array(NUM_FACTS), quests: new Uint8Array(MAX_QUESTS) };
+  return { facts: new Uint8Array(NUM_FACTS), quests: new Uint8Array(MAX_QUESTS), talk: createTalkContext() };
 }
 
 export function fact(n: NarrativeState, id: number): boolean {

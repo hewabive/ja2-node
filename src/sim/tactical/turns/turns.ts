@@ -144,6 +144,7 @@ export function handleRealtimeTurns(t: TacticalState, clock: RealtimeClock): voi
   }
   if (t.clockMs - clock.lastOverheadMs < STRATEGIC_OVERHEAD_MS) return;
   clock.lastOverheadMs = t.clockMs;
+  if (t.engagedInConv) return;
   if (t.inCombat) {
     clock.lastTurnMs = t.clockMs;
     return;

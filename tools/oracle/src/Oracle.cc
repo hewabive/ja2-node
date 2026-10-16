@@ -11,6 +11,7 @@
 // @src GenerateMapEdgepoints, CalcMapEdgepointClassInsertionCode; src/game/Tactical/Soldier_Init_List.cc AddSoldierInitListEnemyDefenceSoldiers
 // @src src/game/Tactical/Arms_Dealer_Init.cc, ArmsDealerInvInit.cc, ShopKeeper_Interface.cc (merchants)
 // @src src/game/Strategic/Game_Init.cc InitNewGame; src/game/Laptop (A.I.M., M.E.R.C., I.M.P., Bobby Ray, insurance)
+// @src src/game/TacticalAI/NPC.cc CalcDesireToTalk, NPCConsiderTalking, ConverseFull (talk probes)
 #include "Oracle.h"
 
 #include "AI.h"
@@ -89,6 +90,8 @@
 #include "Merc_Contract.h"
 #include "Finances.h"
 #include "Dialogue_Control.h"
+#include "Interface_Dialogue.h"
+#include "NPC.h"
 #include "Map_Screen_Interface.h"
 #include "History.h"
 #include "Mercs.h"
@@ -132,6 +135,14 @@ UINT8 OracleTreeSightReduction(UINT8 ubEndHeight);
 INT16 OraclePickGridNoNearestEdge(SOLDIERTYPE* s, UINT8 direction);
 bool OracleDoTrapCheckOnStartingMenu(SOLDIERTYPE& s, DOOR& d);
 void OracleHostileQuoteList(std::vector<UINT8>* ids);
+UINT8 OracleNPCConsiderTalking(UINT8 npc, UINT8 merc, Approach approach, UINT8 record, INT32* index);
+INT32 OracleCalcThreateningEffectiveness(UINT8 merc);
+BOOLEAN OracleNPCConsiderQuote(UINT8 npc, UINT8 merc, Approach approach, UINT8 record, UINT8 desire, NPCQuoteInfo* quotes);
+NPCQuoteInfo const* OracleQuoteArray(UINT8 npc, bool backup);
+NPCQuoteInfo const* OracleCivQuoteArray(UINT8 index);
+extern SOLDIERTYPE* gpSrcSoldier;
+extern SOLDIERTYPE* gpDestSoldier;
+extern UINT8 gubQuest[MAX_QUESTS];
 extern INT32 giHabitatedDistance;
 extern INT32 giPopulationModifier;
 extern INT32 giLairID;
@@ -4765,6 +4776,257 @@ void ProbeHostileList(Command const& c)
 }
 
 
+struct OracleDialogueEntry
+{
+	std::string kind;
+	int a, b, c, d;
+};
+
+struct OracleFactEntry
+{
+	int fact, profile, value;
+};
+
+std::vector<OracleDialogueEntry>* gOracleDialogueTrace = nullptr;
+std::vector<OracleFactEntry>* gOracleFactTrace = nullptr;
+int gOracleFactDepth = 0;
+
+std::map<std::string, Approach> const APPROACHES{
+	{"friendly", APPROACH_FRIENDLY}, {"direct", APPROACH_DIRECT}, {"threaten", APPROACH_THREATEN}, {"recruit", APPROACH_RECRUIT},
+	{"repeat", APPROACH_REPEAT}, {"initial", NPC_INITIAL_QUOTE}, {"whoareyou", NPC_WHOAREYOU}, {"trigger", TRIGGER_NPC},
+	{"buysell", APPROACH_BUYSELL}, {"initiating", NPC_INITIATING_CONV}, {"givingitem", APPROACH_GIVINGITEM},
+	{"declaration", APPROACH_DECLARATION_OF_HOSTILITY}, {"enemy", APPROACH_ENEMY_NPC_QUOTE}, {"notsafe", APPROACH_SECTOR_NOT_SAFE},
+};
+
+std::string DescribeRecord(NPCQuoteInfo const& q)
+{
+	std::vector<long long> const v{
+		q.fFlags, q.sRequiredItem, q.usFactMustBeTrue, q.usFactMustBeFalse, q.ubQuest, q.ubFirstDay, q.ubLastDay,
+		q.ubApproachRequired, q.ubOpinionRequired, q.ubQuoteNum, q.ubNumQuotes, q.ubStartQuest, q.ubEndQuest, q.ubTriggerNPC,
+		q.ubTriggerNPCRec, q.usSetFactTrue, q.usGiftItem, q.usGoToGridno, q.sActionData,
+	};
+	std::string list = "[";
+	for (size_t i = 0; i < v.size(); ++i) list += (i ? "," : "") + std::to_string(v[i]);
+	return list + "]";
+}
+
+std::string DescribeRecords(NPCQuoteInfo const* q)
+{
+	std::vector<std::string> items;
+	for (int i = 0; i < NUM_NPC_QUOTE_RECORDS; ++i) items.push_back(DescribeRecord(q[i]));
+	return JsonArray(items);
+}
+
+std::string DescribeNpcProfile(UINT8 const id)
+{
+	MERCPROFILESTRUCT const& p = GetProfile(id);
+	std::vector<long long> factors, values, mods;
+	for (int k = 0; k < 4; ++k)
+	{
+		factors.push_back(p.usApproachFactor[k]);
+		values.push_back(p.ubApproachVal[k]);
+	}
+	for (int r = 0; r < 3; ++r) for (int k = 0; k < 4; ++k) mods.push_back(p.ubApproachMod[r][k]);
+	return Json{}
+		.num("profile", id)
+		.nums("approachFactor", factors)
+		.nums("approachVal", values)
+		.nums("approachMod", mods)
+		.num("approached", p.bApproached)
+		.num("lastDateSpokenTo", p.ubLastDateSpokenTo)
+		.num("lastQuoteSaid", p.ubLastQuoteSaid)
+		.num("lastQuoteSaidWasSpecial", p.bLastQuoteSaidWasSpecial)
+		.num("friendlyOrDirect", p.bFriendlyOrDirectDefaultResponseUsedRecently)
+		.num("recruit", p.bRecruitDefaultResponseUsedRecently)
+		.num("threaten", p.bThreatenDefaultResponseUsedRecently)
+		.num("quoteRecord", p.ubQuoteRecord)
+		.num("quoteActionId", p.ubQuoteActionID)
+		.num("npcData", p.bNPCData)
+		.num("npcData2", p.bNPCData2)
+		.num("miscFlags", p.ubMiscFlags)
+		.num("miscFlags2", p.ubMiscFlags2)
+		.num("miscFlags3", p.ubMiscFlags3)
+		.num("balance", p.iBalance)
+		.num("town", p.bTown)
+		.num("townAttachment", p.bTownAttachment)
+		.num("money", p.uiMoney)
+		.nums("sector", {p.sSector.x, p.sSector.y, p.sSector.z})
+		.text();
+}
+
+std::string DescribeDialogueTrace(std::vector<OracleDialogueEntry> const& trace)
+{
+	std::vector<std::string> items;
+	for (auto const& e : trace) items.push_back(Json{}.str("kind", e.kind).nums("args", {e.a, e.b, e.c, e.d}).text());
+	return JsonArray(items);
+}
+
+std::string DescribeFactTrace(std::vector<OracleFactEntry> const& trace)
+{
+	std::vector<std::string> items;
+	for (auto const& e : trace) items.push_back("[" + std::to_string(e.fact) + "," + std::to_string(e.profile) + "," + std::to_string(e.value) + "]");
+	return JsonArray(items);
+}
+
+UINT8 MercProfileArgument(Command const& c)
+{
+	if (!Has(c, "merc")) return NO_PROFILE;
+	return GetMan(static_cast<SoldierID>(Required(c, "merc"))).ubProfile;
+}
+
+void DumpNpcRecords(Command const& c)
+{
+	std::vector<std::string> arrays;
+	for (int id = 0; id < NUM_PROFILES; ++id)
+	{
+		if (Has(c, "profile") && Required(c, "profile") != id) continue;
+		NPCQuoteInfo const* current = OracleQuoteArray(static_cast<UINT8>(id), false);
+		NPCQuoteInfo const* backup = OracleQuoteArray(static_cast<UINT8>(id), true);
+		if (!current && !backup) continue;
+		arrays.push_back(Json{}
+			.num("profile", id)
+			.raw("records", current ? DescribeRecords(current) : "null")
+			.raw("backup", backup ? DescribeRecords(backup) : "null")
+			.text());
+	}
+	std::vector<std::string> civ;
+	for (int i = 0; i < 20; ++i)
+	{
+		NPCQuoteInfo const* q = OracleCivQuoteArray(static_cast<UINT8>(i));
+		civ.push_back(q ? DescribeRecords(q) : "null");
+	}
+	Emit(Json{}.str("probe", "npcrecords").num("line", c.line).num("only", Integer(c, "profile", -1)).raw("arrays", JsonArray(arrays))
+		.raw("civilian", JsonArray(civ)));
+}
+
+void DumpNpcProfile(Command const& c)
+{
+	UINT8 const id = static_cast<UINT8>(Required(c, "profile"));
+	Emit(Json{}.str("probe", "npcprofile").num("line", c.line).raw("profile", DescribeNpcProfile(id)));
+}
+
+void ProbeDesire(Command const& c)
+{
+	UINT8 const npc = static_cast<UINT8>(Required(c, "npc"));
+	UINT8 const merc = MercProfileArgument(c);
+	Approach const approach = Lookup(APPROACHES, c, "approach", "friendly");
+	Emit(Json{}.str("probe", "desire").num("line", c.line).num("npc", npc).num("merc", merc).num("approach", approach)
+		.num("desire", CalcDesireToTalk(npc, merc, approach)).num("threat", OracleCalcThreateningEffectiveness(merc)));
+}
+
+void ProbeConsider(Command const& c)
+{
+	UINT8 const npc = static_cast<UINT8>(Required(c, "npc"));
+	UINT8 const merc = MercProfileArgument(c);
+	Approach const approach = Lookup(APPROACHES, c, "approach", "friendly");
+	UINT8 const record = static_cast<UINT8>(Integer(c, "record", 0));
+	std::string const before = DescribeNpcProfile(npc);
+	std::vector<OracleFactEntry> facts;
+	gOracleFactTrace = &facts;
+	INT32 index = 0;
+	UINT8 const opinion = OracleNPCConsiderTalking(npc, merc, approach, record, &index);
+	gOracleFactTrace = nullptr;
+	Emit(Json{}.str("probe", "consider").num("line", c.line).num("npc", npc).num("merc", merc).num("approach", approach)
+		.num("record", record).num("opinion", opinion).num("index", index).raw("facts", DescribeFactTrace(facts))
+		.raw("before", before).raw("after", DescribeNpcProfile(npc)));
+}
+
+void ResetTalkProbe()
+{
+	EmptyDialogueQueue();
+	gfInTalkPanel = FALSE;
+	gTacticalStatus.uiFlags &= ~ENGAGED_IN_CONV;
+	giNPCReferenceCount = 0;
+}
+
+void ProbeTalk(Command const& c)
+{
+	UINT8 const npc = static_cast<UINT8>(Required(c, "npc"));
+	SOLDIERTYPE* const npcSoldier = FindSoldierByProfileID(npc);
+	if (!npcSoldier) throw std::runtime_error("talk: the NPC has no soldier in the loaded sector");
+	SOLDIERTYPE* const merc = Has(c, "merc") ? &GetMan(static_cast<SoldierID>(Required(c, "merc"))) : nullptr;
+	UINT8 const mercProfile = merc ? merc->ubProfile : NO_PROFILE;
+	Approach const approach = Lookup(APPROACHES, c, "approach", "friendly");
+	UINT8 const record = static_cast<UINT8>(Integer(c, "record", 0));
+	std::vector<UINT8> const factsBefore(gubFact, gubFact + NUM_FACTS);
+	std::vector<UINT8> const questsBefore(gubQuest, gubQuest + MAX_QUESTS);
+	std::string const before = DescribeNpcProfile(npc);
+	ResetTalkProbe();
+	gfInTalkPanel = Integer(c, "panel", 1) != 0;
+	gTalkPanel.ubCharNum = npc;
+	gpSrcSoldier = merc;
+	gpDestSoldier = npcSoldier;
+	gubSrcSoldierProfile = mercProfile;
+	std::vector<OracleDialogueEntry> dialogue;
+	std::vector<OracleFactEntry> facts;
+	std::vector<OracleDraw> draws;
+	gOracleDialogueTrace = &dialogue;
+	gOracleFactTrace = &facts;
+	OracleTraceRandom(&draws);
+	ConverseFull(npc, mercProfile, approach, record, nullptr);
+	OracleTraceRandom(nullptr);
+	gOracleFactTrace = nullptr;
+	gOracleDialogueTrace = nullptr;
+	bool const engaged = (gTacticalStatus.uiFlags & ENGAGED_IN_CONV) != 0;
+	INT32 const references = giNPCReferenceCount;
+	std::vector<std::string> factChanges, questChanges;
+	for (int f = 0; f < NUM_FACTS; ++f)
+		if (factsBefore[f] != gubFact[f]) factChanges.push_back("[" + std::to_string(f) + "," + std::to_string(factsBefore[f]) + "," + std::to_string(gubFact[f]) + "]");
+	for (int q = 0; q < MAX_QUESTS; ++q)
+		if (questsBefore[q] != gubQuest[q]) questChanges.push_back("[" + std::to_string(q) + "," + std::to_string(questsBefore[q]) + "," + std::to_string(gubQuest[q]) + "]");
+	NPCQuoteInfo const* const quotes = OracleQuoteArray(npc, false);
+	std::vector<long long> flags;
+	for (int i = 0; quotes && i < NUM_NPC_QUOTE_RECORDS; ++i) flags.push_back(quotes[i].fFlags);
+	Emit(Json{}.str("probe", "talk").num("line", c.line).num("npc", npc).num("merc", merc ? merc->ubID : -1).num("approach", approach)
+		.num("record", record).num("day", GetWorldDay()).raw("queue", DescribeDialogueTrace(dialogue)).raw("facts", DescribeFactTrace(facts))
+		.raw("draws", DescribeDraws(draws)).raw("factChanges", JsonArray(factChanges)).raw("questChanges", JsonArray(questChanges))
+		.nums("flags", flags).flag("engaged", engaged).num("references", references).raw("before", before)
+		.raw("after", DescribeNpcProfile(npc)));
+	ResetTalkProbe();
+}
+
+void ProbeQuestDecode(Command const& c)
+{
+	NPCQuoteInfo quotes[NUM_NPC_QUOTE_RECORDS]{};
+	quotes[0].usFactMustBeTrue = FACT_NONE;
+	quotes[0].usFactMustBeFalse = FACT_NONE;
+	quotes[0].ubLastDay = 255;
+	quotes[0].ubOpinionRequired = 255;
+	long long const offset = reinterpret_cast<UINT8 const*>(gubFact) - reinterpret_cast<UINT8 const*>(gubQuest);
+	UINT8 const saved = gubFact[70];
+	std::vector<std::string> results;
+	for (UINT8 const quest : {100, 200})
+	{
+		for (UINT8 const value : {0, 1, 2})
+		{
+			gubFact[70] = value;
+			quotes[0].ubQuest = quest;
+			BOOLEAN const ok = OracleNPCConsiderQuote(NO_PROFILE, NO_PROFILE, TRIGGER_NPC, 0, 0, quotes);
+			results.push_back("[" + std::to_string(quest) + "," + std::to_string(value) + "," + std::to_string(ok ? 1 : 0) + "]");
+		}
+	}
+	gubFact[70] = saved;
+	Emit(Json{}.str("probe", "questdecode").num("line", c.line).num("offset", offset).raw("results", JsonArray(results)));
+}
+
+} // namespace
+
+void OracleDialogueTrace(char const* kind, int a, int b, int c, int d)
+{
+	if (gOracleDialogueTrace) gOracleDialogueTrace->push_back({kind, a, b, c, d});
+}
+
+BOOLEAN OracleTracedCheckFact(Fact const fact, UINT8 const profile)
+{
+	++gOracleFactDepth;
+	BOOLEAN const value = CheckFact(fact, profile);
+	--gOracleFactDepth;
+	if (gOracleFactTrace && gOracleFactDepth == 0) gOracleFactTrace->push_back({fact, profile, value ? 1 : 0});
+	return value;
+}
+
+namespace {
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -4898,6 +5160,12 @@ void Dispatch(Command const& c)
 	if (c.name == "makecivhostile") return ProbeMakeCivHostile(c);
 	if (c.name == "pcattack") return ProbePcAttack(c);
 	if (c.name == "hostilelist") return ProbeHostileList(c);
+	if (c.name == "npcrecords") return DumpNpcRecords(c);
+	if (c.name == "npcprofile") return DumpNpcProfile(c);
+	if (c.name == "desire") return ProbeDesire(c);
+	if (c.name == "consider") return ProbeConsider(c);
+	if (c.name == "talk") return ProbeTalk(c);
+	if (c.name == "questdecode") return ProbeQuestDecode(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

@@ -504,6 +504,47 @@ action, result, trap?}` (`opened`, `closed`, `locked`, `failed`, `noLock`, `lock
 `unknown|none|noneFound|<trap>`); our soldiers carry `keys` (key ring: key id, count, sector and day found) and key items
 show `keyId`. Lock tables, trap levels and lock damage stay hidden.
 
+### 6.12. Conversations (M6)
+
+A conversation with a named NPC is a modal **talk session** (`docs/24` §11, `src/sim/campaign/talk-flow.ts`), built on the
+NPC record arrays (`state.npcRecords`, imported from native saves) and the dialogue queue (`src/sim/narrative/`). Commands
+(refusals in `data.refusal`, the reason reads `<code>: <text>`):
+
+- `talk {soldier, target}`: `target` is a soldier id or `{npc: <profile id or internal name>}`. Refused with `notInTactical`,
+  `promptOpen`, `shopOpen`, `sessionOpen`, `scriptedSequence`, `canAct` (the tactical refusal text), `noSuchTarget`,
+  `notTalkable`, `targetHidden`, `targetMoving`, `talkerIsRobot`, `noLineOfSight`, `targetCollapsed`, `refusesToTalk`
+  (Dimitri), `civilianBark` (unnamed civilians come later), `noPath`, `notEnoughAP` (6 AP). Talking to an own merc barks
+  (`data.bark`, a `mercQuote` event, no AP). Beyond 4 tiles the soldier walks up (`data {walking: true, to}`) and the talk
+  starts on arrival during `advance`; a target that became invalid gives `talkAborted`. Otherwise the opening runs at once.
+- `approach {kind}`: `repeat`, `friendly`, `direct`, `threaten`, `recruit`, `whoAreYou`, `buySell` (dealers: an unused
+  BUYSELL record, else the panel closes and the shop opens) or `give` (others: the panel closes, the NPC waits 10 s).
+  Refusals `noConversation`, `busy`, `unknownApproach`, `notADealer`, `isADealer`.
+- `closeTalk {}`: Done, with the once-per-conversation reset. Refusal `noConversation`, `busy`.
+- `openShop {dealer, soldier}` (campaigns with narrative): the shop's checks, then `talk` + `approach buySell`; when the
+  opening leaves no idle session or a BUYSELL record plays, the talk result is returned instead of the shop.
+
+`talk` and `approach` run their step and then the dialogue queue until it is empty, nobody talks and no trigger waits
+(tactical ticks with the world clock paused by the `ENGAGED_IN_CONV` lock and AI decisions frozen). Their `data` is
+`{conversation, lines, scriptedSequence?, shop?}`: `lines` are the quotes said during the command (`{profile, quote,
+record?, textKey, text?}`). While a session is open and idle every other command is refused with `conversationOpen`,
+`advance` returns `refused` with that refusal, and the campaign reports a pending decision (an `advance` that runs into a
+conversation opened by an NPC stops with `decision`). A **scripted sequence** (`ENGAGED_IN_CONV` without a panel, a
+pending conversation, the 500 ms trigger wait) refuses player commands with `scriptedSequence`; `advance` runs it until it
+ends or a panel opens.
+
+`observe.conversation` (and the `conversation` field of view frames) is `{npc, profile, name, talker, initiatedBy:
+player|npc, menu, lastQuotes}` with `menu` = `repeat, friendly, direct, threaten, buySell:<dealer kind>|give, recruit,
+whoAreYou`; `observe.scriptedSequence` is true during a sequence. Soldiers in sight carry `talkable: npc|epc|civilian`
+and, when profiled, `profile`. Events: `conversationOpened {npc, profile, talker, initiatedBy}`, `conversationClosed {npc,
+profile, by: player|script}`, `npcQuote {profile, soldier, quote, record?, textKey, chars}`, `mercQuote` (with `textKey`
+and `chars` for lines from the queue), `npcMessage {kind, profile?, amount?}`, `scriptedSequence {active}`,
+`talkAborted {soldier, reason}`. Facts, quests, records, desire and opinions stay hidden.
+
+The simulation only carries text keys `{file, row, width}` and lengths (12 ticks of speech per character). The session
+resolves keys to `text` in `observe`, command results and events from the EDT files of the VFS (original data, or the
+stub pack's invented lines); `GET /api/text?file=npcdata/NNN.edt&row=R&width=240` (token-protected) serves a single row.
+Saving is not offered by the API, so there is nothing to refuse during a session.
+
 ## 7. Cost and limitations
 
 - **Amount of work.**

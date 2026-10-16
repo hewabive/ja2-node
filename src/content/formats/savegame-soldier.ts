@@ -698,6 +698,8 @@ export interface SavedSoldier {
   readonly drugSideEffect: readonly number[];
   readonly inventory: readonly ObjectRecord[];
   readonly hasKeys: number;
+  readonly quoteRecord: number;
+  readonly quoteActionId: number;
   readonly attackingWeapon: number;
   readonly weaponMode: number;
   readonly doBurst: number;
@@ -837,6 +839,8 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
     drugSideEffect: r.nums('bDrugSideEffect'),
     inventory: r.objects('inv'),
     hasKeys: n('bHasKeys'),
+    quoteRecord: n('ubQuoteRecord'),
+    quoteActionId: n('ubQuoteActionID'),
     attackingWeapon: n('usAttackingWeapon'),
     weaponMode: n('bWeaponMode'),
     doBurst: n('bDoBurst'),

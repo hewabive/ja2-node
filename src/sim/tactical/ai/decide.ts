@@ -87,6 +87,7 @@ export function determineMovementMode(t: TacticalState, s: Soldier, action: numb
 
 export function setNewSituation(t: TacticalState, s: Soldier): void {
   if (s.team === Team.OUR) return;
+  if (s.quoteRecord !== 0 || (s.neutral && t.engagedInConv)) return;
   s.ai.newSituation = Situation.IS_NEW;
   if (!t.inCombat) s.ai.counter = t.clockMs + t.rng.int(NEW_SITUATION_DELAY_RANGE);
 }

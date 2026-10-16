@@ -20,6 +20,7 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
   const s = campaign.state;
   return {
     ...NO_NARRATIVE_PORT,
+    ...campaign.talk?.narrativePortHooks(),
     fact: (id) => (campaign.strategic?.world.fact(id) ?? 0) !== 0,
     setFactTrue: (id) => campaign.economy?.hooks.setFact(id),
     isEpc: (soldier) => campaign.battle?.roster.get(soldier.id)?.isEpc ?? false,

@@ -5,6 +5,7 @@ import { createLaptopState, type LaptopState } from '../campaign/laptop/laptop-s
 import { createNarrativeState, type NarrativeState } from '../campaign/narrative/facts.ts';
 import type { SectorDiff } from '../campaign/sector-diff.ts';
 import { createTeamMoraleState, type TeamMoraleState } from '../campaign/team-morale.ts';
+import { createNpcRecordState, type NpcRecordState } from '../narrative/records.ts';
 import { createKeyTable, type KeyTable } from '../tactical/doors/keys.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
 import {
@@ -65,6 +66,7 @@ export interface StrategicState {
   readonly contracts: ContractState;
   readonly laptop: LaptopState;
   readonly narrative: NarrativeState;
+  readonly npcRecords: NpcRecordState;
   readonly terrorists: TerroristState;
   readonly npcPlacements: Map<number, number>;
   readonly civGroups: CivGroupState;
@@ -132,6 +134,7 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     contracts: createContractState(),
     laptop: createLaptopState(),
     narrative: createNarrativeState(),
+    npcRecords: createNpcRecordState(),
     terrorists: { count: 0, sectors: new Map() },
     npcPlacements: new Map(),
     civGroups: options.civGroups ?? createCivGroupState(),

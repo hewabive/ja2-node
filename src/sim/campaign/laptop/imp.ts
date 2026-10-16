@@ -11,7 +11,7 @@
 // @src IMP_Confirm.cc AddCharacterToPlayersTeam, BtnIMPConfirmYes, FirstFreeBigEnoughPocket, GiveItemsToPC; CharProfile.h
 // @src COST_OF_PROFILE; externalized/policy/IMPPolicy.h IMPItemCondition. See docs/21 §4.
 
-import type { MercProfile } from '../../../content/formats/prof.ts';
+import { type MercProfile, zeroProfileNpcFields } from '../../../content/formats/prof.ts';
 import { MercType } from '../../../content/strategic/economy-content.ts';
 import type { ImpCondition, ImpItemSet, QuizEffect } from '../../../content/strategic/laptop-content.ts';
 import { i8, u8 } from '../../../core/int.ts';
@@ -406,6 +406,7 @@ export function emptyProfile(id: number): MercProfile {
     suspiciousDeath: 0,
     mercMercContractLength: 0,
     totalCostToDate: 0,
+    ...zeroProfileNpcFields(),
   };
 }
 

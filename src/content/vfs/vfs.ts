@@ -20,6 +20,7 @@ export interface VfsFileInfo {
 export class Vfs {
   readonly layers: readonly VfsLayer[];
   readonly #index = new Map<string, { info: VfsFileInfo; layer: VfsLayer }>();
+  #layerCounts: Map<string, number> | null = null;
 
   constructor(layers: readonly VfsLayer[]) {
     this.layers = layers;
@@ -32,6 +33,15 @@ export class Vfs {
 
   get size(): number {
     return this.#index.size;
+  }
+
+  layerCount(path: string): number {
+    if (!this.#layerCounts) {
+      const counts = new Map<string, number>();
+      for (const layer of this.layers) for (const e of layer.entries()) counts.set(e.path, (counts.get(e.path) ?? 0) + 1);
+      this.#layerCounts = counts;
+    }
+    return this.#layerCounts.get(normalizeVfsPath(path)) ?? 0;
   }
 
   stat(path: string): VfsFileInfo | undefined {

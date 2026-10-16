@@ -2,6 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { encodeEdtFile } from '../content/formats/edt.ts';
 import { MemoryLayer, Vfs } from '../content/vfs/vfs.ts';
 import { createApp, parseRange } from './app.ts';
 import { Session, type SessionSim } from './session.ts';
@@ -73,6 +74,19 @@ describe('server', () => {
     expect(cookie).toMatch(/ja2_token=.*HttpOnly.*SameSite=Strict/);
     const health = await withClient.request('http://localhost/api/health', { headers: { cookie: cookie.split(';')[0] ?? '' } });
     expect(health.status).toBe(200);
+  });
+
+  it('serves dialogue rows from the original or the stub layer', async () => {
+    const texts = createApp({
+      vfs: new Vfs([new MemoryLayer('stubs', [['stubs/npcdata/094.edt', encodeEdtFile(['first line', 'second line'])]])]),
+      token,
+      info: { originalData: false, slfCount: 0, stubs: true },
+    });
+    const ok = await texts.request('http://localhost/api/text?file=npcdata/094.edt&row=1', { headers: auth });
+    expect(await ok.json()).toEqual({ file: 'npcdata/094.edt', row: 1, width: 240, text: 'second line' });
+    expect((await texts.request('http://localhost/api/text?file=npcdata/094.edt&row=9', { headers: auth })).status).toBe(404);
+    expect((await texts.request('http://localhost/api/text?file=../prof.dat&row=1', { headers: auth })).status).toBe(400);
+    expect((await texts.request('http://localhost/api/text?file=npcdata/094.edt&row=1')).status).toBe(401);
   });
 
   it('parseRange', () => {

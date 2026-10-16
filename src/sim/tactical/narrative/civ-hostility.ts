@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Overhead.cc MakeCivHostile, SetSoldierNonNeutral, CivilianGroupMembersChangeSidesWithinProximity,
 // @src CivilianGroupMemberChangesSides, CivilianGroupChangesSides, HickCowAttacked, MilitiaChangesSides,
 // @src ProcessImplicationsOfPCAttack (civilian, militia and quest branches); OppList.cc AddToShouldBecomeHostileOrSayQuoteList,
-// @src SelectSpeakerFromHostileOrSayQuoteList, CheckHostileOrSayQuoteList; Handle_Doors.cc ProcessImplicationsOfPCMessingWithDoor.
+// @src SelectSpeakerFromHostileOrSayQuoteList, CheckHostileOrSayQuoteList (dialogue gating, hostile quote flag); Handle_Doors.cc ProcessImplicationsOfPCMessingWithDoor.
 // @src See docs/25 §6.2–§6.3, §8.3.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -33,6 +33,7 @@ import { QuestStatus } from './port.ts';
 const MAX_DISTANCE_VISIBLE = 26;
 const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
 const ProfileMiscFlag3 = { TOWN_DOESNT_CARE_ABOUT_DEATH: 0x40 } as const;
+const ProfileMiscFlag2 = { NEEDS_TO_SAY_HOSTILE_QUOTE: 0x10 } as const;
 const AGGRESSIVE_ATTITUDE = 5;
 
 const inSector = (t: TacticalState, sector: { readonly x: number; readonly y: number }) =>
@@ -85,13 +86,26 @@ export function addToShouldBecomeHostileOrSayQuoteList(t: TacticalState, s: Sold
   if (!t.hostileQuoteList.includes(s)) t.hostileQuoteList.push(s);
 }
 
+function markNeedsToSayHostileQuote(t: TacticalState, profile: number, on: boolean): void {
+  const p = t.profiles.get(profile);
+  if (!p) return;
+  if (on) p.miscFlags2 |= ProfileMiscFlag2.NEEDS_TO_SAY_HOSTILE_QUOTE;
+  else p.miscFlags2 &= ~ProfileMiscFlag2.NEEDS_TO_SAY_HOSTILE_QUOTE;
+}
+
 function selectSpeaker(t: TacticalState): Soldier | null {
-  const speakers = t.hostileQuoteList.filter((s) => s.profile !== NO_PROFILE && t.narrative.hasUnusedHostileRecord(s.profile));
+  const speakers: Soldier[] = [];
+  for (const s of t.hostileQuoteList) {
+    if (s.profile === NO_PROFILE) continue;
+    markNeedsToSayHostileQuote(t, s.profile, true);
+    if (t.narrative.hasUnusedHostileRecord(s.profile)) speakers.push(s);
+    else markNeedsToSayHostileQuote(t, s.profile, false);
+  }
   return speakers.length === 0 ? null : (speakers[t.rng.int(speakers.length)] ?? null);
 }
 
 export function checkHostileOrSayQuoteList(t: TacticalState): void {
-  if (t.hostileQuoteList.length === 0) return;
+  if (t.hostileQuoteList.length === 0 || t.narrative.dialogueBusy()) return;
   const speaker = selectSpeaker(t);
   if (speaker) {
     t.narrative.sayHostileQuote(speaker);

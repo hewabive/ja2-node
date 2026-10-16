@@ -27,13 +27,14 @@ const defaultSession = 'sandbox';
 const readVfs = async (path: string): Promise<Uint8Array | null> => (data.vfs.stat(path) ? data.vfs.read(path) : null);
 const savesDir = process.env.JA2_SAVES_DIR || (data.dataDir ? join(dirname(data.dataDir), 'SavedGames') : null);
 const exists = (path: string) => data.vfs.stat(path) !== undefined;
+const layers = (path: string) => data.vfs.layerCount(path);
 const createSession = async (id: string, request: SessionRequest): Promise<Session> => {
-  if (request.campaign) return new Session(id, await createCampaignSession(readVfs, exists, request.seed, request.campaign));
+  if (request.campaign) return new Session(id, await createCampaignSession(readVfs, exists, request.seed, request.campaign, layers));
   if (!request.save) return new Session(id, await createSandboxSession(readVfs, data.dataDir !== null, request.seed));
   if (!savesDir || data.dataDir === null) throw new Error('savegames need the original data (JA2_DATA_DIR)');
   if (!SAVE_NAME.test(request.save)) throw new Error(`invalid save name ${request.save}`);
   const bytes = new Uint8Array(await readFile(join(savesDir, `${request.save}.sav`)));
-  return new Session(id, (await createSaveSession(readVfs, bytes, request.seed, exists)).session);
+  return new Session(id, (await createSaveSession(readVfs, bytes, request.seed, exists, layers)).session);
 };
 try {
   const seed = Number(process.env.JA2_SEED ?? 1);

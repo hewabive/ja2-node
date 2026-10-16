@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { compress } from 'hono/compress';
 import { getCookie, setCookie } from 'hono/cookie';
 import { createMiddleware } from 'hono/factory';
+import { DIALOGUE_SIZE, decodeEdtRow } from '../content/formats/edt.ts';
 import { vfsExtension } from '../content/vfs/path.ts';
 import { type Vfs, VfsNotFoundError } from '../content/vfs/vfs.ts';
 import { handleMcpRequest } from './mcp.ts';
@@ -31,6 +32,10 @@ export interface AppOptions {
 export const TOKEN_COOKIE = 'ja2_token';
 
 const DEFAULT_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
+const TEXT_FILE = /^(npcdata|mercedt)\/[a-z0-9_]{1,16}\.edt$/i;
+const STUB_TEXT_PREFIX = 'stubs/';
+const MAX_TEXT_ROW = 4096;
+const MAX_TEXT_WIDTH = 1024;
 
 const MIME: Record<string, string> = {
   json: 'application/json',
@@ -120,6 +125,20 @@ export function createApp(options: AppOptions): Hono {
       return [f.path, f.size, i] as const;
     });
     return c.json({ layers, files });
+  });
+
+  app.get('/api/text', async (c) => {
+    const file = c.req.query('file') ?? '';
+    const row = Number(c.req.query('row'));
+    const width = Number(c.req.query('width') ?? DIALOGUE_SIZE);
+    if (!TEXT_FILE.test(file)) return c.json({ error: 'file must be npcdata/*.edt or mercedt/*.edt' }, 400);
+    if (!Number.isInteger(row) || row < 0 || row > MAX_TEXT_ROW) return c.json({ error: 'row must be a non-negative integer' }, 400);
+    if (!Number.isInteger(width) || width < 2 || width > MAX_TEXT_WIDTH) return c.json({ error: 'width must be an integer' }, 400);
+    const path = vfs.stat(file) ? file : vfs.stat(`${STUB_TEXT_PREFIX}${file}`) ? `${STUB_TEXT_PREFIX}${file}` : null;
+    if (!path) return c.json({ error: `not found: ${file}` }, 404);
+    const text = decodeEdtRow(await vfs.read(path), row, width);
+    if (text === null) return c.json({ error: `no row ${row} in ${file}` }, 404);
+    return c.json({ file, row, width, text });
   });
 
   app.get('/api/sessions', (c) => c.json([...(options.sessions?.values() ?? [])].map(describeSession)));

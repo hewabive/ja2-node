@@ -240,6 +240,7 @@ export interface TacticalState {
   readonly keyTable: KeyTable;
   readonly civGroups: CivGroupState;
   readonly hostileQuoteList: Soldier[];
+  engagedInConv: boolean;
 }
 
 export interface SharedCampaignState {
@@ -339,6 +340,7 @@ export function createTacticalState(
     keyTable: shared.keyTable ?? createKeyTable(),
     civGroups: shared.civGroups ?? createCivGroupState(),
     hostileQuoteList: [],
+    engagedInConv: false,
   };
 }
 

@@ -194,6 +194,17 @@ export class ShopFlow {
   }
 
   #open(cmd: CampaignCommand): CommandResult {
+    const { merc, def, dealer } = this.#validateOpen(cmd, true);
+    const t = this.#t as TacticalState;
+    deductPoints(t.inCombat, merc, AP_TALK, 0);
+    const facing = directionToward(merc.gridNo, dealer.gridNo);
+    setDesiredDirection(t, merc, facing);
+    setDesiredDirection(t, dealer, (facing + OPPOSITE) % DIRECTIONS);
+    stopMerc(t, merc);
+    return this.#begin(def, dealer, merc);
+  }
+
+  #validateOpen(cmd: CampaignCommand, withScriptHooks: boolean): { merc: Soldier; def: DealerDef; dealer: Soldier } {
     if (this.#session) refuse('a shop is already open');
     const campaign = this.#campaign;
     const tactical = campaign.tactical;
@@ -220,13 +231,32 @@ export class ShopFlow {
     const interaction = this.#interactionRefusal(merc, dealer);
     if (interaction) refuse(interaction);
     if (!enoughPoints(t.inCombat, merc, AP_TALK)) refuse('notEnoughAP');
-    if (ctx.hooks.buySellRecordPending(def.profile)) refuse('npcWantsToTalk');
-    if (ctx.hooks.shopClosedByScript(def.profile)) refuse('shopClosedByScript');
-    deductPoints(t.inCombat, merc, AP_TALK, 0);
-    const facing = directionToward(merc.gridNo, dealer.gridNo);
-    setDesiredDirection(t, merc, facing);
-    setDesiredDirection(t, dealer, (facing + OPPOSITE) % DIRECTIONS);
-    stopMerc(t, merc);
+    if (withScriptHooks && ctx.hooks.buySellRecordPending(def.profile)) refuse('npcWantsToTalk');
+    if (withScriptHooks && ctx.hooks.shopClosedByScript(def.profile)) refuse('shopClosedByScript');
+    return { merc, def, dealer };
+  }
+
+  checkOpen(cmd: CampaignCommand): CommandResult | { readonly merc: Soldier; readonly dealer: Soldier } {
+    try {
+      const { merc, dealer } = this.#validateOpen(cmd, false);
+      return { merc, dealer };
+    } catch (e) {
+      if (e instanceof Refusal) return { ok: false, reason: e.message, ...(e.data ? { data: e.data } : {}) };
+      throw e;
+    }
+  }
+
+  openFromTalk(dealerProfile: number, soldier: number): CommandResult {
+    const def = this.#ctx.content.dealers.find((d) => d.profile === dealerProfile);
+    const dealer = this.dealerSoldier(dealerProfile);
+    const merc = this.#t?.soldiers[soldier] ?? null;
+    if (this.#session || !def || !dealer || !merc) return { ok: false, reason: 'shopUnavailable' };
+    this.#selectSquadOf(merc);
+    return this.#begin(def, dealer, merc);
+  }
+
+  #begin(def: DealerDef, dealer: Soldier, merc: Soldier): CommandResult {
+    const ctx = this.#ctx;
     this.#session = { dealer: def.id, dealerSoldier: dealer.id, selected: merc.id, pricing: merc.id, boxes: [], businessDone: false };
     this.#emit({ type: 'shopOpened', dealer: def.profile, soldier: merc.id });
     const delayed = doesDealerDoRepairs(ctx, def.id) && handlePossibleRepairDelays(ctx, def.id);

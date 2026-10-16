@@ -4,6 +4,7 @@
 // @src values; Soldier_Profile.cc InitProfileFromContent (the relation counters)
 
 import type { MercProfile } from '../../content/formats/prof.ts';
+import type { SavedMercProfile } from '../../content/formats/savegame-profile.ts';
 
 const STAT_CHANGE_COUNTERS = 12;
 const INITIAL_HATED_COUNTERS = 2;
@@ -62,7 +63,38 @@ export const STAT_KEYS: Readonly<Record<number, StatKey>> = {
   [StatKind.LEADERSHIP]: 'leadership',
 };
 
-export interface ProfileProgress {
+export interface ProfileSector {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface NpcProfileFields {
+  town: number;
+  townAttachment: number;
+  money: number;
+  miscFlags2: number;
+  readonly approachFactor: readonly number[];
+  readonly approachVal: number[];
+  readonly approachMod: readonly (readonly number[])[];
+  approached: number;
+  lastDateSpokenTo: number;
+  lastQuoteSaid: number;
+  lastQuoteSaidWasSpecial: boolean;
+  friendlyOrDirectDefaultResponseUsedRecently: number;
+  recruitDefaultResponseUsedRecently: number;
+  threatenDefaultResponseUsedRecently: number;
+  npcData: number;
+  npcData2: number;
+  quoteRecord: number;
+  quoteActionId: number;
+  useProfileInsertion: boolean;
+  insertionCode: number;
+  insertionData: number;
+  sector: ProfileSector;
+}
+
+export interface ProfileProgress extends NpcProfileFields {
   readonly id: number;
   readonly evolution: number;
   readonly attitude: number;
@@ -136,8 +168,36 @@ export interface SavedProfileCounters {
 
 const NO_COUNTERS: SavedProfileCounters = { kills: 0, assists: 0, shotsFired: 0, shotsHit: 0, timesWounded: 0 };
 
+export function npcFieldsFromProfile(p: MercProfile | SavedMercProfile): NpcProfileFields {
+  return {
+    town: p.town,
+    townAttachment: p.townAttachment,
+    money: p.money,
+    miscFlags2: p.miscFlags2,
+    approachFactor: [...p.approachFactor],
+    approachVal: [...p.approachVal],
+    approachMod: p.approachMod.map((row) => [...row]),
+    approached: p.approached,
+    lastDateSpokenTo: p.lastDateSpokenTo,
+    lastQuoteSaid: p.lastQuoteSaid,
+    lastQuoteSaidWasSpecial: p.lastQuoteSaidWasSpecial,
+    friendlyOrDirectDefaultResponseUsedRecently: p.friendlyOrDirectDefaultResponseUsedRecently,
+    recruitDefaultResponseUsedRecently: p.recruitDefaultResponseUsedRecently,
+    threatenDefaultResponseUsedRecently: p.threatenDefaultResponseUsedRecently,
+    npcData: p.npcData,
+    npcData2: p.npcData2,
+    quoteRecord: p.quoteRecord,
+    quoteActionId: p.quoteActionId,
+    useProfileInsertion: p.useProfileInsertion,
+    insertionCode: p.insertionCode,
+    insertionData: p.insertionData,
+    sector: { x: p.sectorX, y: p.sectorY, z: 'sectorZ' in p ? p.sectorZ : 0 },
+  };
+}
+
 export function progressFromProfile(p: MercProfile, counters: SavedProfileCounters = NO_COUNTERS, saved = false): ProfileProgress {
   return {
+    ...npcFieldsFromProfile(p),
     id: p.id,
     evolution: p.evolution,
     attitude: p.attitude,
@@ -251,41 +311,74 @@ export function noRelations(): Pick<
   };
 }
 
-export type CampaignProfileFields = Pick<
-  ProfileProgress,
-  | 'sex'
-  | 'personalityTrait'
-  | 'skillTrait'
-  | 'skillTrait2'
-  | 'deathRate'
-  | 'reputationTolerance'
-  | 'medicalDeposit'
-  | 'mercStatus'
-  | 'dayBecomesAvailable'
-  | 'salary'
-  | 'weeklySalary'
-  | 'biWeeklySalary'
-  | 'medicalDepositAmount'
-  | 'optionalGearCost'
-  | 'mainGunAttractiveness'
-  | 'armourAttractiveness'
-  | 'totalDaysServed'
-  | 'miscFlags'
-  | 'miscFlags3'
-  | 'daysOfMoraleHangover'
-  | 'precedentQuoteSaid'
-  | 'balance'
-  | 'mercMercContractLength'
-  | 'suspiciousDeath'
-  | 'inventory'
-  | 'inventoryStatus'
-  | 'inventoryCount'
->;
+export type CampaignProfileFields = NpcProfileFields &
+  Pick<
+    ProfileProgress,
+    | 'sex'
+    | 'personalityTrait'
+    | 'skillTrait'
+    | 'skillTrait2'
+    | 'deathRate'
+    | 'reputationTolerance'
+    | 'medicalDeposit'
+    | 'mercStatus'
+    | 'dayBecomesAvailable'
+    | 'salary'
+    | 'weeklySalary'
+    | 'biWeeklySalary'
+    | 'medicalDepositAmount'
+    | 'optionalGearCost'
+    | 'mainGunAttractiveness'
+    | 'armourAttractiveness'
+    | 'totalDaysServed'
+    | 'miscFlags'
+    | 'miscFlags3'
+    | 'daysOfMoraleHangover'
+    | 'precedentQuoteSaid'
+    | 'balance'
+    | 'mercMercContractLength'
+    | 'suspiciousDeath'
+    | 'inventory'
+    | 'inventoryStatus'
+    | 'inventoryCount'
+  >;
 
 const NO_ATTRACTIVENESS = -1;
 
+const NO_QUOTE = 255;
+const NUM_REAL_APPROACHES = 4;
+const NUM_APPROACH_MOD_ROWS = 3;
+
+export function noNpcFields(): NpcProfileFields {
+  return {
+    town: 0,
+    townAttachment: 0,
+    money: 0,
+    miscFlags2: 0,
+    approachFactor: new Array<number>(NUM_REAL_APPROACHES).fill(0),
+    approachVal: new Array<number>(NUM_REAL_APPROACHES).fill(0),
+    approachMod: Array.from({ length: NUM_APPROACH_MOD_ROWS }, () => new Array<number>(NUM_REAL_APPROACHES).fill(0)),
+    approached: 0,
+    lastDateSpokenTo: 0,
+    lastQuoteSaid: NO_QUOTE,
+    lastQuoteSaidWasSpecial: false,
+    friendlyOrDirectDefaultResponseUsedRecently: 0,
+    recruitDefaultResponseUsedRecently: 0,
+    threatenDefaultResponseUsedRecently: 0,
+    npcData: 0,
+    npcData2: 0,
+    quoteRecord: 0,
+    quoteActionId: 0,
+    useProfileInsertion: false,
+    insertionCode: 0,
+    insertionData: 0,
+    sector: { x: 0, y: 0, z: 0 },
+  };
+}
+
 export function noCampaignFields(): CampaignProfileFields {
   return {
+    ...noNpcFields(),
     sex: 0,
     personalityTrait: 0,
     skillTrait: 0,

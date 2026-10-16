@@ -288,6 +288,34 @@
         "leadership": 33,
         "experience": 3
       }
+    },
+    {
+      "id": 94,
+      "name": "Teodor Vasko",
+      "nickname": "Vasko",
+      "bodyType": 1,
+      "sector": "A10",
+      "palettes": { "hair": "WHITEHEAD", "skin": "PINKSKIN", "vest": "BROWNVEST", "pants": "JEANPANTS" },
+      "stats": {
+        "life": 70,
+        "lifeMax": 70,
+        "strength": 62,
+        "agility": 48,
+        "dexterity": 55,
+        "wisdom": 81,
+        "marksmanship": 30,
+        "medical": 25,
+        "mechanical": 40,
+        "explosives": 10,
+        "leadership": 52,
+        "experience": 3
+      },
+      "dialogue": [
+        { "approach": "FRIENDLY", "desireToTalk": 50, "friendlyMod": 110, "directMod": 100, "threatenMod": 60 },
+        { "approach": "DIRECT", "desireToTalk": 45, "friendlyMod": 100, "directMod": 100, "threatenMod": 80 },
+        { "approach": "THREATEN", "desireToTalk": 20, "friendlyMod": 90, "directMod": 100, "threatenMod": 120 },
+        { "approach": "RECRUIT", "desireToTalk": 10 }
+      ]
     }
   ]
 }

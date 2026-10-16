@@ -339,6 +339,7 @@ export interface Soldier {
   pendingDoorGridNo: number;
   doorHandleCode: number;
   pendingDoorAction: PendingDoorAction | null;
+  pendingTalk: number | null;
   keyRing: KeyOnRing[] | null;
   breathCollapsed: boolean;
   collapsed: boolean;
@@ -456,6 +457,8 @@ export interface Soldier {
   preTraversalGridNo: number;
   waitActionToDo: number;
   quoteActionId: number;
+  quoteRecord: number;
+  timeSinceLastSpoke: number;
   offWorldGridNo: number;
   militiaKills: number;
   offMap: boolean;
@@ -603,6 +606,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     pendingDoorGridNo: NOWHERE,
     doorHandleCode: 0,
     pendingDoorAction: null,
+    pendingTalk: null,
     keyRing: init.team === Team.OUR ? newKeyRing() : null,
     breathCollapsed: false,
     collapsed: false,
@@ -753,6 +757,8 @@ export function createSoldier(init: SoldierInit): Soldier {
     preTraversalGridNo: NOWHERE,
     waitActionToDo: 0,
     quoteActionId: 0,
+    quoteRecord: 0,
+    timeSinceLastSpoke: 0,
     offWorldGridNo: NOWHERE,
     militiaKills: 0,
     offMap: false,
