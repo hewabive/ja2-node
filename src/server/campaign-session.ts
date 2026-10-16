@@ -23,7 +23,7 @@ function withMerchantLabels(campaign: CampaignSim, soldiers: readonly SoldierVie
     const s = t.soldiers[v.id];
     if (!s || s.team === Team.OUR) return v;
     const label = shop.merchantLabel(s.profile);
-    return label ? { ...v, merchant: label } : v;
+    return label ? { ...v, merchant: label, profile: s.profile } : v;
   });
 }
 

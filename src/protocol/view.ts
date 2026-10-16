@@ -1,6 +1,8 @@
 import type { ShopView } from '../sim/strategic/economy/merchants/view.ts';
+import { type InventoryItemView, sameInventory } from '../sim/tactical/inventory-view.ts';
 
 export type { ShopBoxView, ShopEta, ShopKind, ShopView } from '../sim/strategic/economy/merchants/view.ts';
+export type { InventoryItemView } from '../sim/tactical/inventory-view.ts';
 
 export interface SoldierView {
   readonly id: number;
@@ -20,7 +22,9 @@ export interface SoldierView {
   readonly life?: number;
   readonly lifeMax?: number;
   readonly breath?: number;
+  readonly inventory?: readonly InventoryItemView[];
   readonly merchant?: string;
+  readonly profile?: number;
 }
 
 export interface ItemView {
@@ -332,7 +336,9 @@ function sameSoldier(a: SoldierView, b: SoldierView): boolean {
     a.life === b.life &&
     a.lifeMax === b.lifeMax &&
     a.breath === b.breath &&
-    a.merchant === b.merchant
+    a.merchant === b.merchant &&
+    a.profile === b.profile &&
+    sameInventory(a.inventory, b.inventory)
   );
 }
 

@@ -1,1 +1,8 @@
 .info { position: absolute; left: 8px; bottom: 8px; padding: 4px 8px; background: rgb(0 0 0 / 70%); font: 12px ui-monospace, monospace; pointer-events: none; white-space: pre; }
+.shop { position: absolute; right: 8px; top: 8px; max-height: calc(100% - 16px); overflow-y: auto; width: min(420px, calc(100% - 16px)); padding: 8px 12px; background: rgb(0 0 0 / 85%); font: 12px ui-monospace, monospace; }
+.shop h2, .shop h3 { margin: 4px 0; font-size: 13px; }
+.shop table { width: 100%; border-collapse: collapse; }
+.shop td { padding: 2px 4px; }
+.shop .actions { margin-top: 6px; }
+.shop-result { margin-top: 4px; white-space: pre-wrap; }
+.shop-result.error { color: #f88; }

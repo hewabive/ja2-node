@@ -58,6 +58,7 @@ import { calcMaxTossRange, calcThrownChanceToHit, throwOpcode } from './explosio
 import { calculateLaunchItemChanceToGetThrough } from './explosions/trajectory.ts';
 import { dequeueAllGameEvents } from './game-events.ts';
 import { InvSlot, itemIn } from './inventory.ts';
+import { type InventoryItemView, inventoryView } from './inventory-view.ts';
 import { handlePendingPickupOnArrival, itemOpcode, pickupCandidates, soldierDropItem, soldierPickupItem } from './item-actions.ts';
 import {
   initLighting,
@@ -108,6 +109,7 @@ export interface SoldierSnapshot {
   readonly life?: number;
   readonly lifeMax?: number;
   readonly breath?: number;
+  readonly inventory?: readonly InventoryItemView[];
 }
 
 export interface CombatSnapshot {
@@ -681,7 +683,15 @@ export class TacticalSim {
         frame: s.frame,
         palettes: [s.palettes.hair, s.palettes.skin, s.palettes.vest, s.palettes.pants] as const,
         hand: handClass(this.state.content.items, itemIn(s.inv, InvSlot.HAND)),
-        ...(s.team === Team.OUR ? { ap: s.actionPoints, life: s.life, lifeMax: s.lifeMax, breath: s.breath } : {}),
+        ...(s.team === Team.OUR
+          ? {
+              ap: s.actionPoints,
+              life: s.life,
+              lifeMax: s.lifeMax,
+              breath: s.breath,
+              inventory: inventoryView(this.state.content.items, s.inv),
+            }
+          : {}),
       }));
   }
 

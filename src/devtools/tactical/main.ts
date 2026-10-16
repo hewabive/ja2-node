@@ -23,6 +23,7 @@ import { fetchVfsList } from '../asset-browser/api.ts';
 import { Radar } from '../map-viewer/radar.ts';
 import { type LoadedWorld, loadWorld } from '../map-viewer/world-loader.ts';
 import { SessionClient } from '../net/session-client.ts';
+import { nearestMerchant, ShopPanel } from './shop-panel.ts';
 import { SoldierAssets } from './soldier-assets.ts';
 
 interface TacticalHook {
@@ -71,6 +72,8 @@ const canvas = el<HTMLCanvasElement>('canvas');
 const status = el('status');
 const info = el('info');
 const roofs = el<HTMLInputElement>('roofs');
+const tradeButton = el<HTMLButtonElement>('trade');
+const shopPanel = new ShopPanel((cmd) => client?.command(cmd) ?? Promise.resolve({ ok: false, reason: 'not connected' }));
 const gl = createContext(canvas, { depth: true, preserveDrawingBuffer: true });
 const renderer = new SpriteRenderer(gl);
 const sprites = new SoldierSprites(gl);
@@ -203,6 +206,8 @@ function render(): void {
   renderer.end(canvas.width, canvas.height, null);
   radar.drawViewport(options);
   info.textContent = describe();
+  shopPanel.update(client?.shop ?? null, soldiers());
+  tradeButton.disabled = !!client?.shop || !nearestMerchant(soldiers(), sel);
 }
 
 function driverLabel(): string {
@@ -307,6 +312,16 @@ el<HTMLButtonElement>('skip').addEventListener('click', () => client?.skipToLate
 el<HTMLButtonElement>('endTurn').addEventListener('click', () => {
   void client?.command({ type: 'endTurn' }).then((r) => {
     debug.lastResult = r.ok ? 'turn ended' : `end turn: ${r.reason ?? 'refused'}`;
+  });
+});
+tradeButton.addEventListener('click', () => {
+  const merchant = nearestMerchant(
+    soldiers(),
+    soldiers().find((s) => s.id === selected),
+  );
+  if (!merchant || selected === null || !client) return;
+  void client.command({ type: 'openShop', dealer: merchant.profile, soldier: selected }).then((r) => {
+    debug.lastResult = r.ok ? `shop of ${merchant.name} open` : `trade: ${r.reason ?? 'refused'}`;
   });
 });
 el<HTMLButtonElement>('idle').addEventListener('click', () => {

@@ -52,7 +52,7 @@ export function buildMcpServer(sessions: Map<string, Session>, defaultSession: s
     'observe',
     {
       description:
-        'What the player can see right now: own soldiers (with AP, life and breath) and the others the squad sees, with gridNo, level, sub-tile position, direction and animation; open doors; items the squad has seen on the ground; in turn-based combat whose turn it is, the round and whether an interrupt is open; in a campaign also the clock, strategic map, open prompt (contract prompts in contractPrompt), autoresolve battle and open shop; strategic mercs show their contract, morale, days served and cost (merchant NPCs carry merchant: buySell|buy|sell|repair).',
+        'What the player can see right now: own soldiers (with AP, life, breath and inventory: slot 0-18, item, index, count, per-object status (rounds for magazines), loaded ammo, attachments, money) and the others the squad sees, with gridNo, level, sub-tile position, direction and animation; open doors; items the squad has seen on the ground; in turn-based combat whose turn it is, the round and whether an interrupt is open; in a campaign also the clock, strategic map, open prompt (contract prompts in contractPrompt), autoresolve battle and open shop; strategic mercs show their contract, morale, days served and cost (merchant NPCs carry merchant: buySell|buy|sell|repair).',
       inputSchema: sessionArg,
     },
     async ({ session }) => text(pick(session).sim.view()),
