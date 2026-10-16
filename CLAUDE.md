@@ -52,6 +52,7 @@ The simulation is server-side (Node), the browser is a client, agents play throu
 - `docs/15`–`19` (M4 specs): strategic time, map and movement, strategic AI, towns and assignments, PBI and autoresolve.
 - `docs/20`: tactical lighting (light sprites, true light level).
 - `docs/21`–`23` (M5 specs): laptop and hiring, contracts and relationships, merchants.
+- `docs/24`–`26` (M6 specs): NPCs and dialogue, quests/facts/NPC actions/schedules, meanwhiles and the ending.
 - `docs/deviations.md`: every deliberate difference from the original; add to it when diverging.
 - `docs/02-mechanics-catalog.md`, `docs/03-logic-animation-coupling.md`: formulas and engine
   behaviour with `file:line` references into `reference/stracciatella`.
