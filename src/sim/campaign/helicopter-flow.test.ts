@@ -6,9 +6,11 @@ import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { strategicIndex } from '../../content/strategic/sector-ids.ts';
 import { strategicView } from '../../server/strategic-view.ts';
 import type { SimEvent } from '../events.ts';
+import { Meanwhile } from '../strategic/ai/constants.ts';
 import { Assignment } from '../strategic/forces/constants.ts';
 import { SKYRIDER, setUpHelicopterForPlayer } from '../strategic/forces/helicopter.ts';
-import { CompressMode } from '../strategic/time/constants.ts';
+import { CompressMode, EventKind } from '../strategic/time/constants.ts';
+import { addStrategicEventUsingSeconds } from '../strategic/time/event-queue.ts';
 import { isTimeBeingCompressed } from '../strategic/time/world-clock.ts';
 import { type ProfileProgress, progressFromProfile } from '../tactical/profiles.ts';
 import type { CampaignSim } from './campaign-sim.ts';
@@ -116,6 +118,22 @@ describe('the helicopter commands', () => {
       expect(strategicView(c)?.helicopter).toMatchObject({ canFly: false, reason: 'skyriderOwed', owed: 60 });
       expect(refusalOf(c.dispatch({ type: 'heliRoute', to: 'A9' }))).toBe('skyriderOwed');
       expect(refusalOf(c.dispatch({ type: 'boardVehicle', soldier: 1, vehicle: 'helicopter' }))).toBe('notAccessible');
+    },
+    TIMEOUT_MS,
+  );
+});
+
+describe('the kill-chopper meanwhile', () => {
+  it(
+    'is pending for the strategic layer only in its own second, as AreInMeanwhile reports it',
+    () => {
+      const c = landedCampaign();
+      const world = c.strategic?.world;
+      expect(world?.inMeanwhile()).toBe(false);
+      addStrategicEventUsingSeconds(c.state.queue, EventKind.MEANWHILE, c.state.clock.seconds + 60, Meanwhile.KILL_CHOPPER);
+      expect(world?.inMeanwhile()).toBe(false);
+      addStrategicEventUsingSeconds(c.state.queue, EventKind.MEANWHILE, c.state.clock.seconds, Meanwhile.KILL_CHOPPER);
+      expect(world?.inMeanwhile()).toBe(true);
     },
     TIMEOUT_MS,
   );

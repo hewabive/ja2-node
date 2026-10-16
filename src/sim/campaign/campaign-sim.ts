@@ -5,7 +5,7 @@ import type { SimEvent } from '../events.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
 import type { QueenContext, QueenContextOptions } from '../strategic/ai/context.ts';
 import { queenEconomyHooks, queenEconomySlots, queenMineIncome } from '../strategic/ai/economy-link.ts';
-import { meanwhileScheduled, scheduleMeanwhileEvent } from '../strategic/ai/meanwhile.ts';
+import { meanwhilePendingThisSecond, meanwhileScheduled, scheduleMeanwhileEvent } from '../strategic/ai/meanwhile.ts';
 import { registerStrategicAiEvents, StrategicAi } from '../strategic/ai/strategic-ai.ts';
 import { createEconomyContext, type EconomySetup, economyWorldPort } from '../strategic/economy/context.ts';
 import { createMerchantContext, type MerchantContext, type MerchantSetup } from '../strategic/economy/merchants/context.ts';
@@ -121,7 +121,7 @@ export class CampaignSim {
     this.strategic = hooks.strategic
       ? createStrategicContext({
           ...hooks.strategic,
-          ...this.#helicopterPorts(this.#sectorPorts(this.#economyPorts())),
+          ...this.#meanwhilePorts(this.#helicopterPorts(this.#sectorPorts(this.#economyPorts()))),
           ...(ai ? { ai } : {}),
           state,
           clock: this.#clock,
@@ -251,6 +251,11 @@ export class CampaignSim {
   #helicopterPorts(ports: Pick<StrategicSetup, 'mercs' | 'world'>): Pick<StrategicSetup, 'mercs' | 'world' | 'helicopter'> {
     const base = ports.world ?? this.#hooks.strategic?.world ?? defaultTacticalWorldPort;
     return { ...ports, world: this.helicopter.worldPort(base), helicopter: this.helicopter.port() };
+  }
+
+  #meanwhilePorts<P extends Pick<StrategicSetup, 'world'>>(ports: P): P {
+    const base = ports.world ?? this.#hooks.strategic?.world ?? defaultTacticalWorldPort;
+    return { ...ports, world: { ...base, inMeanwhile: () => (this.queen ? meanwhilePendingThisSecond(this.queen) : base.inMeanwhile()) } };
   }
 
   #sectorPorts(ports: Pick<StrategicSetup, 'mercs' | 'world'>): Pick<StrategicSetup, 'mercs' | 'world'> {

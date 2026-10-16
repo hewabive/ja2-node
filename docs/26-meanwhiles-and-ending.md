@@ -151,8 +151,9 @@ BeginMeanwhile(id); InterruptTime()
 - **Precedence** (`AreInMeanwhile`, `:417-437`): false during a tactical traversal; true while in a scene; otherwise true
   if the event queue's **head** events at exactly the current second include a `MEANWHILE` (the walk stops at the first
   event with another stamp). Readers: group arrivals are delayed by 1 minute instead of 3–5 (`Strategic/Strategic_Movement.cc:1120-1136`,
-  `16` §3.9), and `SetThisSectorAsPlayerControlled` refuses to change control (`Player_Command.cc:64-67`). Exists:
-  `meanwhilePendingThisSecond` (`meanwhile.ts:82-91`) behind `world.inMeanwhile()`.
+  `16` §3.9), and `SetThisSectorAsPlayerControlled` refuses to change control (`Player_Command.cc:64-67`). The campaign's
+  world port answers `inMeanwhile()` with `meanwhilePendingThisSecond` (`meanwhile.ts`); scenes are skipped, so the
+  in-scene case never holds.
 
 ### 1.5 The box (`CheckForMeanwhileOKStart`, `:237-274`; `BringupMeanwhileBox`, `:227-235`)
 
