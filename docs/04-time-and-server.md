@@ -504,6 +504,18 @@ action, result, trap?}` (`opened`, `closed`, `locked`, `failed`, `noLock`, `lock
 `unknown|none|noneFound|<trap>`); our soldiers carry `keys` (key ring: key id, count, sector and day found) and key items
 show `keyId`. Lock tables, trap levels and lock damage stay hidden.
 
+### 6.11. Quests and NPC presence (M6)
+
+Facts and quests are hidden state (`docs/25` §13.4): the player sees quests only as history lines. The strategic view
+(`observe.strategic` and the `strategic` field of view frames) carries `quests`: one entry per quest that has a
+"quest started" or "quest finished" history line, `{id, quest, started, finished}` with the quest's internal name
+(`DELIVER_LETTER`, `KILL_TERRORISTS`, ...) and each step as `{minute, sector}` (`sector` is null for "n/a"); a quest
+started or ended without history (Alma's skip, a silent restart) does not appear. Events: `questStarted` and
+`questFinished` `{quest, id, sector}`, emitted together with the `historyAdded` line. A new game starts with the
+accepted assignment and `DELIVER_LETTER` in the history (day 1, 01:00). Profile NPCs exist only as their campaign
+profile's sector until a sector loads; their whereabouts, `npcData`, balances and the 04:00 moves are never shown
+(`npcMoved` is not an event). Native saves import the facts, quests and the narrative globals of the general info.
+
 ## 7. Cost and limitations
 
 - **Amount of work.**

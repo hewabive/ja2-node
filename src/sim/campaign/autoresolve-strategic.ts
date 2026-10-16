@@ -49,6 +49,7 @@ import {
   tacticalCreateMilitiaForAutoresolve,
 } from '../tactical/creation-basic.ts';
 import { createEquipmentState, sharedWeaponsDropped } from '../tactical/equipment.ts';
+import { PlacementVerdict } from '../tactical/narrative/placement.ts';
 import type { Soldier } from '../tactical/soldier.ts';
 import { Body, SoldierClass } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
@@ -124,7 +125,8 @@ export function autoresolveCreation(ctx: ArStrategicContext, sector: Sector, str
       locationModifier: locationModifier(townId, sector),
       autoResolveActive: true,
       profileHere: () => false,
-      civilianWithheld: () => false,
+      iceCreamTruckWithheld: () => false,
+      civilianPlacement: () => PlacementVerdict.CREATE,
     },
   };
 }

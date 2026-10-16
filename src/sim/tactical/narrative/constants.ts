@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Overhead_Types.h CIV_GROUP_* hostility; Strategic/Quests.h IN_BROTHEL, IN_BROTHEL_GUARD_ROOM,
-// @src QUEST_RESCUE_MARIA, QUEST_FREE_DYNAMO, QUEST_KINGPIN_MONEY; Strategic/Facts.h; Boxing.h BOXING_SECTOR_*;
+// @src src/game/Tactical/Overhead_Types.h CIV_GROUP_* hostility; Strategic/Quests.h IN_BROTHEL, IN_BROTHEL_GUARD_ROOM;
+// @src Boxing.h BOXING_SECTOR_*;
 // @src Map_Screen_Interface_Map.h TIXA_SECTOR_*; Strategic_Town_Loyalty.h; externalized mercs-profile-info.json. See docs/25 §6.
 
 export const NUM_CIV_GROUPS = 20;
@@ -70,29 +70,6 @@ export const REBEL_SYMPATHIZERS: ReadonlySet<number> = new Set([
   Profile.DYNAMO,
   Profile.SHANK,
 ]);
-
-export const Quest = { KINGPIN_MONEY: 4, RESCUE_MARIA: 6, FREE_DYNAMO: 18, FREE_CHILDREN: 20 } as const;
-
-export const Fact = {
-  PLAYER_FOUND_ITEMS_MISSING: 36,
-  PABLO_PUNISHED_BY_PLAYER: 37,
-  FACT_38: 38,
-  DOREEN_HAD_CHANGE_OF_HEART: 63,
-  BRENDA_DEAD: 79,
-  MARIA_ESCORTED_AT_LEATHER_SHOP: 117,
-  MARIA_ESCAPE_NOTICED: 119,
-  ANGEL_LEFT_DEED: 120,
-  FACT_155: 155,
-  ROBOT_READY: 202,
-  FIRST_ROBOT_DESTROYED: 203,
-  SECOND_ROBOT_DESTROYED: 206,
-  HICKS_MARRIED_PLAYER_MERC: 249,
-  MUSEUM_OPEN: 250,
-  MUSEUM_ALARM_WENT_OFF: 278,
-  ANGEL_MENTIONED_DEED: 282,
-  KINGPIN_DEAD: 308,
-  KIDS_ARE_FREE: 318,
-} as const;
 
 export const Town = { DRASSEN: 2, CAMBRIA: 6, BALIME: 10 } as const;
 const GAIN_PTS_PER_LOYALTY_PT = 500;

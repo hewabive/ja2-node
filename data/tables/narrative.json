@@ -1,0 +1,1727 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Strategic/Facts.h enum Fact, src/game/Strategic/Quests.h enum Quests, src/game/Tactical/Soldier_Profile.h enum NPCIDs",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "fact ids and names (FACT_ prefix removed unless the rest is a number) in id order; quest ids and names (QUEST_ prefix removed) in id order, NO_QUEST left out; named profile ids of NPCIDs (placeholders RPCnn/NPCnn left out)",
+  "facts": [
+    {
+      "id": 0,
+      "name": "OMERTA_LIBERATED"
+    },
+    {
+      "id": 1,
+      "name": "DRASSEN_LIBERATED"
+    },
+    {
+      "id": 2,
+      "name": "SANMONA_LIBERATED"
+    },
+    {
+      "id": 3,
+      "name": "CAMBRIA_LIBERATED"
+    },
+    {
+      "id": 4,
+      "name": "ALMA_LIBERATED"
+    },
+    {
+      "id": 5,
+      "name": "GRUMM_LIBERATED"
+    },
+    {
+      "id": 6,
+      "name": "TIXA_LIBERATED"
+    },
+    {
+      "id": 7,
+      "name": "CHITZENA_LIBERATED"
+    },
+    {
+      "id": 8,
+      "name": "ESTONI_LIBERATED"
+    },
+    {
+      "id": 9,
+      "name": "BALIME_LIBERATED"
+    },
+    {
+      "id": 10,
+      "name": "ORTA_LIBERATED"
+    },
+    {
+      "id": 11,
+      "name": "MEDUNA_LIBERATED"
+    },
+    {
+      "id": 12,
+      "name": "MIGUEL_FOUND"
+    },
+    {
+      "id": 13,
+      "name": "LETTER_DELIVERED"
+    },
+    {
+      "id": 14,
+      "name": "FOOD_ROUTE_EXISTS"
+    },
+    {
+      "id": 15,
+      "name": "DIMITRI_DEAD"
+    },
+    {
+      "id": 23,
+      "name": "MIGUEL_READ_LETTER"
+    },
+    {
+      "id": 25,
+      "name": "REBELS_HATE_PLAYER"
+    },
+    {
+      "id": 29,
+      "name": "PACOS_KILLED"
+    },
+    {
+      "id": 31,
+      "name": "CURRENT_SECTOR_IS_SAFE"
+    },
+    {
+      "id": 32,
+      "name": "BOBBYRAY_SHIPMENT_IN_TRANSIT"
+    },
+    {
+      "id": 33,
+      "name": "NEW_BOBBYRAY_SHIPMENT_WAITING"
+    },
+    {
+      "id": 34,
+      "name": "REALLY_NEW_BOBBYRAY_SHIPMENT_WAITING"
+    },
+    {
+      "id": 35,
+      "name": "LARGE_SIZED_OLD_SHIPMENT_WAITING"
+    },
+    {
+      "id": 36,
+      "name": "PLAYER_FOUND_ITEMS_MISSING"
+    },
+    {
+      "id": 37,
+      "name": "PABLO_PUNISHED_BY_PLAYER"
+    },
+    {
+      "id": 38,
+      "name": "FACT_38"
+    },
+    {
+      "id": 39,
+      "name": "PABLO_RETURNED_GOODS"
+    },
+    {
+      "id": 41,
+      "name": "PABLOS_BRIBED"
+    },
+    {
+      "id": 43,
+      "name": "SKYRIDER_CLOSE_TO_CHOPPER"
+    },
+    {
+      "id": 45,
+      "name": "SKYRIDER_USED_IN_MAPSCREEN"
+    },
+    {
+      "id": 46,
+      "name": "NPC_OWED_MONEY"
+    },
+    {
+      "id": 47,
+      "name": "NPC_WOUNDED"
+    },
+    {
+      "id": 48,
+      "name": "NPC_WOUNDED_BY_PLAYER"
+    },
+    {
+      "id": 50,
+      "name": "IRA_NOT_PRESENT"
+    },
+    {
+      "id": 51,
+      "name": "IRA_TALKING"
+    },
+    {
+      "id": 52,
+      "name": "FOOD_QUEST_OVER"
+    },
+    {
+      "id": 53,
+      "name": "PABLOS_STOLE_FROM_LATEST_SHIPMENT"
+    },
+    {
+      "id": 54,
+      "name": "LAST_SHIPMENT_CRASHED"
+    },
+    {
+      "id": 55,
+      "name": "LAST_SHIPMENT_WENT_TO_WRONG_AIRPORT"
+    },
+    {
+      "id": 56,
+      "name": "SHIPMENT_DELAYED_24_HOURS"
+    },
+    {
+      "id": 57,
+      "name": "PACKAGE_DAMAGED"
+    },
+    {
+      "id": 58,
+      "name": "PACKAGE_LOST_PERMANENTLY"
+    },
+    {
+      "id": 59,
+      "name": "NEXT_PACKAGE_CAN_BE_LOST"
+    },
+    {
+      "id": 60,
+      "name": "NEXT_PACKAGE_CAN_BE_DELAYED"
+    },
+    {
+      "id": 61,
+      "name": "MEDIUM_SIZED_SHIPMENT_WAITING"
+    },
+    {
+      "id": 62,
+      "name": "LARGE_SIZED_SHIPMENT_WAITING"
+    },
+    {
+      "id": 63,
+      "name": "DOREEN_HAD_CHANGE_OF_HEART"
+    },
+    {
+      "id": 65,
+      "name": "IRA_UNHIRED_AND_ALIVE"
+    },
+    {
+      "id": 68,
+      "name": "NPC_BLEEDING"
+    },
+    {
+      "id": 70,
+      "name": "NPC_BLEEDING_BUT_OKAY"
+    },
+    {
+      "id": 71,
+      "name": "PLAYER_HAS_HEAD_AND_CARMEN_IN_SAN_MONA"
+    },
+    {
+      "id": 72,
+      "name": "PLAYER_HAS_HEAD_AND_CARMEN_IN_CAMBRIA"
+    },
+    {
+      "id": 73,
+      "name": "PLAYER_HAS_HEAD_AND_CARMEN_IN_DRASSEN"
+    },
+    {
+      "id": 74,
+      "name": "FATHER_DRUNK"
+    },
+    {
+      "id": 75,
+      "name": "WOUNDED_MERCS_NEARBY"
+    },
+    {
+      "id": 76,
+      "name": "ONE_WOUNDED_MERC_NEARBY"
+    },
+    {
+      "id": 77,
+      "name": "MULTIPLE_WOUNDED_MERCS_NEARBY"
+    },
+    {
+      "id": 78,
+      "name": "BRENDA_IN_STORE_AND_ALIVE"
+    },
+    {
+      "id": 79,
+      "name": "BRENDA_DEAD"
+    },
+    {
+      "id": 81,
+      "name": "NPC_IS_ENEMY"
+    },
+    {
+      "id": 82,
+      "name": "PC_STRONG_AND_LESS_THAN_3_MALES_PRESENT"
+    },
+    {
+      "id": 83,
+      "name": "PC_STRONG_AND_3_PLUS_MALES_PRESENT"
+    },
+    {
+      "id": 84,
+      "name": "FACT_84"
+    },
+    {
+      "id": 85,
+      "name": "HANS_AT_SPOT"
+    },
+    {
+      "id": 86,
+      "name": "TONY_NOT_AVAILABLE"
+    },
+    {
+      "id": 87,
+      "name": "FEMALE_SPEAKING_TO_NPC"
+    },
+    {
+      "id": 88,
+      "name": "PLAYER_USED_BROTHEL"
+    },
+    {
+      "id": 89,
+      "name": "CARLA_AVAILABLE"
+    },
+    {
+      "id": 90,
+      "name": "CINDY_AVAILABLE"
+    },
+    {
+      "id": 91,
+      "name": "BAMBI_AVAILABLE"
+    },
+    {
+      "id": 92,
+      "name": "NO_GIRLS_AVAILABLE"
+    },
+    {
+      "id": 93,
+      "name": "PLAYER_WAITED_FOR_GIRL"
+    },
+    {
+      "id": 94,
+      "name": "PLAYER_PAID_RIGHT_AMOUNT"
+    },
+    {
+      "id": 95,
+      "name": "PLAYER_PASSED_GOON"
+    },
+    {
+      "id": 96,
+      "name": "MULTIPLE_MERCS_CLOSE"
+    },
+    {
+      "id": 97,
+      "name": "SOME_MERCS_CLOSE"
+    },
+    {
+      "id": 99,
+      "name": "DARREN_EXPECTING_MONEY"
+    },
+    {
+      "id": 100,
+      "name": "PC_NEAR"
+    },
+    {
+      "id": 101,
+      "name": "CARMEN_IN_C5"
+    },
+    {
+      "id": 102,
+      "name": "CARMEN_EXPLAINED_DEAL"
+    },
+    {
+      "id": 103,
+      "name": "KINGPIN_KNOWS_MONEY_GONE"
+    },
+    {
+      "id": 104,
+      "name": "PLAYER_REPAID_KINGPIN"
+    },
+    {
+      "id": 105,
+      "name": "FRANK_HAS_BEEN_BRIBED"
+    },
+    {
+      "id": 107,
+      "name": "PAST_CLUB_CLOSING_AND_PLAYER_WARNED"
+    },
+    {
+      "id": 108,
+      "name": "NPC_ESCORTED"
+    },
+    {
+      "id": 109,
+      "name": "JOEY_IN_C5"
+    },
+    {
+      "id": 110,
+      "name": "JOEY_NEAR_MARTHA"
+    },
+    {
+      "id": 111,
+      "name": "JOEY_DEAD"
+    },
+    {
+      "id": 112,
+      "name": "MERC_NEAR_NPC"
+    },
+    {
+      "id": 113,
+      "name": "SPIKE_AT_DOOR"
+    },
+    {
+      "id": 115,
+      "name": "ANGEL_SOLD_VEST"
+    },
+    {
+      "id": 117,
+      "name": "MARIA_ESCORTED_AT_LEATHER_SHOP"
+    },
+    {
+      "id": 118,
+      "name": "PLAYER_WANTS_TO_BUY_LEATHER_VEST"
+    },
+    {
+      "id": 119,
+      "name": "MARIA_ESCAPE_NOTICED"
+    },
+    {
+      "id": 120,
+      "name": "ANGEL_LEFT_DEED"
+    },
+    {
+      "id": 122,
+      "name": "NPC_BANDAGED_TODAY"
+    },
+    {
+      "id": 124,
+      "name": "PABLO_WONT_STEAL"
+    },
+    {
+      "id": 125,
+      "name": "AGENTS_PREVENTED_SHIPMENT"
+    },
+    {
+      "id": 127,
+      "name": "LARGE_AMOUNT_OF_MONEY"
+    },
+    {
+      "id": 128,
+      "name": "SMALL_AMOUNT_OF_MONEY"
+    },
+    {
+      "id": 132,
+      "name": "FACT_132"
+    },
+    {
+      "id": 133,
+      "name": "FACT_133"
+    },
+    {
+      "id": 134,
+      "name": "FACT_134"
+    },
+    {
+      "id": 135,
+      "name": "LOYALTY_OKAY"
+    },
+    {
+      "id": 136,
+      "name": "LOYALTY_LOW"
+    },
+    {
+      "id": 137,
+      "name": "LOYALTY_HIGH"
+    },
+    {
+      "id": 138,
+      "name": "PLAYER_DOING_POORLY"
+    },
+    {
+      "id": 140,
+      "name": "CURRENT_SECTOR_G9"
+    },
+    {
+      "id": 141,
+      "name": "CURRENT_SECTOR_C5"
+    },
+    {
+      "id": 142,
+      "name": "CURRENT_SECTOR_C13"
+    },
+    {
+      "id": 143,
+      "name": "CARMEN_HAS_TEN_THOUSAND"
+    },
+    {
+      "id": 144,
+      "name": "SLAY_HIRED_AND_WORKED_FOR_48_HOURS"
+    },
+    {
+      "id": 146,
+      "name": "SLAY_IN_SECTOR"
+    },
+    {
+      "id": 148,
+      "name": "VINCE_EXPLAINED_HAS_TO_CHARGE"
+    },
+    {
+      "id": 149,
+      "name": "VINCE_EXPECTING_MONEY"
+    },
+    {
+      "id": 150,
+      "name": "PLAYER_STOLE_MEDICAL_SUPPLIES"
+    },
+    {
+      "id": 151,
+      "name": "PLAYER_STOLE_MEDICAL_SUPPLIES_AGAIN"
+    },
+    {
+      "id": 152,
+      "name": "VINCE_RECRUITABLE"
+    },
+    {
+      "id": 155,
+      "name": "FACT_155"
+    },
+    {
+      "id": 156,
+      "name": "ALL_TERRORISTS_KILLED"
+    },
+    {
+      "id": 157,
+      "name": "ELGIN_ALIVE"
+    },
+    {
+      "id": 164,
+      "name": "SHANK_IN_SQUAD_BUT_NOT_SPEAKING"
+    },
+    {
+      "id": 167,
+      "name": "SHANK_NOT_IN_SECTOR"
+    },
+    {
+      "id": 168,
+      "name": "BLOODCAT_QUEST_STARTED_TWO_DAYS_AGO"
+    },
+    {
+      "id": 170,
+      "name": "QUEEN_DEAD"
+    },
+    {
+      "id": 171,
+      "name": "SPEAKER_AIM_OR_AIM_NEARBY"
+    },
+    {
+      "id": 172,
+      "name": "MINE_EMPTY"
+    },
+    {
+      "id": 173,
+      "name": "MINE_RUNNING_OUT"
+    },
+    {
+      "id": 174,
+      "name": "MINE_PRODUCING_BUT_LOYALTY_LOW"
+    },
+    {
+      "id": 175,
+      "name": "CREATURES_IN_MINE"
+    },
+    {
+      "id": 176,
+      "name": "PLAYER_LOST_MINE"
+    },
+    {
+      "id": 177,
+      "name": "MINE_AT_FULL_PRODUCTION"
+    },
+    {
+      "id": 178,
+      "name": "DYNAMO_SPEAKING_OR_NEARBY"
+    },
+    {
+      "id": 184,
+      "name": "CHALICE_STOLEN"
+    },
+    {
+      "id": 186,
+      "name": "JOHN_AND_MARY_EPCS"
+    },
+    {
+      "id": 187,
+      "name": "MARY_ALIVE"
+    },
+    {
+      "id": 189,
+      "name": "MARY_BLEEDING"
+    },
+    {
+      "id": 190,
+      "name": "JOHN_ALIVE"
+    },
+    {
+      "id": 191,
+      "name": "JOHN_BLEEDING"
+    },
+    {
+      "id": 192,
+      "name": "MARY_OR_JOHN_ARRIVED"
+    },
+    {
+      "id": 193,
+      "name": "MARY_DEAD"
+    },
+    {
+      "id": 194,
+      "name": "MINERS_PLACED"
+    },
+    {
+      "id": 195,
+      "name": "KROTT_GOT_ANSWER_NO"
+    },
+    {
+      "id": 197,
+      "name": "MADLAB_EXPECTING_FIREARM"
+    },
+    {
+      "id": 198,
+      "name": "MADLAB_EXPECTING_VIDEO_CAMERA"
+    },
+    {
+      "id": 199,
+      "name": "ITEM_POOR_CONDITION"
+    },
+    {
+      "id": 202,
+      "name": "ROBOT_READY"
+    },
+    {
+      "id": 203,
+      "name": "FIRST_ROBOT_DESTROYED"
+    },
+    {
+      "id": 204,
+      "name": "MADLAB_HAS_GOOD_CAMERA"
+    },
+    {
+      "id": 205,
+      "name": "ROBOT_READY_SECOND_TIME"
+    },
+    {
+      "id": 206,
+      "name": "SECOND_ROBOT_DESTROYED"
+    },
+    {
+      "id": 208,
+      "name": "DYNAMO_IN_J9"
+    },
+    {
+      "id": 209,
+      "name": "DYNAMO_ALIVE"
+    },
+    {
+      "id": 210,
+      "name": "ANOTHER_FIGHT_POSSIBLE"
+    },
+    {
+      "id": 211,
+      "name": "RECEIVING_INCOME_FROM_DCAC"
+    },
+    {
+      "id": 212,
+      "name": "PLAYER_BEEN_TO_K4"
+    },
+    {
+      "id": 214,
+      "name": "WARDEN_DEAD"
+    },
+    {
+      "id": 216,
+      "name": "FIRST_BARTENDER"
+    },
+    {
+      "id": 217,
+      "name": "SECOND_BARTENDER"
+    },
+    {
+      "id": 218,
+      "name": "THIRD_BARTENDER"
+    },
+    {
+      "id": 219,
+      "name": "FOURTH_BARTENDER"
+    },
+    {
+      "id": 220,
+      "name": "MANNY_IS_BARTENDER"
+    },
+    {
+      "id": 221,
+      "name": "NOTHING_REPAIRED_YET"
+    },
+    {
+      "id": 222,
+      "name": "FACT_222"
+    },
+    {
+      "id": 224,
+      "name": "OK_USE_HUMMER"
+    },
+    {
+      "id": 226,
+      "name": "DAVE_HAS_GAS"
+    },
+    {
+      "id": 227,
+      "name": "VEHICLE_PRESENT"
+    },
+    {
+      "id": 228,
+      "name": "FIRST_BATTLE_WON"
+    },
+    {
+      "id": 229,
+      "name": "ROBOT_RECRUITED_AND_MOVED"
+    },
+    {
+      "id": 230,
+      "name": "NO_CLUB_FIGHTING_ALLOWED"
+    },
+    {
+      "id": 231,
+      "name": "PLAYER_FOUGHT_THREE_TIMES_TODAY"
+    },
+    {
+      "id": 232,
+      "name": "PLAYER_SPOKE_TO_DRASSEN_MINER"
+    },
+    {
+      "id": 233,
+      "name": "PLAYER_DOING_WELL"
+    },
+    {
+      "id": 234,
+      "name": "PLAYER_DOING_VERY_WELL"
+    },
+    {
+      "id": 235,
+      "name": "FATHER_DRUNK_AND_SCIFI_OPTION_ON"
+    },
+    {
+      "id": 236,
+      "name": "MICKY_DRUNK"
+    },
+    {
+      "id": 237,
+      "name": "PLAYER_FORCED_WAY_INTO_BROTHEL"
+    },
+    {
+      "id": 239,
+      "name": "PLAYER_PAID_FOR_TWO_IN_BROTHEL"
+    },
+    {
+      "id": 242,
+      "name": "PLAYER_OWNS_2_TOWNS_INCLUDING_OMERTA"
+    },
+    {
+      "id": 243,
+      "name": "PLAYER_OWNS_3_TOWNS_INCLUDING_OMERTA"
+    },
+    {
+      "id": 244,
+      "name": "PLAYER_OWNS_4_TOWNS_INCLUDING_OMERTA"
+    },
+    {
+      "id": 245,
+      "name": "FACT_245"
+    },
+    {
+      "id": 248,
+      "name": "MALE_SPEAKING_FEMALE_PRESENT"
+    },
+    {
+      "id": 249,
+      "name": "HICKS_MARRIED_PLAYER_MERC"
+    },
+    {
+      "id": 250,
+      "name": "MUSEUM_OPEN"
+    },
+    {
+      "id": 251,
+      "name": "BROTHEL_OPEN"
+    },
+    {
+      "id": 252,
+      "name": "CLUB_OPEN"
+    },
+    {
+      "id": 253,
+      "name": "FIRST_BATTLE_FOUGHT"
+    },
+    {
+      "id": 254,
+      "name": "FIRST_BATTLE_BEING_FOUGHT"
+    },
+    {
+      "id": 255,
+      "name": "KINGPIN_INTRODUCED_SELF"
+    },
+    {
+      "id": 256,
+      "name": "KINGPIN_NOT_IN_OFFICE"
+    },
+    {
+      "id": 257,
+      "name": "DONT_OWE_KINGPIN_MONEY"
+    },
+    {
+      "id": 258,
+      "name": "PC_MARRYING_DARYL_IS_FLO"
+    },
+    {
+      "id": 259,
+      "name": "I16_BLOODCATS_KILLED"
+    },
+    {
+      "id": 261,
+      "name": "NPC_COWERING"
+    },
+    {
+      "id": 264,
+      "name": "TOP_AND_BOTTOM_LEVELS_CLEARED"
+    },
+    {
+      "id": 265,
+      "name": "TOP_LEVEL_CLEARED"
+    },
+    {
+      "id": 266,
+      "name": "BOTTOM_LEVEL_CLEARED"
+    },
+    {
+      "id": 267,
+      "name": "NEED_TO_SAY_SOMETHING"
+    },
+    {
+      "id": 268,
+      "name": "ATTACHED_ITEM_BEFORE"
+    },
+    {
+      "id": 269,
+      "name": "SKYRIDER_EVER_ESCORTED"
+    },
+    {
+      "id": 270,
+      "name": "NPC_NOT_UNDER_FIRE"
+    },
+    {
+      "id": 271,
+      "name": "WILLIS_HEARD_ABOUT_JOEY_RESCUE"
+    },
+    {
+      "id": 272,
+      "name": "WILLIS_GIVES_DISCOUNT"
+    },
+    {
+      "id": 273,
+      "name": "HILLBILLIES_KILLED"
+    },
+    {
+      "id": 274,
+      "name": "KEITH_OUT_OF_BUSINESS"
+    },
+    {
+      "id": 275,
+      "name": "MIKE_AVAILABLE_TO_ARMY"
+    },
+    {
+      "id": 276,
+      "name": "KINGPIN_CAN_SEND_ASSASSINS"
+    },
+    {
+      "id": 277,
+      "name": "ESTONI_REFUELLING_POSSIBLE"
+    },
+    {
+      "id": 278,
+      "name": "MUSEUM_ALARM_WENT_OFF"
+    },
+    {
+      "id": 280,
+      "name": "MADDOG_IS_SPEAKER"
+    },
+    {
+      "id": 281,
+      "name": "FACT_281"
+    },
+    {
+      "id": 282,
+      "name": "ANGEL_MENTIONED_DEED"
+    },
+    {
+      "id": 283,
+      "name": "IGGY_AVAILABLE_TO_ARMY"
+    },
+    {
+      "id": 284,
+      "name": "PC_HAS_CONRADS_RECRUIT_OPINION"
+    },
+    {
+      "id": 289,
+      "name": "NPC_HOSTILE_OR_PISSED_OFF"
+    },
+    {
+      "id": 291,
+      "name": "TONY_IN_BUILDING"
+    },
+    {
+      "id": 292,
+      "name": "SHANK_SPEAKING"
+    },
+    {
+      "id": 293,
+      "name": "PABLO_ALIVE"
+    },
+    {
+      "id": 294,
+      "name": "DOREEN_ALIVE"
+    },
+    {
+      "id": 295,
+      "name": "WALDO_ALIVE"
+    },
+    {
+      "id": 296,
+      "name": "PERKO_ALIVE"
+    },
+    {
+      "id": 297,
+      "name": "TONY_ALIVE"
+    },
+    {
+      "id": 299,
+      "name": "VINCE_ALIVE"
+    },
+    {
+      "id": 300,
+      "name": "JENNY_ALIVE"
+    },
+    {
+      "id": 303,
+      "name": "ARNOLD_ALIVE"
+    },
+    {
+      "id": 304,
+      "name": "ROCKET_RIFLE_EXISTS"
+    },
+    {
+      "id": 305,
+      "name": "FACT_24_HOURS_SINCE_JOEY_RESCUED"
+    },
+    {
+      "id": 306,
+      "name": "FACT_24_HOURS_SINCE_DOCTOR_TALKED_TO"
+    },
+    {
+      "id": 307,
+      "name": "OK_USE_ICECREAM"
+    },
+    {
+      "id": 308,
+      "name": "KINGPIN_DEAD"
+    },
+    {
+      "id": 318,
+      "name": "KIDS_ARE_FREE"
+    },
+    {
+      "id": 319,
+      "name": "PLAYER_IN_SAME_ROOM"
+    },
+    {
+      "id": 324,
+      "name": "PLAYER_IN_CONTROLLED_DRASSEN_MINE"
+    },
+    {
+      "id": 325,
+      "name": "PLAYER_SPOKE_TO_CAMBRIA_MINER"
+    },
+    {
+      "id": 326,
+      "name": "PLAYER_IN_CONTROLLED_CAMBRIA_MINE"
+    },
+    {
+      "id": 327,
+      "name": "PLAYER_SPOKE_TO_CHITZENA_MINER"
+    },
+    {
+      "id": 328,
+      "name": "PLAYER_IN_CONTROLLED_CHITZENA_MINE"
+    },
+    {
+      "id": 329,
+      "name": "PLAYER_SPOKE_TO_ALMA_MINER"
+    },
+    {
+      "id": 330,
+      "name": "PLAYER_IN_CONTROLLED_ALMA_MINE"
+    },
+    {
+      "id": 331,
+      "name": "PLAYER_SPOKE_TO_GRUMM_MINER"
+    },
+    {
+      "id": 332,
+      "name": "PLAYER_IN_CONTROLLED_GRUMM_MINE"
+    },
+    {
+      "id": 334,
+      "name": "LARRY_CHANGED"
+    },
+    {
+      "id": 335,
+      "name": "PLAYER_KNOWS_ABOUT_BLOODCAT_LAIR"
+    },
+    {
+      "id": 336,
+      "name": "HOSPITAL_FREEBIE_DECISION_MADE"
+    },
+    {
+      "id": 337,
+      "name": "ENOUGH_LOYALTY_TO_TRAIN_MILITIA"
+    },
+    {
+      "id": 338,
+      "name": "WALKER_AT_BAR"
+    },
+    {
+      "id": 340,
+      "name": "JOEY_ALIVE"
+    },
+    {
+      "id": 341,
+      "name": "UNPROPOSITIONED_FEMALE_SPEAKING_TO_NPC"
+    },
+    {
+      "id": 342,
+      "name": "FACT_84_AND_85_TRUE"
+    },
+    {
+      "id": 350,
+      "name": "KINGPIN_WILL_LEARN_OF_MONEY_GONE"
+    },
+    {
+      "id": 354,
+      "name": "SKYRIDER_IN_B15"
+    },
+    {
+      "id": 355,
+      "name": "SKYRIDER_IN_C16"
+    },
+    {
+      "id": 356,
+      "name": "SKYRIDER_IN_E14"
+    },
+    {
+      "id": 357,
+      "name": "SKYRIDER_IN_D12"
+    },
+    {
+      "id": 358,
+      "name": "SKYRIDER_HINT_GIVEN"
+    },
+    {
+      "id": 359,
+      "name": "KINGPIN_IS_ENEMY"
+    },
+    {
+      "id": 360,
+      "name": "BRENDA_PATIENCE_TIMER_EXPIRED"
+    },
+    {
+      "id": 362,
+      "name": "DYNAMO_NOT_SPEAKER"
+    },
+    {
+      "id": 365,
+      "name": "PABLO_BRIBED"
+    },
+    {
+      "id": 367,
+      "name": "CONRAD_SHOULD_GO"
+    },
+    {
+      "id": 368,
+      "name": "PLAYER_KILLED_BOXERS"
+    }
+  ],
+  "quests": [
+    {
+      "id": 0,
+      "name": "DELIVER_LETTER"
+    },
+    {
+      "id": 1,
+      "name": "FOOD_ROUTE"
+    },
+    {
+      "id": 2,
+      "name": "KILL_TERRORISTS"
+    },
+    {
+      "id": 3,
+      "name": "KINGPIN_IDOL"
+    },
+    {
+      "id": 4,
+      "name": "KINGPIN_MONEY"
+    },
+    {
+      "id": 5,
+      "name": "RUNAWAY_JOEY"
+    },
+    {
+      "id": 6,
+      "name": "RESCUE_MARIA"
+    },
+    {
+      "id": 7,
+      "name": "CHITZENA_IDOL"
+    },
+    {
+      "id": 8,
+      "name": "HELD_IN_ALMA"
+    },
+    {
+      "id": 9,
+      "name": "INTERROGATION"
+    },
+    {
+      "id": 10,
+      "name": "ARMY_FARM"
+    },
+    {
+      "id": 11,
+      "name": "FIND_SCIENTIST"
+    },
+    {
+      "id": 12,
+      "name": "DELIVER_VIDEO_CAMERA"
+    },
+    {
+      "id": 13,
+      "name": "BLOODCATS"
+    },
+    {
+      "id": 14,
+      "name": "FIND_HERMIT"
+    },
+    {
+      "id": 15,
+      "name": "CREATURES"
+    },
+    {
+      "id": 16,
+      "name": "CHOPPER_PILOT"
+    },
+    {
+      "id": 17,
+      "name": "ESCORT_SKYRIDER"
+    },
+    {
+      "id": 18,
+      "name": "FREE_DYNAMO"
+    },
+    {
+      "id": 19,
+      "name": "ESCORT_TOURISTS"
+    },
+    {
+      "id": 20,
+      "name": "FREE_CHILDREN"
+    },
+    {
+      "id": 21,
+      "name": "LEATHER_SHOP_DREAM"
+    },
+    {
+      "id": 22,
+      "name": "FREE_SHANK"
+    },
+    {
+      "id": 25,
+      "name": "KILL_DEIDRANNA"
+    }
+  ],
+  "profiles": [
+    {
+      "id": 0,
+      "name": "BARRY"
+    },
+    {
+      "id": 1,
+      "name": "BLOOD"
+    },
+    {
+      "id": 2,
+      "name": "LYNX"
+    },
+    {
+      "id": 3,
+      "name": "GRIZZLY"
+    },
+    {
+      "id": 4,
+      "name": "VICKY"
+    },
+    {
+      "id": 5,
+      "name": "TREVOR"
+    },
+    {
+      "id": 6,
+      "name": "GRUNTY"
+    },
+    {
+      "id": 7,
+      "name": "IVAN"
+    },
+    {
+      "id": 8,
+      "name": "STEROID"
+    },
+    {
+      "id": 9,
+      "name": "IGOR"
+    },
+    {
+      "id": 10,
+      "name": "SHADOW"
+    },
+    {
+      "id": 11,
+      "name": "RED"
+    },
+    {
+      "id": 12,
+      "name": "REAPER"
+    },
+    {
+      "id": 13,
+      "name": "FIDEL"
+    },
+    {
+      "id": 14,
+      "name": "FOX"
+    },
+    {
+      "id": 15,
+      "name": "SIDNEY"
+    },
+    {
+      "id": 16,
+      "name": "GUS"
+    },
+    {
+      "id": 17,
+      "name": "BUNS"
+    },
+    {
+      "id": 18,
+      "name": "ICE"
+    },
+    {
+      "id": 19,
+      "name": "SPIDER"
+    },
+    {
+      "id": 20,
+      "name": "CLIFF"
+    },
+    {
+      "id": 25,
+      "name": "RAVEN"
+    },
+    {
+      "id": 29,
+      "name": "MAGIC"
+    },
+    {
+      "id": 33,
+      "name": "DR_Q"
+    },
+    {
+      "id": 34,
+      "name": "NAILS"
+    },
+    {
+      "id": 36,
+      "name": "SCOPE"
+    },
+    {
+      "id": 40,
+      "name": "BIFF"
+    },
+    {
+      "id": 41,
+      "name": "HAYWIRE"
+    },
+    {
+      "id": 42,
+      "name": "GASKET"
+    },
+    {
+      "id": 43,
+      "name": "RAZOR"
+    },
+    {
+      "id": 44,
+      "name": "FLO"
+    },
+    {
+      "id": 45,
+      "name": "GUMPY"
+    },
+    {
+      "id": 46,
+      "name": "LARRY_NORMAL"
+    },
+    {
+      "id": 47,
+      "name": "LARRY_DRUNK"
+    },
+    {
+      "id": 48,
+      "name": "COUGAR"
+    },
+    {
+      "id": 49,
+      "name": "NUMB"
+    },
+    {
+      "id": 50,
+      "name": "BUBBA"
+    },
+    {
+      "id": 57,
+      "name": "MIGUEL"
+    },
+    {
+      "id": 58,
+      "name": "CARLOS"
+    },
+    {
+      "id": 59,
+      "name": "IRA"
+    },
+    {
+      "id": 60,
+      "name": "DIMITRI"
+    },
+    {
+      "id": 61,
+      "name": "DEVIN"
+    },
+    {
+      "id": 62,
+      "name": "ROBOT"
+    },
+    {
+      "id": 63,
+      "name": "HAMOUS"
+    },
+    {
+      "id": 64,
+      "name": "SLAY"
+    },
+    {
+      "id": 66,
+      "name": "DYNAMO"
+    },
+    {
+      "id": 67,
+      "name": "SHANK"
+    },
+    {
+      "id": 68,
+      "name": "IGGY"
+    },
+    {
+      "id": 69,
+      "name": "VINCE"
+    },
+    {
+      "id": 70,
+      "name": "CONRAD"
+    },
+    {
+      "id": 72,
+      "name": "MADDOG"
+    },
+    {
+      "id": 73,
+      "name": "DARREL"
+    },
+    {
+      "id": 74,
+      "name": "PERKO"
+    },
+    {
+      "id": 75,
+      "name": "QUEEN"
+    },
+    {
+      "id": 76,
+      "name": "AUNTIE"
+    },
+    {
+      "id": 77,
+      "name": "ENRICO"
+    },
+    {
+      "id": 78,
+      "name": "CARMEN"
+    },
+    {
+      "id": 79,
+      "name": "JOE"
+    },
+    {
+      "id": 80,
+      "name": "STEVE"
+    },
+    {
+      "id": 81,
+      "name": "RAT"
+    },
+    {
+      "id": 82,
+      "name": "ANNIE"
+    },
+    {
+      "id": 83,
+      "name": "CHRIS"
+    },
+    {
+      "id": 84,
+      "name": "BOB"
+    },
+    {
+      "id": 85,
+      "name": "BRENDA"
+    },
+    {
+      "id": 86,
+      "name": "KINGPIN"
+    },
+    {
+      "id": 87,
+      "name": "DARREN"
+    },
+    {
+      "id": 88,
+      "name": "MARIA"
+    },
+    {
+      "id": 89,
+      "name": "ANGEL"
+    },
+    {
+      "id": 90,
+      "name": "JOEY"
+    },
+    {
+      "id": 91,
+      "name": "TONY"
+    },
+    {
+      "id": 92,
+      "name": "FRANK"
+    },
+    {
+      "id": 93,
+      "name": "SPIKE"
+    },
+    {
+      "id": 94,
+      "name": "DAMON"
+    },
+    {
+      "id": 95,
+      "name": "KYLE"
+    },
+    {
+      "id": 96,
+      "name": "MICKY"
+    },
+    {
+      "id": 97,
+      "name": "SKYRIDER"
+    },
+    {
+      "id": 98,
+      "name": "PABLO"
+    },
+    {
+      "id": 99,
+      "name": "SAL"
+    },
+    {
+      "id": 100,
+      "name": "FATHER"
+    },
+    {
+      "id": 101,
+      "name": "FATIMA"
+    },
+    {
+      "id": 102,
+      "name": "WARDEN"
+    },
+    {
+      "id": 103,
+      "name": "GORDON"
+    },
+    {
+      "id": 104,
+      "name": "GABBY"
+    },
+    {
+      "id": 105,
+      "name": "ERNEST"
+    },
+    {
+      "id": 106,
+      "name": "FRED"
+    },
+    {
+      "id": 107,
+      "name": "MADAME"
+    },
+    {
+      "id": 108,
+      "name": "YANNI"
+    },
+    {
+      "id": 109,
+      "name": "MARTHA"
+    },
+    {
+      "id": 110,
+      "name": "TIFFANY"
+    },
+    {
+      "id": 111,
+      "name": "T_REX"
+    },
+    {
+      "id": 112,
+      "name": "DRUGGIST"
+    },
+    {
+      "id": 113,
+      "name": "JAKE"
+    },
+    {
+      "id": 114,
+      "name": "PACOS"
+    },
+    {
+      "id": 115,
+      "name": "GERARD"
+    },
+    {
+      "id": 116,
+      "name": "SKIPPER"
+    },
+    {
+      "id": 117,
+      "name": "HANS"
+    },
+    {
+      "id": 118,
+      "name": "JOHN"
+    },
+    {
+      "id": 119,
+      "name": "MARY"
+    },
+    {
+      "id": 120,
+      "name": "GENERAL"
+    },
+    {
+      "id": 121,
+      "name": "SERGEANT"
+    },
+    {
+      "id": 122,
+      "name": "ARMAND"
+    },
+    {
+      "id": 123,
+      "name": "LORA"
+    },
+    {
+      "id": 124,
+      "name": "FRANZ"
+    },
+    {
+      "id": 125,
+      "name": "HOWARD"
+    },
+    {
+      "id": 126,
+      "name": "SAM"
+    },
+    {
+      "id": 127,
+      "name": "ELDIN"
+    },
+    {
+      "id": 128,
+      "name": "ARNIE"
+    },
+    {
+      "id": 129,
+      "name": "TINA"
+    },
+    {
+      "id": 130,
+      "name": "FREDO"
+    },
+    {
+      "id": 131,
+      "name": "WALTER"
+    },
+    {
+      "id": 132,
+      "name": "JENNY"
+    },
+    {
+      "id": 133,
+      "name": "BILLY"
+    },
+    {
+      "id": 134,
+      "name": "BREWSTER"
+    },
+    {
+      "id": 135,
+      "name": "ELLIOT"
+    },
+    {
+      "id": 136,
+      "name": "DEREK"
+    },
+    {
+      "id": 137,
+      "name": "OLIVER"
+    },
+    {
+      "id": 138,
+      "name": "WALDO"
+    },
+    {
+      "id": 139,
+      "name": "DOREEN"
+    },
+    {
+      "id": 140,
+      "name": "JIM"
+    },
+    {
+      "id": 141,
+      "name": "JACK"
+    },
+    {
+      "id": 142,
+      "name": "OLAF"
+    },
+    {
+      "id": 143,
+      "name": "RAY"
+    },
+    {
+      "id": 144,
+      "name": "OLGA"
+    },
+    {
+      "id": 145,
+      "name": "TYRONE"
+    },
+    {
+      "id": 146,
+      "name": "MADLAB"
+    },
+    {
+      "id": 147,
+      "name": "KEITH"
+    },
+    {
+      "id": 148,
+      "name": "MATT"
+    },
+    {
+      "id": 149,
+      "name": "MIKE"
+    },
+    {
+      "id": 150,
+      "name": "DARYL"
+    },
+    {
+      "id": 151,
+      "name": "HERVE"
+    },
+    {
+      "id": 152,
+      "name": "PETER"
+    },
+    {
+      "id": 153,
+      "name": "ALBERTO"
+    },
+    {
+      "id": 154,
+      "name": "CARLO"
+    },
+    {
+      "id": 155,
+      "name": "MANNY"
+    },
+    {
+      "id": 156,
+      "name": "OSWALD"
+    },
+    {
+      "id": 157,
+      "name": "CALVIN"
+    },
+    {
+      "id": 158,
+      "name": "CARL"
+    },
+    {
+      "id": 159,
+      "name": "SPECK"
+    },
+    {
+      "id": 160,
+      "name": "PROF_HUMMER"
+    },
+    {
+      "id": 161,
+      "name": "PROF_ELDERODO"
+    },
+    {
+      "id": 162,
+      "name": "PROF_ICECREAM"
+    },
+    {
+      "id": 163,
+      "name": "PROF_HELICOPTER"
+    }
+  ]
+}

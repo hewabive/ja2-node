@@ -4,9 +4,11 @@
 // @src HandleManNoLongerSeen, TeamNoLongerSeesMan,
 // @src UpdatePersonal, UpdatePublic, RadioSightings, OurTeamRadiosRandomlyAbout, HandleSight, ManLooksForOtherTeams,
 // @src OtherTeamsLookForMan, AllTeamsLookForAll, ReevaluateBestSightingPosition, HandleBestSightingPositionInRealtime,
-// @src DecayOppListValue, VerifyAndDecayOpplist, DecayPublicOpplist; Soldier_Macros.h AM_A_ROBOT. See docs/08 §2, docs/20.
+// @src DecayOppListValue, VerifyAndDecayOpplist, DecayPublicOpplist (ManSeesMan's first-battle fact through the narrative
+// @src port); Soldier_Macros.h AM_A_ROBOT. See docs/08 §2, docs/20, docs/25 §1.2.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
+import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { endHeight, setSoldierAniSpeed, states } from '../animation.ts';
 import { wearsHeadGear } from '../inventory.ts';
 import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
@@ -320,6 +322,8 @@ export function manSeesMan(t: TacticalState, s: Soldier, opp: Soldier, caller: n
       newOpp = true;
       s.newOppCnt++;
       incrementWatchedLoc(t, s, opp.gridNo, opp.level);
+      if (s.team === Team.OUR && opp.team === Team.ENEMY && !t.narrative.fact(Fact.FIRST_BATTLE_FOUGHT))
+        t.narrative.setFactTrue(Fact.FIRST_BATTLE_BEING_FOUGHT);
     } else setWatchedLocAsUsed(t, s.id, opp.gridNo, opp.level);
     if (old !== Opp.SEEN_THIS_TURN || s.lastKnownOpp[opp.id] !== opp.gridNo) t.perceptionHooks.setNewSituation(s);
     else if (SEEK_ACTIONS.has(s.ai.action)) t.perceptionHooks.setNewSituation(s);

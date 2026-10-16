@@ -4,6 +4,7 @@
 // @src assassins, Angel, Joe and Elliot, Iggy, Kingpin goons, the hicks). See docs/25 §11.1.
 
 import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
+import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { worldSeconds } from '../explosions/state.ts';
 import { stopMerc } from '../movement.ts';
 import { Opp } from '../perception/opp.ts';
@@ -11,7 +12,7 @@ import { Attitude, CivilianGroup, NO_PROFILE, NOWHERE, Orders, type Soldier, Tea
 import { sectorMapOf, type TacticalState } from '../state.ts';
 import { enterCombatMode } from '../turns/turns.ts';
 import { addToShouldBecomeHostileOrSayQuoteList, makeCivHostile } from './civ-hostility.ts';
-import { ASSASSINS, BrothelRooms, CivGroupHostility, Fact, HicksCurfew, MuseumRooms, NpcRecord, Profile } from './constants.ts';
+import { ASSASSINS, BrothelRooms, CivGroupHostility, HicksCurfew, MuseumRooms, NpcRecord, Profile } from './constants.ts';
 
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_DAY = 1440;
@@ -53,10 +54,11 @@ function assassinSees(t: TacticalState, s: Soldier): void {
 
 function angelSees(t: TacticalState, s: Soldier, opp: Soldier): void {
   if (opp.profile === Profile.MARIA) {
-    if (t.narrative.fact(Fact.MARIA_ESCORTED_AT_LEATHER_SHOP)) t.narrative.triggerNpcRecord(Profile.ANGEL, NpcRecord.ANGEL_RESCUED);
+    if (t.narrative.fact(Fact.MARIA_ESCORTED_AT_LEATHER_SHOP, Profile.MARIA))
+      t.narrative.triggerNpcRecord(Profile.ANGEL, NpcRecord.ANGEL_RESCUED);
     return;
   }
-  if (!t.narrative.fact(Fact.ANGEL_LEFT_DEED) || t.narrative.fact(Fact.ANGEL_MENTIONED_DEED)) return;
+  if (!t.narrative.fact(Fact.ANGEL_LEFT_DEED, Profile.ANGEL) || t.narrative.fact(Fact.ANGEL_MENTIONED_DEED, Profile.ANGEL)) return;
   t.turnHooks.cancelAIAction(t, s);
   s.absoluteFinalDestination = NOWHERE;
   stopMerc(t, s);

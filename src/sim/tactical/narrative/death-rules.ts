@@ -4,11 +4,12 @@
 // @src (SLAY, ROBOT). See docs/25 §11.12.
 
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
+import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { EventKind } from '../../strategic/time/constants.ts';
 import { soldierToSoldierLos } from '../combat/positions.ts';
 import { AlertStatus, Attitude, NOWHERE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
-import { ASSASSINS, Fact, Loyalty, Profile, TERRORISTS, Town } from './constants.ts';
+import { ASSASSINS, Loyalty, Profile, TERRORISTS, Town } from './constants.ts';
 
 const HANS_HEARING_DISTANCE = 12;
 const MARTHA_NOTICE_DISTANCE = 10;

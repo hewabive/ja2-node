@@ -10,7 +10,8 @@ the encounter code of the pre-battle interface; the creature quest (spreading, n
 the hourly team morale and the arms dealers (stock, restocks, prices, repairs, shop entry) are probed the same way, as
 are merc contracts and relationships (the daily merc update, the renewal sequence, extensions, departures and the leave
 list), the tactical decisions of creatures and bloodcats, and the laptop (a full `InitNewGame`, A.I.M., M.E.R.C. and
-I.M.P. hires, Bobby Ray's orders, restocks and deliveries, life insurance).
+I.M.P. hires, Bobby Ray's orders, restocks and deliveries, life insurance), and the narrative state (facts, quests,
+CheckFact, the 04:00 and hourly NPC handlers, the quest code of sector entry and exit, profile NPC placement).
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -47,6 +48,9 @@ commit them.
 | `patches/0011-doors-oracle.patch` | A wrapper for the static start-of-menu trap check and an accessor for the hostile-quote list (see "Hooks") |
 | `doors-compare.ts` | The door and civilian-group probes of `compare.ts` (`locks`, `door`, `doormenu`, `civgroups`, `makecivhostile`, `pcattack`, `hostilelist`) |
 | `probes/doors.txt` | Door, lock, trap and civilian-group probe script (see "Doors") |
+| `patches/0012-facts-oracle.patch` | Wrappers for the static hourly quest update, Slay's hourly check and the sector-exit quest code (see "Hooks") |
+| `facts-compare.ts` | The fact, quest and NPC presence probes of `compare.ts` (`narrative`, `setquest`, `npcprofile`, `checkfact`, `quest`, `earlymorning`, `hourlynpc`, `questentry`, `questexit`, `entersector`) |
+| `probes/facts.txt` | Facts, quests and NPC presence probe script (see "Facts and NPC presence") |
 | `creature-ai-compare.ts` | The tactical creature probes of `compare.ts` (`addsoldier`, `setsoldier`, `seen`, `decide`, `beststab`, `stab`, `creaturecall`, `smell`, `dropsmell`, `trackscent`) |
 | `probes/creature*.txt`, `probes/morale.txt` | Creature and morale probe scripts (see "Creatures", "Creature AI" and "Morale") |
 | `autoresolve-aftermath.ts` | Level 3 of `autoresolve` probes (the battle closed through ja2-node's battle flow on the imported save) and `enemycounts` |
@@ -923,6 +927,43 @@ examining, untrapping (success, explosion and silent alarm sprung), keys from th
 key, locking, shaped charges (damaged, destroyed), opening and closing a lockless door, and the civilian-group probes
 (MakeCivHostile keeps the side, the rebels' proximity rule with the 300-minute event, a group already at 2).
 
+### Facts and NPC presence
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data" JA2_ORACLE_DIR=~/ja2-oracle-facts
+tools/oracle/run.sh tools/oracle/probes/facts.txt ~/ja2-oracle-facts/out/facts.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle-facts/out/facts.jsonl
+```
+
+Commands (each prints its arguments, the draws, a result, the narrative state (the 500 facts, the 30 quests, the boxing
+globals, the terrorist count, the balance, the world minutes and sector) and the presence fields of the selected
+profiles (`ids=a,b,…`, default every NPC, RPC and vehicle: sector with z, the three misc flag bytes, `bNPCData`/`bNPCData2`,
+money, balance, life, status, town, last date spoken to, profile insertion, quote record and action, inventory)):
+```
+narrative [ids=…]                                   # dump only
+setquest id= status=                                # write gubQuest
+npcprofile id= [sector=] [z=] [nowhere=1] [npcdata=] [npcdata2=] [flags=] [flags2=] [flags3=] [money=] [balance=]
+           [life=] [spokento=] [insertion=0|1] [code=] [data=]
+checkfact profile= [id=] [src=<soldier>|-1] [dest=<soldier>|-1] [srcprofile=]   # the talk context, then CheckFact for
+                                                    # one id or all 500 in order: the bytes before and each result
+quest action=start|end|istart|iend id= [sector=]    # StartQuest, EndQuest, Internal…(FALSE): the new history lines
+earlymorning                                        # HandleEarlyMorningEvents traced
+hourlynpc hour=                                     # the clock set to that hour, HourlyQuestUpdate, Slay's check,
+                                                    # PayOffSkyriderDebtIfAny traced
+questentry sector= [z=] | questexit sector= [z=]    # HandleQuestCodeOnSectorEntry/Exit traced
+entersector sector= [z=]                            # SetCurrentWorldSector: the profiled non-player soldiers placed
+```
+`facts-compare.ts` imports the save into a campaign session, applies the same command through the narrative modules
+with the native draws replayed strictly (both streams), and compares the state and the profiles; `checkfact` compares the
+500 results with the facts that read the boxing state or `CalcDesireToTalk` left out (deviation "Computed facts without
+inputs"), `entersector` the sorted profiles placed (`setCurrentWorldSector` bypassing the merc check, as the native
+call does). The talk context outlives a save load in the original, so every `checkfact` sets it. On 2026-10-16 all 51
+probes matched: fifteen CheckFact sweeps over all ids with different profiles and talk contexts on the six saves, quest starts and ends with
+and without history, six 04:00 events with their draws (Father, Tony, Devin, Hamous, Carmen, Dave), the hourly quest facts
+at hours 2, 4, 9, 10, 15, 18 and 20, Skyrider's debt payment, the quest code of sector entry and exit, and four sector loads
+on SaveGame10 (C13, D13, a profile moved into C13 without placement, and one inserted into D13 through profile insertion
+data). The `newgamefull` and save probes of `laptop.txt` now also compare every profile's sector (InitNPCs, the terrorists).
+
 ## Shipped probes
 
 | Script | Content |
@@ -946,6 +987,7 @@ key, locking, shaped charges (damaged, destroyed), opening and closing a lockles
 | `probes/contracts.txt` | Contracts and relationships on SaveGame01, 02, 09, 10 and 07 (see "Contracts") |
 | `probes/laptop.txt` | Three seeded new games, the arrival table, and laptop commands on SaveGame01, 07 and 10 (see "Laptop") |
 | `probes/doors.txt` | Doors, locks, traps and civilian groups on SaveGame09 (see "Doors") |
+| `probes/facts.txt` | Facts, quests and NPC presence on the six saves (see "Facts and NPC presence") |
 | `probes/sectors.txt` | Edgepoints loaded and generated on eight maps, screen-space exit thresholds on both sides of every edge (A9, A10 basement), exit-grid checks in D13 and the basement, walk-off/walk-in/mirror from the centre and near the edges, class codes on the isolated maps H13 and I14, init list sorts and ten defence placements (A9, B13, C13, D13), and `OKForSectorExit` on SaveGame10, 07 (in combat) and 01 before and after moving mercs to an edge or an exit grid |
 
 All three were run on the user's Steam JA2 Gold 1.12 data: every command succeeds, and on these
@@ -1049,6 +1091,11 @@ like 0002 with the nine paths of the patch.
 `OracleDoTrapCheckOnStartingMenu`, a wrapper around the static `DoTrapCheckOnStartingMenu`; to `src/game/Tactical/OppList.cc`
 `OracleHostileQuoteList`, which copies the ids of the static hostile-quote list (plus `#include <vector>`). Regenerate it
 like 0002 with those two paths.
+
+`patches/0012-facts-oracle.patch` (applied after 0011) only appends: to `src/game/Strategic/Hourly_Update.cc`
+`OracleHourlyQuestUpdate` and `OracleHourlyCheckIfSlayAloneSoHeCanLeave`, wrappers around the static `HourlyQuestUpdate`
+and `HourlyCheckIfSlayAloneSoHeCanLeave`; to `src/game/Strategic/StrategicMap.cc` `OracleHandleQuestCodeOnSectorExit`.
+Regenerate it like 0002 with those two paths.
 
 ## Notes
 

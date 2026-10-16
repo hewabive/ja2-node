@@ -8,7 +8,8 @@
 // @src Strategic_Town_Loyalty.cc HandleLoyaltyImplicationsOfMercRetreat; Tactical/Overhead.cc CheckForEndOfBattle and
 // @src CheckForLosingEndOfBattle (the strategic consequences), HandlePlayerTeamMemberDeath (strategic call);
 // @src Strategic/StrategicMap.cc HandlePotentialBringUpAutoresolveToFinishBattle; Strategic_Movement.cc
-// @src PlanSimultaneousGroupArrivalCallback. See docs/19 §1.5, §2.16, §2.18, §3.2–§3.4, §5.
+// @src PlanSimultaneousGroupArrivalCallback; Queen_Command.cc EndCaptureSequence (ScheduleMeanwhileEvent INTERROGATION at
+// @src minute 10). See docs/19 §1.5, §2.16, §2.18, §3.2–§3.4, §5, docs/25 §2.1.
 
 import { type Sector, sameSector, sectorFromId, sectorShortString, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import { spacesAway } from '../../content/world/grid.ts';
@@ -16,8 +17,9 @@ import { u8 } from '../../core/int.ts';
 import { Rng } from '../../core/rng.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
+import { Meanwhile } from '../strategic/ai/constants.ts';
 import { queenProgress } from '../strategic/ai/difficulty.ts';
-import { handleFirstBattleEndingWhileInTown } from '../strategic/ai/meanwhile.ts';
+import { handleFirstBattleEndingWhileInTown, scheduleMeanwhileEvent } from '../strategic/ai/meanwhile.ts';
 import { clearSurfaceCreatures, determineCreatureTownComposition } from '../strategic/creatures/town-attack.ts';
 import { reEvaluateEveryonesNothingToDo } from '../strategic/economy/assignment-done.ts';
 import { Assignment, LoyaltyEvent } from '../strategic/economy/constants.ts';
@@ -46,7 +48,6 @@ import {
   nextPromptId,
   type PbiChoice,
   PromptKind,
-  QuestState,
 } from '../strategic/forces/battle-state.ts';
 import { EncounterCode, InsertionCode } from '../strategic/forces/constants.ts';
 import { answerSimultaneousArrival } from '../strategic/forces/encounters.ts';
@@ -66,6 +67,10 @@ import {
 import { numberOfPeopleInSquad } from '../strategic/forces/squads.ts';
 import { setThisSectorAsEnemyControlled, setThisSectorAsPlayerControlled } from '../strategic/map/control.ts';
 import { EnemyKnowledge, whatPlayerKnowsAboutEnemiesInSector } from '../strategic/map/knowledge.ts';
+import { Fact, Quest } from '../strategic/narrative/fact-ids.ts';
+import { fact, QuestStatus, questStatus, setFactFalse, setFactTrue } from '../strategic/narrative/facts.ts';
+import { Npc } from '../strategic/narrative/npc-ids.ts';
+import type { QuestContext } from '../strategic/narrative/quests.ts';
 import type { StrategicState } from '../strategic/state.ts';
 import { EventKind, Warp } from '../strategic/time/constants.ts';
 import { addStrategicEvent } from '../strategic/time/event-queue.ts';
@@ -109,6 +114,8 @@ import { addDeadSoldierToUnloadedSector, removeRandomItemsInSector } from './sec
 import { decayTacticalMoraleModifiers, hourlyMoraleUpdate, type TeamMoraleContext, updateBuddyAndHatedCounters } from './team-morale.ts';
 
 export const TICKS_PER_AUTORESOLVE_SLICE = 200;
+const INTERROGATION_MEANWHILE_MINUTE = 10;
+const PACOS_FIRST_BATTLE_RECORD = 18;
 const NO_TACTICAL: Pick<TacticalState, 'soldiers'> = { soldiers: [] };
 const CREATURE_COMPOSITION_KEYS: Readonly<Record<number, keyof CreatureComposition>> = {
   [Body.ADULTFEMALEMONSTER]: 'adultFemales',
@@ -196,6 +203,15 @@ export class BattleFlow implements FateContext {
 
   drainEvents(): SimEvent[] {
     return this.#events.splice(0);
+  }
+
+  questContext(): QuestContext {
+    return this.campaign.narrative.questContext();
+  }
+
+  interrogationMeanwhile(): void {
+    const queen = this.campaign.queen;
+    if (queen) scheduleMeanwhileEvent(queen, Meanwhile.INTERROGATION, INTERROGATION_MEANWHILE_MINUTE);
   }
 
   moraleContext(): MoraleContext {
@@ -539,10 +555,10 @@ export class BattleFlow implements FateContext {
   }
 
   #firstBattleEnded(sector: Sector, won: boolean, fromAutoresolve: boolean): void {
-    const facts = this.state.battle.firstBattle;
-    facts.fought = true;
-    if (won) facts.won = true;
-    if (!fromAutoresolve) facts.beingFought = false;
+    const n = this.state.narrative;
+    setFactTrue(n, Fact.FIRST_BATTLE_FOUGHT);
+    if (won) setFactTrue(n, Fact.FIRST_BATTLE_WON);
+    if (!fromAutoresolve) setFactFalse(n, Fact.FIRST_BATTLE_BEING_FOUGHT);
     if (this.state.economy.firstBattleSector === 0) this.state.economy.firstBattleSector = strategicIndex(sector);
     const queen = this.campaign.queen;
     if (queen) handleFirstBattleEndingWhileInTown(queen, sector, fromAutoresolve);
@@ -578,7 +594,7 @@ export class BattleFlow implements FateContext {
     const battle = this.state.battle;
     const creatures = this.state.encounter.code === EncounterCode.CREATURE_ATTACK;
     endOfBattle(ar);
-    if (!battle.firstBattle.fought) this.#firstBattleEnded(s, ar.status === BattleStatus.VICTORY, true);
+    if (!fact(this.state.narrative, Fact.FIRST_BATTLE_FOUGHT)) this.#firstBattleEnded(s, ar.status === BattleStatus.VICTORY, true);
     const controlBefore = this.#controller(s);
     switch (ar.status) {
       case BattleStatus.VICTORY:
@@ -907,8 +923,11 @@ export class BattleFlow implements FateContext {
     const notOkReal = ours.filter((m) => m.life !== 0 && m.life < OKLIFE && !m.isEpc && !m.isRobot).length;
     if (notOkReal >= MAX_CAPTURED_REAL_MERCS || notOkReal <= MIN_CAPTURED_REAL_MERCS) return false;
     if (teamMembers(t, Team.ENEMY).length === 0) return false;
-    const q = this.state.battle.quests;
-    return q.heldInAlma === QuestState.NOT_STARTED || (q.heldInAlma === QuestState.DONE && q.interrogation === QuestState.NOT_STARTED);
+    const n = this.state.narrative;
+    const alma = questStatus(n, Quest.HELD_IN_ALMA);
+    return (
+      alma === QuestStatus.NOT_STARTED || (alma === QuestStatus.DONE && questStatus(n, Quest.INTERROGATION) === QuestStatus.NOT_STARTED)
+    );
   }
 
   battleLost(t: TacticalState): void {
@@ -949,14 +968,17 @@ export class BattleFlow implements FateContext {
     this.#logBattleResults(true, world);
     this.emit({ type: 'battleResult', sector: sectorShortString(world), result: 'victory', via: 'tactical' });
     setThisSectorAsPlayerControlled(this.economy, world, true);
-    if (this.state.battle.firstBattle.beingFought) this.#firstBattleEnded(world, true, false);
+    if (fact(this.state.narrative, Fact.FIRST_BATTLE_BEING_FOUGHT)) {
+      t.narrative.triggerNpcRecord(Npc.PACOS, PACOS_FIRST_BATTLE_RECORD);
+      this.#firstBattleEnded(world, true, false);
+    }
   }
 
   #tacticalDefeat(t: TacticalState, world: Sector): void {
     this.moraleEvent(null, MoraleEvent.HEARD_BATTLE_LOST, world);
     this.#loyalty(LoyaltyEvent.BATTLE_LOST, world);
     this.state.battle.lostBattleUnloadAtMs = t.clockMs + LOST_BATTLE_UNLOAD_DELAY_MS;
-    if (this.state.battle.firstBattle.beingFought) this.#firstBattleEnded(world, false, false);
+    if (fact(this.state.narrative, Fact.FIRST_BATTLE_BEING_FOUGHT)) this.#firstBattleEnded(world, false, false);
     const enemiesLeft = t.soldiers.some(
       (s) => s?.placed && s.life > 0 && !s.neutral && s.side !== Side.FRIENDLY && s.team !== Team.CREATURE,
     );

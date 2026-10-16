@@ -11,8 +11,10 @@ import { parseSectorString, sectorId } from '../../../content/strategic/sector-i
 import { initSquads } from '../forces/squads.ts';
 import { initializeMapStructure, initStrategicMovementCosts } from '../map/init.ts';
 import { sectorInfo } from '../map/sectors.ts';
+import { Fact } from '../narrative/fact-ids.ts';
+import { fact } from '../narrative/facts.ts';
 import { EventKind } from '../time/constants.ts';
-import { Assignment, FACT_MINERS_PLACED, StatAmt, StatCause, Town, TrainStat } from './constants.ts';
+import { Assignment, StatAmt, StatCause, Town, TrainStat } from './constants.ts';
 import { bandageBleedingDyingPatientsBeingTreated } from './doctor.ts';
 import { Slot } from './kits.ts';
 import { setTownLoyalty } from './loyalty.ts';
@@ -29,14 +31,12 @@ beforeAll(async () => {
 
 function context(random?: ScriptedRolls) {
   const placed: string[] = [];
-  const facts: number[] = [];
   const made = economyTestContext({
     content,
     ...(random ? { random } : {}),
     setup: {
       hooks: {
         placeHeadMiner: (profile, s, town) => placed.push(`${profile}@${sectorId(s)}/${town}`),
-        setFact: (id) => facts.push(id),
       },
     },
   });
@@ -44,7 +44,7 @@ function context(random?: ScriptedRolls) {
   initStrategicMovementCosts(made.ctx);
   initSquads(made.ctx);
   setTownNames(made.ctx);
-  return { ...made, placed, facts };
+  return { ...made, placed };
 }
 
 describe('stat training', () => {
@@ -116,7 +116,7 @@ describe('head miners and bandaging', () => {
       `156@${sectorId(parseSectorString('B2'))}/12`,
       `158@${sectorId(parseSectorString('H3'))}/4`,
     ]);
-    expect(made.facts).toEqual([FACT_MINERS_PLACED]);
+    expect(fact(made.ctx.state.narrative, Fact.MINERS_PLACED)).toBe(true);
     expect(random.ranges).toEqual([4, 4, 4, 4, 4]);
   });
 

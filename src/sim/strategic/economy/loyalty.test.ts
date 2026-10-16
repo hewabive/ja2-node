@@ -9,7 +9,9 @@ import {
 import { parseSectorString } from '../../../content/strategic/sector-ids.ts';
 import { initializeMapStructure } from '../map/init.ts';
 import { sectorInfo } from '../map/sectors.ts';
-import { FACT_MIGUEL_READ_LETTER, LoyaltyEvent, Town } from './constants.ts';
+import { Fact } from '../narrative/fact-ids.ts';
+import { setFact } from '../narrative/facts.ts';
+import { LoyaltyEvent, Town } from './constants.ts';
 import {
   affectAllTownsLoyaltyByDistanceFrom,
   checkIfEntireTownHasBeenLiberated,
@@ -33,8 +35,7 @@ beforeAll(async () => {
 
 function context(facts: Record<number, number> = {}, rebelsHostile = false) {
   const { ctx } = economyTestContext({ content, setup: { hooks: { rebelsHostile: () => rebelsHostile } } });
-  const world = ctx.world as { fact: (id: number) => number };
-  world.fact = (id) => facts[id] ?? 0;
+  for (const [id, value] of Object.entries(facts)) setFact(ctx.state.narrative, Number(id), value);
   initializeMapStructure(ctx);
   setTownNames(ctx);
   return ctx;
@@ -49,7 +50,7 @@ describe('town loyalty accumulator', () => {
     expect(before.state.economy.towns[Town.DRASSEN]).toMatchObject({ rating: 15, started: true });
     expect(before.state.economy.towns[Town.OMERTA]).toMatchObject({ rating: 0, started: true });
     expect(before.state.economy.towns[Town.TIXA]?.started).toBe(false);
-    const after = context({ [FACT_MIGUEL_READ_LETTER]: 1 });
+    const after = context({ [Fact.MIGUEL_READ_LETTER]: 1 });
     startTownLoyaltyIfFirstTime(after, Town.DRASSEN);
     startTownLoyaltyIfFirstTime(after, Town.OMERTA);
     expect(after.state.economy.towns[Town.DRASSEN]?.rating).toBe(30);

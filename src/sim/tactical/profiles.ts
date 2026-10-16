@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Campaign.h StatKind; Soldier_Profile_Type.h MERCPROFILESTRUCT (mutable campaign fields), bMercStatus
+// @src src/game/Tactical/Campaign.h StatKind; Soldier_Profile_Type.h MERCPROFILESTRUCT (mutable campaign fields, the NPC
+// @src presence fields of docs/25 §0), bMercStatus
 // @src values; Soldier_Profile.cc InitProfileFromContent (the relation counters)
 
 import type { MercProfile } from '../../content/formats/prof.ts';
@@ -106,12 +107,28 @@ export interface ProfileProgress {
   armourAttractiveness: number;
   totalDaysServed: number;
   miscFlags: number;
+  miscFlags2: number;
   miscFlags3: number;
   daysOfMoraleHangover: number;
   precedentQuoteSaid: number;
   balance: number;
   mercMercContractLength: number;
   suspiciousDeath: number;
+  sectorX: number;
+  sectorY: number;
+  sectorZ: number;
+  town: number;
+  townAttachment: number;
+  npcData: number;
+  npcData2: number;
+  money: number;
+  useProfileInsertion: boolean;
+  insertionCode: number;
+  insertionData: number;
+  quoteRecord: number;
+  quoteActionId: number;
+  gridNo: number;
+  lastDateSpokenTo: number;
   readonly inventory: number[];
   readonly inventoryStatus: number[];
   readonly inventoryCount: number[];
@@ -205,12 +222,28 @@ export function progressFromProfile(p: MercProfile, counters: SavedProfileCounte
     armourAttractiveness: p.armourAttractiveness,
     totalDaysServed: p.totalDaysServed,
     miscFlags: p.miscFlags,
+    miscFlags2: p.miscFlags2,
     miscFlags3: p.miscFlags3,
     daysOfMoraleHangover: p.daysOfMoraleHangover,
     precedentQuoteSaid: p.precedentQuoteSaid,
     balance: p.balance,
     mercMercContractLength: p.mercMercContractLength,
     suspiciousDeath: p.suspiciousDeath,
+    sectorX: p.sectorX,
+    sectorY: p.sectorY,
+    sectorZ: p.sectorZ,
+    town: p.town,
+    townAttachment: p.townAttachment,
+    npcData: p.npcData,
+    npcData2: p.npcData2,
+    money: p.money,
+    useProfileInsertion: p.useProfileInsertion,
+    insertionCode: p.insertionCode,
+    insertionData: p.insertionData,
+    quoteRecord: p.quoteRecord,
+    quoteActionId: p.quoteActionId,
+    gridNo: p.gridNo,
+    lastDateSpokenTo: p.lastDateSpokenTo,
     inventory: [...p.inventory],
     inventoryStatus: [...p.inventoryStatus],
     inventoryCount: [...p.inventoryCount],
@@ -271,12 +304,28 @@ export type CampaignProfileFields = Pick<
   | 'armourAttractiveness'
   | 'totalDaysServed'
   | 'miscFlags'
+  | 'miscFlags2'
   | 'miscFlags3'
   | 'daysOfMoraleHangover'
   | 'precedentQuoteSaid'
   | 'balance'
   | 'mercMercContractLength'
   | 'suspiciousDeath'
+  | 'sectorX'
+  | 'sectorY'
+  | 'sectorZ'
+  | 'town'
+  | 'townAttachment'
+  | 'npcData'
+  | 'npcData2'
+  | 'money'
+  | 'useProfileInsertion'
+  | 'insertionCode'
+  | 'insertionData'
+  | 'quoteRecord'
+  | 'quoteActionId'
+  | 'gridNo'
+  | 'lastDateSpokenTo'
   | 'inventory'
   | 'inventoryStatus'
   | 'inventoryCount'
@@ -304,12 +353,28 @@ export function noCampaignFields(): CampaignProfileFields {
     armourAttractiveness: NO_ATTRACTIVENESS,
     totalDaysServed: 0,
     miscFlags: 0,
+    miscFlags2: 0,
     miscFlags3: 0,
     daysOfMoraleHangover: 0,
     precedentQuoteSaid: 0,
     balance: 0,
     mercMercContractLength: 0,
     suspiciousDeath: 0,
+    sectorX: 0,
+    sectorY: 0,
+    sectorZ: 0,
+    town: 0,
+    townAttachment: 0,
+    npcData: 0,
+    npcData2: 0,
+    money: 0,
+    useProfileInsertion: false,
+    insertionCode: 0,
+    insertionData: 0,
+    quoteRecord: 0,
+    quoteActionId: 0,
+    gridNo: 0,
+    lastDateSpokenTo: 0,
     inventory: [],
     inventoryStatus: [],
     inventoryCount: [],

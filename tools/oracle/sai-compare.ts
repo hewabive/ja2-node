@@ -22,6 +22,7 @@ import { townIdOfSector } from '../../src/sim/strategic/map/control.ts';
 import { initializeMapStructure, initNewCampaignMap, setupNewStrategicMap } from '../../src/sim/strategic/map/init.ts';
 import { importStrategicMap } from '../../src/sim/strategic/map/save-import.ts';
 import { calculateTravelTimeOfGroup } from '../../src/sim/strategic/map/travel.ts';
+import { importNarrative } from '../../src/sim/strategic/narrative/facts.ts';
 import { createStrategicState, type StrategicState } from '../../src/sim/strategic/state.ts';
 import { EventKind, Warp } from '../../src/sim/strategic/time/constants.ts';
 import { deleteStrategicEvent } from '../../src/sim/strategic/time/event-queue.ts';
@@ -308,8 +309,9 @@ export class SaiComparer {
       mercs,
       random: rolls,
       preRandom: rolls,
-      world: { ...defaultTacticalWorldPort, fact: (id) => facts[id] ?? 0, enemyInSector: () => enemyInSector },
+      world: { ...defaultTacticalWorldPort, enemyInSector: () => enemyInSector },
     });
+    importNarrative(state.narrative, facts, []);
     return { q: ai.bind(ctx), rolls, mines, loadHooksPending: false, loadDraws: null };
   }
 

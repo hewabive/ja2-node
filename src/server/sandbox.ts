@@ -19,6 +19,7 @@ import {
 import { addSoldierToSector, Insertion } from '../sim/tactical/insertion.ts';
 import { lightSpriteRenderAll } from '../sim/tactical/lighting/lighting.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
+import { PlacementVerdict } from '../sim/tactical/narrative/placement.ts';
 import { revealedRooms } from '../sim/tactical/perception/fov.ts';
 import { firstFreeSoldierId, type Soldier, SoldierClass, Team } from '../sim/tactical/soldier.ts';
 import { teamMembers } from '../sim/tactical/state.ts';
@@ -108,7 +109,8 @@ function sandboxPopulation(sim: TacticalSim): PopulationEnv {
     locationModifier: 0,
     autoResolveActive: false,
     profileHere: (p) => profiles[p]?.sectorX === sector.x && profiles[p]?.sectorY === sector.y,
-    civilianWithheld: () => false,
+    iceCreamTruckWithheld: () => false,
+    civilianPlacement: () => PlacementVerdict.CREATE,
   };
 }
 

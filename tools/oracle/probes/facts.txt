@@ -1,0 +1,68 @@
+# Facts, quests and strategic NPC presence (docs/25 §1–§4) on the user's saves: the stored facts and quests, CheckFact
+# over all 500 ids for several profiles and talk contexts (src/dest are soldier ids, -1 clears; the talk context outlives a
+# save load in the original, so every checkfact sets it), quest starts and ends with their history lines, the 04:00 event
+# with its draws, the hourly quest facts, Slay's check and Skyrider's debt, the quest code of sector entry and exit, and
+# the profile NPCs placed when another sector is loaded (map placements and profile insertion data).
+
+save SaveGame01
+narrative
+checkfact profile=0 src=-1 dest=-1 srcprofile=0
+checkfact profile=97 src=-1 dest=-1 srcprofile=0
+checkfact profile=100 src=0 dest=1
+checkfact profile=59 src=-1 dest=-1 srcprofile=59
+quest action=start id=13 sector=I16
+quest action=end id=13 sector=I16
+quest action=iend id=6
+quest action=start id=0
+earlymorning
+hourlynpc hour=15
+hourlynpc hour=20
+hourlynpc hour=9
+npcprofile id=97 balance=-2500
+hourlynpc hour=10
+questexit sector=B13
+questentry sector=C13
+narrative
+
+save SaveGame02
+checkfact profile=0 src=-1 dest=-1 srcprofile=0
+checkfact profile=148 src=1 dest=0
+npcprofile id=91 spokento=2
+npcprofile id=61 npcdata=3
+npcprofile id=78 flags2=1 npcdata2=2 money=12000
+earlymorning
+earlymorning
+hourlynpc hour=2
+hourlynpc hour=4
+hourlynpc hour=18
+
+save SaveGame07
+checkfact profile=0 src=-1 dest=-1 srcprofile=0
+checkfact profile=74 src=0 dest=-1
+earlymorning
+questexit sector=D13
+questentry sector=D13
+
+save SaveGame08
+checkfact profile=0 src=-1 dest=-1 srcprofile=0
+checkfact profile=117 src=2 dest=0
+
+save SaveGame09
+checkfact profile=0 src=-1 dest=-1 srcprofile=0
+checkfact profile=86 src=-1 dest=-1 srcprofile=0
+setquest id=4 status=1
+npcprofile id=78 sector=C5
+checkfact profile=86 src=-1 dest=-1 srcprofile=0
+earlymorning
+
+save SaveGame10
+checkfact profile=0 src=-1 dest=-1 srcprofile=0
+checkfact profile=106 src=0 dest=1
+entersector sector=C13
+entersector sector=D13
+npcprofile id=91 sector=C13
+entersector sector=C13
+npcprofile id=91 sector=D13 insertion=1 code=4 data=12080
+entersector sector=D13
+earlymorning
+narrative

@@ -10,6 +10,7 @@ import {
 } from '../../src/sim/strategic/economy/merchants/context.ts';
 import { createMerchantState } from '../../src/sim/strategic/economy/merchants/state.ts';
 import type { RollSource } from '../../src/sim/strategic/forces/ports.ts';
+import { createNarrativeState, fact, setFact } from '../../src/sim/strategic/narrative/facts.ts';
 import { QueuedRolls, RecordingRolls } from './queen.ts';
 
 const DATA_DIR = join(import.meta.dirname, '../../data');
@@ -27,6 +28,11 @@ export async function loadMerchantTestContent(): Promise<MerchantTestContent> {
   return { items, content };
 }
 
+export interface FixtureFacts {
+  add(id: number): void;
+  has(id: number): boolean;
+}
+
 export interface MerchantWorldOptions {
   gunNut: boolean;
   progress: number;
@@ -37,8 +43,7 @@ export interface MerchantWorldOptions {
 export interface MerchantFixture {
   readonly ctx: MerchantContext;
   readonly world: MerchantWorldOptions;
-  readonly facts: Set<number>;
-  readonly setFacts: number[];
+  readonly facts: FixtureFacts;
   hours: ShopHours | null;
 }
 
@@ -51,13 +56,15 @@ export interface MerchantFixtureOptions {
 
 export function merchantFixture(t: MerchantTestContent, options: MerchantFixtureOptions = {}): MerchantFixture {
   const world: MerchantWorldOptions = { gunNut: false, progress: 0, day: 1, minutes: 1500, ...options.world };
-  const facts = new Set<number>();
-  const setFacts: number[] = [];
+  const narrative = createNarrativeState();
+  const facts: FixtureFacts = {
+    add: (id) => setFact(narrative, id, true),
+    has: (id) => fact(narrative, id),
+  };
   const fixture: MerchantFixture = {
     ctx: null as unknown as MerchantContext,
     world,
     facts,
-    setFacts,
     hours: null,
   };
   const ctx = createMerchantContext(
@@ -65,11 +72,6 @@ export function merchantFixture(t: MerchantTestContent, options: MerchantFixture
       content: t.content,
       items: t.items,
       hooks: {
-        fact: (id) => facts.has(id),
-        setFact: (id) => {
-          setFacts.push(id);
-          facts.add(id);
-        },
         shopHours: () => fixture.hours,
         ...options.hooks,
       },
@@ -82,6 +84,7 @@ export function merchantFixture(t: MerchantTestContent, options: MerchantFixture
       worldDay: () => world.day,
       worldMinutes: () => world.minutes,
     },
+    narrative,
   );
   Object.assign(fixture, { ctx });
   return fixture;

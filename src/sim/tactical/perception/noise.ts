@@ -268,6 +268,7 @@ function processNoise(t: TacticalState, maker: Soldier | null, g: number, level:
         if (l.team === Team.MILITIA && maker.team === Team.OUR) continue;
         if (l.team === Team.OUR && maker.team === Team.MILITIA) continue;
       }
+      if (l.team === Team.CIV && (kind === NoiseKind.GUNFIRE || kind === NoiseKind.EXPLOSION)) l.heardGunshot = true;
       const eff = calcEffVolume(t, l, g, level, base, sourceTerrain);
       if (eff <= 0) continue;
       if (hearNoise(t, l, source, g, level, eff, kind)) seen = true;

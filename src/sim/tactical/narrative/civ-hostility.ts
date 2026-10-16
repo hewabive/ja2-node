@@ -8,6 +8,8 @@
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { civGroupHostility, setCivGroupHostility } from '../../strategic/narrative/civ-groups.ts';
+import { Fact, Quest } from '../../strategic/narrative/fact-ids.ts';
+import { QuestStatus } from '../../strategic/narrative/facts.ts';
 import { soldierToSoldierLos } from '../combat/positions.ts';
 import { Opp } from '../perception/opp.ts';
 import { recalculateOppCntsDueToNoLongerNeutral } from '../perception/sight.ts';
@@ -19,16 +21,13 @@ import {
   BROTHEL_SECTOR,
   BrothelRooms,
   CivGroupHostility,
-  Fact,
   HICKS_FARM_SECTOR,
   KINGPIN_DOOR_GRIDNOS,
   Profile,
-  Quest,
   REBEL_SYMPATHIZERS,
   TIXA_SECTOR,
   WARDEN_ALERT_RADIUS,
 } from './constants.ts';
-import { QuestStatus } from './port.ts';
 
 const MAX_DISTANCE_VISIBLE = 26;
 const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;

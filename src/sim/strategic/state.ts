@@ -2,7 +2,6 @@ import { PreRandom, Rng } from '../../core/rng.ts';
 import { type ContractState, createContractState } from '../campaign/contracts/contract-state.ts';
 import { createFinanceState, type FinanceState } from '../campaign/finances.ts';
 import { createLaptopState, type LaptopState } from '../campaign/laptop/laptop-state.ts';
-import { createNarrativeState, type NarrativeState } from '../campaign/narrative/facts.ts';
 import type { SectorDiff } from '../campaign/sector-diff.ts';
 import { createTeamMoraleState, type TeamMoraleState } from '../campaign/team-morale.ts';
 import { createKeyTable, type KeyTable } from '../tactical/doors/keys.ts';
@@ -23,6 +22,7 @@ import { createEncounterState, createMovementFlowState, type EncounterState, typ
 import { createForcesState, type ForcesState } from './forces/groups.ts';
 import { createMapState, type StrategicMapState } from './map/sectors.ts';
 import { type CivGroupState, createCivGroupState } from './narrative/civ-groups.ts';
+import { createNarrativeState, type NarrativeState } from './narrative/facts.ts';
 import { createEnvironment, type Environment } from './time/environment.ts';
 import { createEventQueue, type EventQueue } from './time/event-queue.ts';
 import { createWorldClock, type WorldClock } from './time/world-clock.ts';
@@ -66,14 +66,12 @@ export interface StrategicState {
   readonly laptop: LaptopState;
   readonly narrative: NarrativeState;
   readonly terrorists: TerroristState;
-  readonly npcPlacements: Map<number, number>;
   readonly civGroups: CivGroupState;
   readonly keyTable: KeyTable;
 }
 
 export interface TerroristState {
   count: number;
-  readonly sectors: Map<number, number>;
 }
 
 export interface GameOptions {
@@ -132,8 +130,7 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     contracts: createContractState(),
     laptop: createLaptopState(),
     narrative: createNarrativeState(),
-    terrorists: { count: 0, sectors: new Map() },
-    npcPlacements: new Map(),
+    terrorists: { count: 0 },
     civGroups: options.civGroups ?? createCivGroupState(),
     keyTable: options.keyTable ?? createKeyTable(),
   };

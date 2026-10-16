@@ -4,7 +4,8 @@ import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
 import type { QueenContext, QueenContextOptions } from '../strategic/ai/context.ts';
-import { queenEconomyHooks, queenEconomySlots, queenMineIncome } from '../strategic/ai/economy-link.ts';
+import { hourlyProgressUpdate } from '../strategic/ai/difficulty.ts';
+import { queenEconomyHooks, queenMineIncome } from '../strategic/ai/economy-link.ts';
 import { meanwhileScheduled, scheduleMeanwhileEvent } from '../strategic/ai/meanwhile.ts';
 import { registerStrategicAiEvents, StrategicAi } from '../strategic/ai/strategic-ai.ts';
 import { createEconomyContext, type EconomySetup, economyWorldPort } from '../strategic/economy/context.ts';
@@ -21,6 +22,8 @@ import {
 } from '../strategic/forces/context.ts';
 import { defaultTacticalWorldPort, type StrategicContext, type TacticalWorldPort } from '../strategic/forces/ports.ts';
 import { isSectorDesert } from '../strategic/map/sectors.ts';
+import { Quest } from '../strategic/narrative/fact-ids.ts';
+import { QuestStatus, questStatus } from '../strategic/narrative/facts.ts';
 import { createStrategicState, type StrategicState } from '../strategic/state.ts';
 import { CompressMode, EventKind } from '../strategic/time/constants.ts';
 import { EventDispatch } from '../strategic/time/dispatch.ts';
@@ -51,7 +54,7 @@ import { ContractFlow } from './contracts/contract-flow.ts';
 import { CreatureFlow } from './creature-flow.ts';
 import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
 import { LAPTOP_REFUSAL, LaptopFlow, type LaptopSetup } from './laptop/laptop-flow.ts';
-import { fact, factValue, setFact } from './narrative/facts.ts';
+import { NarrativeFlow } from './narrative/narrative-flow.ts';
 import { registerNarrativeEvents } from './narrative-port.ts';
 import { openMapScreen, openTacticalScreen } from './screens.ts';
 import { dispatchSectorCommand, loadStartSector, SectorFlow, type SectorSetup, sectorWorldPort } from './sector-flow.ts';
@@ -91,6 +94,7 @@ export class CampaignSim {
   readonly shop: ShopFlow | null;
   readonly contracts: ContractFlow | null;
   readonly laptop: LaptopFlow | null;
+  readonly narrative: NarrativeFlow;
   readonly worldClock: WorldTimeControl;
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
@@ -104,12 +108,13 @@ export class CampaignSim {
     this.tactical = tactical;
     this.#hooks = hooks;
     if (tactical) state.flow = 'tactical';
+    this.narrative = new NarrativeFlow(this);
     this.#clock = this.#clockContext();
     const ai = hooks.queen
       ? new StrategicAi({
           mines: queenMineIncome(() => this.economy),
           ...hooks.queen,
-          hooks: { creatureQuestEnded: () => this.creatures?.endQuest(), ...hooks.queen.hooks },
+          hooks: { creatureQuestEnded: () => this.#creatureQuestEnded(), ...hooks.queen.hooks },
         })
       : null;
     this.strategic = hooks.strategic
@@ -133,7 +138,7 @@ export class CampaignSim {
       this.battle && hooks.laptop
         ? new LaptopFlow(this, hooks.laptop, { roster: this.battle.roster, tactical: this.battle.content })
         : null;
-    const contractHooks = { ...this.laptop?.contractHooks(), ...hooks.contracts };
+    const contractHooks = { ...this.laptop?.contractHooks(), slayDailyEvent: () => this.narrative.slayDailyEvent(), ...hooks.contracts };
     this.contracts = this.battle
       ? new ContractFlow(this, { roster: this.battle.roster, content: this.battle.content, hooks: contractHooks })
       : null;
@@ -147,6 +152,7 @@ export class CampaignSim {
     this.contracts?.register(this.dispatchTable);
     this.laptop?.register(this.dispatchTable);
     registerNarrativeEvents(this);
+    this.narrative.register(this.dispatchTable);
     if (state.flow === 'tactical') setGameTimeCompressionLevel(this.#clock, CompressMode.X1);
     tactical?.attachWorldClock(state.clock);
     this.#compressing = isTimeBeingCompressed(state.clock);
@@ -158,11 +164,7 @@ export class CampaignSim {
     return createMerchantContext(
       {
         ...setup,
-        hooks: {
-          fact: (id) => fact(s.narrative, id),
-          setFact: (id) => setFact(s.narrative, id),
-          ...setup.hooks,
-        },
+        hooks: setup.hooks ?? {},
       },
       s.merchants,
       { random: s.rng, preRandom: s.pre },
@@ -172,6 +174,7 @@ export class CampaignSim {
         worldDay: () => worldDay(s.clock),
         worldMinutes: () => worldTotalMinutes(s.clock),
       },
+      s.narrative,
     );
   }
 
@@ -193,7 +196,14 @@ export class CampaignSim {
         this.battle?.removeRandomItemsInSector(sector, chance),
       mineClearOfMonsters: (mine: number) => this.creatures?.mineClear(mine) ?? true,
       checkConditionsForTriggeringCreatureQuest: () => this.creatures?.checkConditionsForQuest(),
-      setFact: (id: number) => setFact(this.state.narrative, id),
+      startCreatureQuest: (sector: { x: number; y: number; z: number }) => {
+        if (questStatus(this.state.narrative, Quest.CREATURES) === QuestStatus.NOT_STARTED)
+          this.narrative.startQuest(Quest.CREATURES, sector);
+      },
+      placeHeadMiner: (profile: number, sector: { x: number; y: number; z: number }, town: number) =>
+        this.narrative.placeHeadMiner(profile, sector, town),
+      headMinerTown: (profile: number) => this.narrative.headMinerTown(profile),
+      headMinerAlive: (profile: number) => this.narrative.headMinerAlive(profile),
       history: (code: number, secondCode: number, sector: { x: number; y: number; z: number }) =>
         this.laptop?.economyHistory(code, secondCode, sector),
     };
@@ -202,11 +212,13 @@ export class CampaignSim {
       hourlyMoraleUpdate: () => this.battle?.hourlyMoraleUpdate(),
       decayTacticalMoraleModifiers: () => this.battle?.decayTacticalMoraleModifiers(),
     };
-    if (!queen) return { ...setup, hooks: { ...battleHooks, ...setup.hooks }, slots: { ...moraleSlots, ...setup.slots } };
+    const narrativeSlots = this.narrative.periodicSlots(queen ? () => hourlyProgressUpdate(queen) : null);
+    if (!queen)
+      return { ...setup, hooks: { ...battleHooks, ...setup.hooks }, slots: { ...moraleSlots, ...narrativeSlots, ...setup.slots } };
     return {
       ...setup,
       hooks: { ...battleHooks, ...queenEconomyHooks(queen), ...setup.hooks },
-      slots: { ...moraleSlots, ...queenEconomySlots(queen), ...setup.slots },
+      slots: { ...moraleSlots, ...narrativeSlots, ...setup.slots },
     };
   }
 
@@ -221,7 +233,6 @@ export class CampaignSim {
     if (!this.#hooks.laptop) return base;
     return {
       ...base,
-      fact: (id) => factValue(this.state.narrative, id) || base.fact(id),
       playerControlsSurfaceSector: (sector) => {
         base.playerControlsSurfaceSector?.(sector);
         this.laptop?.surfaceSectorTaken(sector);
@@ -231,6 +242,11 @@ export class CampaignSim {
         this.laptop?.airspaceControlUpdated();
       },
     };
+  }
+
+  #creatureQuestEnded(): void {
+    this.creatures?.endQuest();
+    this.narrative.endQuest(Quest.CREATURES, this.state.worldSector);
   }
 
   scheduleFlowersMeanwhile(minute: () => number): void {
@@ -383,6 +399,7 @@ export class CampaignSim {
     if (this.shop) this.#events.push(...this.shop.drainEvents());
     if (this.contracts) this.#events.push(...this.contracts.drainEvents());
     if (this.laptop) this.#events.push(...this.laptop.drainEvents());
+    this.#events.push(...this.narrative.drainEvents());
   }
 
   step(): void {

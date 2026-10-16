@@ -15,6 +15,8 @@ import { setMercAwake } from '../economy/rest.ts';
 import { isThisSectorASamSector, townIdOfSector } from '../map/control.ts';
 import { EnemyKnowledge, whatPlayerKnowsAboutEnemiesInSector } from '../map/knowledge.ts';
 import { getSectorFlagStatus, sectorInfo } from '../map/sectors.ts';
+import { Fact } from '../narrative/fact-ids.ts';
+import { fact, setFactTrue } from '../narrative/facts.ts';
 import { CompressionStop, stopTimeCompression } from '../time/world-clock.ts';
 import { PbiChoice as Choice, type PbiOption, PbiReason as Reason } from './battle-state.ts';
 import { Assignment, BLANK_SECTOR, EncounterCode as Code, SectorFlag } from './constants.ts';
@@ -224,7 +226,8 @@ function openPersistent(ctx: EconomyContext, group: Group | null): Sector | null
   const enc = ctx.state.encounter;
   const battle = ctx.state.battle;
   battle.locator = true;
-  if (!BLOODCAT_CODES.has(enc.code) && !battle.firstBattle.fought) battle.firstBattle.beingFought = true;
+  if (!BLOODCAT_CODES.has(enc.code) && !fact(ctx.state.narrative, Fact.FIRST_BATTLE_FOUGHT))
+    setFactTrue(ctx.state.narrative, Fact.FIRST_BATTLE_BEING_FOUGHT);
   const tt = ctx.state.movement.tacticalTraversal;
   const world = ctx.state.worldSector;
   if (tt.active && (group?.id === tt.groupId || (world?.z ?? 0) > 0)) return null;

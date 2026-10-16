@@ -42,6 +42,16 @@ export interface MercProfile {
   readonly civilianGroup: number;
   readonly sectorX: number;
   readonly sectorY: number;
+  readonly sectorZ: number;
+  readonly gridNo: number;
+  readonly useProfileInsertion: boolean;
+  readonly insertionCode: number;
+  readonly insertionData: number;
+  readonly quoteRecord: number;
+  readonly quoteActionId: number;
+  readonly npcData: number;
+  readonly npcData2: number;
+  readonly lastDateSpokenTo: number;
   readonly inventory: readonly number[];
   readonly inventoryStatus: readonly number[];
   readonly inventoryCount: readonly number[];
@@ -176,6 +186,16 @@ export function parseProfile(id: number, plain: Uint8Array): MercProfile {
     civilianGroup: v.getUint8(682),
     sectorX: v.getUint16(288, true),
     sectorY: v.getUint16(290, true),
+    sectorZ: i8(669),
+    gridNo: v.getInt16(408, true),
+    useProfileInsertion: v.getUint8(406) !== 0,
+    insertionCode: v.getUint8(522),
+    insertionData: v.getUint16(670, true),
+    quoteRecord: v.getUint8(238),
+    quoteActionId: v.getUint8(410),
+    npcData: i8(675),
+    npcData2: i8(688),
+    lastDateSpokenTo: v.getUint8(667),
     inventory: Array.from({ length: 19 }, (_, k) => v.getUint16(416 + k * 2, true)),
     inventoryStatus: Array.from(plain.subarray(358, 377)),
     inventoryCount: Array.from(plain.subarray(377, 396)),

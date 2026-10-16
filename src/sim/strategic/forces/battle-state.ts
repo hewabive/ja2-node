@@ -69,19 +69,6 @@ export type BattlePrompt =
       readonly cost: number;
     };
 
-export const QuestState = { NOT_STARTED: 0, IN_PROGRESS: 1, DONE: 2 } as const;
-
-export interface CaptureQuests {
-  heldInAlma: number;
-  interrogation: number;
-}
-
-export interface FirstBattleFacts {
-  beingFought: boolean;
-  fought: boolean;
-  won: boolean;
-}
-
 export interface AutoresolveSession {
   readonly ar: AutoresolveState;
   readonly sector: Sector;
@@ -102,8 +89,6 @@ export interface BattleState {
   civiliansEaten: number;
   resetAllPlayerKnowsEnemiesFlags: boolean;
   lostBattleUnloadAtMs: number | null;
-  readonly firstBattle: FirstBattleFacts;
-  readonly quests: CaptureQuests;
   promptSeq: number;
   prompt: BattlePrompt | null;
   autoresolve: AutoresolveSession | null;
@@ -121,8 +106,6 @@ export function createBattleState(): BattleState {
     civiliansEaten: 0,
     resetAllPlayerKnowsEnemiesFlags: false,
     lostBattleUnloadAtMs: null,
-    firstBattle: { beingFought: false, fought: false, won: false },
-    quests: { heldInAlma: QuestState.NOT_STARTED, interrogation: QuestState.NOT_STARTED },
     promptSeq: 0,
     prompt: null,
     autoresolve: null,

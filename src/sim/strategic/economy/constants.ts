@@ -144,10 +144,6 @@ export const EnricoFlag = {
   LACK_PROGRESS3: 0x0200,
 } as const;
 
-export const FACT_MIGUEL_READ_LETTER = 23;
-export const FACT_REBELS_HATE_PLAYER = 25;
-export const FACT_MINERS_PLACED = 194;
-
 export const StatAmt = {
   HEALTH: 1,
   AGILITY: 2,

@@ -50,6 +50,7 @@ const SAVED_NO_PENDING_DIRECTION = 253;
 const SAVED_NO_PENDING_STANCE = 254;
 const NO_DESIRED_HEIGHT = 255;
 const SAVED_NOWHERE = WORLD_MAX + 1;
+const SOLDIER_MISC_HEARD_GUNSHOT = 0x01;
 
 export interface SaveImportReport {
   readonly mapPath: string;
@@ -298,6 +299,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.monsterOrAnimal = (r.statusFlags & (SoldierStatusFlags.MONSTER | SoldierStatusFlags.ANIMAL)) !== 0;
   s.underAiControl = (r.statusFlags & SoldierStatusFlags.PCUNDERAICONTROL) !== 0;
   s.cowering = (r.statusFlags & SoldierStatusFlags.COWERING) !== 0;
+  s.heardGunshot = (r.miscSoldierFlags & SOLDIER_MISC_HEARD_GUNSHOT) !== 0;
   s.breathMax = r.stats.breathMax;
   s.breathRed = r.breathRed;
   s.bleeding = r.bleeding;

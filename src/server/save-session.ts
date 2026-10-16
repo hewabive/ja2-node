@@ -20,6 +20,7 @@ import { importStrategicAi } from '../sim/strategic/ai/save-import.ts';
 import { importMerchants } from '../sim/strategic/economy/merchants/save-import.ts';
 import { applySavedAssignment, importEconomy } from '../sim/strategic/economy/save-import.ts';
 import { importStrategicMap } from '../sim/strategic/map/save-import.ts';
+import { importNarrativeSave } from '../sim/strategic/narrative/save-import.ts';
 import { createStrategicState } from '../sim/strategic/state.ts';
 import { importStrategicTime } from '../sim/strategic/time/save-import.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
@@ -132,6 +133,7 @@ export async function createSaveSession(
     startSector: strategicContent.policy.startSector,
     declaredProfiles: economyContent.mercTypes,
   });
+  importNarrativeSave(strategic, save);
   for (const saved of readSoldierAssignments(saveBytes, save, encryption)) {
     const merc = roster.get(saved.id);
     if (merc) applySavedAssignment(merc, saved);

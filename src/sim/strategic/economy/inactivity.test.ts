@@ -1,6 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { type EconomyTestContent, economyTestContext, loadEconomyTestContent } from '../../../../tests/support/economy.ts';
-import { EnricoFlag, FACT_MIGUEL_READ_LETTER, Town } from './constants.ts';
+import { Fact } from '../narrative/fact-ids.ts';
+import { setFact } from '../narrative/facts.ts';
+import { EnricoFlag, Town } from './constants.ts';
 import { handleEnricoEmail, lackOfProgressTolerance } from './inactivity.ts';
 import { setTownLoyalty } from './loyalty.ts';
 
@@ -12,7 +14,7 @@ beforeAll(async () => {
 function context(progress = 0, difficulty = 2) {
   const made = economyTestContext({ content, stateOptions: { options: { difficulty } } });
   (made.ctx.ai as { progressPercentage: () => number }).progressPercentage = () => progress;
-  (made.ctx.world as { fact: (id: number) => number }).fact = (id) => (id === FACT_MIGUEL_READ_LETTER ? 1 : 0);
+  setFact(made.ctx.state.narrative, Fact.MIGUEL_READ_LETTER, true);
   setTownLoyalty(made.ctx, Town.DRASSEN, 50);
   return made.ctx;
 }

@@ -112,6 +112,18 @@ export interface StrategicGroupView {
   readonly path: readonly string[];
 }
 
+export interface QuestStepView {
+  readonly minute: number;
+  readonly sector: string | null;
+}
+
+export interface QuestLogEntryView {
+  readonly id: number;
+  readonly quest: string;
+  readonly started: QuestStepView | null;
+  readonly finished: QuestStepView | null;
+}
+
 export interface StrategicView {
   readonly balance: number;
   readonly worldSector: string | null;
@@ -122,6 +134,7 @@ export interface StrategicView {
   readonly mercAccountStatus?: string;
   readonly landingZone?: string;
   readonly unreadMail?: number;
+  readonly quests: readonly QuestLogEntryView[];
 }
 
 export interface PromptOptionView {

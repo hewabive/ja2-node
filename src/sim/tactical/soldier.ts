@@ -272,6 +272,7 @@ export interface Soldier {
   weightCarriedAtTurnStart: number;
   stealthMode: boolean;
   cowering: boolean;
+  heardGunshot: boolean;
   civilianGroup: number;
   hasKeys: boolean;
   visible: number;
@@ -456,6 +457,7 @@ export interface Soldier {
   preTraversalGridNo: number;
   waitActionToDo: number;
   quoteActionId: number;
+  quoteRecord: number;
   offWorldGridNo: number;
   militiaKills: number;
   offMap: boolean;
@@ -539,6 +541,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     weightCarriedAtTurnStart: 0,
     stealthMode: false,
     cowering: false,
+    heardGunshot: false,
     civilianGroup: init.civilianGroup ?? 0,
     hasKeys: false,
     visible: init.team === Team.OUR ? 1 : -1,
@@ -753,6 +756,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     preTraversalGridNo: NOWHERE,
     waitActionToDo: 0,
     quoteActionId: 0,
+    quoteRecord: 0,
     offWorldGridNo: NOWHERE,
     militiaKills: 0,
     offMap: false,

@@ -231,6 +231,35 @@ const GENERAL_INFO_HEAD: Layout = [
   field('sSelMapX', 'i16'),
   field('sSelMapY', 'i16'),
   field('sSelMapZ', 'i32'),
+  field('usHasPlayerSeenHelpScreenInCurrentScreen', 'u16'),
+  skip(1),
+  field('gubBoxingMatchesWon', 'u8'),
+  field('gubBoxersRests', 'u8'),
+  field('gfBoxersResting', 'bool'),
+  field('gubDesertTemperature', 'u8'),
+  field('gubGlobalTemperature', 'u8'),
+  field('g_merc_arrive_sector_x', 'i16'),
+  field('g_merc_arrive_sector_y', 'i16'),
+  field('gfCreatureMeanwhileScenePlayed', 'bool'),
+  skip(1),
+  field('gfPersistantPBI', 'bool'),
+  field('gubEnemyEncounterCode', 'u8'),
+  field('gubExplicitEnemyEncounterCode', 'bool'),
+  field('gfBlitBattleSectorLocator', 'bool'),
+  field('gubPBSectorX', 'u8'),
+  field('gubPBSectorY', 'u8'),
+  field('gubPBSectorZ', 'u8'),
+  field('gfCantRetreatInPBI', 'bool'),
+  field('gfExplosionQueueActive', 'bool'),
+  skip(1),
+  field('uiMeanWhileFlags', 'u32'),
+  field('bSelectedInfoChar', 'i8'),
+  field('gbHospitalPriceModifier', 'i8'),
+  skip(2),
+  field('giHospitalTempBalance', 'i32'),
+  field('giHospitalRefund', 'i32'),
+  field('gfPlayerTeamSawJoey', 'i8'),
+  field('gfMikeShouldSayHi', 'i8'),
 ];
 
 export const GENERAL_INFO_LAYOUT: Layout = [...GENERAL_INFO_HEAD, skip(GENERAL_INFO_BYTES - layoutBytes(GENERAL_INFO_HEAD, false))];
@@ -318,6 +347,23 @@ export interface GameClock {
   readonly lockPauseStateLastReasonId: number;
 }
 
+export interface SavedNarrativeGeneralInfo {
+  readonly boxingMatchesWon: number;
+  readonly boxersRests: number;
+  readonly boxersResting: boolean;
+  readonly lastBoxingMatchWonByPlayer: boolean;
+  readonly boxerFought: readonly boolean[];
+  readonly cambriaMedicalObjects: number;
+  readonly numTerrorists: number;
+  readonly hospitalPriceModifier: number;
+  readonly hospitalTempBalance: number;
+  readonly hospitalRefund: number;
+  readonly playerTeamSawJoey: boolean;
+  readonly mikeShouldSayHi: boolean;
+  readonly skyriderTalkState: number;
+  readonly lastSkyriderMonologue: number;
+}
+
 export interface GeneralInfo {
   readonly screenAfterLoading: number;
   readonly currentUniqueSoldierId: number;
@@ -339,6 +385,7 @@ export interface GeneralInfo {
   readonly samSitesFound: readonly boolean[];
   readonly deadSquadMembers: readonly (readonly number[])[];
   readonly selectedSector: { readonly x: number; readonly y: number; readonly z: number };
+  readonly narrative: SavedNarrativeGeneralInfo;
 }
 
 export interface TeamTurns {
@@ -485,6 +532,22 @@ export function readGeneralInfo(c: SaveCursor): GeneralInfo {
       r.nums('sDeadMercs').slice(q * NUMBER_OF_DEAD_SOLDIERS_ON_SQUAD, (q + 1) * NUMBER_OF_DEAD_SOLDIERS_ON_SQUAD),
     ),
     selectedSector: { x: n('sSelMapX'), y: n('sSelMapY'), z: (n('sSelMapZ') << 24) >> 24 },
+    narrative: {
+      boxingMatchesWon: n('gubBoxingMatchesWon'),
+      boxersRests: n('gubBoxersRests'),
+      boxersResting: r.bool('gfBoxersResting'),
+      lastBoxingMatchWonByPlayer: r.bool('gfLastBoxingMatchWonByPlayer'),
+      boxerFought: r.bools('gfBoxerFought'),
+      cambriaMedicalObjects: n('gubCambriaMedicalObjects'),
+      numTerrorists: n('gubNumTerrorists'),
+      hospitalPriceModifier: n('gbHospitalPriceModifier'),
+      hospitalTempBalance: n('giHospitalTempBalance'),
+      hospitalRefund: n('giHospitalRefund'),
+      playerTeamSawJoey: n('gfPlayerTeamSawJoey') !== 0,
+      mikeShouldSayHi: n('gfMikeShouldSayHi') !== 0,
+      skyriderTalkState: n('guiHelicopterSkyriderTalkState'),
+      lastSkyriderMonologue: n('guiTimeOfLastSkyriderMonologue'),
+    },
   };
 }
 

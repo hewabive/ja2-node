@@ -1,9 +1,11 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { testProfile } from '../../../../tests/support/profiles.ts';
 import { loadStrategicTestContent, ScriptedRolls, testContext } from '../../../../tests/support/strategic.ts';
-import { parseSectorId, parseSectorString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
+import { parseSectorId, parseSectorString, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
 import { Facility, SectorFlag } from '../forces/constants.ts';
 import { createNewEnemyGroupDepartingFromSector } from '../forces/groups.ts';
+import { Npc } from '../narrative/npc-ids.ts';
 import { initStrategicLayerMap } from './init.ts';
 import { findUndergroundSector, getSectorFlagStatus, mapFileNameForSector, sectorInfo, setSectorFlag } from './sectors.ts';
 
@@ -30,15 +32,18 @@ describe('new campaign map', () => {
   it('places the NPCs in profile order with one draw each, flagging alternate maps (InitNPCs)', () => {
     const rolls = new ScriptedRolls([0, 0, 0, 0, 0, 0, 3, 1, 2, 0, 3, 1, 1, 2]);
     const ctx = testContext({ content, random: rolls });
+    for (const p of content.npcPlacements) ctx.state.profiles.set(p.profile, testProfile(p.profile));
+    ctx.state.profiles.set(Npc.DEVIN, testProfile(Npc.DEVIN));
     initStrategicLayerMap(ctx);
     expect(rolls.ranges.slice(UNDERGROUND_DRAWS)).toEqual(content.npcPlacements.map((p) => p.sectors.length));
     expect(content.npcPlacements.map((p) => p.profile)).toEqual([...content.npcPlacements.map((p) => p.profile)].sort((a, b) => a - b));
-    const placed = content.npcPlacements.filter((p) => p.placedAtStart).map((p) => p.profile);
-    expect([...ctx.state.npcPlacements.keys()]).toEqual(placed);
     for (const p of content.npcPlacements) {
-      const sector = ctx.state.npcPlacements.get(p.profile);
-      if (sector !== undefined) expect(p.sectors).toContain(sector);
+      const progress = ctx.state.profiles.get(p.profile);
+      const placed = progress && progress.sectorX !== 0 ? sectorId({ x: progress.sectorX, y: progress.sectorY }) : null;
+      if (p.placedAtStart) expect(p.sectors).toContain(placed);
+      else expect(placed).toBeNull();
     }
+    expect(ctx.state.profiles.get(Npc.DEVIN)?.npcData).toBe(3);
     const alternate = content.npcPlacements.filter((p) => p.useAlternateMap);
     expect(alternate.length).toBeGreaterThan(0);
     const flagged = ctx.state.map.sectors.flatMap((info, id) => (info.flags & SectorFlag.USE_ALTERNATE_MAP ? [id] : []));

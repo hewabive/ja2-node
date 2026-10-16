@@ -105,10 +105,10 @@ function stats(o: JsonObject, what: string): Record<(typeof STAT_KEYS)[number], 
   >;
 }
 
-function homeSector(o: JsonObject, what: string): { readonly x: number; readonly y: number } {
-  if (o.sector === undefined) return { x: 0, y: 0 };
-  const sector = parseSectorString(asString(o.sector, `${what}.sector`));
-  return { x: sector.x, y: sector.y };
+function homeSector(o: JsonObject, what: string): { readonly x: number; readonly y: number; readonly z: number } {
+  if (o.sector === undefined) return { x: 0, y: 0, z: 0 };
+  const sector = parseSectorString(asString(o.sector, `${what}.sector`), int(o, 'sectorZ', 0, what));
+  return { x: sector.x, y: sector.y, z: sector.z };
 }
 
 function parseStubProfile(json: unknown, itemIndex: ItemIndex, index: number): MercProfile {
@@ -141,19 +141,29 @@ function parseStubProfile(json: unknown, itemIndex: ItemIndex, index: number): M
     civilianGroup: int(o, 'civilianGroup', 0, what),
     sectorX: home.x,
     sectorY: home.y,
+    sectorZ: home.z,
+    gridNo: 0,
+    useProfileInsertion: false,
+    insertionCode: 0,
+    insertionData: 0,
+    quoteRecord: 0,
+    quoteActionId: 0,
+    npcData: int(o, 'npcData', 0, what),
+    npcData2: int(o, 'npcData2', 0, what),
+    lastDateSpokenTo: 0,
     inventory: inv.items,
     inventoryStatus: inv.status,
     inventoryCount: inv.count,
     inventoryUndroppable: 0,
-    money: 0,
+    money: int(o, 'money', 0, what),
     evolution: int(o, 'evolution', 0, what),
     attitude: int(o, 'attitude', 0, what),
     buddies: slots(o, 'buddies', NO_RELATION, what),
     hated: slots(o, 'hated', NO_RELATION, what),
     gains: NO_GAINS,
     needForSleep: int(o, 'needForSleep', DEFAULT_NEED_FOR_SLEEP, what),
-    town: 0,
-    townAttachment: 0,
+    town: int(o, 'town', 0, what),
+    townAttachment: int(o, 'townAttachment', 0, what),
     mercOpinion: opinions(o, what),
     sexist: int(o, 'sexist', 0, what),
     deathRate: int(o, 'deathRate', DEFAULT_DEATH_RATE, what),

@@ -8,7 +8,11 @@
 // @src Tactical/Militia_Control.cc PrepareMilitiaForTactical, ResetMilitia; Overhead.cc HandleNPCTeamMemberDeath
 // @src (strategic part); Town_Militia.cc HandleMilitiaStatusInCurrentMapBeforeLoadingNewMap; StrategicMap.cc
 // @src HandleRPCDescriptionOfSector; TacticalAI/Knowledge.cc CallAvailableTeamEnemiesToAmbush; TileEngine/WorldDef.cc
-// @src TrashWorld (HandleFirstMeanWhileSetUpWithTrashWorld). See docs/16 §5.
+// @src TrashWorld (HandleFirstMeanWhileSetUpWithTrashWorld); StrategicMap.cc EnterSector (SetupProfileInsertionDataForCivilians,
+// @src HandleQuestCodeOnSectorEntry), HandleDefiniteUnloadingOfWorld (HandleQuestCodeOnSectorExit,
+// @src UpdateSoldierPointerDataIntoProfile), PrepareLoadedSector (AddProfilesNotUsingProfileInsertionData,
+// @src AddProfilesUsingProfileInsertionData); Overhead.cc HandleNPCTeamMemberDeath (the creature queen's rewards). See docs/16 §5,
+// @src docs/25 §4.5–§4.6.
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import {
@@ -40,7 +44,7 @@ import {
 import { EnemyKilled, recordPlayerKill, trackEnemiesKilled } from '../strategic/ai/status.ts';
 import { CreatureBattleCode } from '../strategic/creatures/creatures.ts';
 import { Assignment as EconomyAssignment, LoyaltyEvent, MoraleEvent } from '../strategic/economy/constants.ts';
-import { handleGlobalLoyaltyEvent } from '../strategic/economy/loyalty.ts';
+import { handleGlobalLoyaltyEvent, incrementTownLoyaltyEverywhere } from '../strategic/economy/loyalty.ts';
 import { addDeadArmsDealerItemsToWorld } from '../strategic/economy/merchants/death.ts';
 import {
   handleMilitiaStatusBeforeLoadingNewMap,
@@ -48,7 +52,7 @@ import {
   strategicRemoveMilitiaFromSector,
 } from '../strategic/economy/militia.ts';
 import { mineIdForSector } from '../strategic/economy/mine-status.ts';
-import { areThereMinersInsideThisMine, placeHeadMinersOnSectorEntry } from '../strategic/economy/mines.ts';
+import { areThereMinersInsideThisMine } from '../strategic/economy/mines.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
 import { EncounterCode, InsertionCode, SectorFlag } from '../strategic/forces/constants.ts';
 import { countAllMilitiaInSector } from '../strategic/forces/groups.ts';
@@ -63,6 +67,7 @@ import {
   sectorInfo,
   setSectorFlag,
 } from '../strategic/map/sectors.ts';
+import { ExperienceBonus } from '../strategic/narrative/rewards.ts';
 import type { SectorPosition } from '../strategic/state.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
 import { timeOfDayAmbientLightLevel } from '../strategic/time/environment.ts';
@@ -82,19 +87,32 @@ import {
   evaluateDeathEffectsToSoldierInitList,
   freeSoldierSlots,
   type PopulationEnv,
-  type SoldierInitNode,
   stripEnemyDetailedPlacements,
 } from '../tactical/init-list.ts';
 import { CENTER_GRIDNO, Insertion, type InsertionContext, type InsertionOrder, updateMercInSector } from '../tactical/insertion.ts';
 import { lightSpriteRenderAll } from '../tactical/lighting/lighting.ts';
-import { isProfileDead } from '../tactical/profiles.ts';
+import {
+  civilianPlacementOverride,
+  iceCreamTruckWithheld,
+  type PlacementNarrative,
+  PlacementVerdict,
+  profilePlacementAllowed,
+} from '../tactical/narrative/placement.ts';
+import {
+  addProfilesNotUsingProfileInsertionData,
+  addProfilesUsingProfileInsertionData,
+  type ProfileInsertionHooks,
+  setupProfileInsertionDataForCivilians,
+  updateSoldierPointerDataIntoProfile,
+} from '../tactical/narrative/profile-insertion.ts';
 import { hostileBloodcatsPresent, removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
-import { Body, NO_PROFILE, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
+import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
 import type { RealtimeClock } from '../tactical/turns/turns.ts';
 import { addItemToPool, loadWorldItemsFromMap, Visibility } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import { MoraleEvent as CampaignMoraleEvent } from './morale.ts';
 import { campaignNarrativePort } from './narrative-port.ts';
 import type { Roster, RosterMerc } from './roster.ts';
 import {
@@ -315,6 +333,7 @@ export class SectorFlow {
     }
     const baseWorld = this.setup.worlds.world(this.mapPathOf(sector));
     if (!baseWorld) return false;
+    const previous = world ? this.campaign.tactical : null;
     if (world && this.campaign.tactical) {
       this.handleDefiniteUnloadingOfWorld(UnloadCode.ABOUT_TO_LOAD_NEW_MAP);
       this.#worldTrashed();
@@ -322,7 +341,7 @@ export class SectorFlow {
     s.worldSector = { x: sector.x, y: sector.y, z: sector.z };
     s.map.selectedSector = { ...sector };
     if (sameSector(sector, TIXA_CAVE)) this.campaign.creatures?.initQuest();
-    this.#enterSector(sector, baseWorld, options);
+    this.#enterSector(sector, baseWorld, options, previous);
     const day = worldDay(s.clock);
     setSectorFlag(s.map, sector, SectorFlag.ALREADY_LOADED, day);
     this.#handleRpcDescriptionOfSector(sector, day);
@@ -427,9 +446,11 @@ export class SectorFlow {
     this.#installHooks(sim);
   }
 
-  #enterSector(sector: Sector, baseWorld: TacticalWorld, options: LoadOptions): void {
+  #enterSector(sector: Sector, baseWorld: TacticalWorld, options: LoadOptions, previous: TacticalSim | null): void {
     const s = this.campaign.state;
-    if (this.economy) placeHeadMinersOnSectorEntry(this.economy, sector);
+    const narrative = this.campaign.narrative;
+    if (previous) setupProfileInsertionDataForCivilians(previous.state, this.#profileInsertionHooks());
+    narrative.handleQuestCodeOnSectorEntry(sector);
     for (const m of this.setup.roster.all()) m.soldier.placed = false;
     setSectorFlag(s.map, sector, SectorFlag.ALREADY_VISITED, worldDay(s.clock));
     const diff = s.sectorDiffs.get(sectorKey(sector)) ?? null;
@@ -575,7 +596,9 @@ export class SectorFlow {
     this.prepareCreaturesForBattle();
     this.prepareMilitiaForTactical();
     t.turn.virginSector = true;
+    addProfilesNotUsingProfileInsertionData(t, env, this.#profileInsertionHooks());
     this.prepareEnemyForSectorBattle();
+    addProfilesUsingProfileInsertionData(t, world, env, this.#profileInsertionHooks());
     this.#callAvailableTeamEnemiesToAmbush(t);
     unPauseGame(this.campaign.state.clock);
     this.campaign.state.encounter.battleGroup = null;
@@ -730,27 +753,13 @@ export class SectorFlow {
     );
   }
 
-  #profileHere(profile: number): boolean {
+  #placementNarrative(): PlacementNarrative | null {
     const world = this.world;
-    const p = this.setup.content.profiles[profile];
-    if (!world || !p) return false;
-    if (p.sectorX !== world.x || p.sectorY !== world.y || world.z !== 0) return false;
-    if (this.setup.roster.byProfile(profile)) return false;
-    const progress = this.campaign.state.profiles.get(profile);
-    return !progress || !isProfileDead(progress);
+    return world ? this.campaign.narrative.placementNarrative(world) : null;
   }
 
-  #civilianWithheld(node: SoldierInitNode): boolean {
-    const world = this.world;
-    if (world?.z !== 0) return false;
-    const tixa = { x: 9, y: 10 };
-    if (world.x === tixa.x && world.y === tixa.y) {
-      const liberated = !this.campaign.state.map.elements[world.x + world.y * 18]?.enemyControlled;
-      const kid = node.basic.bodyType === Body.HATKIDCIV || node.basic.bodyType === Body.KIDCIV;
-      const unprofiled = (node.detail?.profile ?? NO_PROFILE) === NO_PROFILE;
-      if (liberated && unprofiled && !kid) return true;
-    }
-    return false;
+  #profileInsertionHooks(): ProfileInsertionHooks {
+    return this.campaign.narrative.profileInsertionHooks(() => this.#insertionContext(null));
   }
 
   populationEnv(): PopulationEnv {
@@ -761,8 +770,18 @@ export class SectorFlow {
       bloodcatLair: this.ctx.content.bloodCatSpawns.find((b) => b.sector === sectorId(world))?.isLair === true,
       locationModifier: locationModifier(townIdOfSector(this.ctx, world), world),
       autoResolveActive: false,
-      profileHere: (p) => this.#profileHere(p),
-      civilianWithheld: (n) => this.#civilianWithheld(n),
+      profileHere: (p) => {
+        const n = this.#placementNarrative();
+        return n !== null && profilePlacementAllowed(n, p);
+      },
+      iceCreamTruckWithheld: () => {
+        const n = this.#placementNarrative();
+        return n !== null && iceCreamTruckWithheld(n);
+      },
+      civilianPlacement: (pp) => {
+        const n = this.#placementNarrative();
+        return n ? civilianPlacementOverride(n, pp) : PlacementVerdict.CREATE;
+      },
     };
   }
 
@@ -855,6 +874,7 @@ export class SectorFlow {
     } else if (dead.team !== Team.CIV) {
       if (dead.team === Team.ENEMY) trackEnemiesKilled(this.campaign.state.status, EnemyKilled.IN_TACTICAL, dead.soldierClass);
       if (economy) handleGlobalLoyaltyEvent(economy, LoyaltyEvent.ENEMY_KILLED, world);
+      if (dead.bodyType === Body.QUEENMONSTER) this.#creatureQueenKilled(world);
     }
     if (dead.attacker?.team === Team.OUR && dead.team !== Team.OUR) recordPlayerKill(this.campaign.state.status);
     evaluateDeathEffectsToSoldierInitList(t, dead);
@@ -863,6 +883,13 @@ export class SectorFlow {
       addDeadArmsDealerItemsToWorld(merchants, dead.profile, (o) => addItemToPool(t, dead.initialGridNo, o, Visibility.INVISIBLE, 0, 0, 0));
     const q = this.queen;
     if (q) processQueenCmdImplicationsOfDeath(q, this.#deadEnemyRecord(dead));
+  }
+
+  #creatureQueenKilled(world: Sector): void {
+    this.campaign.battle?.moraleEvent(null, CampaignMoraleEvent.MONSTER_QUEEN_KILLED, world);
+    const economy = this.economy;
+    if (economy) incrementTownLoyaltyEverywhere(economy, economy.economy.loyalty.amounts.BONUS_KILL_QUEEN_MONSTER ?? 0);
+    this.campaign.narrative.awardExperience(ExperienceBonus.MAXIMUM);
   }
 
   #soldierLeftMap(gone: Soldier): void {
@@ -934,12 +961,15 @@ export class SectorFlow {
     }
   }
 
-  handleDefiniteUnloadingOfWorld(_code: number): void {
+  handleDefiniteUnloadingOfWorld(code: number): void {
     const t = this.campaign.tactical?.state;
     const world = this.world;
     if (!t || !world) return;
+    this.campaign.narrative.handleQuestCodeOnSectorExit(world);
     t.turn.enemyInSector = false;
     this.saveCurrentSectorsInformation();
+    if (code === UnloadCode.ABOUT_TO_LOAD_NEW_MAP) updateSoldierPointerDataIntoProfile(t, this.#profileInsertionHooks());
+    else setupProfileInsertionDataForCivilians(t, this.#profileInsertionHooks());
     const economy = this.economy;
     if (economy) {
       const militia = teamMembers(t, Team.MILITIA).map((s) => ({

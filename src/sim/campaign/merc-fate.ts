@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_Merc_Handler.cc StrategicHandlePlayerTeamMercDeath; Strategic/Strategic.cc
 // @src HandleStrategicDeath; Strategic/Queen_Command.cc BeginCaptureSquence, EndCaptureSequence, CaptureSoldier,
-// @src EnemyCapturesPlayerSoldier. See docs/19 §3.8, docs/22 §4.9.
+// @src EnemyCapturesPlayerSoldier (the quests through Strategic/Quests.cc StartQuest, InternalStartQuest, InternalEndQuest).
+// @src See docs/19 §3.8, docs/22 §4.9, docs/25 §2.1.
 
 import type { Sector } from '../../content/strategic/sector-ids.ts';
 import { u8 } from '../../core/int.ts';
@@ -11,10 +12,12 @@ import { changeSoldiersAssignment, setTimeOfAssignmentChange } from '../strategi
 import { Assignment } from '../strategic/economy/constants.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
 import { putMercInAwakeState } from '../strategic/economy/rest.ts';
-import { QuestState } from '../strategic/forces/battle-state.ts';
 import { InsertionCode } from '../strategic/forces/constants.ts';
 import { numEnemiesInSector } from '../strategic/forces/groups.ts';
 import { removeCharacterFromSquads } from '../strategic/forces/squads.ts';
+import { Quest } from '../strategic/narrative/fact-ids.ts';
+import { QuestStatus, questStatus } from '../strategic/narrative/facts.ts';
+import { internalEndQuest, internalStartQuest, type QuestContext, startQuest } from '../strategic/narrative/quests.ts';
 import { MercStatus, type ProfileProgress } from '../tactical/profiles.ts';
 import { SoldierStatusFlags } from '../tactical/soldier.ts';
 import { handleMoraleEvent, type MoraleContext, MoraleEvent } from './morale.ts';
@@ -47,6 +50,8 @@ export interface FateContext {
   readonly economy: EconomyContext;
   readonly bookkeeping?: DeathBookkeeping | null;
   moraleContext(): MoraleContext;
+  questContext(): QuestContext;
+  interrogationMeanwhile?(): void;
   mercDied?(merc: RosterMerc): void;
 }
 
@@ -60,15 +65,18 @@ export function beginCaptureSequence(ctx: FateContext): void {
 }
 
 export function endCaptureSequence(ctx: FateContext): void {
-  const status = ctx.economy.state.status;
+  const state = ctx.economy.state;
+  const status = state.status;
   if (bothCaptureFlags(status.flags)) return;
-  const quests = ctx.economy.state.battle.quests;
-  if (quests.heldInAlma === QuestState.NOT_STARTED) {
+  const n = state.narrative;
+  const alma = questStatus(n, Quest.HELD_IN_ALMA);
+  if (alma === QuestStatus.NOT_STARTED) {
     status.flags |= CaptureFlag.FOR_RESCUE;
-    quests.heldInAlma = QuestState.IN_PROGRESS;
-  } else if (quests.heldInAlma === QuestState.DONE && quests.interrogation === QuestState.NOT_STARTED) {
-    quests.interrogation = QuestState.IN_PROGRESS;
+    startQuest(ctx.questContext(), Quest.HELD_IN_ALMA, state.worldSector);
+  } else if (alma === QuestStatus.DONE && questStatus(n, Quest.INTERROGATION) === QuestStatus.NOT_STARTED) {
+    startQuest(ctx.questContext(), Quest.INTERROGATION, state.worldSector);
     status.flags |= CaptureFlag.FOR_ESCAPE;
+    ctx.interrogationMeanwhile?.();
   } else status.flags |= CaptureFlag.FOR_RESCUE | CaptureFlag.FOR_ESCAPE;
 }
 
@@ -117,12 +125,12 @@ function captureSoldier(ctx: FateContext, m: RosterMerc, sector: Sector, gridNo:
 
 function teleportCaptive(ctx: FateContext, m: RosterMerc): void {
   const state = ctx.economy.state;
-  const quests = state.battle.quests;
+  const alma = questStatus(state.narrative, Quest.HELD_IN_ALMA);
   const index = state.status.numCapturedForRescue;
-  if (quests.heldInAlma === QuestState.NOT_STARTED) {
+  if (alma === QuestStatus.NOT_STARTED) {
     captureSoldier(ctx, m, ALMA, ALMA_CAPTURE_GRIDNOS[index] ?? ALMA_CAPTURE_GRIDNOS[0], ALMA_CAPTURE_ITEM_GRIDNOS[index] ?? 0);
     state.status.numCapturedForRescue++;
-  } else if (quests.heldInAlma === QuestState.DONE) {
+  } else if (alma === QuestStatus.DONE) {
     captureSoldier(ctx, m, INTERROGATION, INTERROGATION_GRIDNOS[index] ?? INTERROGATION_GRIDNOS[0], INTERROGATION_ITEM_GRIDNO);
     state.status.numCapturedForRescue++;
   }
@@ -151,12 +159,15 @@ export function enemyCapturesPlayerSoldier(ctx: FateContext, m: RosterMerc, rng:
   }
   if (m.isVehicle) return false;
   economy.crew.takeOutOfVehicle(m.id);
-  const quests = state.battle.quests;
-  if (quests.heldInAlma === QuestState.NOT_STARTED && numEnemiesInSector(economy, ALMA) === 0) quests.heldInAlma = QuestState.DONE;
+  const n = state.narrative;
+  if (questStatus(n, Quest.HELD_IN_ALMA) === QuestStatus.NOT_STARTED && numEnemiesInSector(economy, ALMA) === 0) {
+    internalStartQuest(ctx.questContext(), Quest.HELD_IN_ALMA, state.worldSector, false);
+    internalEndQuest(ctx.questContext(), Quest.HELD_IN_ALMA, state.worldSector, false);
+  }
   handleMoraleEvent(ctx.moraleContext(), m, MoraleEvent.MERC_CAPTURED, m.sector);
   if (m.assignment !== Assignment.ASSIGNMENT_POW) setTimeOfAssignmentChange(economy, m);
   changeSoldiersAssignment(economy, m, Assignment.ASSIGNMENT_POW);
-  if (quests.heldInAlma === QuestState.NOT_STARTED) m.soldier.neutral = true;
+  if (questStatus(n, Quest.HELD_IN_ALMA) === QuestStatus.NOT_STARTED) m.soldier.neutral = true;
   removeCharacterFromSquads(economy, m.id);
   teleportCaptive(ctx, m);
   m.soldier.bleeding = 0;

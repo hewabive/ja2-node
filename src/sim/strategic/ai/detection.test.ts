@@ -12,8 +12,10 @@ import {
   getGroup,
 } from '../forces/groups.ts';
 import { sectorInfo } from '../map/sectors.ts';
+import { Fact } from '../narrative/fact-ids.ts';
+import { setFact } from '../narrative/facts.ts';
 import { EventKind } from '../time/constants.ts';
-import { Composition, Fact, Meanwhile, StrategicAiAction } from './constants.ts';
+import { Composition, Meanwhile, StrategicAiAction } from './constants.ts';
 import {
   attemptToNoticeAdjacentGroupSucceeds,
   checkEnemyControlledSector,
@@ -37,7 +39,8 @@ beforeAll(async () => {
 
 function fixture(garrisons: readonly GarrisonFixture[], hour = 12, facts: Record<number, number> = {}) {
   const mercs = new FakeMercs();
-  const f = awakeFixture({ content, army, difficulty: 2, mercs, world: { fact: (id) => facts[id] ?? 0 } }, garrisons, 4, hour);
+  const f = awakeFixture({ content, army, difficulty: 2, mercs }, garrisons, 4, hour);
+  for (const [id, value] of Object.entries(facts)) setFact(f.q.state.narrative, Number(id), value);
   return { ...f, mercs };
 }
 
