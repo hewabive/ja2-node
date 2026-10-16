@@ -1,0 +1,6 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/TileEngine/Structure.cc gubMaterialArmour",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "armour value by structure material index (JSD armour field)",
+  "armour": [0, 25, 20, 30, 3, 10, 47, 10, 0, 0, 0, 55, 63, 70, 85, 9, 40, 1, 40, 0, 0, 37, 57, 85, 127, 127, 57]
+}

@@ -24,6 +24,7 @@ import { MOVE_SIN_COS } from './constants.ts';
 import { DIRECTION_INCREMENT, Direction } from './directions.ts';
 import { interactWithDoor, toggleDoorAt } from './doors.ts';
 import { findBestPath, isWater, MAX_PATH_LIST_SIZE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
+import { addMercStructure, removeMercStructure } from './person-structure.ts';
 import { AP, actionPointCost, deductPoints, doorTravelCost, enoughPoints, type PointsContext, terrainBreathPoints } from './points.ts';
 import { cellCentre, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, OKBREATH, Orders, type Soldier, Team } from './soldier.ts';
 import { placeOccupant, removeOccupant, type TacticalState, whoIsThere } from './state.ts';
@@ -88,6 +89,7 @@ function setSoldierGridNo(t: TacticalState, s: Soldier, requested: number): void
   }
   s.oldGridNo = s.gridNo;
   if (s.placed) removeOccupant(t, s);
+  removeMercStructure(t, s);
   s.gridNo = g;
   s.placed = false;
   if (!isVisibleTile(g)) return;
@@ -99,6 +101,7 @@ function setSoldierGridNo(t: TacticalState, s: Soldier, requested: number): void
   if (s.ai.patrolGrid.length === 0) s.ai.patrolGrid[0] = g;
   placeOccupant(t, s);
   s.placed = true;
+  addMercStructure(t, s);
   s.overTerrain = t.world.terrain[g] ?? 0;
   if (isWater(t.pathWorld, g)) s.uiMovementMode = states(t.content.animations).WALKING;
   setSoldierAniSpeed(t, s);
@@ -212,6 +215,8 @@ function swapMercPositions(t: TacticalState, a: Soldier, b: Soldier): void {
   const gb = b.gridNo;
   removeOccupant(t, a);
   removeOccupant(t, b);
+  removeMercStructure(t, a);
+  removeMercStructure(t, b);
   a.placed = false;
   b.placed = false;
   setSoldierPosition(t, a, gb);

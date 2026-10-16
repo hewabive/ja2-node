@@ -6,7 +6,7 @@
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { newGridNo, WORLD_MAX } from '../../../content/world/grid.ts';
-import { adjustNoAPToFinishMove, changeSoldierStance, hasAnimFlag, height, setDesiredDirection, states } from '../animation.ts';
+import { adjustNoAPToFinishMove, changeSoldierStance, hasAnimFlag, height, states } from '../animation.ts';
 import { DIRECTION_INCREMENT } from '../directions.ts';
 import { getNewSoldierPath, stopMerc } from '../movement.ts';
 import { isMercBody, NOWHERE, newOKDestination } from '../pathfinding.ts';
@@ -161,7 +161,7 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
       actionDone(t, s);
       return true;
     case AiAction.CHANGE_FACING:
-      t.desiredDirectionEvents.push({ soldier: s.id, direction: ai.actionData });
+      t.gameEvents.push({ kind: 'desiredDirection', soldier: s.id, direction: ai.actionData });
       return true;
     case AiAction.CHANGE_STANCE:
       if (height(t.content, s.state) === ai.actionData) {
@@ -355,11 +355,4 @@ export function aiForSlot(t: TacticalState, s: Soldier, slot: number, control: A
   if (!scheduled && !s.ai.handleEveryFrame) return;
   handleSoldierAI(t, s, control);
   if (!t.inCombat) control.handleThisPass = nextAIToHandle(t, control);
-}
-
-export function applyDesiredDirectionEvents(t: TacticalState): void {
-  for (const e of t.desiredDirectionEvents.splice(0)) {
-    const s = t.soldiers[e.soldier];
-    if (s?.placed) setDesiredDirection(t, s, e.direction);
-  }
 }

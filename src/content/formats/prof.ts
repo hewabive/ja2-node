@@ -35,6 +35,7 @@ export interface MercProfile {
   readonly experience: number;
   readonly skillTrait: number;
   readonly skillTrait2: number;
+  readonly personalityTrait: number;
   readonly civilianGroup: number;
   readonly sectorX: number;
   readonly sectorY: number;
@@ -43,6 +44,25 @@ export interface MercProfile {
   readonly inventoryCount: readonly number[];
   readonly inventoryUndroppable: number;
   readonly money: number;
+  readonly evolution: number;
+  readonly attitude: number;
+  readonly buddies: readonly number[];
+  readonly hated: readonly number[];
+  readonly gains: ProfileStatGains;
+}
+
+export interface ProfileStatGains {
+  readonly expLevel: number;
+  readonly life: number;
+  readonly agility: number;
+  readonly dexterity: number;
+  readonly wisdom: number;
+  readonly marksmanship: number;
+  readonly medical: number;
+  readonly mechanical: number;
+  readonly explosives: number;
+  readonly leadership: number;
+  readonly strength: number;
 }
 
 export function decryptRecord(encrypted: Uint8Array): Uint8Array {
@@ -103,6 +123,7 @@ export function parseProfile(id: number, plain: Uint8Array): MercProfile {
     dexterity: i8(335),
     skillTrait: i8(337),
     skillTrait2: i8(340),
+    personalityTrait: i8(336),
     experience: i8(352),
     marksmanship: i8(353),
     medical: i8(261),
@@ -119,6 +140,23 @@ export function parseProfile(id: number, plain: Uint8Array): MercProfile {
     inventoryCount: Array.from(plain.subarray(377, 396)),
     inventoryUndroppable: v.getUint8(412),
     money: v.getUint32(684, true),
+    evolution: i8(232),
+    attitude: i8(549),
+    buddies: Array.from({ length: 5 }, (_, k) => i8(342 + k)),
+    hated: Array.from({ length: 5 }, (_, k) => i8(347 + k)),
+    gains: {
+      expLevel: v.getInt16(242, true),
+      life: v.getInt16(244, true),
+      agility: v.getInt16(246, true),
+      dexterity: v.getInt16(248, true),
+      wisdom: v.getInt16(250, true),
+      marksmanship: v.getInt16(252, true),
+      medical: v.getInt16(254, true),
+      mechanical: v.getInt16(256, true),
+      explosives: v.getInt16(258, true),
+      leadership: v.getInt16(324, true),
+      strength: v.getInt16(326, true),
+    },
   };
 }
 

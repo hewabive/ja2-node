@@ -23,6 +23,7 @@ import {
   removeObjects,
   stackObjects,
   swapObjects,
+  USABLE_STATUS,
 } from '../items/object.ts';
 
 export const InvSlot = {
@@ -441,4 +442,18 @@ export function npcProfileInventory(items: ItemTable, profile: MercProfile, redu
     left -= amount;
   }
   return inv;
+}
+
+export function isValidSecondHandShot(items: ItemTable, s: { readonly inv: Inventory; readonly doBurst: number }): boolean {
+  const second = s.inv[InvSlot.SECOND_HAND] as ItemObject;
+  const first = s.inv[InvSlot.HAND] as ItemObject;
+  const secondDef = items.byIndex.get(second.item);
+  return (
+    secondDef?.itemClass === ItemClass.GUN &&
+    !(secondDef.flags & ItemFlags.TWO_HANDED) &&
+    !s.doBurst &&
+    items.byIndex.get(first.item)?.itemClass === ItemClass.GUN &&
+    (second.status[0] ?? 0) >= USABLE_STATUS &&
+    second.gunShotsLeft > 0
+  );
 }

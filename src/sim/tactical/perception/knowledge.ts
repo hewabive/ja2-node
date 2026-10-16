@@ -1,12 +1,12 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/Knowledge.cc MostImportantNoiseHeard (personal and public heard entries, personal and team
-// @src noise). See docs/09 §4.2.
+// @src noise); AIUtils.cc ClosestKnownOpponent. See docs/09 §4.2.
 
 import { spacesAway } from '../../../content/world/grid.ts';
 import { NOWHERE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
-import { hostile, Opp } from './sight.ts';
+import { hostile, knowledge, Opp } from './sight.ts';
 
 const NOISE_FORGET_DISTANCE = 6;
 
@@ -41,4 +41,33 @@ export function mostImportantNoiseHeard(t: TacticalState, s: Soldier): number {
   }
   void Opp;
   return best;
+}
+
+const rangeInCells = (a: number, b: number) => {
+  const dx = (a % 160) - (b % 160);
+  const dy = Math.trunc(a / 160) - Math.trunc(b / 160);
+  return Math.trunc(Math.sqrt(dx * dx + dy * dy) * 10);
+};
+
+export function closestKnownOpponent(t: TacticalState, s: Soldier): number {
+  let closest = NOWHERE;
+  let closestRange = 1500;
+  for (const opp of t.mercSlots) {
+    if (!opp?.placed) continue;
+    if ((opp.neutral && s.team !== Team.CREATURE) || s.side === opp.side) continue;
+    const personal = s.oppList[opp.id] ?? 0;
+    const publicValue = t.perception.publicOpp[s.team]?.[opp.id] ?? 0;
+    if (personal === Opp.NOT_HEARD_OR_SEEN && publicValue === Opp.NOT_HEARD_OR_SEEN) continue;
+    const g =
+      knowledge(publicValue, personal) > 0 || personal === publicValue
+        ? (s.lastKnownOpp[opp.id] ?? NOWHERE)
+        : (t.perception.publicLastKnown[s.team]?.[opp.id] ?? NOWHERE);
+    if (g === NOWHERE || g === s.gridNo) continue;
+    const range = rangeInCells(s.gridNo, g);
+    if (range < closestRange) {
+      closestRange = range;
+      closest = g;
+    }
+  }
+  return closest;
 }

@@ -1,14 +1,15 @@
 import { AnimFlags } from '../../content/anim/tables.ts';
-import { handClass } from '../../content/items/items.ts';
+import { handClass, ItemClass } from '../../content/items/items.ts';
 import { isVisibleTile } from '../../content/world/grid.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { Rng } from '../../core/rng.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
+import { AiAction } from './ai/actions.ts';
 import {
   type AiControl,
+  actionDone,
   aiForSlot,
-  applyDesiredDirectionEvents,
   beginAiPass,
   cancelAIAction,
   createAiControl,
@@ -27,8 +28,21 @@ import {
   soldierGotoStationaryStance,
   states,
 } from './animation.ts';
+import { calcTotalAPsToAttack, minAPsToAttack } from './combat/ap.ts';
+import { attackOpcode, handleGunAttack, ItemHandle } from './combat/attack.ts';
+import {
+  soldierToLocationChanceToGetThrough,
+  soldierToSoldierBodyPartChanceToGetThrough,
+  updateBullets,
+  updateMissAnimations,
+} from './combat/bullets.ts';
+import { calcChanceToHitGun } from './combat/chance.ts';
+import { deathOpcode, updateSkullReleases } from './combat/death.ts';
+import { soldierCollapse } from './combat/hit.ts';
+import { AimShot, WeaponMode } from './combat/types.ts';
 import type { TacticalContent } from './content.ts';
 import { isDoorOpenAt } from './doors.ts';
+import { dequeueAllGameEvents } from './game-events.ts';
 import { InvSlot, itemIn } from './inventory.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
 import { executeOverhead, type OverheadHooks } from './overhead.ts';
@@ -38,7 +52,7 @@ import { allTeamsLookForAll } from './perception/sight.ts';
 import { perceptionHooks, sightHooks } from './perception/wiring.ts';
 import { apsToChangeStance, apsToLook, enoughPoints, ptsToMoveDirection } from './points.ts';
 import { OKLIFE, type Soldier, Team } from './soldier.ts';
-import { createTacticalState, type TacticalState, teamMembers } from './state.ts';
+import { createTacticalState, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { endTurn, handleEnemySightingPause, handleRealtimeTurns, type RealtimeClock, selectSoldier } from './turns/turns.ts';
 
 export interface SoldierSnapshot {
@@ -66,6 +80,20 @@ export interface CombatSnapshot {
   readonly round: number;
   readonly interrupt: boolean;
 }
+
+const AIM_PARTS: Readonly<Record<string, number>> = {
+  random: AimShot.RANDOM,
+  head: AimShot.HEAD,
+  torso: AimShot.TORSO,
+  legs: AimShot.LEGS,
+};
+
+const ATTACK_REFUSALS: Readonly<Record<number, string>> = {
+  [ItemHandle.UNCONSCIOUS]: 'soldier cannot act',
+  [ItemHandle.NOAPS]: 'not enough APs for this attack',
+  [ItemHandle.NOAMMO]: 'out of ammo',
+  [ItemHandle.BROKEN]: 'the weapon does not work',
+};
 
 export interface TacticalCommand {
   readonly type: string;
@@ -97,6 +125,8 @@ export class TacticalSim {
     const ai = this.ai;
     t.hooks = sightHooks({
       ...t.hooks,
+      collapse: soldierCollapse,
+      opcode: (state, s, code) => attackOpcode(state, s, code) ?? deathOpcode(state, s, code),
       turnFinished: freeUpFromTurning,
       stanceChanged: freeUpFromStanceChange,
       endAiGuysTurn: (state, s) => endAIGuysTurn(state, s, ai),
@@ -108,17 +138,27 @@ export class TacticalSim {
       decideAlertStatus: (state, s) => decideAlertStatus(state, s, ai.hooks),
       setNewSituation,
       checkForChangingOrders: (_state, s) => checkForChangingOrders(s),
-      minAPsToAttack: () => 0,
+      minAPsToAttack,
+      suppressedStanceChange: (state, s, stance) => {
+        cancelAIAction(state, s);
+        s.ai.action = AiAction.CHANGE_STANCE;
+        s.ai.actionData = stance;
+        s.ai.actionInProgress = true;
+      },
+      freeUpFromAttacking: actionDone,
     };
     const clock = this.#clock;
     this.hooks = {
       beforePass: (state) => {
+        updateBullets(state);
+        updateMissAnimations(state);
+        updateSkullReleases(state);
         handleRealtimeTurns(state, clock);
         handleEnemySightingPause(state);
         beginAiPass(state, ai);
       },
       ai: (state, s, slot) => aiForSlot(state, s, slot, ai),
-      afterPass: applyDesiredDirectionEvents,
+      afterPass: dequeueAllGameEvents,
     };
   }
 
@@ -143,7 +183,8 @@ export class TacticalSim {
 
   isIdle(): boolean {
     const t = this.state;
-    if (t.inCombat && (t.turn.currentTeam !== Team.OUR || t.turn.attackBusyCount > 0)) return false;
+    if (t.turn.attackBusyCount > 0 || t.bullets.length > 0 || t.gameEvents.length > 0) return false;
+    if (t.inCombat && t.turn.currentTeam !== Team.OUR) return false;
     return !teamMembers(t, Team.OUR).some((s) => this.isBusy(s));
   }
 
@@ -197,6 +238,10 @@ export class TacticalSim {
         return this.#stance(cmd);
       case 'endTurn':
         return this.#endTurn();
+      case 'attack':
+        return this.#attack(cmd);
+      case 'estimateAttack':
+        return this.#estimateAttack(cmd);
       case 'stop': {
         const s = this.soldier(cmd.soldier);
         if (!s || s.team !== Team.OUR) return { ok: false, reason: 'no such soldier of yours' };
@@ -301,6 +346,82 @@ export class TacticalSim {
     s.uiMovementMode = wanted === AnimHeight.STAND ? st.WALKING : wanted === AnimHeight.CROUCH ? st.SWATTING : st.CRAWLING;
     selectSoldier(t, s);
     return { ok: true };
+  }
+
+  #attackSetup(cmd: TacticalCommand): { s: Soldier; target: number; level: number } | { error: string } {
+    const t = this.state;
+    const s = this.soldier(cmd.soldier);
+    if (!s?.placed || s.team !== Team.OUR) return { error: 'no such soldier of yours' };
+    const target = cmd.target;
+    if (typeof target !== 'number' || !Number.isInteger(target) || !isVisibleTile(target))
+      return { error: 'target must be a visible gridNo' };
+    const level = cmd.level ?? 0;
+    if (level !== 0 && level !== 1) return { error: 'level must be 0 or 1' };
+    const aimTime = cmd.aimTime ?? 0;
+    if (typeof aimTime !== 'number' || !Number.isInteger(aimTime) || aimTime < 0 || aimTime > 4) return { error: 'aimTime must be 0..4' };
+    const hand = itemIn(s.inv, InvSlot.HAND);
+    const def = t.content.items.byIndex.get(hand);
+    if (!def || def.itemClass !== ItemClass.GUN) return { error: 'soldier has no gun in hand' };
+    if (cmd.burst === true && !(def.weapon?.shotsPerBurst ?? 0)) return { error: 'this gun cannot fire bursts' };
+    const victim = whoIsThere(t, target, level);
+    const part = AIM_PARTS[String(cmd.bodyPart ?? 'random')];
+    if (part === undefined) return { error: 'bodyPart must be head, torso, legs or random' };
+    s.aimTime = aimTime;
+    s.aimShotLocation = victim && endHeight(t.content, victim.state) !== AnimHeight.PRONE ? part : AimShot.RANDOM;
+    s.weaponMode = cmd.burst === true ? WeaponMode.BURST : WeaponMode.NORMAL;
+    s.doBurst = cmd.burst === true ? 1 : 0;
+    s.attackingHand = InvSlot.HAND;
+    s.attackingWeapon = hand;
+    s.targetLevel = level;
+    s.targetCubeLevel = 0;
+    return { s, target, level };
+  }
+
+  #attack(cmd: TacticalCommand): CommandResult {
+    const t = this.state;
+    const s0 = this.soldier(cmd.soldier);
+    if (s0) {
+      const refusal = this.canAct(s0);
+      if (refusal) return { ok: false, reason: refusal };
+    }
+    const setup = this.#attackSetup(cmd);
+    if ('error' in setup) return { ok: false, reason: setup.error };
+    const { s, target, level } = setup;
+    if (target === s.gridNo) return { ok: false, reason: 'cannot shoot at own tile' };
+    if (s.noAPToFinishMove) soldierGotoStationaryStance(t, s);
+    const result = handleGunAttack(t, s, target, level, s.attackingWeapon);
+    if (result !== ItemHandle.OK) return { ok: false, reason: ATTACK_REFUSALS[result] ?? `attack refused (${result})` };
+    selectSoldier(t, s);
+    return { ok: true };
+  }
+
+  #estimateAttack(cmd: TacticalCommand): CommandResult {
+    const t = this.state;
+    const s = this.soldier(cmd.soldier);
+    if (!s) return { ok: false, reason: 'no such soldier of yours' };
+    const saved = { ...s, inv: s.inv };
+    const setup = this.#attackSetup(cmd);
+    if ('error' in setup) return { ok: false, reason: setup.error };
+    const { target, level } = setup;
+    const victim = whoIsThere(t, target, level);
+    const apCost = calcTotalAPsToAttack(t, s, victim ? victim.gridNo : target, true, s.aimTime);
+    const chanceToHit = calcChanceToHitGun(t, s, target, s.aimTime, s.aimShotLocation, false);
+    const chanceToGetThrough = victim
+      ? soldierToSoldierBodyPartChanceToGetThrough(t, s, victim, s.aimShotLocation)
+      : soldierToLocationChanceToGetThrough(t, s, target, level, 0, null);
+    Object.assign(s, {
+      aimTime: saved.aimTime,
+      aimShotLocation: saved.aimShotLocation,
+      weaponMode: saved.weaponMode,
+      doBurst: saved.doBurst,
+      attackingHand: saved.attackingHand,
+      attackingWeapon: saved.attackingWeapon,
+      targetLevel: saved.targetLevel,
+      targetCubeLevel: saved.targetCubeLevel,
+      dontChargeReadyAPs: saved.dontChargeReadyAPs,
+      ctgtTarget: saved.ctgtTarget,
+    });
+    return { ok: true, data: { apCost, actionPoints: s.actionPoints, chanceToHit, chanceToGetThrough } };
   }
 
   #endTurn(): CommandResult {

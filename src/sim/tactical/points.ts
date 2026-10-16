@@ -10,7 +10,7 @@ import { isDoorTravelCost, TravelCost } from '../../content/world/movement-costs
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import { AnimHeight } from './animation.ts';
 import type { TacticalContent } from './content.ts';
-import { carriedWeightPercent, InvSlot, itemIn } from './inventory.ts';
+import { carriedWeightPercent, InvSlot, isValidSecondHandShot, itemIn } from './inventory.ts';
 import { doorObstacleIfClosed, doorState, isWater, type PathEnv, terrainCost } from './pathfinding.ts';
 import { effectiveAgility, effectiveDexterity, effectiveExpLevel, effectiveLife, effectiveStrength } from './skills.ts';
 import { Body, type Soldier, Team } from './soldier.ts';
@@ -563,6 +563,7 @@ export function apsToLook(content: TacticalContent, s: Soldier): number {
 }
 
 export function apsToReadyWeapon(content: TacticalContent, s: Soldier): number {
+  if (isValidSecondHandShot(content.items, s)) return AP.READY_DUAL;
   const def = content.items.byIndex.get(itemIn(s.inv, InvSlot.HAND));
   return def?.itemClass === ItemClass.GUN ? (def.weapon?.readyTime ?? 0) : 0;
 }

@@ -818,3 +818,25 @@ tactical page plays the session back. The specs behind it are `docs/06`–`09`.
 **Not in M2** (see `docs/deviations.md`): turn-based combat after `combatWouldStart` (M3), `DecideActionYellow`,
 light sprites and gear for vision, FOV roof reveal and wireframes, breath recovery, door busy windows, enemy
 glow, equipment generation, prone/multi-tile soldiers.
+
+### M3: in progress (2026-10-15)
+
+Specs: `docs/10` (turn-based), `11` (attacks and damage), `12` (items and explosions), `13` (combat AI).
+
+1. **Items**: the unified item table, objects with attachments and merges, soldier inventories from profiles,
+   placements and `GenerateRandomEquipment`, reload and auto-place.
+2. **Points**: AP and breath tables, `DeductPoints`, turn and stance costs charged by animation entries.
+3. **Turn-based core**: team-blocked soldier ids and merc slots, team turns, interrupts and duels, the
+   turn-based AI loop, `endTurn`, entering and leaving combat, end of battle.
+4. **Gun attacks** (`sim/tactical/combat`): `HandleItem` gun path, ready and turn rules (prone turning
+   included), fire animations and their opcodes, jams, `UseGun` with the hit roll and marksmanship
+   experience, bullets one tile per tick with structure, person, window and suppression rules and the
+   fake bullet for chance to get through, `BulletImpact` with armour and criticals, `EVENT_SoldierGotHit`,
+   `SoldierTakeDamage`, hit animations, falls, incapacitation and death with corpse and item drop, the attack
+   busy barrier with suppression and `NoticeUnseenAttacker`, `StatChange` with profile progress, morale events
+   from attacks. Soldiers occupy the world as person structures loaded from `anims/structdata/*.jsd` (stubs
+   ship their own shapes). Commands `attack` and `estimateAttack`.
+
+**Not in M3 yet**: the RED/BLACK combat AI (enemies do not shoot back), bursts beyond the controller, melee,
+throws and launchers, explosions and smoke, picking items up, bleeding at turn start, corpse structures,
+oracle comparisons, save import.

@@ -55,3 +55,38 @@ export function effectiveLeadership(s: Soldier): number {
 export function effectiveExpLevel(s: Soldier): number {
   return Math.max(s.stats.experience, 1);
 }
+
+const MORALE_PC_TEAM = 0;
+
+export function moraleModifier(s: Soldier): number {
+  if (s.team === MORALE_PC_TEAM) {
+    if (s.morale > 50) return Math.trunc((s.morale - 45) / 10);
+    return Math.trunc(((s.morale - 50) * 2) / 5);
+  }
+  switch (s.ai.morale) {
+    case 0:
+      return -15;
+    case 1:
+      return -7;
+    case 3:
+      return 2;
+    case 4:
+      return 5;
+    default:
+      return 0;
+  }
+}
+
+export function fatiguePenaltyPercent(s: Soldier): number {
+  if (s.breathMax >= 85) return 0;
+  if (s.breathMax >= 70) return 10;
+  if (s.breathMax >= 50) return 25;
+  if (s.breathMax >= 30) return 50;
+  if (s.breathMax >= 15) return 75;
+  if (s.breathMax > 0) return 90;
+  return 100;
+}
+
+export function skillCheckFatiguePenalty(s: Soldier, skill: number): number {
+  return Math.trunc(Math.trunc((skill * fatiguePenaltyPercent(s)) / 100) / 2);
+}

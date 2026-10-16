@@ -197,15 +197,20 @@ in turn-based combat, `combat {team, round, interrupt}`; frames carry the change
 they change, the full door list and the combat block. Simulation events (`arrived`, `stopped` with a
 reason such as `outOfAPs`, `noPath`, `doorChanged`, `noiseHeard` with a direction but never a grid,
 `enemySighted`, `combatStarted`, `turnStarted`, `interrupt` (only once it is visible), `interruptEnded`,
-`combatEnded {reason: lull|won|lost}`) are returned by `advance`. In combat `advance … idle` returns
+`combatEnded {reason: lull|won|lost}`, `shotFired {soldier, target, chance, hit}`, `bulletStopped {reason}`,
+`soldierHit {soldier, attacker, damage, breathLoss, location, special, life}`, `soldierDied {soldier, killer}`,
+`gunJammed`, `statChanged`, `attackResolved`) are returned by `advance`. In combat `advance … idle` returns
 when it is our turn again and none of our soldiers is acting; an interrupt in our favour stops it with
 reason `decision` (act with the soldiers that have not moved, then `endTurn`).
 
 **Commands (M3 turn-based core):** `move {soldier, to, mode?: walk|run|swat|crawl}` (mode defaults to
 the current stance; in combat refused unless the first step plus any stance change is affordable),
 `turn {soldier, direction | toward}`, `stance {soldier, stance: stand|crouch|prone}`, `stop {soldier}`,
-`endTurn`. In combat orders are accepted only on our turn, when no attack is resolving and no other merc
-of ours is acting (`docs/10` §9, `deviations.md` "Turn-based UI lock").
+`endTurn`, `attack {soldier, target, level?, aimTime?: 0..4, bodyPart?: head|torso|legs|random, burst?}`
+(the gun path of `HandleItem`; refusals: no APs, no ammo, broken weapon) and `estimateAttack` with the same
+fields, a query that changes nothing and answers `data {apCost, actionPoints, chanceToHit, chanceToGetThrough}`.
+Orders are accepted only on our turn, when no attack is resolving and no other merc of ours is acting
+(`docs/10` §9, `deviations.md` "Turn-based UI lock"); `idle` also waits for bullets and queued game events.
 
 ### 4.5. CPU cost
 

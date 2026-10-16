@@ -78,6 +78,57 @@ export interface RoomRevealedEvent extends SimEventBase {
   readonly room: number;
 }
 
+export interface ShotFiredEvent extends SimEventBase {
+  readonly type: 'shotFired';
+  readonly soldier: number;
+  readonly target: number;
+  readonly chance: number;
+  readonly hit: boolean;
+}
+
+export interface BulletStoppedEvent extends SimEventBase {
+  readonly type: 'bulletStopped';
+  readonly soldier: number;
+  readonly gridNo: number;
+  readonly reason: 'structure' | 'ground' | 'roof' | 'offMap' | 'soldier';
+}
+
+export interface SoldierHitEvent extends SimEventBase {
+  readonly type: 'soldierHit';
+  readonly soldier: number;
+  readonly attacker: number | null;
+  readonly damage: number;
+  readonly breathLoss: number;
+  readonly location: 'random' | 'head' | 'torso' | 'legs' | 'gland';
+  readonly special: number;
+  readonly life: number;
+}
+
+export interface SoldierDiedEvent extends SimEventBase {
+  readonly type: 'soldierDied';
+  readonly soldier: number;
+  readonly killer: number | null;
+  readonly gridNo: number;
+}
+
+export interface AttackResolvedEvent extends SimEventBase {
+  readonly type: 'attackResolved';
+  readonly soldier: number | null;
+}
+
+export interface GunJammedEvent extends SimEventBase {
+  readonly type: 'gunJammed';
+  readonly soldier: number;
+  readonly unjammed: boolean;
+}
+
+export interface StatChangedEvent extends SimEventBase {
+  readonly type: 'statChanged';
+  readonly soldier: number;
+  readonly stat: string;
+  readonly change: number;
+}
+
 export type SimEvent =
   | TickBudgetEvent
   | ArrivedEvent
@@ -91,5 +142,12 @@ export type SimEvent =
   | DoorChangedEvent
   | NoiseHeardEvent
   | EnemySightedEvent
-  | RoomRevealedEvent;
+  | RoomRevealedEvent
+  | ShotFiredEvent
+  | BulletStoppedEvent
+  | SoldierHitEvent
+  | SoldierDiedEvent
+  | AttackResolvedEvent
+  | GunJammedEvent
+  | StatChangedEvent;
 export type SimEventType = SimEvent['type'];

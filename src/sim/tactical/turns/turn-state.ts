@@ -57,6 +57,7 @@ export interface TurnState {
   readonly watched: WatchedLocations;
   round: number;
   forceRealtimeTurn: boolean;
+  someoneHit: boolean;
 }
 
 export function createTurnState(maxSoldiers: number): TurnState {
@@ -94,5 +95,6 @@ export function createTurnState(maxSoldiers: number): TurnState {
     },
     round: 0,
     forceRealtimeTurn: false,
+    someoneHit: false,
   };
 }

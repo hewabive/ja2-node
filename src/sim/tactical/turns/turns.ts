@@ -531,7 +531,7 @@ export function endInterrupt(t: TacticalState, markOccurred: boolean): void {
   turn.interruptOccurred = markOccurred;
   for (const s of teamMembers(t, turn.currentTeam)) {
     if (!s.moved && s.actionPoints === s.intStartAPs) {
-      const minAPs = t.turnHooks.minAPsToAttack(t, s, s.lastTarget);
+      const minAPs = t.turnHooks.minAPsToAttack(t, s, s.lastTarget, false);
       if (minAPs > 0 && minAPs <= s.actionPoints) s.passedLastInterrupt = true;
     }
   }

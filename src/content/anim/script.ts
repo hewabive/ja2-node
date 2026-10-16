@@ -30,7 +30,7 @@ export function classifyCode(code: number): ScriptCode {
   return { kind: 'op', code };
 }
 
-export type OpOutcome = 'continue' | 'stop';
+export type OpOutcome = 'continue' | 'stop' | { readonly skip: number };
 
 export type StepResult =
   | { readonly kind: 'frame'; readonly frame: number; readonly nextPc: number }
@@ -56,7 +56,11 @@ export function stepToNextFrame(
       case 'state':
         return { kind: 'state', state: c.state };
       case 'op':
-        if (onOp(c.code, at) === 'stop') return { kind: 'stopped', pc: at };
+        {
+          const outcome = onOp(c.code, at);
+          if (outcome === 'stop') return { kind: 'stopped', pc: at };
+          if (typeof outcome === 'object') at += outcome.skip;
+        }
         at++;
         break;
     }

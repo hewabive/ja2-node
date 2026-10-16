@@ -5,17 +5,24 @@
 // @src TurnSoldier, AdjustForFastTurnAnimation, BeginSoldierClimbFence; Soldier_Ani.cc AdjustToNextAnimationFrame.
 // See docs/03, docs/06 §5, docs/07 §4.
 
-import { type OpOutcome, stepToNextFrame } from '../../content/anim/script.ts';
+import { classifyCode, type OpOutcome } from '../../content/anim/script.ts';
 import { type AnimationTables, AnimFlags, stateId } from '../../content/anim/tables.ts';
+import { MAX_FRAMES_PER_ANIM, scriptCode } from '../../content/formats/ja2bin.ts';
+import { ItemClass, ItemFlags } from '../../content/items/items.ts';
 import { newGridNo } from '../../content/world/grid.ts';
+import { anim } from './anim-states.ts';
+import { turnToShoot } from './combat/attack.ts';
+import { checkForFreeupFromHit, releaseSoldiersAttacker } from './combat/hit.ts';
 import { TERRAIN_SPEED_DELAY } from './constants.ts';
 import type { TacticalContent } from './content.ts';
 import { DIRECTION_COUNT, DIRECTION_INCREMENT, quickestTurnIncrement } from './directions.ts';
 import { handlePendingDoor } from './doors.ts';
+import { InvSlot } from './inventory.ts';
 import { getNewSoldierPath, handleGotoNewGridNo, isJumpableFenceAt, moveMercFacingDirection, setSoldierPosition } from './movement.ts';
 import { newOKDestination } from './pathfinding.ts';
+import { addMercStructure, isValidStance, okToAddMercToWorld } from './person-structure.ts';
 import { AP, apsToReadyWeapon, BP, deductPoints } from './points.ts';
-import { NO_PENDING_ANIMATION, type Soldier, Team } from './soldier.ts';
+import { NO_PENDING_ANIMATION, NOWHERE, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
 export const AnimHeight = { STAND: 6, CROUCH: 3, PRONE: 1 } as const;
@@ -46,6 +53,8 @@ const HOP_FENCE_FORWARD_NW: readonly number[] = [2.7, 1.0, 2.7, 1.0];
 const HOP_FENCE_FORWARD_FULL_SE: readonly number[] = [1.1, 1.0, 2.1, 1.1];
 const HOP_FENCE_FORWARD_FULL_NW: readonly number[] = [0.8, 0.2, 2.7, 0.8];
 const OP_RT_NONINT_DONE = 772;
+const ROOF_FALLS = ['FALLFORWARD_ROOF', 'FALLOFF'];
+const KEEPS_LAST_TARGET = ['READY_RIFLE_STAND', 'READY_RIFLE_PRONE', 'READY_RIFLE_CROUCH', 'ROBOT_SHOOT'];
 
 export interface NamedStates {
   readonly WALKING: number;
@@ -171,6 +180,8 @@ export function adjustNoAPToFinishMove(s: Soldier, set: boolean): void {
 
 export function setSoldierDirection(t: TacticalState, s: Soldier, direction: number): void {
   s.direction = direction;
+  if (!s.dontUnsetLastTargetFromTurn) s.lastTarget = NOWHERE;
+  addMercStructure(t, s);
   if (hasAnimFlag(t.content, s.state, AnimFlags.FASTTURN) && s.team === Team.OUR) {
     if (s.direction !== s.desiredDirection) s.aniDelay = FAST_TURN_DELAY;
     else setSoldierAniSpeed(t, s);
@@ -189,6 +200,17 @@ export function setDesiredDirection(t: TacticalState, s: Soldier, direction: num
       deductPoints(t.inCombat, s, cost, 0);
     }
     s.dontChargeTurningAPs = false;
+    const startHeight = height(t.content, animState);
+    if (initialMove && startHeight === AnimHeight.PRONE && s.turningFromPronePosition !== TurningFromProne.ENDING_UP_FROM_MOVE)
+      s.turningFromPronePosition = TurningFromProne.START_UP_FROM_MOVE;
+    if (
+      (hasAnimFlag(t.content, animState, AnimFlags.STATIONARY) || s.noAPToFinishMove) &&
+      startHeight === AnimHeight.PRONE &&
+      !initialMove
+    ) {
+      s.turningFromPronePosition = TurningFromProne.ON;
+      changeSoldierStance(t, s, AnimHeight.CROUCH);
+    }
   }
   s.turnIncrement = quickestTurnIncrement(s.direction, s.desiredDirection);
 }
@@ -274,6 +296,31 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
     s.desiredHeight = toEnd;
   }
 
+  if (s.team === Team.OUR && !s.monsterOrAnimal && s.bodyType !== ROBOTNOWEAPON) {
+    const rifle = isRifle(t, s.inv[InvSlot.HAND]?.item ?? 0);
+    if (
+      hasAnimFlag(content, next, AnimFlags.RAISE_WEAPON) &&
+      !hasAnimFlag(content, s.state, AnimFlags.RAISE_WEAPON | AnimFlags.NOCHANGE_WEAPON) &&
+      rifle &&
+      endHeight(content, s.state) === AnimHeight.STAND
+    ) {
+      s.pendingAnimation = next;
+      next = anim(content, 'RAISE_RIFLE');
+    }
+    if (
+      hasAnimFlag(content, next, AnimFlags.LOWER_WEAPON) &&
+      !hasAnimFlag(content, s.state, AnimFlags.LOWER_WEAPON | AnimFlags.NOCHANGE_WEAPON) &&
+      rifle &&
+      endHeight(content, s.state) === AnimHeight.STAND
+    ) {
+      s.pendingAnimation = next;
+      next = anim(content, 'LOWER_RIFLE');
+    }
+  }
+  if (hasAnimFlag(content, next, AnimFlags.MOVING) && s.state === st.COWERING && endHeight(content, next) === AnimHeight.STAND) {
+    s.pendingAnimation = next;
+    next = anim(content, 'END_COWER');
+  }
   if (s.state !== st.START_SWAT && next === st.SWATTING) next = st.START_SWAT;
   if (s.state === st.SWATTING && next === st.CROUCHING) next = st.END_SWAT;
   if (s.state === st.WALKING && next === st.STANDING && s.life < INJURED_CHANGE_THRESHOLD && s.bodyType <= REGFEMALE)
@@ -283,8 +330,18 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
   s.pauseAnimMove = false;
   adjustNoAPToFinishMove(s, false);
 
+  if (next === st.CRAWLING && s.dontUpdateNewGridNoOnMoveAnimChange === 1) {
+    if (s.turningFromPronePosition !== TurningFromProne.ENDING_UP_FROM_MOVE)
+      s.turningFromPronePosition = TurningFromProne.START_UP_FROM_MOVE;
+    if (s.turningFromPronePosition === TurningFromProne.START_UP_FROM_MOVE) {
+      next = st.PRONE_UP;
+      s.turningFromPronePosition = TurningFromProne.ENDING_UP_FROM_MOVE;
+    }
+  }
+
   const nextMoving = hasAnimFlag(content, next, AnimFlags.MOVING);
   if ((nextMoving && !hasAnimFlag(content, s.state, AnimFlags.MOVING)) || (nextMoving && force)) {
+    if (next === st.CRAWLING && s.dontUpdateNewGridNoOnMoveAnimChange === LOCKED_NO_NEWGRIDNO) s.dontUpdateNewGridNoOnMoveAnimChange = 1;
     if (!s.dontUpdateNewGridNoOnMoveAnimChange && next !== st.SWATTING) {
       if (!hasAnimFlag(content, next, AnimFlags.SPECIALMOVE)) {
         const result = handleGotoNewGridNo(t, s, true, next);
@@ -298,16 +355,65 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
   if (hasAnimFlag(content, next, AnimFlags.NONINTERRUPT)) s.inNonInterruptibleAnimation = true;
   if (hasAnimFlag(content, next, AnimFlags.RT_NONINTERRUPT)) s.rtNonInterruptible = true;
   if (hasAnimFlag(content, next, AnimFlags.SPECIALMOVE)) adjustNoAPToFinishMove(s, false);
-  if (!nextMoving) s.reverse = false;
+  const nextName = content.animations.controls[next]?.id ?? '';
+  if (!nextMoving && nextName !== 'END_RIFLE_STAND' && nextName !== 'END_DUAL_STAND') s.reverse = false;
 
+  if (
+    !hasAnimFlag(content, s.state, AnimFlags.FIREREADY) &&
+    !hasAnimFlag(content, next, AnimFlags.FIREREADY) &&
+    !KEEPS_LAST_TARGET.includes(content.animations.controls[next]?.id ?? '')
+  )
+    s.lastTarget = NOWHERE;
   chargeForNewState(t, s, next);
 
+  if (GETTING_HIT_STATES.includes(nextName)) s.gettingHit = 1;
+  const oldFlags = flags(content, s.state);
+  const newFlags = flags(content, next);
+  addMercStructure(t, s, next);
+  s.oldState = s.state;
+  s.oldPc = s.pc;
   s.state = next;
-  s.pc = startCode;
+  s.pc = nextName === 'CHARIOTS_OF_FIRE' || nextName === 'BODYEXPLODING' ? t.rng.int(10) : startCode;
   s.frame = 0;
   setSoldierAniSpeed(t, s);
   resetFrameTimer(t, s);
   adjustToNextAnimationFrame(t, s);
+  checkForFreeupFromHit(t, s, oldFlags, newFlags, s.oldState, next);
+}
+
+const ROBOTNOWEAPON = 21;
+const GETTING_HIT_STATES = [
+  'GENERIC_HIT_STAND',
+  'GENERIC_HIT_CROUCH',
+  'STANDING_BURST_HIT',
+  'ADULTMONSTER_HIT',
+  'ADULTMONSTER_DYING',
+  'COW_HIT',
+  'COW_DYING',
+  'BLOODCAT_HIT',
+  'BLOODCAT_DYING',
+  'WATER_HIT',
+  'WATER_DIE',
+  'DEEP_WATER_HIT',
+  'DEEP_WATER_DIE',
+  'RIFLE_STAND_HIT',
+  'LARVAE_HIT',
+  'LARVAE_DIE',
+  'QUEEN_HIT',
+  'QUEEN_DIE',
+  'INFANT_HIT',
+  'INFANT_DIE',
+  'CRIPPLE_HIT',
+  'CRIPPLE_DIE',
+  'CRIPPLE_DIE_FLYBACK',
+  'ROBOTNW_HIT',
+  'ROBOTNW_DIE',
+];
+
+function isRifle(t: TacticalState, item: number): boolean {
+  if (item === 0 || item === (t.content.items.byName.get('ROCKET_LAUNCHER')?.index ?? -2)) return false;
+  const d = t.content.items.byIndex.get(item);
+  return d?.itemClass === ItemClass.GUN && (d.flags & ItemFlags.TWO_HANDED) !== 0;
 }
 
 function handleEndOfAnimation(t: TacticalState, s: Soldier): void {
@@ -377,66 +483,81 @@ function endHopFence(t: TacticalState, s: Soldier): OpOutcome {
 }
 
 export function adjustToNextAnimationFrame(t: TacticalState, s: Soldier): void {
-  let endOfAnimation = false;
-  const startState = s.state;
-  const onOp = (code: number): OpOutcome => {
-    switch (code) {
-      case OP_PAUSE_ONE_FRAME:
-        s.pausedMove = true;
-        return 'continue';
-      case OP_NONINT_DONE:
-        s.inNonInterruptibleAnimation = false;
-        return 'continue';
-      case OP_HOP_FENCE_STEP:
-        hopFenceStep(t, s, HOP_FENCE_FORWARD_SE, HOP_FENCE_FORWARD_NW);
-        return 'continue';
-      case OP_HOP_FENCE_FULL_STEP:
-        hopFenceStep(t, s, HOP_FENCE_FORWARD_FULL_SE, HOP_FENCE_FORWARD_FULL_NW);
-        return 'continue';
-      case OP_OPEN_STRUCT:
-      case OP_OPEN_DOOR:
-        if (handlePendingDoor(t, s)) {
-          t.hooks.doorOpened(t, s);
-          t.hooks.newAiSituation(t, s);
-        }
-        return 'continue';
-      case OP_END_HOP_FENCE:
-        return endHopFence(t, s);
-      case OP_PAUSE_ANIMOVE_ON:
-        s.pauseAnimMove = true;
-        return 'continue';
-      case OP_BEGIN_HOP_FENCE:
-        s.forecastGridNo = newGridNo(newGridNo(s.gridNo, DIRECTION_INCREMENT[s.direction] ?? 0), DIRECTION_INCREMENT[s.direction] ?? 0);
-        return 'continue';
-      case OP_PAUSE_ANIMOVE_OFF:
-        s.pauseAnimMove = false;
-        return 'continue';
-      case OP_RT_NONINT_DONE:
-        s.rtNonInterruptible = false;
-        return 'continue';
-      case OP_END_OF_ANIMATION:
-        endOfAnimation = true;
-        return 'stop';
-      default:
-        return 'continue';
+  const content = t.content;
+  for (let guard = 0; guard < MAX_FRAMES_PER_ANIM * 4; guard++) {
+    if (s.breathCollapsed) {
+      if (hasAnimFlag(content, s.state, AnimFlags.HITSTOP | AnimFlags.HITFINISH)) s.breathCollapsed = false;
+      else if (s.life === 0) s.breathCollapsed = false;
+      else if (ROOF_FALLS.includes(content.animations.controls[s.state]?.id ?? '')) s.breathCollapsed = false;
+      else if (!s.inNonInterruptibleAnimation) {
+        t.hooks.collapse(t, s);
+        s.breathCollapsed = false;
+        return;
+      }
     }
-  };
-  const step = stepToNextFrame(t.content.scripts, s.state, s.pc, (code, pc) => {
-    s.pc = pc;
-    return onOp(code);
-  });
-  if (step.kind === 'frame') {
-    if (s.state === startState) {
-      s.frame = step.frame;
-      s.pc = step.nextPc;
+    const code = classifyCode(scriptCode(content.scripts, s.state, s.pc));
+    switch (code.kind) {
+      case 'frame':
+        s.frame = code.frame;
+        s.pc++;
+        return;
+      case 'jump':
+        s.pc = code.pc;
+        break;
+      case 'state':
+        changeSoldierState(t, s, code.state);
+        return;
+      case 'op': {
+        const outcome = runOpcode(t, s, code.code);
+        if (outcome === 'stop') return;
+        if (typeof outcome === 'object') s.pc += outcome.skip;
+        s.pc++;
+      }
     }
-    return;
   }
-  if (step.kind === 'state') {
-    changeSoldierState(t, s, step.state);
-    return;
+}
+
+function runOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome {
+  switch (code) {
+    case OP_PAUSE_ONE_FRAME:
+      s.pausedMove = true;
+      return 'continue';
+    case OP_NONINT_DONE:
+      s.inNonInterruptibleAnimation = false;
+      return 'continue';
+    case OP_HOP_FENCE_STEP:
+      hopFenceStep(t, s, HOP_FENCE_FORWARD_SE, HOP_FENCE_FORWARD_NW);
+      return 'continue';
+    case OP_HOP_FENCE_FULL_STEP:
+      hopFenceStep(t, s, HOP_FENCE_FORWARD_FULL_SE, HOP_FENCE_FORWARD_FULL_NW);
+      return 'continue';
+    case OP_OPEN_STRUCT:
+    case OP_OPEN_DOOR:
+      if (handlePendingDoor(t, s)) {
+        t.hooks.doorOpened(t, s);
+        t.hooks.newAiSituation(t, s);
+      }
+      return 'continue';
+    case OP_END_HOP_FENCE:
+      return endHopFence(t, s);
+    case OP_PAUSE_ANIMOVE_ON:
+      s.pauseAnimMove = true;
+      return 'continue';
+    case OP_BEGIN_HOP_FENCE:
+      s.forecastGridNo = newGridNo(newGridNo(s.gridNo, DIRECTION_INCREMENT[s.direction] ?? 0), DIRECTION_INCREMENT[s.direction] ?? 0);
+      return 'continue';
+    case OP_PAUSE_ANIMOVE_OFF:
+      s.pauseAnimMove = false;
+      return 'continue';
+    case OP_RT_NONINT_DONE:
+      s.rtNonInterruptible = false;
+      return 'continue';
+    case OP_END_OF_ANIMATION:
+      handleEndOfAnimation(t, s);
+      return 'stop';
+    default:
+      return t.hooks.opcode(t, s, code) ?? 'continue';
   }
-  if (endOfAnimation && s.state === startState) handleEndOfAnimation(t, s);
 }
 
 export function beginSoldierClimbFence(t: TacticalState, s: Soldier): void {
@@ -464,11 +585,14 @@ export function beginSoldierClimbFence(t: TacticalState, s: Soldier): void {
 
 export function turnSoldier(t: TacticalState, s: Soldier): void {
   const content = t.content;
+  if (isVehicleBody(s) && !isTankBody(s)) return;
   if (s.lookOnNextTurn) {
-    if (hasAnimFlag(content, s.state, AnimFlags.STATIONARY)) t.hooks.look(t, s);
+    const name = content.animations.controls[s.state]?.id ?? '';
+    if (hasAnimFlag(content, s.state, AnimFlags.STATIONARY) && name !== 'CLIMBUPROOF' && name !== 'CLIMBDOWNROOF') t.hooks.look(t, s);
     s.lookOnNextTurn = false;
     t.hooks.newAiSituation(t, s);
   }
+  turnToShoot(t, s);
   if (s.turningUntilDone && s.pendingStanceChange !== NO_DESIRED_HEIGHT && s.direction === s.desiredDirection) {
     changeSoldierStance(t, s, s.pendingStanceChange);
     s.pendingStanceChange = NO_DESIRED_HEIGHT;
@@ -482,16 +606,48 @@ export function turnSoldier(t: TacticalState, s: Soldier): void {
   }
   if (s.direction === s.desiredDirection) {
     s.lookOnNextTurn = false;
+    s.dontUnsetLastTargetFromTurn = false;
     t.hooks.turnFinished(t, s);
+    if (s.turningFromPronePosition === TurningFromProne.ON) {
+      if (isValidStance(t, s, AnimHeight.PRONE)) changeSoldierStance(t, s, AnimHeight.PRONE);
+      s.turningFromPronePosition = TurningFromProne.OFF;
+    }
+    const name = content.animations.controls[s.state]?.id ?? '';
+    if (s.turningFromPronePosition === TurningFromProne.ENDING_UP_FROM_MOVE && name !== 'PRONE_UP' && name !== 'PRONE_DOWN') {
+      if (isValidStance(t, s, AnimHeight.PRONE)) initNewSoldierAnim(t, s, states(content.animations).CRAWLING, 0, false);
+    }
+    if (s.turningFromHit) {
+      if (s.gettingHit === 1) {
+        const roofFalls = ['FALLFORWARD_ROOF', 'FALLOFF'];
+        const pendingName = content.animations.controls[s.pendingAnimation]?.id ?? '';
+        if (!roofFalls.includes(pendingName) && !roofFalls.includes(name)) {
+          setDesiredDirection(t, s, s.pendingActionData1);
+          s.gettingHit = 2;
+        } else s.turningFromHit = false;
+      } else if (s.gettingHit === 2) {
+        s.turningFromHit = false;
+        releaseSoldiersAttacker(t, s);
+        s.gettingHit = 0;
+      }
+    }
     return;
   }
   if (s.noAPToFinishMove) adjustNoAPToFinishMove(s, false);
   let direction = s.direction + s.turnIncrement;
   if (direction > 7) direction = 0;
   else if (direction < 0) direction = 7;
-  if (hasAnimFlag(content, s.state, AnimFlags.STATIONARY)) s.lookOnNextTurn = true;
-  setSoldierDirection(t, s, direction);
+  if (okToAddMercToWorld(t, s, direction)) {
+    if (hasAnimFlag(content, s.state, AnimFlags.STATIONARY)) s.lookOnNextTurn = true;
+    setSoldierDirection(t, s, direction);
+  } else if (s.state === states(content.animations).CRAWLING) {
+    changeSoldierStance(t, s, AnimHeight.CROUCH);
+    s.turningFromPronePosition = TurningFromProne.ENDING_UP_FROM_MOVE;
+  } else if ((s.structure?.def.tiles.length ?? 0) > 1) s.desiredDirection = s.direction;
 }
+
+const TurningFromProne = { OFF: 0, ON: 1, START_UP_FROM_MOVE: 2, ENDING_UP_FROM_MOVE: 3 } as const;
+const isVehicleBody = (s: Soldier) => s.bodyType >= 22 && s.bodyType <= 27;
+const isTankBody = (s: Soldier) => s.bodyType === 23 || s.bodyType === 24;
 
 const READY_STATES = [
   'READY_RIFLE_STAND',
@@ -530,14 +686,22 @@ function chargeForNewState(t: TacticalState, s: Soldier, next: number): void {
       if (t.content.animations.controls[s.state]?.id !== 'RUNNING') charge(AP.START_RUN_COST, 0);
       s.pendingAnimation = NO_PENDING_ANIMATION;
       break;
+    case 'CRAWLING':
+      s.turningFromPronePosition = TurningFromProne.OFF;
+      s.pendingAnimation = NO_PENDING_ANIMATION;
+      break;
     case 'WALKING':
     case 'SWATTING':
-    case 'CRAWLING':
       s.pendingAnimation = NO_PENDING_ANIMATION;
       break;
     case 'PRONE_UP':
     case 'PRONE_DOWN':
-      if (!s.dontChargeAPsForStanceChange && (s.gridNo === s.finalDestination || s.pathIndex === 0)) charge(AP.PRONE, BP.PRONE);
+      if (
+        s.turningFromPronePosition < TurningFromProne.START_UP_FROM_MOVE &&
+        !s.dontChargeAPsForStanceChange &&
+        (s.gridNo === s.finalDestination || s.pathIndex === 0)
+      )
+        charge(AP.PRONE, BP.PRONE);
       s.dontChargeAPsForStanceChange = false;
       break;
     case 'START_AID':

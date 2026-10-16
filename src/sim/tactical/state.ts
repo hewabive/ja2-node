@@ -1,15 +1,21 @@
+import type { OpOutcome } from '../../content/anim/script.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
 import { isVisibleTile, WORLD_MAX } from '../../content/world/grid.ts';
 import type { MovementCosts, MovementWorld } from '../../content/world/movement-costs.ts';
 import { PreRandom, type Rng } from '../../core/rng.ts';
 import type { SimEvent } from '../events.ts';
+import type { Bullet, MissAnimation } from './combat/bullets.ts';
+import type { Corpse } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
 import { createEquipmentState, type EquipmentState } from './equipment.ts';
+import type { GameEvent } from './game-events.ts';
 import type { DoorStatus, PathEnv, PathSoldier, PathWorld } from './pathfinding.ts';
 import { createFogOfWar, type FogOfWar } from './perception/fov.ts';
 import { createPerception, type Perception } from './perception/sight.ts';
+import type { ProfileProgress } from './profiles.ts';
 import { type Soldier, TOTAL_SOLDIERS } from './soldier.ts';
 import { createTurnState, type TurnState } from './turns/turn-state.ts';
+import type { WorldItem } from './world-items.ts';
 
 export interface TacticalWorldData extends MovementWorld {
   readonly costs: MovementCosts;
@@ -22,6 +28,12 @@ type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : n
 
 export interface GameOptions {
   gunNut: boolean;
+  bloodAndGore: boolean;
+}
+
+export interface CampaignState {
+  difficultyModifier: number;
+  progress: number;
 }
 
 export interface TacticalHooks {
@@ -32,6 +44,8 @@ export interface TacticalHooks {
   stanceChanged(t: TacticalState, s: Soldier): void;
   doorOpened(t: TacticalState, s: Soldier): void;
   endAiGuysTurn(t: TacticalState, s: Soldier): void;
+  collapse(t: TacticalState, s: Soldier): void;
+  opcode(t: TacticalState, s: Soldier, code: number): OpOutcome | null;
 }
 
 export const NO_HOOKS: TacticalHooks = {
@@ -42,6 +56,8 @@ export const NO_HOOKS: TacticalHooks = {
   stanceChanged: () => {},
   doorOpened: () => {},
   endAiGuysTurn: () => {},
+  collapse: () => {},
+  opcode: () => null,
 };
 
 export interface PerceptionHooks {
@@ -58,7 +74,9 @@ export interface TurnHooks {
   decideAlertStatus(t: TacticalState, s: Soldier): void;
   setNewSituation(t: TacticalState, s: Soldier): void;
   checkForChangingOrders(t: TacticalState, s: Soldier): void;
-  minAPsToAttack(t: TacticalState, s: Soldier, target: number): number;
+  minAPsToAttack(t: TacticalState, s: Soldier, target: number, addTurning: boolean): number;
+  suppressedStanceChange(t: TacticalState, s: Soldier, stance: number): void;
+  freeUpFromAttacking(t: TacticalState, s: Soldier): void;
 }
 
 export const NO_TURN_HOOKS: TurnHooks = {
@@ -68,12 +86,9 @@ export const NO_TURN_HOOKS: TurnHooks = {
   setNewSituation: () => {},
   checkForChangingOrders: () => {},
   minAPsToAttack: () => 0,
+  suppressedStanceChange: () => {},
+  freeUpFromAttacking: () => {},
 };
-
-export interface DesiredDirectionEvent {
-  readonly soldier: number;
-  readonly direction: number;
-}
 
 export interface TacticalState {
   clockMs: number;
@@ -88,8 +103,9 @@ export interface TacticalState {
   readonly pre: PreRandom;
   inCombat: boolean;
   options: GameOptions;
+  campaign: CampaignState;
   readonly events: TacticalEvent[];
-  readonly desiredDirectionEvents: DesiredDirectionEvent[];
+  readonly gameEvents: GameEvent[];
   readonly pathWorld: PathWorld;
   readonly pathEnv: PathEnv;
   hooks: TacticalHooks;
@@ -99,6 +115,12 @@ export interface TacticalState {
   readonly turn: TurnState;
   turnHooks: TurnHooks;
   readonly equipment: EquipmentState;
+  readonly profiles: Map<number, ProfileProgress>;
+  readonly worldItems: WorldItem[];
+  readonly bullets: Bullet[];
+  readonly missAnimations: MissAnimation[];
+  readonly corpses: Corpse[];
+  readonly pendingSkullReleases: { readonly soldier: Soldier; readonly at: number }[];
 }
 
 export function createTacticalState(world: TacticalWorldData, content: TacticalContent, rng: Rng): TacticalState {
@@ -132,9 +154,10 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
     rng,
     pre: PreRandom.create(rng),
     inCombat: false,
-    options: { gunNut: false },
+    options: { gunNut: false, bloodAndGore: true },
+    campaign: { difficultyModifier: 30, progress: 0 },
     events: [],
-    desiredDirectionEvents: [],
+    gameEvents: [],
     pathWorld,
     pathEnv,
     hooks: NO_HOOKS,
@@ -150,6 +173,12 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
     turn: createTurnState(TOTAL_SOLDIERS),
     turnHooks: NO_TURN_HOOKS,
     equipment: createEquipmentState(content.items),
+    profiles: new Map(),
+    worldItems: [],
+    bullets: [],
+    missAnimations: [],
+    corpses: [],
+    pendingSkullReleases: [],
   };
 }
 

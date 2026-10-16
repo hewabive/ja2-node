@@ -61,7 +61,7 @@ export function isActionAffordable(t: TacticalState, s: Soldier): boolean {
     case AiAction.TOSS_PROJECTILE:
     case AiAction.KNIFE_MOVE:
     case AiAction.THROW_KNIFE:
-      need = t.turnHooks.minAPsToAttack(t, s, s.ai.actionData);
+      need = t.turnHooks.minAPsToAttack(t, s, s.ai.actionData, true);
       break;
     case AiAction.PULL_TRIGGER:
       need = AP.PULL_TRIGGER;

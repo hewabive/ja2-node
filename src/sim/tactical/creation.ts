@@ -148,6 +148,7 @@ interface Generated {
   stats: SoldierStats;
   life: number;
   lifeMax: number;
+  morale: number;
 }
 
 function generateBasic(
@@ -173,11 +174,12 @@ function generateBasic(
   const leadership = roll();
   const strength = roll();
   const wisdom = roll();
-  roll();
+  const morale = roll();
   return {
     body,
     life: lifeMax,
     lifeMax,
+    morale,
     stats: { agility, dexterity, strength, wisdom, leadership, marksmanship, mechanical, explosives, medical, experience: exp.level },
   };
 }
@@ -189,6 +191,7 @@ function applyStaticStats(g: Generated, d: DetailedPlacement): Generated {
     body: g.body,
     lifeMax: pickStat(st.lifeMax, g.lifeMax),
     life: pickStat(st.life, g.life),
+    morale: pickStat(st.morale, g.morale),
     stats: {
       agility: pickStat(st.agility, g.stats.agility),
       dexterity: pickStat(st.dexterity, g.stats.dexterity),
@@ -274,6 +277,9 @@ export function createMercFromProfile(t: TacticalState, id: number, profile: Mer
     },
     life: profile.life,
     lifeMax: profile.lifeMax,
+    skillTrait1: profile.skillTrait,
+    skillTrait2: profile.skillTrait2,
+    personalityTrait: profile.personalityTrait,
     gridNo: NOWHERE,
     direction,
     state: states(t.content.animations).STANDING,
@@ -324,6 +330,7 @@ export function createFromPlacement(t: TacticalState, id: number, placement: Pla
     stats: generated.stats,
     life: generated.life,
     lifeMax: generated.lifeMax,
+    morale: generated.morale,
     breath: 99,
     gridNo: NOWHERE,
     direction: b.direction,
@@ -368,6 +375,9 @@ function createProfiledFromPlacement(t: TacticalState, id: number, placement: Pl
     },
     life: profile.life,
     lifeMax: profile.lifeMax,
+    skillTrait1: profile.skillTrait,
+    skillTrait2: profile.skillTrait2,
+    personalityTrait: profile.personalityTrait,
     breath: 99,
     gridNo: NOWHERE,
     direction: b.direction,

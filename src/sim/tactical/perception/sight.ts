@@ -7,7 +7,7 @@
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { endHeight, setSoldierAniSpeed, states } from '../animation.ts';
-import { AlertStatus, Body, NO_INTERRUPT, OKLIFE, type Soldier, SoldierClass, Team } from '../soldier.ts';
+import { AlertStatus, Body, NO_INTERRUPT, OKLIFE, type Soldier, SoldierClass, Team, TOTAL_SOLDIERS } from '../soldier.ts';
 import { mercs, type TacticalState, teamMembers } from '../state.ts';
 import { addToIntList, doneAddingToIntList, InterruptKind, resolveInterruptsVs } from '../turns/turns.ts';
 import {
@@ -105,7 +105,7 @@ export function distanceVisible(t: TacticalState, viewer: Soldier, facing: numbe
   return Math.trunc((d * (LIGHT_PCT[light] ?? 100)) / 100);
 }
 
-function knowledge(oldValue: number, newValue: number): number {
+export function knowledge(oldValue: number, newValue: number): number {
   return KNOWLEDGE_VALUE[oldValue - OLDEST_HEARD_VALUE]?.[newValue - OLDEST_HEARD_VALUE] ?? 0;
 }
 
@@ -262,7 +262,7 @@ export function manLooksForMan(t: TacticalState, me: Soldier, opp: Soldier, call
   return seen;
 }
 
-function radioSightings(t: TacticalState, s: Soldier, about: Soldier | null, toTeam: number): void {
+export function radioSightings(t: TacticalState, s: Soldier, about: Soldier | null, toTeam: number): void {
   const p = t.perception;
   const table = p.publicOpp[toTeam];
   if (!table) return;
@@ -516,4 +516,48 @@ export function decayPublicOpplist(t: TacticalState, team: number): void {
 
 export function publicOpp(t: TacticalState, team: number, opp: Soldier): number {
   return t.perception.publicOpp[team]?.[opp.id] ?? 0;
+}
+
+export function decayIndividualOpplist(t: TacticalState, s: Soldier): void {
+  if (s.life < OKLIFE) {
+    for (const opp of t.soldiers) if (opp && s.oppList[opp.id] === Opp.SEEN_CURRENTLY) handleManNoLongerSeen(t, s, opp);
+    s.oppList.fill(Opp.NOT_HEARD_OR_SEEN);
+    s.ai.oppCount = 0;
+    return;
+  }
+  for (const opp of mercs(t)) {
+    if (!validForSightings(opp) || s.team === opp.team) continue;
+    if (s.oppList[opp.id] !== Opp.SEEN_CURRENTLY) continue;
+    s.oppList[opp.id] = (s.oppList[opp.id] ?? 0) + 1;
+    if (hostile(s, opp)) removeOneOpponent(s);
+  }
+}
+
+export function verifyPublicOpplistDueToDeath(t: TacticalState, s: Soldier): void {
+  if (s.ai.oppCount === 0) return;
+  for (const opp of mercs(t)) {
+    if (!validForSightings(opp) || s.team === opp.team) continue;
+    let stillSeen = false;
+    if (s.oppList[opp.id] === Opp.SEEN_CURRENTLY) {
+      stillSeen = mercs(t).some((mate) => validForSightings(mate) && mate.team === s.team && mate.oppList[opp.id] === Opp.SEEN_CURRENTLY);
+    }
+    if (!stillSeen) {
+      const table = t.perception.publicOpp[s.team];
+      if (table) table[opp.id] = decayOppListValue(table[opp.id] ?? 0);
+    }
+  }
+}
+
+export function removeManAsTarget(t: TacticalState, s: Soldier): void {
+  for (let team = 0; team < t.perception.publicOpp.length; team++) updatePublic(t, team, s, Opp.NOT_HEARD_OR_SEEN, -1);
+  for (const opp of mercs(t)) {
+    if (opp.oppList[s.id] === Opp.SEEN_CURRENTLY && !opp.neutral && hostile(opp, s)) removeOneOpponent(opp);
+    updatePersonal(opp, s, Opp.NOT_HEARD_OR_SEEN, -1);
+    t.turn.seenOpponents[opp.id * TOTAL_SOLDIERS + s.id] = 0;
+  }
+  for (const other of mercs(t)) {
+    s.lastKnownOpp[other.id] = -1;
+    const lastKnown = t.perception.publicLastKnown[s.team];
+    if (lastKnown) lastKnown[other.id] = -1;
+  }
 }

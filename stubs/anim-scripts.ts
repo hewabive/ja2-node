@@ -52,6 +52,132 @@ const DOOR_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
   CLOSE_DOOR_CROUCHED: () => [1, 2, 3, 4, 5, 6, OPEN_DOOR, 5, 4, 3, 2, 1, NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
 };
 
+const Op = {
+  BUSY_UP: 757,
+  BUSY_DOWN: 753,
+  OK_FIRE: 470,
+  FLASH: 441,
+  FIRE: 430,
+  BURST: 448,
+  END_BURST: 449,
+  IMPROPER_END: 473,
+  FIRST_HAND: 459,
+  SECOND_HAND: 458,
+  TURN_FROM_HIT: 478,
+  INCAPACITATED: 433,
+  BACK_TO_AIM: 472,
+  TRY_TO_FALL: 447,
+  DEATH_OR_RELEASE: 497,
+  DEAD: 440,
+  PREVIOUS: 496,
+  LIFE_ZERO: 465,
+} as const;
+
+const STANCES = ['STAND', 'CROUCH', 'PRONE'] as const;
+const LOOPS = [
+  'AIM_RIFLE_STAND',
+  'AIM_RIFLE_CROUCH',
+  'AIM_RIFLE_PRONE',
+  'AIM_DUAL_STAND',
+  'AIM_DUAL_CROUCH',
+  'AIM_DUAL_PRONE',
+  'STAND_FALLFORWARD_STOP',
+  'FALLBACKHIT_STOP',
+  'PRONE_LAYFROMHIT_STOP',
+  'FLYBACKHIT_STOP',
+  'FALLFORWARD_HITDEATH_STOP',
+  'FALLBACK_HITDEATH_STOP',
+  'PRONE_HITDEATH_STOP',
+  'FLYBACK_HITDEATH_STOP',
+  'JFK_HITDEATH_STOP',
+  'WATER_DIE_STOP',
+  'DEEP_WATER_DIE_STOPPING',
+];
+
+function combatScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> {
+  const to = (name: string) => stateJump(stateId(t, name));
+  const m = new Map<string, number[]>();
+  for (const stance of STANCES) {
+    m.set(`READY_RIFLE_${stance}`, [...frames(4), to(`AIM_RIFLE_${stance}`)]);
+    m.set(`READY_DUAL_${stance}`, [...frames(4), to(`AIM_DUAL_${stance}`)]);
+    m.set(`END_RIFLE_${stance}`, [...frames(4), END_OF_ANIMATION]);
+    m.set(`END_DUAL_${stance}`, [...frames(4), END_OF_ANIMATION]);
+    m.set(`SHOOT_RIFLE_${stance}`, [
+      Op.BUSY_UP,
+      Op.OK_FIRE,
+      Op.FLASH,
+      Op.FIRE,
+      ...frames(6),
+      Op.BUSY_DOWN,
+      RT_NONINTERRUPTIBLE_DONE,
+      Op.IMPROPER_END,
+      to(`AIM_RIFLE_${stance}`),
+    ]);
+    m.set(`SHOOT_DUAL_${stance}`, [
+      Op.BUSY_UP,
+      Op.FIRST_HAND,
+      Op.OK_FIRE,
+      Op.FLASH,
+      Op.FIRE,
+      ...frames(4),
+      Op.SECOND_HAND,
+      Op.OK_FIRE,
+      Op.FLASH,
+      Op.FIRE,
+      ...frames(4),
+      Op.BUSY_DOWN,
+      Op.IMPROPER_END,
+      to(`AIM_DUAL_${stance}`),
+    ]);
+  }
+  m.set('FIRE_LOW_STAND', [
+    Op.BUSY_UP,
+    ...frames(4),
+    Op.OK_FIRE,
+    Op.FLASH,
+    Op.FIRE,
+    ...frames(6),
+    Op.BUSY_DOWN,
+    Op.IMPROPER_END,
+    to('AIM_RIFLE_STAND'),
+  ]);
+  const burst = (aim: string, lead: number) => [
+    Op.BUSY_UP,
+    ...frames(lead),
+    ...Array.from({ length: 6 }, () => [Op.FLASH, Op.BURST, Op.FIRE, ...frames(2)]).flat(),
+    ...frames(2),
+    Op.END_BURST,
+    Op.BUSY_DOWN,
+    Op.IMPROPER_END,
+    to(aim),
+  ];
+  m.set('STANDING_BURST', burst('AIM_RIFLE_STAND', 0));
+  m.set('CROUCHED_BURST', burst('AIM_RIFLE_CROUCH', 0));
+  m.set('PRONE_BURST', burst('AIM_RIFLE_PRONE', 0));
+  m.set('FIRE_BURST_LOW_STAND', burst('AIM_RIFLE_STAND', 4));
+  m.set('GENERIC_HIT_STAND', [Op.TURN_FROM_HIT, 1, NONINTERRUPTIBLE_DONE, Op.INCAPACITATED, 2, 3, Op.BACK_TO_AIM, END_OF_ANIMATION]);
+  m.set('RIFLE_STAND_HIT', [Op.TURN_FROM_HIT, 1, 2, NONINTERRUPTIBLE_DONE, Op.INCAPACITATED, 3, 4, 5, Op.BACK_TO_AIM, END_OF_ANIMATION]);
+  m.set('STANDING_BURST_HIT', [1, 2, Op.INCAPACITATED, 3, Op.BACK_TO_AIM, END_OF_ANIMATION]);
+  m.set('GENERIC_HIT_CROUCH', [1, 2, 3, Op.INCAPACITATED, 4, 5, END_OF_ANIMATION]);
+  m.set('GENERIC_HIT_PRONE', [1, 2, 3, Op.INCAPACITATED, 4, 5, 6, END_OF_ANIMATION]);
+  m.set('FALLFORWARD_FROMHIT_STAND', [...frames(4), Op.TRY_TO_FALL, ...frames(8, 5), NONINTERRUPTIBLE_DONE, Op.DEATH_OR_RELEASE]);
+  m.set('FALLFORWARD_FROMHIT_CROUCH', [...frames(4), Op.TRY_TO_FALL, 5, 6, to('ENDFALLFORWARD_FROMHIT_CROUCH')]);
+  m.set('ENDFALLFORWARD_FROMHIT_CROUCH', [...frames(8), NONINTERRUPTIBLE_DONE, Op.DEATH_OR_RELEASE]);
+  m.set('FALLBACK_HIT_STAND', [...frames(9), NONINTERRUPTIBLE_DONE, Op.DEATH_OR_RELEASE]);
+  m.set('PRONE_LAY_FROMHIT', [...frames(7), NONINTERRUPTIBLE_DONE, Op.DEATH_OR_RELEASE]);
+  m.set('FLYBACK_HIT', [1, NONINTERRUPTIBLE_DONE, ...frames(10, 2), Op.DEATH_OR_RELEASE]);
+  m.set('JFK_HITDEATH', [...frames(12), Op.DEAD]);
+  for (const name of ['GENERIC_HIT_DEATH', 'FALLBACK_HIT_DEATH', 'PRONE_HIT_DEATH', 'FLYBACK_HIT_DEATH', 'CIV_DIE2'])
+    m.set(name, [...frames(6), Op.DEAD]);
+  for (const name of ['WATER_DIE', 'DEEP_WATER_DIE']) m.set(name, [...frames(8), Op.LIFE_ZERO, Op.DEAD]);
+  for (const name of ['GENERIC_HIT_DEATHTWITCHNB', 'FALLBACK_HIT_DEATHTWITCHNB', 'PRONE_HIT_DEATHTWITCHNB'])
+    m.set(name, [...frames(3), Op.DEATH_OR_RELEASE]);
+  for (const name of ['GENERIC_HIT_DEATHTWITCHB', 'FALLBACK_HIT_DEATHTWITCHB', 'PRONE_HIT_DEATHTWITCHB', 'JFK_HITDEATH_TWITCHB'])
+    m.set(name, [...frames(3), Op.PREVIOUS]);
+  for (const name of LOOPS) m.set(name, [...frames(LOOP_FRAMES), JUMP_TO_START]);
+  return m;
+}
+
 export async function buildStubAnimationScripts(): Promise<Uint8Array> {
   const read = async (path: string) => JSON.parse(await readFile(join(PROJECT_DATA_DIR, path), 'utf8'));
   const tables = parseAnimationTables(await read(ANIM_CONTROL_PATH), await read(ANIM_SURFACES_PATH));
@@ -59,6 +185,7 @@ export async function buildStubAnimationScripts(): Promise<Uint8Array> {
   const looping = new Set(LOOPING_STATES.map((n) => stateId(tables, n)));
   const startSwat = stateId(tables, 'START_SWAT');
   const hopFence = stateId(tables, 'HOPFENCE');
+  const combat = combatScripts(tables);
   for (const control of tables.controls) {
     const releases = [
       ...(control.flags & NONINTERRUPT_FLAG ? [NONINTERRUPTIBLE_DONE] : []),
@@ -66,7 +193,9 @@ export async function buildStubAnimationScripts(): Promise<Uint8Array> {
     ];
     let script: number[];
     const door = DOOR_SCRIPTS[control.id];
-    if (door) script = door(tables);
+    const fight = combat.get(control.id);
+    if (fight) script = fight;
+    else if (door) script = door(tables);
     else if (control.index === startSwat) script = [...frames(START_SWAT_FRAMES), stateJump(stateId(tables, 'SWATTING'))];
     else if (control.index === hopFence)
       script = [

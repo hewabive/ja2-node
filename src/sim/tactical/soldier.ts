@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.h SOLDIERTYPE (movement, animation and AI fields used by ja2-node)
 
+import type { StructureInstance } from '../../content/world/structures.ts';
 import { emptyInventory, type Inventory } from './inventory.ts';
 
 export const Body = {
@@ -34,6 +35,42 @@ export const Body = {
   ICECREAMTRUCK: 26,
   JEEP: 27,
 } as const;
+
+export const SkillTrait = {
+  NONE: 0,
+  LOCKPICKING: 1,
+  HANDTOHAND: 2,
+  ELECTRONICS: 3,
+  NIGHTOPS: 4,
+  THROWING: 5,
+  TEACHING: 6,
+  HEAVY_WEAPS: 7,
+  AUTO_WEAPS: 8,
+  STEALTHY: 9,
+  AMBIDEXT: 10,
+  THIEF: 11,
+  MARTIALARTS: 12,
+  KNIFING: 13,
+  ONROOF: 14,
+  CAMOUFLAGED: 15,
+} as const;
+
+export const SKILL_TRAIT_BONUS = [0, 25, 15, 15, 15, 12, 15, 15, 0, 15, 0, 0, 30, 30, 15, 0];
+
+export const Personality = {
+  NONE: 0,
+  HEAT_INTOLERANT: 1,
+  NERVOUS: 2,
+  CLAUSTROPHOBIC: 3,
+  NONSWIMMER: 4,
+  FEAR_OF_INSECTS: 5,
+  FORGETFUL: 6,
+  PSYCHO: 7,
+} as const;
+
+export function numSkillTraits(s: { readonly skillTrait1: number; readonly skillTrait2: number }, trait: number): number {
+  return (s.skillTrait1 === trait ? 1 : 0) + (s.skillTrait2 === trait ? 1 : 0);
+}
 
 export const ReasonCantFinishMove = { NO_APS: 0, STOPPED_SIGHT: 1 } as const;
 
@@ -100,16 +137,16 @@ export interface SoldierPalettes {
 }
 
 export interface SoldierStats {
-  readonly agility: number;
-  readonly dexterity: number;
-  readonly strength: number;
-  readonly wisdom: number;
-  readonly leadership: number;
-  readonly marksmanship: number;
-  readonly mechanical: number;
-  readonly explosives: number;
-  readonly medical: number;
-  readonly experience: number;
+  agility: number;
+  dexterity: number;
+  strength: number;
+  wisdom: number;
+  leadership: number;
+  marksmanship: number;
+  mechanical: number;
+  explosives: number;
+  medical: number;
+  experience: number;
 }
 
 export interface AiState {
@@ -153,7 +190,12 @@ export interface Soldier {
   readonly inv: Inventory;
   readonly stats: SoldierStats;
   life: number;
-  readonly lifeMax: number;
+  lifeMax: number;
+  morale: number;
+  dead: boolean;
+  skillTrait1: number;
+  skillTrait2: number;
+  personalityTrait: number;
   bleeding: number;
   breath: number;
   breathMax: number;
@@ -192,6 +234,7 @@ export interface Soldier {
   pendingStanceChange: number;
   forecastGridNo: number;
   placed: boolean;
+  structure: StructureInstance | null;
 
   x: number;
   y: number;
@@ -263,6 +306,70 @@ export interface Soldier {
   collapsedTurns: number;
   tilesMovedPerRTBreathUpdate: number;
   lastMovementAnimPerRTBreathUpdate: number;
+
+  aimTime: number;
+  aimShotLocation: number;
+  doBurst: number;
+  doSpread: number;
+  bulletsLeft: number;
+  attackingHand: number;
+  attackingWeapon: number;
+  target: Soldier | null;
+  opponent: Soldier | null;
+  targetGridNo: number;
+  targetLevel: number;
+  targetCubeLevel: number;
+  turningToShoot: boolean;
+  dontUnsetLastTargetFromTurn: boolean;
+  attackNoticed: boolean;
+  muzzleFlash: boolean;
+  weaponMode: number;
+  lastAttackHit: boolean;
+  attacker: Soldier | null;
+  previousAttacker: Soldier | null;
+  nextToPreviousAttacker: Soldier | null;
+  beingAttackedCount: number;
+  hitLocation: number;
+  gettingHit: number;
+  goBackToAimAfterHit: boolean;
+  damageWindow: number;
+  damageWindowSteps: number;
+  nextDamageStepAt: number;
+  numPelletsHitBy: number;
+  intendedTarget: boolean;
+  suppressor: Soldier | null;
+  tryingToFall: boolean;
+  startFallDir: number;
+  fallClockwise: boolean;
+  lastDamageReason: number;
+  deadSoundPlayed: boolean;
+  doingExternalDeath: boolean;
+  pendingActionData1: number;
+  turningFromHit: boolean;
+  changingStanceDueToSuppression: boolean;
+  statDamage: { strength: number; dexterity: number; agility: number; wisdom: number };
+  kills: number;
+  assists: number;
+  shotsFired: number;
+  shotsHit: number;
+  timesWounded: number;
+  lastSkillCheck: number;
+  skillCheckAttempts: number;
+  skillCheckGridNo: number;
+  turningFromPronePosition: number;
+  sleepDrugCounter: number;
+  monsterSmell: number;
+  sayAmmoQuotePending: boolean;
+  teamMoraleMod: number;
+  tacticalMoraleMod: number;
+  strategicMoraleMod: number;
+  ctgtTarget: Soldier | null;
+  blindedCounter: number;
+  displayDamage: boolean;
+  oldState: number;
+  oldPc: number;
+  pendingActionData2: number;
+  spreadLocations: number[];
 }
 
 export interface SoldierInit {
@@ -278,6 +385,10 @@ export interface SoldierInit {
   readonly stats: SoldierStats;
   readonly life: number;
   readonly lifeMax?: number;
+  readonly morale?: number;
+  readonly skillTrait1?: number;
+  readonly skillTrait2?: number;
+  readonly personalityTrait?: number;
   readonly breath?: number;
   readonly gridNo: number;
   readonly level?: number;
@@ -309,6 +420,11 @@ export function createSoldier(init: SoldierInit): Soldier {
     stats: init.stats,
     life: init.life,
     lifeMax: init.lifeMax ?? init.life,
+    morale: init.morale ?? 50,
+    dead: false,
+    skillTrait1: init.skillTrait1 ?? 0,
+    skillTrait2: init.skillTrait2 ?? 0,
+    personalityTrait: init.personalityTrait ?? 0,
     bleeding: 0,
     breath: init.breath ?? 100,
     breathMax: init.breath ?? 100,
@@ -346,6 +462,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     pendingStanceChange: 255,
     forecastGridNo: NOWHERE,
     placed: false,
+    structure: null,
     x: Math.fround(centre.x),
     y: Math.fround(centre.y),
     gridNo: init.gridNo,
@@ -440,5 +557,68 @@ export function createSoldier(init: SoldierInit): Soldier {
     collapsedTurns: 0,
     tilesMovedPerRTBreathUpdate: 0,
     lastMovementAnimPerRTBreathUpdate: init.state,
+    aimTime: 0,
+    aimShotLocation: 0,
+    doBurst: 0,
+    doSpread: 0,
+    bulletsLeft: 0,
+    attackingHand: 5,
+    attackingWeapon: 0,
+    target: null,
+    opponent: null,
+    targetGridNo: NOWHERE,
+    targetLevel: 0,
+    targetCubeLevel: 0,
+    turningToShoot: false,
+    dontUnsetLastTargetFromTurn: false,
+    attackNoticed: false,
+    muzzleFlash: false,
+    weaponMode: 0,
+    lastAttackHit: false,
+    attacker: null,
+    previousAttacker: null,
+    nextToPreviousAttacker: null,
+    beingAttackedCount: 0,
+    hitLocation: 0,
+    gettingHit: 0,
+    goBackToAimAfterHit: false,
+    damageWindow: 0,
+    damageWindowSteps: 0,
+    nextDamageStepAt: 0,
+    numPelletsHitBy: 0,
+    intendedTarget: false,
+    suppressor: null,
+    tryingToFall: false,
+    startFallDir: 0,
+    fallClockwise: false,
+    lastDamageReason: 0,
+    deadSoundPlayed: false,
+    doingExternalDeath: false,
+    pendingActionData1: 0,
+    turningFromHit: false,
+    changingStanceDueToSuppression: false,
+    statDamage: { strength: 0, dexterity: 0, agility: 0, wisdom: 0 },
+    kills: 0,
+    assists: 0,
+    shotsFired: 0,
+    shotsHit: 0,
+    timesWounded: 0,
+    lastSkillCheck: -1,
+    skillCheckAttempts: 0,
+    skillCheckGridNo: NOWHERE,
+    turningFromPronePosition: 0,
+    sleepDrugCounter: 0,
+    monsterSmell: 0,
+    sayAmmoQuotePending: false,
+    teamMoraleMod: 0,
+    tacticalMoraleMod: 0,
+    strategicMoraleMod: 0,
+    ctgtTarget: null,
+    blindedCounter: 0,
+    displayDamage: false,
+    oldState: 0,
+    oldPc: 0,
+    pendingActionData2: 0,
+    spreadLocations: [0, 0, 0, 0, 0, 0],
   };
 }

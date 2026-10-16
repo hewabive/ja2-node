@@ -5,6 +5,7 @@
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { TICK_MS } from '../clock.ts';
 import { adjustToNextAnimationFrame, frameTimerDone, hasAnimFlag, states, turnSoldier } from './animation.ts';
+import { updateDamageDisplay } from './combat/hit.ts';
 import {
   arriveAtFinalDestination,
   handleAtNewGridNo,
@@ -74,6 +75,7 @@ export function executeOverhead(t: TacticalState, hooks: OverheadHooks = {}): vo
   hooks.beforePass?.(t);
   t.mercSlots.forEach((s, slot) => {
     if (!s?.placed) return;
+    updateDamageDisplay(t, s);
     if (frameTimerDone(t, s) && !handleSoldierFrame(t, s)) return;
     hooks.ai?.(t, s, slot);
   });

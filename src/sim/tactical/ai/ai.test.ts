@@ -5,19 +5,13 @@ import { syntheticWorld } from '../../../content/world/synthetic.ts';
 import { Rng } from '../../../core/rng.ts';
 import { initNewSoldierAnim, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
+import { dequeueAllGameEvents } from '../game-events.ts';
 import { setSoldierPosition } from '../movement.ts';
 import { executeOverhead, type OverheadHooks } from '../overhead.ts';
 import { createSoldier, Orders, type Soldier, Team } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
 import { AiAction } from './actions.ts';
-import {
-  aiForSlot,
-  applyDesiredDirectionEvents,
-  beginAiPass,
-  createAiControl,
-  freeUpFromStanceChange,
-  freeUpFromTurning,
-} from './control.ts';
+import { aiForSlot, beginAiPass, createAiControl, freeUpFromStanceChange, freeUpFromTurning } from './control.ts';
 
 let content: TacticalContent;
 
@@ -48,7 +42,7 @@ function world(seed: number): { t: TacticalState; hooks: OverheadHooks } {
     hooks: {
       beforePass: (s) => beginAiPass(s, control),
       ai: (s, soldier, slot) => aiForSlot(s, soldier, slot, control),
-      afterPass: applyDesiredDirectionEvents,
+      afterPass: dequeueAllGameEvents,
     },
   };
 }

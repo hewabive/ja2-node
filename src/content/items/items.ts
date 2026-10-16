@@ -143,6 +143,7 @@ export interface WeaponDef {
   readonly type: string;
   readonly weaponClass: number;
   readonly calibre: number;
+  readonly monsterCalibre: boolean;
   readonly explosiveCalibre: string | null;
   readonly readyTime: number;
   readonly shotsPer4Turns: number;
@@ -290,7 +291,7 @@ const EXPLOSIVE_CURSORS: Readonly<Record<string, number>> = Object.fromEntries(
   Object.entries(ItemCursor).map(([name, value]) => [name, value]),
 );
 
-function weaponItem(o: Json, calibres: ReadonlyMap<string, number>): ItemDef {
+function weaponItem(o: Json, calibres: ReadonlyMap<string, number>, monsterCalibres: ReadonlySet<string>): ItemDef {
   const type = str(o, 'internalType') ?? 'NOWEAPON';
   const kind = WEAPON_KINDS[type];
   if (!kind) throw new Error(`unknown weapon type ${type}`);
@@ -303,6 +304,7 @@ function weaponItem(o: Json, calibres: ReadonlyMap<string, number>): ItemDef {
     type,
     weaponClass: kind.weaponClass,
     calibre: calibre ?? NOAMMO_CALIBRE,
+    monsterCalibre: !isExplosiveLauncher && calibreName !== null && monsterCalibres.has(calibreName),
     explosiveCalibre: isExplosiveLauncher ? (calibreName ?? LAUNCHER_CALIBRES[name] ?? null) : null,
     readyTime: num(o, 'ubReadyTime'),
     shotsPer4Turns: num(o, 'ubShotsPer4Turns'),
@@ -391,6 +393,9 @@ function namedIndices(json: unknown): Map<string, number> {
 
 export function parseItemTable(sources: ItemTableSources): ItemTable {
   const calibres = namedIndices(sources.calibres);
+  const monsterCalibres = new Set(
+    (sources.calibres as Json[]).filter((c) => bool(c, 'monsterWeapon')).map((c) => str(c, 'internalName') ?? ''),
+  );
   const ammoTypes = namedIndices(sources.ammoTypes);
   const nothing: ItemDef = {
     ...baseItem({ itemIndex: NOTHING, internalName: 'NOTHING' }, ItemClass.NONE, ItemCursor.INVALID),
@@ -400,7 +405,7 @@ export function parseItemTable(sources: ItemTableSources): ItemTable {
     nothing,
     ...(sources.items as Json[]).map(plainItem).filter((i) => !(i.itemClass & (ItemClass.NONE | EXPLOSIVE_CLASSES | ItemClass.ARMOUR))),
     ...(sources.magazines as Json[]).filter((o) => str(o, 'calibre') !== 'NOAMMO').map((o) => magazineItem(o, calibres, ammoTypes)),
-    ...(sources.weapons as Json[]).map((o) => weaponItem(o, calibres)).filter((w) => w.itemClass !== ItemClass.NONE),
+    ...(sources.weapons as Json[]).map((o) => weaponItem(o, calibres, monsterCalibres)).filter((w) => w.itemClass !== ItemClass.NONE),
     ...(sources.explosives as Json[]).map(explosiveItem),
     ...(sources.armours as Json[]).map(armourItem),
   ];
