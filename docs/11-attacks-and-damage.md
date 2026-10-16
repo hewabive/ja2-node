@@ -2456,7 +2456,7 @@ function refreshSoldierMorale(s) {                         // Morale.cc:244-265
 
 - Only profiled soldiers have morale. Enemies and unprofiled NPCs pass through `updateSoldierMorale` unchanged. Only
   `SOLDIER_PC` reads `bMorale`; everyone else uses `bAIMorale`.
-- Decay: tactical modifier hourly (`Hourly_Update.cc:91` → `Morale.cc:138-217`): positive `max(0, m − (8 − m/10))`,
+- Decay: tactical modifier every quarter hour (`HandleQuarterHourUpdate`, `Hourly_Update.cc:85-92` → `Morale.cc:138-217`): positive `max(0, m − (8 − m/10))`,
   negative `min(0, m + (6 + m/10))`. Claustrophobic underground and Nervous alone keep re-applying their events instead.
   Strategic modifier every 3 hours (`Morale.cc:810-813`).
 

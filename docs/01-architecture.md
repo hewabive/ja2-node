@@ -9,6 +9,12 @@ Related documents:
 - [`03-logic-animation-coupling.md`](03-logic-animation-coupling.md) — how logic is intertwined with animation in the original;
 - [`04-time-and-server.md`](04-time-and-server.md) — instant mode and speed-up, server, agent
   API. It also has the numbers from `Ja2bin.dat`.
+- `05`–`14` — tactical specs (rendering, soldiers, movement, sight, AI, turn-based, attacks, items, combat AI,
+  savegames);
+- `15`–`19` — strategic specs for M4: [`15`](15-strategic-time.md) clock and events,
+  [`16`](16-strategic-map-movement.md) map, groups, travel and sector transitions, [`17`](17-strategic-ai.md) the
+  Queen, [`18`](18-militia-loyalty-mines-assignments.md) militia, loyalty, mines and assignments,
+  [`19`](19-autoresolve-pbi.md) pre-battle interface and autoresolve.
 
 ---
 

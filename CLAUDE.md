@@ -48,6 +48,8 @@ The simulation is server-side (Node), the browser is a client, agents play throu
 - `docs/04-time-and-server.md`: tick model, time drivers, server, agent API.
 - `docs/05-render-pipeline.md`: how the original draws the tactical map (order, z, shading).
 - `docs/06`–`09`: soldiers and animation, structures/pathing/walking, sight and noise, green AI.
+- `docs/10`–`14`: turn-based, attacks, items and explosions, combat AI, savegames (import in §10).
+- `docs/15`–`19` (M4 specs): strategic time, map and movement, strategic AI, towns and assignments, PBI and autoresolve.
 - `docs/deviations.md`: every deliberate difference from the original; add to it when diverging.
 - `docs/02-mechanics-catalog.md`, `docs/03-logic-animation-coupling.md`: formulas and engine
   behaviour with `file:line` references into `reference/stracciatella`.
