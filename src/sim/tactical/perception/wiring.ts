@@ -51,7 +51,12 @@ export function sightHooks(previous: TacticalHooks): TacticalHooks {
     },
     look: (t, s) => handleSight(t, s, SightFlags.LOOK | SightFlags.RADIO),
     stanceChanged: (t, s) => {
-      handleSight(t, s, SightFlags.LOOK | SightFlags.RADIO | SightFlags.INTERRUPT);
+      const settled =
+        s.pendingAnimation === NO_PENDING_ANIMATION &&
+        t.turn.attackBusyCount === 0 &&
+        s.turningFromPronePosition !== 3 &&
+        s.turningFromPronePosition !== 1;
+      handleSight(t, s, SightFlags.LOOK | SightFlags.RADIO | (settled ? SightFlags.INTERRUPT : 0));
       previous.stanceChanged(t, s);
     },
     doorOpened: (t, s) => {

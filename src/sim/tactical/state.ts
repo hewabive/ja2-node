@@ -42,6 +42,7 @@ export interface TacticalHooks {
   look(t: TacticalState, s: Soldier): void;
   turnFinished(t: TacticalState, s: Soldier): void;
   stanceChanged(t: TacticalState, s: Soldier): void;
+  stanceFreeUp(t: TacticalState, s: Soldier): void;
   doorOpened(t: TacticalState, s: Soldier): void;
   endAiGuysTurn(t: TacticalState, s: Soldier): void;
   collapse(t: TacticalState, s: Soldier): void;
@@ -54,6 +55,7 @@ export const NO_HOOKS: TacticalHooks = {
   look: () => {},
   turnFinished: () => {},
   stanceChanged: () => {},
+  stanceFreeUp: () => {},
   doorOpened: () => {},
   endAiGuysTurn: () => {},
   collapse: () => {},
@@ -77,6 +79,8 @@ export interface TurnHooks {
   minAPsToAttack(t: TacticalState, s: Soldier, target: number, addTurning: boolean): number;
   suppressedStanceChange(t: TacticalState, s: Soldier, stance: number): void;
   freeUpFromAttacking(t: TacticalState, s: Soldier): void;
+  aiAttack(t: TacticalState, s: Soldier, target: number, level: number): number;
+  freeUpFromPendingAction(t: TacticalState, s: Soldier): void;
 }
 
 export const NO_TURN_HOOKS: TurnHooks = {
@@ -88,6 +92,8 @@ export const NO_TURN_HOOKS: TurnHooks = {
   minAPsToAttack: () => 0,
   suppressedStanceChange: () => {},
   freeUpFromAttacking: () => {},
+  aiAttack: () => 0,
+  freeUpFromPendingAction: () => {},
 };
 
 export interface TacticalState {

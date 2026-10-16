@@ -815,7 +815,7 @@ tactical page plays the session back. The specs behind it are `docs/06`–`09`.
    the merc pass in the scene (z, shadows, checkerboard behind structures), the tactical page.
 9. **Stubs**: stub animation scripts, soldier sheets, `ja2pal.dat`, wall and barrel structures, door scripts.
 
-**Not in M2** (see `docs/deviations.md`): turn-based combat after `combatWouldStart` (M3), `DecideActionYellow`,
+**Not in M2** (see `docs/deviations.md`): turn-based combat after `combatWouldStart` (M3), `DecideActionYellow` (M3),
 light sprites and gear for vision, FOV roof reveal and wireframes, breath recovery, door busy windows, enemy
 glow, equipment generation, prone/multi-tile soldiers.
 
@@ -836,7 +836,11 @@ Specs: `docs/10` (turn-based), `11` (attacks and damage), `12` (items and explos
    busy barrier with suppression and `NoticeUnseenAttacker`, `StatChange` with profile progress, morale events
    from attacks. Soldiers occupy the world as person structures loaded from `anims/structdata/*.jsd` (stubs
    ship their own shapes). Commands `attack` and `estimateAttack`.
+5. **Combat AI** (`sim/tactical/ai`): `DecideActionYellow`/`Red`/`Black`, `CalcBestShot` and `CanNPCAttack`
+   (reload, drawing pocketed weapons), shooting and plain stance changes, `CalcMorale`, `RangeChangeDesire`,
+   `FindBestNearbyCover` with the AP-budget flood, flee spots, noise memory with the LOS forget test, radio
+   alerts, cowering civilians, `NewDest` movement modes and `ExecuteAction` for every gun-related action.
 
-**Not in M3 yet**: the RED/BLACK combat AI (enemies do not shoot back), bursts beyond the controller, melee,
-throws and launchers, explosions and smoke, picking items up, bleeding at turn start, corpse structures,
-oracle comparisons, save import.
+**Not in M3 yet**: bursts beyond the controller, melee, throws and launchers (the AI hooks report them
+impossible), explosions and smoke, picking items up, bleeding at turn start, corpse structures, roofs and
+climbing, oracle comparisons, save import.

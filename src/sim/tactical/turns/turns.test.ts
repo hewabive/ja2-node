@@ -5,6 +5,7 @@ import { syntheticWorld } from '../../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { advance } from '../../advance.ts';
 import type { SimEvent } from '../../events.ts';
+import { AiAction } from '../ai/actions.ts';
 import { initNewSoldierAnim, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { setSoldierPosition } from '../movement.ts';
@@ -138,6 +139,7 @@ describe('turn-based combat', () => {
     const controlled: number[] = [];
     const start = t.turnHooks.startNPCAI;
     t.turnHooks = { ...t.turnHooks, startNPCAI: (state, s) => (controlled.push(s.id), start(state, s)) };
+    sim.ai.green.decideActionBlack = () => AiAction.NONE;
     expect(sim.dispatch({ type: 'move', soldier: 0, to: gridNo(80, 70), mode: 'walk' }).ok).toBe(true);
     const events = run(sim);
     expect(watcher.oppList[merc.id]).toBe(1);

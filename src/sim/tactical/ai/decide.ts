@@ -6,8 +6,9 @@
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AnimHeight, endHeight, hasAnimFlag, states } from '../animation.ts';
+import { isCreatureOrBloodcat } from '../combat/impact.ts';
 import { isMercBody, isWater, NOWHERE } from '../pathfinding.ts';
-import { AlertStatus, Attitude, NO_PROFILE, Orders, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Attitude, Body, NO_PROFILE, Orders, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { AiAction, MOVEMENT_MODE, NEW_SITUATION_DELAY_RANGE, Situation, URGENCY } from './actions.ts';
 import { goAsFarAsPossibleTowards, pointPatrolAI, randDestWithinRange, randomFriendWithin, randomPointPatrolAI } from './destinations.ts';
@@ -59,6 +60,8 @@ export function realtimeDelay(t: TacticalState, s: Soldier): number {
 export function determineMovementMode(t: TacticalState, s: Soldier, action: number): number {
   const st = states(t.content.animations);
   const byName = { WALKING: st.WALKING, RUNNING: st.RUNNING, SWATTING: st.SWATTING };
+  if (isCreatureOrBloodcat(s)) return s.ai.alertStatus === AlertStatus.GREEN ? st.WALKING : st.RUNNING;
+  if (s.bodyType === Body.COW || s.bodyType === Body.CROW) return st.WALKING;
   const table = MOVEMENT_MODE[action]?.[URGENCY[s.ai.alertStatus]?.[s.ai.morale] ?? 0] ?? 'WALKING';
   if (s.ai.cautious && table === 'RUNNING') return st.WALKING;
   if (action === AiAction.SEEK_NOISE && s.team === Team.CIV && !isMercBody(s)) return st.WALKING;
@@ -307,12 +310,16 @@ export interface GreenHooks {
   decideActionNamedNPC(t: TacticalState, s: Soldier): number;
   findNearestUngassedLand(t: TacticalState, s: Soldier): number;
   decideActionYellow(t: TacticalState, s: Soldier): number;
+  decideActionRed(t: TacticalState, s: Soldier): number;
+  decideActionBlack(t: TacticalState, s: Soldier): number;
 }
 
 export const NO_GREEN_HOOKS: GreenHooks = {
   decideActionNamedNPC: () => AiAction.NONE,
   findNearestUngassedLand: () => NOWHERE,
   decideActionYellow: () => AiAction.NONE,
+  decideActionRed: () => AiAction.NONE,
+  decideActionBlack: () => AiAction.NONE,
 };
 
 export function decideAction(t: TacticalState, s: Soldier, hooks: GreenHooks): number {
@@ -328,6 +335,10 @@ export function decideAction(t: TacticalState, s: Soldier, hooks: GreenHooks): n
       return decideActionGreen(t, s, hooks);
     case AlertStatus.YELLOW:
       return hooks.decideActionYellow(t, s);
+    case AlertStatus.RED:
+      return hooks.decideActionRed(t, s);
+    case AlertStatus.BLACK:
+      return hooks.decideActionBlack(t, s);
     default:
       return AiAction.NONE;
   }

@@ -58,6 +58,8 @@ export interface TurnState {
   round: number;
   forceRealtimeTurn: boolean;
   someoneHit: boolean;
+  skipCoverCheck: boolean;
+  spottersCalledForBy: number;
 }
 
 export function createTurnState(maxSoldiers: number): TurnState {
@@ -96,5 +98,7 @@ export function createTurnState(maxSoldiers: number): TurnState {
     round: 0,
     forceRealtimeTurn: false,
     someoneHit: false,
+    skipCoverCheck: false,
+    spottersCalledForBy: -1,
   };
 }

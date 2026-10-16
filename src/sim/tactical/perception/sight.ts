@@ -53,6 +53,8 @@ export interface Perception {
   readonly publicLastKnown: Int16Array[];
   readonly publicNoiseGridNo: number[];
   readonly publicNoiseVolume: number[];
+  readonly publicNoiseLevel: number[];
+  readonly lastMercToRadio: (Soldier | null)[];
   readonly awareOfOpposition: boolean[];
   ambientLight: number;
   difficulty: number;
@@ -68,6 +70,8 @@ export function createPerception(maxSoldiers: number): Perception {
     publicLastKnown: Array.from({ length: TEAM_COUNT }, () => new Int16Array(maxSoldiers).fill(-1)),
     publicNoiseGridNo: new Array<number>(TEAM_COUNT).fill(-1),
     publicNoiseVolume: new Array<number>(TEAM_COUNT).fill(0),
+    publicNoiseLevel: new Array<number>(TEAM_COUNT).fill(0),
+    lastMercToRadio: new Array<Soldier | null>(TEAM_COUNT).fill(null),
     awareOfOpposition: new Array<boolean>(TEAM_COUNT).fill(false),
     ambientLight: 3,
     difficulty: DIFFICULTY_MEDIUM,
@@ -264,6 +268,7 @@ export function manLooksForMan(t: TacticalState, me: Soldier, opp: Soldier, call
 
 export function radioSightings(t: TacticalState, s: Soldier, about: Soldier | null, toTeam: number): void {
   const p = t.perception;
+  p.lastMercToRadio[s.team] = s;
   const table = p.publicOpp[toTeam];
   if (!table) return;
   let revealed = 0;
@@ -303,6 +308,7 @@ export function radioSightings(t: TacticalState, s: Soldier, about: Soldier | nu
   }
   if (s.ai.noiseVolume > (p.publicNoiseVolume[toTeam] ?? 0)) {
     p.publicNoiseGridNo[toTeam] = s.ai.noiseGridNo;
+    p.publicNoiseLevel[toTeam] = s.ai.noiseLevel;
     p.publicNoiseVolume[toTeam] = s.ai.noiseVolume;
   }
   if (s.team === Team.OUR && (revealed || unknown)) t.perceptionHooks.ourTeamSeesSomeone(s, revealed, unknown);
@@ -549,6 +555,7 @@ export function verifyPublicOpplistDueToDeath(t: TacticalState, s: Soldier): voi
 }
 
 export function removeManAsTarget(t: TacticalState, s: Soldier): void {
+  if (t.perception.lastMercToRadio[s.team] === s) t.perception.lastMercToRadio[s.team] = null;
   for (let team = 0; team < t.perception.publicOpp.length; team++) updatePublic(t, team, s, Opp.NOT_HEARD_OR_SEEN, -1);
   for (const opp of mercs(t)) {
     if (opp.oppList[s.id] === Opp.SEEN_CURRENTLY && !opp.neutral && hostile(opp, s)) removeOneOpponent(opp);

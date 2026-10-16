@@ -5,19 +5,44 @@
 // @src AIUtils.cc NewDest; Tactical/Overhead.cc ExecuteOverhead (real-time AI cadence). See docs/09 §1.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
-import { newGridNo, WORLD_MAX } from '../../../content/world/grid.ts';
-import { adjustNoAPToFinishMove, changeSoldierStance, hasAnimFlag, height, states } from '../animation.ts';
+import { newGridNo, pythSpacesAway, WORLD_MAX } from '../../../content/world/grid.ts';
+import { anim } from '../anim-states.ts';
+import {
+  AnimHeight,
+  adjustNoAPToFinishMove,
+  changeSoldierStance,
+  endHeight,
+  hasAnimFlag,
+  height,
+  initNewSoldierAnim,
+  states,
+} from '../animation.ts';
+import { soldierDifficultyLevel } from '../combat/chance.ts';
 import { DIRECTION_INCREMENT } from '../directions.ts';
 import { getNewSoldierPath, stopMerc } from '../movement.ts';
 import { isMercBody, NOWHERE, newOKDestination } from '../pathfinding.ts';
-import { estimateActionPointCost } from '../points.ts';
-import { AlertStatus, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { mostImportantNoiseHeard } from '../perception/knowledge.ts';
+import { radioSightings } from '../perception/sight.ts';
+import { deductPoints, enoughPoints, estimateActionPointCost } from '../points.ts';
+import { AlertStatus, Attitude, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { displayHiddenInterrupt } from '../turns/turns.ts';
-import { AI_DELAY, AiAction, FIRST_MOVEMENT_ACTION, LAST_MOVEMENT_ACTION, RT_DELAY_BETWEEN_AI_HANDLING, Situation } from './actions.ts';
+import {
+  AI_DELAY,
+  AiAction,
+  FIRST_MOVEMENT_ACTION,
+  LAST_MOVEMENT_ACTION,
+  MOVEMENT_MODE,
+  RT_DELAY_BETWEEN_AI_HANDLING,
+  Situation,
+  URGENCY,
+} from './actions.ts';
+import { type CombatDeciderHooks, decideActionBlack, decideActionRed, decideActionYellow } from './combat-decide.ts';
+import { findNearestUngassedLand } from './cover.ts';
 import {
   type AiHooks,
   decideAction,
+  decideActionGreen,
   decideAlertStatus,
   determineMovementMode,
   type GreenHooks,
@@ -29,8 +54,10 @@ import {
 } from './decide.ts';
 import { legalNPCDestination, PathMode } from './destinations.ts';
 import { endAIGuysTurn, isActionAffordable, turnBasedHandleNPCAI } from './turn-based.ts';
+import { recalculatePathCost } from './utils.ts';
 
 const OFF_MAP_CURSOR = 0xffff;
+const MAX_DISTANCE_VISIBLE = 26;
 
 export interface AiControl {
   readonly hooks: AiHooks;
@@ -42,9 +69,18 @@ export interface AiControl {
 }
 
 export function createAiControl(hooks: Partial<AiHooks & GreenHooks> = {}): AiControl {
+  const combat: CombatDeciderHooks = { decideActionGreen: (t, s) => decideActionGreen(t, s, green), npcDoesAct };
+  const green: GreenHooks = {
+    ...NO_GREEN_HOOKS,
+    findNearestUngassedLand,
+    decideActionYellow: (t, s) => decideActionYellow(t, s, combat),
+    decideActionRed: (t, s) => decideActionRed(t, s, combat),
+    decideActionBlack: (t, s) => decideActionBlack(t, s, combat),
+    ...hooks,
+  };
   return {
     hooks: { ...NO_AI_HOOKS, ...hooks },
-    green: { ...NO_GREEN_HOOKS, ...hooks },
+    green,
     lastTickMs: 0,
     cursor: 0,
     handleThisPass: false,
@@ -70,11 +106,82 @@ export function actionDone(t: TacticalState, s: Soldier): void {
 
 export function cancelAIAction(t: TacticalState, s: Soldier): void {
   if (s.ai.newSituation === Situation.IS_NEW) s.ai.newSituation = Situation.WAS_NEW;
+  t.turn.skipCoverCheck = false;
   s.ai.bypassToGreen = 0;
   actionDone(t, s);
 }
 
-function npcDoesAct(t: TacticalState, s: Soldier): void {
+const RADIO_STATES = ['AI_RADIO', 'AI_CR_RADIO'];
+const PENDING_RELEASE_STATES = [
+  'PICKUP_ITEM',
+  'ADJACENT_GET_ITEM',
+  'DROP_ITEM',
+  'END_OPEN_DOOR',
+  'END_OPEN_DOOR_CROUCHED',
+  'CLOSE_DOOR',
+  'MONSTER_UP',
+  'AI_RADIO',
+  'AI_CR_RADIO',
+  'END_OPENSTRUCT',
+  'END_OPENSTRUCT_CROUCHED',
+  'QUEEN_CALL',
+];
+const PENDING_ACTIONS: ReadonlySet<number> = new Set([
+  AiAction.PENDING_ACTION,
+  AiAction.OPEN_OR_CLOSE_DOOR,
+  AiAction.YELLOW_ALERT,
+  AiAction.RED_ALERT,
+  AiAction.PULL_TRIGGER,
+  AiAction.CREATURE_CALL,
+  AiAction.UNLOCK_DOOR,
+  AiAction.LOCK_DOOR,
+]);
+
+export function freeUpFromPendingAction(t: TacticalState, s: Soldier): void {
+  if (s.team === Team.OUR || s.ai.action === AiAction.PULL_TRIGGER) return;
+  if (!PENDING_ACTIONS.has(s.ai.action)) return;
+  const name = t.content.animations.controls[s.state]?.id ?? '';
+  if (PENDING_RELEASE_STATES.includes(name)) actionDone(t, s);
+}
+
+function aiDecideRadioAnimation(t: TacticalState, s: Soldier): void {
+  if (s.bodyType !== 0 && s.bodyType !== 1) {
+    actionDone(t, s);
+    return;
+  }
+  if (s.team === Team.CIV && s.civilianGroup !== KINGPIN_CIV_GROUP) {
+    actionDone(t, s);
+    return;
+  }
+  const end = endHeight(t.content, s.state);
+  if (end === AnimHeight.STAND) initNewSoldierAnim(t, s, anim(t.content, RADIO_STATES[0] as string), 0, false);
+  else if (end === AnimHeight.CROUCH) initNewSoldierAnim(t, s, anim(t.content, RADIO_STATES[1] as string), 0, false);
+  else actionDone(t, s);
+}
+
+function handleInitialRedAlert(t: TacticalState, team: number): void {
+  t.perception.awareOfOpposition[team] = true;
+}
+
+function setSoldierCowerState(t: TacticalState, s: Soldier, on: boolean): void {
+  if (s.bodyType === 21) return;
+  if (on) {
+    if (!s.cowering) {
+      initNewSoldierAnim(t, s, anim(t.content, 'START_COWER'), 0, false);
+      s.cowering = true;
+      s.desiredHeight = AnimHeight.CROUCH;
+    }
+  } else if (s.cowering) {
+    initNewSoldierAnim(t, s, anim(t.content, 'END_COWER'), 0, false);
+    s.cowering = false;
+    s.desiredHeight = AnimHeight.STAND;
+  }
+}
+
+const KINGPIN_CIV_GROUP = 4;
+const AP_RADIO = 5;
+
+export function npcDoesAct(t: TacticalState, s: Soldier): void {
   if (t.turn.hiddenInterrupt) displayHiddenInterrupt(t);
   if (s.desiredDirection !== s.direction) s.desiredDirection = s.direction;
 }
@@ -90,9 +197,45 @@ export function freeUpFromStanceChange(t: TacticalState, s: Soldier): void {
   if (height(t.content, s.state) === ai.actionData) actionDone(t, s);
 }
 
+const SWAT_NOISE_RANGE = MAX_DISTANCE_VISIBLE + 10;
+
+function isCunningCoverTaker(t: TacticalState, s: Soldier): boolean {
+  const a = s.ai.attitude;
+  return (
+    isMercBody(s) &&
+    s.ai.action === AiAction.TAKE_COVER &&
+    (a === Attitude.DEFENSIVE || a === Attitude.CUNNINGSOLO || a === Attitude.CUNNINGAID) &&
+    soldierDifficultyLevel(t, s) >= 2
+  );
+}
+
+function coverMovementMode(t: TacticalState, s: Soldier): number {
+  const st = states(t.content.animations);
+  const name = MOVEMENT_MODE[AiAction.TAKE_COVER]?.[URGENCY[s.ai.alertStatus]?.[s.ai.morale] ?? 0] ?? 'WALKING';
+  const mode = st[name];
+  if (mode === st.SWATTING) return mode;
+  const canSwat = enoughPoints(t.inCombat, s, recalculatePathCost(t, s, st.SWATTING));
+  return canSwat || (s.ai.lastAction === AiAction.TAKE_COVER && s.uiMovementMode === st.SWATTING) ? st.SWATTING : mode;
+}
+
+function alertedEnemyMovementMode(t: TacticalState, s: Soldier): number {
+  if (t.pre.int(5 - soldierDifficultyLevel(t, s)) === 0) {
+    const noise = mostImportantNoiseHeard(t, s);
+    if (noise !== NOWHERE && pythSpacesAway(s.gridNo, noise) < SWAT_NOISE_RANGE) return states(t.content.animations).SWATTING;
+  }
+  return determineMovementMode(t, s, s.ai.action);
+}
+
 function newDest(t: TacticalState, s: Soldier, g: number): void {
-  s.uiMovementMode = determineMovementMode(t, s, s.ai.action);
-  if (s.uiMovementMode === states(t.content.animations).SWATTING && !isMercBody(s)) s.uiMovementMode = states(t.content.animations).WALKING;
+  const st = states(t.content.animations);
+  if (isCunningCoverTaker(t, s)) s.uiMovementMode = coverMovementMode(t, s);
+  else {
+    s.uiMovementMode =
+      s.team === Team.ENEMY && s.ai.alertStatus === AlertStatus.RED
+        ? alertedEnemyMovementMode(t, s)
+        : determineMovementMode(t, s, s.ai.action);
+    if (s.uiMovementMode === st.SWATTING && !isMercBody(s)) s.uiMovementMode = st.WALKING;
+  }
   getNewSoldierPath(t, s, g, s.uiMovementMode, 0, s.noAPToFinishMove);
 }
 
@@ -153,6 +296,8 @@ function detectMovementLoop(t: TacticalState, s: Soldier): void {
 
 export function executeAction(t: TacticalState, s: Soldier): boolean {
   const ai = s.ai;
+  t.turn.skipCoverCheck = false;
+  s.lastAttackHit = false;
   switch (ai.action) {
     case AiAction.NONE:
       return true;
@@ -161,6 +306,7 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
       actionDone(t, s);
       return true;
     case AiAction.CHANGE_FACING:
+      t.turn.skipCoverCheck = true;
       t.gameEvents.push({ kind: 'desiredDirection', soldier: s.id, direction: ai.actionData });
       return true;
     case AiAction.CHANGE_STANCE:
@@ -168,15 +314,55 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
         actionDone(t, s);
         return false;
       }
+      t.turn.skipCoverCheck = true;
       changeSoldierStance(t, s, ai.actionData);
+      return true;
+    case AiAction.COWER:
+      if (s.cowering) {
+        actionDone(t, s);
+        return false;
+      }
+      ai.actionData = AnimHeight.CROUCH;
+      setSoldierCowerState(t, s, true);
       return true;
     case AiAction.STOP_COWERING:
       if (!s.cowering) {
         actionDone(t, s);
         return false;
       }
-      s.cowering = false;
-      changeSoldierStance(t, s, ai.actionData);
+      ai.actionData = AnimHeight.STAND;
+      setSoldierCowerState(t, s, false);
+      return true;
+    case AiAction.KNIFE_MOVE:
+    case AiAction.TOSS_PROJECTILE:
+    case AiAction.THROW_KNIFE:
+      cancelAIAction(t, s);
+      t.hooks.endAiGuysTurn(t, s);
+      return true;
+    case AiAction.FIRE_GUN: {
+      const result = t.turnHooks.aiAttack(t, s, ai.actionData, s.targetLevel);
+      if (result !== 1) {
+        cancelAIAction(t, s);
+        t.hooks.endAiGuysTurn(t, s);
+      }
+      return true;
+    }
+    case AiAction.RED_ALERT:
+    case AiAction.YELLOW_ALERT:
+      if (ai.action === AiAction.RED_ALERT && s.team !== Team.OUR && !t.perception.awareOfOpposition[s.team])
+        handleInitialRedAlert(t, s.team);
+      deductPoints(t.inCombat, s, AP_RADIO, 0);
+      radioSightings(t, s, null, s.team);
+      aiDecideRadioAnimation(t, s);
+      return true;
+    case AiAction.LOWER_GUN:
+      actionDone(t, s);
+      return true;
+    case AiAction.END_TURN:
+      actionDone(t, s);
+      if (t.inCombat) t.hooks.endAiGuysTurn(t, s);
+      return false;
+    case AiAction.OFFER_SURRENDER:
       return true;
     default:
       if (isMovementAction(ai.action)) {

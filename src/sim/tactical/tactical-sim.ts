@@ -13,6 +13,7 @@ import {
   beginAiPass,
   cancelAIAction,
   createAiControl,
+  freeUpFromPendingAction,
   freeUpFromStanceChange,
   freeUpFromTurning,
 } from './ai/control.ts';
@@ -128,7 +129,7 @@ export class TacticalSim {
       collapse: soldierCollapse,
       opcode: (state, s, code) => attackOpcode(state, s, code) ?? deathOpcode(state, s, code),
       turnFinished: freeUpFromTurning,
-      stanceChanged: freeUpFromStanceChange,
+      stanceFreeUp: freeUpFromStanceChange,
       endAiGuysTurn: (state, s) => endAIGuysTurn(state, s, ai),
     });
     t.perceptionHooks = perceptionHooks(t, { checkForChangingOrders, setNewSituation: (s) => setNewSituation(t, s) });
@@ -146,6 +147,8 @@ export class TacticalSim {
         s.ai.actionInProgress = true;
       },
       freeUpFromAttacking: actionDone,
+      aiAttack: (state, s, target, level) => handleGunAttack(state, s, target, level, itemIn(s.inv, InvSlot.HAND)),
+      freeUpFromPendingAction,
     };
     const clock = this.#clock;
     this.hooks = {

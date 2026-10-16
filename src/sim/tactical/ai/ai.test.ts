@@ -36,7 +36,7 @@ function world(seed: number): { t: TacticalState; hooks: OverheadHooks } {
   const w = syntheticWorld(testDoorCosts());
   const t = createTacticalState({ ...w, mapDoors: new Map() }, content, Rng.fromSeed(seed));
   const control = createAiControl();
-  t.hooks = { ...t.hooks, turnFinished: freeUpFromTurning, stanceChanged: freeUpFromStanceChange };
+  t.hooks = { ...t.hooks, turnFinished: freeUpFromTurning, stanceFreeUp: freeUpFromStanceChange };
   return {
     t,
     hooks: {

@@ -1,21 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { loadTestContent, testDoorCosts } from '../../../../tests/support/tactical.ts';
-import { Orientation } from '../../../content/formats/jsd.ts';
+import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
+import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
-import { StructureFlags } from '../../../content/world/structures.ts';
-import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
-import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
-import { advance } from '../../advance.ts';
 import type { SimEvent } from '../../events.ts';
-import { createItem } from '../../items/object.ts';
-import { initNewSoldierAnim, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
-import { setSoldierPosition } from '../movement.ts';
-import { calcActionPoints } from '../points.ts';
-import { createSoldier, type Soldier, type SoldierStats, Team } from '../soldier.ts';
-import { registerSoldier } from '../state.ts';
-import { TacticalSim } from '../tactical-sim.ts';
+import { Team } from '../soldier.ts';
+import type { TacticalSim } from '../tactical-sim.ts';
 import { chanceOfBulletHittingStructure } from './bullets.ts';
 import { adjustImpactByHitLocation } from './impact.ts';
 import { AimShot } from './types.ts';
@@ -26,67 +17,10 @@ beforeAll(async () => {
   content = await loadTestContent();
 });
 
-const stats = (marksmanship: number): SoldierStats => ({
-  agility: 70,
-  dexterity: 70,
-  strength: 70,
-  wisdom: 70,
-  leadership: 50,
-  marksmanship,
-  mechanical: 30,
-  explosives: 30,
-  medical: 30,
-  experience: 3,
-});
-
-function newSim(walls: readonly number[] = [], seed = 3): TacticalSim {
-  const base = syntheticWorld(testDoorCosts(), (structures) => {
-    for (const g of walls) structures.add(g, 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT, { armour: 12 }));
-  });
-  const world = { ...base, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld;
-  return new TacticalSim(world, content, seed);
-}
-
-function spawn(sim: TacticalSim, id: number, team: number, at: number, direction: number, marksmanship = 70, life = 80): Soldier {
-  const t = sim.state;
-  const s = createSoldier({
-    id,
-    team,
-    name: `S${id}`,
-    bodyType: 0,
-    palettes: { hair: 'BLACKHEAD', skin: 'PINKSKIN', vest: 'BLUEVEST', pants: 'JEANPANTS' },
-    stats: stats(marksmanship),
-    life,
-    gridNo: at,
-    direction,
-    state: states(content.animations).STANDING,
-  });
-  const glock = content.items.byName.get('GLOCK_17')?.index ?? 0;
-  s.inv[InvSlot.HAND] = createItem(content.items, glock, 100);
-  registerSoldier(t, s);
-  setSoldierPosition(t, s, at);
-  initNewSoldierAnim(t, s, states(content.animations).STANDING, 0, true);
-  s.actionPoints = calcActionPoints(content, s);
-  return s;
-}
-
-function run(sim: TacticalSim, ticks = 50_000): SimEvent[] {
-  const report = advance(
-    {
-      get tick() {
-        return sim.tick;
-      },
-      isIdle: () => sim.isIdle(),
-      hasPendingDecision: () => sim.hasPendingDecision(),
-      step: () => sim.step(),
-      drainEvents: () => sim.drainEvents(),
-    },
-    { idle: true },
-    ticks,
-  );
-  expect(report.reason).toBe('idle');
-  return [...report.events];
-}
+const newSim = (walls: readonly number[] = []) => newCombatSim(content, walls);
+const spawn = (sim: TacticalSim, id: number, team: number, at: number, direction: number, marksmanship = 70, life = 80) =>
+  spawnSoldier(sim, id, team, at, direction, { marksmanship, life });
+const run = runUntilIdle;
 
 describe('damage and structure rules', () => {
   it('scales head and leg hits like the original float maths', () => {

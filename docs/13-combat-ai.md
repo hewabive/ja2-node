@@ -1451,17 +1451,10 @@ off), the 15 s deadlock breaker (never).
 
 ### 12.4 Deviations to log
 
-- Every hook left at its default (panic, named NPCs, Queen/Joe/Warden, boxing, tanks, surrender, `SearchForItems`
-  NONE, climbing NOWHERE, light false, gas false, spread burst off, throws/knives impossible) until ported.
-- Prone invalid until multi-tile soldiers exist.
-- Armed-civilian infinite loop in §6.2 replaced by "cannot attack".
-- If the oracle disproves the truncation of §1.4, or if we choose vanilla's `LAST_MOVEMENT_ACTION`: record it.
-- `FindBestPath` `Random(4)` draws (already logged as "Pathfinder RNG"); the 15 s deadlock breaker (already logged as
-  "Watchdogs").
-- `GoAsFar`'s `std::shuffle` fallback as Fisher–Yates on the main stream (`09` §2.4 asked for this entry; it is not in
-  `deviations.md` yet).
-- Surrender never offered and edge escapes without strategic effects (M4).
-- The YELLOW-alert entry of `deviations.md` is removed once §12.1 item 3 lands.
+All logged in `deviations.md` (2026-10-15): "Combat AI specials", "Armed civilian without ammo", "AI and roofs",
+"AI light and gas", "Recalculated path cost", "GoAsFar fallback", "AI threat value", "Map-edge escapes", "AI path-cost
+cache". Prone is valid wherever the prone person structure fits, as in the original, since soldiers are multi-tile
+person structures now. The §1.4 truncation and Strac's `LAST_MOVEMENT_ACTION` still await the oracle.
 
 ---
 

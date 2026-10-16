@@ -12,6 +12,7 @@ import { ItemClass, ItemFlags } from '../../content/items/items.ts';
 import { newGridNo } from '../../content/world/grid.ts';
 import { anim } from './anim-states.ts';
 import { turnToShoot } from './combat/attack.ts';
+import { reduceAttackBusyCount } from './combat/barrier.ts';
 import { checkForFreeupFromHit, releaseSoldiersAttacker } from './combat/hit.ts';
 import { TERRAIN_SPEED_DELAY } from './constants.ts';
 import type { TacticalContent } from './content.ts';
@@ -254,7 +255,10 @@ function stanceChangeState(t: TacticalState, s: Soldier, desired: number): numbe
 }
 
 export function changeSoldierStance(t: TacticalState, s: Soldier, desired: number): void {
-  if (desired === endHeight(t.content, s.state)) return;
+  if (desired === endHeight(t.content, s.state)) {
+    t.hooks.stanceFreeUp(t, s);
+    return;
+  }
   s.desiredHeight = desired;
   initNewSoldierAnim(t, s, stanceChangeState(t, s, desired), 0, false);
 }
@@ -378,6 +382,7 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
   setSoldierAniSpeed(t, s);
   resetFrameTimer(t, s);
   adjustToNextAnimationFrame(t, s);
+  t.hooks.stanceFreeUp(t, s);
   checkForFreeupFromHit(t, s, oldFlags, newFlags, s.oldState, next);
 }
 
@@ -419,12 +424,17 @@ function isRifle(t: TacticalState, item: number): boolean {
 function handleEndOfAnimation(t: TacticalState, s: Soldier): void {
   const content = t.content;
   const st = states(content.animations);
+  if (s.team !== Team.OUR) t.turnHooks.freeUpFromPendingAction(t, s);
   const currentEnd = endHeight(content, s.state);
   if (s.desiredHeight === currentEnd || s.desiredHeight === NO_DESIRED_HEIGHT) {
     s.desiredHeight = NO_DESIRED_HEIGHT;
+    if (s.changingStanceDueToSuppression) {
+      s.changingStanceDueToSuppression = false;
+      reduceAttackBusyCount(t, s.suppressor, false);
+    }
     if (hasAnimFlag(content, s.state, AnimFlags.STANCECHANGEANIM)) {
-      t.hooks.newAiSituation(t, s);
       t.hooks.stanceChanged(t, s);
+      t.hooks.newAiSituation(t, s);
     }
     if (continueAfterDoor(t, s)) return;
     if (s.pendingAnimation !== NO_PENDING_ANIMATION) {

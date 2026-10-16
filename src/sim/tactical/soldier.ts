@@ -160,6 +160,7 @@ export interface AiState {
   actionData: number;
   nextAction: number;
   nextActionData: number;
+  nextTargetLevel: number;
   lastAction: number;
   actionInProgress: boolean;
   counter: number;
@@ -510,6 +511,7 @@ export function createSoldier(init: SoldierInit): Soldier {
       actionData: NOWHERE,
       nextAction: 0,
       nextActionData: 0,
+      nextTargetLevel: 0,
       lastAction: 0,
       actionInProgress: false,
       counter: 0,

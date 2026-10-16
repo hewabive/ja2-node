@@ -19,9 +19,11 @@ import { TERRAIN_MOVEMENT_COST, Terrain } from '../../content/world/terrain.ts';
 import { Team } from './soldier.ts';
 
 export const PathFlags = { THROUGH_PEOPLE: 0x01, IGNORE_PERSON_AT_DEST: 0x02, CLOSE_GOOD_ENOUGH: 0x04 } as const;
-export const PathCopy = { NONE: 0, ROUTE: 1, REACHABLE: 2 } as const;
+export const PathCopy = { NONE: 0, ROUTE: 1, REACHABLE: 2, REACHABLE_AND_APS: 3 } as const;
 export const MAX_PATH_LIST_SIZE = 30;
 export const NOWHERE = -1;
+export const AI_PATHCOST_RADIUS = 9;
+export const AI_PATHCOST_SIZE = 2 * AI_PATHCOST_RADIUS + 1;
 
 const PATH_CLOSE_RADIUS = 5;
 const MAX_PATHQ = 1024;
@@ -89,6 +91,7 @@ export interface PathResult {
   readonly length: number;
   readonly steps: readonly number[];
   readonly reachable?: Uint8Array;
+  readonly apCosts?: Int8Array;
 }
 
 const NO_PATH: PathResult = { length: 0, steps: [] };
@@ -313,12 +316,17 @@ function budgetStepCost(nextCost: number, dir: number, mode: MoveMode, throughDo
   return ap & 0xff;
 }
 
+export function aiPathCostIndex(dx: number, dy: number): number {
+  return (AI_PATHCOST_RADIUS + dx) * AI_PATHCOST_SIZE + AI_PATHCOST_RADIUS + dy;
+}
+
 export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, level: number, options: PathOptions = {}): PathResult {
   const world = env.world;
   const mode = options.mode ?? MoveMode.WALKING;
   const copy = options.copy ?? PathCopy.NONE;
   const flags = options.flags ?? 0;
-  const distLimit = options.distLimit ?? 0;
+  const copyCosts = copy === PathCopy.REACHABLE_AND_APS;
+  const distLimit = copyCosts ? Math.min(options.distLimit ?? 0, AI_PATHCOST_RADIUS) : (options.distLimit ?? 0);
   let budget = options.budget ?? 0;
   const org = s.gridNo;
   if (org < 0 || org >= WORLD_MAX || !isVisibleTile(org) || s.level !== level) return NO_PATH;
@@ -347,8 +355,12 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
     budget -= start;
   }
 
-  const copyReachable = copy === PathCopy.REACHABLE;
+  const copyReachable = copy >= PathCopy.REACHABLE;
+  const visitOnce = copy === PathCopy.REACHABLE;
   const reachable = copyReachable ? new Uint8Array(WORLD_MAX) : null;
+  const apCosts = copyCosts ? new Int8Array(AI_PATHCOST_SIZE * AI_PATHCOST_SIZE) : null;
+  const apCostIndex = (loc: number) =>
+    aiPathCostIndex((loc % WORLD_COLS) - (org % WORLD_COLS), Math.trunc(loc / WORLD_COLS) - Math.trunc(org / WORLD_COLS));
   const destX = dest % WORLD_COLS;
   const destY = Math.trunc(dest / WORLD_COLS);
   const waterCost = (c: number) => c === TravelCost.KNEEDEEP || c === TravelCost.DEEPWATER;
@@ -379,7 +391,7 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
       const dir = DIRECTION_ORDER[k] as number;
       const newLoc = curLoc + (DIRECTION_INCREMENT[dir] as number);
       if (newLoc < 0 || newLoc >= WORLD_MAX) continue;
-      if (copyReachable && used[newLoc] === 1) continue;
+      if (visitOnce && used[newLoc] === 1) continue;
       if (world.heights[newLoc] !== world.heights[curLoc]) continue;
       if (distLimit && (options.circular ? pythSpacesAway(org, newLoc) : spacesAway(org, newLoc)) > distLimit) continue;
 
@@ -454,12 +466,13 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
       if (trailPrev.length >= MAX_TRAIL_TREE) return NO_PATH;
       const cost = newTotal & 0xffff;
       open.push(newLoc, cost, (cost + costToGo(newLoc)) & 0xffff, legDistance(newLoc), trailPrev.length - 1, newAp);
+      if (budget && apCosts) apCosts[apCostIndex(newLoc)] = newAp;
       trailCost[newLoc] = cost;
       used[newLoc] = 1;
     }
   }
 
-  if (reachable) return { length: 0, steps: [], reachable };
+  if (reachable) return apCosts ? { length: 0, steps: [], reachable, apCosts } : { length: 0, steps: [], reachable };
   const head = open.head();
   if (!head || head.loc !== dest) return NO_PATH;
   const steps: number[] = [];
