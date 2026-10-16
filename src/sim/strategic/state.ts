@@ -34,6 +34,7 @@ export interface StrategicState {
   realMs: number;
   flow: Flow;
   didGameJustStart: boolean;
+  atLeastOneMercHired: boolean;
   worldSector: SectorPosition | null;
   readonly options: GameOptions;
   readonly profiles: Map<number, ProfileProgress>;
@@ -81,6 +82,7 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     realMs: 0,
     flow: 'strategic',
     didGameJustStart: false,
+    atLeastOneMercHired: false,
     worldSector: null,
     options: { ...DEFAULT_OPTIONS, ...options.options },
     profiles: options.profiles ?? new Map(),

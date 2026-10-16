@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/externalized/policy/DefaultGamePolicy.cc (squad_size, campaign.start_sector, start_sector_revealed);
+// @src src/externalized/policy/DefaultGamePolicy.cc (squad_size, campaign.start_sector, start_sector_revealed, merc_online_*);
 // @src src/externalized/VehicleModel.cc; src/game/Strategic/Campaign_Types.h VehicleMovementType. See docs/16 §1.7.
 
 import { FormatError } from '../binary/errors.ts';
@@ -11,11 +11,15 @@ export const TransportMask = { FOOT: 0x01, CAR: 0x02, TRUCK: 0x04, TRACKED: 0x08
 
 const DEFAULT_SQUAD_SIZE = 6;
 const DEFAULT_START_SECTOR = 'A9';
+const DEFAULT_MERC_ONLINE_MIN_DAYS = 1;
+const DEFAULT_MERC_ONLINE_MAX_DAYS = 2;
 
 export interface StrategicPolicy {
   readonly squadSize: number;
   readonly startSector: number;
   readonly startSectorRevealed: boolean;
+  readonly mercOnlineMinDays: number;
+  readonly mercOnlineMaxDays: number;
 }
 
 export interface VehicleType {
@@ -33,6 +37,10 @@ export function parseStrategicPolicy(json: unknown): StrategicPolicy {
     startSector: parseSectorId(start || DEFAULT_START_SECTOR),
     startSectorRevealed:
       campaign.start_sector_revealed === undefined ? false : asBool(campaign.start_sector_revealed, 'start_sector_revealed'),
+    mercOnlineMinDays:
+      o.merc_online_min_days === undefined ? DEFAULT_MERC_ONLINE_MIN_DAYS : asInt(o.merc_online_min_days, 'merc_online_min_days'),
+    mercOnlineMaxDays:
+      o.merc_online_max_days === undefined ? DEFAULT_MERC_ONLINE_MAX_DAYS : asInt(o.merc_online_max_days, 'merc_online_max_days'),
   };
 }
 

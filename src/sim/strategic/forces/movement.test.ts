@@ -133,6 +133,7 @@ describe('arrival', () => {
   it('walks a squad along its route through the event queue and stops compression at the destination', () => {
     const mercs = new FakeMercs();
     const state = createStrategicState({ worldSeconds: NOON });
+    state.atLeastOneMercHired = true;
     const campaign = new CampaignSim(state, null, { strategic: { content, mercs } });
     const ctx = campaign.strategic as StrategicContext;
     initStrategicMovementCosts(ctx);

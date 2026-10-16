@@ -25,6 +25,7 @@ beforeAll(async () => {
 
 function campaign() {
   const state = createStrategicState({ worldSeconds: START });
+  state.atLeastOneMercHired = true;
   const crew = new FakeCrew();
   const continued: number[] = [];
   const sim = new CampaignSim(state, null, {

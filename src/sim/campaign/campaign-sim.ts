@@ -29,6 +29,7 @@ import {
   updateClock,
 } from '../strategic/time/world-clock.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
+import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
 
 export interface CampaignCommand {
   readonly type: string;
@@ -39,6 +40,7 @@ export type StrategicSetup = Omit<StrategicContextOptions, 'state' | 'clock'>;
 
 export interface CampaignHooks {
   readonly compressionRefusal?: (campaign: CampaignSim) => string | null;
+  readonly loadStartSector?: (campaign: CampaignSim) => void;
   readonly strategic?: StrategicSetup;
   readonly economy?: EconomySetup;
   readonly queen?: QueenContextOptions;
@@ -102,7 +104,7 @@ export class CampaignSim {
       inCombat: () => this.tactical?.state.inCombat === true,
       execute: (e) => this.dispatchTable.execute(this, e),
       afterAdvance: () => {},
-      compressionModeSet: () => {},
+      compressionModeSet: () => teamJackedInAndGearedToGo(this, () => this.#hooks.loadStartSector?.(this)),
       firstCompressionSinceMapEntry: () => {},
       compressionRefusal: () => this.#hooks.compressionRefusal?.(this) ?? this.#defaultRefusal(),
     };
@@ -110,6 +112,7 @@ export class CampaignSim {
 
   #defaultRefusal(): string | null {
     const t = this.tactical?.state;
+    if (this.strategic && !this.state.atLeastOneMercHired) return 'no merc has been hired yet';
     if (t?.inCombat) return 'combat is in progress';
     return null;
   }
@@ -127,6 +130,7 @@ export class CampaignSim {
   #registerMovement(): void {
     const ctx = this.strategic;
     if (!ctx) return;
+    this.dispatchTable.register(EventKind.DELAYED_HIRING_OF_MERC, (c, e) => mercArrives(c, e.param));
     this.dispatchTable.register(EventKind.GROUP_ARRIVAL, (_, e) => handleGroupArrivalEvent(ctx, e));
     this.dispatchTable.register(EventKind.GROUP_ABOUT_TO_ARRIVE, () => handleGroupAboutToArriveEvent());
   }

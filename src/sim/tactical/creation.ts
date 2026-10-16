@@ -245,11 +245,16 @@ export function addSoldierToSector(t: TacticalState, s: Soldier, insertionGridNo
   return true;
 }
 
-function creationContext(t: TacticalState): InventoryContext {
+function creationContext(t: Pick<TacticalState, 'content'>): InventoryContext {
   return { items: t.content.items, inCombat: false, actionPoints: () => 0, spendActionPoints: () => {}, dropAtFeet: () => {} };
 }
 
-export function createMercFromProfile(t: TacticalState, id: number, profile: MercProfile, direction: number): Soldier {
+export function createMercFromProfile(
+  t: Pick<TacticalState, 'content' | 'options'>,
+  id: number,
+  profile: MercProfile,
+  direction: number,
+): Soldier {
   return createSoldier({
     id,
     team: Team.OUR,

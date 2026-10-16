@@ -26,6 +26,7 @@ export function importStrategicTime(state: StrategicState, save: SaveGame): void
   c.lastEventQuerySeconds = saved.timeOfLastEventQuery;
   state.env.lightValue = saved.envLightValue;
   state.realMs = save.generalInfo.baseJA2Clock;
+  state.atLeastOneMercHired = save.generalInfo.atLeastOneMercWasHired;
   c.driver.lastSecondMs = state.realMs;
   const q = state.queue;
   q.events.length = 0;

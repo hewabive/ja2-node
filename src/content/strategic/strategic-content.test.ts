@@ -67,7 +67,13 @@ describe('strategic content from data/externalized', () => {
   });
 
   it('reads the policy values and vehicle movement types', () => {
-    expect(content.policy).toEqual({ squadSize: 6, startSector: parseSectorId('A9'), startSectorRevealed: true });
+    expect(content.policy).toEqual({
+      squadSize: 6,
+      startSector: parseSectorId('A9'),
+      startSectorRevealed: true,
+      mercOnlineMinDays: 1,
+      mercOnlineMaxDays: 2,
+    });
     expect(content.vehicles.map((v) => v.movementType)).toEqual([2, 2, 2, 2, 2, TransportMask.AIR]);
   });
 
