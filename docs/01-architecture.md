@@ -620,6 +620,7 @@ and in CI only on them.
   moment, load it in ours and compare derived values: hit chance, path
   cost, visibility, AI decision. Later this also becomes a feature for players: "continue your
   campaign in the browser".
+  The reader (`.sav` → structured data, no rebuild yet) and the format are in `docs/14-savegames.md`.
 - **Probe mode** (exists, `tools/oracle/README.md`). With `JA2_ORACLE=<script>` the patched build
   starts headless, loads a sector map or a save, runs scripted probes (`FindBestPath`, `LineOfSightTest`,
   `SoldierToSoldierLineOfSightTest`, the `gubWorldMovementCosts` dump) and prints JSONL.

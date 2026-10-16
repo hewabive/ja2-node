@@ -8,6 +8,8 @@ import { LAYER_NAMES, parseMap } from '../src/content/formats/map.ts';
 import { decodePcx } from '../src/content/formats/pcx.ts';
 import { encodePngIndexed, encodePngRgba } from '../src/content/formats/png.ts';
 import { rgb565ToRgba } from '../src/content/formats/rgb565.ts';
+import { parseSaveGame } from '../src/content/formats/savegame.ts';
+import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../src/content/formats/savegame-header.ts';
 import { readSlf } from '../src/content/formats/slf.ts';
 import { decodeSti, type Sti } from '../src/content/formats/sti.ts';
 import { decodeTga } from '../src/content/formats/tga.ts';
@@ -35,6 +37,7 @@ const USAGE = `usage: pnpm cli inspect <command> [--data DIR] [--stubs DIR]
   sti <path> [--png DIR]      describe an STI, optionally dump frames as PNG
   map <path>                  describe a map (.dat)
   tilesets                    list tilesets from ja2set.dat
+  save <file.sav>             summarise a native savegame (sector, time, soldiers, items, PreRandom)
   cat <path> --out <file>     extract a file from the VFS
   verify                      decode every STI, JSD and map and report failures
 
@@ -174,6 +177,34 @@ async function main(): Promise<void> {
             `  ${String(t.id).padStart(2)} ${t.name.padEnd(32)} ambient ${t.ambientId}, own files ${t.surfaceFiles.filter((f) => f).length}`,
           );
       });
+    case 'save': {
+      if (!arg) throw new Error('usage: inspect save <file.sav>');
+      const table = parseSaveEncryptionTable(JSON.parse(await readFile(join(PROJECT_DATA_DIR, SAVE_ENCRYPTION_PATH), 'utf8')));
+      const save = parseSaveGame(new Uint8Array(await readFile(arg)), table);
+      const { header: h, tactical: t, worldTime: w } = save;
+      const sector = (s: { x: number; y: number; z: number }) => `${String.fromCharCode(64 + s.y)}${s.x}${s.z ? `-${s.z}` : ''}`;
+      console.log(
+        `${arg}: version ${h.version} (${h.gameVersion}), ${save.stracLinuxFormat ? 'Strac Linux' : 'Windows'} layout, "${h.description}"`,
+      );
+      console.log(
+        `  sector ${sector(t.worldSector)} (header ${sector(h.sector)}), day ${w.day} ${String(w.hour).padStart(2, '0')}:${String(w.minute).padStart(2, '0')} (${w.totalSeconds} s)`,
+      );
+      console.log(
+        `  ${t.inCombat ? 'in combat' : 'real time'}, current team ${t.currentTeam}, flags 0x${t.flags.toString(16)}, interrupt queue [${save.teamTurns.outOfTurnOrder.join(', ')}]`,
+      );
+      console.log(`  PreRandom index ${save.preRandom.index}, encryption set ${save.encryptionSet}, ${save.bytesConsumed} bytes parsed`);
+      const items = save.currentSector.worldItems?.filter((i) => i.exists) ?? [];
+      console.log(
+        `  world items ${items.length}, doors ${save.currentSector.doors?.length ?? 0}, door states ${save.currentSector.doorStatus?.length ?? 0}`,
+      );
+      for (const { soldier: s } of save.soldiers) {
+        if (!s.inSector) continue;
+        console.log(
+          `  #${String(s.id).padStart(3)} team ${s.team} profile ${String(s.profile).padStart(3)} ${s.name.padEnd(10)} grid ${String(s.gridNo).padStart(5)} lvl ${s.level} life ${s.stats.life}/${s.stats.lifeMax} AP ${s.actionPoints} alert ${s.ai.alertStatus}`,
+        );
+      }
+      return;
+    }
     case 'verify':
       return withVfs(async ({ vfs }) => {
         const all = vfs.list();
