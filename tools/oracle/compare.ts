@@ -38,6 +38,7 @@ import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import { compareAutoresolveAftermath, compareEnemyCounts } from './autoresolve-aftermath.ts';
 import { compareAutoresolve } from './autoresolve-compare.ts';
 import { compareAutoresolveCreation } from './autoresolve-creation.ts';
+import { CONTRACT_PROBES, ContractComparer } from './contract-compare.ts';
 import { CREATURE_PROBES, CreatureComparer } from './creature-compare.ts';
 import { ECONOMY_PROBES, EconomyComparer } from './economy-compare.ts';
 import { MERCHANT_PROBES, MerchantComparer } from './merchant-compare.ts';
@@ -566,6 +567,7 @@ for (const file of files) {
   const creatures = new CreatureComparer(read, exists);
   const morale = new MoraleComparer(read, exists);
   const merchants = new MerchantComparer(read);
+  const contracts = new ContractComparer(read, exists);
   let ctx: Context | null = null;
   let arSetup: Json | null = null;
   for (const p of readLines(file)) {
@@ -585,6 +587,7 @@ for (const file of files) {
       if (ctx.bytes) creatures.loadSave(ctx.bytes);
       if (ctx.bytes) morale.loadSave(ctx.bytes);
       await merchants.loadSave(savesDir(dataDir), String(p.name));
+      if (ctx.bytes) contracts.loadSave(ctx.bytes);
     } else if (p.probe === 'end') continue;
     else if (p.probe === 'autoresolve') failures += await compareAutoresolveProbe(read, exists, ctx, arSetup, p);
     else if (p.probe === 'enemycounts') failures += await compareEnemyCountsProbe(read, ctx, p);
@@ -599,6 +602,7 @@ for (const file of files) {
       if (p.probe === 'options') merchants.setOptions(p);
       failures += await creatures.compare(p);
     } else if (MORALE_PROBES.has(String(p.probe))) failures += await morale.compare(p);
+    else if (CONTRACT_PROBES.has(String(p.probe))) failures += await contracts.compare(p);
     else {
       ctx ??= await sectorContext(read, content, worlds, null);
       if (p.probe === 'costs') failures += compareCosts(ctx, p);

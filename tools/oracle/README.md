@@ -7,7 +7,9 @@ cost table, tactical lighting (`LightTrueLevel` of every tile), and the state of
 dumps, the chance to hit and AP cost of an aimed shot, and the AI's choice of the best shot; autoresolve battles
 are traced draw by draw and replayed through ja2-node, together with the created soldiers, their strategic aftermath and
 the encounter code of the pre-battle interface; the creature quest (spreading, night planning, town attacks, placements),
-the hourly team morale and the arms dealers (stock, restocks, prices, repairs, shop entry) are probed the same way.
+the hourly team morale and the arms dealers (stock, restocks, prices, repairs, shop entry) are probed the same way, as
+are merc contracts and relationships (the daily merc update, the renewal sequence, extensions, departures and the leave
+list).
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -29,11 +31,14 @@ commit them.
 | `patches/0008-merchants-oracle.patch` | A shop-hours override and wrappers around the static shopkeeper helpers (see "Hooks") |
 | `merchant-compare.ts` | The merchant probes of `compare.ts` (`dealers`, `dealerinit`, `dealerdaily`, `progress`, `fact`, `dealerprice`, `dealersell`, `shophours`, `dealerrepair`, `skiptime`, `dealergive`, `ski`) |
 | `probes/merchants.txt` | Merchant probe script (see "Merchants") |
+| `patches/0007-contracts-oracle.patch` | Wrappers for the static contract helpers, the renewal list and the leave list (see "Hooks") |
 | `autoresolve-compare.ts` | Core replay of `autoresolve` probes through ja2-node's autoresolve |
 | `autoresolve-creation.ts` | Level 2 of `autoresolve` probes (the soldiers created by `CreateAutoResolveInterface`) |
 | `creature-compare.ts` | The creature probes of `compare.ts` (`creatures`, `creaturequest`, `creaturetrigger`, `creaturespread`, `creatureplanning`, `creatureattack`, `endcreaturequest`, `setcreatures`, `creaturecomposition`, `options`, `setcontrol`, `tacticalflags`) |
 | `morale-compare.ts` | The morale probes of `compare.ts` (`morale`, `setmorale`, `setrelation`, `setprofile`, `moralemove`, `moralecounter`, `hourlymorale`, `quartermorale`) |
 | `probes/creature*.txt`, `probes/morale.txt` | Creature and morale probe scripts (see "Creatures" and "Morale") |
+| `contract-compare.ts` | The contract probes of `compare.ts` (`contracts`, `profiles`, `dailyupdate`, `relationshours`, `settime`, `aboutleave`, `beginrenewal`, `renewalstep`, `setcontract`, `setstatus`, `setprofilecontract`, `extend`, `beginremove`, `removemerc`, `leaveequip`, `equipleft`, `mercsite`, `levelup`, `salary`, `setrenewals`) |
+| `probes/contracts.txt` | Contract probe script (see "Contracts") |
 | `autoresolve-aftermath.ts` | Level 3 of `autoresolve` probes (the battle closed through ja2-node's battle flow on the imported save) and `enemycounts` |
 | `pre-battle-compare.ts` | The `pbi` probe of `compare.ts` |
 | `probes/battle.txt` | Battles from the strategic state (see "Autoresolve") |
@@ -757,6 +762,42 @@ directly. On 2026-10-16 all 202 comparisons matched: eight initialisations over 
 updates (30 from SaveGame10), four facts, 41 prices, 10 sales, 16 repair estimates, 10 repair jobs, 27 shop entries
 (boxes and dealer state each; one delay excuse taken, one refused by its `PreRandom` roll) and eight dealer dumps
 including the six saves' sections.
+### Contracts
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data"
+tools/oracle/run.sh tools/oracle/probes/contracts.txt ~/ja2-oracle/contracts.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle/contracts.jsonl
+```
+
+Commands (each prints its arguments, the draws it made, the contract state and the profiles of the team, or of `who=`
+and `range=`, with the fields of docs/22 §0. The state holds the world minutes, balance, merc deaths, man-days, death
+rate, bad reputation, unhired deaths, the M.E.R.C. account status, the renewal list and sequence flags, the leave list,
+the pending contract events and per OUR merc every contract field with the expiry predicates, `FindRefusalReason`,
+`WillMercRenew`, the first buddy on the team, the death-rate, reputation and morale checks and the equipment check):
+```
+contracts | profiles [who=<id>] [range=<from>:<to>]
+dailyupdate [range=<from>:<to>]                    # MercDailyUpdate, then the profiles in the range
+relationshours [count=<n>]                         # UpdateBuddyAndHatedCounters + HourlyMoraleUpdate
+settime [day=<d>] hour=<h> [minute=<m>]            # warps the clock forward without events
+aboutleave | beginrenewal | renewalstep            # the two-hour warning, BeginContractRenewalSequence, one sequence step
+setcontract who=<id> [end=] [total=] [arrive=] [lastUpdate=] [canSign=] [signed=] [quoteCode=] [type=] [priceUp=]
+            [life=] [bleeding=] [morale=] [kind=] [deposit=] [assignment=] [insurance=]
+setstatus [deaths=] [manDays=] [reputation=] [account=] [balance=]   # balance through an anonymous deposit
+setprofilecontract who=<profile> [status=] [available=] [hangover=] [balance=] [mercDays=] [deathRate=] [repTolerance=]
+            [flags3=] [salary=] [gunAttractiveness=] [buddy=<slot>:<profile>] [hated=<slot>:<profile>:<time>:<count>]
+            [learnhate=<profile>:<time>:<count>] [opinion=<about>:<value>]
+extend who=<id> length=day|week|twoWeeks           # MercContractHandling
+beginremove who=<id> [fired=1] | removemerc who=<id> [history=<code>]
+leaveequip who=<id> where=here|drassen|omerta | equipleft slot=<n> where=drassen|omerta
+mercsite | levelup who=<id> | salary values=<a,b,…> max=<n> | setrenewals profiles=<a,b,…>
+```
+`contract-compare.ts` applies the same changes to a campaign session of the save, replays the traced draws through
+`ContractFlow.useRandom` and compares the dump after every command. On 2026-10-16 all 81 probes matched on SaveGame01,
+02, 07, 09 and 10 (the daily update over all profiles, warnings, the sequence with willing, unwilling and stale entries,
+extensions with refusals for hated mercs, death rate, reputation and morale, buddies overriding them, dismissal within
+three hours, departures with the equipment here, in Drassen and in Omerta, RPC pay, M.E.R.C. account days, POW and dead
+mercs, and the salary rounding).
 
 ## Shipped probes
 
@@ -777,6 +818,7 @@ including the six saves' sections.
 | `probes/creature-placement.txt` | Creature placements in F13 b3 (with the queen), G13 b3, E13 b1, D13 b1, H8 b1 and bloodcat placements in I16, E13, C8 and D9 |
 | `probes/morale.txt` | Hourly and quarter-hour morale on SaveGame10, 07 and 01 with set modifiers, relations, traits and positions |
 | `probes/merchants.txt` | Dealer initialisation at progress 0–100 and with gun nut, daily restocks, the Estoni gas, shop entries for every merchant, prices and sales at Tony, Keith, Jake, Franz, Gabby, Micky and Devin (Flo's modifier, stacks, attachments, Keith's fact), repair estimates with and without shop hours, repair queues with collection and the delay excuse, and every save's dealer section with 30 restocks from SaveGame10 |
+| `probes/contracts.txt` | Contracts and relationships on SaveGame01, 02, 09, 10 and 07 (see "Contracts") |
 | `probes/sectors.txt` | Edgepoints loaded and generated on eight maps, screen-space exit thresholds on both sides of every edge (A9, A10 basement), exit-grid checks in D13 and the basement, walk-off/walk-in/mirror from the centre and near the edges, class codes on the isolated maps H13 and I14, init list sorts and ten defence placements (A9, B13, C13, D13), and `OKForSectorExit` on SaveGame10, 07 (in combat) and 01 before and after moving mercs to an edge or an exit grid |
 
 All three were run on the user's Steam JA2 Gold 1.12 data: every command succeeds, and on these
@@ -859,6 +901,11 @@ returns them without looking for the dealer's soldier and schedule; inactive in 
 probe SM-panel merc with the given profile, run the static helper and restore the globals; the last one runs the
 inventory part of `InitializeShopKeeper` without buttons and returns the boxes and the player's offer area). Regenerate it
 like 0002 with those paths.
+`patches/0007-contracts-oracle.patch` (applied after 0006) only appends functions: to `src/game/Strategic/Merc_Contract.cc`
+wrappers around the static `FindRefusalReason`, `ContractIsExpiring` and `ContractIsGoingToExpireSoon`, accessors and a
+setter for the renewal list and sequence state, and a reset of the sequence; to `Assignments.cc`
+`OracleBeginRemoveMercFromContract`; to `Map_Screen_Interface.cc` readers of the leave list and its owners; to
+`Tactical/Campaign.cc` `OracleCalcNewSalary`. Regenerate it like 0002 with those four paths.
 
 ## Notes
 

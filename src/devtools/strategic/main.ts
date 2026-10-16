@@ -1,8 +1,16 @@
 import { parseJsoncBytes } from '../../content/strategic/jsonc.ts';
 import { MAP_SIDE, sectorShortString } from '../../content/strategic/sector-ids.ts';
-import type { AutoresolveView, PromptView, StrategicMercView, StrategicSectorView, StrategicView } from '../../protocol/view.ts';
+import type {
+  AutoresolveView,
+  ContractPromptView,
+  MercContractView,
+  PromptView,
+  StrategicMercView,
+  StrategicSectorView,
+  StrategicView,
+} from '../../protocol/view.ts';
 import { fetchFile } from '../asset-browser/api.ts';
-import { SessionClient } from '../net/session-client.ts';
+import { type CommandReply, SessionClient } from '../net/session-client.ts';
 
 interface StrategicHook {
   ready: boolean;
@@ -63,10 +71,12 @@ const battleTitle = el('battleTitle');
 const battleInfo = el('battleInfo');
 const choicesEl = el('choices');
 const cellsEl = el<HTMLTableElement>('cells');
+const contractButtons = document.querySelectorAll<HTMLButtonElement>('[data-contract]');
 
 let client: SessionClient | null = null;
 let shown: StrategicView | null = null;
 let shownPrompt: PromptView | null = null;
+let shownContractPrompt: ContractPromptView | null = null;
 let playback = FINISH;
 let lastFrameAt = performance.now();
 let shownAutoresolve: AutoresolveView | null = null;
@@ -188,7 +198,7 @@ function sectorSummary(view: StrategicView, id: string, info: StrategicSectorVie
 
 function renderMercs(view: StrategicView): void {
   const header = document.createElement('tr');
-  for (const h of ['', 'name', 'sector', 'squad', 'life', 'breath', 'state']) {
+  for (const h of ['', 'name', 'sector', 'squad', 'life', 'breath', 'morale', 'contract', 'state']) {
     const th = document.createElement('th');
     th.textContent = h;
     header.append(th);
@@ -220,6 +230,8 @@ function mercRow(m: StrategicMercView): HTMLTableRowElement {
     m.squad === null ? '–' : String(m.squad + 1),
     `${m.life}/${m.lifeMax}`,
     `${m.breath}/${m.breathMax}`,
+    m.moraleText ?? '',
+    contractSummary(m.contract),
     state,
   ];
   const first = document.createElement('td');
@@ -231,6 +243,18 @@ function mercRow(m: StrategicMercView): HTMLTableRowElement {
     tr.append(td);
   }
   return tr;
+}
+
+function contractSummary(c: MercContractView | null | undefined): string {
+  if (!c) return '';
+  switch (c.type) {
+    case 'aim':
+      return `${c.remaining.days}d ${c.remaining.hours}h left${c.insured ? ', insured' : ''}`;
+    case 'merc':
+      return c.owed > 0 ? `owes $${c.owed}` : `${c.daysHired}d hired`;
+    case 'rpc':
+      return `$${c.dailyRate}/day`;
+  }
 }
 
 function renderGroups(view: StrategicView): void {
@@ -285,11 +309,29 @@ function promptSummary(prompt: PromptView): string {
   }
 }
 
-function promptChoices(prompt: PromptView): readonly { readonly choice: string; readonly enabled: boolean }[] {
-  return prompt.kind === 'preBattle' ? prompt.options : prompt.choices.map((choice) => ({ choice, enabled: true }));
+function contractPromptSummary(prompt: ContractPromptView): string {
+  switch (prompt.kind) {
+    case 'contractRenewal': {
+      const lines = [`${prompt.name}'s contract: balance $${prompt.balance}`];
+      for (const o of prompt.options)
+        lines.push(`${o.choice}${o.cost !== undefined ? ` $${o.cost}` : ''}${o.enabled ? '' : ` (${o.reason ?? 'not allowed'})`}`);
+      return lines.join('\n');
+    }
+    case 'mercDeparture':
+      return `${prompt.name} leaves ${prompt.sector}: gear stays here${prompt.elsewhereSector ? ` or goes to ${prompt.elsewhereSector}` : ''}`;
+    case 'insuranceExtension':
+      return `extend ${prompt.name}'s insurance by ${prompt.days} days for $${prompt.cost}?`;
+  }
 }
 
-function choiceButton(prompt: PromptView, choice: string, enabled: boolean): HTMLButtonElement {
+type Decision = PromptView | ContractPromptView;
+
+function promptChoices(prompt: Decision): readonly { readonly choice: string; readonly enabled: boolean }[] {
+  if (prompt.kind === 'preBattle' || prompt.kind === 'contractRenewal') return prompt.options;
+  return prompt.choices.map((choice) => ({ choice, enabled: true }));
+}
+
+function choiceButton(prompt: Decision, choice: string, enabled: boolean): HTMLButtonElement {
   const b = document.createElement('button');
   b.type = 'button';
   b.textContent = choice;
@@ -331,7 +373,8 @@ function renderCells(ar: AutoresolveView | null): void {
   cellsEl.replaceChildren(...rows);
 }
 
-function renderBattle(prompt: PromptView | null, ar: AutoresolveView | null): void {
+function renderBattle(battlePrompt: PromptView | null, contractPrompt: ContractPromptView | null, ar: AutoresolveView | null): void {
+  const prompt: Decision | null = battlePrompt ?? contractPrompt;
   battleEl.hidden = !prompt && !ar;
   if (battleEl.hidden) return;
   const lines: string[] = [];
@@ -340,7 +383,8 @@ function renderBattle(prompt: PromptView | null, ar: AutoresolveView | null): vo
       `autoresolve in ${ar.sector}: ${ar.status}, ${ar.battleSeconds} s`,
       `alive: ${ar.alive.mercs} mercs, ${ar.alive.militia} militia, ${ar.alive.enemies} enemies`,
     );
-  if (prompt) lines.push(promptSummary(prompt));
+  if (battlePrompt) lines.push(promptSummary(battlePrompt));
+  else if (contractPrompt) lines.push(contractPromptSummary(contractPrompt));
   battleTitle.textContent = prompt ? `Decision: ${prompt.kind}` : 'Autoresolve';
   battleInfo.textContent = lines.join('\n');
   const buttons = prompt ? promptChoices(prompt).map((o) => choiceButton(prompt, o.choice, o.enabled)) : [];
@@ -360,6 +404,7 @@ function renderClock(): void {
 function updateActions(): void {
   routeButton.disabled = !picked || selectedMercs.size === 0;
   enterButton.disabled = !picked;
+  for (const b of contractButtons) b.disabled = selectedMercs.size === 0;
 }
 
 function pickSector(id: string): void {
@@ -367,7 +412,7 @@ function pickSector(id: string): void {
   if (shown) render(shown);
 }
 
-async function send(cmd: { type: string; [key: string]: unknown }): Promise<{ ok: boolean; reason?: string }> {
+async function send(cmd: { type: string; [key: string]: unknown }): Promise<CommandReply> {
   if (!client) return { ok: false, reason: 'not connected' };
   return client.command(cmd);
 }
@@ -391,6 +436,26 @@ routeButton.addEventListener('click', () => {
     showResult(refused.length === 0 ? `route to ${to} plotted` : refused.map((r) => r.reason ?? 'refused').join('\n'), refused.length > 0);
   });
 });
+
+for (const b of contractButtons) {
+  b.addEventListener('click', () => {
+    const action = b.dataset.contract ?? '';
+    const command = (soldier: number) =>
+      action === 'dismiss' ? { type: 'dismiss', soldier } : { type: 'extendContract', soldier, length: action };
+    void Promise.all([...selectedMercs].map((soldier) => send(command(soldier)))).then((results) => {
+      const lines = results.map((r) => {
+        const data = r.data as { extended?: boolean; reason?: string; cost?: number } | undefined;
+        if (!r.ok) return r.reason ?? 'refused';
+        if (data?.extended === false) return `refused: ${data.reason ?? 'unwilling'}`;
+        return data?.cost !== undefined ? `extended for $${data.cost}` : `${action} ok`;
+      });
+      showResult(
+        lines.join('\n'),
+        results.some((r) => !r.ok),
+      );
+    });
+  });
+}
 
 enterButton.addEventListener('click', () => {
   const sector = picked;
@@ -426,7 +491,7 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-drive]')) {
 }
 
 el<HTMLButtonElement>('advance').addEventListener('click', () => {
-  const battleRunning = client?.autoresolve !== null && client?.prompt === null;
+  const battleRunning = client?.autoresolve !== null && client?.prompt === null && client?.contractPrompt === null;
   void client?.advance(battleRunning ? { idle: true } : { compressionStopped: true }).then((report) => {
     if (!report) return showResult('advance failed', true);
     const when = report.worldTime
@@ -493,10 +558,11 @@ function frame(): void {
     shown = view;
     render(view);
   }
-  if (client.prompt !== shownPrompt || client.autoresolve !== shownAutoresolve) {
+  if (client.prompt !== shownPrompt || client.contractPrompt !== shownContractPrompt || client.autoresolve !== shownAutoresolve) {
     shownPrompt = client.prompt;
+    shownContractPrompt = client.contractPrompt;
     shownAutoresolve = client.autoresolve;
-    renderBattle(shownPrompt, shownAutoresolve);
+    renderBattle(shownPrompt, shownContractPrompt, shownAutoresolve);
   }
 }
 

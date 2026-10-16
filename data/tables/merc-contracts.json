@@ -1,0 +1,148 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Tactical/Dialogue_Control.cc gubMercValidPrecedentQuoteID, src/game/Tactical/Soldier_Profile.h NPCIDs, src/game/Laptop/History.h",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "precedent quotes in bit order (quote numbers), the profile ids of the NPCs the contract code names, every history record code by name",
+  "precedentQuotes": [
+    {
+      "name": "REPUTATION_REFUSAL",
+      "quote": 80
+    },
+    {
+      "name": "DEATH_RATE_REFUSAL",
+      "quote": 81
+    },
+    {
+      "name": "LAME_REFUSAL",
+      "quote": 82
+    },
+    {
+      "name": "WONT_RENEW_CONTRACT_LAME_REFUSAL",
+      "quote": 83
+    },
+    {
+      "name": "HATE_MERC_1_ON_TEAM",
+      "quote": 86
+    },
+    {
+      "name": "HATE_MERC_2_ON_TEAM",
+      "quote": 87
+    },
+    {
+      "name": "LEARNED_TO_HATE_MERC_ON_TEAM",
+      "quote": 88
+    },
+    {
+      "name": "REFUSAL_RENEW_DUE_TO_MORALE",
+      "quote": 95
+    },
+    {
+      "name": "REFUSAL_TO_JOIN_LACK_OF_FUNDS",
+      "quote": 97
+    },
+    {
+      "name": "DEATH_RATE_RENEWAL",
+      "quote": 99
+    },
+    {
+      "name": "HATE_MERC_1_ON_TEAM_WONT_RENEW",
+      "quote": 100
+    },
+    {
+      "name": "HATE_MERC_2_ON_TEAM_WONT_RENEW",
+      "quote": 101
+    },
+    {
+      "name": "LEARNED_TO_HATE_MERC_1_ON_TEAM_WONT_RENEW",
+      "quote": 102
+    }
+  ],
+  "specialProfiles": {
+    "BIFF": 40,
+    "LARRY_NORMAL": 46,
+    "LARRY_DRUNK": 47,
+    "DEVIN": 61,
+    "SLAY": 64,
+    "IGGY": 68,
+    "CONRAD": 70
+  },
+  "historyCodes": {
+    "ENTERED_HISTORY_MODE": 0,
+    "HIRED_MERC_FROM_AIM": 1,
+    "HIRED_MERC_FROM_MERC": 2,
+    "MERC_KILLED": 3,
+    "SETTLED_ACCOUNTS_AT_MERC": 4,
+    "ACCEPTED_ASSIGNMENT_FROM_ENRICO": 5,
+    "CHARACTER_GENERATED": 6,
+    "PURCHASED_INSURANCE": 7,
+    "CANCELLED_INSURANCE": 8,
+    "INSURANCE_CLAIM_PAYOUT": 9,
+    "EXTENDED_CONTRACT_1_DAY": 10,
+    "EXTENDED_CONTRACT_1_WEEK": 11,
+    "EXTENDED_CONTRACT_2_WEEK": 12,
+    "MERC_FIRED": 13,
+    "MERC_QUIT": 14,
+    "QUEST_STARTED": 15,
+    "QUEST_FINISHED": 16,
+    "TALKED_TO_MINER": 17,
+    "LIBERATED_TOWN": 18,
+    "CHEAT_ENABLED": 19,
+    "TALKED_TO_FATHER_WALKER": 20,
+    "MERC_MARRIED_OFF": 21,
+    "MERC_CONTRACT_EXPIRED": 22,
+    "RPC_JOINED_TEAM": 23,
+    "ENRICO_COMPLAINED": 24,
+    "WONBATTLE": 25,
+    "MINE_RUNNING_OUT": 26,
+    "MINE_RAN_OUT": 27,
+    "MINE_SHUTDOWN": 28,
+    "MINE_REOPENED": 29,
+    "DISCOVERED_TIXA": 30,
+    "DISCOVERED_ORTA": 31,
+    "GOT_ROCKET_RIFLES": 32,
+    "DEIDRANNA_DEAD_BODIES": 33,
+    "BOXING_MATCHES": 34,
+    "SOMETHING_IN_MINES": 35,
+    "DEVIN": 36,
+    "MIKE": 37,
+    "TONY": 38,
+    "KROTT": 39,
+    "KYLE": 40,
+    "MADLAB": 41,
+    "GABBY": 42,
+    "KEITH_OUT_OF_BUSINESS": 43,
+    "HOWARD_CYANIDE": 44,
+    "KEITH": 45,
+    "HOWARD": 46,
+    "PERKO": 47,
+    "SAM": 48,
+    "FRANZ": 49,
+    "ARNOLD": 50,
+    "FREDO": 51,
+    "RICHGUY_BALIME": 52,
+    "JAKE": 53,
+    "BUM_KEYCARD": 54,
+    "WALTER": 55,
+    "DAVE": 56,
+    "PABLO": 57,
+    "KINGPIN_MONEY": 58,
+    "WON_BOXING": 59,
+    "LOST_BOXING": 60,
+    "DISQUALIFIED_BOXING": 61,
+    "FOUND_MONEY": 62,
+    "ASSASSIN": 63,
+    "LOSTTOWNSECTOR": 64,
+    "DEFENDEDTOWNSECTOR": 65,
+    "LOSTBATTLE": 66,
+    "FATALAMBUSH": 67,
+    "WIPEDOUTENEMYAMBUSH": 68,
+    "UNSUCCESSFULATTACK": 69,
+    "SUCCESSFULATTACK": 70,
+    "CREATURESATTACKED": 71,
+    "KILLEDBYBLOODCATS": 72,
+    "SLAUGHTEREDBLOODCATS": 73,
+    "NPC_KILLED": 74,
+    "GAVE_CARMEN_HEAD": 75,
+    "SLAY_MYSTERIOUSLY_LEFT": 76,
+    "MERC_KILLED_CHARACTER": 77
+  }
+}

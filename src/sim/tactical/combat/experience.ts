@@ -1,9 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Campaign.cc StatChange, ProcessStatChange, ChangeStat, ProcessUpdateStats, SubpointsPerPoint,
-// @src HandleAnyStatChangesAfterAttack; Weapons.cc ModifyExpGainByTarget, AgilityForEnemyMissingPlayer. See docs/11 §10.
+// @src HandleAnyStatChangesAfterAttack, ProfileStatChange, ProfileUpdateStats; Weapons.cc ModifyExpGainByTarget,
+// @src AgilityForEnemyMissingPlayer. See docs/11 §10, docs/22 §2.5, §3.7.
 
-import { type ProfileProgress, profileProgress, STAT_KEYS, StatKind } from '../profiles.ts';
+import { isProfileDead, type ProfileProgress, profileProgress, STAT_KEYS, StatKind } from '../profiles.ts';
 import { Body, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
 import type { CombatContext } from './context.ts';
@@ -117,14 +118,20 @@ function changeStat(t: CombatContext, p: ProfileProgress, s: Soldier, stat: numb
     s.life = Math.max(OKLIFE, s.life + points);
   }
   t.events.push({ type: 'statChanged', soldier: s.id, stat: key, change: points });
+  if (stat === StatKind.EXPERIENCE && points > 0) t.experienceHooks?.levelGained(p, s, points);
 }
 
-export function processUpdateStats(t: CombatContext, s: Soldier): void {
-  if (t.turn.attackBusyCount > 0 && s.placed && t.inCombat) return;
-  if (s.team !== Team.OUR || s.profile === NO_PROFILE) return;
-  if (s.life < OKLIFE) return;
-  const p = profileProgress(t, s.profile);
-  if (!p) return;
+function changeProfileStat(t: CombatContext, p: ProfileProgress, stat: number, points: number): void {
+  const key = STAT_KEYS[stat];
+  if (!key || points === 0) return;
+  const spp = subpointsPerPoint(stat, p.stats.experience);
+  p.stats[key] += points;
+  p.gains[key] %= spp;
+  if (stat === StatKind.HEALTH) p.life = Math.max(OKLIFE, p.life + points);
+  if (stat === StatKind.EXPERIENCE && points > 0) t.experienceHooks?.levelGained(p, null, points);
+}
+
+function updateStats(p: ProfileProgress, change: (stat: number, points: number) => void): void {
   for (let stat: number = StatKind.HEALTH; stat <= StatKind.LEADERSHIP; stat++) {
     const key = STAT_KEYS[stat];
     if (!key) continue;
@@ -138,8 +145,28 @@ export function processUpdateStats(t: CombatContext, s: Soldier): void {
       points = min - p.stats[key];
       p.gains[key] = 0;
     }
-    if (points !== 0) changeStat(t, p, s, stat, points);
+    if (points !== 0) change(stat, points);
   }
+}
+
+export function processUpdateStats(t: CombatContext, s: Soldier): void {
+  if (t.turn.attackBusyCount > 0 && s.placed && t.inCombat) return;
+  if (s.team !== Team.OUR || s.profile === NO_PROFILE) return;
+  if (s.life < OKLIFE) return;
+  const p = profileProgress(t, s.profile);
+  if (!p) return;
+  updateStats(p, (stat, points) => changeStat(t, p, s, stat, points));
+}
+
+export function profileUpdateStats(t: CombatContext, p: ProfileProgress): void {
+  if (isProfileDead(p) || p.life < OKLIFE) return;
+  updateStats(p, (stat, points) => changeProfileStat(t, p, stat, points));
+}
+
+export function profileStatChange(t: CombatContext, p: ProfileProgress, stat: number, chances: number, cause: number): void {
+  if (isProfileDead(p) || p.life < OKLIFE) return;
+  processStatChange(t, p, stat, chances & 0xffff, cause);
+  profileUpdateStats(t, p);
 }
 
 const isMechanical = (s: Soldier) => s.bodyType === Body.ROBOTNOWEAPON || (s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP);

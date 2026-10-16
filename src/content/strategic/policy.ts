@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/externalized/policy/DefaultGamePolicy.cc (squad_size, campaign.start_sector, start_sector_revealed, merc_online_*);
+// @src src/externalized/policy/DefaultGamePolicy.cc (squad_size, campaign.start_sector, start_sector_revealed, merc_online_*,
+// @src unhired_merc_deaths_*);
 // @src src/externalized/VehicleModel.cc; src/game/Strategic/Campaign_Types.h VehicleMovementType. See docs/16 §1.7.
 
 import { FormatError } from '../binary/errors.ts';
@@ -13,6 +14,8 @@ const DEFAULT_SQUAD_SIZE = 6;
 const DEFAULT_START_SECTOR = 'A9';
 const DEFAULT_MERC_ONLINE_MIN_DAYS = 1;
 const DEFAULT_MERC_ONLINE_MAX_DAYS = 2;
+const DEFAULT_UNHIRED_MERC_DEATHS: readonly [number, number, number] = [1, 2, 3];
+const UNHIRED_MERC_DEATHS_KEYS = ['unhired_merc_deaths_easy', 'unhired_merc_deaths_medium', 'unhired_merc_deaths_hard'] as const;
 
 export interface StrategicPolicy {
   readonly squadSize: number;
@@ -20,6 +23,7 @@ export interface StrategicPolicy {
   readonly startSectorRevealed: boolean;
   readonly mercOnlineMinDays: number;
   readonly mercOnlineMaxDays: number;
+  readonly unhiredMercDeaths: readonly [number, number, number];
 }
 
 export interface VehicleType {
@@ -41,7 +45,15 @@ export function parseStrategicPolicy(json: unknown): StrategicPolicy {
       o.merc_online_min_days === undefined ? DEFAULT_MERC_ONLINE_MIN_DAYS : asInt(o.merc_online_min_days, 'merc_online_min_days'),
     mercOnlineMaxDays:
       o.merc_online_max_days === undefined ? DEFAULT_MERC_ONLINE_MAX_DAYS : asInt(o.merc_online_max_days, 'merc_online_max_days'),
+    unhiredMercDeaths: unhiredMercDeaths(o),
   };
+}
+
+function unhiredMercDeaths(o: Record<string, unknown>): readonly [number, number, number] {
+  const [easy, medium, hard] = UNHIRED_MERC_DEATHS_KEYS.map((key, k) =>
+    o[key] === undefined ? (DEFAULT_UNHIRED_MERC_DEATHS[k] ?? 0) : asInt(o[key], key),
+  );
+  return [easy ?? 0, medium ?? 0, hard ?? 0];
 }
 
 function movementType(value: unknown, what: string): number {

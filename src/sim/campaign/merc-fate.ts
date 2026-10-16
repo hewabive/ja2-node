@@ -1,10 +1,11 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Strategic_Merc_Handler.cc StrategicHandlePlayerTeamMercDeath (history, insurance, contracts
-// @src and the MERC site are M5); Strategic/Strategic.cc HandleStrategicDeath; Strategic/Queen_Command.cc BeginCaptureSquence,
-// @src EndCaptureSequence, CaptureSoldier, EnemyCapturesPlayerSoldier. See docs/19 §3.8.
+// @src src/game/Strategic/Strategic_Merc_Handler.cc StrategicHandlePlayerTeamMercDeath; Strategic/Strategic.cc
+// @src HandleStrategicDeath; Strategic/Queen_Command.cc BeginCaptureSquence, EndCaptureSequence, CaptureSoldier,
+// @src EnemyCapturesPlayerSoldier. See docs/19 §3.8, docs/22 §4.9.
 
 import type { Sector } from '../../content/strategic/sector-ids.ts';
+import { u8 } from '../../core/int.ts';
 import { emptyObject } from '../items/object.ts';
 import { changeSoldiersAssignment, setTimeOfAssignmentChange } from '../strategic/economy/assignment-done.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
@@ -14,6 +15,7 @@ import { QuestState } from '../strategic/forces/battle-state.ts';
 import { InsertionCode } from '../strategic/forces/constants.ts';
 import { numEnemiesInSector } from '../strategic/forces/groups.ts';
 import { removeCharacterFromSquads } from '../strategic/forces/squads.ts';
+import { MercStatus, type ProfileProgress } from '../tactical/profiles.ts';
 import { SoldierStatusFlags } from '../tactical/soldier.ts';
 import { handleMoraleEvent, type MoraleContext, MoraleEvent } from './morale.ts';
 import type { RosterMerc } from './roster.ts';
@@ -34,8 +36,16 @@ const CAPTIVE_LIFE_SPREAD = 10;
 const CAPTIVE_BREATH = 50;
 const HIDDEN_ITEM_VISIBILITY = 0;
 
+export interface DeathBookkeeping {
+  deathBookkeeping(m: RosterMerc): void;
+  lifeInsuranceOnDeath(m: RosterMerc, p: ProfileProgress): void;
+  mercMercDied(m: RosterMerc): void;
+  buddyKilledQuotes(dead: RosterMerc): void;
+}
+
 export interface FateContext {
   readonly economy: EconomyContext;
+  readonly bookkeeping?: DeathBookkeeping | null;
   moraleContext(): MoraleContext;
   mercDied?(merc: RosterMerc): void;
 }
@@ -72,15 +82,22 @@ export function handleStrategicDeath(ctx: FateContext, m: RosterMerc): void {
 
 export function strategicHandlePlayerTeamMercDeath(ctx: FateContext, m: RosterMerc): void {
   const state = ctx.economy.state;
-  if (!m.isEpc && !m.isRobot) state.status.mercDeaths++;
+  const books = ctx.bookkeeping ?? null;
+  books?.deathBookkeeping(m);
+  if (!m.isEpc && !m.isRobot) state.status.mercDeaths = u8(state.status.mercDeaths + 1);
   m.statusFlags |= SoldierStatusFlags.DEAD;
   m.soldier.breathMax = 0;
   m.soldier.breath = 0;
   m.asleep = false;
   const progress = state.profiles.get(m.profile);
-  if (progress) progress.dead = true;
+  if (progress) {
+    progress.mercStatus = MercStatus.IS_DEAD;
+    books?.lifeInsuranceOnDeath(m, progress);
+  }
   if (!m.isEpc && !m.isRobot) handleMoraleEvent(ctx.moraleContext(), m, MoraleEvent.TEAMMATE_DIED, m.sector);
+  books?.mercMercDied(m);
   handleStrategicDeath(ctx, m);
+  books?.buddyKilledQuotes(m);
   ctx.mercDied?.(m);
 }
 

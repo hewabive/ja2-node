@@ -48,6 +48,42 @@ describe('a new campaign session', () => {
     expect(b.strategic).toEqual(a.strategic);
   });
 
+  it('hires the authored stub profiles on a week contract and extends one from the map screen', async () => {
+    const session = await create(5, { mercs: 2 });
+    const mercs = session.view().strategic?.mercs ?? [];
+    expect(mercs.map((m) => [m.kind, m.contract?.type])).toEqual([
+      ['aim', 'aim'],
+      ['aim', 'aim'],
+    ]);
+    const first = mercs[0];
+    if (!first) throw new Error('no merc');
+    expect(first.contract).toMatchObject({ totalDays: 7, lastContract: 'week', endsAt: { day: 8, hour: 7 } });
+    const options = session.dispatch({ type: 'contractOptions', soldier: first.id });
+    expect(options).toMatchObject({ ok: true, data: { balance: expect.any(Number) } });
+    const extend = { type: 'extendContract', soldier: first.id, length: 'day' };
+    expect(session.dispatch(extend)).toEqual({ ok: false, reason: 'mapScreenOnly' });
+    expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    expect(session.dispatch(extend)).toMatchObject({ ok: true, data: { extended: true, days: 1, endsAt: { day: 9, hour: 7 } } });
+    expect(session.view().strategic?.mercs[0]?.contract).toMatchObject({ totalDays: 8, endsAt: { day: 9, hour: 7 } });
+    expect(session.view().contractPrompt ?? null).toBeNull();
+  });
+
+  it('asks where a dismissed merc leaves his equipment through the contract prompt', async () => {
+    const session = await create(6, { mercs: 2 });
+    const [kept, dismissed] = session.view().strategic?.mercs ?? [];
+    if (!kept || !dismissed) throw new Error('no mercs');
+    expect(session.dispatch({ type: 'dismiss', soldier: dismissed.id })).toEqual({ ok: false, reason: 'mapScreenOnly' });
+    expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    expect(session.dispatch({ type: 'dismiss', soldier: dismissed.id })).toEqual({ ok: true });
+    const prompt = session.view().contractPrompt;
+    expect(prompt).toMatchObject({ kind: 'mercDeparture', soldier: dismissed.id, name: dismissed.name, sector: 'A9' });
+    expect(prompt?.kind === 'mercDeparture' && prompt.choices).toContain('here');
+    expect(session.dispatch({ type: 'compressTime', mode: CompressMode.MIN60 }).ok).toBe(false);
+    expect(session.dispatch({ type: 'answer', prompt: prompt?.id, choice: 'here' })).toEqual({ ok: true });
+    expect(session.view().contractPrompt ?? null).toBeNull();
+    expect(session.view().strategic?.mercs.map((m) => m.id)).toEqual([kept.id]);
+  });
+
   it('refuses impossible requests', async () => {
     await expect(create(1, { difficulty: 7 })).rejects.toThrow(/difficulty/);
     await expect(create(1, { mercs: 0 })).rejects.toThrow(/squad/);

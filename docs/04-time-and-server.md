@@ -285,7 +285,7 @@ type ClientMsg =
 type ServerMsg =
   | { t: 'snapshot'; tick: number; view: PlayerView }       // on connect and after stops
   | { t: 'events'; events: VisibleEvent[] }                 // stream with tick stamps
-  | { t: 'result'; id: number; ok: boolean; reason?: string }
+  | { t: 'result'; id: number; ok: boolean; reason?: string; data?: unknown }  // data: quotes, shop, contract terms
   | { t: 'prompt'; prompt: Prompt }
   | { t: 'stopped'; report: StopReport };
 ```
@@ -439,9 +439,9 @@ world clock runs, compressed on request, the loaded sector, if any, is frozen) a
 target, and compression is refused while the loaded sector holds enemies (`AllowedToTimeCompress`). `route` checks
 `CanEntireMovementGroupMercIsInMove` first, so the squad cannot leave the start sector before it is cleared.
 Compression is also refused while a group sits in a creature-infested mine or bloodcats attack. Campaign events beyond the
-battle ones (`docs/19` §5.3): `hatedComplaint {soldier, about, learned}` and `mercQuitsHated {soldier, about, learned}`
-(`about` is a profile id), `civiliansEaten {sector, count}`; `preBattle` may carry `encounter: 'creatureAttack'` with
-`autoStart: true`.
+battle ones (`docs/19` §5.3): `civiliansEaten {sector, count}`; `preBattle` may carry `encounter: 'creatureAttack'` with
+`autoStart: true`. Complaints about hated teammates are `mercQuote` events and a merc who quits leaves through the
+`mercDeparture` prompt (§6.8).
 
 ### 6.7. Merchants (M5)
 
@@ -453,6 +453,15 @@ refused, `advance` returns `refused` with `refusal: 'shopOpen: …'` and the clo
 cash is never shown. Merchant NPCs in sight carry `merchant: buySell|buy|sell|repair`. Events: `shopOpened`,
 `shopkeeperQuote`, `itemsBought`, `itemsSold`, `giftGiven`, `repairQueued`, `repairDelayed`, `repairCollected`,
 `itemsDropped`, `moneyChanged`, `shopClosed`.
+
+### 6.8. Contracts (M5)
+
+`extendContract`, `dismiss` and `removeMerc` work on the map screen only (`mapScreenOnly` elsewhere); `contractOptions`
+returns the renewal menu without opening it (`docs/22` §9). The renewal sequence, departures and insurance offers are
+decision prompts in `observe.contractPrompt` (`contractRenewal`, `mercDeparture`, `insuranceExtension`), answered with
+`answer`; `advance` stops on them with `decision`. Strategic mercs show `kind`, `contract` (A.I.M. days left, end time,
+renewal costs; M.E.R.C. debt; R.P.C. rate), `morale` and `moraleText`, `daysServed`, `totalCost`; the strategic view shows
+the M.E.R.C. account status. Opinions, tolerances, reputation and the death rate stay hidden.
 
 ## 7. Cost and limitations
 

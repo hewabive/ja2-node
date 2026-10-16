@@ -22,7 +22,7 @@ export type ClientMessage =
 export type ServerMessage =
   | { readonly t: 'welcome'; readonly session: string; readonly view: PlayerView; readonly driver: DriverMode }
   | { readonly t: 'frames'; readonly frames: readonly ViewFrame[] }
-  | { readonly t: 'result'; readonly id: number; readonly ok: boolean; readonly reason?: string }
+  | { readonly t: 'result'; readonly id: number; readonly ok: boolean; readonly reason?: string; readonly data?: unknown }
   | { readonly t: 'stopped'; readonly id: number; readonly report: StopReport }
   | { readonly t: 'error'; readonly message: string };
 

@@ -7,6 +7,7 @@ import { PreRandom, type Rng } from '../../core/rng.ts';
 import type { SimEvent } from '../events.ts';
 import { type Buildings, createBuildings } from './buildings.ts';
 import type { Bullet, MissAnimation } from './combat/bullets.ts';
+import { type ExperienceHooks, NO_EXPERIENCE_HOOKS } from './combat/context.ts';
 import type { Corpse } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
 import type { MapEdgepoints } from './edgepoints.ts';
@@ -224,6 +225,7 @@ export interface TacticalState {
   mercsWaiting: MercsWaiting | null;
   ignoreAllObstacles: boolean;
   sectorHooks: SectorHooks;
+  experienceHooks: ExperienceHooks;
 }
 
 export interface SharedCampaignState {
@@ -304,6 +306,7 @@ export function createTacticalState(
     mercsWaiting: null,
     ignoreAllObstacles: false,
     sectorHooks: NO_SECTOR_HOOKS,
+    experienceHooks: NO_EXPERIENCE_HOOKS,
   };
 }
 

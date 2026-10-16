@@ -63,3 +63,29 @@ test('starts a campaign and keeps the squad in the garrisoned start sector', asy
   await expect(page.locator('#status')).toContainText('tactical');
   await expect(page.locator('#battle')).toBeHidden();
 });
+
+test('extends and ends merc contracts from the map screen', async ({ page }) => {
+  await page.goto('/src/devtools/strategic/');
+  await page.waitForFunction(() => window.__ja2Strategic?.ready || window.__ja2Strategic?.error !== null);
+  await page.click('#newCampaign');
+  await page.waitForURL(/\?session=/);
+  await page.waitForFunction(() => window.__ja2Strategic?.ready && window.__ja2Strategic.worldSector !== null);
+  await expect(page.locator('#mercs tr').nth(1)).toContainText('7d 0h left');
+
+  const boxes = page.locator('#mercs input[type="checkbox"]');
+  await boxes.first().check();
+  await page.click('[data-contract="day"]');
+  await expect(page.locator('#result')).toHaveText('mapScreenOnly');
+  await page.click('#mapScreen');
+  await page.click('[data-contract="day"]');
+  await expect(page.locator('#result')).toHaveText(/^extended for \$\d+$/);
+  await expect(page.locator('#mercs tr').nth(1)).toContainText('8d 0h left');
+
+  await boxes.first().uncheck();
+  await boxes.last().check();
+  await page.click('[data-contract="dismiss"]');
+  await expect(page.locator('#battleTitle')).toHaveText('Decision: mercDeparture');
+  await page.click('#choices [data-choice="here"]');
+  await expect(page.locator('#battle')).toBeHidden();
+  await expect(page.locator('#mercs tr')).toHaveCount(4);
+});

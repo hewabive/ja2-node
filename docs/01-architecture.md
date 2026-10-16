@@ -925,3 +925,8 @@ Specs: `docs/21` (laptop and hiring), `22` (contracts and relationships), `23` (
    `data/externalized`, initial stock, the 09:00 daily update, prices, buying, selling, gifts, repairs with their
    times, the dealer's death; the shop as a modal session (`openShop`, `quoteTrade`, `trade`, `closeShop`); dealer
    state imported from native saves. 202 oracle probes match.
+2. **Contracts and relationships** (`sim/campaign/contracts`, `relations`, `profiles.ts`): mutable campaign profiles,
+   the daily merc update, the renewal sequence and its prompts (`contractRenewal`, `mercDeparture`,
+   `insuranceExtension`), extensions, dismissals, departures with the equipment left behind, R.P.C. pay, M.E.R.C. accounts,
+   level-ups, relationships and reputation; stub profiles for the stub pack; contract state from native saves. 81 oracle
+   probes (13,488 draws) match. The strategic page shows contracts and morale and answers contract prompts.

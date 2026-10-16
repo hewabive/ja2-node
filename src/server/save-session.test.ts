@@ -15,6 +15,9 @@ import { createSaveSession } from './save-session.ts';
 
 const DOOR_OPEN = 0x01;
 const ENEMY_TURN_BUDGET = 40_000;
+const AIM_MERC_KIND = 1;
+const MINUTES_PER_DAY = 1440;
+const MINUTES_PER_HOUR = 60;
 const dataDir = process.env.JA2_DATA_DIR ?? '';
 const gameRoot = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
 const savesDir = join(gameRoot, 'SavedGames');
@@ -30,6 +33,26 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('native savegames imported into the t
   afterAll(async () => {
     await data.close();
   });
+
+  for (const file of saveFiles) {
+    it(`shows the contracts of ${file} at hour precision`, async () => {
+      const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
+      const table = parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode((await read(SAVE_ENCRYPTION_PATH)) ?? new Uint8Array())));
+      const save = parseSaveGame(bytes, table);
+      const { session } = await createSaveSession(read, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);
+      const mercs = save.soldiers.map((e) => e.soldier).filter((s) => s.team === Team.OUR && s.whatKindOfMercAmI === AIM_MERC_KIND);
+      const views = session.view().strategic?.mercs ?? [];
+      for (const saved of mercs) {
+        const end = saved.contract.contractEnd;
+        expect(views.find((m) => m.id === saved.id)?.contract).toMatchObject({
+          type: 'aim',
+          totalDays: saved.contract.totalContractLength,
+          endsAt: { day: Math.trunc(end / MINUTES_PER_DAY), hour: Math.trunc((end % MINUTES_PER_DAY) / MINUTES_PER_HOUR) },
+        });
+      }
+      expect(session.view().contractPrompt ?? null).toBeNull();
+    });
+  }
 
   for (const file of saveFiles) {
     it(`rebuilds ${file} and keeps playing from it`, async () => {

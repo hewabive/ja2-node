@@ -12,15 +12,23 @@ import {
   applyFrame,
   type ClockView,
   type CombatView,
+  type ContractPromptView,
   type ItemView,
   type PlayerView,
   type PromptView,
+  type ShopView,
   type SoldierView,
   type StrategicView,
   type ViewFrame,
 } from '../../protocol/view.ts';
 
 type Pending = { resolve: (m: ServerMessage) => void; reject: (e: Error) => void };
+
+export interface CommandReply {
+  readonly ok: boolean;
+  readonly reason?: string;
+  readonly data?: unknown;
+}
 
 export class SessionClient {
   view: PlayerView | null = null;
@@ -41,6 +49,8 @@ export class SessionClient {
   #strategic: StrategicView | null = null;
   #prompt: PromptView | null = null;
   #autoresolve: AutoresolveView | null = null;
+  #contractPrompt: ContractPromptView | null = null;
+  #shop: ShopView | null = null;
   #shownTick = 0;
   #latestTick = 0;
 
@@ -103,6 +113,14 @@ export class SessionClient {
     return this.#autoresolve;
   }
 
+  get contractPrompt(): ContractPromptView | null {
+    return this.#contractPrompt;
+  }
+
+  get shop(): ShopView | null {
+    return this.#shop;
+  }
+
   get shownTick(): number {
     return this.#shownTick;
   }
@@ -137,6 +155,8 @@ export class SessionClient {
         this.#strategic = m.view.strategic ?? null;
         this.#prompt = m.view.prompt ?? null;
         this.#autoresolve = m.view.autoresolve ?? null;
+        this.#contractPrompt = m.view.contractPrompt ?? null;
+        this.#shop = m.view.shop ?? null;
         this.#shownTick = m.view.tick;
         this.#latestTick = m.view.tick;
         break;
@@ -173,6 +193,8 @@ export class SessionClient {
       if (frame.strategic) this.#strategic = frame.strategic;
       if (frame.prompt !== undefined) this.#prompt = frame.prompt;
       if (frame.autoresolve !== undefined) this.#autoresolve = frame.autoresolve;
+      if (frame.contractPrompt !== undefined) this.#contractPrompt = frame.contractPrompt;
+      if (frame.shop !== undefined) this.#shop = frame.shop;
       changed = true;
     }
     const target = Math.min(tick, this.#latestTick);
@@ -188,9 +210,10 @@ export class SessionClient {
     this.playUntil(Number.POSITIVE_INFINITY);
   }
 
-  async command(cmd: CommandEnvelope): Promise<{ ok: boolean; reason?: string }> {
+  async command(cmd: CommandEnvelope): Promise<CommandReply> {
     const m = await this.#request({ t: 'cmd', id: this.#nextId++, cmd });
-    return m.t === 'result' ? { ok: m.ok, ...(m.reason ? { reason: m.reason } : {}) } : { ok: false, reason: 'unexpected reply' };
+    if (m.t !== 'result') return { ok: false, reason: 'unexpected reply' };
+    return { ok: m.ok, ...(m.reason ? { reason: m.reason } : {}), ...(m.data !== undefined ? { data: m.data } : {}) };
   }
 
   async advance(until: StopCondition): Promise<StopReport | null> {

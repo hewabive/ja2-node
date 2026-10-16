@@ -69,6 +69,27 @@ export interface MercProfile {
   readonly timeTillNextHatedComplaint: number;
   readonly statChangeChances: readonly number[];
   readonly statChangeSuccesses: readonly number[];
+  readonly reputationTolerance: number;
+  readonly armourAttractiveness: number;
+  readonly mainGunAttractiveness: number;
+  readonly miscFlags: number;
+  readonly miscFlags2: number;
+  readonly miscFlags3: number;
+  readonly dayBecomesAvailable: number;
+  readonly totalDaysServed: number;
+  readonly salary: number;
+  readonly weeklySalary: number;
+  readonly biWeeklySalary: number;
+  readonly medicalDeposit: number;
+  readonly medicalDepositAmount: number;
+  readonly optionalGearCost: number;
+  readonly mercStatus: number;
+  readonly balance: number;
+  readonly daysOfMoraleHangover: number;
+  readonly precedentQuoteSaid: number;
+  readonly suspiciousDeath: number;
+  readonly mercMercContractLength: number;
+  readonly totalCostToDate: number;
 }
 
 export interface ProfileStatGains {
@@ -194,6 +215,27 @@ export function parseProfile(id: number, plain: Uint8Array): MercProfile {
     timeTillNextHatedComplaint: v.getUint8(702),
     statChangeChances: Array.from({ length: STAT_CHANGE_COUNTERS }, (_, k) => v.getUint16(474 + k * 2, true)),
     statChangeSuccesses: Array.from({ length: STAT_CHANGE_COUNTERS }, (_, k) => v.getUint16(498 + k * 2, true)),
+    reputationTolerance: i8(338),
+    armourAttractiveness: i8(230),
+    mainGunAttractiveness: i8(404),
+    miscFlags: v.getUint8(233),
+    miscFlags2: v.getUint8(231),
+    miscFlags3: v.getUint8(689),
+    dayBecomesAvailable: v.getUint32(292, true),
+    totalDaysServed: v.getUint16(322, true),
+    salary: v.getInt16(332, true),
+    weeklySalary: v.getUint32(540, true),
+    biWeeklySalary: v.getUint32(544, true),
+    medicalDeposit: i8(548),
+    medicalDepositAmount: v.getUint16(552, true),
+    optionalGearCost: v.getUint16(574, true),
+    mercStatus: i8(652),
+    balance: v.getInt32(676, true),
+    daysOfMoraleHangover: v.getUint8(690),
+    precedentQuoteSaid: v.getUint32(692, true),
+    suspiciousDeath: v.getUint8(703),
+    mercMercContractLength: v.getInt32(704, true),
+    totalCostToDate: v.getUint32(708, true),
   };
 }
 

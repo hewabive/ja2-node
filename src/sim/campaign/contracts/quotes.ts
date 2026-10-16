@@ -1,0 +1,106 @@
+// Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
+// Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
+// @src src/game/Tactical/Dialogue_Control.h DialogQuoteIDs (the quotes of docs/22); Dialogue_Control.cc
+// @src gubMercValidPrecedentQuoteID, GetQuoteBitNumberFromQuoteID; Laptop/History.h (contract history codes);
+// @src Tactical/Soldier_Profile.h NPCIDs. Checked against data/tables/merc-quotes.json and merc-contracts.json.
+
+export const Quote = {
+  BUDDY_ONE_KILLED: 15,
+  BUDDY_TWO_KILLED: 16,
+  LEARNED_TO_LIKE_MERC_KILLED: 17,
+  HATED_MERC_ONE: 29,
+  HATED_MERC_TWO: 30,
+  LEARNED_TO_HATE_MERC: 31,
+  MERC_QUIT_LEARN_TO_HATE: 32,
+  STARTING_TO_WHINE: 40,
+  WHINE_EQUIPMENT: 43,
+  HATED_1_ARRIVES: 49,
+  MERC_QUIT_HATED1: 49,
+  HATED_2_ARRIVES: 50,
+  MERC_QUIT_HATED2: 50,
+  NOT_GETTING_PAID: 54,
+  AIM_SEEN_MIKE: 55,
+  RESPONSE_TO_MIGUEL_SLASH_QUOTE_MERC_OR_RPC_LETGO: 64,
+  REPUTATION_REFUSAL: 80,
+  DEATH_RATE_REFUSAL: 81,
+  LAME_REFUSAL: 82,
+  WONT_RENEW_CONTRACT_LAME_REFUSAL: 83,
+  DEPARTING_COMMENT_CONTRACT_NOT_RENEWED_OR_48_OR_MORE: 85,
+  HATE_MERC_1_ON_TEAM: 86,
+  HATE_MERC_2_ON_TEAM: 87,
+  LEARNED_TO_HATE_MERC_ON_TEAM: 88,
+  CONTRACTS_OVER: 89,
+  ACCEPT_CONTRACT_RENEWAL: 90,
+  JOINING_CAUSE_BUDDY_1_ON_TEAM: 92,
+  JOINING_CAUSE_BUDDY_2_ON_TEAM: 93,
+  JOINING_CAUSE_LEARNED_TO_LIKE_BUDDY_ON_TEAM: 94,
+  REFUSAL_RENEW_DUE_TO_MORALE: 95,
+  REFUSAL_TO_JOIN_LACK_OF_FUNDS: 97,
+  DEPART_COMMET_CONTRACT_NOT_RENEWED_OR_TERMINATED_UNDER_48: 98,
+  DEATH_RATE_RENEWAL: 99,
+  HATE_MERC_1_ON_TEAM_WONT_RENEW: 100,
+  HATE_MERC_2_ON_TEAM_WONT_RENEW: 101,
+  LEARNED_TO_HATE_MERC_1_ON_TEAM_WONT_RENEW: 102,
+  RENEWING_CAUSE_BUDDY_1_ON_TEAM: 103,
+  RENEWING_CAUSE_BUDDY_2_ON_TEAM: 104,
+  RENEWING_CAUSE_LEARNED_TO_LIKE_BUDDY_ON_TEAM: 105,
+  PRECEDENT_TO_REPEATING_ONESELF_RENEW: 106,
+  PERSONALITY_BIAS_WITH_MERC_1: 113,
+  PERSONALITY_BIAS_WITH_MERC_2: 114,
+  MERC_LEAVING_ALSUCO_SOON: 115,
+  MERC_GONE_UP_IN_PRICE: 116,
+} as const;
+export type QuoteName = keyof typeof Quote;
+
+export const QUOTE_NONE = 0xffff;
+
+export const PRECEDENT_QUOTES: readonly number[] = [
+  Quote.REPUTATION_REFUSAL,
+  Quote.DEATH_RATE_REFUSAL,
+  Quote.LAME_REFUSAL,
+  Quote.WONT_RENEW_CONTRACT_LAME_REFUSAL,
+  Quote.HATE_MERC_1_ON_TEAM,
+  Quote.HATE_MERC_2_ON_TEAM,
+  Quote.LEARNED_TO_HATE_MERC_ON_TEAM,
+  Quote.REFUSAL_RENEW_DUE_TO_MORALE,
+  Quote.REFUSAL_TO_JOIN_LACK_OF_FUNDS,
+  Quote.DEATH_RATE_RENEWAL,
+  Quote.HATE_MERC_1_ON_TEAM_WONT_RENEW,
+  Quote.HATE_MERC_2_ON_TEAM_WONT_RENEW,
+  Quote.LEARNED_TO_HATE_MERC_1_ON_TEAM_WONT_RENEW,
+];
+
+const BITS_IN_FLAGS = 32;
+
+export function precedentBitMask(quote: number): number {
+  const found = PRECEDENT_QUOTES.indexOf(quote);
+  const bit = (found < 0 ? 0 : found) - 1;
+  return (1 << (((bit % BITS_IN_FLAGS) + BITS_IN_FLAGS) % BITS_IN_FLAGS)) >>> 0;
+}
+
+export function quoteKey(name: QuoteName): string {
+  return name.toLowerCase().replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
+}
+
+export const HistoryCode = {
+  MERC_KILLED: 3,
+  PURCHASED_INSURANCE: 7,
+  EXTENDED_CONTRACT_1_DAY: 10,
+  EXTENDED_CONTRACT_1_WEEK: 11,
+  EXTENDED_CONTRACT_2_WEEK: 12,
+  MERC_FIRED: 13,
+  MERC_QUIT: 14,
+  MERC_CONTRACT_EXPIRED: 22,
+  SLAY_MYSTERIOUSLY_LEFT: 76,
+  MERC_KILLED_CHARACTER: 77,
+} as const;
+
+export const SpecialProfile = {
+  BIFF: 40,
+  LARRY_NORMAL: 46,
+  LARRY_DRUNK: 47,
+  DEVIN: 61,
+  SLAY: 64,
+  IGGY: 68,
+  CONRAD: 70,
+} as const;

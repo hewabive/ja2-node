@@ -10,8 +10,10 @@ import { Assignment } from '../strategic/economy/constants.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
 import { effectiveLeadership } from '../tactical/skills.ts';
 import { NO_PROFILE, OKLIFE, Personality } from '../tactical/soldier.ts';
+import { type QuoteName, SpecialProfile } from './contracts/quotes.ts';
 import { handleMoraleEvent, type MoraleContext, MoraleEvent, refreshMercMorale } from './morale.ts';
-import type { RosterMerc } from './roster.ts';
+import { BUDDY_OPINION, BuddySlot, HATED_OPINION, HatedSlot, whichHated } from './relations/relations.ts';
+import { MercKind, type RosterMerc } from './roster.ts';
 
 const MORALE_MOD_MAX = 50;
 const HOURS_BETWEEN_STRATEGIC_DECAY = 3;
@@ -20,22 +22,31 @@ const NERVOUS_MORALE = 50;
 const NERVOUS_RADIUS = 10;
 const NO_FRIEND_DISTANCE = 1000;
 const NEAR_FRIEND_DISTANCE = 1;
-const BUDDY_OPINION = 25;
-const HATED_OPINION = -25;
 const LEADERSHIP_BASE = 50;
 const LEADERSHIP_STEP = 10;
 const TEAM_MOD_STEP = 10;
 const TIME_BETWEEN_HATED_COMPLAINTS = 24;
-const HatedSlot = { NOT_FOUND: -1, SLOT1: 0, SLOT2: 1, LEARNED_TO_HATE: 2, COUNT: 3 } as const;
-const LEARNED_TO_LIKE_SLOT = 2;
-const LEARN_TO_LIKE_PASS = LEARNED_TO_LIKE_SLOT + 1;
-const NpcProfile = { DEVIN: 61, SLAY: 64, IGGY: 68, CONRAD: 70 } as const;
-const QUIT_ON_LEARNED_HATE_NPCS: ReadonlySet<number> = new Set(Object.values(NpcProfile));
-const MercKindCode = { MERC: 2, NPC: 3 } as const;
+const LEARN_TO_LIKE_PASS = BuddySlot.LEARNED_TO_LIKE + 1;
+const QUIT_ON_LEARNED_HATE_NPCS: ReadonlySet<number> = new Set([
+  SpecialProfile.DEVIN,
+  SpecialProfile.SLAY,
+  SpecialProfile.IGGY,
+  SpecialProfile.CONRAD,
+]);
+const COMPLAINT_QUOTES: Readonly<Record<number, QuoteName>> = {
+  [HatedSlot.SLOT1]: 'HATED_MERC_ONE',
+  [HatedSlot.SLOT2]: 'HATED_MERC_TWO',
+  [HatedSlot.LEARNED_TO_HATE]: 'LEARNED_TO_HATE_MERC',
+};
+const QUIT_QUOTES: Readonly<Record<number, QuoteName>> = {
+  [HatedSlot.SLOT1]: 'MERC_QUIT_HATED1',
+  [HatedSlot.SLOT2]: 'MERC_QUIT_HATED2',
+  [HatedSlot.LEARNED_TO_HATE]: 'MERC_QUIT_LEARN_TO_HATE',
+};
 
 export type TeamMoraleEvent =
-  | { readonly type: 'hatedComplaint'; readonly soldier: number; readonly about: number; readonly learned: boolean }
-  | { readonly type: 'mercQuitsHated'; readonly soldier: number; readonly about: number; readonly learned: boolean };
+  | { readonly type: 'complaint'; readonly soldier: number; readonly about: number; readonly quote: QuoteName }
+  | { readonly type: 'quit'; readonly soldier: number; readonly about: number; readonly quote: QuoteName };
 
 export interface TeamMoraleState {
   strategicDecayCounter: number;
@@ -65,11 +76,6 @@ function together(ctx: TeamMoraleContext, m: RosterMerc, other: RosterMerc, same
   if (sameGroupOnly) return m.groupId === other.groupId;
   if (!sameSector(other.sector, m.sector)) return false;
   return !inMotion(ctx, other);
-}
-
-function whichHated(p: ProfileProgress, other: number): number {
-  for (let slot = HatedSlot.SLOT1; slot < HatedSlot.COUNT; slot++) if (p.hated[slot] === other) return slot;
-  return HatedSlot.NOT_FOUND;
 }
 
 interface TeamOpinion {
@@ -221,9 +227,17 @@ export function decayTacticalMoraleModifiers(ctx: TeamMoraleContext): void {
 }
 
 function quitsOverHatred(m: RosterMerc, learned: boolean): boolean {
-  if (m.kind === MercKindCode.MERC) return true;
-  if (m.kind !== MercKindCode.NPC) return false;
+  if (m.kind === MercKind.MERC) return true;
+  if (m.kind !== MercKind.NPC) return false;
   return !learned || QUIT_ON_LEARNED_HATE_NPCS.has(m.profile);
+}
+
+function complain(ctx: TeamMoraleContext, m: RosterMerc, slot: number, about: number): void {
+  ctx.emit({ type: 'complaint', soldier: m.id, about, quote: COMPLAINT_QUOTES[slot] ?? 'HATED_MERC_ONE' });
+}
+
+function quit(ctx: TeamMoraleContext, m: RosterMerc, slot: number, about: number): void {
+  ctx.emit({ type: 'quit', soldier: m.id, about, quote: QUIT_QUOTES[slot] ?? 'MERC_QUIT_HATED1' });
 }
 
 interface Complaints {
@@ -247,7 +261,7 @@ function hatedSlotPass(ctx: TeamMoraleContext, m: RosterMerc, p: ProfileProgress
   let count = p.hatedCount[slot] ?? 0;
   if (count <= 0) {
     tickComplaintTimer(p, c);
-    if (p.timeTillNextHatedComplaint === 0) ctx.emit({ type: 'hatedComplaint', soldier: m.id, about: other, learned: false });
+    if (p.timeTillNextHatedComplaint === 0) complain(ctx, m, slot, other);
     return;
   }
   count--;
@@ -257,14 +271,14 @@ function hatedSlotPass(ctx: TeamMoraleContext, m: RosterMerc, p: ProfileProgress
     return;
   }
   if (complainHalfway(count, time)) {
-    ctx.emit({ type: 'hatedComplaint', soldier: m.id, about: other, learned: false });
+    complain(ctx, m, slot, other);
     ctx.stopTimeCompression();
     return;
   }
   if (count !== 0) return;
-  if (quitsOverHatred(m, false)) ctx.emit({ type: 'mercQuitsHated', soldier: m.id, about: other, learned: false });
+  if (quitsOverHatred(m, false)) quit(ctx, m, slot, other);
   else {
-    ctx.emit({ type: 'hatedComplaint', soldier: m.id, about: other, learned: false });
+    complain(ctx, m, slot, other);
     p.timeTillNextHatedComplaint = TIME_BETWEEN_HATED_COMPLAINTS - 1;
   }
 }
@@ -273,19 +287,19 @@ function learnedHatePass(ctx: TeamMoraleContext, m: RosterMerc, p: ProfileProgre
   if (p.learnToHate !== other) return;
   if (p.learnToHateCount <= 0) {
     tickComplaintTimer(p, c);
-    if (p.timeTillNextHatedComplaint === 0) ctx.emit({ type: 'hatedComplaint', soldier: m.id, about: other, learned: true });
+    if (p.timeTillNextHatedComplaint === 0) complain(ctx, m, HatedSlot.LEARNED_TO_HATE, other);
     return;
   }
   p.learnToHateCount--;
   if (p.learnToHateCount === 0 && m.soldier.placed && ctx.enemyInSector) p.learnToHateCount = 1;
   else if (complainHalfway(p.learnToHateCount, p.learnToHateTime)) {
-    ctx.emit({ type: 'hatedComplaint', soldier: m.id, about: other, learned: true });
+    complain(ctx, m, HatedSlot.LEARNED_TO_HATE, other);
     ctx.stopTimeCompression();
   } else if (p.learnToHateCount === 0) {
     p.hated[HatedSlot.LEARNED_TO_HATE] = p.learnToHate;
     p.opinions[other] = HATED_OPINION;
-    if (quitsOverHatred(m, true)) ctx.emit({ type: 'mercQuitsHated', soldier: m.id, about: other, learned: true });
-    else if (m.kind === MercKindCode.NPC) ctx.emit({ type: 'hatedComplaint', soldier: m.id, about: other, learned: true });
+    if (quitsOverHatred(m, true)) quit(ctx, m, HatedSlot.LEARNED_TO_HATE, other);
+    else if (m.kind === MercKind.NPC) complain(ctx, m, HatedSlot.LEARNED_TO_HATE, other);
   }
   if (p.learnToHateCount < Math.trunc(p.learnToHateTime / 2)) {
     const opinion = p.opinions[other] ?? 0;
@@ -297,7 +311,7 @@ function learnToLikePass(p: ProfileProgress, other: number): void {
   if (p.learnToLikeCount <= 0 || p.learnToLike !== other) return;
   p.learnToLikeCount--;
   if (p.learnToLikeCount === 0) {
-    p.buddies[LEARNED_TO_LIKE_SLOT] = p.learnToLike;
+    p.buddies[BuddySlot.LEARNED_TO_LIKE] = p.learnToLike;
     p.opinions[other] = BUDDY_OPINION;
   } else if (p.learnToLikeCount < Math.trunc(p.learnToLikeTime / 2)) {
     const opinion = p.opinions[other] ?? 0;

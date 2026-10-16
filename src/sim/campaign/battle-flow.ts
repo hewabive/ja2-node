@@ -95,6 +95,7 @@ import type { CampaignSim } from './campaign-sim.ts';
 import {
   beginCaptureSequence,
   CaptureFlag,
+  type DeathBookkeeping,
   endCaptureSequence,
   enemyCapturesPlayerSoldier,
   type FateContext,
@@ -172,6 +173,10 @@ export class BattleFlow implements FateContext {
     return this.state.battle.autoresolve;
   }
 
+  get bookkeeping(): DeathBookkeeping | null {
+    return this.campaign.contracts;
+  }
+
   #arContext(): ArStrategicContext {
     return { economy: this.economy, queen: this.campaign.queen, content: this.content, roster: this.roster };
   }
@@ -194,6 +199,8 @@ export class BattleFlow implements FateContext {
       profiles: this.state.profiles,
       progress: queen ? queenProgress(queen) : this.state.status.highestProgress,
       enemyInSector: this.campaign.tactical?.state.turn.enemyInSector === true,
+      status: this.state.status,
+      sayQuote: (m, quote) => this.campaign.contracts?.say(m, quote),
     };
   }
 
@@ -205,7 +212,7 @@ export class BattleFlow implements FateContext {
       squadSize: (squad) => numberOfPeopleInSquad(economy, squad),
       spacesAway,
       morale: this.state.teamMorale,
-      emit: (e) => this.emit(e),
+      emit: (e) => this.campaign.contracts?.teamMoraleEvent(e),
       stopTimeCompression: () => stopTimeCompression(this.campaign.clockContext, CompressionStop.COMPLAINT),
     };
   }
@@ -404,6 +411,7 @@ export class BattleFlow implements FateContext {
         },
         battleRetreat: () => this.retreatFromAutoresolve(session.sector),
       },
+      experienceHooks: this.campaign.experienceHooks,
     };
   }
 
@@ -768,6 +776,10 @@ export class BattleFlow implements FateContext {
         return this.#answerSimultaneous(choice);
       case PromptKind.NPC_OF_NOTE:
         return this.#answerNpcOfNote(choice);
+      case PromptKind.CONTRACT_RENEWAL:
+      case PromptKind.MERC_DEPARTURE:
+      case PromptKind.INSURANCE_EXTENSION:
+        return this.campaign.contracts?.answer(prompt, choice) ?? { ok: false, reason: 'contracts are not available' };
     }
   }
 

@@ -820,8 +820,8 @@ answers; prompts are part of the command log (`04` §5.5).
 | `dismiss {soldier}` | Dismiss + confirmation | `cannotExtend`, `inCombat` (in combat and in the loaded sector), `bleeding` (> 12); then the `mercDeparture` prompt |
 | `removeMerc {soldier}` | "remove merc" box for the dead and POWs | only dead or POW; `StrategicRemoveMerc` directly |
 
-**Decision prompts** (time stops; `ContractDecisions` answer like `EconomyDecisions`: a choice or `defer`, which keeps the prompt
-in state and stops compression):
+**Decision prompts** (time stops; battle-flow prompts answered with `answer {prompt, choice}`, no `defer`; the open one is
+`observe.contractPrompt` with the merc's `name`, the departure sectors as strings and the renewal `balance`):
 - `contractRenewal {soldier, fromSequence, balance, options: [{choice: 'day'|'week'|'twoWeeks', cost, enabled, reason?},
   {choice: 'dismiss', enabled, reason?}, {choice: 'letGo'}]}` — the menu of §3.4, opened by the sequence (§3.3) or by `rehire`.
   `letGo` is Cancel. Options for willing and unwilling mercs look the same; the quotes already said tell the player which.
@@ -837,7 +837,10 @@ default stop condition, `continue`/`stop` per client policy as for the assignmen
 days, cost, endsAt}`; `contractRefused {soldier, reason: 'signedElsewhere'|'hatedMerc'|'learnedToHate'|'deathRate'|'morale'}`
 (what the spoken quote says); `insuranceUnaffordable {soldier, cost}`; `mercLeft {soldier, profile, cause, history,
 equipment: 'here'|'elsewhere'|'carried'|'none', refund?}`; `equipmentDelivered {sector, owner}`; `rpcUnpaid {soldier, amount}`;
-`mercAccountStatus {status}` (with the email, `21`); `reputation` and `deathRate` are **not** events.
+`mercAccountStatus {status}` (with the email, `21`); `historyAdded {code, profile, sector}` and `mailDue {mail, profile?,
+amount?}` until `21` stores them; `reputation` and `deathRate` are **not** events. As implemented, `mercQuote` also carries
+`profile` and the quote number `id`, `mercLeft` the personnel list (`personnel: 'dead'|'fired'|'other'`) and
+`equipmentDelivered` the item count (`items`).
 
 **Observation** (`PlayerView`; only what §1.3 shows): per merc `kind`; `contract` = A.I.M./Slay `{totalDays, remaining: {days,
 hours}, endsAt: {day, hour}, lastContract, dailyRate, renewalCosts: {day, week, twoWeeks}, medicalDeposit, insured,
@@ -1033,8 +1036,9 @@ sequence holds the pause lock (so the transient flags need not be saved); that t
 headless oracle calls survive the dialogue and message box code; that moving mercs' `sector` is the
 departure sector (`16`'s model) for the equipment drop and the sector tests.
 
-**Open questions**:
-1. Does `21` own life insurance (purchase screen, payouts)? If not, §7 is the reference and `insurance.ts` belongs here.
-2. Strac's `HourlyMoraleUpdate` hated rule looks like a lost `/2`; keep it (D1) or follow V and log a deviation?
-3. Should `endsAt` be exposed at hour granularity (personnel screen) as proposed, or only the panel's rounded values?
-4. History and email stores: `21` is expected to provide them; this spec only emits the records.
+**Decisions** (the former open questions):
+1. Life insurance belongs to `21`; the contract side calls hooks with no-op defaults (`ContractHooks`, deviation "Contract
+   coupling to the laptop").
+2. Strac's `HourlyMoraleUpdate` hated rule is kept (D1).
+3. `endsAt` is exposed at hour precision, as on the personnel screen.
+4. History and email stores come with `21`; this spec emits `historyAdded` and `mailDue` events.

@@ -18,31 +18,19 @@ const OFFSET_SHOTS_FIRED = 314;
 const OFFSET_SHOTS_HIT = 316;
 const OFFSET_BATTLES_FOUGHT = 318;
 const OFFSET_TIMES_WOUNDED = 320;
-const OFFSET_TOTAL_DAYS_SERVED = 322;
-const OFFSET_SALARY = 332;
 const OFFSET_PROFILE_GRIDNO = 408;
-const OFFSET_MERC_STATUS = 652;
 const OFFSET_SECTOR_Z = 669;
 const OFFSET_CHECKSUM = 696;
-const OFFSET_MISC_FLAGS = 233;
-const OFFSET_MISC_FLAGS2 = 231;
-const OFFSET_MISC_FLAGS3 = 689;
 
 export interface SavedMercProfile extends MercProfile {
   readonly sectorZ: number;
   readonly profileGridNo: number;
-  readonly mercStatus: number;
-  readonly salary: number;
   readonly kills: number;
   readonly assists: number;
   readonly shotsFired: number;
   readonly shotsHit: number;
   readonly battlesFought: number;
   readonly timesWounded: number;
-  readonly totalDaysServed: number;
-  readonly miscFlags: number;
-  readonly miscFlags2: number;
-  readonly miscFlags3: number;
   readonly checksum: number;
 }
 
@@ -69,18 +57,12 @@ export function decodeSavedProfile(id: number, plain: Uint8Array, stracLinuxForm
     ...parseProfile(id, record),
     sectorZ: v.getInt8(OFFSET_SECTOR_Z),
     profileGridNo: v.getInt16(OFFSET_PROFILE_GRIDNO, true),
-    mercStatus: v.getInt8(OFFSET_MERC_STATUS),
-    salary: v.getInt16(OFFSET_SALARY, true),
     kills: v.getUint16(OFFSET_KILLS, true),
     assists: v.getUint16(OFFSET_ASSISTS, true),
     shotsFired: v.getUint16(OFFSET_SHOTS_FIRED, true),
     shotsHit: v.getUint16(OFFSET_SHOTS_HIT, true),
     battlesFought: v.getUint16(OFFSET_BATTLES_FOUGHT, true),
     timesWounded: v.getUint16(OFFSET_TIMES_WOUNDED, true),
-    totalDaysServed: v.getUint16(OFFSET_TOTAL_DAYS_SERVED, true),
-    miscFlags: v.getUint8(OFFSET_MISC_FLAGS),
-    miscFlags2: v.getUint8(OFFSET_MISC_FLAGS2),
-    miscFlags3: v.getUint8(OFFSET_MISC_FLAGS3),
     checksum: v.getUint32(OFFSET_CHECKSUM, true),
   };
 }

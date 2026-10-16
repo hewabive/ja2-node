@@ -73,7 +73,9 @@ describe('strategic content from data/externalized', () => {
       startSectorRevealed: true,
       mercOnlineMinDays: 1,
       mercOnlineMaxDays: 2,
+      unhiredMercDeaths: [1, 2, 3],
     });
+    expect(content.shipping.primaryDeliverySector).toBe(parseSectorId('B13'));
     expect(content.vehicles.map((v) => v.movementType)).toEqual([2, 2, 2, 2, 2, TransportMask.AIR]);
   });
 

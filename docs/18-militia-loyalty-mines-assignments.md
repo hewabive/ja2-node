@@ -1419,9 +1419,8 @@ into the hourly and quarter-hour slots of the economy in the original order (`Up
 relation fields (sexist, learn to hate/like with times and counts, hated times and counts, the next complaint, death rate)
 and native saves import every profile, so imported campaigns keep their counters.
 
-Events: `hatedComplaint {soldier, about, learned}` (the hated-merc and learned-to-hate quotes) and
-`mercQuitsHated {soldier, about, learned}` (the merc stays until contracts exist, `deviations.md` "Quitting over a hated
-merc"). Drugs are not modelled, so `RefreshSoldierMorale` has no drug term; `DailyMoraleUpdate` and the camouflage row
-wait for the daily merc update (M5).
+Events: the hated-merc and learned-to-hate complaints are `mercQuote` events with the hated merc as `subject`; a merc who
+quits says his quote and leaves through the `mercDeparture` prompt (`docs/22` §4.3, §9). Drugs are not modelled, so
+`RefreshSoldierMorale` has no drug term; `DailyMoraleUpdate` runs in the daily merc update (`docs/22` §2.4).
 
 Oracle (`tools/oracle/probes/morale.txt`, patch 0006, README "Morale"): 43 probes on three saves match.

@@ -64,7 +64,13 @@ function serve(ws: WebSocket, options: WebSocketOptions): void {
       case 'cmd':
         return inOrder(async () => {
           const r = await current.prepareAndDispatch(message.cmd);
-          send({ t: 'result', id: message.id, ok: r.ok, ...(r.reason ? { reason: r.reason } : {}) });
+          send({
+            t: 'result',
+            id: message.id,
+            ok: r.ok,
+            ...(r.reason ? { reason: r.reason } : {}),
+            ...(r.data !== undefined ? { data: r.data } : {}),
+          });
         });
       case 'advance':
         return inOrder(() => send({ t: 'stopped', id: message.id, report: current.advance(message.until) }));

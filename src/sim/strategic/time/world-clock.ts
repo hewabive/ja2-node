@@ -62,6 +62,7 @@ export const CompressionStop = {
   MILITIA_TRAINING: 'militiaTraining',
   MINE_EVENT: 'mineEvent',
   COMPLAINT: 'complaint',
+  CONTRACT: 'contract',
   REQUESTED: 'requested',
   MAP_EXIT: 'mapExit',
   HELICOPTER: 'helicopter',

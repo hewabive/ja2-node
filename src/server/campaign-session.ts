@@ -9,6 +9,7 @@ import { isTimeBeingCompressed, worldDay, worldHour, worldMinute } from '../sim/
 import { Team } from '../sim/tactical/soldier.ts';
 import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { autoresolveView, promptView } from './battle-view.ts';
+import { contractPromptView } from './contract-view.ts';
 import { tacticalPlayerView } from './sandbox.ts';
 import type { SessionSim } from './session.ts';
 import { strategicView } from './strategic-view.ts';
@@ -81,7 +82,13 @@ export class CampaignSession implements SessionSim {
     const c = this.campaign.state.clock;
     const clock = { day: worldDay(c), hour: worldHour(c), minute: worldMinute(c), compressing: isTimeBeingCompressed(c) };
     const strategic = strategicView(this.campaign);
-    const battle = this.campaign.battle ? { prompt: promptView(this.campaign), autoresolve: autoresolveView(this.campaign) } : {};
+    const battle = this.campaign.battle
+      ? {
+          prompt: promptView(this.campaign),
+          ...(this.campaign.contracts ? { contractPrompt: contractPromptView(this.campaign) } : {}),
+          autoresolve: autoresolveView(this.campaign),
+        }
+      : {};
     const shop = this.campaign.shop ? { shop: this.campaign.shop.view() } : {};
     const extra = strategic ? { clock, strategic, ...battle, ...shop } : { clock, ...battle, ...shop };
     const tactical = this.campaign.tactical;

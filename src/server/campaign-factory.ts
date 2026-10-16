@@ -1,13 +1,15 @@
 import type { MercProfile } from '../content/formats/prof.ts';
+import { loadStubProfiles } from '../content/formats/stub-profiles.ts';
 import { loadArmyContent } from '../content/strategic/army.ts';
 import { loadEconomyContent } from '../content/strategic/economy-content.ts';
 import { loadMerchantContent } from '../content/strategic/merchant-content.ts';
 import { loadStrategicContent } from '../content/strategic/strategic-content.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import { CampaignSim } from '../sim/campaign/campaign-sim.ts';
-import { hireMerc, profileRecruit, type Recruit } from '../sim/campaign/hiring.ts';
+import { AIM_WEEK_CONTRACT, type HireTerms, hireMerc, profileRecruit, type Recruit } from '../sim/campaign/hiring.ts';
 import { initNewGame } from '../sim/campaign/new-game.ts';
 import { campaignCombatContext } from '../sim/campaign/off-map-combat.ts';
+import { mercKindForProfileType } from '../sim/campaign/profiles.ts';
 import { Roster } from '../sim/campaign/roster.ts';
 import { Difficulty } from '../sim/strategic/forces/constants.ts';
 import { createStrategicState } from '../sim/strategic/state.ts';
@@ -30,23 +32,46 @@ export const FIRST_AIM_PROFILE = 0;
 export const LAST_AIM_PROFILE = 39;
 export const DEFAULT_AIM_SQUAD: readonly number[] = [0, 3, 4, 7, 14, 16];
 export const DEFAULT_STUB_SQUAD_SIZE = 4;
+export const STUB_SQUAD_PROFILES: readonly number[] = [0, 1, 2, 3, 4, 5];
 export const MAX_SQUAD = 6;
 
-function squadRecruits(content: TacticalContent, request: CampaignRequest, gunNut: boolean): ((id: number) => Recruit)[] {
-  if (content.profiles.length === 0) {
-    const size = request.mercs ?? DEFAULT_STUB_SQUAD_SIZE;
-    return Array.from({ length: size }, () => (id: number) => ({ soldier: stubMerc(content, id), profile: null }));
-  }
-  return (request.profiles ?? DEFAULT_AIM_SQUAD).map((p) => {
-    const profile = aimProfile(content, p);
-    return profileRecruit(profile, { content, gunNut });
-  });
+interface SquadHire {
+  readonly recruit: (id: number) => Recruit;
+  readonly terms: HireTerms;
 }
 
-function aimProfile(content: TacticalContent, id: number): MercProfile {
-  const profile = id >= FIRST_AIM_PROFILE && id <= LAST_AIM_PROFILE ? content.profiles[id] : undefined;
+function squadHires(
+  content: TacticalContent,
+  request: CampaignRequest,
+  gunNut: boolean,
+  types: ReadonlyMap<number, number>,
+  stubbed: boolean,
+): SquadHire[] {
+  if (content.profiles.length === 0) {
+    const size = request.mercs ?? DEFAULT_STUB_SQUAD_SIZE;
+    return Array.from({ length: size }, () => ({
+      recruit: (id: number) => ({ soldier: stubMerc(content, id), profile: null }),
+      terms: AIM_WEEK_CONTRACT,
+    }));
+  }
+  const ids = request.profiles ?? (stubbed ? STUB_SQUAD_PROFILES.slice(0, request.mercs ?? DEFAULT_STUB_SQUAD_SIZE) : DEFAULT_AIM_SQUAD);
+  return ids.map((p) => ({
+    recruit: profileRecruit(hireableProfile(content, p, stubbed), { content, gunNut }),
+    terms: { ...AIM_WEEK_CONTRACT, kind: mercKindForProfileType(types.get(p)) },
+  }));
+}
+
+function hireableProfile(content: TacticalContent, id: number, stubbed: boolean): MercProfile {
+  const inAimRange = id >= FIRST_AIM_PROFILE && id <= LAST_AIM_PROFILE;
+  const profile = stubbed || inAimRange ? content.profiles[id] : undefined;
   if (!profile) throw new Error(`profile ${id} is not an A.I.M. merc`);
   return profile;
+}
+
+async function withStubProfiles(read: ReadFile, content: TacticalContent): Promise<TacticalContent> {
+  if (content.profiles.length > 0) return content;
+  const profiles = await loadStubProfiles(read, (name) => content.items.byName.get(name)?.index);
+  return profiles.length > 0 ? { ...content, profiles } : content;
 }
 
 function validate(request: CampaignRequest): void {
@@ -64,11 +89,13 @@ export async function createCampaignSession(
   request: CampaignRequest = {},
 ): Promise<CampaignSession> {
   validate(request);
-  const [content, strategicContent, army] = await Promise.all([
+  const [baseContent, strategicContent, army] = await Promise.all([
     loadTacticalContent(read),
     loadStrategicContent(read),
     loadArmyContent(read),
   ]);
+  const content = await withStubProfiles(read, baseContent);
+  const stubbed = content !== baseContent;
   const economyContent = await loadEconomyContent(read, strategicContent.towns);
   const merchantContent = await loadMerchantContent(read, content.items);
   const state = createStrategicState({
@@ -76,7 +103,7 @@ export async function createCampaignSession(
     ...(request.difficulty !== undefined ? { options: { difficulty: request.difficulty } } : {}),
   });
   let campaign: CampaignSim | null = null;
-  const roster = new Roster({ content, combat: campaignCombatContext(() => campaign, state, content) });
+  const roster = new Roster({ content, combat: campaignCombatContext(() => campaign, state, content), profiles: state.profiles });
   const worlds = new WorldCache(read, exists);
   campaign = new CampaignSim(state, null, {
     strategic: { content: strategicContent, mercs: roster },
@@ -86,8 +113,8 @@ export async function createCampaignSession(
     merchants: { content: merchantContent, items: content.items },
   });
   initNewGame(campaign);
-  for (const recruit of squadRecruits(content, request, state.options.gunNut)) {
-    const hired = hireMerc(campaign, roster, recruit, content);
+  for (const { recruit, terms } of squadHires(content, request, state.options.gunNut, economyContent.mercTypes, stubbed)) {
+    const hired = hireMerc(campaign, roster, recruit, content, terms);
     if (typeof hired === 'string') throw new Error(`cannot hire: ${hired}`);
   }
   const session = new CampaignSession(campaign, roster, worlds);

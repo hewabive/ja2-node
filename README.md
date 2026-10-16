@@ -33,8 +33,8 @@ pnpm dev                           # server (7420) + Vite (5173)
 ```
 
 Open http://127.0.0.1:5173/ → "Strategic map", "Tactical sandbox", "Asset browser" or "Map viewer". The strategic
-map starts a new campaign (the squad lands in A9 at 07:00 on day 1), plots routes and runs the world clock; its
-"tactical view" link opens the loaded sector of that campaign. In the sandbox
+map starts a new campaign (the squad lands in A9 at 07:00 on day 1), plots routes, runs the world clock, extends or ends
+contracts and answers battle and contract prompts; its "tactical view" link opens the loaded sector of that campaign. In the sandbox
 click a merc to select it, click a tile to walk there, right-click to run; the time buttons switch
 between paused, real time and instant (every order runs to the end on the server, the page plays it back at the
 chosen playback speed or skips it). Without `JA2_DATA_DIR` only the stubs (`stubs/…`, including the stub
@@ -49,8 +49,9 @@ gun in hand at a gridNo (`aimTime` 0–4, `bodyPart`), and `endTurn` hands the t
 native savegame from the game's `SavedGames` folder (needs `JA2_DATA_DIR`; `JA2_SAVES_DIR` overrides the folder).
 `{"campaign":{"difficulty":2}}` starts a new campaign (strategic commands `route`, `cancelRoute`, `assignSquad`,
 `assign`, `sleep`, `wake`, `enterSector`, `exitSector`, `mapScreen`, `tacticalScreen`, `compressTime`, `stopTime`, and
-`answer` for the pre-battle and autoresolve prompts; `observe` then includes the clock, the strategic view, the open prompt
-and the autoresolve battle; `advance` takes `worldTime`, `worldSeconds`, `compressionStopped` and `mode` on the map). `JA2_SAVE=SaveGame07 pnpm dev` opens the default session from that save, `JA2_CAMPAIGN=2 pnpm dev`
+contracts `extendContract`, `contractOptions`, `dismiss`, `removeMerc`, merchants `openShop`, `quoteTrade`, `trade`,
+`closeShop`, and `answer` for the pre-battle, autoresolve and contract prompts; `observe` then includes the clock, the
+strategic view with contracts and morale, the open prompt, the autoresolve battle and the open shop; `advance` takes `worldTime`, `worldSeconds`, `compressionStopped` and `mode` on the map). `JA2_SAVE=SaveGame07 pnpm dev` opens the default session from that save, `JA2_CAMPAIGN=2 pnpm dev`
 a new campaign.
 
 The server listens on `127.0.0.1` only and requires the token from `.ja2/token`, which it creates

@@ -15,7 +15,7 @@ import { EncounterCode } from '../../src/sim/strategic/forces/constants.ts';
 import type { RandomStream } from '../../src/sim/tactical/combat/context.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
 import { InvSlot } from '../../src/sim/tactical/inventory.ts';
-import { noRelations, type ProfileProgress } from '../../src/sim/tactical/profiles.ts';
+import { noCampaignFields, noRelations, type ProfileProgress } from '../../src/sim/tactical/profiles.ts';
 import { Body, createSoldier, NO_PROFILE, NOWHERE, type Soldier, SoldierClass, Team } from '../../src/sim/tactical/soldier.ts';
 
 export interface ArSoldierOptions {
@@ -173,7 +173,7 @@ export function progressFor(id: number, overrides: Partial<ProfileProgress> = {}
     shotsFired: 0,
     shotsHit: 0,
     timesWounded: 0,
-    dead: false,
+    ...noCampaignFields(),
     ...overrides,
   };
 }
