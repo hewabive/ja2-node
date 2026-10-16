@@ -39,6 +39,7 @@ import { ACTION_PROBES, ActionComparer } from './actions-compare.ts';
 import { compareAutoresolveAftermath, compareEnemyCounts } from './autoresolve-aftermath.ts';
 import { compareAutoresolve } from './autoresolve-compare.ts';
 import { compareAutoresolveCreation } from './autoresolve-creation.ts';
+import { CIV_PROBES, CivComparer } from './civ-compare.ts';
 import { CONTRACT_PROBES, ContractComparer } from './contract-compare.ts';
 import { CREATURE_AI_PROBES, CreatureAiComparer } from './creature-ai-compare.ts';
 import { CREATURE_PROBES, CreatureComparer } from './creature-compare.ts';
@@ -583,6 +584,7 @@ for (const file of files) {
   const heli = new HeliComparer(read, exists);
   const talk = new TalkComparer(read, exists, (path) => data.vfs.layerCount(path));
   const give = new GiveComparer(read, exists, (path) => data.vfs.layerCount(path));
+  const civ = new CivComparer(read, exists, (path) => data.vfs.layerCount(path));
   const facts = new FactComparer(read, exists);
   const actions = new ActionComparer(read, exists);
   const schedules = new ScheduleComparer(read, exists, savesDir(dataDir));
@@ -612,6 +614,7 @@ for (const file of files) {
       if (ctx.bytes) heli.loadSave(ctx.bytes);
       if (ctx.bytes) talk.loadSave(ctx.bytes);
       if (ctx.bytes) give.loadSave(ctx.bytes);
+      if (ctx.bytes) civ.loadSave(ctx.bytes);
       if (ctx.bytes) facts.loadSave(ctx.bytes);
       if (ctx.bytes) actions.loadSave(ctx.bytes);
     } else if (p.probe === 'end') continue;
@@ -635,6 +638,7 @@ for (const file of files) {
     else if (HELI_PROBES.has(String(p.probe))) failures += await heli.compare(p);
     else if (TALK_PROBES.has(String(p.probe))) failures += await talk.compare(p);
     else if (GIVE_PROBES.has(String(p.probe))) failures += await give.compare(p);
+    else if (CIV_PROBES.has(String(p.probe))) failures += await civ.compare(p);
     else if (FACT_PROBES.has(String(p.probe))) failures += await facts.compare(p);
     else if (ACTION_PROBES.has(String(p.probe))) failures += await actions.compare(p);
     else if (SCHEDULE_PROBES.has(String(p.probe))) failures += await schedules.compare(p);

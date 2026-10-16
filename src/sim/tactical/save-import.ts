@@ -355,6 +355,8 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.hasKeys = r.hasKeys !== 0;
   s.quoteRecord = r.quoteRecord;
   s.quoteActionId = r.quoteActionId;
+  s.currentCivQuote = r.currentCivQuote;
+  s.currentCivQuoteDelta = r.currentCivQuoteDelta;
   s.collapsed = r.collapsed !== 0;
   s.breathCollapsed = r.breathCollapsed !== 0;
   s.collapsedTurns = r.turnsCollapsed;
@@ -539,6 +541,8 @@ function importOpplists(t: TacticalState, save: SaveGame): void {
   });
 }
 
+const ENEMY_OFFERED_SURRENDER = 0x01;
+
 function importTurnState(t: TacticalState, save: SaveGame): void {
   const ts = save.tactical;
   const turn = t.turn;
@@ -549,6 +553,7 @@ function importTurnState(t: TacticalState, save: SaveGame): void {
   turn.virginSector = ts.virginSector;
   turn.enemyInSector = ts.enemyInSector;
   turn.someoneHit = ts.someoneHit;
+  turn.enemyOfferedSurrender = (ts.enemyFlags & ENEMY_OFFERED_SURRENDER) !== 0;
   turn.spottersCalledForBy = ts.spottersCalledForBy;
   turn.consNumTurnsNotSeen = ts.consecutiveTurnsNotSeen;
   turn.consNumTurnsWeHaventSeenButEnemyDoes = ts.consecutiveTurnsWeHaventSeenButEnemyDoes;

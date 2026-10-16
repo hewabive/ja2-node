@@ -116,6 +116,7 @@ export const CivilianGroup = {
 } as const;
 export const NO_PROFILE = 200;
 export const NOWHERE = -1;
+export const NO_CIV_QUOTE = -1;
 export const NO_PENDING_ANIMATION = -1;
 export const NO_PENDING_DIRECTION = -1;
 export const OKLIFE = 15;
@@ -467,6 +468,8 @@ export interface Soldier {
   quoteActionId: number;
   quoteRecord: number;
   timeSinceLastSpoke: number;
+  currentCivQuote: number;
+  currentCivQuoteDelta: number;
   offWorldGridNo: number;
   militiaKills: number;
   offMap: boolean;
@@ -785,6 +788,8 @@ export function createSoldier(init: SoldierInit): Soldier {
     quoteActionId: 0,
     quoteRecord: 0,
     timeSinceLastSpoke: 0,
+    currentCivQuote: NO_CIV_QUOTE,
+    currentCivQuoteDelta: 0,
     offWorldGridNo: 0,
     militiaKills: 0,
     offMap: false,

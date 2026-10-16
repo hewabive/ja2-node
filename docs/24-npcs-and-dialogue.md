@@ -380,7 +380,8 @@ and a record accepted it (§4.4).
   trigger with the panel, `SAID_HOSTILE_QUOTE` set. `FACT_NPC_IS_ENEMY` counts the `NEEDS_TO_SAY_HOSTILE_QUOTE` flag
   (`Quests.cc:616-618`), which is how the declaration record sees itself as hostile.
 - **Entry points** that feed the list: a neutral civilian-group member who sees us while the group "will become
-  hostile", or a non-neutral NPC with an unused declaration record (`OppList.cc:1536-1563, 1671-1677`); Eldin and the
+  hostile", or a non-neutral NPC with an unused declaration record (`NPCHasUnusedRecordWithGivenApproach`, so unlike the
+  speaker test it does not skip fact-289 records; `OppList.cc:1536-1563, 1671-1677`); Eldin and the
   museum (`:1578-1595`); `NPC_ACTION_BECOME_ENEMY` (`Interface_Dialogue.cc:1856-1880`: civilian group → side change,
   then the list); the assassins (§3.3, §6.2); civilian-group side changes (`Overhead.cc:2674-2809`); "draws first" when
   we aim at a neutral armed NPC out of combat (`Handle_UI.cc:2126-2136`, `NPCFirstDraw` `TeamTurns.cc:1737-1768`:
@@ -390,7 +391,10 @@ and a record accepted it (§4.4).
 - **Actions** (index only; `25` owns them): `ENTER_COMBAT` 25 (side change or `MakeCivHostile`, close panel, enter
   combat for the NPC's team, `:2648-2672`), `END_COMBAT` 166, `BECOME_FRIENDLY_END_COMBAT` 167 (neutral again, opponent
   counts, `ExitCombatMode` when nobody fought, `:2730-2761`), `TRIGGER_FRIEND_WITH_HOSTILE_QUOTE` 21 (now only closes
-  the panel; `TriggerFriendWithHostileQuote`, `NPC.cc:2517-2565`, has no live caller).
+  the panel). `TriggerFriendWithHostileQuote` (`NPC.cc:2517-2565`) still has two live callers: `EndAIGuysTurn`
+  (`AIMain.cc:530-546`: a non-neutral civilian-group member ending his turn-based turn runs
+  `CivilianGroupMembersChangeSidesWithinProximity` and triggers the first profile it returns) and
+  `NPC_ACTION_GET_OUT_OF_WHEELCHAIR_AND_BECOME_HOSTILE` (`Interface_Dialogue.cc:3670-3680`). (Corrected 2026-10-16.)
 - **`MakeCivHostile`** (`Overhead.cc:2591-2671`) and the civilian-group functions (`:2674-2809`) are shared with
   `ProcessImplicationsOfPCAttack` (`11` §8.4). `CivilianGroupMemberChangesSides` moves group members off our team with
   `ChangeSoldierTeam`, makes in-proximity members hostile, posts `MAKE_CIV_GROUP_HOSTILE_ON_NEXT_SECTOR_ENTRANCE` (+300
@@ -610,8 +614,9 @@ TRIGGER_NPC (declarations, DONE_*, BUYSELL) `ConverseFull` scans from record 0, 
   TURNTOWARDSPLAYER case above; else `NPCConsiderInitiatingConv` → `AI_ACTION_APPROACH_MERC` to that merc's tile; the
   six assassins: closest PC within 8 → hostile list + WAIT 5000, else go as far as possible towards him. Afterwards a
   civilian who spoke within the last 60 s does nothing (`:771-777`).
-- **`NPCConsiderInitiatingConv(npc)`** (`NPC.cc:1960-2006`): over active mercs on the FRIENDLY side, assignment <
-  ON_DUTY, currently seen by the NPC: the opinion returned by §2.4 with NPC_INITIATING_CONV (0 skips); highest wins,
+- **`NPCConsiderInitiatingConv(npc)`** (`NPC.cc:1960-2006`): over `ActiveMercs()` (the merc slots: every soldier in the
+  sector, in slot order) on the FRIENDLY side with `bAssignment` < ON_DUTY — soldiers of other teams keep assignment 0,
+  so militia qualify too (corrected 2026-10-16) — currently seen by the NPC: the opinion returned by §2.4 with NPC_INITIATING_CONV (0 skips); highest wins,
   ties go to the closer (`PythSpacesAway`). Nothing starts a conversation when the walk ends (no arrival handler for
   APPROACH_MERC, `AIMain.cc:1403`): approach-7 records only bring the NPC to the merc; the talk needs a tile record, a
   turn-towards trigger or the player (inferred from the code; whether any shipped record uses approach 7 is an oracle
@@ -889,7 +894,9 @@ finished quest back in progress, `Quests.cc:1105-1120`). Hint text: row = the re
 
 ### 8.4 Entry and box (`StartCivQuote`, `:692-758`; `BeginCivQuote`, `:315-385`)
 
-A civilian whose `bCurrentCivQuote` is 99 (he gave a hint last time) resets it to −1 and decides without hints.
+A civilian whose `bCurrentCivQuote` is 99 (he gave a hint last time) resets it to −1 and decides without hints. A line
+without text opens no box (`BeginCivQuote` returns after the text lookup), so nothing is shown and a surrender offer
+never gets its question; the entry still advances.
 Otherwise hints are allowed. For a non-hint type: if `bCurrentCivQuote == −1` → `Random(entries − 2)`, delta 0; entry =
 base + delta; after showing, delta alternates 0, 1. The base is kept when the type later changes (inferred: an entry
 past a shorter type's rows has no text and shows nothing). A hint stores 99 and the entry. The box replaces any open
@@ -910,7 +917,8 @@ started (or done with INTERROGATION not started) → set the flag, `AI_ACTION_OF
 
 - **RPC sector descriptions** (`Strategic/StrategicMap.cc:346-422`, `Tactical/Tactical_Turns.cc:20-77`): entering a
   listed sector the first time sets `SF_HAVE_USED_GUIDE_QUOTE` and a countdown `4 + Random(5)` real-time turns
-  (implemented, deviation "Guide descriptions"); the countdown is checked at sector entry and each real-time turn
+  (implemented with the civilian slice: `src/sim/campaign/narrative/guide-description.ts`); the countdown is checked at
+  sector entry and each real-time turn
   (`Tactical_Turns.cc:157`), only on the tactical screen and not while engaged in conversation; SAM sites set it to 1
   and speak at the next check even in combat, other sectors wait out combat and enemies; at 0 a recruited IRA, MIGUEL,
   CARLOS or DIMITRI standing in that sector, picked by `Random(n)`, says the description from his alternate file. No
@@ -1033,7 +1041,8 @@ queries and `observe` are accepted and nothing advances unless the queue is busy
 
 | Command | Semantics |
 |---|---|
-| `talk {soldier, target}` | `target` = a soldier id, or `{npc: profile id or name}`. Checks, first failure is the reason: tactical flow; no prompt, shop or session open (`sessionOpen`), not in a scripted sequence (`scriptedSequence`); the soldier can act (`canAct`, `10`); `noSuchTarget`; §6.1 (`notTalkable`, `targetHidden`, `targetMoving`, `talkerIsRobot`); `noLineOfSight`; `targetCollapsed`; our own merc → a bark, no AP (`refusesToTalk` for DIMITRI); beyond 4 tiles `noPath`, `notEnoughAP` (6 only) → a walk-up order, the talk starts on arrival (§6.2 step 6; failing → event `talkAborted`); within 4 `notEnoughAP`. Effects: §6.2. Result: a civilian or merc bark (`civQuote`/`mercQuote` events), or the session view after the opening step has drained (§11.6), or `pending: true` while the queue is busy |
+| `talk {soldier, target}` | `target` = a soldier id, or `{npc: profile id or name}`. Checks, first failure is the reason: tactical flow; no prompt, shop or session open (`sessionOpen`), not in a scripted sequence (`scriptedSequence`); the soldier can act (`canAct`, `10`); `noSuchTarget`; §6.1 (`notTalkable`, `targetHidden`, `targetMoving`, `talkerIsRobot`); `noLineOfSight`; `targetCollapsed`; our own merc → a bark, no AP (`refusesToTalk` for DIMITRI); beyond 4 tiles `noPath`, `notEnoughAP` (6 only) → a walk-up order, the talk starts on arrival (§6.2 step 6; failing → event `talkAborted`); within 4 `notEnoughAP`. Effects: §6.2. Result: a civilian or merc bark (`data.civQuote {soldier, quote, entry, hint, textKey} | null` and the `civQuote` event, or
+`data.bark` and `mercQuote`), or the session view after the opening step has drained (§11.6), or `pending: true` while the queue is busy |
 | `approach {kind}` | `repeat`, `friendly`, `direct`, `threaten`, `recruit`, `whoAreYou`; `buySell` (dealers: BUYSELL record or the shop session) or `give` (others: closes the session, the NPC waits 10 s). Refusals: `noConversation`, `notADealer`, `isADealer`. Runs `Converse` and drains |
 | `give {soldier, target, slot, count?}` or `{soldier, target, money, slot?}` | §4: inside a non-dealer session it closes first (the "Give" entry, `isADealer` otherwise); `slot` hands over the whole pocket or, with `count: 1`, one item of a stack; `money` splits that amount (steps of 10) off a money pocket. Checks: tactical, prompt, shop, scripted sequence, `busy`, `canAct`, `noSuchTarget`, the giver (`giverCannotGive`, `giverBusy`), the object (`needItemOrMoney`, `noSlot`, `emptySlot`, `badCount`, `badMoney`, `notEnoughMoney`), §6.1 with `give` and own mercs allowed (the alternative cursor), `robotReload`, `noPath`, `notEnoughAP` (path + 1). Walk, opcode 486, then §4.1's branches; an NPC target runs to the end of the conversation it opens (`data.outcome`), a team member is handed the item during `advance` (*implemented*, `docs/04` §6.16) |
 | `closeTalk {}` | Done (§6.5) including the once-per-conversation reset. `noConversation` |
@@ -1055,7 +1064,8 @@ queries and `observe` are accepted and nothing advances unless the queue is busy
 
 `conversationOpened {npc, profile, talker, initiatedBy: 'player'|'npc'}`, `conversationClosed {npc, by:
 'player'|'script'}`, `npcQuote {profile, soldier, quote, record?, textKey, chars}` (`record` when a record said it),
-`mercQuote` (exists) for merc lines, `civQuote {soldier, type, entry, hint, textKey}`, `npcMessage {kind, profile?,
+`mercQuote` (exists) for merc lines, `civQuote {soldier, quote, entry, hint, textKey, chars}` (`quote` is the civilian
+quote type), `surrenderOffered {soldier, prompt}`, `npcMessage {kind, profile?,
 amount?, squad?}` for the screen messages (`balanceOwed`, `needsMoney`, `paidInFull`, `stillOwed`, `recruited`,
 `teamFull`, `nowEscorted`, `noLineOfSight`, `targetCollapsed`, `noPath`, `itemPlacedOnGround`, `itemGiven`),
 `npcTookItem {npc, profile, from, item, count, status, money?}`, `npcGaveItem {npc, profile, to, item, …, dropped}`, `itemReturned {to, item, …, dropped}`, `itemGiven {soldier, target, item, …, dropped}`, `giveAborted {soldier, target, reason, dropped}` (implemented with the give slice), `npcRecruited
@@ -1203,6 +1213,25 @@ dealer branch and the GIVINGITEM conversation), the real `GivePort` and `Receive
 `docs/04` §6.16), records 8–10 of the stub NPC, and the oracle patch `0017-give-oracle.patch` with the probes `receive`,
 `give`, `npcgive` and `actionitem` (`tools/oracle/probes/give.txt`, `give-compare.ts`). Details and corrections in §4.6.
 
+*Implemented (civilian quotes, surrender, hostility and named-NPC slice, 2026-10-16, steps (h) and (i)):*
+`src/sim/narrative/civ-quotes.ts` (§8.2-§8.4: `DetermineCivQuoteEntry`, `StartCivQuote`, `BeginCivQuote` with the text keys
+of `GetCivQuoteText`, `ConsiderCivilianQuotes`; the soldier fields `bCurrentCivQuote(Delta)` and their import), `talk` to
+civilians and enemies (§6.2, `docs/04` §6.19), the hicks' night line, the surrender offer (§8.5: the condition in
+`DecideActionBlack`, `ENEMY_OFFERED_SURRENDER` with its import, `OFFER_SURRENDER` through the narrative port, the
+`surrender` prompt with `context: 'tactical'` and the capture in `BattleFlow`), `src/sim/tactical/ai/decide-named-npc.ts`
+(`DecideActionNamedNPC` and `ClosestPC`, wired into green and yellow with the 60 s pause after `ConverseFull`), the fixed
+candidate set of `NPCConsiderInitiatingConv`, `gfPauseAllAI` (`src/sim/tactical/ai/pause.ts`: temporary and manual pauses,
+the 1500 ms end, the pause and reveal of `CheckHostileOrSayQuoteList`, the temporary pause of
+`ProcessImplicationsOfPCAttack`), `EndAIGuysTurn`'s proximity rule with `TriggerFriendWithHostileQuote`, the first-sighting
+hooks (the declaration test, Joe, Elliot and Iggy with `SAID_FIRSTSEEN_QUOTE`, our mercs seeing Mike and Joey, Mike's
+greeting with the tri-state `gfMikeShouldSayHi`), `PCsNearNPC` and `PCDoesFirstAidOnNPC` on the narrative port (no
+first-aid action calls the latter yet) and the RPC sector descriptions of §8.6 (countdown in `NarrativeState.guide`, the
+alternate-file quote). Stub pack: invented civilian lines (`civilianFiles` in `stubs/npc/text.json`, 160-unit rows).
+Oracle: `patches/0020-civ-oracle.patch`, `probes/civ.txt`, `civ-compare.ts`. Corrections found on the way: green, yellow
+and black AI treat every neutral civilian as a civilian (only red adds the group test, `DecideAction.cc:650, 1086,
+1466, 2474`); a hostile NPC seeing us is listed by `NPCHasUnusedRecordWithGivenApproach`; the civilian type numbers are
+MARRIED_PC 3, ENEMY 4. Not done: the say-later merc line of §6.5 (cosmetic, deviation "Say-later merc lines").
+
 ### 13.1 Modules (SFI-SCLA headers)
 
 1. `src/content/formats/npc.ts`, `edt.ts`; `prof.ts` and `stub-profiles.ts` gain the §1.2 fields.
@@ -1288,7 +1317,9 @@ invariants (backups only for recruited RPCs; present arrays for NPCs the save ha
 Patch `0013-talk-oracle.patch` (implemented: `npcrecords`, `npcprofile`, `desire`, `consider`, `talk` without draining,
 `questdecode`; the comparer is `tools/oracle/talk-compare.ts`, the probes `probes/talk.txt`). Patch `0017-give-oracle.patch` (implemented with
 the give slice: `receive`, `give`, `npcgive`, `actionitem`; comparer `tools/oracle/give-compare.ts`, probes `probes/give.txt`, README
-"Give"). The full plan was: a headless panel (sets `gTalkPanel.ubCharNum`, `gfInTalkPanel`, the conversation
+"Give"). Patch `0020-civ-oracle.patch` (implemented with the civilian slice: `civset`, `civquote`, `namednpc`,
+`initiating`, `pcsnear`, `firstaid`, `friendhostile`, `hostilecheck`, `surrender`, `surrenderanswer`; comparer
+`tools/oracle/civ-compare.ts`, probes `probes/civ.txt`, README "Civilians"). The full plan was: a headless panel (sets `gTalkPanel.ubCharNum`, `gfInTalkPanel`, the conversation
 soldiers without faces or UI; `DeleteTalkingMenu` clears state only); a queue stepper that executes events one by one
 and logs each (`quote` finished at once, `action {npc, code, record}`, `goto`, `trigger`, `give`, `closePanel`);
 `DoMessageBox` from `StartDialogueMessageBox` and the surrender box intercepted (logged, answered by a probe command);

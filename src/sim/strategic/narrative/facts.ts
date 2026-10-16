@@ -4,7 +4,8 @@
 // @src Quests.h NUM_FACTS, MAX_QUESTS, QUESTNOTSTARTED, QUESTINPROGRESS, QUESTDONE; Boxing.h NUM_BOXERS; SaveLoadGame.cc
 // @src LoadGeneralInfo (gubBoxingMatchesWon, gubBoxersRests, gfBoxersResting, gfBoxerFought, gubCambriaMedicalObjects,
 // @src gbHospitalPriceModifier, giHospitalTempBalance, giHospitalRefund, gfPlayerTeamSawJoey, gfMikeShouldSayHi); Tactical/Soldier_Create.cc
-// @src gfProfiledEnemyAdded (not saved).
+// @src gfProfiledEnemyAdded (not saved); Overhead_Types.h fCountingDownForGuideDescription, bGuideDescriptionCountDown,
+// @src ubGuideDescriptionToUse, bGuideDescriptionSectorX, bGuideDescriptionSectorY.
 // @src See docs/25 §0, §1.1.
 
 import { u8 } from '../../../core/int.ts';
@@ -37,8 +38,17 @@ export interface NarrativeState {
   readonly hospital: HospitalAccount;
   cambriaMedicalObjects: number;
   playerTeamSawJoey: boolean;
-  mikeShouldSayHi: boolean;
+  mikeShouldSayHi: number;
   profiledEnemyAdded: boolean;
+  readonly guide: GuideDescription;
+}
+
+export interface GuideDescription {
+  counting: boolean;
+  countdown: number;
+  quote: number;
+  sectorX: number;
+  sectorY: number;
 }
 
 export interface FactHooks {
@@ -55,8 +65,9 @@ export function createNarrativeState(): NarrativeState {
     hospital: { priceModifier: 0, tempBalance: 0, refund: 0 },
     cambriaMedicalObjects: 0,
     playerTeamSawJoey: false,
-    mikeShouldSayHi: false,
+    mikeShouldSayHi: MikeGreeting.NOT_YET,
     profiledEnemyAdded: false,
+    guide: { counting: false, countdown: 0, quote: 0, sectorX: 0, sectorY: 0 },
   };
 }
 
@@ -102,6 +113,8 @@ export function importNarrative(n: NarrativeState, facts: readonly number[], que
   });
 }
 
+export const MikeGreeting = { NOT_YET: 0, PENDING: 1, DONE: 2 } as const;
+
 export interface SavedNarrativeGlobals {
   readonly boxingMatchesWon: number;
   readonly boxersRests: number;
@@ -113,7 +126,7 @@ export interface SavedNarrativeGlobals {
   readonly hospitalTempBalance: number;
   readonly hospitalRefund: number;
   readonly playerTeamSawJoey: boolean;
-  readonly mikeShouldSayHi: boolean;
+  readonly mikeShouldSayHi: number;
 }
 
 export function importNarrativeGlobals(n: NarrativeState, g: SavedNarrativeGlobals): void {

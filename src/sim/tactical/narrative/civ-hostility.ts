@@ -3,16 +3,18 @@
 // @src src/game/Tactical/Overhead.cc MakeCivHostile, SetSoldierNonNeutral, CivilianGroupMembersChangeSidesWithinProximity,
 // @src CivilianGroupMemberChangesSides, CivilianGroupChangesSides, HickCowAttacked, MilitiaChangesSides,
 // @src ProcessImplicationsOfPCAttack (civilian, militia and quest branches); OppList.cc AddToShouldBecomeHostileOrSayQuoteList,
-// @src SelectSpeakerFromHostileOrSayQuoteList, CheckHostileOrSayQuoteList (dialogue gating, hostile quote flag); Handle_Doors.cc ProcessImplicationsOfPCMessingWithDoor.
+// @src SelectSpeakerFromHostileOrSayQuoteList, CheckHostileOrSayQuoteList (dialogue gating, hostile quote flag, the AI pause and the
+// @src speaker reveal); Handle_Doors.cc ProcessImplicationsOfPCMessingWithDoor.
 // @src See docs/25 §6.2–§6.3, §8.3.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { civGroupHostility, setCivGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { Fact, Quest } from '../../strategic/narrative/fact-ids.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
+import { pauseAiTemporarily, pauseAiUntilManuallyUnpaused, unPauseAi } from '../ai/pause.ts';
 import { soldierToSoldierLos } from '../combat/positions.ts';
 import { Opp } from '../perception/opp.ts';
-import { recalculateOppCntsDueToNoLongerNeutral } from '../perception/sight.ts';
+import { handleSight, recalculateOppCntsDueToNoLongerNeutral } from '../perception/sight.ts';
 import { AlertStatus, Body, CivilianGroup, NO_PROFILE, OKLIFE, Orders, Side, type Soldier, Team } from '../soldier.ts';
 import { sectorMapOf, type TacticalState, teamMembers } from '../state.ts';
 import { checkForPotentialAddToBattleIncrement, enterCombatMode } from '../turns/turns.ts';
@@ -34,6 +36,8 @@ const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Bod
 const ProfileMiscFlag3 = { TOWN_DOESNT_CARE_ABOUT_DEATH: 0x40 } as const;
 const ProfileMiscFlag2 = { NEEDS_TO_SAY_HOSTILE_QUOTE: 0x10 } as const;
 const AGGRESSIVE_ATTITUDE = 5;
+const VISIBLE = 1;
+const SIGHT_LOOK_AND_RADIO = 3;
 
 const inSector = (t: TacticalState, sector: { readonly x: number; readonly y: number }) =>
   t.sector !== null && t.sector.x === sector.x && t.sector.y === sector.y && t.sector.z === 0;
@@ -103,10 +107,19 @@ function selectSpeaker(t: TacticalState): Soldier | null {
   return speakers.length === 0 ? null : (speakers[t.rng.int(speakers.length)] ?? null);
 }
 
+function revealSpeaker(t: TacticalState, speaker: Soldier): void {
+  if (speaker.visible === VISIBLE) return;
+  const publicOpp = t.perception.publicOpp[Team.OUR];
+  if (publicOpp) publicOpp[speaker.id] = Opp.HEARD_THIS_TURN;
+  handleSight(t, speaker, SIGHT_LOOK_AND_RADIO);
+}
+
 export function checkHostileOrSayQuoteList(t: TacticalState): void {
   if (t.hostileQuoteList.length === 0 || t.narrative.dialogueBusy()) return;
   const speaker = selectSpeaker(t);
   if (speaker) {
+    pauseAiUntilManuallyUnpaused(t);
+    revealSpeaker(t, speaker);
     t.narrative.sayHostileQuote(speaker);
     return;
   }
@@ -121,6 +134,7 @@ export function checkHostileOrSayQuoteList(t: TacticalState): void {
     )
       setCivGroupHostility(t.civGroups, group, CivGroupHostility.HOSTILE);
   }
+  unPauseAi(t);
   t.hostileQuoteList.length = 0;
   if (!t.inCombat) enterCombatMode(t, Team.CIV);
 }
@@ -234,7 +248,10 @@ export function processImplicationsOfPCAttack(t: TacticalState, attacker: Soldie
     if (target.profile === Profile.CARMEN && attacker.profile !== Profile.SLAY) target.ai.attitude = AGGRESSIVE_ATTITUDE;
     if (target.civilianGroup !== CivilianGroup.NONE && (target.team === Team.OUR || target.neutral)) {
       civilianGroupMemberChangesSides(t, target);
-      if (target.profile !== NO_PROFILE && target.life >= OKLIFE && target.visible === 1) addToShouldBecomeHostileOrSayQuoteList(t, target);
+      if (target.profile !== NO_PROFILE && target.life >= OKLIFE && target.visible === VISIBLE) {
+        pauseAiTemporarily(t);
+        addToShouldBecomeHostileOrSayQuoteList(t, target);
+      }
     } else if (target.civilianGroup !== CivilianGroup.NONE) civilianGroupMembersChangeSidesWithinProximity(t, target);
     else if (target.team === Team.OUR && !t.inCombat) return false;
   }

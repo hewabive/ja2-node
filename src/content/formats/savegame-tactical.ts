@@ -322,6 +322,13 @@ export interface TacticalStatus {
   readonly timeSinceLastOpplistDecay: number;
   readonly decayBloodLastUpdate: number;
   readonly enemyFlags: number;
+  readonly guideDescription: {
+    readonly counting: boolean;
+    readonly countdown: number;
+    readonly quote: number;
+    readonly sectorX: number;
+    readonly sectorY: number;
+  };
   readonly hasEnteredCombatModeSinceEntering: boolean;
   readonly worldSector: SectorPosition;
 }
@@ -359,7 +366,7 @@ export interface SavedNarrativeGeneralInfo {
   readonly hospitalTempBalance: number;
   readonly hospitalRefund: number;
   readonly playerTeamSawJoey: boolean;
-  readonly mikeShouldSayHi: boolean;
+  readonly mikeShouldSayHi: number;
 }
 
 export interface GeneralInfo {
@@ -485,6 +492,13 @@ export function readTacticalStatus(c: SaveCursor, stracLinuxFormat: boolean): Ta
     someoneHit: b('fSomeoneHit'),
     timeSinceLastOpplistDecay: n('uiTimeSinceLastOpplistDecay'),
     enemyFlags: n('fEnemyFlags'),
+    guideDescription: {
+      counting: b('fCountingDownForGuideDescription'),
+      countdown: n('bGuideDescriptionCountDown'),
+      quote: n('ubGuideDescriptionToUse'),
+      sectorX: n('bGuideDescriptionSectorX'),
+      sectorY: n('bGuideDescriptionSectorY'),
+    },
     hasEnteredCombatModeSinceEntering: b('fHasEnteredCombatModeSinceEntering'),
     worldSector,
   };
@@ -574,7 +588,7 @@ export function readGeneralInfo(c: SaveCursor): GeneralInfo {
       hospitalTempBalance: n('giHospitalTempBalance'),
       hospitalRefund: n('giHospitalRefund'),
       playerTeamSawJoey: n('gfPlayerTeamSawJoey') !== 0,
-      mikeShouldSayHi: n('gfMikeShouldSayHi') !== 0,
+      mikeShouldSayHi: n('gfMikeShouldSayHi'),
     },
   };
 }

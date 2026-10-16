@@ -1,6 +1,6 @@
 {
   "format": "ja2-node stub dialogue v1",
-  "note": "Invented lines for the stub NPCs, compiled by pnpm stubs into ROT-1 EDT files. Original writing for ja2-node.",
+  "note": "Invented lines for the stub NPCs and civilians, compiled by pnpm stubs into ROT-1 EDT files (civilian files with 160-unit rows). Original writing for ja2-node.",
   "files": {
     "npcdata/094.edt": [
       "You are new around here. I am Vasko, I keep an eye on the square.",
@@ -31,6 +31,100 @@
       "Spare rounds? My old pistol will thank you. I will keep them.",
       "Money for the square. It will buy seed for the gardens.",
       "Keep your pistol. I want no guns in my hands."
+    ]
+  },
+  "civilianFiles": {
+    "npcdata/civ10.edt": [
+      "Mind the potholes, nobody has fixed the road in years.",
+      "We get by. Some days better than others.",
+      "If you want work, there is none to be had here.",
+      "The well is that way. The water is warm but it is water.",
+      "My cousin keeps goats. I keep my distance from the goats.",
+      "Strangers come and go. The square stays the same.",
+      "You look tired. Everybody looks tired lately.",
+      "The market opens when the trucks come. They rarely come.",
+      "I would offer you tea, but we ran out of tea.",
+      "Do not believe what they say on the radio.",
+      "Walk carefully after dark, the dogs are not friendly.",
+      "The old church bell cracked last winter. Now it just clanks.",
+      "Everyone here knows everyone. Except you.",
+      "It rained on Tuesday. People are still talking about it.",
+      "Good day to you. Mostly good, anyway."
+    ],
+    "npcdata/civ11.edt": [
+      "Is that a real gun? Can I hold it?",
+      "My brother says he is braver than you.",
+      "I can run faster than anybody on this street!",
+      "Mama says not to talk to strangers.",
+      "Do you have any candy?",
+      "I saw a lizard as big as a cat this morning.",
+      "Are you a soldier? You do not look like a soldier.",
+      "We play football with a can. You can play too.",
+      "My dog only listens to me.",
+      "Why is your hat so funny?",
+      "I know a secret but I will not tell you.",
+      "The older kids took our ball again.",
+      "Can you climb that roof? I bet you cannot.",
+      "I am going to be a pilot one day.",
+      "Bye! Bye! Bye!"
+    ],
+    "npcdata/civ27.edt": [
+      "Paperwork, always paperwork.",
+      "Stay where you are and nobody gets hurt.",
+      "I just count the boxes, I do not want trouble.",
+      "Halt! Show me your papers. Any papers.",
+      "Somebody report this to the captain.",
+      "This post is off limits to you.",
+      "I have orders. I think I have orders.",
+      "You picked the wrong road, friend.",
+      "Do not make me call for help.",
+      "My shift ends in an hour. Wait an hour.",
+      "Step back from the fence.",
+      "You are not on my list.",
+      "Hands where I can see them.",
+      "We know who you are.",
+      "Turn around and walk away."
+    ],
+    "npcdata/civ37.edt": [
+      "Lay down your weapons. You are outnumbered.",
+      "Give up now and you will live to see tomorrow.",
+      "There are too many of us. Surrender.",
+      "Drop the guns. Nobody else has to bleed today.",
+      "Your fight is over. Throw down your arms."
+    ],
+    "npcdata/civ06.edt": [
+      "Another gun in town. That never ends well for us.",
+      "Leave us alone. We have had enough of armed men.",
+      "Whatever you are selling, nobody here is buying.",
+      "You say you help. They all said that.",
+      "Keep walking.",
+      "The last group like you took our chickens.",
+      "I have nothing to say to you.",
+      "Every time someone comes to save us, we bury someone.",
+      "Go and fight somewhere else.",
+      "My door stays shut tonight.",
+      "Trust is earned. You have earned none.",
+      "Do not drag our street into your war.",
+      "We remember faces. We will remember yours.",
+      "There is nothing left here worth fighting over.",
+      "Just go."
+    ],
+    "npcdata/civ07.edt": [
+      "My mother says you are trouble.",
+      "Go away!",
+      "I am not scared of you. Not much.",
+      "You made my sister cry.",
+      "We are not allowed to play outside anymore.",
+      "Your boots are muddy and so is your face.",
+      "I will tell on you.",
+      "Do not come near our house.",
+      "Grown-ups with guns are stupid.",
+      "I do not like you.",
+      "Leave our dog alone.",
+      "Papa hid the radio because of people like you.",
+      "You are not our friend.",
+      "Shoo!",
+      "Nobody wants you here."
     ]
   }
 }

@@ -24,6 +24,7 @@ import { MOVE_SIN_COS } from './constants.ts';
 import { DIRECTION_INCREMENT, Direction } from './directions.ts';
 import { interactWithDoorAt } from './doors/door-actions.ts';
 import { toggleDoorAt } from './doors.ts';
+import { assassinStepsCloseToPc } from './narrative/assassin-approach.ts';
 import { handleEscortArrival } from './narrative/escort-arrival.ts';
 import { findBestPath, isWater, MAX_PATH_LIST_SIZE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { addMercStructure, removeMercStructure } from './person-structure.ts';
@@ -455,6 +456,7 @@ export function handleAtNewGridNo(t: TacticalState, s: Soldier): boolean {
   }
   t.hooks.newAiSituation(t, s);
   handleEscortArrival(t, s);
+  assassinStepsCloseToPc(t, s);
   return keepMoving;
 }
 

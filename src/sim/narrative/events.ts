@@ -27,6 +27,22 @@ export interface NpcQuoteEvent extends SimEventBase {
   readonly chars: number;
 }
 
+export interface CivQuoteEvent extends SimEventBase {
+  readonly type: 'civQuote';
+  readonly soldier: number;
+  readonly quote: number;
+  readonly entry: number;
+  readonly hint: boolean;
+  readonly textKey: TextKey;
+  readonly chars: number;
+}
+
+export interface SurrenderOfferedEvent extends SimEventBase {
+  readonly type: 'surrenderOffered';
+  readonly soldier: number;
+  readonly prompt: string;
+}
+
 export interface NpcMessageEvent extends SimEventBase {
   readonly type: 'npcMessage';
   readonly kind: string;
@@ -106,6 +122,8 @@ export type NarrativeEvent =
   | ConversationOpenedEvent
   | ConversationClosedEvent
   | NpcQuoteEvent
+  | CivQuoteEvent
+  | SurrenderOfferedEvent
   | NpcMessageEvent
   | ScriptedSequenceEvent
   | TalkAbortedEvent

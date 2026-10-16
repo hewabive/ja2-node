@@ -1,0 +1,131 @@
+Civilian quote, surrender and named-NPC oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16.
+See LICENSE (SFI-SCLA). In Tactical/Civ_Quotes.cc, BeginCivQuote asks OracleCivQuoteHeadless (defined in Oracle.cc) after the
+text lookup: while a civilian probe runs it records the quote, entry and text length, remembers the civilian for the surrender
+callback and opens no box; otherwise it returns false and the box opens as before. Appends wrappers around the static
+SurrenderMessageBoxCallBack and DetermineCivQuoteEntry. In TacticalAI/DecideAction.cc the surrender condition of
+DecideActionBlack moves unchanged into the static OfferSurrenderNow, and wrappers expose it and the static DecideActionNamedNPC.
+Tactical/Overhead.cc gains accessors for gfPauseAllAI and guiPauseAllAITimer. No behaviour change. Applied by
+tools/oracle/build.sh after 0017.
+
+--- a/src/game/Tactical/Civ_Quotes.cc
++++ b/src/game/Tactical/Civ_Quotes.cc
+@@ -35,6 +35,8 @@
+ 
+ #define CIV_QUOTE_TEXT_SIZE		160
+ 
++bool OracleCivQuoteHeadless(SOLDIERTYPE* civ, UINT8 quote, UINT8 entry, size_t length);
++
+ 
+ #define DIALOGUE_DEFAULT_WIDTH		200
+ #define EXTREAMLY_LOW_TOWN_LOYALTY	20
+@@ -328,6 +330,12 @@
+ 		return;
+ 	}
+ 
++	if (OracleCivQuoteHeadless(pCiv, ubCivQuoteID, ubEntryID, zQuote.to_utf32().size()))
++	{
++		gCivQuoteData.pCiv = pCiv;
++		return;
++	}
++
+ 	ST::string gzCivQuote;
+ 	gzCivQuote = ST::format("\"{}\"", zQuote);
+ 
+@@ -777,3 +785,14 @@
+ {
+ 	f->seek(NUM_CIV_QUOTES * 2, FILE_SEEK_FROM_CURRENT);
+ }
++
++
++void OracleSurrenderAnswer(bool const yes)
++{
++	SurrenderMessageBoxCallBack(yes ? MSG_BOX_RETURN_YES : MSG_BOX_RETURN_NO);
++}
++
++UINT8 OracleDetermineCivQuoteEntry(SOLDIERTYPE* const civ, UINT8* const hint, BOOLEAN const hints)
++{
++	return DetermineCivQuoteEntry(civ, hint, hints);
++}
+--- a/src/game/TacticalAI/DecideAction.cc
++++ b/src/game/TacticalAI/DecideAction.cc
+@@ -2454,6 +2454,22 @@
+ }
+ 
+ 
++static bool OfferSurrenderNow(SOLDIERTYPE* const pSoldier)
++{
++	if ( pSoldier->bTeam == ENEMY_TEAM && pSoldier->bVisible == TRUE && !( gTacticalStatus.fEnemyFlags & ENEMY_OFFERED_SURRENDER ) && pSoldier->bLife >= pSoldier->bLifeMax / 2 )
++	{
++		if (!IsTeamActive(MILITIA_TEAM) && NumPCsInSector() < 4 && gTacticalStatus.Team[ENEMY_TEAM].bMenInSector >= NumPCsInSector() * 3)
++		{
++			if ( gubQuest[ QUEST_HELD_IN_ALMA ] == QUESTNOTSTARTED || ( gubQuest[ QUEST_HELD_IN_ALMA ] == QUESTDONE && gubQuest[ QUEST_INTERROGATION ] == QUESTNOTSTARTED ) )
++			{
++				gTacticalStatus.fEnemyFlags |= ENEMY_OFFERED_SURRENDER;
++				return true;
++			}
++		}
++	}
++	return false;
++}
++
+ static INT8 DecideActionBlack(SOLDIERTYPE* pSoldier)
+ {
+ 	INT32	iCoverPercentBetter, iOffense, iDefense, iChance;
+@@ -2638,19 +2654,9 @@
+ 
+ 	// offer surrender?
+ 
+-	if ( pSoldier->bTeam == ENEMY_TEAM && pSoldier->bVisible == TRUE && !( gTacticalStatus.fEnemyFlags & ENEMY_OFFERED_SURRENDER ) && pSoldier->bLife >= pSoldier->bLifeMax / 2 )
++	if (OfferSurrenderNow(pSoldier))
+ 	{
+-		if (!IsTeamActive(MILITIA_TEAM) && NumPCsInSector() < 4 && gTacticalStatus.Team[ENEMY_TEAM].bMenInSector >= NumPCsInSector() * 3)
+-		{
+-			//if( GetWorldDay() > STARTDAY_ALLOW_PLAYER_CAPTURE_FOR_RESCUE && !( gStrategicStatus.uiFlags & STRATEGIC_PLAYER_CAPTURED_FOR_RESCUE ) )
+-			{
+-				if ( gubQuest[ QUEST_HELD_IN_ALMA ] == QUESTNOTSTARTED || ( gubQuest[ QUEST_HELD_IN_ALMA ] == QUESTDONE && gubQuest[ QUEST_INTERROGATION ] == QUESTNOTSTARTED ) )
+-				{
+-					gTacticalStatus.fEnemyFlags |= ENEMY_OFFERED_SURRENDER;
+-					return( AI_ACTION_OFFER_SURRENDER );
+-				}
+-			}
+-		}
++		return( AI_ACTION_OFFER_SURRENDER );
+ 	}
+ 
+ 	////////////////////////////////////////////////////////////////////////////
+@@ -3871,3 +3877,13 @@
+ {
+ 	return DecideActionSchedule(s);
+ }
++
++INT8 OracleDecideActionNamedNPC(SOLDIERTYPE* const s)
++{
++	return DecideActionNamedNPC(s);
++}
++
++bool OracleOfferSurrenderNow(SOLDIERTYPE* const s)
++{
++	return OfferSurrenderNow(s);
++}
+--- a/src/game/Tactical/Overhead.cc
++++ b/src/game/Tactical/Overhead.cc
+@@ -469,6 +469,19 @@
+ }
+ 
+ 
++BOOLEAN OracleAiPause(UINT32* const timer)
++{
++	*timer = guiPauseAllAITimer;
++	return gfPauseAllAI;
++}
++
++void OracleSetAiPause(BOOLEAN const paused, UINT32 const timer)
++{
++	gfPauseAllAI      = paused;
++	guiPauseAllAITimer = timer;
++}
++
++
+ static void HandleBloodForNewGridNo(const SOLDIERTYPE* pSoldier);
+ static BOOLEAN HandleAtNewGridNo(SOLDIERTYPE* pSoldier, BOOLEAN* pfKeepMoving);
+ static void HandleCreatureTenseQuote(void);

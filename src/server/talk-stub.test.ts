@@ -5,6 +5,7 @@ import type { ConversationView } from '../protocol/view.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { questStatus } from '../sim/strategic/narrative/facts.ts';
+import { Body, NO_PROFILE, Team } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
 import { Session } from './session.ts';
@@ -28,6 +29,7 @@ const ROUTE_BUDGET = 10;
 const ROUTE_SLICE_SECONDS = 6 * 3600;
 const QUEST_IN_PROGRESS = 1;
 const QUEST_DONE = 2;
+const CIV_LOW_LOYALTY_LINES: ReadonlySet<number> = new Set([6, 7]);
 
 async function inA10(seed: number): Promise<{ session: CampaignSession; live: Session }> {
   const session = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
@@ -183,6 +185,31 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(session.view().npcRequest).toBeNull();
     expect(conversation(answered)).toMatchObject({ profile: VASKO, initiatedBy: 'npc' });
     expect(conversation(answered)?.lastQuotes.map((q) => q.quote)).toEqual([22]);
+  });
+
+  it('lets an unnamed civilian bark a civilian quote instead of opening a panel', async () => {
+    const { session, live } = await inA10(11);
+    const merc = session.view().strategic?.mercs[0]?.id ?? 0;
+    const t = session.campaign.tactical?.state;
+    const villager = t?.soldiers.find((s) => s?.placed && s.team === Team.CIV && s.profile === NO_PROFILE && s.bodyType <= Body.KIDCIV);
+    if (!t || !villager) throw new Error('no villager');
+    expect(session.dispatch({ type: 'move', soldier: merc, to: villager.gridNo + 2, mode: 'walk' }).ok).toBe(true);
+    live.advance({ idle: true });
+    session.drainEvents();
+    const started = session.dispatch({ type: 'talk', soldier: merc, target: villager.id });
+    expect(started.ok, started.reason).toBe(true);
+    let bark = (started.data as { civQuote?: { text?: string; quote: number; entry: number } | null }).civQuote;
+    let events: readonly SimEvent[] = session.drainEvents();
+    if ((started.data as { walking?: boolean }).walking) {
+      const report = live.advance({ idle: true });
+      events = report.events;
+      bark = events.find((e) => e.type === 'civQuote') as unknown as typeof bark;
+    }
+    expect(CIV_LOW_LOYALTY_LINES.has(bark?.quote ?? -1)).toBe(true);
+    expect(bark?.text?.length ?? 0).toBeGreaterThan(0);
+    expect(events.some((e) => e.type === 'civQuote')).toBe(true);
+    expect(session.view().conversation ?? null).toBeNull();
+    expect(villager.currentCivQuote).toBeGreaterThanOrEqual(0);
   });
 
   it('opens the shop of the stub dealer through the talk menu', async () => {

@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { encodeEdtFile } from '../src/content/formats/edt.ts';
+import { CIV_QUOTE_TEXT_SIZE, encodeEdtFile } from '../src/content/formats/edt.ts';
 import { encodeNpcRecords } from '../src/content/formats/npc.ts';
 import { loadItemTable } from '../src/content/items/items.ts';
 import { NPC_RECORD_PATHS, npcRecordPath, parseProfileInfo, scriptRecordsFromJson } from '../src/content/narrative/npc-records.ts';
@@ -41,6 +41,10 @@ export async function buildStubNpcData(out: string): Promise<string[]> {
   for (const [path, rows] of Object.entries(asObject(text.files, 'stub npc text.files'))) {
     const lines = asArray(rows, `stub npc text ${path}`).map((l, k) => asString(l, `stub npc text ${path}[${k}]`));
     written.push(await write(out, path, encodeEdtFile(lines)));
+  }
+  for (const [path, rows] of Object.entries(asObject(text.civilianFiles, 'stub npc text.civilianFiles'))) {
+    const lines = asArray(rows, `stub civilian text ${path}`).map((l, k) => asString(l, `stub civilian text ${path}[${k}]`));
+    written.push(await write(out, path, encodeEdtFile(lines, CIV_QUOTE_TEXT_SIZE)));
   }
   return written;
 }

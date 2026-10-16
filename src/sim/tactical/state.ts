@@ -178,6 +178,7 @@ export interface SectorHooks {
   militiaFinishBattle(t: TacticalState): boolean;
   battleLost(t: TacticalState): void;
   battleEnded(t: TacticalState, result: BattleResult): void;
+  tacticalTurnEnded(t: TacticalState): void;
 }
 
 export const NO_SECTOR_HOOKS: SectorHooks = {
@@ -190,6 +191,7 @@ export const NO_SECTOR_HOOKS: SectorHooks = {
   militiaFinishBattle: () => false,
   battleLost: () => {},
   battleEnded: () => {},
+  tacticalTurnEnded: () => {},
 };
 
 export interface TacticalState {

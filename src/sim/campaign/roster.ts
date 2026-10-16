@@ -45,6 +45,7 @@ export interface RosterMercInit {
   readonly fractLife?: number;
   readonly contract?: Partial<MercContract>;
   readonly quoteSaidFlags?: number;
+  readonly quoteSaidExtFlags?: number;
   readonly corpseQuoteTolerance?: number;
 }
 
@@ -77,6 +78,7 @@ export class RosterMerc implements CrewMember {
   offGridInSector = false;
   readonly contract: MercContract;
   quoteSaidFlags: number;
+  quoteSaidExtFlags: number;
   corpseQuoteTolerance: number;
 
   constructor(init: RosterMercInit) {
@@ -97,6 +99,7 @@ export class RosterMerc implements CrewMember {
     this.fractLife = init.fractLife ?? 0;
     this.contract = createMercContract(init.contract);
     this.quoteSaidFlags = init.quoteSaidFlags ?? 0;
+    this.quoteSaidExtFlags = init.quoteSaidExtFlags ?? 0;
     this.corpseQuoteTolerance = init.corpseQuoteTolerance ?? 0;
   }
 

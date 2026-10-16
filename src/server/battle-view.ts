@@ -94,7 +94,9 @@ export function promptView(campaign: CampaignSim): PromptView | null {
     case PromptKind.PRE_BATTLE:
       return preBattleView(campaign, prompt.id, prompt.enemiesKnown);
     case PromptKind.SURRENDER:
-      return { id: prompt.id, kind: 'surrender', choices: ['accept', 'reject'] };
+      return prompt.context === 'tactical'
+        ? { id: prompt.id, kind: 'surrender', context: 'tactical', soldier: prompt.soldier ?? -1, choices: ['accept', 'reject'] }
+        : { id: prompt.id, kind: 'surrender', context: 'autoresolve', choices: ['accept', 'reject'] };
     case PromptKind.AUTORESOLVE_DONE: {
       const canBandage = flow.canBandage();
       return {

@@ -17,16 +17,21 @@ import { MercType } from '../../content/strategic/economy-content.ts';
 import { u8 } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
+import { beginCivQuote, type CivQuoteSaid, startCivQuote } from '../narrative/civ-quotes.ts';
 import {
+  closestPC,
   converse,
   deleteTalkingMenu,
   handleTalkingMenuEscape,
   handleWaitTimerForNpcTrigger,
   initiateConversationFull,
+  npcConsiderInitiatingConv,
   npcHasUnusedHostileRecord,
   npcHasUnusedRecordWithGivenApproach,
   npcReachedDestination,
   panelSoldier,
+  pcDoesFirstAidOnNpc,
+  pcsNearNpc,
   selectEnv,
   stepDialogue,
   talkerSoldier,
@@ -36,10 +41,10 @@ import {
   triggerNpcWithGivenApproach,
   triggerNpcWithIHateYouQuote,
 } from '../narrative/converse.ts';
-import { soldierByProfile } from '../narrative/dialogue-queue.ts';
+import { soldierByProfile, tacticalCharacterDialogue } from '../narrative/dialogue-queue.ts';
 import { dealerTakesGive, giveToNpc, handleNpcItemGiven, returnItemToPlayer, takeGivenObject } from '../narrative/give.ts';
 import type { FactSource, NarrativeHost, NpcActionPort, QuestPort } from '../narrative/host.ts';
-import { ASSASSIN_PROFILES, NarrativeProfile, ProfileFlag } from '../narrative/narrative-ids.ts';
+import { ASSASSIN_PROFILES, NarrativeProfile, ProfileFlag, ProfileFlag2 } from '../narrative/narrative-ids.ts';
 import {
   isNpcOrRpc,
   isPlayerMerc,
@@ -58,12 +63,14 @@ import {
   talkableKind,
   talkableRefusal,
 } from '../narrative/talkable.ts';
-import { Assignment } from '../strategic/economy/constants.ts';
 import { dealerIdFromProfile, isMercADealer } from '../strategic/economy/merchants/context.ts';
 import { dealerState } from '../strategic/economy/merchants/state.ts';
 import { shopKind } from '../strategic/economy/merchants/view.ts';
+import { mineIdForSector, playerControlsMine } from '../strategic/economy/mine-status.ts';
 import { fatigueCharacter } from '../strategic/economy/rest.ts';
 import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
+import { townIdOfSector } from '../strategic/map/control.ts';
+import { MikeGreeting } from '../strategic/narrative/facts.ts';
 import { Npc } from '../strategic/narrative/npc-ids.ts';
 import { lockPauseState, pauseGame, unLockPauseState, unPauseGame, worldDay } from '../strategic/time/world-clock.ts';
 import { cancelAIAction } from '../tactical/ai/control.ts';
@@ -75,6 +82,7 @@ import { setEngagedInConvFromPcAction, soldierGiveItem } from '../tactical/give.
 import { InvSlot } from '../tactical/inventory.ts';
 import { directionToward, getNewSoldierPath, setSoldierPosition, stopMerc } from '../tactical/movement.ts';
 import { addToShouldBecomeHostileOrSayQuoteList } from '../tactical/narrative/civ-hostility.ts';
+import { triggerFriendWithHostileQuote } from '../tactical/narrative/npc-actions/generic.ts';
 import type { NarrativePort } from '../tactical/narrative/port.ts';
 import { findBestPath } from '../tactical/pathfinding.ts';
 import { revealRoofsAndItems } from '../tactical/perception/fov.ts';
@@ -83,7 +91,7 @@ import { deductPoints, enoughPoints } from '../tactical/points.ts';
 import { type ProfileProgress, profileProgress } from '../tactical/profiles.ts';
 import { effectiveLeadership, effectiveStrength } from '../tactical/skills.ts';
 import { NO_PROFILE, NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
-import { sectorMapOf, type TacticalState } from '../tactical/state.ts';
+import { sectorMapOf, type TacticalState, whoIsThere } from '../tactical/state.ts';
 import { selectSoldier } from '../tactical/turns/turns.ts';
 import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
 import { giveApRefusal, giveRequest, giverRefusal } from './give-flow.ts';
@@ -91,6 +99,7 @@ import { MoraleEvent } from './morale.ts';
 import type { NarrativeSlots } from './narrative/narrative-flow.ts';
 import { NpcActionFlow, type NpcActionPorts } from './narrative/npc-action-flow.ts';
 import { medicalCostAt } from './narrative/quest-world.ts';
+import { MercKind } from './roster.ts';
 
 export const AP_TALK = 6;
 const LOCK_PAUSE_ENGAGED_IN_CONV = 14;
@@ -113,6 +122,8 @@ const ATTITUDE_NORMAL = 0;
 const PLAYER_CHARACTER_MIN_PROFILE = 51;
 const PLAYER_CHARACTER_MAX_PROFILE = 56;
 const OwnMercBark = { NEGATIVE_COMPANY: 41, SOCIAL_TRAIT: 44, PASSING_DISLIKE: 45 } as const;
+const MercQuote = { AIM_SEEN_MIKE: 55, SPOTTED_JOEY: 63 } as const;
+const QUOTE_SAID_EXT_MIKE = 0x0010;
 const TALK_COMMANDS: ReadonlySet<string> = new Set(['talk', 'approach', 'closeTalk', 'give']);
 const NEEDED_ITEMS = ['HEAD_2', 'HEAD_3', 'HEAD_5', 'HEAD_6', 'HEAD_7', 'MONEY', 'SILVER', 'GOLD', 'WINE', 'BEER', 'ALCOHOL'] as const;
 
@@ -140,7 +151,6 @@ const REFUSAL_TEXT: Readonly<Record<string, string>> = {
   noLineOfSight: 'the soldier cannot see the target',
   targetCollapsed: 'the target is unconscious',
   refusesToTalk: 'he does not want to talk',
-  civilianBark: 'talking to unnamed civilians comes with a later slice',
   noPath: 'cannot get close enough',
   notEnoughAP: `not enough APs: ${AP_TALK} needed`,
   noConversation: 'no conversation is open',
@@ -207,6 +217,10 @@ const SEX_FATIGUE_STEPS = 4;
 
 const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v);
 
+function civQuoteView(said: CivQuoteSaid): Json {
+  return { soldier: said.soldier, quote: said.quote, entry: said.entry, hint: said.hint, textKey: said.textKey };
+}
+
 function rangeBetween(a: number, b: number): number {
   const dx = (a % COLS) - (b % COLS);
   const dy = Math.trunc(a / COLS) - Math.trunc(b / COLS);
@@ -221,6 +235,7 @@ export class TalkFlow {
   readonly #setup: NarrativeSetup;
   readonly #events: SimEvent[] = [];
   #scripted = false;
+  #civQuote: CivQuoteSaid | null = null;
 
   constructor(campaign: CampaignSim, setup: NarrativeSetup) {
     this.#campaign = campaign;
@@ -372,7 +387,17 @@ export class TalkFlow {
         },
         message: (m) => this.#emit({ type: 'npcMessage', kind: m.kind, profile: m.profile, amount: m.amount }),
       },
-      mercLines: { sayLater: () => {} },
+      mercLines: { sayLater: () => {}, mikeSaysHi: () => this.#mikeSaysHi() },
+      civ: {
+        townOfSector: (sector) => (campaign.economy ? townIdOfSector(campaign.economy, { x: sector.x, y: sector.y, z: 0 }) : 0),
+        townUsesLoyalty: (town) => campaign.economy?.economy.loyalty.usesLoyalty[town] === true,
+        playerControlsMineOf: (sector) => {
+          const economy = campaign.economy;
+          if (!economy) return false;
+          const mine = mineIdForSector(economy, sector);
+          return mine >= 0 && playerControlsMine(economy, mine);
+        },
+      },
       quoteLengths: setup.texts,
       tick: () => campaign.tick,
       day: () => worldDay(state.clock),
@@ -474,19 +499,7 @@ export class TalkFlow {
     this.#emit({ type: 'scriptedSequence', active: scripted });
   }
 
-  narrativePortHooks(): {
-    triggerNpcRecord(profile: number, record: number): void;
-    triggerNpcWithGivenApproach(profile: number, approach: number): void;
-    hasUnusedHostileRecord(profile: number): boolean;
-    sayHostileQuote(s: Soldier): void;
-    dialogueBusy(): boolean;
-    startTalking(s: Soldier, target: number): void;
-    npcReachedDestination(s: Soldier): void;
-    replaceLocationInNpcData(profile: number, oldGridNo: number, newGridNo: number): void;
-  } & Pick<
-    NarrativePort,
-    'isDealer' | 'dealerTakesGive' | 'receivesAsTeamMember' | 'giveToNpc' | 'triggerDoneGivingItem' | 'isNpcProfile' | 'sexEffects'
-  > {
+  narrativePortHooks(): Partial<NarrativePort> {
     const host = this.host;
     return {
       isDealer: (profile) => host.isDealer(profile),
@@ -504,6 +517,7 @@ export class TalkFlow {
         triggerNpcWithGivenApproach(host, profile, approach);
       },
       hasUnusedHostileRecord: (profile) => npcHasUnusedHostileRecord(host, profile),
+      hasUnusedRecordWithApproach: (profile, approach) => npcHasUnusedRecordWithGivenApproach(host, profile, approach),
       sayHostileQuote: (s) => {
         triggerNpcWithIHateYouQuote(host, s.profile);
       },
@@ -511,7 +525,60 @@ export class TalkFlow {
       startTalking: (s, target) => this.#startTalkingOnArrival(s, target),
       npcReachedDestination: (s) => npcReachedDestination(host, s, false),
       replaceLocationInNpcData: (profile, oldGridNo, newGridNo) => replaceLocationInNpcData(host, profile, oldGridNo, newGridNo),
+      firstSightingRecord: (profile, record) => this.#firstSightingRecord(profile, record),
+      mercSeesProfile: (merc, profile) => this.#mercSeesProfile(merc, profile),
+      beginCivQuote: (s, quote, entry) => {
+        beginCivQuote(host, s, quote, entry);
+      },
+      offerSurrender: (s) => this.#offerSurrender(s),
+      pcsNearNpc: (profile) => pcsNearNpc(host, profile),
+      pcDoesFirstAidOnNpc: (profile) => pcDoesFirstAidOnNpc(host, profile),
+      npcConsiderInitiatingConv: (s) => npcConsiderInitiatingConv(host, s),
+      triggerFriendWithHostileQuote: (profile) => triggerFriendWithHostileQuote(this.npcActions.env, profile),
     };
+  }
+
+  #firstSightingRecord(profile: number, record: number): boolean {
+    const p = this.#profile(profile);
+    if (!p || p.miscFlags2 & ProfileFlag2.SAID_FIRSTSEEN_QUOTE) return false;
+    triggerNpcRecord(this.host, profile, record);
+    p.miscFlags2 |= ProfileFlag2.SAID_FIRSTSEEN_QUOTE;
+    return true;
+  }
+
+  #mercSeesProfile(merc: Soldier, profile: number): void {
+    const n = this.#campaign.state.narrative;
+    if (profile === NarrativeProfile.MIKE) {
+      const m = this.#campaign.battle?.roster.get(merc.id);
+      if (!m || m.kind !== MercKind.AIM_MERC || m.quoteSaidExtFlags & QUOTE_SAID_EXT_MIKE) return;
+      if (n.mikeShouldSayHi === MikeGreeting.NOT_YET) n.mikeShouldSayHi = MikeGreeting.PENDING;
+      tacticalCharacterDialogue(this.host, merc, MercQuote.AIM_SEEN_MIKE);
+      m.quoteSaidExtFlags |= QUOTE_SAID_EXT_MIKE;
+      return;
+    }
+    if (n.playerTeamSawJoey) return;
+    tacticalCharacterDialogue(this.host, merc, MercQuote.SPOTTED_JOEY);
+    n.playerTeamSawJoey = true;
+  }
+
+  #mikeSaysHi(): void {
+    const n = this.#campaign.state.narrative;
+    const t = this.#t;
+    if (n.mikeShouldSayHi !== MikeGreeting.PENDING || !t) return;
+    const mike = soldierByProfile(this.host, NarrativeProfile.MIKE);
+    if (!mike) return;
+    const g = closestPC(this.host, mike);
+    const player = g === NOWHERE ? null : whoIsThere(t, g, 0);
+    if (!player) return;
+    initiateConversationFull(this.host, mike, player, Approach.NPC_INITIAL_QUOTE, 0, null, 'npc');
+    const p = this.#profile(NarrativeProfile.MIKE);
+    if (p) p.miscFlags2 |= ProfileFlag2.SAID_FIRSTSEEN_QUOTE;
+    n.mikeShouldSayHi = MikeGreeting.DONE;
+  }
+
+  #offerSurrender(s: Soldier): boolean {
+    if (!startCivQuote(this.host, s)) return false;
+    return this.#campaign.battle?.offerTacticalSurrender(s.id) ?? false;
   }
 
   narrativeSlots(): Pick<
@@ -623,10 +690,17 @@ export class TalkFlow {
       refuse('targetCollapsed');
     }
     if (target.team === Team.OUR && !this.#isEpc(target)) return this.#ownMercBark(target);
-    if (getCivType(t, target) !== CivType.NA) refuse('civilianBark');
     if (rangeBetween(merc.gridNo, target.gridNo) > NPC_TALK_RADIUS) return this.#walkUp(t, merc, target);
     if (!enoughPoints(t.inCombat, merc, AP_TALK)) refuse('notEnoughAP');
+    if (getCivType(t, target) !== CivType.NA) return this.#civilianTalk(merc, target);
     return this.#runAndReport(() => this.#playerSoldierStartTalking(merc, target, false));
+  }
+
+  #civilianTalk(merc: Soldier, target: Soldier): CommandResult {
+    this.#civQuote = null;
+    this.#playerSoldierStartTalking(merc, target, false);
+    const said = this.#civQuote as CivQuoteSaid | null;
+    return { ok: true, data: { civQuote: said ? civQuoteView(said) : null } };
   }
 
   #walkUp(t: TacticalState, merc: Soldier, target: Soldier): CommandResult {
@@ -667,11 +741,11 @@ export class TalkFlow {
     const t = this.#t;
     const target = t?.soldiers[targetId] ?? null;
     if (!t || !target) return;
-    if (!this.#playerSoldierStartTalking(merc, target, true))
-      this.#emit({ type: 'talkAborted', soldier: merc.id, reason: 'targetUnavailable' });
+    const started = this.#playerSoldierStartTalking(merc, target, true);
+    if (started === false) this.#emit({ type: 'talkAborted', soldier: merc.id, reason: 'targetUnavailable' });
   }
 
-  #playerSoldierStartTalking(merc: Soldier, target: Soldier, validate: boolean): boolean {
+  #playerSoldierStartTalking(merc: Soldier, target: Soldier, validate: boolean): boolean | 'civilian' {
     const t = this.#t;
     if (!t) return false;
     if (validate) {
@@ -684,7 +758,10 @@ export class TalkFlow {
     setDesiredDirection(t, merc, facing);
     setDesiredDirection(t, target, (facing + OPPOSITE) % DIRECTIONS);
     stopMerc(t, merc);
-    if (getCivType(t, target) !== CivType.NA) return false;
+    if (getCivType(t, target) !== CivType.NA) {
+      this.#civQuote = startCivQuote(this.host, target);
+      return 'civilian';
+    }
     if (target.profile !== NO_PROFILE && this.#campaign.battle?.roster.get(target.id)?.isEpc)
       return initiateConversationFull(this.host, target, merc, Approach.EPC_WHO_IS_RECRUITED, 0, null, 'player');
     if (!target.neutral) return initiateConversationFull(this.host, target, merc, Approach.ENEMY_NPC_QUOTE, 0, null, 'player');

@@ -117,6 +117,12 @@ import type { RealtimeClock } from '../tactical/turns/turns.ts';
 import { addItemToPool, loadWorldItemsFromMap, Visibility } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { MoraleEvent as CampaignMoraleEvent } from './morale.ts';
+import {
+  GUIDE_DESCRIPTION_COUNTDOWN_RANGE,
+  guideDescriptionFor,
+  handleRpcDescription,
+  startGuideCountdown,
+} from './narrative/guide-description.ts';
 import { campaignNarrativePort, campaignScheduleClock } from './narrative-port.ts';
 import type { Roster, RosterMerc } from './roster.ts';
 import {
@@ -175,43 +181,6 @@ const NEIGHBOURS = [
 ] as const;
 const SKIMMING_AMBUSH_FLAG = 0x10;
 const MAX_MISC_NOISE_DURATION = 12;
-const GUIDE_DESCRIPTION_COUNTDOWN_RANGE = 5;
-const SCIFI_ONLY_GUIDE_DESCRIPTION = 3;
-const GUIDE_DESCRIPTION_SECTORS: readonly (readonly [number, number])[] = [
-  [13, 2],
-  [13, 3],
-  [13, 4],
-  [13, 8],
-  [14, 8],
-  [13, 9],
-  [14, 9],
-  [8, 6],
-  [9, 6],
-  [8, 7],
-  [9, 7],
-  [6, 3],
-  [5, 3],
-  [5, 4],
-  [2, 2],
-  [2, 1],
-  [1, 7],
-  [1, 8],
-  [2, 7],
-  [2, 8],
-  [6, 9],
-  [4, 11],
-  [11, 12],
-  [12, 12],
-  [3, 15],
-  [3, 16],
-  [4, 14],
-  [3, 14],
-  [4, 15],
-  [9, 10],
-  [15, 4],
-  [2, 4],
-  [8, 9],
-];
 const COMPUTER_TEAMS = [Team.ENEMY, Team.CREATURE, Team.MILITIA] as const;
 
 const TIXA_CAVE: Sector = { x: 9, y: 10, z: 2 };
@@ -363,11 +332,13 @@ export class SectorFlow {
 
   #handleRpcDescriptionOfSector(sector: Sector, day: number): void {
     const s = this.campaign.state;
+    s.narrative.guide.counting = false;
     if (getSectorFlagStatus(s.map, sector, SectorFlag.HAVE_USED_GUIDE_QUOTE) || sector.z !== 0) return;
-    const index = GUIDE_DESCRIPTION_SECTORS.findIndex(([x, y]) => x === sector.x && y === sector.y);
-    if (index === -1 || (index === SCIFI_ONLY_GUIDE_DESCRIPTION && !s.options.sciFi)) return;
+    const quote = guideDescriptionFor(sector, s.options.sciFi);
+    if (quote === null) return;
     setSectorFlag(s.map, sector, SectorFlag.HAVE_USED_GUIDE_QUOTE, day);
-    s.rng.int(GUIDE_DESCRIPTION_COUNTDOWN_RANGE);
+    startGuideCountdown(s.narrative.guide, sector, quote, s.rng.int(GUIDE_DESCRIPTION_COUNTDOWN_RANGE));
+    handleRpcDescription(this.campaign);
   }
 
   #reenterLoadedSector(): void {
@@ -433,6 +404,7 @@ export class SectorFlow {
       militiaFinishBattle: (t) => this.campaign.battle?.militiaFinishBattle(t) ?? false,
       battleLost: (t) => this.campaign.battle?.battleLost(t),
       battleEnded: (t, result) => this.campaign.battle?.tacticalBattleEnded(t, result === 'won'),
+      tacticalTurnEnded: () => handleRpcDescription(this.campaign),
     };
   }
 

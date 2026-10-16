@@ -35,6 +35,7 @@ export type DialogueEvent =
       readonly fromSoldier: boolean;
       readonly delayed: boolean;
       readonly record: number | null;
+      readonly alternate?: boolean;
     }
   | { readonly kind: 'closePanel' }
   | { readonly kind: 'giveItem'; readonly npc: number; readonly slot: number }

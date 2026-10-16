@@ -26,6 +26,7 @@ export const NarrativeFact = {
 
 export const NarrativeProfile = {
   MIGUEL: 57,
+  CARLOS: 58,
   IRA: 59,
   DIMITRI: 60,
   ROBOT: 62,

@@ -9,7 +9,8 @@
 // @src CheckForLosingEndOfBattle (the strategic consequences), HandlePlayerTeamMemberDeath (strategic call);
 // @src Strategic/StrategicMap.cc HandlePotentialBringUpAutoresolveToFinishBattle; Strategic_Movement.cc
 // @src PlanSimultaneousGroupArrivalCallback; Queen_Command.cc EndCaptureSequence (ScheduleMeanwhileEvent INTERROGATION at
-// @src minute 10). See docs/19 §1.5, §2.16, §2.18, §3.2–§3.4, §5, docs/25 §2.1.
+// @src minute 10); Tactical/Civ_Quotes.cc ShutDownQuoteBox (the surrender box), SurrenderMessageBoxCallBack. See docs/19 §1.5,
+// @src §2.16, §2.18, §3.2–§3.4, §5, docs/25 §2.1, docs/24 §8.5.
 
 import { type Sector, sameSector, sectorFromId, sectorShortString, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import { spacesAway } from '../../content/world/grid.ts';
@@ -82,6 +83,7 @@ import {
   worldDay,
   worldTotalMinutes,
 } from '../strategic/time/world-clock.ts';
+import { actionDone } from '../tactical/ai/control.ts';
 import { handleSoldierDeath } from '../tactical/combat/death.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { healthCategory } from '../tactical/health.ts';
@@ -89,6 +91,7 @@ import { profileProgress } from '../tactical/profiles.ts';
 import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Body, NO_PROFILE, OKLIFE, Side, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers } from '../tactical/state.ts';
+import { endBattleAfterSurrender } from '../tactical/turns/turns.ts';
 import {
   type ArStrategicContext,
   associateWithStrategicGroups,
@@ -812,7 +815,43 @@ export class BattleFlow implements FateContext {
     }
   }
 
+  offerTacticalSurrender(soldier: number): boolean {
+    if (this.state.battle.prompt) return false;
+    const prompt = this.#openPrompt(PromptKind.SURRENDER, { context: 'tactical', soldier });
+    this.emit({ type: 'surrenderOffered', soldier, prompt: prompt.id });
+    return true;
+  }
+
+  #captureSurrenderedMercs(t: TacticalState): void {
+    const ours = this.roster
+      .all()
+      .filter((m) => t.soldiers[m.id] === m.soldier && m.soldier.placed && m.soldier.life !== 0)
+      .sort((a, b) => a.id - b.id);
+    beginCaptureSequence(this);
+    for (const m of ours) {
+      if (enemyCapturesPlayerSoldier(this, m, this.state.rng))
+        this.emit({ type: 'mercCaptured', soldier: m.id, sector: sectorShortString(m.sector) });
+      removeSoldierFromTacticalSector(t, m.soldier);
+    }
+    endCaptureSequence(this);
+    endBattleAfterSurrender(t);
+  }
+
+  #answerTacticalSurrender(soldier: number | undefined, choice: string): CommandResult {
+    if (choice !== 'accept' && choice !== 'reject') return { ok: false, reason: "choose 'accept' or 'reject'" };
+    this.state.battle.prompt = null;
+    const t = this.campaign.tactical?.state;
+    if (!t) return { ok: true };
+    if (choice === 'accept') this.#captureSurrenderedMercs(t);
+    const offering = soldier === undefined ? null : (t.soldiers[soldier] ?? null);
+    if (offering) actionDone(t, offering);
+    return { ok: true, data: { surrendered: choice === 'accept' } };
+  }
+
   #answerSurrender(choice: string): CommandResult {
+    const prompt = this.state.battle.prompt;
+    if (prompt?.kind === PromptKind.SURRENDER && prompt.context === 'tactical')
+      return this.#answerTacticalSurrender(prompt.soldier, choice);
     const session = this.session;
     if (!session || (choice !== 'accept' && choice !== 'reject')) return { ok: false, reason: "choose 'accept' or 'reject'" };
     this.state.battle.prompt = null;

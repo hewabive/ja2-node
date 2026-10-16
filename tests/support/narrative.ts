@@ -95,6 +95,13 @@ export interface FakeHostOptions {
   readonly draws?: readonly number[];
   readonly inCombat?: boolean;
   readonly currentTeam?: number;
+  readonly sector?: { readonly x: number; readonly y: number; readonly z: number };
+  readonly town?: number;
+  readonly townRating?: number;
+  readonly townUsesLoyalty?: boolean;
+  readonly mineControlled?: boolean;
+  readonly mercSlots?: readonly Soldier[];
+  readonly civilian?: Readonly<Record<number, NpcRecord[]>>;
 }
 
 export interface FakeHost extends NarrativeHost {
@@ -117,6 +124,7 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
     ...emptyNpcRecordContent(),
     scripts: Array.from({ length: 200 }, (_, id) => options.scripts?.[id] ?? null),
     recruited: options.recruited ?? null,
+    civilian: Array.from({ length: 20 }, (_, i) => options.civilian?.[i] ?? null),
     profileTypes: new Map(Object.entries(options.types ?? {}).map(([k, v]) => [Number(k), v])),
   };
   const profiles = new Map<number, ProfileProgress>();
@@ -135,6 +143,8 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
     inCombat: options.inCombat ?? false,
     turn: { currentTeam: options.currentTeam ?? Team.OUR },
     engagedInConv: false,
+    sector: options.sector ?? { x: 1, y: 1, z: 0 },
+    mercSlots: [...(options.mercSlots ?? soldiers)],
   } as unknown as TacticalState;
   const values = new Map<number, boolean>(Object.entries(options.facts ?? {}).map(([k, v]) => [Number(k), v]));
   const quests = new Map<number, number>(Object.entries(options.quests ?? {}).map(([k, v]) => [Number(k), v]));
@@ -187,7 +197,12 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
       addProfileCost: () => {},
       message: () => {},
     },
-    mercLines: { sayLater: () => {} },
+    mercLines: { sayLater: () => {}, mikeSaysHi: () => {} },
+    civ: {
+      townOfSector: () => options.town ?? 0,
+      townUsesLoyalty: () => options.townUsesLoyalty ?? true,
+      playerControlsMineOf: () => options.mineControlled ?? false,
+    },
     quoteLengths: { chars: options.chars ?? (() => 10) },
     tick: () => host.now,
     day: () => host.today,
@@ -200,10 +215,10 @@ export function fakeHost(options: FakeHostOptions = {}): FakeHost {
     profile: (id) => profiles.get(id) ?? null,
     setFact: (fact, value) => values.set(fact, value),
     questValue: (index) => quests.get(index) ?? 0,
-    townRating: () => 0,
+    townRating: () => options.townRating ?? 0,
     threat: () => 0,
     voice: (p) => p,
-    worldSector: () => ({ x: 1, y: 1, z: 0 }),
+    worldSector: () => options.sector ?? { x: 1, y: 1, z: 0 },
     isEpc: () => false,
     onSquad: (s) => s.team === Team.OUR,
     inMeanwhile: () => false,

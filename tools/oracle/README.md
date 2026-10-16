@@ -14,7 +14,8 @@ I.M.P. hires, Bobby Ray's orders, restocks and deliveries, life insurance), the 
 CheckFact, the 04:00 and hourly NPC handlers, the quest code of sector entry and exit, profile NPC placement), Skyrider's
 helicopter (flights, SAM fire, billing, hovering, landing, boarding and the monologues), the NPC actions (the action
 catalog, the requestor answers, the NPC system events, Kingpin's money and the hospital), the NPC schedules (posting,
-the 24-hour replay, processing and the AI's schedule steps) and giving items and money to NPCs with the quest action items.
+the 24-hour replay, processing and the AI's schedule steps), giving items and money to NPCs with the quest action items, and
+civilian quotes, the enemy surrender offer, the hostile-quote list with its AI pause and the named-NPC AI.
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -69,6 +70,9 @@ commit them.
 | `patches/0017-give-oracle.patch` | Traced `CalcMedicalCost` results in `TacticalAI/NPC.cc`, a wrapper for the static `NPCConsiderReceivingItemFromMerc`, and hooks for the conversation, shop and offer calls of `SoldierGiveItemFromAnimation` (see "Hooks") |
 | `give-compare.ts` | The give probes of `compare.ts` (`receive`, `give`, `npcgive`, `actionitem`) |
 | `probes/give.txt` | Giving items and money and the quest action items (see "Give") |
+| `patches/0020-civ-oracle.patch` | A headless switch in `BeginCivQuote`, wrappers for the static `SurrenderMessageBoxCallBack`, `DetermineCivQuoteEntry` and `DecideActionNamedNPC`, the surrender condition of `DecideActionBlack` as a function, accessors for the AI pause (see "Hooks") |
+| `civ-compare.ts` | The civilian probes of `compare.ts` (`civset`, `civquote`, `namednpc`, `initiating`, `pcsnear`, `firstaid`, `friendhostile`, `hostilecheck`, `surrender`, `surrenderanswer`) |
+| `probes/civ.txt` | Civilian quotes, the surrender offer, the hostility hooks and the named-NPC AI (see "Civilians") |
 | `creature-ai-compare.ts` | The tactical creature probes of `compare.ts` (`addsoldier`, `setsoldier`, `seen`, `decide`, `beststab`, `stab`, `creaturecall`, `smell`, `dropsmell`, `trackscent`) |
 | `probes/creature*.txt`, `probes/morale.txt` | Creature and morale probe scripts (see "Creatures", "Creature AI" and "Morale") |
 | `autoresolve-aftermath.ts` | Level 3 of `autoresolve` probes (the battle closed through ja2-node's battle flow on the imported save) and `enemycounts` |
@@ -1051,6 +1055,53 @@ Frank, Kingpin, Skyrider, an RPC, Madlab's rifles, the heads, the robot without 
 (the room scene and the museum alarm on a pressure item, a door closer, a player-owned and a remote item that the merc does not
 set off, the switch-rung Kingpin alarm that starts combat).
 
+### Civilians
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data" JA2_ORACLE_DIR=~/ja2-oracle-civ
+tools/oracle/run.sh tools/oracle/probes/civ.txt ~/ja2-oracle-civ/out/civ.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle-civ/out/civ.jsonl
+```
+
+Commands (after a `save`; soldier ids are the save's):
+```
+civset [who=<soldier> quote= delta= action= life= class= visible= quoteRecord= quoteAction= neutral= group= cower=0|1
+       dir= grid= sees=<id,…> unseen=<id,…>] [rating=<town>:<value>] [combat=0|1] [fact=<id>:<v>,…] [quest=<id>:<v>,…]
+       [listadd=<id,…>] [enemyFlags=<n>] [pause=0|1]
+        # changes the soldier (bCurrentCivQuote, its delta, bAction, life, class, visibility, the quote record and action,
+        # neutrality, civilian group, cowering, facing, position, personal opplist), a town's loyalty, INCOMBAT, facts and
+        # quests, adds to the hostile-quote list, sets fEnemyFlags or the AI pause; prints the soldier
+civquote who=<soldier>
+        # StartCivQuote with the box suppressed: the line said ([soldier, quote type, entry, text length], none without
+        # text), the soldier's quote fields before and after, CheckFact calls, draws, quests started and the record flags of
+        # the 20 civilian hint files
+namednpc who=<soldier>
+        # DecideActionNamedNPC: the action, the soldier after, the queue, facts, draws, the trigger wait, the hostile-quote
+        # list, the AI pause and the civilian state
+initiating who=<soldier>          # NPCConsiderInitiatingConv: the tile, CheckFact calls
+pcsnear npc=<profile>             # PCsNearNPC (FACT_PC_NEAR and the tile records), traced like namednpc
+firstaid npc=<profile>            # PCDoesFirstAidOnNPC: refused, the profile (BANDAGED_TODAY), traced like namednpc
+friendhostile npc=<profile>       # TriggerFriendWithHostileQuote, traced like namednpc
+hostilecheck                      # CheckHostileOrSayQuoteList with the listed soldiers' visibility and public opplist
+surrender who=<soldier>           # the surrender condition of DecideActionBlack: offered, fEnemyFlags, PCs, enemies, militia
+surrenderanswer value=yes|no who=<soldier>
+        # SurrenderMessageBoxCallBack for the civilian of the last civquote: our mercs (in sector, life, breath, assignment,
+        # sector, insertion, neutral), quests, the capture flags and count, the offering soldier's action, draws
+```
+`civ-compare.ts` imports the save, applies the same `civset` changes and runs ja2-node's code with the native draws and
+`CheckFact` results replayed: `startCivQuote` (the hint checks with profile 200 replayed, the civilian entry fed from the
+traced `Random` into the cosmetic stream), `decideActionNamedNPC`, `npcConsiderInitiatingConv`, `pcsNearNpc`,
+`pcDoesFirstAidOnNpc`, `triggerFriendWithHostileQuote`, `checkHostileOrSayQuoteList`, `offersSurrender`, and the tactical
+surrender prompt of the battle flow answered through `answer` (draws after the native ones come from a fallback stream:
+the lost battle that follows in ja2-node runs later in the original). The AI pause is compared only for `friendhostile`
+and `hostilecheck` (the native flag survives a `save`, hence `civset pause=0` after each one). On 2026-10-16 all 151
+probes matched on SaveGame02, 01, 07, 10, 08 and 09 in three native runs: 69 civilian quotes (hints with their quest,
+the low-loyalty hint drop, low and high loyalty, kids, cowering, combat, hicks, goons, factory kids, beggars, rebels,
+enemy lines, the surrender line), 12 named-NPC decisions (turning towards the player, `PCsNearNPC` within 8 tiles),
+8 conversation openers, 6 tile and 3 first-aid triggers, 2 hostile friends (one with a declaration trigger), 2
+hostile-quote checks with the speaker's pause and reveal, 7 surrender conditions, both answers (the capture of the one
+living merc) and the 40 `civset` steps.
+
 ### Helicopter
 
 ```sh
@@ -1194,6 +1245,7 @@ unlock, a lock, a wake-up and the return of a default civilian from the away slo
 | `probes/actions.txt` | NPC actions, requestor answers, NPC system events, Kingpin's money and the hospital on SaveGame01, 10 and 02 (see "NPC actions") |
 | `probes/schedules.txt` | NPC schedules on the six saves (see "Schedules") |
 | `probes/give.txt` | Giving items and money to the NPCs, dealers and mercs of SaveGame02, 01, 07 and 10, the money rules of the absent NPCs, NPC gifts and the quest action items (see "Give") |
+| `probes/civ.txt` | Civilian quotes, named-NPC decisions, tile and first-aid triggers, the hostile-quote list and the surrender offer on the six saves (see "Civilians") |
 | `probes/sectors.txt` | Edgepoints loaded and generated on eight maps, screen-space exit thresholds on both sides of every edge (A9, A10 basement), exit-grid checks in D13 and the basement, walk-off/walk-in/mirror from the centre and near the edges, class codes on the isolated maps H13 and I14, init list sorts and ten defence placements (A9, B13, C13, D13), and `OKForSectorExit` on SaveGame10, 07 (in combat) and 01 before and after moving mercs to an edge or an exit grid |
 
 All three were run on the user's Steam JA2 Gold 1.12 data: every command succeeds, and on these
@@ -1342,6 +1394,16 @@ index 0). In `Handle_Items.cc`, right before `SoldierGiveItemFromAnimation`, `In
 `OracleGiveShop` and `OracleGiveOffer`, which call the real functions unless the `give` probe runs: then they record the call,
 and the conversation opens headless (the panel globals and `ConverseFull`, as `talk` does). Regenerate it like 0002 with those
 two paths (after 0014 is applied).
+
+`patches/0020-civ-oracle.patch` (applied after 0017) changes `src/game/Tactical/Civ_Quotes.cc`,
+`src/game/TacticalAI/DecideAction.cc` and `src/game/Tactical/Overhead.cc`. In `Civ_Quotes.cc`, `BeginCivQuote` asks
+`OracleCivQuoteHeadless` (Oracle.cc) after the text lookup: during `civquote` it records the line and its UTF-32 length,
+remembers the civilian in `gCivQuoteData.pCiv` (for the surrender callback) and returns before the box; `OracleSurrenderAnswer`
+and `OracleDetermineCivQuoteEntry` wrap the static `SurrenderMessageBoxCallBack` and `DetermineCivQuoteEntry`. In
+`DecideAction.cc` the surrender condition of `DecideActionBlack` moves unchanged into the static `OfferSurrenderNow`, wrapped
+by `OracleOfferSurrenderNow`, and `OracleDecideActionNamedNPC` wraps `DecideActionNamedNPC`. `Overhead.cc` gains
+`OracleAiPause` and `OracleSetAiPause` for `gfPauseAllAI` and `guiPauseAllAITimer`. Regenerate it like 0002 with those
+three paths (after 0017 is applied).
 
 ## Notes
 

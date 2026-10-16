@@ -33,7 +33,7 @@ import { initNewSoldierAnim, states } from '../tactical/animation.ts';
 import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
 import { addToShouldBecomeHostileOrSayQuoteList } from '../tactical/narrative/civ-hostility.ts';
 import { Opp } from '../tactical/perception/opp.ts';
-import { AlertStatus, NOWHERE, OKBREATH, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
+import { AlertStatus, NOWHERE, OKBREATH, OKLIFE, Side, type Soldier, Team } from '../tactical/soldier.ts';
 import { teamMembers, whoIsThere } from '../tactical/state.ts';
 import {
   addDialogueEvent,
@@ -726,6 +726,10 @@ export function npcReachedDestination(host: NarrativeHost, s: Soldier, already: 
   triggerFirstTileRecord(host, npc, s, records, already);
 }
 
+function assignedBelowDuty(host: NarrativeHost, s: Soldier): boolean {
+  return s.team !== Team.OUR || host.onSquad(s);
+}
+
 export function npcConsiderInitiatingConv(host: NarrativeHost, npcSoldier: Soldier): number {
   const npc = npcSoldier.profile;
   const records = ensureQuoteFileLoaded(host, npc);
@@ -734,8 +738,8 @@ export function npcConsiderInitiatingConv(host: NarrativeHost, npcSoldier: Soldi
   let best = 0;
   let bestDistance = 100;
   let target: Soldier | null = null;
-  for (const m of t.soldiers) {
-    if (!m?.placed || m.side !== 0 || !host.onSquad(m)) continue;
+  for (const m of t.mercSlots) {
+    if (!m || m.side !== Side.FRIENDLY || !assignedBelowDuty(host, m)) continue;
     if (npcSoldier.oppList[m.id] !== Opp.SEEN_CURRENTLY) continue;
     const desire = npcConsiderTalking(selectEnv(host), npc, m.profile, Approach.NPC_INITIATING_CONV, 0, records).opinion;
     if (desire === 0) continue;
@@ -889,7 +893,7 @@ export function dialogueHandlers(host: NarrativeHost): DialogueHandlers {
     handleNpcGotoGridNo: (npc, gridNo, record) => handleNpcGotoGridNo(host, npc, gridNo, record),
     handleNpcDoAction: (npc, code, record) => host.actions.handleNpcDoAction(npc, code, record),
     triggerNpcRecord: (npc, record) => triggerNpcRecord(host, npc, record),
-    mikeCheck: () => {},
+    mikeCheck: () => host.mercLines.mikeSaysHi(),
     autoBandage: () => false,
   };
 }
