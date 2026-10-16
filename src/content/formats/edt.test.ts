@@ -1,0 +1,40 @@
+import { describe, expect, it } from 'vitest';
+import { CIV_QUOTE_TEXT_SIZE, DIALOGUE_SIZE, decodeEdtRow, edtRowCount, encodeEdtFile, utf32Length } from './edt.ts';
+
+function rawRow(units: readonly number[], width = DIALOGUE_SIZE): Uint8Array {
+  const out = new Uint8Array(width * 2);
+  const v = new DataView(out.buffer);
+  units.forEach((u, i) => {
+    v.setUint16(i * 2, u, true);
+  });
+  return out;
+}
+
+describe('EDT rows', () => {
+  it('subtract one from every unit above 33 and keep the others', () => {
+    expect(decodeEdtRow(rawRow([0x49, 0x21, 0x22, 0x20, 0x62]), 0)).toBe('H!! a');
+  });
+
+  it('stop at the first NUL and force the last unit to NUL', () => {
+    const full = rawRow(new Array<number>(DIALOGUE_SIZE).fill(0x42));
+    expect(decodeEdtRow(full, 0)).toBe('A'.repeat(DIALOGUE_SIZE - 1));
+    expect(decodeEdtRow(rawRow([0x42, 0, 0x42]), 0)).toBe('A');
+  });
+
+  it('address rows by width and report missing rows as null', () => {
+    const file = encodeEdtFile(['first', 'second'], CIV_QUOTE_TEXT_SIZE);
+    expect(edtRowCount(file, CIV_QUOTE_TEXT_SIZE)).toBe(2);
+    expect(decodeEdtRow(file, 1, CIV_QUOTE_TEXT_SIZE)).toBe('second');
+    expect(decodeEdtRow(file, 2, CIV_QUOTE_TEXT_SIZE)).toBeNull();
+  });
+
+  it('apply the English code point fix-ups', () => {
+    expect(decodeEdtRow(rawRow([129, 131, 136]), 0, DIALOGUE_SIZE, 'english')).toBe('Çéç');
+    expect(decodeEdtRow(rawRow([129]), 0, DIALOGUE_SIZE, 'other')).toBe('\u0080');
+  });
+
+  it('count characters as UTF-32 code points', () => {
+    expect(utf32Length('ab')).toBe(2);
+    expect(utf32Length('\u{1f600}x')).toBe(2);
+  });
+});

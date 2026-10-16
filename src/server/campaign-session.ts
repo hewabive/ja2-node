@@ -1,5 +1,6 @@
+import type { TextKey } from '../content/narrative/dialogue-text.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
-import type { PlayerView, SoldierView } from '../protocol/view.ts';
+import type { ConversationView, PlayerView, SoldierView } from '../protocol/view.ts';
 import type { WorldTimeControl } from '../sim/advance.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import type { Roster } from '../sim/campaign/roster.ts';
@@ -16,27 +17,58 @@ import type { SessionSim } from './session.ts';
 import { strategicView } from './strategic-view.ts';
 import type { WorldCache } from './world-cache.ts';
 
+export interface TextSource {
+  text(key: TextKey): string | null;
+}
+
+const NO_PROFILE = 200;
+
 function withMerchantLabels(campaign: CampaignSim, soldiers: readonly SoldierView[]): SoldierView[] {
   const shop = campaign.shop;
+  const talk = campaign.talk;
   const t = campaign.tactical?.state;
-  if (!shop || !t) return [...soldiers];
+  if ((!shop && !talk) || !t) return [...soldiers];
   return soldiers.map((v) => {
     const s = t.soldiers[v.id];
     if (!s || s.team === Team.OUR) return v;
-    const label = shop.merchantLabel(s.profile);
-    return label ? { ...v, merchant: label, profile: s.profile } : v;
+    const label = shop?.merchantLabel(s.profile) ?? null;
+    const talkable = talk?.talkableLabel(s) ?? null;
+    const profile = s.profile !== NO_PROFILE && (label || talkable) ? { profile: s.profile } : {};
+    return { ...v, ...(label ? { merchant: label } : {}), ...(talkable ? { talkable } : {}), ...profile };
   });
+}
+
+function isTextKey(value: unknown): value is TextKey {
+  if (typeof value !== 'object' || value === null) return false;
+  const k = value as Record<string, unknown>;
+  return typeof k.file === 'string' && typeof k.row === 'number' && typeof k.width === 'number';
+}
+
+function withText<T>(value: T, texts: TextSource | null): T {
+  if (!texts) return value;
+  if (Array.isArray(value)) return value.map((v) => withText(v, texts)) as T;
+  if (typeof value !== 'object' || value === null || Object.getPrototypeOf(value) !== Object.prototype) return value;
+  const o = value as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [key, v] of Object.entries(o)) out[key] = withText(v, texts);
+  if (isTextKey(o.textKey) && o.text === undefined) {
+    const text = texts.text(o.textKey);
+    if (text !== null) out.text = text;
+  }
+  return out as T;
 }
 
 export class CampaignSession implements SessionSim {
   readonly campaign: CampaignSim;
   readonly roster: Roster | null;
   readonly worlds: WorldCache | null;
+  readonly texts: TextSource | null;
 
-  constructor(campaign: CampaignSim, roster: Roster | null = null, worlds: WorldCache | null = null) {
+  constructor(campaign: CampaignSim, roster: Roster | null = null, worlds: WorldCache | null = null, texts: TextSource | null = null) {
     this.campaign = campaign;
     this.roster = roster;
     this.worlds = worlds;
+    this.texts = texts;
   }
 
   async prepare(cmd: CommandEnvelope): Promise<void> {
@@ -72,11 +104,18 @@ export class CampaignSession implements SessionSim {
   }
 
   drainEvents(): SimEvent[] {
-    return this.campaign.drainEvents();
+    return withText(this.campaign.drainEvents(), this.texts);
   }
 
   dispatch(cmd: CommandEnvelope): CommandResult {
-    return this.campaign.dispatch(cmd);
+    return withText(this.campaign.dispatch(cmd), this.texts);
+  }
+
+  #conversation(): { conversation?: ConversationView | null; scriptedSequence?: boolean } {
+    const talk = this.campaign.talk;
+    if (!talk) return {};
+    const conversation = withText(talk.view(), this.texts);
+    return { conversation, ...(talk.scriptedSequence() ? { scriptedSequence: true } : {}) };
   }
 
   view(): PlayerView {
@@ -92,7 +131,10 @@ export class CampaignSession implements SessionSim {
       : {};
     const shop = this.campaign.shop ? { shop: this.campaign.shop.view() } : {};
     const laptop = this.campaign.laptop ? { laptop: laptopView(this.campaign) } : {};
-    const extra = strategic ? { clock, strategic, ...battle, ...shop, ...laptop } : { clock, ...battle, ...shop, ...laptop };
+    const talk = this.#conversation();
+    const extra = strategic
+      ? { clock, strategic, ...battle, ...shop, ...laptop, ...talk }
+      : { clock, ...battle, ...shop, ...laptop, ...talk };
     const tactical = this.campaign.tactical;
     if (!tactical) return { tick: this.tick, mapPath: null, soldiers: [], ...extra };
     const view = tacticalPlayerView(tactical, this.tick);

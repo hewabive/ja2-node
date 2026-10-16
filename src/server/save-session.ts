@@ -2,8 +2,10 @@ import { parseSaveGame, type SaveGame } from '../content/formats/savegame.ts';
 import { readSavedEconomy, readSoldierAssignments } from '../content/formats/savegame-economy.ts';
 import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../content/formats/savegame-header.ts';
 import { readSavedMerchants } from '../content/formats/savegame-merchants.ts';
+import { readSavedNpcRecords } from '../content/formats/savegame-npc.ts';
 import { readStrategicAiSections } from '../content/formats/savegame-strategic-ai.ts';
 import { decodePreservedSoldierLinks, type PreservedSoldierLink } from '../content/formats/savegame-temp-files.ts';
+import type { LayerCount } from '../content/narrative/npc-records.ts';
 import { loadArmyContent } from '../content/strategic/army.ts';
 import { loadEconomyContent } from '../content/strategic/economy-content.ts';
 import { dialogueProfiles, loadLaptopContent } from '../content/strategic/laptop-content.ts';
@@ -16,6 +18,7 @@ import { importContracts } from '../sim/campaign/contracts/save-import.ts';
 import { importLaptop } from '../sim/campaign/laptop/save-import.ts';
 import { NO_ROSTER_HOOKS, Roster } from '../sim/campaign/roster.ts';
 import { addSavedMercsToRoster } from '../sim/campaign/save-roster.ts';
+import { importNpcRecords } from '../sim/narrative/save-import.ts';
 import { importStrategicAi } from '../sim/strategic/ai/save-import.ts';
 import { importMerchants } from '../sim/strategic/economy/merchants/save-import.ts';
 import { applySavedAssignment, importEconomy } from '../sim/strategic/economy/save-import.ts';
@@ -28,6 +31,7 @@ import { removeSoldierFromTacticalSector } from '../sim/tactical/sector-presence
 import { TEAM_FIRST_ID, TEAM_SIZES, Team } from '../sim/tactical/soldier.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { CampaignSession } from './campaign-session.ts';
+import { narrativeSetup } from './narrative-content.ts';
 import { type FileExists, WorldCache } from './world-cache.ts';
 
 const DEFAULT_SEED = 1;
@@ -68,6 +72,7 @@ export async function createSaveSession(
   saveBytes: Uint8Array,
   seed = DEFAULT_SEED,
   exists: FileExists | null = null,
+  layers?: LayerCount,
 ): Promise<SaveSession> {
   const table = await read(SAVE_ENCRYPTION_PATH);
   if (!table) throw new Error(`missing ${SAVE_ENCRYPTION_PATH}`);
@@ -82,6 +87,7 @@ export async function createSaveSession(
   const economyContent = await loadEconomyContent(read, strategicContent.towns);
   const merchantContent = await loadMerchantContent(read, content.items);
   const laptopContent = await loadLaptopContent(read, content.items);
+  const narrative = await narrativeSetup(read, content.items, content.profiles, layers);
   const sim = new TacticalSim(worldWithSavedDoors(world, save), content, seed);
   const report = importSave(sim, save);
   const strategic = createStrategicState({
@@ -117,6 +123,7 @@ export async function createSaveSession(
       merchants: merchantContent,
       dialogueProfiles: dialogueProfiles(exists ?? (() => false), economyContent.mercTypes, laptopContent),
     },
+    narrative,
   });
   current = campaign;
   importMerchants(strategic.merchants, readSavedMerchants(saveBytes, save.sections));
@@ -136,6 +143,11 @@ export async function createSaveSession(
     const merc = roster.get(saved.id);
     if (merc) applySavedAssignment(merc, saved);
   }
+  if (campaign.talk) {
+    const version = save.header.version;
+    const records = readSavedNpcRecords(saveBytes, save.sections, version);
+    importNpcRecords(campaign.talk.host, records, version, strategic.worldSector, (p) => strategic.profiles.get(p)?.sector ?? null);
+  }
   campaign.sectors?.adoptLoadedSector(savedSoldierLinks(save));
-  return { session: new CampaignSession(campaign, roster, worlds), report };
+  return { session: new CampaignSession(campaign, roster, worlds, narrative.texts), report };
 }

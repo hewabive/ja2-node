@@ -188,7 +188,7 @@ export function turnBasedHandleNPCAI(t: TacticalState, s: Soldier, control: AiCo
   } else if (s.absoluteFinalDestination !== NOWHERE) {
     ai.action = AiAction.WALK;
     ai.actionData = s.absoluteFinalDestination;
-  } else ai.action = actions.decide(t, s);
+  } else if (!t.engagedInConv) ai.action = actions.decide(t, s);
   if (ai.action === AiAction.ABSOLUTELY_NONE) ai.action = AiAction.NONE;
   if (ai.action === AiAction.NONE) {
     endAIGuysTurn(t, s, control);

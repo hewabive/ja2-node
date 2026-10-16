@@ -25,6 +25,10 @@ export interface NarrativePort {
   firstSightingRecord(profile: number, record: number): boolean;
   profileDied(profile: number, killer: Soldier | null): void;
   setUpHelicopterForPlayer(sector: SectorRef): void;
+  dialogueBusy(): boolean;
+  startTalking(s: Soldier, target: number): void;
+  npcReachedDestination(s: Soldier): void;
+  replaceLocationInNpcData(profile: number, oldGridNo: number, newGridNo: number): void;
 }
 
 export const QuestStatus = { NOT_STARTED: 0, IN_PROGRESS: 1, DONE: 2 } as const;
@@ -49,4 +53,8 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   firstSightingRecord: () => false,
   profileDied: () => {},
   setUpHelicopterForPlayer: () => {},
+  dialogueBusy: () => false,
+  startTalking: () => {},
+  npcReachedDestination: () => {},
+  replaceLocationInNpcData: () => {},
 };

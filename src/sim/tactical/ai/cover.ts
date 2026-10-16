@@ -48,7 +48,7 @@ import {
 } from './morale.ts';
 import { plotPathCost } from './utils.ts';
 
-export const QuoteAction = { NONE: 0, TRAVERSE_EAST: 5, TRAVERSE_SOUTH: 6, TRAVERSE_WEST: 7, TRAVERSE_NORTH: 8 } as const;
+export const QuoteAction = { NONE: 0, CHECKFORDEST: 1, TRAVERSE_EAST: 5, TRAVERSE_SOUTH: 6, TRAVERSE_WEST: 7, TRAVERSE_NORTH: 8 } as const;
 
 const DIFF_MAX_COVER_RANGE = [4, 6, 8, 10, 13];
 const MAX_THREAT_RANGE = 400;

@@ -308,6 +308,8 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.weightCarriedAtTurnStart = m.weightCarriedAtTurnStart;
   s.stealthMode = r.stealthMode !== 0;
   s.hasKeys = r.hasKeys !== 0;
+  s.quoteRecord = r.quoteRecord;
+  s.quoteActionId = r.quoteActionId;
   s.collapsed = r.collapsed !== 0;
   s.breathCollapsed = r.breathCollapsed !== 0;
   s.collapsedTurns = r.turnsCollapsed;

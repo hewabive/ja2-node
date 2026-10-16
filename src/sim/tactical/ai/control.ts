@@ -6,7 +6,7 @@
 // @src TurnBasedHandleNPCAI and Realtime.cc RTDecideAction, RTHandleAI. See docs/09 §1, docs/13 §14.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
-import { newGridNo, pythSpacesAway, WORLD_MAX } from '../../../content/world/grid.ts';
+import { newGridNo, pythSpacesAway, spacesAway, WORLD_MAX } from '../../../content/world/grid.ts';
 import { anim } from '../anim-states.ts';
 import {
   AnimHeight,
@@ -43,7 +43,7 @@ import {
 } from './actions.ts';
 import { loadWeaponIfNeeded } from './attack-choice.ts';
 import { type CombatDeciderHooks, decideActionBlack, decideActionRed, decideActionYellow } from './combat-decide.ts';
-import { findNearestUngassedLand, isTraversalQuoteAction, traversalDirection } from './cover.ts';
+import { findNearestUngassedLand, isTraversalQuoteAction, QuoteAction, traversalDirection } from './cover.ts';
 import { creatureCall, creatureDecideAction, crowDecideAction, decidesAsCreature, isCrow } from './creature-decide.ts';
 import {
   type AiHooks,
@@ -62,6 +62,8 @@ import { recalculatePathCost } from './utils.ts';
 
 const OFF_MAP_CURSOR = 0xffff;
 const MAX_DISTANCE_VISIBLE = 26;
+const CLOSE_ENOUGH_TILES = 4;
+const NPC_ARRIVAL_WAIT_MS = 500;
 
 export interface AiControl {
   readonly hooks: AiHooks;
@@ -454,7 +456,7 @@ function rtHandleAI(t: TacticalState, s: Soldier, control: AiControl): void {
     } else if (s.absoluteFinalDestination !== NOWHERE) {
       ai.action = AiAction.WALK;
       ai.actionData = s.absoluteFinalDestination;
-    } else {
+    } else if (!t.engagedInConv) {
       ai.action = decideNpcAction(t, s, control);
     }
     if (ai.action === AiAction.NONE) {
@@ -492,6 +494,17 @@ function triesToContinueAlongPath(t: TacticalState, s: Soldier): void {
     newDest(t, s, next);
     ai.actionInProgress = true;
   } else cancelAIAction(t, s);
+}
+
+function reachedRecordDestination(t: TacticalState, s: Soldier): boolean {
+  if (spacesAway(s.gridNo, s.absoluteFinalDestination) < CLOSE_ENOUGH_TILES) {
+    if (s.absoluteFinalDestination !== s.gridNo) t.narrative.replaceLocationInNpcData(s.profile, s.absoluteFinalDestination, s.gridNo);
+    s.absoluteFinalDestination = s.gridNo;
+    s.ai.actionData = s.gridNo;
+  }
+  if (s.absoluteFinalDestination !== s.gridNo) return false;
+  s.absoluteFinalDestination = NOWHERE;
+  return true;
 }
 
 function handleAITacticalTraversal(t: TacticalState, s: Soldier, control: AiControl): void {
@@ -554,7 +567,18 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
   }
   if (ai.action >= FIRST_MOVEMENT_ACTION && ai.action <= LAST_MOVEMENT_ACTION && !s.delayedMovement) {
     if (s.pathIndex === s.pathSize) {
-      if (s.absoluteFinalDestination === NOWHERE && isTraversalQuoteAction(s.quoteActionId)) {
+      if (s.absoluteFinalDestination !== NOWHERE) {
+        if (reachedRecordDestination(t, s)) {
+          if (s.quoteRecord !== 0 && s.quoteActionId === QuoteAction.CHECKFORDEST) {
+            t.narrative.npcReachedDestination(s);
+            ai.nextAction = AiAction.WAIT;
+            ai.nextActionData = NPC_ARRIVAL_WAIT_MS;
+          } else if (isTraversalQuoteAction(s.quoteActionId)) {
+            handleAITacticalTraversal(t, s, control);
+            return;
+          }
+        }
+      } else if (isTraversalQuoteAction(s.quoteActionId)) {
         handleAITacticalTraversal(t, s, control);
         return;
       }

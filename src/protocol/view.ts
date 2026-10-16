@@ -28,6 +28,7 @@ export interface SoldierView {
   readonly keys?: readonly KeyView[];
   readonly merchant?: string;
   readonly profile?: number;
+  readonly talkable?: string;
 }
 
 export interface ItemView {
@@ -453,6 +454,30 @@ export interface LaptopView {
   readonly landingZone: string;
 }
 
+export interface TextKeyView {
+  readonly file: string;
+  readonly row: number;
+  readonly width: number;
+}
+
+export interface ConversationLineView {
+  readonly profile: number;
+  readonly quote: number;
+  readonly record?: number;
+  readonly textKey: TextKeyView;
+  readonly text?: string;
+}
+
+export interface ConversationView {
+  readonly npc: number | null;
+  readonly profile: number;
+  readonly name: string;
+  readonly talker: number | null;
+  readonly initiatedBy: 'player' | 'npc';
+  readonly menu: readonly string[];
+  readonly lastQuotes: readonly ConversationLineView[];
+}
+
 export interface PlayerView {
   readonly tick: number;
   readonly mapPath: string | null;
@@ -463,6 +488,8 @@ export interface PlayerView {
   readonly autoresolve?: AutoresolveView | null;
   readonly shop?: ShopView | null;
   readonly laptop?: LaptopView | null;
+  readonly conversation?: ConversationView | null;
+  readonly scriptedSequence?: boolean;
   readonly soldiers: readonly SoldierView[];
   readonly openDoors?: readonly number[];
   readonly doors?: readonly DoorView[];
@@ -483,6 +510,8 @@ export interface ViewFrame {
   readonly autoresolve?: AutoresolveView | null;
   readonly shop?: ShopView | null;
   readonly laptop?: LaptopView | null;
+  readonly conversation?: ConversationView | null;
+  readonly scriptedSequence?: boolean;
   readonly openDoors?: readonly number[];
   readonly doors?: readonly DoorView[];
   readonly combat?: CombatView | null;
@@ -537,6 +566,10 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), shop: next.shop ?? null };
   if (JSON.stringify(previous.laptop ?? null) !== JSON.stringify(next.laptop ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), laptop: next.laptop ?? null };
+  if (JSON.stringify(previous.conversation ?? null) !== JSON.stringify(next.conversation ?? null))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), conversation: next.conversation ?? null };
+  if ((previous.scriptedSequence ?? false) !== (next.scriptedSequence ?? false))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), scriptedSequence: next.scriptedSequence ?? false };
   return frame;
 }
 
@@ -562,6 +595,7 @@ function sameSoldier(a: SoldierView, b: SoldierView): boolean {
     a.breath === b.breath &&
     a.merchant === b.merchant &&
     a.profile === b.profile &&
+    a.talkable === b.talkable &&
     JSON.stringify(a.keys ?? []) === JSON.stringify(b.keys ?? []) &&
     sameInventory(a.inventory, b.inventory)
   );

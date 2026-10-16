@@ -48,6 +48,9 @@ commit them.
 | `patches/0011-doors-oracle.patch` | A wrapper for the static start-of-menu trap check and an accessor for the hostile-quote list (see "Hooks") |
 | `doors-compare.ts` | The door and civilian-group probes of `compare.ts` (`locks`, `door`, `doormenu`, `civgroups`, `makecivhostile`, `pcattack`, `hostilelist`) |
 | `probes/doors.txt` | Door, lock, trap and civilian-group probe script (see "Doors") |
+| `patches/0013-talk-oracle.patch` | Fact and dialogue-event traces in `TacticalAI/NPC.cc` and wrappers for its static helpers (see "Hooks") |
+| `talk-compare.ts` | The NPC dialogue probes of `compare.ts` (`npcrecords`, `npcprofile`, `desire`, `consider`, `talk`, `questdecode`) |
+| `probes/talk.txt` | NPC dialogue probe script (see "Talk") |
 | `patches/0014-heli-oracle.patch` | Silent Skyrider dialogue with recorded quote numbers, immediate monologue events and wrappers for the static helicopter helpers (see "Hooks") |
 | `heli-compare.ts` | The helicopter probes of `compare.ts` (`heli`, `heliset`, `helisetup`, `heliboard`, `helileave`, `heliroute`, `helicancel`, `heliwarp`, `helimonologue`, `helipaydebt`, `helireturn`) |
 | `probes/heli.txt` | Helicopter probe script (see "Helicopter") |
@@ -927,6 +930,37 @@ examining, untrapping (success, explosion and silent alarm sprung), keys from th
 key, locking, shaped charges (damaged, destroyed), opening and closing a lockless door, and the civilian-group probes
 (MakeCivHostile keeps the side, the rebels' proximity rule with the 300-minute event, a group already at 2).
 
+### Talk
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data" JA2_ORACLE_DIR=~/ja2-oracle-talk
+tools/oracle/run.sh tools/oracle/probes/talk.txt ~/ja2-oracle-talk/out/talk.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle-talk/out/talk.jsonl
+```
+
+Commands (after a `save`; `merc` is a soldier id of the save, its profile is the talker):
+```
+npcrecords [profile=<id>]                 # gpNPCQuoteInfoArray and the backups (19 numbers per record), the civilian arrays
+npcprofile profile=<id>                   # the NPC fields of the profile (approach factors, values and mods, bits, dates, flags)
+desire npc=<id> merc=<id> approach=<a>    # CalcDesireToTalk and CalcThreateningEffectiveness
+consider npc= merc= approach= [record=]   # NPCConsiderTalking: opinion, record index (-1 none, -2 no array), the CheckFact
+                                          # calls with their results, the profile before and after
+talk npc= [merc=] approach= [record=] [panel=0]  # a headless panel (gfInTalkPanel, gTalkPanel.ubCharNum, gpSrcSoldier,
+                                          # gpDestSoldier, gubSrcSoldierProfile) and ConverseFull without draining: the queued
+                                          # events (quote, action, goto, trigger, close, give, merc), the CheckFact calls,
+                                          # the draws, changed facts and quests, the SAID flags, ENGAGED_IN_CONV and the
+                                          # reference count; the queue is emptied and the panel state reset afterwards
+questdecode                               # &gubFact - &gubQuest and NPCConsiderQuote for quest values 100 and 200 with fact 70
+```
+Approaches: `friendly`, `direct`, `threaten`, `recruit`, `repeat`, `initial`, `whoareyou`, `trigger`, `buysell`, `initiating`,
+`givingitem`, `declaration`, `enemy`, `notsafe`. `talk-compare.ts` imports the save into a campaign session with NPC records,
+replays the native `CheckFact` results in order (a different call order is a mismatch; the values are written into the fact
+store, as the native computed facts are) and the `Random` draws, runs `converseFull` on the same headless panel and compares
+the queue, facts, quests, flags, the engaged state and the profile. On 2026-10-16 all 313 probes matched on SaveGame02, 01, 07
+and 10 (Herve, Doreen, Waldo, Pablo, Peter, Fred: records and backups after the load, 32 desires, 64 considerations, 184
+conversation steps with defaults, get-lost, triggers and the friendly draw); `questdecode` gave an offset of -512 and 0 for
+every quest-100/200 read.
+
 ### Helicopter
 
 ```sh
@@ -992,6 +1026,7 @@ monologues with their SAM reveals.
 | `probes/contracts.txt` | Contracts and relationships on SaveGame01, 02, 09, 10 and 07 (see "Contracts") |
 | `probes/laptop.txt` | Three seeded new games, the arrival table, and laptop commands on SaveGame01, 07 and 10 (see "Laptop") |
 | `probes/doors.txt` | Doors, locks, traps and civilian groups on SaveGame09 (see "Doors") |
+| `probes/talk.txt` | NPC records, profiles, desires, record choice and conversation steps for the NPCs present in SaveGame02, 01, 07 and 10 (see "Talk") |
 | `probes/heli.txt` | Skyrider's helicopter on SaveGame01, 02 and 10 (see "Helicopter") |
 | `probes/sectors.txt` | Edgepoints loaded and generated on eight maps, screen-space exit thresholds on both sides of every edge (A9, A10 basement), exit-grid checks in D13 and the basement, walk-off/walk-in/mirror from the centre and near the edges, class codes on the isolated maps H13 and I14, init list sorts and ten defence placements (A9, B13, C13, D13), and `OKForSectorExit` on SaveGame10, 07 (in combat) and 01 before and after moving mercs to an edge or an exit grid |
 
@@ -1096,6 +1131,14 @@ like 0002 with the nine paths of the patch.
 `OracleDoTrapCheckOnStartingMenu`, a wrapper around the static `DoTrapCheckOnStartingMenu`; to `src/game/Tactical/OppList.cc`
 `OracleHostileQuoteList`, which copies the ids of the static hostile-quote list (plus `#include <vector>`). Regenerate it
 like 0002 with those two paths.
+
+`patches/0013-talk-oracle.patch` (applied after 0011) touches `src/game/TacticalAI/NPC.cc` only: after the includes,
+`CheckFact` is redirected to `OracleTracedCheckFact` and `TalkingMenuDialogue`, `NPCDoAction`, `NPCGotoGridNo` and
+`TacticalCharacterDialogue` are wrapped by macros that first call `OracleDialogueTrace`; `NPCClosePanel`, `TalkingMenuGiveItem`
+and `NPCTriggerNPC` get the same macro right after their definitions. Both trace functions live in `Oracle.cc` and record only
+while a probe sets a trace (top-level `CheckFact` calls only). Appended: `OracleNPCConsiderTalking`,
+`OracleCalcThreateningEffectiveness`, `OracleNPCConsiderQuote` and accessors for the record arrays. Regenerate it like 0002
+with that path.
 
 `patches/0014-heli-oracle.patch` (applied after 0013) changes `src/game/Strategic/Map_Screen_Helicopter.cc` and
 `src/game/Strategic/MapScreen.cc`. With `gOracleSkyriderSilent` set, `SkyriderDialogue` appends the quote number to

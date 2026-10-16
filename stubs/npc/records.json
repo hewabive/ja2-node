@@ -1,0 +1,56 @@
+{
+  "format": "ja2-node stub NPC records v1",
+  "note": "Invented quote records for the stub pack, in the field names of Stracciatella's script record JSON. Compiled by pnpm stubs into npcdata/*.npc. Nothing here comes from the game's data files.",
+  "scripts": [
+    {
+      "profile": 94,
+      "records": [
+        { "index": 0, "requiredApproach": "INITIAL_QUOTE", "quoteNum": 10, "numQuotes": 2, "eraseOnceSaid": true },
+        { "index": 1, "requiredApproach": "SPECIAL_INITIAL_QUOTE", "factMustBeTrue": 132, "firstDay": 254, "quoteNum": 12, "numQuotes": 1 },
+        { "index": 2, "requiredApproach": "FRIENDLY", "requiredOpinion": 25, "quoteNum": 13, "numQuotes": 1, "sayOncePerConvo": true },
+        {
+          "index": 3,
+          "requiredApproach": "DIRECT",
+          "quoteNum": 14,
+          "numQuotes": 2,
+          "setFactTrue": 132,
+          "startQuest": "FIND_HERMIT",
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 4,
+          "requiredApproach": "FRIENDLY",
+          "quest": { "name": "FIND_HERMIT", "status": "INPROGRESS" },
+          "quoteNum": 16,
+          "numQuotes": 1,
+          "triggerSelf": true,
+          "triggerRecord": 5,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 5,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 17,
+          "numQuotes": 1,
+          "goToGridno": 11755,
+          "userInterface": "TURN_UI_OFF",
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 6,
+          "requiredApproach": "TRIGGER_NPC",
+          "requiredGridNo": 11755,
+          "quoteNum": 18,
+          "numQuotes": 1,
+          "userInterface": "TURN_UI_ON",
+          "endQuest": "FIND_HERMIT",
+          "eraseOnceSaid": true
+        },
+        { "index": 7, "requiredApproach": "THREATEN", "quoteNum": 19, "numQuotes": 1, "actionData": { "code": 24 } }
+      ]
+    }
+  ],
+  "recruited": {
+    "records": [{ "index": 0, "requiredApproach": "TRIGGER_NPC", "lastDay": 255 }]
+  }
+}

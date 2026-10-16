@@ -1,0 +1,699 @@
+// Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
+// Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
+// @src src/game/Tactical/Handle_UI.cc HandleTalkInit, GetRangeFromGridNoDiff; Soldier_Control.cc PlayerSoldierStartTalking;
+// @src Interface_Dialogue.cc TalkPanelClickCallback, TalkPanelNameRegionClickCallback, HandleTalkingMenuEscape (the talk
+// @src panel as a modal session); Dialogue_Control.cc HandleDialogue (ENGAGED_IN_CONV pause lock, LOCK_PAUSE_ENGAGED_IN_CONV);
+// @src GameScreen.cc (HandleWaitTimerForNPCTrigger before, HandleDialogue after ExecuteOverhead); Soldier_Tile.cc
+// @src TeleportSoldier; Scheduling.cc BumpAnyExistingMerc. See docs/24 §6, §11, docs/04 §6.12.
+
+import type { MercProfile } from '../../content/formats/prof.ts';
+import { ItemClass, type ItemTable, WEAPON_CLASSES, WeaponClass } from '../../content/items/items.ts';
+import type { QuoteLengths } from '../../content/narrative/dialogue-text.ts';
+import { Approach, NPC_TALK_RADIUS } from '../../content/narrative/npc-constants.ts';
+import type { NpcRecordContent } from '../../content/narrative/npc-records.ts';
+import { u8 } from '../../core/int.ts';
+import type { CommandResult } from '../command.ts';
+import type { SimEvent } from '../events.ts';
+import {
+  closestPC,
+  converse,
+  deleteTalkingMenu,
+  handleTalkingMenuEscape,
+  handleWaitTimerForNpcTrigger,
+  initiateConversationFull,
+  npcHasUnusedHostileRecord,
+  npcReachedDestination,
+  panelSoldier,
+  stepDialogue,
+  talkerSoldier,
+  talkMenuBuySell,
+  talkMenuGive,
+  triggerNpcRecord,
+  triggerNpcWithIHateYouQuote,
+} from '../narrative/converse.ts';
+import { soldierByProfile } from '../narrative/dialogue-queue.ts';
+import type { FactSource, NarrativeHost, NpcActionPort, QuestPort } from '../narrative/host.ts';
+import { ASSASSIN_PROFILES, NarrativeProfile, ProfileFlag } from '../narrative/narrative-ids.ts';
+import { isNpcOrRpc, replaceLocationInNpcData } from '../narrative/records.ts';
+import { calcThreateningEffectiveness } from '../narrative/select.ts';
+import { createTalkState, dialogueIdle, type SpokenLine, type TalkState } from '../narrative/talk-state.ts';
+import { CivType, getCivType, type TalkableKind, type TalkableRules, talkableKind, talkableRefusal } from '../narrative/talkable.ts';
+import { isMercADealer } from '../strategic/economy/merchants/context.ts';
+import { shopKind } from '../strategic/economy/merchants/view.ts';
+import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
+import { lockPauseState, pauseGame, unLockPauseState, unPauseGame, worldDay } from '../strategic/time/world-clock.ts';
+import { cancelAIAction } from '../tactical/ai/control.ts';
+import { setDesiredDirection } from '../tactical/animation.ts';
+import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
+import { soldierTo3DLocationLos } from '../tactical/combat/positions.ts';
+import { findGridNoFromSweetSpot } from '../tactical/creation.ts';
+import { InvSlot } from '../tactical/inventory.ts';
+import { directionToward, getNewSoldierPath, setSoldierPosition, stopMerc } from '../tactical/movement.ts';
+import { addToShouldBecomeHostileOrSayQuoteList } from '../tactical/narrative/civ-hostility.ts';
+import { findBestPath } from '../tactical/pathfinding.ts';
+import { revealRoofsAndItems } from '../tactical/perception/fov.ts';
+import { distanceVisible, handleSight } from '../tactical/perception/sight.ts';
+import { deductPoints, enoughPoints } from '../tactical/points.ts';
+import { type ProfileProgress, profileProgress } from '../tactical/profiles.ts';
+import { effectiveLeadership, effectiveStrength } from '../tactical/skills.ts';
+import { NO_PROFILE, NOWHERE, type Soldier, Team } from '../tactical/soldier.ts';
+import { sectorMapOf, type TacticalState } from '../tactical/state.ts';
+import { selectSoldier } from '../tactical/turns/turns.ts';
+import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
+import { setFact } from './narrative/facts.ts';
+import { genericActionPort, statusOnlyQuestPort, storedFactSource } from './narrative/narrative-ports.ts';
+
+export const AP_TALK = 6;
+const LOCK_PAUSE_ENGAGED_IN_CONV = 14;
+const TALK_LOS_CUBE_LEVEL = 3;
+const DIRECTION_IRRELEVANT = -1;
+const OPPOSITE = 4;
+const DIRECTIONS = 8;
+const COLS = 160;
+const SWEET_SPOT_RADIUS = NPC_TALK_RADIUS - 1;
+const VALIDATED_TALK_RANGE = NPC_TALK_RADIUS * 2;
+const DRAIN_BUDGET_TICKS = 200_000;
+const QUEST_ARRAY_LENGTH = 30;
+const OVERRUN_QUEST_VALUE = 0;
+const BUMP_RADIUS = 5;
+const SIGHT_LOOK_AND_RADIO = 3;
+const ON_DUTY = 20;
+const KINGPIN_HOUSE_ROOMS = { first: 30, last: 39 } as const;
+const KINGPIN_SECTOR = { x: 5, y: 4, z: 0 } as const;
+const ATTITUDE_NORMAL = 0;
+const PLAYER_CHARACTER_MIN_PROFILE = 51;
+const PLAYER_CHARACTER_MAX_PROFILE = 56;
+const OwnMercBark = { NEGATIVE_COMPANY: 41, SOCIAL_TRAIT: 44, PASSING_DISLIKE: 45 } as const;
+const TALK_COMMANDS: ReadonlySet<string> = new Set(['talk', 'approach', 'closeTalk']);
+const NEEDED_ITEMS = ['HEAD_2', 'HEAD_3', 'HEAD_5', 'HEAD_6', 'HEAD_7', 'MONEY', 'SILVER', 'GOLD', 'WINE', 'BEER', 'ALCOHOL'] as const;
+
+const MENU_APPROACHES: Readonly<Record<string, number>> = {
+  repeat: Approach.REPEAT,
+  friendly: Approach.FRIENDLY,
+  direct: Approach.DIRECT,
+  threaten: Approach.THREATEN,
+  recruit: Approach.RECRUIT,
+  whoAreYou: Approach.NPC_WHOAREYOU,
+};
+
+const REFUSAL_TEXT: Readonly<Record<string, string>> = {
+  notInTactical: 'conversations happen in the loaded sector',
+  promptOpen: 'a prompt is open, answer it first',
+  shopOpen: 'a shop is open, closeShop first',
+  sessionOpen: 'a conversation is already open, closeTalk first',
+  conversationOpen: 'a conversation is open, use approach or closeTalk',
+  scriptedSequence: 'a scripted sequence is running, advance until it ends',
+  noSuchTarget: 'there is nobody to talk to there',
+  notTalkable: 'that soldier cannot be talked to',
+  targetHidden: 'the squad does not see that soldier',
+  targetMoving: 'the target is moving',
+  talkerIsRobot: 'the robot cannot talk',
+  noLineOfSight: 'the soldier cannot see the target',
+  targetCollapsed: 'the target is unconscious',
+  refusesToTalk: 'he does not want to talk',
+  civilianBark: 'talking to unnamed civilians comes with a later slice',
+  noPath: 'cannot get close enough',
+  notEnoughAP: `not enough APs: ${AP_TALK} needed`,
+  noConversation: 'no conversation is open',
+  busy: 'the conversation is still running',
+  unknownApproach: 'kind must be repeat, friendly, direct, threaten, recruit, whoAreYou, buySell or give',
+  notADealer: 'this NPC does not trade, use give',
+  isADealer: 'this NPC trades, use buySell',
+};
+
+export interface NarrativeSetup {
+  readonly records: NpcRecordContent;
+  readonly texts: QuoteLengths;
+  readonly items: ItemTable;
+  readonly profiles: readonly MercProfile[];
+  readonly facts?: (campaign: CampaignSim) => FactSource;
+  readonly quests?: (campaign: CampaignSim) => QuestPort;
+  readonly actions?: (campaign: CampaignSim, generic: NpcActionPort) => NpcActionPort;
+}
+
+export interface ConversationLineView {
+  readonly profile: number;
+  readonly quote: number;
+  readonly record?: number;
+  readonly textKey: SpokenLine['textKey'];
+}
+
+export interface ConversationView {
+  readonly npc: number | null;
+  readonly profile: number;
+  readonly name: string;
+  readonly talker: number | null;
+  readonly initiatedBy: 'player' | 'npc';
+  readonly menu: readonly string[];
+  readonly lastQuotes: readonly ConversationLineView[];
+}
+
+type Json = Readonly<Record<string, unknown>>;
+
+class Refusal extends Error {
+  readonly code: string;
+
+  constructor(code: string) {
+    super(`${code}: ${REFUSAL_TEXT[code] ?? 'refused'}`);
+    this.code = code;
+  }
+}
+
+const refuse = (code: string): never => {
+  throw new Refusal(code);
+};
+
+const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v);
+
+function rangeBetween(a: number, b: number): number {
+  const dx = (a % COLS) - (b % COLS);
+  const dy = Math.trunc(a / COLS) - Math.trunc(b / COLS);
+  return Math.trunc(Math.sqrt(dx * dx + dy * dy));
+}
+
+export class TalkFlow {
+  readonly talk: TalkState;
+  readonly host: NarrativeHost;
+  readonly #campaign: CampaignSim;
+  readonly #setup: NarrativeSetup;
+  readonly #events: SimEvent[] = [];
+  #scripted = false;
+
+  constructor(campaign: CampaignSim, setup: NarrativeSetup) {
+    this.#campaign = campaign;
+    this.#setup = setup;
+    this.talk = createTalkState();
+    this.host = this.#createHost();
+  }
+
+  get #t(): TacticalState | null {
+    return this.#campaign.tactical?.state ?? null;
+  }
+
+  #profile(id: number): ProfileProgress | null {
+    return profileProgress({ profiles: this.#campaign.state.profiles, content: { profiles: this.#setup.profiles } }, id);
+  }
+
+  #recruited(profile: number): boolean {
+    return ((this.#profile(profile)?.miscFlags ?? 0) & ProfileFlag.RECRUITED) !== 0;
+  }
+
+  #isEpc(s: Soldier): boolean {
+    const flagged = ((this.#profile(s.profile)?.miscFlags ?? 0) & ProfileFlag.EPCACTIVE) !== 0;
+    return flagged || (this.#campaign.battle?.roster.get(s.id)?.isEpc ?? false);
+  }
+
+  #onSquad(s: Soldier): boolean {
+    if (s.team !== Team.OUR) return false;
+    const merc = this.#campaign.strategic?.mercs.get(s.id);
+    return merc ? merc.assignment < ON_DUTY : true;
+  }
+
+  #emit(e: Record<string, unknown> & { readonly type: string }): void {
+    this.#events.push({ ...e, tick: this.#campaign.tick } as SimEvent);
+  }
+
+  #itemFacts(): NarrativeHost['receive']['items'] {
+    const items = this.#setup.items;
+    const id = (name: string) => items.byName.get(name)?.index ?? -1;
+    const ids = Object.fromEntries(NEEDED_ITEMS.map((n) => [n, id(n)])) as Record<(typeof NEEDED_ITEMS)[number], number>;
+    const rocketLauncher = id('ROCKET_LAUNCHER');
+    return {
+      ids,
+      leatherJacketPrice: items.byName.get('LEATHER_JACKET_W_KEVLAR')?.price ?? 0,
+      isGunOfRifleClass: (item) => {
+        const def = items.byIndex.get(item);
+        const cls = def?.weapon?.weaponClass;
+        return def?.itemClass === ItemClass.GUN && item !== rocketLauncher && (cls === WeaponClass.RIFLE || cls === WeaponClass.MG);
+      },
+    };
+  }
+
+  #kingpinInHisHouse(): boolean {
+    const t = this.#t;
+    const kingpin = soldierByProfile(this.host, NarrativeProfile.KINGPIN);
+    const sector = t?.sector;
+    if (!t || !kingpin || !sector || sector.x !== KINGPIN_SECTOR.x || sector.y !== KINGPIN_SECTOR.y || sector.z !== 0) return false;
+    const room = sectorMapOf(t).rooms[kingpin.gridNo] ?? 0;
+    return room >= KINGPIN_HOUSE_ROOMS.first && room <= KINGPIN_HOUSE_ROOMS.last;
+  }
+
+  #threat(merc: number): number {
+    const t = this.#t;
+    const s = t?.soldiers.find((x) => x?.placed && x.team === Team.OUR && x.profile === merc) ?? null;
+    if (!s || !t) return 0;
+    const hand = t.content.items.byIndex.get(s.inv[InvSlot.HAND]?.item ?? 0);
+    const isWeapon = hand !== undefined && (hand.itemClass & WEAPON_CLASSES) !== 0;
+    return calcThreateningEffectiveness({
+      effectiveLeadership: effectiveLeadership(s),
+      effectiveStrength: effectiveStrength(s),
+      deadliness: isWeapon ? (hand?.weapon?.deadliness ?? 0) : 0,
+    });
+  }
+
+  #teleport(s: Soldier, gridNo: number): void {
+    const t = this.#t;
+    if (!t) return;
+    const occupant = t.soldiers.find((x) => x?.placed && x !== s && x.gridNo === gridNo && x.level === 0) ?? null;
+    if (occupant) {
+      const spot = findGridNoFromSweetSpot(t, occupant, gridNo, BUMP_RADIUS);
+      if (spot !== NOWHERE) setSoldierPosition(t, occupant, spot);
+    }
+    setSoldierPosition(t, s, gridNo);
+    s.finalDestination = gridNo;
+    revealRoofsAndItems(t, s, true);
+    handleSight(t, s, SIGHT_LOOK_AND_RADIO);
+  }
+
+  #face(npc: number, toward: (s: Soldier) => number): void {
+    const t = this.#t;
+    const s = soldierByProfile(this.host, npc);
+    if (!t || !s) return;
+    const g = toward(s);
+    if (g === NOWHERE) return;
+    const dir = directionToward(s.gridNo, g);
+    if (s.direction !== dir) setDesiredDirection(t, s, dir);
+  }
+
+  #createHost(): NarrativeHost {
+    const campaign = this.#campaign;
+    const state = campaign.state;
+    const setup = this.#setup;
+    const tactical = () => this.#t;
+    let host: NarrativeHost;
+    const generic = genericActionPort({
+      closePanel: () => deleteTalkingMenu(host, 'script'),
+      faceNearestMerc: (npc) => this.#face(npc, (s) => closestPC(host, s)),
+      faceProfile: (npc, other) => this.#face(npc, () => soldierByProfile(host, other)?.gridNo ?? NOWHERE),
+      initiateShop: () => {
+        if (host.shopClosedByScript(this.talk.charNum)) return;
+        deleteTalkingMenu(host, 'script');
+        host.openShop(this.talk.charNum);
+      },
+    });
+    host = {
+      records: state.npcRecords,
+      content: setup.records,
+      recruited: (p) => this.#recruited(p),
+      meanwhile: () => null,
+      talk: this.talk,
+      context: state.narrative.talk,
+      facts: setup.facts?.(campaign) ?? storedFactSource(state.narrative, tactical),
+      quests: setup.quests?.(campaign) ?? statusOnlyQuestPort(state.narrative),
+      actions: setup.actions?.(campaign, generic) ?? generic,
+      give: { placeObjectInSoldierProfile: () => {}, returnItemToPlayer: () => {}, handleNpcItemGiven: () => {} },
+      receive: {
+        items: this.#itemFacts(),
+        hospital: this.talk.hospital,
+        calcMedicalCost: () => 0,
+        frankCash: () => {},
+        kingpinInHisHouse: () => this.#kingpinInHisHouse(),
+        addProfileCost: (profile, amount) => {
+          const costs = state.finances.profileCostToDate;
+          costs.set(profile, ((costs.get(profile) ?? 0) + amount) >>> 0);
+        },
+        message: (m) => this.#emit({ type: 'npcMessage', kind: m.kind, profile: m.profile, amount: m.amount }),
+      },
+      mercLines: { sayLater: () => {} },
+      quoteLengths: setup.texts,
+      tick: () => campaign.tick,
+      day: () => worldDay(state.clock),
+      random: (n) => state.rng.int(n),
+      tactical,
+      profile: (id) => this.#profile(id),
+      setFact: (id, value) => setFact(state.narrative, id, value),
+      questValue: (index) => (index < QUEST_ARRAY_LENGTH ? (state.narrative.quests[index] ?? 0) : OVERRUN_QUEST_VALUE),
+      townRating: (town) => state.economy.towns[town]?.rating ?? 0,
+      threat: (merc) => this.#threat(merc),
+      voice: (profile) => state.laptop.imp.voices.get(profile) ?? profile,
+      worldSector: () => state.worldSector,
+      isEpc: (s) => this.#isEpc(s),
+      onSquad: (s) => this.#onSquad(s),
+      inMeanwhile: () => false,
+      emit: (e) => this.#emit(e),
+      setEngaged: (on) => {
+        const t = this.#t;
+        if (t) t.engagedInConv = on;
+      },
+      engaged: () => this.#t?.engagedInConv === true,
+      pauseForConversation: (on) => {
+        if (on) {
+          pauseGame(state.clock);
+          lockPauseState(state.clock, LOCK_PAUSE_ENGAGED_IN_CONV);
+        } else {
+          unLockPauseState(state.clock);
+          unPauseGame(state.clock);
+        }
+      },
+      selectTalker: (s) => {
+        const t = this.#t;
+        const merc = campaign.strategic?.mercs.get(s.id);
+        if (merc && merc.assignment >= 0 && merc.assignment < NUMBER_OF_SQUADS) state.forces.currentSquad = merc.assignment;
+        if (t) selectSoldier(t, s);
+      },
+      isDealer: (profile) => (campaign.merchants ? isMercADealer(campaign.merchants, profile) : false),
+      openShop: (dealer) => {
+        const talker = state.narrative.talk.src;
+        if (talker !== null) campaign.shop?.openFromTalk(dealer, talker);
+      },
+      shopClosedByScript: (dealer) => campaign.merchants?.hooks.shopClosedByScript(dealer) ?? false,
+      teleport: (s, gridNo) => this.#teleport(s, gridNo),
+    };
+    return host;
+  }
+
+  drainEvents(): SimEvent[] {
+    return this.#events.splice(0);
+  }
+
+  isOpen(): boolean {
+    return this.talk.inPanel;
+  }
+
+  dialogueIdle(): boolean {
+    return dialogueIdle(this.talk);
+  }
+
+  scriptedSequence(): boolean {
+    const talk = this.talk;
+    return !talk.inPanel && (this.host.engaged() || talk.pending !== null || talk.waitingForTrigger);
+  }
+
+  frozen(): boolean {
+    return this.talk.inPanel && dialogueIdle(this.talk);
+  }
+
+  isIdle(): boolean {
+    return dialogueIdle(this.talk) && !this.scriptedSequence();
+  }
+
+  hasPendingDecision(): boolean {
+    return this.frozen();
+  }
+
+  modalRefusal(): string | null {
+    return this.frozen() ? new Refusal('conversationOpen').message : null;
+  }
+
+  beforeTacticalStep(): void {
+    handleWaitTimerForNpcTrigger(this.host);
+  }
+
+  afterTacticalStep(): void {
+    stepDialogue(this.host);
+    this.#syncScripted();
+  }
+
+  #syncScripted(): void {
+    const scripted = this.scriptedSequence();
+    if (scripted === this.#scripted) return;
+    this.#scripted = scripted;
+    this.#emit({ type: 'scriptedSequence', active: scripted });
+  }
+
+  narrativePortHooks(): {
+    triggerNpcRecord(profile: number, record: number): void;
+    hasUnusedHostileRecord(profile: number): boolean;
+    sayHostileQuote(s: Soldier): void;
+    dialogueBusy(): boolean;
+    startTalking(s: Soldier, target: number): void;
+    npcReachedDestination(s: Soldier): void;
+    replaceLocationInNpcData(profile: number, oldGridNo: number, newGridNo: number): void;
+  } {
+    const host = this.host;
+    return {
+      triggerNpcRecord: (profile, record) => triggerNpcRecord(host, profile, record),
+      hasUnusedHostileRecord: (profile) => npcHasUnusedHostileRecord(host, profile),
+      sayHostileQuote: (s) => {
+        triggerNpcWithIHateYouQuote(host, s.profile);
+      },
+      dialogueBusy: () => this.talk.queue.length > 0 || this.talk.inPanel || this.talk.waitingForTrigger,
+      startTalking: (s, target) => this.#startTalkingOnArrival(s, target),
+      npcReachedDestination: (s) => npcReachedDestination(host, s, false),
+      replaceLocationInNpcData: (profile, oldGridNo, newGridNo) => replaceLocationInNpcData(host, profile, oldGridNo, newGridNo),
+    };
+  }
+
+  dispatch(cmd: CampaignCommand): CommandResult | null {
+    const intercept = TALK_COMMANDS.has(cmd.type) || (cmd.type === 'openShop' && this.#campaign.shop !== null);
+    try {
+      if (!intercept) {
+        if (this.frozen()) refuse('conversationOpen');
+        if (this.scriptedSequence()) refuse('scriptedSequence');
+        return null;
+      }
+      switch (cmd.type) {
+        case 'talk':
+          return this.#talkCommand(cmd);
+        case 'approach':
+          return this.#approach(cmd);
+        case 'closeTalk':
+          return this.#closeTalk();
+        default:
+          return this.#openShop(cmd);
+      }
+    } catch (e) {
+      if (e instanceof Refusal) return { ok: false, reason: e.message, data: { refusal: e.code } };
+      throw e;
+    }
+  }
+
+  #rules(): TalkableRules {
+    return {
+      isNpcOrRpc: (p) => isNpcOrRpc(this.host, p),
+      recruited: (p) => this.#recruited(p),
+      isEpc: (s) => this.#isEpc(s),
+    };
+  }
+
+  #resolveTarget(value: unknown): Soldier | null {
+    const t = this.#t;
+    if (!t) return null;
+    if (isInt(value)) return t.soldiers[value] ?? null;
+    if (typeof value !== 'object' || value === null) return null;
+    const npc = (value as Json).npc;
+    const profile = isInt(npc) ? npc : typeof npc === 'string' ? this.#profileByName(npc) : null;
+    return profile === null ? null : soldierByProfile(this.host, profile);
+  }
+
+  #profileByName(name: string): number | null {
+    const upper = name.toUpperCase();
+    const byInternal = this.#setup.records.profileIds.get(upper);
+    if (byInternal !== undefined) return byInternal;
+    const p = this.#setup.profiles.find((x) => x && (x.nickname.toUpperCase() === upper || x.name.toUpperCase() === upper));
+    return p ? p.id : null;
+  }
+
+  #commonRefusals(): void {
+    const campaign = this.#campaign;
+    if (campaign.state.flow !== 'tactical' || !campaign.tactical) refuse('notInTactical');
+    if (campaign.battle?.hasPendingDecision()) refuse('promptOpen');
+    if (campaign.shop?.isOpen()) refuse('shopOpen');
+    if (this.talk.inPanel) refuse('sessionOpen');
+    if (this.scriptedSequence()) refuse('scriptedSequence');
+  }
+
+  #hasLineOfSight(t: TacticalState, merc: Soldier, target: Soldier): boolean {
+    const visible = distanceVisible(t, merc, DIRECTION_IRRELEVANT, DIRECTION_IRRELEVANT, target.gridNo, target.level);
+    return soldierTo3DLocationLos(t, merc, target.gridNo, target.level, TALK_LOS_CUBE_LEVEL, u8(visible), true) !== 0;
+  }
+
+  #talkCommand(cmd: CampaignCommand): CommandResult {
+    this.#commonRefusals();
+    const tactical = this.#campaign.tactical;
+    const t = this.#t as TacticalState;
+    const merc = tactical?.soldier(cmd.soldier) ?? null;
+    if (!merc || merc.team !== Team.OUR) return refuse('noSuchTarget');
+    const turn = tactical?.canAct(merc) ?? null;
+    if (turn) return { ok: false, reason: turn, data: { refusal: 'canAct' } };
+    const target = this.#resolveTarget(cmd.target);
+    if (!target) return refuse('noSuchTarget');
+    const talkable = talkableRefusal(t, this.#rules(), merc, target, { give: false, mercs: true, collapsed: false });
+    if (talkable) refuse(talkable);
+    if (target !== merc && !this.#hasLineOfSight(t, merc, target)) {
+      this.#emit({ type: 'npcMessage', kind: 'noLineOfSight', profile: target.profile });
+      refuse('noLineOfSight');
+    }
+    if (target.collapsed) {
+      this.#emit({ type: 'npcMessage', kind: 'targetCollapsed', profile: target.profile });
+      refuse('targetCollapsed');
+    }
+    if (target.team === Team.OUR && !this.#isEpc(target)) return this.#ownMercBark(target);
+    if (getCivType(t, target) !== CivType.NA) refuse('civilianBark');
+    if (rangeBetween(merc.gridNo, target.gridNo) > NPC_TALK_RADIUS) return this.#walkUp(t, merc, target);
+    if (!enoughPoints(t.inCombat, merc, AP_TALK)) refuse('notEnoughAP');
+    return this.#runAndReport(() => this.#playerSoldierStartTalking(merc, target, false));
+  }
+
+  #walkUp(t: TacticalState, merc: Soldier, target: Soldier): CommandResult {
+    const adjacent = findAdjacentGridEx(t, merc, target.gridNo, false);
+    if (!adjacent) {
+      this.#emit({ type: 'npcMessage', kind: 'noPath' });
+      refuse('noPath');
+    }
+    const destination = adjacent?.actionGridNo ?? NOWHERE;
+    if (findBestPath(t.pathEnv, merc, destination, merc.level).length === 0) {
+      this.#emit({ type: 'npcMessage', kind: 'noPath' });
+      refuse('noPath');
+    }
+    const spot = findGridNoFromSweetSpot(t, merc, target.gridNo, SWEET_SPOT_RADIUS);
+    if (!enoughPoints(t.inCombat, merc, AP_TALK)) refuse('notEnoughAP');
+    const to = spot === NOWHERE ? destination : spot;
+    selectSoldier(t, merc);
+    merc.pendingTalk = target.id;
+    if (!getNewSoldierPath(t, merc, to, merc.uiMovementMode, 1, merc.noAPToFinishMove)) {
+      merc.pendingTalk = null;
+      refuse('noPath');
+    }
+    return { ok: true, data: { walking: true, to } };
+  }
+
+  #ownMercBark(target: Soldier): CommandResult {
+    if (target.profile === NarrativeProfile.DIMITRI) return refuse('refusesToTalk');
+    const p = this.#profile(target.profile);
+    const roll = this.talk.fx.int((p?.attitude ?? ATTITUDE_NORMAL) !== ATTITUDE_NORMAL ? 3 : 2);
+    const playerCharacter = target.profile >= PLAYER_CHARACTER_MIN_PROFILE && target.profile <= PLAYER_CHARACTER_MAX_PROFILE;
+    let quote: number = roll === 2 && !playerCharacter ? OwnMercBark.SOCIAL_TRAIT : OwnMercBark.NEGATIVE_COMPANY;
+    if (target.profile === NarrativeProfile.IRA) quote = OwnMercBark.PASSING_DISLIKE;
+    this.#emit({ type: 'mercQuote', soldier: target.id, profile: target.profile, quote: `quote${quote}`, id: quote });
+    return { ok: true, data: { bark: quote } };
+  }
+
+  #startTalkingOnArrival(merc: Soldier, targetId: number): void {
+    const t = this.#t;
+    const target = t?.soldiers[targetId] ?? null;
+    if (!t || !target) return;
+    if (!this.#playerSoldierStartTalking(merc, target, true))
+      this.#emit({ type: 'talkAborted', soldier: merc.id, reason: 'targetUnavailable' });
+  }
+
+  #playerSoldierStartTalking(merc: Soldier, target: Soldier, validate: boolean): boolean {
+    const t = this.#t;
+    if (!t) return false;
+    if (validate) {
+      if (talkableKind(t, this.#rules(), target, { give: false, mercs: false, talkMode: false }) === null) return false;
+      if (talkableRefusal(t, this.#rules(), null, target, { give: false, mercs: false, collapsed: false })) return false;
+      if (rangeBetween(merc.gridNo, target.gridNo) > VALIDATED_TALK_RANGE) return false;
+    }
+    deductPoints(t.inCombat, merc, AP_TALK, 0);
+    const facing = directionToward(merc.gridNo, target.gridNo);
+    setDesiredDirection(t, merc, facing);
+    setDesiredDirection(t, target, (facing + OPPOSITE) % DIRECTIONS);
+    stopMerc(t, merc);
+    if (getCivType(t, target) !== CivType.NA) return false;
+    if (target.profile !== NO_PROFILE && this.#campaign.battle?.roster.get(target.id)?.isEpc)
+      return initiateConversationFull(this.host, target, merc, Approach.EPC_WHO_IS_RECRUITED, 0, null, 'player');
+    if (!target.neutral) return initiateConversationFull(this.host, target, merc, Approach.ENEMY_NPC_QUOTE, 0, null, 'player');
+    if (ASSASSIN_PROFILES.has(target.profile)) {
+      deleteTalkingMenu(this.host, 'script');
+      cancelAIAction(t, target);
+      addToShouldBecomeHostileOrSayQuoteList(t, target);
+      return true;
+    }
+    return initiateConversationFull(this.host, target, merc, Approach.NPC_INITIAL_QUOTE, 0, null, 'player');
+  }
+
+  #drain(): void {
+    const campaign = this.#campaign;
+    for (let budget = DRAIN_BUDGET_TICKS; budget > 0 && !dialogueIdle(this.talk); budget--) {
+      const before = campaign.tick;
+      campaign.step();
+      if (campaign.tick === before) break;
+    }
+    this.#syncScripted();
+  }
+
+  #runAndReport(action: () => unknown, extra: Json = {}): CommandResult {
+    const before = this.talk.lines.length;
+    action();
+    this.#drain();
+    const lines = this.talk.lines.slice(before).map((l) => this.#lineView(l));
+    const shop = this.#campaign.shop?.isOpen() ? { shop: this.#campaign.shop.view() } : {};
+    return {
+      ok: true,
+      data: {
+        conversation: this.view(),
+        lines,
+        ...(this.scriptedSequence() ? { scriptedSequence: true } : {}),
+        ...shop,
+        ...extra,
+      },
+    };
+  }
+
+  #requireOpenAndIdle(): void {
+    if (!this.talk.inPanel) refuse('noConversation');
+    if (!dialogueIdle(this.talk)) refuse('busy');
+  }
+
+  #approach(cmd: CampaignCommand): CommandResult {
+    this.#requireOpenAndIdle();
+    const kind = cmd.kind;
+    if (kind === 'buySell') {
+      if (!this.host.isDealer(this.talk.charNum)) refuse('notADealer');
+      return this.#runAndReport(() => talkMenuBuySell(this.host));
+    }
+    if (kind === 'give') {
+      if (this.host.isDealer(this.talk.charNum)) refuse('isADealer');
+      return this.#runAndReport(() => talkMenuGive(this.host));
+    }
+    const approach = typeof kind === 'string' ? MENU_APPROACHES[kind] : undefined;
+    if (approach === undefined) return refuse('unknownApproach');
+    return this.#runAndReport(() => converse(this.host, this.talk.charNum, this.host.context.srcProfile, approach));
+  }
+
+  #closeTalk(): CommandResult {
+    this.#requireOpenAndIdle();
+    handleTalkingMenuEscape(this.host);
+    this.#syncScripted();
+    return { ok: true };
+  }
+
+  #openShop(cmd: CampaignCommand): CommandResult {
+    const shop = this.#campaign.shop;
+    if (!shop) return refuse('notADealer');
+    if (shop.isOpen()) return { ok: false, reason: 'a shop is already open' };
+    this.#commonRefusals();
+    const checked = shop.checkOpen(cmd);
+    if ('ok' in checked) return checked;
+    const { merc, dealer } = checked;
+    const opened = this.#runAndReport(() => this.#playerSoldierStartTalking(merc, dealer, false));
+    if (!this.frozen() || this.host.context.dest !== dealer.id) return opened;
+    const route = talkMenuBuySell(this.host);
+    if (route === 'record') return this.#runAndReport(() => {});
+    return shop.isOpen() ? { ok: true, data: shop.view() } : opened;
+  }
+
+  #lineView(l: SpokenLine): ConversationLineView {
+    return { profile: l.profile, quote: l.quote, ...(l.record !== undefined ? { record: l.record } : {}), textKey: l.textKey };
+  }
+
+  #menu(): string[] {
+    const npc = this.talk.charNum;
+    const ctx = this.#campaign.merchants;
+    const dealer = ctx && isMercADealer(ctx, npc) ? ctx.content.dealers.find((d) => d.profile === npc) : undefined;
+    const trade = dealer ? `buySell:${shopKind(dealer.type)}` : 'give';
+    return ['repeat', 'friendly', 'direct', 'threaten', trade, 'recruit', 'whoAreYou'];
+  }
+
+  view(): ConversationView | null {
+    if (!this.talk.inPanel) return null;
+    const dest = panelSoldier(this.host);
+    const profile = this.talk.charNum;
+    return {
+      npc: dest?.id ?? null,
+      profile,
+      name: dest?.name ?? this.#setup.profiles[profile]?.nickname ?? String(profile),
+      talker: talkerSoldier(this.host)?.id ?? null,
+      initiatedBy: this.talk.initiatedBy,
+      menu: this.#menu(),
+      lastQuotes: this.talk.lines.map((l) => this.#lineView(l)),
+    };
+  }
+
+  talkableLabel(s: Soldier): TalkableKind | null {
+    const t = this.#t;
+    if (!t || s.team === Team.OUR) return null;
+    return talkableKind(t, this.#rules(), s, { give: false, mercs: false, talkMode: true });
+  }
+}

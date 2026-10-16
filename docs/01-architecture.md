@@ -964,3 +964,8 @@ Specs: `docs/24` (NPCs and dialogue), `25` (quests, facts, NPC actions, schedule
    Skyrider's helicopter (set-up, refuel sites, flights with SAM fire, scouting and billing, hovering, the return to base,
    debts, destruction, monologues), boarding and leaving vehicles, vehicle routes and the strategic side of ground
    vehicles; `heliRoute`, `heliCancel`, `boardVehicle` and `leaveVehicle` commands. 120 oracle probes match.
+3. **NPC records and conversations** (`content/narrative`, `sim/narrative`, `sim/campaign/talk-flow.ts`): `.npc` and `.edt`
+   formats, the NPC profile fields and record arrays (with save import), record choice (desire to talk, approaches,
+   triggers), `ConverseFull` and the dialogue queue; the modal talk session with walk-up, NPC-initiated talks as decisions,
+   scripted sequences and the merchant link; `talk`, `approach` and `closeTalk` commands, text served from the EDT files.
+   313 oracle probes match.

@@ -135,8 +135,10 @@ EPC's abandonment line uses the NPC file), `WOUNDEDBYPLAYER 0x08`, `SAID_HOSTILE
    Records missing from the JSON are value-initialised zeros; their `ubLastDay` 0 makes them unsayable from day 1
    (§2.3). JSON defaults: `lastDay`, `quoteNum`, `numQuotes`, `triggerRecord` 255, `goToGridno` 65535, quest `NO_QUEST`;
    `requiredGridNo` is stored negated; `actionData.doFirst` negates the code; `turnToFace: NAME` encodes 500 + profile.
-4. Every `npcdata/NNN.npc` (numeric prefix < 200, not `000.npc`) fills the profiles the JSON did not; a binary on a mod
-   layer would override the JSON (not our case). Binary records are 32 bytes each, 50 per file (`NPC.cc:113-159`). The
+4. Every `npcdata/NNN.npc` (numeric prefix < 200, not `000.npc`) fills the profiles the JSON did not; a binary present on
+   more than one VFS layer overrides the JSON (`binIsOnModLayer` counts layers and every SLF file is a layer of its own): in
+   the user's install the loose `Data/NpcData/097.npc` and `118.npc` sit next to `Npcdata.slf`, so SKYRIDER and JOHN use their
+   binary records, not Stracciatella's JSON (ja2-node counts layers the same way, `Vfs.layerCount`). Binary records are 32 bytes each, 50 per file (`NPC.cc:113-159`). The
    meanwhile files 160–196 are thereby also loaded as the scripts of profiles 160–196 (vehicles and unused ids;
    harmless).
 
@@ -216,8 +218,9 @@ negated, so the scaling happens only if he had **already** been threatened.
 1. `SAID` set → no.
 2. Quest (`:1084-1112`): 255 passes; `ubQuest % 100 ≥ 30` throws; `> 200` → quest `q − 200` must be DONE; else `> 100` →
    `q − 100` NOT STARTED; else `q` IN PROGRESS. **Quirk:** the strict `>` decodes 100 and 200 (quest 0 not started /
-   done) as "quest 100 in progress / not started" and reads `gubQuest[100]` past the 30-byte array (`Quests.cc:38-39`
-   puts `gubFact` right after it, so probably `gubFact[70]`, inferred).
+   done) as "quest 100 in progress / not started" and reads `gubQuest[100]` past the 30-byte array. The oracle probe
+   `questdecode` shows that the linker puts `gubFact` 512 bytes *before* `gubQuest` and that the byte read is 0 whatever
+   fact 70 holds: quest value 100 never passes, 200 always does (verified; ja2-node reads 0 past the array).
 3. `usFactMustBeTrue` ≠ 65535 → `CheckFact(f, npc)` must be true; `usFactMustBeFalse` → must be false (`25` owns
    `CheckFact`). Several facts are computed on the spot from the conversation context, which outlives the panel:
    `gpSrcSoldier`/`gpDestSoldier` (talker strong/female, Dynamo, Shank, AIM merc within 10, …) and
@@ -676,7 +679,8 @@ the current line (presentation).
   cleared, `ENGAGED_IN_CONV` cleared if `giNPCReferenceCount == 0`. Then, if `FACT_NEED_TO_SAY_SOMETHING` and the queue
   is empty and no trigger waits: the nice NPC (preferred) or the nasty one, if his soldier exists → a merc within 10
   tiles with LOS says 58 (`QUOTE_LISTEN_LIKABLE_PERSON`, filtered by gender) or 39 (`QUOTE_ANNOYING_PC`), picked by
-  `Random(n)` (`Dialogue_Control.cc:1386-1471`); both profiles and the fact are reset even if no merc qualified.
+  `Random(n)` (`Dialogue_Control.cc:1386-1471`); both profiles and the fact are reset even if no merc qualified, but only
+  when the NPC's soldier exists (otherwise nothing changes).
 - **Other closers:** queued `NPCClosePanel`, scripted walks, the
   recruit/requestor/close/enter-combat/friendly/shop/lie/marry actions, `ChangeSoldierTeam` (`Soldier_Profile.cc:593`),
   triggers with dialogue (§5.2), our first sighting in a virgin sector (`OppList.cc:2408-2413`), other menus opening
@@ -959,7 +963,7 @@ are never restored (§1.4) — he does not come back.
 
 | Where | Draw | Stream |
 |---|---|---|
-| §3.3 friendly default | `Random(2)`: quote 2 or 3, remembered in `ubLastQuoteSaid` | text only → cosmetic stream (deviation; §16) |
+| §3.3 friendly default | `Random(2)`: quote 2 or 3, remembered in `ubLastQuoteSaid` | main (the result is stored, §16 decision 4) |
 | §3.6 hostile list | `Random(n)` among speakers with a declaration | main (decides whose record runs) |
 | §3.6 civilian-group side change | `Random(2)` per further member with a profile (short-circuit after the first) | main, drawn although unused |
 | §3.6 draws first | two `Random` in `NPCFirstDraw` | main (the `attack` command's pre-check) |
@@ -1124,6 +1128,13 @@ layout by resource version; facts > 368 → 65535) and `src/content/formats/edt.
   tile-triggered follow-up wrapped in `TURN_UI_OFF`/`ON`; a once-per-conversation record; a SECTOR_NOT_SAFE record; a
   declaration with `BECOME_ENEMY`; a gift; a civilian hint with a quest start. Conditions use plain stored facts and
   quest ids agreed with `25`'s stub plan.
+- *Implemented (2026-10-16):* profile 94 (DAMON's slot: NPC type, no override, no code rules) is the invented "Teodor Vasko"
+  in A10 (`stubs/maps/a10.map.txt`) with eight records in `stubs/npc/records.json` (an initial quote, a special initial
+  quote gated by fact 132, an opinion-gated friendly record said once per conversation, a direct record that sets fact 132
+  and starts quest 14, a quest-gated friendly record that triggers record 5, record 5 with `TURN_UI_OFF` and a walk, the tile
+  record with `TURN_UI_ON` that ends quest 14, a threaten record that closes the panel) and 20 invented lines in
+  `stubs/npc/text.json`; `000.npc` holds one silent trigger record. Recruiting, escorting, give and civilian hint records
+  come with their slices.
 
 ---
 
@@ -1138,6 +1149,15 @@ layout by resource version; facts > 368 → 65535) and `src/content/formats/edt.
 as a no-op, `MercKind.NPC`/`EPC` and the EPC exit rules in the roster, `handleTownLoyaltyForNpcRecruitment`, RPC daily
 pay (`contracts/rpc-pay.ts`), and the soldier save fields of §12.3. Nothing of records, the queue or conversations
 exists.
+
+*Implemented (first docs/24 slice, 2026-10-16, steps (a)–(e), (j), (k)):* `src/content/formats/npc.ts`, `edt.ts`,
+`savegame-npc.ts`, the §1.2 profile fields in `prof.ts`/`stub-profiles.ts` (and through them `savegame-profile.ts` and the
+campaign profiles), `src/content/narrative/` (content assembly, text and lengths), `src/sim/narrative/` (records, selection,
+queue, `converseFull`, triggers, scripted movement glue, UI codes, the hostile-list hooks, save import),
+`src/sim/campaign/talk-flow.ts` (the session, wired into `CampaignSim`, `ShopFlow` and the narrative port), the AI arrival,
+close-enough and freeze hooks, `/api/text`, the stub NPC 94 in A10 and the oracle patch `0013-talk-oracle.patch`. Give (f),
+recruiting and EPCs (g), civilian quotes and surrender (h), hostility and sight hooks and the named-NPC AI (i), the request
+boxes and the NPC action catalog are later slices; they plug into the ports of `src/sim/narrative/host.ts`.
 
 ### 13.1 Modules (SFI-SCLA headers)
 
@@ -1218,7 +1238,8 @@ invariants (backups only for recruited RPCs; present arrays for NPCs the save ha
 
 ## 15. Oracle probes
 
-Patch `0010-npc-dialogue-oracle.patch`: a headless panel (sets `gTalkPanel.ubCharNum`, `gfInTalkPanel`, the conversation
+Patch `0013-talk-oracle.patch` (implemented: `npcrecords`, `npcprofile`, `desire`, `consider`, `talk` without draining,
+`questdecode`; the comparer is `tools/oracle/talk-compare.ts`, the probes `probes/talk.txt`). The full plan was: a headless panel (sets `gTalkPanel.ubCharNum`, `gfInTalkPanel`, the conversation
 soldiers without faces or UI; `DeleteTalkingMenu` clears state only); a queue stepper that executes events one by one
 and logs each (`quote` finished at once, `action {npc, code, record}`, `goto`, `trigger`, `give`, `closePanel`);
 `DoMessageBox` from `StartDialogueMessageBox` and the surrender box intercepted (logged, answered by a probe command);
@@ -1321,7 +1342,9 @@ list and say-later state are transient, and that names show on hover.
 4. Draws whose result is stored (the friendly default saved in the profile) use the main stream in the original order;
    presentation-only choices (the civilian line) use a separate cosmetic stream (deviation).
 5. `openShop` stays as a one-command shortcut for talk + buy/sell; `approach buySell` works inside a talk session too.
-6. The quest 100/200 decode emulates the likely layout (`gubFact[70]`/`[170]`); an oracle probe must confirm it.
+6. The quest 100/200 decode follows the oracle: both values read `gubQuest[100]`, which lies outside `gubFact` (that array
+   starts 512 bytes before `gubQuest`) and reads 0, so 100 never passes and 200 always passes. (Corrected 2026-10-16: the
+   earlier `gubFact[70]`/`[170]` guess was refuted by the probe, and both values index 100, not 170.)
 7. Only merc quotes that interleave with NPC events go through the dialogue queue in M6; the others stay plain events.
 8. With original data, `observe` and MCP responses include the resolved text by default (agents need it to follow
    quests); without it they carry text keys only.

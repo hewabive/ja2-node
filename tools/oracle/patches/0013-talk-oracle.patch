@@ -1,0 +1,91 @@
+NPC dialogue oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE (SFI-SCLA).
+Routes the CheckFact calls of TacticalAI/NPC.cc through OracleTracedCheckFact and traces the dialogue events ConverseFull
+and the trigger functions queue (TalkingMenuDialogue, NPCDoAction, NPCGotoGridNo, NPCClosePanel, TalkingMenuGiveItem,
+NPCTriggerNPC, TacticalCharacterDialogue) through OracleDialogueTrace, both defined in Oracle.cc and inactive unless a
+probe sets a trace. Appends wrappers around the static NPCConsiderTalking, CalcThreateningEffectiveness and
+NPCConsiderQuote and accessors for the record arrays. No behaviour change. Applied by tools/oracle/build.sh after 0011.
+
+--- a/src/game/TacticalAI/NPC.cc
++++ b/src/game/TacticalAI/NPC.cc
+@@ -42,6 +42,14 @@
+ #include <string_theory/format>
+ #include <string_theory/string>
+ 
++void OracleDialogueTrace(char const* kind, int a, int b, int c, int d);
++BOOLEAN OracleTracedCheckFact(Fact fact, UINT8 profile);
++#define CheckFact OracleTracedCheckFact
++#define TalkingMenuDialogue(q) (OracleDialogueTrace("quote", gTalkPanel.ubCharNum, (q), 0, 0), TalkingMenuDialogue(q))
++#define NPCDoAction(n, a, r) (OracleDialogueTrace("action", (n), (a), (r), 0), NPCDoAction((n), (a), (r)))
++#define NPCGotoGridNo(n, g, r) (OracleDialogueTrace("goto", (n), (g), (r), 0), NPCGotoGridNo((n), (g), (r)))
++#define TacticalCharacterDialogue(s, q) (OracleDialogueTrace("merc", (s)->ubProfile, (q), 0, 0), TacticalCharacterDialogue((s), (q)))
++
+ 
+ #define NUM_CIVQUOTE_SECTORS   20
+ #define MINERS_CIV_QUOTE_INDEX 16
+@@ -1312,6 +1320,7 @@
+ {
+ 	DialogueEvent::Add(new DialogueEventCallback<DeleteTalkingMenu>());
+ }
++#define NPCClosePanel() (OracleDialogueTrace("close", 0, 0, 0, 0), NPCClosePanel())
+ 
+ 
+ static void TalkingMenuGiveItem(ProfileID const npc, OBJECTTYPE* const object, INT8 const inv_pos)
+@@ -1339,6 +1348,7 @@
+ 
+ 	DialogueEvent::Add(new DialogueEventGiveItem(npc, object, inv_pos));
+ }
++#define TalkingMenuGiveItem(n, o, p) (OracleDialogueTrace("give", (n), (p), 0, 0), TalkingMenuGiveItem((n), (o), (p)))
+ 
+ 
+ static void ReturnItemToPlayer(ProfileID const merc, OBJECTTYPE* const o)
+@@ -2102,6 +2112,7 @@
+ 
+ 	DialogueEvent::Add(new DialogueEventTriggerNPC(npc, record, approach, show_dialogue_menu));
+ }
++#define NPCTriggerNPC(n, r, a, w) (OracleDialogueTrace("trigger", (n), (r), (a), (w) ? 1 : 0), NPCTriggerNPC((n), (r), (a), (w)))
+ 
+ 
+ void TriggerNPCRecord(UINT8 const ubTriggerNPC, UINT8 const record)
+@@ -2746,6 +2757,42 @@
+ }
+ 
+ 
++UINT8 OracleNPCConsiderTalking(UINT8 const npc, UINT8 const merc, Approach const approach, UINT8 const record, INT32* const index)
++{
++	NPCQuoteInfo* const quotes = EnsureQuoteFileLoaded(npc);
++	if (!quotes)
++	{
++		*index = -2;
++		return 0;
++	}
++	NPCQuoteInfo* found = 0;
++	UINT8 number = 0;
++	UINT8 const opinion = NPCConsiderTalking(npc, merc, approach, record, quotes, &found, &number);
++	*index = found ? number : -1;
++	return opinion;
++}
++
++INT32 OracleCalcThreateningEffectiveness(UINT8 const merc)
++{
++	return CalcThreateningEffectiveness(merc);
++}
++
++BOOLEAN OracleNPCConsiderQuote(UINT8 const npc, UINT8 const merc, Approach const approach, UINT8 const record, UINT8 const desire, NPCQuoteInfo* const quotes)
++{
++	return NPCConsiderQuote(npc, merc, approach, record, desire, quotes);
++}
++
++NPCQuoteInfo const* OracleQuoteArray(UINT8 const npc, bool const backup)
++{
++	return backup ? gpBackupNPCQuoteInfoArray[npc] : gpNPCQuoteInfoArray[npc];
++}
++
++NPCQuoteInfo const* OracleCivQuoteArray(UINT8 const index)
++{
++	return gpCivQuoteInfoArray[index];
++}
++
++
+ #ifdef WITH_UNITTESTS
+ #include "DefaultContentManagerUT.h"
+ #include "GameVersion.h"

@@ -57,6 +57,7 @@ import { registerNarrativeEvents } from './narrative-port.ts';
 import { openMapScreen, openTacticalScreen } from './screens.ts';
 import { dispatchSectorCommand, loadStartSector, SectorFlow, type SectorSetup, sectorWorldPort } from './sector-flow.ts';
 import { ShopFlow } from './shop-flow.ts';
+import { type NarrativeSetup, TalkFlow } from './talk-flow.ts';
 
 export interface CampaignCommand {
   readonly type: string;
@@ -76,6 +77,7 @@ export interface CampaignHooks {
   readonly merchants?: MerchantSetup;
   readonly contracts?: Partial<ContractHooks>;
   readonly laptop?: LaptopSetup;
+  readonly narrative?: NarrativeSetup;
 }
 
 export class CampaignSim {
@@ -93,6 +95,7 @@ export class CampaignSim {
   readonly contracts: ContractFlow | null;
   readonly laptop: LaptopFlow | null;
   readonly helicopter: HelicopterFlow;
+  readonly talk: TalkFlow | null;
   readonly worldClock: WorldTimeControl;
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
@@ -140,6 +143,7 @@ export class CampaignSim {
     this.contracts = this.battle
       ? new ContractFlow(this, { roster: this.battle.roster, content: this.battle.content, hooks: contractHooks })
       : null;
+    this.talk = hooks.narrative ? new TalkFlow(this, hooks.narrative) : null;
     this.worldClock = this.#worldTimeControl();
     this.#registerEnvironment();
     this.#registerMovement();
@@ -355,6 +359,8 @@ export class CampaignSim {
       worldTime: (): WorldTimeReading => worldTimeReading(this.state.clock.seconds),
       onMap: () => this.state.flow === 'strategic',
       modalRefusal: () => {
+        const talk = this.talk?.modalRefusal();
+        if (talk) return talk;
         if (this.shop?.isOpen()) return 'shopOpen: a shop is open, closeShop first';
         return this.laptop?.isOpen() ? LAPTOP_REFUSAL : null;
       },
@@ -390,6 +396,7 @@ export class CampaignSim {
   #collectEvents(): void {
     if (this.sectors) this.#events.push(...this.sectors.drainEvents());
     if (this.battle) this.#events.push(...this.battle.drainEvents());
+    if (this.talk) this.#events.push(...this.talk.drainEvents());
     if (this.shop) this.#events.push(...this.shop.drainEvents());
     if (this.contracts) this.#events.push(...this.contracts.drainEvents());
     if (this.laptop) this.#events.push(...this.laptop.drainEvents());
@@ -397,14 +404,16 @@ export class CampaignSim {
   }
 
   step(): void {
-    if (this.battle?.hasPendingDecision() || this.shop?.isOpen() || this.laptop?.isOpen()) return;
+    if (this.battle?.hasPendingDecision() || this.shop?.isOpen() || this.laptop?.isOpen() || this.talk?.frozen()) return;
     const s = this.state;
     this.#tick++;
     if (s.flow === 'tactical' && this.tactical) {
       this.#environmentController();
+      this.talk?.beforeTacticalStep();
       this.tactical.step();
       s.realMs = this.tactical.state.clockMs;
       this.#events.push(...this.tactical.drainEvents());
+      this.talk?.afterTacticalStep();
       this.sectors?.afterTacticalStep();
     } else if (s.flow === 'autoresolve') this.battle?.stepAutoresolve();
     else {
@@ -423,12 +432,12 @@ export class CampaignSim {
   isIdle(): boolean {
     const s = this.state;
     if (s.flow === 'autoresolve') return this.battle?.autoresolveIdle() ?? true;
-    if (s.flow === 'tactical' && this.tactical) return this.tactical.isIdle();
+    if (s.flow === 'tactical' && this.tactical) return this.tactical.isIdle() && (this.talk?.isIdle() ?? true);
     return !isTimeBeingCompressed(s.clock);
   }
 
   hasPendingDecision(): boolean {
-    if (this.battle?.hasPendingDecision() || this.shop?.isOpen()) return true;
+    if (this.battle?.hasPendingDecision() || this.shop?.isOpen() || this.talk?.hasPendingDecision()) return true;
     return this.state.flow === 'tactical' && this.tactical !== null && this.tactical.hasPendingDecision();
   }
 
@@ -448,6 +457,8 @@ export class CampaignSim {
   }
 
   #dispatch(cmd: CampaignCommand): CommandResult {
+    const talk = this.talk?.dispatch(cmd);
+    if (talk) return talk;
     const shop = this.shop?.dispatch(cmd);
     if (shop) return shop;
     const laptop = this.laptop?.dispatch(cmd);

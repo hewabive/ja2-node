@@ -2,7 +2,7 @@ import { FormatError } from '../binary/errors.ts';
 import { asArray, asInt, asObject, asString, type JsonObject } from '../strategic/json-fields.ts';
 import { parseSectorString } from '../strategic/sector-ids.ts';
 import type { ReadFile } from '../world/tileset-loader.ts';
-import type { MercProfile, ProfileStatGains } from './prof.ts';
+import { type MercProfile, NUM_APPROACH_MOD_ROWS, NUM_REAL_APPROACHES, type ProfileStatGains } from './prof.ts';
 
 export const STUB_PROFILES_PATH = 'stubs/profiles.json';
 
@@ -16,6 +16,13 @@ const FULL_STATUS = 100;
 const DEFAULT_NEED_FOR_SLEEP = 7;
 const DEFAULT_DEATH_RATE = 50;
 const DEFAULT_REPUTATION_TOLERANCE = 50;
+const DEFAULT_APPROACH_EFFECTIVENESS = 100;
+const DEFAULT_DESIRE_TO_TALK = 50;
+const DEFAULT_APPROACH_MOD = 100;
+const NO_QUOTE = 255;
+const NO_ROOM = 0;
+const APPROACH_NAMES = ['FRIENDLY', 'DIRECT', 'THREATEN', 'RECRUIT'] as const;
+const MOD_KEYS = ['friendlyMod', 'directMod', 'threatenMod'] as const;
 const STAT_KEYS = [
   'life',
   'lifeMax',
@@ -111,6 +118,34 @@ function homeSector(o: JsonObject, what: string): { readonly x: number; readonly
   return { x: sector.x, y: sector.y };
 }
 
+interface StubDialogue {
+  readonly approachFactor: number[];
+  readonly approachVal: number[];
+  readonly approachMod: number[][];
+}
+
+function dialogue(o: JsonObject, what: string): StubDialogue {
+  const approachFactor = new Array<number>(NUM_REAL_APPROACHES).fill(DEFAULT_APPROACH_EFFECTIVENESS);
+  const approachVal = new Array<number>(NUM_REAL_APPROACHES).fill(DEFAULT_DESIRE_TO_TALK);
+  const approachMod = Array.from({ length: NUM_APPROACH_MOD_ROWS }, () =>
+    new Array<number>(NUM_REAL_APPROACHES).fill(DEFAULT_APPROACH_MOD),
+  );
+  if (o.dialogue === undefined) return { approachFactor, approachVal, approachMod };
+  asArray(o.dialogue, `${what}.dialogue`).forEach((entry, i) => {
+    const e = asObject(entry, `${what}.dialogue[${i}]`);
+    const name = asString(e.approach, `${what}.dialogue[${i}].approach`);
+    const k = APPROACH_NAMES.indexOf(name as (typeof APPROACH_NAMES)[number]);
+    if (k < 0) throw new FormatError(`${what}.dialogue[${i}]: approach must be one of ${APPROACH_NAMES.join(', ')}`);
+    approachFactor[k] = int(e, 'effectiveness', DEFAULT_APPROACH_EFFECTIVENESS, `${what}.dialogue[${i}]`);
+    approachVal[k] = int(e, 'desireToTalk', DEFAULT_DESIRE_TO_TALK, `${what}.dialogue[${i}]`);
+    MOD_KEYS.forEach((key, row) => {
+      const mods = approachMod[row];
+      if (mods) mods[k] = int(e, key, DEFAULT_APPROACH_MOD, `${what}.dialogue[${i}]`);
+    });
+  });
+  return { approachFactor, approachVal, approachMod };
+}
+
 function parseStubProfile(json: unknown, itemIndex: ItemIndex, index: number): MercProfile {
   const what = `stub profile ${index}`;
   const o = asObject(json, what);
@@ -121,6 +156,7 @@ function parseStubProfile(json: unknown, itemIndex: ItemIndex, index: number): M
   const learnToHateTime = int(o, 'learnToHateTime', 0, what);
   const learnToLikeTime = int(o, 'learnToLikeTime', 0, what);
   const home = homeSector(o, what);
+  const talk = dialogue(o, what);
   return {
     id,
     name: asString(o.name, `${what}.name`),
@@ -145,15 +181,15 @@ function parseStubProfile(json: unknown, itemIndex: ItemIndex, index: number): M
     inventoryStatus: inv.status,
     inventoryCount: inv.count,
     inventoryUndroppable: 0,
-    money: 0,
+    money: int(o, 'money', 0, what),
     evolution: int(o, 'evolution', 0, what),
     attitude: int(o, 'attitude', 0, what),
     buddies: slots(o, 'buddies', NO_RELATION, what),
     hated: slots(o, 'hated', NO_RELATION, what),
     gains: NO_GAINS,
     needForSleep: int(o, 'needForSleep', DEFAULT_NEED_FOR_SLEEP, what),
-    town: 0,
-    townAttachment: 0,
+    town: int(o, 'town', 0, what),
+    townAttachment: int(o, 'townAttachment', 0, what),
     mercOpinion: opinions(o, what),
     sexist: int(o, 'sexist', 0, what),
     deathRate: int(o, 'deathRate', DEFAULT_DEATH_RATE, what),
@@ -189,6 +225,30 @@ function parseStubProfile(json: unknown, itemIndex: ItemIndex, index: number): M
     suspiciousDeath: 0,
     mercMercContractLength: 0,
     totalCostToDate: 0,
+    faceIndex: 0,
+    eyesX: 0,
+    eyesY: 0,
+    mouthX: 0,
+    mouthY: 0,
+    blinkFrequency: 0,
+    expressionFrequency: 0,
+    ...talk,
+    approached: 0,
+    lastDateSpokenTo: 0,
+    lastQuoteSaid: NO_QUOTE,
+    lastQuoteSaidWasSpecial: false,
+    friendlyOrDirectDefaultResponseUsedRecently: 0,
+    recruitDefaultResponseUsedRecently: 0,
+    threatenDefaultResponseUsedRecently: 0,
+    quoteRecord: 0,
+    quoteActionId: 0,
+    npcData: 0,
+    npcData2: 0,
+    useProfileInsertion: false,
+    insertionCode: 0,
+    insertionData: 0,
+    roomRangeStart: [NO_ROOM, NO_ROOM],
+    roomRangeEnd: [NO_ROOM, NO_ROOM],
   };
 }
 

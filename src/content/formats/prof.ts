@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Tactical_Save.cc JA2EncryptedFileRead; LoadSaveMercProfile.cc ExtractMercProfile
+// @src src/game/Tactical/Tactical_Save.cc JA2EncryptedFileRead; LoadSaveMercProfile.cc ExtractMercProfile (NPC fields: docs/24 §1.2)
 
 import { FormatError } from '../binary/errors.ts';
 
@@ -15,6 +15,9 @@ const PALETTE_ID_BYTES = 30;
 const MERC_OPINIONS = 75;
 const RELATION_SLOTS = 5;
 const STAT_CHANGE_COUNTERS = 12;
+export const NUM_REAL_APPROACHES = 4;
+export const NUM_APPROACH_MOD_ROWS = 3;
+const ROOM_RANGES = 2;
 
 export interface MercProfile {
   readonly id: number;
@@ -90,6 +93,94 @@ export interface MercProfile {
   readonly suspiciousDeath: number;
   readonly mercMercContractLength: number;
   readonly totalCostToDate: number;
+  readonly faceIndex: number;
+  readonly eyesX: number;
+  readonly eyesY: number;
+  readonly mouthX: number;
+  readonly mouthY: number;
+  readonly blinkFrequency: number;
+  readonly expressionFrequency: number;
+  readonly approachFactor: readonly number[];
+  readonly approachVal: readonly number[];
+  readonly approachMod: readonly (readonly number[])[];
+  readonly approached: number;
+  readonly lastDateSpokenTo: number;
+  readonly lastQuoteSaid: number;
+  readonly lastQuoteSaidWasSpecial: boolean;
+  readonly friendlyOrDirectDefaultResponseUsedRecently: number;
+  readonly recruitDefaultResponseUsedRecently: number;
+  readonly threatenDefaultResponseUsedRecently: number;
+  readonly quoteRecord: number;
+  readonly quoteActionId: number;
+  readonly npcData: number;
+  readonly npcData2: number;
+  readonly useProfileInsertion: boolean;
+  readonly insertionCode: number;
+  readonly insertionData: number;
+  readonly roomRangeStart: readonly number[];
+  readonly roomRangeEnd: readonly number[];
+}
+
+export type ProfileNpcFields = Pick<
+  MercProfile,
+  | 'faceIndex'
+  | 'eyesX'
+  | 'eyesY'
+  | 'mouthX'
+  | 'mouthY'
+  | 'blinkFrequency'
+  | 'expressionFrequency'
+  | 'approachFactor'
+  | 'approachVal'
+  | 'approachMod'
+  | 'approached'
+  | 'lastDateSpokenTo'
+  | 'lastQuoteSaid'
+  | 'lastQuoteSaidWasSpecial'
+  | 'friendlyOrDirectDefaultResponseUsedRecently'
+  | 'recruitDefaultResponseUsedRecently'
+  | 'threatenDefaultResponseUsedRecently'
+  | 'quoteRecord'
+  | 'quoteActionId'
+  | 'npcData'
+  | 'npcData2'
+  | 'useProfileInsertion'
+  | 'insertionCode'
+  | 'insertionData'
+  | 'roomRangeStart'
+  | 'roomRangeEnd'
+>;
+
+export function zeroProfileNpcFields(): ProfileNpcFields {
+  const zeros = (n: number) => new Array<number>(n).fill(0);
+  return {
+    faceIndex: 0,
+    eyesX: 0,
+    eyesY: 0,
+    mouthX: 0,
+    mouthY: 0,
+    blinkFrequency: 0,
+    expressionFrequency: 0,
+    approachFactor: zeros(NUM_REAL_APPROACHES),
+    approachVal: zeros(NUM_REAL_APPROACHES),
+    approachMod: Array.from({ length: NUM_APPROACH_MOD_ROWS }, () => zeros(NUM_REAL_APPROACHES)),
+    approached: 0,
+    lastDateSpokenTo: 0,
+    lastQuoteSaid: 0,
+    lastQuoteSaidWasSpecial: false,
+    friendlyOrDirectDefaultResponseUsedRecently: 0,
+    recruitDefaultResponseUsedRecently: 0,
+    threatenDefaultResponseUsedRecently: 0,
+    quoteRecord: 0,
+    quoteActionId: 0,
+    npcData: 0,
+    npcData2: 0,
+    useProfileInsertion: false,
+    insertionCode: 0,
+    insertionData: 0,
+    roomRangeStart: zeros(ROOM_RANGES),
+    roomRangeEnd: zeros(ROOM_RANGES),
+  };
 }
 
 export interface ProfileStatGains {
@@ -236,6 +327,34 @@ export function parseProfile(id: number, plain: Uint8Array): MercProfile {
     suspiciousDeath: v.getUint8(703),
     mercMercContractLength: v.getInt32(704, true),
     totalCostToDate: v.getUint32(708, true),
+    faceIndex: v.getUint8(108),
+    eyesX: v.getUint16(262, true),
+    eyesY: v.getUint16(264, true),
+    mouthX: v.getUint16(266, true),
+    mouthY: v.getUint16(268, true),
+    blinkFrequency: v.getUint32(280, true),
+    expressionFrequency: v.getUint32(284, true),
+    approachFactor: Array.from({ length: NUM_REAL_APPROACHES }, (_, k) => v.getUint16(396 + k * 2, true)),
+    approachVal: Array.from(plain.subarray(555, 555 + NUM_REAL_APPROACHES)),
+    approachMod: Array.from({ length: NUM_APPROACH_MOD_ROWS }, (_, row) =>
+      Array.from(plain.subarray(559 + row * NUM_REAL_APPROACHES, 559 + (row + 1) * NUM_REAL_APPROACHES)),
+    ),
+    approached: i8(651),
+    lastDateSpokenTo: v.getUint8(667),
+    lastQuoteSaid: v.getUint8(529),
+    lastQuoteSaidWasSpecial: v.getUint8(668) !== 0,
+    friendlyOrDirectDefaultResponseUsedRecently: i8(672),
+    recruitDefaultResponseUsedRecently: i8(673),
+    threatenDefaultResponseUsedRecently: i8(674),
+    quoteRecord: v.getUint8(238),
+    quoteActionId: v.getUint8(410),
+    npcData: i8(675),
+    npcData2: i8(688),
+    useProfileInsertion: v.getUint8(406) !== 0,
+    insertionCode: v.getUint8(522),
+    insertionData: v.getUint16(670, true),
+    roomRangeStart: Array.from(plain.subarray(413, 413 + ROOM_RANGES)),
+    roomRangeEnd: Array.from(plain.subarray(523, 523 + ROOM_RANGES)),
   };
 }
 

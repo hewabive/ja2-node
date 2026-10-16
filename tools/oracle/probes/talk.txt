@@ -1,0 +1,315 @@
+# NPC dialogue probes on the native saves (docs/24 §15): record arrays after the load, profile NPC fields,
+# CalcDesireToTalk, NPCConsiderTalking and ConverseFull without draining the queue. Merc 0 is the talker.
+save SaveGame02
+questdecode
+npcrecords
+npcprofile profile=151
+desire npc=151 merc=0 approach=friendly
+desire npc=151 merc=0 approach=direct
+desire npc=151 merc=0 approach=threaten
+desire npc=151 merc=0 approach=recruit
+consider npc=151 merc=0 approach=friendly
+consider npc=151 merc=0 approach=direct
+consider npc=151 merc=0 approach=threaten
+consider npc=151 merc=0 approach=recruit
+consider npc=151 merc=0 approach=initiating
+consider npc=151 merc=0 approach=notsafe
+consider npc=151 merc=0 approach=declaration
+consider npc=151 merc=0 approach=buysell
+npcprofile profile=139
+desire npc=139 merc=0 approach=friendly
+desire npc=139 merc=0 approach=direct
+desire npc=139 merc=0 approach=threaten
+desire npc=139 merc=0 approach=recruit
+consider npc=139 merc=0 approach=friendly
+consider npc=139 merc=0 approach=direct
+consider npc=139 merc=0 approach=threaten
+consider npc=139 merc=0 approach=recruit
+consider npc=139 merc=0 approach=initiating
+consider npc=139 merc=0 approach=notsafe
+consider npc=139 merc=0 approach=declaration
+consider npc=139 merc=0 approach=buysell
+talk npc=151 merc=0 approach=initial
+talk npc=151 merc=0 approach=friendly
+talk npc=151 merc=0 approach=friendly
+talk npc=151 merc=0 approach=direct
+talk npc=151 merc=0 approach=direct
+talk npc=151 merc=0 approach=threaten
+talk npc=151 merc=0 approach=threaten
+talk npc=151 merc=0 approach=recruit
+talk npc=151 merc=0 approach=recruit
+talk npc=151 merc=0 approach=repeat
+talk npc=151 merc=0 approach=whoareyou
+talk npc=151 merc=0 approach=buysell
+talk npc=151 merc=0 approach=declaration
+talk npc=151 merc=0 approach=enemy
+talk npc=151 merc=0 approach=initial
+talk npc=151 approach=trigger record=0
+talk npc=151 approach=trigger record=7
+talk npc=151 approach=trigger record=14
+talk npc=151 approach=trigger record=21
+talk npc=151 approach=trigger record=28
+talk npc=151 approach=trigger record=35
+talk npc=151 approach=trigger record=42
+talk npc=151 approach=trigger record=49
+npcprofile profile=151
+npcrecords profile=151
+talk npc=139 merc=0 approach=initial
+talk npc=139 merc=0 approach=friendly
+talk npc=139 merc=0 approach=friendly
+talk npc=139 merc=0 approach=direct
+talk npc=139 merc=0 approach=direct
+talk npc=139 merc=0 approach=threaten
+talk npc=139 merc=0 approach=threaten
+talk npc=139 merc=0 approach=recruit
+talk npc=139 merc=0 approach=recruit
+talk npc=139 merc=0 approach=repeat
+talk npc=139 merc=0 approach=whoareyou
+talk npc=139 merc=0 approach=buysell
+talk npc=139 merc=0 approach=declaration
+talk npc=139 merc=0 approach=enemy
+talk npc=139 merc=0 approach=initial
+talk npc=139 approach=trigger record=0
+talk npc=139 approach=trigger record=7
+talk npc=139 approach=trigger record=14
+talk npc=139 approach=trigger record=21
+talk npc=139 approach=trigger record=28
+talk npc=139 approach=trigger record=35
+talk npc=139 approach=trigger record=42
+talk npc=139 approach=trigger record=49
+npcprofile profile=139
+npcrecords profile=139
+save SaveGame01
+npcrecords
+npcprofile profile=138
+desire npc=138 merc=0 approach=friendly
+desire npc=138 merc=0 approach=direct
+desire npc=138 merc=0 approach=threaten
+desire npc=138 merc=0 approach=recruit
+consider npc=138 merc=0 approach=friendly
+consider npc=138 merc=0 approach=direct
+consider npc=138 merc=0 approach=threaten
+consider npc=138 merc=0 approach=recruit
+consider npc=138 merc=0 approach=initiating
+consider npc=138 merc=0 approach=notsafe
+consider npc=138 merc=0 approach=declaration
+consider npc=138 merc=0 approach=buysell
+npcprofile profile=98
+desire npc=98 merc=0 approach=friendly
+desire npc=98 merc=0 approach=direct
+desire npc=98 merc=0 approach=threaten
+desire npc=98 merc=0 approach=recruit
+consider npc=98 merc=0 approach=friendly
+consider npc=98 merc=0 approach=direct
+consider npc=98 merc=0 approach=threaten
+consider npc=98 merc=0 approach=recruit
+consider npc=98 merc=0 approach=initiating
+consider npc=98 merc=0 approach=notsafe
+consider npc=98 merc=0 approach=declaration
+consider npc=98 merc=0 approach=buysell
+talk npc=138 merc=0 approach=initial
+talk npc=138 merc=0 approach=friendly
+talk npc=138 merc=0 approach=friendly
+talk npc=138 merc=0 approach=direct
+talk npc=138 merc=0 approach=direct
+talk npc=138 merc=0 approach=threaten
+talk npc=138 merc=0 approach=threaten
+talk npc=138 merc=0 approach=recruit
+talk npc=138 merc=0 approach=recruit
+talk npc=138 merc=0 approach=repeat
+talk npc=138 merc=0 approach=whoareyou
+talk npc=138 merc=0 approach=buysell
+talk npc=138 merc=0 approach=declaration
+talk npc=138 merc=0 approach=enemy
+talk npc=138 merc=0 approach=initial
+talk npc=138 approach=trigger record=0
+talk npc=138 approach=trigger record=7
+talk npc=138 approach=trigger record=14
+talk npc=138 approach=trigger record=21
+talk npc=138 approach=trigger record=28
+talk npc=138 approach=trigger record=35
+talk npc=138 approach=trigger record=42
+talk npc=138 approach=trigger record=49
+npcprofile profile=138
+npcrecords profile=138
+talk npc=98 merc=0 approach=initial
+talk npc=98 merc=0 approach=friendly
+talk npc=98 merc=0 approach=friendly
+talk npc=98 merc=0 approach=direct
+talk npc=98 merc=0 approach=direct
+talk npc=98 merc=0 approach=threaten
+talk npc=98 merc=0 approach=threaten
+talk npc=98 merc=0 approach=recruit
+talk npc=98 merc=0 approach=recruit
+talk npc=98 merc=0 approach=repeat
+talk npc=98 merc=0 approach=whoareyou
+talk npc=98 merc=0 approach=buysell
+talk npc=98 merc=0 approach=declaration
+talk npc=98 merc=0 approach=enemy
+talk npc=98 merc=0 approach=initial
+talk npc=98 approach=trigger record=0
+talk npc=98 approach=trigger record=7
+talk npc=98 approach=trigger record=14
+talk npc=98 approach=trigger record=21
+talk npc=98 approach=trigger record=28
+talk npc=98 approach=trigger record=35
+talk npc=98 approach=trigger record=42
+talk npc=98 approach=trigger record=49
+npcprofile profile=98
+npcrecords profile=98
+save SaveGame07
+npcrecords
+npcprofile profile=152
+desire npc=152 merc=0 approach=friendly
+desire npc=152 merc=0 approach=direct
+desire npc=152 merc=0 approach=threaten
+desire npc=152 merc=0 approach=recruit
+consider npc=152 merc=0 approach=friendly
+consider npc=152 merc=0 approach=direct
+consider npc=152 merc=0 approach=threaten
+consider npc=152 merc=0 approach=recruit
+consider npc=152 merc=0 approach=initiating
+consider npc=152 merc=0 approach=notsafe
+consider npc=152 merc=0 approach=declaration
+consider npc=152 merc=0 approach=buysell
+npcprofile profile=106
+desire npc=106 merc=0 approach=friendly
+desire npc=106 merc=0 approach=direct
+desire npc=106 merc=0 approach=threaten
+desire npc=106 merc=0 approach=recruit
+consider npc=106 merc=0 approach=friendly
+consider npc=106 merc=0 approach=direct
+consider npc=106 merc=0 approach=threaten
+consider npc=106 merc=0 approach=recruit
+consider npc=106 merc=0 approach=initiating
+consider npc=106 merc=0 approach=notsafe
+consider npc=106 merc=0 approach=declaration
+consider npc=106 merc=0 approach=buysell
+talk npc=152 merc=0 approach=initial
+talk npc=152 merc=0 approach=friendly
+talk npc=152 merc=0 approach=friendly
+talk npc=152 merc=0 approach=direct
+talk npc=152 merc=0 approach=direct
+talk npc=152 merc=0 approach=threaten
+talk npc=152 merc=0 approach=threaten
+talk npc=152 merc=0 approach=recruit
+talk npc=152 merc=0 approach=recruit
+talk npc=152 merc=0 approach=repeat
+talk npc=152 merc=0 approach=whoareyou
+talk npc=152 merc=0 approach=buysell
+talk npc=152 merc=0 approach=declaration
+talk npc=152 merc=0 approach=enemy
+talk npc=152 merc=0 approach=initial
+talk npc=152 approach=trigger record=0
+talk npc=152 approach=trigger record=7
+talk npc=152 approach=trigger record=14
+talk npc=152 approach=trigger record=21
+talk npc=152 approach=trigger record=28
+talk npc=152 approach=trigger record=35
+talk npc=152 approach=trigger record=42
+talk npc=152 approach=trigger record=49
+npcprofile profile=152
+npcrecords profile=152
+talk npc=106 merc=0 approach=initial
+talk npc=106 merc=0 approach=friendly
+talk npc=106 merc=0 approach=friendly
+talk npc=106 merc=0 approach=direct
+talk npc=106 merc=0 approach=direct
+talk npc=106 merc=0 approach=threaten
+talk npc=106 merc=0 approach=threaten
+talk npc=106 merc=0 approach=recruit
+talk npc=106 merc=0 approach=recruit
+talk npc=106 merc=0 approach=repeat
+talk npc=106 merc=0 approach=whoareyou
+talk npc=106 merc=0 approach=buysell
+talk npc=106 merc=0 approach=declaration
+talk npc=106 merc=0 approach=enemy
+talk npc=106 merc=0 approach=initial
+talk npc=106 approach=trigger record=0
+talk npc=106 approach=trigger record=7
+talk npc=106 approach=trigger record=14
+talk npc=106 approach=trigger record=21
+talk npc=106 approach=trigger record=28
+talk npc=106 approach=trigger record=35
+talk npc=106 approach=trigger record=42
+talk npc=106 approach=trigger record=49
+npcprofile profile=106
+npcrecords profile=106
+save SaveGame10
+npcrecords
+npcprofile profile=152
+desire npc=152 merc=0 approach=friendly
+desire npc=152 merc=0 approach=direct
+desire npc=152 merc=0 approach=threaten
+desire npc=152 merc=0 approach=recruit
+consider npc=152 merc=0 approach=friendly
+consider npc=152 merc=0 approach=direct
+consider npc=152 merc=0 approach=threaten
+consider npc=152 merc=0 approach=recruit
+consider npc=152 merc=0 approach=initiating
+consider npc=152 merc=0 approach=notsafe
+consider npc=152 merc=0 approach=declaration
+consider npc=152 merc=0 approach=buysell
+npcprofile profile=106
+desire npc=106 merc=0 approach=friendly
+desire npc=106 merc=0 approach=direct
+desire npc=106 merc=0 approach=threaten
+desire npc=106 merc=0 approach=recruit
+consider npc=106 merc=0 approach=friendly
+consider npc=106 merc=0 approach=direct
+consider npc=106 merc=0 approach=threaten
+consider npc=106 merc=0 approach=recruit
+consider npc=106 merc=0 approach=initiating
+consider npc=106 merc=0 approach=notsafe
+consider npc=106 merc=0 approach=declaration
+consider npc=106 merc=0 approach=buysell
+talk npc=152 merc=0 approach=initial
+talk npc=152 merc=0 approach=friendly
+talk npc=152 merc=0 approach=friendly
+talk npc=152 merc=0 approach=direct
+talk npc=152 merc=0 approach=direct
+talk npc=152 merc=0 approach=threaten
+talk npc=152 merc=0 approach=threaten
+talk npc=152 merc=0 approach=recruit
+talk npc=152 merc=0 approach=recruit
+talk npc=152 merc=0 approach=repeat
+talk npc=152 merc=0 approach=whoareyou
+talk npc=152 merc=0 approach=buysell
+talk npc=152 merc=0 approach=declaration
+talk npc=152 merc=0 approach=enemy
+talk npc=152 merc=0 approach=initial
+talk npc=152 approach=trigger record=0
+talk npc=152 approach=trigger record=7
+talk npc=152 approach=trigger record=14
+talk npc=152 approach=trigger record=21
+talk npc=152 approach=trigger record=28
+talk npc=152 approach=trigger record=35
+talk npc=152 approach=trigger record=42
+talk npc=152 approach=trigger record=49
+npcprofile profile=152
+npcrecords profile=152
+talk npc=106 merc=0 approach=initial
+talk npc=106 merc=0 approach=friendly
+talk npc=106 merc=0 approach=friendly
+talk npc=106 merc=0 approach=direct
+talk npc=106 merc=0 approach=direct
+talk npc=106 merc=0 approach=threaten
+talk npc=106 merc=0 approach=threaten
+talk npc=106 merc=0 approach=recruit
+talk npc=106 merc=0 approach=recruit
+talk npc=106 merc=0 approach=repeat
+talk npc=106 merc=0 approach=whoareyou
+talk npc=106 merc=0 approach=buysell
+talk npc=106 merc=0 approach=declaration
+talk npc=106 merc=0 approach=enemy
+talk npc=106 merc=0 approach=initial
+talk npc=106 approach=trigger record=0
+talk npc=106 approach=trigger record=7
+talk npc=106 approach=trigger record=14
+talk npc=106 approach=trigger record=21
+talk npc=106 approach=trigger record=28
+talk npc=106 approach=trigger record=35
+talk npc=106 approach=trigger record=42
+talk npc=106 approach=trigger record=49
+npcprofile profile=106
+npcrecords profile=106

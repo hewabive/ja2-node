@@ -1,4 +1,6 @@
 import { loadStubProfiles } from '../content/formats/stub-profiles.ts';
+import type { DialogueTexts } from '../content/narrative/dialogue-text.ts';
+import type { LayerCount } from '../content/narrative/npc-records.ts';
 import { loadArmyContent } from '../content/strategic/army.ts';
 import { loadEconomyContent } from '../content/strategic/economy-content.ts';
 import { dialogueProfiles, type LaptopContent, loadLaptopContent } from '../content/strategic/laptop-content.ts';
@@ -17,6 +19,7 @@ import { CompressMode } from '../sim/strategic/time/constants.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
 import { CampaignSession } from './campaign-session.ts';
+import { narrativeSetup } from './narrative-content.ts';
 import { type FileExists, WorldCache } from './world-cache.ts';
 
 export interface CampaignHire {
@@ -110,9 +113,15 @@ export interface NewCampaign {
   readonly worlds: WorldCache;
   readonly laptopContent: LaptopContent;
   readonly stubbed: boolean;
+  readonly texts: DialogueTexts;
 }
 
-export async function buildNewCampaign(read: ReadFile, exists: FileExists, createState: () => StrategicState): Promise<NewCampaign> {
+export async function buildNewCampaign(
+  read: ReadFile,
+  exists: FileExists,
+  createState: () => StrategicState,
+  layers?: LayerCount,
+): Promise<NewCampaign> {
   const [baseContent, strategicContent, army] = await Promise.all([
     loadTacticalContent(read),
     loadStrategicContent(read),
@@ -123,6 +132,7 @@ export async function buildNewCampaign(read: ReadFile, exists: FileExists, creat
   const economyContent = await loadEconomyContent(read, strategicContent.towns);
   const merchantContent = await loadMerchantContent(read, content.items);
   const laptopContent = await loadLaptopContent(read, content.items);
+  const narrative = await narrativeSetup(read, content.items, content.profiles, layers);
   const state = createState();
   let campaign: CampaignSim | null = null;
   const roster = new Roster({ content, combat: campaignCombatContext(() => campaign, state, content), profiles: state.profiles });
@@ -138,9 +148,10 @@ export async function buildNewCampaign(read: ReadFile, exists: FileExists, creat
       merchants: merchantContent,
       dialogueProfiles: dialogueProfiles(exists, economyContent.mercTypes, laptopContent),
     },
+    narrative,
   });
   initNewGame(campaign);
-  return { campaign, roster, worlds, laptopContent, stubbed: content !== baseContent };
+  return { campaign, roster, worlds, laptopContent, stubbed: content !== baseContent, texts: narrative.texts };
 }
 
 export async function createCampaignSession(
@@ -148,17 +159,22 @@ export async function createCampaignSession(
   exists: FileExists,
   seed: number,
   request: CampaignRequest = {},
+  layers?: LayerCount,
 ): Promise<CampaignSession> {
   validate(request);
-  const { campaign, roster, worlds, laptopContent, stubbed } = await buildNewCampaign(read, exists, () =>
-    createStrategicState({
-      seed,
-      ...(request.difficulty !== undefined ? { options: { difficulty: request.difficulty } } : {}),
-    }),
+  const { campaign, roster, worlds, laptopContent, stubbed, texts } = await buildNewCampaign(
+    read,
+    exists,
+    () =>
+      createStrategicState({
+        seed,
+        ...(request.difficulty !== undefined ? { options: { difficulty: request.difficulty } } : {}),
+      }),
+    layers,
   );
   hireSquad(campaign, request, stubbed);
   if (request.imp) createImp(campaign, laptopContent, request.imp);
-  const session = new CampaignSession(campaign, roster, worlds);
+  const session = new CampaignSession(campaign, roster, worlds, texts);
   if (request.hire?.length === 0 && !request.imp) return session;
   const closed = campaign.dispatch({ type: 'closeLaptop' });
   if (!closed.ok) throw new Error(`cannot close the laptop: ${closed.reason ?? 'refused'}`);
