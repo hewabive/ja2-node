@@ -37,6 +37,7 @@ window.__ja2Strategic = debug;
 const TOWNS_PATH = 'externalized/strategic-map-towns.json';
 const ROW_LETTERS = 'ABCDEFGHIJKLMNOP';
 const ON_DUTY = 20;
+const FINISH = 0;
 const REALTIME_SPEED = 1;
 
 function el<T extends HTMLElement>(id: string): T {
@@ -66,6 +67,8 @@ const cellsEl = el<HTMLTableElement>('cells');
 let client: SessionClient | null = null;
 let shown: StrategicView | null = null;
 let shownPrompt: PromptView | null = null;
+let playback = FINISH;
+let lastFrameAt = performance.now();
 let shownAutoresolve: AutoresolveView | null = null;
 let picked: string | null = null;
 let towns = new Map<number, string>();
@@ -433,6 +436,14 @@ el<HTMLButtonElement>('advance').addEventListener('click', () => {
   });
 });
 
+for (const b of document.querySelectorAll<HTMLButtonElement>('[data-playback]')) {
+  b.classList.toggle('active', b.dataset.playback === 'finish');
+  b.addEventListener('click', () => {
+    playback = b.dataset.playback === 'finish' ? FINISH : Number(b.dataset.playback);
+    for (const other of document.querySelectorAll<HTMLButtonElement>('[data-playback]')) other.classList.toggle('active', other === b);
+  });
+}
+
 el<HTMLButtonElement>('newCampaign').addEventListener('click', () => {
   const difficulty = Number(el<HTMLSelectElement>('difficulty').value);
   void fetch('/api/sessions', {
@@ -467,8 +478,15 @@ async function loadSessions(current: string | null): Promise<void> {
 
 function frame(): void {
   requestAnimationFrame(frame);
+  const now = performance.now();
+  const elapsed = now - lastFrameAt;
+  lastFrameAt = now;
   if (!client) return;
-  client.skipToLatest();
+  if (playback === FINISH) client.skipToLatest();
+  else {
+    client.playbackSpeed = playback;
+    client.playFor(elapsed);
+  }
   renderClock();
   const view = client.strategic;
   if (view && view !== shown) {

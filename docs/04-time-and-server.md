@@ -428,7 +428,8 @@ the browser follows the campaign without polling. The strategic page (`src/devto
 starts a campaign, shows the 16×16 map (control, known enemies, militia, squads, planned routes), the mercs and their
 groups, and sends `route` (once per squad), `enterSector`, `mapScreen`/`tacticalScreen`, `compressTime {mode: 2|3|4}`,
 `stopTime` and a strategic `advance` (to the next stop; during autoresolve to its end). A battle panel shows the open prompt
-(`preBattle`, `autoresolveDone`, …) with its choices and the autoresolve cells. The tactical page takes `?session=` and
+(`preBattle`, `autoresolveDone`, …) with its choices and the autoresolve cells; the frame stream (and with it an
+autoresolve battle) plays back at the original's Play (1×) and Fast (4×) speeds or at once (Finish). The tactical page takes `?session=` and
 reloads the world when the loaded sector changes.
 
 The campaign runs in flows: `tactical` (the loaded sector steps in real time or turns), `strategic` (the map screen: the
