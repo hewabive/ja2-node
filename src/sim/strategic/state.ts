@@ -1,5 +1,6 @@
 import { PreRandom, Rng } from '../../core/rng.ts';
 import { createFinanceState, type FinanceState } from '../campaign/finances.ts';
+import type { ProfileProgress } from '../tactical/profiles.ts';
 import {
   createMeanwhileState,
   createQueenState,
@@ -35,6 +36,7 @@ export interface StrategicState {
   didGameJustStart: boolean;
   worldSector: SectorPosition | null;
   readonly options: GameOptions;
+  readonly profiles: Map<number, ProfileProgress>;
   readonly map: StrategicMapState;
   readonly forces: ForcesState;
   readonly movement: MovementFlowState;
@@ -62,6 +64,7 @@ export interface StrategicStateOptions {
   readonly seed?: number;
   readonly streams?: RandomStreams;
   readonly options?: Partial<GameOptions>;
+  readonly profiles?: Map<number, ProfileProgress>;
 }
 
 const DEFAULT_SEED = 1;
@@ -80,6 +83,7 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     didGameJustStart: false,
     worldSector: null,
     options: { ...DEFAULT_OPTIONS, ...options.options },
+    profiles: options.profiles ?? new Map(),
     map: createMapState(),
     forces: createForcesState(),
     movement: createMovementFlowState(),

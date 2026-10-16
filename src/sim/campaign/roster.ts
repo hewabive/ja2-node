@@ -1,13 +1,33 @@
+import type { MercProfile } from '../../content/formats/prof.ts';
 import type { Sector } from '../../content/strategic/sector-ids.ts';
-import type { MercPort, StrategicMerc, TravelStat } from '../strategic/forces/ports.ts';
+import type { ItemObject } from '../items/object.ts';
+import type { CrewMember, CrewPort, MercStats, StatDamage } from '../strategic/economy/ports.ts';
+import { TravelStat } from '../strategic/forces/ports.ts';
+import type { CombatContext } from '../tactical/combat/context.ts';
+import { StatCause, statChange } from '../tactical/combat/experience.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { carriedWeightPercentOf } from '../tactical/points.ts';
+import { StatKind } from '../tactical/profiles.ts';
+import {
+  effectiveAgility,
+  effectiveDexterity,
+  effectiveExpLevel,
+  effectiveExplosive,
+  effectiveLeadership,
+  effectiveMarksmanship,
+  effectiveMechanical,
+  effectiveMedical,
+  effectiveStrength,
+  effectiveWisdom,
+} from '../tactical/skills.ts';
 import { Body, type Soldier, SoldierStatusFlags } from '../tactical/soldier.ts';
 
 export const MercKind = { PLAYER_CHARACTER: 0, AIM_MERC: 1, MERC: 2, NPC: 3, EPC: 4, NPC_UNEXTENDABLE: 5, VEHICLE: 6 } as const;
+const NO_VEHICLE = -1;
 
 export interface RosterMercInit {
   readonly soldier: Soldier;
+  readonly profile: MercProfile | null;
   readonly kind: number;
   readonly statusFlags: number;
   readonly sector: Sector;
@@ -20,10 +40,12 @@ export interface RosterMercInit {
   readonly assignment: number;
   readonly vehicleId: number;
   readonly asleep: boolean;
+  readonly fractLife?: number;
 }
 
-export class RosterMerc implements StrategicMerc {
+export class RosterMerc implements CrewMember {
   readonly soldier: Soldier;
+  readonly profileRecord: MercProfile | null;
   readonly kind: number;
   statusFlags: number;
   sector: Sector;
@@ -36,9 +58,20 @@ export class RosterMerc implements StrategicMerc {
   assignment: number;
   vehicleId: number;
   asleep: boolean;
+  fractLife: number;
+  collapsed = false;
+  forcedToStayAwake = false;
+  complainedThatTired = false;
+  nothingToDo = false;
+  doneQuoteSaid = false;
+  trainStat = 0;
+  lastAssignmentChangeMin = 0;
+  fixingRobot = false;
+  vehicleUnderRepair = NO_VEHICLE;
 
   constructor(init: RosterMercInit) {
     this.soldier = init.soldier;
+    this.profileRecord = init.profile;
     this.kind = init.kind;
     this.statusFlags = init.statusFlags;
     this.sector = init.sector;
@@ -51,6 +84,7 @@ export class RosterMerc implements StrategicMerc {
     this.assignment = init.assignment;
     this.vehicleId = init.vehicleId;
     this.asleep = init.asleep;
+    this.fractLife = init.fractLife ?? 0;
   }
 
   get id(): number {
@@ -65,12 +99,101 @@ export class RosterMerc implements StrategicMerc {
     return this.soldier.life;
   }
 
+  set life(value: number) {
+    this.soldier.life = value;
+  }
+
   get lifeMax(): number {
     return this.soldier.lifeMax;
   }
 
+  set lifeMax(value: number) {
+    this.soldier.lifeMax = value;
+  }
+
+  get bleeding(): number {
+    return this.soldier.bleeding;
+  }
+
+  set bleeding(value: number) {
+    this.soldier.bleeding = value;
+  }
+
+  get breath(): number {
+    return this.soldier.breath;
+  }
+
+  set breath(value: number) {
+    this.soldier.breath = value;
+  }
+
+  get breathMax(): number {
+    return this.soldier.breathMax;
+  }
+
+  set breathMax(value: number) {
+    this.soldier.breathMax = value;
+  }
+
   get strength(): number {
     return this.soldier.stats.strength;
+  }
+
+  get inSector(): boolean {
+    return this.soldier.placed;
+  }
+
+  get stats(): MercStats {
+    const s = this.soldier.stats;
+    return {
+      strength: s.strength,
+      dexterity: s.dexterity,
+      agility: s.agility,
+      wisdom: s.wisdom,
+      leadership: s.leadership,
+      marksmanship: s.marksmanship,
+      mechanical: s.mechanical,
+      medical: s.medical,
+      explosives: s.explosives,
+      expLevel: s.experience,
+    };
+  }
+
+  get effective(): MercStats {
+    const s = this.soldier;
+    return {
+      strength: effectiveStrength(s),
+      dexterity: effectiveDexterity(s),
+      agility: effectiveAgility(s),
+      wisdom: effectiveWisdom(s),
+      leadership: effectiveLeadership(s),
+      marksmanship: effectiveMarksmanship(s),
+      mechanical: effectiveMechanical(s),
+      medical: effectiveMedical(s),
+      explosives: effectiveExplosive(s),
+      expLevel: effectiveExpLevel(s),
+    };
+  }
+
+  get statDamage(): StatDamage {
+    return this.soldier.statDamage;
+  }
+
+  get skillTraits(): readonly number[] {
+    return [this.soldier.skillTrait1, this.soldier.skillTrait2];
+  }
+
+  get profileTraits(): readonly number[] {
+    const p = this.profileRecord;
+    return p ? [p.skillTrait, p.skillTrait2] : [0, 0];
+  }
+
+  get needForSleep(): number {
+    return this.profileRecord?.needForSleep ?? 0;
+  }
+
+  get inv(): ItemObject[] {
+    return this.soldier.inv;
   }
 
   get isVehicle(): boolean {
@@ -93,29 +216,42 @@ export class RosterMerc implements StrategicMerc {
 export interface RosterHooks {
   removeFromTacticalSector(merc: RosterMerc): void;
   updateMercInSector(merc: RosterMerc, sector: Sector): void;
-  awardTravelExperience(merc: RosterMerc, stat: TravelStat, points: number): void;
   tooTiredToTravel(merc: RosterMerc): boolean;
   collapseFromFatigue(merc: RosterMerc, firstToComplain: boolean): void;
   spendVehicleFuel(vehicle: RosterMerc, fuel: number): number;
+  dressWound(doctor: RosterMerc, patient: RosterMerc, kit: ItemObject, kitPoints: number, kitStatus: number): number;
 }
 
 export const NO_ROSTER_HOOKS: RosterHooks = {
   removeFromTacticalSector: () => {},
   updateMercInSector: () => {},
-  awardTravelExperience: () => {},
   tooTiredToTravel: () => false,
   collapseFromFatigue: () => {},
   spendVehicleFuel: () => 0,
+  dressWound: () => 0,
 };
 
-export class Roster implements MercPort {
+export interface RosterSetup {
+  readonly content: TacticalContent;
+  readonly combat: () => CombatContext;
+  readonly hooks?: RosterHooks;
+}
+
+const TRAVEL_STATS: Readonly<Record<TravelStat, number>> = {
+  [TravelStat.HEALTH]: StatKind.HEALTH,
+  [TravelStat.STRENGTH]: StatKind.STRENGTH,
+};
+
+export class Roster implements CrewPort {
   readonly #mercs = new Map<number, RosterMerc>();
   readonly #content: TacticalContent;
+  readonly #combat: () => CombatContext;
   hooks: RosterHooks;
 
-  constructor(content: TacticalContent, hooks: RosterHooks = NO_ROSTER_HOOKS) {
-    this.#content = content;
-    this.hooks = hooks;
+  constructor(setup: RosterSetup) {
+    this.#content = setup.content;
+    this.#combat = setup.combat;
+    this.hooks = setup.hooks ?? NO_ROSTER_HOOKS;
   }
 
   add(merc: RosterMerc): void {
@@ -149,8 +285,7 @@ export class Roster implements MercPort {
   }
 
   awardTravelExperience(id: number, stat: TravelStat, points: number): void {
-    const merc = this.get(id);
-    if (merc) this.hooks.awardTravelExperience(merc, stat, points);
+    this.statChange(id, TRAVEL_STATS[stat], points, StatCause.SUCCESS);
   }
 
   removeFromTacticalSector(id: number): void {
@@ -177,4 +312,38 @@ export class Roster implements MercPort {
     const merc = this.get(vehicleSoldierId);
     return merc ? this.hooks.spendVehicleFuel(merc, fuel) : 0;
   }
+
+  statChange(id: number, stat: number, chances: number, cause: number): void {
+    const merc = this.get(id);
+    if (merc) statChange(this.#combat(), merc.soldier, stat, chances, cause);
+  }
+
+  healStat(id: number, stat: keyof StatDamage, points: number): void {
+    const merc = this.get(id);
+    if (merc) merc.soldier.stats[stat] += points;
+  }
+
+  opinion(profile: number, aboutProfile: number): number {
+    return this.#content.profiles[profile]?.mercOpinion[aboutProfile] ?? 0;
+  }
+
+  dressWound(doctor: number, patient: number, kit: ItemObject, kitPoints: number, kitStatus: number): number {
+    const d = this.get(doctor);
+    const p = this.get(patient);
+    return d && p ? this.hooks.dressWound(d, p, kit, kitPoints, kitStatus) : 0;
+  }
+
+  inHelicopter(): boolean {
+    return false;
+  }
+
+  aboardAirborneHelicopter(): boolean {
+    return false;
+  }
+
+  mustDriveVehicle(): boolean {
+    return false;
+  }
+
+  takeOutOfVehicle(): void {}
 }

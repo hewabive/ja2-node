@@ -11,6 +11,8 @@ export function addSavedMercsToRoster(roster: Roster, save: SaveGame, tactical: 
     roster.add(
       new RosterMerc({
         soldier: tactical?.soldiers[r.id] ?? createSavedSoldier(save, entry),
+        profile: save.profiles[r.profile] ?? null,
+        fractLife: r.fractLife,
         kind: r.whatKindOfMercAmI,
         statusFlags: r.statusFlags,
         sector: { ...r.sector },
