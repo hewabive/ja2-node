@@ -38,6 +38,7 @@ import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import { compareAutoresolveAftermath, compareEnemyCounts } from './autoresolve-aftermath.ts';
 import { compareAutoresolve } from './autoresolve-compare.ts';
 import { compareAutoresolveCreation } from './autoresolve-creation.ts';
+import { CREATURE_AI_PROBES, CreatureAiComparer } from './creature-ai-compare.ts';
 import { CREATURE_PROBES, CreatureComparer } from './creature-compare.ts';
 import { ECONOMY_PROBES, EconomyComparer } from './economy-compare.ts';
 import { MORALE_PROBES, MoraleComparer } from './morale-compare.ts';
@@ -564,6 +565,7 @@ for (const file of files) {
   const sectors = new SectorComparer(read, (p) => data.vfs.stat(p) !== undefined);
   const creatures = new CreatureComparer(read, exists);
   const morale = new MoraleComparer(read, exists);
+  const creatureAi = new CreatureAiComparer(read, exists);
   let ctx: Context | null = null;
   let arSetup: Json | null = null;
   for (const p of readLines(file)) {
@@ -582,6 +584,7 @@ for (const file of files) {
       await sai.loadSave(savesDir(dataDir), String(p.name));
       if (ctx.bytes) creatures.loadSave(ctx.bytes);
       if (ctx.bytes) morale.loadSave(ctx.bytes);
+      if (ctx.bytes) creatureAi.loadSave(ctx.bytes);
     } else if (p.probe === 'end') continue;
     else if (p.probe === 'autoresolve') failures += await compareAutoresolveProbe(read, exists, ctx, arSetup, p);
     else if (p.probe === 'enemycounts') failures += await compareEnemyCountsProbe(read, ctx, p);
@@ -592,6 +595,7 @@ for (const file of files) {
     else if (SECTOR_PROBES.has(String(p.probe))) failures += await sectors.compare(p);
     else if (CREATURE_PROBES.has(String(p.probe))) failures += await creatures.compare(p);
     else if (MORALE_PROBES.has(String(p.probe))) failures += await morale.compare(p);
+    else if (CREATURE_AI_PROBES.has(String(p.probe))) failures += await creatureAi.compare(p);
     else {
       ctx ??= await sectorContext(read, content, worlds, null);
       if (p.probe === 'costs') failures += compareCosts(ctx, p);

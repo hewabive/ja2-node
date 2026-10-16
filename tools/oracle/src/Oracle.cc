@@ -11,6 +11,7 @@
 // @src GenerateMapEdgepoints, CalcMapEdgepointClassInsertionCode; src/game/Tactical/Soldier_Init_List.cc AddSoldierInitListEnemyDefenceSoldiers
 #include "Oracle.h"
 
+#include "AI.h"
 #include "AIInternals.h"
 #include "Animation_Control.h"
 #include "Animation_Data.h"
@@ -79,6 +80,8 @@
 #include "Creature_Spreading.h"
 #include "Morale.h"
 #include "Strategic_Merc_Handler.h"
+#include "Smell.h"
+#include "Soldier_Macros.h"
 
 #include <string_theory/string>
 
@@ -2952,6 +2955,337 @@ void ProbeBloodcatPlacement(Command const& c)
 		.raw("draws", draws));
 }
 
+std::map<std::string, INT8> const CREATURE_BODIES{
+	{"af", ADULTFEMALEMONSTER}, {"am", AM_MONSTER}, {"yf", YAF_MONSTER}, {"ym", YAM_MONSTER}, {"larva", LARVAE_MONSTER},
+	{"infant", INFANT_MONSTER}, {"queen", QUEENMONSTER}, {"bloodcat", BLOODCAT}, {"regmale", REGMALE}, {"bigmale", BIGMALE},
+	{"stockymale", STOCKYMALE}, {"regfemale", REGFEMALE},
+};
+
+std::string DescribeInventoryFlags(SOLDIERTYPE const& s)
+{
+	std::vector<long long> flags;
+	for (int slot = 0; slot < NUM_INV_SLOTS; ++slot) flags.push_back(s.inv[slot].fFlags);
+	std::string list = "[";
+	for (size_t i = 0; i < flags.size(); ++i)
+	{
+		if (i) list += ",";
+		list += std::to_string(flags[i]);
+	}
+	return list + "]";
+}
+
+std::string DescribeCreatureAI(SOLDIERTYPE const& s)
+{
+	std::vector<long long> const patrol(std::begin(s.usPatrolGrid), std::end(s.usPatrolGrid));
+	return Json{}
+		.num("side", static_cast<long long>(s.bSide))
+		.num("neutral", s.bNeutral)
+		.num("normalSmell", s.bNormalSmell)
+		.num("monsterSmell", s.bMonsterSmell)
+		.num("mobility", s.bMobility)
+		.num("caller", s.ubCaller)
+		.num("callerGridNo", s.sCallerGridNo)
+		.num("callPriority", s.bCallPriority)
+		.num("callActedUpon", s.bCallActedUpon)
+		.num("frenzied", s.bFrenzied)
+		.num("hunting", s.bHunting)
+		.num("oldLife", s.bOldLife)
+		.num("regeneration", s.bRegenerationCounter)
+		.num("action", s.bAction)
+		.num("actionData", s.usActionData)
+		.num("nextAction", s.bNextAction)
+		.num("nextActionData", s.usNextActionData)
+		.num("lastAction", s.bLastAction)
+		.num("actionInProgress", s.bActionInProgress)
+		.num("newSituation", s.bNewSituation)
+		.num("bypassToGreen", s.bBypassToGreen)
+		.num("dominantDir", s.bDominantDir)
+		.num("noiseGridNo", s.sNoiseGridno)
+		.num("noiseVolume", s.ubNoiseVolume)
+		.num("noiseLevel", s.bNoiseLevel)
+		.num("oppCount", s.bOppCnt)
+		.num("underFire", s.bUnderFire)
+		.num("uiMovementMode", s.usUIMovementMode)
+		.nums("patrolGrid", patrol)
+		.num("patrolCount", s.bPatrolCnt)
+		.num("nextPatrolPoint", s.bNextPatrolPnt)
+		.num("finalDestination", s.sFinalDestination)
+		.num("aimTime", s.bAimTime)
+		.num("aimShotLocation", s.bAimShotLocation)
+		.num("targetLevel", s.bTargetLevel)
+		.num("walkToAttackGridNo", s.sWalkToAttackGridNo)
+		.num("walkToAttackCost", s.sWalkToAttackWalkToCost)
+		.num("blackList", s.sBlackList)
+		.num("stealth", s.bStealthMode)
+		.flag("teamAware", gTacticalStatus.Team[s.bTeam].bAwareOfOpposition)
+		.num("hand", s.inv[HANDPOS].usItem)
+		.num("secondHand", s.inv[SECONDHANDPOS].usItem)
+		.raw("inventoryFlags", DescribeInventoryFlags(s))
+		.text();
+}
+
+void EmitCreatureSoldier(char const* probe, Command const& c, SOLDIERTYPE const& s)
+{
+	Emit(Json{}
+		.str("probe", probe)
+		.num("line", c.line)
+		.num("who", s.ubID)
+		.raw("soldier", DescribeDetail(s))
+		.raw("ai", DescribeCreatureAI(s)));
+}
+
+void ApplyNoise(SOLDIERTYPE& s, std::string const& spec)
+{
+	std::vector<std::string> const parts = SplitList(spec, ':');
+	if (parts.size() < 2) throw std::runtime_error("noise looks like <grid>:<volume>[:<level>]");
+	s.sNoiseGridno  = static_cast<INT16>(ParseInteger("noise", parts[0]));
+	s.ubNoiseVolume = static_cast<UINT8>(ParseInteger("noise", parts[1]));
+	s.bNoiseLevel   = parts.size() > 2 ? static_cast<INT8>(ParseInteger("noise", parts[2])) : 0;
+}
+
+void ApplyCaller(SOLDIERTYPE& s, std::string const& spec)
+{
+	std::vector<std::string> const parts = SplitList(spec, ':');
+	if (parts.size() != 3) throw std::runtime_error("caller looks like <id>:<grid>:<priority>");
+	s.ubCaller      = static_cast<UINT8>(ParseInteger("caller", parts[0]));
+	s.sCallerGridNo = static_cast<INT16>(ParseInteger("caller", parts[1]));
+	s.bCallPriority = static_cast<UINT8>(ParseInteger("caller", parts[2]));
+}
+
+template<typename T>
+void SetIfGiven(Command const& c, char const* key, T& field)
+{
+	if (Has(c, key)) field = static_cast<T>(Integer(c, key, 0));
+}
+
+void ApplySoldierSettings(Command const& c, SOLDIERTYPE& s)
+{
+	SetIfGiven(c, "alert", s.bAlertStatus);
+	SetIfGiven(c, "orders", s.bOrders);
+	SetIfGiven(c, "attitude", s.bAttitude);
+	SetIfGiven(c, "ap", s.bActionPoints);
+	SetIfGiven(c, "initialAp", s.bInitialActionPoints);
+	SetIfGiven(c, "life", s.bLife);
+	SetIfGiven(c, "oldLife", s.bOldLife);
+	SetIfGiven(c, "breath", s.bBreath);
+	SetIfGiven(c, "hunting", s.bHunting);
+	SetIfGiven(c, "frenzied", s.bFrenzied);
+	SetIfGiven(c, "underFire", s.bUnderFire);
+	SetIfGiven(c, "opps", s.bOppCnt);
+	SetIfGiven(c, "lastAction", s.bLastAction);
+	SetIfGiven(c, "actionData", s.usActionData);
+	SetIfGiven(c, "monsterSmell", s.bMonsterSmell);
+	SetIfGiven(c, "lastTarget", s.sLastTarget);
+	if (Has(c, "noise")) ApplyNoise(s, Text(c, "noise", ""));
+	if (Has(c, "caller")) ApplyCaller(s, Text(c, "caller", ""));
+	if (Has(c, "aware")) gTacticalStatus.Team[s.bTeam].bAwareOfOpposition = Integer(c, "aware", 0) != 0;
+	if (Has(c, "face"))
+	{
+		INT8 const dir = static_cast<INT8>(Integer(c, "face", 0));
+		EVENT_SetSoldierDirection(&s, dir);
+		EVENT_SetSoldierDesiredDirection(&s, dir);
+	}
+}
+
+void AddProbeSoldier(Command const& c)
+{
+	if (!gfWorldLoaded) throw std::runtime_error("no world loaded");
+	GridNo const at = GridArgument(c, "at");
+	SOLDIERCREATE_STRUCT cs{};
+	cs.ubProfile        = NO_PROFILE;
+	cs.sSector          = gWorldSector;
+	cs.bTeam            = Lookup(TEAMS, c, "team", "creature");
+	cs.bBodyType        = Lookup(CREATURE_BODIES, c, "body", "af");
+	cs.bDirection       = static_cast<INT8>(Integer(c, "dir", SOUTH));
+	cs.sInsertionGridNo = at;
+	cs.fOnRoof          = Integer(c, "level", 0) > 0;
+	RandomizeNewSoldierStats(&cs);
+	SOLDIERTYPE* const s = TacticalCreateSoldier(cs);
+	if (!s) throw std::runtime_error("TacticalCreateSoldier failed");
+	AddSoldierToSectorNoCalculateDirection(s);
+	if (s->sGridNo != at) EVENT_SetSoldierPosition(s, at, SSP_NONE);
+	ApplySoldierSettings(c, *s);
+	EmitCreatureSoldier("addsoldier", c, *s);
+}
+
+void SetProbeSoldier(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	ApplySoldierSettings(c, s);
+	EmitCreatureSoldier("setsoldier", c, s);
+}
+
+void SetSeen(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	SOLDIERTYPE const& opp = ExistingSoldier(Required(c, "opp"));
+	INT8 const value = static_cast<INT8>(Integer(c, "value", SEEN_CURRENTLY));
+	GridNo const grid = static_cast<GridNo>(Integer(c, "grid", opp.sGridNo));
+	if (Integer(c, "public", 0) != 0)
+	{
+		gbPublicOpplist[s.bTeam][opp.ubID]           = value;
+		gsPublicLastKnownOppLoc[s.bTeam][opp.ubID]   = grid;
+		gbPublicLastKnownOppLevel[s.bTeam][opp.ubID] = opp.bLevel;
+	}
+	else
+	{
+		if (value == SEEN_CURRENTLY && s.bOppList[opp.ubID] != SEEN_CURRENTLY) ++s.bOppCnt;
+		s.bOppList[opp.ubID]                 = value;
+		gsLastKnownOppLoc[s.ubID][opp.ubID]   = grid;
+		gbLastKnownOppLevel[s.ubID][opp.ubID] = opp.bLevel;
+	}
+	Emit(Json{}
+		.str("probe", "seen")
+		.num("line", c.line)
+		.num("who", s.ubID)
+		.num("opp", opp.ubID)
+		.num("value", value)
+		.num("grid", grid)
+		.flag("public", Integer(c, "public", 0) != 0)
+		.raw("soldier", DescribeDetail(s))
+		.raw("ai", DescribeCreatureAI(s)));
+}
+
+void ProbeDecision(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	bool const status = Integer(c, "status", 1) != 0;
+	gfTurnBasedAI = (gTacticalStatus.uiFlags & INCOMBAT) != 0;
+	INT8 action = AI_ACTION_NONE;
+	std::string const draws = TracedSaiDraws([&] {
+		if (status) DecideAlertStatus(&s);
+		if (CREATURE_OR_BLOODCAT(&s)) action = CreatureDecideAction(&s);
+		else if (s.ubBodyType == CROW) action = CrowDecideAction(&s);
+		else action = DecideAction(&s);
+	});
+	Emit(Json{}
+		.str("probe", "decide")
+		.num("line", c.line)
+		.num("who", s.ubID)
+		.flag("status", status)
+		.flag("turnBased", gfTurnBasedAI)
+		.num("decided", action)
+		.raw("soldier", DescribeDetail(s))
+		.raw("ai", DescribeCreatureAI(s))
+		.raw("draws", draws));
+}
+
+void ProbeBestStab(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	bool const tentacles = Integer(c, "tentacles", 0) != 0;
+	AttackStateGuard const guard;
+	ATTACKTYPE best{};
+	std::string const draws = TracedSaiDraws([&] {
+		if (tentacles) CalcTentacleAttack(&s, &best);
+		else CalcBestStab(&s, &best, Integer(c, "blade", 1) != 0);
+	});
+	Emit(Json{}
+		.str("probe", "beststab")
+		.num("line", c.line)
+		.num("who", s.ubID)
+		.flag("tentacles", tentacles)
+		.num("weapon", s.inv[HANDPOS].usItem)
+		.num("ap", s.bActionPoints)
+		.flag("possible", best.ubPossible)
+		.raw("opponent", NullableId(best.opponent))
+		.num("target", best.sTarget)
+		.num("aimTime", best.ubAimTime)
+		.num("chanceToReallyHit", best.ubChanceToReallyHit)
+		.num("apCost", best.ubAPCost)
+		.num("attackValue", best.iAttackValue)
+		.num("walkToAttackGridNo", s.sWalkToAttackGridNo)
+		.num("walkToAttackCost", s.sWalkToAttackWalkToCost)
+		.raw("draws", draws));
+}
+
+void ProbeStab(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	SOLDIERTYPE& tgt = ExistingSoldier(Required(c, "target"));
+	UINT8 const aim = static_cast<UINT8>(Integer(c, "aim", 0));
+	INT32 const hitBy = static_cast<INT32>(Integer(c, "hitBy", 0));
+	AttackStateGuard const guard;
+	s.usAttackingWeapon = s.inv[HANDPOS].usItem;
+	UINT32 const chance = CalcChanceToStab(&s, &tgt, aim);
+	INT32 impact = 0;
+	std::string const draws = TracedSaiDraws([&] { impact = HTHImpact(&s, &tgt, hitBy, TRUE); });
+	Emit(Json{}
+		.str("probe", "stab")
+		.num("line", c.line)
+		.num("who", s.ubID)
+		.num("target", tgt.ubID)
+		.num("weapon", s.usAttackingWeapon)
+		.num("aim", aim)
+		.num("chance", chance)
+		.num("hitBy", hitBy)
+		.num("impact", impact)
+		.raw("draws", draws));
+}
+
+void ProbeCreatureCall(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	s.usActionData = static_cast<UINT16>(Integer(c, "call", CALL_1_PREY));
+	std::string const draws = TracedSaiDraws([&] { CreatureCall(&s); });
+	std::vector<std::string> receivers;
+	FOR_EACH_IN_TEAM(r, s.bTeam)
+	{
+		if (!r->bInSector) continue;
+		receivers.push_back(Json{}.num("id", r->ubID).num("alert", r->bAlertStatus).raw("ai", DescribeCreatureAI(*r)).text());
+	}
+	Emit(Json{}
+		.str("probe", "creaturecall")
+		.num("line", c.line)
+		.num("who", s.ubID)
+		.num("call", s.usActionData)
+		.flag("aware", gTacticalStatus.Team[s.bTeam].bAwareOfOpposition)
+		.raw("receivers", JsonArray(receivers))
+		.raw("draws", draws));
+}
+
+void SetSmell(Command const& c)
+{
+	GridNo const g = GridArgument(c, "g");
+	if (Has(c, "smell")) gpWorldLevelData[g].ubSmellInfo = static_cast<UINT8>(Integer(c, "smell", 0));
+	if (Has(c, "blood")) gpWorldLevelData[g].ubBloodInfo = static_cast<UINT8>(Integer(c, "blood", 0));
+	Emit(Json{}
+		.str("probe", "smell")
+		.num("line", c.line)
+		.num("g", g)
+		.num("smell", gpWorldLevelData[g].ubSmellInfo)
+		.num("blood", gpWorldLevelData[g].ubBloodInfo));
+}
+
+void ProbeDropSmell(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	DropSmell(s);
+	Emit(Json{}
+		.str("probe", "dropsmell")
+		.num("line", c.line)
+		.num("who", s.ubID)
+		.num("g", s.sGridNo)
+		.num("smell", gpWorldLevelData[s.sGridNo].ubSmellInfo)
+		.num("blood", gpWorldLevelData[s.sGridNo].ubBloodInfo));
+}
+
+void ProbeTrackScent(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	if (Has(c, "actionData")) s.usActionData = static_cast<UINT16>(Integer(c, "actionData", 0));
+	INT16 result = 0;
+	std::string const draws = TracedSaiDraws([&] { result = TrackScent(&s); });
+	Emit(Json{}
+		.str("probe", "trackscent")
+		.num("line", c.line)
+		.num("who", s.ubID)
+		.num("result", result)
+		.num("actionData", s.usActionData)
+		.raw("draws", draws));
+}
+
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -3010,6 +3344,16 @@ void Dispatch(Command const& c)
 	if (c.name == "creaturecomposition") return ProbeCreatureComposition(c);
 	if (c.name == "creatureplacement") return ProbeCreaturePlacement(c);
 	if (c.name == "bloodcatplacement") return ProbeBloodcatPlacement(c);
+	if (c.name == "addsoldier") return AddProbeSoldier(c);
+	if (c.name == "setsoldier") return SetProbeSoldier(c);
+	if (c.name == "seen") return SetSeen(c);
+	if (c.name == "decide") return ProbeDecision(c);
+	if (c.name == "beststab") return ProbeBestStab(c);
+	if (c.name == "stab") return ProbeStab(c);
+	if (c.name == "creaturecall") return ProbeCreatureCall(c);
+	if (c.name == "smell") return SetSmell(c);
+	if (c.name == "dropsmell") return ProbeDropSmell(c);
+	if (c.name == "trackscent") return ProbeTrackScent(c);
 	if (c.name == "morale") return DumpMorale(c);
 	if (c.name == "setmorale") return SetMorale(c);
 	if (c.name == "setrelation") return SetRelation(c);

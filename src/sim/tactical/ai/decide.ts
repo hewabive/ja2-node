@@ -1,16 +1,16 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/DecideAction.cc DecideAction, DecideActionGreen, DecideAlertStatus;
-// @src AIMain.cc CheckForChangingOrders, SetNewSituation; Realtime.cc RealtimeDelay; AIUtils.cc DetermineMovementMode.
+// @src AIMain.cc CheckForChangingOrders (with the creature branches), SetNewSituation; Realtime.cc RealtimeDelay; AIUtils.cc DetermineMovementMode.
 // See docs/09 §1.4, §2.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AnimHeight, endHeight, hasAnimFlag, states } from '../animation.ts';
-import { isCreatureOrBloodcat } from '../combat/impact.ts';
 import { isMercBody, isWater, NOWHERE } from '../pathfinding.ts';
-import { AlertStatus, Attitude, Body, NO_PROFILE, Orders, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Attitude, Body, isCreatureOrBloodcat, isMonster, NO_PROFILE, Orders, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { AiAction, MOVEMENT_MODE, NEW_SITUATION_DELAY_RANGE, Situation, URGENCY } from './actions.ts';
+import { creatureDecideAlertStatus, realtimeCreatureDelay } from './creature-decide.ts';
 import { goAsFarAsPossibleTowards, pointPatrolAI, randDestWithinRange, randomFriendWithin, randomPointPatrolAI } from './destinations.ts';
 
 const HATKIDCIV = 15;
@@ -54,7 +54,8 @@ export function realtimeAiDelay(t: TacticalState): number {
 }
 
 export function realtimeDelay(t: TacticalState, s: Soldier): number {
-  return isCivOrMilitia(s) ? realtimeCivDelay(t) : realtimeAiDelay(t);
+  if (isCivOrMilitia(s)) return realtimeCivDelay(t);
+  return isCreatureOrBloodcat(s) && !s.hunting ? realtimeCreatureDelay(t) : realtimeAiDelay(t);
 }
 
 export function determineMovementMode(t: TacticalState, s: Soldier, action: number): number {
@@ -79,6 +80,7 @@ export function setNewSituation(t: TacticalState, s: Soldier): void {
 export function checkForChangingOrders(s: Soldier): void {
   const ai = s.ai;
   if (ai.alertStatus === AlertStatus.GREEN) {
+    if (isCreatureOrBloodcat(s)) return;
     ai.nextAction = s.cowering ? AiAction.STOP_COWERING : AiAction.CHANGE_STANCE;
     ai.nextActionData = AnimHeight.STAND;
     return;
@@ -86,6 +88,7 @@ export function checkForChangingOrders(s: Soldier): void {
   if (ai.alertStatus === AlertStatus.YELLOW) return;
   if (ai.orders === Orders.ONGUARD || ai.orders === Orders.CLOSEPATROL) ai.orders++;
   else if (s.team === Team.MILITIA) ai.orders = Orders.SEEKENEMY;
+  else if (isCreatureOrBloodcat(s) && ai.orders !== Orders.STATIONARY && ai.orders !== Orders.ONCALL) ai.orders = Orders.SEEKENEMY;
 }
 
 function inWaterNow(t: TacticalState, s: Soldier): boolean {
@@ -93,6 +96,10 @@ function inWaterNow(t: TacticalState, s: Soldier): boolean {
 }
 
 export function decideAlertStatus(t: TacticalState, s: Soldier, hooks: AiHooks): void {
+  if (isMonster(s)) {
+    creatureDecideAlertStatus(t, s, hooks);
+    return;
+  }
   const ai = s.ai;
   const old = ai.alertStatus;
   if (ai.oppCount > 0) {

@@ -41,7 +41,7 @@ import { fireBulletGivenTarget, soldierToSoldierBodyPartChanceToGetThrough } fro
 import { calcChanceToHitGun } from './chance.ts';
 import { modifyExpGainByTarget, StatCause, statChange } from './experience.ts';
 import { eventSoldierGotHit, okFallDirection } from './hit.ts';
-import { handleBladeAttack, handlePunchAttack, meleeOpcode, useBlade, useHandToHand } from './melee.ts';
+import { handleBladeAttack, handlePunchAttack, handleTentacleAttack, meleeOpcode, useBlade, useHandToHand } from './melee.ts';
 import { calculateSoldierZPos, targetZFromStructureHeight, ZPos } from './positions.ts';
 import { SkillCheckReason, skillCheck } from './skill-check.ts';
 import { AimShot, ItemHandle, NUM_BUCKSHOT_PELLETS, WeaponMode } from './types.ts';
@@ -105,6 +105,7 @@ export function handleItem(t: TacticalState, s: Soldier, g: number, level: numbe
   if (cls === ItemClass.GUN || cls === ItemClass.THROWING_KNIFE) return handleGunAttack(t, s, g, tgt, handItem);
   if (cls & (ItemClass.NONE | ItemClass.PUNCH)) return handlePunchAttack(t, s, g, level);
   if (cls === ItemClass.BLADE) return handleBladeAttack(t, s, g);
+  if (cls === ItemClass.TENTACLES) return handleTentacleAttack(t, s, g);
   if (cls === ItemClass.GRENADE || cls === ItemClass.LAUNCHER || cls === ItemClass.THROWN)
     return handleThrowOrLaunch(t, s, g, level, tgt, handItem);
   return ItemHandle.BROKEN;

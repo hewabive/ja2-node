@@ -1,11 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Handle_Items.cc HandleItem (punch and blade paths); Soldier_Control.cc EVENT_SoldierBeginBladeAttack,
-// @src EVENT_SoldierBeginPunchAttack; Weapons.cc UseBlade, UseHandToHand, HTHImpact, CalcChanceHTH, CalcChanceToStab,
-// @src CalcChanceToPunch; Soldier_Ani.cc opcodes 468 (end punch) and 492 (signal dodge). See docs/11 §6.
+// @src src/game/Tactical/Handle_Items.cc HandleItem (punch, blade and tentacle paths); Soldier_Control.cc EVENT_SoldierBeginBladeAttack,
+// @src EVENT_SoldierBeginPunchAttack; externalized/Soldier.cc handlePendingAction (MERC_PUNCH, MERC_KNIFEATTACK);
+// @src Weapons.cc UseBlade, UseHandToHand, HTHImpact, CalcChanceHTH, CalcChanceToStab, CalcChanceToPunch, DishoutQueenSwipeDamage;
+// @src Soldier_Ani.cc opcodes 468 (end punch), 492 (signal dodge), 755 (queen swipe) and 761 (eat flesh). See docs/11 §6, docs/13 §14.
 
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { ItemClass, NOTHING, WeaponClass } from '../../../content/items/items.ts';
+import { Direction, pythSpacesAway } from '../../../content/world/grid.ts';
 import { type ItemObject, USABLE_STATUS } from '../../items/object.ts';
 import { AiAction } from '../ai/actions.ts';
 import { anim, animName } from '../anim-states.ts';
@@ -21,7 +23,7 @@ import {
 } from '../animation.ts';
 import { isGassed } from '../explosions/smoke.ts';
 import { InvSlot } from '../inventory.ts';
-import { directionToward, stopMerc } from '../movement.ts';
+import { directionToward, getNewSoldierPath, stopMerc } from '../movement.ts';
 import { isMercBody, newOKDestination } from '../pathfinding.ts';
 import { Opp } from '../perception/opp.ts';
 import { deductPoints } from '../points.ts';
@@ -37,7 +39,9 @@ import {
 } from '../skills.ts';
 import {
   Body,
+  isMonster,
   NO_PROFILE,
+  NOWHERE,
   numSkillTraits,
   OKBREATH,
   OKLIFE,
@@ -47,17 +51,19 @@ import {
   type Soldier,
   Team,
 } from '../soldier.ts';
-import { type TacticalState, whoIsThere } from '../state.ts';
+import { mercs, type TacticalState, whoIsThere } from '../state.ts';
 import { calcTotalAPsToAttack } from './ap.ts';
 import { freeUpAttacker, reduceAttackBusyCount } from './barrier.ts';
-import { ENEMY_TO_HIT_MOD, soldierDifficultyLevel } from './chance.ts';
+import { ENEMY_TO_HIT_MOD, rangeInUnits, soldierDifficultyLevel } from './chance.ts';
 import type { CombatContext } from './context.ts';
 import { agilityForEnemyMissingPlayer, modifyExpGainByTarget, StatCause, statChange } from './experience.ts';
+import { eventSoldierGotHit } from './hit.ts';
 import { adjustImpactByHitLocation } from './impact.ts';
-import { bladeSpot, punchSpot } from './melee-reach.ts';
+import { bladeApproach, directPunchApproach, findAdjacentGridEx, findSoldierAtGridNo, type MeleeApproach } from './melee-reach.ts';
 import { Aim, AimShot, CTH_MAXIMUM, CTH_MINIMUM, ItemHandle, i8, i16, Special, u8, weaponStatusMod } from './types.ts';
 
 const MeleeMode = { STAB: 0, PUNCH: 1 } as const;
+export const MeleeKind = { BLADE: 0, PUNCH: 1 } as const;
 const SURPRISE_CHANCE_TO_HIT = 100;
 const HTH_BASE_CHANCE = 67;
 const HEAD_SHOT_MELEE_PENALTY = 20;
@@ -75,13 +81,13 @@ const HTH_DODGE_AGILITY = 8;
 const MONSTER_SMELL_FADE_CHANCE = 5;
 const MIN_KNIFE_DULLING = 2;
 const KNIFE_DULLING_IMPACT_DIVISOR = 20;
+const KIDS_SPARED_DEFENCE = 10000;
+const PRONE_TENTACLE_DEFENCE = 1000;
 
 const itemDef = (t: TacticalState, item: number) => t.content.items.byIndex.get(item);
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
 const isRobot = (s: Soldier) => s.bodyType === Body.ROBOTNOWEAPON;
 const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
-const isCreatureOrBloodcat = (s: Soldier) =>
-  (s.bodyType >= Body.ADULTFEMALEMONSTER && s.bodyType <= Body.QUEENMONSTER) || s.bodyType === Body.BLOODCAT;
 const traitBonus = (s: Soldier, trait: number) => (SKILL_TRAIT_BONUS[trait] ?? 0) * numSkillTraits(s, trait);
 const turnsFromAttacks = (s: Soldier) => !s.monsterOrAnimal && !isVehicle(s);
 
@@ -103,7 +109,13 @@ function attackRating(t: TacticalState, att: Soldier, aim: number, mode: number)
   return Math.max(a, 1);
 }
 
-function defenceRating(t: TacticalState, def: Soldier, mode: number): number {
+function tentacleDefence(def: Soldier, stance: number): number {
+  let bonus = def.bodyType === Body.LARVAE_MONSTER || def.bodyType === Body.INFANT_MONSTER ? KIDS_SPARED_DEFENCE : 0;
+  if (stance < AnimHeight.STAND) bonus += stance === AnimHeight.PRONE ? PRONE_TENTACLE_DEFENCE : 2 * BAD_DODGE_POSITION_PENALTY;
+  return bonus;
+}
+
+function defenceRating(t: TacticalState, def: Soldier, mode: number, weapon: number): number {
   let d = Math.trunc((3 * effectiveAgility(def) + effectiveDexterity(def) + def.stats.strength + 10 * effectiveExpLevel(def)) / 6);
   d += moraleModifier(def);
   d -= skillCheckFatiguePenalty(def, d);
@@ -112,7 +124,8 @@ function defenceRating(t: TacticalState, def: Soldier, mode: number): number {
   if (d > 0 && def.life < def.lifeMax) d -= Math.trunc((2 * d * (def.lifeMax - effectiveLife(def))) / (3 * def.lifeMax));
   if (d > 0 && def.breath < 100) d -= Math.trunc((d * (100 - def.breath)) / 200);
   const stance = endHeight(t.content, def.state);
-  if (stance < AnimHeight.STAND) {
+  if (weapon === itemIndex(t, 'CREATURE_QUEEN_TENTACLES')) d += tentacleDefence(def, stance);
+  else if (stance < AnimHeight.STAND) {
     d -= BAD_DODGE_POSITION_PENALTY;
     if (stance === AnimHeight.PRONE) d -= BAD_DODGE_POSITION_PENALTY;
   }
@@ -133,10 +146,11 @@ function weaponFitsMode(t: TacticalState, weapon: number, mode: number): boolean
 }
 
 function calcChanceHTH(t: TacticalState, att: Soldier, def: Soldier, aim: number, mode: number): number {
-  if (def.life < OKLIFE || def.breath < OKBREATH) return SURPRISE_CHANCE_TO_HIT;
+  const tentacles = att.attackingWeapon === itemIndex(t, 'CREATURE_QUEEN_TENTACLES');
+  if (!tentacles && (def.life < OKLIFE || def.breath < OKBREATH)) return SURPRISE_CHANCE_TO_HIT;
   if (!weaponFitsMode(t, att.attackingWeapon, mode)) return 0;
   const a = attackRating(t, att, aim, mode);
-  const d = defenceRating(t, def, mode);
+  const d = defenceRating(t, def, mode, att.attackingWeapon);
   let chance = HTH_BASE_CHANCE + Math.trunc((a - d) / 3);
   if (att.aimShotLocation === AimShot.HEAD) chance -= HEAD_SHOT_MELEE_PENALTY;
   return Math.min(Math.max(chance, CTH_MINIMUM), CTH_MAXIMUM);
@@ -204,12 +218,35 @@ function attackProneTarget(t: TacticalState, s: Soldier, lowAttack: string): voi
   } else initNewSoldierAnim(t, s, anim(t.content, lowAttack), 0, false);
 }
 
+function isHelplessPrey(tgt: Soldier): boolean {
+  return (tgt.life < OKLIFE && tgt.life > 0) || (tgt.breath < OKBREATH && tgt.collapsed);
+}
+
+function beginMonsterBladeAttack(t: TacticalState, s: Soldier, g: number): void {
+  const tgt = whoIsThere(t, g, s.targetLevel);
+  if (tgt && isHelplessPrey(tgt)) {
+    s.pendingActionData4 = tgt.id;
+    s.regenerationCounter++;
+    initNewSoldierAnim(t, s, anim(t.content, 'MONSTER_BEGIN_EATTING_FLESH'), 0, false);
+    return;
+  }
+  const close = pythSpacesAway(s.gridNo, g) <= 1;
+  initNewSoldierAnim(t, s, anim(t.content, close ? 'MONSTER_CLOSE_ATTACK' : 'ADULTMONSTER_ATTACKING'), 0, false);
+}
+
+function beginBloodcatBladeAttack(t: TacticalState, s: Soldier): void {
+  const claws = s.inv[InvSlot.HAND]?.item === itemIndex(t, 'BLOODCAT_CLAW_ATTACK');
+  initNewSoldierAnim(t, s, anim(t.content, claws ? 'BLOODCAT_SWIPE' : 'BLOODCAT_BITE_ANIM'), 0, false);
+}
+
 export function eventSoldierBeginBladeAttack(t: TacticalState, s: Soldier, g: number, direction: number): void {
   t.turn.attackBusyCount++;
   setDesiredDirection(t, s, direction);
   setSoldierDirection(t, s, direction);
   const tgt = whoIsThere(t, g, s.targetLevel);
-  if (tgt) {
+  if (isMonster(s)) beginMonsterBladeAttack(t, s, g);
+  else if (s.bodyType === Body.BLOODCAT) beginBloodcatBladeAttack(t, s);
+  else if (tgt) {
     switch (endHeight(t.content, tgt.state)) {
       case AnimHeight.STAND:
       case AnimHeight.CROUCH:
@@ -260,24 +297,89 @@ export function eventSoldierBeginPunchAttack(t: TacticalState, s: Soldier, g: nu
   s.target = whoIsThere(t, g, s.targetLevel);
 }
 
+function walkUpForMelee(t: TacticalState, s: Soldier, kind: number, approach: MeleeApproach): void {
+  s.pendingMelee = { kind, targetGridNo: approach.targetGridNo, direction: approach.direction, animCount: 0 };
+  getNewSoldierPath(t, s, approach.actionGridNo, s.uiMovementMode, 0, true);
+}
+
 export function handlePunchAttack(t: TacticalState, s: Soldier, g: number, level: number): number {
-  const spot = punchSpot(t, s, g, level);
-  if (!spot) return ItemHandle.CANNOT_GETTO_LOCATION;
+  const tgt = whoIsThere(t, g, level);
+  let approach = tgt ? directPunchApproach(t, s, tgt, level) : null;
+  const adjacent = approach === null;
+  approach ??= findAdjacentGridEx(t, s, g, true);
+  if (!approach) return ItemHandle.CANNOT_GETTO_LOCATION;
   s.targetGridNo = g;
   s.ai.actionData = g;
-  s.ai.action = AiAction.KNIFE_STAB;
-  eventSoldierBeginPunchAttack(t, s, spot.targetGridNo, spot.direction);
+  if (s.gridNo !== approach.actionGridNo && adjacent) walkUpForMelee(t, s, MeleeKind.PUNCH, approach);
+  else {
+    s.ai.action = AiAction.KNIFE_STAB;
+    eventSoldierBeginPunchAttack(t, s, approach.targetGridNo, approach.direction);
+  }
   return ItemHandle.OK;
 }
 
 export function handleBladeAttack(t: TacticalState, s: Soldier, g: number): number {
-  if (isCreatureOrBloodcat(s)) return ItemHandle.BROKEN;
-  const spot = bladeSpot(t, s, g);
-  if (!spot) return ItemHandle.CANNOT_GETTO_LOCATION;
-  s.ai.actionData = s.gridNo;
-  s.ai.action = AiAction.KNIFE_STAB;
-  eventSoldierBeginBladeAttack(t, s, spot.targetGridNo, spot.direction);
+  const approach = bladeApproach(t, s, g);
+  if (!approach) return ItemHandle.CANNOT_GETTO_LOCATION;
+  s.ai.actionData = approach.actionGridNo;
+  if (s.gridNo !== approach.actionGridNo) walkUpForMelee(t, s, MeleeKind.BLADE, approach);
+  else {
+    s.ai.action = AiAction.KNIFE_STAB;
+    eventSoldierBeginBladeAttack(t, s, approach.targetGridNo, approach.direction);
+  }
   return ItemHandle.OK;
+}
+
+export function handleTentacleAttack(t: TacticalState, s: Soldier, g: number): number {
+  t.turn.attackBusyCount++;
+  deductPoints(t.inCombat, s, calcTotalAPsToAttack(t, s, g, false, s.aimTime), 0);
+  initNewSoldierAnim(t, s, anim(t.content, 'QUEEN_SWIPE'), 0, false);
+  s.ai.action = AiAction.KNIFE_STAB;
+  return ItemHandle.OK;
+}
+
+export function handlePendingMeleeOnArrival(t: TacticalState, s: Soldier): boolean {
+  const pending = s.pendingMelee;
+  if (!pending) return false;
+  s.ai.action = AiAction.KNIFE_STAB;
+  if (pending.kind === MeleeKind.PUNCH) eventSoldierBeginPunchAttack(t, s, pending.targetGridNo, pending.direction);
+  else eventSoldierBeginBladeAttack(t, s, pending.targetGridNo, pending.direction);
+  s.pendingMelee = null;
+  return true;
+}
+
+const DISHOUT_DIRECTIONS: readonly (readonly number[])[] = [
+  [Direction.NORTH, Direction.NORTHEAST],
+  [Direction.EAST, Direction.SOUTHEAST],
+  [Direction.SOUTH],
+];
+const QUEEN_SWIPE_RANGE = 50;
+const EATING_DAMAGE = 25;
+const EATING_RANGE = 50;
+const EATING_DAMAGE_ITEM = 2;
+
+function dishoutQueenSwipeDamage(t: TacticalState, queen: Soldier): void {
+  const directions = DISHOUT_DIRECTIONS[queen.pendingActionData1] ?? [];
+  const reach = t.content.items.byName.get('CREATURE_QUEEN_TENTACLES')?.weapon?.range ?? 0;
+  for (const victim of mercs(t)) {
+    if (victim === queen || victim.life < OKLIFE || victim.gridNo === NOWHERE) continue;
+    if (rangeInUnits(queen.gridNo, victim.gridNo) > reach) continue;
+    const direction = directionToward(queen.gridNo, victim.gridNo);
+    if (!directions.includes(direction)) continue;
+    const hitBy = calcChanceToStab(t, queen, victim, 0) - t.pre.int(100);
+    if (hitBy <= 0) continue;
+    const impact = hthImpact(t, queen, victim, hitBy, true);
+    const tentacles = itemIndex(t, 'CREATURE_QUEEN_TENTACLES');
+    eventSoldierGotHit(t, victim, tentacles, impact, impact, (direction + 4) % 8, QUEEN_SWIPE_RANGE, queen, Special.NONE, AimShot.LEGS);
+  }
+  queen.pendingActionData1++;
+}
+
+function biteHelplessPrey(t: TacticalState, s: Soldier): void {
+  const prey = t.soldiers[s.pendingActionData4];
+  if (!prey) return;
+  const direction = (s.direction + 4) % 8;
+  eventSoldierGotHit(t, prey, EATING_DAMAGE_ITEM, EATING_DAMAGE, EATING_DAMAGE, direction, EATING_RANGE, s, Special.NONE, AimShot.HEAD);
 }
 
 function queueWeaponHit(t: TacticalState, att: Soldier, tgt: Soldier, damage: number): void {
@@ -382,17 +484,8 @@ export function useHandToHand(t: TacticalState, s: Soldier, g: number): void {
   reduceMonsterSmell(t, s);
 }
 
-function findSoldierOnGrid(t: TacticalState, g: number, level: number): Soldier | null {
-  for (const m of t.mercSlots) {
-    if (!m?.placed || m.dead) continue;
-    if (m.visible === -1 && !t.pathEnv.showAllMercs) continue;
-    if (m.gridNo === g && !newOKDestination(t.pathEnv, m, g, true, level)) return m;
-  }
-  return null;
-}
-
 function signalDodge(t: TacticalState, s: Soldier): void {
-  const tgt = findSoldierOnGrid(t, s.targetGridNo, s.targetLevel);
+  const tgt = findSoldierAtGridNo(t, s.targetGridNo, s.targetLevel);
   if (!tgt || !isMercBody(tgt)) return;
   if ((tgt.oppList[s.id] ?? 0) === Opp.NOT_HEARD_OR_SEEN && tgt.team !== s.team) return;
   if (height(t.content, tgt.state) !== AnimHeight.STAND) return;
@@ -415,6 +508,12 @@ export function meleeOpcode(t: TacticalState, s: Soldier, code: number): OpOutco
       return endPunch(t, s);
     case 492:
       signalDodge(t, s);
+      return 'continue';
+    case 755:
+      dishoutQueenSwipeDamage(t, s);
+      return 'continue';
+    case 761:
+      biteHelplessPrey(t, s);
       return 'continue';
     default:
       return null;

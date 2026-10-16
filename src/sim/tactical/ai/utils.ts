@@ -53,6 +53,11 @@ export function plotPathCost(t: TacticalState, s: Soldier, dest: number, mode: n
   return route.length === 0 ? 0 : routeCost(t, s, route.steps, mode);
 }
 
+export function estimatePlotPathCost(t: TacticalState, s: Soldier, dest: number, mode: number): number {
+  const route = findBestPath(t.pathEnv, s, dest, s.level, { copy: PathCopy.NONE, mode: moveModeName(t, mode), estimate: true });
+  return route.length === 0 ? 0 : routeCost(t, s, route.steps, mode);
+}
+
 export function recalculatePathCost(t: TacticalState, s: Soldier, mode: number): number {
   if (!s.pathStored || s.pathSize === 0) return 0;
   return routeCost(t, s, s.path.slice(0, s.pathSize), mode);
@@ -116,7 +121,7 @@ export function estimatePathCostToLocation(
   const walking = t.content.animations.stateIndex.get('WALKING') ?? 0;
   const sameLevel = s.level === destLevel;
   if (sameLevel && !climbingNecessary(t, s, dest, destLevel))
-    return { cost: plotPathCost(t, s, dest, walking), climb: false, climbGridNo: NOWHERE };
+    return { cost: estimatePlotPathCost(t, s, dest, walking), climb: false, climbGridNo: NOWHERE };
   const climbUp = !sameLevel && s.level === 0;
   const climbGridNo = findClosestClimbPointAvailableToAI(t, s, s.gridNo, climbUp ? dest : s.gridNo, climbUp);
   if (climbGridNo === NOWHERE) return NO_CLIMB_COST;

@@ -14,8 +14,10 @@ import {
   AlertStatus,
   Body,
   consideredNeutral,
+  isMonster,
   NO_INTERRUPT,
   NO_PROFILE,
+  NOBODY,
   numSkillTraits,
   OKLIFE,
   SkillTrait,
@@ -24,7 +26,7 @@ import {
   Team,
   TOTAL_SOLDIERS,
 } from '../soldier.ts';
-import { mercs, type TacticalState, teamMembers } from '../state.ts';
+import { mercs, type TacticalState, teamMembers, whoIsThere } from '../state.ts';
 import {
   addToIntList,
   checkForPotentialAddToBattleIncrement,
@@ -74,6 +76,7 @@ const BEST_SIGHTING_ALL = 6;
 const BEST_SIGHTING_NONCOMBAT = 3;
 const TEAM_COUNT = 6;
 const DIFFICULTY_MEDIUM = 2;
+const NORMAL_HUMAN_SMELL_STRENGTH = 10;
 
 export interface Perception {
   readonly publicOpp: Int8Array[];
@@ -119,7 +122,18 @@ function losSubject(t: TacticalState, s: Soldier): LosSubject {
   return { gridNo: s.gridNo, level: s.level, heightClass: endHeight(t.content, s.state) as (typeof HeightClass)[keyof typeof HeightClass] };
 }
 
+function distanceSmellable(subject: Soldier): number {
+  const d = MAX_DISTANCE_VISIBLE;
+  if (isMonster(subject)) return d;
+  return Math.max(Math.trunc((d * (subject.normalSmell - subject.monsterSmell)) / NORMAL_HUMAN_SMELL_STRENGTH), 0);
+}
+
 export function distanceVisible(t: TacticalState, viewer: Soldier, facing: number, subjectDir: number, g: number, level: number): number {
+  if (isMonster(viewer)) {
+    const subject = whoIsThere(t, g, level);
+    return subject ? distanceSmellable(subject) : 0;
+  }
+  if (viewer.blindedCounter > 0) return 0;
   let d: number;
   if (facing === IRRELEVANT || viewer.gridNo === g) d = MAX_DISTANCE_VISIBLE;
   else {
@@ -186,9 +200,12 @@ export function updatePublic(t: TacticalState, team: number, opp: Soldier, value
 
 function addOneOpponent(s: Soldier, checkOrders: (s: Soldier) => void): void {
   s.ai.oppCount++;
-  if (s.ai.oppCount === 1) {
-    if (s.ai.alertStatus < AlertStatus.RED) checkOrders(s);
-    s.ai.alertStatus = AlertStatus.BLACK;
+  if (s.ai.oppCount !== 1 || s.bodyType === Body.LARVAE_MONSTER) return;
+  if (s.ai.alertStatus < AlertStatus.RED) checkOrders(s);
+  s.ai.alertStatus = AlertStatus.BLACK;
+  if (isMonster(s)) {
+    s.ai.caller = NOBODY;
+    s.ai.callPriority = 0;
   }
 }
 
@@ -320,6 +337,7 @@ export function manSeesMan(t: TacticalState, s: Soldier, opp: Soldier, caller: n
 
 export function manLooksForMan(t: TacticalState, me: Soldier, opp: Soldier, caller: number): boolean {
   if (me === opp || !validForSightings(me) || me.life < OKLIFE || !validForSightings(opp) || me.team === opp.team) return false;
+  if (me.bodyType === Body.LARVAE_MONSTER) return false;
   const pers = me.oppList[opp.id] ?? 0;
   const publ = t.perception.publicOpp[me.team]?.[opp.id] ?? 0;
   const aware = pers !== 0 || publ !== 0;
@@ -337,7 +355,15 @@ export function manLooksForMan(t: TacticalState, me: Soldier, opp: Soldier, call
   const losWorld = { structures: t.world.structures, heights: t.world.level.heights };
   if (
     pythSpacesAway(me.gridNo, opp.gridNo) <= d &&
-    soldierToSoldierLineOfSight(losWorld, losSubject(t, me), losSubject(t, opp), d & 0xff, aware, t.perception.disallowSight) !== 0
+    soldierToSoldierLineOfSight(
+      losWorld,
+      losSubject(t, me),
+      losSubject(t, opp),
+      d & 0xff,
+      aware,
+      t.perception.disallowSight,
+      isMonster(me),
+    ) !== 0
   ) {
     manSeesMan(t, me, opp, caller);
     seen = true;

@@ -106,11 +106,13 @@ describe('knife attacks', () => {
     expect(animName(t.content, merc.state)).toBe('KNIFE_BREATH');
   });
 
-  it('cannot stab a diagonal neighbour or anyone further away without walking', () => {
+  it('refuses through the API a diagonal knife target, which needs a walk to a side neighbour', () => {
     const { sim, merc } = duel(KNIFE, gridNo(81, 81), Direction.SOUTHEAST);
     const before = merc.actionPoints;
     const estimate = sim.dispatch({ type: 'estimateAttack', soldier: 0, target: gridNo(81, 81) });
-    expect(estimate.data).toMatchObject({ apCost: 0, inReach: false });
+    expect(estimate.data).toMatchObject({ inReach: false });
+    expect((estimate.data as { apCost: number }).apCost).toBeGreaterThan(0);
+    expect(merc.walkToAttackCost).toBe(0);
     const refused = sim.dispatch({ type: 'attack', soldier: 0, target: gridNo(81, 81) });
     expect(refused.ok).toBe(false);
     expect(merc.actionPoints).toBe(before);

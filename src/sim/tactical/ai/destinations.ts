@@ -7,7 +7,7 @@ import { isVisibleTile, newGridNo, spacesAway, WORLD_COLS, WORLD_MAX, WORLD_ROWS
 import { DIRECTION_INCREMENT } from '../directions.ts';
 import { findBestPath, isWater, NOWHERE, newOKDestination, PathCopy } from '../pathfinding.ts';
 import { estimateActionPointCost } from '../points.ts';
-import { AlertStatus, NO_PROFILE, Orders, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Body, NO_PROFILE, Orders, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { MAX_ROAMING_RANGE } from './actions.ts';
 
@@ -41,6 +41,7 @@ export function legalNPCDestination(t: TacticalState, s: Soldier, g: number, mod
 
 export function roamingRange(s: Soldier): { range: number; origin: number } {
   const ai = s.ai;
+  if (isCreatureOrBloodcat(s) && ai.alertStatus === AlertStatus.BLACK) return { origin: s.gridNo, range: MAX_ROAMING_RANGE };
   const patrolOrigin =
     ai.orders === Orders.POINTPATROL || ai.orders === Orders.RNDPTPATROL ? ai.patrolGrid[ai.nextPatrolPoint] : ai.patrolGrid[0];
   const origin = patrolOrigin ?? s.gridNo;
@@ -80,6 +81,10 @@ export function randDestWithinRange(t: TacticalState, s: Soldier): number {
   const maxRight = Math.min(range, WORLD_COLS - (originX + 1));
   const maxUp = Math.min(range, originY);
   const maxDown = Math.min(range, WORLD_ROWS - (originY + 1));
+  if (s.bodyType === Body.LARVAE_MONSTER) {
+    const bounds = { originX, originY, maxLeft, maxRight, maxUp, maxDown };
+    return larvaeCrawlDest(t, s, tries, limited, origin, bounds);
+  }
   while (tries-- > 0) {
     let dest: number;
     if (limited) {
@@ -93,6 +98,35 @@ export function randDestWithinRange(t: TacticalState, s: Soldier): number {
       const destRoom = roomAt(t, dest);
       if (destRoom !== NO_ROOM && destRoom !== room) continue;
     }
+    if (!legalNPCDestination(t, s, dest, PathMode.ENSURE_PATH, false, 0)) continue;
+    s.pathStored = true;
+    return dest;
+  }
+  return NOWHERE;
+}
+
+interface RoamBounds {
+  readonly originX: number;
+  readonly originY: number;
+  readonly maxLeft: number;
+  readonly maxRight: number;
+  readonly maxUp: number;
+  readonly maxDown: number;
+}
+
+function insideRoamBounds(s: Soldier, dx: number, dy: number, b: RoamBounds): boolean {
+  const x = (s.gridNo % WORLD_COLS) + dx;
+  const y = Math.trunc(s.gridNo / WORLD_COLS) + dy;
+  return x >= b.originX - b.maxLeft && x <= b.originX + b.maxRight && y >= b.originY - b.maxUp && y <= b.originY + b.maxDown;
+}
+
+function larvaeCrawlDest(t: TacticalState, s: Soldier, triesIn: number, limited: boolean, origin: number, bounds: RoamBounds): number {
+  let tries = triesIn;
+  while (tries-- > 0) {
+    const dx = t.rng.int(3) - 1;
+    const dy = t.rng.int(3) - 1;
+    if (limited && !insideRoamBounds(s, dx, dy, bounds)) continue;
+    const dest = origin + dx + WORLD_COLS * dy;
     if (!legalNPCDestination(t, s, dest, PathMode.ENSURE_PATH, false, 0)) continue;
     s.pathStored = true;
     return dest;

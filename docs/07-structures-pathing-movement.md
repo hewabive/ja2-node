@@ -405,6 +405,21 @@ Only for `SOLDIER_MULTITILE` with an animation JSD (prone humans **(inferred)**,
 `fContinuousTurnNeeded` (monster/animal/vehicle) explores clockwise/counter-clockwise from the last step direction
 and finally reverse (+50 per backward step) (`PathAI.cc:893-976, 1433-1437`). Not needed for walking/running mercs.
 
+**Implemented 2026-10-16** (`pathfinding.ts`, `multi-tile.ts`; checked by the creature AI oracle, `13` §14):
+- `SOLDIER_MULTITILE` is the soldier's last added structure having more than one tile (`Soldier.multiTile`); the
+  structure file is the one of the movement mode's surface (`DetermineSoldierAnimationSurface` with
+  `SubstituteBodyTypeAnimation`), indexed by `OneCDirection(dir)`; no file → no multi-tile checks.
+- Continuous turning for monsters, animals and vehicles: the first popped node starts from `bDirection`, later nodes
+  from their step direction (the opposite one after a backward step); the loop state (`ubCnt`, start, end, clockwise /
+  counter-clockwise / reverse, checked-behind) lives across nodes, so a stale node (`trailCost` lower than its cost)
+  continues from the previous node's leftover state, as in the original. Other multi-tile bodies only check the turn
+  in place. Every step checks the structure at the new tile; backward steps are flagged and cost +50.
+- The exclusion id is the soldier's own structure (`GetStructureID`); `EstimatePlotPath` (`EstimatePathCostToLocation`
+  on one level) uses `IGNORE_PEOPLE_STRUCTURE_ID` and skips the multi-tile destination test.
+- `NewOKDestination` accepts a multi-tile destination when any of the 8 structures fits (people ignored unless
+  `fPeopleToo`; no structure file → refused); `FindAdjacentGridEx`/`FindNextToAdjacentGridEx` test the side tiles with
+  `NewOKDestinationAndDirection` (the facing toward the target, no visible-tile test).
+
 ### 3.4 Door resolution in the search (`PathAI.cc:1078-1168`, helpers `:2531-2678`)
 
 ```

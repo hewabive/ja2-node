@@ -15,6 +15,7 @@ import { WORLD_MAX } from '../../content/world/grid.ts';
 import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts';
 import { has, StructureFlags } from '../../content/world/structures.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
+import { u8 } from '../../core/int.ts';
 import { objectFromRecord } from '../items/object.ts';
 import { addCorpseStructure } from './combat/death.ts';
 import { swapStructureForPartner } from './doors.ts';
@@ -158,9 +159,16 @@ function applyMapModifications(t: TacticalState, save: SaveGame): number {
   let skipped = 0;
   for (const m of save.currentSector.mapModifications ?? []) {
     if (m.type === MapModificationType.OPENABLE_STRUCT) setOpenableStructStatus(t, m.gridNo, m.imageType !== 0);
-    else if (m.type !== MapModificationType.BLOOD_SMELL) skipped++;
+    else if (m.type === MapModificationType.BLOOD_SMELL) restoreBloodAndSmell(t, m.gridNo, m.imageType, m.subImageIndex);
+    else skipped++;
   }
   return skipped;
+}
+
+function restoreBloodAndSmell(t: TacticalState, gridNo: number, blood: number, smell: number): void {
+  if (gridNo < 0 || gridNo >= WORLD_MAX) return;
+  t.smell.blood[gridNo] = u8(blood);
+  t.smell.smell[gridNo] = u8(smell);
 }
 
 function setOpenableStructStatus(t: TacticalState, gridNo: number, open: boolean): void {
@@ -393,7 +401,18 @@ function copyAi(s: Soldier, r: SavedSoldier): void {
     oppCount: a.oppCount,
     underFire: a.underFire,
     morale: a.aiMorale,
+    mobility: a.mobility,
+    callPriority: a.callPriority,
+    caller: a.caller,
+    callerGridNo: grid(a.callerGridNo),
+    callActedUpon: a.callActedUpon !== 0,
+    frenzied: a.frenzied !== 0,
   });
+  s.hunting = a.hunting !== 0;
+  s.normalSmell = a.normalSmell;
+  s.monsterSmell = a.monsterSmell;
+  s.regenerationCounter = a.regenerationCounter;
+  s.pendingActionData4 = a.pendingActionData4;
 }
 
 function soldierById(t: TacticalState, id: number): Soldier | null {
@@ -465,6 +484,7 @@ function importTurnState(t: TacticalState, save: SaveGame): void {
   turn.consNumTurnsNotSeen = ts.consecutiveTurnsNotSeen;
   turn.consNumTurnsWeHaventSeenButEnemyDoes = ts.consecutiveTurnsWeHaventSeenButEnemyDoes;
   turn.unlockUIAfterHiddenInterrupt = ts.unlockUiAfterHiddenInterrupt;
+  t.smell.lastDecaySeconds = ts.decayBloodLastUpdate;
   ts.numFoughtInBattle.forEach((n, team) => {
     turn.numFoughtInBattle[team] = n;
   });

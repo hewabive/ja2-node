@@ -6,21 +6,24 @@
 // @src Overhead.cc CommonEnterCombatModeCode, EnterCombatMode, ExitCombatMode, CheckForEndOfCombatMode,
 // @src SoldierHasSeenEnemiesLastFewTurns, CheckForEndOfBattle, NumCapableEnemyInSector, CheckForLosingEndOfBattle;
 // @src Soldier_Control.cc EVENT_BeginMercTurn, CheckForBreathCollapse;
-// @src OppList.cc BetweenTurnsVisibilityAdjustments, NonCombatDecayPublicOpplist; Tactical_Turns.cc HandleTacticalEndTurn.
+// @src OppList.cc BetweenTurnsVisibilityAdjustments, NonCombatDecayPublicOpplist; Tactical_Turns.cc HandleTacticalEndTurn;
+// @src Drugs_And_Alcohol.cc HandleEndTurnDrugAdjustments (regeneration only).
 // @src See docs/10 §1.4–§2, §4.4–§4.7, §8.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
+import { u8 } from '../../../core/int.ts';
 import { adjustNoAPToFinishMove, soldierGotoStationaryStance } from '../animation.ts';
-import { bleedsAtTurnStart, checkBleeding } from '../combat/bleeding.ts';
+import { bleedsAtTurnStart, checkBleeding, NO_BLOOD } from '../combat/bleeding.ts';
 import { beginSoldierGetup } from '../combat/death.ts';
 import { soldierTakeDamage } from '../combat/hit.ts';
 import { DamageReason } from '../combat/types.ts';
 import { decayLightEffects } from '../explosions/light.ts';
 import { clearGassedAtTurnStart, decaySmokeEffects } from '../explosions/smoke.ts';
+import { worldSeconds } from '../explosions/state.ts';
 import { getNewSoldierPath, stopMerc } from '../movement.ts';
 import { calcInterruptDuelPts, interruptDuel } from '../perception/duel.ts';
-import { Opp } from '../perception/opp.ts';
-import { decayPublicOpplist, teamNoLongerSeesMan, verifyAndDecayOpplist } from '../perception/sight.ts';
+import { Opp, SightFlags } from '../perception/opp.ts';
+import { decayPublicOpplist, handleSight, teamNoLongerSeesMan, verifyAndDecayOpplist } from '../perception/sight.ts';
 import {
   calcNewActionPoints,
   carriedWeightPercentOf,
@@ -29,6 +32,7 @@ import {
   ptsToMoveDirection,
   unusedAPsToBreath,
 } from '../points.ts';
+import { decayBloodAndSmells, decaySmells, dropBlood } from '../smell.ts';
 import { AlertStatus, Body, NO_INTERRUPT, NOWHERE, OKLIFE, Orders, ReasonCantFinishMove, Side, type Soldier, Team } from '../soldier.ts';
 import { mercs, soldiersById, type TacticalState, teamMembers } from '../state.ts';
 import { buildAIListForTeam, moveToFrontOfAIList, removeFirstAIListEntry } from './ai-list.ts';
@@ -43,6 +47,7 @@ const LAST_TEAM = Team.CIV;
 const MAX_DISTANCE_VISIBLE = 26;
 const OPPLIST_DECAY_MS = 20_000;
 const AI_PAUSE_AFTER_COMBAT_MS = 1500;
+const LIFE_GAIN_PER_REGEN_POINT = 10;
 
 function pointsContext(t: TacticalState): PointsContext {
   return { env: t.pathEnv, content: t.content, inCombat: t.inCombat };
@@ -77,9 +82,21 @@ function checkForBreathCollapse(s: Soldier): void {
   s.breathCollapsed = true;
 }
 
+function regenerateAtTurnStart(s: Soldier): void {
+  if (s.regenerationCounter <= 0) return;
+  s.life = Math.min(s.life + LIFE_GAIN_PER_REGEN_POINT, s.lifeMax);
+  if (s.life === s.lifeMax) s.bleeding = 0;
+  else if (s.bleeding + s.life > s.lifeMax) s.bleeding = s.lifeMax - s.life;
+  s.regenerationCounter--;
+}
+
 export function beginMercTurn(t: TacticalState, s: Soldier): void {
   if (s.ai.underFire !== 0) s.ai.underFire--;
-  if (bleedsAtTurnStart(s)) checkBleeding(t, s);
+  regenerateAtTurnStart(s);
+  if (bleedsAtTurnStart(s)) {
+    const blood = checkBleeding(t, s);
+    if (blood !== NO_BLOOD && s.placed) dropBlood(t, s, u8(blood));
+  }
   if (s.life === 0) return;
   s.shock = Math.trunc(s.shock / 2);
   if (s.ai.noiseGridNo !== NOWHERE && s.ai.noiseVolume !== 0) {
@@ -87,6 +104,7 @@ export function beginMercTurn(t: TacticalState, s: Soldier): void {
     if (s.ai.noiseVolume === 0) s.ai.noiseGridNo = NOWHERE;
   }
   clearGassedAtTurnStart(t, s);
+  if (s.blindedCounter > 0 && --s.blindedCounter === 0) handleSight(t, s, SightFlags.LOOK);
   s.weightCarriedAtTurnStart = carriedWeightPercentOf(t.content, s);
   unusedAPsToBreath(pointsContext(t), s, t.explosives.gassed[s.id] === 1);
   if (s.placed) checkForBreathCollapse(s);
@@ -138,6 +156,7 @@ export function handleRealtimeTurns(t: TacticalState, clock: RealtimeClock): voi
 export function handleTacticalEndTurn(t: TacticalState, clock: RealtimeClock): void {
   decaySmokeEffects(t);
   decayLightEffects(t);
+  decayBloodAndSmells(t, worldSeconds(t));
   t.sectorHooks.addPendingEnemies(t);
   if (t.clockMs - clock.lastDecayMs >= OPPLIST_DECAY_MS) {
     for (const s of mercs(t)) verifyAndDecayOpplist(t, s);
@@ -157,6 +176,7 @@ export function betweenTurnsVisibilityAdjustments(t: TacticalState): void {
 }
 
 function endTurnEvents(t: TacticalState): void {
+  decaySmells(t.smell);
   decaySmokeEffects(t);
   decayLightEffects(t);
 }

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { Orientation } from '../../content/formats/jsd.ts';
+import { Orientation, type StructureDef } from '../../content/formats/jsd.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { parseDoorCostTable } from '../../content/world/movement-costs.ts';
@@ -11,7 +11,7 @@ import { findBestPath, MAX_PATH_LIST_SIZE, PathCopy, type PathEnv, PathFlags, ty
 import { Team } from './soldier.ts';
 
 const doorCosts = parseDoorCostTable(JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/door-costs.json'), 'utf8')));
-const { NORTH, EAST, SOUTHEAST, SOUTH } = Direction;
+const { NORTH, EAST, SOUTHEAST, SOUTH, WEST } = Direction;
 
 function soldier(at: number, overrides: Partial<PathSoldier> = {}): PathSoldier {
   return {
@@ -133,5 +133,71 @@ describe('findBestPath', () => {
   it('respects a distance limit', () => {
     expect(findBestPath(env(), soldier(START), gridNo(90, 80), 0, { distLimit: 5 }).length).toBe(0);
     expect(findBestPath(env(), soldier(START), gridNo(84, 80), 0, { distLimit: 5 }).length).toBe(4);
+  });
+});
+
+const DIRECTION_XY: readonly (readonly [number, number])[] = [
+  [0, -1],
+  [1, -1],
+  [1, 0],
+  [1, 1],
+  [0, 1],
+  [-1, 1],
+  [-1, 0],
+  [-1, -1],
+];
+const DIRECTIONS = 8;
+const CREATURE_ID = 52;
+
+function shapeFacing(dir: number, offset: (dir: number) => readonly [number, number]): StructureDef {
+  return syntheticStructure(StructureFlags.MOBILE, Orientation.NONE, { tiles: [[0, 0], offset(dir)] });
+}
+
+function multiTileEnv(e: PathEnv, facing: number, offset: (dir: number) => readonly [number, number]): PathEnv {
+  const structures = Array.from({ length: DIRECTIONS }, (_, index) => shapeFacing((index + DIRECTIONS - 1) % DIRECTIONS, offset));
+  return { ...e, multiTile: () => ({ structures, structureId: CREATURE_ID, continuousTurn: true, direction: facing }) };
+}
+
+const tail = (dir: number): readonly [number, number] => {
+  const [dx, dy] = DIRECTION_XY[dir] ?? [0, 0];
+  return [-dx, -dy];
+};
+const rightFlank = (dir: number): readonly [number, number] => DIRECTION_XY[(dir + 2) % DIRECTIONS] ?? [0, 0];
+
+function corridor(fromX: number, toX: number, gapX: number | null = null): (s: WorldStructures) => void {
+  return (s) => {
+    for (let x = fromX; x <= toX; x++) {
+      if (x !== gapX) s.add(gridNo(x, 79), 0, syntheticStructure(StructureFlags.GENERIC));
+      s.add(gridNo(x, 81), 0, syntheticStructure(StructureFlags.GENERIC));
+    }
+  };
+}
+
+describe('findBestPath for multi-tile bodies', () => {
+  const creature = soldier(START, { id: CREATURE_ID, team: Team.CREATURE, bodyType: 4, monsterOrAnimal: true });
+
+  it('keeps a wide body out of a corridor a person walks through', () => {
+    const plain = env(corridor(83, 87));
+    const target = gridNo(90, 80);
+    const inCorridor = (steps: readonly number[]) =>
+      steps.some((_, k) => {
+        const g = walk(START, steps.slice(0, k + 1));
+        return g >= gridNo(83, 80) && g <= gridNo(87, 80);
+      });
+    const person = findBestPath(plain, soldier(START), target, 0);
+    expect(person.steps).toEqual(Array.from({ length: 10 }, () => EAST));
+    const route = findBestPath(multiTileEnv(plain, EAST, rightFlank), creature, target, 0);
+    expect(route.length).toBeGreaterThan(0);
+    expect(walk(START, route.steps)).toBe(target);
+    expect(inCorridor(route.steps)).toBe(false);
+  });
+
+  it('cannot turn a long body inside a corridor and leaves it at an end', () => {
+    const plain = env(corridor(75, 85, 80));
+    const target = gridNo(80, 75);
+    expect(findBestPath(plain, soldier(START), target, 0).steps).toEqual([NORTH, NORTH, NORTH, NORTH, NORTH]);
+    const route = findBestPath(multiTileEnv(plain, EAST, tail), creature, target, 0);
+    expect(route.length).toBeGreaterThan(5);
+    expect(route.steps[0] === EAST || route.steps[0] === WEST).toBe(true);
   });
 });

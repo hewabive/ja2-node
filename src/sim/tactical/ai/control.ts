@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/AIMain.cc HandleSoldierAI, ExecuteAction, ActionDone, CancelAIAction, NPCDoesAct,
 // @src FreeUpNPCFromTurning, FreeUpNPCFromStanceChange, FreeUpNPCFromRoofClimb; Realtime.cc RTHandleAI; Movement.cc SoldierTriesToContinueAlongPath;
-// @src AIUtils.cc NewDest; Tactical/Overhead.cc ExecuteOverhead (real-time AI cadence). See docs/09 §1.
+// @src AIUtils.cc NewDest; Tactical/Overhead.cc ExecuteOverhead (real-time AI cadence); creature/crow dispatch of
+// @src TurnBasedHandleNPCAI and Realtime.cc RTDecideAction, RTHandleAI. See docs/09 §1, docs/13 §14.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { newGridNo, pythSpacesAway, WORLD_MAX } from '../../../content/world/grid.ts';
@@ -43,6 +44,7 @@ import {
 import { loadWeaponIfNeeded } from './attack-choice.ts';
 import { type CombatDeciderHooks, decideActionBlack, decideActionRed, decideActionYellow } from './combat-decide.ts';
 import { findNearestUngassedLand, isTraversalQuoteAction, traversalDirection } from './cover.ts';
+import { creatureCall, creatureDecideAction, crowDecideAction, decidesAsCreature, isCrow } from './creature-decide.ts';
 import {
   type AiHooks,
   decideAction,
@@ -50,11 +52,9 @@ import {
   decideAlertStatus,
   determineMovementMode,
   type GreenHooks,
-  isCivOrMilitia,
   NO_AI_HOOKS,
   NO_GREEN_HOOKS,
-  realtimeAiDelay,
-  realtimeCivDelay,
+  realtimeDelay,
 } from './decide.ts';
 import { legalNPCDestination, PathMode } from './destinations.ts';
 import { endAIGuysTurn, isActionAffordable, turnBasedHandleNPCAI } from './turn-based.ts';
@@ -370,6 +370,10 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
       radioSightings(t, s, null, s.team);
       aiDecideRadioAnimation(t, s);
       return true;
+    case AiAction.CREATURE_CALL:
+      deductPoints(t.inCombat, s, AP_RADIO, 0);
+      creatureCall(t, s);
+      return true;
     case AiAction.PICKUP_ITEM:
       if (!t.turnHooks.aiPickup(t, s, ai.actionData, ai.pickupItem)) {
         cancelAIAction(t, s);
@@ -412,6 +416,12 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
   }
 }
 
+export function decideNpcAction(t: TacticalState, s: Soldier, control: AiControl): number {
+  if (decidesAsCreature(s)) return creatureDecideAction(t, s, { npcDoesAct });
+  if (isCrow(s)) return crowDecideAction(t, s);
+  return decideAction(t, s, control.green);
+}
+
 function rtHandleAI(t: TacticalState, s: Soldier, control: AiControl): void {
   const ai = s.ai;
   if (ai.action === AiAction.NONE) {
@@ -446,11 +456,11 @@ function rtHandleAI(t: TacticalState, s: Soldier, control: AiControl): void {
       ai.action = AiAction.WALK;
       ai.actionData = s.absoluteFinalDestination;
     } else {
-      ai.action = decideAction(t, s, control.green);
+      ai.action = decideNpcAction(t, s, control);
     }
     if (ai.action === AiAction.NONE) {
       ai.action = AiAction.WAIT;
-      ai.actionData = isCivOrMilitia(s) ? realtimeCivDelay(t) : realtimeAiDelay(t);
+      ai.actionData = realtimeDelay(t, s);
     } else if (ai.action === AiAction.ABSOLUTELY_NONE) {
       ai.action = AiAction.NONE;
     }
@@ -538,7 +548,8 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
     ai.newSituation = Situation.NOT_NEW;
   }
   if (ai.action === AiAction.NONE) {
-    if (turnBased) turnBasedHandleNPCAI(t, s, control, { npcDoesAct, executeAction });
+    if (turnBased)
+      turnBasedHandleNPCAI(t, s, control, { npcDoesAct, executeAction, decide: (state, x) => decideNpcAction(state, x, control) });
     else rtHandleAI(t, s, control);
     return;
   }

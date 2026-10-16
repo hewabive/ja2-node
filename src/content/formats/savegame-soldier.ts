@@ -552,6 +552,10 @@ export interface SoldierAi {
   readonly hunting: number;
   readonly scheduleId: number;
   readonly scheduleProgress: number;
+  readonly normalSmell: number;
+  readonly monsterSmell: number;
+  readonly regenerationCounter: number;
+  readonly pendingActionData4: number;
 }
 
 export interface SoldierInterrupt {
@@ -861,6 +865,10 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       hunting: n('bHunting'),
       scheduleId: n('ubScheduleID'),
       scheduleProgress: n('bAIScheduleProgress'),
+      normalSmell: n('bNormalSmell'),
+      monsterSmell: n('bMonsterSmell'),
+      regenerationCounter: n('bRegenerationCounter'),
+      pendingActionData4: n('uiPendingActionData4'),
     },
     interrupt: {
       duelPoints: n('bInterruptDuelPts'),

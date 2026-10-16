@@ -291,6 +291,7 @@ export interface TacticalStatus {
   readonly consecutiveTurnsWeHaventSeenButEnemyDoes: number;
   readonly someoneHit: boolean;
   readonly timeSinceLastOpplistDecay: number;
+  readonly decayBloodLastUpdate: number;
   readonly enemyFlags: number;
   readonly hasEnteredCombatModeSinceEntering: boolean;
   readonly worldSector: SectorPosition;
@@ -392,6 +393,7 @@ export function readTacticalStatus(c: SaveCursor, stracLinuxFormat: boolean): Ta
     inCombat: (n('uiFlags') & INCOMBAT) !== 0,
     teams: Array.from({ length: MAX_TEAMS }, (_, t) => team(r, t)),
     currentTeam: n('ubCurrentTeam'),
+    decayBloodLastUpdate: n('uiDecayBloodLastUpdate'),
     panicFlags: n('fPanicFlags'),
     spottersCalledForBy: n('ubSpottersCalledForBy'),
     theChosenOne: n('the_chosen_one'),

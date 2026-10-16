@@ -7,7 +7,7 @@ cost table, tactical lighting (`LightTrueLevel` of every tile), and the state of
 dumps, the chance to hit and AP cost of an aimed shot, and the AI's choice of the best shot; autoresolve battles
 are traced draw by draw and replayed through ja2-node, together with the created soldiers, their strategic aftermath and
 the encounter code of the pre-battle interface; the creature quest (spreading, night planning, town attacks, placements)
-and the hourly team morale are probed the same way.
+and the hourly team morale are probed the same way, and so are the tactical decisions of creatures and bloodcats.
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -26,11 +26,13 @@ commit them.
 | `patches/0004-sector-transition-oracle.patch` | Wrappers for the static sector-exit helpers and trace marks around each placement (see "Hooks") |
 | `patches/0005-pre-battle-oracle.patch` | The encounter-code block of `InitPreBattleInterface` as a callable function (see "Hooks") |
 | `patches/0006-creature-morale-oracle.patch` | Weighted creature draws in the trace, a stop before creature battles, the morale decay counter at file scope (see "Hooks") |
+| `patches/0009-creature-ai-oracle.patch` | Trace marks around every `FindBestPath` call (see "Hooks") |
 | `autoresolve-compare.ts` | Core replay of `autoresolve` probes through ja2-node's autoresolve |
 | `autoresolve-creation.ts` | Level 2 of `autoresolve` probes (the soldiers created by `CreateAutoResolveInterface`) |
 | `creature-compare.ts` | The creature probes of `compare.ts` (`creatures`, `creaturequest`, `creaturetrigger`, `creaturespread`, `creatureplanning`, `creatureattack`, `endcreaturequest`, `setcreatures`, `creaturecomposition`, `options`, `setcontrol`, `tacticalflags`) |
 | `morale-compare.ts` | The morale probes of `compare.ts` (`morale`, `setmorale`, `setrelation`, `setprofile`, `moralemove`, `moralecounter`, `hourlymorale`, `quartermorale`) |
-| `probes/creature*.txt`, `probes/morale.txt` | Creature and morale probe scripts (see "Creatures" and "Morale") |
+| `creature-ai-compare.ts` | The tactical creature probes of `compare.ts` (`addsoldier`, `setsoldier`, `seen`, `decide`, `beststab`, `stab`, `creaturecall`, `smell`, `dropsmell`, `trackscent`) |
+| `probes/creature*.txt`, `probes/morale.txt` | Creature and morale probe scripts (see "Creatures", "Creature AI" and "Morale") |
 | `autoresolve-aftermath.ts` | Level 3 of `autoresolve` probes (the battle closed through ja2-node's battle flow on the imported save) and `enemycounts` |
 | `pre-battle-compare.ts` | The `pbi` probe of `compare.ts` |
 | `probes/battle.txt` | Battles from the strategic state (see "Autoresolve") |
@@ -722,6 +724,46 @@ quartermorale [count=<n>]                          # DecayTacticalMoraleModifier
 2026-10-16 all 43 probes matched (hated relations within and past their tolerance, learning to like and to hate,
 sleeping mercs, the third-hour strategic decay, a nervous merc moved away from his squad).
 
+### Creature AI
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data"
+tools/oracle/run.sh tools/oracle/probes/creature-ai.txt ~/ja2-oracle/creatures/creature-ai.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle/creatures/creature-ai.jsonl
+```
+
+Commands (after a `save`; the soldier commands print the full soldier dump plus the AI state: side, smells, mobility,
+caller, call priority, frenzy, hunting, old life, regeneration, action fields, noise, patrol grid, aim, walk-to-attack
+cache, hand items, inventory flags and `bAwareOfOpposition` of the team):
+```
+addsoldier [team=creature] body=af|am|yf|ym|larva|infant|queen|bloodcat|regmale|… at=<grid> [dir=] [level=] [settings]
+setsoldier who=<id> [settings]
+seen who=<id> opp=<id> [value=1] [grid=<opp grid>] [public=1]   # personal or public opplist entry
+decide who=<id> [status=0]          # DecideAlertStatus (unless status=0), then CreatureDecideAction/CrowDecideAction/DecideAction
+beststab who=<id> [tentacles=1]     # CalcBestStab(blade) or CalcTentacleAttack, attack state restored
+stab who=<id> target=<id> [aim=] [hitBy=]   # CalcChanceToStab and HTHImpact with the hand item
+creaturecall who=<id> call=1..4     # CreatureCall; dumps every team member's caller fields
+smell g=<grid> [smell=] [blood=]    # sets ubSmellInfo/ubBloodInfo
+dropsmell who=<id>
+trackscent who=<id> [actionData=]
+```
+Settings: `alert`, `orders`, `attitude`, `ap`, `initialAp`, `life`, `oldLife`, `breath`, `hunting`, `frenzied`,
+`underFire`, `opps`, `lastAction`, `actionData`, `monsterSmell`, `lastTarget`, `noise=<grid>:<volume>[:<level>]`,
+`caller=<id>:<grid>:<priority>`, `aware=0|1`, `face=<dir>`. `addsoldier` uses `TacticalCreateSoldier` with random stats
+and `AddSoldierToSectorNoCalculateDirection`, so seed the engine first (`seed value=<n> pre=reseed`) for repeatable
+scripts. `decide` sets `gfTurnBasedAI` from `INCOMBAT` and traces the draws; the draws between the path marks of patch
+0009 (`k` 301/302) are the pathfinder's skip-list levels and are dropped ("Pathfinder RNG" deviation).
+
+`creature-ai-compare.ts` imports the save into a tactical session, builds each added soldier from the dump (stats,
+inventory with status and flags, life, breath, AP, alert, orders, smells) at the dumped id and grid, and copies the
+dumped state after every `setsoldier`/`seen`; `decide`, `beststab`, `stab`, `creaturecall` and `trackscent` replay the
+native draws into `rng`/`pre` and compare the result (action, action data, next action, alert, mobility, caller fields,
+frenzy, old life, aim, movement mode, final destination, walk-to-attack cache, facing, AP, hand items, inventory flags)
+and that no draw is left over. On 2026-10-16 all 218 probes of `creature-ai.txt` matched (69 decisions over all eight
+bodies on SaveGame07 in combat and SaveGame10 in real time, GREEN to BLACK, calls, hurt calls, spit and claws, multi-tile
+paths around walls; 8 `beststab`, 3 `stab`, 4 `creaturecall`, 2 `dropsmell`, 3 `trackscent`, 71 added soldiers with
+their AP per turn), and so did three runs of the same script with other seeds (`seed value=` +100, +200, +300).
+
 ## Shipped probes
 
 | Script | Content |
@@ -738,6 +780,7 @@ sleeping mercs, the third-hour strategic decay, a nervous merc moved away from h
 | `probes/sai-saves.txt` | For each of the six saves: the draws of the load, `sai`, `diffmod` for three classes, a seeded `saievaluate awake=1`, four `saicheck`, a second evaluation and `saiarrive count=40`, each followed by `sai` |
 | `probes/creatures.txt` | The creature quest on SaveGame09 and 10 over the three difficulties: starts, triggers, spreads, night planning, town attacks with each battle code, the end of the quest and two compositions |
 | `probes/creature-battles.txt` | Six creature autoresolve battles in D13 with 0–12 militia, the save's mercs and 3–20 creatures (bandaging, a full retreat) |
+| `probes/creature-ai.txt` | Creature and bloodcat decisions on SaveGame07 (combat) and SaveGame10 (real time): every body seeing, hearing, hurt, called, low on AP, around walls; melee choice and impact, calls, smell drops and scent tracking |
 | `probes/creature-placement.txt` | Creature placements in F13 b3 (with the queen), G13 b3, E13 b1, D13 b1, H8 b1 and bloodcat placements in I16, E13, C8 and D9 |
 | `probes/morale.txt` | Hourly and quarter-hour morale on SaveGame10, 07 and 01 with set modifiers, relations, traits and positions |
 | `probes/sectors.txt` | Edgepoints loaded and generated on eight maps, screen-space exit thresholds on both sides of every edge (A9, A10 basement), exit-grid checks in D13 and the basement, walk-off/walk-in/mirror from the centre and near the edges, class codes on the isolated maps H13 and I14, init list sorts and ten defence placements (A9, B13, C13, D13), and `OKForSectorExit` on SaveGame10, 07 (in combat) and 01 before and after moving mercs to an edge or an exit grid |
@@ -813,6 +856,10 @@ call site), and the appended `OracleDeterminePersistentEncounterCode(group, sect
 `gOracleSkipCreatureBattle`, which stops `CreatureAttackTown` before the battle switch; false in the game) and
 `src/game/Tactical/Morale.cc` (the function-static decay counter of `HourlyMoraleUpdate` becomes the file-scope
 `gOracleStrategicMoraleUpdateCounter`, same behaviour). Regenerate it like 0002 with those paths.
+
+`patches/0009-creature-ai-oracle.patch` (applied after 0006) touches `src/game/Tactical/PathAI.cc` only: a scope guard at
+the top of `FindBestPath` writes `OracleTraceMark(301)` on entry and `OracleTraceMark(302)` on every return, so the
+creature AI comparison can drop the skip-list draws of the pathfinder. Regenerate it like 0002 with that path.
 
 ## Notes
 

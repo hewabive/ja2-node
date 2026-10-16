@@ -1,12 +1,14 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Points.cc CalcAPsToBurst, CalcTotalAPsToAttack, MinAPsToAttack, CalcAimSkill, BaseAPsToShootOrStab,
-// @src GetAPChargeForShootOrStabWRTGunRaises, MinAPsToShootOrStab, MinAPsToPunch, EnoughAmmo. See docs/11 §1.5, §6.1.
+// @src GetAPChargeForShootOrStabWRTGunRaises, MinAPsToShootOrStab, MinAPsToPunch, EnoughAmmo (CalcTotalAPsToAttack with the
+// @src walk-to-attack cost and its sWalkToAttack cache). See docs/11 §1.5, §6.1.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
 import { idiv } from '../../../core/int.ts';
 import { findAttachment, findAttachmentByClass, type ItemObject } from '../../items/object.ts';
+import { plotPathCost } from '../ai/utils.ts';
 import { AnimHeight, endHeight, hasAnimFlag, height } from '../animation.ts';
 import { InvSlot, isValidSecondHandShot } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
@@ -14,7 +16,7 @@ import { AP, AP_LIMITS, apsToChangeStance, apsToLook, apsToReadyWeapon, calcActi
 import { effectiveAgility, effectiveDexterity, effectiveMarksmanship } from '../skills.ts';
 import { Body, NOWHERE, type Soldier } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
-import { meleeSpot } from './melee-reach.ts';
+import { findAdjacentGridEx, findAdjacentPunchTarget, findNextToAdjacentGridEx } from './melee-reach.ts';
 import { WeaponMode } from './types.ts';
 
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
@@ -148,14 +150,44 @@ function minAPsToPunch(t: TacticalState, s: Soldier, g: number, addTurning: bool
   return ap;
 }
 
+const NO_WALK_PATH_COST = 99;
+
+interface WalkToAttack {
+  readonly actionGridNo: number;
+  readonly targetGridNo: number;
+  readonly walks: boolean;
+}
+
+function walkToAttackSpot(t: TacticalState, s: Soldier, g: number): WalkToAttack | null {
+  const tgt = whoIsThere(t, g, s.level);
+  const bloodcat = s.bodyType === Body.BLOODCAT;
+  if (tgt) {
+    const direct = bloodcat ? findNextToAdjacentGridEx(t, s, g, true) : findAdjacentPunchTarget(t, s, tgt);
+    if (direct) return { actionGridNo: direct.actionGridNo, targetGridNo: direct.targetGridNo, walks: false };
+  }
+  if (bloodcat) return null;
+  const adjacent = findAdjacentGridEx(t, s, g, true);
+  return adjacent ? { actionGridNo: adjacent.actionGridNo, targetGridNo: adjacent.targetGridNo, walks: true } : null;
+}
+
 function meleeAPsToAttack(t: TacticalState, s: Soldier, g: number, addTurning: boolean, aimTime: number): number {
   let targetGrid = g;
+  let cost = 0;
   if (s.gridNo !== g) {
-    const spot = meleeSpot(t, s, g, s.level);
-    if (!spot) return 0;
-    targetGrid = spot.targetGridNo;
+    if (s.walkToAttackGridNo !== g) {
+      const spot = walkToAttackSpot(t, s, g);
+      if (!spot) return 0;
+      targetGrid = spot.targetGridNo;
+      if (s.gridNo === spot.actionGridNo || !spot.walks) s.walkToAttackCost = 0;
+      else {
+        s.walkToAttackCost = plotPathCost(t, s, spot.actionGridNo, s.uiMovementMode);
+        if (s.walkToAttackCost === 0) return NO_WALK_PATH_COST;
+      }
+      s.walkToAttackGridNo = g;
+    }
+    cost += s.walkToAttackCost;
   }
-  return (minAPsToAttack(t, s, targetGrid, addTurning) + aimTime) & 0xff;
+  return (cost + minAPsToAttack(t, s, targetGrid, addTurning) + aimTime) & 0xff;
 }
 
 export function calcTotalAPsToAttack(t: TacticalState, s: Soldier, g: number, addTurning: boolean, aimTime: number): number {

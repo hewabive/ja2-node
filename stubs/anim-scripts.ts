@@ -272,6 +272,7 @@ function combatScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> 
   for (const name of CREATURE_DEATHS) m.set(name, [1, Op.DEAD, ...frames(LOOP_FRAMES - 1, 2), JUMP_TO_START]);
   for (const name of ANIMAL_DEATHS) m.set(name, [...frames(8), Op.LIFE_ZERO, Op.DEAD]);
   for (const [name, script] of meleeScripts(t)) m.set(name, script);
+  for (const [name, script] of creatureAttackScripts(t)) m.set(name, script);
   for (const name of LOOPS) m.set(name, [...frames(LOOP_FRAMES), JUMP_TO_START]);
   return m;
 }
@@ -301,6 +302,59 @@ function meleeScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> {
     ['DODGE_ONE', [...frames(LOOP_FRAMES), END_OF_ANIMATION]],
     ['KNIFE_BREATH', [...frames(LOOP_FRAMES), JUMP_TO_START]],
     ['PUNCH_BREATH', [...frames(LOOP_FRAMES), JUMP_TO_START]],
+  ]);
+}
+
+const CreatureOp = { QUEEN_SWIPE_DAMAGE: 755, EAT_FLESH_DAMAGE: 761 } as const;
+
+function creatureAttackScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> {
+  const to = (name: string) => stateJump(stateId(t, name));
+  const strike = (windUp: number, followThrough: number) => [
+    Op.BUSY_UP,
+    ...frames(windUp),
+    Op.FIRE,
+    ...frames(followThrough, windUp + 1),
+    Op.BUSY_DOWN,
+  ];
+  const lunge = [Op.BUSY_UP, ...frames(5), MeleeOp.DODGE, ...frames(3, 6), Op.FIRE, ...frames(4, 9), Op.BUSY_DOWN, to('STANDING')];
+  const swipe = [
+    Op.BUSY_UP,
+    ...frames(4),
+    CreatureOp.QUEEN_SWIPE_DAMAGE,
+    5,
+    CreatureOp.QUEEN_SWIPE_DAMAGE,
+    6,
+    CreatureOp.QUEEN_SWIPE_DAMAGE,
+    ...frames(4, 7),
+    Op.BUSY_DOWN,
+    NONINTERRUPTIBLE_DONE,
+    END_OF_ANIMATION,
+  ];
+  return new Map([
+    [
+      'MONSTER_CLOSE_ATTACK',
+      [
+        Op.BUSY_UP,
+        ...frames(6),
+        MeleeOp.DODGE,
+        ...frames(2, 7),
+        Op.FIRE,
+        ...frames(3, 9),
+        Op.BUSY_DOWN,
+        NONINTERRUPTIBLE_DONE,
+        END_OF_ANIMATION,
+      ],
+    ],
+    ['ADULTMONSTER_ATTACKING', lunge],
+    ['MONSTER_SPIT_ATTACK', [...strike(7, 5), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION]],
+    ['INFANT_ATTACK', [...strike(6, 4), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION]],
+    ['QUEEN_SPIT', [...strike(8, 4), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION]],
+    ['QUEEN_SWIPE', swipe],
+    ['BLOODCAT_SWIPE', [...strike(5, 4), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION]],
+    ['BLOODCAT_BITE_ANIM', [...strike(6, 5), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION]],
+    ['MONSTER_BEGIN_EATTING_FLESH', [Op.BUSY_UP, ...frames(6), NONINTERRUPTIBLE_DONE, to('MONSTER_EATTING_FLESH')]],
+    ['MONSTER_EATTING_FLESH', [...frames(5, 7), CreatureOp.EAT_FLESH_DAMAGE, ...frames(4, 8), to('MONSTER_END_EATTING_FLESH')]],
+    ['MONSTER_END_EATTING_FLESH', [...frames(6), Op.BUSY_DOWN, NONINTERRUPTIBLE_DONE, END_OF_ANIMATION]],
   ]);
 }
 

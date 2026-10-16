@@ -274,8 +274,23 @@ function averageProtection(t: TacticalState, opp: Soldier, ammo: number): number
   }
 }
 
-function creatureGasDamageNotPorted(): number {
-  return 0;
+function spitGas(t: TacticalState, spit: number): number {
+  if (spit === itemIndex(t, 'CREATURE_QUEEN_SPIT')) return itemIndex(t, 'LARGE_CREATURE_GAS');
+  if (spit === itemIndex(t, 'CREATURE_OLD_MALE_SPIT')) return itemIndex(t, 'SMALL_CREATURE_GAS');
+  return itemIndex(t, 'VERY_SMALL_CREATURE_GAS');
+}
+
+function numMercsCloseTo(t: TacticalState, g: number, maxDistance: number): number {
+  let count = 0;
+  for (const m of mercs(t)) if (m.team === Team.OUR && m.life >= OKLIFE && pythSpacesAway(g, m.gridNo) <= maxDistance) count++;
+  return count;
+}
+
+function spitGasDamage(t: TacticalState, s: Soldier, opp: Soldier): number {
+  const gas = itemDef(t, spitGas(t, s.inv[s.attackingHand]?.item ?? NOTHING))?.explosive?.smoke;
+  const effect = gas ? smokeTypeOf(t, gas.type) : null;
+  if (!gas || !effect) return 0;
+  return idiv(effect.damage * numMercsCloseTo(t, opp.gridNo, u8(gas.maxRadius)) * 3, 2);
 }
 
 export function estimateShotDamage(t: TacticalState, s: Soldier, opp: Soldier, chanceToHit: number): number {
@@ -286,7 +301,7 @@ export function estimateShotDamage(t: TacticalState, s: Soldier, opp: Soldier, c
   let damage = idiv((weapon?.impact ?? 0) * (100 - powerLost + bonus), 100);
   damage -= averageProtection(t, opp, ammo);
   if (ammo === AmmoType.HP) damage = idiv(damage * 17, 10);
-  if (ammo === AmmoType.MONSTER) damage += creatureGasDamageNotPorted();
+  if (ammo === AmmoType.MONSTER) damage += spitGasDamage(t, s, opp);
   return Math.max(damage, MIN_ESTIMATED_DAMAGE);
 }
 
@@ -664,6 +679,8 @@ function bestStabAgainst(
 export function calcBestStab(t: TacticalState, s: Soldier, blade: boolean, best: AttackChoice = emptyAttackChoice()): AttackChoice {
   initAttackType(best);
   s.attackingWeapon = handObject(s).item;
+  const trueMovementMode = s.uiMovementMode;
+  s.uiMovementMode = states(t.content.animations).RUNNING;
   for (const opp of mercs(t)) {
     if (!isShotCandidate(s, opp) || s.level !== opp.level) continue;
     const minAPCost = u8(calcTotalAPsToAttack(t, s, opp.gridNo, true, 0));
@@ -687,6 +704,45 @@ export function calcBestStab(t: TacticalState, s: Soldier, blade: boolean, best:
     best.target = opp.gridNo;
     best.targetLevel = opp.level;
     best.attackValue = attackValue;
+    best.apCost = u8(minAPCost + aim.aimTime);
+  }
+  s.uiMovementMode = trueMovementMode;
+  return best;
+}
+
+function tentacleReach(t: TacticalState): number {
+  return itemDef(t, itemIndex(t, 'CREATURE_QUEEN_TENTACLES'))?.weapon?.range ?? 0;
+}
+
+function isTentacleCandidate(t: TacticalState, s: Soldier, opp: Soldier): boolean {
+  if (!opp.life || consideredNeutral(s, opp) || s.side === opp.side) return false;
+  if (s.oppList[opp.id] !== Opp.SEEN_CURRENTLY || s.level !== opp.level) return false;
+  return rangeInUnits(s.gridNo, opp.gridNo) <= tentacleReach(t);
+}
+
+export function calcTentacleAttack(t: TacticalState, s: Soldier, best: AttackChoice = emptyAttackChoice()): AttackChoice {
+  initAttackType(best);
+  s.attackingWeapon = handObject(s).item;
+  for (const opp of mercs(t)) {
+    if (!isTentacleCandidate(t, s, opp)) continue;
+    const minAPCost = u8(calcTotalAPsToAttack(t, s, opp.gridNo, true, 0));
+    let rawAPCost = minAPsToAttack(t, s, opp.gridNo, false);
+    if (opp.gridNo !== s.lastTarget) rawAPCost = u8(rawAPCost - AP.CHANGE_TARGET);
+    rawAPCost = Math.max(1, rawAPCost);
+    const surprise = opp.oppList[s.id] !== Opp.SEEN_CURRENTLY;
+    const aim = bestStabAgainst(t, s, opp, rawAPCost, AP.MIN_AIM_ATTACK, true, surprise);
+    if (aim.hitRate === 0) continue;
+    const threat = calcManThreatValue(t, opp, s.gridNo, false, s);
+    const damage = estimateStabDamage(t, s, aim.chanceToHit, true);
+    const attackValue = shotAttackValue(damage, aim.hitRate, aim.chanceToHit, threat);
+    if (attackValue <= 0) continue;
+    best.possible = true;
+    best.opponent = opp;
+    best.aimTime = aim.aimTime;
+    best.chanceToReallyHit = aim.chanceToHit;
+    best.target = opp.gridNo;
+    best.targetLevel = opp.level;
+    best.attackValue = (best.attackValue + attackValue) | 0;
     best.apCost = u8(minAPCost + aim.aimTime);
   }
   return best;

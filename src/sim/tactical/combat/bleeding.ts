@@ -1,9 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Control.cc CheckBleeding, SoldierBleed, CalcSoldierNextBleed. See docs/11 §5.11.
+// @src src/game/Tactical/Soldier_Control.cc CheckBleeding (with its blood amount), SoldierBleed, CalcSoldierNextBleed. See docs/11 §5.11.
 
 import { profileProgress } from '../profiles.ts';
 import { effectiveLife } from '../skills.ts';
+import { BLOOD_DIVISOR, MAX_BLOOD_QUANTITY } from '../smell.ts';
 import { Body, NO_PROFILE, OKLIFE, type Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { soldierTakeDamage } from './hit.ts';
@@ -35,14 +36,23 @@ function loseLifeMaxWhileDying(t: TacticalState, s: Soldier): void {
   progress.life--;
 }
 
-export function checkBleeding(t: TacticalState, s: Soldier): void {
-  if (s.life === 0) return;
-  if (s.bleeding <= MIN_BLEEDING_THRESHOLD && s.life >= OKLIFE) return;
+export const NO_BLOOD = 40;
+
+function bleedingBlood(s: Soldier): number {
+  if (s.tilesMoved >= 1) return NO_BLOOD;
+  return Math.min(Math.trunc((s.bleeding - MIN_BLEEDING_THRESHOLD) / BLOOD_DIVISOR), MAX_BLOOD_QUANTITY);
+}
+
+export function checkBleeding(t: TacticalState, s: Soldier): number {
+  if (s.life === 0) return NO_BLOOD;
+  if (s.bleeding <= MIN_BLEEDING_THRESHOLD && s.life >= OKLIFE) return NO_BLOOD;
+  const blood = bleedingBlood(s);
   s.nextBleed = t.inCombat ? Math.fround(s.nextBleed - 1) : Math.fround(s.nextBleed - RT_NEXT_BLEED_MODIFIER);
-  if (s.nextBleed > 0) return;
+  if (s.nextBleed > 0) return blood;
   const bandaged = s.lifeMax - s.bleeding - s.life;
   if (bandaged !== 0 && s.life >= OKLIFE) s.bleeding++;
   else if (s.life < OKLIFE) loseLifeMaxWhileDying(t, s);
   soldierTakeDamage(t, s, BLOOD_LOSS_LIFE, BLOOD_LOSS_BREATH, DamageReason.BLOODLOSS, null);
   s.nextBleed = calcSoldierNextBleed(s);
+  return blood;
 }

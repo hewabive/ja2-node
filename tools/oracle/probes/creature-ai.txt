@@ -1,0 +1,262 @@
+# Creature and bloodcat decisions (CreatureDecideAction, CreatureDecideAlertStatus, CreatureCall, TrackScent; docs/13 §14),
+# creature melee choice and impact, and the smell map, on the saved D13 positions. Every scenario reloads its save.
+# Turn-based: SaveGame07 (mercs 0 at 8519, 1 at 8360, 2 crouched at 12867; enemy 23 at 12397).
+# Real-time: SaveGame10 (mercs 0 at 8519, 1 at 8360, 2 at 8359; enemies 20-24).
+save SaveGame07
+seed value=901 pre=reseed
+addsoldier team=creature body=af at=8999 dir=0
+seen who=52 opp=0
+decide who=52
+addsoldier team=creature body=ym at=10279 dir=0
+seen who=53 opp=0
+decide who=53
+save SaveGame07
+seed value=902 pre=reseed
+addsoldier team=creature body=af at=8679 dir=0
+seen who=52 opp=0
+decide who=52
+beststab who=52 blade=1
+stab who=52 target=0 aim=0 hitBy=20
+stab who=52 target=0 aim=2 hitBy=60
+save SaveGame07
+seed value=903 pre=reseed
+addsoldier team=creature body=am at=10119 dir=0
+seen who=52 opp=0
+decide who=52
+addsoldier team=creature body=am at=9319 dir=0
+seen who=53 opp=0
+decide who=53
+addsoldier team=creature body=yf at=9479 dir=0
+seen who=54 opp=0
+seen who=54 opp=1
+decide who=54
+save SaveGame07
+seed value=904 pre=reseed
+addsoldier team=creature body=yf at=8679 dir=0 life=9 oldLife=40
+seen who=52 opp=0
+decide who=52
+addsoldier team=creature body=ym at=8839 dir=0 life=12 oldLife=30
+seen who=53 opp=0
+decide who=53
+save SaveGame07
+seed value=905 pre=reseed
+addsoldier team=creature body=queen at=10119 dir=0
+seen who=52 opp=0
+decide who=52
+beststab who=52 tentacles=1
+addsoldier team=creature body=queen at=8839 dir=0
+seen who=53 opp=0
+decide who=53
+beststab who=53 tentacles=1
+save SaveGame07
+seed value=906 pre=reseed
+addsoldier team=creature body=larva at=9319 dir=0
+decide who=52
+addsoldier team=creature body=larva at=9799 dir=2
+seen who=53 opp=0
+decide who=53
+addsoldier team=creature body=infant at=9639 dir=0
+seen who=54 opp=0
+decide who=54
+addsoldier team=creature body=infant at=8839 dir=0
+seen who=55 opp=0
+decide who=55
+save SaveGame07
+seed value=907 pre=reseed
+addsoldier team=creature body=bloodcat at=8999 dir=0
+seen who=52 opp=0
+decide who=52
+addsoldier team=creature body=bloodcat at=8679 dir=0
+seen who=53 opp=0
+decide who=53
+beststab who=53 blade=1
+stab who=53 target=0 aim=0 hitBy=10
+addsoldier team=creature body=bloodcat at=11719 dir=4
+decide who=54
+save SaveGame07
+seed value=908 pre=reseed
+addsoldier team=creature body=af at=10119 dir=0
+setsoldier who=52 noise=8519:40
+decide who=52
+addsoldier team=creature body=af at=11719 dir=0
+setsoldier who=53 caller=52:10119:2
+decide who=53
+addsoldier team=creature body=af at=10439 dir=0
+seen who=54 opp=0 public=1 value=2
+decide who=54
+addsoldier team=creature body=af at=10599 dir=0 alert=3
+seen who=55 opp=0 value=2
+decide who=55
+save SaveGame07
+seed value=909 pre=reseed
+addsoldier team=creature body=af at=8679 dir=0 ap=2
+seen who=52 opp=0
+decide who=52
+addsoldier team=creature body=ym at=10119 dir=0 ap=6
+seen who=53 opp=0
+decide who=53
+addsoldier team=creature body=am at=11719 dir=0
+seen who=54 opp=0
+decide who=54
+addsoldier team=creature body=af at=12719 dir=0 alert=1 hunting=1 actionData=12867
+decide who=55
+save SaveGame07
+seed value=910 pre=reseed
+addsoldier team=creature body=af at=10119 dir=0
+addsoldier team=creature body=ym at=10439 dir=0
+addsoldier team=creature body=am at=11719 dir=0
+addsoldier team=creature body=bloodcat at=9799 dir=0
+creaturecall who=52 call=1
+creaturecall who=53 call=2
+creaturecall who=54 call=3
+creaturecall who=52 call=4
+decide who=53
+decide who=54
+save SaveGame07
+seed value=911 pre=reseed
+addsoldier team=creature body=af at=10119 dir=0
+smell g=10279 smell=90
+smell g=10280 smell=60
+smell g=9959 smell=200
+dropsmell who=52
+dropsmell who=0
+trackscent who=52 actionData=10279
+trackscent who=52 actionData=9959
+trackscent who=52 actionData=8519
+save SaveGame10
+seed value=912 pre=reseed
+addsoldier team=creature body=af at=8999 dir=0
+seen who=52 opp=0
+decide who=52
+addsoldier team=creature body=af at=8679 dir=0
+seen who=53 opp=0
+decide who=53
+addsoldier team=creature body=ym at=10279 dir=0
+seen who=54 opp=0
+decide who=54
+addsoldier team=creature body=bloodcat at=11719 dir=4
+decide who=55
+addsoldier team=creature body=larva at=9799 dir=2
+decide who=56
+save SaveGame10
+seed value=913 pre=reseed
+addsoldier team=creature body=af at=10119 dir=0
+decide who=52
+decide who=52
+addsoldier team=creature body=bloodcat at=8839 dir=0
+seen who=53 opp=0
+decide who=53
+addsoldier team=creature body=queen at=10439 dir=0
+seen who=54 opp=0
+decide who=54
+addsoldier team=creature body=am at=11719 dir=0 alert=1 noise=8519:30
+decide who=55
+save SaveGame10
+seed value=914 pre=reseed
+addsoldier team=creature body=af at=8520 dir=6
+seen who=52 opp=0
+seen who=52 opp=1
+seen who=52 opp=2
+decide who=52
+beststab who=52 blade=1
+addsoldier team=creature body=am at=8680 dir=6
+seen who=53 opp=0
+seen who=53 opp=1
+decide who=53
+addsoldier team=creature body=bloodcat at=8518 dir=2 frenzied=1
+seen who=54 opp=0
+seen who=54 opp=2
+decide who=54
+beststab who=54 blade=1
+save SaveGame07
+seed value=915 pre=reseed
+addsoldier team=creature body=infant at=8679 dir=0
+seen who=52 opp=0
+decide who=52
+addsoldier team=creature body=larva at=8520 dir=6
+seen who=53 opp=0
+decide who=53
+addsoldier team=creature body=af at=10119 dir=0 frenzied=1
+seen who=54 opp=0
+decide who=54
+addsoldier team=creature body=yf at=11719 dir=0 alert=3
+decide who=55
+addsoldier team=creature body=ym at=12719 dir=0 alert=2 noise=8519:60
+decide who=56
+save SaveGame07
+seed value=916 pre=reseed
+addsoldier team=creature body=af at=10119 dir=0 alert=2 caller=53:11719:4
+decide who=52
+addsoldier team=creature body=af at=10439 dir=0 alert=1 caller=52:9319:6
+decide who=53
+addsoldier team=creature body=am at=10599 dir=0 underFire=1
+decide who=54
+addsoldier team=creature body=af at=12719 dir=0 orders=0
+seen who=55 opp=0
+decide who=55
+addsoldier team=creature body=bloodcat at=12739 dir=0 orders=1 alert=1 noise=12867:20
+decide who=56
+save SaveGame07
+seed value=917 pre=reseed
+addsoldier team=creature body=af at=9319 dir=0 life=20 oldLife=60
+seen who=52 opp=0 value=2
+decide who=52
+addsoldier team=creature body=queen at=9479 dir=0 life=30 oldLife=60
+decide who=53
+addsoldier team=creature body=am at=9799 dir=0 alert=3 lastTarget=8519
+seen who=54 opp=0 value=3
+decide who=54
+addsoldier team=creature body=bloodcat at=12399 dir=0
+seen who=55 opp=23
+decide who=55
+addsoldier team=creature body=ym at=11757 dir=0
+seen who=56 opp=23
+seen who=56 opp=2
+decide who=56
+save SaveGame10
+seed value=918 pre=reseed
+addsoldier team=creature body=af at=10119 dir=0 alert=2 caller=53:11719:4
+decide who=52
+addsoldier team=creature body=yf at=10439 dir=0 alert=1 noise=8519:40
+decide who=53
+addsoldier team=creature body=infant at=10599 dir=0
+seen who=54 opp=0
+decide who=54
+addsoldier team=creature body=larva at=8680 dir=0
+decide who=55
+addsoldier team=creature body=bloodcat at=8679 dir=0 orders=3
+seen who=56 opp=0
+decide who=56
+save SaveGame07
+seed value=950 pre=reseed
+addsoldier team=creature body=af at=12379 dir=4
+seen who=52 opp=2
+decide who=52
+beststab who=52 blade=1
+addsoldier team=creature body=bloodcat at=12376 dir=4
+seen who=53 opp=2
+decide who=53
+addsoldier team=creature body=ym at=12218 dir=4
+seen who=54 opp=2
+decide who=54
+addsoldier team=creature body=af at=11417 dir=2 alert=1 noise=12867:50
+decide who=55
+addsoldier team=creature body=yf at=11253 dir=4
+seen who=56 opp=2
+seen who=56 opp=23
+decide who=56
+save SaveGame07
+seed value=951 pre=reseed
+addsoldier team=creature body=am at=12540 dir=0
+seen who=52 opp=2
+decide who=52
+addsoldier team=creature body=bloodcat at=12706 dir=2
+seen who=53 opp=2
+decide who=53
+beststab who=53 blade=1
+addsoldier team=creature body=af at=13024 dir=6
+seen who=54 opp=2
+decide who=54
+addsoldier team=creature body=infant at=12398 dir=0
+seen who=55 opp=23
+decide who=55

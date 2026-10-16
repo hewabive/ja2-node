@@ -27,6 +27,7 @@ import { findBestPath, isWater, MAX_PATH_LIST_SIZE, newOKDestination, PathCopy, 
 import { addMercStructure, removeMercStructure } from './person-structure.ts';
 import { AP, actionPointCost, deductPoints, doorTravelCost, enoughPoints, type PointsContext, terrainBreathPoints } from './points.ts';
 import { handleWaitActionOnArrival } from './sector-exit.ts';
+import { dropSmell } from './smell.ts';
 import { cellCentre, NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, OKBREATH, Orders, type Soldier, Team } from './soldier.ts';
 import { placeOccupant, removeOccupant, type TacticalState, WaitForMercs, whoIsThere } from './state.ts';
 
@@ -99,8 +100,10 @@ function setSoldierGridNo(t: TacticalState, s: Soldier, requested: number): void
     s.endDoorOpenCode = 0;
     toggleDoorAt(t, s.endDoorOpenCodeData);
   }
+  s.walkToAttackGridNo = NOWHERE;
   unmarkMovementReserved(t, s);
   if (s.ai.patrolGrid.length === 0) s.ai.patrolGrid[0] = g;
+  dropSmell(t.smell, s);
   placeOccupant(t, s);
   s.placed = true;
   addMercStructure(t, s);
@@ -133,7 +136,10 @@ export function setSoldierPosition(t: TacticalState, s: Soldier, g: number, opti
 }
 
 export function stopMerc(t: TacticalState, s: Soldier): void {
-  if (!s.delayedMovement) s.pendingAnimation = -1;
+  if (!s.delayedMovement) {
+    s.pendingAnimation = -1;
+    s.pendingMelee = null;
+  }
   s.endDoorOpenCode = 0;
   s.pathIndex = 0;
   s.pathSize = 0;

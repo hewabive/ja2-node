@@ -1,8 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/PathAI.cc FindBestPath, IsDoorObstacleIfClosed, GetDoorState; Overhead.cc NewOKDestination,
-// @src IsDestinationBlocked; TileEngine/WorldMan.cc WhoIsThere2, Water. See docs/07 §3.
+// @src NewOKDestinationAndDirection, IsDestinationBlocked; TileEngine/WorldMan.cc WhoIsThere2, Water. See docs/07 §3.
 
+import type { StructureDef } from '../../content/formats/jsd.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
 import {
   DIRECTION_INCREMENT,
@@ -14,7 +15,14 @@ import {
   WORLD_MAX,
 } from '../../content/world/grid.ts';
 import { isDoorTravelCost, type MovementCosts, TravelCost } from '../../content/world/movement-costs.ts';
-import { has, STRUCTURE_ON_GROUND, STRUCTURE_ON_ROOF, StructureFlags, type WorldStructures } from '../../content/world/structures.ts';
+import {
+  has,
+  IGNORE_PEOPLE_STRUCTURE_ID,
+  STRUCTURE_ON_GROUND,
+  STRUCTURE_ON_ROOF,
+  StructureFlags,
+  type WorldStructures,
+} from '../../content/world/structures.ts';
 import { TERRAIN_MOVEMENT_COST, Terrain } from '../../content/world/terrain.ts';
 import { Team } from './soldier.ts';
 
@@ -31,7 +39,9 @@ const POOL_NODES = MAX_PATHQ - 2;
 const MAX_TRAIL_TREE = 16384;
 export const ABSMAX_TRAIL_TREE = 65536;
 const PLAIN_PATH_LIMIT = 256;
-const DIRECTION_ORDER = [0, 7, 6, 5, 4, 3, 2, 1] as const;
+const DIRECTIONS = 8;
+const BACKWARDS_STEP_PENALTY = 50;
+const Looping = { CLOCKWISE: 0, COUNTERCLOCKWISE: 1, REVERSE: 2 } as const;
 const EASYWATERCOST = 5;
 const MERC_BODY_MAX = 3;
 const DOOR_APS_OPEN = 3;
@@ -60,6 +70,13 @@ export interface DoorStatus {
   readonly perceivedOpen: boolean;
 }
 
+export interface MultiTileShape {
+  readonly structures: readonly (StructureDef | null)[] | null;
+  readonly structureId: number;
+  readonly continuousTurn: boolean;
+  readonly direction: number;
+}
+
 export interface PathWorld {
   readonly costs: MovementCosts;
   readonly terrain: Uint8Array;
@@ -75,6 +92,7 @@ export interface PathEnv {
   readonly showAllMercs: boolean;
   readonly autoBandage: boolean;
   readonly minAPsToStartMovement?: (s: PathSoldier, mode: MoveMode) => number;
+  readonly multiTile?: (s: PathSoldier, mode: MoveMode | null) => MultiTileShape | null;
   readonly stats?: { searches: number };
 }
 
@@ -87,6 +105,7 @@ export interface PathOptions {
   readonly circular?: boolean;
   readonly plotToExitGrid?: boolean;
   readonly maxTrailTree?: number;
+  readonly estimate?: boolean;
 }
 
 export interface PathResult {
@@ -98,6 +117,8 @@ export interface PathResult {
 }
 
 const NO_PATH: PathResult = { length: 0, steps: [] };
+const EXPANDED = true;
+const ABORTED = false;
 const REACHABLE_COST_TO_GO = 100;
 
 export function terrainCost(world: PathWorld, g: number): number {
@@ -124,6 +145,22 @@ export function isDestinationBlocked(env: PathEnv, g: number, level: number, plo
   return false;
 }
 
+function personBlocksDestination(env: PathEnv, s: PathSoldier, g: number, level: number): boolean {
+  const person = env.whoIsThere(g, level);
+  return person !== null && (person.id !== s.id || g === s.gridNo) && (s.team !== Team.OUR || person.visible >= 0 || env.showAllMercs);
+}
+
+function okayForShape(
+  env: PathEnv,
+  g: number,
+  level: number,
+  def: StructureDef | null | undefined,
+  id: number,
+  ignorePeople: boolean,
+): boolean {
+  return !def || env.world.structures.okayToAdd(g, level, def, id, ignorePeople);
+}
+
 export function newOKDestination(
   env: PathEnv,
   s: PathSoldier,
@@ -131,13 +168,47 @@ export function newOKDestination(
   peopleToo: boolean,
   level: number,
   plotToExitGrid = false,
+  estimate = false,
 ): boolean {
   if (!isVisibleTile(g)) return false;
-  if (peopleToo) {
-    const person = env.whoIsThere(g, level);
-    if (person && (person.id !== s.id || g === s.gridNo) && (s.team !== Team.OUR || person.visible >= 0 || env.showAllMercs)) return false;
+  if (peopleToo && personBlocksDestination(env, s, g, level)) return false;
+  const shape = estimate ? null : (env.multiTile?.(s, null) ?? null);
+  if (shape) {
+    const structures = shape.structures;
+    if (!structures) return false;
+    for (let dir = 0; dir < DIRECTIONS; dir++) if (okayForShape(env, g, level, structures[dir], shape.structureId, !peopleToo)) return true;
+    return false;
   }
   return !isDestinationBlocked(env, g, level, plotToExitGrid);
+}
+
+export function newOKDestinationAndDirection(
+  env: PathEnv,
+  s: PathSoldier,
+  g: number,
+  direction: number,
+  peopleToo: boolean,
+  level: number,
+): boolean {
+  if (peopleToo && personBlocksDestination(env, s, g, level)) return false;
+  const shape = env.multiTile?.(s, null) ?? null;
+  if (shape) {
+    const structures = shape.structures;
+    return structures !== null && okayForShape(env, g, s.level, structures[oneCDirection(direction)], shape.structureId, !peopleToo);
+  }
+  return !isDestinationBlocked(env, g, level);
+}
+
+function oneCDirection(dir: number): number {
+  return (dir + 1) % DIRECTIONS;
+}
+
+function oneCCDirection(dir: number): number {
+  return (dir + DIRECTIONS - 1) % DIRECTIONS;
+}
+
+function oppositeDirection(dir: number): number {
+  return (dir + DIRECTIONS / 2) % DIRECTIONS;
 }
 
 interface DoorRef {
@@ -196,6 +267,13 @@ function heuristic(dx: number, dy: number): number {
   return dx < dy ? Math.trunc((EASYWATERCOST * (dx * 14 + dy * 10)) / 14) : Math.trunc((EASYWATERCOST * (dy * 14 + dx * 10)) / 14);
 }
 
+interface OpenHead {
+  readonly loc: number;
+  readonly g: number;
+  readonly trail: number;
+  readonly ap: number;
+}
+
 class OpenList {
   private readonly loc: number[] = [];
   private readonly g: number[] = [];
@@ -243,7 +321,7 @@ class OpenList {
     h[i] = n;
   }
 
-  head(): { loc: number; g: number; trail: number; ap: number } | null {
+  head(): OpenHead | null {
     const n = this.heap[0];
     if (n === undefined) return null;
     return { loc: this.loc[n] as number, g: this.g[n] as number, trail: this.trail[n] as number, ap: this.ap[n] as number };
@@ -350,7 +428,7 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
 
   let dest = destination;
   if (dest !== NOWHERE) {
-    if (!newOKDestination(env, s, dest, personAtDestIsObstacle, level, options.plotToExitGrid)) return NO_PATH;
+    if (!newOKDestination(env, s, dest, personAtDestIsObstacle, level, options.plotToExitGrid, options.estimate)) return NO_PATH;
     if (dest === org) return NO_PATH;
   }
   if (budget) {
@@ -374,6 +452,18 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
   const trailPrev: number[] = [0];
   const trailDir: number[] = [0];
   const trailGrid: number[] = [0];
+  const trailBack: boolean[] = [false];
+  const shape = env.multiTile?.(s, mode) ?? null;
+  const structures = shape?.structures ?? null;
+  const continuous = structures !== null && shape?.continuousTurn === true;
+  const shapeId = options.estimate ? IGNORE_PEOPLE_STRUCTURE_ID : (shape?.structureId ?? IGNORE_PEOPLE_STRUCTURE_ID);
+  const fits = (g: number, index: number) =>
+    okayForShape(env, g, level, structures?.[index], shapeId, shapeId === IGNORE_PEOPLE_STRUCTURE_ID);
+  const facingAt = (trail: number) => {
+    if (trailPrev.length < 2) return shape?.direction ?? 0;
+    const dir = trailDir[trail] as number;
+    return trailBack[trail] ? oppositeDirection(dir) : dir;
+  };
   const open = new OpenList();
   const remaining = (loc: number) => heuristic(Math.abs(destX - (loc % WORLD_COLS)), Math.abs(destY - Math.trunc(loc / WORLD_COLS)));
   const legDistance = (loc: number) => (Math.abs(destX - (loc % WORLD_COLS)) + Math.abs(destY - Math.trunc(loc / WORLD_COLS))) & 0xff;
@@ -382,97 +472,144 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
   trailCost[org] = 0;
 
   let goingThroughDoor = false;
+  const expand = (cur: OpenHead, dir: number, structIndex: number, backwards: boolean): boolean => {
+    const curLoc = cur.loc;
+    const newLoc = curLoc + (DIRECTION_INCREMENT[dir] as number);
+    if (newLoc < 0 || newLoc >= WORLD_MAX) return EXPANDED;
+    if (visitOnce && used[newLoc] === 1) return EXPANDED;
+    if (world.heights[newLoc] !== world.heights[curLoc]) return EXPANDED;
+    if (distLimit && (options.circular ? pythSpacesAway(org, newLoc) : spacesAway(org, newLoc)) > distLimit) return EXPANDED;
+
+    let nextCost = world.costs.get(newLoc, dir, level);
+    if (nextCost === TravelCost.NOT_STANDING) {
+      nextCost = terrainCost(world, newLoc);
+    } else if (nextCost === TravelCost.EXITGRID) {
+      if (options.plotToExitGrid) nextCost = terrainCost(world, newLoc);
+    } else if (nextCost === TravelCost.FENCE && nonMerc) {
+      return EXPANDED;
+    } else if (isDoorTravelCost(nextCost)) {
+      const ref = doorObstacleIfClosed(nextCost, newLoc);
+      const state = doorState(env, ref.door, forPlayer);
+      let doorOpen = false;
+      if (ref.door2 === -1) {
+        if (!has(state, StructureFlags.ANYDOOR)) nextCost = terrainCost(world, newLoc);
+        else {
+          doorOpen = has(state, StructureFlags.OPEN);
+          if (has(state, StructureFlags.GARAGEDOOR) && dir & 1 && !doorOpen) return EXPANDED;
+        }
+      } else {
+        const state2 = doorState(env, ref.door2, forPlayer);
+        if (!has(state, StructureFlags.ANYDOOR) && !has(state2, StructureFlags.ANYDOOR)) nextCost = terrainCost(world, newLoc);
+        else if (!has(state, StructureFlags.OPEN) || !has(state2, StructureFlags.OPEN)) return EXPANDED;
+        doorOpen = true;
+      }
+      if (isDoorTravelCost(nextCost)) {
+        if (doorOpen) nextCost = ref.obstacleIfClosed ? terrainCost(world, newLoc) : TravelCost.OBSTACLE;
+        else if (ref.obstacleIfClosed) {
+          if (forPlayer || s.monsterOrAnimal) nextCost = TravelCost.OBSTACLE;
+          else {
+            const mapDoor = world.mapDoors.get(ref.door);
+            if (!mapDoor?.locked || s.hasKeys) {
+              if (budget) goingThroughDoor = true;
+              nextCost = terrainCost(world, newLoc);
+            } else nextCost = TravelCost.OBSTACLE;
+          }
+        } else nextCost = terrainCost(world, newLoc);
+      }
+    } else if ((nextCost === TravelCost.SHORE || nextCost === TravelCost.KNEEDEEP || nextCost === TravelCost.DEEPWATER) && nonMerc) {
+      nextCost = TravelCost.OBSTACLE;
+    }
+    if (nextCost >= TravelCost.BLOCKED) return EXPANDED;
+
+    if (aroundPeople && (newLoc !== dest || copyReachable)) {
+      const who = env.whoIsThere(newLoc, s.level);
+      if (who && who.id !== s.id) return EXPANDED;
+    }
+    if (structures && !fits(newLoc, structIndex)) return EXPANDED;
+
+    let newAp = 0;
+    if (budget) {
+      const step = budgetStepCost(nextCost, dir, mode, goingThroughDoor);
+      if (step === null) return EXPANDED;
+      if (goingThroughDoor && nextCost !== TravelCost.FENCE) goingThroughDoor = false;
+      newAp = (cur.ap + step) & 0xff;
+      if (newAp > budget) return EXPANDED;
+    }
+
+    if (closeGoodEnough && pythSpacesAway(newLoc, dest) <= closeLimit) {
+      dest = newLoc;
+      closeGoodEnough = false;
+    }
+    if (newLoc === dest) nextCost = 0;
+    if (waterToWater && waterCost(nextCost)) nextCost = EASYWATERCOST;
+    if (dir & 1) nextCost = Math.trunc((nextCost * 14) / 10);
+    if (backwards) nextCost += BACKWARDS_STEP_PENALTY;
+    const newTotal = cur.g + nextCost;
+    if (used[newLoc] === 1 && newTotal >= (trailCost[newLoc] as number)) return EXPANDED;
+    if (open.size === POOL_NODES) return ABORTED;
+    trailPrev.push(cur.trail);
+    trailDir.push(dir);
+    trailGrid.push(newLoc);
+    trailBack.push(backwards);
+    if (trailPrev.length >= maxTrailTree) return ABORTED;
+    const cost = newTotal & 0xffff;
+    open.push(newLoc, cost, (cost + costToGo(newLoc)) & 0xffff, legDistance(newLoc), trailPrev.length - 1, newAp);
+    if (budget && apCosts) apCosts[apCostIndex(newLoc)] = newAp;
+    trailCost[newLoc] = cost;
+    used[newLoc] = 1;
+    return EXPANDED;
+  };
+
+  let cnt = 0;
+  let loopStart = 0;
+  let loopEnd = 0;
+  let loopState: number = Looping.CLOCKWISE;
+  let lastDir = 0;
+  let checkedBehind = false;
   for (;;) {
     const cur = open.head();
     if (!cur || cur.loc === dest) break;
     open.pop();
-    const curLoc = cur.loc;
-    const curCost = cur.g;
     if (reachable && world.costs.get(trailGrid[cur.trail] as number, trailDir[cur.trail] as number, level) !== TravelCost.FENCE)
-      reachable[curLoc] = 1;
-    const stale = used[curLoc] === 1 && (trailCost[curLoc] as number) < curCost;
-    for (let k = stale ? 1 : 0; k < DIRECTION_ORDER.length; k++) {
-      const dir = DIRECTION_ORDER[k] as number;
-      const newLoc = curLoc + (DIRECTION_INCREMENT[dir] as number);
-      if (newLoc < 0 || newLoc >= WORLD_MAX) continue;
-      if (visitOnce && used[newLoc] === 1) continue;
-      if (world.heights[newLoc] !== world.heights[curLoc]) continue;
-      if (distLimit && (options.circular ? pythSpacesAway(org, newLoc) : spacesAway(org, newLoc)) > distLimit) continue;
-
-      let nextCost = world.costs.get(newLoc, dir, level);
-      if (nextCost === TravelCost.NOT_STANDING) {
-        nextCost = terrainCost(world, newLoc);
-      } else if (nextCost === TravelCost.EXITGRID) {
-        if (options.plotToExitGrid) nextCost = terrainCost(world, newLoc);
-      } else if (nextCost === TravelCost.FENCE && nonMerc) {
-        continue;
-      } else if (isDoorTravelCost(nextCost)) {
-        const ref = doorObstacleIfClosed(nextCost, newLoc);
-        const state = doorState(env, ref.door, forPlayer);
-        let doorOpen = false;
-        if (ref.door2 === -1) {
-          if (!has(state, StructureFlags.ANYDOOR)) nextCost = terrainCost(world, newLoc);
-          else {
-            doorOpen = has(state, StructureFlags.OPEN);
-            if (has(state, StructureFlags.GARAGEDOOR) && dir & 1 && !doorOpen) continue;
+      reachable[cur.loc] = 1;
+    let toNextDirection = used[cur.loc] === 1 && (trailCost[cur.loc] as number) < cur.g;
+    if (!toNextDirection) {
+      if (continuous) {
+        lastDir = facingAt(cur.trail);
+        loopStart = lastDir;
+        loopEnd = lastDir;
+        loopState = Looping.CLOCKWISE;
+        checkedBehind = false;
+      }
+      cnt = loopStart;
+    }
+    for (;;) {
+      if (!toNextDirection) {
+        const structIndex = loopState === Looping.REVERSE ? oppositeDirection(oneCDirection(cnt)) : oneCDirection(cnt);
+        let canTurn = true;
+        if (continuous) {
+          if (cnt !== lastDir && !fits(cur.loc, structIndex)) {
+            canTurn = false;
+            if (loopState === Looping.CLOCKWISE) {
+              loopStart = lastDir;
+              loopEnd = cnt;
+              loopState = Looping.COUNTERCLOCKWISE;
+              cnt = loopStart;
+            } else if (loopState === Looping.COUNTERCLOCKWISE && !checkedBehind) {
+              loopState = Looping.REVERSE;
+              loopStart = oppositeDirection(oneCCDirection(lastDir));
+              loopEnd = (loopStart + 2) % DIRECTIONS;
+              cnt = loopStart;
+              checkedBehind = true;
+            } else break;
           }
-        } else {
-          const state2 = doorState(env, ref.door2, forPlayer);
-          if (!has(state, StructureFlags.ANYDOOR) && !has(state2, StructureFlags.ANYDOOR)) nextCost = terrainCost(world, newLoc);
-          else if (!has(state, StructureFlags.OPEN) || !has(state2, StructureFlags.OPEN)) continue;
-          doorOpen = true;
-        }
-        if (isDoorTravelCost(nextCost)) {
-          if (doorOpen) nextCost = ref.obstacleIfClosed ? terrainCost(world, newLoc) : TravelCost.OBSTACLE;
-          else if (ref.obstacleIfClosed) {
-            if (forPlayer || s.monsterOrAnimal) nextCost = TravelCost.OBSTACLE;
-            else {
-              const mapDoor = world.mapDoors.get(ref.door);
-              if (!mapDoor?.locked || s.hasKeys) {
-                if (budget) goingThroughDoor = true;
-                nextCost = terrainCost(world, newLoc);
-              } else nextCost = TravelCost.OBSTACLE;
-            }
-          } else nextCost = terrainCost(world, newLoc);
-        }
-      } else if ((nextCost === TravelCost.SHORE || nextCost === TravelCost.KNEEDEEP || nextCost === TravelCost.DEEPWATER) && nonMerc) {
-        nextCost = TravelCost.OBSTACLE;
+        } else if (structures && !fits(cur.loc, structIndex)) canTurn = false;
+        if (canTurn && expand(cur, cnt, structIndex, loopState === Looping.REVERSE) === ABORTED) return NO_PATH;
       }
-      if (nextCost >= TravelCost.BLOCKED) continue;
-
-      if (aroundPeople && (newLoc !== dest || copyReachable)) {
-        const who = env.whoIsThere(newLoc, s.level);
-        if (who && who.id !== s.id) continue;
-      }
-
-      let newAp = 0;
-      if (budget) {
-        const step = budgetStepCost(nextCost, dir, mode, goingThroughDoor);
-        if (step === null) continue;
-        if (goingThroughDoor && nextCost !== TravelCost.FENCE) goingThroughDoor = false;
-        newAp = (cur.ap + step) & 0xff;
-        if (newAp > budget) continue;
-      }
-
-      if (closeGoodEnough && pythSpacesAway(newLoc, dest) <= closeLimit) {
-        dest = newLoc;
-        closeGoodEnough = false;
-      }
-      if (newLoc === dest) nextCost = 0;
-      if (waterToWater && waterCost(nextCost)) nextCost = EASYWATERCOST;
-      if (dir & 1) nextCost = Math.trunc((nextCost * 14) / 10);
-      const newTotal = curCost + nextCost;
-      if (used[newLoc] === 1 && newTotal >= (trailCost[newLoc] as number)) continue;
-      if (open.size === POOL_NODES) return NO_PATH;
-      trailPrev.push(cur.trail);
-      trailDir.push(dir);
-      trailGrid.push(newLoc);
-      if (trailPrev.length >= maxTrailTree) return NO_PATH;
-      const cost = newTotal & 0xffff;
-      open.push(newLoc, cost, (cost + costToGo(newLoc)) & 0xffff, legDistance(newLoc), trailPrev.length - 1, newAp);
-      if (budget && apCosts) apCosts[apCostIndex(newLoc)] = newAp;
-      trailCost[newLoc] = cost;
-      used[newLoc] = 1;
+      toNextDirection = false;
+      cnt = loopState === Looping.CLOCKWISE ? oneCCDirection(cnt) : oneCDirection(cnt);
+      if (cnt === loopEnd) break;
+      if (continuous && cnt === oppositeDirection(loopStart)) checkedBehind = true;
     }
   }
 
