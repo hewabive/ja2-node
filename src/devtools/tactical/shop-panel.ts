@@ -74,7 +74,9 @@ export class ShopPanel {
     tr.append(cell(box.item), cell(`×${box.count}`), cell(`${box.status}%`), cell(boxCondition(box)));
     const action = document.createElement('td');
     if (box.unitPrice !== undefined && (shop.kind === 'buySell' || shop.kind === 'buy'))
-      action.append(button('buy', () => this.#trade({ buy: [{ item: box.key.item, element: box.key.element, count: 1 }] })));
+      action.append(
+        button('buy', () => this.#trade({ buy: [{ item: box.key.item, element: box.key.element, count: 1 }], useBalance: true })),
+      );
     tr.append(action);
     return tr;
   }
@@ -85,7 +87,7 @@ export class ShopPanel {
     const action = document.createElement('td');
     const from = { soldier: shop.soldier, slot: item.slot };
     if (shop.kind === 'buySell' || shop.kind === 'sell') action.append(button('sell', () => this.#trade({ sell: [from] })));
-    if (shop.kind === 'repair') action.append(button('repair', () => this.#trade({ repair: [from] })));
+    if (shop.kind === 'repair') action.append(button('repair', () => this.#trade({ repair: [from], useBalance: true })));
     tr.append(action);
     return tr;
   }

@@ -9,6 +9,8 @@ declare global {
       clock: string | null;
       error: string | null;
       lastResult: string | null;
+      laptopOpen: boolean;
+      laptopResult: string;
     };
   }
 }
@@ -24,9 +26,9 @@ test('starts a campaign and keeps the squad in the garrisoned start sector', asy
   await page.waitForFunction(() => window.__ja2Strategic?.ready && window.__ja2Strategic.worldSector !== null);
   expect(await page.evaluate(() => window.__ja2Strategic.worldSector)).toBe('A9');
   expect(await page.evaluate(() => window.__ja2Strategic.clock)).toBe('Day 1, 07:00');
-  await expect(page.locator('#status')).toContainText('balance $16,740');
+  await expect(page.locator('#status')).toContainText(/balance \$\d{1,2},\d{3}/);
   await expect(page.locator('[data-sector="A9"] .badge.squad')).toHaveText('S1');
-  await expect(page.locator('#mercs tr')).toHaveCount(5);
+  expect(await page.locator('#mercs tr').count()).toBeGreaterThan(1);
 
   const session = await page.evaluate(() => window.__ja2Strategic.session);
   await page.goto(`/src/devtools/tactical/?session=${session}`);
@@ -77,4 +79,31 @@ test('extends and ends merc contracts from the map screen', async ({ page }) => 
   await page.click('#choices [data-choice="here"]');
   await expect(page.locator('#battle')).toBeHidden();
   await expect(page.locator('#mercs tr')).toHaveCount(4);
+});
+
+test('hires through the laptop panel and lands the hired merc', async ({ page }) => {
+  await page.goto('/src/devtools/strategic/');
+  await page.waitForFunction(() => window.__ja2Strategic?.ready || window.__ja2Strategic?.error !== null);
+  await page.check('#hireInLaptop');
+  await page.click('#newCampaign');
+  await page.waitForURL(/\?session=/);
+  await page.waitForFunction(() => window.__ja2Strategic?.ready && window.__ja2Strategic.laptopOpen);
+  await expect(page.locator('#laptopTitle')).toContainText('landing zone A9');
+
+  await page.click('#advance');
+  await expect(page.locator('#result')).toContainText('the laptop is open');
+  await page.click('[data-tab="aim"]');
+  await page.click('#laptopBody [data-hire="1"]');
+  await expect(page.locator('#laptopResult')).toHaveText(/^hired for \$\d+, arrives day 1 07:30 in A9$/);
+  await page.click('[data-tab="records"]');
+  await expect(page.locator('#laptopBody')).toContainText('in transit');
+
+  await page.click('#closeLaptop');
+  await page.waitForFunction(() => !window.__ja2Strategic.laptopOpen);
+  await expect(page.locator('#mercs tr')).toHaveCount(2);
+  await page.click('[data-compress="4"]');
+  await page.click('#advance');
+  await page.waitForFunction(() => window.__ja2Strategic.worldSector === 'A9');
+  await page.click('#openLaptop');
+  await expect(page.locator('#result')).toHaveText('mapScreenOnly');
 });

@@ -11,6 +11,7 @@ import type {
 } from '../../protocol/view.ts';
 import { fetchFile } from '../asset-browser/api.ts';
 import { type CommandReply, SessionClient } from '../net/session-client.ts';
+import { LaptopPanel } from './laptop-panel.ts';
 
 interface StrategicHook {
   ready: boolean;
@@ -19,6 +20,8 @@ interface StrategicHook {
   clock: string | null;
   error: string | null;
   lastResult: string | null;
+  laptopOpen: boolean;
+  laptopResult: string;
 }
 
 declare global {
@@ -39,7 +42,16 @@ interface TownEntry {
   readonly internalName: string;
 }
 
-const debug: StrategicHook = { ready: false, session: null, worldSector: null, clock: null, error: null, lastResult: null };
+const debug: StrategicHook = {
+  ready: false,
+  session: null,
+  worldSector: null,
+  clock: null,
+  error: null,
+  lastResult: null,
+  laptopOpen: false,
+  laptopResult: '',
+};
 window.__ja2Strategic = debug;
 
 const TOWNS_PATH = 'externalized/strategic-map-towns.json';
@@ -64,6 +76,7 @@ const statusEl = el('status');
 const clockEl = el('clock');
 const routeButton = el<HTMLButtonElement>('route');
 const enterButton = el<HTMLButtonElement>('enter');
+const landingZoneButton = el<HTMLButtonElement>('landingZone');
 const tacticalLink = el<HTMLAnchorElement>('tactical');
 const sessionSelect = el<HTMLSelectElement>('session');
 const battleEl = el('battle');
@@ -72,6 +85,7 @@ const battleInfo = el('battleInfo');
 const choicesEl = el('choices');
 const cellsEl = el<HTMLTableElement>('cells');
 const contractButtons = document.querySelectorAll<HTMLButtonElement>('[data-contract]');
+const laptopPanel = new LaptopPanel((cmd) => send(cmd));
 
 let client: SessionClient | null = null;
 let shown: StrategicView | null = null;
@@ -404,6 +418,7 @@ function renderClock(): void {
 function updateActions(): void {
   routeButton.disabled = !picked || selectedMercs.size === 0;
   enterButton.disabled = !picked;
+  landingZoneButton.disabled = !picked;
   for (const b of contractButtons) b.disabled = selectedMercs.size === 0;
 }
 
@@ -479,6 +494,18 @@ for (const [id, label] of [
   });
 }
 
+landingZoneButton.addEventListener('click', () => {
+  const sector = picked;
+  if (!sector) return;
+  void send({ type: 'setLandingZone', sector }).then((r) =>
+    showResult(r.ok ? `landing zone set to ${sector}` : (r.reason ?? 'refused'), !r.ok),
+  );
+});
+
+el<HTMLButtonElement>('openLaptop').addEventListener('click', () => {
+  void send({ type: 'openLaptop' }).then((r) => showResult(r.ok ? 'laptop open' : (r.reason ?? 'refused'), !r.ok));
+});
+
 el<HTMLButtonElement>('stopTime').addEventListener('click', () => {
   void send({ type: 'stopTime' }).then((r) => showResult(r.ok ? 'compression stopped' : (r.reason ?? 'refused'), !r.ok));
 });
@@ -511,10 +538,11 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-playback]'))
 
 el<HTMLButtonElement>('newCampaign').addEventListener('click', () => {
   const difficulty = Number(el<HTMLSelectElement>('difficulty').value);
+  const hireInLaptop = el<HTMLInputElement>('hireInLaptop').checked;
   void fetch('/api/sessions', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ campaign: { difficulty } }),
+    body: JSON.stringify({ campaign: { difficulty, ...(hireInLaptop ? { hire: [] } : {}) } }),
   })
     .then(async (res) => {
       const body = (await res.json()) as SessionSummary & { error?: string };
@@ -553,6 +581,9 @@ function frame(): void {
     client.playFor(elapsed);
   }
   renderClock();
+  laptopPanel.update(client.laptop);
+  debug.laptopOpen = client.laptop !== null;
+  debug.laptopResult = laptopPanel.result;
   const view = client.strategic;
   if (view && view !== shown) {
     shown = view;

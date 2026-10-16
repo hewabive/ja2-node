@@ -33,9 +33,11 @@ pnpm dev                           # server (7420) + Vite (5173)
 ```
 
 Open http://127.0.0.1:5173/ → "Strategic map", "Tactical sandbox", "Asset browser" or "Map viewer". The strategic
-map starts a new campaign (the squad lands in A9 at 07:00 on day 1), plots routes, runs the world clock, extends or ends
-contracts and answers battle and contract prompts; its "tactical view" link opens the loaded sector of that campaign. In the sandbox
-click a merc to select it, click a tile to walk there, right-click to run; the time buttons switch
+map starts a new campaign (the squad lands in A9 at 07:00 on day 1, or "hire in laptop" keeps it in the laptop), plots
+routes, runs the world clock, extends or ends contracts, answers battle and contract prompts and opens the laptop (mail,
+A.I.M., M.E.R.C., I.M.P., Bobby Ray, insurance, records); its "tactical view" link opens the loaded sector of that
+campaign, where "trade" opens the shop of the nearest visible merchant (stub dealers stand in A10, east of A9). In the
+sandbox click a merc to select it, click a tile to walk there, right-click to run; the time buttons switch
 between paused, real time and instant (every order runs to the end on the server, the page plays it back at the
 chosen playback speed or skips it). Without `JA2_DATA_DIR` only the stubs (`stubs/…`, including the stub
 village map) are visible.
@@ -62,7 +64,7 @@ itself. The Vite proxy adds the token, so it never appears in page code.
 
 | Command | What it does |
 |---|---|
-| `pnpm dev` | Server and Vite together; builds the stubs if they are missing |
+| `pnpm dev` | Server and Vite together; rebuilds the stub pack first |
 | `pnpm server` / `pnpm web` | Separately |
 | `pnpm check` | Biome, types (`tsc -b`), layer boundaries, unit tests |
 | `pnpm e2e` | Playwright on the stubs (own ports 7431/5183) |

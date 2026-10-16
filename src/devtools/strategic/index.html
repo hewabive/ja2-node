@@ -14,12 +14,13 @@
       <label>session <select id="session"></select></label>
       <span class="group">new campaign
         <select id="difficulty"><option value="1">easy</option><option value="2" selected>medium</option><option value="3">hard</option></select>
+        <label><input id="hireInLaptop" type="checkbox" /> hire in laptop</label>
         <button type="button" id="newCampaign">start</button>
       </span>
       <span class="group">time
         <button type="button" data-drive="manual">pause</button><button type="button" data-drive="realtime">run</button>
       </span>
-      <span class="group">screen <button type="button" id="mapScreen">map</button><button type="button" id="tacticalScreen">tactical</button></span>
+      <span class="group">screen <button type="button" id="mapScreen">map</button><button type="button" id="tacticalScreen">tactical</button><button type="button" id="openLaptop">laptop</button></span>
       <span class="group">compress
         <button type="button" data-compress="2">5 min</button><button type="button" data-compress="3">30 min</button><button type="button" data-compress="4">60 min</button><button type="button" id="stopTime">stop</button>
       </span>
@@ -31,6 +32,15 @@
     <main class="strategic">
       <div class="board">
         <div id="map" class="map"></div>
+        <section id="laptop" class="laptop" hidden>
+          <div class="laptop-head">
+            <h2 id="laptopTitle">Laptop</h2>
+            <button type="button" id="closeLaptop">close laptop</button>
+          </div>
+          <div id="laptopTabs" class="actions tabs"></div>
+          <div id="laptopBody" class="laptop-body"></div>
+          <div id="laptopResult" class="result"></div>
+        </section>
       </div>
       <aside class="side">
         <section id="battle" class="battle" hidden>
@@ -56,6 +66,7 @@
           <div class="actions">
             <button type="button" id="route" disabled>route the selected squads here</button>
             <button type="button" id="enter" disabled>enter sector</button>
+            <button type="button" id="landingZone" disabled>landing zone here</button>
             <a id="tactical" class="tactical-link" href="../tactical/">tactical view</a>
           </div>
           <div id="result" class="result"></div>

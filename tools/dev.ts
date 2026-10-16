@@ -1,14 +1,11 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { DEFAULT_STUBS_DIR, REPO_ROOT } from '../src/node/repo.ts';
 import { loadOrCreateToken } from '../src/node/token.ts';
 import { buildStubs } from '../stubs/build.ts';
 
-if (!existsSync(DEFAULT_STUBS_DIR)) {
-  console.log('[dev] building stub pack…');
-  await buildStubs(DEFAULT_STUBS_DIR);
-}
+console.log('[dev] building stub pack…');
+await buildStubs(DEFAULT_STUBS_DIR);
 
 function createSharedTokenBeforeSpawningChildren(): void {
   loadOrCreateToken();

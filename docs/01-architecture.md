@@ -922,7 +922,7 @@ assignments), `19` (pre-battle interface and autoresolve).
 **Left out of M4**: the placement GUI (mercs enter at the insertion edge), turning of multi-tile bodies while walking,
 corpse rot in the loaded sector, a walk-and-strike order in the API (`docs/deviations.md`).
 
-### M5: in progress (2026-10-16)
+### M5: done (2026-10-16)
 
 Specs: `docs/21` (laptop and hiring), `22` (contracts and relationships), `23` (merchants).
 
@@ -942,3 +942,10 @@ Specs: `docs/21` (laptop and hiring), `22` (contracts and relationships), `23` (
    order (profiles, terrorists, mercs on assignment, dealers, Bobby Ray, `InitNPCs` placements, mails, the M.E.R.C. day);
    campaigns hire through the laptop; the 500-fact narrative store; laptop sections of native saves; stub dealers in A10.
    43 oracle probes (new games with 2,500–2,700 draws each, hires, orders, deliveries, insurance, I.M.P.) match.
+4. **Play surface**: the strategic page opens the laptop (mail, A.I.M., M.E.R.C., I.M.P., Bobby Ray, insurance, records),
+   starts a campaign in the laptop and sets the landing zone; the tactical page trades with the nearest visible merchant
+   (buy, sell, repair). Own soldiers' inventories are in the player view.
+
+**Left out of M5**: NPC presence by `state.npcPlacements` and the 04:00 dealer moves, Slay and EPC events, the history
+writers of quests, dialogue, R.P.C.s and boxing, computed facts (`CheckFact`) and florist bouquet prices (original
+text only); M6 covers all but the prices (`docs/deviations.md`).

@@ -3,7 +3,7 @@ header button, header label, .title, .brand { white-space: nowrap; }
 .group { display: inline-flex; gap: 4px; align-items: center; color: #8a909a; white-space: nowrap; }
 .clock { color: #d0a85c; font: 13px ui-monospace, monospace; }
 main.strategic { display: flex; gap: 12px; padding: 12px; overflow: auto; background: #16181c; }
-.board { flex: 0 0 auto; }
+.board { position: relative; flex: 0 0 auto; }
 .map { display: grid; grid-template-columns: 24px repeat(16, 52px); grid-auto-rows: 50px; gap: 2px; }
 .axis { display: grid; place-items: center; color: #5d636c; font-size: 11px; }
 .cell { position: relative; display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; padding: 2px 3px; border: 1px solid #2e333b; border-radius: 3px; background: #1d2026; color: #6b717a; font-size: 10px; cursor: pointer; overflow: hidden; text-align: left; }
@@ -35,3 +35,14 @@ main.strategic { display: flex; gap: 12px; padding: 12px; overflow: auto; backgr
 .battle { padding: 8px; border: 1px solid #8a2f33; border-radius: 4px; background: #241a1c; }
 .battle-info { font-size: 12px; white-space: pre-wrap; }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
+.laptop { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px 12px; border: 1px solid #6fa8dc; border-radius: 4px; background: #14171c; overflow: hidden; }
+.laptop[hidden] { display: none; }
+.laptop-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.laptop-head h2 { margin: 0; font-size: 13px; color: #6fa8dc; }
+.laptop-body { flex: 1; overflow: auto; font-size: 12px; }
+.laptop-body h3 { margin: 8px 0 4px; font-size: 12px; color: #8a909a; }
+.tabs { margin-top: 0; }
+.tabs button.active { border-color: #6fa8dc; color: #6fa8dc; }
+.hint { color: #6b717a; font-size: 11px; margin: 4px 0; }
+.row-actions { display: inline-flex; gap: 4px; }
+.qty { width: 48px; }

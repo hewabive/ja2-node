@@ -803,7 +803,7 @@ in doubles with the slot's quality (`Math.trunc(price * (0.5 + 0.5 * q / 100) + 
   otherwise appends (the reuse loop tests `[0]`, not `[i]`; same in V; the list only grows); days ahead =
   `CalculateOrderDelay(speed)` = 1/2/3, `+ Random(5) + 1` if Sal is dead (`bLife == 0`, `:1550-1580`); then
   `AddFutureDayStrategicEvent(BOBBYRAY_PURCHASE (7), (8 + Random(4))·60, index, days)`: delivery at **08:00, 09:00, 10:00 or
-  11:00** of the target day (fix `docs/15` §2.7, which says 8:00–11:59). Draws: `[Random(5)]`, then `Random(4)`.
+  11:00** of the target day. Draws: `[Random(5)]`, then `Random(4)`.
 - John Kulba's gift (NPC action 188, M6, `:1612-1666`): two Automag III and two magazines, primary destination, 5 days (+ Sal
   penalty), not on the shipments page.
 

@@ -291,7 +291,7 @@ function oracleProfile(p: Json): Json {
   return rest;
 }
 
-function mercDump(flow: LaptopFlow, m: RosterMerc): Json {
+function mercDump(m: RosterMerc): Json {
   const c = m.contract;
   const s = m.soldier;
   return {
@@ -412,7 +412,7 @@ export class LaptopComparer {
     const team = flow.team();
     const oracleMercs = (p.mercs as Json[] | undefined) ?? [];
     const inventories = (p.inventories as unknown[] | undefined) ?? [];
-    ours.mercs = team.map((m) => mercDump(flow, m));
+    ours.mercs = team.map((m) => mercDump(m));
     theirs.mercs = oracleMercs.map((m, i) => oracleMerc(m, inventories[i]));
     const profiles = (p.profiles as Json[] | undefined) ?? [];
     const ourProfiles: Json[] = [];

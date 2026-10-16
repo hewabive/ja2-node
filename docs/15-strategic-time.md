@@ -515,7 +515,7 @@ Milestone: **M4** = needed by M4 (strategy); **M4h** = M4 hook with no visible e
 | 4 | `CHECKFORQUESTS` | everyday 08:00, `SetupNewStrategicGame` | `CheckForQuests(day)` (`Quests.cc:1182`): starts DELIVER_LETTER once, history entry | M6 |
 | 5 | `AMBIENT` | ranged, `BuildDayAmbientSounds` (`Environment.cc:289-316`), rebuilt on sector load (`Ambient_Control.cc:41-60`) | start (`param` overwritten by the sound handle) / stop a random ambient sound | — (client) |
 | 6 | `AIM_RESET_MERC_ANNOYANCE` | one-shot, `AIMMembers.cc:2234` | `ResetMercAnnoyanceAtPlayer` | M5 |
-| 7 | `BOBBYRAY_PURCHASE` | one-shot day+N 8:00–11:59, `BobbyRMailOrder.cc:1843` | `BobbyRayPurchaseEventCallback` (`Strategic_Event_Handler.cc:54-343`): delivery, loss/theft `Random`, facts, email, `StopTimeCompression` | M5 |
+| 7 | `BOBBYRAY_PURCHASE` | one-shot day+N at 08:00, 09:00, 10:00 or 11:00 (`(8 + Random(4))·60`), `BobbyRMailOrder.cc:1843` | `BobbyRayPurchaseEventCallback` (`Strategic_Event_Handler.cc:54-343`): delivery, loss/theft `Random`, facts, email, `StopTimeCompression` | M5 |
 | 8 | `DAILY_UPDATE_BOBBY_RAY_INVENTORY` | everyday 09:00 | Bobby Ray new/used and arms dealers' daily stock (`BobbyR.cc:514, 565`; `Arms_Dealer_Init.cc:239`) | M5 |
 | 9 | `UPDATE_BOBBY_RAY_INVENTORY` | one-shot, `BobbyR.cc:659` | `AddFreshBobbyRayInventory(item)` | M5 |
 | 10 | `DAILY_UPDATE_OF_MERC_SITE` | everyday 00:00 | `DailyUpdateOfMercSite` (`Laptop/Mercs.cc:513`) | M5 |
