@@ -69,6 +69,11 @@ function mercView(
   };
 }
 
+function robotControl(campaign: CampaignSim, m: StrategicMerc): { controlled?: boolean } {
+  const roster = campaign.battle?.roster;
+  return m.isRobot && roster ? { controlled: roster.canRobotBeControlled(m.id) } : {};
+}
+
 function groupViews(ctx: StrategicContext): StrategicGroupView[] {
   return ctx.state.forces.groups
     .filter((g) => g.player && g.members.length > 0)
@@ -110,7 +115,7 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
     sectors,
     mercs: ctx.mercs.all().map((m) => {
       const arrival = arrivalTime(campaign, m.id);
-      return { ...mercView(m), ...mercContractFields(campaign, m.id), ...(arrival ? { arrival } : {}) };
+      return { ...mercView(m), ...mercContractFields(campaign, m.id), ...robotControl(campaign, m), ...(arrival ? { arrival } : {}) };
     }),
     groups: groupViews(ctx),
     ...(vehicles ? { vehicles } : {}),

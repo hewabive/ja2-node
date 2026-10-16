@@ -316,6 +316,67 @@
         { "approach": "THREATEN", "desireToTalk": 20, "friendlyMod": 90, "directMod": 100, "threatenMod": 120 },
         { "approach": "RECRUIT", "desireToTalk": 10 }
       ]
+    },
+    {
+      "id": 65,
+      "name": "Ilian Marsh",
+      "nickname": "Marsh",
+      "bodyType": 0,
+      "sector": "A10",
+      "palettes": { "hair": "BROWNHEAD", "skin": "TANSKIN", "vest": "GREENVEST", "pants": "BLACKPANTS" },
+      "stats": {
+        "life": 72,
+        "lifeMax": 72,
+        "strength": 66,
+        "agility": 64,
+        "dexterity": 70,
+        "wisdom": 58,
+        "marksmanship": 71,
+        "medical": 15,
+        "mechanical": 33,
+        "explosives": 18,
+        "leadership": 40,
+        "experience": 2
+      },
+      "salary": 120,
+      "deathRate": 101,
+      "reputationTolerance": 101,
+      "dialogue": [
+        { "approach": "FRIENDLY", "desireToTalk": 55, "friendlyMod": 110, "directMod": 100, "threatenMod": 70 },
+        { "approach": "DIRECT", "desireToTalk": 50, "friendlyMod": 100, "directMod": 100, "threatenMod": 80 },
+        { "approach": "THREATEN", "desireToTalk": 25, "friendlyMod": 90, "directMod": 100, "threatenMod": 110 },
+        { "approach": "RECRUIT", "desireToTalk": 60 }
+      ],
+      "inventory": [{ "slot": 7, "item": "GLOCK_17" }, { "slot": 8, "item": "CLIP9_15", "count": 1 }]
+    },
+    {
+      "id": 123,
+      "name": "Mirela Dane",
+      "nickname": "Mirela",
+      "sex": 1,
+      "bodyType": 3,
+      "sector": "A10",
+      "palettes": { "hair": "BLONDEHEAD", "skin": "PINKSKIN", "vest": "BLUEVEST", "pants": "BEIGEPANTS" },
+      "stats": {
+        "life": 48,
+        "lifeMax": 48,
+        "strength": 35,
+        "agility": 52,
+        "dexterity": 49,
+        "wisdom": 63,
+        "marksmanship": 12,
+        "medical": 30,
+        "mechanical": 8,
+        "explosives": 0,
+        "leadership": 22,
+        "experience": 1
+      },
+      "dialogue": [
+        { "approach": "FRIENDLY", "desireToTalk": 55, "friendlyMod": 110, "directMod": 100, "threatenMod": 70 },
+        { "approach": "DIRECT", "desireToTalk": 50, "friendlyMod": 100, "directMod": 100, "threatenMod": 80 },
+        { "approach": "THREATEN", "desireToTalk": 25, "friendlyMod": 90, "directMod": 100, "threatenMod": 110 },
+        { "approach": "RECRUIT", "desireToTalk": 60 }
+      ]
     }
   ]
 }

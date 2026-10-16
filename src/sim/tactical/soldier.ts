@@ -250,7 +250,7 @@ export interface Soldier {
   side: number;
   neutral: boolean;
   name: string;
-  readonly profile: number;
+  profile: number;
   readonly soldierClass: number;
   bodyType: number;
   readonly palettes: SoldierPalettes;

@@ -29,6 +29,8 @@ export interface SoldierView {
   readonly merchant?: string;
   readonly profile?: number;
   readonly talkable?: string;
+  readonly kind?: string;
+  readonly controlled?: boolean;
 }
 
 export interface ItemView {
@@ -102,6 +104,7 @@ export interface StrategicMercView {
   readonly totalCost?: number;
   readonly arrival?: { readonly day: number; readonly hour: number; readonly minute: number };
   readonly vehicle?: number;
+  readonly controlled?: boolean;
 }
 
 export interface StrategicVehicleView {
@@ -625,6 +628,8 @@ function sameSoldier(a: SoldierView, b: SoldierView): boolean {
     a.merchant === b.merchant &&
     a.profile === b.profile &&
     a.talkable === b.talkable &&
+    a.kind === b.kind &&
+    a.controlled === b.controlled &&
     JSON.stringify(a.keys ?? []) === JSON.stringify(b.keys ?? []) &&
     sameInventory(a.inventory, b.inventory)
   );

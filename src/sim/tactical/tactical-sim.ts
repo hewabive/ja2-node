@@ -76,6 +76,7 @@ import {
 } from './lighting/lighting.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
 import { checkHostileOrSayQuoteList } from './narrative/civ-hostility.ts';
+import { uncontrolledRobot } from './narrative/robot.ts';
 import { handlePendingTalkOnArrival } from './narrative/talk-arrival.ts';
 import { wheelchairOpcode } from './narrative/wheelchair.ts';
 import { executeOverhead, type OverheadHooks } from './overhead.ts';
@@ -127,6 +128,7 @@ export interface CombatSnapshot {
   readonly interrupt: boolean;
 }
 
+const UNCONTROLLED_ROBOT = 'the robot has no controller: a merc in its squad must wear the robot remote control';
 const AIM_PARTS: Readonly<Record<string, number>> = {
   random: AimShot.RANDOM,
   head: AimShot.HEAD,
@@ -343,6 +345,7 @@ export class TacticalSim {
     const t = this.state;
     if (!s.placed || s.team !== Team.OUR) return 'no such soldier of yours';
     if (s.life < OKLIFE) return 'soldier cannot act';
+    if (uncontrolledRobot(t, s)) return UNCONTROLLED_ROBOT;
     if (!t.inCombat) return null;
     if (t.turn.currentTeam !== Team.OUR) return 'it is not your turn';
     if (t.turn.attackBusyCount > 0) return 'an attack is still resolving';

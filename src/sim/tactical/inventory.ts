@@ -70,6 +70,7 @@ export interface InventoryContext {
   readonly spendActionPoints: (ap: number) => void;
   readonly dropAtFeet: (o: ItemObject) => void;
   readonly collectKey?: (o: ItemObject) => void;
+  readonly placed?: (item: number) => void;
 }
 
 export function emptyInventory(): Inventory {
@@ -171,6 +172,7 @@ function dropObjIfThereIsRoom(ctx: InventoryContext, c: Carrier, pos: number, o:
 export function placeObject(ctx: InventoryContext, c: Carrier, pos: number, o: ItemObject): boolean {
   const items = ctx.items;
   const inv = c.inv;
+  const placedItem = o.item;
   if (!canItemFitInPosition(items, inv, o, pos, true)) return false;
   const def = items.byIndex.get(o.item);
   if (pos === InvSlot.HEAD1 && !compatibleFaceItem(items, o.item, itemIn(inv, InvSlot.HEAD2))) return false;
@@ -208,6 +210,7 @@ export function placeObject(ctx: InventoryContext, c: Carrier, pos: number, o: I
     } else if (o.count <= Math.max(limit, 1)) swapObjects(o, inSlot);
     else return dropObjIfThereIsRoom(ctx, c, pos, o);
   }
+  ctx.placed?.(placedItem);
   return true;
 }
 

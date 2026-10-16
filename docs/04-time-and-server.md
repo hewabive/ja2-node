@@ -621,6 +621,42 @@ The hospital (Cambria) charges through `payDoctor`, escorts patients onto the ho
 D5-1 with less than $30000 there (his letter and quest 4 follow two and four days later). Facts, the hospital modifier and
 refund, Kingpin's balance and the NPC system events stay hidden.
 
+### 6.17. Recruiting, escorts and the robot (M6)
+
+Recruiting has no command of its own: it happens in a conversation (§6.12). `approach recruit` runs the NPC's records; a
+record with the pay requestor opens `npcRequest {request: 'hire', amount}` (the daily salary) and `answer yes` triggers the
+record that recruits (`RECRUIT` or `RECRUIT_WITH_SALARY`, `docs/24` §9.1); an escort record opens `npcRequest {request:
+'escort', pair?}`. The NPC's civilian soldier is replaced by a new soldier on our team (`ChangeSoldierTeam`: a new soldier id
+in our block, life, stats, camouflage, level and inventory copied, breath and bleeding fresh) standing on the same tile, who
+joins the current squad (else any squad). An R.P.C. (`kind: 'rpc'`) takes the first weapon of his inventory into an empty
+hand and is paid his salary at 00:00 (§6.8); an escort (`kind: 'epc'`, John and Mary always together) follows the escort
+rules: no contract, `loneEPC`/`abandonEPC` at map edges, `escortAlone` for strategic moves, `escortCannot` at doors.
+
+- `unescort {soldier}`: the assignment menu's "remove escort". On the map screen the escort (and John's or Mary's partner)
+  says the line of his first record for being left (`EPC_IN_WRONG_SECTOR`), its fact is set and he becomes a civilian again
+  at once where he stands (the original plays the line first; the map screen's clock does not move): `data {released:
+  [{profile, quote}], lines}` (`quote` is null without such a record). In the loaded sector only that record is triggered
+  and decides (it may release him, or only answer): `data` is the talk result (§6.12) plus `triggered`. Refusals
+  (`data.refusal`): `conversationOpen`, `scriptedSequence`, `promptOpen`, `shopOpen`, `laptopOpen`, `noSuchSoldier`,
+  `notAnEpc`, `notInSector` (tactical: the escort stands outside the loaded sector; release him on the map screen) and
+  `notAvailable` (autoresolve). A released escort keeps his place: his profile uses insertion data at the tile he left.
+- The robot is recruited as an escort (Madlab's action) and takes orders only while a conscious non-escort on its squad (or in
+  its vehicle) in the same sector wears the robot remote control in a head slot: the remote holder is fixed when the robot
+  joins, whenever a merc of ours receives a remote control (picked up, bought), when a pre-battle decision opens and after
+  autoresolve. Without a controller every order is
+  refused with the `canAct` text "the robot has no controller…", `route` with `robotAlone` and `exitSector` with
+  `uncontrolledRobot`; its interrupt points are the controller's level − 2 and the controller loses 2 while he steers.
+- `route` also refuses `cannotLeaveSector` for Maria in C5.
+- A civilian group turning hostile sends its recruited members back to the civilian team (they leave the roster without
+  events); Conrad and the General turning hostile join the enemy team.
+
+Views: strategic mercs carry `kind` (`aim`, `merc`, `imp`, `rpc`, `epc`, …) and own tactical soldiers `kind: 'rpc' | 'epc'`
+for recruited NPCs; the robot carries `controlled` in both. Talking to an escort runs his `EPC_WHO_IS_RECRUITED` records.
+Events: `npcRecruited {profile, soldier, kind: 'rpc' | 'epc', salary}` (the new soldier id; `salary` 0 for escorts),
+`epcReleased {profile, soldier}` (`soldier` is the new civilian's id when he stands in the loaded sector, else null),
+`npcMessage` kinds `recruited`, `nowEscorted` (`amount` = squad number, also for the partner) and `teamFull`, and the
+history line `RPC_JOINED_TEAM` (`historyAdded`). Opinions, profile flags, the remote holder id and the records stay hidden.
+
 ## 7. Cost and limitations
 
 - **Amount of work.**

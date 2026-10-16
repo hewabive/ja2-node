@@ -51,6 +51,9 @@ export interface MercPort {
   spendVehicleFuel(vehicleSoldierId: number, fuel: number): number;
   setVehicleRole?(id: number, role: number): void;
   insertionData?(id: number): number;
+  robotControllerInSquad?(squad: number): boolean;
+  robotControllerInVehicle?(vehicleId: number): boolean;
+  checkForRobotAndIfItsControlled?(): void;
   setInsertionData?(id: number, data: number): void;
   inTacticalSector?(id: number): boolean;
   removeFromGridNo?(id: number): void;

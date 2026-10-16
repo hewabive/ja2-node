@@ -5886,6 +5886,246 @@ void SetNpcState(Command const& c)
 	Emit(Json{}.str("probe", "npcset").num("line", c.line).raw("args", DescribeArgs(c)));
 }
 
+} // namespace
+
+std::vector<ProfileID>* gOracleDeferredEpcs = nullptr;
+
+BOOLEAN OracleTracedMercDialogue(SOLDIERTYPE const* const s, UINT16 const quote)
+{
+	BOOLEAN const said = TacticalCharacterDialogue(s, quote);
+	if (said) OracleDialogueTrace("merc", s->ubProfile, quote, 0, 0);
+	return said;
+}
+
+INT8 CalcInterruptDuelPts(const SOLDIERTYPE* pSoldier, const SOLDIERTYPE* opponent, BOOLEAN fUseWatchSpots);
+
+namespace {
+
+void AppendRecruitItems(std::vector<long long>& row, SOLDIERTYPE const& s)
+{
+	for (OBJECTTYPE const& o : s.inv) row.push_back(o.usItem);
+}
+
+std::string DescribeRecruitTeam()
+{
+	std::vector<std::string> out;
+	FOR_EACH_IN_TEAM(s, OUR_TEAM)
+	{
+		bool const here = s->bInSector;
+		std::vector<long long> row{s->ubID, s->ubProfile, s->ubWhatKindOfMercAmI, s->bAssignment, s->sSector.x, s->sSector.y, s->sSector.z,
+			s->fBetweenSectors, s->ubGroupID, here, here ? s->sGridNo : -1, here ? s->bDirection : -1, here ? s->bLevel : -1, s->bLife,
+			s->bLifeMax, s->bAgility, s->bDexterity, s->bStrength, s->bWisdom, s->bLeadership, s->bMarksmanship, s->bMechanical,
+			s->bExplosive, s->bMedical, s->bExpLevel, s->bBleeding, s->bBreath, s->bMorale, s->bCamo, s->bVisible, s->ubBodyType,
+			s->iEndofContractTime, s->robot_remote_holder ? s->robot_remote_holder->ubID : -1, here ? -1 : s->ubStrategicInsertionCode,
+			s->ubInsertionDirection};
+		AppendRecruitItems(row, *s);
+		out.push_back(Numbers(row));
+	}
+	return JsonArray(out);
+}
+
+std::string DescribeRecruitSquads()
+{
+	std::vector<std::string> out;
+	for (INT8 q = 0; q < NUMBER_OF_SQUADS; ++q)
+	{
+		std::vector<long long> ids;
+		FOR_EACH_IN_SQUAD(i, q) ids.push_back((*i)->ubID);
+		out.push_back(Numbers(ids));
+	}
+	return JsonArray(out);
+}
+
+std::string DescribeRecruitCivilians(bool const all)
+{
+	std::vector<std::string> out;
+	FOR_EACH_SOLDIER(s)
+	{
+		if (s->bTeam == OUR_TEAM || !s->bInSector) continue;
+		if (!all && s->ubProfile == NO_PROFILE) continue;
+		std::vector<long long> row{s->ubID, s->ubProfile, s->bTeam, s->bNeutral, s->bLife, s->bLifeMax, s->sGridNo, s->bDirection, s->bLevel,
+			s->ubCivilianGroup, s->ubBodyType, s->bAgility, s->bDexterity, s->bStrength, s->bWisdom, s->bLeadership, s->bMarksmanship,
+			s->bMechanical, s->bExplosive, s->bMedical, s->bExpLevel, s->bCamo};
+		AppendRecruitItems(row, *s);
+		out.push_back(Numbers(row));
+	}
+	return JsonArray(out);
+}
+
+std::string DescribeRecruitPersonnel()
+{
+	std::vector<long long> other;
+	for (INT16 const p : LaptopSaveInfo.ubOtherCharactersList)
+		if (p != -1) other.push_back(p);
+	return Numbers(other);
+}
+
+std::string DescribeRecruitLoyalty()
+{
+	std::vector<std::string> out;
+	for (INT8 town = FIRST_TOWN; town < NUM_TOWNS; ++town) out.push_back(Numbers({gTownLoyalty[town].ubRating, gTownLoyalty[town].sChange}));
+	return JsonArray(out);
+}
+
+template<typename Run>
+void RunRecruitProbe(Command const& c, UINT8 const npc, Run&& run)
+{
+	ActionSnapshot const before = TakeActionSnapshot();
+	std::vector<OracleDialogueEntry> dialogue;
+	std::vector<OracleFactEntry> facts;
+	std::vector<OracleDraw> draws;
+	gOracleSkipDialogueBoxes = true;
+	gOracleDialogueTrace = &dialogue;
+	gOracleFactTrace = &facts;
+	OracleTraceRandom(&draws);
+	run();
+	OracleTraceRandom(nullptr);
+	gOracleFactTrace = nullptr;
+	gOracleDialogueTrace = nullptr;
+	gOracleSkipDialogueBoxes = false;
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.num("npc", npc)
+		.raw("queue", DescribeDialogueTrace(dialogue))
+		.raw("facts", DescribeFactTrace(facts))
+		.raw("draws", DescribeDraws(draws))
+		.raw("factChanges", DescribeChanges(before.facts, gubFact, NUM_FACTS))
+		.raw("questChanges", DescribeChanges(before.quests, gubQuest, MAX_QUESTS))
+		.raw("events", DescribeNewEvents(before))
+		.raw("history", DescribeHistoryTail(before.history))
+		.raw("box", Numbers({OracleDialogueMessageBoxType(), OracleLiePromptRecord()}))
+		.raw("team", DescribeRecruitTeam())
+		.raw("squads", DescribeRecruitSquads())
+		.num("currentSquad", CurrentSquad())
+		.raw("civilians", DescribeRecruitCivilians(Text(c, "soldiers", "") == "all"))
+		.raw("profiles", DescribeNarrativeProfiles(ActionProfileIds(c, {npc})))
+		.raw("personnel", DescribeRecruitPersonnel())
+		.raw("loyalty", DescribeRecruitLoyalty())
+		.num("salary", npc < NUM_PROFILES ? GetProfile(npc).sSalary : 0)
+		.num("worldMinutes", GetWorldTotalMin()));
+	ResetTalkProbe();
+}
+
+void ProbeAddNpc(Command const& c)
+{
+	if (!gfWorldLoaded) throw std::runtime_error("no world loaded");
+	ProfileID const profile = static_cast<ProfileID>(Required(c, "profile"));
+	if (FindSoldierByProfileID(profile)) throw std::runtime_error("the profile already has a soldier");
+	GridNo const at = GridArgument(c, "at");
+	SOLDIERCREATE_STRUCT cs{};
+	cs.bTeam            = CIV_TEAM;
+	cs.ubProfile        = profile;
+	cs.sSector          = gWorldSector;
+	cs.bDirection       = static_cast<INT8>(Integer(c, "dir", SOUTH));
+	cs.sInsertionGridNo = at;
+	std::vector<OracleDraw> draws;
+	OracleTraceRandom(&draws);
+	SOLDIERTYPE* const s = TacticalCreateSoldier(cs);
+	if (s) AddSoldierToSectorNoCalculateDirection(s);
+	OracleTraceRandom(nullptr);
+	if (!s) throw std::runtime_error("TacticalCreateSoldier failed");
+	if (s->sGridNo != at) EVENT_SetSoldierPosition(s, at, SSP_NONE);
+	Emit(Json{}.str("probe", "addnpc").num("line", c.line).raw("args", DescribeArgs(c)).num("id", s->ubID).raw("draws", DescribeDraws(draws))
+		.raw("civilians", DescribeRecruitCivilians(false)));
+}
+
+void ProbeRecruitSet(Command const& c)
+{
+	if (Has(c, "who"))
+	{
+		SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+		INT8 const slot = static_cast<INT8>(Required(c, "slot"));
+		UINT16 const item = static_cast<UINT16>(Integer(c, "item", NOTHING));
+		INT8 const status = static_cast<INT8>(Integer(c, "status", 100));
+		if (Integer(c, "place", 0) != 0)
+		{
+			OBJECTTYPE o;
+			CreateItem(item, status, &o);
+			if (!PlaceObject(&s, slot, &o)) throw std::runtime_error("PlaceObject refused");
+		}
+		else if (item == NOTHING) s.inv[slot] = OBJECTTYPE{};
+		else CreateItem(item, status, &s.inv[slot]);
+	}
+	if (Has(c, "profile"))
+	{
+		MERCPROFILESTRUCT& p = GetProfile(static_cast<ProfileID>(Required(c, "profile")));
+		SetIfGiven(c, "town", p.bTown);
+		SetIfGiven(c, "attachment", p.bTownAttachment);
+		SetIfGiven(c, "salary", p.sSalary);
+		SetIfGiven(c, "flags", p.ubMiscFlags);
+		SetIfGiven(c, "flags3", p.ubMiscFlags3);
+	}
+	SetPairs(c, "facts", gubFact);
+	SetPairs(c, "quests", gubQuest);
+	if (Has(c, "squad")) iCurrentTacticalSquad = static_cast<INT32>(Required(c, "squad"));
+	Emit(Json{}.str("probe", "recruitset").num("line", c.line).raw("args", DescribeArgs(c)).raw("team", DescribeRecruitTeam()));
+}
+
+void ProbeRecruit(Command const& c)
+{
+	UINT8 const npc = static_cast<UINT8>(Required(c, "npc"));
+	std::string const action = Text(c, "action", "rpc");
+	UINT8 const record = static_cast<UINT8>(Integer(c, "record", 0));
+	SetupActionContext(c, npc);
+	RunRecruitProbe(c, npc, [&] {
+		if (action == "rpc") HandleNPCDoAction(npc, NPC_ACTION_RECRUIT_WITH_SALARY, record);
+		else if (action == "free") HandleNPCDoAction(npc, NPC_ACTION_RECRUIT, record);
+		else if (action == "unrecruit") HandleNPCDoAction(npc, NPC_ACTION_UN_RECRUIT_EPC, record);
+		else if (action == "settonpc") HandleNPCDoAction(npc, NPC_ACTION_SET_EPC_TO_NPC, record);
+		else if (action == "marry") HandleNPCDoAction(npc, NPC_ACTION_REMOVE_MERC_FOR_MARRIAGE, record);
+		else if (action == "enemy") HandleNPCDoAction(npc, NPC_ACTION_BECOME_ENEMY, record);
+		else if (action == "epc")
+		{
+			if (!gpDestSoldier) throw std::runtime_error("recruit action=epc needs the NPC's soldier");
+			OracleAnswerDialogueMessageBox(NPC_ACTION_ASK_ABOUT_ESCORTING_EPC, record, MSG_BOX_RETURN_YES);
+		}
+		else throw std::runtime_error("action must be rpc, free, epc, unrecruit, settonpc, marry or enemy");
+	});
+}
+
+void ProbeUnescort(Command const& c)
+{
+	UINT8 const npc = static_cast<UINT8>(Required(c, "npc"));
+	SOLDIERTYPE* const s = FindSoldierByProfileIDOnPlayerTeam(npc);
+	if (!s) throw std::runtime_error("unescort: the profile is not on the team");
+	BOOLEAN const map = Integer(c, "map", 1) != 0;
+	SetupActionContext(c, NO_PROFILE);
+	std::vector<ProfileID> deferred;
+	RunRecruitProbe(c, npc, [&] {
+		BOOLEAN const saved = fInMapMode;
+		fInMapMode = map;
+		gOracleDeferredEpcs = &deferred;
+		UnEscortEPC(s);
+		gOracleDeferredEpcs = nullptr;
+		fInMapMode = saved;
+		for (ProfileID const p : deferred)
+		{
+			GetProfile(p).ubMiscFlags &= ~PROFILE_MISC_FLAG_FORCENPCQUOTE;
+			UnRecruitEPC(p);
+		}
+	});
+}
+
+void ProbeRobotControl(Command const& c)
+{
+	SOLDIERTYPE* const robot = FindSoldierByProfileIDOnPlayerTeam(ROBOT);
+	if (Integer(c, "update", 0) != 0 && robot) UpdateRobotControllerGivenRobot(robot);
+	SOLDIERTYPE const* const opp = Has(c, "opp") ? &ExistingSoldier(Required(c, "opp")) : nullptr;
+	std::vector<std::string> mercs;
+	FOR_EACH_IN_TEAM(s, OUR_TEAM)
+	{
+		std::vector<long long> row{s->ubID, ControllingRobot(s)};
+		if (opp && s->bInSector) row.push_back(CalcInterruptDuelPts(s, opp, FALSE));
+		mercs.push_back(Numbers(row));
+	}
+	SOLDIERTYPE const* const holder = robot ? robot->robot_remote_holder : nullptr;
+	Emit(Json{}.str("probe", "robotcontrol").num("line", c.line).raw("args", DescribeArgs(c)).num("robot", robot ? robot->ubID : -1)
+		.num("holder", holder ? holder->ubID : -1).num("controlled", robot && CanRobotBeControlled(robot) ? 1 : 0)
+		.raw("mercs", JsonArray(mercs)));
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -6053,6 +6293,11 @@ void Dispatch(Command const& c)
 	if (c.name == "hospitalsupplies") return ProbeHospitalSupplies(c);
 	if (c.name == "medicalcost") return ProbeMedicalCost(c);
 	if (c.name == "npcset") return SetNpcState(c);
+	if (c.name == "addnpc") return ProbeAddNpc(c);
+	if (c.name == "recruitset") return ProbeRecruitSet(c);
+	if (c.name == "recruit") return ProbeRecruit(c);
+	if (c.name == "unescort") return ProbeUnescort(c);
+	if (c.name == "robotcontrol") return ProbeRobotControl(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

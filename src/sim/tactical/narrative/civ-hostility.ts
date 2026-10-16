@@ -61,9 +61,11 @@ export function makeCivHostile(t: TacticalState, s: Soldier): void {
   if (s.bodyType === Body.COW) return;
   const side = hostileSideFor(t, s);
   if (!s.neutral && side === s.side) return;
+  let hostile = s;
   if (s.profile === Profile.CONRAD || s.profile === Profile.GENERAL) {
     setSoldierNonNeutral(s);
     s.side = side;
+    hostile = t.narrative.changeSoldierTeam(s, Team.ENEMY) ?? s;
   } else {
     if (
       s.civilianGroup === CivilianGroup.KINGPIN &&
@@ -77,7 +79,7 @@ export function makeCivHostile(t: TacticalState, s: Soldier): void {
       recalculateOppCntsDueToNoLongerNeutral(t, s);
     }
   }
-  if (t.inCombat) checkForPotentialAddToBattleIncrement(t, s);
+  if (t.inCombat) checkForPotentialAddToBattleIncrement(t, hostile);
 }
 
 export function addToShouldBecomeHostileOrSayQuoteList(t: TacticalState, s: Soldier): void {
@@ -150,18 +152,21 @@ export function civilianGroupMembersChangeSidesWithinProximity(t: TacticalState,
 export function civilianGroupMemberChangesSides(t: TacticalState, attacked: Soldier): Soldier {
   if (attacked.civilianGroup === CivilianGroup.NONE) return attacked;
   let first: number = NO_PROFILE;
+  let newAttacked = attacked;
   for (const s of teamMembers(t, Team.OUR)) {
     if (s.life === 0 || s.civilianGroup !== attacked.civilianGroup) continue;
     if (s.profile !== NO_PROFILE && (first === NO_PROFILE || t.rng.int(2))) first = s.profile;
+    const fresh = t.narrative.changeSoldierTeam(s, Team.CIV);
+    if (fresh && s === attacked) newAttacked = fresh;
   }
-  civilianGroupMembersChangeSidesWithinProximity(t, attacked);
-  const group = attacked.civilianGroup;
+  civilianGroupMembersChangeSidesWithinProximity(t, newAttacked);
+  const group = newAttacked.civilianGroup;
   if (civGroupHostility(t.civGroups, group) === CivGroupHostility.NEUTRAL) {
     if (group === CivilianGroup.REBEL) t.narrative.rebelsBetrayed();
     t.narrative.civGroupWillBecomeHostile(group);
     setCivGroupHostility(t.civGroups, group, CivGroupHostility.WILL_EVENTUALLY_BECOME_HOSTILE);
   }
-  return attacked;
+  return newAttacked;
 }
 
 export function civilianGroupChangesSides(t: TacticalState, group: number): void {

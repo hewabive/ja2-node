@@ -3,7 +3,7 @@ import type { CommandEnvelope } from '../protocol/messages.ts';
 import type { ConversationView, NpcRequestPromptView, PlayerView, SoldierView } from '../protocol/view.ts';
 import type { WorldTimeControl } from '../sim/advance.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
-import type { Roster } from '../sim/campaign/roster.ts';
+import { MercKind, type Roster } from '../sim/campaign/roster.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { isTimeBeingCompressed, worldDay, worldHour, worldMinute } from '../sim/strategic/time/world-clock.ts';
@@ -23,14 +23,26 @@ export interface TextSource {
 
 const NO_PROFILE = 200;
 
+const RECRUITED_KINDS: Readonly<Record<number, string>> = { [MercKind.NPC]: 'rpc', [MercKind.EPC]: 'epc' };
+
+function ownSoldierLabels(campaign: CampaignSim, v: SoldierView): SoldierView {
+  const roster = campaign.battle?.roster;
+  const m = roster?.get(v.id);
+  if (!roster || !m) return v;
+  const kind = RECRUITED_KINDS[m.kind];
+  const recruited = kind ? { kind, profile: m.profile } : {};
+  return { ...v, ...recruited, ...(m.isRobot ? { controlled: roster.canRobotBeControlled(m.id) } : {}) };
+}
+
 function withMerchantLabels(campaign: CampaignSim, soldiers: readonly SoldierView[]): SoldierView[] {
   const shop = campaign.shop;
   const talk = campaign.talk;
   const t = campaign.tactical?.state;
-  if ((!shop && !talk) || !t) return [...soldiers];
+  if (!t) return [...soldiers];
   return soldiers.map((v) => {
     const s = t.soldiers[v.id];
-    if (!s || s.team === Team.OUR) return v;
+    if (s?.team === Team.OUR) return ownSoldierLabels(campaign, v);
+    if (!s || (!shop && !talk)) return v;
     const label = shop?.merchantLabel(s.profile) ?? null;
     const talkable = talk?.talkableLabel(s) ?? null;
     const profile = s.profile !== NO_PROFILE && (label || talkable) ? { profile: s.profile } : {};

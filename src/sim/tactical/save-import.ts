@@ -303,6 +303,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.breathMax = r.stats.breathMax;
   s.breathRed = r.breathRed;
   s.bleeding = r.bleeding;
+  s.camo = r.camo;
   s.actionPoints = r.actionPoints;
   s.initialActionPoints = r.initialActionPoints;
   s.apsLostToSuppression = r.apsLostToSuppression;

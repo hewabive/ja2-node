@@ -1,7 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Quests.cc CheckFact (fact), SetFactTrue, SetFactFalse, gubQuest; Tactical/Interface_Dialogue.cc
-// @src HandleNPCDoAction (npcAction); TacticalAI/NPC.cc TriggerNPCWithGivenApproach. See docs/25 §1, §2.1, §3, §6.
+// @src HandleNPCDoAction (npcAction); TacticalAI/NPC.cc TriggerNPCWithGivenApproach; Tactical/Soldier_Control.cc
+// @src CanRobotBeControlled, ControllingRobot, robot_remote_holder; Tactical/Items.cc PlaceObject (the remote control);
+// @src Tactical/Soldier_Profile.cc ChangeSoldierTeam (side changes of Overhead.cc).
+// @src See docs/25 §1, §2.1, §3, §6, §9.4.
 
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
 import type { Soldier } from '../soldier.ts';
@@ -33,6 +36,11 @@ export interface NarrativePort {
   startTalking(s: Soldier, target: number): void;
   npcReachedDestination(s: Soldier): void;
   replaceLocationInNpcData(profile: number, oldGridNo: number, newGridNo: number): void;
+  robotCanBeControlled(robot: Soldier): boolean;
+  robotController(robot: Soldier): Soldier | null;
+  controllingRobot(s: Soldier): boolean;
+  robotRemotePlaced(s: Soldier): void;
+  changeSoldierTeam(s: Soldier, team: number): Soldier | null;
 }
 
 export const NO_NARRATIVE_PORT: NarrativePort = {
@@ -61,4 +69,9 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   startTalking: () => {},
   npcReachedDestination: () => {},
   replaceLocationInNpcData: () => {},
+  robotCanBeControlled: () => true,
+  robotController: () => null,
+  controllingRobot: () => false,
+  robotRemotePlaced: () => {},
+  changeSoldierTeam: () => null,
 };

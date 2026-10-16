@@ -23,9 +23,20 @@ import {
 } from '../tactical/skills.ts';
 import { Body, type Soldier, SoldierStatusFlags } from '../tactical/soldier.ts';
 import { createMercContract, type MercContract } from './contracts/contract-state.ts';
+import {
+  canRobotBeControlled,
+  checkForRobotAndIfItsControlled,
+  controllingRobot,
+  robotControllerInSquad,
+  robotControllerInVehicle,
+  updateRobotControllerGivenController,
+  updateRobotControllerGivenRobot,
+} from './robot-control.ts';
 
 export const MercKind = { PLAYER_CHARACTER: 0, AIM_MERC: 1, MERC: 2, NPC: 3, EPC: 4, NPC_UNEXTENDABLE: 5, VEHICLE: 6 } as const;
 const NO_VEHICLE = -1;
+const NO_ITEM = -1;
+const ROBOT_REMOTE_CONTROL = 'ROBOT_REMOTE_CONTROL';
 
 export interface RosterMercInit {
   readonly soldier: Soldier;
@@ -46,6 +57,7 @@ export interface RosterMercInit {
   readonly contract?: Partial<MercContract>;
   readonly quoteSaidFlags?: number;
   readonly corpseQuoteTolerance?: number;
+  readonly remoteHolder?: number | null;
 }
 
 export class RosterMerc implements CrewMember {
@@ -78,6 +90,7 @@ export class RosterMerc implements CrewMember {
   readonly contract: MercContract;
   quoteSaidFlags: number;
   corpseQuoteTolerance: number;
+  remoteHolder: number | null;
 
   constructor(init: RosterMercInit) {
     this.soldier = init.soldier;
@@ -98,6 +111,7 @@ export class RosterMerc implements CrewMember {
     this.contract = createMercContract(init.contract);
     this.quoteSaidFlags = init.quoteSaidFlags ?? 0;
     this.corpseQuoteTolerance = init.corpseQuoteTolerance ?? 0;
+    this.remoteHolder = init.remoteHolder ?? null;
   }
 
   get id(): number {
@@ -386,5 +400,41 @@ export class Roster implements CrewPort {
   inTacticalSector(id: number): boolean {
     const merc = this.get(id);
     return merc !== undefined && (merc.inSector || merc.offGridInSector);
+  }
+
+  get robotRemote(): number {
+    return this.#content.items.byName.get(ROBOT_REMOTE_CONTROL)?.index ?? NO_ITEM;
+  }
+
+  controllingRobot(id: number): boolean {
+    const merc = this.get(id);
+    return merc !== undefined && controllingRobot(this, this.robotRemote, merc);
+  }
+
+  canRobotBeControlled(id: number): boolean {
+    const robot = this.get(id);
+    return robot !== undefined && canRobotBeControlled(this, this.robotRemote, robot);
+  }
+
+  robotControllerInSquad(squad: number): boolean {
+    return robotControllerInSquad(this, this.robotRemote, squad);
+  }
+
+  robotControllerInVehicle(vehicleId: number): boolean {
+    return robotControllerInVehicle(this, this.robotRemote, vehicleId);
+  }
+
+  updateRobotControllerGivenRobot(id: number): void {
+    const robot = this.get(id);
+    if (robot) updateRobotControllerGivenRobot(this, this.robotRemote, robot);
+  }
+
+  updateRobotControllerGivenController(id: number): void {
+    const merc = this.get(id);
+    if (merc) updateRobotControllerGivenController(this, this.robotRemote, merc);
+  }
+
+  checkForRobotAndIfItsControlled(): void {
+    checkForRobotAndIfItsControlled(this, this.robotRemote);
   }
 }

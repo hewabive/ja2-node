@@ -955,6 +955,25 @@ Dismissal and quitting are `22` §4. Nothing clears `RECRUITED` except `ChangeSo
 RPC keeps it (inferred): profile insertion skips recruited profiles (`Soldier_Init_List.cc:1659`) and his backup records
 are never restored (§1.4) — he does not come back.
 
+### 9.6 Implementation notes (verified with the oracle, 2026-10-16)
+
+- `ChangeSoldierTeam` creates the new soldier through `TacticalCreateSoldier`: for a profiled soldier its draws are the
+  female or kid battle sound (`Random(2)`), the standing frame of `CreateSoldierCommon` (`Random(10)`) and, for our team,
+  the cosmetic face draws of `InitSoldierFace` (dropped, deviation "Cosmetic face and frame draws"); the pathfinder draws of
+  the placement's sweet-spot search are not made (deviation "Pathfinder RNG"). Not copied, so fresh: breath (99), bleeding
+  (0), morale, orders, attitude, the key ring, quote record and action. The new soldier is placed at the old tile with the
+  old animation and direction only when the old one stood in the loaded sector; otherwise it is created (with its draws)
+  and left off the map, where the original keeps it as an inactive-in-sector civilian of the loaded world (inferred
+  harmless; ja2-node does not keep it). The id is the first free slot of the new team: for our team every merc of the
+  roster counts, wherever he is; for the civilians the soldiers of the loaded sector and the away (off-map) civilians of
+  the schedules (`RecruitFlow.reservedSoldierSlot`, a port for the schedules slice).
+- `RecruitEPC` of a soldier already on our team (John's partner when both were escorted) rebuilds him like any team change.
+- `UnRecruitEPC` writes the soldier's current tile into the profile insertion data, also for an escort outside the loaded
+  sector (his last tile there, as in the original, whose `sGridNo` survives leaving the sector).
+- The map-screen path of §9.4 queues the abandoning quote and the remove-EPC event; ja2-node runs that queue at once in the
+  `unescort` command (the clock does not move on the map screen without compression).
+- `HandleStuffForNPCEscorted` also prints `NOW_BING_ESCORTED_STR` for John's or Mary's partner.
+
 ---
 
 ## 10. Determinism
@@ -1007,7 +1026,7 @@ queries and `observe` are accepted and nothing advances unless the queue is busy
 | `approach {kind}` | `repeat`, `friendly`, `direct`, `threaten`, `recruit`, `whoAreYou`; `buySell` (dealers: BUYSELL record or the shop session) or `give` (others: closes the session, the NPC waits 10 s). Refusals: `noConversation`, `notADealer`, `isADealer`. Runs `Converse` and drains |
 | `give {soldier, target, slot, count?}` or `{soldier, target, money}` | §4: inside a session it closes first (the "Give" entry); `money` splits that amount off the soldier's money pockets. Checks: §6.1 with `give`, `noAdjacentTile`, `notEnoughAP` (path + 1), `itemNotFound`, `notEnoughMoney`. Walk, opcode 486, then §4.1's branches; may open a session (GIVINGITEM) or the shop |
 | `closeTalk {}` | Done (§6.5) including the once-per-conversation reset. `noConversation` |
-| `unescort {soldier}` | §9.4 by the player; `notAnEpc` |
+| `unescort {soldier}` | §9.4 by the player: map screen → the abandoning quote and the release at once, `{released: [{profile, quote}], lines}`; tactical → the wrong-sector record, the talk result plus `triggered`. Refusals `noSuchSoldier`, `notAnEpc`, `notInSector`, `notAvailable` and the modal ones (`docs/04` §6.17). *Implemented* |
 | `openShop {dealer, soldier}` | from M6 = `talk` + `approach buySell` in one command; if the opening leaves no idle session (script closed it, a prompt, a BUYSELL record) the talk result is returned instead (§16) |
 | `answer {prompt, choice}` | `npcRequest`: `yes`/`no` (`lie` too for the lie prompt); `surrender` (`context: 'tactical'`): `accept`/`reject` |
 
@@ -1029,9 +1048,9 @@ queries and `observe` are accepted and nothing advances unless the queue is busy
 amount?, squad?}` for the screen messages (`balanceOwed`, `needsMoney`, `paidInFull`, `stillOwed`, `recruited`,
 `teamFull`, `nowEscorted`, `noLineOfSight`, `targetCollapsed`, `noPath`, `itemPlacedOnGround`, `itemGiven`),
 `npcTookItem {npc, from, item}`, `npcGaveItem {npc, to, item}`, `itemReturned {to, item, dropped}`, `npcRecruited
-{profile, soldier, kind: 'rpc'|'epc', salary}`, `epcReleased {profile}`, `npcHostile {soldier}`, `scriptedSequence
-{active}`, `talkAborted {soldier, reason}`; quests surface only as `historyAdded` (`25`). No events for record choice,
-facts, quest states, `SAID` flags, desire or opinions.
+{profile, soldier, kind: 'rpc'|'epc', salary}`, `epcReleased {profile, soldier}` (the new civilian soldier in the loaded
+sector, else null), `npcHostile {soldier}`, `scriptedSequence {active}`, `talkAborted {soldier, reason}`; quests surface
+only as `historyAdded` (`25`). No events for record choice, facts, quest states, `SAID` flags, desire or opinions.
 
 ### 11.4 Observation (D16)
 
@@ -1159,6 +1178,14 @@ queue, `converseFull`, triggers, scripted movement glue, UI codes, the hostile-l
 close-enough and freeze hooks, `/api/text`, the stub NPC 94 in A10 and the oracle patch `0013-talk-oracle.patch`. Give (f),
 recruiting and EPCs (g), civilian quotes and surrender (h), hostility and sight hooks and the named-NPC AI (i), the request
 boxes and the NPC action catalog are later slices; they plug into the ports of `src/sim/narrative/host.ts`.
+
+*Implemented (recruiting slice, 2026-10-16, step (g) with §9):* `src/sim/tactical/narrative/team-change.ts`
+(`ChangeSoldierTeam`), `src/sim/campaign/narrative/recruit-flow.ts` (`RecruitRPC`, `RecruitEPC`, `UnRecruitEPC`,
+`HandleStuffForNPCEscorted`, the marriage's team change, Darrel's script, the departed list, `InternalUnescortEPC` and the
+side changes of civilian groups through `NarrativePort.changeSoldierTeam`), the `removeEpc` queue event, the `unescort`
+command in `talk-flow.ts`, the robot's controller (`src/sim/campaign/robot-control.ts`, `src/sim/tactical/narrative/robot.ts`)
+and the escort arrivals of John, Mary, Maria and Joey (`escort-arrival.ts`). Stubs: the R.P.C. 65 and the escort 123 in A10.
+Oracle: `patches/0018-recruit-oracle.patch`, `probes/recruit.txt`, `recruit-compare.ts` (README "Recruiting").
 
 ### 13.1 Modules (SFI-SCLA headers)
 

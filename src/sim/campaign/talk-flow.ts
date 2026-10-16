@@ -4,7 +4,8 @@
 // @src Interface_Dialogue.cc TalkPanelClickCallback, TalkPanelNameRegionClickCallback, HandleTalkingMenuEscape (the talk
 // @src panel as a modal session); Dialogue_Control.cc HandleDialogue (ENGAGED_IN_CONV pause lock, LOCK_PAUSE_ENGAGED_IN_CONV);
 // @src GameScreen.cc (HandleWaitTimerForNPCTrigger before, HandleDialogue after ExecuteOverhead); Soldier_Tile.cc
-// @src TeleportSoldier; Scheduling.cc BumpAnyExistingMerc. See docs/24 §6, §11, docs/04 §6.12.
+// @src TeleportSoldier; Scheduling.cc BumpAnyExistingMerc; Strategic/Assignments.cc UnEscortEPC (the assignment menu's
+// @src "remove escort"). See docs/24 §6, §9.4, §11, docs/04 §6.12, §6.17.
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { ItemClass, type ItemTable, WEAPON_CLASSES, WeaponClass } from '../../content/items/items.ts';
@@ -38,7 +39,13 @@ import type { FactSource, NarrativeHost, NpcActionPort, QuestPort } from '../nar
 import { ASSASSIN_PROFILES, NarrativeProfile, ProfileFlag } from '../narrative/narrative-ids.ts';
 import { isNpcOrRpc, replaceLocationInNpcData, resetOncePerConvoRecordsForAllNpcsInLoadedSector } from '../narrative/records.ts';
 import { calcDesireToTalk, calcThreateningEffectiveness } from '../narrative/select.ts';
-import { createTalkState, dialogueIdle, type SpokenLine, type TalkState } from '../narrative/talk-state.ts';
+import {
+  createTalkState,
+  dialogueIdle,
+  dialogueQueueIsEmptyAndNobodyIsTalking,
+  type SpokenLine,
+  type TalkState,
+} from '../narrative/talk-state.ts';
 import { CivType, getCivType, type TalkableKind, type TalkableRules, talkableKind, talkableRefusal } from '../narrative/talkable.ts';
 import { isMercADealer } from '../strategic/economy/merchants/context.ts';
 import { shopKind } from '../strategic/economy/merchants/view.ts';
@@ -65,6 +72,7 @@ import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
 import type { NarrativeSlots } from './narrative/narrative-flow.ts';
 import { NpcActionFlow, type NpcActionPorts } from './narrative/npc-action-flow.ts';
 import { medicalCostAt } from './narrative/quest-world.ts';
+import type { RosterMerc } from './roster.ts';
 
 export const AP_TALK = 6;
 const LOCK_PAUSE_ENGAGED_IN_CONV = 14;
@@ -87,7 +95,8 @@ const ATTITUDE_NORMAL = 0;
 const PLAYER_CHARACTER_MIN_PROFILE = 51;
 const PLAYER_CHARACTER_MAX_PROFILE = 56;
 const OwnMercBark = { NEGATIVE_COMPANY: 41, SOCIAL_TRAIT: 44, PASSING_DISLIKE: 45 } as const;
-const TALK_COMMANDS: ReadonlySet<string> = new Set(['talk', 'approach', 'closeTalk']);
+const TALK_COMMANDS: ReadonlySet<string> = new Set(['talk', 'approach', 'closeTalk', 'unescort']);
+const QUEUE_AT_ONCE_BUDGET = 1000;
 const NEEDED_ITEMS = ['HEAD_2', 'HEAD_3', 'HEAD_5', 'HEAD_6', 'HEAD_7', 'MONEY', 'SILVER', 'GOLD', 'WINE', 'BEER', 'ALCOHOL'] as const;
 
 const MENU_APPROACHES: Readonly<Record<string, number>> = {
@@ -122,6 +131,11 @@ const REFUSAL_TEXT: Readonly<Record<string, string>> = {
   unknownApproach: 'kind must be repeat, friendly, direct, threaten, recruit, whoAreYou, buySell or give',
   notADealer: 'this NPC does not trade, use give',
   isADealer: 'this NPC trades, use buySell',
+  laptopOpen: 'the laptop is open, closeLaptop first',
+  noSuchSoldier: 'no such soldier of yours',
+  notAnEpc: 'that soldier is not an escort',
+  notInSector: 'the escort is not in the loaded sector, release him from the map screen',
+  notAvailable: 'escorts are released on the map screen or in the loaded sector',
 };
 
 export interface NarrativeSetup {
@@ -351,6 +365,11 @@ export class TalkFlow {
       },
       shopClosedByScript: (dealer) => campaign.merchants?.hooks.shopClosedByScript(dealer) ?? false,
       teleport: (s, gridNo) => this.#teleport(s, gridNo),
+      releaseEscort: (npc) => this.npcActions.recruitFlow.removeEpc(npc),
+      offSectorPlayerSoldier: (profile) => {
+        const merc = campaign.battle?.roster.byProfile(profile);
+        return merc && !merc.soldier.placed ? merc.soldier : null;
+      },
     };
     return host;
   }
@@ -473,6 +492,8 @@ export class TalkFlow {
           return this.#approach(cmd);
         case 'closeTalk':
           return this.#closeTalk();
+        case 'unescort':
+          return this.#unescort(cmd);
         default:
           return this.#openShop(cmd);
       }
@@ -628,10 +649,10 @@ export class TalkFlow {
   }
 
   #runAndReport(action: () => unknown, extra: Json = {}): CommandResult {
-    const before = this.talk.lines.length;
+    this.talk.said.length = 0;
     action();
     this.#drain();
-    const lines = this.talk.lines.slice(before).map((l) => this.#lineView(l));
+    const lines = this.talk.said.splice(0).map((l) => this.#lineView(l));
     const shop = this.#campaign.shop?.isOpen() ? { shop: this.#campaign.shop.view() } : {};
     const request = this.npcActions.requestView();
     const prompt = request ? { npcRequest: request } : {};
@@ -701,6 +722,46 @@ export class TalkFlow {
     const route = talkMenuBuySell(this.host);
     if (route === 'record') return this.#runAndReport(() => {});
     return shop.isOpen() ? { ok: true, data: shop.view() } : opened;
+  }
+
+  #unescort(cmd: CampaignCommand): CommandResult {
+    const campaign = this.#campaign;
+    if (this.frozen()) refuse('conversationOpen');
+    if (this.scriptedSequence()) refuse('scriptedSequence');
+    if (campaign.battle?.hasPendingDecision()) refuse('promptOpen');
+    if (campaign.shop?.isOpen()) refuse('shopOpen');
+    if (campaign.laptop?.isOpen()) refuse('laptopOpen');
+    const merc = isInt(cmd.soldier) ? campaign.battle?.roster.get(cmd.soldier) : undefined;
+    if (!merc) return refuse('noSuchSoldier');
+    if (!merc.isEpc) refuse('notAnEpc');
+    if (campaign.state.flow === 'strategic') return this.#unescortOnMap(merc);
+    if (campaign.state.flow !== 'tactical' || !this.#t) return refuse('notAvailable');
+    if (!merc.soldier.placed) refuse('notInSector');
+    let triggered = false;
+    const result = this.#runAndReport(() => {
+      triggered = this.npcActions.recruitFlow.triggerWrongSectorRecord(merc);
+    });
+    return { ...result, data: { ...(result.data as Json), triggered } };
+  }
+
+  #unescortOnMap(merc: RosterMerc): CommandResult {
+    const recruit = this.npcActions.recruitFlow;
+    const partner = recruit.partnerOf(merc);
+    this.talk.said.length = 0;
+    const released = [recruit.internalUnescortEpc(merc)];
+    if (partner) released.push(recruit.internalUnescortEpc(partner));
+    this.#runQueueAtOnce();
+    const lines = this.talk.said.splice(0).map((l) => this.#lineView(l));
+    return { ok: true, data: { released, lines } };
+  }
+
+  #runQueueAtOnce(): void {
+    const talk = this.talk;
+    for (let budget = QUEUE_AT_ONCE_BUDGET; budget > 0 && !dialogueQueueIsEmptyAndNobodyIsTalking(talk); budget--) {
+      const face = talk.face;
+      if (face) talk.face = { ...face, busyUntil: this.#campaign.tick };
+      stepDialogue(this.host);
+    }
   }
 
   #lineView(l: SpokenLine): ConversationLineView {

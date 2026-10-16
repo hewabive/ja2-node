@@ -12,6 +12,7 @@ import type { TacticalSim } from '../tactical-sim.ts';
 import {
   addToShouldBecomeHostileOrSayQuoteList,
   checkHostileOrSayQuoteList,
+  civilianGroupMemberChangesSides,
   makeCivHostile,
   processImplicationsOfPCAttack,
   processImplicationsOfPCMessingWithDoor,
@@ -86,6 +87,42 @@ describe('MakeCivHostile', () => {
     Object.assign(cow, { bodyType: Body.COW });
     for (const s of [conrad, billy, cow]) makeCivHostile(sim.state, s);
     expect([conrad.side, conrad.neutral, billy.ai.orders, cow.neutral]).toEqual([Side.ENEMY, false, Orders.FARPATROL, true]);
+  });
+
+  it('moves Conrad and the General to the enemy team through ChangeSoldierTeam', () => {
+    const { sim, port } = setup();
+    const moved: [number, number][] = [];
+    sim.state.narrative = {
+      ...port,
+      changeSoldierTeam: (s, team) => {
+        moved.push([s.profile, team]);
+        return null;
+      },
+    };
+    const general = civilian(sim, 116, NEAR, CivilianGroup.NONE, Profile.GENERAL);
+    makeCivHostile(sim.state, general);
+    makeCivHostile(sim.state, civilian(sim, 117, NEAR + 1, CivilianGroup.NONE, Profile.BILLY));
+    expect(moved).toEqual([[Profile.GENERAL, Team.ENEMY]]);
+  });
+});
+
+describe('recruited members of an attacked civilian group (CivilianGroupMemberChangesSides)', () => {
+  it('go back to the civilian team, and the attacked soldier is followed to his new team', () => {
+    const { sim, port } = setup();
+    const moved: [number, number][] = [];
+    const rebel = spawnSoldier(sim, 1, Team.OUR, MERC_AT + 2, NORTH);
+    rebel.civilianGroup = CivilianGroup.REBEL;
+    Object.assign(rebel, { profile: Profile.CARLOS });
+    const replacement = civilian(sim, 120, MERC_AT + 2, CivilianGroup.REBEL, Profile.CARLOS);
+    sim.state.narrative = {
+      ...port,
+      changeSoldierTeam: (s, team) => {
+        moved.push([s.id, team]);
+        return replacement;
+      },
+    };
+    expect(civilianGroupMemberChangesSides(sim.state, rebel)).toBe(replacement);
+    expect(moved).toEqual([[1, Team.CIV]]);
   });
 });
 

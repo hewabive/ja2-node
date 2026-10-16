@@ -1,0 +1,43 @@
+Recruiting oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE (SFI-SCLA).
+Lets the recruiting probes compare un-escorting on the map screen: in Assignments.cc InternalUnescortEPC traces the
+abandoning quote (OracleTracedMercDialogue, only when TacticalCharacterDialogue queued it) and the remove-EPC dialogue
+event ("removeepc"); with gOracleDeferredEpcs set the removal is recorded there instead of queued, so the probe can run
+UnRecruitEPC itself after UnEscortEPC returns, in the queue's order. No behaviour change while the pointer is null and no
+trace is collected. Applied by tools/oracle/build.sh after 0017.
+
+--- a/src/game/Strategic/Assignments.cc
++++ b/src/game/Strategic/Assignments.cc
+@@ -6834,6 +6834,11 @@
+ }
+ 
+ 
++#include <vector>
++BOOLEAN OracleTracedMercDialogue(SOLDIERTYPE const* s, UINT16 quote);
++void OracleDialogueTrace(char const* kind, int a, int b, int c, int d);
++extern std::vector<ProfileID>* gOracleDeferredEpcs;
++
+ static void InternalUnescortEPC(SOLDIERTYPE* const s)
+ {
+ 	SetupProfileInsertionDataForSoldier(s);
+@@ -6844,7 +6849,7 @@
+ 	if (GetInfoForAbandoningEPC(profile, &quote_num, &fact_to_set_to_true))
+ 	{
+ 		gMercProfiles[profile].ubMiscFlags |= PROFILE_MISC_FLAG_FORCENPCQUOTE;
+-		TacticalCharacterDialogue(s, quote_num);
++		OracleTracedMercDialogue(s, quote_num);
+ 		SetFactTrue(fact_to_set_to_true);
+ 	}
+ 
+@@ -6865,6 +6870,12 @@
+ 			ProfileID const epc_;
+ 	};
+ 
++	OracleDialogueTrace("removeepc", profile, 0, 0, 0);
++	if (gOracleDeferredEpcs)
++	{
++		gOracleDeferredEpcs->push_back(profile);
++		return;
++	}
+ 	DialogueEvent::Add(new DialogueEventRemoveEPC(profile));
+ }
+ 

@@ -69,6 +69,7 @@ export interface ExitCheck {
   readonly invalidTraversal: boolean;
   readonly loneEpc: boolean;
   readonly abandonedEpcs: number;
+  readonly uncontrolledRobot: boolean;
 }
 
 export interface ExitMenu {
@@ -150,8 +151,10 @@ export function okForSectorExit(flow: SectorFlow, exitDirection: number, exitGri
     invalidTraversal: false,
     loneEpc: false,
     abandonedEpcs: 0,
+    uncontrolledRobot,
     ...extra,
   });
+  let uncontrolledRobot = false;
   if (!t || !soldierOf(flow, selected)) return refuse();
   let atLeast = 0;
   let onlySelected = false;
@@ -162,8 +165,13 @@ export function okForSectorExit(flow: SectorFlow, exitDirection: number, exitGri
   for (const m of flow.setup.roster.all()) {
     if (!okControllable(flow, m) || m.assignment !== selected.assignment) continue;
     valid = m;
-    if (m.isEpc) epcs++;
-    else mercs++;
+    if (m.isEpc) {
+      epcs++;
+      if (m.isRobot && !flow.setup.roster.canRobotBeControlled(m.id)) {
+        uncontrolledRobot = true;
+        continue;
+      }
+    } else mercs++;
     if (soldierOKForSectorExit(t, m.soldier, exitDirection, exitGridNo)) {
       atLeast++;
       if (m === selected) onlySelected = true;
@@ -186,7 +194,7 @@ export function okForSectorExit(flow: SectorFlow, exitDirection: number, exitGri
   let result: 0 | 1 | 2 = 0;
   if (onlySelected) result = 1;
   if (atLeast === squadCount) result = 2;
-  return { result, minutes, invalidTraversal: false, loneEpc: false, abandonedEpcs: 0 };
+  return { result, minutes, invalidTraversal: false, loneEpc: false, abandonedEpcs: 0, uncontrolledRobot };
 }
 
 function multipleSquadsInSector(flow: SectorFlow, selected: RosterMerc): boolean {
@@ -513,6 +521,7 @@ export function exitCheck(flow: SectorFlow, selected: RosterMerc, direction: num
 
 function refusalOf(check: ExitCheck): string {
   if (check.invalidTraversal) return 'invalidTraversal';
+  if (check.uncontrolledRobot) return 'uncontrolledRobot';
   if (check.loneEpc) return 'loneEPC';
   if (check.abandonedEpcs) return 'abandonEPC';
   return 'tooFar';

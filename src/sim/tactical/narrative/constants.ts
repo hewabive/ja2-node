@@ -37,6 +37,8 @@ export const Profile = {
   T_REX: 111,
   DRUGGIST: 112,
   HANS: 117,
+  JOHN: 118,
+  MARY: 119,
   GENERAL: 120,
   ELDIN: 127,
   BILLY: 133,

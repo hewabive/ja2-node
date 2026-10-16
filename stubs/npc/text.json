@@ -28,6 +28,40 @@
       "Good. I did not think you were one of them.",
       "You are lying, and you lie badly.",
       "Perhaps you are telling the truth after all."
+    ],
+    "npcdata/065.edt": [
+      "Haven't seen you in town before. The name is Marsh.",
+      "You again. What now?",
+      "Quiet day, for once.",
+      "I keep my rifle oiled and my mouth shut.",
+      "Keep it, I have no use for that.",
+      "Ask what you came to ask.",
+      "Easy. Nobody needs to get hurt here.",
+      "I don't work for strangers.",
+      "See you around.",
+      "We're done talking.",
+      "I did some soldiering once. I might do some more, for the right people.",
+      "I'm no volunteer. Pay me every day and I'll follow you anywhere.",
+      "Word is the soldiers pulled out of the hills to the south.",
+      "Then go find somebody cheaper.",
+      "Deal. Let me get my gear."
+    ],
+    "npcdata/123.edt": [
+      "Please, are you going east? I need to get out of this town.",
+      "Have you changed your mind?",
+      "The road east is not safe for a woman alone.",
+      "My cousins keep a farm two valleys away.",
+      "I can't take that from you.",
+      "I only want to go home.",
+      "Please, I have done nothing to you!",
+      "I would only slow you down.",
+      "Good luck out there.",
+      "Leave me alone, please.",
+      "I have waited three weeks for someone to take me along.",
+      "Will you take me with you? I promise I won't slow you down.",
+      "Let's keep moving, I don't like it here.",
+      "Here? All right, I'll find my own way from here.",
+      "My cousins will feed you well if we ever get there."
     ]
   }
 }

@@ -716,6 +716,7 @@ export interface SavedSoldier {
   readonly attacker: number;
   readonly previousAttacker: number;
   readonly nextToPreviousAttacker: number;
+  readonly robotRemoteHolder: number;
   readonly numHitsThisTurn: number;
   readonly militiaKills: number;
   readonly tilesMoved: number;
@@ -858,6 +859,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
     attacker: n('attacker'),
     previousAttacker: n('previous_attacker'),
     nextToPreviousAttacker: n('next_to_previous_attacker'),
+    robotRemoteHolder: n('robot_remote_holder'),
     numHitsThisTurn: n('bNumHitsThisTurn'),
     militiaKills: n('ubMilitiaKills'),
     tilesMoved: n('bTilesMoved'),
