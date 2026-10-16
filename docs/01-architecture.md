@@ -980,3 +980,6 @@ Specs: `docs/24` (NPCs and dialogue), `25` (quests, facts, NPC actions, schedule
 6. **Schedules** (`sim/tactical/narrative/schedules.ts` and the AI hook): map and save schedules, `PostSchedules` with
    default schedules, sleep spots and the 24-hour replay, event 36, schedule moves and doors, sleeping and waking, away
    slots, shop hours, Larry's hourly update and the Mike/Iggy upgrade. 51 oracle probes match.
+7. **Giving** (`sim/tactical/give.ts`, `sim/narrative/give.ts`, `sim/tactical/narrative/quest-items.ts`): the `give` command
+   to NPCs, dealers and squad mates with the original's acceptance rules and quest effects, and the quest action items
+   (pressure items and switches, Kingpin's and the museum's alarms, the brothel scene). 83 oracle probes match.

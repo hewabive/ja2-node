@@ -1,0 +1,93 @@
+# Giving items and money to NPCs (docs/24 §4, docs/25 §3.11, §11.5) on the native saves. give runs the animation's
+# SoldierGiveItemFromAnimation with the object the UI would hand over (a whole pocket, one item of a stack, or money split
+# off a pocket) and the conversation it opens, headless; npcgive runs HandleNPCItemGiven for an NPC's gift; receive runs
+# NPCConsiderReceivingItemFromMerc as a dry run for the NPC money rules (no soldier needed); actionitem arms a quest
+# action item (or a pressure switch and a remote action item) on the merc's tile and runs SetOffBombsInGridNo and
+# HandleExplosionQueue. Soldier 0, 1 and 2 are the save's mercs (2 is the recruited RPC).
+save SaveGame02
+give who=0 tonpc=151 slot=11 count=1
+give who=0 tonpc=139 money=500 cash=13:1000
+give who=0 tonpc=139 money=1000 cash=13:1000
+give who=1 tonpc=139 slot=12
+give who=1 tonpc=151 slot=5
+give who=0 to=1 slot=12
+give who=1 to=0 slot=15 count=1
+give who=0 to=2 money=300 cash=14:500 balance=-1000
+give who=1 to=2 slot=13
+npcgive npc=139 merc=0 slot=7
+npcgive npc=151 merc=0 slot=7
+receive npc=87 merc=0 money=999 fact=99:1,230:0
+receive npc=87 merc=0 money=1000
+receive npc=87 merc=0 money=5000
+receive npc=87 merc=0 money=5001
+receive npc=87 merc=0 money=2000 said=17
+receive npc=89 merc=0 money=949 fact=114:1,115:0
+receive npc=89 merc=0 money=950
+receive npc=89 merc=0 money=951
+receive npc=107 merc=0 money=100 fact=89:1
+receive npc=107 merc=0 money=200
+receive npc=107 merc=0 money=500 fact=90:0
+receive npc=107 merc=0 money=600 fact=91:1
+receive npc=107 merc=0 money=400 quest=6:1
+receive npc=107 merc=0 money=800
+receive npc=107 merc=0 money=150
+receive npc=107 merc=2 money=100 mercsex=1
+receive npc=79 merc=0 money=9990 balance=0
+receive npc=79 merc=0 money=10
+receive npc=79 merc=0 item=FIRSTAIDKIT:100:1
+receive npc=115 merc=0 money=5000 balance=0 fact=225:1,223:0
+receive npc=115 merc=0 money=5000
+receive npc=69 merc=0 money=300 fact=149:0 balance=-500
+receive npc=69 merc=0 money=300
+receive npc=69 merc=0 money=300 balance=0
+receive npc=69 merc=0 money=300 fact=149:1 hospital=50:0
+receive npc=69 merc=0 money=100 hospital=0:500
+receive npc=80 merc=0 money=300 fact=149:0 balance=-200
+receive npc=80 merc=0 money=100 balance=0
+receive npc=80 merc=0 item=FIRSTAIDKIT:100:1
+receive npc=131 merc=0 money=1000 balance=0 fact=163:0
+receive npc=131 merc=0 money=1000
+receive npc=92 merc=0 money=700
+receive npc=86 merc=0 money=1000 quest=4:1 balance=-5000
+receive npc=86 merc=0 money=4000
+receive npc=86 merc=0 money=100 quest=4:0
+receive npc=97 merc=0 money=800 balance=-1500
+receive npc=97 merc=0 money=900
+receive npc=57 merc=0 money=100 balance=-50
+receive npc=146 merc=0 item=M14:90:1 fact=197:0,198:0,199:1,200:0
+receive npc=146 merc=0 item=GLOCK_17:90:1
+receive npc=146 merc=0 item=FIRSTAIDKIT:40:1
+receive npc=78 merc=0 item=HEAD_3:100:1 quest=2:1
+receive npc=62 merc=0 money=100
+actionitem who=0 action=14
+actionitem who=0 action=23
+actionitem who=0 action=13 det=3 owner=2
+actionitem who=0 action=13 det=2 freq=99 switch=1 at=12000
+save SaveGame01
+give who=0 tonpc=138 money=500 cash=13:2000
+give who=0 tonpc=138 money=1500
+give who=1 tonpc=98 money=100 cash=17:100
+give who=2 tonpc=98 slot=9
+give who=0 to=2 slot=11 count=1
+npcgive npc=98 merc=0 slot=7
+npcgive npc=138 merc=1 slot=7
+receive npc=138 merc=0 money=2000
+receive npc=98 merc=1 money=50
+actionitem who=1 action=2
+actionitem who=1 action=14 det=2
+save SaveGame07
+give who=0 tonpc=106 money=200 cash=13:200
+give who=1 tonpc=152 slot=13
+give who=2 tonpc=106 slot=5
+give who=0 to=1 slot=12
+give who=1 to=0 slot=11 count=1
+npcgive npc=106 merc=0 slot=7
+npcgive npc=152 merc=2 slot=7
+actionitem who=2 action=23
+save SaveGame10
+give who=0 tonpc=106 slot=13 count=1
+give who=2 tonpc=152 slot=11
+give who=1 to=2 slot=11 count=1
+npcgive npc=152 merc=1 slot=7
+receive npc=106 merc=2 money=1200
+actionitem who=0 action=13 det=2 freq=98 switch=1 at=8000

@@ -1,4 +1,4 @@
-import type { ConversationLineView, ConversationView, NpcRequestPromptView, SoldierView } from '../../protocol/view.ts';
+import type { ConversationLineView, ConversationView, InventoryItemView, NpcRequestPromptView, SoldierView } from '../../protocol/view.ts';
 import type { CommandReply } from '../net/session-client.ts';
 
 type Send = (cmd: { type: string; [key: string]: unknown }) => Promise<CommandReply>;
@@ -30,11 +30,13 @@ export class TalkPanel {
   readonly #lines = el('talkLines');
   readonly #menu = el('talkMenu');
   readonly #request = el('talkRequest');
+  readonly #give = el('talkGive');
   readonly #result = el('talkResult');
   readonly #send: Send;
   #shown: ConversationView | null = null;
   #scripted = false;
   #shownRequest: NpcRequestPromptView | null = null;
+  #shownInventory: readonly InventoryItemView[] | undefined = undefined;
 
   constructor(send: Send) {
     this.#send = send;
@@ -51,8 +53,14 @@ export class TalkPanel {
     return this.#result.textContent ?? '';
   }
 
-  update(conversation: ConversationView | null, scripted: boolean, request: NpcRequestPromptView | null): void {
+  update(
+    conversation: ConversationView | null,
+    scripted: boolean,
+    request: NpcRequestPromptView | null,
+    soldiers: readonly SoldierView[],
+  ): void {
     this.#renderRequest(request);
+    this.#renderGive(conversation, soldiers);
     if (conversation === this.#shown && scripted === this.#scripted) return;
     this.#shown = conversation;
     this.#scripted = scripted;
@@ -84,6 +92,40 @@ export class TalkPanel {
         return b;
       }),
     );
+  }
+
+  #renderGive(conversation: ConversationView | null, soldiers: readonly SoldierView[]): void {
+    const talkerId = conversation?.menu.includes('give') ? conversation.talker : null;
+    const talker = talkerId !== null ? soldiers.find((s) => s.id === talkerId) : undefined;
+    const inventory = talker?.inventory;
+    if (inventory === this.#shownInventory && (talker !== undefined || this.#give.hidden)) return;
+    this.#shownInventory = inventory;
+    this.#give.hidden = !talker || !inventory?.length;
+    if (!talker || !conversation || conversation.npc === null || !inventory) {
+      this.#give.replaceChildren();
+      return;
+    }
+    const npc = conversation.npc;
+    const label = document.createElement('div');
+    label.textContent = 'give:';
+    const buttons = document.createElement('div');
+    buttons.className = 'actions';
+    buttons.append(
+      ...inventory.map((item) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = item.money !== undefined ? `$${item.money}` : item.count > 1 ? `${item.item} ×${item.count}` : item.item;
+        b.dataset.giveSlot = String(item.slot);
+        b.addEventListener('click', () => {
+          void this.#send({ type: 'give', soldier: talker.id, target: npc, slot: item.slot }).then((r) => {
+            const outcome = (r.data as { outcome?: string } | undefined)?.outcome;
+            this.#report(r, `gave ${item.item}${outcome ? `: ${outcome}` : ''}`);
+          });
+        });
+        return b;
+      }),
+    );
+    this.#give.replaceChildren(label, buttons);
   }
 
   #renderRequest(request: NpcRequestPromptView | null): void {

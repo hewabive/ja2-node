@@ -51,7 +51,17 @@
         { "index": 9, "requiredApproach": "TRIGGER_NPC", "quoteNum": 21, "numQuotes": 1 },
         { "index": 10, "requiredApproach": "TRIGGER_NPC", "quoteNum": 22, "numQuotes": 1 },
         { "index": 11, "requiredApproach": "TRIGGER_NPC", "quoteNum": 23, "numQuotes": 1 },
-        { "index": 12, "requiredApproach": "TRIGGER_NPC", "quoteNum": 24, "numQuotes": 1 }
+        { "index": 12, "requiredApproach": "TRIGGER_NPC", "quoteNum": 24, "numQuotes": 1 },
+        { "index": 13, "requiredApproach": "GIVINGITEM", "requiredItem": "CLIP9_15", "quoteNum": 25, "numQuotes": 1 },
+        { "index": 14, "requiredApproach": "GIVINGITEM", "requiredItem": "MONEY", "quoteNum": 26, "numQuotes": 1 },
+        {
+          "index": 15,
+          "requiredApproach": "GIVINGITEM",
+          "requiredItem": "GLOCK_17",
+          "quoteNum": 27,
+          "numQuotes": 1,
+          "actionData": { "code": 1 }
+        }
       ]
     }
   ],

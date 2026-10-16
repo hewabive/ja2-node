@@ -494,6 +494,36 @@ talker, obj, slot)` walks the NPC over (§4.1; the merc receives it, then `DONE_
 inventory keeps the item (only the soldier slot is deleted, `Handle_Items.cc:2449-2452`), so a later required-item test
 still sees it (inferred consequence).
 
+### 4.6 Corrections and details from the give slice (2026-10-16, verified in Strac and with the oracle)
+
+- **The object.** A drag picks up one item of a stack (`GetObjFrom(slot, 0)`) or the whole slot with Shift
+  (`RemoveObjectFromSlot`); a left click on money picks up the whole pile, the item description's money box splits off an
+  amount in steps of 10 (`RemoveMoney`: the pocket shrinks at once, the source slot is `NO_SLOT`). Before the give,
+  `HandleItemPointerClick` puts the cursor object back into its slot (`PlaceObject`): one item taken from a stack goes to the
+  end of the stack, so the NPC branch's `RemoveObjs(slot, 1)` later removes the *new* first item — the NPC gets the first
+  item's status and the merc keeps a copy of it (kept).
+- **AP.** The cursor cost is `GetAPsToGiveItem` to the adjacent tile (`FindAdjacentGridEx` without forcing to the person)
+  and refuses with "no path" when it is 0; then the walk to the target's own tile plus 1 must be affordable; the give
+  animation charges `AP_PICKUP_ITEM` 3.
+- **Engaged flags.** `SetEngagedInConvFromPCAction` runs for a profiled target that is neither a player merc nor
+  `RPC_RECRUITED` (an escorted EPC counts as recruited), even when `SoldierGiveItem` found no adjacent tile — a soft lock that
+  ja2-node avoids by refusing with `noPath`. Both soldiers get `SOLDIER_ENGAGEDINACTION`, which stops `HandleSoldierAI` for
+  them; the dealer branches return before clearing it, so a dealer's AI stays stopped after a give (kept).
+- **`VerifyGiveItem`.** Another soldier on the target's tile: nothing happens. Nobody there: when the give *begins* the
+  temporary object is dropped VISIBLE at the giver's tile while the slot still holds the item (a duplicate, kept), and
+  `DONE_GIVING_ITEM` is triggered for the giver; when the *animation* runs the temporary object was already taken, so
+  nothing drops (money split off a pocket is then lost).
+- **Dealers.** An unused BUYSELL record is triggered and the object is discarded (the merc keeps a slot item; split money is
+  lost). Otherwise the shop opens with the object on the offer table and `RemoveObjFrom(slot, count)` removes the object at
+  index `count` of the slot (the whole object for a single item, the second item of a stack when one was given).
+- **Team members.** `AutoPlaceObject` empties the money object it places (Stracciatella's `FillMoneySlot`), so the debt
+  payment that follows adds 0: giving money to a recruited RPC who is owed money only prints "still owed" (Strac; kept).
+- **`HandleNPCItemGiven`** uses `gpDestSoldier` for the reach test and as the giver, `FindSoldierByProfileID(npc)` for
+  the dropped copy (level 0, z 0).
+- **Vince and Steve.** `CheckFact(VINCE_EXPECTING_MONEY)` is evaluated in each condition of the chain (twice before the
+  hospital branch), which matters for the order of the computed facts.
+- **No free profile slot.** `PlaceObjectInSoldierProfile` returns FALSE and the object is gone (verified).
+
 ---
 
 ## 5. Triggers, scripted movement and NPC-initiated talk
@@ -1005,7 +1035,7 @@ queries and `observe` are accepted and nothing advances unless the queue is busy
 |---|---|
 | `talk {soldier, target}` | `target` = a soldier id, or `{npc: profile id or name}`. Checks, first failure is the reason: tactical flow; no prompt, shop or session open (`sessionOpen`), not in a scripted sequence (`scriptedSequence`); the soldier can act (`canAct`, `10`); `noSuchTarget`; §6.1 (`notTalkable`, `targetHidden`, `targetMoving`, `talkerIsRobot`); `noLineOfSight`; `targetCollapsed`; our own merc → a bark, no AP (`refusesToTalk` for DIMITRI); beyond 4 tiles `noPath`, `notEnoughAP` (6 only) → a walk-up order, the talk starts on arrival (§6.2 step 6; failing → event `talkAborted`); within 4 `notEnoughAP`. Effects: §6.2. Result: a civilian or merc bark (`civQuote`/`mercQuote` events), or the session view after the opening step has drained (§11.6), or `pending: true` while the queue is busy |
 | `approach {kind}` | `repeat`, `friendly`, `direct`, `threaten`, `recruit`, `whoAreYou`; `buySell` (dealers: BUYSELL record or the shop session) or `give` (others: closes the session, the NPC waits 10 s). Refusals: `noConversation`, `notADealer`, `isADealer`. Runs `Converse` and drains |
-| `give {soldier, target, slot, count?}` or `{soldier, target, money}` | §4: inside a session it closes first (the "Give" entry); `money` splits that amount off the soldier's money pockets. Checks: §6.1 with `give`, `noAdjacentTile`, `notEnoughAP` (path + 1), `itemNotFound`, `notEnoughMoney`. Walk, opcode 486, then §4.1's branches; may open a session (GIVINGITEM) or the shop |
+| `give {soldier, target, slot, count?}` or `{soldier, target, money, slot?}` | §4: inside a non-dealer session it closes first (the "Give" entry, `isADealer` otherwise); `slot` hands over the whole pocket or, with `count: 1`, one item of a stack; `money` splits that amount (steps of 10) off a money pocket. Checks: tactical, prompt, shop, scripted sequence, `busy`, `canAct`, `noSuchTarget`, the giver (`giverCannotGive`, `giverBusy`), the object (`needItemOrMoney`, `noSlot`, `emptySlot`, `badCount`, `badMoney`, `notEnoughMoney`), §6.1 with `give` and own mercs allowed (the alternative cursor), `robotReload`, `noPath`, `notEnoughAP` (path + 1). Walk, opcode 486, then §4.1's branches; an NPC target runs to the end of the conversation it opens (`data.outcome`), a team member is handed the item during `advance` (*implemented*, `docs/04` §6.16) |
 | `closeTalk {}` | Done (§6.5) including the once-per-conversation reset. `noConversation` |
 | `unescort {soldier}` | §9.4 by the player; `notAnEpc` |
 | `openShop {dealer, soldier}` | from M6 = `talk` + `approach buySell` in one command; if the opening leaves no idle session (script closed it, a prompt, a BUYSELL record) the talk result is returned instead (§16) |
@@ -1028,7 +1058,7 @@ queries and `observe` are accepted and nothing advances unless the queue is busy
 `mercQuote` (exists) for merc lines, `civQuote {soldier, type, entry, hint, textKey}`, `npcMessage {kind, profile?,
 amount?, squad?}` for the screen messages (`balanceOwed`, `needsMoney`, `paidInFull`, `stillOwed`, `recruited`,
 `teamFull`, `nowEscorted`, `noLineOfSight`, `targetCollapsed`, `noPath`, `itemPlacedOnGround`, `itemGiven`),
-`npcTookItem {npc, from, item}`, `npcGaveItem {npc, to, item}`, `itemReturned {to, item, dropped}`, `npcRecruited
+`npcTookItem {npc, profile, from, item, count, status, money?}`, `npcGaveItem {npc, profile, to, item, …, dropped}`, `itemReturned {to, item, …, dropped}`, `itemGiven {soldier, target, item, …, dropped}`, `giveAborted {soldier, target, reason, dropped}` (implemented with the give slice), `npcRecruited
 {profile, soldier, kind: 'rpc'|'epc', salary}`, `epcReleased {profile}`, `npcHostile {soldier}`, `scriptedSequence
 {active}`, `talkAborted {soldier, reason}`; quests surface only as `historyAdded` (`25`). No events for record choice,
 facts, quest states, `SAID` flags, desire or opinions.
@@ -1134,8 +1164,11 @@ layout by resource version; facts > 368 → 65535) and `src/content/formats/edt.
   quote gated by fact 132, an opinion-gated friendly record said once per conversation, a direct record that sets fact 132
   and starts quest 14, a quest-gated friendly record that triggers record 5, record 5 with `TURN_UI_OFF` and a walk, the tile
   record with `TURN_UI_ON` that ends quest 14, a threaten record that closes the panel) and 20 invented lines in
-  `stubs/npc/text.json`; `000.npc` holds one silent trigger record. Recruiting, escorting, give and civilian hint records
-  come with their slices.
+  `stubs/npc/text.json`; `000.npc` holds one silent trigger record. Recruiting, escorting and civilian hint records
+  come with their slices. *Give slice:* records 8–10 take a 9 mm magazine and money and refuse the pistol
+  (`DONT_ACCEPT_ITEM`), with three more invented lines; other items get the default line 4 (`stubs/npc/records.json` names
+  required items, which the stub build resolves through the item table); the stub animation scripts gain `GIVE_ITEM` with
+  code 486.
 
 ---
 
@@ -1159,6 +1192,16 @@ queue, `converseFull`, triggers, scripted movement glue, UI codes, the hostile-l
 close-enough and freeze hooks, `/api/text`, the stub NPC 94 in A10 and the oracle patch `0013-talk-oracle.patch`. Give (f),
 recruiting and EPCs (g), civilian quotes and surrender (h), hostility and sight hooks and the named-NPC AI (i), the request
 boxes and the NPC action catalog are later slices; they plug into the ports of `src/sim/narrative/host.ts`.
+
+*Implemented (give slice, 2026-10-16, step (f)):* `src/sim/tactical/give.ts` (§4.1: `SoldierGiveItem`, the pending give and
+its arrival, `VerifyGiveItem`, `SoldierGiveItemFromAnimation` with the dealer, team-member and NPC branches, code 486 in
+`item-actions.ts`, the collapse case, `SOLDIER_ENGAGEDINACTION` as `Soldier.engagedInAction` stopping the AI, the engaged-in-
+conversation flag of a PC action), `src/sim/narrative/give.ts` (§4.4–§4.5: `PlaceObjectInSoldierProfile` with Madlab's
+attachments, `RemoveObjectFromSoldierProfile`, `SetMoneyInSoldierProfile`, `ReturnItemToPlayer`, `HandleNPCItemGiven`, the
+dealer branch and the GIVINGITEM conversation), the real `GivePort` and `ReceivePort` (CalcMedicalCost in
+`src/sim/tactical/narrative/hospital-cost.ts`, Frank's cash) in `talk-flow.ts`, the `give` command (`src/sim/campaign/give-flow.ts`,
+`docs/04` §6.16), records 8–10 of the stub NPC, and the oracle patch `0017-give-oracle.patch` with the probes `receive`,
+`give`, `npcgive` and `actionitem` (`tools/oracle/probes/give.txt`, `give-compare.ts`). Details and corrections in §4.6.
 
 ### 13.1 Modules (SFI-SCLA headers)
 
@@ -1243,7 +1286,9 @@ invariants (backups only for recruited RPCs; present arrays for NPCs the save ha
 ## 15. Oracle probes
 
 Patch `0013-talk-oracle.patch` (implemented: `npcrecords`, `npcprofile`, `desire`, `consider`, `talk` without draining,
-`questdecode`; the comparer is `tools/oracle/talk-compare.ts`, the probes `probes/talk.txt`). The full plan was: a headless panel (sets `gTalkPanel.ubCharNum`, `gfInTalkPanel`, the conversation
+`questdecode`; the comparer is `tools/oracle/talk-compare.ts`, the probes `probes/talk.txt`). Patch `0017-give-oracle.patch` (implemented with
+the give slice: `receive`, `give`, `npcgive`, `actionitem`; comparer `tools/oracle/give-compare.ts`, probes `probes/give.txt`, README
+"Give"). The full plan was: a headless panel (sets `gTalkPanel.ubCharNum`, `gfInTalkPanel`, the conversation
 soldiers without faces or UI; `DeleteTalkingMenu` clears state only); a queue stepper that executes events one by one
 and logs each (`quote` finished at once, `action {npc, code, record}`, `goto`, `trigger`, `give`, `closePanel`);
 `DoMessageBox` from `StartDialogueMessageBox` and the surrender box intercepted (logged, answered by a probe command);
@@ -1304,7 +1349,12 @@ list, recruiting and escorting where a candidate stands. Outputs stay outside th
 - `FACE_CLOSEST_PLAYER` stores the record index without the + 1, so it is inert from record 0.
 - The lie candidate is ranked by wisdom; Steve's free care zeroes Vince's balance; requestors only work for
   `gpDestSoldier`.
-- Giving checks 1 AP and charges 3; giving to a merc deletes the whole source slot.
+- Giving checks 1 AP and charges 3; giving to a merc deletes the whole source slot; one item given from a stack is put back
+  at the end first, so the NPC branch removes another item than the one given; money placed on a team member pays no debt
+  (Strac); a give that begins with the target gone drops a copy; a dealer branch leaves both soldiers engaged in action and
+  removes the object at index `count` from the slot; split money is lost on a BUYSELL record (§4.6).
+- The museum alarm calls Eldin while the action item queue disallows sight, so he never "sees" the spot and always runs to
+  it; the Kingpin alarm can ring again (its "zap" clears the disabled flag instead of setting it) (`25` §11.5).
 - `RECRUITED` is set for EPCs and kept by departed RPCs.
 - Civilian-group side changes draw `Random(2)` for an unused value.
 - Issue #750: `REMOVE_NPC` with a destination clears the profile sector first (Strac only).

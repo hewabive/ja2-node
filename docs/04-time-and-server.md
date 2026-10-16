@@ -628,6 +628,37 @@ The hospital (Cambria) charges through `payDoctor`, escorts patients onto the ho
 D5-1 with less than $30000 there (his letter and quest 4 follow two and four days later). Facts, the hospital modifier and
 refund, Kingpin's balance and the NPC system events stay hidden.
 
+### 6.16. Giving items and money (M6)
+
+`give {soldier, target, slot, count?}` or `{soldier, target, money, slot?}` (campaign, tactical; `docs/24` §4,
+`src/sim/campaign/give-flow.ts`, `talk-flow.ts`) is the original's drag of an item onto a soldier. `target` is a soldier id
+or `{npc: <profile id or name>}`. `slot` (0–18 or `hand`) hands over the whole pocket, or one item of a stack with `count: 1`
+(any other count is refused); a money pocket given by `slot` goes whole. `money` splits that amount off the soldier's money
+pocket (`slot` picks the pocket, default the first that holds enough), in the money box's steps of 10. Inside a
+conversation with a non-dealer the command is the menu's "Give": the panel closes (once-per-conversation records reset, the
+NPC waits 10 s) and the give follows; with a dealer it is refused (`isADealer`). Refusals (`data.refusal`): `notInTactical`,
+`promptOpen`, `shopOpen`, `scriptedSequence`, `busy`, `canAct` (the tactical refusal text), `noSuchTarget` (also the giver
+himself), `giverCannotGive` (an escort, below OKLIFE, in deep water), `giverBusy` (an item, door or give animation, or a
+give already under way), `needItemOrMoney`, `noSlot`, `emptySlot`, `badCount`, `badMoney`, `notEnoughMoney`, the talk
+checks with giving allowed (`notTalkable`, `targetHidden`, `targetMoving`, `targetCollapsed`, `talkerIsRobot`; own mercs and
+escorts may be given to), `robotReload` (reloading the robot is not ported), `noPath`, `notEnoughAP` (the walk plus 1; the
+hand-over charges 3).
+
+The soldier walks next to the target and plays the give animation. To an NPC the game is paused and locked meanwhile, so the
+command runs to the end: the item is taken off the pocket, the NPC's conversation (`GIVINGITEM`: an introduction on a first
+meeting or a new day, then the record that wants the item) opens and drains, and `data` is `{outcome, conversation, lines,
+scriptedSequence?, shop?}` with `outcome` `taken` (the NPC keeps it in its profile inventory), `returned` (refused: back in
+the pockets, or on the floor when they are full), `kept` (a dealer's BUYSELL record plays instead; the merc keeps it), `shop`
+(the dealer does not want it as a gift: the shop opens, the item stays in the pockets), `pending` (the queue was busy; the
+conversation opens during `advance`) or `aborted` (the target left its tile). To a squad mate or recruited RPC the command
+returns `{walking: true, to}` or `{giving: true}` at once and the hand-over happens during `advance` (the whole source pocket
+is emptied even when one item was given, as in the original). Events: `itemGiven {soldier, target, item, count, status,
+money?, dropped}`, `npcTookItem {npc, profile, from, item, count, status, money?}`, `itemReturned {to, item, …, dropped}`,
+`npcGaveItem {npc, profile, to, item, …, dropped}` (an NPC's gift, dropped at its feet when the talker is out of reach),
+`giveAborted {soldier, target, reason, dropped}`, `npcMessage` (`itemPlacedOnGround`, `paidInFull`, `stillOwed`,
+`balanceOwed`, `needsMoney`), and the conversation events of §6.12. The quest action items of `docs/25` §11.5 add
+`sexScene {soldier}` and `alarm {gridNo, kind: kingpin|museum}`.
+
 ## 7. Cost and limitations
 
 - **Amount of work.**

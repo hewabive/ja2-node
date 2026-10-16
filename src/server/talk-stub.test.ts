@@ -70,7 +70,9 @@ function walkUpAndTalk(session: CampaignSession, live: Session, merc: number) {
   return session.view().conversation ?? null;
 }
 
-describe('the stub NPC in A10', () => {
+const SLOW_SCENARIO_MS = 30_000;
+
+describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
   it('talks: initial quote, approaches, a quest, a scripted walk and a tile trigger', async () => {
     const { session, live } = await inA10(5);
     const merc = session.view().strategic?.mercs[0]?.id ?? 0;

@@ -5337,6 +5337,443 @@ BOOLEAN OracleTracedCheckFact(Fact const fact, UINT8 const profile)
 	return value;
 }
 
+#include "Action_Items.h"
+#include "Arms_Dealer_Init.h"
+#include "Explosion_Control.h"
+#include "Handle_Items.h"
+#include "Interface_Items.h"
+#include "Soldier.h"
+#include "Soldier_Functions.h"
+#include "World_Items.h"
+
+UINT8 OracleNPCConsiderReceivingItemFromMerc(UINT8 npc, UINT8 merc, OBJECTTYPE const* o, INT32* index, INT32* record);
+
+namespace {
+struct OracleGiveHook
+{
+	std::string kind;
+	int a, b, c;
+};
+
+bool gOracleGiveActive = false;
+std::vector<OracleGiveHook>* gOracleGiveHooks = nullptr;
+std::vector<long long>* gOracleMedicalCosts = nullptr;
+}
+
+UINT32 OracleTracedMedicalCost(UINT8 const npc)
+{
+	UINT32 const cost = CalcMedicalCost(npc);
+	if (gOracleMedicalCosts) gOracleMedicalCosts->push_back(cost);
+	return cost;
+}
+
+BOOLEAN OracleGiveConversation(SOLDIERTYPE* const dest, SOLDIERTYPE* const src, Approach const approach, UINT8 const record, OBJECTTYPE* const object)
+{
+	if (!gOracleGiveActive) return InitiateConversationFull(dest, src, approach, record, object);
+	if (gOracleGiveHooks) gOracleGiveHooks->push_back({"conversation", dest->ubID, src ? src->ubID : -1, approach});
+	gfInTalkPanel = TRUE;
+	gTalkPanel.ubCharNum = dest->ubProfile;
+	gpSrcSoldier = src;
+	gpDestSoldier = dest;
+	gubSrcSoldierProfile = src ? src->ubProfile : NO_PROFILE;
+	ConverseFull(dest->ubProfile, gubSrcSoldierProfile, approach, record, object);
+	gTacticalStatus.uiFlags |= ENGAGED_IN_CONV;
+	return TRUE;
+}
+
+void OracleGiveShop(UINT8 const dealer)
+{
+	if (!gOracleGiveActive) return EnterShopKeeperInterfaceScreen(dealer);
+	if (gOracleGiveHooks) gOracleGiveHooks->push_back({"shop", dealer, 0, 0});
+}
+
+void OracleGiveOffer(OBJECTTYPE* const object, INT8 const slot)
+{
+	if (!gOracleGiveActive) return AddItemToPlayersOfferAreaAfterShopKeeperOpen(object, slot);
+	if (gOracleGiveHooks) gOracleGiveHooks->push_back({"offer", object->usItem, slot, 0});
+}
+
+namespace {
+long long MoneyOf(OBJECTTYPE const& o)
+{
+	return o.usItem != NOTHING && GCM->getItem(o.usItem)->getItemClass() == IC_MONEY ? o.uiMoneyAmount : 0;
+}
+
+std::string DescribeGivenObject(OBJECTTYPE const& o)
+{
+	return "[" + std::to_string(o.usItem) + "," + std::to_string(o.ubNumberOfObjects) + "," + std::to_string(o.bStatus[0]) + "," +
+		std::to_string(MoneyOf(o)) + "]";
+}
+
+std::string DescribeSoldierInventory(SOLDIERTYPE const& s)
+{
+	std::vector<std::string> slots;
+	for (int k = 0; k < NUM_INV_SLOTS; ++k) slots.push_back(DescribeGivenObject(s.inv[k]));
+	return JsonArray(slots);
+}
+
+std::string DescribeProfileInventory(UINT8 const id)
+{
+	MERCPROFILESTRUCT const& p = GetProfile(id);
+	std::vector<long long> items, status, number;
+	for (int k = 0; k < NUM_INV_SLOTS; ++k)
+	{
+		items.push_back(p.inv[k]);
+		status.push_back(p.bInvStatus[k]);
+		number.push_back(p.bInvNumber[k]);
+	}
+	return Json{}.nums("inv", items).nums("status", status).nums("number", number).num("money", p.uiMoney).text();
+}
+
+std::string DescribePool(INT16 const gridNo, UINT8 const level)
+{
+	std::vector<std::string> items;
+	CFOR_EACH_WORLD_ITEM(wi)
+	{
+		if (wi.sGridNo != gridNo || wi.ubLevel != level) continue;
+		items.push_back("[" + std::to_string(wi.bVisible) + "," + DescribeGivenObject(wi.o) + "]");
+	}
+	return JsonArray(items);
+}
+
+std::string ChangedBytes(std::vector<UINT8> const& before, UINT8 const* after, int count)
+{
+	std::vector<std::string> changes;
+	for (int k = 0; k < count; ++k)
+	{
+		if (before[k] != after[k]) changes.push_back("[" + std::to_string(k) + "," + std::to_string(before[k]) + "," + std::to_string(after[k]) + "]");
+	}
+	return JsonArray(changes);
+}
+
+std::string DescribeGiveHooks(std::vector<OracleGiveHook> const& hooks)
+{
+	std::vector<std::string> items;
+	for (auto const& h : hooks) items.push_back(Json{}.str("kind", h.kind).nums("args", {h.a, h.b, h.c}).text());
+	return JsonArray(items);
+}
+
+std::string PairList(Command const& c, std::string const& key, UINT8* target)
+{
+	std::vector<std::string> list;
+	for (std::string const& part : SplitList(Text(c, key, ""), ','))
+	{
+		auto const [id, value] = SplitPair(part);
+		target[std::stoi(id)] = static_cast<UINT8>(value);
+		list.push_back("[" + id + "," + std::to_string(value) + "]");
+	}
+	return JsonArray(list);
+}
+
+std::string ApplyGiveSetup(Command const& c, UINT8 const npc, UINT8 const mercProfile)
+{
+	Json setup;
+	if (Has(c, "fact")) setup.raw("facts", PairList(c, "fact", gubFact));
+	if (Has(c, "quest")) setup.raw("quests", PairList(c, "quest", gubQuest));
+	if (Has(c, "balance"))
+	{
+		GetProfile(npc).iBalance = static_cast<INT32>(Required(c, "balance"));
+		setup.num("balance", GetProfile(npc).iBalance);
+	}
+	if (Has(c, "npcdata"))
+	{
+		GetProfile(npc).bNPCData = static_cast<INT8>(Required(c, "npcdata"));
+		setup.num("npcData", GetProfile(npc).bNPCData);
+	}
+	if (Has(c, "hospital"))
+	{
+		auto const [temp, refund] = SplitPair(Text(c, "hospital", ""));
+		giHospitalTempBalance = std::stoi(temp);
+		giHospitalRefund = static_cast<INT32>(refund);
+		setup.nums("hospital", {giHospitalTempBalance, giHospitalRefund});
+	}
+	if (Has(c, "said"))
+	{
+		NPCHasUnusedRecordWithGivenApproach(npc, APPROACH_FRIENDLY);
+		NPCQuoteInfo* const quotes = const_cast<NPCQuoteInfo*>(OracleQuoteArray(npc, false));
+		if (!quotes) throw std::runtime_error("said: no record array");
+		quotes[Required(c, "said")].fFlags |= QUOTE_FLAG_SAID;
+		setup.num("said", Required(c, "said"));
+	}
+	if (Has(c, "mercsex"))
+	{
+		if (mercProfile == NO_PROFILE) throw std::runtime_error("mercsex: no merc");
+		GetProfile(mercProfile).bSex = static_cast<UINT8>(Required(c, "mercsex"));
+		setup.num("mercSex", GetProfile(mercProfile).bSex);
+	}
+	return setup.text();
+}
+
+OBJECTTYPE CreatedGiveObject(Command const& c)
+{
+	OBJECTTYPE o{};
+	if (Has(c, "money"))
+	{
+		CreateMoney(static_cast<UINT32>(Required(c, "money")), &o);
+		return o;
+	}
+	std::vector<std::string> const parts = SplitList(Text(c, "item", ""), ':');
+	if (parts.size() != 3) throw std::runtime_error("item must be <name>:<status>:<count>");
+	CreateItems(ItemArgument(parts[0]), static_cast<INT8>(std::stoi(parts[1])), static_cast<UINT8>(std::stoi(parts[2])), &o);
+	return o;
+}
+
+struct GiveTraces
+{
+	std::vector<OracleDialogueEntry> dialogue;
+	std::vector<OracleFactEntry> facts;
+	std::vector<OracleDraw> draws;
+	std::vector<long long> medical;
+	std::vector<OracleGiveHook> hooks;
+	std::vector<UINT8> factsBefore{gubFact, gubFact + NUM_FACTS};
+	std::vector<UINT8> questsBefore{gubQuest, gubQuest + MAX_QUESTS};
+
+	void start()
+	{
+		gOracleDialogueTrace = &dialogue;
+		gOracleFactTrace = &facts;
+		gOracleMedicalCosts = &medical;
+		gOracleGiveHooks = &hooks;
+		OracleTraceRandom(&draws);
+	}
+
+	void stop()
+	{
+		OracleTraceRandom(nullptr);
+		gOracleGiveHooks = nullptr;
+		gOracleMedicalCosts = nullptr;
+		gOracleFactTrace = nullptr;
+		gOracleDialogueTrace = nullptr;
+	}
+
+	Json& emit(Json& json) const
+	{
+		return json.raw("queue", DescribeDialogueTrace(dialogue))
+			.raw("facts", DescribeFactTrace(facts))
+			.raw("draws", DescribeDraws(draws))
+			.nums("medical", medical)
+			.raw("hooks", DescribeGiveHooks(hooks))
+			.raw("factChanges", ChangedBytes(factsBefore, gubFact, NUM_FACTS))
+			.raw("questChanges", ChangedBytes(questsBefore, gubQuest, MAX_QUESTS))
+			.nums("hospital", {giHospitalTempBalance, giHospitalRefund});
+	}
+};
+
+std::string TakeCursor()
+{
+	if (!gpItemPointer) return "null";
+	std::string const cursor = DescribeGivenObject(*gpItemPointer);
+	gpItemPointer = NULL;
+	return cursor;
+}
+
+void ProbeReceive(Command const& c)
+{
+	UINT8 const npc = static_cast<UINT8>(Required(c, "npc"));
+	SOLDIERTYPE* const merc = Has(c, "merc") ? &GetMan(static_cast<SoldierID>(Required(c, "merc"))) : nullptr;
+	UINT8 const mercProfile = merc ? merc->ubProfile : NO_PROFILE;
+	std::string const setup = ApplyGiveSetup(c, npc, mercProfile);
+	OBJECTTYPE const o = CreatedGiveObject(c);
+	UINT32 const costBefore = GetProfile(npc).uiTotalCostToDate;
+	UINT32 const frankBefore = gArmsDealerStatus[ARMS_DEALER_FRANK].uiArmsDealersCash;
+	ResetTalkProbe();
+	GiveTraces traces;
+	traces.start();
+	INT32 index = 0;
+	INT32 record = 0;
+	UINT8 const opinion = OracleNPCConsiderReceivingItemFromMerc(npc, mercProfile, &o, &index, &record);
+	traces.stop();
+	Json json;
+	json.str("probe", "receive").num("line", c.line).num("npc", npc).num("merc", merc ? merc->ubID : -1).raw("object", DescribeGivenObject(o))
+		.raw("setup", setup).num("index", index).num("record", record).num("opinion", opinion);
+	traces.emit(json)
+		.num("totalCost", static_cast<long long>(GetProfile(npc).uiTotalCostToDate) - costBefore)
+		.num("frankCash", static_cast<long long>(gArmsDealerStatus[ARMS_DEALER_FRANK].uiArmsDealersCash) - frankBefore)
+		.raw("after", DescribeNpcProfile(npc));
+	Emit(json);
+	ResetTalkProbe();
+}
+
+OBJECTTYPE PickedGiveObject(Command const& c, SOLDIERTYPE* const giver, INT8* const slot)
+{
+	OBJECTTYPE o{};
+	if (Has(c, "money"))
+	{
+		UINT32 const amount = static_cast<UINT32>(Required(c, "money"));
+		INT8 pocket = static_cast<INT8>(Integer(c, "pocket", -1));
+		for (INT8 k = 0; pocket < 0 && k < NUM_INV_SLOTS; ++k)
+		{
+			if (giver->inv[k].usItem == MONEY && giver->inv[k].uiMoneyAmount >= amount) pocket = k;
+		}
+		if (pocket < 0 || giver->inv[pocket].usItem != MONEY || giver->inv[pocket].uiMoneyAmount < amount) throw std::runtime_error("no pocket with that much money");
+		giver->inv[pocket].uiMoneyAmount -= amount;
+		if (giver->inv[pocket].uiMoneyAmount == 0) giver->inv[pocket] = OBJECTTYPE{};
+		CreateMoney(amount, &o);
+		*slot = NO_SLOT;
+		return o;
+	}
+	*slot = static_cast<INT8>(Required(c, "slot"));
+	OBJECTTYPE cursor{};
+	if (Integer(c, "count", 0) == 1) GetObjFrom(&giver->inv[*slot], 0, &cursor);
+	else RemoveObjectFromSlot(giver, *slot, &cursor);
+	o = cursor;
+	PlaceObject(giver, *slot, &cursor);
+	return o;
+}
+
+void ProbeGive(Command const& c)
+{
+	SOLDIERTYPE* const giver = &GetMan(static_cast<SoldierID>(Required(c, "who")));
+	SOLDIERTYPE* const target = Has(c, "tonpc") ? FindSoldierByProfileID(static_cast<UINT8>(Required(c, "tonpc"))) : &GetMan(static_cast<SoldierID>(Required(c, "to")));
+	if (!target) throw std::runtime_error("give: no such target");
+	std::string const setup = ApplyGiveSetup(c, target->ubProfile, giver->ubProfile);
+	std::vector<long long> cash;
+	if (Has(c, "cash"))
+	{
+		auto const [pocket, amount] = SplitPair(Text(c, "cash", ""));
+		CreateMoney(static_cast<UINT32>(amount), &giver->inv[std::stoi(pocket)]);
+		cash = {std::stoi(pocket), amount};
+	}
+	INT8 slot = NO_SLOT;
+	OBJECTTYPE const o = PickedGiveObject(c, giver, &slot);
+	giver->bPendingActionData5 = slot;
+	giver->sPendingActionData2 = target->sGridNo;
+	giver->uiPendingActionData4 = target->ubID;
+	SetTempObject(giver, o);
+	INT16 const apBefore = giver->bActionPoints;
+	ResetTalkProbe();
+	GiveTraces traces;
+	traces.start();
+	gOracleGiveActive = true;
+	SoldierGiveItemFromAnimation(giver);
+	if (giver->ubProfile != NO_PROFILE && MercProfile(giver->ubProfile).isNPC()) TriggerNPCWithGivenApproach(giver->ubProfile, APPROACH_DONE_GIVING_ITEM);
+	gOracleGiveActive = false;
+	traces.stop();
+	bool const engaged = (gTacticalStatus.uiFlags & ENGAGED_IN_CONV) != 0;
+	NPCQuoteInfo const* const quotes = target->ubProfile != NO_PROFILE ? OracleQuoteArray(target->ubProfile, false) : nullptr;
+	std::vector<long long> flags;
+	for (int i = 0; quotes && i < NUM_NPC_QUOTE_RECORDS; ++i) flags.push_back(quotes[i].fFlags);
+	Json json;
+	json.str("probe", "give").num("line", c.line).num("who", giver->ubID).num("to", target->ubID).num("slot", slot)
+		.raw("object", DescribeGivenObject(o)).raw("setup", setup).nums("cash", cash).num("day", GetWorldDay());
+	traces.emit(json)
+		.nums("flags", flags)
+		.flag("engaged", engaged)
+		.num("references", giNPCReferenceCount)
+		.num("ap", apBefore - giver->bActionPoints)
+		.flag("giverEngaged", (giver->uiStatusFlags & SOLDIER_ENGAGEDINACTION) != 0)
+		.flag("targetEngaged", (target->uiStatusFlags & SOLDIER_ENGAGEDINACTION) != 0)
+		.raw("giverInv", DescribeSoldierInventory(*giver))
+		.raw("targetInv", DescribeSoldierInventory(*target))
+		.raw("giverPool", DescribePool(giver->sGridNo, giver->bLevel))
+		.raw("cursor", TakeCursor())
+		.raw("targetProfile", target->ubProfile != NO_PROFILE ? DescribeNpcProfile(target->ubProfile) : "null")
+		.raw("targetProfileInv", target->ubProfile != NO_PROFILE ? DescribeProfileInventory(target->ubProfile) : "null");
+	Emit(json);
+	giver->uiStatusFlags &= ~SOLDIER_ENGAGEDINACTION;
+	target->uiStatusFlags &= ~SOLDIER_ENGAGEDINACTION;
+	ResetTalkProbe();
+}
+
+void ProbeNpcGive(Command const& c)
+{
+	UINT8 const npc = static_cast<UINT8>(Required(c, "npc"));
+	SOLDIERTYPE* const npcSoldier = FindSoldierByProfileID(npc);
+	if (!npcSoldier) throw std::runtime_error("npcgive: the NPC has no soldier in the loaded sector");
+	SOLDIERTYPE* const merc = Has(c, "merc") ? &GetMan(static_cast<SoldierID>(Required(c, "merc"))) : nullptr;
+	INT8 const slot = static_cast<INT8>(Required(c, "slot"));
+	if (Has(c, "item")) CreateItems(ItemArgument(Text(c, "item", "")), 100, 1, &npcSoldier->inv[slot]);
+	ResetTalkProbe();
+	gTalkPanel.ubCharNum = npc;
+	gpSrcSoldier = merc;
+	gpDestSoldier = npcSoldier;
+	gubSrcSoldierProfile = merc ? merc->ubProfile : NO_PROFILE;
+	GiveTraces traces;
+	traces.start();
+	HandleNPCItemGiven(npc, &npcSoldier->inv[slot], slot);
+	traces.stop();
+	bool const pending = npcSoldier->ubPendingAction == MERC_GIVEITEM || npcSoldier->pTempObject != nullptr;
+	Json json;
+	json.str("probe", "npcgive").num("line", c.line).num("npc", npc).num("merc", merc ? merc->ubID : -1).num("slot", slot);
+	traces.emit(json)
+		.flag("panel", gfInTalkPanel != FALSE)
+		.flag("pending", pending)
+		.nums("pendingData", {npcSoldier->bPendingActionData5, npcSoldier->sPendingActionData2, npcSoldier->bPendingActionData3,
+			static_cast<long long>(npcSoldier->uiPendingActionData4)})
+		.raw("temp", npcSoldier->pTempObject ? DescribeGivenObject(*npcSoldier->pTempObject) : "null")
+		.raw("npcInv", DescribeSoldierInventory(*npcSoldier))
+		.raw("npcPool", DescribePool(npcSoldier->sGridNo, 0));
+	Emit(json);
+	if (pending)
+	{
+		EVENT_StopMerc(npcSoldier);
+		ClearTempObject(npcSoldier);
+		Soldier{npcSoldier}.removePendingAction();
+	}
+	npcSoldier->uiStatusFlags &= ~SOLDIER_ENGAGEDINACTION;
+	if (merc) merc->uiStatusFlags &= ~SOLDIER_ENGAGEDINACTION;
+	ResetTalkProbe();
+}
+
+INT32 AddProbeBomb(UINT16 const item, INT16 const gridNo, UINT8 const level, INT8 const detonator, INT8 const frequency, UINT8 const owner, UINT8 const action)
+{
+	OBJECTTYPE o{};
+	CreateItem(item, 100, &o);
+	o.bDetonatorType = detonator;
+	o.bFrequency = frequency;
+	o.ubBombOwner = owner;
+	o.bActionValue = action;
+	if (item == ACTION_ITEM) o.fFlags |= OBJECT_ARMED_BOMB;
+	return AddItemToPool(gridNo, &o, BURIED, level, WORLD_ITEM_ARMED_BOMB, 0);
+}
+
+void ProbeActionItem(Command const& c)
+{
+	SOLDIERTYPE* const merc = &GetMan(static_cast<SoldierID>(Required(c, "who")));
+	UINT8 const action = static_cast<UINT8>(Required(c, "action"));
+	INT8 const detonator = static_cast<INT8>(Integer(c, "det", BOMB_PRESSURE));
+	INT8 const frequency = static_cast<INT8>(Integer(c, "freq", 0));
+	UINT8 const owner = static_cast<UINT8>(Integer(c, "owner", 1));
+	bool const viaSwitch = Integer(c, "switch", 0) != 0;
+	INT16 const at = static_cast<INT16>(Integer(c, "at", merc->sGridNo));
+	std::vector<INT32> added;
+	if (viaSwitch)
+	{
+		added.push_back(AddProbeBomb(SWITCH, merc->sGridNo, merc->bLevel, BOMB_PRESSURE, frequency, owner, 0));
+		added.push_back(AddProbeBomb(ACTION_ITEM, at, merc->bLevel, BOMB_REMOTE, frequency, owner, action));
+	}
+	else
+	{
+		added.push_back(AddProbeBomb(ACTION_ITEM, at, merc->bLevel, detonator, frequency, owner, action));
+	}
+	std::vector<long long> const groupsBefore(gTacticalStatus.fCivGroupHostile, gTacticalStatus.fCivGroupHostile + NUM_CIV_GROUPS);
+	ResetTalkProbe();
+	GiveTraces traces;
+	traces.start();
+	SetOffBombsInGridNo(merc, merc->sGridNo, FALSE, merc->bLevel);
+	long long const queued = gubElementsOnExplosionQueue;
+	bool const disallowBefore = (gTacticalStatus.uiFlags & DISALLOW_SIGHT) != 0;
+	HandleExplosionQueue();
+	traces.stop();
+	std::vector<long long> const groups(gTacticalStatus.fCivGroupHostile, gTacticalStatus.fCivGroupHostile + NUM_CIV_GROUPS);
+	std::vector<std::string> civs;
+	FOR_EACH_IN_TEAM(s, CIV_TEAM)
+	{
+		civs.push_back("[" + std::to_string(s->ubID) + "," + std::to_string(s->bNeutral ? 1 : 0) + "," + std::to_string(static_cast<int>(s->bSide)) + "]");
+	}
+	Json json;
+	json.str("probe", "actionitem").num("line", c.line).num("who", merc->ubID).num("action", action).num("det", detonator).num("freq", frequency)
+		.num("owner", owner).flag("viaSwitch", viaSwitch).num("at", at).num("queued", queued).flag("disallowBefore", disallowBefore)
+		.flag("disallowAfter", (gTacticalStatus.uiFlags & DISALLOW_SIGHT) != 0).flag("active", gfExplosionQueueActive != FALSE)
+		.nums("groupsBefore", groupsBefore).nums("groups", groups).flag("inCombat", (gTacticalStatus.uiFlags & INCOMBAT) != 0)
+		.num("team", gTacticalStatus.ubCurrentTeam).raw("civs", JsonArray(civs)).num("gridNo", merc->sGridNo);
+	traces.emit(json);
+	Emit(json);
+	for (INT32 const idx : added) RemoveItemFromPool(GetWorldItem(idx));
+	ResetTalkProbe();
+}
+}
+
 namespace {
 std::vector<long long> NarrativeProfileIds(Command const& c)
 {
@@ -6215,6 +6652,10 @@ void Dispatch(Command const& c)
 	if (c.name == "consider") return ProbeConsider(c);
 	if (c.name == "talk") return ProbeTalk(c);
 	if (c.name == "questdecode") return ProbeQuestDecode(c);
+	if (c.name == "receive") return ProbeReceive(c);
+	if (c.name == "give") return ProbeGive(c);
+	if (c.name == "npcgive") return ProbeNpcGive(c);
+	if (c.name == "actionitem") return ProbeActionItem(c);
 	if (c.name == "narrative") return DumpNarrative(c);
 	if (c.name == "setquest") return SetQuestState(c);
 	if (c.name == "setnpcprofile") return SetNarrativeProfile(c);

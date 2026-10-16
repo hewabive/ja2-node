@@ -45,6 +45,7 @@ import { CREATURE_PROBES, CreatureComparer } from './creature-compare.ts';
 import { DOOR_PROBES, DoorComparer } from './doors-compare.ts';
 import { ECONOMY_PROBES, EconomyComparer } from './economy-compare.ts';
 import { FACT_PROBES, FactComparer } from './facts-compare.ts';
+import { GIVE_PROBES, GiveComparer } from './give-compare.ts';
 import { HELI_PROBES, HeliComparer } from './heli-compare.ts';
 import { LAPTOP_PROBES, LaptopComparer } from './laptop-compare.ts';
 import { MERCHANT_PROBES, MerchantComparer } from './merchant-compare.ts';
@@ -581,6 +582,7 @@ for (const file of files) {
   const doors = new DoorComparer(read, exists);
   const heli = new HeliComparer(read, exists);
   const talk = new TalkComparer(read, exists, (path) => data.vfs.layerCount(path));
+  const give = new GiveComparer(read, exists, (path) => data.vfs.layerCount(path));
   const facts = new FactComparer(read, exists);
   const actions = new ActionComparer(read, exists);
   const schedules = new ScheduleComparer(read, exists, savesDir(dataDir));
@@ -609,6 +611,7 @@ for (const file of files) {
       if (ctx.bytes) doors.loadSave(ctx.bytes);
       if (ctx.bytes) heli.loadSave(ctx.bytes);
       if (ctx.bytes) talk.loadSave(ctx.bytes);
+      if (ctx.bytes) give.loadSave(ctx.bytes);
       if (ctx.bytes) facts.loadSave(ctx.bytes);
       if (ctx.bytes) actions.loadSave(ctx.bytes);
     } else if (p.probe === 'end') continue;
@@ -631,6 +634,7 @@ for (const file of files) {
     else if (DOOR_PROBES.has(String(p.probe))) failures += await doors.compare(p);
     else if (HELI_PROBES.has(String(p.probe))) failures += await heli.compare(p);
     else if (TALK_PROBES.has(String(p.probe))) failures += await talk.compare(p);
+    else if (GIVE_PROBES.has(String(p.probe))) failures += await give.compare(p);
     else if (FACT_PROBES.has(String(p.probe))) failures += await facts.compare(p);
     else if (ACTION_PROBES.has(String(p.probe))) failures += await actions.compare(p);
     else if (SCHEDULE_PROBES.has(String(p.probe))) failures += await schedules.compare(p);

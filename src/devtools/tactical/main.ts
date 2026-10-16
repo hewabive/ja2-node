@@ -221,7 +221,7 @@ function render(): void {
   doorPanel.update(client?.doors ?? [], openDoors);
   debug.doorResult = doorPanel.result;
   tradeButton.disabled = !!client?.shop || !nearestMerchant(soldiers(), sel);
-  talkPanel.update(client?.conversation ?? null, client?.scriptedSequence ?? false, client?.npcRequest ?? null);
+  talkPanel.update(client?.conversation ?? null, client?.scriptedSequence ?? false, client?.npcRequest ?? null, soldiers());
   debug.talkOpen = talkPanel.open;
   debug.talkResult = talkPanel.result;
   talkButton.disabled = talkPanel.open || !nearestTalkable(soldiers(), sel);

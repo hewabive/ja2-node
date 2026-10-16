@@ -346,6 +346,8 @@ export interface Soldier {
   pendingDoorAction: PendingDoorAction | null;
   pendingTalk: number | null;
   uiMovementFast: boolean;
+  pendingGive: PendingGive | null;
+  engagedInAction: boolean;
   keyRing: KeyOnRing[] | null;
   breathCollapsed: boolean;
   collapsed: boolean;
@@ -479,6 +481,14 @@ export interface Soldier {
   walkToAttackCost: number;
   pendingMelee: PendingMelee | null;
   pendingActionData4: number;
+}
+
+export interface PendingGive {
+  readonly slot: number;
+  readonly targetGridNo: number;
+  readonly direction: number;
+  readonly target: number;
+  begun: boolean;
 }
 
 export interface PendingPickup {
@@ -617,6 +627,8 @@ export function createSoldier(init: SoldierInit): Soldier {
     pendingDoorAction: null,
     pendingTalk: null,
     uiMovementFast: false,
+    pendingGive: null,
+    engagedInAction: false,
     keyRing: init.team === Team.OUR ? newKeyRing() : null,
     breathCollapsed: false,
     collapsed: false,

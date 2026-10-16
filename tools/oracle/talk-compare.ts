@@ -26,7 +26,7 @@ const NO_ARRAY = -2;
 const NOT_FOUND = -1;
 const TRIGGER_NPC = 10;
 
-function report(label: string, same: boolean, detail: string): number {
+export function report(label: string, same: boolean, detail: string): number {
   console.log(`${label}: ${same ? 'ok' : 'MISMATCH'} ${detail}`);
   return same ? 0 : 1;
 }
@@ -59,7 +59,7 @@ function arrayFields(records: readonly NpcRecord[] | null): number[][] | null {
   return records ? records.map(recordFields) : null;
 }
 
-function profileFields(id: number, p: ProfileProgress | null): Json {
+export function profileFields(id: number, p: ProfileProgress | null): Json {
   if (!p) return { profile: id };
   return {
     profile: id,
@@ -88,7 +88,7 @@ function profileFields(id: number, p: ProfileProgress | null): Json {
   };
 }
 
-function diffJson(ours: Json, native: Json): string[] {
+export function diffJson(ours: Json, native: Json): string[] {
   const out: string[] = [];
   for (const key of Object.keys(native)) {
     const a = JSON.stringify(ours[key]);
@@ -98,7 +98,7 @@ function diffJson(ours: Json, native: Json): string[] {
   return out;
 }
 
-class FactReplay implements FactSource {
+export class FactReplay implements FactSource {
   readonly #entries: readonly FactEntry[];
   readonly #store: (fact: number, value: boolean) => void;
   #at = 0;
@@ -127,7 +127,7 @@ class FactReplay implements FactSource {
   }
 }
 
-class DrawReplay {
+export class DrawReplay {
   readonly #draws: readonly Draw[];
   #at = 0;
   readonly problems: string[] = [];
@@ -151,7 +151,7 @@ class DrawReplay {
   }
 }
 
-function queueEntry(e: DialogueEvent): Json {
+export function queueEntry(e: DialogueEvent): Json {
   switch (e.kind) {
     case 'quote':
       return e.npcUi ? { kind: 'quote', args: [e.speaker, e.quote, 0, 0] } : { kind: 'merc', args: [e.speaker, e.quote, 0, 0] };

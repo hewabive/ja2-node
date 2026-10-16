@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Handle_Items.cc SoldierPickupItem, HandleSoldierPickupItem, SoldierGetItemFromWorld,
 // @src HandleAutoPlaceFail, ItemPoolOKForPickup, SoldierDropItem, SoldierHandleDropItem, AdjustGridNoForItemPlacement;
 // @src Soldier_Control.cc PickPickupAnimation, PickDropItemAnimation; Soldier_Ani.cc codes 487, 493;
-// @src externalized/Soldier.cc handlePendingAction (MERC_PICKUPITEM). See docs/12 §6.5–§6.6.
+// @src externalized/Soldier.cc handlePendingAction (MERC_PICKUPITEM); Soldier_Ani.cc code 486 (give, docs/24 §4.1).
+// @src See docs/12 §6.5–§6.6.
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { DIRECTION_INCREMENT, newGridNo } from '../../content/world/grid.ts';
@@ -14,6 +15,7 @@ import { anim } from './anim-states.ts';
 import { AnimHeight, height, initNewSoldierAnim, soldierGotoStationaryStance } from './animation.ts';
 import { StatCause, statChange } from './combat/experience.ts';
 import { DIRECTION_COUNT } from './directions.ts';
+import { giveItemOpcode } from './give.ts';
 import { autoPlaceObject } from './inventory.ts';
 import { directionToward, getNewSoldierPath } from './movement.ts';
 import { findBestPath, isWater, newOKDestination, PathCopy } from './pathfinding.ts';
@@ -172,6 +174,10 @@ function soldierHandleDropItem(t: TacticalState, s: Soldier): void {
 }
 
 export function itemOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome | null {
+  if (code === Code.GIVE_ITEM) {
+    giveItemOpcode(t, s);
+    return 'continue';
+  }
   if (code === Code.DROP_ITEM) {
     soldierHandleDropItem(t, s);
     return 'continue';
