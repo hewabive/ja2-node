@@ -1,6 +1,7 @@
 import type { MercProfile } from '../content/formats/prof.ts';
 import { loadArmyContent } from '../content/strategic/army.ts';
 import { loadEconomyContent } from '../content/strategic/economy-content.ts';
+import { loadMerchantContent } from '../content/strategic/merchant-content.ts';
 import { loadStrategicContent } from '../content/strategic/strategic-content.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import { CampaignSim } from '../sim/campaign/campaign-sim.ts';
@@ -69,6 +70,7 @@ export async function createCampaignSession(
     loadArmyContent(read),
   ]);
   const economyContent = await loadEconomyContent(read, strategicContent.towns);
+  const merchantContent = await loadMerchantContent(read, content.items);
   const state = createStrategicState({
     seed,
     ...(request.difficulty !== undefined ? { options: { difficulty: request.difficulty } } : {}),
@@ -81,6 +83,7 @@ export async function createCampaignSession(
     economy: { economy: economyContent, items: content.items, crew: roster },
     queen: { army },
     sectors: { worlds, content, roster },
+    merchants: { content: merchantContent, items: content.items },
   });
   initNewGame(campaign);
   for (const recruit of squadRecruits(content, request, state.options.gunNut)) {

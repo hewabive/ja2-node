@@ -12,6 +12,7 @@ import {
   type StrategicStatus,
 } from './ai/queen-state.ts';
 import { type CreatureState, createCreatureState } from './creatures/creatures.ts';
+import { createMerchantState, type MerchantState } from './economy/merchants/state.ts';
 import { createEconomyState, type EconomyState } from './economy/state.ts';
 import { type BattleState, createBattleState } from './forces/battle-state.ts';
 import { createEncounterState, createMovementFlowState, type EncounterState, type MovementFlowState } from './forces/flow-state.ts';
@@ -55,6 +56,7 @@ export interface StrategicState {
   readonly sectorDiffs: Map<string, SectorDiff>;
   readonly teamMorale: TeamMoraleState;
   readonly creatures: CreatureState;
+  readonly merchants: MerchantState;
 }
 
 export interface GameOptions {
@@ -107,5 +109,6 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     sectorDiffs: new Map(),
     teamMorale: createTeamMoraleState(),
     creatures: createCreatureState(),
+    merchants: createMerchantState(),
   };
 }

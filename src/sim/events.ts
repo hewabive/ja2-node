@@ -1,3 +1,5 @@
+import type { ShopEvent } from './strategic/economy/merchants/events.ts';
+
 export interface SimEventBase {
   readonly tick: number;
 }
@@ -392,5 +394,6 @@ export type SimEvent =
   | CompressionStartedEvent
   | CompressionStoppedEvent
   | WorldTimeReachedEvent
-  | DayStartedEvent;
+  | DayStartedEvent
+  | ShopEvent;
 export type SimEventType = SimEvent['type'];

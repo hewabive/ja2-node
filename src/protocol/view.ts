@@ -1,3 +1,7 @@
+import type { ShopView } from '../sim/strategic/economy/merchants/view.ts';
+
+export type { ShopBoxView, ShopEta, ShopKind, ShopView } from '../sim/strategic/economy/merchants/view.ts';
+
 export interface SoldierView {
   readonly id: number;
   readonly team: number;
@@ -16,6 +20,7 @@ export interface SoldierView {
   readonly life?: number;
   readonly lifeMax?: number;
   readonly breath?: number;
+  readonly merchant?: string;
 }
 
 export interface ItemView {
@@ -171,6 +176,7 @@ export interface PlayerView {
   readonly strategic?: StrategicView;
   readonly prompt?: PromptView | null;
   readonly autoresolve?: AutoresolveView | null;
+  readonly shop?: ShopView | null;
   readonly soldiers: readonly SoldierView[];
   readonly openDoors?: readonly number[];
   readonly combat?: CombatView | null;
@@ -187,6 +193,7 @@ export interface ViewFrame {
   readonly strategic?: StrategicView;
   readonly prompt?: PromptView | null;
   readonly autoresolve?: AutoresolveView | null;
+  readonly shop?: ShopView | null;
   readonly openDoors?: readonly number[];
   readonly combat?: CombatView | null;
   readonly revealedRooms?: readonly number[];
@@ -232,6 +239,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), prompt: next.prompt ?? null };
   if (JSON.stringify(previous.autoresolve ?? null) !== JSON.stringify(next.autoresolve ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), autoresolve: next.autoresolve ?? null };
+  if (JSON.stringify(previous.shop ?? null) !== JSON.stringify(next.shop ?? null))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), shop: next.shop ?? null };
   return frame;
 }
 
@@ -254,7 +263,8 @@ function sameSoldier(a: SoldierView, b: SoldierView): boolean {
     a.ap === b.ap &&
     a.life === b.life &&
     a.lifeMax === b.lifeMax &&
-    a.breath === b.breath
+    a.breath === b.breath &&
+    a.merchant === b.merchant
   );
 }
 

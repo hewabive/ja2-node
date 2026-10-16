@@ -1,0 +1,179 @@
+# Merchants: dealer initialisation, daily restocks, prices, repairs and the shopkeeper entry (docs/23 §16.4).
+# Dealer ids: 0 Tony, 1 Franz, 2 Keith, 3 Jake, 4 Gabby, 5 Devin, 6 Howard, 7 Sam, 8 Frank, 13 Micky,
+# 14 Arnie, 15 Fredo, 16 Perko, 17 Elgin, 18 Manny. Profiles: 44 Flo (weapon sale modifier 110), 7 Ivan.
+
+# A fresh process reads progress 0.
+dealers
+dealerinit
+dealerdaily count=6
+ski dealer=0 merc=7
+ski dealer=0 merc=44
+ski dealer=1 merc=7
+ski dealer=2 merc=7
+ski dealer=3 merc=7
+ski dealer=4 merc=7
+ski dealer=5 merc=7
+ski dealer=6 merc=7
+ski dealer=7 merc=7
+ski dealer=8 merc=7
+ski dealer=17 merc=7
+
+# Coolness windows for Tony and Devin.
+progress highest=35
+dealerinit
+dealerdaily count=3
+progress highest=70
+dealerinit
+dealerdaily count=3
+progress highest=100
+dealerinit
+dealerdaily count=2
+
+# Gun nut: big-gun-list items become legal.
+options gunnut=1
+progress highest=50
+dealerinit
+dealerdaily count=3
+options gunnut=0
+
+# Estoni refuelling: Jake gets gas at once, then daily.
+progress highest=0
+dealerinit
+fact id=277 value=1
+dealers
+dealerdaily count=4
+fact id=277 value=0
+
+# Prices: dealer selling and buying, condition, class rules, Flo, stacks and attachments.
+dealerprice dealer=0 item=GLOCK_17 status=100 merc=7
+dealerprice dealer=0 item=GLOCK_17 status=50 ammo=CLIP9_15:15 merc=7
+dealerprice dealer=0 item=GLOCK_17 status=50 ammo=CLIP9_15:15 merc=44
+dealerprice dealer=0 item=GLOCK_17 status=100 ammo=CLIP9_15:0 merc=44
+dealerprice dealer=0 item=CLIP9_15 count=3 merc=44
+dealerprice dealer=0 item=CLIP9_15 count=8 merc=44
+dealerprice dealer=0 item=CLIP9_15 count=9 merc=44
+dealerprice dealer=0 item=CLIP9_15 count=12 merc=7
+dealerprice dealer=0 item=CLIP9_15 status=7 merc=7
+dealerprice dealer=0 item=M14 status=79 attach=SNIPERSCOPE:90,BIPOD:60 merc=7
+dealerprice dealer=0 item=M14 status=79 attach=SNIPERSCOPE:90,BIPOD:60 merc=44
+dealerprice dealer=0 item=GLAUNCHER status=90 merc=44
+dealerprice dealer=0 item=COMBAT_KNIFE status=95 merc=44
+dealerprice dealer=0 item=ROCKET_RIFLE status=100 imprint=7 merc=7
+dealerprice dealer=0 item=FLAK_JACKET status=80 merc=7
+dealerprice dealer=2 item=FLAK_JACKET status=80 merc=7
+dealerprice dealer=2 item=FLAK_JACKET status=20 merc=7
+dealerprice dealer=2 item=GLOCK_17 status=100 merc=7
+dealerprice dealer=2 item=CANTEEN status=100 merc=7
+dealerprice dealer=2 item=VIDEO_CAMERA status=70 merc=7
+dealerprice dealer=3 item=GAS_CAN status=100 merc=7
+dealerprice dealer=3 item=GLOCK_17 status=60 merc=7
+dealerprice dealer=3 item=M14 status=60 merc=7
+dealerprice dealer=3 item=BEER status=100 count=4 merc=7
+dealerprice dealer=3 item=JAR status=100 merc=7
+dealerprice dealer=3 item=CREATURE_PART_CLAWS status=100 merc=7
+dealerprice dealer=3 item=TSHIRT status=1 merc=7
+dealerprice dealer=1 item=VIDEO_CAMERA status=100 merc=7
+dealerprice dealer=1 item=CANTEEN status=100 merc=7
+dealerprice dealer=1 item=KEVLAR_VEST status=55 merc=7
+dealerprice dealer=1 item=M14 status=90 merc=44
+dealerprice dealer=1 item=GOLDWATCH status=100 merc=7
+dealerprice dealer=4 item=JAR_ELIXIR status=100 merc=7
+dealerprice dealer=4 item=CREATURE_PART_CLAWS status=100 merc=7
+dealerprice dealer=13 item=CREATURE_PART_FLESH status=100 merc=7
+dealerprice dealer=13 item=BLOODCAT_PELT status=100 merc=44
+dealerprice dealer=8 item=BEER status=100 merc=7
+dealerprice dealer=7 item=JAR status=100 merc=7
+dealerprice dealer=5 item=TNT status=100 merc=44
+fact id=273 value=1
+dealerprice dealer=2 item=GLOCK_17 status=100 merc=7
+dealerprice dealer=2 item=GLOCK_17 status=40 ammo=CLIP9_15:7 merc=44
+fact id=273 value=0
+
+# Selling to a dealer: guns keep their attachments and lose the detachable ones as separate items, bullets become
+# magazines and strays, stacks are split member by member.
+progress highest=0
+dealerinit
+dealersell dealer=0 item=M14 status=79 imprint=7 attach=SNIPERSCOPE:90,SPRING_AND_BOLT_UPGRADE:100
+dealersell dealer=0 item=GLOCK_17 status=100 ammo=CLIP9_15:7
+dealersell dealer=0 item=GLOCK_17 status=100 ammo=CLIP9_15:9
+dealersell dealer=0 item=CLIP9_15 count=3 statuses=15,10,7
+dealersell dealer=0 item=CLIP9_15 count=2 statuses=13,13
+dealersell dealer=2 item=FIRSTAIDKIT count=3 statuses=100,50,100
+dealersell dealer=2 item=GLAUNCHER status=90
+dealersell dealer=1 item=VIDEO_CAMERA status=70
+dealersell dealer=1 item=KEVLAR_VEST status=100 attach=CERAMIC_PLATES:60
+dealersell dealer=13 item=CREATURE_PART_CLAWS status=100
+
+# Repairs: cost and time, overnight delays and closed minutes with and without shop hours.
+dealerrepair dealer=16 item=GLOCK_17 status=50 start=600 ks=60,600
+dealerrepair dealer=14 item=GLOCK_17 status=50 start=600 ks=60
+dealerrepair dealer=15 item=ROCKET_RIFLE status=100 start=600 ks=60
+dealerrepair dealer=15 item=VIDEO_CAMERA status=30 start=600 ks=60
+dealerrepair dealer=16 item=VIDEO_CAMERA status=30 start=600 ks=60
+dealerrepair dealer=16 item=FLAK_JACKET status=99 start=600 ks=60
+dealerrepair dealer=16 item=M14 status=10 attach=SNIPERSCOPE:40,BIPOD:20 start=600 ks=60
+dealerrepair dealer=14 item=SPECTRA_VEST status=5 start=600 ks=60
+shophours open=480 close=1200
+dealerrepair dealer=16 item=GLOCK_17 status=50 start=600 ks=0,60,600,800,1440,1500,2880,3000,4320
+dealerrepair dealer=16 item=GLOCK_17 status=50 start=1170 ks=0,30,270,1440
+dealerrepair dealer=16 item=GLOCK_17 status=50 start=1260 ks=180,1380,1440
+dealerrepair dealer=16 item=GLOCK_17 status=50 start=300 ks=180,1140
+dealerrepair dealer=16 item=M14 status=10 start=1000 ks=440,1880
+dealerrepair dealer=16 item=SPECTRA_VEST status=5 start=2000 ks=1,2880,5000
+dealerrepair dealer=14 item=SPECTRA_VEST status=5 start=1100 ks=100,340
+dealerrepair dealer=16 item=GLOCK_17 status=50 start=1440 ks=1440,2880
+shophours off
+
+# Repair queue, collection and the delay excuse (shop hours from the override, no dealer soldier needed).
+progress highest=0
+dealerinit
+shophours open=480 close=1200
+skiptime seconds=36000
+dealergive dealer=16 item=GLOCK_17 status=50 owner=7
+dealergive dealer=16 item=M14 status=40 attach=SNIPERSCOPE:50 owner=44
+dealergive dealer=16 item=FLAK_JACKET status=30 owner=7
+ski dealer=16 merc=7
+skiptime seconds=3600
+ski dealer=16 merc=7
+skiptime seconds=90000
+ski dealer=16 merc=7
+dealergive dealer=15 item=ROCKET_RIFLE status=100 imprint=7 owner=7
+dealergive dealer=15 item=VIDEO_CAMERA status=20 owner=44
+dealergive dealer=14 item=GLOCK_17 status=10 owner=7
+dealergive dealer=14 item=SPECTRA_VEST status=50 owner=44
+ski dealer=14 merc=7
+skiptime seconds=21600
+ski dealer=15 merc=7
+ski dealer=14 merc=7
+skiptime seconds=86400
+ski dealer=15 merc=7
+ski dealer=14 merc=7
+dealergive dealer=16 item=GLOCK_17 status=20 owner=7
+skiptime seconds=172800
+ski dealer=16 merc=7
+dealergive dealer=16 item=BERETTA_92F status=30 owner=7
+dealergive dealer=16 item=FLAK_JACKET status=60 owner=44
+skiptime seconds=200000
+ski dealer=16 merc=7
+shophours off
+
+# Saves: section 23 imported, 30 days of restocks from SaveGame10, shop entry on a saved inventory.
+save SaveGame01
+dealers
+ski dealer=0 merc=7
+save SaveGame02
+dealers
+save SaveGame07
+dealers
+save SaveGame08
+dealers
+save SaveGame09
+dealers
+ski dealer=3 merc=44
+save SaveGame10
+dealers
+ski dealer=0 merc=44
+ski dealer=1 merc=7
+dealerdaily count=30
+ski dealer=0 merc=7
+ski dealer=4 merc=7

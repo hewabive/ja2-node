@@ -173,8 +173,11 @@ Per (dealer, item): `perfect` identical items at condition 100 (a counter) plus 
 forgotten) + loaded bullets through `AddAmmoToArmsDealerInventory` (if `usGunAmmoItem` is `IC_AMMO` and shots > 0) or the
 launchable payload as an item with `|bGunAmmoStatus|` (default info otherwise); ammo → each magazine's rounds through
 `AddAmmo…`; anything else → each object of the stack separately with its status (imprint/attachments of the stack's info);
-then every **detachable** attachment (not `ITEM_INSEPARABLE`) as its own item (default info, its status), inseparable ones
-stay in the main item's info. The source object is cleared.
+then every **detachable** attachment (not `ITEM_INSEPARABLE`) as its own item (default info, its status). The main
+item's info is taken from the whole object first, so it keeps **every** attachment, the detachable ones included: a gun
+sold with a scope stocks the gun with the scope plus a separate scope (duplication; verified by the `dealersell` probe).
+Only `IC_GUN` splits its loaded bullets or payload; a launcher (`IC_LAUNCHER`) takes the "anything else" branch. The
+source object is cleared.
 
 `AddAmmoToArmsDealerInventory(d, mag, shots)` (`:1359-1406`): `shots ≥ capacity` → `shots / capacity` perfect magazines,
 `shots %= capacity`; the rest goes to `ubStrayAmmo`; when strays reach the capacity they become perfect magazines
@@ -660,7 +663,8 @@ if s < e: m += (s < open ? min(open, e) − s : 0) + (e > close ? e − max(clos
 else: m += closed(s, 1440) + closed(0, e)                                // recursive, same dealer
 ```
 With `s == e` on different days the code adds a night and then falls into the wrap branch, which adds another full
-day's closed time (a double count; quirk, keep).
+day's closed time (a double count; quirk, keep). With `s < e` and `dd ≥ 2` it counts `dd − 1` nights although the span
+crosses `dd` closings (10:00 on day 0 to 11:00 on day 2 is one night, 720 minutes with 08:00–20:00 hours; quirk, keep).
 
 ### 10.5 The delay excuse (`HandlePossibleRepairDelays`, `ShopKeeper_Interface.cc:5964-5996`), on entering the SKI
 
@@ -684,7 +688,9 @@ POA slot with the owner; no room → it stays as "repaired, not collected". Coll
 shown on unfinished boxes is `done` rounded up to 15 minutes, with the day when not today (`:6290-6333`); the help text of
 a DOA item shows its bare repair time rounded up to 15 minutes, hours from 105 minutes on (`:6254-6287`).
 `FACT_NOTHING_REPAIRED_YET` and Arnie's opening quote 33 test "has items in repair, none done" (`Arms_Dealer_Init.cc:
-904-949`, `Strategic/Quests.cc:880-882`, M6).
+904-949`, `Strategic/Quests.cc:880-882`, M6). Quote 33 never plays: `HandleShopKeeperDialog` assigns it and then the
+`else` of the repair-delay test overwrites it with quote 11 (`ShopKeeper_Interface.cc:3948-3965`); ja2-node opens with 29
+after a delay excuse and 11 otherwise.
 
 ### 10.7 Dead dealers (`AddDeadArmsDealerItemsToWorld`, `Arms_Dealer_Init.cc:1644-1742`)
 
@@ -868,6 +874,11 @@ repairable pistol.
     [false], `shopClosedByScript` [false], `shopHours(profile)` [null].
 12. `protocol`/`server`/`agent`: §13.
 
+As built (M5): `daily.ts` holds init and the daily update, `boxes.ts` the shop boxes and repair collection, `trade.ts`
+the evaluation and `PerformTransaction` as a pure plan plus its execution, `view.ts` the shop view; the session with the
+tactical checks and delivery is `src/sim/campaign/shop-flow.ts`; the save section decoder is
+`src/content/formats/savegame-merchants.ts`.
+
 ### 16.2 Order of work
 
 (a) content, state, inventory model; (b) supply, new-game init (at `InitNewGame` step 3, before Bobby Ray) and the 09:00
@@ -898,7 +909,7 @@ hook; (g) API, view, events; (h) save import of section 23 and the oracle probes
   perfect + active specials, Tony ≤ 8 ammo types, bars at their minimum); section 23 of the six saves imports with the
   same invariants (repairmen hold only negative-condition specials).
 
-### 16.4 Oracle probes (patch `0006-merchants-oracle.patch` + `Oracle.cc` commands; outputs stay outside the repo)
+### 16.4 Oracle probes (patch `0008-merchants-oracle.patch` + `Oracle.cc` commands; outputs stay outside the repo)
 
 The SKI helpers are `static`; the patch appends wrappers (`OracleCalcShopKeeperItemPrice`, `OracleEvaluateInvSlot`,
 `OracleHandlePossibleRepairDelays`, `OracleInitializeShopKeeper`) that set `gbSelectedArmsDealerID` and
@@ -913,12 +924,17 @@ The SKI helpers are `static`; the patch appends wrappers (`OracleCalcShopKeeperI
 | `fact id=<n> value=0\|1` | `SetFactTrue/False` (note the Estoni intercept draws) | — |
 | `dealerprice dealer=<id> item=<name> status= count= ammo=<item>:<rounds> attach=<item>:<status>,… selling=0\|1 merc=<profile>` | builds the object; a probe soldier with that profile as `gpSMCurrentMerc` | `CalcValueOfItemToDealer` of each part, `ItemConditionModifier`, unit and total price, `CanDealerTransactItem` both ways, the evaluation result |
 | `dealerrepair dealer= item= status= attach=… start=<min> open=<min> close=<min>` | builds the object; overrides the shop hours | cost, time, `CalculateOvernightRepairDelay`, `CalculateMinutesClosedBetween(start, start+k)` for a few k |
-| `ski dealer=<id> who=<soldier>` | after a `save` with that dealer in reach: repair delay + `InitializeShopKeeper(TRUE)` headless, draws traced | trace, the boxes with unit prices, the POA, then `dealers` |
+| `ski dealer=<id> merc=<profile>` | repair delay + the inventory part of `InitializeShopKeeper(TRUE)` headless (no dealer soldier or merc needed), draws traced | trace, the boxes with unit prices, the collected repairs in the POA, then `dealers` |
+| `dealersell dealer= item= status= count= statuses=a,b,… ammo= attach= imprint=` | `AddObjectToArmsDealerInventory` on the built object | the object and `dealers` |
+| `dealergive dealer= item= status= attach= imprint= owner=` | `GiveObjectToArmsDealerForRepair` at the current time | element and done time |
+| `shophours open=<min> close=<min>` / `shophours` | sets or clears the shop-hours override | — |
+| `skiptime seconds=<n>` | `WarpGameTime(n, WARPTIME_NO_PROCESSING_OF_EVENTS)` | world seconds |
 
 `merchant-compare.ts` (like `sai-compare.ts`) replays traced draws through ja2-node with a roll source that asserts each
 range and that none is left, and compares the dumps field by field; price and repair probes compare directly. A 30-day
-restock dump per dealer: `save SaveGame10`, `dealers`, `draws on`, `dealerdaily count=30`. None of the six saves is
-known to stand next to a merchant, so `ski` needs a new save (inferred).
+restock dump per dealer: `save SaveGame10`, `dealers`, `draws on`, `dealerdaily count=30`. The `ski` probe needs no new
+save: the wrapper selects the dealer and a probe SM-panel merc, and repair jobs are created with `dealergive` under a
+shop-hours override (`tools/oracle/probes/merchants.txt`).
 
 ---
 

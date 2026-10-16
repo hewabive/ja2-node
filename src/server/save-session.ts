@@ -1,10 +1,12 @@
 import { parseSaveGame, type SaveGame } from '../content/formats/savegame.ts';
 import { readSavedEconomy, readSoldierAssignments } from '../content/formats/savegame-economy.ts';
 import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../content/formats/savegame-header.ts';
+import { readSavedMerchants } from '../content/formats/savegame-merchants.ts';
 import { readStrategicAiSections } from '../content/formats/savegame-strategic-ai.ts';
 import { decodePreservedSoldierLinks, type PreservedSoldierLink } from '../content/formats/savegame-temp-files.ts';
 import { loadArmyContent } from '../content/strategic/army.ts';
 import { loadEconomyContent } from '../content/strategic/economy-content.ts';
+import { loadMerchantContent } from '../content/strategic/merchant-content.ts';
 import { loadStrategicContent } from '../content/strategic/strategic-content.ts';
 import { loadTacticalWorld } from '../content/world/tactical-world.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
@@ -12,6 +14,7 @@ import { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { NO_ROSTER_HOOKS, Roster } from '../sim/campaign/roster.ts';
 import { addSavedMercsToRoster } from '../sim/campaign/save-roster.ts';
 import { importStrategicAi } from '../sim/strategic/ai/save-import.ts';
+import { importMerchants } from '../sim/strategic/economy/merchants/save-import.ts';
 import { applySavedAssignment, importEconomy } from '../sim/strategic/economy/save-import.ts';
 import { importStrategicMap } from '../sim/strategic/map/save-import.ts';
 import { createStrategicState } from '../sim/strategic/state.ts';
@@ -74,6 +77,7 @@ export async function createSaveSession(
     loadArmyContent(read),
   ]);
   const economyContent = await loadEconomyContent(read, strategicContent.towns);
+  const merchantContent = await loadMerchantContent(read, content.items);
   const sim = new TacticalSim(worldWithSavedDoors(world, save), content, seed);
   const report = importSave(sim, save);
   const strategic = createStrategicState({ streams: { rng: sim.state.rng, pre: sim.state.pre }, profiles: sim.state.profiles });
@@ -97,8 +101,10 @@ export async function createSaveSession(
     economy: { economy: economyContent, items: content.items, crew: roster },
     queen: { army },
     ...(worlds ? { sectors: { worlds, content, roster } } : {}),
+    merchants: { content: merchantContent, items: content.items },
   });
   current = campaign;
+  importMerchants(strategic.merchants, readSavedMerchants(saveBytes, save.sections));
   if (campaign.strategic) importStrategicMap(campaign.strategic, save);
   const saiSections = readStrategicAiSections(saveBytes, save);
   if (campaign.queen) importStrategicAi(campaign.queen, saiSections, { runLoadHooks: true });

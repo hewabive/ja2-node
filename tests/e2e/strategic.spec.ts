@@ -10,7 +10,17 @@ declare global {
       error: string | null;
       lastResult: string | null;
     };
-    __ja2Tactical: { ready: boolean; map: string | null; soldiers: number; error: string | null };
+    __ja2Tactical: {
+      ready: boolean;
+      map: string | null;
+      soldiers: number;
+      drawnSoldiers: number;
+      selected: number | null;
+      selectedGridNo: number | null;
+      tick: number;
+      error: string | null;
+      lastResult: string | null;
+    };
   }
 }
 

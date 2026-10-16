@@ -1,0 +1,168 @@
+Merchant oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE (SFI-SCLA).
+Adds an optional shop-hours override to GetArmsDealerShopHours (inactive unless the oracle sets it) and appends wrappers
+around the static shopkeeper interface helpers (CalcShopKeeperItemPrice, ItemConditionModifier, EvaluateInvSlot,
+HandlePossibleRepairDelays, and the inventory part of InitializeShopKeeper) that select the dealer and an SM-panel merc
+for the call and restore them afterwards. No behaviour change. Applied by tools/oracle/build.sh after 0006.
+
+--- a/src/game/Tactical/Arms_Dealer_Init.cc
++++ b/src/game/Tactical/Arms_Dealer_Init.cc
+@@ -2353,8 +2353,19 @@
+ }
+ 
+ 
++bool   gOracleShopHoursActive = false;
++UINT32 gOracleShopOpeningTime = 0;
++UINT32 gOracleShopClosingTime = 0;
++
+ static BOOLEAN GetArmsDealerShopHours(ArmsDealerID const ubArmsDealer, UINT32* const puiOpeningTime, UINT32* const puiClosingTime)
+ {
++	if (gOracleShopHoursActive)
++	{
++		*puiOpeningTime = gOracleShopOpeningTime;
++		*puiClosingTime = gOracleShopClosingTime;
++		return TRUE;
++	}
++
+ 	SOLDIERTYPE* const pSoldier = FindSoldierByProfileID(GCM->getDealer(ubArmsDealer)->profileID);
+ 	if ( pSoldier == NULL )
+ 	{
+--- a/src/game/Tactical/ShopKeeper_Interface.h
++++ b/src/game/Tactical/ShopKeeper_Interface.h
+@@ -5,6 +5,9 @@
+ #include "JA2Types.h"
+ #include "MessageBoxScreen.h"
+ #include "ScreenIDs.h"
++#include "Arms_Dealer.h"
++
++#include <vector>
+ 
+ #include <string_theory/string>
+ 
+@@ -95,4 +98,21 @@
+ void DoSkiMessageBox(const ST::string& str, ScreenID uiExitScreen, MessageBoxFlags ubFlags, MSGBOX_CALLBACK ReturnCallback);
+ void StartSKIDescriptionBox(void);
+ 
++struct OracleSkiBox
++{
++	UINT16     item;
++	INT16      element;
++	UINT8      count;
++	UINT32     flags;
++	UINT32     unitPrice;
++	UINT8      owner;
++	OBJECTTYPE object;
++};
++
++UINT32  OracleCalcShopKeeperItemPrice(ArmsDealerID dealer, UINT8 mercProfile, BOOLEAN fDealerSelling, BOOLEAN fUnitPriceOnly, FLOAT dModifier, const OBJECTTYPE* pItemObject);
++FLOAT   OracleItemConditionModifier(UINT16 usItemIndex, INT8 bStatus);
++UINT32  OracleEvaluateInvSlot(ArmsDealerID dealer, UINT8 mercProfile, const OBJECTTYPE* pItemObject, UINT32* puiPrice);
++BOOLEAN OracleHandlePossibleRepairDelays(ArmsDealerID dealer);
++void    OracleInitializeShopKeeper(ArmsDealerID dealer, UINT8 mercProfile, std::vector<OracleSkiBox>* boxes, std::vector<OracleSkiBox>* offered);
++
+ #endif
+--- a/src/game/Tactical/ShopKeeper_Interface.cc
++++ b/src/game/Tactical/ShopKeeper_Interface.cc
+@@ -6445,3 +6445,103 @@
+ 	DrawHatchOnInventory(FRAME_BUFFER, usPosX, usPosY, usSlotWidth, usSlotHeight);
+ 	InvalidateRegion(usPosX, usPosY, usPosX + usSlotWidth, usPosY + usSlotHeight);
+ }
++
++
++static SOLDIERTYPE gOracleSkiProbeMerc;
++
++struct OracleSkiSelection
++{
++	ArmsDealerID dealer;
++	SOLDIERTYPE* merc;
++
++	OracleSkiSelection(ArmsDealerID const d, UINT8 const profile) : dealer(gbSelectedArmsDealerID), merc(gpSMCurrentMerc)
++	{
++		gOracleSkiProbeMerc.ubProfile = profile;
++		gbSelectedArmsDealerID = d;
++		gpSMCurrentMerc = &gOracleSkiProbeMerc;
++	}
++
++	~OracleSkiSelection()
++	{
++		gbSelectedArmsDealerID = dealer;
++		gpSMCurrentMerc = merc;
++	}
++};
++
++
++UINT32 OracleCalcShopKeeperItemPrice(ArmsDealerID const dealer, UINT8 const mercProfile, BOOLEAN const fDealerSelling, BOOLEAN const fUnitPriceOnly, FLOAT const dModifier, const OBJECTTYPE* const pItemObject)
++{
++	OracleSkiSelection const selection(dealer, mercProfile);
++	return CalcShopKeeperItemPrice(fDealerSelling, fUnitPriceOnly, pItemObject->usItem, dModifier, pItemObject);
++}
++
++
++FLOAT OracleItemConditionModifier(UINT16 const usItemIndex, INT8 const bStatus)
++{
++	return ItemConditionModifier(usItemIndex, bStatus);
++}
++
++
++UINT32 OracleEvaluateInvSlot(ArmsDealerID const dealer, UINT8 const mercProfile, const OBJECTTYPE* const pItemObject, UINT32* const puiPrice)
++{
++	OracleSkiSelection const selection(dealer, mercProfile);
++	INVENTORY_IN_SLOT slot{};
++	slot.fActive = TRUE;
++	slot.sItemIndex = pItemObject->usItem;
++	slot.ItemObject = *pItemObject;
++	slot.ubIdOfMercWhoOwnsTheItem = mercProfile;
++	slot.bSlotIdInOtherLocation = -1;
++	UINT32 const result = EvaluateInvSlot(&slot);
++	*puiPrice = slot.uiItemPrice;
++	return result;
++}
++
++
++BOOLEAN OracleHandlePossibleRepairDelays(ArmsDealerID const dealer)
++{
++	OracleSkiSelection const selection(dealer, NO_PROFILE);
++	HandlePossibleRepairDelays();
++	BOOLEAN const delayed = gfStartWithRepairsDelayedQuote;
++	gfStartWithRepairsDelayedQuote = FALSE;
++	return delayed;
++}
++
++
++static OracleSkiBox OracleBoxOf(INVENTORY_IN_SLOT const& slot, UINT32 const unitPrice)
++{
++	OracleSkiBox box{};
++	box.item = slot.sItemIndex;
++	box.element = slot.sSpecialItemElement;
++	box.count = slot.ItemObject.ubNumberOfObjects;
++	box.flags = slot.uiFlags;
++	box.unitPrice = unitPrice;
++	box.owner = slot.ubIdOfMercWhoOwnsTheItem;
++	box.object = slot.ItemObject;
++	return box;
++}
++
++
++void OracleInitializeShopKeeper(ArmsDealerID const dealer, UINT8 const mercProfile, std::vector<OracleSkiBox>* const boxes, std::vector<OracleSkiBox>* const offered)
++{
++	OracleSkiSelection const selection(dealer, mercProfile);
++	std::fill_n(PlayersOfferArea, SKI_NUM_TRADING_INV_SLOTS, INVENTORY_IN_SLOT{});
++	gArmsDealerStatus[dealer].uiTimePlayerLastInSKI = GetWorldTotalMin();
++	gSelectArmsDealerInfo.uiNumDistinctInventoryItems = CountDistinctItemsInArmsDealersInventory(dealer);
++	guiNextFreeInvSlot = 0;
++	if (gSelectArmsDealerInfo.uiNumDistinctInventoryItems > 0) DetermineArmsDealersSellingInventory();
++	bool const repairs = DoesDealerDoRepairs(dealer);
++	for (UINT32 i = 0; i < guiNextFreeInvSlot; ++i)
++	{
++		INVENTORY_IN_SLOT const& slot = gpTempDealersInventory[i];
++		UINT32 const price = repairs ? 0 : CalcShopKeeperItemPrice(DEALER_SELLING, TRUE, slot.sItemIndex, SelectedArmsDealer()->sellingPrice, &slot.ItemObject);
++		boxes->push_back(OracleBoxOf(slot, price));
++	}
++	for (INVENTORY_IN_SLOT const& slot : PlayersOfferArea)
++	{
++		if (slot.fActive) offered->push_back(OracleBoxOf(slot, 0));
++	}
++	delete[] gpTempDealersInventory;
++	gpTempDealersInventory = NULL;
++	guiNextFreeInvSlot = 0;
++	std::fill_n(PlayersOfferArea, SKI_NUM_TRADING_INV_SLOTS, INVENTORY_IN_SLOT{});
++}

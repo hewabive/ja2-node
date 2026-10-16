@@ -443,6 +443,17 @@ battle ones (`docs/19` §5.3): `hatedComplaint {soldier, about, learned}` and `m
 (`about` is a profile id), `civiliansEaten {sector, count}`; `preBattle` may carry `encounter: 'creatureAttack'` with
 `autoStart: true`.
 
+### 6.7. Merchants (M5)
+
+A shop is a modal session like a prompt (`docs/23` §13): `openShop {dealer, soldier}` (the original's talk-and-trade,
+with its distance, sight and AP checks) opens it, `quoteTrade` prices an exchange without doing it, `trade` performs one
+exchange (buy, sell, cash, repair, `useBalance`) and `closeShop` ends it. While a shop is open every other command is
+refused, `advance` returns `refused` with `refusal: 'shopOpen: …'` and the clock does not move. `observe.shop` (and the
+`shop` field of view frames) shows the kind, the pricing merc, the balance and the boxes with unit prices; the dealer's
+cash is never shown. Merchant NPCs in sight carry `merchant: buySell|buy|sell|repair`. Events: `shopOpened`,
+`shopkeeperQuote`, `itemsBought`, `itemsSold`, `giftGiven`, `repairQueued`, `repairDelayed`, `repairCollected`,
+`itemsDropped`, `moneyChanged`, `shopClosed`.
+
 ## 7. Cost and limitations
 
 - **Amount of work.**

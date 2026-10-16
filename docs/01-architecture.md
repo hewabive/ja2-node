@@ -911,5 +911,17 @@ assignments), `19` (pre-battle interface and autoresolve).
    refused with enemies in the loaded sector; new campaign sessions (MCP `newSession {campaign}`, `POST /api/sessions`),
    and the strategic page (`src/devtools/strategic/`) with the map, mercs, routes, compression and the battle panel.
 
-**Not in M4 yet**: creature attacks, `HourlyMoraleUpdate`, exact creation of militia and enemy soldiers for autoresolve
-(oracle level 2), the placement GUI, a browser autoresolve screen with slice playback.
+10. **Morale and creatures**: `HourlyMoraleUpdate` with hated and disliked teammates, creature lairs, attacks on
+   towns, bloodcat ambushes and creature placement; exact autoresolve soldier creation (oracle level 2). The oracle's
+   morale, creature and creation probes match.
+
+**Not in M4 yet**: creature tactical AI (their attacks once a sector is loaded), the placement GUI.
+
+### M5: in progress (2026-10-16)
+
+Specs: `docs/21` (laptop and hiring), `22` (contracts and relationships), `23` (merchants).
+
+1. **Merchants** (`sim/strategic/economy/merchants`, `sim/campaign/shop-flow.ts`): the 19 dealers from
+   `data/externalized`, initial stock, the 09:00 daily update, prices, buying, selling, gifts, repairs with their
+   times, the dealer's death; the shop as a modal session (`openShop`, `quoteTrade`, `trade`, `closeShop`); dealer
+   state imported from native saves. 202 oracle probes match.

@@ -40,6 +40,7 @@ import { compareAutoresolve } from './autoresolve-compare.ts';
 import { compareAutoresolveCreation } from './autoresolve-creation.ts';
 import { CREATURE_PROBES, CreatureComparer } from './creature-compare.ts';
 import { ECONOMY_PROBES, EconomyComparer } from './economy-compare.ts';
+import { MERCHANT_PROBES, MerchantComparer } from './merchant-compare.ts';
 import { MORALE_PROBES, MoraleComparer } from './morale-compare.ts';
 import { comparePreBattle } from './pre-battle-compare.ts';
 import { SAI_PROBES, SaiComparer } from './sai-compare.ts';
@@ -564,6 +565,7 @@ for (const file of files) {
   const sectors = new SectorComparer(read, (p) => data.vfs.stat(p) !== undefined);
   const creatures = new CreatureComparer(read, exists);
   const morale = new MoraleComparer(read, exists);
+  const merchants = new MerchantComparer(read);
   let ctx: Context | null = null;
   let arSetup: Json | null = null;
   for (const p of readLines(file)) {
@@ -582,16 +584,21 @@ for (const file of files) {
       await sai.loadSave(savesDir(dataDir), String(p.name));
       if (ctx.bytes) creatures.loadSave(ctx.bytes);
       if (ctx.bytes) morale.loadSave(ctx.bytes);
+      await merchants.loadSave(savesDir(dataDir), String(p.name));
     } else if (p.probe === 'end') continue;
     else if (p.probe === 'autoresolve') failures += await compareAutoresolveProbe(read, exists, ctx, arSetup, p);
     else if (p.probe === 'enemycounts') failures += await compareEnemyCountsProbe(read, ctx, p);
     else if (p.probe === 'pbi') failures += await comparePreBattleProbe(read, exists, ctx, p);
+    else if (MERCHANT_PROBES.has(String(p.probe))) failures += await merchants.compare(p);
     else if (STRATEGIC_PROBES.has(String(p.probe))) failures += await strategic.compare(p);
     else if (ECONOMY_PROBES.has(String(p.probe))) failures += economy.compare(p);
     else if (SAI_PROBES.has(String(p.probe))) failures += await sai.compare(p);
     else if (SECTOR_PROBES.has(String(p.probe))) failures += await sectors.compare(p);
-    else if (CREATURE_PROBES.has(String(p.probe))) failures += await creatures.compare(p);
-    else if (MORALE_PROBES.has(String(p.probe))) failures += await morale.compare(p);
+    else if (p.probe === 'options' && !ctx?.bytes) merchants.setOptions(p);
+    else if (CREATURE_PROBES.has(String(p.probe))) {
+      if (p.probe === 'options') merchants.setOptions(p);
+      failures += await creatures.compare(p);
+    } else if (MORALE_PROBES.has(String(p.probe))) failures += await morale.compare(p);
     else {
       ctx ??= await sectorContext(read, content, worlds, null);
       if (p.probe === 'costs') failures += compareCosts(ctx, p);
