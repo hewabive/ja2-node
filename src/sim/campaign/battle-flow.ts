@@ -39,6 +39,7 @@ import {
   type AutoresolveState,
   BattleStatus,
   createAutoresolveState,
+  robotCell,
 } from '../strategic/forces/autoresolve/state.ts';
 import {
   type AutoresolveSession,
@@ -668,6 +669,8 @@ export class BattleFlow implements FateContext {
     const wounded = ar.mercs.filter((c) => c.soldier.life !== 0 && c.soldier.life < c.soldier.lifeMax).map((c) => c.soldier.id);
     const controlBefore = this.#controller(sector);
     const result = closeAutoresolve(env, ar, port);
+    const robot = robotCell(ar);
+    if (robot) this.roster.updateRobotControllerGivenRobot(robot.soldier.id);
     if (result.bandageEvent) addStrategicEvent(s.queue, EventKind.BANDAGE_BLEEDING_MERCS, worldTotalMinutes(s.clock) + 1, 0);
     for (const soldier of result.mercsAtCenter) {
       const m = this.roster.get(soldier.id);

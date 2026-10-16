@@ -69,6 +69,9 @@ commit them.
 | `patches/0017-give-oracle.patch` | Traced `CalcMedicalCost` results in `TacticalAI/NPC.cc`, a wrapper for the static `NPCConsiderReceivingItemFromMerc`, and hooks for the conversation, shop and offer calls of `SoldierGiveItemFromAnimation` (see "Hooks") |
 | `give-compare.ts` | The give probes of `compare.ts` (`receive`, `give`, `npcgive`, `actionitem`) |
 | `probes/give.txt` | Giving items and money and the quest action items (see "Give") |
+| `patches/0018-recruit-oracle.patch` | Traces of the abandoning quote and the remove-EPC event of `InternalUnescortEPC` and a switch that defers the removal to the probe (see "Hooks") |
+| `recruit-compare.ts` | The recruiting probes of `compare.ts` (`addnpc`, `recruitset`, `recruit`, `unescort`, `robotcontrol`) |
+| `probes/recruit.txt` | Recruiting, escort and robot probe script (see "Recruiting") |
 | `creature-ai-compare.ts` | The tactical creature probes of `compare.ts` (`addsoldier`, `setsoldier`, `seen`, `decide`, `beststab`, `stab`, `creaturecall`, `smell`, `dropsmell`, `trackscent`) |
 | `probes/creature*.txt`, `probes/morale.txt` | Creature and morale probe scripts (see "Creatures", "Creature AI" and "Morale") |
 | `autoresolve-aftermath.ts` | Level 3 of `autoresolve` probes (the battle closed through ja2-node's battle flow on the imported save) and `enemycounts` |
@@ -1165,6 +1168,41 @@ second events and redrawn default schedules, entries into C13, D13 and B13 (slee
 doors locked at night), map-screen warps up to a day, tactical warps activating entries, and the AI's steps for a door
 unlock, a lock, a wake-up and the return of a default civilian from the away slots.
 
+### Recruiting
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data" JA2_ORACLE_DIR=~/ja2-oracle-recruit
+tools/oracle/run.sh tools/oracle/probes/recruit.txt ~/ja2-oracle-recruit/out/recruit.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle-recruit/out/recruit.jsonl
+```
+
+Commands (after a `save`; `src`/`dest` as for `npcaction`, `ids=` adds profiles to the dump):
+```
+addnpc profile= at=<grid> [dir=]       # a profiled civilian: TacticalCreateSoldier, AddSoldierToSectorNoCalculateDirection
+recruitset [who= slot= item= [status=] [place=1]] [profile= town= attachment= salary= flags= flags3=] [facts=] [quests=] [squad=]
+                                       # an inventory slot (place=1 through PlaceObject), profile fields, facts, quests and
+                                       # iCurrentTacticalSquad on both sides
+recruit npc= action=rpc|free|epc|unrecruit|settonpc|marry|enemy [record=] [soldiers=all]
+                                       # HandleNPCDoAction for RECRUIT_WITH_SALARY, RECRUIT, UN_RECRUIT_EPC, SET_EPC_TO_NPC,
+                                       # REMOVE_MERC_FOR_MARRIAGE, BECOME_ENEMY; epc answers the escort box with yes
+unescort npc= map=0|1                  # UnEscortEPC in tactical or on the map screen (the removal deferred, then run in order)
+robotcontrol [update=1] [opp=<id>]     # ControllingRobot per merc, the robot's holder, CanRobotBeControlled, and with opp=
+                                       # CalcInterruptDuelPts against that soldier
+```
+`recruit` and `unescort` print the queued dialogue events, the `CheckFact` calls, both streams, fact and quest changes, new
+events and history lines, our team (id, profile, kind, assignment, sector, group, tile, stats, bleeding, breath, morale,
+camouflage, visibility, body, contract end, remote holder, insertion code off the map, insertion direction, inventory), the
+squads, the current squad, the civilians in the sector, the profiles, the personnel "other" list, the town loyalties and
+the NPC's salary. `recruit-compare.ts` imports the save, reserves the slots of the save's off-map civilians (away slots of
+the schedules), replays the native `CheckFact` results and both streams strictly (without the cosmetic face draws of a new
+merc and the pathfinder's skip-list draws between the 0009 marks) and runs the catalog, the escort answer,
+`RecruitFlow.internalUnescortEpc`/`removeEpc` or the wrong-sector trigger. On 2026-10-16 all 74 probes matched on
+SaveGame01, 02 and 10, also with two more native seeds: John and Mary escorted together (quest 19) and released on the map
+screen with their leaving lines, by the plane record and in tactical, Skyrider (fact 269, quest 17, record 15), Dynamo
+ending quest 18, Slay out of his wheelchair with his week, R.P.C.s with town loyalty and the weapon swap into the hand (a
+two-handed rifle moving the second-hand item away), the robot with its holder, the remote put on through `PlaceObject` and
+the interrupt points, Maria via Angel, Joey's record 9, two marriages and recruited rebels sent back to the civilian team.
+
 ## Shipped probes
 
 | Script | Content |
@@ -1194,6 +1232,7 @@ unlock, a lock, a wake-up and the return of a default civilian from the away slo
 | `probes/actions.txt` | NPC actions, requestor answers, NPC system events, Kingpin's money and the hospital on SaveGame01, 10 and 02 (see "NPC actions") |
 | `probes/schedules.txt` | NPC schedules on the six saves (see "Schedules") |
 | `probes/give.txt` | Giving items and money to the NPCs, dealers and mercs of SaveGame02, 01, 07 and 10, the money rules of the absent NPCs, NPC gifts and the quest action items (see "Give") |
+| `probes/recruit.txt` | Recruiting R.P.C.s, escorting and releasing E.P.C.s, the robot and civilian-group team changes on SaveGame01, 02 and 10 (see "Recruiting") |
 | `probes/sectors.txt` | Edgepoints loaded and generated on eight maps, screen-space exit thresholds on both sides of every edge (A9, A10 basement), exit-grid checks in D13 and the basement, walk-off/walk-in/mirror from the centre and near the edges, class codes on the isolated maps H13 and I14, init list sorts and ten defence placements (A9, B13, C13, D13), and `OKForSectorExit` on SaveGame10, 07 (in combat) and 01 before and after moving mercs to an edge or an exit grid |
 
 All three were run on the user's Steam JA2 Gold 1.12 data: every command succeeds, and on these
@@ -1342,6 +1381,12 @@ index 0). In `Handle_Items.cc`, right before `SoldierGiveItemFromAnimation`, `In
 `OracleGiveShop` and `OracleGiveOffer`, which call the real functions unless the `give` probe runs: then they record the call,
 and the conversation opens headless (the panel globals and `ConverseFull`, as `talk` does). Regenerate it like 0002 with those
 two paths (after 0014 is applied).
+
+`patches/0018-recruit-oracle.patch` (applied after 0017) changes `src/game/Strategic/Assignments.cc`: in
+`InternalUnescortEPC` the abandoning quote goes through `OracleTracedMercDialogue` (traced as `merc` only when
+`TacticalCharacterDialogue` queued it) and the remove-EPC event is traced as `removeepc`; while `gOracleDeferredEpcs` points
+to a vector the profile is pushed there instead of queueing `DialogueEventRemoveEPC`, so `unescort` can run `UnRecruitEPC`
+itself after `UnEscortEPC` returns. `Oracle.cc` defines both symbols. Regenerate it like 0002 with that path.
 
 ## Notes
 

@@ -51,6 +51,7 @@ import { LAPTOP_PROBES, LaptopComparer } from './laptop-compare.ts';
 import { MERCHANT_PROBES, MerchantComparer } from './merchant-compare.ts';
 import { MORALE_PROBES, MoraleComparer } from './morale-compare.ts';
 import { comparePreBattle } from './pre-battle-compare.ts';
+import { RECRUIT_PROBES, RecruitComparer } from './recruit-compare.ts';
 import { SAI_PROBES, SaiComparer } from './sai-compare.ts';
 import { SCHEDULE_PROBES, ScheduleComparer } from './schedules-compare.ts';
 import { SECTOR_PROBES, SectorComparer } from './sector-compare.ts';
@@ -586,6 +587,7 @@ for (const file of files) {
   const facts = new FactComparer(read, exists);
   const actions = new ActionComparer(read, exists);
   const schedules = new ScheduleComparer(read, exists, savesDir(dataDir));
+  const recruits = new RecruitComparer(read, exists);
   let ctx: Context | null = null;
   let arSetup: Json | null = null;
   for (const p of readLines(file)) {
@@ -614,6 +616,7 @@ for (const file of files) {
       if (ctx.bytes) give.loadSave(ctx.bytes);
       if (ctx.bytes) facts.loadSave(ctx.bytes);
       if (ctx.bytes) actions.loadSave(ctx.bytes);
+      if (ctx.bytes) recruits.loadSave(ctx.bytes);
     } else if (p.probe === 'end') continue;
     else if (p.probe === 'autoresolve') failures += await compareAutoresolveProbe(read, exists, ctx, arSetup, p);
     else if (p.probe === 'enemycounts') failures += await compareEnemyCountsProbe(read, ctx, p);
@@ -638,6 +641,7 @@ for (const file of files) {
     else if (FACT_PROBES.has(String(p.probe))) failures += await facts.compare(p);
     else if (ACTION_PROBES.has(String(p.probe))) failures += await actions.compare(p);
     else if (SCHEDULE_PROBES.has(String(p.probe))) failures += await schedules.compare(p);
+    else if (RECRUIT_PROBES.has(String(p.probe))) failures += await recruits.compare(p);
     else {
       ctx ??= await sectorContext(read, content, worlds, null);
       if (p.probe === 'costs') failures += compareCosts(ctx, p);

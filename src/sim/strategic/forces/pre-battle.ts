@@ -3,7 +3,8 @@
 // @src src/game/Strategic/PreBattle_Interface.cc InitPreBattleInterface (logic), CalculateNonPersistantPBIInfo,
 // @src PutNonSquadMercsInBattleSectorOnSquads, PutNonSquadMercsInPlayerGroupOnSquads, WakeUpAllMercsInSectorUnderAttack,
 // @src ClearMovementForAllInvolvedPlayerGroups, RetreatAllInvolvedPlayerGroups, PlayerMercInvolvedInThisCombat,
-// @src PlayerGroupInvolvedInThisCombat, LogBattleResults (codes); Tactical/Soldier_Control.cc ControllingRobot.
+// @src PlayerGroupInvolvedInThisCombat, LogBattleResults (codes), CheckForRobotAndIfItsControlled (through the crew port);
+// @src Tactical/Soldier_Control.cc ControllingRobot.
 // @src See docs/19 §1.
 
 import { type Sector, sameSector } from '../../../content/strategic/sector-ids.ts';
@@ -254,6 +255,7 @@ export function initPreBattleInterface(ctx: EconomyContext, group: Group | null,
   battle.persistent = persistent;
   const sector = persistent ? openPersistent(ctx, group) : openNonPersistent(ctx);
   if (!sector) return null;
+  ctx.crew.checkForRobotAndIfItsControlled?.();
   wakeUpAllMercsInSectorUnderAttack(ctx, sector);
   noteFirstInvolvedGroup(ctx, sector);
   const enc = ctx.state.encounter;

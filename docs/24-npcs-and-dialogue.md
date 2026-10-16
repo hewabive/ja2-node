@@ -985,6 +985,25 @@ Dismissal and quitting are `22` §4. Nothing clears `RECRUITED` except `ChangeSo
 RPC keeps it (inferred): profile insertion skips recruited profiles (`Soldier_Init_List.cc:1659`) and his backup records
 are never restored (§1.4) — he does not come back.
 
+### 9.6 Implementation notes (verified with the oracle, 2026-10-16)
+
+- `ChangeSoldierTeam` creates the new soldier through `TacticalCreateSoldier`: for a profiled soldier its draws are the
+  female or kid battle sound (`Random(2)`), the standing frame of `CreateSoldierCommon` (`Random(10)`) and, for our team,
+  the cosmetic face draws of `InitSoldierFace` (dropped, deviation "Cosmetic face and frame draws"); the pathfinder draws of
+  the placement's sweet-spot search are not made (deviation "Pathfinder RNG"). Not copied, so fresh: breath (99), bleeding
+  (0), morale, orders, attitude, the key ring, quote record and action. The new soldier is placed at the old tile with the
+  old animation and direction only when the old one stood in the loaded sector; otherwise it is created (with its draws)
+  and left off the map, where the original keeps it as an inactive-in-sector civilian of the loaded world (inferred
+  harmless; ja2-node does not keep it). The id is the first free slot of the new team: for our team every merc of the
+  roster counts, wherever he is; for the civilians the soldiers of the loaded sector and the away (off-map) civilians of
+  the schedules (`RecruitFlow.reservedSoldierSlot`, a port for the schedules slice).
+- `RecruitEPC` of a soldier already on our team (John's partner when both were escorted) rebuilds him like any team change.
+- `UnRecruitEPC` writes the soldier's current tile into the profile insertion data, also for an escort outside the loaded
+  sector (his last tile there, as in the original, whose `sGridNo` survives leaving the sector).
+- The map-screen path of §9.4 queues the abandoning quote and the remove-EPC event; ja2-node runs that queue at once in the
+  `unescort` command (the clock does not move on the map screen without compression).
+- `HandleStuffForNPCEscorted` also prints `NOW_BING_ESCORTED_STR` for John's or Mary's partner.
+
 ---
 
 ## 10. Determinism
@@ -1037,7 +1056,7 @@ queries and `observe` are accepted and nothing advances unless the queue is busy
 | `approach {kind}` | `repeat`, `friendly`, `direct`, `threaten`, `recruit`, `whoAreYou`; `buySell` (dealers: BUYSELL record or the shop session) or `give` (others: closes the session, the NPC waits 10 s). Refusals: `noConversation`, `notADealer`, `isADealer`. Runs `Converse` and drains |
 | `give {soldier, target, slot, count?}` or `{soldier, target, money, slot?}` | §4: inside a non-dealer session it closes first (the "Give" entry, `isADealer` otherwise); `slot` hands over the whole pocket or, with `count: 1`, one item of a stack; `money` splits that amount (steps of 10) off a money pocket. Checks: tactical, prompt, shop, scripted sequence, `busy`, `canAct`, `noSuchTarget`, the giver (`giverCannotGive`, `giverBusy`), the object (`needItemOrMoney`, `noSlot`, `emptySlot`, `badCount`, `badMoney`, `notEnoughMoney`), §6.1 with `give` and own mercs allowed (the alternative cursor), `robotReload`, `noPath`, `notEnoughAP` (path + 1). Walk, opcode 486, then §4.1's branches; an NPC target runs to the end of the conversation it opens (`data.outcome`), a team member is handed the item during `advance` (*implemented*, `docs/04` §6.16) |
 | `closeTalk {}` | Done (§6.5) including the once-per-conversation reset. `noConversation` |
-| `unescort {soldier}` | §9.4 by the player; `notAnEpc` |
+| `unescort {soldier}` | §9.4 by the player: map screen → the abandoning quote and the release at once, `{released: [{profile, quote}], lines}`; tactical → the wrong-sector record, the talk result plus `triggered`. Refusals `noSuchSoldier`, `notAnEpc`, `notInSector`, `notAvailable` and the modal ones (`docs/04` §6.17). *Implemented* |
 | `openShop {dealer, soldier}` | from M6 = `talk` + `approach buySell` in one command; if the opening leaves no idle session (script closed it, a prompt, a BUYSELL record) the talk result is returned instead (§16) |
 | `answer {prompt, choice}` | `npcRequest`: `yes`/`no` (`lie` too for the lie prompt); `surrender` (`context: 'tactical'`): `accept`/`reject` |
 
@@ -1059,7 +1078,8 @@ queries and `observe` are accepted and nothing advances unless the queue is busy
 amount?, squad?}` for the screen messages (`balanceOwed`, `needsMoney`, `paidInFull`, `stillOwed`, `recruited`,
 `teamFull`, `nowEscorted`, `noLineOfSight`, `targetCollapsed`, `noPath`, `itemPlacedOnGround`, `itemGiven`),
 `npcTookItem {npc, profile, from, item, count, status, money?}`, `npcGaveItem {npc, profile, to, item, …, dropped}`, `itemReturned {to, item, …, dropped}`, `itemGiven {soldier, target, item, …, dropped}`, `giveAborted {soldier, target, reason, dropped}` (implemented with the give slice), `npcRecruited
-{profile, soldier, kind: 'rpc'|'epc', salary}`, `epcReleased {profile}`, `npcHostile {soldier}`, `scriptedSequence
+{profile, soldier, kind: 'rpc'|'epc', salary}`, `epcReleased {profile, soldier}` (the new civilian soldier in the loaded
+sector, else null), `npcHostile {soldier}`, `scriptedSequence
 {active}`, `talkAborted {soldier, reason}`; quests surface only as `historyAdded` (`25`). No events for record choice,
 facts, quest states, `SAID` flags, desire or opinions.
 
@@ -1198,10 +1218,18 @@ its arrival, `VerifyGiveItem`, `SoldierGiveItemFromAnimation` with the dealer, t
 `item-actions.ts`, the collapse case, `SOLDIER_ENGAGEDINACTION` as `Soldier.engagedInAction` stopping the AI, the engaged-in-
 conversation flag of a PC action), `src/sim/narrative/give.ts` (§4.4–§4.5: `PlaceObjectInSoldierProfile` with Madlab's
 attachments, `RemoveObjectFromSoldierProfile`, `SetMoneyInSoldierProfile`, `ReturnItemToPlayer`, `HandleNPCItemGiven`, the
-dealer branch and the GIVINGITEM conversation), the real `GivePort` and `ReceivePort` (CalcMedicalCost in
-`src/sim/tactical/narrative/hospital-cost.ts`, Frank's cash) in `talk-flow.ts`, the `give` command (`src/sim/campaign/give-flow.ts`,
-`docs/04` §6.16), records 8–10 of the stub NPC, and the oracle patch `0017-give-oracle.patch` with the probes `receive`,
+dealer branch and the GIVINGITEM conversation), the real `GivePort` and `ReceivePort` (CalcMedicalCost of the action
+catalog's hospital code, Frank's cash) in `talk-flow.ts`, the `give` command (`src/sim/campaign/give-flow.ts`,
+`docs/04` §6.16), records 13–15 of the stub NPC, and the oracle patch `0017-give-oracle.patch` with the probes `receive`,
 `give`, `npcgive` and `actionitem` (`tools/oracle/probes/give.txt`, `give-compare.ts`). Details and corrections in §4.6.
+
+*Implemented (recruiting slice, 2026-10-16, step (g) with §9):* `src/sim/tactical/narrative/team-change.ts`
+(`ChangeSoldierTeam`), `src/sim/campaign/narrative/recruit-flow.ts` (`RecruitRPC`, `RecruitEPC`, `UnRecruitEPC`,
+`HandleStuffForNPCEscorted`, the marriage's team change, Darrel's script, the departed list, `InternalUnescortEPC` and the
+side changes of civilian groups through `NarrativePort.changeSoldierTeam`), the `removeEpc` queue event, the `unescort`
+command in `talk-flow.ts`, the robot's controller (`src/sim/campaign/robot-control.ts`, `src/sim/tactical/narrative/robot.ts`)
+and the escort arrivals of John, Mary, Maria and Joey (`escort-arrival.ts`). Stubs: the R.P.C. 65 and the escort 123 in A10.
+Oracle: `patches/0018-recruit-oracle.patch`, `probes/recruit.txt`, `recruit-compare.ts` (README "Recruiting").
 
 ### 13.1 Modules (SFI-SCLA headers)
 

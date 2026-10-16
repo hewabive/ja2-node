@@ -244,6 +244,7 @@ function mercRow(m: StrategicMercView): HTMLTableRowElement {
     m.asleep ? 'asleep' : '',
     m.betweenSectors ? 'travelling' : '',
     m.assignment >= ON_DUTY ? `assignment ${m.assignment}` : '',
+    m.kind === 'rpc' || m.kind === 'epc' ? m.kind : '',
   ]
     .filter(Boolean)
     .join(', ');
@@ -265,7 +266,22 @@ function mercRow(m: StrategicMercView): HTMLTableRowElement {
     td.textContent = text;
     tr.append(td);
   }
+  if (m.kind === 'epc') tr.lastElementChild?.append(releaseButton(m));
   return tr;
+}
+
+function releaseButton(m: StrategicMercView): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = 'release';
+  b.dataset.unescort = String(m.id);
+  b.addEventListener('click', () => {
+    void send({ type: 'unescort', soldier: m.id }).then((r) => {
+      const refusal = (r.data as { refusal?: string } | undefined)?.refusal;
+      showResult(r.ok ? `${m.name} released` : (refusal ?? r.reason ?? 'refused'), !r.ok);
+    });
+  });
+  return b;
 }
 
 function contractSummary(c: MercContractView | null | undefined): string {

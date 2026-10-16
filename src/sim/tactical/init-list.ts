@@ -157,7 +157,8 @@ export function sortInitList(t: TacticalState): SoldierInitNode[] {
 }
 
 export function soldierSlotTaken(t: TacticalState, id: number): boolean {
-  return t.soldiers[id]?.placed === true;
+  const s = t.soldiers[id];
+  return s?.placed === true || s?.away === true;
 }
 
 export function freeSoldierSlots(t: TacticalState, team: number): number {

@@ -8,6 +8,7 @@
 import { pythSpacesAway, spacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { AnimHeight, height, states } from '../animation.ts';
 import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY } from '../lighting/lighting.ts';
+import { interruptBasePoints } from '../narrative/robot.ts';
 import { minPtsToMove } from '../points.ts';
 import { effectiveExpLevel } from '../skills.ts';
 import { NO_INTERRUPT, numSkillTraits, OKBREATH, OKLIFE, SkillTrait, type Soldier, Team, TOTAL_SOLDIERS } from '../soldier.ts';
@@ -149,7 +150,7 @@ const toInt8 = (v: number): number => ((v & 0xff) << 24) >> 24;
 
 export function calcInterruptDuelPts(t: TacticalState, s: Soldier, opp: Soldier, useWatchSpots: boolean): number {
   if (s.neutral) return NO_INTERRUPT;
-  let p = effectiveExpLevel(s);
+  let p = interruptBasePoints(t, s);
   if (useWatchSpots) p += watchedLocPoints(t, s.id, opp.gridNo, opp.level);
   if (s.ai.oppCount > 2) p -= Math.trunc((s.ai.oppCount - 1) / 2);
   if (s.oppList[opp.id] === Opp.HEARD_THIS_TURN) p--;

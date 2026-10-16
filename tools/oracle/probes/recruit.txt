@@ -1,0 +1,85 @@
+# Recruiting RPCs, escorting and releasing EPCs, the robot (docs/24 §9, docs/25 §9) on the user's saves. addnpc creates a
+# profiled civilian at a gridno the way profile insertion does (TacticalCreateSoldier, AddSoldierToSectorNoCalculateDirection);
+# recruitset writes an inventory slot (place=1 goes through PlaceObject), profile town/attachment/salary/flags, facts, quests
+# and the current squad on both sides; recruit runs HandleNPCDoAction for RECRUIT_WITH_SALARY (rpc), RECRUIT (free),
+# UN_RECRUIT_EPC (unrecruit), SET_EPC_TO_NPC (settonpc), REMOVE_MERC_FOR_MARRIAGE (marry) and BECOME_ENEMY (enemy: recruited
+# members of the civilian group go back to the civilian team, CivilianGroupMemberChangesSides), or answers the escort box with
+# yes (epc); unescort runs UnEscortEPC on the map screen (map=1, the removal deferred to after the call, in queue order) or in
+# tactical (map=0); robotcontrol dumps ControllingRobot per merc, the robot's remote holder, CanRobotBeControlled and, with
+# opp=, CalcInterruptDuelPts against that soldier (update=1 runs UpdateRobotControllerGivenRobot first). The native
+# CheckFact results and both random streams are replayed in order.
+
+save SaveGame01
+addnpc profile=118 at=9037 dir=4
+addnpc profile=119 at=9039 dir=4
+recruit npc=118 action=epc ids=119
+unescort npc=118 map=1 ids=119
+recruit npc=119 action=epc ids=118
+recruit npc=118 action=unrecruit record=13 ids=119
+save SaveGame01
+addnpc profile=119 at=9037 dir=4
+recruit npc=119 action=epc
+unescort npc=119 map=0
+recruit npc=119 action=settonpc record=2
+save SaveGame01
+addnpc profile=97 at=9037 dir=2
+recruit npc=97 action=epc
+unescort npc=97 map=0
+unescort npc=97 map=1
+save SaveGame01
+addnpc profile=97 at=9037 dir=2
+recruit npc=97 action=epc
+recruit npc=97 action=unrecruit record=15
+save SaveGame01
+addnpc profile=66 at=9037 dir=6
+recruitset quests=18:1
+recruit npc=66 action=rpc
+save SaveGame01
+addnpc profile=64 at=9037 dir=2
+recruit npc=64 action=free
+save SaveGame01
+addnpc profile=58 at=9037 dir=4
+recruitset who=124 slot=5 item=0
+recruitset who=124 slot=8 item=26
+recruitset who=124 slot=6 item=201
+recruitset profile=58 town=2 attachment=5
+recruit npc=58 action=rpc
+save SaveGame01
+addnpc profile=60 at=9037 dir=4
+recruitset who=124 slot=5 item=0
+recruitset who=124 slot=6 item=0
+recruitset who=124 slot=12 item=1
+recruitset profile=60 town=2 attachment=3 salary=0
+recruit npc=60 action=free
+save SaveGame02
+addnpc profile=62 at=12092 dir=4
+recruitset who=0 slot=3 item=259
+recruit npc=62 action=epc
+robotcontrol opp=120
+recruitset who=0 slot=3 item=0
+robotcontrol opp=120
+recruitset who=1 slot=3 item=259 place=1
+robotcontrol opp=120
+robotcontrol update=1
+unescort npc=62 map=1
+save SaveGame02
+addnpc profile=88 at=12092 dir=4
+recruit npc=88 action=epc
+recruit npc=89 action=unrecruit ids=88
+addnpc profile=90 at=12094 dir=4
+recruit npc=90 action=epc
+recruit npc=90 action=settonpc record=9
+save SaveGame02
+recruit npc=15 action=marry soldiers=all
+recruit npc=10 action=marry soldiers=all
+save SaveGame01
+addnpc profile=57 at=9037 dir=4
+recruit npc=57 action=enemy soldiers=all
+save SaveGame02
+addnpc profile=58 at=12092 dir=4
+recruit npc=58 action=enemy soldiers=all
+save SaveGame10
+addnpc profile=118 at=8521 dir=4
+addnpc profile=119 at=8523 dir=4
+recruit npc=119 action=epc ids=118
+unescort npc=119 map=1 ids=118

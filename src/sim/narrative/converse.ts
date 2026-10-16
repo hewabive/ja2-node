@@ -891,6 +891,7 @@ export function dialogueHandlers(host: NarrativeHost): DialogueHandlers {
     triggerNpcRecord: (npc, record) => triggerNpcRecord(host, npc, record),
     mikeCheck: () => {},
     autoBandage: () => false,
+    removeEpc: (npc) => host.releaseEscort?.(npc),
   };
 }
 

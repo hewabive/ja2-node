@@ -4,7 +4,8 @@
 // @src DialogueQueueIsEmptyAndNobodyIsTalking, CanSayQuote, TacticalCharacterDialogue, CharacterDialogue (DialogueEventQuote),
 // @src ExecuteCharacterDialogue, GetDialogue, FindDelayForString, TEXT_DELAY_MODIFIER; Tactical/Interface_Dialogue.cc
 // @src TalkingMenuDialogue, ProfileCurrentlyTalkingInDialoguePanel; src/externalized/content/Dialogs.cc
-// @src GetDialogueTextFilename; Tactical/Faces.cc SetFaceTalking (talking duration without speech). See docs/24 §1.5, §7.
+// @src GetDialogueTextFilename; Tactical/Faces.cc SetFaceTalking (talking duration without speech); Strategic/Assignments.cc
+// @src DialogueEventRemoveEPC. See docs/24 §1.5, §7, §9.4.
 
 import { alternateDialogueFile, mercDialogueFile, npcDialogueFile, type TextKey, textKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -30,6 +31,7 @@ export interface DialogueHandlers {
   triggerNpcRecord(npc: number, record: number): void;
   mikeCheck(): void;
   autoBandage(): boolean;
+  removeEpc(npc: number): void;
 }
 
 export function addDialogueEvent(host: Pick<NarrativeHost, 'talk'>, e: DialogueEvent): void {
@@ -120,7 +122,7 @@ export function executeCharacterDialogue(
 ): boolean {
   const tick = host.tick();
   host.talk.face = { speaker, busyUntil: tick, pcTrigger: null };
-  const s = soldierOnPlayerTeam(host, speaker);
+  const s = soldierOnPlayerTeam(host, speaker) ?? host.offSectorPlayerSoldier?.(speaker) ?? null;
   if (!s && fromSoldier) return false;
   if (s && speakerSilenced(s, quote)) return false;
   const key = dialogueTextKey(host, speaker, quote, alternate);
@@ -129,7 +131,9 @@ export function executeCharacterDialogue(
   host.talk.face = { speaker, busyUntil: tick + chars * TICKS_PER_CHARACTER + 1, pcTrigger: null };
   const soldier = (s ?? soldierByProfile(host, speaker))?.id ?? null;
   const withRecord = record !== null ? { record } : {};
-  host.talk.lines.push({ profile: speaker, quote, ...withRecord, textKey: key, chars });
+  const line = { profile: speaker, quote, ...withRecord, textKey: key, chars };
+  host.talk.lines.push(line);
+  host.talk.said.push(line);
   if (npcUi) host.emit({ type: 'npcQuote', profile: speaker, soldier, quote, ...withRecord, textKey: key, chars });
   else host.emit({ type: 'mercQuote', soldier: soldier ?? -1, profile: speaker, quote: `quote${quote}`, id: quote, textKey: key, chars });
   return true;
@@ -172,6 +176,9 @@ function execute(host: NarrativeHost, h: DialogueHandlers, e: DialogueEvent): bo
       return false;
     case 'pcTriggerNpc':
       return executePcTrigger(host, e);
+    case 'removeEpc':
+      h.removeEpc(e.npc);
+      return false;
   }
 }
 

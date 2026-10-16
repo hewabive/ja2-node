@@ -35,7 +35,6 @@ import {
   NO_BOXING_ACTIONS,
   NO_MEANWHILE_ACTIONS,
   NO_MINE_ACTIONS,
-  NO_RECRUIT_ACTIONS,
   type NpcActionEnv,
   type NpcRequestOpening,
   type RecruitActions,
@@ -57,6 +56,7 @@ import type { CampaignSim } from '../campaign-sim.ts';
 import { numberOfMercsOnPlayerTeam } from '../laptop/hire.ts';
 import { MoraleEvent } from '../morale.ts';
 import { addNpcEventToday, addNpcEventTomorrow, medicalCostAt } from './quest-world.ts';
+import { RecruitFlow } from './recruit-flow.ts';
 
 export interface NpcActionPorts {
   readonly boxing?: Partial<BoxingActions>;
@@ -86,6 +86,7 @@ export class NpcActionFlow {
   readonly #host: NarrativeHost;
   readonly #ports: NpcActionPorts;
   readonly #emit: Emit;
+  readonly recruitFlow: RecruitFlow;
   readonly env: NpcActionEnv;
   carmenTimerAtMs: number | null = null;
 
@@ -94,6 +95,7 @@ export class NpcActionFlow {
     this.#host = host;
     this.#ports = ports;
     this.#emit = emit;
+    this.recruitFlow = new RecruitFlow(campaign, host, emit);
     this.env = this.#createEnv();
   }
 
@@ -265,7 +267,7 @@ export class NpcActionFlow {
       hospital: s.narrative.hospital,
       mines: this.#mines(),
       boxing: { ...NO_BOXING_ACTIONS, lastMatchWonByPlayer: () => s.narrative.boxing.lastMatchWonByPlayer, ...this.#ports.boxing },
-      recruit: { ...NO_RECRUIT_ACTIONS, ...this.#ports.recruit },
+      recruit: { ...this.recruitFlow.actions(), ...this.#ports.recruit },
       meanwhile: { ...NO_MEANWHILE_ACTIONS, ...this.#ports.meanwhile },
       hideout: {
         addExitGrid: (_gridNo: number, _target: ExitGridTarget) => {},

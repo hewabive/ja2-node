@@ -73,4 +73,6 @@ export interface NarrativeHost extends RecordsEnv {
   openShop(dealer: number): void;
   shopClosedByScript(dealer: number): boolean;
   teleport(s: Soldier, gridNo: number): void;
+  releaseEscort?(npc: number): void;
+  offSectorPlayerSoldier?(profile: number): Soldier | null;
 }

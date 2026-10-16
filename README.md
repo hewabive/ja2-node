@@ -34,7 +34,8 @@ pnpm dev                           # server (7420) + Vite (5173)
 
 Open http://127.0.0.1:5173/ → "Strategic map", "Tactical sandbox", "Asset browser" or "Map viewer". The strategic
 map starts a new campaign (the squad lands in A9 at 07:00 on day 1, or "hire in laptop" keeps it in the laptop), plots
-routes, runs the world clock, extends or ends contracts, answers battle and contract prompts, shows the quest log, flies
+routes, runs the world clock, extends or ends contracts, releases escorts, answers battle and contract prompts, shows the
+quest log, flies
 Skyrider's helicopter once it is available and opens the laptop (mail, A.I.M., M.E.R.C., I.M.P., Bobby Ray, insurance,
 records); its "tactical view" link opens the loaded sector of that
 campaign, where "trade" opens the shop of the nearest visible merchant and "talk" starts a conversation with the nearest

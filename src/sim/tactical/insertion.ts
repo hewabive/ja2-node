@@ -163,12 +163,18 @@ export function directionFromTo(from: number, to: number): number {
   return [2, 1, 0, 7, 6, 5, 4, 3][sector] ?? 2;
 }
 
+export interface PlacementAnimation {
+  readonly state: number;
+  readonly code: number;
+}
+
 export function addSoldierToSector(
   t: TacticalState,
   s: Soldier,
   order: InsertionOrder,
   ctx: Pick<InsertionContext, 'assignment' | 'asleep' | 'isEpc'>,
   calculateDirection: boolean,
+  animation: PlacementAnimation | null = null,
 ): boolean {
   s.actionPoints = calcActionPoints(t.content, s);
   if (!t.mercSlots.includes(s)) registerSoldier(t, s);
@@ -190,7 +196,7 @@ export function addSoldierToSector(
     }
   }
   if (direction >= FORCED_DIRECTION) direction -= FORCED_DIRECTION;
-  addSoldierToSectorGridNo(t, s, gridNo, direction, order.code, ctx);
+  addSoldierToSectorGridNo(t, s, gridNo, direction, order.code, ctx, animation);
   checkForPotentialAddToBattleIncrement(t, s);
   return true;
 }
@@ -228,6 +234,7 @@ function addSoldierToSectorGridNo(
   direction: number,
   insertionCode: number,
   ctx: Pick<InsertionContext, 'assignment' | 'asleep' | 'isEpc'>,
+  animation: PlacementAnimation | null,
 ): void {
   s.reservedGridNo = NOWHERE;
   s.pendingAnimation = NO_PENDING_ANIMATION;
@@ -251,7 +258,8 @@ function addSoldierToSectorGridNo(
   if (s.dead) return;
   if (s.level === SECOND_LEVEL && !t.world.structures.find(s.gridNo, StructureFlags.ROOF)) s.level = 0;
   if (insertionCode === Insertion.ARRIVING_GAME) return;
-  if (s.bodyType !== Body.CROW) initNewSoldierAnim(t, s, states(t.content.animations).STANDING, PLACEMENT_ANIM_CODE, true);
+  if (animation) initNewSoldierAnim(t, s, animation.state, animation.code, true);
+  else if (s.bodyType !== Body.CROW) initNewSoldierAnim(t, s, states(t.content.animations).STANDING, PLACEMENT_ANIM_CODE, true);
   const special = placementAnimation(t, s, ctx);
   if (special !== null) initNewSoldierAnim(t, s, special, PLACEMENT_ANIM_CODE, true);
   s.uiMovementMode = movementModeForStance(t, s);

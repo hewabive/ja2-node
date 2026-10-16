@@ -5,9 +5,29 @@
     {
       "profile": 94,
       "records": [
-        { "index": 0, "requiredApproach": "INITIAL_QUOTE", "quoteNum": 10, "numQuotes": 2, "eraseOnceSaid": true },
-        { "index": 1, "requiredApproach": "SPECIAL_INITIAL_QUOTE", "factMustBeTrue": 132, "firstDay": 254, "quoteNum": 12, "numQuotes": 1 },
-        { "index": 2, "requiredApproach": "FRIENDLY", "requiredOpinion": 25, "quoteNum": 13, "numQuotes": 1, "sayOncePerConvo": true },
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 10,
+          "numQuotes": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "SPECIAL_INITIAL_QUOTE",
+          "factMustBeTrue": 132,
+          "firstDay": 254,
+          "quoteNum": 12,
+          "numQuotes": 1
+        },
+        {
+          "index": 2,
+          "requiredApproach": "FRIENDLY",
+          "requiredOpinion": 25,
+          "quoteNum": 13,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        },
         {
           "index": 3,
           "requiredApproach": "DIRECT",
@@ -20,7 +40,10 @@
         {
           "index": 4,
           "requiredApproach": "FRIENDLY",
-          "quest": { "name": "FIND_HERMIT", "status": "INPROGRESS" },
+          "quest": {
+            "name": "FIND_HERMIT",
+            "status": "INPROGRESS"
+          },
           "quoteNum": 16,
           "numQuotes": 1,
           "triggerSelf": true,
@@ -46,26 +69,169 @@
           "endQuest": "FIND_HERMIT",
           "eraseOnceSaid": true
         },
-        { "index": 7, "requiredApproach": "THREATEN", "quoteNum": 19, "numQuotes": 1, "actionData": { "code": 24 } },
-        { "index": 8, "requiredApproach": "RECRUIT", "factMustBeTrue": 132, "quoteNum": 20, "numQuotes": 1, "actionData": { "code": 221 } },
-        { "index": 9, "requiredApproach": "TRIGGER_NPC", "quoteNum": 21, "numQuotes": 1 },
-        { "index": 10, "requiredApproach": "TRIGGER_NPC", "quoteNum": 22, "numQuotes": 1 },
-        { "index": 11, "requiredApproach": "TRIGGER_NPC", "quoteNum": 23, "numQuotes": 1 },
-        { "index": 12, "requiredApproach": "TRIGGER_NPC", "quoteNum": 24, "numQuotes": 1 },
-        { "index": 13, "requiredApproach": "GIVINGITEM", "requiredItem": "CLIP9_15", "quoteNum": 25, "numQuotes": 1 },
-        { "index": 14, "requiredApproach": "GIVINGITEM", "requiredItem": "MONEY", "quoteNum": 26, "numQuotes": 1 },
+        {
+          "index": 7,
+          "requiredApproach": "THREATEN",
+          "quoteNum": 19,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 8,
+          "requiredApproach": "RECRUIT",
+          "factMustBeTrue": 132,
+          "quoteNum": 20,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 221
+          }
+        },
+        {
+          "index": 9,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 21,
+          "numQuotes": 1
+        },
+        {
+          "index": 10,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 22,
+          "numQuotes": 1
+        },
+        {
+          "index": 11,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 23,
+          "numQuotes": 1
+        },
+        {
+          "index": 12,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 24,
+          "numQuotes": 1
+        },
+        {
+          "index": 13,
+          "requiredApproach": "GIVINGITEM",
+          "requiredItem": "CLIP9_15",
+          "quoteNum": 25,
+          "numQuotes": 1
+        },
+        {
+          "index": 14,
+          "requiredApproach": "GIVINGITEM",
+          "requiredItem": "MONEY",
+          "quoteNum": 26,
+          "numQuotes": 1
+        },
         {
           "index": 15,
           "requiredApproach": "GIVINGITEM",
           "requiredItem": "GLOCK_17",
           "quoteNum": 27,
           "numQuotes": 1,
-          "actionData": { "code": 1 }
+          "actionData": {
+            "code": 1
+          }
+        }
+      ]
+    },
+    {
+      "profile": 65,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 13,
+          "numQuotes": 1
+        },
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 14,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 23
+          }
+        },
+        {
+          "index": 2,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 10,
+          "numQuotes": 1,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 3,
+          "requiredApproach": "RECRUIT",
+          "quoteNum": 11,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 212
+          }
+        },
+        {
+          "index": 4,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 12,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        }
+      ]
+    },
+    {
+      "profile": 123,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 10,
+          "numQuotes": 1,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "RECRUIT",
+          "quoteNum": 11,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 110
+          }
+        },
+        {
+          "index": 2,
+          "requiredApproach": "EPC_WHO_IS_RECRUITED",
+          "quoteNum": 12,
+          "numQuotes": 1
+        },
+        {
+          "index": 3,
+          "requiredApproach": "EPC_IN_WRONG_SECTOR",
+          "quoteNum": 13,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 149
+          }
+        },
+        {
+          "index": 4,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 14,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
         }
       ]
     }
   ],
   "recruited": {
-    "records": [{ "index": 0, "requiredApproach": "TRIGGER_NPC", "lastDay": 255 }]
+    "records": [
+      {
+        "index": 0,
+        "requiredApproach": "TRIGGER_NPC",
+        "lastDay": 255
+      }
+    ]
   }
 }

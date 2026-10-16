@@ -44,16 +44,16 @@ export function addProfilesNotUsingProfileInsertionData(t: TacticalState, env: P
   }
 }
 
-function blankProfileCreate(profile: number): SoldierCreate {
+export function profileSoldierCreate(profile: number, team: number, direction: number): SoldierCreate {
   return {
     profile,
-    team: Team.CIV,
+    team,
     soldierClass: 0,
     civilianGroup: 0,
     bodyType: 0,
     orders: 0,
     attitude: 0,
-    direction: 0,
+    direction,
     insertionGridNo: NOWHERE,
     onRoof: false,
     hasKeys: false,
@@ -87,7 +87,7 @@ function soldierOfProfile(t: TacticalState, profile: number): Soldier | null {
 function createProfileCivilian(t: TacticalState, profile: number, env: PopulationEnv): Soldier | null {
   const id = firstFreeSoldierId((n) => soldierSlotTaken(t, n), Team.CIV);
   if (id < 0) return null;
-  const s = tacticalCreateSoldier(t, blankProfileCreate(profile), id, env);
+  const s = tacticalCreateSoldier(t, profileSoldierCreate(profile, Team.CIV, 0), id, env);
   if (s) drawStandingFrame(t);
   return s;
 }

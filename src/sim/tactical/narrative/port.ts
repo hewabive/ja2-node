@@ -3,7 +3,10 @@
 // @src src/game/Strategic/Quests.cc CheckFact (fact), SetFactTrue, SetFactFalse, gubQuest; Tactical/Interface_Dialogue.cc
 // @src HandleNPCDoAction (npcAction); TacticalAI/NPC.cc TriggerNPCWithGivenApproach; Tactical/Handle_Items.cc
 // @src SoldierGiveItemFromAnimation (the dealer, team member and NPC branches); TileEngine/Explosion_Control.cc
-// @src PerformItemAction (ACTION_ITEM_SEX: HandleMoraleEvent, FatigueCharacter). See docs/25 §1, §2.1, §3, §6, §11.5, docs/24 §4.
+// @src PerformItemAction (ACTION_ITEM_SEX: HandleMoraleEvent, FatigueCharacter); Tactical/Soldier_Control.cc
+// @src CanRobotBeControlled, ControllingRobot, robot_remote_holder; Tactical/Items.cc PlaceObject (the remote control);
+// @src Tactical/Soldier_Profile.cc ChangeSoldierTeam (side changes of Overhead.cc).
+// @src See docs/25 §1, §2.1, §3, §6, §9.4, §11.5, docs/24 §4.
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -43,6 +46,11 @@ export interface NarrativePort {
   triggerDoneGivingItem(profile: number): void;
   isNpcProfile(profile: number): boolean;
   sexEffects(s: Soldier): void;
+  robotCanBeControlled(robot: Soldier): boolean;
+  robotController(robot: Soldier): Soldier | null;
+  controllingRobot(s: Soldier): boolean;
+  robotRemotePlaced(s: Soldier): void;
+  changeSoldierTeam(s: Soldier, team: number): Soldier | null;
 }
 
 export const NO_NARRATIVE_PORT: NarrativePort = {
@@ -78,4 +86,9 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   triggerDoneGivingItem: () => {},
   isNpcProfile: () => false,
   sexEffects: () => {},
+  robotCanBeControlled: () => true,
+  robotController: () => null,
+  controllingRobot: () => false,
+  robotRemotePlaced: () => {},
+  changeSoldierTeam: () => null,
 };

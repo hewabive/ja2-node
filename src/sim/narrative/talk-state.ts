@@ -41,7 +41,8 @@ export type DialogueEvent =
   | { readonly kind: 'triggerNpc'; readonly npc: number; readonly record: number; readonly approach: number; readonly show: boolean }
   | { readonly kind: 'goto'; readonly npc: number; readonly gridNo: number; readonly record: number }
   | { readonly kind: 'doAction'; readonly npc: number; readonly code: number; readonly record: number }
-  | { readonly kind: 'pcTriggerNpc'; readonly speaker: number; readonly quote: number; readonly npc: number; readonly record: number };
+  | { readonly kind: 'pcTriggerNpc'; readonly speaker: number; readonly quote: number; readonly npc: number; readonly record: number }
+  | { readonly kind: 'removeEpc'; readonly npc: number };
 
 export interface TalkingFace {
   readonly speaker: number;
@@ -91,6 +92,7 @@ export interface TalkState {
   niceNpc: number;
   nastyNpc: number;
   readonly lines: SpokenLine[];
+  readonly said: SpokenLine[];
   readonly fx: Rng;
   giveOutcome: GiveOutcome | null;
 }
@@ -116,6 +118,7 @@ export function createTalkState(seed = 0): TalkState {
     niceNpc: NO_PROFILE,
     nastyNpc: NO_PROFILE,
     lines: [],
+    said: [],
     fx: Rng.fromSeed(seed ^ COSMETIC_SEED),
     giveOutcome: null,
   };

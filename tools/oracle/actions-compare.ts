@@ -23,8 +23,8 @@ import type { ProfileProgress } from '../../src/sim/tactical/profiles.ts';
 import { NO_PROFILE, NOWHERE, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
 
 type Json = Record<string, unknown>;
-type Draw = readonly [string, number, number, number];
-type FactEntry = readonly [number, number, number];
+export type Draw = readonly [string, number, number, number];
+export type FactEntry = readonly [number, number, number];
 
 export const ACTION_PROBES: ReadonlySet<string> = new Set([
   'npcaction',
@@ -45,7 +45,7 @@ const num = (v: unknown) => Number(v ?? 0);
 
 const FACE_DRAWS: readonly number[] = [30, 2, 2000];
 
-function withoutFaceDraws(draws: readonly Draw[]): Draw[] {
+export function withoutFaceDraws(draws: readonly Draw[]): Draw[] {
   const out: Draw[] = [];
   for (let i = 0; i < draws.length; i++) {
     const face = FACE_DRAWS.every((range, k) => draws[i + k]?.[0] === MAIN_STREAM && draws[i + k]?.[1] === range);
@@ -55,14 +55,14 @@ function withoutFaceDraws(draws: readonly Draw[]): Draw[] {
   return out;
 }
 
-function report(label: string, same: boolean, detail: string): number {
+export function report(label: string, same: boolean, detail: string): number {
   console.log(`${label}: ${same ? 'ok' : 'MISMATCH'} ${detail}`);
   return same ? 0 : 1;
 }
 
-class ReplayMismatch extends Error {}
+export class ReplayMismatch extends Error {}
 
-class StrictReplay {
+export class StrictReplay {
   readonly #draws: readonly Draw[];
   readonly #name: string;
   #at = 0;
@@ -86,7 +86,7 @@ class StrictReplay {
   }
 }
 
-class FactReplay {
+export class FactReplay {
   readonly #entries: readonly FactEntry[];
   readonly #store: (fact: number, value: number) => void;
   #at = 0;
@@ -115,7 +115,7 @@ class FactReplay {
   }
 }
 
-function queueEntry(e: DialogueEvent): Json {
+export function queueEntry(e: DialogueEvent): Json {
   switch (e.kind) {
     case 'quote':
       return e.npcUi ? { kind: 'quote', args: [e.speaker, e.quote, 0, 0] } : { kind: 'merc', args: [e.speaker, e.quote, 0, 0] };
@@ -131,10 +131,12 @@ function queueEntry(e: DialogueEvent): Json {
       return { kind: 'give', args: [e.npc, e.slot, 0, 0] };
     case 'pcTriggerNpc':
       return { kind: 'pctrigger', args: [e.speaker, e.quote, e.npc, e.record] };
+    case 'removeEpc':
+      return { kind: 'removeepc', args: [e.npc, 0, 0, 0] };
   }
 }
 
-function profileDump(id: number, p: ProfileProgress | null): Json {
+export function profileDump(id: number, p: ProfileProgress | null): Json {
   if (!p) return { id, missing: true };
   return {
     id,
@@ -155,7 +157,7 @@ function profileDump(id: number, p: ProfileProgress | null): Json {
   };
 }
 
-function firstDifference(ours: unknown, theirs: unknown, path = ''): string | null {
+export function firstDifference(ours: unknown, theirs: unknown, path = ''): string | null {
   if (Array.isArray(ours) && Array.isArray(theirs)) {
     if (ours.length !== theirs.length) return `${path}: ours ${JSON.stringify(ours)} oracle ${JSON.stringify(theirs)}`;
     for (let i = 0; i < ours.length; i++) {
@@ -175,7 +177,7 @@ function firstDifference(ours: unknown, theirs: unknown, path = ''): string | nu
   return ours === theirs ? null : `${path}: ours ${JSON.stringify(ours)} oracle ${JSON.stringify(theirs)}`;
 }
 
-function nativeHistory(rows: readonly number[][]): number[][] {
+export function nativeHistory(rows: readonly number[][]): number[][] {
   return rows.map(([code, second, date, x, y, z]) =>
     x === -1 && y === -1 ? [code ?? 0, second ?? 0, date ?? 0, -1, -1, 0] : [code ?? 0, second ?? 0, date ?? 0, x ?? 0, y ?? 0, z ?? 0],
   );

@@ -983,3 +983,6 @@ Specs: `docs/24` (NPCs and dialogue), `25` (quests, facts, NPC actions, schedule
 7. **Giving** (`sim/tactical/give.ts`, `sim/narrative/give.ts`, `sim/tactical/narrative/quest-items.ts`): the `give` command
    to NPCs, dealers and squad mates with the original's acceptance rules and quest effects, and the quest action items
    (pressure items and switches, Kingpin's and the museum's alarms, the brothel scene). 83 oracle probes match.
+8. **Recruiting, escorts and the robot** (`sim/tactical/narrative/team-change.ts`, `sim/campaign/narrative/recruit-flow.ts`,
+   `robot-control.ts`): `ChangeSoldierTeam`, R.P.C.s and escorts joining and leaving, the `unescort` command, escort
+   arrivals, civilian-group side changes and the robot's remote control. 74 oracle probes match.

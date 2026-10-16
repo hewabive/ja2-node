@@ -4,7 +4,8 @@
 // @src CivilianGroupMemberChangesSides (AddStrategicEvent + 300); Strategic/Quests.cc CheckFact, SetFactTrue, SetFactFalse;
 // @src Tactical/Overhead.cc HandleNPCTeamMemberDeath (terrorists and assassins); Map_Screen_Helicopter.cc
 // @src SetUpHelicopterForPlayer (from HandleAtNewGridNo); Game_Event_Hook.cc EVENT_PROCESS_TACTICAL_SCHEDULE; Scheduling.cc
-// @src (the strategic event calls of the schedules). See docs/25 §1, §5, §6.2, §10.2.
+// @src (the strategic event calls of the schedules); Tactical/Soldier_Control.cc CanRobotBeControlled, GetRobotController;
+// @src Tactical/Items.cc PlaceObject (UpdateRobotControllerGivenController). See docs/25 §1, §5, §6.2, §9.4, §10.2.
 
 import { i8 } from '../../core/int.ts';
 import { decrementTownLoyalty, incrementTownLoyalty, reduceLoyaltyForRebelsBetrayed } from '../strategic/economy/loyalty.ts';
@@ -23,6 +24,7 @@ import { HOSTILITY_DELAY_MINUTES } from '../tactical/narrative/constants.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from '../tactical/narrative/port.ts';
 import type { ScheduleClock } from '../tactical/narrative/schedule-state.ts';
 import { processTacticalSchedule } from '../tactical/narrative/schedules.ts';
+import type { Soldier } from '../tactical/soldier.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 
 function rebelsBetrayed(campaign: CampaignSim): void {
@@ -68,6 +70,11 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
       if (campaign.strategic) setUpHelicopterForPlayer(campaign.strategic, sector);
     },
     npcAction: (profile, code, record) => campaign.talk?.npcActions.handle(profile, code, record),
+    robotCanBeControlled: (robot) => robotCanBeControlled(campaign, robot),
+    robotController: (robot) => robotController(campaign, robot),
+    controllingRobot: (soldier) => campaign.battle?.roster.controllingRobot(soldier.id) ?? false,
+    robotRemotePlaced: (soldier) => campaign.battle?.roster.updateRobotControllerGivenController(soldier.id),
+    changeSoldierTeam: (soldier, team) => campaign.talk?.npcActions.recruitFlow.changeTeam(soldier, team) ?? null,
   };
 }
 
@@ -86,6 +93,19 @@ export function campaignScheduleClock(campaign: CampaignSim): ScheduleClock {
     },
     deleteAllEvents: () => deleteAllStrategicEventsOfType(s.queue, EventKind.PROCESS_TACTICAL_SCHEDULE),
   };
+}
+
+function robotCanBeControlled(campaign: CampaignSim, robot: Soldier): boolean {
+  const roster = campaign.battle?.roster;
+  if (!roster?.get(robot.id)) return true;
+  return roster.canRobotBeControlled(robot.id);
+}
+
+function robotController(campaign: CampaignSim, robot: Soldier): Soldier | null {
+  const roster = campaign.battle?.roster;
+  const merc = roster?.get(robot.id);
+  if (!roster || !merc || merc.remoteHolder === null || !roster.canRobotBeControlled(robot.id)) return null;
+  return roster.get(merc.remoteHolder)?.soldier ?? null;
 }
 
 export function registerNarrativeEvents(campaign: CampaignSim): void {

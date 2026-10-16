@@ -702,8 +702,8 @@ Listed for completeness; `docs/26` specifies them: 170 `END_MEANWHILE`, 222 `REM
 | SKYRIDER and any RPC | `balance < 0` and not refusing: pay off the debt as for Vince (cost to date, clamp, message) |
 
 *Implemented* in `src/sim/narrative/select.ts` (first `docs/24` slice) and wired to the give flow (give slice, 2026-10-16):
-`CalcMedicalCost` (`src/sim/tactical/narrative/hospital-cost.ts`; per-patient price modifiers are not tracked yet and read as
-`HOSPITAL_UNSET`), Frank's cash, the cost to date of a paid debt (`finances.profileCostToDate`), the `balanceOwed` and
+`CalcMedicalCost` (`medicalCostAt` of the action catalog's hospital code, with the per-patient price modifiers), Frank's
+cash, the cost to date of a paid debt (`finances.profileCostToDate`), the `balanceOwed` and
 `needsMoney` messages. The Vince/Steve chain evaluates `CheckFact(VINCE_EXPECTING_MONEY)` in each condition, as the original
 does. Oracle: `receive` in `tools/oracle/probes/give.txt` (every NPC row above except the hospital refund, which needs a doctor
 with wounded mercs in sector).
@@ -1379,6 +1379,15 @@ may not move strategically alone (`Strategic/Map_Screen_Interface.cc:3830-3836`,
 (`SM:2083-2090`). Its interrupt points are the controller's experience − 2, and the controller loses 2
 (`Tactical/TeamTurns.cc:1150-1170`). Repair of the robot is an assignment (`18`).
 
+*Implemented (recruiting slice, 2026-10-16):* §9.1–§9.4 with the escort arrivals of §9.3 (`docs/24` §9.6 for the team
+change). Notes from the code and the oracle: the robot joins through `RecruitEPC`, so it is an escort (`MERC_TYPE__EPC`) and every
+`AM_AN_EPC` rule applies to it except where `AM_A_ROBOT` is tested first (the strategic move: `ME_ROBOT_ALONE` replaces the
+escort check); its remote holder is stored (`robot_remote_holder`, imported from saves) and re-checked by
+`CanRobotBeControlled`; `PlaceObject` updates the holder whenever a remote control is placed into any slot of one of our
+soldiers (the update only takes when he then wears it in a head slot). An uncontrolled robot is skipped by the tactical
+exit check (counted as an escort). Not done: the tactical "next merc" skip and the cursor (presentation), and the contract
+ending of an escort (`Merc_Contract.cc:572-575`), unreachable because escorts have no contract.
+
 ---
 
 ## 10. Skyrider and the helicopter (`HELI`)
@@ -1754,7 +1763,7 @@ then y and the oracle confirms (§17). Every other path draws in statement order
 | Command | Original | Checks and result |
 |---|---|---|
 | `door {soldier, gridNo, action: 'open' \| 'close' \| 'unlock' \| 'lock' \| 'pickLock' \| 'force' \| 'crowbar' \| 'explode' \| 'untrap' \| 'examine'}` | clicking a door; the door menu (§8.2) | tactical; walks next to the door like `pickUp`, then interacts. `open` on a locked door returns `{opened: false, locked: true, options}` (the menu as data, after the start-of-menu trap check); the other actions need a closed **locked** door (`notLocked`, as the original shows no menu otherwise), the item (`noKey`, `noCrowbar`, `noLockpickKit`, `noShapedCharge`), a non-EPC for keys, lock picks, charges, examining and forcing (`escortCannot`), a non-diagonal facing (`diagonal`), AP in combat (`notEnoughAp`), and `examine` refuses a door already proved trapped or untrapped, `untrap` one proved untrapped (`alreadyKnown`). Result events (§13.3). *Implemented* (`doors/door-command.ts`, exact fields in `docs/04` §6.10); `lock` needs a closed unlocked door with a lock (`noLock`, `alreadyLocked`) |
-| `unescort {soldier}` | assignment menu "remove escort" | an EPC on our team; map screen → `InternalUnescortEPC` (and the John/Mary partner); tactical → the EPC's wrong-sector record (`docs/24`) |
+| `unescort {soldier}` | assignment menu "remove escort" | an EPC on our team; map screen → `InternalUnescortEPC` (and the John/Mary partner); tactical → the EPC's wrong-sector record (`docs/24`). *Implemented* (`docs/04` §6.17) |
 | `heliRoute {to}` / `heliCancel` | plotting and confirming the helicopter's route (§10.3) | strategic; refusals `noHelicopter`, `skyriderOwed`, `returningToBase`, `grounded`, `skyriderUnwilling`; the one-time empty-helicopter hint is an informational event and the route is not plotted (as in the original: refusal `emptyHelicopterHint`). `route`/`cancelRoute` for a merc aboard do the same after the squad's move check. *Implemented* (`campaign/helicopter-flow.ts`, `docs/04` §6.13) |
 | `boardVehicle {soldier, vehicle: id \| 'helicopter'}` / `leaveVehicle {soldier, squad?}` | the assignment menu's vehicle line (`PutSoldierInVehicle`) and squad line for a passenger | strategic for boarding (`CanCharacterVehicle`); refusals in `docs/04` §6.13; leaving is refused in flight (deviation). *Implemented* |
 | `answer {prompt, choice}` | the requestor boxes | `npcRequest` choices (§13.2) |
@@ -1777,7 +1786,8 @@ with `decision`. The outcome is visible only through the records it triggers (qu
 
 `questStarted {quest, sector?}`, `questFinished {quest, sector?}` (emitted with the history line, so never for silent
 changes); `historyAdded` (`21`); `npcRequest` (the prompt); `npcBalance {npc, owed}` (action 119 and the money messages);
-`terroristRevealed {npc}`; `townDiscovered {town}`; `samSitesRevealed {sites}`; `escortStarted {npc}`, `escortEnded {npc}`;
+`terroristRevealed {npc}`; `townDiscovered {town}`; `samSitesRevealed {sites}`; `escortStarted {npc}`, `escortEnded {npc}`
+(implemented as `docs/24`'s `npcRecruited {profile, soldier, kind: 'epc', salary}` and `epcReleased {profile, soldier}`);
 `boxingStarted {boxer, merc}`, `boxingEnded {result: 'won' | 'lost' | 'disqualified' | 'abandoned'}`; `doorMenu {soldier, gridNo,
 options}`, `doorResult {soldier, gridNo, action, result, trap?}`, `doorTrap {soldier, gridNo, trap}`, `lockDestroyed {soldier,
 gridNo}` (implemented); `helicopterSetUp {sector}`, `skyriderQuote {quote}`, `heliTakeOff {sector}`, `heliArrived {sector,
@@ -1921,7 +1931,9 @@ Kingpin's hitmen stay open.
 (b) profile NPC fields, presence (new game, `AddPlacementToWorld` filter and overrides, `AddProfiles…`, entry/exit quest code,
 04:00, hourly, events 28/41/63/67); (c) the computed facts; (d) the action catalog and the NPC system events on `docs/24`'s
 dispatch, requestor prompts; (e) civilian groups, attack implications, sight and death rules (the `hit.ts` constants are already fixed);
-(f) schedules and away slots; (g) keys, locks, traps and the `door` command; (h) boxing; (i) EPCs and the robot; (j) the
+(f) schedules and away slots; (g) keys, locks, traps and the `door` command; (h) boxing; (i) EPCs and the robot (*implemented,
+recruiting slice 2026-10-16: §9, the escort arrivals of §11.10 and §11.14, the robot's control, Maria kept in C5, the
+`unescort` command; oracle `patches/0018-recruit-oracle.patch`*); (j) the
 helicopter; (k) the quest action items, the hospital, Kingpin's money and hitmen; (l) stubs, scenario, oracle probes; then
 narrow or remove the deviations of §18.
 

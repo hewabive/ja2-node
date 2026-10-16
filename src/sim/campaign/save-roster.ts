@@ -1,6 +1,6 @@
 import type { SaveGame } from '../../content/formats/savegame.ts';
 import { createSavedSoldier } from '../tactical/save-import.ts';
-import { Team } from '../tactical/soldier.ts';
+import { NOBODY, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { type Roster, RosterMerc } from './roster.ts';
 
@@ -30,6 +30,7 @@ export function addSavedMercsToRoster(roster: Roster, save: SaveGame, tactical: 
         contract: r.contract,
         quoteSaidFlags: r.quoteSaidFlags,
         corpseQuoteTolerance: r.corpseQuoteTolerance,
+        remoteHolder: r.robotRemoteHolder === NOBODY ? null : r.robotRemoteHolder,
       }),
     );
   }
