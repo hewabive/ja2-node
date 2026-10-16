@@ -38,6 +38,7 @@ import {
   Situation,
   URGENCY,
 } from './actions.ts';
+import { loadWeaponIfNeeded } from './attack-choice.ts';
 import { type CombatDeciderHooks, decideActionBlack, decideActionRed, decideActionYellow } from './combat-decide.ts';
 import { findNearestUngassedLand } from './cover.ts';
 import {
@@ -338,13 +339,14 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
       ai.actionData = AnimHeight.STAND;
       setSoldierCowerState(t, s, false);
       return true;
-    case AiAction.TOSS_PROJECTILE:
     case AiAction.THROW_KNIFE:
       cancelAIAction(t, s);
       t.hooks.endAiGuysTurn(t, s);
       return true;
+    case AiAction.TOSS_PROJECTILE:
     case AiAction.KNIFE_MOVE:
     case AiAction.FIRE_GUN: {
+      if (ai.action === AiAction.TOSS_PROJECTILE) loadWeaponIfNeeded(t, s);
       if (ai.action === AiAction.KNIFE_MOVE) s.uiMovementMode = determineMovementMode(t, s, ai.action);
       const result = t.turnHooks.aiAttack(t, s, ai.actionData, s.targetLevel);
       if (result !== 1) {

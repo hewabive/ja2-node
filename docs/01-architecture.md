@@ -844,7 +844,7 @@ Specs: `docs/10` (turn-based), `11` (attacks and damage), `12` (items and explos
 6. **Melee and bursts**: knife and punch (`combat/melee.ts`), the 20 ms delayed hit, dodge, AI stabs and spread bursts.
 7. **Throws and explosions** (`sim/tactical/explosions/`): float32 throw physics, launchers, explosion timing,
    `SpreadEffect`/`ExpAffect`, blast damage with armour, structure damage with partners, item damage and chains,
-   smoke/tear/mustard gas with the gassed state, flares as data.
+   smoke/tear/mustard gas with the gassed state, flares as data; AI throws (`CalcBestThrow`, spotters).
 8. **Items in the world**: map items with their `PreRandom` draws, item reveal by sight, `pickUp` (walks there) and
    `drop`, AI `SearchForItems`; corpse structures from the tile cache.
 9. **Turn start, roofs**: bleeding and getting up; buildings and climb spots (`GenerateBuildings` with its draws),
@@ -852,5 +852,4 @@ Specs: `docs/10` (turn-based), `11` (attacks and damage), `12` (items and explos
 10. **Oracle**: `tools/oracle/compare.ts` checks A9 movement costs, paths with AP costs and LOS against the native
     build; all shipped probes match.
 
-**Not in M3 yet**: AI throws (`CalcBestThrow`, TOSS_PROJECTILE execution), LAW and tank cannon, falling off roofs,
-save import.
+**Not in M3 yet**: LAW and tank cannon, falling off roofs, save import.

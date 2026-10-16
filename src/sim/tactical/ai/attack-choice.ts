@@ -10,23 +10,41 @@
 
 import { AmmoType, ItemClass, ItemFlags, NOTHING, WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { validLaunchable } from '../../../content/items/rules.ts';
-import { CELL_X_SIZE, DIRECTION_COUNT, DIRECTION_INCREMENT, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
+import {
+  CELL_X_SIZE,
+  cardinalSpacesAway,
+  DIRECTION_COUNT,
+  DIRECTION_INCREMENT,
+  newGridNo,
+  pythSpacesAway,
+  WORLD_COLS,
+  WORLD_MAX,
+} from '../../../content/world/grid.ts';
+import { TravelCost } from '../../../content/world/movement-costs.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { i8, idiv, u8, u32 } from '../../../core/int.ts';
-import { findAttachment, type ItemObject, swapObjects, USABLE_STATUS } from '../../items/object.ts';
+import { deleteObject, findAttachment, type ItemObject, removeObjects, swapObjects, USABLE_STATUS } from '../../items/object.ts';
 import { AnimHeight, endHeight, height, states } from '../animation.ts';
-import { calcAPsToBurst, calcTotalAPsToAttack, minAPsToAttack, minAPsToShootOrStab } from '../combat/ap.ts';
-import { aiSoldierToSoldierChanceToGetThrough, soldierToLocationChanceToGetThrough } from '../combat/bullets.ts';
-import { aiCalcChanceToHitGun, calcChanceToHitGun, rangeInUnits } from '../combat/chance.ts';
+import { calcAPsToBurst, calcTotalAPsToAttack, minAPsToAttack, minAPsToShootOrStab, minAPsToThrow } from '../combat/ap.ts';
+import {
+  aiSoldierToLocationChanceToGetThrough,
+  aiSoldierToSoldierChanceToGetThrough,
+  soldierToLocationChanceToGetThrough,
+} from '../combat/bullets.ts';
+import { aiCalcChanceToHitGun, calcChanceToHitGun, rangeInUnits, soldierDifficultyLevel } from '../combat/chance.ts';
 import { isTankBody } from '../combat/impact.ts';
 import { calcChanceToPunch, calcChanceToStab } from '../combat/melee.ts';
 import { AiMorale, Aim, AimShot, CTH_MAXIMUM, MIN_PRONE_RANGE, POINT_BLANK_RANGE, PUNCH_REAL_DAMAGE_PORTION } from '../combat/types.ts';
+import { armourVersusExplosivesPercent } from '../explosions/blast-damage.ts';
+import { SmokeTile, smokeFlagsAt, smokeTypeOf } from '../explosions/smoke.ts';
+import { calcMaxTossRange, calcThrownChanceToHit } from '../explosions/throwing.ts';
+import { calculateLaunchItemChanceToGetThrough } from '../explosions/trajectory.ts';
 import { findObjWithin, InvSlot, NO_SLOT, NUM_INV_SLOTS, reloadGun } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
 import { closestKnownOpponent } from '../perception/knowledge.ts';
 import { Opp } from '../perception/opp.ts';
 import { animStructureDef, internalIsValidStance, isValidStance } from '../person-structure.ts';
-import { AP, apsToReadyWeapon, calcActionPoints } from '../points.ts';
+import { AP, apsToReadyWeapon, calcActionPoints, doorTravelCost } from '../points.ts';
 import { effectiveStrength } from '../skills.ts';
 import {
   Attitude,
@@ -34,6 +52,7 @@ import {
   NO_PROFILE,
   NOWHERE,
   numSkillTraits,
+  OKBREATH,
   OKLIFE,
   SKILL_TRAIT_BONUS,
   SkillTrait,
@@ -121,6 +140,23 @@ const findObj = (s: Soldier, item: number) => findObjWithin(s.inv, item, 0, NUM_
 function findLaunchable(t: TacticalState, s: Soldier, weapon: number): number {
   for (let slot = 0; slot < NUM_INV_SLOTS; slot++) if (validLaunchable(t.content.items, s.inv[slot]?.item ?? NOTHING, weapon)) return slot;
   return NO_SLOT;
+}
+
+export function loadWeaponIfNeeded(t: TacticalState, s: Soldier): void {
+  const hand = handObject(s);
+  const weapon = itemDef(t, hand.item)?.weapon;
+  if (!weapon?.explosiveCalibre) return;
+  const slot = findLaunchable(t, s, hand.item);
+  if (slot === NO_SLOT) return;
+  const payload = s.inv[slot] as ItemObject;
+  const first = hand.attachments[0];
+  if (first) {
+    first.item = payload.item;
+    first.status = payload.status[0] ?? 0;
+  }
+  if (isTankBody(s)) return;
+  if ((itemDef(t, payload.item)?.perPocket ?? 0) === 1 || payload.count === 1) deleteObject(payload);
+  else removeObjects(payload, 1);
 }
 
 function findAmmo(t: TacticalState, s: Soldier, calibre: number, magSize: number): number {
@@ -373,8 +409,217 @@ export function calcBestShot(t: TacticalState, s: Soldier, best: AttackChoice = 
   return best;
 }
 
-function calcBestThrowNotPorted(best: AttackChoice): void {
+const MAX_TOSS_SEARCH_DIST = 1;
+const MAX_EXCLUDED_TILES = 100;
+const SMOKE_THROW_VALUE = 5;
+const BREAK_LIGHT_VALUE_PER_LEVEL = 5;
+const NORMAL_LIGHTLEVEL_DAY = 3;
+const KNOCKDOWN_BONUS = 15;
+const OPP_DAMAGE_RANGE = 3;
+const DAMAGE_LOSS_PER_TILE = 20;
+const DIFFICULTY_EASY = 1;
+const STRICT_DIFF_CTRH = 70;
+const MEDIUM_DIFF_CTRH = 50;
+
+interface TossTarget {
+  readonly opp: Soldier;
+  readonly gridNo: number;
+  readonly level: number;
+  readonly threat: number;
+}
+
+function safetyMargin(t: TacticalState, item: number): number {
+  const e = itemDef(t, item)?.explosive;
+  if (!e) return 0;
+  return Math.max(e.blast?.radius ?? 0, e.stun?.radius ?? 0, e.smoke?.maxRadius ?? 0, idiv(e.light?.radius ?? 0, 2));
+}
+
+function closeEnoughForGrenadeToss(t: TacticalState, s: Soldier, a: number, b: number): boolean {
+  const ctx = { env: t.pathEnv, content: t.content, inCombat: t.inCombat };
+  const blocked = (g: number, dir: number) => doorTravelCost(ctx, s, g, t.world.costs.get(g, dir, 0), false, false) >= TravelCost.BLOCKED;
+  if (a === b) {
+    for (let dir = 0; dir < DIRECTION_COUNT; dir++) if (blocked(newGridNo(a, DIRECTION_INCREMENT[dir] ?? 0), dir)) return false;
+    return true;
+  }
+  if (cardinalSpacesAway(a, b) > 2) return false;
+  const dir = directionToward(a, b);
+  let g = a;
+  do {
+    g = newGridNo(g, DIRECTION_INCREMENT[dir] ?? 0);
+    if (blocked(g, dir)) return false;
+  } while (g !== b);
+  return true;
+}
+
+function tossTargets(t: TacticalState, s: Soldier, inHand: number, grenade: number): TossTarget[] {
+  const longRange = inHand === itemIndex(t, 'MORTAR') || inHand === itemIndex(t, 'GLAUNCHER');
+  const targets: TossTarget[] = [];
+  for (const opp of mercs(t)) {
+    if (!opp.life || consideredNeutral(s, opp) || s.side === opp.side) continue;
+    if (s.ai.attitude === Attitude.ATTACKSLAYONLY && opp.profile !== ProfileId.SLAY) continue;
+    const personal = s.oppList[opp.id] ?? Opp.NOT_HEARD_OR_SEEN;
+    let gridNo = opp.gridNo;
+    if (longRange) {
+      if (personal !== Opp.SEEN_CURRENTLY && (t.perception.publicOpp[s.team]?.[opp.id] ?? 0) !== Opp.SEEN_CURRENTLY) continue;
+    } else if (personal === Opp.SEEN_LAST_TURN) {
+      gridNo = s.lastKnownOpp[opp.id] ?? NOWHERE;
+      if (!closeEnoughForGrenadeToss(t, s, opp.gridNo, gridNo)) continue;
+    } else if (personal === Opp.HEARD_LAST_TURN) {
+      if (t.pre.int(3) === 0) continue;
+      gridNo = s.lastKnownOpp[opp.id] ?? NOWHERE;
+      if (!closeEnoughForGrenadeToss(t, s, opp.gridNo, gridNo)) continue;
+      if (grenade !== itemIndex(t, 'BREAK_LIGHT') && !s.ai.underFire && s.shock === 0) continue;
+    } else if (personal !== Opp.SEEN_CURRENTLY) continue;
+    targets.push({ opp, gridNo, level: opp.level, threat: calcManThreatValue(t, opp, s.gridNo, false, s) });
+  }
+  return targets;
+}
+
+function estimateThrowDamage(t: TacticalState, s: Soldier, slot: number, opp: Soldier, g: number): number {
+  const payload = (s.inv[slot] as ItemObject).item;
+  if (payload === itemIndex(t, 'SMOKE_GRENADE') || payload === itemIndex(t, 'GL_SMOKE_GRENADE')) return SMOKE_THROW_VALUE;
+  const explosive = itemDef(t, payload === itemIndex(t, 'ROCKET_LAUNCHER') ? itemIndex(t, 'C1') : payload)?.explosive;
+  if (payload === itemIndex(t, 'BREAK_LIGHT')) return BREAK_LIGHT_VALUE_PER_LEVEL * (t.perception.ambientLight - NORMAL_LIGHTLEVEL_DAY);
+  let explosion = explosive?.blast ? idiv(explosive.blast.damage * 3, 2) : 0;
+  let breath = explosive?.stun ? idiv(explosive.stun.breathDamage * 5, 4) : 0;
+  const smoke = explosive?.smoke ? smokeTypeOf(t, explosive.smoke.type) : null;
+  if (smoke) {
+    explosion += idiv(smoke.damage * 3, 2);
+    breath += idiv(smoke.breathDamage * 5, 4);
+  }
+  if (smoke && (smoke.damage || smoke.breathDamage)) {
+    if ((t.world.terrain[g] ?? 0) !== Terrain.FLAT_FLOOR) breath = idiv(breath, 2);
+    const mask = findObj(opp, itemIndex(t, 'GASMASK'));
+    if (mask === InvSlot.HEAD1 || mask === InvSlot.HEAD2)
+      breath = idiv(breath * (100 - ((opp.inv[mask] as ItemObject).status[0] ?? 0)), 100);
+  } else if (explosion) {
+    explosion -= idiv(explosion * armourVersusExplosivesPercent(t, opp), 100);
+    if (explosion < 1) explosion = 1;
+  }
+  let damage = endHeight(t.content, opp.state) === AnimHeight.STAND ? KNOCKDOWN_BONUS : 0;
+  if (opp.breath < OKBREATH || opp.bodyType === Body.ROBOTNOWEAPON) breath = 0;
+  damage += explosion + idiv(breath, 3);
+  return idiv(damage * ((s.inv[slot] as ItemObject).status[0] ?? 0), 100);
+}
+
+function gasAlreadyThere(t: TacticalState, grenade: number, g: number, level: number): boolean {
+  const flags = smokeFlagsAt(t, g, level);
+  if (grenade === itemIndex(t, 'SMOKE_GRENADE') || grenade === itemIndex(t, 'GL_SMOKE_GRENADE')) return (flags & SmokeTile.SMOKE) !== 0;
+  if (grenade === itemIndex(t, 'TEARGAS_GRENADE')) return (flags & (SmokeTile.TEARGAS | SmokeTile.MUSTARDGAS)) !== 0;
+  if (grenade === itemIndex(t, 'MUSTARD_GRENADE')) return (flags & SmokeTile.MUSTARDGAS) !== 0;
+  return false;
+}
+
+function holdsBackToss(t: TacticalState, s: Soldier, targets: number): boolean {
+  const diff = soldierDifficultyLevel(t, s);
+  if (targets >= 2) return false;
+  if (diff <= 1) return s.life > idiv(s.lifeMax, 2);
+  if (diff === 2) return s.life > idiv(s.lifeMax, 4) * 3;
+  return false;
+}
+
+function calcBestThrow(t: TacticalState, s: Soldier, best: AttackChoice): void {
+  const inHand = handObject(s).item;
+  const weapon = itemDef(t, inHand)?.weapon;
+  const explosiveGun = isExplosiveGun(t, inHand);
+  const range = explosiveGun && weapon ? idiv(weapon.range, CELL_X_SIZE) : calcMaxTossRange(t, s, inHand, true);
+  let payloadSlot: number = InvSlot.HAND;
+  let grenade = NOTHING;
+  let margin: number;
+  if (weapon?.explosiveCalibre) {
+    payloadSlot = findLaunchable(t, s, inHand);
+    if (payloadSlot === NO_SLOT) return;
+    grenade = (s.inv[payloadSlot] as ItemObject).item;
+    margin = safetyMargin(t, grenade);
+  } else if (inHand === itemIndex(t, 'ROCKET_LAUNCHER')) margin = itemDef(t, itemIndex(t, 'C1'))?.explosive?.blast?.radius ?? 0;
+  else {
+    grenade = inHand;
+    margin = safetyMargin(t, grenade);
+  }
+  const friends = mercs(t).filter((f) => f.life !== 0 && !f.neutral && f.side === s.side);
+  const targets = tossTargets(t, s, inHand, grenade);
+  if (grenade !== itemIndex(t, 'BREAK_LIGHT') && holdsBackToss(t, s, targets.length)) return;
   initAttackType(best);
+  const excluded: number[] = [];
+  const standing = states(t.content.animations).STANDING;
+  for (const target of targets) {
+    for (let dy = -MAX_TOSS_SEARCH_DIST; dy <= MAX_TOSS_SEARCH_DIST; dy++) {
+      for (let dx = -MAX_TOSS_SEARCH_DIST; dx <= MAX_TOSS_SEARCH_DIST; dx++) {
+        const g = target.gridNo + dx + WORLD_COLS * dy;
+        if (g < 0 || g >= WORLD_MAX || pythSpacesAway(s.gridNo, g) > range) continue;
+        if (grenade !== NOTHING && gasAlreadyThere(t, grenade, g, target.level)) continue;
+        if (excluded.includes(g)) continue;
+        const minAPCost = u8(minAPsToAttack(t, s, g, true));
+        if (minAPCost > s.actionPoints) continue;
+        if (friends.some((f) => f.level === target.level && pythSpacesAway(f.gridNo, g) <= margin)) continue;
+        let totalThreat = 0;
+        let inRange = 0;
+        let adjacent = 0;
+        let skip = true;
+        for (const other of targets) {
+          const dist = pythSpacesAway(other.gridNo, g);
+          if (dist > OPP_DAMAGE_RANGE) continue;
+          let damage = estimateThrowDamage(t, s, payloadSlot, other.opp, g);
+          if (dist) damage = idiv(damage * (100 - DAMAGE_LOSS_PER_TILE * dist), 100);
+          else skip = false;
+          totalThreat = (totalThreat + other.threat * damage) | 0;
+          if (other.opp.life >= OKLIFE) {
+            inRange++;
+            if (dist < 2) {
+              adjacent++;
+              if (adjacent > 1 || grenade === itemIndex(t, 'BREAK_LIGHT')) skip = false;
+            }
+          }
+        }
+        if (t.perception.difficulty === DIFFICULTY_EASY ? skip : inRange === 0) continue;
+        if (adjacent >= 1 && excluded.length < MAX_EXCLUDED_TILES) excluded.push(g);
+        let chanceToGetThrough: number;
+        if (explosiveGun) {
+          chanceToGetThrough = u8(aiSoldierToLocationChanceToGetThrough(t, s, g, target.level, 0, standing));
+          if (chanceToGetThrough === 0) continue;
+        } else {
+          const landing = calculateLaunchItemChanceToGetThrough(t, s, handObject(s), g, target.level, 0, true, false);
+          chanceToGetThrough = landing.ok ? 100 : 0;
+          if (chanceToGetThrough === 0) {
+            if (landing.level !== target.level || margin <= 1) continue;
+            const penalty = idiv(100 * pythSpacesAway(g, landing.gridNo), margin - 1);
+            if (penalty >= 100) continue;
+            chanceToGetThrough = u8(100 - penalty);
+          }
+        }
+        if ((inHand === itemIndex(t, 'MORTAR') || inHand === itemIndex(t, 'ROCKET_LAUNCHER')) && inRange < 2 && s.life > idiv(s.lifeMax, 2))
+          continue;
+        const maxAim = Math.min(AP.MAX_AIM_ATTACK, s.actionPoints - minAPCost);
+        let rawAPCost: number;
+        let chanceToHit: number;
+        if (explosiveGun) {
+          rawAPCost = u8(minAPsToShootOrStab(t, s, g, false));
+          chanceToHit = u8(aiCalcChanceToHitGun(t, s, g, maxAim, AimShot.TORSO));
+        } else {
+          rawAPCost = u8(minAPsToThrow(t, s, g));
+          chanceToHit = u8(calcThrownChanceToHit(t, s, g, maxAim));
+        }
+        if (inHand !== itemIndex(t, 'MORTAR') && explosiveGun) chanceToHit = Math.min(100, u8(chanceToHit + idiv(chanceToHit, 2)));
+        const hitRate = idiv(s.actionPoints * chanceToHit, rawAPCost + maxAim);
+        const chanceToReallyHit = u8(idiv(chanceToHit * chanceToGetThrough, 100));
+        if (chanceToReallyHit === 0) continue;
+        const attackValue = idiv((hitRate * chanceToReallyHit * totalThreat) | 0, ATTACK_VALUE_DIVISOR);
+        if (attackValue > best.attackValue) {
+          best.possible = true;
+          best.opponent = target.opp;
+          best.aimTime = maxAim;
+          best.chanceToReallyHit = chanceToReallyHit;
+          best.target = g;
+          best.attackValue = attackValue;
+          best.apCost = minAPCost + maxAim;
+          best.targetLevel = target.level;
+        }
+      }
+    }
+  }
+  const diff = soldierDifficultyLevel(t, s);
+  if (diff <= 1 && best.chanceToReallyHit < STRICT_DIFF_CTRH) best.possible = false;
+  else if (diff === 2 && best.chanceToReallyHit < MEDIUM_DIFF_CTRH) best.possible = false;
 }
 
 function tossWeaponSlot(t: TacticalState, s: Soldier): number {
@@ -391,7 +636,7 @@ export function checkIfTossPossible(t: TacticalState, s: Soldier, best: AttackCh
   best.weaponIn = tossWeaponSlot(t, s);
   if (best.weaponIn === NO_SLOT) return best;
   if (best.weaponIn !== InvSlot.HAND) rearrangePocket(s, InvSlot.HAND, best.weaponIn);
-  if (s.actionPoints >= minAPsToAttack(t, s, s.lastTarget, false)) calcBestThrowNotPorted(best);
+  if (s.actionPoints >= minAPsToAttack(t, s, s.lastTarget, false)) calcBestThrow(t, s, best);
   if (best.weaponIn !== InvSlot.HAND) rearrangePocket(s, InvSlot.HAND, best.weaponIn);
   return best;
 }

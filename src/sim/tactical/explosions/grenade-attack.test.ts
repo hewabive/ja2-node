@@ -49,3 +49,21 @@ describe('grenade attacks through the attack command', () => {
     });
   });
 });
+
+describe('AI grenade throws', () => {
+  it('lets an enemy with a grenade throw it at two mercs standing together', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const a = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const b = spawnSoldier(sim, 1, Team.OUR, gridNo(81, 80), Direction.SOUTH);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 88), Direction.NORTH);
+    enemy.inv[InvSlot.HAND] = createItem(t.content.items, t.content.items.byName.get('HAND_GRENADE')?.index ?? -1, 100);
+    sim.lookAround();
+    expect(t.inCombat).toBe(true);
+    sim.drainEvents();
+    expect(sim.dispatch({ type: 'endTurn' }).ok).toBe(true);
+    const events = runUntilIdle(sim);
+    expect(events.some((e) => e.type === 'explosion')).toBe(true);
+    expect(a.life < 80 || b.life < 80).toBe(true);
+  });
+});

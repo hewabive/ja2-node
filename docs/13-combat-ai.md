@@ -1431,8 +1431,9 @@ replace `decideActionYellow` / the RED/BLACK `NONE` in `decideAction` with the r
 
 ### 12.2 Next
 
-- Throws: `CheckIfTossPossible`, `CalcBestThrow`, `LoadWeaponIfNeeded`, the mortar room rule and GET_CLOSER, RED
-  long-range toss and spotters (`ubSpottersCalledForBy`, BLACK spotter radio).
+- ~~Throws~~ Done 2026-10-15: `CheckIfTossPossible`, `CalcBestThrow` (with the original's quirk that the landing test
+  only succeeds when the arc ends in a structure or a body), `LoadWeaponIfNeeded`, the mortar room rule and GET_CLOSER,
+  RED long-range toss and spotters.
 - Knives and punches: `CalcBestStab`, KNIFE_MOVE, THROW_KNIFE (+ the LOWER_GUN quirk), punching fallback.
 - `CalcSpreadBurst` and `AIPickBurstLocations`.
 - ~~`SearchForItems` (ammo, weapons, general pickups; PICKUP_ITEM execution) with the item doc.~~ Done 2026-10-15

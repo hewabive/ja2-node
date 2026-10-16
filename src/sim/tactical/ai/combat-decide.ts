@@ -3,14 +3,16 @@
 // @src src/game/TacticalAI/DecideAction.cc DecideActionYellow, DecideActionRed, DecideActionBlack. See docs/13 §3, §5, §6.
 
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
-import { pythSpacesAway, spacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
+import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, spacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { ObjectFlags } from '../../items/object.ts';
 import { AnimHeight, endHeight, height } from '../animation.ts';
 import { calcAPsToBurst, minAPsToAttack } from '../combat/ap.ts';
 import { soldierDifficultyLevel } from '../combat/chance.ts';
+import { okFallDirection } from '../combat/hit.ts';
 import { AiMorale } from '../combat/types.ts';
 import { inGasOrSmoke } from '../explosions/smoke.ts';
+import { calcMaxTossRange } from '../explosions/throwing.ts';
 import { autoPlaceObject, InvSlot } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
 import { isWater } from '../pathfinding.ts';
@@ -306,6 +308,49 @@ function locationToLocationLosFrom(t: TacticalState, s: Soldier, g: number): boo
   return locationToLocationLos(t, s.gridNo, s.level, g, s.level, 6, true) !== 0;
 }
 
+function mortarRoomOrBackOff(t: TacticalState, s: Soldier, target: number): number | null {
+  const dir = directionToward(s.gridNo, target);
+  const ahead = newGridNo(s.gridNo, DIRECTION_INCREMENT[dir] ?? 0);
+  if (okFallDirection(t, s, ahead, s.level, dir, s.state)) return null;
+  const back = (dir + 4) % 8;
+  const behind = newGridNo(s.gridNo, DIRECTION_INCREMENT[back] ?? 0);
+  if (okFallDirection(t, s, behind, s.level, back, s.state)) {
+    s.ai.actionData = behind;
+    return AiAction.GET_CLOSER;
+  }
+  return AiAction.NONE;
+}
+
+function longRangeToss(t: TacticalState, s: Soldier): number | null {
+  const toss = checkIfTossPossible(t, s);
+  if (toss.possible) {
+    if (s.inv[toss.weaponIn]?.item === itemIndexOf(t, 'MORTAR')) {
+      const blocked = mortarRoomOrBackOff(t, s, toss.target);
+      if (blocked === AiAction.GET_CLOSER) return blocked;
+      if (blocked === AiAction.NONE) toss.possible = false;
+    }
+  }
+  if (toss.possible) {
+    if (toss.weaponIn !== InvSlot.HAND) rearrangePocket(s, InvSlot.HAND, toss.weaponIn);
+    s.ai.actionData = toss.target;
+    s.aimTime = toss.aimTime;
+    return AiAction.TOSS_PROJECTILE;
+  }
+  const weapon = toss.weaponIn === -1 ? NOTHING : (s.inv[toss.weaponIn]?.item ?? NOTHING);
+  if (
+    toss.weaponIn !== -1 &&
+    calcMaxTossRange(t, s, weapon, true) > MAX_DISTANCE_VISIBLE &&
+    menInSector(t, s.team) > 1 &&
+    t.turn.spottersCalledForBy === -1
+  ) {
+    t.turn.spottersCalledForBy = s.id;
+    s.actionPoints = 0;
+    s.ai.actionData = NOWHERE;
+    return AiAction.NONE;
+  }
+  return null;
+}
+
 function civilianCower(t: TacticalState, s: Soldier): number | null {
   const ai = s.ai;
   if (s.bodyType === Body.COW || s.bodyType === Body.CRIPPLECIV) return null;
@@ -381,12 +426,8 @@ export function decideActionRed(t: TacticalState, s: Soldier, hooks: CombatDecid
     if (ai.actionData !== NOWHERE) return AiAction.LEAVE_WATER_GAS;
   }
   if (t.inCombat && !civilian && !water && !gas && canNPCAttack(t, s) === 1) {
-    const toss = checkIfTossPossible(t, s);
-    if (toss.possible) {
-      ai.actionData = toss.target;
-      s.aimTime = toss.aimTime;
-      return AiAction.TOSS_PROJECTILE;
-    }
+    const toss = longRangeToss(t, s);
+    if (toss !== null) return toss;
   }
   if (s.breath < 25 && !water && !ai.underFire) {
     if (!civilian && height(t.content, s.state) !== AnimHeight.CROUCH && isValidStance(t, s, AnimHeight.CROUCH)) {
@@ -655,6 +696,7 @@ function redMainChoice(t: TacticalState, s: Soldier): number | null {
   return null;
 }
 
+const itemIndexOf = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
 const handItem = (s: Soldier) => s.inv[InvSlot.HAND]?.item ?? NOTHING;
 
 function stowUselessGun(t: TacticalState, s: Soldier): boolean {
