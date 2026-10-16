@@ -1,0 +1,29 @@
+Creature AI oracle marks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE (SFI-SCLA).
+Marks the start and the end of every FindBestPath call in the Random draw trace of 0002, so
+tools/oracle/creature-ai-compare.ts can drop the skip-list draws of the pathfinder (ja2-node draws none, see the
+"Pathfinder RNG" deviation) and replay the decision draws alone. Applied by tools/oracle/build.sh after 0006.
+
+--- a/src/game/Tactical/PathAI.cc
++++ b/src/game/Tactical/PathAI.cc
+@@ -524,11 +524,21 @@
+ 	*pClosedHead = path_t{};
+ }
+
++#define ORACLE_MARK_PATH_BEGIN 301
++#define ORACLE_MARK_PATH_END   302
++
++struct OraclePathMarks
++{
++	OraclePathMarks() { OracleTraceMark(ORACLE_MARK_PATH_BEGIN); }
++	~OraclePathMarks() { OracleTraceMark(ORACLE_MARK_PATH_END); }
++};
++
+ ///////////////////////////////////////////////////////////////////////
+ //	FINDBESTPATH                                                   /
+ ////////////////////////////////////////////////////////////////////////
+ INT32 FindBestPath(SOLDIERTYPE* s, INT16 sDestination, INT8 ubLevel, INT16 usMovementMode, INT8 bCopy, UINT8 fFlags)
+ {
++	OraclePathMarks const oracleMarks;
+ 	INT32 iDestination = sDestination, iOrigination;
+ 	UINT8 ubCnt = 0 , ubLoopStart = 0, ubLoopEnd = 0, ubLastDir = 0, ubStructIndex;
+ 	INT8  bLoopState = LOOPING_CLOCKWISE;

@@ -102,8 +102,17 @@ export const NO_PENDING_DIRECTION = -1;
 export const OKLIFE = 15;
 export const OKBREATH = 10;
 export const TOTAL_SOLDIERS = 156;
+export const NOBODY = TOTAL_SOLDIERS;
 export const TEAM_SIZES = [20, 32, 32, 32, 32, 8] as const;
 export const TEAM_FIRST_ID = [0, 20, 52, 84, 116, 148] as const;
+
+export function isMonster(s: { readonly bodyType: number }): boolean {
+  return s.bodyType >= Body.ADULTFEMALEMONSTER && s.bodyType <= Body.QUEENMONSTER;
+}
+
+export function isCreatureOrBloodcat(s: { readonly bodyType: number }): boolean {
+  return isMonster(s) || s.bodyType === Body.BLOODCAT;
+}
 
 export function consideredNeutral(me: Pick<Soldier, 'team'>, them: Pick<Soldier, 'neutral' | 'bodyType'>): boolean {
   return them.neutral && (me.team !== Team.CREATURE || them.bodyType >= Body.HUMVEE);
@@ -201,6 +210,19 @@ export interface AiState {
   underFire: number;
   morale: number;
   cautious: boolean;
+  mobility: number;
+  callPriority: number;
+  caller: number;
+  callerGridNo: number;
+  callActedUpon: boolean;
+  frenzied: boolean;
+}
+
+export interface PendingMelee {
+  readonly kind: number;
+  readonly targetGridNo: number;
+  readonly direction: number;
+  animCount: number;
 }
 
 export interface Soldier {
@@ -261,6 +283,7 @@ export interface Soldier {
   forecastGridNo: number;
   placed: boolean;
   structure: StructureInstance | null;
+  multiTile: boolean;
 
   x: number;
   y: number;
@@ -418,6 +441,11 @@ export interface Soldier {
   camo: number;
   normalSmell: number;
   hunting: boolean;
+  regenerationCounter: number;
+  walkToAttackGridNo: number;
+  walkToAttackCost: number;
+  pendingMelee: PendingMelee | null;
+  pendingActionData4: number;
 }
 
 export interface PendingPickup {
@@ -518,6 +546,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     forecastGridNo: NOWHERE,
     placed: false,
     structure: null,
+    multiTile: false,
     x: Math.fround(centre.x),
     y: Math.fround(centre.y),
     gridNo: init.gridNo,
@@ -583,6 +612,12 @@ export function createSoldier(init: SoldierInit): Soldier {
       underFire: 0,
       morale: 0,
       cautious: false,
+      mobility: 0,
+      callPriority: 0,
+      caller: NOBODY,
+      callerGridNo: NOWHERE,
+      callActedUpon: false,
+      frenzied: false,
       ...init.ai,
     },
     oppList: new Int8Array(TOTAL_SOLDIERS),
@@ -700,5 +735,10 @@ export function createSoldier(init: SoldierInit): Soldier {
     camo: 0,
     normalSmell: 0,
     hunting: false,
+    regenerationCounter: 0,
+    walkToAttackGridNo: NOWHERE,
+    walkToAttackCost: 0,
+    pendingMelee: null,
+    pendingActionData4: 0,
   };
 }

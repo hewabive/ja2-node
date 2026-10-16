@@ -3,30 +3,14 @@
 // @src src/game/TileEngine/WorldMan.cc AddMercStructureInfoFromAnimSurface; Tactical/Animation_Control.cc
 // @src SetSoldierAnimationSurface; Tactical/Soldier_Control.cc EVENT_SetSoldierDirection, InternalIsValidStance
 
-import { AnimStruct, animStructType } from '../../content/anim/structures.ts';
-import { chooseSurface } from '../../content/anim/surface-choice.ts';
-import { INVALID_SURFACE } from '../../content/anim/tables.ts';
 import type { StructureDef } from '../../content/formats/jsd.ts';
-import { handClass } from '../../content/items/items.ts';
 import type { StructureInstance } from '../../content/world/structures.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { AnimHeight, states } from './animation.ts';
 import { DIRECTION_COUNT } from './directions.ts';
-import { InvSlot } from './inventory.ts';
+import { animStructureFile } from './multi-tile.ts';
 import { Body, OKBREATH, type Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
-
-export function soldierAnimSurface(t: TacticalState, s: Soldier, state: number): number {
-  const items = t.content.items;
-  return chooseSurface(t.content.animations, {
-    bodyType: s.bodyType,
-    state,
-    hand: handClass(items, s.inv[InvSlot.HAND]?.item ?? 0),
-    secondHandPistol: handClass(items, s.inv[InvSlot.SECOND_HAND]?.item ?? 0) === 'pistol',
-    life: s.life,
-    subFlags: 0,
-  });
-}
 
 export function removeMercStructure(t: TacticalState, s: Soldier): void {
   if (!s.structure) return;
@@ -35,12 +19,7 @@ export function removeMercStructure(t: TacticalState, s: Soldier): void {
 }
 
 export function animStructureDef(t: TacticalState, s: Soldier, state: number, direction: number): StructureDef | null {
-  const surface = soldierAnimSurface(t, s, state);
-  if (surface === INVALID_SURFACE) return null;
-  const surfaceStruct = t.content.animations.surfaces[surface]?.struct ?? AnimStruct.NONE;
-  const type = animStructType(surfaceStruct, t.content.animations.controls[state]?.id ?? '');
-  if (type === AnimStruct.NONE) return null;
-  const file = t.content.animStructures[s.bodyType]?.[type];
+  const file = animStructureFile(t.content, s, state);
   if (!file) return null;
   return file.structures[s.bodyType === Body.QUEENMONSTER ? 0 : (direction + 1) % DIRECTION_COUNT] ?? null;
 }
@@ -72,11 +51,13 @@ export function isValidStance(t: TacticalState, s: Soldier, stance: number): boo
 }
 
 export function addMercStructure(t: TacticalState, s: Soldier, state = s.state): StructureInstance | null {
+  s.multiTile = false;
   removeMercStructure(t, s);
   if (!s.placed) return null;
   const def = animStructureDef(t, s, state, s.direction);
   if (!def) return null;
   s.structure = t.world.structures.add(s.gridNo, s.level, def, { kind: 'soldier', id: s.id });
+  s.multiTile = def.tiles.length > 1;
   return s.structure;
 }
 

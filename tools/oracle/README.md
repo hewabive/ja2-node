@@ -9,7 +9,7 @@ are traced draw by draw and replayed through ja2-node, together with the created
 the encounter code of the pre-battle interface; the creature quest (spreading, night planning, town attacks, placements),
 the hourly team morale and the arms dealers (stock, restocks, prices, repairs, shop entry) are probed the same way, as
 are merc contracts and relationships (the daily merc update, the renewal sequence, extensions, departures and the leave
-list).
+list) and the tactical decisions of creatures and bloodcats.
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -32,6 +32,7 @@ commit them.
 | `merchant-compare.ts` | The merchant probes of `compare.ts` (`dealers`, `dealerinit`, `dealerdaily`, `progress`, `fact`, `dealerprice`, `dealersell`, `shophours`, `dealerrepair`, `skiptime`, `dealergive`, `ski`) |
 | `probes/merchants.txt` | Merchant probe script (see "Merchants") |
 | `patches/0007-contracts-oracle.patch` | Wrappers for the static contract helpers, the renewal list and the leave list (see "Hooks") |
+| `patches/0009-creature-ai-oracle.patch` | Trace marks around every `FindBestPath` call (see "Hooks") |
 | `autoresolve-compare.ts` | Core replay of `autoresolve` probes through ja2-node's autoresolve |
 | `autoresolve-creation.ts` | Level 2 of `autoresolve` probes (the soldiers created by `CreateAutoResolveInterface`) |
 | `creature-compare.ts` | The creature probes of `compare.ts` (`creatures`, `creaturequest`, `creaturetrigger`, `creaturespread`, `creatureplanning`, `creatureattack`, `endcreaturequest`, `setcreatures`, `creaturecomposition`, `options`, `setcontrol`, `tacticalflags`) |
@@ -39,6 +40,8 @@ commit them.
 | `probes/creature*.txt`, `probes/morale.txt` | Creature and morale probe scripts (see "Creatures" and "Morale") |
 | `contract-compare.ts` | The contract probes of `compare.ts` (`contracts`, `profiles`, `dailyupdate`, `relationshours`, `settime`, `aboutleave`, `beginrenewal`, `renewalstep`, `setcontract`, `setstatus`, `setprofilecontract`, `extend`, `beginremove`, `removemerc`, `leaveequip`, `equipleft`, `mercsite`, `levelup`, `salary`, `setrenewals`) |
 | `probes/contracts.txt` | Contract probe script (see "Contracts") |
+| `creature-ai-compare.ts` | The tactical creature probes of `compare.ts` (`addsoldier`, `setsoldier`, `seen`, `decide`, `beststab`, `stab`, `creaturecall`, `smell`, `dropsmell`, `trackscent`) |
+| `probes/creature*.txt`, `probes/morale.txt` | Creature and morale probe scripts (see "Creatures", "Creature AI" and "Morale") |
 | `autoresolve-aftermath.ts` | Level 3 of `autoresolve` probes (the battle closed through ja2-node's battle flow on the imported save) and `enemycounts` |
 | `pre-battle-compare.ts` | The `pbi` probe of `compare.ts` |
 | `probes/battle.txt` | Battles from the strategic state (see "Autoresolve") |
@@ -798,6 +801,45 @@ mercsite | levelup who=<id> | salary values=<a,b,…> max=<n> | setrenewals prof
 extensions with refusals for hated mercs, death rate, reputation and morale, buddies overriding them, dismissal within
 three hours, departures with the equipment here, in Drassen and in Omerta, RPC pay, M.E.R.C. account days, POW and dead
 mercs, and the salary rounding).
+### Creature AI
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data"
+tools/oracle/run.sh tools/oracle/probes/creature-ai.txt ~/ja2-oracle/creatures/creature-ai.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle/creatures/creature-ai.jsonl
+```
+
+Commands (after a `save`; the soldier commands print the full soldier dump plus the AI state: side, smells, mobility,
+caller, call priority, frenzy, hunting, old life, regeneration, action fields, noise, patrol grid, aim, walk-to-attack
+cache, hand items, inventory flags and `bAwareOfOpposition` of the team):
+```
+addsoldier [team=creature] body=af|am|yf|ym|larva|infant|queen|bloodcat|regmale|… at=<grid> [dir=] [level=] [settings]
+setsoldier who=<id> [settings]
+seen who=<id> opp=<id> [value=1] [grid=<opp grid>] [public=1]   # personal or public opplist entry
+decide who=<id> [status=0]          # DecideAlertStatus (unless status=0), then CreatureDecideAction/CrowDecideAction/DecideAction
+beststab who=<id> [tentacles=1]     # CalcBestStab(blade) or CalcTentacleAttack, attack state restored
+stab who=<id> target=<id> [aim=] [hitBy=]   # CalcChanceToStab and HTHImpact with the hand item
+creaturecall who=<id> call=1..4     # CreatureCall; dumps every team member's caller fields
+smell g=<grid> [smell=] [blood=]    # sets ubSmellInfo/ubBloodInfo
+dropsmell who=<id>
+trackscent who=<id> [actionData=]
+```
+Settings: `alert`, `orders`, `attitude`, `ap`, `initialAp`, `life`, `oldLife`, `breath`, `hunting`, `frenzied`,
+`underFire`, `opps`, `lastAction`, `actionData`, `monsterSmell`, `lastTarget`, `noise=<grid>:<volume>[:<level>]`,
+`caller=<id>:<grid>:<priority>`, `aware=0|1`, `face=<dir>`. `addsoldier` uses `TacticalCreateSoldier` with random stats
+and `AddSoldierToSectorNoCalculateDirection`, so seed the engine first (`seed value=<n> pre=reseed`) for repeatable
+scripts. `decide` sets `gfTurnBasedAI` from `INCOMBAT` and traces the draws; the draws between the path marks of patch
+0009 (`k` 301/302) are the pathfinder's skip-list levels and are dropped ("Pathfinder RNG" deviation).
+
+`creature-ai-compare.ts` imports the save into a tactical session, builds each added soldier from the dump (stats,
+inventory with status and flags, life, breath, AP, alert, orders, smells) at the dumped id and grid, and copies the
+dumped state after every `setsoldier`/`seen`; `decide`, `beststab`, `stab`, `creaturecall` and `trackscent` replay the
+native draws into `rng`/`pre` and compare the result (action, action data, next action, alert, mobility, caller fields,
+frenzy, old life, aim, movement mode, final destination, walk-to-attack cache, facing, AP, hand items, inventory flags)
+and that no draw is left over. On 2026-10-16 all 218 probes of `creature-ai.txt` matched (69 decisions over all eight
+bodies on SaveGame07 in combat and SaveGame10 in real time, GREEN to BLACK, calls, hurt calls, spit and claws, multi-tile
+paths around walls; 8 `beststab`, 3 `stab`, 4 `creaturecall`, 2 `dropsmell`, 3 `trackscent`, 71 added soldiers with
+their AP per turn), and so did three runs of the same script with other seeds (`seed value=` +100, +200, +300).
 
 ## Shipped probes
 
@@ -815,6 +857,7 @@ mercs, and the salary rounding).
 | `probes/sai-saves.txt` | For each of the six saves: the draws of the load, `sai`, `diffmod` for three classes, a seeded `saievaluate awake=1`, four `saicheck`, a second evaluation and `saiarrive count=40`, each followed by `sai` |
 | `probes/creatures.txt` | The creature quest on SaveGame09 and 10 over the three difficulties: starts, triggers, spreads, night planning, town attacks with each battle code, the end of the quest and two compositions |
 | `probes/creature-battles.txt` | Six creature autoresolve battles in D13 with 0–12 militia, the save's mercs and 3–20 creatures (bandaging, a full retreat) |
+| `probes/creature-ai.txt` | Creature and bloodcat decisions on SaveGame07 (combat) and SaveGame10 (real time): every body seeing, hearing, hurt, called, low on AP, around walls; melee choice and impact, calls, smell drops and scent tracking |
 | `probes/creature-placement.txt` | Creature placements in F13 b3 (with the queen), G13 b3, E13 b1, D13 b1, H8 b1 and bloodcat placements in I16, E13, C8 and D9 |
 | `probes/morale.txt` | Hourly and quarter-hour morale on SaveGame10, 07 and 01 with set modifiers, relations, traits and positions |
 | `probes/merchants.txt` | Dealer initialisation at progress 0–100 and with gun nut, daily restocks, the Estoni gas, shop entries for every merchant, prices and sales at Tony, Keith, Jake, Franz, Gabby, Micky and Devin (Flo's modifier, stacks, attachments, Keith's fact), repair estimates with and without shop hours, repair queues with collection and the delay excuse, and every save's dealer section with 30 restocks from SaveGame10 |
@@ -906,6 +949,9 @@ wrappers around the static `FindRefusalReason`, `ContractIsExpiring` and `Contra
 setter for the renewal list and sequence state, and a reset of the sequence; to `Assignments.cc`
 `OracleBeginRemoveMercFromContract`; to `Map_Screen_Interface.cc` readers of the leave list and its owners; to
 `Tactical/Campaign.cc` `OracleCalcNewSalary`. Regenerate it like 0002 with those four paths.
+`patches/0009-creature-ai-oracle.patch` (applied after 0006) touches `src/game/Tactical/PathAI.cc` only: a scope guard at
+the top of `FindBestPath` writes `OracleTraceMark(301)` on entry and `OracleTraceMark(302)` on every return, so the
+creature AI comparison can drop the skip-list draws of the pathfinder. Regenerate it like 0002 with that path.
 
 ## Notes
 

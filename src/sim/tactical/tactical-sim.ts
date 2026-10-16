@@ -44,7 +44,7 @@ import {
 import { calcChanceToHitGun } from './combat/chance.ts';
 import { deathOpcode, updateSkullReleases } from './combat/death.ts';
 import { soldierCollapse } from './combat/hit.ts';
-import { meleeChanceToHit } from './combat/melee.ts';
+import { handlePendingMeleeOnArrival, meleeChanceToHit } from './combat/melee.ts';
 import { meleeSpot } from './combat/melee-reach.ts';
 import { AimShot, WeaponMode } from './combat/types.ts';
 import type { TacticalContent } from './content.ts';
@@ -191,7 +191,7 @@ export class TacticalSim {
         throwOpcode(state, s, code),
       turnFinished: freeUpFromTurning,
       stanceFreeUp: freeUpFromStanceChange,
-      pendingAction: handlePendingPickupOnArrival,
+      pendingAction: (state, s) => handlePendingMeleeOnArrival(state, s) || handlePendingPickupOnArrival(state, s),
       runningIntoGas: checkForRunningIntoGas,
       enteredGridNo: updateGassedOnNewGridNo,
       endAiGuysTurn: (state, s) => endAIGuysTurn(state, s, ai),

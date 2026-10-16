@@ -31,7 +31,7 @@ import { addItemToPool, Visibility } from '../world-items.ts';
 import { freeUpAttacker } from './barrier.ts';
 import { gunRange } from './chance.ts';
 import { agilityForEnemyMissingPlayer } from './experience.ts';
-import { bulletHitMerc } from './hit.ts';
+import { bulletHitMerc, doSpecialEffectAmmoMiss } from './hit.ts';
 import { aimPosType, calculateSoldierZPos, losWorldOf, targetZFromStructureHeight, ZPos } from './positions.ts';
 import { NUM_BUCKSHOT_PELLETS } from './types.ts';
 
@@ -472,6 +472,7 @@ function structureHit(
       doMissForGun = true;
       break;
     case WeaponClass.MONSTER:
+      doSpecialEffectAmmoMiss(t, attacker, adjusted);
       removeBullet(t, b);
       freeUpAttacker(t, attacker);
       break;

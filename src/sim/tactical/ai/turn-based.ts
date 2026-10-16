@@ -9,13 +9,13 @@ import { haltMoveForSoldierOutOfPoints } from '../movement.ts';
 import { type HeightClass, soldierToSoldierLineOfSight } from '../perception/los.ts';
 import { distanceVisible } from '../perception/sight.ts';
 import { AP, apsToLook, minPtsToMove, type PointsContext } from '../points.ts';
-import { AlertStatus, NOWHERE, OKLIFE, type Soldier } from '../soldier.ts';
+import { AlertStatus, isMonster, NOWHERE, OKLIFE, type Soldier } from '../soldier.ts';
 import { mercs, type TacticalState } from '../state.ts';
 import { removeFirstAIListEntry } from '../turns/ai-list.ts';
 import { endAITurn } from '../turns/turns.ts';
 import { AiAction, Situation } from './actions.ts';
 import type { AiControl } from './control.ts';
-import { checkForChangingOrders, decideAction, decideAlertStatus, setNewSituation } from './decide.ts';
+import { checkForChangingOrders, decideAlertStatus, setNewSituation } from './decide.ts';
 
 const IRRELEVANT = -1;
 
@@ -105,7 +105,7 @@ function manChecksOnFriends(t: TacticalState, s: Soldier): void {
       level: friend.level,
       heightClass: endHeight(t.content, friend.state) as (typeof HeightClass)[keyof typeof HeightClass],
     };
-    if (soldierToSoldierLineOfSight(losWorld, eye, target, d & 0xff, true, t.perception.disallowSight) === 0) continue;
+    if (soldierToSoldierLineOfSight(losWorld, eye, target, d & 0xff, true, t.perception.disallowSight, isMonster(s)) === 0) continue;
     if (friend.ai.alertStatus >= AlertStatus.RED || friend.ai.underFire || friend.life < OKLIFE) {
       s.ai.alertStatus = AlertStatus.RED;
       checkForChangingOrders(s);
@@ -155,6 +155,7 @@ export function endAIGuysTurn(t: TacticalState, s: Soldier, control: AiControl):
 export interface TurnBasedActions {
   readonly npcDoesAct: (t: TacticalState, s: Soldier) => void;
   readonly executeAction: (t: TacticalState, s: Soldier) => boolean;
+  readonly decide: (t: TacticalState, s: Soldier) => number;
 }
 
 export function turnBasedHandleNPCAI(t: TacticalState, s: Soldier, control: AiControl, actions: TurnBasedActions): void {
@@ -187,7 +188,7 @@ export function turnBasedHandleNPCAI(t: TacticalState, s: Soldier, control: AiCo
   } else if (s.absoluteFinalDestination !== NOWHERE) {
     ai.action = AiAction.WALK;
     ai.actionData = s.absoluteFinalDestination;
-  } else ai.action = decideAction(t, s, control.green);
+  } else ai.action = actions.decide(t, s);
   if (ai.action === AiAction.ABSOLUTELY_NONE) ai.action = AiAction.NONE;
   if (ai.action === AiAction.NONE) {
     endAIGuysTurn(t, s, control);

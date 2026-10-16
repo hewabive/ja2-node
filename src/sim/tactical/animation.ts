@@ -11,6 +11,7 @@ import { MAX_FRAMES_PER_ANIM, scriptCode } from '../../content/formats/ja2bin.ts
 import { ItemClass, ItemFlags } from '../../content/items/items.ts';
 import { newGridNo } from '../../content/world/grid.ts';
 import { anim } from './anim-states.ts';
+import { isAnimationValidForBodyType, substituteBodyTypeAnimation } from './anim-substitution.ts';
 import { turnToShoot } from './combat/attack.ts';
 import { reduceAttackBusyCount } from './combat/barrier.ts';
 import { checkForFreeupFromHit, releaseSoldiersAttacker } from './combat/hit.ts';
@@ -341,6 +342,8 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
   if (s.state === st.SWATTING && next === st.CROUCHING) next = st.END_SWAT;
   if (s.state === st.WALKING && next === st.STANDING && s.life < INJURED_CHANGE_THRESHOLD && s.bodyType <= REGFEMALE)
     next = st.END_HURT_WALKING;
+  next = substituteBodyTypeAnimation(content, s, next);
+  if (!isAnimationValidForBodyType(content, s, next)) return;
   if (next === st.RUNNING && (s.overTerrain === 8 || s.overTerrain === 9)) next = st.WALKING;
 
   s.pauseAnimMove = false;
@@ -389,6 +392,7 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
   s.oldState = s.state;
   s.oldPc = s.pc;
   s.state = next;
+  countPendingMeleeAnimation(t, s, s.oldState, next);
   s.pc = nextName === 'CHARIOTS_OF_FIRE' || nextName === 'BODYEXPLODING' ? t.rng.int(10) : startCode;
   s.frame = 0;
   setSoldierAniSpeed(t, s);
@@ -765,5 +769,23 @@ function chargeForNewState(t: TacticalState, s: Soldier, next: number): void {
     case 'JUMP_OVER_BLOCKING_PERSON':
       charge(AP.JUMP_OVER, BP.JUMP_OVER);
       break;
+    case 'QUEEN_SWIPE':
+      s.pendingActionData1 = 0;
+      break;
   }
+  if (PENDING_COUNT_RESET_STATES.includes(name) && s.pendingMelee) s.pendingMelee.animCount = 0;
+}
+
+const PENDING_COUNT_RESET_STATES = ['WALKING', 'SWATTING', 'CRAWLING', 'RUNNING', 'ADULTMONSTER_WALKING', 'ROBOT_WALK'];
+
+function countPendingMeleeAnimation(t: TacticalState, s: Soldier, oldState: number, next: number): void {
+  const pending = s.pendingMelee;
+  if (!pending) return;
+  if (pending.animCount > 0 && hasAnimFlag(t.content, oldState, AnimFlags.MOVING)) {
+    s.pendingMelee = null;
+    return;
+  }
+  const st = states(t.content.animations);
+  if (next === st.START_SWAT || next === st.END_SWAT || hasAnimFlag(t.content, next, AnimFlags.NOCHANGE_PENDINGCOUNT)) return;
+  if (!s.delayedMovement) pending.animCount++;
 }

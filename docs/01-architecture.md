@@ -880,7 +880,7 @@ Specs: `docs/10` (turn-based), `11` (attacks and damage), `12` (items and explos
     original maps with lights the light dumps match the native build. Flares and merc lights stay dark (their
     templates exist only in the original data).
 
-### M4: in progress (2026-10-16)
+### M4: done (2026-10-16)
 
 Specs: `docs/15` (time and events), `16` (map, groups, travel, sector transitions), `17` (the Queen), `18` (towns and
 assignments), `19` (pre-battle interface and autoresolve).
@@ -915,7 +915,12 @@ assignments), `19` (pre-battle interface and autoresolve).
    towns, bloodcat ambushes and creature placement; exact autoresolve soldier creation (oracle level 2). The oracle's
    morale, creature and creation probes match.
 
-**Not in M4 yet**: creature tactical AI (their attacks once a sector is loaded), the placement GUI.
+11. **Creatures in tactical** (`sim/tactical/ai/creature-decide.ts`, `smell.ts`, `multi-tile.ts`): creature, bloodcat and
+   crow decisions at every alert level, calls, scent tracking, claws, bites and spit with its gas, smell and blood,
+   paths for multi-tile bodies; 218 oracle probes match decision for decision.
+
+**Left out of M4**: the placement GUI (mercs enter at the insertion edge), turning of multi-tile bodies while walking,
+corpse rot in the loaded sector, a walk-and-strike order in the API (`docs/deviations.md`).
 
 ### M5: in progress (2026-10-16)
 

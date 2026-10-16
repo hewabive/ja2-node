@@ -7,7 +7,7 @@ import { has, STRUCTURE_ON_GROUND, STRUCTURE_ON_ROOF, StructureFlags, structureH
 import { Terrain } from '../../../content/world/terrain.ts';
 import { endHeight } from '../animation.ts';
 import { type LosWorld, landHeightUnits, lineOfSightTest, soldierToSoldierLineOfSight, TREE_SIGHT_REDUCTION } from '../perception/los.ts';
-import { Body, type Soldier } from '../soldier.ts';
+import { Body, isMonster, type Soldier } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
 import { AimShot } from './types.ts';
 
@@ -93,7 +93,15 @@ export function targetZFromStructureHeight(t: TacticalState, g: number, level: n
 
 export function soldierToSoldierLos(t: TacticalState, viewer: Soldier, target: Soldier, tileLimit: number, aware: boolean): number {
   const subject = (s: Soldier) => ({ gridNo: s.gridNo, level: s.level, heightClass: endHeight(t.content, s.state) });
-  return soldierToSoldierLineOfSight(losWorldOf(t), subject(viewer), subject(target), tileLimit, aware, t.perception.disallowSight);
+  return soldierToSoldierLineOfSight(
+    losWorldOf(t),
+    subject(viewer),
+    subject(target),
+    tileLimit,
+    aware,
+    t.perception.disallowSight,
+    isMonster(viewer),
+  );
 }
 
 export function soldierTo3DLocationLos(

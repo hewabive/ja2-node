@@ -5,6 +5,7 @@ import type { MovementCosts, MovementWorld } from '../../content/world/movement-
 import type { TileElement } from '../../content/world/tile-database.ts';
 import { PreRandom, type Rng } from '../../core/rng.ts';
 import type { SimEvent } from '../events.ts';
+import { anim } from './anim-states.ts';
 import { type Buildings, createBuildings } from './buildings.ts';
 import type { Bullet, MissAnimation } from './combat/bullets.ts';
 import { type ExperienceHooks, NO_EXPERIENCE_HOOKS } from './combat/context.ts';
@@ -17,10 +18,12 @@ import type { GameEvent } from './game-events.ts';
 import type { SoldierInitNode } from './init-list.ts';
 import { createLightingState, type LightingState } from './lighting/lighting.ts';
 import type { MapChange } from './map-changes.ts';
+import { multiTileShape } from './multi-tile.ts';
 import type { DoorStatus, PathEnv, PathSoldier, PathWorld } from './pathfinding.ts';
 import { createFogOfWar, type FogOfWar } from './perception/fov.ts';
 import { createPerception, type Perception } from './perception/sight.ts';
 import type { ProfileProgress } from './profiles.ts';
+import { createSmellMap, type SmellMap } from './smell.ts';
 import { type Soldier, TOTAL_SOLDIERS } from './soldier.ts';
 import { createTurnState, type TurnState } from './turns/turn-state.ts';
 import type { WorldItem } from './world-items.ts';
@@ -217,6 +220,7 @@ export interface TacticalState {
   readonly corpses: Corpse[];
   readonly pendingSkullReleases: { readonly soldier: Soldier; readonly at: number }[];
   readonly explosives: ExplosivesState;
+  readonly smell: SmellMap;
   worldClock: WorldClockSource | null;
   edgepoints: MapEdgepoints | null;
   edgepointReservations: number[] | null;
@@ -255,6 +259,10 @@ export function createTacticalState(
     doorStatus: (g) => doorStatus.get(g) ?? null,
     showAllMercs: false,
     autoBandage: false,
+    multiTile: (p, mode) => {
+      const s = p as Soldier;
+      return multiTileShape(content, s, mode === null ? s.uiMovementMode : anim(content, mode));
+    },
     stats: { searches: 0 },
   };
   return {
@@ -298,6 +306,7 @@ export function createTacticalState(
     corpses: [],
     pendingSkullReleases: [],
     explosives: createExplosivesState(),
+    smell: createSmellMap(),
     worldClock: null,
     edgepoints: null,
     edgepointReservations: null,

@@ -1267,7 +1267,7 @@ Same deciders as soldiers (`fCivilian` false), with these differences:
 
 All hooks for M3: `DecideActionNamedNPC` (RT YELLOW/GREEN only), `HeadForTheStairCase` (Meduna), Warden and
 `the_chosen_one` (Tixa panic), boxing (`DecideActionBoxerEnteringRing`, punch-only BLACK), tanks (`TANK()` branches),
-creatures (`CreatureDecideAction`, separate file), crows. None occurs in Omerta/A9.
+creatures (`CreatureDecideAction`, separate file, implemented in §14), crows (§14.1). None occurs in Omerta/A9.
 
 ### 9.4 Panic AI (`TacticalAI/PanicButtons.cc`)
 
@@ -1447,7 +1447,7 @@ replace `decideActionYellow` / the RED/BLACK `NONE` in `decideAction` with the r
 
 ### 12.3 Can wait
 
-Panic AI and the chosen one (Tixa, alarms), Queen/Joe staircase, Warden, boxing, tanks, creatures and crows,
+Panic AI and the chosen one (Tixa, alarms), Queen/Joe staircase, Warden, boxing, tanks (creatures and crows: done, §14),
 surrender offers, Kingpin/assassin specials, `DecideActionNamedNPC`, schedules, corpse-warning and
 `avoid_light_tiles_at_night`/`stay_on_rooftop`/`ai_go_prone_more_often`/`ai_better_aiming_choice` policies (all default
 off), the 15 s deadlock breaker (never).
@@ -1478,3 +1478,83 @@ map placements; the BLACK civilian infinite loop; the THROW_KNIFE double queue; 
 soldiers re-deciding every pass; `ubQuoteActionID` persisting after a cancelled flight; costs in `gubAIPathCosts`
 excluding the start cost; `SoldierToLocationChanceToGetThrough` drawing no RNG; RT AP checks passing.
 
+
+---
+
+## 14. Creatures and bloodcats (`TacticalAI/CreatureDecideAction.cc`)
+
+**Implemented 2026-10-16**: `ai/creature-decide.ts` (decisions, calls, scent, crows), `smell.ts` (smell and blood map),
+`multi-tile.ts` with the multi-tile part of `pathfinding.ts` (`07` §3.3), the creature branches of `combat/melee.ts`,
+`combat/hit.ts`, `perception/` and `turns/`. The oracle script `creature-ai.txt` (69 decisions, melee choice and
+impact, calls, smell, scent) matches draw for draw (`tools/oracle/README.md`, "Creature AI").
+
+### 14.1 Dispatch and alert status
+
+- `CREATURE_OR_BLOODCAT(s)` (bodies `ADULTFEMALEMONSTER`..`QUEENMONSTER` and `BLOODCAT`) → `CreatureDecideAction`,
+  `CROW` → `CrowDecideAction`, everyone else `DecideAction` (§1.2, RT `RTDecideAction`).
+- `DecideAlertStatus` hands `SOLDIER_MONSTER` (the seven creature bodies) to `CreatureDecideAlertStatus`; bloodcats
+  use the human version, so their `bMobility` stays 0 (MOBILE). `CreatureDecideAlertStatus` sets the mobility (MOBILE
+  for the adults, young and infants, IMMOBILE for the queen, CRAWLER for larvae), keeps larvae GREEN and otherwise
+  climbs to BLACK on sight, drops BLACK to RED, raises GREEN/YELLOW to RED when the team is aware or under fire,
+  GREEN to YELLOW on a heard noise, YELLOW to GREEN when no noise is left and no action runs; status changes call
+  `SetNewSituation` (unless RED↔BLACK) and `CheckForChangingOrders` (first time ≥ RED); unchanged GREEN/YELLOW with low
+  breath re-decides. A crawler whose AP are below its initial AP does nothing at any status.
+- `CreatureDecideAction` switches on the status: GREEN (track a scent, point patrols, leave gas, random patrol
+  `PreRandom(100) < chance` with the orders/attitude table, look around), YELLOW (turn to the noise, seek it, track),
+  RED (hurt call, sighting call `PreRandom(100) < 20` while the team is unaware, unarmed bodies run away, follow the
+  caller, seek the closest reachable disturbance, eat when hunting, track, turn to the closest opponent), BLACK below.
+  In RT the GREEN patrols and look-arounds queue `AI_ACTION_WAIT` for `REALTIME_CREATURE_AI_DELAY = 10000 +
+  1000·Random(3)` ms (twice that for a crawler's random patrol), and `RTDecideAction` uses the same delay between
+  decisions of creatures and bloodcats that are not hunting.
+
+### 14.2 BLACK
+
+1. No AP → NONE; resting crawler → NONE.
+2. Calls (not bloodcats, larvae or infants; `AP ≥ AP_RADIO`, more than one in sector): hurt (`bLife < bOldLife` and
+   `bLifeMax / bLife > 2`) → CALL_ATTACKED (sets `bOldLife`); else, team unaware: `Random(100) < 20·oppCnt` (100 for the
+   queen) → CALL_1_PREY or CALL_MULTIPLE_PREY.
+3. Gas or breath < 5 → run away; gas → nearest ungassed land.
+4. `CanNPCAttack`; out of spit (`NOSHOOT_NOAMMO`) marks the hand `OBJECT_AI_UNUSABLE` and swaps in a blade
+   (`IC_TENTACLES` for the queen) or makes the body flee.
+5. Spit (`IC_GUN` with shots): temporary swap, `MinAPsToAttack(sLastTarget)`, `CalcBestShot` (spit adds the gas damage
+   times the mercs inside the gas radius, §7.5), swap back.
+6. Blade: the queen looks for `IC_TENTACLES`; a bloodcat claws on `PreRandom(3) != 0`, else bites; a spitter considers its
+   claws only when `Random(4) == 0`. The swap back sits inside the AP check, so a blade the creature cannot afford stays
+   in hand (Strac quirk, kept). `CalcBestStab` runs with `usUIMovementMode = RUNNING` and caches the walk in
+   `sWalkToAttackGridNo/WalkToCost`; `CalcTentacleAttack` sums the values of every merc in tentacle reach.
+7. Stab wins over spit when its value exceeds `1.2 ×` the spit value; the weapon is swapped in for good, aim and
+   `AIM_SHOT_HEAD` for spit with `> 50` chance, else random. Creature code never sets `bTargetLevel`.
+8. Otherwise close on `ClosestKnownOpponent` if more than 2 tiles away: spitters `AdvanceToFiringRange` (keeps the AP of
+   `MinAPsToAttack` with the hand item, claws for males, quirk kept) then `GoAsFarAsPossibleTowards`; else turn to face
+   (`ValidCreatureTurn`: every intermediate facing must fit the standing structure). Fleeing bodies run away.
+
+### 14.3 Calls, scent, eating
+
+- `CreatureCall`: team aware, `MONSTER_UP`/`QUEEN_CALL`; priority `gbCallPriority[call][female|male|queen]` (hunting
+  females `gbHuntCallPriority`) minus `Pyth/30`; receivers below BLACK, alive ≥ OKLIFE, not larvae, infants or the queen,
+  get RED, caller, grid and `CancelAIAction`; priority > 8 frenzies (A)F (APs × 1.3). `AddOneOpponent` resets the caller
+  of a monster.
+- `TrackScent` sniffs human smells 3 tiles around but tests `LegalNPCDestination` on `usActionData`, not on the tile,
+  so it only works when the stale action data is a legal grid (Strac quirk, kept); ties keep the first trail and draw
+  `Random(2)` only when the facing difference equals the best one.
+- Hunting females at RED look for the nearest `ROTTING_STAGE2` corpse within 5 tiles and approach it. A blade attack on
+  a helpless victim (`bLife < OKLIFE` or collapsed) plays the eating animations with opcode 761 (a head bite with item 2,
+  25/25, range 50) and adds a regeneration point; each point heals 10 life at the creature's next turn.
+
+### 14.4 Senses, smell and blood
+
+- Monsters see by smell: `DistanceVisible` is `DistanceSmellable` (0 for an empty tile, `26·(normal − monster)/10` for
+  a human target), the line of sight runs with `fSmell` (trees and open windows pass, other obstacles cost 80); hearing
+  −10; larvae neither see nor hear. Spit in the face blinds (`bBlindedCounter`, sight 0, opplist decays).
+- `DropSmell` on every new grid (blood blocks it), `DropBlood` from wounds (`min(life/10, 7)`) and bleeding, the
+  `Random(3)` decay delay; `DecaySmells` at each TB end of round, `DecayBloodAndSmells` after more than 100 game
+  seconds in RT (compression periods: deviation "Blood and smell decay period"). Savegames restore both maps.
+- Movement noise: bloodcats +50, `STEALTHY` +25 per trait.
+
+### 14.5 Data quirks
+
+- Strac's `CREATURE_QUEEN_TENTACLES` has `internalType` BLADE (vanilla `IC_TENTACLES`), so `FindObjClass(IC_TENTACLES)`
+  finds nothing: the queen only spits and calls. `CalcTentacleAttack`, `QUEEN_SWIPE` and opcode 755
+  (`DishoutQueenSwipeDamage`) are ported but unreachable with that data.
+- Creatures and bloodcats are multi-tile: paths, destinations and adjacent attack tiles use their animation structures
+  (`07` §3.3).

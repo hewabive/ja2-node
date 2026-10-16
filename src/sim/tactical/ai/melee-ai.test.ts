@@ -4,6 +4,7 @@ import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { Rng } from '../../../core/rng.ts';
 import { emptyObject } from '../../items/object.ts';
+import { states } from '../animation.ts';
 import { calcTotalAPsToAttack } from '../combat/ap.ts';
 import { calcChanceToStab } from '../combat/melee.ts';
 import type { TacticalContent } from '../content.ts';
@@ -11,6 +12,7 @@ import { InvSlot } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
 import { Team } from '../soldier.ts';
 import { calcBestStab, calcSpreadBurst } from './attack-choice.ts';
+import { plotPathCost } from './utils.ts';
 
 let content: TacticalContent;
 
@@ -43,22 +45,38 @@ describe('calcBestStab', () => {
     expect(stab.attackValue).toBeGreaterThan(0);
   });
 
-  it('needs a side neighbour for a knife but lets fists reach a diagonal one', () => {
+  it('prices a diagonal knife target without the walk to a side neighbour, as the original does', () => {
     const knife = knifeFight(gridNo(81, 81), 'COMBAT_KNIFE');
-    expect(calcBestStab(knife.t, knife.enemy, true).possible).toBe(false);
+    const stab = calcBestStab(knife.t, knife.enemy, true);
+    expect(stab).toMatchObject({ possible: true, target: knife.merc.gridNo });
+    expect(knife.enemy.walkToAttackGridNo).toBe(knife.merc.gridNo);
+    expect(knife.enemy.walkToAttackCost).toBe(0);
     const fists = knifeFight(gridNo(81, 81), null);
     const punch = calcBestStab(fists.t, fists.enemy, false);
     expect(punch).toMatchObject({ possible: true, target: fists.merc.gridNo });
     expect(punch.apCost).toBe(4 + punch.aimTime);
   });
 
-  it('ignores opponents that are not adjacent', () => {
-    const { t, enemy } = knifeFight(gridNo(80, 83), 'COMBAT_KNIFE');
-    expect(calcBestStab(t, enemy, true).possible).toBe(false);
+  it('includes the running path to an opponent three tiles away', () => {
+    const { t, merc, enemy } = knifeFight(gridNo(80, 84), 'COMBAT_KNIFE');
+    const stab = calcBestStab(t, enemy, true);
+    expect(stab).toMatchObject({ possible: true, target: merc.gridNo });
+    expect(enemy.walkToAttackGridNo).toBe(merc.gridNo);
+    expect(enemy.walkToAttackCost).toBe(plotPathCost(t, enemy, gridNo(80, 81), states(content.animations).RUNNING));
   });
 });
 
 describe('knife-armed enemy on his turn', () => {
+  it('walks up to a merc three tiles away and stabs him on arrival', () => {
+    const { sim, t, merc, enemy } = knifeFight(gridNo(80, 84), 'COMBAT_KNIFE');
+    expect(sim.dispatch({ type: 'endTurn' }).ok).toBe(true);
+    const events = runUntilIdle(sim);
+    expect(events.some((e) => e.type === 'meleeStrike' && e.soldier === enemy.id && e.target === merc.gridNo)).toBe(true);
+    expect(enemy.gridNo).toBe(gridNo(80, 81));
+    expect(enemy.pendingMelee).toBeNull();
+    expect(t.turn.attackBusyCount).toBe(0);
+  });
+
   it('stabs the merc standing next to him', () => {
     const { sim, t, merc, enemy } = knifeFight(gridNo(80, 81), 'COMBAT_KNIFE');
     expect(t.inCombat).toBe(true);

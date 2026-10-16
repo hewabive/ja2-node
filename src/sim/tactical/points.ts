@@ -530,6 +530,7 @@ export function calcActionPoints(content: TacticalContent, s: Soldier): number {
   else if (s.monsterOrAnimal && s.bodyType >= Body.ADULTFEMALEMONSTER && s.bodyType <= Body.QUEENMONSTER) {
     if (s.bodyType === Body.YAF_MONSTER || s.bodyType === Body.YAM_MONSTER || s.bodyType === Body.INFANT_MONSTER)
       points = Math.trunc((points * AP_LIMITS.YOUNG_MONST_FACTOR) / 10);
+    if (s.ai.frenzied) points = Math.trunc((points * AP_LIMITS.MONST_FRENZY_FACTOR) / 10);
   }
   return points & 0xff;
 }

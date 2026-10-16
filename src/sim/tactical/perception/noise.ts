@@ -9,7 +9,7 @@ import { endHeight, states } from '../animation.ts';
 import { directionToward } from '../movement.ts';
 import { isWater } from '../pathfinding.ts';
 import { effectiveDexterity, effectiveExpLevel, effectiveLife } from '../skills.ts';
-import { AlertStatus, NO_INTERRUPT, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Body, isMonster, NO_INTERRUPT, numSkillTraits, OKLIFE, SkillTrait, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { InterruptKind, resolveInterruptsVs } from '../turns/turns.ts';
 import { AUTOMATIC_INTERRUPT, calcInterruptDuelPts, standardInterruptConditionsMet } from './duel.ts';
@@ -61,12 +61,15 @@ const UNTOLD_KINDS: ReadonlySet<number> = new Set([
 const MAX_NOISE_VOLUME = 12;
 const DOOR_NOISE_VOLUME = 2;
 const ARMY_FOOTSTEP = 9;
+const BLOODCAT_STEALTH_BONUS = 50;
+const STEALTHY_TRAIT_BONUS = 25;
 const RED_ALERT_VOLUME = 3;
 const IRRELEVANT = -1;
 
 export function movementNoise(t: TacticalState, s: Soldier): number {
   if (s.team === Team.ENEMY) return ARMY_FOOTSTEP - t.pre.int(2);
   let stealth = 20 + 4 * effectiveExpLevel(s) + Math.trunc((effectiveDexterity(s) * 4) / 10);
+  stealth += s.bodyType === Body.BLOODCAT ? BLOODCAT_STEALTH_BONUS : STEALTHY_TRAIT_BONUS * numSkillTraits(s, SkillTrait.STEALTHY);
   const life = effectiveLife(s);
   if (life < 50) stealth -= Math.trunc((stealth * (50 - life)) / 100);
   if (s.breath < 50) stealth -= Math.trunc((stealth * (50 - s.breath)) / 100);
@@ -95,7 +98,10 @@ export function doorOpeningNoise(t: TacticalState, s: Soldier): number {
   return movementNoise(t, s) === 0 ? 0 : DOOR_NOISE_VOLUME;
 }
 
+const MONSTER_HEARING = -10;
+
 function decideHearing(t: TacticalState, s: Soldier): number {
+  if (isMonster(s)) return MONSTER_HEARING;
   let hearing = s.stats.experience > 3 ? 1 : 0;
   const ambient = t.lighting.ambient;
   if (ambient >= 8 && ambient <= 9) hearing += 1;
@@ -156,6 +162,7 @@ function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: numb
           d & 0xff,
           true,
           t.perception.disallowSight,
+          isMonster(l),
         )
       : soldierToLocationLineOfSight(losWorld, eye, g, level, d & 0xff, t.perception.disallowSight);
     sourceSeen = los !== 0;
@@ -255,7 +262,7 @@ function processNoise(t: TacticalState, maker: Soldier | null, g: number, level:
     let loudestDir = 0;
     let lastDir = 0;
     for (const l of members.sort((a, b) => a.id - b.id)) {
-      if (l.life < OKLIFE) continue;
+      if (l.life < OKLIFE || l.bodyType === Body.LARVAE_MONSTER) continue;
       if (maker) {
         if (l.oppList[maker.id] === Opp.SEEN_CURRENTLY && !(l.neutral && kind === NoiseKind.GUNFIRE)) continue;
         if (l.team === Team.MILITIA && maker.team === Team.OUR) continue;

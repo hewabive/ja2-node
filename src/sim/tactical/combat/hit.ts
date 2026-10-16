@@ -4,7 +4,7 @@
 // @src CalcScreamVolume, DoGenericHit, SoldierGotHitGunFire, SoldierGotHitExplosion, SoldierGotHitBlade, SoldierGotHitPunch,
 // @src SoldierTakeDamage, HandleTakeDamageDeath, CalcSoldierNextBleed, ReleaseSoldiersAttacker, CheckForFreeupFromHit,
 // @src SoldierCollapse, ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
-// @src Soldier_Ani.cc OKFallDirection. See docs/11 §4–§5.
+// @src Soldier_Ani.cc OKFallDirection; Weapons.cc DoSpecialEffectAmmoMiss (creature spit gas). See docs/11 §4–§5.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AmmoType, ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
@@ -17,6 +17,7 @@ import { anim, animName } from '../anim-states.ts';
 import { AnimHeight, endHeight, hasAnimFlag, initNewSoldierAnim, setDesiredDirection, setSoldierDirection } from '../animation.ts';
 import { igniteExplosionXY } from '../explosions/explosion.ts';
 import { checkEquipmentForDamage } from '../explosions/item-damage.ts';
+import { newSmokeEffect } from '../explosions/smoke.ts';
 import { InvSlot } from '../inventory.ts';
 import { directionToward, setSoldierDestination, worldIndexFromCoords } from '../movement.ts';
 import { newOKDestination } from '../pathfinding.ts';
@@ -27,6 +28,7 @@ import { animStructureDef, isValidStance } from '../person-structure.ts';
 import { deductPoints } from '../points.ts';
 import { profileProgress, StatKind } from '../profiles.ts';
 import { effectiveExpLevel, effectiveLife, effectiveStrength } from '../skills.ts';
+import { BLOOD_DIVISOR, dropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
 import { Body, NO_PROFILE, OKLIFE, Side, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
@@ -201,6 +203,13 @@ function isExplosiveGun(t: TacticalState, item: number): boolean {
   return item === itemIndex(t, 'ROCKET_LAUNCHER') || item === itemIndex(t, 'TANK_CANNON');
 }
 
+export function doSpecialEffectAmmoMiss(t: TacticalState, attacker: Soldier, g: number): void {
+  const hand = attacker.inv[attacker.attackingHand];
+  if (hand?.gunAmmoType !== AmmoType.MONSTER) return;
+  const gas = t.content.items.byIndex.get(hand.item)?.weapon?.smokeEffect ?? NOTHING;
+  if (gas !== NOTHING) newSmokeEffect(t, g, gas, 0, attacker);
+}
+
 export function weaponHit(
   t: TacticalState,
   tgt: Soldier,
@@ -221,6 +230,7 @@ export function weaponHit(
     freeUpAttackerGivenTarget(t, tgt);
     return;
   }
+  doSpecialEffectAmmoMiss(t, attacker, tgt.gridNo);
   if (tgt.doingExternalDeath) {
     reduceAttackBusyCount(t, tgt.attacker, false);
     return;
@@ -273,6 +283,7 @@ export function eventSoldierGotHit(
       s.sleepDrugCounter = 10;
       if (t.pre.int(100) < sleepDartSuccumbChance(s)) breath = i16(s.breathMax * 100);
     } else if (special === Special.BLINDED_BY_SPIT) {
+      if (s.blindedCounter === 0) decayIndividualOpplist(t, s);
       s.blindedCounter += Math.trunc(damage / 8) + 1;
     }
     breath = i16(breath + BP_GET_HIT);
@@ -636,6 +647,8 @@ export function soldierTakeDamage(
       deleteObject(hand);
     }
   }
+  const blood = Math.min(u8(Math.trunc(life / BLOOD_DIVISOR)), MAX_BLOOD_QUANTITY);
+  if (!isRobot(s) && blood !== 0 && s.placed) dropBlood(t, s, blood);
   if (s.placed) checkForBreathCollapse(s);
   if (attacker && attacker.team === Team.OUR && s.team !== Team.OUR && reason === DamageReason.EXPLOSION)
     statChange(t, attacker, StatKind.EXPLOSIVES, 10 * combined, StatCause.SUCCESS);

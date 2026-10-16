@@ -89,12 +89,17 @@ function gather(c: CampaignSim, drive: Driver): void {
   drive(c, () => c.isIdle() || c.tactical?.state.inCombat === true, 40_000);
 }
 
+function dyingEnemies(c: CampaignSim) {
+  return teamMembers(c.tactical?.state ?? never(), Team.ENEMY).filter((s) => s.life === 0 && !s.dead);
+}
+
 function fight(c: CampaignSim, drive: Driver): void {
   gather(c, drive);
   for (let k = 0; k < MAX_ROUNDS && livingEnemies(c).length > 0; k++) {
     if (c.tactical?.state.inCombat) combatRound(c, drive);
     else approach(c, drive);
   }
+  drive(c, () => dyingEnemies(c).length === 0, 40_000);
 }
 
 function never(): never {

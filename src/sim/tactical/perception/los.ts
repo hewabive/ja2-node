@@ -30,6 +30,8 @@ const ORIENT_OUTSIDE = Orientation.OUTSIDE_LEFT | Orientation.OUTSIDE_RIGHT;
 const ORIENT_INSIDE = Orientation.INSIDE_LEFT | Orientation.INSIDE_RIGHT;
 const FAST_FORWARD_NONE = 1e6;
 const NO_WINDOW = -1;
+const SMELL_REDUCTION_FOR_NEARBY_OBSTACLE = 80;
+const SMELL_OBSTACLE_RANGE = 100;
 
 export const HeightClass = { STAND: 6, CROUCH: 3, PRONE: 1 } as const;
 
@@ -49,6 +51,7 @@ export interface LosOptions {
   readonly camo: number;
   readonly disallowSight?: boolean;
   readonly window?: { gridNo: number };
+  readonly smell?: boolean;
 }
 
 function u8(v: number): number {
@@ -165,6 +168,12 @@ function roofLipSeeThrough(
   return iDist >= ROOF_LIP_FAR;
 }
 
+function smellBlockedBy(world: LosWorld, s: StructureInstance, g: number, cX: number, cY: number, horizAngle: number): boolean {
+  if (has(s.flags, StructureFlags.TREE)) return false;
+  if (has(s.flags, StructureFlags.WALLNWINDOW) && has(s.flags, StructureFlags.OPEN)) return false;
+  return has(s.flags, StructureFlags.WALLSTUFF) ? resolveHitOnWall(world, s, g, cX, cY, horizAngle) : true;
+}
+
 function crossed(a: number, b: number, w: number): boolean {
   return (a > w && b <= w) || (a < w && b >= w);
 }
@@ -175,7 +184,7 @@ export function lineOfSightTest(world: LosWorld, startG: number, startZ: number,
   let adj = sightLimit;
   if (sightLimit === 0) return 0;
   let treeRed = o.treeReduction;
-  if (!o.aware) treeRed = u8(Math.trunc((treeRed * 3 * (100 + o.camo)) / 100));
+  if (!o.aware && !o.smell) treeRed = u8(Math.trunc((treeRed * 3 * (100 + o.camo)) / 100));
   const sx = (startG % WORLD_COLS) * 10 + 5;
   const sy = idiv(startG, WORLD_COLS) * 10 + 5;
   const ex = (endG % WORLD_COLS) * 10 + 5;
@@ -260,6 +269,12 @@ export function lineOfSightTest(world: LosWorld, startG: number, startZ: number,
               opaque = !roofLipSeeThrough(loop, iDist, startCubes, endCubes, startAbove, endAbove);
             if (!opaque || s.cubeOffset !== desired) continue;
             if (!((s.tile.shape[cX * 5 + cY] ?? 0) & (1 << cubeAbove))) continue;
+            if (o.smell) {
+              if (!smellBlockedBy(world, s, g, cX, cY, horizAngle)) continue;
+              adj -= SMELL_REDUCTION_FOR_NEARBY_OBSTACLE;
+              if (loop > SMELL_OBSTACLE_RANGE || iDist > adj) return 0;
+              continue;
+            }
             if (has(s.flags, StructureFlags.TREE)) {
               if (loop > CLOSE_TO_FIRER) {
                 adj -= loop > 100 ? Math.trunc((treeRed * loop) / 100) : treeRed;
@@ -328,13 +343,16 @@ export function soldierToSoldierLineOfSight(
   tileLimit: number,
   aware: boolean,
   disallow = false,
+  smell = false,
 ): number {
-  return lineOfSightTest(world, viewer.gridNo, soldierEyeZ(world, viewer), target.gridNo, soldierEyeZ(world, target), {
+  const endZ = soldierEyeZ(world, smell ? { ...target, heightClass: HeightClass.STAND } : target);
+  return lineOfSightTest(world, viewer.gridNo, soldierEyeZ(world, viewer), target.gridNo, endZ, {
     tileLimit,
     treeReduction: TREE_SIGHT_REDUCTION[target.heightClass] ?? STANDING_TREE_REDUCTION,
     aware,
     camo: 0,
     disallowSight: disallow,
+    smell,
   });
 }
 
