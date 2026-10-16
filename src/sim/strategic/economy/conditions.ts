@@ -10,7 +10,9 @@
 
 import { sameSector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { numEnemiesInAnySector, numEnemiesInSector, playerMercsInSector } from '../forces/groups.ts';
+import { soldierAboardAirborneHeli } from '../forces/helicopter.ts';
 import { doesVehicleExistInSquad, isThisSquadOnTheMove, numberOfPeopleInSquad, sectorSquadIsIn } from '../forces/squads.ts';
+import { inHelicopter } from '../forces/vehicles.ts';
 import { sectorIsPassable } from '../map/sectors.ts';
 import { worldTotalMinutes } from '../time/world-clock.ts';
 import {
@@ -34,6 +36,7 @@ import {
 import { getBonusTrainingPtsDueToInstructor, trainingStatValue } from './points.ts';
 import type { CrewMember, EconomyContext } from './ports.ts';
 import { isLoadedSector } from './towns.ts';
+import { soldierMustDriveVehicle } from './vehicle-assignment.ts';
 
 export const AC = {
   NONE: 0,
@@ -75,7 +78,7 @@ export function isCharacterInTransit(s: CrewMember): boolean {
 }
 
 function inHelicopterInHostileSector(ctx: EconomyContext, s: CrewMember): boolean {
-  return ctx.crew.inHelicopter(s.id) && numEnemiesInSector(ctx, s.sector) > 0;
+  return inHelicopter(ctx, s) && numEnemiesInSector(ctx, s.sector) > 0;
 }
 
 function inLoadedSectorWithEnemies(ctx: EconomyContext, s: CrewMember): boolean {
@@ -172,8 +175,8 @@ export function sleepRefusal(ctx: EconomyContext, s: CrewMember): SleepRefusal |
   if (!areAssignmentConditionsMet(ctx, s, allowed)) return 'conditions';
   if (s.betweenSectors) {
     if (s.assignment !== Assignment.VEHICLE) return 'walking';
-    if (ctx.crew.mustDriveVehicle(s.id)) return 'driving';
-  } else if (!ctx.crew.aboardAirborneHelicopter(s.id)) {
+    if (soldierMustDriveVehicle(ctx, s, false)) return 'driving';
+  } else if (!soldierAboardAirborneHeli(ctx, s)) {
     if (s.inSector && (ctx.clock.inCombat() || ctx.world.enemyInSector())) return 'sectorNotCleared';
     if (s.sector.z === 0 && numEnemiesInAnySector(ctx, s.sector) > 0) return 'sectorNotCleared';
   }
@@ -197,7 +200,7 @@ export function canChangeSleepStatusForSoldier(s: CrewMember): boolean {
 
 export function playerSoldierTooTiredToTravel(ctx: EconomyContext, s: CrewMember): boolean {
   if (!canChangeSleepStatusForSoldier(s)) return false;
-  if (s.assignment === Assignment.VEHICLE && !ctx.crew.mustDriveVehicle(s.id)) return false;
+  if (s.assignment === Assignment.VEHICLE && !soldierMustDriveVehicle(ctx, s, true)) return false;
   if (s.asleep) return !canCharacterBeAwakened(s);
   return s.breathMax < BREATHMAX_GOTTA_STOP_MOVING;
 }

@@ -7,6 +7,7 @@
 // @src Tactical/Squads.cc AddCharacterToSquad (soldier side). See docs/18 §1.3, §5.2, §6.
 
 import { addCharacterToAnySquad, addCharacterToSquad, assignMercToAMovementGroup, removeCharacterFromSquads } from '../forces/squads.ts';
+import { takeSoldierOutOfVehicle } from '../forces/vehicles.ts';
 import { sectorInfo } from '../map/sectors.ts';
 import { changeSoldiersAssignment, reEvaluateEveryonesNothingToDo, setTimeOfAssignmentChange } from './assignment-done.ts';
 import {
@@ -54,7 +55,7 @@ export type AssignResult =
   | { readonly ok: false; readonly reason: AssignRefusal };
 
 function preChangeAssignment(ctx: EconomyContext, s: CrewMember): void {
-  if (s.assignment === Assignment.VEHICLE) ctx.crew.takeOutOfVehicle(s.id);
+  if (s.assignment === Assignment.VEHICLE) takeSoldierOutOfVehicle(ctx, s.id);
   removeCharacterFromSquads(ctx, s.id);
 }
 
@@ -181,7 +182,7 @@ function squadRefusal(code: number): AssignRefusal | null {
 
 function joinSquad(ctx: EconomyContext, s: CrewMember, squad: number | undefined): AssignRefusal | null {
   if (squad === undefined) {
-    if (s.assignment === Assignment.VEHICLE) ctx.crew.takeOutOfVehicle(s.id);
+    if (s.assignment === Assignment.VEHICLE) takeSoldierOutOfVehicle(ctx, s.id);
     addCharacterToAnySquad(ctx, s.id);
     return null;
   }

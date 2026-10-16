@@ -504,6 +504,38 @@ action, result, trap?}` (`opened`, `closed`, `locked`, `failed`, `noLock`, `lock
 `unknown|none|noneFound|<trap>`); our soldiers carry `keys` (key ring: key id, count, sector and day found) and key items
 show `keyId`. Lock tables, trap levels and lock damage stay hidden.
 
+### 6.13. Helicopter and vehicles (M6)
+
+Skyrider's helicopter exists once the escorted Skyrider reaches his chopper in B13 (`docs/25` §10.2) or a native save already
+owns it. Strategic commands (map screen only, `mapScreenOnly` elsewhere): `heliRoute {to}` plots and confirms a new route
+(the original's plot-and-click on the last sector, replacing any route like `route`) and takes off; `data` is `{path,
+etaMinutes}`. `heliCancel` cancels the route (a flying helicopter turns back). `route`/`cancelRoute` for a merc aboard the
+helicopter do the same after the squad's move check. Refusals (`data.refusal`): `noHelicopter`, `skyriderOwed`,
+`returningToBase`, `grounded` (on the ground in an enemy-held sector), `skyriderUnwilling` (Drassen disloyal), `noRoute`, and
+`emptyHelicopterHint` the first time the helicopter would leave empty while mercs stand in its sector (the original's one-time
+message box; the next request goes through). `boardVehicle {soldier, vehicle: <id> | 'helicopter'}` seats a merc
+(`notAccessible`: another sector, moving or destroyed; `alreadyAboard`; `vehicleFull`; the helicopter's flight refusals;
+`notAllowed` for a hummer or ice-cream truck the quests have not released; `vehicleNotOurs`; the assignment conditions
+`combat`, `unconscious`, `moving`, `underground`, `inTransit`, `prisoner`, `helicopterInHostileSector`, `impassableSector`).
+`leaveVehicle {soldier, squad?}` puts a passenger on a squad (default the first empty one) in the vehicle's sector
+(`notInVehicle`, `helicopterInFlight`, `returningToBase`, `squadFull`, `squadElsewhere`, `squadMoving`, `squadHasVehicle`,
+`notEligible`); `assignSquad` and `assign` to a squad refuse a helicopter passenger in flight the same way.
+
+Events: `helicopterSetUp {sector}`, `skyriderQuote {quote}` (Skyrider's quote numbers, presentation only), `heliTakeOff
+{sector}`, `heliArrived {sector, hostile}`, `heliHovering {sector, stage: started|long|tooLong}` (`long` after 10 minutes,
+`tooLong` after 20: passengers are dropped in a safe sector and the helicopter returns), `heliReturning {to, safe}`, `heliLanded
+{sector}`, `heliHit {sector, hits}` (SAM fire), `heliDestroyed {sector, killed}`, `heliPaid {amount, balance}`, `heliOwed
+{amount}`, `heliEmptyHint {sector}`, `enemiesSpottedFromAir {sector}`, `samSitesRevealed {sites}`, `skyriderMonologue {topic:
+drassenSam|cambriaHospital|otherSams|estoniRefuel}`, `passengersDropped {sector, soldiers, squad}`, `vehicleBoarded {soldier,
+vehicle}`, `vehicleLeft {soldier, vehicle}`. Hits, arrivals, hovering warnings, the return and debts stop time compression,
+so a strategic `advance` reports them with `compressionStopped`.
+
+The strategic view carries `vehicles` (id, kind, sector, betweenSectors, passengers, seats, path) and, once the helicopter is
+set up, `helicopter {vehicle, sector, next, airborne, hovering, returning, passengers, seats, canFly, reason?, owed, hits,
+path, etaMinutes, safeSectors, unsafeSectors, routeCost, refuelSites: [{sector, available}]}` (`{destroyed: true}` after it
+was shot down); mercs in a vehicle carry `vehicle`. Skyrider's balance is shown only as the debt (`owed`), as the original's
+messages show it; his talk state and the accumulated bill stay hidden.
+
 ## 7. Cost and limitations
 
 - **Amount of work.**

@@ -26,8 +26,10 @@ import {
   playerMercsInSector,
   vehicleGroupHasPassengers,
 } from './groups.ts';
+import { moveAllInHelicopterToFootMovementGroup, soldierAboardAirborneHeli } from './helicopter.ts';
 import { calculateGroupRetreatSector, clearMercPathsAndWaypointsForAllInGroup, retreatGroupToPreviousSector } from './movement.ts';
 import { addCharacterToAnySquad, addCharacterToSquad, getFirstEmptySquad } from './squads.ts';
+import { takeSoldierOutOfVehicle } from './vehicles.ts';
 
 const NO_PREVIOUS_SECTOR = 255;
 const HIGH_POTENTIAL_AMBUSH_CHANCE = 90;
@@ -75,7 +77,7 @@ export function playerMercInvolvedInThisCombat(ctx: EconomyContext, m: CrewMembe
     a !== Assignment.ASSIGNMENT_DEAD &&
     !m.isVehicle &&
     (!m.isRobot || robotController(ctx, m) !== null) &&
-    !ctx.crew.aboardAirborneHelicopter(m.id) &&
+    !soldierAboardAirborneHeli(ctx, m) &&
     sameSector(m.sector, battle)
   );
 }
@@ -296,7 +298,7 @@ function putNonSquadMercsInPlayerGroupOnSquads(ctx: EconomyContext, g: Group, ex
     if (!playerMercInvolvedInThisCombat(ctx, m, battle) || m.assignment < Assignment.ON_DUTY) continue;
     if (vehicleSquad === null) addCharacterToAnySquad(ctx, m.id);
     else if (exitVehicles) {
-      ctx.crew.takeOutOfVehicle(m.id);
+      takeSoldierOutOfVehicle(ctx, m.id);
       addCharacterToSquad(ctx, m.id, vehicleSquad);
     }
   }
@@ -305,8 +307,8 @@ function putNonSquadMercsInPlayerGroupOnSquads(ctx: EconomyContext, g: Group, ex
 export function putNonSquadMercsInBattleSectorOnSquads(ctx: EconomyContext, exitVehicles: boolean, battle: Sector): void {
   for (const g of [...ctx.state.forces.groups]) {
     if (!ctx.state.forces.groups.includes(g) || !playerGroupInvolvedInThisCombat(ctx, g, battle)) continue;
-    if (isHelicopterGroup(ctx, g)) continue;
-    putNonSquadMercsInPlayerGroupOnSquads(ctx, g, exitVehicles, battle);
+    if (isHelicopterGroup(ctx, g)) moveAllInHelicopterToFootMovementGroup(ctx);
+    else putNonSquadMercsInPlayerGroupOnSquads(ctx, g, exitVehicles, battle);
   }
 }
 

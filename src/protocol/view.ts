@@ -100,6 +100,47 @@ export interface StrategicMercView {
   readonly daysServed?: number;
   readonly totalCost?: number;
   readonly arrival?: { readonly day: number; readonly hour: number; readonly minute: number };
+  readonly vehicle?: number;
+}
+
+export interface StrategicVehicleView {
+  readonly id: number;
+  readonly kind: string;
+  readonly sector: string;
+  readonly betweenSectors: boolean;
+  readonly passengers: readonly number[];
+  readonly seats: number;
+  readonly path: readonly string[];
+}
+
+export interface RefuelSiteView {
+  readonly sector: string;
+  readonly available: boolean;
+}
+
+export interface StrategicHelicopterView {
+  readonly vehicle: number;
+  readonly sector: string;
+  readonly next: string | null;
+  readonly airborne: boolean;
+  readonly hovering: boolean;
+  readonly returning: boolean;
+  readonly passengers: readonly number[];
+  readonly seats: number;
+  readonly canFly: boolean;
+  readonly reason?: string;
+  readonly owed: number;
+  readonly hits: number;
+  readonly path: readonly string[];
+  readonly etaMinutes: number;
+  readonly safeSectors: number;
+  readonly unsafeSectors: number;
+  readonly routeCost: number;
+  readonly refuelSites: readonly RefuelSiteView[];
+}
+
+export interface DestroyedHelicopterView {
+  readonly destroyed: true;
 }
 
 export interface StrategicGroupView {
@@ -119,6 +160,8 @@ export interface StrategicView {
   readonly sectors: readonly StrategicSectorView[];
   readonly mercs: readonly StrategicMercView[];
   readonly groups: readonly StrategicGroupView[];
+  readonly vehicles?: readonly StrategicVehicleView[];
+  readonly helicopter?: StrategicHelicopterView | DestroyedHelicopterView;
   readonly mercAccountStatus?: string;
   readonly landingZone?: string;
   readonly unreadMail?: number;

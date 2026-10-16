@@ -10,7 +10,8 @@ the encounter code of the pre-battle interface; the creature quest (spreading, n
 the hourly team morale and the arms dealers (stock, restocks, prices, repairs, shop entry) are probed the same way, as
 are merc contracts and relationships (the daily merc update, the renewal sequence, extensions, departures and the leave
 list), the tactical decisions of creatures and bloodcats, and the laptop (a full `InitNewGame`, A.I.M., M.E.R.C. and
-I.M.P. hires, Bobby Ray's orders, restocks and deliveries, life insurance).
+I.M.P. hires, Bobby Ray's orders, restocks and deliveries, life insurance), and Skyrider's helicopter (flights, SAM fire,
+billing, hovering, landing, boarding and the monologues).
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -47,6 +48,9 @@ commit them.
 | `patches/0011-doors-oracle.patch` | A wrapper for the static start-of-menu trap check and an accessor for the hostile-quote list (see "Hooks") |
 | `doors-compare.ts` | The door and civilian-group probes of `compare.ts` (`locks`, `door`, `doormenu`, `civgroups`, `makecivhostile`, `pcattack`, `hostilelist`) |
 | `probes/doors.txt` | Door, lock, trap and civilian-group probe script (see "Doors") |
+| `patches/0014-heli-oracle.patch` | Silent Skyrider dialogue with recorded quote numbers, immediate monologue events and wrappers for the static helicopter helpers (see "Hooks") |
+| `heli-compare.ts` | The helicopter probes of `compare.ts` (`heli`, `heliset`, `helisetup`, `heliboard`, `helileave`, `heliroute`, `helicancel`, `heliwarp`, `helimonologue`, `helipaydebt`, `helireturn`) |
+| `probes/heli.txt` | Helicopter probe script (see "Helicopter") |
 | `creature-ai-compare.ts` | The tactical creature probes of `compare.ts` (`addsoldier`, `setsoldier`, `seen`, `decide`, `beststab`, `stab`, `creaturecall`, `smell`, `dropsmell`, `trackscent`) |
 | `probes/creature*.txt`, `probes/morale.txt` | Creature and morale probe scripts (see "Creatures", "Creature AI" and "Morale") |
 | `autoresolve-aftermath.ts` | Level 3 of `autoresolve` probes (the battle closed through ja2-node's battle flow on the imported save) and `enemycounts` |
@@ -923,6 +927,48 @@ examining, untrapping (success, explosion and silent alarm sprung), keys from th
 key, locking, shaped charges (damaged, destroyed), opening and closing a lockless door, and the civilian-group probes
 (MakeCivHostile keeps the side, the rebels' proximity rule with the 300-minute event, a group already at 2).
 
+### Helicopter
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data" JA2_ORACLE_DIR=~/ja2-oracle-heli
+tools/oracle/run.sh tools/oracle/probes/heli.txt ~/ja2-oracle-heli/out/heli.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle-heli/out/heli.jsonl
+```
+
+None of the user's saves owns the helicopter, so every scenario starts with `helisetup` (`SetUpHelicopterForPlayer`). Every
+command prints the helicopter globals, the vehicle (sector, ten passenger slots, path), its group (sector, next, prev, between,
+arrival and traverse times, waypoints, members), Skyrider's balance and life, the money, facts 43, 45, 136 and 277, the sectors
+flagged `SF_SKYRIDER_NOTICED_ENEMIES_HERE`, the four SAM secrets, the mercs (assignment, vehicle id, sector, between, group,
+`bInSector`, insertion code and data, driver/passenger role, life), the squads, the pending helicopter, hover and meanwhile
+events, the quotes Skyrider said since the last command and the draws:
+```
+heli                                                  # dump only
+heliset [money=] [owed=] [control=<sector>:<0|1>,...] [sam=<id>:<condition>:<enemy>,...] [enemies=<sector>:<troops>,...]
+        [fact=<id>:<value>,...] [loyalty=<town>:<rating>,...] [talk=] [lastmono=] [congrats=] [emptyhelp=] [hits=]
+        [progress=] [cost=] [airspace=1]              # airspace=1 runs UpdateAirspaceControl (and the refuel sites)
+helisetup sector=B13                                  # SetUpHelicopterForPlayer
+heliboard who=<id>                                    # IsThisVehicleAccessibleToSoldier, IsEnoughSpaceInVehicle, PutSoldierInVehicle
+helileave who=<id> [squad=<n>]                        # the squad menu: PreChangeAssignment, AddCharacterToSquad, exit insertion
+heliroute to=<sector>                                 # RequestGiveSkyriderNewDestination, cancel, PlotPathForHelicopter,
+                                                      # TakeOffHelicopter, RebuildWayPointsForGroupPath, HandleNewDestConfirmation
+helicancel                                            # CancelPathForVehicle while CanHelicopterFly
+heliwarp minutes=<n>                                  # WarpGameTime with events processed normally
+helimonologue                                         # CheckAndHandleSkyriderMonologues while the pilot is available
+helipaydebt                                           # PayOffSkyriderDebtIfAny
+helireturn                                            # MakeHeliReturnToBase
+```
+`heli-compare.ts` applies the same steps to a campaign session of the save and replays the draws: `PreRandom` strictly (SAM
+fire and scouting), `Random` matched in order with the native extras skipped (other systems' events during the warps, the
+cosmetic "enemies spotted" quote pick). The "enemies spotted" quotes 34 and 35 are compared as one. A merc's insertion code and
+data are compared only outside the loaded tactical sector: the original rewrites them on every tile step (`SetSoldierGridNo`),
+ja2-node keeps them in the roster. On 2026-10-16 all 120 probes matched on SaveGame01, 02 and 10: boarding and leaving,
+flights through enemy airspace with SAM hits up to the destruction (passengers killed), billing at 100 and 1000 per sector,
+payment shortfalls with the debt, the drop and the return to base, landing at a refuel site with the kill-chopper meanwhile,
+hovering warnings with the drop after 20 minutes, rerouting in flight (turning back and landing when no time passed),
+arrivals delayed by a battle in the loaded sector, the refusals (grounded, owed, disloyal Drassen with the `FACT_LOYALTY_LOW`
+write-back, returning, the empty-helicopter hint), the hourly debt payment, the believed-enemy confirmation and the four
+monologues with their SAM reveals.
+
 ## Shipped probes
 
 | Script | Content |
@@ -946,6 +992,7 @@ key, locking, shaped charges (damaged, destroyed), opening and closing a lockles
 | `probes/contracts.txt` | Contracts and relationships on SaveGame01, 02, 09, 10 and 07 (see "Contracts") |
 | `probes/laptop.txt` | Three seeded new games, the arrival table, and laptop commands on SaveGame01, 07 and 10 (see "Laptop") |
 | `probes/doors.txt` | Doors, locks, traps and civilian groups on SaveGame09 (see "Doors") |
+| `probes/heli.txt` | Skyrider's helicopter on SaveGame01, 02 and 10 (see "Helicopter") |
 | `probes/sectors.txt` | Edgepoints loaded and generated on eight maps, screen-space exit thresholds on both sides of every edge (A9, A10 basement), exit-grid checks in D13 and the basement, walk-off/walk-in/mirror from the centre and near the edges, class codes on the isolated maps H13 and I14, init list sorts and ten defence placements (A9, B13, C13, D13), and `OKForSectorExit` on SaveGame10, 07 (in combat) and 01 before and after moving mercs to an edge or an exit grid |
 
 All three were run on the user's Steam JA2 Gold 1.12 data: every command succeeds, and on these
@@ -1049,6 +1096,14 @@ like 0002 with the nine paths of the patch.
 `OracleDoTrapCheckOnStartingMenu`, a wrapper around the static `DoTrapCheckOnStartingMenu`; to `src/game/Tactical/OppList.cc`
 `OracleHostileQuoteList`, which copies the ids of the static hostile-quote list (plus `#include <vector>`). Regenerate it
 like 0002 with those two paths.
+
+`patches/0014-heli-oracle.patch` (applied after 0013) changes `src/game/Strategic/Map_Screen_Helicopter.cc` and
+`src/game/Strategic/MapScreen.cc`. With `gOracleSkyriderSilent` set, `SkyriderDialogue` appends the quote number to
+`gOracleSkyriderQuotes` instead of queueing the dialogue, `SkyriderDialogueWithSpecialEvent` runs the monologue event at
+once (the SAM reveals and the monologue timestamp), and `RequestGiveSkyriderNewDestination` skips its message box and cursor
+change. It appends `OracleMakeHeliReturnToBase`, `OracleRequestGiveSkyriderNewDestination` and `OracleHandleNewDestConfirmation`
+(with `fPlotForHelicopter` set) as wrappers around the static functions. Regenerate it like 0002 with those two paths. The
+probes also set `fShowAircraftFlag`, as the map screen does when plotting for the helicopter.
 
 ## Notes
 

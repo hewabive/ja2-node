@@ -43,6 +43,7 @@ import { CREATURE_AI_PROBES, CreatureAiComparer } from './creature-ai-compare.ts
 import { CREATURE_PROBES, CreatureComparer } from './creature-compare.ts';
 import { DOOR_PROBES, DoorComparer } from './doors-compare.ts';
 import { ECONOMY_PROBES, EconomyComparer } from './economy-compare.ts';
+import { HELI_PROBES, HeliComparer } from './heli-compare.ts';
 import { LAPTOP_PROBES, LaptopComparer } from './laptop-compare.ts';
 import { MERCHANT_PROBES, MerchantComparer } from './merchant-compare.ts';
 import { MORALE_PROBES, MoraleComparer } from './morale-compare.ts';
@@ -574,6 +575,7 @@ for (const file of files) {
   const creatureAi = new CreatureAiComparer(read, exists);
   const laptop = new LaptopComparer(read, exists);
   const doors = new DoorComparer(read, exists);
+  const heli = new HeliComparer(read, exists);
   let ctx: Context | null = null;
   let arSetup: Json | null = null;
   for (const p of readLines(file)) {
@@ -597,6 +599,7 @@ for (const file of files) {
       if (ctx.bytes) creatureAi.loadSave(ctx.bytes);
       if (ctx.bytes) laptop.loadSave(ctx.bytes);
       if (ctx.bytes) doors.loadSave(ctx.bytes);
+      if (ctx.bytes) heli.loadSave(ctx.bytes);
     } else if (p.probe === 'end') continue;
     else if (p.probe === 'autoresolve') failures += await compareAutoresolveProbe(read, exists, ctx, arSetup, p);
     else if (p.probe === 'enemycounts') failures += await compareEnemyCountsProbe(read, ctx, p);
@@ -615,6 +618,7 @@ for (const file of files) {
     else if (CREATURE_AI_PROBES.has(String(p.probe))) failures += await creatureAi.compare(p);
     else if (LAPTOP_PROBES.has(String(p.probe))) failures += await laptop.compare(p);
     else if (DOOR_PROBES.has(String(p.probe))) failures += await doors.compare(p);
+    else if (HELI_PROBES.has(String(p.probe))) failures += await heli.compare(p);
     else {
       ctx ??= await sectorContext(read, content, worlds, null);
       if (p.probe === 'costs') failures += compareCosts(ctx, p);

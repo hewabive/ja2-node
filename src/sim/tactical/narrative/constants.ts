@@ -28,6 +28,7 @@ export const Profile = {
   MARIA: 88,
   ANGEL: 89,
   JOEY: 90,
+  SKYRIDER: 97,
   PABLO: 98,
   WARDEN: 102,
   MADAME: 107,

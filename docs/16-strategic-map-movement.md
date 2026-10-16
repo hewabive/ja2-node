@@ -680,6 +680,16 @@ assignment VEHICLE, joins the vehicle group, first one is `SOLDIER_DRIVER`. Move
 towns only). Fuel in `sBreathRed` (10000 full), gas can adds `status·50` (`Strategic_Movement.cc:3121-3150`).
 `vehicles.json` order is fixed (HELICOPTER is index 5).
 
+*Implemented (M6, 2026-10-16):* `forces/vehicles.ts` and `economy/vehicle-assignment.ts`: `AddVehicleToList`, seats in slot
+order (`VehicleRecord.passengers` holds ten slots, −1 empty, imported from the save's slots), `AddSoldierToVehicle` (the vehicle
+soldier joins a unique squad and its vehicle group when the first passenger boards; the first passenger drives),
+`RemoveSoldierFromVehicle` and `TakeSoldierOutOfVehicle` (the empty ground vehicle hands its soldier back to its group with
+`ASSIGNMENT_EMPTY`, a driverless vehicle between sectors is teleported to the nearer sector), `SetVehicleSectorValues` on
+arrival, vehicle paths in `PlotPathForCharacter`/`CancelPathForCharacter`/`ClearPathAfterThisSectorForCharacter`
+(`SetUpMvtGroupForVehicle`, `MoveCharactersPathToVehicle`, `CancelPathForVehicle`), `SoldierMustDriveVehicle` for sleep and
+fatigue, and `AddCharacterToSquad`'s vehicle branches (`fExitingVehicleToSquad` is `movement.exitingVehicleToSquad`). Taking over
+a civilian vehicle and positioning passengers at a ground vehicle in tactical are not ported (deviation "Ground vehicles").
+
 ### 3.16 Helicopter (summary; can wait until the Skyrider quest, M6)
 
 The heli is vehicle `iHelicopterVehicleId` with mask AIR (10 min per edge, all terrain but EDGEOFWORLD, towns included).
@@ -689,8 +699,10 @@ Routes cost 100 per sector left in safe airspace, 1000 in enemy airspace (unless
 and unknown → `PreRandom(100) < 60 + n` sets `SF_SKYRIDER_NOTICED_ENEMIES_HERE` (+ quote `Random(2)`); unless returning
 to base or never left, bill +100/+1000; at the path end: hover (events `HOVER_TOO_LONG` 29 at +10 min,
 `HOVER_WAY_TOO_LONG` 30 at start + 20), pay if safe, land at a refuel site. `setArrivalTime` clamps the heli to
-`now + traverse` (`Strategic_Movement.cc:3401-3430`); the heli never joins simultaneous arrivals. M4 can ship without
-it; keep `IsGroupTheHelicopterGroup` hooks returning false.
+`now + traverse` (`Strategic_Movement.cc:3401-3430`); the heli never joins simultaneous arrivals. The clamp can only bite
+after a delay longer than the 10-minute edge; the queued-battle delay (3–5 minutes) never reaches it, so ja2-node does not
+model it. *Implemented in M6* (`docs/25` §10): `GroupArrivedAtSector` runs `HandleHeliEnteringSector` and skips the rest of
+the arrival when the helicopter is destroyed.
 
 ---
 
@@ -1281,7 +1293,7 @@ a read with a side effect); otherwise `KNOWS_NOTHING`. The map shows nothing on 
 | `enterSector {sector}` | `AllowedToExitFromMapscreenTo(TACTICAL)` + `SetCurrentWorldSector` | §5.1 gates; refuses during prompts |
 | `exitSector {soldier, direction?: 'north'\|'east'\|'south'\|'west', exitGrid?: gridNo, who: 'squad'\|'merc', load?: bool}` | `OKForSectorExit` + exit menu table + `JumpIntoAdjacentSector` | `soldier` plays the selected merc; refusals `tooFar`, `invalidTraversal`, `loneEPC`, `abandonEPC`, `squadNotAllowed`, `mercNotAllowed`, `loadDisabled`; `load` defaults to the menu default |
 | `placeMercs {auto: true} \| {positions: {soldier: gridNo}}` | placement GUI | answers the placement prompt (§7.2) |
-| later: `boardVehicle`, `leaveVehicle`, `heliRoute`, `refuel` | `PutSoldierInVehicle`, `TakeSoldierOutOfVehicle`, heli plotting | M5/M6 |
+| `boardVehicle {soldier, vehicle}`, `leaveVehicle {soldier, squad?}`, `heliRoute {to}`, `heliCancel` | `PutSoldierInVehicle`, the squad menu for a passenger, heli plotting | M6, `docs/04` §6.13; `refuel` (gas cans) comes with the ground-vehicle quests |
 
 No "exit tactical" command: the strategic view is always observable; leaving a sector is `exitSector` or moving
 everyone away by `route` (which unloads the world when nobody remains, §5.10).
@@ -1314,7 +1326,8 @@ player can see change, §6.3), `secretFound {sector}`, `squadChanged {soldier, s
 - `edges`: traversability per border (public data; lets the agent reason about routes without `query`).
 - `groups` (ours only): id, members, squad, `sector`, `betweenSectors`, `next`, `prev`, `arrivalMinute`, `etaMinutes`
   (`CalculateTravelTimeOfGroup`), `path`, `waypoints`, transport, vehicle; enemy groups appear only through `enemies`.
-- `squads[20]`, `vehicles` (position, fuel, passengers), `heli` (later).
+- `squads[20]`, `vehicles` (position, passengers, seats, path) and `helicopter` (M6, `docs/04` §6.13); fuel comes with the
+  ground vehicles.
 - `prompts`.
 
 ### 7.5 Queries and `advance`
@@ -1622,9 +1635,8 @@ traversal also matches. Unit tests cover §9.3's ids, traversability, travel tab
 waypoints and reversal, group ids and order, squads, departure and arrival through the event queue (enemy sleep, queued
 battle delay, insertion codes, about-to-arrive), and the encounter matrix with simultaneous arrivals and bloodcats.
 
-**Not yet:** RNG-replay probes (`advance` with a Random tap), `stratpath who=` with a soldier's encumbrance, the
-helicopter (§3.16), vehicle boarding and passenger hand-over, NPC-of-note detection (a `TacticalWorldPort` hook),
-§3.3's `CanCharacterMoveInStrategic`, theft and loyalty effects of control changes (ports for `docs/17`/`18`), and wiring
+**Not yet:** RNG-replay probes (`advance` with a Random tap), `stratpath who=` with a soldier's encumbrance,
+NPC-of-note detection (a `TacticalWorldPort` hook), §3.3's `CanCharacterMoveInStrategic`, theft and loyalty effects of control changes (ports for `docs/17`/`18`), and wiring
 `importStrategicMap` and a roster-backed `MercPort` into `createSaveSession` (campaign integration).
 
 **Stubs (2026-10-16).** The stub map format gained `entry: north|east|south|west|center|isolated <x> <y>`,

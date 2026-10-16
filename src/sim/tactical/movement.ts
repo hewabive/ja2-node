@@ -24,6 +24,7 @@ import { MOVE_SIN_COS } from './constants.ts';
 import { DIRECTION_INCREMENT, Direction } from './directions.ts';
 import { interactWithDoorAt } from './doors/door-actions.ts';
 import { toggleDoorAt } from './doors.ts';
+import { handleEscortArrival } from './narrative/escort-arrival.ts';
 import { findBestPath, isWater, MAX_PATH_LIST_SIZE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { addMercStructure, removeMercStructure } from './person-structure.ts';
 import { AP, actionPointCost, deductPoints, doorTravelCost, enoughPoints, type PointsContext, terrainBreathPoints } from './points.ts';
@@ -453,6 +454,7 @@ export function handleAtNewGridNo(t: TacticalState, s: Soldier): boolean {
     keepMoving = false;
   }
   t.hooks.newAiSituation(t, s);
+  handleEscortArrival(t, s);
   return keepMoving;
 }
 

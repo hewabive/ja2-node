@@ -3,13 +3,15 @@
 // @src src/game/SaveLoadGame.cc LoadSavedGame (strategic info, underground, squads, groups, vehicles, general info);
 // @src Strategic_Movement.cc LoadStrategicMovementGroupsFromSavedGameFile, LoadPlayerGroupList; Tactical/Squads.cc
 // @src LoadSquadInfoFromSavedGameFile; StrategicMap_Secrets.cc; Tactical/Vehicles.cc; TileEngine/SaveLoadMap.cc
-// @src LoadAllMapChangesFromMapTempFileAndApplyThem (flag reset). See docs/14 §4, docs/16 §2.1.
+// @src LoadAllMapChangesFromMapTempFileAndApplyThem (flag reset); LoadGeneralInfo (the helicopter globals). See docs/14 §4, docs/16 §2.1.
 
 import type { SaveGame, StrategicGroup } from '../../../content/formats/savegame.ts';
+import type { SavedHelicopter } from '../../../content/formats/savegame-tactical.ts';
 import { MapModificationType } from '../../../content/formats/savegame-temp-files.ts';
 import { isValidSector, type Sector } from '../../../content/strategic/sector-ids.ts';
 import { NUMBER_OF_SQUADS, SectorFlag } from '../forces/constants.ts';
-import type { Group, VehicleRecord } from '../forces/groups.ts';
+import { emptyPassengerSlots, type Group, type VehicleRecord } from '../forces/groups.ts';
+import { type HelicopterState, REFUEL_SITES } from '../forces/helicopter-state.ts';
 import type { StrategicContext } from '../forces/ports.ts';
 import { type MapElement, resetSectorFlag, type SectorInfo, type UndergroundSector } from './sectors.ts';
 
@@ -78,6 +80,19 @@ function importSecrets(ctx: StrategicContext, save: SaveGame): boolean[] {
   return ctx.content.secrets.map((s) => (s.isSamSite ? save.generalInfo.samSitesFound[samIndex++] === true : plain[plainIndex++] === true));
 }
 
+function passengerSlots(saved: readonly (number | null)[], byProfile: Map<number, { id: number }>): number[] {
+  const slots = emptyPassengerSlots();
+  saved.forEach((profile, slot) => {
+    const s = profile === null ? undefined : byProfile.get(profile);
+    if (s && slot < slots.length) slots[slot] = s.id;
+  });
+  return slots;
+}
+
+function importHelicopter(saved: SavedHelicopter): HelicopterState {
+  return { ...saved, refuelSiteAvailable: REFUEL_SITES.map((_, i) => saved.refuelSiteAvailable[i] === true) };
+}
+
 function importVehicles(save: SaveGame, byProfile: Map<number, { id: number }>): VehicleRecord[] {
   return save.vehicles.map((v) => {
     const vehicleSoldier = save.soldiers.find(
@@ -91,10 +106,7 @@ function importVehicles(save: SaveGame, byProfile: Map<number, { id: number }>):
       movementGroup: v.movementGroup,
       path: [...v.path],
       betweenSectors: v.betweenSectors,
-      passengers: v.passengerProfiles.flatMap((p) => {
-        const s = byProfile.get(p);
-        return s ? [s.id] : [];
-      }),
+      passengers: passengerSlots(v.passengerSlots, byProfile),
       soldierId: vehicleSoldier?.soldier.id ?? -1,
     };
   });
@@ -127,6 +139,7 @@ export function importStrategicMap(ctx: StrategicContext, save: SaveGame): void 
   f.vehicles = importVehicles(save, byProfile);
   f.helicopterVehicleId = info.helicopterVehicleId;
   f.helicopterAirborne = info.helicopterAirborne;
+  f.helicopter = importHelicopter(info.helicopter);
   state.movement.disableMapInterfaceDueToBattle = info.disableMapInterfaceDueToBattle;
   const world: Sector = save.tactical.worldSector;
   state.worldSector = isValidSector(world) ? { ...world } : null;

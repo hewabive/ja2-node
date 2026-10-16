@@ -49,6 +49,7 @@ import { dispatchStrategicCommand } from './commands.ts';
 import type { ContractHooks } from './contracts/context.ts';
 import { ContractFlow } from './contracts/contract-flow.ts';
 import { CreatureFlow } from './creature-flow.ts';
+import { HelicopterFlow } from './helicopter-flow.ts';
 import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
 import { LAPTOP_REFUSAL, LaptopFlow, type LaptopSetup } from './laptop/laptop-flow.ts';
 import { fact, factValue, setFact } from './narrative/facts.ts';
@@ -91,6 +92,7 @@ export class CampaignSim {
   readonly shop: ShopFlow | null;
   readonly contracts: ContractFlow | null;
   readonly laptop: LaptopFlow | null;
+  readonly helicopter: HelicopterFlow;
   readonly worldClock: WorldTimeControl;
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
@@ -105,6 +107,7 @@ export class CampaignSim {
     this.#hooks = hooks;
     if (tactical) state.flow = 'tactical';
     this.#clock = this.#clockContext();
+    this.helicopter = new HelicopterFlow(this);
     const ai = hooks.queen
       ? new StrategicAi({
           mines: queenMineIncome(() => this.economy),
@@ -115,7 +118,7 @@ export class CampaignSim {
     this.strategic = hooks.strategic
       ? createStrategicContext({
           ...hooks.strategic,
-          ...this.#sectorPorts(this.#economyPorts()),
+          ...this.#helicopterPorts(this.#sectorPorts(this.#economyPorts())),
           ...(ai ? { ai } : {}),
           state,
           clock: this.#clock,
@@ -147,6 +150,7 @@ export class CampaignSim {
     this.contracts?.register(this.dispatchTable);
     this.laptop?.register(this.dispatchTable);
     registerNarrativeEvents(this);
+    if (this.strategic) this.helicopter.register();
     if (state.flow === 'tactical') setGameTimeCompressionLevel(this.#clock, CompressMode.X1);
     tactical?.attachWorldClock(state.clock);
     this.#compressing = isTimeBeingCompressed(state.clock);
@@ -201,6 +205,7 @@ export class CampaignSim {
       updateBuddyAndHatedCounters: () => this.battle?.updateBuddyAndHatedCounters(),
       hourlyMoraleUpdate: () => this.battle?.hourlyMoraleUpdate(),
       decayTacticalMoraleModifiers: () => this.battle?.decayTacticalMoraleModifiers(),
+      payOffSkyriderDebtIfAny: () => this.helicopter.payOffSkyriderDebtIfAny(),
     };
     if (!queen) return { ...setup, hooks: { ...battleHooks, ...setup.hooks }, slots: { ...moraleSlots, ...setup.slots } };
     return {
@@ -237,6 +242,11 @@ export class CampaignSim {
     const queen = this.queen;
     if (!queen || meanwhileScheduled(queen, Meanwhile.FLOWERS)) return;
     scheduleMeanwhileEvent(queen, Meanwhile.FLOWERS, minute());
+  }
+
+  #helicopterPorts(ports: Pick<StrategicSetup, 'mercs' | 'world'>): Pick<StrategicSetup, 'mercs' | 'world' | 'helicopter'> {
+    const base = ports.world ?? this.#hooks.strategic?.world ?? defaultTacticalWorldPort;
+    return { ...ports, world: this.helicopter.worldPort(base), helicopter: this.helicopter.port() };
   }
 
   #sectorPorts(ports: Pick<StrategicSetup, 'mercs' | 'world'>): Pick<StrategicSetup, 'mercs' | 'world'> {
@@ -383,6 +393,7 @@ export class CampaignSim {
     if (this.shop) this.#events.push(...this.shop.drainEvents());
     if (this.contracts) this.#events.push(...this.contracts.drainEvents());
     if (this.laptop) this.#events.push(...this.laptop.drainEvents());
+    this.#events.push(...this.helicopter.drainEvents());
   }
 
   step(): void {
@@ -401,6 +412,7 @@ export class CampaignSim {
       this.#updatePausedStatesDueToTimeCompression();
     }
     updateClock(this.#clock, s.realMs);
+    if (s.flow === 'strategic') this.helicopter.afterStrategicStep();
     this.#collectEvents();
     this.battle?.afterStep();
     this.contracts?.settle();
@@ -455,6 +467,7 @@ export class CampaignSim {
       default:
         return (
           this.contracts?.dispatch(cmd) ??
+          (this.strategic ? this.helicopter.dispatch(cmd) : null) ??
           dispatchSectorCommand(this, cmd) ??
           dispatchStrategicCommand(this, cmd) ??
           (this.tactical ? this.tactical.dispatch(cmd) : { ok: false, reason: `unknown command ${cmd.type}` })

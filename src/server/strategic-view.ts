@@ -15,6 +15,7 @@ import { EnemyKnowledge, peekPlayerKnowledgeOfEnemies } from '../sim/strategic/m
 import { getSectorFlagStatus, sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { calculateTravelTimeOfGroup } from '../sim/strategic/map/travel.ts';
 import { mercAccountStatusView, mercContractFields } from './contract-view.ts';
+import { helicopterView, vehicleViews } from './helicopter-view.ts';
 import { arrivalTime, laptopSummary } from './laptop-view.ts';
 
 const sectorName = (s: Sector) => (s.z ? `${sectorShortString(s)}-${s.z}` : sectorShortString(s));
@@ -63,6 +64,7 @@ function mercView(
     breath: m.soldier?.breath ?? 0,
     breathMax: m.soldier?.breathMax ?? 0,
     asleep: m.asleep,
+    ...(m.assignment === Assignment.VEHICLE ? { vehicle: m.vehicleId } : {}),
   };
 }
 
@@ -98,6 +100,8 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
       if (interestingSector(ctx, view, s)) sectors.push(view);
     }
   const world = campaign.state.worldSector;
+  const vehicles = vehicleViews(campaign);
+  const helicopter = helicopterView(campaign);
   return {
     balance: campaign.state.finances.balance,
     worldSector: world ? sectorName(world) : null,
@@ -108,6 +112,8 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
       return { ...mercView(m), ...mercContractFields(campaign, m.id), ...(arrival ? { arrival } : {}) };
     }),
     groups: groupViews(ctx),
+    ...(vehicles ? { vehicles } : {}),
+    ...(helicopter ? { helicopter } : {}),
     ...mercAccountStatusView(campaign),
     ...laptopSummary(campaign),
   };

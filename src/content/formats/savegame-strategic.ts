@@ -260,6 +260,7 @@ export interface SavedVehicle {
   readonly sector: SavedSector;
   readonly betweenSectors: boolean;
   readonly passengerProfiles: readonly number[];
+  readonly passengerSlots: readonly (number | null)[];
   readonly destroyed: boolean;
   readonly path: readonly number[];
 }
@@ -411,15 +412,17 @@ export function readVehicles(c: SaveCursor, version: number): SavedVehicle[] {
         sector: { x: 0, y: 0, z: 0 },
         betweenSectors: false,
         passengerProfiles: [],
+        passengerSlots: [],
         destroyed: false,
         path: [],
       });
       continue;
     }
     const r = readLayout(c, VEHICLE_LAYOUT, false, 'VEHICLETYPE');
-    const passengerProfiles = Array.from({ length: MAX_PASSENGERS_IN_VEHICLE }, (_, k) => r.num(`passenger${k}`)).filter(
-      (p) => p !== noone,
+    const passengerSlots = Array.from({ length: MAX_PASSENGERS_IN_VEHICLE }, (_, k) => r.num(`passenger${k}`)).map((p) =>
+      p === noone ? null : p,
     );
+    const passengerProfiles = passengerSlots.filter((p): p is number => p !== null);
     vehicles.push({
       slot,
       valid: true,
@@ -428,6 +431,7 @@ export function readVehicles(c: SaveCursor, version: number): SavedVehicle[] {
       sector: { x: r.num('x'), y: r.num('y'), z: r.num('z') },
       betweenSectors: r.bool('fBetweenSectors'),
       passengerProfiles,
+      passengerSlots,
       destroyed: r.bool('fDestroyed'),
       path: readMercPath(c),
     });

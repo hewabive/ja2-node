@@ -7,6 +7,7 @@ import { sameSector } from '../../../content/strategic/sector-ids.ts';
 import { OKLIFE } from '../../tactical/soldier.ts';
 import { Assignment } from './constants.ts';
 import { numHostilesInSector } from './groups.ts';
+import { soldierAboardAirborneHeli } from './helicopter.ts';
 import type { StrategicContext, StrategicMerc } from './ports.ts';
 
 export const MoveRefusal = {
@@ -29,11 +30,6 @@ export interface LoadedSectorStatus {
   readonly inCombat: boolean;
 }
 
-function aboardAirborneHelicopter(ctx: StrategicContext, m: StrategicMerc): boolean {
-  const f = ctx.state.forces;
-  return f.helicopterAirborne && m.assignment === Assignment.VEHICLE && m.vehicleId === f.helicopterVehicleId;
-}
-
 function passengers(ctx: StrategicContext, vehicleId: number): number {
   return ctx.mercs.all().filter((m) => !m.isVehicle && m.assignment === Assignment.VEHICLE && m.vehicleId === vehicleId).length;
 }
@@ -48,7 +44,7 @@ function escortWithoutGuard(ctx: StrategicContext, m: StrategicMerc): boolean {
 }
 
 function hostilesHere(ctx: StrategicContext, m: StrategicMerc, loaded: LoadedSectorStatus): MoveRefusal | null {
-  if (m.betweenSectors || aboardAirborneHelicopter(ctx, m)) return null;
+  if (m.betweenSectors || soldierAboardAirborneHeli(ctx, m)) return null;
   const world = ctx.state.worldSector;
   if (world && sameSector(world, m.sector)) {
     if (loaded.inCombat) return MoveRefusal.COMBAT;

@@ -1293,8 +1293,19 @@ may not move strategically alone (`Strategic/Map_Screen_Interface.cc:3830-3836`,
 
 ## 10. Skyrider and the helicopter (`HELI`)
 
-`16` §3.16 summarises the flight rules and leaves the helicopter to M6; `IsGroupTheHelicopterGroup` returns false and
-`helicopterVehicleId` stays −1 today.
+`16` §3.16 summarises the flight rules and leaves the helicopter to M6.
+
+*Implemented (2026-10-16):* `sim/strategic/forces/helicopter-state.ts` (the general-info fields, refuel sites),
+`helicopter.ts` (every function of this section), `vehicles.ts` (the vehicle list, seats in slot order, taking soldiers out,
+`SetVehicleSectorValues`, vehicle paths), `helicopter-events.ts`; `sim/strategic/economy/vehicle-assignment.ts` (boarding,
+`CanCharacterVehicle`, `SoldierMustDriveVehicle`); `sim/campaign/helicopter-flow.ts` (the `HelicopterPort`: facts through the
+world and economy ports, the Skyrider loyalty rule of §1.3, the KILL_CHOPPER meanwhile, deaths aboard; the hover events
+29/30, the hourly debt payment, the monologue check per strategic step, the commands of §13.1); `sim/tactical/narrative/
+escort-arrival.ts` (the arrival rule of §10.2 on the tactical `NarrativePort`, which gained `setUpHelicopterForPlayer`).
+`GroupArrivedAtSector` runs `HandleHeliEnteringSector`, squads take passengers out (`AddCharacterToSquad`'s vehicle branches),
+the pre-battle code empties a grounded helicopter, native saves import all helicopter fields and the passenger slots. The
+helicopter map pieces are not placed (deviation "Helicopter on the map"). Verified against the oracle
+(`tools/oracle/probes/heli.txt`, README "Helicopter").
 
 ### 10.1 State
 
@@ -1303,7 +1314,10 @@ not airborne, not returning, not hovering, cost 0, not destroyed, talk state 0, 
 airport B13, gridno 9001, structures from `FIRSTOSTRUCT1`; Estoni I6, gridno 13067, from `FOURTHOSTRUCT1`.
 `fRefuelingSiteAvailable[i]` = the site sector is neither enemy controlled nor in enemy airspace, and for Estoni
 `ESTONI_REFUELLING_POSSIBLE` (`UpdateRefuelSiteAvailability`, `:614-640`; called at set-up, by action 256, on every sector
-control change and airspace update, `Strategic/Player_Command.cc:180, 287`, `SM:2326`, and after loading, `SaveLoadGame.cc:1156`).
+control change and airspace update, `Strategic/Player_Command.cc:180, 287`, `SM:2326`; after loading through
+`LoadStrategicAI`'s `UpdateAirspaceControl`, `Strategic/Strategic_AI.cc:2463`; the explicit call at `SaveLoadGame.cc:1156` only
+runs for saves of version ≤ 89). `gubPlayerProgressSkyriderLastCommentedOn` is saved as a `BOOLEAN` byte but keeps its full
+value.
 
 ### 10.2 Getting the helicopter
 
@@ -1328,7 +1342,10 @@ called on every sector load, `SM:463, 501, 520, 872`); otherwise the pieces are 
   (`:7339-7391`): destination without known enemies → progress at least 25 points above the last comment → "going well"
   quote, at least 10 below → "going badly" (both store the progress), else the confirmation; known enemies → the warning quote.
   The route is the group's path (`16`: 100 per sector left in friendly airspace, 1000 in enemy airspace); confirming takes off
-  (`TakeOffHelicopter`, `HELI:447-455`; `Strategic/MapScreen.cc:5514`).
+  (`TakeOffHelicopter`, `HELI:447-455`; `Strategic/MapScreen.cc:5514`) even when the route is empty (a click on the
+  helicopter's own sector makes it airborne in place). Rerouting a flying helicopter cancels first, which turns it back and,
+  when no time has passed, lands it in the sector it left (`HandleHeliEnteringSector` with never-left: no SAM fire and no bill,
+  but hovering, the arrival quote, payment and landing as usual).
 - Each sector entered (`HandleHeliEnteringSector`, `HELI:199-295`, from the group arrival, `Strategic/Strategic_Movement.cc:1305`):
   1. unless the flight never left: SAM attack (`:1048-1124`): the sector is in enemy airspace and covered by a SAM whose
      condition ≥ 80 (`MIN_CONDITION_FOR_SAM_SITE_TO_WORK`) → chance `min(condition, 33)`; `PreRandom(100) < chance` → hits + 1,
@@ -1342,8 +1359,12 @@ called on every sector load, `SM:463, 501, 520, 872`); otherwise the pieces are 
      compression; then pay (§10.6); enemies and not returning → abort quote, stop compression; a refuel site is the nearest
      available one and this sector → land.
 - Passengers leave by joining a squad in the sector while it hovers or stands (`RemoveSoldierFromHelicopter`,
-  `HELI:178-197`, `Tactical/Squads.cc:150-165`; not while flying or returning). A battle in a sector where the helicopter
-  stands empties it into a foot group (`Strategic/PreBattle_Interface.cc:1213-1221`).
+  `HELI:178-197`, `Tactical/Squads.cc:150-165`; not while flying or returning, although the squad menu's `PreChangeAssignment`
+  takes a passenger out anyway, deviation "Leaving the helicopter in flight"). The first passenger to start a new squad makes
+  that squad "arrive" from the helicopter's previous sector (`PlaceGroupInSector`), which sets its insertion code; a passenger
+  dropped outside the loaded sector gets `INSERTION_CODE_GRIDNO` 10125 at the airport and `INSERTION_CODE_CENTER` elsewhere
+  (`SetSoldierExitHelicopterInsertionData`). A battle in a sector where the helicopter stands empties it into a foot group
+  (`Strategic/PreBattle_Interface.cc:1213-1221`).
 
 ### 10.4 Hovering
 
@@ -1369,7 +1390,8 @@ The debt grounds him (§10.3) until paid: hourly (§4.4) or by giving him money 
 
 ### 10.7 Destruction
 
-`SkyriderDestroyed` (`HELI:340-362`): delete the group's arrival event, kill everyone aboard (`KillAllInVehicle`), Skyrider's
+`SkyriderDestroyed` (`HELI:340-362`): delete the group's arrival event, kill everyone aboard (`KillAllInVehicle`: 100 points of
+bleeding damage each, stopping at the first passenger already at life 0; the dead go through the strategic death), Skyrider's
 profile life 0, destroyed, his balance and the cost 0, the vehicle removed, id −1. ja2-node runs it at once (the original waits
 for the crash sound; deviation).
 
@@ -1623,7 +1645,8 @@ then y and the oracle confirms (§17). Every other path draws in statement order
 |---|---|---|
 | `door {soldier, gridNo, action: 'open' \| 'close' \| 'unlock' \| 'lock' \| 'pickLock' \| 'force' \| 'crowbar' \| 'explode' \| 'untrap' \| 'examine'}` | clicking a door; the door menu (§8.2) | tactical; walks next to the door like `pickUp`, then interacts. `open` on a locked door returns `{opened: false, locked: true, options}` (the menu as data, after the start-of-menu trap check); the other actions need a closed **locked** door (`notLocked`, as the original shows no menu otherwise), the item (`noKey`, `noCrowbar`, `noLockpickKit`, `noShapedCharge`), a non-EPC for keys, lock picks, charges, examining and forcing (`escortCannot`), a non-diagonal facing (`diagonal`), AP in combat (`notEnoughAp`), and `examine` refuses a door already proved trapped or untrapped, `untrap` one proved untrapped (`alreadyKnown`). Result events (§13.3). *Implemented* (`doors/door-command.ts`, exact fields in `docs/04` §6.10); `lock` needs a closed unlocked door with a lock (`noLock`, `alreadyLocked`) |
 | `unescort {soldier}` | assignment menu "remove escort" | an EPC on our team; map screen → `InternalUnescortEPC` (and the John/Mary partner); tactical → the EPC's wrong-sector record (`docs/24`) |
-| `heliRoute {to}` / `heliCancel` | plotting and confirming the helicopter's route (§10.3) | strategic; refusals `noHelicopter`, `skyriderOwed`, `returningToBase`, `grounded`, `skyriderUnwilling`; the one-time empty-helicopter hint is an informational event and the route is not plotted (as in the original) |
+| `heliRoute {to}` / `heliCancel` | plotting and confirming the helicopter's route (§10.3) | strategic; refusals `noHelicopter`, `skyriderOwed`, `returningToBase`, `grounded`, `skyriderUnwilling`; the one-time empty-helicopter hint is an informational event and the route is not plotted (as in the original: refusal `emptyHelicopterHint`). `route`/`cancelRoute` for a merc aboard do the same after the squad's move check. *Implemented* (`campaign/helicopter-flow.ts`, `docs/04` §6.13) |
+| `boardVehicle {soldier, vehicle: id \| 'helicopter'}` / `leaveVehicle {soldier, squad?}` | the assignment menu's vehicle line (`PutSoldierInVehicle`) and squad line for a passenger | strategic for boarding (`CanCharacterVehicle`); refusals in `docs/04` §6.13; leaving is refused in flight (deviation). *Implemented* |
 | `answer {prompt, choice}` | the requestor boxes | `npcRequest` choices (§13.2) |
 
 Boxing has no command: the player walks a merc into the ring (`move`) and punches (`attack`) under the rules of §7. Boarding
@@ -1646,9 +1669,12 @@ changes); `historyAdded` (`21`); `npcRequest` (the prompt); `npcBalance {npc, ow
 `terroristRevealed {npc}`; `townDiscovered {town}`; `samSitesRevealed {sites}`; `escortStarted {npc}`, `escortEnded {npc}`;
 `boxingStarted {boxer, merc}`, `boxingEnded {result: 'won' | 'lost' | 'disqualified' | 'abandoned'}`; `doorMenu {soldier, gridNo,
 options}`, `doorResult {soldier, gridNo, action, result, trap?}`, `doorTrap {soldier, gridNo, trap}`, `lockDestroyed {soldier,
-gridNo}` (implemented); `skyriderQuote {quote}`, `heliArrived {sector}`,
-`heliHovering {sector}`, `heliReturning {to}`, `heliHit {hits}`, `heliDestroyed`, `heliPaid {amount}`, `heliOwed {amount}`,
-`enemiesSpottedFromAir {sector}`; `sexScene` (presentation); `npcMoved` is **not** an event (profile sectors are hidden).
+gridNo}` (implemented); `helicopterSetUp {sector}`, `skyriderQuote {quote}`, `heliTakeOff {sector}`, `heliArrived {sector,
+hostile}`, `heliHovering {sector, stage}`, `heliReturning {to, safe}`, `heliLanded {sector}`, `heliHit {sector, hits}`,
+`heliDestroyed {sector, killed}`, `heliPaid {amount, balance}`, `heliOwed {amount}`, `heliEmptyHint {sector}`,
+`enemiesSpottedFromAir {sector}`, `samSitesRevealed {sites}`, `skyriderMonologue {topic}`, `passengersDropped {sector, soldiers,
+squad}`, `vehicleBoarded`, `vehicleLeft` (implemented, `docs/04` §6.13); `sexScene` (presentation); `npcMoved` is **not** an
+event (profile sectors are hidden).
 
 ### 13.4 Observation (D16)
 
@@ -1658,7 +1684,7 @@ gridNo}` (implemented); `skyriderQuote {quote}`, `heliArrived {sector}`,
   {state, boxers}` while a boxing state is set; mercs with `kind: 'epc'`; the robot's `controlled`.
 - Strategic: once Skyrider is set up, `helicopter {sector, airborne, hovering, returning, passengers, canFly, reason?, owed,
   refuelSites: [{sector, available}]}`; nothing before (the player does not know the vehicle yet); destroyed → `destroyed:
-  true`.
+  true`. *Implemented* with the route, ETA, hits and the popup's safe/unsafe counts and trip cost (`docs/04` §6.13).
 - Never: facts, quest states, profile sectors of NPCs not in sight, `npcData`, balances other than what a message shows,
   civilian group states, schedules, the lock table, trap levels, Skyrider's talk state, the hospital modifier and refund.
 
@@ -1829,7 +1855,7 @@ A `patches/0010-narrative-oracle.patch` exposes the static helpers (`HandleQuest
 | `entersector sector=` | `SetCurrentWorldSector` on a loaded save, draws traced | soldiers with profiles, insertion data, schedules and their events |
 | `schedules` / `schedulewarp minutes=` | dump the schedule list and events / `WarpGameTime` with processing | positions, sleep/away state, doors |
 | `boxing` / `boxingstep who= to=` | dump the boxing globals / move a soldier and run the movement check | state, boxer flags, draws |
-| `heli` / `heliarrive sector= neverleft=0\|1` | dump the helicopter globals / `HandleHeliEnteringSector` traced | hits, flags, cost, events, sector flags |
+| `heli`, `heliset`, `helisetup`, `heliboard`, `helileave`, `heliroute`, `helicancel`, `heliwarp`, `helimonologue`, `helipaydebt`, `helireturn` | *Implemented* (`patches/0014-heli-oracle.patch`, `probes/heli.txt`, `heli-compare.ts`; README "Helicopter"): the helicopter driven through the original's functions, arrivals through `WarpGameTime` | globals, vehicle, group, mercs, squads, quotes, events, draws |
 | `door g= who= action=` | the matching `AttemptTo…`/trap function traced | lock/trap state, perceived values, damage, soldier life/breath |
 | `newgame …` (extended) | add the NPC sectors, alternate-map flags, terrorist sectors and Carmen's count to the summary | — |
 
@@ -1875,6 +1901,10 @@ through `npcbox`); `EnterSector` needs the loading screen code to be inert headl
 - *Skyrider monologues*: checked per strategic step on the map flow instead of per redraw.
 - *Basement fades*: the sector change is immediate.
 - *Schedules after a ja2-node load*: snapshots keep schedules and events and do not re-post (native import follows the original).
+- *Helicopter slice* (logged 2026-10-16): "Helicopter destruction", "Skyrider monologues", "Leaving the helicopter in flight",
+  "Helicopter on the map", "Helicopter interface", "Cosmetic draws of the helicopter", "Profile sectors of Skyrider and the
+  helicopter" and "Ground vehicles" (which replaces "Helicopter and vehicle passengers"); "Helicopter entrance" narrowed to
+  the hiring drop.
 - *Door perception*: `door` exposes the menu as data and refuses menu actions on unlocked doors with a reason (the original
   shows no menu); the diagonal-door policy stays at its default. Logged as "Door menu", together with "Trap check cost of
   menu actions", "Doors on entering a sector", "Team changes", "Narrative port" and "Cosmetic draws of doors" (first M6

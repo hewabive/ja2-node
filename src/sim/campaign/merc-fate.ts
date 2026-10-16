@@ -15,6 +15,7 @@ import { QuestState } from '../strategic/forces/battle-state.ts';
 import { InsertionCode } from '../strategic/forces/constants.ts';
 import { numEnemiesInSector } from '../strategic/forces/groups.ts';
 import { removeCharacterFromSquads } from '../strategic/forces/squads.ts';
+import { takeSoldierOutOfVehicle } from '../strategic/forces/vehicles.ts';
 import { MercStatus, type ProfileProgress } from '../tactical/profiles.ts';
 import { SoldierStatusFlags } from '../tactical/soldier.ts';
 import { handleMoraleEvent, type MoraleContext, MoraleEvent } from './morale.ts';
@@ -74,7 +75,7 @@ export function endCaptureSequence(ctx: FateContext): void {
 
 export function handleStrategicDeath(ctx: FateContext, m: RosterMerc): void {
   const economy = ctx.economy;
-  if (m.assignment === Assignment.VEHICLE && m.vehicleId !== -1) economy.crew.takeOutOfVehicle(m.id);
+  if (m.assignment === Assignment.VEHICLE && m.vehicleId !== -1) takeSoldierOutOfVehicle(economy, m.id);
   removeCharacterFromSquads(economy, m.id);
   if (m.assignment !== Assignment.ASSIGNMENT_DEAD) setTimeOfAssignmentChange(economy, m);
   changeSoldiersAssignment(economy, m, Assignment.ASSIGNMENT_DEAD);
@@ -150,7 +151,7 @@ export function enemyCapturesPlayerSoldier(ctx: FateContext, m: RosterMerc, rng:
     return false;
   }
   if (m.isVehicle) return false;
-  economy.crew.takeOutOfVehicle(m.id);
+  takeSoldierOutOfVehicle(economy, m.id);
   const quests = state.battle.quests;
   if (quests.heldInAlma === QuestState.NOT_STARTED && numEnemiesInSector(economy, ALMA) === 0) quests.heldInAlma = QuestState.DONE;
   handleMoraleEvent(ctx.moraleContext(), m, MoraleEvent.MERC_CAPTURED, m.sector);

@@ -13,6 +13,7 @@ import { type Group, getGroup, removeGroupWaypoints, requireMerc } from './group
 import { buildAStrategicPath, type GroupPathOptions, rebuildWayPointsForGroupPath } from './movement.ts';
 import type { StrategicContext, StrategicMerc } from './ports.ts';
 import { copyPathOfCharacterToSquad } from './squads.ts';
+import { cancelPathForVehicle, moveCharactersPathToVehicle, setUpMvtGroupForVehicle } from './vehicles.ts';
 
 export const PathEdit = { ABORT_PLOTTING: 'abort', PATH_CLEARED: 'cleared', PATH_SHORTENED: 'shortened' } as const;
 export type PathEdit = (typeof PathEdit)[keyof typeof PathEdit];
@@ -41,19 +42,27 @@ function copyPathToCharactersSquadIfInOne(ctx: StrategicContext, m: StrategicMer
 export function plotPathForCharacter(ctx: StrategicContext, id: number, dest: Sector, options: GroupPathOptions = {}): boolean {
   if (!isTheCursorAllowedToHighLightThisSector(ctx, dest)) return false;
   const m = requireMerc(ctx, id);
-  if (m.assignment === Assignment.IN_TRANSIT || m.sector.z !== 0 || inOrIsVehicle(m)) return false;
+  if (m.assignment === Assignment.IN_TRANSIT || m.sector.z !== 0) return false;
+  const vehicle = inOrIsVehicle(m);
+  if (vehicle) setUpMvtGroupForVehicle(ctx, m);
   const g = soldierGroup(ctx, m);
   if (!g) return false;
   const section = buildAStrategicPath(ctx, lastSectorInMercPath(m), strategicIndex(dest), g, options);
   m.path = appendStrategicPath(section, m.path);
-  copyPathToCharactersSquadIfInOne(ctx, m);
+  if (vehicle) moveCharactersPathToVehicle(ctx, m);
+  else copyPathToCharactersSquadIfInOne(ctx, m);
   return true;
+}
+
+export function soldierMercPath(ctx: StrategicContext, m: StrategicMerc): readonly number[] {
+  if (inOrIsVehicle(m)) return ctx.state.forces.vehicles[m.vehicleId]?.path ?? [];
+  return m.path;
 }
 
 export function confirmPathForCharacter(ctx: StrategicContext, id: number): void {
   const m = requireMerc(ctx, id);
   const g = soldierGroup(ctx, m);
-  if (g) rebuildWayPointsForGroupPath(ctx, m.path, g);
+  if (g) rebuildWayPointsForGroupPath(ctx, soldierMercPath(ctx, m), g);
 }
 
 export function cancelPathForCharacter(ctx: StrategicContext, id: number): void {
@@ -62,19 +71,23 @@ export function cancelPathForCharacter(ctx: StrategicContext, id: number): void 
   if (m.path.length > 0 && g) removeGroupWaypoints(g);
   m.path = [];
   if (g) rebuildWayPointsForGroupPath(ctx, null, g);
+  const v = m.assignment === Assignment.VEHICLE ? ctx.state.forces.vehicles[m.vehicleId] : undefined;
+  if (v?.valid) cancelPathForVehicle(ctx, v, true);
   copyPathToCharactersSquadIfInOne(ctx, m);
 }
 
 export function clearPathAfterThisSectorForCharacter(ctx: StrategicContext, id: number, s: Sector): PathEdit {
   const m = requireMerc(ctx, id);
-  const original = m.path.length;
+  const original = soldierMercPath(ctx, m).length;
   if (!original) return PathEdit.ABORT_PLOTTING;
   if (sameSector(s, m.sector)) {
     cancelPathForCharacter(ctx, id);
     return PathEdit.PATH_CLEARED;
   }
-  if (!inOrIsVehicle(m)) m.path = clearStrategicPathAfterSector(m.path, strategicIndex(s));
-  if (m.path.length >= original) return PathEdit.ABORT_PLOTTING;
+  const v = inOrIsVehicle(m) ? ctx.state.forces.vehicles[m.vehicleId] : undefined;
+  if (v) v.path = clearStrategicPathAfterSector(v.path, strategicIndex(s));
+  else m.path = clearStrategicPathAfterSector(m.path, strategicIndex(s));
+  if (soldierMercPath(ctx, m).length >= original) return PathEdit.ABORT_PLOTTING;
   copyPathToCharactersSquadIfInOne(ctx, m);
   return PathEdit.PATH_SHORTENED;
 }

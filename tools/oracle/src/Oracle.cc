@@ -11,6 +11,7 @@
 // @src GenerateMapEdgepoints, CalcMapEdgepointClassInsertionCode; src/game/Tactical/Soldier_Init_List.cc AddSoldierInitListEnemyDefenceSoldiers
 // @src src/game/Tactical/Arms_Dealer_Init.cc, ArmsDealerInvInit.cc, ShopKeeper_Interface.cc (merchants)
 // @src src/game/Strategic/Game_Init.cc InitNewGame; src/game/Laptop (A.I.M., M.E.R.C., I.M.P., Bobby Ray, insurance)
+// @src src/game/Strategic/Map_Screen_Helicopter.cc, MapScreen.cc, Tactical/Vehicles.cc (the helicopter probes)
 #include "Oracle.h"
 
 #include "AI.h"
@@ -90,6 +91,8 @@
 #include "Finances.h"
 #include "Dialogue_Control.h"
 #include "Map_Screen_Interface.h"
+#include "Map_Screen_Interface_Border.h"
+#include "SamSiteModel.h"
 #include "History.h"
 #include "Mercs.h"
 #include "Smell.h"
@@ -132,6 +135,11 @@ UINT8 OracleTreeSightReduction(UINT8 ubEndHeight);
 INT16 OraclePickGridNoNearestEdge(SOLDIERTYPE* s, UINT8 direction);
 bool OracleDoTrapCheckOnStartingMenu(SOLDIERTYPE& s, DOOR& d);
 void OracleHostileQuoteList(std::vector<UINT8>* ids);
+extern bool gOracleSkyriderSilent;
+extern std::vector<UINT16> gOracleSkyriderQuotes;
+void OracleMakeHeliReturnToBase();
+BOOLEAN OracleRequestGiveSkyriderNewDestination();
+void OracleHandleNewDestConfirmation(SGPSector const& sector);
 extern INT32 giHabitatedDistance;
 extern INT32 giPopulationModifier;
 extern INT32 giLairID;
@@ -4765,6 +4773,294 @@ void ProbeHostileList(Command const& c)
 }
 
 
+std::string HeliGroup(GROUP const& g)
+{
+	std::vector<std::string> waypoints;
+	for (WAYPOINT const* w = g.pWaypoints; w; w = w->next) waypoints.push_back(StrategicSector(w->sSector));
+	std::vector<long long> members;
+	CFOR_EACH_PLAYER_IN_GROUP(p, &g) members.push_back(p->pSoldier->ubID);
+	return Json{}
+		.num("id", g.ubGroupID)
+		.num("size", g.ubGroupSize)
+		.raw("sector", StrategicSector(g.ubSector))
+		.raw("next", Numbers({g.ubNext.x, g.ubNext.y}))
+		.raw("prev", Numbers({g.ubPrev.x, g.ubPrev.y}))
+		.flag("betweenSectors", g.fBetweenSectors)
+		.num("arrivalTime", g.uiArrivalTime)
+		.num("traverseTime", g.uiTraverseTime)
+		.num("nextWaypointId", g.ubNextWaypointID)
+		.num("transportMask", g.ubTransportationMask)
+		.raw("waypoints", JsonArray(waypoints))
+		.raw("members", Numbers(members))
+		.text();
+}
+
+std::string HeliState()
+{
+	Json j;
+	j.num("vehicleId", iHelicopterVehicleId)
+		.flag("setUp", fSkyRiderSetUp)
+		.flag("airborne", fHelicopterIsAirBorne)
+		.flag("returning", fHeliReturnStraightToBase)
+		.flag("hovering", fHoveringHelicopter)
+		.num("startHover", uiStartHoverTime)
+		.num("cost", iTotalAccumulatedCostByPlayer)
+		.flag("destroyed", fHelicopterDestroyed)
+		.num("talk", guiHelicopterSkyriderTalkState)
+		.num("lastMonologue", guiTimeOfLastSkyriderMonologue)
+		.flag("emptyHelp", gfSkyriderEmptyHelpGiven)
+		.num("hits", gubHelicopterHitsTaken)
+		.flag("congrats", gfSkyriderSaidCongratsOnTakingSAM)
+		.num("progress", gubPlayerProgressSkyriderLastCommentedOn)
+		.raw("refuel", Numbers({fRefuelingSiteAvailable[0], fRefuelingSiteAvailable[1]}));
+	if (iHelicopterVehicleId != -1)
+	{
+		VEHICLETYPE const& v = GetHelicopter();
+		std::vector<long long> slots;
+		for (SOLDIERTYPE const* p : v.pPassengers) slots.push_back(p ? p->ubID : -1);
+		std::vector<long long> path;
+		for (PathSt const* n = v.pMercPath; n; n = n->pNext) path.push_back(n->uiSectorId);
+		j.raw("sector", StrategicSector(v.sSector)).flag("vehicleBetween", v.fBetweenSectors).raw("passengers", Numbers(slots)).raw("path", Numbers(path));
+		if (GROUP const* g = GetGroup(v.ubMovementGroup)) j.raw("group", HeliGroup(*g));
+	}
+	return j.text();
+}
+
+std::string HeliSoldiers()
+{
+	std::vector<std::string> list;
+	CFOR_EACH_IN_TEAM(s, OUR_TEAM)
+	{
+		UINT8 const role = s->uiStatusFlags & SOLDIER_DRIVER ? 1 : s->uiStatusFlags & SOLDIER_PASSENGER ? 2 : 0;
+		list.push_back(Json{}
+			.num("id", s->ubID)
+			.num("assignment", s->bAssignment)
+			.num("vehicleId", s->iVehicleId)
+			.raw("sector", StrategicSector(s->sSector))
+			.flag("betweenSectors", s->fBetweenSectors)
+			.num("groupId", s->ubGroupID)
+			.num("insertionCode", s->ubStrategicInsertionCode)
+			.num("insertionData", s->usStrategicInsertionData)
+			.num("role", role)
+			.num("life", s->bLife)
+			.flag("inSector", s->bInSector)
+			.text());
+	}
+	return JsonArray(list);
+}
+
+std::string HeliSquads()
+{
+	std::vector<std::string> squads;
+	for (int q = 0; q < NUMBER_OF_SQUADS; ++q)
+	{
+		std::vector<long long> members;
+		for (SOLDIERTYPE const* m : Squad[q]) if (m) members.push_back(m->ubID);
+		squads.push_back(Numbers(members));
+	}
+	return JsonArray(squads);
+}
+
+std::string HeliEvents()
+{
+	INT32 const heliGroup = iHelicopterVehicleId != -1 ? GetHelicopter().ubMovementGroup : -1;
+	std::vector<std::string> events;
+	for (STRATEGICEVENT const* e = gpEventList; e; e = e->next)
+	{
+		bool const heli = (e->ubCallbackID == EVENT_GROUP_ARRIVAL || e->ubCallbackID == EVENT_GROUP_ABOUT_TO_ARRIVE) && static_cast<INT32>(e->uiParam) == heliGroup;
+		bool const hover = e->ubCallbackID == EVENT_HELICOPTER_HOVER_TOO_LONG || e->ubCallbackID == EVENT_HELICOPTER_HOVER_WAY_TOO_LONG;
+		if (!heli && !hover && e->ubCallbackID != EVENT_MEANWHILE) continue;
+		events.push_back(Numbers({e->uiTimeStamp, e->ubCallbackID, e->uiParam}));
+	}
+	return JsonArray(events);
+}
+
+void EmitHeli(Command const& c, std::string const& draws, Json extra = Json{})
+{
+	std::vector<long long> quotes(gOracleSkyriderQuotes.begin(), gOracleSkyriderQuotes.end());
+	gOracleSkyriderQuotes.clear();
+	std::vector<long long> noticed;
+	for (UINT16 i = 0; i < 256; ++i) if (SectorInfo[i].uiFlags & SF_SKYRIDER_NOTICED_ENEMIES_HERE) noticed.push_back(i);
+	std::vector<long long> sams;
+	for (auto const* sam : GCM->getSamSites()) sams.push_back(IsSecretFoundAt(sam->sectorId));
+	extra.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.num("worldMinutes", GetWorldTotalMin())
+		.raw("draws", draws)
+		.raw("quotes", Numbers(quotes))
+		.raw("heli", HeliState())
+		.raw("skyrider", Numbers({gMercProfiles[SKYRIDER].iBalance, gMercProfiles[SKYRIDER].bLife}))
+		.num("money", LaptopSaveInfo.iCurrentBalance)
+		.raw("facts", Numbers({gubFact[FACT_SKYRIDER_CLOSE_TO_CHOPPER], gubFact[FACT_SKYRIDER_USED_IN_MAPSCREEN], gubFact[FACT_LOYALTY_LOW], gubFact[FACT_ESTONI_REFUELLING_POSSIBLE]}))
+		.raw("noticed", Numbers(noticed))
+		.raw("samsFound", Numbers(sams))
+		.raw("soldiers", HeliSoldiers())
+		.raw("squads", HeliSquads())
+		.raw("events", HeliEvents());
+	Emit(extra);
+}
+
+void HeliBegin()
+{
+	gOracleSkyriderSilent = true;
+	fShowAircraftFlag = TRUE;
+}
+
+void DumpHeli(Command const& c)
+{
+	HeliBegin();
+	EmitHeli(c, "[]");
+}
+
+std::pair<std::string, std::string> HeliPair(std::string const& part)
+{
+	auto const colon = part.find(':');
+	if (colon == std::string::npos) throw std::runtime_error("expected key:value, got " + part);
+	return {part.substr(0, colon), part.substr(colon + 1)};
+}
+
+void SetHeli(Command const& c)
+{
+	HeliBegin();
+	if (Has(c, "money")) AddTransactionToPlayersBook(ANONYMOUS_DEPOSIT, 0, GetWorldTotalMin(), static_cast<INT32>(Required(c, "money")) - LaptopSaveInfo.iCurrentBalance);
+	if (Has(c, "owed")) gMercProfiles[SKYRIDER].iBalance = -static_cast<INT32>(Required(c, "owed"));
+	for (std::string const& part : SplitList(Text(c, "control", ""), ','))
+	{
+		auto const [sector, enemy] = HeliPair(part);
+		StrategicMap[SGPSector::FromShortString(ST::string(sector)).AsStrategicIndex()].fEnemyControlled = enemy != "0";
+	}
+	for (std::string const& part : SplitList(Text(c, "sam", ""), ','))
+	{
+		std::vector<std::string> const f = SplitList(part, ':');
+		if (f.size() != 3) throw std::runtime_error("sam entries look like <id>:<condition>:<enemy>");
+		StrategicMapElement& e = StrategicMap[SGPSector(GCM->getSamSites()[std::stoi(f[0])]->sectorId).AsStrategicIndex()];
+		e.bSAMCondition = static_cast<INT8>(std::stoi(f[1]));
+		e.fEnemyControlled = f[2] != "0";
+	}
+	for (std::string const& part : SplitList(Text(c, "enemies", ""), ','))
+	{
+		auto const [sector, troops] = HeliPair(part);
+		SectorInfo[SGPSector::FromShortString(ST::string(sector)).AsByte()].ubNumTroops = static_cast<UINT8>(std::stoi(troops));
+	}
+	for (std::string const& part : SplitList(Text(c, "fact", ""), ','))
+	{
+		auto const [id, value] = HeliPair(part);
+		gubFact[std::stoi(id)] = static_cast<UINT8>(std::stoi(value));
+	}
+	for (std::string const& part : SplitList(Text(c, "loyalty", ""), ','))
+	{
+		auto const [town, rating] = HeliPair(part);
+		gTownLoyalty[std::stoi(town)].ubRating = static_cast<UINT8>(std::stoi(rating));
+		gTownLoyalty[std::stoi(town)].fStarted = TRUE;
+	}
+	if (Has(c, "talk")) guiHelicopterSkyriderTalkState = static_cast<UINT32>(Required(c, "talk"));
+	if (Has(c, "lastmono")) guiTimeOfLastSkyriderMonologue = static_cast<UINT32>(Required(c, "lastmono"));
+	if (Has(c, "congrats")) gfSkyriderSaidCongratsOnTakingSAM = Required(c, "congrats") != 0;
+	if (Has(c, "emptyhelp")) gfSkyriderEmptyHelpGiven = Required(c, "emptyhelp") != 0;
+	if (Has(c, "hits")) gubHelicopterHitsTaken = static_cast<UINT8>(Required(c, "hits"));
+	if (Has(c, "progress")) gubPlayerProgressSkyriderLastCommentedOn = static_cast<UINT8>(Required(c, "progress"));
+	if (Has(c, "cost")) iTotalAccumulatedCostByPlayer = static_cast<INT32>(Required(c, "cost"));
+	if (Integer(c, "airspace", 0) != 0) UpdateAirspaceControl();
+	EmitHeli(c, "[]");
+}
+
+void ProbeHeliSetUp(Command const& c)
+{
+	HeliBegin();
+	SGPSector const sector = StrategicSectorArgument(c, "sector");
+	std::string const draws = TracedSaiDraws([&] { SetUpHelicopterForPlayer(sector); });
+	EmitHeli(c, draws);
+}
+
+void ProbeHeliBoard(Command const& c)
+{
+	HeliBegin();
+	SOLDIERTYPE& s = GetMan(static_cast<SoldierID>(Required(c, "who")));
+	VEHICLETYPE& v = GetHelicopter();
+	bool const accessible = IsThisVehicleAccessibleToSoldier(s, v);
+	bool const space = IsEnoughSpaceInVehicle(v);
+	bool boarded = false;
+	std::string const draws = TracedSaiDraws([&] { if (accessible && space) boarded = PutSoldierInVehicle(s, v); });
+	EmitHeli(c, draws, Json{}.flag("accessible", accessible).flag("space", space).flag("boarded", boarded));
+}
+
+void ProbeHeliLeave(Command const& c)
+{
+	HeliBegin();
+	SOLDIERTYPE& s = GetMan(static_cast<SoldierID>(Required(c, "who")));
+	INT8 const squad = static_cast<INT8>(Integer(c, "squad", GetFirstEmptySquad()));
+	std::string const draws = TracedSaiDraws([&] {
+		bool const exiting = InHelicopter(s);
+		if (s.bAssignment == VEHICLE) TakeSoldierOutOfVehicle(&s);
+		RemoveCharacterFromSquads(&s);
+		AddCharacterToSquad(&s, squad);
+		if (exiting) SetSoldierExitHelicopterInsertionData(&s);
+	});
+	EmitHeli(c, draws, Json{}.num("squad", squad));
+}
+
+void ProbeHeliRoute(Command const& c)
+{
+	HeliBegin();
+	SGPSector const to = StrategicSectorArgument(c, "to");
+	bool allowed = false;
+	std::string const draws = TracedSaiDraws([&] {
+		allowed = OracleRequestGiveSkyriderNewDestination();
+		fPlotForHelicopter = FALSE;
+		if (!allowed) return;
+		VEHICLETYPE& v = GetHelicopter();
+		if (v.pMercPath) CancelPathForVehicle(v, FALSE);
+		PlotPathForHelicopter(to);
+		TakeOffHelicopter();
+		RebuildWayPointsForGroupPath(v.pMercPath, *GetGroup(v.ubMovementGroup));
+		if (iHelicopterVehicleId != -1 && GetLengthOfPath(GetHelicopter().pMercPath) > 0) OracleHandleNewDestConfirmation(to);
+		fPlotForHelicopter = FALSE;
+	});
+	EmitHeli(c, draws, Json{}.flag("allowed", allowed));
+}
+
+void ProbeHeliCancel(Command const& c)
+{
+	HeliBegin();
+	bool const canFly = CanHelicopterFly();
+	std::string const draws = TracedSaiDraws([&] {
+		VEHICLETYPE& v = GetHelicopter();
+		if (canFly && v.pMercPath) CancelPathForVehicle(v, FALSE);
+	});
+	EmitHeli(c, draws, Json{}.flag("canFly", canFly));
+}
+
+void ProbeHeliWarp(Command const& c)
+{
+	HeliBegin();
+	UINT32 const seconds = static_cast<UINT32>(Required(c, "minutes")) * 60;
+	std::string const draws = TracedSaiDraws([&] { WarpGameTime(seconds, WARPTIME_PROCESS_EVENTS_NORMALLY); });
+	EmitHeli(c, draws);
+}
+
+void ProbeHeliMonologue(Command const& c)
+{
+	HeliBegin();
+	bool const available = IsHelicopterPilotAvailable();
+	std::string const draws = TracedSaiDraws([&] { if (available) CheckAndHandleSkyriderMonologues(); });
+	EmitHeli(c, draws, Json{}.flag("available", available));
+}
+
+void ProbeHeliPayDebt(Command const& c)
+{
+	HeliBegin();
+	std::string const draws = TracedSaiDraws([] { PayOffSkyriderDebtIfAny(); });
+	EmitHeli(c, draws);
+}
+
+void ProbeHeliReturn(Command const& c)
+{
+	HeliBegin();
+	std::string const draws = TracedSaiDraws([] { OracleMakeHeliReturnToBase(); });
+	EmitHeli(c, draws);
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -4898,6 +5194,17 @@ void Dispatch(Command const& c)
 	if (c.name == "makecivhostile") return ProbeMakeCivHostile(c);
 	if (c.name == "pcattack") return ProbePcAttack(c);
 	if (c.name == "hostilelist") return ProbeHostileList(c);
+	if (c.name == "heli") return DumpHeli(c);
+	if (c.name == "heliset") return SetHeli(c);
+	if (c.name == "helisetup") return ProbeHeliSetUp(c);
+	if (c.name == "heliboard") return ProbeHeliBoard(c);
+	if (c.name == "helileave") return ProbeHeliLeave(c);
+	if (c.name == "heliroute") return ProbeHeliRoute(c);
+	if (c.name == "helicancel") return ProbeHeliCancel(c);
+	if (c.name == "heliwarp") return ProbeHeliWarp(c);
+	if (c.name == "helimonologue") return ProbeHeliMonologue(c);
+	if (c.name == "helipaydebt") return ProbeHeliPayDebt(c);
+	if (c.name == "helireturn") return ProbeHeliReturn(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

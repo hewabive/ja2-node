@@ -1,0 +1,158 @@
+# Skyrider's helicopter on the user's saves (see README "Helicopter"). Each scenario loads a save, sets the helicopter up in
+# B13 and drives it through the original's functions; every command prints the helicopter globals, the vehicle, its group,
+# the mercs, the squads, Skyrider's balance, the money, the helicopter facts, the noticed-enemy flags, the SAM secrets, the
+# helicopter events and the draws.
+
+# A flight through Drassen's enemy airspace: boarding, SAM checks per sector, billing at 1000 per sector, hovering, the
+# 10- and 20-minute warnings, dropping the passengers and returning to base.
+save SaveGame01
+heli
+helisetup sector=B13
+heliset money=20000
+heliboard who=0
+heliboard who=1
+heliroute to=B10
+heliwarp minutes=10
+heliwarp minutes=10
+heliwarp minutes=10
+heliwarp minutes=12
+heliwarp minutes=10
+heliwarp minutes=45
+
+# Friendly airspace: the empty-helicopter hint, a short flight with a payment shortfall, the debt, the return, landing,
+# grounding by the debt, and the hourly payment.
+save SaveGame01
+helisetup sector=B13
+heliset sam=1:100:0 airspace=1 money=150
+heliroute to=B11
+heliroute to=B11
+heliboard who=2
+heliroute to=B11
+heliwarp minutes=10
+heliboard who=0
+heliboard who=1
+heliroute to=B11
+heliwarp minutes=10
+heliwarp minutes=10
+heliwarp minutes=30
+heliroute to=A13
+heliset money=30
+helipaydebt
+heliset money=5000
+helipaydebt
+heliroute to=A13
+heliwarp minutes=10
+heliwarp minutes=10
+
+# Hovering in friendly airspace: the 10-minute warning, the 20-minute drop into a new squad and the return to base with
+# the kill-chopper meanwhile.
+save SaveGame01
+helisetup sector=B13
+heliset sam=1:100:0 airspace=1
+heliboard who=0
+heliboard who=1
+heliroute to=B10
+heliwarp minutes=30
+heliwarp minutes=10
+heliwarp minutes=10
+heliwarp minutes=30
+
+# Leaving while hovering, rerouting in flight, landing at the refuel site.
+save SaveGame01
+helisetup sector=B13
+heliset sam=1:100:0 airspace=1
+heliboard who=0
+heliboard who=1
+heliroute to=B12
+heliwarp minutes=10
+helileave who=1 squad=3
+heliroute to=C12
+heliwarp minutes=5
+heliroute to=A13
+heliwarp minutes=10
+heliwarp minutes=10
+heliwarp minutes=10
+heliroute to=B13
+heliwarp minutes=10
+heliwarp minutes=10
+helicancel
+
+# Refusals: grounded, owed money, disloyal Drassen, returning to base; the believed-enemy confirmation and enemies spotted
+# from the air on the way.
+save SaveGame01
+helisetup sector=B13
+heliset control=B13:1
+heliroute to=B11
+heliset control=B13:0 owed=500
+heliroute to=B11
+heliset owed=0 talk=1 lastmono=0 loyalty=2:10
+heliroute to=B11
+heliset loyalty=2:60 sam=1:100:0 airspace=1 enemies=B11:6,B12:4,A11:3
+heliboard who=0
+heliroute to=B10
+heliwarp minutes=10
+heliwarp minutes=10
+heliwarp minutes=10
+helireturn
+heliroute to=B13
+heliwarp minutes=10
+
+# Monologues: the Drassen SAM site, the Cambria hospital, the other SAM sites after the congratulation, Estoni.
+save SaveGame01
+helisetup sector=B13
+helimonologue
+helimonologue
+heliset lastmono=0
+helimonologue
+helimonologue
+heliset congrats=1 lastmono=0
+helimonologue
+heliset lastmono=0 fact=277:1 control=I6:0 sam=2:100:0 airspace=1
+helimonologue
+heliset lastmono=0 talk=0 fact=45:1 sam=1:100:0 airspace=1 congrats=0
+helimonologue
+
+# Destruction: two hits taken, passengers aboard, flying on through Drassen's SAM coverage.
+save SaveGame01
+helisetup sector=B13
+heliset hits=2 money=20000
+heliboard who=0
+heliroute to=B9
+heliwarp minutes=10
+heliwarp minutes=10
+heliwarp minutes=10
+heliwarp minutes=10
+heliwarp minutes=10
+
+# SaveGame10 (D13 loaded while enemies are in it): the helicopter's arrivals are delayed by 3 to 5 minutes each time like any
+# other group, and a reroute reverses it.
+save SaveGame10
+helisetup sector=B13
+heliset sam=1:100:0 airspace=1 money=150
+heliroute to=D13
+heliwarp minutes=20
+heliroute to=B13
+heliwarp minutes=20
+
+# SaveGame02 (C13 loaded, nobody in B13): the empty helicopter flies to C13, two mercs board it while it hovers and fly
+# back with a bill they cannot pay, so they are dropped at the airport; after the hourly payment a merc boards and leaves
+# on the ground, and a last flight hovers until it returns empty.
+save SaveGame02
+helisetup sector=B13
+heliset sam=1:100:0 airspace=1 money=150
+heliroute to=C13
+heliwarp minutes=10
+heliboard who=0
+heliboard who=1
+heliroute to=B13
+heliwarp minutes=10
+heliset money=1000
+helipaydebt
+heliboard who=1
+helileave who=1 squad=5
+heliboard who=0
+heliroute to=C13
+heliwarp minutes=10
+heliwarp minutes=12
+heliwarp minutes=10
+heliwarp minutes=10

@@ -1,0 +1,110 @@
+Helicopter oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE (SFI-SCLA).
+Lets the helicopter probes run Skyrider's code headless: with gOracleSkyriderSilent set, SkyriderDialogue records the
+quote number in gOracleSkyriderQuotes instead of queueing dialogue, a monologue's special events run at once instead of
+from the dialogue queue, and RequestGiveSkyriderNewDestination skips its message box and cursor change. Appends wrappers
+around the static MakeHeliReturnToBase, RequestGiveSkyriderNewDestination and HandleNewDestConfirmation
+(the latter with fPlotForHelicopter set). No behaviour change while the flag is clear. Applied by tools/oracle/build.sh
+after 0013.
+
+--- a/src/game/Strategic/Map_Screen_Helicopter.cc
++++ b/src/game/Strategic/Map_Screen_Helicopter.cc
+@@ -41,6 +41,8 @@
+ #include "WorldDef.h"
+ #include "WorldMan.h"
+ 
++#include <vector>
++
+ // the amounts of time to wait for hover stuff
+ #define TIME_DELAY_FOR_HOVER_WAIT						10		// minutes
+ #define TIME_DELAY_FOR_HOVER_WAIT_TOO_LONG	20		// mintues
+@@ -119,6 +121,9 @@
+ BOOLEAN gfSkyriderSaidCongratsOnTakingSAM = FALSE;
+ UINT8 gubPlayerProgressSkyriderLastCommentedOn = 0;
+ 
++bool gOracleSkyriderSilent = false;
++std::vector<UINT16> gOracleSkyriderQuotes;
++
+ static BOOLEAN DoesSkyriderNoticeEnemiesInSector(UINT8 ubNumEnemies);
+ static BOOLEAN HandleSAMSiteAttackOfHelicopterInSector(const SGPSector& sSector);
+ static void HeliCharacterDialogue(UINT16 usQuoteNum);
+@@ -565,11 +570,21 @@
+ 
+ static void SkyriderDialogue(UINT16 const quote)
+ {
++	if (gOracleSkyriderSilent)
++	{
++		gOracleSkyriderQuotes.push_back(quote);
++		return;
++	}
+ 	CharacterDialogue(SKYRIDER, quote, GetExternalNPCFace(SKYRIDER), DIALOGUE_EXTERNAL_NPC_UI, FALSE);
+ }
+ 
+ static void SkyriderDialogueWithSpecialEvent(SkyriderMonologueEvent const event, UINT32 const special_code)
+ {
++	if (gOracleSkyriderSilent)
++	{
++		HandleSkyRiderMonologueEvent(event, special_code);
++		return;
++	}
+ 	class DialogueEventSkyriderMapScreenEvent : public DialogueEvent
+ 	{
+ 		public:
+@@ -1446,3 +1461,9 @@
+ {
+ 	return InHelicopter(s) && fHelicopterIsAirBorne;
+ }
++
++
++void OracleMakeHeliReturnToBase()
++{
++	MakeHeliReturnToBase();
++}
+--- a/src/game/Strategic/MapScreen.cc
++++ b/src/game/Strategic/MapScreen.cc
+@@ -7246,6 +7246,9 @@
+ static UINT8 PlayerMercsInHelicopterSector();
+ 
+ 
++extern bool gOracleSkyriderSilent;
++
++
+ static BOOLEAN RequestGiveSkyriderNewDestination(void)
+ {
+ 	// should we allow it?
+@@ -7256,7 +7259,7 @@
+ 			( GetNumberInVehicle(GetHelicopter()) == 0 ) &&
+ 			( PlayerMercsInHelicopterSector() > 0 ) )
+ 		{
+-			DoMapMessageBox(MSG_BOX_BASIC_STYLE, pSkyriderText[2], MAP_SCREEN, MSG_BOX_FLAG_OK, MapScreenDefaultOkBoxCallback);
++			if (!gOracleSkyriderSilent) DoMapMessageBox(MSG_BOX_BASIC_STYLE, pSkyriderText[2], MAP_SCREEN, MSG_BOX_FLAG_OK, MapScreenDefaultOkBoxCallback);
+ 			gfSkyriderEmptyHelpGiven = TRUE;
+ 			return( FALSE );
+ 		}
+@@ -7268,7 +7271,7 @@
+ 		fPlotForHelicopter = TRUE;
+ 
+ 		// change cursor to the helicopter
+-		SetUpCursorForStrategicMap();
++		if (!gOracleSkyriderSilent) SetUpCursorForStrategicMap();
+ 
+ 		// remember the helicopter's current path so we can restore it if need be
+ 		ClearStrategicPathList(g_prev_path, 0);
+@@ -8051,3 +8054,18 @@
+ 	gMPanelRegion.ChangeCursor(EXTERN_CURSOR);
+ 	fMapInventoryItem = TRUE;
+ }
++
++
++BOOLEAN OracleRequestGiveSkyriderNewDestination()
++{
++	return RequestGiveSkyriderNewDestination();
++}
++
++
++void OracleHandleNewDestConfirmation(SGPSector const& sector)
++{
++	BOOLEAN const plotting = fPlotForHelicopter;
++	fPlotForHelicopter = TRUE;
++	HandleNewDestConfirmation(sector);
++	fPlotForHelicopter = plotting;
++}

@@ -8,9 +8,11 @@ export function addSavedMercsToRoster(roster: Roster, save: SaveGame, tactical: 
   for (const entry of save.soldiers) {
     const r = entry.soldier;
     if (r.team !== Team.OUR || r.active === 0) continue;
+    const soldier = tactical?.soldiers[r.id] ?? createSavedSoldier(save, entry);
+    soldier.insertionData = r.strategicInsertionData;
     roster.add(
       new RosterMerc({
-        soldier: tactical?.soldiers[r.id] ?? createSavedSoldier(save, entry),
+        soldier,
         profile: save.profiles[r.profile] ?? null,
         fractLife: r.fractLife,
         kind: r.whatKindOfMercAmI,

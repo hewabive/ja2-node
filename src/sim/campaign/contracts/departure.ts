@@ -14,6 +14,7 @@ import { Assignment } from '../../strategic/economy/constants.ts';
 import { randomGridNo } from '../../strategic/forces/autoresolve/close.ts';
 import { InsertionCode } from '../../strategic/forces/constants.ts';
 import { getGroup, removeGroup } from '../../strategic/forces/groups.ts';
+import { takeSoldierOutOfVehicle } from '../../strategic/forces/vehicles.ts';
 import { EventKind, NUM_MIN_IN_HOUR } from '../../strategic/time/constants.ts';
 import { addStrategicEvent } from '../../strategic/time/event-queue.ts';
 import { CompressionStop, stopTimeCompression, worldTotalMinutes } from '../../strategic/time/world-clock.ts';
@@ -229,7 +230,7 @@ export function calculateMedicalDepositRefund(ctx: ContractContext, m: RosterMer
 function leaveMovementGroup(ctx: ContractContext, m: RosterMerc): void {
   if (m.assignment < Assignment.ON_DUTY || !m.groupId) return;
   if (m.assignment === Assignment.VEHICLE) {
-    ctx.economy.crew.takeOutOfVehicle(m.id);
+    takeSoldierOutOfVehicle(ctx.economy, m.id);
     return;
   }
   const g = getGroup(ctx.economy, m.groupId);

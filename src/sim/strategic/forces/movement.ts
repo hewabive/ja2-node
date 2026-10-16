@@ -48,8 +48,10 @@ import {
   vehicleOfGroup,
   type Waypoint,
 } from './groups.ts';
+import { handleHeliEnteringSector } from './helicopter.ts';
 import { type StrategicContext, TravelStat } from './ports.ts';
 import { resetDeadSquadMemberList } from './squads.ts';
+import { setVehicleSectorValues } from './vehicles.ts';
 
 const ENEMY_SLEEP_CHANCE = 67;
 const ENEMY_SLEEP_MINUTES = 360;
@@ -348,13 +350,16 @@ function spendVehicleFuel(ctx: StrategicContext, g: Group): void {
   if (remaining === 0) clearMercPathsAndWaypointsForAllInGroup(ctx, g);
 }
 
-function updateArrivedPlayerGroup(ctx: StrategicContext, g: Group, arrival: Sector): boolean {
+type ArrivalOutcome = 'invalid' | 'arrived' | 'destroyed';
+
+function updateArrivedPlayerGroup(ctx: StrategicContext, g: Group, arrival: Sector, neverLeft: boolean): ArrivalOutcome {
   if (groupAtFinalDestination(g)) clearMercPathsAndWaypointsForAllInGroup(ctx, g);
   if (arrival.z === 0 && secretIndexAt(ctx, sectorId(arrival)) >= 0) markSecretFoundAt(ctx, sectorId(arrival));
   const insertion = insertionFromTravel(arrival, g.prev);
-  if (!insertion) return false;
+  if (!insertion) return 'invalid';
   const world = ctx.state.worldSector;
   const here = world !== null && sameSector(arrival, world);
+  let destroyed = false;
   if (!g.vehicle) {
     for (const m of groupMembers(ctx, g)) {
       m.betweenSectors = false;
@@ -370,7 +375,7 @@ function updateArrivedPlayerGroup(ctx: StrategicContext, g: Group, arrival: Sect
   } else {
     const v = vehicleOfGroup(ctx, g);
     if (v.path.length > 0) v.path = removeHeadFromStrategicPath(v.path);
-    v.sector = arrival;
+    setVehicleSectorValues(ctx, v, arrival);
     v.betweenSectors = false;
     if (!isHelicopterVehicle(ctx, v)) {
       const vs = ctx.mercs.get(v.soldierId);
@@ -382,15 +387,16 @@ function updateArrivedPlayerGroup(ctx: StrategicContext, g: Group, arrival: Sect
         m.insertionCode = insertion.code;
         if (here) ctx.mercs.updateMercInSector(m.id, arrival);
       }
-    }
+    } else destroyed = handleHeliEnteringSector(ctx, arrival, neverLeft);
   }
+  if (destroyed) return 'destroyed';
   if (!g.vehicle || !isHelicopterGroup(ctx, g)) {
     const spawn = ctx.content.bloodCatSpawns.find((b) => b.sector === sectorId(arrival));
     if (spawn?.isLair && !getSectorFlagStatus(ctx.state.map, arrival, SectorFlag.ALREADY_VISITED))
       ctx.world.addCorpsesToBloodcatLair(arrival);
     setSectorFlag(ctx.state.map, arrival, SectorFlag.ALREADY_VISITED, worldDay(ctx.state.clock));
   }
-  return true;
+  return 'arrived';
 }
 
 export function groupArrivedAtSector(ctx: StrategicContext, g: Group, checkForBattle: boolean, neverLeft: boolean): void {
@@ -422,7 +428,12 @@ export function groupArrivedAtSector(ctx: StrategicContext, g: Group, checkForBa
   g.traverseTime = 0;
   g.arrivalTime = 0;
   g.betweenSectors = false;
-  if (g.player && !updateArrivedPlayerGroup(ctx, g, arrival)) return;
+  const outcome = g.player ? updateArrivedPlayerGroup(ctx, g, arrival, neverLeft) : 'arrived';
+  if (outcome === 'invalid') return;
+  if (outcome === 'destroyed') {
+    flow.waitingForInput = false;
+    return;
+  }
   if (checkForBattle && !checkConditionsForBattle(ctx, g) && !flow.waitingForInput) {
     handleNonCombatGroupArrival(ctx, g, true);
     releaseSimultaneousArrivals(ctx);

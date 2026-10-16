@@ -16,6 +16,7 @@ export interface MovementFlowState {
   undergroundTacticalTraversal: boolean;
   randomizingPatrolGroup: boolean;
   disableMapInterfaceDueToBattle: boolean;
+  exitingVehicleToSquad: boolean;
 }
 
 export const PreBattleNotice = {
@@ -72,6 +73,7 @@ export function createMovementFlowState(): MovementFlowState {
     undergroundTacticalTraversal: false,
     randomizingPatrolGroup: false,
     disableMapInterfaceDueToBattle: false,
+    exitingVehicleToSquad: false,
   };
 }
 

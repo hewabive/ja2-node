@@ -15,6 +15,7 @@ import { findUndergroundSector, sectorInfo, totalMilitia } from '../map/sectors.
 import { EventKind } from '../time/constants.ts';
 import { deleteStrategicEvent } from '../time/event-queue.ts';
 import { Assignment, MAX_GROUP_ID, MoveType, NO_GROUP } from './constants.ts';
+import { createHelicopterState, type HelicopterState } from './helicopter-state.ts';
 import type { StrategicContext, StrategicMerc } from './ports.ts';
 
 export interface Waypoint {
@@ -59,6 +60,9 @@ export interface Group {
   readonly enemy: EnemyGroup | null;
 }
 
+export const MAX_PASSENGERS_IN_VEHICLE = 10;
+export const NO_PASSENGER = -1;
+
 export interface VehicleRecord {
   valid: boolean;
   destroyed: boolean;
@@ -67,8 +71,16 @@ export interface VehicleRecord {
   movementGroup: number;
   path: number[];
   betweenSectors: boolean;
-  passengers: number[];
+  readonly passengers: number[];
   soldierId: number;
+}
+
+export function emptyPassengerSlots(): number[] {
+  return new Array<number>(MAX_PASSENGERS_IN_VEHICLE).fill(NO_PASSENGER);
+}
+
+export function passengersOf(v: VehicleRecord): number[] {
+  return v.passengers.filter((id) => id !== NO_PASSENGER);
 }
 
 export interface ForcesState {
@@ -81,6 +93,7 @@ export interface ForcesState {
   vehicles: VehicleRecord[];
   helicopterVehicleId: number;
   helicopterAirborne: boolean;
+  helicopter: HelicopterState;
 }
 
 export function createForcesState(): ForcesState {
@@ -94,6 +107,7 @@ export function createForcesState(): ForcesState {
     vehicles: [],
     helicopterVehicleId: -1,
     helicopterAirborne: false,
+    helicopter: createHelicopterState(),
   };
 }
 
@@ -309,7 +323,7 @@ export function isHelicopterVehicle(ctx: StrategicContext, v: VehicleRecord): bo
 }
 
 export function vehicleGroupHasPassengers(ctx: StrategicContext, g: Group): boolean {
-  return vehicleOfGroup(ctx, g).passengers.length > 0;
+  return passengersOf(vehicleOfGroup(ctx, g)).length > 0;
 }
 
 function airborneHelicopterGroup(ctx: StrategicContext, g: Group): boolean {

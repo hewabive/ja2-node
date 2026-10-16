@@ -1,4 +1,5 @@
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
+import { fact, setFact } from '../../campaign/narrative/facts.ts';
 import type { StrategicState } from '../state.ts';
 import type { StrategicEvent } from '../time/event-queue.ts';
 import type { ClockContext } from '../time/world-clock.ts';
@@ -7,6 +8,7 @@ import { groupArrivedAtSector } from './movement.ts';
 import {
   defaultStrategicAiPort,
   defaultTacticalWorldPort,
+  type HelicopterPort,
   type MercPort,
   type RollSource,
   type StrategicAiPort,
@@ -21,8 +23,22 @@ export interface StrategicContextOptions {
   readonly mercs?: MercPort;
   readonly ai?: StrategicAiPort;
   readonly world?: TacticalWorldPort;
+  readonly helicopter?: HelicopterPort;
   readonly random?: RollSource;
   readonly preRandom?: RollSource;
+}
+
+export function standaloneHelicopterPort(state: StrategicState): HelicopterPort {
+  return {
+    fact: (id) => fact(state.narrative, id),
+    setFactTrue: (id) => setFact(state.narrative, id),
+    skyriderLoyaltyLow: () => false,
+    cosmeticChoice: () => 0,
+    killInVehicle: () => true,
+    scheduleKillChopperMeanwhile: () => {},
+    skyriderOnGround: () => {},
+    emit: () => {},
+  };
 }
 
 export const emptyMercPort: MercPort = {
@@ -62,6 +78,7 @@ export function createStrategicContext(options: StrategicContextOptions): Strate
     mercs: options.mercs ?? emptyMercPort,
     ai: options.ai ?? defaultStrategicAiPort,
     world: options.world ?? defaultTacticalWorldPort,
+    helicopter: options.helicopter ?? standaloneHelicopterPort(state),
     random: options.random ?? state.rng,
     preRandom: options.preRandom ?? state.pre,
   };

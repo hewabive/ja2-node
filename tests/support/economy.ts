@@ -9,6 +9,7 @@ import { Assignment } from '../../src/sim/strategic/economy/constants.ts';
 import { createEconomyContext, type EconomySetup } from '../../src/sim/strategic/economy/context.ts';
 import type { CrewMember, CrewPort, EconomyContext, MercStats, StatDamage } from '../../src/sim/strategic/economy/ports.ts';
 import { applySquadAssignment } from '../../src/sim/strategic/economy/set-assignment.ts';
+import type { HelicopterPort } from '../../src/sim/strategic/forces/ports.ts';
 import { createStrategicState, type StrategicStateOptions } from '../../src/sim/strategic/state.ts';
 import { loadStrategicTestContent, testContext } from './strategic.ts';
 
@@ -179,20 +180,6 @@ export class FakeCrew implements CrewPort {
   dressWound(): number {
     return this.dressWoundResult;
   }
-
-  inHelicopter(): boolean {
-    return false;
-  }
-
-  aboardAirborneHelicopter(): boolean {
-    return false;
-  }
-
-  mustDriveVehicle(): boolean {
-    return false;
-  }
-
-  takeOutOfVehicle(): void {}
 }
 
 export interface EconomyTestOptions {
@@ -201,6 +188,8 @@ export interface EconomyTestOptions {
   readonly crew?: FakeCrew;
   readonly setup?: Partial<Omit<EconomySetup, 'economy' | 'items' | 'crew'>>;
   readonly random?: { int(n: number): number; chance(p: number): boolean };
+  readonly preRandom?: { int(n: number): number; chance(p: number): boolean };
+  readonly helicopter?: Partial<HelicopterPort>;
 }
 
 export function economyTestContext(o: EconomyTestOptions): { ctx: EconomyContext; crew: FakeCrew } {
@@ -210,6 +199,8 @@ export function economyTestContext(o: EconomyTestOptions): { ctx: EconomyContext
     state: createStrategicState(o.stateOptions),
     mercs: crew,
     ...(o.random ? { random: o.random } : {}),
+    ...(o.preRandom ? { preRandom: o.preRandom } : {}),
+    ...(o.helicopter ? { helicopter: o.helicopter } : {}),
   });
   const ctx = createEconomyContext(strategic, { economy: o.content.economy, items: o.content.items, crew, ...o.setup });
   crew.economy = ctx;

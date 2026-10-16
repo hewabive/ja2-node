@@ -3,6 +3,7 @@
 // @src src/game/Strategic/Quests.h QUESTNOTSTARTED, QUESTINPROGRESS, QUESTDONE. See docs/25 §2.1, §6.
 
 import type { Soldier } from '../soldier.ts';
+import type { SectorRef } from '../state.ts';
 
 export interface NarrativePort {
   fact(id: number): boolean;
@@ -23,6 +24,7 @@ export interface NarrativePort {
   assassinKilled(): void;
   firstSightingRecord(profile: number, record: number): boolean;
   profileDied(profile: number, killer: Soldier | null): void;
+  setUpHelicopterForPlayer(sector: SectorRef): void;
 }
 
 export const QuestStatus = { NOT_STARTED: 0, IN_PROGRESS: 1, DONE: 2 } as const;
@@ -46,4 +48,5 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   assassinKilled: () => {},
   firstSightingRecord: () => false,
   profileDied: () => {},
+  setUpHelicopterForPlayer: () => {},
 };

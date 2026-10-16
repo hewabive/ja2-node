@@ -5,6 +5,7 @@ import type { Sector } from '../../src/content/strategic/sector-ids.ts';
 import { loadStrategicContent, type StrategicContent } from '../../src/content/strategic/strategic-content.ts';
 import { createStrategicContext } from '../../src/sim/strategic/forces/context.ts';
 import type {
+  HelicopterPort,
   MercPort,
   RollSource,
   StrategicAiPort,
@@ -167,6 +168,7 @@ export interface TestContextOptions {
   readonly mercs?: MercPort;
   readonly ai?: Partial<StrategicAiPort>;
   readonly world?: Partial<TacticalWorldPort>;
+  readonly helicopter?: Partial<HelicopterPort>;
   readonly random?: RollSource;
   readonly preRandom?: RollSource;
 }
@@ -179,6 +181,7 @@ export function testContext(o: TestContextOptions): StrategicContext {
     mercs: o.mercs ?? base.mercs,
     ai: { ...base.ai, ...o.ai },
     world: { ...base.world, ...o.world },
+    helicopter: { ...base.helicopter, ...o.helicopter },
     random: o.random ?? base.random,
     preRandom: o.preRandom ?? base.preRandom,
   });

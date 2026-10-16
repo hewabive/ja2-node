@@ -25,6 +25,7 @@ export const Assignment = {
   ASSIGNMENT_DEAD: 30,
   ASSIGNMENT_POW: 32,
   ASSIGNMENT_HOSPITAL: 33,
+  ASSIGNMENT_EMPTY: 34,
 } as const;
 
 export const EnemyIntention = { NO_INTENTIONS: 0, PURSUIT: 1, STAGING: 2, PATROL: 3, REINFORCEMENTS: 4, ASSAULT: 5 } as const;

@@ -68,10 +68,6 @@ export interface CrewPort extends MercPort {
   healStat(id: number, stat: keyof StatDamage, points: number): void;
   opinion(profile: number, aboutProfile: number): number;
   dressWound(doctor: number, patient: number, kit: ItemObject, kitPoints: number, kitStatus: number): number;
-  inHelicopter(id: number): boolean;
-  aboardAirborneHelicopter(id: number): boolean;
-  mustDriveVehicle(id: number): boolean;
-  takeOutOfVehicle(id: number): void;
 }
 
 export interface EconomyHooks {

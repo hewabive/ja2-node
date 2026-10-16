@@ -154,6 +154,7 @@ describe('strategic savegame sections', () => {
         sector: { x: 13, y: 2, z: 0 },
         betweenSectors: false,
         passengerProfiles: [57],
+        passengerSlots: [57, null, null, null, null, null, null, null, null, null],
         destroyed: false,
         path: [45],
       },

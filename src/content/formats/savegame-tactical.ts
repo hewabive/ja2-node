@@ -203,7 +203,7 @@ const GENERAL_INFO_HEAD: Layout = [
   field('fSkyRiderSetUp', 'bool'),
   field('fRefuelingSiteAvailable', 'bool', NUMBER_OF_REFUEL_SITES),
   skip(MEANWHILE_DEFINITION_BYTES, 'gCurrentMeanwhileDef'),
-  field('gubPlayerProgressSkyriderLastCommentedOn', 'bool'),
+  field('gubPlayerProgressSkyriderLastCommentedOn', 'u8'),
   field('gfMeanwhileTryingToStart', 'bool'),
   field('gfInMeanwhile', 'bool'),
   skip(1),
@@ -334,11 +334,28 @@ export interface GeneralInfo {
   readonly smCurrentMerc: number;
   readonly helicopterVehicleId: number;
   readonly helicopterAirborne: boolean;
+  readonly helicopter: SavedHelicopter;
   readonly disableMapInterfaceDueToBattle: boolean;
   readonly foundTixa: boolean;
   readonly samSitesFound: readonly boolean[];
   readonly deadSquadMembers: readonly (readonly number[])[];
   readonly selectedSector: { readonly x: number; readonly y: number; readonly z: number };
+}
+
+export interface SavedHelicopter {
+  readonly setUp: boolean;
+  readonly returningToBase: boolean;
+  readonly hovering: boolean;
+  readonly startHoverMinute: number;
+  readonly totalCost: number;
+  readonly destroyed: boolean;
+  readonly talkState: number;
+  readonly lastMonologueMinute: number;
+  readonly emptyHelpGiven: boolean;
+  readonly hitsTaken: number;
+  readonly saidCongratsOnTakingSam: boolean;
+  readonly progressLastCommentedOn: number;
+  readonly refuelSiteAvailable: readonly boolean[];
 }
 
 export interface TeamTurns {
@@ -478,6 +495,21 @@ export function readGeneralInfo(c: SaveCursor): GeneralInfo {
     smCurrentMerc: n('sm_current_merc'),
     helicopterVehicleId: n('iHelicopterVehicleId'),
     helicopterAirborne: r.bool('fHelicopterIsAirBorne'),
+    helicopter: {
+      setUp: r.bool('fSkyRiderSetUp'),
+      returningToBase: r.bool('fHeliReturnStraightToBase'),
+      hovering: r.bool('fHoveringHelicopter'),
+      startHoverMinute: n('uiStartHoverTime'),
+      totalCost: n('iTotalAccumulatedCostByPlayer'),
+      destroyed: r.bool('fHelicopterDestroyed'),
+      talkState: n('guiHelicopterSkyriderTalkState'),
+      lastMonologueMinute: n('guiTimeOfLastSkyriderMonologue'),
+      emptyHelpGiven: r.bool('gfSkyriderEmptyHelpGiven'),
+      hitsTaken: n('gubHelicopterHitsTaken'),
+      saidCongratsOnTakingSam: r.bool('gfSkyriderSaidCongratsOnTakingSAM'),
+      progressLastCommentedOn: n('gubPlayerProgressSkyriderLastCommentedOn'),
+      refuelSiteAvailable: r.bools('fRefuelingSiteAvailable'),
+    },
     disableMapInterfaceDueToBattle: r.bool('fDisableMapInterfaceDueToBattle'),
     foundTixa: r.bool('fFoundTixa'),
     samSitesFound: r.bools('fSamSiteFound'),

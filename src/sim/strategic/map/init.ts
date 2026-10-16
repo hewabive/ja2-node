@@ -3,12 +3,14 @@
 // @src src/game/Strategic/StrategicMap.cc InitializeMapStructure, InitializeStrategicMapSectorTownNames, SetupNewStrategicGame;
 // @src Campaign_Init.cc InitNewCampaign, InitKnowFacilitiesFlags, BuildUndergroundSectorInfoList;
 // @src src/externalized/strategic/UndergroundSectorModel.cc createUndergroundSectorInfo; Strategic_Movement_Costs.cc
-// @src InitStrategicMovementCosts; Game_Init.cc InitStrategicLayer, InitBloodCatSectors, InitNPCs (placements, Tixa basement). See docs/16 §1.3–§1.4, docs/15 §4.3.
+// @src InitStrategicMovementCosts; Game_Init.cc InitStrategicLayer, InitBloodCatSectors, InitNPCs (placements, Tixa basement);
+// @src Map_Screen_Helicopter.cc InitializeHelicopter. See docs/16 §1.3–§1.4, docs/15 §4.3.
 
 import { sectorFromId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { u8, u32 } from '../../../core/int.ts';
 import { SectorFlag } from '../forces/constants.ts';
 import { removeAllGroups } from '../forces/groups.ts';
+import { initializeHelicopter } from '../forces/helicopter.ts';
 import type { StrategicContext } from '../forces/ports.ts';
 import { initSquads, initVehicles } from '../forces/squads.ts';
 import { worldDay } from '../time/world-clock.ts';
@@ -132,6 +134,7 @@ export function initStrategicLayerMap(ctx: StrategicContext, hooks: StrategicLay
   hooks.initNpcs?.(ctx);
   initNpcPlacements(ctx);
   initTixaBasementWithoutSciFi(ctx);
+  initializeHelicopter(ctx);
   ctx.state.forces.vehicles = [];
   initBloodCatSectors(ctx);
   initializeSamSites(ctx);

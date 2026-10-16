@@ -3,6 +3,7 @@ import type { StrategicContent } from '../../../content/strategic/strategic-cont
 import type { StrategicState } from '../state.ts';
 import type { ClockContext } from '../time/world-clock.ts';
 import type { Group } from './groups.ts';
+import type { HelicopterEventWithoutTick } from './helicopter-events.ts';
 
 export interface RollSource {
   int(n: number): number;
@@ -34,6 +35,8 @@ export interface StrategicMerc {
 export const TravelStat = { HEALTH: 'health', STRENGTH: 'strength' } as const;
 export type TravelStat = (typeof TravelStat)[keyof typeof TravelStat];
 
+export const VehicleRole = { NONE: 0, DRIVER: 1, PASSENGER: 2 } as const;
+
 export interface MercPort {
   get(id: number): StrategicMerc | undefined;
   byProfile(profile: number): StrategicMerc | undefined;
@@ -46,6 +49,22 @@ export interface MercPort {
   tooTiredToTravel(id: number): boolean;
   collapseFromFatigue(id: number, firstToComplain: boolean): void;
   spendVehicleFuel(vehicleSoldierId: number, fuel: number): number;
+  setVehicleRole?(id: number, role: number): void;
+  insertionData?(id: number): number;
+  setInsertionData?(id: number, data: number): void;
+  inTacticalSector?(id: number): boolean;
+  removeFromGridNo?(id: number): void;
+}
+
+export interface HelicopterPort {
+  fact(id: number): boolean;
+  setFactTrue(id: number): void;
+  skyriderLoyaltyLow(): boolean;
+  cosmeticChoice(n: number): number;
+  killInVehicle(id: number): boolean;
+  scheduleKillChopperMeanwhile(): void;
+  skyriderOnGround(sector: Sector | null): void;
+  emit(event: HelicopterEventWithoutTick): void;
 }
 
 export interface StrategicAiPort {
@@ -88,6 +107,7 @@ export interface StrategicPorts {
   readonly mercs: MercPort;
   readonly ai: StrategicAiPort;
   readonly world: TacticalWorldPort;
+  readonly helicopter: HelicopterPort;
 }
 
 export interface StrategicContext extends StrategicPorts {

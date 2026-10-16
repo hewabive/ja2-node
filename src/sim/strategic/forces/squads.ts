@@ -7,18 +7,30 @@
 // @src StrategicMap.cc HandleSoldierLeavingSectorByThemSelf; Vehicles.cc InitVehicles. See docs/16 §2.3–§2.4, §3.15.
 
 import { type Sector, sameSector } from '../../../content/strategic/sector-ids.ts';
-import { Assignment, MAX_VEHICLES, NO_CURRENT_SQUAD, NO_GROUP, NUMBER_OF_DEAD_SOLDIERS_ON_SQUAD, NUMBER_OF_SQUADS } from './constants.ts';
+import {
+  Assignment,
+  MAX_VEHICLES,
+  NO_CURRENT_SQUAD,
+  NO_GROUP,
+  NO_VEHICLE,
+  NUMBER_OF_DEAD_SOLDIERS_ON_SQUAD,
+  NUMBER_OF_SQUADS,
+} from './constants.ts';
 import {
   addPlayerToGroup,
   createNewPlayerGroupDepartingFromSector,
   createNewVehicleGroupDepartingFromSector,
+  type Group,
   getGroup,
   removeGroup,
   removePlayerFromGroup,
   requireMerc,
   setGroupSectorValue,
 } from './groups.ts';
+import { helicopterGroup, removeSoldierFromHelicopter } from './helicopter.ts';
+import { placeGroupInSector } from './movement.ts';
 import type { StrategicContext } from './ports.ts';
+import { inHelicopter, takeSoldierOutOfVehicle } from './vehicles.ts';
 
 const EMPTY_DEAD_SLOT = -1;
 const PERSISTENT_GROUP_SECTOR: Sector = { x: 1, y: 1, z: 0 };
@@ -143,6 +155,7 @@ export function removeCharacterFromSquads(ctx: StrategicContext, id: number): bo
 }
 
 export function addCharacterToSquad(ctx: StrategicContext, id: number, q: number): boolean {
+  if (ctx.state.movement.exitingVehicleToSquad) return false;
   const s = requireMerc(ctx, id);
   if (doesVehicleExistInSquad(ctx, q) && !(s.isPassengerOrDriver || s.isVehicle)) return false;
   if (isThisSquadOnTheMove(ctx, q)) return false;
@@ -163,13 +176,31 @@ export function addCharacterToSquad(ctx: StrategicContext, id: number, q: number
   }
   const g = getGroup(ctx, ctx.state.forces.squadGroupIds[q] ?? NO_GROUP);
   if (!g) throw new RangeError(`squad ${q} has no movement group`);
-  addPlayerToGroup(ctx, g, id);
-  setGroupSectorValue(ctx, s.sector, g);
+  if (s.assignment !== Assignment.VEHICLE || s.vehicleId === NO_VEHICLE) joinSquadGroup(ctx, g, id);
+  else if (inHelicopter(ctx, s)) leaveHelicopterForSquad(ctx, g, id, squadIsEmpty(ctx, q));
+  else {
+    ctx.state.movement.exitingVehicleToSquad = true;
+    takeSoldierOutOfVehicle(ctx, id);
+    ctx.state.movement.exitingVehicleToSquad = false;
+    joinSquadGroup(ctx, g, id);
+  }
   members.push(id);
   ctx.mercs.changeAssignment(id, q);
   const f = ctx.state.forces;
   if (ctx.state.flow === 'tactical' && (f.currentSquad === NO_CURRENT_SQUAD || squadIsEmpty(ctx, f.currentSquad))) f.currentSquad = q;
   return true;
+}
+
+function joinSquadGroup(ctx: StrategicContext, g: Group, id: number): void {
+  addPlayerToGroup(ctx, g, id);
+  setGroupSectorValue(ctx, requireMerc(ctx, id).sector, g);
+}
+
+function leaveHelicopterForSquad(ctx: StrategicContext, g: Group, id: number, newSquad: boolean): void {
+  removeSoldierFromHelicopter(ctx, id);
+  joinSquadGroup(ctx, g, id);
+  const heli = newSquad ? helicopterGroup(ctx) : undefined;
+  if (heli) placeGroupInSector(ctx, g, heli.prev, heli.sector, false);
 }
 
 export function addCharacterToAnySquad(ctx: StrategicContext, id: number): number {

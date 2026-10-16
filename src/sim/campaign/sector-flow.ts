@@ -52,6 +52,7 @@ import { areThereMinersInsideThisMine, placeHeadMinersOnSectorEntry } from '../s
 import type { EconomyContext } from '../strategic/economy/ports.ts';
 import { EncounterCode, InsertionCode, SectorFlag } from '../strategic/forces/constants.ts';
 import { countAllMilitiaInSector } from '../strategic/forces/groups.ts';
+import { handleHelicopterOnGround } from '../strategic/forces/helicopter.ts';
 import type { StrategicContext, TacticalWorldPort } from '../strategic/forces/ports.ts';
 import { calculateNonPersistentPbiInfo } from '../strategic/forces/pre-battle.ts';
 import { townIdOfSector } from '../strategic/map/control.ts';
@@ -322,9 +323,11 @@ export class SectorFlow {
     s.worldSector = { x: sector.x, y: sector.y, z: sector.z };
     s.map.selectedSector = { ...sector };
     if (sameSector(sector, TIXA_CAVE)) this.campaign.creatures?.initQuest();
+    handleHelicopterOnGround(this.ctx);
     this.#enterSector(sector, baseWorld, options);
     const day = worldDay(s.clock);
     setSectorFlag(s.map, sector, SectorFlag.ALREADY_LOADED, day);
+    handleHelicopterOnGround(this.ctx);
     this.#handleRpcDescriptionOfSector(sector, day);
     setSectorFlag(s.map, sector, SectorFlag.HAS_ENTERED_TACTICAL, day);
     this.hasEnteredCombatModeSinceEntering = false;
@@ -352,6 +355,7 @@ export class SectorFlow {
     if (!enemiesHere) this.prepareEnemyForSectorBattle();
     const world = this.world;
     if (world && this.campaign.creatures?.attackPendingFor(world)) this.prepareCreaturesForBattle();
+    handleHelicopterOnGround(this.ctx);
     this.resetMilitia();
     this.campaign.tactical?.lookAround();
   }

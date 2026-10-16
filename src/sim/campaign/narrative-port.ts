@@ -1,9 +1,11 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Game_Event_Hook.cc EVENT_MAKE_CIV_GROUP_HOSTILE_ON_NEXT_SECTOR_ENTRANCE; Overhead.cc
-// @src CivilianGroupMemberChangesSides (AddStrategicEvent + 300). See docs/25 §6.2.
+// @src CivilianGroupMemberChangesSides (AddStrategicEvent + 300); Map_Screen_Helicopter.cc SetUpHelicopterForPlayer (from
+// @src HandleAtNewGridNo). See docs/25 §6.2, §10.2.
 
 import { decrementTownLoyalty, incrementTownLoyalty, reduceLoyaltyForRebelsBetrayed } from '../strategic/economy/loyalty.ts';
+import { setUpHelicopterForPlayer } from '../strategic/forces/helicopter.ts';
 import { makeCivGroupHostileOnNextSectorEntrance } from '../strategic/narrative/civ-groups.ts';
 import { EventKind } from '../strategic/time/constants.ts';
 import { addFutureDayStrategicEvent, addStrategicEvent } from '../strategic/time/event-queue.ts';
@@ -40,6 +42,9 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
     },
     addFutureDayEvent: (kind, minute, param, days) => {
       addFutureDayStrategicEvent(s.queue, s.clock, kind, minute, param, days);
+    },
+    setUpHelicopterForPlayer: (sector) => {
+      if (campaign.strategic) setUpHelicopterForPlayer(campaign.strategic, sector);
     },
   };
 }

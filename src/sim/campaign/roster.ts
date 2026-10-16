@@ -2,7 +2,7 @@ import type { MercProfile } from '../../content/formats/prof.ts';
 import type { Sector } from '../../content/strategic/sector-ids.ts';
 import type { ItemObject } from '../items/object.ts';
 import type { CrewMember, CrewPort, MercStats, StatDamage } from '../strategic/economy/ports.ts';
-import { TravelStat } from '../strategic/forces/ports.ts';
+import { TravelStat, VehicleRole } from '../strategic/forces/ports.ts';
 import type { CombatContext } from '../tactical/combat/context.ts';
 import { StatCause, statChange } from '../tactical/combat/experience.ts';
 import type { TacticalContent } from '../tactical/content.ts';
@@ -73,6 +73,7 @@ export class RosterMerc implements CrewMember {
   lastAssignmentChangeMin = 0;
   fixingRobot = false;
   vehicleUnderRepair = NO_VEHICLE;
+  offGridInSector = false;
   readonly contract: MercContract;
   quoteSaidFlags: number;
   corpseQuoteTolerance: number;
@@ -308,12 +309,23 @@ export class Roster implements CrewPort {
 
   removeFromTacticalSector(id: number): void {
     const merc = this.get(id);
-    if (merc) this.hooks.removeFromTacticalSector(merc);
+    if (!merc) return;
+    merc.offGridInSector = false;
+    this.hooks.removeFromTacticalSector(merc);
+  }
+
+  removeFromGridNo(id: number): void {
+    const merc = this.get(id);
+    if (!merc?.inSector) return;
+    this.hooks.removeFromTacticalSector(merc);
+    merc.offGridInSector = true;
   }
 
   updateMercInSector(id: number, sector: Sector): void {
     const merc = this.get(id);
-    if (merc) this.hooks.updateMercInSector(merc, sector);
+    if (!merc) return;
+    merc.offGridInSector = false;
+    this.hooks.updateMercInSector(merc, sector);
   }
 
   tooTiredToTravel(id: number): boolean {
@@ -353,17 +365,25 @@ export class Roster implements CrewPort {
     return d && p ? this.hooks.dressWound(d, p, kit, kitPoints, kitStatus) : 0;
   }
 
-  inHelicopter(): boolean {
-    return false;
+  setVehicleRole(id: number, role: number): void {
+    const merc = this.get(id);
+    if (!merc) return;
+    merc.statusFlags &= ~(SoldierStatusFlags.DRIVER | SoldierStatusFlags.PASSENGER);
+    if (role === VehicleRole.DRIVER) merc.statusFlags |= SoldierStatusFlags.DRIVER;
+    else if (role === VehicleRole.PASSENGER) merc.statusFlags |= SoldierStatusFlags.PASSENGER;
   }
 
-  aboardAirborneHelicopter(): boolean {
-    return false;
+  insertionData(id: number): number {
+    return this.get(id)?.soldier.insertionData ?? 0;
   }
 
-  mustDriveVehicle(): boolean {
-    return false;
+  setInsertionData(id: number, data: number): void {
+    const merc = this.get(id);
+    if (merc) merc.soldier.insertionData = data;
   }
 
-  takeOutOfVehicle(): void {}
+  inTacticalSector(id: number): boolean {
+    const merc = this.get(id);
+    return merc !== undefined && (merc.inSector || merc.offGridInSector);
+  }
 }

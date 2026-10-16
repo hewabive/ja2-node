@@ -1,6 +1,7 @@
 import type { ContractEvent } from './campaign/contracts/events.ts';
 import type { LaptopEvent } from './campaign/laptop/events.ts';
 import type { ShopEvent } from './strategic/economy/merchants/events.ts';
+import type { HelicopterEvent } from './strategic/forces/helicopter-events.ts';
 import type { DoorEvent } from './tactical/doors/events.ts';
 
 export interface SimEventBase {
@@ -385,5 +386,6 @@ export type SimEvent =
   | DayStartedEvent
   | ShopEvent
   | LaptopEvent
-  | DoorEvent;
+  | DoorEvent
+  | HelicopterEvent;
 export type SimEventType = SimEvent['type'];

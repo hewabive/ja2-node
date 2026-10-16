@@ -170,10 +170,6 @@ function savedCrew(save: SaveGame, assignments: readonly SavedSoldierAssignment[
     healStat: () => {},
     opinion: (profile, about) => save.profiles[profile]?.mercOpinion[about] ?? 0,
     dressWound: () => 0,
-    inHelicopter: () => false,
-    aboardAirborneHelicopter: () => false,
-    mustDriveVehicle: () => false,
-    takeOutOfVehicle: () => {},
   };
 }
 
