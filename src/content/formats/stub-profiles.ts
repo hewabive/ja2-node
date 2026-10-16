@@ -112,10 +112,10 @@ function stats(o: JsonObject, what: string): Record<(typeof STAT_KEYS)[number], 
   >;
 }
 
-function homeSector(o: JsonObject, what: string): { readonly x: number; readonly y: number } {
-  if (o.sector === undefined) return { x: 0, y: 0 };
-  const sector = parseSectorString(asString(o.sector, `${what}.sector`));
-  return { x: sector.x, y: sector.y };
+function homeSector(o: JsonObject, what: string): { readonly x: number; readonly y: number; readonly z: number } {
+  if (o.sector === undefined) return { x: 0, y: 0, z: 0 };
+  const sector = parseSectorString(asString(o.sector, `${what}.sector`), int(o, 'sectorZ', 0, what));
+  return { x: sector.x, y: sector.y, z: sector.z };
 }
 
 interface StubDialogue {
@@ -177,6 +177,16 @@ function parseStubProfile(json: unknown, itemIndex: ItemIndex, index: number): M
     civilianGroup: int(o, 'civilianGroup', 0, what),
     sectorX: home.x,
     sectorY: home.y,
+    sectorZ: home.z,
+    gridNo: 0,
+    useProfileInsertion: false,
+    insertionCode: 0,
+    insertionData: 0,
+    quoteRecord: 0,
+    quoteActionId: 0,
+    npcData: int(o, 'npcData', 0, what),
+    npcData2: int(o, 'npcData2', 0, what),
+    lastDateSpokenTo: 0,
     inventory: inv.items,
     inventoryStatus: inv.status,
     inventoryCount: inv.count,
@@ -234,19 +244,11 @@ function parseStubProfile(json: unknown, itemIndex: ItemIndex, index: number): M
     expressionFrequency: 0,
     ...talk,
     approached: 0,
-    lastDateSpokenTo: 0,
     lastQuoteSaid: NO_QUOTE,
     lastQuoteSaidWasSpecial: false,
     friendlyOrDirectDefaultResponseUsedRecently: 0,
     recruitDefaultResponseUsedRecently: 0,
     threatenDefaultResponseUsedRecently: 0,
-    quoteRecord: 0,
-    quoteActionId: 0,
-    npcData: 0,
-    npcData2: 0,
-    useProfileInsertion: false,
-    insertionCode: 0,
-    insertionData: 0,
     roomRangeStart: [NO_ROOM, NO_ROOM],
     roomRangeEnd: [NO_ROOM, NO_ROOM],
   };

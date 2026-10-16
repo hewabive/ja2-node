@@ -12,8 +12,10 @@ import { ItemClass, NOTHING } from '../../../../content/items/items.ts';
 import { DealerFlag, DealerType, hasDealerFlag } from '../../../../content/strategic/merchant-content.ts';
 import { u8, u32 } from '../../../../core/int.ts';
 import { cloneObject, createItem, createMoney, type ItemObject, NO_PROFILE } from '../../../items/object.ts';
+import { Fact } from '../../narrative/fact-ids.ts';
+import { setFactTrue } from '../../narrative/facts.ts';
 import type { DealerBox } from './boxes.ts';
-import { dealerDef, isMercADealer, type MerchantContext, MerchantFact, role } from './context.ts';
+import { dealerDef, isMercADealer, type MerchantContext, role } from './context.ts';
 import { canDealerTransactItem, FRANZ_HAS_SOLD_VIDEO_CAMERA, FREDO_HAS_SAID_ROCKET_RIFLE_QUOTE } from './daily.ts';
 import { addObjectToArmsDealerInventory, removeItemFromArmsDealerInventory, specialItemInfoFromObject } from './inventory.ts';
 import { calcShopKeeperItemPrice, calcValueOfItemToDealer } from './pricing.ts';
@@ -486,7 +488,7 @@ function executeGift(ctx: MerchantContext, plan: TradePlan): TradeOutcome {
     }
     const frank = ctx.content.dealers[role(ctx, 'FRANK')];
     if (isMercADealer(ctx, d.profile) && frank && d.profile === frank.profile && plan.cash >= FRANK_MIN_BRIBE)
-      ctx.hooks.setFact(MerchantFact.FRANK_HAS_BEEN_BRIBED);
+      setFactTrue(ctx.narrative, Fact.FRANK_HAS_BEEN_BRIBED);
   }
   return { giftAccepted: accepted, delivered: [], taken, purchased: [], repairs: [], fromBalance: 0, change: 0 };
 }
@@ -531,7 +533,7 @@ export function executeTrade(ctx: MerchantContext, plan: TradePlan): TradeOutcom
       placeInFreeSlot(poa, changeEntry(ctx, plan.change));
       giveChange(ctx, d.id, plan.change);
     }
-    if (d.id === role(ctx, 'HOWARD')) ctx.hooks.setFact(MerchantFact.FACT_222);
+    if (d.id === role(ctx, 'HOWARD')) setFactTrue(ctx.narrative, Fact.FACT_222);
   }
   status.cash = u32(status.cash + plan.fromBalance);
   status.lastSkiMinute = ctx.world.worldMinutes();

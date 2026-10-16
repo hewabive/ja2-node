@@ -21,11 +21,12 @@ import {
 } from '../forces/groups.ts';
 import { townIdOfSector } from '../map/control.ts';
 import { sectorInfo, Traversability } from '../map/sectors.ts';
+import { Fact } from '../narrative/fact-ids.ts';
+import { fact } from '../narrative/facts.ts';
 import { isDayTime, worldTotalMinutes } from '../time/world-clock.ts';
 import { convertGroupTroopsToComposition, enemyOf, removeSoldiersFromGarrisonBasedOnComposition } from './composition.ts';
 import {
   DRASSEN_OPEN_MINUTE,
-  Fact,
   GARRISON_ATTACK_RATIO_ENEMY,
   GARRISON_ATTACK_RATIO_PLAYER,
   NIGHT_ALERTNESS_GAIN_CHANCE,
@@ -79,7 +80,7 @@ function specialSectorPermits(q: QueenContext, id: number): boolean {
   const minutes = worldTotalMinutes(q.state.clock);
   switch (id) {
     case SEC.F10:
-      return !q.world.fact(Fact.HILLBILLIES_KILLED);
+      return !fact(q.state.narrative, Fact.HILLBILLIES_KILLED);
     case SEC.A9:
     case SEC.A10:
       return minutes >= OMERTA_OPEN_MINUTE;
@@ -90,7 +91,7 @@ function specialSectorPermits(q: QueenContext, id: number): boolean {
     case SEC.C5:
     case SEC.C6:
     case SEC.D5:
-      return q.world.fact(Fact.KINGPIN_DEAD) !== 0;
+      return fact(q.state.narrative, Fact.KINGPIN_DEAD);
     case SEC.G1:
       return !(playerSectorDefended(q, SEC.G2) && (playerSectorDefended(q, SEC.H1) || playerSectorDefended(q, SEC.H2)));
     case SEC.H2:

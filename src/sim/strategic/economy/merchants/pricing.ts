@@ -7,7 +7,9 @@ import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../../../conte
 import { DEFAULT_WEAPON_SALE_MODIFIER, doesItemAppearInDealerInventoryList } from '../../../../content/strategic/merchant-content.ts';
 import { i8, idiv, u16, u32 } from '../../../../core/int.ts';
 import { type ItemObject, MAX_OBJECTS_PER_SLOT } from '../../../items/object.ts';
-import { dealerDef, type MerchantContext, MerchantFact, role } from './context.ts';
+import { Fact } from '../../narrative/fact-ids.ts';
+import { fact } from '../../narrative/facts.ts';
+import { dealerDef, type MerchantContext, role } from './context.ts';
 
 const PriceClass = { JUNK: 0, CHEAP: 1, EXPENSIVE: 2 } as const;
 const JUNK_PRICE_LIMIT = 100;
@@ -47,7 +49,7 @@ export function calcValueOfItemToDealer(ctx: MerchantContext, dealer: number, it
   if (dealerClass === null) return doesItemAppearInDealerInventoryList(dealerDef(ctx, dealer), item, true) ? base : 0;
   if (item !== ctx.content.itemIds.JAR && (listedBy(ctx, 'MICKY', item) || listedBy(ctx, 'GABBY', item))) return 0;
   const itemClass = def?.itemClass ?? 0;
-  if (dealer === role(ctx, 'KEITH') && itemClass & (ItemClass.GUN | ItemClass.LAUNCHER) && !ctx.hooks.fact(MerchantFact.HILLBILLIES_KILLED))
+  if (dealer === role(ctx, 'KEITH') && itemClass & (ItemClass.GUN | ItemClass.LAUNCHER) && !fact(ctx.narrative, Fact.HILLBILLIES_KILLED))
     return 0;
   const priceClass = itemPriceClass(base);
   if (!dealerSelling && Math.abs(dealerClass - priceClass) === 2) return 0;

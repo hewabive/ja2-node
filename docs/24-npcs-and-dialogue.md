@@ -1189,6 +1189,9 @@ boxes and the NPC action catalog are later slices; they plug into the ports of `
 EPCs; (h) civilian quotes and surrender; (i) hostility, sight hooks, named-NPC AI; (j) save import and oracle probes;
 (k) stubs, the scenario and an MCP e2e test. `25`'s `checkFact`/quests are needed from (b); stand-in: a fact table with
 stored facts only.
+*Since the merge with `25` (2026-10-16) the talk session reads facts through `NarrativeFlow.checkFact`, starts and ends
+quests with their history lines, uses `NarrativeFlow.talk` as the talk context and `narrative.hospital` for the hospital
+balance.*
 
 ---
 

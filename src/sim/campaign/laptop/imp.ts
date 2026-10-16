@@ -358,6 +358,8 @@ export function emptyProfile(id: number): MercProfile {
     civilianGroup: 0,
     sectorX: 0,
     sectorY: 0,
+    sectorZ: 0,
+    gridNo: 0,
     inventory: zeros(InvSlot.SMALLPOCK8 + 1),
     inventoryStatus: zeros(InvSlot.SMALLPOCK8 + 1),
     inventoryCount: zeros(InvSlot.SMALLPOCK8 + 1),

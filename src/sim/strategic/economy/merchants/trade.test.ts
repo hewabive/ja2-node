@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { itemId, loadMerchantTestContent, type MerchantTestContent, merchantFixture } from '../../../../../tests/support/merchants.ts';
 import { createItem, createMoney, type ItemObject, NO_PROFILE } from '../../../items/object.ts';
+import { Fact } from '../../narrative/fact-ids.ts';
 import { determineArmsDealersSellingInventory } from './boxes.ts';
-import { MerchantFact } from './context.ts';
 import { FRANZ_HAS_SOLD_VIDEO_CAMERA } from './daily.ts';
 import { addItemToArmsDealerInventory } from './inventory.ts';
 import { giveObjectToArmsDealerForRepair } from './repair.ts';
@@ -62,7 +62,7 @@ describe('shop transactions', () => {
     const outcome = executeTrade(f.ctx, plan);
     expect(outcome.giftAccepted).toBe(true);
     expect(f.ctx.state.dealers[FRANK]?.status.cash).toBe(10);
-    expect(f.setFacts).toEqual([MerchantFact.FRANK_HAS_BEEN_BRIBED]);
+    expect(f.facts.has(Fact.FRANK_HAS_BEEN_BRIBED)).toBe(true);
     const refused = executeTrade(f.ctx, planTrade(f.ctx, input(TONY, { cash: [cash(500)] })));
     expect(refused).toMatchObject({ giftAccepted: false, taken: [] });
     expect(f.ctx.state.dealers[TONY]?.status.cash).toBe(0);
@@ -153,7 +153,7 @@ describe('shop transactions', () => {
     addItemToArmsDealerInventory(f.ctx, HOWARD, itemId(t, 'FIRSTAIDKIT'), defaultItemInfo(), 1);
     const kit = determineArmsDealersSellingInventory(f.ctx, HOWARD, () => true);
     executeTrade(f.ctx, planTrade(f.ctx, input(HOWARD, { buy: [{ boxes: kit, count: 1 }], cash: [cash(1000)] })));
-    expect(f.setFacts).toEqual([MerchantFact.FACT_222]);
+    expect(f.facts.has(Fact.FACT_222)).toBe(true);
     addItemToArmsDealerInventory(f.ctx, FRANZ, itemId(t, 'VIDEO_CAMERA'), defaultItemInfo(), 1);
     const franz = f.ctx.state.dealers[FRANZ]?.status;
     if (franz) franz.cash = 5000;

@@ -13,12 +13,7 @@ import {
   determineArmsDealersSellingInventory,
   type RepairedItem,
 } from '../../src/sim/strategic/economy/merchants/boxes.ts';
-import {
-  createMerchantContext,
-  type MerchantContext,
-  MerchantFact,
-  type ShopHours,
-} from '../../src/sim/strategic/economy/merchants/context.ts';
+import { createMerchantContext, type MerchantContext, type ShopHours } from '../../src/sim/strategic/economy/merchants/context.ts';
 import {
   canDealerTransactItem,
   dailyUpdateOfArmsDealersInventory,
@@ -44,6 +39,8 @@ import { importMerchants } from '../../src/sim/strategic/economy/merchants/save-
 import { createMerchantState, type DealerSpecialItem, type MerchantState } from '../../src/sim/strategic/economy/merchants/state.ts';
 import { REALLY_BADLY_DAMAGED_THRESHOLD } from '../../src/sim/strategic/economy/merchants/trade.ts';
 import type { RollSource } from '../../src/sim/strategic/forces/ports.ts';
+import { Fact } from '../../src/sim/strategic/narrative/fact-ids.ts';
+import { createNarrativeState, importNarrative, setFact, setFactFalse, setFactTrue } from '../../src/sim/strategic/narrative/facts.ts';
 
 type Json = Record<string, unknown>;
 type Draw = readonly [string, number, number, number];
@@ -224,7 +221,7 @@ export class MerchantComparer {
   readonly #main = new StreamRolls(MAIN);
   readonly #pre = new StreamRolls(PRE);
   readonly #world = { gunNut: false, progress: 0, day: 0, minutes: 0 };
-  readonly #facts = new Map<number, boolean>();
+  readonly #narrative = createNarrativeState();
   #hours: ShopHours | null = null;
   #ctx: MerchantContext | null = null;
 
@@ -245,7 +242,7 @@ export class MerchantComparer {
       {
         content: this.#content,
         items: this.#items,
-        hooks: { fact: (id) => this.#facts.get(id) === true, shopHours: () => this.#hours },
+        hooks: { shopHours: () => this.#hours },
       },
       this.#state,
       { random: this.#main, preRandom: this.#pre },
@@ -255,6 +252,7 @@ export class MerchantComparer {
         worldDay: () => world.day,
         worldMinutes: () => world.minutes,
       },
+      this.#narrative,
     );
     return this.#ctx;
   }
@@ -274,8 +272,7 @@ export class MerchantComparer {
     this.#world.progress = readStrategicAiSections(bytes, save).status.highestProgress;
     this.#world.minutes = Math.trunc(save.clock.gameClock / SECONDS_PER_MINUTE);
     this.#world.day = Math.trunc(this.#world.minutes / MINUTES_PER_DAY);
-    this.#facts.clear();
-    for (const [id, v] of save.facts.entries()) this.#facts.set(id, v !== 0);
+    importNarrative(this.#narrative, save.facts, save.quests);
     this.#hours = null;
   }
 
@@ -284,7 +281,7 @@ export class MerchantComparer {
     if (typeof p.worldMinutes === 'number') this.#world.minutes = p.worldMinutes;
     if (typeof p.progress === 'number') this.#world.progress = p.progress;
     if (typeof p.gunNut === 'boolean') this.#world.gunNut = p.gunNut;
-    if (typeof p.estoni === 'boolean') this.#facts.set(MerchantFact.ESTONI_REFUELLING_POSSIBLE, p.estoni);
+    if (typeof p.estoni === 'boolean') setFact(this.#narrative, Fact.ESTONI_REFUELLING_POSSIBLE, p.estoni);
   }
 
   #replay(label: string, draws: readonly Draw[], run: () => void): string | null {
@@ -355,11 +352,10 @@ export class MerchantComparer {
   #compareFact(ctx: MerchantContext, label: string, p: Json): number {
     const id = Number(p.id);
     const value = p.value === true;
-    const was = this.#facts.get(id) === true;
     const problem = this.#replay(label, p.draws as Draw[], () => {
-      if (value && id === MerchantFact.ESTONI_REFUELLING_POSSIBLE && !was) estoniRefuellingBecamePossible(ctx);
+      if (value) setFactTrue(this.#narrative, id, { estoniRefuellingPossible: () => estoniRefuellingBecamePossible(ctx) });
+      else setFactFalse(this.#narrative, id);
     });
-    this.#facts.set(id, value);
     return report(label, problem === null, problem ?? `fact ${id} = ${value}`);
   }
 

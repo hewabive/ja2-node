@@ -1,0 +1,34 @@
+Facts, quests and NPC presence oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See
+LICENSE (SFI-SCLA). Appends wrappers around the static HourlyQuestUpdate and HourlyCheckIfSlayAloneSoHeCanLeave of
+Hourly_Update.cc and HandleQuestCodeOnSectorExit of StrategicMap.cc, so the narrative probes can run them alone. No behaviour
+change. Applied by tools/oracle/build.sh after 0011.
+
+--- a/src/game/Strategic/Hourly_Update.cc
++++ b/src/game/Strategic/Hourly_Update.cc
+@@ -326,3 +326,14 @@
+ 		}
+ 	}
+ }
++
++
++void OracleHourlyQuestUpdate()
++{
++	HourlyQuestUpdate();
++}
++
++void OracleHourlyCheckIfSlayAloneSoHeCanLeave()
++{
++	HourlyCheckIfSlayAloneSoHeCanLeave();
++}
+--- a/src/game/Strategic/StrategicMap.cc
++++ b/src/game/Strategic/StrategicMap.cc
+@@ -3245,3 +3245,9 @@
+ {
+ 	return SoldierOKForSectorExit(s, exitDirection, additional);
+ }
++
++
++void OracleHandleQuestCodeOnSectorExit(const SGPSector& oldSector)
++{
++	HandleQuestCodeOnSectorExit(oldSector);
++}

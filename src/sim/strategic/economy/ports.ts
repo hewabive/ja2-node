@@ -82,7 +82,6 @@ export interface EconomyHooks {
   headMinerAlive(profile: number): boolean;
   headMinerTown(profile: number): number;
   placeHeadMiner(profile: number, sector: Sector, town: number): void;
-  setFact(id: number): void;
   vehicleNeedsRepair(vehicle: number, mercId: number): boolean;
   repairVehicle(vehicle: number, points: number): number;
   history(code: number, secondCode: number, sector: Sector): void;
@@ -136,7 +135,6 @@ export const defaultEconomyHooks: EconomyHooks = {
   headMinerAlive: () => true,
   headMinerTown: () => 0,
   placeHeadMiner: () => {},
-  setFact: () => {},
   vehicleNeedsRepair: () => false,
   repairVehicle: () => 0,
   history: () => {},

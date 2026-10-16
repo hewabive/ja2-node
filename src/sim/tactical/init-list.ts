@@ -11,9 +11,10 @@ import { type DetailedPlacement, parseDetailedPlacement } from '../../content/fo
 import { clamp, u8 } from '../../core/int.ts';
 import { addSoldierInitListEnemyDefenceSoldiers as fillDefencePlacements, sortSoldierInitList } from '../strategic/ai/defence-placement.ts';
 import type { RandomStream } from './combat/context.ts';
-import { createFromPlacementParts } from './creation.ts';
+import { createFromPlacementParts, type PlacementAdjust, type SoldierCreate } from './creation.ts';
 import { chooseMapEdgepoints } from './edgepoints.ts';
 import { addSoldierToSector, Insertion, type InsertionContext, updateMercInSector } from './insertion.ts';
+import { PlacementVerdict } from './narrative/placement.ts';
 import {
   Attitude,
   Body,
@@ -63,7 +64,8 @@ export interface PopulationEnv {
   readonly locationModifier: number;
   readonly autoResolveActive: boolean;
   profileHere(profile: number): boolean;
-  civilianWithheld(node: SoldierInitNode): boolean;
+  iceCreamTruckWithheld(): boolean;
+  civilianPlacement(pp: SoldierCreate): number;
 }
 
 export const BODY_RANDOM = -1;
@@ -87,7 +89,8 @@ export const NEUTRAL_POPULATION: PopulationEnv = {
   locationModifier: 0,
   autoResolveActive: false,
   profileHere: () => false,
-  civilianWithheld: () => false,
+  iceCreamTruckWithheld: () => false,
+  civilianPlacement: () => PlacementVerdict.CREATE,
 };
 
 function initBasic(b: BasicPlacement): InitBasic {
@@ -181,10 +184,17 @@ export function randomizeRelativeLevel(t: { readonly rng: RandomStream }, soldie
   return RELATIVE_LEVELS[adjusted] ?? 2;
 }
 
-function createSoldier(t: TacticalState, team: number, basic: BasicPlacement, detail: DetailedPlacement | null, env: PopulationEnv) {
+function createSoldier(
+  t: TacticalState,
+  team: number,
+  basic: BasicPlacement,
+  detail: DetailedPlacement | null,
+  env: PopulationEnv,
+  adjust?: PlacementAdjust,
+) {
   const id = firstFreeSoldierId((n) => soldierSlotTaken(t, n), team);
   if (id < 0) return null;
-  const s = createFromPlacementParts(t, id, basic, detail, env);
+  const s = createFromPlacementParts(t, id, basic, detail, env, adjust);
   if (!s) return null;
   if (team === Team.MILITIA) s.visible = 1;
   drawStandingFrame(t);
@@ -194,13 +204,21 @@ function createSoldier(t: TacticalState, team: number, basic: BasicPlacement, de
 export function addPlacementToWorld(t: TacticalState, node: SoldierInitNode, env: PopulationEnv): boolean {
   const profile = node.detail?.profile ?? NO_PROFILE;
   if (profile !== NO_PROFILE && !env.profileHere(profile)) return false;
-  if (node.team === Team.CIV && env.civilianWithheld(node)) return true;
-  const s = createSoldier(t, node.team, basicPlacementOf(node), node.detail, env);
+  if (node.detail?.bodyType === Body.ICECREAMTRUCK && env.iceCreamTruckWithheld()) return true;
+  let withheld = false;
+  let gridNo = node.basic.startingGridNo;
+  const adjust: PlacementAdjust = (pp) => {
+    withheld = node.team === Team.CIV && env.civilianPlacement(pp) === PlacementVerdict.SKIP;
+    gridNo = pp.insertionGridNo;
+    return !withheld;
+  };
+  const s = createSoldier(t, node.team, basicPlacementOf(node), node.detail, env, adjust);
+  if (withheld) return true;
   if (!s) return false;
   node.soldierId = s.id;
   node.hasSoldier = true;
-  s.insertionGridNo = node.basic.startingGridNo;
-  addSoldierToSector(t, s, { code: Insertion.GRIDNO, data: node.basic.startingGridNo, direction: node.basic.direction }, {}, false);
+  s.insertionGridNo = gridNo;
+  addSoldierToSector(t, s, { code: Insertion.GRIDNO, data: gridNo, direction: node.basic.direction }, {}, false);
   return true;
 }
 

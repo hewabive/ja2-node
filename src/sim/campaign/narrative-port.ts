@@ -1,12 +1,15 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Game_Event_Hook.cc EVENT_MAKE_CIV_GROUP_HOSTILE_ON_NEXT_SECTOR_ENTRANCE; Overhead.cc
-// @src CivilianGroupMemberChangesSides (AddStrategicEvent + 300); Map_Screen_Helicopter.cc SetUpHelicopterForPlayer (from
-// @src HandleAtNewGridNo). See docs/25 §6.2, §10.2.
+// @src CivilianGroupMemberChangesSides (AddStrategicEvent + 300); Strategic/Quests.cc CheckFact, SetFactTrue, SetFactFalse;
+// @src Tactical/Overhead.cc HandleNPCTeamMemberDeath (terrorists and assassins); Map_Screen_Helicopter.cc
+// @src SetUpHelicopterForPlayer (from HandleAtNewGridNo). See docs/25 §1, §6.2, §10.2.
 
+import { i8 } from '../../core/int.ts';
 import { decrementTownLoyalty, incrementTownLoyalty, reduceLoyaltyForRebelsBetrayed } from '../strategic/economy/loyalty.ts';
 import { setUpHelicopterForPlayer } from '../strategic/forces/helicopter.ts';
 import { makeCivGroupHostileOnNextSectorEntrance } from '../strategic/narrative/civ-groups.ts';
+import { questStatus } from '../strategic/narrative/facts.ts';
 import { EventKind } from '../strategic/time/constants.ts';
 import { addFutureDayStrategicEvent, addStrategicEvent } from '../strategic/time/event-queue.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
@@ -23,8 +26,17 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
   return {
     ...NO_NARRATIVE_PORT,
     ...campaign.talk?.narrativePortHooks(),
-    fact: (id) => (campaign.strategic?.world.fact(id) ?? 0) !== 0,
-    setFactTrue: (id) => campaign.economy?.hooks.setFact(id),
+    fact: (id, profile) => campaign.narrative.checkFact(id, profile ?? 0),
+    setFactTrue: (id) => campaign.narrative.setFactTrue(id),
+    setFactFalse: (id) => campaign.narrative.setFactFalse(id),
+    questStatus: (quest) => questStatus(s.narrative, quest),
+    setNpcData: (profile, value) => {
+      const p = campaign.narrative.profile(profile);
+      if (p) p.npcData = i8(value);
+    },
+    terroristKilled: () => campaign.narrative.terroristKilled(),
+    profileDied: (profile) => campaign.narrative.profileDied(profile),
+    assassinKilled: () => campaign.narrative.assassinKilled(),
     isEpc: (soldier) => campaign.battle?.roster.get(soldier.id)?.isEpc ?? false,
     civGroupWillBecomeHostile: (group) => {
       addStrategicEvent(

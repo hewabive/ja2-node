@@ -9,8 +9,8 @@ import type { SaveGame } from '../../../content/formats/savegame.ts';
 import { readSavedLaptop, type SavedLaptop, type SavedLaptopInfo } from '../../../content/formats/savegame-laptop.ts';
 import type { MercListing } from '../../../content/strategic/laptop-content.ts';
 import { MAP_SIDE, sectorId } from '../../../content/strategic/sector-ids.ts';
+import { importNarrative } from '../../strategic/narrative/facts.ts';
 import type { StrategicState } from '../../strategic/state.ts';
-import { importNarrative } from '../narrative/facts.ts';
 import type { LaptopState, StoreSlot } from './laptop-state.ts';
 
 export const PLAYER_GENERATED_CHARACTER_ID = 51;

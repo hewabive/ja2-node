@@ -640,6 +640,7 @@ export interface SavedSoldier {
   readonly inSector: boolean;
   readonly visible: number;
   readonly statusFlags: number;
+  readonly miscSoldierFlags: number;
   readonly uniqueSoldierId: number;
   readonly sector: { readonly x: number; readonly y: number; readonly z: number };
   readonly groupId: number;
@@ -753,6 +754,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
     inSector: n('bInSector') !== 0,
     visible: n('bVisible'),
     statusFlags: n('uiStatusFlags'),
+    miscSoldierFlags: n('ubMiscSoldierFlags'),
     uniqueSoldierId: n('uiUniqueSoldierIdValue'),
     sector: { x: n('sSectorX'), y: n('sSectorY'), z: n('sSectorZ') },
     groupId: n('ubGroupID'),

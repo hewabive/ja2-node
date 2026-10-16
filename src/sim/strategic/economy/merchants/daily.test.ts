@@ -9,7 +9,7 @@ import {
 } from '../../../../../tests/support/merchants.ts';
 import { RecordingRolls } from '../../../../../tests/support/queen.ts';
 import { Rng } from '../../../../core/rng.ts';
-import { MerchantFact } from './context.ts';
+import { Fact } from '../../narrative/fact-ids.ts';
 import {
   adjustCertainDealersInventory,
   convertCreatureBloodToElixir,
@@ -169,7 +169,7 @@ describe('dealer initialisation and daily update', () => {
       const status = f.ctx.state.dealers[d]?.status;
       if (status && d !== JAKE && d !== FRANZ) status.outOfBusiness = true;
     }
-    f.facts.add(MerchantFact.ESTONI_REFUELLING_POSSIBLE);
+    f.facts.add(Fact.ESTONI_REFUELLING_POSSIBLE);
     addItemToArmsDealerInventory(f.ctx, JAKE, itemId(t, 'GAS_CAN'), defaultItemInfo(), 9);
     const franz = f.ctx.state.dealers[FRANZ]?.status;
     if (franz) franz.flags |= FRANZ_HAS_SOLD_VIDEO_CAMERA;

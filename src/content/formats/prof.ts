@@ -45,6 +45,16 @@ export interface MercProfile {
   readonly civilianGroup: number;
   readonly sectorX: number;
   readonly sectorY: number;
+  readonly sectorZ: number;
+  readonly gridNo: number;
+  readonly useProfileInsertion: boolean;
+  readonly insertionCode: number;
+  readonly insertionData: number;
+  readonly quoteRecord: number;
+  readonly quoteActionId: number;
+  readonly npcData: number;
+  readonly npcData2: number;
+  readonly lastDateSpokenTo: number;
   readonly inventory: readonly number[];
   readonly inventoryStatus: readonly number[];
   readonly inventoryCount: readonly number[];
@@ -104,19 +114,11 @@ export interface MercProfile {
   readonly approachVal: readonly number[];
   readonly approachMod: readonly (readonly number[])[];
   readonly approached: number;
-  readonly lastDateSpokenTo: number;
   readonly lastQuoteSaid: number;
   readonly lastQuoteSaidWasSpecial: boolean;
   readonly friendlyOrDirectDefaultResponseUsedRecently: number;
   readonly recruitDefaultResponseUsedRecently: number;
   readonly threatenDefaultResponseUsedRecently: number;
-  readonly quoteRecord: number;
-  readonly quoteActionId: number;
-  readonly npcData: number;
-  readonly npcData2: number;
-  readonly useProfileInsertion: boolean;
-  readonly insertionCode: number;
-  readonly insertionData: number;
   readonly roomRangeStart: readonly number[];
   readonly roomRangeEnd: readonly number[];
 }
@@ -267,6 +269,16 @@ export function parseProfile(id: number, plain: Uint8Array): MercProfile {
     civilianGroup: v.getUint8(682),
     sectorX: v.getUint16(288, true),
     sectorY: v.getUint16(290, true),
+    sectorZ: i8(669),
+    gridNo: v.getInt16(408, true),
+    useProfileInsertion: v.getUint8(406) !== 0,
+    insertionCode: v.getUint8(522),
+    insertionData: v.getUint16(670, true),
+    quoteRecord: v.getUint8(238),
+    quoteActionId: v.getUint8(410),
+    npcData: i8(675),
+    npcData2: i8(688),
+    lastDateSpokenTo: v.getUint8(667),
     inventory: Array.from({ length: 19 }, (_, k) => v.getUint16(416 + k * 2, true)),
     inventoryStatus: Array.from(plain.subarray(358, 377)),
     inventoryCount: Array.from(plain.subarray(377, 396)),
@@ -340,19 +352,11 @@ export function parseProfile(id: number, plain: Uint8Array): MercProfile {
       Array.from(plain.subarray(559 + row * NUM_REAL_APPROACHES, 559 + (row + 1) * NUM_REAL_APPROACHES)),
     ),
     approached: i8(651),
-    lastDateSpokenTo: v.getUint8(667),
     lastQuoteSaid: v.getUint8(529),
     lastQuoteSaidWasSpecial: v.getUint8(668) !== 0,
     friendlyOrDirectDefaultResponseUsedRecently: i8(672),
     recruitDefaultResponseUsedRecently: i8(673),
     threatenDefaultResponseUsedRecently: i8(674),
-    quoteRecord: v.getUint8(238),
-    quoteActionId: v.getUint8(410),
-    npcData: i8(675),
-    npcData2: i8(688),
-    useProfileInsertion: v.getUint8(406) !== 0,
-    insertionCode: v.getUint8(522),
-    insertionData: v.getUint16(670, true),
     roomRangeStart: Array.from(plain.subarray(413, 413 + ROOM_RANGES)),
     roomRangeEnd: Array.from(plain.subarray(523, 523 + ROOM_RANGES)),
   };

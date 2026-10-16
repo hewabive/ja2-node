@@ -215,6 +215,7 @@ const CIVILIAN_STAT_ROLLS: Readonly<Record<number, CivilianStatRoll>> = {
 export interface CreationContext extends Pick<TacticalState, 'content' | 'options' | 'equipment' | 'campaign'> {
   readonly rng: RandomStream;
   readonly civGroups?: CivGroupState;
+  readonly profiles?: ReadonlyMap<number, ProfileProgress>;
 }
 
 const WARDEN_PROFILE = 102;
@@ -606,7 +607,32 @@ function profileStats(p: MercProfile): SoldierStats {
   };
 }
 
-function profiledSoldier(c: CreationContext, pp: SoldierCreate, id: number, p: MercProfile): Soldier {
+function withCampaignProgress(p: MercProfile, live: ProfileProgress | undefined): MercProfile {
+  if (!live) return p;
+  const st = live.stats;
+  return {
+    ...p,
+    life: live.life,
+    lifeMax: st.lifeMax,
+    agility: st.agility,
+    dexterity: st.dexterity,
+    strength: st.strength,
+    wisdom: st.wisdom,
+    leadership: st.leadership,
+    marksmanship: st.marksmanship,
+    mechanical: st.mechanical,
+    explosives: st.explosives,
+    medical: st.medical,
+    experience: st.experience,
+    inventory: live.inventory,
+    inventoryStatus: live.inventoryStatus,
+    inventoryCount: live.inventoryCount,
+    money: live.money,
+  };
+}
+
+function profiledSoldier(c: CreationContext, pp: SoldierCreate, id: number, record: MercProfile): Soldier {
+  const p = withCampaignProgress(record, c.profiles?.get(record.id));
   const s = createSoldier({
     id,
     team: pp.team,
@@ -846,15 +872,19 @@ export function createFromPlacement(t: TacticalState, id: number, placement: Pla
   return createFromPlacementParts(t, id, placement.basic, detailed, env);
 }
 
+export type PlacementAdjust = (pp: SoldierCreate) => boolean;
+
 export function createFromPlacementParts(
   c: CreationContext,
   id: number,
   b: BasicPlacement,
   detailed: DetailedPlacement | null,
   env: CreationEnv,
+  adjust: PlacementAdjust = () => true,
 ): Soldier | null {
   const pp = detailed
     ? createDetailedPlacementGivenStaticDetailedPlacementAndBasicPlacementInfo(c, detailed, b, env)
     : createDetailedPlacementGivenBasicPlacementInfo(c, b, env);
+  if (!adjust(pp)) return null;
   return tacticalCreateSoldier(c, pp, id, env);
 }

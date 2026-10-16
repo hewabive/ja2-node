@@ -4,6 +4,8 @@ import { parseSectorId, parseSectorString, type Sector } from '../../../content/
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
 import { initializeMapStructure, initStrategicMovementCosts } from '../map/init.ts';
 import { sectorInfo } from '../map/sectors.ts';
+import { Fact } from '../narrative/fact-ids.ts';
+import { setFact } from '../narrative/facts.ts';
 import { createStrategicState } from '../state.ts';
 import { EventKind, NUM_SEC_IN_DAY, NUM_SEC_IN_HOUR } from '../time/constants.ts';
 import { addStrategicEvent } from '../time/event-queue.ts';
@@ -12,7 +14,7 @@ import { answerSimultaneousArrival, checkConditionsForBattle, testForBloodcatAmb
 import { PreBattleNotice } from './flow-state.ts';
 import { addPlayerToGroup, createNewEnemyGroupDepartingFromSector, createNewPlayerGroupDepartingFromSector, type Group } from './groups.ts';
 import { groupArrivedAtSector, nowMinutes } from './movement.ts';
-import { FACT_PLAYER_KNOWS_ABOUT_BLOODCAT_LAIR, type StrategicContext } from './ports.ts';
+import type { StrategicContext } from './ports.ts';
 
 let content: StrategicContent;
 
@@ -40,8 +42,9 @@ function setup(o: { pre?: number[]; rolls?: number[]; facts?: Record<number, num
     state: createStrategicState({ worldSeconds: NOON }),
     random: rolls,
     preRandom: pre,
-    world: { fact: (id) => o.facts?.[id] ?? 0, enemyInSector: () => o.enemyInSector === true },
+    world: { enemyInSector: () => o.enemyInSector === true },
   });
+  for (const [id, value] of Object.entries(o.facts ?? {})) setFact(ctx.state.narrative, Number(id), value);
   initializeMapStructure(ctx);
   initStrategicMovementCosts(ctx);
   for (const e of ctx.state.map.elements) e.enemyControlled = true;
@@ -216,7 +219,7 @@ describe('TestForBloodcatAmbush', () => {
   });
 
   it('fills the lair from its placements and calls it a lair entrance once the lair is known', () => {
-    const s = setup({ facts: { [FACT_PLAYER_KNOWS_ABOUT_BLOODCAT_LAIR]: 1 } });
+    const s = setup({ facts: { [Fact.PLAYER_KNOWS_ABOUT_BLOODCAT_LAIR]: 1 } });
     const info = sectorInfo(s.ctx.state.map, S('I16'));
     info.bloodCatPlacements = 19;
     const g = squad(s, S('I16'), [0]);

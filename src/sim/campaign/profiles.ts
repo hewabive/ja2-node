@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Profile.cc InitProfileFromContent (dialogue check, medical deposit, attractiveness, optional gear
 // @src cost, relation counters),
-// @src LoadMercProfiles; Soldier_Profile_Type.h PROFILE_MISC_FLAG_*, PROFILE_MISC_FLAG3_*; Laptop/AIM.h MAX_NUMBER_MERCS; Laptop/Mercs.h
+// @src LoadMercProfiles; Soldier_Profile_Type.h PROFILE_MISC_FLAG_*, PROFILE_MISC_FLAG2_*, PROFILE_MISC_FLAG3_*; Laptop/AIM.h MAX_NUMBER_MERCS; Laptop/Mercs.h
 // @src DAYS_TIL_M_E_R_C_AVAIL; src/externalized/mercs/MercProfile.cc (profile types). See docs/22 §0, docs/21 §0.
 
 import type { MercProfile } from '../../content/formats/prof.ts';
@@ -22,14 +22,34 @@ const NOTHING = 0;
 
 export const ProfileMiscFlag = {
   RECRUITED: 0x01,
+  HAVE_SEEN_CREATURE: 0x02,
+  FORCE_NPC_QUOTE: 0x04,
+  WOUNDED_BY_PLAYER: 0x08,
+  TEMP_NPC_QUOTE_DATA_EXISTS: 0x10,
+  SAID_HOSTILE_QUOTE: 0x20,
+  EPC_ACTIVE: 0x40,
   ALREADY_USED_ITEMS: 0x80,
+} as const;
+
+export const ProfileMiscFlag2 = {
+  DONT_ADD_TO_SECTOR: 0x01,
+  LEFT_COUNTRY: 0x02,
+  BANDAGED_TODAY: 0x04,
+  SAID_FIRSTSEEN_QUOTE: 0x08,
+  NEEDS_TO_SAY_HOSTILE_QUOTE: 0x10,
+  MARRIED_TO_HICKS: 0x20,
+  ASKED_BY_HICKS: 0x40,
 } as const;
 
 export const ProfileMiscFlag3 = {
   PLAYER_LEFT_MSG_FOR_MERC_AT_AIM: 0x01,
   PERMANENT_INSERTION_CODE: 0x02,
   PLAYER_HAD_CHANCE_TO_HIRE: 0x04,
+  HANDLE_DONE_TRAVERSAL: 0x08,
+  NPC_PISSED_OFF: 0x10,
   MERC_MERC_IS_DEAD_AND_QUOTE_SAID: 0x20,
+  TOWN_DOESNT_CARE_ABOUT_DEATH: 0x40,
+  GOODGUY: 0x80,
 } as const;
 
 export interface ProfileContent {

@@ -969,3 +969,8 @@ Specs: `docs/24` (NPCs and dialogue), `25` (quests, facts, NPC actions, schedule
    triggers), `ConverseFull` and the dialogue queue; the modal talk session with walk-up, NPC-initiated talks as decisions,
    scripted sequences and the merchant link; `talk`, `approach` and `closeTalk` commands, text served from the EDT files.
    313 oracle probes match.
+4. **Facts, quests and NPC presence** (`sim/strategic/narrative`, `sim/campaign/narrative`): one fact and quest store with
+   save import, `CheckFact` with every computed rule, quests with history lines and the quest log in the strategic view,
+   NPC sectors at a new game, placement overrides and both `AddProfiles…` passes, the quest code of sector entry and exit,
+   the 04:00 moves and the hourly and daily NPC handlers. Dialogue and the helicopter read facts through `CheckFact`.
+   51 oracle probes match.

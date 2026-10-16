@@ -4,7 +4,9 @@
 // @src GetAvailableWorkForceForMineForPlayer/Enemy, GetCurrentWorkRateOfMineForPlayer/Enemy, MineAMine,
 // @src PostEventsForMineProduction, HandleIncomeFromMines, PredictDailyIncomeFromAMine, PredictIncomeFromPlayerMines,
 // @src CalcMaxPlayerIncomeFromMines, IssueHeadMinerQuote, GetHeadMinerIndexForMine, GetHeadMinersMineIndex,
-// @src PlayerSpokeToHeadMiner, PlayerAttackedHeadMiner, HasAnyMineBeenAttackedByMonsters, AreThereMinersInsideThisMine;
+// @src PlayerSpokeToHeadMiner, PlayerAttackedHeadMiner, HasAnyMineBeenAttackedByMonsters, AreThereMinersInsideThisMine,
+// @src IsHisMineRunningOut, IsHisMineEmpty, IsHisMineDisloyal (LOW_MINE_LOYALTY_THRESHOLD), IsHisMineInfested,
+// @src IsHisMineLostAndRegained, IsHisMineAtMaxProduction, HasHisMineBeenProducingForPlayerForSomeTime, SpokenToHeadMiner;
 // @src Strategic/StrategicMap.cc HandleQuestCodeOnSectorEntry (head miners); Tactical/Interface_Dialogue.cc
 // @src NPC_ACTION_START_MINE. See docs/18 §3.
 
@@ -12,10 +14,12 @@ import { MineType } from '../../../content/strategic/economy-content.ts';
 import { type Sector, sameSector, sectorFromId } from '../../../content/strategic/sector-ids.ts';
 import { i32, idiv, u32 } from '../../../core/int.ts';
 import { addTransaction, FinanceCode } from '../../campaign/finances.ts';
+import { Fact } from '../narrative/fact-ids.ts';
+import { fact, setFactTrue } from '../narrative/facts.ts';
 import { EventKind } from '../time/constants.ts';
 import { addStrategicEvent } from '../time/event-queue.ts';
 import { CompressionStop, stopTimeCompression, worldDayInMinutes, worldTotalMinutes } from '../time/world-clock.ts';
-import { FACT_MINERS_PLACED, HeadMinerQuote, OKLIFE } from './constants.ts';
+import { HeadMinerQuote, OKLIFE } from './constants.ts';
 import { decrementTownLoyalty } from './loyalty.ts';
 import {
   addMineHistoryEvent,
@@ -52,6 +56,7 @@ const FULL_WORKFORCE = 100;
 const RANDOM_HEAD_MINERS = 4;
 const PLACED = 0;
 const ONE_DAY_MINUTES = 24 * 60;
+const LOW_MINE_LOYALTY_THRESHOLD = 50;
 
 export function initializeMines(ctx: EconomyContext): void {
   const defs = ctx.economy.mines;
@@ -269,12 +274,46 @@ export function hasMineBeenProducingForPlayerForSomeTime(ctx: EconomyContext, mi
   return m.mineHasProducedForPlayer && worldTotalMinutes(ctx.state.clock) - m.timePlayerProductionStarted >= ONE_DAY_MINUTES;
 }
 
+export function isHisMineEmpty(ctx: EconomyContext, profile: number): boolean {
+  return mineStatus(ctx, headMinersMineIndex(ctx, profile)).empty;
+}
+
+export function isHisMineRunningOut(ctx: EconomyContext, profile: number): boolean {
+  return mineStatus(ctx, headMinersMineIndex(ctx, profile)).runningOut;
+}
+
+export function isHisMineDisloyal(ctx: EconomyContext, profile: number): boolean {
+  const town = townAssociatedWithMine(ctx, headMinersMineIndex(ctx, profile));
+  return (ctx.state.economy.towns[town]?.rating ?? 0) < LOW_MINE_LOYALTY_THRESHOLD;
+}
+
+export function isHisMineInfested(ctx: EconomyContext, profile: number): boolean {
+  return !ctx.hooks.mineClearOfMonsters(headMinersMineIndex(ctx, profile));
+}
+
+export function isHisMineLostAndRegained(ctx: EconomyContext, profile: number): boolean {
+  const mine = headMinersMineIndex(ctx, profile);
+  return playerControlsMine(ctx, mine) && mineStatus(ctx, mine).queenRetookProducingMine;
+}
+
+export function isHisMineAtMaxProduction(ctx: EconomyContext, profile: number): boolean {
+  return workforceForPlayer(ctx, headMinersMineIndex(ctx, profile)) === FULL_WORKFORCE;
+}
+
+export function hasHisMineBeenProducingForPlayerForSomeTime(ctx: EconomyContext, profile: number): boolean {
+  return hasMineBeenProducingForPlayerForSomeTime(ctx, headMinersMineIndex(ctx, profile));
+}
+
+export function spokenToHeadMiner(ctx: EconomyContext, mine: number): boolean {
+  return mineStatus(ctx, mine).spokeToHeadMiner;
+}
+
 export function isAbandonedMine(ctx: EconomyContext, mine: number): boolean {
   return mineDef(ctx, mine).minimumMineProduction === 0;
 }
 
 export function placeHeadMinersOnSectorEntry(ctx: EconomyContext, sector: Sector): void {
-  if (sector.z !== 0 || ctx.world.fact(FACT_MINERS_PLACED)) return;
+  if (sector.z !== 0 || fact(ctx.state.narrative, Fact.MINERS_PLACED)) return;
   const thisMine = mineIdForSector(ctx, sector);
   if (thisMine === -1 || isAbandonedMine(ctx, thisMine)) return;
   const pool = [...ctx.economy.headMiners.randomMinerProfiles];
@@ -295,7 +334,7 @@ export function placeHeadMinersOnSectorEntry(ctx: EconomyContext, sector: Sector
     placed++;
     if (placed === RANDOM_HEAD_MINERS) break;
   }
-  ctx.hooks.setFact(FACT_MINERS_PLACED);
+  setFactTrue(ctx.state.narrative, Fact.MINERS_PLACED);
 }
 
 export type StartMineResult =

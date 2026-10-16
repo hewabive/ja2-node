@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Interface_Dialogue.cc gTalkPanel.ubCharNum, gfInTalkPanel, gpSrcSoldier, gpDestSoldier,
 // @src gubSrcSoldierProfile, gubNiceNPCProfile, gubNastyNPCProfile, gubTargetNPC, gubTargetRecord, gubTargetApproach,
 // @src gfShowDialogueMenu, gfWaitingForTriggerTimer, guiWaitingForTriggerTime, gfConversationPending and the pending
-// @src soldiers, giHospitalTempBalance, giHospitalRefund; Dialogue_Control.cc ghDialogueQ, gpCurrentTalkingFace,
+// @src soldiers; Dialogue_Control.cc ghDialogueQ, gpCurrentTalkingFace,
 // @src gubCurrentTalkingID, giNPCReferenceCount, fOldEngagedInConvFlagOn; TacticalAI/NPC.cc giNPCSpecialReferenceCount;
 // @src Overhead_Types.h ubLastQuoteSaid, ubLastQuoteProfileNUm. See docs/24 §0, §7, docs/25 §1.4.
 
@@ -92,7 +92,6 @@ export interface TalkState {
   specialReferenceCount: number;
   niceNpc: number;
   nastyNpc: number;
-  readonly hospital: { tempBalance: number; refund: number };
   readonly lines: SpokenLine[];
   readonly fx: Rng;
 }
@@ -117,7 +116,6 @@ export function createTalkState(seed = 0): TalkState {
     specialReferenceCount: 0,
     niceNpc: NO_PROFILE,
     nastyNpc: NO_PROFILE,
-    hospital: { tempBalance: 0, refund: 0 },
     lines: [],
     fx: Rng.fromSeed(seed ^ COSMETIC_SEED),
   };

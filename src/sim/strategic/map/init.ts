@@ -3,8 +3,9 @@
 // @src src/game/Strategic/StrategicMap.cc InitializeMapStructure, InitializeStrategicMapSectorTownNames, SetupNewStrategicGame;
 // @src Campaign_Init.cc InitNewCampaign, InitKnowFacilitiesFlags, BuildUndergroundSectorInfoList;
 // @src src/externalized/strategic/UndergroundSectorModel.cc createUndergroundSectorInfo; Strategic_Movement_Costs.cc
-// @src InitStrategicMovementCosts; Game_Init.cc InitStrategicLayer, InitBloodCatSectors, InitNPCs (placements, Tixa basement);
-// @src Map_Screen_Helicopter.cc InitializeHelicopter. See docs/16 §1.3–§1.4, docs/15 §4.3.
+// @src InitStrategicMovementCosts; Game_Init.cc InitStrategicLayer, InitBloodCatSectors, InitNPCs (placements, Tixa basement,
+// @src hospital globals, Devin's counter); Map_Screen_Helicopter.cc InitializeHelicopter. See docs/16 §1.3–§1.4, docs/15 §4.3,
+// @src docs/25 §4.2.
 
 import { sectorFromId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { u8, u32 } from '../../../core/int.ts';
@@ -13,6 +14,8 @@ import { removeAllGroups } from '../forces/groups.ts';
 import { initializeHelicopter } from '../forces/helicopter.ts';
 import type { StrategicContext } from '../forces/ports.ts';
 import { initSquads, initVehicles } from '../forces/squads.ts';
+import { Npc } from '../narrative/npc-ids.ts';
+import { setProfileSector } from '../narrative/presence.ts';
 import { worldDay } from '../time/world-clock.ts';
 import { initializeSamSites, initMapSecrets } from './control.ts';
 import {
@@ -25,6 +28,7 @@ import {
 } from './sectors.ts';
 
 const TIXA_BASEMENT = { x: 9, y: 10, z: 1 };
+const DEVIN_MOVES_AT_FIRST_CHANCE = 3;
 const LAST_SECTOR_WITH_UNROLLED_BLOODCATS = 255;
 const UNROLLED_BLOODCATS = -1;
 
@@ -89,15 +93,27 @@ export function initNewCampaignMap(ctx: StrategicContext, hooks: StrategicLayerH
 
 export function initNpcPlacements(ctx: StrategicContext): void {
   const s = ctx.state;
-  s.npcPlacements.clear();
   for (const placement of ctx.content.npcPlacements) {
     if (placement.sciFiOnly && !s.options.sciFi) continue;
     if (placement.sectors.length === 0) continue;
     const sector = placement.sectors[ctx.random.int(placement.sectors.length)] ?? 0;
     const info = s.map.sectors[sector];
     if (placement.useAlternateMap && info) info.flags = u32(info.flags | SectorFlag.USE_ALTERNATE_MAP);
-    if (placement.placedAtStart) s.npcPlacements.set(placement.profile, sector);
+    const profile = s.profiles.get(placement.profile);
+    if (placement.placedAtStart && profile) setProfileSector(profile, sectorFromId(sector));
   }
+  initNpcGlobals(ctx);
+}
+
+function initNpcGlobals(ctx: StrategicContext): void {
+  const n = ctx.state.narrative;
+  n.playerTeamSawJoey = false;
+  initTixaBasementWithoutSciFi(ctx);
+  n.hospital.tempBalance = 0;
+  n.hospital.refund = 0;
+  n.hospital.priceModifier = 0;
+  const devin = ctx.state.profiles.get(Npc.DEVIN);
+  if (devin) devin.npcData = DEVIN_MOVES_AT_FIRST_CHANCE;
 }
 
 export function initTixaBasementWithoutSciFi(ctx: StrategicContext): void {
@@ -133,7 +149,6 @@ export function initStrategicLayerMap(ctx: StrategicContext, hooks: StrategicLay
   initVehicles(ctx);
   hooks.initNpcs?.(ctx);
   initNpcPlacements(ctx);
-  initTixaBasementWithoutSciFi(ctx);
   initializeHelicopter(ctx);
   ctx.state.forces.vehicles = [];
   initBloodCatSectors(ctx);

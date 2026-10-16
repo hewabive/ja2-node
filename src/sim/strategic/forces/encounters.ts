@@ -10,6 +10,8 @@ import { u32 } from '../../../core/int.ts';
 import { OKLIFE } from '../../tactical/soldier.ts';
 import { isThisSectorASamSector, townIdOfSector } from '../map/control.ts';
 import { sectorInfo } from '../map/sectors.ts';
+import { Fact } from '../narrative/fact-ids.ts';
+import { fact } from '../narrative/facts.ts';
 import { EventKind } from '../time/constants.ts';
 import { addStrategicEvent, deleteStrategicEvent } from '../time/event-queue.ts';
 import {
@@ -38,7 +40,7 @@ import {
   vehicleOfGroup,
 } from './groups.ts';
 import { delayEnemyGroupsIfPathsCross, groupArrivedAtSector, nowMinutes } from './movement.ts';
-import { FACT_PLAYER_KNOWS_ABOUT_BLOODCAT_LAIR, type StrategicContext } from './ports.ts';
+import type { StrategicContext } from './ports.ts';
 
 const BLOODCAT_CHANCE_PER_DIFFICULTY = 5;
 const BLOODCAT_BASE = 3;
@@ -349,7 +351,7 @@ export function testForBloodcatAmbush(ctx: StrategicContext, g: Group): boolean 
   }
   if (!alreadyAmbushed && !arena && info.bloodCats > 0 && !g.vehicle && !numEnemiesInSector(ctx, s)) {
     enc.code =
-      !lair || !ctx.world.fact(FACT_PLAYER_KNOWS_ABOUT_BLOODCAT_LAIR)
+      !lair || !fact(ctx.state.narrative, Fact.PLAYER_KNOWS_ABOUT_BLOODCAT_LAIR)
         ? EncounterCode.BLOODCAT_AMBUSH
         : EncounterCode.ENTERING_BLOODCAT_LAIR;
     return true;

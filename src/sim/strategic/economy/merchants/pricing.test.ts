@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { itemId, loadMerchantTestContent, type MerchantTestContent, merchantFixture } from '../../../../../tests/support/merchants.ts';
 import { createItem, createItems, type ItemObject } from '../../../items/object.ts';
-import { MerchantFact } from './context.ts';
+import { Fact } from '../../narrative/fact-ids.ts';
 import { calcShopKeeperItemPrice, calcValueOfItemToDealer, itemConditionModifier } from './pricing.ts';
 
 let t: MerchantTestContent;
@@ -76,7 +76,7 @@ describe('shopkeeper prices', () => {
     expect(v(JAKE, 'CREATURE_PART_CLAWS', false)).toBe(0);
     expect(v(JAKE, 'JAR', false)).toBe(10);
     expect(v(KEITH, 'GLOCK_17', false)).toBe(0);
-    facts.add(MerchantFact.HILLBILLIES_KILLED);
+    facts.add(Fact.HILLBILLIES_KILLED);
     expect(v(KEITH, 'GLOCK_17', false)).toBe(175);
     expect(v(TONY, 'ROCKET_RIFLE', false)).toBe(5000);
     expect(v(TONY, 'CANTEEN', false)).toBe(0);

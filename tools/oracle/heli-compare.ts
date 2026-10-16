@@ -4,7 +4,6 @@ import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { addTransaction, FinanceCode } from '../../src/sim/campaign/finances.ts';
-import { factValue, setFact } from '../../src/sim/campaign/narrative/facts.ts';
 import type { Roster, RosterMerc } from '../../src/sim/campaign/roster.ts';
 import type { EconomyContext } from '../../src/sim/strategic/economy/ports.ts';
 import { addSoldierToVehicle, isVehicleAccessibleToSoldier } from '../../src/sim/strategic/economy/vehicle-assignment.ts';
@@ -35,6 +34,7 @@ import {
 } from '../../src/sim/strategic/forces/vehicles.ts';
 import { isSecretFoundAt, updateAirspaceControl } from '../../src/sim/strategic/map/control.ts';
 import { sectorInfo } from '../../src/sim/strategic/map/sectors.ts';
+import { factValue, setFact } from '../../src/sim/strategic/narrative/facts.ts';
 import { EventKind, Warp } from '../../src/sim/strategic/time/constants.ts';
 import { warpGameTime, worldTotalMinutes } from '../../src/sim/strategic/time/world-clock.ts';
 import { SoldierStatusFlags } from '../../src/sim/tactical/soldier.ts';

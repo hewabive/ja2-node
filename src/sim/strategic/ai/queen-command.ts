@@ -13,9 +13,11 @@ import { handleArrivalOfReinforcements } from '../forces/encounters.ts';
 import { type Group, getGroup, numEnemiesInSector, removeGroup, removeGroupWaypoints } from '../forces/groups.ts';
 import type { RollSource } from '../forces/ports.ts';
 import { findUndergroundSector, sectorInfo } from '../map/sectors.ts';
+import { Fact } from '../narrative/fact-ids.ts';
+import { factValue } from '../narrative/facts.ts';
 import { EventKind } from '../time/constants.ts';
 import { addStrategicEventUsingSeconds, deleteAllStrategicEventsOfType } from '../time/event-queue.ts';
-import { ENEMY_TEAM_SLOTS, Fact, Profile, SEC } from './constants.ts';
+import { ENEMY_TEAM_SLOTS, Profile, SEC } from './constants.ts';
 import type { QueenContext } from './context.ts';
 import { recalculateGroupWeight, recalculateSectorWeight } from './weights.ts';
 
@@ -211,7 +213,7 @@ function decrementClass(record: Counted & InBattle, soldierClass: number): void 
 
 function profiledEliteDied(q: QueenContext, dead: DeadEnemy): void {
   if (dead.profile !== Profile.MIKE && dead.profile !== Profile.IGGY) return;
-  if (dead.profile === Profile.IGGY && !q.world.fact(Fact.IGGY_AVAILABLE_TO_ARMY)) return;
+  if (dead.profile === Profile.IGGY && factValue(q.state.narrative, Fact.IGGY_AVAILABLE_TO_ARMY) === 0) return;
   const record = dead.sector.z ? findUndergroundSector(q.state.map, dead.sector) : sectorInfo(q.state.map, dead.sector);
   if (!record) return;
   if (record.numElites) record.numElites--;

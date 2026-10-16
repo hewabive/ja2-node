@@ -5,6 +5,8 @@ import { type Sector, sectorId } from '../../../content/strategic/sector-ids.ts'
 import { createEconomyContext } from '../economy/context.ts';
 import type { EconomyContext } from '../economy/ports.ts';
 import { sectorInfo } from '../map/sectors.ts';
+import { Fact } from '../narrative/fact-ids.ts';
+import { fact } from '../narrative/facts.ts';
 import { createStrategicState } from '../state.ts';
 import { EncounterCode, SectorFlag } from './constants.ts';
 import { addPlayerToGroup, createNewEnemyGroupDepartingFromSector, createNewPlayerGroupDepartingFromSector, type Group } from './groups.ts';
@@ -80,7 +82,7 @@ describe('the pre-battle interface', () => {
       ['enterSector', true, null],
       ['retreat', true, null],
     ]);
-    expect(h.ctx.state.battle.firstBattle.beingFought).toBe(true);
+    expect(fact(h.ctx.state.narrative, Fact.FIRST_BATTLE_BEING_FOUGHT)).toBe(true);
   });
 
   it('codes an enemy group in the wilderness as an encounter and remembers that the player knows the count', () => {

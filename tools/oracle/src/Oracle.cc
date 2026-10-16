@@ -12,7 +12,9 @@
 // @src src/game/Tactical/Arms_Dealer_Init.cc, ArmsDealerInvInit.cc, ShopKeeper_Interface.cc (merchants)
 // @src src/game/Strategic/Game_Init.cc InitNewGame; src/game/Laptop (A.I.M., M.E.R.C., I.M.P., Bobby Ray, insurance)
 // @src src/game/Strategic/Map_Screen_Helicopter.cc, MapScreen.cc, Tactical/Vehicles.cc (the helicopter probes)
-// @src src/game/TacticalAI/NPC.cc CalcDesireToTalk, NPCConsiderTalking, ConverseFull (talk probes)
+// @src src/game/Strategic/Quests.cc CheckFact, InternalStartQuest, InternalEndQuest; Hourly_Update.cc; StrategicMap.cc
+// @src HandleQuestCodeOnSector (facts probes); src/game/TacticalAI/NPC.cc CalcDesireToTalk, NPCConsiderTalking, ConverseFull
+// @src (talk probes)
 #include "Oracle.h"
 
 #include "AI.h"
@@ -114,6 +116,10 @@
 #include "Keys.h"
 #include "Handle_Doors.h"
 #include "Structure.h"
+#include "Boxing.h"
+#include "Interface_Dialogue.h"
+#include "FileMan.h"
+#include "MercProfile.h"
 
 #include <string_theory/string>
 
@@ -151,6 +157,9 @@ NPCQuoteInfo const* OracleCivQuoteArray(UINT8 index);
 extern SOLDIERTYPE* gpSrcSoldier;
 extern SOLDIERTYPE* gpDestSoldier;
 extern UINT8 gubQuest[MAX_QUESTS];
+void OracleHourlyQuestUpdate();
+void OracleHourlyCheckIfSlayAloneSoHeCanLeave();
+void OracleHandleQuestCodeOnSectorExit(const SGPSector& oldSector);
 extern INT32 giHabitatedDistance;
 extern INT32 giPopulationModifier;
 extern INT32 giLairID;
@@ -5321,6 +5330,246 @@ BOOLEAN OracleTracedCheckFact(Fact const fact, UINT8 const profile)
 }
 
 namespace {
+std::vector<long long> NarrativeProfileIds(Command const& c)
+{
+	std::vector<long long> ids;
+	if (Has(c, "ids"))
+	{
+		for (std::string const& v : SplitList(Text(c, "ids", ""), ',')) ids.push_back(std::stoll(v));
+		return ids;
+	}
+	for (ProfileID id = 0; id < NUM_PROFILES; ++id)
+	{
+		if (MercProfile(id).isNPCorRPC() || MercProfile(id).isVehicle()) ids.push_back(id);
+	}
+	return ids;
+}
+
+std::string DescribeNarrativeProfile(ProfileID const pid)
+{
+	MERCPROFILESTRUCT const& p = GetProfile(pid);
+	std::vector<long long> inventory, counts;
+	for (UINT16 const item : p.inv) inventory.push_back(item);
+	for (UINT8 const v : p.bInvNumber) counts.push_back(v);
+	return Json{}
+		.num("id", pid)
+		.raw("sector", Numbers({p.sSector.x, p.sSector.y, p.sSector.z}))
+		.raw("flags", Numbers({p.ubMiscFlags, p.ubMiscFlags2, p.ubMiscFlags3}))
+		.raw("npcData", Numbers({p.bNPCData, p.bNPCData2}))
+		.num("money", p.uiMoney)
+		.num("balance", p.iBalance)
+		.num("life", p.bLife)
+		.num("lifeMax", p.bLifeMax)
+		.num("status", p.bMercStatus)
+		.num("town", p.bTown)
+		.num("spokenTo", p.ubLastDateSpokenTo)
+		.raw("insertion", Numbers({p.fUseProfileInsertionInfo, p.ubStrategicInsertionCode, p.usStrategicInsertionData}))
+		.raw("quote", Numbers({p.ubQuoteRecord, p.ubQuoteActionID}))
+		.raw("inventory", Numbers(inventory))
+		.raw("invCount", Numbers(counts))
+		.text();
+}
+
+std::string DescribeNarrativeProfiles(std::vector<long long> const& ids)
+{
+	std::vector<std::string> out;
+	for (long long const id : ids) out.push_back(DescribeNarrativeProfile(static_cast<ProfileID>(id)));
+	return JsonArray(out);
+}
+
+std::string DescribeNarrativeState()
+{
+	std::vector<long long> facts(std::begin(gubFact), std::end(gubFact));
+	std::vector<long long> quests(std::begin(gubQuest), std::end(gubQuest));
+	std::vector<long long> fought;
+	for (BOOLEAN const f : gfBoxerFought) fought.push_back(f);
+	return Json{}
+		.nums("facts", facts)
+		.nums("quests", quests)
+		.raw("boxing", Json{}.num("won", gubBoxingMatchesWon).num("rests", gubBoxersRests).flag("resting", gfBoxersResting).nums("fought", fought).text())
+		.num("terrorists", gubNumTerrorists)
+		.num("balance", LaptopSaveInfo.iCurrentBalance)
+		.num("worldMinutes", GetWorldTotalMin())
+		.raw("worldSector", Numbers({gWorldSector.x, gWorldSector.y, gWorldSector.z}))
+		.text();
+}
+
+std::vector<std::vector<long long>> ReadHistoryRecords()
+{
+	std::vector<std::vector<long long>> records;
+	AutoSGPFile f(GCM->tempFiles()->openForReading(HISTORY_DATA_FILE));
+	UINT const count = f->size() / 12;
+	for (UINT i = 0; i < count; ++i)
+	{
+		UINT8 code;
+		UINT8 second;
+		UINT32 date;
+		INT16 x;
+		INT16 y;
+		INT8 z;
+		f->read(&code, sizeof(code));
+		f->read(&second, sizeof(second));
+		f->read(&date, sizeof(date));
+		f->read(&x, sizeof(x));
+		f->read(&y, sizeof(y));
+		f->read(&z, sizeof(z));
+		f->seek(1, FILE_SEEK_FROM_CURRENT);
+		records.push_back({code, second, static_cast<long long>(date), x, y, z});
+	}
+	return records;
+}
+
+std::string DescribeHistoryTail(size_t from)
+{
+	std::vector<std::string> out;
+	std::vector<std::vector<long long>> const records = ReadHistoryRecords();
+	for (size_t i = from; i < records.size(); ++i) out.push_back(Numbers(records[i]));
+	return JsonArray(out);
+}
+
+void EmitNarrative(Command const& c, std::string const& draws, std::string const& result, std::vector<long long> const& profiles)
+{
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.raw("draws", draws.empty() ? "[]" : draws)
+		.raw("result", result.empty() ? "null" : result)
+		.raw("state", DescribeNarrativeState())
+		.raw("profiles", DescribeNarrativeProfiles(profiles)));
+}
+
+void DumpNarrative(Command const& c)
+{
+	EmitNarrative(c, "", "", NarrativeProfileIds(c));
+}
+
+void SetQuestState(Command const& c)
+{
+	gubQuest[Required(c, "id")] = static_cast<UINT8>(Integer(c, "status", QUESTINPROGRESS));
+	EmitNarrative(c, "", "", {});
+}
+
+void SetNarrativeProfile(Command const& c)
+{
+	MERCPROFILESTRUCT& p = GetProfile(static_cast<ProfileID>(Required(c, "id")));
+	if (Has(c, "sector")) p.sSector = StrategicSectorArgument(c, "sector");
+	if (Has(c, "z")) p.sSector.z = static_cast<INT8>(Integer(c, "z", 0));
+	if (Has(c, "nowhere")) p.sSector = SGPSector();
+	if (Has(c, "npcdata")) p.bNPCData = static_cast<INT8>(Integer(c, "npcdata", 0));
+	if (Has(c, "npcdata2")) p.bNPCData2 = static_cast<INT8>(Integer(c, "npcdata2", 0));
+	if (Has(c, "flags")) p.ubMiscFlags = static_cast<UINT8>(Integer(c, "flags", 0));
+	if (Has(c, "flags2")) p.ubMiscFlags2 = static_cast<UINT8>(Integer(c, "flags2", 0));
+	if (Has(c, "flags3")) p.ubMiscFlags3 = static_cast<UINT8>(Integer(c, "flags3", 0));
+	if (Has(c, "money")) p.uiMoney = static_cast<UINT32>(Integer(c, "money", 0));
+	if (Has(c, "balance")) p.iBalance = static_cast<INT32>(Integer(c, "balance", 0));
+	if (Has(c, "life")) p.bLife = static_cast<INT8>(Integer(c, "life", 0));
+	if (Has(c, "spokento")) p.ubLastDateSpokenTo = static_cast<UINT8>(Integer(c, "spokento", 0));
+	if (Has(c, "insertion")) p.fUseProfileInsertionInfo = Integer(c, "insertion", 0) != 0;
+	if (Has(c, "code")) p.ubStrategicInsertionCode = static_cast<UINT8>(Integer(c, "code", 0));
+	if (Has(c, "data")) p.usStrategicInsertionData = static_cast<UINT16>(Integer(c, "data", 0));
+	EmitNarrative(c, "", "", {static_cast<long long>(Required(c, "id"))});
+}
+
+SOLDIERTYPE* NarrativeSoldierArgument(Command const& c, std::string const& key)
+{
+	if (!Has(c, key)) return nullptr;
+	long long const id = Integer(c, key, -1);
+	if (id < 0) return nullptr;
+	SOLDIERTYPE& s = GetMan(static_cast<UINT>(id));
+	if (!s.bActive) throw std::runtime_error("no active soldier " + std::to_string(id));
+	return &s;
+}
+
+void ProbeCheckFact(Command const& c)
+{
+	ProfileID const profile = static_cast<ProfileID>(Integer(c, "profile", 0));
+	if (Has(c, "src") || Has(c, "dest"))
+	{
+		gpSrcSoldier = NarrativeSoldierArgument(c, "src");
+		gpDestSoldier = NarrativeSoldierArgument(c, "dest");
+		if (gpSrcSoldier) gubSrcSoldierProfile = gpSrcSoldier->ubProfile;
+	}
+	if (Has(c, "srcprofile")) gubSrcSoldierProfile = static_cast<UINT8>(Integer(c, "srcprofile", 0));
+	std::vector<long long> before(std::begin(gubFact), std::end(gubFact));
+	std::vector<long long> results;
+	if (Has(c, "id"))
+	{
+		results.push_back(CheckFact(static_cast<Fact>(Required(c, "id")), profile));
+	}
+	else
+	{
+		for (UINT16 id = 0; id < NUM_FACTS; ++id) results.push_back(CheckFact(static_cast<Fact>(id), profile));
+	}
+	EmitNarrative(c, "", Json{}.nums("before", before).nums("results", results).num("srcProfile", gubSrcSoldierProfile).text(), {});
+}
+
+void ProbeQuest(Command const& c)
+{
+	std::string const action = Text(c, "action", "start");
+	UINT8 const quest = static_cast<UINT8>(Required(c, "id"));
+	SGPSector const sector = Has(c, "sector") ? StrategicSectorArgument(c, "sector") : SGPSector(-1, -1);
+	size_t const before = ReadHistoryRecords().size();
+	if (action == "start") StartQuest(quest, sector);
+	else if (action == "end") EndQuest(quest, sector);
+	else if (action == "istart") InternalStartQuest(quest, sector, FALSE);
+	else if (action == "iend") InternalEndQuest(quest, sector, FALSE);
+	else throw std::runtime_error("unknown quest action " + action);
+	EmitNarrative(c, "", Json{}.raw("history", DescribeHistoryTail(before)).text(), {MADAME});
+}
+
+void ProbeEarlyMorning(Command const& c)
+{
+	std::string const draws = TracedSaiDraws([] { HandleEarlyMorningEvents(); });
+	EmitNarrative(c, draws, "", NarrativeProfileIds(c));
+}
+
+void ProbeHourlyNpc(Command const& c)
+{
+	UINT32 const hour = static_cast<UINT32>(Required(c, "hour"));
+	guiDay = GetWorldDay();
+	guiHour = hour;
+	guiMin = 0;
+	guiGameClock = guiDay * NUM_SEC_IN_DAY + hour * NUM_SEC_IN_HOUR;
+	std::string const draws = TracedSaiDraws([] {
+		OracleHourlyQuestUpdate();
+		OracleHourlyCheckIfSlayAloneSoHeCanLeave();
+		PayOffSkyriderDebtIfAny();
+	});
+	EmitNarrative(c, draws, "", {SKYRIDER, SLAY});
+}
+
+void ProbeQuestEntry(Command const& c)
+{
+	SGPSector sector = StrategicSectorArgument(c, "sector");
+	sector.z = static_cast<INT8>(Integer(c, "z", 0));
+	size_t const before = ReadHistoryRecords().size();
+	std::string const draws = TracedSaiDraws([&sector] { HandleQuestCodeOnSectorEntry(sector); });
+	EmitNarrative(c, draws, Json{}.raw("history", DescribeHistoryTail(before)).text(), NarrativeProfileIds(c));
+}
+
+void ProbeQuestExit(Command const& c)
+{
+	SGPSector sector = StrategicSectorArgument(c, "sector");
+	sector.z = static_cast<INT8>(Integer(c, "z", 0));
+	std::string const draws = TracedSaiDraws([&sector] { OracleHandleQuestCodeOnSectorExit(sector); });
+	EmitNarrative(c, draws, "", NarrativeProfileIds(c));
+}
+
+void ProbeEnterSector(Command const& c)
+{
+	SGPSector sector = StrategicSectorArgument(c, "sector");
+	sector.z = static_cast<INT8>(Integer(c, "z", 0));
+	TracedSaiDraws([&sector] { SetCurrentWorldSector(sector); });
+	std::vector<std::string> soldiers;
+	FOR_EACH_SOLDIER(s)
+	{
+		if (s->ubProfile == NO_PROFILE || s->bTeam == OUR_TEAM) continue;
+		soldiers.push_back(Json{}.num("id", s->ubID).num("profile", s->ubProfile).num("team", s->bTeam).num("gridNo", s->sGridNo).num("life", s->bLife).text());
+	}
+	EmitNarrative(c, "", Json{}.raw("soldiers", JsonArray(soldiers)).text(), NarrativeProfileIds(c));
+}
+
 
 void Dispatch(Command const& c)
 {
@@ -5472,6 +5721,16 @@ void Dispatch(Command const& c)
 	if (c.name == "consider") return ProbeConsider(c);
 	if (c.name == "talk") return ProbeTalk(c);
 	if (c.name == "questdecode") return ProbeQuestDecode(c);
+	if (c.name == "narrative") return DumpNarrative(c);
+	if (c.name == "setquest") return SetQuestState(c);
+	if (c.name == "setnpcprofile") return SetNarrativeProfile(c);
+	if (c.name == "checkfact") return ProbeCheckFact(c);
+	if (c.name == "quest") return ProbeQuest(c);
+	if (c.name == "earlymorning") return ProbeEarlyMorning(c);
+	if (c.name == "hourlynpc") return ProbeHourlyNpc(c);
+	if (c.name == "questentry") return ProbeQuestEntry(c);
+	if (c.name == "questexit") return ProbeQuestExit(c);
+	if (c.name == "entersector") return ProbeEnterSector(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

@@ -16,10 +16,11 @@ import type { LiberationEvent, StrategicContext } from '../forces/ports.ts';
 import { samIdOfSector } from '../map/control.ts';
 import { findStratPath } from '../map/pathing.ts';
 import { getSectorFlagStatus, updateLastDayOfPlayerActivity } from '../map/sectors.ts';
+import { checkFact } from '../narrative/check-fact.ts';
+import { economyFactContext } from '../narrative/economy-facts.ts';
+import { Fact } from '../narrative/fact-ids.ts';
 import { worldDay } from '../time/world-clock.ts';
 import {
-  FACT_MIGUEL_READ_LETTER,
-  FACT_REBELS_HATE_PLAYER,
   FIRST_TOWN,
   GAIN_PTS_PER_LOYALTY_PT,
   HOSTILE_OMERTA_LOYALTY_RATING,
@@ -86,7 +87,8 @@ export function startTownLoyaltyIfFirstTime(ctx: EconomyContext, town: number): 
   if (t.started || !usesLoyalty(ctx, town)) return;
   const before = t.rating;
   t.rating = sentiment(ctx, town);
-  if (!ctx.world.fact(FACT_MIGUEL_READ_LETTER) || ctx.world.fact(FACT_REBELS_HATE_PLAYER)) {
+  const facts = economyFactContext(ctx);
+  if (!checkFact(facts, Fact.MIGUEL_READ_LETTER, 0) || checkFact(facts, Fact.REBELS_HATE_PLAYER, 0)) {
     t.rating = town === Town.OMERTA ? 0 : idiv(t.rating, 2);
   }
   t.change = 0;

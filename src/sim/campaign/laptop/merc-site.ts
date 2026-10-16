@@ -12,12 +12,13 @@
 import type { MercListing } from '../../../content/strategic/laptop-content.ts';
 import { i32, u32 } from '../../../core/int.ts';
 import { InsertionCode } from '../../strategic/forces/constants.ts';
+import { Fact } from '../../strategic/narrative/fact-ids.ts';
+import { fact } from '../../strategic/narrative/facts.ts';
 import { EventKind, NUM_MIN_IN_HOUR } from '../../strategic/time/constants.ts';
 import { addStrategicEvent } from '../../strategic/time/event-queue.ts';
 import type { ProfileProgress } from '../../tactical/profiles.ts';
 import { midnightOfFutureDay } from '../contracts/contract-times.ts';
 import { addTransaction, FinanceCode } from '../finances.ts';
-import { Fact, fact } from '../narrative/facts.ts';
 import { ProfileMiscFlag3 } from '../profiles.ts';
 import { isMercOnTeam } from '../relations/relations.ts';
 import { MercKind, type RosterMerc } from '../roster.ts';
@@ -44,7 +45,6 @@ const BIFF_AWAY_BASE = 2;
 const BIFF_AWAY_SPREAD = 2;
 const FIRST_VISIT_SINCE_DOWN = 1;
 const SPOKEN_SINCE_DOWN = 2;
-const FACT_PC_MARRYING_DARYL_IS_FLO = 98;
 
 export type MercCommandRefusal = 'noBookmark' | 'siteDown';
 export type MercHireRefusal =
@@ -244,7 +244,7 @@ export function speckOpening(ctx: LaptopContext): void {
   merc.newMercsAvailable = false;
   deadMercQuoteEffects(ctx);
   const biff = ctx.profile(ctx.content.namedProfiles.BIFF ?? -1);
-  if (fact(ctx.state.narrative, FACT_PC_MARRYING_DARYL_IS_FLO) && !merc.speckSaidFloMarriedCousinQuote && biff && !isMercDead(biff)) {
+  if (fact(ctx.state.narrative, Fact.PC_MARRYING_DARYL_IS_FLO) && !merc.speckSaidFloMarriedCousinQuote && biff && !isMercDead(biff)) {
     merc.speckSaidFloMarriedCousinQuote = true;
     makeBiffAwayForCoupleOfDays(ctx);
   }

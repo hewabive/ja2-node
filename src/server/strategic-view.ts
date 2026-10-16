@@ -17,6 +17,7 @@ import { calculateTravelTimeOfGroup } from '../sim/strategic/map/travel.ts';
 import { mercAccountStatusView, mercContractFields } from './contract-view.ts';
 import { helicopterView, vehicleViews } from './helicopter-view.ts';
 import { arrivalTime, laptopSummary } from './laptop-view.ts';
+import { questLog } from './quest-view.ts';
 
 const sectorName = (s: Sector) => (s.z ? `${sectorShortString(s)}-${s.z}` : sectorShortString(s));
 
@@ -116,5 +117,6 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
     ...(helicopter ? { helicopter } : {}),
     ...mercAccountStatusView(campaign),
     ...laptopSummary(campaign),
+    quests: questLog(campaign),
   };
 }

@@ -6,9 +6,13 @@
 // @src docs/21 §2.1–§2.5, §8.1.
 
 import { MercType } from '../../../content/strategic/economy-content.ts';
+import { sectorFromId } from '../../../content/strategic/sector-ids.ts';
+import { i8 } from '../../../core/int.ts';
 import { createItem } from '../../items/object.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { InsertionCode } from '../../strategic/forces/constants.ts';
+import { Npc } from '../../strategic/narrative/npc-ids.ts';
+import { setProfileSector } from '../../strategic/narrative/presence.ts';
 import { InvSlot } from '../../tactical/inventory.ts';
 import { MercStatus, type ProfileProgress } from '../../tactical/profiles.ts';
 import { addTransaction, FinanceCode } from '../finances.ts';
@@ -200,11 +204,13 @@ export function decideActiveTerrorists(ctx: LaptopContext): void {
   const chance = terroristChance(ctx.state.options.difficulty);
   let additional = MIN_ADDITIONAL_TERRORISTS;
   for (let n = MAX_ADDITIONAL_TERRORISTS - MIN_ADDITIONAL_TERRORISTS; n !== 0; n--) if (main.int(DAILY_DIE) < chance) additional++;
-  const terrorists = ctx.state.terrorists;
-  terrorists.sectors.clear();
   const placements: number[] = [];
-  const placed = (profile: number, sectors: readonly (number | null)[]): boolean =>
-    terrorists.sectors.has(profile) || (ctx.profileRecord(profile)?.sectorX ?? (sectors.includes(null) ? 1 : 0)) !== 0;
+  const placedWithoutProfile = new Set<number>();
+  const placed = (profile: number, sectors: readonly (number | null)[]): boolean => {
+    const p = ctx.profile(profile);
+    if (p) return p.sectorX !== 0;
+    return placedWithoutProfile.has(profile) || sectors.includes(null);
+  };
   while (placements.length !== additional) {
     for (const t of ctx.content.terrorists) {
       if (placements.length === additional) break;
@@ -213,9 +219,13 @@ export function decideActiveTerrorists(ctx: LaptopContext): void {
       let sector: number;
       do sector = t.sectors[main.int(t.sectors.length)] ?? 0;
       while (placements.includes(sector));
-      terrorists.sectors.set(t.profile, sector);
+      const p = ctx.profile(t.profile);
+      if (p) setProfileSector(p, sectorFromId(sector));
+      else placedWithoutProfile.add(t.profile);
       placements.push(sector);
     }
   }
-  terrorists.count = 1 + additional;
+  const carmen = ctx.profile(Npc.CARMEN);
+  if (carmen) carmen.npcData = i8(1 + additional);
+  ctx.state.terrorists.count = 1 + additional;
 }

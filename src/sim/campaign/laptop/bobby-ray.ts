@@ -28,6 +28,8 @@ import {
   itemTransactionOccurs,
   type SupplyContext,
 } from '../../strategic/economy/merchants/supply.ts';
+import { Fact } from '../../strategic/narrative/fact-ids.ts';
+import { fact, setFact } from '../../strategic/narrative/facts.ts';
 import { EventKind, NUM_MIN_IN_DAY } from '../../strategic/time/constants.ts';
 import { addFutureDayStrategicEvent, addSameDayStrategicEvent, addStrategicEvent } from '../../strategic/time/event-queue.ts';
 import { CompressionStop, stopTimeCompression, worldMinutesInDay } from '../../strategic/time/world-clock.ts';
@@ -35,7 +37,6 @@ import { setOpenableStructureToClosed } from '../../tactical/doors.ts';
 import type { TacticalState } from '../../tactical/state.ts';
 import { addItemToPool, Visibility } from '../../tactical/world-items.ts';
 import { addTransaction, FinanceCode } from '../finances.ts';
-import { Fact, fact, setFact } from '../narrative/facts.ts';
 import { addItemsToUnloadedSector } from '../sector-loot.ts';
 import type { LaptopContext } from './context.ts';
 import { BobbyRaySiteVisit, Bookmark, type Shipment, type ShipmentLine, type StoreSlot, setBookmark } from './laptop-state.ts';
@@ -69,7 +70,6 @@ const SMALL_SHIPMENT = 5;
 const MEDIUM_SHIPMENT = 15;
 const SHIPMENT_OLD_AFTER_MINUTES = 120;
 const AUTOMAG_III = 'AUTOMAG_III';
-const FACT_SHIPMENT_DELAYED_24_HOURS = 56;
 
 export interface OrderLineRequest {
   readonly item: number;
@@ -531,5 +531,5 @@ export function handleNpcSystemEvent(ctx: LaptopContext, param: number): void {
   if (param === Fact.REALLY_NEW_BOBBYRAY_SHIPMENT_WAITING) {
     setFact(facts, Fact.REALLY_NEW_BOBBYRAY_SHIPMENT_WAITING, false);
     if (fact(facts, Fact.LARGE_SIZED_SHIPMENT_WAITING)) setFact(facts, Fact.LARGE_SIZED_OLD_SHIPMENT_WAITING, true);
-  } else if (param === FACT_SHIPMENT_DELAYED_24_HOURS) setFact(facts, FACT_SHIPMENT_DELAYED_24_HOURS, true);
+  } else if (param === Fact.SHIPMENT_DELAYED_24_HOURS) setFact(facts, Fact.SHIPMENT_DELAYED_24_HOURS, true);
 }

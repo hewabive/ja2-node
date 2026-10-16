@@ -91,7 +91,6 @@ export interface TacticalWorldPort {
   hostileBloodcatsPresent(): boolean;
   inMeanwhile(): boolean;
   boxing(): boolean;
-  fact(id: number): number;
   checkAndHandleUnloadingOfCurrentWorld(): void;
   enemyReinforcementsArrived(group: Group): void;
   addCorpsesToBloodcatLair(sector: Sector): void;
@@ -135,7 +134,6 @@ export const defaultTacticalWorldPort: TacticalWorldPort = {
   hostileBloodcatsPresent: () => false,
   inMeanwhile: () => false,
   boxing: () => false,
-  fact: () => 0,
   checkAndHandleUnloadingOfCurrentWorld: () => {},
   enemyReinforcementsArrived: () => {},
   addCorpsesToBloodcatLair: () => {},
@@ -144,5 +142,3 @@ export const defaultTacticalWorldPort: TacticalWorldPort = {
   sectorLiberated: () => {},
   sectorTakenByEnemy: () => {},
 };
-
-export const FACT_PLAYER_KNOWS_ABOUT_BLOODCAT_LAIR = 335;

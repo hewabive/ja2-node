@@ -1,20 +1,14 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Facts.h (the merchant facts); Tactical/Arms_Dealer_Init.cc GetArmsDealerShopHours;
+// @src src/game/Tactical/Arms_Dealer_Init.cc GetArmsDealerShopHours, IsMercADealer (FACT_MANNY_IS_BARTENDER);
 // @src Strategic/Scheduling.cc ExtractScheduleDoorLockAndUnlockInfo (as a hook). See docs/23 §16.1.
 
 import type { ItemTable } from '../../../../content/items/items.ts';
 import { type DealerDef, type DealerRole, type MerchantContent, NUM_ARMS_DEALERS } from '../../../../content/strategic/merchant-content.ts';
 import type { RollSource } from '../../forces/ports.ts';
+import { Fact } from '../../narrative/fact-ids.ts';
+import { fact, type NarrativeState } from '../../narrative/facts.ts';
 import { dealerState, type MerchantState, resetMerchantState } from './state.ts';
-
-export const MerchantFact = {
-  FRANK_HAS_BEEN_BRIBED: 105,
-  MANNY_IS_BARTENDER: 220,
-  FACT_222: 222,
-  HILLBILLIES_KILLED: 273,
-  ESTONI_REFUELLING_POSSIBLE: 277,
-} as const;
 
 export interface ShopHours {
   readonly open: number;
@@ -22,16 +16,12 @@ export interface ShopHours {
 }
 
 export interface MerchantHooks {
-  fact(id: number): boolean;
-  setFact(id: number): void;
   buySellRecordPending(profile: number): boolean;
   shopClosedByScript(profile: number): boolean;
   shopHours(profile: number): ShopHours | null;
 }
 
 export const defaultMerchantHooks: MerchantHooks = {
-  fact: () => false,
-  setFact: () => {},
   buySellRecordPending: () => false,
   shopClosedByScript: () => false,
   shopHours: () => null,
@@ -52,6 +42,7 @@ export interface MerchantContext {
   readonly preRandom: RollSource;
   readonly hooks: MerchantHooks;
   readonly world: MerchantWorld;
+  readonly narrative: NarrativeState;
 }
 
 export interface MerchantSetup {
@@ -66,6 +57,7 @@ export function createMerchantContext(
   state: MerchantState,
   streams: { readonly random: RollSource; readonly preRandom: RollSource },
   world: MerchantWorld,
+  narrative: NarrativeState,
 ): MerchantContext {
   if (state.dealers.length === 0) resetMerchantState(state, Math.max(NUM_ARMS_DEALERS, setup.content.dealers.length));
   return {
@@ -76,6 +68,7 @@ export function createMerchantContext(
     preRandom: streams.preRandom,
     hooks: { ...defaultMerchantHooks, ...setup.hooks },
     world,
+    narrative,
   };
 }
 
@@ -99,6 +92,6 @@ export function dealerIdFromProfile(ctx: MerchantContext, profile: number): numb
 
 export function isMercADealer(ctx: MerchantContext, profile: number): boolean {
   const manny = ctx.content.dealers[role(ctx, 'MANNY')];
-  if (manny && profile === manny.profile && !ctx.hooks.fact(MerchantFact.MANNY_IS_BARTENDER)) return false;
+  if (manny && profile === manny.profile && !fact(ctx.narrative, Fact.MANNY_IS_BARTENDER)) return false;
   return dealerIdFromProfile(ctx, profile) !== -1;
 }

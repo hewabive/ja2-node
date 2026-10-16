@@ -8,6 +8,7 @@ const STRATEGIC: StrategicView = {
   sectors: [],
   mercs: [],
   groups: [],
+  quests: [],
 };
 
 const base: PlayerView = {

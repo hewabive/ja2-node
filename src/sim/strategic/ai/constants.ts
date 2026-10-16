@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_AI.h (compositions, actions), Strategic_AI.cc (sector lists, times), Campaign_Types.h (SEC_*);
-// @src Tactical/Interface_Dialogue.h (NPC actions), Strategic/Facts.h, Tactical/Soldier_Profile.h, Strategic/Meanwhile.h. See docs/17 §15.
+// @src Tactical/Interface_Dialogue.h (NPC actions), Tactical/Soldier_Profile.h, Strategic/Meanwhile.h. See docs/17 §15.
 
 import { parseSectorId } from '../../../content/strategic/sector-ids.ts';
 
@@ -187,15 +187,6 @@ export const StrategicAiAction = {
   ADD_MORE_ELITES: 260,
   GIVE_KNOWLEDGE_OF_ALL_MERCS: 261,
   SEND_TROOPS_TO_SAM: 292,
-} as const;
-
-export const Fact = {
-  QUEEN_DEAD: 170,
-  FIRST_BATTLE_FOUGHT: 253,
-  HILLBILLIES_KILLED: 273,
-  MIKE_AVAILABLE_TO_ARMY: 275,
-  IGGY_AVAILABLE_TO_ARMY: 283,
-  KINGPIN_DEAD: 308,
 } as const;
 
 export const Profile = { IGGY: 68, QUEEN: 75, ELLIOT: 135, MIKE: 149 } as const;

@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Game_Init.cc InitNewGame, InitStrategicLayer; StrategicMap.cc SetupNewStrategicGame;
 // @src Game_Clock.cc InitNewGameClock; Campaign_Init.cc InitNewCampaign; Tactical/Soldier_Profile.cc LoadMercProfiles;
+// @src Strategic/Quests.cc InitQuestEngine (InitStrategicLayer step 2);
 // @src Tactical/Arms_Dealer_Init.cc InitAllArmsDealers (InitNewGame step 3); Laptop/BobbyR.cc InitBobbyRayInventory; Laptop/Laptop.cc
 // @src LaptopScreenInit, InitLaptopAndLaptopScreens, SetLaptopNewGameFlag. See docs/15 §4, docs/21 §8, docs/22 §0, docs/23 §3.
 
@@ -71,6 +72,7 @@ export function initNewGame(campaign: CampaignSim): void {
   laptop?.initBobbyRay();
   laptop?.initLaptopScreens();
   setupNewStrategicGame(campaign);
+  campaign.narrative.initQuestEngine();
   initStrategicLayerMap(economy, {
     initStrategicAI: () => initStrategicAiForNewCampaign(queen),
     initNpcs: () => initEconomyStrategicLayer(economy),

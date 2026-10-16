@@ -1,5 +1,5 @@
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
-import { fact, setFact } from '../../campaign/narrative/facts.ts';
+import { fact, setFact } from '../narrative/facts.ts';
 import type { StrategicState } from '../state.ts';
 import type { StrategicEvent } from '../time/event-queue.ts';
 import type { ClockContext } from '../time/world-clock.ts';

@@ -103,6 +103,14 @@ adds the record/approach fields — whichever spec lands first adds the shared o
 5. `PeriodicSlots.hourlyQuestUpdate`, `hourlyLarryUpdate`, `hourlyCheckIfSlayAloneSoHeCanLeave`, `payOffSkyriderDebtIfAny` are
    empty; `hourlyProgressUpdate` computes the milestones but applies none (§4.4); events 4, 27, 28, 29, 30, 34, 36, 41, 63, 67
    have no-op handlers (`15` §2.7).
+   *Findings 1–5 implemented (second M6 slice, 2026-10-16) except `HourlyLarryUpdate`, the elite upgrade to Mike/Iggy,
+   `PostSchedules` and events 29, 30, 36 (helicopter and schedules): one store `StrategicState.narrative`
+   (`src/sim/strategic/narrative/facts.ts`, ids in `fact-ids.ts`/`npc-ids.ts` checked against `data/tables/narrative.json`),
+   `CheckFact` in `check-fact.ts`, quests in `quests.ts`, presence in `presence.ts`, `early-morning.ts`, `hourly.ts`, the
+   placement filter and overrides in `src/sim/tactical/narrative/placement.ts` and `profile-insertion.ts`, the campaign glue in
+   `src/sim/campaign/narrative/narrative-flow.ts`. The port fields `TacticalWorldPort.fact`, `EconomyHooks.setFact` and
+   `MerchantHooks.fact/setFact`, `BattleState.firstBattle/quests`, `state.npcPlacements` and `terrorists.sectors` are gone:
+   strategic code reads the store, merchants get it as `MerchantContext.narrative`.*
 6. **Bug:** `src/sim/tactical/combat/hit.ts:61-62` sets `KINGPIN_CIV_GROUP = 4` and `HICKS_CIV_GROUP = 12`; the enum
    (`Tactical/Overhead_Types.h:269-290`) gives `KINGPIN_CIV_GROUP = 2`, `HICKS_CIV_GROUP = 10`. The check
    (`Tactical/LOS.cc:2097`) decides whether a neutral target becomes the firer's target without the `Random(100) < 60` draw, so
@@ -312,7 +320,7 @@ context is `src` = `gpSrcSoldier`, `dest` = `gpDestSoldier`, `srcProfile` = `gub
 | 304 | `ROCKET_RIFLE_EXISTS` | `ItemTypeExistsAtLocation(10472, ROCKET_RIFLE, level 0)` in the loaded world | `:947-949` |
 | 319 | `PLAYER_IN_SAME_ROOM` | an OUR merc in sector stands in soldier(p)'s room | `:264-284, 987-989` |
 | 232, 324–332 | `PLAYER_SPOKE_TO_<mine>_MINER`, `PLAYER_IN_CONTROLLED_<mine>_MINE` | `SpokenToHeadMiner(mine)`; the loaded sector belongs to that mine and is not enemy controlled (Drassen, Cambria, Chitzena, Alma, Grumm) | `:991-1020` |
-| 337 | `ENOUGH_LOYALTY_TO_TRAIN_MILITIA` | the loaded sector's town uses loyalty, started, rating ≥ `MIN_RATING_TO_TRAIN_TOWN` | `:473-481, 1022-1024` |
+| 337 | `ENOUGH_LOYALTY_TO_TRAIN_MILITIA` | the loaded sector's town (by `AsByte()`, so z is ignored) uses loyalty, started, rating ≥ `MIN_RATING_TO_TRAIN_TOWN` | `:473-481, 1022-1024` |
 | 338 | `WALKER_AT_BAR` | Father's profile sector x/y is C13 (z not tested) | `:1026-1028` |
 | 341 | `UNPROPOSITIONED_FEMALE_SPEAKING_TO_NPC` | as 87, and the talker's profile lacks `ASKED_BY_HICKS` (note: src is chosen first even if it fails the flag test) | `:315-332, 1034-1036` |
 | 342 | `84_AND_85_TRUE` | stored `FACT_84` && 85 | `:1038-1040` |
@@ -334,6 +342,10 @@ records triggered later by proximity, timers or deaths see the last conversation
 the same persistence: `narrative.talk = {src: soldierId | null, dest: soldierId | null, srcProfile}` is written by `docs/24`
 when a conversation starts and read here; it is transient (not saved: after a native load the original's pointers are null,
 `ID:153-154`), and a soldier id that no longer resolves reads as null.
+*Implemented: `NarrativeFlow.talk = {src, dest, srcProfile}` (soldier ids, `srcProfile` 0 at start as the original's
+zero-initialised global), resolved per call by `NarrativeFlow.talkContext()`; `docs/24` writes it. The dialogue code calls
+`checkFact(narrative.factContext(), id, npc)` or `narrative.checkFact(id, npc)`; tactical rules call
+`TacticalState.narrative.fact(id, profile)`, which is `CheckFact`.*
 
 ---
 
@@ -432,7 +444,8 @@ nothing by themselves: no experience, money, loyalty or progress. Rewards come f
 There is no quest screen in the original: the player sees quests only as history lines (§2.2). The player view therefore
 derives `quests` from the history log, never from `narrative.quests`: one entry per quest that has a `QUEST_STARTED` or
 `QUEST_FINISHED` line, with the quest's internal name, the start and finish minutes and sectors. A quest started or ended
-without history (Alma's skip, a silent restart) is invisible, exactly as in the original.
+without history (Alma's skip, a silent restart) is invisible, exactly as in the original. *Implemented:
+`src/server/quest-view.ts`, `strategic.quests` (`docs/04` §6.11).*
 
 ---
 
@@ -811,6 +824,8 @@ still in the old world (§4.6); then, unless loading a save, **`HandleQuestCodeO
    sector)`] `< 3` → `DecideOnAssassin` (§11.4).
 6. D5 → `gBoxer[0..2] = none` (§7).
 7. P3 → Elliot's profile life = max unless he is dead.
+
+Steps 6 and 7 compare `sNewSector.AsByte()`, so they also run for any level below D5 and P3.
 8. `ResetOncePerConvoRecordsForAllNPCsInLoadedSector` (`docs/24`; the world is still the old one).
 
 **Exit** (`HandleDefiniteUnloadingOfWorld`, `SM:2902-2953`, both when loading a new map and when trashing the world;
@@ -832,7 +847,7 @@ and `!useProfileInsertion`. Then the quest overrides (civilian team only):
 
 | Where | Rule | Lines |
 |---|---|---|
-| ice-cream truck placement | only when "the truck is on our team", tested as `FindSoldierByProfileIDOnPlayerTeam(ICECREAMTRUCK)` — a **body-type value (27) used as a profile id**: the A.I.M. merc with id 27; then the placement is skipped (returns true) unless Hamous is in this sector and not recruited | `:436-446` |
+| ice-cream truck placement | only when "the truck is on our team", tested as `FindSoldierByProfileIDOnPlayerTeam(ICECREAMTRUCK)` — a **body-type value (26, `Animation_Data.h`) used as a profile id**: the A.I.M. merc with id 26; then the placement is skipped (returns true) unless Hamous is in this sector and not recruited | `:436-446` |
 | C5, Kingpin group, (`civGroupHostile[KINGPIN] == WILL_BECOME_HOSTILE` or quest 4 in progress with `KINGPIN_CAN_SEND_ASSASSINS`) | unprofiled: gridno = `13531 + u(−7, 7) + u(−7, 7)·160` (two `std::uniform_int_distribution` draws on the shared engine; the order of the two operands is unspecified C++, inferred left first), orders by [`PreRandom(3)`] `ONGUARD/CLOSEPATROL/ONCALL`; BILLY: `u(−29, 29)` twice, `SEEKENEMY`; MADAME: skipped | `:458-496` |
 | P3, not in a meanwhile | Queen dead → Queen's civ group skipped; alive → `gfUseAlternateQueenPosition` puts the Queen at 11448 and every civilian **not** in the Queen's group is skipped (`docs/26`) | `:497-516` |
 | J9 (Tixa) liberated | unprofiled civilians other than kids skipped (exists in `sector-flow.ts`) | `:518-529` |
@@ -1763,6 +1778,12 @@ The helicopter, boxing and the robot are tested with synthetic states (no stub m
 
 ### 15.2 Order of work
 
+*(a), (b) and (c) implemented (second M6 slice, 2026-10-16), with the oracle probes of §17 `narrative`, `checkfact`,
+`quest`, `setquest`, `npcprofile`, `earlymorning`, `hourlynpc`, `questentry`, `questexit` and `entersector`
+(`tools/oracle/probes/facts.txt`); left for later slices: `HourlyLarryUpdate`, the elite upgrade to Mike and Iggy,
+`PostSchedules`, the Kingpin money check and the hospital supplies on sector exit and at 04:00 (ports), the default-response
+flags of the 04:00 event (`docs/24`), and the boxing and desire-to-talk inputs of `CheckFact`.*
+
 (a) facts and quests store, migration of the scattered fact ports, native import of facts/quests, history coupling with `21`;
 (b) profile NPC fields, presence (new game, `AddPlacementToWorld` filter and overrides, `AddProfiles…`, entry/exit quest code,
 04:00, hourly, events 28/41/63/67); (c) the computed facts; (d) the action catalog and the NPC system events on `docs/24`'s
@@ -1834,7 +1855,7 @@ loaded sector (where the inputs are known).
 
 ## 17. Oracle probes (`tools/oracle`)
 
-A `patches/0010-narrative-oracle.patch` exposes the static helpers (`HandleQuestCodeOnSectorExit`, `HourlyQuestUpdate`,
+A narrative oracle patch (shipped as `patches/0012-facts-oracle.patch` for the first probes, `0010` was taken) exposes the static helpers (`HandleQuestCodeOnSectorExit`, `HourlyQuestUpdate`,
 `HourlyLarryUpdate`, `HourlyCheckIfSlayAloneSoHeCanLeave`, `DecideActiveTerrorists`, `InitNPCs`, `PostSchedule`,
 `DialogueMessageBoxCallBack` with a chosen answer, `PickABoxer`, `CountPeopleInBoxingRingAndDoActions`,
 `HandleSAMSiteAttackOfHelicopterInSector`) and a talk-context setter; outputs stay outside the repo.
@@ -1881,7 +1902,7 @@ through `npcbox`); `EnterSector` needs the loading screen code to be inert headl
   record 27; `MEDICAL_REQUESTOR_2`'s "one wounded" branch is unreachable; Willis's free treatment zeroes Vince's balance.
 - The lie check compares `wis(s) + ldr(s)` with `wis(liar) + ldr(s)`: only wisdom picks the liar.
 - `ENABLE_CAMBRIA_DOCTOR_BONUS` lands 48–71 h later; `DELAYED_MAKE_BRENDA_LEAVE` is 6 h.
-- The ice-cream truck test uses the body-type value 27 as a profile id; the schedule "enter sector" AI test reads the wrong
+- The ice-cream truck test uses the body-type value 26 as a profile id; the schedule "enter sector" AI test reads the wrong
   flags byte (`RECRUITED`); `SetupProfileInsertionDataForSoldier` overwrites the record with the action id; `gsRobotGridNo` is
   never set (V too), so the robot construction graphic is never removed.
 - Kingpin's later money check counts the money of whatever world is loaded; his leftover cash vanishes when the player leaves

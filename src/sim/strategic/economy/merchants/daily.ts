@@ -14,7 +14,9 @@ import {
   maxItemAmount,
 } from '../../../../content/strategic/merchant-content.ts';
 import { u8 } from '../../../../core/int.ts';
-import { dealerDef, type MerchantContext, MerchantFact, role } from './context.ts';
+import { Fact } from '../../narrative/fact-ids.ts';
+import { fact } from '../../narrative/facts.ts';
+import { dealerDef, type MerchantContext, role } from './context.ts';
 import {
   armsDealerGetsFreshStock,
   guaranteeAtLeastXItemsOfIndex,
@@ -275,7 +277,7 @@ export function adjustCertainDealersInventory(ctx: MerchantContext): void {
   limitArmsDealersInventory(ctx, tony, c.AMMO, TONY_AMMO_TYPES);
   for (const d of ctx.content.dealers) if (hasDealerFlag(d, DealerFlag.SELLS_ALCOHOL)) guaranteeMinimumAlcohol(ctx, d);
   guaranteeAtLeastXItemsOfIndex(ctx, role(ctx, 'SAM'), ctx.content.itemIds.JAR, SAM_JARS);
-  if (ctx.hooks.fact(MerchantFact.ESTONI_REFUELLING_POSSIBLE)) guaranteeFuel(ctx);
+  if (fact(ctx.narrative, Fact.ESTONI_REFUELLING_POSSIBLE)) guaranteeFuel(ctx);
   const franz = role(ctx, 'FRANZ');
   if (!(dealerState(ctx.state, franz).status.flags & FRANZ_HAS_SOLD_VIDEO_CAMERA))
     guaranteeAtLeastXItemsOfIndex(ctx, franz, ctx.content.itemIds.VIDEO_CAMERA, FRANZ_VIDEO_CAMERAS);

@@ -18,13 +18,9 @@ const OFFSET_SHOTS_FIRED = 314;
 const OFFSET_SHOTS_HIT = 316;
 const OFFSET_BATTLES_FOUGHT = 318;
 const OFFSET_TIMES_WOUNDED = 320;
-const OFFSET_PROFILE_GRIDNO = 408;
-const OFFSET_SECTOR_Z = 669;
 const OFFSET_CHECKSUM = 696;
 
 export interface SavedMercProfile extends MercProfile {
-  readonly sectorZ: number;
-  readonly profileGridNo: number;
   readonly kills: number;
   readonly assists: number;
   readonly shotsFired: number;
@@ -55,8 +51,6 @@ export function decodeSavedProfile(id: number, plain: Uint8Array, stracLinuxForm
   const v = new DataView(record.buffer, record.byteOffset, record.byteLength);
   return {
     ...parseProfile(id, record),
-    sectorZ: v.getInt8(OFFSET_SECTOR_Z),
-    profileGridNo: v.getInt16(OFFSET_PROFILE_GRIDNO, true),
     kills: v.getUint16(OFFSET_KILLS, true),
     assists: v.getUint16(OFFSET_ASSISTS, true),
     shotsFired: v.getUint16(OFFSET_SHOTS_FIRED, true),

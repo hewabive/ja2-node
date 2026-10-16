@@ -1,12 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Quests.h QUESTNOTSTARTED, QUESTINPROGRESS, QUESTDONE. See docs/25 §2.1, §6.
+// @src src/game/Strategic/Quests.cc CheckFact (fact), SetFactTrue, SetFactFalse, gubQuest. See docs/25 §1, §2.1, §6.
 
+import { QuestStatus } from '../../strategic/narrative/facts.ts';
 import type { Soldier } from '../soldier.ts';
 import type { SectorRef } from '../state.ts';
 
 export interface NarrativePort {
-  fact(id: number): boolean;
+  fact(id: number, profile?: number): boolean;
   setFactTrue(id: number): void;
   setFactFalse(id: number): void;
   questStatus(quest: number): number;
@@ -30,8 +31,6 @@ export interface NarrativePort {
   npcReachedDestination(s: Soldier): void;
   replaceLocationInNpcData(profile: number, oldGridNo: number, newGridNo: number): void;
 }
-
-export const QuestStatus = { NOT_STARTED: 0, IN_PROGRESS: 1, DONE: 2 } as const;
 
 export const NO_NARRATIVE_PORT: NarrativePort = {
   fact: () => false,

@@ -1,0 +1,128 @@
+// Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
+// Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
+// @src src/game/Strategic/Quests.cc gubFact, gubQuest, SetFactTrue, SetFactFalse, LoadQuestInfoFromSavedGameFile;
+// @src Quests.h NUM_FACTS, MAX_QUESTS, QUESTNOTSTARTED, QUESTINPROGRESS, QUESTDONE; Boxing.h NUM_BOXERS; SaveLoadGame.cc
+// @src LoadGeneralInfo (gubBoxingMatchesWon, gubBoxersRests, gfBoxersResting, gfBoxerFought, gubCambriaMedicalObjects,
+// @src gbHospitalPriceModifier, giHospitalTempBalance, giHospitalRefund, gfPlayerTeamSawJoey, gfMikeShouldSayHi).
+// @src See docs/25 §0, §1.1.
+
+import { u8 } from '../../../core/int.ts';
+import { Fact } from './fact-ids.ts';
+
+export const NUM_FACTS = 500;
+export const MAX_QUESTS = 30;
+export const NUM_BOXERS = 3;
+
+export const QuestStatus = { NOT_STARTED: 0, IN_PROGRESS: 1, DONE: 2 } as const;
+
+export interface BoxingRecord {
+  matchesWon: number;
+  rests: number;
+  resting: boolean;
+  lastMatchWonByPlayer: boolean;
+  readonly fought: boolean[];
+}
+
+export interface HospitalAccount {
+  priceModifier: number;
+  tempBalance: number;
+  refund: number;
+}
+
+export interface NarrativeState {
+  readonly facts: Uint8Array;
+  readonly quests: Uint8Array;
+  readonly boxing: BoxingRecord;
+  readonly hospital: HospitalAccount;
+  cambriaMedicalObjects: number;
+  playerTeamSawJoey: boolean;
+  mikeShouldSayHi: boolean;
+}
+
+export interface FactHooks {
+  estoniRefuellingPossible(): void;
+}
+
+export const NO_FACT_HOOKS: FactHooks = { estoniRefuellingPossible: () => {} };
+
+export function createNarrativeState(): NarrativeState {
+  return {
+    facts: new Uint8Array(NUM_FACTS),
+    quests: new Uint8Array(MAX_QUESTS),
+    boxing: { matchesWon: 0, rests: 0, resting: false, lastMatchWonByPlayer: false, fought: new Array<boolean>(NUM_BOXERS).fill(false) },
+    hospital: { priceModifier: 0, tempBalance: 0, refund: 0 },
+    cambriaMedicalObjects: 0,
+    playerTeamSawJoey: false,
+    mikeShouldSayHi: false,
+  };
+}
+
+export function fact(n: NarrativeState, id: number): boolean {
+  return (n.facts[id] ?? 0) !== 0;
+}
+
+export function factValue(n: NarrativeState, id: number): number {
+  return n.facts[id] ?? 0;
+}
+
+export function setFact(n: NarrativeState, id: number, value: boolean | number = true): void {
+  if (id < 0 || id >= NUM_FACTS) return;
+  n.facts[id] = typeof value === 'number' ? u8(value) : value ? 1 : 0;
+}
+
+export function setFactTrue(n: NarrativeState, id: number, hooks: FactHooks = NO_FACT_HOOKS): void {
+  if (id === Fact.ESTONI_REFUELLING_POSSIBLE && !fact(n, id)) hooks.estoniRefuellingPossible();
+  setFact(n, id, true);
+}
+
+export function setFactFalse(n: NarrativeState, id: number): void {
+  setFact(n, id, false);
+}
+
+export function questStatus(n: NarrativeState, quest: number): number {
+  return n.quests[quest] ?? QuestStatus.NOT_STARTED;
+}
+
+export function setQuestStatus(n: NarrativeState, quest: number, status: number): void {
+  if (quest < 0 || quest >= MAX_QUESTS) return;
+  n.quests[quest] = u8(status);
+}
+
+export function importNarrative(n: NarrativeState, facts: readonly number[], quests: readonly number[]): void {
+  n.facts.fill(0);
+  n.quests.fill(0);
+  facts.forEach((v, id) => {
+    setFact(n, id, v);
+  });
+  quests.forEach((v, id) => {
+    setQuestStatus(n, id, v);
+  });
+}
+
+export interface SavedNarrativeGlobals {
+  readonly boxingMatchesWon: number;
+  readonly boxersRests: number;
+  readonly boxersResting: boolean;
+  readonly lastBoxingMatchWonByPlayer: boolean;
+  readonly boxerFought: readonly boolean[];
+  readonly cambriaMedicalObjects: number;
+  readonly hospitalPriceModifier: number;
+  readonly hospitalTempBalance: number;
+  readonly hospitalRefund: number;
+  readonly playerTeamSawJoey: boolean;
+  readonly mikeShouldSayHi: boolean;
+}
+
+export function importNarrativeGlobals(n: NarrativeState, g: SavedNarrativeGlobals): void {
+  n.boxing.matchesWon = g.boxingMatchesWon;
+  n.boxing.rests = g.boxersRests;
+  n.boxing.resting = g.boxersResting;
+  n.boxing.lastMatchWonByPlayer = g.lastBoxingMatchWonByPlayer;
+  for (let i = 0; i < NUM_BOXERS; i++) n.boxing.fought[i] = g.boxerFought[i] ?? false;
+  n.cambriaMedicalObjects = g.cambriaMedicalObjects;
+  n.hospital.priceModifier = g.hospitalPriceModifier;
+  n.hospital.tempBalance = g.hospitalTempBalance;
+  n.hospital.refund = g.hospitalRefund;
+  n.playerTeamSawJoey = g.playerTeamSawJoey;
+  n.mikeShouldSayHi = g.mikeShouldSayHi;
+}

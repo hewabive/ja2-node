@@ -1,4 +1,3 @@
-import { sectorFromId } from '../../src/content/strategic/sector-ids.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import { buildNewCampaign } from '../../src/server/campaign-factory.ts';
 import { createSaveSession } from '../../src/server/save-session.ts';
@@ -25,10 +24,11 @@ import type { LaptopFlow } from '../../src/sim/campaign/laptop/laptop-flow.ts';
 import { Bookmark, NO_PERSONNEL_ENTRY } from '../../src/sim/campaign/laptop/laptop-state.ts';
 import { hireMercMerc, mercDebts, openMercAccount, payMercAccounts } from '../../src/sim/campaign/laptop/merc-site.ts';
 import { calcCompetence } from '../../src/sim/campaign/laptop/profile-state.ts';
-import { Fact, factValue, setFact } from '../../src/sim/campaign/narrative/facts.ts';
 import type { RosterMerc } from '../../src/sim/campaign/roster.ts';
 import { DrawMismatch, ReplayStream, type TracedDraw } from '../../src/sim/strategic/forces/autoresolve/replay-rng.ts';
 import type { RollSource } from '../../src/sim/strategic/forces/ports.ts';
+import { Fact } from '../../src/sim/strategic/narrative/fact-ids.ts';
+import { factValue, setFact } from '../../src/sim/strategic/narrative/facts.ts';
 import { createStrategicState, type StrategicState } from '../../src/sim/strategic/state.ts';
 import { EventKind, NUM_MIN_IN_DAY, NUM_MIN_IN_HOUR } from '../../src/sim/strategic/time/constants.ts';
 import { worldTotalMinutes } from '../../src/sim/strategic/time/world-clock.ts';
@@ -264,6 +264,7 @@ function profileDump(flow: LaptopFlow, id: number, p: ProfileProgress): Json {
     hangover: p.daysOfMoraleHangover,
     precedent: p.precedentQuoteSaid,
     mercDays: p.mercMercContractLength,
+    sector: [p.sectorX, p.sectorY, p.sectorZ],
     traits: [p.skillTrait, p.skillTrait2, p.personalityTrait, p.attitude, flow.profileRecord(id)?.bodyType ?? 0, p.sex],
     stats: [
       t.lifeMax,
@@ -284,11 +285,6 @@ function profileDump(flow: LaptopFlow, id: number, p: ProfileProgress): Json {
     invCount: [...p.inventoryCount],
     taken: flow.laptop.imp.taken.includes(id),
   };
-}
-
-function oracleProfile(p: Json): Json {
-  const { sector: _sector, ...rest } = p;
-  return rest;
 }
 
 function mercDump(m: RosterMerc): Json {
@@ -422,7 +418,7 @@ export class LaptopComparer {
       const mine = flow.profile(id);
       if (!mine && native.status === NO_TEXT_FILE_STATUS) continue;
       ourProfiles.push(mine ? profileDump(flow, id, mine) : { id, missing: true });
-      theirProfiles.push(oracleProfile(native));
+      theirProfiles.push(native);
     }
     ours.profiles = ourProfiles;
     theirs.profiles = theirProfiles;
@@ -467,13 +463,8 @@ export class LaptopComparer {
     const terrorists = flow.state.terrorists;
     const ours = {
       terrorists: (result.terrorists as number[][]).map(([pid = 0]) => {
-        const placed = terrorists.sectors.get(pid);
-        if (placed !== undefined) {
-          const s = sectorFromId(placed);
-          return [pid, s.x, s.y];
-        }
-        const record = flow.profileRecord(pid);
-        return [pid, record?.sectorX ?? 0, record?.sectorY ?? 0];
+        const p = flow.profile(pid);
+        return [pid, p?.sectorX ?? 0, p?.sectorY ?? 0];
       }),
       count: terrorists.count,
     };

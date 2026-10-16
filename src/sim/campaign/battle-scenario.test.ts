@@ -9,6 +9,8 @@ import type { SimEvent } from '../events.ts';
 import { PromptKind } from '../strategic/forces/battle-state.ts';
 import { createNewEnemyGroupDepartingFromSector } from '../strategic/forces/groups.ts';
 import { sectorInfo } from '../strategic/map/sectors.ts';
+import { Quest } from '../strategic/narrative/fact-ids.ts';
+import { QuestStatus } from '../strategic/narrative/facts.ts';
 import { EventKind } from '../strategic/time/constants.ts';
 import { addStrategicEvent } from '../strategic/time/event-queue.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
@@ -205,8 +207,10 @@ describe('autoresolve from the strategic state', () => {
       [32, 13, 9, true],
       [32, 13, 9, true],
     ]);
-    expect(c.drainEvents().filter((e) => e.type === 'mercCaptured')).toHaveLength(2);
-    expect(c.state.battle.quests.heldInAlma).toBe(1);
+    const events = c.drainEvents();
+    expect(events.filter((e) => e.type === 'mercCaptured')).toHaveLength(2);
+    expect(c.state.narrative.quests[Quest.HELD_IN_ALMA]).toBe(QuestStatus.IN_PROGRESS);
+    expect(events.some((e) => e.type === 'questStarted' && e.quest === 'HELD_IN_ALMA')).toBe(true);
   });
 
   it('retreats the squad and lets the militia fight on in autoresolve', () => {

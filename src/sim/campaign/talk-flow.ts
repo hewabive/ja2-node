@@ -60,8 +60,7 @@ import { NO_PROFILE, NOWHERE, type Soldier, Team } from '../tactical/soldier.ts'
 import { sectorMapOf, type TacticalState } from '../tactical/state.ts';
 import { selectSoldier } from '../tactical/turns/turns.ts';
 import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
-import { setFact } from './narrative/facts.ts';
-import { genericActionPort, statusOnlyQuestPort, storedFactSource } from './narrative/narrative-ports.ts';
+import { genericActionPort } from './narrative/narrative-ports.ts';
 
 export const AP_TALK = 6;
 const LOCK_PAUSE_ENGAGED_IN_CONV = 14;
@@ -297,14 +296,17 @@ export class TalkFlow {
       recruited: (p) => this.#recruited(p),
       meanwhile: () => null,
       talk: this.talk,
-      context: state.narrative.talk,
-      facts: setup.facts?.(campaign) ?? storedFactSource(state.narrative, tactical),
-      quests: setup.quests?.(campaign) ?? statusOnlyQuestPort(state.narrative),
+      context: campaign.narrative.talk,
+      facts: setup.facts?.(campaign) ?? { checkFact: (id, npc) => campaign.narrative.checkFact(id, npc) },
+      quests: setup.quests?.(campaign) ?? {
+        startQuest: (quest, sector) => campaign.narrative.startQuest(quest, sector),
+        endQuest: (quest, sector) => campaign.narrative.endQuest(quest, sector),
+      },
       actions: setup.actions?.(campaign, generic) ?? generic,
       give: { placeObjectInSoldierProfile: () => {}, returnItemToPlayer: () => {}, handleNpcItemGiven: () => {} },
       receive: {
         items: this.#itemFacts(),
-        hospital: this.talk.hospital,
+        hospital: state.narrative.hospital,
         calcMedicalCost: () => 0,
         frankCash: () => {},
         kingpinInHisHouse: () => this.#kingpinInHisHouse(),
@@ -321,7 +323,7 @@ export class TalkFlow {
       random: (n) => state.rng.int(n),
       tactical,
       profile: (id) => this.#profile(id),
-      setFact: (id, value) => setFact(state.narrative, id, value),
+      setFact: (id, value) => (value ? campaign.narrative.setFactTrue(id) : campaign.narrative.setFactFalse(id)),
       questValue: (index) => (index < QUEST_ARRAY_LENGTH ? (state.narrative.quests[index] ?? 0) : OVERRUN_QUEST_VALUE),
       townRating: (town) => state.economy.towns[town]?.rating ?? 0,
       threat: (merc) => this.#threat(merc),
@@ -353,7 +355,7 @@ export class TalkFlow {
       },
       isDealer: (profile) => (campaign.merchants ? isMercADealer(campaign.merchants, profile) : false),
       openShop: (dealer) => {
-        const talker = state.narrative.talk.src;
+        const talker = campaign.narrative.talk.src;
         if (talker !== null) campaign.shop?.openFromTalk(dealer, talker);
       },
       shopClosedByScript: (dealer) => campaign.merchants?.hooks.shopClosedByScript(dealer) ?? false,

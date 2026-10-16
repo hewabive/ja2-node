@@ -3,7 +3,7 @@
 // @src src/game/Strategic/Game_Event_Hook.cc EVENT_HELICOPTER_HOVER_TOO_LONG, EVENT_HELICOPTER_HOVER_WAY_TOO_LONG;
 // @src Strategic/Hourly_Update.cc HandleHourlyUpdate (PayOffSkyriderDebtIfAny); Strategic/MapScreen.cc RenderMapRegionBackground
 // @src (CheckAndHandleSkyriderMonologues while the pilot is available), the helicopter plotting and confirmation;
-// @src Strategic/Quests.cc CheckFact (FACT_LOYALTY_LOW for SKYRIDER); Quests.h LOYALTY_LOW_THRESHOLD; Strategic/Meanwhile.cc
+// @src Strategic/Meanwhile.cc
 // @src HandleKillChopperMeanwhileScene; Tactical/Vehicles.cc KillPersonInVehicle; Tactical/Soldier_Control.cc
 // @src SoldierTakeDamage (TAKE_DAMAGE_BLOODLOSS for a soldier outside the loaded sector), HandleTakeDamageDeath;
 // @src Strategic/Map_Screen_Helicopter.cc HandleHelicopterOnGround (removing Skyrider's soldier); Strategic/Assignments.cc
@@ -60,17 +60,13 @@ import {
   takeSoldierOutOfVehicle,
 } from '../strategic/forces/vehicles.ts';
 import { calculateTravelTimeOfGroup } from '../strategic/map/travel.ts';
+import { Fact } from '../strategic/narrative/fact-ids.ts';
 import { EventKind } from '../strategic/time/constants.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Team } from '../tactical/soldier.ts';
 import type { CampaignSim } from './campaign-sim.ts';
-import { factValue, setFact } from './narrative/facts.ts';
 
-export const FACT_LOYALTY_LOW = 136;
-const LOYALTY_LOW_THRESHOLD = 30;
-const MINUTES_OF_SKYRIDER_GRACE = 24 * 60;
-const BLANK_TOWN = 0;
 const KILL_CHOPPER_DELAY = 55;
 const KILL_CHOPPER_VARIANCE = 10;
 const BLOODLOSS_DAMAGE = 100;
@@ -157,14 +153,11 @@ export class HelicopterFlow {
   }
 
   port(): HelicopterPort {
-    const s = this.campaign.state;
+    const narrative = this.campaign.narrative;
     return {
-      fact: (id) => (this.campaign.strategic?.world.fact(id) ?? factValue(s.narrative, id)) !== 0,
-      setFactTrue: (id) => {
-        if (this.campaign.economy) this.campaign.economy.hooks.setFact(id);
-        else setFact(s.narrative, id);
-      },
-      skyriderLoyaltyLow: () => this.skyriderLoyaltyLow(),
+      fact: (id) => narrative.fact(id),
+      setFactTrue: (id) => narrative.setFactTrue(id),
+      skyriderLoyaltyLow: () => narrative.checkFact(Fact.LOYALTY_LOW, SKYRIDER),
       cosmeticChoice: (n) => this.#fx.int(n),
       killInVehicle: (id) => this.#killInVehicle(id),
       scheduleKillChopperMeanwhile: () => this.#scheduleKillChopperMeanwhile(),
@@ -204,23 +197,6 @@ export class HelicopterFlow {
   afterStrategicStep(): void {
     const ctx = this.campaign.strategic;
     if (ctx && isHelicopterPilotAvailable(ctx)) checkAndHandleSkyriderMonologues(ctx);
-  }
-
-  skyriderLoyaltyLow(): boolean {
-    const value = this.#skyriderLoyaltyLowValue();
-    setFact(this.campaign.state.narrative, FACT_LOYALTY_LOW, value);
-    return value;
-  }
-
-  #skyriderLoyaltyLowValue(): boolean {
-    const s = this.campaign.state;
-    const town = this.campaign.battle?.content.profiles[SKYRIDER]?.town ?? BLANK_TOWN;
-    const loyalty = town === BLANK_TOWN ? undefined : s.economy.towns[town];
-    const uses = this.economy?.economy.loyalty.usesLoyalty[town] === true;
-    if (!loyalty?.started || !uses) return false;
-    const heli = s.forces.helicopter;
-    if (heli.talkState === 0 || worldTotalMinutes(s.clock) - heli.lastMonologueMinute < MINUTES_OF_SKYRIDER_GRACE) return false;
-    return loyalty.rating < LOYALTY_LOW_THRESHOLD;
   }
 
   #killInVehicle(id: number): boolean {
