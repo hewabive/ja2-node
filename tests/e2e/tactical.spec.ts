@@ -16,12 +16,15 @@ declare global {
   }
 }
 
+const SQUAD_SIZE = 4;
+
 test('shows the stub sandbox squad and walks the selected merc to a clicked tile', async ({ page }) => {
   await page.goto('/src/devtools/tactical/');
   await page.waitForFunction(() => window.__ja2Tactical?.ready || window.__ja2Tactical?.error !== null);
   expect(await page.evaluate(() => window.__ja2Tactical.error)).toBeNull();
   expect(await page.evaluate(() => window.__ja2Tactical.map)).toBe('stubs/world/maps/village.dat');
-  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.drawnSoldiers)).toBe(4);
+  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.drawnSoldiers)).toBeGreaterThanOrEqual(SQUAD_SIZE);
+  await expect.poll(() => page.evaluate(() => window.__ja2Tactical.drawnSoldiers === window.__ja2Tactical.soldiers)).toBe(true);
   const start = await page.evaluate(() => window.__ja2Tactical.selectedGridNo);
   expect(start).not.toBeNull();
 

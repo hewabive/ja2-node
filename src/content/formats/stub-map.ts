@@ -1,7 +1,7 @@
 import { FormatError } from '../binary/errors.ts';
 import { WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../world/grid.ts';
 import { type TileTables, typeIndex } from '../world/tile-tables.ts';
-import { LAYER_NAMES, type LayerName, type MapDef, tileLayerFromLists } from './map.ts';
+import { LAYER_NAMES, type LayerName, type MapDef, type Placement, tileLayerFromLists } from './map.ts';
 
 export const STUB_MAP_FORMAT = 'ja2-node.map/1';
 const STUB_MAP_MAJOR_VERSION = 5;
@@ -18,6 +18,16 @@ interface Legend {
   readonly room: number;
 }
 
+export interface StubSoldier {
+  readonly team: number;
+  readonly x: number;
+  readonly y: number;
+  readonly direction: number;
+  readonly orders: number;
+  readonly attitude: number;
+  readonly soldierClass: number;
+}
+
 export interface StubMapSource {
   readonly name: string;
   readonly tilesetId: number;
@@ -25,6 +35,59 @@ export interface StubMapSource {
   readonly fill: Legend;
   readonly legend: ReadonlyMap<string, Legend>;
   readonly rows: readonly string[];
+  readonly soldiers: readonly StubSoldier[];
+}
+
+const AVERAGE_LEVEL = 2;
+const FULL_SOLDIER_FLAG = 0x001;
+const TEAMS: Readonly<Record<string, number>> = { ENEMY: 1, CREATURE: 2, MILITIA: 3, CIV: 4 };
+const DIRECTIONS: Readonly<Record<string, number>> = {
+  NORTH: 0,
+  NORTHEAST: 1,
+  EAST: 2,
+  SOUTHEAST: 3,
+  SOUTH: 4,
+  SOUTHWEST: 5,
+  WEST: 6,
+  NORTHWEST: 7,
+};
+const ORDERS: Readonly<Record<string, number>> = {
+  STATIONARY: 0,
+  ONGUARD: 1,
+  CLOSEPATROL: 2,
+  FARPATROL: 3,
+  POINTPATROL: 4,
+  ONCALL: 5,
+  SEEKENEMY: 6,
+  RNDPTPATROL: 7,
+};
+const ATTITUDES: Readonly<Record<string, number>> = {
+  DEFENSIVE: 0,
+  BRAVESOLO: 1,
+  BRAVEAID: 2,
+  CUNNINGSOLO: 3,
+  CUNNINGAID: 4,
+  AGGRESSIVE: 5,
+};
+const CLASSES: Readonly<Record<string, number>> = { NONE: 0, ADMINISTRATOR: 1, ELITE: 2, ARMY: 3 };
+
+function named(table: Readonly<Record<string, number>>, name: string | undefined, what: string, line: number): number {
+  const v = name === undefined ? undefined : table[name];
+  if (v === undefined) throw new FormatError(`line ${line}: unknown ${what} '${name ?? ''}'`);
+  return v;
+}
+
+function parseSoldier(spec: string, line: number): StubSoldier {
+  const [team, x, y, direction, orders, attitude, soldierClass] = spec.split(/\s+/);
+  return {
+    team: named(TEAMS, team, 'team', line),
+    x: Number(x),
+    y: Number(y),
+    direction: named(DIRECTIONS, direction, 'direction', line),
+    orders: named(ORDERS, orders, 'orders', line),
+    attitude: named(ATTITUDES, attitude, 'attitude', line),
+    soldierClass: named(CLASSES, soldierClass ?? 'NONE', 'soldier class', line),
+  };
 }
 
 function parseLegend(spec: string, tables: TileTables, line: number): Legend {
@@ -53,6 +116,7 @@ export function parseStubMapSource(text: string, tables: TileTables): StubMapSou
   let fill: Legend | null = null;
   const legend = new Map<string, Legend>();
   const rows: string[] = [];
+  const soldiers: StubSoldier[] = [];
   let inMap = false;
   lines.slice(1).forEach((raw, i) => {
     const lineNo = i + 2;
@@ -76,6 +140,7 @@ export function parseStubMapSource(text: string, tables: TileTables): StubMapSou
       origin = { x: x ?? 0, y: y ?? 0 };
     } else if (key === 'fill') fill = parseLegend(value, tables, lineNo);
     else if (key === 'legend' && symbol) legend.set(symbol, parseLegend(value, tables, lineNo));
+    else if (key === 'soldier') soldiers.push(parseSoldier(value, lineNo));
     else throw new FormatError(`line ${lineNo}: unknown key '${key}'`);
   });
   if (!fill) throw new FormatError('stub map needs a fill legend');
@@ -84,7 +149,7 @@ export function parseStubMapSource(text: string, tables: TileTables): StubMapSou
     throw new FormatError('stub map does not fit into the world');
   }
   for (const row of rows) for (const ch of row) if (!legend.has(ch)) throw new FormatError(`unknown map symbol '${ch}'`);
-  return { name, tilesetId, origin, fill, legend, rows };
+  return { name, tilesetId, origin, fill, legend, rows, soldiers };
 }
 
 export function stubMapToMapDef(source: StubMapSource): Omit<MapDef, 'trailingBytes'> {
@@ -109,7 +174,7 @@ export function stubMapToMapDef(source: StubMapSource): Omit<MapDef, 'trailingBy
   return {
     majorVersion: STUB_MAP_MAJOR_VERSION,
     minorVersion: STUB_MAP_MINOR_VERSION,
-    flags: 0,
+    flags: source.soldiers.length > 0 ? FULL_SOLDIER_FLAG : 0,
     tilesetId: source.tilesetId,
     heights: new Uint8Array(WORLD_MAX),
     worldFlags: new Uint8Array(WORLD_MAX),
@@ -123,17 +188,42 @@ export function stubMapToMapDef(source: StubMapSource): Omit<MapDef, 'trailingBy
       eastGridNo: -1,
       southGridNo: -1,
       westGridNo: -1,
-      numIndividuals: 0,
+      numIndividuals: source.soldiers.length,
       mapVersion: STUB_MAP_MINOR_VERSION,
       restrictedScrollId: 0,
       editorSmoothingType: 0,
       centerGridNo: center,
       isolatedGridNo: -1,
     },
-    placements: [],
+    placements: source.soldiers.map((soldier) => stubPlacement(source, soldier)),
     exitGrids: [],
     doors: [],
     edgepoints: null,
     schedules: [],
+  };
+}
+
+function stubPlacement(source: StubMapSource, s: StubSoldier): Placement {
+  const g = (source.origin.y + s.y) * WORLD_COLS + source.origin.x + s.x;
+  return {
+    basic: {
+      detailed: false,
+      startingGridNo: g,
+      team: s.team,
+      relativeAttributeLevel: AVERAGE_LEVEL,
+      relativeEquipmentLevel: AVERAGE_LEVEL,
+      direction: s.direction,
+      orders: s.orders,
+      attitude: s.attitude,
+      bodyType: -1,
+      patrolGrid: [g],
+      patrolCount: 0,
+      onRoof: false,
+      soldierClass: s.soldierClass,
+      civilianGroup: 0,
+      priorityExistence: true,
+      hasKeys: false,
+    },
+    detailedRaw: null,
   };
 }

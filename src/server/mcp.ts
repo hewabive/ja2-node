@@ -21,7 +21,11 @@ function describeSession(session: Session): Record<string, unknown> {
   };
 }
 
-export function buildMcpServer(sessions: ReadonlyMap<string, Session>, defaultSession: string): McpServer {
+export type SessionFactory = (id: string, seed: number) => Promise<Session>;
+
+const MAX_SESSIONS = 16;
+
+export function buildMcpServer(sessions: Map<string, Session>, defaultSession: string, createSession?: SessionFactory): McpServer {
   const server = new McpServer(SERVER_INFO);
   const pick = (id: string | undefined): Session => {
     const s = sessions.get(id ?? defaultSession);
@@ -35,6 +39,25 @@ export function buildMcpServer(sessions: ReadonlyMap<string, Session>, defaultSe
     { description: 'Game status: tick, map, time driver, soldier count, whether the simulation is idle.', inputSchema: sessionArg },
     async ({ session }) => text(describeSession(pick(session))),
   );
+  if (createSession) {
+    server.registerTool(
+      'newSession',
+      {
+        description:
+          'Start a fresh sandbox game in its own session (same map and squad, independent state) and return its id; pass it as "session" to the other tools. Optional seed for the random streams.',
+        inputSchema: { seed: z.number().int().nonnegative().optional() },
+      },
+      async ({ seed }) => {
+        if (sessions.size >= MAX_SESSIONS) throw new Error(`at most ${MAX_SESSIONS} sessions`);
+        let n = sessions.size;
+        while (sessions.has(`${defaultSession}-${n}`)) n++;
+        const id = `${defaultSession}-${n}`;
+        const created = await createSession(id, seed ?? n);
+        sessions.set(id, created);
+        return text(describeSession(created));
+      },
+    );
+  }
   server.registerTool(
     'observe',
     {
@@ -79,10 +102,11 @@ export function buildMcpServer(sessions: ReadonlyMap<string, Session>, defaultSe
 
 export async function handleMcpRequest(
   request: Request,
-  sessions: ReadonlyMap<string, Session>,
+  sessions: Map<string, Session>,
   defaultSession: string,
+  createSession?: SessionFactory,
 ): Promise<Response> {
-  const server = buildMcpServer(sessions, defaultSession);
+  const server = buildMcpServer(sessions, defaultSession, createSession);
   const transport = new WebStandardStreamableHTTPServerTransport({ enableJsonResponse: true });
   await server.connect(transport);
   try {

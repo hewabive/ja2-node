@@ -33,6 +33,7 @@ const app = createApp({
   vfsGeneration: Date.now().toString(36),
   sessions,
   defaultSession,
+  createSession: async (id, seed) => new Session(id, await createSandboxSession(readVfs, data.dataDir !== null, seed)),
   ...(existsSync(clientDir) ? { clientDir } : {}),
   info: { originalData: data.dataDir !== null, slfCount: data.slfCount, stubs: data.stubsDir !== null },
 });

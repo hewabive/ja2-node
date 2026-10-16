@@ -852,5 +852,8 @@ Specs: `docs/10` (turn-based), `11` (attacks and damage), `12` (items and explos
    LAW and tank cannon explode where their rocket or shell stops.
 10. **Oracle**: `tools/oracle/compare.ts` checks A9 movement costs, paths with AP costs and LOS against the native
     build; all shipped probes match.
+11. **Stub firefight**: the stub village holds a three-soldier garrison (`soldier:` lines in `stubs/maps/*.map.txt`),
+    stub mercs carry pistols, and MCP `newSession` gives every agent its own seeded sandbox. The e2e test
+    `tests/e2e/battle.spec.ts` is an agent that walks into the garrison and fights it through MCP alone.
 
 **Not in M3 yet**: save import.

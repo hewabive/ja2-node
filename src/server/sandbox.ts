@@ -5,6 +5,7 @@ import type { CommandEnvelope } from '../protocol/messages.ts';
 import type { PlayerView } from '../protocol/view.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
+import { createItem, createItems } from '../sim/items/object.ts';
 import { states } from '../sim/tactical/animation.ts';
 import {
   addSoldierToSector,
@@ -13,6 +14,7 @@ import {
   createMercFromProfile,
   SANDBOX_POPULATION,
 } from '../sim/tactical/creation.ts';
+import { InvSlot } from '../sim/tactical/inventory.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
 import { revealedRooms } from '../sim/tactical/perception/fov.ts';
 import { createSoldier, firstFreeSoldierId, NO_PROFILE, type Soldier, Team } from '../sim/tactical/soldier.ts';
@@ -83,32 +85,48 @@ function entryGridNo(sim: TacticalSim): number {
   return [info.northGridNo, info.centerGridNo].find((g) => isVisibleTile(g)) ?? FALLBACK_ENTRY;
 }
 
+const STUB_MERC_GUN = 'GLOCK_17';
+const STUB_MERC_MAGAZINE = 'CLIP9_15';
+const STUB_MERC_SPARE_MAGAZINES = 2;
+
+function armStubMerc(sim: TacticalSim, s: Soldier): Soldier {
+  const items = sim.state.content.items;
+  const gun = items.byName.get(STUB_MERC_GUN);
+  const magazine = items.byName.get(STUB_MERC_MAGAZINE);
+  if (gun) s.inv[InvSlot.HAND] = createItem(items, gun.index, 100);
+  if (magazine) s.inv[InvSlot.BIGPOCK1] = createItems(items, magazine.index, 100, STUB_MERC_SPARE_MAGAZINES);
+  return s;
+}
+
 function stubMerc(sim: TacticalSim, id: number): Soldier {
   const bodies = [0, 1, 3, 2];
   const vests = ['BLUEVEST', 'GREENVEST', 'YELLOWVEST', 'BROWNVEST'];
-  return createSoldier({
-    id,
-    team: Team.OUR,
-    name: `Merc ${id + 1}`,
-    bodyType: bodies[id % bodies.length] ?? 0,
-    palettes: { hair: 'BROWNHEAD', skin: 'TANSKIN', vest: vests[id % vests.length] ?? 'BLUEVEST', pants: 'JEANPANTS' },
-    stats: {
-      agility: 80,
-      dexterity: 80,
-      strength: 80,
-      wisdom: 80,
-      leadership: 50,
-      marksmanship: 80,
-      mechanical: 30,
-      explosives: 30,
-      medical: 30,
-      experience: 3,
-    },
-    life: 100,
-    gridNo: -1,
-    direction: 4,
-    state: states(sim.state.content.animations).STANDING,
-  });
+  return armStubMerc(
+    sim,
+    createSoldier({
+      id,
+      team: Team.OUR,
+      name: `Merc ${id + 1}`,
+      bodyType: bodies[id % bodies.length] ?? 0,
+      palettes: { hair: 'BROWNHEAD', skin: 'TANSKIN', vest: vests[id % vests.length] ?? 'BLUEVEST', pants: 'JEANPANTS' },
+      stats: {
+        agility: 80,
+        dexterity: 80,
+        strength: 80,
+        wisdom: 80,
+        leadership: 50,
+        marksmanship: 80,
+        mechanical: 30,
+        explosives: 30,
+        medical: 30,
+        experience: 3,
+      },
+      life: 100,
+      gridNo: -1,
+      direction: 4,
+      state: states(sim.state.content.animations).STANDING,
+    }),
+  );
 }
 
 export function populateSandbox(sim: TacticalSim): void {

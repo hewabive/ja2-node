@@ -13,6 +13,9 @@ legend 'L': land FIRSTFLOOR 1; structs FIRSTWALL 1; roofs FIRSTROOF 1; room 1
 legend 'R': land FIRSTFLOOR 1; structs FIRSTWALL 2; roofs FIRSTROOF 1; room 1
 legend 'C': land FIRSTFLOOR 1; structs FIRSTWALL 1; structs FIRSTWALL 2; roofs FIRSTROOF 1; room 1
 legend 'b': land SECONDTEXTURE 2; structs FIRSTOSTRUCT 1
+soldier: ENEMY 13 34 NORTH SEEKENEMY AGGRESSIVE ARMY
+soldier: ENEMY 16 35 NORTH FARPATROL BRAVESOLO ARMY
+soldier: ENEMY 10 36 NORTHEAST ONGUARD DEFENSIVE ARMY
 map:
 ..:.......,,,,...............
 .....:....,=,,.....:.........

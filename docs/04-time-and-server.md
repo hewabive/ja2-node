@@ -346,6 +346,7 @@ There are few of them, and they are coarse-grained.
 | `act` | A command: `move`, `shoot`, `throw`, `stance`, `reload`, `open_door`, `climb`, `bandage`, `end_turn`, …; on the map: `travel`, `assign`, `hire`, …. By default, time then runs until `idle` or a decision prompt. The response is a summary of events and the new status |
 | `answer` | An answer to a decision prompt: interrupt, dialogue line, message box, PBI |
 | `advance` | Explicitly advances time in real time and on the strategic map: "until arrival", "until an event", "no longer than N" |
+| `newSession` | Starts another sandbox (optional seed) and returns its id; every other tool takes `session`, so agents and tests do not share one battle |
 | `save` / `load` | Saves on the server |
 
 ### 6.3. Example turn
