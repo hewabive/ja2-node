@@ -3268,6 +3268,7 @@ void ProbeShopKeeper(Command const& c)
 	});
 	Emit(json.num("dealer", dealer).num("merc", merc).flag("delayed", delayed).raw("boxes", DescribeSkiBoxes(boxes))
 		.raw("offered", DescribeSkiBoxes(offered)).raw("draws", draws).raw("dealers", DescribeDealers()));
+}
 
 constexpr int NUM_LEAVE_SLOTS = 20;
 constexpr int PERSONNEL_SHOWN = 16;
