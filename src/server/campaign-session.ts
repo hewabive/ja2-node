@@ -8,6 +8,7 @@ import { isTimeBeingCompressed, worldDay, worldHour, worldMinute } from '../sim/
 import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { tacticalPlayerView } from './sandbox.ts';
 import type { SessionSim } from './session.ts';
+import { strategicView } from './strategic-view.ts';
 
 export class CampaignSession implements SessionSim {
   readonly campaign: CampaignSim;
@@ -51,8 +52,10 @@ export class CampaignSession implements SessionSim {
   view(): PlayerView {
     const c = this.campaign.state.clock;
     const clock = { day: worldDay(c), hour: worldHour(c), minute: worldMinute(c), compressing: isTimeBeingCompressed(c) };
+    const strategic = strategicView(this.campaign);
+    const extra = strategic ? { clock, strategic } : { clock };
     const tactical = this.campaign.tactical;
-    if (!tactical) return { tick: this.tick, mapPath: null, clock, soldiers: [] };
-    return { ...tacticalPlayerView(tactical, this.tick), clock };
+    if (!tactical) return { tick: this.tick, mapPath: null, soldiers: [], ...extra };
+    return { ...tacticalPlayerView(tactical, this.tick), ...extra };
   }
 }

@@ -39,10 +39,53 @@ export interface ClockView {
   readonly compressing: boolean;
 }
 
+export interface StrategicSectorView {
+  readonly sector: string;
+  readonly visited: boolean;
+  readonly town: number;
+  readonly playerControlled: boolean | null;
+  readonly enemies: number | '?' | null;
+  readonly militia: readonly number[];
+}
+
+export interface StrategicMercView {
+  readonly id: number;
+  readonly name: string;
+  readonly sector: string;
+  readonly betweenSectors: boolean;
+  readonly squad: number | null;
+  readonly assignment: number;
+  readonly life: number;
+  readonly lifeMax: number;
+  readonly breath: number;
+  readonly breathMax: number;
+  readonly asleep: boolean;
+}
+
+export interface StrategicGroupView {
+  readonly id: number;
+  readonly sector: string;
+  readonly next: string;
+  readonly betweenSectors: boolean;
+  readonly members: readonly number[];
+  readonly etaMinutes: number;
+  readonly path: readonly string[];
+}
+
+export interface StrategicView {
+  readonly balance: number;
+  readonly worldSector: string | null;
+  readonly flow: 'strategic' | 'tactical';
+  readonly sectors: readonly StrategicSectorView[];
+  readonly mercs: readonly StrategicMercView[];
+  readonly groups: readonly StrategicGroupView[];
+}
+
 export interface PlayerView {
   readonly tick: number;
   readonly mapPath: string | null;
   readonly clock?: ClockView;
+  readonly strategic?: StrategicView;
   readonly soldiers: readonly SoldierView[];
   readonly openDoors?: readonly number[];
   readonly combat?: CombatView | null;

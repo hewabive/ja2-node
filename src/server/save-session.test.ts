@@ -74,6 +74,10 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('native savegames imported into the t
           .map((m) => m.id) ?? [];
       expect(here.every((id) => t.soldiers[id]?.placed)).toBe(true);
       expect(session.campaign.state.forces.groups.length).toBe(save.groups.length);
+      const strategic = session.view().strategic;
+      expect(strategic?.mercs.length).toBe(mercs.length);
+      expect(strategic?.worldSector).toBe(`${String.fromCharCode(64 + save.tactical.worldSector.y)}${save.tactical.worldSector.x}`);
+      expect(strategic?.sectors.some((v) => v.sector === strategic.worldSector && v.visited)).toBe(true);
       const clock = session.campaign.state.clock;
       const before = clock.seconds;
       if (!t.inCombat) {
@@ -90,6 +94,13 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('native savegames imported into the t
         expect(session.sim.dispatch({ type: 'endTurn' }).ok).toBe(true);
         expect(advance(session, { idle: true }, ENEMY_TURN_BUDGET).reason).not.toBe('budget');
         expect(t.turn.currentTeam).toBe(Team.OUR);
+      }
+      const walker = roster?.all().find((m) => m.life >= 15 && m.assignment < 20 && !m.betweenSectors);
+      if (walker) {
+        const west = `${String.fromCharCode(64 + walker.sector.y)}${walker.sector.x - 1}`;
+        const routed = session.dispatch({ type: 'route', soldier: walker.id, to: west });
+        if (routed.ok) expect((routed.data as { etaMinutes: number }).etaMinutes).toBeGreaterThan(0);
+        expect(session.dispatch({ type: 'cancelRoute', soldier: walker.id }).ok).toBe(true);
       }
     });
   }

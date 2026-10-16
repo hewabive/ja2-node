@@ -29,6 +29,7 @@ import {
   updateClock,
 } from '../strategic/time/world-clock.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
+import { dispatchStrategicCommand } from './commands.ts';
 import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
 
 export interface CampaignCommand {
@@ -189,7 +190,10 @@ export class CampaignSim {
         stopTimeCompression(this.#clock);
         return { ok: true };
       default:
-        return this.tactical ? this.tactical.dispatch(cmd) : { ok: false, reason: `unknown command ${cmd.type}` };
+        return (
+          dispatchStrategicCommand(this, cmd) ??
+          (this.tactical ? this.tactical.dispatch(cmd) : { ok: false, reason: `unknown command ${cmd.type}` })
+        );
     }
   }
 
