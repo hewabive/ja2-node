@@ -86,6 +86,7 @@ import {
 } from '../tactical/init-list.ts';
 import { CENTER_GRIDNO, Insertion, type InsertionContext, type InsertionOrder, updateMercInSector } from '../tactical/insertion.ts';
 import { lightSpriteRenderAll } from '../tactical/lighting/lighting.ts';
+import { isProfileDead } from '../tactical/profiles.ts';
 import { hostileBloodcatsPresent, removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Body, NO_PROFILE, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
@@ -386,6 +387,7 @@ export class SectorFlow {
   }
 
   #installHooks(sim: TacticalSim): void {
+    sim.state.experienceHooks = this.campaign.experienceHooks;
     sim.state.sectorHooks = {
       soldierDied: (_t, dead) => this.#soldierDied(dead),
       addPendingEnemies: () => this.addPossiblePendingEnemiesToBattle(),
@@ -728,7 +730,8 @@ export class SectorFlow {
     if (!world || !p) return false;
     if (p.sectorX !== world.x || p.sectorY !== world.y || world.z !== 0) return false;
     if (this.setup.roster.byProfile(profile)) return false;
-    return this.campaign.state.profiles.get(profile)?.dead !== true;
+    const progress = this.campaign.state.profiles.get(profile);
+    return !progress || !isProfileDead(progress);
   }
 
   #civilianWithheld(node: SoldierInitNode): boolean {

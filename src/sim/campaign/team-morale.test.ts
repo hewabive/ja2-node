@@ -198,7 +198,7 @@ describe('UpdateBuddyAndHatedCounters', () => {
     });
     updateBuddyAndHatedCounters(ctx);
     expect(profiles.get(1)?.hatedCount[0]).toBe(0);
-    expect(events).toEqual([{ type: 'mercQuitsHated', soldier: 0, about: 2, learned: false }]);
+    expect(events).toEqual([{ type: 'quit', soldier: 0, about: 2, quote: 'MERC_QUIT_HATED1' }]);
   });
 
   it('turns a learned liking into a buddy slot with the buddy opinion', () => {

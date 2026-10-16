@@ -14,6 +14,7 @@ import type { StrategicContext, StrategicMerc } from '../sim/strategic/forces/po
 import { EnemyKnowledge, peekPlayerKnowledgeOfEnemies } from '../sim/strategic/map/knowledge.ts';
 import { getSectorFlagStatus, sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { calculateTravelTimeOfGroup } from '../sim/strategic/map/travel.ts';
+import { mercAccountStatusView, mercContractFields } from './contract-view.ts';
 
 const sectorName = (s: Sector) => (s.z ? `${sectorShortString(s)}-${s.z}` : sectorShortString(s));
 
@@ -101,7 +102,8 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
     worldSector: world ? sectorName(world) : null,
     flow: campaign.state.flow,
     sectors,
-    mercs: ctx.mercs.all().map((m) => mercView(m)),
+    mercs: ctx.mercs.all().map((m) => ({ ...mercView(m), ...mercContractFields(campaign, m.id) })),
     groups: groupViews(ctx),
+    ...mercAccountStatusView(campaign),
   };
 }

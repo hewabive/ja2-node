@@ -7,6 +7,7 @@ import type { CombatContext } from '../tactical/combat/context.ts';
 import { StatCause, statChange } from '../tactical/combat/experience.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { carriedWeightPercentOf } from '../tactical/points.ts';
+import type { ProfileProgress } from '../tactical/profiles.ts';
 import { StatKind } from '../tactical/profiles.ts';
 import {
   effectiveAgility,
@@ -21,6 +22,7 @@ import {
   effectiveWisdom,
 } from '../tactical/skills.ts';
 import { Body, type Soldier, SoldierStatusFlags } from '../tactical/soldier.ts';
+import { createMercContract, type MercContract } from './contracts/contract-state.ts';
 
 export const MercKind = { PLAYER_CHARACTER: 0, AIM_MERC: 1, MERC: 2, NPC: 3, EPC: 4, NPC_UNEXTENDABLE: 5, VEHICLE: 6 } as const;
 const NO_VEHICLE = -1;
@@ -41,6 +43,9 @@ export interface RosterMercInit {
   readonly vehicleId: number;
   readonly asleep: boolean;
   readonly fractLife?: number;
+  readonly contract?: Partial<MercContract>;
+  readonly quoteSaidFlags?: number;
+  readonly corpseQuoteTolerance?: number;
 }
 
 export class RosterMerc implements CrewMember {
@@ -68,6 +73,9 @@ export class RosterMerc implements CrewMember {
   lastAssignmentChangeMin = 0;
   fixingRobot = false;
   vehicleUnderRepair = NO_VEHICLE;
+  readonly contract: MercContract;
+  quoteSaidFlags: number;
+  corpseQuoteTolerance: number;
 
   constructor(init: RosterMercInit) {
     this.soldier = init.soldier;
@@ -85,6 +93,9 @@ export class RosterMerc implements CrewMember {
     this.vehicleId = init.vehicleId;
     this.asleep = init.asleep;
     this.fractLife = init.fractLife ?? 0;
+    this.contract = createMercContract(init.contract);
+    this.quoteSaidFlags = init.quoteSaidFlags ?? 0;
+    this.corpseQuoteTolerance = init.corpseQuoteTolerance ?? 0;
   }
 
   get id(): number {
@@ -235,6 +246,7 @@ export interface RosterSetup {
   readonly content: TacticalContent;
   readonly combat: () => CombatContext;
   readonly hooks?: RosterHooks;
+  readonly profiles?: ReadonlyMap<number, ProfileProgress>;
 }
 
 const TRAVEL_STATS: Readonly<Record<TravelStat, number>> = {
@@ -246,16 +258,22 @@ export class Roster implements CrewPort {
   readonly #mercs = new Map<number, RosterMerc>();
   readonly #content: TacticalContent;
   readonly #combat: () => CombatContext;
+  readonly #profiles: ReadonlyMap<number, ProfileProgress> | null;
   hooks: RosterHooks;
 
   constructor(setup: RosterSetup) {
     this.#content = setup.content;
     this.#combat = setup.combat;
+    this.#profiles = setup.profiles ?? null;
     this.hooks = setup.hooks ?? NO_ROSTER_HOOKS;
   }
 
   add(merc: RosterMerc): void {
     this.#mercs.set(merc.id, merc);
+  }
+
+  remove(id: number): void {
+    this.#mercs.delete(id);
   }
 
   get(id: number): RosterMerc | undefined {
@@ -324,6 +342,8 @@ export class Roster implements CrewPort {
   }
 
   opinion(profile: number, aboutProfile: number): number {
+    const campaign = this.#profiles?.get(profile);
+    if (campaign) return campaign.opinions[aboutProfile] ?? 0;
     return this.#content.profiles[profile]?.mercOpinion[aboutProfile] ?? 0;
   }
 

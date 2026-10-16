@@ -25,6 +25,7 @@ import {
   type UndergroundTemplate,
 } from './map-tables.ts';
 import { parseStrategicPolicy, parseVehicleTypes, type StrategicPolicy, type VehicleType } from './policy.ts';
+import { parseShippingDestinations, SHIPPING_DESTINATIONS_PATH, type ShippingDestinations } from './shipping.ts';
 import {
   parseSectorFacilities,
   parseTravelTable,
@@ -51,6 +52,7 @@ export const STRATEGIC_CONTENT_PATHS = {
   policy: 'externalized/game.json',
   travel: STRATEGIC_TRAVEL_PATH,
   facilities: SECTOR_FACILITIES_PATH,
+  shipping: SHIPPING_DESTINATIONS_PATH,
 } as const;
 
 export type StrategicContentSources = { readonly [K in keyof typeof STRATEGIC_CONTENT_PATHS]: unknown };
@@ -71,6 +73,7 @@ export interface StrategicContent {
   readonly policy: StrategicPolicy;
   readonly travel: TravelTable;
   readonly facilities: readonly SectorFacility[];
+  readonly shipping: ShippingDestinations;
 }
 
 export function parseStrategicContent(sources: StrategicContentSources): StrategicContent {
@@ -91,6 +94,7 @@ export function parseStrategicContent(sources: StrategicContentSources): Strateg
     policy: parseStrategicPolicy(sources.policy),
     travel: parseTravelTable(sources.travel),
     facilities: parseSectorFacilities(sources.facilities),
+    shipping: parseShippingDestinations(sources.shipping),
   };
 }
 

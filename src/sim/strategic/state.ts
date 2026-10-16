@@ -1,4 +1,5 @@
 import { PreRandom, Rng } from '../../core/rng.ts';
+import { type ContractState, createContractState } from '../campaign/contracts/contract-state.ts';
 import { createFinanceState, type FinanceState } from '../campaign/finances.ts';
 import type { SectorDiff } from '../campaign/sector-diff.ts';
 import { createTeamMoraleState, type TeamMoraleState } from '../campaign/team-morale.ts';
@@ -55,6 +56,7 @@ export interface StrategicState {
   readonly sectorDiffs: Map<string, SectorDiff>;
   readonly teamMorale: TeamMoraleState;
   readonly creatures: CreatureState;
+  readonly contracts: ContractState;
 }
 
 export interface GameOptions {
@@ -107,5 +109,6 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     sectorDiffs: new Map(),
     teamMorale: createTeamMoraleState(),
     creatures: createCreatureState(),
+    contracts: createContractState(),
   };
 }

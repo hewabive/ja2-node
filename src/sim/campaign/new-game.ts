@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Game_Init.cc InitNewGame, InitStrategicLayer; StrategicMap.cc SetupNewStrategicGame;
-// @src Game_Clock.cc InitNewGameClock; Campaign_Init.cc InitNewCampaign. See docs/15 §4.
+// @src Game_Clock.cc InitNewGameClock; Campaign_Init.cc InitNewCampaign; Tactical/Soldier_Profile.cc LoadMercProfiles.
+// @src See docs/15 §4, docs/22 §0.
 
 import { initStrategicAiForNewCampaign } from '../strategic/ai/strategic-ai.ts';
 import { addStartingCash, initEconomyStrategicLayer } from '../strategic/economy/init.ts';
@@ -60,6 +61,7 @@ export function initNewGame(campaign: CampaignSim): void {
   const queen = campaign.queen;
   if (!economy || !queen) throw new Error('a new game needs the strategic AI and the economy');
   const s = campaign.state;
+  campaign.contracts?.loadMercProfiles();
   setupNewStrategicGame(campaign);
   initStrategicLayerMap(economy, {
     initStrategicAI: () => initStrategicAiForNewCampaign(queen),

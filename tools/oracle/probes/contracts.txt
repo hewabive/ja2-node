@@ -1,0 +1,94 @@
+# Contracts and relationships (docs/22): the daily merc update, expiry warnings, the renewal sequence, extensions,
+# departures, the leave list, RPC pay, M.E.R.C. account days and level-up salaries on the user's saves.
+# Times are world minutes; the saves' squads arrived at day 1 07:00 (slot 07:30) on 7-day contracts.
+
+save SaveGame01
+contracts
+profiles range=0:75
+dailyupdate range=0:60
+salary values=0,1,4,5,100,249,250,251,252,253,499,500,501,999,1000,1001,1999,2000,2001,4999,5000,5001,9999,10000,10001,24999,25000,25001,29000,29999 max=30000
+salary values=1,250,251,1999,25000,29000,30000,49000,50001,400000,499999 max=500000
+settime day=2 hour=0 minute=0
+dailyupdate range=0:60
+relationshours count=24
+setcontract who=0 end=3300
+setcontract who=1 end=3300 signed=1
+settime day=2 hour=4 minute=30
+settime day=2 hour=5 minute=30
+aboutleave
+settime day=2 hour=7 minute=30
+beginrenewal
+renewalstep
+setstatus balance=60000
+extend who=0 length=week
+renewalstep
+beginremove who=1
+removemerc who=1
+contracts
+
+save SaveGame02
+setprofilecontract who=59 salary=300 balance=-600
+settime day=2 hour=0 minute=0
+setstatus balance=100000
+dailyupdate range=57:61
+setprofilecontract who=59 salary=400 balance=-800
+setstatus balance=10
+dailyupdate range=57:61
+setprofilecontract who=59 balance=0
+setcontract who=2 kind=3
+dailyupdate range=57:61
+setcontract who=0 lastUpdate=2800
+beginremove who=0 fired=1
+removemerc who=0
+setprofilecontract who=15 hated=0:59:2:2
+setcontract who=1 kind=2
+relationshours count=1
+relationshours count=1
+relationshours count=30
+
+save SaveGame09
+contracts
+dailyupdate range=0:60
+setstatus deaths=3 manDays=1
+setstatus deaths=1 manDays=40 reputation=60
+setstatus balance=200000
+setprofilecontract who=2 hated=0:27:0:0
+extend who=0 length=day
+extend who=0 length=day
+setprofilecontract who=2 buddy=0:59
+extend who=0 length=twoWeeks
+setprofilecontract who=27 learnhate=2:10:3
+setcontract who=0 arrive=1500 end=2880
+setcontract who=0 arrive=1560
+setcontract who=1 end=1500
+setcontract who=0 arrive=1890 end=3300
+setcontract who=1 end=3300
+settime day=2 hour=5 minute=30
+setprofilecontract who=27 learnhate=-1:0:0
+aboutleave
+settime day=2 hour=7 minute=30
+beginrenewal
+renewalstep
+setrenewals profiles=27,2,40
+renewalstep
+levelup who=0
+leaveequip who=2 where=drassen
+leaveequip who=1 where=omerta
+equipleft slot=0 where=drassen
+mercsite
+
+save SaveGame10
+setcontract who=1 life=0 assignment=30
+setprofilecontract who=27 status=-5
+dailyupdate range=0:60
+setcontract who=0 end=4500 canSign=0
+dailyupdate range=0:60
+setcontract who=0 assignment=32
+dailyupdate range=0:3
+removemerc who=1
+removemerc who=0
+contracts
+
+save SaveGame07
+contracts
+dailyupdate range=0:60

@@ -9,6 +9,7 @@ import { loadStrategicContent } from '../content/strategic/strategic-content.ts'
 import { loadTacticalWorld } from '../content/world/tactical-world.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import { CampaignSim } from '../sim/campaign/campaign-sim.ts';
+import { importContracts } from '../sim/campaign/contracts/save-import.ts';
 import { NO_ROSTER_HOOKS, Roster } from '../sim/campaign/roster.ts';
 import { addSavedMercsToRoster } from '../sim/campaign/save-roster.ts';
 import { importStrategicAi } from '../sim/strategic/ai/save-import.ts';
@@ -88,6 +89,7 @@ export async function createSaveSession(
   const roster = new Roster({
     content,
     combat: tacticalState,
+    profiles: strategic.profiles,
     hooks: { ...NO_ROSTER_HOOKS, removeFromTacticalSector: (merc) => removeSoldierFromTacticalSector(tacticalState(), merc.soldier) },
   });
   addSavedMercsToRoster(roster, save, sim.state);
@@ -104,6 +106,7 @@ export async function createSaveSession(
   if (campaign.queen) importStrategicAi(campaign.queen, saiSections, { runLoadHooks: true });
   campaign.creatures?.importDirectives(save.creatureDirectives, saiSections.creatureMeanwhileScenePlayed);
   importEconomy(strategic, readSavedEconomy(saveBytes, save.sections), save.laptop.currentBalance);
+  importContracts(strategic, save, saveBytes);
   for (const saved of readSoldierAssignments(saveBytes, save, encryption)) {
     const merc = roster.get(saved.id);
     if (merc) applySavedAssignment(merc, saved);

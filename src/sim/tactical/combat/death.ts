@@ -28,7 +28,7 @@ import { directionToward } from '../movement.ts';
 import { atan8Of, SightFlags } from '../perception/opp.ts';
 import { distanceVisible, handleSight, removeManAsTarget, verifyPublicOpplistDueToDeath } from '../perception/sight.ts';
 import { removeMercStructure } from '../person-structure.ts';
-import { profileProgress, StatKind } from '../profiles.ts';
+import { MercStatus, profileProgress, StatKind } from '../profiles.ts';
 import { checkSoldierHitRoof } from '../roofs.ts';
 import { AlertStatus, Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { removeOccupant, type TacticalState, unregisterSoldier } from '../state.ts';
@@ -229,7 +229,7 @@ function handleNPCTeamMemberDeath(t: TacticalState, old: Soldier): void {
   if (old.profile !== NO_PROFILE) {
     const p = profileProgress(t, old.profile);
     if (p) {
-      p.dead = true;
+      p.mercStatus = MercStatus.IS_DEAD;
       p.life = 0;
     }
   }

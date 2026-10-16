@@ -3,7 +3,7 @@
 // @src src/game/Strategic/Auto_Resolve.cc SOLDIERCELL, AUTORESOLVE_STRUCT, CELL_*, BATTLE_*, EnterAutoResolveMode,
 // @src CalculateAutoResolveInfo, CalculateSoldierCells (logic part). See docs/19 §2.2–§2.3.
 
-import type { CombatContext, RandomStream, StatChangedEvent } from '../../../tactical/combat/context.ts';
+import type { CombatContext, ExperienceHooks, RandomStream, StatChangedEvent } from '../../../tactical/combat/context.ts';
 import type { TacticalContent } from '../../../tactical/content.ts';
 import { wearsHeadGear } from '../../../tactical/inventory.ts';
 import type { ProfileProgress } from '../../../tactical/profiles.ts';
@@ -159,6 +159,7 @@ export interface AutoresolveEnv {
   readonly rng: ArRng;
   readonly world: AutoresolveWorld;
   readonly hooks: AutoresolveHooks;
+  readonly experienceHooks?: ExperienceHooks;
 }
 
 export interface MercCellInput {
@@ -317,6 +318,7 @@ export function combatContext(env: AutoresolveEnv, ar: AutoresolveState): Combat
     inCombat: false,
     turn: { attackBusyCount: 0 },
     events: { push: (e: StatChangedEvent) => ar.statEvents.push({ ...e, battleMs: ar.elapsedMs }) },
+    ...(env.experienceHooks ? { experienceHooks: env.experienceHooks } : {}),
   };
 }
 

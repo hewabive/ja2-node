@@ -79,6 +79,12 @@
 #include "Creature_Spreading.h"
 #include "Morale.h"
 #include "Strategic_Merc_Handler.h"
+#include "Merc_Contract.h"
+#include "Finances.h"
+#include "Dialogue_Control.h"
+#include "Map_Screen_Interface.h"
+#include "History.h"
+#include "Mercs.h"
 
 #include <string_theory/string>
 
@@ -108,6 +114,24 @@ extern INT32 giDestroyedLairID;
 extern BOOLEAN gfCreatureMeanwhileScenePlayed;
 extern bool gOracleSkipCreatureBattle;
 extern INT8 gOracleStrategicMoraleUpdateCounter;
+UINT16 OracleFindRefusalReason(SOLDIERTYPE const* s);
+BOOLEAN OracleContractIsExpiring(SOLDIERTYPE* s);
+BOOLEAN OracleContractIsGoingToExpireSoon(SOLDIERTYPE* s);
+UINT8 OracleContractRenewalCount();
+UINT8 OracleContractRenewalProfile(UINT8 i);
+UINT8 OracleCurrentContractRenewal();
+UINT8 OracleContractRenewalInProgress();
+void OracleSetContractRenewals(std::vector<UINT8> const& profiles);
+void OracleResetContractRenewalSequence();
+void OracleBeginRemoveMercFromContract(SOLDIERTYPE* s);
+INT32 OracleLeaveListItems(UINT32 slot, std::vector<OBJECTTYPE>* items);
+UINT32 OracleLeaveListOwner(UINT32 slot);
+UINT32 OracleCalcNewSalary(UINT32 old, UINT32 max);
+void HandleEquipmentLeftInOmerta(UINT32 uiSlotIndex);
+void HandleEquipmentLeftInDrassen(UINT32 uiSlotIndex);
+void DailyUpdateOfMercSite();
+extern BOOLEAN gfContractRenewalSquenceOn;
+extern BOOLEAN gfInContractMenuFromRenewSequence;
 INT16 OraclePickGridNoToWalkIn(SOLDIERTYPE* s, UINT8 insertionCode, UINT32* attempts);
 BOOLEAN OracleSoldierOKForSectorExit(SOLDIERTYPE* s, INT8 exitDirection, UINT16 additional);
 void OracleSortSoldierInitList();
@@ -679,6 +703,7 @@ void LoadSave(Command const& c)
 	std::string const name = Text(c, "_0", Text(c, "name", ""));
 	if (name.empty()) throw std::runtime_error("save needs a name such as SaveGame01");
 	LoadSavedGame(ST::string(name));
+	OracleResetContractRenewalSequence();
 	Emit(Json{}
 		.str("probe", "save")
 		.str("name", name)
@@ -2952,6 +2977,442 @@ void ProbeBloodcatPlacement(Command const& c)
 		.raw("draws", draws));
 }
 
+
+constexpr int NUM_LEAVE_SLOTS = 20;
+constexpr int PERSONNEL_SHOWN = 16;
+constexpr int PROFILE_RELATION_SLOTS = 5;
+constexpr int SUBPOINTS_PER_LEVEL = 350;
+constexpr UINT8 CONTRACT_EVENTS[] = {
+	EVENT_MERC_COMPLAIN_EQUIPMENT, EVENT_MERC_LEAVE_EQUIP_IN_OMERTA, EVENT_MERC_LEAVE_EQUIP_IN_DRASSEN, EVENT_MERC_ABOUT_TO_LEAVE,
+	EVENT_BEGIN_CONTRACT_RENEWAL_SEQUENCE, EVENT_RPC_WHINE_ABOUT_PAY, EVENT_MERC_MERC_WENT_UP_LEVEL_EMAIL_DELAY
+};
+
+std::string DescribeContractMerc(SOLDIERTYPE& s)
+{
+	bool const profiled = s.ubProfile != NO_PROFILE;
+	MERCPROFILESTRUCT const* const p = profiled ? &GetProfile(s.ubProfile) : nullptr;
+	return Json{}
+		.num("id", s.ubID)
+		.num("profile", s.ubProfile)
+		.num("kind", s.ubWhatKindOfMercAmI)
+		.num("assignment", s.bAssignment)
+		.num("life", s.bLife)
+		.num("lifeMax", s.bLifeMax)
+		.num("morale", s.bMorale)
+		.raw("sector", StrategicSector(s.sSector))
+		.flag("betweenSectors", s.fBetweenSectors)
+		.num("end", s.iEndofContractTime)
+		.num("start", s.iStartContractTime)
+		.num("total", s.iTotalContractLength)
+		.num("type", s.bTypeOfLastContract)
+		.num("canSign", s.iTimeCanSignElsewhere)
+		.flag("signed", s.fSignedAnotherContract)
+		.num("lastUpdate", s.uiTimeOfLastContractUpdate)
+		.num("arrive", s.uiTimeSoldierWillArrive)
+		.num("quoteCode", s.ubContractRenewalQuoteCode)
+		.num("leaveCode", s.ubLeaveHistoryCode)
+		.num("deposit", s.usMedicalDeposit)
+		.flag("priceUp", s.fContractPriceHasIncreased)
+		.raw("insurance", Numbers({s.usLifeInsurance, s.iStartOfInsuranceContract, s.iTotalLengthOfInsuranceContract, s.uiStartTimeOfInsuranceContract}))
+		.num("quoteFlags", s.usQuoteSaidFlags)
+		.num("corpseTolerance", s.bCorpseQuoteTolerance)
+		.num("hour", GetHourWhenContractDone(&s))
+		.flag("expiring", OracleContractIsExpiring(&s))
+		.flag("soon", OracleContractIsGoingToExpireSoon(&s))
+		.num("refusal", profiled ? OracleFindRefusalReason(&s) : QUOTE_NONE)
+		.flag("willRenew", profiled && WillMercRenew(&s, FALSE))
+		.num("buddy", p ? GetFirstBuddyOnTeam(*p) : BUDDY_NOT_FOUND)
+		.flag("deathRateTooHigh", p && MercThinksDeathRateTooHigh(*p))
+		.flag("reputationTooHigh", p && MercThinksBadReputationTooHigh(*p))
+		.flag("moraleTooLow", profiled && MercThinksHisMoraleIsTooLow(&s))
+		.flag("worseEquipment", profiled && SoldierHasWorseEquipmentThanUsedTo(&s))
+		.flag("canExtend", CanExtendContractForSoldier(&s))
+		.text();
+}
+
+std::string DescribeLeaveList()
+{
+	std::vector<std::string> slots;
+	for (UINT32 i = 0; i < NUM_LEAVE_SLOTS; ++i)
+	{
+		std::vector<OBJECTTYPE> objects;
+		INT32 const n = OracleLeaveListItems(i, &objects);
+		std::vector<long long> items;
+		for (OBJECTTYPE const& o : objects) items.push_back(o.usItem);
+		slots.push_back(Json{}.num("owner", OracleLeaveListOwner(i)).raw("items", n < 0 ? "null" : Numbers(items)).text());
+	}
+	return JsonArray(slots);
+}
+
+std::string DescribeContractEvents()
+{
+	std::vector<std::string> events;
+	for (STRATEGICEVENT const* e = gpEventList; e; e = e->next)
+	{
+		if (std::find(std::begin(CONTRACT_EVENTS), std::end(CONTRACT_EVENTS), e->ubCallbackID) == std::end(CONTRACT_EVENTS)) continue;
+		events.push_back(Numbers({e->uiTimeStamp, e->ubCallbackID, e->uiParam}));
+	}
+	return JsonArray(events);
+}
+
+std::string DescribeContracts()
+{
+	std::vector<std::string> mercs;
+	FOR_EACH_IN_TEAM(s, OUR_TEAM) mercs.push_back(DescribeContractMerc(*s));
+	std::vector<long long> list;
+	for (UINT8 i = 0; i < OracleContractRenewalCount(); ++i) list.push_back(OracleContractRenewalProfile(i));
+	return Json{}
+		.raw("mercs", JsonArray(mercs))
+		.raw("renewal", Json{}
+			.raw("list", Numbers(list))
+			.flag("on", gfContractRenewalSquenceOn)
+			.num("current", OracleCurrentContractRenewal())
+			.flag("inProgress", OracleContractRenewalInProgress() != 0)
+			.flag("fromSequence", gfInContractMenuFromRenewSequence)
+			.text())
+		.num("deathRate", CalcDeathRate())
+		.num("deaths", gStrategicStatus.ubMercDeaths)
+		.num("manDays", gStrategicStatus.uiManDaysPlayed)
+		.num("reputation", gStrategicStatus.ubBadReputation)
+		.num("unhiredDeaths", gStrategicStatus.ubUnhiredMercDeaths)
+		.num("account", LaptopSaveInfo.gubPlayersMercAccountStatus)
+		.num("balance", LaptopSaveInfo.iCurrentBalance)
+		.raw("leave", DescribeLeaveList())
+		.raw("events", DescribeContractEvents())
+		.num("worldMinutes", GetWorldTotalMin())
+		.text();
+}
+
+std::string DescribeProfile(ProfileID const pid)
+{
+	MERCPROFILESTRUCT const& p = GetProfile(pid);
+	std::vector<long long> hated, hatedTime, hatedCount, buddies, inventory;
+	for (int k = 0; k < PROFILE_RELATION_SLOTS; ++k)
+	{
+		hated.push_back(p.bHated[k]);
+		hatedTime.push_back(p.bHatedTime[k]);
+		hatedCount.push_back(p.bHatedCount[k]);
+		buddies.push_back(p.bBuddy[k]);
+	}
+	for (UINT16 const item : p.inv) inventory.push_back(item);
+	std::vector<long long> opinions;
+	CFOR_EACH_IN_TEAM(o, OUR_TEAM)
+	{
+		if (o->ubProfile == NO_PROFILE || o->ubProfile >= NUM_PROFILES) continue;
+		opinions.push_back(o->ubProfile < lengthof(p.bMercOpinion) ? p.bMercOpinion[o->ubProfile] : 0);
+	}
+	return Json{}
+		.num("id", pid)
+		.num("status", p.bMercStatus)
+		.num("available", p.uiDayBecomesAvailable)
+		.raw("salaries", Numbers({p.sSalary, p.uiWeeklySalary, p.uiBiWeeklySalary}))
+		.raw("deposit", Numbers({p.bMedicalDeposit, p.sMedicalDepositAmount}))
+		.num("hangover", p.ubDaysOfMoraleHangover)
+		.num("precedent", p.uiPrecedentQuoteSaid)
+		.num("balance", p.iBalance)
+		.num("mercDays", p.iMercMercContractLength)
+		.num("served", p.usTotalDaysServed)
+		.num("flags3", p.ubMiscFlags3)
+		.num("suspicious", p.ubSuspiciousDeath)
+		.num("cost", p.uiTotalCostToDate)
+		.raw("attractiveness", Numbers({p.bMainGunAttractiveness, p.bArmourAttractiveness}))
+		.raw("tolerances", Numbers({p.bDeathRate, p.bReputationTolerance}))
+		.raw("stats", Numbers({p.bLifeMax, p.bAgility, p.bDexterity, p.bWisdom, p.bMedical, p.bExplosive, p.bMechanical, p.bMarksmanship,
+			p.bExpLevel, p.bStrength, p.bLeadership, p.bLife}))
+		.raw("gains", Numbers({p.sLifeGain, p.sAgilityGain, p.sDexterityGain, p.sWisdomGain, p.sMedicalGain, p.sExplosivesGain,
+			p.sMechanicGain, p.sMarksmanshipGain, p.sExpLevelGain, p.sStrengthGain, p.sLeadershipGain}))
+		.raw("hated", Numbers(hated))
+		.raw("hatedTime", Numbers(hatedTime))
+		.raw("hatedCount", Numbers(hatedCount))
+		.raw("buddies", Numbers(buddies))
+		.raw("learn", Numbers({p.bLearnToHate, p.bLearnToHateTime, p.bLearnToHateCount, p.bLearnToLike, p.bLearnToLikeTime,
+			p.bLearnToLikeCount, p.ubTimeTillNextHatedComplaint}))
+		.raw("opinions", Numbers(opinions))
+		.raw("inventory", Numbers(inventory))
+		.text();
+}
+
+std::vector<ProfileID> ProfileSelection(Command const& c)
+{
+	std::vector<ProfileID> ids;
+	if (Has(c, "who") && c.name == "profiles")
+	{
+		for (std::string const& part : SplitList(Text(c, "who", ""), ',')) ids.push_back(static_cast<ProfileID>(ParseInteger("who", part)));
+	}
+	else if (Has(c, "range"))
+	{
+		std::vector<std::string> const bounds = SplitList(Text(c, "range", ""), ':');
+		if (bounds.size() != 2) throw std::runtime_error("range needs <from>:<to>");
+		for (long long id = ParseInteger("range", bounds[0]); id < ParseInteger("range", bounds[1]); ++id) ids.push_back(static_cast<ProfileID>(id));
+	}
+	else
+	{
+		CFOR_EACH_IN_TEAM(s, OUR_TEAM)
+		{
+			if (s->ubProfile != NO_PROFILE) ids.push_back(s->ubProfile);
+		}
+	}
+	return ids;
+}
+
+std::string DescribeProfiles(std::vector<ProfileID> const& ids)
+{
+	std::vector<std::string> profiles;
+	for (ProfileID const id : ids) profiles.push_back(DescribeProfile(id));
+	return JsonArray(profiles);
+}
+
+void EmitContracts(Command const& c, std::vector<ProfileID> const& profiles, std::string const& draws, std::string const& extra)
+{
+	Json json;
+	json.str("probe", c.name).num("line", c.line).raw("args", DescribeArgs(c));
+	if (!draws.empty()) json.raw("draws", draws);
+	if (!extra.empty()) json.raw("result", extra);
+	json.raw("contracts", DescribeContracts());
+	json.raw("profiles", DescribeProfiles(profiles));
+	Emit(json);
+}
+
+void EmitContracts(Command const& c, std::string const& draws, std::string const& extra)
+{
+	EmitContracts(c, ProfileSelection(c), draws, extra);
+}
+
+void DumpContracts(Command const& c)
+{
+	EmitContracts(c, "", "");
+}
+
+void ProbeDailyUpdate(Command const& c)
+{
+	std::string const draws = TracedSaiDraws([] { MercDailyUpdate(); });
+	EmitContracts(c, draws, "");
+}
+
+void ProbeRelationsHours(Command const& c)
+{
+	long long const count = Integer(c, "count", 1);
+	for (long long i = 0; i < count; ++i)
+	{
+		UpdateBuddyAndHatedCounters();
+		HourlyMoraleUpdate();
+	}
+	EmitContracts(c, "", "");
+}
+
+void SetContractTime(Command const& c)
+{
+	UINT32 const now = GetWorldTotalMin();
+	UINT32 const target = static_cast<UINT32>(Integer(c, "hour", 0) * 60 + Integer(c, "minute", 0));
+	UINT32 const today = GetWorldDayInMinutes();
+	UINT32 const at = Has(c, "day") ? static_cast<UINT32>(Integer(c, "day", 0) * NUM_MIN_IN_DAY) + target :
+		(today + target > now ? today + target : today + NUM_MIN_IN_DAY + target);
+	if (at < now) throw std::runtime_error("settime cannot go back in time");
+	WarpGameTime((at - now) * NUM_SEC_IN_MIN, WARPTIME_NO_PROCESSING_OF_EVENTS);
+	EmitContracts(c, "", Numbers({now, at}));
+}
+
+void ProbeAboutToLeave(Command const& c)
+{
+	std::string const draws = TracedSaiDraws([] { FindOutIfAnyMercAboutToLeaveIsGonnaRenew(); });
+	EmitContracts(c, draws, "");
+}
+
+void ProbeBeginRenewal(Command const& c)
+{
+	std::string const draws = TracedSaiDraws([] { BeginContractRenewalSequence(); });
+	EmitContracts(c, draws, "");
+}
+
+void ProbeRenewalStep(Command const& c)
+{
+	std::string const draws = TracedSaiDraws([] { HandleContractRenewalSequence(); });
+	EmitContracts(c, draws, "");
+}
+
+void SetContract(Command const& c)
+{
+	SOLDIERTYPE& s = GetMan(static_cast<SoldierID>(Required(c, "who")));
+	s.iEndofContractTime = static_cast<INT32>(Integer(c, "end", s.iEndofContractTime));
+	s.iTotalContractLength = static_cast<INT32>(Integer(c, "total", s.iTotalContractLength));
+	s.uiTimeSoldierWillArrive = static_cast<UINT32>(Integer(c, "arrive", s.uiTimeSoldierWillArrive));
+	s.uiTimeOfLastContractUpdate = static_cast<UINT32>(Integer(c, "lastUpdate", s.uiTimeOfLastContractUpdate));
+	s.iTimeCanSignElsewhere = static_cast<INT32>(Integer(c, "canSign", s.iTimeCanSignElsewhere));
+	s.fSignedAnotherContract = Integer(c, "signed", s.fSignedAnotherContract) != 0;
+	s.ubContractRenewalQuoteCode = static_cast<UINT8>(Integer(c, "quoteCode", s.ubContractRenewalQuoteCode));
+	s.bTypeOfLastContract = static_cast<INT8>(Integer(c, "type", s.bTypeOfLastContract));
+	s.fContractPriceHasIncreased = Integer(c, "priceUp", s.fContractPriceHasIncreased) != 0;
+	s.bLife = static_cast<INT8>(Integer(c, "life", s.bLife));
+	s.bBleeding = static_cast<INT8>(Integer(c, "bleeding", s.bBleeding));
+	s.bMorale = static_cast<INT8>(Integer(c, "morale", s.bMorale));
+	s.ubWhatKindOfMercAmI = static_cast<UINT8>(Integer(c, "kind", s.ubWhatKindOfMercAmI));
+	s.usMedicalDeposit = static_cast<UINT16>(Integer(c, "deposit", s.usMedicalDeposit));
+	s.bAssignment = static_cast<INT8>(Integer(c, "assignment", s.bAssignment));
+	s.usLifeInsurance = static_cast<UINT16>(Integer(c, "insurance", s.usLifeInsurance));
+	EmitContracts(c, "", "");
+}
+
+void SetContractStatus(Command const& c)
+{
+	gStrategicStatus.ubMercDeaths = static_cast<UINT8>(Integer(c, "deaths", gStrategicStatus.ubMercDeaths));
+	gStrategicStatus.uiManDaysPlayed = static_cast<UINT32>(Integer(c, "manDays", gStrategicStatus.uiManDaysPlayed));
+	gStrategicStatus.ubBadReputation = static_cast<UINT8>(Integer(c, "reputation", gStrategicStatus.ubBadReputation));
+	LaptopSaveInfo.gubPlayersMercAccountStatus = static_cast<UINT8>(Integer(c, "account", LaptopSaveInfo.gubPlayersMercAccountStatus));
+	if (Has(c, "balance"))
+	{
+		INT32 const delta = static_cast<INT32>(Integer(c, "balance", 0)) - LaptopSaveInfo.iCurrentBalance;
+		AddTransactionToPlayersBook(ANONYMOUS_DEPOSIT, 0, GetWorldTotalMin(), delta);
+	}
+	EmitContracts(c, "", "");
+}
+
+void SetProfileContract(Command const& c)
+{
+	ProfileID const pid = static_cast<ProfileID>(Required(c, "who"));
+	MERCPROFILESTRUCT& p = GetProfile(pid);
+	p.bMercStatus = static_cast<INT8>(Integer(c, "status", p.bMercStatus));
+	p.uiDayBecomesAvailable = static_cast<UINT32>(Integer(c, "available", p.uiDayBecomesAvailable));
+	p.ubDaysOfMoraleHangover = static_cast<UINT8>(Integer(c, "hangover", p.ubDaysOfMoraleHangover));
+	p.iBalance = static_cast<INT32>(Integer(c, "balance", p.iBalance));
+	p.iMercMercContractLength = static_cast<INT32>(Integer(c, "mercDays", p.iMercMercContractLength));
+	p.bDeathRate = static_cast<INT8>(Integer(c, "deathRate", p.bDeathRate));
+	p.bReputationTolerance = static_cast<INT8>(Integer(c, "repTolerance", p.bReputationTolerance));
+	p.ubMiscFlags3 = static_cast<UINT8>(Integer(c, "flags3", p.ubMiscFlags3));
+	p.sSalary = static_cast<INT16>(Integer(c, "salary", p.sSalary));
+	p.bMainGunAttractiveness = static_cast<INT8>(Integer(c, "gunAttractiveness", p.bMainGunAttractiveness));
+	if (Has(c, "buddy"))
+	{
+		std::vector<long long> const v = TripleArgument(c, "buddy");
+		if (v.size() != 2) throw std::runtime_error("buddy needs slot:profile");
+		p.bBuddy[v[0]] = static_cast<INT8>(v[1]);
+	}
+	if (Has(c, "hated"))
+	{
+		std::vector<long long> const v = TripleArgument(c, "hated");
+		if (v.size() != 4) throw std::runtime_error("hated needs slot:profile:time:count");
+		p.bHated[v[0]] = static_cast<INT8>(v[1]);
+		p.bHatedTime[v[0]] = static_cast<INT8>(v[2]);
+		p.bHatedCount[v[0]] = static_cast<INT8>(v[3]);
+	}
+	if (Has(c, "learnhate"))
+	{
+		std::vector<long long> const v = TripleArgument(c, "learnhate");
+		if (v.size() != 3) throw std::runtime_error("learnhate needs profile:time:count");
+		p.bLearnToHate = static_cast<INT8>(v[0]);
+		p.bLearnToHateTime = static_cast<INT8>(v[1]);
+		p.bLearnToHateCount = static_cast<INT8>(v[2]);
+	}
+	if (Has(c, "opinion"))
+	{
+		std::vector<long long> const v = TripleArgument(c, "opinion");
+		if (v.size() != 2) throw std::runtime_error("opinion needs about:value");
+		p.bMercOpinion[v[0]] = static_cast<INT8>(v[1]);
+	}
+	EmitContracts(c, {pid}, "", "");
+}
+
+UINT8 ExtensionArgument(Command const& c)
+{
+	std::string const length = Text(c, "length", "week");
+	if (length == "day") return CONTRACT_EXTEND_1_DAY;
+	if (length == "week") return CONTRACT_EXTEND_1_WEEK;
+	if (length == "twoWeeks") return CONTRACT_EXTEND_2_WEEK;
+	throw std::runtime_error("length must be day, week or twoWeeks");
+}
+
+void ProbeExtendContract(Command const& c)
+{
+	SOLDIERTYPE& s = GetMan(static_cast<SoldierID>(Required(c, "who")));
+	UINT8 const length = ExtensionArgument(c);
+	BOOLEAN extended = FALSE;
+	std::string const draws = TracedSaiDraws([&] { extended = MercContractHandling(&s, length); });
+	EmitContracts(c, draws, extended ? "true" : "false");
+}
+
+void ProbeBeginRemove(Command const& c)
+{
+	SOLDIERTYPE& s = GetMan(static_cast<SoldierID>(Required(c, "who")));
+	if (Integer(c, "fired", 0)) s.ubLeaveHistoryCode = HISTORY_MERC_FIRED;
+	std::string const draws = TracedSaiDraws([&] { OracleBeginRemoveMercFromContract(&s); });
+	EmitContracts(c, draws, "");
+}
+
+std::string DescribePersonnel(INT16 const* list)
+{
+	std::vector<long long> ids;
+	for (int i = 0; i < PERSONNEL_SHOWN && list[i] != -1; ++i) ids.push_back(list[i]);
+	return Numbers(ids);
+}
+
+void ProbeRemoveMerc(Command const& c)
+{
+	SOLDIERTYPE& s = GetMan(static_cast<SoldierID>(Required(c, "who")));
+	ProfileID const pid = s.ubProfile;
+	if (Has(c, "history")) s.ubLeaveHistoryCode = static_cast<UINT8>(Integer(c, "history", 0));
+	std::string const draws = TracedSaiDraws([&] { StrategicRemoveMerc(s); });
+	std::string const personnel = Json{}
+		.raw("dead", DescribePersonnel(LaptopSaveInfo.ubDeadCharactersList))
+		.raw("fired", DescribePersonnel(LaptopSaveInfo.ubLeftCharactersList))
+		.raw("other", DescribePersonnel(LaptopSaveInfo.ubOtherCharactersList))
+		.text();
+	std::vector<ProfileID> profiles = ProfileSelection(c);
+	profiles.push_back(pid);
+	EmitContracts(c, profiles, draws, personnel);
+}
+
+void ProbeLeaveEquipment(Command const& c)
+{
+	SOLDIERTYPE& s = GetMan(static_cast<SoldierID>(Required(c, "who")));
+	std::string const where = Text(c, "where", "here");
+	std::string const draws = TracedSaiDraws([&] {
+		if (where == "here") HandleLeavingOfEquipmentInCurrentSector(s);
+		else HandleMercLeavingEquipment(s, where == "drassen");
+	});
+	EmitContracts(c, draws, "");
+}
+
+void ProbeEquipmentDelivered(Command const& c)
+{
+	UINT32 const slot = static_cast<UINT32>(Required(c, "slot"));
+	std::string const draws = TracedSaiDraws([&] {
+		if (Text(c, "where", "omerta") == "drassen") HandleEquipmentLeftInDrassen(slot);
+		else HandleEquipmentLeftInOmerta(slot);
+	});
+	EmitContracts(c, draws, "");
+}
+
+void ProbeMercSite(Command const& c)
+{
+	std::string const draws = TracedSaiDraws([] { DailyUpdateOfMercSite(); });
+	EmitContracts(c, draws, "");
+}
+
+void ProbeLevelUp(Command const& c)
+{
+	SOLDIERTYPE& s = GetMan(static_cast<SoldierID>(Required(c, "who")));
+	MERCPROFILESTRUCT& p = GetProfile(s.ubProfile);
+	p.sExpLevelGain = static_cast<INT16>(SUBPOINTS_PER_LEVEL * p.bExpLevel);
+	std::string const draws = TracedSaiDraws([] { HandleAnyStatChangesAfterAttack(); });
+	EmitContracts(c, draws, "");
+}
+
+void ProbeSalary(Command const& c)
+{
+	std::vector<long long> salaries;
+	UINT32 const max = static_cast<UINT32>(Integer(c, "max", 30000));
+	for (std::string const& part : SplitList(Text(c, "values", ""), ','))
+		salaries.push_back(OracleCalcNewSalary(static_cast<UINT32>(ParseInteger("values", part)), max));
+	Emit(Json{}.str("probe", c.name).num("line", c.line).raw("args", DescribeArgs(c)).raw("salaries", Numbers(salaries)));
+}
+
+void SetRenewals(Command const& c)
+{
+	std::vector<UINT8> profiles;
+	for (std::string const& part : SplitList(Text(c, "profiles", ""), ',')) profiles.push_back(static_cast<UINT8>(ParseInteger("profiles", part)));
+	OracleSetContractRenewals(profiles);
+	EmitContracts(c, "", "");
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -3018,6 +3479,26 @@ void Dispatch(Command const& c)
 	if (c.name == "moralemove") return MoveForMorale(c);
 	if (c.name == "hourlymorale") return ProbeHourlyMorale(c);
 	if (c.name == "quartermorale") return ProbeQuarterHourMorale(c);
+	if (c.name == "contracts") return DumpContracts(c);
+	if (c.name == "profiles") return DumpContracts(c);
+	if (c.name == "dailyupdate") return ProbeDailyUpdate(c);
+	if (c.name == "relationshours") return ProbeRelationsHours(c);
+	if (c.name == "settime") return SetContractTime(c);
+	if (c.name == "aboutleave") return ProbeAboutToLeave(c);
+	if (c.name == "beginrenewal") return ProbeBeginRenewal(c);
+	if (c.name == "renewalstep") return ProbeRenewalStep(c);
+	if (c.name == "setcontract") return SetContract(c);
+	if (c.name == "setstatus") return SetContractStatus(c);
+	if (c.name == "setprofilecontract") return SetProfileContract(c);
+	if (c.name == "extend") return ProbeExtendContract(c);
+	if (c.name == "beginremove") return ProbeBeginRemove(c);
+	if (c.name == "removemerc") return ProbeRemoveMerc(c);
+	if (c.name == "leaveequip") return ProbeLeaveEquipment(c);
+	if (c.name == "equipleft") return ProbeEquipmentDelivered(c);
+	if (c.name == "mercsite") return ProbeMercSite(c);
+	if (c.name == "levelup") return ProbeLevelUp(c);
+	if (c.name == "salary") return ProbeSalary(c);
+	if (c.name == "setrenewals") return SetRenewals(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

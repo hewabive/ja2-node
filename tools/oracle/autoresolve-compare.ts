@@ -20,7 +20,7 @@ import {
 import { anim } from '../../src/sim/tactical/anim-states.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
 import { NUM_INV_SLOTS } from '../../src/sim/tactical/inventory.ts';
-import { noRelations, type ProfileProgress, type StatKey } from '../../src/sim/tactical/profiles.ts';
+import { noCampaignFields, noRelations, type ProfileProgress, type StatKey } from '../../src/sim/tactical/profiles.ts';
 import { createSoldier, NOWHERE, type Soldier } from '../../src/sim/tactical/soldier.ts';
 
 type Json = Record<string, unknown>;
@@ -195,7 +195,7 @@ function progressFrom(p: Json): ProfileProgress {
     shotsFired: num(p.shotsFired),
     shotsHit: num(p.shotsHit),
     timesWounded: num(p.timesWounded),
-    dead: false,
+    ...noCampaignFields(),
   };
 }
 

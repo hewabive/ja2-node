@@ -598,6 +598,25 @@ export interface SoldierMotion {
   readonly lastRenderVisible: number;
 }
 
+export interface SavedContract {
+  readonly totalContractLength: number;
+  readonly contractEnd: number;
+  readonly contractStartDay: number;
+  readonly typeOfLastContract: number;
+  readonly timeCanSignElsewhere: number;
+  readonly signedAnotherContract: boolean;
+  readonly lastContractUpdate: number;
+  readonly timeWillArrive: number;
+  readonly renewalQuoteCode: number;
+  readonly leaveHistoryCode: number;
+  readonly medicalDeposit: number;
+  readonly contractPriceIncreased: boolean;
+  readonly lifeInsurance: number;
+  readonly startOfInsuranceContract: number;
+  readonly totalLengthOfInsuranceContract: number;
+  readonly startTimeOfInsuranceContract: number;
+}
+
 export interface SavedSoldier {
   readonly id: number;
   readonly name: string;
@@ -694,6 +713,9 @@ export interface SavedSoldier {
   readonly interrupt: SoldierInterrupt;
   readonly motion: SoldierMotion;
   readonly palettes: { readonly head: string; readonly pants: string; readonly vest: string; readonly skin: string };
+  readonly contract: SavedContract;
+  readonly quoteSaidFlags: number;
+  readonly corpseQuoteTolerance: number;
   readonly checksum: number;
 }
 
@@ -905,6 +927,26 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       lastRenderVisible: n('bLastRenderVisibleValue'),
     },
     palettes: { head: r.str('HeadPal'), pants: r.str('PantsPal'), vest: r.str('VestPal'), skin: r.str('SkinPal') },
+    contract: {
+      totalContractLength: n('iTotalContractLength'),
+      contractEnd: n('iEndofContractTime'),
+      contractStartDay: n('iStartContractTime'),
+      typeOfLastContract: n('bTypeOfLastContract'),
+      timeCanSignElsewhere: n('iTimeCanSignElsewhere'),
+      signedAnotherContract: r.bool('fSignedAnotherContract'),
+      lastContractUpdate: n('uiTimeOfLastContractUpdate'),
+      timeWillArrive: n('uiTimeSoldierWillArrive'),
+      renewalQuoteCode: n('ubContractRenewalQuoteCode'),
+      leaveHistoryCode: n('ubLeaveHistoryCode'),
+      medicalDeposit: n('usMedicalDeposit'),
+      contractPriceIncreased: r.bool('fContractPriceHasIncreased'),
+      lifeInsurance: n('usLifeInsurance'),
+      startOfInsuranceContract: n('iStartOfInsuranceContract'),
+      totalLengthOfInsuranceContract: n('iTotalLengthOfInsuranceContract'),
+      startTimeOfInsuranceContract: n('uiStartTimeOfInsuranceContract'),
+    },
+    quoteSaidFlags: n('usQuoteSaidFlags'),
+    corpseQuoteTolerance: n('bCorpseQuoteTolerance'),
     checksum: n('checksum'),
   };
 }

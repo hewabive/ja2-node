@@ -25,6 +25,9 @@ export function addSavedMercsToRoster(roster: Roster, save: SaveGame, tactical: 
         assignment: r.assignment,
         vehicleId: r.vehicleId,
         asleep: r.mercAsleep,
+        contract: r.contract,
+        quoteSaidFlags: r.quoteSaidFlags,
+        corpseQuoteTolerance: r.corpseQuoteTolerance,
       }),
     );
   }

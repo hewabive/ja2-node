@@ -113,6 +113,10 @@ export function promptView(campaign: CampaignSim): PromptView | null {
       const g = campaign.strategic ? getGroup(campaign.strategic, groupId) : undefined;
       return { id: prompt.id, kind: 'npcOfNote', group: groupId, sector: g ? sectorName(g.sector) : '', choices: ['continue', 'stop'] };
     }
+    case PromptKind.CONTRACT_RENEWAL:
+    case PromptKind.MERC_DEPARTURE:
+    case PromptKind.INSURANCE_EXTENSION:
+      return null;
   }
 }
 

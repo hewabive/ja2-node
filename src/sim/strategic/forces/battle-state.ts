@@ -36,6 +36,9 @@ export const PromptKind = {
   AUTORESOLVE_DONE: 'autoresolveDone',
   SIMULTANEOUS_ARRIVAL: 'simultaneousArrival',
   NPC_OF_NOTE: 'npcOfNote',
+  CONTRACT_RENEWAL: 'contractRenewal',
+  MERC_DEPARTURE: 'mercDeparture',
+  INSURANCE_EXTENSION: 'insuranceExtension',
 } as const;
 export type PromptKind = (typeof PromptKind)[keyof typeof PromptKind];
 
@@ -49,7 +52,22 @@ export type BattlePrompt =
   | { readonly id: string; readonly kind: typeof PromptKind.SURRENDER }
   | { readonly id: string; readonly kind: typeof PromptKind.AUTORESOLVE_DONE }
   | { readonly id: string; readonly kind: typeof PromptKind.SIMULTANEOUS_ARRIVAL }
-  | { readonly id: string; readonly kind: typeof PromptKind.NPC_OF_NOTE };
+  | { readonly id: string; readonly kind: typeof PromptKind.NPC_OF_NOTE }
+  | { readonly id: string; readonly kind: typeof PromptKind.CONTRACT_RENEWAL; readonly soldier: number; readonly fromSequence: boolean }
+  | {
+      readonly id: string;
+      readonly kind: typeof PromptKind.MERC_DEPARTURE;
+      readonly soldier: number;
+      readonly choices: readonly string[];
+      readonly elsewhere: number | null;
+    }
+  | {
+      readonly id: string;
+      readonly kind: typeof PromptKind.INSURANCE_EXTENSION;
+      readonly soldier: number;
+      readonly days: number;
+      readonly cost: number;
+    };
 
 export const QuestState = { NOT_STARTED: 0, IN_PROGRESS: 1, DONE: 2 } as const;
 

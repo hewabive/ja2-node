@@ -1,0 +1,134 @@
+Contract oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE (SFI-SCLA).
+Appends wrappers for the static contract helpers of Merc_Contract.cc (FindRefusalReason, ContractIsExpiring,
+ContractIsGoingToExpireSoon), accessors for the saved renewal list and the sequence counters, a setter for the renewal
+list, BeginRemoveMercFromContract (Assignments.cc), copies of the leave item list of Map_Screen_Interface.cc and
+CalcNewSalary (Campaign.cc). No behaviour changes. Applied by tools/oracle/build.sh after 0006.
+
+--- a/src/game/Strategic/Merc_Contract.cc
++++ b/src/game/Strategic/Merc_Contract.cc
+@@ -35,6 +35,7 @@
+ #include "GamePolicy.h"
+ 
+ #include <string_theory/string>
++#include <vector>
+ 
+ 
+ struct CONTRACT_NEWAL_LIST_NODE
+@@ -1044,3 +1045,61 @@
+ }
+ 
+ #endif
++
++
++UINT16 OracleFindRefusalReason(SOLDIERTYPE const* const s)
++{
++	return FindRefusalReason(s);
++}
++
++
++BOOLEAN OracleContractIsExpiring(SOLDIERTYPE* const s)
++{
++	return ContractIsExpiring(s);
++}
++
++
++BOOLEAN OracleContractIsGoingToExpireSoon(SOLDIERTYPE* const s)
++{
++	return ContractIsGoingToExpireSoon(s);
++}
++
++
++UINT8 OracleContractRenewalCount()
++{
++	return ubNumContractRenewals;
++}
++
++
++UINT8 OracleContractRenewalProfile(UINT8 const i)
++{
++	return ContractRenewalList[i].ubProfileID;
++}
++
++
++UINT8 OracleCurrentContractRenewal()
++{
++	return ubCurrentContractRenewal;
++}
++
++
++UINT8 OracleContractRenewalInProgress()
++{
++	return ubCurrentContractRenewalInProgress;
++}
++
++
++void OracleSetContractRenewals(std::vector<UINT8> const& profiles)
++{
++	ubNumContractRenewals = 0;
++	for (UINT8 const pid : profiles) ContractRenewalList[ubNumContractRenewals++].ubProfileID = pid;
++}
++
++
++void OracleResetContractRenewalSequence()
++{
++	ubCurrentContractRenewal           = 0;
++	ubCurrentContractRenewalInProgress = FALSE;
++	gfContractRenewalSquenceOn         = FALSE;
++	gfInContractMenuFromRenewSequence  = FALSE;
++}
+--- a/src/game/Strategic/Assignments.cc
++++ b/src/game/Strategic/Assignments.cc
+@@ -7179,3 +7179,9 @@
+ 
+ 	return ( fAnyGunsWereUnjammed );
+ }
++
++
++void OracleBeginRemoveMercFromContract(SOLDIERTYPE* const s)
++{
++	BeginRemoveMercFromContract(s);
++}
+--- a/src/game/Strategic/Map_Screen_Interface.cc
++++ b/src/game/Strategic/Map_Screen_Interface.cc
+@@ -63,6 +63,7 @@
+ #include <iterator>
+ #include <string_theory/format>
+ #include <string_theory/string>
++#include <vector>
+ 
+ // number of LINKED LISTS for sets of leave items (each slot holds an unlimited # of items)
+ #define NUM_LEAVE_LIST_SLOTS 20
+@@ -4319,3 +4320,21 @@
+ 	RemoveVObject(guiSectorLocatorGraphicID);
+ 	RemoveVObject(guiSelectedCharArrow);
+ }
++
++
++INT32 OracleLeaveListItems(UINT32 const slot, std::vector<OBJECTTYPE>* const items)
++{
++	if (!gpLeaveListHead[slot]) return -1;
++	INT32 n = 0;
++	for (MERC_LEAVE_ITEM const* i = gpLeaveListHead[slot]; i; i = i->pNext, ++n)
++	{
++		if (items) items->push_back(i->o);
++	}
++	return n;
++}
++
++
++UINT32 OracleLeaveListOwner(UINT32 const slot)
++{
++	return guiLeaveListOwnerProfileId[slot];
++}
+--- a/src/game/Tactical/Campaign.cc
++++ b/src/game/Tactical/Campaign.cc
+@@ -1437,3 +1437,9 @@
+ 	ubEmailOffset = MERC_UP_LEVEL_BIFF + MERC_UP_LEVEL_LENGTH_BIFF * ( ubMercMercIdValue );
+ 	AddEmail( ubEmailOffset, MERC_UP_LEVEL_LENGTH_BIFF, SPECK_FROM_MERC, GetWorldTotalMin() );
+ }
++
++
++UINT32 OracleCalcNewSalary(UINT32 const old, UINT32 const max)
++{
++	return CalcNewSalary(old, TRUE, max);
++}

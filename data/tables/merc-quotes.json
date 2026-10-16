@@ -1,0 +1,627 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Tactical/Dialogue_Control.h DialogQuoteIDs",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "merc quote numbers in enum order: name without the QUOTE_ prefix and the camelCase key used in events; an alias names the first entry with its number",
+  "quotes": [
+    {
+      "id": 65535,
+      "name": "NONE",
+      "key": "none"
+    },
+    {
+      "id": 0,
+      "name": "SEE_ENEMY",
+      "key": "seeEnemy"
+    },
+    {
+      "id": 1,
+      "name": "SEE_ENEMY_VARIATION",
+      "key": "seeEnemyVariation"
+    },
+    {
+      "id": 2,
+      "name": "IN_TROUBLE_SLASH_IN_BATTLE",
+      "key": "inTroubleSlashInBattle"
+    },
+    {
+      "id": 3,
+      "name": "SEE_CREATURE",
+      "key": "seeCreature"
+    },
+    {
+      "id": 4,
+      "name": "FIRSTTIME_GAME_SEE_CREATURE",
+      "key": "firsttimeGameSeeCreature"
+    },
+    {
+      "id": 5,
+      "name": "TRACES_OF_CREATURE_ATTACK",
+      "key": "tracesOfCreatureAttack"
+    },
+    {
+      "id": 6,
+      "name": "HEARD_SOMETHING",
+      "key": "heardSomething"
+    },
+    {
+      "id": 7,
+      "name": "SMELLED_CREATURE",
+      "key": "smelledCreature"
+    },
+    {
+      "id": 8,
+      "name": "WEARY_SLASH_SUSPUCIOUS",
+      "key": "wearySlashSuspucious"
+    },
+    {
+      "id": 9,
+      "name": "WORRIED_ABOUT_CREATURE_PRESENCE",
+      "key": "worriedAboutCreaturePresence"
+    },
+    {
+      "id": 10,
+      "name": "ATTACKED_BY_MULTIPLE_CREATURES",
+      "key": "attackedByMultipleCreatures"
+    },
+    {
+      "id": 11,
+      "name": "SPOTTED_SOMETHING_ONE",
+      "key": "spottedSomethingOne"
+    },
+    {
+      "id": 12,
+      "name": "SPOTTED_SOMETHING_TWO",
+      "key": "spottedSomethingTwo"
+    },
+    {
+      "id": 13,
+      "name": "OUT_OF_AMMO",
+      "key": "outOfAmmo"
+    },
+    {
+      "id": 14,
+      "name": "SERIOUSLY_WOUNDED",
+      "key": "seriouslyWounded"
+    },
+    {
+      "id": 15,
+      "name": "BUDDY_ONE_KILLED",
+      "key": "buddyOneKilled"
+    },
+    {
+      "id": 16,
+      "name": "BUDDY_TWO_KILLED",
+      "key": "buddyTwoKilled"
+    },
+    {
+      "id": 17,
+      "name": "LEARNED_TO_LIKE_MERC_KILLED",
+      "key": "learnedToLikeMercKilled"
+    },
+    {
+      "id": 18,
+      "name": "FORGETFULL_SLASH_CONFUSED",
+      "key": "forgetfullSlashConfused"
+    },
+    {
+      "id": 19,
+      "name": "JAMMED_GUN",
+      "key": "jammedGun"
+    },
+    {
+      "id": 20,
+      "name": "UNDER_HEAVY_FIRE",
+      "key": "underHeavyFire"
+    },
+    {
+      "id": 21,
+      "name": "TAKEN_A_BREATING",
+      "key": "takenABreating"
+    },
+    {
+      "id": 22,
+      "name": "CLOSE_CALL",
+      "key": "closeCall"
+    },
+    {
+      "id": 23,
+      "name": "NO_LINE_OF_FIRE",
+      "key": "noLineOfFire"
+    },
+    {
+      "id": 24,
+      "name": "STARTING_TO_BLEED",
+      "key": "startingToBleed"
+    },
+    {
+      "id": 25,
+      "name": "NEED_SLEEP",
+      "key": "needSleep"
+    },
+    {
+      "id": 26,
+      "name": "OUT_OF_BREATH",
+      "key": "outOfBreath"
+    },
+    {
+      "id": 27,
+      "name": "KILLED_AN_ENEMY",
+      "key": "killedAnEnemy"
+    },
+    {
+      "id": 28,
+      "name": "KILLED_A_CREATURE",
+      "key": "killedACreature"
+    },
+    {
+      "id": 29,
+      "name": "HATED_MERC_ONE",
+      "key": "hatedMercOne"
+    },
+    {
+      "id": 30,
+      "name": "HATED_MERC_TWO",
+      "key": "hatedMercTwo"
+    },
+    {
+      "id": 31,
+      "name": "LEARNED_TO_HATE_MERC",
+      "key": "learnedToHateMerc"
+    },
+    {
+      "id": 32,
+      "name": "AIM_KILLED_MIKE",
+      "key": "aimKilledMike"
+    },
+    {
+      "id": 32,
+      "name": "MERC_QUIT_LEARN_TO_HATE",
+      "key": "mercQuitLearnToHate",
+      "aliasOf": "AIM_KILLED_MIKE"
+    },
+    {
+      "id": 33,
+      "name": "HEADSHOT",
+      "key": "headshot"
+    },
+    {
+      "id": 34,
+      "name": "PERSONALITY_TRAIT",
+      "key": "personalityTrait"
+    },
+    {
+      "id": 35,
+      "name": "ASSIGNMENT_COMPLETE",
+      "key": "assignmentComplete"
+    },
+    {
+      "id": 36,
+      "name": "REFUSING_ORDER",
+      "key": "refusingOrder"
+    },
+    {
+      "id": 37,
+      "name": "KILLING_DEIDRANNA",
+      "key": "killingDeidranna"
+    },
+    {
+      "id": 38,
+      "name": "KILLING_QUEEN",
+      "key": "killingQueen"
+    },
+    {
+      "id": 39,
+      "name": "ANNOYING_PC",
+      "key": "annoyingPc"
+    },
+    {
+      "id": 40,
+      "name": "STARTING_TO_WHINE",
+      "key": "startingToWhine"
+    },
+    {
+      "id": 41,
+      "name": "NEGATIVE_COMPANY",
+      "key": "negativeCompany"
+    },
+    {
+      "id": 42,
+      "name": "AIR_RAID",
+      "key": "airRaid"
+    },
+    {
+      "id": 43,
+      "name": "WHINE_EQUIPMENT",
+      "key": "whineEquipment"
+    },
+    {
+      "id": 44,
+      "name": "SOCIAL_TRAIT",
+      "key": "socialTrait"
+    },
+    {
+      "id": 45,
+      "name": "PASSING_DISLIKE",
+      "key": "passingDislike"
+    },
+    {
+      "id": 46,
+      "name": "EXPERIENCE_GAIN",
+      "key": "experienceGain"
+    },
+    {
+      "id": 47,
+      "name": "PRE_NOT_SMART",
+      "key": "preNotSmart"
+    },
+    {
+      "id": 48,
+      "name": "POST_NOT_SMART",
+      "key": "postNotSmart"
+    },
+    {
+      "id": 49,
+      "name": "HATED_1_ARRIVES",
+      "key": "hated1Arrives"
+    },
+    {
+      "id": 49,
+      "name": "MERC_QUIT_HATED1",
+      "key": "mercQuitHated1",
+      "aliasOf": "HATED_1_ARRIVES"
+    },
+    {
+      "id": 50,
+      "name": "HATED_2_ARRIVES",
+      "key": "hated2Arrives"
+    },
+    {
+      "id": 50,
+      "name": "MERC_QUIT_HATED2",
+      "key": "mercQuitHated2",
+      "aliasOf": "HATED_2_ARRIVES"
+    },
+    {
+      "id": 51,
+      "name": "BUDDY_1_GOOD",
+      "key": "buddy1Good"
+    },
+    {
+      "id": 52,
+      "name": "BUDDY_2_GOOD",
+      "key": "buddy2Good"
+    },
+    {
+      "id": 53,
+      "name": "LEARNED_TO_LIKE_WITNESSED",
+      "key": "learnedToLikeWitnessed"
+    },
+    {
+      "id": 54,
+      "name": "DELAY_CONTRACT_RENEWAL",
+      "key": "delayContractRenewal"
+    },
+    {
+      "id": 54,
+      "name": "NOT_GETTING_PAID",
+      "key": "notGettingPaid",
+      "aliasOf": "DELAY_CONTRACT_RENEWAL"
+    },
+    {
+      "id": 55,
+      "name": "AIM_SEEN_MIKE",
+      "key": "aimSeenMike"
+    },
+    {
+      "id": 55,
+      "name": "PC_DROPPED_OMERTA",
+      "key": "pcDroppedOmerta",
+      "aliasOf": "AIM_SEEN_MIKE"
+    },
+    {
+      "id": 56,
+      "name": "BLINDED",
+      "key": "blinded"
+    },
+    {
+      "id": 57,
+      "name": "DEFINITE_CANT_DO",
+      "key": "definiteCantDo"
+    },
+    {
+      "id": 58,
+      "name": "LISTEN_LIKABLE_PERSON",
+      "key": "listenLikablePerson"
+    },
+    {
+      "id": 59,
+      "name": "ENEMY_PRESENCE",
+      "key": "enemyPresence"
+    },
+    {
+      "id": 60,
+      "name": "WARNING_OUTSTANDING_ENEMY_AFTER_RT",
+      "key": "warningOutstandingEnemyAfterRt"
+    },
+    {
+      "id": 61,
+      "name": "FOUND_SOMETHING_SPECIAL",
+      "key": "foundSomethingSpecial"
+    },
+    {
+      "id": 62,
+      "name": "SATISFACTION_WITH_GUN_AFTER_KILL",
+      "key": "satisfactionWithGunAfterKill"
+    },
+    {
+      "id": 63,
+      "name": "SPOTTED_JOEY",
+      "key": "spottedJoey"
+    },
+    {
+      "id": 64,
+      "name": "RESPONSE_TO_MIGUEL_SLASH_QUOTE_MERC_OR_RPC_LETGO",
+      "key": "responseToMiguelSlashQuoteMercOrRpcLetgo"
+    },
+    {
+      "id": 65,
+      "name": "SECTOR_SAFE",
+      "key": "sectorSafe"
+    },
+    {
+      "id": 66,
+      "name": "STUFF_MISSING_DRASSEN",
+      "key": "stuffMissingDrassen"
+    },
+    {
+      "id": 67,
+      "name": "KILLED_FACTORY_MANAGER",
+      "key": "killedFactoryManager"
+    },
+    {
+      "id": 68,
+      "name": "SPOTTED_BLOODCAT",
+      "key": "spottedBloodcat"
+    },
+    {
+      "id": 69,
+      "name": "END_GAME_COMMENT",
+      "key": "endGameComment"
+    },
+    {
+      "id": 70,
+      "name": "ENEMY_RETREATED",
+      "key": "enemyRetreated"
+    },
+    {
+      "id": 71,
+      "name": "GOING_TO_AUTO_SLEEP",
+      "key": "goingToAutoSleep"
+    },
+    {
+      "id": 72,
+      "name": "WORK_UP_AND_RETURNING_TO_ASSIGNMENT",
+      "key": "workUpAndReturningToAssignment"
+    },
+    {
+      "id": 73,
+      "name": "ME_TOO",
+      "key": "meToo"
+    },
+    {
+      "id": 74,
+      "name": "USELESS_ITEM",
+      "key": "uselessItem"
+    },
+    {
+      "id": 75,
+      "name": "BOOBYTRAP_ITEM",
+      "key": "boobytrapItem"
+    },
+    {
+      "id": 76,
+      "name": "SUSPICIOUS_GROUND",
+      "key": "suspiciousGround"
+    },
+    {
+      "id": 77,
+      "name": "DROWNING",
+      "key": "drowning"
+    },
+    {
+      "id": 78,
+      "name": "MERC_REACHED_DESTINATION",
+      "key": "mercReachedDestination"
+    },
+    {
+      "id": 79,
+      "name": "SPARE2",
+      "key": "spare2"
+    },
+    {
+      "id": 80,
+      "name": "REPUTATION_REFUSAL",
+      "key": "reputationRefusal"
+    },
+    {
+      "id": 81,
+      "name": "DEATH_RATE_REFUSAL",
+      "key": "deathRateRefusal"
+    },
+    {
+      "id": 82,
+      "name": "LAME_REFUSAL",
+      "key": "lameRefusal"
+    },
+    {
+      "id": 83,
+      "name": "WONT_RENEW_CONTRACT_LAME_REFUSAL",
+      "key": "wontRenewContractLameRefusal"
+    },
+    {
+      "id": 84,
+      "name": "ANSWERING_MACHINE_MSG",
+      "key": "answeringMachineMsg"
+    },
+    {
+      "id": 85,
+      "name": "DEPARTING_COMMENT_CONTRACT_NOT_RENEWED_OR_48_OR_MORE",
+      "key": "departingCommentContractNotRenewedOr48OrMore"
+    },
+    {
+      "id": 86,
+      "name": "HATE_MERC_1_ON_TEAM",
+      "key": "hateMerc1OnTeam"
+    },
+    {
+      "id": 87,
+      "name": "HATE_MERC_2_ON_TEAM",
+      "key": "hateMerc2OnTeam"
+    },
+    {
+      "id": 88,
+      "name": "LEARNED_TO_HATE_MERC_ON_TEAM",
+      "key": "learnedToHateMercOnTeam"
+    },
+    {
+      "id": 89,
+      "name": "CONTRACTS_OVER",
+      "key": "contractsOver"
+    },
+    {
+      "id": 90,
+      "name": "ACCEPT_CONTRACT_RENEWAL",
+      "key": "acceptContractRenewal"
+    },
+    {
+      "id": 91,
+      "name": "CONTRACT_ACCEPTANCE",
+      "key": "contractAcceptance"
+    },
+    {
+      "id": 92,
+      "name": "JOINING_CAUSE_BUDDY_1_ON_TEAM",
+      "key": "joiningCauseBuddy1OnTeam"
+    },
+    {
+      "id": 93,
+      "name": "JOINING_CAUSE_BUDDY_2_ON_TEAM",
+      "key": "joiningCauseBuddy2OnTeam"
+    },
+    {
+      "id": 94,
+      "name": "JOINING_CAUSE_LEARNED_TO_LIKE_BUDDY_ON_TEAM",
+      "key": "joiningCauseLearnedToLikeBuddyOnTeam"
+    },
+    {
+      "id": 95,
+      "name": "REFUSAL_RENEW_DUE_TO_MORALE",
+      "key": "refusalRenewDueToMorale"
+    },
+    {
+      "id": 96,
+      "name": "PRECEDENT_TO_REPEATING_ONESELF",
+      "key": "precedentToRepeatingOneself"
+    },
+    {
+      "id": 97,
+      "name": "REFUSAL_TO_JOIN_LACK_OF_FUNDS",
+      "key": "refusalToJoinLackOfFunds"
+    },
+    {
+      "id": 98,
+      "name": "DEPART_COMMET_CONTRACT_NOT_RENEWED_OR_TERMINATED_UNDER_48",
+      "key": "departCommetContractNotRenewedOrTerminatedUnder48"
+    },
+    {
+      "id": 99,
+      "name": "DEATH_RATE_RENEWAL",
+      "key": "deathRateRenewal"
+    },
+    {
+      "id": 100,
+      "name": "HATE_MERC_1_ON_TEAM_WONT_RENEW",
+      "key": "hateMerc1OnTeamWontRenew"
+    },
+    {
+      "id": 101,
+      "name": "HATE_MERC_2_ON_TEAM_WONT_RENEW",
+      "key": "hateMerc2OnTeamWontRenew"
+    },
+    {
+      "id": 102,
+      "name": "LEARNED_TO_HATE_MERC_1_ON_TEAM_WONT_RENEW",
+      "key": "learnedToHateMerc1OnTeamWontRenew"
+    },
+    {
+      "id": 103,
+      "name": "RENEWING_CAUSE_BUDDY_1_ON_TEAM",
+      "key": "renewingCauseBuddy1OnTeam"
+    },
+    {
+      "id": 104,
+      "name": "RENEWING_CAUSE_BUDDY_2_ON_TEAM",
+      "key": "renewingCauseBuddy2OnTeam"
+    },
+    {
+      "id": 105,
+      "name": "RENEWING_CAUSE_LEARNED_TO_LIKE_BUDDY_ON_TEAM",
+      "key": "renewingCauseLearnedToLikeBuddyOnTeam"
+    },
+    {
+      "id": 106,
+      "name": "PRECEDENT_TO_REPEATING_ONESELF_RENEW",
+      "key": "precedentToRepeatingOneselfRenew"
+    },
+    {
+      "id": 107,
+      "name": "RENEW_REFUSAL_DUE_TO_LACK_OF_FUNDS",
+      "key": "renewRefusalDueToLackOfFunds"
+    },
+    {
+      "id": 108,
+      "name": "GREETING",
+      "key": "greeting"
+    },
+    {
+      "id": 109,
+      "name": "SMALL_TALK",
+      "key": "smallTalk"
+    },
+    {
+      "id": 110,
+      "name": "IMPATIENT_QUOTE",
+      "key": "impatientQuote"
+    },
+    {
+      "id": 111,
+      "name": "LENGTH_OF_CONTRACT",
+      "key": "lengthOfContract"
+    },
+    {
+      "id": 112,
+      "name": "COMMENT_BEFORE_HANG_UP",
+      "key": "commentBeforeHangUp"
+    },
+    {
+      "id": 113,
+      "name": "PERSONALITY_BIAS_WITH_MERC_1",
+      "key": "personalityBiasWithMerc1"
+    },
+    {
+      "id": 114,
+      "name": "PERSONALITY_BIAS_WITH_MERC_2",
+      "key": "personalityBiasWithMerc2"
+    },
+    {
+      "id": 115,
+      "name": "MERC_LEAVING_ALSUCO_SOON",
+      "key": "mercLeavingAlsucoSoon"
+    },
+    {
+      "id": 116,
+      "name": "MERC_GONE_UP_IN_PRICE",
+      "key": "mercGoneUpInPrice"
+    }
+  ]
+}

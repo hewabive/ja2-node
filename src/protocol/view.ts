@@ -48,6 +48,27 @@ export interface StrategicSectorView {
   readonly militia: readonly number[];
 }
 
+export interface ContractTimeView {
+  readonly day: number;
+  readonly hour: number;
+}
+
+export type MercContractView =
+  | {
+      readonly type: 'aim';
+      readonly totalDays: number;
+      readonly remaining: { readonly days: number; readonly hours: number };
+      readonly endsAt: ContractTimeView;
+      readonly lastContract: 'day' | 'week' | 'twoWeeks';
+      readonly dailyRate: number;
+      readonly renewalCosts: { readonly day: number; readonly week: number; readonly twoWeeks: number };
+      readonly medicalDeposit: number;
+      readonly insured: boolean;
+      readonly insuranceDays: number;
+    }
+  | { readonly type: 'merc'; readonly unpaidDays: number; readonly daysHired: number; readonly owed: number }
+  | { readonly type: 'rpc'; readonly dailyRate: number };
+
 export interface StrategicMercView {
   readonly id: number;
   readonly name: string;
@@ -60,6 +81,12 @@ export interface StrategicMercView {
   readonly breath: number;
   readonly breathMax: number;
   readonly asleep: boolean;
+  readonly kind?: string;
+  readonly contract?: MercContractView | null;
+  readonly morale?: number;
+  readonly moraleText?: string;
+  readonly daysServed?: number;
+  readonly totalCost?: number;
 }
 
 export interface StrategicGroupView {
@@ -79,6 +106,7 @@ export interface StrategicView {
   readonly sectors: readonly StrategicSectorView[];
   readonly mercs: readonly StrategicMercView[];
   readonly groups: readonly StrategicGroupView[];
+  readonly mercAccountStatus?: string;
 }
 
 export interface PromptOptionView {
@@ -140,6 +168,42 @@ export type PromptView =
       readonly choices: readonly string[];
     };
 
+export type ContractPromptView =
+  | {
+      readonly id: string;
+      readonly kind: 'contractRenewal';
+      readonly soldier: number;
+      readonly name: string;
+      readonly fromSequence: boolean;
+      readonly balance: number;
+      readonly options: readonly ContractOptionView[];
+    }
+  | {
+      readonly id: string;
+      readonly kind: 'mercDeparture';
+      readonly soldier: number;
+      readonly name: string;
+      readonly sector: string;
+      readonly choices: readonly string[];
+      readonly elsewhereSector: string | null;
+    }
+  | {
+      readonly id: string;
+      readonly kind: 'insuranceExtension';
+      readonly soldier: number;
+      readonly name: string;
+      readonly days: number;
+      readonly cost: number;
+      readonly choices: readonly string[];
+    };
+
+export interface ContractOptionView {
+  readonly choice: string;
+  readonly cost?: number;
+  readonly enabled: boolean;
+  readonly reason?: string;
+}
+
 export interface AutoresolveCellView {
   readonly side: 'merc' | 'militia' | 'enemy';
   readonly index: number;
@@ -170,6 +234,7 @@ export interface PlayerView {
   readonly clock?: ClockView;
   readonly strategic?: StrategicView;
   readonly prompt?: PromptView | null;
+  readonly contractPrompt?: ContractPromptView | null;
   readonly autoresolve?: AutoresolveView | null;
   readonly soldiers: readonly SoldierView[];
   readonly openDoors?: readonly number[];
@@ -186,6 +251,7 @@ export interface ViewFrame {
   readonly clock?: ClockView;
   readonly strategic?: StrategicView;
   readonly prompt?: PromptView | null;
+  readonly contractPrompt?: ContractPromptView | null;
   readonly autoresolve?: AutoresolveView | null;
   readonly openDoors?: readonly number[];
   readonly combat?: CombatView | null;
@@ -230,6 +296,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), strategic: next.strategic };
   if (JSON.stringify(previous.prompt ?? null) !== JSON.stringify(next.prompt ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), prompt: next.prompt ?? null };
+  if (JSON.stringify(previous.contractPrompt ?? null) !== JSON.stringify(next.contractPrompt ?? null))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), contractPrompt: next.contractPrompt ?? null };
   if (JSON.stringify(previous.autoresolve ?? null) !== JSON.stringify(next.autoresolve ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), autoresolve: next.autoresolve ?? null };
   return frame;

@@ -25,6 +25,7 @@ import {
   type ClockContext,
   type ClockScreen,
   CompressionStop,
+  type CompressionStopReason,
   compressionStopReason,
   isTimeBeingCompressed,
   pauseGame,
@@ -35,10 +36,13 @@ import {
   updateClock,
   worldDay,
 } from '../strategic/time/world-clock.ts';
+import { type ExperienceHooks, NO_EXPERIENCE_HOOKS } from '../tactical/combat/context.ts';
 import { hostileBloodcatsPresent } from '../tactical/sector-presence.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import { BattleFlow, type BattleSetup } from './battle-flow.ts';
 import { dispatchStrategicCommand } from './commands.ts';
+import type { ContractHooks } from './contracts/context.ts';
+import { ContractFlow } from './contracts/contract-flow.ts';
 import { CreatureFlow } from './creature-flow.ts';
 import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
 import { openMapScreen, openTacticalScreen } from './screens.ts';
@@ -59,6 +63,7 @@ export interface CampaignHooks {
   readonly queen?: QueenContextOptions;
   readonly sectors?: SectorSetup;
   readonly battle?: BattleSetup;
+  readonly contracts?: Partial<ContractHooks>;
 }
 
 export class CampaignSim {
@@ -71,6 +76,7 @@ export class CampaignSim {
   readonly sectors: SectorFlow | null;
   readonly battle: BattleFlow | null;
   readonly creatures: CreatureFlow | null;
+  readonly contracts: ContractFlow | null;
   readonly worldClock: WorldTimeControl;
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
@@ -107,12 +113,20 @@ export class CampaignSim {
     const battleSetup = hooks.battle ?? hooks.sectors;
     this.battle = this.economy && battleSetup ? new BattleFlow(this, battleSetup) : null;
     this.creatures = this.economy ? new CreatureFlow(this) : null;
+    this.contracts = this.battle
+      ? new ContractFlow(this, {
+          roster: this.battle.roster,
+          content: this.battle.content,
+          ...(hooks.contracts ? { hooks: hooks.contracts } : {}),
+        })
+      : null;
     this.worldClock = this.#worldTimeControl();
     this.#registerEnvironment();
     this.#registerMovement();
     if (this.economy) registerEconomyEvents(this.dispatchTable, this.economy);
     if (this.queen) registerStrategicAiEvents(this.dispatchTable, this.queen);
     this.creatures?.register(this.dispatchTable);
+    this.contracts?.register(this.dispatchTable);
     if (state.flow === 'tactical') setGameTimeCompressionLevel(this.#clock, CompressMode.X1);
     tactical?.attachWorldClock(state.clock);
     this.#compressing = isTimeBeingCompressed(state.clock);
@@ -180,6 +194,7 @@ export class CampaignSim {
     if (t?.turn.enemyInSector) return 'enemies are present in the loaded sector';
     if (this.creatures?.playerInInfestedMine()) return 'mercs are in a creature-infested mine';
     if (this.state.encounter.code === EncounterCode.BLOODCAT_AMBUSH && t && hostileBloodcatsPresent(t)) return 'bloodcats are attacking';
+    if (this.contracts?.sequenceOn) return 'the contract renewal sequence is on';
     return null;
   }
 
@@ -219,6 +234,18 @@ export class CampaignSim {
 
   get clockContext(): ClockContext {
     return this.#clock;
+  }
+
+  get experienceHooks(): ExperienceHooks {
+    return this.contracts?.experienceHooks ?? NO_EXPERIENCE_HOOKS;
+  }
+
+  refreshPauseState(): void {
+    if (this.state.flow === 'strategic') this.#updatePausedStatesDueToTimeCompression();
+  }
+
+  stopCompression(reason: CompressionStopReason): void {
+    stopTimeCompression(this.#clock, reason);
   }
 
   #updatePausedStatesDueToTimeCompression(): void {
@@ -272,6 +299,7 @@ export class CampaignSim {
   #collectEvents(): void {
     if (this.sectors) this.#events.push(...this.sectors.drainEvents());
     if (this.battle) this.#events.push(...this.battle.drainEvents());
+    if (this.contracts) this.#events.push(...this.contracts.drainEvents());
   }
 
   step(): void {
@@ -292,6 +320,7 @@ export class CampaignSim {
     updateClock(this.#clock, s.realMs);
     this.#collectEvents();
     this.battle?.afterStep();
+    this.contracts?.settle();
     this.#collectEvents();
     this.#syncClockEvents();
   }
@@ -317,6 +346,7 @@ export class CampaignSim {
     const result = this.#dispatch(cmd);
     this.#collectEvents();
     this.battle?.settle();
+    this.contracts?.settle();
     this.#collectEvents();
     this.#syncClockEvents();
     return result;
@@ -337,6 +367,7 @@ export class CampaignSim {
         return openTacticalScreen(this);
       default:
         return (
+          this.contracts?.dispatch(cmd) ??
           dispatchSectorCommand(this, cmd) ??
           dispatchStrategicCommand(this, cmd) ??
           (this.tactical ? this.tactical.dispatch(cmd) : { ok: false, reason: `unknown command ${cmd.type}` })

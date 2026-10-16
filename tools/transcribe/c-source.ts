@@ -26,6 +26,14 @@ export function bracedBody(src: string, declaration: string): string {
   throw new Error(`unterminated body: ${declaration}`);
 }
 
+function enumValue(value: string, known: ReadonlyMap<string, number>, item: string): number {
+  if (/^-?\d+$/.test(value)) return Number(value);
+  if (/^0x[0-9a-f]+$/i.test(value)) return Number.parseInt(value, 16);
+  const alias = known.get(value);
+  if (alias === undefined) throw new Error(`non-literal enum value ${item}`);
+  return alias;
+}
+
 export function sequentialEnum(src: string, enumName: string): Map<string, number> {
   const values = new Map<string, number>();
   let next = 0;
@@ -34,10 +42,7 @@ export function sequentialEnum(src: string, enumName: string): Map<string, numbe
     if (!item) continue;
     const [name, value] = item.split('=').map((s) => s.trim());
     if (!name) continue;
-    if (value !== undefined) {
-      if (!/^-?\d+$/.test(value)) throw new Error(`non-literal enum value ${item}`);
-      next = Number(value);
-    }
+    if (value !== undefined) next = enumValue(value, values, item);
     values.set(name, next++);
   }
   return values;

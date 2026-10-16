@@ -1,3 +1,5 @@
+import type { ContractEvent } from './campaign/contracts/events.ts';
+
 export interface SimEventBase {
   readonly tick: number;
 }
@@ -307,20 +309,6 @@ export interface CiviliansEatenEvent extends SimEventBase {
   readonly count: number;
 }
 
-export interface HatedComplaintEvent extends SimEventBase {
-  readonly type: 'hatedComplaint';
-  readonly soldier: number;
-  readonly about: number;
-  readonly learned: boolean;
-}
-
-export interface MercQuitsHatedEvent extends SimEventBase {
-  readonly type: 'mercQuitsHated';
-  readonly soldier: number;
-  readonly about: number;
-  readonly learned: boolean;
-}
-
 export interface CompressionStartedEvent extends SimEventBase {
   readonly type: 'compressionStarted';
   readonly mode: number;
@@ -386,8 +374,7 @@ export type SimEvent =
   | BattleResultEvent
   | SectorControlChangedEvent
   | MercCapturedEvent
-  | HatedComplaintEvent
-  | MercQuitsHatedEvent
+  | ContractEvent
   | CiviliansEatenEvent
   | CompressionStartedEvent
   | CompressionStoppedEvent
