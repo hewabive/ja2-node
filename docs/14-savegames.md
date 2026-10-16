@@ -51,8 +51,8 @@ wraps, i.e. for large balances.
 | 3 | Strategic events | `u32 n` × 28 | all |
 | 4 | Laptop info | 7440, then Bobby Ray orders (`size × 84` if `used ≠ 0`) and insurance payouts (`n × 8` if `used ≠ 0`) | balance, counts |
 | 5 | Merc profiles | 170 (200 from v105) × encrypted 716 / 796; v104+: `n` voice ids + `n` IMP slot states | `prof.dat` fields + kills, status… |
-| 6 | Soldiers | 156 × (`u8 active`; if set: encrypted 2328 / 2352, merc path `u32 n` × 20, `u8 hasKeyRing` + 128) | see §6 |
-| 7–9 | Finances, history, files temp files | `u32 size` + data each | skipped |
+| 6 | Soldiers | 156 × (`u8 active`; if set: encrypted 2328 / 2352, merc path `u32 n` × 20, `u8 hasKeyRing` + 128) | see §6; the assignment fields (`bTrainStat`, sleep, collapse, nothing-to-do, last change) also by `readSoldierAssignments` (`savegame-economy.ts`) |
+| 7–9 | Finances, history, files temp files | `u32 size` + data each | finances (`i32` balance + 14-byte records) decoded by `savegame-economy.ts`; history and files skipped |
 | 10 | Email | `u32 n` × (`u32 subjectSize` + subject + 44) | skipped |
 | 11 | Strategic info | 324 × 41 map elements, 256 × 116 `SECTORINFO`, 324 SAM bytes, 1 | all (`savegame-strategic.ts`): map elements, every `SECTORINFO` field, Orta found |
 | 12 | Underground sectors | `u32 n` × 72 | all |
@@ -68,11 +68,11 @@ wraps, i.e. for large balances.
 | 22 | PreRandom | `u32 index` + 256 × `u32` | all |
 | 23 | Arms dealers | 19 × 20 + 19 × 351 × 16 headers, then 28 × Σ special-item counts of items 1..350 | skipped |
 | 24 | General info (`LoadGeneralInfo`) | 1024 | selected soldier, render centre, panel, options, clock base, helicopter id and airborne flag, Tixa and SAM secrets, dead squad members, selected map sector |
-| 25–30 | Mines (6 × 44), town loyalty (13 × 26), vehicles (`u8 n` × (`bool valid` + 128 + merc path)), bullets (`u32 n` × 128), physics objects (`u32 n` × 256), air raid (132) | | vehicles decoded, the rest skipped |
+| 25–30 | Mines (6 × 44), town loyalty (13 × 26), vehicles (`u8 n` × (`bool valid` + 128 + merc path)), bullets (`u32 n` × 128), physics objects (`u32 n` × 256), air raid (132) | | mines and town loyalty decoded by `savegame-economy.ts` (`readSavedEconomy`), vehicles decoded, the rest skipped |
 | 31 | Team turns | 174 | interrupt queue, hidden interrupt, last interrupted |
 | 32 | Explosions | 4 + 40 × 12 queue, `u32 n` × 36 | skipped |
-| 33–34 | Creature directives (13, +4 from v82), strategic status (192) | | skipped |
-| 35 | Strategic AI | 144 + 1200 + 1000 + 1400 + patrol count + garrison count (counts at offsets 8 and 4) | skipped |
+| 33–34 | Creature directives (13, +4 from v82), strategic status (192) | | creature directives skipped; strategic status decoded by `savegame-strategic-ai.ts` (flags, captures, highest progress, deaths, reputation, kills, activity) |
+| 35 | Strategic AI | 144 + 1200 + 1000 + 1400 + patrol count + garrison count (counts at offsets 8 and 4) | all (`savegame-strategic-ai.ts`, `docs/17` §1.4); the meanwhile flags and first-battle sector of section 24 too |
 | 36 | Watched locations | 156 × 3 × (2 + 1 + 1 + 1) | all |
 | 37–42 | Item cursor (44), civ quotes (100), backup NPC info (as 19 without civ sectors), meanwhile (17 × 8), schedules (`u8 n` × 36), vehicle movement groups (10) | | vehicle movement groups decoded, the rest skipped |
 | 43–45 | Contract renewals (81), leave item list (20 × (`bool` + `u32 n` × 40) + 80), Bobby Ray shipments (`i32 n` × 104) | | skipped |

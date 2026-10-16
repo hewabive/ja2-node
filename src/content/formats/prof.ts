@@ -12,6 +12,7 @@ const ROTATION_KEY = [
   45, 69, 102, 185, 122, 225, 23, 250, 160, 220, 114, 240, 64, 175, 0o57, 233,
 ];
 const PALETTE_ID_BYTES = 30;
+const MERC_OPINIONS = 75;
 
 export interface MercProfile {
   readonly id: number;
@@ -49,6 +50,10 @@ export interface MercProfile {
   readonly buddies: readonly number[];
   readonly hated: readonly number[];
   readonly gains: ProfileStatGains;
+  readonly needForSleep: number;
+  readonly town: number;
+  readonly townAttachment: number;
+  readonly mercOpinion: readonly number[];
 }
 
 export interface ProfileStatGains {
@@ -157,6 +162,10 @@ export function parseProfile(id: number, plain: Uint8Array): MercProfile {
       leadership: v.getInt16(324, true),
       strength: v.getInt16(326, true),
     },
+    needForSleep: v.getUint8(683),
+    town: i8(571),
+    townAttachment: i8(572),
+    mercOpinion: Array.from({ length: MERC_OPINIONS }, (_, k) => i8(576 + k)),
   };
 }
 

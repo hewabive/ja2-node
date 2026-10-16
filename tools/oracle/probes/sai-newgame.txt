@@ -1,0 +1,55 @@
+# Strategic AI of a new game (docs/17 §16.4): seeded Random, InitNewCampaign with its draw log, state dumps,
+# then the Queen woken (mass fortification), one evaluation, the periodic checks of a few garrisons and the next enemy
+# group arrivals (StrategicAILookForAdjacentGroups, EvaluateGroupSituation).
+seed value=1 pre=reseed
+newgame difficulty=1
+sai
+saiwake
+sai
+saievaluate
+sai
+saicheck sector=B13
+saicheck sector=G9
+sai
+saiarrive count=60
+sai
+seed value=2 pre=reseed
+newgame difficulty=1
+sai
+saiarrive count=40
+sai
+seed value=3 pre=reseed
+newgame difficulty=2
+sai
+saiwake
+sai
+saievaluate
+sai
+saicheck sector=C13
+saicheck sector=H13
+sai
+saiarrive count=60
+sai
+seed value=4 pre=reseed
+newgame difficulty=2
+sai
+saiarrive count=40
+sai
+seed value=5 pre=reseed
+newgame difficulty=3
+sai
+saiwake
+sai
+saievaluate
+sai
+saicheck sector=D13
+saicheck sector=I14
+sai
+saiarrive count=60
+sai
+seed value=6 pre=reseed
+newgame difficulty=3
+sai
+seed value=7 pre=reseed
+newgame difficulty=2 scifi=1
+sai

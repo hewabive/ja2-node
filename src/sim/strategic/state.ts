@@ -1,4 +1,14 @@
 import { PreRandom, Rng } from '../../core/rng.ts';
+import { createFinanceState, type FinanceState } from '../campaign/finances.ts';
+import {
+  createMeanwhileState,
+  createQueenState,
+  createStrategicStatus,
+  type MeanwhileState,
+  type QueenState,
+  type StrategicStatus,
+} from './ai/queen-state.ts';
+import { createEconomyState, type EconomyState } from './economy/state.ts';
 import { createEncounterState, createMovementFlowState, type EncounterState, type MovementFlowState } from './forces/flow-state.ts';
 import { createForcesState, type ForcesState } from './forces/groups.ts';
 import { createMapState, type StrategicMapState } from './map/sectors.ts';
@@ -29,6 +39,11 @@ export interface StrategicState {
   readonly forces: ForcesState;
   readonly movement: MovementFlowState;
   readonly encounter: EncounterState;
+  readonly queen: QueenState;
+  readonly status: StrategicStatus;
+  readonly meanwhile: MeanwhileState;
+  readonly economy: EconomyState;
+  readonly finances: FinanceState;
 }
 
 export interface GameOptions {
@@ -69,5 +84,10 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     forces: createForcesState(),
     movement: createMovementFlowState(),
     encounter: createEncounterState(),
+    queen: createQueenState(),
+    status: createStrategicStatus(),
+    meanwhile: createMeanwhileState(),
+    economy: createEconomyState(),
+    finances: createFinanceState(),
   };
 }

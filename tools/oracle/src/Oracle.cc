@@ -58,6 +58,18 @@
 #include "Strategic_Movement.h"
 #include "Strategic_Pathing.h"
 #include "Vehicles.h"
+#include "Assignments.h"
+#include "LaptopSave.h"
+#include "SAM_Sites.h"
+#include "Strategic_Mines.h"
+#include "Town_Militia.h"
+#include "Campaign.h"
+#include "Campaign_Init.h"
+#include "GameSettings.h"
+#include "Meanwhile.h"
+#include "Strategic_AI.h"
+#include "MapScreen.h"
+#include "Quests.h"
 
 #include <string_theory/string>
 
@@ -84,6 +96,24 @@ extern INT16 gsCiviliansEatenByMonsters;
 extern INT8 SquadMovementGroups[];
 extern INT16 sDeadMercs[NUMBER_OF_SQUADS][NUMBER_OF_DEAD_SOLDIERS_ON_SQUAD];
 extern UINT8 gubVehicleMovementGroups[];
+extern BOOLEAN gfExtraElites;
+extern INT32 giForcePercentage;
+extern INT32 giArmyAlertness;
+extern INT32 giArmyAlertnessDecay;
+extern UINT8 gubNumAwareBattles;
+extern BOOLEAN gfQueenAIAwake;
+extern INT32 giReinforcementPool;
+extern INT32 giReinforcementPoints;
+extern INT32 giRequestPoints;
+extern UINT8 gubQueenPriorityPhase;
+extern BOOLEAN gfMassFortificationOrdered;
+extern UINT8 gubMinEnemyGroupSize;
+extern UINT8 gubHoursGracePeriod;
+extern UINT16 gusPlayerBattleVictories;
+extern std::vector<PATROL_GROUP> gPatrolGroup;
+extern std::vector<ARMY_COMPOSITION> gArmyComp;
+extern std::vector<GARRISON_GROUP> gGarrisonGroup;
+extern std::unique_ptr<UINT8 []> gubGarrisonReinforcementsDenied;
 
 namespace {
 
@@ -1793,6 +1823,442 @@ void RunAutoResolve(Command const& c)
 	gAutoResolveDraws.clear();
 }
 
+constexpr int ECONOMY_TOWNS = NUM_TOWNS;
+constexpr int TRAINABLE_STATS = 9;
+
+std::string DescribeTownLoyalties()
+{
+	std::vector<std::string> towns;
+	for (int t = 0; t < ECONOMY_TOWNS; ++t)
+	{
+		TOWN_LOYALTY const& l = gTownLoyalty[t];
+		towns.push_back(Json{}
+			.num("rating", l.ubRating)
+			.num("change", l.sChange)
+			.flag("started", l.fStarted)
+			.flag("liberated", l.fLiberatedAlready)
+			.num("underControl", t ? GetTownSectorsUnderControl(static_cast<INT8>(t)) : 0)
+			.text());
+	}
+	return JsonArray(towns);
+}
+
+std::string DescribeMilitiaSectors()
+{
+	std::vector<std::string> sectors;
+	for (int id = 0; id < STRATEGIC_SECTORS; ++id)
+	{
+		SGPSector const s(static_cast<UINT8>(id));
+		bool const sam = IsThisSectorASAMSector(s);
+		if (!sam && StrategicMap[s.AsStrategicIndex()].bNameId == BLANK_SECTOR) continue;
+		SECTORINFO const& si = SectorInfo[id];
+		sectors.push_back(Json{}
+			.num("sector", id)
+			.nums("militia", {si.ubNumberOfCivsAtLevel[0], si.ubNumberOfCivsAtLevel[1], si.ubNumberOfCivsAtLevel[2]})
+			.flag("paid", si.fMilitiaTrainingPaid)
+			.num("percent", si.ubMilitiaTrainingPercentDone)
+			.num("hundredths", si.ubMilitiaTrainingHundredths)
+			.flag("everControlled", si.fSurfaceWasEverPlayerControlled)
+			.flag("enemyControlled", StrategicMap[s.AsStrategicIndex()].fEnemyControlled)
+			.flag("oursAndPeaceful", SectorOursAndPeaceful(s))
+			.flag("trainingAllowed", MilitiaTrainingAllowedInSector(s))
+			.flag("areaFull", IsAreaFullOfMilitia(s))
+			.num("samCondition", StrategicMap[s.AsStrategicIndex()].bSAMCondition)
+			.text());
+	}
+	return JsonArray(sectors);
+}
+
+std::string DescribeMines()
+{
+	std::vector<std::string> mines;
+	for (size_t i = 0; i < gMineStatus.size(); ++i)
+	{
+		MINE_STATUS_TYPE const& m = gMineStatus[i];
+		mines.push_back(Json{}
+			.num("type", m.ubMineType)
+			.num("maxRemovalRate", m.uiMaxRemovalRate)
+			.num("remaining", m.uiRemainingOreSupply)
+			.num("runningOutPoint", m.uiOreRunningOutPoint)
+			.flag("empty", m.fEmpty)
+			.flag("runningOut", m.fRunningOut)
+			.flag("warned", m.fWarnedOfRunningOut)
+			.flag("permanentShutDown", m.fShutDownIsPermanent)
+			.flag("shutDown", m.fShutDown)
+			.flag("prevInvaded", m.fPrevInvadedByMonsters)
+			.flag("spokeToHeadMiner", m.fSpokeToHeadMiner)
+			.flag("produced", m.fMineHasProducedForPlayer)
+			.flag("queenRetook", m.fQueenRetookProducingMine)
+			.flag("attackedHeadMiner", m.fAttackedHeadMiner)
+			.num("productionStarted", m.uiTimePlayerProductionStarted)
+			.num("predictedDaily", PredictDailyIncomeFromAMine(static_cast<INT8>(i)))
+			.num("maxDaily", GetMaxDailyRemovalFromMine(static_cast<UINT8>(i)))
+			.text());
+	}
+	return JsonArray(mines);
+}
+
+void DumpStrategicEconomy(Command const& c)
+{
+	std::vector<long long> air;
+	for (int id = 0; id < STRATEGIC_SECTORS; ++id) air.push_back(StrategicMap[SGPSector(static_cast<UINT8>(id)).AsStrategicIndex()].fEnemyAirControlled);
+	Emit(Json{}
+		.str("probe", "strategic")
+		.num("line", c.line)
+		.num("worldMinutes", GetWorldTotalMin())
+		.num("balance", LaptopSaveInfo.iCurrentBalance)
+		.raw("towns", DescribeTownLoyalties())
+		.raw("sectors", DescribeMilitiaSectors())
+		.raw("mines", DescribeMines())
+		.nums("enemyAir", air)
+		.num("predictedIncome", PredictIncomeFromPlayerMines())
+		.num("maxIncome", CalcMaxPlayerIncomeFromMines())
+		.num("highestProgress", gStrategicStatus.ubHighestProgress)
+		.num("enricoEmailFlags", gStrategicStatus.usEnricoEmailFlags)
+		.num("lastDayOfPlayerActivity", gStrategicStatus.usLastDayOfPlayerActivity)
+		.num("newSectorsVisitedToday", gStrategicStatus.ubNumNewSectorsVisitedToday)
+		.num("daysOfInactivity", gStrategicStatus.ubNumberOfDaysOfInactivity));
+}
+
+std::string PointsPair(long long points, long long max)
+{
+	return Numbers({points, max});
+}
+
+std::string DescribeMercEstimates(SOLDIERTYPE& s)
+{
+	UINT16 max = 0;
+	UINT16 const heal = CalculateHealingPointsForDoctor(&s, &max, FALSE);
+	std::string const healing = PointsPair(heal, max);
+	max = 0;
+	UINT8 const repair = CalculateRepairPointsForRepairman(&s, &max, FALSE);
+	std::string const repairing = PointsPair(repair, max);
+	max = 0;
+	INT16 const town = GetTownTrainPtsForCharacter(&s, &max);
+	std::string const militia = PointsPair(town, max);
+	std::vector<std::string> self;
+	std::vector<std::string> student;
+	std::vector<std::string> instructor;
+	bool const gunRange = s.sSector == SGPSector(GUN_RANGE_X, GUN_RANGE_Y, GUN_RANGE_Z);
+	for (INT8 stat = 0; stat < TRAINABLE_STATS; ++stat)
+	{
+		max = 0;
+		INT16 const p = GetSoldierTrainingPts(&s, stat, gunRange, &max);
+		self.push_back(PointsPair(p, max));
+		max = 0;
+		INT16 const q = GetSoldierStudentPts(&s, stat, gunRange, &max);
+		student.push_back(PointsPair(q, max));
+		max = 0;
+		INT16 const r = GetBonusTrainingPtsDueToInstructor(&s, nullptr, stat, gunRange, &max);
+		instructor.push_back(PointsPair(r, max));
+	}
+	return Json{}
+		.raw("doctor", healing)
+		.raw("repair", repairing)
+		.raw("townTraining", militia)
+		.raw("selfTraining", JsonArray(self))
+		.raw("studentTraining", JsonArray(student))
+		.raw("instructor", JsonArray(instructor))
+		.text();
+}
+
+void DumpStrategicMercs(Command const& c)
+{
+	std::vector<std::string> mercs;
+	FOR_EACH_IN_TEAM(i, OUR_TEAM)
+	{
+		SOLDIERTYPE& s = *i;
+		mercs.push_back(Json{}
+			.num("id", s.ubID)
+			.num("profile", s.ubProfile)
+			.raw("sector", StrategicSector(s.sSector))
+			.flag("betweenSectors", s.fBetweenSectors)
+			.num("assignment", s.bAssignment)
+			.num("trainStat", s.bTrainStat)
+			.flag("asleep", s.fMercAsleep)
+			.flag("collapsed", s.fMercCollapsedFlag)
+			.flag("forcedAwake", s.fForcedToStayAwake)
+			.flag("complainedThatTired", s.fComplainedThatTired)
+			.flag("nothingToDo", s.fDoneAssignmentAndNothingToDoFlag)
+			.num("breath", s.bBreath)
+			.num("breathMax", s.bBreathMax)
+			.num("life", s.bLife)
+			.num("lifeMax", s.bLifeMax)
+			.num("fractLife", s.sFractLife)
+			.num("bleeding", s.bBleeding)
+			.num("lastAssignmentChange", s.uiLastAssignmentChangeMin)
+			.num("needForSleep", GetProfile(s.ubProfile).ubNeedForSleep)
+			.raw("estimates", DescribeMercEstimates(s))
+			.text());
+	}
+	Emit(Json{}.str("probe", "mercs").num("line", c.line).str("detail", Text(c, "detail", "strategic")).num("worldMinutes", GetWorldTotalMin()).raw("mercs", JsonArray(mercs)));
+}
+
+std::map<std::string, UINT8> const LOYALTY_EVENTS{
+	{"BATTLE_WON", GLOBAL_LOYALTY_BATTLE_WON}, {"BATTLE_LOST", GLOBAL_LOYALTY_BATTLE_LOST},
+	{"ENEMY_KILLED", GLOBAL_LOYALTY_ENEMY_KILLED}, {"NATIVE_KILLED", GLOBAL_LOYALTY_NATIVE_KILLED},
+	{"GAIN_TOWN_SECTOR", GLOBAL_LOYALTY_GAIN_TOWN_SECTOR}, {"LOSE_TOWN_SECTOR", GLOBAL_LOYALTY_LOSE_TOWN_SECTOR},
+	{"LIBERATE_WHOLE_TOWN", GLOBAL_LOYALTY_LIBERATE_WHOLE_TOWN}, {"ABANDON_MILITIA", GLOBAL_LOYALTY_ABANDON_MILITIA},
+	{"GAIN_MINE", GLOBAL_LOYALTY_GAIN_MINE}, {"LOSE_MINE", GLOBAL_LOYALTY_LOSE_MINE},
+	{"GAIN_SAM", GLOBAL_LOYALTY_GAIN_SAM}, {"LOSE_SAM", GLOBAL_LOYALTY_LOSE_SAM},
+	{"QUEEN_BATTLE_WON", GLOBAL_LOYALTY_QUEEN_BATTLE_WON},
+};
+
+void ProbeLoyaltyEvent(Command const& c)
+{
+	std::string const name = Text(c, "event", "");
+	auto const it = LOYALTY_EVENTS.find(name);
+	if (it == LOYALTY_EVENTS.end()) throw std::runtime_error("unknown loyalty event " + name);
+	SGPSector sector = StrategicSectorArgument(c, "sector");
+	sector.z = static_cast<INT8>(Integer(c, "z", 0));
+	std::string const before = DescribeTownLoyalties();
+	HandleGlobalLoyaltyEvent(it->second, sector);
+	Emit(Json{}
+		.str("probe", "loyalty")
+		.num("line", c.line)
+		.str("event", name)
+		.raw("sector", StrategicSector(sector))
+		.raw("before", before)
+		.raw("towns", DescribeTownLoyalties()));
+}
+
+void AssignMerc(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	Assignments const kind = static_cast<Assignments>(Required(c, "kind"));
+	RemoveCharacterFromSquads(&s);
+	if (s.bAssignment != kind) SetTimeOfAssignmentChangeForMerc(&s);
+	ChangeSoldiersAssignment(&s, kind);
+	s.bTrainStat = static_cast<INT8>(Integer(c, "stat", s.bTrainStat));
+	Emit(Json{}.str("probe", "assign").num("line", c.line).num("who", s.ubID).num("kind", kind).num("stat", s.bTrainStat).num("changeMinute", s.uiLastAssignmentChangeMin));
+}
+
+void WarpTime(Command const& c)
+{
+	UINT32 const seconds = static_cast<UINT32>(Required(c, "seconds"));
+	UINT32 const start = GetWorldTotalSeconds();
+	WarpGameTime(seconds, WARPTIME_PROCESS_EVENTS_NORMALLY);
+	Emit(Json{}.str("probe", "warp").num("line", c.line).num("seconds", seconds).num("from", start).num("worldSeconds", GetWorldTotalSeconds()));
+}
+
+std::vector<OracleDraw> gSaiDraws;
+bool gSaiDrawsOn = false;
+
+template<typename Run>
+std::string TracedSaiDraws(Run&& run)
+{
+	std::vector<OracleDraw> draws;
+	OracleTraceRandom(&draws);
+	run();
+	OracleTraceRandom(gSaiDrawsOn ? &gSaiDraws : nullptr);
+	return DescribeDraws(draws);
+}
+
+void ControlDraws(Command const& c)
+{
+	std::string const mode = Text(c, "mode", Text(c, "_0", "dump"));
+	if (mode == "on")
+	{
+		gSaiDraws.clear();
+		gSaiDrawsOn = true;
+		OracleTraceRandom(&gSaiDraws);
+	}
+	else if (mode == "off")
+	{
+		gSaiDrawsOn = false;
+		OracleTraceRandom(nullptr);
+	}
+	else if (mode != "dump")
+	{
+		throw std::runtime_error("draws needs on, off or dump");
+	}
+	Emit(Json{}.str("probe", "draws").num("line", c.line).str("mode", mode).raw("draws", mode == "dump" ? DescribeDraws(gSaiDraws) : "[]"));
+	if (mode == "dump") gSaiDraws.clear();
+}
+
+void ProbeNewGame(Command const& c)
+{
+	gGameOptions.ubDifficultyLevel = static_cast<UINT8>(Integer(c, "difficulty", DIF_LEVEL_MEDIUM));
+	gGameOptions.fSciFi = Integer(c, "scifi", 0) != 0;
+	std::string const draws = TracedSaiDraws([] { SetupNewStrategicGame(); InitNewCampaign(); });
+	Emit(Json{}
+		.str("probe", "newgame")
+		.num("line", c.line)
+		.num("difficulty", gGameOptions.ubDifficultyLevel)
+		.flag("sciFi", gGameOptions.fSciFi)
+		.num("worldSeconds", GetWorldTotalSeconds())
+		.raw("draws", draws));
+}
+
+void ProbeSaiEvaluate(Command const& c)
+{
+	bool const forceAwake = Integer(c, "awake", 0) != 0;
+	if (forceAwake) gfQueenAIAwake = TRUE;
+	std::string const draws = TracedSaiDraws([] { EvaluateQueenSituation(); });
+	Emit(Json{}.str("probe", "saievaluate").num("line", c.line).flag("forceAwake", forceAwake).num("worldSeconds", GetWorldTotalSeconds()).raw("draws", draws));
+}
+
+void ProbeSaiCheck(Command const& c)
+{
+	SGPSector const sector = StrategicSectorArgument(c, Has(c, "sector") ? "sector" : "_0");
+	std::string const draws = TracedSaiDraws([&] { CheckEnemyControlledSector(sector.AsByte()); });
+	Emit(Json{}.str("probe", "saicheck").num("line", c.line).num("sector", sector.AsByte()).num("worldSeconds", GetWorldTotalSeconds()).raw("draws", draws));
+}
+
+void ProbeSaiWake(Command const& c)
+{
+	std::string const draws = TracedSaiDraws([] { WakeUpQueen(); });
+	Emit(Json{}.str("probe", "saiwake").num("line", c.line).num("worldSeconds", GetWorldTotalSeconds()).raw("draws", draws));
+}
+
+std::string DescribeSaiSector(SECTORINFO const& s)
+{
+	return Numbers({s.ubGarrisonID, s.uiFlags, s.ubNumAdmins, s.ubNumTroops, s.ubNumElites, s.ubNumCreatures, s.ubAdminsInBattle,
+		s.ubTroopsInBattle, s.ubElitesInBattle, s.ubCreaturesInBattle, s.uiTimeLastPlayerLiberated, s.ubNumberOfCivsAtLevel[GREEN_MILITIA],
+		s.ubNumberOfCivsAtLevel[REGULAR_MILITIA], s.ubNumberOfCivsAtLevel[ELITE_MILITIA], s.bBloodCats, s.bBloodCatPlacements});
+}
+
+void DumpStrategicAI(Command const& c)
+{
+	std::vector<std::string> compositions;
+	for (ARMY_COMPOSITION const& a : gArmyComp)
+	{
+		compositions.push_back(Numbers({a.iReadability, a.bPriority, a.bElitePercentage, a.bTroopPercentage, a.bAdminPercentage, a.bDesiredPopulation, a.bStartPopulation}));
+	}
+	std::vector<std::string> garrisons;
+	std::vector<long long> denied;
+	for (size_t i = 0; i < gGarrisonGroup.size(); ++i)
+	{
+		GARRISON_GROUP const& g = gGarrisonGroup[i];
+		garrisons.push_back(Numbers({g.ubSectorID, g.ubComposition, g.bWeight, g.ubPendingGroupID}));
+		denied.push_back(gubGarrisonReinforcementsDenied[i]);
+	}
+	std::vector<std::string> patrols;
+	for (PATROL_GROUP const& p : gPatrolGroup)
+	{
+		patrols.push_back(Numbers({p.bSize, p.bPriority, p.ubSectorID[0], p.ubSectorID[1], p.ubSectorID[2], p.ubSectorID[3], p.bFillPermittedAfterDayMod100,
+			p.ubGroupID, p.bWeight, p.ubPendingGroupID}));
+	}
+	std::vector<std::string> sectors;
+	std::vector<long long> control;
+	for (int id = 0; id < STRATEGIC_SECTORS; ++id)
+	{
+		sectors.push_back(DescribeSaiSector(SectorInfo[id]));
+		StrategicMapElement const& e = StrategicMap[SGPSector(static_cast<UINT8>(id)).AsStrategicIndex()];
+		control.push_back(e.fEnemyControlled ? 1 : 0);
+	}
+	std::vector<std::string> underground;
+	for (UNDERGROUND_SECTORINFO const* u = gpUndergroundSectorInfoHead; u; u = u->next)
+	{
+		underground.push_back(Numbers({u->ubSector.x, u->ubSector.y, u->ubSector.z, u->ubNumAdmins, u->ubNumTroops, u->ubNumElites, u->ubNumCreatures,
+			u->ubAdminsInBattle, u->ubTroopsInBattle, u->ubElitesInBattle, u->ubCreaturesInBattle}));
+	}
+	std::vector<std::string> groups;
+	CFOR_EACH_GROUP(g) if (!g->fPlayer) groups.push_back(DescribeGroup(*g));
+	std::vector<std::string> events;
+	for (STRATEGICEVENT const* e = gpEventList; e; e = e->next)
+	{
+		switch (e->ubCallbackID)
+		{
+			case EVENT_EVALUATE_QUEEN_SITUATION:
+			case EVENT_CHECK_ENEMY_CONTROLLED_SECTOR:
+			case EVENT_GROUP_ARRIVAL:
+			case EVENT_MEANWHILE:
+				events.push_back(Numbers({e->uiTimeStamp, e->ubCallbackID, e->uiParam, e->uiTimeOffset, e->ubEventType}));
+				break;
+			default:
+				break;
+		}
+	}
+	STRATEGIC_STATUS const& st = gStrategicStatus;
+	Emit(Json{}
+		.str("probe", "sai")
+		.num("line", c.line)
+		.num("worldSeconds", GetWorldTotalSeconds())
+		.num("difficulty", gGameOptions.ubDifficultyLevel)
+		.raw("globals", Json{}
+			.flag("extraElites", gfExtraElites)
+			.num("forcePercentage", giForcePercentage)
+			.num("alertness", giArmyAlertness)
+			.num("alertnessDecay", giArmyAlertnessDecay)
+			.num("awareBattles", gubNumAwareBattles)
+			.flag("awake", gfQueenAIAwake)
+			.num("reinforcementPool", giReinforcementPool)
+			.num("reinforcementPoints", giReinforcementPoints)
+			.num("requestPoints", giRequestPoints)
+			.num("saiVersion", gubSAIVersion)
+			.num("priorityPhase", gubQueenPriorityPhase)
+			.flag("firstBattleMeanwhilePending", gfFirstBattleMeanwhileScenePending)
+			.flag("massFortificationOrdered", gfMassFortificationOrdered)
+			.num("minGroupSize", gubMinEnemyGroupSize)
+			.num("graceHours", gubHoursGracePeriod)
+			.num("playerBattleVictories", gusPlayerBattleVictories)
+			.flag("useAlternateQueenPosition", gfUseAlternateQueenPosition)
+			.text())
+		.raw("compositions", JsonArray(compositions))
+		.raw("garrisons", JsonArray(garrisons))
+		.raw("denied", Numbers(denied))
+		.raw("patrols", JsonArray(patrols))
+		.raw("sectors", JsonArray(sectors))
+		.raw("enemyControlled", Numbers(control))
+		.raw("underground", JsonArray(underground))
+		.raw("groups", JsonArray(groups))
+		.raw("events", JsonArray(events))
+		.raw("status", Json{}
+			.num("flags", st.uiFlags)
+			.num("highestProgress", st.ubHighestProgress)
+			.num("playerKills", st.usPlayerKills)
+			.text())
+		.num("meanwhileFlags", uiMeanWhileFlags)
+		.num("progress", CurrentPlayerProgressPercentage())
+		.num("mineIncome", PredictIncomeFromPlayerMines())
+		.num("maxMineIncome", CalcMaxPlayerIncomeFromMines()));
+}
+
+void ProbeSaiArrive(Command const& c)
+{
+	long long const count = Integer(c, "count", 1);
+	std::vector<long long> arrived;
+	std::string const draws = TracedSaiDraws([&] {
+		for (long long k = 0; k < count; ++k)
+		{
+			GROUP* next = nullptr;
+			FOR_EACH_GROUP(g)
+			{
+				if (g->fPlayer || !g->fBetweenSectors) continue;
+				if (!next || g->uiArrivalTime < next->uiArrivalTime) next = g;
+			}
+			if (!next) break;
+			UINT32 const arrival = next->uiArrivalTime * 60;
+			if (arrival > GetWorldTotalSeconds()) WarpGameTime(arrival - GetWorldTotalSeconds(), WARPTIME_NO_PROCESSING_OF_EVENTS);
+			arrived.push_back(next->ubGroupID);
+			DeleteStrategicEvent(EVENT_GROUP_ARRIVAL, next->ubGroupID);
+			GroupArrivedAtSector(*next, TRUE, FALSE);
+		}
+	});
+	Emit(Json{}.str("probe", "saiarrive").num("line", c.line).raw("groups", Numbers(arrived)).num("worldSeconds", GetWorldTotalSeconds()).raw("draws", draws));
+}
+
+void ProbeDifficultyModifier(Command const& c)
+{
+	UINT8 const soldierClass = static_cast<UINT8>(Integer(c, "class", SOLDIER_CLASS_ARMY));
+	SGPSector battle;
+	if (!GetCurrentBattleSectorXYZ(battle)) throw std::runtime_error("diffmod needs a battle or a loaded sector");
+	Emit(Json{}
+		.str("probe", "diffmod")
+		.num("line", c.line)
+		.num("class", soldierClass)
+		.num("modifier", CalcDifficultyModifier(soldierClass))
+		.num("difficulty", gGameOptions.ubDifficultyLevel)
+		.num("highestProgress", HighestPlayerProgressPercentage())
+		.num("progress", CurrentPlayerProgressPercentage())
+		.num("mineIncome", PredictIncomeFromPlayerMines())
+		.num("maxMineIncome", CalcMaxPlayerIncomeFromMines())
+		.raw("battleSector", StrategicSector(battle))
+		.num("townId", GetTownIdForSector(battle))
+		.num("palaceDistance", GetPythDistanceFromPalace(battle)));
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -1813,6 +2279,19 @@ void Dispatch(Command const& c)
 	if (c.name == "seed") return SeedRandomEngine(c);
 	if (c.name == "arsetup") return SetupAutoResolve(c);
 	if (c.name == "autoresolve") return RunAutoResolve(c);
+	if (c.name == "strategic") return DumpStrategicEconomy(c);
+	if (c.name == "mercs") return DumpStrategicMercs(c);
+	if (c.name == "loyalty") return ProbeLoyaltyEvent(c);
+	if (c.name == "warp") return WarpTime(c);
+	if (c.name == "assign") return AssignMerc(c);
+	if (c.name == "draws") return ControlDraws(c);
+	if (c.name == "newgame") return ProbeNewGame(c);
+	if (c.name == "sai") return DumpStrategicAI(c);
+	if (c.name == "saievaluate") return ProbeSaiEvaluate(c);
+	if (c.name == "saicheck") return ProbeSaiCheck(c);
+	if (c.name == "saiwake") return ProbeSaiWake(c);
+	if (c.name == "diffmod") return ProbeDifficultyModifier(c);
+	if (c.name == "saiarrive") return ProbeSaiArrive(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

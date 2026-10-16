@@ -1333,3 +1333,74 @@ code does); glibc `qsort` order for equal trainer points; `FindStratPath` distan
 that no town is unreachable for a foot group (else distance 0 gives +75 %); the headless probe harness tolerating the
 dialogue and message box calls of these handlers; that walking mercs' `sSector` is the departure sector for
 `fSectorsWithSoldiers` (from `16`'s group model).
+
+---
+
+## 10. Implemented (2026-10-16): §8 order of work (a)–(e) and the save import of (i)
+
+**Content.** `src/content/strategic/economy-content.ts` (`loadEconomyContent(read, towns)`): `strategic-mines.json`, starting
+cash and `enable_stat_healing` from `game.json`, merc types from `mercs-profile-info.json`, and two transcribed tables:
+`data/tables/town-loyalty.json` (`tools/transcribe/town-loyalty.ts`: sentiment, uses-loyalty, civilian murder costs, the 13
+global events, the named bonuses and penalties) and `data/tables/head-miners.json` (`tools/transcribe/head-miners.ts`).
+`prof.ts` now also reads `needForSleep`, `town`, `townAttachment` and `mercOpinion[]`.
+
+**State.** `StrategicState.economy` (`towns[13]`, `mines[]`, promotion counters, `strategicMilitiaChangesMade`, the
+completed-training list of the running hourly update, pending `prompts`) and `StrategicState.finances`
+(`src/sim/campaign/finances.ts`: balance, ledger, profile cost totals, `addTransaction`). Enrico flags and highest progress
+live in the Queen's `state.status`, the activity counters in `map.activity`. The per-merc assignment fields are soldier
+fields reached through the crew port.
+
+**Ports** (`economy/ports.ts`). `CrewPort extends MercPort` with `CrewMember extends StrategicMerc` (life, fractions,
+breath, sleep and assignment flags, natural and effective stats, stat damage, soldier and profile traits, need for sleep,
+`inv: ItemObject[]`), plus `statChange(id, StatKind, chances, cause)`, `healStat`, `opinion`, `dressWound` (autoresolve's
+`VirtualSoldierDressWound`), helicopter/driving queries and `takeOutOfVehicle`. `all()` is the active OUR team in id order
+(vehicles and the robot included). `EconomyHooks` (morale events, theft, monsters, Queen mine-ran-out, rebels hostile,
+meanwhiles, head miner placement and liveness, facts, vehicle repair, creature quest trigger), `EconomyDecisions`
+(militia payment and continue: `yes`/`no`/`defer`) and `PeriodicSlots` (the M5/M6 parts of the hourly and quarter-hour
+updates). `createEconomyContext(strategicCtx, setup)` returns an `EconomyContext` that is also a `StrategicContext` (its
+`mercs` is the crew port); `economyWorldPort(base, () => ctx)` wraps a `TacticalWorldPort` so the map layer's
+`startTownLoyalty`, `sectorLiberated` and `sectorTakenByEnemy` reach the economy.
+
+| Module (`src/sim/strategic/economy/`) | Public API |
+|---|---|
+| `towns.ts` | `buildTownSectors` (column-major), `townOf`, `townSize`, `sectorsUnderControl`, `isTownUnderCompleteControl`, `numberOfWholeTownsUnderControl`, `sectorOursAndPeaceful` |
+| `loyalty.ts` | `initTownLoyalty`, `startTownLoyaltyIfFirstTime`, `setTownLoyalty`, `increment/decrementTownLoyalty(+Everywhere)`, `handleGlobalLoyaltyEvent`, `affectAllTownsLoyaltyByDistanceFrom`, `shortestTownDistances`, `checkIfEntireTownHasBeenLiberated/Lost`, `onSectorLiberated`, `onSectorTakenByEnemy`, `theftChance`, `reduceLoyaltyForRebelsBetrayed`, `handleTownLoyaltyForNpcRecruitment`, `maximizeLoyaltyForDeidrannaKilled` |
+| `inactivity.ts` | `handleEnricoEmail` (`ENRICO_MAIL`, decision tree without mails), `lackOfProgressTolerance` |
+| `mine-status.ts`, `mines.ts` | `initializeMines` (draws), `postEventsForMineProduction`, `handleIncomeFromMines`, `mineAMine`, `workforceForPlayer/Enemy`, `runningOutRemovalRate`, `predictDailyIncomeFromAMine`, `predictIncomeFromPlayerMines`, `calcMaxPlayerIncomeFromMines`, `maxDailyRemovalFromMine`, `hourlyMinesUpdate`, `placeHeadMinersOnSectorEntry`, `startMineStandIn`, `playerAttackedHeadMiner`, `queenHasRegainedMineSector`, `playerControlsMine` |
+| `militia-rules.ts`, `militia.ts` | eligibility predicates, `isAreaFullOfMilitia`, `canNearbyMilitiaScoutThisSector`; `trainTownInSector`, `townMilitiaTrainingCompleted`, `startMilitiaPaymentFlow`/`answerMilitiaPayment`, continue prompt/`answerMilitiaContinue`, `handleMilitiaPromotions`, `handleMilitiaDefections`, `handleMilitiaStatusBeforeLoadingNewMap`, add/promote/remove |
+| `conditions.ts`, `repair-rules.ts`, `points.ts` | `areAssignmentConditionsMet` and every `CanCharacter…` check; the pure estimates `calculateHealingPointsForDoctor`, `calculateRepairPointsForRepairman`, `getSoldierTrainingPts`, `getSoldierStudentPts`, `getBonusTrainingPtsDueToInstructor`, `getTownTrainPtsForCharacter` |
+| `rest.ts`, `doctor.ts`, `repair.ts`, `training.ts` | sleep need, rest/fatigue/sleep/wake, natural healing, `anyMercInGroupCantContinueMoving`; doctoring, hospital, `bandageBleedingDyingPatientsBeingTreated`; repair; stat and militia training |
+| `assignment-done.ts`, `set-assignment.ts` | `changeSoldiersAssignment`, `assignmentDone`, `reEvaluateEveryonesNothingToDo`; `assignSoldiers(ctx, ids, target)` (§6 `assign`), `sleepSoldier`, `wakeSoldier`, `applySquadAssignment` (soldier side of `AddCharacterToSquad`, for the crew port's `changeAssignment`) |
+| `update.ts` | `updateAssignments` (§5.3 order), `handleHourlyUpdate`, `handleQuarterHourUpdate`, `registerEconomyEvents` (`HOURLY_UPDATE`, `QUARTER_HOUR_UPDATE`, `SETUP_MINE_INCOME`, `HANDLE_MINE_INCOME`, `CHECK_IF_MINE_CLEARED`, `BANDAGE_BLEEDING_MERCS`, `ENRICO_MAIL`) |
+| `init.ts`, `save-import.ts` | `initEconomyStrategicLayer` (InitTownLoyalty + InitializeMines), `addStartingCash`; `importEconomy`, `applySavedAssignment` |
+| `src/sim/strategic/map/sam.ts` | `doesSamExistHere`, `damageSamIfFound`, `repairSamSite`, `samSiteWorks` (air control itself is `map/control.ts`) |
+
+`CampaignSim` takes `hooks.economy = {economy, items, crew, hooks?, decisions?, slots?}` next to `hooks.strategic`,
+exposes `campaign.economy` and registers the handlers above. **New game**: the time layer's init must call
+`initEconomyStrategicLayer` at its place in `InitStrategicLayer` (after `InitVehicles`, before `InitNPCs`), `addStartingCash`
+in `InitNewGame`, and post the standing `SETUP_MINE_INCOME`/`ENRICO_MAIL` everyday and `HOURLY_UPDATE`/`QUARTER_HOUR_UPDATE`
+periodic events (`15` §4.3). **Queen**: `predictIncomeFromPlayerMines`, `calcMaxPlayerIncomeFromMines`, `sectorsUnderControl`,
+`numberOfWholeTownsUnderControl`, `militiaTrainingAllowedInSector`, militia counts; she plugs `hourlyProgressUpdate` into the
+slots and `queenMineRanOut` into the hooks. **PBI/autoresolve and tactical**: `handleGlobalLoyaltyEvent` (battle won/lost,
+kills, abandoned militia), `strategicRemoveMilitiaFromSector`, `handleMilitiaStatusBeforeLoadingNewMap` on unload,
+`anyMercInGroupCantContinueMoving` on arrival, `damageSamIfFound` on structure damage, `playerAttackedHeadMiner`.
+
+**Save import** (`src/content/formats/savegame-economy.ts`): `readSavedEconomy(bytes, save.sections)` decodes sections 25
+(mines), 26 (town loyalty) and the finances temp file, `importEconomy(state, saved, laptop.currentBalance)` loads them;
+`readSoldierAssignments(bytes, save, table)` decodes the assignment fields of every soldier record for the roster
+(`applySavedAssignment`). Section 11's militia and training fields were already imported by `importStrategicMap`; section 34
+(Enrico flags, highest progress, activity counters) is decoded and imported by the Queen's `savegame-strategic-ai.ts` and
+`ai/save-import.ts`, which the economy reads from `state.status` and `map.activity`. A data test imports all six user saves.
+
+**Verified against the oracle** (`tools/oracle/probes/economy.txt`, `README.md` "Economy"): `strategic` (towns, the 39 town
+and SAM sectors, six mines with predictions, air control, money, inactivity), `mercs detail=strategic` (assignment fields
+and every pure estimate for the nine trainable stats), nine distance-adjusted `loyalty` events, and three `warp`s through
+the hourly updates (squads resting and fatiguing for two and three hours; two militia trainers and a self-trainer for eight
+hours, ending at 99.58 %) — 54 comparisons, all matching. Unit tests cover the §8 list except murder, theft per item,
+redistribution and militia placement; a headless scenario trains a paid Drassen sector to completion with two trainers on
+the strategic clock, with identical results when the same span is warped.
+
+**Not yet:** (f) militia placement in tactical and the tactical hooks (kill points, deaths), (g) civilian murder and the
+per-item theft, (h) the protocol commands, prompts and view (the functions exist), redistribution (§1.8), hospital
+assignment and payment, the vanilla-vs-Strac stat-change trace for oracle comparisons of stat gains, and the roster-backed
+crew port in `createSaveSession`.

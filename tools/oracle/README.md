@@ -20,6 +20,7 @@ commit them.
 | `src/Oracle.{h,cc}` | The probe harness, copied into `src/game/` of the Stracciatella copy |
 | `patches/0001-oracle-hooks.patch` | Hooks every probe needs (see "Hooks") |
 | `patches/0002-autoresolve-oracle.patch` | Draw trace, engine reseed and a headless autoresolve (see "Hooks") |
+| `patches/0003-strategic-ai-oracle.patch` | Trace marks around the load-time recomputation of the strategic AI (see "Hooks") |
 | `autoresolve-compare.ts` | Core replay of `autoresolve` probes through ja2-node's autoresolve |
 | `probes/a9-*.txt` | Probe scripts for sector A9 (Omerta) |
 | `save-probes.ts` | Writes a probe script for the user's native saves (see "Savegames") |
@@ -27,7 +28,11 @@ commit them.
 | `compare.ts` | Rebuilds probe outputs with ja2-node and reports mismatches |
 | `strategic-compare.ts` | The strategic probes of `compare.ts` (`stratcosts`, `stratpath`, `groups`) |
 | `probes/strategic.txt` | Probe script for strategic movement (see "Strategic movement") |
+| `economy-compare.ts` | The economy probes of `compare.ts` (`strategic`, `mercs`, `loyalty`, `assign`, `warp`) |
+| `probes/economy.txt` | Probe script for towns, mines and assignments (see "Economy") |
 | `probes/autoresolve-*.txt` | Autoresolve probe scripts (see "Autoresolve") |
+| `sai-compare.ts` | The strategic AI probes of `compare.ts` (`newgame`, `sai`, `saievaluate`, `saicheck`, `saiwake`, `saiarrive`, `diffmod`, `draws`) |
+| `probes/sai-*.txt` | Strategic AI probe scripts (see "Strategic AI") |
 
 `reference/` is never modified. The work dir (`$JA2_ORACLE_DIR`, default `~/ja2-oracle`) holds:
 `src/` (patched copy), `build/` (CMake build, binary `build/ja2`), `home/` (isolated Stracciatella
@@ -131,6 +136,19 @@ an `error` line and the script continues. The last line is always
 | `seed` | `value=<n>`, `pre=keep\|reseed` | Reseeds the `Random` engine (the save restores the `PreRandom` ring, not the engine); `reseed` also refills the ring from it and resets its index |
 | `arsetup` | `sector=<A1..P16>`, `code=invasion\|encounter`, `militia=<g>,<r>,<e>`, `enemies=<admins>,<troops>,<elites>`, `persistent=1`, `day=<n>` | Writes the sector's militia and garrison counts, `gubEnemyEncounterCode`, `gubPBSector`, `gfPersistantPBI` and optionally the world day (capture needs day 4) |
 | `autoresolve` | `trace=1`, `retreat=<slice>:<soldier id>\|all,…`, `surrender=reject\|accept`, `bandage=0\|1`, `maxSlices=<n>` | Runs a headless Finish-mode autoresolve on the save's mercs in the `arsetup` sector (patch 0002) and dumps the cells after creation and after the ratings, the commands, the result (per cell, team state, clock warp, militia, promotions, sector counts, loyalty) and the traced draws |
+| `strategic` | | Towns (rating, change, started, liberated, `GetTownSectorsUnderControl`), every town and SAM sector (militia, training paid/percent/hundredths, ever controlled, enemy controlled, `SectorOursAndPeaceful`, `MilitiaTrainingAllowedInSector`, `IsAreaFullOfMilitia`, SAM condition), the mines (every `MINE_STATUS_TYPE` field, `PredictDailyIncomeFromAMine`, `GetMaxDailyRemovalFromMine`), `fEnemyAirControlled` of the 256 sectors, balance, `PredictIncomeFromPlayerMines`, `CalcMaxPlayerIncomeFromMines`, progress, Enrico flags and the activity counters |
+| `mercs` | `detail=strategic` | Per OUR merc: assignment, train stat, sleep/collapse/forced-awake/tired/nothing-to-do flags, breath, life, `sFractLife`, bleeding, last assignment change, need for sleep, and the estimates `CalculateHealingPointsForDoctor`, `CalculateRepairPointsForRepairman` (both with `fMakeSureKitIsInHand = FALSE`), `GetTownTrainPtsForCharacter`, and for the nine trainable stats `GetSoldierTrainingPts`, `GetSoldierStudentPts`, `GetBonusTrainingPtsDueToInstructor(s, NULL)` (points and max) |
+| `loyalty` | `event=<GLOBAL_LOYALTY_ name without prefix>`, `sector=<A1..P16>`, `z=0` | `HandleGlobalLoyaltyEvent` and the town loyalties before and after |
+| `assign` | `who=<id>`, `kind=<assignment number>`, `stat=<n>` | `RemoveCharacterFromSquads`, `SetTimeOfAssignmentChangeForMerc` (if the assignment changes), `ChangeSoldiersAssignment`, `bTrainStat`; no eligibility checks, no payment |
+| `warp` | `seconds=<n>` | `WarpGameTime(n, WARPTIME_PROCESS_EVENTS_NORMALLY)`: every event of the span runs, hourly updates included |
+| `draws` | `on\|off\|dump` | Starts or stops a `Random`/`PreRandom` trace across commands (patch 0002); `dump` emits and clears it (used around `save` for the load-time recomputation) |
+| `newgame` | `difficulty=1\|2\|3`, `scifi=0\|1` | Sets the game options and runs `SetupNewStrategicGame(); InitNewCampaign();` with its draws traced |
+| `sai` | | Dumps the strategic AI: globals, compositions, garrisons, denials, patrols, the AI fields of all 256 sectors, enemy control, underground counts, every enemy group, the AI events (evaluation, checks, arrivals, meanwhiles), status, meanwhile flags, progress and mine income |
+| `saievaluate` | `awake=0\|1` | `EvaluateQueenSituation()` (after `gfQueenAIAwake = TRUE` with `awake=1`), draws traced |
+| `saicheck` | `sector=<A1..P16>` | `CheckEnemyControlledSector(sector)`, draws traced |
+| `saiwake` | | `WakeUpQueen()` (mass fortification on the first call), draws traced |
+| `saiarrive` | `count=<n>` | `n` times: the enemy group between sectors with the earliest arrival (first in the list on ties), `WarpGameTime` to its arrival without processing events, `GroupArrivedAtSector(group, TRUE, FALSE)`; draws traced, group ids listed |
+| `diffmod` | `class=<soldier class>` | `CalcDifficultyModifier(class)` with its inputs: progress (highest and current), mine income, battle sector, town id, palace distance |
 
 `sector` is a bare map load: `LoadWorld` compiles movement costs, builds structures, rooms and
 buildings, but there is no strategic layer, no enemy or NPC placement, no `PrepareLoadedSector`,
@@ -467,6 +485,43 @@ On 2026-10-16 the shipped script (5 `stratcosts`, 21 `stratpath` and the `groups
 generated sweep of `stratpath` over all 256 × 256 sector pairs for FOOT, AIR and TRACKED (196,608 routes, written by a
 throwaway script into `~/ja2-oracle`) and of every adjacent pair with `tactical=1` also matched exactly.
 
+### Strategic AI
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data"
+tools/oracle/run.sh tools/oracle/probes/sai-newgame.txt ~/ja2-oracle/sai/newgame.jsonl
+tools/oracle/run.sh tools/oracle/probes/sai-saves.txt ~/ja2-oracle/sai/saves.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle/sai/newgame.jsonl ~/ja2-oracle/sai/saves.jsonl
+```
+
+`tools/oracle/sai-compare.ts` replays the traced draws of every operation (`newgame`, `saievaluate`, `saicheck`,
+`saiwake`, `saiarrive`, and the load-time recomputation between the marks of patch 0003) through ja2-node with a roll
+source that asserts each requested range and that no draw is left over, then compares the following `sai` dump field by
+field. `newgame` runs `initializeMapStructure`, `setupNewStrategicMap` and `initNewCampaignMap` with the AI hook on a
+fresh state; a `save` imports time, map and AI without the load hooks, which run at the next `sai` with the native mine
+income from that dump (the economy is not imported here). `diffmod` recomputes `calcDifficultyModifier` from the
+imported state and the dumped mine income.
+
+On 2026-10-16 both shipped scripts matched exactly: 7 new games (all difficulties, one with sci-fi), the six saves,
+3 wakes, 15 evaluations, 30 periodic checks and 500 enemy group arrivals: 6,085 replayed draws, 51 `sai` dumps and 18
+`diffmod` results identical.
+
+### Economy
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data"
+tools/oracle/run.sh tools/oracle/probes/economy.txt ~/ja2-oracle/economy.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle/economy.jsonl
+```
+
+`economy-compare.ts` imports each save into ja2-node (`importStrategicTime`, `importStrategicMap`, `importEconomy`, the crew
+from the saved soldiers with `readSoldierAssignments`) and compares the dumps field by field; `loyalty` replays the event on
+the same state, `assign` applies the same changes, `warp` runs `warpGameTime` through ja2-node's event dispatch with the
+economy handlers (all other events do nothing; the flow is tactical, as in the oracle, which never compresses time). After
+a `warp`, stat gains are RNG-dependent (`StatChange` draws `PreRandom`), so the stat-derived estimates of `mercs` are not
+compared; everything else must match. A longer warp that completes the session diverges by a few hundredths because the
+trainers' leadership rises in the oracle. On 2026-10-16 all 54 comparisons of the shipped script matched.
+
 ### Lights
 
 `map-light-probes.ts [hour...]` writes, for every original map with light sprites, a `sector … hour=<h>` load, a hash-only
@@ -533,7 +588,10 @@ codes, retreats, `pre=keep` and `pre=reseed`).
 | `probes/a9-costs.txt` | The full movement cost table of A9 |
 | `probes/autoresolve-d13.txt` | Eight autoresolve battles on SaveGame10 (D13): invasion and encounter codes, 0–11 militia, 6–32 enemies, bandaging, retreat orders for all and for one merc |
 | `probes/autoresolve-capture.txt` | Six battles on SaveGame10 at day 5–7 with 20–32 enemies and no militia: the surrender offer, accepted or rejected |
+| `probes/economy.txt` | `strategic` and `mercs` after each of the six saves, nine `loyalty` events, and `warp`s of two, three and eight hours (the last after assigning two militia trainers and a self-trainer in B13) |
 | `probes/strategic.txt` | The travel table for the five transports, A9→P3 for every mask and other long, unreachable, tactical-traversal and trivial routes, then `save` + `groups` for SaveGame01, 02, 07, 08, 09, 10 |
+| `probes/sai-newgame.txt` | Seven seeded new games on every difficulty (draw log of `InitNewCampaign`, `sai`), three of them followed by `saiwake`, `saievaluate`, `saicheck` and `saiarrive count=60` with dumps, the others by `saiarrive count=40` |
+| `probes/sai-saves.txt` | For each of the six saves: the draws of the load, `sai`, `diffmod` for three classes, a seeded `saievaluate awake=1`, four `saicheck`, a second evaluation and `saiarrive count=40`, each followed by `sai` |
 
 All three were run on the user's Steam JA2 Gold 1.12 data: every command succeeds, and on these
 inputs `lineOfSight` and `soldierToSoldier` agree.
@@ -583,6 +641,11 @@ Edit `src/Oracle.cc` here in the repo, not in the copy: `build.sh` overwrites th
 
 To change 0002, edit the four files in `$JA2_ORACLE_DIR/src`, rebuild, and regenerate it like 0001 with those paths
 (the diff is against `reference/stracciatella` with 0001 applied, which does not touch these files).
+
+`patches/0003-strategic-ai-oracle.patch` (applied after 0002) touches `src/game/Strategic/Strategic_AI.cc` only: two
+`OracleTraceMark` calls (codes 101 and 102) around the load-time recomputation at the end of `LoadStrategicAI`
+(`UpdateAirspaceControl`, `EvolveQueenPriorityPhase(TRUE)`, the repoll of idle enemy groups), so the comparison can
+replay exactly those draws out of the whole `LoadSavedGame` trace. Regenerate it like 0002 with that path.
 
 ## Notes
 

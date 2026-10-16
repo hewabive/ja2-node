@@ -1,0 +1,46 @@
+# Towns, mines and assignments (docs/18 §8): RNG-free strategic dumps, merc assignment fields and the pure point
+# estimates after loading each save, distance-adjusted loyalty events, then the same dumps after a warp.
+save SaveGame01
+strategic
+mercs detail=strategic
+loyalty event=BATTLE_WON sector=D13
+loyalty event=LOSE_TOWN_SECTOR sector=B13
+loyalty event=ENEMY_KILLED sector=E13 z=1
+loyalty event=GAIN_SAM sector=D15
+loyalty event=BATTLE_LOST sector=A9
+loyalty event=LIBERATE_WHOLE_TOWN sector=P3
+loyalty event=NATIVE_KILLED sector=C5
+save SaveGame02
+strategic
+mercs detail=strategic
+save SaveGame07
+strategic
+mercs detail=strategic
+loyalty event=ABANDON_MILITIA sector=H8
+loyalty event=GAIN_MINE sector=I14
+save SaveGame08
+strategic
+mercs detail=strategic
+save SaveGame09
+strategic
+mercs detail=strategic
+save SaveGame10
+strategic
+mercs detail=strategic
+# Hourly updates: squads resting and fatiguing, then two militia trainers and a self-trainer in B13 for eight hours.
+save SaveGame10
+warp seconds=7200
+mercs detail=strategic
+strategic
+save SaveGame01
+warp seconds=10800
+mercs detail=strategic
+strategic
+save SaveGame01
+assign who=0 kind=27
+assign who=2 kind=27
+assign who=1 kind=26 stat=5
+mercs detail=strategic
+warp seconds=28800
+mercs detail=strategic
+strategic

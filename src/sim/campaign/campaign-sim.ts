@@ -1,13 +1,19 @@
 import { TICK_MS } from '../clock.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
+import type { QueenContext, QueenContextOptions } from '../strategic/ai/context.ts';
+import { queenEconomyHooks, queenEconomySlots, queenMineIncome } from '../strategic/ai/economy-link.ts';
+import { registerStrategicAiEvents, StrategicAi } from '../strategic/ai/strategic-ai.ts';
+import { createEconomyContext, type EconomySetup, economyWorldPort } from '../strategic/economy/context.ts';
+import type { EconomyContext } from '../strategic/economy/ports.ts';
+import { registerEconomyEvents } from '../strategic/economy/update.ts';
 import {
   createStrategicContext,
   handleGroupAboutToArriveEvent,
   handleGroupArrivalEvent,
   type StrategicContextOptions,
 } from '../strategic/forces/context.ts';
-import type { StrategicContext } from '../strategic/forces/ports.ts';
+import { defaultTacticalWorldPort, type StrategicContext } from '../strategic/forces/ports.ts';
 import { isSectorDesert } from '../strategic/map/sectors.ts';
 import { createStrategicState, type StrategicState } from '../strategic/state.ts';
 import { CompressMode, EventKind } from '../strategic/time/constants.ts';
@@ -34,6 +40,8 @@ export type StrategicSetup = Omit<StrategicContextOptions, 'state' | 'clock'>;
 export interface CampaignHooks {
   readonly compressionRefusal?: (campaign: CampaignSim) => string | null;
   readonly strategic?: StrategicSetup;
+  readonly economy?: EconomySetup;
+  readonly queen?: QueenContextOptions;
 }
 
 export class CampaignSim {
@@ -41,6 +49,8 @@ export class CampaignSim {
   readonly dispatchTable = new EventDispatch<CampaignSim>();
   tactical: TacticalSim | null;
   readonly strategic: StrategicContext | null;
+  readonly economy: EconomyContext | null;
+  readonly queen: QueenContext | null;
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
   readonly #clock: ClockContext;
@@ -52,11 +62,31 @@ export class CampaignSim {
     this.#hooks = hooks;
     if (tactical) state.flow = 'tactical';
     this.#clock = this.#clockContext();
-    this.strategic = hooks.strategic ? createStrategicContext({ ...hooks.strategic, state, clock: this.#clock }) : null;
+    const ai = hooks.queen ? new StrategicAi({ mines: queenMineIncome(() => this.economy), ...hooks.queen }) : null;
+    this.strategic = hooks.strategic
+      ? createStrategicContext({ ...hooks.strategic, ...this.#economyPorts(), ...(ai ? { ai } : {}), state, clock: this.#clock })
+      : null;
+    this.queen = ai && this.strategic ? ai.bind(this.strategic) : null;
+    this.economy = this.strategic && hooks.economy ? createEconomyContext(this.strategic, this.#economySetup(hooks.economy)) : null;
     this.#registerEnvironment();
     this.#registerMovement();
+    if (this.economy) registerEconomyEvents(this.dispatchTable, this.economy);
+    if (this.queen) registerStrategicAiEvents(this.dispatchTable, this.queen);
     if (state.flow === 'tactical') setGameTimeCompressionLevel(this.#clock, CompressMode.X1);
     tactical?.attachWorldClock(state.clock);
+  }
+
+  #economySetup(setup: EconomySetup): EconomySetup {
+    const queen = this.queen;
+    if (!queen) return setup;
+    return { ...setup, hooks: { ...queenEconomyHooks(queen), ...setup.hooks }, slots: { ...queenEconomySlots(queen), ...setup.slots } };
+  }
+
+  #economyPorts(): Pick<StrategicSetup, 'mercs' | 'world'> {
+    const economy = this.#hooks.economy;
+    if (!economy) return {};
+    const world = economyWorldPort(this.#hooks.strategic?.world ?? defaultTacticalWorldPort, () => this.economy);
+    return { mercs: economy.crew, world };
   }
 
   get tick(): number {

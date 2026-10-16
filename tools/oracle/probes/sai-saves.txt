@@ -1,0 +1,123 @@
+# Strategic AI after loading each native save (docs/17 §16.4): the draws of the load-time recomputation, the state,
+# CalcDifficultyModifier per class, then seeded evaluations, periodic checks, the next enemy group arrivals and a state
+# dump after each.
+draws on
+save SaveGame01
+draws dump
+draws off
+sai
+diffmod class=1
+diffmod class=3
+diffmod class=4
+seed value=11 pre=reseed
+saievaluate awake=1
+sai
+saicheck sector=B13
+saicheck sector=C13
+saicheck sector=D13
+saicheck sector=A10
+sai
+saievaluate
+sai
+saiarrive count=40
+sai
+draws on
+save SaveGame02
+draws dump
+draws off
+sai
+diffmod class=1
+diffmod class=3
+diffmod class=4
+seed value=12 pre=reseed
+saievaluate awake=1
+sai
+saicheck sector=B13
+saicheck sector=C13
+saicheck sector=D13
+saicheck sector=A10
+sai
+saievaluate
+sai
+saiarrive count=40
+sai
+draws on
+save SaveGame07
+draws dump
+draws off
+sai
+diffmod class=1
+diffmod class=3
+diffmod class=4
+seed value=13 pre=reseed
+saievaluate awake=1
+sai
+saicheck sector=B13
+saicheck sector=C13
+saicheck sector=D15
+saicheck sector=A10
+sai
+saievaluate
+sai
+saiarrive count=40
+sai
+draws on
+save SaveGame08
+draws dump
+draws off
+sai
+diffmod class=1
+diffmod class=3
+diffmod class=4
+seed value=14 pre=reseed
+saievaluate awake=1
+sai
+saicheck sector=B13
+saicheck sector=C13
+saicheck sector=D15
+saicheck sector=A10
+sai
+saievaluate
+sai
+saiarrive count=40
+sai
+draws on
+save SaveGame09
+draws dump
+draws off
+sai
+diffmod class=1
+diffmod class=3
+diffmod class=4
+seed value=15 pre=reseed
+saievaluate awake=1
+sai
+saicheck sector=B13
+saicheck sector=C13
+saicheck sector=D15
+saicheck sector=A10
+sai
+saievaluate
+sai
+saiarrive count=40
+sai
+draws on
+save SaveGame10
+draws dump
+draws off
+sai
+diffmod class=1
+diffmod class=3
+diffmod class=4
+seed value=16 pre=reseed
+saievaluate awake=1
+sai
+saicheck sector=B13
+saicheck sector=C13
+saicheck sector=D15
+saicheck sector=A10
+sai
+saievaluate
+sai
+saiarrive count=40
+sai

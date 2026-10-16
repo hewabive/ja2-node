@@ -1,0 +1,32 @@
+Strategic AI oracle marks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE (SFI-SCLA).
+Marks the start and the end of the load-time recomputation of LoadStrategicAI (airspace, EvolveQueenPriorityPhase,
+RepollSAIGroup) in the Random draw trace of 0002, so tools/oracle/sai-compare.ts can replay only those draws.
+Applied by tools/oracle/build.sh after 0002.
+
+--- a/src/game/Strategic/Strategic_AI.cc
++++ b/src/game/Strategic/Strategic_AI.cc
+@@ -39,6 +39,8 @@
+ #include <vector>
+ 
+ #define SAI_VERSION		29
++#define ORACLE_MARK_SAI_LOAD_HOOKS_BEGIN 101
++#define ORACLE_MARK_SAI_LOAD_HOOKS_END   102
+ 
+ /*
+ STRATEGIC AI -- UNDERLYING PHILOSOPHY
+@@ -2457,6 +2459,7 @@
+ 		InitStrategicMovementCosts();
+ 	}
+ 
++	OracleTraceMark(ORACLE_MARK_SAI_LOAD_HOOKS_BEGIN);
+ 	//KM : Aug 11, 1999 -- Patch fix:  Blindly update the airspace control.  There is a bug somewhere
+ 	//     that is failing to keep this information up to date, and I failed to find it.  At least this
+ 	//     will patch saves.
+@@ -2483,6 +2486,7 @@
+ 
+ 	//Update the version number to the most current.
+ 	gubSAIVersion = SAI_VERSION;
++	OracleTraceMark(ORACLE_MARK_SAI_LOAD_HOOKS_END);
+ }
+ 
+ 

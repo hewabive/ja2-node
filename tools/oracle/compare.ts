@@ -35,6 +35,8 @@ import { createSoldier, NOWHERE, type Soldier, Team } from '../../src/sim/tactic
 import { registerSoldier, unregisterSoldier, whoIsThere } from '../../src/sim/tactical/state.ts';
 import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import { compareAutoresolve } from './autoresolve-compare.ts';
+import { ECONOMY_PROBES, EconomyComparer } from './economy-compare.ts';
+import { SAI_PROBES, SaiComparer } from './sai-compare.ts';
 import { STRATEGIC_PROBES, StrategicComparer } from './strategic-compare.ts';
 
 type Json = Record<string, unknown>;
@@ -517,9 +519,11 @@ if (dataDir === null) {
 const read: ReadFile = async (p) => (data.vfs.stat(p) ? data.vfs.read(p) : null);
 const content = await loadTacticalContent(read);
 const worlds = new Map<string, TacticalWorld>();
-const strategic = new StrategicComparer(read);
 let failures = 0;
 for (const file of files) {
+  const strategic = new StrategicComparer(read);
+  const economy = new EconomyComparer(read);
+  const sai = new SaiComparer(read);
   let ctx: Context | null = null;
   for (const p of readLines(file)) {
     if (p.error) failures += report(`${p.probe} line ${p.line}`, false, `oracle error: ${p.error}`);
@@ -527,9 +531,13 @@ for (const file of files) {
     else if (p.probe === 'save') {
       ctx = await saveContext(read, dataDir, p);
       await strategic.loadSave(savesDir(dataDir), String(p.name), ctx.sim);
+      await economy.loadSave(savesDir(dataDir), String(p.name));
+      await sai.loadSave(savesDir(dataDir), String(p.name));
     } else if (p.probe === 'end') continue;
     else if (p.probe === 'autoresolve') failures += compareAutoresolve(content, p);
     else if (STRATEGIC_PROBES.has(String(p.probe))) failures += await strategic.compare(p);
+    else if (ECONOMY_PROBES.has(String(p.probe))) failures += economy.compare(p);
+    else if (SAI_PROBES.has(String(p.probe))) failures += await sai.compare(p);
     else {
       ctx ??= await sectorContext(read, content, worlds, null);
       if (p.probe === 'costs') failures += compareCosts(ctx, p);

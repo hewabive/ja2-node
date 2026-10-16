@@ -1422,3 +1422,75 @@ stationary Mike/Iggy; the empty patrol-reinforcement group's later behaviour; th
 `gubNumAwareBattles` (grep found none); the exact scaled tables of §2.5 (computed from the JSON with the §3.3 rules,
 not dumped from the native build). Everything inferred is a target for the `newgame`, `prepare` and `saievaluate`
 probes of §16.4.
+
+---
+
+## 19. Implemented (2026-10-16): §16.2 steps 1–8 (strategic side) and the native-save part of step 9
+
+**Content.** `src/content/strategic/army.ts`: `loadArmyContent(read)` / `parseArmyContent` read the five JSONC files
+(`army-compositions`, `army-garrison-groups`, `army-patrol-groups`, `strategic-ai-policy`, `game.json` `progress`) into
+`ArmyContent` (templates, `StrategicAiPolicy` per difficulty, `ProgressPolicy`) with the §15 validation. It is loaded
+next to `StrategicContent`, not inside it. `src/content/formats/savegame-strategic-ai.ts`:
+`readStrategicAiSections(bytes, save)` decodes section 35 (§1.4), section 34 (`STRATEGIC_STATUS`, §1.5) and the meanwhile
+flags and first-battle sector of section 24, using the section offsets the save reader records.
+
+**State.** `StrategicState` gained `queen` (`QueenState` of §1.7 plus `saiVersion`), `status` (`StrategicStatus`) and
+`meanwhile` (`flags`, `currentId`); all plain data (`ai/queen-state.ts`, `cloneQueenState`).
+
+**Simulation** (`src/sim/strategic/ai/`, rather than `forces/` as §16.1 proposed; every function takes a `QueenContext`
+= `StrategicContext` + army content + `MineIncomePort` + `QueenHooks`, built by `createQueenContext`):
+
+| Module | Public API |
+|---|---|
+| `counts.ts` | `numStationaryEnemiesInSector`, `numMobileEnemiesInSector`, `getNumberOfEnemiesInSector` (H1 quirk), `playerSectorDefended` |
+| `weights.ts` | `recalculateGarrisonWeight`, `recalculatePatrolWeight`, `recalculateSectorWeight`, `recalculateGroupWeight`, the request/supply predicates of §5.4, `garrisonWeight` |
+| `composition.ts` | `calcNumTroopsBasedOnComposition`, `convertGroupTroopsToComposition`, `removeSoldiersFromGarrisonBasedOnComposition`, `eliminateSurplusTroopsForGarrison` |
+| `init.ts` | `initStrategicAI` (§3, draw order of §3.8), `initStrategicStatus` |
+| `evaluate.ts` | `evaluateQueenSituation`, `evolveQueenPriorityPhase`, `upgradeAdminsToTroops` |
+| `reinforce.ts` | `reinforcementsApproved`, `sendReinforcementsForGarrison`, `chooseSuitableGarrisonToProvideReinforcements`, `sendReinforcementsForPatrol`, `requestAttackOnSector`, `requestHighPriorityGarrisonReinforcements`, `massFortifyTowns` |
+| `orders.ts` | `moveSAIGroupToSector`, `evaluateGroupSituation`, `reassignAIGroup`, `sendGroupToPool`, `transferGroupToPool`, `removeGroupFromStrategicAILists`, `repollSAIGroup`, `redirectEnemyGroupsMovingThroughSector` |
+| `detection.ts` | `okayForEnemyToMoveThroughSector`, `enemyPermittedToAttackSector`, the notice rolls, the §8.5 handlers, `strategicAILookForAdjacentGroups`, `checkEnemyControlledSector` |
+| `reactions.ts` | `wakeUpQueen`, `executeStrategicAIAction`, `strategicHandleQueenLosingControlOfSector`, `strategicHandleMineThatRanOut`, `queenBasementTaken` |
+| `meanwhile.ts` | `scheduleMeanwhileEvent`, `handleMeanwhileEvent` (skipped scene), `handleMeanwhileEventPostingFor{TownLiberation,TownLoss,SamLiberation}`, `handleFirstBattleEndingWhileInTown`, `handleFirstMeanwhileSetUpWithTrashWorld`, `meanwhilePendingThisSecond` (for `AreInMeanwhile`) |
+| `queen-command.ts` | `prepareEnemyForSectorBattle` → `SectorBattlePlan` (class counts for the defence placements, stationary count, enemy-instigated groups; updates the in-battle counters and `pendingEnemies`), `assignEnemyGroupIds`, `processQueenCmdImplicationsOfDeath(q, dead, autoResolveSector)`, `addPossiblePendingEnemiesToBattle` → `PendingArrival[]` (group, entry code, classes), `nextArrivingSoldierClass`, `ARRIVAL_FACING`, `endTacticalBattleForEnemy` (returns whether `GLOBAL_LOYALTY_ABANDON_MILITIA` applies) |
+| `defence-placement.ts` | `sortSoldierInitList` and `addSoldierInitListEnemyDefenceSoldiers` as pure functions over `PlacementNode`s with an injected roll source and an `add(node)` callback (Strac PD every-second-node walk) |
+| `difficulty.ts` | `calcDifficultyModifier(inputs, class)`, `difficultyModifierAt(q, class, battleSector)`, `locationModifier`, `pythDistanceFromPalace` (exact integer rounding), `currentPlayerProgressPercentage`, `highestPlayerProgressPercentage`, `hourlyProgressUpdate`, `calcImportantSectorControl`, `militiaTrainingAllowedInSector` |
+| `status.ts` | `trackEnemiesKilled`, `recordPlayerKill` |
+| `save-import.ts` | `importStrategicAi(q, sections, {runLoadHooks})`, `runStrategicAiLoadHooks` |
+| `strategic-ai.ts` | `StrategicAi` (the `StrategicAiPort` of `docs/16`, bound with `bind(ctx)`), `initStrategicAiForNewCampaign` (the `initStrategicAI` hook of `initStrategicLayerMap`), `registerStrategicAiEvents` |
+| `economy-link.ts` | the bridge to `docs/18`'s economy: mine income port, `queenMineRanOut` and meanwhile hooks, the hourly progress slot |
+
+`CampaignSim` takes `hooks.queen = {army, mines?, hooks?}`, exposes `campaign.queen`, passes the `StrategicAi` as the
+strategic context's AI port and registers `EVALUATE_QUEEN_SITUATION`, `CHECK_ENEMY_CONTROLLED_SECTOR` and `MEANWHILE`;
+with an economy it wires the mine income, the mine-ran-out and meanwhile hooks and the hourly progress update.
+
+**Callers still to wire.** New-game init: `initStrategicLayerMap(ctx, {initStrategicAI: () =>
+initStrategicAiForNewCampaign(campaign.queen)})`. Autoresolve: `getNumberOfEnemiesInSector`,
+`processQueenCmdImplicationsOfDeath(q, dead, sector)`, `trackEnemiesKilled`, `removeGroupFromStrategicAILists`,
+`recalculateSectorWeight`, `handleFirstBattleEndingWhileInTown(q, sector, true)`. Sector loader: `prepareEnemyForSectorBattle`
+→ `sortSoldierInitList` + `addSoldierInitListEnemyDefenceSoldiers` → `assignEnemyGroupIds`; deaths and map-edge escapes →
+`processQueenCmdImplicationsOfDeath`; tactical turn ends and `enemyReinforcementsArrived` →
+`addPossiblePendingEnemiesToBattle` + `nextArrivingSoldierClass`; unload → `endTacticalBattleForEnemy` and
+`handleFirstMeanwhileSetUpWithTrashWorld`; soldier creation → `difficultyModifierAt`. The tactical sandbox still uses its
+fixed population ("Sandbox population" stays open).
+
+**Decisions on §17.** Stracciatella is followed everywhere, including the PD every-second-node quirk; the undefined
+cases are defined as `deviations.md` "Strategic AI undefined behaviour" lists; the load-time recomputation runs only on
+native-save import ("Strategic AI load hooks"). Correction to §8.2: F10 is refused when `FACT_HILLBILLIES_KILLED` is
+**set** (the code tests the fact, the comment says the opposite). Reinforcements reaching a SAM site set
+`SF_MAP_MODIFICATIONS_TEMP_FILE_EXISTS` (the repaired graphic is written to the map temp file); the graphic itself is a
+`QueenHooks.samRepaired` call.
+
+**Verified against the oracle** (`tools/oracle/probes/sai-newgame.txt`, `sai-saves.txt`, patch `0003`, README "Strategic
+AI"): seven new games over the three difficulties (with and without sci-fi), the six native saves with the load-time
+recomputation isolated by trace marks, a woken Queen's mass fortification, 15 evaluations, 30 periodic checks and 500
+enemy group arrivals: 6,085 native `Random` draws replayed with identical ranges, 51 complete `sai` dumps (globals,
+compositions, garrisons, patrols, denials, all 256 sectors, control, underground, every enemy group with its waypoints and
+times, the AI events) and 18 `diffmod` results identical. Unit tests cover §16.3 (draw order per difficulty with zero and
+maximum streams, weights, evaluation, orders, detection, reactions, Queen_Command, placements, difficulty) and a headless
+scenario (wake after three victories on medium, grace period, attack on Drassen).
+
+**Not yet.** The `prepare` probe (needs placement-level output from `AddSoldierInitListEnemyDefenceSoldiers`), periodic
+checks that reach a notice roll in the oracle (none of the probed situations had an important undefended neighbour),
+the tactical switch-over (§16.2 steps 7–8 inside `src/sim/tactical`), creatures and bloodcat placements (step 10),
+`ReinitializeUnvisitedGarrisons` and the SAI version patches.

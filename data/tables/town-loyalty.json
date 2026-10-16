@@ -1,0 +1,83 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Strategic/Strategic_Town_Loyalty.cc gubTownRebelSentiment, gfTownUsesLoyalty, uiPercentLoyaltyDecreaseForCivMurder, HandleGlobalLoyaltyEvent; Strategic_Town_Loyalty.h",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "per town id (index 0 = no town): rebel sentiment and whether loyalty is tracked; civilian murder cost by body FATCIV..COW in loyalty change points; global loyalty events in enum order with their base change; named bonuses and penalties in change points",
+  "gainPointsPerLoyaltyPoint": 500,
+  "rebelSentiment": [0, 90, 30, 12, 15, 20, 15, 20, 20, 20, 12, 10, 35],
+  "usesLoyalty": [false, true, true, true, true, false, true, false, false, false, true, true, true],
+  "civilianMurderCost": [2500, 3500, 4000, 5000, 10000, 10000, 10000, 500],
+  "globalEvents": [
+    {
+      "name": "BATTLE_WON",
+      "amount": 500
+    },
+    {
+      "name": "BATTLE_LOST",
+      "amount": -750
+    },
+    {
+      "name": "ENEMY_KILLED",
+      "amount": 50
+    },
+    {
+      "name": "NATIVE_KILLED",
+      "amount": -50
+    },
+    {
+      "name": "GAIN_TOWN_SECTOR",
+      "amount": 500
+    },
+    {
+      "name": "LOSE_TOWN_SECTOR",
+      "amount": -1000
+    },
+    {
+      "name": "LIBERATE_WHOLE_TOWN",
+      "amount": 1000
+    },
+    {
+      "name": "ABANDON_MILITIA",
+      "amount": -750
+    },
+    {
+      "name": "GAIN_MINE",
+      "amount": 1000
+    },
+    {
+      "name": "LOSE_MINE",
+      "amount": -1500
+    },
+    {
+      "name": "GAIN_SAM",
+      "amount": 250
+    },
+    {
+      "name": "LOSE_SAM",
+      "amount": -250
+    },
+    {
+      "name": "QUEEN_BATTLE_WON",
+      "amount": 1000
+    }
+  ],
+  "amounts": {
+    "BONUS_MIGUEL_READS_LETTER": 5000,
+    "BONUS_CHILDREN_FREED_DOREEN_KILLED": 5000,
+    "BONUS_CHILDREN_FREED_DOREEN_SPARED": 10000,
+    "BONUS_MARTHA_WHEN_JOEY_RESCUED": 7500,
+    "BONUS_KEITH_WHEN_HILLBILLY_SOLVED": 7500,
+    "BONUS_YANNI_WHEN_CHALICE_RETURNED_LOCAL": 10000,
+    "BONUS_YANNI_WHEN_CHALICE_RETURNED_GLOBAL": 5000,
+    "BONUS_AUNTIE_WHEN_BLOODCATS_KILLED": 10000,
+    "BONUS_MATT_WHEN_DYNAMO_FREED": 10000,
+    "BONUS_FOR_SERGEANT_KROTT": 10000,
+    "BONUS_TERRORISTS_DEALT_WITH": 2500,
+    "BONUS_KILL_QUEEN_MONSTER": 5000,
+    "BONUS_FOR_TOWN_TRAINING": 1000,
+    "PENALTY_MARTHA_HEART_ATTACK": 10000,
+    "PENALTY_JOEY_KILLED": 5000,
+    "PENALTY_ELDIN_KILLED": 10000,
+    "PENALTY_HEAD_MINER_ATTACKED": 10000,
+    "PENALTY_INACTIVE": 5000
+  }
+}
