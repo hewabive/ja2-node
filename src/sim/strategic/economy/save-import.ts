@@ -25,6 +25,7 @@ export function applySavedAssignment(m: CrewMember, saved: SavedSoldierAssignmen
   m.trainStat = saved.trainStat;
   m.forcedToStayAwake = saved.forcedToStayAwake;
   m.lastAssignmentChangeMin = saved.lastAssignmentChangeMin;
+  m.hospitalPriceModifier = saved.hospitalPriceModifier;
   m.fixingRobot = saved.fixingRobot;
   m.collapsed = saved.collapsed;
   m.nothingToDo = saved.nothingToDo;

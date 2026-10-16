@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Quests.cc CheckFact (fact), SetFactTrue, SetFactFalse, gubQuest. See docs/25 §1, §2.1, §6.
+// @src src/game/Strategic/Quests.cc CheckFact (fact), SetFactTrue, SetFactFalse, gubQuest; Tactical/Interface_Dialogue.cc
+// @src HandleNPCDoAction (npcAction); TacticalAI/NPC.cc TriggerNPCWithGivenApproach. See docs/25 §1, §2.1, §3, §6.
 
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
 import type { Soldier } from '../soldier.ts';
@@ -13,6 +14,8 @@ export interface NarrativePort {
   questStatus(quest: number): number;
   setNpcData(profile: number, value: number): void;
   triggerNpcRecord(profile: number, record: number): void;
+  triggerNpcWithGivenApproach(profile: number, approach: number): void;
+  npcAction(profile: number, code: number, record: number): void;
   hasUnusedHostileRecord(profile: number): boolean;
   sayHostileQuote(s: Soldier): void;
   inMeanwhile(): boolean;
@@ -39,6 +42,8 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   questStatus: () => QuestStatus.NOT_STARTED,
   setNpcData: () => {},
   triggerNpcRecord: () => {},
+  triggerNpcWithGivenApproach: () => {},
+  npcAction: () => {},
   hasUnusedHostileRecord: () => false,
   sayHostileQuote: () => {},
   inMeanwhile: () => false,

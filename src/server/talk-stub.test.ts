@@ -161,6 +161,28 @@ describe('the stub NPC in A10', () => {
     expect(await digest(true)).toBe(await digest(false));
   });
 
+  it('asks the lie prompt, stops time until it is answered and runs the chosen record', async () => {
+    const { session, live } = await inA10(9);
+    const merc = session.view().strategic?.mercs[0]?.id ?? 0;
+    walkUpAndTalk(session, live, merc);
+    session.dispatch({ type: 'approach', kind: 'direct' });
+    const asked = session.dispatch({ type: 'approach', kind: 'recruit' });
+    expect(lines(asked).map((l) => l.quote)).toEqual([20]);
+    const request = session.view().npcRequest;
+    expect(request).toMatchObject({ kind: 'npcRequest', request: 'lie', npc: VASKO, choices: ['yes', 'no', 'lie'] });
+    expect(conversation(asked)).toBeNull();
+    const tick = session.campaign.tick;
+    expect(live.advance({ ticks: 10 }).reason).toBe('decision');
+    expect(session.campaign.tick).toBe(tick);
+    expect(session.dispatch({ type: 'move', soldier: merc, to: 0 }).ok).toBe(false);
+    expect(session.dispatch({ type: 'answer', choice: 'maybe' })).toMatchObject({ ok: false });
+    const answered = session.dispatch({ type: 'answer', prompt: request?.id, choice: 'no' });
+    expect(answered.ok, answered.reason).toBe(true);
+    expect(session.view().npcRequest).toBeNull();
+    expect(conversation(answered)).toMatchObject({ profile: VASKO, initiatedBy: 'npc' });
+    expect(conversation(answered)?.lastQuotes.map((q) => q.quote)).toEqual([22]);
+  });
+
   it('opens the shop of the stub dealer through the talk menu', async () => {
     const { session, live } = await inA10(7);
     const merc = session.view().strategic?.mercs[0]?.id ?? 0;

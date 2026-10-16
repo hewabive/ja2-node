@@ -8,7 +8,8 @@
 // @src mails and history); Strategic/Strategic_Merc_Handler.cc MercDailyUpdate (the reply mail), StrategicHandlePlayerTeamMercDeath
 // @src (Speck's lost-merc flag); Strategic/Merc_Contract.cc CalculateMedicalDepositRefund (the mails), StrategicRemoveMerc
 // @src (personnel lists); Laptop/Mercs.cc DailyUpdateOfMercSite (the mails); Tactical/Campaign.cc MERCMercWentUpALevelSendEmail,
-// @src HandleUnhiredMercDeaths (the mail); Strategic/PreBattle_Interface.cc LogBattleResults. See docs/21 §1, §6, §8, §10.
+// @src HandleUnhiredMercDeaths (the mail); Strategic/PreBattle_Interface.cc LogBattleResults; Laptop/Files.cc
+// @src AddFilesAboutTerrorists. See docs/21 §1, §6, §8, §10.
 
 import type { MercProfile } from '../../../content/formats/prof.ts';
 import type { LaptopContent } from '../../../content/strategic/laptop-content.ts';
@@ -50,10 +51,10 @@ import {
 } from './aim.ts';
 import {
   addFreshBobbyRayInventory,
+  addJohnsGunShipment,
   bobbyRayPurchaseEvent,
   bobbyRaySiteAccessible,
   dailyUpdateOfBobbyRaysInventory,
-  handleNpcSystemEvent,
   initBobbyRayInventory,
   type OrderRequest,
   placeOrder,
@@ -117,6 +118,8 @@ export const LAPTOP_REFUSAL = 'laptop: the laptop is open, closeLaptop first';
 const IMP_REMINDER_FIRST_HOUR = 8;
 const IMP_REMINDER_HOURS = 4;
 const MINUTES_PER_HOUR = 60;
+const FIRST_TERRORIST_FILE = 1;
+const LAST_TERRORIST_FILE = 6;
 const REPLY_SENDER_BASE = 'BARRY_MAIL';
 const STARTING_MAILS = ['OLD_ENRICO_1', 'OLD_ENRICO_2', 'RIS_REPORT', 'OLD_ENRICO_3'] as const;
 const STARTING_SENDERS: Readonly<Record<(typeof STARTING_MAILS)[number], string>> = {
@@ -338,12 +341,19 @@ export class LaptopFlow implements LaptopContext {
     d.register(EventKind.INSURANCE_INVESTIGATION_STARTED, (_, e) => startInsuranceInvestigation(this, e.param));
     d.register(EventKind.INSURANCE_INVESTIGATION_OVER, (_, e) => endInsuranceInvestigation(this, e.param));
     d.register(EventKind.DELAYED_HIRING_OF_MERC, (_, e) => this.mercArrives(e.param));
-    d.register(EventKind.SET_BY_NPC_SYSTEM, (_, e) => handleNpcSystemEvent(this, e.param));
     d.register(EventKind.ENRICO_MAIL, () => this.#enricoMail());
   }
 
   bobbyRayDaily(): void {
     if (this.merchants) dailyUpdateOfBobbyRaysInventory(this, this.merchants);
+  }
+
+  addJohnsGunShipment(): void {
+    addJohnsGunShipment(this);
+  }
+
+  terroristFiles(): void {
+    for (let code = FIRST_TERRORIST_FILE; code <= LAST_TERRORIST_FILE; code++) addFile(this.laptop, code);
   }
 
   #haventMadeImpCharacter(): void {

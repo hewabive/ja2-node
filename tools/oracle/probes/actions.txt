@@ -1,0 +1,201 @@
+# NPC actions, requestor boxes, NPC system events, Kingpin's money and the hospital (docs/25 §3, §11.3, §11.4) on the
+# user's saves. npcaction runs HandleNPCDoAction with a headless talk context (panel=0 unless given, dest defaults to the
+# NPC's soldier, src is a soldier id); npcbox answers a requestor through DialogueMessageBoxCallBack; npcevent runs
+# HandleNPCSystemEvent; kingpinmoney, hospitalsupplies and medicalcost call the original functions; npcset writes facts,
+# quests, hospital globals, soldier life and profile fields on both sides. The native CheckFact results and both random
+# streams are replayed in order. Profiles listed in ids= are compared besides the acting NPC. The cosmetic face draws of a
+# conversation panel opening (InitFace: Random(30), Random(2), Random(2000)) are skipped by the comparer.
+
+save SaveGame01
+npcaction npc=98 code=107
+npcset facts=41:1
+npcaction npc=98 code=107
+npcaction npc=98 code=107
+npcaction npc=98 code=107
+npcaction npc=98 code=108
+npcset who=123 neutral=0
+npcaction npc=98 code=108 soldiers=all
+npcaction npc=98 code=115
+npcaction npc=98 code=116
+npcevent param=10108
+npcevent param=10116
+npcevent param=10116
+npcevent param=10116
+npcevent param=56
+npcevent param=34
+npcevent param=305
+npcevent param=306
+npcevent param=41
+kingpinmoney first=1
+kingpinmoney first=1
+kingpinmoney first=0
+npcevent param=103 ids=93
+npcevent param=103 ids=93
+npcevent param=103 ids=93
+npcset who=0 life=40 bleeding=5
+npcset who=1 life=10
+npcset who=2 life=70 patientmod=3
+medicalcost npc=98
+npcset modifier=2
+medicalcost npc=98
+npcset refund=25
+npcbox npc=98 code=161 answer=yes
+npcset refund=500
+npcbox npc=98 code=161 answer=no
+npcset profile=69 balance=-300
+npcbox npc=98 code=162 answer=yes ids=69
+npcbox npc=98 code=162 answer=no ids=69
+npcbox npc=98 code=221 answer=lie record=4
+npcbox npc=98 code=221 answer=lie record=7
+npcbox npc=98 code=221 answer=yes record=4
+npcbox npc=98 code=221 answer=no record=4
+npcbox npc=98 code=120 answer=yes
+npcbox npc=98 code=212 answer=no
+npcset profile=98 salary=900
+npcbox npc=98 code=181 answer=no
+npcbox npc=98 code=135 answer=yes
+npcbox npc=98 code=207 answer=no
+npcbox npc=98 code=144 answer=no
+npcbox npc=98 code=169 answer=yes
+npcbox npc=98 code=183 answer=no
+npcbox npc=98 code=226 answer=yes src=0 ids=150,10
+npcbox npc=98 code=226 answer=no src=1 ids=150,15
+npcaction npc=98 code=144
+npcaction npc=98 code=161
+npcaction npc=98 code=181 ids=70
+npcaction npc=98 code=144 dest=122
+npcaction npc=98 code=221 record=5
+npcaction npc=138 code=226
+npcaction npc=98 code=237 soldiers=all
+npcaction npc=98 code=2 record=3
+npcaction npc=98 code=8
+npcaction npc=98 code=103
+npcaction npc=98 code=240
+npcaction npc=98 code=111
+npcaction npc=98 code=244
+npcaction npc=98 code=245
+npcaction npc=98 code=198
+npcaction npc=98 code=119
+npcaction npc=98 code=265
+npcaction npc=98 code=291
+npcaction npc=98 code=294
+npcaction npc=98 code=242
+npcaction npc=98 code=50
+npcaction npc=100 code=112
+npcaction npc=100 code=155
+npcset facts=132:1,133:1
+npcaction npc=100 code=155
+npcaction npc=57 code=230
+npcaction npc=107 code=125
+npcaction npc=107 code=125
+npcaction npc=107 code=126
+npcaction npc=107 code=127
+npcaction npc=107 code=128
+npcaction npc=107 code=124
+npcaction npc=107 code=133
+npcaction npc=107 code=219
+npcset quests=6:1
+npcaction npc=107 code=219
+npcevent param=10126
+npcaction npc=86 code=136 ids=90
+npcevent param=10136 ids=90
+npcaction npc=86 code=137
+npcaction npc=86 code=229
+npcset profile=78 npcdata=2 npcdata2=0 money=7000
+npcaction npc=78 code=154
+npcaction npc=78 code=156
+npcaction npc=78 code=156
+npcaction npc=78 code=159
+npcaction npc=78 code=157
+npcaction npc=78 code=158
+npcaction npc=69 code=160
+npcset facts=148:1
+npcaction npc=69 code=160
+npcaction npc=80 code=160
+npcset facts=46:1
+npcaction npc=69 code=160
+npcaction npc=69 code=164
+npcaction npc=69 code=165
+npcaction npc=69 code=139
+npcaction npc=69 code=257
+npcaction npc=69 code=258
+npcaction npc=69 code=118
+npcaction npc=148 code=171
+npcaction npc=148 code=180
+npcaction npc=121 code=184
+npcaction npc=108 code=185
+npcaction npc=118 code=186
+npcaction npc=121 code=190
+npcaction npc=146 code=191
+npcaction npc=146 code=192
+npcaction npc=146 code=194
+npcevent param=10194 ids=62,146
+npcset profile=131 balance=19000
+npcaction npc=131 code=195
+npcset profile=131 balance=20000
+npcaction npc=131 code=196
+npcaction npc=155 code=210
+npcaction npc=115 code=211
+npcaction npc=96 code=213
+npcaction npc=147 code=234
+npcaction npc=147 code=235
+npcaction npc=81 code=236
+npcaction npc=81 code=251
+npcaction npc=113 code=256
+npcaction npc=79 code=263
+npcaction npc=114 code=293
+npcaction npc=92 code=247
+npcaction npc=139 code=117
+npcaction npc=85 code=121
+npcaction npc=146 code=296
+npcevent param=10112
+npcevent param=10121
+npcevent param=10230
+npcevent param=10211
+npcevent param=10117
+npcevent param=10139
+hospitalsupplies
+npcset objects=18
+hospitalsupplies
+npcset objects=2
+hospitalsupplies
+
+save SaveGame10
+npcaction npc=106 code=172
+npcaction npc=106 code=173
+npcaction npc=106 code=172
+npcaction npc=106 code=174
+npcaction npc=106 code=178
+npcaction npc=106 code=2 record=6
+npcaction npc=106 code=500
+npcaction npc=106 code=5
+npcaction npc=106 code=167
+npcaction npc=106 code=166
+kingpinmoney first=1
+npcevent param=10108
+npcset who=0 life=30
+npcset who=1 life=60 bleeding=9
+medicalcost npc=106
+npcaction npc=106 code=237 soldiers=all
+medicalcost npc=106
+npcbox npc=106 code=161 answer=yes
+
+save SaveGame02
+npcaction npc=139 code=117
+npcaction npc=139 code=232 soldiers=all
+npcaction npc=151 code=26
+npcaction npc=151 code=22 soldiers=all
+kingpinmoney first=1
+npcevent param=10108
+npcset who=2 life=20 bleeding=3
+medicalcost npc=139
+npcbox npc=139 code=161 answer=yes
+npcbox npc=139 code=221 answer=lie record=2
+npcset who=0 life=50
+npcset who=1 life=12 bleeding=4
+medicalcost npc=10
+npcset modifier=3
+npcaction npc=10 code=237 soldiers=all
+medicalcost npc=10
+npcset who=2 life=40 patientmod=2
+npcbox npc=10 code=161 answer=yes

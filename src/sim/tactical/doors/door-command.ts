@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Handle_UI.cc UIHandleMOVE (interactive tiles); Overhead.cc pending MERC_OPENDOOR on arrival;
+// @src src/game/Tactical/Handle_UI.cc UIHandleMOVE (interactive tiles); Overhead.cc pending MERC_OPENDOOR/MERC_OPENSTRUCT on arrival;
 // @src Interface.cc PopupDoorOpenMenu, DoorAction, BtnDoorMenuCallback. See docs/25 §8.2, §13.1.
 
 import { ANYKEY } from '../../../content/formats/locks.ts';
@@ -17,6 +17,7 @@ import {
   doorMenu,
   interactWithClosedDoor,
   interactWithDoorAt,
+  interactWithOpenableStruct,
   startInteractiveObject,
 } from './door-actions.ts';
 import { findAdjacentGridExAdvanced } from './door-approach.ts';
@@ -142,11 +143,23 @@ export function doorCommand(t: TacticalState, s: Soldier, gridNo: number, action
   return { ok: true, data: { walking: true, to: approach.gridNo } };
 }
 
+export const OPEN_STRUCT_ACTION = 'openStruct';
+
+function interactWithPendingStruct(t: TacticalState, s: Soldier, gridNo: number, direction: number): void {
+  const structure = t.world.structures.find(gridNo, StructureFlags.OPENABLE);
+  if (structure) interactWithOpenableStruct(t, s, structure, direction);
+  else soldierGotoStationaryStance(t, s);
+}
+
 export function handlePendingDoorOnArrival(t: TacticalState, s: Soldier): boolean {
   const pending = s.pendingDoorAction;
   if (!pending) return false;
   s.pendingDoorAction = null;
   if (pending.actionGridNo !== s.gridNo) return false;
+  if (pending.action === OPEN_STRUCT_ACTION) {
+    interactWithPendingStruct(t, s, pending.gridNo, pending.direction);
+    return true;
+  }
   const result = performDoorAction(t, s, pending.gridNo, pending.direction, pending.action as DoorActionName);
   if (result.started === false) soldierGotoStationaryStance(t, s);
   return true;

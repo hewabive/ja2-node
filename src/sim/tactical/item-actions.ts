@@ -41,8 +41,11 @@ export function pickupCandidates(t: TacticalState, s: Soldier, g: number, zLevel
   return itemsAt(t, g, s.level).filter((wi) => itemPoolOKForPickup(s, wi, zLevel));
 }
 
+export const ITEM_IGNORE_Z_LEVEL = -1;
+
 function itemPoolOKForPickup(s: Soldier, wi: WorldItem, zLevel: number): boolean {
   if (s.team === Team.OUR && wi.visible !== Visibility.VISIBLE) return false;
+  if (zLevel === ITEM_IGNORE_Z_LEVEL) return true;
   return zLevel === 0 ? wi.zHeight === 0 : wi.zHeight > 0;
 }
 

@@ -85,6 +85,15 @@ export function setSoldierAssignmentDoctor(ctx: EconomyContext, s: CrewMember): 
   return true;
 }
 
+export function setSoldierAssignmentHospital(ctx: EconomyContext, s: CrewMember): boolean {
+  if (!canCharacterPatient(ctx, s)) return false;
+  preChangeAssignment(ctx, s);
+  s.bleeding = 0;
+  stampIfChanged(ctx, s, Assignment.ASSIGNMENT_HOSPITAL);
+  postSetAssignment(ctx, s, Assignment.ASSIGNMENT_HOSPITAL);
+  return true;
+}
+
 export function setSoldierAssignmentPatient(ctx: EconomyContext, s: CrewMember): boolean {
   if (!canCharacterPatient(ctx, s)) return false;
   preChangeAssignment(ctx, s);

@@ -1,11 +1,12 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/AIMain.cc HandleSoldierAI, ExecuteAction, ActionDone, CancelAIAction, NPCDoesAct,
-// @src FreeUpNPCFromTurning, FreeUpNPCFromStanceChange, FreeUpNPCFromRoofClimb; Realtime.cc RTHandleAI; Movement.cc SoldierTriesToContinueAlongPath;
+// @src FreeUpNPCFromTurning, FreeUpNPCFromStanceChange, FreeUpNPCFromRoofClimb, FreeUpNPCFromPendingAction (the NPC triggers); Realtime.cc RTHandleAI; Movement.cc SoldierTriesToContinueAlongPath;
 // @src AIUtils.cc NewDest; Tactical/Overhead.cc ExecuteOverhead (real-time AI cadence); creature/crow dispatch of
 // @src TurnBasedHandleNPCAI and Realtime.cc RTDecideAction, RTHandleAI. See docs/09 §1, docs/13 §14.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
+import { Approach } from '../../../content/narrative/npc-constants.ts';
 import { newGridNo, pythSpacesAway, spacesAway, WORLD_MAX } from '../../../content/world/grid.ts';
 import { anim } from '../anim-states.ts';
 import {
@@ -28,7 +29,7 @@ import { deductPoints, enoughPoints, estimateActionPointCost } from '../points.t
 import { beginSoldierClimbDownRoof, beginSoldierClimbUpRoof } from '../roofs.ts';
 import { adjustSoldierPathToGoOffEdge } from '../sector-exit.ts';
 import { removeSoldierFromTacticalSector } from '../sector-presence.ts';
-import { AlertStatus, Attitude, CivilianGroup, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Attitude, CivilianGroup, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { checkForEndOfBattle, displayHiddenInterrupt } from '../turns/turns.ts';
 import {
@@ -132,6 +133,9 @@ const PENDING_RELEASE_STATES = [
   'END_OPENSTRUCT_CROUCHED',
   'QUEEN_CALL',
 ];
+const KYLE = 95;
+const KYLE_GETS_MONEY = 123;
+const KYLE_GOT_MONEY_RECORD = 11;
 const PENDING_ACTIONS: ReadonlySet<number> = new Set([
   AiAction.PENDING_ACTION,
   AiAction.OPEN_OR_CLOSE_DOOR,
@@ -143,11 +147,23 @@ const PENDING_ACTIONS: ReadonlySet<number> = new Set([
   AiAction.LOCK_DOOR,
 ]);
 
+function npcPendingActionDone(t: TacticalState, s: Soldier, name: string): void {
+  if (s.profile === NO_PROFILE) return;
+  if (s.quoteRecord === KYLE_GETS_MONEY) {
+    s.quoteRecord = 0;
+    t.narrative.triggerNpcRecord(KYLE, KYLE_GOT_MONEY_RECORD);
+  } else if (name === 'END_OPENSTRUCT') t.narrative.triggerNpcWithGivenApproach(s.profile, Approach.DONE_OPEN_STRUCTURE);
+  else if (name === 'PICKUP_ITEM' || name === 'ADJACENT_GET_ITEM')
+    t.narrative.triggerNpcWithGivenApproach(s.profile, Approach.DONE_GET_ITEM);
+}
+
 export function freeUpFromPendingAction(t: TacticalState, s: Soldier): void {
   if (s.team === Team.OUR || s.ai.action === AiAction.PULL_TRIGGER) return;
   if (!PENDING_ACTIONS.has(s.ai.action)) return;
   const name = t.content.animations.controls[s.state]?.id ?? '';
-  if (PENDING_RELEASE_STATES.includes(name)) actionDone(t, s);
+  if (!PENDING_RELEASE_STATES.includes(name)) return;
+  npcPendingActionDone(t, s, name);
+  actionDone(t, s);
 }
 
 function aiDecideRadioAnimation(t: TacticalState, s: Soldier): void {

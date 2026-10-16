@@ -15,7 +15,6 @@ import { u8 } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import {
-  closestPC,
   converse,
   deleteTalkingMenu,
   handleTalkingMenuEscape,
@@ -31,6 +30,7 @@ import {
   talkMenuBuySell,
   talkMenuGive,
   triggerNpcRecord,
+  triggerNpcWithGivenApproach,
   triggerNpcWithIHateYouQuote,
 } from '../narrative/converse.ts';
 import { soldierByProfile } from '../narrative/dialogue-queue.ts';
@@ -63,7 +63,8 @@ import { sectorMapOf, type TacticalState } from '../tactical/state.ts';
 import { selectSoldier } from '../tactical/turns/turns.ts';
 import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
 import type { NarrativeSlots } from './narrative/narrative-flow.ts';
-import { genericActionPort } from './narrative/narrative-ports.ts';
+import { NpcActionFlow, type NpcActionPorts } from './narrative/npc-action-flow.ts';
+import { medicalCostAt } from './narrative/quest-world.ts';
 
 export const AP_TALK = 6;
 const LOCK_PAUSE_ENGAGED_IN_CONV = 14;
@@ -130,7 +131,8 @@ export interface NarrativeSetup {
   readonly profiles: readonly MercProfile[];
   readonly facts?: (campaign: CampaignSim) => FactSource;
   readonly quests?: (campaign: CampaignSim) => QuestPort;
-  readonly actions?: (campaign: CampaignSim, generic: NpcActionPort) => NpcActionPort;
+  readonly actions?: (campaign: CampaignSim, catalog: NpcActionPort) => NpcActionPort;
+  readonly npcActions?: NpcActionPorts;
 }
 
 export interface ConversationLineView {
@@ -176,6 +178,7 @@ function rangeBetween(a: number, b: number): number {
 export class TalkFlow {
   readonly talk: TalkState;
   readonly host: NarrativeHost;
+  readonly npcActions: NpcActionFlow;
   readonly #campaign: CampaignSim;
   readonly #setup: NarrativeSetup;
   readonly #events: SimEvent[] = [];
@@ -186,6 +189,7 @@ export class TalkFlow {
     this.#setup = setup;
     this.talk = createTalkState();
     this.host = this.#createHost();
+    this.npcActions = new NpcActionFlow(campaign, this.host, setup.npcActions ?? {}, (e) => this.#emit(e));
   }
 
   get #t(): TacticalState | null {
@@ -267,33 +271,17 @@ export class TalkFlow {
     handleSight(t, s, SIGHT_LOOK_AND_RADIO);
   }
 
-  #face(npc: number, toward: (s: Soldier) => number): void {
-    const t = this.#t;
-    const s = soldierByProfile(this.host, npc);
-    if (!t || !s) return;
-    const g = toward(s);
-    if (g === NOWHERE) return;
-    const dir = directionToward(s.gridNo, g);
-    if (s.direction !== dir) setDesiredDirection(t, s, dir);
-  }
-
   #createHost(): NarrativeHost {
     const campaign = this.#campaign;
     const state = campaign.state;
     const setup = this.#setup;
     const tactical = () => this.#t;
-    let host: NarrativeHost;
-    const generic = genericActionPort({
-      closePanel: () => deleteTalkingMenu(host, 'script'),
-      faceNearestMerc: (npc) => this.#face(npc, (s) => closestPC(host, s)),
-      faceProfile: (npc, other) => this.#face(npc, () => soldierByProfile(host, other)?.gridNo ?? NOWHERE),
-      initiateShop: () => {
-        if (host.shopClosedByScript(this.talk.charNum)) return;
-        deleteTalkingMenu(host, 'script');
-        host.openShop(this.talk.charNum);
+    const catalog: NpcActionPort = {
+      handleNpcDoAction: (npc, code, record) => {
+        this.npcActions.handle(npc, code, record);
       },
-    });
-    host = {
+    };
+    const host: NarrativeHost = {
       records: state.npcRecords,
       content: setup.records,
       recruited: (p) => this.#recruited(p),
@@ -305,12 +293,12 @@ export class TalkFlow {
         startQuest: (quest, sector) => campaign.narrative.startQuest(quest, sector),
         endQuest: (quest, sector) => campaign.narrative.endQuest(quest, sector),
       },
-      actions: setup.actions?.(campaign, generic) ?? generic,
+      actions: setup.actions?.(campaign, catalog) ?? catalog,
       give: { placeObjectInSoldierProfile: () => {}, returnItemToPlayer: () => {}, handleNpcItemGiven: () => {} },
       receive: {
         items: this.#itemFacts(),
         hospital: state.narrative.hospital,
-        calcMedicalCost: () => 0,
+        calcMedicalCost: (npc) => medicalCostAt(campaign, npc),
         frankCash: () => {},
         kingpinInHisHouse: () => this.#kingpinInHisHouse(),
         addProfileCost: (profile, amount) => {
@@ -393,7 +381,7 @@ export class TalkFlow {
   }
 
   hasPendingDecision(): boolean {
-    return this.frozen();
+    return this.frozen() || this.requestOpen();
   }
 
   modalRefusal(): string | null {
@@ -406,7 +394,12 @@ export class TalkFlow {
 
   afterTacticalStep(): void {
     stepDialogue(this.host);
+    this.npcActions.afterTacticalStep();
     this.#syncScripted();
+  }
+
+  requestOpen(): boolean {
+    return this.npcActions.requestOpen();
   }
 
   #syncScripted(): void {
@@ -418,6 +411,7 @@ export class TalkFlow {
 
   narrativePortHooks(): {
     triggerNpcRecord(profile: number, record: number): void;
+    triggerNpcWithGivenApproach(profile: number, approach: number): void;
     hasUnusedHostileRecord(profile: number): boolean;
     sayHostileQuote(s: Soldier): void;
     dialogueBusy(): boolean;
@@ -428,6 +422,9 @@ export class TalkFlow {
     const host = this.host;
     return {
       triggerNpcRecord: (profile, record) => triggerNpcRecord(host, profile, record),
+      triggerNpcWithGivenApproach: (profile, approach) => {
+        triggerNpcWithGivenApproach(host, profile, approach);
+      },
       hasUnusedHostileRecord: (profile) => npcHasUnusedHostileRecord(host, profile),
       sayHostileQuote: (s) => {
         triggerNpcWithIHateYouQuote(host, s.profile);
@@ -441,7 +438,7 @@ export class TalkFlow {
 
   narrativeSlots(): Pick<
     NarrativeSlots,
-    'dialogueDesireToTalk' | 'resetOncePerConvoRecords' | 'hasUnusedRecordWithApproach' | 'npcReachedDestination'
+    'dialogueDesireToTalk' | 'resetOncePerConvoRecords' | 'hasUnusedRecordWithApproach' | 'npcReachedDestination' | 'npcAction'
   > {
     const host = this.host;
     const s = this.#campaign.state;
@@ -454,10 +451,14 @@ export class TalkFlow {
         }),
       hasUnusedRecordWithApproach: (profile, approach) => npcHasUnusedRecordWithGivenApproach(host, profile, approach),
       npcReachedDestination: (soldier) => npcReachedDestination(host, soldier, false),
+      npcAction: (npc, action) => {
+        this.npcActions.handle(npc, action, 0);
+      },
     };
   }
 
   dispatch(cmd: CampaignCommand): CommandResult | null {
+    if (cmd.type === 'answer' && this.requestOpen()) return this.#answerRequest(cmd);
     const intercept = TALK_COMMANDS.has(cmd.type) || (cmd.type === 'openShop' && this.#campaign.shop !== null);
     try {
       if (!intercept) {
@@ -632,6 +633,8 @@ export class TalkFlow {
     this.#drain();
     const lines = this.talk.lines.slice(before).map((l) => this.#lineView(l));
     const shop = this.#campaign.shop?.isOpen() ? { shop: this.#campaign.shop.view() } : {};
+    const request = this.npcActions.requestView();
+    const prompt = request ? { npcRequest: request } : {};
     return {
       ok: true,
       data: {
@@ -639,9 +642,22 @@ export class TalkFlow {
         lines,
         ...(this.scriptedSequence() ? { scriptedSequence: true } : {}),
         ...shop,
+        ...prompt,
         ...extra,
       },
     };
+  }
+
+  #answerRequest(cmd: CampaignCommand): CommandResult {
+    const prompt = this.#campaign.state.battle.prompt;
+    if (!prompt) return { ok: false, reason: 'no prompt is open' };
+    if (cmd.prompt !== undefined && cmd.prompt !== prompt.id) return { ok: false, reason: `the open prompt is ${prompt.id}` };
+    const choice = String(cmd.choice ?? '');
+    let answered: CommandResult = { ok: true };
+    const result = this.#runAndReport(() => {
+      answered = this.npcActions.answer(prompt, choice);
+    });
+    return answered.ok ? result : answered;
   }
 
   #requireOpenAndIdle(): void {

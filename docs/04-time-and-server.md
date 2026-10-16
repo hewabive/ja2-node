@@ -589,6 +589,38 @@ path, etaMinutes, safeSectors, unsafeSectors, routeCost, refuelSites: [{sector, 
 was shot down); mercs in a vehicle carry `vehicle`. Skyrider's balance is shown only as the debt (`owed`), as the original's
 messages show it; his talk state and the accumulated bill stay hidden.
 
+### 6.14. NPC actions and requests (M6)
+
+The NPC records of a conversation run the action catalog of `docs/25` §3 (`src/sim/tactical/narrative/npc-actions/`): facts,
+quests, history lines, strategic events (the NPC system events of event 27), profile moves, record triggers, items, money,
+combat changes and the hospital. Actions have no command of their own; their effects show in the usual places (the
+conversation's lines, `questStarted`/`historyAdded`, mails, the shop, soldiers in sight). A requestor action (`docs/25`
+§3.3) closes the panel and opens an **NPC request**, a decision like the battle prompts:
+
+- `observe.npcRequest` (and the `npcRequest` field of view frames) is `{id, kind: 'npcRequest', request, npc, name, merc?,
+  amount?, pair?, choices}` with `request` one of `escort` (`pair: true` for John and Mary together), `hire` (`amount` = the
+  salary, after Conrad's reduction), `boxingBet`, `fightAgain`, `buyVest` (`amount` = the jacket's price), `payDoctor`
+  (`amount` = the shown cost: the doctor's price for the wounded within 9 tiles less the refund, $10 when the refund is
+  larger), `freeTreatment`, `buyVehicle` (`amount` 10000), `spareKrott`, `marryDaryl` (`merc` = the asking merc's profile)
+  and `lie`; `choices` are `yes`, `no` and, for `lie`, `lie`.
+- The `talk`/`approach`/`answer` result that opened it carries the same view in `data.npcRequest`.
+- `answer {prompt?, choice}` answers it; `prompt` (the id) is optional, a wrong id or choice is refused. The answer runs the
+  original's callback (records triggered, Daryl's key, the hospital balance, the liar's skill check), then the dialogue queue
+  as `talk` does: `data` is `{conversation, lines, scriptedSequence?, shop?, npcRequest?}` (a trigger that opens a new panel
+  shows its lines in `conversation.lastQuotes`).
+- While a request is open the world clock and the tactical ticks stand still, `advance` stops with `decision`, the campaign
+  reports a pending decision and every other command is refused (`answer the npcRequest prompt first`, or `promptOpen` for
+  `talk`). The request is part of the campaign state.
+- Events: `npcRequest {id, request, npc, amount?, pair?, merc?, choices}` when it opens; `npcMessage` kinds `teamFull`,
+  `recruited`, `nowEscorted` (`amount` = the squad number), `balanceOwed` (action 119, `amount` = the debt), `itemPlacedOnGround`,
+  `vehicleRefuelled`; `npcGaveItem {npc, to, item}`; `terroristRevealed {npc}`, `townDiscovered {town}`, `sexScene {npc}`,
+  `boxingBell` (presentation).
+
+The hospital (Cambria) charges through `payDoctor`, escorts patients onto the hospital assignment (action 237, strictly within
+9 tiles) and refunds the unused payment when a patient leaves it; Kingpin learns of his missing money when the squad leaves
+D5-1 with less than $30000 there (his letter and quest 4 follow two and four days later). Facts, the hospital modifier and
+refund, Kingpin's balance and the NPC system events stay hidden.
+
 ## 7. Cost and limitations
 
 - **Amount of work.**

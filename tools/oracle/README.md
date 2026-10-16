@@ -11,8 +11,9 @@ the hourly team morale and the arms dealers (stock, restocks, prices, repairs, s
 are merc contracts and relationships (the daily merc update, the renewal sequence, extensions, departures and the leave
 list), the tactical decisions of creatures and bloodcats, and the laptop (a full `InitNewGame`, A.I.M., M.E.R.C. and
 I.M.P. hires, Bobby Ray's orders, restocks and deliveries, life insurance), the narrative state (facts, quests,
-CheckFact, the 04:00 and hourly NPC handlers, the quest code of sector entry and exit, profile NPC placement), and
-Skyrider's helicopter (flights, SAM fire, billing, hovering, landing, boarding and the monologues).
+CheckFact, the 04:00 and hourly NPC handlers, the quest code of sector entry and exit, profile NPC placement), Skyrider's
+helicopter (flights, SAM fire, billing, hovering, landing, boarding and the monologues) and the NPC actions (the action
+catalog, the requestor answers, the NPC system events, Kingpin's money and the hospital).
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -58,6 +59,9 @@ commit them.
 | `patches/0014-heli-oracle.patch` | Silent Skyrider dialogue with recorded quote numbers, immediate monologue events and wrappers for the static helicopter helpers (see "Hooks") |
 | `heli-compare.ts` | The helicopter probes of `compare.ts` (`heli`, `heliset`, `helisetup`, `heliboard`, `helileave`, `heliroute`, `helicancel`, `heliwarp`, `helimonologue`, `helipaydebt`, `helireturn`) |
 | `probes/heli.txt` | Helicopter probe script (see "Helicopter") |
+| `patches/0015-actions-oracle.patch` | Traces of `HandleNPCDoAction`, the requestor callback and the NPC system events, a headless switch for the requestor boxes (see "Hooks") |
+| `actions-compare.ts` | The NPC action probes of `compare.ts` (`npcaction`, `npcbox`, `npcevent`, `kingpinmoney`, `hospitalsupplies`, `medicalcost`, `npcset`) |
+| `probes/actions.txt` | NPC action probe script (see "NPC actions") |
 | `creature-ai-compare.ts` | The tactical creature probes of `compare.ts` (`addsoldier`, `setsoldier`, `seen`, `decide`, `beststab`, `stab`, `creaturecall`, `smell`, `dropsmell`, `trackscent`) |
 | `probes/creature*.txt`, `probes/morale.txt` | Creature and morale probe scripts (see "Creatures", "Creature AI" and "Morale") |
 | `autoresolve-aftermath.ts` | Level 3 of `autoresolve` probes (the battle closed through ja2-node's battle flow on the imported save) and `enemycounts` |
@@ -1044,6 +1048,43 @@ arrivals delayed by a battle in the loaded sector, the refusals (grounded, owed,
 write-back, returning, the empty-helicopter hint), the hourly debt payment, the believed-enemy confirmation and the four
 monologues with their SAM reveals.
 
+### NPC actions
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data" JA2_ORACLE_DIR=~/ja2-oracle-actions
+tools/oracle/run.sh tools/oracle/probes/actions.txt ~/ja2-oracle-actions/out/actions.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle-actions/out/actions.jsonl
+```
+
+Commands (after a `save`; `src`/`dest` are soldier ids, `dest` defaults to the NPC's soldier, `panel=1` sets
+`gfInTalkPanel`; each prints the queued dialogue events, the `CheckFact` calls, both random streams, the fact and quest
+changes, the new strategic events, history lines and mails, the hospital globals, the requestor box that opened (type and the
+lie record), the combat flags, the mercs and the NPC soldier (`soldiers=all`: every soldier in sector), the profiles of the
+NPC and of `ids=`, the items at the primary delivery gridno and at gridnos 1 and 2, and the loaded world's money):
+```
+npcaction npc= code= [record=] [src=] [dest=] [panel=] [ids=] [soldiers=all]   # HandleNPCDoAction, the queue not drained
+npcbox npc= code= answer=yes|no|lie [record=] [src=] [dest=] [ids=]             # DialogueMessageBoxCallBack for that box,
+                                                                               # plus the amount StartDialogueMessageBox shows
+npcevent param=                                                                # HandleNPCSystemEvent
+kingpinmoney first=0|1                                                          # CheckForKingpinsMoneyMissing
+hospitalsupplies                                                                # CheckForMissingHospitalSupplies and the count
+medicalcost npc=                                                                # CalcMedicalCost and CalcPatientMedicalCost per merc
+npcset [facts=id:v,...] [quests=id:v,...] [modifier=] [temp=] [refund=] [objects=]
+       [who=<soldier> life= bleeding= patientmod= neutral=] [profile= balance= npcdata= npcdata2= salary= status= money= sector= z=]
+```
+`actions-compare.ts` imports the save into a campaign session, sets the same headless talk context, replays the native
+`CheckFact` results in order (a different call order is a mismatch; the values are written into the fact store, as the native
+computed facts are) and both streams strictly, runs the catalog (`handleNpcDoAction`), `answerNpcRequest`,
+`npcSystemEvent`, `kingpinMoneyCheck` and `hospitalSuppliesCheck` and compares the same fields; `npcset` writes both sides.
+The cosmetic `InitFace` draws of a panel opened by action 232 are dropped from the native trace (deviation "Cosmetic face and
+frame draws"). On 2026-10-16 all 188 probes matched on SaveGame01, 10 and 02: Pablo's shipment report with and without the
+bribe draws, his return of the goods (neutral again, the event, the two random items and the moved pool in a loaded B13), the
+package timers and the damaged package, the plain fact events, Kingpin's three money stages (history, debt, the letter, quest
+4, the threat), medical costs with discounts, every requestor answer including three lies with the skill check, the boxes
+that open and the one refused for the wrong panel NPC, the doctor's escort onto the hospital assignment, the generic actions,
+Father's, Madame's, Carmen's, Joey's, Vince's and Willis's chains with their draws and events, the mines of Fred and the
+hospital supplies.
+
 ## Shipped probes
 
 | Script | Content |
@@ -1070,6 +1111,7 @@ monologues with their SAM reveals.
 | `probes/facts.txt` | Facts, quests and NPC presence on the six saves (see "Facts and NPC presence") |
 | `probes/talk.txt` | NPC records, profiles, desires, record choice and conversation steps for the NPCs present in SaveGame02, 01, 07 and 10 (see "Talk") |
 | `probes/heli.txt` | Skyrider's helicopter on SaveGame01, 02 and 10 (see "Helicopter") |
+| `probes/actions.txt` | NPC actions, requestor answers, NPC system events, Kingpin's money and the hospital on SaveGame01, 10 and 02 (see "NPC actions") |
 | `probes/sectors.txt` | Edgepoints loaded and generated on eight maps, screen-space exit thresholds on both sides of every edge (A9, A10 basement), exit-grid checks in D13 and the basement, walk-off/walk-in/mirror from the centre and near the edges, class codes on the isolated maps H13 and I14, init list sorts and ten defence placements (A9, B13, C13, D13), and `OKForSectorExit` on SaveGame10, 07 (in combat) and 01 before and after moving mercs to an edge or an exit grid |
 
 All three were run on the user's Steam JA2 Gold 1.12 data: every command succeeds, and on these
@@ -1194,6 +1236,15 @@ once (the SAM reveals and the monologue timestamp), and `RequestGiveSkyriderNewD
 change. It appends `OracleMakeHeliReturnToBase`, `OracleRequestGiveSkyriderNewDestination` and `OracleHandleNewDestConfirmation`
 (with `fPlotForHelicopter` set) as wrappers around the static functions. Regenerate it like 0002 with those two paths. The
 probes also set `fShowAircraftFlag`, as the map screen does when plotting for the helicopter.
+
+`patches/0015-actions-oracle.patch` (applied after 0014) changes `src/game/Tactical/Interface_Dialogue.cc` and
+`src/game/Strategic/Strategic_Event_Handler.cc`. Around `HandleNPCDoAction`, `StartDialogueMessageBox` and
+`DialogueMessageBoxCallBack`, `CheckFact` goes through `OracleTracedCheckFact` and `TalkingMenuDialogue`, `NPCDoAction` and
+`NPCGotoGridNo` are traced like 0013 does in `NPC.cc` (`#undef` after the callback); `Strategic_Event_Handler.cc` traces its
+`CheckFact` calls the same way. With `gOracleSkipDialogueBoxes` set, `StartDialogueMessageBox` records the box type and returns
+before `DoMessageBox`. It appends `OracleDialogueMessageBoxType`, `OracleLiePromptRecord`, `OracleResetDialogueMessageBox` and
+`OracleAnswerDialogueMessageBox` (sets the type and the lie record, then calls the static callback). Regenerate it like 0002
+with those two paths.
 
 ## Notes
 

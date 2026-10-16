@@ -227,6 +227,12 @@ extern std::unique_ptr<UINT8 []> gubGarrisonReinforcementsDenied;
 extern bool gOracleShopHoursActive;
 extern UINT32 gOracleShopOpeningTime;
 extern UINT32 gOracleShopClosingTime;
+extern bool gOracleSkipDialogueBoxes;
+UINT16 OracleDialogueMessageBoxType();
+UINT8 OracleLiePromptRecord();
+void OracleResetDialogueMessageBox();
+void OracleAnswerDialogueMessageBox(UINT16 type, UINT8 record, MessageBoxReturnValue answer);
+extern UINT8 gubCambriaMedicalObjects;
 
 namespace {
 
@@ -5571,6 +5577,315 @@ void ProbeEnterSector(Command const& c)
 }
 
 
+std::vector<long long> ActionProfileIds(Command const& c, std::initializer_list<long long> extra)
+{
+	std::vector<long long> ids;
+	if (Has(c, "ids"))
+	{
+		for (std::string const& v : SplitList(Text(c, "ids", ""), ',')) ids.push_back(std::stoll(v));
+	}
+	for (long long const id : extra)
+	{
+		if (id >= 0 && id < NUM_PROFILES && std::find(ids.begin(), ids.end(), id) == ids.end()) ids.push_back(id);
+	}
+	return ids;
+}
+
+std::string DescribeActionSoldier(SOLDIERTYPE const& s)
+{
+	return Numbers({s.ubID, s.ubProfile, s.bTeam, s.bNeutral, s.bLife, s.bBleeding, s.ubQuoteRecord, s.ubQuoteActionID, s.bOrders,
+		s.fUIMovementFast, s.ubBodyType, s.bAction, s.bAssignment, s.bHospitalPriceModifier, s.sAbsoluteFinalDestination, s.ubCivilianGroup});
+}
+
+std::string DescribeActionSoldiers(Command const& c, UINT8 npc)
+{
+	std::vector<std::string> out;
+	bool const all = Text(c, "soldiers", "") == "all";
+	FOR_EACH_SOLDIER(s)
+	{
+		if (!s->bInSector) continue;
+		if (s->ubProfile != npc && s->bTeam != OUR_TEAM && !all) continue;
+		out.push_back(DescribeActionSoldier(*s));
+	}
+	return JsonArray(out);
+}
+
+struct ActionSnapshot
+{
+	std::vector<UINT8> facts;
+	std::vector<UINT8> quests;
+	std::vector<STRATEGICEVENT const*> events;
+	size_t history;
+	size_t mails;
+};
+
+ActionSnapshot TakeActionSnapshot()
+{
+	ActionSnapshot s;
+	s.facts.assign(gubFact, gubFact + NUM_FACTS);
+	s.quests.assign(gubQuest, gubQuest + MAX_QUESTS);
+	for (STRATEGICEVENT const* e = gpEventList; e; e = e->next) s.events.push_back(e);
+	s.history = ReadHistoryRecords().size();
+	s.mails = 0;
+	for (Email const* m = pEmailList; m; m = m->Next) ++s.mails;
+	return s;
+}
+
+std::string DescribeChanges(std::vector<UINT8> const& before, UINT8 const* after, size_t n)
+{
+	std::vector<std::string> out;
+	for (size_t i = 0; i < n; ++i)
+		if (before[i] != after[i]) out.push_back(Numbers({static_cast<long long>(i), before[i], after[i]}));
+	return JsonArray(out);
+}
+
+std::string DescribeNewEvents(ActionSnapshot const& before)
+{
+	std::vector<std::string> out;
+	for (STRATEGICEVENT const* e = gpEventList; e; e = e->next)
+	{
+		if (std::find(before.events.begin(), before.events.end(), e) != before.events.end()) continue;
+		out.push_back(Numbers({e->uiTimeStamp, e->ubCallbackID, e->uiParam}));
+	}
+	return JsonArray(out);
+}
+
+std::string DescribeNewMails(ActionSnapshot const& before)
+{
+	std::vector<std::string> out;
+	size_t i = 0;
+	for (Email const* m = pEmailList; m; m = m->Next, ++i)
+		if (i >= before.mails) out.push_back(Numbers({m->usOffset, m->usLength, m->ubSender, m->iDate}));
+	return JsonArray(out);
+}
+
+std::string DescribeWorldMoney()
+{
+	long long total = 0, piles = 0;
+	for (WORLDITEM const& w : gWorldItems)
+	{
+		if (!w.fExists || w.o.usItem != MONEY) continue;
+		total += w.o.uiMoneyAmount;
+		++piles;
+	}
+	return Numbers({total, piles});
+}
+
+std::string DescribeDeliveryPool()
+{
+	auto const dest = GCM->getPrimaryShippingDestination();
+	std::vector<std::string> items;
+	if (gWorldSector != dest->deliverySector) return "[]";
+	for (WORLDITEM const& w : gWorldItems)
+	{
+		if (!w.fExists) continue;
+		if (w.sGridNo != dest->deliverySectorGridNo && w.sGridNo != 1 && w.sGridNo != 2) continue;
+		items.push_back(Numbers({w.sGridNo, w.o.usItem, w.o.ubNumberOfObjects, w.o.bStatus[0], w.bVisible, w.ubLevel}));
+	}
+	return JsonArray(items);
+}
+
+UINT8 HospitalSupplyCount()
+{
+	UINT8 count = 0;
+	for (WORLDITEM const& wi : gWorldItems)
+	{
+		if (!wi.fExists || wi.o.usItem != OWNERSHIP || wi.o.ubOwnerCivGroup != DOCTORS_CIV_GROUP) continue;
+		for (ITEM_POOL const* pool = GetItemPool(wi.sGridNo, 0); pool; pool = pool->pNext)
+		{
+			OBJECTTYPE const& o = GetWorldItem(pool->iItemIndex).o;
+			if (o.bStatus[0] > 60 && (o.usItem == FIRSTAIDKIT || o.usItem == MEDICKIT || o.usItem == REGEN_BOOSTER || o.usItem == ADRENALINE_BOOSTER))
+				++count;
+		}
+	}
+	return count;
+}
+
+void SetupActionContext(Command const& c, UINT8 npc)
+{
+	ResetTalkProbe();
+	OracleResetDialogueMessageBox();
+	gfInTalkPanel = Integer(c, "panel", 0) != 0;
+	gTalkPanel.ubCharNum = npc;
+	SOLDIERTYPE* const npcSoldier = npc == NO_PROFILE ? nullptr : FindSoldierByProfileID(npc);
+	gpDestSoldier = Has(c, "dest") ? NarrativeSoldierArgument(c, "dest") : npcSoldier;
+	gpSrcSoldier = NarrativeSoldierArgument(c, "src");
+	gubSrcSoldierProfile = gpSrcSoldier ? gpSrcSoldier->ubProfile : NO_PROFILE;
+}
+
+template<typename Run>
+void RunActionProbe(Command const& c, UINT8 npc, std::string const& extra, Run&& run)
+{
+	ActionSnapshot const before = TakeActionSnapshot();
+	std::vector<OracleDialogueEntry> dialogue;
+	std::vector<OracleFactEntry> facts;
+	std::vector<OracleDraw> draws;
+	gOracleSkipDialogueBoxes = true;
+	gOracleDialogueTrace = &dialogue;
+	gOracleFactTrace = &facts;
+	OracleTraceRandom(&draws);
+	run();
+	OracleTraceRandom(nullptr);
+	gOracleFactTrace = nullptr;
+	gOracleDialogueTrace = nullptr;
+	gOracleSkipDialogueBoxes = false;
+	std::vector<long long> const hospital{gbHospitalPriceModifier, giHospitalTempBalance, giHospitalRefund, gubCambriaMedicalObjects};
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.num("npc", npc)
+		.raw("queue", DescribeDialogueTrace(dialogue))
+		.raw("facts", DescribeFactTrace(facts))
+		.raw("draws", DescribeDraws(draws))
+		.raw("factChanges", DescribeChanges(before.facts, gubFact, NUM_FACTS))
+		.raw("questChanges", DescribeChanges(before.quests, gubQuest, MAX_QUESTS))
+		.raw("events", DescribeNewEvents(before))
+		.raw("history", DescribeHistoryTail(before.history))
+		.raw("mails", DescribeNewMails(before))
+		.nums("hospital", hospital)
+		.raw("box", Numbers({OracleDialogueMessageBoxType(), OracleLiePromptRecord()}))
+		.raw("combat", Numbers({(gTacticalStatus.uiFlags & INCOMBAT) != 0, gTacticalStatus.fEnemyInSector}))
+		.raw("soldiers", DescribeActionSoldiers(c, npc))
+		.raw("profiles", DescribeNarrativeProfiles(ActionProfileIds(c, {npc})))
+		.raw("extra", extra.empty() ? "null" : extra)
+		.raw("pool", DescribeDeliveryPool())
+		.raw("money", DescribeWorldMoney())
+		.num("worldMinutes", GetWorldTotalMin()));
+	ResetTalkProbe();
+}
+
+void ProbeNpcAction(Command const& c)
+{
+	UINT8 const npc = static_cast<UINT8>(Required(c, "npc"));
+	UINT16 const code = static_cast<UINT16>(Required(c, "code"));
+	UINT8 const record = static_cast<UINT8>(Integer(c, "record", 0));
+	SetupActionContext(c, npc);
+	RunActionProbe(c, npc, "", [&] { HandleNPCDoAction(npc, code, record); });
+}
+
+MessageBoxReturnValue BoxAnswer(Command const& c)
+{
+	std::string const answer = Text(c, "answer", "yes");
+	if (answer == "yes") return MSG_BOX_RETURN_YES;
+	if (answer == "no") return MSG_BOX_RETURN_NO;
+	if (answer == "lie") return MSG_BOX_RETURN_LIE;
+	throw std::runtime_error("answer must be yes, no or lie");
+}
+
+long long BoxAmount(UINT16 code, UINT8 profile)
+{
+	switch (code)
+	{
+		case NPC_ACTION_ASK_ABOUT_PAYING_RPC:
+		case NPC_ACTION_ASK_ABOUT_PAYING_RPC_WITH_DAILY_SALARY:
+		case NPC_ACTION_REDUCE_CONRAD_SALARY_CONDITIONS:
+			return gMercProfiles[profile].sSalary;
+		case NPC_ACTION_BUY_LEATHER_KEVLAR_VEST:
+			return GCM->getItem(LEATHER_JACKET_W_KEVLAR)->getPrice();
+		case NPC_ACTION_MEDICAL_REQUESTOR:
+		{
+			INT32 const cost = static_cast<INT32>(CalcMedicalCost(profile));
+			return giHospitalRefund > cost ? 10 : cost - giHospitalRefund;
+		}
+		case NPC_ACTION_BUY_VEHICLE_REQUESTOR:
+			return 10000;
+		default:
+			return -1;
+	}
+}
+
+void ProbeNpcBox(Command const& c)
+{
+	UINT8 const npc = static_cast<UINT8>(Required(c, "npc"));
+	UINT16 const code = static_cast<UINT16>(Required(c, "code"));
+	UINT8 const record = static_cast<UINT8>(Integer(c, "record", 0));
+	MessageBoxReturnValue const answer = BoxAnswer(c);
+	SetupActionContext(c, npc);
+	if (!gpDestSoldier) throw std::runtime_error("npcbox needs a panel soldier (dest)");
+	long long const amount = BoxAmount(code, gpDestSoldier->ubProfile);
+	RunActionProbe(c, npc, Json{}.num("amount", amount).text(), [&] { OracleAnswerDialogueMessageBox(code, record, answer); });
+}
+
+void ProbeNpcEvent(Command const& c)
+{
+	UINT32 const param = static_cast<UINT32>(Required(c, "param"));
+	SetupActionContext(c, NO_PROFILE);
+	RunActionProbe(c, NO_PROFILE, Json{}.raw("poolBefore", DescribeDeliveryPool()).text(), [&] { HandleNPCSystemEvent(param); });
+}
+
+void ProbeKingpinMoney(Command const& c)
+{
+	BOOLEAN const first = Integer(c, "first", 1) != 0;
+	SetupActionContext(c, NO_PROFILE);
+	RunActionProbe(c, KINGPIN, Json{}.raw("moneyBefore", DescribeWorldMoney()).text(), [&] { CheckForKingpinsMoneyMissing(first); });
+}
+
+void ProbeHospitalSupplies(Command const& c)
+{
+	SetupActionContext(c, NO_PROFILE);
+	UINT8 const count = HospitalSupplyCount();
+	RunActionProbe(c, NO_PROFILE, Json{}.num("count", count).text(), [] { CheckForMissingHospitalSupplies(); });
+}
+
+void ProbeMedicalCost(Command const& c)
+{
+	UINT8 const npc = static_cast<UINT8>(Required(c, "npc"));
+	std::vector<std::string> patients;
+	FOR_EACH_IN_TEAM(s, OUR_TEAM)
+	{
+		if (!s->bInSector) continue;
+		patients.push_back(Numbers({s->ubID, s->bLife, s->bLifeMax, s->bBleeding, s->bHospitalPriceModifier, s->bAssignment,
+			static_cast<long long>(CalcPatientMedicalCost(s))}));
+	}
+	Emit(Json{}.str("probe", "medicalcost").num("line", c.line).num("npc", npc).num("cost", CalcMedicalCost(npc))
+		.raw("patients", JsonArray(patients)).nums("hospital", {gbHospitalPriceModifier, giHospitalTempBalance, giHospitalRefund}));
+}
+
+void SetPairs(Command const& c, char const* key, UINT8* array)
+{
+	if (!Has(c, key)) return;
+	for (std::string const& kv : SplitList(Text(c, key, ""), ','))
+	{
+		std::vector<std::string> const parts = SplitList(kv, ':');
+		array[std::stoi(parts.at(0))] = static_cast<UINT8>(std::stoi(parts.at(1)));
+	}
+}
+
+void SetNpcState(Command const& c)
+{
+	SetPairs(c, "facts", gubFact);
+	SetPairs(c, "quests", gubQuest);
+	SetIfGiven(c, "modifier", gbHospitalPriceModifier);
+	SetIfGiven(c, "temp", giHospitalTempBalance);
+	SetIfGiven(c, "refund", giHospitalRefund);
+	SetIfGiven(c, "objects", gubCambriaMedicalObjects);
+	if (Has(c, "who"))
+	{
+		SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+		SetIfGiven(c, "life", s.bLife);
+		SetIfGiven(c, "bleeding", s.bBleeding);
+		SetIfGiven(c, "patientmod", s.bHospitalPriceModifier);
+		SetIfGiven(c, "neutral", s.bNeutral);
+	}
+	if (Has(c, "profile"))
+	{
+		MERCPROFILESTRUCT& p = GetProfile(static_cast<ProfileID>(Required(c, "profile")));
+		SetIfGiven(c, "balance", p.iBalance);
+		SetIfGiven(c, "npcdata", p.bNPCData);
+		SetIfGiven(c, "npcdata2", p.bNPCData2);
+		SetIfGiven(c, "salary", p.sSalary);
+		SetIfGiven(c, "status", p.bMercStatus);
+		SetIfGiven(c, "money", p.uiMoney);
+		if (Has(c, "sector"))
+		{
+			p.sSector = StrategicSectorArgument(c, "sector");
+			p.sSector.z = static_cast<INT8>(Integer(c, "z", 0));
+		}
+	}
+	Emit(Json{}.str("probe", "npcset").num("line", c.line).raw("args", DescribeArgs(c)));
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -5731,6 +6046,13 @@ void Dispatch(Command const& c)
 	if (c.name == "questentry") return ProbeQuestEntry(c);
 	if (c.name == "questexit") return ProbeQuestExit(c);
 	if (c.name == "entersector") return ProbeEnterSector(c);
+	if (c.name == "npcaction") return ProbeNpcAction(c);
+	if (c.name == "npcbox") return ProbeNpcBox(c);
+	if (c.name == "npcevent") return ProbeNpcEvent(c);
+	if (c.name == "kingpinmoney") return ProbeKingpinMoney(c);
+	if (c.name == "hospitalsupplies") return ProbeHospitalSupplies(c);
+	if (c.name == "medicalcost") return ProbeMedicalCost(c);
+	if (c.name == "npcset") return SetNpcState(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

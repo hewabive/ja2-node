@@ -612,6 +612,7 @@ function withCampaignProgress(p: MercProfile, live: ProfileProgress | undefined)
   const st = live.stats;
   return {
     ...p,
+    nickname: live.nickname ?? p.nickname,
     life: live.life,
     lifeMax: st.lifeMax,
     agility: st.agility,

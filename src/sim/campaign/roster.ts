@@ -71,6 +71,7 @@ export class RosterMerc implements CrewMember {
   doneQuoteSaid = false;
   trainStat = 0;
   lastAssignmentChangeMin = 0;
+  hospitalPriceModifier = 0;
   fixingRobot = false;
   vehicleUnderRepair = NO_VEHICLE;
   offGridInSector = false;

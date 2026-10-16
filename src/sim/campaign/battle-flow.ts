@@ -807,6 +807,8 @@ export class BattleFlow implements FateContext {
       case PromptKind.MERC_DEPARTURE:
       case PromptKind.INSURANCE_EXTENSION:
         return this.campaign.contracts?.answer(prompt, choice) ?? { ok: false, reason: 'contracts are not available' };
+      case PromptKind.NPC_REQUEST:
+        return this.campaign.talk?.npcActions.answer(prompt, choice) ?? { ok: false, reason: 'conversations are not available' };
     }
   }
 

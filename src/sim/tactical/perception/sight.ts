@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/OppList.cc DistanceVisible, ManLooksForMan, ManSeesMan, MakeBloodcatsHostile, RecalculateOppCntsDueToNoLongerNeutral,
+// @src RecalculateOppCntsDueToBecomingNeutral,
 // @src HandleManNoLongerSeen, TeamNoLongerSeesMan,
 // @src UpdatePersonal, UpdatePublic, RadioSightings, OurTeamRadiosRandomlyAbout, HandleSight, ManLooksForOtherTeams,
 // @src OtherTeamsLookForMan, AllTeamsLookForAll, ReevaluateBestSightingPosition, HandleBestSightingPositionInRealtime,
@@ -219,6 +220,15 @@ export function recalculateOppCntsDueToNoLongerNeutral(t: TacticalState, s: Sold
     if (opp.life === 0 || opp.neutral || opp.team === s.team || !hostile(s, opp)) continue;
     if (s.oppList[opp.id] === Opp.SEEN_CURRENTLY) addOneOpponent(s, t.perceptionHooks.checkForChangingOrders);
     if (opp.oppList[s.id] === Opp.SEEN_CURRENTLY) addOneOpponent(opp, t.perceptionHooks.checkForChangingOrders);
+  }
+}
+
+export function recalculateOppCntsDueToBecomingNeutral(t: TacticalState, s: Soldier): void {
+  if (!s.neutral) return;
+  s.ai.oppCount = 0;
+  for (const opp of mercs(t)) {
+    if (opp.life === 0 || opp.neutral || opp.team === s.team || consideredNeutral(s, opp) || s.side === opp.side) continue;
+    if (opp.oppList[s.id] === Opp.SEEN_CURRENTLY) removeOneOpponent(opp);
   }
 }
 

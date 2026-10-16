@@ -131,6 +131,7 @@ function crewMember(save: SaveGame, s: SavedSoldier, path: readonly number[], sa
     doneQuoteSaid: false,
     trainStat: 0,
     lastAssignmentChangeMin: 0,
+    hospitalPriceModifier: 0,
     fixingRobot: false,
     vehicleUnderRepair: -1,
     inSector: s.inSector,

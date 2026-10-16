@@ -77,6 +77,7 @@ import {
 import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
 import { checkHostileOrSayQuoteList } from './narrative/civ-hostility.ts';
 import { handlePendingTalkOnArrival } from './narrative/talk-arrival.ts';
+import { wheelchairOpcode } from './narrative/wheelchair.ts';
 import { executeOverhead, type OverheadHooks } from './overhead.ts';
 import { findBestPath, PathCopy } from './pathfinding.ts';
 import { mostImportantNoiseHeard } from './perception/knowledge.ts';
@@ -224,7 +225,8 @@ export class TacticalSim {
         deathOpcode(state, s, code) ??
         itemOpcode(state, s, code) ??
         roofOpcode(state, s, code) ??
-        throwOpcode(state, s, code),
+        throwOpcode(state, s, code) ??
+        wheelchairOpcode(state, s, code),
       turnFinished: freeUpFromTurning,
       stanceFreeUp: freeUpFromStanceChange,
       pendingAction: (state, s) =>

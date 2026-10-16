@@ -20,6 +20,7 @@ function entries(values: Map<string, number>, prefix: string): { id: number; nam
 const factsHeader = readSource('game/Strategic/Facts.h').replace(NO_FACT_LINE, '');
 const facts = entries(sequentialEnum(factsHeader, 'Fact'), 'FACT_');
 const quests = entries(sequentialEnum(readSource('game/Strategic/Quests.h'), 'Quests'), 'QUEST_');
+const npcActions = entries(sequentialEnum(readSource('game/Tactical/Interface_Dialogue.h'), 'NPCAction : UINT16'), 'NPC_ACTION_');
 const profiles = [...sequentialEnum(readSource('game/Tactical/Soldier_Profile.h'), 'NPCIDs : ProfileID')]
   .filter(([name]) => !/^(RPC|NPC)\d+$/.test(name))
   .map(([name, id]) => ({ id, name }));
@@ -31,14 +32,15 @@ for (const f of facts) {
 }
 
 const out = {
-  source: `JA2 Stracciatella ${STRACCIATELLA_COMMIT}: src/game/Strategic/Facts.h enum Fact, src/game/Strategic/Quests.h enum Quests, src/game/Tactical/Soldier_Profile.h enum NPCIDs`,
+  source: `JA2 Stracciatella ${STRACCIATELLA_COMMIT}: src/game/Strategic/Facts.h enum Fact, src/game/Strategic/Quests.h enum Quests, src/game/Tactical/Soldier_Profile.h enum NPCIDs, src/game/Tactical/Interface_Dialogue.h enum NPCAction`,
   license: 'Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.',
   format:
-    'fact ids and names (FACT_ prefix removed unless the rest is a number) in id order; quest ids and names (QUEST_ prefix removed) in id order, NO_QUEST left out; named profile ids of NPCIDs (placeholders RPCnn/NPCnn left out)',
+    'fact ids and names (FACT_ prefix removed unless the rest is a number) in id order; quest ids and names (QUEST_ prefix removed) in id order, NO_QUEST left out; named profile ids of NPCIDs (placeholders RPCnn/NPCnn left out); NPC action codes and names (NPC_ACTION_ prefix removed unless the rest starts with a digit) in code order',
   facts,
   quests,
   profiles,
+  npcActions,
 };
 const target = join(REPO_ROOT, 'data/tables/narrative.json');
 writeTable(target, out);
-console.log(`${facts.length} facts, ${quests.length} quests, ${profiles.length} profiles → ${target}`);
+console.log(`${facts.length} facts, ${quests.length} quests, ${profiles.length} profiles, ${npcActions.length} NPC actions → ${target}`);

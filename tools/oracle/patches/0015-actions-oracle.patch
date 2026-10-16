@@ -1,0 +1,81 @@
+NPC action oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE (SFI-SCLA).
+Lets the NPC action probes run HandleNPCDoAction, the requestor boxes and HandleNPCSystemEvent headless: in
+Interface_Dialogue.cc the CheckFact calls of HandleNPCDoAction and DialogueMessageBoxCallBack go through
+OracleTracedCheckFact and TalkingMenuDialogue, NPCDoAction and NPCGotoGridNo are traced like the 0013 hooks of NPC.cc;
+with gOracleSkipDialogueBoxes set, StartDialogueMessageBox records the box type without opening a message box;
+appended accessors read the box type and the lie prompt record and answer a box through the static
+DialogueMessageBoxCallBack. In Strategic_Event_Handler.cc the CheckFact calls are traced as well. No behaviour change
+while the flag is clear and no trace is collected. Applied by tools/oracle/build.sh after 0014.
+
+--- a/src/game/Strategic/Strategic_Event_Handler.cc
++++ b/src/game/Strategic/Strategic_Event_Handler.cc
+@@ -26,6 +26,9 @@
+ #include "strategic/NpcPlacementModel.h"
+ #include "MercProfile.h"
+ 
++BOOLEAN OracleTracedCheckFact(Fact fact, UINT8 profile);
++#define CheckFact OracleTracedCheckFact
++
+ 
+ UINT32 guiPabloExtraDaysBribed = 0;
+ 
+--- a/src/game/Tactical/Interface_Dialogue.cc
++++ b/src/game/Tactical/Interface_Dialogue.cc
+@@ -1568,6 +1568,14 @@
+ }
+ 
+ 
++void OracleDialogueTrace(char const* kind, int a, int b, int c, int d);
++BOOLEAN OracleTracedCheckFact(Fact fact, UINT8 profile);
++bool gOracleSkipDialogueBoxes = false;
++#define CheckFact OracleTracedCheckFact
++#define TalkingMenuDialogue(q) (OracleDialogueTrace("quote", gTalkPanel.ubCharNum, (q), 0, 0), TalkingMenuDialogue(q))
++#define NPCDoAction(n, a, r) (OracleDialogueTrace("action", (n), (a), (r), 0), NPCDoAction((n), (a), (r)))
++#define NPCGotoGridNo(n, g, r) (OracleDialogueTrace("goto", (n), (g), (r), 0), NPCGotoGridNo((n), (g), (r)))
++
+ void HandleNPCDoAction( UINT8 ubTargetNPC, UINT16 usActionCode, UINT8 ubQuoteNum )
+ {
+ 	//ScreenMsg(FONT_MCOLOR_LTYELLOW, MSG_INTERFACE, ST::format("Handling {}, action {} at {}", gMercProfiles[ubTargetNPC].zNickname, usActionCode, GetJA2Clock());
+@@ -4167,6 +4175,7 @@
+ 	ST::string zTemp2;
+ 
+ 	gusDialogueMessageBoxType = usMessageBoxType;
++	if (gOracleSkipDialogueBoxes) return;
+ 	switch( gusDialogueMessageBoxType )
+ 	{
+ 		case NPC_ACTION_ASK_ABOUT_ESCORTING_EPC:
+@@ -4503,6 +4512,34 @@
+ 	}
+ }
+ 
++#undef CheckFact
++#undef TalkingMenuDialogue
++#undef NPCDoAction
++#undef NPCGotoGridNo
++
++UINT16 OracleDialogueMessageBoxType()
++{
++	return gusDialogueMessageBoxType;
++}
++
++UINT8 OracleLiePromptRecord()
++{
++	return ubRecordThatTriggeredLiePrompt;
++}
++
++void OracleResetDialogueMessageBox()
++{
++	gusDialogueMessageBoxType = 0;
++	ubRecordThatTriggeredLiePrompt = 0;
++}
++
++void OracleAnswerDialogueMessageBox(UINT16 const type, UINT8 const record, MessageBoxReturnValue const answer)
++{
++	gusDialogueMessageBoxType = type;
++	ubRecordThatTriggeredLiePrompt = record;
++	DialogueMessageBoxCallBack(answer);
++}
++
+ 
+ static void DoneFadeInActionBasement(void);
+ 

@@ -39,6 +39,7 @@ export const PromptKind = {
   CONTRACT_RENEWAL: 'contractRenewal',
   MERC_DEPARTURE: 'mercDeparture',
   INSURANCE_EXTENSION: 'insuranceExtension',
+  NPC_REQUEST: 'npcRequest',
 } as const;
 export type PromptKind = (typeof PromptKind)[keyof typeof PromptKind];
 
@@ -67,6 +68,18 @@ export type BattlePrompt =
       readonly soldier: number;
       readonly days: number;
       readonly cost: number;
+    }
+  | {
+      readonly id: string;
+      readonly kind: typeof PromptKind.NPC_REQUEST;
+      readonly request: string;
+      readonly code: number;
+      readonly npc: number;
+      readonly src: number;
+      readonly record: number;
+      readonly amount?: number;
+      readonly pair?: boolean;
+      readonly choices: readonly string[];
     };
 
 export interface AutoresolveSession {
