@@ -879,3 +879,27 @@ Specs: `docs/10` (turn-based), `11` (attacks and damage), `12` (items and explos
     source, ray casting and the true light level read by sight, AI, throws and interrupts; on the six saves and all 112
     original maps with lights the light dumps match the native build. Flares and merc lights stay dark (their
     templates exist only in the original data).
+
+### M4: in progress (2026-10-16)
+
+Specs: `docs/15` (time and events), `16` (map, groups, travel, sector transitions), `17` (the Queen), `18` (towns and
+assignments), `19` (pre-battle interface and autoresolve).
+
+1. **Time** (`sim/strategic/time`): `UpdateClock` with the compression slices on 5 ms ticks, the event queue with its
+   posting guard and warp codes, day light and temperature events, the clock and queue imported from native saves.
+   Real-time turns run on the 20 ms overhead counter (5020 ms).
+2. **Campaign** (`sim/campaign`): `CampaignSim` owns the strategic state and the loaded sector; the roster keeps player
+   mercs across loads and implements the merc and crew ports; new games follow `InitNewGame`; hiring and the first
+   landing with the six-hour warp; strategic commands (`route`, `cancelRoute`, `assignSquad`, `assign`, `sleep`, `wake`,
+   `startMine`) and a strategic player view. Savegame sessions run the whole strategic layer.
+3. **Map and travel** (`sim/strategic/map`, `forces`): sectors, control, airspace, `FindStratPath`, travel times,
+   groups and squads, arrivals and encounters; the oracle's routes and group dumps match (196,608 routes).
+4. **The Queen** (`sim/strategic/ai`): initialisation, evaluation, reinforcements, orders, detection, reactions,
+   `CalcDifficultyModifier`, enemy placement plans; 6,085 native draws replayed with matching state dumps.
+5. **Towns** (`sim/strategic/economy`): loyalty, mines, SAM sites, finances, militia training and the hourly
+   assignment update; matching the oracle's strategic, merc and warp probes.
+6. **Autoresolve core** (`sim/strategic/forces/autoresolve`): the Finish-mode battle with a combat context shared with
+   tactical; 44 native battles replayed draw for draw.
+
+**Not in M4 yet**: loading and leaving sectors from the map (in progress), the pre-battle prompt and autoresolve from
+the strategic state, the MCP tools and browser page for the strategic map.
