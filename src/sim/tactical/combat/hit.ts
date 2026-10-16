@@ -29,7 +29,7 @@ import { deductPoints } from '../points.ts';
 import { profileProgress, StatKind } from '../profiles.ts';
 import { effectiveExpLevel, effectiveLife, effectiveStrength } from '../skills.ts';
 import { BLOOD_DIVISOR, dropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
-import { Body, NO_PROFILE, OKLIFE, Side, type Soldier, Team } from '../soldier.ts';
+import { Body, CivilianGroup, NO_PROFILE, OKLIFE, Side, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
 import { calcBodyImpactReduction, totalArmourProtection } from './armour.ts';
@@ -58,8 +58,6 @@ const CROUCHED_HEAD_BOTTOM_POS = 95;
 const CROUCHED_TORSO_BOTTOM_POS = 47;
 const HEIGHT_UNITS = 256;
 const AP_GET_WOUNDED_DIVISOR = 4;
-const KINGPIN_CIV_GROUP = 4;
-const HICKS_CIV_GROUP = 12;
 const DAMAGE_DISPLAY_DELAY = 250;
 const DAMAGE_DISPLAY_STEPS = 8;
 const MIN_GORE_BLAST_RADIUS = 3;
@@ -170,7 +168,7 @@ export function bulletHitMerc(t: TacticalState, b: Bullet, structure: StructureI
     if (p) p.timesWounded++;
   }
   if (firer.team === Team.OUR && !firer.target && tgt.neutral) {
-    if (tgt.civilianGroup === KINGPIN_CIV_GROUP || tgt.civilianGroup === HICKS_CIV_GROUP) firer.target = tgt;
+    if (tgt.civilianGroup === CivilianGroup.KINGPIN || tgt.civilianGroup === CivilianGroup.HICKS) firer.target = tgt;
     else if (t.rng.int(100) < 60) firer.target = tgt;
   }
   if (firer.doBurst && special === Special.NONE) special = Special.BURST;

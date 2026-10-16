@@ -20,7 +20,7 @@ import { closestKnownOpponent, noiseHeard, whatIKnowThatPublicDont } from '../pe
 import { distanceVisible } from '../perception/sight.ts';
 import { internalIsValidStance, isValidStance } from '../person-structure.ts';
 import { apsToChangeStance, apsToLook, apsToReadyWeapon, calcActionPoints, MAX_AP_CARRIED, minPtsToMove } from '../points.ts';
-import { AlertStatus, Attitude, Body, NO_PROFILE, NOWHERE, OKLIFE, Orders, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Attitude, Body, CivilianGroup, NO_PROFILE, NOWHERE, OKLIFE, Orders, type Soldier, Team } from '../soldier.ts';
 import { soldierInventoryContext } from '../soldier-inventory.ts';
 import type { TacticalState } from '../state.ts';
 import { AiAction, Situation } from './actions.ts';
@@ -67,7 +67,6 @@ export interface CombatDeciderHooks {
 
 const FATCIV = 11;
 const CRIPPLECIV = 17;
-const NON_CIV_GROUP = 0;
 const ELDIN = 61;
 const MAX_DISTANCE_VISIBLE = 26;
 const BURSTING = 5;
@@ -87,11 +86,11 @@ const ctx = (t: TacticalState) => ({ env: t.pathEnv, content: t.content, inComba
 const mode = (t: TacticalState) => (s: Soldier, action: number) => determineMovementMode(t, s, action);
 
 function civilianForYellow(s: Soldier): boolean {
-  return s.team === Team.CIV && (s.civilianGroup === NON_CIV_GROUP || s.neutral || (FATCIV <= s.bodyType && s.bodyType <= CRIPPLECIV));
+  return s.team === Team.CIV && (s.civilianGroup === CivilianGroup.NONE || s.neutral || (FATCIV <= s.bodyType && s.bodyType <= CRIPPLECIV));
 }
 
 function civilianForRed(s: Soldier): boolean {
-  return s.team === Team.CIV && (s.civilianGroup === NON_CIV_GROUP || s.neutral || (FATCIV <= s.bodyType && s.bodyType <= CRIPPLECIV));
+  return s.team === Team.CIV && (s.civilianGroup === CivilianGroup.NONE || s.neutral || (FATCIV <= s.bodyType && s.bodyType <= CRIPPLECIV));
 }
 
 function ordersAdjust(orders: number, table: readonly number[]): number {

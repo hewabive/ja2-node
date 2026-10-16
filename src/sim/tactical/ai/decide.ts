@@ -7,7 +7,18 @@
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AnimHeight, endHeight, hasAnimFlag, states } from '../animation.ts';
 import { isMercBody, isWater, NOWHERE } from '../pathfinding.ts';
-import { AlertStatus, Attitude, Body, isCreatureOrBloodcat, isMonster, NO_PROFILE, Orders, type Soldier, Team } from '../soldier.ts';
+import {
+  AlertStatus,
+  Attitude,
+  Body,
+  CivilianGroup,
+  isCreatureOrBloodcat,
+  isMonster,
+  NO_PROFILE,
+  Orders,
+  type Soldier,
+  Team,
+} from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { AiAction, MOVEMENT_MODE, NEW_SITUATION_DELAY_RANGE, Situation, URGENCY } from './actions.ts';
 import { creatureDecideAlertStatus, realtimeCreatureDelay } from './creature-decide.ts';
@@ -17,7 +28,6 @@ const HATKIDCIV = 15;
 const KIDCIV = 16;
 const FATCIV = 11;
 const CRIPPLECIV = 17;
-const NON_CIV_GROUP = 0;
 const REST_BREATH = 75;
 const YELLOW_REST_BREATH = 50;
 const KID_SKIP_CHANCE = 10;
@@ -135,7 +145,7 @@ export function decideAlertStatus(t: TacticalState, s: Soldier, hooks: AiHooks):
 }
 
 function isCivilianForGreen(s: Soldier): boolean {
-  return s.team === Team.CIV && (s.civilianGroup === NON_CIV_GROUP || s.neutral || (FATCIV <= s.bodyType && s.bodyType <= CRIPPLECIV));
+  return s.team === Team.CIV && (s.civilianGroup === CivilianGroup.NONE || s.neutral || (FATCIV <= s.bodyType && s.bodyType <= CRIPPLECIV));
 }
 
 function patrolChance(s: Soldier): number {

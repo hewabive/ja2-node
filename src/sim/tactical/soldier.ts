@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Control.h SOLDIERTYPE (movement, animation and AI fields used by ja2-node), CONSIDERED_NEUTRAL
+// @src src/game/Tactical/Soldier_Control.h SOLDIERTYPE (movement, animation and AI fields used by ja2-node), CONSIDERED_NEUTRAL;
+// @src Tactical/Overhead_Types.h CivilianGroup
 
 import type { StructureInstance } from '../../content/world/structures.ts';
 import type { ItemObject } from '../items/object.ts';
@@ -95,6 +96,23 @@ export const SoldierStatusFlags = {
 
 export const Team = { OUR: 0, ENEMY: 1, CREATURE: 2, MILITIA: 3, CIV: 4 } as const;
 export const Side = { FRIENDLY: 0, ENEMY: 1, HOSTILE: 2, NONE: 3 } as const;
+export const CivilianGroup = {
+  NONE: 0,
+  REBEL: 1,
+  KINGPIN: 2,
+  SANMONA_ARMS: 3,
+  ANGELS: 4,
+  BEGGARS: 5,
+  TOURISTS: 6,
+  ALMA_MILITARY: 7,
+  DOCTORS: 8,
+  COUPLE1: 9,
+  HICKS: 10,
+  WARDEN: 11,
+  JUNKYARD: 12,
+  FACTORY_KIDS: 13,
+  QUEENS: 14,
+} as const;
 export const NO_PROFILE = 200;
 export const NOWHERE = -1;
 export const NO_PENDING_ANIMATION = -1;

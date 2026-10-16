@@ -7,13 +7,12 @@
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
 import { getInterveningClimbingLocation } from '../buildings.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
-import { NOWHERE, type Soldier, Team } from '../soldier.ts';
+import { CivilianGroup, NOWHERE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { knowledge, Opp } from './sight.ts';
 
 const NOISE_FORGET_DISTANCE = 6;
 const MAX_DISTANCE_VISIBLE = 26;
-const KINGPIN_CIV_GROUP = 4;
 
 export interface NoiseKnowledge {
   readonly gridNo: number;
@@ -66,7 +65,7 @@ export function noiseHeard(t: TacticalState, s: Soldier): NoiseKnowledge {
       s.ai.noiseVolume = 0;
     }
   }
-  if (s.team !== Team.CIV || s.civilianGroup === KINGPIN_CIV_GROUP) {
+  if (s.team !== Team.CIV || s.civilianGroup === CivilianGroup.KINGPIN) {
     const g = t.perception.publicNoiseGridNo[s.team] ?? NOWHERE;
     const level = t.perception.publicNoiseLevel[s.team] ?? 0;
     if (g !== NOWHERE && noiseStillUseful(t, s, g, level))
@@ -118,7 +117,7 @@ export function mostImportantNoiseHeard(t: TacticalState, s: Soldier): number {
       s.ai.noiseVolume = 0;
     }
   }
-  if (s.team !== Team.CIV || s.civilianGroup === KINGPIN_CIV_GROUP) {
+  if (s.team !== Team.CIV || s.civilianGroup === CivilianGroup.KINGPIN) {
     const g = t.perception.publicNoiseGridNo[s.team] ?? NOWHERE;
     const level = t.perception.publicNoiseLevel[s.team] ?? 0;
     if (g !== NOWHERE && noiseStillUseful(t, s, g, level))

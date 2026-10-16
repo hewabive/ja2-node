@@ -16,7 +16,7 @@ import { seenOpponent } from '../perception/duel.ts';
 import { Opp } from '../perception/opp.ts';
 import { knowledge, publicOpp } from '../perception/sight.ts';
 import { calcActionPoints } from '../points.ts';
-import { Attitude, consideredNeutral, NOWHERE, OKLIFE, type Soldier, SoldierClass, Team } from '../soldier.ts';
+import { Attitude, CivilianGroup, consideredNeutral, NOWHERE, OKLIFE, type Soldier, SoldierClass, Team } from '../soldier.ts';
 import { mercs, type TacticalState } from '../state.ts';
 import { findAIUsableObjClass } from './utils.ts';
 
@@ -25,7 +25,6 @@ export const SLAY = 64;
 
 const THREAT_PERCENT = [20, 40, 60, 80, 25, 100, 90, 75, 60, 45];
 const OLDEST_HEARD_VALUE = -4;
-const NON_CIV_GROUP = 0;
 const FULL_BREATH_MORALE = 75;
 const LOW_BREATH_MORALE = 40;
 const EXHAUSTED_BREATH_MORALE = 10;
@@ -126,7 +125,7 @@ export function calcManThreatValue(t: TacticalState, enemy: Soldier, myGrid: num
 
 function isMoraleFriend(s: Soldier, friend: Soldier): boolean {
   if (friend.life < OKLIFE) return false;
-  if (friend.neutral && !(s.civilianGroup !== NON_CIV_GROUP && s.civilianGroup === friend.civilianGroup)) return false;
+  if (friend.neutral && !(s.civilianGroup !== CivilianGroup.NONE && s.civilianGroup === friend.civilianGroup)) return false;
   return s.side === friend.side;
 }
 

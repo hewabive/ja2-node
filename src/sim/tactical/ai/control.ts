@@ -28,7 +28,7 @@ import { deductPoints, enoughPoints, estimateActionPointCost } from '../points.t
 import { beginSoldierClimbDownRoof, beginSoldierClimbUpRoof } from '../roofs.ts';
 import { adjustSoldierPathToGoOffEdge } from '../sector-exit.ts';
 import { removeSoldierFromTacticalSector } from '../sector-presence.ts';
-import { AlertStatus, Attitude, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Attitude, CivilianGroup, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { checkForEndOfBattle, displayHiddenInterrupt } from '../turns/turns.ts';
 import {
@@ -153,7 +153,7 @@ function aiDecideRadioAnimation(t: TacticalState, s: Soldier): void {
     actionDone(t, s);
     return;
   }
-  if (s.team === Team.CIV && s.civilianGroup !== KINGPIN_CIV_GROUP) {
+  if (s.team === Team.CIV && s.civilianGroup !== CivilianGroup.KINGPIN) {
     actionDone(t, s);
     return;
   }
@@ -182,7 +182,6 @@ function setSoldierCowerState(t: TacticalState, s: Soldier, on: boolean): void {
   }
 }
 
-const KINGPIN_CIV_GROUP = 4;
 const AP_RADIO = 5;
 
 export function npcDoesAct(t: TacticalState, s: Soldier): void {
