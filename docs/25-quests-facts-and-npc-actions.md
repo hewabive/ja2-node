@@ -685,6 +685,13 @@ Listed for completeness; `docs/26` specifies them: 170 `END_MEANWHILE`, 222 `REM
 | KINGPIN | while quest 4 is in progress: `amount < −balance` → 9 else 10; `balance += amount`; otherwise the record as is |
 | SKYRIDER and any RPC | `balance < 0` and not refusing: pay off the debt as for Vince (cost to date, clamp, message) |
 
+*Implemented* in `src/sim/narrative/select.ts` (first `docs/24` slice) and wired to the give flow (give slice, 2026-10-16):
+`CalcMedicalCost` (`src/sim/tactical/narrative/hospital-cost.ts`; per-patient price modifiers are not tracked yet and read as
+`HOSPITAL_UNSET`), Frank's cash, the cost to date of a paid debt (`finances.profileCostToDate`), the `balanceOwed` and
+`needsMoney` messages. The Vince/Steve chain evaluates `CheckFact(VINCE_EXPECTING_MONEY)` in each condition, as the original
+does. Oracle: `receive` in `tools/oracle/probes/give.txt` (every NPC row above except the hospital refund, which needs a doctor
+with wounded mercs in sector).
+
 ### 3.12 Actions run outside dialogue
 
 | Caller | Action | Lines |
@@ -1513,6 +1520,20 @@ gridno **1** are moved (`SEH:420-430`): the damaged goods then stay at gridno 2 
   of C6) with Angel there → ANGEL 12 (`OH:1891-1900`, and by sight §11.1); ending quest 6 zeroes Madame's counters.
 - **Angel**: the vest requestor (144) and his money rule; the deed (147) dropped at 12541 for Kyle; Kyle's $10000 pickup
   (123) and record 11.
+- *Implemented (give slice, 2026-10-16):* the three action items in `src/sim/tactical/narrative/quest-items.ts`. Our soldiers
+  stepping on a tile set off armed pressure action items and pressure switches there (`SetOffBombsInGridNo` from
+  `HandleAtNewGridNo`, skipped while mercs walk off the map; enemies and items placed by the player are ignored); a switch sets
+  off the remote action items on its frequency (`SetOffBombsByFrequency`). The queue runs at the start of the next overhead
+  pass with sight disallowed and keeps the AI and `isIdle` busy; at its end sight comes back, a non-player trigger is freed,
+  and a changed door makes all teams look and our mercs reveal roofs. Performed: `ACTION_ITEM_CLOSE_DOOR` (the room item's door
+  and any map's door closers), `KINGPIN_ALARM`, `SEX` and `MUSEUM_ALARM`; the other action items stay inert ("Map items").
+  The scene is a `sexScene` event, the klaxons `alarm` events, and the morale event with the four fatigue steps go through
+  the narrative port (`sexEffects`). Read from the code: on a room tile the code does not list, the item only stops the
+  merc; the museum alarm calls Eldin while sight is disallowed, so his line-of-sight test fails and he always runs to the
+  spot (the "I hate you" branch is dead from the alarm); the alarm's "zap" clears the disabled flag, so it can ring again.
+  The original-data test checks that the room and museum items are pressure items and that the Kingpin alarm is a remote
+  item with pressure switches on its frequency in the same map. Oracle: `actionitem` (`probes/give.txt`). Not ported: switches
+  operated by hand (`ActivateSwitchInGridNo`) and with them `ACTION_ITEM_TOGGLE_PRESSURE_ITEMS`.
 
 ### 11.6 Terrorists, Carmen and Slay
 
@@ -1785,6 +1806,10 @@ The helicopter, boxing and the robot are tested with synthetic states (no stub m
 inputs of `CheckFact`. Since the merge with `docs/24` the 04:00 event clears the default-response flags, and `CheckFact`'s
 desire to talk, the record reset on sector entry, `NPCHasUnusedRecordWithGivenApproach` and `NPCReachedDestination` of
 the profile insertion use the dialogue code.*
+
+*Give slice (2026-10-16):* the item and money acceptance of §3.11 runs through the `give` command, and (k)'s quest action items
+are implemented (§11.5); the hospital refund on leaving the assignment, the per-patient price modifiers and the supplies,
+Kingpin's money and hitmen stay open.
 
 (a) facts and quests store, migration of the scattered fact ports, native import of facts/quests, history coupling with `21`;
 (b) profile NPC fields, presence (new game, `AddPlacementToWorld` filter and overrides, `AddProfiles…`, entry/exit quest code,

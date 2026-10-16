@@ -97,7 +97,7 @@ export function selectEnv(host: NarrativeHost): SelectEnv {
   };
 }
 
-function receiveEnv(host: NarrativeHost): ReceiveEnv {
+export function receiveEnv(host: NarrativeHost): ReceiveEnv {
   const r = host.receive;
   return {
     ...selectEnv(host),
@@ -243,7 +243,7 @@ function givingItemIntroduction(host: NarrativeHost, npc: number, merc: number, 
 }
 
 function giftAsGiven(object: GiftObject): GivenObject {
-  return { item: object.item, money: object.money, status: object.status, count: object.count };
+  return { item: object.item, money: object.money, status: object.status[0] ?? 0, count: object.count };
 }
 
 function defaultQuote(host: NarrativeHost, npc: number, approach: number): number | null {
@@ -634,7 +634,7 @@ export function closestPC(host: NarrativeHost, s: Soldier): number {
   return gridNo;
 }
 
-function sourceSoldierValidAndReachableForGive(host: NarrativeHost, giver: Soldier | null): boolean {
+export function sourceSoldierValidAndReachableForGive(host: NarrativeHost, giver: Soldier | null): boolean {
   const src = talkerSoldier(host);
   const t = host.tactical();
   if (!src || !giver || !t) return false;

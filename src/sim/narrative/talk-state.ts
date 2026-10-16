@@ -10,6 +10,7 @@
 import type { TextKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
 import { Rng } from '../../core/rng.ts';
+import type { ItemObject } from '../items/object.ts';
 
 export interface TalkContext {
   src: number | null;
@@ -21,12 +22,9 @@ export function createTalkContext(): TalkContext {
   return { src: null, dest: null, srcProfile: NO_PROFILE };
 }
 
-export interface GiftObject {
-  readonly item: number;
-  readonly money: number;
-  readonly status: number;
-  readonly count: number;
-}
+export type GiftObject = ItemObject;
+
+export type GiveOutcome = 'pending' | 'taken' | 'returned' | 'kept' | 'shop';
 
 export type DialogueEvent =
   | {
@@ -94,6 +92,7 @@ export interface TalkState {
   nastyNpc: number;
   readonly lines: SpokenLine[];
   readonly fx: Rng;
+  giveOutcome: GiveOutcome | null;
 }
 
 const COSMETIC_SEED = 0x7a1c;
@@ -118,6 +117,7 @@ export function createTalkState(seed = 0): TalkState {
     nastyNpc: NO_PROFILE,
     lines: [],
     fx: Rng.fromSeed(seed ^ COSMETIC_SEED),
+    giveOutcome: null,
   };
 }
 

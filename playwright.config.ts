@@ -5,6 +5,7 @@ const WEB_PORT = 5183;
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: false,
+  workers: 1,
   reporter: [['list']],
   use: { baseURL: `http://127.0.0.1:${WEB_PORT}`, viewport: { width: 1280, height: 800 } },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } }],

@@ -62,6 +62,7 @@ import { explosivesBusy } from './explosions/state.ts';
 import { calcMaxTossRange, calcThrownChanceToHit, throwOpcode } from './explosions/throwing.ts';
 import { calculateLaunchItemChanceToGetThrough } from './explosions/trajectory.ts';
 import { dequeueAllGameEvents } from './game-events.ts';
+import { clearPendingGive, handlePendingGiveOnArrival } from './give.ts';
 import { InvSlot, itemIn } from './inventory.ts';
 import { type InventoryItemView, inventoryView } from './inventory-view.ts';
 import { handlePendingPickupOnArrival, itemOpcode, pickupCandidates, soldierDropItem, soldierPickupItem } from './item-actions.ts';
@@ -76,6 +77,7 @@ import {
 } from './lighting/lighting.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
 import { checkHostileOrSayQuoteList } from './narrative/civ-hostility.ts';
+import { handleActionItemQueue } from './narrative/quest-items.ts';
 import { handlePendingTalkOnArrival } from './narrative/talk-arrival.ts';
 import { executeOverhead, type OverheadHooks } from './overhead.ts';
 import { findBestPath, PathCopy } from './pathfinding.ts';
@@ -231,7 +233,8 @@ export class TacticalSim {
         handlePendingMeleeOnArrival(state, s) ||
         handlePendingPickupOnArrival(state, s) ||
         handlePendingDoorOnArrival(state, s) ||
-        handlePendingTalkOnArrival(state, s),
+        handlePendingTalkOnArrival(state, s) ||
+        handlePendingGiveOnArrival(state, s),
       runningIntoGas: checkForRunningIntoGas,
       enteredGridNo: updateGassedOnNewGridNo,
       endAiGuysTurn: (state, s) => endAIGuysTurn(state, s, ai),
@@ -264,6 +267,7 @@ export class TacticalSim {
         stepThrownObjects(state);
         updateBullets(state);
         stepExplosions(state);
+        handleActionItemQueue(state);
         checkHostileOrSayQuoteList(state);
         updateMissAnimations(state);
         updateSkullReleases(state);
@@ -323,6 +327,7 @@ export class TacticalSim {
   isIdle(): boolean {
     const t = this.state;
     if (t.turn.attackBusyCount > 0 || t.bullets.length > 0 || t.gameEvents.length > 0 || explosivesBusy(t.explosives)) return false;
+    if (t.actionItems.active) return false;
     if (t.mercsWaiting) return false;
     if (t.inCombat && t.turn.currentTeam !== Team.OUR) return false;
     return !teamMembers(t, Team.OUR).some((s) => this.isBusy(s));
@@ -397,6 +402,7 @@ export class TacticalSim {
         if (!s || s.team !== Team.OUR) return { ok: false, reason: 'no such soldier of yours' };
         s.pendingDoorAction = null;
         s.pendingTalk = null;
+        clearPendingGive(this.state, s);
         stopMerc(this.state, s);
         s.finalDestination = s.gridNo;
         return { ok: true };
@@ -533,6 +539,7 @@ export class TacticalSim {
     s.pathStored = false;
     s.pendingDoorAction = null;
     s.pendingTalk = null;
+    clearPendingGive(t, s);
     if (t.inCombat) {
       const route = findBestPath(t.pathEnv, s, to, s.level, { copy: PathCopy.ROUTE });
       if (route.length === 0) return { ok: false, reason: 'no path' };

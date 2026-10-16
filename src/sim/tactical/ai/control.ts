@@ -518,7 +518,7 @@ function handleAITacticalTraversal(t: TacticalState, s: Soldier, control: AiCont
 
 export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl): void {
   const ai = s.ai;
-  if (t.turn.enemySightingOnTheirTurn) return;
+  if (s.engagedInAction || t.turn.enemySightingOnTheirTurn || t.actionItems.queue.length > 0 || t.actionItems.active) return;
   if (s.team === Team.OUR) {
     ai.handleEveryFrame = false;
     return;

@@ -64,6 +64,7 @@ const DEATH_COMMIT = 440;
 const DEATH_OR_RELEASE = 497;
 const PICKUP_ITEM_CODE = 493;
 const DROP_ITEM_CODE = 487;
+const GIVE_ITEM_CODE = 486;
 const ROLLOVER_GETUP = 437;
 const ClimbOp = {
   FORWARD_FALL: 403,
@@ -82,6 +83,7 @@ const ITEM_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
   PICKUP_ITEM: () => [...frames(5), PICKUP_ITEM_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
   ADJACENT_GET_ITEM: () => [...frames(5), PICKUP_ITEM_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
   DROP_ITEM: () => [...frames(5), DROP_ITEM_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
+  GIVE_ITEM: () => [...frames(5), GIVE_ITEM_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
   ROLLOVER: () => [...frames(8), ROLLOVER_GETUP],
   GETUP_FROM_ROLLOVER: (t) => [...frames(5), stateJump(stateId(t, 'KNEEL_UP'))],
   START_COWER: (t) => [...frames(5), NONINTERRUPTIBLE_DONE, stateJump(stateId(t, 'COWERING'))],

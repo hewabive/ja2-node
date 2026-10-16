@@ -338,13 +338,13 @@ function madameGivenCash(env: ReceiveEnv, merc: number, o: GivenObject, records:
 }
 
 function vinceOrSteveGivenCash(env: ReceiveEnv, npc: number, o: GivenObject, q: NpcRecord, records: readonly NpcRecord[]) {
-  const expecting = env.checkFact(NarrativeFact.VINCE_EXPECTING_MONEY, npc);
+  const notExpecting = () => !env.checkFact(NarrativeFact.VINCE_EXPECTING_MONEY, npc);
   const p = env.profile(npc);
-  if (!expecting && (p?.balance ?? 0) < 0 && q.actionData !== NpcAction.DONT_ACCEPT_ITEM) {
+  if (notExpecting() && (p?.balance ?? 0) < 0 && q.actionData !== NpcAction.DONT_ACCEPT_ITEM) {
     payDebt(env, npc, o.money);
     return null;
   }
-  if (!expecting && q.actionData !== NpcAction.DONT_ACCEPT_ITEM) {
+  if (notExpecting() && q.actionData !== NpcAction.DONT_ACCEPT_ITEM) {
     const index = npc === NarrativeProfile.VINCE ? JUST_ACCEPT_CASH_RECORD.VINCE : JUST_ACCEPT_CASH_RECORD.STEVE;
     const record = records[index] ?? null;
     return { opinion: record?.opinionRequired ?? 0, record, index: 0 };

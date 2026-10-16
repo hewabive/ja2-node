@@ -12,7 +12,8 @@ are merc contracts and relationships (the daily merc update, the renewal sequenc
 list), the tactical decisions of creatures and bloodcats, and the laptop (a full `InitNewGame`, A.I.M., M.E.R.C. and
 I.M.P. hires, Bobby Ray's orders, restocks and deliveries, life insurance), the narrative state (facts, quests,
 CheckFact, the 04:00 and hourly NPC handlers, the quest code of sector entry and exit, profile NPC placement), and
-Skyrider's helicopter (flights, SAM fire, billing, hovering, landing, boarding and the monologues).
+Skyrider's helicopter (flights, SAM fire, billing, hovering, landing, boarding and the monologues), and giving items and
+money to NPCs with the quest action items.
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -58,6 +59,9 @@ commit them.
 | `patches/0014-heli-oracle.patch` | Silent Skyrider dialogue with recorded quote numbers, immediate monologue events and wrappers for the static helicopter helpers (see "Hooks") |
 | `heli-compare.ts` | The helicopter probes of `compare.ts` (`heli`, `heliset`, `helisetup`, `heliboard`, `helileave`, `heliroute`, `helicancel`, `heliwarp`, `helimonologue`, `helipaydebt`, `helireturn`) |
 | `probes/heli.txt` | Helicopter probe script (see "Helicopter") |
+| `patches/0017-give-oracle.patch` | Traced `CalcMedicalCost` results in `TacticalAI/NPC.cc`, a wrapper for the static `NPCConsiderReceivingItemFromMerc`, and hooks for the conversation, shop and offer calls of `SoldierGiveItemFromAnimation` (see "Hooks") |
+| `give-compare.ts` | The give probes of `compare.ts` (`receive`, `give`, `npcgive`, `actionitem`) |
+| `probes/give.txt` | Giving items and money and the quest action items (see "Give") |
 | `creature-ai-compare.ts` | The tactical creature probes of `compare.ts` (`addsoldier`, `setsoldier`, `seen`, `decide`, `beststab`, `stab`, `creaturecall`, `smell`, `dropsmell`, `trackscent`) |
 | `probes/creature*.txt`, `probes/morale.txt` | Creature and morale probe scripts (see "Creatures", "Creature AI" and "Morale") |
 | `autoresolve-aftermath.ts` | Level 3 of `autoresolve` probes (the battle closed through ja2-node's battle flow on the imported save) and `enemycounts` |
@@ -1002,6 +1006,44 @@ and 10 (Herve, Doreen, Waldo, Pablo, Peter, Fred: records and backups after the 
 conversation steps with defaults, get-lost, triggers and the friendly draw); `questdecode` gave an offset of -512 and 0 for
 every quest-100/200 read.
 
+### Give
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data" JA2_ORACLE_DIR=~/ja2-oracle-give
+tools/oracle/run.sh tools/oracle/probes/give.txt ~/ja2-oracle-give/out/give.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle-give/out/give.jsonl
+```
+
+Commands (after a `save`; soldier ids are the save's):
+```
+receive npc=<profile> [merc=<soldier>] money=<n>|item=<name>:<status>:<count> [setup]
+        # NPCConsiderReceivingItemFromMerc as a dry run (no soldier needed): record index, the record the result points
+        # to, opinion, CheckFact calls, CalcMedicalCost results, queued triggers, draws, changed facts and quests, the
+        # hospital globals, the NPC's cost to date and Frank's cash, the profile after
+give who=<soldier> to=<soldier>|tonpc=<profile> slot=<n> [count=1] | money=<n> [cash=<pocket>:<amount>] [setup]
+        # the object the UI hands over (one item of a stack or the whole pocket, put back first; money split off a
+        # pocket that cash= may create), then SoldierGiveItemFromAnimation and the code-486 trigger; the conversation
+        # it opens runs headless (a panel without UI); prints the hooks (conversation, shop, offer), the queue, facts,
+        # draws, record flags, engaged flags, AP, both inventories, the giver's tile pool, the cursor, the target profile
+npcgive npc=<profile> merc=<soldier> slot=<n>
+        # HandleNPCItemGiven with the conversation soldiers set: the dropped copy or the pending give (data, temp object)
+actionitem who=<soldier> action=<n> [det=<n>] [freq=<n>] [owner=<n>] [switch=1 at=<gridNo>]
+        # arms an action item (or a pressure switch and a remote action item at at=) on the soldier's tile, then
+        # SetOffBombsInGridNo and HandleExplosionQueue: queued count, DISALLOW_SIGHT before and after, civilian groups,
+        # combat state, civilians' neutral and side, draws; the items are removed afterwards
+```
+`setup` is any of `fact=<id>:<v>,…`, `quest=<id>:<v>,…`, `balance=<n>` and `npcdata=<n>` (the NPC profile), `hospital=<temp>:<refund>`,
+`said=<record>` and `mercsex=<n>`; each probe prints what it applied. `give-compare.ts` imports the save, applies the same setup,
+replays the native `CheckFact` results, `CalcMedicalCost` values and draws (path searches' skip-list draws left out, deviation
+"Pathfinder RNG") and runs ja2-node's code: `npcConsiderReceivingItemFromMerc`, `giveItemOpcode` with the narrative port pointed at
+the replay, `handleNpcItemGiven` and the action item queue. For a give to a dealer whose shop opens, the comparer applies the
+original's `RemoveObjFrom` to the giver's pocket first (deviation "Giving to a dealer"). On 2026-10-16 all 83 probes matched on
+SaveGame02, 01, 07 and 10: 22 gives (NPCs with and without records, dealers, squad mates, the recruited RPC with a debt, one item
+of a stack), 7 NPC gifts (in and out of reach), 46 money and item rules (Darren, Angel, Madame, Joe, Gerard, Vince, Steve, Walter,
+Frank, Kingpin, Skyrider, an RPC, Madlab's rifles, the heads, the robot without records, the NPCs in the saves) and 8 action items
+(the room scene and the museum alarm on a pressure item, a door closer, a player-owned and a remote item that the merc does not
+set off, the switch-rung Kingpin alarm that starts combat).
+
 ### Helicopter
 
 ```sh
@@ -1070,6 +1112,7 @@ monologues with their SAM reveals.
 | `probes/facts.txt` | Facts, quests and NPC presence on the six saves (see "Facts and NPC presence") |
 | `probes/talk.txt` | NPC records, profiles, desires, record choice and conversation steps for the NPCs present in SaveGame02, 01, 07 and 10 (see "Talk") |
 | `probes/heli.txt` | Skyrider's helicopter on SaveGame01, 02 and 10 (see "Helicopter") |
+| `probes/give.txt` | Giving items and money to the NPCs, dealers and mercs of SaveGame02, 01, 07 and 10, the money rules of the absent NPCs, NPC gifts and the quest action items (see "Give") |
 | `probes/sectors.txt` | Edgepoints loaded and generated on eight maps, screen-space exit thresholds on both sides of every edge (A9, A10 basement), exit-grid checks in D13 and the basement, walk-off/walk-in/mirror from the centre and near the edges, class codes on the isolated maps H13 and I14, init list sorts and ten defence placements (A9, B13, C13, D13), and `OKForSectorExit` on SaveGame10, 07 (in combat) and 01 before and after moving mercs to an edge or an exit grid |
 
 All three were run on the user's Steam JA2 Gold 1.12 data: every command succeeds, and on these
@@ -1194,6 +1237,16 @@ once (the SAM reveals and the monologue timestamp), and `RequestGiveSkyriderNewD
 change. It appends `OracleMakeHeliReturnToBase`, `OracleRequestGiveSkyriderNewDestination` and `OracleHandleNewDestConfirmation`
 (with `fPlotForHelicopter` set) as wrappers around the static functions. Regenerate it like 0002 with those two paths. The
 probes also set `fShowAircraftFlag`, as the map screen does when plotting for the helicopter.
+
+`patches/0017-give-oracle.patch` (applied after 0014) changes `src/game/TacticalAI/NPC.cc` and `src/game/Tactical/Handle_Items.cc`.
+In `NPC.cc`, `CalcMedicalCost` is redirected to `OracleTracedMedicalCost` (Oracle.cc), which records each result while a probe
+traces, and `OracleNPCConsiderReceivingItemFromMerc` is added after `HandleNPCBeingGivenMoneyByPlayer` as a wrapper around the
+static function that also returns the record the result points to (the Vince and Steve quirk sets the record but leaves the
+index 0). In `Handle_Items.cc`, right before `SoldierGiveItemFromAnimation`, `InitiateConversationFull`,
+`EnterShopKeeperInterfaceScreen` and `AddItemToPlayersOfferAreaAfterShopKeeperOpen` are redirected to `OracleGiveConversation`,
+`OracleGiveShop` and `OracleGiveOffer`, which call the real functions unless the `give` probe runs: then they record the call,
+and the conversation opens headless (the panel globals and `ConverseFull`, as `talk` does). Regenerate it like 0002 with those
+two paths (after 0014 is applied).
 
 ## Notes
 

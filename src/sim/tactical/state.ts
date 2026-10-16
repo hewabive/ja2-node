@@ -27,7 +27,7 @@ import { createFogOfWar, type FogOfWar } from './perception/fov.ts';
 import { createPerception, type Perception } from './perception/sight.ts';
 import type { ProfileProgress } from './profiles.ts';
 import { createSmellMap, type SmellMap } from './smell.ts';
-import { type Soldier, TOTAL_SOLDIERS } from './soldier.ts';
+import { NOBODY, type Soldier, TOTAL_SOLDIERS } from './soldier.ts';
 import { createTurnState, type TurnState } from './turns/turn-state.ts';
 import type { WorldItem } from './world-items.ts';
 
@@ -241,6 +241,15 @@ export interface TacticalState {
   readonly civGroups: CivGroupState;
   readonly hostileQuoteList: Soldier[];
   engagedInConv: boolean;
+  engagedInConvFromActionMerc: number;
+  readonly actionItems: ActionItemQueue;
+}
+
+export interface ActionItemQueue {
+  readonly queue: WorldItem[];
+  active: boolean;
+  person: Soldier | null;
+  sightChanged: boolean;
 }
 
 export interface SharedCampaignState {
@@ -341,6 +350,8 @@ export function createTacticalState(
     civGroups: shared.civGroups ?? createCivGroupState(),
     hostileQuoteList: [],
     engagedInConv: false,
+    engagedInConvFromActionMerc: NOBODY,
+    actionItems: { queue: [], active: false, person: null, sightChanged: false },
   };
 }
 

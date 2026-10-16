@@ -53,6 +53,7 @@ export interface SpawnOptions {
   readonly marksmanship?: number;
   readonly life?: number;
   readonly gun?: string;
+  readonly profile?: number;
 }
 
 export function spawnSoldier(
@@ -69,6 +70,7 @@ export function spawnSoldier(
     id,
     team,
     name: `S${id}`,
+    ...(options.profile !== undefined ? { profile: options.profile } : {}),
     bodyType: 0,
     palettes: { hair: 'BLACKHEAD', skin: 'PINKSKIN', vest: 'BLUEVEST', pants: 'JEANPANTS' },
     stats: combatStats(options.marksmanship ?? 70),

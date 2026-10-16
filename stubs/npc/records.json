@@ -46,7 +46,17 @@
           "endQuest": "FIND_HERMIT",
           "eraseOnceSaid": true
         },
-        { "index": 7, "requiredApproach": "THREATEN", "quoteNum": 19, "numQuotes": 1, "actionData": { "code": 24 } }
+        { "index": 7, "requiredApproach": "THREATEN", "quoteNum": 19, "numQuotes": 1, "actionData": { "code": 24 } },
+        { "index": 8, "requiredApproach": "GIVINGITEM", "requiredItem": "CLIP9_15", "quoteNum": 20, "numQuotes": 1 },
+        { "index": 9, "requiredApproach": "GIVINGITEM", "requiredItem": "MONEY", "quoteNum": 21, "numQuotes": 1 },
+        {
+          "index": 10,
+          "requiredApproach": "GIVINGITEM",
+          "requiredItem": "GLOCK_17",
+          "quoteNum": 22,
+          "numQuotes": 1,
+          "actionData": { "code": 1 }
+        }
       ]
     }
   ],

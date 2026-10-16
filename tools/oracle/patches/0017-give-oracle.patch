@@ -1,0 +1,60 @@
+Give oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE (SFI-SCLA).
+Traces the CalcMedicalCost results that TacticalAI/NPC.cc uses (OracleTracedMedicalCost, defined in Oracle.cc) and appends
+OracleNPCConsiderReceivingItemFromMerc, a wrapper around the static NPCConsiderReceivingItemFromMerc that reports the chosen
+record index and the record the result points to. In Tactical/Handle_Items.cc, SoldierGiveItemFromAnimation calls
+InitiateConversationFull, EnterShopKeeperInterfaceScreen and AddItemToPlayersOfferAreaAfterShopKeeperOpen through
+OracleGiveConversation, OracleGiveShop and OracleGiveOffer (Oracle.cc), which forward to the real functions unless a give
+probe is running. No behaviour change. Applied by tools/oracle/build.sh after 0014.
+
+--- a/src/game/Tactical/Handle_Items.cc
++++ b/src/game/Tactical/Handle_Items.cc
+@@ -2303,6 +2303,13 @@
+ }
+ 
+ 
++BOOLEAN OracleGiveConversation(SOLDIERTYPE* dest, SOLDIERTYPE* src, Approach approach, UINT8 record, OBJECTTYPE* object);
++void OracleGiveShop(UINT8 dealer);
++void OracleGiveOffer(OBJECTTYPE* object, INT8 slot);
++#define InitiateConversationFull OracleGiveConversation
++#define EnterShopKeeperInterfaceScreen OracleGiveShop
++#define AddItemToPlayersOfferAreaAfterShopKeeperOpen OracleGiveOffer
++
+ void SoldierGiveItemFromAnimation( SOLDIERTYPE *pSoldier )
+ {
+ 	INT8 bInvPos;
+--- a/src/game/TacticalAI/NPC.cc
++++ b/src/game/TacticalAI/NPC.cc
+@@ -663,6 +663,8 @@
+ 
+ 
+ static UINT8 HandleNPCBeingGivenMoneyByPlayer(UINT8 ubNPC, UINT32 uiMoneyAmount);
++UINT32 OracleTracedMedicalCost(UINT8 npc);
++#define CalcMedicalCost OracleTracedMedicalCost
+ 
+ 
+ static UINT8 NPCConsiderReceivingItemFromMerc(UINT8 const ubNPC, UINT8 const ubMerc, OBJECTTYPE const* const o, NPCQuoteInfo* const pNPCQuoteInfoArray, NPCQuoteInfo** const ppResultQuoteInfo, UINT8* const pubQuoteNum)
+@@ -1054,6 +1056,24 @@
+ }
+ 
+ 
++UINT8 OracleNPCConsiderReceivingItemFromMerc(UINT8 const npc, UINT8 const merc, OBJECTTYPE const* const o, INT32* const index, INT32* const record)
++{
++	NPCQuoteInfo* const quotes = EnsureQuoteFileLoaded(npc);
++	if (!quotes)
++	{
++		*index = -2;
++		*record = -2;
++		return 0;
++	}
++	NPCQuoteInfo* found = 0;
++	UINT8 number = 0;
++	UINT8 const opinion = NPCConsiderReceivingItemFromMerc(npc, merc, o, quotes, &found, &number);
++	*index = found ? number : -1;
++	*record = found ? static_cast<INT32>(found - quotes) : -1;
++	return opinion;
++}
++
++
+ static UINT8 NPCConsiderQuote(UINT8 const ubNPC, UINT8 const ubMerc, Approach const ubApproach, UINT8 const ubQuoteNum, UINT8 const ubTalkDesire, NPCQuoteInfo* const pNPCQuoteInfoArray)
+ {
+ 	//This function looks at a quote and determines if conditions for it have been met.

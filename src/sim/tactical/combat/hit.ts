@@ -18,6 +18,7 @@ import { AnimHeight, endHeight, hasAnimFlag, initNewSoldierAnim, setDesiredDirec
 import { igniteExplosionXY } from '../explosions/explosion.ts';
 import { checkEquipmentForDamage } from '../explosions/item-damage.ts';
 import { newSmokeEffect } from '../explosions/smoke.ts';
+import { cancelGiveOnCollapse } from '../give.ts';
 import { InvSlot } from '../inventory.ts';
 import { directionToward, setSoldierDestination, worldIndexFromCoords } from '../movement.ts';
 import { newOKDestination } from '../pathfinding.ts';
@@ -519,6 +520,7 @@ export function soldierCollapse(t: TacticalState, s: Soldier): void {
   }
   s.collapsed = true;
   handleSight(t, s, SightFlags.LOOK);
+  cancelGiveOnCollapse(t, s);
   switch (endHeight(t.content, s.state)) {
     case AnimHeight.STAND:
       if (s.overTerrain === Terrain.DEEP_WATER) initNewSoldierAnim(t, s, anim(t.content, 'DEEP_WATER_DIE'), 0, false);

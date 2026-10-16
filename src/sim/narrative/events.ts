@@ -32,6 +32,7 @@ export interface NpcMessageEvent extends SimEventBase {
   readonly kind: string;
   readonly profile?: number;
   readonly amount?: number;
+  readonly item?: string;
 }
 
 export interface ScriptedSequenceEvent extends SimEventBase {
@@ -45,13 +46,72 @@ export interface TalkAbortedEvent extends SimEventBase {
   readonly reason: string;
 }
 
+export interface GivenItemRef {
+  readonly item: string;
+  readonly count: number;
+  readonly status: number;
+  readonly money?: number;
+}
+
+export interface ItemGivenEvent extends SimEventBase, GivenItemRef {
+  readonly type: 'itemGiven';
+  readonly soldier: number;
+  readonly target: number;
+  readonly dropped: boolean;
+}
+
+export interface GiveAbortedEvent extends SimEventBase {
+  readonly type: 'giveAborted';
+  readonly soldier: number;
+  readonly target: number;
+  readonly reason: 'targetMoved' | 'otherSoldierThere' | 'notAtTarget';
+  readonly dropped: boolean;
+}
+
+export interface NpcTookItemEvent extends SimEventBase, GivenItemRef {
+  readonly type: 'npcTookItem';
+  readonly npc: number | null;
+  readonly profile: number;
+  readonly from: number | null;
+}
+
+export interface ItemReturnedEvent extends SimEventBase, GivenItemRef {
+  readonly type: 'itemReturned';
+  readonly to: number;
+  readonly dropped: boolean;
+}
+
+export interface NpcGaveItemEvent extends SimEventBase, GivenItemRef {
+  readonly type: 'npcGaveItem';
+  readonly npc: number;
+  readonly profile: number;
+  readonly to: number | null;
+  readonly dropped: boolean;
+}
+
+export interface SexSceneEvent extends SimEventBase {
+  readonly type: 'sexScene';
+  readonly soldier: number;
+}
+
+export interface AlarmEvent extends SimEventBase {
+  readonly type: 'alarm';
+  readonly gridNo: number;
+  readonly kind: 'kingpin' | 'museum';
+}
+
+export type GiveEvent = ItemGivenEvent | GiveAbortedEvent | NpcTookItemEvent | ItemReturnedEvent | NpcGaveItemEvent;
+
 export type NarrativeEvent =
   | ConversationOpenedEvent
   | ConversationClosedEvent
   | NpcQuoteEvent
   | NpcMessageEvent
   | ScriptedSequenceEvent
-  | TalkAbortedEvent;
+  | TalkAbortedEvent
+  | GiveEvent
+  | SexSceneEvent
+  | AlarmEvent;
 
 type Emitted = NarrativeEvent | MercQuoteEvent;
 

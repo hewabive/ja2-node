@@ -4,13 +4,16 @@
 // @src Interface_Dialogue.cc TalkPanelClickCallback, TalkPanelNameRegionClickCallback, HandleTalkingMenuEscape (the talk
 // @src panel as a modal session); Dialogue_Control.cc HandleDialogue (ENGAGED_IN_CONV pause lock, LOCK_PAUSE_ENGAGED_IN_CONV);
 // @src GameScreen.cc (HandleWaitTimerForNPCTrigger before, HandleDialogue after ExecuteOverhead); Soldier_Tile.cc
-// @src TeleportSoldier; Scheduling.cc BumpAnyExistingMerc. See docs/24 §6, §11, docs/04 §6.12.
+// @src TeleportSoldier; Scheduling.cc BumpAnyExistingMerc; Interface_Items.cc HandleItemPointerClick (the give branch,
+// @src SetEngagedInConvFromPCAction for a profiled target that is no team member). See docs/24 §4, §6, §11, docs/04 §6.12,
+// @src §6.16.
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { ItemClass, type ItemTable, WEAPON_CLASSES, WeaponClass } from '../../content/items/items.ts';
 import type { QuoteLengths } from '../../content/narrative/dialogue-text.ts';
 import { Approach, NPC_TALK_RADIUS } from '../../content/narrative/npc-constants.ts';
 import type { NpcRecordContent } from '../../content/narrative/npc-records.ts';
+import { MercType } from '../../content/strategic/economy-content.ts';
 import { u8 } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
@@ -31,27 +34,50 @@ import {
   talkMenuBuySell,
   talkMenuGive,
   triggerNpcRecord,
+  triggerNpcWithGivenApproach,
   triggerNpcWithIHateYouQuote,
 } from '../narrative/converse.ts';
 import { soldierByProfile } from '../narrative/dialogue-queue.ts';
+import { dealerTakesGive, giveToNpc, handleNpcItemGiven, returnItemToPlayer, takeGivenObject } from '../narrative/give.ts';
 import type { FactSource, NarrativeHost, NpcActionPort, QuestPort } from '../narrative/host.ts';
 import { ASSASSIN_PROFILES, NarrativeProfile, ProfileFlag } from '../narrative/narrative-ids.ts';
-import { isNpcOrRpc, replaceLocationInNpcData, resetOncePerConvoRecordsForAllNpcsInLoadedSector } from '../narrative/records.ts';
+import {
+  isNpcOrRpc,
+  isPlayerMerc,
+  profileType,
+  replaceLocationInNpcData,
+  resetOncePerConvoRecordsForAllNpcsInLoadedSector,
+} from '../narrative/records.ts';
 import { calcDesireToTalk, calcThreateningEffectiveness } from '../narrative/select.ts';
 import { createTalkState, dialogueIdle, type SpokenLine, type TalkState } from '../narrative/talk-state.ts';
-import { CivType, getCivType, type TalkableKind, type TalkableRules, talkableKind, talkableRefusal } from '../narrative/talkable.ts';
-import { isMercADealer } from '../strategic/economy/merchants/context.ts';
+import {
+  CivType,
+  getCivType,
+  isRobotSoldier,
+  type TalkableKind,
+  type TalkableRules,
+  talkableKind,
+  talkableRefusal,
+} from '../narrative/talkable.ts';
+import { Assignment } from '../strategic/economy/constants.ts';
+import { dealerIdFromProfile, isMercADealer } from '../strategic/economy/merchants/context.ts';
+import { dealerState } from '../strategic/economy/merchants/state.ts';
 import { shopKind } from '../strategic/economy/merchants/view.ts';
+import { fatigueCharacter } from '../strategic/economy/rest.ts';
 import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
+import { Npc } from '../strategic/narrative/npc-ids.ts';
 import { lockPauseState, pauseGame, unLockPauseState, unPauseGame, worldDay } from '../strategic/time/world-clock.ts';
 import { cancelAIAction } from '../tactical/ai/control.ts';
 import { setDesiredDirection } from '../tactical/animation.ts';
 import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
 import { soldierTo3DLocationLos } from '../tactical/combat/positions.ts';
 import { findGridNoFromSweetSpot } from '../tactical/creation.ts';
+import { setEngagedInConvFromPcAction, soldierGiveItem } from '../tactical/give.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { directionToward, getNewSoldierPath, setSoldierPosition, stopMerc } from '../tactical/movement.ts';
 import { addToShouldBecomeHostileOrSayQuoteList } from '../tactical/narrative/civ-hostility.ts';
+import { calcMedicalCost, HospitalPrice } from '../tactical/narrative/hospital-cost.ts';
+import type { NarrativePort } from '../tactical/narrative/port.ts';
 import { findBestPath } from '../tactical/pathfinding.ts';
 import { revealRoofsAndItems } from '../tactical/perception/fov.ts';
 import { distanceVisible, handleSight } from '../tactical/perception/sight.ts';
@@ -62,6 +88,8 @@ import { NO_PROFILE, NOWHERE, type Soldier, Team } from '../tactical/soldier.ts'
 import { sectorMapOf, type TacticalState } from '../tactical/state.ts';
 import { selectSoldier } from '../tactical/turns/turns.ts';
 import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
+import { giveApRefusal, giveRequest, giverRefusal } from './give-flow.ts';
+import { MoraleEvent } from './morale.ts';
 import type { NarrativeSlots } from './narrative/narrative-flow.ts';
 import { genericActionPort } from './narrative/narrative-ports.ts';
 
@@ -86,7 +114,7 @@ const ATTITUDE_NORMAL = 0;
 const PLAYER_CHARACTER_MIN_PROFILE = 51;
 const PLAYER_CHARACTER_MAX_PROFILE = 56;
 const OwnMercBark = { NEGATIVE_COMPANY: 41, SOCIAL_TRAIT: 44, PASSING_DISLIKE: 45 } as const;
-const TALK_COMMANDS: ReadonlySet<string> = new Set(['talk', 'approach', 'closeTalk']);
+const TALK_COMMANDS: ReadonlySet<string> = new Set(['talk', 'approach', 'closeTalk', 'give']);
 const NEEDED_ITEMS = ['HEAD_2', 'HEAD_3', 'HEAD_5', 'HEAD_6', 'HEAD_7', 'MONEY', 'SILVER', 'GOLD', 'WINE', 'BEER', 'ALCOHOL'] as const;
 
 const MENU_APPROACHES: Readonly<Record<string, number>> = {
@@ -121,6 +149,15 @@ const REFUSAL_TEXT: Readonly<Record<string, string>> = {
   unknownApproach: 'kind must be repeat, friendly, direct, threaten, recruit, whoAreYou, buySell or give',
   notADealer: 'this NPC does not trade, use give',
   isADealer: 'this NPC trades, use buySell',
+  needItemOrMoney: 'give a slot (optionally with count) or an amount of money',
+  noSlot: 'slot must be 0..18 or "hand"',
+  emptySlot: 'that slot is empty',
+  badCount: 'count must be 1 or the whole stack in the slot',
+  badMoney: 'money is split off a pocket in steps of 10; give a whole pocket with slot',
+  notEnoughMoney: 'no money pocket of this soldier holds that much',
+  giverCannotGive: 'this soldier cannot hand anything over (escort, dying or in deep water)',
+  giverBusy: 'the soldier is busy with an item, a door or another give',
+  robotReload: 'reloading the robot is not supported yet',
 };
 
 export interface NarrativeSetup {
@@ -155,15 +192,18 @@ type Json = Readonly<Record<string, unknown>>;
 class Refusal extends Error {
   readonly code: string;
 
-  constructor(code: string) {
-    super(`${code}: ${REFUSAL_TEXT[code] ?? 'refused'}`);
+  constructor(code: string, text?: string) {
+    super(`${code}: ${text ?? REFUSAL_TEXT[code] ?? 'refused'}`);
     this.code = code;
   }
 }
 
-const refuse = (code: string): never => {
-  throw new Refusal(code);
+const refuse = (code: string, text?: string): never => {
+  throw new Refusal(code, text);
 };
+
+const GIVE_AP_TEXT = 'not enough APs: the walk plus 1 to give';
+const SEX_FATIGUE_STEPS = 4;
 
 const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v);
 
@@ -267,6 +307,40 @@ export class TalkFlow {
     handleSight(t, s, SIGHT_LOOK_AND_RADIO);
   }
 
+  #medicalCost(doctor: number): number {
+    const t = this.#t;
+    if (!t) return 0;
+    const strategic = this.#campaign.strategic;
+    return calcMedicalCost(t, soldierByProfile(this.host, doctor), {
+      globalModifier: this.#campaign.state.narrative.hospital.priceModifier,
+      patientModifier: () => HospitalPrice.UNSET,
+      inHospital: (s) => strategic?.mercs.get(s.id)?.assignment === Assignment.ASSIGNMENT_HOSPITAL,
+    });
+  }
+
+  #frankCash(amount: number): void {
+    const merchants = this.#campaign.merchants;
+    if (!merchants) return;
+    const id = dealerIdFromProfile(merchants, Npc.FRANK);
+    if (id < 0) return;
+    const status = dealerState(merchants.state, id).status;
+    status.cash = (status.cash + amount) >>> 0;
+  }
+
+  #receivesAsTeamMember(s: Soldier): boolean {
+    return (s.profile !== NO_PROFILE && isPlayerMerc(this.host, s.profile)) || this.#recruited(s.profile);
+  }
+
+  #sexEffects(s: Soldier): void {
+    const merc = this.#campaign.battle?.roster.get(s.id) ?? null;
+    const sector = this.#campaign.state.worldSector;
+    if (merc && sector) this.#campaign.battle?.moraleEvent(merc, MoraleEvent.SEX, sector);
+    const economy = this.#campaign.economy;
+    const crew = economy?.crew.get(s.id);
+    if (!economy || !crew) return;
+    for (let k = 0; k < SEX_FATIGUE_STEPS; k++) fatigueCharacter(economy, crew);
+  }
+
   #face(npc: number, toward: (s: Soldier) => number): void {
     const t = this.#t;
     const s = soldierByProfile(this.host, npc);
@@ -306,12 +380,16 @@ export class TalkFlow {
         endQuest: (quest, sector) => campaign.narrative.endQuest(quest, sector),
       },
       actions: setup.actions?.(campaign, generic) ?? generic,
-      give: { placeObjectInSoldierProfile: () => {}, returnItemToPlayer: () => {}, handleNpcItemGiven: () => {} },
+      give: {
+        placeObjectInSoldierProfile: (npc, object, giver) => takeGivenObject(host, npc, object, giver),
+        returnItemToPlayer: (merc, object) => returnItemToPlayer(host, merc, object),
+        handleNpcItemGiven: (npc, slot) => handleNpcItemGiven(host, npc, slot),
+      },
       receive: {
         items: this.#itemFacts(),
         hospital: state.narrative.hospital,
-        calcMedicalCost: () => 0,
-        frankCash: () => {},
+        calcMedicalCost: (npc) => this.#medicalCost(npc),
+        frankCash: (amount) => this.#frankCash(amount),
         kingpinInHisHouse: () => this.#kingpinInHisHouse(),
         addProfileCost: (profile, amount) => {
           const costs = state.finances.profileCostToDate;
@@ -424,9 +502,22 @@ export class TalkFlow {
     startTalking(s: Soldier, target: number): void;
     npcReachedDestination(s: Soldier): void;
     replaceLocationInNpcData(profile: number, oldGridNo: number, newGridNo: number): void;
-  } {
+  } & Pick<
+    NarrativePort,
+    'isDealer' | 'dealerTakesGive' | 'receivesAsTeamMember' | 'giveToNpc' | 'triggerDoneGivingItem' | 'isNpcProfile' | 'sexEffects'
+  > {
     const host = this.host;
     return {
+      isDealer: (profile) => host.isDealer(profile),
+      dealerTakesGive: (giver, dealer, object, slot) =>
+        dealerTakesGive(host, giver, dealer, object, slot, (profile, merc) => this.#campaign.shop?.openFromTalk(profile, merc.id)),
+      receivesAsTeamMember: (target) => this.#receivesAsTeamMember(target),
+      giveToNpc: (giver, target, object) => giveToNpc(host, giver, target, object),
+      triggerDoneGivingItem: (profile) => {
+        triggerNpcWithGivenApproach(host, profile, Approach.DONE_GIVING_ITEM);
+      },
+      isNpcProfile: (profile) => profileType(host, profile) === MercType.NPC,
+      sexEffects: (s) => this.#sexEffects(s),
       triggerNpcRecord: (profile, record) => triggerNpcRecord(host, profile, record),
       hasUnusedHostileRecord: (profile) => npcHasUnusedHostileRecord(host, profile),
       sayHostileQuote: (s) => {
@@ -472,6 +563,8 @@ export class TalkFlow {
           return this.#approach(cmd);
         case 'closeTalk':
           return this.#closeTalk();
+        case 'give':
+          return this.#give(cmd);
         default:
           return this.#openShop(cmd);
       }
@@ -640,6 +733,79 @@ export class TalkFlow {
         ...(this.scriptedSequence() ? { scriptedSequence: true } : {}),
         ...shop,
         ...extra,
+      },
+    };
+  }
+
+  #giveRefusals(): void {
+    const campaign = this.#campaign;
+    if (campaign.state.flow !== 'tactical' || !campaign.tactical) refuse('notInTactical');
+    if (campaign.battle?.hasPendingDecision()) refuse('promptOpen');
+    if (campaign.shop?.isOpen()) refuse('shopOpen');
+    if (this.scriptedSequence()) refuse('scriptedSequence');
+    if (!this.talk.inPanel) return;
+    if (!dialogueIdle(this.talk)) refuse('busy');
+    if (this.host.isDealer(this.talk.charNum)) refuse('isADealer');
+  }
+
+  #give(cmd: CampaignCommand): CommandResult {
+    this.#giveRefusals();
+    const tactical = this.#campaign.tactical;
+    const t = this.#t as TacticalState;
+    const merc = tactical?.soldier(cmd.soldier) ?? null;
+    if (!merc || merc.team !== Team.OUR) return refuse('noSuchTarget');
+    const turn = tactical?.canAct(merc) ?? null;
+    if (turn) return { ok: false, reason: turn, data: { refusal: 'canAct' } };
+    const target = this.#resolveTarget(cmd.target);
+    if (!target || target === merc) return refuse('noSuchTarget');
+    const giver = giverRefusal(t, merc, this.#isEpc(merc));
+    if (giver) refuse(giver);
+    const request = giveRequest(t, merc, cmd);
+    if (typeof request === 'string') return refuse(request);
+    const talkable = talkableRefusal(t, this.#rules(), merc, target, { give: true, mercs: true, collapsed: true });
+    if (talkable) refuse(talkable);
+    if (isRobotSoldier(target)) refuse('robotReload');
+    const ap = giveApRefusal(t, merc, target, findAdjacentGridEx(t, merc, target.gridNo, false)?.actionGridNo ?? null);
+    if (ap === 'noPath') this.#emit({ type: 'npcMessage', kind: 'noPath' });
+    if (ap) refuse(ap, ap === 'notEnoughAP' ? GIVE_AP_TEXT : undefined);
+    const approach = findAdjacentGridEx(t, merc, target.gridNo, true);
+    if (!approach) return refuse('noPath');
+    if (this.talk.inPanel) talkMenuGive(this.host);
+    const object = request.take();
+    this.talk.giveOutcome = null;
+    this.talk.lines.length = 0;
+    selectSoldier(t, merc);
+    soldierGiveItem(t, merc, target, object, request.slot);
+    const toNpc = target.profile !== NO_PROFILE && !this.#receivesAsTeamMember(target);
+    if (toNpc) setEngagedInConvFromPcAction(t, merc);
+    const walking = merc.pendingGive !== null && !merc.pendingGive.begun;
+    if (!toNpc) return { ok: true, data: walking ? { walking: true, to: approach.actionGridNo } : { giving: true } };
+    return this.#giveAndReport(merc);
+  }
+
+  #giveResolved(merc: Soldier): boolean {
+    return merc.tempObject === null && merc.pendingGive === null && dialogueIdle(this.talk) && !this.scriptedSequence();
+  }
+
+  #giveAndReport(merc: Soldier): CommandResult {
+    const campaign = this.#campaign;
+    for (let budget = DRAIN_BUDGET_TICKS; budget > 0 && !this.#giveResolved(merc) && !this.frozen(); budget--) {
+      if (campaign.shop?.isOpen()) break;
+      const tick = campaign.tick;
+      campaign.step();
+      if (campaign.tick === tick) break;
+    }
+    this.#syncScripted();
+    const lines = this.talk.lines.map((l) => this.#lineView(l));
+    const shop = campaign.shop?.isOpen() ? { shop: campaign.shop.view() } : {};
+    return {
+      ok: true,
+      data: {
+        outcome: this.talk.giveOutcome ?? (merc.tempObject === null ? 'aborted' : 'pending'),
+        conversation: this.view(),
+        lines,
+        ...(this.scriptedSequence() ? { scriptedSequence: true } : {}),
+        ...shop,
       },
     };
   }
