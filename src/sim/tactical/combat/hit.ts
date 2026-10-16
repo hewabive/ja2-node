@@ -21,6 +21,7 @@ import { newSmokeEffect } from '../explosions/smoke.ts';
 import { cancelGiveOnCollapse } from '../give.ts';
 import { InvSlot } from '../inventory.ts';
 import { directionToward, setSoldierDestination, worldIndexFromCoords } from '../movement.ts';
+import { inInterrogation, inMeanwhile } from '../narrative/meanwhile-rules.ts';
 import { newOKDestination } from '../pathfinding.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { SightFlags } from '../perception/opp.ts';
@@ -293,6 +294,10 @@ export function eventSoldierGotHit(
   } else if (cls === ItemClass.PUNCH || weapon === NOTHING) {
     breath = i16(damage * 100);
     damage = Math.trunc(damage / PUNCH_REAL_DAMAGE_PORTION);
+    if (inInterrogation(t)) {
+      breath = 0;
+      damage = Math.trunc(damage / 2);
+    }
     reason = DamageReason.HANDTOHAND;
   } else if (cls & (ItemClass.GRENADE | ItemClass.BOMB)) {
     reason = weapon === itemIndex(t, 'STRUCTURE_EXPLOSION') ? DamageReason.STRUCTURE_EXPLOSION : DamageReason.EXPLOSION;
@@ -597,6 +602,11 @@ export function soldierTakeDamage(
   s.lastDamageReason = reason;
   const oldLife = s.life;
   if (isVehicle(s)) return 0;
+  if (s.npcShooting) {
+    life = i16(s.life - 1);
+    s.npcShooting = false;
+  }
+  if (reason === DamageReason.BLOODLOSS && inMeanwhile(t)) return 0;
   const bandage = i8(s.lifeMax - s.life - s.bleeding);
   if (isCreatureOrBloodcat(s)) {
     let factor = 0;

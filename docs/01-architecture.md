@@ -989,3 +989,7 @@ Specs: `docs/24` (NPCs and dialogue), `25` (quests, facts, NPC actions, schedule
 9. **Civilian quotes, surrender and NPCs on their own** (`sim/narrative/civ-quotes.ts`, `sim/tactical/ai/pause.ts`): civilian
    quotes and sector hints, guide descriptions, the enemy's surrender offer in tactical combat, the hostile-quote pause,
    first-sighting records and quotes, and the named-NPC AI that walks up and starts conversations. 151 oracle probes match.
+10. **Meanwhile scenes and the end of the campaign** (`docs/26`): scene posting and resolution without cutscenes, the
+    interrogation played on the record engine, prisoners in Alma and Meduna, progress and first-battle triggers, the
+    Queen's escape and the O3 statue (`useRemote`), the Queen's death, the endgame sequence and the won campaign
+    (`campaignOver`). 62 oracle probes match.

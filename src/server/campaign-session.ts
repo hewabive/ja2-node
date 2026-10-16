@@ -1,6 +1,13 @@
 import type { TextKey } from '../content/narrative/dialogue-text.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
-import type { ConversationView, NpcRequestPromptView, PlayerView, SoldierView } from '../protocol/view.ts';
+import type {
+  CampaignEndedView,
+  ConversationView,
+  MeanwhileSceneView,
+  NpcRequestPromptView,
+  PlayerView,
+  SoldierView,
+} from '../protocol/view.ts';
 import type { WorldTimeControl } from '../sim/advance.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { MercKind, type Roster } from '../sim/campaign/roster.ts';
@@ -130,6 +137,22 @@ export class CampaignSession implements SessionSim {
     return { conversation, npcRequest: npcRequestView(this.campaign), ...(talk.scriptedSequence() ? { scriptedSequence: true } : {}) };
   }
 
+  #story(): { meanwhile?: MeanwhileSceneView | null; ended?: CampaignEndedView | null } {
+    const c = this.campaign;
+    const victory = c.state.ending.victory;
+    const meanwhile = c.meanwhile.sceneView();
+    return {
+      ...(meanwhile ? { meanwhile } : {}),
+      ...(victory
+        ? { ended: { outcome: 'victory', at: victory.at, day: victory.day, ending: victory.ending, mercDeaths: victory.mercDeaths } }
+        : {}),
+    };
+  }
+
+  ended(): boolean {
+    return this.campaign.ended();
+  }
+
   view(): PlayerView {
     const c = this.campaign.state.clock;
     const clock = { day: worldDay(c), hour: worldHour(c), minute: worldMinute(c), compressing: isTimeBeingCompressed(c) };
@@ -144,9 +167,10 @@ export class CampaignSession implements SessionSim {
     const shop = this.campaign.shop ? { shop: this.campaign.shop.view() } : {};
     const laptop = this.campaign.laptop ? { laptop: laptopView(this.campaign) } : {};
     const talk = this.#conversation();
+    const story = this.#story();
     const extra = strategic
-      ? { clock, strategic, ...battle, ...shop, ...laptop, ...talk }
-      : { clock, ...battle, ...shop, ...laptop, ...talk };
+      ? { clock, strategic, ...battle, ...shop, ...laptop, ...talk, ...story }
+      : { clock, ...battle, ...shop, ...laptop, ...talk, ...story };
     const tactical = this.campaign.tactical;
     if (!tactical) return { tick: this.tick, mapPath: null, soldiers: [], ...extra };
     const view = tacticalPlayerView(tactical, this.tick);

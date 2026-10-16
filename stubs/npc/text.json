@@ -65,7 +65,23 @@
       "Let's keep moving, I don't like it here.",
       "Here? All right, I'll find my own way from here.",
       "My cousins will feed you well if we ever get there."
-    ]
+    ],
+    "npcdata/075.edt": [
+      "So these are the ones who thought they could walk into my country.",
+      "Tell me who sent you, and do not waste my afternoon.",
+      "Honesty. How dull, and how useful.",
+      "Silence will not keep you comfortable for long.",
+      "A clumsy lie. My guards will teach you better ones.",
+      "Hm. Perhaps you are only fools after all.",
+      "That should loosen a tongue or two.",
+      "Wake them. I am not finished."
+    ],
+    "npcdata/135.edt": ["The guards will take them back to the cells, my lady.", "I will see the yard is locked for the night."],
+    "npcdata/136.edt": [
+      "It is over. She will never sign another order again.",
+      "The tunnels under the mines are still crawling. We cannot rest yet."
+    ],
+    "npcdata/137.edt": ["Then let the bells ring. The country is ours again."]
   },
   "civilianFiles": {
     "npcdata/civ10.edt": [

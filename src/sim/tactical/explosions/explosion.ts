@@ -39,6 +39,7 @@ import {
   lightSpritePower,
   MIN_AMB_LEVEL_FOR_MERC_LIGHTS,
 } from '../lighting/lighting.ts';
+import { checkPowPathsInAlmaPrison } from '../narrative/pow-rules.ts';
 import { doorObstacleIfClosed, doorState, terrainCost } from '../pathfinding.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import type { Soldier } from '../soldier.ts';
@@ -473,6 +474,7 @@ export function spreadEffect(
   if (ctx.changes.gridNos.size > 0) {
     recompileChangedTiles(t, ctx.changes);
     recompileLocalMovementCosts(t.world.costs, t.world, g, MAX_RECOMPILE_RADIUS);
+    checkPowPathsInAlmaPrison(t);
   }
   if (ctx.anyMercHit) t.explosives.hurtByExplosion.fill(0);
   if (sub !== Spread.BLOOD && explosive) makeNoise(t, null, g, level, explosive.noise, NoiseKind.EXPLOSION);

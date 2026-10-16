@@ -49,6 +49,7 @@ import { FACT_PROBES, FactComparer } from './facts-compare.ts';
 import { GIVE_PROBES, GiveComparer } from './give-compare.ts';
 import { HELI_PROBES, HeliComparer } from './heli-compare.ts';
 import { LAPTOP_PROBES, LaptopComparer } from './laptop-compare.ts';
+import { MEANWHILE_PROBES, MeanwhileComparer } from './meanwhile-compare.ts';
 import { MERCHANT_PROBES, MerchantComparer } from './merchant-compare.ts';
 import { MORALE_PROBES, MoraleComparer } from './morale-compare.ts';
 import { comparePreBattle } from './pre-battle-compare.ts';
@@ -588,6 +589,7 @@ for (const file of files) {
   const civ = new CivComparer(read, exists, (path) => data.vfs.layerCount(path));
   const facts = new FactComparer(read, exists);
   const actions = new ActionComparer(read, exists);
+  const meanwhiles = new MeanwhileComparer(read, exists);
   const schedules = new ScheduleComparer(read, exists, savesDir(dataDir));
   const recruits = new RecruitComparer(read, exists);
   let ctx: Context | null = null;
@@ -600,6 +602,7 @@ for (const file of files) {
     } else if (p.probe === 'sector') {
       ctx = await sectorContext(read, content, worlds, p);
       sectors.loadSector(ctx.sim, p);
+      meanwhiles.loadSector();
     } else if (p.probe === 'save') {
       ctx = await saveContext(read, dataDir, p);
       sectors.loadSave(savesDir(dataDir), String(p.name));
@@ -620,6 +623,7 @@ for (const file of files) {
       if (ctx.bytes) facts.loadSave(ctx.bytes);
       if (ctx.bytes) actions.loadSave(ctx.bytes);
       if (ctx.bytes) recruits.loadSave(ctx.bytes);
+      if (ctx.bytes) meanwhiles.loadSave(ctx.bytes);
     } else if (p.probe === 'end') continue;
     else if (p.probe === 'autoresolve') failures += await compareAutoresolveProbe(read, exists, ctx, arSetup, p);
     else if (p.probe === 'enemycounts') failures += await compareEnemyCountsProbe(read, ctx, p);
@@ -646,6 +650,7 @@ for (const file of files) {
     else if (ACTION_PROBES.has(String(p.probe))) failures += await actions.compare(p);
     else if (SCHEDULE_PROBES.has(String(p.probe))) failures += await schedules.compare(p);
     else if (RECRUIT_PROBES.has(String(p.probe))) failures += await recruits.compare(p);
+    else if (MEANWHILE_PROBES.has(String(p.probe))) failures += await meanwhiles.compare(p, ctx?.sim ?? null);
     else {
       ctx ??= await sectorContext(read, content, worlds, null);
       if (p.probe === 'costs') failures += compareCosts(ctx, p);

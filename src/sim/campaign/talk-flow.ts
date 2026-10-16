@@ -13,6 +13,7 @@ import { ItemClass, type ItemTable, WEAPON_CLASSES, WeaponClass } from '../../co
 import type { QuoteLengths } from '../../content/narrative/dialogue-text.ts';
 import { Approach, NPC_TALK_RADIUS } from '../../content/narrative/npc-constants.ts';
 import type { NpcRecordContent } from '../../content/narrative/npc-records.ts';
+import { type NarrativeScenes, NO_NARRATIVE_SCENES } from '../../content/narrative/scenes.ts';
 import { MercType } from '../../content/strategic/economy-content.ts';
 import { u8 } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
@@ -102,6 +103,7 @@ import { selectSoldier } from '../tactical/turns/turns.ts';
 import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
 import { giveApRefusal, giveRequest, giverRefusal } from './give-flow.ts';
 import { MoraleEvent } from './morale.ts';
+import { campaignMeanwhileActions } from './narrative/meanwhile-actions.ts';
 import type { NarrativeSlots } from './narrative/narrative-flow.ts';
 import { NpcActionFlow, type NpcActionPorts } from './narrative/npc-action-flow.ts';
 import { medicalCostAt } from './narrative/quest-world.ts';
@@ -186,6 +188,7 @@ export interface NarrativeSetup {
   readonly texts: QuoteLengths;
   readonly items: ItemTable;
   readonly profiles: readonly MercProfile[];
+  readonly scenes?: NarrativeScenes;
   readonly facts?: (campaign: CampaignSim) => FactSource;
   readonly quests?: (campaign: CampaignSim) => QuestPort;
   readonly actions?: (campaign: CampaignSim, catalog: NpcActionPort) => NpcActionPort;
@@ -254,11 +257,17 @@ export class TalkFlow {
     this.#setup = setup;
     this.talk = createTalkState();
     this.host = this.#createHost();
-    this.npcActions = new NpcActionFlow(campaign, this.host, setup.npcActions ?? {}, (e) => this.#emit(e));
+    const ports = setup.npcActions ?? {};
+    const meanwhile = { ...campaignMeanwhileActions(campaign, this.host), ...ports.meanwhile };
+    this.npcActions = new NpcActionFlow(campaign, this.host, { ...ports, meanwhile }, (e) => this.#emit(e));
   }
 
   get #t(): TacticalState | null {
     return this.#campaign.tactical?.state ?? null;
+  }
+
+  get scenes(): NarrativeScenes {
+    return this.#setup.scenes ?? NO_NARRATIVE_SCENES;
   }
 
   #profile(id: number): ProfileProgress | null {
@@ -373,7 +382,7 @@ export class TalkFlow {
       records: state.npcRecords,
       content: setup.records,
       recruited: (p) => this.#recruited(p),
-      meanwhile: () => null,
+      meanwhile: () => (campaign.strategic?.world.inMeanwhile() ? state.meanwhile.current.id : null),
       talk: this.talk,
       context: campaign.narrative.talk,
       facts: setup.facts?.(campaign) ?? { checkFact: (id, npc) => campaign.narrative.checkFact(id, npc) },
@@ -424,7 +433,7 @@ export class TalkFlow {
       worldSector: () => state.worldSector,
       isEpc: (s) => this.#isEpc(s),
       onSquad: (s) => this.#onSquad(s),
-      inMeanwhile: () => false,
+      inMeanwhile: () => campaign.strategic?.world.inMeanwhile() ?? false,
       emit: (e) => this.#emit(e),
       setEngaged: (on) => {
         const t = this.#t;
@@ -458,6 +467,7 @@ export class TalkFlow {
         const merc = campaign.battle?.roster.byProfile(profile);
         return merc && !merc.soldier.placed ? merc.soldier : null;
       },
+      dialogueCallback: (name) => campaign.endgame.dialogueCallback(name),
     };
     return host;
   }
@@ -480,7 +490,7 @@ export class TalkFlow {
   }
 
   frozen(): boolean {
-    return this.talk.inPanel && dialogueIdle(this.talk);
+    return this.talk.inPanel && dialogueIdle(this.talk) && !this.#campaign.state.meanwhile.inScene;
   }
 
   isIdle(): boolean {

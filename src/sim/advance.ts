@@ -20,7 +20,9 @@ export interface StopCondition {
   readonly mode?: number;
 }
 
-export type StopReason = 'idle' | 'decision' | 'event' | 'ticks' | 'budget' | 'worldTime' | 'refused';
+export type StopReason = 'idle' | 'decision' | 'event' | 'ticks' | 'budget' | 'worldTime' | 'refused' | 'ended';
+
+const ALWAYS_STOP_EVENTS: readonly SimEventType[] = ['meanwhileEnded', 'endgameDeferred'];
 
 export interface WorldTimeReading {
   readonly day: number;
@@ -53,6 +55,7 @@ export interface Steppable {
   hasPendingDecision(): boolean;
   step(): void;
   drainEvents(): SimEvent[];
+  ended?(): boolean;
 }
 
 export function worldTimeReading(seconds: number): WorldTimeReading {
@@ -90,7 +93,7 @@ export function advance(sim: Steppable, until: StopCondition, budget = DEFAULT_A
   const tickBudget = strategic ? Math.max(budget, STRATEGIC_ADVANCE_BUDGET_TICKS) : budget;
   const limit = Math.min(until.ticks ?? tickBudget, tickBudget);
   const collected: SimEvent[] = [];
-  const watched = new Set<SimEventType>(until.events ?? []);
+  const watched = new Set<SimEventType>([...(until.events ?? []), ...ALWAYS_STOP_EVENTS]);
   if (strategic && until.compressionStopped !== false) watched.add('compressionStopped');
   const report = (reason: StopReason, refusal?: string): StopReport => ({
     tick: sim.tick,
@@ -104,6 +107,7 @@ export function advance(sim: Steppable, until: StopCondition, budget = DEFAULT_A
     collected.push(...sim.drainEvents());
     return refused;
   };
+  if (sim.ended?.()) return report('ended');
   const modal = clock?.modalRefusal?.() ?? null;
   if (modal) return report('refused', modal);
   if (strategic && !clock.onMap() && target === null && !sim.hasPendingDecision())
@@ -131,6 +135,7 @@ export function advance(sim: Steppable, until: StopCondition, budget = DEFAULT_A
     sim.step();
     const events = sim.drainEvents();
     collected.push(...events);
+    if (sim.ended?.()) return report('ended');
     if (sim.hasPendingDecision()) return report('decision');
     if (events.some((e) => watched.has(e.type))) return report('event');
   }

@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_AI.h ARMY_COMPOSITION, PATROL_GROUP, GARRISON_GROUP; Strategic_AI.cc globals;
-// @src Strategic_Status.h STRATEGIC_STATUS; Meanwhile.cc uiMeanWhileFlags. See docs/17 §1.
+// @src Strategic_Status.h STRATEGIC_STATUS; Meanwhile.cc uiMeanWhileFlags, ubCurrentMeanWhileId, gMeanwhileDef,
+// @src gCurrentMeanwhileDef, gfMeanwhileTryingToStart, gfInMeanwhile, gNPCSaveData. See docs/17 §1, docs/26 §0.
 
 import type { ArmyCompositionTemplate, PatrolTemplate } from '../../../content/strategic/army.ts';
 
@@ -74,9 +75,57 @@ export interface StrategicStatus {
   weaponsDropped: Set<number> | null;
 }
 
+export interface MeanwhileSector {
+  readonly x: number;
+  readonly y: number;
+}
+
+export interface MeanwhileDefinition {
+  readonly sector: MeanwhileSector;
+  readonly trigger: number;
+  readonly id: number;
+  readonly npc: number;
+}
+
+export interface MeanwhileNpcSave {
+  readonly profile: number;
+  readonly sector: { readonly x: number; readonly y: number; readonly z: number };
+  readonly gridNo: number;
+}
+
+export interface MeanwhileContext {
+  readonly wholeTownsExceptOmerta: number;
+  readonly samSitesControlled: number;
+  readonly lastBattleWon: boolean;
+  readonly functionalSamInLastBattleSector: boolean;
+  readonly firstBattleTown: 'drassen' | 'cambria' | 'other';
+  readonly sciFi: boolean;
+  readonly elliotBefore: number;
+  readonly elliotAfter: number;
+}
+
+export interface MeanwhileLogEntry {
+  readonly seq: number;
+  readonly id: number;
+  readonly at: number;
+  readonly context: MeanwhileContext | null;
+}
+
 export interface MeanwhileState {
   flags: number;
   currentId: number;
+  readonly defs: (MeanwhileDefinition | null)[];
+  current: MeanwhileDefinition;
+  trying: boolean;
+  inScene: boolean;
+  readonly npcSaves: MeanwhileNpcSave[];
+  readonly log: MeanwhileLogEntry[];
+}
+
+export const NUM_MEANWHILES = 17;
+
+export function emptyMeanwhileDefinition(): MeanwhileDefinition {
+  return { sector: { x: 0, y: 0 }, trigger: 0, id: 0, npc: 0 };
 }
 
 export function createQueenState(): QueenState {
@@ -123,7 +172,16 @@ export function createStrategicStatus(): StrategicStatus {
 }
 
 export function createMeanwhileState(): MeanwhileState {
-  return { flags: 0, currentId: 0 };
+  return {
+    flags: 0,
+    currentId: 0,
+    defs: new Array<MeanwhileDefinition | null>(NUM_MEANWHILES).fill(null),
+    current: emptyMeanwhileDefinition(),
+    trying: false,
+    inScene: false,
+    npcSaves: [],
+    log: [],
+  };
 }
 
 export function compositionFromTemplate(t: ArmyCompositionTemplate): ArmyComposition {

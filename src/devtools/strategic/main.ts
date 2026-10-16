@@ -12,7 +12,7 @@ import type {
 import { fetchFile } from '../asset-browser/api.ts';
 import { type CommandReply, SessionClient } from '../net/session-client.ts';
 import { LaptopPanel } from './laptop-panel.ts';
-import { HelicopterPanel, QuestPanel } from './narrative-panels.ts';
+import { HelicopterPanel, QuestPanel, StoryPanel } from './narrative-panels.ts';
 
 interface StrategicHook {
   ready: boolean;
@@ -112,6 +112,7 @@ function showResult(text: string, error = false): void {
 }
 
 const questPanel = new QuestPanel();
+const storyPanel = new StoryPanel();
 const helicopterPanel = new HelicopterPanel(
   (cmd) => send(cmd),
   showResult,
@@ -323,11 +324,14 @@ function render(view: StrategicView): void {
   renderGroups(view);
   renderSectorPanel(view);
   questPanel.update(view);
+  storyPanel.update(view);
   helicopterPanel.update(view);
   updateActions();
   debug.worldSector = view.worldSector;
+  const story = view.campaign === 'playing' ? '' : ` · campaign ${view.campaign}`;
+  const stranded = view.noUsableMercs ? ' · no usable mercs' : '';
   setStatus(
-    `${view.flow} · balance $${view.balance.toLocaleString('en-US')} · ${view.worldSector ? `loaded ${view.worldSector}` : 'no sector loaded'}`,
+    `${view.flow}${story}${stranded} · balance $${view.balance.toLocaleString('en-US')} · ${view.worldSector ? `loaded ${view.worldSector}` : 'no sector loaded'}`,
   );
 }
 

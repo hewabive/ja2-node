@@ -33,6 +33,7 @@ export interface DialogueHandlers {
   mikeCheck(): void;
   autoBandage(): boolean;
   removeEpc(npc: number): void;
+  callback(name: string): void;
 }
 
 export function addDialogueEvent(host: Pick<NarrativeHost, 'talk'>, e: DialogueEvent): void {
@@ -187,6 +188,9 @@ function execute(host: NarrativeHost, h: DialogueHandlers, e: DialogueEvent): bo
       return executePcTrigger(host, e);
     case 'removeEpc':
       h.removeEpc(e.npc);
+      return false;
+    case 'callback':
+      h.callback(e.name);
       return false;
   }
 }

@@ -152,7 +152,10 @@ export interface ProgressMilestones {
 }
 
 export function hourlyProgressUpdate(q: QueenContext): ProgressMilestones {
-  const current = queenProgress(q);
+  return progressMilestones(q, queenProgress(q));
+}
+
+export function progressMilestones(q: QueenContext, current: number): ProgressMilestones {
   const status = q.state.status;
   const reached = (threshold: number) => current >= threshold && status.highestProgress < threshold;
   if (current <= status.highestProgress) return { madlab: false, mike: false, iggy: false };

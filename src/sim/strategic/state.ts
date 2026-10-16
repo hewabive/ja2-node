@@ -1,5 +1,6 @@
 import { PreRandom, Rng } from '../../core/rng.ts';
 import { type ContractState, createContractState } from '../campaign/contracts/contract-state.ts';
+import { createEndingState, type EndingState } from '../campaign/ending-state.ts';
 import { createFinanceState, type FinanceState } from '../campaign/finances.ts';
 import { createLaptopState, type LaptopState } from '../campaign/laptop/laptop-state.ts';
 import type { SectorDiff } from '../campaign/sector-diff.ts';
@@ -57,6 +58,7 @@ export interface StrategicState {
   readonly queen: QueenState;
   readonly status: StrategicStatus;
   readonly meanwhile: MeanwhileState;
+  readonly ending: EndingState;
   readonly economy: EconomyState;
   readonly finances: FinanceState;
   readonly sectorDiffs: Map<string, SectorDiff>;
@@ -123,6 +125,7 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     queen: createQueenState(),
     status: createStrategicStatus(),
     meanwhile: createMeanwhileState(),
+    ending: createEndingState(),
     economy: createEconomyState(),
     finances: createFinanceState(),
     sectorDiffs: new Map(),

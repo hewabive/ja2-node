@@ -43,7 +43,8 @@ export type DialogueEvent =
   | { readonly kind: 'goto'; readonly npc: number; readonly gridNo: number; readonly record: number }
   | { readonly kind: 'doAction'; readonly npc: number; readonly code: number; readonly record: number }
   | { readonly kind: 'pcTriggerNpc'; readonly speaker: number; readonly quote: number; readonly npc: number; readonly record: number }
-  | { readonly kind: 'removeEpc'; readonly npc: number };
+  | { readonly kind: 'removeEpc'; readonly npc: number }
+  | { readonly kind: 'callback'; readonly name: string };
 
 export interface TalkingFace {
   readonly speaker: number;

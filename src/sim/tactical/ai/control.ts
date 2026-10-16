@@ -65,6 +65,7 @@ import {
 } from './decide.ts';
 import { decideActionNamedNPC } from './decide-named-npc.ts';
 import { legalNPCDestination, PathMode } from './destinations.ts';
+import { traverseDown } from './queen-escape.ts';
 import { endAIGuysTurn, isActionAffordable, turnBasedHandleNPCAI } from './turn-based.ts';
 import { recalculatePathCost } from './utils.ts';
 
@@ -407,6 +408,9 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
       ai.actionData = AnimHeight.STAND;
       setSoldierCowerState(t, s, false);
       return true;
+    case AiAction.TRAVERSE_DOWN:
+      traverseDown(t, s);
+      return false;
     case AiAction.THROW_KNIFE:
       cancelAIAction(t, s);
       t.hooks.endAiGuysTurn(t, s);

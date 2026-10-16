@@ -40,7 +40,7 @@ only meanwhile scenes and the ending use (§1.7, §6.5): `25`'s catalog lists th
 | State | Original | Saved there | ja2-node |
 |---|---|---|---|
 | `meanwhile.flags` | `uiMeanWhileFlags` u32, one bit per scene, set at scheduling (`Meanwhile.cc:94-153`) | yes (section 24, `SaveLoadGame.cc:1937`; u16 before version 71, `:2094-2096`) | exists: `StrategicState.meanwhile.flags` (`src/sim/strategic/ai/queen-state.ts:77-80`) |
-| `meanwhile.lastScheduledId` | `ubCurrentMeanWhileId` static u8, the id of the **last scheduled** scene (`:91, 179`) | **no** (static; 0 after a load) | exists as `currentId`; only the camera reads it (§1.6) |
+| `meanwhile.lastScheduledId` | `ubCurrentMeanWhileId` static u8, the id of the **last scheduled** scene (`:91, 179`) | **no** (static; 0 in a fresh process, not reset by a load: the oracle sees it survive `LoadSavedGame`) | exists as `currentId`; only the camera reads it (§1.6) |
 | `meanwhile.defs[17]` | `gMeanwhileDef[]` = {sector, trigger record, id, npc} per id, written at scheduling (`:79, 182-186`) | yes (section 40, 17 × 8 bytes, `:2130-2160`) | add; constant per id in practice (§11.5) |
 | `meanwhile.current` | `gCurrentMeanwhileDef`, copied at `BeginMeanwhile` (`:78, 209`) | yes (section 24, `:1886`) | add |
 | `meanwhile.trying` | `gfMeanwhileTryingToStart` (`:80, 211, 257`) | yes (24, `:1888`) | add: the window between the event and the gates (§2.1) |
@@ -698,9 +698,9 @@ whoever's turn it is, as the original's wall-clock timer does. Fades, the intro 
 
 | Case | Original | ja2-node (proposed) |
 |---|---|---|
-| DEREK absent after the reload | UI locked forever | run `ENDGAME_STATE_1` directly (deviation "Endgame without Derek"; open question 2) |
-| Creature queen dies without a killer while Deidranna is dead | never won | keep (quirk) unless decided otherwise (open question 2) |
-| Deidranna dies on the surface | surface state saved as P3 b1 | keep: save the diff under P3 b1, reload P3 from its own diff (open question 2) |
+| DEREK absent after the reload | UI locked forever | run `ENDGAME_STATE_1` directly (deviation "Endgame without Derek"; decision 2) |
+| Creature queen dies without a killer while Deidranna is dead | never won | counted as killed by the player (deviation, decision 2) |
+| Deidranna dies on the surface | surface state saved as P3 b1 | kept: the forced `z = 1` (decision 2) |
 | Meanwhile scenes after her death | scene with a dead Queen, ESC ends it; AI woken | implications run (AI woken), no scene (§5.4) |
 
 ---
@@ -970,7 +970,15 @@ fallback until `24`'s records run; the `ended` flow and stop reason. (d) POW pie
   interrogation record set loads; the six native saves import the §11.5 fields (flags, first-battle sector, Elliot's
   counter) and none is in a scene or the endgame.
 
-### 12.4 Oracle probes (patch `0010-narrative-oracle.patch` + `Oracle.cc` commands; outputs stay outside the repo)
+### 12.4 Oracle probes (patch `0019-meanwhile-oracle.patch` + `Oracle.cc` commands; outputs stay outside the repo)
+
+*Implemented (2026-10-16): `meanwhiles`, `meanwhilepost` (with `kind=interrogation`), `firstbattle`, `trashworld`,
+`meanwhilerun`, `meanwhileplayed`, `hourlyprogress`, `capture who= [alma=]`, `queendead`, `statue`; comparer
+`tools/oracle/meanwhile-compare.ts`, probes `probes/meanwhile.txt`, README "Meanwhile". The patch only wraps the statics of
+`Meanwhile.cc`; `CurrentPlayerProgressPercentage` is overridden through the `OnCalcPlayerProgress` observable, no patch
+needed. `liecheck` is covered by the existing `npcbox … code=221 answer=lie` of the actions probes; `endgamestate`,
+`samesecond` and the played scenes, the interrogation and the endgame sequence are not probed (stub scenarios and unit
+tests). The plan as written:*
 
 The patch exposes the statics (`ubCurrentMeanWhileId`, `GetMeanWhileFlag`, `ProcessImplicationsOfMeanwhile`,
 `BeginMeanwhileCallBack`, `SetNPCMeanwhile`/`RestoreNPCMeanwhile`, the lie branch of `DialogueMessageBoxCallBack`, the
@@ -991,7 +999,7 @@ The patch exposes the statics (`ubCurrentMeanWhileId`, `GetMeanWhileFlag`, `Proc
 | `samesecond` | posts a `MEANWHILE` at the next enemy group's arrival second, then `saiarrive count=1` | the group's new arrival time (+60 s) |
 | `statue mode=remote\|explosion dist=<n>` | bare `sector O3` load, then `ChangeO3SectorStatue` or `HandleStatueDamaged` | exit grid at 13669, struct at 13830, skip flag |
 
-`narrative-compare.ts` replays the traces through ja2-node with an asserting roll source and compares the dumps field by
+`meanwhile-compare.ts` replays the traces through ja2-node with an asserting roll source and compares the dumps field by
 field. Played scenes, the interrogation in tactical and the endgame sequence need the rendering loop and are not probed;
 they are checked against a native playthrough only if the user records saves before and after them.
 
@@ -1068,3 +1076,39 @@ never carry a running scene or endgame.
 6. Tactical `advance` does not stop on `meanwhile` by default; the map stops through compression.
 7. `StrategicState.meanwhile` and the capture quests move into `25`'s narrative state when `25` is implemented.
 8. M7 starts with a text card per scene; sandbox playback is optional later.
+
+---
+
+## 14. Implementation notes (2026-10-16)
+
+Implemented in one slice: §1–§7 and §9–§12 except the M7 playback (§2.4, only the log and its context exist) and the
+surrender prompt (§3.2, owned by the civilian-quote work of `24`). Modules: `src/sim/strategic/ai/meanwhile.ts`,
+`src/sim/campaign/meanwhile-flow.ts`, `endgame-flow.ts`, `ending-state.ts`, `pow.ts`, `story-import.ts`,
+`story-refusals.ts`, `narrative/meanwhile-actions.ts`, `narrative/story-events.ts`,
+`src/sim/tactical/narrative/meanwhile-rules.ts`, `statue.ts`, `pow-rules.ts`, `src/sim/tactical/ai/queen-escape.ts`,
+`src/content/narrative/scenes.ts`; the milestones of §4.1 stay in `src/sim/strategic/narrative/hourly.ts` (no
+`progress-events.ts`). Corrections found while implementing:
+
+- **API**: the scene log is `observe.strategic.meanwhiles` (beside `strategic.quests`; there is no `narrative` block). The lie
+  question is the generic `npcRequest` prompt of `24` with `request: 'lie'`, not a separate `lieToQueen` kind. One command
+  is added after all: `useRemote {soldier}`, because nothing else exposes the remote trigger's use (§5.3). There is no
+  `save` command, so the save rules of §9.1 apply only to native imports (a save in a scene or the endgame is refused).
+  Details in `docs/04` §6.18.
+- **Record sets**: `ReloadQuoteFile` picks a scene's record set through `AreInMeanwhile()`, so `inScene` is set before the
+  NPC moves (in `resolveMeduna` too, where it is cleared again before the restore, whose reload brings back the normal
+  records).
+- **Skip**: `CheckForMeanwhileOKStart` clears `trying` before the box, and `BeginMeanwhileCallBack(No)` runs
+  `ProcessImplicationsOfMeanwhile`, unlocks and unpauses; the oracle's `meanwhilerun` uses that path. `EndMeanwhile` also
+  calls `ProcessImplicationsOfMeanwhile` for `INTERROGATION` (no case there, so nothing happens).
+- **Witnesses**: `QuoteExp_WitnessDeidrannaDeath`/`QueenBugDeath` have 73 entries; profiles beyond them are never witnesses
+  (only the killer speaks).
+- **Interrogation panel**: the Queen's panel stays open while the scene runs, and the freeze that an idle conversation puts
+  on tactical ticks (`24`) does not apply while `inScene`, as the original's scene keeps animating.
+- **Interrogation load**: the sector flow loads N7 with only its item diff and without `SF_ALREADY_VISITED`; N7 is
+  prefetched while the scene may come (scheduled and not played, or quest `INTERROGATION` not started during a battle), P3
+  and P3 b1 while the squad is in P3, O3 b1 while it is in O3.
+- **No usable mercs**: the original's `AllowedToTimeCompress` refuses compression with no usable merc; the campaign now does
+  the same (`no usable mercs are left on the team`), which `noUsableMercs` explains.
+- **Stubs**: QUEEN, JOE, ELLIOT, DEREK, OLIVER with invented names, stub maps for N7, P3 and P3 b1, the stub record files
+  for the endgame (136, 137) and a stub interrogation set (`stubs/npc/records.json`, `meanwhiles`).
+

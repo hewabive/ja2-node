@@ -20,8 +20,7 @@ import {
 import { Rng } from '../../core/rng.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
-import { Meanwhile } from '../strategic/ai/constants.ts';
-import { meanwhileScheduled, scheduleMeanwhileEvent } from '../strategic/ai/meanwhile.ts';
+import { handleKillChopperMeanwhileScene } from '../strategic/ai/meanwhile.ts';
 import { AC, areAssignmentConditionsMet, canCharacterSquad, JoinSquad } from '../strategic/economy/conditions.ts';
 import { Assignment, OKLIFE } from '../strategic/economy/constants.ts';
 import type { CrewMember, EconomyContext } from '../strategic/economy/ports.ts';
@@ -62,13 +61,10 @@ import {
 import { calculateTravelTimeOfGroup } from '../strategic/map/travel.ts';
 import { Fact } from '../strategic/narrative/fact-ids.ts';
 import { EventKind } from '../strategic/time/constants.ts';
-import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Team } from '../tactical/soldier.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 
-const KILL_CHOPPER_DELAY = 55;
-const KILL_CHOPPER_VARIANCE = 10;
 const BLOODLOSS_DAMAGE = 100;
 const FX_SEED = 0x48454c49;
 
@@ -211,12 +207,7 @@ export class HelicopterFlow {
 
   #scheduleKillChopperMeanwhile(): void {
     const q = this.campaign.queen;
-    if (!q || meanwhileScheduled(q, Meanwhile.KILL_CHOPPER)) return;
-    scheduleMeanwhileEvent(
-      q,
-      Meanwhile.KILL_CHOPPER,
-      worldTotalMinutes(q.state.clock) + KILL_CHOPPER_DELAY + q.random.int(KILL_CHOPPER_VARIANCE),
-    );
+    if (q) handleKillChopperMeanwhileScene(q);
   }
 
   #skyriderOnGround(sector: Sector | null): void {

@@ -3,7 +3,13 @@ import { dirname, join } from 'node:path';
 import { CIV_QUOTE_TEXT_SIZE, encodeEdtFile } from '../src/content/formats/edt.ts';
 import { encodeNpcRecords } from '../src/content/formats/npc.ts';
 import { loadItemTable } from '../src/content/items/items.ts';
-import { NPC_RECORD_PATHS, npcRecordPath, parseProfileInfo, scriptRecordsFromJson } from '../src/content/narrative/npc-records.ts';
+import {
+  NPC_RECORD_PATHS,
+  NPCDATA_DIR,
+  npcRecordPath,
+  parseProfileInfo,
+  scriptRecordsFromJson,
+} from '../src/content/narrative/npc-records.ts';
 import { asArray, asInt, asObject, asString } from '../src/content/strategic/json-fields.ts';
 import { parseJsonc } from '../src/content/strategic/jsonc.ts';
 import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
@@ -37,6 +43,12 @@ export async function buildStubNpcData(out: string): Promise<string[]> {
     written.push(await write(out, npcRecordPath(profile), encodeNpcRecords(scriptRecordsFromJson(env, o, `stub npc ${profile}`))));
   }
   written.push(await write(out, RECRUITED_FILE, encodeNpcRecords(scriptRecordsFromJson(env, records.recruited, 'stub recruited'))));
+  const meanwhiles = records.meanwhiles === undefined ? [] : asArray(records.meanwhiles, 'stub npc records.meanwhiles');
+  for (const [i, entry] of meanwhiles.entries()) {
+    const o = asObject(entry, `stub npc records.meanwhiles[${i}]`);
+    const file = asString(o.file, `stub npc records.meanwhiles[${i}].file`);
+    written.push(await write(out, `${NPCDATA_DIR}/${file}`, encodeNpcRecords(scriptRecordsFromJson(env, o, `stub meanwhile ${file}`))));
+  }
   const text = asObject(await json(join(import.meta.dirname, TEXT_FILE)), 'stub npc text');
   for (const [path, rows] of Object.entries(asObject(text.files, 'stub npc text.files'))) {
     const lines = asArray(rows, `stub npc text ${path}`).map((l, k) => asString(l, `stub npc text ${path}[${k}]`));

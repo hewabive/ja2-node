@@ -8,7 +8,9 @@
 // @src Tactical/Soldier_Profile.cc ChangeSoldierTeam (side changes of Overhead.cc); Civ_Quotes.cc StartCivQuote, BeginCivQuote;
 // @src TacticalAI/NPC.cc PCsNearNPC, PCDoesFirstAidOnNPC, NPCConsiderInitiatingConv, TriggerFriendWithHostileQuote,
 // @src NPCHasUnusedRecordWithGivenApproach; OppList.cc ManSeesMan (first-sighting records, MIKE and JOEY quotes).
-// @src See docs/25 §1, §2.1, §3, §6, §9.4, §11.5, docs/24 §4, §5.4, §8.
+// @src Strategic/Meanwhile.cc AreInMeanwhile, GetMeanwhileID; Tactical/Overhead.cc HandleNPCTeamMemberDeath
+// @src (BeginHandleDeidrannaDeath, BeginHandleQueenBitchDeath), DoPOWPathChecks.
+// @src See docs/25 §1, §2.1, §3, §6, §9.4, §11.5, docs/24 §4, §5.4, §8, docs/26 §1.6, §3.4, §6.1.
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -30,6 +32,12 @@ export interface NarrativePort {
   hasUnusedRecordWithApproach(profile: number, approach: number): boolean;
   sayHostileQuote(s: Soldier): void;
   inMeanwhile(): boolean;
+  meanwhileId(): number;
+  deidrannaDied(killer: Soldier | null, gridNo: number, level: number): void;
+  creatureQueenDied(killer: Soldier | null, gridNo: number, level: number): void;
+  powPathChecks(): void;
+  queenCanFlee(): boolean;
+  palaceBasementSecured(): boolean;
   isEpc(s: Soldier): boolean;
   civGroupWillBecomeHostile(group: number): void;
   rebelsBetrayed(): void;
@@ -78,6 +86,12 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   hasUnusedRecordWithApproach: () => false,
   sayHostileQuote: () => {},
   inMeanwhile: () => false,
+  meanwhileId: () => 0,
+  deidrannaDied: () => {},
+  creatureQueenDied: () => {},
+  powPathChecks: () => {},
+  queenCanFlee: () => true,
+  palaceBasementSecured: () => false,
   isEpc: () => false,
   civGroupWillBecomeHostile: () => {},
   rebelsBetrayed: () => {},

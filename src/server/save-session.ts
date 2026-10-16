@@ -18,6 +18,7 @@ import { importContracts } from '../sim/campaign/contracts/save-import.ts';
 import { importLaptop } from '../sim/campaign/laptop/save-import.ts';
 import { NO_ROSTER_HOOKS, Roster } from '../sim/campaign/roster.ts';
 import { addSavedMercsToRoster } from '../sim/campaign/save-roster.ts';
+import { importStory, type SavedStory, storyImportRefusal } from '../sim/campaign/story-import.ts';
 import { importNpcRecords } from '../sim/narrative/save-import.ts';
 import { importStrategicAi } from '../sim/strategic/ai/save-import.ts';
 import { importMerchants } from '../sim/strategic/economy/merchants/save-import.ts';
@@ -68,6 +69,20 @@ function savedSoldierLinks(save: SaveGame): PreservedSoldierLink[] {
     .flatMap((f) => decodePreservedSoldierLinks(f.bytes).filter((link) => linkedSoldier(f.kind, link)));
 }
 
+function savedStory(save: SaveGame, firstBattleSector: number): SavedStory {
+  const m = save.generalInfo.meanwhile;
+  return {
+    current: m.current,
+    trying: m.trying,
+    inScene: m.inScene,
+    definitions: save.meanwhileDefinitions,
+    firstBattleSector,
+    lastBattleSector: save.tactical.lastBattleSector,
+    lastBattleWon: save.tactical.lastBattleWon,
+    tacticalFlags: save.tactical.flags,
+  };
+}
+
 export async function createSaveSession(
   read: ReadFile,
   saveBytes: Uint8Array,
@@ -79,6 +94,10 @@ export async function createSaveSession(
   if (!table) throw new Error(`missing ${SAVE_ENCRYPTION_PATH}`);
   const encryption = parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode(table)));
   const save = parseSaveGame(saveBytes, encryption);
+  const saiSections = readStrategicAiSections(saveBytes, save);
+  const story = savedStory(save, saiSections.firstBattleSector);
+  const storyRefusal = storyImportRefusal(story);
+  if (storyRefusal) throw new Error(`cannot continue this save: ${storyRefusal}`);
   const [world, content, strategicContent, army] = await Promise.all([
     loadTacticalWorld(read, saveMapPath(save)),
     loadTacticalContent(read),
@@ -129,8 +148,8 @@ export async function createSaveSession(
   current = campaign;
   importMerchants(strategic.merchants, readSavedMerchants(saveBytes, save.sections));
   if (campaign.strategic) importStrategicMap(campaign.strategic, save);
-  const saiSections = readStrategicAiSections(saveBytes, save);
   if (campaign.queen) importStrategicAi(campaign.queen, saiSections, { runLoadHooks: true });
+  importStory(strategic, story);
   campaign.creatures?.importDirectives(save.creatureDirectives, saiSections.creatureMeanwhileScenePlayed);
   importEconomy(strategic, readSavedEconomy(saveBytes, save.sections), save.laptop.currentBalance);
   importContracts(strategic, save, saveBytes);

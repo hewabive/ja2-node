@@ -9,8 +9,19 @@ import { PROFILE_Z_SIZE, type StructureInstance } from '../../content/world/stru
 import type { TileElement } from '../../content/world/tile-database.ts';
 import type { TacticalState } from './state.ts';
 
-export const MapChangeKind = { REMOVE: 'removeStructure', ADD: 'addStructure', DAMAGE: 'damageStructure' } as const;
+export const MapChangeKind = {
+  REMOVE: 'removeStructure',
+  ADD: 'addStructure',
+  DAMAGE: 'damageStructure',
+  ADD_EXIT_GRID: 'addExitGrid',
+} as const;
 export type MapChangeKind = (typeof MapChangeKind)[keyof typeof MapChangeKind];
+
+export interface AddedExitGrid {
+  readonly mapIndex: number;
+  readonly gridNo: number;
+  readonly sector: { readonly x: number; readonly y: number; readonly z: number };
+}
 
 export interface MapChange {
   readonly kind: MapChangeKind;
@@ -19,6 +30,7 @@ export interface MapChange {
   readonly fileKey: number;
   readonly number: number;
   readonly hitPoints: number;
+  readonly exitGrid?: AddedExitGrid;
 }
 
 const NO_FILE = -1;
@@ -81,7 +93,30 @@ function findRecordedBase(t: TacticalState, c: MapChange): StructureInstance | n
   return null;
 }
 
+export function addExitGridToWorld(t: TacticalState, exit: AddedExitGrid): void {
+  t.world.exitGrids.add(exit.mapIndex);
+  const at = t.addedExitGrids.findIndex((e) => e.mapIndex === exit.mapIndex);
+  if (at >= 0) t.addedExitGrids.splice(at, 1);
+  t.addedExitGrids.push(exit);
+}
+
+export function recordExitGridAdded(t: TacticalState, exit: AddedExitGrid): void {
+  t.mapChanges.push({
+    kind: MapChangeKind.ADD_EXIT_GRID,
+    gridNo: exit.mapIndex,
+    level: 0,
+    fileKey: NO_FILE,
+    number: 0,
+    hitPoints: 0,
+    exitGrid: exit,
+  });
+}
+
 function applyMapChange(t: TacticalState, c: MapChange): void {
+  if (c.kind === MapChangeKind.ADD_EXIT_GRID) {
+    if (c.exitGrid) addExitGridToWorld(t, c.exitGrid);
+    return;
+  }
   if (c.kind === MapChangeKind.ADD) {
     const file = fileForKey(t, c.fileKey);
     const def = file?.structures[c.number];

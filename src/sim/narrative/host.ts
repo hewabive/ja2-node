@@ -83,4 +83,5 @@ export interface NarrativeHost extends RecordsEnv {
   teleport(s: Soldier, gridNo: number): void;
   releaseEscort?(npc: number): void;
   offSectorPlayerSoldier?(profile: number): Soldier | null;
+  dialogueCallback?(name: string): void;
 }

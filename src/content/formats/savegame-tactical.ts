@@ -22,7 +22,6 @@ const TEAM_TURNS_PADDING = 17;
 const GAME_OPTIONS_PADDING = 7;
 const NUM_BOXERS = 3;
 const NUMBER_OF_REFUEL_SITES = 2;
-const MEANWHILE_DEFINITION_BYTES = 8;
 const NUMBER_OF_SQUADS = 20;
 const NUMBER_OF_DEAD_SOLDIERS_ON_SQUAD = 6;
 const SAVED_SAM_SITES = 4;
@@ -202,7 +201,11 @@ const GENERAL_INFO_HEAD: Layout = [
   field('fShowCambriaHospitalHighLight', 'bool'),
   field('fSkyRiderSetUp', 'bool'),
   field('fRefuelingSiteAvailable', 'bool', NUMBER_OF_REFUEL_SITES),
-  skip(MEANWHILE_DEFINITION_BYTES, 'gCurrentMeanwhileDef'),
+  field('meanwhile_sector_x', 'i16'),
+  field('meanwhile_sector_y', 'i16'),
+  field('meanwhile_trigger', 'u16'),
+  field('meanwhile_id', 'u8'),
+  field('meanwhile_npc', 'u8'),
   field('gubPlayerProgressSkyriderLastCommentedOn', 'u8'),
   field('gfMeanwhileTryingToStart', 'bool'),
   field('gfInMeanwhile', 'bool'),
@@ -392,6 +395,20 @@ export interface GeneralInfo {
   readonly deadSquadMembers: readonly (readonly number[])[];
   readonly selectedSector: { readonly x: number; readonly y: number; readonly z: number };
   readonly narrative: SavedNarrativeGeneralInfo;
+  readonly meanwhile: SavedMeanwhileGeneralInfo;
+}
+
+export interface SavedMeanwhileDefinition {
+  readonly sector: { readonly x: number; readonly y: number };
+  readonly trigger: number;
+  readonly id: number;
+  readonly npc: number;
+}
+
+export interface SavedMeanwhileGeneralInfo {
+  readonly current: SavedMeanwhileDefinition;
+  readonly trying: boolean;
+  readonly inScene: boolean;
 }
 
 export interface SavedHelicopter {
@@ -589,6 +606,16 @@ export function readGeneralInfo(c: SaveCursor): GeneralInfo {
       hospitalRefund: n('giHospitalRefund'),
       playerTeamSawJoey: n('gfPlayerTeamSawJoey') !== 0,
       mikeShouldSayHi: n('gfMikeShouldSayHi'),
+    },
+    meanwhile: {
+      current: {
+        sector: { x: n('meanwhile_sector_x'), y: n('meanwhile_sector_y') },
+        trigger: n('meanwhile_trigger'),
+        id: n('meanwhile_id'),
+        npc: n('meanwhile_npc'),
+      },
+      trying: r.bool('gfMeanwhileTryingToStart'),
+      inScene: r.bool('gfInMeanwhile'),
     },
   };
 }

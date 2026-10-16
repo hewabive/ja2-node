@@ -3,7 +3,7 @@
 // @src src/game/Tactical/Soldier_Ani.cc opcodes 433, 437, 440, 447, 465, 472, 478, 480, 496, 497,
 // @src CheckForAndHandleSoldierIncompacitated, CheckForAndHandleSoldierDyingNotFromHit, HandleSoldierDeath,
 // @src CheckForAndHandleSoldierDeath, HandleCheckForDeathCommonCode; Soldier_Control.cc BeginSoldierGetup;
-// @src Overhead.cc HandleNPCTeamMemberDeath; OppList.cc CheckForAlertWhenEnemyDies;
+// @src Overhead.cc HandleNPCTeamMemberDeath (with BeginHandleQueenBitchDeath); OppList.cc CheckForAlertWhenEnemyDies;
 // @src Rotting_Corpses.cc TurnSoldierIntoCorpse, ReduceAmmoDroppedByNonPlayerSoldiers. See docs/11 §5.
 
 import { corpseFileBase, corpseStructIndex, corpseTypeFor, NO_CORPSE } from '../../../content/anim/corpses.ts';
@@ -27,6 +27,7 @@ import { worldSeconds } from '../explosions/state.ts';
 import { putOutMuzzleFlash } from '../lighting/muzzle-flash.ts';
 import { directionToward } from '../movement.ts';
 import { civilianDeathRules, playerTeamDeathRules } from '../narrative/death-rules.ts';
+import { inMeanwhile, slapCheckWhenIncapacitated } from '../narrative/meanwhile-rules.ts';
 import { atan8Of, SightFlags } from '../perception/opp.ts';
 import { distanceVisible, handleSight, removeManAsTarget, verifyPublicOpplistDueToDeath } from '../perception/sight.ts';
 import { removeMercStructure } from '../person-structure.ts';
@@ -162,8 +163,9 @@ const state = (t: TacticalState, name: string) => anim(t.content, name);
 function checkForAndHandleSoldierIncapacitated(t: TacticalState, s: Soldier): void {
   if (s.life >= OKLIFE) return;
   if (NO_UNCONSCIOUS_BODIES.has(s.bodyType)) s.life = 0;
+  slapCheckWhenIncapacitated(t);
   if (checkSoldierHitRoof(t, s)) return;
-  if (s.life === 0) s.deadSoundPlayed = true;
+  if (s.life === 0 && !inMeanwhile(t)) s.deadSoundPlayed = true;
   const name = animName(t.content, s.state);
   if (name === 'GENERIC_HIT_STAND' || name === 'STANDING_BURST_HIT' || name === 'RIFLE_STAND_HIT' || name === 'CIV_COWER_HIT') {
     let testDirection = s.direction;
@@ -237,6 +239,7 @@ function handleNPCTeamMemberDeath(t: TacticalState, old: Soldier): void {
   }
   if (old.team === Team.CIV) civilianDeathRules(t, old, killer);
   if (old.team !== Team.CIV && old.team !== Team.MILITIA) {
+    if (old.bodyType === Body.QUEENMONSTER) t.narrative.creatureQueenDied(killer, old.gridNo, old.level);
     if (killer?.team === Team.OUR) handleMoraleEvent(t, killer, MoraleEvent.KILLED_ENEMY);
     checkForAlertWhenEnemyDies(t, old);
   }
@@ -371,6 +374,7 @@ export function checkForAndHandleSoldierDeath(t: TacticalState, s: Soldier): boo
 }
 
 export function beginSoldierGetup(t: TacticalState, s: Soldier): void {
+  if (inMeanwhile(t)) return;
   if (s.collapsed) {
     if (s.life >= OKLIFE && s.breath >= OKBREATH && s.sleepDrugCounter === 0) {
       s.collapsed = false;

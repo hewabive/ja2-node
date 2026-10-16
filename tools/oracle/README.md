@@ -14,8 +14,10 @@ I.M.P. hires, Bobby Ray's orders, restocks and deliveries, life insurance), the 
 CheckFact, the 04:00 and hourly NPC handlers, the quest code of sector entry and exit, profile NPC placement), Skyrider's
 helicopter (flights, SAM fire, billing, hovering, landing, boarding and the monologues), the NPC actions (the action
 catalog, the requestor answers, the NPC system events, Kingpin's money and the hospital), the NPC schedules (posting,
-the 24-hour replay, processing and the AI's schedule steps), giving items and money to NPCs with the quest action items, and
-civilian quotes, the enemy surrender offer, the hostile-quote list with its AI pause and the named-NPC AI.
+the 24-hour replay, processing and the AI's schedule steps), giving items and money to NPCs with the quest action items, civilian
+quotes, the enemy surrender offer, the hostile-quote list with its AI pause and the named-NPC AI, and the meanwhile scenes
+with the end of the campaign (posting, the event and its implications, the NPC moves of a played scene, the first-battle
+rules, the progress milestones, captures, the Queen's death on the strategic AI and the O3 statue).
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -77,6 +79,9 @@ commit them.
 | `patches/0022-sighting-quotes-oracle.patch` | Traces of the merc quotes for first seeing Mike and Joey in `ManSeesMan` (see "Hooks") |
 | `civ-compare.ts` | The civilian probes of `compare.ts` (`civset`, `civquote`, `namednpc`, `initiating`, `pcsnear`, `firstaid`, `friendhostile`, `hostilecheck`, `surrender`, `surrenderanswer`) |
 | `probes/civ.txt` | Civilian quotes, the surrender offer, the hostility hooks and the named-NPC AI (see "Civilians") |
+| `patches/0019-meanwhile-oracle.patch` | Wrappers for the static meanwhile helpers: the last scheduled scene, the Skip answer and the NPC moves (see "Hooks") |
+| `meanwhile-compare.ts` | The meanwhile probes of `compare.ts` (`meanwhiles`, `meanwhilepost`, `firstbattle`, `trashworld`, `meanwhilerun`, `meanwhileplayed`, `hourlyprogress`, `capture`, `queendead`, `statue`) |
+| `probes/meanwhile.txt` | Meanwhile scenes, captures, the milestones, the Queen's death and the O3 statue (see "Meanwhile") |
 | `creature-ai-compare.ts` | The tactical creature probes of `compare.ts` (`addsoldier`, `setsoldier`, `seen`, `decide`, `beststab`, `stab`, `creaturecall`, `smell`, `dropsmell`, `trackscent`) |
 | `probes/creature*.txt`, `probes/morale.txt` | Creature and morale probe scripts (see "Creatures", "Creature AI" and "Morale") |
 | `autoresolve-aftermath.ts` | Level 3 of `autoresolve` probes (the battle closed through ja2-node's battle flow on the imported save) and `enemycounts` |
@@ -1255,6 +1260,48 @@ ending quest 18, Slay out of his wheelchair with his week, R.P.C.s with town loy
 two-handed rifle moving the second-hand item away), the robot with its holder, the remote put on through `PlaceObject` and
 the interrupt points, Maria via Angel, Joey's record 9, two marriages and recruited rebels sent back to the civilian team.
 
+### Meanwhile
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data" JA2_ORACLE_DIR=~/ja2-oracle-meanwhile
+tools/oracle/run.sh tools/oracle/probes/meanwhile.txt ~/ja2-oracle-meanwhile/out/meanwhile.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle-meanwhile/out/meanwhile.jsonl
+```
+
+Every command after a `save` prints its arguments, the draws (both streams), a result and the meanwhile state:
+`uiMeanWhileFlags`, the 17 definitions and the current one (sector, trigger, id, NPC), `gfMeanwhileTryingToStart`,
+`gfInMeanwhile`, the last scheduled id, the pending `EVENT_MEANWHILE` events (stamp, param, offset), the first-battle flag and
+sector, the profiles of the Queen, Elliot, Joe, Rat, Madlab, the robot and Iggy (sector, gridno, profile insertion,
+`bNPCData`), the quests 11, 8, 9 and 15, `FACT_MIKE_AVAILABLE_TO_ARMY`, the highest progress, the Queen's AI flag, the
+strategic status flags and capture count, the pause state and the world seconds:
+```
+meanwhiles                                          # dump only
+meanwhilepost kind=town|townloss|sam|outskirts|creature|flowers|chopper|awol|interrogation [param=]
+                                                    # the posting function (param: town, SAM site or flower code)
+firstbattle sector= autoresolve=0|1                 # HandleFirstBattleEndingWhileInTown
+trashworld                                          # HandleFirstMeanWhileSetUpWithTrashWorld
+meanwhilerun enemy=0|1                              # the first EVENT_MEANWHILE executed with fEnemyInSector set;
+                                                    # a scene that begins is skipped (BeginMeanwhileCallBack, No):
+                                                    # the event, the enemy groups and the reinforcement pool
+meanwhileplayed id=                                 # SetNPCMeanwhile for the scene's NPCs, then RestoreNPCMeanwhile
+hourlyprogress current= [highest=]                  # HourlyProgressUpdate with CurrentPlayerProgressPercentage forced
+capture who=<soldier ids> [alma=]                   # BeginCaptureSquence, EnemyCapturesPlayerSoldier each, End...:
+                                                    # the captives and the new history lines
+queendead                                           # STRATEGIC_AI_ACTION_QUEEN_DEAD and the evaluation events left
+```
+After a `sector O3`, `statue mode=remote|explosion [dist=] [gridno=]` runs `ChangeO3SectorStatue(FALSE)` or
+`HandleStatueDamaged` and prints the struct indexes at 13830, the exit grid at 13669 and its revealed flag before and after,
+and the skip flag. `meanwhile-compare.ts` imports the save into a campaign session and replays both streams strictly. The
+first `meanwhiles` after a load copies the pause state and the last scheduled id into the session: native loads keep the
+saved pause (ja2-node save sessions resume unpaused) and the last scheduled id is a static that survives loads. A `begun`
+scene is skipped the native way (the trying flag cleared, the implications, unlock and unpause). The statue probes run on a
+fresh O3 world per `sector` line and compare the statue tiles only. On 2026-10-16 all 62 probes matched on four native runs
+(different seeds) of SaveGame01, 02, 07, 08, 09, 10 and O3: every posting function (each scene once, Elliot counted at
+scheduling, the flower and chopper draws), the event delayed by enemies, the implications of each scene (the hard-only
+first-battle wake, the towns and SAM sites woken, the creature scene, the scientist with Madlab and the robot), the played
+NPC moves, the first-battle rules, the milestones, captures to Alma and to the interrogation, the Queen's death and the statue
+opened by the remote and by explosions at distance 0–2.
+
 ## Shipped probes
 
 | Script | Content |
@@ -1283,6 +1330,7 @@ the interrupt points, Maria via Angel, Joey's record 9, two marriages and recrui
 | `probes/heli.txt` | Skyrider's helicopter on SaveGame01, 02 and 10 (see "Helicopter") |
 | `probes/actions.txt` | NPC actions, requestor answers, NPC system events, Kingpin's money and the hospital on SaveGame01, 10 and 02 (see "NPC actions") |
 | `probes/schedules.txt` | NPC schedules on the six saves (see "Schedules") |
+| `probes/meanwhile.txt` | Meanwhile scenes, captures, milestones and the Queen's death on the six saves, the O3 statue (see "Meanwhile") |
 | `probes/give.txt` | Giving items and money to the NPCs, dealers and mercs of SaveGame02, 01, 07 and 10, the money rules of the absent NPCs, NPC gifts and the quest action items (see "Give") |
 | `probes/recruit.txt` | Recruiting R.P.C.s, escorting and releasing E.P.C.s, the robot and civilian-group team changes on SaveGame01, 02 and 10 (see "Recruiting") |
 | `probes/civ.txt` | Civilian quotes, named-NPC decisions, tile and first-aid triggers, the hostile-quote list and the surrender offer on the six saves (see "Civilians") |
@@ -1454,6 +1502,11 @@ three paths (after 0017 is applied).
 `patches/0022-sighting-quotes-oracle.patch` changes `src/game/Tactical/OppList.cc`: the two merc quotes of `ManSeesMan`
 (`QUOTE_AIM_SEEN_MIKE`, `QUOTE_SPOTTED_JOEY`) go through `OracleTracedMercDialogue` of 0018, so the dialogue traces of
 the comparers include them. Regenerate it like 0002 with that path.
+
+`patches/0019-meanwhile-oracle.patch` (applied after the others) appends to `src/game/Strategic/Meanwhile.cc`:
+`OracleLastScheduledMeanwhileId` (the static `ubCurrentMeanWhileId`), `OracleSkipMeanwhile` (the static
+`BeginMeanwhileCallBack` with `MSG_BOX_RETURN_NO`), `OracleSetNpcMeanwhile` and `OracleRestoreNpcMeanwhile` (the static NPC
+moves of a played scene) and `OracleClearNpcMeanwhileSaves` (empties their save slots). Regenerate it like 0002 with that path.
 
 ## Notes
 

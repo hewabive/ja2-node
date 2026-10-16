@@ -896,6 +896,7 @@ export function dialogueHandlers(host: NarrativeHost): DialogueHandlers {
     mikeCheck: () => host.mercLines.mikeSaysHi(),
     autoBandage: () => false,
     removeEpc: (npc) => host.releaseEscort?.(npc),
+    callback: (name) => host.dialogueCallback?.(name),
   };
 }
 

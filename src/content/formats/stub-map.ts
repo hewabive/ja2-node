@@ -43,6 +43,7 @@ export interface StubSoldier {
   readonly priority: boolean;
   readonly profile: number | null;
   readonly schedule: string | null;
+  readonly civilianGroup: number;
 }
 
 export interface StubScheduleEntry {
@@ -143,23 +144,28 @@ function named(table: Readonly<Record<string, number>>, name: string | undefined
 const OPTIONAL_PLACEMENT = 'optional';
 const PROFILE_FLAG = /^profile=(\d+)$/;
 const SCHEDULE_FLAG = /^schedule=(.)$/;
+const GROUP_FLAG = /^group=(\d+)$/;
 const ENTRY_NAMES: readonly string[] = Object.values(StubEntry);
 
 function parseSoldier(spec: string, line: number): StubSoldier {
   const [team, x, y, direction, orders, attitude, soldierClass, ...flags] = spec.split(/\s+/);
   let profile: number | null = null;
   let schedule: string | null = null;
+  let civilianGroup = 0;
   for (const flag of flags) {
     const m = PROFILE_FLAG.exec(flag);
     const scheduled = SCHEDULE_FLAG.exec(flag);
+    const group = GROUP_FLAG.exec(flag);
     if (m) profile = Number(m[1]);
     else if (scheduled) schedule = scheduled[1] ?? null;
+    else if (group) civilianGroup = Number(group[1]);
     else if (flag !== OPTIONAL_PLACEMENT) throw new FormatError(`line ${line}: unknown soldier flag '${flag}'`);
   }
   return {
     priority: !flags.includes(OPTIONAL_PLACEMENT),
     profile,
     schedule,
+    civilianGroup,
     team: named(TEAMS, team, 'team', line),
     x: Number(x),
     y: Number(y),
@@ -460,7 +466,7 @@ function stubLightSprite(source: StubMapSource, l: StubLight): MapLightSprite {
 function stubPlacement(source: StubMapSource, s: StubSoldier): Placement {
   const g = (source.origin.y + s.y) * WORLD_COLS + source.origin.x + s.x;
   const detailedRaw =
-    s.profile === null && s.schedule === null
+    s.profile === null && s.schedule === null && s.civilianGroup === 0
       ? null
       : writeProfileDetailedPlacement({
           profile: s.profile ?? NO_PROFILE,
@@ -471,6 +477,7 @@ function stubPlacement(source: StubMapSource, s: StubSoldier): Placement {
           orders: s.orders,
           soldierClass: s.soldierClass,
           scheduleId: scheduleIdOf(source, s.schedule),
+          civilianGroup: s.civilianGroup,
         });
   return {
     basic: {
@@ -487,7 +494,7 @@ function stubPlacement(source: StubMapSource, s: StubSoldier): Placement {
       patrolCount: 0,
       onRoof: false,
       soldierClass: s.soldierClass,
-      civilianGroup: 0,
+      civilianGroup: s.civilianGroup,
       priorityExistence: s.priority,
       hasKeys: false,
     },

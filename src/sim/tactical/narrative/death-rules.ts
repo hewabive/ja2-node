@@ -76,6 +76,7 @@ export function civilianDeathRules(t: TacticalState, old: Soldier, killer: Soldi
   else if (profile === Profile.ELDIN) t.narrative.townLoyaltyChange(Town.BALIME, -Loyalty.PENALTY_ELDIN_KILLED);
   else if (profile === Profile.JOEY) joeyDied(t, old);
   else if (PROFILE_DIED_HOOKS.has(profile)) t.narrative.profileDied(profile, killer);
+  if (profile === Profile.QUEEN) t.narrative.deidrannaDied(killer, old.gridNo, old.level);
 }
 
 export function playerTeamDeathRules(t: TacticalState, old: Soldier): void {

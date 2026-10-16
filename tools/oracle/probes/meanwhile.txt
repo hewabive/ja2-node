@@ -1,0 +1,84 @@
+# Meanwhile scenes, captures, the progress milestones, the Queen's death on the strategic AI and the O3 statue (docs/26) on
+# the user's saves: the imported meanwhile state, every posting function with its draws (each scene once, Elliot counted at
+# scheduling), the event with and without enemies in the loaded sector followed by Skip (the implications), the NPC moves
+# of a played scene, the first-battle rules, the 35/50/70 % milestones with an overridden progress, the capture sequence
+# (Alma, then the interrogation), QUEEN_DEAD, and the statue's map change after a bare O3 load.
+
+save SaveGame01
+meanwhiles
+meanwhilepost kind=town param=2
+meanwhilepost kind=town param=1
+meanwhilepost kind=sam param=1
+meanwhilepost kind=sam param=3
+meanwhilepost kind=flowers param=0
+meanwhilepost kind=flowers param=1
+meanwhilepost kind=chopper
+meanwhilepost kind=chopper
+meanwhilepost kind=townloss
+meanwhilepost kind=outskirts
+meanwhilepost kind=creature
+meanwhilepost kind=awol
+meanwhilerun enemy=1
+meanwhilerun enemy=0
+meanwhilerun enemy=0
+meanwhilerun enemy=0
+meanwhilerun enemy=0
+meanwhilerun enemy=0
+meanwhilerun enemy=0
+meanwhilerun enemy=0
+
+save SaveGame02
+meanwhiles
+firstbattle sector=A9 autoresolve=0
+trashworld
+firstbattle sector=B1 autoresolve=0
+meanwhileplayed id=1
+meanwhileplayed id=15
+meanwhileplayed id=11
+hourlyprogress current=20 highest=10
+hourlyprogress current=40 highest=10
+hourlyprogress current=80 highest=40
+hourlyprogress current=30 highest=80
+queendead
+
+save SaveGame07
+meanwhiles
+capture who=0,1
+capture who=2 alma=2
+meanwhilerun enemy=1
+meanwhilerun enemy=1
+meanwhilerun enemy=0
+
+save SaveGame08
+meanwhiles
+capture who=0,1,2 alma=2
+meanwhilepost kind=interrogation
+
+save SaveGame09
+meanwhiles
+meanwhilepost kind=sam param=0
+meanwhilepost kind=sam param=2
+meanwhilepost kind=town param=6
+meanwhilerun enemy=0
+meanwhilerun enemy=0
+meanwhilerun enemy=0
+meanwhileplayed id=0
+
+save SaveGame10
+meanwhiles
+meanwhilepost kind=town param=10
+meanwhilepost kind=town param=12
+meanwhilerun enemy=0
+meanwhilerun enemy=0
+hourlyprogress current=55 highest=0
+
+sector O3
+statue mode=explosion dist=2
+statue mode=explosion dist=1
+statue mode=explosion dist=0 gridno=13829
+
+sector O3
+statue mode=explosion dist=0 gridno=13669
+
+sector O3
+statue mode=remote

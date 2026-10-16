@@ -64,6 +64,7 @@ export class Session {
       },
       isIdle: () => sim.isIdle(),
       hasPendingDecision: () => sim.hasPendingDecision(),
+      ended: () => sim.ended?.() ?? false,
       drainEvents: () => sim.drainEvents(),
       step: () => {
         sim.step();

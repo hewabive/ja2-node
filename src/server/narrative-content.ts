@@ -2,22 +2,25 @@ import type { MercProfile } from '../content/formats/prof.ts';
 import type { ItemTable } from '../content/items/items.ts';
 import { DialogueTexts } from '../content/narrative/dialogue-text.ts';
 import { type LayerCount, loadNpcRecordContent, type NpcRecordContent } from '../content/narrative/npc-records.ts';
+import { loadNarrativeScenes, type NarrativeScenes } from '../content/narrative/scenes.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import type { NarrativeSetup } from '../sim/campaign/talk-flow.ts';
 
 interface LoadedNarrative {
   readonly records: NpcRecordContent;
   readonly texts: DialogueTexts;
+  readonly scenes: NarrativeScenes;
 }
 
 const loaded = new WeakMap<ReadFile, Promise<LoadedNarrative>>();
 
 async function load(read: ReadFile, items: ItemTable, layers: LayerCount | undefined): Promise<LoadedNarrative> {
-  const [records, texts] = await Promise.all([
+  const [records, texts, scenes] = await Promise.all([
     loadNpcRecordContent({ read, items, ...(layers ? { layerCount: layers } : {}) }),
     DialogueTexts.load(read),
+    loadNarrativeScenes(read),
   ]);
-  return { records, texts };
+  return { records, texts, scenes };
 }
 
 export function narrativeContent(read: ReadFile, items: ItemTable, layers?: LayerCount): Promise<LoadedNarrative> {
@@ -34,6 +37,6 @@ export async function narrativeSetup(
   profiles: readonly MercProfile[],
   layers?: LayerCount,
 ): Promise<NarrativeSetup & { readonly texts: DialogueTexts }> {
-  const { records, texts } = await narrativeContent(read, items, layers);
-  return { records, texts, items, profiles };
+  const { records, texts, scenes } = await narrativeContent(read, items, layers);
+  return { records, texts, items, profiles, scenes };
 }

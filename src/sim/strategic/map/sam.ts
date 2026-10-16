@@ -1,9 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/SAM_Sites.cc DoesSAMExistHere, UpdateAndDamageSAMIfFound, UpdateSAMDoneRepair;
+// @src src/game/Strategic/SAM_Sites.cc DoesSAMExistHere, UpdateAndDamageSAMIfFound, UpdateSAMDoneRepair,
+// @src GetNumberOfSAMSitesUnderPlayerControl, IsThereAFunctionalSAMSiteInSector;
 // @src src/externalized/strategic/SamSiteModel.cc doesSamExistHere. See docs/18 §4.
 
-import { type Sector, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
+import { type Sector, sectorFromId, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { MIN_CONDITION_FOR_SAM_SITE_TO_WORK, SAM_CONDITION_AT_START } from '../forces/constants.ts';
 import type { StrategicContext } from '../forces/ports.ts';
 import { samIdOfSector, updateAirspaceControl } from './control.ts';
@@ -29,6 +30,16 @@ export function repairSamSite(ctx: StrategicContext, s: Sector): boolean {
   if (element) element.samCondition = SAM_CONDITION_AT_START;
   updateAirspaceControl(ctx);
   return true;
+}
+
+export function numberOfSamSitesUnderPlayerControl(ctx: StrategicContext): number {
+  let n = 0;
+  for (const sam of ctx.content.samSites) if (!ctx.state.map.elements[strategicIndex(sectorFromId(sam.sector))]?.enemyControlled) n++;
+  return n;
+}
+
+export function isThereAFunctionalSamSiteInSector(ctx: StrategicContext, s: Sector): boolean {
+  return s.z === 0 && samIdOfSector(ctx, s) !== -1 && samSiteWorks(ctx, s);
 }
 
 export function samSiteWorks(ctx: StrategicContext, s: Sector): boolean {

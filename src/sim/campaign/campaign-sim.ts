@@ -2,12 +2,12 @@ import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '
 import { TICK_MS } from '../clock.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
-import { Meanwhile } from '../strategic/ai/constants.ts';
 import type { QueenContext, QueenContextOptions } from '../strategic/ai/context.ts';
 import { hourlyProgressUpdate } from '../strategic/ai/difficulty.ts';
 import { queenEconomyHooks, queenMineIncome } from '../strategic/ai/economy-link.ts';
-import { meanwhilePendingThisSecond, meanwhileScheduled, scheduleMeanwhileEvent } from '../strategic/ai/meanwhile.ts';
+import { areInMeanwhile, handleFlowersMeanwhileScene, handleScientistAwolMeanwhileScene } from '../strategic/ai/meanwhile.ts';
 import { registerStrategicAiEvents, StrategicAi } from '../strategic/ai/strategic-ai.ts';
+import { Assignment } from '../strategic/economy/constants.ts';
 import { createEconomyContext, type EconomySetup, economyWorldPort } from '../strategic/economy/context.ts';
 import { createMerchantContext, type MerchantContext, type MerchantSetup, type ShopHours } from '../strategic/economy/merchants/context.ts';
 import { dailyUpdateOfArmsDealersInventory } from '../strategic/economy/merchants/daily.ts';
@@ -53,14 +53,18 @@ import { dispatchStrategicCommand } from './commands.ts';
 import type { ContractHooks } from './contracts/context.ts';
 import { ContractFlow } from './contracts/contract-flow.ts';
 import { CreatureFlow } from './creature-flow.ts';
+import { EndgameFlow } from './endgame-flow.ts';
 import { HelicopterFlow } from './helicopter-flow.ts';
 import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
 import { LAPTOP_REFUSAL, LaptopFlow, type LaptopSetup } from './laptop/laptop-flow.ts';
+import { MeanwhileFlow } from './meanwhile-flow.ts';
 import { NarrativeFlow } from './narrative/narrative-flow.ts';
 import { registerNarrativeEvents } from './narrative-port.ts';
+import { PowFlow } from './pow.ts';
 import { openMapScreen, openTacticalScreen } from './screens.ts';
 import { dispatchSectorCommand, loadStartSector, SectorFlow, type SectorSetup, sectorWorldPort } from './sector-flow.ts';
 import { ShopFlow } from './shop-flow.ts';
+import { storyRefusal } from './story-refusals.ts';
 import { type NarrativeSetup, TalkFlow } from './talk-flow.ts';
 
 export interface CampaignCommand {
@@ -101,6 +105,9 @@ export class CampaignSim {
   readonly helicopter: HelicopterFlow;
   readonly talk: TalkFlow | null;
   readonly narrative: NarrativeFlow;
+  readonly meanwhile: MeanwhileFlow;
+  readonly endgame: EndgameFlow;
+  readonly pows: PowFlow;
   readonly worldClock: WorldTimeControl;
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
@@ -115,13 +122,21 @@ export class CampaignSim {
     this.#hooks = hooks;
     if (tactical) state.flow = 'tactical';
     this.narrative = new NarrativeFlow(this);
+    this.meanwhile = new MeanwhileFlow(this);
+    this.endgame = new EndgameFlow(this);
+    this.pows = new PowFlow(this);
     this.#clock = this.#clockContext();
     this.helicopter = new HelicopterFlow(this);
     const ai = hooks.queen
       ? new StrategicAi({
           mines: queenMineIncome(() => this.economy),
           ...hooks.queen,
-          hooks: { creatureQuestEnded: () => this.#creatureQuestEnded(), ...hooks.queen.hooks },
+          hooks: {
+            creatureQuestEnded: () => this.#creatureQuestEnded(),
+            profile: (id) => this.narrative.profile(id),
+            startQuest: (quest, sector) => this.narrative.startQuest(quest, sector),
+            ...hooks.queen.hooks,
+          },
         })
       : null;
     this.strategic = hooks.strategic
@@ -134,6 +149,7 @@ export class CampaignSim {
         })
       : null;
     this.queen = ai && this.strategic ? ai.bind(this.strategic) : null;
+    this.narrative.slots = { ...this.narrative.slots, scientistAwolMeanwhile: () => this.#scientistAwol() };
     this.economy = this.strategic && hooks.economy ? createEconomyContext(this.strategic, this.#economySetup(hooks.economy)) : null;
     this.sectors = this.strategic && hooks.sectors ? new SectorFlow(this, hooks.sectors) : null;
     const battleSetup = hooks.battle ?? hooks.sectors;
@@ -266,10 +282,12 @@ export class CampaignSim {
     this.narrative.endQuest(Quest.CREATURES, this.state.worldSector);
   }
 
-  scheduleFlowersMeanwhile(minute: () => number): void {
-    const queen = this.queen;
-    if (!queen || meanwhileScheduled(queen, Meanwhile.FLOWERS)) return;
-    scheduleMeanwhileEvent(queen, Meanwhile.FLOWERS, minute());
+  #scientistAwol(): void {
+    if (this.queen) handleScientistAwolMeanwhileScene(this.queen);
+  }
+
+  scheduleFlowersMeanwhile(code: number): void {
+    if (this.queen) handleFlowersMeanwhileScene(this.queen, code);
   }
 
   #helicopterPorts(ports: Pick<StrategicSetup, 'mercs' | 'world'>): Pick<StrategicSetup, 'mercs' | 'world' | 'helicopter'> {
@@ -279,7 +297,7 @@ export class CampaignSim {
 
   #meanwhilePorts<P extends Pick<StrategicSetup, 'world'>>(ports: P): P {
     const base = ports.world ?? this.#hooks.strategic?.world ?? defaultTacticalWorldPort;
-    return { ...ports, world: { ...base, inMeanwhile: () => (this.queen ? meanwhilePendingThisSecond(this.queen) : base.inMeanwhile()) } };
+    return { ...ports, world: { ...base, inMeanwhile: () => (this.queen ? areInMeanwhile(this.queen) : base.inMeanwhile()) } };
   }
 
   #sectorPorts(ports: Pick<StrategicSetup, 'mercs' | 'world'>): Pick<StrategicSetup, 'mercs' | 'world'> {
@@ -307,9 +325,27 @@ export class CampaignSim {
     };
   }
 
+  noUsableMercs(): boolean {
+    const roster = this.battle?.roster;
+    if (!roster || !this.state.atLeastOneMercHired) return false;
+    return !roster
+      .all()
+      .some(
+        (m) =>
+          m.life > 0 &&
+          !m.isVehicle &&
+          !m.isRobot &&
+          !m.isEpc &&
+          m.assignment !== Assignment.ASSIGNMENT_POW &&
+          m.assignment !== Assignment.ASSIGNMENT_DEAD,
+      );
+  }
+
   #defaultRefusal(): string | null {
     const t = this.tactical?.state;
     if (this.strategic && !this.state.atLeastOneMercHired) return 'no merc has been hired yet';
+    if (this.state.meanwhile.trying) return 'a meanwhile scene is about to start';
+    if (this.noUsableMercs()) return 'no usable mercs are left on the team';
     if (t?.inCombat) return 'combat is in progress';
     if (t?.turn.enemyInSector) return 'enemies are present in the loaded sector';
     if (this.creatures?.playerInInfestedMine()) return 'mercs are in a creature-infested mine';
@@ -431,9 +467,17 @@ export class CampaignSim {
     if (this.laptop) this.#events.push(...this.laptop.drainEvents());
     this.#events.push(...this.helicopter.drainEvents());
     this.#events.push(...this.narrative.drainEvents());
+    this.#events.push(...this.meanwhile.drainEvents());
+    this.#events.push(...this.endgame.drainEvents());
+    this.#events.push(...this.pows.drainEvents());
+  }
+
+  ended(): boolean {
+    return this.endgame.ended();
   }
 
   step(): void {
+    if (this.ended()) return;
     if (this.battle?.hasPendingDecision() || this.shop?.isOpen() || this.laptop?.isOpen() || this.talk?.hasPendingDecision()) return;
     const s = this.state;
     this.#tick++;
@@ -451,6 +495,8 @@ export class CampaignSim {
       this.#updatePausedStatesDueToTimeCompression();
     }
     updateClock(this.#clock, s.realMs);
+    this.meanwhile.afterStep();
+    this.endgame.afterStep();
     if (s.flow === 'strategic') this.helicopter.afterStrategicStep();
     this.#collectEvents();
     this.battle?.afterStep();
@@ -461,6 +507,8 @@ export class CampaignSim {
 
   isIdle(): boolean {
     const s = this.state;
+    if (this.ended()) return true;
+    if (this.endgame.active() || s.meanwhile.trying || s.meanwhile.inScene) return false;
     if (s.flow === 'autoresolve') return this.battle?.autoresolveIdle() ?? true;
     if (s.flow === 'tactical' && this.tactical) return this.tactical.isIdle() && (this.talk?.isIdle() ?? true);
     return !isTimeBeingCompressed(s.clock);
@@ -487,6 +535,8 @@ export class CampaignSim {
   }
 
   #dispatch(cmd: CampaignCommand): CommandResult {
+    const story = storyRefusal(this, cmd);
+    if (story) return story;
     const talk = this.talk?.dispatch(cmd);
     if (talk) return talk;
     const shop = this.shop?.dispatch(cmd);

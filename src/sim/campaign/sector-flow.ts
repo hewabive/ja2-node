@@ -29,10 +29,11 @@ import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
+import { Meanwhile } from '../strategic/ai/constants.ts';
 import type { QueenContext } from '../strategic/ai/context.ts';
 import { getNumberOfEnemiesInSector } from '../strategic/ai/counts.ts';
 import { calcDifficultyModifier, difficultyModifierAt, locationModifier, queenProgress } from '../strategic/ai/difficulty.ts';
-import { handleFirstMeanwhileSetUpWithTrashWorld } from '../strategic/ai/meanwhile.ts';
+import { handleFirstMeanwhileSetUpWithTrashWorld, INTERROGATION_SECTOR, meanwhileScheduledIn } from '../strategic/ai/meanwhile.ts';
 import {
   ARRIVAL_FACING,
   addPossiblePendingEnemiesToBattle,
@@ -69,6 +70,8 @@ import {
   sectorInfo,
   setSectorFlag,
 } from '../strategic/map/sectors.ts';
+import { Quest } from '../strategic/narrative/fact-ids.ts';
+import { QuestStatus, questStatus } from '../strategic/narrative/facts.ts';
 import { okayToUpgradeEliteToSpecialProfiledEnemy } from '../strategic/narrative/profiled-enemies.ts';
 import { ExperienceBonus } from '../strategic/narrative/rewards.ts';
 import type { SectorPosition } from '../strategic/state.ts';
@@ -168,6 +171,8 @@ export interface LoadOptions {
   readonly battleLocatorShown?: boolean;
 }
 
+const PALACE: Sector = { x: 3, y: 16, z: 0 };
+const STATUE_SECTOR: Sector = { x: 3, y: 15, z: 0 };
 const PRESERVED_ENEMY_MAX_AGE_MINUTES = 300;
 const CREATURE_TENSE_QUOTE_RANGE = 20;
 const CROWS_POSSIBLE_RANGE = 5;
@@ -253,11 +258,37 @@ export class SectorFlow {
         if (x >= 1 && x <= 16 && y >= 1 && y <= 16) sectors.push({ x, y, z: world.z });
       }
       for (const e of this.campaign.tactical?.state.world.map?.exitGrids ?? []) sectors.push({ ...e.sector });
+      for (const e of this.campaign.tactical?.state.addedExitGrids ?? []) sectors.push({ ...e.sector });
     }
     const wanted = parseSector(target);
     if (wanted) sectors.push(wanted);
-    sectors.push(...this.#battleSectors());
+    sectors.push(...this.#battleSectors(), ...this.#storySectors());
     return sectors.map((s) => this.mapPathOf(s));
+  }
+
+  #interrogationMayLoad(): boolean {
+    const s = this.campaign.state;
+    if (meanwhileScheduledIn(s.meanwhile, Meanwhile.INTERROGATION)) return !s.meanwhile.log.some((e) => e.id === Meanwhile.INTERROGATION);
+    if (questStatus(s.narrative, Quest.INTERROGATION) !== QuestStatus.NOT_STARTED) return false;
+    const battle = this.campaign.tactical?.state.turn.enemyInSector === true || s.battle.sector !== null || s.battle.autoresolve !== null;
+    return battle;
+  }
+
+  #storySectors(): Sector[] {
+    const found: Sector[] = [];
+    if (this.#interrogationMayLoad()) found.push({ x: INTERROGATION_SECTOR.x, y: INTERROGATION_SECTOR.y, z: 0 });
+    const world = this.world;
+    if (world && world.x === PALACE.x && world.y === PALACE.y) found.push({ ...PALACE }, { ...PALACE, z: 1 });
+    if (world && world.x === STATUE_SECTOR.x && world.y === STATUE_SECTOR.y) found.push({ ...STATUE_SECTOR, z: 1 });
+    return found;
+  }
+
+  #inMeanwhile(): boolean {
+    return this.campaign.strategic?.world.inMeanwhile() ?? false;
+  }
+
+  #interrogationScene(): boolean {
+    return this.campaign.state.meanwhile.current.id === Meanwhile.INTERROGATION;
   }
 
   #battleSectors(): Sector[] {
@@ -405,6 +436,7 @@ export class SectorFlow {
       battleLost: (t) => this.campaign.battle?.battleLost(t),
       battleEnded: (t, result) => this.campaign.battle?.tacticalBattleEnded(t, result === 'won'),
       tacticalTurnEnded: () => handleRpcDescription(this.campaign),
+      combatEntered: () => this.#combatEntered(),
     };
   }
 
@@ -437,7 +469,7 @@ export class SectorFlow {
     if (previous) setupProfileInsertionDataForCivilians(previous.state, this.#profileInsertionHooks());
     narrative.handleQuestCodeOnSectorEntry(sector);
     for (const m of this.setup.roster.all()) m.soldier.placed = false;
-    setSectorFlag(s.map, sector, SectorFlag.ALREADY_VISITED, worldDay(s.clock));
+    if (!this.#inMeanwhile()) setSectorFlag(s.map, sector, SectorFlag.ALREADY_VISITED, worldDay(s.clock));
     const diff = s.sectorDiffs.get(sectorKey(sector)) ?? null;
     const doorTable = diff && getSectorFlagStatus(s.map, sector, SectorFlag.DOOR_TABLE_TEMP_FILES_EXISTS) ? diff.doorTable : null;
     const sim = this.#createTactical(sector, this.#worldWithDoorTable(baseWorld, doorTable));
@@ -456,14 +488,13 @@ export class SectorFlow {
     if (!t) return;
     const s = this.campaign.state;
     const now = this.nowMinutes();
-    const map = t.world.map;
+    if (this.#inMeanwhile()) {
+      if (diff && this.#interrogationScene()) this.#loadItemDiff(sector, diff);
+      t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
+      return;
+    }
     if (diff) {
-      if (diff.items && this.#flagged(sector, SectorFlag.ITEM_TEMP_FILE_EXISTS)) {
-        if (this.#flagged(sector, SectorFlag.ALREADY_LOADED)) t.worldItems.length = 0;
-        const kept = [...t.worldItems];
-        restoreWorldItems(t, diff.items, map?.info.centerGridNo ?? CENTER_GRIDNO);
-        if (!this.#flagged(sector, SectorFlag.ALREADY_LOADED)) t.worldItems.unshift(...kept);
-      }
+      this.#loadItemDiff(sector, diff);
       if (diff.corpses && this.#flagged(sector, SectorFlag.ROTTING_CORPSE_TEMP_FILE_EXISTS)) {
         const inTown = sector.z === 0 && townIdOfSector(this.ctx, sector) !== NO_DIFFICULTY_TOWN;
         restoreCorpses(t, diff.corpses, { nowMinute: now, inTown, loadingSave: false });
@@ -479,6 +510,15 @@ export class SectorFlow {
     }
     t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
     if (sector.z === 0 && sectorInfo(s.map, sector).timeLastPlayerLiberated !== 0) stripEnemyDetailedPlacements(t, this.populationEnv());
+  }
+
+  #loadItemDiff(sector: Sector, diff: SectorDiff): void {
+    const t = this.campaign.tactical?.state;
+    if (!t || !diff.items || !this.#flagged(sector, SectorFlag.ITEM_TEMP_FILE_EXISTS)) return;
+    if (this.#flagged(sector, SectorFlag.ALREADY_LOADED)) t.worldItems.length = 0;
+    const kept = [...t.worldItems];
+    restoreWorldItems(t, diff.items, t.world.map?.info.centerGridNo ?? CENTER_GRIDNO);
+    if (!this.#flagged(sector, SectorFlag.ALREADY_LOADED)) t.worldItems.unshift(...kept);
   }
 
   #fileClassCounts(records: SectorDiff['enemies']): { elites: number; troops: number; admins: number; creatures: number } {
@@ -677,6 +717,7 @@ export class SectorFlow {
   updateMercsInSector(options: LoadOptions = {}): void {
     if (this.usingEdgepointsForEntry) beginMapEdgepointSearch(this.campaign.tactical?.state ?? fail());
     const s = this.campaign.state;
+    this.campaign.pows.beginSectorLoad();
     for (const m of this.setup.roster.all()) {
       if (!this.#mercInLoadedSector(m)) continue;
       const center = this.campaign.tactical?.state.world.map?.info.centerGridNo ?? -1;
@@ -689,7 +730,9 @@ export class SectorFlow {
         m.soldier.insertionData = this.overrideInsertionWithExitGrid;
       }
       this.#placeMerc(m);
+      this.campaign.pows.powPlaced(m);
     }
+    this.campaign.pows.endSectorLoad();
     if (this.usingEdgepointsForEntry) {
       const t = this.campaign.tactical?.state;
       if (t) endMapEdgepointSearch(t);
@@ -840,7 +883,7 @@ export class SectorFlow {
     }
   }
 
-  #deadEnemyRecord(s: Soldier) {
+  deadEnemyRecord(s: Soldier) {
     const world = this.world ?? { x: 0, y: 0, z: 0 };
     return {
       profile: s.profile,
@@ -873,7 +916,7 @@ export class SectorFlow {
     if (merchants)
       addDeadArmsDealerItemsToWorld(merchants, dead.profile, (o) => addItemToPool(t, dead.initialGridNo, o, Visibility.INVISIBLE, 0, 0, 0));
     const q = this.queen;
-    if (q) processQueenCmdImplicationsOfDeath(q, this.#deadEnemyRecord(dead));
+    if (q) processQueenCmdImplicationsOfDeath(q, this.deadEnemyRecord(dead));
   }
 
   #creatureQueenKilled(world: Sector): void {
@@ -883,12 +926,19 @@ export class SectorFlow {
     this.campaign.narrative.awardExperience(ExperienceBonus.MAXIMUM);
   }
 
+  #combatEntered(): void {
+    const world = this.world;
+    const battle = this.campaign.state.battle;
+    battle.lastBattleSector = world ? { x: world.x, y: world.y } : null;
+    battle.lastBattleWon = false;
+  }
+
   #soldierLeftMap(gone: Soldier): void {
     const t = this.campaign.tactical?.state;
     if (!t) return;
     evaluateDeathEffectsToSoldierInitList(t, gone);
     const q = this.queen;
-    if (q) processQueenCmdImplicationsOfDeath(q, this.#deadEnemyRecord(gone));
+    if (q) processQueenCmdImplicationsOfDeath(q, this.deadEnemyRecord(gone));
   }
 
   afterTacticalStep(): void {

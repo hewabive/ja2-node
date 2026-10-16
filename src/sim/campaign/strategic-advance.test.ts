@@ -37,7 +37,10 @@ function answerAnything(c: CampaignSim): void {
     const prompt = c.state.battle.prompt;
     if (!prompt) return;
     if (prompt.kind === 'preBattle') {
-      const choice = prompt.options.find((o) => o.enabled && o.choice === 'autoresolve') ?? prompt.options.find((o) => o.enabled);
+      const choice =
+        prompt.options.find((o) => o.enabled && o.choice === 'retreat') ??
+        prompt.options.find((o) => o.enabled && o.choice === 'autoresolve') ??
+        prompt.options.find((o) => o.enabled);
       c.dispatch({ type: 'answer', prompt: prompt.id, choice: choice?.choice });
     } else if (prompt.kind === 'surrender') c.dispatch({ type: 'answer', prompt: prompt.id, choice: 'reject' });
     else if (prompt.kind === 'autoresolveDone') c.dispatch({ type: 'answer', prompt: prompt.id, choice: 'done' });

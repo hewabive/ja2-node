@@ -696,6 +696,56 @@ Events: `npcRecruited {profile, soldier, kind: 'rpc' | 'epc', salary}` (the new 
 `npcMessage` kinds `recruited`, `nowEscorted` (`amount` = squad number, also for the partner) and `teamFull`, and the
 history line `RPC_JOINED_TEAM` (`historyAdded`). Opinions, profile flags, the remote holder id and the records stay hidden.
 
+### 6.18. Meanwhile scenes, prisoners and the end of the campaign (M6)
+
+Meanwhile scenes are not player actions and have no command or prompt of their own (`docs/26` §2,
+`src/sim/campaign/meanwhile-flow.ts`). The sixteen Meduna scenes resolve with the original's "played" semantics as soon as
+the gates pass (no battle decision open, the dialogue queue empty, nobody talking): the NPC moves and restores, Elliot's
+counter, the implications on the Queen's AI. On the map the world clock stops (`compressionStopped {reason: 'meanwhile'}`,
+which ends a default strategic `advance`); while a scene waits for its gates, compression is refused (`a meanwhile scene is
+about to start`). Each resolved scene adds `meanwhile {seq, scene, sector: 'P3', at}` (`scene` is the camelCase name:
+`endOfPlayersFirstBattle`, `drassenLiberated`, `cambriaLiberated`, `almaLiberated`, `grummLiberated`, `chitzenaLiberated`,
+`nwSam`, `neSam`, `centralSam`, `flowers`, `lostTown`, `creatures`, `killChopper`, `awolScientist`, `outskirtsMeduna`,
+`balimeLiberated`; `at` = world seconds) and an entry `{seq, scene, at}` to `observe.strategic.meanwhiles`. Scheduled scenes,
+their delays, Elliot's counter and the AI effects stay hidden.
+
+The interrogation (squad captured when quest `HELD_IN_ALMA` is already done, `docs/26` §2.3) is a scripted tactical scene:
+the clock stops, N7 loads, the flow becomes `meanwhile` and `observe.meanwhile` is `{seq, scene: 'interrogation'}` (frames
+carry `meanwhile` when it changes) until the scene ends. The Queen's records play in the conversation view of §6.12; her
+lie question is the `npcRequest` prompt of §6.14 with `request: 'lie'` (choices `yes`, `no`, `lie`; the skill check stays
+hidden), answered with `answer`. Every other command is refused with `inMeanwhile` (`data.refusal`); `observe`, queries and
+`answer` work. `advance` runs the scene's ticks and stops with `decision` at the prompt and always with `event` at
+`meanwhileEnded`; events `meanwhileStarted {seq, scene}` and `meanwhileEnded {seq, scene}` frame it. Afterwards the captives
+are in N7 under normal tactical rules.
+
+Prisoners: when I13 loads with captured mercs held there, they stay prisoners (neutral, assignment POW) and
+`powsFound {sector, soldiers}` lists them; captives placed anywhere else (N7 after the interrogation) rejoin the team on one
+new squad. A door opened or an explosion in I13 frees every prisoner that then has a path out of the cells: `powFreed
+{soldier, sector}` each, back on a squad.
+
+`useRemote {soldier}` (campaign or tactical) presses the remote trigger in the soldier's hand: 2 AP, 2 more when standing
+(the original's animation). In the statue room of O3 it opens the statue (`statueOpened {sector: 'O3', destroyed: false}`,
+an exit grid down to O3 b1); an explosion next to the statue opens it too (`destroyed: true`). Refusals: `no such soldier of
+yours`, the `canAct` text, `the soldier holds no remote trigger`, `not enough APs: 2 needed`. `data` is `{result:
+'statueOpened' | 'nothing'}` and the event `remoteUsed {soldier, result}`.
+
+The end of the campaign (`docs/26` §7, `src/sim/campaign/endgame-flow.ts`): Deidranna's death emits `queenKilled {sector,
+gridNo, level, killer}` and starts the flow `endgame` (`status.campaign` and `observe.strategic.campaign` = `endgame`). Every
+command except `observe`, queries and `answer` is refused with `endgameInProgress`; `advance` plays the sequence in ticks
+(the killer's and a witness's lines, the squad carried up to P3 with `squadMovedUpstairs {soldiers, sector: 'P3'}`, Derek's
+and Oliver's records as `npcQuote`/conversation events). With the creature quest still open Derek says so,
+`endgameDeferred {reason: 'creatures'}` stops the `advance` and the campaign goes back to `playing`; killing the creature
+queen later emits `creatureQueenKilled {killer}` and resumes the ending. The ending emits the mercs' last lines and
+`campaignWon {day, worldTime, difficulty, sciFi, ending: {miguelAlive, skyriderAlive}, mercDeaths}`; `advance` stops with
+the new reason **`ended`**. From then on the flow is `ended`, `campaign` is `won`, `observe.ended` is `{outcome: 'victory',
+at, day, ending, mercDeaths}` beside the last view, every command is refused with `campaignOver`, `advance` returns `ended`
+at once without ticks and the session idles; a new game needs `newSession`. There is no game over: with no usable merc left
+the campaign goes on, compression is refused (`no usable mercs are left on the team`) and `status`/`observe.strategic` carry
+`noUsableMercs: true`.
+
+Native saves taken during a played scene or during the endgame sequence are refused on import; the scene state of other
+saves (definitions, the scene about to start, the first battle, the last battle) is imported.
+
 ### 6.19. Civilian quotes, the enemy surrender offer and NPCs on their own (M6)
 
 `talk {soldier, target}` to an unnamed civilian, a militiaman or a visible enemy soldier with a merc body (`talkable:

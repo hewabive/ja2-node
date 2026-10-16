@@ -346,6 +346,8 @@ export interface Soldier {
   doorHandleCode: number;
   pendingDoorAction: PendingDoorAction | null;
   pendingTalk: number | null;
+  npcPunch: { readonly approach: number } | null;
+  npcShooting: boolean;
   uiMovementFast: boolean;
   pendingGive: PendingGive | null;
   engagedInAction: boolean;
@@ -629,6 +631,8 @@ export function createSoldier(init: SoldierInit): Soldier {
     doorHandleCode: 0,
     pendingDoorAction: null,
     pendingTalk: null,
+    npcPunch: null,
+    npcShooting: false,
     uiMovementFast: false,
     pendingGive: null,
     engagedInAction: false,

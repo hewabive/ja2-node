@@ -1,7 +1,9 @@
 import type { ArmyContent } from '../../../content/strategic/army.ts';
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import { u32 } from '../../../core/int.ts';
+import type { ProfileProgress } from '../../tactical/profiles.ts';
 import type { RollSource, StrategicContext } from '../forces/ports.ts';
+import type { SectorPosition } from '../state.ts';
 import type { QueenState } from './queen-state.ts';
 
 const PERCENT = 100;
@@ -14,6 +16,8 @@ export interface MineIncomePort {
 export interface QueenHooks {
   samRepaired(sector: Sector): void;
   creatureQuestEnded(): void;
+  profile(id: number): ProfileProgress | null;
+  startQuest(quest: number, sector: SectorPosition | null): void;
 }
 
 export interface QueenContext extends StrategicContext {
@@ -30,10 +34,14 @@ export interface QueenContextOptions {
 
 export const noMineIncome: MineIncomePort = { predictIncomeFromPlayerMines: () => 0, maxPlayerIncomeFromMines: () => 0 };
 
-export const noQueenHooks: QueenHooks = { samRepaired: () => {}, creatureQuestEnded: () => {} };
-
 export function createQueenContext(ctx: StrategicContext, options: QueenContextOptions): QueenContext {
-  return { ...ctx, army: options.army, mines: options.mines ?? noMineIncome, queenHooks: { ...noQueenHooks, ...options.hooks } };
+  const defaults: QueenHooks = {
+    samRepaired: () => {},
+    creatureQuestEnded: () => {},
+    profile: (id) => ctx.state.profiles.get(id) ?? null,
+    startQuest: () => {},
+  };
+  return { ...ctx, army: options.army, mines: options.mines ?? noMineIncome, queenHooks: { ...defaults, ...options.hooks } };
 }
 
 export function queenOf(q: StrategicContext): QueenState {

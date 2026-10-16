@@ -10,6 +10,7 @@ import { Terrain } from '../../../content/world/terrain.ts';
 import { AnimHeight, changeSoldierStance, endHeight } from '../animation.ts';
 import { InvSlot } from '../inventory.ts';
 import { processImplicationsOfPCAttack } from '../narrative/civ-hostility.ts';
+import { inMeanwhile, meanwhileKeepsAttacker } from '../narrative/meanwhile-rules.ts';
 import { calcInterruptDuelPts, interruptDuel, standardInterruptConditionsMet } from '../perception/duel.ts';
 import { closestKnownOpponent } from '../perception/knowledge.ts';
 import { dequeueDeferredNoises } from '../perception/noise.ts';
@@ -159,6 +160,7 @@ export function internalReduceAttackBusyCount(
     handleSuppressionFire(t, soldier);
     if (t.turn.attackBusyCount > 0) return target;
   }
+  if (meanwhileKeepsAttacker(t, soldier)) return target;
   if (target) target.numPelletsHitBy = 0;
   let enterCombat = false;
   if (soldier) {
@@ -173,7 +175,7 @@ export function internalReduceAttackBusyCount(
     }
     soldier.sayAmmoQuotePending = false;
     if (soldier.team !== Team.OUR) t.turnHooks.freeUpFromAttacking(t, soldier);
-    if (enterCombat && !t.inCombat) enterCombatMode(t, soldier.team);
+    if (enterCombat && !t.inCombat && !inMeanwhile(t)) enterCombatMode(t, soldier.team);
     soldier.attackNoticed = false;
   }
   t.turn.killedEnemyOnAttack = false;

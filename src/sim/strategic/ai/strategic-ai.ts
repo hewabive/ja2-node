@@ -11,7 +11,7 @@ import { checkEnemyControlledSector, okayForEnemyToMoveThroughSector, strategicA
 import { queenProgress } from './difficulty.ts';
 import { evaluateQueenSituation } from './evaluate.ts';
 import { initStrategicAI, initStrategicStatus } from './init.ts';
-import { handleMeanwhileEvent } from './meanwhile.ts';
+import { handleMeanwhileEvent, handleOutskirtsOfMedunaMeanwhileScene, isMedunaOutskirts } from './meanwhile.ts';
 import { removeGroupFromStrategicAILists, repollSAIGroup } from './orders.ts';
 import { queenBasementTaken, strategicHandleQueenLosingControlOfSector } from './reactions.ts';
 
@@ -63,6 +63,10 @@ export class StrategicAi implements StrategicAiPort {
 
   queenBasementTaken(): void {
     queenBasementTaken(this.context);
+  }
+
+  medunaOutskirtsTaken(sector: Sector): void {
+    if (isMedunaOutskirts(sector)) handleOutskirtsOfMedunaMeanwhileScene(this.context);
   }
 }
 

@@ -693,7 +693,7 @@ export class LaptopFlow implements LaptopContext {
       extras: Array.isArray(cmd.extras) ? cmd.extras.map(String) : [],
     };
     const result = orderFlowers(this, order, {
-      flowersMeanwhile: (minute) => this.campaign.scheduleFlowersMeanwhile(minute),
+      flowersMeanwhile: (code) => this.campaign.scheduleFlowersMeanwhile(code),
     });
     return typeof result === 'string' ? { ok: false, reason: result } : { ok: true, data: result };
   }

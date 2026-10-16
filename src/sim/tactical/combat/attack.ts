@@ -29,6 +29,7 @@ import { useLauncher, useThrown, willExplosiveWeaponFail } from '../explosions/t
 import { InvSlot, isValidSecondHandShot } from '../inventory.ts';
 import { putOutMuzzleFlash, showMuzzleFlash } from '../lighting/muzzle-flash.ts';
 import { directionToward } from '../movement.ts';
+import { inMeanwhile } from '../narrative/meanwhile-rules.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { isValidStance } from '../person-structure.ts';
 import { deductPoints, enoughPoints } from '../points.ts';
@@ -45,6 +46,8 @@ import { handleBladeAttack, handlePunchAttack, handleTentacleAttack, meleeOpcode
 import { calculateSoldierZPos, targetZFromStructureHeight, ZPos } from './positions.ts';
 import { SkillCheckReason, skillCheck } from './skill-check.ts';
 import { AimShot, ItemHandle, NUM_BUCKSHOT_PELLETS, WeaponMode } from './types.ts';
+
+const MEANWHILE_HIT_CHANCE = 100;
 
 export { ItemHandle };
 
@@ -390,7 +393,7 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
   } else deductPoints(t.inCombat, s, ap, 0);
   const pos = getTargetWorldPositions(t, s, target);
   const knife = d?.itemClass === ItemClass.THROWING_KNIFE;
-  const chance = knife ? 0 : calcChanceToHitGun(t, s, target, s.aimTime, s.aimShotLocation, true);
+  const chance = inMeanwhile(t) ? MEANWHILE_HIT_CHANCE : knife ? 0 : calcChanceToHitGun(t, s, target, s.aimTime, s.aimShotLocation, true);
   const roll = t.pre.int(100);
   const hit = roll <= chance;
   let buckshot = false;

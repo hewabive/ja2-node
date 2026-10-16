@@ -1,5 +1,6 @@
 import type {
   DestroyedHelicopterView,
+  MeanwhileLogView,
   QuestLogEntryView,
   QuestStepView,
   StrategicHelicopterView,
@@ -57,6 +58,27 @@ function helicopterSummary(h: StrategicHelicopterView, names: (id: number) => st
   if (h.hits > 0) lines.push(`SAM hits: ${h.hits}`);
   lines.push(`refuel: ${h.refuelSites.map((r) => `${r.sector}${r.available ? '' : ' (closed)'}`).join(', ')}`);
   return lines.join('\n');
+}
+
+function minuteText(minute: number): string {
+  return stepText({ minute, sector: null });
+}
+
+export class StoryPanel {
+  readonly #list = el('meanwhiles');
+  #shown: readonly MeanwhileLogView[] | null = null;
+
+  update(view: StrategicView): void {
+    if (view.meanwhiles === this.#shown) return;
+    this.#shown = view.meanwhiles;
+    this.#list.replaceChildren(
+      ...view.meanwhiles.map((m) => {
+        const li = document.createElement('li');
+        li.textContent = `${minuteText(m.at)}: ${m.scene}`;
+        return li;
+      }),
+    );
+  }
 }
 
 export class QuestPanel {

@@ -69,6 +69,7 @@ export const CompressionStop = {
   SHIPMENT: 'shipment',
   WORLD_TIME: 'worldTime',
   PAUSED: 'paused',
+  MEANWHILE: 'meanwhile',
 } as const;
 export type CompressionStopReason = (typeof CompressionStop)[keyof typeof CompressionStop];
 

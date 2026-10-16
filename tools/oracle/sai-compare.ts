@@ -154,7 +154,7 @@ interface Session {
   loadDraws: readonly Draw[] | null;
 }
 
-function describeGroup(q: QueenContext, g: Group): Json {
+export function describeGroup(q: QueenContext, g: Group): Json {
   const e = g.enemy;
   return {
     id: g.id,
