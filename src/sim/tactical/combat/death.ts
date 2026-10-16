@@ -22,6 +22,7 @@ import {
   setDesiredDirection,
   setSoldierDirection,
 } from '../animation.ts';
+import { putOutMuzzleFlash } from '../lighting/muzzle-flash.ts';
 import { directionToward } from '../movement.ts';
 import { atan8Of, SightFlags } from '../perception/opp.ts';
 import { distanceVisible, handleSight, removeManAsTarget, verifyPublicOpplistDueToDeath } from '../perception/sight.ts';
@@ -292,6 +293,7 @@ export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDea
   let madeCorpse = false;
   let buddyJustDead = false;
   if (s.life === 0 && !s.dead) {
+    putOutMuzzleFlash(t, s);
     s.muzzleFlash = false;
     s.gettingHit = 0;
     if (s.team === Team.OUR) s.dead = true;

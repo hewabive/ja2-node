@@ -58,6 +58,7 @@ import { calculateLaunchItemChanceToGetThrough } from './explosions/trajectory.t
 import { dequeueAllGameEvents } from './game-events.ts';
 import { InvSlot, itemIn } from './inventory.ts';
 import { handlePendingPickupOnArrival, itemOpcode, pickupCandidates, soldierDropItem, soldierPickupItem } from './item-actions.ts';
+import { initLighting, NORMAL_LIGHTLEVEL_DAY } from './lighting/lighting.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
 import { executeOverhead, type OverheadHooks } from './overhead.ts';
 import { findBestPath, PathCopy } from './pathfinding.ts';
@@ -123,6 +124,7 @@ const NOT_ADJACENT =
   'a melee target must stand next to the soldier (a knife reaches the four side tiles, fists all eight); walking up to it is not supported';
 
 const MELEE_CHANCE_TO_GET_THROUGH = 100;
+const SANDBOX_WORLD_HOUR = 12;
 
 const isMeleeItemClass = (cls: number) => cls === ItemClass.BLADE || (cls & (ItemClass.NONE | ItemClass.PUNCH)) !== 0;
 const isThrowItemClass = (cls: number) => cls === ItemClass.GRENADE || cls === ItemClass.THROWN || cls === ItemClass.LAUNCHER;
@@ -209,6 +211,7 @@ export class TacticalSim {
       afterPass: dequeueAllGameEvents,
     };
     generateBuildings(t);
+    initLighting(t, world.map, SANDBOX_WORLD_HOUR, NORMAL_LIGHTLEVEL_DAY);
   }
 
   get tick(): number {

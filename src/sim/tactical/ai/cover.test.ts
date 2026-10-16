@@ -12,13 +12,14 @@ import { soldierToLocationChanceToGetThrough } from '../combat/bullets.ts';
 import { AiMorale } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
+import { lightSetBaseLevel, lightSpriteCreate, lightSpritePosition, lightSpritePower, lightTrueLevel } from '../lighting/lighting.ts';
 import { setSoldierPosition } from '../movement.ts';
 import { Opp } from '../perception/opp.ts';
 import { calcActionPoints } from '../points.ts';
-import { AlertStatus, Attitude, createSoldier, NOWHERE, type Soldier, SoldierClass, Team } from '../soldier.ts';
+import { AlertStatus, Attitude, createSoldier, NOWHERE, Orders, type Soldier, SoldierClass, Team } from '../soldier.ts';
 import { registerSoldier, type TacticalState } from '../state.ts';
 import { TacticalSim } from '../tactical-sim.ts';
-import { calcPercentBetter, findBestNearbyCover, findSpotMaxDistFromOpponents } from './cover.ts';
+import { calcPercentBetter, findBestNearbyCover, findNearbyDarkerSpot, findSpotMaxDistFromOpponents, inLightAtNight } from './cover.ts';
 import { calcManThreatValue, calcMorale, rangeChangeDesire } from './morale.ts';
 
 let content: TacticalContent;
@@ -192,5 +193,39 @@ describe('findSpotMaxDistFromOpponents', () => {
     expect(spot).not.toBe(NOWHERE);
     expect(pythSpacesAway(spot, merc.gridNo)).toBeGreaterThan(pythSpacesAway(guard.gridNo, merc.gridNo));
     expect(gridX(spot)).toBeGreaterThanOrEqual(70);
+  });
+});
+
+describe('light at night', () => {
+  function lamp(t: TacticalState, x: number, y: number): void {
+    const l = lightSpriteCreate(t, 'L-R03.LHT');
+    if (!l) throw new Error('no lamp');
+    lightSpritePower(l, true);
+    lightSpritePosition(t, l, x, y);
+  }
+
+  it('counts only outdoor tiles brighter than the night around them', () => {
+    const t = newSim().state;
+    lamp(t, 80, 80);
+    expect(inLightAtNight(t, gridNo(80, 80), 0)).toBe(false);
+    lightSetBaseLevel(t, 12);
+    expect(inLightAtNight(t, gridNo(80, 80), 0)).toBe(true);
+    expect(inLightAtNight(t, gridNo(90, 80), 0)).toBe(false);
+    t.world.level.rooms[gridNo(80, 80)] = 3;
+    expect(inLightAtNight(t, gridNo(80, 80), 0)).toBe(false);
+  });
+
+  it('sends a lit soldier to a nearby darker reachable tile', () => {
+    const t = newSim().state;
+    lightSetBaseLevel(t, 12);
+    lamp(t, 80, 80);
+    const guard = spawn(t, { id: 20, team: Team.ENEMY, at: gridNo(80, 80) });
+    guard.ai.orders = Orders.SEEKENEMY;
+    const spot = findNearbyDarkerSpot(t, guard);
+    expect(spot).not.toBe(NOWHERE);
+    expect(lightTrueLevel(t, spot, 0) - lightTrueLevel(t, guard.gridNo, 0)).toBeGreaterThanOrEqual(2);
+    expect(spacesAway(spot, guard.gridNo)).toBeLessThanOrEqual(5);
+    guard.ai.orders = Orders.STATIONARY;
+    expect(findNearbyDarkerSpot(t, guard)).toBe(NOWHERE);
   });
 });

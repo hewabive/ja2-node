@@ -16,6 +16,7 @@ legend 'b': land SECONDTEXTURE 2; structs FIRSTOSTRUCT 1
 soldier: ENEMY 13 34 NORTH SEEKENEMY AGGRESSIVE ARMY
 soldier: ENEMY 16 35 NORTH FARPATROL BRAVESOLO ARMY
 soldier: ENEMY 10 36 NORTHEAST ONGUARD DEFENSIVE ARMY
+light: 11 9 L-R05.LHT NIGHT
 map:
 ..:.......,,,,...............
 .....:....,=,,.....:.........

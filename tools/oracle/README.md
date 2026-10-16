@@ -3,8 +3,8 @@
 A patched JA2 Stracciatella build that runs headless against the original game data, executes a
 probe script and prints JSON lines. It gives reference values for our reimplementation
 (`docs/01-architecture.md` §8, level 6). The probes cover pathfinding, line of sight, the movement
-cost table, and the state of loaded saves: full soldier dumps, the chance to hit and AP cost of an aimed
-shot, and the AI's choice of the best shot.
+cost table, tactical lighting (`LightTrueLevel` of every tile), and the state of loaded saves: full soldier
+dumps, the chance to hit and AP cost of an aimed shot, and the AI's choice of the best shot.
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -20,6 +20,7 @@ commit them.
 | `patches/0001-oracle-hooks.patch` | The only changes to Stracciatella files (see "Hooks") |
 | `probes/a9-*.txt` | Probe scripts for sector A9 (Omerta) |
 | `save-probes.ts` | Writes a probe script for the user's native saves (see "Savegames") |
+| `map-light-probes.ts` | Writes a light-dump script for every original map with light sprites (see "Lights") |
 | `compare.ts` | Rebuilds probe outputs with ja2-node and reports mismatches |
 
 `reference/` is never modified. The work dir (`$JA2_ORACLE_DIR`, default `~/ja2-oracle`) holds:
@@ -106,7 +107,7 @@ an `error` line and the script continues. The last line is always
 
 | Command | Arguments | Does |
 |---|---|---|
-| `sector A9` | `z=0`, `map=<file>` | Sets `gWorldSector` and calls `LoadWorld` on the sector's map |
+| `sector A9` | `z=0`, `map=<file>`, `hour=<0..23>` | Sets `gWorldSector` (and the game clock to that hour of day 1) and calls `LoadWorld` on the sector's map |
 | `save SaveGame01` | | `LoadSavedGame` from the isolated home's `SavedGames` |
 | `soldiers` | `detail=0\|1` | Lists soldiers in the loaded sector; `detail=1` dumps each one like `soldier` |
 | `soldier` | `who=<id>` | Full dump of one soldier of the loaded save |
@@ -116,6 +117,8 @@ an `error` line and the script continues. The last line is always
 | `cth` | see below | `CalcChanceToHitGun` + `CalcTotalAPsToAttack` for an aimed shot, as the attack cursor prepares it |
 | `bestshot` | `who=<id>`, `keepAim=0\|1` | The AI's `CalcBestShot` on a soldier of the loaded save |
 | `light` | `g=<g>`, `level=0`, `viewer=<id>` | `LightTrueLevel` of a tile, the ambient level and, with a viewer, `DistanceVisible` to it |
+| `lights` | `level=0`, `format=base64` (or `none`) | `LightTrueLevel` of every tile, the ambient level and the light sprites |
+| `ambient` | `level=<n>` | `LightSetBaseLevel(n)`: new ambient level, every light rendered again |
 
 `sector` is a bare map load: `LoadWorld` compiles movement costs, builds structures, rooms and
 buildings, but there is no strategic layer, no enemy or NPC placement, no `PrepareLoadedSector`,
@@ -349,6 +352,26 @@ gun.
 `ambient` is `LightGetAmbient()`, `trueLevel` is `LightTrueLevel(g, level)` (lower is brighter; it includes map light
 sprites), `distanceVisible` is `DistanceVisible(viewer, DIRECTION_IRRELEVANT, DIRECTION_IRRELEVANT, g, level)`.
 
+### `lights`
+
+```json
+{"probe":"lights","line":3,"sector":"D13","level":0,"ambient":12,"layout":"u8[gridNo]","shape":[25600],
+ "fnv1a32":"e48ec8ee","histogram":{"1":97,"2":64,...,"12":23213},
+ "sprites":[{"x":59,"y":119,"flags":267,"template":"L-R08.LHT"},...],"base64":"..."}
+```
+
+`base64` holds `LightTrueLevel(g, level)` for every `g` in grid order (25,600 bytes), `fnv1a32` and `histogram` are over
+those bytes as in `costs`. `sprites` lists the active light sprites with `uiFlags` (ON 0x2, ERASE 0x8, PRIMETIME 0x80,
+NIGHTTIME 0x100) and the template name.
+
+### `sector … hour=` and `ambient`
+
+A bare `sector` load uses the clock of a fresh process (00:00, `gubEnvLightValue` 0, so every tile is shade 1).
+`hour=<h>` sets the clock to that hour first, which decides which night and prime-time map lights `LoadMapLights` powers;
+the `sector` line reports the resulting `hour` and `ambient` and `structureHeights`, the `[gridNo, index]` pairs of
+structures whose height is already cached (`ubStructureHeight`), because only those obstacles can block light.
+`ambient level=<n>` then renders the lights at a useful ambient level.
+
 ## Comparing with ja2-node
 
 ```sh
@@ -368,15 +391,36 @@ probe plus a summary; the exit status is 1 on any mismatch or oracle error. It c
   visibility, last target, effective stats, personality, opplist and inventory;
 - `cth`: chance, AP cost and chance to get through for every aim level, for shooters of any team;
 - `bestshot`: possible, opponent, target, aim, chance to really hit, AP cost and attack value;
-- `light`: ambient, true level and distance visible (ja2-node has no light sprites yet, so lit tiles differ).
+- `light`: ambient, true level and distance visible;
+- `lights`: the true level of every tile (byte by byte and the FNV-1a hash), the ambient level and the light sprites
+  (position, template, ON/PRIMETIME/NIGHTTIME; fake merc lights are skipped); after a `sector` line
+  with `hour`, the session reloads the map lights for that hour, takes the oracle's ambient level and structure height
+  cache, and `ambient` lines set the level again.
 
 On 2026-10-15 all three shipped A9 scripts matched exactly.
 
+### Lights
+
+`map-light-probes.ts [hour...]` writes, for every original map with light sprites, a `sector … hour=<h>` load, a hash-only
+`lights`, `ambient level=15` and a full `lights` dump (hours 22, 3 and 12 by default: prime and night lights, night lights
+only, always-on lights only).
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data"
+node tools/oracle/map-light-probes.ts > ~/ja2-oracle/map-lights.txt
+tools/oracle/run.sh ~/ja2-oracle/map-lights.txt ~/ja2-oracle/map-lights.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle/map-lights.jsonl
+```
+
+On 2026-10-15 all 672 dumps (112 maps × 3 hours × 2) matched.
+
 ### Savegames
 
-`save-probes.ts` writes a probe script for any saves: a soldier dump, `cth` (torso, head, legs) and `bestshot` for
-every armed soldier of the player, enemy and militia teams against every opposed soldier, `los` for every opposed pair,
-and `path` from each fighter to each opposed fighter and twelve tiles out in eight directions, then a second dump.
+`save-probes.ts` writes a probe script for any saves: a soldier dump, `lights` for both levels, `cth` (torso, head, legs)
+and `bestshot` for every armed soldier of the player, enemy and militia teams against every opposed soldier, `los` for
+every opposed pair, `path` from each fighter to each opposed fighter and twelve tiles out in eight directions, `light`
+with each fighter as viewer at every opposed soldier and four and eight tiles out in eight directions, then a second
+dump. On 2026-10-15 all 6,815 comparisons over the user's six saves matched.
 
 ```sh
 export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data"

@@ -5,14 +5,17 @@ import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { StructureFlags, type WorldStructures } from '../../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import { Rng } from '../../../core/rng.ts';
+import { createItem } from '../../items/object.ts';
 import { initNewSoldierAnim, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
+import { InvSlot } from '../inventory.ts';
+import { lightSetBaseLevel, lightSpriteCreate, lightSpritePosition, lightSpritePower } from '../lighting/lighting.ts';
 import { setSoldierPosition } from '../movement.ts';
-import { createSoldier, type Soldier, Team } from '../soldier.ts';
+import { createSoldier, SkillTrait, type Soldier, Team } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
 import { revealedRooms } from './fov.ts';
 import { HeightClass, lineOfSightTest, soldierToSoldierLineOfSight } from './los.ts';
-import { allTeamsLookForAll, handleSight, Opp, SightFlags } from './sight.ts';
+import { allTeamsLookForAll, distanceVisible, handleSight, Opp, SightFlags } from './sight.ts';
 import { perceptionHooks } from './wiring.ts';
 
 const doorCosts = testDoorCosts();
@@ -147,5 +150,45 @@ describe('fog of war', () => {
     spawn(t, Team.ENEMY, gridNo(60, 80), Direction.SOUTH);
     allTeamsLookForAll(t);
     expect(revealedRooms(t)).toEqual([]);
+  });
+});
+
+describe('light for vision', () => {
+  const ANY_DIRECTION = -1;
+  const TARGET = gridNo(80, 90);
+
+  function lamp(t: TacticalState, g: number): void {
+    const l = lightSpriteCreate(t, 'L-R03.LHT');
+    if (!l) throw new Error('no lamp');
+    lightSpritePower(l, true);
+    lightSpritePosition(t, l, g % 160, Math.trunc(g / 160));
+  }
+
+  function wear(viewer: Soldier, item: string): void {
+    viewer.inv[InvSlot.HEAD1] = createItem(content.items, content.items.byName.get(item)?.index ?? 0, 100);
+  }
+
+  it('sees less far into the dark and farther into a lit tile', () => {
+    const t = tactical();
+    const viewer = spawn(t, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    lightSetBaseLevel(t, 12);
+    expect(distanceVisible(t, viewer, ANY_DIRECTION, ANY_DIRECTION, TARGET, 0)).toBe(11);
+    lamp(t, TARGET);
+    expect(distanceVisible(t, viewer, ANY_DIRECTION, ANY_DIRECTION, TARGET, 0)).toBe(16);
+  });
+
+  it('adds night-ops and goggle bonuses in the dark and sun goggles in glare', () => {
+    const t = tactical();
+    const viewer = spawn(t, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    lightSetBaseLevel(t, 12);
+    viewer.skillTrait1 = SkillTrait.NIGHTOPS;
+    expect(distanceVisible(t, viewer, ANY_DIRECTION, ANY_DIRECTION, TARGET, 0)).toBe(12);
+    wear(viewer, 'NIGHTGOGGLES');
+    expect(distanceVisible(t, viewer, ANY_DIRECTION, ANY_DIRECTION, TARGET, 0)).toBe(14);
+    lightSetBaseLevel(t, 3);
+    lamp(t, TARGET);
+    expect(distanceVisible(t, viewer, ANY_DIRECTION, ANY_DIRECTION, TARGET, 0)).toBe(22);
+    wear(viewer, 'SUNGOGGLES');
+    expect(distanceVisible(t, viewer, ANY_DIRECTION, ANY_DIRECTION, TARGET, 0)).toBe(24);
   });
 });

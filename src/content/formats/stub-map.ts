@@ -1,7 +1,16 @@
 import { FormatError } from '../binary/errors.ts';
 import { WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../world/grid.ts';
 import { type TileTables, typeIndex } from '../world/tile-tables.ts';
-import { LAYER_NAMES, type LayerName, type MapDef, type Placement, tileLayerFromLists } from './map.ts';
+import {
+  LAYER_NAMES,
+  type LayerName,
+  LightTime,
+  type MapDef,
+  MapFlags,
+  type MapLightSprite,
+  type Placement,
+  tileLayerFromLists,
+} from './map.ts';
 
 export const STUB_MAP_FORMAT = 'ja2-node.map/1';
 const STUB_MAP_MAJOR_VERSION = 5;
@@ -28,6 +37,13 @@ export interface StubSoldier {
   readonly soldierClass: number;
 }
 
+export interface StubLight {
+  readonly x: number;
+  readonly y: number;
+  readonly template: string;
+  readonly time: number;
+}
+
 export interface StubMapSource {
   readonly name: string;
   readonly tilesetId: number;
@@ -36,10 +52,12 @@ export interface StubMapSource {
   readonly legend: ReadonlyMap<string, Legend>;
   readonly rows: readonly string[];
   readonly soldiers: readonly StubSoldier[];
+  readonly lights: readonly StubLight[];
 }
 
 const AVERAGE_LEVEL = 2;
-const FULL_SOLDIER_FLAG = 0x001;
+const BLACK_LIGHT_COLOUR = [0, 0, 0] as const;
+const LIGHT_TIMES: Readonly<Record<string, number>> = { ALWAYS: 0, PRIME: LightTime.PRIME_TIME, NIGHT: LightTime.NIGHT_TIME };
 const TEAMS: Readonly<Record<string, number>> = { ENEMY: 1, CREATURE: 2, MILITIA: 3, CIV: 4 };
 const DIRECTIONS: Readonly<Record<string, number>> = {
   NORTH: 0,
@@ -90,6 +108,12 @@ function parseSoldier(spec: string, line: number): StubSoldier {
   };
 }
 
+function parseLight(spec: string, line: number): StubLight {
+  const [x, y, template, time] = spec.split(/\s+/);
+  if (!template) throw new FormatError(`line ${line}: expected '<x> <y> <TEMPLATE.LHT> [ALWAYS|PRIME|NIGHT]'`);
+  return { x: Number(x), y: Number(y), template, time: named(LIGHT_TIMES, time ?? 'ALWAYS', 'light time', line) };
+}
+
 function parseLegend(spec: string, tables: TileTables, line: number): Legend {
   const tiles: TileRef[] = [];
   let room = 0;
@@ -117,6 +141,7 @@ export function parseStubMapSource(text: string, tables: TileTables): StubMapSou
   const legend = new Map<string, Legend>();
   const rows: string[] = [];
   const soldiers: StubSoldier[] = [];
+  const lights: StubLight[] = [];
   let inMap = false;
   lines.slice(1).forEach((raw, i) => {
     const lineNo = i + 2;
@@ -141,6 +166,7 @@ export function parseStubMapSource(text: string, tables: TileTables): StubMapSou
     } else if (key === 'fill') fill = parseLegend(value, tables, lineNo);
     else if (key === 'legend' && symbol) legend.set(symbol, parseLegend(value, tables, lineNo));
     else if (key === 'soldier') soldiers.push(parseSoldier(value, lineNo));
+    else if (key === 'light') lights.push(parseLight(value, lineNo));
     else throw new FormatError(`line ${lineNo}: unknown key '${key}'`);
   });
   if (!fill) throw new FormatError('stub map needs a fill legend');
@@ -149,7 +175,7 @@ export function parseStubMapSource(text: string, tables: TileTables): StubMapSou
     throw new FormatError('stub map does not fit into the world');
   }
   for (const row of rows) for (const ch of row) if (!legend.has(ch)) throw new FormatError(`unknown map symbol '${ch}'`);
-  return { name, tilesetId, origin, fill, legend, rows, soldiers };
+  return { name, tilesetId, origin, fill, legend, rows, soldiers, lights };
 }
 
 export function stubMapToMapDef(source: StubMapSource): Omit<MapDef, 'trailingBytes'> {
@@ -174,7 +200,7 @@ export function stubMapToMapDef(source: StubMapSource): Omit<MapDef, 'trailingBy
   return {
     majorVersion: STUB_MAP_MAJOR_VERSION,
     minorVersion: STUB_MAP_MINOR_VERSION,
-    flags: source.soldiers.length > 0 ? FULL_SOLDIER_FLAG : 0,
+    flags: (source.soldiers.length > 0 ? MapFlags.FULL_SOLDIER : 0) | (source.lights.length > 0 ? MapFlags.WORLD_LIGHTS : 0),
     tilesetId: source.tilesetId,
     heights: new Uint8Array(WORLD_MAX),
     worldFlags: new Uint8Array(WORLD_MAX),
@@ -182,7 +208,8 @@ export function stubMapToMapDef(source: StubMapSource): Omit<MapDef, 'trailingBy
     rooms,
     items: [],
     ambient: null,
-    lights: null,
+    lights:
+      source.lights.length > 0 ? { colors: [BLACK_LIGHT_COLOUR], sprites: source.lights.map((l) => stubLightSprite(source, l)) } : null,
     info: {
       northGridNo: -1,
       eastGridNo: -1,
@@ -201,6 +228,10 @@ export function stubMapToMapDef(source: StubMapSource): Omit<MapDef, 'trailingBy
     edgepoints: null,
     schedules: [],
   };
+}
+
+function stubLightSprite(source: StubMapSource, l: StubLight): MapLightSprite {
+  return { x: source.origin.x + l.x, y: source.origin.y + l.y, flags: l.time, template: l.template };
 }
 
 function stubPlacement(source: StubMapSource, s: StubSoldier): Placement {

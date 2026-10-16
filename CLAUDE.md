@@ -50,6 +50,7 @@ The simulation is server-side (Node), the browser is a client, agents play throu
 - `docs/06`–`09`: soldiers and animation, structures/pathing/walking, sight and noise, green AI.
 - `docs/10`–`14`: turn-based, attacks, items and explosions, combat AI, savegames (import in §10).
 - `docs/15`–`19` (M4 specs): strategic time, map and movement, strategic AI, towns and assignments, PBI and autoresolve.
+- `docs/20`: tactical lighting (light sprites, true light level).
 - `docs/deviations.md`: every deliberate difference from the original; add to it when diverging.
 - `docs/02-mechanics-catalog.md`, `docs/03-logic-animation-coupling.md`: formulas and engine
   behaviour with `file:line` references into `reference/stracciatella`.

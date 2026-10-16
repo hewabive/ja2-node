@@ -1048,7 +1048,7 @@ Light0..Light6), **`AllTeamsLookForAll(FALSE)` at once**. `DecayLightEffects` (s
 `now − lastUpdate > 350` world seconds, `n = Δ/350` steps: `age++`; `age ≥ duration` → delete; odd age → radius−−;
 radius 0 → delete; else rebuild; then sight. A flare (6/6) lasts six steps ≈ 35 min of real time and **never decays
 during turn-based combat** (stopped clock, inferred). Sources: BREAK_LIGHT thrown to the ground, TRIP_FLARE from the bomb
-queue. The light itself is `05`'s lighting model.
+queue. The light itself is the lighting model of `docs/20`.
 
 ---
 

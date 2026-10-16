@@ -7,9 +7,10 @@
 
 import { pythSpacesAway, spacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { AnimHeight, height, states } from '../animation.ts';
+import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY } from '../lighting/lighting.ts';
 import { minPtsToMove } from '../points.ts';
 import { effectiveExpLevel } from '../skills.ts';
-import { NO_INTERRUPT, OKBREATH, OKLIFE, type Soldier, Team, TOTAL_SOLDIERS } from '../soldier.ts';
+import { NO_INTERRUPT, numSkillTraits, OKBREATH, OKLIFE, SkillTrait, type Soldier, Team, TOTAL_SOLDIERS } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
 import { NUM_WATCHED_LOCS } from '../turns/turn-state.ts';
 import { atan8Of, Opp, SightFlags } from './opp.ts';
@@ -24,6 +25,7 @@ const MAX_DISTANCE_VISIBLE = 26;
 const STRAIGHT = 13;
 const BEST_SIGHTING_ALL = 6;
 const NOWHERE = -1;
+const DARK_LEVELS_ABOVE_DAY = 3;
 
 export function seenOpponent(t: TacticalState, viewer: number, opp: number): number {
   return t.turn.seenOpponents[viewer * TOTAL_SOLDIERS + opp] ?? 0;
@@ -160,6 +162,8 @@ export function calcInterruptDuelPts(t: TacticalState, s: Soldier, opp: Soldier,
     else if (s.state === st.CRAWLING && d > MAX_DISTANCE_VISIBLE / 4) p += Math.trunc(d / STRAIGHT);
   }
   if (s.state === st.RUNNING && !seenOpponent(t, s.id, opp.id)) p -= 2;
+  const nightOps = numSkillTraits(s, SkillTrait.NIGHTOPS);
+  if (nightOps && lightTrueLevel(t, s.gridNo, s.level) > NORMAL_LIGHTLEVEL_DAY + DARK_LEVELS_ABOVE_DAY) p += nightOps;
   if (s.team === Team.OUR) {
     if (seenOpponent(t, s.id, opp.id) === 1) p++;
   } else if (s.team === Team.ENEMY) {

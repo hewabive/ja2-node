@@ -15,6 +15,7 @@ import { OKLIFE, Team } from '../../src/sim/tactical/soldier.ts';
 const SHOOTING_TEAMS: readonly number[] = [Team.OUR, Team.ENEMY, Team.MILITIA];
 const LOCATIONS = ['torso', 'head', 'legs'];
 const PATH_SPOKE_TILES = 12;
+const LIGHT_SPOKE_TILES = [4, 8];
 const SPOKES: readonly [number, number][] = [
   [0, -1],
   [1, -1],
@@ -59,7 +60,7 @@ for (const name of names) {
   const save = parseSaveGame(new Uint8Array(readFileSync(join(savesDir, `${name}.sav`))), table);
   const soldiers = save.soldiers.map((e) => e.soldier).filter((s) => inLoadedSector(save, s));
   const fighters = soldiers.filter((s) => SHOOTING_TEAMS.includes(s.team) && alive(s));
-  lines.push(`save ${name}`, 'soldiers detail=1');
+  lines.push(`save ${name}`, 'soldiers detail=1', 'lights', 'lights level=1');
   for (const shooter of fighters.filter(hasGun)) {
     for (const target of soldiers.filter((t) => opposed(shooter, t)))
       for (const location of LOCATIONS) lines.push(`cth shooter=${shooter.id} target=${target.id} location=${location}`);
@@ -75,6 +76,18 @@ for (const name of names) {
     for (const [dx, dy] of SPOKES) {
       const g = (y + dy * PATH_SPOKE_TILES) * WORLD_COLS + x + dx * PATH_SPOKE_TILES;
       if (isVisibleTile(g)) lines.push(`path who=${mover.id} to=${g} mode=${mover.team === Team.OUR ? 'walk' : 'swat'}`);
+    }
+  }
+  for (const viewer of fighters) {
+    for (const target of soldiers.filter((t) => opposed(viewer, t)))
+      lines.push(`light g=${target.gridNo} level=${target.level} viewer=${viewer.id}`);
+    const x = viewer.gridNo % WORLD_COLS;
+    const y = Math.trunc(viewer.gridNo / WORLD_COLS);
+    for (const distance of LIGHT_SPOKE_TILES) {
+      for (const [dx, dy] of SPOKES) {
+        const g = (y + dy * distance) * WORLD_COLS + x + dx * distance;
+        if (isVisibleTile(g)) lines.push(`light g=${g} viewer=${viewer.id}`);
+      }
     }
   }
   lines.push('soldiers detail=1');

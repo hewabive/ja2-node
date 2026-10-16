@@ -40,6 +40,7 @@ import { SmokeTile, smokeFlagsAt, smokeTypeOf } from '../explosions/smoke.ts';
 import { calcMaxTossRange, calcThrownChanceToHit } from '../explosions/throwing.ts';
 import { calculateLaunchItemChanceToGetThrough } from '../explosions/trajectory.ts';
 import { findObjWithin, InvSlot, NO_SLOT, NUM_INV_SLOTS, reloadGun } from '../inventory.ts';
+import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY } from '../lighting/lighting.ts';
 import { directionToward } from '../movement.ts';
 import { closestKnownOpponent } from '../perception/knowledge.ts';
 import { Opp } from '../perception/opp.ts';
@@ -413,7 +414,6 @@ const MAX_TOSS_SEARCH_DIST = 1;
 const MAX_EXCLUDED_TILES = 100;
 const SMOKE_THROW_VALUE = 5;
 const BREAK_LIGHT_VALUE_PER_LEVEL = 5;
-const NORMAL_LIGHTLEVEL_DAY = 3;
 const KNOCKDOWN_BONUS = 15;
 const OPP_DAMAGE_RANGE = 3;
 const DAMAGE_LOSS_PER_TILE = 20;
@@ -479,7 +479,8 @@ function estimateThrowDamage(t: TacticalState, s: Soldier, slot: number, opp: So
   const payload = (s.inv[slot] as ItemObject).item;
   if (payload === itemIndex(t, 'SMOKE_GRENADE') || payload === itemIndex(t, 'GL_SMOKE_GRENADE')) return SMOKE_THROW_VALUE;
   const explosive = itemDef(t, payload === itemIndex(t, 'ROCKET_LAUNCHER') ? itemIndex(t, 'C1') : payload)?.explosive;
-  if (payload === itemIndex(t, 'BREAK_LIGHT')) return BREAK_LIGHT_VALUE_PER_LEVEL * (t.perception.ambientLight - NORMAL_LIGHTLEVEL_DAY);
+  if (payload === itemIndex(t, 'BREAK_LIGHT'))
+    return BREAK_LIGHT_VALUE_PER_LEVEL * (lightTrueLevel(t, opp.gridNo, opp.level) - NORMAL_LIGHTLEVEL_DAY);
   let explosion = explosive?.blast ? idiv(explosive.blast.damage * 3, 2) : 0;
   let breath = explosive?.stun ? idiv(explosive.stun.breathDamage * 5, 4) : 0;
   const smoke = explosive?.smoke ? smokeTypeOf(t, explosive.smoke.type) : null;

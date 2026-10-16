@@ -7,6 +7,7 @@ import { StructureFlags } from '../content/world/structures.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import { advance } from '../sim/advance.ts';
+import { LightSpriteFlags, lightTimeAt } from '../sim/tactical/lighting/lighting.ts';
 import { inLoadedSector } from '../sim/tactical/save-import.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { whoIsThere } from '../sim/tactical/state.ts';
@@ -56,6 +57,12 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('native savegames imported into the t
         if (door) expect((door.flags & StructureFlags.OPEN) !== 0).toBe((d.flags & DOOR_OPEN) !== 0);
       }
       expect(t.pre.state()).toEqual({ ring: save.preRandom.numbers, index: save.preRandom.index });
+      const lightTime = lightTimeAt(save.worldTime.hour);
+      for (const l of t.lighting.sprites) {
+        if (!l) continue;
+        const scheduled = l.flags & (LightSpriteFlags.PRIMETIME | LightSpriteFlags.NIGHTTIME);
+        expect((l.flags & LightSpriteFlags.ON) !== 0).toBe(scheduled === 0 || (scheduled & lightTime) !== 0);
+      }
       expect(t.inCombat).toBe(save.tactical.inCombat);
       if (t.inCombat && t.turn.currentTeam === Team.OUR) {
         expect(session.sim.dispatch({ type: 'endTurn' }).ok).toBe(true);

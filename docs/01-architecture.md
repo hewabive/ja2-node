@@ -830,7 +830,7 @@ glow, equipment generation, prone/multi-tile soldiers.
 
 The milestone is closed. Result: battles in A9 on the original data and in the stub village, an agent fighting through
 MCP alone, native savegames continued in a session and checked against the native build. Known gaps are listed in
-`docs/deviations.md`; the largest is lighting (map light sprites, flares, night vision gear).
+`docs/deviations.md`.
 
 Specs: `docs/10` (turn-based), `11` (attacks and damage), `12` (items and explosions), `13` (combat AI).
 
@@ -871,7 +871,11 @@ Specs: `docs/10` (turn-based), `11` (attacks and damage), `12` (items and explos
     (soldiers, items, corpses, openable structures, doors, opplists, turn state, `PreRandom`); MCP
     `newSession {save}` and `JA2_SAVE` start one. `tools/oracle/save-probes.ts` and `compare.ts` check soldier state,
     hit chances, AI best shots, sight and paths against the native build on the user's six saves: 6,075 comparisons
-    match. The known gap is lighting: map light sprites are not simulated, so lit tiles at night differ.
+    match, and with lighting (item 14) also the light dumps: 6,815 comparisons.
 13. **Drivers and cost**: the instant driver (`{mode: 'instant'}`) runs every order to idle on the server while the
     tactical page plays the frames back at 1×, 4×, 16× or skips them. An enemy turn costs tens of milliseconds for
     a small garrison and 100–250 ms for 16 soldiers (`04` §4.5).
+14. **Lighting** (`sim/tactical/lighting`, `docs/20`): map light sprites with the original templates computed from
+    source, ray casting and the true light level read by sight, AI, throws and interrupts; on the six saves and all 112
+    original maps with lights the light dumps match the native build. Flares and merc lights stay dark (their
+    templates exist only in the original data).

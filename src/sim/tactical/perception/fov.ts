@@ -14,6 +14,7 @@ import {
   StructureFlags,
   structureHeight,
 } from '../../../content/world/structures.ts';
+import { adjustMaxSightRangeForEnvEffects, lightTrueLevel } from '../lighting/lighting.ts';
 import { doorTravelCost } from '../points.ts';
 import { OKLIFE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
@@ -30,7 +31,6 @@ const NO_NEXT = 99;
 const NORMAL_VIEW_RANGE = 13;
 const NO_ROOM = 0;
 const MAX_ROOMS = 256;
-const LIGHT_SIGHTING = [80, 86, 93, 100, 94, 88, 82, 76, 70, 64, 58, 51, 43, 30, 17, 9];
 
 const Blocking = {
   NOTHING: 0,
@@ -182,10 +182,9 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
     fog.markerValue = 1;
   }
   const level = s.level;
-  const light = Math.min(15, Math.max(1, t.perception.ambientLight));
   const range = t.explosives.gassed[s.id]
     ? GASSED_VIEW_RANGE
-    : Math.trunc((Math.trunc((NORMAL_VIEW_RANGE * (LIGHT_SIGHTING[light] ?? 100)) / 100) + NORMAL_VIEW_RANGE) / 2);
+    : Math.trunc((adjustMaxSightRangeForEnvEffects(lightTrueLevel(t, s.gridNo, level), NORMAL_VIEW_RANGE) + NORMAL_VIEW_RANGE) / 2);
   const dirs = [...(SIGHT_DIRS[s.direction] ?? SIGHT_DIRS[0] ?? []), s.direction];
   const incs = [...dirs.slice(0, 5).map((d) => DIRECTION_INCREMENT[d] ?? 0), 0];
   const table = s.direction % 2 === 1 ? VIEW_PATH_2 : VIEW_PATH;

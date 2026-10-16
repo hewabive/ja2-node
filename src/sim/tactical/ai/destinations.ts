@@ -11,7 +11,7 @@ import { AlertStatus, NO_PROFILE, Orders, type Soldier, Team } from '../soldier.
 import type { TacticalState } from '../state.ts';
 import { MAX_ROAMING_RANGE } from './actions.ts';
 
-export const PathMode = { IGNORE_PATH: 0, ENSURE_PATH: 1 } as const;
+export const PathMode = { IGNORE_PATH: 0, ENSURE_PATH: 1, ENSURE_PATH_COST: 2 } as const;
 const NO_ROOM = 0;
 const MAX_PATROL_POINTS = 10;
 
@@ -30,7 +30,7 @@ export function legalNPCDestination(t: TacticalState, s: Soldier, g: number, mod
   const skipTilesWithMercs = t.inCombat && mode !== PathMode.IGNORE_PATH && spacesAway(s.gridNo, g) === 1;
   if (!newOKDestination(t.pathEnv, s, g, skipTilesWithMercs, s.level) || g === s.gridNo || g === s.ai.blackList) return false;
   if (!waterOK && isWater(t.pathWorld, g)) return false;
-  if (mode === PathMode.IGNORE_PATH) return true;
+  if (mode !== PathMode.ENSURE_PATH) return true;
   const route = findBestPath(t.pathEnv, s, g, s.level, { copy: PathCopy.ROUTE, flags });
   if (route.length === 0) return false;
   s.path = [...route.steps];

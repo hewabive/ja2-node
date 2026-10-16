@@ -16,7 +16,8 @@ import { reduceAttackBusyCount } from '../combat/barrier.ts';
 import { rangeInUnits } from '../combat/chance.ts';
 import { StatCause, statChange } from '../combat/experience.ts';
 import { Aim, CTH_MAXIMUM, CTH_MINIMUM, WeaponMode, weaponStatusMod } from '../combat/types.ts';
-import { findObjWithin, InvSlot, NUM_INV_SLOTS } from '../inventory.ts';
+import { findObjWithin, InvSlot, NUM_INV_SLOTS, wearsHeadGear } from '../inventory.ts';
+import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY } from '../lighting/lighting.ts';
 import { directionToward } from '../movement.ts';
 import { deductPoints } from '../points.ts';
 import { StatKind } from '../profiles.ts';
@@ -43,7 +44,6 @@ import { vec3 } from './vec3.ts';
 const MIN_MORTAR_RANGE = 150;
 const MIN_LOB_RANGE = 6;
 const AP_TOSS_ITEM = 8;
-const NORMAL_LIGHTLEVEL_DAY = 3;
 const FAILURE_DICE = 40;
 const THROWING_BONUS = SKILL_TRAIT_BONUS[SkillTrait.THROWING] ?? 0;
 const HEAVY_WEAPONS_BONUS = SKILL_TRAIT_BONUS[SkillTrait.HEAVY_WEAPS] ?? 0;
@@ -99,11 +99,6 @@ function baseThrownChance(s: Soldier, mechanical: boolean): number {
   );
 }
 
-function wearsSunGoggles(t: TacticalState, s: Soldier): boolean {
-  const goggles = itemIndex(t, 'SUNGOGGLES');
-  return s.inv[InvSlot.HEAD1]?.item === goggles || s.inv[InvSlot.HEAD2]?.item === goggles;
-}
-
 export function calcThrownChanceToHit(t: TacticalState, s: Soldier, g: number, aimTime: number): number {
   const hand = handItem(t, s);
   const launcher = itemDef(t, hand)?.itemClass === ItemClass.LAUNCHER;
@@ -115,7 +110,8 @@ export function calcThrownChanceToHit(t: TacticalState, s: Soldier, g: number, a
   if (isGassed(t, s)) c -= Aim.PENALTY_GASSED;
   if (s.shock) c -= s.shock * Aim.PENALTY_PER_SHOCK;
   let range = rangeInUnits(s.gridNo, g);
-  if (wearsSunGoggles(t, s) && t.perception.ambientLight < NORMAL_LIGHTLEVEL_DAY) range -= idiv(range, 10);
+  if (wearsHeadGear(s.inv, itemIndex(t, 'SUNGOGGLES')) && lightTrueLevel(t, g, s.targetLevel) < NORMAL_LIGHTLEVEL_DAY)
+    range -= idiv(range, 10);
   if (hand === itemIndex(t, 'MORTAR') && range < MIN_MORTAR_RANGE) return 0;
   const maxRange = calcMaxTossRange(t, s, hand, true) * 10;
   c += idiv(50 * 2 * (idiv(maxRange, 2) - range), maxRange);

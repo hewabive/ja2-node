@@ -67,6 +67,7 @@ export interface StructureInstance {
   readonly cubeOffset: number;
   flags: number;
   hitPoints: number;
+  cachedHeight: number;
   readonly wallOrientation: number;
   readonly def: StructureDef;
   readonly tile: StructureTile;
@@ -86,6 +87,7 @@ export function has(flags: number, mask: number): boolean {
 }
 
 export function structureHeight(s: StructureInstance): number {
+  if (s.cachedHeight !== 0) return s.cachedHeight;
   let greatest = -1;
   for (const column of s.tile.shape) {
     for (let z = PROFILE_Z_SIZE - 1; z > greatest; z--) {
@@ -95,7 +97,8 @@ export function structureHeight(s: StructureInstance): number {
       }
     }
   }
-  return greatest + 1;
+  s.cachedHeight = greatest + 1;
+  return s.cachedHeight;
 }
 
 function instanceFlags(def: StructureDef, tile: StructureTile): number {
@@ -248,6 +251,7 @@ export class WorldStructures {
         cubeOffset: (tile.flags & StructureTileFlags.ON_ROOF ? level + 1 : level) * PROFILE_Z_SIZE,
         flags,
         hitPoints: isBase ? def.hitPoints : 0,
+        cachedHeight: 0,
         wallOrientation:
           def.wallOrientation !== Orientation.NONE && (!has(flags, StructureFlags.WALL) || isBase) ? def.wallOrientation : Orientation.NONE,
         def,

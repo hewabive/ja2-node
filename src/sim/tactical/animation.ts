@@ -19,6 +19,7 @@ import type { TacticalContent } from './content.ts';
 import { DIRECTION_COUNT, DIRECTION_INCREMENT, quickestTurnIncrement } from './directions.ts';
 import { handlePendingDoor } from './doors.ts';
 import { InvSlot } from './inventory.ts';
+import { countMuzzleFlashFrame } from './lighting/muzzle-flash.ts';
 import { getNewSoldierPath, handleGotoNewGridNo, isJumpableFenceAt, moveMercFacingDirection, setSoldierPosition } from './movement.ts';
 import { newOKDestination } from './pathfinding.ts';
 import { addMercStructure, isValidStance, okToAddMercToWorld } from './person-structure.ts';
@@ -521,6 +522,7 @@ export function adjustToNextAnimationFrame(t: TacticalState, s: Soldier): void {
     const code = classifyCode(scriptCode(content.scripts, s.state, s.pc));
     switch (code.kind) {
       case 'frame':
+        countMuzzleFlashFrame(t, s);
         s.frame = code.frame;
         s.pc++;
         return;

@@ -4,7 +4,8 @@
 // @src LoadCurrentSectorsInformationFromTempItemsFile, LoadAndAddWorldItemsFromTempFile, LoadRottingCorpsesFromTempCorpseFile;
 // @src TileEngine/SaveLoadMap.cc LoadAllMapChangesFromMapTempFileAndApplyThem, SetOpenableStructStatusFromMapTempFile;
 // @src Tactical/Keys.cc LoadDoorStatusArrayFromDoorStatusTempFile, SynchronizeDoorStatusToStructureData;
-// @src Tactical/Soldier_Add.cc AddSoldierToSectorGridNo (loading branch). See docs/14 §10.
+// @src Tactical/Soldier_Add.cc AddSoldierToSectorGridNo (loading branch); TileEngine/WorldDef.cc LoadMapLights (light time
+// @src from the saved clock). See docs/14 §10, docs/20.
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
@@ -18,6 +19,7 @@ import { objectFromRecord } from '../items/object.ts';
 import { addCorpseStructure } from './combat/death.ts';
 import { swapStructureForPartner } from './doors.ts';
 import { NUM_INV_SLOTS } from './inventory.ts';
+import { lightSetBaseLevel, loadMapLights } from './lighting/lighting.ts';
 import { setSoldierPosition } from './movement.ts';
 import {
   createSoldier,
@@ -40,8 +42,6 @@ const NOBODY = TOTAL_SOLDIERS;
 const SAVED_OPPLIST_ENTRIES = 148;
 const INT16_BYTES = 2;
 const MAX_TEAMS = 6;
-const LIGHT_LEVEL_MIN = 1;
-const LIGHT_LEVEL_MAX = 15;
 const SAVED_NO_PENDING_ANIMATION = 32001;
 const SAVED_NO_PENDING_DIRECTION = 253;
 const SAVED_NO_PENDING_STANCE = 254;
@@ -81,6 +81,7 @@ export function worldWithSavedDoors(world: TacticalWorld, save: SaveGame): Tacti
 export function importSave(sim: TacticalSim, save: SaveGame): SaveImportReport {
   const t = sim.state;
   applyOptions(t, save);
+  loadSavedSectorLights(sim, save);
   const worldItems = importWorldItems(t, save, sim.world.map.info.centerGridNo);
   const corpses = importCorpses(t, save.currentSector.corpses ?? []);
   const skippedMapModifications = applyMapModifications(t, save);
@@ -90,6 +91,7 @@ export function importSave(sim: TacticalSim, save: SaveGame): SaveImportReport {
   importOpplists(t, save);
   importTurnState(t, save);
   t.pre.restore({ ring: save.preRandom.numbers, index: save.preRandom.index });
+  lightSetBaseLevel(t, savedAmbientLight(sim, save));
   return { mapPath: sim.mapPath, soldiers, worldItems, corpses, skippedMapModifications };
 }
 
@@ -98,9 +100,19 @@ function applyOptions(t: TacticalState, save: SaveGame): void {
   t.options.gunNut = options.gunNut;
   t.equipment.sciFi = options.sciFi;
   t.perception.difficulty = options.difficulty;
-  if (save.tactical.worldSector.z === 0)
-    t.perception.ambientLight = Math.min(LIGHT_LEVEL_MAX, Math.max(LIGHT_LEVEL_MIN, save.clock.envLightValue));
   t.clockMs = save.generalInfo.baseJA2Clock;
+}
+
+function loadSavedSectorLights(sim: TacticalSim, save: SaveGame): void {
+  const t = sim.state;
+  t.lighting.underground = save.tactical.worldSector.z > 0;
+  t.lighting.caves = sim.world.map.ambient?.caves ?? false;
+  loadMapLights(t, sim.world.map.lights, save.worldTime.hour);
+}
+
+function savedAmbientLight(sim: TacticalSim, save: SaveGame): number {
+  if (save.tactical.worldSector.z === 0) return save.clock.envLightValue;
+  return sim.world.map.ambient?.lightLevel ?? sim.state.lighting.ambient;
 }
 
 function importWorldItems(t: TacticalState, save: SaveGame, centre: number): number {

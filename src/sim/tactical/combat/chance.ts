@@ -9,7 +9,8 @@ import { WORLD_COLS } from '../../../content/world/grid.ts';
 import { findAttachment, type ItemObject, USABLE_STATUS } from '../../items/object.ts';
 import { AnimHeight, endHeight, height, states } from '../animation.ts';
 import { isGassed } from '../explosions/smoke.ts';
-import { isValidSecondHandShot } from '../inventory.ts';
+import { isValidSecondHandShot, wearsHeadGear } from '../inventory.ts';
+import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY } from '../lighting/lighting.ts';
 import { Opp } from '../perception/opp.ts';
 import { distanceVisible } from '../perception/sight.ts';
 import {
@@ -146,6 +147,8 @@ export function calcChanceToHitGun(t: TacticalState, s: Soldier, g: number, aim:
     maxRange = gunRange(items, gun);
   }
   if (sight > 0) {
+    const sunGoggles = items.byName.get('SUNGOGGLES')?.index ?? -2;
+    if (wearsHeadGear(s.inv, sunGoggles) && lightTrueLevel(t, g, s.targetLevel) < NORMAL_LIGHTLEVEL_DAY) sight -= Math.trunc(range / 10);
     const scope = findAttachment(gun, items.byName.get('SNIPERSCOPE')?.index ?? -2);
     if (scope !== -1 && range > 60 && aim > 0 && !s.doBurst) {
       let bonus = Math.trunc((20 * aim * (range - 60)) / 100);

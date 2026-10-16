@@ -11,6 +11,7 @@ import type { TacticalContent } from './content.ts';
 import { createEquipmentState, type EquipmentState } from './equipment.ts';
 import { createExplosivesState, type ExplosivesState } from './explosions/state.ts';
 import type { GameEvent } from './game-events.ts';
+import { createLightingState, type LightingState } from './lighting/lighting.ts';
 import type { DoorStatus, PathEnv, PathSoldier, PathWorld } from './pathfinding.ts';
 import { createFogOfWar, type FogOfWar } from './perception/fov.ts';
 import { createPerception, type Perception } from './perception/sight.ts';
@@ -133,6 +134,7 @@ export interface TacticalState {
   readonly pathEnv: PathEnv;
   hooks: TacticalHooks;
   readonly perception: Perception;
+  readonly lighting: LightingState;
   readonly fog: FogOfWar;
   perceptionHooks: PerceptionHooks;
   readonly turn: TurnState;
@@ -187,6 +189,7 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
     pathEnv,
     hooks: NO_HOOKS,
     perception: createPerception(TOTAL_SOLDIERS),
+    lighting: createLightingState(world.level),
     fog: createFogOfWar(),
     perceptionHooks: {
       checkForChangingOrders: () => {},

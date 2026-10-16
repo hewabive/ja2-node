@@ -97,7 +97,7 @@ export function doorOpeningNoise(t: TacticalState, s: Soldier): number {
 
 function decideHearing(t: TacticalState, s: Soldier): number {
   let hearing = s.stats.experience > 3 ? 1 : 0;
-  const ambient = t.perception.ambientLight;
+  const ambient = t.lighting.ambient;
   if (ambient >= 8 && ambient <= 9) hearing += 1;
   else if (ambient === 10) hearing += 2;
   else if (ambient >= 11) hearing += 3;

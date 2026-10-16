@@ -7,6 +7,7 @@
 import type { ExplosionAnimation } from '../../../content/items/explosions.ts';
 import { WORLD_MAX } from '../../../content/world/grid.ts';
 import type { ItemObject } from '../../items/object.ts';
+import type { LightSprite } from '../lighting/lighting.ts';
 import { type Soldier, TOTAL_SOLDIERS } from '../soldier.ts';
 import type { Vec3 } from './vec3.ts';
 
@@ -77,6 +78,7 @@ export interface ExplosionTile {
   readonly level: number;
   readonly animation: ExplosionAnimation;
   readonly delay: number;
+  readonly light: LightSprite | null;
   frame: number;
   lastUpdate: number;
 }
@@ -114,6 +116,7 @@ export interface LightEffect {
   readonly duration: number;
   age: number;
   lastUpdate: number;
+  sprite: LightSprite | null;
 }
 
 export interface ExplosivesState {

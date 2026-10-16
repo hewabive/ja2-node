@@ -15,6 +15,7 @@ import {
   SANDBOX_POPULATION,
 } from '../sim/tactical/creation.ts';
 import { InvSlot } from '../sim/tactical/inventory.ts';
+import { lightSpriteRenderAll } from '../sim/tactical/lighting/lighting.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
 import { revealedRooms } from '../sim/tactical/perception/fov.ts';
 import { createSoldier, firstFreeSoldierId, NO_PROFILE, type Soldier, Team } from '../sim/tactical/soldier.ts';
@@ -136,6 +137,7 @@ export function populateSandbox(sim: TacticalSim): void {
   const idFor = (team: number) => firstFreeSoldierId((id) => t.soldiers[id] !== undefined, team);
   const profiles = t.content.profiles;
   loadWorldItemsFromMap(t, sim.world.map.items);
+  lightSpriteRenderAll(t);
   for (const p of profiles.length > 0 ? SANDBOX_SQUAD : []) {
     const profile = profiles[p];
     if (profile) addSoldierToSector(t, createMercFromProfile(t, idFor(Team.OUR), profile, 4), entry);

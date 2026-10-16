@@ -3,7 +3,9 @@
 // @src src/game/Tactical/PathAI.cc FindBestPath, PlotPath; src/game/Tactical/LOS.cc LineOfSightTest,
 // @src SoldierToSoldierLineOfSightTest; src/game/TileEngine/WorldDef.cc LoadWorld, gubWorldMovementCosts
 // @src src/game/Tactical/Weapons.cc CalcChanceToHitGun; src/game/Tactical/Points.cc CalcTotalAPsToAttack;
-// @src src/game/Tactical/UI_Cursors.cc; src/game/TacticalAI/Attacks.cc CalcBestShot; src/game/TacticalAI/DecideAction.cc
+// @src src/game/Tactical/UI_Cursors.cc; src/game/TacticalAI/Attacks.cc CalcBestShot; src/game/TacticalAI/DecideAction.cc;
+// @src src/game/TileEngine/Lighting.cc LightTrueLevel, LightSetBaseLevel, LightSprites; src/game/Strategic/Game_Clock.cc
+// @src UpdateGameClockGlobals
 #include "Oracle.h"
 
 #include "AIInternals.h"
@@ -33,6 +35,7 @@
 #include "Soldier_Create.h"
 #include "Soldier_Profile.h"
 #include "StrategicMap.h"
+#include "Text.h"
 #include "Weapons.h"
 #include "WorldDef.h"
 #include "WorldMan.h"
@@ -555,6 +558,20 @@ std::string DescribeTacticalStatus()
 		.text();
 }
 
+std::string CachedStructureHeights()
+{
+	std::vector<std::string> cached;
+	for (GridNo g = 0; g < WORLD_MAX; ++g)
+	{
+		int index = 0;
+		for (STRUCTURE const* s = gpWorldLevelData[g].pStructureHead; s; s = s->pNext, ++index)
+		{
+			if (s->ubStructureHeight != 0) cached.push_back("[" + std::to_string(g) + "," + std::to_string(index) + "]");
+		}
+	}
+	return JsonArray(cached);
+}
+
 void LoadSector(Command const& c)
 {
 	std::string const name = Text(c, "_0", Text(c, "sector", ""));
@@ -562,6 +579,11 @@ void LoadSector(Command const& c)
 	SGPSector const sector = SGPSector::FromShortString(ST::string(name), static_cast<INT8>(Integer(c, "z", 0)));
 	if (!sector.IsValid()) throw std::runtime_error("invalid sector " + name);
 	gWorldSector = sector;
+	if (Has(c, "hour"))
+	{
+		guiGameClock = NUM_SEC_IN_DAY + static_cast<UINT32>(Integer(c, "hour", 0)) * NUM_SEC_IN_HOUR;
+		UpdateGameClockGlobals(gpGameClockString);
+	}
 	ST::string const map = Has(c, "map") ? ST::string(Text(c, "map", "")) : GetMapFileName(sector, FALSE);
 	LoadWorld(map);
 	Emit(Json{}
@@ -569,6 +591,9 @@ void LoadSector(Command const& c)
 		.str("sector", sector.AsShortString().to_std_string())
 		.num("z", sector.z)
 		.str("map", map.to_std_string())
+		.num("hour", GetWorldHour())
+		.num("ambient", LightGetAmbient())
+		.raw("structureHeights", CachedStructureHeights())
 		.raw("soldiers", SoldierList()));
 }
 
@@ -1004,6 +1029,44 @@ void ProbeLight(Command const& c)
 	Emit(json);
 }
 
+void SetAmbientLight(Command const& c)
+{
+	if (!gfWorldLoaded) throw std::runtime_error("no world loaded");
+	UINT8 const level = static_cast<UINT8>(Required(c, "level"));
+	LightSetBaseLevel(level);
+	Emit(Json{}.str("probe", "ambient").num("line", c.line).num("level", level));
+}
+
+void DumpLights(Command const& c)
+{
+	if (!gfWorldLoaded) throw std::runtime_error("no world loaded");
+	INT8 const level = static_cast<INT8>(Integer(c, "level", 0));
+	std::vector<std::uint8_t> levels(WORLD_MAX);
+	for (GridNo g = 0; g < WORLD_MAX; ++g) levels[g] = LightTrueLevel(g, level);
+	std::map<int, long long> histogram;
+	for (std::uint8_t const value : levels) ++histogram[value];
+	Json counts;
+	for (auto const& [value, count] : histogram) counts.num(std::to_string(value).c_str(), count);
+	std::vector<std::string> sprites;
+	CFOR_EACH_LIGHT_SPRITE(l)
+	{
+		sprites.push_back(Json{}.num("x", l->iX).num("y", l->iY).num("flags", l->uiFlags)
+			.str("template", LightSpriteGetTypeName(l)).text());
+	}
+	char hash[16];
+	std::snprintf(hash, sizeof(hash), "%08x", Fnv1a(levels.data(), levels.size()));
+	Json json;
+	json.str("probe", "lights").num("line", c.line)
+		.str("sector", gWorldSector.AsShortString().to_std_string())
+		.num("level", level).num("ambient", LightGetAmbient())
+		.str("layout", "u8[gridNo]").nums("shape", {WORLD_MAX})
+		.str("fnv1a32", hash)
+		.raw("histogram", counts.text())
+		.raw("sprites", JsonArray(sprites));
+	if (Text(c, "format", "base64") == "base64") json.str("base64", Base64(levels.data(), levels.size()));
+	Emit(json);
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -1016,6 +1079,8 @@ void Dispatch(Command const& c)
 	if (c.name == "cth")      return ProbeChanceToHit(c);
 	if (c.name == "bestshot") return ProbeBestShot(c);
 	if (c.name == "light")    return ProbeLight(c);
+	if (c.name == "lights")   return DumpLights(c);
+	if (c.name == "ambient")  return SetAmbientLight(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

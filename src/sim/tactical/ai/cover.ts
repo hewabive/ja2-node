@@ -21,18 +21,19 @@ import {
 } from '../../../content/world/grid.ts';
 import { TravelCost } from '../../../content/world/movement-costs.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { clamp, i16, idiv, u8 } from '../../../core/int.ts';
+import { clamp, i8, i16, idiv, u8 } from '../../../core/int.ts';
 import { AnimHeight, states } from '../animation.ts';
 import { soldierToLocationChanceToGetThrough } from '../combat/bullets.ts';
 import { rangeInUnits, soldierDifficultyLevel } from '../combat/chance.ts';
 import { inGas, inSmoke } from '../explosions/smoke.ts';
+import { LIGHT_SIGHTING, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, surfaceAmbientLevel } from '../lighting/lighting.ts';
 import { aiPathCostIndex, findBestPath, MoveMode, NOWHERE, newOKDestination, PathCopy, type PathEnv } from '../pathfinding.ts';
 import { AP, apsToChangeStance, calcActionPoints, minAPsToStartMovement, stateName } from '../points.ts';
 import { AlertStatus, cellCentre, type Soldier, Team } from '../soldier.ts';
 import { mercs, type TacticalState, whoIsThere } from '../state.ts';
 import { AiAction, MAX_ROAMING_RANGE } from './actions.ts';
 import { determineMovementMode } from './decide.ts';
-import { legalNPCDestination, PathMode, roamingRange } from './destinations.ts';
+import { legalNPCDestination, PathMode, roamingRange, roomAt } from './destinations.ts';
 import {
   bestGuessLocation,
   calcManThreatValue,
@@ -67,6 +68,11 @@ const PRONE_CUBE = 1;
 const CROUCH_CUBE = 2;
 const STAND_CUBE = 3;
 const FULL_CHANCE = 100;
+const NIGHT_MARGIN = 2;
+const NO_ROOM = 0;
+const DARKER_SPOT_START = 1000;
+const DARKER_SPOT_SEARCH_STEP = 5;
+const DARKER_SPOT_SEARCH_MAX = 15;
 
 export interface CoverChoice {
   readonly gridNo: number;
@@ -132,12 +138,56 @@ function inWaterGasOrSmoke(t: TacticalState, s: Soldier, g: number): boolean {
   return waterTooDeepForAttacks(t, g) || inSmoke(t, s, g) || inGas(t, s, g);
 }
 
-export function inLightAtNight(_t: TacticalState, _g: number, _level: number): boolean {
-  return false;
+function nightBackgroundLight(t: TacticalState): number | null {
+  const background = surfaceAmbientLevel(t);
+  return background === null || background < NORMAL_LIGHTLEVEL_DAY + NIGHT_MARGIN ? null : background;
 }
 
-export function findNearbyDarkerSpot(_t: TacticalState, _s: Soldier): number {
-  return NOWHERE;
+export function inLightAtNight(t: TacticalState, g: number, level: number): boolean {
+  const background = nightBackgroundLight(t);
+  if (background === null || roomAt(t, g) !== NO_ROOM) return false;
+  return lightTrueLevel(t, g, level) < background;
+}
+
+function lightSighting(level: number): number {
+  return LIGHT_SIGHTING[level] ?? 0;
+}
+
+function legalNPCDestinationCost(t: TacticalState, s: Soldier, g: number): number {
+  if (!legalNPCDestination(t, s, g, PathMode.ENSURE_PATH_COST, false, 0)) return 0;
+  return i16(plotPathCost(t, s, g, states(t.content.animations).WALKING));
+}
+
+export function findNearbyDarkerSpot(t: TacticalState, s: Soldier): number {
+  const currentSighting = lightSighting(lightTrueLevel(t, s.gridNo, s.level));
+  const { range: roam, origin } = roamingRange(s);
+  let closest = NOWHERE;
+  let bestValue = DARKER_SPOT_START;
+  for (let range = DARKER_SPOT_SEARCH_STEP; range <= DARKER_SPOT_SEARCH_MAX; range += DARKER_SPOT_SEARCH_STEP) {
+    const square = searchSquare(s.gridNo, range);
+    const flood = reachabilityFlood(t, s, determineMovementMode(t, s, AiAction.LEAVE_WATER_GAS), PathCopy.REACHABLE, range, 0);
+    for (const { g } of squareTiles(square)) {
+      if (!flood.reachable[g] || g === s.ai.blackList) continue;
+      if (pythSpacesAway(origin, g) > roam) continue;
+      const lightDiff = i8(currentSighting - lightSighting(lightTrueLevel(t, g, s.level)));
+      if (lightDiff <= 1) continue;
+      const pathCost = legalNPCDestinationCost(t, s, g);
+      if (!pathCost) continue;
+      const value = pathCost * 2 - lightDiff;
+      if (value < bestValue) {
+        bestValue = value;
+        closest = g;
+      }
+    }
+    if (closest !== NOWHERE) break;
+  }
+  return closest;
+}
+
+function nightCover(t: TacticalState, s: Soldier, g: number, value: number, backgroundSighting: number | null): number {
+  if (backgroundSighting === null || roomAt(t, g) !== NO_ROOM) return value;
+  const difference = u8(lightSighting(lightTrueLevel(t, g, s.level)) - backgroundSighting);
+  return value >= 0 ? value - idiv(value, 100) * difference : value + idiv(value, 100) * difference;
 }
 
 export function calcPercentBetter(oldValue: number, newValue: number, oldScale: number, newScale: number): number {
@@ -441,6 +491,8 @@ export function findBestNearbyCover(t: TacticalState, s: Soldier, _morale: numbe
   const fromOrigin = distanceFromOrigin(s, roam, origin);
   const budget = s.ai.alertStatus >= AlertStatus.RED ? s.actionPoints : calcActionPoints(t.content, s);
   const flood = reachabilityFlood(t, s, determineMovementMode(t, s, AiAction.TAKE_COVER), PathCopy.REACHABLE_AND_APS, range, budget);
+  const background = nightBackgroundLight(t);
+  const backgroundSighting = background === null ? null : lightSighting(background);
   let bestValue = currentValue;
   let bestScale = 0;
   let bestTile = NOWHERE;
@@ -452,7 +504,7 @@ export function findBestNearbyCover(t: TacticalState, s: Soldier, _morale: numbe
     if (!flood.reachable[g] || inGas(t, s, g) || g === s.ai.blackList) continue;
     const pathCost = flood.apCosts?.[aiPathCostIndex(dx, dy)] ?? 0;
     const cover = coverAt(t, s, g, myThreat, s.actionPoints - pathCost, threats);
-    const value = crowdedCover(cover.value, numberOfTeamMatesAdjacent(t, s, g));
+    const value = nightCover(t, s, g, crowdedCover(cover.value, numberOfTeamMatesAdjacent(t, s, g)), backgroundSighting);
     if (value > bestValue) {
       bestValue = value;
       bestScale = cover.scale;

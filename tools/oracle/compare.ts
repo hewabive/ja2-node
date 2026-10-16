@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
+import { WORLD_MAX } from '../../src/content/world/grid.ts';
+import { structureHeight } from '../../src/content/world/structures.ts';
 import { loadTacticalWorld, type TacticalWorld } from '../../src/content/world/tactical-world.ts';
 import { openDataVfs } from '../../src/node/data-vfs.ts';
 import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR } from '../../src/node/repo.ts';
@@ -15,6 +17,7 @@ import { soldierToSoldierLos } from '../../src/sim/tactical/combat/positions.ts'
 import { AimShot, WeaponMode } from '../../src/sim/tactical/combat/types.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
 import { InvSlot, itemIn } from '../../src/sim/tactical/inventory.ts';
+import { LightSpriteFlags, lightSetBaseLevel, lightTrueLevel, loadMapLights } from '../../src/sim/tactical/lighting/lighting.ts';
 import { loadTacticalContent } from '../../src/sim/tactical/load-content.ts';
 import { setSoldierPosition } from '../../src/sim/tactical/movement.ts';
 import { findBestPath, type MoveMode } from '../../src/sim/tactical/pathfinding.ts';
@@ -57,6 +60,8 @@ const TEAM: Readonly<Record<string, number>> = {
 const AIM_RANDOM = 0;
 const OPPLIST_ENTRIES = 148;
 const IRRELEVANT_DIRECTION = -1;
+const MAX_REPORTED_TILES = 12;
+const SPRITE_STATE_FLAGS = LightSpriteFlags.ON | LightSpriteFlags.PRIMETIME | LightSpriteFlags.NIGHTTIME;
 
 function readLines(path: string): Json[] {
   return readFileSync(path, 'utf8')
@@ -390,8 +395,8 @@ function compareLight(ctx: Context, p: Json): number {
   const t = ctx.sim.state;
   const viewer = p.viewer === undefined ? null : t.soldiers[Number(p.viewer)];
   const ours = {
-    ambient: t.perception.ambientLight,
-    trueLevel: t.perception.ambientLight,
+    ambient: t.lighting.ambient,
+    trueLevel: lightTrueLevel(t, Number(p.g), Number(p.level ?? 0)),
     distanceVisible: viewer
       ? distanceVisible(t, viewer, IRRELEVANT_DIRECTION, IRRELEVANT_DIRECTION, Number(p.g), Number(p.level ?? 0))
       : undefined,
@@ -404,10 +409,65 @@ function compareLight(ctx: Context, p: Json): number {
   );
 }
 
+function trueLevels(ctx: Context, level: number): Uint8Array {
+  const levels = new Uint8Array(WORLD_MAX);
+  for (let g = 0; g < WORLD_MAX; g++) levels[g] = lightTrueLevel(ctx.sim.state, g, level);
+  return levels;
+}
+
+function compareLights(ctx: Context, p: Json): number {
+  const level = Number(p.level ?? 0);
+  const ours = trueLevels(ctx, level);
+  const hash = fnv1a32(ours).toString(16).padStart(8, '0');
+  const differing: string[] = [];
+  let count = 0;
+  if (typeof p.base64 === 'string') {
+    const theirs = new Uint8Array(Buffer.from(p.base64, 'base64'));
+    for (let g = 0; g < theirs.length; g++) {
+      if (theirs[g] === ours[g]) continue;
+      count++;
+      if (differing.length < MAX_REPORTED_TILES) differing.push(`${g}:${ours[g]}/${theirs[g]}`);
+    }
+  }
+  const lit = ours.reduce((n, v) => n + (v !== ctx.sim.state.lighting.natural ? 1 : 0), 0);
+  const sprites = spriteList(
+    ctx.sim.state.lighting.sprites.flatMap((l) => (l && l.flags & LightSpriteFlags.ACTIVE ? [{ ...l, template: l.template.name }] : [])),
+  );
+  const theirSprites = spriteList(
+    ((p.sprites as Json[] | undefined) ?? [])
+      .filter((l) => !(Number(l.flags) & LightSpriteFlags.MERC_LIGHT))
+      .map((l) => ({ x: l.x, y: l.y, flags: l.flags, template: String(l.template) })),
+  );
+  return report(
+    `lights line ${p.line} level ${level}`,
+    hash === p.fnv1a32 && count === 0 && ctx.sim.state.lighting.ambient === p.ambient && sprites === theirSprites,
+    `fnv1a32 ${hash}/${p.fnv1a32}, ambient ${ctx.sim.state.lighting.ambient}/${p.ambient}, ${lit} tiles off the natural level, ` +
+      `${count} differing tiles${differing.length ? ` (g:ours/theirs ${differing.join(' ')})` : ''}` +
+      (sprites === theirSprites ? '' : `, sprites ${sprites} vs ${theirSprites}`),
+  );
+}
+
+function spriteList(
+  sprites: readonly { readonly x: unknown; readonly y: unknown; readonly flags: unknown; readonly template: string }[],
+): string {
+  return sprites
+    .map((l) => `${l.x},${l.y},${Number(l.flags) & SPRITE_STATE_FLAGS},${l.template.toUpperCase()}`)
+    .sort()
+    .join(' ');
+}
+
 function savesDir(dataDir: string): string {
   if (process.env.JA2_SAVES_DIR) return process.env.JA2_SAVES_DIR;
   const root = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
   return join(root, 'SavedGames');
+}
+
+function syncStructureHeightCache(world: TacticalWorld, cached: readonly (readonly [number, number])[]): void {
+  for (const list of world.structures.lists) for (const s of list) s.cachedHeight = 0;
+  for (const [g, index] of cached) {
+    const s = world.structures.at(g)[index];
+    if (s) structureHeight(s);
+  }
 }
 
 async function sectorContext(
@@ -422,7 +482,13 @@ async function sectorContext(
     world = await loadTacticalWorld(read, map);
     worlds.set(map, world);
   }
-  return { sim: new TacticalSim(world, content, 1), save: false };
+  const sim = new TacticalSim(world, content, 1);
+  if (p?.hour !== undefined) {
+    syncStructureHeightCache(world, (p.structureHeights as [number, number][] | undefined) ?? []);
+    loadMapLights(sim.state, world.map.lights, Number(p.hour));
+    lightSetBaseLevel(sim.state, Number(p.ambient));
+  }
+  return { sim, save: false };
 }
 
 async function saveContext(read: ReadFile, dataDir: string, p: Json): Promise<Context> {
@@ -466,6 +532,8 @@ for (const file of files) {
       else if (p.probe === 'cth') failures += compareCth(ctx, p);
       else if (p.probe === 'bestshot') failures += compareBestShot(ctx, p);
       else if (p.probe === 'light') failures += compareLight(ctx, p);
+      else if (p.probe === 'lights') failures += compareLights(ctx, p);
+      else if (p.probe === 'ambient') lightSetBaseLevel(ctx.sim.state, Number(p.level));
     }
   }
 }

@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Soldier_Control.h InvSlotPos; Soldier_Create.cc gubItemDroppableFlag, CopyProfileItems,
 // @src TryToAttach; Soldier_Profile.cc InitProfileFromContent (reduced gun list); Items.cc ItemSlotLimit, MoneySlotLimit,
 // @src FindObjWithin, FindEmptySlotWithin, CanItemFitInPosition, DropObjIfThereIsRoom, FillMoneySlot, PlaceObject,
-// @src InternalAutoPlaceObject, ReloadGun, Weight, CalculateCarriedWeight; Points.cc GetAPsToReloadGunWithAmmo
+// @src InternalAutoPlaceObject, ReloadGun, Weight, CalculateCarriedWeight; Points.cc GetAPsToReloadGunWithAmmo;
+// @src Soldier_Control.h IsWearingHeadGear
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { ArmourClass, ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
@@ -76,6 +77,10 @@ export function emptyInventory(): Inventory {
 
 export function itemIn(inv: Inventory, slot: number): number {
   return inv[slot]?.item ?? NOTHING;
+}
+
+export function wearsHeadGear(inv: Inventory, item: number): boolean {
+  return itemIn(inv, InvSlot.HEAD1) === item || itemIn(inv, InvSlot.HEAD2) === item;
 }
 
 function slot(inv: Inventory, pos: number): ItemObject {

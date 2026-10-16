@@ -27,6 +27,7 @@ import {
 import { igniteExplosion } from '../explosions/explosion.ts';
 import { useLauncher, useThrown, willExplosiveWeaponFail } from '../explosions/throwing.ts';
 import { InvSlot, isValidSecondHandShot } from '../inventory.ts';
+import { putOutMuzzleFlash, showMuzzleFlash } from '../lighting/muzzle-flash.ts';
 import { directionToward } from '../movement.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { isValidStance } from '../person-structure.ts';
@@ -541,6 +542,8 @@ function burstController(t: TacticalState, s: Soldier): OpOutcome {
     } else if (jam === FireResult.UNJAMMED && handleUnjamAnimation(t, s)) return 'stop';
   }
   if (stop) {
+    putOutMuzzleFlash(t, s);
+    s.muzzleFlashCount = 0;
     s.muzzleFlash = false;
     s.doSpread = 0;
     s.doBurst = 1;
@@ -575,7 +578,7 @@ export function attackOpcode(t: TacticalState, s: Soldier, code: number): OpOutc
       t.gameEvents.push({ kind: 'fireWeapon', soldier: s.id, target: s.targetGridNo, level: s.targetLevel, cubeLevel: s.targetCubeLevel });
       return 'continue';
     case 441:
-      return 'continue';
+      return showMuzzleFlash(t, s) ? 'continue' : 'stop';
     case 448:
       return burstController(t, s);
     case 449:

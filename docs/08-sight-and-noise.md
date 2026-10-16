@@ -668,17 +668,15 @@ a presentation choice. A marker at the true grid would leak hidden state (D16).
   `ubAmbientLightLevel`. Otherwise `clamp(ubNaturalShadeLevel − (ubSumLights − ubFakeShadeLevel), 1, 15)`. Merc lights
   are FAKE (`MERC_LIGHT → LIGHT_FAKE`, `Lighting.cc:1419`) and so are ignored. Map light sprites, flares and light effects
   count.
-- Natural shade = `clamp(ambient, 1, 15)` on every node (`LightSetBaseLevel`, `Lighting.cc:1360`). **Ambient-only M2:**
-  `LightTrueLevel = clamp(ambient, 1, 15)` for level 0 tiles and for roof tiles that have a roof node, and the raw
-  ambient for level 1 where there is no roof node.
+- Natural shade = `clamp(ambient, 1, 15)` on every node (`LightSetBaseLevel`, `Lighting.cc:1360`). Map light sprites,
+  explosion and muzzle-flash lights are simulated with the original ray casting; the model, its triggers and the oracle
+  check are in `docs/20-lighting.md`.
 - Ambient above ground (`TileEngine/Environment.cc:369`, `:229-279`): `gubEnvLightValue` steps every 2 minutes: 11 → 3
   from 06:47 to 07:03, and 4 → 12 from 20:57 to 21:13. Day is 3, night 12; hot desert sectors at midday use 2. Underground
   levels store their own ambient in the map (`TileEngine/WorldDef.cc:2334`). A9 is not a desert sector (inferred from
   the sector temperature table).
 - Light matters for sight at three points: the target tile's light (§2.1); `DecideHearing` (ambient); the FOV item range
-  (§5).
-- Later: light sprites need structure-blocked ray casting (doc 01 §M1 leftovers). They raise `ubSumLights` per node; night
-  lights switch on at 21:00 and off at 07:00, prime-time lights 21:00–24:00 (`Environment.h:8-11`).
+  (§5). Interrupts, sun goggles in the hit chance and the AI read it too (`docs/20` §5).
 
 ---
 

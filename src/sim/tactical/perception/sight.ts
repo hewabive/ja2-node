@@ -3,11 +3,25 @@
 // @src src/game/Tactical/OppList.cc DistanceVisible, ManLooksForMan, ManSeesMan, HandleManNoLongerSeen, TeamNoLongerSeesMan,
 // @src UpdatePersonal, UpdatePublic, RadioSightings, OurTeamRadiosRandomlyAbout, HandleSight, ManLooksForOtherTeams,
 // @src OtherTeamsLookForMan, AllTeamsLookForAll, ReevaluateBestSightingPosition, HandleBestSightingPositionInRealtime,
-// @src DecayOppListValue, VerifyAndDecayOpplist, DecayPublicOpplist. See docs/08 §2.
+// @src DecayOppListValue, VerifyAndDecayOpplist, DecayPublicOpplist; Soldier_Macros.h AM_A_ROBOT. See docs/08 §2, docs/20.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { endHeight, setSoldierAniSpeed, states } from '../animation.ts';
-import { AlertStatus, Body, NO_INTERRUPT, OKLIFE, type Soldier, SoldierClass, Team, TOTAL_SOLDIERS } from '../soldier.ts';
+import { wearsHeadGear } from '../inventory.ts';
+import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
+import {
+  AlertStatus,
+  Body,
+  NO_INTERRUPT,
+  NO_PROFILE,
+  numSkillTraits,
+  OKLIFE,
+  SkillTrait,
+  type Soldier,
+  SoldierClass,
+  Team,
+  TOTAL_SOLDIERS,
+} from '../soldier.ts';
 import { mercs, type TacticalState, teamMembers } from '../state.ts';
 import { addToIntList, doneAddingToIntList, InterruptKind, resolveInterruptsVs } from '../turns/turns.ts';
 import {
@@ -29,7 +43,12 @@ const MAX_DISTANCE_VISIBLE = 26;
 const STRAIGHT = 13;
 const ANGLE = 11;
 const LOOK_BY_OCTANT_DIFFERENCE = [STRAIGHT, ANGLE, 7, 0, 0];
-const LIGHT_PCT = [80, 86, 93, 100, 94, 88, 82, 76, 70, 64, 58, 51, 43, 30, 17, 9];
+const SUNGOGGLES_BONUS_PER_LEVEL = 1;
+const NIGHTSIGHTGOGGLES_BONUS = 2;
+const UVGOGGLES_BONUS = 4;
+const GOGGLES_FADE_LEVELS = 3;
+const DARK_LEVELS_ABOVE_DAY = 5;
+const NO_ITEM = -2;
 const KNOWLEDGE_VALUE: readonly (readonly number[])[] = [
   [0, 1, 2, 3, 0, 5, 4, 3, 2, 1],
   [0, 0, 1, 2, 0, 4, 3, 2, 1, 0],
@@ -56,7 +75,6 @@ export interface Perception {
   readonly publicNoiseLevel: number[];
   readonly lastMercToRadio: (Soldier | null)[];
   readonly awareOfOpposition: boolean[];
-  ambientLight: number;
   difficulty: number;
   bestSize: number;
   best: (Soldier | null)[];
@@ -73,7 +91,6 @@ export function createPerception(maxSoldiers: number): Perception {
     publicNoiseLevel: new Array<number>(TEAM_COUNT).fill(0),
     lastMercToRadio: new Array<Soldier | null>(TEAM_COUNT).fill(null),
     awareOfOpposition: new Array<boolean>(TEAM_COUNT).fill(false),
-    ambientLight: 3,
     difficulty: DIFFICULTY_MEDIUM,
     bestSize: BEST_SIGHTING_NONCOMBAT,
     best: new Array<Soldier | null>(BEST_SIGHTING_ALL).fill(null),
@@ -105,8 +122,32 @@ export function distanceVisible(t: TacticalState, viewer: Soldier, facing: numbe
     if (viewer.state === states(t.content.animations).RUNNING && look !== STRAIGHT) d = Math.trunc((d * 8) / 10);
   }
   if (viewer.level !== level) d += 2;
-  const light = Math.min(15, Math.max(1, t.perception.ambientLight));
-  return Math.trunc((d * (LIGHT_PCT[light] ?? 100)) / 100);
+  const light = lightTrueLevel(t, g, level);
+  return adjustMaxSightRangeForEnvEffects(light, d) + lightGearBonus(t, viewer, light);
+}
+
+function amARobot(t: TacticalState, s: Soldier): boolean {
+  return s.profile !== NO_PROFILE && t.content.profiles[s.profile]?.bodyType === Body.ROBOTNOWEAPON;
+}
+
+function nightSightBonus(t: TacticalState, viewer: Soldier, light: number, wears: (name: string) => boolean): number {
+  const intensifier = wears('NIGHTGOGGLES') || amARobot(t, viewer);
+  if (!intensifier && !wears('UVGOGGLES') && viewer.bodyType !== Body.BLOODCAT) return 0;
+  if (intensifier) {
+    if (light <= NORMAL_LIGHTLEVEL_NIGHT) return NIGHTSIGHTGOGGLES_BONUS;
+    return light < NORMAL_LIGHTLEVEL_NIGHT + GOGGLES_FADE_LEVELS ? NIGHTSIGHTGOGGLES_BONUS / 2 : 0;
+  }
+  return t.lighting.underground ? 0 : UVGOGGLES_BONUS;
+}
+
+function lightGearBonus(t: TacticalState, viewer: Soldier, light: number): number {
+  const wears = (name: string) => wearsHeadGear(viewer.inv, t.content.items.byName.get(name)?.index ?? NO_ITEM);
+  if (light < NORMAL_LIGHTLEVEL_DAY) {
+    if (!wears('SUNGOGGLES')) return 0;
+    return SUNGOGGLES_BONUS_PER_LEVEL * (light < NORMAL_LIGHTLEVEL_DAY - 1 ? 2 : 1);
+  }
+  if (light <= NORMAL_LIGHTLEVEL_DAY + DARK_LEVELS_ABOVE_DAY) return 0;
+  return nightSightBonus(t, viewer, light, wears) + numSkillTraits(viewer, SkillTrait.NIGHTOPS);
 }
 
 export function knowledge(oldValue: number, newValue: number): number {

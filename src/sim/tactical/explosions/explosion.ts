@@ -1,13 +1,21 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Explosion_Control.cc InternalIgniteExplosion, IgniteExplosion, IgniteExplosionXY,
-// @src GenerateExplosionFromExplosionPointer, ExpAffect, GetRayStopInfo, SpreadEffect, SpreadEffectSmoke;
+// @src GenerateExplosionFromExplosionPointer, RemoveExplosionData, ExpAffect, GetRayStopInfo, SpreadEffect, SpreadEffectSmoke;
 // @src TileEngine/Tile_Animation.cc UpdateAniTiles, DeleteAniTile (explosion and water ripple key frames);
 // @src TileEngine/Structure.cc GetBlockingStructureInfo; Tactical/PathAI.cc InternalDoorTravelCost (no soldier).
 // @src See docs/12 §10.2–§10.4.
 
 import { NOTHING } from '../../../content/items/items.ts';
-import { DIRECTION_INCREMENT, Direction, isVisibleTile, newGridNo, WORLD_COLS } from '../../../content/world/grid.ts';
+import {
+  CELL_X_SIZE,
+  CELL_Y_SIZE,
+  DIRECTION_INCREMENT,
+  Direction,
+  isVisibleTile,
+  newGridNo,
+  WORLD_COLS,
+} from '../../../content/world/grid.ts';
 import { isDoorTravelCost, recompileLocalMovementCosts, TravelCost } from '../../../content/world/movement-costs.ts';
 import {
   has,
@@ -20,9 +28,17 @@ import {
   structureHeight,
 } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { i16 } from '../../../core/int.ts';
+import { i16, idiv } from '../../../core/int.ts';
 import { TICK_MS } from '../../clock.ts';
 import { reduceAttackBusyCount } from '../combat/barrier.ts';
+import {
+  type LightSprite,
+  lightSpriteCreate,
+  lightSpriteDestroy,
+  lightSpritePosition,
+  lightSpritePower,
+  MIN_AMB_LEVEL_FOR_MERC_LIGHTS,
+} from '../lighting/lighting.ts';
 import { doorObstacleIfClosed, doorState, terrainCost } from '../pathfinding.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import type { Soldier } from '../soldier.ts';
@@ -61,6 +77,7 @@ const THIN_DENSITY = 15;
 const TALL_STRUCTURE = 4;
 const BLAST_RANGE_REDUCTION = 2;
 const DEBRIS_THRESHOLD = 20;
+const EXPLOSION_LIGHT_TEMPLATE = 'L-R04.LHT';
 const OPEN_WINDOWS: ReadonlySet<number> = new Set([Blocking.TOPLEFT_OPEN_WINDOW, Blocking.TOPRIGHT_OPEN_WINDOW]);
 const CLOSED_WINDOWS: ReadonlySet<number> = new Set([Blocking.TOPLEFT_WINDOW, Blocking.TOPRIGHT_WINDOW]);
 
@@ -75,6 +92,15 @@ function isWaterTile(t: TacticalState, g: number): boolean {
 
 function explosionCount(t: TacticalState): number {
   return t.explosives.aniTiles.filter((a) => a.kind === 'explosion').length;
+}
+
+function explosionLight(t: TacticalState, x: number, y: number): LightSprite | null {
+  if (t.lighting.ambient < MIN_AMB_LEVEL_FOR_MERC_LIGHTS) return null;
+  const light = lightSpriteCreate(t, EXPLOSION_LIGHT_TEMPLATE);
+  if (!light) return null;
+  lightSpritePower(light, true);
+  lightSpritePosition(t, light, idiv(x, CELL_X_SIZE), idiv(y, CELL_Y_SIZE));
+  return light;
 }
 
 export function internalIgniteExplosion(
@@ -108,6 +134,7 @@ export function internalIgniteExplosion(
     level,
     animation: water ?? animation,
     delay: animation.blastSpeed,
+    light: explosionLight(t, i16(x), i16(y)),
     frame: 0,
     lastUpdate: t.clockMs,
   });
@@ -164,6 +191,7 @@ export function stepExplosions(t: TacticalState): void {
     if (a.frame + 1 >= frameCount(a)) {
       removeAniTile(t, a);
       if (a.kind === 'explosion') {
+        if (a.light) lightSpriteDestroy(t, a.light);
         t.perception.disallowSight = false;
         reduceAttackBusyCount(t, a.owner, false);
       }

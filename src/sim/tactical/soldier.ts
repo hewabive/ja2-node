@@ -5,6 +5,7 @@
 import type { StructureInstance } from '../../content/world/structures.ts';
 import type { ItemObject } from '../items/object.ts';
 import { emptyInventory, type Inventory } from './inventory.ts';
+import type { LightSprite } from './lighting/lighting.ts';
 import type { WorldItem } from './world-items.ts';
 
 export const Body = {
@@ -344,6 +345,8 @@ export interface Soldier {
   dontUnsetLastTargetFromTurn: boolean;
   attackNoticed: boolean;
   muzzleFlash: boolean;
+  muzzleFlashLight: LightSprite | null;
+  muzzleFlashCount: number;
   weaponMode: number;
   lastAttackHit: boolean;
   attacker: Soldier | null;
@@ -608,6 +611,8 @@ export function createSoldier(init: SoldierInit): Soldier {
     dontUnsetLastTargetFromTurn: false,
     attackNoticed: false,
     muzzleFlash: false,
+    muzzleFlashLight: null,
+    muzzleFlashCount: 0,
     weaponMode: 0,
     lastAttackHit: false,
     attacker: null,
