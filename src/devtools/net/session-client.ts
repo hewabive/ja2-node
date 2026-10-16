@@ -13,6 +13,7 @@ import {
   type ClockView,
   type CombatView,
   type ContractPromptView,
+  type ConversationView,
   type DoorView,
   type ItemView,
   type LaptopView,
@@ -55,6 +56,8 @@ export class SessionClient {
   #shop: ShopView | null = null;
   #laptop: LaptopView | null = null;
   #doors: readonly DoorView[] = [];
+  #conversation: ConversationView | null = null;
+  #scriptedSequence = false;
   #shownTick = 0;
   #latestTick = 0;
 
@@ -133,6 +136,14 @@ export class SessionClient {
     return this.#doors;
   }
 
+  get conversation(): ConversationView | null {
+    return this.#conversation;
+  }
+
+  get scriptedSequence(): boolean {
+    return this.#scriptedSequence;
+  }
+
   get shownTick(): number {
     return this.#shownTick;
   }
@@ -171,6 +182,8 @@ export class SessionClient {
         this.#shop = m.view.shop ?? null;
         this.#laptop = m.view.laptop ?? null;
         this.#doors = m.view.doors ?? [];
+        this.#conversation = m.view.conversation ?? null;
+        this.#scriptedSequence = m.view.scriptedSequence ?? false;
         this.#shownTick = m.view.tick;
         this.#latestTick = m.view.tick;
         break;
@@ -211,6 +224,8 @@ export class SessionClient {
       if (frame.shop !== undefined) this.#shop = frame.shop;
       if (frame.laptop !== undefined) this.#laptop = frame.laptop;
       if (frame.doors) this.#doors = frame.doors;
+      if (frame.conversation !== undefined) this.#conversation = frame.conversation;
+      if (frame.scriptedSequence !== undefined) this.#scriptedSequence = frame.scriptedSequence;
       changed = true;
     }
     const target = Math.min(tick, this.#latestTick);

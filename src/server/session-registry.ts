@@ -64,22 +64,37 @@ export function describeSession(session: Session): Record<string, unknown> {
   };
 }
 
+const sessionsBeingCreated = new WeakMap<Map<string, Session>, Set<string>>();
+
+function creating(sessions: Map<string, Session>): Set<string> {
+  const ids = sessionsBeingCreated.get(sessions) ?? new Set<string>();
+  sessionsBeingCreated.set(sessions, ids);
+  return ids;
+}
+
 export async function openSession(
   sessions: Map<string, Session>,
   defaultSession: string,
   createSession: SessionFactory,
   request: NewSessionRequest,
 ): Promise<Session> {
-  if (sessions.size >= MAX_SESSIONS) throw new Error(`at most ${MAX_SESSIONS} sessions`);
+  const pending = creating(sessions);
+  if (sessions.size + pending.size >= MAX_SESSIONS) throw new Error(`at most ${MAX_SESSIONS} sessions`);
   if (request.save && request.campaign) throw new Error('pass either save or campaign');
-  let n = sessions.size;
-  while (sessions.has(`${defaultSession}-${n}`)) n++;
+  let n = sessions.size + pending.size;
+  const taken = (candidate: string) => sessions.has(candidate) || pending.has(candidate);
+  while (taken(`${defaultSession}-${n}`)) n++;
   const id = `${defaultSession}-${n}`;
-  const created = await createSession(id, {
-    seed: request.seed ?? n,
-    ...(request.save ? { save: request.save } : {}),
-    ...(request.campaign ? { campaign: request.campaign } : {}),
-  });
-  sessions.set(id, created);
-  return created;
+  pending.add(id);
+  try {
+    const created = await createSession(id, {
+      seed: request.seed ?? n,
+      ...(request.save ? { save: request.save } : {}),
+      ...(request.campaign ? { campaign: request.campaign } : {}),
+    });
+    sessions.set(id, created);
+    return created;
+  } finally {
+    pending.delete(id);
+  }
 }

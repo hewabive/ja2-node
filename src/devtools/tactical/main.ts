@@ -26,6 +26,7 @@ import { SessionClient } from '../net/session-client.ts';
 import { DoorPanel } from './door-panel.ts';
 import { nearestMerchant, ShopPanel } from './shop-panel.ts';
 import { SoldierAssets } from './soldier-assets.ts';
+import { nearestTalkable, TalkPanel } from './talk-panel.ts';
 
 interface TacticalHook {
   ready: boolean;
@@ -38,6 +39,8 @@ interface TacticalHook {
   error: string | null;
   lastResult: string | null;
   doorResult: string;
+  talkOpen: boolean;
+  talkResult: string;
 }
 
 declare global {
@@ -57,6 +60,8 @@ const debug: TacticalHook = {
   error: null,
   lastResult: null,
   doorResult: '',
+  talkOpen: false,
+  talkResult: '',
 };
 window.__ja2Tactical = debug;
 
@@ -76,8 +81,10 @@ const status = el('status');
 const info = el('info');
 const roofs = el<HTMLInputElement>('roofs');
 const tradeButton = el<HTMLButtonElement>('trade');
+const talkButton = el<HTMLButtonElement>('talkButton');
 const doorPanel = new DoorPanel((cmd) => client?.command(cmd) ?? Promise.resolve({ ok: false, reason: 'not connected' }));
 const shopPanel = new ShopPanel((cmd) => client?.command(cmd) ?? Promise.resolve({ ok: false, reason: 'not connected' }));
+const talkPanel = new TalkPanel((cmd) => client?.command(cmd) ?? Promise.resolve({ ok: false, reason: 'not connected' }));
 const gl = createContext(canvas, { depth: true, preserveDrawingBuffer: true });
 const renderer = new SpriteRenderer(gl);
 const sprites = new SoldierSprites(gl);
@@ -214,6 +221,10 @@ function render(): void {
   doorPanel.update(client?.doors ?? [], openDoors);
   debug.doorResult = doorPanel.result;
   tradeButton.disabled = !!client?.shop || !nearestMerchant(soldiers(), sel);
+  talkPanel.update(client?.conversation ?? null, client?.scriptedSequence ?? false);
+  debug.talkOpen = talkPanel.open;
+  debug.talkResult = talkPanel.result;
+  talkButton.disabled = talkPanel.open || !nearestTalkable(soldiers(), sel);
 }
 
 function driverLabel(): string {
@@ -331,6 +342,11 @@ tradeButton.addEventListener('click', () => {
   void client.command({ type: 'openShop', dealer: merchant.profile, soldier: selected }).then((r) => {
     debug.lastResult = r.ok ? `shop of ${merchant.name} open` : `trade: ${r.reason ?? 'refused'}`;
   });
+});
+talkButton.addEventListener('click', () => {
+  const sel = soldiers().find((s) => s.id === selected);
+  const npc = nearestTalkable(soldiers(), sel);
+  if (npc && selected !== null) talkPanel.talk(selected, npc);
 });
 el<HTMLButtonElement>('idle').addEventListener('click', () => {
   void client?.advance({ idle: true }).then((report) => {

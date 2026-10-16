@@ -16,7 +16,7 @@ declare global {
 }
 
 test('starts a campaign and keeps the squad in the garrisoned start sector', async ({ page }) => {
-  await page.goto('/src/devtools/strategic/');
+  await page.goto('/src/devtools/strategic/?seed=1');
   await page.waitForFunction(() => window.__ja2Strategic?.ready || window.__ja2Strategic?.error !== null);
   await expect(page.locator('#status')).toContainText('no strategic layer');
 
@@ -56,7 +56,7 @@ test('starts a campaign and keeps the squad in the garrisoned start sector', asy
 });
 
 test('extends and ends merc contracts from the map screen', async ({ page }) => {
-  await page.goto('/src/devtools/strategic/');
+  await page.goto('/src/devtools/strategic/?seed=1');
   await page.waitForFunction(() => window.__ja2Strategic?.ready || window.__ja2Strategic?.error !== null);
   await page.click('#newCampaign');
   await page.waitForURL(/\?session=/);
@@ -82,7 +82,7 @@ test('extends and ends merc contracts from the map screen', async ({ page }) => 
 });
 
 test('hires through the laptop panel and lands the hired merc', async ({ page }) => {
-  await page.goto('/src/devtools/strategic/');
+  await page.goto('/src/devtools/strategic/?seed=1');
   await page.waitForFunction(() => window.__ja2Strategic?.ready || window.__ja2Strategic?.error !== null);
   await page.check('#hireInLaptop');
   await page.click('#newCampaign');

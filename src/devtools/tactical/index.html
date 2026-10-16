@@ -18,6 +18,7 @@
       <button type="button" id="idle">run until idle</button>
       <button type="button" id="endTurn">end turn</button>
       <button type="button" id="trade" disabled>trade</button>
+      <button type="button" id="talkButton" disabled>talk</button>
       <label><input id="roofs" type="checkbox" checked /> roofs</label>
       <span class="group">zoom <button type="button" data-zoom="1">1×</button><button type="button" data-zoom="2">2×</button></span>
       <span id="status" class="status">connecting…</span>
@@ -32,6 +33,13 @@
         <div id="doorOptions" class="actions"></div>
         <div class="actions"><button type="button" id="closeDoorPanel">close</button></div>
         <div id="doorResult" class="shop-result"></div>
+      </aside>
+      <aside id="talk" class="talk" hidden>
+        <h2 id="talkTitle">Talk</h2>
+        <div id="talkLines" class="talk-lines"></div>
+        <div id="talkMenu" class="actions"></div>
+        <div class="actions"><button type="button" id="closeTalk">done</button></div>
+        <div id="talkResult" class="shop-result"></div>
       </aside>
       <aside id="shop" class="shop" hidden>
         <h2 id="shopTitle">Shop</h2>

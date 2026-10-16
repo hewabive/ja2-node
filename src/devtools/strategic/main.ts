@@ -539,10 +539,14 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-playback]'))
 el<HTMLButtonElement>('newCampaign').addEventListener('click', () => {
   const difficulty = Number(el<HTMLSelectElement>('difficulty').value);
   const hireInLaptop = el<HTMLInputElement>('hireInLaptop').checked;
+  const seed = new URLSearchParams(location.search).get('seed');
   void fetch('/api/sessions', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ campaign: { difficulty, ...(hireInLaptop ? { hire: [] } : {}) } }),
+    body: JSON.stringify({
+      ...(seed !== null ? { seed: Number(seed) } : {}),
+      campaign: { difficulty, ...(hireInLaptop ? { hire: [] } : {}) },
+    }),
   })
     .then(async (res) => {
       const body = (await res.json()) as SessionSummary & { error?: string };

@@ -42,7 +42,7 @@ interface ActResult {
   readonly data?: { readonly walking?: boolean; readonly lines?: readonly LineView[]; readonly refusal?: string };
 }
 
-test('an MCP agent walks a stub squad to A10 and talks to the stub NPC', async () => {
+test('an MCP agent walks a stub squad to A10 and talks to the stub NPC, then the browser talks again', async ({ page }) => {
   test.setTimeout(120_000);
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {
     requestInit: { headers: { authorization: `Bearer ${TOKEN}` } },
@@ -90,4 +90,18 @@ test('an MCP agent walks a stub squad to A10 and talks to the stub NPC', async (
   expect(await act({ type: 'closeTalk' })).toMatchObject({ ok: true });
   expect((await observe()).conversation).toBeNull();
   await client.close();
+
+  await page.goto(`/src/devtools/tactical/?session=${session}`);
+  await page.waitForFunction(() => window.__ja2Tactical?.ready || window.__ja2Tactical?.error !== null);
+  expect(await page.evaluate(() => window.__ja2Tactical.selected)).toBe(leader.id);
+  await expect(page.locator('#talkButton')).toBeEnabled();
+  await page.click('#talkButton');
+  await expect(page.locator('#talk')).toBeVisible();
+  await expect(page.locator('#talkTitle')).not.toHaveText('Talk');
+  const before = await page.locator('#talkLines p').count();
+  await page.click('#talkMenu button[data-approach="direct"]');
+  await expect(page.locator('#talkResult')).toHaveText('direct ok');
+  await expect.poll(() => page.locator('#talkLines p').count()).toBeGreaterThan(before);
+  await page.click('#closeTalk');
+  await expect(page.locator('#talk')).toBeHidden();
 });
