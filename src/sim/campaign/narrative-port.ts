@@ -59,6 +59,7 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
     setUpHelicopterForPlayer: (sector) => {
       if (campaign.strategic) setUpHelicopterForPlayer(campaign.strategic, sector);
     },
+    npcAction: (profile, code, record) => campaign.talk?.npcActions.handle(profile, code, record),
   };
 }
 

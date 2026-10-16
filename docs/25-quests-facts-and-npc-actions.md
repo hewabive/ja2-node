@@ -120,7 +120,8 @@ adds the record/approach fields — whichever spec lands first adds the shared o
 8. There is no player door command and no lock or key system (§8). *Implemented (first M6 slice, 2026-10-16):
    `src/sim/tactical/doors/`, see §8; findings 6 (fixed earlier) and 7 are done for the civilian-group, militia, sight and
    death rules that need no facts, quests or records (§6, §11.1, §11.12), the rest goes through the narrative port.*
-9. `startMineStandIn` and the deviation "Head miner stand-in" are replaced by `NPC_ACTION_START_MINE` (§3.7).
+9. `startMineStandIn` and the deviation "Head miner stand-in" are replaced by `NPC_ACTION_START_MINE` (§3.7). *Done (action
+   catalog slice, 2026-10-16): the `startMine` stand-in command is gone.*
 10. The merchant hooks `shopHours` and `shopClosedByScript` get real implementations (§5.5, §3.2 action 41).
 11. `canEntireMovementGroupMove` lacks the robot, Maria and museum refusals (§9.3, §11).
 
@@ -464,6 +465,15 @@ without history (Alma's skip, a silent restart) is invisible, exactly as in the 
 - "soldier(x)" is the soldier of profile x in the loaded sector; most actions return silently without it. "→ R n" means
   `TriggerNPCRecord(npc, n)` (queued, considered with `TRIGGER_NPC`, `NPC:2107-2124`, `docs/24`); "→ X n" triggers NPC X's
   record n. "menu" = `DeleteTalkingMenu()` (closes the talk panel, `docs/24`).
+- *Implemented (action catalog slice, 2026-10-16):* `src/sim/tactical/narrative/npc-actions/` (`catalog.ts` dispatches in the
+  original's order to one file per group: `generic.ts` §3.2, `requestors.ts` §3.3, `rebels.ts` §3.4, `drassen.ts` §3.5,
+  `san-mona.ts` §3.6, `cambria.ts` §3.7, `south.ts` §3.8, `others.ts` §3.9, `meanwhile.ts` §3.10, `open-thing.ts` §8.6 for
+  actions 3, 27 and 40) over `NpcActionEnv`
+  (`env.ts`); the campaign side is `src/sim/campaign/narrative/npc-action-flow.ts`, the codes are transcribed into
+  `data/tables/narrative.json` (`npcActions`, checked against `codes.ts`), the parameters come from
+  `tactical-npc-action-params.json` through `StrategicContent.npcActionParams`. Proven against the native code by the oracle
+  probes `npcaction`, `npcbox`, `npcevent` (§17); the walking door and cabinet actions (3, 27, 40) only by unit tests on the
+  stub village door.
 - Unhandled codes only log (`ID:4057-4059`): 11 `PENALIZE_TOWN_LOYALTY`, 109 `SET_PABLO_BRIBE_DELAY` (never implemented,
   also missing in V), 141 `DARREN_GIVEN_CASH`, 142 `ANGEL_GIVEN_CASH`, 201 `GERARD_GIVEN_CASH`, 203 `JOE_GIVEN_CASH`, 228
   `KINGPIN_GIVEN_MONEY` (the money rules of §3.11 test these codes), 150 `TELEPORT_NPC` (handled by the record dispatch,
@@ -516,8 +526,11 @@ without history (Alma's skip, a silent restart) is invisible, exactly as in the 
 ### 3.3 Requestors: actions that ask the player (`ID:2144-2171`, `4163-4505`)
 
 These actions close the talk panel and open a yes/no box (`StartDialogueMessageBox`); the box only opens if `npc` is dest's
-profile (else an error log). The answer runs `DialogueMessageBoxCallBack` with `ubProfile = dest.profile`. In ja2-node each is
-an `npcRequest` decision prompt (§13): time stops until it is answered.
+profile (else an error log), except for 221 and 226, which open it without that check (`ID:2388-2394, 2432-2436`). The
+answer runs `DialogueMessageBoxCallBack` with `ubProfile = dest.profile` (226 also reads `src.profile`). In ja2-node each is
+an `npcRequest` decision prompt (§13): time stops until it is answered. *Implemented:* the request lives in the campaign's
+prompt slot (`PromptKind.NPC_REQUEST`, `state.battle.prompt`) and is shown as `observe.npcRequest` (`docs/04` §6.14); the
+shown amount is computed when the box opens, as `StartDialogueMessageBox` formats it.
 
 | Code | Request | Shown | Yes | No |
 |---|---|---|---|---|
@@ -593,7 +606,7 @@ the delivery sector (`SEH:435-442`).
 | 154 | `DECIDE_ACTIVE_TERRORISTS` | add the terrorist files to the laptop (`Laptop/Files.cc:1009-1015`, `21` §6.4); `CARMEN.npcData2 = 0` | `ID:2674-2680` |
 | 156 | `CHECK_LAST_TERRORIST_HEAD` | `CARMEN.npcData −= 1` (terrorists left), `npcData2 += 1` (heads held); loaded sector C13 → CARMEN 20, else 21; history `GAVE_CARMEN_HEAD` | `ID:2682-2699` |
 | 158 | `CARMEN_LEAVES_FOR_GOOD` | `LEFT_COUNTRY`; falls through to 157 | `ID:2701-2703` |
-| 157 | `CARMEN_LEAVES_FOR_C13` | `DONT_ADD_TO_SECTOR`; a 10 000 ms timer (`amount` param) → `CarmenLeavesSectorCallback`: loaded C13 → CARMEN 34, G9 → 35, C5 → 36 (`ID:4685-4702`) | `ID:2704-2712` |
+| 157 | `CARMEN_LEAVES_FOR_C13` | `DONT_ADD_TO_SECTOR`; a 10 000 ms timer (`amount` param of the code that runs: 158 falls through with its own, absent, parameters, so it always waits 10 000 ms) → `CarmenLeavesSectorCallback`: loaded C13 → CARMEN 34, G9 → 35, C5 → 36 (`ID:4685-4702`) | `ID:2704-2712` |
 | 159 | `CARMEN_LEAVES_ON_NEXT_SECTOR_LOAD` | if `CARMEN.npcData == 0`: `ALL_TERRORISTS_KILLED`, +5 loyalty everywhere; always `CARMEN.money = 0` | `ID:2714-2724` |
 
 ### 3.7 Cambria: the hospital, Joey and Martha; the mines
@@ -1246,6 +1259,14 @@ Door: `FindClosestDoor`; otherwise gridno 6968 for ARMAND, else `FindNearestOpen
 the NPC's `APPROACH_DONE_OPEN_STRUCTURE` record (`docs/24`). Else: unlock its door entry; adjacent tile (`FindAdjacentGridEx`,
 none → false); start the interaction there or walk there; `PENDING_ACTION`.
 
+Implemented in `src/sim/tactical/narrative/npc-actions/open-thing.ts` with actions 3, 27 and 40. `FindClosestDoor` searches
+5 tiles around the NPC and keeps the nearest door closer than 10 (`PythSpacesAway`); `FindNearestOpenableNonDoor` searches
+7 tiles by `CardinalSpacesAway`. The adjacent tile uses the `fDoor` variant of `FindAdjacentGridEx`
+(`findAdjacentGridExForDoor`: raw movement costs, the door's orientation drops sides, a switch is reached through its wall,
+and standing on the door tile faces south or east). A walking NPC carries the interaction as a pending `openStruct` door
+action that `InteractWithOpenableStruct` runs on arrival; the original's "dialogue queue empty" check there is not modelled.
+Action 40 picks up with `ITEM_IGNORE_Z_LEVEL` (every item on the tile, whatever its height).
+
 ---
 
 ## 9. EPCs and the robot
@@ -1471,6 +1492,10 @@ gridno **1** are moved (`SEH:420-430`): the damaged goods then stay at gridno 2 
   within 9 (inclusive; the escort uses strictly < 9) of the doctor; round **up** to $10; at least $10.
 - Leaving the hospital assignment refunds: `giHospitalRefund += CalcPatientMedicalCost(s)`, the patient's modifier reset
   (`Strategic/Assignments.cc:6299-6307`, `18` left it to M6).
+- *Implemented:* `src/sim/strategic/narrative/hospital.ts` (prices, the refund in `setTimeOfAssignmentChange`, the supplies
+  with `CheckFact` reads), `setSoldierAssignmentHospital` in `strategic/economy/set-assignment.ts`, the per-merc modifier on
+  `RosterMerc.hospitalPriceModifier` (imported from native saves), the counting in `campaign/narrative/quest-world.ts`; the
+  oracle probes `medicalcost`, `hospitalsupplies`, `npcbox code=161/162` and `npcaction code=237`.
 - Supplies: `CheckForMissingHospitalSupplies` (`SEH:884-936`, F8 loaded at 04:00 or on leaving F8): for every `OWNERSHIP`
   world item of the doctors' group, count the items with status > 60 of kind first aid kit, medical kit, regeneration or
   adrenaline booster in the pool on its tile (level 0; two markers on one tile count it twice, kept); stolen-again and the
@@ -1487,6 +1512,8 @@ gridno **1** are moved (`SEH:420-430`): the damaged goods then stay at gridno 2 
   The later call also counts the **currently loaded** world's money (kept: quirk; with 30000 or more lying in whatever sector is
   loaded, he never finds out; with no sector loaded the total is 0). Then §3.13: the letter and quest 4, and two days later
   the threat (assassins allowed, Spike to C5, Kingpin group 2).
+  *Implemented:* `src/sim/strategic/narrative/kingpin.ts` (the narrative slot `kingpinMoneyCheck` on leaving D5-1, the event
+  stages in `npc-events.ts`); oracle probes `kingpinmoney` and `npcevent param=103`.
 - **Hitmen**: at a town sector entry (§4.5) → `DecideOnAssassin` (`SP:385-412`): candidates from `g_assassin_info` (`SP:106-114`:
   JIM, JACK, OLAF, RAY, OLGA, TYRONE with five towns each) alive, not placed, whose towns include this town; `Random(n)` picks one,
   his sector = the entered sector, `REMOVE_ASSASSIN` at now + `60·(3 + Random(3))`. Each assassin death makes the rest tougher
@@ -1670,7 +1697,8 @@ recruiting are `docs/24`'s.
 
 ### 13.2 Decision prompts
 
-`npcRequest {id, request, npc, merc?, amount?, choices}` with `request` one of `escort` (110; `pair: true` for John/Mary),
+`npcRequest {id, request, npc, name, merc?, amount?, pair?, choices}` (`observe.npcRequest`, a field of its own beside
+`observe.prompt`) with `request` one of `escort` (110; `pair: true` for John/Mary),
 `hire` (120/212/181, `amount` = daily salary), `boxingBet` (135), `fightAgain` (207), `buyVest` (144, `amount` = price),
 `payDoctor` (161, `amount` = the shown cost), `freeTreatment` (162), `buyVehicle` (169, `amount` 10000), `spareKrott` (183),
 `marryDaryl` (226, `merc` = src), `lie` (221); `choices` `['yes', 'no']`, plus `'lie'` for `lie`. Opened when the action runs
@@ -1690,6 +1718,11 @@ hostile}`, `heliHovering {sector, stage}`, `heliReturning {to, safe}`, `heliLand
 `enemiesSpottedFromAir {sector}`, `samSitesRevealed {sites}`, `skyriderMonologue {topic}`, `passengersDropped {sector, soldiers,
 squad}`, `vehicleBoarded`, `vehicleLeft` (implemented, `docs/04` §6.13); `sexScene` (presentation); `npcMoved` is **not** an
 event (profile sectors are hidden).
+
+*Implemented (action catalog slice, `docs/04` §6.14):* `npcRequest {id, request, npc, amount?, pair?, merc?, choices}`,
+`terroristRevealed {npc}`, `townDiscovered {town}`, `sexScene {npc}`, `boxingBell`, `npcGaveItem {npc, to, item}`; the
+planned `npcBalance` is the existing `npcMessage {kind: 'balanceOwed', profile, amount}`, and the catalog's other screen
+messages are `npcMessage` kinds `teamFull`, `recruited`, `nowEscorted`, `itemPlacedOnGround`, `vehicleRefuelled`.
 
 ### 13.4 Observation (D16)
 
@@ -1778,7 +1811,18 @@ The helicopter, boxing and the robot are tested with synthetic states (no stub m
 
 ### 15.2 Order of work
 
-*(a), (b) and (c) implemented (second M6 slice, 2026-10-16), with the oracle probes of §17 `narrative`, `checkfact`,
+**(d) and the hospital and Kingpin parts of (k) implemented (action catalog slice, 2026-10-16): the catalog of §3 with
+`requestors.ts` and the `npcRequest` prompt, event 27 (`strategic/narrative/npc-events.ts`, registered by `NarrativeFlow`; the
+laptop no longer registers it), `hospital.ts`, `kingpin.ts`, the narrative slots `npcAction`, `kingpinMoneyCheck` and
+`hospitalSupplies`, `FreeUpNPCFromPendingAction`'s NPC triggers (Kyle's money, `DONE_OPEN_STRUCTURE`, `DONE_GET_ITEM`) and the
+wheelchair kick-out (animation code 482). Actions that belong to other slices call ports with no-op defaults
+(`NpcActionEnv.recruit`, `.boxing`, `.meanwhile`; `NarrativeSetup.npcActions` plugs them in): `RecruitRPC`, `RecruitEPC`,
+`UnRecruitEPC`, `HandleStuffForNPCEscorted`, the marriage's team change and Darrel's script, the boxing state, the meanwhile
+scenes, the endgame and the punches. 100/102 move the squad and load the basement at once; the exit grid and the crate change
+in A10 are not applied (deviation "Rebel basement"). Oracle: `patches/0015-actions-oracle.patch`, `probes/actions.txt`,
+`actions-compare.ts`.*
+
+(a), (b) and (c) implemented (second M6 slice, 2026-10-16), with the oracle probes of §17 `narrative`, `checkfact`,
 `quest`, `setquest`, `npcprofile`, `earlymorning`, `hourlynpc`, `questentry`, `questexit` and `entersector`
 (`tools/oracle/probes/facts.txt`); left for later slices: `HourlyLarryUpdate`, the elite upgrade to Mike and Iggy,
 `PostSchedules`, the Kingpin money check and the hospital supplies on sector exit and at 04:00 (ports), and the boxing
@@ -1870,6 +1914,7 @@ A narrative oracle patch (shipped as `patches/0012-facts-oracle.patch` for the f
 | `npcaction npc= code= record=` | `HandleNPCDoAction` with the draw trace, then process the dialogue queue | draws, fact/quest diffs, the touched profiles' NPC fields, new events, items at the action gridnos, ledger tail, soldiers' positions/teams/neutral flags |
 | `npcbox type= answer=` | open the requestor state and call the callback | triggered records (queued), draws, state diffs |
 | `npcevent param=` | `HandleNPCSystemEvent` | as `npcaction` |
+| *implemented* | `npcaction`, `npcbox`, `npcevent`, `kingpinmoney`, `hospitalsupplies`, `medicalcost`, `npcset` (`patches/0015-actions-oracle.patch`, `probes/actions.txt`, `actions-compare.ts`; README "NPC actions"): without draining the queue; the queued events, `CheckFact` calls and both streams are compared and replayed | queue, facts, draws, fact/quest changes, new events, history, mails, hospital globals, the opened box, soldiers, profiles, the delivery pool, the world's money |
 | `earlymorning` | `HandleEarlyMorningEvents` traced | NPC profile sectors, `npcData`, money, facts 86/149/226 |
 | `hourlynpc hour=` | set the hour, `HourlyQuestUpdate`, `HourlyLarryUpdate`, the Slay check, `PayOffSkyriderDebtIfAny` traced | facts, boxing globals, Larry's profile and inventory, ledger |
 | `questentry sector=` / `questexit sector=` | the two handlers traced (needs a save with the right world loaded for exit) | facts, quests, profile sectors, events |
@@ -1924,6 +1969,11 @@ through `npcbox`); `EnterSector` needs the loading screen code to be inert headl
 - *Skyrider monologues*: checked per strategic step on the map flow instead of per redraw.
 - *Basement fades*: the sector change is immediate.
 - *Schedules after a ja2-node load*: snapshots keep schedules and events and do not re-post (native import follows the original).
+- *Action catalog slice* (logged 2026-10-16): "NPC requestors", "Carmen's departure timer", "Rebel basement" (the fades and
+  the A10 map changes), "NPC gives an item", "Wheelchair kick-out", "NPC actions without a system", "NPC opens a door on arrival",
+  "Terrorist names";
+  "Narrative port" narrowed to the ports of the slices still to come; "Cosmetic face and frame draws" extended to the talk
+  panel's face; "Head miner stand-in" removed.
 - *Helicopter slice* (logged 2026-10-16): "Helicopter destruction", "Skyrider monologues", "Leaving the helicopter in flight",
   "Helicopter on the map", "Helicopter interface", "Cosmetic draws of the helicopter", "Profile sectors of Skyrider and the
   helicopter" and "Ground vehicles" (which replaces "Helicopter and vehicle passengers"); "Helicopter entrance" narrowed to

@@ -1,6 +1,6 @@
 import type { TextKey } from '../content/narrative/dialogue-text.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
-import type { ConversationView, PlayerView, SoldierView } from '../protocol/view.ts';
+import type { ConversationView, NpcRequestPromptView, PlayerView, SoldierView } from '../protocol/view.ts';
 import type { WorldTimeControl } from '../sim/advance.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import type { Roster } from '../sim/campaign/roster.ts';
@@ -9,7 +9,7 @@ import type { SimEvent } from '../sim/events.ts';
 import { isTimeBeingCompressed, worldDay, worldHour, worldMinute } from '../sim/strategic/time/world-clock.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
-import { autoresolveView, promptView } from './battle-view.ts';
+import { autoresolveView, npcRequestView, promptView } from './battle-view.ts';
 import { contractPromptView } from './contract-view.ts';
 import { laptopView } from './laptop-view.ts';
 import { tacticalPlayerView } from './sandbox.ts';
@@ -111,11 +111,11 @@ export class CampaignSession implements SessionSim {
     return withText(this.campaign.dispatch(cmd), this.texts);
   }
 
-  #conversation(): { conversation?: ConversationView | null; scriptedSequence?: boolean } {
+  #conversation(): { conversation?: ConversationView | null; npcRequest?: NpcRequestPromptView | null; scriptedSequence?: boolean } {
     const talk = this.campaign.talk;
     if (!talk) return {};
     const conversation = withText(talk.view(), this.texts);
-    return { conversation, ...(talk.scriptedSequence() ? { scriptedSequence: true } : {}) };
+    return { conversation, npcRequest: npcRequestView(this.campaign), ...(talk.scriptedSequence() ? { scriptedSequence: true } : {}) };
   }
 
   view(): PlayerView {

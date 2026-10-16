@@ -112,6 +112,7 @@ export class FakeCrew implements CrewPort {
       doneQuoteSaid: false,
       trainStat: 0,
       lastAssignmentChangeMin: o.lastAssignmentChangeMin ?? 0,
+      hospitalPriceModifier: 0,
       fixingRobot: false,
       vehicleUnderRepair: -1,
       inSector: o.inSector ?? false,

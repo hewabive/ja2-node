@@ -427,7 +427,7 @@ export class CampaignSim {
   }
 
   step(): void {
-    if (this.battle?.hasPendingDecision() || this.shop?.isOpen() || this.laptop?.isOpen() || this.talk?.frozen()) return;
+    if (this.battle?.hasPendingDecision() || this.shop?.isOpen() || this.laptop?.isOpen() || this.talk?.hasPendingDecision()) return;
     const s = this.state;
     this.#tick++;
     if (s.flow === 'tactical' && this.tactical) {

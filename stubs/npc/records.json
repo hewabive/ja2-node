@@ -46,7 +46,12 @@
           "endQuest": "FIND_HERMIT",
           "eraseOnceSaid": true
         },
-        { "index": 7, "requiredApproach": "THREATEN", "quoteNum": 19, "numQuotes": 1, "actionData": { "code": 24 } }
+        { "index": 7, "requiredApproach": "THREATEN", "quoteNum": 19, "numQuotes": 1, "actionData": { "code": 24 } },
+        { "index": 8, "requiredApproach": "RECRUIT", "factMustBeTrue": 132, "quoteNum": 20, "numQuotes": 1, "actionData": { "code": 221 } },
+        { "index": 9, "requiredApproach": "TRIGGER_NPC", "quoteNum": 21, "numQuotes": 1 },
+        { "index": 10, "requiredApproach": "TRIGGER_NPC", "quoteNum": 22, "numQuotes": 1 },
+        { "index": 11, "requiredApproach": "TRIGGER_NPC", "quoteNum": 23, "numQuotes": 1 },
+        { "index": 12, "requiredApproach": "TRIGGER_NPC", "quoteNum": 24, "numQuotes": 1 }
       ]
     }
   ],

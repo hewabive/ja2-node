@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Quests.cc (the facts and quests of a campaign); Strategic/Game_Event_Hook.cc EVENT_CHECKFORQUESTS,
 // @src EVENT_DAILY_EARLY_MORNING_EVENTS, EVENT_SECOND_AIRPORT_ATTENDANT_ARRIVED, EVENT_KEITH_GOING_OUT_OF_BUSINESS,
+// @src EVENT_SET_BY_NPC_SYSTEM,
 // @src EVENT_REMOVE_ASSASSIN; Strategic/Strategic_Event_Handler.cc AddSecondAirportAttendant, RemoveAssassin;
 // @src Strategic/StrategicMap.cc HandleQuestCodeOnSectorEntry, HandleQuestCodeOnSectorExit; Tactical/Overhead.cc
 // @src HandleNPCTeamMemberDeath (MakeRemainingTerroristsTougher, MakeRemainingAssassinsTougher, the DYNAMO, KINGPIN and DOREEN
@@ -81,11 +82,11 @@ import { isProfileDead, type ProfileProgress, profileProgress } from '../../tact
 import type { Soldier } from '../../tactical/soldier.ts';
 import type { CampaignSim } from '../campaign-sim.ts';
 import { HistoryCode } from '../contracts/quotes.ts';
-import { addTransaction, FinanceCode } from '../finances.ts';
 import { addHistory, timeQuestWasStarted } from '../laptop/records.ts';
 import type { Roster } from '../roster.ts';
 import type { QuestEventWithoutTick } from './events.ts';
 import { campaignFactWorld, factSoldierById } from './fact-world.ts';
+import { hospitalSuppliesCheck, kingpinMoneyCheck, npcSystemEvent } from './quest-world.ts';
 
 const RANDOM_ASSASSIN_ROLL = 10;
 const ASSASSIN_ROLL_THRESHOLD = 3;
@@ -142,11 +143,16 @@ function questName(id: number): string {
 export class NarrativeFlow {
   readonly campaign: CampaignSim;
   readonly talk: TalkSoldiers = { src: null, dest: null, srcProfile: SRC_PROFILE_AT_START };
-  slots: NarrativeSlots = NO_NARRATIVE_SLOTS;
+  slots: NarrativeSlots;
   readonly #events: SimEvent[] = [];
 
   constructor(campaign: CampaignSim) {
     this.campaign = campaign;
+    this.slots = {
+      ...NO_NARRATIVE_SLOTS,
+      kingpinMoneyCheck: (onExit) => kingpinMoneyCheck(campaign, onExit),
+      hospitalSupplies: () => hospitalSuppliesCheck(campaign),
+    };
   }
 
   get state() {
@@ -294,6 +300,10 @@ export class NarrativeFlow {
       dialogue: { desireToTalk: (npc, merc, approach) => this.slots.dialogueDesireToTalk(npc, merc, approach) },
       items: this.#factItems(),
     };
+  }
+
+  history(code: number, secondCode: number, sector: SectorPosition | null): void {
+    this.#history(code, secondCode, sector);
   }
 
   #history(code: number, secondCode: number, sector: SectorPosition | null): void {
@@ -462,6 +472,7 @@ export class NarrativeFlow {
     dispatch.register(EventKind.KEITH_GOING_OUT_OF_BUSINESS, () => {
       if (!this.checkFact(Fact.HILLBILLIES_KILLED, Npc.KEITH)) this.setFactTrue(Fact.KEITH_OUT_OF_BUSINESS);
     });
+    dispatch.register(EventKind.SET_BY_NPC_SYSTEM, (c, e) => npcSystemEvent(c, e.param));
     dispatch.register(EventKind.REMOVE_ASSASSIN, (_, e) => {
       const p = this.profile(e.param);
       if (p) removeAssassin(p);

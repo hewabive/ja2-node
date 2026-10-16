@@ -240,6 +240,18 @@ export type PromptView =
       readonly choices: readonly string[];
     };
 
+export interface NpcRequestPromptView {
+  readonly id: string;
+  readonly kind: 'npcRequest';
+  readonly request: string;
+  readonly npc: number;
+  readonly name: string;
+  readonly merc?: number;
+  readonly amount?: number;
+  readonly pair?: boolean;
+  readonly choices: readonly string[];
+}
+
 export type ContractPromptView =
   | {
       readonly id: string;
@@ -502,6 +514,7 @@ export interface PlayerView {
   readonly shop?: ShopView | null;
   readonly laptop?: LaptopView | null;
   readonly conversation?: ConversationView | null;
+  readonly npcRequest?: NpcRequestPromptView | null;
   readonly scriptedSequence?: boolean;
   readonly soldiers: readonly SoldierView[];
   readonly openDoors?: readonly number[];
@@ -524,6 +537,7 @@ export interface ViewFrame {
   readonly shop?: ShopView | null;
   readonly laptop?: LaptopView | null;
   readonly conversation?: ConversationView | null;
+  readonly npcRequest?: NpcRequestPromptView | null;
   readonly scriptedSequence?: boolean;
   readonly openDoors?: readonly number[];
   readonly doors?: readonly DoorView[];
@@ -581,6 +595,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), laptop: next.laptop ?? null };
   if (JSON.stringify(previous.conversation ?? null) !== JSON.stringify(next.conversation ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), conversation: next.conversation ?? null };
+  if (JSON.stringify(previous.npcRequest ?? null) !== JSON.stringify(next.npcRequest ?? null))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), npcRequest: next.npcRequest ?? null };
   if ((previous.scriptedSequence ?? false) !== (next.scriptedSequence ?? false))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), scriptedSequence: next.scriptedSequence ?? false };
   return frame;

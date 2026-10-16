@@ -14,3 +14,5 @@
 .talk-lines { max-height: 180px; overflow-y: auto; }
 .talk-lines p { margin: 4px 0; white-space: pre-wrap; }
 .talk .actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.talk-request { margin-top: 6px; padding: 4px 6px; border: 1px solid #c90; }
+.talk-request .actions { display: flex; gap: 4px; margin-top: 4px; }

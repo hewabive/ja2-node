@@ -18,7 +18,6 @@ import {
   predictDailyIncomeFromAMine,
   predictIncomeFromPlayerMines,
   runningOutRemovalRate,
-  startMineStandIn,
   workforceForEnemy,
   workforceForPlayer,
 } from './mines.ts';
@@ -145,16 +144,5 @@ describe('mine production', () => {
     m.shutDown = true;
     expect(maxDailyRemovalFromMine(ctx, DRASSEN_MINE)).toBe(0);
     expect(maxDailyRemovalFromMine(ctx, GRUMM_MINE)).toBe(4 * (2000 + 25 * 400));
-  });
-
-  it('starts a mine through the stand-in command only with a merc at the entrance', () => {
-    const { ctx, crew, m } = drassen();
-    m.spokeToHeadMiner = false;
-    m.shutDown = true;
-    expect(startMineStandIn(ctx, DRASSEN_MINE)).toEqual({ ok: false, reason: 'noMercThere' });
-    crew.add({ id: 0, sector: parseSectorString('D13') });
-    expect(startMineStandIn(ctx, DRASSEN_MINE)).toEqual({ ok: true });
-    expect(m).toMatchObject({ spokeToHeadMiner: true, shutDown: false });
-    expect(startMineStandIn(ctx, 0)).toEqual({ ok: false, reason: 'abandoned' });
   });
 });

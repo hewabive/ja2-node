@@ -1,4 +1,4 @@
-import type { ConversationLineView, ConversationView, SoldierView } from '../../protocol/view.ts';
+import type { ConversationLineView, ConversationView, NpcRequestPromptView, SoldierView } from '../../protocol/view.ts';
 import type { CommandReply } from '../net/session-client.ts';
 
 type Send = (cmd: { type: string; [key: string]: unknown }) => Promise<CommandReply>;
@@ -29,10 +29,12 @@ export class TalkPanel {
   readonly #title = el('talkTitle');
   readonly #lines = el('talkLines');
   readonly #menu = el('talkMenu');
+  readonly #request = el('talkRequest');
   readonly #result = el('talkResult');
   readonly #send: Send;
   #shown: ConversationView | null = null;
   #scripted = false;
+  #shownRequest: NpcRequestPromptView | null = null;
 
   constructor(send: Send) {
     this.#send = send;
@@ -49,11 +51,12 @@ export class TalkPanel {
     return this.#result.textContent ?? '';
   }
 
-  update(conversation: ConversationView | null, scripted: boolean): void {
+  update(conversation: ConversationView | null, scripted: boolean, request: NpcRequestPromptView | null): void {
+    this.#renderRequest(request);
     if (conversation === this.#shown && scripted === this.#scripted) return;
     this.#shown = conversation;
     this.#scripted = scripted;
-    this.#root.hidden = !conversation && !scripted;
+    this.#root.hidden = !conversation && !scripted && !this.#shownRequest;
     if (!conversation) {
       this.#title.textContent = scripted ? 'Scripted sequence: run until idle' : 'Talk';
       this.#lines.replaceChildren();
@@ -81,6 +84,37 @@ export class TalkPanel {
         return b;
       }),
     );
+  }
+
+  #renderRequest(request: NpcRequestPromptView | null): void {
+    if (request === this.#shownRequest) return;
+    this.#shownRequest = request;
+    this.#request.hidden = !request;
+    if (!request) {
+      this.#request.replaceChildren();
+      return;
+    }
+    this.#root.hidden = false;
+    const details = [request.amount !== undefined ? `$${request.amount}` : '', request.merc !== undefined ? `merc #${request.merc}` : '']
+      .filter(Boolean)
+      .join(', ');
+    const text = document.createElement('div');
+    text.textContent = `${request.name} asks: ${request.request}${details ? ` (${details})` : ''}`;
+    const choices = document.createElement('div');
+    choices.className = 'actions';
+    choices.append(
+      ...request.choices.map((choice) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = choice;
+        b.dataset.choice = choice;
+        b.addEventListener('click', () => {
+          void this.#send({ type: 'answer', prompt: request.id, choice }).then((r) => this.#report(r, `answered ${choice}`));
+        });
+        return b;
+      }),
+    );
+    this.#request.replaceChildren(text, choices);
   }
 
   talk(soldier: number, target: SoldierView): void {

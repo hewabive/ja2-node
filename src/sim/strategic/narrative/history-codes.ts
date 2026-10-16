@@ -1,0 +1,41 @@
+// Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
+// Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
+// @src src/game/Laptop/History.h (the history codes of the NPC actions, the NPC system events and the Kingpin money check;
+// @src checked against data/tables/merc-contracts.json). See docs/25 §3, §11.4.
+
+export const NarrativeHistory = {
+  TALKED_TO_FATHER_WALKER: 20,
+  MERC_MARRIED_OFF: 21,
+  DISCOVERED_TIXA: 30,
+  DISCOVERED_ORTA: 31,
+  GOT_ROCKET_RIFLES: 32,
+  DEIDRANNA_DEAD_BODIES: 33,
+  BOXING_MATCHES: 34,
+  SOMETHING_IN_MINES: 35,
+  DEVIN: 36,
+  MIKE: 37,
+  TONY: 38,
+  KROTT: 39,
+  KYLE: 40,
+  MADLAB: 41,
+  GABBY: 42,
+  KEITH_OUT_OF_BUSINESS: 43,
+  HOWARD_CYANIDE: 44,
+  KEITH: 45,
+  HOWARD: 46,
+  PERKO: 47,
+  SAM: 48,
+  FRANZ: 49,
+  ARNOLD: 50,
+  FREDO: 51,
+  RICHGUY_BALIME: 52,
+  JAKE: 53,
+  BUM_KEYCARD: 54,
+  WALTER: 55,
+  DAVE: 56,
+  PABLO: 57,
+  KINGPIN_MONEY: 58,
+  FOUND_MONEY: 62,
+  ASSASSIN: 63,
+  GAVE_CARMEN_HEAD: 75,
+} as const;

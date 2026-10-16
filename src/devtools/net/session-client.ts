@@ -17,6 +17,7 @@ import {
   type DoorView,
   type ItemView,
   type LaptopView,
+  type NpcRequestPromptView,
   type PlayerView,
   type PromptView,
   type ShopView,
@@ -58,6 +59,7 @@ export class SessionClient {
   #doors: readonly DoorView[] = [];
   #conversation: ConversationView | null = null;
   #scriptedSequence = false;
+  #npcRequest: NpcRequestPromptView | null = null;
   #shownTick = 0;
   #latestTick = 0;
 
@@ -144,6 +146,10 @@ export class SessionClient {
     return this.#scriptedSequence;
   }
 
+  get npcRequest(): NpcRequestPromptView | null {
+    return this.#npcRequest;
+  }
+
   get shownTick(): number {
     return this.#shownTick;
   }
@@ -184,6 +190,7 @@ export class SessionClient {
         this.#doors = m.view.doors ?? [];
         this.#conversation = m.view.conversation ?? null;
         this.#scriptedSequence = m.view.scriptedSequence ?? false;
+        this.#npcRequest = m.view.npcRequest ?? null;
         this.#shownTick = m.view.tick;
         this.#latestTick = m.view.tick;
         break;
@@ -226,6 +233,7 @@ export class SessionClient {
       if (frame.doors) this.#doors = frame.doors;
       if (frame.conversation !== undefined) this.#conversation = frame.conversation;
       if (frame.scriptedSequence !== undefined) this.#scriptedSequence = frame.scriptedSequence;
+      if (frame.npcRequest !== undefined) this.#npcRequest = frame.npcRequest;
       changed = true;
     }
     const target = Math.min(tick, this.#latestTick);

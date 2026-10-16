@@ -1,7 +1,7 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Strategic/Facts.h enum Fact, src/game/Strategic/Quests.h enum Quests, src/game/Tactical/Soldier_Profile.h enum NPCIDs",
+  "source": "JA2 Stracciatella ae6bf01: src/game/Strategic/Facts.h enum Fact, src/game/Strategic/Quests.h enum Quests, src/game/Tactical/Soldier_Profile.h enum NPCIDs, src/game/Tactical/Interface_Dialogue.h enum NPCAction",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
-  "format": "fact ids and names (FACT_ prefix removed unless the rest is a number) in id order; quest ids and names (QUEST_ prefix removed) in id order, NO_QUEST left out; named profile ids of NPCIDs (placeholders RPCnn/NPCnn left out)",
+  "format": "fact ids and names (FACT_ prefix removed unless the rest is a number) in id order; quest ids and names (QUEST_ prefix removed) in id order, NO_QUEST left out; named profile ids of NPCIDs (placeholders RPCnn/NPCnn left out); NPC action codes and names (NPC_ACTION_ prefix removed unless the rest starts with a digit) in code order",
   "facts": [
     {
       "id": 0,
@@ -1722,6 +1722,980 @@
     {
       "id": 163,
       "name": "PROF_HELICOPTER"
+    }
+  ],
+  "npcActions": [
+    {
+      "id": 0,
+      "name": "NONE"
+    },
+    {
+      "id": 1,
+      "name": "DONT_ACCEPT_ITEM"
+    },
+    {
+      "id": 2,
+      "name": "FACE_CLOSEST_PLAYER"
+    },
+    {
+      "id": 3,
+      "name": "OPEN_CLOSEST_DOOR"
+    },
+    {
+      "id": 4,
+      "name": "RECRUIT"
+    },
+    {
+      "id": 5,
+      "name": "THREATENINGLY_RAISE_GUN"
+    },
+    {
+      "id": 6,
+      "name": "LOWER_GUN"
+    },
+    {
+      "id": 7,
+      "name": "READY_GUN"
+    },
+    {
+      "id": 8,
+      "name": "START_RUNNING"
+    },
+    {
+      "id": 9,
+      "name": "STOP_RUNNING"
+    },
+    {
+      "id": 10,
+      "name": "BOOST_TOWN_LOYALTY"
+    },
+    {
+      "id": 11,
+      "name": "PENALIZE_TOWN_LOYALTY"
+    },
+    {
+      "id": 12,
+      "name": "STOP_PLAYER_GIVING_FIRST_AID"
+    },
+    {
+      "id": 13,
+      "name": "FACE_NORTH"
+    },
+    {
+      "id": 14,
+      "name": "FACE_NORTH_EAST"
+    },
+    {
+      "id": 15,
+      "name": "FACE_EAST"
+    },
+    {
+      "id": 16,
+      "name": "FACE_SOUTH_EAST"
+    },
+    {
+      "id": 17,
+      "name": "FACE_SOUTH"
+    },
+    {
+      "id": 18,
+      "name": "FACE_SOUTH_WEST"
+    },
+    {
+      "id": 19,
+      "name": "FACE_WEST"
+    },
+    {
+      "id": 20,
+      "name": "FACE_NORTH_WEST"
+    },
+    {
+      "id": 21,
+      "name": "TRIGGER_FRIEND_WITH_HOSTILE_QUOTE"
+    },
+    {
+      "id": 22,
+      "name": "BECOME_ENEMY"
+    },
+    {
+      "id": 23,
+      "name": "RECRUIT_WITH_SALARY"
+    },
+    {
+      "id": 24,
+      "name": "CLOSE_DIALOGUE_PANEL"
+    },
+    {
+      "id": 25,
+      "name": "ENTER_COMBAT"
+    },
+    {
+      "id": 26,
+      "name": "TERRORIST_REVEALS_SELF"
+    },
+    {
+      "id": 27,
+      "name": "OPEN_CLOSEST_CABINET"
+    },
+    {
+      "id": 28,
+      "name": "SLAP"
+    },
+    {
+      "id": 29,
+      "name": "TRIGGER_QUEEN_BY_CITIES_CONTROLLED"
+    },
+    {
+      "id": 30,
+      "name": "SEND_SOLDIERS_TO_DRASSEN"
+    },
+    {
+      "id": 31,
+      "name": "SEND_SOLDIERS_TO_BATTLE_LOCATION"
+    },
+    {
+      "id": 32,
+      "name": "TRIGGER_QUEEN_BY_SAM_SITES_CONTROLLED"
+    },
+    {
+      "id": 33,
+      "name": "PUNCH_PC_SLOT_0"
+    },
+    {
+      "id": 34,
+      "name": "PUNCH_PC_SLOT_1"
+    },
+    {
+      "id": 35,
+      "name": "PUNCH_PC_SLOT_2"
+    },
+    {
+      "id": 36,
+      "name": "FRUSTRATED_SLAP"
+    },
+    {
+      "id": 37,
+      "name": "PUNCH_FIRST_LIVING_PC"
+    },
+    {
+      "id": 38,
+      "name": "SHOOT_ELLIOT"
+    },
+    {
+      "id": 39,
+      "name": "PLAYER_SAYS_NICE_LATER"
+    },
+    {
+      "id": 40,
+      "name": "GET_ITEMS_FROM_CLOSEST_CABINET"
+    },
+    {
+      "id": 41,
+      "name": "INITIATE_SHOPKEEPER_INTERFACE"
+    },
+    {
+      "id": 42,
+      "name": "GET_OUT_OF_WHEELCHAIR"
+    },
+    {
+      "id": 43,
+      "name": "GET_OUT_OF_WHEELCHAIR_AND_BECOME_HOSTILE"
+    },
+    {
+      "id": 44,
+      "name": "PLAYER_SAYS_NASTY_LATER"
+    },
+    {
+      "id": 50,
+      "name": "GRANT_EXPERIENCE_1"
+    },
+    {
+      "id": 51,
+      "name": "GRANT_EXPERIENCE_2"
+    },
+    {
+      "id": 52,
+      "name": "GRANT_EXPERIENCE_3"
+    },
+    {
+      "id": 53,
+      "name": "GRANT_EXPERIENCE_4"
+    },
+    {
+      "id": 54,
+      "name": "GRANT_EXPERIENCE_5"
+    },
+    {
+      "id": 100,
+      "name": "GOTO_HIDEOUT"
+    },
+    {
+      "id": 101,
+      "name": "FATIMA_GIVE_LETTER"
+    },
+    {
+      "id": 102,
+      "name": "LEAVE_HIDEOUT"
+    },
+    {
+      "id": 103,
+      "name": "TRAVERSE_MAP_EAST"
+    },
+    {
+      "id": 104,
+      "name": "TRAVERSE_MAP_SOUTH"
+    },
+    {
+      "id": 105,
+      "name": "TRAVERSE_MAP_WEST"
+    },
+    {
+      "id": 106,
+      "name": "TRAVERSE_MAP_NORTH"
+    },
+    {
+      "id": 107,
+      "name": "REPORT_SHIPMENT_SIZE"
+    },
+    {
+      "id": 108,
+      "name": "RETURN_STOLEN_SHIPMENT_ITEMS"
+    },
+    {
+      "id": 109,
+      "name": "SET_PABLO_BRIBE_DELAY"
+    },
+    {
+      "id": 110,
+      "name": "ASK_ABOUT_ESCORTING_EPC"
+    },
+    {
+      "id": 111,
+      "name": "DRINK_DRINK_DRINK"
+    },
+    {
+      "id": 112,
+      "name": "TRIGGER_END_OF_FOOD_QUEST"
+    },
+    {
+      "id": 113,
+      "name": "SEND_PACOS_INTO_HIDING"
+    },
+    {
+      "id": 114,
+      "name": "HAVE_PACOS_FOLLOW"
+    },
+    {
+      "id": 115,
+      "name": "SET_DELAYED_PACKAGE_TIMER"
+    },
+    {
+      "id": 116,
+      "name": "SET_RANDOM_PACKAGE_DAMAGE_TIMER"
+    },
+    {
+      "id": 117,
+      "name": "FREE_KIDS"
+    },
+    {
+      "id": 118,
+      "name": "CHOOSE_DOCTOR"
+    },
+    {
+      "id": 119,
+      "name": "REPORT_BALANCE"
+    },
+    {
+      "id": 120,
+      "name": "ASK_ABOUT_PAYING_RPC"
+    },
+    {
+      "id": 121,
+      "name": "DELAYED_MAKE_BRENDA_LEAVE"
+    },
+    {
+      "id": 122,
+      "name": "SEX"
+    },
+    {
+      "id": 123,
+      "name": "KYLE_GETS_MONEY"
+    },
+    {
+      "id": 124,
+      "name": "LAYLA_GIVEN_WRONG_AMOUNT_OF_CASH"
+    },
+    {
+      "id": 125,
+      "name": "SET_GIRLS_AVAILABLE"
+    },
+    {
+      "id": 126,
+      "name": "SET_DELAY_TILL_GIRLS_AVAILABLE"
+    },
+    {
+      "id": 127,
+      "name": "SET_WAITED_FOR_GIRL_FALSE"
+    },
+    {
+      "id": 128,
+      "name": "TRIGGER_LAYLA_13_14_OR_15"
+    },
+    {
+      "id": 129,
+      "name": "OPEN_CARLAS_DOOR"
+    },
+    {
+      "id": 130,
+      "name": "OPEN_CINDYS_DOOR"
+    },
+    {
+      "id": 131,
+      "name": "OPEN_BAMBIS_DOOR"
+    },
+    {
+      "id": 132,
+      "name": "OPEN_MARIAS_DOOR"
+    },
+    {
+      "id": 133,
+      "name": "POSSIBLY_ADVERTISE_CINDY"
+    },
+    {
+      "id": 134,
+      "name": "POSSIBLY_ADVERTISE_BAMBI"
+    },
+    {
+      "id": 135,
+      "name": "DARREN_REQUESTOR"
+    },
+    {
+      "id": 136,
+      "name": "ADD_JOEY_TO_WORLD"
+    },
+    {
+      "id": 137,
+      "name": "MARK_KINGPIN_QUOTE_0_USED"
+    },
+    {
+      "id": 138,
+      "name": "START_BOXING_MATCH"
+    },
+    {
+      "id": 139,
+      "name": "ENABLE_CAMBRIA_DOCTOR_BONUS"
+    },
+    {
+      "id": 140,
+      "name": "MARTHA_DIES"
+    },
+    {
+      "id": 141,
+      "name": "DARREN_GIVEN_CASH"
+    },
+    {
+      "id": 142,
+      "name": "ANGEL_GIVEN_CASH"
+    },
+    {
+      "id": 143,
+      "name": "TRIGGER_ANGEL_17_OR_18"
+    },
+    {
+      "id": 144,
+      "name": "BUY_LEATHER_KEVLAR_VEST"
+    },
+    {
+      "id": 145,
+      "name": "TRIGGER_MARIA"
+    },
+    {
+      "id": 146,
+      "name": "TRIGGER_ANGEL_16_OR_19"
+    },
+    {
+      "id": 147,
+      "name": "ANGEL_LEAVES_DEED"
+    },
+    {
+      "id": 148,
+      "name": "TRIGGER_ANGEL_21_OR_22"
+    },
+    {
+      "id": 149,
+      "name": "UN_RECRUIT_EPC"
+    },
+    {
+      "id": 150,
+      "name": "TELEPORT_NPC"
+    },
+    {
+      "id": 152,
+      "name": "RESET_SHIPMENT_ARRIVAL_STUFF"
+    },
+    {
+      "id": 154,
+      "name": "DECIDE_ACTIVE_TERRORISTS"
+    },
+    {
+      "id": 155,
+      "name": "TRIGGER_FATHER_18_20_OR_15"
+    },
+    {
+      "id": 156,
+      "name": "CHECK_LAST_TERRORIST_HEAD"
+    },
+    {
+      "id": 157,
+      "name": "CARMEN_LEAVES_FOR_C13"
+    },
+    {
+      "id": 158,
+      "name": "CARMEN_LEAVES_FOR_GOOD"
+    },
+    {
+      "id": 159,
+      "name": "CARMEN_LEAVES_ON_NEXT_SECTOR_LOAD"
+    },
+    {
+      "id": 160,
+      "name": "TRIGGER_VINCE_BY_LOYALTY"
+    },
+    {
+      "id": 161,
+      "name": "MEDICAL_REQUESTOR"
+    },
+    {
+      "id": 162,
+      "name": "MEDICAL_REQUESTOR_2"
+    },
+    {
+      "id": 163,
+      "name": "CHECK_DOCTORING_MONEY_GIVEN"
+    },
+    {
+      "id": 164,
+      "name": "START_DOCTORING"
+    },
+    {
+      "id": 165,
+      "name": "VINCE_UNRECRUITABLE"
+    },
+    {
+      "id": 166,
+      "name": "END_COMBAT"
+    },
+    {
+      "id": 167,
+      "name": "BECOME_FRIENDLY_END_COMBAT"
+    },
+    {
+      "id": 168,
+      "name": "SET_EPC_TO_NPC"
+    },
+    {
+      "id": 169,
+      "name": "BUY_VEHICLE_REQUESTOR"
+    },
+    {
+      "id": 170,
+      "name": "END_MEANWHILE"
+    },
+    {
+      "id": 171,
+      "name": "START_BLOODCAT_QUEST"
+    },
+    {
+      "id": 172,
+      "name": "START_MINE"
+    },
+    {
+      "id": 173,
+      "name": "STOP_MINE"
+    },
+    {
+      "id": 174,
+      "name": "RESET_MINE_CAPTURED"
+    },
+    {
+      "id": 175,
+      "name": "SET_OSWALD_RECORD_13_USED"
+    },
+    {
+      "id": 176,
+      "name": "SET_CALVIN_RECORD_13_USED"
+    },
+    {
+      "id": 177,
+      "name": "SET_CARL_RECORD_13_USED"
+    },
+    {
+      "id": 178,
+      "name": "SET_FRED_RECORD_13_USED"
+    },
+    {
+      "id": 179,
+      "name": "SET_MATT_RECORD_13_USED"
+    },
+    {
+      "id": 180,
+      "name": "TRIGGER_MATT"
+    },
+    {
+      "id": 181,
+      "name": "REDUCE_CONRAD_SALARY_CONDITIONS"
+    },
+    {
+      "id": 182,
+      "name": "REMOVE_CONRAD"
+    },
+    {
+      "id": 183,
+      "name": "KROTT_REQUESTOR"
+    },
+    {
+      "id": 184,
+      "name": "KROTT_ALIVE_LOYALTY_BOOST"
+    },
+    {
+      "id": 185,
+      "name": "TRIGGER_YANNI"
+    },
+    {
+      "id": 186,
+      "name": "TRIGGER_MARY_OR_JOHN_RECORD_9"
+    },
+    {
+      "id": 187,
+      "name": "TRIGGER_MARY_OR_JOHN_RECORD_10"
+    },
+    {
+      "id": 188,
+      "name": "ADD_JOHNS_GUN_SHIPMENT"
+    },
+    {
+      "id": 190,
+      "name": "TRIGGER_KROTT_11_OR_12"
+    },
+    {
+      "id": 191,
+      "name": "MADLAB_GIVEN_GUN"
+    },
+    {
+      "id": 192,
+      "name": "MADLAB_GIVEN_CAMERA"
+    },
+    {
+      "id": 193,
+      "name": "MADLAB_ATTACHES_GOOD_CAMERA"
+    },
+    {
+      "id": 194,
+      "name": "READY_ROBOT"
+    },
+    {
+      "id": 195,
+      "name": "WALTER_GIVEN_MONEY_INITIALLY"
+    },
+    {
+      "id": 196,
+      "name": "WALTER_GIVEN_MONEY"
+    },
+    {
+      "id": 197,
+      "name": "MAKE_NPC_FIRST_BARTENDER"
+    },
+    {
+      "id": 198,
+      "name": "MAKE_NPC_SECOND_BARTENDER"
+    },
+    {
+      "id": 199,
+      "name": "MAKE_NPC_THIRD_BARTENDER"
+    },
+    {
+      "id": 200,
+      "name": "MAKE_NPC_FOURTH_BARTENDER"
+    },
+    {
+      "id": 201,
+      "name": "GERARD_GIVEN_CASH"
+    },
+    {
+      "id": 202,
+      "name": "FILL_UP_CAR"
+    },
+    {
+      "id": 203,
+      "name": "JOE_GIVEN_CASH"
+    },
+    {
+      "id": 204,
+      "name": "TRIGGER_ELLIOT_9_OR_10"
+    },
+    {
+      "id": 205,
+      "name": "HANDLE_END_OF_FIGHT"
+    },
+    {
+      "id": 206,
+      "name": "DARREN_PAYS_PLAYER"
+    },
+    {
+      "id": 207,
+      "name": "FIGHT_AGAIN_REQUESTOR"
+    },
+    {
+      "id": 208,
+      "name": "TRIGGER_SPIKE_OR_DARREN"
+    },
+    {
+      "id": 210,
+      "name": "CHANGE_MANNY_POSITION"
+    },
+    {
+      "id": 211,
+      "name": "TIMER_FOR_VEHICLE"
+    },
+    {
+      "id": 212,
+      "name": "ASK_ABOUT_PAYING_RPC_WITH_DAILY_SALARY"
+    },
+    {
+      "id": 213,
+      "name": "TRIGGER_MICKY_BY_SCI_FI"
+    },
+    {
+      "id": 215,
+      "name": "TRIGGER_ELLIOT_BY_BATTLE_RESULT"
+    },
+    {
+      "id": 216,
+      "name": "TRIGGER_ELLIOT_BY_SAM_DISABLED"
+    },
+    {
+      "id": 217,
+      "name": "LAYLAS_NEXT_LINE_AFTER_CARLA"
+    },
+    {
+      "id": 218,
+      "name": "LAYLAS_NEXT_LINE_AFTER_CINDY"
+    },
+    {
+      "id": 219,
+      "name": "LAYLAS_NEXT_LINE_AFTER_BAMBI"
+    },
+    {
+      "id": 220,
+      "name": "LAYLAS_NEXT_LINE_AFTER_MARIA"
+    },
+    {
+      "id": 221,
+      "name": "PROMPT_PLAYER_TO_LIE"
+    },
+    {
+      "id": 222,
+      "name": "REMOVE_JOE_QUEEN"
+    },
+    {
+      "id": 223,
+      "name": "REMOVE_ELLIOT_END_MEANWHILE"
+    },
+    {
+      "id": 224,
+      "name": "NO_SCI_FI_END_MEANWHILE"
+    },
+    {
+      "id": 226,
+      "name": "TRIGGER_MARRY_DARYL_PROMPT"
+    },
+    {
+      "id": 227,
+      "name": "HAVE_MARRIED_NPC_LEAVE_TEAM"
+    },
+    {
+      "id": 228,
+      "name": "KINGPIN_GIVEN_MONEY"
+    },
+    {
+      "id": 229,
+      "name": "KINGPIN_TRIGGER_25_OR_14"
+    },
+    {
+      "id": 230,
+      "name": "SEND_ENRICO_MIGUEL_EMAIL"
+    },
+    {
+      "id": 231,
+      "name": "END_DEMO"
+    },
+    {
+      "id": 232,
+      "name": "INVOKE_CONVERSATION_MODE"
+    },
+    {
+      "id": 234,
+      "name": "START_TIMER_ON_KEITH_GOING_OUT_OF_BUSINESS"
+    },
+    {
+      "id": 235,
+      "name": "KEITH_GOING_BACK_IN_BUSINESS"
+    },
+    {
+      "id": 236,
+      "name": "MAKE_RAT_DISAPPEAR"
+    },
+    {
+      "id": 237,
+      "name": "DOCTOR_ESCORT_PATIENTS"
+    },
+    {
+      "id": 238,
+      "name": "ELLIOT_DECIDE_WHICH_QUOTE_FOR_PLAYER_ATTACK"
+    },
+    {
+      "id": 239,
+      "name": "QUEEN_DECIDE_WHICH_QUOTE_FOR_PLAYER_ATTACK"
+    },
+    {
+      "id": 240,
+      "name": "CANCEL_WAYPOINTS"
+    },
+    {
+      "id": 242,
+      "name": "SHOW_TIXA"
+    },
+    {
+      "id": 243,
+      "name": "SHOW_ORTA"
+    },
+    {
+      "id": 244,
+      "name": "DRINK_WINE"
+    },
+    {
+      "id": 245,
+      "name": "DRINK_BOOZE"
+    },
+    {
+      "id": 246,
+      "name": "TRIGGER_ANGEL_22_OR_24"
+    },
+    {
+      "id": 247,
+      "name": "SET_FACT_105_FALSE"
+    },
+    {
+      "id": 248,
+      "name": "MAKE_BRENDA_STATIONARY"
+    },
+    {
+      "id": 249,
+      "name": "TRIGGER_DARREN_OR_KINGPIN_IMPRESSED"
+    },
+    {
+      "id": 250,
+      "name": "TRIGGER_KINGPIN_IMPRESSED"
+    },
+    {
+      "id": 251,
+      "name": "ADD_RAT"
+    },
+    {
+      "id": 253,
+      "name": "ENDGAME_STATE_1"
+    },
+    {
+      "id": 254,
+      "name": "ENDGAME_STATE_2"
+    },
+    {
+      "id": 255,
+      "name": "MAKE_MIGUEL_STATIONARY"
+    },
+    {
+      "id": 256,
+      "name": "MAKE_ESTONI_A_FUEL_SITE"
+    },
+    {
+      "id": 257,
+      "name": "NPC_ACTION_24_HOURS_SINCE_JOEY_RESCUED"
+    },
+    {
+      "id": 258,
+      "name": "NPC_ACTION_24_HOURS_SINCE_DOCTORS_TALKED_TO"
+    },
+    {
+      "id": 259,
+      "name": "SEND_SOLDIERS_TO_OMERTA"
+    },
+    {
+      "id": 260,
+      "name": "ADD_MORE_ELITES"
+    },
+    {
+      "id": 261,
+      "name": "GIVE_KNOWLEDGE_OF_ALL_MERCS"
+    },
+    {
+      "id": 262,
+      "name": "REMOVE_MERC_FOR_MARRIAGE"
+    },
+    {
+      "id": 263,
+      "name": "TRIGGER_JOE_32_OR_33"
+    },
+    {
+      "id": 264,
+      "name": "REMOVE_NPC"
+    },
+    {
+      "id": 265,
+      "name": "HISTORY_GOT_ROCKET_RIFLES"
+    },
+    {
+      "id": 266,
+      "name": "HISTORY_DEIDRANNA_DEAD_BODIES"
+    },
+    {
+      "id": 267,
+      "name": "HISTORY_BOXING_MATCHES"
+    },
+    {
+      "id": 268,
+      "name": "HISTORY_SOMETHING_IN_MINES"
+    },
+    {
+      "id": 269,
+      "name": "HISTORY_DEVIN"
+    },
+    {
+      "id": 270,
+      "name": "HISTORY_MIKE"
+    },
+    {
+      "id": 271,
+      "name": "HISTORY_TONY"
+    },
+    {
+      "id": 272,
+      "name": "HISTORY_KROTT"
+    },
+    {
+      "id": 273,
+      "name": "HISTORY_KYLE"
+    },
+    {
+      "id": 274,
+      "name": "HISTORY_MADLAB"
+    },
+    {
+      "id": 275,
+      "name": "HISTORY_GABBY"
+    },
+    {
+      "id": 276,
+      "name": "HISTORY_KEITH_OUT_OF_BUSINESS"
+    },
+    {
+      "id": 277,
+      "name": "HISTORY_HOWARD_CYANIDE"
+    },
+    {
+      "id": 278,
+      "name": "HISTORY_KEITH"
+    },
+    {
+      "id": 279,
+      "name": "HISTORY_HOWARD"
+    },
+    {
+      "id": 280,
+      "name": "HISTORY_PERKO"
+    },
+    {
+      "id": 281,
+      "name": "HISTORY_SAM"
+    },
+    {
+      "id": 282,
+      "name": "HISTORY_FRANZ"
+    },
+    {
+      "id": 283,
+      "name": "HISTORY_ARNOLD"
+    },
+    {
+      "id": 284,
+      "name": "HISTORY_FREDO"
+    },
+    {
+      "id": 285,
+      "name": "HISTORY_RICHGUY_BALIME"
+    },
+    {
+      "id": 286,
+      "name": "HISTORY_JAKE"
+    },
+    {
+      "id": 287,
+      "name": "HISTORY_BUM_KEYCARD"
+    },
+    {
+      "id": 288,
+      "name": "HISTORY_WALTER"
+    },
+    {
+      "id": 289,
+      "name": "HISTORY_DAVE"
+    },
+    {
+      "id": 290,
+      "name": "HISTORY_PABLO"
+    },
+    {
+      "id": 291,
+      "name": "HISTORY_KINGPIN_MONEY"
+    },
+    {
+      "id": 292,
+      "name": "SEND_TROOPS_TO_SAM"
+    },
+    {
+      "id": 293,
+      "name": "PUT_PACOS_IN_BASEMENT"
+    },
+    {
+      "id": 294,
+      "name": "HISTORY_ASSASSIN"
+    },
+    {
+      "id": 295,
+      "name": "TRIGGER_HANS_BY_ROOM"
+    },
+    {
+      "id": 296,
+      "name": "TRIGGER_MADLAB_31"
+    },
+    {
+      "id": 297,
+      "name": "TRIGGER_MADLAB_32"
+    },
+    {
+      "id": 298,
+      "name": "TRIGGER_BREWSTER_BY_WARDEN_PROXIMITY"
+    },
+    {
+      "id": 500,
+      "name": "TURN_TO_FACE_NEAREST_MERC"
+    },
+    {
+      "id": 501,
+      "name": "TURN_TO_FACE_PROFILE_ID_0"
+    },
+    {
+      "id": 650,
+      "name": "LAST_TURN_TO_FACE_PROFILE"
     }
   ]
 }

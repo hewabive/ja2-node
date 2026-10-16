@@ -1,6 +1,5 @@
 import { parseSectorString, type Sector, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import type { CommandResult } from '../command.ts';
-import { startMineStandIn } from '../strategic/economy/mines.ts';
 import { type AssignTarget, assignSoldiers, sleepSoldier, wakeSoldier } from '../strategic/economy/set-assignment.ts';
 import { getGroup } from '../strategic/forces/groups.ts';
 import { canEntireMovementGroupMove, type LoadedSectorStatus } from '../strategic/forces/move-permission.ts';
@@ -93,13 +92,6 @@ function sleepOrWake(campaign: CampaignSim, cmd: StrategicCommand, sleep: boolea
   return result.ok ? { ok: true } : { ok: false, reason: result.reason };
 }
 
-function startMine(campaign: CampaignSim, cmd: StrategicCommand): CommandResult {
-  const economy = campaign.economy;
-  if (!economy || typeof cmd.mine !== 'number') return { ok: false, reason: 'mine must be a mine index' };
-  const result = startMineStandIn(economy, cmd.mine);
-  return result.ok ? { ok: true } : { ok: false, reason: result.reason };
-}
-
 export function dispatchStrategicCommand(campaign: CampaignSim, cmd: StrategicCommand): CommandResult | null {
   const ctx = campaign.strategic;
   if (!ctx) return null;
@@ -116,8 +108,6 @@ export function dispatchStrategicCommand(campaign: CampaignSim, cmd: StrategicCo
       return sleepOrWake(campaign, cmd, true);
     case 'wake':
       return sleepOrWake(campaign, cmd, false);
-    case 'startMine':
-      return startMine(campaign, cmd);
     default:
       return null;
   }

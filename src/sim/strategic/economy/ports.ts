@@ -48,6 +48,7 @@ export interface CrewMember extends StrategicMerc {
   doneQuoteSaid: boolean;
   trainStat: number;
   lastAssignmentChangeMin: number;
+  hospitalPriceModifier: number;
   fixingRobot: boolean;
   vehicleUnderRepair: number;
   readonly inSector: boolean;

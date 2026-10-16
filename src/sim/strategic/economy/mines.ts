@@ -7,11 +7,10 @@
 // @src PlayerSpokeToHeadMiner, PlayerAttackedHeadMiner, HasAnyMineBeenAttackedByMonsters, AreThereMinersInsideThisMine,
 // @src IsHisMineRunningOut, IsHisMineEmpty, IsHisMineDisloyal (LOW_MINE_LOYALTY_THRESHOLD), IsHisMineInfested,
 // @src IsHisMineLostAndRegained, IsHisMineAtMaxProduction, HasHisMineBeenProducingForPlayerForSomeTime, SpokenToHeadMiner;
-// @src Strategic/StrategicMap.cc HandleQuestCodeOnSectorEntry (head miners); Tactical/Interface_Dialogue.cc
-// @src NPC_ACTION_START_MINE. See docs/18 §3.
+// @src Strategic/StrategicMap.cc HandleQuestCodeOnSectorEntry (head miners). See docs/18 §3.
 
 import { MineType } from '../../../content/strategic/economy-content.ts';
-import { type Sector, sameSector, sectorFromId } from '../../../content/strategic/sector-ids.ts';
+import { type Sector, sectorFromId } from '../../../content/strategic/sector-ids.ts';
 import { i32, idiv, u32 } from '../../../core/int.ts';
 import { addTransaction, FinanceCode } from '../../campaign/finances.ts';
 import { Fact } from '../narrative/fact-ids.ts';
@@ -19,7 +18,7 @@ import { fact, setFactTrue } from '../narrative/facts.ts';
 import { EventKind } from '../time/constants.ts';
 import { addStrategicEvent } from '../time/event-queue.ts';
 import { CompressionStop, stopTimeCompression, worldDayInMinutes, worldTotalMinutes } from '../time/world-clock.ts';
-import { HeadMinerQuote, OKLIFE } from './constants.ts';
+import { HeadMinerQuote } from './constants.ts';
 import { decrementTownLoyalty } from './loyalty.ts';
 import {
   addMineHistoryEvent,
@@ -335,26 +334,6 @@ export function placeHeadMinersOnSectorEntry(ctx: EconomyContext, sector: Sector
     if (placed === RANDOM_HEAD_MINERS) break;
   }
   setFactTrue(ctx.state.narrative, Fact.MINERS_PLACED);
-}
-
-export type StartMineResult =
-  | { readonly ok: true }
-  | { readonly ok: false; readonly reason: 'unknownMine' | 'abandoned' | 'noMercThere' | 'headMinerDead' };
-
-export function startMineStandIn(ctx: EconomyContext, mine: number): StartMineResult {
-  const def = ctx.economy.mines[mine];
-  if (!def) return { ok: false, reason: 'unknownMine' };
-  if (def.minimumMineProduction === 0) return { ok: false, reason: 'abandoned' };
-  const entrance = mineEntrance(ctx, mine);
-  const present = ctx.crew.all().some((m) => !m.betweenSectors && m.life >= OKLIFE && sameSector(m.sector, entrance));
-  if (!present) return { ok: false, reason: 'noMercThere' };
-  const miner = ctx.economy.headMiners.headMiners.find((h) => ctx.hooks.headMinerTown(h.profile) === def.associatedTownId);
-  if (miner && !ctx.hooks.headMinerAlive(miner.profile)) return { ok: false, reason: 'headMinerDead' };
-  const m = mineStatus(ctx, mine);
-  if (!m.spokeToHeadMiner) addMineHistoryEvent(ctx, MineHistory.TALKED_TO_MINER, mine);
-  m.spokeToHeadMiner = true;
-  restartMineProduction(ctx, mine);
-  return { ok: true };
 }
 
 export function mineProductionPercent(ctx: EconomyContext, mine: number): number {

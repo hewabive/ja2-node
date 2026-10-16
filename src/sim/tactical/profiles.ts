@@ -154,6 +154,7 @@ export interface ProfileProgress extends NpcProfileFields {
   quoteActionId: number;
   gridNo: number;
   lastDateSpokenTo: number;
+  nickname?: string;
   readonly inventory: number[];
   readonly inventoryStatus: number[];
   readonly inventoryCount: number[];

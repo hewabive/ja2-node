@@ -102,6 +102,12 @@ test('an MCP agent walks a stub squad to A10 and talks to the stub NPC, then the
   await page.click('#talkMenu button[data-approach="direct"]');
   await expect(page.locator('#talkResult')).toHaveText('direct ok');
   await expect.poll(() => page.locator('#talkLines p').count()).toBeGreaterThan(before);
+  await page.click('#talkMenu button[data-approach="recruit"]');
+  await expect(page.locator('#talkRequest')).toBeVisible();
+  await expect(page.locator('#talkRequest button[data-choice="lie"]')).toBeVisible();
+  await page.click('#talkRequest button[data-choice="lie"]');
+  await expect(page.locator('#talkResult')).toHaveText('answered lie');
+  await expect(page.locator('#talkRequest')).toBeHidden();
   await page.click('#closeTalk');
   await expect(page.locator('#talk')).toBeHidden();
 });

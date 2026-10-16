@@ -974,3 +974,6 @@ Specs: `docs/24` (NPCs and dialogue), `25` (quests, facts, NPC actions, schedule
    NPC sectors at a new game, placement overrides and both `AddProfiles…` passes, the quest code of sector entry and exit,
    the 04:00 moves and the hourly and daily NPC handlers. Dialogue and the helicopter read facts through `CheckFact`.
    51 oracle probes match.
+5. **NPC action catalog** (`sim/tactical/narrative/npc-actions`): every `HandleNPCDoAction` code of the original, the
+   requestor questions as an `npcRequest` prompt, the NPC system events, the hospital (prices, refunds, supplies) and
+   Kingpin's money; the head-miner stand-in is gone. 188 oracle probes match.

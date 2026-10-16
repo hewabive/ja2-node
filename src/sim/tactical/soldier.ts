@@ -249,7 +249,7 @@ export interface Soldier {
   readonly team: number;
   side: number;
   neutral: boolean;
-  readonly name: string;
+  name: string;
   readonly profile: number;
   readonly soldierClass: number;
   bodyType: number;
@@ -341,6 +341,7 @@ export interface Soldier {
   doorHandleCode: number;
   pendingDoorAction: PendingDoorAction | null;
   pendingTalk: number | null;
+  uiMovementFast: boolean;
   keyRing: KeyOnRing[] | null;
   breathCollapsed: boolean;
   collapsed: boolean;
@@ -609,6 +610,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     doorHandleCode: 0,
     pendingDoorAction: null,
     pendingTalk: null,
+    uiMovementFast: false,
     keyRing: init.team === Team.OUR ? newKeyRing() : null,
     breathCollapsed: false,
     collapsed: false,

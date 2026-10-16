@@ -35,6 +35,7 @@ import {
 import { createSoldier, NOWHERE, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
 import { registerSoldier, unregisterSoldier, whoIsThere } from '../../src/sim/tactical/state.ts';
 import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
+import { ACTION_PROBES, ActionComparer } from './actions-compare.ts';
 import { compareAutoresolveAftermath, compareEnemyCounts } from './autoresolve-aftermath.ts';
 import { compareAutoresolve } from './autoresolve-compare.ts';
 import { compareAutoresolveCreation } from './autoresolve-creation.ts';
@@ -580,6 +581,7 @@ for (const file of files) {
   const heli = new HeliComparer(read, exists);
   const talk = new TalkComparer(read, exists, (path) => data.vfs.layerCount(path));
   const facts = new FactComparer(read, exists);
+  const actions = new ActionComparer(read, exists);
   let ctx: Context | null = null;
   let arSetup: Json | null = null;
   for (const p of readLines(file)) {
@@ -606,6 +608,7 @@ for (const file of files) {
       if (ctx.bytes) heli.loadSave(ctx.bytes);
       if (ctx.bytes) talk.loadSave(ctx.bytes);
       if (ctx.bytes) facts.loadSave(ctx.bytes);
+      if (ctx.bytes) actions.loadSave(ctx.bytes);
     } else if (p.probe === 'end') continue;
     else if (p.probe === 'autoresolve') failures += await compareAutoresolveProbe(read, exists, ctx, arSetup, p);
     else if (p.probe === 'enemycounts') failures += await compareEnemyCountsProbe(read, ctx, p);
@@ -627,6 +630,7 @@ for (const file of files) {
     else if (HELI_PROBES.has(String(p.probe))) failures += await heli.compare(p);
     else if (TALK_PROBES.has(String(p.probe))) failures += await talk.compare(p);
     else if (FACT_PROBES.has(String(p.probe))) failures += await facts.compare(p);
+    else if (ACTION_PROBES.has(String(p.probe))) failures += await actions.compare(p);
     else {
       ctx ??= await sectorContext(read, content, worlds, null);
       if (p.probe === 'costs') failures += compareCosts(ctx, p);

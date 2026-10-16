@@ -1015,9 +1015,10 @@ queries and `observe` are accepted and nothing advances unless the queue is busy
 
 - **`conversation`** — the session itself when an NPC opened it (any `InitiateConversation` not caused by
   `talk`/`give`): `advance` stops with reason `decision`; answered by `approach`, `give` or `closeTalk`.
-- **`npcRequest {kind, npc, amount?}`** — kinds `escortEpc`, `payRpc` (amount = salary), `conradSalary`, `boxing`,
-  `boxingAgain`, `buyVest` (price), `medical` (amount shown), `medicalFree`, `buyVehicle` (10000), `spareKrott`,
-  `marryDaryl`, `lie`. Time stands still until answered.
+- **`npcRequest {id, request, npc, name, merc?, amount?, pair?, choices}`** — the requests of `25` §13.2 (`escort`, `hire`,
+  `boxingBet`, `fightAgain`, `buyVest`, `payDoctor`, `freeTreatment`, `buyVehicle`, `spareKrott`, `marryDaryl`, `lie`),
+  shown as `observe.npcRequest` (`docs/04` §6.14). Time stands still until answered. *Implemented with the action catalog
+  (2026-10-16).*
 - **`surrender {context: 'tactical'}`** — §8.5; the existing autoresolve prompt kind with a context field.
 
 ### 11.3 Events

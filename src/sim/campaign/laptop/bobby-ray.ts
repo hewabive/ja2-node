@@ -6,8 +6,8 @@
 // @src Laptop/Store_Inventory.cc SetupStoreInventory; Tactical/ArmsDealerInvInit.cc BobbyRayItemQsortCompare,
 // @src ItemTransactionOccurs (the Bobby Ray slot); Laptop/BobbyRGuns.cc CalcBobbyRayCost, PurchaseBobbyRayItem;
 // @src Laptop/BobbyRMailOrder.cc CalcCostFromWeightOfPackage, CalcPackageTotalWeight, CalculateOrderDelay,
-// @src PurchaseBobbyOrder, AddNewBobbyRShipment, RemovePurchasedItemsFromBobbyRayInventory, BtnBobbyRAcceptOrderCallback;
-// @src Strategic/Strategic_Event_Handler.cc BobbyRayPurchaseEventCallback, DropOffItemsInDestination, HandleNPCSystemEvent
+// @src PurchaseBobbyOrder, AddNewBobbyRShipment, AddJohnsGunShipment, RemovePurchasedItemsFromBobbyRayInventory, BtnBobbyRAcceptOrderCallback;
+// @src Strategic/Strategic_Event_Handler.cc BobbyRayPurchaseEventCallback, DropOffItemsInDestination
 // @src (the shipment facts); Strategic/Player_Command.cc SetThisSectorAsPlayerControlled (site access). See docs/21 §5.
 
 import { ItemClass, ItemFlags } from '../../../content/items/items.ts';
@@ -70,6 +70,12 @@ const SMALL_SHIPMENT = 5;
 const MEDIUM_SHIPMENT = 15;
 const SHIPMENT_OLD_AFTER_MINUTES = 120;
 const AUTOMAG_III = 'AUTOMAG_III';
+const JOHNS_AMMO = 'CLIP762N_5_AP';
+const JOHNS_GUNS = 2;
+const FULL_QUALITY = 100;
+const JOHNS_AMMO_QUALITY = 5;
+const STANDARD_SERVICE = 2;
+const JOHNS_EXTRA_DAYS = 2;
 
 export interface OrderLineRequest {
   readonly item: number;
@@ -283,33 +289,54 @@ function salIsDead(ctx: LaptopContext): boolean {
   return sal !== null && sal.life === 0;
 }
 
+function calculateOrderDelay(ctx: LaptopContext, speed: number): number {
+  let days: number = ORDER_DELAYS[speed] ?? 0;
+  if (salIsDead(ctx)) days += ctx.rng.main.int(SAL_DEAD_DELAY_SPREAD) + 1;
+  return days;
+}
+
 function addNewBobbyRShipment(
   ctx: LaptopContext,
   destination: number,
-  speed: number,
+  deliveryMethod: number,
   lines: readonly ShipmentLine[],
   weight: number,
+  purchasedFromBobbyRay = true,
 ): number {
   const shipments = ctx.laptop.bobbyRay.shipments;
   let index = shipments.findIndex(() => shipments[0]?.active === false);
   const shipment: Shipment = {
     active: true,
     destination,
-    speed,
+    speed: deliveryMethod,
     lines: lines.map((l) => ({ item: l.item, count: l.count, quality: l.quality, slot: l.slot, used: l.used })),
     weight: Math.max(weight, MIN_SHIPPING_WEIGHT),
     orderDay: ctx.day(),
-    displayedOnShipmentsPage: true,
+    displayedOnShipmentsPage: purchasedFromBobbyRay,
   };
   if (index < 0) {
     shipments.push(shipment);
     index = shipments.length - 1;
   } else shipments[index] = shipment;
-  let days: number = ORDER_DELAYS[speed] ?? 0;
-  if (salIsDead(ctx)) days += ctx.rng.main.int(SAL_DEAD_DELAY_SPREAD) + 1;
+  const days = purchasedFromBobbyRay ? calculateOrderDelay(ctx, deliveryMethod) : deliveryMethod;
   const minute = (DELIVERY_FIRST_HOUR + ctx.rng.main.int(DELIVERY_HOURS)) * MINUTES_PER_HOUR;
   addFutureDayStrategicEvent(ctx.state.queue, ctx.state.clock, EventKind.BOBBYRAY_PURCHASE, minute, index, days);
   return index;
+}
+
+export function addJohnsGunShipment(ctx: LaptopContext): void {
+  const items = ctx.tactical.items;
+  const line = (name: string, count: number, quality: number): ShipmentLine => ({
+    item: items.byName.get(name)?.index ?? 0,
+    count,
+    quality,
+    slot: 0,
+    used: false,
+  });
+  const lines = [line(AUTOMAG_III, JOHNS_GUNS, FULL_QUALITY), line(JOHNS_AMMO, JOHNS_GUNS, JOHNS_AMMO_QUALITY)];
+  const days = calculateOrderDelay(ctx, STANDARD_SERVICE) + JOHNS_EXTRA_DAYS;
+  const primary = ctx.content.destinations.findIndex((d) => d.isPrimary);
+  addNewBobbyRShipment(ctx, primary, days, lines, 0, false);
 }
 
 export type OrderResult =
@@ -524,12 +551,4 @@ export function bobbyRayPurchaseEvent(ctx: LaptopContext, index: number, tactica
   if (fromKulba) ctx.mail(mailSpec(ctx.content, 'JOHN_KULBA_GIFT_IN_DRASSEN'), sender(ctx.content, 'JOHN_KULBA'));
   else ctx.mail({ name: dest.internalName, offset: dest.emailOffset, length: dest.emailLength }, sender(ctx.content, 'BOBBY_R'));
   ctx.emit({ type: 'shipmentDelivered', shipment: index, sector: sectorShortString(sector), items: delivered.length, stolen: stolenCount });
-}
-
-export function handleNpcSystemEvent(ctx: LaptopContext, param: number): void {
-  const facts = ctx.state.narrative;
-  if (param === Fact.REALLY_NEW_BOBBYRAY_SHIPMENT_WAITING) {
-    setFact(facts, Fact.REALLY_NEW_BOBBYRAY_SHIPMENT_WAITING, false);
-    if (fact(facts, Fact.LARGE_SIZED_SHIPMENT_WAITING)) setFact(facts, Fact.LARGE_SIZED_OLD_SHIPMENT_WAITING, true);
-  } else if (param === Fact.SHIPMENT_DELAYED_24_HOURS) setFact(facts, Fact.SHIPMENT_DELAYED_24_HOURS, true);
 }

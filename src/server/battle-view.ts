@@ -1,5 +1,12 @@
 import { type Sector, sectorShortString } from '../content/strategic/sector-ids.ts';
-import type { AutoresolveCellView, AutoresolveView, InvolvedMercView, PromptView, UninvolvedMercView } from '../protocol/view.ts';
+import type {
+  AutoresolveCellView,
+  AutoresolveView,
+  InvolvedMercView,
+  NpcRequestPromptView,
+  PromptView,
+  UninvolvedMercView,
+} from '../protocol/view.ts';
 import { battleStatusName } from '../sim/campaign/battle-flow.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import type { RosterMerc } from '../sim/campaign/roster.ts';
@@ -116,8 +123,13 @@ export function promptView(campaign: CampaignSim): PromptView | null {
     case PromptKind.CONTRACT_RENEWAL:
     case PromptKind.MERC_DEPARTURE:
     case PromptKind.INSURANCE_EXTENSION:
+    case PromptKind.NPC_REQUEST:
       return null;
   }
+}
+
+export function npcRequestView(campaign: CampaignSim): NpcRequestPromptView | null {
+  return campaign.talk?.npcActions.requestView() ?? null;
 }
 
 function cellState(c: ArCell): AutoresolveCellView['state'] {
