@@ -216,6 +216,7 @@ function neutralCivilianAttacked(t: TacticalState, attacker: Soldier, target: So
 }
 
 export function processImplicationsOfPCAttack(t: TacticalState, attacker: Soldier, target: Soldier): boolean {
+  target.ai.asleep = false;
   if (target.profile === Profile.PABLO && t.narrative.fact(Fact.PLAYER_FOUND_ITEMS_MISSING))
     t.narrative.setFactTrue(Fact.PABLO_PUNISHED_BY_PLAYER);
   if (target.team === Team.MILITIA && target.side === Side.FRIENDLY) militiaChangesSides(t);

@@ -110,7 +110,9 @@ adds the record/approach fields — whichever spec lands first adds the shared o
    placement filter and overrides in `src/sim/tactical/narrative/placement.ts` and `profile-insertion.ts`, the campaign glue in
    `src/sim/campaign/narrative/narrative-flow.ts`. The port fields `TacticalWorldPort.fact`, `EconomyHooks.setFact` and
    `MerchantHooks.fact/setFact`, `BattleState.firstBattle/quests`, `state.npcPlacements` and `terrorists.sectors` are gone:
-   strategic code reads the store, merchants get it as `MerchantContext.narrative`.*
+   strategic code reads the store, merchants get it as `MerchantContext.narrative`. The schedules slice (2026-10-16) adds
+   `HourlyLarryUpdate` (`strategic/narrative/larry.ts`), the elite upgrade (`strategic/narrative/profiled-enemies.ts`),
+   `PostSchedules` and event 36 (§5); events 29 and 30 came with the helicopter slice.*
 6. **Bug:** `src/sim/tactical/combat/hit.ts:61-62` sets `KINGPIN_CIV_GROUP = 4` and `HICKS_CIV_GROUP = 12`; the enum
    (`Tactical/Overhead_Types.h:269-290`) gives `KINGPIN_CIV_GROUP = 2`, `HICKS_CIV_GROUP = 10`. The check
    (`Tactical/LOS.cc:2097`) decides whether a neutral target becomes the firer's target without the `Random(100) < 60` draw, so
@@ -121,7 +123,8 @@ adds the record/approach fields — whichever spec lands first adds the shared o
    `src/sim/tactical/doors/`, see §8; findings 6 (fixed earlier) and 7 are done for the civilian-group, militia, sight and
    death rules that need no facts, quests or records (§6, §11.1, §11.12), the rest goes through the narrative port.*
 9. `startMineStandIn` and the deviation "Head miner stand-in" are replaced by `NPC_ACTION_START_MINE` (§3.7).
-10. The merchant hooks `shopHours` and `shopClosedByScript` get real implementations (§5.5, §3.2 action 41).
+10. The merchant hooks `shopHours` and `shopClosedByScript` get real implementations (§5.5, §3.2 action 41). *`shopHours`
+    implemented with the schedules (§5.5).*
 11. `canEntireMovementGroupMove` lacks the robot, Maria and museum refusals (§9.3, §11).
 
 ---
@@ -877,6 +880,7 @@ profiled civilian copies record/action and, unless `DONT_ADD_TO_SECTOR` or perma
 
 An NPC that walks off the map with a traversal action (`TacticalAI/AIMain.cc:2013-2040`) moves its profile one sector, marks
 a done-traversal record, and leaves: into an away slot if it is a scheduled civilian (it may come back, §5.4), else removed.
+A schedule move reaches it only when the off-edge extension stops at the world's bounds (§5.3).
 
 ### 4.7 Other strategic events (`15` §2.7)
 
@@ -914,6 +918,14 @@ a done-traversal record, and leaves: into an away slot if it is a scheduled civi
 
 ## 5. Schedules (`SCH`, `Scheduling.h`)
 
+*Implemented (schedules slice, 2026-10-16) and checked by the `schedules` oracle probes (§17): the list, posting and
+auto-processing in `src/sim/tactical/narrative/schedules.ts` (state in `schedule-state.ts`, constants checked against
+`data/tables/narrative.json`), `DecideActionSchedule` in `src/sim/tactical/ai/decide-schedule.ts` behind the green AI's
+civilian branch, away slots in `src/sim/tactical/away-slots.ts` with the AI cadence of `control.ts`, event 36 and the
+strategic clock behind `TacticalState.scheduleClock` (`campaign/narrative-port.ts`), posting on sector load and after a
+native load in `SectorFlow`, shop hours in `CampaignSim`'s merchant hooks, and the stub `schedule` lines of
+`stubs/maps/a10.map.txt`.*
+
 ### 5.1 Data
 
 A map stores up to 255 schedules (36 bytes each: 4 skipped, `usTime[4]` (minutes of day, `0xFFFF` = unused), `usData1[4]`,
@@ -922,13 +934,16 @@ A map stores up to 255 schedules (36 bytes each: 4 skipped, `usTime[4]` (minutes
 (`placement.ts:108`) links it, and the created soldier copies it (`Tactical/Soldier_Create.cc:496, 827`). Removing a soldier
 deletes its schedule and its pending event (`:980`); trashing the world deletes all schedules and every
 `PROCESS_TACTICAL_SCHEDULE` event (`TileEngine/WorldDef.cc:2541`, `SCH:84-100`). Schedules therefore exist only for the
-loaded sector.
+loaded sector. After loading n map schedules the counter `gubScheduleID` stands at n + 1, so the first default schedule
+gets id n + 2 (a map without a schedule section starts at 0, its first default gets 1); after a save it is the number of
+saved schedules + 1. A few original maps carry placements whose schedule id has no schedule (that civilian gets no schedule
+and no default one either) or two placements naming one schedule (both soldiers point at it, the last poster owns it).
 
 | Action | Data | Meaning |
 |---|---|---|
 | 1 `LOCKDOOR`, 2 `UNLOCKDOOR`, 3 `OPENDOOR`, 4 `CLOSEDOOR` | data1 = a door at or next to it; data2 = where to go afterwards (a map-edge gridno makes him leave the map) | §5.3 |
 | 5 `GRIDNO` | data1 | walk there, patrol from there |
-| 6 `LEAVESECTOR` | — | walk to the nearest edge point and leave (away slot) |
+| 6 `LEAVESECTOR` | — | walk to the nearest edge point and leave (away slot; walked in tactical, he gets stuck past the edge, §5.3) |
 | 7 `ENTERSECTOR` | data1 | come back from the away slot and walk to data1 |
 | 8 `STAYINSECTOR` | — | no runtime handler: its only effect is that the civilian gets no default schedule (`09` §0) |
 | 9 `SLEEP` | data1 = bed | walk there and sleep (`AI_ASLEEP`) |
@@ -953,8 +968,9 @@ two `main` draws per civilian), then `PostSchedule`.
 1. Kingpin-group civilians without a profile in C5 get no schedule while the group's hostility is non-zero (any level,
    where the placement override of §4.6 needs exactly `WILL_BECOME_HOSTILE`) or quest 4 runs with
    `KINGPIN_CAN_SEND_ASSASSINS` (`SCH:697-701`); no schedule or `PERMANENT_INSERTION_CODE` → return.
-2. For the first `SLEEP` entry: `SecureSleepSpot` (every later civilian, in id order, whose sleep spot equals this one gets
-   a new spot from `FindGridNoFromSweetSpotExcludingSweetSpot(…, 3)`, `:1137-1165`); if its time is unset: time =
+2. For every `SLEEP` entry up to the first one without a time: `SecureSleepSpot` (every later civilian, in id order,
+   active, in the sector and scheduled, whose first sleep spot equals this one gets the nearest other tile with room for a
+   standing soldier from `FindGridNoFromSweetSpotExcludingSweetSpot(…, 3)`, `:1137-1165`); if its time is unset: time =
    `1260 + Random(180)` (21:00–23:59); unless an entry other than sleep starts before noon, add a `WAKE` 8 h later in the
    first empty entry and swap it into the sleep entry's slot (so the wake-up comes first).
 3. `pSchedule.soldier = s`; auto-process the past 24 hours: start = `(now − 1439) mod 1440`, end = `now mod 1440`
@@ -975,7 +991,7 @@ minute (`guiTimeOfLastEventQuery / 60 mod 1440`, the start of the current clock 
 | lock door | 0: walk to data1 (`SCHEDULE_MOVE`, absolute destination); 1: the door at or next to data1 (none or `DOOR_BUSY` → wait); no structure → skip; open → `AI_LOCK_DOOR_INCLUDES_CLOSE`; closed and unlocked → **lock it now** (`fLocked = TRUE`) and return `LOCK_DOOR`; already locked or no lock entry → skip; 2: at data2 or off the map → done (patrol point = here); else walk to data2 (an edge gridno sets the traversal action id) |
 | unlock / open / close | as lock: unlock sets `fLocked = FALSE` immediately if closed and locked; open and close skip a door already in that state; returns `UNLOCK_DOOR` or `OPEN_OR_CLOSE_DOOR` |
 | gridno | at data1 → done; else walk |
-| leave sector | 0: walk to the nearest edge point (none → done); 1: walk onto the map edge, traversal action id; 2: done |
+| leave sector | 0: walk to the nearest edge point (none → done); 1: walk onto the map edge, traversal action id (the absolute destination is the edge tile; `ExecuteAction` stores `sOffWorldGridNo` and extends the path two tiles past it, `AdjustSoldierPathToGoOffEdge`); 2: done (not reached when walking, see below) |
 | enter sector | profile flagged — tested in **`ubMiscFlags`** with the `DONT_ADD_TO_SECTOR` value `0x01`, i.e. `RECRUITED` (bug, kept) → done; 0: place at `sOffWorldGridNo`, back into the merc slots, walk to data1; 1: arrived → done |
 | wake | walk to the initial gridno; done there |
 | sleep | walk to data1; there → `AI_ASLEEP`, done |
@@ -986,13 +1002,34 @@ skipping the current minute). The AI executes `SCHEDULE_MOVE` like `WALK` and th
 `InteractWithOpenableStruct` (`TacticalAI/AIMain.cc:1406-1434, 1746-1777`). Away soldiers (off the map) are visited by the
 AI only when `AI_CHECK_SCHEDULE` is set and not in combat (`OH:1057-1069`).
 
+`PostNextSchedule` adds the next entry's time to the start of **today** (`GetWorldDayInMinutes() + usTime`), so when the
+next entry wraps through midnight (a default civilian who left at 19:00, next entry 07:30) the event lies in the past. It
+fires at the next clock step without moving the clock (past events never do, `Game_Events.cc:73-79`), finds no entry for the
+current minute and an empty auto-processing window (the last event query is the current minute) and posts nothing: that
+civilian's schedule stops until the sector is loaded again or a save is loaded (kept quirk, oracle-checked through the
+event list).
+
+A walked departure never finishes (kept quirk, both V and Strac): the path end applies its "close enough" rule (fewer
+than 4 tiles from the absolute destination counts as arrived) only off schedule (`!ACTING_ON_SCHEDULE`,
+`AIMain.cc:416`), and the off-edge extension ends two tiles past the edge tile, so neither `HandleAITacticalTraversal`
+nor the decision of step 2 runs. `RTHandleAI` re-issues `SCHEDULE_MOVE` to the absolute destination
+(`Realtime.cc:189-199`), the path from a non-visible tile fails (`PathAI.cc:598-603`), the mover waits
+`REALTIME_AI_DELAY` (one `Random(1000)`) and tries again, for as long as the sector stays loaded: invisible, in the
+sector (`bInSector`, merc slots, counted in `bMenInSector`), not in an away slot, schedule still active, no next event,
+new situations ignored while traversing off map. The next load replays the day and puts him into an away slot (§5.4,
+inferred).
+The same holds for a door entry whose data2 is an edge gridno. The away slot of `HandleAITacticalTraversal` is reached
+only when the extension stops at the world's bounds (`OutOfBounds`). The unmatched branch sets `AI_HANDLE_EVERY_FRAME`
+in `uiStatusFlags` (`:448`), where the bit is `SOLDIER_ATTACK_NOTICED` (kept).
+
 ### 5.4 Auto-processing (`PrepareScheduleForAutoProcessing`, `SCH:802-863`; `AutoProcessSchedule`, `:571-686`)
 
 Skipped entirely while loading a save (`:575-582`). With start > end (the 24-hour window always is, unless now is 23:59):
 apply every used entry with time ≥ start, then every entry ≤ end, posting the first later entry as the next event; otherwise
 apply the entries in [start, end] and post the first later one; if nothing was posted, post entry 0 tomorrow (if it has a
-time). Applying an entry teleports the soldier (`EVENT_SetSoldierPositionNoCenter`, after `BumpAnyExistingMerc` moves an
-occupant to the nearest free spot within 5, `:532-565`) and clears `AI_ASLEEP`:
+time). Applying an entry teleports the soldier (`EVENT_SetSoldierPositionNoCenter`: to the cell's corner, not its centre,
+after `BumpAnyExistingMerc` moves an occupant, away civilians parked on the tile included, to the nearest reachable spot
+within 5 where a standing soldier fits, closest to his old tile, `:532-565`) and clears `AI_ASLEEP`:
 
 | Action | Applied as |
 |---|---|
@@ -1003,11 +1040,19 @@ occupant to the nearest free spot within 5, `:532-565`) and clears `AI_ASLEEP`:
 | sleep | `AI_ASLEEP`, teleport to data1 |
 | leave sector | teleport to the nearest edge point (or stay), `sOffWorldGridNo` = it, away slot, out of sector |
 
+`ModifyDoorStatus` (`Tactical/Keys.cc:843-905`) only writes the door status flags; the door structure follows at the next
+`UpdateDoorGraphicsFromStatus`, which `SetCurrentWorldSector` runs right after `EnterSector` (so a load replays doors in
+full) and a save load runs. Auto-processing on the map screen of a loaded sector therefore leaves the structure until the
+next load; ja2-node swaps it at once (deviation "Schedule door changes"). `FindNearestEdgePoint`
+(`TacticalAI/FindLocations.cc:1771-1797`) tries the four primary edgepoint lists ordered by the screen distance of the tile
+to each edge (west, east, north, south on ties) and takes the nearest point of the first non-empty list.
+
 **When the sector is not loaded nothing happens**: no schedule exists. On the next load `PostSchedules` replays the whole
 past day instantly, so each civilian ends in the state of his latest entry (asleep in bed at night, absent after a
 `LEAVESECTOR`, doors locked at night). **With compressed time** on the map screen the events fire with the clock at their
 stamp (`15` §2.8) and auto-process the window since the last event query: the same end state, teleported, never walked.
-In tactical real time and turn-based combat the AI walks (combat suppresses the green decisions, `13`).
+In tactical real time and turn-based combat the AI walks (combat suppresses the green decisions, `13`); a walked departure
+stays past the map edge until the next load (§5.3).
 
 ### 5.5 Shop hours (`ExtractScheduleDoorLockAndUnlockInfo`, `SCH:1022-1061`)
 
@@ -1022,8 +1067,10 @@ A save stores the non-temporary schedules (max 32, with ids and soldier links, `
 restores them and then runs `PostSchedules` again with auto-processing disabled (`SaveLoadGame.cc:948-949, 1038`): every
 scheduled civilian gets a **second** pending event for its next entry, and civilians whose default schedule was not saved
 draw a new default schedule (`Random(61)`, `Random(121)`). Both are kept for native-save import (the second event re-arms
-the same entry; inferred harmless). ja2-node's own snapshots keep schedules, temporary ones and events as they are and do not
-re-post (§18).
+the same entry). The oracle confirms it: saves written after several loads carry two to four events per schedule, and the
+saved events of the dropped default schedules now point at the redrawn ones with the same ids. Off-map civilians
+(`SOLDIER_OFF_MAP`) return to the away slots. ja2-node's own snapshots (not built yet) are to keep schedules, temporary ones
+and events as they are and not re-post (§18).
 
 ---
 
@@ -1627,7 +1674,7 @@ Manny's bartender position (210); Brenda stationary (248) and patient timer (121
 | Hourly (§4.4) | Larry `Random(temptation)` or `Random(2)`; Slay `Chance(15)` | main |
 | Sector entry (§4.5) | head miners (exists), then assassin `Random(10 + militia)` (if eligible) and `DecideOnAssassin` `Random(n)`, `Random(3)` | main |
 | Placement (§4.6) | Kingpin goons: two range draws and `PreRandom(3)` per unprofiled goon, two for Billy, before the soldier's own creation draws | main, pre |
-| Schedules (§5.2) | default schedule `Random(61)`, `Random(121)` per civilian in init-list order; sleep time `Random(180)` the first time a sleep entry without time is posted | main |
+| Schedules (§5.2) | default schedule `Random(61)`, `Random(121)` per civilian in init-list order; sleep time `Random(180)` the first time a sleep entry without time is posted; again for the unsaved default schedules after a native load (oracle-checked) | main |
 | Actions (§3) | 107: `Random(100)` and maybe a second; 108: `Random(60)`; 125: `Random(3)`, `Random(2)`, `Random(2)`; 126: `Random(2)`; 139: `Random(24)`; 160: `PreRandom(100)` on the last branch only; 118: `Random(2)` only with both doctors; 230: `Random(60)`; 140: the hit's draws (`11`); 43: `Random(n)` in `TriggerFriendWithHostileQuote`; 221 lie: `SkillCheck` (`11` §10) | main, pre |
 | Civilian groups (§6.2) | `Random(2)` per later profiled candidate in the side-change loops | main |
 | NPC system events (§3.13, §11.2, §11.4) | Kingpin `Random(120)`; Pablo's goods 2 × (`Random(10)`, `Random(10)`); damaged package `Random(100)`; Pablo's death `Random(60)` | main |
@@ -1726,7 +1773,7 @@ event (profile sectors are hidden).
 | Larry's items (item, temptation, points) and bar sectors | `HU:154-167, 210-217` |
 | refuel sites (sector, gridno, first structure), helicopter costs and timers | `HELI:44-84`, `Map_Screen_Helicopter.h:12-15` |
 | boxer gridnos, ring rooms and sector | `Boxing.h:6-14`, `BOX:25` |
-| schedule actions and flags | `Scheduling.h:10-41` |
+| schedule actions and flags (*transcribed with Larry's items and bars, 2026-10-16; the code constants are checked against them*) | `Scheduling.h:10-41` |
 | civilian groups and hostility levels | `Tactical/Overhead_Types.h:269-296` |
 | door traps (flags), lock types, perceived values, `ANYKEY` etc. | `Keys.h:12-125`, `KEYS:73-82` |
 | quest gridnos and rooms (basement 13362… and 8047…, interrogation 7756–7758, Kingpin goons 13531, Queen 11448, Armand 6968, chopper 8842, airport 8228, Joey 18326, rocket rifle 10472, guard run 13250, brothel rooms 91–119/110, Kingpin house 30–39, club 1–3, museum 22–41, sex tiles), loyalty amounts | `ID:96-98, 2613, 2994, 4599-4602`, `Strategic/Queen_Command.cc:50`, `SIL:472, 512`, `OH:1643, 1668, 1879`, `Q:948`, `OL:1293`, `Quests.h:205-213`, `TileEngine/Explosion_Control.cc:1840-1860`, `Strategic_Town_Loyalty.h:14-46` |
@@ -1750,7 +1797,11 @@ records (`docs/24`'s format) that start and end quest 0, set fact 23 and run act
 civilian with a two-entry schedule (`schedule:` lines in the stub map format: gridno at 09:00, sleep at 22:00) and one
 without (default schedule); (3) a locked, trapped door with a lock id, a stub lock table (`stubs/locks.json` compiled to
 `BINARYDATA/Locks.bin` like the stub maps) and a stub key item; (4) a stub profile with a `balance`, for the money rules.
-The helicopter, boxing and the robot are tested with synthetic states (no stub maps needed).
+The helicopter, boxing and the robot are tested with synthetic states (no stub maps needed). *(2) implemented in the stub
+A10 (the village map is no sector): `schedule '<symbol>': [HH:MM] <ACTION> [<x> <y>] [-> <x> <y>]; …` lines (up to four
+entries, times optional) and a `schedule=<symbol>` soldier flag, which writes a detailed placement with the schedule id
+(profile 200 for an unprofiled civilian); one villager has `09:00 GRIDNO` and `22:00 SLEEP`, one civilian keeps the default
+schedule, and the three profiled stub NPCs get `STAYINSECTOR` schedules as original maps give their NPCs.*
 
 ---
 
@@ -1785,6 +1836,17 @@ The helicopter, boxing and the robot are tested with synthetic states (no stub m
 inputs of `CheckFact`. Since the merge with `docs/24` the 04:00 event clears the default-response flags, and `CheckFact`'s
 desire to talk, the record reset on sector entry, `NPCHasUnusedRecordWithGivenApproach` and `NPCReachedDestination` of
 the profile insertion use the dialogue code.*
+
+*(f) implemented (schedules slice, 2026-10-16) with the leftovers of (b): §5 completely (posting on sector load and after a
+native load, event 36, auto-processing, `DecideActionSchedule` in the green AI, the door actions of the AI, away slots in
+the AI cadence and in `HandleAITacticalTraversal`, the wake-ups by noise, attack and conversation, shop hours, the native
+schedules section and off-map civilians), `HourlyLarryUpdate` with `SwapLarrysProfiles`, the elite upgrade to Mike and
+Iggy in `AddPlacementToWorld`, `TacticalCreateEnemySoldier` and the autoresolve creation, the Kingpin exclusion and the
+`DONT_ADD_TO_SECTOR` flags-field bug; oracle probes `schedules`, `schedload`, `schedentry`, `schedclock`, `schedwarp`,
+`schedprocess`, `scheddecide`, `schedmove`, `schedshophours` (`tools/oracle/probes/schedules.txt`). With schedules the
+`entersector` probe of the facts script places Father on the oracle's tile: he gets a default schedule and is away at
+night. Still open: `HandleNPCChangesForTacticalTraversal` and the done-traversal record of `HandleAITacticalTraversal` for
+profiled NPCs that walk off the map (the NPC action slices), and the `uiTimeSinceLastSpoke` pause of the named-NPC branch.*
 
 (a) facts and quests store, migration of the scattered fact ports, native import of facts/quests, history coupling with `21`;
 (b) profile NPC fields, presence (new game, `AddPlacementToWorld` filter and overrides, `AddProfiles…`, entry/exit quest code,
@@ -1848,8 +1910,8 @@ returns everyone; the scheduled villager walks to his gridno at 09:00 in tactica
 compression (teleported state); the default civilian is gone at 21:00 and back at 08:00; the locked trapped door: open → options,
 examine proves the trap, untrap with a scripted success, unlock with the stub key.
 
-Original data (`describe.skipIf(!process.env.JA2_DATA_DIR)`): every map's schedules post without error and every scheduled
-placement links; `Locks.bin` loads 64 locks; every NPC record's fact and quest ids are inside the tables; the six native saves
+Original data (`describe.skipIf(!process.env.JA2_DATA_DIR)`): every map's schedules load with ids 1..n and valid entries
+(a few placements carry schedule ids without a schedule, §5.1); `Locks.bin` loads 64 locks; every NPC record's fact and quest ids are inside the tables; the six native saves
 import facts, quests, keys, schedules and the narrative general info, and `checkFact` reproduces each saved computed byte for the
 loaded sector (where the inputs are known).
 
@@ -1877,6 +1939,7 @@ A narrative oracle patch (shipped as `patches/0012-facts-oracle.patch` for the f
 | `hospitalsupplies` | `CheckForMissingHospitalSupplies` on the loaded F8 | count, facts |
 | `entersector sector=` | `SetCurrentWorldSector` on a loaded save, draws traced | soldiers with profiles, insertion data, schedules and their events |
 | `schedules` / `schedulewarp minutes=` | dump the schedule list and events / `WarpGameTime` with processing | positions, sleep/away state, doors |
+| `schedules`, `schedload name=`, `schedentry sector=`, `schedclock seconds= [query=]`, `schedwarp minutes= screen=map\|game`, `schedprocess id= screen=`, `scheddecide soldier=`, `schedmove soldier= gridNo=`, `schedshophours profile=` | *Implemented* (`patches/0016-schedules-oracle.patch`: marks around `PostSchedules` and a `DecideActionSchedule` wrapper; `probes/schedules.txt`, `schedules-compare.ts`; README "Schedules"): load, sector entry and warps with the schedule draws replayed, the AI decision, shop hours | schedule list and counter, civilians (gridno, in sector, away, asleep, check-schedule, progress, off-world gridno, patrol point), door locks and open state, the events of kind 36 |
 | `boxing` / `boxingstep who= to=` | dump the boxing globals / move a soldier and run the movement check | state, boxer flags, draws |
 | `heli`, `heliset`, `helisetup`, `heliboard`, `helileave`, `heliroute`, `helicancel`, `heliwarp`, `helimonologue`, `helipaydebt`, `helireturn` | *Implemented* (`patches/0014-heli-oracle.patch`, `probes/heli.txt`, `heli-compare.ts`; README "Helicopter"): the helicopter driven through the original's functions, arrivals through `WarpGameTime` | globals, vehicle, group, mercs, squads, quotes, events, draws |
 | `door g= who= action=` | the matching `AttemptTo…`/trap function traced | lock/trap state, perceived values, damage, soldier life/breath |
@@ -1915,7 +1978,15 @@ through `npcbox`); `EnterSector` needs the loading screen code to be inert headl
 - `CheckPlayerHasHead` accepts Slay's `HEAD_4`, which Carmen's records do not take as a terrorist head.
 - Brass knuckles are legal in the ring; the electric trap's breath is `3 + 1000·PreRandom(3)`.
 - `InitNPCs` draws for every placement (including DEVIN, HAMOUS, CARMEN and single-sector BOB) in profile-id order.
-- After a native load, scheduled civilians get a second pending event and unsaved default schedules are redrawn.
+- After a native load, scheduled civilians get a second pending event and unsaved default schedules are redrawn; the saved
+  events of the dropped default schedules then fire for the redrawn schedules with the same ids.
+- `PostNextSchedule` posts a next entry that wraps through midnight for today, in the past; the event finds no entry and
+  an empty window and posts nothing, so that civilian stays put (one put to bed in tactical at 22:00 sleeps past his 06:00
+  wake-up) until the next load (§5.3).
+- A civilian who walks off the map by schedule stops two tiles past the edge and retries a failing path every
+  `REALTIME_AI_DELAY`, still in the sector, until the next load (no close-enough rule on schedule moves, §5.3).
+- Auto-processing teleports to the cell's corner (`EVENT_SetSoldierPositionNoCenter`); the AI's "enter sector" places the
+  civilian at the cell's centre of `sOffWorldGridNo`, which is 0 for a civilian who never left.
 - The hourly Skyrider debt payment takes all the player's money when it is not enough, and plays the owed quote.
 
 **Deviations to log in `docs/deviations.md`**:
@@ -1924,6 +1995,9 @@ through `npcbox`); `EnterSector` needs the loading screen code to be inert headl
 - *Skyrider monologues*: checked per strategic step on the map flow instead of per redraw.
 - *Basement fades*: the sector change is immediate.
 - *Schedules after a ja2-node load*: snapshots keep schedules and events and do not re-post (native import follows the original).
+- *Schedules slice* (logged 2026-10-16): "Away civilians" (no level node while away; the bump of the replay still finds
+  them on their tile) and "Schedule door changes" (the door structure follows a replayed door at once); "Placement
+  overrides" and "Repairmen's shop hours" removed, "Strategic economy stand-ins" narrowed (Larry drinks).
 - *Helicopter slice* (logged 2026-10-16): "Helicopter destruction", "Skyrider monologues", "Leaving the helicopter in flight",
   "Helicopter on the map", "Helicopter interface", "Cosmetic draws of the helicopter", "Profile sectors of Skyrider and the
   helicopter" and "Ground vehicles" (which replaces "Helicopter and vehicle passengers"); "Helicopter entrance" narrowed to

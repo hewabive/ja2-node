@@ -85,6 +85,7 @@ function create(o: Partial<SoldierCreate> = {}): SoldierCreate {
     palettes: {},
     inv: emptyInventory(),
     name: '',
+    scheduleId: 0,
     ...o,
   };
 }

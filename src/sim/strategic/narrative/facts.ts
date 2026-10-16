@@ -3,7 +3,8 @@
 // @src src/game/Strategic/Quests.cc gubFact, gubQuest, SetFactTrue, SetFactFalse, LoadQuestInfoFromSavedGameFile;
 // @src Quests.h NUM_FACTS, MAX_QUESTS, QUESTNOTSTARTED, QUESTINPROGRESS, QUESTDONE; Boxing.h NUM_BOXERS; SaveLoadGame.cc
 // @src LoadGeneralInfo (gubBoxingMatchesWon, gubBoxersRests, gfBoxersResting, gfBoxerFought, gubCambriaMedicalObjects,
-// @src gbHospitalPriceModifier, giHospitalTempBalance, giHospitalRefund, gfPlayerTeamSawJoey, gfMikeShouldSayHi).
+// @src gbHospitalPriceModifier, giHospitalTempBalance, giHospitalRefund, gfPlayerTeamSawJoey, gfMikeShouldSayHi); Tactical/Soldier_Create.cc
+// @src gfProfiledEnemyAdded (not saved).
 // @src See docs/25 §0, §1.1.
 
 import { u8 } from '../../../core/int.ts';
@@ -37,6 +38,7 @@ export interface NarrativeState {
   cambriaMedicalObjects: number;
   playerTeamSawJoey: boolean;
   mikeShouldSayHi: boolean;
+  profiledEnemyAdded: boolean;
 }
 
 export interface FactHooks {
@@ -54,6 +56,7 @@ export function createNarrativeState(): NarrativeState {
     cambriaMedicalObjects: 0,
     playerTeamSawJoey: false,
     mikeShouldSayHi: false,
+    profiledEnemyAdded: false,
   };
 }
 

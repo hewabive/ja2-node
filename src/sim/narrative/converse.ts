@@ -448,6 +448,7 @@ export function converseFull(
   if (s) {
     s.timeSinceLastSpoke = host.tactical()?.clockMs ?? 0;
     approach = sectorNotSafeOverride(host, npc, approach);
+    s.ai.asleep = false;
   }
   const records = ensureQuoteFileLoaded(host, npc);
   if (!records) {

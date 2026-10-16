@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/TacticalAI/DecideAction.cc DecideAction, DecideActionGreen, DecideAlertStatus;
+// @src src/game/TacticalAI/DecideAction.cc DecideAction, DecideActionGreen (with the DecideActionSchedule call), DecideAlertStatus;
 // @src AIMain.cc CheckForChangingOrders (with the creature branches), SetNewSituation; Realtime.cc RealtimeDelay; AIUtils.cc DetermineMovementMode.
 // See docs/09 §1.4, §2.
 
@@ -24,6 +24,7 @@ import {
 import type { TacticalState } from '../state.ts';
 import { AiAction, MOVEMENT_MODE, NEW_SITUATION_DELAY_RANGE, Situation, URGENCY } from './actions.ts';
 import { creatureDecideAlertStatus, realtimeCreatureDelay } from './creature-decide.ts';
+import { decideActionSchedule } from './decide-schedule.ts';
 import { goAsFarAsPossibleTowards, pointPatrolAI, randDestWithinRange, randomFriendWithin, randomPointPatrolAI } from './destinations.ts';
 
 const HATKIDCIV = 15;
@@ -56,7 +57,7 @@ export function isCivOrMilitia(s: Soldier): boolean {
 const groupStillNeutral = (t: TacticalState, s: Soldier) => civGroupHostility(t.civGroups, s.civilianGroup) === CivGroupHostility.NEUTRAL;
 
 function menInSector(t: TacticalState, team: number): number {
-  return t.soldiers.filter((s) => s?.placed && s.team === team && s.life > 0).length;
+  return t.soldiers.filter((s) => (s?.placed || s?.offMap) && s.team === team && s.life > 0).length;
 }
 
 export function realtimeCivDelay(t: TacticalState): number {
@@ -255,9 +256,15 @@ export function decideActionGreen(t: TacticalState, s: Soldier, hooks: GreenHook
       ai.actionData = AnimHeight.STAND;
       return AiAction.STOP_COWERING;
     }
-    if (!t.inCombat && s.profile !== NO_PROFILE) {
-      const named = hooks.decideActionNamedNPC(t, s);
-      if (named !== AiAction.NONE) return named;
+    if (!t.inCombat) {
+      if (ai.checkSchedule) {
+        const scheduled = decideActionSchedule(t, s);
+        if (scheduled !== AiAction.NONE) return scheduled;
+      }
+      if (s.profile !== NO_PROFILE) {
+        const named = hooks.decideActionNamedNPC(t, s);
+        if (named !== AiAction.NONE) return named;
+      }
     }
     if (!inWater && t.pre.int(5) !== 0) return AiAction.NONE;
   }

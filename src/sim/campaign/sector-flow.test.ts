@@ -19,7 +19,7 @@ import { Warp } from '../strategic/time/constants.ts';
 import { warpGameTime } from '../strategic/time/world-clock.ts';
 import { Situation } from '../tactical/ai/actions.ts';
 import { InvSlot } from '../tactical/inventory.ts';
-import { Body, SoldierClass, Team } from '../tactical/soldier.ts';
+import { Body, NO_PROFILE, SoldierClass, Team } from '../tactical/soldier.ts';
 import { teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { ROTTING_STAGE2, sectorKey } from './sector-diff.ts';
 
@@ -210,6 +210,8 @@ function flowOf(campaign: ReturnType<typeof createTestCampaign>['campaign']) {
   return flow;
 }
 
+const AFTER_DEFAULT_SCHEDULE_ENTRY_MINUTES = 120;
+
 function warpMinutes(campaign: ReturnType<typeof createTestCampaign>['campaign'], minutes: number): void {
   warpGameTime(campaign.clockContext, minutes * 60, Warp.NO_PROCESSING);
 }
@@ -272,11 +274,12 @@ describe('preserved soldiers', () => {
   it('heals the civilians left behind by one point per 15 minutes away (civilian bodies other than the four merc bodies reroll their life)', () => {
     const { campaign } = createTestCampaign(kit, { seed: 12, garrison: NO_GARRISON });
     landFirstSquad(campaign);
+    warpMinutes(campaign, AFTER_DEFAULT_SCHEDULE_ENTRY_MINUTES);
     const flow = flowOf(campaign);
     expect(flow.setCurrentWorldSector(A10)).toBe(true);
     const t = campaign.tactical?.state;
     if (!t) throw new Error('no sector');
-    const civilians = teamMembers(t, Team.CIV);
+    const civilians = teamMembers(t, Team.CIV).filter((s) => s.profile === NO_PROFILE);
     expect(civilians).toHaveLength(2);
     const hurt = civilians[0];
     if (!hurt) throw new Error('no civilian');
@@ -287,7 +290,9 @@ describe('preserved soldiers', () => {
     returnTo(campaign, A10);
     const back = campaign.tactical?.state;
     if (!back) throw new Error('no sector');
-    const lives = teamMembers(back, Team.CIV).map((s) => s.lifeMax - s.life);
+    const lives = teamMembers(back, Team.CIV)
+      .filter((s) => s.profile === NO_PROFILE)
+      .map((s) => s.lifeMax - s.life);
     expect(lives.sort((a, b) => b - a)[0]).toBe(10);
   });
 });

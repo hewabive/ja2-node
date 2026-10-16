@@ -5,7 +5,8 @@
 // @src TileEngine/SaveLoadMap.cc LoadAllMapChangesFromMapTempFileAndApplyThem, SetOpenableStructStatusFromMapTempFile;
 // @src Tactical/Keys.cc LoadDoorStatusArrayFromDoorStatusTempFile, SynchronizeDoorStatusToStructureData;
 // @src Tactical/Soldier_Add.cc AddSoldierToSectorGridNo (loading branch); TileEngine/WorldDef.cc LoadMapLights (light time
-// @src from the saved clock). See docs/14 §10, docs/20.
+// @src from the saved clock); Strategic/Scheduling.cc LoadSchedulesFromSave; Tactical/Soldier_Add.cc InternalAddSoldierToSector
+// @src (away slots of off-map soldiers). See docs/14 §10, docs/20, docs/25 §5.6.
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
@@ -23,6 +24,7 @@ import { swapStructureForPartner } from './doors.ts';
 import { NUM_INV_SLOTS } from './inventory.ts';
 import { lightSetBaseLevel, loadMapLights } from './lighting/lighting.ts';
 import { setSoldierPosition } from './movement.ts';
+import { loadSavedSchedules } from './narrative/schedule-state.ts';
 import { progressFromProfile } from './profiles.ts';
 import {
   createSoldier,
@@ -51,6 +53,9 @@ const SAVED_NO_PENDING_STANCE = 254;
 const NO_DESIRED_HEIGHT = 255;
 const SAVED_NOWHERE = WORLD_MAX + 1;
 const SOLDIER_MISC_HEARD_GUNSHOT = 0x01;
+const AI_FLAG_ASLEEP = 0x20;
+const AI_FLAG_LOCK_DOOR_INCLUDES_CLOSE = 0x40;
+const AI_FLAG_CHECK_SCHEDULE = 0x80;
 
 export interface SaveImportReport {
   readonly mapPath: string;
@@ -101,6 +106,8 @@ export function importSave(sim: TacticalSim, save: SaveGame): SaveImportReport {
   applyDoorStatus(t, save.currentSector.doorStatus ?? []);
   t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
   const soldiers = importSoldiers(t, save);
+  importAwaySoldiers(t, save);
+  t.schedules = loadSavedSchedules(save.schedules, (id) => activeSoldier(t, id));
   importOpplists(t, save);
   importTurnState(t, save);
   t.pre.restore({ ring: save.preRandom.numbers, index: save.preRandom.index });
@@ -211,6 +218,42 @@ export function inLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
     s.sector.z === sector.z &&
     !(s.statusFlags & (SoldierStatusFlags.DEAD | SoldierStatusFlags.OFF_MAP | SoldierStatusFlags.DRIVER | SoldierStatusFlags.PASSENGER))
   );
+}
+
+export function awayInLoadedSector(save: SaveGame, s: SavedSoldier): boolean {
+  const sector = save.tactical.worldSector;
+  return (
+    s.active !== 0 &&
+    !s.betweenSectors &&
+    s.sector.x === sector.x &&
+    s.sector.y === sector.y &&
+    s.sector.z === sector.z &&
+    (s.statusFlags & SoldierStatusFlags.OFF_MAP) !== 0 &&
+    !(s.statusFlags & (SoldierStatusFlags.DEAD | SoldierStatusFlags.DRIVER | SoldierStatusFlags.PASSENGER))
+  );
+}
+
+function activeSoldier(t: TacticalState, id: number): boolean {
+  const s = t.soldiers[id];
+  return s !== undefined && (s.placed || s.offMap || s.away);
+}
+
+function importAwaySoldiers(t: TacticalState, save: SaveGame): void {
+  for (const entry of save.soldiers) {
+    const r = entry.soldier;
+    if (r.id >= TOTAL_SOLDIERS || !awayInLoadedSector(save, r)) continue;
+    const s = createSavedSoldier(save, entry);
+    t.soldiers[s.id] = s;
+    const g = grid(r.gridNo);
+    s.gridNo = g;
+    s.oldGridNo = grid(r.oldGridNo);
+    s.destination = grid(r.destination);
+    s.finalDestination = grid(r.finalDestination);
+    s.direction = r.direction;
+    s.desiredDirection = r.desiredDirection;
+    s.away = true;
+    t.awaySlots.push(s);
+  }
 }
 
 function importSoldiers(t: TacticalState, save: SaveGame): number {
@@ -427,6 +470,13 @@ function copyAi(s: Soldier, r: SavedSoldier): void {
     callActedUpon: a.callActedUpon !== 0,
     frenzied: a.frenzied !== 0,
   });
+  const aiFlags = u8(a.aiFlags);
+  s.ai.asleep = (aiFlags & AI_FLAG_ASLEEP) !== 0;
+  s.ai.lockDoorIncludesClose = (aiFlags & AI_FLAG_LOCK_DOOR_INCLUDES_CLOSE) !== 0;
+  s.ai.checkSchedule = (aiFlags & AI_FLAG_CHECK_SCHEDULE) !== 0;
+  s.ai.scheduleProgress = a.scheduleProgress;
+  s.scheduleId = a.scheduleId;
+  s.offWorldGridNo = grid(r.offWorldGridNo);
   s.hunting = a.hunting !== 0;
   s.normalSmell = a.normalSmell;
   s.monsterSmell = a.monsterSmell;

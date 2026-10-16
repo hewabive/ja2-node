@@ -22,6 +22,7 @@ import { createLightingState, type LightingState } from './lighting/lighting.ts'
 import type { MapChange } from './map-changes.ts';
 import { multiTileShape } from './multi-tile.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from './narrative/port.ts';
+import { createScheduleList, NO_SCHEDULE_CLOCK, type ScheduleClock, type ScheduleList } from './narrative/schedule-state.ts';
 import type { DoorStatus, PathEnv, PathSoldier, PathWorld } from './pathfinding.ts';
 import { createFogOfWar, type FogOfWar } from './perception/fov.ts';
 import { createPerception, type Perception } from './perception/sight.ts';
@@ -197,6 +198,7 @@ export interface TacticalState {
   readonly content: TacticalContent;
   readonly soldiers: Soldier[];
   readonly mercSlots: (Soldier | null)[];
+  readonly awaySlots: (Soldier | null)[];
   readonly occupant: readonly [Int16Array, Int16Array];
   readonly reserved: Int16Array;
   readonly doorStatus: Map<number, DoorStatus>;
@@ -241,6 +243,8 @@ export interface TacticalState {
   readonly civGroups: CivGroupState;
   readonly hostileQuoteList: Soldier[];
   engagedInConv: boolean;
+  schedules: ScheduleList;
+  scheduleClock: ScheduleClock;
 }
 
 export interface SharedCampaignState {
@@ -290,6 +294,7 @@ export function createTacticalState(
     content,
     soldiers,
     mercSlots: [],
+    awaySlots: [],
     occupant,
     reserved: new Int16Array(WORLD_MAX).fill(-1),
     doorStatus,
@@ -341,6 +346,8 @@ export function createTacticalState(
     civGroups: shared.civGroups ?? createCivGroupState(),
     hostileQuoteList: [],
     engagedInConv: false,
+    schedules: createScheduleList(),
+    scheduleClock: NO_SCHEDULE_CLOCK,
   };
 }
 

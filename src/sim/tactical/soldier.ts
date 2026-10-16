@@ -235,6 +235,10 @@ export interface AiState {
   callerGridNo: number;
   callActedUpon: boolean;
   frenzied: boolean;
+  asleep: boolean;
+  checkSchedule: boolean;
+  lockDoorIncludesClose: boolean;
+  scheduleProgress: number;
 }
 
 export interface PendingMelee {
@@ -250,7 +254,7 @@ export interface Soldier {
   side: number;
   neutral: boolean;
   readonly name: string;
-  readonly profile: number;
+  profile: number;
   readonly soldierClass: number;
   bodyType: number;
   readonly palettes: SoldierPalettes;
@@ -463,6 +467,8 @@ export interface Soldier {
   offWorldGridNo: number;
   militiaKills: number;
   offMap: boolean;
+  away: boolean;
+  scheduleId: number;
   battleSoundId: number;
   camo: number;
   normalSmell: number;
@@ -649,6 +655,10 @@ export function createSoldier(init: SoldierInit): Soldier {
       callerGridNo: NOWHERE,
       callActedUpon: false,
       frenzied: false,
+      asleep: false,
+      checkSchedule: false,
+      lockDoorIncludesClose: false,
+      scheduleProgress: 0,
       ...init.ai,
     },
     oppList: new Int8Array(TOTAL_SOLDIERS),
@@ -761,9 +771,11 @@ export function createSoldier(init: SoldierInit): Soldier {
     quoteActionId: 0,
     quoteRecord: 0,
     timeSinceLastSpoke: 0,
-    offWorldGridNo: NOWHERE,
+    offWorldGridNo: 0,
     militiaKills: 0,
     offMap: false,
+    away: false,
+    scheduleId: 0,
     battleSoundId: 0,
     camo: 0,
     normalSmell: 0,

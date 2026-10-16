@@ -14,7 +14,7 @@
 // @src src/game/Strategic/Map_Screen_Helicopter.cc, MapScreen.cc, Tactical/Vehicles.cc (the helicopter probes)
 // @src src/game/Strategic/Quests.cc CheckFact, InternalStartQuest, InternalEndQuest; Hourly_Update.cc; StrategicMap.cc
 // @src HandleQuestCodeOnSector (facts probes); src/game/TacticalAI/NPC.cc CalcDesireToTalk, NPCConsiderTalking, ConverseFull
-// @src (talk probes)
+// @src (talk probes); src/game/Strategic/Scheduling.cc, TacticalAI/DecideAction.cc DecideActionSchedule (schedule probes)
 #include "Oracle.h"
 
 #include "AI.h"
@@ -120,6 +120,7 @@
 #include "Interface_Dialogue.h"
 #include "FileMan.h"
 #include "MercProfile.h"
+#include "Scheduling.h"
 
 #include <string_theory/string>
 
@@ -160,6 +161,7 @@ extern UINT8 gubQuest[MAX_QUESTS];
 void OracleHourlyQuestUpdate();
 void OracleHourlyCheckIfSlayAloneSoHeCanLeave();
 void OracleHandleQuestCodeOnSectorExit(const SGPSector& oldSector);
+INT8 OracleDecideActionSchedule(SOLDIERTYPE* s);
 extern INT32 giHabitatedDistance;
 extern INT32 giPopulationModifier;
 extern INT32 giLairID;
@@ -5571,6 +5573,183 @@ void ProbeEnterSector(Command const& c)
 }
 
 
+std::string DescribeScheduleNode(SCHEDULENODE const& n)
+{
+	std::vector<long long> times, data1, data2, actions;
+	for (int i = 0; i < MAX_SCHEDULE_ACTIONS; ++i)
+	{
+		times.push_back(n.usTime[i]);
+		data1.push_back(n.usData1[i]);
+		data2.push_back(n.usData2[i]);
+		actions.push_back(n.ubAction[i]);
+	}
+	return Json{}
+		.num("id", n.ubScheduleID)
+		.num("flags", n.usFlags)
+		.nums("times", times)
+		.nums("data1", data1)
+		.nums("data2", data2)
+		.nums("actions", actions)
+		.num("soldier", n.soldier ? n.soldier->ubID : -1)
+		.text();
+}
+
+std::string DescribeScheduleCivilian(SOLDIERTYPE const& s)
+{
+	return Json{}
+		.num("id", s.ubID)
+		.num("profile", s.ubProfile)
+		.num("body", s.ubBodyType)
+		.num("life", s.bLife)
+		.num("gridNo", s.sGridNo)
+		.num("level", s.bLevel)
+		.flag("inSector", s.bInSector != 0)
+		.flag("away", (s.uiStatusFlags & SOLDIER_OFF_MAP) != 0)
+		.flag("asleep", (s.fAIFlags & AI_ASLEEP) != 0)
+		.flag("checkSchedule", (s.fAIFlags & AI_CHECK_SCHEDULE) != 0)
+		.flag("lockIncludesClose", (s.fAIFlags & AI_LOCK_DOOR_INCLUDES_CLOSE) != 0)
+		.num("scheduleId", s.ubScheduleID)
+		.num("progress", s.bAIScheduleProgress)
+		.num("initialGridNo", s.sInitialGridNo)
+		.num("offWorldGridNo", s.sOffWorldGridNo)
+		.num("patrol0", s.usPatrolGrid[0])
+		.num("quoteAction", s.ubQuoteActionID)
+		.text();
+}
+
+std::string DescribeScheduleState()
+{
+	std::vector<std::string> schedules;
+	for (SCHEDULENODE const* n = gpScheduleList; n; n = n->next) schedules.push_back(DescribeScheduleNode(*n));
+	std::vector<std::string> civilians;
+	FOR_EACH_IN_TEAM(s, CIV_TEAM) civilians.push_back(DescribeScheduleCivilian(*s));
+	std::vector<std::string> doors;
+	for (DOOR const& d : DoorTable)
+	{
+		STRUCTURE const* const door = FindStructure(d.sGridNo, STRUCTURE_ANYDOOR);
+		doors.push_back(Numbers({d.sGridNo, d.fLocked ? 1 : 0, door && (door->fFlags & STRUCTURE_OPEN) ? 1 : 0}));
+	}
+	std::vector<std::string> events;
+	for (STRATEGICEVENT const* e = gpEventList; e; e = e->next)
+	{
+		if (e->ubCallbackID == EVENT_PROCESS_TACTICAL_SCHEDULE) events.push_back(Numbers({static_cast<long long>(e->uiTimeStamp), static_cast<long long>(e->uiParam)}));
+	}
+	return Json{}
+		.num("worldSeconds", GetWorldTotalSeconds())
+		.num("lastEventQuery", guiTimeOfLastEventQuery)
+		.num("lastId", gubScheduleID)
+		.raw("worldSector", Numbers({gWorldSector.x, gWorldSector.y, gWorldSector.z}))
+		.raw("schedules", JsonArray(schedules))
+		.raw("civilians", JsonArray(civilians))
+		.raw("doors", JsonArray(doors))
+		.raw("events", JsonArray(events))
+		.text();
+}
+
+void EmitSchedules(Command const& c, std::string const& draws, std::string const& result)
+{
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.raw("draws", draws.empty() ? "[]" : draws)
+		.raw("result", result.empty() ? "null" : result)
+		.raw("state", DescribeScheduleState()));
+}
+
+ScreenID ScheduleScreenArgument(Command const& c)
+{
+	std::string const screen = Text(c, "screen", "map");
+	if (screen == "game") return GAME_SCREEN;
+	if (screen == "map") return MAP_SCREEN;
+	throw std::runtime_error("screen must be game or map");
+}
+
+void DumpSchedules(Command const& c)
+{
+	EmitSchedules(c, "", "");
+}
+
+void ProbeScheduleLoad(Command const& c)
+{
+	std::string const name = Text(c, "name", "");
+	if (name.empty()) throw std::runtime_error("schedload needs name=SaveGameNN");
+	std::string const draws = TracedSaiDraws([&name] {
+		LoadSavedGame(ST::string(name));
+		OracleResetContractRenewalSequence();
+	});
+	EmitSchedules(c, draws, "");
+}
+
+void ProbeScheduleEntry(Command const& c)
+{
+	SGPSector sector = StrategicSectorArgument(c, "sector");
+	sector.z = static_cast<INT8>(Integer(c, "z", 0));
+	std::string const draws = TracedSaiDraws([&sector] { SetCurrentWorldSector(sector); });
+	EmitSchedules(c, draws, "");
+}
+
+void SetScheduleClock(Command const& c)
+{
+	UINT32 const seconds = static_cast<UINT32>(Required(c, "seconds"));
+	guiGameClock = seconds;
+	guiTimeOfLastEventQuery = static_cast<UINT32>(Integer(c, "query", seconds));
+	UpdateGameClockGlobals(gpGameClockString);
+	EmitSchedules(c, "", "");
+}
+
+void ProbeScheduleWarp(Command const& c)
+{
+	UINT32 const minutes = static_cast<UINT32>(Required(c, "minutes"));
+	ScreenID const saved = guiCurrentScreen;
+	guiCurrentScreen = ScheduleScreenArgument(c);
+	std::string const draws = TracedSaiDraws([minutes] { WarpGameTime(minutes * NUM_SEC_IN_MIN, WARPTIME_PROCESS_EVENTS_NORMALLY); });
+	guiCurrentScreen = saved;
+	EmitSchedules(c, draws, "");
+}
+
+void ProbeScheduleProcess(Command const& c)
+{
+	ScreenID const saved = guiCurrentScreen;
+	guiCurrentScreen = ScheduleScreenArgument(c);
+	UINT8 const id = static_cast<UINT8>(Required(c, "id"));
+	ProcessTacticalSchedule(id);
+	guiCurrentScreen = saved;
+	EmitSchedules(c, "", "");
+}
+
+void ProbeScheduleDecision(Command const& c)
+{
+	SOLDIERTYPE& s = GetMan(static_cast<UINT>(Required(c, "soldier")));
+	if (!s.bActive) throw std::runtime_error("no active soldier");
+	INT8 const action = OracleDecideActionSchedule(&s);
+	EmitSchedules(c, "", Json{}
+		.num("action", action)
+		.num("actionData", s.usActionData)
+		.num("absoluteFinalDestination", s.sAbsoluteFinalDestination)
+		.num("soldier", s.ubID)
+		.text());
+}
+
+void MoveScheduleSoldier(Command const& c)
+{
+	SOLDIERTYPE& s = GetMan(static_cast<UINT>(Required(c, "soldier")));
+	if (!s.bActive) throw std::runtime_error("no active soldier");
+	EVENT_SetSoldierPositionNoCenter(&s, static_cast<GridNo>(Required(c, "gridNo")), SSP_FORCE_DELETE);
+	EmitSchedules(c, "", "");
+}
+
+void ProbeScheduleShopHours(Command const& c)
+{
+	ProfileID const profile = static_cast<ProfileID>(Required(c, "profile"));
+	SOLDIERTYPE* const s = FindSoldierByProfileID(profile);
+	UINT32 open = 0;
+	UINT32 close = 0;
+	bool const found = s && ExtractScheduleDoorLockAndUnlockInfo(s, &open, &close);
+	EmitSchedules(c, "", Json{}.flag("found", found).num("open", open).num("close", close).text());
+}
+
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -5731,6 +5910,15 @@ void Dispatch(Command const& c)
 	if (c.name == "questentry") return ProbeQuestEntry(c);
 	if (c.name == "questexit") return ProbeQuestExit(c);
 	if (c.name == "entersector") return ProbeEnterSector(c);
+	if (c.name == "schedules") return DumpSchedules(c);
+	if (c.name == "schedload") return ProbeScheduleLoad(c);
+	if (c.name == "schedentry") return ProbeScheduleEntry(c);
+	if (c.name == "schedclock") return SetScheduleClock(c);
+	if (c.name == "schedwarp") return ProbeScheduleWarp(c);
+	if (c.name == "schedprocess") return ProbeScheduleProcess(c);
+	if (c.name == "scheddecide") return ProbeScheduleDecision(c);
+	if (c.name == "schedshophours") return ProbeScheduleShopHours(c);
+	if (c.name == "schedmove") return MoveScheduleSoldier(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

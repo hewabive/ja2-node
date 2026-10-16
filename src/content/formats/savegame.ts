@@ -124,7 +124,6 @@ const ITEM_CURSOR_BYTES = 44;
 const NUM_CIV_QUOTES = 50;
 const NUM_MEANWHILES = 17;
 const MEANWHILE_DEFINITION_BYTES = 8;
-const SCHEDULE_RECORD_BYTES = 36;
 const MAX_VEHICLES = 10;
 const CONTRACT_RENEWAL_SLOTS = 20;
 const CONTRACT_RENEWAL_NODE_BYTES = 4;
@@ -321,6 +320,7 @@ export interface SaveGame {
   readonly watchedLocations: WatchedLocations;
   readonly gameStates: string | null;
   readonly creatureDirectives: SavedCreatureDirectives;
+  readonly schedules: readonly SavedSchedule[];
   readonly sections: readonly SaveSection[];
   readonly bytesConsumed: number;
 }
@@ -424,6 +424,33 @@ function readKeyTable(c: SaveCursor): SavedKeyFound[] {
   return Array.from({ length: NUM_KEYS }, () => {
     c.skip(KEY_RECORD_BYTES - 4);
     return { sectorFound: c.u16(), dateFound: c.u16() };
+  });
+}
+
+export interface SavedSchedule {
+  readonly id: number;
+  readonly soldier: number;
+  readonly times: readonly number[];
+  readonly data1: readonly number[];
+  readonly data2: readonly number[];
+  readonly actions: readonly number[];
+  readonly flags: number;
+}
+
+const SCHEDULE_ENTRIES = 4;
+const SCHEDULE_HEADER_SKIP = 4;
+
+function readSchedules(c: SaveCursor): SavedSchedule[] {
+  return Array.from({ length: c.u8() }, () => {
+    c.skip(SCHEDULE_HEADER_SKIP);
+    const u16s = () => Array.from({ length: SCHEDULE_ENTRIES }, () => c.u16());
+    const times = u16s();
+    const data1 = u16s();
+    const data2 = u16s();
+    const actions = Array.from({ length: SCHEDULE_ENTRIES }, () => c.u8());
+    const id = c.u8();
+    const soldier = c.u8();
+    return { id, soldier, times, data1, data2, actions, flags: c.u16() };
   });
 }
 
@@ -633,7 +660,7 @@ export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable
   section(ctx, 'civ quotes', () => c.skip(NUM_CIV_QUOTES * 2));
   section(ctx, 'backup npc info', () => skipNpcQuoteArrays(c, profilesInSave(version)));
   section(ctx, 'meanwhile definitions', () => c.skip(NUM_MEANWHILES * MEANWHILE_DEFINITION_BYTES));
-  section(ctx, 'schedules', () => c.skip(c.u8() * SCHEDULE_RECORD_BYTES));
+  const schedules = section(ctx, 'schedules', () => readSchedules(c));
   const vehicleMovementGroups = section(ctx, 'vehicle movement groups', () => c.u8s(MAX_VEHICLES));
   section(ctx, 'contract renewals', () => c.skip(CONTRACT_RENEWAL_SLOTS * CONTRACT_RENEWAL_NODE_BYTES + 1));
   section(ctx, 'leave item list', () => skipLeaveItemList(c));
@@ -674,6 +701,7 @@ export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable
     watchedLocations,
     gameStates,
     creatureDirectives,
+    schedules,
     sections: ctx.sections,
     bytesConsumed: c.pos,
   };

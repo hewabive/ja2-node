@@ -74,7 +74,7 @@ wraps, i.e. for large balances.
 | 33–34 | Creature directives (13, +4 from v82), strategic status (192) | | creature directives skipped; strategic status decoded by `savegame-strategic-ai.ts` (flags, captures, highest progress, deaths, reputation, kills, activity) |
 | 35 | Strategic AI | 144 + 1200 + 1000 + 1400 + patrol count + garrison count (counts at offsets 8 and 4) | all (`savegame-strategic-ai.ts`, `docs/17` §1.4); the meanwhile flags and first-battle sector of section 24 too |
 | 36 | Watched locations | 156 × 3 × (2 + 1 + 1 + 1) | all |
-| 37–42 | Item cursor (44), civ quotes (100), backup NPC info (as 19 without civ sectors), meanwhile (17 × 8), schedules (`u8 n` × 36), vehicle movement groups (10) | | vehicle movement groups decoded, the rest skipped |
+| 37–42 | Item cursor (44), civ quotes (100), backup NPC info (as 19 without civ sectors), meanwhile (17 × 8), schedules (`u8 n` × 36: 4 skipped, times, data1, data2 as `u16[4]` each, actions `u8[4]`, id, soldier id, flags `u16`), vehicle movement groups (10) | | schedules and vehicle movement groups decoded, the rest skipped |
 | 43–45 | Contract renewals (81), leave item list (20 × (`bool` + `u32 n` × 40) + 80), Bobby Ray shipments (`i32 n` × 104) | | renewals and leave list by `savegame-contracts.ts`; shipments by `savegame-laptop.ts` |
 | 46 | Game states (v101+) | `u32 len` + JSON text | text |
 
@@ -165,7 +165,7 @@ the reader converts them and reuses the Windows parser.
   available.
 - Versions 100–105 are covered by the version gates in the code but were not tested against real files.
 - The skipped sections (NPC scripts, bullets, physics objects,
-  explosions, schedules) and the raw temp files (revealed tiles, preserved enemies and civilians, smoke, lights) still
+  explosions) and the raw temp files (revealed tiles, preserved enemies and civilians, smoke, lights) still
   need decoders before the strategic layer can continue a campaign. Rotting corpses (`decodeRottingCorpsesFile`,
   160-byte records after a `u32` count) and map modifications (`decodeMapModificationsFile`, 8-byte `MODIFY_MAP`
   records) are decoded for the current sector.

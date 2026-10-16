@@ -252,7 +252,7 @@ export class FactComparer {
         const sector = sectorArg(a);
         await session.prepare({ type: 'enterSector', sector: `${String(a.sector)}` });
         if (!c.sectors?.setCurrentWorldSector(sector)) return report(label, false, 'sector map not loaded');
-        extraOurs = this.#placedNpcs(c);
+        extraOurs = this.#activeNpcs(c);
         extraTheirs = ((p.result as Json).soldiers as Json[]).map((s) => num(s.profile)).sort((x, y) => x - y);
         break;
       }
@@ -343,11 +343,11 @@ export class FactComparer {
     c.helicopter.payOffSkyriderDebtIfAny();
   }
 
-  #placedNpcs(c: CampaignSim): number[] {
+  #activeNpcs(c: CampaignSim): number[] {
     const t = c.tactical?.state;
     if (!t) return [];
     return t.soldiers
-      .filter((s) => s?.placed && s.team !== Team.OUR && s.profile !== NO_PROFILE)
+      .filter((s) => s && (s.placed || s.offMap || s.away) && s.team !== Team.OUR && s.profile !== NO_PROFILE)
       .map((s) => s?.profile ?? 0)
       .sort((x, y) => x - y);
   }

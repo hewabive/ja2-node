@@ -1,0 +1,63 @@
+# NPC schedules (docs/25 §5) on the user's saves: the schedules, civilians, door locks and PROCESS_TACTICAL_SCHEDULE events
+# after a load (PostSchedules without auto-processing, default schedules redrawn), after entering another sector (the
+# 24-hour replay with its draws, bumps and door changes), after time passes on the map screen (auto-processing) and in
+# tactical (the entry of the minute becomes active), the AI's schedule decisions step by step (schedmove teleports the
+# civilian as if he had walked), and the shop hours taken from a schedule. Times are game seconds (day 2 08:00 = 201600).
+# Sector entries come right after a load: the 04:00 event moves NPCs with draws that warps do not replay, and ja2-node does
+# not import the temp files of other sectors from a native save (see docs/deviations.md "Savegame import").
+
+schedload name=SaveGame01
+schedentry sector=C13
+schedentry sector=D13
+schedwarp minutes=30 screen=game
+scheddecide soldier=135
+scheddecide soldier=125
+schedmove soldier=125 gridNo=10625
+scheddecide soldier=125
+scheddecide soldier=125
+schedmove soldier=125 gridNo=10300
+scheddecide soldier=125
+schedentry sector=B13
+schedshophours profile=100
+schedwarp minutes=60 screen=map
+schedwarp minutes=600 screen=map
+schedwarp minutes=30 screen=game
+scheddecide soldier=119
+scheddecide soldier=116
+
+schedload name=SaveGame02
+schedwarp minutes=600 screen=map
+schedwarp minutes=90 screen=game
+scheddecide soldier=116
+
+schedload name=SaveGame07
+schedwarp minutes=360 screen=map
+schedwarp minutes=90 screen=map
+schedwarp minutes=480 screen=map
+schedwarp minutes=300 screen=map
+
+schedload name=SaveGame08
+schedclock seconds=201600
+schedprocess id=1 screen=game
+scheddecide soldier=116
+schedmove soldier=116 gridNo=13481
+scheddecide soldier=116
+scheddecide soldier=116
+schedmove soldier=116 gridNo=12841
+scheddecide soldier=116
+schedclock seconds=205200
+schedprocess id=20 screen=game
+scheddecide soldier=124
+schedmove soldier=124 gridNo=10625
+scheddecide soldier=124
+scheddecide soldier=124
+schedprocess id=29 screen=map
+
+schedload name=SaveGame09
+schedwarp minutes=1440 screen=map
+
+schedload name=SaveGame10
+schedwarp minutes=400 screen=game
+scheddecide soldier=137
+scheddecide soldier=130
+scheddecide soldier=135

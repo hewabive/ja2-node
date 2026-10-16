@@ -178,7 +178,7 @@ function teamIds(first: number, last: number): number[] {
 
 function preservable(t: TacticalState, id: number): { soldier: Soldier; node: SoldierInitNode } | null {
   const s = t.soldiers[id];
-  if (!s?.placed || s.life === 0 || s.profile !== NO_PROFILE) return null;
+  if (!(s?.placed || s?.offMap || s?.away) || s.life === 0 || s.profile !== NO_PROFILE) return null;
   const node = findSoldierInitNodeBySoldier(t, s);
   return node ? { soldier: s, node } : null;
 }
@@ -221,7 +221,7 @@ function preservedRecord(t: TacticalState, s: Soldier, node: SoldierInitNode): D
     soldierClass: s.soldierClass,
     onRoof: useCurrent ? s.level > 0 : node.basic.onRoof,
     civilianGroup: s.civilianGroup,
-    scheduleId: previous?.scheduleId ?? 0,
+    scheduleId: s.scheduleId,
     hasKeys: s.hasKeys,
   };
 }
@@ -234,7 +234,11 @@ export function preserveSoldiers(t: TacticalState, enemies: boolean, nowMinute: 
     node.detail = preservedRecord(t, soldier, node);
     node.detailed = true;
   }
-  const links = t.initList.map((n) => [n.index, n.hasSoldier && t.soldiers[n.soldierId]?.placed ? n.soldierId : 0] as const);
+  const linked = (n: SoldierInitNode) => {
+    const s = n.hasSoldier ? t.soldiers[n.soldierId] : undefined;
+    return s !== undefined && (s.placed || s.offMap || s.away);
+  };
+  const links = t.initList.map((n) => [n.index, linked(n) ? n.soldierId : 0] as const);
   const records = kept.map(({ node }) => node.detail as DetailedPlacement);
   return { savedMinute: nowMinute, links, records };
 }

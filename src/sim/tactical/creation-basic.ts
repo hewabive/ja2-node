@@ -2,11 +2,12 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Create.cc TacticalCreateMilitia, TacticalCreateEnemySoldier, TacticalCreateCreature (autoresolve screen),
 // @src ReserveTacticalSoldierForAutoresolve, TacticalCreateSoldier (the AUTORESOLVE_SCREEN branch: id 255, no camouflage
-// @src roll, no CreateSoldierCommon); Strategic/Auto_Resolve.cc ResetMortarsOnTeamCount. See docs/19 §2.4.
+// @src roll, no CreateSoldierCommon), the OkayToUpgradeEliteToSpecialProfiledEnemy call of TacticalCreateEnemySoldier;
+// @src Strategic/Auto_Resolve.cc ResetMortarsOnTeamCount. See docs/19 §2.4, docs/25 §4.6.
 
 import type { BasicPlacement } from '../../content/formats/map.ts';
 import { cloneObject } from '../items/object.ts';
-import { type CreationContext, createFromPlacementParts } from './creation.ts';
+import { type CreationContext, createFromPlacementParts, type PlacementAdjust } from './creation.ts';
 import { BODY_RANDOM, MAX_ATTITUDES, type PopulationEnv, randomizeRelativeLevel } from './init-list.ts';
 import { Attitude, NOWHERE, Orders, type Soldier, SoldierClass, Team } from './soldier.ts';
 import { type TacticalState, teamMembers } from './state.ts';
@@ -54,8 +55,8 @@ function basicPlacement(c: AutoresolveCreation, kind: PlacementKind): BasicPlace
   };
 }
 
-function create(c: AutoresolveCreation, basic: BasicPlacement): Soldier | null {
-  return createFromPlacementParts(c.create, AUTORESOLVE_SOLDIER_ID, basic, null, { ...c.population, autoresolve: true });
+function create(c: AutoresolveCreation, basic: BasicPlacement, adjust?: PlacementAdjust): Soldier | null {
+  return createFromPlacementParts(c.create, AUTORESOLVE_SOLDIER_ID, basic, null, { ...c.population, autoresolve: true }, adjust);
 }
 
 export function resetMortarsOnTeamCount(c: AutoresolveCreation): void {
@@ -72,9 +73,14 @@ export function tacticalCreateMilitiaForAutoresolve(c: AutoresolveCreation, sold
 }
 
 export function tacticalCreateEnemySoldierForAutoresolve(c: AutoresolveCreation, soldierClass: number): Soldier | null {
+  const upgrade: PlacementAdjust = (pp) => {
+    if (soldierClass === SoldierClass.ELITE) c.population.upgradeEliteToProfiledEnemy(pp);
+    return true;
+  };
   const s = create(
     c,
     basicPlacement(c, { team: Team.ENEMY, soldierClass, orders: Orders.SEEKENEMY, attitude: null, bodyType: BODY_RANDOM }),
+    upgrade,
   );
   if (!s) return null;
   const dx = c.create.rng.int(CENTRAL_RADIUS * 2 + 1) - CENTRAL_RADIUS;

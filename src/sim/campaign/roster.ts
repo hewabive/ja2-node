@@ -8,7 +8,7 @@ import { StatCause, statChange } from '../tactical/combat/experience.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { carriedWeightPercentOf } from '../tactical/points.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
-import { StatKind } from '../tactical/profiles.ts';
+import { type StatKey, StatKind } from '../tactical/profiles.ts';
 import {
   effectiveAgility,
   effectiveDexterity,
@@ -50,7 +50,7 @@ export interface RosterMercInit {
 
 export class RosterMerc implements CrewMember {
   readonly soldier: Soldier;
-  readonly profileRecord: MercProfile | null;
+  profileRecord: MercProfile | null;
   readonly kind: number;
   statusFlags: number;
   sector: Sector;
@@ -101,6 +101,22 @@ export class RosterMerc implements CrewMember {
 
   get id(): number {
     return this.soldier.id;
+  }
+
+  swapProfile(profile: number, record: MercProfile | null, stats: Readonly<Record<StatKey, number>>): void {
+    const s = this.soldier;
+    s.profile = profile;
+    this.profileRecord = record;
+    s.stats.strength = stats.strength;
+    s.stats.dexterity = stats.dexterity;
+    s.stats.agility = stats.agility;
+    s.stats.wisdom = stats.wisdom;
+    s.stats.experience = stats.experience;
+    s.stats.leadership = stats.leadership;
+    s.stats.marksmanship = stats.marksmanship;
+    s.stats.mechanical = stats.mechanical;
+    s.stats.medical = stats.medical;
+    s.stats.explosives = stats.explosives;
   }
 
   get profile(): number {

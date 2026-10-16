@@ -9,7 +9,7 @@ import { queenEconomyHooks, queenMineIncome } from '../strategic/ai/economy-link
 import { meanwhilePendingThisSecond, meanwhileScheduled, scheduleMeanwhileEvent } from '../strategic/ai/meanwhile.ts';
 import { registerStrategicAiEvents, StrategicAi } from '../strategic/ai/strategic-ai.ts';
 import { createEconomyContext, type EconomySetup, economyWorldPort } from '../strategic/economy/context.ts';
-import { createMerchantContext, type MerchantContext, type MerchantSetup } from '../strategic/economy/merchants/context.ts';
+import { createMerchantContext, type MerchantContext, type MerchantSetup, type ShopHours } from '../strategic/economy/merchants/context.ts';
 import { dailyUpdateOfArmsDealersInventory } from '../strategic/economy/merchants/daily.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
 import { registerEconomyEvents } from '../strategic/economy/update.ts';
@@ -45,6 +45,7 @@ import {
   worldTotalMinutes,
 } from '../strategic/time/world-clock.ts';
 import { type ExperienceHooks, NO_EXPERIENCE_HOOKS } from '../tactical/combat/context.ts';
+import { extractScheduleDoorLockAndUnlockInfo } from '../tactical/narrative/schedules.ts';
 import { hostileBloodcatsPresent } from '../tactical/sector-presence.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import { BattleFlow, type BattleSetup } from './battle-flow.ts';
@@ -173,7 +174,7 @@ export class CampaignSim {
     return createMerchantContext(
       {
         ...setup,
-        hooks: setup.hooks ?? {},
+        hooks: { shopHours: (profile) => this.#scheduleShopHours(profile), ...setup.hooks },
       },
       s.merchants,
       { random: s.rng, preRandom: s.pre },
@@ -185,6 +186,12 @@ export class CampaignSim {
       },
       s.narrative,
     );
+  }
+
+  #scheduleShopHours(profile: number): ShopHours | null {
+    const t = this.tactical?.state;
+    const dealer = t?.soldiers.find((x) => x !== undefined && (x.placed || x.offMap || x.away) && x.profile === profile);
+    return t && dealer ? extractScheduleDoorLockAndUnlockInfo(t, dealer) : null;
   }
 
   #registerMerchants(): void {

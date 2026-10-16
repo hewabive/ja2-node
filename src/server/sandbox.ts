@@ -111,6 +111,8 @@ function sandboxPopulation(sim: TacticalSim): PopulationEnv {
     profileHere: (p) => profiles[p]?.sectorX === sector.x && profiles[p]?.sectorY === sector.y,
     iceCreamTruckWithheld: () => false,
     civilianPlacement: () => PlacementVerdict.CREATE,
+    upgradeEliteToProfiledEnemy: () => {},
+    resetProfiledEnemyAdded: () => {},
   };
 }
 

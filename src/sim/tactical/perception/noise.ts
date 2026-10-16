@@ -58,6 +58,14 @@ const UNTOLD_KINDS: ReadonlySet<number> = new Set([
   NoiseKind.GRENADE_IMPACT,
   NoiseKind.SILENT_ALARM,
 ]);
+const WAKING_NOISE_KINDS: ReadonlySet<number> = new Set([
+  NoiseKind.BULLET_IMPACT,
+  NoiseKind.GUNFIRE,
+  NoiseKind.EXPLOSION,
+  NoiseKind.SCREAM,
+  NoiseKind.WINDOW_SMASHING,
+  NoiseKind.DOOR_SMASHING,
+]);
 const MAX_NOISE_VOLUME = 12;
 const DOOR_NOISE_VOLUME = 2;
 const ARMY_FOOTSTEP = 9;
@@ -183,6 +191,7 @@ function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: numb
       updatePersonal(l, source, Opp.HEARD_THIS_TURN, g);
       rememberNoise(t, l, g, level, volume);
     }
+    if (l.ai.asleep && WAKING_NOISE_KINDS.has(kind)) l.ai.asleep = false;
     if (hostile(l, source)) {
       if (t.turn.delayResolvingBestSightingDueToDoor) {
         if (

@@ -5,16 +5,19 @@
 // @src EVENT_REMOVE_ASSASSIN; Strategic/Strategic_Event_Handler.cc AddSecondAirportAttendant, RemoveAssassin;
 // @src Strategic/StrategicMap.cc HandleQuestCodeOnSectorEntry, HandleQuestCodeOnSectorExit; Tactical/Overhead.cc
 // @src HandleNPCTeamMemberDeath (MakeRemainingTerroristsTougher, MakeRemainingAssassinsTougher, the DYNAMO, KINGPIN and DOREEN
-// @src cases). See docs/25 §1–§4, §11.12.
+// @src cases); Strategic/Hourly_Update.cc HourlyLarryUpdate (the merc side); Tactical/Soldier_Profile.cc SwapLarrysProfiles
+// @src (the soldier side). See docs/25 §1–§4, §11.12.
 
+import { NOTHING } from '../../../content/items/items.ts';
 import { MercType } from '../../../content/strategic/economy-content.ts';
 import { sectorFromId, sectorShortString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import type { SimEvent } from '../../events.ts';
-import { copyObjectInto, createItems, createMoney, emptyObject } from '../../items/object.ts';
+import { copyObjectInto, createItem, createItems, createMoney, emptyObject } from '../../items/object.ts';
 import { StrategicAiAction } from '../../strategic/ai/constants.ts';
 import { type ProgressMilestones, queenProgress } from '../../strategic/ai/difficulty.ts';
 import { executeStrategicAIAction } from '../../strategic/ai/reactions.ts';
 import { Assignment, Town } from '../../strategic/economy/constants.ts';
+import { findObj, NO_SLOT, Slot, useKitPoints } from '../../strategic/economy/kits.ts';
 import { decrementTownLoyalty, incrementTownLoyalty } from '../../strategic/economy/loyalty.ts';
 import { dealerIdFromProfile } from '../../strategic/economy/merchants/context.ts';
 import { estoniRefuellingBecamePossible } from '../../strategic/economy/merchants/daily.ts';
@@ -48,6 +51,7 @@ import {
   hourlyQuestUpdate,
   type SlayContext,
 } from '../../strategic/narrative/hourly.ts';
+import { hourlyLarryUpdate, type LarryContext, swapLarrysProfileRecords } from '../../strategic/narrative/larry.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import {
   decideOnAssassin,
@@ -83,7 +87,7 @@ import type { CampaignSim } from '../campaign-sim.ts';
 import { HistoryCode } from '../contracts/quotes.ts';
 import { addTransaction, FinanceCode } from '../finances.ts';
 import { addHistory, timeQuestWasStarted } from '../laptop/records.ts';
-import type { Roster } from '../roster.ts';
+import type { Roster, RosterMerc } from '../roster.ts';
 import type { QuestEventWithoutTick } from './events.ts';
 import { campaignFactWorld, factSoldierById } from './fact-world.ts';
 
@@ -433,6 +437,70 @@ export class NarrativeFlow {
     };
   }
 
+  #larryMerc(): RosterMerc | null {
+    const roster = this.roster();
+    return roster?.byProfile(Npc.LARRY_NORMAL) ?? roster?.byProfile(Npc.LARRY_DRUNK) ?? null;
+  }
+
+  #larryContext(): LarryContext {
+    const s = this.state;
+    const items = this.content()?.items;
+    const itemId = (name: string) => items?.byName.get(name)?.index ?? NOTHING;
+    return {
+      narrative: s.narrative,
+      larry: () => {
+        const m = this.#larryMerc();
+        if (!m || !items) return null;
+        const inv = m.soldier.inv;
+        return {
+          profile: m.profile,
+          assignment: m.assignment,
+          betweenSectors: m.betweenSectors,
+          inLoadedSector: m.soldier.placed,
+          sector: m.sector,
+          findItem: (name) => findObj(inv, itemId(name)),
+          emptySlotForBooze: () => {
+            for (let slot = Slot.HAND; slot <= Slot.SMALLPOCK8; slot++) if ((inv[slot]?.item ?? NOTHING) === NOTHING) return slot;
+            return NO_SLOT;
+          },
+          giveFullItem: (slot, name, status) => {
+            const target = inv[slot];
+            if (target) copyObjectInto(target, createItem(items, itemId(name), status));
+          },
+          useKitPoints: (slot, points) => {
+            const target = inv[slot];
+            if (target) useKitPoints(target, points);
+          },
+        };
+      },
+      enemyInLoadedSectorOrTactical: () => this.campaign.tactical?.state.turn.enemyInSector === true || s.flow === 'tactical',
+      balance: () => s.finances.balance,
+      alcoholPrice: () => items?.byName.get('ALCOHOL')?.price ?? 0,
+      payForBooze: (profile, amount) => {
+        const record = addTransaction(s.finances, FinanceCode.TRANSFER_FUNDS_TO_MERC, profile, worldTotalMinutes(s.clock), -amount);
+        this.campaign.laptop?.emitMoney(record);
+      },
+      normalProfile: () => this.profile(Npc.LARRY_NORMAL),
+      random: (n) => s.rng.int(n),
+      swapProfiles: () => this.#swapLarrysProfiles(),
+      onDutyAssignment: Assignment.ON_DUTY,
+    };
+  }
+
+  #swapLarrysProfiles(): void {
+    const m = this.#larryMerc();
+    const content = this.content();
+    if (!m || !content) return;
+    const fromId = m.profile;
+    const toId = fromId === Npc.LARRY_NORMAL ? Npc.LARRY_DRUNK : Npc.LARRY_NORMAL;
+    const from = this.profile(fromId);
+    const to = this.profile(toId);
+    const record = content.profiles[toId] ?? null;
+    if (!from || !to) return;
+    swapLarrysProfileRecords(this.state.narrative, from, to);
+    m.swapProfile(toId, record, to.stats);
+  }
+
   slayDailyEvent(): void {
     handleSlayDailyEvent(this.#slayContext(), worldDay(this.state.clock), Assignment.IN_TRANSIT, Assignment.ASSIGNMENT_POW);
   }
@@ -451,6 +519,7 @@ export class NarrativeFlow {
         );
       },
       hourlyQuestUpdate: () => hourlyQuestUpdate(this.state.narrative, worldHour(this.state.clock)),
+      hourlyLarryUpdate: () => hourlyLarryUpdate(this.#larryContext()),
       hourlyCheckIfSlayAloneSoHeCanLeave: () => hourlyCheckIfSlayAloneSoHeCanLeave(this.#slayContext()),
     };
   }
