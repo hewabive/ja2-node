@@ -24,6 +24,7 @@ afterAll(async () => {
 const B9 = { x: 9, y: 2, z: 0 };
 const COLS = 160;
 const MAX_ROUNDS = 150;
+const SCENARIO_TIMEOUT_MS = 60_000;
 
 type Driver = (c: CampaignSim, until: () => boolean, budget?: number) => void;
 
@@ -41,7 +42,7 @@ const idle = (c: CampaignSim) => () => c.isIdle();
 function compressUntil(c: CampaignSim, drive: Driver, until: () => boolean): void {
   if (!c.dispatch({ type: 'compressTime', mode: CompressMode.MIN30 }).ok) throw new Error('cannot compress');
   drive(c, until);
-  c.dispatch({ type: 'stopTime' });
+  if (!c.hasPendingDecision()) c.dispatch({ type: 'stopTime' });
 }
 
 function distance(a: number, b: number): number {
@@ -78,7 +79,18 @@ function combatRound(c: CampaignSim, drive: Driver): void {
   }
 }
 
+function gather(c: CampaignSim, drive: Driver): void {
+  const [leader, ...others] = ourSoldiers(c);
+  if (!leader) return;
+  others.forEach((merc, k) => {
+    for (const offset of [COLS * (k + 1), -COLS * (k + 1), k + 1, -(k + 1)])
+      if (c.dispatch({ type: 'move', soldier: merc.id, to: leader.gridNo + offset, mode: 'run' }).ok) break;
+  });
+  drive(c, () => c.isIdle() || c.tactical?.state.inCombat === true, 40_000);
+}
+
 function fight(c: CampaignSim, drive: Driver): void {
+  gather(c, drive);
   for (let k = 0; k < MAX_ROUNDS && livingEnemies(c).length > 0; k++) {
     if (c.tactical?.state.inCombat) combatRound(c, drive);
     else approach(c, drive);
@@ -109,11 +121,16 @@ function scenario(drive: Driver): ScenarioResult {
   const route = c.dispatch({ type: 'route', soldier: 0, to: 'B9' });
   if (!route.ok) throw new Error(`route refused: ${route.reason}`);
   drive(c, () => c.tactical === null, 10_000);
-  compressUntil(c, drive, () => c.state.encounter.preBattle !== null);
-  expect(c.state.encounter.preBattle?.sector).toMatchObject({ x: 9, y: 2 });
-  c.state.encounter.preBattle = null;
-  c.state.movement.disableMapInterfaceDueToBattle = false;
-  expect(c.dispatch({ type: 'enterSector', sector: 'B9' })).toMatchObject({ ok: true });
+  compressUntil(c, drive, () => c.hasPendingDecision());
+  const prompt = c.state.battle.prompt;
+  expect(prompt).toMatchObject({ kind: 'preBattle' });
+  expect(c.state.battle.sector).toMatchObject({ x: 9, y: 2 });
+  expect(prompt?.kind === 'preBattle' && prompt.options.map((o) => [o.choice, o.enabled])).toEqual([
+    ['autoresolve', true],
+    ['enterSector', true],
+    ['retreat', true],
+  ]);
+  expect(c.dispatch({ type: 'answer', prompt: prompt?.id, choice: 'enterSector' })).toMatchObject({ ok: true });
   expect(teamMembers(c.tactical?.state ?? never(), Team.ENEMY)).toHaveLength(2);
   fight(c, drive);
   const t = c.tactical?.state ?? never();
@@ -146,16 +163,20 @@ function scenario(drive: Driver): ScenarioResult {
 }
 
 describe('the stub scenario', () => {
-  it('routes A9 to B9, wins the battle, leaves and finds B9 as it was, the same under both drivers', () => {
-    const a = scenario(instant);
-    expect(a.enemiesLeft).toBe(0);
-    expect(a.corpsesAfter).toBe(a.corpsesBefore);
-    expect(a.corpsesBefore).toBeGreaterThan(0);
-    expect(a.itemsAfter).toBe(a.itemsBefore);
-    expect(c9Key()).toBe('9,2,0');
-    const b = scenario(manual);
-    expect(b.digest).toBe(a.digest);
-  });
+  it(
+    'routes A9 to B9, wins the battle, leaves and finds B9 as it was, the same under both drivers',
+    () => {
+      const a = scenario(instant);
+      expect(a.enemiesLeft).toBe(0);
+      expect(a.corpsesAfter).toBe(a.corpsesBefore);
+      expect(a.corpsesBefore).toBeGreaterThan(0);
+      expect(a.itemsAfter).toBe(a.itemsBefore);
+      expect(c9Key()).toBe('9,2,0');
+      const b = scenario(manual);
+      expect(b.digest).toBe(a.digest);
+    },
+    SCENARIO_TIMEOUT_MS,
+  );
 });
 
 function c9Key(): string {

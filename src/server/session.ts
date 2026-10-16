@@ -59,6 +59,9 @@ export class Session {
       get tick() {
         return sim.tick;
       },
+      get worldClock() {
+        return sim.worldClock ?? null;
+      },
       isIdle: () => sim.isIdle(),
       hasPendingDecision: () => sim.hasPendingDecision(),
       drainEvents: () => sim.drainEvents(),

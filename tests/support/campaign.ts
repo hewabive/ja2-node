@@ -2,6 +2,7 @@ import type { ArmyContent } from '../../src/content/strategic/army.ts';
 import { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { hireMerc } from '../../src/sim/campaign/hiring.ts';
 import { initNewGame } from '../../src/sim/campaign/new-game.ts';
+import { campaignCombatContext } from '../../src/sim/campaign/off-map-combat.ts';
 import { Roster } from '../../src/sim/campaign/roster.ts';
 import { createItem, createItems } from '../../src/sim/items/object.ts';
 import { sectorInfo } from '../../src/sim/strategic/map/sectors.ts';
@@ -71,19 +72,7 @@ export function createTestCampaign(kit: CampaignKit, options: CampaignOptions): 
   const state = createStrategicState({ seed: options.seed });
   let campaign: CampaignSim | null = null;
   const content = kit.sectors.content;
-  const roster = new Roster({
-    content,
-    combat: () =>
-      campaign?.tactical?.state ?? {
-        content,
-        pre: state.pre,
-        rng: state.rng,
-        profiles: state.profiles,
-        inCombat: false,
-        turn: { attackBusyCount: 0 },
-        events: { push: () => 0 },
-      },
-  });
+  const roster = new Roster({ content, combat: campaignCombatContext(() => campaign, state, content) });
   const c = new CampaignSim(state, null, {
     strategic: { content: kit.economy.strategic, mercs: roster },
     economy: { economy: kit.economy.economy, items: kit.economy.items, crew: roster },

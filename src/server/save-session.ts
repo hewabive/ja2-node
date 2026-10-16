@@ -19,6 +19,7 @@ import { importStrategicTime } from '../sim/strategic/time/save-import.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
 import { importSave, type SaveImportReport, saveMapPath, worldWithSavedDoors } from '../sim/tactical/save-import.ts';
 import { removeSoldierFromTacticalSector } from '../sim/tactical/sector-presence.ts';
+import { TEAM_FIRST_ID, TEAM_SIZES, Team } from '../sim/tactical/soldier.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { CampaignSession } from './campaign-session.ts';
 import { type FileExists, WorldCache } from './world-cache.ts';
@@ -28,6 +29,19 @@ const DEFAULT_SEED = 1;
 export interface SaveSession {
   readonly session: CampaignSession;
   readonly report: SaveImportReport;
+}
+
+const LINKED_TEAMS: Readonly<Record<string, readonly number[]>> = {
+  enemyPreserved: [Team.ENEMY, Team.CREATURE],
+  civilianPreserved: [Team.CIV],
+};
+
+function linkedSoldier(kind: string, link: PreservedSoldierLink): boolean {
+  const teams = LINKED_TEAMS[kind] ?? [];
+  const first = TEAM_FIRST_ID[teams[0] ?? Team.CIV] ?? 0;
+  const lastTeam = teams[teams.length - 1] ?? Team.CIV;
+  const last = (TEAM_FIRST_ID[lastTeam] ?? 0) + (TEAM_SIZES[lastTeam] ?? 0) - 1;
+  return link.soldierId >= first && link.soldierId <= last;
 }
 
 function savedSoldierLinks(save: SaveGame): PreservedSoldierLink[] {
@@ -40,7 +54,7 @@ function savedSoldierLinks(save: SaveGame): PreservedSoldierLink[] {
         f.sector.y === sector.y &&
         f.sector.z === sector.z,
     )
-    .flatMap((f) => decodePreservedSoldierLinks(f.bytes));
+    .flatMap((f) => decodePreservedSoldierLinks(f.bytes).filter((link) => linkedSoldier(f.kind, link)));
 }
 
 export async function createSaveSession(

@@ -1,3 +1,4 @@
+import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
 import { TICK_MS } from '../clock.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
@@ -7,6 +8,7 @@ import { registerStrategicAiEvents, StrategicAi } from '../strategic/ai/strategi
 import { createEconomyContext, type EconomySetup, economyWorldPort } from '../strategic/economy/context.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
 import { registerEconomyEvents } from '../strategic/economy/update.ts';
+import { SectorFlag } from '../strategic/forces/constants.ts';
 import {
   createStrategicContext,
   handleGroupAboutToArriveEvent,
@@ -22,15 +24,22 @@ import { changeLightValue, timeOfDayAmbientLightLevel, updateTemperature } from 
 import {
   type ClockContext,
   type ClockScreen,
+  CompressionStop,
+  compressionStopReason,
   isTimeBeingCompressed,
+  pauseGame,
   setGameTimeCompressionLevel,
   startTimeCompression,
   stopTimeCompression,
+  unPauseGame,
   updateClock,
+  worldDay,
 } from '../strategic/time/world-clock.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
+import { BattleFlow, type BattleSetup } from './battle-flow.ts';
 import { dispatchStrategicCommand } from './commands.ts';
 import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
+import { openMapScreen, openTacticalScreen } from './screens.ts';
 import { dispatchSectorCommand, loadStartSector, SectorFlow, type SectorSetup, sectorWorldPort } from './sector-flow.ts';
 
 export interface CampaignCommand {
@@ -47,6 +56,7 @@ export interface CampaignHooks {
   readonly economy?: EconomySetup;
   readonly queen?: QueenContextOptions;
   readonly sectors?: SectorSetup;
+  readonly battle?: BattleSetup;
 }
 
 export class CampaignSim {
@@ -57,10 +67,14 @@ export class CampaignSim {
   readonly economy: EconomyContext | null;
   readonly queen: QueenContext | null;
   readonly sectors: SectorFlow | null;
+  readonly battle: BattleFlow | null;
+  readonly worldClock: WorldTimeControl;
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
   readonly #clock: ClockContext;
   #tick = 0;
+  #compressing = false;
+  #day = 0;
 
   constructor(state: StrategicState = createStrategicState(), tactical: TacticalSim | null = null, hooks: CampaignHooks = {}) {
     this.state = state;
@@ -81,18 +95,32 @@ export class CampaignSim {
     this.queen = ai && this.strategic ? ai.bind(this.strategic) : null;
     this.economy = this.strategic && hooks.economy ? createEconomyContext(this.strategic, this.#economySetup(hooks.economy)) : null;
     this.sectors = this.strategic && hooks.sectors ? new SectorFlow(this, hooks.sectors) : null;
+    const battleSetup = hooks.battle ?? hooks.sectors;
+    this.battle = this.economy && battleSetup ? new BattleFlow(this, battleSetup) : null;
+    this.worldClock = this.#worldTimeControl();
     this.#registerEnvironment();
     this.#registerMovement();
     if (this.economy) registerEconomyEvents(this.dispatchTable, this.economy);
     if (this.queen) registerStrategicAiEvents(this.dispatchTable, this.queen);
     if (state.flow === 'tactical') setGameTimeCompressionLevel(this.#clock, CompressMode.X1);
     tactical?.attachWorldClock(state.clock);
+    this.#compressing = isTimeBeingCompressed(state.clock);
+    this.#day = worldDay(state.clock);
   }
 
   #economySetup(setup: EconomySetup): EconomySetup {
     const queen = this.queen;
-    if (!queen) return setup;
-    return { ...setup, hooks: { ...queenEconomyHooks(queen), ...setup.hooks }, slots: { ...queenEconomySlots(queen), ...setup.slots } };
+    const battleHooks = {
+      moraleEvent: (kind: string, sector: { x: number; y: number; z: number }) => this.battle?.economyMoraleEvent(kind, sector),
+      removeRandomItemsInSector: (sector: { x: number; y: number; z: number }, chance: number) =>
+        this.battle?.removeRandomItemsInSector(sector, chance),
+    };
+    if (!queen) return { ...setup, hooks: { ...battleHooks, ...setup.hooks } };
+    return {
+      ...setup,
+      hooks: { ...battleHooks, ...queenEconomyHooks(queen), ...setup.hooks },
+      slots: { ...queenEconomySlots(queen), ...setup.slots },
+    };
   }
 
   #economyPorts(): Pick<StrategicSetup, 'mercs' | 'world'> {
@@ -117,10 +145,10 @@ export class CampaignSim {
     return {
       clock: s.clock,
       queue: s.queue,
-      screen: (): ClockScreen => s.flow,
+      screen: (): ClockScreen => (s.flow === 'autoresolve' ? 'other' : s.flow),
       inCombat: () => this.tactical?.state.inCombat === true,
       execute: (e) => this.dispatchTable.execute(this, e),
-      afterAdvance: () => {},
+      afterAdvance: () => this.#clearFlashingEnemyCounts(),
       compressionModeSet: () => teamJackedInAndGearedToGo(this, () => (this.#hooks.loadStartSector ?? loadStartSector)(this)),
       firstCompressionSinceMapEntry: () => {},
       compressionRefusal: () => this.#hooks.compressionRefusal?.(this) ?? this.#defaultRefusal(),
@@ -131,6 +159,7 @@ export class CampaignSim {
     const t = this.tactical?.state;
     if (this.strategic && !this.state.atLeastOneMercHired) return 'no merc has been hired yet';
     if (t?.inCombat) return 'combat is in progress';
+    if (t?.turn.enemyInSector) return 'enemies are present in the loaded sector';
     return null;
   }
 
@@ -172,7 +201,61 @@ export class CampaignSim {
     return this.#clock;
   }
 
+  #updatePausedStatesDueToTimeCompression(): void {
+    const c = this.state.clock;
+    const allowed = this.#clock.compressionRefusal() === null;
+    if (isTimeBeingCompressed(c)) {
+      if (!allowed) pauseGame(c);
+    } else if (c.compressionOn && c.mode !== CompressMode.X0 && !c.playerPause && allowed) unPauseGame(c);
+  }
+
+  #clearFlashingEnemyCounts(): void {
+    const s = this.state;
+    if (!s.battle.resetAllPlayerKnowsEnemiesFlags || this.tactical?.state.turn.enemyInSector) return;
+    for (const info of s.map.sectors) info.flags &= ~SectorFlag.PLAYER_KNOWS_ENEMIES_ARE_HERE;
+    s.battle.resetAllPlayerKnowsEnemiesFlags = false;
+  }
+
+  #worldTimeControl(): WorldTimeControl {
+    return {
+      worldTime: (): WorldTimeReading => worldTimeReading(this.state.clock.seconds),
+      onMap: () => this.state.flow === 'strategic',
+      compressing: () => isTimeBeingCompressed(this.state.clock),
+      startCompression: (mode?: number) => {
+        const refused = this.#compress(mode === undefined ? { type: 'compressTime' } : { type: 'compressTime', mode });
+        if (!refused.ok) return refused.reason ?? 'time cannot be compressed';
+        this.#syncClockEvents();
+        return null;
+      },
+      stopCompression: () => {
+        stopTimeCompression(this.#clock, CompressionStop.WORLD_TIME);
+        this.#syncClockEvents();
+      },
+    };
+  }
+
+  #syncClockEvents(): void {
+    const c = this.state.clock;
+    const compressing = isTimeBeingCompressed(c);
+    if (compressing !== this.#compressing) {
+      this.#compressing = compressing;
+      if (compressing) this.#events.push({ type: 'compressionStarted', mode: c.mode, tick: this.#tick });
+      else this.#events.push({ type: 'compressionStopped', reason: compressionStopReason(c), tick: this.#tick });
+    }
+    const day = worldDay(c);
+    if (day !== this.#day) {
+      this.#day = day;
+      this.#events.push({ type: 'dayStarted', day, tick: this.#tick });
+    }
+  }
+
+  #collectEvents(): void {
+    if (this.sectors) this.#events.push(...this.sectors.drainEvents());
+    if (this.battle) this.#events.push(...this.battle.drainEvents());
+  }
+
   step(): void {
+    if (this.battle?.hasPendingDecision()) return;
     const s = this.state;
     this.#tick++;
     if (s.flow === 'tactical' && this.tactical) {
@@ -181,33 +264,57 @@ export class CampaignSim {
       s.realMs = this.tactical.state.clockMs;
       this.#events.push(...this.tactical.drainEvents());
       this.sectors?.afterTacticalStep();
-    } else s.realMs += TICK_MS;
+    } else if (s.flow === 'autoresolve') this.battle?.stepAutoresolve();
+    else {
+      s.realMs += TICK_MS;
+      this.#updatePausedStatesDueToTimeCompression();
+    }
     updateClock(this.#clock, s.realMs);
-    if (this.sectors) this.#events.push(...this.sectors.drainEvents());
+    this.#collectEvents();
+    this.battle?.afterStep();
+    this.#collectEvents();
+    this.#syncClockEvents();
   }
 
   isIdle(): boolean {
     const s = this.state;
+    if (s.flow === 'autoresolve') return this.battle?.autoresolveIdle() ?? true;
     if (s.flow === 'tactical' && this.tactical) return this.tactical.isIdle();
     return !isTimeBeingCompressed(s.clock);
   }
 
   hasPendingDecision(): boolean {
+    if (this.battle?.hasPendingDecision()) return true;
     return this.state.flow === 'tactical' && this.tactical !== null && this.tactical.hasPendingDecision();
   }
 
   drainEvents(): SimEvent[] {
-    if (this.sectors) this.#events.push(...this.sectors.drainEvents());
+    this.#collectEvents();
     return this.#events.splice(0);
   }
 
   dispatch(cmd: CampaignCommand): CommandResult {
+    const result = this.#dispatch(cmd);
+    this.#collectEvents();
+    this.battle?.settle();
+    this.#collectEvents();
+    this.#syncClockEvents();
+    return result;
+  }
+
+  #dispatch(cmd: CampaignCommand): CommandResult {
+    const battle = this.battle?.dispatch(cmd);
+    if (battle) return battle;
     switch (cmd.type) {
       case 'compressTime':
         return this.#compress(cmd);
       case 'stopTime':
-        stopTimeCompression(this.#clock);
+        stopTimeCompression(this.#clock, CompressionStop.REQUESTED);
         return { ok: true };
+      case 'mapScreen':
+        return openMapScreen(this);
+      case 'tacticalScreen':
+        return openTacticalScreen(this);
       default:
         return (
           dispatchSectorCommand(this, cmd) ??
@@ -228,6 +335,8 @@ export class CampaignSim {
       if (this.state.flow !== 'strategic') return { ok: true };
     }
     const refused = startTimeCompression(this.#clock);
-    return refused ? { ok: false, reason: refused } : { ok: true };
+    if (refused) return { ok: false, reason: refused };
+    this.#updatePausedStatesDueToTimeCompression();
+    return { ok: true };
   }
 }

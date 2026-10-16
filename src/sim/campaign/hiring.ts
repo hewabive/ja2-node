@@ -11,7 +11,7 @@ import { InsertionCode } from '../strategic/forces/constants.ts';
 import { addCharacterToAnySquad } from '../strategic/forces/squads.ts';
 import { CompressMode, EventKind, FIRST_ARRIVAL_DELAY, NUM_SEC_IN_MIN, STARTING_TIME, Warp } from '../strategic/time/constants.ts';
 import { addStrategicEvent } from '../strategic/time/event-queue.ts';
-import { setGameTimeCompressionLevel, stopTimeCompression, warpGameTime } from '../strategic/time/world-clock.ts';
+import { CompressionStop, setGameTimeCompressionLevel, stopTimeCompression, warpGameTime } from '../strategic/time/world-clock.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { createMercFromProfile } from '../tactical/creation.ts';
 import { autoPlaceObject } from '../tactical/inventory.ts';
@@ -97,7 +97,7 @@ export function mercArrives(campaign: CampaignSim, id: number): void {
   const strategic = campaign.strategic;
   const merc = strategic?.mercs.get(id);
   if (!merc || !strategic) return;
-  stopTimeCompression(campaign.clockContext);
+  stopTimeCompression(campaign.clockContext, CompressionStop.MERC_ARRIVED);
   addCharacterToAnySquad(strategic, id);
   const world = campaign.state.worldSector;
   if (world && sameSector(world, merc.sector)) strategic.mercs.updateMercInSector(id, merc.sector);

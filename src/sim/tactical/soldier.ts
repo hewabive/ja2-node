@@ -387,6 +387,7 @@ export interface Soldier {
   teamMoraleMod: number;
   tacticalMoraleMod: number;
   strategicMoraleMod: number;
+  delayedStrategicMoraleMod: number;
   ctgtTarget: Soldier | null;
   blindedCounter: number;
   displayDamage: boolean;
@@ -663,6 +664,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     teamMoraleMod: 0,
     tacticalMoraleMod: 0,
     strategicMoraleMod: 0,
+    delayedStrategicMoraleMod: 0,
     ctgtTarget: null,
     blindedCounter: 0,
     displayDamage: false,

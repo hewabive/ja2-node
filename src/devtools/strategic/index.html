@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Strategic map · ja2-node</title>
+    <link rel="stylesheet" href="../map-viewer/style.css" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header>
+      <a href="/" class="brand">ja2-node</a>
+      <span class="title">strategic map</span>
+      <label>session <select id="session"></select></label>
+      <span class="group">new campaign
+        <select id="difficulty"><option value="1">easy</option><option value="2" selected>medium</option><option value="3">hard</option></select>
+        <button type="button" id="newCampaign">start</button>
+      </span>
+      <span class="group">time
+        <button type="button" data-drive="manual">pause</button><button type="button" data-drive="realtime">run</button>
+      </span>
+      <span class="group">screen <button type="button" id="mapScreen">map</button><button type="button" id="tacticalScreen">tactical</button></span>
+      <span class="group">compress
+        <button type="button" data-compress="2">5 min</button><button type="button" data-compress="3">30 min</button><button type="button" data-compress="4">60 min</button><button type="button" id="stopTime">stop</button>
+      </span>
+      <button type="button" id="advance">advance to next stop</button>
+      <span id="clock" class="clock"></span>
+      <span id="status" class="status">connecting…</span>
+    </header>
+    <main class="strategic">
+      <div class="board">
+        <div id="map" class="map"></div>
+      </div>
+      <aside class="side">
+        <section id="battle" class="battle" hidden>
+          <h2 id="battleTitle">Battle</h2>
+          <div id="battleInfo" class="battle-info"></div>
+          <div id="choices" class="actions"></div>
+          <table id="cells" class="mercs"></table>
+        </section>
+        <section>
+          <h2>Mercs</h2>
+          <table id="mercs" class="mercs"></table>
+        </section>
+        <section>
+          <h2>Groups</h2>
+          <ul id="groups" class="groups"></ul>
+        </section>
+        <section>
+          <h2 id="sectorTitle">Sector</h2>
+          <div id="sectorInfo" class="sector-info">Click a sector.</div>
+          <div class="actions">
+            <button type="button" id="route" disabled>route the selected squads here</button>
+            <button type="button" id="enter" disabled>enter sector</button>
+            <a id="tactical" class="tactical-link" href="../tactical/">tactical view</a>
+          </div>
+          <div id="result" class="result"></div>
+        </section>
+      </aside>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

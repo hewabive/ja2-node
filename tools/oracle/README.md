@@ -5,7 +5,8 @@ probe script and prints JSON lines. It gives reference values for our reimplemen
 (`docs/01-architecture.md` §8, level 6). The probes cover pathfinding, line of sight, the movement
 cost table, tactical lighting (`LightTrueLevel` of every tile), and the state of loaded saves: full soldier
 dumps, the chance to hit and AP cost of an aimed shot, and the AI's choice of the best shot; autoresolve battles
-are traced draw by draw and replayed through ja2-node.
+are traced draw by draw and replayed through ja2-node, together with their strategic aftermath and the encounter code
+of the pre-battle interface.
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -22,7 +23,11 @@ commit them.
 | `patches/0002-autoresolve-oracle.patch` | Draw trace, engine reseed and a headless autoresolve (see "Hooks") |
 | `patches/0003-strategic-ai-oracle.patch` | Trace marks around the load-time recomputation of the strategic AI (see "Hooks") |
 | `patches/0004-sector-transition-oracle.patch` | Wrappers for the static sector-exit helpers and trace marks around each placement (see "Hooks") |
+| `patches/0005-pre-battle-oracle.patch` | The encounter-code block of `InitPreBattleInterface` as a callable function (see "Hooks") |
 | `autoresolve-compare.ts` | Core replay of `autoresolve` probes through ja2-node's autoresolve |
+| `autoresolve-aftermath.ts` | Level 3 of `autoresolve` probes (the battle closed through ja2-node's battle flow on the imported save) and `enemycounts` |
+| `pre-battle-compare.ts` | The `pbi` probe of `compare.ts` |
+| `probes/battle.txt` | Battles from the strategic state (see "Autoresolve") |
 | `probes/a9-*.txt` | Probe scripts for sector A9 (Omerta) |
 | `save-probes.ts` | Writes a probe script for the user's native saves (see "Savegames") |
 | `map-light-probes.ts` | Writes a light-dump script for every original map with light sprites (see "Lights") |
@@ -137,7 +142,9 @@ an `error` line and the script continues. The last line is always
 | `stratpath` | `from=<sector>`, `to=<sector>`, `mask=…`, `tactical=0\|1` | `BuildAStrategicPath`, `RebuildWayPointsForGroupPath` and `CalculateTravelTimeOfGroup` on a scratch group |
 | `groups` | | The strategic movement state of a loaded save: groups, squads, vehicles, sectors, underground, arrival events, merc paths |
 | `seed` | `value=<n>`, `pre=keep\|reseed` | Reseeds the `Random` engine (the save restores the `PreRandom` ring, not the engine); `reseed` also refills the ring from it and resets its index |
-| `arsetup` | `sector=<A1..P16>`, `code=invasion\|encounter`, `militia=<g>,<r>,<e>`, `enemies=<admins>,<troops>,<elites>`, `persistent=1`, `day=<n>` | Writes the sector's militia and garrison counts, `gubEnemyEncounterCode`, `gubPBSector`, `gfPersistantPBI` and optionally the world day (capture needs day 4) |
+| `arsetup` | `sector=<A1..P16>`, `code=invasion\|encounter`, `militia=<g>,<r>,<e>`, `enemies=<admins>,<troops>,<elites>`, `persistent=1`, `day=<n>`, `groups=<a>:<t>:<e>/…`, `tacticalmilitia=1` | Writes the sector's militia and garrison counts, `gubEnemyEncounterCode`, `gubPBSector`, `gfPersistantPBI` and optionally the world day (capture needs day 4); `groups` adds enemy groups with `CreateNewEnemyGroupDepartingFromSector` (ids in the output); `tacticalmilitia` needs the sector loaded and runs `ResetMilitia()` so the militia stand in tactical (the hand-off case) |
+| `enemycounts` | `sector=<A1..P16>` | Garrison id and counts, `NumStationaryEnemiesInSector`, `NumMobileEnemiesInSector`, `GetNumberOfEnemiesInSector`, `NumEnemiesInSector` |
+| `pbi` | `sector=<A1..P16>`, `group=player\|enemy\|creature`, `enemies=<a>,<t>,<e>`, `highpotential=1`, `cantretreat=1`, `mercslife=<n>` | Sets `gfHighPotentialForAmbush` and `gfCantRetreatInPBI`, optionally the life of our mercs in the sector, and runs `WakeUpAllMercsInSectorUnderAttack` and the encounter-code block of `InitPreBattleInterface` (patch 0005) for the save's player group there, a new enemy group (default 0,4,0) or a creature attack; dumps the code, the flags and the traced draws |
 | `autoresolve` | `trace=1`, `retreat=<slice>:<soldier id>\|all,…`, `surrender=reject\|accept`, `bandage=0\|1`, `maxSlices=<n>` | Runs a headless Finish-mode autoresolve on the save's mercs in the `arsetup` sector (patch 0002) and dumps the cells after creation and after the ratings, the commands, the result (per cell, team state, clock warp, militia, promotions, sector counts, loyalty) and the traced draws |
 | `strategic` | | Towns (rating, change, started, liberated, `GetTownSectorsUnderControl`), every town and SAM sector (militia, training paid/percent/hundredths, ever controlled, enemy controlled, `SectorOursAndPeaceful`, `MilitiaTrainingAllowedInSector`, `IsAreaFullOfMilitia`, SAM condition), the mines (every `MINE_STATUS_TYPE` field, `PredictDailyIncomeFromAMine`, `GetMaxDailyRemovalFromMine`), `fEnemyAirControlled` of the 256 sectors, balance, `PredictIncomeFromPlayerMines`, `CalcMaxPlayerIncomeFromMines`, progress, Enrico flags and the activity counters |
 | `mercs` | `detail=strategic` | Per OUR merc: assignment, train stat, sleep/collapse/forced-awake/tired/nothing-to-do flags, breath, life, `sFractLife`, bleeding, last assignment change, need for sleep, and the estimates `CalculateHealingPointsForDoctor`, `CalculateRepairPointsForRepairman` (both with `fMakeSureKitIsInHand = FALSE`), `GetTownTrainPtsForCharacter`, and for the nine trainable stats `GetSoldierTrainingPts`, `GetSoldierStudentPts`, `GetBonusTrainingPtsDueToInstructor(s, NULL)` (points and max) |
@@ -617,6 +624,31 @@ orders, bandaging, militia promotions, six surrender offers with accept and reje
 generated set of 30 more battles over SaveGame01, 02, 07, 09 and 10 (B13, C13, D13; random militia, garrisons, encounter
 codes, retreats, `pre=keep` and `pre=reseed`).
 
+Level 3 ("aftermath", `autoresolve-aftermath.ts`) runs for every `autoresolve` probe that follows a `save`: the save is
+imported into a campaign session, the `arsetup` is applied to it (counts, enemy groups, day, `ResetMilitia`), the
+counts and town loyalty before the battle are compared, the replayed battle is handed to the battle flow
+(`adoptAutoresolve`), the `bandage` and `done` answers go through `dispatch` with the traced close draws, and the world
+seconds, enemy counts (stationary, total, in sector), militia, `fEnemyControlled` and town loyalty after the close are
+compared, plus the enemy group id of every cell from a fresh `associateEnemiesWithStrategicGroups` (Q16). Level 2
+(creation) is not compared: ja2-node's militia creation already diverges at the 44th `main` draw of the first militiaman
+(a range of 4 where the native draws `Random(100)`), a docs/06/docs/12 follow-up.
+
+`probes/battle.txt` adds the strategic side of docs/19 §7.4: eight `pbi` probes (codes invasion, encounter, ambush,
+entering an enemy sector and creature attack; `gfCantRetreatInPBI`, a high ambush potential and unconscious mercs), five
+`enemycounts` (H1 confirms Q12: its garrison, id 25, is counted both as stationary and as mobile) and five battles: two
+enemy groups whose ranks do not match the cell classes (Q16), a retreat, victories that leave D13 enemy-controlled
+(Q14 holds), and a persistent and a non-persistent autoresolve with the militia loaded in tactical (Q22 holds: the
+town loyalty after the close includes the `ABANDON_MILITIA` penalty of `EndTacticalBattleForEnemy`).
+
+```sh
+tools/oracle/run.sh tools/oracle/probes/battle.txt ~/ja2-oracle/battle/battle.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle/battle/battle.jsonl
+```
+
+On 2026-10-16 all of it matched, and level 3 matched on the 8 battles of `autoresolve-d13.txt`, the 6 of
+`autoresolve-capture.txt` and the 30 generated ones. The saves are on easy with 2–4 % progress, so the random-ambush
+branch (`PreRandom(100)` against the ambush chance) is not reachable natively; its arithmetic is covered by unit tests.
+
 ## Shipped probes
 
 | Script | Content |
@@ -626,6 +658,7 @@ codes, retreats, `pre=keep` and `pre=reseed`).
 | `probes/a9-costs.txt` | The full movement cost table of A9 |
 | `probes/autoresolve-d13.txt` | Eight autoresolve battles on SaveGame10 (D13): invasion and encounter codes, 0–11 militia, 6–32 enemies, bandaging, retreat orders for all and for one merc |
 | `probes/autoresolve-capture.txt` | Six battles on SaveGame10 at day 5–7 with 20–32 enemies and no militia: the surrender offer, accepted or rejected |
+| `probes/battle.txt` | Eight `pbi` probes on SaveGame01, 02 and 10, `enemycounts` for H1, B13, C13 and D13, and five battles on SaveGame09 and 10 with extra enemy groups and militia loaded in tactical |
 | `probes/economy.txt` | `strategic` and `mercs` after each of the six saves, nine `loyalty` events, and `warp`s of two, three and eight hours (the last after assigning two militia trainers and a self-trainer in B13) |
 | `probes/strategic.txt` | The travel table for the five transports, A9→P3 for every mask and other long, unreachable, tactical-traversal and trivial routes, then `save` + `groups` for SaveGame01, 02, 07, 08, 09, 10 |
 | `probes/sai-newgame.txt` | Seven seeded new games on every difficulty (draw log of `InitNewCampaign`, `sai`), three of them followed by `saiwake`, `saievaluate`, `saicheck` and `saiarrive count=60` with dumps, the others by `saiarrive count=40` |
@@ -691,6 +724,11 @@ replay exactly those draws out of the whole `LoadSavedGame` trace. Regenerate it
 `src/game/Strategic/StrategicMap.cc`, and to `src/game/Tactical/Soldier_Init_List.cc` `OracleSortSoldierInitList` plus a
 scope guard at the top of `AddPlacementToWorld` that writes `OracleTraceMark(1000 + node id)` on entry and
 `OracleTraceMark(999)` on every return. Regenerate it like 0002 with those two paths.
+
+`patches/0005-pre-battle-oracle.patch` (applied after 0004) touches `src/game/Strategic/PreBattle_Interface.cc` only:
+the encounter-code block of `InitPreBattleInterface` moves into `DeterminePersistentEncounterCode` (same code, same
+call site), and the appended `OracleDeterminePersistentEncounterCode(group, sector)` runs
+`WakeUpAllMercsInSectorUnderAttack` and that block headless for the `pbi` probe. Regenerate it like 0002 with that path.
 
 ## Notes
 

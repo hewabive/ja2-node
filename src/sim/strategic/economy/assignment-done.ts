@@ -7,7 +7,7 @@
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
 import { EventKind } from '../time/constants.ts';
 import { addStrategicEvent } from '../time/event-queue.ts';
-import { stopTimeCompression, worldTotalMinutes } from '../time/world-clock.ts';
+import { CompressionStop, stopTimeCompression, worldTotalMinutes } from '../time/world-clock.ts';
 import {
   anyDoctorWhoCanHealThisPatient,
   canCharacterDoctor,
@@ -63,7 +63,7 @@ export function assignmentDone(ctx: EconomyContext, s: CrewMember, sayQuote: boo
 
 export function assignmentAborted(ctx: EconomyContext, s: CrewMember, reason: AbortReason): void {
   ctx.events.push({ type: 'assignmentAborted', soldier: s.id, reason });
-  stopTimeCompression(ctx.clock);
+  stopTimeCompression(ctx.clock, CompressionStop.ASSIGNMENT_DONE);
 }
 
 function nothingToDo(ctx: EconomyContext, s: CrewMember): boolean {

@@ -10,6 +10,7 @@ import { DrawMismatch, ReplayStream, type TracedDraw } from '../../src/sim/strat
 import {
   type ArCell,
   type AutoresolveEnv,
+  type AutoresolveHooks,
   type AutoresolveState,
   CellFlag,
   cosmeticOnMain,
@@ -197,7 +198,7 @@ function progressFrom(p: Json): ProfileProgress {
   };
 }
 
-interface Built {
+export interface Built {
   readonly ar: AutoresolveState;
   readonly profiles: Map<number, ProfileProgress>;
 }
@@ -229,7 +230,7 @@ function build(content: TacticalContent, p: Json): Built {
   return { ar, profiles };
 }
 
-class Report {
+export class Report {
   readonly label: string;
   readonly problems: string[] = [];
 
@@ -318,6 +319,7 @@ function replayEnv(
   built: Built,
   p: Json,
   seg: Segment,
+  extraHooks: AutoresolveHooks = {},
 ): { env: AutoresolveEnv; pre: ReplayStream; main: ReplayStream } {
   const pre = new ReplayStream('pre', seg.pre);
   const main = new ReplayStream('main', seg.main);
@@ -330,7 +332,7 @@ function replayEnv(
     profiles: built.profiles,
     rng: cosmeticOnMain({ pre, main, fx: main }),
     world: { day: num(p.day), playerCapturedForRescue: Boolean(p.playerCapturedForRescue) },
-    hooks: { surrender: () => answer, controlsRobot: (s) => s.id === controllerId },
+    hooks: { ...extraHooks, surrender: () => answer, controlsRobot: (s) => s.id === controllerId },
   };
   return { env, pre, main };
 }
@@ -396,19 +398,44 @@ function closeReplay(r: Report, content: TacticalContent, built: Built, p: Json,
   return result.warpSeconds;
 }
 
-export function compareAutoresolve(content: TacticalContent, p: Json): number {
+export interface ReplayedBattle {
+  readonly built: Built;
+  readonly seg: Segment;
+  readonly pre: ReplayStream;
+  readonly main: ReplayStream;
+}
+
+export function replayBattle(
+  content: TacticalContent,
+  p: Json,
+  onRatings?: (ar: AutoresolveState) => void,
+  hooks: AutoresolveHooks = {},
+): ReplayedBattle {
+  const draws = (p.draws ?? []) as Draw[];
+  const built = build(content, p);
+  const seg = battleSegment(draws);
+  const { env, pre, main } = replayEnv(content, built, p, seg, hooks);
+  if (built.ar.robot >= 0)
+    built.ar.robotController = num(obj(p.setupInfo).robotController) >= 0 ? num(obj(p.setupInfo).robotController) : NO_CONTROLLER;
+  determineTeamLeaders(built.ar);
+  calculateAttackValues(env.rng.pre, built.ar);
+  onRatings?.(built.ar);
+  runBattle(env, built.ar, p);
+  return { built, seg, pre, main };
+}
+
+export function replayStreams(p: Json, from: number, to: readonly number[]): { readonly pre: ReplayStream; readonly main: ReplayStream } {
+  const seg = segment((p.draws ?? []) as Draw[], from, to);
+  return { pre: new ReplayStream('pre', seg.pre), main: new ReplayStream('main', seg.main) };
+}
+
+export const AutoresolveMark = Mark;
+
+export function compareAutoresolve(content: TacticalContent, p: Json, aftermath?: (r: Report) => void): number {
   const r = new Report(`autoresolve line ${String(p.line)}`);
   const draws = (p.draws ?? []) as Draw[];
   try {
-    const built = build(content, p);
-    const seg = battleSegment(draws);
-    const { env, pre, main } = replayEnv(content, built, p, seg);
-    if (built.ar.robot >= 0)
-      built.ar.robotController = num(obj(p.setupInfo).robotController) >= 0 ? num(obj(p.setupInfo).robotController) : NO_CONTROLLER;
-    determineTeamLeaders(built.ar);
-    calculateAttackValues(env.rng.pre, built.ar);
-    compareRatings(r, built.ar, p);
-    runBattle(env, built.ar, p);
+    const { built, seg, pre, main } = replayBattle(content, p, (ar) => compareRatings(r, ar, p));
     const battle = obj(obj(p.result).battle);
     r.same('status', built.ar.status, battle.status);
     r.same('battle ms', built.ar.elapsedMs, battle.elapsedMs);
@@ -428,6 +455,7 @@ export function compareAutoresolve(content: TacticalContent, p: Json): number {
     compareCells(r, built, p);
     r.same('player kills', built.ar.playerKills, obj(p.result).playerKills);
     closeReplay(r, content, built, p, draws);
+    aftermath?.(r);
     const ok = r.problems.length === 0;
     console.log(
       `${r.label}: ${ok ? 'ok' : 'MISMATCH'} ${String(p.sector)} status ${built.ar.status} slices ${built.ar.slices} ` +

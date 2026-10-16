@@ -1,0 +1,49 @@
+# Battles from the strategic state (docs/19 §7.4): the encounter code of the pre-battle interface, enemy counts with the
+# H1 roadblock id (Q12), autoresolve against enemy groups whose ranks do not match the cell classes (Q16), victories that
+# leave the sector enemy-controlled (Q14) and autoresolve of a loaded sector with militia in tactical (Q22). Each
+# autoresolve is compared at level 1 (core replay) and level 3 (aftermath on the imported save) by compare.ts.
+save SaveGame10
+pbi sector=D13 group=player
+save SaveGame10
+pbi sector=D13 group=enemy enemies=0,4,0
+save SaveGame10
+pbi sector=D13 group=creature
+save SaveGame01
+seed value=41 pre=reseed
+pbi sector=B13 group=player highpotential=1
+save SaveGame01
+seed value=42 pre=reseed
+pbi sector=B13 group=player highpotential=1 cantretreat=1
+save SaveGame01
+pbi sector=B13 group=enemy enemies=1,3,1
+save SaveGame01
+pbi sector=B13 group=player mercslife=10 cantretreat=1
+save SaveGame02
+pbi sector=C13 group=player
+save SaveGame10
+enemycounts sector=H1
+enemycounts sector=D13
+enemycounts sector=B13
+save SaveGame01
+enemycounts sector=H1
+enemycounts sector=C13
+save SaveGame10
+seed value=31 pre=reseed
+arsetup sector=D13 code=encounter militia=0,0,0 enemies=0,0,0 groups=0:3:0/0:0:2
+autoresolve
+save SaveGame10
+seed value=32 pre=reseed
+arsetup sector=D13 code=invasion militia=2,2,0 enemies=1,1,0 groups=0:2:0/1:0:2
+autoresolve bandage=1
+save SaveGame09
+seed value=33 pre=reseed
+arsetup sector=D13 code=encounter militia=0,0,0 enemies=0,1,0 groups=2:1:0/0:1:3
+autoresolve retreat=4:all
+save SaveGame10
+seed value=34 pre=reseed
+arsetup sector=D13 code=invasion militia=3,1,0 enemies=0,3,1 tacticalmilitia=1
+autoresolve
+save SaveGame10
+seed value=35 pre=reseed
+arsetup sector=D13 code=invasion militia=2,1,0 tacticalmilitia=1 persistent=0
+autoresolve bandage=1

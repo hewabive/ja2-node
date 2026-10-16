@@ -40,6 +40,7 @@ export interface TurnState {
   interruptOccurred: boolean;
   enemySightingOnTheirTurn: { enemy: Soldier; since: number } | null;
   killedEnemyOnAttack: boolean;
+  killingGuysForLosingBattle: boolean;
   checkSightAtEndOfAttack: boolean;
   selected: number;
   readonly intList: Soldier[];
@@ -74,6 +75,7 @@ export function createTurnState(maxSoldiers: number): TurnState {
     interruptOccurred: false,
     enemySightingOnTheirTurn: null,
     killedEnemyOnAttack: false,
+    killingGuysForLosingBattle: false,
     checkSightAtEndOfAttack: false,
     selected: -1,
     intList: [],

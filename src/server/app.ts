@@ -6,8 +6,9 @@ import { getCookie, setCookie } from 'hono/cookie';
 import { createMiddleware } from 'hono/factory';
 import { vfsExtension } from '../content/vfs/path.ts';
 import { type Vfs, VfsNotFoundError } from '../content/vfs/vfs.ts';
-import { handleMcpRequest, type SessionFactory } from './mcp.ts';
+import { handleMcpRequest } from './mcp.ts';
 import type { Session } from './session.ts';
+import { describeSession, newSessionRequest, openSession, type SessionFactory } from './session-registry.ts';
 
 export interface AppInfo {
   readonly originalData: boolean;
@@ -119,6 +120,20 @@ export function createApp(options: AppOptions): Hono {
       return [f.path, f.size, i] as const;
     });
     return c.json({ layers, files });
+  });
+
+  app.get('/api/sessions', (c) => c.json([...(options.sessions?.values() ?? [])].map(describeSession)));
+
+  app.post('/api/sessions', async (c) => {
+    const { sessions, createSession } = options;
+    if (!sessions || !createSession) return c.json({ error: 'sessions are not available' }, 404);
+    const request = newSessionRequest.safeParse(await c.req.json().catch(() => null));
+    if (!request.success) return c.json({ error: request.error.message }, 400);
+    try {
+      return c.json(describeSession(await openSession(sessions, options.defaultSession ?? 'sandbox', createSession, request.data)));
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 400);
+    }
   });
 
   app.get('/vfs/*', async (c) => {

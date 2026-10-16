@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { MemoryLayer, Vfs } from '../content/vfs/vfs.ts';
 import { createApp, parseRange } from './app.ts';
+import { Session, type SessionSim } from './session.ts';
+import type { SessionRequest } from './session-registry.ts';
 
 const token = 'test-token-0123456789';
 const data = new TextEncoder().encode('0123456789');
@@ -81,5 +83,50 @@ describe('server', () => {
     expect(parseRange('bytes=10-', 10)).toBe('unsatisfiable');
     expect(parseRange('bytes=1-2,4-5', 10)).toBeNull();
     expect(parseRange('bytes=5-2', 10)).toBeNull();
+  });
+});
+
+describe('session endpoints', () => {
+  const still: SessionSim = {
+    tick: 0,
+    isIdle: () => true,
+    hasPendingDecision: () => false,
+    step: () => {},
+    drainEvents: () => [],
+    dispatch: () => ({ ok: true }),
+    view: () => ({ tick: 0, mapPath: null, soldiers: [] }),
+  };
+  const requests: SessionRequest[] = [];
+  const sessions = new Map([['sandbox', new Session('sandbox', still)]]);
+  const withSessions = createApp({
+    vfs: new Vfs([]),
+    token,
+    info: { originalData: false, slfCount: 0, stubs: true },
+    sessions,
+    defaultSession: 'sandbox',
+    createSession: async (id, request) => {
+      requests.push(request);
+      return new Session(id, still);
+    },
+  });
+  const post = (body: unknown) =>
+    withSessions.request('http://localhost/api/sessions', {
+      method: 'POST',
+      headers: { ...auth, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+  it('creates a campaign session and lists it', async () => {
+    const created = await (await post({ seed: 4, campaign: { difficulty: 3, mercs: 2 } })).json();
+    expect(created).toMatchObject({ session: 'sandbox-1' });
+    expect(requests.at(-1)).toEqual({ seed: 4, campaign: { difficulty: 3, mercs: 2 } });
+    const list = await (await withSessions.request('http://localhost/api/sessions', { headers: auth })).json();
+    expect(list.map((s: { session: string }) => s.session)).toEqual(['sandbox', 'sandbox-1']);
+  });
+
+  it('refuses malformed and contradictory requests', async () => {
+    expect((await post({ campaign: { difficulty: 9 } })).status).toBe(400);
+    expect((await post({ save: 'SaveGame01', campaign: {} })).status).toBe(400);
+    expect((await post({ unknown: true })).status).toBe(400);
   });
 });

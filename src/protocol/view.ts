@@ -65,7 +65,7 @@ export interface StrategicMercView {
 export interface StrategicGroupView {
   readonly id: number;
   readonly sector: string;
-  readonly next: string;
+  readonly next: string | null;
   readonly betweenSectors: boolean;
   readonly members: readonly number[];
   readonly etaMinutes: number;
@@ -75,10 +75,93 @@ export interface StrategicGroupView {
 export interface StrategicView {
   readonly balance: number;
   readonly worldSector: string | null;
-  readonly flow: 'strategic' | 'tactical';
+  readonly flow: 'strategic' | 'tactical' | 'autoresolve';
   readonly sectors: readonly StrategicSectorView[];
   readonly mercs: readonly StrategicMercView[];
   readonly groups: readonly StrategicGroupView[];
+}
+
+export interface PromptOptionView {
+  readonly choice: string;
+  readonly enabled: boolean;
+  readonly reason?: string;
+}
+
+export interface InvolvedMercView {
+  readonly soldier: number;
+  readonly name: string;
+  readonly assignment: number;
+  readonly condition: string;
+  readonly hp: number;
+  readonly bp: number;
+}
+
+export interface UninvolvedMercView {
+  readonly soldier: number;
+  readonly name: string;
+  readonly assignment: number;
+  readonly location: string;
+  readonly destination?: string;
+}
+
+export type PromptView =
+  | {
+      readonly id: string;
+      readonly kind: 'preBattle';
+      readonly sector: string;
+      readonly persistent: boolean;
+      readonly encounter: string;
+      readonly enemies: number | 'unknown';
+      readonly militia: number;
+      readonly involved: readonly InvolvedMercView[];
+      readonly uninvolved: readonly UninvolvedMercView[];
+      readonly options: readonly PromptOptionView[];
+    }
+  | { readonly id: string; readonly kind: 'surrender'; readonly choices: readonly string[] }
+  | {
+      readonly id: string;
+      readonly kind: 'autoresolveDone';
+      readonly status: string;
+      readonly canBandage: boolean;
+      readonly choices: readonly string[];
+    }
+  | {
+      readonly id: string;
+      readonly kind: 'simultaneousArrival';
+      readonly sector: string;
+      readonly groups: number;
+      readonly choices: readonly string[];
+    }
+  | {
+      readonly id: string;
+      readonly kind: 'npcOfNote';
+      readonly group: number;
+      readonly sector: string;
+      readonly choices: readonly string[];
+    };
+
+export interface AutoresolveCellView {
+  readonly side: 'merc' | 'militia' | 'enemy';
+  readonly index: number;
+  readonly kind: string;
+  readonly state: 'alive' | 'unconscious' | 'dead' | 'retreating' | 'retreated';
+  readonly soldier?: number;
+  readonly name?: string;
+  readonly life?: number;
+  readonly lifeMax?: number;
+  readonly bleeding?: number;
+  readonly breathMax?: number;
+  readonly morale?: number;
+  readonly health?: string;
+  readonly hurt?: boolean;
+}
+
+export interface AutoresolveView {
+  readonly sector: string;
+  readonly status: string;
+  readonly battleSeconds: number;
+  readonly alive: { readonly mercs: number; readonly militia: number; readonly enemies: number };
+  readonly cells: readonly AutoresolveCellView[];
 }
 
 export interface PlayerView {
@@ -86,6 +169,8 @@ export interface PlayerView {
   readonly mapPath: string | null;
   readonly clock?: ClockView;
   readonly strategic?: StrategicView;
+  readonly prompt?: PromptView | null;
+  readonly autoresolve?: AutoresolveView | null;
   readonly soldiers: readonly SoldierView[];
   readonly openDoors?: readonly number[];
   readonly combat?: CombatView | null;
@@ -97,6 +182,11 @@ export interface ViewFrame {
   readonly tick: number;
   readonly changed: readonly SoldierView[];
   readonly removed: readonly number[];
+  readonly mapPath?: string | null;
+  readonly clock?: ClockView;
+  readonly strategic?: StrategicView;
+  readonly prompt?: PromptView | null;
+  readonly autoresolve?: AutoresolveView | null;
   readonly openDoors?: readonly number[];
   readonly combat?: CombatView | null;
   readonly revealedRooms?: readonly number[];
@@ -133,7 +223,20 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), items: next.items ?? [] };
   if (!sameCombat(previous.combat, next.combat))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), combat: next.combat ?? null };
+  if (previous.mapPath !== next.mapPath) frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), mapPath: next.mapPath };
+  if (next.clock && !sameClock(previous.clock, next.clock))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), clock: next.clock };
+  if (next.strategic && JSON.stringify(previous.strategic) !== JSON.stringify(next.strategic))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), strategic: next.strategic };
+  if (JSON.stringify(previous.prompt ?? null) !== JSON.stringify(next.prompt ?? null))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), prompt: next.prompt ?? null };
+  if (JSON.stringify(previous.autoresolve ?? null) !== JSON.stringify(next.autoresolve ?? null))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), autoresolve: next.autoresolve ?? null };
   return frame;
+}
+
+function sameClock(a: ClockView | undefined, b: ClockView): boolean {
+  return !!a && a.day === b.day && a.hour === b.hour && a.minute === b.minute && a.compressing === b.compressing;
 }
 
 function sameSoldier(a: SoldierView, b: SoldierView): boolean {

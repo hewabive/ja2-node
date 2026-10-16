@@ -27,7 +27,7 @@ import {
   ptsToMoveDirection,
   unusedAPsToBreath,
 } from '../points.ts';
-import { AlertStatus, Body, NO_INTERRUPT, NOWHERE, OKLIFE, ReasonCantFinishMove, Side, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Body, NO_INTERRUPT, NOWHERE, OKLIFE, Orders, ReasonCantFinishMove, Side, type Soldier, Team } from '../soldier.ts';
 import { mercs, type TacticalState, teamMembers } from '../state.ts';
 import { buildAIListForTeam, moveToFrontOfAIList, removeFirstAIListEntry } from './ai-list.ts';
 import { TEAM_COUNT } from './turn-state.ts';
@@ -357,23 +357,36 @@ export function checkForEndOfCombatMode(t: TacticalState, increment: boolean): b
   return false;
 }
 
+function militiaStillFighting(t: TacticalState): boolean {
+  return teamMembers(t, Team.MILITIA).some((s) => s.side === Side.FRIENDLY && s.life >= OKLIFE);
+}
+
 function checkForLosingEndOfBattle(t: TacticalState): boolean {
   const ours = teamMembers(t, Team.OUR).filter((s) => s.bodyType < Body.HUMVEE);
   if (ours.length === 0) return false;
-  return ours.every((s) => s.life < OKLIFE);
+  if (!ours.every((s) => s.life < OKLIFE)) return false;
+  if (militiaStillFighting(t) && t.sectorHooks.militiaFinishBattle(t)) return false;
+  if (ours.some((s) => s.life !== 0)) {
+    t.turn.killingGuysForLosingBattle = true;
+    t.sectorHooks.battleLost(t);
+    t.turn.killingGuysForLosingBattle = false;
+  }
+  return true;
 }
 
 export function checkForEndOfBattle(t: TacticalState): boolean {
   const turn = t.turn;
   if (!t.inCombat && !turn.enemyInSector) return false;
   if (turn.attackBusyCount > 0) return false;
-  const won = numCapableEnemyInSector(t) === 0;
+  if (turn.killingGuysForLosingBattle) return false;
+  const won = numCapableEnemyInSector(t) === 0 && !t.sectorHooks.pendingEnemies(t);
   const lost = checkForLosingEndOfBattle(t);
   if (lost) {
     endAllAITurns(t);
     turn.enemyInSector = false;
     if (t.inCombat) exitCombatMode(t);
     t.events.push({ type: 'combatEnded', reason: 'lost' });
+    t.sectorHooks.battleEnded(t, 'lost');
     return true;
   }
   if (won) {
@@ -386,6 +399,8 @@ export function checkForEndOfBattle(t: TacticalState): boolean {
       s.ai.noiseGridNo = NOWHERE;
       s.ai.noiseVolume = 0;
       s.ai.newSituation = 0;
+      s.ai.orders = Orders.STATIONARY;
+      if (s.life >= OKLIFE) s.bleeding = 0;
     }
     t.perception.awareOfOpposition[Team.MILITIA] = false;
     for (const s of teamMembers(t, Team.CIV)) {
@@ -397,6 +412,7 @@ export function checkForEndOfBattle(t: TacticalState): boolean {
     }
     t.perception.awareOfOpposition[Team.CIV] = false;
     t.events.push({ type: 'combatEnded', reason: 'won' });
+    t.sectorHooks.battleEnded(t, 'won');
     return true;
   }
   return false;

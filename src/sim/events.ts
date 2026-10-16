@@ -180,6 +180,147 @@ export interface MercsLeftSectorEvent extends SimEventBase {
   readonly to: string;
 }
 
+export interface ArCellRef {
+  readonly side: 'merc' | 'militia' | 'enemy';
+  readonly index: number;
+}
+
+export interface PreBattleEvent extends SimEventBase {
+  readonly type: 'preBattle';
+  readonly sector: string;
+  readonly encounter: string;
+  readonly persistent: boolean;
+  readonly autoStart: boolean;
+  readonly prompt: string | null;
+}
+
+export interface RetreatedEvent extends SimEventBase {
+  readonly type: 'retreated';
+  readonly sector: string;
+  readonly groups: readonly number[];
+  readonly via: 'preBattle' | 'autoresolve';
+}
+
+export interface ArStartedEvent extends SimEventBase {
+  readonly type: 'arStarted';
+  readonly sector: string;
+  readonly mercs: number;
+  readonly militia: number;
+  readonly enemies: number;
+}
+
+export interface ArAttackEvent extends SimEventBase {
+  readonly type: 'arAttack';
+  readonly battleMs: number;
+  readonly attacker: ArCellRef;
+  readonly target: ArCellRef;
+  readonly kind: 'shot' | 'spit' | 'claw' | 'knife' | 'punch';
+}
+
+export interface ArHitEvent extends SimEventBase {
+  readonly type: 'arHit';
+  readonly battleMs: number;
+  readonly target: ArCellRef;
+  readonly damage?: number;
+  readonly life?: number;
+  readonly health?: string;
+}
+
+export interface ArMissEvent extends SimEventBase {
+  readonly type: 'arMiss';
+  readonly battleMs: number;
+  readonly target: ArCellRef;
+}
+
+export interface ArFellEvent extends SimEventBase {
+  readonly type: 'arFell';
+  readonly battleMs: number;
+  readonly cell: ArCellRef;
+}
+
+export interface ArDiedEvent extends SimEventBase {
+  readonly type: 'arDied';
+  readonly battleMs: number;
+  readonly cell: ArCellRef;
+  readonly killer: ArCellRef | null;
+}
+
+export interface ArRetreatedEvent extends SimEventBase {
+  readonly type: 'arRetreated';
+  readonly battleMs: number;
+  readonly cell: ArCellRef;
+}
+
+export interface ArBattleOverEvent extends SimEventBase {
+  readonly type: 'arBattleOver';
+  readonly battleMs: number;
+  readonly status: string;
+}
+
+export interface ArSoundEvent extends SimEventBase {
+  readonly type: 'arSound';
+  readonly battleMs: number;
+  readonly sound: string;
+  readonly variant: number;
+}
+
+export interface ArSurrenderOfferedEvent extends SimEventBase {
+  readonly type: 'arSurrenderOffered';
+  readonly battleMs: number;
+}
+
+export interface ArSummaryEvent extends SimEventBase {
+  readonly type: 'arSummary';
+  readonly sector: string;
+  readonly status: string;
+  readonly battleSeconds: number;
+  readonly worldSecondsWarped: number;
+  readonly mercs: { readonly died: readonly number[]; readonly captured: readonly number[]; readonly wounded: readonly number[] };
+  readonly militia: { readonly died: number; readonly promoted: number };
+  readonly enemiesKilled: number;
+  readonly sectorControl: 'player' | 'enemy' | null;
+  readonly itemsDropped: number;
+}
+
+export interface BattleResultEvent extends SimEventBase {
+  readonly type: 'battleResult';
+  readonly sector: string;
+  readonly result: 'victory' | 'defeat';
+  readonly via: 'tactical' | 'autoresolve';
+}
+
+export interface SectorControlChangedEvent extends SimEventBase {
+  readonly type: 'sectorControlChanged';
+  readonly sector: string;
+  readonly controller: 'player' | 'enemy';
+}
+
+export interface MercCapturedEvent extends SimEventBase {
+  readonly type: 'mercCaptured';
+  readonly soldier: number;
+  readonly sector: string;
+}
+
+export interface CompressionStartedEvent extends SimEventBase {
+  readonly type: 'compressionStarted';
+  readonly mode: number;
+}
+
+export interface CompressionStoppedEvent extends SimEventBase {
+  readonly type: 'compressionStopped';
+  readonly reason: string;
+}
+
+export interface WorldTimeReachedEvent extends SimEventBase {
+  readonly type: 'worldTimeReached';
+  readonly seconds: number;
+}
+
+export interface DayStartedEvent extends SimEventBase {
+  readonly type: 'dayStarted';
+  readonly day: number;
+}
+
 export type SimEvent =
   | TickBudgetEvent
   | SectorLoadedEvent
@@ -208,5 +349,25 @@ export type SimEvent =
   | ExplosionEvent
   | StructureDamagedEvent
   | ItemsPickedUpEvent
-  | ItemDroppedEvent;
+  | ItemDroppedEvent
+  | PreBattleEvent
+  | RetreatedEvent
+  | ArStartedEvent
+  | ArAttackEvent
+  | ArHitEvent
+  | ArMissEvent
+  | ArFellEvent
+  | ArDiedEvent
+  | ArRetreatedEvent
+  | ArBattleOverEvent
+  | ArSoundEvent
+  | ArSurrenderOfferedEvent
+  | ArSummaryEvent
+  | BattleResultEvent
+  | SectorControlChangedEvent
+  | MercCapturedEvent
+  | CompressionStartedEvent
+  | CompressionStoppedEvent
+  | WorldTimeReachedEvent
+  | DayStartedEvent;
 export type SimEventType = SimEvent['type'];

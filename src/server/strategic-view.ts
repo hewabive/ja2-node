@@ -9,27 +9,26 @@ import {
 import type { StrategicGroupView, StrategicMercView, StrategicSectorView, StrategicView } from '../protocol/view.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { Assignment, SectorFlag } from '../sim/strategic/forces/constants.ts';
+import { numEnemiesInSector } from '../sim/strategic/forces/groups.ts';
 import type { StrategicContext, StrategicMerc } from '../sim/strategic/forces/ports.ts';
-import { canMercsScoutThisSector, canNearbyMilitiaScoutThisSector } from '../sim/strategic/map/knowledge.ts';
+import { EnemyKnowledge, peekPlayerKnowledgeOfEnemies } from '../sim/strategic/map/knowledge.ts';
 import { getSectorFlagStatus, sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { calculateTravelTimeOfGroup } from '../sim/strategic/map/travel.ts';
 
 const sectorName = (s: Sector) => (s.z ? `${sectorShortString(s)}-${s.z}` : sectorShortString(s));
 
 function knownEnemies(ctx: StrategicContext, s: Sector): number | '?' | null {
-  const info = sectorInfo(ctx.state.map, s);
-  const scouted =
-    canMercsScoutThisSector(ctx, s) ||
-    canNearbyMilitiaScoutThisSector(ctx, s) ||
-    (info.flags & SectorFlag.PLAYER_KNOWS_ENEMIES_ARE_HERE) !== 0;
-  if (scouted)
-    return (
-      info.numAdmins +
-      info.numTroops +
-      info.numElites +
-      ctx.state.forces.groups.filter((g) => !g.player && !g.vehicle && sameSector(g.sector, s)).reduce((n, g) => n + g.size, 0)
-    );
-  return getSectorFlagStatus(ctx.state.map, s, SectorFlag.ALREADY_VISITED) ? '?' : null;
+  if (ctx.state.didGameJustStart || s.z !== 0) return null;
+  const count = numEnemiesInSector(ctx, s);
+  if (count === 0) return null;
+  switch (peekPlayerKnowledgeOfEnemies(ctx, s)) {
+    case EnemyKnowledge.THEYRE_THERE:
+      return '?';
+    case EnemyKnowledge.HOW_MANY:
+      return count;
+    default:
+      return null;
+  }
 }
 
 function sectorView(ctx: StrategicContext, s: Sector): StrategicSectorView {
@@ -67,13 +66,13 @@ function mercView(
 
 function groupViews(ctx: StrategicContext): StrategicGroupView[] {
   return ctx.state.forces.groups
-    .filter((g) => g.player)
+    .filter((g) => g.player && g.members.length > 0)
     .map((g) => {
       const leader = ctx.mercs.get(g.members[0] ?? -1);
       return {
         id: g.id,
         sector: sectorName(g.sector),
-        next: sectorName(g.next),
+        next: g.betweenSectors ? sectorName(g.next) : null,
         betweenSectors: g.betweenSectors,
         members: [...g.members],
         etaMinutes: calculateTravelTimeOfGroup(ctx, g),

@@ -35,7 +35,9 @@ export interface PopulationOptions {
   readonly difficultyModifier: number;
 }
 
-function chooseHair(t: TacticalState, body: number, skin: number): number {
+export type CreationContext = Pick<TacticalState, 'rng' | 'content' | 'options' | 'equipment'>;
+
+function chooseHair(t: CreationContext, body: number, skin: number): number {
   const r = t.rng.int(100);
   let hair: number = HAIR.WHITE;
   if (skin <= 1) {
@@ -55,12 +57,12 @@ function chooseHair(t: TacticalState, body: number, skin: number): number {
   return hair;
 }
 
-function pick<T>(t: TacticalState, options: readonly T[]): T {
+function pick<T>(t: CreationContext, options: readonly T[]): T {
   return options[t.rng.int(options.length)] as T;
 }
 
 export function generatePalettes(
-  t: TacticalState,
+  t: CreationContext,
   body: number,
   team: number,
   soldierClass: number,
@@ -97,7 +99,7 @@ export function generatePalettes(
   }
 }
 
-function randomBody(t: TacticalState, team: number, soldierClass: number): number {
+function randomBody(t: CreationContext, team: number, soldierClass: number): number {
   if (team !== Team.CIV) return [Body.REGMALE, Body.BIGMALE, Body.STOCKYMALE, Body.REGFEMALE][t.rng.int(4)] ?? Body.REGMALE;
   if (soldierClass === SoldierClass.MINER) return [Body.REGMALE, Body.BIGMALE, Body.MANCIV][t.rng.int(3)] ?? Body.REGMALE;
   const r = t.rng.int(100);
@@ -144,7 +146,7 @@ interface Generated {
 }
 
 function generateBasic(
-  t: TacticalState,
+  t: CreationContext,
   team: number,
   soldierClass: number,
   bodyType: number,
@@ -277,7 +279,7 @@ export function createFromPlacement(t: TacticalState, id: number, placement: Pla
 }
 
 export function createFromPlacementParts(
-  t: TacticalState,
+  t: CreationContext,
   id: number,
   b: BasicPlacement,
   detailed: DetailedPlacement | null,
@@ -339,7 +341,7 @@ export function createFromPlacementParts(
   });
 }
 
-function createProfiledFromPlacement(t: TacticalState, id: number, b: BasicPlacement, d: DetailedPlacement): Soldier | null {
+function createProfiledFromPlacement(t: CreationContext, id: number, b: BasicPlacement, d: DetailedPlacement): Soldier | null {
   const profile = t.content.profiles[d.profile];
   if (!profile) return null;
   return createSoldier({

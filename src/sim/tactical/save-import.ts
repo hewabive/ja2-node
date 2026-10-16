@@ -289,6 +289,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.teamMoraleMod = r.moraleMods.team;
   s.tacticalMoraleMod = r.moraleMods.tactical;
   s.strategicMoraleMod = r.moraleMods.strategic;
+  s.delayedStrategicMoraleMod = r.moraleMods.delayedStrategic;
   s.blindedCounter = r.blindedCounter;
   s.sleepDrugCounter = r.sleepDrugCounter;
   s.heightAdjustment = r.heightAdjustment;

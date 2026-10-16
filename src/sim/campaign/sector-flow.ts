@@ -43,6 +43,7 @@ import type { EconomyContext } from '../strategic/economy/ports.ts';
 import { EncounterCode, InsertionCode, SectorFlag } from '../strategic/forces/constants.ts';
 import { countAllMilitiaInSector } from '../strategic/forces/groups.ts';
 import type { StrategicContext, TacticalWorldPort } from '../strategic/forces/ports.ts';
+import { calculateNonPersistentPbiInfo } from '../strategic/forces/pre-battle.ts';
 import { townIdOfSector } from '../strategic/map/control.ts';
 import {
   findUndergroundSector,
@@ -55,7 +56,7 @@ import {
 import type { SectorPosition } from '../strategic/state.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
 import { timeOfDayAmbientLightLevel } from '../strategic/time/environment.ts';
-import { setGameTimeCompressionLevel, worldDay, worldHour } from '../strategic/time/world-clock.ts';
+import { setGameTimeCompressionLevel, unPauseGame, worldDay, worldHour } from '../strategic/time/world-clock.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { beginMapEdgepointSearch, chooseMapEdgepoint, endMapEdgepointSearch, loadMapEdgepoints } from '../tactical/edgepoints.ts';
 import {
@@ -247,7 +248,18 @@ export class SectorFlow {
     }
     const wanted = parseSector(target);
     if (wanted) sectors.push(wanted);
+    sectors.push(...this.#battleSectors());
     return sectors.map((s) => this.mapPathOf(s));
+  }
+
+  #battleSectors(): Sector[] {
+    const s = this.campaign.state;
+    const found: Sector[] = [];
+    const pbi = s.battle.sector;
+    if (pbi) found.push({ x: pbi.x, y: pbi.y, z: 0 });
+    const handoff = s.encounter.preBattle?.sector;
+    if (handoff) found.push({ x: handoff.x, y: handoff.y, z: 0 });
+    return found;
   }
 
   mapPathOf(sector: Sector): string {
@@ -362,6 +374,11 @@ export class SectorFlow {
       mercsWaitOver: (_t, code) => {
         this.#pendingWait = code;
       },
+      mercDied: (_t, dead) => this.campaign.battle?.mercDiedInTactical(dead),
+      pendingEnemies: () => this.campaign.battle?.pendingEnemies() ?? false,
+      militiaFinishBattle: (t) => this.campaign.battle?.militiaFinishBattle(t) ?? false,
+      battleLost: (t) => this.campaign.battle?.battleLost(t),
+      battleEnded: (t, result) => this.campaign.battle?.tacticalBattleEnded(t, result === 'won'),
     };
   }
 
@@ -531,7 +548,9 @@ export class SectorFlow {
     t.turn.virginSector = true;
     this.prepareEnemyForSectorBattle();
     this.#callAvailableTeamEnemiesToAmbush(t);
+    unPauseGame(this.campaign.state.clock);
     this.campaign.state.encounter.battleGroup = null;
+    if (this.campaign.state.movement.tacticalTraversal.active && this.economy) calculateNonPersistentPbiInfo(this.economy);
     sim.lookAround();
   }
 
@@ -861,7 +880,7 @@ export class SectorFlow {
       }));
       handleMilitiaStatusBeforeLoadingNewMap(economy, world, {
         militiaFriendly: this.militiaFriendly(),
-        automaticallyStartAutoResolve: false,
+        automaticallyStartAutoResolve: this.campaign.state.battle.autoStart,
         militia,
       });
     }
@@ -878,15 +897,9 @@ export class SectorFlow {
 
   #bringUpAutoresolveToFinishBattle(): boolean {
     const t = this.campaign.tactical?.state;
-    if (!t) return false;
-    const enemies = t.soldiers.some((s) => s?.placed && s.life !== 0 && (s.team === Team.ENEMY || s.team === Team.CREATURE));
-    if (!enemies) return false;
-    const militia = teamMembers(t, Team.MILITIA).some((s) => s.life !== 0 && s.side === Side.FRIENDLY);
-    if (!militia) return false;
-    const enc = this.campaign.state.encounter;
-    enc.usePersistentPBI = false;
-    if (enc.code !== EncounterCode.CREATURE_ATTACK) enc.code = EncounterCode.ENEMY_INVASION;
-    return true;
+    const battle = this.campaign.battle;
+    if (!t || !battle) return false;
+    return battle.militiaFinishBattle(t);
   }
 
   checkAndHandleUnloadingOfCurrentWorld(): boolean {
@@ -898,21 +911,35 @@ export class SectorFlow {
     if (s.didGameJustStart && world.z === 0 && world.x === (start % 16) + 1 && world.y === Math.trunc(start / 16) + 1) return false;
     if (this.#mercsStillHere()) return false;
     if (this.#bringUpAutoresolveToFinishBattle()) return false;
-    const t = sim.state;
-    const q = this.queen;
-    if (q) {
-      const fighting = {
-        militia: teamMembers(t, Team.MILITIA).some((x) => x.life > 0),
-        enemies: teamMembers(t, Team.ENEMY).some((x) => x.life > 0),
-        creatures: teamMembers(t, Team.CREATURE).some((x) => x.life > 0),
-      };
-      if (endTacticalBattleForEnemy(q, fighting) && this.economy)
-        handleGlobalLoyaltyEvent(this.economy, LoyaltyEvent.ABANDON_MILITIA, world);
-    }
+    this.#endTacticalBattleForEnemy();
     if (s.flow === 'tactical' && s.movement.tacticalTraversal.active) return false;
     this.handleDefiniteUnloadingOfWorld(UnloadCode.ABOUT_TO_TRASH_WORLD);
     this.trashWorld();
     return true;
+  }
+
+  #endTacticalBattleForEnemy(): void {
+    const t = this.campaign.tactical?.state;
+    const world = this.world;
+    const q = this.queen;
+    if (!t || !world || !q) return;
+    const ok = (team: number) => teamMembers(t, team).some((x) => x.life >= OKLIFE);
+    const fighting = { militia: ok(Team.MILITIA), enemies: ok(Team.ENEMY), creatures: ok(Team.CREATURE) };
+    if (endTacticalBattleForEnemy(q, fighting) && this.economy) handleGlobalLoyaltyEvent(this.economy, LoyaltyEvent.ABANDON_MILITIA, world);
+  }
+
+  unloadForAutoresolve(): void {
+    const sim = this.campaign.tactical;
+    const world = this.world;
+    if (!sim || !world) return;
+    const t = sim.state;
+    for (const m of this.setup.roster.all()) {
+      if (m.life === 0 || m.betweenSectors || m.isVehicle || m.isRobot || m.isEpc || !sameSector(m.sector, world)) continue;
+      if (t.soldiers[m.id] === m.soldier) removeSoldierFromTacticalSector(t, m.soldier);
+    }
+    this.#endTacticalBattleForEnemy();
+    this.handleDefiniteUnloadingOfWorld(UnloadCode.ABOUT_TO_TRASH_WORLD);
+    this.trashWorld();
   }
 
   #worldTrashed(): void {

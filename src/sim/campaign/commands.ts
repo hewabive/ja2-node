@@ -1,10 +1,17 @@
-import { parseSectorString, type Sector } from '../../content/strategic/sector-ids.ts';
+import { parseSectorString, type Sector, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import type { CommandResult } from '../command.ts';
 import { startMineStandIn } from '../strategic/economy/mines.ts';
 import { type AssignTarget, assignSoldiers, sleepSoldier, wakeSoldier } from '../strategic/economy/set-assignment.ts';
 import { getGroup } from '../strategic/forces/groups.ts';
+import { canEntireMovementGroupMove, type LoadedSectorStatus } from '../strategic/forces/move-permission.ts';
 import type { StrategicContext } from '../strategic/forces/ports.ts';
-import { cancelPathForCharacter, confirmPathForCharacter, plotPathForCharacter, soldierGroup } from '../strategic/forces/routes.ts';
+import {
+  cancelPathForCharacter,
+  confirmPathForCharacter,
+  lastSectorInMercPath,
+  plotPathForCharacter,
+  soldierGroup,
+} from '../strategic/forces/routes.ts';
 import { addCharacterToAnySquad, addCharacterToSquad, addCharacterToUniqueSquad } from '../strategic/forces/squads.ts';
 import { calculateTravelTimeOfGroup } from '../strategic/map/travel.ts';
 import type { CampaignSim } from './campaign-sim.ts';
@@ -29,14 +36,22 @@ function soldierId(cmd: StrategicCommand): number | null {
   return typeof cmd.soldier === 'number' && Number.isInteger(cmd.soldier) ? cmd.soldier : null;
 }
 
-function route(ctx: StrategicContext, cmd: StrategicCommand): CommandResult {
+function route(ctx: StrategicContext, cmd: StrategicCommand, loaded: LoadedSectorStatus): CommandResult {
   const id = soldierId(cmd);
   const to = parseSector(cmd.to);
   if (id === null || !ctx.mercs.get(id)) return { ok: false, reason: 'no such merc' };
   if (!to) return { ok: false, reason: 'to must be a sector such as B9' };
+  const refusal = canEntireMovementGroupMove(ctx, id, loaded);
+  if (refusal) return { ok: false, reason: `the squad cannot move: ${refusal}` };
+  const current = ctx.mercs.get(id);
+  if (current && current.path.length > 0 && lastSectorInMercPath(current) === strategicIndex(to)) return routeResult(ctx, id);
   cancelPathForCharacter(ctx, id);
   if (!plotPathForCharacter(ctx, id, to)) return { ok: false, reason: 'no route to that sector for this merc' };
   confirmPathForCharacter(ctx, id);
+  return routeResult(ctx, id);
+}
+
+function routeResult(ctx: StrategicContext, id: number): CommandResult {
   const merc = ctx.mercs.get(id);
   const group = merc ? soldierGroup(ctx, merc) : undefined;
   return { ok: true, data: { path: merc?.path ?? [], etaMinutes: calculateTravelTimeOfGroup(ctx, group ?? null) } };
@@ -90,7 +105,7 @@ export function dispatchStrategicCommand(campaign: CampaignSim, cmd: StrategicCo
   if (!ctx) return null;
   switch (cmd.type) {
     case 'route':
-      return route(ctx, cmd);
+      return route(ctx, cmd, { inCombat: campaign.tactical?.state.inCombat === true });
     case 'cancelRoute':
       return cancelRoute(ctx, cmd);
     case 'assignSquad':

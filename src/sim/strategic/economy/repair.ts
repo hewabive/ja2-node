@@ -7,7 +7,7 @@ import { NOTHING } from '../../../content/items/items.ts';
 import { sameSector } from '../../../content/strategic/sector-ids.ts';
 import { i8, idiv, u8, u16 } from '../../../core/int.ts';
 import type { ItemObject } from '../../items/object.ts';
-import { stopTimeCompression } from '../time/world-clock.ts';
+import { CompressionStop, stopTimeCompression } from '../time/world-clock.ts';
 import { assignmentAborted, assignmentDone } from './assignment-done.ts';
 import { enoughTimeOnAssignment } from './conditions.ts';
 import { Assignment, SkillTrait, StatAmt, StatCause } from './constants.ts';
@@ -160,7 +160,8 @@ export function repairItemsOnOthers(ctx: EconomyContext, repairer: CrewMember, b
         if (slot !== NO_SLOT && repairObject(ctx, repairer, best, best.inv[slot] as ItemObject, budget)) repairedThisPass = true;
       } while (slot !== NO_SLOT && budget.left > 0);
     }
-    if (repairedThisPass && !doesCharacterHaveAnyItemsToRepair(ctx, repairer, pass)) stopTimeCompression(ctx.clock);
+    if (repairedThisPass && !doesCharacterHaveAnyItemsToRepair(ctx, repairer, pass))
+      stopTimeCompression(ctx.clock, CompressionStop.ASSIGNMENT_DONE);
   }
 }
 
@@ -189,7 +190,7 @@ function repairOwnItems(ctx: EconomyContext, s: CrewMember, budget: Budget): voi
       if (budget.left === 0) break;
     }
   }
-  if (ownFixed && !doesCharacterHaveAnyItemsToRepair(ctx, s, NO_PASS)) stopTimeCompression(ctx.clock);
+  if (ownFixed && !doesCharacterHaveAnyItemsToRepair(ctx, s, NO_PASS)) stopTimeCompression(ctx.clock, CompressionStop.ASSIGNMENT_DONE);
   repairItemsOnOthers(ctx, s, budget);
 }
 

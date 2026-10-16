@@ -48,12 +48,26 @@ function skyriderFlyingIn(ctx: StrategicContext, s: Sector): boolean {
   return heli !== undefined && sameSector(heli.sector, s);
 }
 
-export function whatPlayerKnowsAboutEnemiesInSector(ctx: StrategicContext, s: Sector): number {
+function scoutedKnowledge(ctx: StrategicContext, s: Sector): number | null {
   const info = sectorInfo(ctx.state.map, s);
   if (canMercsScoutThisSector(ctx, s) || canNearbyMilitiaScoutThisSector(ctx, s) || info.flags & SectorFlag.PLAYER_KNOWS_ENEMIES_ARE_HERE) {
     return ctx.ai.numStationaryEnemiesInSector(s) > 0 ? EnemyKnowledge.THEYRE_THERE : EnemyKnowledge.HOW_MANY;
   }
   if (getSectorFlagStatus(ctx.state.map, s, SectorFlag.ALREADY_VISITED)) return EnemyKnowledge.THEYRE_THERE;
+  return null;
+}
+
+export function peekPlayerKnowledgeOfEnemies(ctx: StrategicContext, s: Sector): number {
+  const known = scoutedKnowledge(ctx, s);
+  if (known !== null) return known;
+  const noticed = (sectorInfo(ctx.state.map, s).flags & SectorFlag.SKYRIDER_NOTICED_ENEMIES_HERE) !== 0;
+  return noticed && skyriderFlyingIn(ctx, s) ? EnemyKnowledge.THEYRE_THERE : EnemyKnowledge.NOTHING;
+}
+
+export function whatPlayerKnowsAboutEnemiesInSector(ctx: StrategicContext, s: Sector): number {
+  const known = scoutedKnowledge(ctx, s);
+  if (known !== null) return known;
+  const info = sectorInfo(ctx.state.map, s);
   if (info.flags & SectorFlag.SKYRIDER_NOTICED_ENEMIES_HERE) {
     if (skyriderFlyingIn(ctx, s)) return EnemyKnowledge.THEYRE_THERE;
     info.flags = u32(info.flags & ~SectorFlag.SKYRIDER_NOTICED_ENEMIES_HERE);

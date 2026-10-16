@@ -1,0 +1,37 @@
+header { flex-wrap: wrap; }
+header button, header label, .title, .brand { white-space: nowrap; }
+.group { display: inline-flex; gap: 4px; align-items: center; color: #8a909a; white-space: nowrap; }
+.clock { color: #d0a85c; font: 13px ui-monospace, monospace; }
+main.strategic { display: flex; gap: 12px; padding: 12px; overflow: auto; background: #16181c; }
+.board { flex: 0 0 auto; }
+.map { display: grid; grid-template-columns: 24px repeat(16, 52px); grid-auto-rows: 50px; gap: 2px; }
+.axis { display: grid; place-items: center; color: #5d636c; font-size: 11px; }
+.cell { position: relative; display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; padding: 2px 3px; border: 1px solid #2e333b; border-radius: 3px; background: #1d2026; color: #6b717a; font-size: 10px; cursor: pointer; overflow: hidden; text-align: left; }
+.cell:hover { border-color: #8a909a; }
+.cell.visited { background: #242830; color: #a8adb5; }
+.cell.player { background: #1f3326; }
+.cell.enemy { background: #3a2224; }
+.cell .name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cell .town-name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #d8dadf; }
+.cell.world { box-shadow: inset 0 0 0 2px #d0a85c; }
+.cell.route { outline: 2px dashed #6fa8dc; outline-offset: -3px; }
+.cell.picked { border-color: #d0a85c; }
+.badges { position: absolute; left: 3px; right: 3px; bottom: 2px; display: flex; gap: 3px; flex-wrap: wrap; }
+.badge { padding: 0 3px; border-radius: 2px; font: 10px/13px ui-monospace, monospace; }
+.badge.enemies { background: #8a2f33; color: #fff; }
+.badge.militia { background: #2f5f8a; color: #fff; }
+.badge.squad { background: #d0a85c; color: #16181c; }
+.side { flex: 1; min-width: 300px; max-width: 520px; display: flex; flex-direction: column; gap: 12px; }
+.side h2 { margin: 0 0 6px; font-size: 13px; color: #d0a85c; }
+.mercs { width: 100%; border-collapse: collapse; font-size: 12px; }
+.mercs td, .mercs th { padding: 2px 4px; border-bottom: 1px solid #2e333b; text-align: left; }
+.mercs th { color: #8a909a; font-weight: normal; }
+.groups { margin: 0; padding-left: 16px; font-size: 12px; }
+.sector-info { font-size: 12px; white-space: pre-wrap; }
+.actions { display: flex; gap: 6px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.tactical-link { color: #d0a85c; font-size: 12px; }
+.result { margin-top: 6px; font: 12px ui-monospace, monospace; color: #8a909a; white-space: pre-wrap; }
+.result.error { color: #e07070; }
+.battle { padding: 8px; border: 1px solid #8a2f33; border-radius: 4px; background: #241a1c; }
+.battle-info { font-size: 12px; white-space: pre-wrap; }
+button:disabled { opacity: 0.45; cursor: not-allowed; }

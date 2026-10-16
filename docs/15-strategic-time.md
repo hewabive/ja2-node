@@ -924,6 +924,22 @@ mine-income times.
 **Prompts** owned elsewhere (`16`, `18`, `19`) all stop `advance` with `decision`; while open nothing steps, as with
 `PauseTime` under a message box.
 
+**Status (2026-10-16).** Implemented in `sim/advance.ts` against `Steppable.worldClock` (`CampaignSim.worldClock`,
+forwarded by the server sessions); `protocol/messages.ts` reuses `StopCondition`, so the WebSocket `advance` message
+takes the new fields as they are (the MCP tool schema still has to list them):
+- `StopCondition` gains `worldTime` (absolute seconds or `{day, hour?, minute?}`), `worldSeconds` (relative),
+  `compressionStopped` and `mode`. `mode` sits inside `until`, not beside it. Any of the four makes the advance strategic:
+  budget 2,000,000 ticks and 7 world days; on the map with time not compressed it first starts compression (refusal →
+  reason `refused` with `refusal: <text>`). `compressionStopped: false` restarts compression after every stop instead of
+  returning (until a decision, the target, a watched event, a refusal or the budget).
+- Stop reasons: `decision` (checked again right after each step, before watched events), `event`, `worldTime`
+  (`advance` stops compression with reason `worldTime`, then appends `worldTimeReached {seconds}`), `idle` (on the map
+  and no longer compressing), `budget`, `refused`; in tactical `worldTime`/`worldSeconds` run real time. Every report
+  carries `worldTime {day, hour, minute, seconds}` when a campaign is attached.
+- Events: `compressionStarted {mode}`, `compressionStopped {reason}` with the reasons listed above plus
+  `militiaTraining`, `worldTime` and `paused` (the map's automatic pause when compression stops being allowed),
+  `dayStarted {day}`.
+
 ---
 
 ## 7. Data tables and stubs

@@ -26,7 +26,7 @@ import { getSectorFlagStatus, sectorInfo, setSectorFlag, Traversability, travers
 import { getSectorMvtTimeForGroup } from '../map/travel.ts';
 import { EventKind } from '../time/constants.ts';
 import { addStrategicEvent, deleteStrategicEvent } from '../time/event-queue.ts';
-import { stopTimeCompression, worldDay, worldHour, worldTotalMinutes } from '../time/world-clock.ts';
+import { CompressionStop, stopTimeCompression, worldDay, worldHour, worldTotalMinutes } from '../time/world-clock.ts';
 import { ABOUT_TO_ARRIVE_DELAY, Assignment, GroupFlag, InsertionCode, MoveType, SectorFlag } from './constants.ts';
 import { checkConditionsForBattle } from './encounters.ts';
 import {
@@ -452,7 +452,7 @@ function handleNonCombatGroupArrival(ctx: StrategicContext, g: Group, mainGroup:
     if (!heli) setThisSectorAsPlayerControlled(ctx, g.sector, false);
     if (groupAtFinalDestination(g)) {
       if (playerMercsInSector(ctx, ctx.state.map.selectedSector) === 0) ctx.state.map.selectedSector = g.sector;
-      if (!heli) stopTimeCompression(ctx.clock);
+      if (!heli) stopTimeCompression(ctx.clock, CompressionStop.ARRIVED);
     }
     playerGroupArrivedSafelyInSector(ctx, g, mainGroup);
   } else if (!g.debug) {
@@ -486,7 +486,7 @@ export function playerGroupArrivedSafelyInSector(ctx: StrategicContext, g: Group
   if (groupAtFinalDestination(g)) return;
   if (anyMercInGroupCantContinueMoving(ctx, g)) {
     clearMercPathsAndWaypointsForAllInGroup(ctx, g);
-    stopTimeCompression(ctx.clock);
+    stopTimeCompression(ctx.clock, CompressionStop.HALTED);
   } else {
     rebuildWayPointsForGroupPath(ctx, groupMercPath(ctx, g), g);
   }
@@ -502,7 +502,7 @@ export function answerNpcOfNotePrompt(ctx: StrategicContext, continueMoving: boo
   }
   clearMercPathsAndWaypointsForAllInGroup(ctx, g);
   ctx.state.map.selectedSector = g.sector;
-  stopTimeCompression(ctx.clock);
+  stopTimeCompression(ctx.clock, CompressionStop.HALTED);
 }
 
 export function calculateNextMoveIntention(ctx: StrategicContext, g: Group): void {

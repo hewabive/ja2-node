@@ -17,7 +17,7 @@ import { u8 } from '../../../core/int.ts';
 import { addTransaction, FinanceCode } from '../../campaign/finances.ts';
 import { addCharacterToAnySquad } from '../forces/squads.ts';
 import { sectorInfo } from '../map/sectors.ts';
-import { stopTimeCompression, worldTotalMinutes } from '../time/world-clock.ts';
+import { CompressionStop, stopTimeCompression, worldTotalMinutes } from '../time/world-clock.ts';
 import { assignmentDone } from './assignment-done.ts';
 import { canCharacterTrainMilitia } from './conditions.ts';
 import {
@@ -173,7 +173,7 @@ export function payForTrainingInSector(ctx: EconomyContext, sector: number): voi
 function rejectTraining(ctx: EconomyContext, soldiers: CrewMember[], reason: RejectReason): void {
   for (const m of soldiers) {
     addCharacterToAnySquad(ctx, m.id);
-    stopTimeCompression(ctx.clock);
+    stopTimeCompression(ctx.clock, CompressionStop.MILITIA_TRAINING);
   }
   ctx.events.push({ type: 'militiaTrainingRejected', soldiers: soldiers.map((m) => m.id), reason });
 }
@@ -216,7 +216,7 @@ export function startMilitiaPaymentFlow(
   if (answer === 'defer') {
     ctx.state.economy.prompts.push(prompt);
     ctx.events.push({ type: 'prompt', prompt });
-    stopTimeCompression(ctx.clock);
+    stopTimeCompression(ctx.clock, CompressionStop.MILITIA_TRAINING);
     return 'pending';
   }
   return answerMilitiaPayment(ctx, prompt, answer === 'yes', flow);
@@ -230,12 +230,12 @@ export function answerMilitiaPayment(
 ): MilitiaPaymentOutcome {
   removePrompt(ctx, prompt);
   if (!yes) {
-    stopTimeCompression(ctx.clock);
+    stopTimeCompression(ctx.clock, CompressionStop.MILITIA_TRAINING);
     rejectTraining(ctx, trainersOfUnpaidSectors(ctx), 'declined');
     return 'declined';
   }
   if (ctx.state.finances.balance < prompt.cost) {
-    stopTimeCompression(ctx.clock);
+    stopTimeCompression(ctx.clock, CompressionStop.MILITIA_TRAINING);
     rejectTraining(ctx, trainersOfUnpaidSectors(ctx), 'cannotAfford');
     return 'cannotAfford';
   }
@@ -273,7 +273,7 @@ export function handleInterfaceMessageForContinuingTrainingMilitia(ctx: EconomyC
   if (answer === 'defer') {
     ctx.state.economy.prompts.push(prompt);
     ctx.events.push({ type: 'prompt', prompt });
-    stopTimeCompression(ctx.clock);
+    stopTimeCompression(ctx.clock, CompressionStop.MILITIA_TRAINING);
     return 'pending';
   }
   return answerMilitiaContinue(ctx, prompt, answer === 'yes');
@@ -285,12 +285,12 @@ export function answerMilitiaContinue(ctx: EconomyContext, prompt: MilitiaContin
   const trainer = ctx.crew.get(prompt.trainer);
   const trainerSector = trainer ? trainer.sector : sector;
   if (!yes) {
-    stopTimeCompression(ctx.clock);
+    stopTimeCompression(ctx.clock, CompressionStop.MILITIA_TRAINING);
     rejectTraining(ctx, trainersInSector(ctx, trainerSector), 'declined');
     return 'declined';
   }
   if (ctx.state.finances.balance < prompt.cost) {
-    stopTimeCompression(ctx.clock);
+    stopTimeCompression(ctx.clock, CompressionStop.MILITIA_TRAINING);
     rejectTraining(ctx, trainersInSector(ctx, trainerSector), 'cannotAfford');
     return 'cannotAfford';
   }

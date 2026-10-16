@@ -117,6 +117,7 @@ function liberate(ctx: StrategicContext, s: Sector, townId: number): void {
 }
 
 export function setThisSectorAsEnemyControlled(ctx: StrategicContext, s: Sector): boolean {
+  if (ctx.state.battle.autoStart) return false;
   let wasPlayer = false;
   if (s.z === 0) {
     const element = ctx.state.map.elements[strategicIndex(s)];

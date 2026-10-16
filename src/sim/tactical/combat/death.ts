@@ -50,6 +50,7 @@ export interface Corpse {
   readonly profile: number;
   readonly type: number;
   readonly timeOfDeath: number;
+  readonly findSweetSpot?: boolean;
 }
 
 const isMercBody = (s: Soldier) => s.bodyType <= Body.REGFEMALE;
@@ -351,6 +352,7 @@ export function updateSkullReleases(t: TacticalState): void {
   t.pendingSkullReleases.splice(0, t.pendingSkullReleases.length, ...t.pendingSkullReleases.filter((r) => t.clockMs < r.at));
   for (const r of due) {
     if (!r.soldier.doingExternalDeath) releaseSoldiersAttacker(t, r.soldier);
+    t.sectorHooks.mercDied(t, r.soldier);
     checkForEndOfBattle(t);
   }
 }

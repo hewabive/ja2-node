@@ -84,11 +84,19 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('native savegames imported into the t
         advance(session, { ticks: 200 * 60 }, 200 * 60);
         expect(clock.seconds - before).toBe(60);
         expect(session.view().clock?.day).toBe(save.header.day);
-        session.campaign.state.flow = 'strategic';
-        expect(session.dispatch({ type: 'compressTime', mode: 4 })).toEqual({ ok: true });
-        const target = clock.seconds + 3 * 3600;
-        for (let i = 0; i < 2000 && clock.seconds < target; i++) session.step();
-        expect(clock.seconds).toBeGreaterThanOrEqual(target);
+        expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+        if (t.turn.enemyInSector) {
+          expect(session.dispatch({ type: 'compressTime', mode: 4 })).toEqual({
+            ok: false,
+            reason: 'enemies are present in the loaded sector',
+          });
+        } else {
+          expect(session.dispatch({ type: 'compressTime', mode: 4 })).toEqual({ ok: true });
+          const target = clock.seconds + 3 * 3600;
+          for (let i = 0; i < 2000 && clock.seconds < target; i++) session.step();
+          expect(clock.seconds).toBeGreaterThanOrEqual(target);
+        }
+        expect(session.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
       }
       if (t.inCombat && t.turn.currentTeam === Team.OUR) {
         expect(session.sim.dispatch({ type: 'endTurn' }).ok).toBe(true);

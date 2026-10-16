@@ -7,7 +7,18 @@ import {
   type StopReport,
   TICK_MS,
 } from '../../protocol/messages.ts';
-import { applyFrame, type CombatView, type ItemView, type PlayerView, type SoldierView, type ViewFrame } from '../../protocol/view.ts';
+import {
+  type AutoresolveView,
+  applyFrame,
+  type ClockView,
+  type CombatView,
+  type ItemView,
+  type PlayerView,
+  type PromptView,
+  type SoldierView,
+  type StrategicView,
+  type ViewFrame,
+} from '../../protocol/view.ts';
 
 type Pending = { resolve: (m: ServerMessage) => void; reject: (e: Error) => void };
 
@@ -25,6 +36,11 @@ export class SessionClient {
   #combat: CombatView | null = null;
   #revealedRooms: readonly number[] = [];
   #items: readonly ItemView[] = [];
+  #mapPath: string | null = null;
+  #clock: ClockView | null = null;
+  #strategic: StrategicView | null = null;
+  #prompt: PromptView | null = null;
+  #autoresolve: AutoresolveView | null = null;
   #shownTick = 0;
   #latestTick = 0;
 
@@ -67,6 +83,26 @@ export class SessionClient {
     return this.#openDoors;
   }
 
+  get mapPath(): string | null {
+    return this.#mapPath;
+  }
+
+  get clock(): ClockView | null {
+    return this.#clock;
+  }
+
+  get strategic(): StrategicView | null {
+    return this.#strategic;
+  }
+
+  get prompt(): PromptView | null {
+    return this.#prompt;
+  }
+
+  get autoresolve(): AutoresolveView | null {
+    return this.#autoresolve;
+  }
+
   get shownTick(): number {
     return this.#shownTick;
   }
@@ -96,6 +132,11 @@ export class SessionClient {
         this.#combat = m.view.combat ?? null;
         this.#revealedRooms = m.view.revealedRooms ?? [];
         this.#items = m.view.items ?? [];
+        this.#mapPath = m.view.mapPath;
+        this.#clock = m.view.clock ?? null;
+        this.#strategic = m.view.strategic ?? null;
+        this.#prompt = m.view.prompt ?? null;
+        this.#autoresolve = m.view.autoresolve ?? null;
         this.#shownTick = m.view.tick;
         this.#latestTick = m.view.tick;
         break;
@@ -127,6 +168,11 @@ export class SessionClient {
       if (frame.combat !== undefined) this.#combat = frame.combat;
       if (frame.revealedRooms) this.#revealedRooms = frame.revealedRooms;
       if (frame.items) this.#items = frame.items;
+      if (frame.mapPath !== undefined) this.#mapPath = frame.mapPath;
+      if (frame.clock) this.#clock = frame.clock;
+      if (frame.strategic) this.#strategic = frame.strategic;
+      if (frame.prompt !== undefined) this.#prompt = frame.prompt;
+      if (frame.autoresolve !== undefined) this.#autoresolve = frame.autoresolve;
       changed = true;
     }
     const target = Math.min(tick, this.#latestTick);

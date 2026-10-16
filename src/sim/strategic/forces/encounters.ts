@@ -12,7 +12,15 @@ import { isThisSectorASamSector, townIdOfSector } from '../map/control.ts';
 import { sectorInfo } from '../map/sectors.ts';
 import { EventKind } from '../time/constants.ts';
 import { addStrategicEvent, deleteStrategicEvent } from '../time/event-queue.ts';
-import { interruptTime, lockPauseState, pauseGame, stopTimeCompression, unLockPauseState, unPauseGame } from '../time/world-clock.ts';
+import {
+  CompressionStop,
+  interruptTime,
+  lockPauseState,
+  pauseGame,
+  stopTimeCompression,
+  unLockPauseState,
+  unPauseGame,
+} from '../time/world-clock.ts';
 import { ABOUT_TO_ARRIVE_DELAY, BLANK_SECTOR, Difficulty, EncounterCode, GroupFlag, InsertionCode, PauseLock } from './constants.ts';
 import { PreBattleNotice as Notice, type PreBattleHandoff, type PreBattleNotice } from './flow-state.ts';
 import {
@@ -162,7 +170,7 @@ function recordPreBattle(
 }
 
 function triggerPrebattleInterface(ctx: StrategicContext, g: Group, s: Sector, notice: PreBattleNotice, inputs: EncounterInputs): void {
-  stopTimeCompression(ctx.clock);
+  stopTimeCompression(ctx.clock, CompressionStop.BATTLE);
   recordPreBattle(ctx, g, null, s, notice, inputs, []);
   ctx.state.movement.initPrebattleGroup = null;
 }

@@ -11,6 +11,7 @@ import {
   type StrategicStatus,
 } from './ai/queen-state.ts';
 import { createEconomyState, type EconomyState } from './economy/state.ts';
+import { type BattleState, createBattleState } from './forces/battle-state.ts';
 import { createEncounterState, createMovementFlowState, type EncounterState, type MovementFlowState } from './forces/flow-state.ts';
 import { createForcesState, type ForcesState } from './forces/groups.ts';
 import { createMapState, type StrategicMapState } from './map/sectors.ts';
@@ -18,7 +19,7 @@ import { createEnvironment, type Environment } from './time/environment.ts';
 import { createEventQueue, type EventQueue } from './time/event-queue.ts';
 import { createWorldClock, type WorldClock } from './time/world-clock.ts';
 
-export type Flow = 'strategic' | 'tactical';
+export type Flow = 'strategic' | 'tactical' | 'autoresolve';
 
 export interface SectorPosition {
   readonly x: number;
@@ -43,6 +44,7 @@ export interface StrategicState {
   readonly forces: ForcesState;
   readonly movement: MovementFlowState;
   readonly encounter: EncounterState;
+  readonly battle: BattleState;
   readonly queen: QueenState;
   readonly status: StrategicStatus;
   readonly meanwhile: MeanwhileState;
@@ -92,6 +94,7 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     forces: createForcesState(),
     movement: createMovementFlowState(),
     encounter: createEncounterState(),
+    battle: createBattleState(),
     queen: createQueenState(),
     status: createStrategicStatus(),
     meanwhile: createMeanwhileState(),

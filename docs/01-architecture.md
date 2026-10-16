@@ -900,6 +900,16 @@ assignments), `19` (pre-battle interface and autoresolve).
    assignment update; matching the oracle's strategic, merc and warp probes.
 6. **Autoresolve core** (`sim/strategic/forces/autoresolve`): the Finish-mode battle with a combat context shared with
    tactical; 44 native battles replayed draw for draw.
+7. **Sectors** (`sim/campaign/sector-flow.ts`, `sim/tactical/edgepoints.ts`, `init-list.ts`, `insertion.ts`): loading a
+   sector from the strategic counts, sector diffs on leaving, edgepoints, walking off map edges and exit grids
+   (`enterSector`, `exitSector`); the oracle's edgepoint, exit, init-list and defence probes match.
+8. **Battles** (`sim/strategic/forces/pre-battle.ts`, `sim/campaign/battle-flow.ts`): the pre-battle prompt with its
+   encounter codes and options, autoresolve from the strategic state as a flow with surrender and bandaging, the
+   aftermath (control, loyalty, morale, militia, enemy groups) for autoresolve and tactical battles, retreats; 50 native
+   aftermaths and 8 PBI probes match. `advance` on the map takes world-time targets (`docs/15` §6).
+9. **Play surface**: `mapScreen`/`tacticalScreen`, `CanEntireMovementGroupMercIsInMove` before `route`, compression
+   refused with enemies in the loaded sector; new campaign sessions (MCP `newSession {campaign}`, `POST /api/sessions`),
+   and the strategic page (`src/devtools/strategic/`) with the map, mercs, routes, compression and the battle panel.
 
-**Not in M4 yet**: loading and leaving sectors from the map (in progress), the pre-battle prompt and autoresolve from
-the strategic state, the MCP tools and browser page for the strategic map.
+**Not in M4 yet**: creature attacks, `HourlyMoraleUpdate`, exact creation of militia and enemy soldiers for autoresolve
+(oracle level 2), the placement GUI, a browser autoresolve screen with slice playback.

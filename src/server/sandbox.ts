@@ -5,10 +5,8 @@ import type { CommandEnvelope } from '../protocol/messages.ts';
 import type { PlayerView } from '../protocol/view.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
-import { createItem, createItems } from '../sim/items/object.ts';
 import { calcDifficultyModifier } from '../sim/strategic/ai/difficulty.ts';
 import { Difficulty } from '../sim/strategic/forces/constants.ts';
-import { states } from '../sim/tactical/animation.ts';
 import { createMercFromProfile } from '../sim/tactical/creation.ts';
 import { loadMapEdgepoints } from '../sim/tactical/edgepoints.ts';
 import {
@@ -19,15 +17,15 @@ import {
   type PopulationEnv,
 } from '../sim/tactical/init-list.ts';
 import { addSoldierToSector, Insertion } from '../sim/tactical/insertion.ts';
-import { InvSlot } from '../sim/tactical/inventory.ts';
 import { lightSpriteRenderAll } from '../sim/tactical/lighting/lighting.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
 import { revealedRooms } from '../sim/tactical/perception/fov.ts';
-import { createSoldier, firstFreeSoldierId, type Soldier, SoldierClass, Team } from '../sim/tactical/soldier.ts';
+import { firstFreeSoldierId, type Soldier, SoldierClass, Team } from '../sim/tactical/soldier.ts';
 import { teamMembers } from '../sim/tactical/state.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { loadWorldItemsFromMap } from '../sim/tactical/world-items.ts';
 import type { SessionSim } from './session.ts';
+import { stubMerc } from './stub-mercs.ts';
 
 export const ORIGINAL_SANDBOX_MAP = 'maps/a9.dat';
 export const STUB_SANDBOX_MAP = 'stubs/world/maps/village.dat';
@@ -124,50 +122,6 @@ function entryGridNo(sim: TacticalSim): number {
   return [info.northGridNo, info.centerGridNo].find((g) => isVisibleTile(g)) ?? FALLBACK_ENTRY;
 }
 
-const STUB_MERC_GUN = 'GLOCK_17';
-const STUB_MERC_MAGAZINE = 'CLIP9_15';
-const STUB_MERC_SPARE_MAGAZINES = 2;
-
-function armStubMerc(sim: TacticalSim, s: Soldier): Soldier {
-  const items = sim.state.content.items;
-  const gun = items.byName.get(STUB_MERC_GUN);
-  const magazine = items.byName.get(STUB_MERC_MAGAZINE);
-  if (gun) s.inv[InvSlot.HAND] = createItem(items, gun.index, 100);
-  if (magazine) s.inv[InvSlot.BIGPOCK1] = createItems(items, magazine.index, 100, STUB_MERC_SPARE_MAGAZINES);
-  return s;
-}
-
-function stubMerc(sim: TacticalSim, id: number): Soldier {
-  const bodies = [0, 1, 3, 2];
-  const vests = ['BLUEVEST', 'GREENVEST', 'YELLOWVEST', 'BROWNVEST'];
-  return armStubMerc(
-    sim,
-    createSoldier({
-      id,
-      team: Team.OUR,
-      name: `Merc ${id + 1}`,
-      bodyType: bodies[id % bodies.length] ?? 0,
-      palettes: { hair: 'BROWNHEAD', skin: 'TANSKIN', vest: vests[id % vests.length] ?? 'BLUEVEST', pants: 'JEANPANTS' },
-      stats: {
-        agility: 80,
-        dexterity: 80,
-        strength: 80,
-        wisdom: 80,
-        leadership: 50,
-        marksmanship: 80,
-        mechanical: 30,
-        explosives: 30,
-        medical: 30,
-        experience: 3,
-      },
-      life: 100,
-      gridNo: -1,
-      direction: 4,
-      state: states(sim.state.content.animations).STANDING,
-    }),
-  );
-}
-
 export function populateSandbox(sim: TacticalSim): void {
   const t = sim.state;
   const entry = entryGridNo(sim);
@@ -183,7 +137,8 @@ export function populateSandbox(sim: TacticalSim): void {
     const profile = profiles[p];
     if (profile) placeMerc(t, createMercFromProfile(t, idFor(Team.OUR), profile, 4), entry);
   }
-  if (teamMembers(t, Team.OUR).length === 0) for (let i = 0; i < STUB_SQUAD_SIZE; i++) placeMerc(t, stubMerc(sim, idFor(Team.OUR)), entry);
+  if (teamMembers(t, Team.OUR).length === 0)
+    for (let i = 0; i < STUB_SQUAD_SIZE; i++) placeMerc(t, stubMerc(t.content, idFor(Team.OUR)), entry);
   addSoldierInitListTeamToWorld(t, Team.CIV, env);
   addSoldierInitListEnemyDefenceSoldiers(t, SANDBOX_GARRISON, env);
 }

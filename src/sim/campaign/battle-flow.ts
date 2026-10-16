@@ -1,0 +1,858 @@
+// Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
+// Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
+// @src src/game/Strategic/PreBattle_Interface.cc AutoResolveBattleCallback, GoToSectorCallback, RetreatMercsCallback,
+// @src HandlePreBattleInterfaceStates, ActivateAutomaticAutoResolveStart; Auto_Resolve.cc EnterAutoResolveMode,
+// @src AutoResolveScreenHandle (entry), RenderAutoResolve (the end-of-battle block), RetreatButtonCallback,
+// @src MercCellMouseClickCallback, AcceptSurrenderCallback, RejectSurrenderCallback, BandageButtonCallback,
+// @src RemoveAutoResolveInterface (orchestration); MapScreen.cc HandlePostAutoresolveMessages;
+// @src Strategic_Town_Loyalty.cc HandleLoyaltyImplicationsOfMercRetreat; Tactical/Overhead.cc CheckForEndOfBattle and
+// @src CheckForLosingEndOfBattle (the strategic consequences), HandlePlayerTeamMemberDeath (strategic call);
+// @src Strategic/StrategicMap.cc HandlePotentialBringUpAutoresolveToFinishBattle; Strategic_Movement.cc
+// @src PlanSimultaneousGroupArrivalCallback. See docs/19 §1.5, §2.16, §2.18, §3.2–§3.4, §5.
+
+import { type Sector, sameSector, sectorShortString, strategicIndex } from '../../content/strategic/sector-ids.ts';
+import { Rng } from '../../core/rng.ts';
+import type { CommandResult } from '../command.ts';
+import type { SimEvent } from '../events.ts';
+import { queenProgress } from '../strategic/ai/difficulty.ts';
+import { handleFirstBattleEndingWhileInTown } from '../strategic/ai/meanwhile.ts';
+import { reEvaluateEveryonesNothingToDo } from '../strategic/economy/assignment-done.ts';
+import { Assignment, LoyaltyEvent } from '../strategic/economy/constants.ts';
+import { handleGlobalLoyaltyEvent } from '../strategic/economy/loyalty.ts';
+import { countAllMilitiaInSector } from '../strategic/economy/militia-rules.ts';
+import type { EconomyContext } from '../strategic/economy/ports.ts';
+import { autoBandageMercs, canBandage } from '../strategic/forces/autoresolve/bandage.ts';
+import { closeAutoresolve } from '../strategic/forces/autoresolve/close.ts';
+import { answerSurrender, orderRetreat } from '../strategic/forces/autoresolve/end.ts';
+import { runAutoresolve } from '../strategic/forces/autoresolve/loop.ts';
+import { endOfBattle } from '../strategic/forces/autoresolve/outcome.ts';
+import { enterAutoresolve } from '../strategic/forces/autoresolve/setup.ts';
+import {
+  type ArEvent,
+  type ArRng,
+  type AutoresolveEnv,
+  type AutoresolveState,
+  BattleStatus,
+  createAutoresolveState,
+} from '../strategic/forces/autoresolve/state.ts';
+import {
+  type AutoresolveSession,
+  type BattlePrompt,
+  PbiChoice as Choice,
+  encounterName,
+  nextPromptId,
+  type PbiChoice,
+  PromptKind,
+  QuestState,
+} from '../strategic/forces/battle-state.ts';
+import { EncounterCode, InsertionCode } from '../strategic/forces/constants.ts';
+import { answerSimultaneousArrival } from '../strategic/forces/encounters.ts';
+import { getGroup } from '../strategic/forces/groups.ts';
+import { answerNpcOfNotePrompt, resetMovementForEnemyGroupsInLocation } from '../strategic/forces/movement.ts';
+import {
+  calculateNonPersistentPbiInfo,
+  clearMovementForAllInvolvedPlayerGroups,
+  initPreBattleInterface,
+  nonPersistentAutoresolveRefusal,
+  type PreBattleOpening,
+  playerMercInvolvedInThisCombat,
+  putNonSquadMercsInBattleSectorOnSquads,
+  retreatAllInvolvedPlayerGroups,
+  wakeUpAllMercsInSectorUnderAttack,
+} from '../strategic/forces/pre-battle.ts';
+import { setThisSectorAsEnemyControlled, setThisSectorAsPlayerControlled } from '../strategic/map/control.ts';
+import { EnemyKnowledge, whatPlayerKnowsAboutEnemiesInSector } from '../strategic/map/knowledge.ts';
+import type { StrategicState } from '../strategic/state.ts';
+import { EventKind, Warp } from '../strategic/time/constants.ts';
+import { addStrategicEvent } from '../strategic/time/event-queue.ts';
+import {
+  CompressionStop,
+  stopTimeCompression,
+  unLockPauseState,
+  warpGameTime,
+  worldDay,
+  worldTotalMinutes,
+} from '../strategic/time/world-clock.ts';
+import { handleSoldierDeath } from '../tactical/combat/death.ts';
+import type { TacticalContent } from '../tactical/content.ts';
+import { healthCategory } from '../tactical/health.ts';
+import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
+import { OKLIFE, Side, type Soldier, Team } from '../tactical/soldier.ts';
+import { type TacticalState, teamMembers } from '../tactical/state.ts';
+import {
+  type ArStrategicContext,
+  associateWithStrategicGroups,
+  buildAutoresolveInput,
+  strategicClosePort,
+} from './autoresolve-strategic.ts';
+import type { CampaignSim } from './campaign-sim.ts';
+import {
+  beginCaptureSequence,
+  CaptureFlag,
+  endCaptureSequence,
+  enemyCapturesPlayerSoldier,
+  type FateContext,
+  strategicHandlePlayerTeamMercDeath,
+} from './merc-fate.ts';
+import { ECONOMY_MORALE_EVENTS, handleMoraleEvent, type MoraleContext, MoraleEvent } from './morale.ts';
+import type { Roster, RosterMerc } from './roster.ts';
+import { enterMapScreen } from './screens.ts';
+import { addDeadSoldierToUnloadedSector, removeRandomItemsInSector } from './sector-loot.ts';
+
+export const TICKS_PER_AUTORESOLVE_SLICE = 200;
+const PBI_RETREAT_WARP_SECONDS = 300;
+const LOST_BATTLE_UNLOAD_DELAY_MS = 10_000;
+const MAX_CAPTURED_REAL_MERCS = 4;
+const MIN_CAPTURED_REAL_MERCS = 1;
+const FX_SEED = 0x41520001;
+
+const STATUS_NAMES: Readonly<Record<number, string>> = {
+  [BattleStatus.IN_PROGRESS]: 'inProgress',
+  [BattleStatus.VICTORY]: 'victory',
+  [BattleStatus.DEFEAT]: 'defeat',
+  [BattleStatus.RETREAT]: 'retreat',
+  [BattleStatus.SURRENDERED]: 'surrendered',
+  [BattleStatus.CAPTURED]: 'captured',
+};
+
+export function battleStatusName(status: number): string {
+  return STATUS_NAMES[status] ?? 'inProgress';
+}
+
+export interface BattleSetup {
+  readonly content: TacticalContent;
+  readonly roster: Roster;
+}
+
+type EventWithoutTick = SimEvent extends infer E ? (E extends SimEvent ? Omit<E, 'tick'> : never) : never;
+
+const isMechanical = (m: RosterMerc) => m.isVehicle || m.isRobot;
+
+export class BattleFlow implements FateContext {
+  readonly campaign: CampaignSim;
+  readonly content: TacticalContent;
+  readonly roster: Roster;
+  readonly #events: SimEvent[] = [];
+
+  constructor(campaign: CampaignSim, setup: BattleSetup) {
+    this.campaign = campaign;
+    this.content = setup.content;
+    this.roster = setup.roster;
+  }
+
+  get state(): StrategicState {
+    return this.campaign.state;
+  }
+
+  get economy(): EconomyContext {
+    const economy = this.campaign.economy;
+    if (!economy) throw new Error('the battle flow needs the economy');
+    return economy;
+  }
+
+  get prompt(): BattlePrompt | null {
+    return this.state.battle.prompt;
+  }
+
+  get session(): AutoresolveSession | null {
+    return this.state.battle.autoresolve;
+  }
+
+  #arContext(): ArStrategicContext {
+    return { economy: this.economy, queen: this.campaign.queen, content: this.content, roster: this.roster };
+  }
+
+  emit(event: EventWithoutTick): void {
+    this.#events.push({ ...event, tick: this.campaign.tick } as SimEvent);
+  }
+
+  drainEvents(): SimEvent[] {
+    return this.#events.splice(0);
+  }
+
+  moraleContext(): MoraleContext {
+    const queen = this.campaign.queen;
+    return {
+      team: this.roster.all(),
+      profiles: this.state.profiles,
+      progress: queen ? queenProgress(queen) : this.state.status.highestProgress,
+      enemyInSector: this.campaign.tactical?.state.turn.enemyInSector === true,
+    };
+  }
+
+  moraleEvent(subject: RosterMerc | null, event: number, sector: Sector): void {
+    handleMoraleEvent(this.moraleContext(), subject, event, sector);
+  }
+
+  economyMoraleEvent(kind: string, sector: Sector): void {
+    const event = ECONOMY_MORALE_EVENTS[kind];
+    if (event !== undefined) this.moraleEvent(null, event, sector);
+  }
+
+  removeRandomItemsInSector(sector: Sector, chance: number): void {
+    removeRandomItemsInSector(this.state, this.campaign.tactical?.state ?? null, sector, chance, this.state.rng);
+  }
+
+  #loyalty(event: number, sector: Sector): void {
+    handleGlobalLoyaltyEvent(this.economy, event, sector);
+  }
+
+  hasPendingDecision(): boolean {
+    return this.state.battle.prompt !== null;
+  }
+
+  isModal(): boolean {
+    return this.state.battle.prompt !== null || this.state.flow === 'autoresolve';
+  }
+
+  autoresolveIdle(): boolean {
+    const ar = this.session?.ar;
+    return !ar || ar.status !== BattleStatus.IN_PROGRESS || ar.pendingSurrender;
+  }
+
+  #openPrompt(kind: PromptKind, extra: Partial<BattlePrompt> = {}): BattlePrompt {
+    const battle = this.state.battle;
+    const prompt = { id: nextPromptId(battle, kind), kind, ...extra } as BattlePrompt;
+    battle.prompt = prompt;
+    return prompt;
+  }
+
+  settle(): void {
+    for (let guard = 0; guard < 8; guard++) {
+      const s = this.state;
+      if (s.battle.prompt || s.flow === 'autoresolve') return;
+      if (s.encounter.simultaneousArrival) {
+        this.#openPrompt(PromptKind.SIMULTANEOUS_ARRIVAL);
+        return;
+      }
+      if (s.movement.groupPrompting !== null) {
+        this.#openPrompt(PromptKind.NPC_OF_NOTE);
+        return;
+      }
+      if (s.battle.enterPreBattlePending) this.#openNonPersistent();
+      else if (s.encounter.preBattle) this.#openFromHandoff();
+      else return;
+    }
+  }
+
+  afterStep(): void {
+    this.#unloadAfterLostBattle();
+    this.settle();
+  }
+
+  #unloadAfterLostBattle(): void {
+    const battle = this.state.battle;
+    const t = this.campaign.tactical?.state;
+    if (battle.lostBattleUnloadAtMs === null || !t || t.clockMs < battle.lostBattleUnloadAtMs) return;
+    battle.lostBattleUnloadAtMs = null;
+    this.campaign.sectors?.checkAndHandleUnloadingOfCurrentWorld();
+  }
+
+  #emitPreBattle(opening: PreBattleOpening, autoStart: boolean, prompt: string | null): void {
+    const battle = this.state.battle;
+    const code = battle.persistent ? this.state.encounter.code : this.state.encounter.explicitCode;
+    this.emit({
+      type: 'preBattle',
+      sector: sectorShortString(opening.sector),
+      encounter: encounterName(code),
+      persistent: battle.persistent,
+      autoStart,
+      prompt,
+    });
+  }
+
+  #openFromHandoff(): void {
+    const s = this.state;
+    const handoff = s.encounter.preBattle;
+    if (!handoff) return;
+    s.encounter.preBattle = null;
+    s.movement.disableMapInterfaceDueToBattle = false;
+    unLockPauseState(s.clock);
+    if (handoff.tacticalTraversal) return;
+    const group = getGroup(this.economy, handoff.battleGroupId) ?? null;
+    const opening = initPreBattleInterface(this.economy, group, true);
+    if (!opening) return;
+    if (s.encounter.delayAutoResolveStart) {
+      s.encounter.delayAutoResolveStart = false;
+      this.#emitPreBattle(opening, true, null);
+      this.#startAutoresolve();
+      return;
+    }
+    const prompt = this.#openPrompt(PromptKind.PRE_BATTLE, { options: opening.options, enemiesKnown: this.#enemiesKnown(opening.sector) });
+    this.#emitPreBattle(opening, false, prompt.id);
+  }
+
+  #enemiesKnown(sector: Sector): boolean {
+    const code = this.state.encounter.code;
+    if (code === EncounterCode.CREATURE_ATTACK || code === EncounterCode.BLOODCAT_AMBUSH || code === EncounterCode.ENTERING_BLOODCAT_LAIR)
+      return false;
+    return whatPlayerKnowsAboutEnemiesInSector(this.economy, sector) === EnemyKnowledge.HOW_MANY;
+  }
+
+  #openNonPersistent(): void {
+    const battle = this.state.battle;
+    battle.enterPreBattlePending = false;
+    const opening = initPreBattleInterface(this.economy, null, false);
+    if (!opening || !battle.autoStart) {
+      battle.autoStart = false;
+      return;
+    }
+    battle.autoStart = false;
+    this.#emitPreBattle(opening, true, null);
+    this.#startAutoresolve();
+  }
+
+  requestMilitiaHandOff(world: Sector): void {
+    const battle = this.state.battle;
+    const enc = this.state.encounter;
+    battle.autoStart = true;
+    battle.enterPreBattlePending = true;
+    enc.usePersistentPBI = false;
+    battle.sector = { ...world };
+    battle.locator = true;
+    battle.transferTacticalOpposition = true;
+    if (enc.code !== EncounterCode.CREATURE_ATTACK) enc.code = EncounterCode.ENEMY_INVASION;
+  }
+
+  #arEnv(session: Pick<AutoresolveSession, 'fx' | 'sector' | 'rng'>): AutoresolveEnv {
+    const s = this.state;
+    return {
+      content: this.content,
+      profiles: s.profiles,
+      rng: session.rng ?? { pre: s.pre, main: s.rng, fx: session.fx },
+      world: { day: worldDay(s.clock), playerCapturedForRescue: (s.status.flags & CaptureFlag.FOR_RESCUE) !== 0 },
+      hooks: {
+        surrender: () => null,
+        beginCaptureSequence: () => beginCaptureSequence(this),
+        killedEnemy: (merc) => {
+          const m = this.roster.get(merc.id);
+          if (m && m.soldier === merc) this.moraleEvent(m, MoraleEvent.KILLED_ENEMY, session.sector);
+        },
+        battleRetreat: () => this.retreatFromAutoresolve(session.sector),
+      },
+    };
+  }
+
+  retreatFromAutoresolve(sector: Sector): void {
+    wakeUpAllMercsInSectorUnderAttack(this.economy, sector);
+    const groups = retreatAllInvolvedPlayerGroups(this.economy, sector);
+    this.emit({ type: 'retreated', sector: sectorShortString(sector), groups, via: 'autoresolve' });
+  }
+
+  #installSession(ar: AutoresolveState, sector: Sector, rng: ArRng | null): AutoresolveSession {
+    const s = this.state;
+    const battle = s.battle;
+    const world = s.worldSector;
+    const loadedHere = world !== null && sameSector(world, sector) && this.campaign.tactical !== null;
+    if (loadedHere && sector.z === 0) this.campaign.sectors?.unloadForAutoresolve();
+    else battle.locator = false;
+    const session: AutoresolveSession = {
+      ar,
+      sector: { ...sector },
+      fx: Rng.fromSeed(FX_SEED ^ s.clock.seconds ^ strategicIndex(sector)),
+      rng,
+      ticks: 0,
+      ended: false,
+    };
+    battle.autoresolve = session;
+    s.flow = 'autoresolve';
+    this.emit({
+      type: 'arStarted',
+      sector: sectorShortString(sector),
+      mercs: ar.mercs.length,
+      militia: ar.militia.length,
+      enemies: ar.enemies.length,
+    });
+    return session;
+  }
+
+  #startAutoresolve(): void {
+    const s = this.state;
+    const battle = s.battle;
+    const sector = battle.sector;
+    if (!sector) throw new Error('no battle sector for autoresolve');
+    battle.prompt = null;
+    battle.transferTacticalOpposition = false;
+    const world = s.worldSector;
+    const loadedHere = world !== null && sameSector(world, sector) && this.campaign.tactical !== null;
+    const ctx = this.#arContext();
+    const input = buildAutoresolveInput(ctx, {
+      sector,
+      encounter: s.encounter.code,
+      persistent: battle.persistent,
+      tactical: loadedHere ? (this.campaign.tactical?.state ?? null) : null,
+    });
+    const ar = createAutoresolveState(input);
+    associateWithStrategicGroups(ctx, ar, sector);
+    const session = this.#installSession(ar, sector, null);
+    enterAutoresolve(this.#arEnv(session), ar);
+  }
+
+  adoptAutoresolve(ar: AutoresolveState, sector: Sector, rng: ArRng | null): void {
+    this.state.battle.prompt = null;
+    this.state.battle.sector = { ...sector };
+    this.#installSession(ar, sector, rng);
+  }
+
+  useAutoresolveRng(rng: ArRng | null): void {
+    const session = this.session;
+    if (session) session.rng = rng;
+  }
+
+  settleAutoresolve(): void {
+    const session = this.session;
+    if (session) this.#afterSlice(session);
+  }
+
+  stepAutoresolve(): void {
+    const session = this.session;
+    if (!session || this.state.battle.prompt) return;
+    session.ticks++;
+    if (session.ticks % TICKS_PER_AUTORESOLVE_SLICE !== 0) return;
+    runAutoresolve(this.#arEnv(session), session.ar, { maxSlices: 1 });
+    this.#afterSlice(session);
+  }
+
+  #afterSlice(session: AutoresolveSession): void {
+    this.#drainArEvents(session);
+    const ar = session.ar;
+    if (ar.pendingSurrender && !this.state.battle.prompt) {
+      this.#openPrompt(PromptKind.SURRENDER);
+      this.emit({ type: 'arSurrenderOffered', battleMs: ar.elapsedMs });
+      return;
+    }
+    if (ar.status !== BattleStatus.IN_PROGRESS && !session.ended) this.#endBattle(session);
+  }
+
+  #drainArEvents(session: AutoresolveSession): void {
+    const ar = session.ar;
+    for (const e of ar.events.splice(0)) this.emit(this.#projectArEvent(ar, e));
+    for (const e of ar.statEvents.splice(0)) this.emit({ type: 'statChanged', soldier: e.soldier, stat: e.stat, change: e.change });
+  }
+
+  #projectArEvent(ar: AutoresolveState, e: ArEvent): EventWithoutTick {
+    switch (e.type) {
+      case 'arHit': {
+        const cell = (e.target.side === 'merc' ? ar.mercs : e.target.side === 'militia' ? ar.militia : ar.enemies)[e.target.index];
+        if (e.target.side === 'merc') return { type: 'arHit', battleMs: e.battleMs, target: e.target, damage: e.damage, life: e.life };
+        return { type: 'arHit', battleMs: e.battleMs, target: e.target, health: healthCategory(e.life, cell?.soldier.lifeMax ?? e.life) };
+      }
+      case 'arBattleOver':
+        return { type: 'arBattleOver', battleMs: e.battleMs, status: battleStatusName(e.status) };
+      default:
+        return e;
+    }
+  }
+
+  #firstBattleEnded(sector: Sector, won: boolean, fromAutoresolve: boolean): void {
+    const facts = this.state.battle.firstBattle;
+    facts.fought = true;
+    if (won) facts.won = true;
+    if (!fromAutoresolve) facts.beingFought = false;
+    if (this.state.economy.firstBattleSector === 0) this.state.economy.firstBattleSector = strategicIndex(sector);
+    const queen = this.campaign.queen;
+    if (queen) handleFirstBattleEndingWhileInTown(queen, sector, fromAutoresolve);
+  }
+
+  #retreatImplications(sector: Sector): void {
+    if (countAllMilitiaInSector(this.economy, sector)) this.#loyalty(LoyaltyEvent.ABANDON_MILITIA, sector);
+    this.moraleEvent(null, MoraleEvent.RAN_AWAY, sector);
+  }
+
+  #controller(sector: Sector): 'player' | 'enemy' {
+    return this.state.map.elements[strategicIndex(sector)]?.enemyControlled ? 'enemy' : 'player';
+  }
+
+  #emitControlChange(sector: Sector, before: 'player' | 'enemy'): 'player' | 'enemy' | null {
+    const after = this.#controller(sector);
+    if (after === before) return null;
+    this.emit({ type: 'sectorControlChanged', sector: sectorShortString(sector), controller: after });
+    return after;
+  }
+
+  #captureMorale(sector: Sector): void {
+    for (const m of this.roster.all()) {
+      if (m.life === 0 || isMechanical(m) || !playerMercInvolvedInThisCombat(this.economy, m, sector)) continue;
+      this.moraleEvent(m, MoraleEvent.MERC_CAPTURED, sector);
+    }
+  }
+
+  #endBattle(session: AutoresolveSession): void {
+    session.ended = true;
+    const ar = session.ar;
+    const s = { x: session.sector.x, y: session.sector.y, z: 0 };
+    const battle = this.state.battle;
+    const creatures = this.state.encounter.code === EncounterCode.CREATURE_ATTACK;
+    endOfBattle(ar);
+    if (!battle.firstBattle.fought) this.#firstBattleEnded(s, ar.status === BattleStatus.VICTORY, true);
+    const controlBefore = this.#controller(s);
+    switch (ar.status) {
+      case BattleStatus.VICTORY:
+        this.moraleEvent(null, MoraleEvent.BATTLE_WON, s);
+        this.#loyalty(LoyaltyEvent.BATTLE_WON, s);
+        setThisSectorAsPlayerControlled(this.economy, s, true);
+        this.emit({ type: 'battleResult', sector: sectorShortString(s), result: 'victory', via: 'autoresolve' });
+        break;
+      case BattleStatus.SURRENDERED:
+      case BattleStatus.CAPTURED:
+        this.#captureMorale(s);
+        this.moraleEvent(null, MoraleEvent.HEARD_BATTLE_LOST, s);
+        this.#loyalty(LoyaltyEvent.BATTLE_LOST, s);
+        battle.enemyGainedControlOf = s;
+        break;
+      case BattleStatus.DEFEAT:
+        this.moraleEvent(null, MoraleEvent.HEARD_BATTLE_LOST, s);
+        this.#loyalty(LoyaltyEvent.BATTLE_LOST, s);
+        battle.enemyGainedControlOf = s;
+        if (creatures) battle.civiliansEaten = ar.aliveEnemies;
+        this.emit({ type: 'battleResult', sector: sectorShortString(s), result: 'defeat', via: 'autoresolve' });
+        break;
+      case BattleStatus.RETREAT:
+        this.#retreatImplications(s);
+        if (!creatures) battle.enemyGainedControlOf = s;
+        else if (ar.aliveEnemies) {
+          battle.enemyGainedControlOf = s;
+          battle.civiliansEaten = ar.aliveEnemies;
+        }
+        break;
+    }
+    this.#emitControlChange(s, controlBefore);
+    this.#openPrompt(PromptKind.AUTORESOLVE_DONE);
+  }
+
+  canBandage(): boolean {
+    const session = this.session;
+    return session !== null && canBandage(this.#arEnv(session), session.ar);
+  }
+
+  #bandage(session: AutoresolveSession): void {
+    autoBandageMercs(this.#arEnv(session), session.ar);
+    this.#drainArEvents(session);
+    this.#openPrompt(PromptKind.AUTORESOLVE_DONE);
+  }
+
+  #closeAutoresolve(session: AutoresolveSession): void {
+    const s = this.state;
+    const battle = s.battle;
+    const ar = session.ar;
+    const sector = session.sector;
+    battle.prompt = null;
+    const captured: number[] = [];
+    const env = this.#arEnv(session);
+    const port = strategicClosePort(this.#arContext(), ar, sector, {
+      mercDied: (soldier) => {
+        const m = this.roster.get(soldier.id);
+        if (m) strategicHandlePlayerTeamMercDeath(this, m);
+      },
+      mercCaptured: (soldier) => {
+        const m = this.roster.get(soldier.id);
+        if (m && enemyCapturesPlayerSoldier(this, m, env.rng.main)) {
+          captured.push(m.id);
+          this.emit({ type: 'mercCaptured', soldier: m.id, sector: sectorShortString(m.sector) });
+        }
+      },
+      endCaptureSequence: () => endCaptureSequence(this),
+    });
+    const wounded = ar.mercs.filter((c) => c.soldier.life !== 0 && c.soldier.life < c.soldier.lifeMax).map((c) => c.soldier.id);
+    const controlBefore = this.#controller(sector);
+    const result = closeAutoresolve(env, ar, port);
+    if (result.bandageEvent) addStrategicEvent(s.queue, EventKind.BANDAGE_BLEEDING_MERCS, worldTotalMinutes(s.clock) + 1, 0);
+    for (const soldier of result.mercsAtCenter) {
+      const m = this.roster.get(soldier.id);
+      if (m) m.insertionCode = InsertionCode.CENTER;
+    }
+    for (const record of result.corpses) addDeadSoldierToUnloadedSector(s, this.content, sector, record);
+    reEvaluateEveryonesNothingToDo(this.economy);
+    warpGameTime(this.campaign.clockContext, result.warpSeconds, Warp.NO_PROCESSING);
+    battle.autoresolve = null;
+    s.encounter.battleGroup = null;
+    this.#returnToMapOrTactical();
+    this.#handlePostAutoresolveMessages();
+    const control = this.#emitControlChange(sector, controlBefore);
+    this.emit({
+      type: 'arSummary',
+      sector: sectorShortString(sector),
+      status: battleStatusName(result.status),
+      battleSeconds: Math.trunc(ar.elapsedMs / 1000),
+      worldSecondsWarped: result.warpSeconds,
+      mercs: { died: result.mercsDied.map((x) => x.id), captured, wounded },
+      militia: { died: result.militiaDied.length, promoted: result.promotions.total },
+      enemiesKilled: result.enemiesKilled.length,
+      sectorControl: control,
+      itemsDropped: result.corpses.reduce((n, c) => n + c.items.length, 0),
+    });
+  }
+
+  #returnToMapOrTactical(): void {
+    enterMapScreen(this.campaign);
+  }
+
+  #handlePostAutoresolveMessages(): void {
+    const battle = this.state.battle;
+    if (battle.civiliansEaten > 0) {
+      battle.civiliansEaten = 0;
+      battle.enemyGainedControlOf = null;
+      return;
+    }
+    const sector = battle.enemyGainedControlOf;
+    if (!sector) return;
+    battle.enemyGainedControlOf = null;
+    setThisSectorAsEnemyControlled(this.economy, sector);
+  }
+
+  #answerPreBattle(choice: PbiChoice): CommandResult {
+    switch (choice) {
+      case Choice.AUTORESOLVE:
+        this.#startAutoresolve();
+        return { ok: true };
+      case Choice.ENTER_SECTOR:
+        return this.#enterSector();
+      case Choice.RETREAT:
+        this.#retreat();
+        return { ok: true };
+      default:
+        return { ok: false, reason: 'that choice is not offered' };
+    }
+  }
+
+  #enterSector(): CommandResult {
+    const s = this.state;
+    const battle = s.battle;
+    const flow = this.campaign.sectors;
+    const sector = battle.sector;
+    if (!flow || !sector) return { ok: false, reason: 'no sector flow' };
+    const target = { x: sector.x, y: sector.y, z: 0 };
+    if (!flow.setup.worlds.world(flow.mapPathOf(target))) return { ok: false, reason: 'sector map is not loaded' };
+    const enc = s.encounter;
+    const group = getGroup(this.economy, enc.battleGroup ?? -1);
+    const placement =
+      battle.persistent &&
+      group?.player === true &&
+      enc.code !== EncounterCode.ENEMY_AMBUSH &&
+      enc.code !== EncounterCode.CREATURE_ATTACK &&
+      enc.code !== EncounterCode.BLOODCAT_AMBUSH;
+    if (battle.persistent) {
+      putNonSquadMercsInBattleSectorOnSquads(this.economy, true, sector);
+      clearMovementForAllInvolvedPlayerGroups(this.economy, sector);
+    } else enc.battleGroup = null;
+    battle.prompt = null;
+    if (!flow.setCurrentWorldSector(target, { autoPlacement: placement, battleLocatorShown: battle.locator }))
+      return { ok: false, reason: 'sector map is not loaded' };
+    return { ok: true, data: { sector: sectorShortString(target) } };
+  }
+
+  #retreat(): void {
+    const s = this.state;
+    const battle = s.battle;
+    const sector = battle.sector;
+    if (!sector) return;
+    const groups = retreatAllInvolvedPlayerGroups(this.economy, sector);
+    this.#retreatImplications(sector);
+    this.emit({ type: 'retreated', sector: sectorShortString(sector), groups, via: 'preBattle' });
+    if (countAllMilitiaInSector(this.economy, sector)) {
+      this.#startAutoresolve();
+      return;
+    }
+    warpGameTime(this.campaign.clockContext, PBI_RETREAT_WARP_SECONDS, Warp.NO_PROCESSING);
+    resetMovementForEnemyGroupsInLocation(this.economy, sector);
+    battle.prompt = null;
+    stopTimeCompression(this.campaign.clockContext, CompressionStop.BATTLE);
+    s.encounter.battleGroup = null;
+    battle.locator = false;
+    const world = s.worldSector;
+    if (world && sameSector(world, sector) && s.flow === 'tactical') this.campaign.sectors?.checkAndHandleUnloadingOfCurrentWorld();
+    this.#returnToMapOrTactical();
+  }
+
+  #answer(cmd: { readonly [key: string]: unknown }): CommandResult {
+    const prompt = this.state.battle.prompt;
+    if (!prompt) return { ok: false, reason: 'no prompt is open' };
+    if (cmd.prompt !== undefined && cmd.prompt !== prompt.id) return { ok: false, reason: `the open prompt is ${prompt.id}` };
+    const choice = String(cmd.choice ?? '');
+    switch (prompt.kind) {
+      case PromptKind.PRE_BATTLE: {
+        const option = prompt.options.find((o) => o.choice === choice);
+        if (!option) return { ok: false, reason: `choose one of ${prompt.options.map((o) => o.choice).join(', ')}` };
+        if (!option.enabled) return { ok: false, reason: option.reason ?? 'that choice is disabled' };
+        return this.#answerPreBattle(option.choice);
+      }
+      case PromptKind.SURRENDER:
+        return this.#answerSurrender(choice);
+      case PromptKind.AUTORESOLVE_DONE:
+        return this.#answerDone(choice);
+      case PromptKind.SIMULTANEOUS_ARRIVAL:
+        return this.#answerSimultaneous(choice);
+      case PromptKind.NPC_OF_NOTE:
+        return this.#answerNpcOfNote(choice);
+    }
+  }
+
+  #answerSurrender(choice: string): CommandResult {
+    const session = this.session;
+    if (!session || (choice !== 'accept' && choice !== 'reject')) return { ok: false, reason: "choose 'accept' or 'reject'" };
+    this.state.battle.prompt = null;
+    answerSurrender(this.#arEnv(session), session.ar, choice === 'accept');
+    this.#afterSlice(session);
+    return { ok: true };
+  }
+
+  #answerDone(choice: string): CommandResult {
+    const session = this.session;
+    if (!session) return { ok: false, reason: 'no autoresolve is open' };
+    if (choice === 'bandage') {
+      if (!this.canBandage()) return { ok: false, reason: 'nobody can bandage' };
+      this.#bandage(session);
+      return { ok: true };
+    }
+    if (choice !== 'done') return { ok: false, reason: "choose 'done' or 'bandage'" };
+    this.#closeAutoresolve(session);
+    this.settle();
+    return { ok: true };
+  }
+
+  #answerSimultaneous(choice: string): CommandResult {
+    if (choice !== 'coordinate' && choice !== 'separately') return { ok: false, reason: "choose 'coordinate' or 'separately'" };
+    this.state.battle.prompt = null;
+    answerSimultaneousArrival(this.economy, choice === 'coordinate');
+    this.settle();
+    return { ok: true };
+  }
+
+  #answerNpcOfNote(choice: string): CommandResult {
+    if (choice !== 'continue' && choice !== 'stop') return { ok: false, reason: "choose 'continue' or 'stop'" };
+    this.state.battle.prompt = null;
+    answerNpcOfNotePrompt(this.economy, choice === 'continue');
+    this.settle();
+    return { ok: true };
+  }
+
+  #autoresolveRetreat(cmd: { readonly [key: string]: unknown }): CommandResult {
+    const session = this.session;
+    if (!session || this.state.flow !== 'autoresolve') return { ok: false, reason: 'no autoresolve battle is running' };
+    if (this.state.battle.prompt) return { ok: false, reason: `answer the ${this.state.battle.prompt.kind} prompt first` };
+    const ar = session.ar;
+    if (ar.status !== BattleStatus.IN_PROGRESS) return { ok: false, reason: 'the battle is over' };
+    let index: number | null = null;
+    if (cmd.soldier !== undefined) {
+      index = ar.mercs.findIndex((c) => c.soldier.id === cmd.soldier);
+      if (index < 0) return { ok: false, reason: 'that soldier is not in this battle' };
+      if (index === ar.robot) return { ok: false, reason: 'the robot retreats with its controller' };
+    } else if (ar.mercs.length === 0) return { ok: false, reason: 'no merc of yours is in this battle' };
+    if (!orderRetreat(ar, index)) return { ok: false, reason: 'already retreating' };
+    return { ok: true };
+  }
+
+  #autoresolveBattle(): CommandResult {
+    const s = this.state;
+    const world = s.worldSector;
+    const t = this.campaign.tactical?.state;
+    if (s.flow !== 'tactical' || !t || !world) return { ok: false, reason: 'no tactical battle is loaded' };
+    if (!t.turn.enemyInSector && !t.inCombat) return { ok: false, reason: 'no battle is in progress' };
+    calculateNonPersistentPbiInfo(this.economy);
+    const battle = s.battle;
+    if (!battle.locator || !battle.sector || !sameSector(battle.sector, world)) return { ok: false, reason: 'no battle is in progress' };
+    const opening = initPreBattleInterface(this.economy, null, false);
+    if (!opening) return { ok: false, reason: 'no battle is in progress' };
+    const refusal = nonPersistentAutoresolveRefusal(s.encounter.explicitCode);
+    if (refusal) return { ok: false, reason: refusal };
+    s.encounter.battleGroup = null;
+    this.#emitPreBattle(opening, false, null);
+    this.#startAutoresolve();
+    return { ok: true };
+  }
+
+  dispatch(cmd: { readonly type: string; readonly [key: string]: unknown }): CommandResult | null {
+    switch (cmd.type) {
+      case 'answer':
+        return this.#answer(cmd);
+      case 'autoresolveRetreat':
+        return this.#autoresolveRetreat(cmd);
+      case 'autoresolveBattle':
+        return this.#autoresolveBattle();
+      default:
+        if (this.state.battle.prompt) return { ok: false, reason: `answer the ${this.state.battle.prompt.kind} prompt first` };
+        if (this.state.flow === 'autoresolve') return { ok: false, reason: 'an autoresolve battle is running' };
+        return null;
+    }
+  }
+
+  mercDiedInTactical(soldier: Soldier): void {
+    const m = this.roster.get(soldier.id);
+    if (!m || m.soldier !== soldier || m.assignment === Assignment.ASSIGNMENT_DEAD) return;
+    strategicHandlePlayerTeamMercDeath(this, m);
+  }
+
+  pendingEnemies(): boolean {
+    return (this.state.worldSector?.z ?? 0) === 0 && this.state.encounter.pendingEnemies;
+  }
+
+  militiaFinishBattle(t: TacticalState): boolean {
+    const world = this.state.worldSector;
+    if (!world) return false;
+    const enemies = t.soldiers.some((x) => x?.placed && x.life !== 0 && (x.team === Team.ENEMY || x.team === Team.CREATURE));
+    const militia = teamMembers(t, Team.MILITIA).some((x) => x.life !== 0 && x.side === Side.FRIENDLY);
+    if (!enemies || !militia) return false;
+    this.requestMilitiaHandOff(world);
+    return true;
+  }
+
+  #captureAllowed(t: TacticalState, ours: readonly RosterMerc[]): boolean {
+    const notOkReal = ours.filter((m) => m.life !== 0 && m.life < OKLIFE && !m.isEpc && !m.isRobot).length;
+    if (notOkReal >= MAX_CAPTURED_REAL_MERCS || notOkReal <= MIN_CAPTURED_REAL_MERCS) return false;
+    if (teamMembers(t, Team.ENEMY).length === 0) return false;
+    const q = this.state.battle.quests;
+    return q.heldInAlma === QuestState.NOT_STARTED || (q.heldInAlma === QuestState.DONE && q.interrogation === QuestState.NOT_STARTED);
+  }
+
+  battleLost(t: TacticalState): void {
+    const ours = this.roster.all().filter((m) => t.soldiers[m.id] === m.soldier && m.soldier.placed);
+    const capture = this.#captureAllowed(t, ours);
+    if (capture) beginCaptureSequence(this);
+    for (const m of ours) {
+      const s = m.soldier;
+      if (((s.life !== 0 && s.life < OKLIFE) || m.isEpc || m.isRobot) && !capture) {
+        s.life = 0;
+        handleSoldierDeath(t, s);
+      }
+      if (s.life !== 0 && capture && enemyCapturesPlayerSoldier(this, m, this.state.rng)) {
+        removeSoldierFromTacticalSector(t, s);
+        this.emit({ type: 'mercCaptured', soldier: m.id, sector: sectorShortString(m.sector) });
+      }
+    }
+    if (capture) endCaptureSequence(this);
+  }
+
+  tacticalBattleEnded(t: TacticalState, won: boolean): void {
+    const world = this.state.worldSector;
+    if (!world) return;
+    const battle = this.state.battle;
+    const controlBefore = this.#controller(world);
+    if (won) this.#tacticalVictory(t, world);
+    else this.#tacticalDefeat(t, world);
+    battle.locator = false;
+    if (world.z === 0) this.#emitControlChange(world, controlBefore);
+  }
+
+  #tacticalVictory(t: TacticalState, world: Sector): void {
+    const fought = t.turn.numFoughtInBattle;
+    if ((fought[Team.ENEMY] ?? 0) + (fought[Team.CREATURE] ?? 0) + (fought[Team.CIV] ?? 0) > 0) {
+      this.moraleEvent(null, MoraleEvent.BATTLE_WON, world);
+      this.#loyalty(LoyaltyEvent.BATTLE_WON, world);
+    }
+    this.emit({ type: 'battleResult', sector: sectorShortString(world), result: 'victory', via: 'tactical' });
+    setThisSectorAsPlayerControlled(this.economy, world, true);
+    if (this.state.battle.firstBattle.beingFought) this.#firstBattleEnded(world, true, false);
+  }
+
+  #tacticalDefeat(t: TacticalState, world: Sector): void {
+    this.moraleEvent(null, MoraleEvent.HEARD_BATTLE_LOST, world);
+    this.#loyalty(LoyaltyEvent.BATTLE_LOST, world);
+    this.state.battle.lostBattleUnloadAtMs = t.clockMs + LOST_BATTLE_UNLOAD_DELAY_MS;
+    if (this.state.battle.firstBattle.beingFought) this.#firstBattleEnded(world, false, false);
+    const enemiesLeft = t.soldiers.some(
+      (s) => s?.placed && s.life > 0 && !s.neutral && s.side !== Side.FRIENDLY && s.team !== Team.CREATURE,
+    );
+    if (enemiesLeft) setThisSectorAsEnemyControlled(this.economy, world);
+    this.emit({ type: 'battleResult', sector: sectorShortString(world), result: 'defeat', via: 'tactical' });
+  }
+}

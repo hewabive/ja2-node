@@ -1,0 +1,171 @@
+Pre-battle interface oracle hook for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE (SFI-SCLA).
+Moves the encounter-code block of InitPreBattleInterface into DeterminePersistentEncounterCode (same code, same call
+site) and appends OracleDeterminePersistentEncounterCode, which runs WakeUpAllMercsInSectorUnderAttack and that block
+headless for the pbi probe of src/game/Oracle.cc. Applied by tools/oracle/build.sh after 0004.
+
+--- a/src/game/Strategic/PreBattle_Interface.cc
++++ b/src/game/Strategic/PreBattle_Interface.cc
+@@ -166,6 +166,73 @@
+ static void RetreatMercsCallback(GUI_BUTTON* btn, UINT32 reason);
+ 
+ 
++static void DeterminePersistentEncounterCode(GROUP* const battle_group, SGPSector const& sSector, INT8 const best_exp_level)
++{
++	if (!battle_group)
++	{ // Creatures are attacking
++		gubEnemyEncounterCode = CREATURE_ATTACK_CODE;
++	}
++	else if (gpBattleGroup->fPlayer)
++	{
++		if (gubEnemyEncounterCode != BLOODCAT_AMBUSH_CODE &&
++				gubEnemyEncounterCode != ENTERING_BLOODCAT_LAIR_CODE)
++		{
++			UINT8 const n_stationary_enemies = NumStationaryEnemiesInSector(sSector);
++			if (n_stationary_enemies != 0)
++			{
++				gubEnemyEncounterCode = ENTERING_ENEMY_SECTOR_CODE;
++			}
++			else
++			{
++				gubEnemyEncounterCode = ENEMY_ENCOUNTER_CODE;
++
++				//Don't consider ambushes until the player has reached 25% (normal) progress
++				if (gfHighPotentialForAmbush)
++				{
++					if (Chance(90)) gubEnemyEncounterCode = ENEMY_AMBUSH_CODE;
++				}
++				else
++				{
++					UINT8 const n_mobile_enemies = NumMobileEnemiesInSector(sSector);
++					UINT8 const n_mercs          = PlayerMercsInSector(sSector);
++					if (gfAutoAmbush && n_mobile_enemies > n_mercs)
++					{
++						gubEnemyEncounterCode = ENEMY_AMBUSH_CODE;
++					}
++					else if (WhatPlayerKnowsAboutEnemiesInSector(sSector) == KNOWS_NOTHING &&
++							CurrentPlayerProgressPercentage() >= 30 - gGameOptions.ubDifficultyLevel * 5)
++					{ /* If the enemy outnumbers the players, then there is a small chance
++						 * of the enemies ambushing the group */
++						if (n_mobile_enemies > n_mercs)
++						{
++							SECTORINFO const& sector = SectorInfo[sSector.AsByte()];
++							if (!(sector.uiFlags & SF_ALREADY_VISITED))
++							{
++								INT32 chance = (UINT8)(4 - best_exp_level + 2 * gGameOptions.ubDifficultyLevel + CurrentPlayerProgressPercentage() / 10);
++								if (sector.uiFlags & SF_ENEMY_AMBUSH_LOCATION) chance += 20;
++								if (gfCantRetreatInPBI)                        chance += 20;
++								if ((INT32)PreRandom(100) < chance)
++								{
++									gubEnemyEncounterCode = ENEMY_AMBUSH_CODE;
++								}
++							}
++						}
++					}
++				}
++			}
++		}
++	}
++	else
++	{ // Are enemies invading a town, or just encountered the player.
++	  // SAM sites not in towns will also be considered to be important.
++		gubEnemyEncounterCode =
++			((GetTownIdForSector(sSector) != BLANK_SECTOR)
++			  || IsThisSectorASAMSector(sSector))
++			? ENEMY_INVASION_CODE : ENEMY_ENCOUNTER_CODE;
++	}
++}
++
++
+ void InitPreBattleInterface(GROUP* const battle_group, bool const persistent_pbi)
+ {
+ 	// ARM: Feb01/98 - Cancel out of mapscreen movement plotting if PBI subscreen is coming up
+@@ -342,71 +409,7 @@
+ 		}
+ 	}
+ 
+-	if (gfPersistantPBI)
+-	{
+-		if (!battle_group)
+-		{ // Creatures are attacking
+-			gubEnemyEncounterCode = CREATURE_ATTACK_CODE;
+-		}
+-		else if (gpBattleGroup->fPlayer)
+-		{
+-			if (gubEnemyEncounterCode != BLOODCAT_AMBUSH_CODE &&
+-					gubEnemyEncounterCode != ENTERING_BLOODCAT_LAIR_CODE)
+-			{
+-				UINT8 const n_stationary_enemies = NumStationaryEnemiesInSector(sSector);
+-				if (n_stationary_enemies != 0)
+-				{
+-					gubEnemyEncounterCode = ENTERING_ENEMY_SECTOR_CODE;
+-				}
+-				else
+-				{
+-					gubEnemyEncounterCode = ENEMY_ENCOUNTER_CODE;
+-
+-					//Don't consider ambushes until the player has reached 25% (normal) progress
+-					if (gfHighPotentialForAmbush)
+-					{
+-						if (Chance(90)) gubEnemyEncounterCode = ENEMY_AMBUSH_CODE;
+-					}
+-					else
+-					{
+-						UINT8 const n_mobile_enemies = NumMobileEnemiesInSector(sSector);
+-						UINT8 const n_mercs          = PlayerMercsInSector(sSector);
+-						if (gfAutoAmbush && n_mobile_enemies > n_mercs)
+-						{
+-							gubEnemyEncounterCode = ENEMY_AMBUSH_CODE;
+-						}
+-						else if (WhatPlayerKnowsAboutEnemiesInSector(sSector) == KNOWS_NOTHING &&
+-								CurrentPlayerProgressPercentage() >= 30 - gGameOptions.ubDifficultyLevel * 5)
+-						{ /* If the enemy outnumbers the players, then there is a small chance
+-							 * of the enemies ambushing the group */
+-							if (n_mobile_enemies > n_mercs)
+-							{
+-								SECTORINFO const& sector = SectorInfo[sSector.AsByte()];
+-								if (!(sector.uiFlags & SF_ALREADY_VISITED))
+-								{
+-									INT32 chance = (UINT8)(4 - best_exp_level + 2 * gGameOptions.ubDifficultyLevel + CurrentPlayerProgressPercentage() / 10);
+-									if (sector.uiFlags & SF_ENEMY_AMBUSH_LOCATION) chance += 20;
+-									if (gfCantRetreatInPBI)                        chance += 20;
+-									if ((INT32)PreRandom(100) < chance)
+-									{
+-										gubEnemyEncounterCode = ENEMY_AMBUSH_CODE;
+-									}
+-								}
+-							}
+-						}
+-					}
+-				}
+-			}
+-		}
+-		else
+-		{ // Are enemies invading a town, or just encountered the player.
+-		  // SAM sites not in towns will also be considered to be important.
+-			gubEnemyEncounterCode =
+-				((GetTownIdForSector(sSector) != BLANK_SECTOR)
+-				  || IsThisSectorASAMSector(sSector))
+-				? ENEMY_INVASION_CODE : ENEMY_ENCOUNTER_CODE;
+-		}
+-	}
++	if (gfPersistantPBI) DeterminePersistentEncounterCode(battle_group, sSector, best_exp_level);
+ 
+ 	gfHighPotentialForAmbush = FALSE;
+ 
+@@ -1452,3 +1455,16 @@
+ 		ActivateAutomaticAutoResolveStart();
+ 	}
+ }
++
++
++void OracleDeterminePersistentEncounterCode(GROUP* const battle_group, SGPSector const& sector)
++{
++	gfPersistantPBI = TRUE;
++	gpBattleGroup   = battle_group;
++	gubPBSector     = sector;
++	gfPreBattleInterfaceActive = TRUE;
++	WakeUpAllMercsInSectorUnderAttack();
++	DeterminePersistentEncounterCode(battle_group, sector, 0);
++	gfHighPotentialForAmbush = FALSE;
++	gfPreBattleInterfaceActive = FALSE;
++}

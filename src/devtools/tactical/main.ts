@@ -183,6 +183,7 @@ function render(): void {
   lastRenderAt = now;
   openDoors = new Set(client?.openDoors ?? []);
   revealedRooms = new Set(client?.revealedRooms ?? []);
+  followSectorChange();
   gl.clearColor(0, 0, 0, 1);
   gl.clearDepth(0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -314,54 +315,75 @@ el<HTMLButtonElement>('idle').addEventListener('click', () => {
   });
 });
 
+let available: ReadonlySet<string> = new Set();
+let loadingMap: string | null = null;
+
+async function loadSector(mapPath: string): Promise<void> {
+  loadingMap = mapPath;
+  debug.ready = false;
+  const loaded = await loadWorld(mapPath, available);
+  atlas?.dispose();
+  world = loaded;
+  atlas = new TileAtlas(gl, loaded.surfaces);
+  const firstRoofType = typeIndex(loaded.tables, 'FIRSTROOF');
+  const lastRoofType = typeIndex(loaded.tables, 'SECONDSLANTROOF');
+  const underground = loaded.map.ambient?.basement === true || loaded.map.ambient?.caves === true;
+  source = {
+    level: loaded.level,
+    tiles: loaded.tiles,
+    prepared: prepareLevelRenderData(loaded.level, loaded.tiles, loaded.tables, loaded.map.info, underground),
+    frame: (tile) => {
+      const te = loaded.tiles[tile];
+      const f = te ? loaded.surfaces[te.type]?.picture.frames[te.regionIndex] : undefined;
+      return f ? { offsetX: f.offsetX, offsetY: f.offsetY, width: f.width, height: f.height } : null;
+    },
+    mercsAt: (g) => mercsByGrid.get(g) ?? [],
+    roofHidden: (g, tile) => {
+      const room = loaded.level.rooms[g] ?? 0;
+      if (room === 0 || !revealedRooms.has(room)) return false;
+      const type = loaded.tiles[tile]?.type ?? -1;
+      return type >= firstRoofType && type <= lastRoofType;
+    },
+    substitute: (g, tile) => {
+      if (!openDoors.has(g)) return tile;
+      const def = loaded.tiles[tile]?.structure;
+      return def && def.flags & DOOR_FLAGS && !(def.flags & OPEN_FLAG) ? tile + def.partnerDelta : tile;
+    },
+  };
+  await radar.load(mapPath, available);
+  const squad = soldiers().filter((s) => s.team === OUR_TEAM);
+  selected = squad.find((s) => s.id === selected)?.id ?? squad[0]?.id ?? null;
+  debug.selected = selected;
+  centerOn(squad[0]?.gridNo ?? loaded.map.info.centerGridNo);
+  await Promise.all(soldiers().flatMap((s) => assets?.preload(s) ?? []));
+  debug.map = mapPath;
+  loadingMap = null;
+  setStatus(`${mapPath} · ${soldiers().length} soldiers visible`);
+  debug.ready = true;
+}
+
+function followSectorChange(): void {
+  const mapPath = client?.mapPath ?? null;
+  if (!mapPath || mapPath === debug.map || loadingMap !== null) return;
+  void loadSector(mapPath).catch((err: Error) => {
+    loadingMap = null;
+    debug.error = err.message;
+    setStatus(err.message, true);
+  });
+}
+
 async function start(): Promise<void> {
   try {
     const files = await fetchVfsList();
-    const available = new Set(files.map((f) => f.path));
-    client = await SessionClient.connect();
+    available = new Set(files.map((f) => f.path));
+    client = await SessionClient.connect(new URLSearchParams(location.search).get('session') ?? undefined);
     client.playbackSpeed = DEFAULT_PLAYBACK;
-    const mapPath = client.view?.mapPath;
-    if (!mapPath) throw new Error('the session has no map');
+    const mapPath = client.mapPath;
+    if (!mapPath) throw new Error('no sector is loaded in this session');
     assets = await SoldierAssets.load(available);
-    const loaded = await loadWorld(mapPath, available);
-    world = loaded;
-    atlas = new TileAtlas(gl, loaded.surfaces);
-    const firstRoofType = typeIndex(loaded.tables, 'FIRSTROOF');
-    const lastRoofType = typeIndex(loaded.tables, 'SECONDSLANTROOF');
-    const underground = loaded.map.ambient?.basement === true || loaded.map.ambient?.caves === true;
-    source = {
-      level: loaded.level,
-      tiles: loaded.tiles,
-      prepared: prepareLevelRenderData(loaded.level, loaded.tiles, loaded.tables, loaded.map.info, underground),
-      frame: (tile) => {
-        const te = loaded.tiles[tile];
-        const f = te ? loaded.surfaces[te.type]?.picture.frames[te.regionIndex] : undefined;
-        return f ? { offsetX: f.offsetX, offsetY: f.offsetY, width: f.width, height: f.height } : null;
-      },
-      mercsAt: (g) => mercsByGrid.get(g) ?? [],
-      roofHidden: (g, tile) => {
-        const room = loaded.level.rooms[g] ?? 0;
-        if (room === 0 || !revealedRooms.has(room)) return false;
-        const type = loaded.tiles[tile]?.type ?? -1;
-        return type >= firstRoofType && type <= lastRoofType;
-      },
-      substitute: (g, tile) => {
-        if (!openDoors.has(g)) return tile;
-        const def = loaded.tiles[tile]?.structure;
-        return def && def.flags & DOOR_FLAGS && !(def.flags & OPEN_FLAG) ? tile + def.partnerDelta : tile;
-      },
-    };
-    await radar.load(mapPath, available);
-    const squad = soldiers().filter((s) => s.team === OUR_TEAM);
-    selected = squad[0]?.id ?? null;
-    debug.selected = selected;
-    centerOn(squad[0]?.gridNo ?? loaded.map.info.centerGridNo);
-    await Promise.all(soldiers().flatMap((s) => assets?.preload(s) ?? []));
+    await loadSector(mapPath);
     for (const b of document.querySelectorAll<HTMLButtonElement>('[data-speed]'))
       b.classList.toggle('active', Number(b.dataset.speed) === 0);
-    debug.map = mapPath;
-    setStatus(`${mapPath} · ${soldiers().length} soldiers visible`);
-    debug.ready = true;
   } catch (err) {
     debug.error = (err as Error).message;
     setStatus((err as Error).message, true);

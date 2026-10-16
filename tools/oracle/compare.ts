@@ -6,6 +6,7 @@ import { loadTacticalWorld, type TacticalWorld } from '../../src/content/world/t
 import { openDataVfs } from '../../src/node/data-vfs.ts';
 import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR } from '../../src/node/repo.ts';
 import { createSaveSession } from '../../src/server/save-session.ts';
+import type { FileExists } from '../../src/server/world-cache.ts';
 import { calcBestShot } from '../../src/sim/tactical/ai/attack-choice.ts';
 import { plotPathCost } from '../../src/sim/tactical/ai/utils.ts';
 import { anim } from '../../src/sim/tactical/anim-states.ts';
@@ -34,8 +35,10 @@ import {
 import { createSoldier, NOWHERE, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
 import { registerSoldier, unregisterSoldier, whoIsThere } from '../../src/sim/tactical/state.ts';
 import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
+import { compareAutoresolveAftermath, compareEnemyCounts } from './autoresolve-aftermath.ts';
 import { compareAutoresolve } from './autoresolve-compare.ts';
 import { ECONOMY_PROBES, EconomyComparer } from './economy-compare.ts';
+import { comparePreBattle } from './pre-battle-compare.ts';
 import { SAI_PROBES, SaiComparer } from './sai-compare.ts';
 import { SECTOR_PROBES, SectorComparer } from './sector-compare.ts';
 import { STRATEGIC_PROBES, StrategicComparer } from './strategic-compare.ts';
@@ -46,6 +49,7 @@ type ReadFile = (path: string) => Promise<Uint8Array | null>;
 interface Context {
   readonly sim: TacticalSim;
   readonly save: boolean;
+  readonly bytes?: Uint8Array;
 }
 
 const DEFAULT_MAP = 'maps/a9.dat';
@@ -499,7 +503,31 @@ async function sectorContext(
 async function saveContext(read: ReadFile, dataDir: string, p: Json): Promise<Context> {
   const bytes = new Uint8Array(readFileSync(join(savesDir(dataDir), `${String(p.name)}.sav`)));
   const { session } = await createSaveSession(read, bytes);
-  return { sim: session.sim, save: true };
+  return { sim: session.sim, save: true, bytes };
+}
+
+async function comparePreBattleProbe(read: ReadFile, exists: FileExists, ctx: Context | null, p: Json): Promise<number> {
+  if (!ctx?.bytes) return report(`pbi line ${p.line}`, false, 'no save loaded');
+  const { session } = await createSaveSession(read, ctx.bytes, 1, exists);
+  return comparePreBattle(session, p);
+}
+
+async function compareEnemyCountsProbe(read: ReadFile, ctx: Context | null, p: Json): Promise<number> {
+  if (!ctx?.bytes) return report(`enemycounts line ${p.line}`, false, 'no save loaded');
+  const { session } = await createSaveSession(read, ctx.bytes);
+  return compareEnemyCounts(session, p);
+}
+
+async function compareAutoresolveProbe(
+  read: ReadFile,
+  exists: FileExists,
+  ctx: Context | null,
+  setup: Json | null,
+  p: Json,
+): Promise<number> {
+  if (!ctx?.bytes || !setup) return compareAutoresolve(content, p);
+  const { session } = await createSaveSession(read, ctx.bytes, 1, exists);
+  return compareAutoresolve(content, p, (r) => compareAutoresolveAftermath(r, content, session, setup, p));
 }
 
 const files = process.argv.slice(2);
@@ -518,6 +546,7 @@ if (dataDir === null) {
   process.exit(2);
 }
 const read: ReadFile = async (p) => (data.vfs.stat(p) ? data.vfs.read(p) : null);
+const exists: FileExists = (p) => data.vfs.stat(p) !== undefined;
 const content = await loadTacticalContent(read);
 const worlds = new Map<string, TacticalWorld>();
 let failures = 0;
@@ -527,8 +556,10 @@ for (const file of files) {
   const sai = new SaiComparer(read);
   const sectors = new SectorComparer(read, (p) => data.vfs.stat(p) !== undefined);
   let ctx: Context | null = null;
+  let arSetup: Json | null = null;
   for (const p of readLines(file)) {
     if (p.error) failures += report(`${p.probe} line ${p.line}`, false, `oracle error: ${p.error}`);
+    else if (p.probe === 'arsetup') arSetup = p;
     else if (p.probe === 'sector') {
       ctx = await sectorContext(read, content, worlds, p);
       sectors.loadSector(ctx.sim, p);
@@ -539,7 +570,9 @@ for (const file of files) {
       await economy.loadSave(savesDir(dataDir), String(p.name));
       await sai.loadSave(savesDir(dataDir), String(p.name));
     } else if (p.probe === 'end') continue;
-    else if (p.probe === 'autoresolve') failures += compareAutoresolve(content, p);
+    else if (p.probe === 'autoresolve') failures += await compareAutoresolveProbe(read, exists, ctx, arSetup, p);
+    else if (p.probe === 'enemycounts') failures += await compareEnemyCountsProbe(read, ctx, p);
+    else if (p.probe === 'pbi') failures += await comparePreBattleProbe(read, exists, ctx, p);
     else if (STRATEGIC_PROBES.has(String(p.probe))) failures += await strategic.compare(p);
     else if (ECONOMY_PROBES.has(String(p.probe))) failures += economy.compare(p);
     else if (SAI_PROBES.has(String(p.probe))) failures += await sai.compare(p);

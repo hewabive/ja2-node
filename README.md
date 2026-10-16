@@ -32,7 +32,9 @@ export JA2_DATA_DIR="/path/to/Jagged Alliance 2 Gold/Data"   # optional
 pnpm dev                           # server (7420) + Vite (5173)
 ```
 
-Open http://127.0.0.1:5173/ → "Tactical sandbox", "Asset browser" or "Map viewer". In the sandbox
+Open http://127.0.0.1:5173/ → "Strategic map", "Tactical sandbox", "Asset browser" or "Map viewer". The strategic
+map starts a new campaign (the squad lands in A9 at 07:00 on day 1), plots routes and runs the world clock; its
+"tactical view" link opens the loaded sector of that campaign. In the sandbox
 click a merc to select it, click a tile to walk there, right-click to run; the time buttons switch
 between paused, real time and instant (every order runs to the end on the server, the page plays it back at the
 chosen playback speed or skips it). Without `JA2_DATA_DIR` only the stubs (`stubs/…`, including the stub
@@ -45,7 +47,11 @@ tools `status`, `observe`, `act` (`{"type":"move","soldier":0,"to":12880,"mode":
 gun in hand at a gridNo (`aimTime` 0–4, `bodyPart`), and `endTurn` hands the turn to the enemy.
 `newSession` starts a separate game: the sandbox, or with `{"save":"SaveGame07"}` the tactical situation of a
 native savegame from the game's `SavedGames` folder (needs `JA2_DATA_DIR`; `JA2_SAVES_DIR` overrides the folder).
-`JA2_SAVE=SaveGame07 pnpm dev` opens the default session from that save.
+`{"campaign":{"difficulty":2}}` starts a new campaign (strategic commands `route`, `cancelRoute`, `assignSquad`,
+`assign`, `sleep`, `wake`, `enterSector`, `exitSector`, `mapScreen`, `tacticalScreen`, `compressTime`, `stopTime`, and
+`answer` for the pre-battle and autoresolve prompts; `observe` then includes the clock, the strategic view, the open prompt
+and the autoresolve battle; `advance` takes `worldTime`, `worldSeconds`, `compressionStopped` and `mode` on the map). `JA2_SAVE=SaveGame07 pnpm dev` opens the default session from that save, `JA2_CAMPAIGN=2 pnpm dev`
+a new campaign.
 
 The server listens on `127.0.0.1` only and requires the token from `.ja2/token`, which it creates
 itself. The Vite proxy adds the token, so it never appears in page code.

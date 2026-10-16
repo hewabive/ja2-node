@@ -1377,13 +1377,68 @@ Steps 1–2 and the strategic-map-free part of step 3:
   `isBattleOver`, `attemptPlayerCapture`, `answerSurrender`), `outcome.ts` (`endOfBattle`: ×3, +5 min, and the §2.16
   consequences as data), `bandage.ts`, `close.ts` (`closeAutoresolve` against `AutoresolveClosePort`: deaths, captures,
   militia removal and promotions, enemy deaths by group id, excess elimination, corpse and drop records, `warpSeconds`).
-- Not yet: `creation-basic.ts` (the cells are built by the caller), the strategic glue (§7.2 steps 3–4 with the map,
-  `control.ts`, loyalty and morale application), the PBI flow, protocol and view.
 - Oracle level 1 (§7.4, `tools/oracle/autoresolve-compare.ts`, patch `0002-autoresolve-oracle.patch`): 44 native battles
   on the user's saves replay draw by draw, including the close. Findings: `ChangeStat` draws `Random(100)` for the
   stat-change quote whenever a stat other than health or level changes (cosmetic, on `fx`); a level gain of a M.E.R.C.
   merc draws `Random(60)` for an email (not ported); the end block draws a music pick (cosmetic, not drawn); Q14 holds
   (an AR victory leaves an enemy-controlled sector enemy-controlled).
+
+Steps 3–6, the simulation, protocol and server-view half of step 7, and step 8:
+- `sim/strategic/forces/battle-state.ts`: `state.battle`, the PBI and AR globals as saved state (`persistent`, `sector`,
+  `locator`, `autoStart`, `transferTacticalOpposition`, `enterPreBattlePending`, `enemyGainedControlOf`,
+  `civiliansEaten`, `resetAllPlayerKnowsEnemiesFlags`, the unload time after a lost battle, the first-battle facts, the
+  Alma and interrogation quest states), the open prompt with its sequence number (ids `<kind>-<n>`) and the AR session
+  (state, sector, cosmetic stream, tick counter). `state.flow` gains `'autoresolve'`.
+- `sim/strategic/forces/pre-battle.ts`: §1.3 `initPreBattleInterface` (wake-up, encounter code with `Chance(90)` for a
+  high ambush potential and the `PreRandom(100)` random ambush, Q1), §1.4 options and reasons, §1.6 involvement,
+  `calculateNonPersistentPbiInfo`, `putNonSquadMercsInBattleSectorOnSquads`, `clearMovementForAllInvolvedPlayerGroups`,
+  `retreatAllInvolvedPlayerGroups`.
+- `sim/tactical/creation-basic.ts`: the AR creation path (soldier id 255, no standing-frame draw) for militia and enemies,
+  `reserveTacticalSoldierForAutoresolve` (copies of tactical enemies) and `resetMortarsOnTeamCount`; `creation.ts` takes a
+  `CreationContext` (rng, content, options, equipment) instead of the whole tactical state.
+- `sim/campaign/autoresolve-strategic.ts`: §2.3–§2.4 from the strategic state (merc cells from the involved groups, militia
+  counts, at most 32 enemy cells taken elites → troops → admins (D3), tactical copies for a non-persistent AR with fresh
+  cells when the copies run out (D9)), `associateWithStrategicGroups` (Q16) and the close port of §2.18 (militia removal
+  with `NATIVE_KILLED`, enemy deaths with `ENEMY_KILLED`, `trackEnemiesKilled` and
+  `processQueenCmdImplicationsOfDeath`, `eliminateAllEnemies`).
+- `sim/campaign/battle-flow.ts` (`BattleFlow`, owned by `CampaignSim`): opens the prompts at the end of each step (§1.2:
+  the hand-off of docs/16, simultaneous arrival, NPC of note, the militia hand-off and `delayAutoResolveStart`
+  auto-starts), answers them (§1.5), runs AR as a flow (one 1000 ms slice per 200 ticks, D1), §2.16 (morale, loyalty,
+  control, first battle, `battleResult`), §2.17, §2.18 (corpses and drops into the sector diff with the item sweet spot,
+  `BANDAGE_BLEEDING_MERCS`, insertion `CENTER`, the warp with `WARPTIME_NO_PROCESSING_OF_EVENTS`, the post-AR messages,
+  `arSummary`), and the tactical aftermath of §3.2–§3.4 through new `SectorHooks` (`mercDied`, `pendingEnemies`,
+  `militiaFinishBattle`, `battleLost`, `battleEnded`): merc deaths, the militia hand-off, a lost battle (2–3 unconscious
+  mercs captured, otherwise killed), victory and defeat consequences, the unload 10 s after a defeat.
+- `sim/campaign/merc-fate.ts` (`StrategicHandlePlayerTeamMercDeath`, `HandleStrategicDeath`, `EnemyCapturesPlayerSoldier`
+  with the Alma and N7 teleports and the captive life draw, the capture sequence), `morale.ts` (the 36 `gbMoraleEvent`
+  entries applied as tactical, strategic or delayed changes, `RefreshSoldierMorale`), `sector-loot.ts` (items and
+  corpses into unloaded sectors, theft from unloaded and loaded sectors), `sim/tactical/health.ts` (`bHealthStrRanges`),
+  `sim/tactical/item-placement.ts` (`FindNearestAvailableGridNoForItem`, the 5/15 sweet spot of unloaded drops, used by
+  the sector diff for `FIND_SWEETSPOT` items and corpses).
+- Glue: `setThisSectorAsEnemyControlled` does nothing while an AR auto-start is pending; the sector flow preloads the battle sector
+  (`mapsNeededSoon`), unloads a loaded battle sector before its AR with `EndTacticalBattleForEnemy` (militia and enemies
+  counted at `OKLIFE`), and starts the militia hand-off; `CampaignSim` freezes stepping while a prompt is open, keeps the
+  real-time clock still during AR (screen `other`), applies the map's automatic pause each strategic step and reports
+  compression and day changes as events (docs/15 §6).
+- API (§5): `answer {prompt, choice}` for `preBattle` (`autoresolve`, `enterSector`, `retreat`), `surrender` (`accept`,
+  `reject`), `autoresolveDone` (`bandage`, `done`), `simultaneousArrival` (`coordinate`, `separately`) and `npcOfNote`
+  (`continue`, `stop`); `autoresolveRetreat {soldier?}`; `autoresolveBattle {}` (the non-persistent PBI). Every other
+  command is refused while a prompt is open or AR runs. Events `preBattle {sector, encounter, persistent, autoStart,
+  prompt}`, `retreated {sector, groups, via}`, `arStarted`, `arAttack`, `arHit` (mercs: `damage`, `life`; others:
+  `health`), `arMiss`, `arFell`, `arDied {cell, killer}`, `arRetreated`, `arBattleOver {status}`, `arSound`,
+  `arSurrenderOffered`, `arSummary`, `battleResult`, `sectorControlChanged`, `mercCaptured`. `server/battle-view.ts`
+  projects `PlayerView.prompt` and `PlayerView.autoresolve` (§5.3: no ratings, timers or exact enemy life), also sent in
+  `ViewFrame`s. Differences from §5.1: `assignment` is the assignment number, there is no `explicit` field and no `close`
+  option (the non-persistent PBI never opens a prompt).
+- Oracle (§7.4): level 3 (aftermath) matches on all 50 battles from imported saves (8 of `autoresolve-d13.txt`, 6 of
+  `autoresolve-capture.txt`, 31 generated, 5 of `battle.txt`); 8 `pbi` probes match the encounter code and its draws; the
+  `enemycounts` probe confirms Q12 (the H1 garrison, id 25, counts as stationary and as mobile); Q14 and Q16 hold; Q22 holds (the
+  loyalty after the close includes `ABANDON_MILITIA`). Level 2 (creation) is not compared: ja2-node's militia creation
+  diverges at the 44th `main` draw of the first militiaman (range 4 where the native draws `Random(100)`), a docs/06 and
+  docs/12 follow-up. The random-ambush branch is not reachable natively on the available saves (easy, progress 2–4 %).
+  Patch `0005-pre-battle-oracle.patch` exposes the encounter-code block.
+- Not yet: creature attacks (no trigger yet; `buildAutoresolveInput` refuses them), the client (AR screen, PBI panel,
+  slice playback), the MCP tool descriptions and docs/04 entries for the new commands, prompts and `advance` fields.
 
 
 ### 7.1 Modules
@@ -1584,6 +1639,9 @@ the robot edge of §2.12.
 capture, outcome block, bandaging, close, elimination), §3.1 (control functions), §3.3 (unload and hand-off), §3.5 (retreat
 travel) and the draws listed in §2.20 and §4.1; the V differences named in §2.8.3, §2.9 and §4.1; `ROADBLOCK = 25` from the
 `Strategic_AI.h` enum order and the garrison at index 25 (H1) from `army-garrison-groups.json`.
+
+**Confirmed by the oracle** (§7.0): Q12, Q14, Q16 and Q22, the encounter-code draws of §1.3 except the random ambush, and
+every AR rule replayed at levels 1 and 3.
 
 **Inferred** (not traced end to end; candidates for oracle probes):
 - That every AR soldier sits at `NOWHERE`, so instant kills always use the "close" rules (§2.8.4): mercs that never entered a

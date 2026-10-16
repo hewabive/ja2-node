@@ -362,7 +362,7 @@ There are few of them, and they are coarse-grained.
 | `act` | A command: `move`, `shoot`, `throw`, `stance`, `reload`, `open_door`, `climb`, `bandage`, `end_turn`, …; on the map: `travel`, `assign`, `hire`, …. By default, time then runs until `idle` or a decision prompt. The response is a summary of events and the new status |
 | `answer` | An answer to a decision prompt: interrupt, dialogue line, message box, PBI |
 | `advance` | Explicitly advances time in real time and on the strategic map: "until arrival", "until an event", "no longer than N" |
-| `newSession` | Starts another session and returns its id: the sandbox (optional seed), or with `save` a native savegame from the game's `SavedGames` folder (`docs/14` §10); every other tool takes `session`, so agents and tests do not share one battle |
+| `newSession` | Starts another session and returns its id: the sandbox (optional seed), with `campaign {difficulty?, profiles?, mercs?, land?}` a new campaign (§6.6), or with `save` a native savegame from the game's `SavedGames` folder (`docs/14` §10); every other tool takes `session`, so agents and tests do not share one battle |
 | `save` / `load` | Saves on the server |
 
 ### 6.3. Example turn
@@ -409,6 +409,34 @@ Omerta A9 · turn 3 · ours · 07:42
   full snapshots.
 
 ---
+
+### 6.6. Campaign sessions (M4)
+
+`src/server/campaign-factory.ts` `createCampaignSession(read, exists, seed, request)` builds a `CampaignSim` with the
+strategic map, the Queen, towns and the sector flow, runs `initNewGame`, hires the squad and, unless `land: false`,
+dispatches the first `compressTime` so the helicopter drop loads the start sector at 07:00 on day 1 (`docs/15` §4.5).
+With original data the squad is A.I.M. profiles (`profiles`, ids 0–39, default six); on stubs it is `mercs` stub mercs
+(default four, `src/server/stub-mercs.ts`, shared with the sandbox). `difficulty` is 1–3 (default 2). Maps are loaded by
+`WorldCache` before each command (`Session.prepareAndDispatch`).
+
+Sessions are created through MCP `newSession`, `POST /api/sessions` (same JSON body: `{seed?, save?, campaign?}`;
+`GET /api/sessions` lists them with `describeSession`), or for the default session with `JA2_CAMPAIGN=<difficulty>`.
+Both paths share `src/server/session-registry.ts` (at most 16 sessions).
+
+View frames also carry `mapPath` (a sector was loaded or unloaded), `clock` and `strategic` whenever they change, so
+the browser follows the campaign without polling. The strategic page (`src/devtools/strategic/`) lists the sessions,
+starts a campaign, shows the 16×16 map (control, known enemies, militia, squads, planned routes), the mercs and their
+groups, and sends `route` (once per squad), `enterSector`, `mapScreen`/`tacticalScreen`, `compressTime {mode: 2|3|4}`,
+`stopTime` and a strategic `advance` (to the next stop; during autoresolve to its end). A battle panel shows the open prompt
+(`preBattle`, `autoresolveDone`, …) with its choices and the autoresolve cells. The tactical page takes `?session=` and
+reloads the world when the loaded sector changes.
+
+The campaign runs in flows: `tactical` (the loaded sector steps in real time or turns), `strategic` (the map screen: the
+world clock runs, compressed on request, the loaded sector, if any, is frozen) and `autoresolve` (`docs/19` §5.2).
+`mapScreen` and `tacticalScreen` switch between the first two like the original's screen toggle. A strategic `advance`
+(`worldTime`, `worldSeconds`, `compressionStopped`, `mode`; `docs/15` §6) is refused in tactical unless it has a time
+target, and compression is refused while the loaded sector holds enemies (`AllowedToTimeCompress`). `route` checks
+`CanEntireMovementGroupMercIsInMove` first, so the squad cannot leave the start sector before it is cleared.
 
 ## 7. Cost and limitations
 

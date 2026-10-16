@@ -4,6 +4,7 @@ import { addStrategicEventUsingSeconds, createEventQueue, type StrategicEvent } 
 import {
   type ClockContext,
   type ClockScreen,
+  CompressionStop,
   createWorldClock,
   isDayTime,
   midnightOfFutureDayInMinutes,
@@ -169,7 +170,7 @@ describe('UpdateClock on 5 ms ticks', () => {
   });
 
   it('finishes the slice when an event stops compression and then stays put', () => {
-    const h = harness((x) => stopTimeCompression(x));
+    const h = harness((x) => stopTimeCompression(x, CompressionStop.ARRIVED));
     h.screenNow = 'strategic';
     h.tick();
     expect(startTimeCompression(h)).toBeNull();

@@ -156,11 +156,18 @@ export interface MercsWaiting {
   readonly sinceMs: number;
 }
 
+export type BattleResult = 'won' | 'lost';
+
 export interface SectorHooks {
   soldierDied(t: TacticalState, s: Soldier): void;
   addPendingEnemies(t: TacticalState): void;
   soldierLeftMap(t: TacticalState, s: Soldier): void;
   mercsWaitOver(t: TacticalState, code: number): void;
+  mercDied(t: TacticalState, s: Soldier): void;
+  pendingEnemies(t: TacticalState): boolean;
+  militiaFinishBattle(t: TacticalState): boolean;
+  battleLost(t: TacticalState): void;
+  battleEnded(t: TacticalState, result: BattleResult): void;
 }
 
 export const NO_SECTOR_HOOKS: SectorHooks = {
@@ -168,6 +175,11 @@ export const NO_SECTOR_HOOKS: SectorHooks = {
   addPendingEnemies: () => {},
   soldierLeftMap: () => {},
   mercsWaitOver: () => {},
+  mercDied: () => {},
+  pendingEnemies: () => false,
+  militiaFinishBattle: () => false,
+  battleLost: () => {},
+  battleEnded: () => {},
 };
 
 export interface TacticalState {

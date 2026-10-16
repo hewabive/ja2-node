@@ -46,6 +46,7 @@
 #include "JAScreens.h"
 #include "Player_Command.h"
 #include "PreBattle_Interface.h"
+#include "Militia_Control.h"
 #include "Queen_Command.h"
 #include "Strategic_Status.h"
 #include "Strategic_Town_Loyalty.h"
@@ -100,6 +101,7 @@ INT16 OraclePickGridNoNearestEdge(SOLDIERTYPE* s, UINT8 direction);
 INT16 OraclePickGridNoToWalkIn(SOLDIERTYPE* s, UINT8 insertionCode, UINT32* attempts);
 BOOLEAN OracleSoldierOKForSectorExit(SOLDIERTYPE* s, INT8 exitDirection, UINT16 additional);
 void OracleSortSoldierInitList();
+void OracleDeterminePersistentEncounterCode(GROUP* battle_group, SGPSector const& sector);
 extern UINT8 gubTacticalDirection;
 extern INT16 gsEnemyGainedControlOfSectorID;
 extern INT16 gsCiviliansEatenByMonsters;
@@ -1498,6 +1500,24 @@ void SetupAutoResolve(Command const& c)
 		guiGameClock = static_cast<UINT32>(Required(c, "day")) * NUM_SEC_IN_DAY + guiGameClock % NUM_SEC_IN_DAY;
 		UpdateGameClockGlobals(gpGameClockString);
 	}
+	std::vector<std::string> groups;
+	for (std::string const& spec : SplitList(Text(c, "groups", ""), '/'))
+	{
+		std::vector<std::string> const parts = SplitList(spec, ':');
+		if (parts.size() != 3) throw std::runtime_error("groups needs admins:troops:elites per group, separated by /");
+		UINT8 const admins = static_cast<UINT8>(ParseInteger("groups", parts[0]));
+		UINT8 const troops = static_cast<UINT8>(ParseInteger("groups", parts[1]));
+		UINT8 const elites = static_cast<UINT8>(ParseInteger("groups", parts[2]));
+		GROUP const* const g = CreateNewEnemyGroupDepartingFromSector(sector.AsByte(), admins, troops, elites);
+		groups.push_back(Json{}.num("id", g->ubGroupID).num("admins", admins).num("troops", troops).num("elites", elites).text());
+	}
+	bool const tacticalMilitia = Integer(c, "tacticalmilitia", 0) != 0;
+	if (tacticalMilitia)
+	{
+		if (!gfWorldLoaded || gWorldSector != sector) throw std::runtime_error("tacticalmilitia needs the sector loaded");
+		gfStrategicMilitiaChangesMade = TRUE;
+		ResetMilitia();
+	}
 	gubEnemyEncounterCode = Lookup(ENCOUNTER_CODES, c, "code", "invasion");
 	if (gubEnemyEncounterCode == CREATURE_ATTACK_CODE) throw std::runtime_error("creature attacks need the discrete-distribution trace, not supported yet");
 	gubPBSector = sector;
@@ -1510,7 +1530,93 @@ void SetupAutoResolve(Command const& c)
 		.num("code", gubEnemyEncounterCode)
 		.flag("persistent", gfPersistantPBI)
 		.num("day", GetWorldDay())
+		.flag("tacticalMilitia", tacticalMilitia)
+		.raw("groups", JsonArray(groups))
 		.raw("counts", DescribeEnemyCounts(sector)));
+}
+
+std::string DescribeDraws(std::vector<OracleDraw> const& draws);
+
+GROUP* PlayerGroupIn(SGPSector const& sector)
+{
+	FOR_EACH_GROUP(g)
+	{
+		if (g->fPlayer && g->ubGroupSize != 0 && !g->fBetweenSectors && g->ubSector == sector) return g;
+	}
+	return nullptr;
+}
+
+void ProbePreBattle(Command const& c)
+{
+	std::string const name = Text(c, "sector", Text(c, "_0", ""));
+	SGPSector const sector = SGPSector::FromShortString(ST::string(name), 0);
+	if (!sector.IsValid()) throw std::runtime_error("pbi needs sector=<A1..P16>");
+	std::string const who = Text(c, "group", "player");
+	GROUP* group = nullptr;
+	if (who == "player")
+	{
+		group = PlayerGroupIn(sector);
+		if (!group) throw std::runtime_error("no player group in that sector");
+	}
+	else if (who == "enemy")
+	{
+		std::vector<long long> const e = Has(c, "enemies") ? IntegerList(c, "enemies", 3) : std::vector<long long>{0, 4, 0};
+		group = CreateNewEnemyGroupDepartingFromSector(sector.AsByte(), static_cast<UINT8>(e[0]), static_cast<UINT8>(e[1]), static_cast<UINT8>(e[2]));
+	}
+	else if (who != "creature") throw std::runtime_error("group must be player, enemy or creature");
+	long long const life = Integer(c, "mercslife", 0);
+	if (life > 0)
+	{
+		FOR_EACH_IN_TEAM(s, OUR_TEAM)
+		{
+			if (!s->fBetweenSectors && s->sSector == sector) s->bLife = static_cast<INT8>(life);
+		}
+	}
+	bool const highPotential = Integer(c, "highpotential", 0) != 0;
+	bool const cantRetreat = Integer(c, "cantretreat", 0) != 0;
+	gfHighPotentialForAmbush = highPotential;
+	gfCantRetreatInPBI = cantRetreat;
+	gubEnemyEncounterCode = NO_ENCOUNTER_CODE;
+	std::vector<OracleDraw> draws;
+	OracleTraceRandom(&draws);
+	OracleDeterminePersistentEncounterCode(group, sector);
+	OracleTraceRandom(nullptr);
+	Emit(Json{}
+		.str("probe", "pbi")
+		.num("line", c.line)
+		.str("sector", sector.AsShortString().to_std_string())
+		.str("group", who)
+		.num("groupId", group ? group->ubGroupID : -1)
+		.raw("enemies", group && !group->fPlayer ? Json{}.nums("counts", {group->pEnemyGroup->ubNumAdmins, group->pEnemyGroup->ubNumTroops, group->pEnemyGroup->ubNumElites}).text() : "null")
+		.flag("highPotentialIn", highPotential)
+		.flag("cantRetreatIn", cantRetreat)
+		.num("mercsLife", life)
+		.num("code", gubEnemyEncounterCode)
+		.flag("cantRetreat", gfCantRetreatInPBI)
+		.flag("highPotential", gfHighPotentialForAmbush)
+		.num("progress", CurrentPlayerProgressPercentage())
+		.num("difficulty", gGameOptions.ubDifficultyLevel)
+		.raw("draws", DescribeDraws(draws)));
+}
+
+void ProbeEnemyCounts(Command const& c)
+{
+	std::string const name = Text(c, "sector", Text(c, "_0", ""));
+	SGPSector const sector = SGPSector::FromShortString(ST::string(name), 0);
+	if (!sector.IsValid()) throw std::runtime_error("enemycounts needs sector=<A1..P16>");
+	SECTORINFO const& si = SectorInfo[sector.AsByte()];
+	UINT8 admins = 0, troops = 0, elites = 0;
+	GetNumberOfEnemiesInSector(sector, &admins, &troops, &elites);
+	Emit(Json{}
+		.str("probe", "enemycounts")
+		.num("line", c.line)
+		.str("sector", sector.AsShortString().to_std_string())
+		.num("garrisonId", si.ubGarrisonID)
+		.nums("garrison", {si.ubNumAdmins, si.ubNumTroops, si.ubNumElites})
+		.num("stationary", NumStationaryEnemiesInSector(sector))
+		.num("mobile", NumMobileEnemiesInSector(sector))
+		.nums("total", {admins, troops, elites})
+		.num("inSector", NumEnemiesInSector(sector)));
 }
 
 std::string DescribeArObject(int slot, OBJECTTYPE const& o)
@@ -2495,6 +2601,8 @@ void Dispatch(Command const& c)
 	if (c.name == "groups") return DumpStrategicGroups(c);
 	if (c.name == "seed") return SeedRandomEngine(c);
 	if (c.name == "arsetup") return SetupAutoResolve(c);
+	if (c.name == "enemycounts") return ProbeEnemyCounts(c);
+	if (c.name == "pbi") return ProbePreBattle(c);
 	if (c.name == "autoresolve") return RunAutoResolve(c);
 	if (c.name == "strategic") return DumpStrategicEconomy(c);
 	if (c.name == "mercs") return DumpStrategicMercs(c);

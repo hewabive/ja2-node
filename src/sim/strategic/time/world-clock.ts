@@ -47,8 +47,29 @@ export interface WorldClock {
   playerPause: boolean;
   lastEventQuerySeconds: number;
   compressedSinceMapEntry: boolean;
+  stopReason: CompressionStopReason | null;
   driver: ClockDriver;
 }
+
+export const CompressionStop = {
+  ARRIVED: 'arrived',
+  HALTED: 'halted',
+  BATTLE: 'battle',
+  MERC_ARRIVED: 'mercArrived',
+  MERC_DIED: 'mercDied',
+  MERC_LEFT: 'mercLeft',
+  ASSIGNMENT_DONE: 'assignmentDone',
+  MILITIA_TRAINING: 'militiaTraining',
+  MINE_EVENT: 'mineEvent',
+  COMPLAINT: 'complaint',
+  REQUESTED: 'requested',
+  MAP_EXIT: 'mapExit',
+  HELICOPTER: 'helicopter',
+  SHIPMENT: 'shipment',
+  WORLD_TIME: 'worldTime',
+  PAUSED: 'paused',
+} as const;
+export type CompressionStopReason = (typeof CompressionStop)[keyof typeof CompressionStop];
 
 export type ClockScreen = 'tactical' | 'strategic' | 'other';
 
@@ -80,6 +101,7 @@ export function createWorldClock(seconds = STARTING_TIME): WorldClock {
     playerPause: false,
     lastEventQuerySeconds: 0,
     compressedSinceMapEntry: false,
+    stopReason: null,
     driver: { lastSecondMs: 0, lastProcessed: 0, lastResolution: 1, timesThisSecond: 0 },
   };
 }
@@ -123,6 +145,7 @@ export function setClockResolutionToCompressMode(ctx: ClockContext, mode: number
   c.resolution =
     c.secondsPerRealSecond === 0 ? 0 : Math.min(MAX_CLOCK_RESOLUTION, Math.max(1, Math.trunc(c.secondsPerRealSecond / SECONDS_PER_SLICE)));
   c.compressionOn = mode > CompressMode.X1;
+  if (c.compressionOn) c.stopReason = null;
   if (mode > CompressMode.X1) ctx.compressionModeSet(mode);
 }
 
@@ -130,8 +153,14 @@ export function isTimeBeingCompressed(c: WorldClock): boolean {
   return c.compressionOn && c.mode !== CompressMode.X0 && !c.paused;
 }
 
-export function stopTimeCompression(ctx: ClockContext): void {
-  if (ctx.clock.compressionOn) setClockResolutionToCompressMode(ctx, CompressMode.X0);
+export function compressionStopReason(c: WorldClock): CompressionStopReason {
+  return c.compressionOn ? CompressionStop.PAUSED : (c.stopReason ?? CompressionStop.REQUESTED);
+}
+
+export function stopTimeCompression(ctx: ClockContext, reason: CompressionStopReason): void {
+  if (!ctx.clock.compressionOn) return;
+  ctx.clock.stopReason = reason;
+  setClockResolutionToCompressMode(ctx, CompressMode.X0);
 }
 
 export function startTimeCompression(ctx: ClockContext): string | null {

@@ -14,7 +14,7 @@ import { i32, idiv, u32 } from '../../../core/int.ts';
 import { addTransaction, FinanceCode } from '../../campaign/finances.ts';
 import { EventKind } from '../time/constants.ts';
 import { addStrategicEvent } from '../time/event-queue.ts';
-import { stopTimeCompression, worldDayInMinutes, worldTotalMinutes } from '../time/world-clock.ts';
+import { CompressionStop, stopTimeCompression, worldDayInMinutes, worldTotalMinutes } from '../time/world-clock.ts';
 import { FACT_MINERS_PLACED, HeadMinerQuote, OKLIFE } from './constants.ts';
 import { decrementTownLoyalty } from './loyalty.ts';
 import {
@@ -124,7 +124,7 @@ export function issueHeadMinerQuote(ctx: EconomyContext, mine: number, kind: num
     ctx.economy.headMiners.headMiners.find((h) => ctx.hooks.headMinerTown(h.profile) === town) ?? ctx.economy.headMiners.headMiners[0];
   if (!miner || !ctx.hooks.headMinerAlive(miner.profile)) return;
   ctx.events.push({ type: 'headMinerQuote', mine, profile: miner.profile, quote: miner.quotes[kind] ?? -1 });
-  stopTimeCompression(ctx.clock);
+  stopTimeCompression(ctx.clock, CompressionStop.MINE_EVENT);
 }
 
 function extractOreFromMine(ctx: EconomyContext, mine: number, amount: number): number {

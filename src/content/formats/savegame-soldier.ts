@@ -659,7 +659,7 @@ export interface SavedSoldier {
   readonly breathCollapsed: number;
   readonly turnsCollapsed: number;
   readonly morale: number;
-  readonly moraleMods: { readonly team: number; readonly tactical: number; readonly strategic: number };
+  readonly moraleMods: { readonly team: number; readonly tactical: number; readonly strategic: number; readonly delayedStrategic: number };
   readonly skillTraits: readonly [number, number];
   readonly camo: number;
   readonly stealthMode: number;
@@ -790,7 +790,12 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
     breathCollapsed: n('bBreathCollapsed'),
     turnsCollapsed: n('bTurnsCollapsed'),
     morale: n('bMorale'),
-    moraleMods: { team: n('bTeamMoraleMod'), tactical: n('bTacticalMoraleMod'), strategic: n('bStrategicMoraleMod') },
+    moraleMods: {
+      team: n('bTeamMoraleMod'),
+      tactical: n('bTacticalMoraleMod'),
+      strategic: n('bStrategicMoraleMod'),
+      delayedStrategic: n('bDelayedStrategicMoraleMod'),
+    },
     skillTraits: [n('ubSkillTrait1'), n('ubSkillTrait2')],
     camo: n('bCamo'),
     stealthMode: n('bStealthMode'),

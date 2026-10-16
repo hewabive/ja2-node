@@ -149,7 +149,7 @@ function isMilitiaClass(soldierClass: number): boolean {
   return soldierClass >= SoldierClass.GREEN_MILITIA && soldierClass <= SoldierClass.ELITE_MILITIA;
 }
 
-export function randomizeRelativeLevel(t: TacticalState, soldierClass: number, env: PopulationEnv): number {
+export function randomizeRelativeLevel(t: Pick<TacticalState, 'rng'>, soldierClass: number, env: PopulationEnv): number {
   const rollModifier = Math.trunc(env.locationModifier / LOCATION_ROLL_DIVISOR) - LOCATION_ROLL_OFFSET;
   let adjusted = t.rng.int(10) + rollModifier;
   if (isMilitiaClass(soldierClass)) {

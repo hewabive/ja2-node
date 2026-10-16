@@ -1,11 +1,13 @@
 import type { CommandEnvelope } from '../protocol/messages.ts';
 import type { PlayerView } from '../protocol/view.ts';
+import type { WorldTimeControl } from '../sim/advance.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import type { Roster } from '../sim/campaign/roster.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { isTimeBeingCompressed, worldDay, worldHour, worldMinute } from '../sim/strategic/time/world-clock.ts';
 import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
+import { autoresolveView, promptView } from './battle-view.ts';
 import { tacticalPlayerView } from './sandbox.ts';
 import type { SessionSim } from './session.ts';
 import { strategicView } from './strategic-view.ts';
@@ -38,6 +40,10 @@ export class CampaignSession implements SessionSim {
     return this.campaign.tick;
   }
 
+  get worldClock(): WorldTimeControl {
+    return this.campaign.worldClock;
+  }
+
   isIdle(): boolean {
     return this.campaign.isIdle();
   }
@@ -62,7 +68,8 @@ export class CampaignSession implements SessionSim {
     const c = this.campaign.state.clock;
     const clock = { day: worldDay(c), hour: worldHour(c), minute: worldMinute(c), compressing: isTimeBeingCompressed(c) };
     const strategic = strategicView(this.campaign);
-    const extra = strategic ? { clock, strategic } : { clock };
+    const battle = this.campaign.battle ? { prompt: promptView(this.campaign), autoresolve: autoresolveView(this.campaign) } : {};
+    const extra = strategic ? { clock, strategic, ...battle } : { clock, ...battle };
     const tactical = this.campaign.tactical;
     if (!tactical) return { tick: this.tick, mapPath: null, soldiers: [], ...extra };
     return { ...tacticalPlayerView(tactical, this.tick), ...extra };
