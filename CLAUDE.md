@@ -53,6 +53,7 @@ The simulation is server-side (Node), the browser is a client, agents play throu
 - `docs/20`: tactical lighting (light sprites, true light level).
 - `docs/21`–`23` (M5 specs): laptop and hiring, contracts and relationships, merchants.
 - `docs/24`–`26` (M6 specs): NPCs and dialogue, quests/facts/NPC actions/schedules, meanwhiles and the ending.
+- `docs/27` (M7 spec): saves, options, sound and music, video, localization, stubs, performance, player-UI scope (M8).
 - `docs/deviations.md`: every deliberate difference from the original; add to it when diverging.
 - `docs/02-mechanics-catalog.md`, `docs/03-logic-animation-coupling.md`: formulas and engine
   behaviour with `file:line` references into `reference/stracciatella`.

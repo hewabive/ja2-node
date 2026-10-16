@@ -700,7 +700,8 @@ build tactics without strategy and the laptop.
 | **M4 Strategy** | Strategic map, clock, event queue, squads and routes, Queen, militia, loyalty, mines, assignments, PBI and autoresolve, sector transitions and persisting sector state | You can wage war across the country map | XL |
 | **M5 Campaign** | The full laptop, contracts and relationships, merchants; a new game from the start | A full campaign start as in the original | L |
 | **M6 Narrative** | NPC records and actions, dialogue, quests and facts, schedules, meanwhile, ending | The campaign can be completed | L |
-| **M7 Polish** | Saves in the UX, options, full sound and music, video, Russian localization (Stracciatella strings already exist in 8 languages), stub completeness, performance | Release | M |
+| **M7 Polish** | Saves in the UX, options, full sound and music, video, Russian localization (Stracciatella strings already exist in 8 languages), stub completeness, performance; a DOM launcher instead of game screens (`27`) | Platform release: a full campaign by an agent or in the devtools pages, on the original data and on stubs | M–L |
+| **M8 Player UI** | The D10 canvas widget set, layouts and bitmap fonts; the original screens (menus, options, save/load, tactical HUD and inventory, map screen, PBI, talk, shop, laptop), hotkeys, meanwhile playback (`27` §8) | Release for human players | XL |
 
 ---
 
