@@ -951,7 +951,7 @@ Specs: `docs/21` (laptop and hiring), `22` (contracts and relationships), `23` (
 writers of quests, dialogue, R.P.C.s and boxing, computed facts (`CheckFact`) and florist bouquet prices (original
 text only); M6 covers all but the prices (`docs/deviations.md`).
 
-### M6: in progress (2026-10-16)
+### M6: done (2026-10-16)
 
 Specs: `docs/24` (NPCs and dialogue), `25` (quests, facts, NPC actions, schedules), `26` (meanwhiles and the ending).
 
@@ -994,3 +994,18 @@ Specs: `docs/24` (NPCs and dialogue), `25` (quests, facts, NPC actions, schedule
     interrogation played on the record engine, prisoners in Alma and Meduna, progress and first-battle triggers, the
     Queen's escape and the O3 statue (`useRemote`), the Queen's death, the endgame sequence and the won campaign
     (`campaignOver`). 62 oracle probes match.
+11. **Boxing** (`sim/tactical/narrative/boxing.ts`): the San Mona club's state machine, bets and rematches, half AP and no
+    interrupts in the ring, disqualifications and cheating, the knock-out, the boxers' AI, the boxing facts and history;
+    `mapScreen {abandonFight}`. 104 oracle probes match.
+12. **Play surface**: the tactical page talks to NPCs (lines, approaches, NPC questions, giving items), answers prompts
+    and shows civilian quotes and the boxing state; the strategic page shows the quest log, the meanwhile log and the
+    campaign status, flies the helicopter and releases escorts. The full oracle comparison has 33 probe sets and 9214
+    matching lines.
+
+**Left out of M6** (`docs/deviations.md` has the details): capturing the civilian hummer and the ice-cream truck and placing
+passengers at a ground vehicle; the helicopter's structure pieces on the tactical map and the O3 statue's graphics (with
+the M8 renderer); Skyrider's and the helicopter's profile sectors; merc lines said after a conversation closes (the gender
+table); the rebel basement's map changes in A10; NPC action 12 (no first aid system yet) and `END_DEMO`; reloading the
+robot through `give`; manual switches, toggled pressure items, pits and pressure mines; Kingpin's hitmen; native-save
+import of other sectors' temp files; `HandleNPCChangesForTacticalTraversal`; the `PC_HAS_CONRADS_RECRUIT_OPINION` input;
+playing meanwhile scenes in the browser (M7/M8).

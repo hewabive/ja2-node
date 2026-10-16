@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Overhead.cc ExecuteOverhead (per-soldier animation and movement pass). See docs/07 §4.3.
+// @src src/game/Tactical/Overhead.cc ExecuteOverhead (per-soldier animation and movement pass, the two BoxingMovementCheck calls).
+// @src See docs/07 §4.3, docs/25 §7.2.
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { TICK_MS } from '../clock.ts';
@@ -15,6 +16,7 @@ import {
   pathExhausted,
   setSoldierDestination,
 } from './movement.ts';
+import { boxingMovementCheckWhileTracked } from './narrative/boxing.ts';
 import type { Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
@@ -32,6 +34,7 @@ function handleMovementFrame(t: TacticalState, s: Soldier): boolean {
     s.pastX = false;
     s.pastY = false;
     if (!specialMove || s.gridNo === s.finalDestination) keepMoving = handleAtNewGridNo(t, s) && keepMoving;
+    boxingMovementCheckWhileTracked(t, s);
     if (s.finalDestination === s.gridNo) {
       arriveAtFinalDestination(t, s);
       keepMoving = false;
@@ -39,12 +42,13 @@ function handleMovementFrame(t: TacticalState, s: Soldier): boolean {
       s.pathIndex = Math.min(s.pathIndex + 1, s.pathSize);
       if (s.pathIndex === s.pathSize) {
         if (!pathExhausted(t, s)) return false;
-      } else if (!specialMove) {
-        const result = handleGotoNewGridNo(t, s, false, s.state);
-        keepMoving = result.keepMoving;
-        if (!result.ok) return false;
       } else {
-        setSoldierDestination(t, s, s.path[s.pathIndex] ?? 0, s.state);
+        if (!specialMove) {
+          const result = handleGotoNewGridNo(t, s, false, s.state);
+          keepMoving = result.keepMoving;
+          if (!result.ok) return false;
+        } else setSoldierDestination(t, s, s.path[s.pathIndex] ?? 0, s.state);
+        boxingMovementCheckWhileTracked(t, s);
       }
     }
   }

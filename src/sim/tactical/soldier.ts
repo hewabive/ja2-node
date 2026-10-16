@@ -88,6 +88,7 @@ export const SoldierStatusFlags = {
   MONSTER: 0x00002000,
   ANIMAL: 0x00004000,
   VEHICLE: 0x00008000,
+  BOXER: 0x00100000,
   COWERING: 0x00400000,
   GASSED: 0x01000000,
   OFF_MAP: 0x02000000,
@@ -282,6 +283,7 @@ export interface Soldier {
   hasKeys: boolean;
   visible: number;
   underAiControl: boolean;
+  boxer: boolean;
   monsterOrAnimal: boolean;
 
   state: number;
@@ -570,6 +572,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     hasKeys: false,
     visible: init.team === Team.OUR ? 1 : -1,
     underAiControl: false,
+    boxer: false,
     monsterOrAnimal: false,
     state: init.state,
     pc: 0,

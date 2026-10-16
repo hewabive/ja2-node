@@ -788,6 +788,38 @@ resumes and combat starts. A recruited guide (Ira, Miguel, Carlos, Dimitri) stan
 describes it once, 4–8 real-time turns after the first visit (`mercQuote` from his second dialogue file). None of this
 has a command; the effects show as the events of §6.12 and this section.
 
+### 6.20. Boxing (M6)
+
+Boxing in the San Mona club (D5, `docs/25` §7) has no command of its own; it is played with the commands above.
+
+- **The bet.** Talking to the club owner runs his records: a bet or a second fight is offered as `npcRequest`
+  (`boxingBet`, `fightAgain`), money is handed over with `give` (§6.16) when a record asks for it, and the record that starts
+  the match rings the bell (`boxingBell`). The match only starts when an unarmed boxer stands on one of the club's three
+  boxer tiles.
+- **`observe.boxing`** (and the `boxing` field of view frames) is null outside a match and otherwise `{state, boxers,
+  uiLocked}`: `state` one of `waitingForPlayer`, `preBoxing`, `boxing`, `disqualified`, `wonRound`, `lostRound`; `boxers` the
+  ids of the soldiers in sight that carry the boxer flag (ours included); `uiLocked` true while the boxers walk out.
+- **The fight.** One merc of ours walks into the ring (room 29): `preBoxing`, a club boxer is picked and walks in, then
+  `boxing` and turn-based combat (`combatStarted`, the first team drawn from the two boxers). While a match is set up or
+  fought every soldier gets half his action points and carries at most 2 into the next turn, nobody interrupts, a boxer seen
+  by the squad does not start combat on his own, and the other civilians stand and watch. Punch with `attack` on an adjacent
+  boxer with empty hands (brass knuckles are allowed too); walk next to him with `move` first (the AI boxer closes in by one
+  tile per decision). A second merc of ours entering the ring, a boxer leaving it, or a knife or brass knuckles used by
+  anyone who is not a boxer disqualify the player (`disqualified`); a gun, or any attack by someone else, calls the match off
+  (state back to null). A boxer who stays down for more than one turn, or dies, loses the round (`wonRound` / `lostRound`).
+- **The end.** The owner closes the fight: combat ends (`combatEnded` with reason `boxing`), the club boxer turns neutral and
+  our boxer walks out of the ring under AI control. Meanwhile every command but `estimateAttack` and `answer` is refused with
+  `boxingUiLock` and the session is not idle, so `advance {idle}` runs the walk. When our boxer is out, the history gains
+  `WON_BOXING`, `LOST_BOXING` or `DISQUALIFIED_BOXING` (`historyAdded`) and the owner says his result line (a conversation to
+  close with `closeTalk`). If our boxer died in the ring, the lock ends once the club boxer is out; the round stays decided
+  (no history line, no result line) until `mapScreen` with `abandonFight` or the next bet.
+- `mapScreen` is refused with `boxingInProgress` while a boxing state is set; `{"type": "mapScreen", "abandonFight": true}`
+  abandons the fight and opens the map. An enemy group reaching D5 during a match arrives 3–5 minutes later.
+- **Events:** `boxingBell`; `boxingState {state, previous}` on every change; `boxerPicked {soldier, slot}`; `boxingRoundOver
+  {loser, result: won|lost}`; `boxerDisqualified {soldier, reason: outOfRing|nonBoxerInRing|badAttack}`; `boxingEnded {soldier,
+  result: won|lost|disqualified|null}`. The boxer tiles, the fought flags, the rests, the stat bonus of rested boxers and the
+  facts stay hidden.
+
 ## 7. Cost and limitations
 
 - **Amount of work.**

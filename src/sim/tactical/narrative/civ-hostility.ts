@@ -2,11 +2,12 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc MakeCivHostile, SetSoldierNonNeutral, CivilianGroupMembersChangeSidesWithinProximity,
 // @src CivilianGroupMemberChangesSides, CivilianGroupChangesSides, HickCowAttacked, MilitiaChangesSides,
-// @src ProcessImplicationsOfPCAttack (civilian, militia and quest branches); OppList.cc AddToShouldBecomeHostileOrSayQuoteList,
+// @src ProcessImplicationsOfPCAttack (civilian, militia, boxing and quest branches); OppList.cc AddToShouldBecomeHostileOrSayQuoteList,
 // @src SelectSpeakerFromHostileOrSayQuoteList, CheckHostileOrSayQuoteList (dialogue gating, hostile quote flag, the AI pause and the
 // @src speaker reveal); Handle_Doors.cc ProcessImplicationsOfPCMessingWithDoor.
-// @src See docs/25 §6.2–§6.3, §8.3.
+// @src See docs/25 §6.2–§6.3, §7.3, §8.3.
 
+import { ItemClass, NOTHING } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { civGroupHostility, setCivGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { Fact, Quest } from '../../strategic/narrative/fact-ids.ts';
@@ -18,6 +19,8 @@ import { handleSight, recalculateOppCntsDueToNoLongerNeutral } from '../percepti
 import { AlertStatus, Body, CivilianGroup, NO_PROFILE, OKLIFE, Orders, Side, type Soldier, Team } from '../soldier.ts';
 import { sectorMapOf, type TacticalState, teamMembers } from '../state.ts';
 import { checkForPotentialAddToBattleIncrement, enterCombatMode } from '../turns/turns.ts';
+import { boxingPlayerDisqualified, setBoxingState } from './boxing.ts';
+import { BoxingState, boxingActive, boxingFight, Disqualification } from './boxing-state.ts';
 import {
   BOXING_SECTOR,
   BROTHEL_SECTOR,
@@ -74,6 +77,7 @@ export function makeCivHostile(t: TacticalState, s: Soldier): void {
     if (
       s.civilianGroup === CivilianGroup.KINGPIN &&
       t.narrative.questStatus(Quest.RESCUE_MARIA) === QuestStatus.IN_PROGRESS &&
+      !boxingActive(t) &&
       findByProfile(t, Profile.MARIA) !== null
     )
       t.narrative.setFactTrue(Fact.MARIA_ESCAPE_NOTICED);
@@ -234,10 +238,28 @@ function neutralCivilianAttacked(t: TacticalState, attacker: Soldier, target: So
   if (townCaresAboutDeath(t, target)) militiaChangesSides(t);
 }
 
+function fairBlow(t: TacticalState, attacker: Soldier): boolean {
+  const weapon = attacker.attackingWeapon;
+  const brassKnuckles = t.content.items.byName.get('BRASS_KNUCKLES')?.index;
+  return attacker.boxer && (weapon === NOTHING || weapon === brassKnuckles);
+}
+
+function cheatingInTheRing(t: TacticalState, attacker: Soldier, target: Soldier): void {
+  if (fairBlow(t, attacker)) return;
+  const itemClass = t.content.items.byIndex.get(attacker.attackingWeapon)?.itemClass ?? ItemClass.NONE;
+  if (itemClass & (ItemClass.BLADE | ItemClass.PUNCH) && target.boxer) {
+    boxingPlayerDisqualified(t, attacker, Disqualification.BAD_ATTACK);
+    return;
+  }
+  setBoxingState(t, BoxingState.NOT_BOXING);
+  if (target.team === Team.CIV && target.boxer) t.narrative.setSoldierNeutral(target);
+}
+
 export function processImplicationsOfPCAttack(t: TacticalState, attacker: Soldier, target: Soldier): boolean {
   target.ai.asleep = false;
   if (target.profile === Profile.PABLO && t.narrative.fact(Fact.PLAYER_FOUND_ITEMS_MISSING))
     t.narrative.setFactTrue(Fact.PABLO_PUNISHED_BY_PLAYER);
+  if (boxingFight(t)) cheatingInTheRing(t, attacker, target);
   if (target.team === Team.MILITIA && target.side === Side.FRIENDLY) militiaChangesSides(t);
   else if (
     target.team === Team.CIV &&
@@ -257,7 +279,7 @@ export function processImplicationsOfPCAttack(t: TacticalState, attacker: Soldie
         pauseAiTemporarily(t);
         addToShouldBecomeHostileOrSayQuoteList(t, target);
       }
-    } else if (target.civilianGroup !== CivilianGroup.NONE) civilianGroupMembersChangeSidesWithinProximity(t, target);
+    } else if (target.civilianGroup !== CivilianGroup.NONE && !target.boxer) civilianGroupMembersChangeSidesWithinProximity(t, target);
     else if (target.team === Team.OUR && !t.inCombat) return false;
   }
   return true;

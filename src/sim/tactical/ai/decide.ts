@@ -1,12 +1,14 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/TacticalAI/DecideAction.cc DecideAction, DecideActionGreen (with the DecideActionSchedule call), DecideAlertStatus;
+// @src src/game/TacticalAI/DecideAction.cc DecideAction, DecideActionGreen (with the DecideActionSchedule call and the boxing
+// @src block), DecideAlertStatus (with its boxing gate);
 // @src AIMain.cc CheckForChangingOrders (with the creature branches), SetNewSituation; Realtime.cc RealtimeDelay; AIUtils.cc DetermineMovementMode;
 // @src DecideActionGreen (the DecideActionNamedNPC call and the uiTimeSinceLastSpoke pause).
-// See docs/09 §1.4, §2.
+// @src See docs/09 §1.4, §2, docs/25 §7.2.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AnimHeight, endHeight, hasAnimFlag, states } from '../animation.ts';
+import { boxingActive } from '../narrative/boxing-state.ts';
 import { isMercBody, isWater, NOWHERE } from '../pathfinding.ts';
 import {
   AlertStatus,
@@ -23,6 +25,7 @@ import {
 import type { TacticalState } from '../state.ts';
 import { AiAction, MOVEMENT_MODE, NEW_SITUATION_DELAY_RANGE, Situation, URGENCY } from './actions.ts';
 import { creatureDecideAlertStatus, realtimeCreatureDelay } from './creature-decide.ts';
+import { decideActionGreenWhileBoxing } from './decide-boxing.ts';
 import { decideActionSchedule } from './decide-schedule.ts';
 import { goAsFarAsPossibleTowards, pointPatrolAI, randDestWithinRange, randomFriendWithin, randomPointPatrolAI } from './destinations.ts';
 
@@ -131,6 +134,7 @@ export function decideAlertStatus(t: TacticalState, s: Soldier, hooks: AiHooks):
     if (s.team !== Team.CIV && (hooks.awareOfOpposition(t, s.team) || ai.underFire)) ai.alertStatus = AlertStatus.RED;
     else if (hooks.mostImportantNoiseHeard(t, s) !== NOWHERE) ai.alertStatus = AlertStatus.YELLOW;
   }
+  if (boxingActive(t)) return;
   if (ai.alertStatus !== old) {
     if (old < AlertStatus.RED || ai.alertStatus < AlertStatus.RED) setNewSituation(t, s);
     if (old < AlertStatus.RED && ai.alertStatus >= AlertStatus.RED) checkForChangingOrders(s);
@@ -250,6 +254,8 @@ export function decideActionGreen(t: TacticalState, s: Soldier, hooks: GreenHook
   const stats = t.pathEnv.stats;
   const pathSearches = () => stats?.searches ?? 0;
   if (stats) stats.searches = 0;
+  const boxing = decideActionGreenWhileBoxing(t, s);
+  if (boxing !== null) return boxing;
   const mode = (soldier: Soldier, action: number) => determineMovementMode(t, soldier, action);
   const inWater = isWater(t.pathWorld, s.gridNo);
   if (isCivilianForGreen(s)) {

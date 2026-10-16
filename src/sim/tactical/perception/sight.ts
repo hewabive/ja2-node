@@ -6,13 +6,14 @@
 // @src UpdatePersonal, UpdatePublic, RadioSightings, OurTeamRadiosRandomlyAbout, HandleSight, ManLooksForOtherTeams,
 // @src OtherTeamsLookForMan, AllTeamsLookForAll, ReevaluateBestSightingPosition, HandleBestSightingPositionInRealtime,
 // @src DecayOppListValue, VerifyAndDecayOpplist, DecayPublicOpplist (ManSeesMan's first-battle fact through the narrative
-// @src port); Soldier_Macros.h AM_A_ROBOT. See docs/08 §2, docs/20, docs/25 §1.2.
+// @src port, no best sighting while boxing, ReevaluateEnemyStance at its end); Soldier_Macros.h AM_A_ROBOT. See docs/08 §2, docs/20, docs/25 §1.2, §7.2.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { endHeight, setSoldierAniSpeed, states } from '../animation.ts';
 import { wearsHeadGear } from '../inventory.ts';
 import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
+import { boxingActive } from '../narrative/boxing-state.ts';
 import { newSightingRules } from '../narrative/sight-rules.ts';
 import {
   AlertStatus,
@@ -46,6 +47,7 @@ import {
   setWatchedLocAsUsed,
   standardInterruptConditionsMet,
 } from './duel.ts';
+import { reevaluateEnemyStance } from './enemy-stance.ts';
 import { revealRoofsAndItems } from './fov.ts';
 import { type HeightClass, type LosSubject, soldierToSoldierLineOfSight } from './los.ts';
 import { atan8, Caller, Opp, SightFlags } from './opp.ts';
@@ -340,7 +342,7 @@ export function manSeesMan(t: TacticalState, s: Soldier, opp: Soldier, caller: n
   }
   updatePersonal(s, opp, Opp.SEEN_CURRENTLY, opp.gridNo);
   const sightingCaller = caller === Caller.MANLOOKSFOROTHERTEAMS || caller === Caller.OTHERTEAMSLOOKFORMAN || caller === Caller.UNKNOWN;
-  if (sightingCaller && t.perception.bestSize !== 0 && newOpp) {
+  if (sightingCaller && t.perception.bestSize !== 0 && !boxingActive(t) && newOpp) {
     if (t.inCombat) {
       if (standardInterruptConditionsMet(t, s, opp, old)) reevaluateBestSighting(t, s, calcInterruptDuelPts(t, s, opp, true));
     } else if (s.team !== Team.OUR || opp.life >= OKLIFE) reevaluateBestSighting(t, s, calcInterruptDuelPts(t, s, opp, true));
@@ -350,7 +352,7 @@ export function manSeesMan(t: TacticalState, s: Soldier, opp: Soldier, caller: n
     const locate = opp.visible === -1;
     opp.visible = 1;
     if (locate) setSoldierAniSpeed(t, opp);
-  }
+  } else if (s.team !== Team.OUR) reevaluateEnemyStance(t, s, s.state);
 }
 
 export function manLooksForMan(t: TacticalState, me: Soldier, opp: Soldier, caller: number): boolean {

@@ -2,18 +2,21 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Quests.cc gubFact, gubQuest, SetFactTrue, SetFactFalse, LoadQuestInfoFromSavedGameFile;
 // @src Quests.h NUM_FACTS, MAX_QUESTS, QUESTNOTSTARTED, QUESTINPROGRESS, QUESTDONE; Boxing.h NUM_BOXERS; SaveLoadGame.cc
-// @src LoadGeneralInfo (gubBoxingMatchesWon, gubBoxersRests, gfBoxersResting, gfBoxerFought, gubCambriaMedicalObjects,
+// @src LoadGeneralInfo (gubBoxingMatchesWon, gubBoxersRests, gfBoxersResting, gfBoxerFought, gBoxer, gubCambriaMedicalObjects,
 // @src gbHospitalPriceModifier, giHospitalTempBalance, giHospitalRefund, gfPlayerTeamSawJoey, gfMikeShouldSayHi); Tactical/Soldier_Create.cc
 // @src gfProfiledEnemyAdded (not saved); Overhead_Types.h fCountingDownForGuideDescription, bGuideDescriptionCountDown,
-// @src ubGuideDescriptionToUse, bGuideDescriptionSectorX, bGuideDescriptionSectorY.
+// @src ubGuideDescriptionToUse, bGuideDescriptionSectorX, bGuideDescriptionSectorY; Tactical/Overhead.h
+// @src TacticalStatusType::bBoxingState.
 // @src See docs/25 §0, §1.1.
 
 import { u8 } from '../../../core/int.ts';
+import { NOBODY } from '../../tactical/soldier.ts';
 import { Fact } from './fact-ids.ts';
 
 export const NUM_FACTS = 500;
 export const MAX_QUESTS = 30;
 export const NUM_BOXERS = 3;
+export const NOT_BOXING = 0;
 
 export const QuestStatus = { NOT_STARTED: 0, IN_PROGRESS: 1, DONE: 2 } as const;
 
@@ -23,6 +26,22 @@ export interface BoxingRecord {
   resting: boolean;
   lastMatchWonByPlayer: boolean;
   readonly fought: boolean[];
+  readonly boxers: number[];
+  state: number;
+  uiLocked: boolean;
+}
+
+export function createBoxingRecord(): BoxingRecord {
+  return {
+    matchesWon: 0,
+    rests: 0,
+    resting: false,
+    lastMatchWonByPlayer: false,
+    fought: new Array<boolean>(NUM_BOXERS).fill(false),
+    boxers: new Array<number>(NUM_BOXERS).fill(NOBODY),
+    state: NOT_BOXING,
+    uiLocked: false,
+  };
 }
 
 export interface HospitalAccount {
@@ -57,11 +76,11 @@ export interface FactHooks {
 
 export const NO_FACT_HOOKS: FactHooks = { estoniRefuellingPossible: () => {} };
 
-export function createNarrativeState(): NarrativeState {
+export function createNarrativeState(boxing: BoxingRecord = createBoxingRecord()): NarrativeState {
   return {
     facts: new Uint8Array(NUM_FACTS),
     quests: new Uint8Array(MAX_QUESTS),
-    boxing: { matchesWon: 0, rests: 0, resting: false, lastMatchWonByPlayer: false, fought: new Array<boolean>(NUM_BOXERS).fill(false) },
+    boxing,
     hospital: { priceModifier: 0, tempBalance: 0, refund: 0 },
     cambriaMedicalObjects: 0,
     playerTeamSawJoey: false,
@@ -121,6 +140,7 @@ export interface SavedNarrativeGlobals {
   readonly boxersResting: boolean;
   readonly lastBoxingMatchWonByPlayer: boolean;
   readonly boxerFought: readonly boolean[];
+  readonly boxers?: readonly number[];
   readonly cambriaMedicalObjects: number;
   readonly hospitalPriceModifier: number;
   readonly hospitalTempBalance: number;
@@ -134,7 +154,10 @@ export function importNarrativeGlobals(n: NarrativeState, g: SavedNarrativeGloba
   n.boxing.rests = g.boxersRests;
   n.boxing.resting = g.boxersResting;
   n.boxing.lastMatchWonByPlayer = g.lastBoxingMatchWonByPlayer;
-  for (let i = 0; i < NUM_BOXERS; i++) n.boxing.fought[i] = g.boxerFought[i] ?? false;
+  for (let i = 0; i < NUM_BOXERS; i++) {
+    n.boxing.fought[i] = g.boxerFought[i] ?? false;
+    n.boxing.boxers[i] = g.boxers?.[i] ?? NOBODY;
+  }
   n.cambriaMedicalObjects = g.cambriaMedicalObjects;
   n.hospital.priceModifier = g.hospitalPriceModifier;
   n.hospital.tempBalance = g.hospitalTempBalance;

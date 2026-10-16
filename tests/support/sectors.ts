@@ -24,6 +24,7 @@ export const STUB_MAPS = [
   'stubs/world/maps/n7.dat',
   'stubs/world/maps/p3.dat',
   'stubs/world/maps/p3_b1.dat',
+  'stubs/world/maps/d5.dat',
 ] as const;
 
 export interface StubSectorKit {

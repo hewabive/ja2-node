@@ -3,11 +3,12 @@
 // @src src/game/Tactical/TeamTurns.cc StandardInterruptConditionsMet, CalcInterruptDuelPts, InterruptDuel;
 // @src OppList.cc FindUnusedWatchedLoc, FindWatchedLocWithLessThanXPointsLeft, FindWatchedLoc, GetWatchedLocPoints,
 // @src CommunicateWatchedLoc, IncrementWatchedLoc, SetWatchedLocAsUsed, WatchedLocLocationIsEmpty, DecayWatchedLocs.
-// @src See docs/10 §1.3, §4.2, §4.3, §4.9.
+// @src See docs/10 §1.3, §4.2, §4.3, §4.9, docs/25 §7.2 (no interrupts while boxing).
 
 import { pythSpacesAway, spacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { AnimHeight, height, states } from '../animation.ts';
 import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY } from '../lighting/lighting.ts';
+import { boxingActive } from '../narrative/boxing-state.ts';
 import { interruptBasePoints } from '../narrative/robot.ts';
 import { minPtsToMove } from '../points.ts';
 import { effectiveExpLevel } from '../skills.ts';
@@ -180,7 +181,7 @@ export function standardInterruptConditionsMet(t: TacticalState, s: Soldier, opp
   if (t.inCombat && !(turn.sightFlags & SightFlags.INTERRUPT)) return false;
   if (turn.attackBusyCount > 0) return false;
   if (!opp && !turn.whoThrewRock) return false;
-  if (t.inCombat && t.perception.bestSize !== BEST_SIGHTING_ALL && s.team === turn.currentTeam) return false;
+  if (t.inCombat && t.perception.bestSize !== BEST_SIGHTING_ALL && (s.team === turn.currentTeam || boxingActive(t))) return false;
   if (!s.placed || s.life < OKLIFE || s.breath < OKBREATH || s.collapsed) return false;
   if (s.actionPoints < MIN_APS_TO_INTERRUPT) return false;
   if (t.explosives.gassed[s.id]) return false;

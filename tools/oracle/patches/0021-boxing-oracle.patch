@@ -1,0 +1,23 @@
+Boxing oracle marks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE (SFI-SCLA).
+Marks the music pick of DefaultContentManager::getMusicForMode in the Random draw trace of 0002 (marks 3001/3000), so
+tools/oracle/boxing-compare.ts can drop the cosmetic Random(count) of SetMusicMode (ja2-node plays no music) when a
+boxing match enters or leaves combat. No behaviour change. Applied by tools/oracle/build.sh after 0018.
+
+--- a/src/externalized/DefaultContentManager.cc
++++ b/src/externalized/DefaultContentManager.cc
+@@ -1094,9 +1094,15 @@
+ 	return m_dealersInventory[dealerId];
+ }
+
++void OracleTraceMark(UINT32 code);
++#define ORACLE_MARK_MUSIC_BEGIN 3001
++#define ORACLE_MARK_MUSIC_END   3000
++
+ const ST::string* DefaultContentManager::getMusicForMode(MusicMode mode) const {
+ 	uint32_t const count = static_cast<uint32_t>(m_musicMap.count(mode));
++	OracleTraceMark(ORACLE_MARK_MUSIC_BEGIN);
+ 	uint32_t const index = Random(count);
++	OracleTraceMark(ORACLE_MARK_MUSIC_END);
+ 	auto lower = m_musicMap.lower_bound(mode);
+ 	std::advance(lower, index);
+

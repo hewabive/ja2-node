@@ -7361,6 +7361,259 @@ void ProbeStatue(Command const& c)
 		.flag("skip", skip.val != FALSE));
 }
 
+std::vector<long long> ListArgument(Command const& c, std::string const& key)
+{
+	std::vector<long long> out;
+	if (!Has(c, key)) return out;
+	for (std::string const& v : SplitList(Text(c, key, ""), ',')) out.push_back(std::stoll(v));
+	return out;
+}
+
+std::string DescribeBoxingSoldier(SOLDIERTYPE const& s)
+{
+	return Numbers({s.ubID, s.bTeam, s.sGridNo, s.bNeutral, s.bLife, s.bLifeMax, s.bBreath, s.bActionPoints, s.bAlertStatus,
+		s.bStrength, s.bDexterity, s.bAgility, s.ubSkillTrait1, s.bCollapsed, s.bTurnsCollapsed, s.bUnderFire,
+		(s.uiStatusFlags & SOLDIER_BOXER) != 0, (s.uiStatusFlags & SOLDIER_PCUNDERAICONTROL) != 0});
+}
+
+std::string DescribeBoxing()
+{
+	std::vector<long long> boxers;
+	std::vector<long long> fought;
+	for (SOLDIERTYPE const* b : gBoxer) boxers.push_back(b ? b->ubID : NOBODY);
+	for (BOOLEAN const f : gfBoxerFought) fought.push_back(f != 0);
+	std::vector<std::string> soldiers;
+	FOR_EACH_SOLDIER(s)
+	{
+		if (!s->bInSector) continue;
+		bool const recorded = std::find(std::begin(gBoxer), std::end(gBoxer), s) != std::end(gBoxer);
+		if (s->bTeam != OUR_TEAM && !recorded && !(s->uiStatusFlags & SOLDIER_BOXER)) continue;
+		soldiers.push_back(DescribeBoxingSoldier(*s));
+	}
+	return Json{}
+		.num("state", gTacticalStatus.bBoxingState)
+		.nums("boxers", boxers)
+		.nums("fought", fought)
+		.num("won", gubBoxingMatchesWon)
+		.num("rests", gubBoxersRests)
+		.flag("resting", gfBoxersResting)
+		.flag("lastWon", gfLastBoxingMatchWonByPlayer)
+		.flag("paused", GamePaused())
+		.raw("combat", Numbers({(gTacticalStatus.uiFlags & INCOMBAT) != 0, gTacticalStatus.ubCurrentTeam}))
+		.raw("soldiers", JsonArray(soldiers))
+		.text();
+}
+
+template<typename Run>
+void RunBoxingProbe(Command const& c, Run&& run)
+{
+	size_t const history = ReadHistoryRecords().size();
+	std::vector<OracleDialogueEntry> dialogue;
+	std::vector<OracleFactEntry> facts;
+	std::vector<OracleDraw> draws;
+	gOracleSkipDialogueBoxes = true;
+	gOracleDialogueTrace = &dialogue;
+	gOracleFactTrace = &facts;
+	OracleTraceRandom(&draws);
+	std::string const extra = run();
+	OracleTraceRandom(nullptr);
+	gOracleFactTrace = nullptr;
+	gOracleDialogueTrace = nullptr;
+	gOracleSkipDialogueBoxes = false;
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.raw("queue", DescribeDialogueTrace(dialogue))
+		.raw("facts", DescribeFactTrace(facts))
+		.raw("draws", DescribeDraws(draws))
+		.raw("history", DescribeHistoryTail(history))
+		.raw("extra", extra.empty() ? "null" : extra)
+		.raw("boxing", DescribeBoxing()));
+}
+
+void ProbeBoxingSquad(Command const& c)
+{
+	SGPSector const sector = StrategicSectorArgument(c, "sector");
+	std::vector<long long> const who = ListArgument(c, "who");
+	std::vector<long long> const grids = ListArgument(c, "grids");
+	if (who.size() != grids.size()) throw std::runtime_error("boxingsquad needs as many grids as soldiers");
+	for (size_t i = 0; i < who.size(); ++i)
+	{
+		SOLDIERTYPE& s = GetMan(static_cast<UINT>(who[i]));
+		if (!s.bActive || s.bTeam != OUR_TEAM) throw std::runtime_error("boxingsquad: not one of our soldiers");
+		GROUP* const g = GetGroup(s.ubGroupID);
+		if (g) SetGroupSectorValue(sector, *g);
+		else s.sSector = sector;
+	}
+	for (size_t i = 0; i < who.size(); ++i)
+	{
+		SOLDIERTYPE& s = GetMan(static_cast<UINT>(who[i]));
+		s.ubStrategicInsertionCode = INSERTION_CODE_GRIDNO;
+		s.usStrategicInsertionData = static_cast<UINT16>(grids[i]);
+	}
+	SetCurrentWorldSector(sector);
+	UnLockPauseState();
+	UnPauseGame();
+	for (long long const id : who)
+	{
+		SOLDIERTYPE& s = GetMan(static_cast<UINT>(id));
+		if (s.bInSector) s.bActionPoints = CalcActionPoints(&s);
+	}
+	std::vector<std::string> soldiers;
+	FOR_EACH_SOLDIER(s)
+	{
+		if (!s->bInSector) continue;
+		soldiers.push_back(Numbers({s->ubID, s->ubProfile, s->bTeam, s->sGridNo, s->bNeutral, s->ubCivilianGroup,
+			FindObjClass(s, IC_WEAPON) != NO_SLOT}));
+	}
+	Emit(Json{}.str("probe", c.name).num("line", c.line).raw("args", DescribeArgs(c)).raw("soldiers", JsonArray(soldiers)).raw("boxing", DescribeBoxing()));
+}
+
+void DumpBoxing(Command const& c)
+{
+	Emit(Json{}.str("probe", c.name).num("line", c.line).raw("args", DescribeArgs(c)).raw("boxing", DescribeBoxing()));
+}
+
+void SetBoxing(Command const& c)
+{
+	if (Has(c, "state")) gTacticalStatus.bBoxingState = static_cast<INT8>(Required(c, "state"));
+	std::vector<long long> const fought = ListArgument(c, "fought");
+	for (size_t i = 0; i < fought.size() && i < NUM_BOXERS; ++i) gfBoxerFought[i] = fought[i] != 0;
+	std::vector<long long> const boxers = ListArgument(c, "boxers");
+	for (size_t i = 0; i < boxers.size() && i < NUM_BOXERS; ++i) gBoxer[i] = boxers[i] == NOBODY ? nullptr : &GetMan(static_cast<UINT>(boxers[i]));
+	if (Has(c, "rests")) gubBoxersRests = static_cast<UINT8>(Required(c, "rests"));
+	if (Has(c, "resting")) gfBoxersResting = Required(c, "resting") != 0;
+	if (Has(c, "won")) gubBoxingMatchesWon = static_cast<UINT8>(Required(c, "won"));
+	if (Has(c, "last")) gfLastBoxingMatchWonByPlayer = Required(c, "last") != 0;
+	if (Has(c, "who"))
+	{
+		SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+		if (Has(c, "life")) s.bLife = static_cast<INT8>(Required(c, "life"));
+		if (Has(c, "breath")) s.bBreath = static_cast<INT8>(Required(c, "breath"));
+		if (Has(c, "collapsed")) s.bCollapsed = Required(c, "collapsed") != 0;
+		if (Has(c, "turns")) s.bTurnsCollapsed = static_cast<INT8>(Required(c, "turns"));
+		if (Has(c, "ap")) s.bActionPoints = static_cast<INT8>(Required(c, "ap"));
+		if (Has(c, "boxer"))
+		{
+			if (Required(c, "boxer") != 0) s.uiStatusFlags |= SOLDIER_BOXER;
+			else s.uiStatusFlags &= ~SOLDIER_BOXER;
+		}
+		if (Has(c, "slot"))
+		{
+			INT8 const slot = static_cast<INT8>(Required(c, "slot"));
+			UINT16 const item = static_cast<UINT16>(Integer(c, "item", NOTHING));
+			if (item == NOTHING) DeleteObj(&s.inv[slot]);
+			else CreateItem(item, 100, &s.inv[slot]);
+		}
+	}
+	DumpBoxing(c);
+}
+
+void ProbeBoxingFacts(Command const& c)
+{
+	RunBoxingProbe(c, [] {
+		std::vector<long long> values;
+		for (Fact const f : {FACT_ANOTHER_FIGHT_POSSIBLE, FACT_NO_CLUB_FIGHTING_ALLOWED, FACT_PLAYER_FOUGHT_THREE_TIMES_TODAY,
+			FACT_PLAYER_KILLED_BOXERS})
+		{
+			values.push_back(CheckFact(f, 0));
+		}
+		return Numbers(values);
+	});
+}
+
+void ProbeBoxingStart(Command const& c)
+{
+	SetupActionContext(c, DARREN);
+	RunBoxingProbe(c, [] {
+		HandleNPCDoAction(DARREN, NPC_ACTION_START_BOXING_MATCH, 0);
+		return std::string{};
+	});
+	ResetTalkProbe();
+}
+
+void ProbeBoxingStep(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	INT16 const to = static_cast<INT16>(Required(c, "to"));
+	RunBoxingProbe(c, [&] {
+		EVENT_SetSoldierPosition(&s, to, SSP_NONE);
+		INT8 const state = gTacticalStatus.bBoxingState;
+		if (state == BOXING_WAITING_FOR_PLAYER || state == PRE_BOXING || state == BOXING) BoxingMovementCheck(&s);
+		return std::string{};
+	});
+}
+
+void ProbeBoxingAttack(Command const& c)
+{
+	SOLDIERTYPE& attacker = ExistingSoldier(Required(c, "who"));
+	SOLDIERTYPE& target = ExistingSoldier(Required(c, "target"));
+	attacker.usAttackingWeapon = static_cast<UINT16>(Integer(c, "item", NOTHING));
+	target.attacker = &attacker;
+	RunBoxingProbe(c, [&] {
+		BOOLEAN const combat = ProcessImplicationsOfPCAttack(&attacker, &target, REASON_NORMAL_ATTACK);
+		return Numbers({combat != 0, target.bNeutral});
+	});
+}
+
+void ProbeBoxingEnd(Command const& c)
+{
+	SOLDIERTYPE& loser = ExistingSoldier(Required(c, "loser"));
+	RunBoxingProbe(c, [&] {
+		EndBoxingMatch(&loser);
+		return std::string{};
+	});
+}
+
+void ProbeBoxingGetUp(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	RunBoxingProbe(c, [&] {
+		BeginSoldierGetup(&s);
+		return std::string{};
+	});
+}
+
+void ProbeBoxingExit(Command const& c)
+{
+	RunBoxingProbe(c, [] {
+		ExitBoxing();
+		return std::string{};
+	});
+}
+
+void ProbeBoxingRecord(Command const& c)
+{
+	SOLDIERTYPE* const s = Integer(c, "who", -1) < 0 ? nullptr : &ExistingSoldier(Required(c, "who"));
+	RunBoxingProbe(c, [&] {
+		TriggerEndOfBoxingRecord(s);
+		return std::string{};
+	});
+}
+
+void ProbeBoxingDecide(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	gfTurnBasedAI = (gTacticalStatus.uiFlags & INCOMBAT) != 0;
+	RunBoxingProbe(c, [&] {
+		if (Integer(c, "status", 0) != 0) DecideAlertStatus(&s);
+		INT8 const action = DecideAction(&s);
+		return Numbers({action, s.usActionData, s.bNextAction, s.usNextActionData, s.sFinalDestination, s.bOrders, s.bAlertStatus});
+	});
+}
+
+void ProbeBoxingPoints(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	s.bActionPoints = static_cast<INT8>(Integer(c, "ap", s.bActionPoints));
+	RunBoxingProbe(c, [&] {
+		UINT8 const full = CalcActionPoints(&s);
+		CalcNewActionPoints(&s);
+		return Numbers({full, s.bActionPoints, s.bInitialActionPoints});
+	});
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -7546,6 +7799,19 @@ void Dispatch(Command const& c)
 	if (c.name == "scheddecide") return ProbeScheduleDecision(c);
 	if (c.name == "schedshophours") return ProbeScheduleShopHours(c);
 	if (c.name == "schedmove") return MoveScheduleSoldier(c);
+	if (c.name == "boxingsquad") return ProbeBoxingSquad(c);
+	if (c.name == "boxing") return DumpBoxing(c);
+	if (c.name == "boxingset") return SetBoxing(c);
+	if (c.name == "boxingfacts") return ProbeBoxingFacts(c);
+	if (c.name == "boxingstart") return ProbeBoxingStart(c);
+	if (c.name == "boxingstep") return ProbeBoxingStep(c);
+	if (c.name == "boxingattack") return ProbeBoxingAttack(c);
+	if (c.name == "boxingend") return ProbeBoxingEnd(c);
+	if (c.name == "boxinggetup") return ProbeBoxingGetUp(c);
+	if (c.name == "boxingexit") return ProbeBoxingExit(c);
+	if (c.name == "boxingrecord") return ProbeBoxingRecord(c);
+	if (c.name == "boxingdecide") return ProbeBoxingDecide(c);
+	if (c.name == "boxingpoints") return ProbeBoxingPoints(c);
 	if (c.name == "meanwhiles") return DumpMeanwhiles(c);
 	if (c.name == "meanwhilepost") return ProbeMeanwhilePost(c);
 	if (c.name == "firstbattle") return ProbeFirstBattle(c);

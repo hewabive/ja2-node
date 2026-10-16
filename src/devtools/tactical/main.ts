@@ -244,6 +244,8 @@ function describe(): string {
     lines.push(
       `COMBAT round ${combat.round}: ${combat.team === 0 ? 'your turn' : `team ${combat.team} acting`}${combat.interrupt ? ' (interrupt)' : ''}`,
     );
+  const boxing = client?.boxing;
+  if (boxing) lines.push(`BOXING ${boxing.state}${boxing.uiLocked ? ' (interface locked until our boxer leaves the ring)' : ''}`);
   const sel = soldiers().find((s) => s.id === selected);
   if (sel)
     lines.push(

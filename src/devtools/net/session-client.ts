@@ -10,6 +10,7 @@ import {
 import {
   type AutoresolveView,
   applyFrame,
+  type BoxingView,
   type ClockView,
   type CombatView,
   type ContractPromptView,
@@ -60,6 +61,7 @@ export class SessionClient {
   #conversation: ConversationView | null = null;
   #scriptedSequence = false;
   #npcRequest: NpcRequestPromptView | null = null;
+  #boxing: BoxingView | null = null;
   #shownTick = 0;
   #latestTick = 0;
 
@@ -150,6 +152,10 @@ export class SessionClient {
     return this.#npcRequest;
   }
 
+  get boxing(): BoxingView | null {
+    return this.#boxing;
+  }
+
   get shownTick(): number {
     return this.#shownTick;
   }
@@ -191,6 +197,7 @@ export class SessionClient {
         this.#conversation = m.view.conversation ?? null;
         this.#scriptedSequence = m.view.scriptedSequence ?? false;
         this.#npcRequest = m.view.npcRequest ?? null;
+        this.#boxing = m.view.boxing ?? null;
         this.#shownTick = m.view.tick;
         this.#latestTick = m.view.tick;
         break;
@@ -234,6 +241,7 @@ export class SessionClient {
       if (frame.conversation !== undefined) this.#conversation = frame.conversation;
       if (frame.scriptedSequence !== undefined) this.#scriptedSequence = frame.scriptedSequence;
       if (frame.npcRequest !== undefined) this.#npcRequest = frame.npcRequest;
+      if (frame.boxing !== undefined) this.#boxing = frame.boxing;
       changed = true;
     }
     const target = Math.min(tick, this.#latestTick);

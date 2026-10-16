@@ -2,8 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Ani.cc opcodes 433, 437, 440, 447, 465, 472, 478, 480, 496, 497,
 // @src CheckForAndHandleSoldierIncompacitated, CheckForAndHandleSoldierDyingNotFromHit, HandleSoldierDeath,
-// @src CheckForAndHandleSoldierDeath, HandleCheckForDeathCommonCode; Soldier_Control.cc BeginSoldierGetup;
-// @src Overhead.cc HandleNPCTeamMemberDeath (with BeginHandleQueenBitchDeath); OppList.cc CheckForAlertWhenEnemyDies;
+// @src CheckForAndHandleSoldierDeath, HandleCheckForDeathCommonCode; Soldier_Control.cc BeginSoldierGetup (with the boxer's
+// @src knock-out); Overhead.cc HandleNPCTeamMemberDeath (with BeginHandleQueenBitchDeath); OppList.cc CheckForAlertWhenEnemyDies;
 // @src Rotting_Corpses.cc TurnSoldierIntoCorpse, ReduceAmmoDroppedByNonPlayerSoldiers. See docs/11 §5.
 
 import { corpseFileBase, corpseStructIndex, corpseTypeFor, NO_CORPSE } from '../../../content/anim/corpses.ts';
@@ -26,6 +26,8 @@ import { dropKeysInKeyRing } from '../doors/keys.ts';
 import { worldSeconds } from '../explosions/state.ts';
 import { putOutMuzzleFlash } from '../lighting/muzzle-flash.ts';
 import { directionToward } from '../movement.ts';
+import { endBoxingMatch } from '../narrative/boxing.ts';
+import { boxingFight } from '../narrative/boxing-state.ts';
 import { TERRORISTS } from '../narrative/constants.ts';
 import { civilianDeathRules, playerTeamDeathRules } from '../narrative/death-rules.ts';
 import { inMeanwhile, slapCheckWhenIncapacitated } from '../narrative/meanwhile-rules.ts';
@@ -62,6 +64,7 @@ const oneC = (d: number) => (d + 1) % 8;
 const oneCC = (d: number) => (d + 7) % 8;
 const opposite = (d: number) => (d + 4) % 8;
 const VEHICLE_CORPSE_DIRECTION = 7;
+const COLLAPSED_TURNS_BEFORE_KNOCKOUT = 1;
 
 const DEATH_FROM_FALL: Readonly<Record<string, string>> = {
   FLYBACK_HIT: 'FLYBACK_HIT_DEATH',
@@ -385,7 +388,10 @@ export function beginSoldierGetup(t: TacticalState, s: Soldier): void {
           initNewSoldierAnim(t, s, state(t, 'ROLLOVER'), 0, false);
         else changeSoldierStance(t, s, AnimHeight.CROUCH);
       } else initNewSoldierAnim(t, s, state(t, 'END_COWER'), 0, false);
-    } else s.collapsedTurns++;
+    } else {
+      s.collapsedTurns++;
+      if (boxingFight(t) && s.boxer && s.collapsedTurns > COLLAPSED_TURNS_BEFORE_KNOCKOUT) endBoxingMatch(t, s);
+    }
   } else if (s.sleepDrugCounter > 0) {
     t.pre.int(100);
   }

@@ -1147,7 +1147,8 @@ hick that sees the attacker changes sides, `OH:2812-2827`); Pablo ≥ OKLIFE, pu
 hostile-quote list and, unless the profile has `TOWN_DOESNT_CARE_ABOUT_DEATH`, militia change sides; else: Carmen attacked
 by anyone but Slay → `AGGRESSIVE`; a group member on our team or neutral → `CivilianGroupMemberChangesSides` (+ quote if
 profiled, ≥ OKLIFE and visible); a non-neutral group member that is not a boxer → proximity rule; our own merc out of combat →
-no combat. ja2-node's `processImplicationsOfPCAttack` keeps its signature and gains these branches.
+no combat. ja2-node's `processImplicationsOfPCAttack` keeps its signature and gains these branches. *The boxing rules (§7.3)
+and the boxer exception of the proximity rule are implemented (boxing slice, 2026-10-16).*
 
 ### 6.4 Owned items and nuisance
 
@@ -1176,26 +1177,42 @@ Ring in D5 (`BOXING_SECTOR` 5/4/0), room 29, surrounding room 3, boxer start gri
 2. Darren's records (bets, §3.11; the `DARREN_REQUESTOR`/`FIGHT_AGAIN_REQUESTOR` prompts) lead to `START_BOXING_MATCH` (138):
    if a boxer exists → state 1 (`SetBoxingState`: leaving 0 pauses the game, returning to 0 unpauses, `BOX:398-424`).
 3. Every step of a soldier in states 1–3 runs `BoxingMovementCheck` (`OH:736-742, 974-980`, `Tactical/Soldier_Ani.cc:526-529`,
-   `BOX:381-396`): a soldier in the ring → count people (`BOX:166-249`): two or more player soldiers in the ring →
-   disqualified (state ≤ 2: then state 0; else state 4, Darren record 21); state 1 with exactly one person (ours) → state 2 and
+   `BOX:381-396`; the check runs twice per tile, after `HandleAtNewGridNo` and again after `HandleGotoNewGridNo`, which is
+   harmless): a soldier in the ring → count people (`BOX:166-249`, in merc-slot order): two or more player soldiers in the ring
+   → `BoxingPlayerDisqualified` on the first of them without the boxer flag (stopped, state 4, Darren record 21), and when the
+   state was ≤ 2 the state then drops to 0; state 1 with exactly one person (ours) → state 2 and
    `PickABoxer` (`BOX:273-305`: the first slot not yet fought, active, in sector, ≥ OKLIFE: `SOLDIER_BOXER`, non-neutral, AI
    reset, fought; stats strength/dexterity/agility/life max `+ 5 × gubBoxersRests` capped at 100; the third boxer gets
    martial arts if `REGMALE`; already-fought boxers lose the flag); state 2 with two people of which one is ours → both get
    `SOLDIER_BOXER`, state 3, last-won false, `EnterCombatMode(team of pInRing[Random(2)])`. A boxer stepping out of the ring
    during state 3 → disqualified, history `DISQUALIFIED_BOXING`, loses the flag.
 4. During `PRE_BOXING`/`BOXING` action points are halved (`CalcActionPoints` last step, `Tactical/Soldier_Control.cc:411-415`)
-   and the carried maximum is halved (`:422-429`); no interrupts while any boxing state is set (`Tactical/TeamTurns.cc:954-958`);
-   non-boxers do nothing (`TacticalAI/AIMain.cc:186-195`), are not in the AI lists (`TacticalAI/AIList.cc:119`) and are no threat
-   (`TacticalAI/AIUtils.cc:1842-1846`). The AI boxer walks into the ring in `PRE_BOXING` (`DA:518-550`), then punches
-   (`DA:2538-2556, 2666-2670`, closing in with `CLOSEPATROL` orders for one decision, `DA:3381-3392`).
+   and the carried maximum is halved (`:422-429`); no interrupts while any boxing state is set (`Tactical/TeamTurns.cc:954-958`)
+   and no sighting enters the best-sighting list (`OL:1844-1848`), so a hostile boxer never starts combat by being seen;
+   `CheckForEndOfCombatMode` and `CheckForEndOfBattle` never end combat in state 3 (`OH:4247-4251, 4395-4400`); a battle won
+   in another boxing state skips the incapacitated-enemy kill, the militia and civilian reset, the sector control and the
+   battle bookkeeping (`OH:4509-4694`); `BeginTeamTurn` stops after the team's `EVENT_BeginMercTurn` when a knock-out there
+   decided the round (states 4–6, `Tactical/TeamTurns.cc:333-337`). Non-boxers do nothing in states 2, 3, 5 and 6
+   (`TacticalAI/AIMain.cc:186-195`), are not in the AI lists (`TacticalAI/AIList.cc:119`) and are no threat
+   (`TacticalAI/AIUtils.cc:1842-1846`); `DecideAlertStatus` skips its new-situation and changing-orders handling while any
+   boxing state is set (`DA:3821`); a hostile boxer ending his turn does not turn his civilian group (`TacticalAI/AIMain.cc:538-543`);
+   in green, everybody else within 26 tiles of the ring centre only turns to face it while a boxing state is set (`DA:709-722`).
+   The AI boxer walks into the ring in `PRE_BOXING` (`DA:518-550`, `FindClosestBoxingRingSpot`, `TacticalAI/FindLocations.cc:1885-1931`),
+   then punches (`DA:2538-2556, 2666-2670`, closing in with `CLOSEPATROL` orders for one decision, `DA:3381-3392`). A PC
+   under AI control is handled by the AI while he carries a quote record or the boxer flag (`TacticalAI/AIMain.cc:103-114`) and
+   takes an AI slot (`OH:404-406`).
 5. The end: a boxer collapsed for more than one turn (`Tactical/Soldier_Control.cc:5322-5331`) or reduced to life 0
    (`OH:5642-5649`) → `EndBoxingMatch(loser)` (`BOX:89-101`): ours → state 6; else state 5, last-won true, `gubBoxingMatchesWon
    += 1`; → DARREN 22 (his records run `HANDLE_END_OF_FIGHT` → `ExitBoxing`, `BOX:35-84`: AI boxers in the ring neutral again,
    our boxers under AI control; each is calmed, `bUnderFire = 0`, and a boxer below OKLIFE or OKBREATH is raised to
-   `max(2·OKLIFE, life)` and given breath back, then stands up; menu; end all AI turns; leave combat). The green AI walks boxers
-   back to their start gridno or out of the ring (`DA:657-706`); when our boxer is out: `TriggerEndOfBoxingRecord`
-   (`BOX:119-147`): history `WON/LOST/DISQUALIFIED_BOXING`, DARREN 23 or 24, state 0. On returning to 0 with all three boxers
-   unfought, slot 0 is marked fought (so another fight can be offered).
+   `max(2·OKLIFE, life)` and given breath back, then stands up; `DeleteTalkingMenu`; end all AI turns;
+   `CheckForEndOfCombatMode(FALSE)` and, when it ended combat, the UI lock until our boxer is out; the original never lifts it
+   when our boxer died in the ring, ja2-node lifts it once no living boxer is left, see `deviations.md` "Boxing UI lock"). The green AI walks boxers
+   back to their start gridno or out of the ring (`DA:657-706`; our boxer never to the left of the ring); when our boxer is
+   out: `TriggerEndOfBoxingRecord` (`BOX:119-147`): UI unlocked, history `WON/LOST/DISQUALIFIED_BOXING` with his profile,
+   DARREN 23 or 24, state 0; an AI boxer out of the ring with nobody left in it while disqualified calls it without a soldier.
+   On returning to 0 with all three boxers unfought, slot 0 is marked fought (so another fight can be offered). Going to the
+   map screen while a boxing state is set asks to abandon the fight (yes → state 0, `Tactical/Interface_Panels.cc:3748-3768`).
 6. Daily (15:00, §4.4) the fought flags reset and the boxers rest after every third win.
 
 ### 7.3 Cheating (`OH:5359-5382`)
@@ -1210,7 +1227,26 @@ war"), and an attacked civilian boxer is made neutral so the group rules apply. 
 `ANOTHER_FIGHT_POSSIBLE` (`AnotherFightPossible`, `BOX:325-347`: neither all three nor none of the boxers available, and an
 OUR merc in sector with `life > OKLIFE + 5`, not collapsed), `PLAYER_FOUGHT_THREE_TIMES_TODAY` (no boxer available),
 `PLAYER_KILLED_BOXERS` (nobody on the three gridnos), `NO_CLUB_FIGHTING_ALLOWED`, `CLUB_OPEN`, Kingpin "impressed" (250). An
-arriving enemy group never starts a battle in D5 while boxing (`Strategic/Strategic_Movement.cc:1113-1124`).
+arriving enemy group never starts a battle in D5 while boxing (`Strategic/Strategic_Movement.cc:1113-1124`). `BoxerAvailable`
+(fact 231) runs `CheckOnBoxers` and may fill `gBoxer` from whatever stands on the three gridnos of the loaded map; the ids stay
+valid across sector loads until D5 is entered again (stale ids from another sector still count as boxers). A Kingpin civilian
+hurt while the Maria quest is in progress and Maria is in sector sets `MARIA_ESCAPE_NOTICED`, but not while boxing
+(`Tactical/Soldier_Control.cc:5462-5470`), and `MakeCivHostile`'s Maria rule has the same gate (`OH:2646-2655`).
+
+*Implemented (boxing slice, 2026-10-16):* `src/sim/tactical/narrative/boxing.ts` (the whole of `Boxing.cc`,
+`FindClosestBoxingRingSpot`), `boxing-state.ts` (states, constants, the state tests), `boxing-events.ts`; the AI parts in
+`src/sim/tactical/ai/decide-boxing.ts`, `decide.ts`, `combat-decide.ts`, `control.ts`, `turn-based.ts`, `turns/ai-list.ts`,
+`ai/morale.ts`; the hooks in `overhead.ts` and `animation.ts` (movement checks), `points.ts` (halving), `turns/turns.ts`,
+`combat/death.ts` (knock-out), `combat/barrier.ts` (life 0), `narrative/civ-hostility.ts` (§7.3, §6.3), `combat/hit.ts`
+(the Kingpin rule), `perception/duel.ts` and `perception/sight.ts` (no interrupts or best sightings). The saved globals, the
+state and the boxer ids are one record shared by the strategic narrative and the loaded sector
+(`StrategicState.narrative.boxing` = `TacticalState.boxing`, with `state`, `boxers` and the unsaved `uiLocked`); native saves
+import `bBoxingState`, `gBoxer` and `SOLDIER_BOXER`. The campaign wires the NPC actions (`NpcActionFlow`), `CheckFact`
+(`NarrativeFlow`), the D5 entry slot, the strategic `boxing()` port, the pause and the history through the narrative port.
+Found on the way and fixed: `ReevaluateEnemyStance` at the end of `ManSeesMan` and in `NoticeUnseenAttacker` (an idle enemy
+turns to the merc he newly sees, one turn AP each time in combat; this is what costs an AI boxer 3 AP when his turn starts
+next to three mercs) and the hostile civilian's proximity rule of `EndAIGuysTurn`. Oracle: `patches/0021-boxing-oracle.patch`
+(music-pick marks), `probes/boxing.txt`, `boxing-compare.ts`.*
 
 ---
 
@@ -1862,11 +1898,15 @@ records (`docs/24`'s format) that start and end quest 0, set fact 23 and run act
 civilian with a two-entry schedule (`schedule:` lines in the stub map format: gridno at 09:00, sleep at 22:00) and one
 without (default schedule); (3) a locked, trapped door with a lock id, a stub lock table (`stubs/locks.json` compiled to
 `BINARYDATA/Locks.bin` like the stub maps) and a stub key item; (4) a stub profile with a `balance`, for the money rules.
-The helicopter, boxing and the robot are tested with synthetic states (no stub maps needed). *(2) implemented in the stub
+The helicopter and the robot are tested with synthetic states (no stub maps needed); boxing has a stub club (below). *(2) implemented in the stub
 A10 (the village map is no sector): `schedule '<symbol>': [HH:MM] <ACTION> [<x> <y>] [-> <x> <y>]; …` lines (up to four
 entries, times optional) and a `schedule=<symbol>` soldier flag, which writes a detailed placement with the schedule id
 (profile 200 for an unprofiled civilian); one villager has `09:00 GRIDNO` and `22:00 SLEEP`, one civilian keeps the default
-schedule, and the three profiled stub NPCs get `STAYINSECTOR` schedules as original maps give their NPCs.*
+schedule, and the three profiled stub NPCs get `STAYINSECTOR` schedules as original maps give their NPCs.* *Boxing slice:
+a stub D5 (`stubs/maps/d5.map.txt`: a hall in room 3 with the ring in room 29 at the original's tiles, three unarmed stub
+boxers on the boxer gridnos, with a new `body=<n>` soldier flag) and a stub club owner at profile 87 with invented records:
+the bet requestor (135) on DIRECT, records 12 and 13 for the answers (13 starts the match, 138), 21 and 22 ending the fight
+(205), 23 and 24 for the result.*
 
 ---
 
@@ -1909,7 +1949,7 @@ in A10 are not applied (deviation "Rebel basement"). Oracle: `patches/0015-actio
 `quest`, `setquest`, `npcprofile`, `earlymorning`, `hourlynpc`, `questentry`, `questexit` and `entersector`
 (`tools/oracle/probes/facts.txt`); left for later slices: `HourlyLarryUpdate`, the elite upgrade to Mike and Iggy,
 `PostSchedules`, the Kingpin money check and the hospital supplies on sector exit and at 04:00 (ports), and the boxing
-inputs of `CheckFact`. Since the merge with `docs/24` the 04:00 event clears the default-response flags, and `CheckFact`'s
+inputs of `CheckFact` (done with (h)). Since the merge with `docs/24` the 04:00 event clears the default-response flags, and `CheckFact`'s
 desire to talk, the record reset on sector entry, `NPCHasUnusedRecordWithGivenApproach` and `NPCReachedDestination` of
 the profile insertion use the dialogue code.*
 
@@ -1928,6 +1968,13 @@ the civilian slice of `docs/24`.*
 *Give slice (2026-10-16):* the item and money acceptance of §3.11 runs through the `give` command, and (k)'s quest action items
 are implemented (§11.5); the hospital, its per-patient price modifiers and Kingpin's money come from the action catalog slice;
 Kingpin's hitmen stay open.
+
+*(h) implemented (boxing slice, 2026-10-16): §7 completely with the boxing branches of §6.3, the boxing inputs of
+`CheckFact` (210, 231, 368, now compared by the facts oracle), the boxing history writers, the D5 entry slot
+(`NarrativeSlots.boxersCleared`), the queued enemy arrival in D5 (`TacticalWorldPort.boxing`), the NPC actions 138, 205, 249
+and 250 on the real state machine, the agent API of `docs/04` §6.20 and a stub club (stub D5 with a ring and a stub club
+owner at profile 87) on which a whole match is played through the commands; oracle `patches/0021-boxing-oracle.patch`,
+`probes/boxing.txt`, `boxing-compare.ts`.*
 
 (a) facts and quests store, migration of the scattered fact ports, native import of facts/quests, history coupling with `21`;
 (b) profile NPC fields, presence (new game, `AddPlacementToWorld` filter and overrides, `AddProfiles…`, entry/exit quest code,
@@ -2025,6 +2072,7 @@ A narrative oracle patch (shipped as `patches/0012-facts-oracle.patch` for the f
 | `schedules` / `schedulewarp minutes=` | dump the schedule list and events / `WarpGameTime` with processing | positions, sleep/away state, doors |
 | `schedules`, `schedload name=`, `schedentry sector=`, `schedclock seconds= [query=]`, `schedwarp minutes= screen=map\|game`, `schedprocess id= screen=`, `scheddecide soldier=`, `schedmove soldier= gridNo=`, `schedshophours profile=` | *Implemented* (`patches/0016-schedules-oracle.patch`: marks around `PostSchedules` and a `DecideActionSchedule` wrapper; `probes/schedules.txt`, `schedules-compare.ts`; README "Schedules"): load, sector entry and warps with the schedule draws replayed, the AI decision, shop hours | schedule list and counter, civilians (gridno, in sector, away, asleep, check-schedule, progress, off-world gridno, patrol point), door locks and open state, the events of kind 36 |
 | `boxing` / `boxingstep who= to=` | dump the boxing globals / move a soldier and run the movement check | state, boxer flags, draws |
+| *implemented* | `boxingsquad`, `boxing`, `boxingset`, `boxingfacts`, `boxingstart`, `boxingstep`, `boxingattack`, `boxingend`, `boxinggetup`, `boxingexit`, `boxingrecord`, `boxingdecide`, `boxingpoints` (`Oracle.cc`, `patches/0021-boxing-oracle.patch`, `probes/boxing.txt`, `boxing-compare.ts`; README "Boxing"): the squad moved into D5, the club loaded, then the original's functions run on it | globals, recorded boxers, the mercs and boxers (life, breath, APs, alert, stats, trait, collapse, flags), combat and current team, pause, queued dialogue, history, both streams |
 | `heli`, `heliset`, `helisetup`, `heliboard`, `helileave`, `heliroute`, `helicancel`, `heliwarp`, `helimonologue`, `helipaydebt`, `helireturn` | *Implemented* (`patches/0014-heli-oracle.patch`, `probes/heli.txt`, `heli-compare.ts`; README "Helicopter"): the helicopter driven through the original's functions, arrivals through `WarpGameTime` | globals, vehicle, group, mercs, squads, quotes, events, draws |
 | `door g= who= action=` | the matching `AttemptTo…`/trap function traced | lock/trap state, perceived values, damage, soldier life/breath |
 | `newgame …` (extended) | add the NPC sectors, alternate-map flags, terrorist sectors and Carmen's count to the summary | — |
@@ -2091,6 +2139,9 @@ through `npcbox`); `EnterSector` needs the loading screen code to be inert headl
   "Helicopter on the map", "Helicopter interface", "Cosmetic draws of the helicopter", "Profile sectors of Skyrider and the
   helicopter" and "Ground vehicles" (which replaces "Helicopter and vehicle passengers"); "Helicopter entrance" narrowed to
   the hiring drop.
+- *Boxing slice* (logged 2026-10-16): "Boxing UI lock", "Abandoning a fight", "Real-time turn after combat"; "Narrative
+  port", "Implications of an attack", "History writers", "AI threat value", "Turn-based hooks" and "Computed facts without
+  inputs" narrowed by their boxing parts.
 - *Door perception*: `door` exposes the menu as data and refuses menu actions on unlocked doors with a reason (the original
   shows no menu); the diagonal-door policy stays at its default. Logged as "Door menu", together with "Trap check cost of
   menu actions", "Doors on entering a sector", "Team changes", "Narrative port" and "Cosmetic draws of doors" (first M6

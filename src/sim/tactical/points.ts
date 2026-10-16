@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Points.cc TerrainActionPoints, TerrainBreathPoints, ActionPointCost, MinAPsToStartMovement,
-// @src PtsToMoveDirection, DeductPoints, AdjustBreathPts; Points.h; RT_Time_Defines.h. See docs/07 §3.6.
+// @src PtsToMoveDirection, DeductPoints, AdjustBreathPts; Points.h; RT_Time_Defines.h; Soldier_Control.cc CalcActionPoints,
+// @src CalcNewActionPoints (the boxing halving). See docs/07 §3.6, docs/25 §7.2.
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass } from '../../content/items/items.ts';
@@ -170,6 +171,7 @@ const CRAWL_ENERGY_FACTOR = 4;
 const RT_BREATH_DEDUCT_MODIFIER = 1.25;
 const MAX_BREATH_RED = 10000;
 export const MAX_AP_CARRIED = 5;
+const BOXING_POINTS_DIVISOR = 2;
 export const MAX_AP_DEBT = 100;
 
 export const AP_LIMITS = {
@@ -517,7 +519,7 @@ export function maxActionPoints(bodyType: number): number {
   return AP_LIMITS.MAXIMUM;
 }
 
-export function calcActionPoints(content: TacticalContent, s: Soldier): number {
+export function calcActionPoints(content: TacticalContent, s: Soldier, boxingRound = false): number {
   if (!s.life) return 0;
   let points = 5 + Math.trunc((10 * effectiveExpLevel(s) + 3 * effectiveAgility(s) + 2 * s.lifeMax + 2 * effectiveDexterity(s) + 20) / 40);
   points &= 0xff;
@@ -532,12 +534,14 @@ export function calcActionPoints(content: TacticalContent, s: Soldier): number {
       points = Math.trunc((points * AP_LIMITS.YOUNG_MONST_FACTOR) / 10);
     if (s.ai.frenzied) points = Math.trunc((points * AP_LIMITS.MONST_FRENZY_FACTOR) / 10);
   }
+  if (boxingRound) points = Math.trunc((points & 0xff) / BOXING_POINTS_DIVISOR);
   return points & 0xff;
 }
 
-export function calcNewActionPoints(content: TacticalContent, s: Soldier): void {
-  if (s.actionPoints > MAX_AP_CARRIED) s.actionPoints = MAX_AP_CARRIED;
-  s.actionPoints += calcActionPoints(content, s);
+export function calcNewActionPoints(content: TacticalContent, s: Soldier, boxingRound = false): void {
+  const carried = boxingRound ? Math.trunc(MAX_AP_CARRIED / BOXING_POINTS_DIVISOR) : MAX_AP_CARRIED;
+  if (s.actionPoints > carried) s.actionPoints = carried;
+  s.actionPoints += calcActionPoints(content, s, boxingRound);
   s.actionPoints = Math.min(s.actionPoints, maxActionPoints(s.bodyType));
   s.initialActionPoints = s.actionPoints;
 }

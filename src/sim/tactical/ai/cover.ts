@@ -27,6 +27,7 @@ import { soldierToLocationChanceToGetThrough } from '../combat/bullets.ts';
 import { rangeInUnits, soldierDifficultyLevel } from '../combat/chance.ts';
 import { inGas, inSmoke } from '../explosions/smoke.ts';
 import { LIGHT_SIGHTING, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, surfaceAmbientLevel } from '../lighting/lighting.ts';
+import { boxingHalvesPoints } from '../narrative/boxing-state.ts';
 import { aiPathCostIndex, findBestPath, MoveMode, NOWHERE, newOKDestination, PathCopy, type PathEnv } from '../pathfinding.ts';
 import { AP, apsToChangeStance, calcActionPoints, minAPsToStartMovement, stateName } from '../points.ts';
 import { AlertStatus, cellCentre, type Soldier, Team } from '../soldier.ts';
@@ -432,7 +433,7 @@ function opponentThreat(t: TacticalState, s: Soldier, opp: Soldier, maxThreatRan
   if (origRange > maxThreatRange) return null;
   const value = calcManThreatValue(t, opp, s.gridNo, false, s);
   if (value === NO_THREAT) return null;
-  return { opponent: opp, gridNo, value, certainty, origRange, aps: calcActionPoints(t.content, opp) };
+  return { opponent: opp, gridNo, value, certainty, origRange, aps: calcActionPoints(t.content, opp, boxingHalvesPoints(t)) };
 }
 
 function coverThreats(t: TacticalState, s: Soldier, maxThreatRange: number): Threat[] {
@@ -489,7 +490,7 @@ export function findBestNearbyCover(t: TacticalState, s: Soldier, _morale: numbe
   const square = searchSquare(s.gridNo, range);
   const { range: roam, origin } = roamingRange(s);
   const fromOrigin = distanceFromOrigin(s, roam, origin);
-  const budget = s.ai.alertStatus >= AlertStatus.RED ? s.actionPoints : calcActionPoints(t.content, s);
+  const budget = s.ai.alertStatus >= AlertStatus.RED ? s.actionPoints : calcActionPoints(t.content, s, boxingHalvesPoints(t));
   const flood = reachabilityFlood(t, s, determineMovementMode(t, s, AiAction.TAKE_COVER), PathCopy.REACHABLE_AND_APS, range, budget);
   const background = nightBackgroundLight(t);
   const backgroundSighting = background === null ? null : lightSighting(background);
@@ -563,7 +564,7 @@ function fleeSearch(t: TacticalState, s: Soldier): { readonly range: number; rea
     range = idiv(s.actionPoints, 2);
     budget = u8(s.actionPoints);
   } else {
-    budget = u8(Math.min(idiv(s.actionPoints, 2), calcActionPoints(t.content, s)));
+    budget = u8(Math.min(idiv(s.actionPoints, 2), calcActionPoints(t.content, s, boxingHalvesPoints(t))));
     range = idiv(budget, 2);
   }
   if (!t.inCombat && range > FLEE_RT_HALVING_THRESHOLD) {

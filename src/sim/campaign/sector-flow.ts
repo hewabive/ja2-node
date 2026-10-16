@@ -397,6 +397,7 @@ export class SectorFlow {
       profiles: s.profiles,
       keyTable: s.keyTable,
       civGroups: s.civGroups,
+      boxing: s.narrative.boxing,
       startMs: s.realMs,
       realtimeClock: this.realtimeClock,
       hour: worldHour(s.clock),

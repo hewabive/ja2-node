@@ -188,6 +188,29 @@ describe('arrival', () => {
   });
 });
 
+describe('arrivals during a boxing match', () => {
+  const enemyReaching = (boxing: boolean, rolls: number[]) => {
+    const { ctx } = squadContext({ random: new ScriptedRolls(rolls), world: { boxing: () => boxing } });
+    const g = createNewEnemyGroupDepartingFromSector(ctx, parseSectorId('D6'), 0, 2, 0);
+    g.next = S('D5');
+    g.betweenSectors = true;
+    g.arrivalTime = nowMinutes(ctx);
+    ctx.state.queue.events.length = 0;
+    groupArrivedAtSector(ctx, g, true, false);
+    return { ctx, g };
+  };
+
+  it('queues an enemy group reaching San Mona while a match runs, for 3 to 5 minutes', () => {
+    const { ctx, g } = enemyReaching(true, [1]);
+    expect(g).toMatchObject({ sector: S('D6'), betweenSectors: true, arrivalTime: nowMinutes(ctx) + 4 });
+  });
+
+  it('lets the same group in when nobody boxes', () => {
+    const { g } = enemyReaching(false, []);
+    expect(g).toMatchObject({ sector: S('D5'), betweenSectors: false });
+  });
+});
+
 describe('reversal', () => {
   it('returns a cancelled group in the time it already travelled', () => {
     const { ctx, mercs } = squadContext();

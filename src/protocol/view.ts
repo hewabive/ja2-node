@@ -566,6 +566,12 @@ export interface ConversationView {
   readonly lastQuotes: readonly ConversationLineView[];
 }
 
+export interface BoxingView {
+  readonly state: 'waitingForPlayer' | 'preBoxing' | 'boxing' | 'disqualified' | 'wonRound' | 'lostRound';
+  readonly boxers: readonly number[];
+  readonly uiLocked: boolean;
+}
+
 export interface PlayerView {
   readonly tick: number;
   readonly mapPath: string | null;
@@ -581,6 +587,7 @@ export interface PlayerView {
   readonly scriptedSequence?: boolean;
   readonly meanwhile?: MeanwhileSceneView | null;
   readonly ended?: CampaignEndedView | null;
+  readonly boxing?: BoxingView | null;
   readonly soldiers: readonly SoldierView[];
   readonly openDoors?: readonly number[];
   readonly doors?: readonly DoorView[];
@@ -606,6 +613,7 @@ export interface ViewFrame {
   readonly scriptedSequence?: boolean;
   readonly meanwhile?: MeanwhileSceneView | null;
   readonly ended?: CampaignEndedView | null;
+  readonly boxing?: BoxingView | null;
   readonly openDoors?: readonly number[];
   readonly doors?: readonly DoorView[];
   readonly combat?: CombatView | null;
@@ -670,6 +678,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), meanwhile: next.meanwhile ?? null };
   if (JSON.stringify(previous.ended ?? null) !== JSON.stringify(next.ended ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), ended: next.ended ?? null };
+  if (JSON.stringify(previous.boxing ?? null) !== JSON.stringify(next.boxing ?? null))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), boxing: next.boxing ?? null };
   return frame;
 }
 

@@ -13,12 +13,14 @@ import { compatibleFaceItem } from '../../content/items/rules.ts';
 import { cardinalSpacesAway, WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import { copyObjectInto, createItem, emptyObject, ObjectFlags, objectFromRecord } from '../items/object.ts';
 import { type CivGroupState, civGroupHostility, createCivGroupState } from '../strategic/narrative/civ-groups.ts';
+import type { BoxingRecord } from '../strategic/narrative/facts.ts';
 import { states } from './animation.ts';
 import { soldierDifficultyLevel } from './combat/chance.ts';
 import type { RandomStream } from './combat/context.ts';
 import { generateRandomEquipment, replaceExtendedGuns } from './equipment.ts';
 import type { PopulationEnv } from './init-list.ts';
 import { emptyInventory, hiredMercInventory, type Inventory, type InventoryContext, InvSlot, npcProfileInventory } from './inventory.ts';
+import { boxingHalvesPoints } from './narrative/boxing-state.ts';
 import { CivGroupHostility } from './narrative/constants.ts';
 import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { calcActionPoints } from './points.ts';
@@ -214,6 +216,7 @@ const CIVILIAN_STAT_ROLLS: Readonly<Record<number, CivilianStatRoll>> = {
 
 export interface CreationContext extends Pick<TacticalState, 'content' | 'options' | 'equipment' | 'campaign'> {
   readonly rng: RandomStream;
+  readonly boxing?: BoxingRecord;
   readonly civGroups?: CivGroupState;
   readonly profiles?: ReadonlyMap<number, ProfileProgress>;
 }
@@ -720,7 +723,7 @@ export function tacticalCreateSoldier(c: CreationContext, pp: SoldierCreate, id:
   s.hasKeys = pp.hasKeys;
   if (pp.team === Team.CIV) s.neutral = civilianStartsNeutral(c, pp.profile, s.civilianGroup);
   if (pp.team === Team.OUR || pp.team === Team.MILITIA) s.visible = 1;
-  s.actionPoints = calcActionPoints(c.content, s);
+  s.actionPoints = calcActionPoints(c.content, s, boxingHalvesPoints(c));
   s.initialActionPoints = s.actionPoints;
   s.oldLife = s.lifeMax;
   s.insertionGridNo = pp.insertionGridNo;

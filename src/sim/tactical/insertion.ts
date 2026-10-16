@@ -12,6 +12,7 @@ import { AnimHeight, endHeight, hasAnimFlag, initNewSoldierAnim, setSoldierDirec
 import { findGridNoFromSweetSpot } from './creation.ts';
 import { searchForClosestPrimaryMapEdgepoint, searchForClosestSecondaryMapEdgepoint } from './edgepoints.ts';
 import { getNewSoldierPath, setSoldierPosition, stopMerc } from './movement.ts';
+import { boxingHalvesPoints } from './narrative/boxing-state.ts';
 import { keepElliotAliveInMeanwhile } from './narrative/meanwhile-rules.ts';
 import { revealRoofsAndItems } from './perception/fov.ts';
 import { calcActionPoints } from './points.ts';
@@ -178,7 +179,7 @@ export function addSoldierToSector(
   animation: PlacementAnimation | null = null,
 ): boolean {
   keepElliotAliveInMeanwhile(t, s);
-  s.actionPoints = calcActionPoints(t.content, s);
+  s.actionPoints = calcActionPoints(t.content, s, boxingHalvesPoints(t));
   if (!t.mercSlots.includes(s)) registerSoldier(t, s);
   let gridNo = findGridNoFromSweetSpot(t, s, s.insertionGridNo, SWEET_SPOT_RADIUS);
   if (gridNo === NOWHERE) gridNo = s.insertionGridNo;

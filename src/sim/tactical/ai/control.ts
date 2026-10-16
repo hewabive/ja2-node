@@ -4,8 +4,9 @@
 // @src FreeUpNPCFromTurning, FreeUpNPCFromStanceChange, FreeUpNPCFromRoofClimb, FreeUpNPCFromPendingAction (the NPC triggers); Realtime.cc RTHandleAI;
 // @src Movement.cc SoldierTriesToContinueAlongPath; AIUtils.cc NewDest; AIMain.cc ExecuteAction (the door actions),
 // @src HandleAITacticalTraversal (the away slot), the asleep and off-map checks of HandleSoldierAI; Tactical/Overhead.cc
-// @src ExecuteOverhead (real-time AI cadence, the away-slot pass), NextAIToHandle; creature/crow dispatch of
-// @src TurnBasedHandleNPCAI and Realtime.cc RTDecideAction, RTHandleAI. See docs/09 §1, docs/13 §14, docs/25 §5.3.
+// @src ExecuteOverhead (real-time AI cadence, the away-slot pass), NextAIToHandle (with PCs under AI control); creature/crow
+// @src dispatch of TurnBasedHandleNPCAI and Realtime.cc RTDecideAction, RTHandleAI; the boxing checks of HandleSoldierAI.
+// @src See docs/09 §1, docs/13 §14, docs/25 §5.3, §7.2.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { Approach } from '../../../content/narrative/npc-constants.ts';
@@ -27,6 +28,7 @@ import { soldierDifficultyLevel } from '../combat/chance.ts';
 import { DIRECTION_INCREMENT, Direction } from '../directions.ts';
 import { interactWithDoorAt } from '../doors/door-actions.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from '../movement.ts';
+import { boxingIdlesNonBoxers } from '../narrative/boxing-state.ts';
 import { isMercBody, NOWHERE, newOKDestination, PathFlags } from '../pathfinding.ts';
 import { mostImportantNoiseHeard } from '../perception/knowledge.ts';
 import { radioSightings, removeManAsTarget } from '../perception/sight.ts';
@@ -597,7 +599,7 @@ function handleAITacticalTraversal(t: TacticalState, s: Soldier, control: AiCont
 export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl): void {
   const ai = s.ai;
   if (s.engagedInAction || t.turn.enemySightingOnTheirTurn || t.actionItems.queue.length > 0 || t.actionItems.active) return;
-  if (s.team === Team.OUR) {
+  if (s.team === Team.OUR && !(s.underAiControl && (s.quoteRecord !== 0 || s.boxer))) {
     ai.handleEveryFrame = false;
     return;
   }
@@ -618,6 +620,10 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
     ai.counter = t.clockMs + AI_DELAY;
   }
   ai.handleEveryFrame = false;
+  if (boxingIdlesNonBoxers(t) && !s.boxer) {
+    endAIGuysTurn(t, s, control);
+    return;
+  }
   if (s.life < OKLIFE || !(s.placed || s.offMap || s.away)) {
     endAIGuysTurn(t, s, control);
     return;
@@ -692,7 +698,7 @@ function nextAIToHandle(t: TacticalState, control: AiControl): boolean {
   const start = control.cursor >= t.mercSlots.length ? 0 : control.cursor + 1;
   for (let c = start; c < t.mercSlots.length; c++) {
     const s = t.mercSlots[c];
-    if (s && (s.placed || s.offMap) && s.team !== Team.OUR) {
+    if (s && (s.placed || s.offMap) && (s.team !== Team.OUR || s.underAiControl)) {
       control.cursor = c;
       return true;
     }

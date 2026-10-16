@@ -10,7 +10,9 @@
 // @src NPCHasUnusedRecordWithGivenApproach; OppList.cc ManSeesMan (first-sighting records, MIKE and JOEY quotes).
 // @src Strategic/Meanwhile.cc AreInMeanwhile, GetMeanwhileID; Tactical/Overhead.cc HandleNPCTeamMemberDeath
 // @src (BeginHandleDeidrannaDeath, BeginHandleQueenBitchDeath), DoPOWPathChecks.
-// @src See docs/25 §1, §2.1, §3, §6, §9.4, §11.5, docs/24 §4, §5.4, §8, docs/26 §1.6, §3.4, §6.1.
+// @src Tactical/Boxing.cc (PauseGame, UnPauseGame, AddHistoryToPlayersLog, DeleteTalkingMenu); Tactical/Overhead.cc
+// @src SetSoldierNeutral.
+// @src See docs/25 §1, §2.1, §3, §6, §7, §9.4, §11.5, docs/24 §4, §5.4, §8, docs/26 §1.6, §3.4, §6.1.
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -71,6 +73,11 @@ export interface NarrativePort {
   controllingRobot(s: Soldier): boolean;
   robotRemotePlaced(s: Soldier): void;
   changeSoldierTeam(s: Soldier, team: number): Soldier | null;
+  pauseGame(): void;
+  unPauseGame(): void;
+  addHistory(code: number, secondCode: number): void;
+  deleteTalkingMenu(): void;
+  setSoldierNeutral(s: Soldier): void;
 }
 
 export const NO_NARRATIVE_PORT: NarrativePort = {
@@ -125,4 +132,11 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   controllingRobot: () => false,
   robotRemotePlaced: () => {},
   changeSoldierTeam: () => null,
+  pauseGame: () => {},
+  unPauseGame: () => {},
+  addHistory: () => {},
+  deleteTalkingMenu: () => {},
+  setSoldierNeutral: (s) => {
+    s.neutral = true;
+  },
 };

@@ -35,12 +35,7 @@ const PRE_STREAM = 'p';
 const SECONDS_PER_DAY = 86400;
 const SECONDS_PER_HOUR = 3600;
 const NO_SOLDIER = -1;
-const UNKNOWN_INPUT_FACTS: ReadonlySet<number> = new Set([
-  Fact.ANOTHER_FIGHT_POSSIBLE,
-  Fact.PLAYER_FOUGHT_THREE_TIMES_TODAY,
-  Fact.PLAYER_KILLED_BOXERS,
-  Fact.PC_HAS_CONRADS_RECRUIT_OPINION,
-]);
+const UNKNOWN_INPUT_FACTS: ReadonlySet<number> = new Set([Fact.PC_HAS_CONRADS_RECRUIT_OPINION]);
 
 const num = (v: unknown) => Number(v ?? 0);
 

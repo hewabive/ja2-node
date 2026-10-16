@@ -363,6 +363,7 @@ export interface SavedNarrativeGeneralInfo {
   readonly boxersResting: boolean;
   readonly lastBoxingMatchWonByPlayer: boolean;
   readonly boxerFought: readonly boolean[];
+  readonly boxers: readonly number[];
   readonly cambriaMedicalObjects: number;
   readonly numTerrorists: number;
   readonly hospitalPriceModifier: number;
@@ -599,6 +600,7 @@ export function readGeneralInfo(c: SaveCursor): GeneralInfo {
       boxersResting: r.bool('gfBoxersResting'),
       lastBoxingMatchWonByPlayer: r.bool('gfLastBoxingMatchWonByPlayer'),
       boxerFought: r.bools('gfBoxerFought'),
+      boxers: r.nums('gBoxer'),
       cambriaMedicalObjects: n('gubCambriaMedicalObjects'),
       numTerrorists: n('gubNumTerrorists'),
       hospitalPriceModifier: n('gbHospitalPriceModifier'),

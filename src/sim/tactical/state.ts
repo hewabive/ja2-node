@@ -6,6 +6,7 @@ import type { TileElement } from '../../content/world/tile-database.ts';
 import { PreRandom, type Rng } from '../../core/rng.ts';
 import type { SimEvent } from '../events.ts';
 import { type CivGroupState, createCivGroupState } from '../strategic/narrative/civ-groups.ts';
+import { type BoxingRecord, createBoxingRecord } from '../strategic/narrative/facts.ts';
 import { anim } from './anim-states.ts';
 import { type Buildings, createBuildings } from './buildings.ts';
 import type { Bullet, MissAnimation } from './combat/bullets.ts';
@@ -246,6 +247,7 @@ export interface TacticalState {
   sector: SectorRef | null;
   readonly keyTable: KeyTable;
   readonly civGroups: CivGroupState;
+  readonly boxing: BoxingRecord;
   readonly hostileQuoteList: Soldier[];
   engagedInConv: boolean;
   schedules: ScheduleList;
@@ -266,6 +268,7 @@ export interface SharedCampaignState {
   readonly profiles?: Map<number, ProfileProgress>;
   readonly keyTable?: KeyTable;
   readonly civGroups?: CivGroupState;
+  readonly boxing?: BoxingRecord;
 }
 
 export interface SectorRef {
@@ -359,6 +362,7 @@ export function createTacticalState(
     sector: null,
     keyTable: shared.keyTable ?? createKeyTable(),
     civGroups: shared.civGroups ?? createCivGroupState(),
+    boxing: shared.boxing ?? createBoxingRecord(),
     hostileQuoteList: [],
     engagedInConv: false,
     schedules: createScheduleList(),

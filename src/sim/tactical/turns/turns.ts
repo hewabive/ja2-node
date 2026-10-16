@@ -7,8 +7,9 @@
 // @src SoldierHasSeenEnemiesLastFewTurns, CheckForEndOfBattle, NumCapableEnemyInSector, CheckForLosingEndOfBattle;
 // @src Soldier_Control.cc EVENT_BeginMercTurn, CheckForBreathCollapse;
 // @src OppList.cc BetweenTurnsVisibilityAdjustments, NonCombatDecayPublicOpplist; Tactical_Turns.cc HandleTacticalEndTurn;
-// @src Drugs_And_Alcohol.cc HandleEndTurnDrugAdjustments (regeneration only).
-// @src See docs/10 §1.4–§2, §4.4–§4.7, §8.
+// @src Drugs_And_Alcohol.cc HandleEndTurnDrugAdjustments (regeneration only); the boxing gates of BeginTeamTurn,
+// @src CheckForEndOfCombatMode and CheckForEndOfBattle.
+// @src See docs/10 §1.4–§2, §4.4–§4.7, §8, docs/25 §7.2.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { u8 } from '../../../core/int.ts';
@@ -22,6 +23,7 @@ import { decayLightEffects } from '../explosions/light.ts';
 import { clearGassedAtTurnStart, decaySmokeEffects } from '../explosions/smoke.ts';
 import { worldSeconds } from '../explosions/state.ts';
 import { getNewSoldierPath, stopMerc } from '../movement.ts';
+import { boxingActive, boxingFight, boxingHalvesPoints, boxingRoundDecided } from '../narrative/boxing-state.ts';
 import { calcInterruptDuelPts, interruptDuel } from '../perception/duel.ts';
 import { Opp, SightFlags } from '../perception/opp.ts';
 import { decayPublicOpplist, handleSight, teamNoLongerSeesMan, verifyAndDecayOpplist } from '../perception/sight.ts';
@@ -108,7 +110,7 @@ export function beginMercTurn(t: TacticalState, s: Soldier): void {
   s.weightCarriedAtTurnStart = carriedWeightPercentOf(t.content, s);
   unusedAPsToBreath(pointsContext(t), s, t.explosives.gassed[s.id] === 1);
   if (s.placed) checkForBreathCollapse(s);
-  calcNewActionPoints(t.content, s);
+  calcNewActionPoints(t.content, s, boxingHalvesPoints(t));
   s.tilesMoved = 0;
   if (s.placed) {
     beginSoldierGetup(t, s);
@@ -210,6 +212,7 @@ export function beginTeamTurn(t: TacticalState, start: number): void {
     }
     decayPublicOpplist(t, team);
     for (const s of teamMembers(t, team)) if (s.life > 0) beginMercTurn(t, s);
+    if (boxingRoundDecided(t)) return;
     if (team === Team.OUR) {
       if (t.inCombat) startPlayerTeamTurn(t, false);
       return;
@@ -298,7 +301,7 @@ function commonEnterCombatModeCode(t: TacticalState): void {
     t.turnHooks.cancelAIAction(t, s);
     s.aiTurnControl = false;
     checkForPotentialAddToBattleIncrement(t, s);
-    calcNewActionPoints(t.content, s);
+    calcNewActionPoints(t.content, s, boxingHalvesPoints(t));
   }
   t.turn.round = 1;
 }
@@ -352,6 +355,7 @@ function soldierHasSeenEnemiesLastFewTurns(t: TacticalState, s: Soldier): boolea
 
 export function checkForEndOfCombatMode(t: TacticalState, increment: boolean): boolean {
   if (!t.inCombat) return false;
+  if (boxingFight(t)) return false;
   if (checkForEndOfBattle(t)) return true;
   const turn = t.turn;
   const weSeeNoOne = !mercs(t).some((s) => s.team === Team.OUR && s.ai.oppCount > 0);
@@ -426,6 +430,7 @@ export function endBattleAfterSurrender(t: TacticalState): void {
 
 export function checkForEndOfBattle(t: TacticalState): boolean {
   const turn = t.turn;
+  if (boxingFight(t)) return false;
   if (!t.inCombat && !turn.enemyInSector) return false;
   if (turn.attackBusyCount > 0) return false;
   if (turn.killingGuysForLosingBattle) return false;
@@ -436,10 +441,15 @@ export function checkForEndOfBattle(t: TacticalState): boolean {
     return true;
   }
   if (won) {
-    if (killIncapacitatedEnemyInSector(t)) return false;
+    const boxing = boxingActive(t);
+    if (!boxing && killIncapacitatedEnemyInSector(t)) return false;
     turn.enemyInSector = false;
     endAllAITurns(t);
     if (t.inCombat) exitCombatMode(t);
+    if (boxing) {
+      t.events.push({ type: 'combatEnded', reason: 'boxing' });
+      return true;
+    }
     for (const s of teamMembers(t, Team.MILITIA)) {
       s.ai.alertStatus = AlertStatus.GREEN;
       t.turnHooks.checkForChangingOrders(t, s);

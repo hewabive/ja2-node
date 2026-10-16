@@ -44,6 +44,7 @@ export interface StubSoldier {
   readonly profile: number | null;
   readonly schedule: string | null;
   readonly civilianGroup: number;
+  readonly bodyType: number;
 }
 
 export interface StubScheduleEntry {
@@ -145,6 +146,8 @@ const OPTIONAL_PLACEMENT = 'optional';
 const PROFILE_FLAG = /^profile=(\d+)$/;
 const SCHEDULE_FLAG = /^schedule=(.)$/;
 const GROUP_FLAG = /^group=(\d+)$/;
+const BODY_FLAG = /^body=(\d+)$/;
+const RANDOM_BODY = -1;
 const ENTRY_NAMES: readonly string[] = Object.values(StubEntry);
 
 function parseSoldier(spec: string, line: number): StubSoldier {
@@ -152,13 +155,16 @@ function parseSoldier(spec: string, line: number): StubSoldier {
   let profile: number | null = null;
   let schedule: string | null = null;
   let civilianGroup = 0;
+  let bodyType = RANDOM_BODY;
   for (const flag of flags) {
     const m = PROFILE_FLAG.exec(flag);
     const scheduled = SCHEDULE_FLAG.exec(flag);
     const group = GROUP_FLAG.exec(flag);
+    const body = BODY_FLAG.exec(flag);
     if (m) profile = Number(m[1]);
     else if (scheduled) schedule = scheduled[1] ?? null;
     else if (group) civilianGroup = Number(group[1]);
+    else if (body) bodyType = Number(body[1]);
     else if (flag !== OPTIONAL_PLACEMENT) throw new FormatError(`line ${line}: unknown soldier flag '${flag}'`);
   }
   return {
@@ -166,6 +172,7 @@ function parseSoldier(spec: string, line: number): StubSoldier {
     profile,
     schedule,
     civilianGroup,
+    bodyType,
     team: named(TEAMS, team, 'team', line),
     x: Number(x),
     y: Number(y),
@@ -489,7 +496,7 @@ function stubPlacement(source: StubMapSource, s: StubSoldier): Placement {
       direction: s.direction,
       orders: s.orders,
       attitude: s.attitude,
-      bodyType: -1,
+      bodyType: s.bodyType,
       patrolGrid: [g],
       patrolCount: 0,
       onRoof: false,

@@ -17,7 +17,7 @@ catalog, the requestor answers, the NPC system events, Kingpin's money and the h
 the 24-hour replay, processing and the AI's schedule steps), giving items and money to NPCs with the quest action items, civilian
 quotes, the enemy surrender offer, the hostile-quote list with its AI pause and the named-NPC AI, and the meanwhile scenes
 with the end of the campaign (posting, the event and its implications, the NPC moves of a played scene, the first-battle
-rules, the progress milestones, captures, the Queen's death on the strategic AI and the O3 statue).
+rules, the progress milestones, captures, the Queen's death on the strategic AI and the O3 statue), and boxing in San Mona.
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -1302,6 +1302,50 @@ first-battle wake, the towns and SAM sites woken, the creature scene, the scient
 NPC moves, the first-battle rules, the milestones, captures to Alma and to the interrogation, the Queen's death and the statue
 opened by the remote and by explosions at distance 0–2.
 
+### Boxing
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data" JA2_ORACLE_DIR=~/ja2-oracle-boxing
+tools/oracle/run.sh tools/oracle/probes/boxing.txt ~/ja2-oracle-boxing/out/boxing.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle-boxing/out/boxing.jsonl
+```
+
+No save stands in San Mona, so every block starts with `boxingsquad`: the listed mercs and their groups move to D5 with grid
+insertion (`SetGroupSectorValue`), the club is loaded with `SetCurrentWorldSector`, the game is unpaused and the moved mercs
+get `CalcActionPoints` (ja2-node recomputes APs on insertion, the original keeps the old ones; the probe normalises both).
+Commands (soldier ids of the loaded club):
+```
+boxingsquad sector=D5 who=<ids> grids=<gridnos>   # the squad into the club; prints every soldier in sector
+boxing                                           # dump only
+boxingset [state=] [fought=a,b,c] [boxers=a,b,c] [rests=] [resting=] [won=] [last=]
+          [who= life= breath= collapsed= turns= ap= boxer= slot= item=]
+boxingfacts                                      # CheckFact 210, 230, 231, 368 in that order
+boxingstart                                      # Darren's START_BOXING_MATCH
+boxingstep who= to=                              # EVENT_SetSoldierPosition, then BoxingMovementCheck in states 1-3
+boxingattack who= target= item=                  # ProcessImplicationsOfPCAttack with that usAttackingWeapon
+boxingend loser=                                 # EndBoxingMatch
+boxinggetup who=                                 # BeginSoldierGetup (the knock-out count)
+boxingexit                                       # ExitBoxing
+boxingrecord who=<id>|-1                         # TriggerEndOfBoxingRecord
+boxingdecide who= [status=1]                     # DecideAction (DecideAlertStatus first): action, data, next action and
+                                                 # data, final destination, orders, alert status
+boxingpoints who= ap=                            # CalcActionPoints and CalcNewActionPoints
+```
+Each prints the boxing globals (state, recorded boxers, fought flags, wins, rests, resting, last won, paused, combat and
+current team) and the mercs, the recorded boxers and the flagged soldiers (gridno, neutral, life, breath, APs, alert, three
+stats, first trait, collapse and its turn count, under fire, boxer and PC-under-AI flags), plus the queued dialogue, the
+`CheckFact` calls, both streams and new history lines. `boxing-compare.ts` imports the save, repeats the setup and runs the
+same functions, replaying both streams strictly (the pathfinder's skip-list draws and, with 0021, the music picks dropped)
+and the native `CheckFact` results; a probe that ends combat also gets the forced real-time turn the original runs inside
+`ExitCombatMode` (deviation "Real-time turn after combat"); the civilians' gridnos are only compared on the boxer tiles (their
+schedules place them with draws the setup does not replay) and a decision's data is only compared when it decides an action.
+On 2026-10-16 all 104 probes matched on SaveGame01 and 02 with four native seeds: Darren's start action, the movement checks
+into and out of the ring, the boxer picked with the rest bonus and martial arts, the fight start for either team (with the
+AI boxer's three turn APs of `ReevaluateEnemyStance`), halved APs, the AI boxer entering the ring, punching, leaving it and
+the bystander facing it, fair blows, knives, guns and a non-boxer's punch, a second merc in the ring, a boxer stepping out,
+both knock-outs by collapse, the exit with the revival, the end records with their history lines, and the facts with all
+boxers fought or gone.
+
 ## Shipped probes
 
 | Script | Content |
@@ -1332,6 +1376,7 @@ opened by the remote and by explosions at distance 0–2.
 | `probes/schedules.txt` | NPC schedules on the six saves (see "Schedules") |
 | `probes/meanwhile.txt` | Meanwhile scenes, captures, milestones and the Queen's death on the six saves, the O3 statue (see "Meanwhile") |
 | `probes/give.txt` | Giving items and money to the NPCs, dealers and mercs of SaveGame02, 01, 07 and 10, the money rules of the absent NPCs, NPC gifts and the quest action items (see "Give") |
+| `probes/boxing.txt` | Boxing in the San Mona club on SaveGame01 and 02 (see "Boxing") |
 | `probes/recruit.txt` | Recruiting R.P.C.s, escorting and releasing E.P.C.s, the robot and civilian-group team changes on SaveGame01, 02 and 10 (see "Recruiting") |
 | `probes/civ.txt` | Civilian quotes, named-NPC decisions, tile and first-aid triggers, the hostile-quote list and the surrender offer on the six saves (see "Civilians") |
 | `probes/sectors.txt` | Edgepoints loaded and generated on eight maps, screen-space exit thresholds on both sides of every edge (A9, A10 basement), exit-grid checks in D13 and the basement, walk-off/walk-in/mirror from the centre and near the edges, class codes on the isolated maps H13 and I14, init list sorts and ten defence placements (A9, B13, C13, D13), and `OKForSectorExit` on SaveGame10, 07 (in combat) and 01 before and after moving mercs to an edge or an exit grid |
@@ -1507,6 +1552,10 @@ the comparers include them. Regenerate it like 0002 with that path.
 `OracleLastScheduledMeanwhileId` (the static `ubCurrentMeanWhileId`), `OracleSkipMeanwhile` (the static
 `BeginMeanwhileCallBack` with `MSG_BOX_RETURN_NO`), `OracleSetNpcMeanwhile` and `OracleRestoreNpcMeanwhile` (the static NPC
 moves of a played scene) and `OracleClearNpcMeanwhileSaves` (empties their save slots). Regenerate it like 0002 with that path.
+
+`patches/0021-boxing-oracle.patch` (applied after 0018) changes `src/externalized/DefaultContentManager.cc` only: marks 3001
+and 3000 around the `Random(count)` of `getMusicForMode`, so a comparer can drop the music pick of `SetMusicMode` (ja2-node
+plays no music; combat entry and exit pick tracks). No behaviour change. Regenerate it like 0002 with that path.
 
 ## Notes
 
