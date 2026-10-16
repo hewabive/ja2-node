@@ -1,0 +1,2160 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: assets/externalized/script-records-NPCs.json without its comments (the comments quote dialogue text)",
+  "license": "Derived from Jagged Alliance 2 (Strategy First SFI-SCLA) via JA2 Stracciatella. See LICENSE.",
+  "format": "the NPC script record overrides as Stracciatella loads them; quote numbers refer to the dialogue files of the game data",
+  "records": [
+    {
+      "profile": "MARIA",
+      "records": [
+        {
+          "index": 0,
+          "quest": {
+            "name": "DELIVER_LETTER",
+            "status": "INPROGRESS"
+          },
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 18,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 1,
+          "factMustBeTrue": 81,
+          "requiredApproach": "EPC_WHO_IS_RECRUITED",
+          "quoteNum": 16,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 2,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 81,
+          "requiredApproach": "EPC_WHO_IS_RECRUITED",
+          "quoteNum": 16,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 21
+          }
+        },
+        {
+          "index": 3,
+          "factMustBeTrue": 121,
+          "quoteNum": 17,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 4,
+          "factMustBeTrue": 68,
+          "requiredApproach": "ONE_OF_FOUR_STANDARD",
+          "quoteNum": 8,
+          "numQuotes": 1
+        },
+        {
+          "index": 5,
+          "requiredItem": "MONEY",
+          "requiredApproach": "GIVINGITEM",
+          "quoteNum": 10,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 1
+          }
+        },
+        {
+          "index": 6,
+          "eraseOnceSaid": true,
+          "factMustBeFalse": 108,
+          "quest": {
+            "name": "RESCUE_MARIA",
+            "status": "INPROGRESS"
+          },
+          "quoteNum": 11,
+          "numQuotes": 3,
+          "triggerNPC": "MARIA",
+          "triggerRecord": 18,
+          "actionData": {
+            "code": 39
+          }
+        },
+        {
+          "index": 7,
+          "eraseOnceSaid": true,
+          "quest": {
+            "name": "RESCUE_MARIA",
+            "status": "INPROGRESS"
+          },
+          "requiredApproach": "TRIGGER_NPC",
+          "actionData": {
+            "code": 145
+          }
+        },
+        {
+          "index": 8,
+          "eraseOnceSaid": true,
+          "quest": {
+            "name": "RESCUE_MARIA",
+            "status": "INPROGRESS"
+          },
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 14,
+          "numQuotes": 1,
+          "triggerNPC": "ANGEL",
+          "triggerRecord": 14,
+          "userInterface": "TURN_UI_OFF"
+        },
+        {
+          "index": 9,
+          "eraseOnceSaid": true,
+          "quest": {
+            "name": "RESCUE_MARIA",
+            "status": "INPROGRESS"
+          },
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 15,
+          "numQuotes": 1,
+          "triggerNPC": "ANGEL",
+          "triggerRecord": 15
+        },
+        {
+          "index": 10,
+          "eraseOnceSaid": true,
+          "quest": {
+            "name": "RESCUE_MARIA",
+            "status": "INPROGRESS"
+          },
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 15,
+          "numQuotes": 1,
+          "triggerNPC": "ANGEL",
+          "triggerRecord": 23
+        },
+        {
+          "index": 11,
+          "requiredApproach": "EPC_IN_WRONG_SECTOR",
+          "quoteNum": 19,
+          "numQuotes": 1,
+          "setFactTrue": 158,
+          "actionData": {
+            "code": 168
+          }
+        },
+        {
+          "index": 12,
+          "requiredApproach": "TRIGGER_NPC",
+          "goToGridno": 8354,
+          "actionData": {
+            "code": 264
+          }
+        },
+        {
+          "index": 13,
+          "sayOncePerConvo": true,
+          "factMustBeTrue": 158,
+          "factMustBeFalse": 108,
+          "quoteNum": 22,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 110
+          }
+        },
+        {
+          "index": 14,
+          "factMustBeTrue": 158,
+          "factMustBeFalse": 108,
+          "quoteNum": 19,
+          "numQuotes": 1
+        },
+        {
+          "index": 15,
+          "factMustBeFalse": 31,
+          "requiredApproach": "SECTOR_NOT_SAFE",
+          "quoteNum": 21,
+          "numQuotes": 1
+        },
+        {
+          "index": 16,
+          "factMustBeTrue": 158,
+          "factMustBeFalse": 108,
+          "requiredApproach": "RECRUIT",
+          "quoteNum": 22,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 110
+          }
+        },
+        {
+          "index": 17,
+          "sayOncePerConvo": true,
+          "factMustBeTrue": 322,
+          "factMustBeFalse": 108,
+          "quoteNum": 22,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 110
+          }
+        },
+        {
+          "index": 18,
+          "eraseOnceSaid": true,
+          "requiredApproach": "TRIGGER_NPC",
+          "numQuotes": 1,
+          "setFactTrue": 322,
+          "actionData": {
+            "code": 110
+          }
+        },
+        {
+          "index": 19,
+          "factMustBeTrue": 158,
+          "factMustBeFalse": 108,
+          "requiredApproach": "THREATEN",
+          "quoteNum": 19,
+          "numQuotes": 1
+        }
+      ]
+    },
+    {
+      "profile": "JOEY",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "EPC_WHO_IS_RECRUITED",
+          "quoteNum": 13,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 1,
+          "factMustBeTrue": 81,
+          "requiredApproach": "ENEMY_NPC_QUOTE",
+          "quoteNum": 19,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 2,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 81,
+          "requiredApproach": "DECLARATION_OF_HOSTILITY",
+          "quoteNum": 19,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 21
+          }
+        },
+        {
+          "index": 3,
+          "factMustBeTrue": 68,
+          "requiredApproach": "ONE_OF_FOUR_STANDARD",
+          "quoteNum": 8,
+          "numQuotes": 1
+        },
+        {
+          "index": 4,
+          "requiredItem": "MONEY",
+          "factMustBeTrue": 109,
+          "requiredApproach": "GIVINGITEM",
+          "quoteNum": 10,
+          "numQuotes": 1
+        },
+        {
+          "index": 5,
+          "requiredApproach": "ONE_OF_FOUR_STANDARD",
+          "quest": {
+            "name": "RUNAWAY_JOEY",
+            "status": "DONE"
+          },
+          "quoteNum": 9,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 6,
+          "factMustBeTrue": 160,
+          "factMustBeFalse": 108,
+          "requiredApproach": "RECRUIT",
+          "quoteNum": 20,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 110
+          }
+        },
+        {
+          "index": 7,
+          "factMustBeTrue": 347,
+          "requiredApproach": "RECRUIT",
+          "quoteNum": 11,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 110
+          }
+        },
+        {
+          "index": 8,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 17,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 110
+          }
+        },
+        {
+          "index": 9,
+          "eraseOnceSaid": true,
+          "firstDay": 255,
+          "numQuotes": 1
+        },
+        {
+          "index": 10,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 110,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 14,
+          "numQuotes": 1,
+          "triggerNPC": "MARTHA",
+          "triggerRecord": 7,
+          "actionData": {
+            "code": 149
+          }
+        },
+        {
+          "index": 11,
+          "eraseOnceSaid": true,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 15,
+          "numQuotes": 1,
+          "endQuest": "RUNAWAY_JOEY",
+          "triggerNPC": "MARTHA",
+          "triggerRecord": 8,
+          "goToGridno": 18326
+        },
+        {
+          "index": 12,
+          "requiredApproach": "EPC_IN_WRONG_SECTOR",
+          "quoteNum": 12,
+          "numQuotes": 1,
+          "setFactTrue": 160,
+          "actionData": {
+            "code": 168
+          }
+        },
+        {
+          "index": 13,
+          "factMustBeFalse": 109,
+          "requiredApproach": "RECRUIT",
+          "quoteNum": 16,
+          "numQuotes": 1
+        },
+        {
+          "index": 14,
+          "factMustBeTrue": 160,
+          "factMustBeFalse": 108,
+          "quoteNum": 12,
+          "numQuotes": 1
+        },
+        {
+          "index": 15,
+          "factMustBeFalse": 31,
+          "requiredApproach": "SECTOR_NOT_SAFE",
+          "quoteNum": 21,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 16,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 350,
+          "factMustBeFalse": 109,
+          "requiredApproach": "THREATEN",
+          "requiredOpinion": 80,
+          "quoteNum": 11,
+          "numQuotes": 1,
+          "setFactTrue": 347,
+          "actionData": {
+            "code": 110
+          }
+        },
+        {
+          "index": 17,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 109,
+          "requiredApproach": "THREATEN",
+          "requiredOpinion": 80,
+          "quoteNum": 11,
+          "numQuotes": 1,
+          "setFactTrue": 347,
+          "actionData": {
+            "code": 110
+          }
+        },
+        {
+          "index": 18,
+          "factMustBeFalse": 109,
+          "requiredApproach": "THREATEN",
+          "requiredOpinion": 80,
+          "quoteNum": 11,
+          "numQuotes": 1,
+          "triggerNPC": "JOEY",
+          "triggerRecord": 8,
+          "setFactTrue": 347
+        },
+        {
+          "index": 19,
+          "factMustBeTrue": 160,
+          "factMustBeFalse": 108,
+          "requiredApproach": "THREATEN",
+          "quoteNum": 12,
+          "numQuotes": 1
+        }
+      ]
+    },
+    {
+      "profile": "SKYRIDER",
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "EPC_WHO_IS_RECRUITED",
+          "quoteNum": 42,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 1,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 81,
+          "requiredApproach": "DECLARATION_OF_HOSTILITY",
+          "quoteNum": 43,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 21
+          }
+        },
+        {
+          "index": 2,
+          "factMustBeTrue": 81,
+          "requiredApproach": "ENEMY_NPC_QUOTE",
+          "quoteNum": 38,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 3,
+          "factMustBeTrue": 68,
+          "factMustBeFalse": 48,
+          "requiredApproach": "ONE_OF_FOUR_STANDARD",
+          "quoteNum": 8,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 4,
+          "sayOncePerConvo": true,
+          "factMustBeTrue": 122,
+          "factMustBeFalse": 48,
+          "quoteNum": 44,
+          "numQuotes": 1
+        },
+        {
+          "index": 5,
+          "factMustBeFalse": 31,
+          "requiredApproach": "SECTOR_NOT_SAFE",
+          "quoteNum": 50,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 6,
+          "factMustBeTrue": 159,
+          "factMustBeFalse": 108,
+          "quest": {
+            "name": "ESCORT_SKYRIDER",
+            "status": "INPROGRESS"
+          },
+          "quoteNum": 41,
+          "numQuotes": 1
+        },
+        {
+          "index": 7,
+          "factMustBeTrue": 159,
+          "factMustBeFalse": 108,
+          "requiredApproach": "THREATEN",
+          "quoteNum": 39,
+          "numQuotes": 1
+        },
+        {
+          "index": 8,
+          "factMustBeTrue": 44,
+          "firstDay": 255,
+          "requiredApproach": "RECRUIT",
+          "quoteNum": 40,
+          "numQuotes": 1
+        },
+        {
+          "index": 9,
+          "factMustBeTrue": 44,
+          "firstDay": 255,
+          "requiredApproach": "THREATEN",
+          "quoteNum": 39,
+          "numQuotes": 1
+        },
+        {
+          "index": 10,
+          "factMustBeTrue": 46,
+          "quoteNum": 11,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 119
+          }
+        },
+        {
+          "index": 11,
+          "requiredItem": "MONEY",
+          "requiredApproach": "GIVINGITEM",
+          "quoteNum": 10,
+          "numQuotes": 1
+        },
+        {
+          "index": 12,
+          "factMustBeTrue": 136,
+          "quoteNum": 49,
+          "numQuotes": 1
+        },
+        {
+          "index": 13,
+          "eraseOnceSaid": true,
+          "requiredOpinion": 20,
+          "quoteNum": 12,
+          "numQuotes": 2,
+          "endQuest": "CHOPPER_PILOT",
+          "actionData": {
+            "code": 51
+          }
+        },
+        {
+          "index": 14,
+          "factMustBeFalse": 44,
+          "quest": {
+            "name": "ESCORT_SKYRIDER",
+            "status": "NOTSTARTED"
+          },
+          "requiredApproach": "FRIENDLY_DIRECT_OR_RECRUIT",
+          "requiredOpinion": 30,
+          "quoteNum": 14,
+          "numQuotes": 1,
+          "setFactTrue": 346,
+          "actionData": {
+            "code": 110
+          }
+        },
+        {
+          "index": 15,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 43,
+          "factMustBeFalse": 44,
+          "quoteNum": 15,
+          "numQuotes": 5,
+          "endQuest": "ESCORT_SKYRIDER",
+          "triggerNPC": "SKYRIDER",
+          "triggerRecord": 20,
+          "setFactTrue": 44,
+          "actionData": {
+            "code": 149
+          }
+        },
+        {
+          "index": 16,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 44,
+          "factMustBeFalse": 45,
+          "quoteNum": 36,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 17,
+          "factMustBeTrue": 44,
+          "factMustBeFalse": 45,
+          "quoteNum": 37,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 18,
+          "requiredApproach": "EPC_IN_WRONG_SECTOR",
+          "quoteNum": 41,
+          "numQuotes": 1,
+          "setFactTrue": 159,
+          "actionData": {
+            "code": 168
+          }
+        },
+        {
+          "index": 19,
+          "factMustBeTrue": 159,
+          "factMustBeFalse": 108,
+          "quest": {
+            "name": "ESCORT_SKYRIDER",
+            "status": "INPROGRESS"
+          },
+          "lastDay": 4,
+          "requiredOpinion": 51,
+          "quoteNum": 1,
+          "triggerRecord": 0,
+          "setFactTrue": 0,
+          "giftItem": "65535",
+          "goToGridno": 110,
+          "actionData": {
+            "code": 22
+          }
+        },
+        {
+          "index": 20,
+          "eraseOnceSaid": true,
+          "requiredApproach": "TRIGGER_NPC",
+          "numQuotes": 1,
+          "actionData": {
+            "code": 52
+          }
+        },
+        {
+          "index": 21,
+          "factMustBeTrue": 346,
+          "factMustBeFalse": 108,
+          "quest": {
+            "name": "ESCORT_SKYRIDER",
+            "status": "NOTSTARTED"
+          },
+          "requiredApproach": "RECRUIT",
+          "numQuotes": 1,
+          "actionData": {
+            "code": 110
+          }
+        },
+        {
+          "index": 22,
+          "factMustBeTrue": 159,
+          "factMustBeFalse": 108,
+          "quest": {
+            "name": "ESCORT_SKYRIDER",
+            "status": "INPROGRESS"
+          },
+          "requiredApproach": "RECRUIT",
+          "quoteNum": 51,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 110
+          }
+        }
+      ]
+    },
+    {
+      "profile": "MARTHA",
+      "records": [
+        {
+          "index": 0,
+          "factMustBeTrue": 81,
+          "requiredApproach": "ENEMY_NPC_QUOTE",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 1,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 81,
+          "requiredApproach": "DECLARATION_OF_HOSTILITY",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 21
+          }
+        },
+        {
+          "index": 2,
+          "factMustBeFalse": 110,
+          "quest": {
+            "name": "RUNAWAY_JOEY",
+            "status": "INPROGRESS"
+          },
+          "requiredApproach": "SPECIAL_INITIAL_QUOTE",
+          "quoteNum": 22,
+          "numQuotes": 1
+        },
+        {
+          "index": 3,
+          "factMustBeTrue": 68,
+          "requiredApproach": "ONE_OF_FOUR_STANDARD",
+          "quoteNum": 8,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 4,
+          "factMustBeFalse": 31,
+          "requiredApproach": "SECTOR_NOT_SAFE",
+          "quoteNum": 31,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 5,
+          "sayOncePerConvo": true,
+          "factMustBeTrue": 122,
+          "quoteNum": 30,
+          "numQuotes": 1
+        },
+        {
+          "index": 6,
+          "eraseOnceSaid": true,
+          "requiredItem": "MONEY",
+          "requiredApproach": "GIVINGITEM",
+          "quoteNum": 10,
+          "numQuotes": 1
+        },
+        {
+          "index": 7,
+          "eraseOnceSaid": true,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 11,
+          "numQuotes": 1,
+          "triggerNPC": "JOEY",
+          "triggerRecord": 11
+        },
+        {
+          "index": 8,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 112,
+          "quest": {
+            "name": "RUNAWAY_JOEY",
+            "status": "DONE"
+          },
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 12,
+          "numQuotes": 3,
+          "triggerNPC": "MARTHA",
+          "triggerRecord": 19,
+          "setFactTrue": 271
+        },
+        {
+          "index": 9,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 340,
+          "factMustBeFalse": 271,
+          "quest": {
+            "name": "RUNAWAY_JOEY",
+            "status": "DONE"
+          },
+          "quoteNum": 29,
+          "numQuotes": 1,
+          "triggerNPC": "MARTHA",
+          "triggerRecord": 10
+        },
+        {
+          "index": 10,
+          "eraseOnceSaid": true,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 13,
+          "numQuotes": 2,
+          "triggerNPC": "MARTHA",
+          "triggerRecord": 19,
+          "setFactTrue": 271
+        },
+        {
+          "index": 11,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 305,
+          "factMustBeFalse": 111,
+          "quest": {
+            "name": "RUNAWAY_JOEY",
+            "status": "DONE"
+          },
+          "quoteNum": 15,
+          "numQuotes": 1
+        },
+        {
+          "index": 12,
+          "eraseOnceSaid": true,
+          "quest": {
+            "name": "RUNAWAY_JOEY",
+            "status": "NOTSTARTED"
+          },
+          "quoteNum": 16,
+          "numQuotes": 6,
+          "startQuest": "RUNAWAY_JOEY",
+          "actionData": {
+            "code": 136
+          }
+        },
+        {
+          "index": 13,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 111,
+          "quest": {
+            "name": "RUNAWAY_JOEY",
+            "status": "DONE"
+          },
+          "quoteNum": 23,
+          "numQuotes": 1,
+          "startQuest": "RUNAWAY_JOEY"
+        },
+        {
+          "index": 14,
+          "sayOncePerConvo": true,
+          "quest": {
+            "name": "RUNAWAY_JOEY",
+            "status": "INPROGRESS"
+          },
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 24,
+          "numQuotes": 1
+        },
+        {
+          "index": 15,
+          "sayOncePerConvo": true,
+          "quest": {
+            "name": "RUNAWAY_JOEY",
+            "status": "INPROGRESS"
+          },
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 25,
+          "numQuotes": 1
+        },
+        {
+          "index": 16,
+          "sayOncePerConvo": true,
+          "quest": {
+            "name": "RUNAWAY_JOEY",
+            "status": "INPROGRESS"
+          },
+          "requiredApproach": "DIRECT",
+          "quoteNum": 26,
+          "numQuotes": 1
+        },
+        {
+          "index": 17,
+          "eraseOnceSaid": true,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 27,
+          "numQuotes": 1,
+          "triggerNPC": "MARTHA",
+          "triggerRecord": 20,
+          "actionData": {
+            "code": 140
+          }
+        },
+        {
+          "index": 18,
+          "eraseOnceSaid": true,
+          "factMustBeFalse": 111,
+          "quest": {
+            "name": "RUNAWAY_JOEY",
+            "status": "DONE"
+          },
+          "quoteNum": 32,
+          "numQuotes": 1
+        },
+        {
+          "index": 19,
+          "eraseOnceSaid": true,
+          "requiredApproach": "TRIGGER_NPC",
+          "numQuotes": 1,
+          "triggerNPC": "MARTHA",
+          "triggerRecord": 21,
+          "actionData": {
+            "code": 10
+          }
+        },
+        {
+          "index": 20,
+          "eraseOnceSaid": true,
+          "requiredApproach": "TRIGGER_NPC",
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 21,
+          "eraseOnceSaid": true,
+          "requiredApproach": "TRIGGER_NPC",
+          "numQuotes": 1,
+          "triggerNPC": "MARTHA",
+          "triggerRecord": 22,
+          "actionData": {
+            "code": 52
+          }
+        },
+        {
+          "index": 22,
+          "eraseOnceSaid": true,
+          "requiredApproach": "TRIGGER_NPC",
+          "numQuotes": 1,
+          "actionData": {
+            "code": 257
+          }
+        }
+      ]
+    },
+    {
+      "profile": "JOHN",
+      "records": [
+        {
+          "index": 0,
+          "factMustBeTrue": 81,
+          "requiredApproach": "ENEMY_NPC_QUOTE",
+          "quoteNum": 18,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 1,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 81,
+          "requiredApproach": "DECLARATION_OF_HOSTILITY",
+          "quoteNum": 18,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 21
+          }
+        },
+        {
+          "index": 2,
+          "factMustBeTrue": 68,
+          "requiredApproach": "ONE_OF_FOUR_STANDARD",
+          "quoteNum": 8,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 3,
+          "factMustBeTrue": 189,
+          "requiredApproach": "ONE_OF_FOUR_STANDARD",
+          "quoteNum": 25,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 4,
+          "sayOncePerConvo": true,
+          "factMustBeTrue": 122,
+          "quoteNum": 26,
+          "numQuotes": 1
+        },
+        {
+          "index": 5,
+          "factMustBeFalse": 31,
+          "requiredApproach": "SECTOR_NOT_SAFE",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 6,
+          "factMustBeFalse": 187,
+          "requiredApproach": "ONE_OF_FOUR_STANDARD",
+          "quoteNum": 27,
+          "numQuotes": 1
+        },
+        {
+          "index": 7,
+          "requiredApproach": "EPC_IN_WRONG_SECTOR",
+          "quoteNum": 11,
+          "numQuotes": 1,
+          "setFactTrue": 161,
+          "actionData": {
+            "code": 149
+          }
+        },
+        {
+          "index": 8,
+          "eraseOnceSaid": true,
+          "quest": {
+            "name": "ESCORT_TOURISTS",
+            "status": "NOTSTARTED"
+          },
+          "quoteNum": 12,
+          "numQuotes": 1,
+          "setFactTrue": 345,
+          "userInterface": "TURN_UI_OFF",
+          "actionData": {
+            "code": 186
+          }
+        },
+        {
+          "index": 9,
+          "eraseOnceSaid": true,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 13,
+          "numQuotes": 2,
+          "actionData": {
+            "code": 187
+          }
+        },
+        {
+          "index": 10,
+          "eraseOnceSaid": true,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 15,
+          "numQuotes": 2,
+          "userInterface": "TURN_UI_ON",
+          "actionData": {
+            "code": 110
+          }
+        },
+        {
+          "index": 11,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 187,
+          "requiredApproach": "EPC_WHO_IS_RECRUITED",
+          "quoteNum": 17,
+          "numQuotes": 1
+        },
+        {
+          "index": 12,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 192,
+          "factMustBeFalse": 187,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 19,
+          "numQuotes": 1,
+          "endQuest": "ESCORT_TOURISTS",
+          "actionData": {
+            "code": 149
+          }
+        },
+        {
+          "index": 13,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 192,
+          "factMustBeFalse": 193,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 20,
+          "numQuotes": 2,
+          "endQuest": "ESCORT_TOURISTS",
+          "triggerNPC": "MARY",
+          "triggerRecord": 12,
+          "userInterface": "TURN_UI_OFF",
+          "actionData": {
+            "code": 149
+          }
+        },
+        {
+          "index": 14,
+          "eraseOnceSaid": true,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 22,
+          "numQuotes": 2,
+          "userInterface": "TURN_UI_ON",
+          "actionData": {
+            "code": 188
+          }
+        },
+        {
+          "index": 15,
+          "quest": {
+            "name": "ESCORT_TOURISTS",
+            "status": "DONE"
+          },
+          "quoteNum": 24,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 16,
+          "requiredItem": "MONEY",
+          "requiredApproach": "GIVINGITEM",
+          "quoteNum": 10,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 1
+          }
+        },
+        {
+          "index": 17,
+          "factMustBeTrue": 161,
+          "factMustBeFalse": 108,
+          "requiredApproach": "RECRUIT",
+          "quoteNum": 29,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 110
+          }
+        },
+        {
+          "index": 18,
+          "factMustBeTrue": 161,
+          "factMustBeFalse": 108,
+          "quoteNum": 11,
+          "numQuotes": 1
+        },
+        {
+          "index": 19,
+          "eraseOnceSaid": true,
+          "factMustBeFalse": 187,
+          "requiredApproach": "EPC_WHO_IS_RECRUITED",
+          "quoteNum": 17,
+          "numQuotes": 1
+        },
+        {
+          "index": 20,
+          "quest": {
+            "name": "ESCORT_TOURISTS",
+            "status": "DONE"
+          },
+          "requiredApproach": "SPECIAL_INITIAL_QUOTE",
+          "quoteNum": 24,
+          "numQuotes": 1
+        },
+        {
+          "index": 21,
+          "factMustBeTrue": 161,
+          "factMustBeFalse": 108,
+          "requiredApproach": "THREATEN",
+          "quoteNum": 6,
+          "numQuotes": 1
+        },
+        {
+          "index": 22,
+          "factMustBeTrue": 345,
+          "factMustBeFalse": 108,
+          "quest": {
+            "name": "ESCORT_TOURISTS",
+            "status": "INPROGRESS"
+          },
+          "requiredApproach": "RECRUIT",
+          "quoteNum": 29,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 110
+          }
+        },
+        {
+          "index": 23,
+          "factMustBeTrue": 345,
+          "factMustBeFalse": 108,
+          "quest": {
+            "name": "ESCORT_TOURISTS",
+            "status": "NOTSTARTED"
+          },
+          "requiredApproach": "RECRUIT",
+          "quoteNum": 29,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 110
+          }
+        }
+      ]
+    },
+    {
+      "profile": "MARY",
+      "records": [
+        {
+          "index": 0,
+          "factMustBeTrue": 81,
+          "quest": {
+            "name": "ESCORT_TOURISTS",
+            "status": "INPROGRESS"
+          },
+          "requiredApproach": "ENEMY_NPC_QUOTE",
+          "quoteNum": 12,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 1,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 81,
+          "quest": {
+            "name": "ESCORT_TOURISTS",
+            "status": "INPROGRESS"
+          },
+          "requiredApproach": "DECLARATION_OF_HOSTILITY",
+          "quoteNum": 12,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 21
+          }
+        },
+        {
+          "index": 2,
+          "factMustBeTrue": 68,
+          "quoteNum": 8,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 3,
+          "sayOncePerConvo": true,
+          "factMustBeTrue": 122,
+          "numQuotes": 1,
+          "triggerNPC": "JOHN",
+          "triggerRecord": 4
+        },
+        {
+          "index": 4,
+          "factMustBeTrue": 191,
+          "requiredApproach": "ONE_OF_FOUR_STANDARD",
+          "quoteNum": 19,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 5,
+          "factMustBeFalse": 190,
+          "quest": {
+            "name": "ESCORT_TOURISTS",
+            "status": "NOTSTARTED"
+          },
+          "requiredApproach": "ONE_OF_FOUR_STANDARD",
+          "quoteNum": 21,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 6,
+          "factMustBeFalse": 31,
+          "requiredApproach": "SECTOR_NOT_SAFE",
+          "quoteNum": 22,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 7,
+          "requiredItem": "MONEY",
+          "requiredApproach": "GIVINGITEM",
+          "quoteNum": 10,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 1
+          }
+        },
+        {
+          "index": 8,
+          "requiredApproach": "EPC_IN_WRONG_SECTOR",
+          "quoteNum": 13,
+          "numQuotes": 1,
+          "setFactTrue": 162,
+          "actionData": {
+            "code": 149
+          }
+        },
+        {
+          "index": 9,
+          "eraseOnceSaid": true,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 11,
+          "numQuotes": 1,
+          "triggerNPC": "JOHN",
+          "triggerRecord": 9
+        },
+        {
+          "index": 10,
+          "eraseOnceSaid": true,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 15,
+          "numQuotes": 1,
+          "triggerNPC": "JOHN",
+          "triggerRecord": 10
+        },
+        {
+          "index": 11,
+          "factMustBeTrue": 190,
+          "requiredApproach": "EPC_WHO_IS_RECRUITED",
+          "quoteNum": 14,
+          "numQuotes": 1
+        },
+        {
+          "index": 12,
+          "eraseOnceSaid": true,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 17,
+          "numQuotes": 1,
+          "giftItem": "MONEY"
+        },
+        {
+          "index": 13,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 192,
+          "factMustBeFalse": 190,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 16,
+          "numQuotes": 1,
+          "endQuest": "ESCORT_TOURISTS",
+          "actionData": {
+            "code": 149
+          }
+        },
+        {
+          "index": 14,
+          "quest": {
+            "name": "ESCORT_TOURISTS",
+            "status": "DONE"
+          },
+          "quoteNum": 18,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 15,
+          "factMustBeFalse": 190,
+          "requiredApproach": "EPC_WHO_IS_RECRUITED",
+          "quoteNum": 20,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 16,
+          "factMustBeTrue": 162,
+          "factMustBeFalse": 108,
+          "requiredApproach": "RECRUIT",
+          "quoteNum": 23,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 110
+          }
+        },
+        {
+          "index": 17,
+          "factMustBeTrue": 162,
+          "factMustBeFalse": 108,
+          "quoteNum": 13,
+          "numQuotes": 1
+        },
+        {
+          "index": 18,
+          "eraseOnceSaid": true,
+          "requiredApproach": "DONE_GIVING_ITEM",
+          "numQuotes": 1,
+          "triggerNPC": "JOHN",
+          "triggerRecord": 14,
+          "actionData": {
+            "code": 52
+          }
+        },
+        {
+          "index": 19,
+          "quest": {
+            "name": "ESCORT_TOURISTS",
+            "status": "DONE"
+          },
+          "requiredApproach": "SPECIAL_INITIAL_QUOTE",
+          "quoteNum": 18,
+          "numQuotes": 1
+        },
+        {
+          "index": 20,
+          "factMustBeTrue": 162,
+          "factMustBeFalse": 108,
+          "requiredApproach": "THREATEN",
+          "quoteNum": 6,
+          "numQuotes": 1
+        },
+        {
+          "index": 21,
+          "factMustBeTrue": 81,
+          "quest": {
+            "name": "ESCORT_TOURISTS",
+            "status": "NOTSTARTED"
+          },
+          "requiredApproach": "ENEMY_NPC_QUOTE",
+          "quoteNum": 21,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 22,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 81,
+          "quest": {
+            "name": "ESCORT_TOURISTS",
+            "status": "NOTSTARTED"
+          },
+          "requiredApproach": "DECLARATION_OF_HOSTILITY",
+          "quoteNum": 21,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 21
+          }
+        }
+      ]
+    },
+    {
+      "profile": "HERVE",
+      "records": [
+        {
+          "index": 0,
+          "factMustBeTrue": 81,
+          "requiredApproach": "ENEMY_NPC_QUOTE",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 1,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 81,
+          "requiredApproach": "DECLARATION_OF_HOSTILITY",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 21
+          }
+        },
+        {
+          "index": 2,
+          "factMustBeTrue": 68,
+          "requiredApproach": "ONE_OF_FOUR_STANDARD",
+          "quoteNum": 8,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 3,
+          "sayOncePerConvo": true,
+          "factMustBeTrue": 122,
+          "quoteNum": 29,
+          "numQuotes": 1
+        },
+        {
+          "index": 4,
+          "factMustBeFalse": 31,
+          "requiredApproach": "SECTOR_NOT_SAFE",
+          "quoteNum": 30,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 5,
+          "requiredApproach": "CLOSING_SHOP",
+          "quoteNum": 31,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 6,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 216,
+          "quoteNum": 32,
+          "numQuotes": 1,
+          "triggerNPC": "HERVE",
+          "triggerRecord": 7,
+          "actionData": {
+            "code": 197
+          }
+        },
+        {
+          "index": 7,
+          "eraseOnceSaid": true,
+          "factMustBeFalse": 220,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 33,
+          "numQuotes": 2
+        },
+        {
+          "index": 8,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 217,
+          "quoteNum": 35,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 198
+          }
+        },
+        {
+          "index": 9,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 218,
+          "quoteNum": 36,
+          "numQuotes": 3,
+          "actionData": {
+            "code": 199
+          }
+        },
+        {
+          "index": 10,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 219,
+          "quoteNum": 39,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 200
+          }
+        },
+        {
+          "index": 11,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 220,
+          "quoteNum": 40,
+          "numQuotes": 1
+        },
+        {
+          "index": 12,
+          "eraseOnceSaid": true,
+          "factMustBeFalse": 216,
+          "quoteNum": 41,
+          "numQuotes": 1
+        },
+        {
+          "index": 13,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 218,
+          "quoteNum": 42,
+          "numQuotes": 1
+        },
+        {
+          "index": 14,
+          "sayOncePerConvo": true,
+          "requiredApproach": "THREATEN",
+          "quoteNum": 43,
+          "numQuotes": 1
+        },
+        {
+          "index": 15,
+          "factMustBeTrue": 289,
+          "requiredApproach": "BUYSELL",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 16,
+          "factMustBeTrue": 68,
+          "requiredApproach": "BUYSELL",
+          "quoteNum": 8,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 17,
+          "factMustBeFalse": 31,
+          "requiredApproach": "BUYSELL",
+          "quoteNum": 30,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 18,
+          "factMustBeTrue": 289,
+          "requiredApproach": "DECLARATION_OF_HOSTILITY",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        }
+      ]
+    },
+    {
+      "profile": "PETER",
+      "records": [
+        {
+          "index": 0,
+          "factMustBeTrue": 81,
+          "requiredApproach": "ENEMY_NPC_QUOTE",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 1,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 81,
+          "requiredApproach": "DECLARATION_OF_HOSTILITY",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 21
+          }
+        },
+        {
+          "index": 2,
+          "factMustBeTrue": 68,
+          "requiredApproach": "ONE_OF_FOUR_STANDARD",
+          "quoteNum": 8,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 3,
+          "sayOncePerConvo": true,
+          "factMustBeTrue": 122,
+          "quoteNum": 29,
+          "numQuotes": 1
+        },
+        {
+          "index": 4,
+          "factMustBeFalse": 31,
+          "requiredApproach": "SECTOR_NOT_SAFE",
+          "quoteNum": 30,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 5,
+          "requiredApproach": "CLOSING_SHOP",
+          "quoteNum": 31,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 6,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 216,
+          "quoteNum": 32,
+          "numQuotes": 1,
+          "triggerNPC": "HERVE",
+          "triggerRecord": 7,
+          "actionData": {
+            "code": 197
+          }
+        },
+        {
+          "index": 7,
+          "eraseOnceSaid": true,
+          "factMustBeFalse": 220,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 33,
+          "numQuotes": 2
+        },
+        {
+          "index": 8,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 217,
+          "quoteNum": 35,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 198
+          }
+        },
+        {
+          "index": 9,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 218,
+          "quoteNum": 36,
+          "numQuotes": 3,
+          "actionData": {
+            "code": 199
+          }
+        },
+        {
+          "index": 10,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 219,
+          "quoteNum": 39,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 200
+          }
+        },
+        {
+          "index": 11,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 220,
+          "quoteNum": 40,
+          "numQuotes": 1
+        },
+        {
+          "index": 12,
+          "eraseOnceSaid": true,
+          "factMustBeFalse": 216,
+          "quoteNum": 41,
+          "numQuotes": 1
+        },
+        {
+          "index": 13,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 218,
+          "quoteNum": 42,
+          "numQuotes": 1
+        },
+        {
+          "index": 14,
+          "sayOncePerConvo": true,
+          "requiredApproach": "THREATEN",
+          "quoteNum": 43,
+          "numQuotes": 1
+        },
+        {
+          "index": 15,
+          "factMustBeTrue": 289,
+          "requiredApproach": "BUYSELL",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 16,
+          "factMustBeTrue": 68,
+          "requiredApproach": "BUYSELL",
+          "quoteNum": 8,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 17,
+          "factMustBeFalse": 31,
+          "requiredApproach": "BUYSELL",
+          "quoteNum": 30,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 18,
+          "factMustBeTrue": 289,
+          "requiredApproach": "DECLARATION_OF_HOSTILITY",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        }
+      ]
+    },
+    {
+      "profile": "ALBERTO",
+      "records": [
+        {
+          "index": 0,
+          "factMustBeTrue": 81,
+          "requiredApproach": "ENEMY_NPC_QUOTE",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 1,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 81,
+          "requiredApproach": "DECLARATION_OF_HOSTILITY",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 21
+          }
+        },
+        {
+          "index": 2,
+          "factMustBeTrue": 68,
+          "requiredApproach": "ONE_OF_FOUR_STANDARD",
+          "quoteNum": 8,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 3,
+          "sayOncePerConvo": true,
+          "factMustBeTrue": 122,
+          "quoteNum": 29,
+          "numQuotes": 1
+        },
+        {
+          "index": 4,
+          "factMustBeFalse": 31,
+          "requiredApproach": "SECTOR_NOT_SAFE",
+          "quoteNum": 30,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 5,
+          "requiredApproach": "CLOSING_SHOP",
+          "quoteNum": 31,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 6,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 216,
+          "quoteNum": 32,
+          "numQuotes": 1,
+          "triggerNPC": "HERVE",
+          "triggerRecord": 7,
+          "actionData": {
+            "code": 197
+          }
+        },
+        {
+          "index": 7,
+          "eraseOnceSaid": true,
+          "factMustBeFalse": 220,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 33,
+          "numQuotes": 2
+        },
+        {
+          "index": 8,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 217,
+          "quoteNum": 35,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 198
+          }
+        },
+        {
+          "index": 9,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 218,
+          "quoteNum": 36,
+          "numQuotes": 3,
+          "actionData": {
+            "code": 199
+          }
+        },
+        {
+          "index": 10,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 219,
+          "quoteNum": 39,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 200
+          }
+        },
+        {
+          "index": 11,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 220,
+          "quoteNum": 40,
+          "numQuotes": 1
+        },
+        {
+          "index": 12,
+          "eraseOnceSaid": true,
+          "factMustBeFalse": 216,
+          "quoteNum": 41,
+          "numQuotes": 1
+        },
+        {
+          "index": 13,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 218,
+          "quoteNum": 42,
+          "numQuotes": 1
+        },
+        {
+          "index": 14,
+          "sayOncePerConvo": true,
+          "requiredApproach": "THREATEN",
+          "quoteNum": 43,
+          "numQuotes": 1
+        },
+        {
+          "index": 15,
+          "factMustBeTrue": 289,
+          "requiredApproach": "BUYSELL",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 16,
+          "factMustBeTrue": 68,
+          "requiredApproach": "BUYSELL",
+          "quoteNum": 8,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 17,
+          "factMustBeFalse": 31,
+          "requiredApproach": "BUYSELL",
+          "quoteNum": 30,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 18,
+          "factMustBeTrue": 289,
+          "requiredApproach": "DECLARATION_OF_HOSTILITY",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        }
+      ]
+    },
+    {
+      "profile": "CARLO",
+      "records": [
+        {
+          "index": 0,
+          "factMustBeTrue": 81,
+          "requiredApproach": "ENEMY_NPC_QUOTE",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 1,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 81,
+          "requiredApproach": "DECLARATION_OF_HOSTILITY",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 21
+          }
+        },
+        {
+          "index": 2,
+          "factMustBeTrue": 68,
+          "requiredApproach": "ONE_OF_FOUR_STANDARD",
+          "quoteNum": 8,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 3,
+          "sayOncePerConvo": true,
+          "factMustBeTrue": 122,
+          "quoteNum": 29,
+          "numQuotes": 1
+        },
+        {
+          "index": 4,
+          "factMustBeFalse": 31,
+          "requiredApproach": "SECTOR_NOT_SAFE",
+          "quoteNum": 30,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 5,
+          "requiredApproach": "CLOSING_SHOP",
+          "quoteNum": 31,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 6,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 216,
+          "quoteNum": 32,
+          "numQuotes": 1,
+          "triggerNPC": "HERVE",
+          "triggerRecord": 7,
+          "actionData": {
+            "code": 197
+          }
+        },
+        {
+          "index": 7,
+          "eraseOnceSaid": true,
+          "factMustBeFalse": 220,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 33,
+          "numQuotes": 2
+        },
+        {
+          "index": 8,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 217,
+          "quoteNum": 35,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 198
+          }
+        },
+        {
+          "index": 9,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 218,
+          "quoteNum": 36,
+          "numQuotes": 3,
+          "actionData": {
+            "code": 199
+          }
+        },
+        {
+          "index": 10,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 219,
+          "quoteNum": 39,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 200
+          }
+        },
+        {
+          "index": 11,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 220,
+          "quoteNum": 40,
+          "numQuotes": 1
+        },
+        {
+          "index": 12,
+          "eraseOnceSaid": true,
+          "factMustBeFalse": 216,
+          "quoteNum": 41,
+          "numQuotes": 1
+        },
+        {
+          "index": 13,
+          "eraseOnceSaid": true,
+          "factMustBeTrue": 218,
+          "quoteNum": 42,
+          "numQuotes": 1
+        },
+        {
+          "index": 14,
+          "sayOncePerConvo": true,
+          "requiredApproach": "THREATEN",
+          "quoteNum": 43,
+          "numQuotes": 1
+        },
+        {
+          "index": 15,
+          "factMustBeTrue": 289,
+          "requiredApproach": "BUYSELL",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 16,
+          "factMustBeTrue": 68,
+          "requiredApproach": "BUYSELL",
+          "quoteNum": 8,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 17,
+          "factMustBeFalse": 31,
+          "requiredApproach": "BUYSELL",
+          "quoteNum": 30,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        },
+        {
+          "index": 18,
+          "factMustBeTrue": 289,
+          "requiredApproach": "DECLARATION_OF_HOSTILITY",
+          "quoteNum": 28,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 24
+          }
+        }
+      ]
+    }
+  ]
+}
