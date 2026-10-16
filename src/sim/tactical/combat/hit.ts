@@ -15,9 +15,10 @@ import { Terrain } from '../../../content/world/terrain.ts';
 import { copyObjectInto, createItem, deleteObject, type ItemObject, ObjectFlags } from '../../items/object.ts';
 import { anim, animName } from '../anim-states.ts';
 import { AnimHeight, endHeight, hasAnimFlag, initNewSoldierAnim, setDesiredDirection, setSoldierDirection } from '../animation.ts';
+import { igniteExplosionXY } from '../explosions/explosion.ts';
 import { checkEquipmentForDamage } from '../explosions/item-damage.ts';
 import { InvSlot } from '../inventory.ts';
-import { directionToward, setSoldierDestination } from '../movement.ts';
+import { directionToward, setSoldierDestination, worldIndexFromCoords } from '../movement.ts';
 import { newOKDestination } from '../pathfinding.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { SightFlags } from '../perception/opp.ts';
@@ -31,7 +32,7 @@ import type { TacticalState } from '../state.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
 import { calcBodyImpactReduction, totalArmourProtection } from './armour.ts';
 import { freeUpAttackerGivenTarget, reduceAttackBusyCount, reduceAttackBusyGivenTarget } from './barrier.ts';
-import { type Bullet, removeBullet } from './bullets.ts';
+import { type Bullet, bulletWorldXY, removeBullet } from './bullets.ts';
 import { checkForAndHandleSoldierDyingNotFromHit } from './death.ts';
 import { StatCause, statChange } from './experience.ts';
 import { bulletImpact, isCreatureOrBloodcat } from './impact.ts';
@@ -192,7 +193,7 @@ export function bulletHitMerc(t: TacticalState, b: Bullet, structure: StructureI
   }
   if (stopped) removeBullet(t, b);
   if (t.turn.currentTeam !== Team.OUR && tgt.team === Team.OUR) t.turn.someoneHit = true;
-  weaponHit(t, tgt, firer.attackingWeapon, damage, breathLoss, hitDirection, range, firer, special, location);
+  weaponHit(t, tgt, firer.attackingWeapon, damage, breathLoss, hitDirection, range, firer, special, location, bulletWorldXY(b));
   return stopped;
 }
 
@@ -211,9 +212,12 @@ export function weaponHit(
   attacker: Soldier,
   special: number,
   location: number,
+  at: { readonly x: number; readonly y: number } | null = null,
 ): void {
   makeNoise(t, attacker, tgt.gridNo, tgt.level, t.content.items.byIndex.get(weapon)?.weapon?.hitVolume ?? 0, NoiseKind.BULLET_IMPACT);
   if (isExplosiveGun(t, weapon)) {
+    const payload = itemIndex(t, weapon === itemIndex(t, 'ROCKET_LAUNCHER') ? 'C1' : 'TANK_SHELL');
+    if (at) igniteExplosionXY(t, attacker, at.x, at.y, 0, worldIndexFromCoords(at.x, at.y), payload, tgt.level);
     freeUpAttackerGivenTarget(t, tgt);
     return;
   }

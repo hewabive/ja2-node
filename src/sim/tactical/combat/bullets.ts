@@ -21,7 +21,7 @@ import {
 import { createItem, type ItemObject } from '../../items/object.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
 import { swapStructureForPartner } from '../doors.ts';
-import { igniteExplosionXY } from '../explosions/explosion.ts';
+import { igniteExplosion, igniteExplosionXY } from '../explosions/explosion.ts';
 import { InvSlot } from '../inventory.ts';
 import { landHeightUnits, resolveHitOnWall } from '../perception/los.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
@@ -51,6 +51,7 @@ const NUM_BULLET_SLOTS = 50;
 const FIX = 1 << 20;
 const TEN = 10 * FIX;
 const WALL_HEIGHT_UNITS = 256;
+const WALL_HEIGHT_PIXELS = 50;
 const ROOF_HIT_ADJUSTMENT = 2;
 const WALL = 256 * FIX;
 const WIN_LO = 87 * FIX;
@@ -163,6 +164,10 @@ export interface MissAnimation {
 const f32 = Math.fround;
 const toFix = (f: number) => Math.trunc(f32(f) * FIX);
 const fixInt = (q: number) => Math.trunc(q / FIX);
+
+export function bulletWorldXY(b: Bullet): { readonly x: number; readonly y: number } {
+  return { x: fixInt(b.x), y: fixInt(b.y) };
+}
 const tileOf = (q: number) => Math.trunc(fixInt(q) / 10);
 const cellOf = (q: number) => (fixInt(q) % 10) >> 1;
 const cubeOf = (heightUnits: number) => Math.trunc(heightUnits / 64);
@@ -450,6 +455,9 @@ function structureHit(
   if (stopped && (weaponIndex === itemIndex(t, 'ROCKET_LAUNCHER') || weaponIndex === itemIndex(t, 'TANK_CANNON'))) {
     removeBullet(t, b);
     freeUpAttacker(t, attacker);
+    const payload = weaponIndex === itemIndex(t, 'ROCKET_LAUNCHER') ? 'C1' : 'TANK_SHELL';
+    const payloadLevel = payload === 'C1' ? level : zPixels >= WALL_HEIGHT_PIXELS ? 1 : 0;
+    igniteExplosion(t, attacker, 0, adjusted, itemIndex(t, payload), payloadLevel);
     return;
   }
   if (structure) damageStructureByGunfire(t, structure, attacker, fixInt(b.x), fixInt(b.y), g);

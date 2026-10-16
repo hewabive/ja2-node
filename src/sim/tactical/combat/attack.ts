@@ -11,7 +11,7 @@ import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AmmoType, ItemClass, ItemCursor, ItemFlags, NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { findAttachment, type ItemObject, USABLE_STATUS } from '../../items/object.ts';
+import { createItem, findAttachment, type ItemObject, USABLE_STATUS } from '../../items/object.ts';
 import { anim, animName } from '../anim-states.ts';
 import {
   AnimHeight,
@@ -24,7 +24,8 @@ import {
   setDesiredDirection,
   setSoldierDirection,
 } from '../animation.ts';
-import { useLauncher, useThrown } from '../explosions/throwing.ts';
+import { igniteExplosion } from '../explosions/explosion.ts';
+import { useLauncher, useThrown, willExplosiveWeaponFail } from '../explosions/throwing.ts';
 import { InvSlot, isValidSecondHandShot } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
@@ -38,7 +39,7 @@ import { freeUpAttacker, reduceAttackBusyCount } from './barrier.ts';
 import { fireBulletGivenTarget, soldierToSoldierBodyPartChanceToGetThrough } from './bullets.ts';
 import { calcChanceToHitGun } from './chance.ts';
 import { modifyExpGainByTarget, StatCause, statChange } from './experience.ts';
-import { okFallDirection } from './hit.ts';
+import { eventSoldierGotHit, okFallDirection } from './hit.ts';
 import { handleBladeAttack, handlePunchAttack, meleeOpcode, useBlade, useHandToHand } from './melee.ts';
 import { calculateSoldierZPos, targetZFromStructureHeight, ZPos } from './positions.ts';
 import { SkillCheckReason, skillCheck } from './skill-check.ts';
@@ -418,12 +419,21 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
       else if (ammo === AmmoType.SLEEP_DART) s.muzzleFlash = false;
     }
   }
+  const law = item === itemIndex(t, 'ROCKET_LAUNCHER');
+  if (law && willExplosiveWeaponFail(t, s, hand)) {
+    discardLaw(t, s);
+    igniteExplosion(t, s, 0, s.gridNo, itemIndex(t, 'C1'), s.level);
+    reduceAttackBusyCount(t, s, false);
+  }
   t.events.push({ type: 'shotFired', soldier: s.id, target, chance, hit });
   fireBulletGivenTarget(t, s, pos.x, pos.y, pos.z, item, ((chance - roll) << 16) >> 16, buckshot, false);
   let volume = d?.weapon?.attackVolume ?? 0;
   const gun = s.inv[s.attackingHand] as ItemObject;
   const silencer = findAttachment(gun, itemIndex(t, 'SILENCER'));
-  if (silencer !== -1) {
+  if (law) {
+    discardLaw(t, s);
+    lawBackblast(t, s);
+  } else if (silencer !== -1) {
     const status = gun.attachments[silencer]?.status ?? 0;
     const wsm = status >= 85 ? 100 : Math.trunc((status * 100) / 85);
     volume = 1 + Math.trunc((100 - wsm) / Math.trunc(100 / (volume - 1)));
@@ -432,6 +442,34 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
   if (s.doBurst) s.doBurst++;
   if (!t.pre.int(BASIC_DEPRECIATE_CHANCE + 3 * (d?.reliability ?? 0)) && (gun.status[0] ?? 0) > 1) gun.status[0] = (gun.status[0] ?? 0) - 1;
   if (s.monsterSmell > 0 && t.rng.int(2) === 0) s.monsterSmell--;
+}
+
+const LAW_BACKBLAST_DAMAGE = 10;
+const LAW_BACKBLAST_BREATH = 200;
+
+function discardLaw(t: TacticalState, s: Soldier): void {
+  const hand = s.inv[InvSlot.HAND] as ItemObject;
+  Object.assign(hand, createItem(t.content.items, itemIndex(t, 'DISCARDED_LAW'), hand.status[0] ?? 0));
+}
+
+function lawBackblast(t: TacticalState, s: Soldier): void {
+  const back = (s.direction + 4) % 8;
+  const behind = newGridNo(s.gridNo, DIRECTION_INCREMENT[back] ?? 0);
+  const tgt = whoIsThere(t, behind, s.level);
+  if (!tgt || height(t.content, tgt.state) === AnimHeight.PRONE) return;
+  t.turn.attackBusyCount++;
+  eventSoldierGotHit(
+    t,
+    tgt,
+    itemIndex(t, 'MINI_GRENADE'),
+    LAW_BACKBLAST_DAMAGE,
+    LAW_BACKBLAST_BREATH,
+    s.direction,
+    0,
+    s,
+    0,
+    AnimHeight.CROUCH,
+  );
 }
 
 export function fireWeapon(t: TacticalState, s: Soldier, target: number): number {

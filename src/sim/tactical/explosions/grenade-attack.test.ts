@@ -67,3 +67,20 @@ describe('AI grenade throws', () => {
     expect(a.life < 80 || b.life < 80).toBe(true);
   });
 });
+
+describe('LAW', () => {
+  it('fires a rocket that explodes at the target and leaves a discarded tube', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { marksmanship: 90 });
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 88), Direction.NORTH, { life: 40 });
+    merc.inv[InvSlot.HAND] = createItem(t.content.items, t.content.items.byName.get('ROCKET_LAUNCHER')?.index ?? -1, 100);
+    sim.lookAround();
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo, aimTime: 2 })).toEqual({ ok: true });
+    const events = runUntilIdle(sim);
+    expect(events.some((e) => e.type === 'explosion')).toBe(true);
+    expect(t.content.items.byIndex.get(itemIn(merc.inv, InvSlot.HAND))?.name).toBe('DISCARDED_LAW');
+    expect(enemy.life).toBeLessThan(40);
+    expect(t.turn.attackBusyCount).toBe(0);
+  });
+});

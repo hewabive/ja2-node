@@ -5,7 +5,7 @@ import { Direction, gridNo } from '../../content/world/grid.ts';
 import { AnimHeight, endHeight } from './animation.ts';
 import type { TacticalContent } from './content.ts';
 import { AP } from './points.ts';
-import { findHigherLevel, findLowerLevel } from './roofs.ts';
+import { checkSoldierHitRoof, findHigherLevel, findLowerLevel, setSoldierHeight } from './roofs.ts';
 import { Attitude, Orders, Team } from './soldier.ts';
 import { whoIsThere } from './state.ts';
 
@@ -73,5 +73,21 @@ describe('AI climbing', () => {
     for (let tick = 0; tick < 40_000 && (enemy.gridNo !== gridNo(85, 80) || enemy.level !== 1); tick++) sim.step();
     expect(enemy.level).toBe(1);
     expect(enemy.gridNo).toBe(gridNo(85, 80));
+  });
+});
+
+describe('falling off a roof', () => {
+  it('drops an incapacitated soldier standing at the roof edge down to the ground', () => {
+    const sim = newCombatSim(content, [], 3, building());
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(85, 80), Direction.EAST, { life: 10 });
+    setSoldierHeight(t, merc, 50);
+    expect(merc.level).toBe(1);
+    expect(checkSoldierHitRoof(t, merc)).toBe(true);
+    for (let tick = 0; tick < 5000 && merc.level !== 0; tick++) sim.step();
+    for (let tick = 0; tick < 5000 && sim.isBusy(merc); tick++) sim.step();
+    expect(merc.level).toBe(0);
+    expect([gridNo(83, 80), gridNo(84, 80)]).toContain(merc.gridNo);
+    expect(merc.life).toBe(0);
   });
 });

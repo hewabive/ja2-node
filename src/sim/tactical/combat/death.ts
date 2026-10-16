@@ -27,6 +27,7 @@ import { atan8Of, SightFlags } from '../perception/opp.ts';
 import { distanceVisible, handleSight, removeManAsTarget, verifyPublicOpplistDueToDeath } from '../perception/sight.ts';
 import { removeMercStructure } from '../person-structure.ts';
 import { profileProgress, StatKind } from '../profiles.ts';
+import { checkSoldierHitRoof } from '../roofs.ts';
 import { AlertStatus, Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { removeOccupant, type TacticalState, unregisterSoldier } from '../state.ts';
 import { betweenTurnsVisibilityAdjustments, checkForEndOfBattle } from '../turns/turns.ts';
@@ -155,6 +156,7 @@ const state = (t: TacticalState, name: string) => anim(t.content, name);
 function checkForAndHandleSoldierIncapacitated(t: TacticalState, s: Soldier): void {
   if (s.life >= OKLIFE) return;
   if (NO_UNCONSCIOUS_BODIES.has(s.bodyType)) s.life = 0;
+  if (checkSoldierHitRoof(t, s)) return;
   if (s.life === 0) s.deadSoundPlayed = true;
   const name = animName(t.content, s.state);
   if (name === 'GENERIC_HIT_STAND' || name === 'STANDING_BURST_HIT' || name === 'RIFLE_STAND_HIT' || name === 'CIV_COWER_HIT') {

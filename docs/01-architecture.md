@@ -848,8 +848,9 @@ Specs: `docs/10` (turn-based), `11` (attacks and damage), `12` (items and explos
 8. **Items in the world**: map items with their `PreRandom` draws, item reveal by sight, `pickUp` (walks there) and
    `drop`, AI `SearchForItems`; corpse structures from the tile cache.
 9. **Turn start, roofs**: bleeding and getting up; buildings and climb spots (`GenerateBuildings` with its draws),
-   `climb` for the player, MOVE_TO_CLIMB/CLIMB_ROOF for the AI.
+   `climb` for the player, MOVE_TO_CLIMB/CLIMB_ROOF for the AI, incapacitated soldiers falling off roof edges; the
+   LAW and tank cannon explode where their rocket or shell stops.
 10. **Oracle**: `tools/oracle/compare.ts` checks A9 movement costs, paths with AP costs and LOS against the native
     build; all shipped probes match.
 
-**Not in M3 yet**: LAW and tank cannon, falling off roofs, save import.
+**Not in M3 yet**: save import.

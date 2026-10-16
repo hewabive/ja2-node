@@ -2,20 +2,22 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Isometric_Utils.cc FindHigherLevel, FindLowerLevel; WorldMan.cc IsHeigherLevel;
 // @src Tactical/Soldier_Control.cc BeginSoldierClimbUpRoof, BeginSoldierClimbDownRoof, SetSoldierHeight;
-// @src Tactical/Points.cc GetAPsToClimbRoof; Tactical/Soldier_Ani.cc codes 403, 404, 408, 409, 410, 411, 453–456, 475;
+// @src CheckSoldierHitRoof; Tactical/Points.cc GetAPsToClimbRoof; Tactical/Soldier_Ani.cc codes 403, 404, 408, 409, 410, 411, 453–456, 475;
 // @src TacticalAI/AIMain.cc FreeUpNPCFromRoofClimb. See docs/07 §6.
 
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { DIRECTION_INCREMENT, newGridNo } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { anim } from './anim-states.ts';
-import { AnimHeight, initNewSoldierAnim, setDesiredDirection, setSoldierDirection } from './animation.ts';
+import { AnimHeight, height, initNewSoldierAnim, setDesiredDirection, setSoldierDirection } from './animation.ts';
+import { soldierTakeDamage } from './combat/hit.ts';
+import { DamageReason } from './combat/types.ts';
 import { DIRECTION_COUNT } from './directions.ts';
 import { moveMercFacingDirection, setSoldierPosition } from './movement.ts';
 import { newOKDestination } from './pathfinding.ts';
 import { addMercStructure } from './person-structure.ts';
 import { AP, apsToChangeStance, enoughPoints } from './points.ts';
-import { Body, type Soldier, Team } from './soldier.ts';
+import { Body, OKLIFE, type Soldier, Team } from './soldier.ts';
 import { placeOccupant, removeOccupant, type TacticalState } from './state.ts';
 
 const Code = {
@@ -179,4 +181,25 @@ export function roofOpcode(t: TacticalState, s: Soldier, code: number): OpOutcom
     default:
       return null;
   }
+}
+
+const FALL_DAMAGE_LIFE = 100;
+const FALL_DAMAGE_BREATH = 5000;
+
+export function checkSoldierHitRoof(t: TacticalState, s: Soldier): boolean {
+  if (s.life >= OKLIFE) return false;
+  const lower = findLowerLevel(t, s);
+  if (lower < 0 || height(t.content, s.state) !== AnimHeight.STAND) return false;
+  const away = (lower + 4) % DIRECTION_COUNT;
+  const edge = newGridNo(s.gridNo, DIRECTION_INCREMENT[lower] ?? 0);
+  if (!newOKDestination(t.pathEnv, s, edge, true, 0)) return false;
+  const landing = newGridNo(edge, DIRECTION_INCREMENT[lower] ?? 0);
+  if (!newOKDestination(t.pathEnv, s, landing, true, 0)) return false;
+  const facingAway = [-2, -1, 0, 1, 2].some((k) => s.direction === (away + k + DIRECTION_COUNT) % DIRECTION_COUNT);
+  s.tempNewGridNo = landing;
+  setDesiredDirection(t, s, facingAway ? away : lower);
+  s.turningUntilDone = true;
+  s.pendingAnimation = anim(t.content, facingAway ? 'FALLOFF' : 'FALLFORWARD_ROOF');
+  soldierTakeDamage(t, s, FALL_DAMAGE_LIFE, FALL_DAMAGE_BREATH, DamageReason.FALLROOF, null);
+  return true;
 }

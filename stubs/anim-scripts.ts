@@ -61,7 +61,10 @@ const PICKUP_ITEM_CODE = 493;
 const DROP_ITEM_CODE = 487;
 const ROLLOVER_GETUP = 437;
 const ClimbOp = {
+  FORWARD_FALL: 403,
   BACKWARD: 404,
+  MOVE_DOWN: 409,
+  BACKWARD_FALL: 453,
   UP_COMMIT: 408,
   GROUND_HEIGHT: 410,
   DOWN_START: 411,
@@ -79,6 +82,8 @@ const ITEM_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
   START_COWER: (t) => [...frames(5), NONINTERRUPTIBLE_DONE, stateJump(stateId(t, 'COWERING'))],
   THROW_ITEM: (t) => [...frames(8), THROW_RELEASE, ...frames(5, 9), NONINTERRUPTIBLE_DONE, stateJump(stateId(t, 'STANDING'))],
   LOB_ITEM: (t) => [...frames(6), LOB_RELEASE, ...frames(7, 7), NONINTERRUPTIBLE_DONE, stateJump(stateId(t, 'STANDING'))],
+  FALLOFF: () => [...fallScript(ClimbOp.BACKWARD_FALL, 19, 25), ClimbOp.GROUND_HEIGHT, NONINTERRUPTIBLE_DONE, DEATH_OR_RELEASE],
+  FALLFORWARD_ROOF: () => [...fallScript(ClimbOp.FORWARD_FALL, 23, 26), ClimbOp.GROUND_HEIGHT, NONINTERRUPTIBLE_DONE, DEATH_OR_RELEASE],
   SHOOT_ROCKET: () => [Op.BUSY_UP, ...frames(8), Op.OK_FIRE, Op.FIRE, ...frames(6, 9), Op.BUSY_DOWN, END_OF_ANIMATION],
   SHOOT_MORTAR: () => [Op.BUSY_UP, ...frames(16), Op.OK_FIRE, Op.FIRE, ...frames(16, 17), Op.BUSY_DOWN, END_OF_ANIMATION],
   CHARIOTS_OF_FIRE: () => [...frames(12), LIFE_ZERO, DEATH_COMMIT, DEATH_OR_RELEASE, NONINTERRUPTIBLE_DONE],
@@ -106,6 +111,11 @@ const ITEM_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
     stateJump(stateId(t, 'STANDING')),
   ],
 };
+
+function fallScript(moveOp: number, moves: number, drops: number): number[] {
+  const steps = Math.max(moves, drops);
+  return Array.from({ length: steps }, (_, k) => [...(k < moves ? [moveOp] : []), ...(k < drops ? [ClimbOp.MOVE_DOWN] : []), 1 + k]).flat();
+}
 
 function interleave(op: number, count: number, firstFrame: number): number[] {
   return Array.from({ length: count }, (_, k) => [op, firstFrame + k]).flat();
