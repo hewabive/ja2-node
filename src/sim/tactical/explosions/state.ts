@@ -119,6 +119,12 @@ export interface LightEffect {
   sprite: LightSprite | null;
 }
 
+export interface WorldClockSource {
+  readonly seconds: number;
+}
+
+const MS_PER_SECOND = 1000;
+
 export interface ExplosivesState {
   readonly objects: (RealObject | null)[];
   readonly aniTiles: AniTile[];
@@ -149,8 +155,8 @@ export function createExplosivesState(): ExplosivesState {
   };
 }
 
-export function worldSeconds(e: ExplosivesState): number {
-  return Math.trunc(e.worldMs / 1000);
+export function worldSeconds(t: { readonly explosives: ExplosivesState; readonly worldClock: WorldClockSource | null }): number {
+  return t.worldClock ? t.worldClock.seconds : Math.trunc(t.explosives.worldMs / MS_PER_SECOND);
 }
 
 export function explosivesBusy(e: ExplosivesState): boolean {

@@ -9,7 +9,7 @@ import type { Bullet, MissAnimation } from './combat/bullets.ts';
 import type { Corpse } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
 import { createEquipmentState, type EquipmentState } from './equipment.ts';
-import { createExplosivesState, type ExplosivesState } from './explosions/state.ts';
+import { createExplosivesState, type ExplosivesState, type WorldClockSource } from './explosions/state.ts';
 import type { GameEvent } from './game-events.ts';
 import { createLightingState, type LightingState } from './lighting/lighting.ts';
 import type { DoorStatus, PathEnv, PathSoldier, PathWorld } from './pathfinding.ts';
@@ -148,6 +148,7 @@ export interface TacticalState {
   readonly corpses: Corpse[];
   readonly pendingSkullReleases: { readonly soldier: Soldier; readonly at: number }[];
   readonly explosives: ExplosivesState;
+  worldClock: WorldClockSource | null;
 }
 
 export function createTacticalState(world: TacticalWorldData, content: TacticalContent, rng: Rng): TacticalState {
@@ -210,6 +211,7 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
     corpses: [],
     pendingSkullReleases: [],
     explosives: createExplosivesState(),
+    worldClock: null,
   };
 }
 

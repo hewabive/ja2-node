@@ -136,7 +136,7 @@ export function newSmokeEffect(t: TacticalState, g: number, item: number, level:
     radius: def.initialRadius,
     age: 0,
     flags: (indoors ? SmokeFlags.INDOORS : 0) | (level ? SmokeFlags.ON_ROOF : 0),
-    lastUpdate: worldSeconds(t.explosives),
+    lastUpdate: worldSeconds(t),
   };
   clouds[slot] = cloud;
   spreadEffectSmoke(t, cloud, Spread.NORMAL, level);
@@ -175,7 +175,7 @@ function ageCloud(t: TacticalState, k: number, cloud: SmokeCloud, updates: numbe
 
 export function decaySmokeEffects(t: TacticalState): void {
   const e = t.explosives;
-  const now = worldSeconds(e);
+  const now = worldSeconds(t);
   e.hitByGas.fill(0);
   let update = false;
   let updates = 1;

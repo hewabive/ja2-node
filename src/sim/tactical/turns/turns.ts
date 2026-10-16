@@ -108,20 +108,24 @@ export function beginMercTurn(t: TacticalState, s: Soldier): void {
 export interface RealtimeClock {
   lastTurnMs: number;
   lastDecayMs: number;
+  lastOverheadMs: number;
 }
 
 export const RT_TURN_MS = 5000;
+export const STRATEGIC_OVERHEAD_MS = 20;
 
 export function handleRealtimeTurns(t: TacticalState, clock: RealtimeClock): void {
-  if (t.inCombat) {
-    clock.lastTurnMs = t.clockMs;
-    return;
-  }
-  if (t.turn.forceRealtimeTurn) {
+  if (!t.inCombat && t.turn.forceRealtimeTurn) {
     t.turn.forceRealtimeTurn = false;
     clock.lastTurnMs = t.clockMs;
     clock.lastDecayMs = t.clockMs - OPPLIST_DECAY_MS;
     handleTacticalEndTurn(t, clock);
+    return;
+  }
+  if (t.clockMs - clock.lastOverheadMs < STRATEGIC_OVERHEAD_MS) return;
+  clock.lastOverheadMs = t.clockMs;
+  if (t.inCombat) {
+    clock.lastTurnMs = t.clockMs;
     return;
   }
   if (t.clockMs - clock.lastTurnMs <= RT_TURN_MS) return;

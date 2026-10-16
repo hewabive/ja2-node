@@ -4,7 +4,7 @@ import type { SimEvent } from '../events.ts';
 import { createStrategicState, type StrategicState } from '../strategic/state.ts';
 import { CompressMode, EventKind } from '../strategic/time/constants.ts';
 import { EventDispatch } from '../strategic/time/dispatch.ts';
-import { changeLightValue, updateTemperature } from '../strategic/time/environment.ts';
+import { changeLightValue, timeOfDayAmbientLightLevel, updateTemperature } from '../strategic/time/environment.ts';
 import {
   type ClockContext,
   type ClockScreen,
@@ -42,6 +42,7 @@ export class CampaignSim {
     this.#clock = this.#clockContext();
     this.#registerEnvironment();
     if (state.flow === 'tactical') setGameTimeCompressionLevel(this.#clock, CompressMode.X1);
+    tactical?.attachWorldClock(state.clock);
   }
 
   get tick(): number {
@@ -73,6 +74,21 @@ export class CampaignSim {
     const d = this.dispatchTable;
     d.register(EventKind.CHANGELIGHTVAL, (c, e) => changeLightValue(c.state.env, e.param, c.#loadedSectorIsUnderground()));
     d.register(EventKind.TEMPERATURE_UPDATE, (c, e) => updateTemperature(c.state.env, e.param));
+    d.register(EventKind.TURN_ON_NIGHT_LIGHTS, (c) => c.tactical?.powerNightLights(true));
+    d.register(EventKind.TURN_OFF_NIGHT_LIGHTS, (c) => c.tactical?.powerNightLights(false));
+    d.register(EventKind.TURN_ON_PRIME_LIGHTS, (c) => c.tactical?.powerPrimeLights(true));
+    d.register(EventKind.TURN_OFF_PRIME_LIGHTS, (c) => c.tactical?.powerPrimeLights(false));
+  }
+
+  #environmentController(): void {
+    const env = this.state.env;
+    if (!env.doLighting || !this.tactical) return;
+    this.tactical.setAmbientLight(timeOfDayAmbientLightLevel(env, this.state.worldSector?.z ?? 0, this.#loadedSectorIsDesert()));
+    env.doLighting = false;
+  }
+
+  #loadedSectorIsDesert(): boolean {
+    return false;
   }
 
   #loadedSectorIsUnderground(): boolean {
@@ -87,6 +103,7 @@ export class CampaignSim {
     const s = this.state;
     this.#tick++;
     if (s.flow === 'tactical' && this.tactical) {
+      this.#environmentController();
       this.tactical.step();
       s.realMs = this.tactical.state.clockMs;
       this.#events.push(...this.tactical.drainEvents());

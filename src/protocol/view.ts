@@ -32,9 +32,17 @@ export interface CombatView {
   readonly interrupt: boolean;
 }
 
+export interface ClockView {
+  readonly day: number;
+  readonly hour: number;
+  readonly minute: number;
+  readonly compressing: boolean;
+}
+
 export interface PlayerView {
   readonly tick: number;
   readonly mapPath: string | null;
+  readonly clock?: ClockView;
   readonly soldiers: readonly SoldierView[];
   readonly openDoors?: readonly number[];
   readonly combat?: CombatView | null;

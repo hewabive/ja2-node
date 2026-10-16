@@ -64,6 +64,13 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('native savegames imported into the t
         expect((l.flags & LightSpriteFlags.ON) !== 0).toBe(scheduled === 0 || (scheduled & lightTime) !== 0);
       }
       expect(t.inCombat).toBe(save.tactical.inCombat);
+      const clock = session.campaign.state.clock;
+      const before = clock.seconds;
+      if (!t.inCombat) {
+        advance(session, { ticks: 200 * 60 }, 200 * 60);
+        expect(clock.seconds - before).toBe(60);
+        expect(session.view().clock?.day).toBe(save.header.day);
+      }
       if (t.inCombat && t.turn.currentTeam === Team.OUR) {
         expect(session.sim.dispatch({ type: 'endTurn' }).ok).toBe(true);
         expect(advance(session, { idle: true }, ENEMY_TURN_BUDGET).reason).not.toBe('budget');

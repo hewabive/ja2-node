@@ -1087,7 +1087,7 @@ engines.
 | Prompt time | Some locks pause only the world clock while tactical animation runs underneath (conversation, item pickup, heli entry) | Every decision prompt stops the whole simulation | D15 (already in `01` §3.3) |
 | Script hooks | `OnStrategicEvent`, `OnCheckQuests` Lua observers | Not ported | No mods (`02` "Policy objects") |
 | Dead code | `TIME_SUPER_COMPRESS`, `SetGameHours/MinutesPerSecond`, rain events, `MINUTE_UPDATE`, `BEGIN_AIR_RAID` | Not ported (kinds kept as no-ops for import) | Same behaviour |
-| Real-time turn period | 5020 ms (the turn check runs on the 20 ms counter) | Today 5005 ms (checked every tick); step 4 of §8.2 restores 5020 ms, otherwise keep this row | Fix pending |
+| Real-time turn period | 5020 ms (the turn check runs on the 20 ms counter) | Implemented: `handleRealtimeTurns` runs on the same 20 ms counter | Fixed |
 | World clock for smoke and light | (existing row) | Remove when the world clock lands | |
 
 ---

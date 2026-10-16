@@ -52,13 +52,22 @@ import { isDoorOpenAt } from './doors.ts';
 import { stepExplosions } from './explosions/explosion.ts';
 import { HEIGHT_UNITS, stepThrownObjects } from './explosions/physics.ts';
 import { checkForRunningIntoGas, updateGassedOnNewGridNo } from './explosions/smoke.ts';
+import type { WorldClockSource } from './explosions/state.ts';
 import { explosivesBusy } from './explosions/state.ts';
 import { calcMaxTossRange, calcThrownChanceToHit, throwOpcode } from './explosions/throwing.ts';
 import { calculateLaunchItemChanceToGetThrough } from './explosions/trajectory.ts';
 import { dequeueAllGameEvents } from './game-events.ts';
 import { InvSlot, itemIn } from './inventory.ts';
 import { handlePendingPickupOnArrival, itemOpcode, pickupCandidates, soldierDropItem, soldierPickupItem } from './item-actions.ts';
-import { initLighting, NORMAL_LIGHTLEVEL_DAY } from './lighting/lighting.ts';
+import {
+  initLighting,
+  lightSetBaseLevel,
+  NORMAL_LIGHTLEVEL_DAY,
+  turnOffNightLights,
+  turnOffPrimeLights,
+  turnOnNightLights,
+  turnOnPrimeLights,
+} from './lighting/lighting.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
 import { executeOverhead, type OverheadHooks } from './overhead.ts';
 import { findBestPath, PathCopy } from './pathfinding.ts';
@@ -141,7 +150,7 @@ export class TacticalSim {
   readonly ai: AiControl;
   readonly hooks: OverheadHooks;
   #tick = 0;
-  readonly #clock: RealtimeClock = { lastTurnMs: 0, lastDecayMs: 0 };
+  readonly #clock: RealtimeClock = { lastTurnMs: 0, lastDecayMs: 0, lastOverheadMs: 0 };
 
   constructor(world: TacticalWorld, content: TacticalContent, seed: number) {
     this.world = world;
@@ -212,6 +221,24 @@ export class TacticalSim {
     };
     generateBuildings(t);
     initLighting(t, world.map, SANDBOX_WORLD_HOUR, NORMAL_LIGHTLEVEL_DAY);
+  }
+
+  attachWorldClock(clock: WorldClockSource): void {
+    this.state.worldClock = clock;
+  }
+
+  setAmbientLight(level: number): void {
+    lightSetBaseLevel(this.state, level);
+  }
+
+  powerNightLights(on: boolean): void {
+    if (on) turnOnNightLights(this.state);
+    else turnOffNightLights(this.state);
+  }
+
+  powerPrimeLights(on: boolean): void {
+    if (on) turnOnPrimeLights(this.state);
+    else turnOffPrimeLights(this.state);
   }
 
   get tick(): number {

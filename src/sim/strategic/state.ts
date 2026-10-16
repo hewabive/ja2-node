@@ -23,21 +23,27 @@ export interface StrategicState {
   worldSector: SectorPosition | null;
 }
 
+export interface RandomStreams {
+  readonly rng: Rng;
+  readonly pre: PreRandom;
+}
+
 export interface StrategicStateOptions {
   readonly worldSeconds?: number;
   readonly seed?: number;
+  readonly streams?: RandomStreams;
 }
 
 const DEFAULT_SEED = 1;
 
 export function createStrategicState(options: StrategicStateOptions = {}): StrategicState {
-  const rng = Rng.fromSeed(options.seed ?? DEFAULT_SEED);
+  const rng = options.streams?.rng ?? Rng.fromSeed(options.seed ?? DEFAULT_SEED);
   return {
     clock: createWorldClock(options.worldSeconds),
     queue: createEventQueue(),
     env: createEnvironment(),
     rng,
-    pre: PreRandom.create(rng),
+    pre: options.streams?.pre ?? PreRandom.create(rng),
     realMs: 0,
     flow: 'strategic',
     didGameJustStart: false,

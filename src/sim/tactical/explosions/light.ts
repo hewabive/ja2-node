@@ -33,7 +33,7 @@ export function newLightEffect(t: TacticalState, g: number, radius: number, dura
     slot = lights.length;
     lights.push(null);
   }
-  const light: LightEffect = { gridNo: g, radius, duration, age: 0, lastUpdate: worldSeconds(t.explosives), sprite: null };
+  const light: LightEffect = { gridNo: g, radius, duration, age: 0, lastUpdate: worldSeconds(t), sprite: null };
   lights[slot] = light;
   updateLightingSprite(t, light);
   allTeamsLookForAll(t, false);
@@ -52,7 +52,7 @@ function ageLight(t: TacticalState, light: LightEffect, updates: number): boolea
 }
 
 export function decayLightEffects(t: TacticalState): void {
-  const now = worldSeconds(t.explosives);
+  const now = worldSeconds(t);
   const lights = t.explosives.lights;
   for (let k = 0; k < lights.length; k++) {
     const light = lights[k];

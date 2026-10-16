@@ -62,16 +62,20 @@ export class TacticalSession implements SessionSim {
   }
 
   view(): PlayerView {
-    return {
-      tick: this.sim.tick,
-      mapPath: this.sim.mapPath,
-      soldiers: this.sim.snapshot((s) => s.team === Team.OUR || s.visible >= 0),
-      openDoors: this.sim.openDoors(),
-      combat: this.sim.combatView(),
-      revealedRooms: revealedRooms(this.sim.state),
-      items: this.sim.visibleItems(),
-    };
+    return tacticalPlayerView(this.sim, this.sim.tick);
   }
+}
+
+export function tacticalPlayerView(sim: TacticalSim, tick: number): PlayerView {
+  return {
+    tick,
+    mapPath: sim.mapPath,
+    soldiers: sim.snapshot((s) => s.team === Team.OUR || s.visible >= 0),
+    openDoors: sim.openDoors(),
+    combat: sim.combatView(),
+    revealedRooms: revealedRooms(sim.state),
+    items: sim.visibleItems(),
+  };
 }
 
 function sectorOf(mapPath: string): { x: number; y: number } | null {
