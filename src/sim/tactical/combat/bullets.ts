@@ -6,6 +6,7 @@
 // @src RemoveBullet, StopBullet, UpdateBullets; Weapons.cc StructureHit, ShotMiss, WindowHit;
 // @src TileEngine/Tile_Animation.cc ANITILE_RELEASE_ATTACKER_WHEN_DONE. See docs/11 §3.
 
+import { lockAt } from '../../../content/formats/locks.ts';
 import { AmmoType, ItemClass, WeaponClass } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, isVisibleTile, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { TravelCost } from '../../../content/world/movement-costs.ts';
@@ -18,19 +19,23 @@ import {
   type StructureInstance,
   structureHeight,
 } from '../../../content/world/structures.ts';
+import { i16 } from '../../../core/int.ts';
 import { createItem, type ItemObject } from '../../items/object.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
+import { findDoorInfo } from '../doors/door-table.ts';
+import { damageLock } from '../doors/lock-attempts.ts';
 import { swapStructureForPartner } from '../doors.ts';
 import { igniteExplosion, igniteExplosionXY } from '../explosions/explosion.ts';
 import { InvSlot } from '../inventory.ts';
 import { landHeightUnits, resolveHitOnWall } from '../perception/los.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
+import { StatKind } from '../profiles.ts';
 import { Body, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
 import { freeUpAttacker } from './barrier.ts';
 import { gunRange } from './chance.ts';
-import { agilityForEnemyMissingPlayer } from './experience.ts';
+import { agilityForEnemyMissingPlayer, StatCause, statChange } from './experience.ts';
 import { bulletHitMerc, doSpecialEffectAmmoMiss } from './hit.ts';
 import { aimPosType, calculateSoldierZPos, losWorldOf, targetZFromStructureHeight, ZPos } from './positions.ts';
 import { NUM_BUCKSHOT_PELLETS } from './types.ts';
@@ -62,6 +67,10 @@ const STRUCTURE_ON_ROOF_MAX = 8;
 const CLOSE_TO_FIRER = 25;
 const MIN_DIST_FOR_HIT_FRIENDS = 30;
 const MIN_DIST_FOR_HIT_FRIENDS_UNAIMED = 15;
+const LOCK_SHOT_RADIUS = 2;
+const SHOOTABLE_PICK_LIMIT = 50;
+const SHOOTABLE_SMASH_LIMIT = 70;
+const LOCK_SHOT_MARKSMANSHIP_GAIN = 10;
 const MIN_CHANCE_TO_ACCIDENTALLY_HIT_SOMEONE = 3;
 const MAX_DIST_FOR_LESS_THAN_MAX_CHANCE = 25;
 const MAX_CHANCE_OF_HITTING_STRUCTURE = 90;
@@ -411,9 +420,23 @@ function ammoAdjustedReduction(reduction: number, ammo: number, heatCountsAsAP: 
   return reduction;
 }
 
+function shootLock(t: TacticalState, b: Bullet): void {
+  const door = findDoorInfo(t, b.gridNo);
+  if (!door) return;
+  const lock = lockAt(t.content.locks, door.lockId);
+  if (lock.pickDifficulty >= SHOOTABLE_PICK_LIMIT || lock.smashDifficulty >= SHOOTABLE_SMASH_LIMIT) return;
+  if (t.pre.int(2) !== 0) return;
+  let damage = i16(b.impact - b.impactReduction);
+  damage = i16(damage + t.pre.int(damage >>> 0));
+  if (damageLock(t, b.firer, b.gridNo, damage))
+    statChange(t, b.firer, StatKind.MARKSMANSHIP, LOCK_SHOT_MARKSMANSHIP_GAIN, StatCause.SUCCESS);
+}
+
 function handleBulletStructureInteraction(t: TacticalState, b: Bullet, s: StructureInstance): { remaining: number; hit: boolean } {
   if (b.flags & (BulletFlag.KNIFE | BulletFlag.MISSILE | BulletFlag.TANK_CANNON | BulletFlag.FLAME)) return { remaining: 0, hit: true };
   if (b.flags & BulletFlag.SMALL_MISSILE && ammoTypeOf(b) === AmmoType.HE) return { remaining: 0, hit: true };
+  if (has(s.flags, StructureFlags.DOOR | StructureFlags.OPENABLE) && pythSpacesAway(b.targetGrid, s.gridNo) <= LOCK_SHOT_RADIUS)
+    shootLock(t, b);
   if (t.pre.int(100) < s.def.density) {
     let reduction = t.content.materialArmour[s.def.armour] ?? 0;
     reduction = structureResistanceIncreasedByRange(reduction, b.range, b.loop);

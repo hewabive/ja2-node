@@ -7,6 +7,7 @@ import { type PreRandom, Rng } from '../../core/rng.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import type { ItemObject } from '../items/object.ts';
+import type { CivGroupState } from '../strategic/narrative/civ-groups.ts';
 import { AiAction } from './ai/actions.ts';
 import {
   type AiControl,
@@ -48,6 +49,10 @@ import { handlePendingMeleeOnArrival, meleeChanceToHit } from './combat/melee.ts
 import { meleeSpot } from './combat/melee-reach.ts';
 import { AimShot, WeaponMode } from './combat/types.ts';
 import type { TacticalContent } from './content.ts';
+import { DOOR_ACTIONS, type DoorActionName } from './doors/door-actions.ts';
+import { doorCommand, handlePendingDoorOnArrival } from './doors/door-command.ts';
+import { type DoorView, doorViews, type KeyView, keyRingView } from './doors/door-view.ts';
+import type { KeyTable } from './doors/keys.ts';
 import { isDoorOpenAt } from './doors.ts';
 import { stepExplosions } from './explosions/explosion.ts';
 import { HEIGHT_UNITS, stepThrownObjects } from './explosions/physics.ts';
@@ -70,6 +75,7 @@ import {
   turnOnPrimeLights,
 } from './lighting/lighting.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
+import { checkHostileOrSayQuoteList } from './narrative/civ-hostility.ts';
 import { executeOverhead, type OverheadHooks } from './overhead.ts';
 import { findBestPath, PathCopy } from './pathfinding.ts';
 import { mostImportantNoiseHeard } from './perception/knowledge.ts';
@@ -110,6 +116,7 @@ export interface SoldierSnapshot {
   readonly lifeMax?: number;
   readonly breath?: number;
   readonly inventory?: readonly InventoryItemView[];
+  readonly keys?: readonly KeyView[];
 }
 
 export interface CombatSnapshot {
@@ -133,6 +140,25 @@ const ATTACK_REFUSALS: Readonly<Record<number, string>> = {
   [ItemHandle.CANNOT_GETTO_LOCATION]: 'cannot reach the target',
 };
 
+const DOOR_REFUSALS: Readonly<Record<string, string>> = {
+  noDoor: 'there is no door on that tile',
+  alreadyOpen: 'the door is already open',
+  alreadyClosed: 'the door is already closed',
+  doorOpen: 'close the door first',
+  notLocked: 'the door is not locked (open it instead)',
+  noLock: 'the door has no lock',
+  alreadyLocked: 'the door is already locked',
+  noKey: 'the soldier carries no key',
+  noCrowbar: 'the soldier has no usable crowbar',
+  noLockpickKit: 'the soldier has no lockpick kit',
+  noShapedCharge: 'the soldier has no shaped charge',
+  escortCannot: 'an escorted civilian cannot do that',
+  alreadyKnown: 'the trap is already known',
+  diagonal: 'not possible from a diagonal position',
+  notEnoughAp: 'not enough APs',
+  noPath: 'cannot get next to the door',
+};
+
 const NOT_ADJACENT =
   'a melee target must stand next to the soldier (a knife reaches the four side tiles, fists all eight); walking up to it is not supported';
 
@@ -150,6 +176,8 @@ export interface TacticalCommand {
 export interface TacticalSimOptions {
   readonly streams?: { readonly rng: Rng; readonly pre: PreRandom };
   readonly profiles?: Map<number, ProfileProgress>;
+  readonly keyTable?: KeyTable;
+  readonly civGroups?: CivGroupState;
   readonly startMs?: number;
   readonly realtimeClock?: RealtimeClock;
   readonly hour?: number;
@@ -172,7 +200,12 @@ export class TacticalSim {
       { ...world, mapDoors: new Map(world.map.doors.map((d) => [d.gridNo, d])) },
       content,
       options.streams?.rng ?? Rng.fromSeed(seed),
-      { ...(options.streams ? { pre: options.streams.pre } : {}), ...(options.profiles ? { profiles: options.profiles } : {}) },
+      {
+        ...(options.streams ? { pre: options.streams.pre } : {}),
+        ...(options.profiles ? { profiles: options.profiles } : {}),
+        ...(options.keyTable ? { keyTable: options.keyTable } : {}),
+        ...(options.civGroups ? { civGroups: options.civGroups } : {}),
+      },
     );
     const t = this.state;
     t.clockMs = options.startMs ?? 0;
@@ -193,7 +226,8 @@ export class TacticalSim {
         throwOpcode(state, s, code),
       turnFinished: freeUpFromTurning,
       stanceFreeUp: freeUpFromStanceChange,
-      pendingAction: (state, s) => handlePendingMeleeOnArrival(state, s) || handlePendingPickupOnArrival(state, s),
+      pendingAction: (state, s) =>
+        handlePendingMeleeOnArrival(state, s) || handlePendingPickupOnArrival(state, s) || handlePendingDoorOnArrival(state, s),
       runningIntoGas: checkForRunningIntoGas,
       enteredGridNo: updateGassedOnNewGridNo,
       endAiGuysTurn: (state, s) => endAIGuysTurn(state, s, ai),
@@ -226,6 +260,7 @@ export class TacticalSim {
         stepThrownObjects(state);
         updateBullets(state);
         stepExplosions(state);
+        checkHostileOrSayQuoteList(state);
         updateMissAnimations(state);
         updateSkullReleases(state);
         handleRealtimeTurns(state, clock);
@@ -351,9 +386,12 @@ export class TacticalSim {
         return this.#drop(cmd);
       case 'climb':
         return this.#climb(cmd);
+      case 'door':
+        return this.#door(cmd);
       case 'stop': {
         const s = this.soldier(cmd.soldier);
         if (!s || s.team !== Team.OUR) return { ok: false, reason: 'no such soldier of yours' };
+        s.pendingDoorAction = null;
         stopMerc(this.state, s);
         s.finalDestination = s.gridNo;
         return { ok: true };
@@ -400,6 +438,30 @@ export class TacticalSim {
     selectSoldier(t, s);
     if (!soldierPickupItem(t, s, g, zLevel, selection)) return { ok: false, reason: 'no path' };
     return { ok: true };
+  }
+
+  #door(cmd: TacticalCommand): CommandResult {
+    const t = this.state;
+    const s = this.soldier(cmd.soldier);
+    if (!s) return { ok: false, reason: 'no such soldier of yours' };
+    const refusal = this.canAct(s);
+    if (refusal) return { ok: false, reason: refusal };
+    const g = cmd.gridNo;
+    if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return { ok: false, reason: 'gridNo must be a visible tile' };
+    const action = cmd.action ?? 'open';
+    if (typeof action !== 'string' || !(DOOR_ACTIONS as readonly string[]).includes(action))
+      return { ok: false, reason: `action must be one of ${DOOR_ACTIONS.join(', ')}` };
+    if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return { ok: false, reason: 'stop the soldier first' };
+    if (s.noAPToFinishMove) soldierGotoStationaryStance(t, s);
+    selectSoldier(t, s);
+    const outcome = doorCommand(t, s, g, action as DoorActionName);
+    if (!outcome.ok)
+      return {
+        ok: false,
+        reason: `${outcome.refusal}: ${DOOR_REFUSALS[outcome.refusal] ?? 'refused'}`,
+        data: { refusal: outcome.refusal },
+      };
+    return { ok: true, data: outcome.data };
   }
 
   #drop(cmd: TacticalCommand): CommandResult {
@@ -464,6 +526,7 @@ export class TacticalSim {
       return { ok: false, reason: 'destination must be a visible gridNo' };
     s.uiMovementMode = this.#movementMode(s, cmd.mode);
     s.pathStored = false;
+    s.pendingDoorAction = null;
     if (t.inCombat) {
       const route = findBestPath(t.pathEnv, s, to, s.level, { copy: PathCopy.ROUTE });
       if (route.length === 0) return { ok: false, reason: 'no path' };
@@ -659,6 +722,10 @@ export class TacticalSim {
     return { ok: true };
   }
 
+  doors(): DoorView[] {
+    return doorViews(this.state);
+  }
+
   openDoors(): number[] {
     return [...this.state.doorStatus.entries()]
       .filter(([g]) => isDoorOpenAt(this.state, g))
@@ -690,6 +757,7 @@ export class TacticalSim {
               lifeMax: s.lifeMax,
               breath: s.breath,
               inventory: inventoryView(this.state.content.items, s.inv),
+              ...(s.keyRing?.some((k) => k.count > 0) ? { keys: keyRingView(this.state, s) } : {}),
             }
           : {}),
       }));

@@ -1,0 +1,7 @@
+{
+  "comment": "Invented stub locks for the village door; not derived from game data.",
+  "locks": [
+    { "id": 1, "keyItem": 0, "type": "REGULAR", "pick": 20, "smash": 30 },
+    { "id": 2, "keyItem": 1, "type": "ELECTRONIC", "pick": 60, "smash": 254 }
+  ]
+}

@@ -5,6 +5,7 @@ import { createLaptopState, type LaptopState } from '../campaign/laptop/laptop-s
 import { createNarrativeState, type NarrativeState } from '../campaign/narrative/facts.ts';
 import type { SectorDiff } from '../campaign/sector-diff.ts';
 import { createTeamMoraleState, type TeamMoraleState } from '../campaign/team-morale.ts';
+import { createKeyTable, type KeyTable } from '../tactical/doors/keys.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
 import {
   createMeanwhileState,
@@ -21,6 +22,7 @@ import { type BattleState, createBattleState } from './forces/battle-state.ts';
 import { createEncounterState, createMovementFlowState, type EncounterState, type MovementFlowState } from './forces/flow-state.ts';
 import { createForcesState, type ForcesState } from './forces/groups.ts';
 import { createMapState, type StrategicMapState } from './map/sectors.ts';
+import { type CivGroupState, createCivGroupState } from './narrative/civ-groups.ts';
 import { createEnvironment, type Environment } from './time/environment.ts';
 import { createEventQueue, type EventQueue } from './time/event-queue.ts';
 import { createWorldClock, type WorldClock } from './time/world-clock.ts';
@@ -65,6 +67,8 @@ export interface StrategicState {
   readonly narrative: NarrativeState;
   readonly terrorists: TerroristState;
   readonly npcPlacements: Map<number, number>;
+  readonly civGroups: CivGroupState;
+  readonly keyTable: KeyTable;
 }
 
 export interface TerroristState {
@@ -89,6 +93,8 @@ export interface StrategicStateOptions {
   readonly streams?: RandomStreams;
   readonly options?: Partial<GameOptions>;
   readonly profiles?: Map<number, ProfileProgress>;
+  readonly civGroups?: CivGroupState;
+  readonly keyTable?: KeyTable;
 }
 
 const DEFAULT_SEED = 1;
@@ -128,5 +134,7 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     narrative: createNarrativeState(),
     terrorists: { count: 0, sectors: new Map() },
     npcPlacements: new Map(),
+    civGroups: options.civGroups ?? createCivGroupState(),
+    keyTable: options.keyTable ?? createKeyTable(),
   };
 }

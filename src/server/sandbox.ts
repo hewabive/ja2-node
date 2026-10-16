@@ -75,6 +75,7 @@ export function tacticalPlayerView(sim: TacticalSim, tick: number): PlayerView {
     mapPath: sim.mapPath,
     soldiers: sim.snapshot((s) => s.team === Team.OUR || s.visible >= 0),
     openDoors: sim.openDoors(),
+    doors: sim.doors(),
     combat: sim.combatView(),
     revealedRooms: revealedRooms(sim.state),
     items: sim.visibleItems(),

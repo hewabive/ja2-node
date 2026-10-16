@@ -5,12 +5,14 @@ import type { MovementCosts, MovementWorld } from '../../content/world/movement-
 import type { TileElement } from '../../content/world/tile-database.ts';
 import { PreRandom, type Rng } from '../../core/rng.ts';
 import type { SimEvent } from '../events.ts';
+import { type CivGroupState, createCivGroupState } from '../strategic/narrative/civ-groups.ts';
 import { anim } from './anim-states.ts';
 import { type Buildings, createBuildings } from './buildings.ts';
 import type { Bullet, MissAnimation } from './combat/bullets.ts';
 import { type ExperienceHooks, NO_EXPERIENCE_HOOKS } from './combat/context.ts';
 import type { Corpse } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
+import { createKeyTable, type KeyTable } from './doors/keys.ts';
 import type { MapEdgepoints } from './edgepoints.ts';
 import { createEquipmentState, type EquipmentState } from './equipment.ts';
 import { createExplosivesState, type ExplosivesState, type WorldClockSource } from './explosions/state.ts';
@@ -19,6 +21,7 @@ import type { SoldierInitNode } from './init-list.ts';
 import { createLightingState, type LightingState } from './lighting/lighting.ts';
 import type { MapChange } from './map-changes.ts';
 import { multiTileShape } from './multi-tile.ts';
+import { type NarrativePort, NO_NARRATIVE_PORT } from './narrative/port.ts';
 import type { DoorStatus, PathEnv, PathSoldier, PathWorld } from './pathfinding.ts';
 import { createFogOfWar, type FogOfWar } from './perception/fov.ts';
 import { createPerception, type Perception } from './perception/sight.ts';
@@ -32,7 +35,7 @@ export type SectorMapData = Pick<MapDef, 'info' | 'rooms' | 'ambient' | 'placeme
 
 export interface TacticalWorldData extends MovementWorld {
   readonly costs: MovementCosts;
-  readonly mapDoors: ReadonlyMap<number, MapDoor>;
+  readonly mapDoors: Map<number, MapDoor>;
   readonly map?: SectorMapData;
   readonly tiles?: readonly TileElement[];
 }
@@ -87,7 +90,8 @@ export interface TacticalHooks {
   pendingAction(t: TacticalState, s: Soldier): boolean;
   runningIntoGas(t: TacticalState, s: Soldier): boolean;
   enteredGridNo(t: TacticalState, s: Soldier, g: number): void;
-  doorOpened(t: TacticalState, s: Soldier): void;
+  doorOpeningNoise(t: TacticalState, s: Soldier): number;
+  doorOpened(t: TacticalState, s: Soldier, noise: number): void;
   endAiGuysTurn(t: TacticalState, s: Soldier): void;
   collapse(t: TacticalState, s: Soldier): void;
   opcode(t: TacticalState, s: Soldier, code: number): OpOutcome | null;
@@ -103,6 +107,7 @@ export const NO_HOOKS: TacticalHooks = {
   pendingAction: () => false,
   runningIntoGas: () => false,
   enteredGridNo: () => {},
+  doorOpeningNoise: () => 0,
   doorOpened: () => {},
   endAiGuysTurn: () => {},
   collapse: () => {},
@@ -230,11 +235,24 @@ export interface TacticalState {
   ignoreAllObstacles: boolean;
   sectorHooks: SectorHooks;
   experienceHooks: ExperienceHooks;
+  narrative: NarrativePort;
+  sector: SectorRef | null;
+  readonly keyTable: KeyTable;
+  readonly civGroups: CivGroupState;
+  readonly hostileQuoteList: Soldier[];
 }
 
 export interface SharedCampaignState {
   readonly pre?: PreRandom;
   readonly profiles?: Map<number, ProfileProgress>;
+  readonly keyTable?: KeyTable;
+  readonly civGroups?: CivGroupState;
+}
+
+export interface SectorRef {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
 }
 
 export function createTacticalState(
@@ -316,6 +334,11 @@ export function createTacticalState(
     ignoreAllObstacles: false,
     sectorHooks: NO_SECTOR_HOOKS,
     experienceHooks: NO_EXPERIENCE_HOOKS,
+    narrative: NO_NARRATIVE_PORT,
+    sector: null,
+    keyTable: shared.keyTable ?? createKeyTable(),
+    civGroups: shared.civGroups ?? createCivGroupState(),
+    hostileQuoteList: [],
   };
 }
 

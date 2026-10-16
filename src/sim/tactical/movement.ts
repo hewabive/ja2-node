@@ -22,7 +22,8 @@ import {
 } from './animation.ts';
 import { MOVE_SIN_COS } from './constants.ts';
 import { DIRECTION_INCREMENT, Direction } from './directions.ts';
-import { interactWithDoor, toggleDoorAt } from './doors.ts';
+import { interactWithDoorAt } from './doors/door-actions.ts';
+import { toggleDoorAt } from './doors.ts';
 import { findBestPath, isWater, MAX_PATH_LIST_SIZE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { addMercStructure, removeMercStructure } from './person-structure.ts';
 import { AP, actionPointCost, deductPoints, doorTravelCost, enoughPoints, type PointsContext, terrainBreathPoints } from './points.ts';
@@ -289,7 +290,7 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
       haltForDoor(t, s);
       return { ok: false, keepMoving: false };
     }
-    interactWithDoor(t, s, doorGridNo, direction);
+    interactWithDoorAt(t, s, doorGridNo, direction);
     if (s.team !== Team.OUR || s.underAiControl) {
       s.endDoorOpenCode = 1;
       s.endDoorOpenCodeData = doorGridNo;

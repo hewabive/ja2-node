@@ -18,7 +18,7 @@ import { checkForFreeupFromHit, releaseSoldiersAttacker } from './combat/hit.ts'
 import { TERRAIN_SPEED_DELAY } from './constants.ts';
 import type { TacticalContent } from './content.ts';
 import { DIRECTION_COUNT, DIRECTION_INCREMENT, quickestTurnIncrement } from './directions.ts';
-import { handlePendingDoor } from './doors.ts';
+import { aiDoorActionWithoutInteraction, soldierHandleInteractiveObject } from './doors/door-actions.ts';
 import { InvSlot } from './inventory.ts';
 import { countMuzzleFlashFrame } from './lighting/muzzle-flash.ts';
 import { getNewSoldierPath, handleGotoNewGridNo, isJumpableFenceAt, moveMercFacingDirection, setSoldierPosition } from './movement.ts';
@@ -561,12 +561,20 @@ function runOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome {
       hopFenceStep(t, s, HOP_FENCE_FORWARD_FULL_SE, HOP_FENCE_FORWARD_FULL_NW);
       return 'continue';
     case OP_OPEN_STRUCT:
-    case OP_OPEN_DOOR:
-      if (handlePendingDoor(t, s)) {
-        t.hooks.doorOpened(t, s);
+      soldierHandleInteractiveObject(t, s);
+      return 'continue';
+    case OP_OPEN_DOOR: {
+      if (aiDoorActionWithoutInteraction(s)) {
+        s.pendingDoorGridNo = -1;
+        return 'continue';
+      }
+      const noise = t.hooks.doorOpeningNoise(t, s);
+      if (soldierHandleInteractiveObject(t, s)) {
+        t.hooks.doorOpened(t, s, noise);
         t.hooks.newAiSituation(t, s);
       }
       return 'continue';
+    }
     case OP_END_HOP_FENCE:
       return endHopFence(t, s);
     case OP_PAUSE_ANIMOVE_ON:

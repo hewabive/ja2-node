@@ -949,3 +949,14 @@ Specs: `docs/21` (laptop and hiring), `22` (contracts and relationships), `23` (
 **Left out of M5**: NPC presence by `state.npcPlacements` and the 04:00 dealer moves, Slay and EPC events, the history
 writers of quests, dialogue, R.P.C.s and boxing, computed facts (`CheckFact`) and florist bouquet prices (original
 text only); M6 covers all but the prices (`docs/deviations.md`).
+
+### M6: in progress (2026-10-16)
+
+Specs: `docs/24` (NPCs and dialogue), `25` (quests, facts, NPC actions, schedules), `26` (meanwhiles and the ending).
+
+1. **Doors, keys and civilian groups** (`sim/tactical/doors`, `sim/tactical/narrative`, `sim/strategic/narrative/civ-groups.ts`):
+   the lock table, key rings and key items, the mutable door table with the perceived lock and trap state, every branch of
+   `HandleOpenableStruct` (keys, lock picking, forcing, crowbars, shaped charges, examining, untrapping, the traps), shooting
+   locks, the `door` command with the door menu as data; civilian groups as strategic state, `MakeCivHostile`, attack
+   implications, the hostile-quote list and event 41; sight and death rules through a narrative port (facts, quests and
+   records default to off until `docs/24`/`25` provide them). 49 oracle probes match.

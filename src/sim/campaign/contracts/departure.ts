@@ -17,6 +17,7 @@ import { getGroup, removeGroup } from '../../strategic/forces/groups.ts';
 import { EventKind, NUM_MIN_IN_HOUR } from '../../strategic/time/constants.ts';
 import { addStrategicEvent } from '../../strategic/time/event-queue.ts';
 import { CompressionStop, stopTimeCompression, worldTotalMinutes } from '../../strategic/time/world-clock.ts';
+import { takeKeyRingObjects } from '../../tactical/doors/keys.ts';
 import { findNearestAvailableGridNoForItem } from '../../tactical/item-placement.ts';
 import { isProfileDead, MercStatus } from '../../tactical/profiles.ts';
 import { NOWHERE, SoldierStatusFlags } from '../../tactical/soldier.ts';
@@ -102,8 +103,10 @@ export function handleLeavingOfEquipmentInCurrentSector(ctx: ContractContext, m:
     }
   } else
     gridNo = m.insertionCode === InsertionCode.GRIDNO && m.soldier.insertionData !== NOWHERE ? m.soldier.insertionData : randomGridNo(main);
-  for (const o of inventoryObjects(m)) {
-    if (here && tactical) addItemToPool(tactical.state, gridNo, o, Visibility.VISIBLE, m.soldier.level, WorldItemFlags.REACHABLE);
+  const keys = takeKeyRingObjects(ctx.content, m.soldier);
+  for (const o of [...inventoryObjects(m), ...keys]) {
+    const flags = keys.includes(o) ? 0 : WorldItemFlags.REACHABLE;
+    if (here && tactical) addItemToPool(tactical.state, gridNo, o, Visibility.VISIBLE, m.soldier.level, flags);
     else
       addItemsToUnloadedSector(
         ctx.state,
@@ -131,6 +134,10 @@ function setUpDropItemListForMerc(ctx: ContractContext, m: RosterMerc): number {
     leave.items ??= [];
     leave.items.push(cloneObject(o));
     leave.owner = m.profile;
+  }
+  for (const key of takeKeyRingObjects(ctx.content, m.soldier)) {
+    leave.items ??= [];
+    leave.items.push(key);
   }
   const p = ctx.profile(m.profile);
   if (p) {

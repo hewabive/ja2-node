@@ -63,7 +63,7 @@ wraps, i.e. for large balances.
 | 17 | Opplists | 936 + 3 × 24336 + 2 × 936 + 12 | see §7 |
 | 18 | Map screen messages | 3 + 256 × (`u32 size`; if > 0: text + 28) | skipped |
 | 19 | NPC quote info | (profiles + 20 civ sectors) × (`u8 present` + 50 × 32) | skipped |
-| 20 | Key table | 64 × 8 | skipped |
+| 20 | Key table | 64 × 8 (4 skipped, `usSectorFound`, `usDateFound`) | `keyTable`, imported into the shared key table (`25` §8.1) |
 | 21 | Temp NPC quote file | `u32 size` + data (Strac writes 0, vanilla a real file) | skipped |
 | 22 | PreRandom | `u32 index` + 256 × `u32` | all |
 | 23 | Arms dealers | 19 × 20 + 19 × 351 × 16 headers, then 28 × Σ special-item counts of items 1..350 | all: status, headers and special elements (`savegame-merchants.ts`, `docs/23` §15.4) |
@@ -181,6 +181,8 @@ MCP `newSession {save: "SaveGame07"}` and `JA2_SAVE=SaveGame07` for the default 
 
 Order, as in `LoadCurrentSectorsInformationFromTempItemsFile` and `LoadSavedGame`:
 
+0. The loaded sector (`t.sector`), the civilian group hostility (`fCivGroupHostile`, tactical status) and the key table.
+   The door table keeps its perceived lock and trap values (`worldWithSavedDoors`).
 1. Game options from `LoadGeneralInfo` (gun nut, sci-fi, difficulty), the tactical clock from `guiBaseJA2Clock`, and
    the map lights reloaded with the saved hour (`LoadMapLights` runs after `LoadGameClock`, `docs/20` §4).
 2. World items replace the map items (`AddItemToPool` with the saved visibility, flags and z height;
@@ -195,7 +197,9 @@ Order, as in `LoadCurrentSectorsInformationFromTempItemsFile` and `LoadSavedGame
    order (so merc slots fill like `UpdateMercsInSector`). Stats, inventory, AP, breath, morale, AI and interrupt fields,
    path, animation state and script position come from the record. The position is the saved `sGridNo` with the
    coordinates at the tile centre: `EVENT_SetSoldierPosition` re-centres everyone on load, as the oracle confirms.
-   Target, opponent and attacker ids are linked after all soldiers exist.
+   Target, opponent and attacker ids are linked after all soldiers exist. Our mercs keep their key rings (the 128 bytes after
+   the merc path), `ubDoorHandleCode` and the skill-check memory (`bLastSkillCheck`, `ubSkillCheckAttempts`,
+   `sSkillCheckGridNo`).
 7. Opplists: personal and public opplists, seen opponents, public noise, watched locations. The last-known locations
    arrive only half (see §7): the rest stays `NOWHERE`, which is what a fresh process loading the save has.
 8. Turn state: `INCOMBAT`, current team, attack busy count, the interrupt queue, hidden interrupt, last interrupted

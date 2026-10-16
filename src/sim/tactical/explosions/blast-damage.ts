@@ -8,10 +8,10 @@ import { i8, idiv } from '../../../core/int.ts';
 import type { ItemObject } from '../../items/object.ts';
 import { AnimHeight } from '../animation.ts';
 import { findPlatesAttachment, type MaxArmour, maxArmourPerClass } from '../combat/armour.ts';
-import { processImplicationsOfPCAttack } from '../combat/barrier.ts';
 import { eventSoldierGotHit } from '../combat/hit.ts';
 import { InvSlot } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
+import { processImplicationsOfPCAttack } from '../narrative/civ-hostility.ts';
 import { type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 
@@ -83,6 +83,6 @@ export function damageSoldierFromBlast(
   const reduced = Math.max(0, wound - idiv(Math.min(wound, MAX_ARMOURED_WOUND) * armourVersusExplosivesPercent(t, s), 100));
   eventSoldierGotHit(t, s, item, reduced, breath, direction, distance, owner, 0, AnimHeight.CROUCH);
   hurt[s.id] = 1;
-  if (owner && owner.team === Team.OUR && s.team !== Team.OUR) processImplicationsOfPCAttack(t, s);
+  if (owner && owner.team === Team.OUR && s.team !== Team.OUR) processImplicationsOfPCAttack(t, owner, s);
   return true;
 }

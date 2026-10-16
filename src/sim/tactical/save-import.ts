@@ -17,6 +17,7 @@ import { has, StructureFlags } from '../../content/world/structures.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { u8 } from '../../core/int.ts';
 import { objectFromRecord } from '../items/object.ts';
+import { importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
 import { addCorpseStructure } from './combat/death.ts';
 import { swapStructureForPartner } from './doors.ts';
 import { NUM_INV_SLOTS } from './inventory.ts';
@@ -75,6 +76,8 @@ export function worldWithSavedDoors(world: TacticalWorld, save: SaveGame): Tacti
     trapLevel: d.trapLevel,
     trapId: d.trapId,
     lockId: d.lockId,
+    perceivedLocked: d.perceivedLocked,
+    perceivedTrapped: d.perceivedTrapped,
     lockDamage: d.lockDamage,
   }));
   return { ...world, map: { ...world.map, doors: mapDoors } };
@@ -83,6 +86,12 @@ export function worldWithSavedDoors(world: TacticalWorld, save: SaveGame): Tacti
 export function importSave(sim: TacticalSim, save: SaveGame): SaveImportReport {
   const t = sim.state;
   applyOptions(t, save);
+  t.sector = { ...save.tactical.worldSector };
+  importCivGroupHostility(t.civGroups, save.tactical.civGroupHostile);
+  save.keyTable.forEach((k, id) => {
+    const entry = t.keyTable[id];
+    if (entry) Object.assign(entry, k);
+  });
   importProfileProgress(t, save);
   loadSavedSectorLights(sim, save);
   const worldItems = importWorldItems(t, save, sim.world.map.info.centerGridNo);
@@ -272,6 +281,7 @@ export function createSavedSoldier(save: SaveGame, entry: SavedSoldierEntry): So
     civilianGroup: r.civilianGroup,
   });
   copyScalars(s, r);
+  s.keyRing = entry.keyRing ? entry.keyRing.map((k) => ({ keyId: k.keyId, count: k.count })) : null;
   return s;
 }
 
@@ -328,6 +338,10 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.pathStored = m.pathStored !== 0;
   s.absoluteFinalDestination = grid(r.absoluteFinalDestination);
   s.endDoorOpenCode = m.endDoorOpenCode;
+  s.doorHandleCode = m.doorHandleCode;
+  s.lastSkillCheck = m.lastSkillCheck;
+  s.skillCheckAttempts = m.skillCheckAttempts;
+  s.skillCheckGridNo = grid(m.skillCheckGridNo);
   s.delayedMovement = m.delayedMovement ? 1 : 0;
   s.newOppCnt = m.newOppCount;
   s.movementNoiseHeard = m.movementNoiseHeard;

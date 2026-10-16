@@ -117,6 +117,8 @@ export interface MapDoor {
   readonly trapLevel: number;
   readonly trapId: number;
   readonly lockId: number;
+  readonly perceivedLocked: number;
+  readonly perceivedTrapped: number;
   readonly lockDamage: number;
 }
 
@@ -378,7 +380,7 @@ export function parseMap(bytes: Uint8Array): MapDef {
       const trapId = b.u8();
       const lockId = b.u8();
       b.skip(2);
-      doors.push({ gridNo, locked, trapLevel, trapId, lockId, lockDamage: (b.u8() << 24) >> 24 });
+      doors.push({ gridNo, locked, trapLevel, trapId, lockId, perceivedLocked: 0, perceivedTrapped: 0, lockDamage: (b.u8() << 24) >> 24 });
     }
   }
   let edgepoints: MapEdgepoints | null = null;
@@ -509,7 +511,8 @@ export function writeMap(map: Omit<MapDef, 'trailingBytes'>): Uint8Array {
         .u8(d.trapLevel)
         .u8(d.trapId)
         .u8(d.lockId)
-        .zeros(2)
+        .u8(d.perceivedLocked & 0xff)
+        .u8(d.perceivedTrapped & 0xff)
         .u8(d.lockDamage & 0xff)
         .zeros(DOOR_BYTES - 9);
     }

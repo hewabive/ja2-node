@@ -130,7 +130,14 @@ Roof and on-roof tiles are added with `level = 1`, so their structures get `sCub
   On a fresh map load there are none, so pathing reads the structure flags.
 - Strac tile-database fix for mis-flagged double doors (`TileEngine/TileDef.cc:122-149`): edits shared DB records
   (orientation, armour, DDOOR left/right). Missing from `src/content/world/tile-database.ts`.
-- Map door table (`MapDef.doors`: locked, trap, lock id) is only consulted for AI keys (§3.4).
+- Map door table (`MapDef.doors`: locked, trap, lock id, lock damage, perceived lock and trap): the pathfinder consults it for
+  AI keys (§3.4); the door actions, locks, keys and traps of `docs/25` §8 (`src/sim/tactical/doors/`) read and change it. It
+  lives in `TacticalWorldData.mapDoors` (a mutable map whose entries are replaced, never mutated) and travels with the sector
+  diff (`doorTable`). Perceived values are reset when a map loads and kept in the diff and in native saves.
+- Opening and closing (`docs/25` §8.2-§8.3): walking into a closed door calls `InteractWithOpenableStruct` (the door menu for
+  our mercs at locked doors); code 495 of the open/close animations computes `DoorOpeningNoise` first, then runs
+  `HandleOpenableStruct`, which swaps the structure, charges `doorAPs`/`BP_OPEN_DOOR` (or the action's cost) and, when the
+  door changed, makes the creak noise and lets everyone look.
 
 ### 1.6 Structure queries used by movement and LOS
 

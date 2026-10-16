@@ -48,7 +48,7 @@ function sampleMap(minorVersion = 25): Omit<MapDef, 'trailingBytes'> {
     },
     placements: [],
     exitGrids: [{ mapIndex: 5, gridNo: 6, sector: { x: 9, y: 1, z: 1 } }],
-    doors: [{ gridNo: 333, locked: true, trapLevel: 2, trapId: 1, lockId: 4, lockDamage: 0 }],
+    doors: [{ gridNo: 333, locked: true, trapLevel: 2, trapId: 1, lockId: 4, perceivedLocked: 0, perceivedTrapped: 0, lockDamage: 0 }],
     edgepoints: {
       primary: [0, 1, 2, 3].map((i) => ({ middle: i, gridNos: [i, i + 160] })),
       secondary: [0, 1, 2, 3].map(() => ({ middle: 0, gridNos: [] })),

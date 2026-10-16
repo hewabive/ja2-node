@@ -112,7 +112,16 @@ describe('findBestPath', () => {
         s.add(gridNo(x, 79), 0, syntheticStructure(flags, Orientation.INSIDE_LEFT));
       }
     };
-    const door: MapDoor = { gridNo: gridNo(80, 79), locked: true, trapLevel: 0, trapId: 0, lockId: 0, lockDamage: 0 };
+    const door: MapDoor = {
+      gridNo: gridNo(80, 79),
+      locked: true,
+      trapLevel: 0,
+      trapId: 0,
+      lockId: 0,
+      perceivedLocked: 0,
+      perceivedTrapped: 0,
+      lockDamage: 0,
+    };
     const player = findBestPath(env(house), soldier(START), gridNo(80, 78), 0);
     expect(player.length).toBeGreaterThan(10);
     expect(findBestPath(env(house), soldier(START, { team: Team.ENEMY }), gridNo(80, 78), 0).steps).toEqual([NORTH, NORTH]);

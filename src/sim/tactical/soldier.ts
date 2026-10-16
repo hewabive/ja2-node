@@ -5,6 +5,7 @@
 
 import type { StructureInstance } from '../../content/world/structures.ts';
 import type { ItemObject } from '../items/object.ts';
+import { type KeyOnRing, newKeyRing, type PendingDoorAction } from './doors/key-ring.ts';
 import { emptyInventory, type Inventory } from './inventory.ts';
 import type { LightSprite } from './lighting/lighting.ts';
 import type { WorldItem } from './world-items.ts';
@@ -336,6 +337,9 @@ export interface Soldier {
   endDoorOpenCode: number;
   endDoorOpenCodeData: number;
   pendingDoorGridNo: number;
+  doorHandleCode: number;
+  pendingDoorAction: PendingDoorAction | null;
+  keyRing: KeyOnRing[] | null;
   breathCollapsed: boolean;
   collapsed: boolean;
   dontChargeReadyAPs: boolean;
@@ -597,6 +601,9 @@ export function createSoldier(init: SoldierInit): Soldier {
     endDoorOpenCode: 0,
     endDoorOpenCodeData: NOWHERE,
     pendingDoorGridNo: NOWHERE,
+    doorHandleCode: 0,
+    pendingDoorAction: null,
+    keyRing: init.team === Team.OUR ? newKeyRing() : null,
     breathCollapsed: false,
     collapsed: false,
     dontChargeReadyAPs: false,

@@ -5,6 +5,7 @@ import { stubAnimStructures } from '../../src/content/anim/structures.ts';
 import { ANIM_CONTROL_PATH, ANIM_SURFACES_PATH, parseAnimationTables } from '../../src/content/anim/tables.ts';
 import { parseAnimationScripts } from '../../src/content/formats/ja2bin.ts';
 import type { StructureFile } from '../../src/content/formats/jsd.ts';
+import { parseStubLockTable } from '../../src/content/formats/locks.ts';
 import { EXPLOSION_ANIMATIONS_PATH, parseExplosionContent, SMOKE_EFFECTS_PATH } from '../../src/content/items/explosions.ts';
 import { loadItemTable } from '../../src/content/items/items.ts';
 import { type DoorCostTable, parseDoorCostTable } from '../../src/content/world/movement-costs.ts';
@@ -33,6 +34,10 @@ function stubCorpseContent(): CorpseContent {
   return { table, structures };
 }
 
+export function stubLockTable() {
+  return parseStubLockTable(JSON.parse(readFileSync(join(import.meta.dirname, '../../stubs/locks.json'), 'utf8')));
+}
+
 export async function loadTestContent(): Promise<TacticalContent> {
   return {
     scripts: parseAnimationScripts(await buildStubAnimationScripts()),
@@ -43,5 +48,6 @@ export async function loadTestContent(): Promise<TacticalContent> {
     materialArmour: parseMaterialArmour(readDataJson('tables/material-armour.json')),
     explosions: parseExplosionContent(readDataJson(EXPLOSION_ANIMATIONS_PATH), readDataJson(SMOKE_EFFECTS_PATH)),
     corpses: stubCorpseContent(),
+    locks: stubLockTable(),
   };
 }

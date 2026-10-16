@@ -44,6 +44,19 @@ function wall(side: 'left' | 'right'): StubFrame {
   return { raster: r, ox: side === 'left' ? 0 : 18, oy: -raised };
 }
 
+function door(side: 'left' | 'right', open: boolean): StubFrame {
+  const raised = STUB_WALL_HEIGHT + 1;
+  const r = new IndexedRaster(24, raised + 21);
+  const width = open ? 6 : 20;
+  for (let i = 0; i <= width; i++) {
+    const x = side === 'left' ? i : 20 - i;
+    const baseY = raised + 10 - Math.floor(i / 2);
+    const px = side === 'left' ? x : x + 2;
+    for (let y = baseY - STUB_WALL_HEIGHT + 8; y <= baseY; y++) r.set(px, y, color('rust', open ? 5 : 9 + ((y + i) % 7 === 0 ? 2 : 0)));
+  }
+  return { raster: r, ox: side === 'left' ? 0 : 18, oy: -raised };
+}
+
 function barrel(): StubFrame {
   const r = new IndexedRaster(16, 24);
   r.ellipse(8, 14, 6, 9, (nx) => color('rust', 8 - nx * 3));
@@ -61,6 +74,14 @@ const WALL_STRUCTURES = numbered([
   syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT),
 ]);
 const BARREL_STRUCTURES = numbered([syntheticStructure(StructureFlags.GENERIC, Orientation.NONE, { height: 2 })]);
+const CLOSED_DOOR = StructureFlags.DOOR | StructureFlags.OPENABLE;
+const OPEN_DOOR = CLOSED_DOOR | StructureFlags.OPEN;
+const DOOR_STRUCTURES = numbered([
+  { ...syntheticStructure(CLOSED_DOOR, Orientation.OUTSIDE_LEFT), partnerDelta: 1 },
+  { ...syntheticStructure(OPEN_DOOR, Orientation.OUTSIDE_LEFT), partnerDelta: -1 },
+  { ...syntheticStructure(CLOSED_DOOR, Orientation.OUTSIDE_RIGHT), partnerDelta: 1 },
+  { ...syntheticStructure(OPEN_DOOR, Orientation.OUTSIDE_RIGHT), partnerDelta: -1 },
+]);
 
 const SURFACES: readonly { readonly type: string; readonly sprite: StubSprite; readonly structures?: readonly StructureDef[] }[] = [
   { type: 'FIRSTTEXTURE', sprite: { path: 'grass', frames: [groundTile('green', 7, 1), groundTile('green', 6, 2)] } },
@@ -71,6 +92,11 @@ const SURFACES: readonly { readonly type: string; readonly sprite: StubSprite; r
   { type: 'FIRSTWALL', sprite: { path: 'wall', frames: [wall('left'), wall('right')] }, structures: WALL_STRUCTURES },
   { type: 'FIRSTROOF', sprite: { path: 'roof', frames: [groundTile('red', 6, 8)] } },
   { type: 'FIRSTOSTRUCT', sprite: { path: 'barrel', frames: [barrel()] }, structures: BARREL_STRUCTURES },
+  {
+    type: 'FIRSTDOOR',
+    sprite: { path: 'door', frames: [door('left', false), door('left', true), door('right', false), door('right', true)] },
+    structures: DOOR_STRUCTURES,
+  },
 ];
 
 export interface StubWorldWriter {

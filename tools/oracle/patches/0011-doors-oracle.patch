@@ -1,0 +1,40 @@
+Door and civilian-group oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE
+(SFI-SCLA). Appends a wrapper around the static DoTrapCheckOnStartingMenu of Handle_Doors.cc, so the door probes can run
+the start-of-menu trap check without opening the door menu, and an accessor for the static hostile-quote list of
+OppList.cc. No behaviour change. Applied by tools/oracle/build.sh after 0010.
+
+--- a/src/game/Tactical/Handle_Doors.cc
++++ b/src/game/Tactical/Handle_Doors.cc
+@@ -1120,3 +1120,9 @@
+ 	}
+ 	}
+ }
++
++
++bool OracleDoTrapCheckOnStartingMenu(SOLDIERTYPE& s, DOOR& d)
++{
++	return DoTrapCheckOnStartingMenu(s, d);
++}
+--- a/src/game/Tactical/OppList.cc
++++ b/src/game/Tactical/OppList.cc
+@@ -60,5 +60,6 @@
+ #include <algorithm>
+ #include <iterator>
++#include <vector>
+
+
+ static const BOOLEAN gbShowEnemies = FALSE; // XXX seems to be a debug switch
+@@ -5078,3 +5079,13 @@
+ 		}
+ 	}
+ }
++
++
++void OracleHostileQuoteList(std::vector<UINT8>* ids)
++{
++	ids->clear();
++	for (UINT8 i = 0; i < gubNumShouldBecomeHostileOrSayQuote; ++i)
++	{
++		ids->push_back(gShouldBecomeHostileOrSayQuote[i]->ubID);
++	}
++}

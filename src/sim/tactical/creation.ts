@@ -12,17 +12,20 @@ import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { compatibleFaceItem } from '../../content/items/rules.ts';
 import { cardinalSpacesAway, WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import { copyObjectInto, createItem, emptyObject, ObjectFlags, objectFromRecord } from '../items/object.ts';
+import { type CivGroupState, civGroupHostility, createCivGroupState } from '../strategic/narrative/civ-groups.ts';
 import { states } from './animation.ts';
 import { soldierDifficultyLevel } from './combat/chance.ts';
 import type { RandomStream } from './combat/context.ts';
 import { generateRandomEquipment, replaceExtendedGuns } from './equipment.ts';
 import type { PopulationEnv } from './init-list.ts';
 import { emptyInventory, hiredMercInventory, type Inventory, type InventoryContext, InvSlot, npcProfileInventory } from './inventory.ts';
+import { CivGroupHostility } from './narrative/constants.ts';
 import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { calcActionPoints } from './points.ts';
 import type { ProfileProgress } from './profiles.ts';
 import {
   Body,
+  CivilianGroup,
   createSoldier,
   NO_PROFILE,
   Orders,
@@ -211,6 +214,15 @@ const CIVILIAN_STAT_ROLLS: Readonly<Record<number, CivilianStatRoll>> = {
 
 export interface CreationContext extends Pick<TacticalState, 'content' | 'options' | 'equipment' | 'campaign'> {
   readonly rng: RandomStream;
+  readonly civGroups?: CivGroupState;
+}
+
+const WARDEN_PROFILE = 102;
+
+function civilianStartsNeutral(c: CreationContext, profile: number, group: number): boolean {
+  if (profile === WARDEN_PROFILE) return false;
+  if (group === CivilianGroup.NONE) return true;
+  return civGroupHostility(c.civGroups ?? createCivGroupState(), group) !== CivGroupHostility.HOSTILE;
 }
 
 export interface CreationEnv extends Pick<PopulationEnv, 'difficultyModifier' | 'difficulty' | 'bloodcatLair'> {
@@ -675,6 +687,7 @@ export function tacticalCreateSoldier(c: CreationContext, pp: SoldierCreate, id:
   s.breath = INITIAL_BREATH;
   s.breathMax = INITIAL_BREATH_MAX;
   s.hasKeys = pp.hasKeys;
+  if (pp.team === Team.CIV) s.neutral = civilianStartsNeutral(c, pp.profile, s.civilianGroup);
   if (pp.team === Team.OUR || pp.team === Team.MILITIA) s.visible = 1;
   s.actionPoints = calcActionPoints(c.content, s);
   s.initialActionPoints = s.actionPoints;

@@ -69,6 +69,7 @@ export interface InventoryContext {
   readonly actionPoints: () => number;
   readonly spendActionPoints: (ap: number) => void;
   readonly dropAtFeet: (o: ItemObject) => void;
+  readonly collectKey?: (o: ItemObject) => void;
 }
 
 export function emptyInventory(): Inventory {
@@ -174,6 +175,7 @@ export function placeObject(ctx: InventoryContext, c: Carrier, pos: number, o: I
   const def = items.byIndex.get(o.item);
   if (pos === InvSlot.HEAD1 && !compatibleFaceItem(items, o.item, itemIn(inv, InvSlot.HEAD2))) return false;
   if (pos === InvSlot.HEAD2 && !compatibleFaceItem(items, o.item, itemIn(inv, InvSlot.HEAD1))) return false;
+  if (def?.itemClass === ItemClass.KEY) ctx.collectKey?.(o);
   const limit = itemSlotLimit(items, o.item, pos);
   const inSlot = slot(inv, pos);
   const isMoney = def?.itemClass === ItemClass.MONEY;

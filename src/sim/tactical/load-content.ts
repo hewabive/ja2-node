@@ -3,6 +3,7 @@ import { loadAnimStructures } from '../../content/anim/structures.ts';
 import { ANIM_CONTROL_PATH, ANIM_SURFACES_PATH, parseAnimationTables } from '../../content/anim/tables.ts';
 import { FormatError } from '../../content/binary/errors.ts';
 import { ANIMATION_SCRIPTS_PATH, parseAnimationScripts } from '../../content/formats/ja2bin.ts';
+import { decodeLockTable, emptyLockTable, LOCKS_PATH, type LockTable, STUB_LOCKS_PATH } from '../../content/formats/locks.ts';
 import { PROFILES_PATH, parseProfiles } from '../../content/formats/prof.ts';
 import { loadExplosionContent } from '../../content/items/explosions.ts';
 import { loadItemTable } from '../../content/items/items.ts';
@@ -25,10 +26,15 @@ async function json(read: ReadFile, path: string): Promise<unknown> {
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 
+async function loadLockTable(read: ReadFile): Promise<LockTable> {
+  const bytes = (await read(LOCKS_PATH)) ?? (await read(STUB_LOCKS_PATH));
+  return bytes ? decodeLockTable(bytes) : emptyLockTable();
+}
+
 export async function loadTacticalContent(read: ReadFile): Promise<TacticalContent> {
   const scriptBytes = (await read(ANIMATION_SCRIPTS_PATH)) ?? (await read(STUB_ANIMATION_SCRIPTS_PATH));
   if (!scriptBytes) throw new FormatError(`missing ${ANIMATION_SCRIPTS_PATH} (and no stub pack)`);
-  const [control, surfaces, items, profileBytes, animStructures, material, explosions, corpses] = await Promise.all([
+  const [control, surfaces, items, profileBytes, animStructures, material, explosions, corpses, locks] = await Promise.all([
     json(read, ANIM_CONTROL_PATH),
     json(read, ANIM_SURFACES_PATH),
     loadItemTable((path) => json(read, path)),
@@ -37,6 +43,7 @@ export async function loadTacticalContent(read: ReadFile): Promise<TacticalConte
     json(read, MATERIAL_ARMOUR_PATH),
     loadExplosionContent(read),
     json(read, CORPSES_TABLE_PATH).then((table) => loadCorpseContent(read, table)),
+    loadLockTable(read),
   ]);
   return {
     scripts: parseAnimationScripts(scriptBytes),
@@ -47,5 +54,6 @@ export async function loadTacticalContent(read: ReadFile): Promise<TacticalConte
     materialArmour: parseMaterialArmour(material),
     explosions,
     corpses,
+    locks,
   };
 }
