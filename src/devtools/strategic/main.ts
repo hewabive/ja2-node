@@ -12,6 +12,7 @@ import type {
 import { fetchFile } from '../asset-browser/api.ts';
 import { type CommandReply, SessionClient } from '../net/session-client.ts';
 import { LaptopPanel } from './laptop-panel.ts';
+import { HelicopterPanel, QuestPanel } from './narrative-panels.ts';
 
 interface StrategicHook {
   ready: boolean;
@@ -109,6 +110,14 @@ function showResult(text: string, error = false): void {
   resultEl.classList.toggle('error', error);
   debug.lastResult = text;
 }
+
+const questPanel = new QuestPanel();
+const helicopterPanel = new HelicopterPanel(
+  (cmd) => send(cmd),
+  showResult,
+  () => picked,
+  () => [...selectedMercs],
+);
 
 function townName(id: number): string {
   const name = towns.get(id);
@@ -297,6 +306,8 @@ function render(view: StrategicView): void {
   renderMercs(view);
   renderGroups(view);
   renderSectorPanel(view);
+  questPanel.update(view);
+  helicopterPanel.update(view);
   updateActions();
   debug.worldSector = view.worldSector;
   setStatus(

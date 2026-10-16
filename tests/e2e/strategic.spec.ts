@@ -28,6 +28,9 @@ test('starts a campaign and keeps the squad in the garrisoned start sector', asy
   expect(await page.evaluate(() => window.__ja2Strategic.clock)).toBe('Day 1, 07:00');
   await expect(page.locator('#status')).toContainText(/balance \$\d{1,2},\d{3}/);
   await expect(page.locator('[data-sector="A9"] .badge.squad')).toHaveText('S1');
+  await expect(page.locator('#quests tr')).toHaveCount(1);
+  await expect(page.locator('#quests')).toContainText('DELIVER_LETTER');
+  await expect(page.locator('#helicopter')).toBeHidden();
   expect(await page.locator('#mercs tr').count()).toBeGreaterThan(1);
 
   const session = await page.evaluate(() => window.__ja2Strategic.session);
