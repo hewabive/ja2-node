@@ -18,3 +18,4 @@
 .talk-request .actions { display: flex; gap: 4px; margin-top: 4px; }
 .talk-give { margin-top: 6px; }
 .talk-give .actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.prompt { top: auto; bottom: 8px; border: 1px solid #c90; }

@@ -2,6 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Dialogue_Control.cc HandleDialogue, DialogueEvent::Add, EmptyDialogueQueue, DialogueQueueIsEmpty,
 // @src DialogueQueueIsEmptyAndNobodyIsTalking, CanSayQuote, TacticalCharacterDialogue, CharacterDialogue (DialogueEventQuote),
+// @src CharacterDialogueUsingAlternateFile,
 // @src ExecuteCharacterDialogue, GetDialogue, FindDelayForString, TEXT_DELAY_MODIFIER; Tactical/Interface_Dialogue.cc
 // @src TalkingMenuDialogue, ProfileCurrentlyTalkingInDialoguePanel; src/externalized/content/Dialogs.cc
 // @src GetDialogueTextFilename; Tactical/Faces.cc SetFaceTalking (talking duration without speech); Strategic/Assignments.cc
@@ -84,6 +85,10 @@ export function characterDialogue(
   addDialogueEvent(host, { kind: 'quote', speaker, quote, npcUi, fromSoldier, delayed, record });
 }
 
+export function characterDialogueUsingAlternateFile(host: Pick<NarrativeHost, 'talk'>, speaker: number, quote: number): void {
+  addDialogueEvent(host, { kind: 'quote', speaker, quote, npcUi: false, fromSoldier: true, delayed: false, record: null, alternate: true });
+}
+
 export function talkingMenuDialogue(host: Pick<NarrativeHost, 'talk'>, quote: number, record: number | null = null): void {
   characterDialogue(host, host.talk.charNum, quote, true, false, false, record);
 }
@@ -140,6 +145,10 @@ export function executeCharacterDialogue(
 }
 
 function executeQuote(host: NarrativeHost, e: Extract<DialogueEvent, { kind: 'quote' }>): boolean {
+  if (e.alternate) {
+    executeCharacterDialogue(host, e.speaker, e.quote, e.npcUi, e.fromSoldier, e.record, true);
+    return false;
+  }
   const t = host.tactical();
   if (e.delayed && t && t.turn.currentTeam !== Team.OUR) return true;
   host.talk.lastQuoteSaid = e.quote;

@@ -6742,6 +6742,373 @@ void ProbeRobotControl(Command const& c)
 		.raw("mercs", JsonArray(mercs)));
 }
 
+} // namespace
+
+#include "Civ_Quotes.h"
+
+void OracleSurrenderAnswer(bool yes);
+INT8 OracleDecideActionNamedNPC(SOLDIERTYPE* s);
+bool OracleOfferSurrenderNow(SOLDIERTYPE* s);
+BOOLEAN OracleAiPause(UINT32* timer);
+void OracleSetAiPause(BOOLEAN paused, UINT32 timer);
+
+namespace {
+struct OracleCivQuoteSaid
+{
+	int soldier, quote, entry;
+	long long length;
+};
+
+bool gOracleCivHeadless = false;
+std::vector<OracleCivQuoteSaid> gOracleCivSaid;
+}
+
+bool OracleCivQuoteHeadless(SOLDIERTYPE* const civ, UINT8 const quote, UINT8 const entry, size_t const length)
+{
+	if (!gOracleCivHeadless) return false;
+	gOracleCivSaid.push_back({civ->ubID, quote, entry, static_cast<long long>(length)});
+	return true;
+}
+
+namespace {
+std::string DescribeCivSoldier(SOLDIERTYPE const& s)
+{
+	return Json{}
+		.num("id", s.ubID)
+		.num("currentCivQuote", s.bCurrentCivQuote)
+		.num("delta", s.bCurrentCivQuoteDelta)
+		.num("action", s.bAction)
+		.num("actionData", s.usActionData)
+		.num("quoteRecord", s.ubQuoteRecord)
+		.num("quoteActionId", s.ubQuoteActionID)
+		.num("handleEveryFrame", (s.fAIFlags & AI_HANDLE_EVERY_FRAME) ? 1 : 0)
+		.num("neutral", s.bNeutral)
+		.text();
+}
+
+std::string DescribeCivSaid()
+{
+	std::vector<std::string> items;
+	for (auto const& e : gOracleCivSaid) items.push_back(Numbers({e.soldier, e.quote, e.entry, e.length}));
+	return JsonArray(items);
+}
+
+std::string DescribeCivRecordFlags()
+{
+	std::vector<std::string> files;
+	for (int i = 0; i < 20; ++i)
+	{
+		NPCQuoteInfo const* q = OracleCivQuoteArray(static_cast<UINT8>(i));
+		if (!q)
+		{
+			files.push_back("null");
+			continue;
+		}
+		std::vector<long long> flags;
+		for (int r = 0; r < NUM_NPC_QUOTE_RECORDS; ++r) flags.push_back(q[r].fFlags);
+		files.push_back(Numbers(flags));
+	}
+	return JsonArray(files);
+}
+
+std::string QuestDelta(std::vector<UINT8> const& before)
+{
+	std::vector<std::string> changes;
+	for (int q = 0; q < MAX_QUESTS; ++q)
+		if (before[q] != gubQuest[q]) changes.push_back(Numbers({q, before[q], gubQuest[q]}));
+	return JsonArray(changes);
+}
+
+std::string FactDelta(std::vector<UINT8> const& before)
+{
+	std::vector<std::string> changes;
+	for (int f = 0; f < NUM_FACTS; ++f)
+		if (before[f] != gubFact[f]) changes.push_back(Numbers({f, before[f], gubFact[f]}));
+	return JsonArray(changes);
+}
+
+std::string DescribeAiPauseState()
+{
+	UINT32 timer = 0;
+	BOOLEAN const paused = OracleAiPause(&timer);
+	return Json{}.flag("paused", paused).flag("timed", timer != 0).text();
+}
+
+std::string DescribeHostileList()
+{
+	std::vector<UINT8> list;
+	OracleHostileQuoteList(&list);
+	return Numbers(std::vector<long long>(list.begin(), list.end()));
+}
+
+std::string DescribeCapturedMercs()
+{
+	std::vector<std::string> mercs;
+	CFOR_EACH_IN_TEAM(s, OUR_TEAM)
+	{
+		mercs.push_back(Json{}
+			.num("id", s->ubID)
+			.flag("inSector", s->bInSector)
+			.num("life", s->bLife)
+			.num("breath", s->bBreath)
+			.num("assignment", s->bAssignment)
+			.nums("sector", {s->sSector.x, s->sSector.y, s->sSector.z})
+			.num("insertionCode", s->ubStrategicInsertionCode)
+			.num("insertionData", s->usStrategicInsertionData)
+			.num("neutral", s->bNeutral)
+			.text());
+	}
+	return JsonArray(mercs);
+}
+
+std::pair<int, int> PairArgument(std::string const& spec, char const* what)
+{
+	std::vector<std::string> const parts = SplitList(spec, ':');
+	if (parts.size() != 2) throw std::runtime_error(std::string(what) + " looks like <a>:<b>");
+	return {static_cast<int>(ParseInteger(what, parts[0])), static_cast<int>(ParseInteger(what, parts[1]))};
+}
+
+void ApplyCivSoldierSetup(Command const& c, SOLDIERTYPE& s)
+{
+	SetIfGiven(c, "quote", s.bCurrentCivQuote);
+	SetIfGiven(c, "delta", s.bCurrentCivQuoteDelta);
+	SetIfGiven(c, "action", s.bAction);
+	SetIfGiven(c, "life", s.bLife);
+	SetIfGiven(c, "class", s.ubSoldierClass);
+	SetIfGiven(c, "visible", s.bVisible);
+	SetIfGiven(c, "quoteRecord", s.ubQuoteRecord);
+	SetIfGiven(c, "quoteAction", s.ubQuoteActionID);
+	SetIfGiven(c, "neutral", s.bNeutral);
+	SetIfGiven(c, "group", s.ubCivilianGroup);
+	if (Has(c, "cower"))
+	{
+		if (Integer(c, "cower", 0) != 0) s.uiStatusFlags |= SOLDIER_COWERING;
+		else s.uiStatusFlags &= ~SOLDIER_COWERING;
+	}
+	if (Has(c, "dir"))
+	{
+		INT8 const dir = static_cast<INT8>(Integer(c, "dir", 0));
+		EVENT_SetSoldierDirection(&s, dir);
+		EVENT_SetSoldierDesiredDirection(&s, dir);
+	}
+	if (Has(c, "grid")) EVENT_SetSoldierPosition(&s, static_cast<GridNo>(Integer(c, "grid", 0)), SSP_NONE);
+	if (Has(c, "sees"))
+	{
+		for (std::string const& id : SplitList(Text(c, "sees", ""), ','))
+		{
+			SoldierID const opp = static_cast<SoldierID>(ParseInteger("sees", id));
+			if (s.bOppList[opp] != SEEN_CURRENTLY) ++s.bOppCnt;
+			s.bOppList[opp] = SEEN_CURRENTLY;
+		}
+	}
+	if (Has(c, "unseen"))
+	{
+		for (std::string const& id : SplitList(Text(c, "unseen", ""), ','))
+		{
+			SoldierID const opp = static_cast<SoldierID>(ParseInteger("unseen", id));
+			if (s.bOppList[opp] == SEEN_CURRENTLY) --s.bOppCnt;
+			s.bOppList[opp] = NOT_HEARD_OR_SEEN;
+		}
+	}
+}
+
+void ApplyCivSetup(Command const& c)
+{
+	if (Has(c, "who")) ApplyCivSoldierSetup(c, ExistingSoldier(Required(c, "who")));
+	if (Has(c, "rating"))
+	{
+		auto const [town, rating] = PairArgument(Text(c, "rating", ""), "rating");
+		gTownLoyalty[town].ubRating = static_cast<UINT8>(rating);
+	}
+	if (Has(c, "combat"))
+	{
+		if (Integer(c, "combat", 0) != 0) gTacticalStatus.uiFlags |= INCOMBAT;
+		else gTacticalStatus.uiFlags &= ~INCOMBAT;
+	}
+	for (std::string const& spec : SplitList(Text(c, "fact", ""), ','))
+	{
+		auto const [fact, value] = PairArgument(spec, "fact");
+		gubFact[fact] = static_cast<UINT8>(value);
+	}
+	for (std::string const& spec : SplitList(Text(c, "quest", ""), ','))
+	{
+		auto const [quest, value] = PairArgument(spec, "quest");
+		gubQuest[quest] = static_cast<UINT8>(value);
+	}
+	for (std::string const& id : SplitList(Text(c, "listadd", ""), ','))
+		AddToShouldBecomeHostileOrSayQuoteList(&ExistingSoldier(ParseInteger("listadd", id)));
+	if (Has(c, "enemyFlags")) gTacticalStatus.fEnemyFlags = static_cast<UINT8>(Integer(c, "enemyFlags", 0));
+	if (Has(c, "pause")) OracleSetAiPause(Integer(c, "pause", 0) != 0, 0);
+}
+
+void SetCivState(Command const& c)
+{
+	ApplyCivSetup(c);
+	Json json;
+	json.str("probe", "civset").num("line", c.line).raw("args", DescribeArgs(c));
+	if (Has(c, "who")) json.raw("soldier", DescribeCivSoldier(ExistingSoldier(Required(c, "who"))));
+	Emit(json);
+}
+
+void ProbeCivQuote(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	std::string const before = DescribeCivSoldier(s);
+	std::vector<UINT8> const quests(gubQuest, gubQuest + MAX_QUESTS);
+	std::vector<OracleFactEntry> facts;
+	gOracleCivSaid.clear();
+	gOracleCivHeadless = true;
+	gOracleFactTrace = &facts;
+	std::string const draws = TracedSaiDraws([&] { StartCivQuote(&s); });
+	gOracleFactTrace = nullptr;
+	gOracleCivHeadless = false;
+	Emit(Json{}
+		.str("probe", "civquote")
+		.num("line", c.line)
+		.num("who", s.ubID)
+		.raw("before", before)
+		.raw("after", DescribeCivSoldier(s))
+		.raw("said", DescribeCivSaid())
+		.raw("facts", DescribeFactTrace(facts))
+		.raw("draws", draws)
+		.raw("questChanges", QuestDelta(quests))
+		.raw("civFlags", DescribeCivRecordFlags()));
+}
+
+template<typename Run, typename Extra>
+void EmitDialogueProbe(Command const& c, char const* name, Run&& run, Extra&& extra)
+{
+	std::vector<UINT8> const factsBefore(gubFact, gubFact + NUM_FACTS);
+	std::vector<UINT8> const quests(gubQuest, gubQuest + MAX_QUESTS);
+	std::vector<OracleDialogueEntry> dialogue;
+	std::vector<OracleFactEntry> facts;
+	ResetTalkProbe();
+	gfWaitingForTriggerTimer = FALSE;
+	gOracleDialogueTrace = &dialogue;
+	gOracleFactTrace = &facts;
+	std::string const draws = TracedSaiDraws(run);
+	gOracleFactTrace = nullptr;
+	gOracleDialogueTrace = nullptr;
+	Json json;
+	json.str("probe", name).num("line", c.line);
+	extra(json);
+	Emit(json
+		.raw("queue", DescribeDialogueTrace(dialogue))
+		.raw("facts", DescribeFactTrace(facts))
+		.raw("draws", draws)
+		.raw("factChanges", FactDelta(factsBefore))
+		.raw("questChanges", QuestDelta(quests))
+		.flag("waitingForTrigger", gfWaitingForTriggerTimer)
+		.raw("hostileList", DescribeHostileList())
+		.raw("aiPause", DescribeAiPauseState())
+		.raw("civ", DescribeCivState()));
+	ResetTalkProbe();
+	gfWaitingForTriggerTimer = FALSE;
+}
+
+void ProbeNamedNpc(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	std::string const before = DescribeCivSoldier(s);
+	INT8 action = AI_ACTION_NONE;
+	EmitDialogueProbe(c, "namednpc", [&] { action = OracleDecideActionNamedNPC(&s); }, [&](Json& json) {
+		json.num("who", s.ubID).num("action", action).raw("before", before).raw("after", DescribeCivSoldier(s));
+	});
+}
+
+void ProbeInitiating(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	std::vector<OracleFactEntry> facts;
+	gOracleFactTrace = &facts;
+	INT16 const grid = NPCConsiderInitiatingConv(&s);
+	gOracleFactTrace = nullptr;
+	Emit(Json{}
+		.str("probe", "initiating")
+		.num("line", c.line)
+		.num("who", s.ubID)
+		.num("grid", grid == NOWHERE ? -1 : grid)
+		.raw("facts", DescribeFactTrace(facts))
+		.raw("profile", DescribeNpcProfile(s.ubProfile)));
+}
+
+void ProbePcsNear(Command const& c)
+{
+	UINT8 const npc = static_cast<UINT8>(Required(c, "npc"));
+	SOLDIERTYPE const* const s = FindSoldierByProfileID(npc);
+	EmitDialogueProbe(c, "pcsnear", [&] { PCsNearNPC(npc); }, [&](Json& json) {
+		json.num("npc", npc).raw("soldier", s ? DescribeCivSoldier(*s) : "null");
+	});
+}
+
+void ProbeFirstAid(Command const& c)
+{
+	UINT8 const npc = static_cast<UINT8>(Required(c, "npc"));
+	BOOLEAN refused = FALSE;
+	EmitDialogueProbe(c, "firstaid", [&] { refused = PCDoesFirstAidOnNPC(npc); }, [&](Json& json) {
+		json.num("npc", npc).flag("refused", refused).raw("profile", DescribeNpcProfile(npc));
+	});
+}
+
+void ProbeFriendHostile(Command const& c)
+{
+	UINT8 const npc = static_cast<UINT8>(Required(c, "npc"));
+	EmitDialogueProbe(c, "friendhostile", [&] { TriggerFriendWithHostileQuote(npc); }, [&](Json& json) { json.num("npc", npc); });
+}
+
+std::string DescribeListedSpeakers(std::vector<UINT8> const& list)
+{
+	std::vector<std::string> items;
+	for (UINT8 const id : list) items.push_back(Numbers({id, GetMan(id).bVisible, gbPublicOpplist[OUR_TEAM][id]}));
+	return JsonArray(items);
+}
+
+void ProbeHostileCheck(Command const& c)
+{
+	std::vector<UINT8> list;
+	OracleHostileQuoteList(&list);
+	std::string const before = DescribeListedSpeakers(list);
+	EmitDialogueProbe(c, "hostilecheck", [] { CheckHostileOrSayQuoteList(); }, [&](Json& json) {
+		json.raw("listedBefore", before).raw("listedAfter", DescribeListedSpeakers(list));
+	});
+}
+
+void ProbeSurrender(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	bool const offered = OracleOfferSurrenderNow(&s);
+	Emit(Json{}
+		.str("probe", "surrender")
+		.num("line", c.line)
+		.num("who", s.ubID)
+		.flag("offered", offered)
+		.num("enemyFlags", gTacticalStatus.fEnemyFlags)
+		.num("pcs", NumPCsInSector())
+		.num("enemies", gTacticalStatus.Team[ENEMY_TEAM].bMenInSector)
+		.flag("militia", IsTeamActive(MILITIA_TEAM)));
+}
+
+void ProbeSurrenderAnswer(Command const& c)
+{
+	bool const yes = Text(c, "value", "no") == "yes";
+	SOLDIERTYPE const* const who = Has(c, "who") ? &ExistingSoldier(Required(c, "who")) : nullptr;
+	std::vector<UINT8> const quests(gubQuest, gubQuest + MAX_QUESTS);
+	UINT32 const flagsBefore = gStrategicStatus.uiFlags;
+	std::string const draws = TracedSaiDraws([&] { OracleSurrenderAnswer(yes); });
+	Emit(Json{}
+		.str("probe", "surrenderanswer")
+		.num("line", c.line)
+		.flag("yes", yes)
+		.raw("mercs", DescribeCapturedMercs())
+		.raw("questChanges", QuestDelta(quests))
+		.num("strategicFlagsBefore", flagsBefore)
+		.num("strategicFlags", gStrategicStatus.uiFlags)
+		.num("captured", gStrategicStatus.ubNumCapturedForRescue)
+		.raw("offering", who ? DescribeCivSoldier(*who) : "null")
+		.raw("draws", draws));
+}
+
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -6927,6 +7294,16 @@ void Dispatch(Command const& c)
 	if (c.name == "scheddecide") return ProbeScheduleDecision(c);
 	if (c.name == "schedshophours") return ProbeScheduleShopHours(c);
 	if (c.name == "schedmove") return MoveScheduleSoldier(c);
+	if (c.name == "civset") return SetCivState(c);
+	if (c.name == "civquote") return ProbeCivQuote(c);
+	if (c.name == "namednpc") return ProbeNamedNpc(c);
+	if (c.name == "initiating") return ProbeInitiating(c);
+	if (c.name == "pcsnear") return ProbePcsNear(c);
+	if (c.name == "firstaid") return ProbeFirstAid(c);
+	if (c.name == "friendhostile") return ProbeFriendHostile(c);
+	if (c.name == "hostilecheck") return ProbeHostileCheck(c);
+	if (c.name == "surrender") return ProbeSurrender(c);
+	if (c.name == "surrenderanswer") return ProbeSurrenderAnswer(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

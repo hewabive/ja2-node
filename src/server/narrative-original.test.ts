@@ -5,7 +5,8 @@ import { IRRELEVANT } from '../content/formats/npc.ts';
 import { parseSaveGame } from '../content/formats/savegame.ts';
 import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../content/formats/savegame-header.ts';
 import { readSavedNpcRecords } from '../content/formats/savegame-npc.ts';
-import { DialogueTexts, npcDialogueFile } from '../content/narrative/dialogue-text.ts';
+import { civQuoteTextKey, DialogueTexts, npcDialogueFile } from '../content/narrative/dialogue-text.ts';
+import { CIV_QUOTE_SECTORS, CivQuote, civQuoteEntries, MINERS_CIV_QUOTE_INDEX } from '../content/narrative/npc-constants.ts';
 import { loadNpcRecordContent } from '../content/narrative/npc-records.ts';
 import { MercType } from '../content/strategic/economy-content.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
@@ -20,6 +21,10 @@ const saveFiles = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter
 const RECRUITED = 0x01;
 const MEANWHILE_FILES = 34;
 const CIVILIAN_FILES = 17;
+const SURFACE = { x: 13, y: 3, z: 0 };
+const CHOSEN_CIV_QUOTES = [
+  0, 1, 6, 7, 8, 9, 10, 11, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 39,
+];
 
 describe.skipIf(!process.env.JA2_DATA_DIR)('NPC records and dialogue on the original data', () => {
   let data: DataVfs;
@@ -53,6 +58,22 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('NPC records and dialogue on the orig
       }
     }
     expect(found / lines).toBeGreaterThan(0.8);
+  });
+
+  it('finds the rows of every civilian quote type that can be chosen and the hint lines of every hint sector', async () => {
+    const content = await loadTacticalContent(read);
+    const records = await loadNpcRecordContent({ read, items: content.items, layerCount: (p) => data.vfs.layerCount(p) });
+    const texts = await DialogueTexts.load(read);
+    for (const quote of CHOSEN_CIV_QUOTES)
+      for (let entry = 0; entry < civQuoteEntries(quote) - 1; entry++)
+        expect(texts.chars(civQuoteTextKey(quote, entry, SURFACE)), `civ${quote} row ${entry}`).toBeGreaterThan(0);
+    CIV_QUOTE_SECTORS.forEach(([x, y], index) => {
+      const sector = { x, y, z: 0 };
+      if (index === MINERS_CIV_QUOTE_INDEX) return;
+      for (const q of records.civilian[index] ?? [])
+        if (q.quoteNum !== IRRELEVANT && q.approachRequired === 0)
+          expect(texts.chars(civQuoteTextKey(CivQuote.HINT, q.quoteNum, sector)), `${x},${y} row ${q.quoteNum}`).toBeGreaterThan(0);
+    });
   });
 
   for (const file of saveFiles) {

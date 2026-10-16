@@ -986,3 +986,6 @@ Specs: `docs/24` (NPCs and dialogue), `25` (quests, facts, NPC actions, schedule
 8. **Recruiting, escorts and the robot** (`sim/tactical/narrative/team-change.ts`, `sim/campaign/narrative/recruit-flow.ts`,
    `robot-control.ts`): `ChangeSoldierTeam`, R.P.C.s and escorts joining and leaving, the `unescort` command, escort
    arrivals, civilian-group side changes and the robot's remote control. 74 oracle probes match.
+9. **Civilian quotes, surrender and NPCs on their own** (`sim/narrative/civ-quotes.ts`, `sim/tactical/ai/pause.ts`): civilian
+   quotes and sector hints, guide descriptions, the enemy's surrender offer in tactical combat, the hostile-quote pause,
+   first-sighting records and quotes, and the named-NPC AI that walks up and starts conversations. 151 oracle probes match.

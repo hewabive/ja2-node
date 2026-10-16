@@ -532,7 +532,8 @@ NPC record arrays (`state.npcRecords`, imported from native saves) and the dialo
 - `talk {soldier, target}`: `target` is a soldier id or `{npc: <profile id or internal name>}`. Refused with `notInTactical`,
   `promptOpen`, `shopOpen`, `sessionOpen`, `scriptedSequence`, `canAct` (the tactical refusal text), `noSuchTarget`,
   `notTalkable`, `targetHidden`, `targetMoving`, `talkerIsRobot`, `noLineOfSight`, `targetCollapsed`, `refusesToTalk`
-  (Dimitri), `civilianBark` (unnamed civilians come later), `noPath`, `notEnoughAP` (6 AP). Talking to an own merc barks
+  (Dimitri), `noPath`, `notEnoughAP` (6 AP). An unnamed civilian or an enemy soldier answers with a civilian quote
+  (§6.19). Talking to an own merc barks
   (`data.bark`, a `mercQuote` event, no AP). Beyond 4 tiles the soldier walks up (`data {walking: true, to}`) and the talk
   starts on arrival during `advance`; a target that became invalid gives `talkAborted`. Otherwise the opening runs at once.
 - `approach {kind}`: `repeat`, `friendly`, `direct`, `threaten`, `recruit`, `whoAreYou`, `buySell` (dealers: an unused
@@ -694,6 +695,39 @@ Events: `npcRecruited {profile, soldier, kind: 'rpc' | 'epc', salary}` (the new 
 `epcReleased {profile, soldier}` (`soldier` is the new civilian's id when he stands in the loaded sector, else null),
 `npcMessage` kinds `recruited`, `nowEscorted` (`amount` = squad number, also for the partner) and `teamFull`, and the
 history line `RPC_JOINED_TEAM` (`historyAdded`). Opinions, profile flags, the remote holder id and the records stay hidden.
+
+### 6.19. Civilian quotes, the enemy surrender offer and NPCs on their own (M6)
+
+`talk {soldier, target}` to an unnamed civilian, a militiaman or a visible enemy soldier with a merc body (`talkable:
+civilian` in the view) runs the same checks, walk-up and 6 AP as a conversation (§6.12) but opens no panel: the target
+barks a civilian quote (`docs/24` §8, `src/sim/narrative/civ-quotes.ts`). `data` is `{civQuote: {soldier, quote, entry,
+hint, textKey, text?} | null}` when the target stood within 4 tiles (`null` when the line has no text and nothing is
+shown); after a walk-up the bark arrives during `advance` as an event. `quote` is the civilian quote type (enemy, militia,
+group, cowering, loyalty and all-purpose lines; `99` is a hint, whose text comes from the sector's file and which may
+start a quest), `entry` the row. A civilian alternates between two lines and never gives two hints in a row; a second
+`talk` barks again (the original's box is presentation, there is nothing to close). Event: `civQuote {soldier, quote,
+entry, hint, textKey, chars}` (with `text` in the session's reports). The hicks' night warning in F10 is the same event.
+
+**The enemy surrender offer** (`docs/24` §8.5). In battle an enemy soldier the squad sees, with at least half his life,
+may offer surrender once per sector visit when there are fewer than four mercs, no militia and at least three enemies
+per merc, and the Alma capture quests allow it. He barks the surrender line (`civQuote` with `quote` 37) and a
+**surrender prompt** opens at once: `observe.prompt` (and view frames) carry `{id, kind: 'surrender', context: 'tactical',
+soldier, choices: ['accept', 'reject']}` (the autoresolve battle's surrender offer now carries `context: 'autoresolve'`). Time
+stands still until `answer {prompt?, choice: 'accept'|'reject'}`: `accept` captures every living merc in the sector
+(`mercCaptured` events, the Alma or interrogation quest starts) and the battle is lost (`battleResult` defeat, the sector
+unloads ten seconds later); `reject` lets the enemy go on. `data` is `{surrendered}`. Event when the offer opens:
+`surrenderOffered {soldier, prompt}`. Without a campaign (sandbox sessions) the offer is declined at once.
+
+**NPCs on their own.** Named civilians decide in real time before their routine (`docs/24` §5.4): after a record told
+them to face the player they turn towards the closest merc and run their tile records once one comes within 8 tiles; an
+NPC with something to say walks up to that merc (a conversation still needs a tile record or the player's `talk`); the
+six assassins close in and turn hostile within 8 tiles. An NPC who just spoke does nothing for a minute of game time.
+First sightings run the original's rules (a declaration of hostility, Joe and Elliot, Iggy, our mercs seeing Mike and
+Joey with their merc lines, Mike greeting the squad once). While a hostile NPC delivers his declaration all AI is paused
+and the speaker is revealed to the squad; when the hostile-quote list resolves, the listed civilians turn hostile, AI
+resumes and combat starts. A recruited guide (Ira, Miguel, Carlos, Dimitri) standing in a described town or SAM sector
+describes it once, 4–8 real-time turns after the first visit (`mercQuote` from his second dialogue file). None of this
+has a command; the effects show as the events of §6.12 and this section.
 
 ## 7. Cost and limitations
 

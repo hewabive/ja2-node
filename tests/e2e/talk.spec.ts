@@ -10,6 +10,8 @@ const EAST_EDGE_COLUMN = 150;
 const STUB_NPC = 94;
 const STUB_NPC_TILE = 74 * COLS + 72;
 const NEAR_NPC = STUB_NPC_TILE + 3;
+const VILLAGER_TILE = 75 * COLS + 88;
+const NEAR_VILLAGER = VILLAGER_TILE + 2;
 
 interface SoldierView {
   readonly id: number;
@@ -36,13 +38,27 @@ interface View {
   readonly conversation?: ConversationView | null;
 }
 
+interface CivQuoteView {
+  readonly type?: string;
+  readonly soldier: number;
+  readonly quote: number;
+  readonly text?: string;
+}
+
 interface ActResult {
   readonly ok: boolean;
   readonly reason?: string;
-  readonly data?: { readonly walking?: boolean; readonly lines?: readonly LineView[]; readonly refusal?: string };
+  readonly data?: {
+    readonly walking?: boolean;
+    readonly lines?: readonly LineView[];
+    readonly refusal?: string;
+    readonly civQuote?: CivQuoteView | null;
+  };
 }
 
-test('an MCP agent walks a stub squad to A10 and talks to the stub NPC, then the browser talks again', async ({ page }) => {
+test('an MCP agent walks a stub squad to A10, hears a villager and talks to the stub NPC, then the browser talks again', async ({
+  page,
+}) => {
   test.setTimeout(120_000);
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {
     requestInit: { headers: { authorization: `Bearer ${TOKEN}` } },
@@ -68,6 +84,20 @@ test('an MCP agent walks a stub squad to A10 and talks to the stub NPC, then the
   expect(await act({ type: 'exitSector', soldier: leader.id, direction: 'east', who: 'squad', load: true })).toMatchObject({ ok: true });
   await call('advance', { session, idle: true });
   expect((await observe()).mapPath).toBe('stubs/world/maps/a10.dat');
+  const second = (await squad())[1];
+  if (!second) throw new Error('no second merc');
+  expect(await act({ type: 'move', soldier: second.id, to: NEAR_VILLAGER, mode: 'walk' })).toMatchObject({ ok: true });
+  await call('advance', { session, idle: true });
+  const villager = (await observe()).soldiers.find((s) => s.talkable === 'civilian');
+  if (!villager) throw new Error('no civilian in sight');
+  const bark = await act({ type: 'talk', soldier: second.id, target: villager.id });
+  expect(bark.ok, bark.reason).toBe(true);
+  const said = bark.data?.walking
+    ? ((await call('advance', { session, idle: true })) as { events: CivQuoteView[] }).events.find((e) => e.type === 'civQuote')
+    : bark.data?.civQuote;
+  expect(said?.soldier).toBe(villager.id);
+  expect(said?.text?.length).toBeGreaterThan(0);
+  expect((await observe()).conversation ?? null).toBeNull();
   expect(await act({ type: 'move', soldier: leader.id, to: NEAR_NPC, mode: 'walk' })).toMatchObject({ ok: true });
   await call('advance', { session, idle: true });
   expect((await observe()).soldiers.find((s) => s.profile === STUB_NPC)?.talkable).toBe('npc');

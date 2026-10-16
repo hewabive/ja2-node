@@ -169,12 +169,31 @@ describe('civilian groups', () => {
     const villager = civilian(sim, 117, NEAR + 1);
     addToShouldBecomeHostileOrSayQuoteList(sim.state, carmen);
     addToShouldBecomeHostileOrSayQuoteList(sim.state, villager);
+    carmen.visible = 1;
     const main = new ScriptedStream([0]);
     Object.assign(sim.state, { rng: main });
     checkHostileOrSayQuoteList(sim.state);
     expect(main.requested).toEqual([1]);
     expect(port.calls).toEqual([`hostileQuote ${Profile.CARMEN}`]);
     expect([carmen.neutral, villager.neutral]).toEqual([true, true]);
+    expect([sim.state.turn.pauseAllAi, sim.state.turn.pauseAllAiSinceMs]).toEqual([true, null]);
+  });
+
+  it('reveals an unseen speaker to our team before the quote and unpauses the AI when the list resolves', () => {
+    const { sim } = setup();
+    let carmenHasRecord = true;
+    const port = recordingPort({ hasUnusedHostileRecord: (profile) => profile === Profile.CARMEN && carmenHasRecord });
+    sim.state.narrative = port;
+    const carmen = civilian(sim, 116, NEAR, CivilianGroup.NONE, Profile.CARMEN);
+    carmen.visible = 0;
+    addToShouldBecomeHostileOrSayQuoteList(sim.state, carmen);
+    Object.assign(sim.state, { rng: new ScriptedStream([0], 0) });
+    checkHostileOrSayQuoteList(sim.state);
+    expect(sim.state.perception.publicOpp[Team.OUR]?.[carmen.id]).not.toBe(Opp.NOT_HEARD_OR_SEEN);
+    expect(sim.state.turn.pauseAllAi).toBe(true);
+    carmenHasRecord = false;
+    checkHostileOrSayQuoteList(sim.state);
+    expect([carmen.neutral, sim.state.turn.pauseAllAi, sim.state.hostileQuoteList]).toEqual([false, false, []]);
   });
 
   it('raises a group that will become hostile to hostile when a listed member resolves', () => {

@@ -1,0 +1,34 @@
+Sighting quote traces for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE (SFI-SCLA).
+In ManSeesMan the merc quotes for first seeing Mike and Joey go through OracleTracedMercDialogue (Oracle.cc, from
+0018), which records them as "merc" dialogue events when queued, so the comparers see them like the queued NPC quotes.
+No behaviour change. Applied by tools/oracle/build.sh after 0021.
+
+--- a/src/game/Tactical/OppList.cc
++++ b/src/game/Tactical/OppList.cc
+@@ -61,6 +61,8 @@
+ #include <iterator>
+ #include <vector>
+ 
++BOOLEAN OracleTracedMercDialogue(SOLDIERTYPE const* s, UINT16 quote);
++
+ 
+ static const BOOLEAN gbShowEnemies = FALSE; // XXX seems to be a debug switch
+ 
+@@ -1736,7 +1738,7 @@
+ 						!(s.usQuoteSaidExtFlags & SOLDIER_QUOTE_SAID_EXT_MIKE))
+ 					{
+ 						if (gfMikeShouldSayHi == FALSE) gfMikeShouldSayHi = TRUE;
+-						TacticalCharacterDialogue(&s, QUOTE_AIM_SEEN_MIKE);
++						OracleTracedMercDialogue(&s, QUOTE_AIM_SEEN_MIKE);
+ 						s.usQuoteSaidExtFlags |= SOLDIER_QUOTE_SAID_EXT_MIKE;
+ 					}
+ 					break;
+@@ -1744,7 +1746,7 @@
+ 				case JOEY:
+ 					if (!gfPlayerTeamSawJoey)
+ 					{
+-						TacticalCharacterDialogue(&s, QUOTE_SPOTTED_JOEY);
++						OracleTracedMercDialogue(&s, QUOTE_SPOTTED_JOEY);
+ 						gfPlayerTeamSawJoey = TRUE;
+ 					}
+ 					break;

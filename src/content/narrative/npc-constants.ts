@@ -4,7 +4,8 @@
 // @src NUM_CIVQUOTE_SECTORS, MINERS_CIV_QUOTE_INDEX, INITIATING_FACTOR, LARGE_AMOUNT_MONEY; TacticalAI/AI.h QuoteActionType;
 // @src Tactical/Interface_Dialogue.h NPCAction (the codes the dialogue mechanics use); Strategic/Quests.h Quests,
 // @src QUESTNOTSTARTED, QUESTINPROGRESS, QUESTDONE; src/externalized/internals/enums.cc getApproachEnumFromString,
-// @src getQuestEnumFromString. See docs/24 §1, §2.5, §7.5.
+// @src getQuestEnumFromString; Tactical/Civ_Quotes.h CIV_QUOTE_*, NUM_CIV_QUOTES; Civ_Quotes.cc gubNumEntries,
+// @src CIV_QUOTE_HINT, CIV_QUOTE_TEXT_SIZE. See docs/24 §1, §2.5, §7.5, §8.
 
 export const NUM_PROFILES = 200;
 export const NO_PROFILE = 200;
@@ -168,3 +169,60 @@ export const CIV_QUOTE_SECTORS: readonly (readonly [number, number])[] = [
 ];
 
 export const SharedDialogueFile = { FIRST: 151, LAST: 154 } as const;
+
+export const CivQuote = {
+  ADULTS_BEGGING: 0,
+  KIDS_BEGGING: 1,
+  ADULTS_EXTREMLY_LOW_LOYALTY: 6,
+  KIDS_EXTREMLY_LOW_LOYALTY: 7,
+  ADULTS_HIGH_LOYALTY: 8,
+  KIDS_HIGH_LOYALTY: 9,
+  ADULTS_ALL_PURPOSE: 10,
+  KIDS_ALL_PURPOSE: 11,
+  HICKS_FRIENDLY: 16,
+  HICKS_ENEMIES: 17,
+  GOONS_FRIENDLY: 18,
+  GOONS_ENEMIES: 19,
+  ADULTS_REBELS: 20,
+  KIDS_REBELS: 21,
+  GREEN_MILITIA: 22,
+  MEDIUM_MILITIA: 23,
+  ELITE_MILITIA: 24,
+  SAN_MONA_BEGGERS: 25,
+  ENEMY_HURT: 26,
+  ENEMY_ADMIN: 27,
+  ENEMY_THREAT: 28,
+  ENEMY_ELITE: 29,
+  ADULTS_COWER: 30,
+  KIDS_COWER: 31,
+  PC_MARRIED: 32,
+  KID_SLAVES: 33,
+  KID_SLAVES_FREE: 34,
+  MINERS_NOT_FOR_PLAYER: 35,
+  MINERS_FOR_PLAYER: 36,
+  ENEMY_OFFER_SURRENDER: 37,
+  HICKS_SEE_US_AT_NIGHT: 38,
+  DEIDRANNA_DEAD: 39,
+  HINT: 99,
+} as const;
+
+export const NUM_CIV_QUOTES = 50;
+
+const REGULAR_CIV_QUOTE_ENTRIES = 15;
+const CIV_QUOTE_ENTRY_EXCEPTIONS: Readonly<Record<number, number>> = {
+  20: 5,
+  21: 5,
+  32: 2,
+  35: 10,
+  36: 10,
+  37: 5,
+  38: 3,
+  39: 10,
+};
+const LAST_THREE_ENTRY_TYPES_FROM = 40;
+const THREE_ENTRIES = 3;
+
+export function civQuoteEntries(quote: number): number {
+  if (quote >= LAST_THREE_ENTRY_TYPES_FROM) return THREE_ENTRIES;
+  return CIV_QUOTE_ENTRY_EXCEPTIONS[quote] ?? REGULAR_CIV_QUOTE_ENTRIES;
+}

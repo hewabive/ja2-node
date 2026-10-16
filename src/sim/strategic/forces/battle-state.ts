@@ -50,7 +50,7 @@ export type BattlePrompt =
       readonly options: readonly PbiOption[];
       readonly enemiesKnown: boolean;
     }
-  | { readonly id: string; readonly kind: typeof PromptKind.SURRENDER }
+  | { readonly id: string; readonly kind: typeof PromptKind.SURRENDER; readonly context?: 'tactical'; readonly soldier?: number }
   | { readonly id: string; readonly kind: typeof PromptKind.AUTORESOLVE_DONE }
   | { readonly id: string; readonly kind: typeof PromptKind.SIMULTANEOUS_ARRIVAL }
   | { readonly id: string; readonly kind: typeof PromptKind.NPC_OF_NOTE }

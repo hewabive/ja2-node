@@ -40,7 +40,8 @@ Skyrider's helicopter once it is available and opens the laptop (mail, A.I.M., M
 records); its "tactical view" link opens the loaded sector of that
 campaign, where "trade" opens the shop of the nearest visible merchant and "talk" starts a conversation with the nearest
 visible named NPC (its lines, the approaches: friendly, direct, threaten, recruit, buy/sell…, the NPC's yes/no questions
-and giving items from the talker's inventory; stub dealers and the stub NPC stand in A10, east of A9). In the
+and giving items from the talker's inventory; an unnamed civilian answers with a quote; stub dealers and the stub NPCs
+stand in A10, east of A9); prompts such as the enemy's surrender offer are answered on the page. In the
 sandbox click a merc to select it, click a tile to walk there, right-click to run, ctrl+click a door to walk there and
 open it (a locked door shows its menu: keys, lock picking, forcing, examining, untrapping…); the time buttons switch
 between paused, real time and instant (every order runs to the end on the server, the page plays it back at the

@@ -1512,8 +1512,9 @@ strategic step while the flow is `strategic` (the map screen), inferred equivale
 ### 11.1 Sight rules (`ManSeesMan` on a new sighting of an OUR merc, `OL:1530-1770`)
 
 *Implemented* in `sim/tactical/narrative/sight-rules.ts` (called from `manSeesMan` before the bloodcat rule) for every civilian
-and Iggy row; facts, records and the first-sighting flags go through the narrative port. Not done: our mercs seeing Mike or
-Joey (quotes and their two globals), the guard-room run (`OL:1282-1294`) and the assassins' 8-tile rule (`OH:1934-1955`).
+and Iggy row; facts, records and the first-sighting flags go through the narrative port. Our mercs seeing Mike or Joey (quotes
+and their two globals, Mike's greeting) and the assassins' 8-tile rule (`OH:1934-1955`, `tactical/narrative/assassin-approach.ts`)
+came with the civilian slice of `docs/24` (2026-10-16). Not done: the guard-room run (`OL:1282-1294`).
 
 | Seer | Rule | Lines |
 |---|---|---|
@@ -1921,7 +1922,8 @@ Iggy in `AddPlacementToWorld`, `TacticalCreateEnemySoldier` and the autoresolve 
 `schedprocess`, `scheddecide`, `schedmove`, `schedshophours` (`tools/oracle/probes/schedules.txt`). With schedules the
 `entersector` probe of the facts script places Father on the oracle's tile: he gets a default schedule and is away at
 night. Still open: `HandleNPCChangesForTacticalTraversal` and the done-traversal record of `HandleAITacticalTraversal` for
-profiled NPCs that walk off the map (the NPC action slices), and the `uiTimeSinceLastSpoke` pause of the named-NPC branch.*
+profiled NPCs that walk off the map (the NPC action slices). The `uiTimeSinceLastSpoke` pause of the named-NPC branch came with
+the civilian slice of `docs/24`.*
 
 *Give slice (2026-10-16):* the item and money acceptance of §3.11 runs through the `give` command, and (k)'s quest action items
 are implemented (§11.5); the hospital, its per-patient price modifiers and Kingpin's money come from the action catalog slice;

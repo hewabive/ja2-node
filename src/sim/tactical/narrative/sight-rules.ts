@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/OppList.cc ManSeesMan (new sighting of an OUR merc: civilian groups, Carmen, Eldin, the
-// @src assassins, Angel, Joe and Elliot, Iggy, Kingpin goons, the hicks). See docs/25 §11.1.
+// @src assassins, Angel, Joe and Elliot, Iggy, Kingpin goons, the hicks and their night quote; our mercs seeing Mike and Joey).
+// @src See docs/25 §11.1, docs/24 §5.4.
 
 import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
@@ -15,6 +16,8 @@ import { addToShouldBecomeHostileOrSayQuoteList, makeCivHostile } from './civ-ho
 import { ASSASSINS, BrothelRooms, CivGroupHostility, HicksCurfew, MuseumRooms, NpcRecord, Profile } from './constants.ts';
 
 const SECONDS_PER_MINUTE = 60;
+const DECLARATION_OF_HOSTILITY = 14;
+const HICKS_SEE_US_AT_NIGHT = 38;
 const MINUTES_PER_DAY = 1440;
 
 const roomOf = (t: TacticalState, g: number) => sectorMapOf(t).rooms[g] ?? 0;
@@ -71,7 +74,7 @@ function profiledCivilianSees(t: TacticalState, s: Soldier, opp: Soldier): void 
       addToShouldBecomeHostileOrSayQuoteList(t, s);
       return;
     }
-  } else if (t.narrative.hasUnusedHostileRecord(s.profile)) {
+  } else if (t.narrative.hasUnusedRecordWithApproach(s.profile, DECLARATION_OF_HOSTILITY)) {
     addToShouldBecomeHostileOrSayQuoteList(t, s);
     return;
   }
@@ -87,9 +90,11 @@ function profiledCivilianSees(t: TacticalState, s: Soldier, opp: Soldier): void 
     t.narrative.firstSightingRecord(s.profile, NpcRecord.FIRST_SEEN);
 }
 
-function goHostileAndFight(t: TacticalState, s: Soldier): void {
+function goHostileAndFight(t: TacticalState, s: Soldier): boolean {
   makeCivHostile(t, s);
-  if (!t.inCombat) enterCombatMode(t, s.team);
+  if (t.inCombat) return false;
+  enterCombatMode(t, s.team);
+  return true;
 }
 
 function minuteOfDay(t: TacticalState): number {
@@ -105,12 +110,16 @@ function unprofiledCivilianSees(t: TacticalState, s: Soldier, opp: Soldier): voi
     } else if (roomOf(t, opp.gridNo) === BrothelRooms.GUARD_ROOM) goHostileAndFight(t, s);
   } else if (s.civilianGroup === CivilianGroup.HICKS && !t.narrative.fact(Fact.HICKS_MARRIED_PLAYER_MERC)) {
     const minute = minuteOfDay(t);
-    if (minute < HicksCurfew.MORNING_MINUTE || minute > HicksCurfew.EVENING_MINUTE) goHostileAndFight(t, s);
+    if ((minute < HicksCurfew.MORNING_MINUTE || minute > HicksCurfew.EVENING_MINUTE) && goHostileAndFight(t, s))
+      t.narrative.beginCivQuote(s, HICKS_SEE_US_AT_NIGHT, 0);
   }
 }
 
 export function newSightingRules(t: TacticalState, s: Soldier, opp: Soldier): void {
-  if (opp.team !== Team.OUR) return;
+  if (opp.team !== Team.OUR) {
+    if (s.team === Team.OUR && (opp.profile === Profile.MIKE || opp.profile === Profile.JOEY)) t.narrative.mercSeesProfile(s, opp.profile);
+    return;
+  }
   if (s.profile !== NO_PROFILE) {
     if (s.team === Team.CIV) profiledCivilianSees(t, s, opp);
     else if (s.profile === Profile.IGGY && t.narrative.firstSightingRecord(Profile.IGGY, NpcRecord.IGGY_SEEN)) {

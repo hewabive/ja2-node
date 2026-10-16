@@ -29,6 +29,7 @@ export function addSavedMercsToRoster(roster: Roster, save: SaveGame, tactical: 
         asleep: r.mercAsleep,
         contract: r.contract,
         quoteSaidFlags: r.quoteSaidFlags,
+        quoteSaidExtFlags: r.quoteSaidExtFlags,
         corpseQuoteTolerance: r.corpseQuoteTolerance,
         remoteHolder: r.robotRemoteHolder === NOBODY ? null : r.robotRemoteHolder,
       }),

@@ -701,6 +701,8 @@ export interface SavedSoldier {
   readonly hasKeys: number;
   readonly quoteRecord: number;
   readonly quoteActionId: number;
+  readonly currentCivQuote: number;
+  readonly currentCivQuoteDelta: number;
   readonly attackingWeapon: number;
   readonly weaponMode: number;
   readonly doBurst: number;
@@ -728,6 +730,7 @@ export interface SavedSoldier {
   readonly palettes: { readonly head: string; readonly pants: string; readonly vest: string; readonly skin: string };
   readonly contract: SavedContract;
   readonly quoteSaidFlags: number;
+  readonly quoteSaidExtFlags: number;
   readonly corpseQuoteTolerance: number;
   readonly checksum: number;
 }
@@ -844,6 +847,8 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
     hasKeys: n('bHasKeys'),
     quoteRecord: n('ubQuoteRecord'),
     quoteActionId: n('ubQuoteActionID'),
+    currentCivQuote: n('bCurrentCivQuote'),
+    currentCivQuoteDelta: n('bCurrentCivQuoteDelta'),
     attackingWeapon: n('usAttackingWeapon'),
     weaponMode: n('bWeaponMode'),
     doBurst: n('bDoBurst'),
@@ -972,6 +977,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       startTimeOfInsuranceContract: n('uiStartTimeOfInsuranceContract'),
     },
     quoteSaidFlags: n('usQuoteSaidFlags'),
+    quoteSaidExtFlags: n('usQuoteSaidExtFlags'),
     corpseQuoteTolerance: n('bCorpseQuoteTolerance'),
     checksum: n('checksum'),
   };

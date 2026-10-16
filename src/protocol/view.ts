@@ -220,7 +220,13 @@ export type PromptView =
       readonly uninvolved: readonly UninvolvedMercView[];
       readonly options: readonly PromptOptionView[];
     }
-  | { readonly id: string; readonly kind: 'surrender'; readonly choices: readonly string[] }
+  | {
+      readonly id: string;
+      readonly kind: 'surrender';
+      readonly context: 'autoresolve' | 'tactical';
+      readonly soldier?: number;
+      readonly choices: readonly string[];
+    }
   | {
       readonly id: string;
       readonly kind: 'autoresolveDone';
@@ -486,6 +492,15 @@ export interface TextKeyView {
   readonly file: string;
   readonly row: number;
   readonly width: number;
+}
+
+export interface CivQuoteView {
+  readonly soldier: number;
+  readonly quote: number;
+  readonly entry: number;
+  readonly hint: boolean;
+  readonly textKey: TextKeyView;
+  readonly text?: string;
 }
 
 export interface ConversationLineView {

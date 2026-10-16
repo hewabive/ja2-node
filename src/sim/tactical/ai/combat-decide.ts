@@ -7,6 +7,8 @@ import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, spacesAway, WORLD_COLS 
 import { Terrain } from '../../../content/world/terrain.ts';
 import { ObjectFlags } from '../../items/object.ts';
 import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
+import { Quest } from '../../strategic/narrative/fact-ids.ts';
+import { QuestStatus } from '../../strategic/narrative/facts.ts';
 import { AnimHeight, endHeight, height } from '../animation.ts';
 import { calcAPsToBurst, minAPsToAttack } from '../combat/ap.ts';
 import { soldierDifficultyLevel } from '../combat/chance.ts';
@@ -65,11 +67,15 @@ import {
 export interface CombatDeciderHooks {
   readonly decideActionGreen: (t: TacticalState, s: Soldier) => number;
   readonly npcDoesAct: (t: TacticalState, s: Soldier) => void;
+  readonly decideActionNamedNPC?: (t: TacticalState, s: Soldier) => number;
 }
 
 const FATCIV = 11;
 const CRIPPLECIV = 17;
 const ELDIN = 61;
+const VISIBLE = 1;
+const SURRENDER_MAX_PCS = 4;
+const SURRENDER_ODDS = 3;
 const MAX_DISTANCE_VISIBLE = 26;
 const BURSTING = 5;
 const MIN_PRONE_RANGE = 50;
@@ -89,11 +95,8 @@ const mode = (t: TacticalState) => (s: Soldier, action: number) => determineMove
 
 const groupStillNeutral = (t: TacticalState, s: Soldier) => civGroupHostility(t.civGroups, s.civilianGroup) === CivGroupHostility.NEUTRAL;
 
-function civilianForYellow(t: TacticalState, s: Soldier): boolean {
-  return (
-    s.team === Team.CIV &&
-    (s.civilianGroup === CivilianGroup.NONE || (s.neutral && groupStillNeutral(t, s)) || (FATCIV <= s.bodyType && s.bodyType <= CRIPPLECIV))
-  );
+function civilianForYellow(s: Soldier): boolean {
+  return s.team === Team.CIV && (s.civilianGroup === CivilianGroup.NONE || s.neutral || (FATCIV <= s.bodyType && s.bodyType <= CRIPPLECIV));
 }
 
 function civilianForRed(t: TacticalState, s: Soldier): boolean {
@@ -219,10 +222,14 @@ function pre100(t: TacticalState): number {
 
 export function decideActionYellow(t: TacticalState, s: Soldier, hooks: CombatDeciderHooks): number {
   const ai = s.ai;
-  const civilian = civilianForYellow(t, s);
+  const civilian = civilianForYellow(s);
   if (civilian && s.cowering) {
     ai.actionData = AnimHeight.STAND;
     return AiAction.STOP_COWERING;
+  }
+  if (civilian && !t.inCombat && s.profile !== NO_PROFILE && hooks.decideActionNamedNPC) {
+    const named = hooks.decideActionNamedNPC(t, s);
+    if (named !== AiAction.NONE) return named;
   }
   const noise = noiseHeard(t, s);
   if (noise.gridNo === NOWHERE) return AiAction.NONE;
@@ -715,9 +722,31 @@ function stowUselessGun(t: TacticalState, s: Soldier): boolean {
   return autoPlaceObject(soldierInventoryContext(t, s), s, hand) && s.inv[InvSlot.HAND]?.item === NOTHING;
 }
 
+function numPcsInSector(t: TacticalState): number {
+  let n = 0;
+  for (const x of t.mercSlots) if (x?.placed && x.team === Team.OUR && x.life > 0) n++;
+  return n;
+}
+
+function captureQuestsAllowSurrender(t: TacticalState): boolean {
+  const alma = t.narrative.questStatus(Quest.HELD_IN_ALMA);
+  return (
+    alma === QuestStatus.NOT_STARTED ||
+    (alma === QuestStatus.DONE && t.narrative.questStatus(Quest.INTERROGATION) === QuestStatus.NOT_STARTED)
+  );
+}
+
+export function offersSurrender(t: TacticalState, s: Soldier): boolean {
+  if (s.team !== Team.ENEMY || s.visible !== VISIBLE || t.turn.enemyOfferedSurrender) return false;
+  if (s.life < Math.trunc(s.lifeMax / 2)) return false;
+  const pcs = numPcsInSector(t);
+  if (menInSector(t, Team.MILITIA) > 0 || pcs >= SURRENDER_MAX_PCS || menInSector(t, Team.ENEMY) < pcs * SURRENDER_ODDS) return false;
+  return captureQuestsAllowSurrender(t);
+}
+
 export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDeciderHooks): number {
   const ai = s.ai;
-  const civilian = civilianForYellow(t, s);
+  const civilian = civilianForYellow(s);
   if (!s.actionPoints) {
     ai.actionData = NOWHERE;
     return AiAction.NONE;
@@ -739,6 +768,10 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
     ai.actionData = findSpotMaxDistFromOpponents(t, s);
     if (ai.actionData !== NOWHERE) return AiAction.RUN_AWAY;
     ai.morale = AiMorale.HOPELESS;
+  }
+  if (offersSurrender(t, s)) {
+    t.turn.enemyOfferedSurrender = true;
+    return AiAction.OFFER_SURRENDER;
   }
   let canAttack: number;
   let tryPunching = false;

@@ -1,0 +1,160 @@
+# Civilian quotes, the enemy surrender offer, the hostility and sight hooks and the named-NPC AI (docs/24 §3.6, §5.4,
+# §8) on the native saves. Draws are traced and replayed by civ-compare.ts; outputs stay outside the repository.
+# Town 2 is Drassen; civset changes soldiers, loyalty, combat, facts, quests and the hostile-quote list in both engines.
+save SaveGame02
+civset pause=0
+civquote who=116
+civquote who=116
+civquote who=116
+civquote who=117
+civquote who=118
+civquote who=119
+civquote who=122
+civquote who=122
+civquote who=141
+civset rating=2:10
+civquote who=123
+civquote who=124
+civquote who=125
+civquote who=126
+civquote who=117
+civquote who=118
+civquote who=127
+civquote who=128
+civset rating=2:90
+civquote who=129
+civquote who=130
+civquote who=119
+civquote who=116
+civset rating=2:50 combat=1
+civquote who=131
+civquote who=117
+civset combat=0 who=132 cower=1
+civquote who=132
+civset who=132 cower=0 group=10 neutral=1
+civquote who=132
+civset who=132 neutral=0
+civquote who=132
+civset who=133 group=2 neutral=1
+civquote who=133
+civset who=134 group=13
+civquote who=134
+civset fact=63:1
+civquote who=134
+civset who=135 group=5
+civquote who=135
+civset who=136 group=5
+civquote who=136
+civset who=118 group=1
+civquote who=118
+civset who=137 group=1
+civquote who=137
+namednpc who=120
+namednpc who=121
+initiating who=120
+initiating who=121
+civset who=120 quoteRecord=3 quoteAction=2
+namednpc who=120
+civset who=120 grid=12254
+namednpc who=120
+civset who=121 quoteRecord=1 quoteAction=2 sees=0,1,2
+namednpc who=121
+pcsnear npc=151
+pcsnear npc=139
+firstaid npc=139
+firstaid npc=151
+friendhostile npc=151
+civset who=121 group=5
+friendhostile npc=139
+civset listadd=121,138
+hostilecheck
+hostilecheck
+save SaveGame01
+civset pause=0
+civquote who=116
+civquote who=117
+civquote who=118
+civquote who=121
+civquote who=116
+civquote who=118
+civset rating=2:5
+civquote who=117
+civquote who=121
+civquote who=116
+namednpc who=122
+namednpc who=123
+initiating who=122
+initiating who=123
+civset who=123 quoteRecord=2 quoteAction=2
+namednpc who=123
+pcsnear npc=98
+pcsnear npc=138
+firstaid npc=98
+save SaveGame07
+civset pause=0
+civquote who=116
+civquote who=120
+civquote who=121
+civquote who=123
+civquote who=124
+civquote who=125
+civquote who=126
+civquote who=116
+civset rating=2:15
+civquote who=127
+civquote who=128
+civquote who=129
+civquote who=130
+civquote who=131
+civquote who=23
+civset who=23 action=27
+civquote who=23
+civset who=23 action=0 life=20
+civquote who=23
+civset who=23 life=40 class=2
+civquote who=23
+namednpc who=117
+namednpc who=118
+initiating who=117
+initiating who=118
+pcsnear npc=152
+pcsnear npc=106
+save SaveGame10
+civset pause=0
+surrender who=20
+civset who=1 life=0
+civset who=2 life=0
+civset who=20 visible=1
+surrender who=20
+civset who=21 visible=1
+surrender who=21
+civset enemyFlags=0 who=21 life=10
+surrender who=21
+civset quest=8:1 who=22 visible=1
+surrender who=22
+civset quest=8:2,9:0
+surrender who=22
+civset enemyFlags=0 quest=8:0 who=23 visible=0
+surrender who=23
+civset who=20 action=46
+civquote who=20
+surrenderanswer value=no who=20
+civset who=20 action=46
+civquote who=20
+surrenderanswer value=yes who=20
+save SaveGame08
+civset pause=0
+civquote who=116
+civquote who=120
+civquote who=124
+civquote who=116
+namednpc who=117
+initiating who=117
+save SaveGame09
+civset pause=0
+civquote who=116
+civquote who=120
+civquote who=124
+civquote who=116
+namednpc who=118
+initiating who=118

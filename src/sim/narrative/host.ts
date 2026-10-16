@@ -36,8 +36,15 @@ export interface ReceivePort {
   message(m: NpcMoneyMessage): void;
 }
 
+export interface CivQuotePort {
+  townOfSector(sector: SectorRef): number;
+  townUsesLoyalty(town: number): boolean;
+  playerControlsMineOf(sector: SectorRef): boolean;
+}
+
 export interface MercLinePort {
   sayLater(npc: Soldier, nice: boolean): void;
+  mikeSaysHi(): void;
 }
 
 export interface NarrativeHost extends RecordsEnv {
@@ -49,6 +56,7 @@ export interface NarrativeHost extends RecordsEnv {
   readonly give: GivePort;
   readonly receive: ReceivePort;
   readonly mercLines: MercLinePort;
+  readonly civ: CivQuotePort;
   readonly quoteLengths: QuoteLengths;
   tick(): number;
   day(): number;

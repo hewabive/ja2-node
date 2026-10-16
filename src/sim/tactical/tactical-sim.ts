@@ -24,6 +24,7 @@ import {
   freeUpFromTurning,
 } from './ai/control.ts';
 import { checkForChangingOrders, decideAlertStatus, setNewSituation } from './ai/decide.ts';
+import { endTimedAiPause } from './ai/pause.ts';
 import { endAIGuysTurn, startNPCAI } from './ai/turn-based.ts';
 import {
   AnimHeight,
@@ -277,6 +278,7 @@ export class TacticalSim {
         stepExplosions(state);
         handleActionItemQueue(state);
         checkHostileOrSayQuoteList(state);
+        endTimedAiPause(state);
         updateMissAnimations(state);
         updateSkullReleases(state);
         handleRealtimeTurns(state, clock);

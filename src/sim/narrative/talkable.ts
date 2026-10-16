@@ -8,7 +8,7 @@ import { hasAnimFlag } from '../tactical/animation.ts';
 import { Body, NO_PROFILE, type Soldier, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 
-export const CivType = { NA: 0, ADULT: 1, KID: 2, ENEMY: 3, MARRIED_PC: 4 } as const;
+export const CivType = { NA: 0, ADULT: 1, KID: 2, MARRIED_PC: 3, ENEMY: 4 } as const;
 
 const MARRIED_SECTOR = { x: 10, y: 6, z: 0 } as const;
 const NO_CIV_GROUP = 0;

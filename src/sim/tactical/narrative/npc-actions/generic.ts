@@ -17,6 +17,7 @@ import { Npc } from '../../../strategic/narrative/npc-ids.ts';
 import { ExperienceBonus } from '../../../strategic/narrative/rewards.ts';
 import { AiAction } from '../../ai/actions.ts';
 import { cancelAIAction } from '../../ai/control.ts';
+import { pauseAiTemporarily } from '../../ai/pause.ts';
 import { findAIUsableObjClass } from '../../ai/utils.ts';
 import { AnimHeight, endHeight, setDesiredDirection } from '../../animation.ts';
 import { soldierReadyWeapon } from '../../combat/attack.ts';
@@ -37,7 +38,6 @@ import type { NpcActionEnv } from './env.ts';
 import { getItemsFromClosestCabinet, openClosestThing } from './open-thing.ts';
 
 const MANNY_GRIDNO = 19904;
-const PAUSE_ALL_AI_DELAY_MS = 1500;
 
 const HISTORY_ACTIONS: Readonly<Record<number, number>> = {
   [A.HISTORY_GOT_ROCKET_RIFLES]: NarrativeHistory.GOT_ROCKET_RIFLES,
@@ -307,7 +307,7 @@ export function triggerFriendWithHostileQuote(env: NpcActionEnv, npc: number): v
     if ((t.civGroups.hostility[s.civilianGroup] ?? 0) === CivGroupHostility.NEUTRAL) civilianGroupMemberChangesSides(t, s);
   }
   if (candidates.length > 0) {
-    t.turn.pauseAiUntil = t.clockMs + PAUSE_ALL_AI_DELAY_MS;
+    pauseAiTemporarily(t);
     triggerNpcWithIHateYouQuote(env.host, candidates[env.random(candidates.length)] as number);
   } else npcDoAction(env.host, npc, A.ENTER_COMBAT, 0);
 }

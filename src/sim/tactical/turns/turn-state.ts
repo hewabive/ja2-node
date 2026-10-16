@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead_Types.h TacticalStatusType; TeamTurns.cc gOutOfTurnOrder; TacticalAI/AIList.cc;
-// @src OppList.cc gbSeenOpponents, watched locations. See docs/10 §0.
+// @src OppList.cc gbSeenOpponents, watched locations; Overhead.cc gfPauseAllAI, guiPauseAllAITimer; Overhead.h
+// @src ENEMY_OFFERED_SURRENDER. See docs/10 §0, docs/24 §3.6, §8.5.
 
 import type { Soldier } from '../soldier.ts';
 
@@ -53,7 +54,9 @@ export interface TurnState {
   delayResolvingBestSightingDueToDoor: boolean;
   aiList: AiListEntry[];
   readonly deferredNoises: DeferredNoise[];
-  pauseAiUntil: number;
+  pauseAllAi: boolean;
+  pauseAllAiSinceMs: number | null;
+  enemyOfferedSurrender: boolean;
   readonly seenOpponents: Int8Array;
   readonly watched: WatchedLocations;
   round: number;
@@ -88,7 +91,9 @@ export function createTurnState(maxSoldiers: number): TurnState {
     delayResolvingBestSightingDueToDoor: false,
     aiList: [],
     deferredNoises: [],
-    pauseAiUntil: 0,
+    pauseAllAi: false,
+    pauseAllAiSinceMs: null,
+    enemyOfferedSurrender: false,
     seenOpponents: new Int8Array(maxSoldiers * maxSoldiers),
     watched: {
       gridNo: new Int16Array(maxSoldiers * NUM_WATCHED_LOCS).fill(-1),

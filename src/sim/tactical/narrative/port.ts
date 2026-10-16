@@ -5,13 +5,17 @@
 // @src SoldierGiveItemFromAnimation (the dealer, team member and NPC branches); TileEngine/Explosion_Control.cc
 // @src PerformItemAction (ACTION_ITEM_SEX: HandleMoraleEvent, FatigueCharacter); Tactical/Soldier_Control.cc
 // @src CanRobotBeControlled, ControllingRobot, robot_remote_holder; Tactical/Items.cc PlaceObject (the remote control);
-// @src Tactical/Soldier_Profile.cc ChangeSoldierTeam (side changes of Overhead.cc).
-// @src See docs/25 §1, §2.1, §3, §6, §9.4, §11.5, docs/24 §4.
+// @src Tactical/Soldier_Profile.cc ChangeSoldierTeam (side changes of Overhead.cc); Civ_Quotes.cc StartCivQuote, BeginCivQuote;
+// @src TacticalAI/NPC.cc PCsNearNPC, PCDoesFirstAidOnNPC, NPCConsiderInitiatingConv, TriggerFriendWithHostileQuote,
+// @src NPCHasUnusedRecordWithGivenApproach; OppList.cc ManSeesMan (first-sighting records, MIKE and JOEY quotes).
+// @src See docs/25 §1, §2.1, §3, §6, §9.4, §11.5, docs/24 §4, §5.4, §8.
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
 import { type Soldier, Team } from '../soldier.ts';
 import type { SectorRef } from '../state.ts';
+
+const NO_INITIATING_TARGET = -1;
 
 export interface NarrativePort {
   fact(id: number, profile?: number): boolean;
@@ -23,6 +27,7 @@ export interface NarrativePort {
   triggerNpcWithGivenApproach(profile: number, approach: number): void;
   npcAction(profile: number, code: number, record: number): void;
   hasUnusedHostileRecord(profile: number): boolean;
+  hasUnusedRecordWithApproach(profile: number, approach: number): boolean;
   sayHostileQuote(s: Soldier): void;
   inMeanwhile(): boolean;
   isEpc(s: Soldier): boolean;
@@ -33,6 +38,13 @@ export interface NarrativePort {
   terroristKilled(): void;
   assassinKilled(): void;
   firstSightingRecord(profile: number, record: number): boolean;
+  mercSeesProfile(merc: Soldier, profile: number): void;
+  beginCivQuote(s: Soldier, quote: number, entry: number): void;
+  offerSurrender(s: Soldier): boolean;
+  pcsNearNpc(profile: number): void;
+  pcDoesFirstAidOnNpc(profile: number): boolean;
+  npcConsiderInitiatingConv(s: Soldier): number;
+  triggerFriendWithHostileQuote(profile: number): void;
   profileDied(profile: number, killer: Soldier | null): void;
   setUpHelicopterForPlayer(sector: SectorRef): void;
   dialogueBusy(): boolean;
@@ -63,6 +75,7 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   triggerNpcWithGivenApproach: () => {},
   npcAction: () => {},
   hasUnusedHostileRecord: () => false,
+  hasUnusedRecordWithApproach: () => false,
   sayHostileQuote: () => {},
   inMeanwhile: () => false,
   isEpc: () => false,
@@ -73,6 +86,13 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   terroristKilled: () => {},
   assassinKilled: () => {},
   firstSightingRecord: () => false,
+  mercSeesProfile: () => {},
+  beginCivQuote: () => {},
+  offerSurrender: () => false,
+  pcsNearNpc: () => {},
+  pcDoesFirstAidOnNpc: () => false,
+  npcConsiderInitiatingConv: () => NO_INITIATING_TARGET,
+  triggerFriendWithHostileQuote: () => {},
   profileDied: () => {},
   setUpHelicopterForPlayer: () => {},
   dialogueBusy: () => false,

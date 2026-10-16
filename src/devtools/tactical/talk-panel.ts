@@ -7,6 +7,7 @@ interface TalkReplyData {
   readonly walking?: boolean;
   readonly to?: number;
   readonly bark?: unknown;
+  readonly civQuote?: { readonly text?: string; readonly quote: number } | null;
   readonly refusal?: string;
 }
 
@@ -164,6 +165,7 @@ export class TalkPanel {
       const data = (r.data ?? {}) as TalkReplyData;
       if (r.ok && data.walking) this.#note(`walking to ${data.to}; run until idle to start the conversation`);
       else if (r.ok && data.bark !== undefined) this.#note('own merc barked');
+      else if (r.ok && data.civQuote !== undefined) this.#note(data.civQuote?.text ?? 'no answer');
       else this.#report(r, `talking to ${target.name || `#${target.id}`}`);
     });
   }
@@ -188,7 +190,7 @@ export class TalkPanel {
 
 export function nearestTalkable(soldiers: readonly SoldierView[], from: SoldierView | undefined): SoldierView | null {
   if (!from) return null;
-  const npcs = soldiers.filter((s) => s.talkable === 'npc');
   const distance = (s: SoldierView) => Math.hypot(s.x - from.x, s.y - from.y);
-  return npcs.sort((a, b) => distance(a) - distance(b))[0] ?? null;
+  const nearest = (kind: string) => soldiers.filter((s) => s.talkable === kind).sort((a, b) => distance(a) - distance(b))[0];
+  return nearest('npc') ?? nearest('civilian') ?? null;
 }

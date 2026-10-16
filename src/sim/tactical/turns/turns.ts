@@ -12,6 +12,7 @@
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { u8 } from '../../../core/int.ts';
+import { pauseAiTemporarily } from '../ai/pause.ts';
 import { adjustNoAPToFinishMove, soldierGotoStationaryStance } from '../animation.ts';
 import { bleedsAtTurnStart, checkBleeding, NO_BLOOD } from '../combat/bleeding.ts';
 import { beginSoldierGetup } from '../combat/death.ts';
@@ -46,7 +47,6 @@ const HUMAN_TEAM = [true, false, false, false, false, true] as const;
 const LAST_TEAM = Team.CIV;
 const MAX_DISTANCE_VISIBLE = 26;
 const OPPLIST_DECAY_MS = 20_000;
-const AI_PAUSE_AFTER_COMBAT_MS = 1500;
 const LIFE_GAIN_PER_REGEN_POINT = 10;
 
 function pointsContext(t: TacticalState): PointsContext {
@@ -164,9 +164,11 @@ export function handleTacticalEndTurn(t: TacticalState, clock: RealtimeClock): v
     for (let team = 0; team < TEAM_COUNT; team++) if (isTeamActive(t, team)) decayPublicOpplist(t, team);
     clock.lastDecayMs = t.clockMs;
   }
-  if (t.inCombat) return;
-  for (const s of teamMembers(t, Team.OUR)) if (s.life > 0) beginMercTurn(t, s);
-  for (const s of mercs(t)) if (s.team !== Team.OUR) beginMercTurn(t, s);
+  if (!t.inCombat) {
+    for (const s of teamMembers(t, Team.OUR)) if (s.life > 0) beginMercTurn(t, s);
+    for (const s of mercs(t)) if (s.team !== Team.OUR) beginMercTurn(t, s);
+  }
+  t.sectorHooks.tacticalTurnEnded(t);
 }
 
 export function betweenTurnsVisibilityAdjustments(t: TacticalState): void {
@@ -331,7 +333,7 @@ export function exitCombatMode(t: TacticalState): void {
     s.aiTurnControl = false;
   }
   betweenTurnsVisibilityAdjustments(t);
-  t.turn.pauseAiUntil = t.clockMs + AI_PAUSE_AFTER_COMBAT_MS;
+  pauseAiTemporarily(t);
   t.turn.intList.length = 0;
   t.turn.forceRealtimeTurn = true;
 }
@@ -407,6 +409,20 @@ function killIncapacitatedEnemyInSector(t: TacticalState): boolean {
   return killed;
 }
 
+export function endBattleAsLost(t: TacticalState): void {
+  endAllAITurns(t);
+  t.turn.enemyInSector = false;
+  if (t.inCombat) exitCombatMode(t);
+  t.events.push({ type: 'combatEnded', reason: 'lost' });
+  t.sectorHooks.battleEnded(t, 'lost');
+}
+
+export function endBattleAfterSurrender(t: TacticalState): void {
+  if (!t.inCombat && !t.turn.enemyInSector) return;
+  if (t.turn.attackBusyCount > 0 || t.turn.killingGuysForLosingBattle) return;
+  endBattleAsLost(t);
+}
+
 export function checkForEndOfBattle(t: TacticalState): boolean {
   const turn = t.turn;
   if (!t.inCombat && !turn.enemyInSector) return false;
@@ -415,11 +431,7 @@ export function checkForEndOfBattle(t: TacticalState): boolean {
   const won = numCapableEnemyInSector(t) === 0 && !t.sectorHooks.pendingEnemies(t);
   const lost = checkForLosingEndOfBattle(t);
   if (lost) {
-    endAllAITurns(t);
-    turn.enemyInSector = false;
-    if (t.inCombat) exitCombatMode(t);
-    t.events.push({ type: 'combatEnded', reason: 'lost' });
-    t.sectorHooks.battleEnded(t, 'lost');
+    endBattleAsLost(t);
     return true;
   }
   if (won) {
