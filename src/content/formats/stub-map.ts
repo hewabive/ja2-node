@@ -11,6 +11,7 @@ import {
   type MapDoor,
   MapFlags,
   type MapLightSprite,
+  type MapSchedule,
   type Placement,
   tileLayerFromLists,
 } from './map.ts';
@@ -41,6 +42,19 @@ export interface StubSoldier {
   readonly soldierClass: number;
   readonly priority: boolean;
   readonly profile: number | null;
+  readonly schedule: string | null;
+}
+
+export interface StubScheduleEntry {
+  readonly time: number | null;
+  readonly action: number;
+  readonly data1: { readonly x: number; readonly y: number } | null;
+  readonly data2: { readonly x: number; readonly y: number } | null;
+}
+
+export interface StubSchedule {
+  readonly symbol: string;
+  readonly entries: readonly StubScheduleEntry[];
 }
 
 export const StubEntry = { NORTH: 'north', EAST: 'east', SOUTH: 'south', WEST: 'west', CENTER: 'center', ISOLATED: 'isolated' } as const;
@@ -81,10 +95,12 @@ export interface StubMapSource {
   readonly entries: ReadonlyMap<StubEntryName, { readonly x: number; readonly y: number }>;
   readonly exits: readonly StubExit[];
   readonly doors: readonly StubDoor[];
+  readonly schedules: readonly StubSchedule[];
   readonly basement: boolean;
 }
 
 const AVERAGE_LEVEL = 2;
+const NO_PROFILE = 200;
 const BLACK_LIGHT_COLOUR = [0, 0, 0] as const;
 const LIGHT_TIMES: Readonly<Record<string, number>> = { ALWAYS: 0, PRIME: LightTime.PRIME_TIME, NIGHT: LightTime.NIGHT_TIME };
 const TEAMS: Readonly<Record<string, number>> = { ENEMY: 1, CREATURE: 2, MILITIA: 3, CIV: 4 };
@@ -126,19 +142,24 @@ function named(table: Readonly<Record<string, number>>, name: string | undefined
 
 const OPTIONAL_PLACEMENT = 'optional';
 const PROFILE_FLAG = /^profile=(\d+)$/;
+const SCHEDULE_FLAG = /^schedule=(.)$/;
 const ENTRY_NAMES: readonly string[] = Object.values(StubEntry);
 
 function parseSoldier(spec: string, line: number): StubSoldier {
   const [team, x, y, direction, orders, attitude, soldierClass, ...flags] = spec.split(/\s+/);
   let profile: number | null = null;
+  let schedule: string | null = null;
   for (const flag of flags) {
     const m = PROFILE_FLAG.exec(flag);
+    const scheduled = SCHEDULE_FLAG.exec(flag);
     if (m) profile = Number(m[1]);
+    else if (scheduled) schedule = scheduled[1] ?? null;
     else if (flag !== OPTIONAL_PLACEMENT) throw new FormatError(`line ${line}: unknown soldier flag '${flag}'`);
   }
   return {
     priority: !flags.includes(OPTIONAL_PLACEMENT),
     profile,
+    schedule,
     team: named(TEAMS, team, 'team', line),
     x: Number(x),
     y: Number(y),
@@ -190,6 +211,50 @@ function parseDoor(spec: string, line: number): StubDoor {
   return door;
 }
 
+const SCHEDULE_ACTIONS: Readonly<Record<string, number>> = {
+  LOCKDOOR: 1,
+  UNLOCKDOOR: 2,
+  OPENDOOR: 3,
+  CLOSEDOOR: 4,
+  GRIDNO: 5,
+  LEAVESECTOR: 6,
+  ENTERSECTOR: 7,
+  STAYINSECTOR: 8,
+  SLEEP: 9,
+  WAKE: 10,
+};
+const SCHEDULE_ENTRY = /^(?:(\d{2}):(\d{2})\s+)?([A-Z]+)(?:\s+(\d+)\s+(\d+))?(?:\s*->\s*(\d+)\s+(\d+))?$/;
+const MAX_SCHEDULE_ENTRIES = 4;
+const MINUTES_PER_HOUR = 60;
+const UNSET_SCHEDULE_VALUE = 0xffff;
+
+function point(x: string | undefined, y: string | undefined): { x: number; y: number } | null {
+  return x === undefined || y === undefined ? null : { x: Number(x), y: Number(y) };
+}
+
+function parseScheduleEntry(spec: string, line: number): StubScheduleEntry {
+  const m = SCHEDULE_ENTRY.exec(spec);
+  if (!m) throw new FormatError(`line ${line}: expected '[HH:MM] <ACTION> [<x> <y>] [-> <x> <y>]', got '${spec}'`);
+  const [, hours, minutes, action, x1, y1, x2, y2] = m;
+  return {
+    time: hours === undefined ? null : Number(hours) * MINUTES_PER_HOUR + Number(minutes),
+    action: named(SCHEDULE_ACTIONS, action, 'schedule action', line),
+    data1: point(x1, y1),
+    data2: point(x2, y2),
+  };
+}
+
+function parseSchedule(symbol: string, spec: string, line: number): StubSchedule {
+  const entries = spec
+    .split(';')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .map((part) => parseScheduleEntry(part, line));
+  if (entries.length === 0 || entries.length > MAX_SCHEDULE_ENTRIES)
+    throw new FormatError(`line ${line}: a schedule has 1 to ${MAX_SCHEDULE_ENTRIES} entries`);
+  return { symbol, entries };
+}
+
 const SCROLL_BASEMENT = 'basement';
 const SCROLL_DEFAULT = 'default';
 const BASEMENT_RESTRICTED_SCROLL = 1;
@@ -237,6 +302,7 @@ export function parseStubMapSource(text: string, tables: TileTables): StubMapSou
   const entries = new Map<StubEntryName, { x: number; y: number }>();
   const exits: StubExit[] = [];
   const doors: StubDoor[] = [];
+  const schedules: StubSchedule[] = [];
   let inMap = false;
   let basement = false;
   lines.slice(1).forEach((raw, i) => {
@@ -266,6 +332,7 @@ export function parseStubMapSource(text: string, tables: TileTables): StubMapSou
     else if (key === 'entry') entries.set(...parseEntry(value, lineNo));
     else if (key === 'exit') exits.push(parseExit(value, lineNo));
     else if (key === 'door') doors.push(parseDoor(value, lineNo));
+    else if (key === 'schedule' && symbol) schedules.push(parseSchedule(symbol, value, lineNo));
     else if (key === 'scroll') basement = parseScroll(value, lineNo);
     else throw new FormatError(`line ${lineNo}: unknown key '${key}'`);
   });
@@ -275,7 +342,35 @@ export function parseStubMapSource(text: string, tables: TileTables): StubMapSou
     throw new FormatError('stub map does not fit into the world');
   }
   for (const row of rows) for (const ch of row) if (!legend.has(ch)) throw new FormatError(`unknown map symbol '${ch}'`);
-  return { name, tilesetId, origin, fill, legend, rows, soldiers, lights, entries, exits, doors, basement };
+  checkScheduleLinks(schedules, soldiers);
+  return { name, tilesetId, origin, fill, legend, rows, soldiers, lights, entries, exits, doors, schedules, basement };
+}
+
+function checkScheduleLinks(schedules: readonly StubSchedule[], soldiers: readonly StubSoldier[]): void {
+  const symbols = schedules.map((s) => s.symbol);
+  if (new Set(symbols).size !== symbols.length) throw new FormatError('schedule symbols must be unique');
+  const used = soldiers.map((s) => s.schedule).filter((s): s is string => s !== null);
+  if (new Set(used).size !== used.length) throw new FormatError('a schedule belongs to one soldier');
+  for (const symbol of used) if (!symbols.includes(symbol)) throw new FormatError(`unknown schedule '${symbol}'`);
+}
+
+function scheduleIdOf(source: StubMapSource, symbol: string | null): number {
+  return symbol === null ? 0 : source.schedules.findIndex((s) => s.symbol === symbol) + 1;
+}
+
+function stubMapSchedule(source: StubMapSource, schedule: StubSchedule): MapSchedule {
+  const unset = () => Array.from({ length: MAX_SCHEDULE_ENTRIES }, () => UNSET_SCHEDULE_VALUE);
+  const times = unset();
+  const data1 = unset();
+  const data2 = unset();
+  const actions = Array.from({ length: MAX_SCHEDULE_ENTRIES }, () => 0);
+  schedule.entries.forEach((e, i) => {
+    times[i] = e.time ?? UNSET_SCHEDULE_VALUE;
+    actions[i] = e.action;
+    if (e.data1) data1[i] = localGridNo(source, e.data1.x, e.data1.y);
+    if (e.data2) data2[i] = localGridNo(source, e.data2.x, e.data2.y);
+  });
+  return { times, data1, data2, actions, flags: 0 };
 }
 
 function localGridNo(source: StubMapSource, x: number, y: number): number {
@@ -314,6 +409,7 @@ export function stubMapToMapDef(source: StubMapSource): Omit<MapDef, 'trailingBy
       (source.lights.length > 0 ? MapFlags.WORLD_LIGHTS : 0) |
       (source.exits.length > 0 ? MapFlags.EXIT_GRIDS : 0) |
       (source.doors.length > 0 ? MapFlags.DOOR_TABLE : 0) |
+      (source.schedules.length > 0 ? MapFlags.NPC_SCHEDULES : 0) |
       (source.basement ? MapFlags.AMBIENT_LIGHT_LEVEL : 0),
     tilesetId: source.tilesetId,
     heights: new Uint8Array(WORLD_MAX),
@@ -353,7 +449,7 @@ export function stubMapToMapDef(source: StubMapSource): Omit<MapDef, 'trailingBy
       }),
     ),
     edgepoints: null,
-    schedules: [],
+    schedules: source.schedules.map((schedule) => stubMapSchedule(source, schedule)),
   };
 }
 
@@ -364,16 +460,17 @@ function stubLightSprite(source: StubMapSource, l: StubLight): MapLightSprite {
 function stubPlacement(source: StubMapSource, s: StubSoldier): Placement {
   const g = (source.origin.y + s.y) * WORLD_COLS + source.origin.x + s.x;
   const detailedRaw =
-    s.profile === null
+    s.profile === null && s.schedule === null
       ? null
       : writeProfileDetailedPlacement({
-          profile: s.profile,
+          profile: s.profile ?? NO_PROFILE,
           direction: s.direction,
           insertionGridNo: g,
           team: s.team,
           attitude: s.attitude,
           orders: s.orders,
           soldierClass: s.soldierClass,
+          scheduleId: scheduleIdOf(source, s.schedule),
         });
   return {
     basic: {

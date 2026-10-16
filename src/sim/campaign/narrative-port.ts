@@ -3,7 +3,8 @@
 // @src src/game/Strategic/Game_Event_Hook.cc EVENT_MAKE_CIV_GROUP_HOSTILE_ON_NEXT_SECTOR_ENTRANCE; Overhead.cc
 // @src CivilianGroupMemberChangesSides (AddStrategicEvent + 300); Strategic/Quests.cc CheckFact, SetFactTrue, SetFactFalse;
 // @src Tactical/Overhead.cc HandleNPCTeamMemberDeath (terrorists and assassins); Map_Screen_Helicopter.cc
-// @src SetUpHelicopterForPlayer (from HandleAtNewGridNo). See docs/25 §1, §6.2, §10.2.
+// @src SetUpHelicopterForPlayer (from HandleAtNewGridNo); Game_Event_Hook.cc EVENT_PROCESS_TACTICAL_SCHEDULE; Scheduling.cc
+// @src (the strategic event calls of the schedules). See docs/25 §1, §5, §6.2, §10.2.
 
 import { i8 } from '../../core/int.ts';
 import { decrementTownLoyalty, incrementTownLoyalty, reduceLoyaltyForRebelsBetrayed } from '../strategic/economy/loyalty.ts';
@@ -11,10 +12,17 @@ import { setUpHelicopterForPlayer } from '../strategic/forces/helicopter.ts';
 import { makeCivGroupHostileOnNextSectorEntrance } from '../strategic/narrative/civ-groups.ts';
 import { questStatus } from '../strategic/narrative/facts.ts';
 import { EventKind } from '../strategic/time/constants.ts';
-import { addFutureDayStrategicEvent, addStrategicEvent } from '../strategic/time/event-queue.ts';
+import {
+  addFutureDayStrategicEvent,
+  addStrategicEvent,
+  deleteAllStrategicEventsOfType,
+  deleteStrategicEvent,
+} from '../strategic/time/event-queue.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { HOSTILITY_DELAY_MINUTES } from '../tactical/narrative/constants.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from '../tactical/narrative/port.ts';
+import type { ScheduleClock } from '../tactical/narrative/schedule-state.ts';
+import { processTacticalSchedule } from '../tactical/narrative/schedules.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 
 function rebelsBetrayed(campaign: CampaignSim): void {
@@ -63,7 +71,28 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
   };
 }
 
+const SECONDS_PER_MINUTE = 60;
+
+export function campaignScheduleClock(campaign: CampaignSim): ScheduleClock {
+  const s = campaign.state;
+  return {
+    worldMinutes: () => worldTotalMinutes(s.clock),
+    lastEventQueryMinutes: () => Math.trunc(s.clock.lastEventQuerySeconds / SECONDS_PER_MINUTE),
+    addEvent: (minute, id) => {
+      addStrategicEvent(s.queue, EventKind.PROCESS_TACTICAL_SCHEDULE, minute, id);
+    },
+    deleteEvent: (id) => {
+      deleteStrategicEvent(s.queue, EventKind.PROCESS_TACTICAL_SCHEDULE, id);
+    },
+    deleteAllEvents: () => deleteAllStrategicEventsOfType(s.queue, EventKind.PROCESS_TACTICAL_SCHEDULE),
+  };
+}
+
 export function registerNarrativeEvents(campaign: CampaignSim): void {
+  campaign.dispatchTable.register(EventKind.PROCESS_TACTICAL_SCHEDULE, (c, e) => {
+    const t = c.tactical?.state;
+    if (t) processTacticalSchedule(t, e.param, c.state.flow === 'tactical');
+  });
   campaign.dispatchTable.register(EventKind.MAKE_CIV_GROUP_HOSTILE_ON_NEXT_SECTOR_ENTRANCE, (c, e) =>
     makeCivGroupHostileOnNextSectorEntrance(c.state.civGroups, e.param, () => rebelsBetrayed(c)),
   );

@@ -977,3 +977,6 @@ Specs: `docs/24` (NPCs and dialogue), `25` (quests, facts, NPC actions, schedule
 5. **NPC action catalog** (`sim/tactical/narrative/npc-actions`): every `HandleNPCDoAction` code of the original, the
    requestor questions as an `npcRequest` prompt, the NPC system events, the hospital (prices, refunds, supplies) and
    Kingpin's money; the head-miner stand-in is gone. 188 oracle probes match.
+6. **Schedules** (`sim/tactical/narrative/schedules.ts` and the AI hook): map and save schedules, `PostSchedules` with
+   default schedules, sleep spots and the 24-hour replay, event 36, schedule moves and doors, sleeping and waking, away
+   slots, shop hours, Larry's hourly update and the Mike/Iggy upgrade. 51 oracle probes match.

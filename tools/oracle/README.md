@@ -12,8 +12,9 @@ are merc contracts and relationships (the daily merc update, the renewal sequenc
 list), the tactical decisions of creatures and bloodcats, and the laptop (a full `InitNewGame`, A.I.M., M.E.R.C. and
 I.M.P. hires, Bobby Ray's orders, restocks and deliveries, life insurance), the narrative state (facts, quests,
 CheckFact, the 04:00 and hourly NPC handlers, the quest code of sector entry and exit, profile NPC placement), Skyrider's
-helicopter (flights, SAM fire, billing, hovering, landing, boarding and the monologues) and the NPC actions (the action
-catalog, the requestor answers, the NPC system events, Kingpin's money and the hospital).
+helicopter (flights, SAM fire, billing, hovering, landing, boarding and the monologues), the NPC actions (the action
+catalog, the requestor answers, the NPC system events, Kingpin's money and the hospital) and the NPC schedules (posting,
+the 24-hour replay, processing and the AI's schedule steps).
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -57,6 +58,9 @@ commit them.
 | `talk-compare.ts` | The NPC dialogue probes of `compare.ts` (`npcrecords`, `npcprofile`, `desire`, `consider`, `talk`, `questdecode`) |
 | `probes/talk.txt` | NPC dialogue probe script (see "Talk") |
 | `patches/0014-heli-oracle.patch` | Silent Skyrider dialogue with recorded quote numbers, immediate monologue events and wrappers for the static helicopter helpers (see "Hooks") |
+| `patches/0016-schedules-oracle.patch` | Trace marks around `PostSchedules` and a wrapper for the static `DecideActionSchedule` (see "Hooks") |
+| `schedules-compare.ts` | The schedule probes of `compare.ts` (`schedules`, `schedload`, `schedentry`, `schedclock`, `schedwarp`, `schedprocess`, `scheddecide`, `schedmove`, `schedshophours`) |
+| `probes/schedules.txt` | NPC schedule probe script (see "Schedules") |
 | `heli-compare.ts` | The helicopter probes of `compare.ts` (`heli`, `heliset`, `helisetup`, `heliboard`, `helileave`, `heliroute`, `helicancel`, `heliwarp`, `helimonologue`, `helipaydebt`, `helireturn`) |
 | `probes/heli.txt` | Helicopter probe script (see "Helicopter") |
 | `patches/0015-actions-oracle.patch` | Traces of `HandleNPCDoAction`, the requestor callback and the NPC system events, a headless switch for the requestor boxes (see "Hooks") |
@@ -962,13 +966,13 @@ earlymorning                                        # HandleEarlyMorningEvents t
 hourlynpc hour=                                     # the clock set to that hour, HourlyQuestUpdate, Slay's check,
                                                     # PayOffSkyriderDebtIfAny traced
 questentry sector= [z=] | questexit sector= [z=]    # HandleQuestCodeOnSectorEntry/Exit traced
-entersector sector= [z=]                            # SetCurrentWorldSector: the profiled non-player soldiers placed
+entersector sector= [z=]                            # SetCurrentWorldSector: the profiled non-player soldiers (active)
 ```
 `facts-compare.ts` imports the save into a campaign session, applies the same command through the narrative modules
 with the native draws replayed strictly (both streams), and compares the state and the profiles; `checkfact` compares the
 500 results with the facts that read the boxing state or `CalcDesireToTalk` left out (deviation "Computed facts without
-inputs"), `entersector` the sorted profiles placed (`setCurrentWorldSector` bypassing the merc check, as the native
-call does). The talk context outlives a save load in the original, so every `checkfact` sets it. On 2026-10-16 all 51
+inputs"), `entersector` the sorted profiles of the active soldiers, those away by schedule included as in `FOR_EACH_SOLDIER`
+(`setCurrentWorldSector` bypassing the merc check, as the native call does). The talk context outlives a save load in the original, so every `checkfact` sets it. On 2026-10-16 all 51
 probes matched: fifteen CheckFact sweeps over all ids with different profiles and talk contexts on the six saves, quest starts and ends with
 and without history, six 04:00 events with their draws (Father, Tony, Devin, Hamous, Carmen, Dave), the hourly quest facts
 at hours 2, 4, 9, 10, 15, 18 and 20, Skyrider's debt payment, the quest code of sector entry and exit, and four sector loads
@@ -1085,6 +1089,41 @@ that open and the one refused for the wrong panel NPC, the doctor's escort onto 
 Father's, Madame's, Carmen's, Joey's, Vince's and Willis's chains with their draws and events, the mines of Fred and the
 hospital supplies.
 
+### Schedules
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data" JA2_ORACLE_DIR=~/ja2-oracle-sched
+tools/oracle/run.sh tools/oracle/probes/schedules.txt ~/ja2-oracle-sched/out/schedules.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle-sched/out/schedules.jsonl
+```
+
+Every command prints its arguments, the draws, a result and the schedule state: the world and last event query seconds,
+`gubScheduleID`, the schedule list in list order (id, flags, the four times, data and actions, the soldier), every active
+civilian (gridno, level, `bInSector`, `SOLDIER_OFF_MAP`, `AI_ASLEEP`, `AI_CHECK_SCHEDULE`, `AI_LOCK_DOOR_INCLUDES_CLOSE`,
+schedule id and progress, initial and off-world gridno, first patrol point, quote action, body and life), the door table
+(gridno, locked, structure open) and the pending `EVENT_PROCESS_TACTICAL_SCHEDULE` events (stamp, schedule id):
+```
+schedules                                   # dump only
+schedload name=SaveGameNN                   # LoadSavedGame traced (PostSchedules without auto-processing)
+schedentry sector= [z=]                     # SetCurrentWorldSector traced (PostSchedules replays the last 24 hours)
+schedclock seconds= [query=]                # set guiGameClock and guiTimeOfLastEventQuery
+schedwarp minutes= screen=map|game          # WarpGameTime with events processed normally, guiCurrentScreen set
+schedprocess id= screen=map|game            # ProcessTacticalSchedule
+scheddecide soldier=                        # DecideActionSchedule: action, usActionData, sAbsoluteFinalDestination
+schedmove soldier= gridNo=                  # EVENT_SetSoldierPositionNoCenter, as if the civilian had walked there
+schedshophours profile=                     # FindSoldierByProfileID + ExtractScheduleDoorLockAndUnlockInfo
+```
+`schedules-compare.ts` imports the save into a campaign session and compares the whole state after each command. The
+draws inside the `PostSchedules` marks (pathfinder draws left out, as in "Creature AI") are replayed strictly: on
+`schedentry` through `SectorFlow.postSchedulesOfLoadedSector`, on `schedload` after undoing the session's own post-load
+posting (saved schedules, soldier schedule ids, the events added after the saved ones). Body and life are not compared
+(the civilians' creation draws are not replayed), nor the decision's data when it returns no action (stale fields). Sector
+entries come right after a load: the 04:00 event moves NPCs with draws that warps do not replay, and the temp files of
+other sectors are not imported from native saves. On 2026-10-16 all 50 probes matched on the six saves: loads with the
+second events and redrawn default schedules, entries into C13, D13 and B13 (sleep times, bumps, away civilians, the shop
+doors locked at night), map-screen warps up to a day, tactical warps activating entries, and the AI's steps for a door
+unlock, a lock, a wake-up and the return of a default civilian from the away slots.
+
 ## Shipped probes
 
 | Script | Content |
@@ -1112,6 +1151,7 @@ hospital supplies.
 | `probes/talk.txt` | NPC records, profiles, desires, record choice and conversation steps for the NPCs present in SaveGame02, 01, 07 and 10 (see "Talk") |
 | `probes/heli.txt` | Skyrider's helicopter on SaveGame01, 02 and 10 (see "Helicopter") |
 | `probes/actions.txt` | NPC actions, requestor answers, NPC system events, Kingpin's money and the hospital on SaveGame01, 10 and 02 (see "NPC actions") |
+| `probes/schedules.txt` | NPC schedules on the six saves (see "Schedules") |
 | `probes/sectors.txt` | Edgepoints loaded and generated on eight maps, screen-space exit thresholds on both sides of every edge (A9, A10 basement), exit-grid checks in D13 and the basement, walk-off/walk-in/mirror from the centre and near the edges, class codes on the isolated maps H13 and I14, init list sorts and ten defence placements (A9, B13, C13, D13), and `OKForSectorExit` on SaveGame10, 07 (in combat) and 01 before and after moving mercs to an edge or an exit grid |
 
 All three were run on the user's Steam JA2 Gold 1.12 data: every command succeeds, and on these
@@ -1245,6 +1285,11 @@ probes also set `fShowAircraftFlag`, as the map screen does when plotting for th
 before `DoMessageBox`. It appends `OracleDialogueMessageBoxType`, `OracleLiePromptRecord`, `OracleResetDialogueMessageBox` and
 `OracleAnswerDialogueMessageBox` (sets the type and the lie record, then calls the static callback). Regenerate it like 0002
 with those two paths.
+
+`patches/0016-schedules-oracle.patch` (applied after 0014, and after 0015 where present) changes
+`src/game/Strategic/Scheduling.cc` and `src/game/TacticalAI/DecideAction.cc`: `PostSchedules` records trace mark 2001 on entry
+and 2000 on exit (an RAII guard), and `OracleDecideActionSchedule` wraps the static `DecideActionSchedule`. Regenerate it like
+0002 with those two paths.
 
 ## Notes
 

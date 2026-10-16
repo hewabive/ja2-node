@@ -38,6 +38,7 @@ import {
 import { playerGroupInvolvedInThisCombat, playerMercInvolvedInThisCombat } from '../strategic/forces/pre-battle.ts';
 import { setThisSectorAsPlayerControlled, townIdOfSector } from '../strategic/map/control.ts';
 import { sectorInfo } from '../strategic/map/sectors.ts';
+import { okayToUpgradeEliteToSpecialProfiledEnemy } from '../strategic/narrative/profiled-enemies.ts';
 import type { RandomStream } from '../tactical/combat/context.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import {
@@ -127,6 +128,10 @@ export function autoresolveCreation(ctx: ArStrategicContext, sector: Sector, str
       profileHere: () => false,
       iceCreamTruckWithheld: () => false,
       civilianPlacement: () => PlacementVerdict.CREATE,
+      upgradeEliteToProfiledEnemy: (pp) => okayToUpgradeEliteToSpecialProfiledEnemy(state.narrative, state.encounter.code, pp),
+      resetProfiledEnemyAdded: () => {
+        state.narrative.profiledEnemyAdded = false;
+      },
     },
   };
 }

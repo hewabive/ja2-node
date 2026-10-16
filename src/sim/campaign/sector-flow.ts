@@ -11,8 +11,9 @@
 // @src TrashWorld (HandleFirstMeanWhileSetUpWithTrashWorld); StrategicMap.cc EnterSector (SetupProfileInsertionDataForCivilians,
 // @src HandleQuestCodeOnSectorEntry), HandleDefiniteUnloadingOfWorld (HandleQuestCodeOnSectorExit,
 // @src UpdateSoldierPointerDataIntoProfile), PrepareLoadedSector (AddProfilesNotUsingProfileInsertionData,
-// @src AddProfilesUsingProfileInsertionData); Overhead.cc HandleNPCTeamMemberDeath (the creature queen's rewards). See docs/16 §5,
-// @src docs/25 §4.5–§4.6.
+// @src AddProfilesUsingProfileInsertionData, PostSchedules); Overhead.cc HandleNPCTeamMemberDeath (the creature queen's rewards);
+// @src WorldDef.cc TrashWorld (DestroyAllSchedules); SaveLoadGame.cc LoadSavedGame (PostSchedules). See docs/16 §5,
+// @src docs/25 §4.5–§4.6, §5.2, §5.6.
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import {
@@ -68,6 +69,7 @@ import {
   sectorInfo,
   setSectorFlag,
 } from '../strategic/map/sectors.ts';
+import { okayToUpgradeEliteToSpecialProfiledEnemy } from '../strategic/narrative/profiled-enemies.ts';
 import { ExperienceBonus } from '../strategic/narrative/rewards.ts';
 import type { SectorPosition } from '../strategic/state.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
@@ -106,6 +108,7 @@ import {
   setupProfileInsertionDataForCivilians,
   updateSoldierPointerDataIntoProfile,
 } from '../tactical/narrative/profile-insertion.ts';
+import { destroyAllSchedules, postSchedules } from '../tactical/narrative/schedules.ts';
 import { hostileBloodcatsPresent, removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
@@ -114,7 +117,7 @@ import type { RealtimeClock } from '../tactical/turns/turns.ts';
 import { addItemToPool, loadWorldItemsFromMap, Visibility } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import { MoraleEvent as CampaignMoraleEvent } from './morale.ts';
-import { campaignNarrativePort } from './narrative-port.ts';
+import { campaignNarrativePort, campaignScheduleClock } from './narrative-port.ts';
 import type { Roster, RosterMerc } from './roster.ts';
 import {
   applyPreservedEnemyRecord,
@@ -417,6 +420,7 @@ export class SectorFlow {
   #installHooks(sim: TacticalSim): void {
     sim.state.experienceHooks = this.campaign.experienceHooks;
     sim.state.narrative = campaignNarrativePort(this.campaign);
+    sim.state.scheduleClock = campaignScheduleClock(this.campaign);
     sim.state.sectorHooks = {
       soldierDied: (_t, dead) => this.#soldierDied(dead),
       addPendingEnemies: () => this.addPossiblePendingEnemiesToBattle(),
@@ -443,11 +447,16 @@ export class SectorFlow {
     for (const link of links) {
       const node = t.initList[link.nodeId];
       const soldier = t.soldiers[link.soldierId];
-      if (!node || !soldier?.placed) continue;
+      if (!node || !(soldier?.placed || soldier?.away)) continue;
       node.soldierId = soldier.id;
       node.hasSoldier = true;
     }
     this.#installHooks(sim);
+    this.postSchedulesOfLoadedSector(t, true);
+  }
+
+  postSchedulesOfLoadedSector(t: TacticalState, loadingSave: boolean): void {
+    postSchedules(t, { loadingSave });
   }
 
   #enterSector(sector: Sector, baseWorld: TacticalWorld, options: LoadOptions, previous: TacticalSim | null): void {
@@ -603,6 +612,7 @@ export class SectorFlow {
     addProfilesNotUsingProfileInsertionData(t, env, this.#profileInsertionHooks());
     this.prepareEnemyForSectorBattle();
     addProfilesUsingProfileInsertionData(t, world, env, this.#profileInsertionHooks());
+    this.postSchedulesOfLoadedSector(t, false);
     this.#callAvailableTeamEnemiesToAmbush(t);
     unPauseGame(this.campaign.state.clock);
     this.campaign.state.encounter.battleGroup = null;
@@ -785,6 +795,11 @@ export class SectorFlow {
       civilianPlacement: (pp) => {
         const n = this.#placementNarrative();
         return n ? civilianPlacementOverride(n, pp) : PlacementVerdict.CREATE;
+      },
+      upgradeEliteToProfiledEnemy: (pp) =>
+        okayToUpgradeEliteToSpecialProfiledEnemy(this.campaign.state.narrative, this.campaign.state.encounter.code, pp),
+      resetProfiledEnemyAdded: () => {
+        this.campaign.state.narrative.profiledEnemyAdded = false;
       },
     };
   }
@@ -1052,6 +1067,8 @@ export class SectorFlow {
   }
 
   #worldTrashed(): void {
+    const t = this.campaign.tactical?.state;
+    if (t) destroyAllSchedules(t);
     const q = this.queen;
     if (q) handleFirstMeanwhileSetUpWithTrashWorld(q);
   }

@@ -16,6 +16,7 @@ import type { ProfileProgress } from '../profiles.ts';
 import { firstFreeSoldierId, NO_PROFILE, NOWHERE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { profileUsesInsertionData } from './placement.ts';
+import { getSchedule } from './schedule-state.ts';
 
 export const QUOTE_ACTION_CHECK_FOR_DEST = 1;
 const PERMANENT_INSERTION_CODE = 0x02;
@@ -75,6 +76,7 @@ function blankProfileCreate(profile: number): SoldierCreate {
     palettes: {},
     inv: emptyInventory(),
     name: '',
+    scheduleId: 0,
   };
 }
 
@@ -112,8 +114,17 @@ export function addProfilesUsingProfileInsertionData(
     if (node) {
       node.soldierId = s.id;
       node.hasSoldier = true;
+      linkPlacementSchedule(t, s, node.detail?.scheduleId ?? 0);
     }
   }
+}
+
+function linkPlacementSchedule(t: TacticalState, s: Soldier, scheduleId: number): void {
+  if (scheduleId === 0) return;
+  const schedule = getSchedule(t.schedules, scheduleId);
+  if (!schedule) return;
+  schedule.soldier = s.id;
+  s.scheduleId = scheduleId;
 }
 
 function changeNpcSector(p: ProfileProgress, x: number, y: number): void {
@@ -129,6 +140,7 @@ function changeNpcSector(p: ProfileProgress, x: number, y: number): void {
 }
 
 function handleNpcChangesForTacticalTraversal(s: Soldier, p: ProfileProgress): void {
+  if (s.ai.checkSchedule) return;
   switch (s.quoteActionId) {
     case QuoteAction.TRAVERSE_EAST:
       changeNpcSector(p, p.sectorX + 1, p.sectorY);
@@ -187,7 +199,7 @@ export function setupProfileInsertionDataForSoldier(s: Soldier, where: SoldierWh
 
 export function setupProfileInsertionDataForCivilians(t: TacticalState, hooks: ProfileInsertionHooks): void {
   for (const s of t.soldiers) {
-    if (!s || s.team !== Team.CIV || !s.placed) continue;
+    if (!s || s.team !== Team.CIV || !(s.placed || s.offMap)) continue;
     setupProfileInsertionDataForSoldier(s, { inSector: true, strategicInsertionCode: Insertion.GRIDNO }, hooks);
   }
 }

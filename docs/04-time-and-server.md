@@ -515,6 +515,13 @@ started or ended without history (Alma's skip, a silent restart) does not appear
 accepted assignment and `DELIVER_LETTER` in the history (day 1, 01:00). Profile NPCs exist only as their campaign
 profile's sector until a sector loads; their whereabouts, `npcData`, balances and the 04:00 moves are never shown
 (`npcMoved` is not an event). Native saves import the facts, quests and the narrative globals of the general info.
+Civilians follow their map schedules (`docs/25` §5): a loaded sector replays the last 24 hours when it loads and
+whenever time passes on the map screen (civilians are moved, put to bed or sent off the map at once), and in tactical
+real time they walk to their spots, open, close, lock and unlock doors and leave or re-enter the map (one who walks off
+stays, invisible, two tiles past the edge until the sector loads again: a kept quirk). Schedules add no command, event or
+view field: a civilian off the map is absent from the soldiers of the view like one who left, a sleeping one is visible
+as usual, and opened or closed doors arrive as `doorChanged`. Shop hours of a repairman come from the lock and unlock
+times of his schedule while his sector is loaded.
 
 ### 6.12. Conversations (M6)
 

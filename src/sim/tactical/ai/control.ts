@@ -1,13 +1,16 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/AIMain.cc HandleSoldierAI, ExecuteAction, ActionDone, CancelAIAction, NPCDoesAct,
-// @src FreeUpNPCFromTurning, FreeUpNPCFromStanceChange, FreeUpNPCFromRoofClimb, FreeUpNPCFromPendingAction (the NPC triggers); Realtime.cc RTHandleAI; Movement.cc SoldierTriesToContinueAlongPath;
-// @src AIUtils.cc NewDest; Tactical/Overhead.cc ExecuteOverhead (real-time AI cadence); creature/crow dispatch of
-// @src TurnBasedHandleNPCAI and Realtime.cc RTDecideAction, RTHandleAI. See docs/09 §1, docs/13 §14.
+// @src FreeUpNPCFromTurning, FreeUpNPCFromStanceChange, FreeUpNPCFromRoofClimb, FreeUpNPCFromPendingAction (the NPC triggers); Realtime.cc RTHandleAI;
+// @src Movement.cc SoldierTriesToContinueAlongPath; AIUtils.cc NewDest; AIMain.cc ExecuteAction (the door actions),
+// @src HandleAITacticalTraversal (the away slot), the asleep and off-map checks of HandleSoldierAI; Tactical/Overhead.cc
+// @src ExecuteOverhead (real-time AI cadence, the away-slot pass), NextAIToHandle; creature/crow dispatch of
+// @src TurnBasedHandleNPCAI and Realtime.cc RTDecideAction, RTHandleAI. See docs/09 §1, docs/13 §14, docs/25 §5.3.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { Approach } from '../../../content/narrative/npc-constants.ts';
 import { newGridNo, pythSpacesAway, spacesAway, WORLD_MAX } from '../../../content/world/grid.ts';
+import { StructureFlags } from '../../../content/world/structures.ts';
 import { anim } from '../anim-states.ts';
 import {
   AnimHeight,
@@ -19,10 +22,12 @@ import {
   initNewSoldierAnim,
   states,
 } from '../animation.ts';
+import { moveSoldierFromMercToAwaySlot } from '../away-slots.ts';
 import { soldierDifficultyLevel } from '../combat/chance.ts';
-import { DIRECTION_INCREMENT } from '../directions.ts';
-import { getNewSoldierPath, stopMerc } from '../movement.ts';
-import { isMercBody, NOWHERE, newOKDestination } from '../pathfinding.ts';
+import { DIRECTION_INCREMENT, Direction } from '../directions.ts';
+import { interactWithDoorAt } from '../doors/door-actions.ts';
+import { directionToward, getNewSoldierPath, stopMerc } from '../movement.ts';
+import { isMercBody, NOWHERE, newOKDestination, PathFlags } from '../pathfinding.ts';
 import { mostImportantNoiseHeard } from '../perception/knowledge.ts';
 import { radioSightings, removeManAsTarget } from '../perception/sight.ts';
 import { deductPoints, enoughPoints, estimateActionPointCost } from '../points.ts';
@@ -55,6 +60,7 @@ import {
   type GreenHooks,
   NO_AI_HOOKS,
   NO_GREEN_HOOKS,
+  realtimeAiDelay,
   realtimeDelay,
 } from './decide.ts';
 import { legalNPCDestination, PathMode } from './destinations.ts';
@@ -62,6 +68,7 @@ import { endAIGuysTurn, isActionAffordable, turnBasedHandleNPCAI } from './turn-
 import { recalculatePathCost } from './utils.ts';
 
 const OFF_MAP_CURSOR = 0xffff;
+const RESET_AWAY_CURSOR = 0xffff;
 const MAX_DISTANCE_VISIBLE = 26;
 const CLOSE_ENOUGH_TILES = 4;
 const NPC_ARRIVAL_WAIT_MS = 500;
@@ -71,6 +78,7 @@ export interface AiControl {
   readonly green: GreenHooks;
   lastTickMs: number;
   cursor: number;
+  awayCursor: number;
   handleThisPass: boolean;
   paused: boolean;
 }
@@ -90,6 +98,7 @@ export function createAiControl(hooks: Partial<AiHooks & GreenHooks> = {}): AiCo
     green,
     lastTickMs: 0,
     cursor: 0,
+    awayCursor: RESET_AWAY_CURSOR,
     handleThisPass: false,
     paused: false,
   };
@@ -287,10 +296,27 @@ function isMovementAction(action: number): boolean {
   return MOVEMENT_ACTIONS.has(action);
 }
 
+function npcSystemMove(t: TacticalState, s: Soldier): boolean {
+  return s.absoluteFinalDestination !== NOWHERE && !t.inCombat;
+}
+
+function retryBlockedNpcSystemMove(t: TacticalState, s: Soldier): void {
+  const ai = s.ai;
+  if (!ai.checkSchedule && spacesAway(s.gridNo, s.absoluteFinalDestination) < CLOSE_ENOUGH_TILES) return;
+  if (legalNPCDestination(t, s, ai.actionData, PathMode.ENSURE_PATH, true, PathFlags.THROUGH_PEOPLE)) {
+    s.pathStored = true;
+    return;
+  }
+  ai.nextAction = AiAction.WAIT;
+  ai.nextActionData = realtimeAiDelay(t);
+}
+
 function executeMovement(t: TacticalState, s: Soldier): boolean {
   const ai = s.ai;
   if (!s.pathStored) {
-    if (legalNPCDestination(t, s, ai.actionData, PathMode.ENSURE_PATH, true, 0)) s.pathStored = true;
+    const throughPeople = npcSystemMove(t, s) || (t.pathEnv.autoBandage && !t.inCombat) ? PathFlags.THROUGH_PEOPLE : 0;
+    if (legalNPCDestination(t, s, ai.actionData, PathMode.ENSURE_PATH, true, throughPeople)) s.pathStored = true;
+    if (!s.pathStored && npcSystemMove(t, s)) retryBlockedNpcSystemMove(t, s);
     if (!s.pathStored) {
       cancelAIAction(t, s);
       return false;
@@ -322,6 +348,18 @@ function detectMovementLoop(t: TacticalState, s: Soldier): void {
     last[0] = last[1];
     last[1] = s.gridNo;
   }
+}
+
+function executeDoorAction(t: TacticalState, s: Soldier): void {
+  const direction = directionToward(s.gridNo, s.ai.actionData);
+  const doorGridNo =
+    direction === Direction.EAST || direction === Direction.SOUTH ? s.gridNo : s.gridNo + (DIRECTION_INCREMENT[direction] ?? 0);
+  if (!t.world.structures.find(doorGridNo, StructureFlags.ANYDOOR)) {
+    cancelAIAction(t, s);
+    t.hooks.endAiGuysTurn(t, s);
+    return;
+  }
+  interactWithDoorAt(t, s, doorGridNo, direction);
 }
 
 export function executeAction(t: TacticalState, s: Soldier): boolean {
@@ -415,6 +453,11 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
         return false;
       }
       return true;
+    case AiAction.OPEN_OR_CLOSE_DOOR:
+    case AiAction.UNLOCK_DOOR:
+    case AiAction.LOCK_DOOR:
+      executeDoorAction(t, s);
+      return true;
     case AiAction.LOWER_GUN:
       actionDone(t, s);
       return true;
@@ -470,7 +513,7 @@ function rtHandleAI(t: TacticalState, s: Soldier, control: AiControl): void {
       }
       if (ai.action === AiAction.PICKUP_ITEM) ai.pickupItem = ai.nextPickupItem;
     } else if (s.absoluteFinalDestination !== NOWHERE) {
-      ai.action = AiAction.WALK;
+      ai.action = ai.checkSchedule ? AiAction.SCHEDULE_MOVE : AiAction.WALK;
       ai.actionData = s.absoluteFinalDestination;
     } else if (!t.engagedInConv) {
       ai.action = decideNpcAction(t, s, control);
@@ -513,7 +556,7 @@ function triesToContinueAlongPath(t: TacticalState, s: Soldier): void {
 }
 
 function reachedRecordDestination(t: TacticalState, s: Soldier): boolean {
-  if (spacesAway(s.gridNo, s.absoluteFinalDestination) < CLOSE_ENOUGH_TILES) {
+  if (!s.ai.checkSchedule && spacesAway(s.gridNo, s.absoluteFinalDestination) < CLOSE_ENOUGH_TILES) {
     if (s.absoluteFinalDestination !== s.gridNo) t.narrative.replaceLocationInNpcData(s.profile, s.absoluteFinalDestination, s.gridNo);
     s.absoluteFinalDestination = s.gridNo;
     s.ai.actionData = s.gridNo;
@@ -523,12 +566,19 @@ function reachedRecordDestination(t: TacticalState, s: Soldier): boolean {
   return true;
 }
 
+function markAttackNoticedByMisplacedEveryFrameFlag(s: Soldier): void {
+  s.attackNoticed = true;
+}
+
 function handleAITacticalTraversal(t: TacticalState, s: Soldier, control: AiControl): void {
   s.quoteActionId = 0;
   endAIGuysTurn(t, s, control);
   removeManAsTarget(t, s);
-  t.sectorHooks.soldierLeftMap(t, s);
-  removeSoldierFromTacticalSector(t, s);
+  if (s.team === Team.CIV && s.ai.checkSchedule) moveSoldierFromMercToAwaySlot(t, s);
+  else {
+    t.sectorHooks.soldierLeftMap(t, s);
+    removeSoldierFromTacticalSector(t, s);
+  }
   checkForEndOfBattle(t);
 }
 
@@ -556,7 +606,18 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
     ai.counter = t.clockMs + AI_DELAY;
   }
   ai.handleEveryFrame = false;
-  if (s.life < OKLIFE || !(s.placed || s.offMap)) {
+  if (s.life < OKLIFE || !(s.placed || s.offMap || s.away)) {
+    endAIGuysTurn(t, s, control);
+    return;
+  }
+  if (ai.asleep) {
+    if (turnBased && s.visible !== 0) ai.asleep = false;
+    else if (!ai.checkSchedule) {
+      endAIGuysTurn(t, s, control);
+      return;
+    }
+  }
+  if (!(s.placed || s.offMap) && !ai.checkSchedule) {
     endAIGuysTurn(t, s, control);
     return;
   }
@@ -585,7 +646,7 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
     if (s.pathIndex === s.pathSize) {
       if (s.absoluteFinalDestination !== NOWHERE) {
         if (reachedRecordDestination(t, s)) {
-          if (s.quoteRecord !== 0 && s.quoteActionId === QuoteAction.CHECKFORDEST) {
+          if (!ai.checkSchedule && s.quoteRecord !== 0 && s.quoteActionId === QuoteAction.CHECKFORDEST) {
             t.narrative.npcReachedDestination(s);
             ai.nextAction = AiAction.WAIT;
             ai.nextActionData = NPC_ARRIVAL_WAIT_MS;
@@ -593,7 +654,7 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
             handleAITacticalTraversal(t, s, control);
             return;
           }
-        }
+        } else markAttackNoticedByMisplacedEveryFrameFlag(s);
       } else if (isTraversalQuoteAction(s.quoteActionId)) {
         handleAITacticalTraversal(t, s, control);
         return;
@@ -625,7 +686,27 @@ function nextAIToHandle(t: TacticalState, control: AiControl): boolean {
     }
   }
   control.cursor = OFF_MAP_CURSOR;
+  if (t.awaySlots.length > 0) nextAwayAIToHandle(t, control);
   return false;
+}
+
+function nextAwayAIToHandle(t: TacticalState, control: AiControl): void {
+  const start = control.awayCursor + 1 >= t.awaySlots.length ? 0 : control.awayCursor + 1;
+  for (let c = start; c < t.awaySlots.length; c++) {
+    const s = t.awaySlots[c];
+    if (s && s.team !== Team.OUR) {
+      control.awayCursor = c;
+      return;
+    }
+  }
+  control.awayCursor = RESET_AWAY_CURSOR;
+}
+
+export function awayAiForPass(t: TacticalState, control: AiControl): void {
+  if (t.awaySlots.length === 0 || control.paused || t.clockMs < t.turn.pauseAiUntil || t.inCombat) return;
+  if (control.cursor !== OFF_MAP_CURSOR || control.awayCursor === RESET_AWAY_CURSOR) return;
+  const s = t.awaySlots[control.awayCursor];
+  if (s?.ai.checkSchedule) handleSoldierAI(t, s, control);
 }
 
 export function beginAiPass(t: TacticalState, control: AiControl): void {

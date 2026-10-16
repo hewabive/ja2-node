@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Soldier_Init_List.cc LoadSoldiersFromMap, AddPlacementToWorld, AddSoldierInitListTeamToWorld,
 // @src AddSoldierInitListEnemyDefenceSoldiers, AddSoldierInitListMilitia, EvaluateDeathEffectsToSoldierInitList,
 // @src StripEnemyDetailedPlacementsIfSectorWasPlayerLiberated, FindSoldierInitNodeBySoldier;
-// @src Soldier_Create.cc RandomizeRelativeLevel, TacticalCreateEnemySoldier, CreateSoldierCommon (standing frame draw);
+// @src Soldier_Create.cc RandomizeRelativeLevel, TacticalCreateEnemySoldier, CreateSoldierCommon (standing frame draw), the calls
+// @src of OkayToUpgradeEliteToSpecialProfiledEnemy and the gfProfiledEnemyAdded reset;
 // @src Strategic/Queen_Command.cc AddEnemiesToBattle. See docs/16 §5.13, docs/17 §10.
 
 import type { BasicPlacement, MapDef } from '../../content/formats/map.ts';
@@ -66,6 +67,8 @@ export interface PopulationEnv {
   profileHere(profile: number): boolean;
   iceCreamTruckWithheld(): boolean;
   civilianPlacement(pp: SoldierCreate): number;
+  upgradeEliteToProfiledEnemy(pp: SoldierCreate): void;
+  resetProfiledEnemyAdded(): void;
 }
 
 export const BODY_RANDOM = -1;
@@ -91,6 +94,8 @@ export const NEUTRAL_POPULATION: PopulationEnv = {
   profileHere: () => false,
   iceCreamTruckWithheld: () => false,
   civilianPlacement: () => PlacementVerdict.CREATE,
+  upgradeEliteToProfiledEnemy: () => {},
+  resetProfiledEnemyAdded: () => {},
 };
 
 function initBasic(b: BasicPlacement): InitBasic {
@@ -208,7 +213,8 @@ export function addPlacementToWorld(t: TacticalState, node: SoldierInitNode, env
   let withheld = false;
   let gridNo = node.basic.startingGridNo;
   const adjust: PlacementAdjust = (pp) => {
-    withheld = node.team === Team.CIV && env.civilianPlacement(pp) === PlacementVerdict.SKIP;
+    withheld = pp.team === Team.CIV && env.civilianPlacement(pp) === PlacementVerdict.SKIP;
+    if (pp.team === Team.ENEMY && pp.soldierClass === SoldierClass.ELITE) env.upgradeEliteToProfiledEnemy(pp);
     gridNo = pp.insertionGridNo;
     return !withheld;
   };
@@ -246,6 +252,7 @@ export interface EnemyTotals {
 
 export function addSoldierInitListEnemyDefenceSoldiers(t: TacticalState, totals: EnemyTotals, env: PopulationEnv): void {
   t.equipment.mortarsRolledByTeam = 0;
+  env.resetProfiledEnemyAdded();
   const list = sortInitList(t);
   fillDefencePlacements(list, { ...totals }, t.rng, (node) => addPlacementToWorld(t, node, env));
 }
@@ -419,7 +426,11 @@ export function tacticalCreateEnemySoldier(t: TacticalState, soldierClass: numbe
     priorityExistence: false,
     hasKeys: false,
   };
-  const s = createSoldier(t, Team.ENEMY, basic, null, env);
+  const upgrade: PlacementAdjust = (pp) => {
+    if (soldierClass === SoldierClass.ELITE) env.upgradeEliteToProfiledEnemy(pp);
+    return true;
+  };
+  const s = createSoldier(t, Team.ENEMY, basic, null, env, upgrade);
   if (!s) return null;
   const dx = t.rng.int(CENTRAL_RADIUS * 2 + 1) - CENTRAL_RADIUS;
   const dy = t.rng.int(CENTRAL_RADIUS * 2 + 1) - CENTRAL_RADIUS;

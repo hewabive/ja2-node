@@ -114,6 +114,7 @@ function create(o: Partial<SoldierCreate>): SoldierCreate {
       keyId: 0,
     })),
     name: '',
+    scheduleId: 0,
     ...o,
   };
 }

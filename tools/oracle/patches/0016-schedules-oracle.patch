@@ -1,0 +1,38 @@
+Schedule oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE (SFI-SCLA).
+Marks PostSchedules in the Random draw trace of 0002 (begin 2001, end 2000), so tools/oracle/schedules-compare.ts can
+replay only the default schedule and sleep time draws of a sector load, and appends a wrapper around the static
+DecideActionSchedule of DecideAction.cc. No behaviour change. Applied by tools/oracle/build.sh after 0014 (and 0015 where present).
+
+--- a/src/game/Strategic/Scheduling.cc
++++ b/src/game/Strategic/Scheduling.cc
+@@ -914,8 +914,18 @@
+ }
+ 
+ 
++#define ORACLE_MARK_SCHEDULES_BEGIN 2001
++#define ORACLE_MARK_SCHEDULES_END   2000
++
++struct OracleScheduleMarks
++{
++	OracleScheduleMarks() { OracleTraceMark(ORACLE_MARK_SCHEDULES_BEGIN); }
++	~OracleScheduleMarks() { OracleTraceMark(ORACLE_MARK_SCHEDULES_END); }
++};
++
+ void PostSchedules()
+ {
++	OracleScheduleMarks const oracleMarks;
+ 	BOOLEAN fDefaultSchedulesPossible = FALSE;
+ 
+ 	#if defined( DISABLESCHEDULES ) //definition found at top of this .c file.
+--- a/src/game/TacticalAI/DecideAction.cc
++++ b/src/game/TacticalAI/DecideAction.cc
+@@ -3865,3 +3865,9 @@
+ 	}
+ 
+ }
++
++
++INT8 OracleDecideActionSchedule(SOLDIERTYPE* const s)
++{
++	return DecideActionSchedule(s);
++}

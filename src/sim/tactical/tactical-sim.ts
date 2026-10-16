@@ -1,5 +1,6 @@
 import { scriptLoops } from '../../content/anim/script.ts';
 import { AnimFlags } from '../../content/anim/tables.ts';
+import { MapFlags } from '../../content/formats/map.ts';
 import { handClass, ItemClass, ItemCursor, NOTHING } from '../../content/items/items.ts';
 import { isVisibleTile } from '../../content/world/grid.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
@@ -13,6 +14,7 @@ import {
   type AiControl,
   actionDone,
   aiForSlot,
+  awayAiForPass,
   beginAiPass,
   cancelAIAction,
   createAiControl,
@@ -76,6 +78,7 @@ import {
 } from './lighting/lighting.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
 import { checkHostileOrSayQuoteList } from './narrative/civ-hostility.ts';
+import { createScheduleList, loadMapSchedules } from './narrative/schedule-state.ts';
 import { handlePendingTalkOnArrival } from './narrative/talk-arrival.ts';
 import { wheelchairOpcode } from './narrative/wheelchair.ts';
 import { executeOverhead, type OverheadHooks } from './overhead.ts';
@@ -211,6 +214,7 @@ export class TacticalSim {
     );
     const t = this.state;
     t.clockMs = options.startMs ?? 0;
+    t.schedules = world.map.flags & MapFlags.NPC_SCHEDULES ? loadMapSchedules(world.map.schedules) : createScheduleList();
     this.#clock = options.realtimeClock ?? { lastTurnMs: 0, lastDecayMs: 0, lastOverheadMs: 0 };
     this.ai = createAiControl({
       awareOfOpposition: (state, team) => state.perception.awareOfOpposition[team] === true,
@@ -275,6 +279,7 @@ export class TacticalSim {
       },
       ai: (state, s, slot) => aiForSlot(state, s, slot, ai),
       afterPass: (state) => {
+        awayAiForPass(state, ai);
         dequeueAllGameEvents(state);
         checkMercsWaiting(state);
       },

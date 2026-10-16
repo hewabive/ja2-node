@@ -53,4 +53,31 @@ describe('stub map entries, exits and placements', () => {
     expect(detail.stats.life).toBe(-1);
     expect(() => parseStubMapSource(SOURCE.replace('profile=91', 'profile=x'), tables)).toThrow(/unknown soldier flag/);
   });
+
+  it('writes schedules in declaration order and links a schedule= soldier through a detailed placement', () => {
+    const scheduled = SOURCE.replace(
+      'soldier: CIV 3 2 EAST STATIONARY DEFENSIVE NONE profile=91',
+      [
+        "schedule 'h': STAYINSECTOR",
+        "schedule 'v': 09:00 GRIDNO 1 1; 22:00 SLEEP 3 0; 07:30 UNLOCKDOOR 0 0 -> 2 2",
+        'soldier: CIV 3 2 EAST STATIONARY DEFENSIVE NONE profile=91 schedule=h',
+        'soldier: CIV 0 2 EAST STATIONARY DEFENSIVE NONE schedule=v',
+      ].join('\n'),
+    );
+    const map = parseMap(writeMap(stubMapToMapDef(parseStubMapSource(scheduled, tables))));
+    const g = (x: number, y: number) => (20 + y) * WORLD_COLS + 10 + x;
+    const U = 0xffff;
+    expect(map.flags & MapFlags.NPC_SCHEDULES).not.toBe(0);
+    expect(map.schedules).toEqual([
+      { times: [U, U, U, U], data1: [U, U, U, U], data2: [U, U, U, U], actions: [8, 0, 0, 0], flags: 0 },
+      { times: [540, 1320, 450, U], data1: [g(1, 1), g(3, 0), g(0, 0), U], data2: [U, U, g(2, 2), U], actions: [5, 9, 2, 0], flags: 0 },
+    ]);
+    const details = map.placements.slice(2).map((p) => (p.detailedRaw ? parseDetailedPlacement(p.detailedRaw) : null));
+    expect(details.map((d) => [d?.profile, d?.scheduleId])).toEqual([
+      [91, 1],
+      [200, 2],
+    ]);
+    expect(() => parseStubMapSource(scheduled.replace('schedule=v', 'schedule=h'), tables)).toThrow(/one soldier/);
+    expect(() => parseStubMapSource(scheduled.replace('schedule=v', 'schedule=x'), tables)).toThrow(/unknown schedule/);
+  });
 });

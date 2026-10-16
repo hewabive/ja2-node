@@ -282,7 +282,7 @@ export function locationToLocationLos(
 
 export function menInSector(t: TacticalState, team: number): number {
   let n = 0;
-  for (const s of t.mercSlots) if (s?.placed && s.team === team && !s.dead) n++;
+  for (const s of t.mercSlots) if ((s?.placed || s?.offMap) && s.team === team && !s.dead) n++;
   return n;
 }
 

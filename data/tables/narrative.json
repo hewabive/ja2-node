@@ -1,7 +1,7 @@
 {
-  "source": "JA2 Stracciatella ae6bf01: src/game/Strategic/Facts.h enum Fact, src/game/Strategic/Quests.h enum Quests, src/game/Tactical/Soldier_Profile.h enum NPCIDs, src/game/Tactical/Interface_Dialogue.h enum NPCAction",
+  "source": "JA2 Stracciatella ae6bf01: src/game/Strategic/Facts.h enum Fact, src/game/Strategic/Quests.h enum Quests, src/game/Tactical/Soldier_Profile.h enum NPCIDs, src/game/Tactical/Interface_Dialogue.h enum NPCAction, src/game/Strategic/Hourly_Update.cc LarryItems and the bar sectors of HourlyLarryUpdate, src/game/Strategic/Scheduling.h SCHEDULE_ACTION_* and SCHEDULE_FLAGS_*",
   "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
-  "format": "fact ids and names (FACT_ prefix removed unless the rest is a number) in id order; quest ids and names (QUEST_ prefix removed) in id order, NO_QUEST left out; named profile ids of NPCIDs (placeholders RPCnn/NPCnn left out); NPC action codes and names (NPC_ACTION_ prefix removed unless the rest starts with a digit) in code order",
+  "format": "fact ids and names (FACT_ prefix removed unless the rest is a number) in id order; quest ids and names (QUEST_ prefix removed) in id order, NO_QUEST left out; named profile ids of NPCIDs (placeholders RPCnn/NPCnn left out); NPC action codes and names (NPC_ACTION_ prefix removed unless the rest starts with a digit) in code order; Larry items (item name, temptation, kit points) in search order; bar sectors; schedule actions (SCHEDULE_ACTION_ prefix removed) in id order; schedule flags (SCHEDULE_FLAGS_ prefix removed)",
   "facts": [
     {
       "id": 0,
@@ -2696,6 +2696,135 @@
     {
       "id": 650,
       "name": "LAST_TURN_TO_FACE_PROFILE"
+    }
+  ],
+  "larryItems": [
+    {
+      "item": "ADRENALINE_BOOSTER",
+      "temptation": 5,
+      "points": 100
+    },
+    {
+      "item": "ALCOHOL",
+      "temptation": 4,
+      "points": 25
+    },
+    {
+      "item": "MEDICKIT",
+      "temptation": 4,
+      "points": 10
+    },
+    {
+      "item": "WINE",
+      "temptation": 3,
+      "points": 50
+    },
+    {
+      "item": "REGEN_BOOSTER",
+      "temptation": 3,
+      "points": 100
+    },
+    {
+      "item": "BEER",
+      "temptation": 2,
+      "points": 100
+    }
+  ],
+  "larryBars": ["D13", "C13", "C5", "D5", "C6", "H2"],
+  "scheduleActions": [
+    {
+      "id": 0,
+      "name": "NONE"
+    },
+    {
+      "id": 1,
+      "name": "LOCKDOOR"
+    },
+    {
+      "id": 2,
+      "name": "UNLOCKDOOR"
+    },
+    {
+      "id": 3,
+      "name": "OPENDOOR"
+    },
+    {
+      "id": 4,
+      "name": "CLOSEDOOR"
+    },
+    {
+      "id": 5,
+      "name": "GRIDNO"
+    },
+    {
+      "id": 6,
+      "name": "LEAVESECTOR"
+    },
+    {
+      "id": 7,
+      "name": "ENTERSECTOR"
+    },
+    {
+      "id": 8,
+      "name": "STAYINSECTOR"
+    },
+    {
+      "id": 9,
+      "name": "SLEEP"
+    },
+    {
+      "id": 10,
+      "name": "WAKE"
+    }
+  ],
+  "scheduleFlags": [
+    {
+      "name": "VARIANCE1",
+      "value": 1
+    },
+    {
+      "name": "VARIANCE2",
+      "value": 2
+    },
+    {
+      "name": "VARIANCE3",
+      "value": 4
+    },
+    {
+      "name": "VARIANCE4",
+      "value": 8
+    },
+    {
+      "name": "ACTIVE1",
+      "value": 16
+    },
+    {
+      "name": "ACTIVE2",
+      "value": 32
+    },
+    {
+      "name": "ACTIVE3",
+      "value": 64
+    },
+    {
+      "name": "ACTIVE4",
+      "value": 128
+    },
+    {
+      "name": "TEMPORARY",
+      "value": 256
+    },
+    {
+      "name": "SLEEP_CONVERTED",
+      "value": 512
+    },
+    {
+      "name": "NPC_SLEEPING",
+      "value": 1024
+    },
+    {
+      "name": "ACTIVE_ALL",
+      "value": 240
     }
   ]
 }

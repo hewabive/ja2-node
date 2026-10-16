@@ -389,6 +389,7 @@ export function endTacticalBattleForEnemy(q: QueenContext, fighting: TeamsStillF
       u.elitesInBattle = 0;
     }
   }
+  q.state.narrative.profiledEnemyAdded = false;
   for (const g of q.state.forces.groups) {
     if (g.player || g.vehicle || !g.enemy || !sameSector(g.sector, world)) continue;
     g.enemy.troopsInBattle = 0;

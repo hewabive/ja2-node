@@ -79,6 +79,11 @@ export function mapPosFromAbsoluteScreenXY(t: TacticalState, x: number, y: numbe
   return Math.trunc(wy / CELL) * WORLD_COLS + Math.trunc(wx / CELL);
 }
 
+export function renderedScreenSize(t: TacticalState): { readonly width: number; readonly height: number } {
+  const b = boundsOf(t);
+  return { width: b.rightX - b.leftX, height: b.bottomY - b.topY };
+}
+
 export function gridNoOnVisibleWorldTile(t: TacticalState, g: number): boolean {
   const b = boundsOf(t);
   const { x, y } = absoluteScreenXY(t, g);

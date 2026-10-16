@@ -51,6 +51,7 @@ import { MERCHANT_PROBES, MerchantComparer } from './merchant-compare.ts';
 import { MORALE_PROBES, MoraleComparer } from './morale-compare.ts';
 import { comparePreBattle } from './pre-battle-compare.ts';
 import { SAI_PROBES, SaiComparer } from './sai-compare.ts';
+import { SCHEDULE_PROBES, ScheduleComparer } from './schedules-compare.ts';
 import { SECTOR_PROBES, SectorComparer } from './sector-compare.ts';
 import { STRATEGIC_PROBES, StrategicComparer } from './strategic-compare.ts';
 import { TALK_PROBES, TalkComparer } from './talk-compare.ts';
@@ -582,6 +583,7 @@ for (const file of files) {
   const talk = new TalkComparer(read, exists, (path) => data.vfs.layerCount(path));
   const facts = new FactComparer(read, exists);
   const actions = new ActionComparer(read, exists);
+  const schedules = new ScheduleComparer(read, exists, savesDir(dataDir));
   let ctx: Context | null = null;
   let arSetup: Json | null = null;
   for (const p of readLines(file)) {
@@ -631,6 +633,7 @@ for (const file of files) {
     else if (TALK_PROBES.has(String(p.probe))) failures += await talk.compare(p);
     else if (FACT_PROBES.has(String(p.probe))) failures += await facts.compare(p);
     else if (ACTION_PROBES.has(String(p.probe))) failures += await actions.compare(p);
+    else if (SCHEDULE_PROBES.has(String(p.probe))) failures += await schedules.compare(p);
     else {
       ctx ??= await sectorContext(read, content, worlds, null);
       if (p.probe === 'costs') failures += compareCosts(ctx, p);

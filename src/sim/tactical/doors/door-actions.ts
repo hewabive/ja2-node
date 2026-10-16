@@ -432,5 +432,7 @@ export function soldierHandleInteractiveObject(t: TacticalState, s: Soldier): bo
 }
 
 export function aiDoorActionWithoutInteraction(s: Soldier): boolean {
-  return s.ai.action === AiAction.UNLOCK_DOOR || s.ai.action === AiAction.LOCK_DOOR;
+  if (s.ai.action === AiAction.UNLOCK_DOOR || (s.ai.action === AiAction.LOCK_DOOR && !s.ai.lockDoorIncludesClose)) return true;
+  s.ai.lockDoorIncludesClose = false;
+  return false;
 }

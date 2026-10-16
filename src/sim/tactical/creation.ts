@@ -261,6 +261,7 @@ export interface SoldierCreate {
   palettes: Partial<SoldierPalettes>;
   readonly inv: Inventory;
   name: string;
+  scheduleId: number;
 }
 
 function chooseHair(c: CreationContext, body: number, skin: number): number {
@@ -419,6 +420,7 @@ function blankCreate(bp: BasicPlacement): SoldierCreate {
     palettes: {},
     inv: emptyInventory(),
     name: '',
+    scheduleId: 0,
   };
 }
 
@@ -471,9 +473,11 @@ export function createDetailedPlacementGivenStaticDetailedPlacementAndBasicPlace
   if (spp.profile !== NO_PROFILE) {
     const pp = blankCreate(bp);
     pp.profile = spp.profile;
+    pp.scheduleId = spp.scheduleId;
     return pp;
   }
   const pp = createDetailedPlacementGivenBasicPlacementInfo(c, bp, env);
+  pp.scheduleId = spp.scheduleId;
   const st = spp.stats;
   pp.expLevel = staticValue(st.experience, pp.expLevel);
   pp.life = staticValue(st.life, pp.life);
@@ -720,6 +724,7 @@ export function tacticalCreateSoldier(c: CreationContext, pp: SoldierCreate, id:
   s.initialActionPoints = s.actionPoints;
   s.oldLife = s.lifeMax;
   s.insertionGridNo = pp.insertionGridNo;
+  s.scheduleId = pp.scheduleId;
   if (pp.team === Team.CIV && !profile) rollCivilianStats(c, s);
   if (pp.team === Team.CREATURE && s.bodyType === Body.BLOODCAT) s.neutral = true;
   if (!profile) s.battleSoundId = c.rng.int(BATTLE_SOUND_CHOICES);

@@ -527,7 +527,8 @@ reduces to: turn toward the noise (75%), else 50% green behaviour, else NONE.
 - Quirk: after a YELLOW→GREEN drop, `CheckForChangingOrders` queues END_COWER_AND_MOVE to `sPreCombatGridNo = 0`
   (Prof.dat); it becomes a WAIT and is zapped by the pending new situation, then `sPreCombatGridNo = NOWHERE` (inferred;
   harmless, keep).
-- **Schedules** are ignored for M2 (inert in A9, §0). `DecideActionSchedule` (`:58-516`) is a hook.
+- **Schedules** are ignored for M2 (inert in A9, §0). `DecideActionSchedule` (`:58-516`) is a hook. *Implemented in M6
+  with the away slots and the asleep checks of `HandleSoldierAI` (`docs/25` §5.3).*
 
 ---
 
