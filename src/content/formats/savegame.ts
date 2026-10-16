@@ -112,8 +112,6 @@ const AIR_RAID_BYTES = 132;
 const MAX_BOMB_QUEUE = 40;
 const EXPLOSION_QUEUE_ENTRY_BYTES = 12;
 const EXPLOSION_RECORD_BYTES = 36;
-const CREATURE_DIRECTIVE_BYTES = 13;
-const DESTROYED_LAIR_BYTES = 4;
 const STRATEGIC_STATUS_BYTES = 192;
 const SAI_PADDING_BYTES = 97;
 const SAVED_ARMY_COMPOSITIONS = 60;
@@ -316,6 +314,7 @@ export interface SaveGame {
   readonly teamTurns: TeamTurns;
   readonly watchedLocations: WatchedLocations;
   readonly gameStates: string | null;
+  readonly creatureDirectives: SavedCreatureDirectives;
   readonly sections: readonly SaveSection[];
   readonly bytesConsumed: number;
 }
@@ -510,6 +509,23 @@ function skipLeaveItemList(c: SaveCursor): void {
   c.skip(NUM_LEAVE_LIST_SLOTS * 4);
 }
 
+export interface SavedCreatureDirectives {
+  readonly habitatedDistance: number;
+  readonly populationModifier: number;
+  readonly lairId: number;
+  readonly useCreatureMusic: boolean;
+  readonly destroyedLairId: number;
+}
+
+function readCreatureDirectives(c: SaveCursor, version: number): SavedCreatureDirectives {
+  const habitatedDistance = c.i32();
+  const populationModifier = c.i32();
+  const lairId = c.i32();
+  const useCreatureMusic = c.u8() !== 0;
+  const destroyedLairId = version >= FIRST_VERSION_WITH_DESTROYED_LAIR ? c.i32() : 0;
+  return { habitatedDistance, populationModifier, lairId, useCreatureMusic, destroyedLairId };
+}
+
 function readGameStates(c: SaveCursor): string {
   return String.fromCharCode(...c.view(c.u32()));
 }
@@ -596,9 +612,7 @@ export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable
   section(ctx, 'air raid (unused)', () => c.skip(AIR_RAID_BYTES));
   const teamTurns = section(ctx, 'team turns', () => readTeamTurns(c));
   section(ctx, 'explosions', () => skipExplosions(c));
-  section(ctx, 'creature directives', () =>
-    c.skip(CREATURE_DIRECTIVE_BYTES + (version >= FIRST_VERSION_WITH_DESTROYED_LAIR ? DESTROYED_LAIR_BYTES : 0)),
-  );
+  const creatureDirectives = section(ctx, 'creature directives', () => readCreatureDirectives(c, version));
   section(ctx, 'strategic status', () => c.skip(STRATEGIC_STATUS_BYTES));
   section(ctx, 'strategic ai', () => skipStrategicAi(c));
   const watchedLocations = section(ctx, 'watched locations', () => readWatchedLocations(c));
@@ -645,6 +659,7 @@ export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable
     teamTurns,
     watchedLocations,
     gameStates,
+    creatureDirectives,
     sections: ctx.sections,
     bytesConsumed: c.pos,
   };

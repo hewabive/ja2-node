@@ -301,6 +301,26 @@ export interface MercCapturedEvent extends SimEventBase {
   readonly sector: string;
 }
 
+export interface CiviliansEatenEvent extends SimEventBase {
+  readonly type: 'civiliansEaten';
+  readonly sector: string;
+  readonly count: number;
+}
+
+export interface HatedComplaintEvent extends SimEventBase {
+  readonly type: 'hatedComplaint';
+  readonly soldier: number;
+  readonly about: number;
+  readonly learned: boolean;
+}
+
+export interface MercQuitsHatedEvent extends SimEventBase {
+  readonly type: 'mercQuitsHated';
+  readonly soldier: number;
+  readonly about: number;
+  readonly learned: boolean;
+}
+
 export interface CompressionStartedEvent extends SimEventBase {
   readonly type: 'compressionStarted';
   readonly mode: number;
@@ -366,6 +386,9 @@ export type SimEvent =
   | BattleResultEvent
   | SectorControlChangedEvent
   | MercCapturedEvent
+  | HatedComplaintEvent
+  | MercQuitsHatedEvent
+  | CiviliansEatenEvent
   | CompressionStartedEvent
   | CompressionStoppedEvent
   | WorldTimeReachedEvent

@@ -1488,5 +1488,47 @@ scenario (wake after three victories on medium, grace period, attack on Drassen)
 
 **Not yet.** The `prepare` probe (the placement level is covered by the `defence` probes of `docs/16` §14), periodic
 checks that reach a notice roll in the oracle (none of the probed situations had an important undefended neighbour),
-creatures and bloodcat placements (step 10),
-`ReinitializeUnvisitedGarrisons` and the SAI version patches.
+`ReinitializeUnvisitedGarrisons` and the SAI version patches. Creatures and bloodcats (step 10): §20.
+
+## 20. Implemented (2026-10-16): creatures and bloodcats (§12)
+
+§12.3 is superseded: sci-fi campaigns run the whole strategic creature quest; only the tactical creature AI waits
+(`docs/13` §12.3, `deviations.md` "Creature AI").
+
+**Content.** `src/content/strategic/creature-lairs.ts` parses `strategic-map-creature-lairs.json` (`CreatureLair`: lair
+sectors with habitats, the mine, the entrance sector, the attack sectors with chances and insertion codes, the warp
+exit) into `StrategicContent.creatureLairs`; `lairContainsSector`.
+
+**State.** `StrategicState.creatures` (`CreatureState`): `lairId` (0 none, −1 destroyed), `habitatedDistance`,
+`populationModifier`, `destroyedLairId`, `meanwhileScenePlayed`, `useCreatureMusic` and the attack globals
+`attack {insertionCode, insertionGridNo, numAttacking, battleCode, sectorId}` (`gubNumCreaturesAttackingTown`,
+`gubSectorIDOfCreatureAttack`, `gubCreatureBattleCode`, `gsCreatureInsertionCode`, `gsCreatureInsertionGridNo`; process
+globals in the original, campaign state here). Native saves import the creature directives section and the meanwhile flag
+(`savegame.ts`, `savegame-strategic-ai.ts`, `importCreatureDirectives`).
+
+**Simulation.**
+
+| Module | Public API |
+|---|---|
+| `strategic/creatures/creatures.ts` | `initCreatureLair`, `initCreatureQuest`, `spreadCreatures`, `creatureNightPlanning`, `checkConditionsForTriggeringCreatureQuest`, `endCreatureQuest`, `mineClearOfMonsters`, `playerGroupIsInACreatureInfestedMine`, `warpOutOfMineCodes`, `distributeCreaturesByWeight` (one weighted `Random(100)` per creature, `19` D5), `CREATURE_WEIGHTS_BY_HABITAT` |
+| `strategic/creatures/town-attack.ts` | `creatureAttackTown` (with the quirk that `ubDayOfLastCreatureAttack` is written on the event's mine sector, not the attacked one), `determineCreatureTownComposition`, `clearSurfaceCreatures`, `TownAttackPorts` |
+| `campaign/creature-flow.ts` | `CreatureFlow` (`campaign.creatures`): registers `CREATURE_SPREAD`, `CREATURE_NIGHT_PLANNING` and `CREATURE_ATTACK`; schedules the CREATURES meanwhile (`now + 5`); economy hooks `mineClearOfMonsters` and the quest trigger; the Queen's `creatureQuestEnded` ends the quest; `battleSetup` (`PrepareCreaturesForBattle` composition: tactical transfer or habitat weights); civilians eaten (`adjustLoyaltyForCivsEatenByMonsters`, event `civiliansEaten`) |
+| `tactical/init-list.ts` | `addSoldierInitListCreatures` / pure `placeCreaturesFromInitList`, `addSoldierInitListBloodcats` / pure `placeBloodcatsFromInitList`, `addCreaturesToBattle` (town attacks at the insertion edge or grid), `tacticalCreateCreature` |
+| `tactical/creation.ts` | creature and bloodcat bodies: levels by body (+ difficulty for lair bloodcats), natural weapons and hides, body-part drops, `FARPATROL`/`AGGRESSIVE`, smell; bloodcats start neutral |
+| `tactical/perception/sight.ts` | `MakeBloodcatsHostile` on sight (with the `Random(2)` roar draw), `CONSIDERED_NEUTRAL` for the creature team |
+| `tactical/sector-presence.ts` | `hostileBloodcatsPresent` (the world port's answer for the PBI codes, group arrivals and the compression refusal) |
+
+Battles. `CreatureAttackTown` reaches the PBI (player groups, `preBattle` with encounter `creatureAttack`), autoresolve
+with auto-start (militia only; `buildAutoresolveInput` creates the creature cells AF, AM, YF, YM from the composition), the
+loaded sector (creatures added at once, no pause) or eats civilians. A sector load adds bloodcats and the creatures of a
+mine level or a pending attack; the Tixa cave (J9 b2) starts the quest when entered. A won tactical battle runs
+`KillIncompacitatedEnemyInSector` first. Time compression is refused while a player group is in an infested mine.
+
+**Verified against the oracle** (patch `0006-creature-morale-oracle.patch`, probes `creatures.txt`,
+`creature-battles.txt`, `creature-placement.txt`, `tools/oracle/README.md` "Creatures"): quest start, triggers, spreading,
+night planning, town attacks (battle codes none, PBI and autoresolve; lairs 1, 3 and 4 — the saves never pick lair 2),
+the end of the quest and the composition, draw by draw with full creature dumps; six creature autoresolve battles at all
+three levels; five creature and five bloodcat init-list placements.
+
+**Not yet.** `CreatureDecideAction` and the creature attacks in tactical, blood and smell, the queen's tentacles, quest
+records, the meanwhile scene and creature music (M6).

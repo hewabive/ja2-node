@@ -11,7 +11,7 @@ import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { lightSetBaseLevel, lightSpriteCreate, lightSpritePosition, lightSpritePower } from '../lighting/lighting.ts';
 import { setSoldierPosition } from '../movement.ts';
-import { createSoldier, SkillTrait, type Soldier, Team } from '../soldier.ts';
+import { Body, createSoldier, SkillTrait, type Soldier, Team } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
 import { revealedRooms } from './fov.ts';
 import { HeightClass, lineOfSightTest, soldierToSoldierLineOfSight } from './los.ts';
@@ -121,6 +121,23 @@ describe('sighting', () => {
     expect(enemy.visible).toBe(-1);
     expect(civ.visible).toBe(1);
     expect(t.inCombat).toBe(false);
+  });
+
+  it('turns every bloodcat hostile as soon as one is seen and lets creatures hunt neutral civilians', () => {
+    const t = tactical();
+    const merc = spawn(t, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const cats = [spawn(t, Team.CREATURE, gridNo(80, 90), Direction.NORTH), spawn(t, Team.CREATURE, gridNo(80, 70), Direction.NORTH)];
+    for (const cat of cats) Object.assign(cat, { bodyType: Body.BLOODCAT, neutral: true });
+    allTeamsLookForAll(t);
+    expect(cats.map((c) => c.neutral)).toEqual([false, false]);
+    expect([merc.ai.oppCount, cats[0]?.ai.oppCount, cats[1]?.oppList[merc.id]]).toEqual([1, 1, Opp.NOT_HEARD_OR_SEEN]);
+    expect(t.inCombat).toBe(true);
+    const other = tactical();
+    const civ = spawn(other, Team.CIV, gridNo(80, 80), Direction.SOUTH);
+    const creature = spawn(other, Team.CREATURE, gridNo(80, 90), Direction.NORTH);
+    civ.neutral = true;
+    allTeamsLookForAll(other);
+    expect([creature.ai.oppCount, civ.ai.oppCount]).toEqual([1, 1]);
   });
 });
 

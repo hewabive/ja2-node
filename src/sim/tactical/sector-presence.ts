@@ -1,10 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Overhead.cc RemoveSoldierFromTacticalSector; OppList.cc InitSoldierOppList. See docs/16 §5.
+// @src src/game/Tactical/Overhead.cc RemoveSoldierFromTacticalSector, HostileBloodcatsPresent; OppList.cc InitSoldierOppList. See docs/16 §5.
 
 import { removeMercStructure } from './person-structure.ts';
-import { NOWHERE, type Soldier, TOTAL_SOLDIERS } from './soldier.ts';
-import { removeOccupant, type TacticalState, unregisterSoldier } from './state.ts';
+import { Body, NOWHERE, type Soldier, Team, TOTAL_SOLDIERS } from './soldier.ts';
+import { removeOccupant, type TacticalState, teamMembers, unregisterSoldier } from './state.ts';
 
 export function initSoldierOppList(t: TacticalState, s: Soldier): void {
   s.oppList.fill(0);
@@ -23,4 +23,8 @@ export function removeSoldierFromTacticalSector(t: TacticalState, s: Soldier): v
   unregisterSoldier(t, s);
   s.placed = false;
   s.offMap = false;
+}
+
+export function hostileBloodcatsPresent(t: Pick<TacticalState, 'soldiers'>): boolean {
+  return teamMembers(t, Team.CREATURE).some((s) => s.life > 0 && s.bodyType === Body.BLOODCAT);
 }

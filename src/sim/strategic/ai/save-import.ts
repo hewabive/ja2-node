@@ -62,6 +62,7 @@ function importStatus(q: QueenContext, sections: SavedStrategicAiSections): void
     unhiredMercDeaths: s.unhiredMercDeaths,
     playerKills: s.playerKills,
     enemiesKilled: s.enemiesKilled.map((row) => [...row]),
+    weaponsDropped: new Set(sections.droppedWeaponsState ?? s.weaponDroppedAlready.flatMap((flag, item) => (flag ? [item] : []))),
   });
   Object.assign(q.state.map.activity, {
     lastDayOfPlayerActivity: s.lastDayOfPlayerActivity,

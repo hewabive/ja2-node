@@ -37,7 +37,10 @@ import { registerSoldier, unregisterSoldier, whoIsThere } from '../../src/sim/ta
 import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import { compareAutoresolveAftermath, compareEnemyCounts } from './autoresolve-aftermath.ts';
 import { compareAutoresolve } from './autoresolve-compare.ts';
+import { compareAutoresolveCreation } from './autoresolve-creation.ts';
+import { CREATURE_PROBES, CreatureComparer } from './creature-compare.ts';
 import { ECONOMY_PROBES, EconomyComparer } from './economy-compare.ts';
+import { MORALE_PROBES, MoraleComparer } from './morale-compare.ts';
 import { comparePreBattle } from './pre-battle-compare.ts';
 import { SAI_PROBES, SaiComparer } from './sai-compare.ts';
 import { SECTOR_PROBES, SectorComparer } from './sector-compare.ts';
@@ -527,7 +530,11 @@ async function compareAutoresolveProbe(
 ): Promise<number> {
   if (!ctx?.bytes || !setup) return compareAutoresolve(content, p);
   const { session } = await createSaveSession(read, ctx.bytes, 1, exists);
-  return compareAutoresolve(content, p, (r) => compareAutoresolveAftermath(r, content, session, setup, p));
+  const creation = (await createSaveSession(read, ctx.bytes, 1, exists)).session;
+  return compareAutoresolve(content, p, (r) => {
+    compareAutoresolveCreation(r, content, creation, setup, p);
+    compareAutoresolveAftermath(r, content, session, setup, p);
+  });
 }
 
 const files = process.argv.slice(2);
@@ -555,12 +562,16 @@ for (const file of files) {
   const economy = new EconomyComparer(read);
   const sai = new SaiComparer(read);
   const sectors = new SectorComparer(read, (p) => data.vfs.stat(p) !== undefined);
+  const creatures = new CreatureComparer(read, exists);
+  const morale = new MoraleComparer(read, exists);
   let ctx: Context | null = null;
   let arSetup: Json | null = null;
   for (const p of readLines(file)) {
     if (p.error) failures += report(`${p.probe} line ${p.line}`, false, `oracle error: ${p.error}`);
-    else if (p.probe === 'arsetup') arSetup = p;
-    else if (p.probe === 'sector') {
+    else if (p.probe === 'arsetup') {
+      arSetup = p;
+      await creatures.arsetup(p);
+    } else if (p.probe === 'sector') {
       ctx = await sectorContext(read, content, worlds, p);
       sectors.loadSector(ctx.sim, p);
     } else if (p.probe === 'save') {
@@ -569,6 +580,8 @@ for (const file of files) {
       await strategic.loadSave(savesDir(dataDir), String(p.name), ctx.sim);
       await economy.loadSave(savesDir(dataDir), String(p.name));
       await sai.loadSave(savesDir(dataDir), String(p.name));
+      if (ctx.bytes) creatures.loadSave(ctx.bytes);
+      if (ctx.bytes) morale.loadSave(ctx.bytes);
     } else if (p.probe === 'end') continue;
     else if (p.probe === 'autoresolve') failures += await compareAutoresolveProbe(read, exists, ctx, arSetup, p);
     else if (p.probe === 'enemycounts') failures += await compareEnemyCountsProbe(read, ctx, p);
@@ -577,6 +590,8 @@ for (const file of files) {
     else if (ECONOMY_PROBES.has(String(p.probe))) failures += economy.compare(p);
     else if (SAI_PROBES.has(String(p.probe))) failures += await sai.compare(p);
     else if (SECTOR_PROBES.has(String(p.probe))) failures += await sectors.compare(p);
+    else if (CREATURE_PROBES.has(String(p.probe))) failures += await creatures.compare(p);
+    else if (MORALE_PROBES.has(String(p.probe))) failures += await morale.compare(p);
     else {
       ctx ??= await sectorContext(read, content, worlds, null);
       if (p.probe === 'costs') failures += compareCosts(ctx, p);

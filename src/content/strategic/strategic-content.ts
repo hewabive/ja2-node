@@ -1,5 +1,6 @@
 import { FormatError } from '../binary/errors.ts';
 import type { ReadFile } from '../world/tileset-loader.ts';
+import { CREATURE_LAIRS_PATH, type CreatureLair, parseCreatureLairs } from './creature-lairs.ts';
 import { parseJsoncBytes } from './jsonc.ts';
 import {
   type BloodCatPlacement,
@@ -45,6 +46,7 @@ export const STRATEGIC_CONTENT_PATHS = {
   cacheSectors: 'externalized/strategic-map-cache-sectors.json',
   bloodCatPlacements: 'externalized/strategic-bloodcat-placements.json',
   bloodCatSpawns: 'externalized/strategic-bloodcat-spawns.json',
+  creatureLairs: CREATURE_LAIRS_PATH,
   vehicles: 'externalized/vehicles.json',
   policy: 'externalized/game.json',
   travel: STRATEGIC_TRAVEL_PATH,
@@ -64,6 +66,7 @@ export interface StrategicContent {
   readonly cacheSectors: CacheSectors;
   readonly bloodCatPlacements: readonly BloodCatPlacement[];
   readonly bloodCatSpawns: readonly BloodCatSpawn[];
+  readonly creatureLairs: readonly CreatureLair[];
   readonly vehicles: readonly VehicleType[];
   readonly policy: StrategicPolicy;
   readonly travel: TravelTable;
@@ -83,6 +86,7 @@ export function parseStrategicContent(sources: StrategicContentSources): Strateg
     cacheSectors: parseCacheSectors(sources.cacheSectors),
     bloodCatPlacements: parseBloodCatPlacements(sources.bloodCatPlacements),
     bloodCatSpawns: parseBloodCatSpawns(sources.bloodCatSpawns),
+    creatureLairs: parseCreatureLairs(sources.creatureLairs),
     vehicles: parseVehicleTypes(sources.vehicles),
     policy: parseStrategicPolicy(sources.policy),
     travel: parseTravelTable(sources.travel),

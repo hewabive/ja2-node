@@ -100,7 +100,9 @@ export async function createSaveSession(
   });
   current = campaign;
   if (campaign.strategic) importStrategicMap(campaign.strategic, save);
-  if (campaign.queen) importStrategicAi(campaign.queen, readStrategicAiSections(saveBytes, save), { runLoadHooks: true });
+  const saiSections = readStrategicAiSections(saveBytes, save);
+  if (campaign.queen) importStrategicAi(campaign.queen, saiSections, { runLoadHooks: true });
+  campaign.creatures?.importDirectives(save.creatureDirectives, saiSections.creatureMeanwhileScenePlayed);
   importEconomy(strategic, readSavedEconomy(saveBytes, save.sections), save.laptop.currentBalance);
   for (const saved of readSoldierAssignments(saveBytes, save, encryption)) {
     const merc = roster.get(saved.id);

@@ -135,6 +135,15 @@ const STUB_SHAPES: Readonly<Record<string, Uint8Array>> = {
   m_fall: personShape(0b0001, 0b0001),
   m_fallback: personShape(0b0001, 0b0001),
   k_stand: personShape(0b0011, 0b0001),
+  mn_breat: personShape(0b0011, 0b0001),
+  l_breath: personShape(0b0001, 0b0001),
+  i_breath: personShape(0b0001, 0b0001),
+  q_ready: personShape(0b0111, 0b0011),
+  ct_breath: personShape(0b0011, 0b0001),
+  cw_breath: personShape(0b0011, 0b0011),
+  cr_stand: personShape(0b0001, 0b0001),
+  cr_crouch: personShape(0b0001, 0b0001),
+  cr_prone: personShape(0b0001, 0b0001),
 };
 
 export function stubAnimStructureFiles(): ReadonlyMap<string, StructureDef[]> {

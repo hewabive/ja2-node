@@ -5,8 +5,9 @@ probe script and prints JSON lines. It gives reference values for our reimplemen
 (`docs/01-architecture.md` §8, level 6). The probes cover pathfinding, line of sight, the movement
 cost table, tactical lighting (`LightTrueLevel` of every tile), and the state of loaded saves: full soldier
 dumps, the chance to hit and AP cost of an aimed shot, and the AI's choice of the best shot; autoresolve battles
-are traced draw by draw and replayed through ja2-node, together with their strategic aftermath and the encounter code
-of the pre-battle interface.
+are traced draw by draw and replayed through ja2-node, together with the created soldiers, their strategic aftermath and
+the encounter code of the pre-battle interface; the creature quest (spreading, night planning, town attacks, placements)
+and the hourly team morale are probed the same way.
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -24,7 +25,12 @@ commit them.
 | `patches/0003-strategic-ai-oracle.patch` | Trace marks around the load-time recomputation of the strategic AI (see "Hooks") |
 | `patches/0004-sector-transition-oracle.patch` | Wrappers for the static sector-exit helpers and trace marks around each placement (see "Hooks") |
 | `patches/0005-pre-battle-oracle.patch` | The encounter-code block of `InitPreBattleInterface` as a callable function (see "Hooks") |
+| `patches/0006-creature-morale-oracle.patch` | Weighted creature draws in the trace, a stop before creature battles, the morale decay counter at file scope (see "Hooks") |
 | `autoresolve-compare.ts` | Core replay of `autoresolve` probes through ja2-node's autoresolve |
+| `autoresolve-creation.ts` | Level 2 of `autoresolve` probes (the soldiers created by `CreateAutoResolveInterface`) |
+| `creature-compare.ts` | The creature probes of `compare.ts` (`creatures`, `creaturequest`, `creaturetrigger`, `creaturespread`, `creatureplanning`, `creatureattack`, `endcreaturequest`, `setcreatures`, `creaturecomposition`, `options`, `setcontrol`, `tacticalflags`) |
+| `morale-compare.ts` | The morale probes of `compare.ts` (`morale`, `setmorale`, `setrelation`, `setprofile`, `moralemove`, `moralecounter`, `hourlymorale`, `quartermorale`) |
+| `probes/creature*.txt`, `probes/morale.txt` | Creature and morale probe scripts (see "Creatures" and "Morale") |
 | `autoresolve-aftermath.ts` | Level 3 of `autoresolve` probes (the battle closed through ja2-node's battle flow on the imported save) and `enemycounts` |
 | `pre-battle-compare.ts` | The `pbi` probe of `compare.ts` |
 | `probes/battle.txt` | Battles from the strategic state (see "Autoresolve") |
@@ -39,7 +45,7 @@ commit them.
 | `probes/autoresolve-*.txt` | Autoresolve probe scripts (see "Autoresolve") |
 | `sai-compare.ts` | The strategic AI probes of `compare.ts` (`newgame`, `sai`, `saievaluate`, `saicheck`, `saiwake`, `saiarrive`, `diffmod`, `draws`) |
 | `probes/sai-*.txt` | Strategic AI probe scripts (see "Strategic AI") |
-| `sector-compare.ts` | The sector transition probes of `compare.ts` (`edgepoints`, `soldierexit`, `walkoff`, `walkin`, `mirror`, `exitcheck`, `move`, `initlist`, `defence`) |
+| `sector-compare.ts` | The sector transition probes of `compare.ts` (`edgepoints`, `soldierexit`, `walkoff`, `walkin`, `mirror`, `exitcheck`, `move`, `initlist`, `defence`, `creatureplacement`, `bloodcatplacement`) |
 | `probes/sectors.txt` | Probe script for sector loading and exits (see "Sector transitions") |
 
 `reference/` is never modified. The work dir (`$JA2_ORACLE_DIR`, default `~/ja2-oracle`) holds:
@@ -609,8 +615,9 @@ replay") rebuilds the AR state from the setup dump, replays the traced draws thr
 streams that assert every requested range (cosmetic draws routed to `main` with `cosmeticOnMain`), applies the same
 retreat orders and surrender answer at the same slices, and compares the ratings, team sums, status, battle time, every
 cell (life, bleeding, flags, timers, pending bullets, inventory, militia kill points, merc profile counters and stat
-progress), the time warp, militia counts and promotions after closing, and that no draw is left over. Creature attacks
-are refused (the creature composition needs a trace of `std::discrete_distribution`).
+progress), the time warp, militia counts and promotions after closing, and that no draw is left over. For creature
+attacks (`arsetup code=creature creatures=<n>`) the native `std::discrete_distribution` picks are traced as weighted
+entries (`d`, patch 0006) and replayed as the `Random(100)` that falls into the same bucket (docs/19 D5).
 
 ```sh
 export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data"
@@ -629,9 +636,14 @@ imported into a campaign session, the `arsetup` is applied to it (counts, enemy 
 counts and town loyalty before the battle are compared, the replayed battle is handed to the battle flow
 (`adoptAutoresolve`), the `bandage` and `done` answers go through `dispatch` with the traced close draws, and the world
 seconds, enemy counts (stationary, total, in sector), militia, `fEnemyControlled` and town loyalty after the close are
-compared, plus the enemy group id of every cell from a fresh `associateEnemiesWithStrategicGroups` (Q16). Level 2
-(creation) is not compared: ja2-node's militia creation already diverges at the 44th `main` draw of the first militiaman
-(a range of 4 where the native draws `Random(100)`), a docs/06/docs/12 follow-up.
+compared, plus the enemy group id of every cell from a fresh `associateEnemiesWithStrategicGroups` (Q16).
+
+Level 2 ("setup", `autoresolve-creation.ts`) runs on a second session of the same save: the `arsetup` is applied,
+`buildAutoresolveInput` creates the militia, enemy and creature soldiers with streams that replay the traced draws between
+the setup and ratings marks (the creature composition of `CalculateAutoResolveInfo` first), and every created
+soldier is compared with the dumped cell (class, body, stats, life, morale, breath, traits, AP and inventory with status
+and ammo). Afterwards no draw may be left over except the pathfinder's `Random(4)` and the preserved-soldier
+`PreRandom(2)` of the native world unload.
 
 `probes/battle.txt` adds the strategic side of docs/19 §7.4: eight `pbi` probes (codes invasion, encounter, ambush,
 entering an enemy sector and creature attack; `gfCantRetreatInPBI`, a high ambush potential and unconscious mercs), five
@@ -646,8 +658,69 @@ node tools/oracle/compare.ts ~/ja2-oracle/battle/battle.jsonl
 ```
 
 On 2026-10-16 all of it matched, and level 3 matched on the 8 battles of `autoresolve-d13.txt`, the 6 of
-`autoresolve-capture.txt` and the 30 generated ones. The saves are on easy with 2–4 % progress, so the random-ambush
+`autoresolve-capture.txt` and the 30 generated ones. Level 2 matched on all 50 battles (156 militia and 664 enemies
+created) and on the six creature battles below. The saves are on easy with 2–4 % progress, so the random-ambush
 branch (`PreRandom(100)` against the ambush chance) is not reachable natively; its arithmetic is covered by unit tests.
+
+### Creatures
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data"
+tools/oracle/run.sh tools/oracle/probes/creatures.txt ~/ja2-oracle/creatures/creatures.jsonl
+tools/oracle/run.sh tools/oracle/probes/creature-battles.txt ~/ja2-oracle/creatures/battles.jsonl
+tools/oracle/run.sh tools/oracle/probes/creature-placement.txt ~/ja2-oracle/creatures/placement.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle/creatures/creatures.jsonl ~/ja2-oracle/creatures/battles.jsonl \
+  ~/ja2-oracle/creatures/placement.jsonl
+```
+
+Commands (after a `save`; each prints its arguments, the creature and attack globals, the creature counts of every
+surface and underground sector, and the draws it made):
+```
+options [scifi=0|1] [difficulty=1..3]
+setcontrol sector=D13 enemy=0|1                    # fEnemyControlled
+tacticalflags enemyinsector=0|1                    # gTacticalStatus.fEnemyInSector
+setcreatures sector=D13 [z=1] count=<n>
+creatures | creaturequest | creaturetrigger | creaturespread [count=<n>] | creatureplanning | endcreaturequest
+creatureattack sector=D13 [specific=1]             # CreatureAttackTown, stopped before the battle opens
+creaturecomposition count=<n>                      # DetermineCreatureTownComposition
+creatureplacement [queen=1] [larvae=] [infants=] [ym=] [yf=] [am=] [af=]   # after `sector`: AddSoldierInitListCreatures
+bloodcatplacement [cats=<n>] [placements=<n>]      # after `sector`: AddSoldierInitListBloodcats
+```
+`creature-compare.ts` imports the save (strategic map, economy, creature directives and meanwhile flag), replays each
+operation through `strategic/creatures/` with roll sources that assert every range (weighted `d` entries become the
+matching `Random(100)`) and compares the whole dump; the attack globals are process state in the native build, so they
+are carried across `save` lines. `creatureplacement` and `bloodcatplacement` replay only the placement decisions, like
+`defence` (draws inside a placement are skipped, the native outcome answers each placement).
+
+On 2026-10-16 every probe matched: 7 quest starts, 2 triggers, 11 spreads, 9 night plannings, 17 town attacks (battle
+codes none, PBI and autoresolve; lairs 1, 3 and 4, no save picks lair 2), the quest end and 2 compositions (8,178 `main`,
+13 `pre` and 43 weighted draws); 6 creature autoresolve battles (30 militia, 54 creatures) at levels 1–3; 5 creature and
+5 bloodcat placements.
+
+### Morale
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data"
+tools/oracle/run.sh tools/oracle/probes/morale.txt ~/ja2-oracle/morale/morale.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle/morale/morale.jsonl
+```
+
+Commands (each prints the decay counter, progress, `fEnemyInSector`, the world minutes and per OUR merc the sector, group,
+motion, assignment, sleep, life, effective leadership, morale, the four modifiers, opinions of the teammates, hated, buddy
+and learn slots, personality and attitude):
+```
+morale
+setmorale who=<id> [team=] [tactical=] [strategic=] [delayed=] [asleep=0|1]   # then RefreshSoldierMorale
+setrelation who=<profile> about=<profile> [opinion=] [hated=<slot>:<time>:<count>] [learnhate=<time>:<count>] [learnlike=<time>:<count>]
+setprofile who=<profile> [personality=] [attitude=]
+moralemove who=<id> to=<gridno>
+moralecounter value=<n>                            # the strategic decay counter
+hourlymorale [count=<n>]                           # UpdateBuddyAndHatedCounters + HourlyMoraleUpdate
+quartermorale [count=<n>]                          # DecayTacticalMoraleModifiers
+```
+`morale-compare.ts` applies the same changes to a campaign session of the save and runs `team-morale.ts`. On
+2026-10-16 all 43 probes matched (hated relations within and past their tolerance, learning to like and to hate,
+sleeping mercs, the third-hour strategic decay, a nervous merc moved away from his squad).
 
 ## Shipped probes
 
@@ -663,6 +736,10 @@ branch (`PreRandom(100)` against the ambush chance) is not reachable natively; i
 | `probes/strategic.txt` | The travel table for the five transports, A9→P3 for every mask and other long, unreachable, tactical-traversal and trivial routes, then `save` + `groups` for SaveGame01, 02, 07, 08, 09, 10 |
 | `probes/sai-newgame.txt` | Seven seeded new games on every difficulty (draw log of `InitNewCampaign`, `sai`), three of them followed by `saiwake`, `saievaluate`, `saicheck` and `saiarrive count=60` with dumps, the others by `saiarrive count=40` |
 | `probes/sai-saves.txt` | For each of the six saves: the draws of the load, `sai`, `diffmod` for three classes, a seeded `saievaluate awake=1`, four `saicheck`, a second evaluation and `saiarrive count=40`, each followed by `sai` |
+| `probes/creatures.txt` | The creature quest on SaveGame09 and 10 over the three difficulties: starts, triggers, spreads, night planning, town attacks with each battle code, the end of the quest and two compositions |
+| `probes/creature-battles.txt` | Six creature autoresolve battles in D13 with 0–12 militia, the save's mercs and 3–20 creatures (bandaging, a full retreat) |
+| `probes/creature-placement.txt` | Creature placements in F13 b3 (with the queen), G13 b3, E13 b1, D13 b1, H8 b1 and bloodcat placements in I16, E13, C8 and D9 |
+| `probes/morale.txt` | Hourly and quarter-hour morale on SaveGame10, 07 and 01 with set modifiers, relations, traits and positions |
 | `probes/sectors.txt` | Edgepoints loaded and generated on eight maps, screen-space exit thresholds on both sides of every edge (A9, A10 basement), exit-grid checks in D13 and the basement, walk-off/walk-in/mirror from the centre and near the edges, class codes on the isolated maps H13 and I14, init list sorts and ten defence placements (A9, B13, C13, D13), and `OKForSectorExit` on SaveGame10, 07 (in combat) and 01 before and after moving mercs to an edge or an exit grid |
 
 All three were run on the user's Steam JA2 Gold 1.12 data: every command succeeds, and on these
@@ -729,6 +806,13 @@ scope guard at the top of `AddPlacementToWorld` that writes `OracleTraceMark(100
 the encounter-code block of `InitPreBattleInterface` moves into `DeterminePersistentEncounterCode` (same code, same
 call site), and the appended `OracleDeterminePersistentEncounterCode(group, sector)` runs
 `WakeUpAllMercsInSectorUnderAttack` and that block headless for the `pbi` probe. Regenerate it like 0002 with that path.
+
+`patches/0006-creature-morale-oracle.patch` (applied after 0005) touches `src/sgp/Random.{h,cc}`
+(`OracleTraceWeighted`: one `d` entry per weighted pick with the weight total and the lower bound of the chosen bucket),
+`src/game/Strategic/Creature_Spreading.cc` (the trace call in `DistributeCreaturesByWeight` and
+`gOracleSkipCreatureBattle`, which stops `CreatureAttackTown` before the battle switch; false in the game) and
+`src/game/Tactical/Morale.cc` (the function-static decay counter of `HourlyMoraleUpdate` becomes the file-scope
+`gOracleStrategicMoraleUpdateCounter`, same behaviour). Regenerate it like 0002 with those paths.
 
 ## Notes
 

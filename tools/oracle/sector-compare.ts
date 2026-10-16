@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { parseJsoncBytes } from '../../src/content/strategic/jsonc.ts';
+import { type BloodCatSpawn, parseBloodCatSpawns } from '../../src/content/strategic/map-tables.ts';
 import { parseSectorString, type Sector } from '../../src/content/strategic/sector-ids.ts';
+import { STRATEGIC_CONTENT_PATHS } from '../../src/content/strategic/strategic-content.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import { createSaveSession, type SaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
@@ -16,7 +19,12 @@ import {
   loadMapEdgepoints,
   type MapEdgepoints,
 } from '../../src/sim/tactical/edgepoints.ts';
-import { buildSoldierInitList, type SoldierInitNode } from '../../src/sim/tactical/init-list.ts';
+import {
+  buildSoldierInitList,
+  placeBloodcatsFromInitList,
+  placeCreaturesFromInitList,
+  type SoldierInitNode,
+} from '../../src/sim/tactical/init-list.ts';
 import { setSoldierPosition } from '../../src/sim/tactical/movement.ts';
 import {
   absoluteScreenXY,
@@ -43,6 +51,8 @@ export const SECTOR_PROBES: ReadonlySet<string> = new Set([
   'move',
   'initlist',
   'defence',
+  'creatureplacement',
+  'bloodcatplacement',
 ]);
 
 const ORACLE_NOWHERE = 25601;
@@ -167,6 +177,7 @@ export class SectorComparer {
   #nodes: SoldierInitNode[] = [];
   #saveBytes: Uint8Array | null = null;
   #save: SaveSession | null = null;
+  #bloodcatSpawns: readonly BloodCatSpawn[] | null = null;
 
   constructor(read: ReadFile, exists: FileExists) {
     this.#read = read;
@@ -196,10 +207,15 @@ export class SectorComparer {
     const sim = this.#sim;
     const sector = this.#sector;
     if (!sim || !sector) return report(label, false, 'no sector loaded');
+    if (p.probe === 'bloodcatplacement' && !this.#bloodcatSpawns) {
+      const bytes = await this.#read(STRATEGIC_CONTENT_PATHS.bloodCatSpawns);
+      this.#bloodcatSpawns = bytes ? parseBloodCatSpawns(parseJsoncBytes(bytes)) : [];
+    }
     try {
       if (p.probe === 'edgepoints') return this.#compareEdgepoints(label, sim, sector, p);
       if (p.probe === 'initlist') return this.#compareInitList(label, p);
       if (p.probe === 'defence') return this.#compareDefence(label, p);
+      if (p.probe === 'creatureplacement' || p.probe === 'bloodcatplacement') return this.#compareCreaturePlacement(label, p);
       return withProbeSoldier(sim, p, (s) => this.#compareWithSoldier(label, sim, s, p));
     } catch (e) {
       return report(label, false, e instanceof Error ? e.message : String(e));
@@ -300,6 +316,64 @@ export class SectorComparer {
       label,
       false,
       `${detail}; ja2-node offered ${offered.join(' ')}, draws left ${rolls.left}, nodes ${sameJson(after, nativeAfter) ? 'same' : 'differ'}`,
+    );
+  }
+
+  #compareCreaturePlacement(label: string, p: Json): number {
+    const row = (n: SoldierInitNode) => [
+      n.index,
+      n.team,
+      n.soldierClass,
+      n.priorityExistence ? 1 : 0,
+      n.detailed ? 1 : 0,
+      n.hasSoldier ? 1 : 0,
+      n.basic.bodyType,
+    ];
+    const native = (r: NodeRow) => [...r.slice(0, 5), (r[5] ?? -1) >= 0 ? 1 : 0, r[6] ?? -1];
+    if (!sameJson(this.#nodes.map(row), (p.before as NodeRow[]).map(native)))
+      return report(label, false, 'init list differs before the call');
+    const trace = p.draws as Draw[];
+    const nativeNodes = p.nodes as NodeRow[];
+    const nativePlaced = new Set(nativeNodes.filter((r) => (r[5] ?? -1) >= 0).map((r) => r[0]));
+    const rolls = new PlacementDecisionRolls(trace);
+    const offered: number[] = [];
+    const place = (n: SoldierInitNode) => {
+      offered.push(n.index);
+      if (!nativePlaced.has(n.index)) return false;
+      n.hasSoldier = true;
+      return true;
+    };
+    let sectorOut: unknown = null;
+    try {
+      if (p.probe === 'creatureplacement') {
+        const [larvae = 0, infants = 0, youngMales = 0, youngFemales = 0, adultMales = 0, adultFemales = 0] = (p.counts as number[]).map(
+          Number,
+        );
+        this.#nodes = sortSoldierInitList(this.#nodes);
+        const counts = { larvae, infants, youngMales, youngFemales, adultMales, adultFemales };
+        placeCreaturesFromInitList(this.#nodes, p.queen === true, counts, rolls, place);
+      } else {
+        const [cats = 0, placements = 0] = (p.in as number[]).map(Number);
+        const sector = { bloodCats: cats, bloodCatPlacements: placements };
+        const spawns = (this.#bloodcatSpawns ?? []).some((b) => b.sector === Number(p.sector));
+        this.#nodes = [...placeBloodcatsFromInitList(this.#nodes, sector, spawns, rolls, place)];
+        sectorOut = [sector.bloodCats, sector.bloodCatPlacements];
+      }
+    } catch (e) {
+      if (e instanceof ReplayMismatch) return report(label, false, e.message);
+      throw e;
+    }
+    const order = placementOrder(trace);
+    const after = this.#nodes.map(row);
+    const nativeAfter = nativeNodes.map(native);
+    const sectorSame = p.probe !== 'bloodcatplacement' || sameJson(sectorOut, p.out);
+    const same = sameJson(offered, order) && sameJson(after, nativeAfter) && rolls.left === 0 && sectorSame;
+    const detail = `placed ${order.length} (${order.join(' ')})`;
+    if (same) return report(label, true, detail);
+    return report(
+      label,
+      false,
+      `${detail}; ja2-node offered ${offered.join(' ')}, draws left ${rolls.left}, nodes ${sameJson(after, nativeAfter) ? 'same' : 'differ'}, sector ${JSON.stringify(sectorOut)} vs ${JSON.stringify(p.out)}`,
     );
   }
 

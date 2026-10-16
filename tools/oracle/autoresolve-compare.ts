@@ -20,7 +20,7 @@ import {
 import { anim } from '../../src/sim/tactical/anim-states.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
 import { NUM_INV_SLOTS } from '../../src/sim/tactical/inventory.ts';
-import type { ProfileProgress, StatKey } from '../../src/sim/tactical/profiles.ts';
+import { noRelations, type ProfileProgress, type StatKey } from '../../src/sim/tactical/profiles.ts';
 import { createSoldier, NOWHERE, type Soldier } from '../../src/sim/tactical/soldier.ts';
 
 type Json = Record<string, unknown>;
@@ -62,7 +62,7 @@ const PALETTES = { hair: 'BLACKHEAD', skin: 'PINKSKIN', vest: 'BLUEVEST', pants:
 
 type Draw = readonly [string, number, number, number];
 
-interface Segment {
+export interface Segment {
   readonly pre: TracedDraw[];
   readonly main: TracedDraw[];
 }
@@ -83,7 +83,7 @@ function segment(draws: readonly Draw[], from: number, to: readonly number[]): S
     }
     if (!inside) continue;
     if (stream === 'p') pre.push({ n, v });
-    else if (stream === 'm') main.push({ n, v });
+    else if (stream === 'm' || stream === 'd') main.push({ n, v });
   }
   return { pre, main };
 }
@@ -184,6 +184,7 @@ function progressFrom(p: Json): ProfileProgress {
     attitude: num(p.attitude),
     buddies: [],
     hated: [],
+    ...noRelations(),
     life: num(p.life),
     stats: record(stats),
     gains: record(gains),
@@ -424,8 +425,12 @@ export function replayBattle(
   return { built, seg, pre, main };
 }
 
+export function traceSegment(p: Json, from: number, to: readonly number[]): Segment {
+  return segment((p.draws ?? []) as Draw[], from, to);
+}
+
 export function replayStreams(p: Json, from: number, to: readonly number[]): { readonly pre: ReplayStream; readonly main: ReplayStream } {
-  const seg = segment((p.draws ?? []) as Draw[], from, to);
+  const seg = traceSegment(p, from, to);
   return { pre: new ReplayStream('pre', seg.pre), main: new ReplayStream('main', seg.main) };
 }
 

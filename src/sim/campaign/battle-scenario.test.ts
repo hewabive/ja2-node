@@ -136,7 +136,7 @@ describe('autoresolve from the strategic state', () => {
   });
 
   it('hands a tactical battle to autoresolve when every merc is down and militia still fight', () => {
-    const { campaign: c, roster } = createTestCampaign(kit, { seed: 11, mercs: 2, garrison: { admins: 0, troops: 3, elites: 0 } });
+    const { campaign: c, roster } = createTestCampaign(kit, { seed: 21, mercs: 2, garrison: { admins: 0, troops: 3, elites: 0 } });
     sectorInfo(c.state.map, A9).militia.splice(0, MILITIA.length, 4, 0, 0);
     landFirstSquad(c);
     advance(c, { idle: true }, 20_000);

@@ -48,7 +48,7 @@ export function gunRange(items: ItemTable, gun: ItemObject): number {
   return range;
 }
 
-export function soldierDifficultyLevel(t: TacticalState, s: Soldier): number {
+export function soldierDifficultyLevel(t: Pick<TacticalState, 'campaign'>, s: Soldier): number {
   const base = 1 + Math.trunc(t.campaign.difficultyModifier / 34);
   let d: number;
   switch (s.soldierClass) {

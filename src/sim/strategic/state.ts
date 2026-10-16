@@ -1,6 +1,7 @@
 import { PreRandom, Rng } from '../../core/rng.ts';
 import { createFinanceState, type FinanceState } from '../campaign/finances.ts';
 import type { SectorDiff } from '../campaign/sector-diff.ts';
+import { createTeamMoraleState, type TeamMoraleState } from '../campaign/team-morale.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
 import {
   createMeanwhileState,
@@ -10,6 +11,7 @@ import {
   type QueenState,
   type StrategicStatus,
 } from './ai/queen-state.ts';
+import { type CreatureState, createCreatureState } from './creatures/creatures.ts';
 import { createEconomyState, type EconomyState } from './economy/state.ts';
 import { type BattleState, createBattleState } from './forces/battle-state.ts';
 import { createEncounterState, createMovementFlowState, type EncounterState, type MovementFlowState } from './forces/flow-state.ts';
@@ -51,6 +53,8 @@ export interface StrategicState {
   readonly economy: EconomyState;
   readonly finances: FinanceState;
   readonly sectorDiffs: Map<string, SectorDiff>;
+  readonly teamMorale: TeamMoraleState;
+  readonly creatures: CreatureState;
 }
 
 export interface GameOptions {
@@ -101,5 +105,7 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     economy: createEconomyState(),
     finances: createFinanceState(),
     sectorDiffs: new Map(),
+    teamMorale: createTeamMoraleState(),
+    creatures: createCreatureState(),
   };
 }

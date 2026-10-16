@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/OppList.cc DistanceVisible, ManLooksForMan, ManSeesMan, HandleManNoLongerSeen, TeamNoLongerSeesMan,
+// @src src/game/Tactical/OppList.cc DistanceVisible, ManLooksForMan, ManSeesMan, MakeBloodcatsHostile, RecalculateOppCntsDueToNoLongerNeutral,
+// @src HandleManNoLongerSeen, TeamNoLongerSeesMan,
 // @src UpdatePersonal, UpdatePublic, RadioSightings, OurTeamRadiosRandomlyAbout, HandleSight, ManLooksForOtherTeams,
 // @src OtherTeamsLookForMan, AllTeamsLookForAll, ReevaluateBestSightingPosition, HandleBestSightingPositionInRealtime,
 // @src DecayOppListValue, VerifyAndDecayOpplist, DecayPublicOpplist; Soldier_Macros.h AM_A_ROBOT. See docs/08 §2, docs/20.
@@ -12,6 +13,7 @@ import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY
 import {
   AlertStatus,
   Body,
+  consideredNeutral,
   NO_INTERRUPT,
   NO_PROFILE,
   numSkillTraits,
@@ -23,7 +25,13 @@ import {
   TOTAL_SOLDIERS,
 } from '../soldier.ts';
 import { mercs, type TacticalState, teamMembers } from '../state.ts';
-import { addToIntList, doneAddingToIntList, InterruptKind, resolveInterruptsVs } from '../turns/turns.ts';
+import {
+  addToIntList,
+  checkForPotentialAddToBattleIncrement,
+  doneAddingToIntList,
+  InterruptKind,
+  resolveInterruptsVs,
+} from '../turns/turns.ts';
 import {
   calcInterruptDuelPts,
   clearWatchedLocIncrements,
@@ -104,7 +112,7 @@ export function validForSightings(s: Soldier | undefined): s is Soldier {
 }
 
 export function hostile(a: Soldier, b: Soldier): boolean {
-  return !a.neutral && !b.neutral && a.side !== b.side;
+  return !consideredNeutral(a, b) && !consideredNeutral(b, a) && a.side !== b.side;
 }
 
 function losSubject(t: TacticalState, s: Soldier): LosSubject {
@@ -184,6 +192,36 @@ function addOneOpponent(s: Soldier, checkOrders: (s: Soldier) => void): void {
   }
 }
 
+function recalculateOppCntsDueToNoLongerNeutral(t: TacticalState, s: Soldier): void {
+  s.ai.oppCount = 0;
+  if (s.neutral) return;
+  for (const opp of mercs(t)) {
+    if (opp.life === 0 || opp.neutral || opp.team === s.team || !hostile(s, opp)) continue;
+    if (s.oppList[opp.id] === Opp.SEEN_CURRENTLY) addOneOpponent(s, t.perceptionHooks.checkForChangingOrders);
+    if (opp.oppList[s.id] === Opp.SEEN_CURRENTLY) addOneOpponent(opp, t.perceptionHooks.checkForChangingOrders);
+  }
+}
+
+function makeBloodcatsHostile(t: TacticalState): void {
+  for (const cat of teamMembers(t, Team.CREATURE)) {
+    if (cat.bodyType !== Body.BLOODCAT || !validForSightings(cat)) continue;
+    cat.neutral = false;
+    recalculateOppCntsDueToNoLongerNeutral(t, cat);
+    if (t.inCombat) checkForPotentialAddToBattleIncrement(t, cat);
+  }
+}
+
+function drawBloodcatRoarChance(t: TacticalState): void {
+  t.rng.int(2);
+}
+
+function bloodcatSightingTurnsHostile(t: TacticalState, s: Soldier, opp: Soldier): void {
+  if (s.bodyType === Body.BLOODCAT) {
+    if (s.neutral) makeBloodcatsHostile(t);
+    else if (s.ai.oppCount === 0) drawBloodcatRoarChance(t);
+  } else if (opp.bodyType === Body.BLOODCAT && opp.neutral) makeBloodcatsHostile(t);
+}
+
 function removeOneOpponent(s: Soldier): void {
   s.ai.oppCount = Math.max(0, s.ai.oppCount - 1);
   if (s.ai.oppCount === 0) s.ai.alertStatus = AlertStatus.RED;
@@ -254,6 +292,7 @@ export function manSeesMan(t: TacticalState, s: Soldier, opp: Soldier, caller: n
   if (!validForSightings(s) || s.life < OKLIFE || !validForSightings(opp) || s.team === opp.team) return;
   const old = s.oppList[opp.id] ?? 0;
   let newOpp = false;
+  if (old !== Opp.SEEN_CURRENTLY) bloodcatSightingTurnsHostile(t, s, opp);
   if (old !== Opp.SEEN_CURRENTLY && hostile(s, opp)) {
     addOneOpponent(s, t.perceptionHooks.checkForChangingOrders);
     if (old !== Opp.SEEN_THIS_TURN) {

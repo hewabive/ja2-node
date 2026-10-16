@@ -11,7 +11,14 @@
 // @src TrashWorld (HandleFirstMeanWhileSetUpWithTrashWorld). See docs/16 §5.
 
 import type { MapDoor } from '../../content/formats/map.ts';
-import { parseSectorString, type Sector, sameSector, sectorFromId, sectorShortString } from '../../content/strategic/sector-ids.ts';
+import {
+  parseSectorString,
+  type Sector,
+  sameSector,
+  sectorFromId,
+  sectorId,
+  sectorShortString,
+} from '../../content/strategic/sector-ids.ts';
 import { sectorMapPath } from '../../content/strategic/sector-maps.ts';
 import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
@@ -31,6 +38,7 @@ import {
   processQueenCmdImplicationsOfDeath,
 } from '../strategic/ai/queen-command.ts';
 import { EnemyKilled, recordPlayerKill, trackEnemiesKilled } from '../strategic/ai/status.ts';
+import { CreatureBattleCode } from '../strategic/creatures/creatures.ts';
 import { Assignment as EconomyAssignment, LoyaltyEvent, MoraleEvent } from '../strategic/economy/constants.ts';
 import { handleGlobalLoyaltyEvent } from '../strategic/economy/loyalty.ts';
 import {
@@ -38,7 +46,8 @@ import {
   soldierClassToMilitiaRank,
   strategicRemoveMilitiaFromSector,
 } from '../strategic/economy/militia.ts';
-import { placeHeadMinersOnSectorEntry } from '../strategic/economy/mines.ts';
+import { mineIdForSector } from '../strategic/economy/mine-status.ts';
+import { areThereMinersInsideThisMine, placeHeadMinersOnSectorEntry } from '../strategic/economy/mines.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
 import { EncounterCode, InsertionCode, SectorFlag } from '../strategic/forces/constants.ts';
 import { countAllMilitiaInSector } from '../strategic/forces/groups.ts';
@@ -59,8 +68,12 @@ import { timeOfDayAmbientLightLevel } from '../strategic/time/environment.ts';
 import { setGameTimeCompressionLevel, unPauseGame, worldDay, worldHour } from '../strategic/time/world-clock.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { beginMapEdgepointSearch, chooseMapEdgepoint, endMapEdgepointSearch, loadMapEdgepoints } from '../tactical/edgepoints.ts';
+import { sharedWeaponsDropped } from '../tactical/equipment.ts';
 import {
+  addCreaturesToBattle,
   addEnemiesToBattle,
+  addSoldierInitListBloodcats,
+  addSoldierInitListCreatures,
   addSoldierInitListEnemyDefenceSoldiers,
   addSoldierInitListMilitia,
   addSoldierInitListTeamToWorld,
@@ -73,7 +86,7 @@ import {
 } from '../tactical/init-list.ts';
 import { CENTER_GRIDNO, Insertion, type InsertionContext, type InsertionOrder, updateMercInSector } from '../tactical/insertion.ts';
 import { lightSpriteRenderAll } from '../tactical/lighting/lighting.ts';
-import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
+import { hostileBloodcatsPresent, removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Body, NO_PROFILE, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
@@ -176,6 +189,7 @@ const GUIDE_DESCRIPTION_SECTORS: readonly (readonly [number, number])[] = [
 ];
 const COMPUTER_TEAMS = [Team.ENEMY, Team.CREATURE, Team.MILITIA] as const;
 
+const TIXA_CAVE: Sector = { x: 9, y: 10, z: 2 };
 const MILITIA_LEVEL_GREEN = 0;
 const MILITIA_LEVEL_REGULAR = 1;
 const MILITIA_LEVEL_ELITE = 2;
@@ -304,6 +318,7 @@ export class SectorFlow {
     }
     s.worldSector = { x: sector.x, y: sector.y, z: sector.z };
     s.map.selectedSector = { ...sector };
+    if (sameSector(sector, TIXA_CAVE)) this.campaign.creatures?.initQuest();
     this.#enterSector(sector, baseWorld, options);
     const day = worldDay(s.clock);
     setSectorFlag(s.map, sector, SectorFlag.ALREADY_LOADED, day);
@@ -332,6 +347,8 @@ export class SectorFlow {
     if (!t) return;
     const enemiesHere = teamMembers(t, Team.ENEMY).some((x) => x.life > 0);
     if (!enemiesHere) this.prepareEnemyForSectorBattle();
+    const world = this.world;
+    if (world && this.campaign.creatures?.attackPendingFor(world)) this.prepareCreaturesForBattle();
     this.resetMilitia();
     this.campaign.tactical?.lookAround();
   }
@@ -355,6 +372,8 @@ export class SectorFlow {
     const t = sim.state;
     t.options.gunNut = s.options.gunNut;
     t.equipment.sciFi = s.options.sciFi;
+    t.equipment.progress = s.status.highestProgress;
+    t.equipment.weaponsAlreadyDropped = sharedWeaponsDropped(s.status, this.setup.content.items);
     t.perception.difficulty = s.options.difficulty;
     t.campaign = this.#tacticalCampaign();
     t.edgepoints = loadMapEdgepoints(t, sector);
@@ -542,8 +561,10 @@ export class SectorFlow {
     const t = sim.state;
     const env = this.populationEnv();
     this.updateMercsInSector(options);
-    addSoldierInitListTeamToWorld(t, Team.CIV, env);
+    if (this.#civiliansInSector(world)) addSoldierInitListTeamToWorld(t, Team.CIV, env);
     addSoldierInitListTeamToWorld(t, Team.MILITIA, env);
+    this.#addBloodcats(world);
+    this.prepareCreaturesForBattle();
     this.prepareMilitiaForTactical();
     t.turn.virginSector = true;
     this.prepareEnemyForSectorBattle();
@@ -552,6 +573,46 @@ export class SectorFlow {
     this.campaign.state.encounter.battleGroup = null;
     if (this.campaign.state.movement.tacticalTraversal.active && this.economy) calculateNonPersistentPbiInfo(this.economy);
     sim.lookAround();
+  }
+
+  #civiliansInSector(world: SectorPosition): boolean {
+    const economy = this.economy;
+    if (!world.z || !economy) return true;
+    const mine = mineIdForSector(economy, world);
+    return mine === -1 || areThereMinersInsideThisMine(economy, mine);
+  }
+
+  #addBloodcats(world: SectorPosition): void {
+    const t = this.campaign.tactical?.state;
+    if (!t || world.z) return;
+    const info = sectorInfo(this.campaign.state.map, world);
+    const spawns = this.ctx.content.bloodCatSpawns.some((b) => b.sector === sectorId(world));
+    addSoldierInitListBloodcats(t, info, spawns, this.populationEnv());
+  }
+
+  prepareCreaturesForBattle(): boolean {
+    const t = this.campaign.tactical?.state;
+    const world = this.world;
+    const creatures = this.campaign.creatures;
+    if (!t || !world || !creatures) return false;
+    const setup = creatures.battleSetup(world);
+    if (!setup) return false;
+    const attack = this.campaign.state.creatures.attack;
+    const env = this.populationEnv();
+    switch (attack.battleCode) {
+      case CreatureBattleCode.NONE:
+        addSoldierInitListCreatures(t, setup.queen, setup.counts, env);
+        return true;
+      case CreatureBattleCode.AUTORESOLVE:
+        return false;
+      default: {
+        const insertion = { code: attack.insertionCode, gridNo: attack.insertionGridNo };
+        addCreaturesToBattle(t, setup.counts, insertion, this.#insertionContext(null), env);
+        creatures.clearAttack();
+        this.campaign.tactical?.lookAround();
+        return true;
+      }
+    }
   }
 
   #callAvailableTeamEnemiesToAmbush(t: TacticalState): void {
@@ -687,6 +748,8 @@ export class SectorFlow {
     const world = this.world ?? { x: 1, y: 1, z: 0 };
     return {
       difficultyModifier: (cls) => this.difficultyModifier(cls),
+      difficulty: this.campaign.state.options.difficulty,
+      bloodcatLair: this.ctx.content.bloodCatSpawns.find((b) => b.sector === sectorId(world))?.isLair === true,
       locationModifier: locationModifier(townIdOfSector(this.ctx, world), world),
       autoResolveActive: false,
       profileHere: (p) => this.#profileHere(p),
@@ -1015,6 +1078,10 @@ export function sectorWorldPort(base: TacticalWorldPort, flowOf: () => SectorFlo
   return {
     ...base,
     enemyInSector: () => flowOf()?.campaign.tactical?.state.turn.enemyInSector ?? base.enemyInSector(),
+    hostileBloodcatsPresent: () => {
+      const t = flowOf()?.campaign.tactical?.state;
+      return t ? hostileBloodcatsPresent(t) : base.hostileBloodcatsPresent();
+    },
     checkAndHandleUnloadingOfCurrentWorld: () => {
       flowOf()?.checkAndHandleUnloadingOfCurrentWorld();
       base.checkAndHandleUnloadingOfCurrentWorld();

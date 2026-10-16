@@ -26,7 +26,7 @@ function addEnemyGroups(r: Report, c: CampaignSim, setup: Json, sector: Sector):
   }
 }
 
-function applyArSetup(r: Report, c: CampaignSim, setup: Json): Sector {
+export function applyArSetup(r: Report, c: CampaignSim, setup: Json): Sector {
   const sector = parseSectorString(String(setup.sector));
   addEnemyGroups(r, c, setup, sector);
   const counts = obj(setup.counts);

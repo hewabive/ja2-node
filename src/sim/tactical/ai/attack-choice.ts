@@ -50,6 +50,7 @@ import { effectiveStrength } from '../skills.ts';
 import {
   Attitude,
   Body,
+  consideredNeutral,
   NO_PROFILE,
   NOWHERE,
   numSkillTraits,
@@ -62,7 +63,7 @@ import {
 } from '../soldier.ts';
 import { soldierInventoryContext } from '../soldier-inventory.ts';
 import { mercs, type TacticalState, whoIsThere } from '../state.ts';
-import { calcManThreatValue, consideredNeutral } from './morale.ts';
+import { calcManThreatValue } from './morale.ts';
 import { findAIUsableObjClass, findAIUsableObjClassWithin, isExplosiveGun } from './utils.ts';
 
 export const NoShoot = { WAITABIT: -1, WATER: -2, MYSELF: -3, HURT: -4, NOAMMO: -5, NOLOAD: -6, NOWEAPON: -7 } as const;

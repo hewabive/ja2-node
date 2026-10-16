@@ -10,10 +10,23 @@ import type { BasicPlacement, MapDef } from '../../content/formats/map.ts';
 import { type DetailedPlacement, parseDetailedPlacement } from '../../content/formats/placement.ts';
 import { clamp, u8 } from '../../core/int.ts';
 import { addSoldierInitListEnemyDefenceSoldiers as fillDefencePlacements, sortSoldierInitList } from '../strategic/ai/defence-placement.ts';
+import type { RandomStream } from './combat/context.ts';
 import { createFromPlacementParts } from './creation.ts';
 import { chooseMapEdgepoints } from './edgepoints.ts';
 import { addSoldierToSector, Insertion, type InsertionContext, updateMercInSector } from './insertion.ts';
-import { firstFreeSoldierId, NO_PROFILE, NOWHERE, Orders, type Soldier, SoldierClass, TEAM_FIRST_ID, TEAM_SIZES, Team } from './soldier.ts';
+import {
+  Attitude,
+  Body,
+  firstFreeSoldierId,
+  NO_PROFILE,
+  NOWHERE,
+  Orders,
+  type Soldier,
+  SoldierClass,
+  TEAM_FIRST_ID,
+  TEAM_SIZES,
+  Team,
+} from './soldier.ts';
 import { sectorMapOf, type TacticalState } from './state.ts';
 
 export interface InitBasic {
@@ -45,6 +58,8 @@ export interface SoldierInitNode {
 
 export interface PopulationEnv {
   difficultyModifier(soldierClass: number): number;
+  readonly difficulty: number;
+  readonly bloodcatLair: boolean;
   readonly locationModifier: number;
   readonly autoResolveActive: boolean;
   profileHere(profile: number): boolean;
@@ -63,8 +78,12 @@ const LOCATION_ROLL_DIVISOR = 3;
 const LOCATION_ROLL_OFFSET = 5;
 const RELATIVE_LEVELS = [0, 1, 1, 2, 2, 2, 2, 3, 3, 4] as const;
 
+export const MEDIUM_DIFFICULTY = 2;
+
 export const NEUTRAL_POPULATION: PopulationEnv = {
   difficultyModifier: () => 0,
+  difficulty: MEDIUM_DIFFICULTY,
+  bloodcatLair: false,
   locationModifier: 0,
   autoResolveActive: false,
   profileHere: () => false,
@@ -149,7 +168,7 @@ function isMilitiaClass(soldierClass: number): boolean {
   return soldierClass >= SoldierClass.GREEN_MILITIA && soldierClass <= SoldierClass.ELITE_MILITIA;
 }
 
-export function randomizeRelativeLevel(t: Pick<TacticalState, 'rng'>, soldierClass: number, env: PopulationEnv): number {
+export function randomizeRelativeLevel(t: { readonly rng: RandomStream }, soldierClass: number, env: PopulationEnv): number {
   const rollModifier = Math.trunc(env.locationModifier / LOCATION_ROLL_DIVISOR) - LOCATION_ROLL_OFFSET;
   let adjusted = t.rng.int(10) + rollModifier;
   if (isMilitiaClass(soldierClass)) {
@@ -165,7 +184,7 @@ export function randomizeRelativeLevel(t: Pick<TacticalState, 'rng'>, soldierCla
 function createSoldier(t: TacticalState, team: number, basic: BasicPlacement, detail: DetailedPlacement | null, env: PopulationEnv) {
   const id = firstFreeSoldierId((n) => soldierSlotTaken(t, n), team);
   if (id < 0) return null;
-  const s = createFromPlacementParts(t, id, basic, detail, { difficultyModifier: env.difficultyModifier(basic.soldierClass) });
+  const s = createFromPlacementParts(t, id, basic, detail, env);
   if (!s) return null;
   if (team === Team.MILITIA) s.visible = 1;
   drawStandingFrame(t);
@@ -389,6 +408,243 @@ export function tacticalCreateEnemySoldier(t: TacticalState, soldierClass: numbe
   s.ai.noiseGridNo = CENTRAL_GRIDNO + dx + dy * 160;
   s.ai.noiseVolume = MAX_MISC_NOISE_DURATION;
   return s;
+}
+
+export function tacticalCreateCreature(t: TacticalState, bodyType: number, env: PopulationEnv): Soldier | null {
+  const attribute = randomizeRelativeLevel(t, SoldierClass.CREATURE, env);
+  const equipment = randomizeRelativeLevel(t, SoldierClass.CREATURE, env);
+  const basic: BasicPlacement = {
+    detailed: false,
+    startingGridNo: NOWHERE,
+    team: Team.CREATURE,
+    relativeAttributeLevel: attribute,
+    relativeEquipmentLevel: equipment,
+    direction: 0,
+    orders: Orders.SEEKENEMY,
+    attitude: Attitude.AGGRESSIVE,
+    bodyType,
+    patrolGrid: [],
+    patrolCount: 0,
+    onRoof: false,
+    soldierClass: SoldierClass.CREATURE,
+    civilianGroup: 0,
+    priorityExistence: false,
+    hasKeys: false,
+  };
+  return createSoldier(t, Team.CREATURE, basic, null, env);
+}
+
+export interface CreatureCounts {
+  larvae: number;
+  infants: number;
+  youngMales: number;
+  youngFemales: number;
+  adultMales: number;
+  adultFemales: number;
+}
+
+const CREATURE_BODY_ORDER = [
+  ['larvae', Body.LARVAE_MONSTER],
+  ['infants', Body.INFANT_MONSTER],
+  ['youngMales', Body.YAM_MONSTER],
+  ['youngFemales', Body.YAF_MONSTER],
+  ['adultMales', Body.AM_MONSTER],
+  ['adultFemales', Body.ADULTFEMALEMONSTER],
+] as const;
+
+const totalCreatures = (c: CreatureCounts) => u8(c.larvae + c.infants + c.youngMales + c.youngFemales + c.adultMales + c.adultFemales);
+
+function takePriorityCreature(node: SoldierInitNode, c: CreatureCounts): boolean {
+  for (const [key, body] of CREATURE_BODY_ORDER) {
+    if (c[key] && node.basic.bodyType === body) {
+      c[key]--;
+      return true;
+    }
+  }
+  return false;
+}
+
+function chooseCreatureBody(rolls: RandomStream, node: SoldierInitNode, c: CreatureCounts, total: number): void {
+  const r = rolls.int(total);
+  let bound = 0;
+  for (const [key, body] of CREATURE_BODY_ORDER) {
+    bound += c[key];
+    if (c[key] && r < bound) {
+      c[key]--;
+      node.basic.bodyType = body;
+      return;
+    }
+  }
+}
+
+type PlaceNode = (node: SoldierInitNode) => boolean;
+
+function placeQueen(list: readonly SoldierInitNode[], place: PlaceNode): void {
+  for (const node of list) {
+    if (node.hasSoldier || node.team !== Team.CREATURE || node.basic.bodyType !== Body.QUEENMONSTER) continue;
+    if (!place(node)) return;
+  }
+}
+
+export function placeCreaturesFromInitList(
+  list: readonly SoldierInitNode[],
+  queen: boolean,
+  counts: CreatureCounts,
+  rolls: RandomStream,
+  place: PlaceNode,
+): void {
+  const c = { ...counts };
+  let remaining = totalCreatures(c);
+  if (queen) placeQueen(list, place);
+  for (const node of list) {
+    if (!node.priorityExistence || remaining === 0) break;
+    if (node.team !== Team.CREATURE || !takePriorityCreature(node, c)) continue;
+    if (!place(node)) return;
+    remaining--;
+  }
+  if (!remaining) return;
+  let freeSlots = 0;
+  for (const node of list) if (!node.hasSoldier && node.team === Team.CREATURE) freeSlots = u8(freeSlots + 1);
+  for (const node of list) {
+    if (freeSlots === 0 || remaining === 0) break;
+    if (node.hasSoldier || node.team !== Team.CREATURE) continue;
+    if (freeSlots <= remaining || rolls.int(freeSlots) < remaining) {
+      chooseCreatureBody(rolls, node, c, remaining);
+      node.detail = null;
+      node.detailed = false;
+      if (!place(node)) return;
+      remaining--;
+    }
+    freeSlots = u8(freeSlots - 1);
+  }
+}
+
+export function addSoldierInitListCreatures(t: TacticalState, queen: boolean, counts: CreatureCounts, env: PopulationEnv): void {
+  placeCreaturesFromInitList(sortInitList(t), queen, counts, t.rng, (node) => addPlacementToWorld(t, node, env));
+}
+
+export interface BloodcatSector {
+  bloodCats: number;
+  bloodCatPlacements: number;
+}
+
+const isBloodcatNode = (n: SoldierInitNode) => n.basic.bodyType === Body.BLOODCAT;
+
+export function placeBloodcatsFromInitList(
+  nodes: readonly SoldierInitNode[],
+  sector: BloodcatSector,
+  hasSpawns: boolean,
+  rolls: RandomStream,
+  place: PlaceNode,
+): readonly SoldierInitNode[] {
+  if (!sector.bloodCatPlacements) return nodes;
+  const counted = (nodes.filter(isBloodcatNode).length << 24) >> 24;
+  if (counted !== sector.bloodCatPlacements && !hasSpawns) {
+    sector.bloodCatPlacements = counted;
+    sector.bloodCats = -1;
+    if (!counted) return nodes;
+  }
+  if (sector.bloodCats <= 0) return nodes;
+  const max = u8(sector.bloodCats);
+  const list = sortSoldierInitList([...nodes]);
+  let added = list.filter((n) => isBloodcatNode(n) && n.hasSoldier).length;
+  let i = 0;
+  for (; i < list.length; i++) {
+    const node = list[i] as SoldierInitNode;
+    if (!node.priorityExistence || added >= max) break;
+    if (isBloodcatNode(node) && place(node)) added++;
+  }
+  if (added === max) return list;
+  const mark = i;
+  let available = 0;
+  let toFill = u8(max - added);
+  for (let j = mark; j < list.length; j++) {
+    const node = list[j] as SoldierInitNode;
+    if (node.hasSoldier || added >= max) break;
+    if (isBloodcatNode(node)) available = u8(available + 1);
+  }
+  if (!available) return list;
+  for (let j = mark; j < list.length; j++) {
+    const node = list[j] as SoldierInitNode;
+    if (node.hasSoldier || added >= max || !available) break;
+    if (!isBloodcatNode(node)) continue;
+    if (available <= toFill || rolls.int(available) < toFill) {
+      if (!place(node)) return list;
+      added++;
+      toFill = u8(toFill - 1);
+    }
+    available = u8(available - 1);
+  }
+  return list;
+}
+
+export function addSoldierInitListBloodcats(t: TacticalState, sector: BloodcatSector, hasSpawns: boolean, env: PopulationEnv): void {
+  t.initList = [...placeBloodcatsFromInitList(t.initList, sector, hasSpawns, t.rng, (node) => addPlacementToWorld(t, node, env))];
+}
+
+const CREATURE_DIRECTION_BY_INSERTION: Readonly<Record<number, number>> = {
+  [Insertion.NORTH]: 3,
+  [Insertion.EAST]: 5,
+  [Insertion.SOUTH]: 7,
+  [Insertion.WEST]: 1,
+  [Insertion.GRIDNO]: 0,
+};
+
+export interface TownCreatures {
+  readonly youngMales: number;
+  readonly youngFemales: number;
+  readonly adultMales: number;
+  readonly adultFemales: number;
+}
+
+function shuffledBodies(t: TacticalState, c: TownCreatures): number[] {
+  const bodies = [
+    ...new Array<number>(c.youngMales).fill(Body.YAM_MONSTER),
+    ...new Array<number>(c.youngFemales).fill(Body.YAF_MONSTER),
+    ...new Array<number>(c.adultMales).fill(Body.AM_MONSTER),
+    ...new Array<number>(c.adultFemales).fill(Body.ADULTFEMALEMONSTER),
+  ];
+  for (let i = bodies.length - 1; i > 0; i--) {
+    const j = t.rng.int(i + 1);
+    const tmp = bodies[i] as number;
+    bodies[i] = bodies[j] as number;
+    bodies[j] = tmp;
+  }
+  return bodies;
+}
+
+export interface CreatureInsertion {
+  readonly code: number;
+  readonly gridNo: number;
+}
+
+export function addCreaturesToBattle(
+  t: TacticalState,
+  c: TownCreatures,
+  insertion: CreatureInsertion,
+  ctx: InsertionContext,
+  env: PopulationEnv,
+): Soldier[] {
+  const direction = CREATURE_DIRECTION_BY_INSERTION[insertion.code];
+  if (direction === undefined) throw new RangeError(`invalid creature insertion code ${insertion.code}`);
+  const total = c.youngMales + c.youngFemales + c.adultMales + c.adultFemales;
+  const points = insertion.code === Insertion.GRIDNO ? [] : chooseMapEdgepoints(t, insertion.code, total, t.rng);
+  const added: Soldier[] = [];
+  let slot = 0;
+  for (const body of shuffledBodies(t, c)) {
+    const s = tacticalCreateCreature(t, body, env);
+    if (!s) continue;
+    s.hunting = true;
+    const order =
+      insertion.code === Insertion.GRIDNO
+        ? { code: Insertion.GRIDNO, data: insertion.gridNo, direction }
+        : slot < points.length
+          ? { code: Insertion.GRIDNO, data: points[slot++] as number, direction }
+          : { code: insertion.code, data: 0, direction };
+    updateMercInSector(t, s, order, ctx);
+    added.push(s);
+  }
+  return added;
 }
 
 export interface ArrivingEnemies {

@@ -1703,6 +1703,7 @@ edgepoint dumps (loaded and generated on A9, D13, H13, I14, I13, G1, D6 and the 
 SaveGame10, 07 (in combat) and 01 match exactly.
 
 **Not yet:** native temp files of other sectors in save sessions (only the loaded sector's preserved-soldier links), the
-placement GUI (auto placement only), creatures and bloodcats, NPC profile insertion and quest placements (M6), rotting
+placement GUI (auto placement only), NPC profile insertion and quest placements (M6), rotting
 and crows in the loaded sector, the API side of step 11 (MCP tools and `PlayerView.strategic` for the new commands) and
-the tactical end of battle (above).
+the tactical end of battle (above). Creatures and bloodcats are placed since `docs/17` §20 (`addSoldierInitListCreatures`,
+`addSoldierInitListBloodcats`, `addCreaturesToBattle`; oracle `creatureplacement`/`bloodcatplacement`).

@@ -1,0 +1,137 @@
+# Creature quest, spreading, night planning and town attacks on the sci-fi saves (docs/17 §12.1).
+# The quest needs three mines that are not enemy controlled, so the script hands the player the mine entrances first.
+save SaveGame10
+seed value=201 pre=reseed
+creatures
+creaturetrigger
+setcontrol sector=D13 enemy=0
+setcontrol sector=I14 enemy=0
+setcontrol sector=H8 enemy=0
+setcontrol sector=H3 enemy=0
+creaturetrigger
+creaturespread count=12
+creatureplanning
+creaturespread count=15
+creatureplanning
+creatureattack sector=D13
+tacticalflags enemyinsector=0
+setcreatures sector=D13 z=1 count=7
+setcreatures sector=H8 z=1 count=6
+creatureattack sector=D13
+creatureattack sector=H8
+creatureattack sector=D13 specific=1
+creatureattack sector=H8 specific=1
+creatureplanning
+creaturespread count=30
+creatures
+endcreaturequest
+creaturespread count=2
+
+save SaveGame09
+seed value=202 pre=reseed
+options difficulty=2
+setcontrol sector=D13 enemy=0
+setcontrol sector=I14 enemy=0
+setcontrol sector=H8 enemy=0
+setcontrol sector=H3 enemy=0
+creaturequest
+creaturespread count=25
+creatureplanning
+tacticalflags enemyinsector=0
+setcreatures sector=D13 z=1 count=5
+setcreatures sector=H8 z=1 count=5
+setcreatures sector=I14 z=1 count=5
+creatureattack sector=D13
+creatureattack sector=H8
+creatureattack sector=I14
+creatures
+
+save SaveGame10
+seed value=203 pre=reseed
+options difficulty=3
+setcontrol sector=D13 enemy=0
+setcontrol sector=I14 enemy=0
+setcontrol sector=H8 enemy=0
+setcontrol sector=H3 enemy=0
+creaturequest
+creaturespread count=40
+creatureplanning
+creatureplanning
+tacticalflags enemyinsector=0
+setcreatures sector=D13 z=1 count=9
+setcreatures sector=H8 z=1 count=9
+setcreatures sector=I14 z=1 count=9
+creatureattack sector=D13
+creatureattack sector=H8
+creatureattack sector=I14
+creatures
+
+save SaveGame09
+seed value=204 pre=reseed
+options difficulty=1
+setcontrol sector=D13 enemy=0
+setcontrol sector=I14 enemy=0
+setcontrol sector=H8 enemy=0
+creaturequest
+creaturespread count=20
+creatureplanning
+creatures
+
+save SaveGame10
+seed value=205 pre=reseed
+creaturecomposition count=12
+creaturecomposition count=31
+
+# Militia-only town sectors start an autoresolved attack; other seeds pick the Cambria and Alma lairs.
+save SaveGame10
+seed value=210 pre=reseed
+setcontrol sector=D13 enemy=0
+setcontrol sector=I14 enemy=0
+setcontrol sector=H8 enemy=0
+setcontrol sector=C13 enemy=0
+setcontrol sector=B13 enemy=0
+arsetup sector=C13 code=invasion militia=3,1,0
+arsetup sector=B13 code=invasion militia=0,2,0
+creaturequest
+creaturespread count=10
+tacticalflags enemyinsector=0
+setcreatures sector=D13 z=1 count=8
+creatureattack sector=D13
+setcreatures sector=D13 z=1 count=8
+creatureattack sector=D13
+setcreatures sector=D13 z=1 count=8
+creatureattack sector=D13
+creatures
+
+save SaveGame09
+seed value=207 pre=reseed
+setcontrol sector=D13 enemy=0
+setcontrol sector=I14 enemy=0
+setcontrol sector=H8 enemy=0
+creaturequest
+creaturespread count=8
+creatureplanning
+
+save SaveGame09
+seed value=208 pre=reseed
+setcontrol sector=D13 enemy=0
+setcontrol sector=I14 enemy=0
+setcontrol sector=H8 enemy=0
+creaturequest
+creaturespread count=8
+creatureplanning
+
+save SaveGame10
+seed value=209 pre=reseed
+setcontrol sector=D13 enemy=0
+setcontrol sector=I14 enemy=0
+setcontrol sector=H8 enemy=0
+setcontrol sector=H3 enemy=0
+creaturequest
+creaturespread count=8
+tacticalflags enemyinsector=0
+setcreatures sector=H8 z=1 count=4
+setcreatures sector=I14 z=1 count=4
+creatureattack sector=H8
+creatureattack sector=I14
+creatureattack sector=I14 specific=1

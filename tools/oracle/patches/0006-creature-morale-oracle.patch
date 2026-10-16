@@ -1,0 +1,79 @@
+Creature and morale oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE (SFI-SCLA).
+Adds OracleTraceWeighted to the draw trace (one entry per DistributeCreaturesByWeight pick: weight total and the lower
+bound of the chosen bucket), a switch that stops CreatureAttackTown before it opens a battle (inactive unless the oracle
+sets it) and moves the strategic morale decay counter of HourlyMoraleUpdate to file scope (same behaviour). Applied by
+tools/oracle/build.sh after 0005.
+
+--- a/src/sgp/Random.h
++++ b/src/sgp/Random.h
+@@ -38,5 +38,6 @@
+ void OracleSeedRandom(UINT32 seed, bool reseedPre);
+ void OracleTraceRandom(std::vector<OracleDraw>* trace);
+ void OracleTraceMark(UINT32 code);
++void OracleTraceWeighted(UINT32 total, UINT32 lowerBound);
+ 
+ #endif
+--- a/src/sgp/Random.cc
++++ b/src/sgp/Random.cc
+@@ -59,6 +59,11 @@
+ 	if (gOracleDrawTrace) gOracleDrawTrace->push_back({'k', code, 0, 0});
+ }
+ 
++void OracleTraceWeighted(UINT32 const total, UINT32 const lowerBound)
++{
++	if (gOracleDrawTrace) gOracleDrawTrace->push_back({'d', total, lowerBound, 0});
++}
++
+ void InitializeRandom(void)
+ {
+ 	// Seed the pseudo-random number engine with the current time
+--- a/src/game/Strategic/Creature_Spreading.cc
++++ b/src/game/Strategic/Creature_Spreading.cc
+@@ -115,6 +115,7 @@
+ UINT8 gubNumCreaturesAttackingTown = 0;
+ UINT8 gubCreatureBattleCode = CREATURE_BATTLE_CODE_NONE;
+ UINT8 gubSectorIDOfCreatureAttack = 0;
++bool gOracleSkipCreatureBattle = false;
+ 
+ 
+ static CREATURE_DIRECTIVE* NewDirective(UINT8 ubSectorID, UINT8 ubSectorZ, UINT8 ubCreatureHabitat)
+@@ -588,6 +589,7 @@
+ 	}
+ 
+ 	SectorInfo[ ubSectorID ].ubDayOfLastCreatureAttack = GetWorldDay();
++	if (gOracleSkipCreatureBattle) return;
+ 	switch( gubCreatureBattleCode )
+ 	{
+ 		case CREATURE_BATTLE_CODE_AUTORESOLVE:
+@@ -734,7 +736,15 @@
+ 
+ 	for (int i{ 0 }; i != numOfCreatures; ++i)
+ 	{
+-		++result[distribution(gRandomEngine)];
++		size_t const chosen = distribution(gRandomEngine);
++		++result[chosen];
++		UINT32 total = 0, lowerBound = 0;
++		for (size_t w = 0; w != weights.size(); ++w)
++		{
++			if (w < chosen) lowerBound += weights[w];
++			total += weights[w];
++		}
++		OracleTraceWeighted(total, lowerBound);
+ 	}
+ 
+ 	return result;
+--- a/src/game/Tactical/Morale.cc
++++ b/src/game/Tactical/Morale.cc
+@@ -661,9 +661,11 @@
+ }
+ 
+ 
++INT8 gOracleStrategicMoraleUpdateCounter = 0;
++
+ void HourlyMoraleUpdate()
+ {
+-	static INT8 strategic_morale_update_counter = 0;
++	INT8& strategic_morale_update_counter = gOracleStrategicMoraleUpdateCounter;
+ 
+ 	// loop through all mercs to calculate their morale
+ 	FOR_EACH_IN_TEAM(s, OUR_TEAM)

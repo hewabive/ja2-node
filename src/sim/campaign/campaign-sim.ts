@@ -8,7 +8,7 @@ import { registerStrategicAiEvents, StrategicAi } from '../strategic/ai/strategi
 import { createEconomyContext, type EconomySetup, economyWorldPort } from '../strategic/economy/context.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
 import { registerEconomyEvents } from '../strategic/economy/update.ts';
-import { SectorFlag } from '../strategic/forces/constants.ts';
+import { EncounterCode, SectorFlag } from '../strategic/forces/constants.ts';
 import {
   createStrategicContext,
   handleGroupAboutToArriveEvent,
@@ -35,9 +35,11 @@ import {
   updateClock,
   worldDay,
 } from '../strategic/time/world-clock.ts';
+import { hostileBloodcatsPresent } from '../tactical/sector-presence.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import { BattleFlow, type BattleSetup } from './battle-flow.ts';
 import { dispatchStrategicCommand } from './commands.ts';
+import { CreatureFlow } from './creature-flow.ts';
 import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
 import { openMapScreen, openTacticalScreen } from './screens.ts';
 import { dispatchSectorCommand, loadStartSector, SectorFlow, type SectorSetup, sectorWorldPort } from './sector-flow.ts';
@@ -68,6 +70,7 @@ export class CampaignSim {
   readonly queen: QueenContext | null;
   readonly sectors: SectorFlow | null;
   readonly battle: BattleFlow | null;
+  readonly creatures: CreatureFlow | null;
   readonly worldClock: WorldTimeControl;
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
@@ -82,7 +85,13 @@ export class CampaignSim {
     this.#hooks = hooks;
     if (tactical) state.flow = 'tactical';
     this.#clock = this.#clockContext();
-    const ai = hooks.queen ? new StrategicAi({ mines: queenMineIncome(() => this.economy), ...hooks.queen }) : null;
+    const ai = hooks.queen
+      ? new StrategicAi({
+          mines: queenMineIncome(() => this.economy),
+          ...hooks.queen,
+          hooks: { creatureQuestEnded: () => this.creatures?.endQuest(), ...hooks.queen.hooks },
+        })
+      : null;
     this.strategic = hooks.strategic
       ? createStrategicContext({
           ...hooks.strategic,
@@ -97,11 +106,13 @@ export class CampaignSim {
     this.sectors = this.strategic && hooks.sectors ? new SectorFlow(this, hooks.sectors) : null;
     const battleSetup = hooks.battle ?? hooks.sectors;
     this.battle = this.economy && battleSetup ? new BattleFlow(this, battleSetup) : null;
+    this.creatures = this.economy ? new CreatureFlow(this) : null;
     this.worldClock = this.#worldTimeControl();
     this.#registerEnvironment();
     this.#registerMovement();
     if (this.economy) registerEconomyEvents(this.dispatchTable, this.economy);
     if (this.queen) registerStrategicAiEvents(this.dispatchTable, this.queen);
+    this.creatures?.register(this.dispatchTable);
     if (state.flow === 'tactical') setGameTimeCompressionLevel(this.#clock, CompressMode.X1);
     tactical?.attachWorldClock(state.clock);
     this.#compressing = isTimeBeingCompressed(state.clock);
@@ -114,12 +125,19 @@ export class CampaignSim {
       moraleEvent: (kind: string, sector: { x: number; y: number; z: number }) => this.battle?.economyMoraleEvent(kind, sector),
       removeRandomItemsInSector: (sector: { x: number; y: number; z: number }, chance: number) =>
         this.battle?.removeRandomItemsInSector(sector, chance),
+      mineClearOfMonsters: (mine: number) => this.creatures?.mineClear(mine) ?? true,
+      checkConditionsForTriggeringCreatureQuest: () => this.creatures?.checkConditionsForQuest(),
     };
-    if (!queen) return { ...setup, hooks: { ...battleHooks, ...setup.hooks } };
+    const moraleSlots = {
+      updateBuddyAndHatedCounters: () => this.battle?.updateBuddyAndHatedCounters(),
+      hourlyMoraleUpdate: () => this.battle?.hourlyMoraleUpdate(),
+      decayTacticalMoraleModifiers: () => this.battle?.decayTacticalMoraleModifiers(),
+    };
+    if (!queen) return { ...setup, hooks: { ...battleHooks, ...setup.hooks }, slots: { ...moraleSlots, ...setup.slots } };
     return {
       ...setup,
       hooks: { ...battleHooks, ...queenEconomyHooks(queen), ...setup.hooks },
-      slots: { ...queenEconomySlots(queen), ...setup.slots },
+      slots: { ...moraleSlots, ...queenEconomySlots(queen), ...setup.slots },
     };
   }
 
@@ -160,6 +178,8 @@ export class CampaignSim {
     if (this.strategic && !this.state.atLeastOneMercHired) return 'no merc has been hired yet';
     if (t?.inCombat) return 'combat is in progress';
     if (t?.turn.enemyInSector) return 'enemies are present in the loaded sector';
+    if (this.creatures?.playerInInfestedMine()) return 'mercs are in a creature-infested mine';
+    if (this.state.encounter.code === EncounterCode.BLOODCAT_AMBUSH && t && hostileBloodcatsPresent(t)) return 'bloodcats are attacking';
     return null;
   }
 

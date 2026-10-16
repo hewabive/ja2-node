@@ -13,6 +13,8 @@ import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { adjustNoAPToFinishMove, soldierGotoStationaryStance } from '../animation.ts';
 import { bleedsAtTurnStart, checkBleeding } from '../combat/bleeding.ts';
 import { beginSoldierGetup } from '../combat/death.ts';
+import { soldierTakeDamage } from '../combat/hit.ts';
+import { DamageReason } from '../combat/types.ts';
 import { decayLightEffects } from '../explosions/light.ts';
 import { clearGassedAtTurnStart, decaySmokeEffects } from '../explosions/smoke.ts';
 import { getNewSoldierPath, stopMerc } from '../movement.ts';
@@ -28,7 +30,7 @@ import {
   unusedAPsToBreath,
 } from '../points.ts';
 import { AlertStatus, Body, NO_INTERRUPT, NOWHERE, OKLIFE, Orders, ReasonCantFinishMove, Side, type Soldier, Team } from '../soldier.ts';
-import { mercs, type TacticalState, teamMembers } from '../state.ts';
+import { mercs, soldiersById, type TacticalState, teamMembers } from '../state.ts';
 import { buildAIListForTeam, moveToFrontOfAIList, removeFirstAIListEntry } from './ai-list.ts';
 import { TEAM_COUNT } from './turn-state.ts';
 
@@ -374,6 +376,16 @@ function checkForLosingEndOfBattle(t: TacticalState): boolean {
   return true;
 }
 
+function killIncapacitatedEnemyInSector(t: TacticalState): boolean {
+  let killed = false;
+  for (const s of soldiersById(t)) {
+    if (s.life >= OKLIFE || s.dead || s.neutral || s.side === Side.FRIENDLY) continue;
+    soldierTakeDamage(t, s, s.life, 100, DamageReason.BLOODLOSS, null);
+    killed = true;
+  }
+  return killed;
+}
+
 export function checkForEndOfBattle(t: TacticalState): boolean {
   const turn = t.turn;
   if (!t.inCombat && !turn.enemyInSector) return false;
@@ -390,6 +402,7 @@ export function checkForEndOfBattle(t: TacticalState): boolean {
     return true;
   }
   if (won) {
+    if (killIncapacitatedEnemyInSector(t)) return false;
     turn.enemyInSector = false;
     endAllAITurns(t);
     if (t.inCombat) exitCombatMode(t);

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/AIUtils.cc CalcMorale, CalcManThreatValue, RangeChangeDesire; AIMain.cc ThreatPercent;
-// @src Tactical/Soldier_Control.h CONSIDERED_NEUTRAL; Tactical/Soldier_Macros.h CREATURE_OR_BLOODCAT. See docs/13 §4.
+// @src Tactical/Soldier_Macros.h CREATURE_OR_BLOODCAT. See docs/13 §4.
 
 import { type ItemTable, WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -16,7 +16,7 @@ import { seenOpponent } from '../perception/duel.ts';
 import { Opp } from '../perception/opp.ts';
 import { knowledge, publicOpp } from '../perception/sight.ts';
 import { calcActionPoints } from '../points.ts';
-import { Attitude, Body, NOWHERE, OKLIFE, type Soldier, SoldierClass, Team } from '../soldier.ts';
+import { Attitude, consideredNeutral, NOWHERE, OKLIFE, type Soldier, SoldierClass, Team } from '../soldier.ts';
 import { mercs, type TacticalState } from '../state.ts';
 import { findAIUsableObjClass } from './utils.ts';
 
@@ -37,14 +37,6 @@ const MAX_ARMOUR_BY_TABLE = new WeakMap<ItemTable, MaxArmour>();
 
 export function threatPercent(opplistValue: number): number {
   return THREAT_PERCENT[opplistValue - OLDEST_HEARD_VALUE] ?? 0;
-}
-
-function isVehicle(s: Soldier): boolean {
-  return s.bodyType >= Body.HUMVEE;
-}
-
-export function consideredNeutral(me: Soldier, them: Soldier): boolean {
-  return them.neutral && (me.team !== Team.CREATURE || isVehicle(them));
 }
 
 export function isKnowableOpponent(s: Soldier, opp: Soldier): boolean {

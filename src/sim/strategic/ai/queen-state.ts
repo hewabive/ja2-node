@@ -71,6 +71,7 @@ export interface StrategicStatus {
   unhiredMercDeaths: number;
   playerKills: number;
   enemiesKilled: number[][];
+  weaponsDropped: Set<number> | null;
 }
 
 export interface MeanwhileState {
@@ -117,6 +118,7 @@ export function createStrategicStatus(): StrategicStatus {
     unhiredMercDeaths: 0,
     playerKills: 0,
     enemiesKilled: Array.from({ length: NUM_WAYS_ENEMIES_KILLED }, () => new Array<number>(NUM_ENEMY_RANKS).fill(0)),
+    weaponsDropped: null,
   };
 }
 

@@ -9,7 +9,6 @@
 
 import { AmmoType, ArmourClass, ItemClass, type ItemDef, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { validAttachment } from '../../content/items/rules.ts';
-import type { Rng } from '../../core/rng.ts';
 import {
   attachObject,
   copyObjectInto,
@@ -22,6 +21,7 @@ import {
   NO_PROFILE,
   ObjectFlags,
 } from '../items/object.ts';
+import type { RandomStream } from './combat/context.ts';
 import { type Inventory, InvSlot, NUM_INV_SLOTS } from './inventory.ts';
 import { Body, SoldierClass } from './soldier.ts';
 
@@ -54,7 +54,7 @@ const DropRate = {
 } as const;
 
 export interface EquipmentState {
-  readonly weaponsAlreadyDropped: Set<number>;
+  weaponsAlreadyDropped: Set<number>;
   mortarsRolledByTeam: number;
   progress: number;
   gunNut: boolean;
@@ -62,11 +62,23 @@ export interface EquipmentState {
   underground: boolean;
   inEnemyHeldTixa: boolean;
   enemyWeaponMinimalStatus: number;
+  autoResolveActive: boolean;
 }
 
-export function createEquipmentState(items: ItemTable): EquipmentState {
-  const state: EquipmentState = {
-    weaponsAlreadyDropped: new Set(),
+export function initArmyGunTypes(items: ItemTable): Set<number> {
+  const dropped = new Set<number>();
+  markAllWeaponsOfSameGunClassAsDropped(items, dropped, id(items, 'SW38'));
+  return dropped;
+}
+
+export function sharedWeaponsDropped(holder: { weaponsDropped: Set<number> | null }, items: ItemTable): Set<number> {
+  holder.weaponsDropped ??= initArmyGunTypes(items);
+  return holder.weaponsDropped;
+}
+
+export function createEquipmentState(items: ItemTable, weaponsAlreadyDropped: Set<number> = initArmyGunTypes(items)): EquipmentState {
+  return {
+    weaponsAlreadyDropped,
     mortarsRolledByTeam: 0,
     progress: 0,
     gunNut: false,
@@ -74,9 +86,8 @@ export function createEquipmentState(items: ItemTable): EquipmentState {
     underground: false,
     inEnemyHeldTixa: false,
     enemyWeaponMinimalStatus: 0,
+    autoResolveActive: false,
   };
-  markAllWeaponsOfSameGunClassAsDropped(items, state, id(items, 'SW38'));
-  return state;
 }
 
 export interface EquipmentTarget {
@@ -90,7 +101,7 @@ export interface EquipmentTarget {
 const id = (items: ItemTable, name: string): number => items.byName.get(name)?.index ?? NOTHING;
 const def = (items: ItemTable, item: number): ItemDef | undefined => items.byIndex.get(item);
 const classOf = (items: ItemTable, item: number): number => def(items, item)?.itemClass ?? 0;
-const chance = (rng: Rng, percent: number): boolean => rng.int(100) < percent;
+const chance = (rng: RandomStream, percent: number): boolean => rng.int(100) < percent;
 const isEnemyClass = (c: number) => c === SoldierClass.ADMINISTRATOR || c === SoldierClass.ARMY || c === SoldierClass.ELITE;
 const isMilitiaClass = (c: number) =>
   c === SoldierClass.GREEN_MILITIA || c === SoldierClass.REG_MILITIA || c === SoldierClass.ELITE_MILITIA;
@@ -99,20 +110,20 @@ function weaponClassLevel(items: ItemTable, gun: number): number {
   return items.gunChoice.extended.findIndex((level) => level.includes(gun));
 }
 
-function markAllWeaponsOfSameGunClassAsDropped(items: ItemTable, state: EquipmentState, weapon: number): void {
+function markAllWeaponsOfSameGunClassAsDropped(items: ItemTable, dropped: Set<number>, weapon: number): void {
   if (!(classOf(items, weapon) & (ItemClass.GUN | ItemClass.BLADE | ItemClass.THROWING_KNIFE | ItemClass.LAUNCHER | ItemClass.TENTACLES)))
     return;
-  state.weaponsAlreadyDropped.add(weapon);
+  dropped.add(weapon);
   const level = weaponClassLevel(items, weapon);
-  if (level >= 0) for (const gun of items.gunChoice.extended[level] ?? []) state.weaponsAlreadyDropped.add(gun);
+  if (level >= 0) for (const gun of items.gunChoice.extended[level] ?? []) dropped.add(gun);
 }
 
-function selectStandardArmyGun(items: ItemTable, rng: Rng, state: EquipmentState, level: number): number {
+function selectStandardArmyGun(items: ItemTable, rng: RandomStream, state: EquipmentState, level: number): number {
   const choice = (state.gunNut ? items.gunChoice.extended : items.gunChoice.normal)[level] ?? [];
   return choice[rng.int(choice.length)] ?? NOTHING;
 }
 
-export function randomMagazine(items: ItemTable, rng: Rng, gun: number, percentStandard: number): number {
+export function randomMagazine(items: ItemTable, rng: RandomStream, gun: number, percentStandard: number): number {
   const weapon = def(items, gun);
   if (weapon?.itemClass !== ItemClass.GUN || !weapon.weapon) return NOTHING;
   const w = weapon.weapon;
@@ -161,7 +172,7 @@ function undroppable(o: ItemObject): ItemObject {
 
 function chooseWeapon(
   items: ItemTable,
-  rng: Rng,
+  rng: RandomStream,
   state: EquipmentState,
   target: EquipmentTarget,
   weaponClass: number,
@@ -227,7 +238,14 @@ function chooseWeapon(
   if (attach) attachObject(items, hand, undroppable(createItem(items, attach, 100)));
 }
 
-function chooseGrenades(items: ItemTable, rng: Rng, inv: Inventory, grenades: number, grenadeClass: number, launcher: boolean): void {
+function chooseGrenades(
+  items: ItemTable,
+  rng: RandomStream,
+  inv: Inventory,
+  grenades: number,
+  grenadeClass: number,
+  launcher: boolean,
+): void {
   let points = grenades * grenadeClass;
   if (!points) return;
   if (grenadeClass === MORTAR_GRENADE_CLASS) {
@@ -308,7 +326,7 @@ function chooseGrenades(items: ItemTable, rng: Rng, inv: Inventory, grenades: nu
 
 function chooseArmourPiece(
   items: ItemTable,
-  rng: Rng,
+  rng: RandomStream,
   inv: Inventory,
   slot: number,
   armourClass: number,
@@ -338,7 +356,14 @@ function chooseArmourPiece(
   return null;
 }
 
-function chooseArmour(items: ItemTable, rng: Rng, inv: Inventory, helmetClass: number, vestClass: number, leggingsClass: number): void {
+function chooseArmour(
+  items: ItemTable,
+  rng: RandomStream,
+  inv: Inventory,
+  helmetClass: number,
+  vestClass: number,
+  leggingsClass: number,
+): void {
   const none = new Set<number>();
   if (helmetClass) chooseArmourPiece(items, rng, inv, InvSlot.HELMET, ArmourClass.HELMET, helmetClass, none);
   if (vestClass) {
@@ -356,7 +381,7 @@ function chooseArmour(items: ItemTable, rng: Rng, inv: Inventory, helmetClass: n
 
 function chooseSpecialWeapons(
   items: ItemTable,
-  rng: Rng,
+  rng: RandomStream,
   inv: Inventory,
   knifeClassIn: number,
   launcher: boolean,
@@ -380,7 +405,7 @@ function chooseSpecialWeapons(
   if (mortar) placeObjectInCreateStruct(items, inv, undroppable(createItem(items, id(items, 'MORTAR'), 50 + rng.int(51))));
 }
 
-function chooseFaceGear(items: ItemTable, rng: Rng, state: EquipmentState, target: EquipmentTarget, difficulty: number): void {
+function chooseFaceGear(items: ItemTable, rng: RandomStream, state: EquipmentState, target: EquipmentTarget, difficulty: number): void {
   const inv = target.inv;
   if (state.inEnemyHeldTixa) return;
   for (let slot = InvSlot.BIGPOCK1; slot < InvSlot.BIGPOCK4; slot++)
@@ -401,7 +426,7 @@ function chooseFaceGear(items: ItemTable, rng: Rng, state: EquipmentState, targe
   }
 }
 
-function chooseKits(items: ItemTable, rng: Rng, inv: Inventory, kitClass: number): void {
+function chooseKits(items: ItemTable, rng: RandomStream, inv: Inventory, kitClass: number): void {
   let kit = NOTHING;
   if (chance(rng, 50)) kit = id(items, 'FIRSTAIDKIT');
   else if (chance(rng, 25)) kit = id(items, 'MEDICKIT');
@@ -431,7 +456,7 @@ const MISC_ITEMS = [
   'GOLDWATCH',
 ];
 
-function chooseMisc(items: ItemTable, rng: Rng, state: EquipmentState, inv: Inventory, miscClass: number): void {
+function chooseMisc(items: ItemTable, rng: RandomStream, state: EquipmentState, inv: Inventory, miscClass: number): void {
   const found = MISC_ITEMS.map((n) => def(items, id(items, n))).filter(
     (it): it is ItemDef => !!it && it.coolness > 0 && it.coolness <= miscClass && (it.name !== 'REGEN_BOOSTER' || state.sciFi),
   );
@@ -440,7 +465,7 @@ function chooseMisc(items: ItemTable, rng: Rng, state: EquipmentState, inv: Inve
   if (chosen) placeObjectInCreateStruct(items, inv, undroppable(createItem(items, chosen.index, 80 + rng.int(21))));
 }
 
-function chooseBombs(items: ItemTable, rng: Rng, inv: Inventory, bombClass: number): void {
+function chooseBombs(items: ItemTable, rng: RandomStream, inv: Inventory, bombClass: number): void {
   const found = items.ordered.filter(
     (it) => it.explosive && it.itemClass === ItemClass.BOMB && it.coolness > 0 && it.coolness <= bombClass,
   );
@@ -449,7 +474,7 @@ function chooseBombs(items: ItemTable, rng: Rng, inv: Inventory, bombClass: numb
   if (chosen) placeObjectInCreateStruct(items, inv, undroppable(createItem(items, chosen.index, 80 + rng.int(21))));
 }
 
-function makeOneItemOfClassDroppable(items: ItemTable, rng: Rng, inv: Inventory, mask: number): void {
+function makeOneItemOfClassDroppable(items: ItemTable, rng: RandomStream, inv: Inventory, mask: number): void {
   let matches = 0;
   for (const o of inv) {
     if (!(classOf(items, o.item) & mask)) continue;
@@ -466,8 +491,8 @@ function makeOneItemOfClassDroppable(items: ItemTable, rng: Rng, inv: Inventory,
   }
 }
 
-function chooseDroppable(items: ItemTable, rng: Rng, state: EquipmentState, inv: Inventory, soldierClass: number): void {
-  if (isEnemyClass(soldierClass)) {
+function chooseDroppable(items: ItemTable, rng: RandomStream, state: EquipmentState, inv: Inventory, soldierClass: number): void {
+  if (isEnemyClass(soldierClass) && !state.autoResolveActive) {
     for (const o of inv) {
       const d = def(items, o.item);
       if (
@@ -481,7 +506,7 @@ function chooseDroppable(items: ItemTable, rng: Rng, state: EquipmentState, inv:
         continue;
       if (o.flags & ObjectFlags.NO_OVERWRITE || state.weaponsAlreadyDropped.has(o.item)) continue;
       o.flags &= ~ObjectFlags.UNDROPPABLE;
-      markAllWeaponsOfSameGunClassAsDropped(items, state, o.item);
+      markAllWeaponsOfSameGunClassAsDropped(items, state.weaponsAlreadyDropped, o.item);
     }
   }
   const militia = isMilitiaClass(soldierClass);
@@ -515,7 +540,7 @@ function chooseDroppable(items: ItemTable, rng: Rng, state: EquipmentState, inv:
   if (misc) makeOneItemOfClassDroppable(items, rng, inv, ItemClass.MISC);
 }
 
-function equipTank(items: ItemTable, rng: Rng, inv: Inventory): void {
+function equipTank(items: ItemTable, rng: RandomStream, inv: Inventory): void {
   copyObjectInto(inv[InvSlot.HAND] as ItemObject, undroppable(createItem(items, id(items, 'TANK_CANNON'), 80 + rng.int(21))));
   placeObjectInCreateStruct(items, inv, undroppable(createItems(items, id(items, 'MINIMI'), 80 + rng.int(21), 1)));
   placeObjectInCreateStruct(items, inv, undroppable(createItems(items, id(items, 'TANK_SHELL'), 100, 1)));
@@ -526,7 +551,7 @@ function equipTank(items: ItemTable, rng: Rng, inv: Inventory): void {
 
 export function generateRandomEquipment(
   items: ItemTable,
-  rng: Rng,
+  rng: RandomStream,
   state: EquipmentState,
   target: EquipmentTarget,
   equipmentRating: number,
@@ -760,7 +785,13 @@ export function generateRandomEquipment(
   chooseDroppable(items, rng, state, inv, target.soldierClass);
 }
 
-export function replaceExtendedGuns(items: ItemTable, rng: Rng, state: EquipmentState, inv: Inventory, soldierClass: number): void {
+export function replaceExtendedGuns(
+  items: ItemTable,
+  rng: RandomStream,
+  state: EquipmentState,
+  inv: Inventory,
+  soldierClass: number,
+): void {
   for (const o of inv) {
     const old = def(items, o.item);
     if (!old?.weapon || !(old.flags & ItemFlags.BIGGUNLIST)) continue;

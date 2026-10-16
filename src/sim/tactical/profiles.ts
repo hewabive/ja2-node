@@ -4,6 +4,8 @@
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 
+const STAT_CHANGE_COUNTERS = 12;
+
 export const StatKind = {
   SALARY: 0,
   HEALTH: 1,
@@ -50,8 +52,18 @@ export interface ProfileProgress {
   readonly id: number;
   readonly evolution: number;
   readonly attitude: number;
-  readonly buddies: readonly number[];
-  readonly hated: readonly number[];
+  readonly buddies: number[];
+  readonly hated: number[];
+  readonly opinions: number[];
+  readonly hatedTime: number[];
+  readonly hatedCount: number[];
+  learnToHate: number;
+  learnToHateTime: number;
+  learnToHateCount: number;
+  learnToLike: number;
+  learnToLikeTime: number;
+  learnToLikeCount: number;
+  timeTillNextHatedComplaint: number;
   life: number;
   readonly stats: Record<StatKey, number>;
   readonly gains: Record<StatKey, number>;
@@ -65,13 +77,33 @@ export interface ProfileProgress {
   dead: boolean;
 }
 
-function fromProfile(p: MercProfile): ProfileProgress {
+export interface SavedProfileCounters {
+  readonly kills: number;
+  readonly assists: number;
+  readonly shotsFired: number;
+  readonly shotsHit: number;
+  readonly timesWounded: number;
+}
+
+const NO_COUNTERS: SavedProfileCounters = { kills: 0, assists: 0, shotsFired: 0, shotsHit: 0, timesWounded: 0 };
+
+export function progressFromProfile(p: MercProfile, counters: SavedProfileCounters = NO_COUNTERS, saved = false): ProfileProgress {
   return {
     id: p.id,
     evolution: p.evolution,
     attitude: p.attitude,
-    buddies: p.buddies,
-    hated: p.hated,
+    buddies: [...p.buddies],
+    hated: [...p.hated],
+    opinions: [...p.mercOpinion],
+    hatedTime: [...p.hatedTime],
+    hatedCount: [...p.hatedCount],
+    learnToHate: p.learnToHate,
+    learnToHateTime: p.learnToHateTime,
+    learnToHateCount: p.learnToHateCount,
+    learnToLike: p.learnToLike,
+    learnToLikeTime: p.learnToLikeTime,
+    learnToLikeCount: p.learnToLikeCount,
+    timeTillNextHatedComplaint: p.timeTillNextHatedComplaint,
     life: p.life,
     stats: {
       lifeMax: p.lifeMax,
@@ -99,13 +131,13 @@ function fromProfile(p: MercProfile): ProfileProgress {
       strength: p.gains.strength,
       leadership: p.gains.leadership,
     },
-    statChangeChances: new Array<number>(12).fill(0),
-    statChangeSuccesses: new Array<number>(12).fill(0),
-    kills: 0,
-    assists: 0,
-    shotsFired: 0,
-    shotsHit: 0,
-    timesWounded: 0,
+    statChangeChances: saved ? [...p.statChangeChances] : new Array<number>(STAT_CHANGE_COUNTERS).fill(0),
+    statChangeSuccesses: saved ? [...p.statChangeSuccesses] : new Array<number>(STAT_CHANGE_COUNTERS).fill(0),
+    kills: counters.kills,
+    assists: counters.assists,
+    shotsFired: counters.shotsFired,
+    shotsHit: counters.shotsHit,
+    timesWounded: counters.timesWounded,
     dead: false,
   };
 }
@@ -115,12 +147,41 @@ export interface ProfileSource {
   readonly content: { readonly profiles: readonly MercProfile[] };
 }
 
+const NO_PROFILE_ID = -1;
+
+export function noRelations(): Pick<
+  ProfileProgress,
+  | 'opinions'
+  | 'hatedTime'
+  | 'hatedCount'
+  | 'learnToHate'
+  | 'learnToHateTime'
+  | 'learnToHateCount'
+  | 'learnToLike'
+  | 'learnToLikeTime'
+  | 'learnToLikeCount'
+  | 'timeTillNextHatedComplaint'
+> {
+  return {
+    opinions: [],
+    hatedTime: [],
+    hatedCount: [],
+    learnToHate: NO_PROFILE_ID,
+    learnToHateTime: 0,
+    learnToHateCount: 0,
+    learnToLike: NO_PROFILE_ID,
+    learnToLikeTime: 0,
+    learnToLikeCount: 0,
+    timeTillNextHatedComplaint: 0,
+  };
+}
+
 export function profileProgress(t: ProfileSource, id: number): ProfileProgress | null {
   const existing = t.profiles.get(id);
   if (existing) return existing;
   const p = t.content.profiles[id];
   if (!p) return null;
-  const created = fromProfile(p);
+  const created = progressFromProfile(p);
   t.profiles.set(id, created);
   return created;
 }

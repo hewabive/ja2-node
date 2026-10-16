@@ -1,0 +1,51 @@
+# Hourly team morale, the buddy and hated counters and the quarter-hour decay (docs/11 §9, docs/18 §5.12).
+save SaveGame10
+moralecounter value=0
+morale
+setmorale who=0 delayed=-7 tactical=-12 strategic=9
+setmorale who=1 tactical=15 strategic=-20 team=4
+setmorale who=2 tactical=-21 strategic=3 delayed=6
+setrelation who=2 about=27 opinion=-25 hated=0:20:21
+setrelation who=27 about=59 learnlike=10:4
+setrelation who=59 about=2 learnhate=8:3
+hourlymorale count=1
+hourlymorale count=2
+quartermorale count=3
+hourlymorale count=4
+setrelation who=27 about=2 opinion=-25 hated=1:6:2
+hourlymorale count=3
+quartermorale count=5
+setmorale who=0 asleep=1
+hourlymorale count=2
+setmorale who=0 asleep=0
+quartermorale count=2
+
+save SaveGame07
+moralecounter value=0
+setmorale who=0 tactical=-18 strategic=-30 delayed=-10
+setmorale who=1 tactical=30 strategic=25
+setrelation who=59 about=27 opinion=-25 hated=0:5:5
+setrelation who=2 about=59 opinion=20
+hourlymorale count=6
+quartermorale count=4
+
+save SaveGame01
+moralecounter value=0
+setmorale who=0 tactical=10 strategic=-5 delayed=4
+hourlymorale count=5
+quartermorale count=6
+
+save SaveGame10
+moralecounter value=0
+setprofile who=59 personality=2 attitude=9
+setprofile who=2 attitude=3
+setmorale who=2 tactical=-15 strategic=-20 team=-5
+quartermorale count=2
+moralemove who=2 to=13000
+quartermorale count=3
+setmorale who=2 tactical=-20
+quartermorale count=1
+setmorale who=0 tactical=-30
+setprofile who=2 attitude=4
+hourlymorale count=3
+quartermorale count=4

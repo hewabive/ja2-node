@@ -171,6 +171,7 @@ export interface MercCellInput {
 export interface EnemyCellInput {
   readonly soldier: Soldier;
   readonly groupId?: number;
+  readonly cellFlags?: number;
 }
 
 export interface AutoresolveInput {
@@ -232,7 +233,9 @@ export function createAutoresolveState(input: AutoresolveInput): AutoresolveStat
   if (input.enemies.length > MAX_AR_ENEMIES) throw new RangeError(`autoresolve takes at most ${MAX_AR_ENEMIES} enemy cells`);
   const mercs = input.mercs.map((m, i) => newCell('merc', i, m.soldier, mercFlags(m), m.groupId ?? 0));
   const militia = input.militia.map((s, i) => newCell('militia', i, s, CellFlag.MILITIA, 0));
-  const enemies = input.enemies.map((e, i) => newCell('enemy', i, e.soldier, enemyCellFlags(input.encounter, e.soldier), e.groupId ?? 0));
+  const enemies = input.enemies.map((e, i) =>
+    newCell('enemy', i, e.soldier, e.cellFlags ?? enemyCellFlags(input.encounter, e.soldier), e.groupId ?? 0),
+  );
   const advantage = defenceAdvantageFor(input.encounter);
   return {
     sector: input.sector,

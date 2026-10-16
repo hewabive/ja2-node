@@ -21,6 +21,7 @@ import { swapStructureForPartner } from './doors.ts';
 import { NUM_INV_SLOTS } from './inventory.ts';
 import { lightSetBaseLevel, loadMapLights } from './lighting/lighting.ts';
 import { setSoldierPosition } from './movement.ts';
+import { progressFromProfile } from './profiles.ts';
 import {
   createSoldier,
   NO_PENDING_ANIMATION,
@@ -81,6 +82,7 @@ export function worldWithSavedDoors(world: TacticalWorld, save: SaveGame): Tacti
 export function importSave(sim: TacticalSim, save: SaveGame): SaveImportReport {
   const t = sim.state;
   applyOptions(t, save);
+  importProfileProgress(t, save);
   loadSavedSectorLights(sim, save);
   const worldItems = importWorldItems(t, save, sim.world.map.info.centerGridNo);
   const corpses = importCorpses(t, save.currentSector.corpses ?? []);
@@ -93,6 +95,12 @@ export function importSave(sim: TacticalSim, save: SaveGame): SaveImportReport {
   t.pre.restore({ ring: save.preRandom.numbers, index: save.preRandom.index });
   lightSetBaseLevel(t, savedAmbientLight(sim, save));
   return { mapPath: sim.mapPath, soldiers, worldItems, corpses, skippedMapModifications };
+}
+
+function importProfileProgress(t: TacticalState, save: SaveGame): void {
+  save.profiles.forEach((p, id) => {
+    if (p) t.profiles.set(id, progressFromProfile(p, p, true));
+  });
 }
 
 function applyOptions(t: TacticalState, save: SaveGame): void {

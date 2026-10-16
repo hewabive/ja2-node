@@ -1,0 +1,21 @@
+# Creature and bloodcat placement from the map placements (docs/16 §5.13): decisions only, as the defence probes.
+sector F13 z=3
+creatureplacement queen=1 larvae=3 infants=4 ym=0 yf=0 am=3 af=2
+sector G13 z=3
+creatureplacement larvae=2 infants=3 ym=2 yf=1 am=2 af=1
+sector E13 z=1
+creatureplacement ym=1 yf=5 am=1 af=2
+sector D13 z=1
+creatureplacement ym=2 yf=3 am=0 af=1
+sector H8 z=1
+creatureplacement ym=1 yf=8 am=1 af=3
+sector I16
+bloodcatplacement cats=14 placements=14
+sector I16
+bloodcatplacement cats=6 placements=14
+sector E13
+bloodcatplacement cats=5 placements=14
+sector C8
+bloodcatplacement cats=9 placements=13
+sector D9
+bloodcatplacement cats=3 placements=99

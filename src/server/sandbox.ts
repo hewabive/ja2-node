@@ -102,6 +102,8 @@ function sandboxPopulation(sim: TacticalSim): PopulationEnv {
   };
   return {
     difficultyModifier: (soldierClass) => calcDifficultyModifier(inputs, soldierClass),
+    difficulty: Difficulty.MEDIUM,
+    bloodcatLair: false,
     locationModifier: 0,
     autoResolveActive: false,
     profileHere: (p) => profiles[p]?.sectorX === sector.x && profiles[p]?.sectorY === sector.y,

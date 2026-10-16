@@ -19,7 +19,7 @@ import { Warp } from '../strategic/time/constants.ts';
 import { warpGameTime } from '../strategic/time/world-clock.ts';
 import { Situation } from '../tactical/ai/actions.ts';
 import { InvSlot } from '../tactical/inventory.ts';
-import { SoldierClass, Team } from '../tactical/soldier.ts';
+import { Body, SoldierClass, Team } from '../tactical/soldier.ts';
 import { teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { ROTTING_STAGE2, sectorKey } from './sector-diff.ts';
 
@@ -269,7 +269,7 @@ describe('preserved soldiers', () => {
     expect(teamMembers(campaign.tactical?.state ?? never(), Team.ENEMY)).toHaveLength(2);
   });
 
-  it('heals the civilians left behind by one point per 15 minutes away', () => {
+  it('heals the civilians left behind by one point per 15 minutes away (civilian bodies other than the four merc bodies reroll their life)', () => {
     const { campaign } = createTestCampaign(kit, { seed: 12, garrison: NO_GARRISON });
     landFirstSquad(campaign);
     const flow = flowOf(campaign);
@@ -280,6 +280,7 @@ describe('preserved soldiers', () => {
     expect(civilians).toHaveLength(2);
     const hurt = civilians[0];
     if (!hurt) throw new Error('no civilian');
+    hurt.bodyType = Body.REGMALE;
     hurt.life = hurt.lifeMax - 20;
     leaveStrategically(campaign);
     warpMinutes(campaign, 150);

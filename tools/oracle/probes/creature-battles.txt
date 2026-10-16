@@ -1,0 +1,26 @@
+# Creature attacks autoresolved (docs/19 §2.3–§2.4): militia and the save's mercs against creature compositions drawn
+# from the MINE_EXIT weights, then the aftermath with the eaten civilians.
+save SaveGame10
+seed value=301 pre=reseed
+arsetup sector=D13 code=creature creatures=6 militia=2,1,0 enemies=0,0,0
+autoresolve
+save SaveGame10
+seed value=302 pre=reseed
+arsetup sector=D13 code=creature creatures=12 militia=3,2,1 enemies=0,0,0
+autoresolve bandage=1
+save SaveGame10
+seed value=303 pre=reseed
+arsetup sector=D13 code=creature creatures=4 militia=0,0,0 enemies=0,0,0
+autoresolve retreat=2:all
+save SaveGame09
+seed value=304 pre=reseed
+arsetup sector=D13 code=creature creatures=9 militia=4,2,0 enemies=0,0,0
+autoresolve
+save SaveGame10
+seed value=305 pre=reseed
+arsetup sector=D13 code=creature creatures=20 militia=1,1,1 enemies=0,0,0
+autoresolve
+save SaveGame10
+seed value=306 pre=reseed
+arsetup sector=D13 code=creature creatures=3 militia=6,4,2 enemies=0,0,0
+autoresolve

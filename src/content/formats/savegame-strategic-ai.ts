@@ -23,6 +23,7 @@ const NUM_WAYS_ENEMIES_KILLED = 3;
 const NUM_ENEMY_RANKS = 3;
 const SEL_MAP_Z_BYTES = 4;
 const BYTES_FROM_SEL_MAP_TO_MEANWHILE_FLAGS = 24;
+const BYTES_FROM_SEL_MAP_TO_CREATURE_MEANWHILE = 12;
 const FIRST_VERSION_WITH_32_BIT_MEANWHILE_FLAGS = 71;
 
 const SAI_HEADER_LAYOUT: Layout = [
@@ -84,7 +85,7 @@ const STRATEGIC_STATUS_LAYOUT: Layout = [
   field('ubNumCapturedForRescue', 'u8'),
   field('ubHighestProgress', 'u8'),
   skip(ARMY_GUN_LEVELS, 'notUsedGunIndeces'),
-  skip(MAX_WEAPONS, 'fWeaponDroppedAlready'),
+  field('fWeaponDroppedAlready', 'u8', MAX_WEAPONS),
   field('ubMercDeaths', 'u8'),
   field('uiManDaysPlayed', 'u32'),
   field('ubBadReputation', 'u8'),
@@ -166,6 +167,7 @@ export interface SavedStrategicStatus {
   readonly lastDayOfPlayerActivity: number;
   readonly newSectorsVisitedToday: number;
   readonly daysOfInactivity: number;
+  readonly weaponDroppedAlready: readonly number[];
 }
 
 export interface SavedStrategicAiSections {
@@ -173,6 +175,8 @@ export interface SavedStrategicAiSections {
   readonly status: SavedStrategicStatus;
   readonly meanwhileFlags: number;
   readonly firstBattleSector: number;
+  readonly creatureMeanwhileScenePlayed: boolean;
+  readonly droppedWeaponsState: readonly number[] | null;
 }
 
 function sectionCursor(bytes: Uint8Array, save: SaveGame, name: string): SaveCursor {
@@ -262,10 +266,17 @@ export function readStrategicStatus(c: SaveCursor): SavedStrategicStatus {
     lastDayOfPlayerActivity: r.num('usLastDayOfPlayerActivity'),
     newSectorsVisitedToday: r.num('ubNumNewSectorsVisitedToday'),
     daysOfInactivity: r.num('ubNumberOfDaysOfInactivity'),
+    weaponDroppedAlready: r.nums('fWeaponDroppedAlready'),
   };
 }
 
-function readGeneralInfoExtras(bytes: Uint8Array, save: SaveGame): { meanwhileFlags: number; firstBattleSector: number } {
+interface GeneralInfoExtras {
+  readonly meanwhileFlags: number;
+  readonly firstBattleSector: number;
+  readonly creatureMeanwhileScenePlayed: boolean;
+}
+
+function readGeneralInfoExtras(bytes: Uint8Array, save: SaveGame): GeneralInfoExtras {
   const c = sectionCursor(bytes, save, 'general info');
   const offsets = layoutOffsets(GENERAL_INFO_LAYOUT, false);
   const at = (name: string) => {
@@ -279,7 +290,12 @@ function readGeneralInfoExtras(bytes: Uint8Array, save: SaveGame): { meanwhileFl
     save.header.version < FIRST_VERSION_WITH_32_BIT_MEANWHILE_FLAGS
       ? view.getUint16(at('old_meanwhile_flags'), true)
       : view.getUint32(flagsAt, true);
-  return { meanwhileFlags, firstBattleSector: view.getInt16(at('sWorldSectorLocationOfFirstBattle'), true) };
+  const creatureAt = at('sSelMapZ') + SEL_MAP_Z_BYTES + BYTES_FROM_SEL_MAP_TO_CREATURE_MEANWHILE;
+  return {
+    meanwhileFlags,
+    firstBattleSector: view.getInt16(at('sWorldSectorLocationOfFirstBattle'), true),
+    creatureMeanwhileScenePlayed: view.getUint8(creatureAt) !== 0,
+  };
 }
 
 export function readStrategicAiSections(bytes: Uint8Array, save: SaveGame): SavedStrategicAiSections {
@@ -288,5 +304,18 @@ export function readStrategicAiSections(bytes: Uint8Array, save: SaveGame): Save
   aiCursor.expectConsumed(0, aiCursor.bytes.length, 'strategic AI');
   const statusCursor = sectionCursor(bytes, save, 'strategic status');
   const status = readStrategicStatus(statusCursor);
-  return { ai, status, ...readGeneralInfoExtras(bytes, save) };
+  return { ai, status, droppedWeaponsState: droppedWeaponsFromGameStates(save.gameStates), ...readGeneralInfoExtras(bytes, save) };
+}
+
+const DROPPED_WEAPONS_KEY = 'StrategicStatus::alreadyDroppedWeapons';
+
+function droppedWeaponsFromGameStates(gameStates: string | null): number[] | null {
+  if (!gameStates) return null;
+  try {
+    const parsed = JSON.parse(gameStates) as Record<string, unknown>;
+    const value = parsed[DROPPED_WEAPONS_KEY];
+    return Array.isArray(value) ? value.map(Number) : null;
+  } catch {
+    return null;
+  }
 }

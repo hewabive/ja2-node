@@ -1320,8 +1320,8 @@ Headless message boxes and dialogue events raised by these handlers are a risk f
   original's cadence depends on the wall clock and frame rate at high compression).
 - *Morale counter*: `HourlyMoraleUpdate`'s 3-hour strategic decay counter is function-static and not saved in the
   original; ours is saved state (a save/load can shift the decay hour in the original).
-- Temporary, until later milestones: hospital, creatures (mines always clear, no civilians eaten), quests and NPC
-  loyalty actions, contracts, Larry/Slay, Bobby Ray.
+- Temporary, until later milestones: hospital, quests and NPC loyalty actions, contracts, Larry/Slay, Bobby Ray.
+  Creatures in mines and eaten civilians are wired in campaigns (`docs/17` §20).
 
 **Verified** by reading Strac (V cross-checks where marked): every function quoted with a line range — militia
 eligibility, payment, points, completion, promotions, defections, redistribution, tactical placement; loyalty
@@ -1404,3 +1404,24 @@ the strategic clock, with identical results when the same span is warped.
 per-item theft, (h) the protocol commands, prompts and view (the functions exist), redistribution (§1.8), hospital
 assignment and payment, the vanilla-vs-Strac stat-change trace for oracle comparisons of stat gains, and the roster-backed
 crew port in `createSaveSession`.
+
+## 11. Implemented (2026-10-16): the morale rows of §5.12
+
+`src/sim/campaign/team-morale.ts`: `hourlyMoraleUpdate` (team opinion of the awake teammates in the same sector, or the
+same group while moving, with the hated slots scaled by their remaining tolerance; best effective leadership; the
+delayed strategic modifier applied; the strategic decay every third call), `decayTacticalMoraleModifiers` (the size
+dependent step toward 0, claustrophobes underground, nervous mercs far from every friend — `DistanceToClosestFriend` —
+or alone in their squad) and `updateBuddyAndHatedCounters` (hated time and counts, complaints with
+`StopTimeCompression`, learning to hate and to like, quitting). `BattleFlow` runs them with the roster and the profile
+progress (`hourlyMoraleUpdate`, `updateBuddyAndHatedCounters`, `decayTacticalMoraleModifiers`); `CampaignSim` puts them
+into the hourly and quarter-hour slots of the economy in the original order (`UpdateBuddyAndHatedCounters` before
+`HourlyMoraleUpdate`). The decay counter is `state.teamMorale.strategicDecayCounter` (saved, §9). `prof.ts` reads the
+relation fields (sexist, learn to hate/like with times and counts, hated times and counts, the next complaint, death rate)
+and native saves import every profile, so imported campaigns keep their counters.
+
+Events: `hatedComplaint {soldier, about, learned}` (the hated-merc and learned-to-hate quotes) and
+`mercQuitsHated {soldier, about, learned}` (the merc stays until contracts exist, `deviations.md` "Quitting over a hated
+merc"). Drugs are not modelled, so `RefreshSoldierMorale` has no drug term; `DailyMoraleUpdate` and the camouflage row
+wait for the daily merc update (M5).
+
+Oracle (`tools/oracle/probes/morale.txt`, patch 0006, README "Morale"): 43 probes on three saves match.

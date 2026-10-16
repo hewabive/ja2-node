@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Control.h SOLDIERTYPE (movement, animation and AI fields used by ja2-node)
+// @src src/game/Tactical/Soldier_Control.h SOLDIERTYPE (movement, animation and AI fields used by ja2-node), CONSIDERED_NEUTRAL
 
 import type { StructureInstance } from '../../content/world/structures.ts';
 import type { ItemObject } from '../items/object.ts';
@@ -104,6 +104,10 @@ export const OKBREATH = 10;
 export const TOTAL_SOLDIERS = 156;
 export const TEAM_SIZES = [20, 32, 32, 32, 32, 8] as const;
 export const TEAM_FIRST_ID = [0, 20, 52, 84, 116, 148] as const;
+
+export function consideredNeutral(me: Pick<Soldier, 'team'>, them: Pick<Soldier, 'neutral' | 'bodyType'>): boolean {
+  return them.neutral && (me.team !== Team.CREATURE || them.bodyType >= Body.HUMVEE);
+}
 
 export function firstFreeSoldierId(taken: (id: number) => boolean, team: number): number {
   const first = TEAM_FIRST_ID[team] ?? 0;
@@ -409,6 +413,10 @@ export interface Soldier {
   offWorldGridNo: number;
   militiaKills: number;
   offMap: boolean;
+  battleSoundId: number;
+  camo: number;
+  normalSmell: number;
+  hunting: boolean;
 }
 
 export interface PendingPickup {
@@ -686,5 +694,9 @@ export function createSoldier(init: SoldierInit): Soldier {
     offWorldGridNo: NOWHERE,
     militiaKills: 0,
     offMap: false,
+    battleSoundId: 0,
+    camo: 0,
+    normalSmell: 0,
+    hunting: false,
   };
 }

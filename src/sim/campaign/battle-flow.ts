@@ -10,12 +10,15 @@
 // @src Strategic/StrategicMap.cc HandlePotentialBringUpAutoresolveToFinishBattle; Strategic_Movement.cc
 // @src PlanSimultaneousGroupArrivalCallback. See docs/19 §1.5, §2.16, §2.18, §3.2–§3.4, §5.
 
-import { type Sector, sameSector, sectorShortString, strategicIndex } from '../../content/strategic/sector-ids.ts';
+import { type Sector, sameSector, sectorFromId, sectorShortString, strategicIndex } from '../../content/strategic/sector-ids.ts';
+import { spacesAway } from '../../content/world/grid.ts';
+import { u8 } from '../../core/int.ts';
 import { Rng } from '../../core/rng.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import { queenProgress } from '../strategic/ai/difficulty.ts';
 import { handleFirstBattleEndingWhileInTown } from '../strategic/ai/meanwhile.ts';
+import { clearSurfaceCreatures, determineCreatureTownComposition } from '../strategic/creatures/town-attack.ts';
 import { reEvaluateEveryonesNothingToDo } from '../strategic/economy/assignment-done.ts';
 import { Assignment, LoyaltyEvent } from '../strategic/economy/constants.ts';
 import { handleGlobalLoyaltyEvent } from '../strategic/economy/loyalty.ts';
@@ -60,6 +63,7 @@ import {
   retreatAllInvolvedPlayerGroups,
   wakeUpAllMercsInSectorUnderAttack,
 } from '../strategic/forces/pre-battle.ts';
+import { numberOfPeopleInSquad } from '../strategic/forces/squads.ts';
 import { setThisSectorAsEnemyControlled, setThisSectorAsPlayerControlled } from '../strategic/map/control.ts';
 import { EnemyKnowledge, whatPlayerKnowsAboutEnemiesInSector } from '../strategic/map/knowledge.ts';
 import type { StrategicState } from '../strategic/state.ts';
@@ -76,13 +80,15 @@ import {
 import { handleSoldierDeath } from '../tactical/combat/death.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { healthCategory } from '../tactical/health.ts';
+import { profileProgress } from '../tactical/profiles.ts';
 import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
-import { OKLIFE, Side, type Soldier, Team } from '../tactical/soldier.ts';
+import { Body, NO_PROFILE, OKLIFE, Side, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers } from '../tactical/state.ts';
 import {
   type ArStrategicContext,
   associateWithStrategicGroups,
   buildAutoresolveInput,
+  type CreatureComposition,
   strategicClosePort,
 } from './autoresolve-strategic.ts';
 import type { CampaignSim } from './campaign-sim.ts';
@@ -98,8 +104,16 @@ import { ECONOMY_MORALE_EVENTS, handleMoraleEvent, type MoraleContext, MoraleEve
 import type { Roster, RosterMerc } from './roster.ts';
 import { enterMapScreen } from './screens.ts';
 import { addDeadSoldierToUnloadedSector, removeRandomItemsInSector } from './sector-loot.ts';
+import { decayTacticalMoraleModifiers, hourlyMoraleUpdate, type TeamMoraleContext, updateBuddyAndHatedCounters } from './team-morale.ts';
 
 export const TICKS_PER_AUTORESOLVE_SLICE = 200;
+const NO_TACTICAL: Pick<TacticalState, 'soldiers'> = { soldiers: [] };
+const CREATURE_COMPOSITION_KEYS: Readonly<Record<number, keyof CreatureComposition>> = {
+  [Body.ADULTFEMALEMONSTER]: 'adultFemales',
+  [Body.AM_MONSTER]: 'adultMales',
+  [Body.YAF_MONSTER]: 'youngFemales',
+  [Body.YAM_MONSTER]: 'youngMales',
+};
 const PBI_RETREAT_WARP_SECONDS = 300;
 const LOST_BATTLE_UNLOAD_DELAY_MS = 10_000;
 const MAX_CAPTURED_REAL_MERCS = 4;
@@ -172,12 +186,40 @@ export class BattleFlow implements FateContext {
 
   moraleContext(): MoraleContext {
     const queen = this.campaign.queen;
+    const team = this.roster.all();
+    for (const m of team)
+      if (m.profile !== NO_PROFILE) profileProgress({ profiles: this.state.profiles, content: this.content }, m.profile);
     return {
-      team: this.roster.all(),
+      team,
       profiles: this.state.profiles,
       progress: queen ? queenProgress(queen) : this.state.status.highestProgress,
       enemyInSector: this.campaign.tactical?.state.turn.enemyInSector === true,
     };
+  }
+
+  #teamMoraleContext(): TeamMoraleContext {
+    const economy = this.economy;
+    return {
+      ...this.moraleContext(),
+      groupInMotion: (id) => getGroup(economy, id)?.betweenSectors === true,
+      squadSize: (squad) => numberOfPeopleInSquad(economy, squad),
+      spacesAway,
+      morale: this.state.teamMorale,
+      emit: (e) => this.emit(e),
+      stopTimeCompression: () => stopTimeCompression(this.campaign.clockContext, CompressionStop.COMPLAINT),
+    };
+  }
+
+  hourlyMoraleUpdate(): void {
+    hourlyMoraleUpdate(this.#teamMoraleContext());
+  }
+
+  updateBuddyAndHatedCounters(): void {
+    updateBuddyAndHatedCounters(this.#teamMoraleContext());
+  }
+
+  decayTacticalMoraleModifiers(): void {
+    decayTacticalMoraleModifiers(this.#teamMoraleContext());
   }
 
   moraleEvent(subject: RosterMerc | null, event: number, sector: Sector): void {
@@ -282,6 +324,38 @@ export class BattleFlow implements FateContext {
     this.#emitPreBattle(opening, false, prompt.id);
   }
 
+  openCreatureAttack(autoStart: boolean): void {
+    const s = this.state;
+    s.battle.sector = sectorFromId(s.creatures.attack.sectorId, 0);
+    const opening = initPreBattleInterface(this.economy, null, true);
+    if (!opening) return;
+    if (autoStart) {
+      this.#emitPreBattle(opening, true, null);
+      this.#startAutoresolve();
+      return;
+    }
+    const prompt = this.#openPrompt(PromptKind.PRE_BATTLE, { options: opening.options, enemiesKnown: this.#enemiesKnown(opening.sector) });
+    this.#emitPreBattle(opening, false, prompt.id);
+  }
+
+  #creatureComposition(transfer: boolean): CreatureComposition {
+    const s = this.state;
+    const attack = s.creatures.attack;
+    if (!transfer) return determineCreatureTownComposition(s.rng, attack.numAttacking);
+    const counts = { youngMales: 0, youngFemales: 0, adultMales: 0, adultFemales: 0 };
+    const world = s.worldSector;
+    if (world) clearSurfaceCreatures(this.economy, world);
+    attack.numAttacking = 0;
+    for (const c of teamMembers(this.campaign.tactical?.state ?? NO_TACTICAL, Team.CREATURE)) {
+      if (!c.life) continue;
+      const key = CREATURE_COMPOSITION_KEYS[c.bodyType];
+      if (!key) continue;
+      counts[key]++;
+      attack.numAttacking = u8(attack.numAttacking + 1);
+    }
+    return counts;
+  }
+
   #enemiesKnown(sector: Sector): boolean {
     const code = this.state.encounter.code;
     if (code === EncounterCode.CREATURE_ATTACK || code === EncounterCode.BLOODCAT_AMBUSH || code === EncounterCode.ENTERING_BLOODCAT_LAIR)
@@ -372,6 +446,8 @@ export class BattleFlow implements FateContext {
     const sector = battle.sector;
     if (!sector) throw new Error('no battle sector for autoresolve');
     battle.prompt = null;
+    const transfer = battle.transferTacticalOpposition;
+    const creatures = s.encounter.code === EncounterCode.CREATURE_ATTACK ? this.#creatureComposition(transfer) : undefined;
     battle.transferTacticalOpposition = false;
     const world = s.worldSector;
     const loadedHere = world !== null && sameSector(world, sector) && this.campaign.tactical !== null;
@@ -381,6 +457,7 @@ export class BattleFlow implements FateContext {
       encounter: s.encounter.code,
       persistent: battle.persistent,
       tactical: loadedHere ? (this.campaign.tactical?.state ?? null) : null,
+      ...(creatures ? { creatures } : {}),
     });
     const ar = createAutoresolveState(input);
     associateWithStrategicGroups(ctx, ar, sector);
@@ -566,6 +643,10 @@ export class BattleFlow implements FateContext {
     warpGameTime(this.campaign.clockContext, result.warpSeconds, Warp.NO_PROCESSING);
     battle.autoresolve = null;
     s.encounter.battleGroup = null;
+    if (s.encounter.code === EncounterCode.CREATURE_ATTACK) {
+      s.creatures.attack.numAttacking = 0;
+      s.creatures.attack.sectorId = 0;
+    }
     this.#returnToMapOrTactical();
     this.#handlePostAutoresolveMessages();
     const control = this.#emitControlChange(sector, controlBefore);
@@ -590,8 +671,11 @@ export class BattleFlow implements FateContext {
   #handlePostAutoresolveMessages(): void {
     const battle = this.state.battle;
     if (battle.civiliansEaten > 0) {
+      const eaten = battle.civiliansEaten;
+      const where = battle.enemyGainedControlOf;
       battle.civiliansEaten = 0;
       battle.enemyGainedControlOf = null;
+      if (where) this.campaign.creatures?.creaturesEatCivilians(where, eaten);
       return;
     }
     const sector = battle.enemyGainedControlOf;

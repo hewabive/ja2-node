@@ -1433,12 +1433,18 @@ Steps 3–6, the simulation, protocol and server-view half of step 7, and step 8
 - Oracle (§7.4): level 3 (aftermath) matches on all 50 battles from imported saves (8 of `autoresolve-d13.txt`, 6 of
   `autoresolve-capture.txt`, 31 generated, 5 of `battle.txt`); 8 `pbi` probes match the encounter code and its draws; the
   `enemycounts` probe confirms Q12 (the H1 garrison, id 25, counts as stationary and as mobile); Q14 and Q16 hold; Q22 holds (the
-  loyalty after the close includes `ABANDON_MILITIA`). Level 2 (creation) is not compared: ja2-node's militia creation
-  diverges at the 44th `main` draw of the first militiaman (range 4 where the native draws `Random(100)`), a docs/06 and
-  docs/12 follow-up. The random-ambush branch is not reachable natively on the available saves (easy, progress 2–4 %).
+  loyalty after the close includes `ABANDON_MILITIA`). Level 2 (creation) matches since the creation port of docs/06
+  §3.2 was completed (night ops, battle sound, camouflage, female and creature setup, `ReduceHighExpLevels`, elite clamp,
+  the auto-drop flags shared through `StrategicStatus.weaponsDropped`): every soldier created by
+  `CreateAutoResolveInterface` in the 50 battles (156 militia, 664 enemies) and the 6 creature battles has the same class,
+  body, stats, life, morale, breath, traits, AP and inventory, with every `main` and `pre` draw replayed. The random-ambush branch is not reachable natively on the available saves (easy, progress 2–4 %).
   Patch `0005-pre-battle-oracle.patch` exposes the encounter-code block.
-- Not yet: creature attacks (no trigger yet; `buildAutoresolveInput` refuses them), the client (AR screen, PBI panel,
-  slice playback), the MCP tool descriptions and docs/04 entries for the new commands, prompts and `advance` fields.
+- Creature attacks (docs/17 §20): `CreatureAttackTown` opens the PBI (`preBattle` with encounter `creatureAttack`) or
+  auto-starts AR for militia-only sectors; `buildAutoresolveInput` creates the creature cells (AF, AM, YF, YM, from the
+  tactical creatures or `determineCreatureTownComposition`), the close clears the attack and applies the civilians-eaten
+  loyalty. Oracle: six creature battles (`creature-battles.txt`) match at levels 1–3.
+- Not yet: the client (AR screen, PBI panel, slice playback), the MCP tool descriptions and docs/04 entries for the new
+  commands, prompts and `advance` fields.
 
 
 ### 7.1 Modules

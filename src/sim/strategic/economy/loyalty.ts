@@ -154,6 +154,15 @@ export function decrementTownLoyalty(ctx: EconomyContext, town: number, amount: 
   reportRating(ctx, town, before);
 }
 
+const BASIC_COST_FOR_CIV_MURDER = 10 * GAIN_PTS_PER_LOYALTY_PT;
+const MULTIPLIER_FOR_MURDER_BY_MONSTER = 2;
+
+export function adjustLoyaltyForCivsEatenByMonsters(ctx: EconomyContext, sector: Sector, howMany: number): void {
+  const town = townOf(ctx, sector);
+  if (town === Town.BLANK) return;
+  decrementTownLoyalty(ctx, town, u32(howMany * BASIC_COST_FOR_CIV_MURDER * MULTIPLIER_FOR_MURDER_BY_MONSTER));
+}
+
 export function incrementTownLoyaltyEverywhere(ctx: EconomyContext, amount: number): void {
   for (let town = FIRST_TOWN; town < NUM_TOWNS; town++) incrementTownLoyalty(ctx, town, amount);
 }

@@ -76,6 +76,9 @@
 #include "Map_Edgepoints.h"
 #include "Soldier_Init_List.h"
 #include "Strategic.h"
+#include "Creature_Spreading.h"
+#include "Morale.h"
+#include "Strategic_Merc_Handler.h"
 
 #include <string_theory/string>
 
@@ -98,6 +101,13 @@
 INT32 OracleLineOfSightTest(GridNo start_pos, FLOAT dStartZ, GridNo end_pos, FLOAT dEndZ, UINT8 ubTileSightLimit, UINT8 ubTreeSightReduction, INT8 bAware, INT8 bCamouflage, BOOLEAN fSmell, INT16* psWindowGridNo);
 UINT8 OracleTreeSightReduction(UINT8 ubEndHeight);
 INT16 OraclePickGridNoNearestEdge(SOLDIERTYPE* s, UINT8 direction);
+extern INT32 giHabitatedDistance;
+extern INT32 giPopulationModifier;
+extern INT32 giLairID;
+extern INT32 giDestroyedLairID;
+extern BOOLEAN gfCreatureMeanwhileScenePlayed;
+extern bool gOracleSkipCreatureBattle;
+extern INT8 gOracleStrategicMoraleUpdateCounter;
 INT16 OraclePickGridNoToWalkIn(SOLDIERTYPE* s, UINT8 insertionCode, UINT32* attempts);
 BOOLEAN OracleSoldierOKForSectorExit(SOLDIERTYPE* s, INT8 exitDirection, UINT16 additional);
 void OracleSortSoldierInitList();
@@ -1519,7 +1529,11 @@ void SetupAutoResolve(Command const& c)
 		ResetMilitia();
 	}
 	gubEnemyEncounterCode = Lookup(ENCOUNTER_CODES, c, "code", "invasion");
-	if (gubEnemyEncounterCode == CREATURE_ATTACK_CODE) throw std::runtime_error("creature attacks need the discrete-distribution trace, not supported yet");
+	if (gubEnemyEncounterCode == CREATURE_ATTACK_CODE)
+	{
+		gubNumCreaturesAttackingTown = static_cast<UINT8>(Integer(c, "creatures", 0));
+		gubSectorIDOfCreatureAttack = sector.AsByte();
+	}
 	gubPBSector = sector;
 	gfPersistantPBI = Integer(c, "persistent", 1) != 0;
 	gAutoResolveSetup = {true, sector};
@@ -1531,6 +1545,7 @@ void SetupAutoResolve(Command const& c)
 		.flag("persistent", gfPersistantPBI)
 		.num("day", GetWorldDay())
 		.flag("tacticalMilitia", tacticalMilitia)
+		.num("creatures", gubEnemyEncounterCode == CREATURE_ATTACK_CODE ? gubNumCreaturesAttackingTown : 0)
 		.raw("groups", JsonArray(groups))
 		.raw("counts", DescribeEnemyCounts(sector)));
 }
@@ -2582,6 +2597,361 @@ void ProbeDefence(Command const& c)
 		.raw("draws", draws));
 }
 
+
+std::string DescribeCreatureEvents()
+{
+	std::vector<std::string> events;
+	for (STRATEGICEVENT const* e = gpEventList; e; e = e->next)
+	{
+		if (e->ubCallbackID != EVENT_CREATURE_SPREAD && e->ubCallbackID != EVENT_CREATURE_NIGHT_PLANNING && e->ubCallbackID != EVENT_CREATURE_ATTACK) continue;
+		events.push_back(Json{}.num("kind", e->ubCallbackID).num("stamp", e->uiTimeStamp).num("param", e->uiParam).num("type", e->ubEventType).num("offset", e->uiTimeOffset).text());
+	}
+	return JsonArray(events);
+}
+
+std::string DescribeCreatures()
+{
+	std::vector<std::string> underground;
+	for (UNDERGROUND_SECTORINFO const* u = gpUndergroundSectorInfoHead; u; u = u->next)
+	{
+		underground.push_back(Numbers({u->ubSector.AsByte(), u->ubSector.z, u->ubNumCreatures, u->ubCreatureHabitat, u->uiFlags, u->ubCreaturesInBattle}));
+	}
+	std::vector<std::string> surface;
+	for (UINT32 id = 0; id < 256; ++id)
+	{
+		SECTORINFO const& si = SectorInfo[id];
+		if (!si.ubNumCreatures && !si.ubCreaturesInBattle && !si.ubDayOfLastCreatureAttack) continue;
+		surface.push_back(Numbers({id, si.ubNumCreatures, si.ubCreaturesInBattle, si.ubDayOfLastCreatureAttack}));
+	}
+	std::vector<long long> mines;
+	for (UINT8 m = 0; m < gMineStatus.size(); ++m) mines.push_back(MineClearOfMonsters(m) ? 1 : 0);
+	return Json{}
+		.num("lairId", giLairID)
+		.num("habitatedDistance", giHabitatedDistance)
+		.num("populationModifier", giPopulationModifier)
+		.num("destroyedLairId", giDestroyedLairID)
+		.flag("meanwhilePlayed", gfCreatureMeanwhileScenePlayed)
+		.raw("underground", JsonArray(underground))
+		.raw("surface", JsonArray(surface))
+		.raw("events", DescribeCreatureEvents())
+		.raw("attack", Numbers({gsCreatureInsertionCode, gsCreatureInsertionGridNo, gubNumCreaturesAttackingTown, gubCreatureBattleCode, gubSectorIDOfCreatureAttack}))
+		.raw("mineClear", Numbers(mines))
+		.flag("infested", PlayerGroupIsInACreatureInfestedMine())
+		.num("meanwhileFlags", uiMeanWhileFlags)
+		.flag("gameScreen", guiCurrentScreen == GAME_SCREEN)
+		.flag("enemyInLoadedSector", gfWorldLoaded && gTacticalStatus.fEnemyInSector)
+		.num("worldMinutes", GetWorldTotalMin())
+		.text();
+}
+
+void SetSectorControl(Command const& c)
+{
+	SGPSector const sector = StrategicSectorArgument(c, Has(c, "sector") ? "sector" : "_0");
+	StrategicMap[sector.AsStrategicIndex()].fEnemyControlled = Integer(c, "enemy", 0) != 0;
+	Emit(Json{}.str("probe", "setcontrol").num("line", c.line).num("sector", sector.AsByte()).flag("enemy", StrategicMap[sector.AsStrategicIndex()].fEnemyControlled));
+}
+
+void SetTacticalFlags(Command const& c)
+{
+	if (Has(c, "enemyinsector")) gTacticalStatus.fEnemyInSector = Integer(c, "enemyinsector", 0) != 0;
+	Emit(Json{}.str("probe", "tacticalflags").num("line", c.line).flag("enemyInSector", gTacticalStatus.fEnemyInSector));
+}
+
+std::string DescribeArgs(Command const& c)
+{
+	Json args;
+	for (auto const& [key, value] : c.args) args.str(key.c_str(), value);
+	return args.text();
+}
+
+void EmitCreatureProbe(Command const& c, char const* name, std::string const& draws)
+{
+	Emit(Json{}.str("probe", name).num("line", c.line).raw("args", DescribeArgs(c)).raw("draws", draws).raw("creatures", DescribeCreatures()));
+}
+
+void SetGameOption(Command const& c)
+{
+	if (Has(c, "scifi")) gGameOptions.fSciFi = Integer(c, "scifi", 0) != 0;
+	if (Has(c, "difficulty")) gGameOptions.ubDifficultyLevel = static_cast<UINT8>(Integer(c, "difficulty", DIF_LEVEL_MEDIUM));
+	Emit(Json{}.str("probe", "options").num("line", c.line).flag("sciFi", gGameOptions.fSciFi).num("difficulty", gGameOptions.ubDifficultyLevel));
+}
+
+void DumpCreatures(Command const& c)
+{
+	EmitCreatureProbe(c, "creatures", "[]");
+}
+
+void ProbeCreatureQuest(Command const& c)
+{
+	EmitCreatureProbe(c, "creaturequest", TracedSaiDraws([] { InitCreatureQuest(); }));
+}
+
+void ProbeCreatureTrigger(Command const& c)
+{
+	EmitCreatureProbe(c, "creaturetrigger", TracedSaiDraws([] { CheckConditionsForTriggeringCreatureQuest(); }));
+}
+
+void ProbeCreatureSpread(Command const& c)
+{
+	long long const count = Integer(c, "count", 1);
+	EmitCreatureProbe(c, "creaturespread", TracedSaiDraws([&] { for (long long i = 0; i < count; ++i) SpreadCreatures(); }));
+}
+
+void ProbeCreaturePlanning(Command const& c)
+{
+	EmitCreatureProbe(c, "creatureplanning", TracedSaiDraws([] { CreatureNightPlanning(); }));
+}
+
+void ProbeCreatureAttack(Command const& c)
+{
+	SGPSector const sector = StrategicSectorArgument(c, Has(c, "sector") ? "sector" : "_0");
+	bool const specific = Integer(c, "specific", 0) != 0;
+	gOracleSkipCreatureBattle = true;
+	std::string const draws = TracedSaiDraws([&] { CreatureAttackTown(sector.AsByte(), specific); });
+	gOracleSkipCreatureBattle = false;
+	EmitCreatureProbe(c, "creatureattack", draws);
+}
+
+void ProbeEndCreatureQuest(Command const& c)
+{
+	EndCreatureQuest();
+	EmitCreatureProbe(c, "endcreaturequest", "[]");
+}
+
+void SetCreatures(Command const& c)
+{
+	SGPSector sector = StrategicSectorArgument(c, Has(c, "sector") ? "sector" : "_0");
+	sector.z = static_cast<INT8>(Integer(c, "z", 0));
+	UINT8 const count = static_cast<UINT8>(Required(c, "count"));
+	if (sector.z == 0)
+	{
+		SectorInfo[sector.AsByte()].ubNumCreatures = count;
+	}
+	else
+	{
+		UNDERGROUND_SECTORINFO* const u = FindUnderGroundSector(sector);
+		if (!u) throw std::runtime_error("setcreatures: no such underground sector");
+		u->ubNumCreatures = count;
+	}
+	EmitCreatureProbe(c, "setcreatures", "[]");
+}
+
+void ProbeCreatureComposition(Command const& c)
+{
+	UINT8 const count = static_cast<UINT8>(Required(c, "count"));
+	UINT8 ym = 0, yf = 0, am = 0, af = 0;
+	std::string const draws = TracedSaiDraws([&] { DetermineCreatureTownComposition(count, &ym, &yf, &am, &af); });
+	Emit(Json{}.str("probe", "creaturecomposition").num("line", c.line).num("count", count).raw("composition", Numbers({ym, yf, am, af})).raw("draws", draws));
+}
+
+std::string DescribeMoraleMercs()
+{
+	std::vector<std::string> mercs;
+	FOR_EACH_IN_TEAM(i, OUR_TEAM)
+	{
+		SOLDIERTYPE const& s = *i;
+		std::vector<long long> opinions;
+		std::vector<long long> hatedCount;
+		std::vector<long long> hatedTime;
+		std::vector<long long> hated;
+		std::vector<long long> buddies;
+		if (s.ubProfile != NO_PROFILE)
+		{
+			MERCPROFILESTRUCT const& p = GetProfile(s.ubProfile);
+			CFOR_EACH_IN_TEAM(o, OUR_TEAM)
+			{
+				if (o->ubProfile == NO_PROFILE || o->ubProfile >= NUM_PROFILES) continue;
+				opinions.push_back(o->ubProfile < lengthof(p.bMercOpinion) ? p.bMercOpinion[o->ubProfile] : 0);
+			}
+			for (int k = 0; k < 5; ++k)
+			{
+				hatedCount.push_back(p.bHatedCount[k]);
+				hatedTime.push_back(p.bHatedTime[k]);
+				hated.push_back(p.bHated[k]);
+				buddies.push_back(p.bBuddy[k]);
+			}
+		}
+		MERCPROFILESTRUCT const* const p = s.ubProfile != NO_PROFILE ? &GetProfile(s.ubProfile) : nullptr;
+		mercs.push_back(Json{}
+			.num("id", s.ubID)
+			.num("profile", s.ubProfile)
+			.raw("sector", StrategicSector(s.sSector))
+			.flag("betweenSectors", s.fBetweenSectors)
+			.num("group", s.ubGroupID)
+			.flag("inMotion", s.ubGroupID != 0 && PlayerIDGroupInMotion(s.ubGroupID))
+			.num("assignment", s.bAssignment)
+			.flag("asleep", s.fMercAsleep)
+			.flag("inSector", s.bInSector)
+			.num("life", s.bLife)
+			.num("leadership", EffectiveLeadership(&s))
+			.num("morale", s.bMorale)
+			.nums("mods", {s.bTeamMoraleMod, s.bTacticalMoraleMod, s.bStrategicMoraleMod, s.bDelayedStrategicMoraleMod})
+			.raw("opinions", Numbers(opinions))
+			.raw("hated", Numbers(hated))
+			.raw("hatedTime", Numbers(hatedTime))
+			.raw("hatedCount", Numbers(hatedCount))
+			.raw("buddies", Numbers(buddies))
+			.nums("learn", {p ? p->bLearnToHate : 0, p ? p->bLearnToHateTime : 0, p ? p->bLearnToHateCount : 0, p ? p->bLearnToLike : 0,
+				p ? p->bLearnToLikeTime : 0, p ? p->bLearnToLikeCount : 0, p ? p->ubTimeTillNextHatedComplaint : 0})
+			.num("personality", p ? p->bPersonalityTrait : 0)
+			.num("attitude", p ? p->bAttitude : 0)
+			.text());
+	}
+	return JsonArray(mercs);
+}
+
+void DumpMorale(Command const& c)
+{
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.num("counter", gOracleStrategicMoraleUpdateCounter)
+		.num("progress", CurrentPlayerProgressPercentage())
+		.flag("enemyInSector", gTacticalStatus.fEnemyInSector)
+		.num("worldMinutes", GetWorldTotalMin())
+		.raw("mercs", DescribeMoraleMercs()));
+}
+
+void SetMorale(Command const& c)
+{
+	SOLDIERTYPE& s = GetMan(static_cast<SoldierID>(Required(c, "who")));
+	if (Has(c, "team")) s.bTeamMoraleMod = static_cast<INT8>(Integer(c, "team", 0));
+	if (Has(c, "tactical")) s.bTacticalMoraleMod = static_cast<INT8>(Integer(c, "tactical", 0));
+	if (Has(c, "strategic")) s.bStrategicMoraleMod = static_cast<INT8>(Integer(c, "strategic", 0));
+	if (Has(c, "delayed")) s.bDelayedStrategicMoraleMod = static_cast<INT8>(Integer(c, "delayed", 0));
+	if (Has(c, "asleep")) s.fMercAsleep = Integer(c, "asleep", 0) != 0;
+	RefreshSoldierMorale(&s);
+	DumpMorale(c);
+}
+
+std::vector<long long> TripleArgument(Command const& c, std::string const& key)
+{
+	std::vector<std::string> const parts = SplitList(Text(c, key, ""), ':');
+	std::vector<long long> values;
+	for (std::string const& part : parts) values.push_back(ParseInteger(key, part));
+	return values;
+}
+
+void SetRelation(Command const& c)
+{
+	MERCPROFILESTRUCT& p = GetProfile(static_cast<ProfileID>(Required(c, "who")));
+	INT8 const about = static_cast<INT8>(Required(c, "about"));
+	if (Has(c, "opinion")) p.bMercOpinion[about] = static_cast<INT8>(Integer(c, "opinion", 0));
+	if (Has(c, "hated"))
+	{
+		std::vector<long long> const v = TripleArgument(c, "hated");
+		if (v.size() != 3) throw std::runtime_error("hated needs slot:time:count");
+		p.bHated[v[0]] = about;
+		p.bHatedTime[v[0]] = static_cast<INT8>(v[1]);
+		p.bHatedCount[v[0]] = static_cast<INT8>(v[2]);
+	}
+	if (Has(c, "learnhate"))
+	{
+		std::vector<long long> const v = TripleArgument(c, "learnhate");
+		if (v.size() != 2) throw std::runtime_error("learnhate needs time:count");
+		p.bLearnToHate = about;
+		p.bLearnToHateTime = static_cast<INT8>(v[0]);
+		p.bLearnToHateCount = static_cast<INT8>(v[1]);
+	}
+	if (Has(c, "learnlike"))
+	{
+		std::vector<long long> const v = TripleArgument(c, "learnlike");
+		if (v.size() != 2) throw std::runtime_error("learnlike needs time:count");
+		p.bLearnToLike = about;
+		p.bLearnToLikeTime = static_cast<INT8>(v[0]);
+		p.bLearnToLikeCount = static_cast<INT8>(v[1]);
+	}
+	DumpMorale(c);
+}
+
+void SetProfileTraits(Command const& c)
+{
+	MERCPROFILESTRUCT& p = GetProfile(static_cast<ProfileID>(Required(c, "who")));
+	if (Has(c, "personality")) p.bPersonalityTrait = static_cast<INT8>(Integer(c, "personality", 0));
+	if (Has(c, "attitude")) p.bAttitude = static_cast<INT8>(Integer(c, "attitude", 0));
+	DumpMorale(c);
+}
+
+void MoveForMorale(Command const& c)
+{
+	SOLDIERTYPE& s = GetMan(static_cast<SoldierID>(Required(c, "who")));
+	EVENT_SetSoldierPositionNoCenter(&s, static_cast<INT16>(Required(c, "to")), SSP_NONE);
+	DumpMorale(c);
+}
+
+void SetMoraleCounter(Command const& c)
+{
+	gOracleStrategicMoraleUpdateCounter = static_cast<INT8>(Integer(c, "value", 0));
+	DumpMorale(c);
+}
+
+void ProbeHourlyMorale(Command const& c)
+{
+	long long const count = Integer(c, "count", 1);
+	for (long long i = 0; i < count; ++i)
+	{
+		UpdateBuddyAndHatedCounters();
+		HourlyMoraleUpdate();
+	}
+	DumpMorale(c);
+}
+
+void ProbeQuarterHourMorale(Command const& c)
+{
+	long long const count = Integer(c, "count", 1);
+	for (long long i = 0; i < count; ++i) DecayTacticalMoraleModifiers();
+	DumpMorale(c);
+}
+
+std::string DescribeCreatureInitList()
+{
+	std::vector<std::string> nodes;
+	CFOR_EACH_SOLDIERINITNODE(n)
+	{
+		BASIC_SOLDIERCREATE_STRUCT const& b = *n->pBasicPlacement;
+		nodes.push_back(Numbers({n->ubNodeID, b.bTeam, b.ubSoldierClass, b.fPriorityExistance ? 1 : 0, n->pDetailedPlacement ? 1 : 0,
+			n->pSoldier ? n->pSoldier->ubID : -1, b.bBodyType, n->pSoldier ? n->pSoldier->ubBodyType : -1}));
+	}
+	return JsonArray(nodes);
+}
+
+void ProbeCreaturePlacement(Command const& c)
+{
+	bool const queen = Integer(c, "queen", 0) != 0;
+	auto const n = [&](char const* key) { return static_cast<UINT8>(Integer(c, key, 0)); };
+	std::string const before = DescribeCreatureInitList();
+	std::string const draws = TracedSaiDraws([&] { AddSoldierInitListCreatures(queen, n("larvae"), n("infants"), n("ym"), n("yf"), n("am"), n("af")); });
+	Emit(Json{}
+		.str("probe", "creatureplacement")
+		.num("line", c.line)
+		.flag("queen", queen)
+		.raw("counts", Numbers({n("larvae"), n("infants"), n("ym"), n("yf"), n("am"), n("af")}))
+		.raw("before", before)
+		.raw("nodes", DescribeCreatureInitList())
+		.raw("draws", draws));
+}
+
+void ProbeBloodcatPlacement(Command const& c)
+{
+	SECTORINFO& si = SectorInfo[gWorldSector.AsByte()];
+	if (Has(c, "cats")) si.bBloodCats = static_cast<INT8>(Integer(c, "cats", 0));
+	if (Has(c, "placements")) si.bBloodCatPlacements = static_cast<INT8>(Integer(c, "placements", 0));
+	INT8 const catsIn = si.bBloodCats;
+	INT8 const placementsIn = si.bBloodCatPlacements;
+	std::string const before = DescribeCreatureInitList();
+	std::string const draws = TracedSaiDraws([] { AddSoldierInitListBloodcats(); });
+	Emit(Json{}
+		.str("probe", "bloodcatplacement")
+		.num("line", c.line)
+		.num("sector", gWorldSector.AsByte())
+		.nums("in", {catsIn, placementsIn})
+		.nums("out", {si.bBloodCats, si.bBloodCatPlacements})
+		.raw("before", before)
+		.raw("nodes", DescribeCreatureInitList())
+		.raw("draws", draws));
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -2626,6 +2996,28 @@ void Dispatch(Command const& c)
 	if (c.name == "move") return MoveSoldier(c);
 	if (c.name == "initlist") return ProbeInitList(c);
 	if (c.name == "defence") return ProbeDefence(c);
+	if (c.name == "options") return SetGameOption(c);
+	if (c.name == "setcontrol") return SetSectorControl(c);
+	if (c.name == "tacticalflags") return SetTacticalFlags(c);
+	if (c.name == "creatures") return DumpCreatures(c);
+	if (c.name == "creaturequest") return ProbeCreatureQuest(c);
+	if (c.name == "creaturetrigger") return ProbeCreatureTrigger(c);
+	if (c.name == "creaturespread") return ProbeCreatureSpread(c);
+	if (c.name == "creatureplanning") return ProbeCreaturePlanning(c);
+	if (c.name == "creatureattack") return ProbeCreatureAttack(c);
+	if (c.name == "endcreaturequest") return ProbeEndCreatureQuest(c);
+	if (c.name == "setcreatures") return SetCreatures(c);
+	if (c.name == "creaturecomposition") return ProbeCreatureComposition(c);
+	if (c.name == "creatureplacement") return ProbeCreaturePlacement(c);
+	if (c.name == "bloodcatplacement") return ProbeBloodcatPlacement(c);
+	if (c.name == "morale") return DumpMorale(c);
+	if (c.name == "setmorale") return SetMorale(c);
+	if (c.name == "setrelation") return SetRelation(c);
+	if (c.name == "moralecounter") return SetMoraleCounter(c);
+	if (c.name == "setprofile") return SetProfileTraits(c);
+	if (c.name == "moralemove") return MoveForMorale(c);
+	if (c.name == "hourlymorale") return ProbeHourlyMorale(c);
+	if (c.name == "quartermorale") return ProbeQuarterHourMorale(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

@@ -438,6 +438,10 @@ world clock runs, compressed on request, the loaded sector, if any, is frozen) a
 (`worldTime`, `worldSeconds`, `compressionStopped`, `mode`; `docs/15` §6) is refused in tactical unless it has a time
 target, and compression is refused while the loaded sector holds enemies (`AllowedToTimeCompress`). `route` checks
 `CanEntireMovementGroupMercIsInMove` first, so the squad cannot leave the start sector before it is cleared.
+Compression is also refused while a group sits in a creature-infested mine or bloodcats attack. Campaign events beyond the
+battle ones (`docs/19` §5.3): `hatedComplaint {soldier, about, learned}` and `mercQuitsHated {soldier, about, learned}`
+(`about` is a profile id), `civiliansEaten {sector, count}`; `preBattle` may carry `encounter: 'creatureAttack'` with
+`autoStart: true`.
 
 ## 7. Cost and limitations
 
