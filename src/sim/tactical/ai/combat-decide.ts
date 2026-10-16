@@ -50,6 +50,7 @@ import { determineMovementMode, realtimeCivDelay } from './decide.ts';
 import { GoFlag, goAsFarAsPossibleTowards, internalGoAsFarAsPossibleTowards } from './destinations.ts';
 import { ItemSearch, searchForItems } from './item-search.ts';
 import { calcMorale, rangeChangeDesire } from './morale.ts';
+import { queenEscape } from './queen-escape.ts';
 import {
   closestReachableDisturbance,
   closestReachableFriendInTrouble,
@@ -419,6 +420,8 @@ export function decideActionRed(t: TacticalState, s: Soldier, hooks: CombatDecid
     return AiAction.NONE;
   }
   const canMove = s.actionPoints >= minPtsToMove(ctx(t), s, s.uiMovementMode);
+  const flight = queenEscape(t, s, canMove, true);
+  if (flight !== AiAction.NONE) return flight;
   const water = isWater(t.pathWorld, s.gridNo);
   const deep = deepWater(t, s.gridNo);
   const gas = inGasOrSmoke(t, s, s.gridNo);
@@ -723,6 +726,8 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
     return AiAction.NONE;
   }
   const canMove = s.actionPoints >= minPtsToMove(ctx(t), s, s.uiMovementMode);
+  const flight = queenEscape(t, s, canMove, false);
+  if (flight !== AiAction.NONE) return flight;
   const deep = deepWater(t, s.gridNo);
   const gas = inGasOrSmoke(t, s, s.gridNo);
   ai.morale = calcMorale(t, s);

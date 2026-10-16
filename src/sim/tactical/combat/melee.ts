@@ -24,6 +24,7 @@ import {
 import { isGassed } from '../explosions/smoke.ts';
 import { InvSlot } from '../inventory.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from '../movement.ts';
+import { inMeanwhile } from '../narrative/meanwhile-rules.ts';
 import { isMercBody, newOKDestination } from '../pathfinding.ts';
 import { Opp } from '../perception/opp.ts';
 import { deductPoints } from '../points.ts';
@@ -475,7 +476,7 @@ export function useHandToHand(t: TacticalState, s: Soldier, g: number): void {
       statChange(t, s, StatKind.STRENGTH, xp, cause);
       statChange(t, s, StatKind.DEXTERITY, xp, cause);
     } else if (!hit) agilityForEnemyMissingPlayer(t, s, tgt, HTH_DODGE_AGILITY);
-    if (hit) {
+    if (hit || inMeanwhile(t)) {
       let impact = hthImpact(t, s, tgt, chance - roll, false);
       impact = adjustImpactByHitLocation(impact, s.aimShotLocation).impact;
       queueWeaponHit(t, s, tgt, Math.max(impact, 1));
@@ -485,6 +486,7 @@ export function useHandToHand(t: TacticalState, s: Soldier, g: number): void {
 }
 
 function signalDodge(t: TacticalState, s: Soldier): void {
+  if (s.npcPunch) return;
   const tgt = findSoldierAtGridNo(t, s.targetGridNo, s.targetLevel);
   if (!tgt || !isMercBody(tgt)) return;
   if ((tgt.oppList[s.id] ?? 0) === Opp.NOT_HEARD_OR_SEEN && tgt.team !== s.team) return;
@@ -495,8 +497,16 @@ function signalDodge(t: TacticalState, s: Soldier): void {
   changeSoldierState(t, tgt, anim(t.content, 'DODGE_ONE'));
 }
 
+function endNpcPunch(t: TacticalState, s: Soldier): void {
+  const punch = s.npcPunch;
+  if (!punch) return;
+  s.npcPunch = null;
+  t.narrative.triggerNpcWithGivenApproach(s.profile, punch.approach);
+}
+
 function endPunch(t: TacticalState, s: Soldier): OpOutcome {
-  const martialArtist = s.profile !== NO_PROFILE && numSkillTraits(s, SkillTrait.MARTIALARTS) > 0;
+  endNpcPunch(t, s);
+  const martialArtist = s.profile !== NO_PROFILE && numSkillTraits(s, SkillTrait.MARTIALARTS) > 0 && !inMeanwhile(t);
   const crouched = height(t.content, s.state) === AnimHeight.CROUCH;
   changeSoldierState(t, s, anim(t.content, crouched ? 'CROUCHING' : martialArtist ? 'NINJA_BREATH' : 'PUNCH_BREATH'));
   return 'stop';

@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Explosion_Control.cc ExplosiveDamageStructureAtGridNo, ExplosiveDamageGridNo, RemoveOnWall;
 // @src TileEngine/Structure.cc DamageStructure (explosion branch); Tactical/Weapons.cc WindowHit;
-// @src Tactical/Handle_Items.cc RemoveAllUnburiedItems, PutItemPoolOnGround. See docs/12 §10.6.
+// @src Tactical/Handle_Items.cc RemoveAllUnburiedItems, PutItemPoolOnGround; Tactical/End_Game.cc HandleStatueDamaged (the
+// @src BeforeStructureDamaged listener). See docs/12 §10.6, docs/26 §5.3.
 
 import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_COLS } from '../../../content/world/grid.ts';
 import { recompileLocalMovementCosts } from '../../../content/world/movement-costs.ts';
@@ -10,6 +11,7 @@ import { has, ORIENT_LEFT, StructureFlags, type StructureInstance } from '../../
 import { u8 } from '../../../core/int.ts';
 import { swapStructureForPartner } from '../doors.ts';
 import { recordStructureAdded, recordStructureDamaged, recordStructureRemoved } from '../map-changes.ts';
+import { statueTakesExplosion } from '../narrative/statue.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import type { Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
@@ -113,7 +115,9 @@ function explosiveDamageStructureAtGridNo(
   owner: Soldier | null,
   level: number,
   changes: StructureChanges,
+  distance: number,
 ): boolean {
+  if (statueTakesExplosion(t, g, distance)) return true;
   if (onlyWalls && !has(current.flags, StructureFlags.WALLSTUFF)) return true;
   if (level > 0) return true;
   if (has(current.flags, StructureFlags.CORPSE) && t.options.bloodAndGore && wound > 10) return true;
@@ -166,7 +170,7 @@ export function explosiveDamageGridNo(
       if (has(base.flags, StructureFlags.EXPLOSIVE)) base.hitPoints = 0;
     }
     if (current.cubeOffset === 0) {
-      damageReturn = explosiveDamageStructureAtGridNo(t, current, g, wound, onlyWalls, owner, level, changes);
+      damageReturn = explosiveDamageStructureAtGridNo(t, current, g, wound, onlyWalls, owner, level, changes, distance);
       if (!damageReturn) toBreak = true;
     }
     if (!base || !multi || onlyWalls || damageReturn) continue;

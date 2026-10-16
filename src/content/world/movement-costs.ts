@@ -121,7 +121,7 @@ export interface MovementWorld {
   readonly level: Level;
   readonly structures: WorldStructures;
   readonly terrain: Uint8Array;
-  readonly exitGrids: ReadonlySet<number>;
+  readonly exitGrids: Set<number>;
   readonly doorCosts: DoorCostTable;
 }
 

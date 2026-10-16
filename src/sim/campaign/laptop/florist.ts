@@ -13,9 +13,8 @@ export type FloristExtra = (typeof FLORIST_EXTRAS)[number];
 const EXTRA_PRICES: Readonly<Record<FloristExtra, number>> = { crushed: 10, blackRoses: 20, wilted: 10, fruitCake: 10 };
 const BOUQUETS = 10;
 const MEDUNA = 11;
-const NEXT_DAY_HOURS = { base: 20, spread: 5 } as const;
-const LATER_HOURS = { base: 24, spread: 48 } as const;
-const MINUTES_PER_HOUR = 60;
+const FLOWERS_NEXT_DAY_CODE = 0;
+const FLOWERS_LATER_CODE = 1;
 
 export interface FlowerOrder {
   readonly bouquet: number;
@@ -27,7 +26,7 @@ export interface FlowerOrder {
 export type FlowerRefusal = 'noSuchBouquet' | 'noDestination' | 'badExtra';
 
 export interface FlowerHooks {
-  flowersMeanwhile(minute: () => number): void;
+  flowersMeanwhile(code: number): void;
 }
 
 export function flowerPrice(ctx: LaptopContext, order: FlowerOrder): number | FlowerRefusal {
@@ -48,9 +47,6 @@ export function orderFlowers(ctx: LaptopContext, order: FlowerOrder, hooks: Flow
   const destination = ctx.content.destinations[order.destination];
   const sector = destination?.deliverySector;
   const town = sector === null || sector === undefined ? 0 : (ctx.state.map.elements[strategicIndex(sectorFromId(sector))]?.nameId ?? 0);
-  if (town === MEDUNA) {
-    const hours = order.nextDay ? NEXT_DAY_HOURS : LATER_HOURS;
-    hooks.flowersMeanwhile(() => ctx.now() + MINUTES_PER_HOUR * (hours.base + ctx.rng.main.int(hours.spread)));
-  }
+  if (town === MEDUNA) hooks.flowersMeanwhile(order.nextDay ? FLOWERS_NEXT_DAY_CODE : FLOWERS_LATER_CODE);
   return { price };
 }

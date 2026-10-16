@@ -316,6 +316,116 @@
         { "approach": "THREATEN", "desireToTalk": 20, "friendlyMod": 90, "directMod": 100, "threatenMod": 120 },
         { "approach": "RECRUIT", "desireToTalk": 10 }
       ]
+    },
+    {
+      "id": 75,
+      "name": "Ysolde Carran",
+      "nickname": "Carran",
+      "bodyType": 3,
+      "sector": "P3",
+      "palettes": { "hair": "BLACKHEAD", "skin": "PINKSKIN", "vest": "REDVEST", "pants": "BLACKPANTS" },
+      "stats": {
+        "life": 60,
+        "lifeMax": 60,
+        "strength": 40,
+        "agility": 45,
+        "dexterity": 50,
+        "wisdom": 72,
+        "marksmanship": 35,
+        "medical": 10,
+        "mechanical": 10,
+        "explosives": 10,
+        "leadership": 85,
+        "experience": 6
+      }
+    },
+    {
+      "id": 79,
+      "name": "Bram Holt",
+      "nickname": "Holt",
+      "bodyType": 1,
+      "sector": "P3",
+      "palettes": { "hair": "BROWNHEAD", "skin": "TANSKIN", "vest": "BROWNVEST", "pants": "BLACKPANTS" },
+      "stats": {
+        "life": 95,
+        "lifeMax": 95,
+        "strength": 90,
+        "agility": 60,
+        "dexterity": 55,
+        "wisdom": 40,
+        "marksmanship": 70,
+        "medical": 10,
+        "mechanical": 10,
+        "explosives": 10,
+        "leadership": 30,
+        "experience": 6
+      }
+    },
+    {
+      "id": 135,
+      "name": "Lucan Pell",
+      "nickname": "Pell",
+      "bodyType": 0,
+      "sector": "P3",
+      "palettes": { "hair": "BLONDHEAD", "skin": "PINKSKIN", "vest": "WHITEVEST", "pants": "BLUEPANTS" },
+      "stats": {
+        "life": 55,
+        "lifeMax": 55,
+        "strength": 35,
+        "agility": 40,
+        "dexterity": 45,
+        "wisdom": 60,
+        "marksmanship": 20,
+        "medical": 10,
+        "mechanical": 10,
+        "explosives": 10,
+        "leadership": 20,
+        "experience": 2
+      }
+    },
+    {
+      "id": 136,
+      "name": "Matthis Orr",
+      "nickname": "Orr",
+      "bodyType": 0,
+      "sector": "P3",
+      "palettes": { "hair": "BROWNHEAD", "skin": "TANSKIN", "vest": "GREENVEST", "pants": "JEANPANTS" },
+      "stats": {
+        "life": 70,
+        "lifeMax": 70,
+        "strength": 55,
+        "agility": 50,
+        "dexterity": 50,
+        "wisdom": 65,
+        "marksmanship": 45,
+        "medical": 10,
+        "mechanical": 10,
+        "explosives": 10,
+        "leadership": 60,
+        "experience": 4
+      }
+    },
+    {
+      "id": 137,
+      "name": "Pieter Lann",
+      "nickname": "Lann",
+      "bodyType": 2,
+      "sector": "P3",
+      "palettes": { "hair": "BLACKHEAD", "skin": "DARKSKIN", "vest": "BROWNVEST", "pants": "BEIGEPANTS" },
+      "stats": {
+        "life": 75,
+        "lifeMax": 75,
+        "strength": 65,
+        "agility": 50,
+        "dexterity": 50,
+        "wisdom": 55,
+        "marksmanship": 50,
+        "medical": 10,
+        "mechanical": 10,
+        "explosives": 10,
+        "leadership": 50,
+        "experience": 4
+      }
     }
   ]
 }

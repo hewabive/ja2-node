@@ -26,6 +26,7 @@ import {
   handleMeanwhileEvent,
   handleMeanwhileEventPostingForSamLiberation,
   handleMeanwhileEventPostingForTownLiberation,
+  processImplicationsOfMeanwhile,
 } from './meanwhile.ts';
 import { executeStrategicAIAction, strategicHandleMineThatRanOut, wakeUpQueen } from './reactions.ts';
 
@@ -172,7 +173,7 @@ describe('reactions (docs/17 §9)', () => {
     expect(q.state.queen.reinforcementPool).toBe(pool - 5 + 4);
   });
 
-  it('runs liberation meanwhiles as skipped scenes five minutes later', () => {
+  it('posts liberation meanwhiles five minutes later; the event begins the scene, its implications wake the Queen', () => {
     const { q } = fixture([{ sector: 'D15', composition: Composition.DRASSEN_SAMSITE }]);
     q.state.queen.awake = false;
     q.state.queen.massFortificationOrdered = true;
@@ -181,7 +182,13 @@ describe('reactions (docs/17 §9)', () => {
     handleMeanwhileEventPostingForSamLiberation(q, 1);
     const scenes = q.state.queue.events.filter((e) => e.kind === EventKind.MEANWHILE);
     expect(scenes.map((e) => e.param)).toEqual([Meanwhile.DRASSEN_LIBERATED, Meanwhile.NE_SAM]);
-    for (const e of scenes) handleMeanwhileEvent(q, e);
+    for (const e of scenes) {
+      handleMeanwhileEvent(q, e);
+      expect(q.state.meanwhile.trying).toBe(true);
+      expect(q.state.meanwhile.current.id).toBe(e.param);
+      expect(q.state.clock.pauseLocked).toBe(true);
+      processImplicationsOfMeanwhile(q, e.param);
+    }
     expect(q.state.queen.awake).toBe(true);
     expect(getGroup(q, q.state.queen.garrisons[0]?.pendingGroup ?? 0)?.enemy?.numElites).toBe(5);
   });

@@ -81,6 +81,7 @@ import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
 import { checkHostileOrSayQuoteList } from './narrative/civ-hostility.ts';
 import { handleActionItemQueue } from './narrative/quest-items.ts';
 import { createScheduleList, loadMapSchedules } from './narrative/schedule-state.ts';
+import { useStatueRemote } from './narrative/statue.ts';
 import { handlePendingTalkOnArrival } from './narrative/talk-arrival.ts';
 import { wheelchairOpcode } from './narrative/wheelchair.ts';
 import { executeOverhead, type OverheadHooks } from './overhead.ts';
@@ -131,6 +132,9 @@ export interface CombatSnapshot {
   readonly round: number;
   readonly interrupt: boolean;
 }
+
+const REMOTE_TRIGGER = 'REMOTETRIGGER';
+const AP_USE_REMOTE = 2;
 
 const AIM_PARTS: Readonly<Record<string, number>> = {
   random: AimShot.RANDOM,
@@ -402,6 +406,8 @@ export class TacticalSim {
         return this.#drop(cmd);
       case 'climb':
         return this.#climb(cmd);
+      case 'useRemote':
+        return this.#useRemote(cmd);
       case 'door':
         return this.#door(cmd);
       case 'stop': {
@@ -515,6 +521,22 @@ export class TacticalSim {
     selectSoldier(t, s);
     if (!(down ? beginSoldierClimbDownRoof(t, s) : beginSoldierClimbUpRoof(t, s))) return { ok: false, reason: 'cannot climb here' };
     return { ok: true };
+  }
+
+  #useRemote(cmd: TacticalCommand): CommandResult {
+    const t = this.state;
+    const s = this.soldier(cmd.soldier);
+    if (!s) return { ok: false, reason: 'no such soldier of yours' };
+    const refusal = this.canAct(s);
+    if (refusal) return { ok: false, reason: refusal };
+    const remote = t.content.items.byName.get(REMOTE_TRIGGER)?.index;
+    if (remote === undefined || s.inv[InvSlot.HAND]?.item !== remote) return { ok: false, reason: 'the soldier holds no remote trigger' };
+    if (!enoughPoints(t.inCombat, s, AP_USE_REMOTE)) return { ok: false, reason: `not enough APs: ${AP_USE_REMOTE} needed` };
+    deductPoints(t.inCombat, s, AP_USE_REMOTE, 0);
+    if (height(t.content, s.state) === AnimHeight.STAND) deductPoints(t.inCombat, s, AP_USE_REMOTE, 0);
+    const opened = useStatueRemote(t, s);
+    t.events.push({ type: 'remoteUsed', soldier: s.id, result: opened ? 'statueOpened' : 'nothing' });
+    return { ok: true, data: { result: opened ? 'statueOpened' : 'nothing' } };
   }
 
   #movementMode(s: Soldier, mode: unknown): number {

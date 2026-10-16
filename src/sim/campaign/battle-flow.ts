@@ -17,9 +17,8 @@ import { u8 } from '../../core/int.ts';
 import { Rng } from '../../core/rng.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
-import { Meanwhile } from '../strategic/ai/constants.ts';
 import { queenProgress } from '../strategic/ai/difficulty.ts';
-import { handleFirstBattleEndingWhileInTown, scheduleMeanwhileEvent } from '../strategic/ai/meanwhile.ts';
+import { handleFirstBattleEndingWhileInTown, scheduleInterrogation } from '../strategic/ai/meanwhile.ts';
 import { clearSurfaceCreatures, determineCreatureTownComposition } from '../strategic/creatures/town-attack.ts';
 import { reEvaluateEveryonesNothingToDo } from '../strategic/economy/assignment-done.ts';
 import { Assignment, LoyaltyEvent } from '../strategic/economy/constants.ts';
@@ -114,7 +113,6 @@ import { addDeadSoldierToUnloadedSector, removeRandomItemsInSector } from './sec
 import { decayTacticalMoraleModifiers, hourlyMoraleUpdate, type TeamMoraleContext, updateBuddyAndHatedCounters } from './team-morale.ts';
 
 export const TICKS_PER_AUTORESOLVE_SLICE = 200;
-const INTERROGATION_MEANWHILE_MINUTE = 10;
 const PACOS_FIRST_BATTLE_RECORD = 18;
 const NO_TACTICAL: Pick<TacticalState, 'soldiers'> = { soldiers: [] };
 const CREATURE_COMPOSITION_KEYS: Readonly<Record<number, keyof CreatureComposition>> = {
@@ -211,7 +209,7 @@ export class BattleFlow implements FateContext {
 
   interrogationMeanwhile(): void {
     const queen = this.campaign.queen;
-    if (queen) scheduleMeanwhileEvent(queen, Meanwhile.INTERROGATION, INTERROGATION_MEANWHILE_MINUTE);
+    if (queen) scheduleInterrogation(queen);
   }
 
   moraleContext(): MoraleContext {
@@ -955,6 +953,7 @@ export class BattleFlow implements FateContext {
     if (!world) return;
     const battle = this.state.battle;
     const controlBefore = this.#controller(world);
+    if (won) battle.lastBattleWon = true;
     if (won) this.#tacticalVictory(t, world);
     else this.#tacticalDefeat(t, world);
     battle.locator = false;

@@ -118,6 +118,7 @@ function liberate(ctx: StrategicContext, s: Sector, townId: number): void {
     updateLastDayOfPlayerActivity(ctx.state.map, day + (ctx.state.options.difficulty >= 3 ? HARD_GRACE_DAYS : NORMAL_GRACE_DAYS));
   }
   ctx.world.sectorLiberated({ sector: s, townId: townCounts ? townId : 0, samId, firstTime });
+  ctx.ai.medunaOutskirtsTaken(s);
 }
 
 export function setThisSectorAsEnemyControlled(ctx: StrategicContext, s: Sector): boolean {

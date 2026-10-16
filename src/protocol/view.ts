@@ -166,10 +166,37 @@ export interface QuestLogEntryView {
   readonly finished: QuestStepView | null;
 }
 
+export interface MeanwhileLogView {
+  readonly seq: number;
+  readonly scene: string;
+  readonly at: number;
+}
+
+export interface MeanwhileSceneView {
+  readonly seq: number;
+  readonly scene: string;
+}
+
+export interface CampaignEndingView {
+  readonly miguelAlive: boolean;
+  readonly skyriderAlive: boolean;
+}
+
+export interface CampaignEndedView {
+  readonly outcome: 'victory';
+  readonly at: number;
+  readonly day: number;
+  readonly ending: CampaignEndingView;
+  readonly mercDeaths: number;
+}
+
 export interface StrategicView {
   readonly balance: number;
   readonly worldSector: string | null;
-  readonly flow: 'strategic' | 'tactical' | 'autoresolve' | 'laptop';
+  readonly flow: 'strategic' | 'tactical' | 'autoresolve' | 'laptop' | 'meanwhile' | 'endgame' | 'ended';
+  readonly campaign: 'playing' | 'endgame' | 'won';
+  readonly noUsableMercs?: boolean;
+  readonly meanwhiles: readonly MeanwhileLogView[];
   readonly sectors: readonly StrategicSectorView[];
   readonly mercs: readonly StrategicMercView[];
   readonly groups: readonly StrategicGroupView[];
@@ -516,6 +543,8 @@ export interface PlayerView {
   readonly conversation?: ConversationView | null;
   readonly npcRequest?: NpcRequestPromptView | null;
   readonly scriptedSequence?: boolean;
+  readonly meanwhile?: MeanwhileSceneView | null;
+  readonly ended?: CampaignEndedView | null;
   readonly soldiers: readonly SoldierView[];
   readonly openDoors?: readonly number[];
   readonly doors?: readonly DoorView[];
@@ -539,6 +568,8 @@ export interface ViewFrame {
   readonly conversation?: ConversationView | null;
   readonly npcRequest?: NpcRequestPromptView | null;
   readonly scriptedSequence?: boolean;
+  readonly meanwhile?: MeanwhileSceneView | null;
+  readonly ended?: CampaignEndedView | null;
   readonly openDoors?: readonly number[];
   readonly doors?: readonly DoorView[];
   readonly combat?: CombatView | null;
@@ -599,6 +630,10 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), npcRequest: next.npcRequest ?? null };
   if ((previous.scriptedSequence ?? false) !== (next.scriptedSequence ?? false))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), scriptedSequence: next.scriptedSequence ?? false };
+  if (JSON.stringify(previous.meanwhile ?? null) !== JSON.stringify(next.meanwhile ?? null))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), meanwhile: next.meanwhile ?? null };
+  if (JSON.stringify(previous.ended ?? null) !== JSON.stringify(next.ended ?? null))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), ended: next.ended ?? null };
   return frame;
 }
 

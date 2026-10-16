@@ -3,7 +3,9 @@
 // @src src/game/Strategic/Quests.cc CheckFact (fact), SetFactTrue, SetFactFalse, gubQuest; Tactical/Interface_Dialogue.cc
 // @src HandleNPCDoAction (npcAction); TacticalAI/NPC.cc TriggerNPCWithGivenApproach; Tactical/Handle_Items.cc
 // @src SoldierGiveItemFromAnimation (the dealer, team member and NPC branches); TileEngine/Explosion_Control.cc
-// @src PerformItemAction (ACTION_ITEM_SEX: HandleMoraleEvent, FatigueCharacter). See docs/25 §1, §2.1, §3, §6, §11.5, docs/24 §4.
+// @src PerformItemAction (ACTION_ITEM_SEX: HandleMoraleEvent, FatigueCharacter); Strategic/Meanwhile.cc AreInMeanwhile,
+// @src GetMeanwhileID; Tactical/Overhead.cc HandleNPCTeamMemberDeath (BeginHandleDeidrannaDeath, BeginHandleQueenBitchDeath),
+// @src DoPOWPathChecks. See docs/25 §1, §2.1, §3, §6, §11.5, docs/24 §4, docs/26 §1.6, §3.4, §6.1.
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -22,6 +24,12 @@ export interface NarrativePort {
   hasUnusedHostileRecord(profile: number): boolean;
   sayHostileQuote(s: Soldier): void;
   inMeanwhile(): boolean;
+  meanwhileId(): number;
+  deidrannaDied(killer: Soldier | null, gridNo: number, level: number): void;
+  creatureQueenDied(killer: Soldier | null, gridNo: number, level: number): void;
+  powPathChecks(): void;
+  queenCanFlee(): boolean;
+  palaceBasementSecured(): boolean;
   isEpc(s: Soldier): boolean;
   civGroupWillBecomeHostile(group: number): void;
   rebelsBetrayed(): void;
@@ -57,6 +65,12 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   hasUnusedHostileRecord: () => false,
   sayHostileQuote: () => {},
   inMeanwhile: () => false,
+  meanwhileId: () => 0,
+  deidrannaDied: () => {},
+  creatureQueenDied: () => {},
+  powPathChecks: () => {},
+  queenCanFlee: () => true,
+  palaceBasementSecured: () => false,
   isEpc: () => false,
   civGroupWillBecomeHostile: () => {},
   rebelsBetrayed: () => {},

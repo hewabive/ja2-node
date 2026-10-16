@@ -8,6 +8,9 @@ import {
 } from '../content/strategic/sector-ids.ts';
 import type { StrategicGroupView, StrategicMercView, StrategicSectorView, StrategicView } from '../protocol/view.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
+import { campaignStatus } from '../sim/campaign/ending-state.ts';
+import { storyFlow } from '../sim/campaign/story-refusals.ts';
+import { meanwhileSceneName } from '../sim/strategic/ai/meanwhile.ts';
 import { Assignment, SectorFlag } from '../sim/strategic/forces/constants.ts';
 import { numEnemiesInSector } from '../sim/strategic/forces/groups.ts';
 import type { StrategicContext, StrategicMerc } from '../sim/strategic/forces/ports.ts';
@@ -106,7 +109,10 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
   return {
     balance: campaign.state.finances.balance,
     worldSector: world ? sectorName(world) : null,
-    flow: campaign.state.flow,
+    flow: storyFlow(campaign) ?? campaign.state.flow,
+    campaign: campaignStatus(campaign.state.ending),
+    ...(campaign.noUsableMercs() ? { noUsableMercs: true } : {}),
+    meanwhiles: campaign.state.meanwhile.log.map((e) => ({ seq: e.seq, scene: meanwhileSceneName(e.id), at: e.at })),
     sectors,
     mercs: ctx.mercs.all().map((m) => {
       const arrival = arrivalTime(campaign, m.id);

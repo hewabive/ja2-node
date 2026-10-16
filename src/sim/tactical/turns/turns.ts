@@ -289,6 +289,7 @@ export function checkForPotentialAddToBattleIncrement(t: TacticalState, s: Soldi
 function commonEnterCombatModeCode(t: TacticalState): void {
   t.inCombat = true;
   t.turn.numFoughtInBattle.fill(0);
+  t.sectorHooks.combatEntered(t);
   for (const s of t.soldiers) {
     if (!s?.placed || s.bodyType === Body.CROW) continue;
     stopMerc(t, s);

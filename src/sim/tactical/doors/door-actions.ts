@@ -10,6 +10,7 @@ import { AiAction } from '../ai/actions.ts';
 import { AnimHeight, endHeight, initNewSoldierAnim, setDesiredDirection, soldierGotoStationaryStance } from '../animation.ts';
 import { toggleDoorAt } from '../doors.ts';
 import { processImplicationsOfPCMessingWithDoor } from '../narrative/civ-hostility.ts';
+import { checkPowPathsInAlmaPrison } from '../narrative/pow-rules.ts';
 import { AP, BP, DOOR_APS, deductPoints, enoughPoints } from '../points.ts';
 import { Body, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
@@ -396,7 +397,10 @@ export function handleOpenableStruct(t: TacticalState, s: Soldier, gridNo: numbe
     playInteraction(t, s, isDoor, 'END_OPEN_DOOR');
     r.handle = true;
   }
-  if (r.handle && isDoor) toggleDoorAt(t, gridNo);
+  if (r.handle && isDoor) {
+    toggleDoorAt(t, gridNo);
+    if (!has(structure.flags, StructureFlags.OPEN)) checkPowPathsInAlmaPrison(t);
+  }
   deductPoints(t.inCombat, s, r.ap, r.bp);
   if (s.team === Team.OUR) doorResult(t, s, gridNo, code, r);
   return r.handle;

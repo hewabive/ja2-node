@@ -1,18 +1,26 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Meanwhile.cc ScheduleMeanwhileEvent, ProcessImplicationsOfMeanwhile (skipped scene),
+// @src src/game/Strategic/Meanwhile.cc ScheduleMeanwhileEvent, BeginMeanwhile, AreInMeanwhile, ProcessImplicationsOfMeanwhile,
 // @src HandleMeanWhileEventPostingForTownLiberation, HandleMeanWhileEventPostingForTownLoss, HandleMeanWhileEventPostingForSAMLiberation,
-// @src HandleOutskirtsOfMedunaMeanwhileScene, HandleFirstBattleVictory, HandleDelayedFirstBattleVictory,
+// @src HandleFlowersMeanwhileScene, HandleOutskirtsOfMedunaMeanwhileScene, HandleKillChopperMeanwhileScene,
+// @src HandleScientistAWOLMeanwhileScene, HandleFirstBattleVictory, HandleDelayedFirstBattleVictory,
 // @src HandleFirstBattleEndingWhileInTown, HandleFirstMeanWhileSetUpWithTrashWorld; Game_Event_Hook.cc EVENT_MEANWHILE,
-// @src DelayEventIfBattleInProgress. See docs/17 §9.4.
+// @src DelayEventIfBattleInProgress; Queen_Command.cc EndCaptureSequence (the interrogation's schedule); Interface_Dialogue.cc
+// @src NPC_ACTION_ADD_RAT. See docs/17 §9.4, docs/26 §1.
 
 import { type Sector, sectorFromId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
-import { u32 } from '../../../core/int.ts';
-import { Difficulty } from '../forces/constants.ts';
+import { i8, u32 } from '../../../core/int.ts';
+import { Difficulty, SectorFlag } from '../forces/constants.ts';
+import { getSectorFlagStatus } from '../map/sectors.ts';
+import { Quest } from '../narrative/fact-ids.ts';
+import { Npc } from '../narrative/npc-ids.ts';
+import { setProfileSector } from '../narrative/presence.ts';
+import type { SectorPosition } from '../state.ts';
 import { EventKind } from '../time/constants.ts';
 import { addAdvancedStrategicEvent, addStrategicEvent, type StrategicEvent } from '../time/event-queue.ts';
-import { interruptTime, worldTotalMinutes } from '../time/world-clock.ts';
+import { interruptTime, lockPauseState, pauseGame, worldTotalMinutes } from '../time/world-clock.ts';
 import {
+  ELLIOT_MAX_SLAPS,
   MEANWHILE_BATTLE_DELAY_SECONDS,
   MEANWHILE_BATTLE_DELAY_VARIANCE,
   MEANWHILE_DELAY_MINUTES,
@@ -24,6 +32,7 @@ import {
   Town,
 } from './constants.ts';
 import type { QueenContext } from './context.ts';
+import { emptyMeanwhileDefinition, type MeanwhileDefinition, type MeanwhileSector } from './queen-state.ts';
 import { executeStrategicAIAction } from './reactions.ts';
 
 const OUTSKIRTS_ROW_M = 13;
@@ -31,6 +40,21 @@ const OUTSKIRTS_ROW_N = 14;
 const OUTSKIRTS_M_FROM_X = 2;
 const OUTSKIRTS_M_TO_X = 6;
 const OUTSKIRTS_N_X = 6;
+const LOCK_PAUSE_MEANWHILE = 6;
+const MEANWHILE_TRIGGER_RECORD = 0;
+const MINUTES_PER_HOUR = 60;
+const FLOWERS_NEXT_DAY_HOURS = { base: 20, spread: 5 } as const;
+const FLOWERS_LATER_HOURS = { base: 24, spread: 48 } as const;
+const KILL_CHOPPER_DELAY_MINUTES = 55;
+const KILL_CHOPPER_DELAY_VARIANCE = 10;
+const RAT_SECTOR: SectorPosition = { x: 9, y: 7, z: 0 };
+const QUEST_SECTOR_NONE: SectorPosition = { x: -1, y: -1, z: 0 };
+const NO_SECTOR: SectorPosition = { x: 0, y: 0, z: 0 };
+
+export const MEDUNA_QUEEN_SECTOR: MeanwhileSector = { x: 3, y: 16 };
+export const INTERROGATION_SECTOR: MeanwhileSector = { x: 7, y: 14 };
+export const INTERROGATION_MINUTE = 10;
+export const FLOWERS_NEXT_DAY_CODE = 0;
 
 function meanwhileFlag(id: number): number {
   return MEANWHILE_FLAGS[id] ?? 0;
@@ -40,10 +64,18 @@ export function meanwhileScheduled(q: QueenContext, id: number): boolean {
   return (q.state.meanwhile.flags & meanwhileFlag(id)) !== 0;
 }
 
-export function scheduleMeanwhileEvent(q: QueenContext, id: number, minute: number): void {
+function countElliotSlap(q: QueenContext): void {
+  const elliot = q.queenHooks.profile(Npc.ELLIOT);
+  if (elliot && elliot.npcData !== ELLIOT_MAX_SLAPS) elliot.npcData = i8(elliot.npcData + 1);
+}
+
+export function scheduleMeanwhileEvent(q: QueenContext, id: number, minute: number, sector: MeanwhileSector = MEDUNA_QUEEN_SECTOR): void {
   if (meanwhileScheduled(q, id)) return;
-  q.state.meanwhile.flags = u32(q.state.meanwhile.flags | meanwhileFlag(id));
-  q.state.meanwhile.currentId = id;
+  const m = q.state.meanwhile;
+  m.flags = u32(m.flags | meanwhileFlag(id));
+  m.currentId = id;
+  m.defs[id] = { sector: { ...sector }, trigger: MEANWHILE_TRIGGER_RECORD, id, npc: Npc.QUEEN };
+  countElliotSlap(q);
   addStrategicEvent(q.state.queue, EventKind.MEANWHILE, minute, id);
 }
 
@@ -51,18 +83,69 @@ function inFiveMinutes(q: QueenContext): number {
   return worldTotalMinutes(q.state.clock) + MEANWHILE_DELAY_MINUTES;
 }
 
+function madlabAlternateMapSector(q: QueenContext): SectorPosition {
+  let found = NO_SECTOR;
+  const placement = q.content.npcPlacements.find((p) => p.profile === Npc.MADLAB);
+  for (const id of placement?.sectors ?? []) {
+    const s = sectorFromId(id);
+    if (getSectorFlagStatus(q.state.map, s, SectorFlag.USE_ALTERNATE_MAP)) found = { x: s.x, y: s.y, z: 0 };
+  }
+  return found;
+}
+
+function placeProfile(q: QueenContext, profile: number, sector: SectorPosition): void {
+  const p = q.queenHooks.profile(profile);
+  if (p) setProfileSector(p, sector);
+}
+
+function scientistWentAwol(q: QueenContext): void {
+  q.queenHooks.startQuest(Quest.FIND_SCIENTIST, QUEST_SECTOR_NONE);
+  const sector = madlabAlternateMapSector(q);
+  placeProfile(q, Npc.MADLAB, sector);
+  placeProfile(q, Npc.ROBOT, sector);
+}
+
+function sendTroopsToSam(q: QueenContext, id: number): void {
+  const sam = q.content.samSites[SAM_LIBERATION_MEANWHILES.indexOf(id)];
+  if (sam) executeStrategicAIAction(q, StrategicAiAction.SEND_TROOPS_TO_SAM, sectorFromId(sam.sector));
+}
+
 export function processImplicationsOfMeanwhile(q: QueenContext, id: number): void {
-  if (id === Meanwhile.END_OF_PLAYERS_FIRST_BATTLE) {
-    if (q.state.options.difficulty === Difficulty.HARD) executeStrategicAIAction(q, StrategicAiAction.WAKE_QUEEN, null);
-    return;
+  switch (id) {
+    case Meanwhile.END_OF_PLAYERS_FIRST_BATTLE:
+      if (q.state.options.difficulty === Difficulty.HARD) executeStrategicAIAction(q, StrategicAiAction.WAKE_QUEEN, null);
+      return;
+    case Meanwhile.DRASSEN_LIBERATED:
+    case Meanwhile.CAMBRIA_LIBERATED:
+    case Meanwhile.ALMA_LIBERATED:
+    case Meanwhile.GRUMM_LIBERATED:
+    case Meanwhile.CHITZENA_LIBERATED:
+    case Meanwhile.BALIME_LIBERATED:
+      executeStrategicAIAction(q, StrategicAiAction.WAKE_QUEEN, null);
+      return;
+    case Meanwhile.CREATURES:
+      placeProfile(q, Npc.RAT, RAT_SECTOR);
+      return;
+    case Meanwhile.AWOL_SCIENTIST:
+      scientistWentAwol(q);
+      return;
+    case Meanwhile.NW_SAM:
+    case Meanwhile.NE_SAM:
+    case Meanwhile.CENTRAL_SAM:
+      sendTroopsToSam(q, id);
+      return;
+    default:
+      return;
   }
-  if ([...TOWN_LIBERATION_MEANWHILES.values()].includes(id)) {
-    executeStrategicAIAction(q, StrategicAiAction.WAKE_QUEEN, null);
-    return;
-  }
-  const samIndex = SAM_LIBERATION_MEANWHILES.indexOf(id);
-  const sam = q.content.samSites[samIndex];
-  if (samIndex >= 0 && sam) executeStrategicAIAction(q, StrategicAiAction.SEND_TROOPS_TO_SAM, sectorFromId(sam.sector));
+}
+
+export function beginMeanwhile(q: QueenContext, id: number): void {
+  const m = q.state.meanwhile;
+  m.current = m.defs[id] ?? emptyMeanwhileDefinition();
+  m.trying = true;
+  pauseGame(q.state.clock);
+  lockPauseState(q.state.clock, LOCK_PAUSE_MEANWHILE);
+  m.npcSaves.length = 0;
 }
 
 export function handleMeanwhileEvent(q: QueenContext, e: StrategicEvent): void {
@@ -77,8 +160,12 @@ export function handleMeanwhileEvent(q: QueenContext, e: StrategicEvent): void {
     if (delayed) delayed.offset = e.offset;
     return;
   }
-  processImplicationsOfMeanwhile(q, e.param);
+  beginMeanwhile(q, e.param);
   interruptTime(q.state.clock);
+}
+
+export function currentMeanwhile(q: Pick<QueenContext, 'state'>): MeanwhileDefinition {
+  return q.state.meanwhile.current;
 }
 
 export function meanwhilePendingThisSecond(q: QueenContext): boolean {
@@ -89,6 +176,12 @@ export function meanwhilePendingThisSecond(q: QueenContext): boolean {
     if (e.kind === EventKind.MEANWHILE) return true;
   }
   return false;
+}
+
+export function areInMeanwhile(q: QueenContext): boolean {
+  if (q.state.movement.tacticalTraversal.active) return false;
+  if (q.state.meanwhile.inScene) return true;
+  return meanwhilePendingThisSecond(q);
 }
 
 export function handleMeanwhileEventPostingForTownLiberation(q: QueenContext, townId: number): void {
@@ -105,6 +198,13 @@ export function handleMeanwhileEventPostingForSamLiberation(q: QueenContext, sam
   if (id !== undefined) scheduleMeanwhileEvent(q, id, inFiveMinutes(q));
 }
 
+export function handleFlowersMeanwhileScene(q: QueenContext, code: number): void {
+  if (meanwhileScheduled(q, Meanwhile.FLOWERS)) return;
+  const hours = code === FLOWERS_NEXT_DAY_CODE ? FLOWERS_NEXT_DAY_HOURS : FLOWERS_LATER_HOURS;
+  const minute = worldTotalMinutes(q.state.clock) + MINUTES_PER_HOUR * (hours.base + q.random.int(hours.spread));
+  scheduleMeanwhileEvent(q, Meanwhile.FLOWERS, minute);
+}
+
 export function isMedunaOutskirts(s: Sector): boolean {
   if (s.z !== 0) return false;
   return (
@@ -114,6 +214,24 @@ export function isMedunaOutskirts(s: Sector): boolean {
 
 export function handleOutskirtsOfMedunaMeanwhileScene(q: QueenContext): void {
   scheduleMeanwhileEvent(q, Meanwhile.OUTSKIRTS_MEDUNA, inFiveMinutes(q));
+}
+
+export function handleKillChopperMeanwhileScene(q: QueenContext): void {
+  if (meanwhileScheduled(q, Meanwhile.KILL_CHOPPER)) return;
+  const minute = worldTotalMinutes(q.state.clock) + KILL_CHOPPER_DELAY_MINUTES + q.random.int(KILL_CHOPPER_DELAY_VARIANCE);
+  scheduleMeanwhileEvent(q, Meanwhile.KILL_CHOPPER, minute);
+}
+
+export function handleScientistAwolMeanwhileScene(q: QueenContext): void {
+  scheduleMeanwhileEvent(q, Meanwhile.AWOL_SCIENTIST, inFiveMinutes(q));
+}
+
+export function handleCreatureRelease(q: QueenContext): void {
+  scheduleMeanwhileEvent(q, Meanwhile.CREATURES, inFiveMinutes(q));
+}
+
+export function scheduleInterrogation(q: QueenContext): void {
+  scheduleMeanwhileEvent(q, Meanwhile.INTERROGATION, INTERROGATION_MINUTE, INTERROGATION_SECTOR);
 }
 
 function handleFirstBattleVictory(q: QueenContext): void {
@@ -137,4 +255,17 @@ export function handleFirstMeanwhileSetUpWithTrashWorld(q: QueenContext): void {
   if (!q.state.queen.firstBattleMeanwhilePending) return;
   handleFirstBattleVictory(q);
   q.state.queen.firstBattleMeanwhilePending = false;
+}
+
+function camelCase(name: string): string {
+  return name.toLowerCase().replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+}
+
+export function meanwhileSceneName(id: number): string {
+  const entry = Object.entries(Meanwhile).find(([, v]) => v === id);
+  return entry ? camelCase(entry[0]) : `meanwhile${id}`;
+}
+
+export function meanwhileScheduledIn(m: { readonly flags: number }, id: number): boolean {
+  return (m.flags & meanwhileFlag(id)) !== 0;
 }

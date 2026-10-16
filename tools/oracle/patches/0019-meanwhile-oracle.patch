@@ -1,0 +1,40 @@
+Meanwhile oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE (SFI-SCLA).
+Appends wrappers to Meanwhile.cc: the last scheduled scene id (the static ubCurrentMeanWhileId), the Skip answer of the
+static BeginMeanwhileCallBack, the static SetNPCMeanwhile and RestoreNPCMeanwhile and a reset of their save slots, so the
+meanwhile probes can run them alone. No behaviour change. Applied by tools/oracle/build.sh after the earlier patches.
+
+--- a/src/game/Strategic/Meanwhile.cc
++++ b/src/game/Strategic/Meanwhile.cc
+@@ -818,3 +818,32 @@
+ }
+ 
+ #endif
++
++
++UINT8 OracleLastScheduledMeanwhileId()
++{
++	return ubCurrentMeanWhileId;
++}
++
++void OracleSkipMeanwhile()
++{
++	BeginMeanwhileCallBack(MSG_BOX_RETURN_NO);
++}
++
++void OracleSetNpcMeanwhile(UINT8 const profile, const SGPSector& sector)
++{
++	SetNPCMeanwhile(profile, sector);
++}
++
++void OracleRestoreNpcMeanwhile()
++{
++	RestoreNPCMeanwhile();
++}
++
++void OracleClearNpcMeanwhileSaves()
++{
++	for (NPC_SAVE_INFO* si = gNPCSaveData; si != gNPCSaveData + MAX_MEANWHILE_PROFILES; ++si)
++	{
++		si->ubProfile = NO_PROFILE;
++	}
++}

@@ -60,7 +60,14 @@ export function describeSession(session: Session): Record<string, unknown> {
     soldiers: view.soldiers.length,
     idle: session.sim.isIdle(),
     ...(view.clock ? { clock: view.clock } : {}),
-    ...(view.strategic ? { flow: view.strategic.flow, sector: view.strategic.worldSector } : {}),
+    ...(view.strategic
+      ? {
+          flow: view.strategic.flow,
+          sector: view.strategic.worldSector,
+          campaign: view.strategic.campaign,
+          ...(view.strategic.noUsableMercs ? { noUsableMercs: true } : {}),
+        }
+      : {}),
   };
 }
 

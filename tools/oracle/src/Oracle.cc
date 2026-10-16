@@ -15,6 +15,8 @@
 // @src src/game/Strategic/Quests.cc CheckFact, InternalStartQuest, InternalEndQuest; Hourly_Update.cc; StrategicMap.cc
 // @src HandleQuestCodeOnSector (facts probes); src/game/TacticalAI/NPC.cc CalcDesireToTalk, NPCConsiderTalking, ConverseFull
 // @src (talk probes); src/game/Strategic/Scheduling.cc, TacticalAI/DecideAction.cc DecideActionSchedule (schedule probes)
+// @src src/game/Strategic/Meanwhile.cc, Queen_Command.cc (capture), Tactical/Campaign.cc HourlyProgressUpdate,
+// @src Tactical/End_Game.cc ChangeO3SectorStatue, HandleStatueDamaged (meanwhile probes)
 #include "Oracle.h"
 
 #include "AI.h"
@@ -121,6 +123,9 @@
 #include "FileMan.h"
 #include "MercProfile.h"
 #include "Scheduling.h"
+#include "End_Game.h"
+#include "Exit_Grids.h"
+#include "Observable.h"
 
 #include <string_theory/string>
 
@@ -235,6 +240,13 @@ UINT8 OracleLiePromptRecord();
 void OracleResetDialogueMessageBox();
 void OracleAnswerDialogueMessageBox(UINT16 type, UINT8 record, MessageBoxReturnValue answer);
 extern UINT8 gubCambriaMedicalObjects;
+UINT8 OracleLastScheduledMeanwhileId();
+void OracleSkipMeanwhile();
+void OracleSetNpcMeanwhile(UINT8 profile, const SGPSector& sector);
+void OracleRestoreNpcMeanwhile();
+void OracleClearNpcMeanwhileSaves();
+extern INT16 sWorldSectorLocationOfFirstBattle;
+extern Observable<UINT8_S*> OnCalcPlayerProgress;
 
 namespace {
 
@@ -6502,6 +6514,246 @@ void ProbeScheduleShopHours(Command const& c)
 }
 
 
+std::vector<ProfileID> const MEANWHILE_PROFILES = {QUEEN, ELLIOT, JOE, RAT, MADLAB, ROBOT, IGGY};
+SGPSector const MEDUNA_QUEEN_SECTOR(3, MAP_ROW_P);
+SGPSector const INTERROGATION_SECTOR(7, MAP_ROW_N);
+constexpr GridNo STATUE_GRIDNO = 13830;
+constexpr GridNo STATUE_EXIT_GRIDNO = 13669;
+
+std::string DescribeMeanwhileDefinition(MEANWHILE_DEFINITION const& d)
+{
+	return Numbers({d.sSector.x, d.sSector.y, d.usTriggerEvent, d.ubMeanwhileID, d.ubNPCNumber});
+}
+
+std::string DescribeMeanwhileProfiles()
+{
+	std::vector<std::string> out;
+	for (ProfileID const pid : MEANWHILE_PROFILES)
+	{
+		MERCPROFILESTRUCT const& p = GetProfile(pid);
+		out.push_back(Numbers({pid, p.sSector.x, p.sSector.y, p.sSector.z, p.sGridNo, p.fUseProfileInsertionInfo ? 1 : 0, p.bNPCData}));
+	}
+	return JsonArray(out);
+}
+
+std::string DescribeMeanwhileState()
+{
+	std::vector<std::string> defs;
+	for (MEANWHILE_DEFINITION const& d : gMeanwhileDef) defs.push_back(DescribeMeanwhileDefinition(d));
+	std::vector<std::string> events;
+	for (STRATEGICEVENT const* e = gpEventList; e; e = e->next)
+	{
+		if (e->ubCallbackID == EVENT_MEANWHILE) events.push_back(Numbers({e->uiTimeStamp, e->uiParam, e->uiTimeOffset}));
+	}
+	return Json{}
+		.num("flags", uiMeanWhileFlags)
+		.raw("defs", JsonArray(defs))
+		.raw("current", DescribeMeanwhileDefinition(gCurrentMeanwhileDef))
+		.flag("trying", gfMeanwhileTryingToStart)
+		.flag("inScene", gfInMeanwhile)
+		.num("lastScheduled", OracleLastScheduledMeanwhileId())
+		.raw("events", JsonArray(events))
+		.flag("firstBattlePending", gfFirstBattleMeanwhileScenePending)
+		.num("firstBattleSector", sWorldSectorLocationOfFirstBattle)
+		.raw("profiles", DescribeMeanwhileProfiles())
+		.nums("quests", {gubQuest[QUEST_FIND_SCIENTIST], gubQuest[QUEST_HELD_IN_ALMA], gubQuest[QUEST_INTERROGATION], gubQuest[QUEST_CREATURES]})
+		.num("mikeFact", gubFact[FACT_MIKE_AVAILABLE_TO_ARMY])
+		.num("highestProgress", gStrategicStatus.ubHighestProgress)
+		.flag("queenAwake", gfQueenAIAwake)
+		.num("captureFlags", gStrategicStatus.uiFlags)
+		.num("captured", gStrategicStatus.ubNumCapturedForRescue)
+		.flag("paused", GamePaused())
+		.flag("pauseLocked", PauseStateLocked())
+		.num("worldSeconds", GetWorldTotalSeconds())
+		.text();
+}
+
+std::string DescribeEnemyGroups()
+{
+	std::vector<std::string> groups;
+	CFOR_EACH_GROUP(g) if (!g->fPlayer) groups.push_back(DescribeGroup(*g));
+	return JsonArray(groups);
+}
+
+void EmitMeanwhile(Command const& c, std::string const& draws, std::string const& result)
+{
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.raw("draws", draws.empty() ? "[]" : draws)
+		.raw("result", result.empty() ? "null" : result)
+		.raw("meanwhile", DescribeMeanwhileState()));
+}
+
+void DumpMeanwhiles(Command const& c)
+{
+	EmitMeanwhile(c, "", "");
+}
+
+void ProbeMeanwhilePost(Command const& c)
+{
+	std::string const kind = Text(c, "kind", "");
+	long long const param = Integer(c, "param", 0);
+	std::string const draws = TracedSaiDraws([&] {
+		if (kind == "town") HandleMeanWhileEventPostingForTownLiberation(static_cast<UINT8>(param));
+		else if (kind == "townloss") HandleMeanWhileEventPostingForTownLoss();
+		else if (kind == "sam") HandleMeanWhileEventPostingForSAMLiberation(static_cast<INT8>(param));
+		else if (kind == "outskirts") HandleOutskirtsOfMedunaMeanwhileScene();
+		else if (kind == "creature") HandleCreatureRelease();
+		else if (kind == "flowers") HandleFlowersMeanwhileScene(static_cast<INT8>(param));
+		else if (kind == "chopper") HandleKillChopperMeanwhileScene();
+		else if (kind == "awol") HandleScientistAWOLMeanwhileScene();
+		else if (kind == "interrogation") ScheduleMeanwhileEvent(INTERROGATION_SECTOR, 0, INTERROGATION, QUEEN, 10);
+		else throw std::runtime_error("unknown meanwhile kind " + kind);
+	});
+	EmitMeanwhile(c, draws, "");
+}
+
+void ProbeFirstBattle(Command const& c)
+{
+	HandleFirstBattleEndingWhileInTown(StrategicSectorArgument(c, "sector"), Integer(c, "autoresolve", 0) != 0);
+	EmitMeanwhile(c, "", "");
+}
+
+void ProbeTrashWorldMeanwhile(Command const& c)
+{
+	HandleFirstMeanWhileSetUpWithTrashWorld();
+	EmitMeanwhile(c, "", "");
+}
+
+void ProbeMeanwhileRun(Command const& c)
+{
+	STRATEGICEVENT const* head = nullptr;
+	for (STRATEGICEVENT const* e = gpEventList; e; e = e->next)
+	{
+		if (e->ubCallbackID == EVENT_MEANWHILE)
+		{
+			head = e;
+			break;
+		}
+	}
+	if (!head) throw std::runtime_error("no meanwhile event");
+	STRATEGICEVENT event = *head;
+	event.next = nullptr;
+	DeleteStrategicEvent(EVENT_MEANWHILE, event.uiParam);
+	BOOLEAN const savedEnemy = gTacticalStatus.fEnemyInSector;
+	gTacticalStatus.fEnemyInSector = Integer(c, "enemy", 0) != 0;
+	bool begun = false;
+	std::string const draws = TracedSaiDraws([&] {
+		ExecuteStrategicEvent(&event);
+		if (gfMeanwhileTryingToStart)
+		{
+			begun = true;
+			gfMeanwhileTryingToStart = FALSE;
+			OracleSkipMeanwhile();
+		}
+	});
+	gTacticalStatus.fEnemyInSector = savedEnemy;
+	EmitMeanwhile(c, draws, Json{}
+		.flag("begun", begun)
+		.raw("event", Numbers({event.uiTimeStamp, event.uiParam, event.uiTimeOffset}))
+		.raw("groups", DescribeEnemyGroups())
+		.num("reinforcementPool", giReinforcementPool)
+		.text());
+}
+
+void ProbeMeanwhilePlayed(Command const& c)
+{
+	UINT8 const id = static_cast<UINT8>(Required(c, "id"));
+	OracleClearNpcMeanwhileSaves();
+	std::string const before = DescribeMeanwhileProfiles();
+	SGPSector const sector = id == INTERROGATION ? INTERROGATION_SECTOR : MEDUNA_QUEEN_SECTOR;
+	OracleSetNpcMeanwhile(QUEEN, sector);
+	OracleSetNpcMeanwhile(ELLIOT, sector);
+	if (id == OUTSKIRTS_MEDUNA || id == INTERROGATION) OracleSetNpcMeanwhile(JOE, sector);
+	std::string const during = DescribeMeanwhileProfiles();
+	OracleRestoreNpcMeanwhile();
+	EmitMeanwhile(c, "", Json{}.raw("before", before).raw("during", during).text());
+}
+
+void ProbeHourlyProgress(Command const& c)
+{
+	UINT8 const current = static_cast<UINT8>(Required(c, "current"));
+	if (Has(c, "highest")) gStrategicStatus.ubHighestProgress = static_cast<UINT8>(Integer(c, "highest", 0));
+	OnCalcPlayerProgress.addListener("oracle:progress", [current](UINT8_S* progress) { progress->val = current; });
+	std::string const draws = TracedSaiDraws([] { HourlyProgressUpdate(); });
+	OnCalcPlayerProgress.removeListener("oracle:progress");
+	EmitMeanwhile(c, draws, "");
+}
+
+std::string DescribeCaptive(SOLDIERTYPE const& s)
+{
+	return Numbers({s.ubID, s.sSector.x, s.sSector.y, s.sSector.z, s.ubStrategicInsertionCode, s.usStrategicInsertionData, s.bLife,
+		s.bBreath, s.bBreathMax, s.bAssignment, s.bNeutral ? 1 : 0, s.bBleeding, s.bLevel});
+}
+
+void ProbeCapture(Command const& c)
+{
+	std::vector<SOLDIERTYPE*> captives;
+	for (std::string const& v : SplitList(Text(c, "who", ""), ','))
+	{
+		SOLDIERTYPE& s = GetMan(static_cast<UINT>(std::stoll(v)));
+		if (!s.bActive) throw std::runtime_error("no active soldier " + v);
+		captives.push_back(&s);
+	}
+	if (Has(c, "alma")) gubQuest[QUEST_HELD_IN_ALMA] = static_cast<UINT8>(Integer(c, "alma", QUESTNOTSTARTED));
+	size_t const history = ReadHistoryRecords().size();
+	std::string const draws = TracedSaiDraws([&] {
+		BeginCaptureSquence();
+		for (SOLDIERTYPE* const s : captives) EnemyCapturesPlayerSoldier(s);
+		EndCaptureSequence();
+	});
+	std::vector<std::string> out;
+	for (SOLDIERTYPE const* const s : captives) out.push_back(DescribeCaptive(*s));
+	EmitMeanwhile(c, draws, Json{}.raw("captives", JsonArray(out)).raw("history", DescribeHistoryTail(history)).text());
+}
+
+void ProbeQueenDead(Command const& c)
+{
+	ExecuteStrategicAIAction(STRATEGIC_AI_ACTION_QUEEN_DEAD, nullptr);
+	int evaluations = 0;
+	for (STRATEGICEVENT const* e = gpEventList; e; e = e->next)
+	{
+		if (e->ubCallbackID == EVENT_EVALUATE_QUEEN_SITUATION) ++evaluations;
+	}
+	EmitMeanwhile(c, "", Json{}.num("evaluations", evaluations).text());
+}
+
+std::string DescribeStatue()
+{
+	std::vector<long long> structs;
+	for (LEVELNODE const* n = gpWorldLevelData[STATUE_GRIDNO].pStructHead; n; n = n->pNext) structs.push_back(n->usIndex);
+	EXITGRID exit;
+	bool const hasExit = GetExitGrid(STATUE_EXIT_GRIDNO, &exit);
+	return Json{}
+		.nums("structs", structs)
+		.raw("exit", hasExit ? Numbers({exit.usGridNo, exit.ubGotoSector.x, exit.ubGotoSector.y, exit.ubGotoSector.z}) : "null")
+		.flag("revealed", (gpWorldLevelData[STATUE_EXIT_GRIDNO].uiFlags & MAPELEMENT_REVEALED) != 0)
+		.text();
+}
+
+void ProbeStatue(Command const& c)
+{
+	std::string const mode = Text(c, "mode", "remote");
+	std::string const before = DescribeStatue();
+	BOOLEAN_S skip = false;
+	if (mode == "remote") ChangeO3SectorStatue(FALSE);
+	else if (mode == "explosion")
+	{
+		GridNo const gridNo = static_cast<GridNo>(Integer(c, "gridno", STATUE_GRIDNO));
+		HandleStatueDamaged(gWorldSector.x, gWorldSector.y, gWorldSector.z, gridNo, nullptr, static_cast<UINT32>(Integer(c, "dist", 0)), &skip);
+	}
+	else throw std::runtime_error("unknown statue mode " + mode);
+	Emit(Json{}
+		.str("probe", c.name)
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.raw("before", before)
+		.raw("after", DescribeStatue())
+		.flag("skip", skip.val != FALSE));
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -6682,6 +6934,16 @@ void Dispatch(Command const& c)
 	if (c.name == "scheddecide") return ProbeScheduleDecision(c);
 	if (c.name == "schedshophours") return ProbeScheduleShopHours(c);
 	if (c.name == "schedmove") return MoveScheduleSoldier(c);
+	if (c.name == "meanwhiles") return DumpMeanwhiles(c);
+	if (c.name == "meanwhilepost") return ProbeMeanwhilePost(c);
+	if (c.name == "firstbattle") return ProbeFirstBattle(c);
+	if (c.name == "trashworld") return ProbeTrashWorldMeanwhile(c);
+	if (c.name == "meanwhilerun") return ProbeMeanwhileRun(c);
+	if (c.name == "meanwhileplayed") return ProbeMeanwhilePlayed(c);
+	if (c.name == "hourlyprogress") return ProbeHourlyProgress(c);
+	if (c.name == "capture") return ProbeCapture(c);
+	if (c.name == "queendead") return ProbeQueenDead(c);
+	if (c.name == "statue") return ProbeStatue(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Strategic_Town_Loyalty.cc BuildListOfTownSectors, GetNumberOfWholeTownsUnderControl,
+// @src GetNumberOfWholeTownsUnderControlButExcludeCity,
 // @src IsTownUnderCompleteControlByPlayer; StrategicMap.cc GetTownIdForSector, GetTownSectorSize, GetTownSectorsUnderControl;
 // @src Town_Militia.cc SectorOursAndPeaceful. See docs/18 §1.1, §3.5.
 
@@ -61,6 +62,13 @@ export function numberOfWholeTownsUnderControl(ctx: EconomyContext): number {
   let n = 0;
   for (let town = FIRST_TOWN; town < NUM_TOWNS; town++)
     if (isTownUnderCompleteControl(ctx, town) && ctx.economy.loyalty.usesLoyalty[town]) n++;
+  return n;
+}
+
+export function numberOfWholeTownsUnderControlExcluding(ctx: EconomyContext, excluded: number): number {
+  let n = 0;
+  for (let town = FIRST_TOWN; town < NUM_TOWNS; town++)
+    if (isTownUnderCompleteControl(ctx, town) && excluded !== town && ctx.economy.loyalty.usesLoyalty[town]) n++;
   return n;
 }
 

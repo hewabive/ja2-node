@@ -95,7 +95,7 @@ export function exitGridAt(
   g: number,
 ): { readonly gridNo: number; readonly sector: { x: number; y: number; z: number } } | null {
   if (!t.world.exitGrids.has(g)) return null;
-  const e = sectorMapOf(t).exitGrids.find((x) => x.mapIndex === g);
+  const e = sectorMapOf(t).exitGrids.find((x) => x.mapIndex === g) ?? t.addedExitGrids.find((x) => x.mapIndex === g);
   return e ? { gridNo: e.gridNo, sector: { ...e.sector } } : null;
 }
 

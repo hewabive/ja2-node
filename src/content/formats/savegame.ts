@@ -40,6 +40,7 @@ import {
   readTacticalStatus,
   readTeamTurns,
   readWatchedLocations,
+  type SavedMeanwhileDefinition,
   type TacticalStatus,
   type TeamTurns,
   TOTAL_SOLDIERS,
@@ -124,6 +125,15 @@ const ITEM_CURSOR_BYTES = 44;
 const NUM_CIV_QUOTES = 50;
 const NUM_MEANWHILES = 17;
 const MEANWHILE_DEFINITION_BYTES = 8;
+
+function readMeanwhileDefinitions(c: SaveCursor): SavedMeanwhileDefinition[] {
+  return Array.from({ length: NUM_MEANWHILES }, () => {
+    const start = c.pos;
+    const definition = { sector: { x: c.i16(), y: c.i16() }, trigger: c.u16(), id: c.u8(), npc: c.u8() };
+    if (c.pos - start !== MEANWHILE_DEFINITION_BYTES) throw new FormatError('meanwhile definition size');
+    return definition;
+  });
+}
 const MAX_VEHICLES = 10;
 const CONTRACT_RENEWAL_SLOTS = 20;
 const CONTRACT_RENEWAL_NODE_BYTES = 4;
@@ -321,6 +331,7 @@ export interface SaveGame {
   readonly gameStates: string | null;
   readonly creatureDirectives: SavedCreatureDirectives;
   readonly schedules: readonly SavedSchedule[];
+  readonly meanwhileDefinitions: readonly SavedMeanwhileDefinition[];
   readonly sections: readonly SaveSection[];
   readonly bytesConsumed: number;
 }
@@ -659,7 +670,7 @@ export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable
   section(ctx, 'item cursor', () => c.skip(ITEM_CURSOR_BYTES));
   section(ctx, 'civ quotes', () => c.skip(NUM_CIV_QUOTES * 2));
   section(ctx, 'backup npc info', () => skipNpcQuoteArrays(c, profilesInSave(version)));
-  section(ctx, 'meanwhile definitions', () => c.skip(NUM_MEANWHILES * MEANWHILE_DEFINITION_BYTES));
+  const meanwhileDefinitions = section(ctx, 'meanwhile definitions', () => readMeanwhileDefinitions(c));
   const schedules = section(ctx, 'schedules', () => readSchedules(c));
   const vehicleMovementGroups = section(ctx, 'vehicle movement groups', () => c.u8s(MAX_VEHICLES));
   section(ctx, 'contract renewals', () => c.skip(CONTRACT_RENEWAL_SLOTS * CONTRACT_RENEWAL_NODE_BYTES + 1));
@@ -702,6 +713,7 @@ export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable
     gameStates,
     creatureDirectives,
     schedules,
+    meanwhileDefinitions,
     sections: ctx.sections,
     bytesConsumed: c.pos,
   };

@@ -76,6 +76,7 @@ export interface StrategicAiPort {
   numStationaryEnemiesInSector(sector: Sector): number;
   queenLostControlOfSector(sector: Sector): void;
   queenBasementTaken(): void;
+  medunaOutskirtsTaken(sector: Sector): void;
 }
 
 export interface LiberationEvent {
@@ -126,6 +127,7 @@ export const defaultStrategicAiPort: StrategicAiPort = {
   numStationaryEnemiesInSector: () => 0,
   queenLostControlOfSector: () => {},
   queenBasementTaken: () => {},
+  medunaOutskirtsTaken: () => {},
 };
 
 export const defaultTacticalWorldPort: TacticalWorldPort = {

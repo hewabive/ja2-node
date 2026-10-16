@@ -5,6 +5,8 @@ const STRATEGIC: StrategicView = {
   balance: 35000,
   worldSector: 'A9',
   flow: 'tactical',
+  campaign: 'playing',
+  meanwhiles: [],
   sectors: [],
   mercs: [],
   groups: [],

@@ -124,6 +124,7 @@ export interface ProfilePlacementSpec {
   readonly orders: number;
   readonly soldierClass: number;
   readonly scheduleId?: number;
+  readonly civilianGroup?: number;
 }
 
 export function writeProfileDetailedPlacement(spec: ProfilePlacementSpec): Uint8Array {
@@ -140,6 +141,7 @@ export function writeProfileDetailedPlacement(spec: ProfilePlacementSpec): Uint8
   for (let k = 0; k < STAT_BYTES; k++) v.setInt8(FIRST_STAT_OFFSET + k, UNSET_STAT);
   for (let k = 0; k < PATROL_POINTS; k++) v.setInt16(866 + k * 2, spec.insertionGridNo, true);
   raw[908] = spec.soldierClass;
+  raw[917] = spec.civilianGroup ?? 0;
   raw[919] = spec.scheduleId ?? 0;
   return raw;
 }

@@ -1,0 +1,170 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Strategic/Meanwhile.h (scene ids), src/game/Strategic/Meanwhile.cc (*_FLAG, gusMeanWhileGridNo, MedunaQueenSector, StartMeanwhile, BringupMeanwhileBox), src/game/Strategic/Queen_Command.cc EndCaptureSequence (the interrogation's sector), src/game/Tactical/QArray.cc QuoteExp_WitnessDeidrannaDeath, QuoteExp_WitnessQueenBugDeath",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "scenes in id order: internal name, flag bit of uiMeanWhileFlags, scene sector, the NPC profile names moved there, the camera gridno of the scene and whether the box offers Skip once the scene was seen; witnesses: the profile ids whose QArray entry is 1 (they say the kill quote when they see the death tile), every other profile only as the killer",
+  "scenes": [
+    {
+      "id": 0,
+      "name": "END_OF_PLAYERS_FIRST_BATTLE",
+      "flag": 1,
+      "sector": "P3",
+      "npcs": ["QUEEN", "ELLIOT"],
+      "cameraGridNo": 12248,
+      "skippable": true
+    },
+    {
+      "id": 1,
+      "name": "DRASSEN_LIBERATED",
+      "flag": 2,
+      "sector": "P3",
+      "npcs": ["QUEEN", "ELLIOT"],
+      "cameraGridNo": 12248,
+      "skippable": true
+    },
+    {
+      "id": 2,
+      "name": "CAMBRIA_LIBERATED",
+      "flag": 4,
+      "sector": "P3",
+      "npcs": ["QUEEN", "ELLIOT"],
+      "cameraGridNo": 12248,
+      "skippable": true
+    },
+    {
+      "id": 3,
+      "name": "ALMA_LIBERATED",
+      "flag": 8,
+      "sector": "P3",
+      "npcs": ["QUEEN", "ELLIOT"],
+      "cameraGridNo": 12248,
+      "skippable": true
+    },
+    {
+      "id": 4,
+      "name": "GRUMM_LIBERATED",
+      "flag": 16,
+      "sector": "P3",
+      "npcs": ["QUEEN", "ELLIOT"],
+      "cameraGridNo": 12248,
+      "skippable": true
+    },
+    {
+      "id": 5,
+      "name": "CHITZENA_LIBERATED",
+      "flag": 32,
+      "sector": "P3",
+      "npcs": ["QUEEN", "ELLIOT"],
+      "cameraGridNo": 12248,
+      "skippable": true
+    },
+    {
+      "id": 6,
+      "name": "NW_SAM",
+      "flag": 64,
+      "sector": "P3",
+      "npcs": ["QUEEN", "ELLIOT"],
+      "cameraGridNo": 12248,
+      "skippable": true
+    },
+    {
+      "id": 7,
+      "name": "NE_SAM",
+      "flag": 128,
+      "sector": "P3",
+      "npcs": ["QUEEN", "ELLIOT"],
+      "cameraGridNo": 12248,
+      "skippable": true
+    },
+    {
+      "id": 8,
+      "name": "CENTRAL_SAM",
+      "flag": 256,
+      "sector": "P3",
+      "npcs": ["QUEEN", "ELLIOT"],
+      "cameraGridNo": 12248,
+      "skippable": true
+    },
+    {
+      "id": 9,
+      "name": "FLOWERS",
+      "flag": 512,
+      "sector": "P3",
+      "npcs": ["QUEEN", "ELLIOT"],
+      "cameraGridNo": 12248,
+      "skippable": true
+    },
+    {
+      "id": 10,
+      "name": "LOST_TOWN",
+      "flag": 1024,
+      "sector": "P3",
+      "npcs": ["QUEEN", "ELLIOT"],
+      "cameraGridNo": 12248,
+      "skippable": true
+    },
+    {
+      "id": 11,
+      "name": "INTERROGATION",
+      "flag": 32768,
+      "sector": "N7",
+      "npcs": ["QUEEN", "ELLIOT", "JOE"],
+      "cameraGridNo": 8075,
+      "skippable": false
+    },
+    {
+      "id": 12,
+      "name": "CREATURES",
+      "flag": 2048,
+      "sector": "P3",
+      "npcs": ["QUEEN", "ELLIOT"],
+      "cameraGridNo": 12248,
+      "skippable": true
+    },
+    {
+      "id": 13,
+      "name": "KILL_CHOPPER",
+      "flag": 4096,
+      "sector": "P3",
+      "npcs": ["QUEEN", "ELLIOT"],
+      "cameraGridNo": 12248,
+      "skippable": true
+    },
+    {
+      "id": 14,
+      "name": "AWOL_SCIENTIST",
+      "flag": 8192,
+      "sector": "P3",
+      "npcs": ["QUEEN", "ELLIOT"],
+      "cameraGridNo": 12248,
+      "skippable": true
+    },
+    {
+      "id": 15,
+      "name": "OUTSKIRTS_MEDUNA",
+      "flag": 16384,
+      "sector": "P3",
+      "npcs": ["QUEEN", "ELLIOT", "JOE"],
+      "cameraGridNo": 12248,
+      "skippable": true
+    },
+    {
+      "id": 16,
+      "name": "BALIME_LIBERATED",
+      "flag": 65536,
+      "sector": "P3",
+      "npcs": ["QUEEN", "ELLIOT"],
+      "cameraGridNo": 12248,
+      "skippable": true
+    }
+  ],
+  "witnesses": {
+    "deidranna": [
+      3, 4, 5, 9, 10, 12, 14, 15, 16, 17, 18, 19, 22, 24, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 39, 40, 41, 42, 43, 45, 47, 48, 50,
+      51, 52, 53, 54, 57, 58, 59, 69, 70
+    ],
+    "queenBug": [
+      1, 2, 3, 4, 5, 7, 9, 10, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 36, 37, 39, 41, 43,
+      44, 46, 48, 53, 54, 55, 57, 58, 59, 61, 64, 69, 70, 72
+    ]
+  }
+}

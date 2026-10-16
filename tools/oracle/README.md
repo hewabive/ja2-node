@@ -14,7 +14,9 @@ I.M.P. hires, Bobby Ray's orders, restocks and deliveries, life insurance), the 
 CheckFact, the 04:00 and hourly NPC handlers, the quest code of sector entry and exit, profile NPC placement), Skyrider's
 helicopter (flights, SAM fire, billing, hovering, landing, boarding and the monologues), the NPC actions (the action
 catalog, the requestor answers, the NPC system events, Kingpin's money and the hospital), the NPC schedules (posting,
-the 24-hour replay, processing and the AI's schedule steps) and giving items and money to NPCs with the quest action items.
+the 24-hour replay, processing and the AI's schedule steps), giving items and money to NPCs with the quest action items,
+and the meanwhile scenes with the end of the campaign (posting, the event and its implications, the NPC moves of a played
+scene, the first-battle rules, the progress milestones, captures, the Queen's death on the strategic AI and the O3 statue).
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -69,6 +71,9 @@ commit them.
 | `patches/0017-give-oracle.patch` | Traced `CalcMedicalCost` results in `TacticalAI/NPC.cc`, a wrapper for the static `NPCConsiderReceivingItemFromMerc`, and hooks for the conversation, shop and offer calls of `SoldierGiveItemFromAnimation` (see "Hooks") |
 | `give-compare.ts` | The give probes of `compare.ts` (`receive`, `give`, `npcgive`, `actionitem`) |
 | `probes/give.txt` | Giving items and money and the quest action items (see "Give") |
+| `patches/0019-meanwhile-oracle.patch` | Wrappers for the static meanwhile helpers: the last scheduled scene, the Skip answer and the NPC moves (see "Hooks") |
+| `meanwhile-compare.ts` | The meanwhile probes of `compare.ts` (`meanwhiles`, `meanwhilepost`, `firstbattle`, `trashworld`, `meanwhilerun`, `meanwhileplayed`, `hourlyprogress`, `capture`, `queendead`, `statue`) |
+| `probes/meanwhile.txt` | Meanwhile scenes, captures, the milestones, the Queen's death and the O3 statue (see "Meanwhile") |
 | `creature-ai-compare.ts` | The tactical creature probes of `compare.ts` (`addsoldier`, `setsoldier`, `seen`, `decide`, `beststab`, `stab`, `creaturecall`, `smell`, `dropsmell`, `trackscent`) |
 | `probes/creature*.txt`, `probes/morale.txt` | Creature and morale probe scripts (see "Creatures", "Creature AI" and "Morale") |
 | `autoresolve-aftermath.ts` | Level 3 of `autoresolve` probes (the battle closed through ja2-node's battle flow on the imported save) and `enemycounts` |
@@ -1165,6 +1170,48 @@ second events and redrawn default schedules, entries into C13, D13 and B13 (slee
 doors locked at night), map-screen warps up to a day, tactical warps activating entries, and the AI's steps for a door
 unlock, a lock, a wake-up and the return of a default civilian from the away slots.
 
+### Meanwhile
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data" JA2_ORACLE_DIR=~/ja2-oracle-meanwhile
+tools/oracle/run.sh tools/oracle/probes/meanwhile.txt ~/ja2-oracle-meanwhile/out/meanwhile.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle-meanwhile/out/meanwhile.jsonl
+```
+
+Every command after a `save` prints its arguments, the draws (both streams), a result and the meanwhile state:
+`uiMeanWhileFlags`, the 17 definitions and the current one (sector, trigger, id, NPC), `gfMeanwhileTryingToStart`,
+`gfInMeanwhile`, the last scheduled id, the pending `EVENT_MEANWHILE` events (stamp, param, offset), the first-battle flag and
+sector, the profiles of the Queen, Elliot, Joe, Rat, Madlab, the robot and Iggy (sector, gridno, profile insertion,
+`bNPCData`), the quests 11, 8, 9 and 15, `FACT_MIKE_AVAILABLE_TO_ARMY`, the highest progress, the Queen's AI flag, the
+strategic status flags and capture count, the pause state and the world seconds:
+```
+meanwhiles                                          # dump only
+meanwhilepost kind=town|townloss|sam|outskirts|creature|flowers|chopper|awol|interrogation [param=]
+                                                    # the posting function (param: town, SAM site or flower code)
+firstbattle sector= autoresolve=0|1                 # HandleFirstBattleEndingWhileInTown
+trashworld                                          # HandleFirstMeanWhileSetUpWithTrashWorld
+meanwhilerun enemy=0|1                              # the first EVENT_MEANWHILE executed with fEnemyInSector set;
+                                                    # a scene that begins is skipped (BeginMeanwhileCallBack, No):
+                                                    # the event, the enemy groups and the reinforcement pool
+meanwhileplayed id=                                 # SetNPCMeanwhile for the scene's NPCs, then RestoreNPCMeanwhile
+hourlyprogress current= [highest=]                  # HourlyProgressUpdate with CurrentPlayerProgressPercentage forced
+capture who=<soldier ids> [alma=]                   # BeginCaptureSquence, EnemyCapturesPlayerSoldier each, End...:
+                                                    # the captives and the new history lines
+queendead                                           # STRATEGIC_AI_ACTION_QUEEN_DEAD and the evaluation events left
+```
+After a `sector O3`, `statue mode=remote|explosion [dist=] [gridno=]` runs `ChangeO3SectorStatue(FALSE)` or
+`HandleStatueDamaged` and prints the struct indexes at 13830, the exit grid at 13669 and its revealed flag before and after,
+and the skip flag. `meanwhile-compare.ts` imports the save into a campaign session and replays both streams strictly. The
+first `meanwhiles` after a load copies the pause state and the last scheduled id into the session: native loads keep the
+saved pause (ja2-node save sessions resume unpaused) and the last scheduled id is a static that survives loads. A `begun`
+scene is skipped the native way (the trying flag cleared, the implications, unlock and unpause). The statue probes run on a
+fresh O3 world per `sector` line and compare the statue tiles only. On 2026-10-16 all 62 probes matched on four native runs
+(different seeds) of SaveGame01, 02, 07, 08, 09, 10 and O3: every posting function (each scene once, Elliot counted at
+scheduling, the flower and chopper draws), the event delayed by enemies, the implications of each scene (the hard-only
+first-battle wake, the towns and SAM sites woken, the creature scene, the scientist with Madlab and the robot), the played
+NPC moves, the first-battle rules, the milestones, captures to Alma and to the interrogation, the Queen's death and the statue
+opened by the remote and by explosions at distance 0–2.
+
 ## Shipped probes
 
 | Script | Content |
@@ -1193,6 +1240,7 @@ unlock, a lock, a wake-up and the return of a default civilian from the away slo
 | `probes/heli.txt` | Skyrider's helicopter on SaveGame01, 02 and 10 (see "Helicopter") |
 | `probes/actions.txt` | NPC actions, requestor answers, NPC system events, Kingpin's money and the hospital on SaveGame01, 10 and 02 (see "NPC actions") |
 | `probes/schedules.txt` | NPC schedules on the six saves (see "Schedules") |
+| `probes/meanwhile.txt` | Meanwhile scenes, captures, milestones and the Queen's death on the six saves, the O3 statue (see "Meanwhile") |
 | `probes/give.txt` | Giving items and money to the NPCs, dealers and mercs of SaveGame02, 01, 07 and 10, the money rules of the absent NPCs, NPC gifts and the quest action items (see "Give") |
 | `probes/sectors.txt` | Edgepoints loaded and generated on eight maps, screen-space exit thresholds on both sides of every edge (A9, A10 basement), exit-grid checks in D13 and the basement, walk-off/walk-in/mirror from the centre and near the edges, class codes on the isolated maps H13 and I14, init list sorts and ten defence placements (A9, B13, C13, D13), and `OKForSectorExit` on SaveGame10, 07 (in combat) and 01 before and after moving mercs to an edge or an exit grid |
 
@@ -1342,6 +1390,11 @@ index 0). In `Handle_Items.cc`, right before `SoldierGiveItemFromAnimation`, `In
 `OracleGiveShop` and `OracleGiveOffer`, which call the real functions unless the `give` probe runs: then they record the call,
 and the conversation opens headless (the panel globals and `ConverseFull`, as `talk` does). Regenerate it like 0002 with those
 two paths (after 0014 is applied).
+
+`patches/0019-meanwhile-oracle.patch` (applied after the others) appends to `src/game/Strategic/Meanwhile.cc`:
+`OracleLastScheduledMeanwhileId` (the static `ubCurrentMeanWhileId`), `OracleSkipMeanwhile` (the static
+`BeginMeanwhileCallBack` with `MSG_BOX_RETURN_NO`), `OracleSetNpcMeanwhile` and `OracleRestoreNpcMeanwhile` (the static NPC
+moves of a played scene) and `OracleClearNpcMeanwhileSaves` (empties their save slots). Regenerate it like 0002 with that path.
 
 ## Notes
 

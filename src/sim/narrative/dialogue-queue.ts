@@ -30,6 +30,7 @@ export interface DialogueHandlers {
   triggerNpcRecord(npc: number, record: number): void;
   mikeCheck(): void;
   autoBandage(): boolean;
+  callback(name: string): void;
 }
 
 export function addDialogueEvent(host: Pick<NarrativeHost, 'talk'>, e: DialogueEvent): void {
@@ -172,6 +173,9 @@ function execute(host: NarrativeHost, h: DialogueHandlers, e: DialogueEvent): bo
       return false;
     case 'pcTriggerNpc':
       return executePcTrigger(host, e);
+    case 'callback':
+      h.callback(e.name);
+      return false;
   }
 }
 

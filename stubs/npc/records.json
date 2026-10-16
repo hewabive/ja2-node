@@ -63,9 +63,85 @@
           "actionData": { "code": 1 }
         }
       ]
+    },
+    {
+      "profile": 136,
+      "records": [
+        {
+          "index": 6,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "factMustBeTrue": 170,
+          "triggerNPC": "OLIVER",
+          "triggerRecord": 2,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 8,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 1,
+          "numQuotes": 1,
+          "quest": { "name": "CREATURES", "status": "INPROGRESS" },
+          "actionData": { "code": 254 }
+        }
+      ]
+    },
+    {
+      "profile": 137,
+      "records": [
+        {
+          "index": 2,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "actionData": { "code": 253 },
+          "eraseOnceSaid": true
+        }
+      ]
     }
   ],
   "recruited": {
     "records": [{ "index": 0, "requiredApproach": "TRIGGER_NPC", "lastDay": 255 }]
-  }
+  },
+  "meanwhiles": [
+    {
+      "file": "171.npc",
+      "note": "the stub Queen's interrogation (meanwhile 11)",
+      "records": [
+        { "index": 0, "requiredApproach": "TRIGGER_NPC", "quoteNum": 0, "numQuotes": 1, "triggerSelf": true, "triggerRecord": 1 },
+        { "index": 1, "requiredApproach": "TRIGGER_NPC", "quoteNum": 1, "numQuotes": 1, "actionData": { "code": 221 } },
+        { "index": 2, "requiredApproach": "TRIGGER_NPC", "quoteNum": 2, "numQuotes": 1, "triggerNPC": "ELLIOT", "triggerRecord": 1 },
+        { "index": 3, "requiredApproach": "TRIGGER_NPC", "quoteNum": 3, "numQuotes": 1, "triggerNPC": "ELLIOT", "triggerRecord": 1 },
+        { "index": 4, "requiredApproach": "TRIGGER_NPC", "quoteNum": 4, "numQuotes": 1, "actionData": { "code": 37 } },
+        {
+          "index": 5,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 5,
+          "numQuotes": 1,
+          "actionData": { "code": 53 },
+          "triggerNPC": "ELLIOT",
+          "triggerRecord": 1
+        },
+        { "index": 6, "requiredApproach": "DONE_PUNCH_1", "quoteNum": 6, "numQuotes": 1, "triggerNPC": "ELLIOT", "triggerRecord": 1 },
+        { "index": 7, "requiredApproach": "DONE_SLAPPED", "quoteNum": 7, "numQuotes": 1 }
+      ]
+    },
+    {
+      "file": "191.npc",
+      "note": "the stub aide's interrogation lines (meanwhile 11)",
+      "records": [
+        {
+          "index": 1,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "actionData": { "code": 222 },
+          "triggerSelf": true,
+          "triggerRecord": 2
+        },
+        { "index": 2, "requiredApproach": "TRIGGER_NPC", "quoteNum": 1, "numQuotes": 1, "actionData": { "code": 223 } }
+      ]
+    }
+  ]
 }

@@ -167,6 +167,8 @@ export function queueEntry(e: DialogueEvent): Json {
       return { kind: 'give', args: [e.npc, e.slot, 0, 0] };
     case 'pcTriggerNpc':
       return { kind: 'pctrigger', args: [e.speaker, e.quote, e.npc, e.record] };
+    case 'callback':
+      return { kind: 'callback', args: [0, 0, 0, 0] };
   }
 }
 

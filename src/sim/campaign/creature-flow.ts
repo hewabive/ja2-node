@@ -7,8 +7,7 @@
 
 import { CreatureHabitat } from '../../content/strategic/creature-lairs.ts';
 import { type Sector, sectorId, sectorShortString } from '../../content/strategic/sector-ids.ts';
-import { Meanwhile } from '../strategic/ai/constants.ts';
-import { scheduleMeanwhileEvent } from '../strategic/ai/meanwhile.ts';
+import { handleCreatureRelease } from '../strategic/ai/meanwhile.ts';
 import {
   CREATURE_WEIGHTS_BY_HABITAT,
   CreatureBattleCode,
@@ -33,11 +32,9 @@ import { playerGroupsInSector } from '../strategic/forces/groups.ts';
 import { findUndergroundSector, sectorInfo } from '../strategic/map/sectors.ts';
 import { EventKind } from '../strategic/time/constants.ts';
 import type { EventDispatch } from '../strategic/time/dispatch.ts';
-import { interruptTime, worldTotalMinutes } from '../strategic/time/world-clock.ts';
+import { interruptTime } from '../strategic/time/world-clock.ts';
 import type { CreatureCounts } from '../tactical/init-list.ts';
 import type { CampaignSim } from './campaign-sim.ts';
-
-const MEANWHILE_DELAY_MINUTES = 5;
 
 export interface CreatureBattleSetup {
   readonly queen: boolean;
@@ -63,7 +60,7 @@ export class CreatureFlow {
       preRandom: economy.preRandom,
       scheduleCreatureMeanwhile: () => {
         const q = c.queen;
-        if (q) scheduleMeanwhileEvent(q, Meanwhile.CREATURES, worldTotalMinutes(c.state.clock) + MEANWHILE_DELAY_MINUTES);
+        if (q) handleCreatureRelease(q);
       },
     };
   }

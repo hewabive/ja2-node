@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/PreBattle_Interface.h (saved PBI globals); Auto_Resolve.cc gsEnemyGainedControlOfSectorID,
-// @src gsCiviliansEatenByMonsters; Strategic/Quests.h FACT_FIRST_BATTLE_*. See docs/19 §1.1, §5.
+// @src gsCiviliansEatenByMonsters; Strategic/Quests.h FACT_FIRST_BATTLE_*; Tactical/Overhead_Types.h ubLastBattleSector,
+// @src fLastBattleWon. See docs/19 §1.1, §5, docs/26 §0.
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import type { Rng } from '../../../core/rng.ts';
@@ -105,6 +106,8 @@ export interface BattleState {
   promptSeq: number;
   prompt: BattlePrompt | null;
   autoresolve: AutoresolveSession | null;
+  lastBattleSector: { readonly x: number; readonly y: number } | null;
+  lastBattleWon: boolean;
 }
 
 export function createBattleState(): BattleState {
@@ -122,6 +125,8 @@ export function createBattleState(): BattleState {
     promptSeq: 0,
     prompt: null,
     autoresolve: null,
+    lastBattleSector: null,
+    lastBattleWon: false,
   };
 }
 

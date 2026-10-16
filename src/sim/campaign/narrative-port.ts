@@ -9,6 +9,7 @@
 import { i8 } from '../../core/int.ts';
 import { decrementTownLoyalty, incrementTownLoyalty, reduceLoyaltyForRebelsBetrayed } from '../strategic/economy/loyalty.ts';
 import { setUpHelicopterForPlayer } from '../strategic/forces/helicopter.ts';
+import { findUndergroundSector } from '../strategic/map/sectors.ts';
 import { makeCivGroupHostileOnNextSectorEntrance } from '../strategic/narrative/civ-groups.ts';
 import { questStatus } from '../strategic/narrative/facts.ts';
 import { EventKind } from '../strategic/time/constants.ts';
@@ -68,10 +69,25 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
       if (campaign.strategic) setUpHelicopterForPlayer(campaign.strategic, sector);
     },
     npcAction: (profile, code, record) => campaign.talk?.npcActions.handle(profile, code, record),
+    inMeanwhile: () => campaign.strategic?.world.inMeanwhile() ?? false,
+    meanwhileId: () => s.meanwhile.current.id,
+    deidrannaDied: (killer, gridNo, level) => campaign.endgame.deidrannaDied(killer, gridNo, level),
+    creatureQueenDied: (killer, gridNo, level) => campaign.endgame.creatureQueenDied(killer, gridNo, level),
+    powPathChecks: () => campaign.pows.doPowPathChecks(),
+    queenCanFlee: () => !s.queen.useAlternateQueenPosition,
+    palaceBasementSecured: () => palaceBasementSecured(s),
   };
 }
 
 const SECONDS_PER_MINUTE = 60;
+const PALACE_BASEMENT = { x: 3, y: 16, z: 1 } as const;
+const PALACE_BASEMENT_ENEMY_LIMIT = 5;
+
+function palaceBasementSecured(s: CampaignSim['state']): boolean {
+  const basement = findUndergroundSector(s.map, PALACE_BASEMENT);
+  if (!basement || basement.timeLastLoaded === 0) return false;
+  return basement.numAdmins + basement.numTroops + basement.numElites < PALACE_BASEMENT_ENEMY_LIMIT;
+}
 
 export function campaignScheduleClock(campaign: CampaignSim): ScheduleClock {
   const s = campaign.state;

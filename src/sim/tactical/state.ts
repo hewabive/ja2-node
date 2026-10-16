@@ -19,7 +19,7 @@ import { createExplosivesState, type ExplosivesState, type WorldClockSource } fr
 import type { GameEvent } from './game-events.ts';
 import type { SoldierInitNode } from './init-list.ts';
 import { createLightingState, type LightingState } from './lighting/lighting.ts';
-import type { MapChange } from './map-changes.ts';
+import type { AddedExitGrid, MapChange } from './map-changes.ts';
 import { multiTileShape } from './multi-tile.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from './narrative/port.ts';
 import { createScheduleList, NO_SCHEDULE_CLOCK, type ScheduleClock, type ScheduleList } from './narrative/schedule-state.ts';
@@ -178,6 +178,7 @@ export interface SectorHooks {
   militiaFinishBattle(t: TacticalState): boolean;
   battleLost(t: TacticalState): void;
   battleEnded(t: TacticalState, result: BattleResult): void;
+  combatEntered(t: TacticalState): void;
 }
 
 export const NO_SECTOR_HOOKS: SectorHooks = {
@@ -190,6 +191,7 @@ export const NO_SECTOR_HOOKS: SectorHooks = {
   militiaFinishBattle: () => false,
   battleLost: () => {},
   battleEnded: () => {},
+  combatEntered: () => {},
 };
 
 export interface TacticalState {
@@ -233,6 +235,7 @@ export interface TacticalState {
   edgepointReservations: number[] | null;
   initList: SoldierInitNode[];
   readonly mapChanges: MapChange[];
+  readonly addedExitGrids: AddedExitGrid[];
   mercsWaiting: MercsWaiting | null;
   ignoreAllObstacles: boolean;
   sectorHooks: SectorHooks;
@@ -345,6 +348,7 @@ export function createTacticalState(
     edgepointReservations: null,
     initList: [],
     mapChanges: [],
+    addedExitGrids: [],
     mercsWaiting: null,
     ignoreAllObstacles: false,
     sectorHooks: NO_SECTOR_HOOKS,
