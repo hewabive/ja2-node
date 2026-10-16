@@ -21,9 +21,15 @@ function describeSession(session: Session): Record<string, unknown> {
   };
 }
 
-export type SessionFactory = (id: string, seed: number) => Promise<Session>;
+export interface SessionRequest {
+  readonly seed: number;
+  readonly save?: string;
+}
+
+export type SessionFactory = (id: string, request: SessionRequest) => Promise<Session>;
 
 const MAX_SESSIONS = 16;
+export const SAVE_NAME = /^[A-Za-z0-9_-]{1,64}$/;
 
 export function buildMcpServer(sessions: Map<string, Session>, defaultSession: string, createSession?: SessionFactory): McpServer {
   const server = new McpServer(SERVER_INFO);
@@ -44,15 +50,18 @@ export function buildMcpServer(sessions: Map<string, Session>, defaultSession: s
       'newSession',
       {
         description:
-          'Start a fresh sandbox game in its own session (same map and squad, independent state) and return its id; pass it as "session" to the other tools. Optional seed for the random streams.',
-        inputSchema: { seed: z.number().int().nonnegative().optional() },
+          'Start a fresh game in its own session and return its id; pass it as "session" to the other tools. Without "save" it is the sandbox (same map and squad, independent state); with "save" (a file name from the original game\'s SavedGames folder without .sav, e.g. SaveGame07) it continues that native savegame\'s tactical situation. Optional seed for the random streams.',
+        inputSchema: {
+          seed: z.number().int().nonnegative().optional(),
+          save: z.string().regex(SAVE_NAME).optional(),
+        },
       },
-      async ({ seed }) => {
+      async ({ seed, save }) => {
         if (sessions.size >= MAX_SESSIONS) throw new Error(`at most ${MAX_SESSIONS} sessions`);
         let n = sessions.size;
         while (sessions.has(`${defaultSession}-${n}`)) n++;
         const id = `${defaultSession}-${n}`;
-        const created = await createSession(id, seed ?? n);
+        const created = await createSession(id, { seed: seed ?? n, ...(save ? { save } : {}) });
         sessions.set(id, created);
         return text(describeSession(created));
       },

@@ -620,7 +620,7 @@ and in CI only on them.
   moment, load it in ours and compare derived values: hit chance, path
   cost, visibility, AI decision. Later this also becomes a feature for players: "continue your
   campaign in the browser".
-  The reader (`.sav` → structured data, no rebuild yet) and the format are in `docs/14-savegames.md`.
+  The reader, the format and the import of the loaded sector into a tactical session are in `docs/14-savegames.md`.
 - **Probe mode** (exists, `tools/oracle/README.md`). With `JA2_ORACLE=<script>` the patched build
   starts headless, loads a sector map or a save, runs scripted probes (`FindBestPath`, `LineOfSightTest`,
   `SoldierToSoldierLineOfSightTest`, the `gubWorldMovementCosts` dump) and prints JSONL.
@@ -857,4 +857,8 @@ Specs: `docs/10` (turn-based), `11` (attacks and damage), `12` (items and explos
     stub mercs carry pistols, and MCP `newSession` gives every agent its own seeded sandbox. The e2e test
     `tests/e2e/battle.spec.ts` is an agent that walks into the garrison and fights it through MCP alone.
 
-**Not in M3 yet**: save import.
+12. **Save import** (`sim/tactical/save-import.ts`, `docs/14` §10): a native `.sav` becomes a tactical session
+    (soldiers, items, corpses, openable structures, doors, opplists, turn state, `PreRandom`); MCP
+    `newSession {save}` and `JA2_SAVE` start one. `tools/oracle/save-probes.ts` and `compare.ts` check soldier state,
+    hit chances, AI best shots, sight and paths against the native build on the user's six saves: 6,075 comparisons
+    match. The known gap is lighting: map light sprites are not simulated, so lit tiles at night differ.

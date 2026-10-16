@@ -37,10 +37,14 @@ import {
 import {
   decodeDoorStatusFile,
   decodeDoorTableFile,
+  decodeMapModificationsFile,
+  decodeRottingCorpsesFile,
   decodeWorldItemsFile,
   readSectorTempFiles,
+  type SavedCorpse,
   type SavedDoor,
   type SavedDoorStatus,
+  type SavedMapModification,
   type SavedWorldItem,
   type SectorTempFile,
 } from './savegame-temp-files.ts';
@@ -319,6 +323,8 @@ export interface CurrentSectorState {
   readonly worldItems: readonly SavedWorldItem[] | null;
   readonly doors: readonly SavedDoor[] | null;
   readonly doorStatus: readonly SavedDoorStatus[] | null;
+  readonly corpses: readonly SavedCorpse[] | null;
+  readonly mapModifications: readonly SavedMapModification[] | null;
 }
 
 export interface PreRandomTable {
@@ -623,11 +629,15 @@ function currentSectorState(sector: SectorPosition, files: readonly SectorTempFi
   const items = file('items');
   const doors = file('doorTable');
   const status = file('doorStatus');
+  const corpses = file('rottingCorpses');
+  const modifications = file('mapModifications');
   return {
     sector,
     worldItems: items ? decodeWorldItemsFile(items) : null,
     doors: doors ? decodeDoorTableFile(doors) : null,
     doorStatus: status ? decodeDoorStatusFile(status) : null,
+    corpses: corpses ? decodeRottingCorpsesFile(corpses) : null,
+    mapModifications: modifications ? decodeMapModificationsFile(modifications) : null,
   };
 }
 

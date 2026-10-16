@@ -95,6 +95,15 @@ export interface PreRandomState {
   readonly index: number;
 }
 
+function checkPreRandomState(state: PreRandomState): void {
+  if (state.ring.length !== PRE_RANDOM_RING_SIZE) {
+    throw new RangeError(`PreRandom ring must have ${PRE_RANDOM_RING_SIZE} numbers`);
+  }
+  if (!Number.isInteger(state.index) || state.index < 0 || state.index >= PRE_RANDOM_RING_SIZE) {
+    throw new RangeError(`PreRandom index out of range: ${state.index}`);
+  }
+}
+
 export class PreRandom {
   readonly #ring: Uint32Array;
   #index: number;
@@ -113,13 +122,14 @@ export class PreRandom {
   }
 
   static fromState(state: PreRandomState, refill: Rng): PreRandom {
-    if (state.ring.length !== PRE_RANDOM_RING_SIZE) {
-      throw new RangeError(`PreRandom ring must have ${PRE_RANDOM_RING_SIZE} numbers`);
-    }
-    if (!Number.isInteger(state.index) || state.index < 0 || state.index >= PRE_RANDOM_RING_SIZE) {
-      throw new RangeError(`PreRandom index out of range: ${state.index}`);
-    }
+    checkPreRandomState(state);
     return new PreRandom(Uint32Array.from(state.ring), state.index, refill);
+  }
+
+  restore(state: PreRandomState): void {
+    checkPreRandomState(state);
+    this.#ring.set(state.ring);
+    this.#index = state.index;
   }
 
   state(): PreRandomState {

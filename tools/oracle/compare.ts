@@ -1,22 +1,47 @@
 import { readFileSync } from 'node:fs';
-import { loadTacticalWorld } from '../../src/content/world/tactical-world.ts';
+import { basename, dirname, join } from 'node:path';
+import { loadTacticalWorld, type TacticalWorld } from '../../src/content/world/tactical-world.ts';
 import { openDataVfs } from '../../src/node/data-vfs.ts';
 import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR } from '../../src/node/repo.ts';
+import { createSaveSession } from '../../src/server/save-session.ts';
+import { calcBestShot } from '../../src/sim/tactical/ai/attack-choice.ts';
 import { plotPathCost } from '../../src/sim/tactical/ai/utils.ts';
 import { anim } from '../../src/sim/tactical/anim-states.ts';
-import { initNewSoldierAnim } from '../../src/sim/tactical/animation.ts';
+import { AnimHeight, endHeight, initNewSoldierAnim } from '../../src/sim/tactical/animation.ts';
+import { calcTotalAPsToAttack } from '../../src/sim/tactical/combat/ap.ts';
+import { soldierToLocationChanceToGetThrough, soldierToSoldierBodyPartChanceToGetThrough } from '../../src/sim/tactical/combat/bullets.ts';
+import { calcChanceToHitGun } from '../../src/sim/tactical/combat/chance.ts';
 import { soldierToSoldierLos } from '../../src/sim/tactical/combat/positions.ts';
+import { AimShot, WeaponMode } from '../../src/sim/tactical/combat/types.ts';
+import type { TacticalContent } from '../../src/sim/tactical/content.ts';
+import { InvSlot, itemIn } from '../../src/sim/tactical/inventory.ts';
 import { loadTacticalContent } from '../../src/sim/tactical/load-content.ts';
 import { setSoldierPosition } from '../../src/sim/tactical/movement.ts';
 import { findBestPath, type MoveMode } from '../../src/sim/tactical/pathfinding.ts';
 import { landHeightUnits, lineOfSightTest } from '../../src/sim/tactical/perception/los.ts';
-import { createSoldier, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
-import { registerSoldier, unregisterSoldier } from '../../src/sim/tactical/state.ts';
+import { distanceVisible } from '../../src/sim/tactical/perception/sight.ts';
+import { calcActionPoints } from '../../src/sim/tactical/points.ts';
+import {
+  effectiveAgility,
+  effectiveDexterity,
+  effectiveExpLevel,
+  effectiveMarksmanship,
+  effectiveWisdom,
+} from '../../src/sim/tactical/skills.ts';
+import { createSoldier, NOWHERE, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
+import { registerSoldier, unregisterSoldier, whoIsThere } from '../../src/sim/tactical/state.ts';
 import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 
 type Json = Record<string, unknown>;
+type ReadFile = (path: string) => Promise<Uint8Array | null>;
 
-const MAP = 'maps/a9.dat';
+interface Context {
+  readonly sim: TacticalSim;
+  readonly save: boolean;
+}
+
+const DEFAULT_MAP = 'maps/a9.dat';
+const ORACLE_NOWHERE = 25601;
 const HEIGHT_UNITS = 256;
 const STANCE_STATE: Readonly<Record<string, string>> = { stand: 'STANDING', crouch: 'CROUCHING', prone: 'PRONE' };
 const STANCE_Z: Readonly<Record<string, number>> = { stand: 175, crouch: 111, prone: 31 };
@@ -29,6 +54,9 @@ const TEAM: Readonly<Record<string, number>> = {
   civ: Team.CIV,
   creature: Team.CREATURE,
 };
+const AIM_RANDOM = 0;
+const OPPLIST_ENTRIES = 148;
+const IRRELEVANT_DIRECTION = -1;
 
 function readLines(path: string): Json[] {
   return readFileSync(path, 'utf8')
@@ -41,6 +69,13 @@ function fnv1a32(bytes: Uint8Array): number {
   let h = 0x811c9dc5;
   for (const b of bytes) h = Math.imul(h ^ b, 0x01000193) >>> 0;
   return h;
+}
+
+const grid = (g: unknown) => (Number(g) === ORACLE_NOWHERE ? NOWHERE : Number(g));
+
+function report(label: string, same: boolean, detail: string): number {
+  console.log(`${label}: ${same ? 'ok' : 'MISMATCH'} ${detail}`);
+  return same ? 0 : 1;
 }
 
 function probeSoldier(sim: TacticalSim, id: number, team: number, info: Json): Soldier {
@@ -77,73 +112,323 @@ function probeSoldier(sim: TacticalSim, id: number, team: number, info: Json): S
   return s;
 }
 
-function comparePaths(sim: TacticalSim, lines: Json[]): number {
-  const t = sim.state;
-  let failures = 0;
-  for (const p of lines.filter((l) => l.probe === 'path')) {
-    const soldier = p.soldier as Json;
-    const s = probeSoldier(sim, Number(soldier.id), Number(soldier.team), soldier);
+function existing(ctx: Context, info: Json): Soldier | null {
+  return ctx.sim.state.soldiers[Number(info.id)] ?? null;
+}
+
+function withSoldier<T>(ctx: Context, info: Json, team: number, use: (s: Soldier) => T): T {
+  const found = ctx.save ? existing(ctx, info) : null;
+  if (found) return use(found);
+  const s = probeSoldier(ctx.sim, Number(info.id), team, info);
+  try {
+    return use(s);
+  } finally {
+    unregisterSoldier(ctx.sim.state, s);
+  }
+}
+
+function comparePath(ctx: Context, p: Json): number {
+  const t = ctx.sim.state;
+  const soldier = p.soldier as Json;
+  return withSoldier(ctx, soldier, Number(soldier.team), (s) => {
     const mode = MODE[String(p.mode)] ?? 'WALKING';
     const route = findBestPath(t.pathEnv, s, Number(p.to), Number(p.toLevel ?? 0), { mode, flags: Number(p.flags ?? 0) });
     const apCost = route.length === 0 ? 0 : plotPathCost(t, s, Number(p.to), anim(t.content, mode));
     const expected = (p.directions as number[] | undefined) ?? [];
     const same = route.length === Number(p.length) && route.steps.every((d, i) => d === expected[i]) && apCost === Number(p.apCost);
-    if (!same) failures++;
-    console.log(
-      `path line ${p.line} ${p.from}→${p.to} ${p.mode}: ${same ? 'ok' : 'MISMATCH'} length ${route.length}/${p.length} ap ${apCost}/${p.apCost}`,
-    );
-    unregisterSoldier(t, s);
-  }
-  return failures;
+    return report(`path line ${p.line} ${p.from}→${p.to} ${p.mode}`, same, `length ${route.length}/${p.length} ap ${apCost}/${p.apCost}`);
+  });
 }
 
-function compareLos(sim: TacticalSim, lines: Json[]): number {
-  const t = sim.state;
+function compareLos(ctx: Context, p: Json): number {
+  const t = ctx.sim.state;
   const world = { structures: t.world.structures, heights: t.world.level.heights };
-  let failures = 0;
-  for (const p of lines.filter((l) => l.probe === 'los')) {
+  let los: number | null = null;
+  if (p.lineOfSight !== undefined) {
     const from = Number(p.from);
     const to = Number(p.to);
     const fromZ = (STANCE_Z[String(p.stance)] ?? 175) + Number(p.level ?? 0) * HEIGHT_UNITS + landHeightUnits(world, from);
     const toZ = (STANCE_Z[String(p.toStance)] ?? 175) + Number(p.toLevel ?? 0) * HEIGHT_UNITS + landHeightUnits(world, to);
-    const treeReduction = TREE_REDUCTION[String(p.toStance)] ?? 6;
-    const options = {
+    los = lineOfSightTest(world, from, fromZ, to, toZ, {
       tileLimit: Number(p.tileLimit ?? 255),
-      treeReduction,
+      treeReduction: TREE_REDUCTION[String(p.toStance)] ?? 6,
       aware: Number(p.aware ?? 1) !== 0,
       camo: 0,
       disallowSight: false,
-    };
-    const los = lineOfSightTest(world, from, fromZ, to, toZ, options);
-    let s2s: number | null = null;
-    if (p.viewer && p.target) {
-      const viewer = probeSoldier(sim, Number((p.viewer as Json).id), TEAM.enemy ?? Team.ENEMY, p.viewer as Json);
-      const target = probeSoldier(sim, Number((p.target as Json).id), TEAM.player ?? Team.OUR, p.target as Json);
-      s2s = soldierToSoldierLos(t, viewer, target, Number(p.tileLimit ?? 255), Number(p.aware ?? 1) !== 0);
-      unregisterSoldier(t, target);
-      unregisterSoldier(t, viewer);
-    }
-    const same = los === Number(p.lineOfSight) && (s2s === null || s2s === Number(p.soldierToSoldier));
-    if (!same) failures++;
-    console.log(
-      `los line ${p.line} ${from}→${to} ${p.stance}/${p.toStance}: ${same ? 'ok' : 'MISMATCH'} los ${los}/${p.lineOfSight} s2s ${s2s}/${p.soldierToSoldier}`,
+    });
+  }
+  let s2s: number | null = null;
+  if (p.viewer && p.target) {
+    s2s = withSoldier(ctx, p.viewer as Json, TEAM.enemy ?? Team.ENEMY, (viewer) =>
+      withSoldier(ctx, p.target as Json, TEAM.player ?? Team.OUR, (target) =>
+        soldierToSoldierLos(t, viewer, target, Number(p.tileLimit ?? 255), Number(p.aware ?? 1) !== 0),
+      ),
     );
   }
-  return failures;
+  const same = (los === null || los === Number(p.lineOfSight)) && (s2s === null || s2s === Number(p.soldierToSoldier));
+  return report(
+    `los line ${p.line} ${p.from ?? (p.viewer as Json)?.id}→${p.to ?? (p.target as Json)?.id}`,
+    same,
+    `los ${los}/${p.lineOfSight} s2s ${s2s}/${p.soldierToSoldier}`,
+  );
 }
 
-function compareCosts(sim: TacticalSim, lines: Json[]): number {
-  const probe = lines.find((l) => l.probe === 'costs');
-  if (!probe) return 0;
-  const ours = sim.state.world.costs.values;
+function compareCosts(ctx: Context, probe: Json): number {
+  const ours = ctx.sim.state.world.costs.values;
   const hash = fnv1a32(ours).toString(16);
   let differing = 0;
   if (typeof probe.base64 === 'string') {
     const theirs = new Uint8Array(Buffer.from(probe.base64, 'base64'));
     for (let k = 0; k < theirs.length; k++) if (theirs[k] !== ours[k]) differing++;
   }
-  console.log(`costs: fnv1a32 ${hash}/${probe.fnv1a32}, ${differing} differing entries`);
-  return hash === probe.fnv1a32 && differing === 0 ? 0 : 1;
+  return report('costs', hash === probe.fnv1a32 && differing === 0, `fnv1a32 ${hash}/${probe.fnv1a32}, ${differing} differing entries`);
+}
+
+function soldierFacts(ctx: Context, s: Soldier): Json {
+  const t = ctx.sim.state;
+  return {
+    gridNo: s.gridNo,
+    level: s.level,
+    x: s.x,
+    y: s.y,
+    direction: s.direction,
+    desiredDirection: s.desiredDirection,
+    animState: s.state,
+    life: s.life,
+    lifeMax: s.lifeMax,
+    breath: s.breath,
+    breathMax: s.breathMax,
+    breathRed: s.breathRed,
+    bleeding: s.bleeding,
+    ap: s.actionPoints,
+    initialAp: s.initialActionPoints,
+    apPerTurn: calcActionPoints(t.content, s),
+    morale: s.morale,
+    aiMorale: s.ai.morale,
+    alert: s.ai.alertStatus,
+    orders: s.ai.orders,
+    attitude: s.ai.attitude,
+    visible: s.visible,
+    lastTarget: s.lastTarget,
+    effective: {
+      marksmanship: effectiveMarksmanship(s),
+      dexterity: effectiveDexterity(s),
+      agility: effectiveAgility(s),
+      wisdom: effectiveWisdom(s),
+      expLevel: effectiveExpLevel(s),
+    },
+    personality: s.personalityTrait,
+    oppList: Array.from(s.oppList.subarray(0, OPPLIST_ENTRIES)),
+    inventory: s.inv.flatMap((o, slot) => (o.item ? [{ slot, item: o.item, count: o.count, status: o.status[0] ?? 0 }] : [])),
+  };
+}
+
+function oracleFacts(o: Json): Json {
+  const inventory = (o.inventory as Json[]).map((i) => ({ slot: i.slot, item: i.item, count: i.count, status: i.status }));
+  return {
+    gridNo: o.gridNo,
+    level: o.level,
+    x: o.x,
+    y: o.y,
+    direction: o.direction,
+    desiredDirection: o.desiredDirection,
+    animState: o.animState,
+    life: o.life,
+    lifeMax: o.lifeMax,
+    breath: o.breath,
+    breathMax: o.breathMax,
+    breathRed: o.breathRed,
+    bleeding: o.bleeding,
+    ap: o.ap,
+    initialAp: o.initialAp,
+    apPerTurn: o.apPerTurn,
+    morale: o.morale,
+    aiMorale: o.aiMorale,
+    alert: o.alert,
+    orders: o.orders,
+    attitude: o.attitude,
+    visible: o.visible,
+    lastTarget: grid(o.lastTarget),
+    effective: o.effective,
+    personality: o.personality,
+    oppList: (o.oppList as number[]).slice(0, OPPLIST_ENTRIES),
+    inventory,
+  };
+}
+
+function compareSoldier(ctx: Context, o: Json, line: unknown): number {
+  const s = ctx.sim.state.soldiers[Number(o.id)];
+  if (!s?.placed) return report(`soldier ${o.id} line ${line}`, false, 'missing in ja2-node');
+  const ours = soldierFacts(ctx, s);
+  const theirs = oracleFacts(o);
+  const differing = Object.keys(theirs).filter((k) => JSON.stringify(ours[k]) !== JSON.stringify(theirs[k]));
+  const detail = differing.map((k) => `${k} ${JSON.stringify(ours[k])}/${JSON.stringify(theirs[k])}`).join('; ');
+  return report(`soldier ${o.id} line ${line}`, differing.length === 0, detail);
+}
+
+function compareSoldiers(ctx: Context, p: Json): number {
+  if (p.probe === 'soldier') return compareSoldier(ctx, p.soldier as Json, p.line);
+  if (!p.detail) return 0;
+  return (p.soldiers as Json[]).reduce((n, o) => n + compareSoldier(ctx, o, p.line), 0);
+}
+
+const LOCATION_PART: Readonly<Record<string, number>> = {
+  torso: AimShot.TORSO,
+  head: AimShot.HEAD,
+  legs: AimShot.LEGS,
+  random: AimShot.RANDOM,
+};
+
+interface Estimate {
+  readonly chance: number;
+  readonly apCost: number;
+  readonly chanceToGetThrough: number;
+}
+
+function estimateShot(ctx: Context, s: Soldier, target: number, level: number, aim: number, part: number): Estimate {
+  const t = ctx.sim.state;
+  const saved = { ...s, inv: s.inv };
+  const victim = whoIsThere(t, target, level);
+  s.aimTime = aim;
+  s.aimShotLocation = victim && endHeight(t.content, victim.state) !== AnimHeight.PRONE ? part : AimShot.RANDOM;
+  s.weaponMode = WeaponMode.NORMAL;
+  s.doBurst = 0;
+  s.attackingHand = InvSlot.HAND;
+  s.attackingWeapon = itemIn(s.inv, InvSlot.HAND);
+  s.targetLevel = level;
+  s.targetCubeLevel = 0;
+  const apCost = calcTotalAPsToAttack(t, s, victim ? victim.gridNo : target, true, aim);
+  const chance = calcChanceToHitGun(t, s, target, aim, s.aimShotLocation, false);
+  const chanceToGetThrough = victim
+    ? soldierToSoldierBodyPartChanceToGetThrough(t, s, victim, s.aimShotLocation)
+    : soldierToLocationChanceToGetThrough(t, s, target, level, 0, null);
+  Object.assign(s, {
+    aimTime: saved.aimTime,
+    aimShotLocation: saved.aimShotLocation,
+    weaponMode: saved.weaponMode,
+    doBurst: saved.doBurst,
+    attackingHand: saved.attackingHand,
+    attackingWeapon: saved.attackingWeapon,
+    targetLevel: saved.targetLevel,
+    targetCubeLevel: saved.targetCubeLevel,
+    ctgtTarget: saved.ctgtTarget,
+  });
+  return { chance, apCost, chanceToGetThrough };
+}
+
+function compareCth(ctx: Context, p: Json): number {
+  const s = ctx.sim.state.soldiers[Number(p.shooter)];
+  if (!s) return report(`cth line ${p.line} ${p.shooter}`, false, 'missing in ja2-node');
+  let failures = 0;
+  for (const r of p.results as Json[]) {
+    const e = estimateShot(
+      ctx,
+      s,
+      Number(p.targetGridNo),
+      Number(p.targetLevel ?? 0),
+      Number(r.aim),
+      LOCATION_PART[String(p.location)] ?? AimShot.TORSO,
+    );
+    const same = e.chance === r.chance && e.apCost === r.apCost && e.chanceToGetThrough === p.chanceToGetThrough;
+    failures += report(
+      `cth line ${p.line} ${p.shooter}→${p.target ?? p.targetGridNo} ${p.location} aim ${r.aim}`,
+      same,
+      `chance ${e.chance}/${r.chance} ap ${e.apCost}/${r.apCost} ctgt ${e.chanceToGetThrough}/${p.chanceToGetThrough}`,
+    );
+  }
+  return failures;
+}
+
+function compareBestShot(ctx: Context, p: Json): number {
+  const t = ctx.sim.state;
+  const s = t.soldiers[Number(p.who)];
+  if (!s) return report(`bestshot line ${p.line} ${p.who}`, false, 'missing in ja2-node');
+  const others = t.soldiers.filter((x): x is Soldier => x !== undefined);
+  const saved = {
+    aimShotLocation: s.aimShotLocation,
+    attackingWeapon: s.attackingWeapon,
+    dontChargeReadyAPs: s.dontChargeReadyAPs,
+    targets: others.map((x) => x.ctgtTarget),
+  };
+  if (!p.keepAim) s.aimShotLocation = AIM_RANDOM;
+  const best = calcBestShot(t, s);
+  Object.assign(s, {
+    aimShotLocation: saved.aimShotLocation,
+    attackingWeapon: saved.attackingWeapon,
+    dontChargeReadyAPs: saved.dontChargeReadyAPs,
+  });
+  others.forEach((x, k) => {
+    x.ctgtTarget = saved.targets[k] ?? null;
+  });
+  const ours = {
+    possible: best.possible,
+    opponent: best.opponent?.id ?? null,
+    target: best.possible ? best.target : NOWHERE,
+    aimTime: best.aimTime,
+    chanceToReallyHit: best.chanceToReallyHit,
+    apCost: best.apCost,
+    attackValue: best.attackValue,
+  };
+  const theirs = {
+    possible: p.possible,
+    opponent: p.opponent,
+    target: p.possible ? grid(p.target) : NOWHERE,
+    aimTime: p.aimTime,
+    chanceToReallyHit: p.chanceToReallyHit,
+    apCost: p.apCost,
+    attackValue: p.attackValue,
+  };
+  const differing = (Object.keys(theirs) as (keyof typeof theirs)[]).filter((k) => ours[k] !== theirs[k]);
+  return report(
+    `bestshot line ${p.line} ${p.who}`,
+    differing.length === 0,
+    JSON.stringify(ours) + (differing.length ? ` vs ${JSON.stringify(theirs)}` : ''),
+  );
+}
+
+function compareLight(ctx: Context, p: Json): number {
+  const t = ctx.sim.state;
+  const viewer = p.viewer === undefined ? null : t.soldiers[Number(p.viewer)];
+  const ours = {
+    ambient: t.perception.ambientLight,
+    trueLevel: t.perception.ambientLight,
+    distanceVisible: viewer
+      ? distanceVisible(t, viewer, IRRELEVANT_DIRECTION, IRRELEVANT_DIRECTION, Number(p.g), Number(p.level ?? 0))
+      : undefined,
+  };
+  const same = ours.ambient === p.ambient && ours.trueLevel === p.trueLevel && ours.distanceVisible === p.distanceVisible;
+  return report(
+    `light line ${p.line} ${p.g}`,
+    same,
+    `${JSON.stringify(ours)} vs ambient ${p.ambient} trueLevel ${p.trueLevel} distanceVisible ${p.distanceVisible}`,
+  );
+}
+
+function savesDir(dataDir: string): string {
+  if (process.env.JA2_SAVES_DIR) return process.env.JA2_SAVES_DIR;
+  const root = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
+  return join(root, 'SavedGames');
+}
+
+async function sectorContext(
+  read: ReadFile,
+  content: TacticalContent,
+  worlds: Map<string, TacticalWorld>,
+  p: Json | null,
+): Promise<Context> {
+  const map = p ? `maps/${String(p.map ?? `${p.sector}.dat`).toLowerCase()}` : DEFAULT_MAP;
+  let world = worlds.get(map);
+  if (!world) {
+    world = await loadTacticalWorld(read, map);
+    worlds.set(map, world);
+  }
+  return { sim: new TacticalSim(world, content, 1), save: false };
+}
+
+async function saveContext(read: ReadFile, dataDir: string, p: Json): Promise<Context> {
+  const bytes = new Uint8Array(readFileSync(join(savesDir(dataDir), `${String(p.name)}.sav`)));
+  const { session } = await createSaveSession(read, bytes);
+  return { sim: session.sim, save: true };
 }
 
 const files = process.argv.slice(2);
@@ -156,17 +441,33 @@ const data = await openDataVfs({
   dataDir: process.env.JA2_DATA_DIR || undefined,
   stubsDir: DEFAULT_STUBS_DIR,
 });
-if (data.dataDir === null) {
+const dataDir = data.dataDir;
+if (dataDir === null) {
   console.error('JA2_DATA_DIR is required');
   process.exit(2);
 }
-const read = async (p: string) => (data.vfs.stat(p) ? data.vfs.read(p) : null);
-const [world, content] = await Promise.all([loadTacticalWorld(read, MAP), loadTacticalContent(read)]);
+const read: ReadFile = async (p) => (data.vfs.stat(p) ? data.vfs.read(p) : null);
+const content = await loadTacticalContent(read);
+const worlds = new Map<string, TacticalWorld>();
 let failures = 0;
 for (const file of files) {
-  const lines = readLines(file);
-  const sim = new TacticalSim(world, content, 1);
-  failures += compareCosts(sim, lines) + comparePaths(sim, lines) + compareLos(sim, lines);
+  let ctx: Context | null = null;
+  for (const p of readLines(file)) {
+    if (p.error) failures += report(`${p.probe} line ${p.line}`, false, `oracle error: ${p.error}`);
+    else if (p.probe === 'sector') ctx = await sectorContext(read, content, worlds, p);
+    else if (p.probe === 'save') ctx = await saveContext(read, dataDir, p);
+    else if (p.probe === 'end') continue;
+    else {
+      ctx ??= await sectorContext(read, content, worlds, null);
+      if (p.probe === 'costs') failures += compareCosts(ctx, p);
+      else if (p.probe === 'path') failures += comparePath(ctx, p);
+      else if (p.probe === 'los') failures += compareLos(ctx, p);
+      else if (p.probe === 'soldier' || p.probe === 'soldiers') failures += compareSoldiers(ctx, p);
+      else if (p.probe === 'cth') failures += compareCth(ctx, p);
+      else if (p.probe === 'bestshot') failures += compareBestShot(ctx, p);
+      else if (p.probe === 'light') failures += compareLight(ctx, p);
+    }
+  }
 }
 await data.close();
 console.log(failures === 0 ? 'all probes match' : `${failures} mismatching probes`);

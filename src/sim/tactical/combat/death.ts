@@ -281,7 +281,7 @@ function corpseDirection(s: Soldier): number {
   return s.direction === 0 || s.direction === 4 ? 0 : VEHICLE_CORPSE_DIRECTION;
 }
 
-function addCorpseStructure(t: TacticalState, g: number, level: number, type: number, direction: number): void {
+export function addCorpseStructure(t: TacticalState, g: number, level: number, type: number, direction: number): void {
   const corpses = t.content.corpses;
   const file = corpses.structures.get(corpseFileBase(corpses.table, type, t.options.bloodAndGore));
   const def = file?.structures[corpseStructIndex(corpses.table, type, direction)];

@@ -160,5 +160,54 @@ the reader converts them and reuses the Windows parser.
   available.
 - Versions 100–105 are covered by the version gates in the code but were not tested against real files.
 - The skipped sections (laptop pages, email, NPC scripts, dealers, strategic AI, vehicles, bullets, physics objects,
-  explosions, schedules) and the raw temp files (corpses, map modifications, revealed tiles, preserved enemies and
-  civilians, smoke, lights) still need decoders before a save can be continued rather than inspected.
+  explosions, schedules) and the raw temp files (revealed tiles, preserved enemies and civilians, smoke, lights) still
+  need decoders before the strategic layer can continue a campaign. Rotting corpses (`decodeRottingCorpsesFile`,
+  160-byte records after a `u32` count) and map modifications (`decodeMapModificationsFile`, 8-byte `MODIFY_MAP`
+  records) are decoded for the current sector.
+
+## 10. Import into the tactical simulation
+
+`src/sim/tactical/save-import.ts` rebuilds the loaded sector of a save inside a `TacticalSim`;
+`src/server/save-session.ts` (`createSaveSession`) wires it up: parse, load `saveMapPath(save)` (`maps/d13.dat`,
+`_b<z>` underground, `_a` for the alternate map), replace the map's door table with the saved one
+(`worldWithSavedDoors`), construct the sim (which runs `GenerateBuildings` as `LoadWorld` does), then `importSave`.
+MCP `newSession {save: "SaveGame07"}` and `JA2_SAVE=SaveGame07` for the default session use it; the files come from
+`$JA2_SAVES_DIR` or `SavedGames` next to the data folder.
+
+Order, as in `LoadCurrentSectorsInformationFromTempItemsFile` and `LoadSavedGame`:
+
+1. Game options from `LoadGeneralInfo` (gun nut, sci-fi, difficulty), the ambient light from `gubEnvLightValue` above
+   ground, the tactical clock from `guiBaseJA2Clock`.
+2. World items replace the map items (`AddItemToPool` with the saved visibility, flags and z height;
+   `WORLD_ITEM_GRIDNO_NOT_SET_USE_ENTRY_POINT` goes to the centre entry point).
+3. Rotting corpses add their corpse structures.
+4. Map modifications: `SLM_OPENABLE_STRUCT` swaps openable structures to the saved state and shows or hides the items
+   inside; blood and smell records are cosmetic and ignored; any other record type is counted in
+   `skippedMapModifications` (none occur in the tested saves).
+5. Door status: perceived open state, then `SynchronizeDoorStatusToStructureData` swaps door structures whose
+   `DOOR_OPEN` bit disagrees. Then the whole movement cost table is recompiled (`InitLoadedWorld`).
+6. Soldiers that are active, in the sector, not between sectors and not dead, off map, drivers or passengers, in id
+   order (so merc slots fill like `UpdateMercsInSector`). Stats, inventory, AP, breath, morale, AI and interrupt fields,
+   path, animation state and script position come from the record. The position is the saved `sGridNo` with the
+   coordinates at the tile centre: `EVENT_SetSoldierPosition` re-centres everyone on load, as the oracle confirms.
+   Target, opponent and attacker ids are linked after all soldiers exist.
+7. Opplists: personal and public opplists, seen opponents, public noise, watched locations. The last-known locations
+   arrive only half (see §7): the rest stays `NOWHERE`, which is what a fresh process loading the save has.
+8. Turn state: `INCOMBAT`, current team, attack busy count, the interrupt queue, hidden interrupt, last interrupted
+   guy, the rock thrower, team awareness and last radio operators, battle counters.
+9. The `PreRandom` ring and index (`PreRandom.restore`).
+
+Sentinels are converted to ja2-node's: `NOWHERE` is `WORLD_MAX + 1` (25601) in the original and `-1` here,
+`NO_PENDING_ANIMATION` is 32001, `NO_PENDING_DIRECTION` 253 and `NO_PENDING_STANCE` 254 (ja2-node uses
+`NO_DESIRED_HEIGHT` for "no pending stance").
+
+Not imported (see `docs/deviations.md`): map light sprites (lighting is not simulated, so lit tiles at night differ),
+smoke and light effect records, revealed tiles and roofs, the strategic layer, profile progress, the difficulty
+modifier (`CalcDifficultyModifier` needs strategic progress; the sandbox constant is used).
+
+Verification: `tools/oracle/save-probes.ts` writes a probe script for any saves (soldier dumps, hit chance for every
+opposed pair, AI best shot, soldier-to-soldier sight, paths), the native oracle runs it, and `tools/oracle/compare.ts`
+rebuilds every probe from the imported save. On 2026-10-15 all 6,075 comparisons over the six vanilla saves matched. The
+`light` probe shows the one known difference: a tile lit by a map light (`LightTrueLevel` 10 instead of the ambient
+12 at 02:00 in D13) extends `DistanceVisible` from 11 to 15 tiles in the original, and ja2-node halves the hit chance
+at that tile as beyond sight.

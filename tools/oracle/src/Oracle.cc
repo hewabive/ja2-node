@@ -2,27 +2,44 @@
 // Written for ja2-node as a native oracle harness, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/PathAI.cc FindBestPath, PlotPath; src/game/Tactical/LOS.cc LineOfSightTest,
 // @src SoldierToSoldierLineOfSightTest; src/game/TileEngine/WorldDef.cc LoadWorld, gubWorldMovementCosts
+// @src src/game/Tactical/Weapons.cc CalcChanceToHitGun; src/game/Tactical/Points.cc CalcTotalAPsToAttack;
+// @src src/game/Tactical/UI_Cursors.cc; src/game/TacticalAI/Attacks.cc CalcBestShot; src/game/TacticalAI/DecideAction.cc
 #include "Oracle.h"
 
+#include "AIInternals.h"
 #include "Animation_Control.h"
 #include "Animation_Data.h"
+#include "ContentManager.h"
+#include "GameInstance.h"
+#include "Game_Clock.h"
 #include "Init.h"
+#include "ItemModel.h"
+#include "Items.h"
 #include "Isometric_Utils.h"
 #include "LOS.h"
+#include "Lighting.h"
+#include "OppList.h"
 #include "Map_Information.h"
 #include "Overhead.h"
 #include "Overhead_Types.h"
 #include "PathAI.h"
+#include "Points.h"
+#include "Random.h"
 #include "SaveLoadGame.h"
 #include "ScreenIDs.h"
+#include "SkillCheck.h"
 #include "Soldier_Add.h"
 #include "Soldier_Control.h"
 #include "Soldier_Create.h"
+#include "Soldier_Profile.h"
 #include "StrategicMap.h"
+#include "Weapons.h"
 #include "WorldDef.h"
+#include "WorldMan.h"
 
 #include <string_theory/string>
 
+#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -114,6 +131,17 @@ public:
 		return raw(key, list + "]");
 	}
 
+	Json& strs(char const* key, std::vector<std::string> const& values)
+	{
+		std::string list = "[";
+		for (size_t i = 0; i < values.size(); ++i)
+		{
+			if (i) list += ",";
+			list += "\"" + Escape(values[i]) + "\"";
+		}
+		return raw(key, list + "]");
+	}
+
 	Json& raw(char const* key, std::string const& value)
 	{
 		if (!body_.empty()) body_ += ",";
@@ -126,6 +154,17 @@ public:
 private:
 	std::string body_;
 };
+
+std::string JsonArray(std::vector<std::string> const& items)
+{
+	std::string list = "[";
+	for (size_t i = 0; i < items.size(); ++i)
+	{
+		if (i) list += ",";
+		list += items[i];
+	}
+	return list + "]";
+}
 
 void Emit(Json const& json)
 {
@@ -153,6 +192,13 @@ std::map<std::string, INT8> const BODIES{
 std::map<UINT8, std::string> const HEIGHT_NAMES{
 	{ANIM_STAND, "stand"}, {ANIM_CROUCH, "crouch"}, {ANIM_PRONE, "prone"},
 };
+
+std::map<std::string, UINT8> const AIM_LOCATIONS{
+	{"head", AIM_SHOT_HEAD}, {"torso", AIM_SHOT_TORSO}, {"legs", AIM_SHOT_LEGS},
+};
+
+constexpr char const* DEFAULT_AIMS = "0,1,2,3,4";
+constexpr int PERCENT = 100;
 
 bool Has(Command const& c, std::string const& key)
 {
@@ -263,6 +309,148 @@ std::string Describe(SOLDIERTYPE const& s)
 		.text();
 }
 
+std::string NullableId(SOLDIERTYPE const* s)
+{
+	return s ? std::to_string(s->ubID) : "null";
+}
+
+bool IsGun(UINT16 item)
+{
+	return GCM->getItem(item)->getItemClass() == IC_GUN;
+}
+
+std::string DescribeObject(int slot, OBJECTTYPE const& o)
+{
+	Json json;
+	json.num("slot", slot).num("item", o.usItem).num("count", o.ubNumberOfObjects).num("status", o.bStatus[0]);
+	if (IsGun(o.usItem))
+	{
+		json.num("gunAmmo", o.ubGunShotsLeft).num("ammoItem", o.usGunAmmoItem).num("ammoType", o.ubGunAmmoType);
+	}
+	std::vector<std::string> attachments;
+	for (int i = 0; i < MAX_ATTACHMENTS; ++i)
+	{
+		if (o.usAttachItem[i] == NOTHING) continue;
+		attachments.push_back(Json{}.num("item", o.usAttachItem[i]).num("status", o.bAttachStatus[i]).text());
+	}
+	if (!attachments.empty()) json.raw("attachments", JsonArray(attachments));
+	return json.text();
+}
+
+std::string DescribeInventory(SOLDIERTYPE const& s)
+{
+	std::vector<std::string> objects;
+	for (int slot = 0; slot < NUM_INV_SLOTS; ++slot)
+	{
+		if (s.inv[slot].usItem != NOTHING) objects.push_back(DescribeObject(slot, s.inv[slot]));
+	}
+	return JsonArray(objects);
+}
+
+std::string DescribeStats(SOLDIERTYPE const& s)
+{
+	return Json{}
+		.num("agility", s.bAgility)
+		.num("dexterity", s.bDexterity)
+		.num("strength", s.bStrength)
+		.num("wisdom", s.bWisdom)
+		.num("leadership", s.bLeadership)
+		.num("marksmanship", s.bMarksmanship)
+		.num("mechanical", s.bMechanical)
+		.num("explosive", s.bExplosive)
+		.num("medical", s.bMedical)
+		.num("expLevel", s.bExpLevel)
+		.text();
+}
+
+std::string DescribeEffectiveStats(SOLDIERTYPE const& s)
+{
+	return Json{}
+		.num("marksmanship", EffectiveMarksmanship(&s))
+		.num("dexterity", EffectiveDexterity(&s))
+		.num("agility", EffectiveAgility(&s))
+		.num("wisdom", EffectiveWisdom(&s))
+		.num("expLevel", EffectiveExpLevel(&s))
+		.text();
+}
+
+std::string DescribeAttackState(SOLDIERTYPE const& s)
+{
+	return Json{}
+		.num("weapon", s.usAttackingWeapon)
+		.num("hand", s.ubAttackingHand)
+		.num("weaponMode", s.bWeaponMode)
+		.num("doBurst", s.bDoBurst)
+		.num("aimTime", s.bAimTime)
+		.num("shownAimTime", s.bShownAimTime)
+		.num("aimShotLocation", s.bAimShotLocation)
+		.num("targetLevel", s.bTargetLevel)
+		.num("targetCubeLevel", s.bTargetCubeLevel)
+		.flag("dontChargeReadyAPs", s.fDontChargeReadyAPs)
+		.raw("ctgtTarget", NullableId(s.CTGTTarget))
+		.text();
+}
+
+INT8 Personality(SOLDIERTYPE const& s)
+{
+	return s.ubProfile == NO_PROFILE ? 0 : gMercProfiles[s.ubProfile].bPersonalityTrait;
+}
+
+std::string DescribeDetail(SOLDIERTYPE const& s)
+{
+	std::vector<long long> const oppList(std::begin(s.bOppList), std::end(s.bOppList));
+	return Json{}
+		.num("id", s.ubID)
+		.str("name", s.name.to_std_string())
+		.num("team", s.bTeam)
+		.num("side", static_cast<long long>(s.bSide))
+		.num("profile", s.ubProfile)
+		.num("body", s.ubBodyType)
+		.num("soldierClass", s.ubSoldierClass)
+		.num("gridNo", s.sGridNo)
+		.num("level", s.bLevel)
+		.real("x", s.dXPos)
+		.real("y", s.dYPos)
+		.num("direction", s.bDirection)
+		.num("desiredDirection", s.bDesiredDirection)
+		.num("animState", s.usAnimState)
+		.num("aniCode", s.usAniCode)
+		.num("aniFrame", s.usAniFrame)
+		.str("stance", StanceName(s))
+		.num("terrain", s.bOverTerrainType)
+		.num("life", s.bLife)
+		.num("lifeMax", s.bLifeMax)
+		.num("breath", s.bBreath)
+		.num("breathMax", s.bBreathMax)
+		.num("breathRed", s.sBreathRed)
+		.num("bleeding", s.bBleeding)
+		.num("shock", s.bShock)
+		.num("ap", s.bActionPoints)
+		.num("initialAp", s.bInitialActionPoints)
+		.num("apPerTurn", CalcActionPoints(&s))
+		.num("morale", s.bMorale)
+		.num("aiMorale", s.bAIMorale)
+		.num("alert", s.bAlertStatus)
+		.num("orders", s.bOrders)
+		.num("attitude", s.bAttitude)
+		.num("visible", s.bVisible)
+		.num("statusFlags", s.uiStatusFlags)
+		.flag("collapsed", s.bCollapsed)
+		.flag("breathCollapsed", s.bBreathCollapsed)
+		.flag("noAPToFinishMove", s.fNoAPToFinishMove)
+		.num("lastTarget", s.sLastTarget)
+		.num("tilesMoved", s.bTilesMoved)
+		.num("serviceCount", s.ubServiceCount)
+		.raw("attack", DescribeAttackState(s))
+		.raw("stats", DescribeStats(s))
+		.raw("effective", DescribeEffectiveStats(s))
+		.nums("skillTraits", {s.ubSkillTrait1, s.ubSkillTrait2})
+		.num("personality", Personality(s))
+		.nums("oppList", oppList)
+		.raw("inventory", DescribeInventory(s))
+		.text();
+}
+
 void SetStanceImmediately(SOLDIERTYPE& s, UINT16 stance)
 {
 	UINT32 const savedFlags = gTacticalStatus.uiFlags;
@@ -345,18 +533,26 @@ std::unique_ptr<ProbeSoldier> MakeSoldier(Command const& c, SoldierKeys const& k
 		static_cast<INT8>(Integer(c, k.direction, SOUTH)));
 }
 
-std::string SoldierList()
+std::string SoldierList(bool detail = false)
 {
-	std::string list = "[";
-	bool first = true;
+	std::vector<std::string> soldiers;
 	FOR_EACH_SOLDIER(s)
 	{
 		if (!s->bInSector) continue;
-		if (!first) list += ",";
-		list += Describe(*s);
-		first = false;
+		soldiers.push_back(detail ? DescribeDetail(*s) : Describe(*s));
 	}
-	return list + "]";
+	return JsonArray(soldiers);
+}
+
+std::string DescribeTacticalStatus()
+{
+	return Json{}
+		.num("flags", gTacticalStatus.uiFlags)
+		.num("currentTeam", gTacticalStatus.ubCurrentTeam)
+		.flag("inCombat", (gTacticalStatus.uiFlags & INCOMBAT) != 0)
+		.num("attackBusy", gTacticalStatus.ubAttackBusyCount)
+		.flag("interruptOccurred", gTacticalStatus.fInterruptOccurred)
+		.text();
 }
 
 void LoadSector(Command const& c)
@@ -387,12 +583,22 @@ void LoadSave(Command const& c)
 		.str("sector", gWorldSector.AsShortString().to_std_string())
 		.num("z", gWorldSector.z)
 		.flag("worldLoaded", gfWorldLoaded)
+		.raw("tactical", DescribeTacticalStatus())
+		.num("preRandomIndex", guiPreRandomIndex)
+		.num("worldSeconds", GetWorldTotalSeconds())
 		.raw("soldiers", SoldierList()));
 }
 
-void ListSoldiers(Command const&)
+void ListSoldiers(Command const& c)
 {
-	Emit(Json{}.str("probe", "soldiers").raw("soldiers", SoldierList()));
+	bool const detail = Integer(c, "detail", 0) != 0;
+	Emit(Json{}.str("probe", "soldiers").num("line", c.line).flag("detail", detail).raw("soldiers", SoldierList(detail)));
+}
+
+void DumpSoldier(Command const& c)
+{
+	SOLDIERTYPE const& s = ExistingSoldier(Required(c, "who"));
+	Emit(Json{}.str("probe", "soldier").num("line", c.line).raw("soldier", DescribeDetail(s)));
 }
 
 std::string Base64(std::uint8_t const* data, size_t size)
@@ -542,14 +748,274 @@ void ProbeLineOfSight(Command const& c)
 	Emit(json);
 }
 
+struct AttackState
+{
+	UINT16 usAttackingWeapon;
+	UINT8 ubAttackingHand;
+	WeaponModes bWeaponMode;
+	INT8 bDoBurst;
+	INT8 bAimTime;
+	UINT8 bAimShotLocation;
+	INT8 bTargetLevel;
+	INT8 bTargetCubeLevel;
+	BOOLEAN fDontChargeReadyAPs;
+	SOLDIERTYPE const* CTGTTarget;
+	UINT16 usAnimState;
+};
+
+AttackState CaptureAttackState(SOLDIERTYPE const& s)
+{
+	return AttackState{
+		s.usAttackingWeapon, s.ubAttackingHand, s.bWeaponMode, s.bDoBurst, s.bAimTime, s.bAimShotLocation,
+		s.bTargetLevel, s.bTargetCubeLevel, s.fDontChargeReadyAPs, s.CTGTTarget, s.usAnimState,
+	};
+}
+
+void RestoreAttackState(SOLDIERTYPE& s, AttackState const& a)
+{
+	s.usAttackingWeapon   = a.usAttackingWeapon;
+	s.ubAttackingHand     = a.ubAttackingHand;
+	s.bWeaponMode         = a.bWeaponMode;
+	s.bDoBurst            = a.bDoBurst;
+	s.bAimTime            = a.bAimTime;
+	s.bAimShotLocation    = a.bAimShotLocation;
+	s.bTargetLevel        = a.bTargetLevel;
+	s.bTargetCubeLevel    = a.bTargetCubeLevel;
+	s.fDontChargeReadyAPs = a.fDontChargeReadyAPs;
+	s.CTGTTarget          = a.CTGTTarget;
+	s.usAnimState         = a.usAnimState;
+}
+
+std::vector<std::string> AttackStateChanges(UINT id, AttackState const& was, AttackState const& now)
+{
+	std::vector<std::string> changes;
+	auto const note = [&](char const* field, bool changed) {
+		if (changed) changes.push_back(std::to_string(id) + "." + field);
+	};
+	note("usAttackingWeapon",   was.usAttackingWeapon   != now.usAttackingWeapon);
+	note("ubAttackingHand",     was.ubAttackingHand     != now.ubAttackingHand);
+	note("bWeaponMode",         was.bWeaponMode         != now.bWeaponMode);
+	note("bDoBurst",            was.bDoBurst            != now.bDoBurst);
+	note("bAimTime",            was.bAimTime            != now.bAimTime);
+	note("bAimShotLocation",    was.bAimShotLocation    != now.bAimShotLocation);
+	note("bTargetLevel",        was.bTargetLevel        != now.bTargetLevel);
+	note("bTargetCubeLevel",    was.bTargetCubeLevel    != now.bTargetCubeLevel);
+	note("fDontChargeReadyAPs", was.fDontChargeReadyAPs != now.fDontChargeReadyAPs);
+	note("CTGTTarget",          was.CTGTTarget          != now.CTGTTarget);
+	note("usAnimState",         was.usAnimState         != now.usAnimState);
+	return changes;
+}
+
+class AttackStateGuard
+{
+public:
+	AttackStateGuard()
+	{
+		for (UINT i = 0; i < MAX_NUM_SOLDIERS; ++i) saved_[i] = CaptureAttackState(GetMan(i));
+	}
+
+	AttackStateGuard(AttackStateGuard const&) = delete;
+	AttackStateGuard& operator=(AttackStateGuard const&) = delete;
+
+	~AttackStateGuard()
+	{
+		for (UINT i = 0; i < MAX_NUM_SOLDIERS; ++i) RestoreAttackState(GetMan(i), saved_[i]);
+	}
+
+	std::vector<std::string> Changes() const
+	{
+		std::vector<std::string> all;
+		for (UINT i = 0; i < MAX_NUM_SOLDIERS; ++i)
+		{
+			for (std::string const& change : AttackStateChanges(i, saved_[i], CaptureAttackState(GetMan(i)))) all.push_back(change);
+		}
+		return all;
+	}
+
+private:
+	std::array<AttackState, MAX_NUM_SOLDIERS> saved_{};
+};
+
+class TemporaryPocketSwap
+{
+public:
+	TemporaryPocketSwap(SOLDIERTYPE& s, INT8 pocket) : soldier_(s), pocket_(pocket) { Swap(); }
+
+	TemporaryPocketSwap(TemporaryPocketSwap const&) = delete;
+	TemporaryPocketSwap& operator=(TemporaryPocketSwap const&) = delete;
+
+	~TemporaryPocketSwap() { Swap(); }
+
+private:
+	void Swap()
+	{
+		if (pocket_ != HANDPOS) SwapObjs(&soldier_.inv[HANDPOS], &soldier_.inv[pocket_]);
+	}
+
+	SOLDIERTYPE& soldier_;
+	INT8 pocket_;
+};
+
+std::vector<INT8> AimTimes(Command const& c)
+{
+	std::string const text = Text(c, "aims", DEFAULT_AIMS);
+	std::istringstream list(text);
+	std::vector<INT8> aims;
+	std::string item;
+	while (std::getline(list, item, ','))
+	{
+		long long const aim = ParseInteger("aims", item);
+		if (aim < AP_MIN_AIM_ATTACK || aim > AP_MAX_AIM_ATTACK) throw std::runtime_error("aim time out of range: " + item);
+		aims.push_back(static_cast<INT8>(aim));
+	}
+	if (aims.empty()) throw std::runtime_error("aims is empty");
+	return aims;
+}
+
+int CursorChance(UINT32 chance, UINT8 chanceToGetThrough)
+{
+	int shown = static_cast<int>(chance);
+	shown *= chanceToGetThrough / static_cast<float>(PERCENT);
+	return shown;
+}
+
+void ProbeChanceToHit(Command const& c)
+{
+	if (!gfWorldLoaded) throw std::runtime_error("no world loaded");
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "shooter"));
+	UINT16 const weapon = s.inv[HANDPOS].usItem;
+	if (!IsGun(weapon)) throw std::runtime_error("shooter has no gun in hand: " + std::to_string(s.ubID));
+
+	SOLDIERTYPE* victim = nullptr;
+	GridNo target = NOWHERE;
+	INT8 targetLevel = 0;
+	if (Has(c, "target"))
+	{
+		victim = &ExistingSoldier(Required(c, "target"));
+		target = victim->sGridNo;
+		targetLevel = victim->bLevel;
+	}
+	else
+	{
+		target = GridArgument(c, "to");
+		targetLevel = static_cast<INT8>(Integer(c, "toLevel", 0));
+		victim = WhoIsThere2(target, targetLevel);
+	}
+	std::string const locationName = Text(c, "location", "torso");
+	UINT8 const location = Lookup(AIM_LOCATIONS, c, "location", "torso");
+	std::vector<INT8> const aims = AimTimes(c);
+	bool const victimStands = victim && gAnimControl[victim->usAnimState].ubEndHeight != ANIM_PRONE;
+	UINT8 const aimShotLocation = victimStands ? location : AIM_SHOT_RANDOM;
+	GridNo const apTarget = victim ? victim->sGridNo : target;
+
+	AttackStateGuard const guard;
+	s.bAimShotLocation  = aimShotLocation;
+	s.bWeaponMode       = WM_NORMAL;
+	s.bDoBurst          = 0;
+	s.ubAttackingHand   = HANDPOS;
+	s.usAttackingWeapon = weapon;
+	s.bTargetLevel      = targetLevel;
+	s.bTargetCubeLevel  = 0;
+
+	UINT8 const chanceToGetThrough = victim ?
+		SoldierToSoldierBodyPartChanceToGetThrough(&s, victim, aimShotLocation) :
+		SoldierToLocationChanceToGetThrough(&s, target, targetLevel, 0, nullptr);
+
+	std::vector<std::string> results;
+	for (INT8 const aim : aims)
+	{
+		s.bAimTime = aim;
+		UINT8 const apCost = CalcTotalAPsToAttack(&s, apTarget, TRUE, aim);
+		UINT32 const chance = CalcChanceToHitGun(&s, target, aim, aimShotLocation, FALSE);
+		results.push_back(Json{}
+			.num("aim", aim)
+			.num("chance", chance)
+			.num("apCost", apCost)
+			.num("cursorChance", CursorChance(chance, chanceToGetThrough))
+			.text());
+	}
+
+	Emit(Json{}
+		.str("probe", "cth")
+		.num("line", c.line)
+		.num("shooter", s.ubID)
+		.raw("target", NullableId(victim))
+		.num("targetGridNo", target)
+		.num("targetLevel", targetLevel)
+		.str("location", locationName)
+		.num("aimShotLocation", aimShotLocation)
+		.num("weapon", weapon)
+		.num("ap", s.bActionPoints)
+		.num("chanceToGetThrough", chanceToGetThrough)
+		.raw("results", JsonArray(results))
+		.strs("restored", guard.Changes()));
+}
+
+void ProbeBestShot(Command const& c)
+{
+	if (!gfWorldLoaded) throw std::runtime_error("no world loaded");
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	INT8 const weaponSlot = FindAIUsableObjClass(&s, IC_GUN);
+	if (weaponSlot == NO_SLOT) throw std::runtime_error("soldier has no AI-usable gun: " + std::to_string(s.ubID));
+	bool const keepAim = Integer(c, "keepAim", 0) != 0;
+
+	AttackStateGuard const guard;
+	TemporaryPocketSwap const swap(s, weaponSlot);
+	if (!keepAim) s.bAimShotLocation = AIM_SHOT_RANDOM;
+	UINT8 const aimShotLocation = s.bAimShotLocation;
+	INT8 const soldierTargetLevel = s.bTargetLevel;
+
+	ATTACKTYPE best{};
+	CalcBestShot(&s, &best);
+
+	Emit(Json{}
+		.str("probe", "bestshot")
+		.num("line", c.line)
+		.num("who", s.ubID)
+		.num("weaponSlot", weaponSlot)
+		.num("weapon", s.inv[HANDPOS].usItem)
+		.num("ap", s.bActionPoints)
+		.num("aimShotLocation", aimShotLocation)
+		.num("soldierTargetLevel", soldierTargetLevel)
+		.flag("possible", best.ubPossible)
+		.raw("opponent", NullableId(best.opponent))
+		.num("target", best.sTarget)
+		.num("targetLevel", best.bTargetLevel)
+		.num("aimTime", best.ubAimTime)
+		.num("chanceToReallyHit", best.ubChanceToReallyHit)
+		.num("apCost", best.ubAPCost)
+		.num("attackValue", best.iAttackValue)
+		.strs("restored", guard.Changes()));
+}
+
+void ProbeLight(Command const& c)
+{
+	if (!gfWorldLoaded) throw std::runtime_error("no world loaded");
+	GridNo const g = GridArgument(c, "g");
+	INT8 const level = static_cast<INT8>(Integer(c, "level", 0));
+	Json json;
+	json.str("probe", "light").num("line", c.line).num("g", g).num("level", level)
+		.num("ambient", LightGetAmbient()).num("trueLevel", LightTrueLevel(g, level));
+	if (Has(c, "viewer"))
+	{
+		SOLDIERTYPE& viewer = ExistingSoldier(Required(c, "viewer"));
+		json.num("viewer", viewer.ubID).num("distanceVisible", DistanceVisible(&viewer, DIRECTION_IRRELEVANT, DIRECTION_IRRELEVANT, g, level));
+	}
+	Emit(json);
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
 	if (c.name == "save")     return LoadSave(c);
 	if (c.name == "soldiers") return ListSoldiers(c);
+	if (c.name == "soldier")  return DumpSoldier(c);
 	if (c.name == "costs")    return DumpMovementCosts(c);
 	if (c.name == "path")     return ProbePath(c);
 	if (c.name == "los")      return ProbeLineOfSight(c);
+	if (c.name == "cth")      return ProbeChanceToHit(c);
+	if (c.name == "bestshot") return ProbeBestShot(c);
+	if (c.name == "light")    return ProbeLight(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

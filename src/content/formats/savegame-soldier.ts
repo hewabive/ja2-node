@@ -562,6 +562,42 @@ export interface SoldierInterrupt {
   readonly movedPriorToInterrupt: number;
 }
 
+export interface SoldierMotion {
+  readonly uiMovementMode: number;
+  readonly movementDirection: number;
+  readonly reverse: number;
+  readonly noAPToFinishMove: boolean;
+  readonly pendingDirection: number;
+  readonly pendingStanceChange: number;
+  readonly desiredHeight: number;
+  readonly forecastGridNo: number;
+  readonly inNonInterruptibleAnimation: boolean;
+  readonly rtNonInterruptible: boolean;
+  readonly turningUntilDone: boolean;
+  readonly continueMoveAfterStanceChange: boolean;
+  readonly pathStored: number;
+  readonly pathSize: number;
+  readonly reservedGridNo: number;
+  readonly endDoorOpenCode: number;
+  readonly delayedMovement: boolean;
+  readonly weightCarriedAtTurnStart: number;
+  readonly newOppCount: number;
+  readonly movementNoiseHeard: number;
+  readonly oldLife: number;
+  readonly targetCubeLevel: number;
+  readonly dontChargeReadyAPs: boolean;
+  readonly dontChargeAPsForStanceChange: boolean;
+  readonly dontChargeTurningAPs: boolean;
+  readonly dontUnsetLastTargetFromTurn: boolean;
+  readonly tilesMovedPerRTBreathUpdate: number;
+  readonly lastMovementAnimPerRTBreathUpdate: number;
+  readonly pendingAction: number;
+  readonly pendingActionData1: number;
+  readonly pendingActionData2: number;
+  readonly serviceCount: number;
+  readonly lastRenderVisible: number;
+}
+
 export interface SavedSoldier {
   readonly id: number;
   readonly name: string;
@@ -654,6 +690,7 @@ export interface SavedSoldier {
   readonly oppList: readonly number[];
   readonly ai: SoldierAi;
   readonly interrupt: SoldierInterrupt;
+  readonly motion: SoldierMotion;
   readonly palettes: { readonly head: string; readonly pants: string; readonly vest: string; readonly skin: string };
   readonly checksum: number;
 }
@@ -822,6 +859,41 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       startAPs: n('bIntStartAPs'),
       moved: n('bMoved'),
       movedPriorToInterrupt: n('bMovedPriorToInterrupt'),
+    },
+    motion: {
+      uiMovementMode: n('usUIMovementMode'),
+      movementDirection: n('bMovementDirection'),
+      reverse: n('bReverse'),
+      noAPToFinishMove: r.bool('fNoAPToFinishMove'),
+      pendingDirection: n('ubPendingDirection'),
+      pendingStanceChange: n('ubPendingStanceChange'),
+      desiredHeight: n('ubDesiredHeight'),
+      forecastGridNo: n('sForcastGridno'),
+      inNonInterruptibleAnimation: r.bool('fInNonintAnim'),
+      rtNonInterruptible: r.bool('fRTInNonintAnim'),
+      turningUntilDone: r.bool('fTurningUntilDone'),
+      continueMoveAfterStanceChange: r.bool('fContinueMoveAfterStanceChange'),
+      pathStored: n('bPathStored'),
+      pathSize: pathSize,
+      reservedGridNo: n('sReservedMovementGridNo'),
+      endDoorOpenCode: n('bEndDoorOpenCode'),
+      delayedMovement: r.bool('fDelayedMovement'),
+      weightCarriedAtTurnStart: n('sWeightCarriedAtTurnStart'),
+      newOppCount: n('bNewOppCnt'),
+      movementNoiseHeard: n('ubMovementNoiseHeard'),
+      oldLife: n('bOldLife'),
+      targetCubeLevel: n('bTargetCubeLevel'),
+      dontChargeReadyAPs: r.bool('fDontChargeReadyAPs'),
+      dontChargeAPsForStanceChange: r.bool('fDontChargeAPsForStanceChange'),
+      dontChargeTurningAPs: r.bool('fDontChargeTurningAPs'),
+      dontUnsetLastTargetFromTurn: r.bool('fDontUnsetLastTargetFromTurn'),
+      tilesMovedPerRTBreathUpdate: n('ubTilesMovedPerRTBreathUpdate'),
+      lastMovementAnimPerRTBreathUpdate: n('usLastMovementAnimPerRTBreathUpdate'),
+      pendingAction: n('ubPendingAction'),
+      pendingActionData1: n('uiPendingActionData1'),
+      pendingActionData2: n('sPendingActionData2'),
+      serviceCount: n('ubServiceCount'),
+      lastRenderVisible: n('bLastRenderVisibleValue'),
     },
     palettes: { head: r.str('HeadPal'), pants: r.str('PantsPal'), vest: r.str('VestPal'), skin: r.str('SkinPal') },
     checksum: n('checksum'),

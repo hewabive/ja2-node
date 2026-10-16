@@ -2,8 +2,9 @@
 
 A patched JA2 Stracciatella build that runs headless against the original game data, executes a
 probe script and prints JSON lines. It gives reference values for our reimplementation
-(`docs/01-architecture.md` §8, level 6). The first probes cover pathfinding, line of sight and the
-movement cost table.
+(`docs/01-architecture.md` §8, level 6). The probes cover pathfinding, line of sight, the movement
+cost table, and the state of loaded saves: full soldier dumps, the chance to hit and AP cost of an aimed
+shot, and the AI's choice of the best shot.
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -18,6 +19,8 @@ commit them.
 | `src/Oracle.{h,cc}` | The probe harness, copied into `src/game/` of the Stracciatella copy |
 | `patches/0001-oracle-hooks.patch` | The only changes to Stracciatella files (see "Hooks") |
 | `probes/a9-*.txt` | Probe scripts for sector A9 (Omerta) |
+| `save-probes.ts` | Writes a probe script for the user's native saves (see "Savegames") |
+| `compare.ts` | Rebuilds probe outputs with ja2-node and reports mismatches |
 
 `reference/` is never modified. The work dir (`$JA2_ORACLE_DIR`, default `~/ja2-oracle`) holds:
 `src/` (patched copy), `build/` (CMake build, binary `build/ja2`), `home/` (isolated Stracciatella
@@ -105,16 +108,83 @@ an `error` line and the script continues. The last line is always
 |---|---|---|
 | `sector A9` | `z=0`, `map=<file>` | Sets `gWorldSector` and calls `LoadWorld` on the sector's map |
 | `save SaveGame01` | | `LoadSavedGame` from the isolated home's `SavedGames` |
-| `soldiers` | | Lists soldiers in the loaded sector |
+| `soldiers` | `detail=0\|1` | Lists soldiers in the loaded sector; `detail=1` dumps each one like `soldier` |
+| `soldier` | `who=<id>` | Full dump of one soldier of the loaded save |
 | `costs` | `format=base64` (or `none`) | Dumps `gubWorldMovementCosts` |
 | `path` | see below | `FindBestPath` + `PlotPath` |
 | `los` | see below | `LineOfSightTest` and `SoldierToSoldierLineOfSightTest` |
+| `cth` | see below | `CalcChanceToHitGun` + `CalcTotalAPsToAttack` for an aimed shot, as the attack cursor prepares it |
+| `bestshot` | `who=<id>`, `keepAim=0\|1` | The AI's `CalcBestShot` on a soldier of the loaded save |
+| `light` | `g=<g>`, `level=0`, `viewer=<id>` | `LightTrueLevel` of a tile, the ambient level and, with a viewer, `DistanceVisible` to it |
 
 `sector` is a bare map load: `LoadWorld` compiles movement costs, builds structures, rooms and
 buildings, but there is no strategic layer, no enemy or NPC placement, no `PrepareLoadedSector`,
 and doors keep their map state. `save` runs the full `LoadSavedGame` (strategic state, the sector's
 temp files, soldiers, door states), so probes then see the world as it was saved. All six saves in
-the user's `SavedGames` load (B13, C13, D13).
+the user's `SavedGames` load (B13, C13, D13); `SaveGame07` and `SaveGame08` were saved in turn-based
+combat in D13, `SaveGame10` in D13 in real time.
+
+`cth` and `bestshot` change soldier fields while they run (see their sections) and restore them before
+the next command, so a script can mix them freely with other probes: a `soldiers detail=1` before and
+after them prints identical soldiers.
+
+### `save`
+
+```json
+{"probe":"save","name":"SaveGame07","sector":"D13","z":0,"worldLoaded":true,
+ "tactical":{"flags":262276,"currentTeam":0,"inCombat":true,"attackBusy":0,"interruptOccurred":false},
+ "preRandomIndex":178,"worldSeconds":180106,"soldiers":[{"id":0,"team":0,"profile":2,...},...]}
+```
+
+- `tactical`: `gTacticalStatus.uiFlags`, `ubCurrentTeam`, `uiFlags & INCOMBAT`, `ubAttackBusyCount`
+  and `fInterruptOccurred` after the load.
+- `preRandomIndex`: `guiPreRandomIndex`, the read position in the saved `PreRandom` table.
+- `worldSeconds`: `GetWorldTotalSeconds()`.
+- `soldiers`: the short form, as in `soldiers` without `detail`.
+
+### `soldier` and `soldiers detail=1`
+
+`soldier who=<id>` emits one soldier, `soldiers detail=1` emits every in-sector soldier in one line
+(`{"probe":"soldiers","line":N,"detail":true,"soldiers":[...]}`, same objects). Without `detail`,
+`soldiers` keeps the short form of `save` and `sector` (`"detail":false`).
+
+```json
+{"probe":"soldier","line":3,"soldier":{"id":2,"name":"<nickname>","team":0,"side":0,"profile":<n>,"body":3,
+ "soldierClass":0,"gridNo":12867,"level":0,"x":675,"y":805,"direction":2,"desiredDirection":2,
+ "animState":27,"aniCode":15,"aniFrame":61,"stance":"crouch","terrain":1,"life":76,"lifeMax":76,
+ "breath":66,"breathMax":75,"breathRed":804,"bleeding":0,"shock":0,"ap":12,"initialAp":21,"apPerTurn":16,
+ "morale":100,"aiMorale":0,"alert":3,"orders":0,"attitude":0,"visible":1,"statusFlags":8,
+ "collapsed":false,"breathCollapsed":false,"noAPToFinishMove":false,"lastTarget":12397,"tilesMoved":4,
+ "serviceCount":0,
+ "attack":{"weapon":22,"hand":5,"weaponMode":0,"doBurst":0,"aimTime":0,"shownAimTime":0,
+  "aimShotLocation":0,"targetLevel":0,"targetCubeLevel":0,"dontChargeReadyAPs":false,"ctgtTarget":23},
+ "stats":{"agility":70,"dexterity":80,"strength":60,"wisdom":75,"leadership":20,"marksmanship":65,
+  "mechanical":10,"explosive":5,"medical":30,"expLevel":2},
+ "effective":{"marksmanship":65,"dexterity":80,"agility":70,"wisdom":75,"expLevel":2},
+ "skillTraits":[0,0],"personality":0,"oppList":[0,0,...,1,...,3,...],
+ "inventory":[{"slot":0,"item":176,"count":1,"status":100},
+  {"slot":5,"item":22,"count":1,"status":95,"gunAmmo":29,"ammoItem":94,"ammoType":2},...]}}
+```
+
+- Plain fields: `bSide` (`side`), `ubSoldierClass`, `dXPos`/`dYPos` (`x`/`y`), `bDesiredDirection`,
+  `usAniCode`/`usAniFrame`, `bOverTerrainType` (`terrain`), `sBreathRed`, `bShock`, `bActionPoints`
+  (`ap`, including the APs carried over into this turn), `bInitialActionPoints`, `bMorale`, `bAIMorale`,
+  `bAlertStatus` (`alert`), `bOrders`, `bAttitude`, `bVisible`, `uiStatusFlags`, `bCollapsed`,
+  `bBreathCollapsed`, `fNoAPToFinishMove`, `sLastTarget` (25601 is `NOWHERE`), `bTilesMoved`,
+  `ubServiceCount`. `stance` is the end height of `usAnimState`, as everywhere.
+- `attack`: the attack fields of the save that `cth` and `bestshot` read or change: `usAttackingWeapon`,
+  `ubAttackingHand`, `bWeaponMode`, `bDoBurst`, `bAimTime`, `bShownAimTime`, `bAimShotLocation`
+  (0 random, 1 head, 2 torso, 3 legs), `bTargetLevel`, `bTargetCubeLevel`, `fDontChargeReadyAPs` and
+  `CTGTTarget` (soldier id or `null`).
+- `stats`: the raw stats; `effective`: `EffectiveMarksmanship`, `EffectiveDexterity`, `EffectiveAgility`,
+  `EffectiveWisdom`, `EffectiveExpLevel`; `apPerTurn`: `CalcActionPoints` (the APs of a new turn before
+  carry-over, after breath, injury and weight penalties).
+- `skillTraits`: `ubSkillTrait1`, `ubSkillTrait2`; `personality`: `gMercProfiles[profile].bPersonalityTrait`,
+  0 without a profile.
+- `oppList`: all `MAX_NUM_SOLDIERS` entries of `bOppList` (1 is `SEEN_CURRENTLY`).
+- `inventory`: the non-empty slots; `status` is `bStatus[0]`; guns add `ubGunShotsLeft` (`gunAmmo`),
+  `usGunAmmoItem` (`ammoItem`) and `ubGunAmmoType` (`ammoType`); `attachments` (item and status) appears
+  when the object has any.
 
 ### `path`
 
@@ -186,6 +256,99 @@ const line = JSON.parse(text.split('\n').find((l) => l.includes('"probe":"costs"
 const costs = new Uint8Array(Buffer.from(line.base64, 'base64'));
 ```
 
+### `cth`
+
+`cth shooter=<id> target=<id> [location=torso|head|legs] [aims=0,1,2,3,4]`, or `to=<g> [toLevel=0]`
+instead of `target` to aim at a tile. Needs a loaded save; fails when the shooter has no gun in
+`HANDPOS`.
+
+```json
+{"probe":"cth","line":8,"shooter":2,"target":23,"targetGridNo":12397,"targetLevel":0,"location":"torso",
+ "aimShotLocation":2,"weapon":22,"ap":12,"chanceToGetThrough":100,
+ "results":[{"aim":0,"chance":54,"apCost":6,"cursorChance":54},{"aim":1,"chance":63,"apCost":7,"cursorChance":63},
+  ...,{"aim":4,"chance":92,"apCost":10,"cursorChance":92}],"restored":["2.bAimTime","2.bAimShotLocation"]}
+```
+
+The shooter is prepared like ja2-node's attack estimate: `bAimShotLocation` = `location` when a soldier
+stands on the target tile (`WhoIsThere2(targetGridNo, targetLevel)`, or the `target` soldier) whose
+`usAnimState` end height is not prone, otherwise `AIM_SHOT_RANDOM`; `bWeaponMode` = `WM_NORMAL`, `bDoBurst` = 0, `ubAttackingHand` =
+`HANDPOS`, `usAttackingWeapon` = the item in hand, `bTargetLevel` = the target level, `bTargetCubeLevel` = 0,
+and `bAimTime` = the aim of each result. Then:
+
+- `apCost`: `CalcTotalAPsToAttack(s, victim ? victim->sGridNo : targetGridNo, TRUE, aim)`.
+- `chance`: `CalcChanceToHitGun(s, targetGridNo, aim, aimShotLocation, FALSE)`.
+- `chanceToGetThrough`: `SoldierToSoldierBodyPartChanceToGetThrough(s, victim, aimShotLocation)` with a
+  soldier on the tile, else `SoldierToLocationChanceToGetThrough(s, targetGridNo, targetLevel, 0, NULL)`.
+- `cursorChance`: `chance` scaled by `chanceToGetThrough` exactly like the `show_hit_chance` cursor
+  (`int` times `ctgt / 100.0f`, truncated).
+- `ap`: the shooter's `bActionPoints`. Every requested aim is reported, affordable or not.
+- `restored`: the `soldier.field` pairs that differed from the save after the probe and were put back
+  (the setup above, plus engine side effects such as `CTGTTarget`, which every chance-to-get-through call
+  sets, and `fDontChargeReadyAPs`, which `MinAPsToShootOrStab` clears when it charges a raise).
+
+Where the original UI differs from this setup:
+
+- With the default `show_hit_chance: false` the cursor shows no chance at all, only the AP cost
+  `CalcTotalAPsToAttack(s, target, TRUE, bShownAimTime / 2)`. With it on, the cursor shows
+  `cursorChance`, computed with the soldier's real fields below.
+- The aim location comes from the mouse position on the target's sprite (`DetermineCursorBodyLocation`):
+  head, torso or legs by the hit-location flags of the pixel, `AIM_SHOT_RANDOM` when the cursor misses
+  the body. It is forced to random when the target's current height (`ubHeight`, not `ubEndHeight`) is
+  prone or when the target is not on the player's team and has `bVisible == -1`; crows get legs; while
+  `ubAttackBusyCount > 0` the previous value is kept.
+- The UI keeps the soldier's own `bWeaponMode`/`bDoBurst` (burst toggle), `ubAttackingHand` and
+  `bTargetCubeLevel`; `usAttackingWeapon` is refreshed only while `ubAttackBusyCount == 0`. The cursor
+  sets `bTargetLevel` to the target's level, but the real shot (`HandleItem` from the UI) overwrites it with
+  `gsInterfaceLevel`, the level the player is viewing.
+- The real shot uses `fModify = TRUE` (only matters with a barrel extender, which can fall off), and with
+  `AIM_SHOT_RANDOM` it first rolls the body part (`PreRandom(100)`: below 15 legs, above 94 head, else torso;
+  head instead when torso or legs get through less than 25% and the head more than twice as well) and
+  computes the chance with the rolled part, so the head and legs penalties can apply where `chance` shows
+  none.
+- The UI stops raising the aim once `EnoughPoints` fails; the cursor's "can't get through" check uses
+  `SoldierToLocationChanceToGetThrough(s, target, gsInterfaceLevel, bTargetCubeLevel, 0)` before the click
+  and the body-part version after it.
+
+### `bestshot`
+
+`bestshot who=<id> [keepAim=0|1]` runs `CalcBestShot(&s, &best)` (`TacticalAI/Attacks.cc`) on a soldier
+of the loaded save, set up like the gun branch of `DecideActionBlack`: the first gun found by
+`FindAIUsableObjClass(s, IC_GUN)` is swapped into `HANDPOS` (`RearrangePocket`), and `bAimShotLocation`
+is set to `AIM_SHOT_RANDOM` (`keepAim=1` keeps the saved value). Fails when the soldier has no AI-usable
+gun.
+
+```json
+{"probe":"bestshot","line":16,"who":23,"weaponSlot":5,"weapon":7,"ap":14,"aimShotLocation":0,
+ "soldierTargetLevel":0,"possible":true,"opponent":2,"target":12867,"targetLevel":0,"aimTime":4,
+ "chanceToReallyHit":34,"apCost":12,"attackValue":1776,"restored":["23.usAttackingWeapon","23.CTGTTarget"]}
+```
+
+- `possible`, `opponent`, `target`, `targetLevel`, `aimTime`, `chanceToReallyHit`, `apCost`, `attackValue`:
+  `ATTACKTYPE` `ubPossible`, `opponent` (id or `null`), `sTarget` (25601 `NOWHERE` when nothing is
+  possible), `bTargetLevel`, `ubAimTime`, `ubChanceToReallyHit`, `ubAPCost`, `iAttackValue`.
+- `weaponSlot`/`weapon`: the slot the gun came from and its item; `ap`: `bActionPoints`.
+- `aimShotLocation`, `soldierTargetLevel`: the shooter's `bAimShotLocation` and `bTargetLevel` during the
+  call. `CalcBestShot` never sets `bTargetLevel`, but `CalcChanceToHitGun` reads it (to find the target
+  soldier and for the up/down penalties), so the value left over from the soldier's last attack matters.
+  `bAimShotLocation` picks the end point of the body-part line of sight (random uses `TARGET_POS`).
+- `restored`: as in `cth`. `CalcBestShot` itself sets `usAttackingWeapon` to the item in hand, clears
+  `fDontChargeReadyAPs` (through `MinAPsToAttack`), sets the shooter's `CTGTTarget` to `NULL`
+  (`AISoldierToSoldierChanceToGetThrough`) and each considered opponent's `CTGTTarget` to the shooter
+  (`CalcManThreatValue`); `AICalcChanceToHitGun` and `AISoldierToSoldierChanceToGetThrough` fake
+  `usAnimState = STANDING` and put it back themselves. In the game these changes persist; the probe undoes
+  them and the pocket swap.
+- Not reproduced from `DecideActionBlack`: `CanNPCAttack`, the `MinAPsToAttack(s, sLastTarget)` check before
+  the call, and the rule that drops a shot of `OUR_TEAM` below 30% `chanceToReallyHit`.
+
+### `light`
+
+```json
+{"probe":"light","line":3,"g":12400,"level":0,"ambient":12,"trueLevel":10,"viewer":2,"distanceVisible":15}
+```
+
+`ambient` is `LightGetAmbient()`, `trueLevel` is `LightTrueLevel(g, level)` (lower is brighter; it includes map light
+sprites), `distanceVisible` is `DistanceVisible(viewer, DIRECTION_IRRELEVANT, DIRECTION_IRRELEVANT, g, level)`.
+
 ## Comparing with ja2-node
 
 ```sh
@@ -193,11 +356,36 @@ JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data" node tools/oracle/compare.ts ~/
   ~/ja2-oracle/a9-paths.jsonl ~/ja2-oracle/a9-los.jsonl
 ```
 
-`compare.ts` loads A9 with ja2-node, rebuilds every probe (the same probe soldiers, stances and teams) and prints
-one line per probe plus a summary; the exit status is 1 on any mismatch. It compares the full movement cost table
-(byte by byte and the FNV-1a hash), the path length, the directions and the `PlotPath` AP cost of every `path` line,
-and both `lineOfSight` and `soldierToSoldier` of every `los` line. On 2026-10-15 all three shipped probe scripts
-matched exactly.
+`compare.ts` walks each output file in order. A `sector` line loads that map (A9 when a file has none), a `save` line
+imports the save into a fresh ja2-node session (`docs/14-savegames.md` §10, saves from `$JA2_SAVES_DIR` or
+`SavedGames` next to the data folder), and every following probe is rebuilt in that context. It prints one line per
+probe plus a summary; the exit status is 1 on any mismatch or oracle error. It compares:
+
+- `costs`: the full movement cost table (byte by byte and the FNV-1a hash);
+- `path`: length, directions and the `PlotPath` AP cost (probe soldiers after `sector`, the save's soldiers after `save`);
+- `los`: `lineOfSight` and `soldierToSoldier`;
+- `soldier`/`soldiers detail=1`: position, facing, animation, life, breath, AP, AP per turn, morale, alert, orders,
+  visibility, last target, effective stats, personality, opplist and inventory;
+- `cth`: chance, AP cost and chance to get through for every aim level, for shooters of any team;
+- `bestshot`: possible, opponent, target, aim, chance to really hit, AP cost and attack value;
+- `light`: ambient, true level and distance visible (ja2-node has no light sprites yet, so lit tiles differ).
+
+On 2026-10-15 all three shipped A9 scripts matched exactly.
+
+### Savegames
+
+`save-probes.ts` writes a probe script for any saves: a soldier dump, `cth` (torso, head, legs) and `bestshot` for
+every armed soldier of the player, enemy and militia teams against every opposed soldier, `los` for every opposed pair,
+and `path` from each fighter to each opposed fighter and twelve tiles out in eight directions, then a second dump.
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data"
+node tools/oracle/save-probes.ts SaveGame01 SaveGame07 SaveGame10 > ~/ja2-oracle/save-probes/saves.txt
+tools/oracle/run.sh ~/ja2-oracle/save-probes/saves.txt ~/ja2-oracle/save-probes/saves.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle/save-probes/saves.jsonl
+```
+
+On 2026-10-15 the six saves gave 1,665 commands and 6,075 comparisons, all matching.
 
 ## Shipped probes
 
@@ -247,3 +435,5 @@ Edit `src/Oracle.cc` here in the repo, not in the copy: `build.sh` overwrites th
   paths and the probe soldier's own structure is present during `soldierToSoldier`, as in the game.
 - Each `path`/`los` command removes the soldiers it created, so commands do not influence each
   other (apart from the `Random()` state).
+- `cth` and `bestshot` draw no random numbers and create no soldiers; the chance-to-get-through calls
+  create and remove a fake bullet each.

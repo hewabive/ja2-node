@@ -76,6 +76,22 @@ export function numSkillTraits(s: { readonly skillTrait1: number; readonly skill
 
 export const ReasonCantFinishMove = { NO_APS: 0, STOPPED_SIGHT: 1 } as const;
 
+export const SoldierStatusFlags = {
+  PC: 0x00000008,
+  PCUNDERAICONTROL: 0x00000020,
+  UNDERAICONTROL: 0x00000040,
+  DEAD: 0x00000080,
+  ROBOT: 0x00001000,
+  MONSTER: 0x00002000,
+  ANIMAL: 0x00004000,
+  VEHICLE: 0x00008000,
+  COWERING: 0x00400000,
+  GASSED: 0x01000000,
+  OFF_MAP: 0x02000000,
+  DRIVER: 0x08000000,
+  PASSENGER: 0x10000000,
+} as const;
+
 export const Team = { OUR: 0, ENEMY: 1, CREATURE: 2, MILITIA: 3, CIV: 4 } as const;
 export const Side = { FRIENDLY: 0, ENEMY: 1, HOSTILE: 2, NONE: 3 } as const;
 export const NO_PROFILE = 200;

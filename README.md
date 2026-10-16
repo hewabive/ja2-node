@@ -42,6 +42,9 @@ tools `status`, `observe`, `act` (`{"type":"move","soldier":0,"to":12880,"mode":
 `stance`, `stop`, `attack`, `estimateAttack`, `endTurn`) and `advance` (`{"idle":true}` or `{"ticks":n}`,
 5 ms per tick). A hostile sighting starts turn-based combat: every action then costs AP, `attack` fires the
 gun in hand at a gridNo (`aimTime` 0–4, `bodyPart`), and `endTurn` hands the turn to the enemy.
+`newSession` starts a separate game: the sandbox, or with `{"save":"SaveGame07"}` the tactical situation of a
+native savegame from the game's `SavedGames` folder (needs `JA2_DATA_DIR`; `JA2_SAVES_DIR` overrides the folder).
+`JA2_SAVE=SaveGame07 pnpm dev` opens the default session from that save.
 
 The server listens on `127.0.0.1` only and requires the token from `.ja2/token`, which it creates
 itself. The Vite proxy adds the token, so it never appears in page code.
@@ -62,6 +65,7 @@ itself. The Vite proxy adds the token, so it never appears in page code.
 | `pnpm cli inspect verify` | Decode every STI, PCX, TGA, JSD and map and report errors |
 | `pnpm cli inspect map <path>` / `tilesets` | Describe a map, list tilesets |
 | `pnpm cli inspect slf <file>` / `cat <path> --out <file>` | Archive directory, file extraction |
+| `pnpm cli inspect save <file.sav>` | Summarise a native savegame: sector, time, combat state, soldiers |
 
 The original-data test runs only when `JA2_DATA_DIR` is set.
 
