@@ -960,3 +960,7 @@ Specs: `docs/24` (NPCs and dialogue), `25` (quests, facts, NPC actions, schedule
    locks, the `door` command with the door menu as data; civilian groups as strategic state, `MakeCivHostile`, attack
    implications, the hostile-quote list and event 41; sight and death rules through a narrative port (facts, quests and
    records default to off until `docs/24`/`25` provide them). 49 oracle probes match.
+2. **Helicopter and vehicles** (`sim/strategic/forces/helicopter*.ts`, `vehicles.ts`, `sim/campaign/helicopter-flow.ts`):
+   Skyrider's helicopter (set-up, refuel sites, flights with SAM fire, scouting and billing, hovering, the return to base,
+   debts, destruction, monologues), boarding and leaving vehicles, vehicle routes and the strategic side of ground
+   vehicles; `heliRoute`, `heliCancel`, `boardVehicle` and `leaveVehicle` commands. 120 oracle probes match.
