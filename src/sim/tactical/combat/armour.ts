@@ -4,10 +4,10 @@
 // @src ArmourPercent; src/externalized/DefaultContentManager.cc loadMaxArmourPerClass. See docs/11 §4.3.
 
 import { AmmoType, ArmourClass, type ItemTable, NOTHING } from '../../../content/items/items.ts';
-import type { PreRandom } from '../../../core/rng.ts';
 import { deleteObject, type ItemObject, USABLE_STATUS } from '../../items/object.ts';
 import { InvSlot } from '../inventory.ts';
 import type { Soldier } from '../soldier.ts';
+import type { RandomStream } from './context.ts';
 import { AimShot, i8 } from './types.ts';
 
 const BODY_IMPACT_REDUCTION = [0, 15, 30, 23];
@@ -35,7 +35,7 @@ interface StatusRef {
   set(v: number): void;
 }
 
-function armourProtection(items: ItemTable, pre: PreRandom, item: number, status: StatusRef, impact: number, ammo: number): number {
+function armourProtection(items: ItemTable, pre: RandomStream, item: number, status: StatusRef, impact: number, ammo: number): number {
   const armour = items.byIndex.get(item)?.armour;
   if (!armour) return 0;
   let protection = armour.protection;
@@ -62,7 +62,7 @@ export function findPlatesAttachment(items: ItemTable, o: ItemObject): number {
 
 export function totalArmourProtection(
   items: ItemTable,
-  pre: PreRandom,
+  pre: RandomStream,
   target: Soldier,
   location: number,
   impact: number,

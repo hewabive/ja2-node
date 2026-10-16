@@ -6,6 +6,7 @@
 import { type ProfileProgress, profileProgress, STAT_KEYS, StatKind } from '../profiles.ts';
 import { Body, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
+import type { CombatContext } from './context.ts';
 import { CONSCIOUSNESS } from './types.ts';
 
 export const StatCause = { SUCCESS: 0, FAILURE: 1, TRAINING: 2 } as const;
@@ -17,6 +18,7 @@ const LEVEL_SUBPOINTS = 350;
 const TRAINING_RATING_CAP = 85;
 const MAX_STAT_VALUE = 100;
 const MAX_EXP_LEVEL = 10;
+const STAT_QUOTE_RANGE = 100;
 
 const u16 = (v: number) => v & 0xffff;
 
@@ -45,7 +47,7 @@ const CAN_DROP_TO_ZERO = new Set<number>([
 ]);
 const ZERO_MINIMUM = new Set<number>([StatKind.MEDICAL, StatKind.EXPLOSIVES, StatKind.MECHANICAL, StatKind.MARKSMANSHIP]);
 
-function processStatChange(t: TacticalState, p: ProfileProgress, stat: number, chances: number, cause: number): void {
+function processStatChange(t: CombatContext, p: ProfileProgress, stat: number, chances: number, cause: number): void {
   if (p.evolution === Evolution.NONE) return;
   if (cause === StatCause.TRAINING && p.evolution === Evolution.DEVOLVE) return;
   if (chances === 0) return;
@@ -101,7 +103,7 @@ function processStatChange(t: TacticalState, p: ProfileProgress, stat: number, c
   }
 }
 
-function changeStat(t: TacticalState, p: ProfileProgress, s: Soldier, stat: number, points: number): void {
+function changeStat(t: CombatContext, p: ProfileProgress, s: Soldier, stat: number, points: number): void {
   const key = STAT_KEYS[stat];
   if (!key || points === 0) return;
   const spp = subpointsPerPoint(stat, p.stats.experience);
@@ -109,6 +111,7 @@ function changeStat(t: TacticalState, p: ProfileProgress, s: Soldier, stat: numb
   p.gains[key] %= spp;
   if (key === 'lifeMax') s.lifeMax = p.stats.lifeMax;
   else s.stats[key] = p.stats[key];
+  if (stat !== StatKind.HEALTH && stat !== StatKind.EXPERIENCE) t.fx?.int(STAT_QUOTE_RANGE);
   if (stat === StatKind.HEALTH) {
     p.life = Math.max(OKLIFE, p.life + points);
     s.life = Math.max(OKLIFE, s.life + points);
@@ -116,7 +119,7 @@ function changeStat(t: TacticalState, p: ProfileProgress, s: Soldier, stat: numb
   t.events.push({ type: 'statChanged', soldier: s.id, stat: key, change: points });
 }
 
-export function processUpdateStats(t: TacticalState, s: Soldier): void {
+export function processUpdateStats(t: CombatContext, s: Soldier): void {
   if (t.turn.attackBusyCount > 0 && s.placed && t.inCombat) return;
   if (s.team !== Team.OUR || s.profile === NO_PROFILE) return;
   if (s.life < OKLIFE) return;
@@ -139,8 +142,10 @@ export function processUpdateStats(t: TacticalState, s: Soldier): void {
   }
 }
 
-export function statChange(t: TacticalState, s: Soldier, stat: number, chances: number, cause: number): void {
-  if (s.team !== Team.OUR || s.profile === NO_PROFILE) return;
+const isMechanical = (s: Soldier) => s.bodyType === Body.ROBOTNOWEAPON || (s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP);
+
+export function statChange(t: CombatContext, s: Soldier, stat: number, chances: number, cause: number): void {
+  if (s.team !== Team.OUR || s.profile === NO_PROFILE || isMechanical(s)) return;
   if (s.life < CONSCIOUSNESS) return;
   const p = profileProgress(t, s.profile);
   if (!p) return;
@@ -158,7 +163,7 @@ export function modifyExpGainByTarget(gain: number, tgt: Soldier): number {
   return u16(gain);
 }
 
-export function agilityForEnemyMissingPlayer(t: TacticalState, attacker: Soldier, target: Soldier, amount: number): void {
+export function agilityForEnemyMissingPlayer(t: CombatContext, attacker: Soldier, target: Soldier, amount: number): void {
   if (target.team !== attacker.team && target.team === Team.OUR && target.life >= OKLIFE)
     statChange(t, target, StatKind.AGILITY, amount, StatCause.SUCCESS);
 }

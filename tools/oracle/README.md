@@ -4,7 +4,8 @@ A patched JA2 Stracciatella build that runs headless against the original game d
 probe script and prints JSON lines. It gives reference values for our reimplementation
 (`docs/01-architecture.md` §8, level 6). The probes cover pathfinding, line of sight, the movement
 cost table, tactical lighting (`LightTrueLevel` of every tile), and the state of loaded saves: full soldier
-dumps, the chance to hit and AP cost of an aimed shot, and the AI's choice of the best shot.
+dumps, the chance to hit and AP cost of an aimed shot, and the AI's choice of the best shot; autoresolve battles
+are traced draw by draw and replayed through ja2-node.
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -17,11 +18,16 @@ commit them.
 | `build.sh` | Copies `reference/stracciatella` to the work dir, adds `src/`, applies `patches/`, builds |
 | `run.sh` | Runs one probe script headless and prints JSONL (or writes it to a file) |
 | `src/Oracle.{h,cc}` | The probe harness, copied into `src/game/` of the Stracciatella copy |
-| `patches/0001-oracle-hooks.patch` | The only changes to Stracciatella files (see "Hooks") |
+| `patches/0001-oracle-hooks.patch` | Hooks every probe needs (see "Hooks") |
+| `patches/0002-autoresolve-oracle.patch` | Draw trace, engine reseed and a headless autoresolve (see "Hooks") |
+| `autoresolve-compare.ts` | Core replay of `autoresolve` probes through ja2-node's autoresolve |
 | `probes/a9-*.txt` | Probe scripts for sector A9 (Omerta) |
 | `save-probes.ts` | Writes a probe script for the user's native saves (see "Savegames") |
 | `map-light-probes.ts` | Writes a light-dump script for every original map with light sprites (see "Lights") |
 | `compare.ts` | Rebuilds probe outputs with ja2-node and reports mismatches |
+| `strategic-compare.ts` | The strategic probes of `compare.ts` (`stratcosts`, `stratpath`, `groups`) |
+| `probes/strategic.txt` | Probe script for strategic movement (see "Strategic movement") |
+| `probes/autoresolve-*.txt` | Autoresolve probe scripts (see "Autoresolve") |
 
 `reference/` is never modified. The work dir (`$JA2_ORACLE_DIR`, default `~/ja2-oracle`) holds:
 `src/` (patched copy), `build/` (CMake build, binary `build/ja2`), `home/` (isolated Stracciatella
@@ -119,6 +125,12 @@ an `error` line and the script continues. The last line is always
 | `light` | `g=<g>`, `level=0`, `viewer=<id>` | `LightTrueLevel` of a tile, the ambient level and, with a viewer, `DistanceVisible` to it |
 | `lights` | `level=0`, `format=base64` (or `none`) | `LightTrueLevel` of every tile, the ambient level and the light sprites |
 | `ambient` | `level=<n>` | `LightSetBaseLevel(n)`: new ambient level, every light rendered again |
+| `stratcosts` | `mask=FOOT\|CAR\|TRUCK\|TRACKED\|AIR` | `ubTraversability[5]` of the 256 sectors and `GetSectorMvtTimeForGroup` per direction |
+| `stratpath` | `from=<sector>`, `to=<sector>`, `mask=…`, `tactical=0\|1` | `BuildAStrategicPath`, `RebuildWayPointsForGroupPath` and `CalculateTravelTimeOfGroup` on a scratch group |
+| `groups` | | The strategic movement state of a loaded save: groups, squads, vehicles, sectors, underground, arrival events, merc paths |
+| `seed` | `value=<n>`, `pre=keep\|reseed` | Reseeds the `Random` engine (the save restores the `PreRandom` ring, not the engine); `reseed` also refills the ring from it and resets its index |
+| `arsetup` | `sector=<A1..P16>`, `code=invasion\|encounter`, `militia=<g>,<r>,<e>`, `enemies=<admins>,<troops>,<elites>`, `persistent=1`, `day=<n>` | Writes the sector's militia and garrison counts, `gubEnemyEncounterCode`, `gubPBSector`, `gfPersistantPBI` and optionally the world day (capture needs day 4) |
+| `autoresolve` | `trace=1`, `retreat=<slice>:<soldier id>\|all,…`, `surrender=reject\|accept`, `bandage=0\|1`, `maxSlices=<n>` | Runs a headless Finish-mode autoresolve on the save's mercs in the `arsetup` sector (patch 0002) and dumps the cells after creation and after the ratings, the commands, the result (per cell, team state, clock warp, militia, promotions, sector counts, loyalty) and the traced draws |
 
 `sector` is a bare map load: `LoadWorld` compiles movement costs, builds structures, rooms and
 buildings, but there is no strategic layer, no enemy or NPC placement, no `PrepareLoadedSector`,
@@ -372,6 +384,45 @@ the `sector` line reports the resulting `hour` and `ambient` and `structureHeigh
 structures whose height is already cached (`ubStructureHeight`), because only those obstacles can block light.
 `ambient level=<n>` then renders the lights at a useful ambient level.
 
+### `stratcosts`
+
+```json
+{"probe":"stratcosts","line":2,"mask":"FOOT","maskValue":1,"traversability":[[12,2,2,12,13],...],"minutes":[[-1,104,104,-1],...]}
+```
+
+A local `GROUP` with `fPlayer = FALSE` and the given `ubTransportationMask` (no encumbrance). `traversability[id]` is
+`SectorInfo[id].ubTraversability` (N, E, S, W, through) and `minutes[id]` the `INT32` result of
+`GetSectorMvtTimeForGroup(id, dir, &g)` for N, E, S, W (−1 is `TRAVERSE_TIME_IMPOSSIBLE`). Without a save these are the
+values `InitializeJA2` loads from `strategic-map-movement-costs.json`; after `save` they are the saved ones (vanilla saves
+carry vanilla's table, which differs from the JSON on the I2/I3 border).
+
+### `stratpath`
+
+```json
+{"probe":"stratpath","line":7,"from":"A9","to":"P3","mask":"FOOT","tactical":false,"path":[27,45,...],"minutes":[89,...],
+ "waypoints":[[9,6,0],...],"next":[9,2,0],"betweenSectors":true,"arrivalInMinutes":89,"traverseTime":89,"eta":1326}
+```
+
+The probe detaches `gpGroupList`, creates a player group at `from` with `CreateNewPlayerGroupDepartingFromSector` (no
+members, so no encumbrance and no `DelayEnemyGroupsIfPathsCross` side effects), sets the mask and runs
+`BuildAStrategicPath(from, to, group, tactical)`. `path` holds the strategic indices (`x + 18·y`), `minutes` the
+`GetSectorMvtTimeForGroup` of each edge. Then `RebuildWayPointsForGroupPath` starts the group: `waypoints`, `next`,
+`betweenSectors`, the arrival relative to now and `traverseTime`, and `eta` is `CalculateTravelTimeOfGroup`. Afterwards the
+group, its arrival and about-to-arrive events are removed and the list restored, so the probe leaves no trace. The SHIFT
+("shortest route") mode and the helicopter's airspace costs are not reachable from a probe.
+
+### `groups`
+
+Needs a loaded save. One line with: `groups` (every `GROUP` in list order with all fields, `atFinalDestination`, `eta` =
+`CalculateTravelTimeOfGroup`, waypoints, and member soldier ids or the `ENEMYGROUP` counts), `squads` (soldier ids per
+slot, −1 empty), `squadGroups`, `deadSquadMembers`, `vehicleGroups`, `vehicles`, `helicopterVehicleId`,
+`helicopterAirborne`, `selectedSector`, `sectors` (per `SECTORINFO`: flags, garrison, pending reinforcements, troops,
+elites, admins, creatures, the four in-battle counts, facilities, bloodcats, placements, travel rating, militia ×3,
+last loaded, last liberated, ever player controlled, visible items), `elements` (`bNameId`, enemy controlled, enemy
+airspace, SAM condition), `underground`, `events` (`GROUP_ARRIVAL` and `GROUP_ABOUT_TO_ARRIVE`: stamp, kind, param),
+`mercs` (player team: group, sector, assignment, previous sector, insertion code, `pMercPath`), `secrets` and
+`worldMinutes`.
+
 ## Comparing with ja2-node
 
 ```sh
@@ -395,9 +446,26 @@ probe plus a summary; the exit status is 1 on any mismatch or oracle error. It c
 - `lights`: the true level of every tile (byte by byte and the FNV-1a hash), the ambient level and the light sprites
   (position, template, ON/PRIMETIME/NIGHTTIME; fake merc lights are skipped); after a `sector` line
   with `hour`, the session reloads the map lights for that hour, takes the oracle's ambient level and structure height
-  cache, and `ambient` lines set the level again.
+  cache, and `ambient` lines set the level again;
+- `stratcosts`: every traversability and every edge time (`tools/oracle/strategic-compare.ts`, on the shipped
+  `strategic-*.json` after `initStrategicLayerMap`, or on the imported save after `save`);
+- `stratpath`: path, edge times, waypoints, next sector, arrival, traverse time and ETA on the same scratch group;
+- `groups`: the `importStrategicMap` result of the save against the whole dump; player group ETAs are compared when every
+  member is in the loaded sector (encumbrance comes from the tactical soldier).
 
 On 2026-10-15 all three shipped A9 scripts matched exactly.
+
+### Strategic movement
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data"
+tools/oracle/run.sh tools/oracle/probes/strategic.txt ~/ja2-oracle/strategic.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle/strategic.jsonl
+```
+
+On 2026-10-16 the shipped script (5 `stratcosts`, 21 `stratpath` and the `groups` of all six saves) matched exactly. A
+generated sweep of `stratpath` over all 256 × 256 sector pairs for FOOT, AIR and TRACKED (196,608 routes, written by a
+throwaway script into `~/ja2-oracle`) and of every adjacent pair with `tactical=1` also matched exactly.
 
 ### Lights
 
@@ -431,6 +499,31 @@ node tools/oracle/compare.ts ~/ja2-oracle/save-probes/saves.jsonl
 
 On 2026-10-15 the six saves gave 1,665 commands and 6,075 comparisons, all matching.
 
+### Autoresolve
+
+`autoresolve` dumps the AR cells right after `CreateAutoResolveInterface` (soldiers with stats, inventory, profile
+progress) and the trace of every `Random`/`PreRandom` call with marks between the phases (setup, ratings, battle,
+retreat, surrender, end, bandage, close, post). `tools/oracle/autoresolve-compare.ts` (level 1 of docs/19 §7.4, "core
+replay") rebuilds the AR state from the setup dump, replays the traced draws through ja2-node's
+`calculateAttackValues`, `runAutoresolve`, `endOfBattle`, `autoBandageMercs` and `closeAutoresolve` with replaying
+streams that assert every requested range (cosmetic draws routed to `main` with `cosmeticOnMain`), applies the same
+retreat orders and surrender answer at the same slices, and compares the ratings, team sums, status, battle time, every
+cell (life, bleeding, flags, timers, pending bullets, inventory, militia kill points, merc profile counters and stat
+progress), the time warp, militia counts and promotions after closing, and that no draw is left over. Creature attacks
+are refused (the creature composition needs a trace of `std::discrete_distribution`).
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data"
+tools/oracle/run.sh tools/oracle/probes/autoresolve-d13.txt ~/ja2-oracle/ar/d13.jsonl
+tools/oracle/run.sh tools/oracle/probes/autoresolve-capture.txt ~/ja2-oracle/ar/capture.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle/ar/d13.jsonl ~/ja2-oracle/ar/capture.jsonl
+```
+
+On 2026-10-16 all 14 shipped battles matched exactly (victories, defeats, a retreat, individual and full retreat
+orders, bandaging, militia promotions, six surrender offers with accept and reject after up to 141 slices), as did a
+generated set of 30 more battles over SaveGame01, 02, 07, 09 and 10 (B13, C13, D13; random militia, garrisons, encounter
+codes, retreats, `pre=keep` and `pre=reseed`).
+
 ## Shipped probes
 
 | Script | Content |
@@ -438,6 +531,9 @@ On 2026-10-15 the six saves gave 1,665 commands and 6,075 comparisons, all match
 | `probes/a9-paths.txt` | Open ground in all four movement modes, around and into buildings through doors (enemy and player), a fence crossing walking and crawling, three long paths (49–101 steps), a roof path, an unreachable destination |
 | `probes/a9-los.txt` | Open ground, sight limit cut-off, stance combinations, blocked by buildings, across a fence, roof to ground and ground to roof, lines through trees with stand/crouch/prone targets |
 | `probes/a9-costs.txt` | The full movement cost table of A9 |
+| `probes/autoresolve-d13.txt` | Eight autoresolve battles on SaveGame10 (D13): invasion and encounter codes, 0–11 militia, 6–32 enemies, bandaging, retreat orders for all and for one merc |
+| `probes/autoresolve-capture.txt` | Six battles on SaveGame10 at day 5–7 with 20–32 enemies and no militia: the surrender offer, accepted or rejected |
+| `probes/strategic.txt` | The travel table for the five transports, A9→P3 for every mask and other long, unreachable, tactical-traversal and trivial routes, then `save` + `groups` for SaveGame01, 02, 07, 08, 09, 10 |
 
 All three were run on the user's Steam JA2 Gold 1.12 data: every command succeeds, and on these
 inputs `lineOfSight` and `soldierToSoldier` agree.
@@ -469,6 +565,24 @@ done > /tmp/hooks.patch
 
 and replace everything after the header lines of `patches/0001-oracle-hooks.patch` with it.
 Edit `src/Oracle.cc` here in the repo, not in the copy: `build.sh` overwrites the copy.
+
+`patches/0002-autoresolve-oracle.patch` (applied after 0001) touches four more files:
+
+- `src/sgp/Random.{h,cc}`: `OracleSeedRandom(seed, reseedPre)`, and a trace switch (`OracleTraceRandom`) that appends
+  `{stream, range, value, ring index}` for every `Random` (`m`) and `PreRandom` (`p`) call with a range above 0, plus
+  `OracleTraceMark` entries (`k`). Calls with range 0 draw nothing and are not traced.
+- `src/game/Strategic/Auto_Resolve.{h,cc}`: the end-of-battle block of `RenderAutoResolve` moves into
+  `HandleAutoResolveBattleEnd` (same code, same call site); `ProcessBattleFrame` gets a slice budget checked at the top
+  of each 1000 ms slice (`gOracleARSliceBudget`, −1 in the game) and remembers whether a frame stopped inside a slice;
+  appended `OracleAutoResolve*` functions run the logic of `EnterAutoResolveMode` and of the entering block of
+  `AutoResolveScreenHandle` without the screen switch and the zoom, switch to Finish (`uiTimeSlice = 0xffffffff`,
+  `fSound = FALSE`), run frames up to a slice count, apply retreat orders (the bodies of `RetreatButtonCallback` and
+  `MercCellMouseClickCallback`) and the surrender answer, run the end block, `AutoBandageMercs` and
+  `RemoveAutoResolveInterface`, and expose the AR state for the dump. The harness sets `guiCurrentScreen` to
+  `AUTORESOLVE_SCREEN` around it so soldier creation takes the AR path; the battle sector's world unloads as in the game.
+
+To change 0002, edit the four files in `$JA2_ORACLE_DIR/src`, rebuild, and regenerate it like 0001 with those paths
+(the diff is against `reference/stracciatella` with 0001 applied, which does not touch these files).
 
 ## Notes
 

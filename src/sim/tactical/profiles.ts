@@ -3,7 +3,6 @@
 // @src src/game/Tactical/Campaign.h StatKind; Soldier_Profile_Type.h MERCPROFILESTRUCT (mutable campaign fields)
 
 import type { MercProfile } from '../../content/formats/prof.ts';
-import type { TacticalState } from './state.ts';
 
 export const StatKind = {
   SALARY: 0,
@@ -111,7 +110,12 @@ function fromProfile(p: MercProfile): ProfileProgress {
   };
 }
 
-export function profileProgress(t: TacticalState, id: number): ProfileProgress | null {
+export interface ProfileSource {
+  readonly profiles: Map<number, ProfileProgress>;
+  readonly content: { readonly profiles: readonly MercProfile[] };
+}
+
+export function profileProgress(t: ProfileSource, id: number): ProfileProgress | null {
   const existing = t.profiles.get(id);
   if (existing) return existing;
   const p = t.content.profiles[id];

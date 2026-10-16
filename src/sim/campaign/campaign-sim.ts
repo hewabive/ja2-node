@@ -1,6 +1,14 @@
 import { TICK_MS } from '../clock.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
+import {
+  createStrategicContext,
+  handleGroupAboutToArriveEvent,
+  handleGroupArrivalEvent,
+  type StrategicContextOptions,
+} from '../strategic/forces/context.ts';
+import type { StrategicContext } from '../strategic/forces/ports.ts';
+import { isSectorDesert } from '../strategic/map/sectors.ts';
 import { createStrategicState, type StrategicState } from '../strategic/state.ts';
 import { CompressMode, EventKind } from '../strategic/time/constants.ts';
 import { EventDispatch } from '../strategic/time/dispatch.ts';
@@ -21,14 +29,18 @@ export interface CampaignCommand {
   readonly [key: string]: unknown;
 }
 
+export type StrategicSetup = Omit<StrategicContextOptions, 'state' | 'clock'>;
+
 export interface CampaignHooks {
   readonly compressionRefusal?: (campaign: CampaignSim) => string | null;
+  readonly strategic?: StrategicSetup;
 }
 
 export class CampaignSim {
   readonly state: StrategicState;
   readonly dispatchTable = new EventDispatch<CampaignSim>();
   tactical: TacticalSim | null;
+  readonly strategic: StrategicContext | null;
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
   readonly #clock: ClockContext;
@@ -40,7 +52,9 @@ export class CampaignSim {
     this.#hooks = hooks;
     if (tactical) state.flow = 'tactical';
     this.#clock = this.#clockContext();
+    this.strategic = hooks.strategic ? createStrategicContext({ ...hooks.strategic, state, clock: this.#clock }) : null;
     this.#registerEnvironment();
+    this.#registerMovement();
     if (state.flow === 'tactical') setGameTimeCompressionLevel(this.#clock, CompressMode.X1);
     tactical?.attachWorldClock(state.clock);
   }
@@ -80,6 +94,13 @@ export class CampaignSim {
     d.register(EventKind.TURN_OFF_PRIME_LIGHTS, (c) => c.tactical?.powerPrimeLights(false));
   }
 
+  #registerMovement(): void {
+    const ctx = this.strategic;
+    if (!ctx) return;
+    this.dispatchTable.register(EventKind.GROUP_ARRIVAL, (_, e) => handleGroupArrivalEvent(ctx, e));
+    this.dispatchTable.register(EventKind.GROUP_ABOUT_TO_ARRIVE, () => handleGroupAboutToArriveEvent());
+  }
+
   #environmentController(): void {
     const env = this.state.env;
     if (!env.doLighting || !this.tactical) return;
@@ -88,7 +109,8 @@ export class CampaignSim {
   }
 
   #loadedSectorIsDesert(): boolean {
-    return false;
+    const world = this.state.worldSector;
+    return world !== null && isSectorDesert(this.state.map, world);
   }
 
   #loadedSectorIsUnderground(): boolean {

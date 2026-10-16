@@ -1362,6 +1362,30 @@ shade palettes), `indent.sti`, `prebattlebutton.sti`, the localized pre-battle p
 
 ## 7. Minimal M4 implementation (PBI and autoresolve)
 
+### 7.0 Implemented (2026-10-16)
+
+Steps 1–2 and the strategic-map-free part of step 3:
+- `sim/tactical/combat/context.ts`: `CombatContext` (content, `pre`, `rng`, optional cosmetic `fx`, profiles, combat flag,
+  attack-busy count, stat events); `TacticalState` satisfies it structurally. `bulletImpact` takes an `ImpactMode`
+  (`TACTICAL_IMPACT`, `AUTORESOLVE_IMPACT` = no specials, no criticals or stealth-knife kill, `close: true`); `hthImpact`,
+  `statChange`, `processUpdateStats` and `totalArmourProtection` take the context; `combat/reload.ts` adds `autoReload`
+  and `findAmmoToReload`. `statChange` now ignores robots and vehicles like the original.
+- `sim/strategic/forces/autoresolve/`: `state.ts` (cells, flags, statuses, `createAutoresolveState`, `AutoresolveEnv` with
+  explicit `pre`/`main`/`fx` streams and decision hooks, `cosmeticOnMain`), `setup.ts` (`fillMilitiaRanks`,
+  `associateEnemiesWithStrategicGroups`, `enterAutoresolve`), `ratings.ts`, `loop.ts` (`runAutoresolve` with a slice
+  budget, `runSlice`, `processCell`), `attack.ts`, `landing.ts`, `end.ts` (retreat orders queued between slices,
+  `isBattleOver`, `attemptPlayerCapture`, `answerSurrender`), `outcome.ts` (`endOfBattle`: ×3, +5 min, and the §2.16
+  consequences as data), `bandage.ts`, `close.ts` (`closeAutoresolve` against `AutoresolveClosePort`: deaths, captures,
+  militia removal and promotions, enemy deaths by group id, excess elimination, corpse and drop records, `warpSeconds`).
+- Not yet: `creation-basic.ts` (the cells are built by the caller), the strategic glue (§7.2 steps 3–4 with the map,
+  `control.ts`, loyalty and morale application), the PBI flow, protocol and view.
+- Oracle level 1 (§7.4, `tools/oracle/autoresolve-compare.ts`, patch `0002-autoresolve-oracle.patch`): 44 native battles
+  on the user's saves replay draw by draw, including the close. Findings: `ChangeStat` draws `Random(100)` for the
+  stat-change quote whenever a stat other than health or level changes (cosmetic, on `fx`); a level gain of a M.E.R.C.
+  merc draws `Random(60)` for an email (not ported); the end block draws a music pick (cosmetic, not drawn); Q14 holds
+  (an AR victory leaves an enemy-controlled sector enemy-controlled).
+
+
 ### 7.1 Modules
 
 Names follow `docs/01` §3.7; the companion docs may move the strategic glue, the split below keeps AR self-contained.

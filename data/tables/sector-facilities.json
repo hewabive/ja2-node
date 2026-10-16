@@ -1,0 +1,63 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Strategic/Campaign_Init.cc InitKnowFacilitiesFlags, src/game/Strategic/Campaign_Types.h SFCF_*",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "facility flags known at a new campaign, applied in order with |= to SectorInfo[sector].uiFacilitiesFlags",
+  "flags": {
+    "HOSPITAL": 1,
+    "INDUSTRY": 2,
+    "PRISON": 4,
+    "MILITARY": 8,
+    "AIRPORT": 16,
+    "GUN_RANGE": 32
+  },
+  "sectors": [
+    {
+      "sector": "G8",
+      "facility": "HOSPITAL"
+    },
+    {
+      "sector": "F8",
+      "facility": "HOSPITAL"
+    },
+    {
+      "sector": "G9",
+      "facility": "HOSPITAL"
+    },
+    {
+      "sector": "F9",
+      "facility": "HOSPITAL"
+    },
+    {
+      "sector": "B13",
+      "facility": "AIRPORT"
+    },
+    {
+      "sector": "C13",
+      "facility": "AIRPORT"
+    },
+    {
+      "sector": "D13",
+      "facility": "AIRPORT"
+    },
+    {
+      "sector": "N3",
+      "facility": "AIRPORT"
+    },
+    {
+      "sector": "N4",
+      "facility": "AIRPORT"
+    },
+    {
+      "sector": "N5",
+      "facility": "AIRPORT"
+    },
+    {
+      "sector": "O3",
+      "facility": "AIRPORT"
+    },
+    {
+      "sector": "O4",
+      "facility": "AIRPORT"
+    }
+  ]
+}

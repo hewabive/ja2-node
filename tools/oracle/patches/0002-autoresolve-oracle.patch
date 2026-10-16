@@ -1,0 +1,571 @@
+Autoresolve oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-15. See LICENSE (SFI-SCLA).
+Adds OracleSeedRandom and a draw trace to sgp/Random.cc, moves the end-of-battle block of RenderAutoResolve into
+HandleAutoResolveBattleEnd (no behaviour change), adds a slice budget to ProcessBattleFrame (inactive unless the oracle
+sets it) and exports a headless Finish-mode autoresolve (OracleAutoResolve*). Applied by tools/oracle/build.sh after 0001.
+
+--- a/src/sgp/Random.h
++++ b/src/sgp/Random.h
+@@ -3,6 +3,7 @@
+ 
+ #include "Types.h"
+ #include <random>
++#include <vector>
+ 
+ 
+ extern void InitializeRandom(void);
+@@ -27,4 +28,15 @@
+ 
+ extern std::mt19937 gRandomEngine;
+ 
++struct OracleDraw
++{
++	char   stream;
++	UINT32 range;
++	UINT32 value;
++	UINT32 index;
++};
++void OracleSeedRandom(UINT32 seed, bool reseedPre);
++void OracleTraceRandom(std::vector<OracleDraw>* trace);
++void OracleTraceMark(UINT32 code);
++
+ #endif
+--- a/src/sgp/Random.cc
++++ b/src/sgp/Random.cc
+@@ -36,6 +36,29 @@
+ };
+ static PreRandomEngine gPreRandomEngine;
+ 
++static std::vector<OracleDraw>* gOracleDrawTrace = nullptr;
++
++void OracleSeedRandom(UINT32 const seed, bool const reseedPre)
++{
++	gRandomEngine.seed(seed);
++	if (!reseedPre) return;
++	for (guiPreRandomIndex = 0; guiPreRandomIndex < MAX_PREGENERATED_NUMS; ++guiPreRandomIndex)
++	{
++		guiPreRandomNums[ guiPreRandomIndex ] = guiDistribution(gRandomEngine);
++	}
++	guiPreRandomIndex = 0;
++}
++
++void OracleTraceRandom(std::vector<OracleDraw>* const trace)
++{
++	gOracleDrawTrace = trace;
++}
++
++void OracleTraceMark(UINT32 const code)
++{
++	if (gOracleDrawTrace) gOracleDrawTrace->push_back({'k', code, 0, 0});
++}
++
+ void InitializeRandom(void)
+ {
+ 	// Seed the pseudo-random number engine with the current time
+@@ -65,7 +88,9 @@
+ 	if (!uiRange)
+ 		return 0;
+ 	std::uniform_int_distribution<UINT32> distribution(0, uiRange - 1);
+-	return distribution(gRandomEngine);
++	UINT32 const value = distribution(gRandomEngine);
++	if (gOracleDrawTrace) gOracleDrawTrace->push_back({'m', uiRange, value, 0});
++	return value;
+ }
+ 
+ BOOLEAN Chance(UINT32 uiChance)
+@@ -80,7 +105,10 @@
+ 	if (!uiRange)
+ 		return 0;
+ 	std::uniform_int_distribution<UINT32> distribution(0, uiRange - 1);
+-	return distribution(gPreRandomEngine);
++	UINT32 const index = guiPreRandomIndex;
++	UINT32 const value = distribution(gPreRandomEngine);
++	if (gOracleDrawTrace) gOracleDrawTrace->push_back({'p', uiRange, value, index});
++	return value;
+ }
+ 
+ BOOLEAN PreChance(UINT32 uiChance)
+--- a/src/game/Strategic/Auto_Resolve.h
++++ b/src/game/Strategic/Auto_Resolve.h
+@@ -30,4 +30,41 @@
+ 
+ ScreenID AutoResolveScreenHandle(void);
+ 
++struct OracleARInfo
++{
++	UINT8   status;
++	UINT32  elapsedMs;
++	UINT16  playerAttack, playerDefence, enemyAttack, enemyDefence;
++	UINT8   playerLeadership, enemyLeadership;
++	UINT8   mercs, civs, enemies;
++	UINT8   aliveMercs, aliveCivs, aliveEnemies;
++	UINT8   admins, troops, elites;
++	UINT8   playerDefenceAdvantage;
++	BOOLEAN pendingSurrender, rejectedSurrender, captureNotPermittedDueToEPCs, moraleEventsHandled;
++	INT32   robotCell;
++	INT32   robotController;
++	UINT32  slices;
++};
++struct OracleARCellInfo
++{
++	SOLDIERTYPE* soldier;
++	UINT32       flags;
++	UINT16       attack, defence, nextAttack;
++	UINT16       nextHit[3];
++	UINT16       hitDamage[3];
++	INT32        attacker[3][2];
++	INT8         weaponSlot;
++};
++void   OracleAutoResolveEnter(const SGPSector& sector);
++void   OracleAutoResolveRate(void);
++UINT32 OracleAutoResolveRun(UINT32 sliceBudget);
++void   OracleAutoResolveRetreat(INT32 mercCell);
++void   OracleAutoResolveSurrender(bool accept);
++void   OracleAutoResolveBattleEnd(void);
++bool   OracleAutoResolveCanBandage(void);
++void   OracleAutoResolveBandage(void);
++void   OracleAutoResolveClose(void);
++bool   OracleAutoResolveInfo(OracleARInfo& info);
++bool   OracleAutoResolveCell(int side, int index, OracleARCellInfo& cell);
++
+ #endif
+--- a/src/game/Strategic/Auto_Resolve.cc
++++ b/src/game/Strategic/Auto_Resolve.cc
+@@ -261,6 +261,10 @@
+ static SOLDIERCELL*        gpCivs;
+ static SOLDIERCELL*        gpEnemies;
+ 
++static INT32   gOracleARSliceBudget = -1;
++static UINT32  gOracleARSlices      = 0;
++static BOOLEAN gOracleARMidSlice    = FALSE;
++
+ 
+ #define FOR_EACH_AR_MERC(iter) \
+ 	for (SOLDIERCELL* iter = gpMercs, *const iter##__end = &gpMercs[gpAR->ubMercs]; iter != iter##__end; ++iter)
+@@ -1149,6 +1153,90 @@
+ }
+ 
+ 
++static void HandleAutoResolveBattleEnd(SGPSector const& arSector)
++{
++	// Handle merc morale, Global loyalty, and change of sector control
++	if( !gpAR->fMoraleEventsHandled )
++	{
++		gpAR->uiTotalElapsedBattleTimeInMilliseconds *= 3;
++		gpAR->fMoraleEventsHandled = TRUE;
++		if (!CheckFact(FACT_FIRST_BATTLE_FOUGHT, 0))
++		{
++			// this was the first battle against the army
++			SetFactTrue( FACT_FIRST_BATTLE_FOUGHT );
++			if ( gpAR->ubBattleStatus == BATTLE_VICTORY)
++			{
++				SetFactTrue( FACT_FIRST_BATTLE_WON );
++			}
++			SetTheFirstBattleSector(arSector.AsStrategicIndex());
++			HandleFirstBattleEndingWhileInTown(arSector, TRUE);
++		}
++
++		switch( gpAR->ubBattleStatus )
++		{
++			case BATTLE_VICTORY:
++				HandleMoraleEvent(nullptr, MORALE_BATTLE_WON, arSector);
++				HandleGlobalLoyaltyEvent(GLOBAL_LOYALTY_BATTLE_WON, arSector);
++
++				SetThisSectorAsPlayerControlled(arSector, TRUE);
++
++				SetMusicMode( MUSIC_TACTICAL_VICTORY );
++				LogBattleResults( LOG_VICTORY );
++				break;
++
++			case BATTLE_SURRENDERED:
++			case BATTLE_CAPTURED:
++				FOR_EACH_IN_TEAM(i, OUR_TEAM)
++				{
++					SOLDIERTYPE& s = *i;
++					if (s.bLife != 0 && !IsMechanical(s))
++					{ //Merc is alive and not a vehicle or robot
++						if (PlayerMercInvolvedInThisCombat(s))
++						{
++							// This morale event is PER INDIVIDUAL SOLDIER
++							HandleMoraleEvent(&s, MORALE_MERC_CAPTURED, arSector);
++						}
++					}
++				}
++				HandleMoraleEvent(nullptr, MORALE_HEARD_BATTLE_LOST, arSector);
++				HandleGlobalLoyaltyEvent(GLOBAL_LOYALTY_BATTLE_LOST, arSector);
++
++				SetMusicMode( MUSIC_TACTICAL_DEFEAT );
++				gsEnemyGainedControlOfSectorID = arSector.AsByte();
++				break;
++			case BATTLE_DEFEAT:
++				HandleMoraleEvent(nullptr, MORALE_HEARD_BATTLE_LOST, arSector);
++				HandleGlobalLoyaltyEvent(GLOBAL_LOYALTY_BATTLE_LOST, arSector);
++				gsEnemyGainedControlOfSectorID = arSector.AsByte();
++				if (gubEnemyEncounterCode == CREATURE_ATTACK_CODE)
++				{
++					gsCiviliansEatenByMonsters = gpAR->ubAliveEnemies;
++				}
++				SetMusicMode( MUSIC_TACTICAL_DEFEAT );
++				LogBattleResults( LOG_DEFEAT );
++				break;
++
++			case BATTLE_RETREAT:
++
++				//Tack on 5 minutes for retreat.
++				gpAR->uiTotalElapsedBattleTimeInMilliseconds += 300000;
++
++				HandleLoyaltyImplicationsOfMercRetreat(RETREAT_AUTORESOLVE, arSector);
++				if( gubEnemyEncounterCode != CREATURE_ATTACK_CODE )
++				{
++					gsEnemyGainedControlOfSectorID = arSector.AsByte();
++				}
++				else if( gpAR->ubAliveEnemies )
++				{
++					gsEnemyGainedControlOfSectorID = arSector.AsByte();
++					gsCiviliansEatenByMonsters = gpAR->ubAliveEnemies;
++				}
++				break;
++		}
++	}
++}
++
++
+ static void RenderAutoResolve(void)
+ {
+ 	INT32 xp, yp;
+@@ -1270,85 +1358,7 @@
+ 
+ 	if( gpAR->ubBattleStatus != BATTLE_IN_PROGRESS )
+ 	{
+-		// Handle merc morale, Global loyalty, and change of sector control
+-		if( !gpAR->fMoraleEventsHandled )
+-		{
+-			gpAR->uiTotalElapsedBattleTimeInMilliseconds *= 3;
+-			gpAR->fMoraleEventsHandled = TRUE;
+-			if (!CheckFact(FACT_FIRST_BATTLE_FOUGHT, 0))
+-			{
+-				// this was the first battle against the army
+-				SetFactTrue( FACT_FIRST_BATTLE_FOUGHT );
+-				if ( gpAR->ubBattleStatus == BATTLE_VICTORY)
+-				{
+-					SetFactTrue( FACT_FIRST_BATTLE_WON );
+-				}
+-				SetTheFirstBattleSector(arSector.AsStrategicIndex());
+-				HandleFirstBattleEndingWhileInTown(arSector, TRUE);
+-			}
+-
+-			switch( gpAR->ubBattleStatus )
+-			{
+-				case BATTLE_VICTORY:
+-					HandleMoraleEvent(nullptr, MORALE_BATTLE_WON, arSector);
+-					HandleGlobalLoyaltyEvent(GLOBAL_LOYALTY_BATTLE_WON, arSector);
+-
+-					SetThisSectorAsPlayerControlled(arSector, TRUE);
+-
+-					SetMusicMode( MUSIC_TACTICAL_VICTORY );
+-					LogBattleResults( LOG_VICTORY );
+-					break;
+-
+-				case BATTLE_SURRENDERED:
+-				case BATTLE_CAPTURED:
+-					FOR_EACH_IN_TEAM(i, OUR_TEAM)
+-					{
+-						SOLDIERTYPE& s = *i;
+-						if (s.bLife != 0 && !IsMechanical(s))
+-						{ //Merc is alive and not a vehicle or robot
+-							if (PlayerMercInvolvedInThisCombat(s))
+-							{
+-								// This morale event is PER INDIVIDUAL SOLDIER
+-								HandleMoraleEvent(&s, MORALE_MERC_CAPTURED, arSector);
+-							}
+-						}
+-					}
+-					HandleMoraleEvent(nullptr, MORALE_HEARD_BATTLE_LOST, arSector);
+-					HandleGlobalLoyaltyEvent(GLOBAL_LOYALTY_BATTLE_LOST, arSector);
+-
+-					SetMusicMode( MUSIC_TACTICAL_DEFEAT );
+-					gsEnemyGainedControlOfSectorID = arSector.AsByte();
+-					break;
+-				case BATTLE_DEFEAT:
+-					HandleMoraleEvent(nullptr, MORALE_HEARD_BATTLE_LOST, arSector);
+-					HandleGlobalLoyaltyEvent(GLOBAL_LOYALTY_BATTLE_LOST, arSector);
+-					gsEnemyGainedControlOfSectorID = arSector.AsByte();
+-					if (gubEnemyEncounterCode == CREATURE_ATTACK_CODE)
+-					{
+-						gsCiviliansEatenByMonsters = gpAR->ubAliveEnemies;
+-					}
+-					SetMusicMode( MUSIC_TACTICAL_DEFEAT );
+-					LogBattleResults( LOG_DEFEAT );
+-					break;
+-
+-				case BATTLE_RETREAT:
+-
+-					//Tack on 5 minutes for retreat.
+-					gpAR->uiTotalElapsedBattleTimeInMilliseconds += 300000;
+-
+-					HandleLoyaltyImplicationsOfMercRetreat(RETREAT_AUTORESOLVE, arSector);
+-					if( gubEnemyEncounterCode != CREATURE_ATTACK_CODE )
+-					{
+-						gsEnemyGainedControlOfSectorID = arSector.AsByte();
+-					}
+-					else if( gpAR->ubAliveEnemies )
+-					{
+-						gsEnemyGainedControlOfSectorID = arSector.AsByte();
+-						gsCiviliansEatenByMonsters = gpAR->ubAliveEnemies;
+-					}
+-					break;
+-			}
+-		}
++		HandleAutoResolveBattleEnd(arSector);
+ 		//Render the end battle condition.
+ 			ST::string BattleResult;
+ 			switch( gpAR->ubBattleStatus )
+@@ -3544,6 +3554,7 @@
+ 	{
+ 		gpAR->uiCurrTime = GetJA2Clock();
+ 		fContinue = FALSE;
++		gOracleARMidSlice = FALSE;
+ 		goto CONTINUE_BATTLE;
+ 	}
+ 	//determine how much real-time has passed since the last frame
+@@ -3572,6 +3583,8 @@
+ 
+ 	while( iTimeSlice > 0 )
+ 	{
++		if (gOracleARSliceBudget >= 0 && gOracleARSlices >= static_cast<UINT32>(gOracleARSliceBudget)) return;
++		++gOracleARSlices;
+ 		uiSlice = std::min(iTimeSlice, 1000);
+ 		if( gpAR->ubBattleStatus == BATTLE_IN_PROGRESS )
+ 			gpAR->uiTotalElapsedBattleTimeInMilliseconds += uiSlice;
+@@ -3598,6 +3611,7 @@
+ 				//the fContinue flag, and goto the CONTINUE_BATTLE label the next time this function
+ 				//is called.
+ 				fContinue = TRUE;
++				gOracleARMidSlice = TRUE;
+ 				return;
+ 			}
+ 			CONTINUE_BATTLE:
+@@ -3798,3 +3812,224 @@
+ {
+ 	SetupDoneInterface();
+ }
++
++
++
++static constexpr UINT32 ORACLE_AR_MAX_FRAMES = 10000000;
++
++void OracleAutoResolveEnter(const SGPSector& ubSector)
++{
++	gubCreatureBattleCode = CREATURE_BATTLE_CODE_NONE;
++	gpAR = new AUTORESOLVE_STRUCT{};
++	gpMercs = gpAR->mercs.data();
++	gpCivs = gpAR->civs.data();
++	gpEnemies = gpAR->enemies.data();
++	gpAR->fEnteringAutoResolve = FALSE;
++	gpAR->ubSector = ubSector;
++	gpAR->ubBattleStatus = BATTLE_IN_PROGRESS;
++	gpAR->uiTimeSlice = 1000;
++	gpAR->uiTotalElapsedBattleTimeInMilliseconds = 0;
++	gpAR->fSound = TRUE;
++	gpAR->fMoraleEventsHandled = FALSE;
++	gpAR->uiPreRandomIndex = guiPreRandomIndex;
++	switch( gubEnemyEncounterCode )
++	{
++		case ENEMY_ENCOUNTER_CODE:
++			gpAR->ubPlayerDefenceAdvantage = 21;
++			break;
++		case ENEMY_INVASION_CODE:
++		case CREATURE_ATTACK_CODE:
++		default:
++			gpAR->ubPlayerDefenceAdvantage = 0;
++			break;
++	}
++	gOracleARSlices = 0;
++	gOracleARMidSlice = FALSE;
++	gOracleARSliceBudget = -1;
++	KillPreBattleInterface();
++	CalculateAutoResolveInfo();
++	CalculateSoldierCells();
++	CreateAutoResolveInterface();
++	DetermineTeamLeader( TRUE );
++	DetermineTeamLeader( FALSE );
++}
++
++
++void OracleAutoResolveRate(void)
++{
++	CalculateAttackValues();
++	gpAR->fRenderAutoResolve = TRUE;
++	gpAR->uiTimeSlice = 0xffffffff;
++	gpAR->fSound = FALSE;
++	if (!gpAR->uiCurrTime) gpAR->uiCurrTime = std::max<UINT32>(GetJA2Clock(), 1);
++}
++
++
++UINT32 OracleAutoResolveRun(UINT32 const sliceBudget)
++{
++	gOracleARSliceBudget = static_cast<INT32>(std::min<UINT32>(sliceBudget, 0x7fffffff));
++	for (UINT32 frame = 0; frame != ORACLE_AR_MAX_FRAMES; ++frame)
++	{
++		if (gpAR->ubBattleStatus != BATTLE_IN_PROGRESS || gpAR->fPendingSurrender) break;
++		if (gOracleARSlices >= sliceBudget && !gOracleARMidSlice) break;
++		ProcessBattleFrame();
++	}
++	gOracleARSliceBudget = -1;
++	return gOracleARSlices;
++}
++
++
++void OracleAutoResolveRetreat(INT32 const mercCell)
++{
++	if (mercCell < 0)
++	{
++		RetreatButtonCallback(nullptr, MSYS_CALLBACK_REASON_POINTER_UP);
++		return;
++	}
++	if( gpAR->fPendingSurrender ) return;
++	if (mercCell >= gpAR->ubMercs) return;
++	SOLDIERCELL * const pCell = &gpMercs[ mercCell ];
++	if( pCell->uiFlags & ( CELL_RETREATING | CELL_RETREATED ) ) return;
++	if( pCell == gpAR->pRobotCell ) return;
++	pCell->uiFlags |= CELL_RETREATING | CELL_DIRTY;
++	pCell->usNextAttack = (UINT16)((1000 + pCell->usNextAttack * 5 + PreRandom( 2000 - pCell->usAttack ))*2);
++	gpAR->usPlayerAttack -= pCell->usAttack;
++	pCell->usAttack = 0;
++	if( gpAR->pRobotCell )
++	{
++		const SOLDIERTYPE* const robot_controller = gpAR->pRobotCell->pSoldier->robot_remote_holder;
++		if (robot_controller == NULL)
++		{
++			gpAR->pRobotCell->uiFlags &= ~CELL_RETREATING;
++			gpAR->pRobotCell->uiFlags |= CELL_DIRTY;
++			gpAR->pRobotCell->usNextAttack = 0xffff;
++		}
++		else if (robot_controller == pCell->pSoldier)
++		{
++			gpAR->pRobotCell->uiFlags |= CELL_RETREATING | CELL_DIRTY;
++			gpAR->pRobotCell->usNextAttack = pCell->usNextAttack;
++			gpAR->usPlayerAttack -= gpAR->pRobotCell->usAttack;
++			gpAR->pRobotCell->usAttack = 0;
++		}
++	}
++}
++
++
++void OracleAutoResolveSurrender(bool const accept)
++{
++	if (!gpAR->fPendingSurrender) return;
++	if (accept) AcceptSurrenderCallback(nullptr, MSYS_CALLBACK_REASON_POINTER_UP);
++	else RejectSurrenderCallback(nullptr, MSYS_CALLBACK_REASON_POINTER_UP);
++}
++
++
++void OracleAutoResolveBattleEnd(void)
++{
++	if (gpAR->ubBattleStatus == BATTLE_IN_PROGRESS) return;
++	HandleAutoResolveBattleEnd(SGPSector(gpAR->ubSector.x, gpAR->ubSector.y, 0));
++}
++
++
++bool OracleAutoResolveCanBandage(void)
++{
++	return gpAR->ubBattleStatus == BATTLE_VICTORY && gpAR->ubAliveMercs && IsAnybodyWounded() && CanAnybodyBandage() && FindMedicalKit();
++}
++
++
++void OracleAutoResolveBandage(void)
++{
++	AutoBandageMercs();
++}
++
++
++void OracleAutoResolveClose(void)
++{
++	RemoveAutoResolveInterface();
++}
++
++
++static void OracleCellPosition(SOLDIERCELL const* const c, INT32 position[2])
++{
++	position[0] = -1;
++	position[1] = -1;
++	if (!c) return;
++	if (c >= gpMercs && c < gpMercs + 20)
++	{
++		position[0] = 0;
++		position[1] = static_cast<INT32>(c - gpMercs);
++	}
++	else if (c >= gpCivs && c < gpCivs + MAX_ALLOWABLE_MILITIA_PER_SECTOR)
++	{
++		position[0] = 1;
++		position[1] = static_cast<INT32>(c - gpCivs);
++	}
++	else if (c >= gpEnemies && c < gpEnemies + 32)
++	{
++		position[0] = 2;
++		position[1] = static_cast<INT32>(c - gpEnemies);
++	}
++}
++
++
++bool OracleAutoResolveInfo(OracleARInfo& info)
++{
++	if (!gpAR) return false;
++	AUTORESOLVE_STRUCT const& ar = *gpAR;
++	info.status = ar.ubBattleStatus;
++	info.elapsedMs = ar.uiTotalElapsedBattleTimeInMilliseconds;
++	info.playerAttack = ar.usPlayerAttack;
++	info.playerDefence = ar.usPlayerDefence;
++	info.enemyAttack = ar.usEnemyAttack;
++	info.enemyDefence = ar.usEnemyDefence;
++	info.playerLeadership = ar.ubPlayerLeadership;
++	info.enemyLeadership = ar.ubEnemyLeadership;
++	info.mercs = ar.ubMercs;
++	info.civs = ar.ubCivs;
++	info.enemies = ar.ubEnemies;
++	info.aliveMercs = ar.ubAliveMercs;
++	info.aliveCivs = ar.ubAliveCivs;
++	info.aliveEnemies = ar.ubAliveEnemies;
++	info.admins = ar.ubAdmins;
++	info.troops = ar.ubTroops;
++	info.elites = ar.ubElites;
++	info.playerDefenceAdvantage = ar.ubPlayerDefenceAdvantage;
++	info.pendingSurrender = ar.fPendingSurrender;
++	info.rejectedSurrender = ar.fPlayerRejectedSurrenderOffer;
++	info.captureNotPermittedDueToEPCs = ar.fCaptureNotPermittedDueToEPCs;
++	info.moraleEventsHandled = ar.fMoraleEventsHandled;
++	info.robotCell = ar.pRobotCell ? static_cast<INT32>(ar.pRobotCell - gpMercs) : -1;
++	info.robotController = -1;
++	if (ar.pRobotCell && ar.pRobotCell->pSoldier->robot_remote_holder)
++	{
++		for (INT32 i = 0; i != ar.ubMercs; ++i)
++		{
++			if (gpMercs[i].pSoldier == ar.pRobotCell->pSoldier->robot_remote_holder) info.robotController = i;
++		}
++	}
++	info.slices = gOracleARSlices;
++	return true;
++}
++
++
++bool OracleAutoResolveCell(int const side, int const index, OracleARCellInfo& out)
++{
++	if (!gpAR || index < 0) return false;
++	SOLDIERCELL const* c = nullptr;
++	if (side == 0 && index < gpAR->ubMercs) c = &gpMercs[index];
++	if (side == 1 && index < gpAR->ubCivs) c = &gpCivs[index];
++	if (side == 2 && index < gpAR->ubEnemies) c = &gpEnemies[index];
++	if (!c || !c->pSoldier) return false;
++	out.soldier = c->pSoldier;
++	out.flags = c->uiFlags;
++	out.attack = c->usAttack;
++	out.defence = c->usDefence;
++	out.nextAttack = c->usNextAttack;
++	for (int j = 0; j != 3; ++j)
++	{
++		out.nextHit[j] = c->usNextHit[j];
++		out.hitDamage[j] = c->usHitDamage[j];
++		OracleCellPosition(c->pAttacker[j], out.attacker[j]);
++	}
++	out.weaponSlot = c->bWeaponSlot;
++	return true;
++}

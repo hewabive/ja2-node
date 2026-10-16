@@ -20,6 +20,17 @@ import { field, type Layout, readLayout, skip } from './savegame-layout.ts';
 import { decodeSavedProfile, profileChecksum, profileRecordBytes, type SavedMercProfile } from './savegame-profile.ts';
 import { decodeSoldierRecord, type SavedSoldier, soldierChecksum, soldierRecordBytes } from './savegame-soldier.ts';
 import {
+  readGroups,
+  readMercPath,
+  readStrategicInfo,
+  readUndergroundSectors,
+  readVehicles,
+  type SavedVehicle,
+  type StrategicGroup,
+  type StrategicInfo,
+  type UndergroundSector,
+} from './savegame-strategic.ts';
+import {
   type GameClock,
   type GeneralInfo,
   type OppListInfo,
@@ -49,6 +60,8 @@ import {
   type SectorTempFile,
 } from './savegame-temp-files.ts';
 
+export type { SavedVehicle, StrategicGroup, StrategicInfo, UndergroundSector } from './savegame-strategic.ts';
+
 export const MIN_SAVE_VERSION = 85;
 export const MAX_SAVE_VERSION = 105;
 const FIRST_VERSION_WITH_NEW_ENCRYPTION = 87;
@@ -69,23 +82,12 @@ const BOOKMARKS = 20;
 const CHARACTER_LIST_ENTRIES = 256;
 const BOBBY_RAY_ORDER_BYTES = 84;
 const LIFE_INSURANCE_PAYOUT_BYTES = 8;
-const MERC_PATH_NODE_BYTES = 20;
 const KEY_RING_BYTES = 128;
 const EMAIL_RECORD_BYTES = 44;
-const MAP_WORLD_CELLS = 18 * 18;
-const STRATEGIC_MAP_ELEMENT_BYTES = 41;
-const SECTOR_INFO_COUNT = 256;
-const SECTOR_INFO_BYTES = 116;
-const SECTOR_INFO_TAIL_BYTES = SECTOR_INFO_BYTES - 4;
 const MAP_SIDE = 16;
-const UNDERGROUND_SECTOR_BYTES = 72;
-const UNDERGROUND_SECTOR_TAIL_BYTES = UNDERGROUND_SECTOR_BYTES - 7;
 const NUMBER_OF_SQUADS = 20;
 const SQUAD_SLOTS = 6;
 const SQUAD_RECORD_PADDING = 8;
-const ENEMY_GROUP_BYTES = 29;
-const WAYPOINT_BYTES = 8;
-const GROUP_ID_MASK_BYTES = 32;
 const MAX_QUESTS = 30;
 const NUM_FACTS = 500;
 const MAP_SCREEN_MESSAGES = 256;
@@ -104,7 +106,6 @@ const NUM_MINES = 6;
 const MINE_STATUS_BYTES = 44;
 const NUM_TOWNS = 13;
 const TOWN_LOYALTY_BYTES = 26;
-const VEHICLE_RECORD_BYTES = 128;
 const BULLET_RECORD_BYTES = 128;
 const REAL_OBJECT_RECORD_BYTES = 256;
 const AIR_RAID_BYTES = 132;
@@ -208,36 +209,6 @@ const DEALER_ITEM_HEADER_LAYOUT: Layout = [
   skip(2),
 ];
 
-const GROUP_LAYOUT: Layout = [
-  field('fDebugGroup', 'bool'),
-  field('fPlayer', 'bool'),
-  field('fVehicle', 'bool'),
-  field('fPersistant', 'bool'),
-  field('ubGroupID', 'u8'),
-  field('ubGroupSize', 'u8'),
-  field('ubSectorX', 'u8'),
-  field('ubSectorY', 'u8'),
-  field('ubSectorZ', 'u8'),
-  field('ubNextX', 'u8'),
-  field('ubNextY', 'u8'),
-  field('ubPrevX', 'u8'),
-  field('ubPrevY', 'u8'),
-  field('ubOriginalSector', 'u8'),
-  field('fBetweenSectors', 'bool'),
-  field('ubMoveType', 'u8'),
-  field('ubNextWaypointID', 'u8'),
-  skip(3),
-  field('uiArrivalTime', 'u32'),
-  field('uiTraverseTime', 'u32'),
-  skip(8),
-  field('ubTransportationMask', 'u8'),
-  skip(3),
-  field('uiFlags', 'u32'),
-  field('ubCreatedSectorID', 'u8'),
-  field('ubSectorIDOfLastReassignment', 'u8'),
-  skip(38),
-];
-
 const STRATEGIC_AI_LAYOUT: Layout = [
   skip(3),
   field('gfExtraElites', 'bool'),
@@ -301,23 +272,6 @@ export interface SavedSoldierEntry {
   readonly keyRing: readonly { readonly keyId: number; readonly count: number }[] | null;
 }
 
-export interface UndergroundSector {
-  readonly sector: SectorPosition;
-  readonly flags: number;
-}
-
-export interface StrategicGroup {
-  readonly id: number;
-  readonly player: boolean;
-  readonly vehicle: boolean;
-  readonly persistent: boolean;
-  readonly size: number;
-  readonly sector: SectorPosition;
-  readonly betweenSectors: boolean;
-  readonly playerProfiles: readonly number[];
-  readonly waypoints: number;
-}
-
 export interface CurrentSectorState {
   readonly sector: SectorPosition;
   readonly worldItems: readonly SavedWorldItem[] | null;
@@ -345,10 +299,13 @@ export interface SaveGame {
   readonly profiles: readonly SavedMercProfile[];
   readonly soldiers: readonly SavedSoldierEntry[];
   readonly sectorFlags: readonly number[];
+  readonly strategicInfo: StrategicInfo;
   readonly undergroundSectors: readonly UndergroundSector[];
   readonly squads: readonly (readonly number[])[];
   readonly squadMovementGroups: readonly number[];
   readonly groups: readonly StrategicGroup[];
+  readonly vehicles: readonly SavedVehicle[];
+  readonly vehicleMovementGroups: readonly number[];
   readonly tempFiles: readonly SectorTempFile[];
   readonly currentSector: CurrentSectorState;
   readonly quests: readonly number[];
@@ -443,15 +400,6 @@ function readProfiles(ctx: Context, key: Uint8Array | null): SavedMercProfile[] 
   return profiles;
 }
 
-function readMercPath(c: SaveCursor): number[] {
-  const nodes = c.u32();
-  return Array.from({ length: nodes }, () => {
-    const sectorId = c.u32();
-    c.skip(MERC_PATH_NODE_BYTES - 4);
-    return sectorId;
-  });
-}
-
 function readSoldiers(ctx: Context, key: Uint8Array | null): SavedSoldierEntry[] {
   const { c } = ctx;
   const entries: SavedSoldierEntry[] = [];
@@ -483,28 +431,6 @@ function skipEmails(c: SaveCursor): void {
   }
 }
 
-function readSectorFlags(c: SaveCursor): number[] {
-  c.skip(MAP_WORLD_CELLS * STRATEGIC_MAP_ELEMENT_BYTES);
-  const flags = Array.from({ length: SECTOR_INFO_COUNT }, () => {
-    const f = c.u32();
-    c.skip(SECTOR_INFO_TAIL_BYTES);
-    return f;
-  });
-  c.skip(MAP_WORLD_CELLS);
-  c.skip(1);
-  return flags;
-}
-
-function readUndergroundSectors(c: SaveCursor): UndergroundSector[] {
-  const count = c.u32();
-  return Array.from({ length: count }, () => {
-    const flags = c.u32();
-    const sector = { x: c.u8(), y: c.u8(), z: c.u8() };
-    c.skip(UNDERGROUND_SECTOR_TAIL_BYTES);
-    return { sector, flags };
-  });
-}
-
 function readSquads(c: SaveCursor, version: number): { squads: number[][]; movementGroups: number[] } {
   const squads: number[][] = Array.from({ length: NUMBER_OF_SQUADS }, () => []);
   for (let i = 0; i < NUMBER_OF_SQUADS * SQUAD_SLOTS; i++) {
@@ -517,29 +443,6 @@ function readSquads(c: SaveCursor, version: number): { squads: number[][]; movem
     squads[ownSquadField ? recordedSquad : Math.trunc(i / SQUAD_SLOTS)]?.push(id);
   }
   return { squads, movementGroups: c.i8s(NUMBER_OF_SQUADS) };
-}
-
-function readGroups(c: SaveCursor): StrategicGroup[] {
-  const count = c.u32();
-  const groups: StrategicGroup[] = [];
-  for (let i = 0; i < count; i++) {
-    const r = readLayout(c, GROUP_LAYOUT, false, 'GROUP');
-    const player = r.bool('fPlayer');
-    const size = r.num('ubGroupSize');
-    const id = r.num('ubGroupID');
-    const vehicle = r.bool('fVehicle');
-    const persistent = r.bool('fPersistant');
-    const betweenSectors = r.bool('fBetweenSectors');
-    const sector = { x: r.num('ubSectorX'), y: r.num('ubSectorY'), z: r.num('ubSectorZ') };
-    const playerProfiles: number[] = [];
-    if (player && size > 0) playerProfiles.push(...c.u32s(c.u32()));
-    if (!player) c.skip(ENEMY_GROUP_BYTES);
-    const waypoints = c.u32();
-    c.skip(waypoints * WAYPOINT_BYTES);
-    groups.push({ id, player, vehicle, persistent, size, sector, betweenSectors, playerProfiles, waypoints });
-  }
-  c.skip(GROUP_ID_MASK_BYTES);
-  return groups;
 }
 
 function readMapTempFiles(c: SaveCursor, sectorFlags: readonly number[], underground: readonly UndergroundSector[]): SectorTempFile[] {
@@ -582,15 +485,6 @@ function skipArmsDealers(c: SaveCursor): void {
     }
   }
   c.skip(specialItems * DEALER_SPECIAL_ITEM_BYTES);
-}
-
-function skipVehicles(c: SaveCursor): void {
-  const count = c.u8();
-  for (let i = 0; i < count; i++) {
-    if (!c.bool()) continue;
-    c.skip(VEHICLE_RECORD_BYTES);
-    readMercPath(c);
-  }
 }
 
 function skipCountedRecords(c: SaveCursor, recordBytes: number): void {
@@ -679,7 +573,8 @@ export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable
   section(ctx, 'history file', () => skipSizedBlob(c));
   section(ctx, 'files file', () => skipSizedBlob(c));
   section(ctx, 'email', () => skipEmails(c));
-  const sectorFlags = section(ctx, 'strategic info', () => readSectorFlags(c));
+  const strategicInfo = section(ctx, 'strategic info', () => readStrategicInfo(c));
+  const sectorFlags = strategicInfo.sectors.map((info) => info.flags);
   const undergroundSectors = section(ctx, 'underground sectors', () => readUndergroundSectors(c));
   const { squads, movementGroups } = section(ctx, 'squads', () => readSquads(c, version));
   const groups = section(ctx, 'strategic movement groups', () => readGroups(c));
@@ -695,7 +590,7 @@ export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable
   const generalInfo = section(ctx, 'general info', () => readGeneralInfo(c));
   section(ctx, 'mine status', () => c.skip(NUM_MINES * MINE_STATUS_BYTES));
   section(ctx, 'town loyalty', () => c.skip(NUM_TOWNS * TOWN_LOYALTY_BYTES));
-  section(ctx, 'vehicles', () => skipVehicles(c));
+  const vehicles = section(ctx, 'vehicles', () => readVehicles(c, version));
   section(ctx, 'bullets', () => skipCountedRecords(c, BULLET_RECORD_BYTES));
   section(ctx, 'physics objects', () => skipCountedRecords(c, REAL_OBJECT_RECORD_BYTES));
   section(ctx, 'air raid (unused)', () => c.skip(AIR_RAID_BYTES));
@@ -712,7 +607,7 @@ export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable
   section(ctx, 'backup npc info', () => skipNpcQuoteArrays(c, profilesInSave(version)));
   section(ctx, 'meanwhile definitions', () => c.skip(NUM_MEANWHILES * MEANWHILE_DEFINITION_BYTES));
   section(ctx, 'schedules', () => c.skip(c.u8() * SCHEDULE_RECORD_BYTES));
-  section(ctx, 'vehicle movement groups', () => c.skip(MAX_VEHICLES));
+  const vehicleMovementGroups = section(ctx, 'vehicle movement groups', () => c.u8s(MAX_VEHICLES));
   section(ctx, 'contract renewals', () => c.skip(CONTRACT_RENEWAL_SLOTS * CONTRACT_RENEWAL_NODE_BYTES + 1));
   section(ctx, 'leave item list', () => skipLeaveItemList(c));
   section(ctx, 'bobby ray shipments', () => c.skip(c.i32() * BOBBY_RAY_SHIPMENT_BYTES));
@@ -733,10 +628,13 @@ export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable
     profiles,
     soldiers,
     sectorFlags,
+    strategicInfo,
     undergroundSectors,
     squads,
     squadMovementGroups: movementGroups,
     groups,
+    vehicles,
+    vehicleMovementGroups,
     tempFiles,
     currentSector,
     quests,

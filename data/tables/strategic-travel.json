@@ -1,0 +1,112 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Strategic/Strategic_Movement.cc GetSectorMvtTimeForGroup and *_TRAVEL_TIME, src/game/Strategic/Campaign_Types.h, src/game/Strategic/Strategic_Pathing.cc FLAT_STRATEGIC_TRAVEL_TIME, src/game/Strategic/Map_Screen_Helicopter.h COST_AIRSPACE_*",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "transports in evaluation order; minutes = baseMinutes * 100 / modifiers[terrain] (integer), null modifiers = every terrain at baseMinutes; terrain missing from modifiers = impossible; EDGEOFWORLD is impossible for all; TOWN costs townMinutes unless the mask is exactly AIR",
+  "traversability": {
+    "TOWN": 0,
+    "ROAD": 1,
+    "PLAINS": 2,
+    "SAND": 3,
+    "SPARSE": 4,
+    "DENSE": 5,
+    "SWAMP": 6,
+    "WATER": 7,
+    "HILLS": 8,
+    "GROUNDBARRIER": 9,
+    "NS_RIVER": 10,
+    "EW_RIVER": 11,
+    "EDGEOFWORLD": 12,
+    "TROPICS": 13,
+    "FARMLAND": 14,
+    "PLAINS_ROAD": 15,
+    "SPARSE_ROAD": 16,
+    "FARMLAND_ROAD": 17,
+    "TROPICS_ROAD": 18,
+    "DENSE_ROAD": 19,
+    "COASTAL": 20,
+    "HILLS_ROAD": 21,
+    "COASTAL_ROAD": 22,
+    "SAND_ROAD": 23,
+    "SWAMP_ROAD": 24,
+    "SPARSE_SAM_SITE": 25,
+    "SAND_SAM_SITE": 26,
+    "TROPICS_SAM_SITE": 27,
+    "MEDUNA_SAM_SITE": 28,
+    "CAMBRIA_HOSPITAL_SITE": 29,
+    "DRASSEN_AIRPORT_SITE": 30,
+    "MEDUNA_AIRPORT_SITE": 31,
+    "SAM_SITE": 32,
+    "REBEL_HIDEOUT": 33,
+    "TIXA_DUNGEON": 34,
+    "CREATURE_LAIR": 35,
+    "ORTA_BASEMENT": 36,
+    "TUNNEL": 37,
+    "SHELTER": 38,
+    "ABANDONED_MINE": 39
+  },
+  "townMinutes": 5,
+  "flatStrategicTravelTime": 60,
+  "airspaceCost": {
+    "safe": 100,
+    "unsafe": 1000
+  },
+  "transports": [
+    {
+      "name": "FOOT",
+      "mask": 1,
+      "baseMinutes": 89,
+      "modifiers": {
+        "ROAD": 100,
+        "PLAINS": 85,
+        "SAND": 50,
+        "SPARSE": 70,
+        "DENSE": 60,
+        "SWAMP": 35,
+        "WATER": 25,
+        "HILLS": 50,
+        "NS_RIVER": 25,
+        "EW_RIVER": 25
+      }
+    },
+    {
+      "name": "CAR",
+      "mask": 2,
+      "baseMinutes": 30,
+      "modifiers": {
+        "ROAD": 100
+      }
+    },
+    {
+      "name": "TRUCK",
+      "mask": 4,
+      "baseMinutes": 32,
+      "modifiers": {
+        "ROAD": 100,
+        "PLAINS": 75,
+        "SPARSE": 60,
+        "HILLS": 50
+      }
+    },
+    {
+      "name": "TRACKED",
+      "mask": 8,
+      "baseMinutes": 46,
+      "modifiers": {
+        "ROAD": 100,
+        "PLAINS": 100,
+        "SAND": 70,
+        "SPARSE": 60,
+        "HILLS": 60,
+        "NS_RIVER": 20,
+        "EW_RIVER": 20,
+        "WATER": 10
+      }
+    },
+    {
+      "name": "AIR",
+      "mask": 16,
+      "baseMinutes": 10,
+      "modifiers": null
+    }
+  ]
+}

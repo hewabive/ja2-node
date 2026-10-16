@@ -54,10 +54,10 @@ wraps, i.e. for large balances.
 | 6 | Soldiers | 156 × (`u8 active`; if set: encrypted 2328 / 2352, merc path `u32 n` × 20, `u8 hasKeyRing` + 128) | see §6 |
 | 7–9 | Finances, history, files temp files | `u32 size` + data each | skipped |
 | 10 | Email | `u32 n` × (`u32 subjectSize` + subject + 44) | skipped |
-| 11 | Strategic info | 324 × 41 map elements, 256 × 116 `SECTORINFO`, 324 SAM bytes, 1 | sector `uiFlags` |
-| 12 | Underground sectors | `u32 n` × 72 | flags, sector |
+| 11 | Strategic info | 324 × 41 map elements, 256 × 116 `SECTORINFO`, 324 SAM bytes, 1 | all (`savegame-strategic.ts`): map elements, every `SECTORINFO` field, Orta found |
+| 12 | Underground sectors | `u32 n` × 72 | all |
 | 13 | Squads | 120 × 12 (`i16 id`, format version, squad id from v101, 8) + 20 movement group ids | members |
-| 14 | Strategic movement groups | `u32 n` × (84; player: `u32 n` × `u32 profile` if size > 0; enemy: 29; `u32 n` × 8 waypoints) + 32 | basics |
+| 14 | Strategic movement groups | `u32 n` × (84; player: `u32 n` × `u32 profile` if size > 0; enemy: 29; `u32 n` × 8 waypoints) + 32 | all (`GROUP`, `ENEMYGROUP`, waypoints) |
 | 15 | Map temp files | see §5 | items, doors, door states of the current sector |
 | 16 | Quests and facts | 30 + 500 | all |
 | 17 | Opplists | 936 + 3 × 24336 + 2 × 936 + 12 | see §7 |
@@ -67,16 +67,21 @@ wraps, i.e. for large balances.
 | 21 | Temp NPC quote file | `u32 size` + data (Strac writes 0, vanilla a real file) | skipped |
 | 22 | PreRandom | `u32 index` + 256 × `u32` | all |
 | 23 | Arms dealers | 19 × 20 + 19 × 351 × 16 headers, then 28 × Σ special-item counts of items 1..350 | skipped |
-| 24 | General info (`LoadGeneralInfo`) | 1024 | selected soldier, render centre, panel, options, clock base |
-| 25–30 | Mines (6 × 44), town loyalty (13 × 26), vehicles (`u8 n` × (`bool valid` + 128 + merc path)), bullets (`u32 n` × 128), physics objects (`u32 n` × 256), air raid (132) | | skipped |
+| 24 | General info (`LoadGeneralInfo`) | 1024 | selected soldier, render centre, panel, options, clock base, helicopter id and airborne flag, Tixa and SAM secrets, dead squad members, selected map sector |
+| 25–30 | Mines (6 × 44), town loyalty (13 × 26), vehicles (`u8 n` × (`bool valid` + 128 + merc path)), bullets (`u32 n` × 128), physics objects (`u32 n` × 256), air raid (132) | | vehicles decoded, the rest skipped |
 | 31 | Team turns | 174 | interrupt queue, hidden interrupt, last interrupted |
 | 32 | Explosions | 4 + 40 × 12 queue, `u32 n` × 36 | skipped |
 | 33–34 | Creature directives (13, +4 from v82), strategic status (192) | | skipped |
 | 35 | Strategic AI | 144 + 1200 + 1000 + 1400 + patrol count + garrison count (counts at offsets 8 and 4) | skipped |
 | 36 | Watched locations | 156 × 3 × (2 + 1 + 1 + 1) | all |
-| 37–42 | Item cursor (44), civ quotes (100), backup NPC info (as 19 without civ sectors), meanwhile (17 × 8), schedules (`u8 n` × 36), vehicle movement groups (10) | | skipped |
+| 37–42 | Item cursor (44), civ quotes (100), backup NPC info (as 19 without civ sectors), meanwhile (17 × 8), schedules (`u8 n` × 36), vehicle movement groups (10) | | vehicle movement groups decoded, the rest skipped |
 | 43–45 | Contract renewals (81), leave item list (20 × (`bool` + `u32 n` × 40) + 80), Bobby Ray shipments (`i32 n` × 104) | | skipped |
 | 46 | Game states (v101+) | `u32 len` + JSON text | text |
+
+Sections 11–14, the vehicles, the vehicle movement groups and the strategic part of the general info feed
+`importStrategicMap` (`src/sim/strategic/map/save-import.ts`, `docs/16` "Implemented"). Native saves keep the
+traversability table they were started with: vanilla saves differ from Stracciatella's JSON on the I2/I3 border, and
+Stracciatella does not re-initialise it on load, so the import keeps the saved values.
 
 ## 5. Map temp files
 
@@ -159,7 +164,7 @@ the reader converts them and reuses the Windows parser.
 - The Strac Linux layout is implemented from the source and covered by a synthetic test only; no real Linux save was
   available.
 - Versions 100–105 are covered by the version gates in the code but were not tested against real files.
-- The skipped sections (laptop pages, email, NPC scripts, dealers, strategic AI, vehicles, bullets, physics objects,
+- The skipped sections (laptop pages, email, NPC scripts, dealers, strategic AI, bullets, physics objects,
   explosions, schedules) and the raw temp files (revealed tiles, preserved enemies and civilians, smoke, lights) still
   need decoders before the strategic layer can continue a campaign. Rotting corpses (`decodeRottingCorpsesFile`,
   160-byte records after a `u32` count) and map modifications (`decodeMapModificationsFile`, 8-byte `MODIFY_MAP`

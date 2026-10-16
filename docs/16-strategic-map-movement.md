@@ -1567,3 +1567,62 @@ placement of quirk 23.
    step 4 of §9.2.
 7. Quirk 23 (mobile enemies placed twice after restoring a preserved enemy file) needs an oracle check: save beside an
    enemy sector, let a patrol enter it, re-enter, and count the enemy team.
+
+---
+
+## 13. Implemented (2026-10-16): §9.2 steps 1–6 and the strategic part of step 12
+
+**Content** (`src/content/strategic/`): `sector-ids.ts` (byte id, strategic index, short/long strings, map file names),
+`map-tables.ts` (traversability letters, the movement-cost grids turned into the five per-sector values of
+`InitStrategicMovementCosts`, towns, sector descriptions, underground templates, SAM sites and air control, secrets,
+cache sectors, bloodcat placements and spawns), `policy.ts` (`squad_size`, start sector, reveal flag, vehicle movement
+types), `travel-table.ts` (`data/tables/strategic-travel.json` from `tools/transcribe/strategic-travel.ts` and
+`data/tables/sector-facilities.json` from `tools/transcribe/sector-facilities.ts`), `strategic-content.ts`
+(`StrategicContent`, `loadStrategicContent(read)`; everything is in `data/`, so the strategic layer runs on stubs).
+
+**State** (`StrategicState`, plain data): `map` (`sectors[256]`, `elements[324]`, `underground[]` in file order,
+`secretsFound[]` parallel to the secrets table, `selectedSector`, `activity` = the player-activity counters of
+`SetSectorFlag`), `forces` (`groups[]` in list order, `squads[20]` as compact soldier-id lists, `squadGroupIds`,
+`deadSquadMembers`, `vehicleGroupIds`, `vehicles`, helicopter id and airborne flag), `movement` (the transient flow flags
+of §0), `encounter` (encounter globals, `preBattle` hand-off, `simultaneousArrival` prompt) and `options` (difficulty,
+sci-fi, gun nut). Group ids are the lowest id not used by a listed group, which is what `uniqueIDMask` always holds.
+
+**Simulation** (`src/sim/strategic/`):
+
+| Module | Public API |
+|---|---|
+| `map/sectors.ts` | `SectorInfo`, `MapElement`, `UndergroundSector`, `sectorInfo`, `findUndergroundSector`, `getSectorFlags`/`getSectorFlagStatus`/`setSectorFlag`/`resetSectorFlag` (Tixa prison, gun range, activity day), `mapFileNameForSector`, `traversabilityBetween` (`GetTraversability`), `sectorIsPassable`, `isSectorDesert`, `totalMilitia` |
+| `map/init.ts` | `initializeMapStructure`, `setupNewStrategicMap`, `initNewCampaignMap` (zero, movement costs, remove groups, facilities, underground draws, start sector), `initBloodCatSectors`, `initTixaBasementWithoutSciFi`, `initStrategicLayerMap(ctx, {initStrategicAI, initNpcs})` (the `InitStrategicLayer` order for the map and forces) |
+| `map/control.ts` | `setThisSectorAsPlayerControlled`, `setThisSectorAsEnemyControlled`, `updateAirspaceControl`, `initializeSamSites`, `samIdOfSector`, `isThisSectorASamSector`, `townIdOfSector`, secrets |
+| `map/knowledge.ts` | `whatPlayerKnowsAboutEnemiesInSector` (§6.3) |
+| `map/travel.ts` | `getSectorMvtTimeForGroup`, `sectorMovementTime` (pure), `findTravelTimeBetweenWaypoints`, `calculateTravelTimeOfGroup`, `TRAVERSE_TIME_IMPOSSIBLE` |
+| `map/pathing.ts` | `findStratPath` (the literal queue, trail tree, 512/4096 limits, 30-direction cap), `buildStrategicPath`, path helpers |
+| `map/save-import.ts` | `importStrategicMap(ctx, save)` |
+| `forces/groups.ts` | `Group`, `getGroup`, `create{Player,Vehicle,Enemy}Group…`, `removeGroup`, `removeAllGroups`, `addPlayerToGroup`, `removePlayerFromPGroup`/`removePlayerFromGroup`, `setGroupSectorValue`, `setEnemyGroupSector`, `findPlayer/EnemyMovementGroupInSector`, `playerMercsInSector`, `numEnemiesInSector`, `numHostilesInSector`, `numEnemiesInAnySector`, `countAllMilitiaInSector`, `groupAtFinalDestination` |
+| `forces/movement.ts` | `addWaypointToPGroup` (+ id variants), `initiateGroupMovementToNextSector`, `rebuildWayPointsForGroupPath`, `groupArrivedAtSector`, `calculateNextMoveIntention`, `groupReversingDirectionsBetweenSectors`, `retreatGroupToPreviousSector`, `resetMovementForEnemyGroup(sInLocation)`, `randomizePatrolGroupLocation`, `placeGroupInSector`, `moveGroupFromSectorToSector` (+ avoid-player variants), `buildAStrategicPath`, `clearMercPathsAndWaypointsForAllInGroup`, `answerNpcOfNotePrompt` |
+| `forces/squads.ts` | `initSquads`, `initVehicles`, `addCharacterToSquad`/`…AnySquad`/`…UniqueSquad`, `removeCharacterFromSquads`, `assignMercToAMovementGroup`, `handleSoldierLeavingSectorByThemSelf`, `checkSquadMovementGroups`, dead lists |
+| `forces/routes.ts` | `plotPathForCharacter`, `confirmPathForCharacter`, `cancelPathForCharacter`, `clearPathAfterThisSectorForCharacter` (people; vehicles later) |
+| `forces/encounters.ts` | `checkConditionsForBattle`, `handleOtherGroupsArrivingSimultaneously`, `answerSimultaneousArrival`, `prepareForPreBattleInterface`, `testForBloodcatAmbush`, `handleArrivalOfReinforcements` |
+| `forces/ports.ts`, `forces/context.ts` | `StrategicContext` = state + content + `MercPort` + `StrategicAiPort` + `TacticalWorldPort` + clock + `random`/`preRandom` roll sources; `createStrategicContext`, default ports (AI hooks return `false`/no-op, as §9.2 asks) |
+
+`CampaignSim` takes `hooks.strategic = {content, mercs?, ai?, world?}`, exposes `campaign.strategic` and registers
+`GROUP_ARRIVAL` (`GroupArrivedAtSector(group, TRUE, FALSE)`) and `GROUP_ABOUT_TO_ARRIVE` (no effect). Player soldiers are
+soldier ids 0..19 resolved through `MercPort` (`StrategicMerc` holds the strategic soldier fields: sector, between
+sectors, group, previous sector, insertion code and direction, path, assignment, vehicle; `changeAssignment` is
+expected to do `SetMercAwake`/`SetTimeOfAssignmentChangeForMerc` when the assignment changes). The PBI consumer
+(`docs/19`) reads `encounter.preBattle` and must clear it and `movement.disableMapInterfaceDueToBattle`, as closing the
+PBI does in the original.
+
+**Verified against the oracle** (`tools/oracle/probes/strategic.txt`, `README.md` "Strategic movement"): `stratcosts` for
+all five masks, 21 `stratpath` routes (A9→P3 for each mask, unreachable corners, tactical traversals, trivial routes) and
+`groups` after loading each of the six saves (every group field and waypoint, members, squads, squad and vehicle groups,
+dead lists, all `SECTORINFO` fields, map elements, underground, arrival events, merc paths, secrets, selected sector)
+match exactly; a sweep of all 256 × 256 routes for FOOT, AIR and TRACKED (196,608) and every adjacent tactical
+traversal also matches. Unit tests cover §9.3's ids, traversability, travel table, `FindStratPath` tie-breaks and limits,
+waypoints and reversal, group ids and order, squads, departure and arrival through the event queue (enemy sleep, queued
+battle delay, insertion codes, about-to-arrive), and the encounter matrix with simultaneous arrivals and bloodcats.
+
+**Not yet:** RNG-replay probes (`advance` with a Random tap), `stratpath who=` with a soldier's encumbrance, the
+helicopter (§3.16), vehicle boarding and passenger hand-over, NPC-of-note detection (a `TacticalWorldPort` hook),
+§3.3's `CanCharacterMoveInStrategic`, theft and loyalty effects of control changes (ports for `docs/17`/`18`), and wiring
+`importStrategicMap` and a roster-backed `MercPort` into `createSaveSession` (campaign integration).

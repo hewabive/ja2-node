@@ -51,6 +51,7 @@ import { type TacticalState, whoIsThere } from '../state.ts';
 import { calcTotalAPsToAttack } from './ap.ts';
 import { freeUpAttacker, reduceAttackBusyCount } from './barrier.ts';
 import { ENEMY_TO_HIT_MOD, soldierDifficultyLevel } from './chance.ts';
+import type { CombatContext } from './context.ts';
 import { agilityForEnemyMissingPlayer, modifyExpGainByTarget, StatCause, statChange } from './experience.ts';
 import { adjustImpactByHitLocation } from './impact.ts';
 import { bladeSpot, punchSpot } from './melee-reach.ts';
@@ -158,11 +159,11 @@ export function meleeChanceToHit(t: TacticalState, att: Soldier, def: Soldier, a
   return blade ? calcChanceToStab(t, att, def, aim) : calcChanceToPunch(t, att, def, aim);
 }
 
-export function hthImpact(t: TacticalState, att: Soldier, tgt: Soldier, hitBy: number, blade: boolean): number {
+export function hthImpact(t: CombatContext, att: Soldier, tgt: Soldier, hitBy: number, blade: boolean): number {
   let impact = Math.trunc(effectiveExpLevel(att) / 2);
   const strength = effectiveStrength(att);
   const weapon = att.attackingWeapon;
-  const weaponImpact = itemDef(t, weapon)?.weapon?.impact ?? 0;
+  const weaponImpact = t.content.items.byIndex.get(weapon)?.weapon?.impact ?? 0;
   const martialArtist = numSkillTraits(att, SkillTrait.MARTIALARTS) > 0;
   if (blade) {
     impact += Math.trunc(strength / 20) + weaponImpact;

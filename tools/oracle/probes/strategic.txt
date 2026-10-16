@@ -1,0 +1,39 @@
+# Strategic movement: the travel table per transport, routes and the group state of the saves (docs/16 §9.4)
+stratcosts mask=FOOT
+stratcosts mask=CAR
+stratcosts mask=TRUCK
+stratcosts mask=TRACKED
+stratcosts mask=AIR
+stratpath from=A9 to=P3 mask=FOOT
+stratpath from=A9 to=P3 mask=CAR
+stratpath from=A9 to=P3 mask=TRUCK
+stratpath from=A9 to=P3 mask=TRACKED
+stratpath from=A9 to=P3 mask=AIR
+stratpath from=P3 to=A9 mask=FOOT
+stratpath from=A1 to=P16 mask=FOOT
+stratpath from=A1 to=P16 mask=AIR
+stratpath from=P16 to=A1 mask=TRACKED
+stratpath from=D13 to=I13 mask=FOOT
+stratpath from=D13 to=I13 mask=CAR
+stratpath from=B13 to=H3 mask=TRUCK
+stratpath from=J9 to=B13 mask=FOOT
+stratpath from=G1 to=N5 mask=TRACKED
+stratpath from=C5 to=N14 mask=FOOT
+stratpath from=A9 to=A10 mask=FOOT tactical=1
+stratpath from=D5 to=D6 mask=FOOT tactical=1
+stratpath from=B13 to=C13 mask=FOOT tactical=1
+stratpath from=A9 to=A9 mask=FOOT
+stratpath from=A9 to=B9 mask=CAR
+save SaveGame01
+groups
+stratpath from=B13 to=P3 mask=FOOT
+save SaveGame02
+groups
+save SaveGame07
+groups
+save SaveGame08
+groups
+save SaveGame09
+groups
+save SaveGame10
+groups

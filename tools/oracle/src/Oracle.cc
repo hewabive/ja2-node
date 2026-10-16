@@ -5,7 +5,8 @@
 // @src src/game/Tactical/Weapons.cc CalcChanceToHitGun; src/game/Tactical/Points.cc CalcTotalAPsToAttack;
 // @src src/game/Tactical/UI_Cursors.cc; src/game/TacticalAI/Attacks.cc CalcBestShot; src/game/TacticalAI/DecideAction.cc;
 // @src src/game/TileEngine/Lighting.cc LightTrueLevel, LightSetBaseLevel, LightSprites; src/game/Strategic/Game_Clock.cc
-// @src UpdateGameClockGlobals
+// @src UpdateGameClockGlobals; src/game/Strategic/Strategic_Movement.cc GetSectorMvtTimeForGroup, CalculateTravelTimeOfGroup;
+// @src src/game/Strategic/Strategic_Pathing.cc BuildAStrategicPath, RebuildWayPointsForGroupPath
 #include "Oracle.h"
 
 #include "AIInternals.h"
@@ -39,9 +40,28 @@
 #include "Weapons.h"
 #include "WorldDef.h"
 #include "WorldMan.h"
+#include "Auto_Resolve.h"
+#include "JAScreens.h"
+#include "Player_Command.h"
+#include "PreBattle_Interface.h"
+#include "Queen_Command.h"
+#include "Strategic_Status.h"
+#include "Strategic_Town_Loyalty.h"
+#include "Campaign_Types.h"
+#include "Game_Event_Hook.h"
+#include "Game_Events.h"
+#include "Map_Screen_Helicopter.h"
+#include "Map_Screen_Interface_Map.h"
+#include "Squads.h"
+#include "StrategicMapSecretModel.h"
+#include "StrategicMap_Secrets.h"
+#include "Strategic_Movement.h"
+#include "Strategic_Pathing.h"
+#include "Vehicles.h"
 
 #include <string_theory/string>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstdio>
@@ -59,6 +79,11 @@
 
 INT32 OracleLineOfSightTest(GridNo start_pos, FLOAT dStartZ, GridNo end_pos, FLOAT dEndZ, UINT8 ubTileSightLimit, UINT8 ubTreeSightReduction, INT8 bAware, INT8 bCamouflage, BOOLEAN fSmell, INT16* psWindowGridNo);
 UINT8 OracleTreeSightReduction(UINT8 ubEndHeight);
+extern INT16 gsEnemyGainedControlOfSectorID;
+extern INT16 gsCiviliansEatenByMonsters;
+extern INT8 SquadMovementGroups[];
+extern INT16 sDeadMercs[NUMBER_OF_SQUADS][NUMBER_OF_DEAD_SOLDIERS_ON_SQUAD];
+extern UINT8 gubVehicleMovementGroups[];
 
 namespace {
 
@@ -1067,6 +1092,707 @@ void DumpLights(Command const& c)
 	Emit(json);
 }
 
+std::map<std::string, UINT8> const TRANSPORT_MASKS{
+	{"FOOT", FOOT}, {"CAR", CAR}, {"TRUCK", TRUCK}, {"TRACKED", TRACKED}, {"AIR", AIR},
+};
+
+constexpr int STRATEGIC_SECTORS = 256;
+constexpr int STRATEGIC_DIRECTIONS = 4;
+constexpr int TRAVERSABILITY_ENTRIES = 5;
+
+std::string Numbers(std::vector<long long> const& values)
+{
+	std::vector<std::string> items;
+	for (long long const v : values) items.push_back(std::to_string(v));
+	return JsonArray(items);
+}
+
+std::string StrategicSector(SGPSector const& s)
+{
+	return Numbers({s.x, s.y, s.z});
+}
+
+SGPSector StrategicSectorArgument(Command const& c, std::string const& key)
+{
+	std::string const name = Text(c, key, "");
+	if (name.empty()) throw std::runtime_error("missing argument " + key);
+	SGPSector const s = SGPSector::FromShortString(ST::string(name));
+	if (!s.IsValid()) throw std::runtime_error("invalid sector " + name);
+	return s;
+}
+
+void ProbeStrategicCosts(Command const& c)
+{
+	std::string const maskName = Text(c, "mask", "FOOT");
+	GROUP g{};
+	g.fPlayer = FALSE;
+	g.ubTransportationMask = Lookup(TRANSPORT_MASKS, c, "mask", "FOOT");
+	std::vector<std::string> traversability;
+	std::vector<std::string> minutes;
+	for (int id = 0; id < STRATEGIC_SECTORS; ++id)
+	{
+		SECTORINFO const& s = SectorInfo[id];
+		std::vector<long long> t;
+		for (int k = 0; k < TRAVERSABILITY_ENTRIES; ++k) t.push_back(s.ubTraversability[k]);
+		traversability.push_back(Numbers(t));
+		std::vector<long long> m;
+		for (int dir = 0; dir < STRATEGIC_DIRECTIONS; ++dir) m.push_back(GetSectorMvtTimeForGroup(static_cast<UINT8>(id), static_cast<UINT8>(dir), &g));
+		minutes.push_back(Numbers(m));
+	}
+	Emit(Json{}
+		.str("probe", "stratcosts")
+		.num("line", c.line)
+		.str("mask", maskName)
+		.num("maskValue", g.ubTransportationMask)
+		.raw("traversability", JsonArray(traversability))
+		.raw("minutes", JsonArray(minutes)));
+}
+
+UINT8 StrategicMoveBetween(INT32 from, INT32 to)
+{
+	INT32 const delta = to - from;
+	if (delta == NORTH_MOVE) return NORTH_STRATEGIC_MOVE;
+	if (delta == EAST_MOVE) return EAST_STRATEGIC_MOVE;
+	if (delta == SOUTH_MOVE) return SOUTH_STRATEGIC_MOVE;
+	return WEST_STRATEGIC_MOVE;
+}
+
+void DeleteScratchAboutToArriveEvents(UINT8 id)
+{
+	int count = 0;
+	for (STRATEGICEVENT const* e = gpEventList; e; e = e->next)
+	{
+		if (e->ubCallbackID == EVENT_GROUP_ABOUT_TO_ARRIVE && e->uiParam == id) ++count;
+	}
+	while (count-- > 0) DeleteStrategicEvent(EVENT_GROUP_ABOUT_TO_ARRIVE, id);
+}
+
+void ProbeStrategicPath(Command const& c)
+{
+	SGPSector const from = StrategicSectorArgument(c, "from");
+	SGPSector const to = StrategicSectorArgument(c, "to");
+	std::string const maskName = Text(c, "mask", "FOOT");
+	bool const tactical = Integer(c, "tactical", 0) != 0;
+	GROUP* const saved = gpGroupList;
+	gpGroupList = NULL;
+	GROUP* const g = CreateNewPlayerGroupDepartingFromSector(from);
+	g->ubTransportationMask = Lookup(TRANSPORT_MASKS, c, "mask", "FOOT");
+	PathSt* const path = BuildAStrategicPath(from.AsStrategicIndex(), to.AsStrategicIndex(), *g, tactical);
+	std::vector<long long> nodes;
+	std::vector<long long> minutes;
+	for (PathSt const* n = path; n; n = n->pNext)
+	{
+		nodes.push_back(n->uiSectorId);
+		if (!n->pNext) continue;
+		UINT8 const sector = SGPSector::FromStrategicIndex(static_cast<UINT16>(n->uiSectorId)).AsByte();
+		minutes.push_back(GetSectorMvtTimeForGroup(sector, StrategicMoveBetween(n->uiSectorId, n->pNext->uiSectorId), g));
+	}
+	UINT32 const now = GetWorldTotalMin();
+	RebuildWayPointsForGroupPath(path, *g);
+	std::vector<std::string> waypoints;
+	for (WAYPOINT const* w = g->pWaypoints; w; w = w->next) waypoints.push_back(StrategicSector(w->sSector));
+	Json json;
+	json.str("probe", "stratpath")
+		.num("line", c.line)
+		.str("from", from.AsShortString().to_std_string())
+		.str("to", to.AsShortString().to_std_string())
+		.str("mask", maskName)
+		.flag("tactical", tactical)
+		.raw("path", Numbers(nodes))
+		.raw("minutes", Numbers(minutes))
+		.raw("waypoints", JsonArray(waypoints))
+		.raw("next", StrategicSector(g->ubNext))
+		.flag("betweenSectors", g->fBetweenSectors)
+		.num("arrivalInMinutes", static_cast<long long>(g->uiArrivalTime) - now)
+		.num("traverseTime", g->uiTraverseTime)
+		.num("eta", CalculateTravelTimeOfGroup(g));
+	UINT8 const id = g->ubGroupID;
+	ClearStrategicPathList(path, 0);
+	RemoveGroup(*g);
+	DeleteScratchAboutToArriveEvents(id);
+	gpGroupList = saved;
+	Emit(json);
+}
+
+std::string DescribeGroup(GROUP const& g)
+{
+	std::vector<std::string> waypoints;
+	for (WAYPOINT const* w = g.pWaypoints; w; w = w->next) waypoints.push_back(StrategicSector(w->sSector));
+	Json json;
+	json.num("id", g.ubGroupID)
+		.flag("player", g.fPlayer)
+		.flag("vehicle", g.fVehicle)
+		.flag("persistent", g.fPersistant)
+		.flag("debug", g.fDebugGroup)
+		.num("size", g.ubGroupSize)
+		.raw("sector", StrategicSector(g.ubSector))
+		.raw("next", StrategicSector(g.ubNext))
+		.raw("prev", StrategicSector(g.ubPrev))
+		.num("originalSector", g.ubOriginalSector)
+		.flag("betweenSectors", g.fBetweenSectors)
+		.num("moveType", g.ubMoveType)
+		.num("nextWaypointId", g.ubNextWaypointID)
+		.num("arrivalTime", g.uiArrivalTime)
+		.num("traverseTime", g.uiTraverseTime)
+		.num("transportMask", g.ubTransportationMask)
+		.num("flags", g.uiFlags)
+		.num("createdSectorId", g.ubCreatedSectorID)
+		.num("sectorIdOfLastReassignment", g.ubSectorIDOfLastReassignment)
+		.flag("atFinalDestination", GroupAtFinalDestination(&g))
+		.num("eta", CalculateTravelTimeOfGroup(&g))
+		.raw("waypoints", JsonArray(waypoints));
+	if (g.fPlayer)
+	{
+		std::vector<long long> members;
+		CFOR_EACH_PLAYER_IN_GROUP(p, &g) members.push_back(p->pSoldier->ubID);
+		json.raw("members", Numbers(members));
+	}
+	else
+	{
+		ENEMYGROUP const& e = *g.pEnemyGroup;
+		json.raw("enemy", Numbers({e.ubNumTroops, e.ubNumElites, e.ubNumAdmins, e.ubPendingReinforcements, e.ubAdminsInBattle,
+			e.ubIntention, e.ubTroopsInBattle, e.ubElitesInBattle}));
+	}
+	return json.text();
+}
+
+std::string DescribeSectorInfo(SECTORINFO const& s)
+{
+	return Numbers({s.uiFlags, s.ubGarrisonID, s.ubPendingReinforcements, s.ubNumTroops, s.ubNumElites, s.ubNumAdmins, s.ubNumCreatures,
+		s.ubTroopsInBattle, s.ubElitesInBattle, s.ubAdminsInBattle, s.ubCreaturesInBattle, s.uiFacilitiesFlags, s.bBloodCats,
+		s.bBloodCatPlacements, s.ubTravelRating, s.ubNumberOfCivsAtLevel[0], s.ubNumberOfCivsAtLevel[1], s.ubNumberOfCivsAtLevel[2],
+		s.uiTimeCurrentSectorWasLastLoaded, s.uiTimeLastPlayerLiberated, s.fSurfaceWasEverPlayerControlled,
+		s.uiNumberOfWorldItemsInTempFileThatCanBeSeenByPlayer});
+}
+
+void DumpStrategicGroups(Command const& c)
+{
+	std::vector<std::string> groups;
+	CFOR_EACH_GROUP(g) groups.push_back(DescribeGroup(*g));
+	std::vector<std::string> squads;
+	for (int q = 0; q < NUMBER_OF_SQUADS; ++q)
+	{
+		std::vector<long long> members;
+		for (SOLDIERTYPE const* s : Squad[q]) members.push_back(s ? s->ubID : -1);
+		squads.push_back(Numbers(members));
+	}
+	std::vector<long long> squadGroups;
+	for (int q = 0; q < NUMBER_OF_SQUADS; ++q) squadGroups.push_back(SquadMovementGroups[q]);
+	std::vector<std::string> dead;
+	for (int q = 0; q < NUMBER_OF_SQUADS; ++q)
+	{
+		std::vector<long long> row;
+		for (int k = 0; k < NUMBER_OF_DEAD_SOLDIERS_ON_SQUAD; ++k) row.push_back(sDeadMercs[q][k]);
+		dead.push_back(Numbers(row));
+	}
+	std::vector<long long> vehicleGroups;
+	for (int k = 0; k < MAX_VEHICLES; ++k) vehicleGroups.push_back(gubVehicleMovementGroups[k]);
+	std::vector<std::string> vehicles;
+	for (VEHICLETYPE const& v : pVehicleList)
+	{
+		std::vector<long long> passengers;
+		for (SOLDIERTYPE const* p : v.pPassengers) if (p) passengers.push_back(p->ubID);
+		vehicles.push_back(Json{}
+			.flag("valid", v.fValid)
+			.num("movementGroup", v.ubMovementGroup)
+			.num("type", v.ubVehicleType)
+			.raw("sector", StrategicSector(v.sSector))
+			.flag("betweenSectors", v.fBetweenSectors)
+			.flag("destroyed", v.fDestroyed)
+			.raw("passengers", Numbers(passengers))
+			.text());
+	}
+	std::vector<std::string> sectors;
+	for (SECTORINFO const& s : SectorInfo) sectors.push_back(DescribeSectorInfo(s));
+	std::vector<std::string> elements;
+	for (StrategicMapElement const& e : StrategicMap) elements.push_back(Numbers({e.bNameId, e.fEnemyControlled, e.fEnemyAirControlled, e.bSAMCondition}));
+	std::vector<std::string> underground;
+	for (UNDERGROUND_SECTORINFO const* u = gpUndergroundSectorInfoHead; u; u = u->next)
+	{
+		underground.push_back(Numbers({u->ubSector.x, u->ubSector.y, u->ubSector.z, u->uiFlags, u->ubNumElites, u->ubNumTroops, u->ubNumAdmins,
+			u->ubNumCreatures, u->uiTimeCurrentSectorWasLastLoaded, u->ubAdjacentSectors, u->ubCreatureHabitat}));
+	}
+	std::vector<std::string> events;
+	for (STRATEGICEVENT const* e = gpEventList; e; e = e->next)
+	{
+		if (e->ubCallbackID != EVENT_GROUP_ARRIVAL && e->ubCallbackID != EVENT_GROUP_ABOUT_TO_ARRIVE) continue;
+		events.push_back(Numbers({e->uiTimeStamp, e->ubCallbackID, e->uiParam}));
+	}
+	std::vector<std::string> mercs;
+	CFOR_EACH_IN_TEAM(s, OUR_TEAM)
+	{
+		std::vector<long long> path;
+		for (PathSt const* n = s->pMercPath; n; n = n->pNext) path.push_back(n->uiSectorId);
+		mercs.push_back(Json{}
+			.num("id", s->ubID)
+			.num("profile", s->ubProfile)
+			.num("groupId", s->ubGroupID)
+			.raw("sector", StrategicSector(s->sSector))
+			.flag("betweenSectors", s->fBetweenSectors)
+			.num("assignment", s->bAssignment)
+			.num("prevSectorId", s->ubPrevSectorID)
+			.num("insertionCode", s->ubStrategicInsertionCode)
+			.raw("path", Numbers(path))
+			.text());
+	}
+	std::vector<std::string> secrets;
+	for (auto const* secret : GCM->getMapSecrets()) secrets.push_back(Numbers({secret->sectorID, IsSecretFoundAt(secret->sectorID)}));
+	Emit(Json{}
+		.str("probe", "groups")
+		.num("line", c.line)
+		.num("worldMinutes", GetWorldTotalMin())
+		.raw("groups", JsonArray(groups))
+		.raw("squads", JsonArray(squads))
+		.raw("squadGroups", Numbers(squadGroups))
+		.raw("deadSquadMembers", JsonArray(dead))
+		.raw("vehicleGroups", Numbers(vehicleGroups))
+		.raw("vehicles", JsonArray(vehicles))
+		.num("helicopterVehicleId", iHelicopterVehicleId)
+		.flag("helicopterAirborne", fHelicopterIsAirBorne)
+		.raw("selectedSector", StrategicSector(sSelMap))
+		.raw("sectors", JsonArray(sectors))
+		.raw("elements", JsonArray(elements))
+		.raw("underground", JsonArray(underground))
+		.raw("events", JsonArray(events))
+		.raw("mercs", JsonArray(mercs))
+		.raw("secrets", JsonArray(secrets)));
+}
+
+std::vector<OracleDraw> gAutoResolveDraws;
+
+struct AutoResolveSetup
+{
+	bool      ready{false};
+	SGPSector sector;
+};
+
+AutoResolveSetup gAutoResolveSetup;
+
+enum AutoResolveMark : UINT32
+{
+	AR_MARK_SETUP = 1,
+	AR_MARK_RATINGS,
+	AR_MARK_BATTLE,
+	AR_MARK_RETREAT,
+	AR_MARK_SURRENDER,
+	AR_MARK_END,
+	AR_MARK_BANDAGE,
+	AR_MARK_CLOSE,
+	AR_MARK_POST,
+	AR_MARK_DONE,
+};
+
+constexpr int AR_SIDES = 3;
+constexpr long long DEFAULT_AR_MAX_SLICES = 100000;
+constexpr int AR_MAX_LOOP = 1000000;
+constexpr UINT8 AR_NO_TOWN = 0;
+
+std::map<std::string, UINT8> const ENCOUNTER_CODES{
+	{"encounter", ENEMY_ENCOUNTER_CODE}, {"invasion", ENEMY_INVASION_CODE}, {"creature", CREATURE_ATTACK_CODE},
+};
+
+std::vector<std::string> SplitList(std::string const& text, char separator)
+{
+	std::vector<std::string> parts;
+	std::string part;
+	std::istringstream in(text);
+	while (std::getline(in, part, separator))
+	{
+		if (!part.empty()) parts.push_back(part);
+	}
+	return parts;
+}
+
+std::vector<long long> IntegerList(Command const& c, std::string const& key, size_t count)
+{
+	std::vector<long long> values;
+	for (std::string const& part : SplitList(Text(c, key, ""), ',')) values.push_back(ParseInteger(key, part));
+	if (values.size() != count) throw std::runtime_error(key + " needs " + std::to_string(count) + " comma-separated values");
+	return values;
+}
+
+void SeedRandomEngine(Command const& c)
+{
+	UINT32 const seed = static_cast<UINT32>(Required(c, "value"));
+	bool const reseedPre = Text(c, "pre", "keep") == "reseed";
+	OracleSeedRandom(seed, reseedPre);
+	Emit(Json{}.str("probe", "seed").num("line", c.line).num("value", seed).flag("reseedPre", reseedPre).num("preRandomIndex", guiPreRandomIndex));
+}
+
+std::string DescribeEnemyCounts(SGPSector const& sector)
+{
+	SECTORINFO const& si = SectorInfo[sector.AsByte()];
+	UINT8 admins = 0, troops = 0, elites = 0;
+	GetNumberOfEnemiesInSector(sector, &admins, &troops, &elites);
+	return Json{}
+		.nums("stationary", {si.ubNumAdmins, si.ubNumTroops, si.ubNumElites})
+		.nums("total", {admins, troops, elites})
+		.num("inSector", NumEnemiesInSector(sector))
+		.nums("militia", {si.ubNumberOfCivsAtLevel[GREEN_MILITIA], si.ubNumberOfCivsAtLevel[REGULAR_MILITIA], si.ubNumberOfCivsAtLevel[ELITE_MILITIA]})
+		.flag("enemyControlled", StrategicMap[sector.AsStrategicIndex()].fEnemyControlled)
+		.text();
+}
+
+void SetupAutoResolve(Command const& c)
+{
+	std::string const name = Text(c, "sector", Text(c, "_0", ""));
+	SGPSector const sector = SGPSector::FromShortString(ST::string(name), 0);
+	if (!sector.IsValid()) throw std::runtime_error("arsetup needs sector=<A1..P16>");
+	SECTORINFO& si = SectorInfo[sector.AsByte()];
+	if (Has(c, "militia"))
+	{
+		std::vector<long long> const m = IntegerList(c, "militia", 3);
+		si.ubNumberOfCivsAtLevel[GREEN_MILITIA] = static_cast<UINT8>(m[0]);
+		si.ubNumberOfCivsAtLevel[REGULAR_MILITIA] = static_cast<UINT8>(m[1]);
+		si.ubNumberOfCivsAtLevel[ELITE_MILITIA] = static_cast<UINT8>(m[2]);
+	}
+	if (Has(c, "enemies"))
+	{
+		std::vector<long long> const e = IntegerList(c, "enemies", 3);
+		si.ubNumAdmins = static_cast<UINT8>(e[0]);
+		si.ubNumTroops = static_cast<UINT8>(e[1]);
+		si.ubNumElites = static_cast<UINT8>(e[2]);
+	}
+	if (Has(c, "day"))
+	{
+		guiGameClock = static_cast<UINT32>(Required(c, "day")) * NUM_SEC_IN_DAY + guiGameClock % NUM_SEC_IN_DAY;
+		UpdateGameClockGlobals(gpGameClockString);
+	}
+	gubEnemyEncounterCode = Lookup(ENCOUNTER_CODES, c, "code", "invasion");
+	if (gubEnemyEncounterCode == CREATURE_ATTACK_CODE) throw std::runtime_error("creature attacks need the discrete-distribution trace, not supported yet");
+	gubPBSector = sector;
+	gfPersistantPBI = Integer(c, "persistent", 1) != 0;
+	gAutoResolveSetup = {true, sector};
+	Emit(Json{}
+		.str("probe", "arsetup")
+		.num("line", c.line)
+		.str("sector", sector.AsShortString().to_std_string())
+		.num("code", gubEnemyEncounterCode)
+		.flag("persistent", gfPersistantPBI)
+		.num("day", GetWorldDay())
+		.raw("counts", DescribeEnemyCounts(sector)));
+}
+
+std::string DescribeArObject(int slot, OBJECTTYPE const& o)
+{
+	Json json;
+	json.num("slot", slot).num("item", o.usItem).num("count", o.ubNumberOfObjects).num("flags", o.fFlags);
+	std::vector<long long> status;
+	if (IsGun(o.usItem))
+	{
+		status.push_back(o.bGunStatus);
+		json.num("gunShotsLeft", o.ubGunShotsLeft).num("gunAmmoType", o.ubGunAmmoType).num("gunAmmoItem", o.usGunAmmoItem).num("gunAmmoStatus", o.bGunAmmoStatus);
+	}
+	else
+	{
+		for (int i = 0; i < o.ubNumberOfObjects && i < MAX_OBJECTS_PER_SLOT; ++i) status.push_back(o.bStatus[i]);
+	}
+	json.nums("status", status);
+	std::vector<std::string> attachments;
+	for (int i = 0; i < MAX_ATTACHMENTS; ++i)
+	{
+		if (o.usAttachItem[i] == NOTHING) continue;
+		attachments.push_back(Json{}.num("index", i).num("item", o.usAttachItem[i]).num("status", o.bAttachStatus[i]).text());
+	}
+	json.raw("attachments", JsonArray(attachments));
+	return json.text();
+}
+
+std::string DescribeArInventory(SOLDIERTYPE const& s)
+{
+	std::vector<std::string> objects;
+	for (int slot = 0; slot < NUM_INV_SLOTS; ++slot)
+	{
+		if (s.inv[slot].usItem != NOTHING) objects.push_back(DescribeArObject(slot, s.inv[slot]));
+	}
+	return JsonArray(objects);
+}
+
+std::string DescribeArProfile(UINT8 profile)
+{
+	if (profile == NO_PROFILE) return "null";
+	MERCPROFILESTRUCT const& p = GetProfile(profile);
+	return Json{}
+		.num("id", profile)
+		.num("evolution", static_cast<long long>(p.bEvolution))
+		.num("attitude", p.bAttitude)
+		.num("life", p.bLife)
+		.raw("stats", Json{}
+			.num("lifeMax", p.bLifeMax).num("agility", p.bAgility).num("dexterity", p.bDexterity).num("wisdom", p.bWisdom)
+			.num("medical", p.bMedical).num("explosives", p.bExplosive).num("mechanical", p.bMechanical)
+			.num("marksmanship", p.bMarksmanship).num("experience", p.bExpLevel).num("strength", p.bStrength)
+			.num("leadership", p.bLeadership).text())
+		.raw("gains", Json{}
+			.num("lifeMax", p.sLifeGain).num("agility", p.sAgilityGain).num("dexterity", p.sDexterityGain).num("wisdom", p.sWisdomGain)
+			.num("medical", p.sMedicalGain).num("explosives", p.sExplosivesGain).num("mechanical", p.sMechanicGain)
+			.num("marksmanship", p.sMarksmanshipGain).num("experience", p.sExpLevelGain).num("strength", p.sStrengthGain)
+			.num("leadership", p.sLeadershipGain).text())
+		.nums("statChangeChances", std::vector<long long>(std::begin(p.usStatChangeChances), std::end(p.usStatChangeChances)))
+		.nums("statChangeSuccesses", std::vector<long long>(std::begin(p.usStatChangeSuccesses), std::end(p.usStatChangeSuccesses)))
+		.num("kills", p.usKills).num("assists", p.usAssists).num("shotsFired", p.usShotsFired).num("shotsHit", p.usShotsHit)
+		.num("battlesFought", p.usBattlesFought).num("timesWounded", p.usTimesWounded)
+		.text();
+}
+
+std::string DescribeArSoldier(SOLDIERTYPE const& s)
+{
+	return Json{}
+		.num("id", s.ubID)
+		.num("team", s.bTeam)
+		.num("profile", s.ubProfile)
+		.num("soldierClass", s.ubSoldierClass)
+		.num("body", s.ubBodyType)
+		.num("groupId", s.ubGroupID)
+		.num("militiaKills", s.ubMilitiaKills)
+		.num("gridNo", s.sGridNo)
+		.num("level", s.bLevel)
+		.num("damage", s.sDamage)
+		.num("attackingHand", s.ubAttackingHand)
+		.num("attackingWeapon", s.usAttackingWeapon)
+		.str("anim", gAnimControl[s.usAnimState].zAnimStr)
+		.num("animState", s.usAnimState)
+		.num("actionPoints", s.bActionPoints)
+		.flag("collapsed", s.bCollapsed)
+		.num("doBurst", s.bDoBurst)
+		.raw("stats", DescribeStats(s))
+		.num("morale", s.bMorale)
+		.num("life", s.bLife)
+		.num("lifeMax", s.bLifeMax)
+		.num("breath", s.bBreath)
+		.num("breathMax", s.bBreathMax)
+		.num("bleeding", s.bBleeding)
+		.nums("skillTraits", {s.ubSkillTrait1, s.ubSkillTrait2})
+		.raw("inventory", DescribeArInventory(s))
+		.raw("progress", DescribeArProfile(s.ubProfile))
+		.text();
+}
+
+std::string DescribeArInfo()
+{
+	OracleARInfo info{};
+	if (!OracleAutoResolveInfo(info)) return "null";
+	return Json{}
+		.num("status", info.status)
+		.num("elapsedMs", info.elapsedMs)
+		.num("slices", info.slices)
+		.nums("sums", {info.playerAttack, info.playerDefence, info.enemyAttack, info.enemyDefence})
+		.nums("leadership", {info.playerLeadership, info.enemyLeadership})
+		.nums("counts", {info.mercs, info.civs, info.enemies})
+		.nums("alive", {info.aliveMercs, info.aliveCivs, info.aliveEnemies})
+		.nums("classes", {info.admins, info.troops, info.elites})
+		.num("defenceAdvantage", info.playerDefenceAdvantage)
+		.flag("pendingSurrender", info.pendingSurrender)
+		.flag("rejectedSurrender", info.rejectedSurrender)
+		.flag("captureNotPermittedDueToEPCs", info.captureNotPermittedDueToEPCs)
+		.num("robotCell", info.robotCell)
+		.num("robotController", info.robotController)
+		.text();
+}
+
+std::string DescribeArCells()
+{
+	std::vector<std::string> cells;
+	for (int side = 0; side < AR_SIDES; ++side)
+	{
+		OracleARCellInfo cell{};
+		for (int index = 0; OracleAutoResolveCell(side, index, cell); ++index)
+		{
+			std::vector<std::string> attackers;
+			for (auto const& a : cell.attacker) attackers.push_back(a[0] < 0 ? "null" : "[" + std::to_string(a[0]) + "," + std::to_string(a[1]) + "]");
+			cells.push_back(Json{}
+				.num("side", side)
+				.num("index", index)
+				.num("flags", cell.flags)
+				.num("attack", cell.attack)
+				.num("defence", cell.defence)
+				.num("nextAttack", cell.nextAttack)
+				.nums("nextHit", {cell.nextHit[0], cell.nextHit[1], cell.nextHit[2]})
+				.nums("hitDamage", {cell.hitDamage[0], cell.hitDamage[1], cell.hitDamage[2]})
+				.raw("attackers", JsonArray(attackers))
+				.num("weaponSlot", cell.weaponSlot)
+				.raw("soldier", DescribeArSoldier(*cell.soldier))
+				.text());
+		}
+	}
+	return JsonArray(cells);
+}
+
+std::string DescribeDraws(std::vector<OracleDraw> const& draws)
+{
+	std::string out = "[";
+	for (size_t i = 0; i < draws.size(); ++i)
+	{
+		if (i) out += ",";
+		OracleDraw const& d = draws[i];
+		out += "[\"" + std::string(1, d.stream) + "\"," + std::to_string(d.range) + "," + std::to_string(d.value) + "," + std::to_string(d.index) + "]";
+	}
+	return out + "]";
+}
+
+struct RetreatOrder
+{
+	UINT32    slice;
+	long long soldier;
+};
+
+std::vector<RetreatOrder> RetreatOrders(Command const& c)
+{
+	std::vector<RetreatOrder> orders;
+	for (std::string const& part : SplitList(Text(c, "retreat", ""), ','))
+	{
+		auto const colon = part.find(':');
+		if (colon == std::string::npos) throw std::runtime_error("retreat entries look like <slice>:<soldier id>|all");
+		std::string const who = part.substr(colon + 1);
+		orders.push_back({static_cast<UINT32>(ParseInteger("retreat", part.substr(0, colon))), who == "all" ? -1 : ParseInteger("retreat", who)});
+	}
+	std::stable_sort(orders.begin(), orders.end(), [](RetreatOrder const& a, RetreatOrder const& b) { return a.slice < b.slice; });
+	return orders;
+}
+
+INT32 MercCellOf(long long soldier)
+{
+	if (soldier < 0) return -1;
+	OracleARCellInfo cell{};
+	for (int index = 0; OracleAutoResolveCell(0, index, cell); ++index)
+	{
+		if (cell.soldier->ubID == soldier) return index;
+	}
+	throw std::runtime_error("soldier " + std::to_string(soldier) + " has no merc cell");
+}
+
+std::string DescribeCommand(char const* kind, UINT32 slice, long long who)
+{
+	return Json{}.str("kind", kind).num("slice", slice).num("who", who).text();
+}
+
+void ApplyPostAutoResolveMessages(SGPSector const& sector)
+{
+	if (gsCiviliansEatenByMonsters >= 1)
+	{
+		AdjustLoyaltyForCivsEatenByMonsters(SGPSector(gsEnemyGainedControlOfSectorID), static_cast<UINT8>(gsCiviliansEatenByMonsters));
+	}
+	else if (gsEnemyGainedControlOfSectorID >= 0)
+	{
+		SetThisSectorAsEnemyControlled(SGPSector(gsEnemyGainedControlOfSectorID));
+	}
+	gsCiviliansEatenByMonsters = -1;
+	gsEnemyGainedControlOfSectorID = -1;
+	(void)sector;
+}
+
+std::string DescribeTownLoyalty(SGPSector const& sector)
+{
+	UINT8 const town = GetTownIdForSector(sector);
+	if (town == AR_NO_TOWN) return "null";
+	return Json{}.num("town", town).num("rating", gTownLoyalty[town].ubRating).num("change", gTownLoyalty[town].sChange).text();
+}
+
+void RunAutoResolve(Command const& c)
+{
+	if (!gAutoResolveSetup.ready) throw std::runtime_error("autoresolve needs arsetup first");
+	SGPSector const sector = gAutoResolveSetup.sector;
+	bool const trace = Integer(c, "trace", 1) != 0;
+	bool const acceptSurrender = Text(c, "surrender", "reject") == "accept";
+	bool const bandage = Integer(c, "bandage", 0) != 0;
+	UINT32 const maxSlices = static_cast<UINT32>(Integer(c, "maxSlices", DEFAULT_AR_MAX_SLICES));
+	std::vector<RetreatOrder> const orders = RetreatOrders(c);
+	std::vector<std::string> commands;
+
+	gAutoResolveDraws.clear();
+	if (trace) OracleTraceRandom(&gAutoResolveDraws);
+	ScreenID const savedScreen = guiCurrentScreen;
+	guiCurrentScreen = AUTORESOLVE_SCREEN;
+	std::string const before = DescribeEnemyCounts(sector);
+	std::string const loyaltyBefore = DescribeTownLoyalty(sector);
+	UINT16 const killsBefore = gStrategicStatus.usPlayerKills;
+	UINT32 const day = GetWorldDay();
+	bool const capturedForRescue = (gStrategicStatus.uiFlags & STRATEGIC_PLAYER_CAPTURED_FOR_RESCUE) != 0;
+	OracleTraceMark(AR_MARK_SETUP);
+	OracleAutoResolveEnter(sector);
+	std::string const setup = DescribeArCells();
+	std::string const setupInfo = DescribeArInfo();
+	OracleTraceMark(AR_MARK_RATINGS);
+	OracleAutoResolveRate();
+	std::string const ratings = DescribeArCells();
+	std::string const ratingsInfo = DescribeArInfo();
+	OracleTraceMark(AR_MARK_BATTLE);
+	size_t next = 0;
+	for (int loop = 0; loop < AR_MAX_LOOP; ++loop)
+	{
+		OracleARInfo info{};
+		OracleAutoResolveInfo(info);
+		if (info.status != 0) break;
+		if (info.pendingSurrender)
+		{
+			OracleTraceMark(AR_MARK_SURRENDER);
+			OracleAutoResolveSurrender(acceptSurrender);
+			commands.push_back(DescribeCommand(acceptSurrender ? "accept" : "reject", info.slices, -1));
+			continue;
+		}
+		while (next < orders.size() && orders[next].slice <= info.slices)
+		{
+			OracleTraceMark(AR_MARK_RETREAT);
+			OracleAutoResolveRetreat(MercCellOf(orders[next].soldier));
+			commands.push_back(DescribeCommand("retreat", info.slices, orders[next].soldier));
+			++next;
+		}
+		UINT32 const budget = next < orders.size() ? std::min(orders[next].slice, maxSlices) : maxSlices;
+		if (OracleAutoResolveRun(budget) >= maxSlices) break;
+	}
+	std::string const battle = DescribeArInfo();
+	OracleTraceMark(AR_MARK_END);
+	OracleAutoResolveBattleEnd();
+	std::string const ended = DescribeArInfo();
+	bool bandaged = false;
+	if (bandage && OracleAutoResolveCanBandage())
+	{
+		OracleTraceMark(AR_MARK_BANDAGE);
+		OracleAutoResolveBandage();
+		bandaged = true;
+	}
+	std::string const afterBandage = DescribeArInfo();
+	std::string const cells = DescribeArCells();
+	UINT32 const worldBefore = GetWorldTotalSeconds();
+	OracleTraceMark(AR_MARK_CLOSE);
+	OracleAutoResolveClose();
+	UINT32 const worldAfter = GetWorldTotalSeconds();
+	std::string const promotions = Json{}.nums("promotions", {gbGreenToRegPromotions, gbRegToElitePromotions, gbGreenToElitePromotions, gbMilitiaPromotions}).text();
+	OracleTraceMark(AR_MARK_POST);
+	ApplyPostAutoResolveMessages(sector);
+	OracleTraceMark(AR_MARK_DONE);
+	OracleTraceRandom(nullptr);
+	guiCurrentScreen = savedScreen;
+	Emit(Json{}
+		.str("probe", "autoresolve")
+		.num("line", c.line)
+		.str("sector", sector.AsShortString().to_std_string())
+		.num("code", gubEnemyEncounterCode)
+		.num("day", day)
+		.flag("playerCapturedForRescue", capturedForRescue)
+		.raw("countsBefore", before)
+		.raw("setupInfo", setupInfo)
+		.raw("setup", setup)
+		.raw("ratingsInfo", ratingsInfo)
+		.raw("ratings", ratings)
+		.raw("commands", JsonArray(commands))
+		.raw("result", Json{}
+			.raw("battle", battle)
+			.raw("ended", ended)
+			.flag("bandaged", bandaged)
+			.raw("afterBandage", afterBandage)
+			.raw("cells", cells)
+			.num("worldSecondsBefore", worldBefore)
+			.num("worldSecondsAfter", worldAfter)
+			.num("playerKills", gStrategicStatus.usPlayerKills - killsBefore)
+			.raw("militiaPromotions", promotions)
+			.raw("countsAfter", DescribeEnemyCounts(sector))
+			.raw("loyaltyBefore", loyaltyBefore)
+			.raw("loyaltyAfter", DescribeTownLoyalty(sector))
+			.text())
+		.raw("draws", DescribeDraws(gAutoResolveDraws)));
+	gAutoResolveDraws.clear();
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -1081,6 +1807,12 @@ void Dispatch(Command const& c)
 	if (c.name == "light")    return ProbeLight(c);
 	if (c.name == "lights")   return DumpLights(c);
 	if (c.name == "ambient")  return SetAmbientLight(c);
+	if (c.name == "stratcosts") return ProbeStrategicCosts(c);
+	if (c.name == "stratpath") return ProbeStrategicPath(c);
+	if (c.name == "groups") return DumpStrategicGroups(c);
+	if (c.name == "seed") return SeedRandomEngine(c);
+	if (c.name == "arsetup") return SetupAutoResolve(c);
+	if (c.name == "autoresolve") return RunAutoResolve(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

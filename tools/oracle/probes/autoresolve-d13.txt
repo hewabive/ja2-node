@@ -1,0 +1,32 @@
+save SaveGame10
+seed value=1 pre=reseed
+arsetup sector=D13 code=invasion militia=2,1,0 enemies=3,2,1
+autoresolve
+save SaveGame10
+seed value=2 pre=reseed
+arsetup sector=D13 code=encounter militia=0,0,0 enemies=2,4,2
+autoresolve bandage=1
+save SaveGame10
+seed value=3 pre=reseed
+arsetup sector=D13 code=invasion militia=6,3,2 enemies=4,8,4
+autoresolve bandage=1
+save SaveGame10
+seed value=4 pre=reseed
+arsetup sector=D13 code=encounter militia=0,0,0 enemies=0,10,6
+autoresolve retreat=3:all
+save SaveGame10
+seed value=5 pre=reseed
+arsetup sector=D13 code=invasion militia=1,1,1 enemies=10,10,12
+autoresolve retreat=2:1,6:all
+save SaveGame10
+seed value=6 pre=keep
+arsetup sector=D13 code=invasion militia=9,0,0 enemies=0,6,0
+autoresolve bandage=1
+save SaveGame10
+seed value=7 pre=reseed
+arsetup sector=D13 code=encounter militia=0,0,0 enemies=5,0,0
+autoresolve retreat=1:2 bandage=1
+save SaveGame10
+seed value=8 pre=reseed
+arsetup sector=D13 code=invasion militia=3,3,3 enemies=2,12,10
+autoresolve

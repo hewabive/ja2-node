@@ -20,6 +20,12 @@ const CLOCK_PADDING = 20;
 const GENERAL_INFO_BYTES = 1024;
 const TEAM_TURNS_PADDING = 17;
 const GAME_OPTIONS_PADDING = 7;
+const NUM_BOXERS = 3;
+const NUMBER_OF_REFUEL_SITES = 2;
+const MEANWHILE_DEFINITION_BYTES = 8;
+const NUMBER_OF_SQUADS = 20;
+const NUMBER_OF_DEAD_SOLDIERS_ON_SQUAD = 6;
+const SAVED_SAM_SITES = 4;
 
 const TEAM_LAYOUT: Layout = [
   field('bFirstID', 'u8'),
@@ -181,6 +187,50 @@ const GENERAL_INFO_HEAD: Layout = [
   field('guiBaseJA2Clock', 'u32'),
   field('cur_interface_panel', 'i16'),
   field('sm_current_merc', 'u8'),
+  skip(1),
+  field('fDisableDueToBattleRoster', 'bool'),
+  field('fDisableMapInterfaceDueToBattle', 'bool'),
+  field('gsBoxerGridNo', 'i16', NUM_BOXERS),
+  field('gBoxer', 'u8', NUM_BOXERS),
+  field('gfBoxerFought', 'bool', NUM_BOXERS),
+  field('fHelicopterDestroyed', 'bool'),
+  skip(1),
+  field('giSortStateForMapScreenList', 'i32'),
+  field('fFoundTixa', 'bool'),
+  skip(3),
+  field('guiTimeOfLastSkyriderMonologue', 'u32'),
+  field('fShowCambriaHospitalHighLight', 'bool'),
+  field('fSkyRiderSetUp', 'bool'),
+  field('fRefuelingSiteAvailable', 'bool', NUMBER_OF_REFUEL_SITES),
+  skip(MEANWHILE_DEFINITION_BYTES, 'gCurrentMeanwhileDef'),
+  field('gubPlayerProgressSkyriderLastCommentedOn', 'bool'),
+  field('gfMeanwhileTryingToStart', 'bool'),
+  field('gfInMeanwhile', 'bool'),
+  skip(1),
+  field('sDeadMercs', 'i16', NUMBER_OF_SQUADS * NUMBER_OF_DEAD_SOLDIERS_ON_SQUAD),
+  field('gbPublicNoiseLevel', 'i8', MAX_TEAMS),
+  field('gubScreenCount', 'u8'),
+  skip(1),
+  field('old_meanwhile_flags', 'u16'),
+  skip(2),
+  field('iPortraitNumber', 'i32'),
+  field('sWorldSectorLocationOfFirstBattle', 'i16'),
+  field('fUnReadMailFlag', 'bool'),
+  field('fNewMailFlag', 'bool'),
+  skip(1),
+  field('fOldNewMailFlag', 'bool'),
+  field('fShowMilitia', 'bool'),
+  field('fNewFilesInFileViewer', 'bool'),
+  field('gfLastBoxingMatchWonByPlayer', 'bool'),
+  skip(7),
+  field('fSamSiteFound', 'bool', SAVED_SAM_SITES),
+  field('gubNumTerrorists', 'u8'),
+  field('gubCambriaMedicalObjects', 'u8'),
+  field('gfDisableTacticalPanelButtons', 'bool'),
+  skip(1),
+  field('sSelMapX', 'i16'),
+  field('sSelMapY', 'i16'),
+  field('sSelMapZ', 'i32'),
 ];
 
 export const GENERAL_INFO_LAYOUT: Layout = [...GENERAL_INFO_HEAD, skip(GENERAL_INFO_BYTES - layoutBytes(GENERAL_INFO_HEAD, false))];
@@ -281,6 +331,13 @@ export interface GeneralInfo {
   readonly baseJA2Clock: number;
   readonly currentInterfacePanel: number;
   readonly smCurrentMerc: number;
+  readonly helicopterVehicleId: number;
+  readonly helicopterAirborne: boolean;
+  readonly disableMapInterfaceDueToBattle: boolean;
+  readonly foundTixa: boolean;
+  readonly samSitesFound: readonly boolean[];
+  readonly deadSquadMembers: readonly (readonly number[])[];
+  readonly selectedSector: { readonly x: number; readonly y: number; readonly z: number };
 }
 
 export interface TeamTurns {
@@ -417,6 +474,15 @@ export function readGeneralInfo(c: SaveCursor): GeneralInfo {
     baseJA2Clock: n('guiBaseJA2Clock'),
     currentInterfacePanel: n('cur_interface_panel'),
     smCurrentMerc: n('sm_current_merc'),
+    helicopterVehicleId: n('iHelicopterVehicleId'),
+    helicopterAirborne: r.bool('fHelicopterIsAirBorne'),
+    disableMapInterfaceDueToBattle: r.bool('fDisableMapInterfaceDueToBattle'),
+    foundTixa: r.bool('fFoundTixa'),
+    samSitesFound: r.bools('fSamSiteFound'),
+    deadSquadMembers: Array.from({ length: NUMBER_OF_SQUADS }, (_, q) =>
+      r.nums('sDeadMercs').slice(q * NUMBER_OF_DEAD_SOLDIERS_ON_SQUAD, (q + 1) * NUMBER_OF_DEAD_SOLDIERS_ON_SQUAD),
+    ),
+    selectedSector: { x: n('sSelMapX'), y: n('sSelMapY'), z: (n('sSelMapZ') << 24) >> 24 },
   };
 }
 

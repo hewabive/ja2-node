@@ -34,6 +34,8 @@ import {
 import { createSoldier, NOWHERE, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
 import { registerSoldier, unregisterSoldier, whoIsThere } from '../../src/sim/tactical/state.ts';
 import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
+import { compareAutoresolve } from './autoresolve-compare.ts';
+import { STRATEGIC_PROBES, StrategicComparer } from './strategic-compare.ts';
 
 type Json = Record<string, unknown>;
 type ReadFile = (path: string) => Promise<Uint8Array | null>;
@@ -515,14 +517,19 @@ if (dataDir === null) {
 const read: ReadFile = async (p) => (data.vfs.stat(p) ? data.vfs.read(p) : null);
 const content = await loadTacticalContent(read);
 const worlds = new Map<string, TacticalWorld>();
+const strategic = new StrategicComparer(read);
 let failures = 0;
 for (const file of files) {
   let ctx: Context | null = null;
   for (const p of readLines(file)) {
     if (p.error) failures += report(`${p.probe} line ${p.line}`, false, `oracle error: ${p.error}`);
     else if (p.probe === 'sector') ctx = await sectorContext(read, content, worlds, p);
-    else if (p.probe === 'save') ctx = await saveContext(read, dataDir, p);
-    else if (p.probe === 'end') continue;
+    else if (p.probe === 'save') {
+      ctx = await saveContext(read, dataDir, p);
+      await strategic.loadSave(savesDir(dataDir), String(p.name), ctx.sim);
+    } else if (p.probe === 'end') continue;
+    else if (p.probe === 'autoresolve') failures += compareAutoresolve(content, p);
+    else if (STRATEGIC_PROBES.has(String(p.probe))) failures += await strategic.compare(p);
     else {
       ctx ??= await sectorContext(read, content, worlds, null);
       if (p.probe === 'costs') failures += compareCosts(ctx, p);

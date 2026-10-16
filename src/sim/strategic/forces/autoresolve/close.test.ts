@@ -1,0 +1,188 @@
+import { beforeAll, describe, expect, it } from 'vitest';
+import {
+  arEnv,
+  arSoldier,
+  arState,
+  enemySoldier,
+  itemIndex,
+  militiaSoldier,
+  scripted,
+  TestMilitia,
+} from '../../../../../tests/support/autoresolve.ts';
+import { loadTestContent } from '../../../../../tests/support/tactical.ts';
+import { createItem } from '../../../items/object.ts';
+import type { TacticalContent } from '../../../tactical/content.ts';
+import { InvSlot } from '../../../tactical/inventory.ts';
+import { SoldierClass } from '../../../tactical/soldier.ts';
+import { autoBandageMercs, canBandage, dressWound } from './bandage.ts';
+import { type AutoresolveClosePort, checkOneMilitiaForPromotion, closeAutoresolve, MilitiaRank, randomGridNo } from './close.ts';
+import { endOfBattle } from './outcome.ts';
+import { BattleStatus, combatContext } from './state.ts';
+
+let content: TacticalContent;
+
+beforeAll(async () => {
+  content = await loadTestContent();
+});
+
+function port(militia: TestMilitia, enemiesLeft = 0): AutoresolveClosePort & { calls: string[] } {
+  const calls: string[] = [];
+  return {
+    calls,
+    militia,
+    enemiesLeftInSector: () => enemiesLeft,
+    mercDied: () => calls.push('mercDied'),
+    mercCaptured: () => calls.push('mercCaptured'),
+    enemyKilled: (_s, groupId) => calls.push(`enemyKilled:${groupId}`),
+    eliminateAllEnemies: () => calls.push('eliminate'),
+    resetEnemyMovement: () => calls.push('resetMovement'),
+    playerGroupArrivedSafely: (g, first) => calls.push(`arrived:${g}:${first}`),
+    endCaptureSequence: () => calls.push('endCapture'),
+  };
+}
+
+describe('elapsed battle time', () => {
+  it('triples the battle time, then adds 5 minutes for a retreat and 200 ms per kit point', () => {
+    const ar = arState({ mercs: [{ soldier: arSoldier(content) }] });
+    ar.elapsedMs = 7000;
+    ar.status = BattleStatus.RETREAT;
+    const outcome = endOfBattle(ar);
+    expect(ar.elapsedMs).toBe(21000 + 300000);
+    expect(outcome?.retreatImplications).toBe(true);
+    expect(outcome?.enemyGainsControl).toBe(true);
+    expect(endOfBattle(ar)).toBeNull();
+    const won = arState({ mercs: [{ soldier: arSoldier(content) }] });
+    won.elapsedMs = 4000;
+    won.status = BattleStatus.VICTORY;
+    expect(endOfBattle(won)?.playerTakesControl).toBe(true);
+    expect(won.elapsedMs).toBe(12000);
+    const result = closeAutoresolve(arEnv(content), won, port(new TestMilitia(0, 0, 0)));
+    expect(result.warpSeconds).toBe(12);
+  });
+});
+
+describe('bandaging after a victory', () => {
+  function wounded() {
+    const kit = itemIndex(content, 'FIRSTAIDKIT');
+    const medic = arSoldier(content, { medical: 50, dexterity: 60, experience: 3 });
+    medic.inv[InvSlot.SMALLPOCK1] = createItem(content.items, kit, 100);
+    const patient = arSoldier(content, { life: 10, lifeMax: 60 });
+    patient.bleeding = 20;
+    const ar = arState({ mercs: [{ soldier: medic }, { soldier: patient }] });
+    ar.status = BattleStatus.VICTORY;
+    return { ar, medic, patient };
+  }
+
+  it('dresses wounds like VirtualSoldierDressWound with 12 APs', () => {
+    const { ar, medic, patient } = wounded();
+    const env = arEnv(content);
+    const kit = medic.inv[InvSlot.SMALLPOCK1];
+    if (!kit) throw new Error('no kit');
+    expect(dressWound(env, combatContext(env, ar), medic, patient, kit, 100, 100)).toBe(14);
+    expect(patient.life).toBe(15);
+    expect(patient.bleeding).toBe(11);
+  });
+
+  it('bandages everyone with the best medic and adds 200 ms per point used', () => {
+    const { ar, patient, medic } = wounded();
+    const env = arEnv(content);
+    expect(canBandage(env, ar)).toBe(true);
+    ar.elapsedMs = 30000;
+    const r = autoBandageMercs(env, ar);
+    expect(r).toEqual({ complete: true, pointsUsed: 25 });
+    expect(patient.bleeding).toBe(0);
+    expect(patient.life).toBe(15);
+    expect(medic.inv[InvSlot.SMALLPOCK1]?.status[0]).toBe(75);
+    expect(ar.elapsedMs).toBe(30000 + 25 * 200);
+    expect(canBandage(env, ar)).toBe(false);
+  });
+});
+
+describe('closeAutoresolve', () => {
+  it('kills militia below 7 life, promotes survivors and counts enemies below 15 life as killed even after a defeat', () => {
+    const militia = new TestMilitia(2, 0, 0);
+    const ar = arState({
+      mercs: [{ soldier: arSoldier(content, { life: 0 }) }],
+      militia: [militiaSoldier(content, { life: 6 }), militiaSoldier(content, { life: 7 })],
+      enemies: [{ soldier: enemySoldier(content, { life: 14 }), groupId: 3 }, { soldier: enemySoldier(content, { life: 15 }) }],
+    });
+    ar.status = BattleStatus.DEFEAT;
+    const militiaCell = ar.militia[1];
+    if (militiaCell) militiaCell.militiaKills = 3;
+    const p = port(militia);
+    const main = scripted([80, 80, 0, 80, 80, 80, 0, 0, 80, 80, 80, 0]);
+    const result = closeAutoresolve(arEnv(content, { main }), ar, p);
+    expect(result.militiaDied).toEqual([MilitiaRank.GREEN]);
+    expect(militia.removed).toEqual([MilitiaRank.GREEN]);
+    expect(result.promotions).toEqual({ greenToRegular: 1, regularToElite: 0, greenToElite: 0, total: 1 });
+    expect(result.enemiesKilled.map((e) => e.groupId)).toEqual([3]);
+    expect(result.mercsDied).toHaveLength(1);
+    expect(p.calls).toEqual(['mercDied', 'enemyKilled:3', 'resetMovement']);
+    expect(result.excessEliminated).toBe(false);
+    expect(result.corpses).toHaveLength(3);
+    expect(main.left).toBe(0);
+  });
+
+  it('eliminates the excess enemies only after a victory', () => {
+    const won = arState({
+      mercs: [{ soldier: arSoldier(content), groupId: 2 }],
+      enemies: [{ soldier: enemySoldier(content, { life: 0 }) }],
+    });
+    won.status = BattleStatus.VICTORY;
+    const p = port(new TestMilitia(0, 0, 0), 5);
+    expect(closeAutoresolve(arEnv(content), won, p).excessEliminated).toBe(true);
+    expect(p.calls).toContain('eliminate');
+    expect(p.calls).toContain('arrived:2:true');
+  });
+
+  it('drops everything of a dead merc and a quarter of what others carry', () => {
+    const merc = arSoldier(content, { life: 0, gun: 'GLOCK_17', magazines: 3 });
+    const enemy = enemySoldier(content, { life: 0, gun: 'GLOCK_17', magazines: 4 });
+    const ar = arState({ mercs: [{ soldier: merc }], enemies: [{ soldier: enemy }] });
+    ar.status = BattleStatus.VICTORY;
+    const main = scripted([80, 80, 3, 80, 80, 10, 80, 1, 2]);
+    const result = closeAutoresolve(arEnv(content, { main }), ar, port(new TestMilitia(0, 0, 0)));
+    const [mercCorpse, enemyCorpse] = result.corpses;
+    expect(mercCorpse?.items.map((o) => o.count)).toEqual([1, 3]);
+    expect(mercCorpse?.deathAnimation).toBe('FLYBACK_HIT_DEATH');
+    expect(main.left).toBe(0);
+    expect(enemyCorpse?.items).toHaveLength(1);
+    expect(enemyCorpse?.items[0]?.count).toBe(1 + 1);
+    expect(enemy.inv[InvSlot.HAND]?.flags).not.toBe(0);
+  });
+
+  it('promotes with kill points like CheckOneMilitiaForPromotion', () => {
+    const militia = new TestMilitia(1, 0, 0);
+    const none = scripted([]);
+    expect(checkOneMilitiaForPromotion(none, militia, MilitiaRank.GREEN, 1)).toEqual({ rank: MilitiaRank.GREEN, promotions: 0 });
+    expect(none.requested).toEqual([]);
+    const twice = scripted([0, 0]);
+    expect(checkOneMilitiaForPromotion(twice, new TestMilitia(1, 0, 0), MilitiaRank.GREEN, 7)).toEqual({
+      rank: MilitiaRank.GREEN,
+      promotions: 2,
+    });
+    const moved = new TestMilitia(0, 1, 0);
+    expect(checkOneMilitiaForPromotion(scripted([49]), moved, MilitiaRank.GREEN, 5)).toEqual({ rank: MilitiaRank.REGULAR, promotions: 1 });
+    expect(moved.promoted).toEqual([MilitiaRank.REGULAR]);
+  });
+
+  it('picks random grid numbers on the visible world diamond', () => {
+    expect(randomGridNo(scripted([0, 0, 80, 80]))).toBe(80 * 160 + 80);
+  });
+
+  it('reports captured mercs and ends the capture sequence', () => {
+    const ar = arState({ mercs: [{ soldier: arSoldier(content, { life: 10 }) }, { soldier: arSoldier(content, { life: 20 }) }] });
+    ar.status = BattleStatus.CAPTURED;
+    const outcome = endOfBattle(ar);
+    expect(outcome?.mercsCaptured).toHaveLength(2);
+    const p = port(new TestMilitia(0, 0, 0));
+    expect(closeAutoresolve(arEnv(content), ar, p).mercsCaptured).toHaveLength(2);
+    expect(p.calls).toEqual(['mercCaptured', 'mercCaptured', 'endCapture', 'resetMovement']);
+  });
+
+  it('ignores militia soldiers of non-militia classes', () => {
+    const ar = arState({ mercs: [], militia: [militiaSoldier(content, { soldierClass: SoldierClass.NONE, life: 1 })] });
+    ar.status = BattleStatus.VICTORY;
+    expect(closeAutoresolve(arEnv(content), ar, port(new TestMilitia(1, 0, 0))).militiaDied).toEqual([]);
+  });
+});
