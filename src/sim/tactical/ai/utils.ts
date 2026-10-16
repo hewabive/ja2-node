@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/AIUtils.cc ClosestReachableDisturbance, ClosestReachableFriendInTrouble,
-// @src EstimatePathCostToLocation, ClosestSeenOpponent; Tactical/PathAI.cc PlotPath, EstimatePlotPath, RecalculatePathCost;
+// @src EstimatePathCostToLocation (with the climb estimates), ClosestSeenOpponent; Tactical/PathAI.cc PlotPath, EstimatePlotPath, RecalculatePathCost;
 // @src Tactical/Items.cc FindAIUsableObjClass(Within); Tactical/OppList.cc GetHighestVisibleWatchedLoc, GetHighestWatchedLocPoints;
 // @src Tactical/LOS.cc LocationToLocationLineOfSightTest. See docs/13 §2, §4.4.
 
@@ -9,6 +9,7 @@ import { ItemClass } from '../../../content/items/items.ts';
 import { newGridNo, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { TravelCost } from '../../../content/world/movement-costs.ts';
 import { ObjectFlags, USABLE_STATUS } from '../../items/object.ts';
+import { climbingNecessary, findClosestClimbPointAvailableToAI } from '../buildings.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
 import { DIRECTION_INCREMENT } from '../directions.ts';
 import { findBestPath, isWater, PathCopy } from '../pathfinding.ts';
@@ -16,7 +17,7 @@ import { guySawEnemyThisTurnOrBefore } from '../perception/knowledge.ts';
 import { landHeightUnits, lineOfSightTest, STANDING_TREE_REDUCTION } from '../perception/los.ts';
 import { Opp } from '../perception/opp.ts';
 import { distanceVisible, knowledge } from '../perception/sight.ts';
-import { minAPsToStartMovement, stateName, terrainActionPoints } from '../points.ts';
+import { AP, minAPsToStartMovement, stateName, terrainActionPoints } from '../points.ts';
 import { NOWHERE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
 import { NUM_WATCHED_LOCS } from '../turns/turn-state.ts';
@@ -102,18 +103,31 @@ export interface PathCostToLocation {
   readonly climbGridNo: number;
 }
 
+const WALK_ESTIMATE_PER_TILE = 2;
+const NO_CLIMB_COST: PathCostToLocation = { cost: 0, climb: false, climbGridNo: NOWHERE };
+
 export function estimatePathCostToLocation(
   t: TacticalState,
   s: Soldier,
   dest: number,
   destLevel: number,
-  _addAfterClimbUp: boolean,
+  addAfterClimbUp: boolean,
 ): PathCostToLocation {
-  if (s.level === destLevel && s.level === 0) {
-    const walking = t.content.animations.stateIndex.get('WALKING') ?? 0;
+  const walking = t.content.animations.stateIndex.get('WALKING') ?? 0;
+  const sameLevel = s.level === destLevel;
+  if (sameLevel && !climbingNecessary(t, s, dest, destLevel))
     return { cost: plotPathCost(t, s, dest, walking), climb: false, climbGridNo: NOWHERE };
-  }
-  return { cost: 0, climb: false, climbGridNo: NOWHERE };
+  const climbUp = !sameLevel && s.level === 0;
+  const climbGridNo = findClosestClimbPointAvailableToAI(t, s, s.gridNo, climbUp ? dest : s.gridNo, climbUp);
+  if (climbGridNo === NOWHERE) return NO_CLIMB_COST;
+  let cost = plotPathCost(t, s, climbGridNo, walking);
+  if (cost === 0) return NO_CLIMB_COST;
+  const walkAfter = WALK_ESTIMATE_PER_TILE * pythSpacesAway(climbGridNo, dest);
+  if (sameLevel) {
+    cost += addAfterClimbUp ? AP.CLIMBOFFROOF + AP.CLIMBROOF + walkAfter : AP.CLIMBOFFROOF + Math.trunc(walkAfter / 2);
+  } else if (climbUp) cost += AP.CLIMBROOF + (addAfterClimbUp ? walkAfter : 0);
+  else cost += AP.CLIMBOFFROOF + walkAfter;
+  return { cost, climb: true, climbGridNo };
 }
 
 const considered = (s: Soldier, opp: Soldier) => (opp.neutral && s.team !== Team.CREATURE) || s.side === opp.side;

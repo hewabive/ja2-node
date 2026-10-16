@@ -1,10 +1,12 @@
+import { scriptLoops } from '../../content/anim/script.ts';
 import { AnimFlags } from '../../content/anim/tables.ts';
-import { handClass, ItemClass } from '../../content/items/items.ts';
+import { handClass, ItemClass, ItemCursor, NOTHING } from '../../content/items/items.ts';
 import { isVisibleTile } from '../../content/world/grid.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { Rng } from '../../core/rng.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
+import type { ItemObject } from '../items/object.ts';
 import { AiAction } from './ai/actions.ts';
 import {
   type AiControl,
@@ -14,6 +16,7 @@ import {
   cancelAIAction,
   createAiControl,
   freeUpFromPendingAction,
+  freeUpFromRoofClimb,
   freeUpFromStanceChange,
   freeUpFromTurning,
 } from './ai/control.ts';
@@ -29,8 +32,9 @@ import {
   soldierGotoStationaryStance,
   states,
 } from './animation.ts';
+import { generateBuildings } from './buildings.ts';
 import { calcTotalAPsToAttack, minAPsToAttack } from './combat/ap.ts';
-import { attackOpcode, handleGunAttack, ItemHandle } from './combat/attack.ts';
+import { attackOpcode, handleItem, ItemHandle } from './combat/attack.ts';
 import {
   soldierToLocationChanceToGetThrough,
   soldierToSoldierBodyPartChanceToGetThrough,
@@ -40,21 +44,39 @@ import {
 import { calcChanceToHitGun } from './combat/chance.ts';
 import { deathOpcode, updateSkullReleases } from './combat/death.ts';
 import { soldierCollapse } from './combat/hit.ts';
+import { meleeChanceToHit } from './combat/melee.ts';
+import { meleeSpot } from './combat/melee-reach.ts';
 import { AimShot, WeaponMode } from './combat/types.ts';
 import type { TacticalContent } from './content.ts';
 import { isDoorOpenAt } from './doors.ts';
+import { stepExplosions } from './explosions/explosion.ts';
+import { HEIGHT_UNITS, stepThrownObjects } from './explosions/physics.ts';
+import { checkForRunningIntoGas, updateGassedOnNewGridNo } from './explosions/smoke.ts';
+import { explosivesBusy } from './explosions/state.ts';
+import { calcMaxTossRange, calcThrownChanceToHit, throwOpcode } from './explosions/throwing.ts';
+import { calculateLaunchItemChanceToGetThrough } from './explosions/trajectory.ts';
 import { dequeueAllGameEvents } from './game-events.ts';
 import { InvSlot, itemIn } from './inventory.ts';
+import { handlePendingPickupOnArrival, itemOpcode, pickupCandidates, soldierDropItem, soldierPickupItem } from './item-actions.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
 import { executeOverhead, type OverheadHooks } from './overhead.ts';
 import { findBestPath, PathCopy } from './pathfinding.ts';
 import { mostImportantNoiseHeard } from './perception/knowledge.ts';
 import { allTeamsLookForAll } from './perception/sight.ts';
 import { perceptionHooks, sightHooks } from './perception/wiring.ts';
-import { apsToChangeStance, apsToLook, enoughPoints, ptsToMoveDirection } from './points.ts';
+import { AP, apsToChangeStance, apsToLook, deductPoints, enoughPoints, ptsToMoveDirection } from './points.ts';
+import {
+  apsToClimbRoof,
+  beginSoldierClimbDownRoof,
+  beginSoldierClimbUpRoof,
+  findHigherLevel,
+  findLowerLevel,
+  roofOpcode,
+} from './roofs.ts';
 import { OKLIFE, type Soldier, Team } from './soldier.ts';
 import { createTacticalState, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { endTurn, handleEnemySightingPause, handleRealtimeTurns, type RealtimeClock, selectSoldier } from './turns/turns.ts';
+import { type ItemSnapshot, Visibility } from './world-items.ts';
 
 export interface SoldierSnapshot {
   readonly id: number;
@@ -94,7 +116,16 @@ const ATTACK_REFUSALS: Readonly<Record<number, string>> = {
   [ItemHandle.NOAPS]: 'not enough APs for this attack',
   [ItemHandle.NOAMMO]: 'out of ammo',
   [ItemHandle.BROKEN]: 'the weapon does not work',
+  [ItemHandle.CANNOT_GETTO_LOCATION]: 'cannot reach the target',
 };
+
+const NOT_ADJACENT =
+  'a melee target must stand next to the soldier (a knife reaches the four side tiles, fists all eight); walking up to it is not supported';
+
+const MELEE_CHANCE_TO_GET_THROUGH = 100;
+
+const isMeleeItemClass = (cls: number) => cls === ItemClass.BLADE || (cls & (ItemClass.NONE | ItemClass.PUNCH)) !== 0;
+const isThrowItemClass = (cls: number) => cls === ItemClass.GRENADE || cls === ItemClass.THROWN || cls === ItemClass.LAUNCHER;
 
 export interface TacticalCommand {
   readonly type: string;
@@ -127,9 +158,17 @@ export class TacticalSim {
     t.hooks = sightHooks({
       ...t.hooks,
       collapse: soldierCollapse,
-      opcode: (state, s, code) => attackOpcode(state, s, code) ?? deathOpcode(state, s, code),
+      opcode: (state, s, code) =>
+        attackOpcode(state, s, code) ??
+        deathOpcode(state, s, code) ??
+        itemOpcode(state, s, code) ??
+        roofOpcode(state, s, code) ??
+        throwOpcode(state, s, code),
       turnFinished: freeUpFromTurning,
       stanceFreeUp: freeUpFromStanceChange,
+      pendingAction: handlePendingPickupOnArrival,
+      runningIntoGas: checkForRunningIntoGas,
+      enteredGridNo: updateGassedOnNewGridNo,
       endAiGuysTurn: (state, s) => endAIGuysTurn(state, s, ai),
     });
     t.perceptionHooks = perceptionHooks(t, { checkForChangingOrders, setNewSituation: (s) => setNewSituation(t, s) });
@@ -147,13 +186,19 @@ export class TacticalSim {
         s.ai.actionInProgress = true;
       },
       freeUpFromAttacking: actionDone,
-      aiAttack: (state, s, target, level) => handleGunAttack(state, s, target, level, itemIn(s.inv, InvSlot.HAND)),
+      aiAttack: (state, s, target, level) => handleItem(state, s, target, level, itemIn(s.inv, InvSlot.HAND)),
       freeUpFromPendingAction,
+      actionDone,
+      freeUpFromRoofClimb,
+      aiPickup: (state, s, g, item) => soldierPickupItem(state, s, g, 0, item ? [item] : null),
+      aiDropHandItem: (state, s) => soldierDropItem(state, s, InvSlot.HAND),
     };
     const clock = this.#clock;
     this.hooks = {
       beforePass: (state) => {
+        stepThrownObjects(state);
         updateBullets(state);
+        stepExplosions(state);
         updateMissAnimations(state);
         updateSkullReleases(state);
         handleRealtimeTurns(state, clock);
@@ -163,6 +208,7 @@ export class TacticalSim {
       ai: (state, s, slot) => aiForSlot(state, s, slot, ai),
       afterPass: dequeueAllGameEvents,
     };
+    generateBuildings(t);
   }
 
   get tick(): number {
@@ -175,18 +221,20 @@ export class TacticalSim {
     if (frozen) return false;
     return (
       !hasAnimFlag(content, s.state, AnimFlags.STATIONARY) ||
+      !scriptLoops(content.scripts, s.state) ||
       hasAnimFlag(content, s.state, AnimFlags.STANCECHANGEANIM) ||
       s.desiredDirection !== s.direction ||
       s.inNonInterruptibleAnimation ||
       s.delayedMovement !== 0 ||
       s.pendingAnimation !== -1 ||
-      s.continueMoveAfterStanceChange !== 0
+      s.pendingPickup !== null ||
+      s.tempObject !== null
     );
   }
 
   isIdle(): boolean {
     const t = this.state;
-    if (t.turn.attackBusyCount > 0 || t.bullets.length > 0 || t.gameEvents.length > 0) return false;
+    if (t.turn.attackBusyCount > 0 || t.bullets.length > 0 || t.gameEvents.length > 0 || explosivesBusy(t.explosives)) return false;
     if (t.inCombat && t.turn.currentTeam !== Team.OUR) return false;
     return !teamMembers(t, Team.OUR).some((s) => this.isBusy(s));
   }
@@ -245,6 +293,12 @@ export class TacticalSim {
         return this.#attack(cmd);
       case 'estimateAttack':
         return this.#estimateAttack(cmd);
+      case 'pickUp':
+        return this.#pickUp(cmd);
+      case 'drop':
+        return this.#drop(cmd);
+      case 'climb':
+        return this.#climb(cmd);
       case 'stop': {
         const s = this.soldier(cmd.soldier);
         if (!s || s.team !== Team.OUR) return { ok: false, reason: 'no such soldier of yours' };
@@ -255,6 +309,80 @@ export class TacticalSim {
       default:
         return { ok: false, reason: `unknown command ${cmd.type}` };
     }
+  }
+
+  visibleItems(): ItemSnapshot[] {
+    const items = this.state.content.items;
+    return this.state.worldItems
+      .filter((wi) => wi.visible === Visibility.VISIBLE)
+      .map((wi) => ({
+        gridNo: wi.gridNo,
+        level: wi.level,
+        item: items.byIndex.get(wi.object.item)?.name ?? String(wi.object.item),
+        count: wi.object.count,
+        status: wi.object.status[0] ?? 0,
+      }))
+      .sort((a, b) => a.gridNo - b.gridNo || a.level - b.level);
+  }
+
+  #pickUp(cmd: TacticalCommand): CommandResult {
+    const t = this.state;
+    const s = this.soldier(cmd.soldier);
+    if (!s) return { ok: false, reason: 'no such soldier of yours' };
+    const refusal = this.canAct(s);
+    if (refusal) return { ok: false, reason: refusal };
+    const g = cmd.gridNo === undefined ? s.gridNo : cmd.gridNo;
+    if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return { ok: false, reason: 'gridNo must be a visible tile' };
+    if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return { ok: false, reason: 'stop the soldier first' };
+    const zLevel = cmd.zLevel === 1 ? 1 : 0;
+    const candidates = pickupCandidates(t, s, g, zLevel);
+    if (candidates.length === 0) return { ok: false, reason: 'nothing to pick up there' };
+    let selection = null;
+    if (cmd.items !== undefined) {
+      if (!Array.isArray(cmd.items) || cmd.items.length === 0) return { ok: false, reason: 'items must be a non-empty list of indices' };
+      const picked = cmd.items.map((k: unknown) => (typeof k === 'number' ? candidates[k] : undefined));
+      if (picked.some((wi) => wi === undefined)) return { ok: false, reason: `item indices must be 0..${candidates.length - 1}` };
+      selection = picked as typeof candidates;
+    }
+    if (!enoughPoints(t.inCombat, s, AP.PICKUP_ITEM)) return { ok: false, reason: `not enough APs: ${AP.PICKUP_ITEM} needed` };
+    selectSoldier(t, s);
+    if (!soldierPickupItem(t, s, g, zLevel, selection)) return { ok: false, reason: 'no path' };
+    return { ok: true };
+  }
+
+  #drop(cmd: TacticalCommand): CommandResult {
+    const t = this.state;
+    const s = this.soldier(cmd.soldier);
+    if (!s) return { ok: false, reason: 'no such soldier of yours' };
+    const refusal = this.canAct(s);
+    if (refusal) return { ok: false, reason: refusal };
+    const slot = cmd.slot === undefined || cmd.slot === 'hand' ? InvSlot.HAND : cmd.slot;
+    if (typeof slot !== 'number' || !Number.isInteger(slot) || slot < 0 || slot >= s.inv.length)
+      return { ok: false, reason: 'slot must be 0..18 or "hand"' };
+    if (itemIn(s.inv, slot) === NOTHING) return { ok: false, reason: 'that slot is empty' };
+    if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return { ok: false, reason: 'stop the soldier first' };
+    if (!enoughPoints(t.inCombat, s, AP.PICKUP_ITEM)) return { ok: false, reason: `not enough APs: ${AP.PICKUP_ITEM} needed` };
+    selectSoldier(t, s);
+    deductPoints(t.inCombat, s, AP.PICKUP_ITEM, 0);
+    soldierDropItem(t, s, slot);
+    return { ok: true };
+  }
+
+  #climb(cmd: TacticalCommand): CommandResult {
+    const t = this.state;
+    const s = this.soldier(cmd.soldier);
+    if (!s) return { ok: false, reason: 'no such soldier of yours' };
+    const refusal = this.canAct(s);
+    if (refusal) return { ok: false, reason: refusal };
+    if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return { ok: false, reason: 'stop the soldier first' };
+    const down = s.level > 0;
+    if ((down ? findLowerLevel(t, s) : findHigherLevel(t, s)) < 0)
+      return { ok: false, reason: down ? 'no free ground next to the roof edge' : 'no roof edge next to the soldier' };
+    const ap = apsToClimbRoof(t, s, down);
+    if (!enoughPoints(t.inCombat, s, ap)) return { ok: false, reason: `not enough APs: ${ap} needed` };
+    selectSoldier(t, s);
+    if (!(down ? beginSoldierClimbDownRoof(t, s) : beginSoldierClimbUpRoof(t, s))) return { ok: false, reason: 'cannot climb here' };
+    return { ok: true };
   }
 
   #movementMode(s: Soldier, mode: unknown): number {
@@ -351,7 +479,7 @@ export class TacticalSim {
     return { ok: true };
   }
 
-  #attackSetup(cmd: TacticalCommand): { s: Soldier; target: number; level: number } | { error: string } {
+  #attackSetup(cmd: TacticalCommand): { s: Soldier; target: number; level: number; melee: boolean; thrown: boolean } | { error: string } {
     const t = this.state;
     const s = this.soldier(cmd.soldier);
     if (!s?.placed || s.team !== Team.OUR) return { error: 'no such soldier of yours' };
@@ -364,9 +492,14 @@ export class TacticalSim {
     if (typeof aimTime !== 'number' || !Number.isInteger(aimTime) || aimTime < 0 || aimTime > 4) return { error: 'aimTime must be 0..4' };
     const hand = itemIn(s.inv, InvSlot.HAND);
     const def = t.content.items.byIndex.get(hand);
-    if (!def || def.itemClass !== ItemClass.GUN) return { error: 'soldier has no gun in hand' };
-    if (cmd.burst === true && !(def.weapon?.shotsPerBurst ?? 0)) return { error: 'this gun cannot fire bursts' };
+    const melee = def !== undefined && isMeleeItemClass(def.itemClass);
+    const thrown = def !== undefined && isThrowItemClass(def.itemClass);
+    if (!def || (def.itemClass !== ItemClass.GUN && !melee && !thrown))
+      return { error: 'soldier has no gun, knife, grenade, launcher or free hand' };
+    if (cmd.burst === true && (melee || thrown || !(def.weapon?.shotsPerBurst ?? 0))) return { error: 'this weapon cannot fire bursts' };
+    if (thrown && def.cursor === ItemCursor.TOSS && aimTime !== 0) return { error: 'throws cannot be aimed' };
     const victim = whoIsThere(t, target, level);
+    if (melee && (!victim || level !== s.level)) return { error: 'a melee attack needs a soldier on the target tile at the same level' };
     const part = AIM_PARTS[String(cmd.bodyPart ?? 'random')];
     if (part === undefined) return { error: 'bodyPart must be head, torso, legs or random' };
     s.aimTime = aimTime;
@@ -377,7 +510,7 @@ export class TacticalSim {
     s.attackingWeapon = hand;
     s.targetLevel = level;
     s.targetCubeLevel = 0;
-    return { s, target, level };
+    return { s, target, level, melee, thrown };
   }
 
   #attack(cmd: TacticalCommand): CommandResult {
@@ -389,10 +522,15 @@ export class TacticalSim {
     }
     const setup = this.#attackSetup(cmd);
     if ('error' in setup) return { ok: false, reason: setup.error };
-    const { s, target, level } = setup;
-    if (target === s.gridNo) return { ok: false, reason: 'cannot shoot at own tile' };
+    const { s, target, level, melee } = setup;
+    if (target === s.gridNo) return { ok: false, reason: 'cannot attack own tile' };
+    if (melee) {
+      if (!meleeSpot(t, s, target, level)) return { ok: false, reason: NOT_ADJACENT };
+      if (!enoughPoints(t.inCombat, s, calcTotalAPsToAttack(t, s, target, true, s.aimTime)))
+        return { ok: false, reason: ATTACK_REFUSALS[ItemHandle.NOAPS] ?? 'not enough APs' };
+    }
     if (s.noAPToFinishMove) soldierGotoStationaryStance(t, s);
-    const result = handleGunAttack(t, s, target, level, s.attackingWeapon);
+    const result = handleItem(t, s, target, level, s.attackingWeapon);
     if (result !== ItemHandle.OK) return { ok: false, reason: ATTACK_REFUSALS[result] ?? `attack refused (${result})` };
     selectSoldier(t, s);
     return { ok: true };
@@ -405,13 +543,30 @@ export class TacticalSim {
     const saved = { ...s, inv: s.inv };
     const setup = this.#attackSetup(cmd);
     if ('error' in setup) return { ok: false, reason: setup.error };
-    const { target, level } = setup;
+    const { target, level, melee, thrown } = setup;
     const victim = whoIsThere(t, target, level);
+    if (thrown && t.content.items.byIndex.get(s.attackingWeapon)?.cursor === ItemCursor.TOSS) {
+      const throwEstimate = this.#estimateThrow(s, target, level, victim);
+      Object.assign(s, {
+        aimTime: saved.aimTime,
+        attackingHand: saved.attackingHand,
+        attackingWeapon: saved.attackingWeapon,
+        targetLevel: saved.targetLevel,
+      });
+      return { ok: true, data: throwEstimate };
+    }
     const apCost = calcTotalAPsToAttack(t, s, victim ? victim.gridNo : target, true, s.aimTime);
-    const chanceToHit = calcChanceToHitGun(t, s, target, s.aimTime, s.aimShotLocation, false);
-    const chanceToGetThrough = victim
-      ? soldierToSoldierBodyPartChanceToGetThrough(t, s, victim, s.aimShotLocation)
-      : soldierToLocationChanceToGetThrough(t, s, target, level, 0, null);
+    const blade = t.content.items.byIndex.get(s.attackingWeapon)?.itemClass === ItemClass.BLADE;
+    const chanceToHit =
+      melee && victim
+        ? meleeChanceToHit(t, s, victim, s.aimTime, blade)
+        : calcChanceToHitGun(t, s, target, s.aimTime, s.aimShotLocation, false);
+    const chanceToGetThrough = melee
+      ? MELEE_CHANCE_TO_GET_THROUGH
+      : victim
+        ? soldierToSoldierBodyPartChanceToGetThrough(t, s, victim, s.aimShotLocation)
+        : soldierToLocationChanceToGetThrough(t, s, target, level, 0, null);
+    const reach = melee ? { inReach: meleeSpot(t, s, target, level) !== null } : {};
     Object.assign(s, {
       aimTime: saved.aimTime,
       aimShotLocation: saved.aimShotLocation,
@@ -424,7 +579,21 @@ export class TacticalSim {
       dontChargeReadyAPs: saved.dontChargeReadyAPs,
       ctgtTarget: saved.ctgtTarget,
     });
-    return { ok: true, data: { apCost, actionPoints: s.actionPoints, chanceToHit, chanceToGetThrough } };
+    return { ok: true, data: { apCost, actionPoints: s.actionPoints, chanceToHit, chanceToGetThrough, ...reach } };
+  }
+
+  #estimateThrow(s: Soldier, target: number, level: number, victim: Soldier | null): Record<string, unknown> {
+    const t = this.state;
+    const hand = s.inv[InvSlot.HAND] as ItemObject;
+    const landing = calculateLaunchItemChanceToGetThrough(t, s, hand, target, level, level * HEIGHT_UNITS, true, true);
+    return {
+      apCost: minAPsToAttack(t, s, victim ? victim.gridNo : target, true),
+      actionPoints: s.actionPoints,
+      chanceToHit: landing.ok ? calcThrownChanceToHit(t, s, landing.gridNo, 0) : 0,
+      pathClear: landing.ok,
+      landsAt: landing.gridNo,
+      maxRange: calcMaxTossRange(t, s, hand.item, true),
+    };
   }
 
   #endTurn(): CommandResult {

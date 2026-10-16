@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/AIMain.cc HandleSoldierAI, ExecuteAction, ActionDone, CancelAIAction, NPCDoesAct,
-// @src FreeUpNPCFromTurning, FreeUpNPCFromStanceChange; Realtime.cc RTHandleAI; Movement.cc SoldierTriesToContinueAlongPath;
+// @src FreeUpNPCFromTurning, FreeUpNPCFromStanceChange, FreeUpNPCFromRoofClimb; Realtime.cc RTHandleAI; Movement.cc SoldierTriesToContinueAlongPath;
 // @src AIUtils.cc NewDest; Tactical/Overhead.cc ExecuteOverhead (real-time AI cadence). See docs/09 §1.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
@@ -24,6 +24,7 @@ import { isMercBody, NOWHERE, newOKDestination } from '../pathfinding.ts';
 import { mostImportantNoiseHeard } from '../perception/knowledge.ts';
 import { radioSightings } from '../perception/sight.ts';
 import { deductPoints, enoughPoints, estimateActionPointCost } from '../points.ts';
+import { beginSoldierClimbDownRoof, beginSoldierClimbUpRoof } from '../roofs.ts';
 import { AlertStatus, Attitude, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { displayHiddenInterrupt } from '../turns/turns.ts';
@@ -190,6 +191,10 @@ export function freeUpFromTurning(t: TacticalState, s: Soldier): void {
   if (s.ai.action === AiAction.CHANGE_FACING && s.ai.actionInProgress) actionDone(t, s);
 }
 
+export function freeUpFromRoofClimb(t: TacticalState, s: Soldier): void {
+  if (s.ai.actionInProgress && s.ai.action === AiAction.CLIMB_ROOF) actionDone(t, s);
+}
+
 export function freeUpFromStanceChange(t: TacticalState, s: Soldier): void {
   const ai = s.ai;
   if (!ai.actionInProgress) return;
@@ -333,13 +338,14 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
       ai.actionData = AnimHeight.STAND;
       setSoldierCowerState(t, s, false);
       return true;
-    case AiAction.KNIFE_MOVE:
     case AiAction.TOSS_PROJECTILE:
     case AiAction.THROW_KNIFE:
       cancelAIAction(t, s);
       t.hooks.endAiGuysTurn(t, s);
       return true;
+    case AiAction.KNIFE_MOVE:
     case AiAction.FIRE_GUN: {
+      if (ai.action === AiAction.KNIFE_MOVE) s.uiMovementMode = determineMovementMode(t, s, ai.action);
       const result = t.turnHooks.aiAttack(t, s, ai.actionData, s.targetLevel);
       if (result !== 1) {
         cancelAIAction(t, s);
@@ -354,6 +360,30 @@ export function executeAction(t: TacticalState, s: Soldier): boolean {
       deductPoints(t.inCombat, s, AP_RADIO, 0);
       radioSightings(t, s, null, s.team);
       aiDecideRadioAnimation(t, s);
+      return true;
+    case AiAction.PICKUP_ITEM:
+      if (!t.turnHooks.aiPickup(t, s, ai.actionData, ai.pickupItem)) {
+        cancelAIAction(t, s);
+        return false;
+      }
+      return true;
+    case AiAction.DROP_ITEM:
+      t.turnHooks.aiDropHandItem(t, s);
+      ai.action = AiAction.PENDING_ACTION;
+      return true;
+    case AiAction.MOVE_TO_CLIMB:
+      if (ai.actionData === s.gridNo) {
+        ai.action = AiAction.CLIMB_ROOF;
+        return isActionAffordable(t, s) ? executeAction(t, s) : false;
+      }
+      if (t.inCombat && ai.alertStatus < AlertStatus.BLACK) detectMovementLoop(t, s);
+      return executeMovement(t, s);
+    case AiAction.CLIMB_ROOF:
+      if (!(s.level === 0 ? beginSoldierClimbUpRoof(t, s) : beginSoldierClimbDownRoof(t, s))) {
+        cancelAIAction(t, s);
+        if (t.inCombat) t.hooks.endAiGuysTurn(t, s);
+        return false;
+      }
       return true;
     case AiAction.LOWER_GUN:
       actionDone(t, s);
@@ -397,9 +427,12 @@ function rtHandleAI(t: TacticalState, s: Soldier, control: AiControl): void {
       } else {
         ai.action = ai.nextAction;
         ai.actionData = ai.nextActionData;
+        s.targetLevel = ai.nextTargetLevel;
         ai.nextAction = AiAction.NONE;
         ai.nextActionData = 0;
+        ai.nextTargetLevel = 0;
       }
+      if (ai.action === AiAction.PICKUP_ITEM) ai.pickupItem = ai.nextPickupItem;
     } else if (s.absoluteFinalDestination !== NOWHERE) {
       ai.action = AiAction.WALK;
       ai.actionData = s.absoluteFinalDestination;

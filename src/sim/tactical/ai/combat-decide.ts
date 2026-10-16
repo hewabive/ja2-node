@@ -10,6 +10,7 @@ import { AnimHeight, endHeight, height } from '../animation.ts';
 import { calcAPsToBurst, minAPsToAttack } from '../combat/ap.ts';
 import { soldierDifficultyLevel } from '../combat/chance.ts';
 import { AiMorale } from '../combat/types.ts';
+import { inGasOrSmoke } from '../explosions/smoke.ts';
 import { autoPlaceObject, InvSlot } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
 import { isWater } from '../pathfinding.ts';
@@ -18,6 +19,7 @@ import { distanceVisible } from '../perception/sight.ts';
 import { internalIsValidStance, isValidStance } from '../person-structure.ts';
 import { apsToChangeStance, apsToLook, apsToReadyWeapon, calcActionPoints, MAX_AP_CARRIED, minPtsToMove } from '../points.ts';
 import { AlertStatus, Attitude, Body, NO_PROFILE, NOWHERE, OKLIFE, Orders, type Soldier, Team } from '../soldier.ts';
+import { soldierInventoryContext } from '../soldier-inventory.ts';
 import type { TacticalState } from '../state.ts';
 import { AiAction, Situation } from './actions.ts';
 import {
@@ -31,7 +33,6 @@ import {
   NoShoot,
   rearrangePocket,
   shootingStanceChange,
-  soldierInventoryContext,
   stanceChange,
 } from './attack-choice.ts';
 import {
@@ -39,11 +40,11 @@ import {
   findNearbyDarkerSpot,
   findNearestUngassedLand,
   findSpotMaxDistFromOpponents,
-  inGasOrSmoke,
   inLightAtNight,
 } from './cover.ts';
 import { determineMovementMode, realtimeCivDelay } from './decide.ts';
 import { GoFlag, goAsFarAsPossibleTowards, internalGoAsFarAsPossibleTowards } from './destinations.ts';
+import { ItemSearch, searchForItems } from './item-search.ts';
 import { calcMorale, rangeChangeDesire } from './morale.ts';
 import {
   closestReachableDisturbance,
@@ -456,6 +457,13 @@ export function decideActionRed(t: TacticalState, s: Soldier, hooks: CombatDecid
     }
   }
   if (isTank(s)) return AiAction.NONE;
+  if (canMove && !s.neutral && (t.inCombat || s.team === Team.ENEMY)) {
+    const found = searchForItems(t, s, ItemSearch.GENERAL, handItem(s));
+    if (found.action !== AiAction.NONE) {
+      ai.actionData = found.gridNo;
+      return found.action;
+    }
+  }
   if (
     ai.alertStatus !== AlertStatus.BLACK &&
     !ai.underFire &&
@@ -647,6 +655,8 @@ function redMainChoice(t: TacticalState, s: Soldier): number | null {
   return null;
 }
 
+const handItem = (s: Soldier) => s.inv[InvSlot.HAND]?.item ?? NOTHING;
+
 function stowUselessGun(t: TacticalState, s: Soldier): boolean {
   const hand = s.inv[InvSlot.HAND];
   if (!hand || hand.item === NOTHING) return false;
@@ -703,7 +713,14 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
         ai.actionData = AnimHeight.CROUCH;
         return AiAction.COWER;
       }
-      if (!civilian && canAttack === NoShoot.NOAMMO && canMove && !s.neutral && stowUselessGun(t, s)) continue;
+      if (!civilian && canAttack === NoShoot.NOAMMO && canMove && !s.neutral) {
+        const ammo = searchForItems(t, s, ItemSearch.AMMO, handItem(s));
+        if (ammo.action !== AiAction.NONE) {
+          ai.actionData = ammo.gridNo;
+          return ammo.action;
+        }
+        if (stowUselessGun(t, s)) continue;
+      }
       canAttack = 0;
       break;
     }
@@ -713,6 +730,13 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
         canAttack = 1;
         tryPunching = true;
       }
+    }
+  }
+  if (findAIUsableObjClass(t, s, ItemClass.GUN) === -1 && canMove && !s.neutral) {
+    const weapon = searchForItems(t, s, ItemSearch.WEAPONS, handItem(s));
+    if (weapon.action !== AiAction.NONE) {
+      ai.actionData = weapon.gridNo;
+      return weapon.action;
     }
   }
   let bestShot = emptyAttackChoice();
@@ -750,7 +774,8 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
       if (weaponIn !== InvSlot.HAND) rearrangePocket(s, InvSlot.HAND, weaponIn);
       const minAP = minAPsToAttack(t, s, s.lastTarget, false);
       if (s.actionPoints >= minAP) {
-        bestStab = { ...calcBestStab(t, s, true), weaponIn };
+        const throwingKnife = t.content.items.byIndex.get(s.inv[InvSlot.HAND]?.item ?? NOTHING)?.itemClass === ItemClass.THROWING_KNIFE;
+        bestStab = { ...(throwingKnife ? throwingKnifeAttackNotPorted() : calcBestStab(t, s, true)), weaponIn };
         if (bestStab.possible) hooks.npcDoesAct(t, s);
       }
       if (weaponIn !== InvSlot.HAND) rearrangePocket(s, InvSlot.HAND, weaponIn);
@@ -1058,6 +1083,10 @@ function executeAttackChoice(
   ai.actionData = best.target;
   s.targetLevel = best.targetLevel;
   return action;
+}
+
+function throwingKnifeAttackNotPorted(): AttackChoice {
+  return emptyAttackChoice();
 }
 
 function hasFireReady(t: TacticalState, s: Soldier): boolean {

@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/TacticalAI/Attacks.cc CalcBestShot, EstimateShotDamage, EstimateStabDamage, TryToReload, CanNPCAttack,
-// @src CheckIfTossPossible (CalcBestThrow, CalcBestStab and CalcSpreadBurst as "not possible" hooks); AIMain.cc InitAttackType;
+// @src src/game/TacticalAI/Attacks.cc CalcBestShot, CalcBestStab, EstimateShotDamage, EstimateStabDamage, TryToReload, CanNPCAttack,
+// @src CheckIfTossPossible (CalcBestThrow as a "not possible" hook), CountAdjacentSpreadTargets, CalcSpreadBurst;
+// @src Tactical/Spread_Burst.cc AIPickBurstLocations; AIMain.cc InitAttackType;
 // @src TacticalAI/AIUtils.cc OKToAttack, ConsiderProne, StanceChange, ShootingStanceChange;
 // @src Tactical/Items.cc WeaponInHand, HasObjectImprint, FindObj, FindLaunchable, FindAmmo,
 // @src FindThrowableGrenade; Tactical/Weapons.cc CalcMaxTossRange (unarmed); TileEngine/Isometric_Utils.cc GetRangeFromGridNoDiff.
@@ -9,22 +10,23 @@
 
 import { AmmoType, ItemClass, ItemFlags, NOTHING, WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { validLaunchable } from '../../../content/items/rules.ts';
-import { CELL_X_SIZE, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
+import { CELL_X_SIZE, DIRECTION_COUNT, DIRECTION_INCREMENT, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { i8, idiv, u8, u32 } from '../../../core/int.ts';
 import { findAttachment, type ItemObject, swapObjects, USABLE_STATUS } from '../../items/object.ts';
 import { AnimHeight, endHeight, height, states } from '../animation.ts';
-import { calcAPsToBurst, minAPsToAttack, minAPsToShootOrStab } from '../combat/ap.ts';
+import { calcAPsToBurst, calcTotalAPsToAttack, minAPsToAttack, minAPsToShootOrStab } from '../combat/ap.ts';
 import { aiSoldierToSoldierChanceToGetThrough, soldierToLocationChanceToGetThrough } from '../combat/bullets.ts';
 import { aiCalcChanceToHitGun, calcChanceToHitGun, rangeInUnits } from '../combat/chance.ts';
 import { isTankBody } from '../combat/impact.ts';
-import { AiMorale, Aim, AimShot, MIN_PRONE_RANGE, POINT_BLANK_RANGE, PUNCH_REAL_DAMAGE_PORTION } from '../combat/types.ts';
-import { findObjWithin, type InventoryContext, InvSlot, NO_SLOT, NUM_INV_SLOTS, reloadGun } from '../inventory.ts';
+import { calcChanceToPunch, calcChanceToStab } from '../combat/melee.ts';
+import { AiMorale, Aim, AimShot, CTH_MAXIMUM, MIN_PRONE_RANGE, POINT_BLANK_RANGE, PUNCH_REAL_DAMAGE_PORTION } from '../combat/types.ts';
+import { findObjWithin, InvSlot, NO_SLOT, NUM_INV_SLOTS, reloadGun } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
 import { closestKnownOpponent } from '../perception/knowledge.ts';
 import { Opp } from '../perception/opp.ts';
 import { animStructureDef, internalIsValidStance, isValidStance } from '../person-structure.ts';
-import { AP, apsToReadyWeapon, calcActionPoints, deductPoints } from '../points.ts';
+import { AP, apsToReadyWeapon, calcActionPoints } from '../points.ts';
 import { effectiveStrength } from '../skills.ts';
 import {
   Attitude,
@@ -38,8 +40,8 @@ import {
   type Soldier,
   Team,
 } from '../soldier.ts';
-import { mercs, type TacticalState } from '../state.ts';
-import { addItemToPool, Visibility } from '../world-items.ts';
+import { soldierInventoryContext } from '../soldier-inventory.ts';
+import { mercs, type TacticalState, whoIsThere } from '../state.ts';
 import { calcManThreatValue, consideredNeutral } from './morale.ts';
 import { findAIUsableObjClass, findAIUsableObjClassWithin, isExplosiveGun } from './utils.ts';
 
@@ -167,18 +169,6 @@ export function okToAttack(t: TacticalState, s: Soldier, target: number): number
     } else if (hand.gunShotsLeft === 0) return NoShoot.NOAMMO;
   } else if (cls === ItemClass.LAUNCHER && findLaunchable(t, s, hand.item) === NO_SLOT) return NoShoot.NOLOAD;
   return CAN_ATTACK;
-}
-
-export function soldierInventoryContext(t: TacticalState, s: Soldier): InventoryContext {
-  return {
-    items: t.content.items,
-    inCombat: t.inCombat,
-    actionPoints: () => s.actionPoints,
-    spendActionPoints: (ap) => deductPoints(t.inCombat, s, ap, 0),
-    dropAtFeet: (o) => {
-      addItemToPool(t, s.gridNo, o, Visibility.VISIBLE, s.level);
-    },
-  };
 }
 
 function tryToReload(t: TacticalState, s: Soldier): number {
@@ -406,13 +396,161 @@ export function checkIfTossPossible(t: TacticalState, s: Soldier, best: AttackCh
   return best;
 }
 
-export function calcBestStab(_t: TacticalState, s: Soldier, _blade: boolean, best: AttackChoice = emptyAttackChoice()): AttackChoice {
-  initAttackType(best);
-  s.attackingWeapon = handObject(s).item;
+function bestStabAgainst(
+  t: TacticalState,
+  s: Soldier,
+  opp: Soldier,
+  rawAPCost: number,
+  maxAim: number,
+  blade: boolean,
+  surprise: boolean,
+): AimChoice {
+  let best: AimChoice = { hitRate: 0, aimTime: 0, chanceToHit: 0 };
+  for (let aim = AP.MIN_AIM_ATTACK; aim <= maxAim; aim++) {
+    const chanceToHit = surprise ? CTH_MAXIMUM : u8(blade ? calcChanceToStab(t, s, opp, aim) : calcChanceToPunch(t, s, opp, aim));
+    const hitRate = idiv(s.actionPoints * chanceToHit, rawAPCost + aim);
+    if (hitRate > best.hitRate) best = { hitRate, aimTime: aim, chanceToHit };
+  }
   return best;
 }
 
-export function calcSpreadBurst(_t: TacticalState, _s: Soldier, _firstTarget: number, _targetLevel: number): void {}
+export function calcBestStab(t: TacticalState, s: Soldier, blade: boolean, best: AttackChoice = emptyAttackChoice()): AttackChoice {
+  initAttackType(best);
+  s.attackingWeapon = handObject(s).item;
+  for (const opp of mercs(t)) {
+    if (!isShotCandidate(s, opp) || s.level !== opp.level) continue;
+    const minAPCost = u8(calcTotalAPsToAttack(t, s, opp.gridNo, true, 0));
+    if (minAPCost > s.actionPoints || minAPCost === 0) continue;
+    let rawAPCost = minAPsToAttack(t, s, opp.gridNo, false);
+    if (opp.gridNo !== s.lastTarget) rawAPCost = u8(rawAPCost - AP.CHANGE_TARGET);
+    rawAPCost = Math.max(1, rawAPCost);
+    const surprise = opp.oppList[s.id] !== Opp.SEEN_CURRENTLY;
+    const maxAim = Math.min(AP.MAX_AIM_ATTACK, s.actionPoints - minAPCost);
+    const aim = bestStabAgainst(t, s, opp, rawAPCost, maxAim, blade, surprise);
+    if (aim.hitRate === 0) continue;
+    const chanceToReallyHit = aim.chanceToHit;
+    const threat = calcManThreatValue(t, opp, s.gridNo, false, s);
+    const damage = estimateStabDamage(t, s, aim.chanceToHit, blade);
+    const attackValue = shotAttackValue(damage, aim.hitRate, chanceToReallyHit, threat);
+    if (keepsPreviousTarget(best, chanceToReallyHit, attackValue)) continue;
+    best.possible = true;
+    best.opponent = opp;
+    best.aimTime = aim.aimTime;
+    best.chanceToReallyHit = chanceToReallyHit;
+    best.target = opp.gridNo;
+    best.targetLevel = opp.level;
+    best.attackValue = attackValue;
+    best.apCost = u8(minAPCost + aim.aimTime);
+  }
+  return best;
+}
+
+const SPREAD_SLOTS = 5;
+const FIRST_SPREAD_TARGET = 2;
+const IN_FRONT_CHECK = 6;
+const DIAGONAL_SPREAD_CHECKS: readonly (readonly [number, number])[] = [
+  [6, 0],
+  [5, 1],
+  [7, 1],
+  [3, 3],
+  [1, 3],
+  [2, 4],
+  [4, 1],
+  [0, 3],
+];
+const STRAIGHT_SPREAD_CHECKS: readonly (readonly [number, number])[] = [
+  [5, 1],
+  [6, 1],
+  [7, 1],
+  [3, 3],
+  [2, 3],
+  [1, 3],
+  [4, 1],
+  [0, 3],
+];
+
+type SpreadTargets = (Soldier | null)[];
+
+function spreadChecks(direction: number): readonly (readonly [number, number])[] {
+  return direction % 2 ? DIAGONAL_SPREAD_CHECKS : STRAIGHT_SPREAD_CHECKS;
+}
+
+function visibleSpreadTarget(t: TacticalState, s: Soldier, g: number, level: number): Soldier | null {
+  const other = whoIsThere(t, g, level);
+  return other && s.oppList[other.id] === Opp.SEEN_CURRENTLY ? other : null;
+}
+
+function countAdjacentSpreadTargets(t: TacticalState, s: Soldier, first: number, level: number): number {
+  const targets: SpreadTargets = new Array(SPREAD_SLOTS).fill(null);
+  targets[FIRST_SPREAD_TARGET] = whoIsThere(t, first, level);
+  if (!targets[FIRST_SPREAD_TARGET]) return 0;
+  let count = 1;
+  const direction = directionToward(s.gridNo, first);
+  for (const [k, [offset, slot]] of spreadChecks(direction).entries()) {
+    if (k === IN_FRONT_CHECK && count > 1) break;
+    if (targets[slot]) continue;
+    const other = visibleSpreadTarget(t, s, first + (DIRECTION_INCREMENT[(direction + offset) % DIRECTION_COUNT] ?? 0), level);
+    if (other) {
+      targets[slot] = other;
+      count++;
+    }
+  }
+  return count - 1;
+}
+
+function closeSpreadGaps(targets: SpreadTargets): void {
+  if (!targets[3] && targets[4]) {
+    targets[3] = targets[4];
+    targets[4] = null;
+  }
+  for (const gap of [1, 0]) {
+    if (targets[gap]) continue;
+    targets.splice(gap, 1);
+    targets.push(null);
+  }
+}
+
+function aiPickBurstLocations(t: TacticalState, s: Soldier, count: number, targets: SpreadTargets): void {
+  const shots = itemDef(t, handObject(s).item)?.weapon?.shotsPerBurst ?? 0;
+  const step = Math.fround(count / shots);
+  let accumulator = 0;
+  for (let k = 0; k < shots; k++) {
+    s.spreadLocations[k] = targets[Math.trunc(accumulator)]?.gridNo ?? 0;
+    accumulator = Math.fround(accumulator + step);
+  }
+}
+
+export function calcSpreadBurst(t: TacticalState, s: Soldier, first: number, level: number): number {
+  const targets: SpreadTargets = new Array(SPREAD_SLOTS).fill(null);
+  targets[FIRST_SPREAD_TARGET] = whoIsThere(t, first, level);
+  if (!targets[FIRST_SPREAD_TARGET]) return first;
+  let count = 1;
+  const adjacents = countAdjacentSpreadTargets(t, s, first, level);
+  const direction = directionToward(s.gridNo, first);
+  for (const [k, [offset, slot]] of spreadChecks(direction).entries()) {
+    if (k === IN_FRONT_CHECK && count > 1) break;
+    if (targets[slot]) continue;
+    const g = first + (DIRECTION_INCREMENT[(direction + offset) % DIRECTION_COUNT] ?? 0);
+    const other = visibleSpreadTarget(t, s, g, level);
+    if (!other) continue;
+    if (countAdjacentSpreadTargets(t, s, g, level) > adjacents) return calcSpreadBurst(t, s, g, level);
+    targets[slot] = other;
+    count++;
+  }
+  if (count > 1) {
+    closeSpreadGaps(targets);
+    if (t.rng.int(2)) {
+      for (let k = 0; k < Math.trunc(count / 2); k++) {
+        const swap = targets[k] ?? null;
+        targets[k] = targets[count - 1 - k] ?? null;
+        targets[count - 1 - k] = swap;
+      }
+    }
+    aiPickBurstLocations(t, s, count, targets);
+    s.doSpread = 1;
+  }
+  return first;
+}
 
 function rangeInTiles(a: number, b: number): number {
   const ay = Math.trunc(a / WORLD_COLS);

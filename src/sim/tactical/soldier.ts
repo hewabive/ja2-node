@@ -3,7 +3,9 @@
 // @src src/game/Tactical/Soldier_Control.h SOLDIERTYPE (movement, animation and AI fields used by ja2-node)
 
 import type { StructureInstance } from '../../content/world/structures.ts';
+import type { ItemObject } from '../items/object.ts';
 import { emptyInventory, type Inventory } from './inventory.ts';
+import type { WorldItem } from './world-items.ts';
 
 export const Body = {
   REGMALE: 0,
@@ -161,6 +163,8 @@ export interface AiState {
   nextAction: number;
   nextActionData: number;
   nextTargetLevel: number;
+  pickupItem: WorldItem | null;
+  nextPickupItem: WorldItem | null;
   lastAction: number;
   actionInProgress: boolean;
   counter: number;
@@ -371,6 +375,17 @@ export interface Soldier {
   oldPc: number;
   pendingActionData2: number;
   spreadLocations: number[];
+  pendingPickup: PendingPickup | null;
+  tempObject: ItemObject | null;
+  tempNewGridNo: number;
+  heightAdjustment: number;
+}
+
+export interface PendingPickup {
+  readonly gridNo: number;
+  readonly actionGridNo: number;
+  readonly zLevel: number;
+  readonly selection: readonly WorldItem[] | null;
 }
 
 export interface SoldierInit {
@@ -512,6 +527,8 @@ export function createSoldier(init: SoldierInit): Soldier {
       nextAction: 0,
       nextActionData: 0,
       nextTargetLevel: 0,
+      pickupItem: null,
+      nextPickupItem: null,
       lastAction: 0,
       actionInProgress: false,
       counter: 0,
@@ -622,5 +639,9 @@ export function createSoldier(init: SoldierInit): Soldier {
     oldPc: 0,
     pendingActionData2: 0,
     spreadLocations: [0, 0, 0, 0, 0, 0],
+    pendingPickup: null,
+    tempObject: null,
+    tempNewGridNo: NOWHERE,
+    heightAdjustment: 0,
   };
 }

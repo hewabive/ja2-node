@@ -25,6 +25,7 @@ import { clamp, i16, idiv, u8 } from '../../../core/int.ts';
 import { AnimHeight, states } from '../animation.ts';
 import { soldierToLocationChanceToGetThrough } from '../combat/bullets.ts';
 import { rangeInUnits, soldierDifficultyLevel } from '../combat/chance.ts';
+import { inGas, inSmoke } from '../explosions/smoke.ts';
 import { aiPathCostIndex, findBestPath, MoveMode, NOWHERE, newOKDestination, PathCopy, type PathEnv } from '../pathfinding.ts';
 import { AP, apsToChangeStance, calcActionPoints, minAPsToStartMovement, stateName } from '../points.ts';
 import { AlertStatus, cellCentre, type Soldier, Team } from '../soldier.ts';
@@ -111,7 +112,7 @@ interface SquareTile {
   readonly dy: number;
 }
 
-interface Flood {
+export interface Flood {
   readonly reachable: Uint8Array;
   readonly apCosts: Int8Array | null;
 }
@@ -121,18 +122,6 @@ const NO_FLEE_SPOT: FleeSpot = { gridNo: NOWHERE, traversalQuoteAction: QuoteAct
 
 function waterTooDeepForAttacks(t: TacticalState, g: number): boolean {
   return t.world.terrain[g] === Terrain.DEEP_WATER;
-}
-
-function inGas(_t: TacticalState, _s: Soldier, _g: number): boolean {
-  return false;
-}
-
-function inSmoke(_t: TacticalState, _s: Soldier, _g: number): boolean {
-  return false;
-}
-
-export function inGasOrSmoke(t: TacticalState, s: Soldier, g: number): boolean {
-  return inSmoke(t, s, g) || inGas(t, s, g);
 }
 
 function inWaterOrGas(t: TacticalState, s: Soldier, g: number): boolean {
@@ -362,7 +351,15 @@ function pathMoveMode(t: TacticalState, movementMode: number): MoveMode {
   }
 }
 
-function reachabilityFlood(t: TacticalState, s: Soldier, movementMode: number, copy: number, distLimit: number, budget: number): Flood {
+export function reachabilityFlood(
+  t: TacticalState,
+  s: Soldier,
+  movementMode: number,
+  copy: number,
+  distLimit: number,
+  budget: number,
+  includeOwnTile = false,
+): Flood {
   const env: PathEnv = { ...t.pathEnv, minAPsToStartMovement: () => minAPsToStartMovement(t.content, s, movementMode) };
   const result = findBestPath(env, s, NOWHERE, s.level, {
     mode: pathMoveMode(t, movementMode),
@@ -371,7 +368,7 @@ function reachabilityFlood(t: TacticalState, s: Soldier, movementMode: number, c
     budget: u8(budget),
   });
   const reachable = result.reachable ?? new Uint8Array(WORLD_MAX);
-  reachable[s.gridNo] = 0;
+  if (!includeOwnTile) reachable[s.gridNo] = 0;
   return { reachable, apCosts: result.apCosts ?? null };
 }
 

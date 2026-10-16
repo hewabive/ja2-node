@@ -2,11 +2,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo, pythSpacesAway } from '../../../content/world/grid.ts';
-import { emptyObject } from '../../items/object.ts';
+import { createItem, emptyObject } from '../../items/object.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
 import { AlertStatus, Orders, Team } from '../soldier.ts';
+import { addItemToPool, Visibility } from '../world-items.ts';
 
 let content: TacticalContent;
 
@@ -67,5 +68,25 @@ describe('combat AI', () => {
     runUntilIdle(sim);
     expect(hidden.ai.alertStatus).toBeGreaterThanOrEqual(AlertStatus.RED);
     expect(pythSpacesAway(hidden.gridNo, merc.gridNo)).toBeLessThan(before);
+  });
+});
+
+describe('combat AI item search', () => {
+  it('sends an unarmed enemy to pick up a gun lying nearby', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 70), Direction.SOUTH);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 84), Direction.NORTH);
+    enemy.inv[InvSlot.HAND] = emptyObject();
+    enemy.stats.wisdom = 90;
+    const glock = t.content.items.byName.get('GLOCK_17')?.index ?? 0;
+    addItemToPool(t, gridNo(81, 85), createItem(t.content.items, glock, 100), Visibility.INVISIBLE, 0);
+    sim.lookAround();
+    expect(t.inCombat).toBe(true);
+    sim.drainEvents();
+    expect(sim.dispatch({ type: 'endTurn' }).ok).toBe(true);
+    runUntilIdle(sim);
+    expect(enemy.inv.some((o) => o.item === glock)).toBe(true);
+    expect(t.worldItems).toHaveLength(0);
   });
 });

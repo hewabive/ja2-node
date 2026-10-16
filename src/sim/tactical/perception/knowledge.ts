@@ -5,6 +5,7 @@
 // @src docs/13 §2.
 
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
+import { getInterveningClimbingLocation } from '../buildings.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
 import { NOWHERE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
@@ -75,20 +76,16 @@ export function noiseHeard(t: TacticalState, s: Soldier): NoiseKnowledge {
   let climb = false;
   if (best !== NOWHERE) {
     reachable = true;
-    if (bestLevel !== s.level) {
-      const climbPoint = interveningClimbPoint(t, s, best, bestLevel);
-      if (climbPoint === NOWHERE) reachable = false;
+    const intervening = getInterveningClimbingLocation(t, s, best, bestLevel);
+    if (intervening.necessary) {
+      if (intervening.gridNo === NOWHERE) reachable = false;
       else {
-        best = climbPoint;
+        best = intervening.gridNo;
         climb = true;
       }
     }
   }
   return { gridNo: best, value: bestValue, climb, reachable };
-}
-
-export function interveningClimbPoint(_t: TacticalState, _s: Soldier, _g: number, _level: number): number {
-  return NOWHERE;
 }
 
 export function mostImportantNoiseHeard(t: TacticalState, s: Soldier): number {

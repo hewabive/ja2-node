@@ -39,7 +39,7 @@ export function buildMcpServer(sessions: ReadonlyMap<string, Session>, defaultSe
     'observe',
     {
       description:
-        'What the player can see right now: own soldiers (with AP, life and breath) and the others the squad sees, with gridNo, sub-tile position, direction and animation; open doors; and in turn-based combat whose turn it is, the round and whether an interrupt is open.',
+        'What the player can see right now: own soldiers (with AP, life and breath) and the others the squad sees, with gridNo, level, sub-tile position, direction and animation; open doors; items the squad has seen on the ground; and in turn-based combat whose turn it is, the round and whether an interrupt is open.',
       inputSchema: sessionArg,
     },
     async ({ session }) => text(pick(session).sim.view()),
@@ -48,7 +48,7 @@ export function buildMcpServer(sessions: ReadonlyMap<string, Session>, defaultSe
     'act',
     {
       description:
-        'Issue one game command and get whether it was accepted (refusals say why). Commands: {"type":"move","soldier":<id>,"to":<gridNo>,"mode":"walk"|"run"|"swat"|"crawl"} (mode defaults to the current stance), {"type":"turn","soldier":<id>,"direction":0-7} or {"type":"turn","soldier":<id>,"toward":<gridNo>}, {"type":"stance","soldier":<id>,"stance":"stand"|"crouch"|"prone"}, {"type":"stop","soldier":<id>}, {"type":"attack","soldier":<id>,"target":<gridNo>,"level":0|1,"aimTime":0-4,"bodyPart":"head"|"torso"|"legs"|"random","burst":true|false} (fires the gun in hand; aimTime adds one AP and about 10% to hit per point), {"type":"estimateAttack", same fields} (no action; returns data.apCost, data.chanceToHit and data.chanceToGetThrough), {"type":"endTurn"} (turn-based combat; also closes an interrupt). In combat every action costs AP and only soldiers that have not finished their turn may act; no order is accepted while an attack is still resolving. gridNo = y*160 + x; direction 0 = north (up-right on screen), clockwise.',
+        'Issue one game command and get whether it was accepted (refusals say why). Commands: {"type":"move","soldier":<id>,"to":<gridNo>,"mode":"walk"|"run"|"swat"|"crawl"} (mode defaults to the current stance), {"type":"turn","soldier":<id>,"direction":0-7} or {"type":"turn","soldier":<id>,"toward":<gridNo>}, {"type":"stance","soldier":<id>,"stance":"stand"|"crouch"|"prone"}, {"type":"stop","soldier":<id>}, {"type":"attack","soldier":<id>,"target":<gridNo>,"level":0|1,"aimTime":0-4,"bodyPart":"head"|"torso"|"legs"|"random","burst":true|false} (uses what is in hand: fires a gun or a grenade launcher, throws a grenade or rock at the tile, stabs with a knife at a soldier on a side tile, punches a soldier on any adjacent tile with empty hands; aimTime adds one AP and about 10% to hit per point), {"type":"estimateAttack", same fields} (no action; returns data.apCost, data.chanceToHit, data.chanceToGetThrough and for melee data.inReach; for throws data.apCost, data.chanceToHit, data.pathClear, data.landsAt and data.maxRange), {"type":"pickUp","soldier":<id>,"gridNo":<gridNo>,"items":[<index>...]} (walks there and picks up the visible items on that tile, all by default, indices into the observed item list of that tile; 3 AP), {"type":"drop","soldier":<id>,"slot":"hand"|0-18} (drops at the feet), {"type":"climb","soldier":<id>} (onto the adjacent roof edge, or down when on a roof), {"type":"endTurn"} (turn-based combat; also closes an interrupt). In combat every action costs AP and only soldiers that have not finished their turn may act; no order is accepted while an attack is still resolving. gridNo = y*160 + x; direction 0 = north (up-right on screen), clockwise.',
       inputSchema: { ...sessionArg, command: z.object({ type: z.string() }).passthrough() },
     },
     async ({ session, command }) => text(pick(session).dispatch(command)),
@@ -57,7 +57,7 @@ export function buildMcpServer(sessions: ReadonlyMap<string, Session>, defaultSe
     'advance',
     {
       description:
-        'Let game time run until our soldiers are idle (in combat: it is our turn again and nobody is acting), a listed event happens (arrived, stopped, noPath, doorChanged, noiseHeard, enemySighted, combatStarted, turnStarted, interrupt, combatEnded, shotFired, soldierHit, soldierDied, attackResolved), a decision is pending (an interrupt in our favour: act with the listed soldiers, then endTurn), or a tick limit (5 ms per tick) is reached.',
+        'Let game time run until our soldiers are idle (in combat: it is our turn again and nobody is acting), a listed event happens (arrived, stopped, noPath, doorChanged, noiseHeard, enemySighted, combatStarted, turnStarted, interrupt, combatEnded, shotFired, meleeStrike, explosion, structureDamaged, soldierHit, soldierDied, attackResolved, itemsPickedUp, itemDropped), a decision is pending (an interrupt in our favour: act with the listed soldiers, then endTurn), or a tick limit (5 ms per tick) is reached.',
       inputSchema: {
         ...sessionArg,
         idle: z.boolean().optional(),

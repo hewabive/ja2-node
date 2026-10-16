@@ -15,6 +15,7 @@ import { Terrain } from '../../../content/world/terrain.ts';
 import { copyObjectInto, createItem, deleteObject, type ItemObject, ObjectFlags } from '../../items/object.ts';
 import { anim, animName } from '../anim-states.ts';
 import { AnimHeight, endHeight, hasAnimFlag, initNewSoldierAnim, setDesiredDirection, setSoldierDirection } from '../animation.ts';
+import { checkEquipmentForDamage } from '../explosions/item-damage.ts';
 import { InvSlot } from '../inventory.ts';
 import { directionToward, setSoldierDestination } from '../movement.ts';
 import { newOKDestination } from '../pathfinding.ts';
@@ -58,6 +59,7 @@ const KINGPIN_CIV_GROUP = 4;
 const HICKS_CIV_GROUP = 12;
 const DAMAGE_DISPLAY_DELAY = 250;
 const DAMAGE_DISPLAY_STEPS = 8;
+const MIN_GORE_BLAST_RADIUS = 3;
 
 const LOCATION_NAMES = ['random', 'head', 'torso', 'legs', 'gland'] as const;
 
@@ -333,9 +335,14 @@ export function eventSoldierGotHit(
     return;
   }
   if (cls & (ItemClass.GUN | ItemClass.THROWING_KNIFE)) soldierGotHitGunFire(t, s, direction, att, special);
-  if (cls === ItemClass.BLADE) doGenericHit(t, s, 0, direction);
-  if (cls & (ItemClass.GRENADE | ItemClass.BOMB) || cls === ItemClass.TENTACLES) soldierGotHitExplosion(t, s, direction, range);
-  if (cls === ItemClass.PUNCH || weapon === NOTHING) doGenericHit(t, s, 0, direction);
+  if (cls === ItemClass.BLADE) soldierGotHitByMelee(t, s, direction);
+  if (cls & (ItemClass.GRENADE | ItemClass.BOMB) || cls === ItemClass.TENTACLES) soldierGotHitExplosion(t, s, weapon, direction, range);
+  if (cls === ItemClass.PUNCH || weapon === NOTHING) soldierGotHitByMelee(t, s, direction);
+}
+
+function soldierGotHitByMelee(t: TacticalState, s: Soldier, direction: number): void {
+  if (s.dead) return;
+  doGenericHit(t, s, Special.NONE, direction);
 }
 
 const TWITCHES: Readonly<Record<string, string>> = {
@@ -436,12 +443,17 @@ function soldierGotHitGunFire(t: TacticalState, s: Soldier, direction: number, a
   doGenericHit(t, s, special, direction);
 }
 
-function soldierGotHitExplosion(t: TacticalState, s: Soldier, direction: number, range: number): void {
+function soldierGotHitExplosion(t: TacticalState, s: Soldier, weapon: number, direction: number, range: number): void {
   if (s.dead) return;
   if (hasAnimFlag(t.content, s.state, AnimFlags.HITSTART) && endHeight(t.content, s.state) !== AnimHeight.PRONE) {
     s.pendingAnimation = -1;
     s.inNonInterruptibleAnimation = false;
     s.rtNonInterruptible = false;
+  }
+  const goreDeath = explosionGoreDeath(t, s, weapon, range);
+  if (goreDeath) {
+    initNewSoldierAnim(t, s, anim(t.content, goreDeath), 0, false);
+    return;
   }
   if (!isMercBody(s)) {
     doGenericHit(t, s, 0, direction);
@@ -459,7 +471,13 @@ function soldierGotHitExplosion(t: TacticalState, s: Soldier, direction: number,
       initNewSoldierAnim(t, s, anim(t.content, 'FALLFORWARD_FROMHIT_STAND'), 0, false);
     } else soldierCollapse(t, s);
   } else soldierCollapse(t, s);
-  void range;
+}
+
+function explosionGoreDeath(t: TacticalState, s: Soldier, weapon: number, range: number): string | null {
+  if (!t.options.bloodAndGore || s.life !== 0 || endHeight(t.content, s.state) === AnimHeight.PRONE) return null;
+  if ((t.content.items.byIndex.get(weapon)?.explosive?.blast?.radius ?? 0) < MIN_GORE_BLAST_RADIUS) return null;
+  if (range >= 2 && range <= 4) return 'CHARIOTS_OF_FIRE';
+  return range <= 1 ? 'BODYEXPLODING' : null;
 }
 
 export function okFallDirection(t: TacticalState, s: Soldier, g: number, level: number, dir: number, state: number): boolean {
@@ -586,6 +604,7 @@ export function soldierTakeDamage(
   }
   s.damageWindow = i16(s.damageWindow + life);
   if (s.life < 0) s.life = 0;
+  if (reason === DamageReason.EXPLOSION || reason === DamageReason.STRUCTURE_EXPLOSION) checkEquipmentForDamage(t, s, life);
   if (reason !== DamageReason.GAS && !isRobot(s)) {
     if (reason === DamageReason.HANDTOHAND) {
       if (life > 0) s.bleeding = i8(s.bleeding + 1);

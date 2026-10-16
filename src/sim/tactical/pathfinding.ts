@@ -85,6 +85,7 @@ export interface PathOptions {
   readonly distLimit?: number;
   readonly circular?: boolean;
   readonly plotToExitGrid?: boolean;
+  readonly maxTrailTree?: number;
 }
 
 export interface PathResult {
@@ -325,6 +326,7 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
   const mode = options.mode ?? MoveMode.WALKING;
   const copy = options.copy ?? PathCopy.NONE;
   const flags = options.flags ?? 0;
+  const maxTrailTree = options.maxTrailTree ?? MAX_TRAIL_TREE;
   const copyCosts = copy === PathCopy.REACHABLE_AND_APS;
   const distLimit = copyCosts ? Math.min(options.distLimit ?? 0, AI_PATHCOST_RADIUS) : (options.distLimit ?? 0);
   let budget = options.budget ?? 0;
@@ -463,7 +465,7 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
       trailPrev.push(cur.trail);
       trailDir.push(dir);
       trailGrid.push(newLoc);
-      if (trailPrev.length >= MAX_TRAIL_TREE) return NO_PATH;
+      if (trailPrev.length >= maxTrailTree) return NO_PATH;
       const cost = newTotal & 0xffff;
       open.push(newLoc, cost, (cost + costToGo(newLoc)) & 0xffff, legDistance(newLoc), trailPrev.length - 1, newAp);
       if (budget && apCosts) apCosts[apCostIndex(newLoc)] = newAp;

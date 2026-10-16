@@ -105,6 +105,7 @@ function setSoldierGridNo(t: TacticalState, s: Soldier, requested: number): void
   s.overTerrain = t.world.terrain[g] ?? 0;
   if (isWater(t.pathWorld, g)) s.uiMovementMode = states(t.content.animations).WALKING;
   setSoldierAniSpeed(t, s);
+  t.hooks.enteredGridNo(t, s, g);
 }
 
 function isMovingState(t: TacticalState, state: number): boolean {
@@ -305,6 +306,7 @@ export function handleGotoNewGridNo(t: TacticalState, s: Soldier, initial: boole
     s.endDoorOpenCode = 0;
     return { ok: true, keepMoving: false };
   }
+  if (t.hooks.runningIntoGas(t, s)) return { ok: true, keepMoving: false };
   deductPoints(t.inCombat, s, ap, bp);
   setSoldierDestination(t, s, direction, animState, initial);
   adjustNoAPToFinishMove(s, false);
@@ -444,7 +446,8 @@ export function arriveAtFinalDestination(t: TacticalState, s: Soldier): void {
   s.pathSize = 0;
   s.reverse = false;
   setSoldierPositionXY(t, s, Math.fround(s.destX), Math.fround(s.destY));
-  if (s.pendingAnimation !== -1) {
+  const hadPendingAnimation = s.pendingAnimation !== -1;
+  if (hadPendingAnimation) {
     const pending = s.pendingAnimation;
     s.pendingAnimation = -1;
     initNewSoldierAnim(t, s, pending, 0, false);
@@ -452,9 +455,8 @@ export function arriveAtFinalDestination(t: TacticalState, s: Soldier): void {
       setDesiredDirection(t, s, s.pendingDirection);
       s.pendingDirection = -1;
     }
-  } else if (s.life >= 15) {
-    soldierGotoStationaryStance(t, s);
   }
+  if (!t.hooks.pendingAction(t, s) && !hadPendingAnimation && s.life >= 15) soldierGotoStationaryStance(t, s);
   t.events.push({ type: 'arrived', soldier: s.id, gridNo: s.gridNo });
 }
 

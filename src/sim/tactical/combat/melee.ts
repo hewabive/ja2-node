@@ -1,0 +1,421 @@
+// Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
+// Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
+// @src src/game/Tactical/Handle_Items.cc HandleItem (punch and blade paths); Soldier_Control.cc EVENT_SoldierBeginBladeAttack,
+// @src EVENT_SoldierBeginPunchAttack; Weapons.cc UseBlade, UseHandToHand, HTHImpact, CalcChanceHTH, CalcChanceToStab,
+// @src CalcChanceToPunch; Soldier_Ani.cc opcodes 468 (end punch) and 492 (signal dodge). See docs/11 §6.
+
+import type { OpOutcome } from '../../../content/anim/script.ts';
+import { ItemClass, NOTHING, WeaponClass } from '../../../content/items/items.ts';
+import { type ItemObject, USABLE_STATUS } from '../../items/object.ts';
+import { AiAction } from '../ai/actions.ts';
+import { anim, animName } from '../anim-states.ts';
+import {
+  AnimHeight,
+  changeSoldierStance,
+  changeSoldierState,
+  endHeight,
+  height,
+  initNewSoldierAnim,
+  setDesiredDirection,
+  setSoldierDirection,
+} from '../animation.ts';
+import { isGassed } from '../explosions/smoke.ts';
+import { InvSlot } from '../inventory.ts';
+import { directionToward, stopMerc } from '../movement.ts';
+import { isMercBody, newOKDestination } from '../pathfinding.ts';
+import { Opp } from '../perception/opp.ts';
+import { deductPoints } from '../points.ts';
+import { StatKind } from '../profiles.ts';
+import {
+  effectiveAgility,
+  effectiveDexterity,
+  effectiveExpLevel,
+  effectiveLife,
+  effectiveStrength,
+  moraleModifier,
+  skillCheckFatiguePenalty,
+} from '../skills.ts';
+import {
+  Body,
+  NO_PROFILE,
+  numSkillTraits,
+  OKBREATH,
+  OKLIFE,
+  Personality,
+  SKILL_TRAIT_BONUS,
+  SkillTrait,
+  type Soldier,
+  Team,
+} from '../soldier.ts';
+import { type TacticalState, whoIsThere } from '../state.ts';
+import { calcTotalAPsToAttack } from './ap.ts';
+import { freeUpAttacker, reduceAttackBusyCount } from './barrier.ts';
+import { ENEMY_TO_HIT_MOD, soldierDifficultyLevel } from './chance.ts';
+import { agilityForEnemyMissingPlayer, modifyExpGainByTarget, StatCause, statChange } from './experience.ts';
+import { adjustImpactByHitLocation } from './impact.ts';
+import { bladeSpot, punchSpot } from './melee-reach.ts';
+import { Aim, AimShot, CTH_MAXIMUM, CTH_MINIMUM, ItemHandle, i8, i16, Special, u8, weaponStatusMod } from './types.ts';
+
+const MeleeMode = { STAB: 0, PUNCH: 1 } as const;
+const SURPRISE_CHANCE_TO_HIT = 100;
+const HTH_BASE_CHANCE = 67;
+const HEAD_SHOT_MELEE_PENALTY = 20;
+const BAD_DODGE_POSITION_PENALTY = 20;
+const BASE_HTH_IMPACT = 5;
+const MELEE_HIT_DELAY_MS = 20;
+const MELEE_HIT_RANGE = 1;
+const KNIFE_DIFFICULTY_XP_DIVISOR = 10;
+const KNIFE_HIT_XP = 10;
+const KNIFE_ATTEMPT_XP = 10;
+const HTH_HIT_XP = 8;
+const HTH_MISS_XP = 4;
+const KNIFE_DODGE_AGILITY = 10;
+const HTH_DODGE_AGILITY = 8;
+const MONSTER_SMELL_FADE_CHANCE = 5;
+const MIN_KNIFE_DULLING = 2;
+const KNIFE_DULLING_IMPACT_DIVISOR = 20;
+
+const itemDef = (t: TacticalState, item: number) => t.content.items.byIndex.get(item);
+const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
+const isRobot = (s: Soldier) => s.bodyType === Body.ROBOTNOWEAPON;
+const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
+const isCreatureOrBloodcat = (s: Soldier) =>
+  (s.bodyType >= Body.ADULTFEMALEMONSTER && s.bodyType <= Body.QUEENMONSTER) || s.bodyType === Body.BLOODCAT;
+const traitBonus = (s: Soldier, trait: number) => (SKILL_TRAIT_BONUS[trait] ?? 0) * numSkillTraits(s, trait);
+const turnsFromAttacks = (s: Soldier) => !s.monsterOrAnimal && !isVehicle(s);
+
+function attackRating(t: TacticalState, att: Soldier, aim: number, mode: number): number {
+  let a = Math.trunc((3 * effectiveDexterity(att) + effectiveAgility(att) + att.stats.strength + 10 * effectiveExpLevel(att)) / 6);
+  if (att.profile !== NO_PROFILE && att.personalityTrait === Personality.PSYCHO) a += Aim.BONUS_PSYCHO;
+  a += moraleModifier(att);
+  a -= skillCheckFatiguePenalty(att, a);
+  if (aim) a += Math.trunc((Aim.BONUS_PER_AP * aim) / 2);
+  if (att.team !== Team.OUR) a += ENEMY_TO_HIT_MOD[soldierDifficultyLevel(t, att)] ?? 0;
+  if (isGassed(t, att)) a -= Aim.PENALTY_GASSED;
+  if (att.shock) a -= att.shock * Aim.PENALTY_PER_SHOCK;
+  if (a > 0 && att.life < att.lifeMax) a -= Math.trunc((2 * a * (att.lifeMax - effectiveLife(att))) / (3 * att.lifeMax));
+  if (a > 0 && att.breath < 100) a -= Math.trunc((a * (100 - att.breath)) / 200);
+  if (att.profile !== NO_PROFILE) {
+    if (mode === MeleeMode.STAB) a += traitBonus(att, SkillTrait.KNIFING);
+    else a += traitBonus(att, SkillTrait.MARTIALARTS) + traitBonus(att, SkillTrait.HANDTOHAND);
+  }
+  return Math.max(a, 1);
+}
+
+function defenceRating(t: TacticalState, def: Soldier, mode: number): number {
+  let d = Math.trunc((3 * effectiveAgility(def) + effectiveDexterity(def) + def.stats.strength + 10 * effectiveExpLevel(def)) / 6);
+  d += moraleModifier(def);
+  d -= skillCheckFatiguePenalty(def, d);
+  if (isGassed(t, def)) d -= Aim.PENALTY_GASSED;
+  if (def.shock) d -= def.shock * Aim.PENALTY_PER_SHOCK;
+  if (d > 0 && def.life < def.lifeMax) d -= Math.trunc((2 * d * (def.lifeMax - effectiveLife(def))) / (3 * def.lifeMax));
+  if (d > 0 && def.breath < 100) d -= Math.trunc((d * (100 - def.breath)) / 200);
+  const stance = endHeight(t.content, def.state);
+  if (stance < AnimHeight.STAND) {
+    d -= BAD_DODGE_POSITION_PENALTY;
+    if (stance === AnimHeight.PRONE) d -= BAD_DODGE_POSITION_PENALTY;
+  }
+  if (def.profile !== NO_PROFILE) {
+    const holdsBlade = itemDef(t, def.inv[InvSlot.HAND]?.item ?? NOTHING)?.itemClass === ItemClass.BLADE;
+    const knifing = traitBonus(def, SkillTrait.KNIFING);
+    const martial = traitBonus(def, SkillTrait.MARTIALARTS);
+    if (mode === MeleeMode.STAB) d += holdsBlade ? knifing + Math.trunc(martial / 3) : Math.trunc(knifing / 3) + Math.trunc(martial / 2);
+    else d += holdsBlade ? Math.trunc(knifing / 2) : martial + traitBonus(def, SkillTrait.HANDTOHAND);
+  }
+  return Math.max(d, 1);
+}
+
+function weaponFitsMode(t: TacticalState, weapon: number, mode: number): boolean {
+  const def = itemDef(t, weapon);
+  if (mode === MeleeMode.STAB) return def?.weapon?.weaponClass === WeaponClass.KNIFE;
+  return ((def?.itemClass ?? ItemClass.NONE) & (ItemClass.NONE | ItemClass.PUNCH)) !== 0;
+}
+
+function calcChanceHTH(t: TacticalState, att: Soldier, def: Soldier, aim: number, mode: number): number {
+  if (def.life < OKLIFE || def.breath < OKBREATH) return SURPRISE_CHANCE_TO_HIT;
+  if (!weaponFitsMode(t, att.attackingWeapon, mode)) return 0;
+  const a = attackRating(t, att, aim, mode);
+  const d = defenceRating(t, def, mode);
+  let chance = HTH_BASE_CHANCE + Math.trunc((a - d) / 3);
+  if (att.aimShotLocation === AimShot.HEAD) chance -= HEAD_SHOT_MELEE_PENALTY;
+  return Math.min(Math.max(chance, CTH_MINIMUM), CTH_MAXIMUM);
+}
+
+export function calcChanceToStab(t: TacticalState, att: Soldier, def: Soldier, aim: number): number {
+  return calcChanceHTH(t, att, def, aim, MeleeMode.STAB);
+}
+
+export function calcChanceToPunch(t: TacticalState, att: Soldier, def: Soldier, aim: number): number {
+  return calcChanceHTH(t, att, def, aim, MeleeMode.PUNCH);
+}
+
+function isSurpriseAttack(att: Soldier, def: Soldier): boolean {
+  return def.oppList[att.id] === Opp.NOT_HEARD_OR_SEEN || def.life < OKLIFE || def.collapsed;
+}
+
+export function meleeChanceToHit(t: TacticalState, att: Soldier, def: Soldier, aim: number, blade: boolean): number {
+  if (isSurpriseAttack(att, def)) return SURPRISE_CHANCE_TO_HIT;
+  return blade ? calcChanceToStab(t, att, def, aim) : calcChanceToPunch(t, att, def, aim);
+}
+
+export function hthImpact(t: TacticalState, att: Soldier, tgt: Soldier, hitBy: number, blade: boolean): number {
+  let impact = Math.trunc(effectiveExpLevel(att) / 2);
+  const strength = effectiveStrength(att);
+  const weapon = att.attackingWeapon;
+  const weaponImpact = itemDef(t, weapon)?.weapon?.impact ?? 0;
+  const martialArtist = numSkillTraits(att, SkillTrait.MARTIALARTS) > 0;
+  if (blade) {
+    impact += Math.trunc(strength / 20) + weaponImpact;
+    if (isRobot(tgt)) impact = Math.trunc(impact / 4);
+  } else {
+    impact += Math.trunc(strength / 5);
+    if (weapon !== NOTHING && !martialArtist) {
+      impact += weaponImpact;
+      if (isRobot(tgt)) impact = Math.trunc(impact / 2);
+    } else {
+      impact += BASE_HTH_IMPACT;
+      if (isRobot(tgt)) impact = 0;
+    }
+  }
+  const fluke = t.pre.int(51) - 25;
+  impact = Math.trunc((impact * (100 + fluke + Math.trunc(hitBy / 2))) / 100);
+  if (!blade) {
+    if (martialArtist) {
+      impact = Math.trunc((impact * (100 + traitBonus(att, SkillTrait.MARTIALARTS))) / 100);
+      if (animName(t.content, att.state) === 'NINJA_SPINKICK') impact *= 2;
+    }
+    impact = Math.trunc((impact * (100 + 3 * traitBonus(att, SkillTrait.HANDTOHAND))) / 100);
+  }
+  return impact;
+}
+
+function turnTowardAttacker(t: TacticalState, att: Soldier, tgt: Soldier): void {
+  if (!turnsFromAttacks(tgt)) return;
+  stopMerc(t, tgt);
+  if (tgt.team !== Team.OUR) t.turnHooks.cancelAIAction(t, tgt);
+  t.gameEvents.push({ kind: 'desiredDirection', soldier: tgt.id, direction: directionToward(tgt.gridNo, att.gridNo) });
+}
+
+function attackProneTarget(t: TacticalState, s: Soldier, lowAttack: string): void {
+  if (endHeight(t.content, s.state) !== AnimHeight.CROUCH) {
+    changeSoldierStance(t, s, AnimHeight.CROUCH);
+    s.pendingAnimation = anim(t.content, lowAttack);
+  } else initNewSoldierAnim(t, s, anim(t.content, lowAttack), 0, false);
+}
+
+export function eventSoldierBeginBladeAttack(t: TacticalState, s: Soldier, g: number, direction: number): void {
+  t.turn.attackBusyCount++;
+  setDesiredDirection(t, s, direction);
+  setSoldierDirection(t, s, direction);
+  const tgt = whoIsThere(t, g, s.targetLevel);
+  if (tgt) {
+    switch (endHeight(t.content, tgt.state)) {
+      case AnimHeight.STAND:
+      case AnimHeight.CROUCH:
+        if (tgt.oppList[s.id] === Opp.NOT_HEARD_OR_SEEN && tgt.team !== s.team) initNewSoldierAnim(t, s, anim(t.content, 'STAB'), 0, false);
+        else {
+          initNewSoldierAnim(t, s, anim(t.content, t.rng.coinToss() ? 'STAB' : 'SLICE'), 0, false);
+          turnTowardAttacker(t, s, tgt);
+        }
+        break;
+      case AnimHeight.PRONE:
+        attackProneTarget(t, s, 'CROUCH_STAB');
+        break;
+    }
+  } else {
+    const obstacle = !newOKDestination(t.pathEnv, s, g, false, s.level);
+    initNewSoldierAnim(t, s, anim(t.content, obstacle ? 'STAB' : 'CROUCH_STAB'), 0, false);
+  }
+  s.targetGridNo = g;
+  s.targetLevel = s.level;
+  s.target = whoIsThere(t, g, s.targetLevel);
+}
+
+export function eventSoldierBeginPunchAttack(t: TacticalState, s: Soldier, g: number, direction: number): void {
+  const hand = s.inv[InvSlot.HAND]?.item ?? NOTHING;
+  const crowbar = hand === itemIndex(t, 'CROWBAR');
+  t.turn.attackBusyCount++;
+  const tgt = whoIsThere(t, s.targetGridNo, s.level);
+  if (!tgt) {
+    reduceAttackBusyCount(t, s, false);
+    return;
+  }
+  setDesiredDirection(t, s, direction);
+  setSoldierDirection(t, s, direction);
+  switch (endHeight(t.content, tgt.state)) {
+    case AnimHeight.STAND:
+    case AnimHeight.CROUCH:
+      initNewSoldierAnim(t, s, anim(t.content, crowbar ? 'CROWBAR_ATTACK' : 'PUNCH'), 0, false);
+      if (tgt.oppList[s.id] === Opp.NOT_HEARD_OR_SEEN && tgt.team !== s.team) turnTowardAttacker(t, s, tgt);
+      break;
+    case AnimHeight.PRONE:
+      if (!isMercBody(s)) initNewSoldierAnim(t, s, anim(t.content, 'PUNCH'), 0, false);
+      else attackProneTarget(t, s, 'PUNCH_LOW');
+      break;
+  }
+  s.targetGridNo = g;
+  s.targetLevel = s.level;
+  s.lastTarget = g;
+  s.target = whoIsThere(t, g, s.targetLevel);
+}
+
+export function handlePunchAttack(t: TacticalState, s: Soldier, g: number, level: number): number {
+  const spot = punchSpot(t, s, g, level);
+  if (!spot) return ItemHandle.CANNOT_GETTO_LOCATION;
+  s.targetGridNo = g;
+  s.ai.actionData = g;
+  s.ai.action = AiAction.KNIFE_STAB;
+  eventSoldierBeginPunchAttack(t, s, spot.targetGridNo, spot.direction);
+  return ItemHandle.OK;
+}
+
+export function handleBladeAttack(t: TacticalState, s: Soldier, g: number): number {
+  if (isCreatureOrBloodcat(s)) return ItemHandle.BROKEN;
+  const spot = bladeSpot(t, s, g);
+  if (!spot) return ItemHandle.CANNOT_GETTO_LOCATION;
+  s.ai.actionData = s.gridNo;
+  s.ai.action = AiAction.KNIFE_STAB;
+  eventSoldierBeginBladeAttack(t, s, spot.targetGridNo, spot.direction);
+  return ItemHandle.OK;
+}
+
+function queueWeaponHit(t: TacticalState, att: Soldier, tgt: Soldier, damage: number): void {
+  t.gameEvents.push({
+    kind: 'weaponHit',
+    soldier: tgt.id,
+    attacker: att.id,
+    weapon: att.attackingWeapon,
+    damage: i16(damage),
+    breathLoss: 0,
+    direction: directionToward(tgt.gridNo, att.gridNo),
+    range: MELEE_HIT_RANGE,
+    special: Special.NONE,
+    delay: MELEE_HIT_DELAY_MS,
+  });
+}
+
+function dullBlade(t: TacticalState, blade: ItemObject, impact: number): void {
+  const status = blade.status[0] ?? 0;
+  if (status <= USABLE_STATUS) return;
+  const statusTenths = Math.trunc(status / 10);
+  const maxDrop =
+    statusTenths > 2
+      ? Math.min(Math.max(Math.trunc(impact / KNIFE_DULLING_IMPACT_DIVISOR), MIN_KNIFE_DULLING), statusTenths)
+      : MIN_KNIFE_DULLING;
+  blade.status[0] = i8(status - i8(t.rng.int(maxDrop)));
+}
+
+function reduceMonsterSmell(t: TacticalState, s: Soldier): void {
+  if (s.monsterSmell > 0 && t.rng.int(MONSTER_SMELL_FADE_CHANCE) === 0) s.monsterSmell--;
+}
+
+function knifeExperience(chance: number, hit: boolean, aimTime: number): number {
+  let xp = 0;
+  if (hit) {
+    xp += Math.trunc(u8(100 - chance) / KNIFE_DIFFICULTY_XP_DIVISOR);
+    if (aimTime) xp += 2 * Math.min(aimTime, xp);
+    xp += KNIFE_HIT_XP;
+  }
+  return xp + KNIFE_ATTEMPT_XP;
+}
+
+function noticeStrike(s: Soldier, tgt: Soldier): void {
+  s.attackNoticed = true;
+  tgt.intendedTarget = true;
+  s.opponent = tgt;
+}
+
+export function useBlade(t: TacticalState, s: Soldier, g: number): void {
+  deductPoints(t.inCombat, s, calcTotalAPsToAttack(t, s, g, false, s.aimTime), 0);
+  const tgt = whoIsThere(t, g, s.targetLevel);
+  if (tgt) {
+    noticeStrike(s, tgt);
+    const surprise = isSurpriseAttack(s, tgt);
+    const chance = meleeChanceToHit(t, s, tgt, s.aimTime, true);
+    const roll = t.pre.int(100);
+    const hit = roll <= chance;
+    t.events.push({ type: 'meleeStrike', soldier: s.id, target: g, weapon: 'blade', chance, hit });
+    if (hit) {
+      const blade = s.inv[s.attackingHand] as ItemObject;
+      let impact = hthImpact(t, s, tgt, chance - roll, true);
+      impact = Math.trunc((impact * weaponStatusMod(blade.status[0] ?? 0)) / 100);
+      impact = adjustImpactByHitLocation(impact, s.aimShotLocation).impact;
+      if (surprise) impact = Math.trunc((impact * 3) / 2);
+      impact = Math.max(impact, 1);
+      dullBlade(t, blade, impact);
+      queueWeaponHit(t, s, tgt, impact);
+    } else {
+      agilityForEnemyMissingPlayer(t, s, tgt, KNIFE_DODGE_AGILITY);
+      freeUpAttacker(t, s);
+    }
+    if (s.team === Team.OUR && s.target) {
+      const xp = modifyExpGainByTarget(knifeExperience(chance, hit, s.aimTime), s.target);
+      statChange(t, s, StatKind.DEXTERITY, xp, hit ? StatCause.SUCCESS : StatCause.FAILURE);
+    }
+  } else freeUpAttacker(t, s);
+  reduceMonsterSmell(t, s);
+}
+
+export function useHandToHand(t: TacticalState, s: Soldier, g: number): void {
+  deductPoints(t.inCombat, s, calcTotalAPsToAttack(t, s, g, false, s.aimTime), 0);
+  const tgt = whoIsThere(t, g, s.targetLevel);
+  if (tgt) {
+    noticeStrike(s, tgt);
+    const chance = meleeChanceToHit(t, s, tgt, s.aimTime, false);
+    let roll = t.pre.int(100);
+    if (animName(t.content, s.state) === 'NINJA_SPINKICK') roll = t.pre.int(chance);
+    const hit = roll <= chance;
+    t.events.push({ type: 'meleeStrike', soldier: s.id, target: g, weapon: 'punch', chance, hit });
+    if (s.team === Team.OUR && tgt.team !== Team.OUR) {
+      const xp = u8(modifyExpGainByTarget(hit ? HTH_HIT_XP : HTH_MISS_XP, tgt));
+      const cause = hit ? StatCause.SUCCESS : StatCause.FAILURE;
+      statChange(t, s, StatKind.STRENGTH, xp, cause);
+      statChange(t, s, StatKind.DEXTERITY, xp, cause);
+    } else if (!hit) agilityForEnemyMissingPlayer(t, s, tgt, HTH_DODGE_AGILITY);
+    if (hit) {
+      let impact = hthImpact(t, s, tgt, chance - roll, false);
+      impact = adjustImpactByHitLocation(impact, s.aimShotLocation).impact;
+      queueWeaponHit(t, s, tgt, Math.max(impact, 1));
+    } else freeUpAttacker(t, s);
+  } else freeUpAttacker(t, s);
+  reduceMonsterSmell(t, s);
+}
+
+function findSoldierOnGrid(t: TacticalState, g: number, level: number): Soldier | null {
+  for (const m of t.mercSlots) {
+    if (!m?.placed || m.dead) continue;
+    if (m.visible === -1 && !t.pathEnv.showAllMercs) continue;
+    if (m.gridNo === g && !newOKDestination(t.pathEnv, m, g, true, level)) return m;
+  }
+  return null;
+}
+
+function signalDodge(t: TacticalState, s: Soldier): void {
+  const tgt = findSoldierOnGrid(t, s.targetGridNo, s.targetLevel);
+  if (!tgt || !isMercBody(tgt)) return;
+  if ((tgt.oppList[s.id] ?? 0) === Opp.NOT_HEARD_OR_SEEN && tgt.team !== s.team) return;
+  if (height(t.content, tgt.state) !== AnimHeight.STAND) return;
+  stopMerc(t, tgt);
+  if (tgt.team !== Team.OUR) t.turnHooks.cancelAIAction(t, tgt);
+  setDesiredDirection(t, tgt, directionToward(tgt.gridNo, s.gridNo));
+  changeSoldierState(t, tgt, anim(t.content, 'DODGE_ONE'));
+}
+
+function endPunch(t: TacticalState, s: Soldier): OpOutcome {
+  const martialArtist = s.profile !== NO_PROFILE && numSkillTraits(s, SkillTrait.MARTIALARTS) > 0;
+  const crouched = height(t.content, s.state) === AnimHeight.CROUCH;
+  changeSoldierState(t, s, anim(t.content, crouched ? 'CROUCHING' : martialArtist ? 'NINJA_BREATH' : 'PUNCH_BREATH'));
+  return 'stop';
+}
+
+export function meleeOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome | null {
+  switch (code) {
+    case 468:
+      return endPunch(t, s);
+    case 492:
+      signalDodge(t, s);
+      return 'continue';
+    default:
+      return null;
+  }
+}

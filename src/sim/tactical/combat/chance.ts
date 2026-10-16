@@ -8,6 +8,7 @@ import { ItemClass, ItemFlags, type ItemTable, NOTHING, WeaponClass } from '../.
 import { WORLD_COLS } from '../../../content/world/grid.ts';
 import { findAttachment, type ItemObject, USABLE_STATUS } from '../../items/object.ts';
 import { AnimHeight, endHeight, height, states } from '../animation.ts';
+import { isGassed } from '../explosions/smoke.ts';
 import { isValidSecondHandShot } from '../inventory.ts';
 import { Opp } from '../perception/opp.ts';
 import { distanceVisible } from '../perception/sight.ts';
@@ -27,7 +28,7 @@ import { soldierTo3DLocationLos, soldierToBodyPartLos } from './positions.ts';
 import { Aim, AimShot, CTH_MAXIMUM, CTH_MINIMUM, MIN_PRONE_RANGE, weaponStatusMod } from './types.ts';
 
 const IRRELEVANT = -1;
-const ENEMY_TO_HIT_MOD = [-10, -5, 0, 5, 10];
+export const ENEMY_TO_HIT_MOD = [-10, -5, 0, 5, 10];
 const DIFFICULTY_EASY = 1;
 const SIGHT_LIMIT = 52;
 
@@ -128,6 +129,7 @@ export function calcChanceToHitGun(t: TacticalState, s: Soldier, g: number, aim:
   if (sight > 0 && aim && !s.doBurst) c += Aim.BONUS_PER_AP * aim;
   if (s.team !== Team.OUR)
     c += t.perception.difficulty === DIFFICULTY_EASY ? -5 : Math.min(0, ENEMY_TO_HIT_MOD[soldierDifficultyLevel(t, s)] ?? 0);
+  if (isGassed(t, s)) c -= Aim.PENALTY_GASSED;
   if (s.shock) c -= Aim.PENALTY_PER_SHOCK * s.shock;
   let maxRange = 10;
   if (def?.itemClass === ItemClass.GUN) {

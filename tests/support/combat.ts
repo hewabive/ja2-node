@@ -31,10 +31,20 @@ export function combatStats(marksmanship: number): SoldierStats {
   };
 }
 
-export function newCombatSim(content: TacticalContent, walls: readonly number[] = [], seed = 3): TacticalSim {
-  const base = syntheticWorld(testDoorCosts(), (structures) => {
-    for (const g of walls) structures.add(g, 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT, { armour: 12 }));
-  });
+export function newCombatSim(
+  content: TacticalContent,
+  walls: readonly number[] = [],
+  seed = 3,
+  roofs: ReadonlySet<number> = new Set(),
+): TacticalSim {
+  const base = syntheticWorld(
+    testDoorCosts(),
+    (structures) => {
+      for (const g of walls) structures.add(g, 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT, { armour: 12 }));
+      for (const g of roofs) structures.add(g, 1, syntheticStructure(StructureFlags.NORMAL_ROOF, Orientation.NONE, { height: 1 }));
+    },
+    roofs,
+  );
   const world = { ...base, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld;
   return new TacticalSim(world, content, seed);
 }

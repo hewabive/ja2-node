@@ -178,6 +178,7 @@ export function standardInterruptConditionsMet(t: TacticalState, s: Soldier, opp
   if (t.inCombat && t.perception.bestSize !== BEST_SIGHTING_ALL && s.team === turn.currentTeam) return false;
   if (!s.placed || s.life < OKLIFE || s.breath < OKBREATH || s.collapsed) return false;
   if (s.actionPoints < MIN_APS_TO_INTERRUPT) return false;
+  if (t.explosives.gassed[s.id]) return false;
   if (s.ai.underFire !== 0) return false;
   if (s.neutral) return false;
   let need = AP_CHANGE_FACING;

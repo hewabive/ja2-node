@@ -178,9 +178,12 @@ export function turnBasedHandleNPCAI(t: TacticalState, s: Soldier, control: AiCo
     } else {
       ai.action = ai.nextAction;
       ai.actionData = ai.nextActionData;
+      s.targetLevel = ai.nextTargetLevel;
       ai.nextAction = AiAction.NONE;
       ai.nextActionData = 0;
+      ai.nextTargetLevel = 0;
     }
+    if (ai.action === AiAction.PICKUP_ITEM) ai.pickupItem = ai.nextPickupItem;
   } else if (s.absoluteFinalDestination !== NOWHERE) {
     ai.action = AiAction.WALK;
     ai.actionData = s.absoluteFinalDestination;

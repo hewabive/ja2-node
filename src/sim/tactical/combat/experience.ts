@@ -1,10 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Campaign.cc StatChange, ProcessStatChange, ChangeStat, ProcessUpdateStats, SubpointsPerPoint,
-// @src HandleAnyStatChangesAfterAttack. See docs/11 §10.
+// @src HandleAnyStatChangesAfterAttack; Weapons.cc ModifyExpGainByTarget, AgilityForEnemyMissingPlayer. See docs/11 §10.
 
 import { type ProfileProgress, profileProgress, STAT_KEYS, StatKind } from '../profiles.ts';
-import { NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { Body, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
 import { CONSCIOUSNESS } from './types.ts';
 
@@ -150,4 +150,15 @@ export function statChange(t: TacticalState, s: Soldier, stat: number, chances: 
 
 export function handleAnyStatChangesAfterAttack(t: TacticalState): void {
   for (const s of teamMembers(t, Team.OUR)) processUpdateStats(t, s);
+}
+
+export function modifyExpGainByTarget(gain: number, tgt: Soldier): number {
+  if (tgt.bodyType === Body.COW || tgt.bodyType === Body.CROW) return Math.trunc(u16(gain) / 2);
+  if (tgt.bodyType === Body.ROBOTNOWEAPON || (tgt.bodyType >= Body.HUMVEE && tgt.bodyType <= Body.JEEP)) return 0;
+  return u16(gain);
+}
+
+export function agilityForEnemyMissingPlayer(t: TacticalState, attacker: Soldier, target: Soldier, amount: number): void {
+  if (target.team !== attacker.team && target.team === Team.OUR && target.life >= OKLIFE)
+    statChange(t, target, StatKind.AGILITY, amount, StatCause.SUCCESS);
 }

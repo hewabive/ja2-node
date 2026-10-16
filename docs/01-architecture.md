@@ -841,6 +841,16 @@ Specs: `docs/10` (turn-based), `11` (attacks and damage), `12` (items and explos
    `FindBestNearbyCover` with the AP-budget flood, flee spots, noise memory with the LOS forget test, radio
    alerts, cowering civilians, `NewDest` movement modes and `ExecuteAction` for every gun-related action.
 
-**Not in M3 yet**: bursts beyond the controller, melee, throws and launchers (the AI hooks report them
-impossible), explosions and smoke, picking items up, bleeding at turn start, corpse structures, roofs and
-climbing, oracle comparisons, save import.
+6. **Melee and bursts**: knife and punch (`combat/melee.ts`), the 20 ms delayed hit, dodge, AI stabs and spread bursts.
+7. **Throws and explosions** (`sim/tactical/explosions/`): float32 throw physics, launchers, explosion timing,
+   `SpreadEffect`/`ExpAffect`, blast damage with armour, structure damage with partners, item damage and chains,
+   smoke/tear/mustard gas with the gassed state, flares as data.
+8. **Items in the world**: map items with their `PreRandom` draws, item reveal by sight, `pickUp` (walks there) and
+   `drop`, AI `SearchForItems`; corpse structures from the tile cache.
+9. **Turn start, roofs**: bleeding and getting up; buildings and climb spots (`GenerateBuildings` with its draws),
+   `climb` for the player, MOVE_TO_CLIMB/CLIMB_ROOF for the AI.
+10. **Oracle**: `tools/oracle/compare.ts` checks A9 movement costs, paths with AP costs and LOS against the native
+    build; all shipped probes match.
+
+**Not in M3 yet**: AI throws (`CalcBestThrow`, TOSS_PROJECTILE execution), LAW and tank cannon, falling off roofs,
+save import.

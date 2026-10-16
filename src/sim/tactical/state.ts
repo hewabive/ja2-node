@@ -4,10 +4,12 @@ import { isVisibleTile, WORLD_MAX } from '../../content/world/grid.ts';
 import type { MovementCosts, MovementWorld } from '../../content/world/movement-costs.ts';
 import { PreRandom, type Rng } from '../../core/rng.ts';
 import type { SimEvent } from '../events.ts';
+import { type Buildings, createBuildings } from './buildings.ts';
 import type { Bullet, MissAnimation } from './combat/bullets.ts';
 import type { Corpse } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
 import { createEquipmentState, type EquipmentState } from './equipment.ts';
+import { createExplosivesState, type ExplosivesState } from './explosions/state.ts';
 import type { GameEvent } from './game-events.ts';
 import type { DoorStatus, PathEnv, PathSoldier, PathWorld } from './pathfinding.ts';
 import { createFogOfWar, type FogOfWar } from './perception/fov.ts';
@@ -43,6 +45,9 @@ export interface TacticalHooks {
   turnFinished(t: TacticalState, s: Soldier): void;
   stanceChanged(t: TacticalState, s: Soldier): void;
   stanceFreeUp(t: TacticalState, s: Soldier): void;
+  pendingAction(t: TacticalState, s: Soldier): boolean;
+  runningIntoGas(t: TacticalState, s: Soldier): boolean;
+  enteredGridNo(t: TacticalState, s: Soldier, g: number): void;
   doorOpened(t: TacticalState, s: Soldier): void;
   endAiGuysTurn(t: TacticalState, s: Soldier): void;
   collapse(t: TacticalState, s: Soldier): void;
@@ -56,6 +61,9 @@ export const NO_HOOKS: TacticalHooks = {
   turnFinished: () => {},
   stanceChanged: () => {},
   stanceFreeUp: () => {},
+  pendingAction: () => false,
+  runningIntoGas: () => false,
+  enteredGridNo: () => {},
   doorOpened: () => {},
   endAiGuysTurn: () => {},
   collapse: () => {},
@@ -66,6 +74,7 @@ export interface PerceptionHooks {
   checkForChangingOrders(s: Soldier): void;
   setNewSituation(s: Soldier): void;
   haltFromSighting(s: Soldier): void;
+  haltFromItemSighting(s: Soldier): void;
   ourTeamSeesSomeone(s: Soldier, revealed: number, unknown: number): void;
   enterCombatMode(team: number, s: Soldier): void;
 }
@@ -81,6 +90,10 @@ export interface TurnHooks {
   freeUpFromAttacking(t: TacticalState, s: Soldier): void;
   aiAttack(t: TacticalState, s: Soldier, target: number, level: number): number;
   freeUpFromPendingAction(t: TacticalState, s: Soldier): void;
+  actionDone(t: TacticalState, s: Soldier): void;
+  freeUpFromRoofClimb(t: TacticalState, s: Soldier): void;
+  aiPickup(t: TacticalState, s: Soldier, gridNo: number, item: WorldItem | null): boolean;
+  aiDropHandItem(t: TacticalState, s: Soldier): void;
 }
 
 export const NO_TURN_HOOKS: TurnHooks = {
@@ -94,6 +107,10 @@ export const NO_TURN_HOOKS: TurnHooks = {
   freeUpFromAttacking: () => {},
   aiAttack: () => 0,
   freeUpFromPendingAction: () => {},
+  actionDone: () => {},
+  freeUpFromRoofClimb: () => {},
+  aiPickup: () => false,
+  aiDropHandItem: () => {},
 };
 
 export interface TacticalState {
@@ -123,10 +140,12 @@ export interface TacticalState {
   readonly equipment: EquipmentState;
   readonly profiles: Map<number, ProfileProgress>;
   readonly worldItems: WorldItem[];
+  readonly buildings: Buildings;
   readonly bullets: Bullet[];
   readonly missAnimations: MissAnimation[];
   readonly corpses: Corpse[];
   readonly pendingSkullReleases: { readonly soldier: Soldier; readonly at: number }[];
+  readonly explosives: ExplosivesState;
 }
 
 export function createTacticalState(world: TacticalWorldData, content: TacticalContent, rng: Rng): TacticalState {
@@ -173,6 +192,7 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
       checkForChangingOrders: () => {},
       setNewSituation: () => {},
       haltFromSighting: () => {},
+      haltFromItemSighting: () => {},
       ourTeamSeesSomeone: () => {},
       enterCombatMode: () => {},
     },
@@ -181,10 +201,12 @@ export function createTacticalState(world: TacticalWorldData, content: TacticalC
     equipment: createEquipmentState(content.items),
     profiles: new Map(),
     worldItems: [],
+    buildings: createBuildings(),
     bullets: [],
     missAnimations: [],
     corpses: [],
     pendingSkullReleases: [],
+    explosives: createExplosivesState(),
   };
 }
 

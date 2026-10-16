@@ -1,11 +1,12 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
+import { CORPSES_TABLE_PATH, parseCorpseTable, stubCorpseStructureFiles } from '../src/content/anim/corpses.ts';
 import { stubAnimStructureFiles } from '../src/content/anim/structures.ts';
 import { writeStructureFile } from '../src/content/formats/jsd.ts';
 import { encodePngIndexed } from '../src/content/formats/png.ts';
 import { STUB_SPRITE_FORMAT, STUB_SPRITE_SUFFIX, type StubSpriteManifest } from '../src/content/picture/stub-sprite.ts';
-import { DEFAULT_STUBS_DIR } from '../src/node/repo.ts';
+import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR } from '../src/node/repo.ts';
 import { buildStubAnimationScripts } from './anim-scripts.ts';
 import { buildPalette } from './palette.ts';
 import { stubSoldierPalettes, stubSoldierSheets } from './soldiers.ts';
@@ -95,6 +96,12 @@ export async function buildStubs(outDir: string): Promise<string[]> {
   for (const [name, structures] of stubAnimStructureFiles()) {
     await writeFile(join(out, 'anims', 'structdata', `${name}.jsd`), writeStructureFile({ structureCount: structures.length, structures }));
     written.push(`anims/structdata/${name}.jsd`);
+  }
+  await mkdir(join(out, 'tilecache'), { recursive: true });
+  const corpseTable = parseCorpseTable(JSON.parse(await readFile(join(PROJECT_DATA_DIR, CORPSES_TABLE_PATH), 'utf8')));
+  for (const [name, structures] of stubCorpseStructureFiles(corpseTable)) {
+    await writeFile(join(out, 'tilecache', `${name}.jsd`), writeStructureFile({ structureCount: structures.length, structures }));
+    written.push(`tilecache/${name}.jsd`);
   }
   await writeFile(
     join(out, 'README.txt'),

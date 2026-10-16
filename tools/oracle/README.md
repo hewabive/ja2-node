@@ -186,6 +186,19 @@ const line = JSON.parse(text.split('\n').find((l) => l.includes('"probe":"costs"
 const costs = new Uint8Array(Buffer.from(line.base64, 'base64'));
 ```
 
+## Comparing with ja2-node
+
+```sh
+JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data" node tools/oracle/compare.ts ~/ja2-oracle/a9-costs.jsonl \
+  ~/ja2-oracle/a9-paths.jsonl ~/ja2-oracle/a9-los.jsonl
+```
+
+`compare.ts` loads A9 with ja2-node, rebuilds every probe (the same probe soldiers, stances and teams) and prints
+one line per probe plus a summary; the exit status is 1 on any mismatch. It compares the full movement cost table
+(byte by byte and the FNV-1a hash), the path length, the directions and the `PlotPath` AP cost of every `path` line,
+and both `lineOfSight` and `soldierToSoldier` of every `los` line. On 2026-10-15 all three shipped probe scripts
+matched exactly.
+
 ## Shipped probes
 
 | Script | Content |

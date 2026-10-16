@@ -193,13 +193,15 @@ event log above stays the target once combat effects (bullets, explosions) appea
 
 The player view lists our soldiers (with AP, life, life max and breath), the militia and only those
 others the squad currently sees (`bVisible ≥ 0`, `docs/08` §2.7), plus the gridnos of open doors and,
-in turn-based combat, `combat {team, round, interrupt}`; frames carry the changed soldiers and, when
-they change, the full door list and the combat block. Simulation events (`arrived`, `stopped` with a
+in turn-based combat, `combat {team, round, interrupt}`, and the items the squad has seen on the ground
+(`items [{gridNo, level, item, count, status}]`); frames carry the changed soldiers and, when they change,
+the full door list, the item list and the combat block. Simulation events (`arrived`, `stopped` with a
 reason such as `outOfAPs`, `noPath`, `doorChanged`, `noiseHeard` with a direction but never a grid,
 `enemySighted`, `combatStarted`, `turnStarted`, `interrupt` (only once it is visible), `interruptEnded`,
 `combatEnded {reason: lull|won|lost}`, `shotFired {soldier, target, chance, hit}`, `bulletStopped {reason}`,
 `soldierHit {soldier, attacker, damage, breathLoss, location, special, life}`, `soldierDied {soldier, killer}`,
-`gunJammed`, `statChanged`, `attackResolved`) are returned by `advance`. In combat `advance … idle` returns
+`gunJammed`, `statChanged`, `attackResolved`, `meleeStrike`, `explosion`, `structureDamaged`, `itemsPickedUp`,
+`itemDropped`) are returned by `advance`. In combat `advance … idle` returns
 when it is our turn again and none of our soldiers is acting; an interrupt in our favour stops it with
 reason `decision` (act with the soldiers that have not moved, then `endTurn`).
 
@@ -207,10 +209,16 @@ reason `decision` (act with the soldiers that have not moved, then `endTurn`).
 the current stance; in combat refused unless the first step plus any stance change is affordable),
 `turn {soldier, direction | toward}`, `stance {soldier, stance: stand|crouch|prone}`, `stop {soldier}`,
 `endTurn`, `attack {soldier, target, level?, aimTime?: 0..4, bodyPart?: head|torso|legs|random, burst?}`
-(the gun path of `HandleItem`; refusals: no APs, no ammo, broken weapon) and `estimateAttack` with the same
+(`HandleItem` with what is in hand: gun, grenade launcher, thrown grenade or rock, knife or fists; refusals: no APs,
+no ammo, broken weapon, out of melee reach, an aimed throw) and `estimateAttack` with the same
 fields, a query that changes nothing and answers `data {apCost, actionPoints, chanceToHit, chanceToGetThrough}`.
+`pickUp {soldier, gridNo?, zLevel?, items?}` picks up the visible items on the soldier's tile (or on an adjacent
+blocked tile; `items` are indices into that tile's list, default all) for `AP_PICKUP_ITEM`; `drop {soldier, slot?}`
+drops a slot (default the hand) at the soldier's feet; `climb {soldier}` climbs onto the adjacent roof edge or
+down from the roof (`FindHigherLevel`/`FindLowerLevel`).
 Orders are accepted only on our turn, when no attack is resolving and no other merc of ours is acting
-(`docs/10` §9, `deviations.md` "Turn-based UI lock"); `idle` also waits for bullets and queued game events.
+(`docs/10` §9, `deviations.md` "Turn-based UI lock"); `idle` also waits for bullets, queued game events and any
+of our soldiers still playing a one-shot animation (getting up, picking up, climbing).
 
 ### 4.5. CPU cost
 

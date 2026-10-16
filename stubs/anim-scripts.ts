@@ -52,6 +52,65 @@ const DOOR_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
   CLOSE_DOOR_CROUCHED: () => [1, 2, 3, 4, 5, 6, OPEN_DOOR, 5, 4, 3, 2, 1, NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
 };
 
+const THROW_RELEASE = 460;
+const LOB_RELEASE = 461;
+const LIFE_ZERO = 465;
+const DEATH_COMMIT = 440;
+const DEATH_OR_RELEASE = 497;
+const PICKUP_ITEM_CODE = 493;
+const DROP_ITEM_CODE = 487;
+const ROLLOVER_GETUP = 437;
+const ClimbOp = {
+  BACKWARD: 404,
+  UP_COMMIT: 408,
+  GROUND_HEIGHT: 410,
+  DOWN_START: 411,
+  UP: 454,
+  UP_FORWARD: 455,
+  DOWN: 456,
+  DOWN_COMMIT: 475,
+} as const;
+const ITEM_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
+  PICKUP_ITEM: () => [...frames(5), PICKUP_ITEM_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
+  ADJACENT_GET_ITEM: () => [...frames(5), PICKUP_ITEM_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
+  DROP_ITEM: () => [...frames(5), DROP_ITEM_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
+  ROLLOVER: () => [...frames(8), ROLLOVER_GETUP],
+  GETUP_FROM_ROLLOVER: (t) => [...frames(5), stateJump(stateId(t, 'KNEEL_UP'))],
+  START_COWER: (t) => [...frames(5), NONINTERRUPTIBLE_DONE, stateJump(stateId(t, 'COWERING'))],
+  THROW_ITEM: (t) => [...frames(8), THROW_RELEASE, ...frames(5, 9), NONINTERRUPTIBLE_DONE, stateJump(stateId(t, 'STANDING'))],
+  LOB_ITEM: (t) => [...frames(6), LOB_RELEASE, ...frames(7, 7), NONINTERRUPTIBLE_DONE, stateJump(stateId(t, 'STANDING'))],
+  SHOOT_ROCKET: () => [Op.BUSY_UP, ...frames(8), Op.OK_FIRE, Op.FIRE, ...frames(6, 9), Op.BUSY_DOWN, END_OF_ANIMATION],
+  SHOOT_MORTAR: () => [Op.BUSY_UP, ...frames(16), Op.OK_FIRE, Op.FIRE, ...frames(16, 17), Op.BUSY_DOWN, END_OF_ANIMATION],
+  CHARIOTS_OF_FIRE: () => [...frames(12), LIFE_ZERO, DEATH_COMMIT, DEATH_OR_RELEASE, NONINTERRUPTIBLE_DONE],
+  BODYEXPLODING: () => [...frames(10), LIFE_ZERO, DEATH_COMMIT, DEATH_OR_RELEASE, NONINTERRUPTIBLE_DONE],
+  CLIMBUPROOF: (t) => [
+    ...frames(4),
+    ...interleave(ClimbOp.UP, 4, 5),
+    ...interleave(ClimbOp.UP_FORWARD, 6, 9),
+    ...frames(4, 15),
+    ...interleave(ClimbOp.UP_FORWARD, 2, 19),
+    ...frames(2, 21),
+    NONINTERRUPTIBLE_DONE,
+    ClimbOp.UP_COMMIT,
+    stateJump(stateId(t, 'CROUCHING')),
+  ],
+  CLIMBDOWNROOF: (t) => [
+    ClimbOp.DOWN_START,
+    ...frames(6),
+    ...interleave(ClimbOp.BACKWARD, 8, 7),
+    ...interleave(ClimbOp.DOWN, 3, 15),
+    ...frames(2, 18),
+    NONINTERRUPTIBLE_DONE,
+    ClimbOp.GROUND_HEIGHT,
+    ClimbOp.DOWN_COMMIT,
+    stateJump(stateId(t, 'STANDING')),
+  ],
+};
+
+function interleave(op: number, count: number, firstFrame: number): number[] {
+  return Array.from({ length: count }, (_, k) => [op, firstFrame + k]).flat();
+}
+
 const Op = {
   BUSY_UP: 757,
   BUSY_DOWN: 753,
@@ -158,8 +217,25 @@ function combatScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> 
   m.set('GENERIC_HIT_STAND', [Op.TURN_FROM_HIT, 1, NONINTERRUPTIBLE_DONE, Op.INCAPACITATED, 2, 3, Op.BACK_TO_AIM, END_OF_ANIMATION]);
   m.set('RIFLE_STAND_HIT', [Op.TURN_FROM_HIT, 1, 2, NONINTERRUPTIBLE_DONE, Op.INCAPACITATED, 3, 4, 5, Op.BACK_TO_AIM, END_OF_ANIMATION]);
   m.set('STANDING_BURST_HIT', [1, 2, Op.INCAPACITATED, 3, Op.BACK_TO_AIM, END_OF_ANIMATION]);
-  m.set('GENERIC_HIT_CROUCH', [1, 2, 3, Op.INCAPACITATED, 4, 5, END_OF_ANIMATION]);
-  m.set('GENERIC_HIT_PRONE', [1, 2, 3, Op.INCAPACITATED, 4, 5, 6, END_OF_ANIMATION]);
+  m.set('GENERIC_HIT_CROUCH', [
+    ...frames(3),
+    NONINTERRUPTIBLE_DONE,
+    Op.INCAPACITATED,
+    4,
+    5,
+    NONINTERRUPTIBLE_DONE,
+    Op.BACK_TO_AIM,
+    END_OF_ANIMATION,
+  ]);
+  m.set('GENERIC_HIT_PRONE', [
+    ...frames(3),
+    NONINTERRUPTIBLE_DONE,
+    Op.INCAPACITATED,
+    ...frames(3, 4),
+    NONINTERRUPTIBLE_DONE,
+    Op.BACK_TO_AIM,
+    END_OF_ANIMATION,
+  ]);
   m.set('FALLFORWARD_FROMHIT_STAND', [...frames(4), Op.TRY_TO_FALL, ...frames(8, 5), NONINTERRUPTIBLE_DONE, Op.DEATH_OR_RELEASE]);
   m.set('FALLFORWARD_FROMHIT_CROUCH', [...frames(4), Op.TRY_TO_FALL, 5, 6, to('ENDFALLFORWARD_FROMHIT_CROUCH')]);
   m.set('ENDFALLFORWARD_FROMHIT_CROUCH', [...frames(8), NONINTERRUPTIBLE_DONE, Op.DEATH_OR_RELEASE]);
@@ -174,8 +250,37 @@ function combatScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> 
     m.set(name, [...frames(3), Op.DEATH_OR_RELEASE]);
   for (const name of ['GENERIC_HIT_DEATHTWITCHB', 'FALLBACK_HIT_DEATHTWITCHB', 'PRONE_HIT_DEATHTWITCHB', 'JFK_HITDEATH_TWITCHB'])
     m.set(name, [...frames(3), Op.PREVIOUS]);
+  for (const [name, script] of meleeScripts(t)) m.set(name, script);
   for (const name of LOOPS) m.set(name, [...frames(LOOP_FRAMES), JUMP_TO_START]);
   return m;
+}
+
+const MeleeOp = { SWOOSH: 727, DODGE: 492, END_PUNCH: 468 } as const;
+
+function meleeScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> {
+  const to = (name: string) => stateJump(stateId(t, name));
+  const swing = (windUp: number, toStrike: number, followThrough: number) => [
+    Op.BUSY_UP,
+    ...frames(windUp),
+    MeleeOp.SWOOSH,
+    MeleeOp.DODGE,
+    ...frames(toStrike, windUp + 1),
+    Op.FIRE,
+    ...frames(followThrough, LOOP_FRAMES + 1 - followThrough),
+  ];
+  return new Map([
+    ['STAB', [...swing(7, 2, 6), NONINTERRUPTIBLE_DONE, to('KNIFE_GOTOBREATH')]],
+    ['SLICE', [...swing(7, 2, 5), NONINTERRUPTIBLE_DONE, to('KNIFE_GOTOBREATH')]],
+    ['CROUCH_STAB', [...swing(6, 3, 6), Op.BUSY_DOWN, NONINTERRUPTIBLE_DONE, END_OF_ANIMATION]],
+    ['KNIFE_GOTOBREATH', [...frames(4), NONINTERRUPTIBLE_DONE, Op.BUSY_DOWN, to('KNIFE_BREATH')]],
+    ['KNIFE_ENDBREATH', [...frames(5), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION]],
+    ['PUNCH', [...swing(6, 3, 7), Op.BUSY_DOWN, NONINTERRUPTIBLE_DONE, MeleeOp.END_PUNCH]],
+    ['PUNCH_LOW', [Op.BUSY_UP, ...frames(9), Op.FIRE, ...frames(5, 8), Op.BUSY_DOWN, NONINTERRUPTIBLE_DONE, MeleeOp.END_PUNCH]],
+    ['CROWBAR_ATTACK', [Op.BUSY_UP, ...frames(9), Op.FIRE, ...frames(10, 3), Op.BUSY_DOWN, NONINTERRUPTIBLE_DONE, END_OF_ANIMATION]],
+    ['DODGE_ONE', [...frames(LOOP_FRAMES), END_OF_ANIMATION]],
+    ['KNIFE_BREATH', [...frames(LOOP_FRAMES), JUMP_TO_START]],
+    ['PUNCH_BREATH', [...frames(LOOP_FRAMES), JUMP_TO_START]],
+  ]);
 }
 
 export async function buildStubAnimationScripts(): Promise<Uint8Array> {
@@ -192,7 +297,7 @@ export async function buildStubAnimationScripts(): Promise<Uint8Array> {
       ...(control.flags & RT_NONINTERRUPT_FLAG ? [RT_NONINTERRUPTIBLE_DONE] : []),
     ];
     let script: number[];
-    const door = DOOR_SCRIPTS[control.id];
+    const door = DOOR_SCRIPTS[control.id] ?? ITEM_SCRIPTS[control.id];
     const fight = combat.get(control.id);
     if (fight) script = fight;
     else if (door) script = door(tables);

@@ -29,6 +29,7 @@ const PI = 3.1415926;
 const ORIENT_OUTSIDE = Orientation.OUTSIDE_LEFT | Orientation.OUTSIDE_RIGHT;
 const ORIENT_INSIDE = Orientation.INSIDE_LEFT | Orientation.INSIDE_RIGHT;
 const FAST_FORWARD_NONE = 1e6;
+const NO_WINDOW = -1;
 
 export const HeightClass = { STAND: 6, CROUCH: 3, PRONE: 1 } as const;
 
@@ -47,6 +48,7 @@ export interface LosOptions {
   readonly aware: boolean;
   readonly camo: number;
   readonly disallowSight?: boolean;
+  readonly window?: { gridNo: number };
 }
 
 function u8(v: number): number {
@@ -269,6 +271,10 @@ export function lineOfSightTest(world: LosWorld, startG: number, startZ: number,
               qZ >= WIN_LO + land &&
               qZ <= WIN_HI + land
             ) {
+              if (o.window && o.window.gridNo === NO_WINDOW) {
+                o.window.gridNo = g;
+                return loop;
+              }
             } else {
               let hit: boolean;
               if (has(s.flags, StructureFlags.WALLSTUFF)) hit = resolveHitOnWall(world, s, g, cX, cY, horizAngle);

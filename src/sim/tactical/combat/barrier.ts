@@ -107,7 +107,7 @@ function militiaChangesSides(t: TacticalState): void {
   for (const m of t.mercSlots) if (m?.placed && m.team === Team.MILITIA) m.side = Side.ENEMY;
 }
 
-function processImplicationsOfPCAttack(t: TacticalState, tgt: Soldier): boolean {
+export function processImplicationsOfPCAttack(t: TacticalState, tgt: Soldier): boolean {
   if (tgt.team === Team.MILITIA && tgt.side === Side.FRIENDLY) militiaChangesSides(t);
   else if (tgt.team === Team.CIV && tgt.civilianGroup === 0 && tgt.neutral) {
     tgt.neutral = false;

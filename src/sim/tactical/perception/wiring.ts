@@ -26,11 +26,12 @@ export function haltFromSighting(t: TacticalState, s: Soldier, fromSightingEnemy
 
 export function perceptionHooks(
   t: TacticalState,
-  base: Omit<PerceptionHooks, 'haltFromSighting' | 'ourTeamSeesSomeone' | 'enterCombatMode'>,
+  base: Omit<PerceptionHooks, 'haltFromSighting' | 'haltFromItemSighting' | 'ourTeamSeesSomeone' | 'enterCombatMode'>,
 ): PerceptionHooks {
   return {
     ...base,
     haltFromSighting: (s) => haltFromSighting(t, s, true),
+    haltFromItemSighting: (s) => haltFromSighting(t, s, false),
     ourTeamSeesSomeone: (s, revealed, unknown) => {
       t.events.push({ type: 'enemySighted', soldier: s.id, newEnemies: unknown, revealedEnemies: revealed });
       haltFromSighting(t, s, true);

@@ -5,12 +5,16 @@
 // @src EndInterrupt, DeleteFromIntList, AddToIntList, VerifyOutOfTurnOrderArray, DoneAddingToIntList, ResolveInterruptsVs;
 // @src Overhead.cc CommonEnterCombatModeCode, EnterCombatMode, ExitCombatMode, CheckForEndOfCombatMode,
 // @src SoldierHasSeenEnemiesLastFewTurns, CheckForEndOfBattle, NumCapableEnemyInSector, CheckForLosingEndOfBattle;
-// @src Soldier_Control.cc EVENT_BeginMercTurn, CheckForBreathCollapse, BeginSoldierGetup;
+// @src Soldier_Control.cc EVENT_BeginMercTurn, CheckForBreathCollapse;
 // @src OppList.cc BetweenTurnsVisibilityAdjustments, NonCombatDecayPublicOpplist; Tactical_Turns.cc HandleTacticalEndTurn.
 // @src See docs/10 §1.4–§2, §4.4–§4.7, §8.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { adjustNoAPToFinishMove, soldierGotoStationaryStance } from '../animation.ts';
+import { bleedsAtTurnStart, checkBleeding } from '../combat/bleeding.ts';
+import { beginSoldierGetup } from '../combat/death.ts';
+import { decayLightEffects } from '../explosions/light.ts';
+import { clearGassedAtTurnStart, decaySmokeEffects } from '../explosions/smoke.ts';
 import { getNewSoldierPath, stopMerc } from '../movement.ts';
 import { calcInterruptDuelPts, interruptDuel } from '../perception/duel.ts';
 import { Opp } from '../perception/opp.ts';
@@ -23,7 +27,7 @@ import {
   ptsToMoveDirection,
   unusedAPsToBreath,
 } from '../points.ts';
-import { AlertStatus, Body, NO_INTERRUPT, NOWHERE, OKBREATH, OKLIFE, ReasonCantFinishMove, Side, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Body, NO_INTERRUPT, NOWHERE, OKLIFE, ReasonCantFinishMove, Side, type Soldier, Team } from '../soldier.ts';
 import { mercs, type TacticalState, teamMembers } from '../state.ts';
 import { buildAIListForTeam, moveToFrontOfAIList, removeFirstAIListEntry } from './ai-list.ts';
 import { TEAM_COUNT } from './turn-state.ts';
@@ -66,13 +70,6 @@ function selectNextAvailSoldier(t: TacticalState, from: Soldier): void {
   }
 }
 
-function beginSoldierGetup(s: Soldier): void {
-  if (s.collapsed && s.life >= OKLIFE && s.breath >= OKBREATH) {
-    s.collapsed = false;
-    s.collapsedTurns = 0;
-  }
-}
-
 function checkForBreathCollapse(s: Soldier): void {
   if (s.breath !== 0 || s.collapsed || s.monsterOrAnimal) return;
   s.breathCollapsed = true;
@@ -80,19 +77,23 @@ function checkForBreathCollapse(s: Soldier): void {
 
 export function beginMercTurn(t: TacticalState, s: Soldier): void {
   if (s.ai.underFire !== 0) s.ai.underFire--;
+  if (bleedsAtTurnStart(s)) checkBleeding(t, s);
   if (s.life === 0) return;
   s.shock = Math.trunc(s.shock / 2);
   if (s.ai.noiseGridNo !== NOWHERE && s.ai.noiseVolume !== 0) {
     s.ai.noiseVolume--;
     if (s.ai.noiseVolume === 0) s.ai.noiseGridNo = NOWHERE;
   }
+  clearGassedAtTurnStart(t, s);
   s.weightCarriedAtTurnStart = carriedWeightPercentOf(t.content, s);
-  unusedAPsToBreath(pointsContext(t), s, false);
-  checkForBreathCollapse(s);
+  unusedAPsToBreath(pointsContext(t), s, t.explosives.gassed[s.id] === 1);
+  if (s.placed) checkForBreathCollapse(s);
   calcNewActionPoints(t.content, s);
   s.tilesMoved = 0;
-  beginSoldierGetup(s);
-  if (t.inCombat) verifyAndDecayOpplist(t, s);
+  if (s.placed) {
+    beginSoldierGetup(t, s);
+    if (t.inCombat) verifyAndDecayOpplist(t, s);
+  }
   s.numHitsThisTurn = 0;
   s.suppressionPoints = 0;
   s.apsLostToSuppression = 0;
@@ -129,6 +130,8 @@ export function handleRealtimeTurns(t: TacticalState, clock: RealtimeClock): voi
 }
 
 export function handleTacticalEndTurn(t: TacticalState, clock: RealtimeClock): void {
+  decaySmokeEffects(t);
+  decayLightEffects(t);
   if (t.clockMs - clock.lastDecayMs >= OPPLIST_DECAY_MS) {
     for (const s of mercs(t)) verifyAndDecayOpplist(t, s);
     for (let team = 0; team < TEAM_COUNT; team++) if (isTeamActive(t, team)) decayPublicOpplist(t, team);
@@ -146,7 +149,10 @@ export function betweenTurnsVisibilityAdjustments(t: TacticalState): void {
   }
 }
 
-function endTurnEvents(_t: TacticalState): void {}
+function endTurnEvents(t: TacticalState): void {
+  decaySmokeEffects(t);
+  decayLightEffects(t);
+}
 
 export function startPlayerTeamTurn(t: TacticalState, entering: boolean): void {
   t.turn.currentTeam = Team.OUR;

@@ -1,5 +1,5 @@
 import type { ClientMessage, CommandEnvelope, DriverMode, ServerMessage, StopCondition, StopReport } from '../../protocol/messages.ts';
-import { applyFrame, type CombatView, type PlayerView, type SoldierView, type ViewFrame } from '../../protocol/view.ts';
+import { applyFrame, type CombatView, type ItemView, type PlayerView, type SoldierView, type ViewFrame } from '../../protocol/view.ts';
 
 type Pending = { resolve: (m: ServerMessage) => void; reject: (e: Error) => void };
 
@@ -16,6 +16,7 @@ export class SessionClient {
   #openDoors: readonly number[] = [];
   #combat: CombatView | null = null;
   #revealedRooms: readonly number[] = [];
+  #items: readonly ItemView[] = [];
   #shownTick = 0;
   #latestTick = 0;
 
@@ -40,6 +41,10 @@ export class SessionClient {
 
   get soldiers(): readonly SoldierView[] {
     return this.#shown;
+  }
+
+  get items(): readonly ItemView[] {
+    return this.#items;
   }
 
   get revealedRooms(): readonly number[] {
@@ -82,6 +87,7 @@ export class SessionClient {
         this.#openDoors = m.view.openDoors ?? [];
         this.#combat = m.view.combat ?? null;
         this.#revealedRooms = m.view.revealedRooms ?? [];
+        this.#items = m.view.items ?? [];
         this.#shownTick = m.view.tick;
         this.#latestTick = m.view.tick;
         break;
@@ -112,6 +118,7 @@ export class SessionClient {
       if (frame.openDoors) this.#openDoors = frame.openDoors;
       if (frame.combat !== undefined) this.#combat = frame.combat;
       if (frame.revealedRooms) this.#revealedRooms = frame.revealedRooms;
+      if (frame.items) this.#items = frame.items;
       changed = true;
     }
     const target = Math.min(tick, this.#latestTick);

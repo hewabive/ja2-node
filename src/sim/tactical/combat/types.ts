@@ -1,9 +1,21 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Weapons.h AIM_SHOT_*, special hit effects, damage thresholds, aim modifiers;
-// @src Soldier_Control.h TAKE_DAMAGE_* reasons; Morale.h MORALE_*; Weapons.cc WEAPON_STATUS_MOD. See docs/11 §1–§5.
+// @src Soldier_Control.h TAKE_DAMAGE_* reasons; Morale.h MORALE_*; Weapons.cc WEAPON_STATUS_MOD; Handle_Items.h ITEM_HANDLE_*. See docs/11 §1–§5.
 
 export const AimShot = { RANDOM: 0, HEAD: 1, TORSO: 2, LEGS: 3, GLAND: 4 } as const;
+
+export const ItemHandle = {
+  OK: 1,
+  RELOADING: -1,
+  UNCONSCIOUS: -2,
+  NOAPS: -3,
+  NOAMMO: -4,
+  CANNOT_GETTO_LOCATION: -5,
+  BROKEN: -6,
+  NOROOM: -7,
+  REFUSAL: -8,
+} as const;
 
 export const Special = {
   NONE: 0,

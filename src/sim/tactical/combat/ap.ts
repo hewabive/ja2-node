@@ -1,22 +1,26 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Points.cc CalcAPsToBurst, CalcTotalAPsToAttack, MinAPsToAttack, CalcAimSkill, BaseAPsToShootOrStab,
-// @src GetAPChargeForShootOrStabWRTGunRaises, MinAPsToShootOrStab, EnoughAmmo. See docs/11 §1.5.
+// @src GetAPChargeForShootOrStabWRTGunRaises, MinAPsToShootOrStab, MinAPsToPunch, EnoughAmmo. See docs/11 §1.5, §6.1.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
+import { idiv } from '../../../core/int.ts';
 import { findAttachment, findAttachmentByClass, type ItemObject } from '../../items/object.ts';
-import { AnimHeight, hasAnimFlag, height } from '../animation.ts';
+import { AnimHeight, endHeight, hasAnimFlag, height } from '../animation.ts';
 import { InvSlot, isValidSecondHandShot } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
 import { AP, AP_LIMITS, apsToChangeStance, apsToLook, apsToReadyWeapon, calcActionPoints } from '../points.ts';
 import { effectiveAgility, effectiveDexterity, effectiveMarksmanship } from '../skills.ts';
 import { Body, NOWHERE, type Soldier } from '../soldier.ts';
-import type { TacticalState } from '../state.ts';
+import { type TacticalState, whoIsThere } from '../state.ts';
+import { meleeSpot } from './melee-reach.ts';
 import { WeaponMode } from './types.ts';
 
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
 const isRobot = (s: Soldier) => s.bodyType === Body.ROBOTNOWEAPON;
+const BASE_APS_TO_PUNCH = 4;
+const TOSSES_PER_10TURNS = 18;
 
 export function calcAPsToBurst(t: TacticalState, baseAPs: number, o: ItemObject): number {
   if (o.item === itemIndex(t, 'G11')) return 1;
@@ -108,9 +112,50 @@ export function minAPsToAttack(t: TacticalState, s: Soldier, g: number, addTurni
     case ItemClass.TENTACLES:
     case ItemClass.THROWING_KNIFE:
       return minAPsToShootOrStab(t, s, g, addTurning, afterMoving);
+    case ItemClass.GRENADE:
+    case ItemClass.THROWN:
+      return minAPsToThrow(t, s, g);
+    case ItemClass.NONE:
+    case ItemClass.PUNCH:
+      return minAPsToPunch(t, s, g, addTurning);
     default:
       return 0;
   }
+}
+
+export function minAPsToThrow(t: TacticalState, s: Soldier, g: number): number {
+  let ap = AP.MIN_AIM_ATTACK;
+  if (g !== s.lastTarget) ap += AP.CHANGE_TARGET;
+  ap += apsToChangeStance(t.content, s, AnimHeight.STAND);
+  const full = calcActionPoints(t.content, s);
+  const top = 2 * full;
+  const bottom = idiv(TOSSES_PER_10TURNS * (50 + idiv(s.stats.dexterity, 2)), 10);
+  ap += idiv(idiv(100 * top, bottom) + 1, 2);
+  return Math.max(Math.min(ap, full), 1);
+}
+
+function minAPsToPunch(t: TacticalState, s: Soldier, g: number, addTurning: boolean): number {
+  if (g === NOWHERE) return 0;
+  let ap = BASE_APS_TO_PUNCH;
+  let targetGrid = g;
+  const tgt = whoIsThere(t, g, s.targetLevel);
+  if (tgt) {
+    targetGrid = tgt.gridNo;
+    if (endHeight(t.content, tgt.state) === AnimHeight.PRONE) ap += apsToChangeStance(t.content, s, AnimHeight.CROUCH);
+    else if (s.gridNo === targetGrid) ap += apsToChangeStance(t.content, s, AnimHeight.STAND);
+  }
+  if (addTurning && s.gridNo === targetGrid && directionToward(s.gridNo, targetGrid) !== s.direction) ap += AP.LOOK_STANDING;
+  return ap;
+}
+
+function meleeAPsToAttack(t: TacticalState, s: Soldier, g: number, addTurning: boolean, aimTime: number): number {
+  let targetGrid = g;
+  if (s.gridNo !== g) {
+    const spot = meleeSpot(t, s, g, s.level);
+    if (!spot) return 0;
+    targetGrid = spot.targetGridNo;
+  }
+  return (minAPsToAttack(t, s, targetGrid, addTurning) + aimTime) & 0xff;
 }
 
 export function calcTotalAPsToAttack(t: TacticalState, s: Soldier, g: number, addTurning: boolean, aimTime: number): number {
@@ -128,6 +173,10 @@ export function calcTotalAPsToAttack(t: TacticalState, s: Soldier, g: number, ad
     case ItemClass.GRENADE:
     case ItemClass.BOMB:
       return 5;
+    case ItemClass.NONE:
+    case ItemClass.PUNCH:
+    case ItemClass.BLADE:
+      return meleeAPsToAttack(t, s, g, addTurning, aimTime);
     default:
       return 0;
   }

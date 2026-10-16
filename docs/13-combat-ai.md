@@ -1435,10 +1435,12 @@ replace `decideActionYellow` / the RED/BLACK `NONE` in `decideAction` with the r
   long-range toss and spotters (`ubSpottersCalledForBy`, BLACK spotter radio).
 - Knives and punches: `CalcBestStab`, KNIFE_MOVE, THROW_KNIFE (+ the LOWER_GUN quirk), punching fallback.
 - `CalcSpreadBurst` and `AIPickBurstLocations`.
-- `SearchForItems` (ammo, weapons, general pickups; PICKUP_ITEM execution) with the item doc.
+- ~~`SearchForItems` (ammo, weapons, general pickups; PICKUP_ITEM execution) with the item doc.~~ Done 2026-10-15
+  (`ai/item-search.ts`; walking pickup through the arrival pending-action hook).
 - Prone stances (needs multi-tile soldiers; until then `InternalIsValidStance(PRONE)` is false).
-- Roofs: `FindClosestClimbPoint`, MOVE_TO_CLIMB/CLIMB_ROOF execution and `FreeUpNPCFromRoofClimb`, the climb branches of
-  §2.1/§2.4.
+- ~~Roofs~~ Done 2026-10-15: `buildings.ts` (`GenerateBuildings` with its `Random` draws at world load, climb spots,
+  `FindClosestClimbPoint`, `GetInterveningClimbingLocation`, `EstimatePathCostToLocation` climb branches),
+  MOVE_TO_CLIMB/CLIMB_ROOF execution and `roofs.ts` (the climb itself, `FreeUpNPCFromRoofClimb`).
 - Light at night (`InLightAtNight`, `FindNearbyDarkerSpot`) and gas (`InGasOrSmoke`, `FindNearestUngassedLand`,
   LEAVE_WATER_GAS, BLACK's gassed run-away) once the light map and smoke exist.
 

@@ -18,6 +18,7 @@ import { revealedRooms } from '../sim/tactical/perception/fov.ts';
 import { createSoldier, firstFreeSoldierId, NO_PROFILE, type Soldier, Team } from '../sim/tactical/soldier.ts';
 import { teamMembers } from '../sim/tactical/state.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
+import { loadWorldItemsFromMap } from '../sim/tactical/world-items.ts';
 import type { SessionSim } from './session.ts';
 
 export const ORIGINAL_SANDBOX_MAP = 'maps/a9.dat';
@@ -65,6 +66,7 @@ export class TacticalSession implements SessionSim {
       openDoors: this.sim.openDoors(),
       combat: this.sim.combatView(),
       revealedRooms: revealedRooms(this.sim.state),
+      items: this.sim.visibleItems(),
     };
   }
 }
@@ -115,6 +117,7 @@ export function populateSandbox(sim: TacticalSim): void {
   const entry = entryGridNo(sim);
   const idFor = (team: number) => firstFreeSoldierId((id) => t.soldiers[id] !== undefined, team);
   const profiles = t.content.profiles;
+  loadWorldItemsFromMap(t, sim.world.map.items);
   for (const p of profiles.length > 0 ? SANDBOX_SQUAD : []) {
     const profile = profiles[p];
     if (profile) addSoldierToSector(t, createMercFromProfile(t, idFor(Team.OUR), profile, 4), entry);

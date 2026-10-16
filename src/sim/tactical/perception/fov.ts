@@ -17,7 +17,9 @@ import {
 import { doorTravelCost } from '../points.ts';
 import { OKLIFE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
+import { setItemsVisibilityOn, Visibility } from '../world-items.ts';
 
+const GASSED_VIEW_RANGE = 1;
 const DLEFT = 0;
 const DRIGHT = 1;
 const UP = 2;
@@ -171,7 +173,7 @@ function removeRoomRoof(t: TacticalState, room: number): void {
   t.events.push({ type: 'roomRevealed', room });
 }
 
-export function revealRoofsAndItems(t: TacticalState, s: Soldier): void {
+export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: boolean): void {
   if (s.team !== Team.OUR || !s.placed || s.life < OKLIFE) return;
   const fog = t.fog;
   fog.markerValue++;
@@ -181,7 +183,9 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier): void {
   }
   const level = s.level;
   const light = Math.min(15, Math.max(1, t.perception.ambientLight));
-  const range = Math.trunc((Math.trunc((NORMAL_VIEW_RANGE * (LIGHT_SIGHTING[light] ?? 100)) / 100) + NORMAL_VIEW_RANGE) / 2);
+  const range = t.explosives.gassed[s.id]
+    ? GASSED_VIEW_RANGE
+    : Math.trunc((Math.trunc((NORMAL_VIEW_RANGE * (LIGHT_SIGHTING[light] ?? 100)) / 100) + NORMAL_VIEW_RANGE) / 2);
   const dirs = [...(SIGHT_DIRS[s.direction] ?? SIGHT_DIRS[0] ?? []), s.direction];
   const incs = [...dirs.slice(0, 5).map((d) => DIRECTION_INCREMENT[d] ?? 0), 0];
   const table = s.direction % 2 === 1 ? VIEW_PATH_2 : VIEW_PATH;
@@ -192,8 +196,14 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier): void {
   for (const path of table) {
     let marker = s.gridNo;
     let tilesLeftToSee = 99;
+    let revealItems = true;
+    let stopRevealingItemsAfterThisTile = false;
     for (let k = 0; k < range; k++) {
       const previous = marker;
+      if (stopRevealingItemsAfterThisTile) {
+        revealItems = false;
+        stopRevealingItemsAfterThisTile = false;
+      }
       const markerDir = path[k] ?? NOVIEW;
       let nextDir = k < 12 ? (path[k + 1] ?? NO_NEXT) : NO_NEXT;
       let travelCostObstacle = false;
@@ -209,10 +219,21 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier): void {
       let cost = t.world.costs.get(marker, dir, level);
       if (isDoorTravelCost(cost)) cost = doorTravelCost(ctx, s, marker, cost, true, false);
       if (cost >= TravelCost.BLOCKED) {
-        if (cost === TravelCost.WALL || cost === TravelCost.DOOR || cost === TravelCost.EXITGRID) travelCostObstacle = true;
-        else if (tallestGroundStructure(t, marker) >= 3) travelCostObstacle = true;
-        if (dir % 2 === 1) travelCostObstacle = true;
-        else if (tallestGroundStructure(t, marker) >= 3) travelCostObstacle = true;
+        const tallest = tallestGroundStructure(t, marker);
+        if (cost === TravelCost.WALL || cost === TravelCost.DOOR || cost === TravelCost.EXITGRID) {
+          travelCostObstacle = true;
+          revealItems = false;
+        } else if (tallest >= 3) {
+          travelCostObstacle = true;
+          stopRevealingItemsAfterThisTile = true;
+        } else if (tallest !== 0) stopRevealingItemsAfterThisTile = true;
+        if (dir % 2 === 1) {
+          travelCostObstacle = true;
+          revealItems = false;
+        } else if (tallest >= 3) {
+          travelCostObstacle = true;
+          stopRevealingItemsAfterThisTile = true;
+        } else if (tallest !== 0) stopRevealingItemsAfterThisTile = true;
       }
       if (fog.markers[marker] !== fog.markerValue) {
         fog.markers[marker] = fog.markerValue;
@@ -236,6 +257,8 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier): void {
           throughWindowDirection = dir;
         }
         if (blocking === Blocking.TOPLEFT_DOOR || blocking === Blocking.TOPRIGHT_DOOR) goneThroughDoor = 1;
+        if (revealItems && setItemsVisibilityOn(t, marker, level, Visibility.INVISIBLE) && showLocators && t.inCombat)
+          t.perceptionHooks.haltFromItemSighting(s);
         tilesLeftToSee--;
         if (tilesLeftToSee <= 0) break;
         if (blocking === Blocking.FULL || (travelCostObstacle && !throughWindow)) break;

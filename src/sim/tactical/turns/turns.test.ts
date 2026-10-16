@@ -157,6 +157,7 @@ describe('turn-based combat', () => {
     const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.WEST);
     sim.lookAround();
     expect(t.inCombat).toBe(true);
+    setSoldierPosition(t, enemy, gridNo(80, 150));
     merc.oppList[enemy.id] = 0;
     merc.ai.oppCount = 0;
     enemy.oppList[merc.id] = 0;

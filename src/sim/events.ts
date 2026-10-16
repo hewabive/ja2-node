@@ -86,6 +86,15 @@ export interface ShotFiredEvent extends SimEventBase {
   readonly hit: boolean;
 }
 
+export interface MeleeStrikeEvent extends SimEventBase {
+  readonly type: 'meleeStrike';
+  readonly soldier: number;
+  readonly target: number;
+  readonly weapon: 'blade' | 'punch';
+  readonly chance: number;
+  readonly hit: boolean;
+}
+
 export interface BulletStoppedEvent extends SimEventBase {
   readonly type: 'bulletStopped';
   readonly soldier: number;
@@ -129,6 +138,32 @@ export interface StatChangedEvent extends SimEventBase {
   readonly change: number;
 }
 
+export interface ItemsPickedUpEvent extends SimEventBase {
+  readonly type: 'itemsPickedUp';
+  readonly soldier: number;
+  readonly gridNo: number;
+}
+
+export interface ItemDroppedEvent extends SimEventBase {
+  readonly type: 'itemDropped';
+  readonly soldier: number;
+  readonly gridNo: number;
+}
+
+export interface ExplosionEvent extends SimEventBase {
+  readonly type: 'explosion';
+  readonly item: number;
+  readonly gridNo: number;
+  readonly level: number;
+  readonly owner: number | null;
+}
+
+export interface StructureDamagedEvent extends SimEventBase {
+  readonly type: 'structureDamaged';
+  readonly gridNo: number;
+  readonly destroyed: boolean;
+}
+
 export type SimEvent =
   | TickBudgetEvent
   | ArrivedEvent
@@ -144,10 +179,15 @@ export type SimEvent =
   | EnemySightedEvent
   | RoomRevealedEvent
   | ShotFiredEvent
+  | MeleeStrikeEvent
   | BulletStoppedEvent
   | SoldierHitEvent
   | SoldierDiedEvent
   | AttackResolvedEvent
   | GunJammedEvent
-  | StatChangedEvent;
+  | StatChangedEvent
+  | ExplosionEvent
+  | StructureDamagedEvent
+  | ItemsPickedUpEvent
+  | ItemDroppedEvent;
 export type SimEventType = SimEvent['type'];

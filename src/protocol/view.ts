@@ -18,6 +18,14 @@ export interface SoldierView {
   readonly breath?: number;
 }
 
+export interface ItemView {
+  readonly gridNo: number;
+  readonly level: number;
+  readonly item: string;
+  readonly count: number;
+  readonly status: number;
+}
+
 export interface CombatView {
   readonly team: number;
   readonly round: number;
@@ -31,6 +39,7 @@ export interface PlayerView {
   readonly openDoors?: readonly number[];
   readonly combat?: CombatView | null;
   readonly revealedRooms?: readonly number[];
+  readonly items?: readonly ItemView[];
 }
 
 export interface ViewFrame {
@@ -40,6 +49,16 @@ export interface ViewFrame {
   readonly openDoors?: readonly number[];
   readonly combat?: CombatView | null;
   readonly revealedRooms?: readonly number[];
+  readonly items?: readonly ItemView[];
+}
+
+function sameItems(a: readonly ItemView[] | undefined, b: readonly ItemView[] | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((v, i) => {
+    const w = b[i];
+    return !!w && v.gridNo === w.gridNo && v.level === w.level && v.item === w.item && v.count === w.count && v.status === w.status;
+  });
 }
 
 function sameCombat(a: CombatView | null | undefined, b: CombatView | null | undefined): boolean {
@@ -59,6 +78,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), openDoors: next.openDoors ?? [] };
   if (!sameList(previous.revealedRooms, next.revealedRooms))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), revealedRooms: next.revealedRooms ?? [] };
+  if (!sameItems(previous.items, next.items))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), items: next.items ?? [] };
   if (!sameCombat(previous.combat, next.combat))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), combat: next.combat ?? null };
   return frame;

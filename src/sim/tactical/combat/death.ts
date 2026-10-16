@@ -1,11 +1,12 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Ani.cc opcodes 433, 440, 447, 465, 472, 478, 480, 496, 497,
+// @src src/game/Tactical/Soldier_Ani.cc opcodes 433, 437, 440, 447, 465, 472, 478, 480, 496, 497,
 // @src CheckForAndHandleSoldierIncompacitated, CheckForAndHandleSoldierDyingNotFromHit, HandleSoldierDeath,
 // @src CheckForAndHandleSoldierDeath, HandleCheckForDeathCommonCode; Soldier_Control.cc BeginSoldierGetup;
 // @src Overhead.cc HandleNPCTeamMemberDeath; OppList.cc CheckForAlertWhenEnemyDies;
 // @src Rotting_Corpses.cc TurnSoldierIntoCorpse, ReduceAmmoDroppedByNonPlayerSoldiers. See docs/11 §5.
 
+import { corpseFileBase, corpseStructIndex, corpseTypeFor, NO_CORPSE } from '../../../content/anim/corpses.ts';
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
@@ -44,6 +45,7 @@ export interface Corpse {
   readonly direction: number;
   readonly state: number;
   readonly profile: number;
+  readonly type: number;
 }
 
 const isMercBody = (s: Soldier) => s.bodyType <= Body.REGFEMALE;
@@ -51,6 +53,7 @@ const oneC = (d: number) => (d + 1) % 8;
 const oneCC = (d: number) => (d + 7) % 8;
 const opposite = (d: number) => (d + 4) % 8;
 const TERRORIST_PROFILES = new Set<number>();
+const VEHICLE_CORPSE_DIRECTION = 7;
 
 const DEATH_FROM_FALL: Readonly<Record<string, string>> = {
   FLYBACK_HIT: 'FLYBACK_HIT_DEATH',
@@ -258,12 +261,29 @@ function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
       }
     }
   }
-  t.corpses.push({ gridNo: s.gridNo, level: s.level, bodyType: s.bodyType, direction: s.direction, state: s.state, profile: s.profile });
+  const type = corpseTypeFor(t.content.corpses.table, s.bodyType, s.state);
+  const direction = corpseDirection(s);
   removeOccupant(t, s);
   removeMercStructure(t, s);
   if (s.team !== Team.OUR) unregisterSoldier(t, s);
   s.placed = false;
+  if (type === NO_CORPSE) return true;
+  t.corpses.push({ gridNo: s.gridNo, level: s.level, bodyType: s.bodyType, direction, state: s.state, profile: s.profile, type });
+  addCorpseStructure(t, s.gridNo, s.level, type, direction);
   return true;
+}
+
+function corpseDirection(s: Soldier): number {
+  if (s.bodyType < Body.HUMVEE) return s.direction;
+  if (s.bodyType !== Body.ICECREAMTRUCK && s.bodyType !== Body.HUMVEE) return VEHICLE_CORPSE_DIRECTION;
+  return s.direction === 0 || s.direction === 4 ? 0 : VEHICLE_CORPSE_DIRECTION;
+}
+
+function addCorpseStructure(t: TacticalState, g: number, level: number, type: number, direction: number): void {
+  const corpses = t.content.corpses;
+  const file = corpses.structures.get(corpseFileBase(corpses.table, type, t.options.bloodAndGore));
+  const def = file?.structures[corpseStructIndex(corpses.table, type, direction)];
+  if (def) t.world.structures.add(g, level, def);
 }
 
 export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDead: boolean; madeCorpse: boolean } {
@@ -424,6 +444,11 @@ export function deathOpcode(t: TacticalState, s: Soldier, code: number): OpOutco
     case 433:
       checkForAndHandleSoldierIncapacitated(t, s);
       return animName(t.content, s.state) === '' ? 'stop' : null;
+    case 437:
+      setSoldierDirection(t, s, (s.direction + 4) % 8);
+      setDesiredDirection(t, s, s.direction);
+      changeSoldierState(t, s, anim(t.content, 'GETUP_FROM_ROLLOVER'));
+      return 'stop';
     case 440:
       checkForAndHandleSoldierDeath(t, s);
       return 'stop';

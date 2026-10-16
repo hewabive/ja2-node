@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { StructureFlags } from '../../../content/world/structures.ts';
 import type { SimEvent } from '../../events.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
@@ -84,6 +85,7 @@ describe('gun attacks', () => {
     expect(all.find((e) => e.type === 'soldierDied')).toMatchObject({ soldier: enemy.id, killer: 0 });
     expect(enemy.placed).toBe(false);
     expect(t.corpses).toHaveLength(1);
+    expect(t.world.structures.find(enemy.gridNo, StructureFlags.CORPSE)).not.toBeNull();
     expect(t.worldItems.some((i) => i.gridNo === enemy.gridNo)).toBe(true);
     expect(all.some((e) => e.type === 'combatEnded')).toBe(true);
     expect(t.inCombat).toBe(false);

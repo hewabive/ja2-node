@@ -1379,7 +1379,7 @@ Our merc after the skull UI: `ReleaseSoldiersAttacker` (unless external death), 
    order time and play `QUEEN_SWIPE` (`:844-853`; damage at opcode 755 → `DishoutQueenSwipeDamage`,
    `Weapons.cc:3815-3867`).
 2. **Begin** — `EVENT_SoldierBeginBladeAttack` (`Soldier_Control.cc:6574-6716`) / `EVENT_SoldierBeginPunchAttack`
-   (`:6720-6836`): busy +1; snap direction (no turning steps, no turning AP). Blade animation: target standing or
+   (`:6720-6836`): busy +1; snap direction (no turning steps; the turn still charges `AP_LOOK_*` through `EVENT_SetSoldierDesiredDirection`). Blade animation: target standing or
    crouched and unaware of the attacker (`opp == NOT_HEARD_OR_SEEN`, other team) → `STAB`; aware → **`CoinToss()`
    (main)** `STAB`/`SLICE`, and the target is stopped (`EVENT_StopMerc`, AI `CancelAIAction`) and turned toward the
    attacker; target prone → crouch first and `CROUCH_STAB`; empty tile → `DECAPITATE` on a valid corpse else
@@ -1461,7 +1461,7 @@ if (roll <= cth) {
   addGameEvent(WEAPONHIT{ target: t, weapon, damage: i16(imp), breathLoss: 0, dir: dirFromGrid(s.gridNo, t),
                           x: t.x, y: t.y, z: 20, range: 1, attacker: s, special: NO_SPECIAL }, 20);
 } else { agilityForEnemyMissingPlayer(s, t, 10); freeUpAttacker(s); }
-if (ourTeam(s) && s.target) statChange(s, DEXTAMT, knifeXp(cth, hit), hit ? SUCCESS : FAILURE);   // §10
+if (ourTeam(s) && s.target) statChange(s, DEXTAMT, modifyExpGainByTarget(knifeXp(cth, hit), s.target), hit ? SUCCESS : FAILURE);   // §10
 smell: if (s.monsterSmell > 0 && main(5) === 0) s.monsterSmell--;
 ```
 

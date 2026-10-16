@@ -2,14 +2,14 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Items.cc HandleItem (gun path), HandItemWorks; Soldier_Control.cc EVENT_FireSoldierWeapon,
 // @src SelectFireAnimation, SoldierReadyWeapon, InternalSoldierReadyWeapon, PickSoldierReadyAnimation, SendBeginFireWeaponEvent;
-// @src Weapons.cc CheckForGunJam, OKFireWeapon, FireWeapon, UseGun, GetTargetWorldPositions, ModifyExpGainByTarget;
+// @src Weapons.cc CheckForGunJam, OKFireWeapon, FireWeapon, UseGun, GetTargetWorldPositions;
 // @src Soldier_Ani.cc opcodes 430, 441, 448, 449, 458, 459, 470, 473, 476, 753, 757, CheckForImproperFireGunEnd,
-// @src HandleUnjamAnimation. See docs/11 §1.
+// @src HandleUnjamAnimation; Handle_Items.cc HandleItem dispatch to the punch and blade paths. See docs/11 §1, §6.
 
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';
-import { AmmoType, ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
-import { pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
+import { AmmoType, ItemClass, ItemCursor, ItemFlags, NOTHING } from '../../../content/items/items.ts';
+import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { findAttachment, type ItemObject, USABLE_STATUS } from '../../items/object.ts';
 import { anim, animName } from '../anim-states.ts';
@@ -24,6 +24,7 @@ import {
   setDesiredDirection,
   setSoldierDirection,
 } from '../animation.ts';
+import { useLauncher, useThrown } from '../explosions/throwing.ts';
 import { InvSlot, isValidSecondHandShot } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
@@ -32,26 +33,18 @@ import { deductPoints, enoughPoints } from '../points.ts';
 import { StatKind } from '../profiles.ts';
 import { Body, NO_PROFILE, OKLIFE, Personality, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
-import { apChargeForShootOrStab, calcTotalAPsToAttack, enoughAmmo } from './ap.ts';
+import { apChargeForShootOrStab, calcTotalAPsToAttack, enoughAmmo, minAPsToAttack } from './ap.ts';
 import { freeUpAttacker, reduceAttackBusyCount } from './barrier.ts';
 import { fireBulletGivenTarget, soldierToSoldierBodyPartChanceToGetThrough } from './bullets.ts';
 import { calcChanceToHitGun } from './chance.ts';
-import { StatCause, statChange } from './experience.ts';
+import { modifyExpGainByTarget, StatCause, statChange } from './experience.ts';
+import { okFallDirection } from './hit.ts';
+import { handleBladeAttack, handlePunchAttack, meleeOpcode, useBlade, useHandToHand } from './melee.ts';
 import { calculateSoldierZPos, targetZFromStructureHeight, ZPos } from './positions.ts';
 import { SkillCheckReason, skillCheck } from './skill-check.ts';
-import { AimShot, NUM_BUCKSHOT_PELLETS, WeaponMode } from './types.ts';
+import { AimShot, ItemHandle, NUM_BUCKSHOT_PELLETS, WeaponMode } from './types.ts';
 
-export const ItemHandle = {
-  OK: 1,
-  RELOADING: -1,
-  UNCONSCIOUS: -2,
-  NOAPS: -3,
-  NOAMMO: -4,
-  CANNOT_GETTO_LOCATION: -5,
-  BROKEN: -6,
-  NOROOM: -7,
-  REFUSAL: -8,
-} as const;
+export { ItemHandle };
 
 export const FireResult = { FIREABLE: 0, JAMMED: 1, UNJAMMED: 2, FAILED: 3, FIRED: 4 } as const;
 
@@ -97,7 +90,7 @@ export function sendBeginFireWeaponEvent(t: TacticalState, s: Soldier, target: n
   t.gameEvents.push({ kind: 'beginFireWeapon', soldier: s.id, target, level: s.targetLevel, cubeLevel: s.targetCubeLevel });
 }
 
-export function handleGunAttack(t: TacticalState, s: Soldier, g: number, level: number, handItem: number): number {
+export function handleItem(t: TacticalState, s: Soldier, g: number, level: number, handItem: number): number {
   s.pendingAnimation = -1;
   s.attackingWeapon = handItem;
   s.targetLevel = level;
@@ -106,8 +99,51 @@ export function handleGunAttack(t: TacticalState, s: Soldier, g: number, level: 
   if (tgt) tgt.beingAttackedCount = 0;
   if (s.life < OKLIFE) return ItemHandle.UNCONSCIOUS;
   if (!handItemWorks(t, s, InvSlot.HAND)) return ItemHandle.BROKEN;
+  const cls = def(t, handItem)?.itemClass ?? ItemClass.NONE;
+  if (cls === ItemClass.GUN || cls === ItemClass.THROWING_KNIFE) return handleGunAttack(t, s, g, tgt, handItem);
+  if (cls & (ItemClass.NONE | ItemClass.PUNCH)) return handlePunchAttack(t, s, g, level);
+  if (cls === ItemClass.BLADE) return handleBladeAttack(t, s, g);
+  if (cls === ItemClass.GRENADE || cls === ItemClass.LAUNCHER || cls === ItemClass.THROWN)
+    return handleThrowOrLaunch(t, s, g, level, tgt, handItem);
+  return ItemHandle.BROKEN;
+}
+
+function mortarHasRoom(t: TacticalState, s: Soldier, targetGrid: number): boolean {
+  const direction = directionToward(s.gridNo, targetGrid);
+  const ahead = newGridNo(s.gridNo, DIRECTION_INCREMENT[direction] ?? 0);
+  return okFallDirection(t, s, ahead, s.level, direction, s.state);
+}
+
+function handleThrowOrLaunch(t: TacticalState, s: Soldier, g: number, level: number, tgt: Soldier | null, handItem: number): number {
   const d = def(t, handItem);
-  if (!d || (d.itemClass !== ItemClass.GUN && d.itemClass !== ItemClass.THROWING_KNIFE)) return ItemHandle.BROKEN;
+  if (!d) return ItemHandle.BROKEN;
+  const targetGrid = tgt ? tgt.gridNo : g;
+  const apCost = minAPsToAttack(t, s, targetGrid, true);
+  if (handItem === itemIndex(t, 'MORTAR')) {
+    if (!mortarHasRoom(t, s, targetGrid)) return ItemHandle.NOROOM;
+  } else if (d.itemClass === ItemClass.LAUNCHER) {
+    const charge = apChargeForShootOrStab(t, s, targetGrid, true, false);
+    if (height(t.content, s.state) === AnimHeight.STAND) {
+      if (charge.raise) s.dontChargeTurningAPs = true;
+    } else if (charge.turning) s.dontChargeReadyAPs = true;
+  }
+  if (!enoughPoints(t.inCombat, s, apCost)) return ItemHandle.NOAPS;
+  s.attackingHand = InvSlot.HAND;
+  s.attackingWeapon = handItem;
+  s.targetLevel = level;
+  if (d.cursor === ItemCursor.TOSS) {
+    s.targetGridNo = targetGrid;
+    s.target = whoIsThere(t, targetGrid, s.targetLevel);
+    t.turn.attackBusyCount++;
+    s.dontChargeTurningAPs = true;
+    fireWeapon(t, s, targetGrid);
+  } else sendBeginFireWeaponEvent(t, s, targetGrid);
+  return ItemHandle.OK;
+}
+
+function handleGunAttack(t: TacticalState, s: Soldier, g: number, tgt: Soldier | null, handItem: number): number {
+  const d = def(t, handItem);
+  if (!d) return ItemHandle.BROKEN;
   if (d.itemClass !== ItemClass.THROWING_KNIFE && !enoughAmmo(t, s, InvSlot.HAND)) {
     s.doSpread = 0;
     return ItemHandle.NOAMMO;
@@ -338,12 +374,6 @@ export function getTargetWorldPositions(t: TacticalState, s: Soldier, g: number)
   };
 }
 
-function modifyExpGainByTarget(gain: number, tgt: Soldier): number {
-  if (tgt.bodyType === Body.COW || tgt.bodyType === Body.CROW) return Math.trunc(gain / 2);
-  if (isRobot(tgt) || (tgt.bodyType >= Body.HUMVEE && tgt.bodyType <= Body.JEEP)) return 0;
-  return gain;
-}
-
 function useGun(t: TacticalState, s: Soldier, target: number): void {
   const items = t.content.items;
   const ap = calcTotalAPsToAttack(t, s, target, false, s.aimTime);
@@ -410,7 +440,7 @@ export function fireWeapon(t: TacticalState, s: Soldier, target: number): number
     return FireResult.FAILED;
   }
   s.opponent = null;
-  const cls = def(t, s.attackingWeapon)?.itemClass;
+  const cls = def(t, s.attackingWeapon)?.itemClass ?? ItemClass.NONE;
   if (cls === ItemClass.GUN || cls === ItemClass.THROWING_KNIFE) {
     if (s.doSpread && !s.doBurst) s.doSpread = 0;
     if (s.doSpread > 6) s.doSpread = 0;
@@ -418,7 +448,10 @@ export function fireWeapon(t: TacticalState, s: Soldier, target: number): number
       useGun(t, s, s.spreadLocations[s.doSpread - 1] || target);
       s.doSpread++;
     } else useGun(t, s, target);
-  }
+  } else if (cls === ItemClass.BLADE) useBlade(t, s, target);
+  else if (cls & (ItemClass.NONE | ItemClass.PUNCH)) useHandToHand(t, s, target);
+  else if (cls === ItemClass.LAUNCHER) useLauncher(t, s, target);
+  else useThrown(t, s, target);
   return FireResult.FIRED;
 }
 
@@ -545,6 +578,6 @@ export function attackOpcode(t: TacticalState, s: Soldier, code: number): OpOutc
       t.turn.attackBusyCount++;
       return 'continue';
     default:
-      return null;
+      return meleeOpcode(t, s, code);
   }
 }

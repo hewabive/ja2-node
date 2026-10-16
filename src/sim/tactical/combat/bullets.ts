@@ -21,16 +21,16 @@ import {
 import { createItem, type ItemObject } from '../../items/object.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
 import { swapStructureForPartner } from '../doors.ts';
+import { igniteExplosionXY } from '../explosions/explosion.ts';
 import { InvSlot } from '../inventory.ts';
 import { landHeightUnits, resolveHitOnWall } from '../perception/los.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
-import { StatKind } from '../profiles.ts';
 import { Body, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
 import { freeUpAttacker } from './barrier.ts';
 import { gunRange } from './chance.ts';
-import { StatCause, statChange } from './experience.ts';
+import { agilityForEnemyMissingPlayer } from './experience.ts';
 import { bulletHitMerc } from './hit.ts';
 import { aimPosType, calculateSoldierZPos, losWorldOf, targetZFromStructureHeight, ZPos } from './positions.ts';
 import { NUM_BUCKSHOT_PELLETS } from './types.ts';
@@ -420,11 +420,6 @@ function handleBulletStructureInteraction(t: TacticalState, b: Bullet, s: Struct
   return { remaining: 1, hit: false };
 }
 
-function agilityForEnemyMissingPlayer(t: TacticalState, attacker: Soldier, target: Soldier, amount: number): void {
-  if (target.team !== attacker.team && target.team === Team.OUR && target.life >= 15)
-    statChange(t, target, StatKind.AGILITY, amount, StatCause.SUCCESS);
-}
-
 function structureHit(
   t: TacticalState,
   b: Bullet,
@@ -457,7 +452,7 @@ function structureHit(
     freeUpAttacker(t, attacker);
     return;
   }
-  if (structure) damageStructureByGunfire(t, structure);
+  if (structure) damageStructureByGunfire(t, structure, attacker, fixInt(b.x), fixInt(b.y), g);
   void impact;
   let doMissForGun = false;
   switch (weapon?.weapon?.weaponClass) {
@@ -493,12 +488,13 @@ function structureHit(
   b.lastStructureHit = structureId;
 }
 
-function damageStructureByGunfire(t: TacticalState, s: StructureInstance): void {
+function damageStructureByGunfire(t: TacticalState, s: StructureInstance, owner: Soldier, x: number, y: number, g: number): void {
   if (has(s.flags, StructureFlags.PERSON | StructureFlags.CORPSE)) return;
   if (s.def.armour === MATERIAL_INDESTRUCTABLE_METAL || s.def.armour === MATERIAL_INDESTRUCTABLE_STONE) return;
   if (has(s.flags, StructureFlags.EXPLOSIVE) && t.rng.int(2)) {
     const base = t.world.structures.findBase(s);
     if (base) base.hitPoints = 0;
+    igniteExplosionXY(t, owner, x, y, 0, g, itemIndex(t, 'STRUCTURE_IGNITE'), 0);
   }
 }
 

@@ -23,7 +23,7 @@ import { getNewSoldierPath, handleGotoNewGridNo, isJumpableFenceAt, moveMercFaci
 import { newOKDestination } from './pathfinding.ts';
 import { addMercStructure, isValidStance, okToAddMercToWorld } from './person-structure.ts';
 import { AP, apsToReadyWeapon, BP, deductPoints } from './points.ts';
-import { NO_PENDING_ANIMATION, NOWHERE, type Soldier, Team } from './soldier.ts';
+import { NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
 export const AnimHeight = { STAND: 6, CROUCH: 3, PRONE: 1 } as const;
@@ -300,6 +300,17 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
     s.desiredHeight = toEnd;
   }
 
+  if (s.pendingDirection !== NO_PENDING_DIRECTION && TURN_FIRST_STATES.includes(content.animations.controls[next]?.id ?? '')) {
+    s.reverse = false;
+    setDesiredDirection(t, s, s.pendingDirection);
+    s.pendingDirection = NO_PENDING_DIRECTION;
+    s.pendingAnimation = next;
+    if (content.animations.controls[next]?.id === 'CLIMBDOWNROOF') s.turningFromPronePosition = TurningFromProne.OFF;
+    s.turningUntilDone = true;
+    soldierGotoStationaryStance(t, s);
+    return;
+  }
+
   if (s.team === Team.OUR && !s.monsterOrAnimal && s.bodyType !== ROBOTNOWEAPON) {
     const rifle = isRifle(t, s.inv[InvSlot.HAND]?.item ?? 0);
     if (
@@ -387,6 +398,8 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
 }
 
 const ROBOTNOWEAPON = 21;
+const TURN_FIRST_STATES = ['ADJACENT_GET_ITEM', 'CLIMBUPROOF', 'CLIMBDOWNROOF'];
+
 const GETTING_HIT_STATES = [
   'GENERIC_HIT_STAND',
   'GENERIC_HIT_CROUCH',
@@ -740,9 +753,11 @@ function chargeForNewState(t: TacticalState, s: Soldier, next: number): void {
       charge(Math.trunc(AP.FALL_DOWN / 2), Math.trunc(BP.FALL_DOWN / 2));
       break;
     case 'CLIMBDOWNROOF':
+      t.perception.disallowSight = true;
       charge(AP.CLIMBOFFROOF, BP.CLIMBOFFROOF);
       break;
     case 'CLIMBUPROOF':
+      t.perception.disallowSight = true;
       charge(AP.CLIMBROOF, BP.CLIMBROOF);
       break;
     case 'JUMP_OVER_BLOCKING_PERSON':

@@ -128,7 +128,7 @@ export function updatePublic(t: TacticalState, team: number, opp: Soldier, value
   if (lastKnown) lastKnown[opp.id] = g;
   if (old === 0 && value !== 0) {
     for (const mate of mercs(t)) {
-      if (mate.team !== team || mate.life < OKLIFE || (mate.oppList[opp.id] ?? 0) !== 0) continue;
+      if (mate.team !== team || mate.life < OKLIFE || t.explosives.gassed[mate.id] || (mate.oppList[opp.id] ?? 0) !== 0) continue;
       manLooksForMan(t, mate, opp, Caller.UPDATEPUBLIC);
       mate.newOppCnt = 0;
     }
@@ -435,7 +435,7 @@ export function handleSight(t: TacticalState, s: Soldier, flags: number): void {
     if (s.team === Team.OUR) {
       radioSightings(t, s, null, s.team);
       radioSightings(t, s, null, Team.MILITIA);
-      revealRoofsAndItems(t, s);
+      revealRoofsAndItems(t, s, true);
     } else if (enemyRadio(s)) radioSightings(t, s, null, Team.ENEMY);
     s.newOppCnt = 0;
     if (s.team !== Team.OUR) ourTeamRadiosRandomlyAbout(t, s);
