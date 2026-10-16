@@ -1781,8 +1781,10 @@ The helicopter, boxing and the robot are tested with synthetic states (no stub m
 *(a), (b) and (c) implemented (second M6 slice, 2026-10-16), with the oracle probes of §17 `narrative`, `checkfact`,
 `quest`, `setquest`, `npcprofile`, `earlymorning`, `hourlynpc`, `questentry`, `questexit` and `entersector`
 (`tools/oracle/probes/facts.txt`); left for later slices: `HourlyLarryUpdate`, the elite upgrade to Mike and Iggy,
-`PostSchedules`, the Kingpin money check and the hospital supplies on sector exit and at 04:00 (ports), the default-response
-flags of the 04:00 event (`docs/24`), and the boxing and desire-to-talk inputs of `CheckFact`.*
+`PostSchedules`, the Kingpin money check and the hospital supplies on sector exit and at 04:00 (ports), and the boxing
+inputs of `CheckFact`. Since the merge with `docs/24` the 04:00 event clears the default-response flags, and `CheckFact`'s
+desire to talk, the record reset on sector entry, `NPCHasUnusedRecordWithGivenApproach` and `NPCReachedDestination` of
+the profile insertion use the dialogue code.*
 
 (a) facts and quests store, migration of the scattered fact ports, native import of facts/quests, history coupling with `21`;
 (b) profile NPC fields, presence (new game, `AddPlacementToWorld` filter and overrides, `AddProfiles…`, entry/exit quest code,

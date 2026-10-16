@@ -22,8 +22,10 @@ import {
   handleWaitTimerForNpcTrigger,
   initiateConversationFull,
   npcHasUnusedHostileRecord,
+  npcHasUnusedRecordWithGivenApproach,
   npcReachedDestination,
   panelSoldier,
+  selectEnv,
   stepDialogue,
   talkerSoldier,
   talkMenuBuySell,
@@ -34,8 +36,8 @@ import {
 import { soldierByProfile } from '../narrative/dialogue-queue.ts';
 import type { FactSource, NarrativeHost, NpcActionPort, QuestPort } from '../narrative/host.ts';
 import { ASSASSIN_PROFILES, NarrativeProfile, ProfileFlag } from '../narrative/narrative-ids.ts';
-import { isNpcOrRpc, replaceLocationInNpcData } from '../narrative/records.ts';
-import { calcThreateningEffectiveness } from '../narrative/select.ts';
+import { isNpcOrRpc, replaceLocationInNpcData, resetOncePerConvoRecordsForAllNpcsInLoadedSector } from '../narrative/records.ts';
+import { calcDesireToTalk, calcThreateningEffectiveness } from '../narrative/select.ts';
 import { createTalkState, dialogueIdle, type SpokenLine, type TalkState } from '../narrative/talk-state.ts';
 import { CivType, getCivType, type TalkableKind, type TalkableRules, talkableKind, talkableRefusal } from '../narrative/talkable.ts';
 import { isMercADealer } from '../strategic/economy/merchants/context.ts';
@@ -60,6 +62,7 @@ import { NO_PROFILE, NOWHERE, type Soldier, Team } from '../tactical/soldier.ts'
 import { sectorMapOf, type TacticalState } from '../tactical/state.ts';
 import { selectSoldier } from '../tactical/turns/turns.ts';
 import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
+import type { NarrativeSlots } from './narrative/narrative-flow.ts';
 import { genericActionPort } from './narrative/narrative-ports.ts';
 
 export const AP_TALK = 6;
@@ -433,6 +436,24 @@ export class TalkFlow {
       startTalking: (s, target) => this.#startTalkingOnArrival(s, target),
       npcReachedDestination: (s) => npcReachedDestination(host, s, false),
       replaceLocationInNpcData: (profile, oldGridNo, newGridNo) => replaceLocationInNpcData(host, profile, oldGridNo, newGridNo),
+    };
+  }
+
+  narrativeSlots(): Pick<
+    NarrativeSlots,
+    'dialogueDesireToTalk' | 'resetOncePerConvoRecords' | 'hasUnusedRecordWithApproach' | 'npcReachedDestination'
+  > {
+    const host = this.host;
+    const s = this.#campaign.state;
+    return {
+      dialogueDesireToTalk: (npc, merc, approach) => calcDesireToTalk(selectEnv(host), npc, merc, approach),
+      resetOncePerConvoRecords: () =>
+        resetOncePerConvoRecordsForAllNpcsInLoadedSector(host, s.worldSector, (profile) => {
+          const p = s.profiles.get(profile);
+          return p ? { x: p.sectorX, y: p.sectorY, z: p.sectorZ } : null;
+        }),
+      hasUnusedRecordWithApproach: (profile, approach) => npcHasUnusedRecordWithGivenApproach(host, profile, approach),
+      npcReachedDestination: (soldier) => npcReachedDestination(host, soldier, false),
     };
   }
 

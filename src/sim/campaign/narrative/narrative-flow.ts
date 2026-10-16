@@ -112,7 +112,6 @@ export interface NarrativeSlots {
   scientistAwolMeanwhile(): void;
   hasUnusedRecordWithApproach(profile: number, approach: number): boolean;
   npcReachedDestination(s: Soldier): void;
-  clearDefaultResponses(profile: ProfileProgress): void;
   npcAction(npc: number, action: number): void;
 }
 
@@ -125,7 +124,6 @@ export const NO_NARRATIVE_SLOTS: NarrativeSlots = {
   scientistAwolMeanwhile: () => {},
   hasUnusedRecordWithApproach: () => false,
   npcReachedDestination: () => {},
-  clearDefaultResponses: () => {},
   npcAction: () => {},
 };
 
@@ -400,7 +398,11 @@ export class NarrativeFlow {
       npcOrRpcProfiles: () => this.#npcOrRpcProfiles(),
       placementSectors: (pid) => this.#placementSectors(pid),
       onPlayerTeam: (pid) => this.roster()?.byProfile(pid) !== undefined,
-      clearDefaultResponses: (p) => this.slots.clearDefaultResponses(p),
+      clearDefaultResponses: (p) => {
+        p.friendlyOrDirectDefaultResponseUsedRecently = 0;
+        p.recruitDefaultResponseUsedRecently = 0;
+        p.threatenDefaultResponseUsedRecently = 0;
+      },
       checkForMissingHospitalSupplies: () => this.slots.hospitalSupplies(),
     });
   }

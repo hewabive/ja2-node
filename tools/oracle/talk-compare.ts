@@ -84,7 +84,7 @@ function profileFields(id: number, p: ProfileProgress | null): Json {
     town: p.town,
     townAttachment: p.townAttachment,
     money: p.money,
-    sector: [p.sector.x, p.sector.y, p.sector.z],
+    sector: [p.sectorX, p.sectorY, p.sectorZ],
   };
 }
 

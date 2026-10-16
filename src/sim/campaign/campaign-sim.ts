@@ -149,6 +149,7 @@ export class CampaignSim {
       ? new ContractFlow(this, { roster: this.battle.roster, content: this.battle.content, hooks: contractHooks })
       : null;
     this.talk = hooks.narrative ? new TalkFlow(this, hooks.narrative) : null;
+    if (this.talk) this.narrative.slots = { ...this.narrative.slots, ...this.talk.narrativeSlots() };
     this.worldClock = this.#worldTimeControl();
     this.#registerEnvironment();
     this.#registerMovement();

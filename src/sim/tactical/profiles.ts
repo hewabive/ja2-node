@@ -64,12 +64,6 @@ export const STAT_KEYS: Readonly<Record<number, StatKey>> = {
   [StatKind.LEADERSHIP]: 'leadership',
 };
 
-export interface ProfileSector {
-  x: number;
-  y: number;
-  z: number;
-}
-
 export interface NpcProfileFields {
   town: number;
   townAttachment: number;
@@ -92,7 +86,6 @@ export interface NpcProfileFields {
   useProfileInsertion: boolean;
   insertionCode: number;
   insertionData: number;
-  sector: ProfileSector;
 }
 
 export interface ProfileProgress extends NpcProfileFields {
@@ -208,7 +201,6 @@ export function npcFieldsFromProfile(p: MercProfile | SavedMercProfile): NpcProf
     useProfileInsertion: p.useProfileInsertion,
     insertionCode: p.insertionCode,
     insertionData: p.insertionData,
-    sector: { x: p.sectorX, y: p.sectorY, z: 'sectorZ' in p ? p.sectorZ : 0 },
   };
 }
 
@@ -421,7 +413,6 @@ export function noNpcFields(): NpcProfileFields {
     useProfileInsertion: false,
     insertionCode: 0,
     insertionData: 0,
-    sector: { x: 0, y: 0, z: 0 },
   };
 }
 

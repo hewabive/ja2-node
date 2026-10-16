@@ -148,7 +148,10 @@ export async function createSaveSession(
   if (campaign.talk) {
     const version = save.header.version;
     const records = readSavedNpcRecords(saveBytes, save.sections, version);
-    importNpcRecords(campaign.talk.host, records, version, strategic.worldSector, (p) => strategic.profiles.get(p)?.sector ?? null);
+    importNpcRecords(campaign.talk.host, records, version, strategic.worldSector, (p) => {
+      const profile = strategic.profiles.get(p);
+      return profile ? { x: profile.sectorX, y: profile.sectorY, z: profile.sectorZ } : null;
+    });
   }
   campaign.sectors?.adoptLoadedSector(savedSoldierLinks(save));
   return { session: new CampaignSession(campaign, roster, worlds, narrative.texts), report };

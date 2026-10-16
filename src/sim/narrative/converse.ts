@@ -352,7 +352,11 @@ function recordMovement(host: NarrativeHost, npc: number, q: NpcRecord, index: n
     return;
   }
   const p = host.profile(npc);
-  if (q.actionData === NpcAction.REMOVE_NPC && p) p.sector = { x: 0, y: 0, z: 0 };
+  if (q.actionData === NpcAction.REMOVE_NPC && p) {
+    p.sectorX = 0;
+    p.sectorY = 0;
+    p.sectorZ = 0;
+  }
   npcGotoGridNo(host, npc, q.goToGridNo, index);
 }
 
