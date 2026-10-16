@@ -17,7 +17,7 @@ beforeAll(async () => {
 
 describe('campaign clock', () => {
   it('compresses time on the strategic map and follows the day light schedule', () => {
-    const state = createStrategicState(NUM_SEC_IN_DAY + 6 * 3600);
+    const state = createStrategicState({ worldSeconds: NUM_SEC_IN_DAY + 6 * 3600 });
     buildDayLightLevels(state.queue, state.clock);
     state.env.lightValue = NORMAL_LIGHTLEVEL_NIGHT;
     const campaign = new CampaignSim(state);
