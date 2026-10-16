@@ -66,7 +66,7 @@ wraps, i.e. for large balances.
 | 20 | Key table | 64 × 8 | skipped |
 | 21 | Temp NPC quote file | `u32 size` + data (Strac writes 0, vanilla a real file) | skipped |
 | 22 | PreRandom | `u32 index` + 256 × `u32` | all |
-| 23 | Arms dealers | 19 × 20 + 19 × 351 × 16 headers, then 28 × Σ special-item counts of items 1..350 | skipped |
+| 23 | Arms dealers | 19 × 20 + 19 × 351 × 16 headers, then 28 × Σ special-item counts of items 1..350 | all: status, headers and special elements (`savegame-merchants.ts`, `docs/23` §15.4) |
 | 24 | General info (`LoadGeneralInfo`) | 1024 | selected soldier, render centre, panel, options, clock base, helicopter id and airborne flag, Tixa and SAM secrets, dead squad members, selected map sector |
 | 25–30 | Mines (6 × 44), town loyalty (13 × 26), vehicles (`u8 n` × (`bool valid` + 128 + merc path)), bullets (`u32 n` × 128), physics objects (`u32 n` × 256), air raid (132) | | mines and town loyalty decoded by `savegame-economy.ts` (`readSavedEconomy`), vehicles decoded, the rest skipped |
 | 31 | Team turns | 174 | interrupt queue, hidden interrupt, last interrupted |
@@ -164,7 +164,7 @@ the reader converts them and reuses the Windows parser.
 - The Strac Linux layout is implemented from the source and covered by a synthetic test only; no real Linux save was
   available.
 - Versions 100–105 are covered by the version gates in the code but were not tested against real files.
-- The skipped sections (laptop pages, email, NPC scripts, dealers, strategic AI, bullets, physics objects,
+- The skipped sections (laptop pages, email, NPC scripts, strategic AI, bullets, physics objects,
   explosions, schedules) and the raw temp files (revealed tiles, preserved enemies and civilians, smoke, lights) still
   need decoders before the strategic layer can continue a campaign. Rotting corpses (`decodeRottingCorpsesFile`,
   160-byte records after a `u32` count) and map modifications (`decodeMapModificationsFile`, 8-byte `MODIFY_MAP`

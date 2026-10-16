@@ -41,6 +41,7 @@ import { EnemyKilled, recordPlayerKill, trackEnemiesKilled } from '../strategic/
 import { CreatureBattleCode } from '../strategic/creatures/creatures.ts';
 import { Assignment as EconomyAssignment, LoyaltyEvent, MoraleEvent } from '../strategic/economy/constants.ts';
 import { handleGlobalLoyaltyEvent } from '../strategic/economy/loyalty.ts';
+import { addDeadArmsDealerItemsToWorld } from '../strategic/economy/merchants/death.ts';
 import {
   handleMilitiaStatusBeforeLoadingNewMap,
   soldierClassToMilitiaRank,
@@ -91,7 +92,7 @@ import { Body, NO_PROFILE, OKLIFE, Side, type Soldier, SoldierClass, Team } from
 import { type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
 import type { RealtimeClock } from '../tactical/turns/turns.ts';
-import { loadWorldItemsFromMap } from '../tactical/world-items.ts';
+import { addItemToPool, loadWorldItemsFromMap, Visibility } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import type { Roster, RosterMerc } from './roster.ts';
 import {
@@ -849,6 +850,9 @@ export class SectorFlow {
     }
     if (dead.attacker?.team === Team.OUR && dead.team !== Team.OUR) recordPlayerKill(this.campaign.state.status);
     evaluateDeathEffectsToSoldierInitList(t, dead);
+    const merchants = this.campaign.merchants;
+    if (merchants)
+      addDeadArmsDealerItemsToWorld(merchants, dead.profile, (o) => addItemToPool(t, dead.initialGridNo, o, Visibility.INVISIBLE, 0, 0, 0));
     const q = this.queen;
     if (q) processQueenCmdImplicationsOfDeath(q, this.#deadEnemyRecord(dead));
   }

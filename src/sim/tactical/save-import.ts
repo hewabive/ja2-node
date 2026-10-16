@@ -338,6 +338,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.shock = r.ai.shock;
   s.numHitsThisTurn = r.numHitsThisTurn;
   s.lastTarget = grid(r.lastTarget);
+  s.initialGridNo = r.initialGridNo;
   s.aimTime = r.aimTime;
   s.aimShotLocation = r.aimShotLocation;
   s.doBurst = r.doBurst;

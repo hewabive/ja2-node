@@ -9,6 +9,7 @@
 // @src src/game/Strategic/Strategic_Pathing.cc BuildAStrategicPath, RebuildWayPointsForGroupPath
 // @src src/game/Strategic/StrategicMap.cc OKForSectorExit, SetupTacticalTraversalInformation; src/game/TileEngine/Map_Edgepoints.cc
 // @src GenerateMapEdgepoints, CalcMapEdgepointClassInsertionCode; src/game/Tactical/Soldier_Init_List.cc AddSoldierInitListEnemyDefenceSoldiers
+// @src src/game/Tactical/Arms_Dealer_Init.cc, ArmsDealerInvInit.cc, ShopKeeper_Interface.cc (merchants)
 #include "Oracle.h"
 
 #include "AIInternals.h"
@@ -79,6 +80,10 @@
 #include "Creature_Spreading.h"
 #include "Morale.h"
 #include "Strategic_Merc_Handler.h"
+#include "Arms_Dealer_Init.h"
+#include "DealerModel.h"
+#include "Facts.h"
+#include "ShopKeeper_Interface.h"
 
 #include <string_theory/string>
 
@@ -136,6 +141,9 @@ extern std::vector<PATROL_GROUP> gPatrolGroup;
 extern std::vector<ARMY_COMPOSITION> gArmyComp;
 extern std::vector<GARRISON_GROUP> gGarrisonGroup;
 extern std::unique_ptr<UINT8 []> gubGarrisonReinforcementsDenied;
+extern bool gOracleShopHoursActive;
+extern UINT32 gOracleShopOpeningTime;
+extern UINT32 gOracleShopClosingTime;
 
 namespace {
 
@@ -2673,7 +2681,9 @@ void SetGameOption(Command const& c)
 {
 	if (Has(c, "scifi")) gGameOptions.fSciFi = Integer(c, "scifi", 0) != 0;
 	if (Has(c, "difficulty")) gGameOptions.ubDifficultyLevel = static_cast<UINT8>(Integer(c, "difficulty", DIF_LEVEL_MEDIUM));
-	Emit(Json{}.str("probe", "options").num("line", c.line).flag("sciFi", gGameOptions.fSciFi).num("difficulty", gGameOptions.ubDifficultyLevel));
+	if (Has(c, "gunnut")) gGameOptions.fGunNut = Integer(c, "gunnut", 0) != 0;
+	Emit(Json{}.str("probe", "options").num("line", c.line).flag("sciFi", gGameOptions.fSciFi).num("difficulty", gGameOptions.ubDifficultyLevel)
+		.flag("gunNut", gGameOptions.fGunNut));
 }
 
 void DumpCreatures(Command const& c)
@@ -2952,6 +2962,286 @@ void ProbeBloodcatPlacement(Command const& c)
 		.raw("draws", draws));
 }
 
+std::string DescribeDealerSpecial(DEALER_SPECIAL_ITEM const& s)
+{
+	SPECIAL_ITEM_INFO const& i = s.Info;
+	return Numbers({s.fActive ? 1 : 0, i.bItemCondition, i.ubImprintID,
+		i.usAttachment[0], i.usAttachment[1], i.usAttachment[2], i.usAttachment[3],
+		i.bAttachmentStatus[0], i.bAttachmentStatus[1], i.bAttachmentStatus[2], i.bAttachmentStatus[3],
+		static_cast<long long>(s.uiRepairDoneTime), s.ubOwnerProfileId});
+}
+
+std::string DescribeDealerItems(ArmsDealerID const dealer)
+{
+	std::vector<std::string> items;
+	for (UINT16 item = 0; item < MAXITEMS; ++item)
+	{
+		DEALER_ITEM_HEADER const& h = gArmsDealersInventory[dealer][item];
+		bool const empty = h.ubTotalItems == 0 && h.ubPerfectItems == 0 && h.ubStrayAmmo == 0 && h.uiOrderArrivalTime == 0 &&
+			h.ubQtyOnOrder == 0 && !h.fPreviouslyEligible && h.SpecialItem.empty();
+		if (empty) continue;
+		std::vector<std::string> specials;
+		for (DEALER_SPECIAL_ITEM const& s : h.SpecialItem) specials.push_back(DescribeDealerSpecial(s));
+		items.push_back("[" + std::to_string(item) + "," + std::to_string(h.ubTotalItems) + "," + std::to_string(h.ubPerfectItems) + "," +
+			std::to_string(h.ubStrayAmmo) + "," + std::to_string(h.uiOrderArrivalTime) + "," + std::to_string(h.ubQtyOnOrder) + "," +
+			std::to_string(h.fPreviouslyEligible ? 1 : 0) + "," + JsonArray(specials) + "]");
+	}
+	return JsonArray(items);
+}
+
+std::string DescribeDealers()
+{
+	std::vector<std::string> dealers;
+	for (auto const* d : GCM->getDealers())
+	{
+		ARMS_DEALER_STATUS const& s = gArmsDealerStatus[d->dealerID];
+		dealers.push_back(Json{}
+			.num("cash", s.uiArmsDealersCash)
+			.num("flags", s.ubSpecificDealerFlags)
+			.flag("out", s.fOutOfBusiness)
+			.flag("delayUsed", s.fRepairDelayBeenUsed)
+			.flag("unused", s.fUnusedKnowsPlayer)
+			.num("lastSki", s.uiTimePlayerLastInSKI)
+			.raw("items", DescribeDealerItems(d->dealerID))
+			.text());
+	}
+	return JsonArray(dealers);
+}
+
+Json DealerContext(char const* name, Command const& c)
+{
+	return Json{}
+		.str("probe", name)
+		.num("line", c.line)
+		.num("worldDay", GetWorldDay())
+		.num("worldMinutes", GetWorldTotalMin())
+		.num("progress", gStrategicStatus.ubHighestProgress)
+		.flag("gunNut", gGameOptions.fGunNut)
+		.flag("estoni", CheckFact(FACT_ESTONI_REFUELLING_POSSIBLE, 0));
+}
+
+void DumpDealers(Command const& c)
+{
+	Emit(DealerContext("dealers", c).raw("dealers", DescribeDealers()));
+}
+
+void ProbeDealerInit(Command const& c)
+{
+	Json json = DealerContext("dealerinit", c);
+	std::string const draws = TracedSaiDraws([] { InitAllArmsDealers(); });
+	Emit(json.raw("draws", draws).raw("dealers", DescribeDealers()));
+}
+
+void ProbeDealerDaily(Command const& c)
+{
+	long long const count = Integer(c, "count", 1);
+	for (long long day = 1; day <= count; ++day)
+	{
+		WarpGameTime(NUM_SEC_IN_DAY, WARPTIME_NO_PROCESSING_OF_EVENTS);
+		Json json = DealerContext("dealerdaily", c);
+		std::string const draws = TracedSaiDraws([] { DailyUpdateOfArmsDealersInventory(); });
+		Emit(json.num("day", day).raw("draws", draws).raw("dealers", DescribeDealers()));
+	}
+}
+
+void SetHighestProgress(Command const& c)
+{
+	gStrategicStatus.ubHighestProgress = static_cast<UINT8>(Required(c, "highest"));
+	Emit(Json{}.str("probe", "progress").num("line", c.line).num("highest", gStrategicStatus.ubHighestProgress));
+}
+
+void SetFactProbe(Command const& c)
+{
+	Fact const id = static_cast<Fact>(Required(c, "id"));
+	bool const value = Integer(c, "value", 1) != 0;
+	std::string const draws = TracedSaiDraws([&] { if (value) SetFactTrue(id); else SetFactFalse(id); });
+	Emit(Json{}.str("probe", "fact").num("line", c.line).num("id", id).flag("value", value).raw("draws", draws));
+}
+
+UINT16 ItemArgument(std::string const& name)
+{
+	if (!name.empty() && std::all_of(name.begin(), name.end(), [](char ch) { return ch >= '0' && ch <= '9'; }))
+	{
+		return static_cast<UINT16>(std::stoi(name));
+	}
+	ItemModel const* const item = GCM->getItemByName(ST::string(name.c_str()));
+	if (!item) throw std::runtime_error("unknown item " + name);
+	return item->getItemIndex();
+}
+
+std::pair<std::string, long long> SplitPair(std::string const& text)
+{
+	size_t const colon = text.find(':');
+	if (colon == std::string::npos) throw std::runtime_error("expected <item>:<number>, got " + text);
+	return {text.substr(0, colon), std::stoll(text.substr(colon + 1))};
+}
+
+OBJECTTYPE DealerProbeObject(Command const& c)
+{
+	UINT16 const item = ItemArgument(Text(c, "item", ""));
+	INT8 const status = static_cast<INT8>(Integer(c, "status", 100));
+	UINT8 const count = static_cast<UINT8>(Integer(c, "count", 1));
+	OBJECTTYPE o;
+	CreateItems(item, status, std::min<UINT8>(count, MAX_OBJECTS_PER_SLOT), &o);
+	if (count > MAX_OBJECTS_PER_SLOT) o.ubNumberOfObjects = count;
+	if (Has(c, "ammo"))
+	{
+		auto const [ammo, rounds] = SplitPair(Text(c, "ammo", ""));
+		o.usGunAmmoItem = ItemArgument(ammo);
+		if (GCM->getItem(o.usGunAmmoItem)->getItemClass() == IC_AMMO) o.ubGunShotsLeft = static_cast<UINT8>(rounds);
+		else o.bGunAmmoStatus = static_cast<INT8>(rounds);
+	}
+	if (Has(c, "imprint")) o.ubImprintID = static_cast<UINT8>(Integer(c, "imprint", NO_PROFILE));
+	std::string const statuses = Text(c, "statuses", "");
+	for (size_t at = 0, k = 0; at < statuses.size() && k < MAX_OBJECTS_PER_SLOT; ++k)
+	{
+		size_t const comma = statuses.find(',', at);
+		o.bStatus[k] = static_cast<INT8>(std::stoi(statuses.substr(at, comma == std::string::npos ? std::string::npos : comma - at)));
+		if (comma == std::string::npos) break;
+		at = comma + 1;
+	}
+	std::string const attachments = Text(c, "attach", "");
+	size_t start = 0;
+	UINT8 slot = 0;
+	while (start < attachments.size() && slot < MAX_ATTACHMENTS)
+	{
+		size_t const comma = attachments.find(',', start);
+		std::string const part = attachments.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+		auto const [name, value] = SplitPair(part);
+		o.usAttachItem[slot] = ItemArgument(name);
+		o.bAttachStatus[slot] = static_cast<INT8>(value);
+		++slot;
+		if (comma == std::string::npos) break;
+		start = comma + 1;
+	}
+	return o;
+}
+
+std::string DescribeDealerObject(OBJECTTYPE const& o)
+{
+	return Numbers({o.usItem, o.ubNumberOfObjects, o.bStatus[0], o.usGunAmmoItem, o.ubGunShotsLeft, o.bGunAmmoStatus, o.ubImprintID,
+		o.usAttachItem[0], o.bAttachStatus[0], o.usAttachItem[1], o.bAttachStatus[1], o.usAttachItem[2], o.bAttachStatus[2],
+		o.usAttachItem[3], o.bAttachStatus[3]});
+}
+
+ArmsDealerID DealerArgument(Command const& c)
+{
+	long long const id = Required(c, "dealer");
+	if (id < 0 || id >= NUM_ARMS_DEALERS) throw std::runtime_error("dealer must be 0..18");
+	return static_cast<ArmsDealerID>(id);
+}
+
+void ProbeDealerPrice(Command const& c)
+{
+	ArmsDealerID const dealer = DealerArgument(c);
+	DealerModel const* const model = GCM->getDealer(dealer);
+	OBJECTTYPE const o = DealerProbeObject(c);
+	UINT8 const merc = static_cast<UINT8>(Integer(c, "merc", NO_PROFILE));
+	Json json = Json{}.str("probe", "dealerprice").num("line", c.line).raw("args", DescribeArgs(c)).raw("object", DescribeDealerObject(o));
+	json.nums("value", {CalcValueOfItemToDealer(dealer, o.usItem, TRUE), CalcValueOfItemToDealer(dealer, o.usItem, FALSE)});
+	json.real("condition", OracleItemConditionModifier(o.usItem, o.bStatus[0]));
+	if (model->type != ARMS_DEALER_REPAIRS)
+	{
+		json.nums("selling", {OracleCalcShopKeeperItemPrice(dealer, merc, TRUE, TRUE, model->sellingPrice, &o),
+			OracleCalcShopKeeperItemPrice(dealer, merc, TRUE, FALSE, model->sellingPrice, &o)});
+		json.nums("buying", {OracleCalcShopKeeperItemPrice(dealer, merc, FALSE, TRUE, model->buyingPrice, &o),
+			OracleCalcShopKeeperItemPrice(dealer, merc, FALSE, FALSE, model->buyingPrice, &o)});
+		UINT32 price = 0;
+		UINT32 const eval = OracleEvaluateInvSlot(dealer, merc, &o, &price);
+		json.nums("eval", {eval, price});
+	}
+	json.nums("transact", {CanDealerTransactItem(dealer, o.usItem, FALSE), CanDealerTransactItem(dealer, o.usItem, TRUE)});
+	Emit(json);
+}
+
+void ProbeDealerSell(Command const& c)
+{
+	ArmsDealerID const dealer = DealerArgument(c);
+	OBJECTTYPE o = DealerProbeObject(c);
+	std::string const object = DescribeDealerObject(o);
+	AddObjectToArmsDealerInventory(dealer, &o);
+	Emit(DealerContext("dealersell", c).raw("args", DescribeArgs(c)).raw("object", object).raw("dealers", DescribeDealers()));
+}
+
+void SetShopHours(Command const& c)
+{
+	gOracleShopHoursActive = Has(c, "open");
+	gOracleShopOpeningTime = static_cast<UINT32>(Integer(c, "open", 0));
+	gOracleShopClosingTime = static_cast<UINT32>(Integer(c, "close", 0));
+	Emit(Json{}.str("probe", "shophours").num("line", c.line).flag("active", gOracleShopHoursActive)
+		.num("open", gOracleShopOpeningTime).num("close", gOracleShopClosingTime));
+}
+
+void ProbeDealerRepair(Command const& c)
+{
+	ArmsDealerID const dealer = DealerArgument(c);
+	if (GCM->getDealer(dealer)->type != ARMS_DEALER_REPAIRS) throw std::runtime_error("dealerrepair needs a repairman");
+	OBJECTTYPE const o = DealerProbeObject(c);
+	UINT32 const start = static_cast<UINT32>(Integer(c, "start", GetWorldTotalMin()));
+	UINT32 const cost = CalculateObjectItemRepairCost(dealer, &o);
+	UINT32 const time = CalculateObjectItemRepairTime(dealer, &o);
+	std::vector<long long> closed;
+	std::string const ks = Text(c, "ks", "");
+	size_t at = 0;
+	while (at < ks.size())
+	{
+		size_t const comma = ks.find(',', at);
+		UINT32 const k = static_cast<UINT32>(std::stoul(ks.substr(at, comma == std::string::npos ? std::string::npos : comma - at)));
+		closed.push_back(CalculateMinutesClosedBetween(dealer, start, start + k));
+		if (comma == std::string::npos) break;
+		at = comma + 1;
+	}
+	Emit(Json{}.str("probe", "dealerrepair").num("line", c.line).raw("args", DescribeArgs(c)).raw("object", DescribeDealerObject(o))
+		.num("start", start).num("cost", cost).num("time", time).num("overnight", CalculateOvernightRepairDelay(dealer, start, time))
+		.flag("repairable", CanDealerRepairItem(dealer, o.usItem)).nums("closed", closed));
+}
+
+void SkipTime(Command const& c)
+{
+	UINT32 const seconds = static_cast<UINT32>(Required(c, "seconds"));
+	WarpGameTime(seconds, WARPTIME_NO_PROCESSING_OF_EVENTS);
+	Emit(Json{}.str("probe", "skiptime").num("line", c.line).num("seconds", seconds).num("worldSeconds", GetWorldTotalSeconds()));
+}
+
+void GiveDealerRepair(Command const& c)
+{
+	ArmsDealerID const dealer = DealerArgument(c);
+	OBJECTTYPE const o = DealerProbeObject(c);
+	UINT8 const owner = static_cast<UINT8>(Integer(c, "owner", NO_PROFILE));
+	GiveObjectToArmsDealerForRepair(dealer, &o, owner);
+	UINT8 const element = gubLastSpecialItemAddedAtElement;
+	UINT32 const done = gArmsDealersInventory[dealer][o.usItem].SpecialItem[element].uiRepairDoneTime;
+	Emit(Json{}.str("probe", "dealergive").num("line", c.line).raw("args", DescribeArgs(c)).raw("object", DescribeDealerObject(o))
+		.num("worldMinutes", GetWorldTotalMin()).num("element", element).num("done", done));
+}
+
+std::string DescribeSkiBoxes(std::vector<OracleSkiBox> const& boxes)
+{
+	std::vector<std::string> out;
+	for (OracleSkiBox const& b : boxes)
+	{
+		out.push_back(Json{}.num("item", b.item).num("element", b.element).num("count", b.count).num("flags", b.flags)
+			.num("unitPrice", b.unitPrice).num("owner", b.owner).raw("object", DescribeDealerObject(b.object)).text());
+	}
+	return JsonArray(out);
+}
+
+void ProbeShopKeeper(Command const& c)
+{
+	ArmsDealerID const dealer = DealerArgument(c);
+	UINT8 const merc = static_cast<UINT8>(Integer(c, "merc", NO_PROFILE));
+	std::vector<OracleSkiBox> boxes;
+	std::vector<OracleSkiBox> offered;
+	BOOLEAN delayed = FALSE;
+	Json json = DealerContext("ski", c);
+	std::string const draws = TracedSaiDraws([&] {
+		if (DoesDealerDoRepairs(dealer)) delayed = OracleHandlePossibleRepairDelays(dealer);
+		OracleInitializeShopKeeper(dealer, merc, &boxes, &offered);
+	});
+	Emit(json.num("dealer", dealer).num("merc", merc).flag("delayed", delayed).raw("boxes", DescribeSkiBoxes(boxes))
+		.raw("offered", DescribeSkiBoxes(offered)).raw("draws", draws).raw("dealers", DescribeDealers()));
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -3018,6 +3308,18 @@ void Dispatch(Command const& c)
 	if (c.name == "moralemove") return MoveForMorale(c);
 	if (c.name == "hourlymorale") return ProbeHourlyMorale(c);
 	if (c.name == "quartermorale") return ProbeQuarterHourMorale(c);
+	if (c.name == "dealers") return DumpDealers(c);
+	if (c.name == "dealerinit") return ProbeDealerInit(c);
+	if (c.name == "dealerdaily") return ProbeDealerDaily(c);
+	if (c.name == "progress") return SetHighestProgress(c);
+	if (c.name == "fact") return SetFactProbe(c);
+	if (c.name == "dealerprice") return ProbeDealerPrice(c);
+	if (c.name == "dealersell") return ProbeDealerSell(c);
+	if (c.name == "shophours") return SetShopHours(c);
+	if (c.name == "dealerrepair") return ProbeDealerRepair(c);
+	if (c.name == "skiptime") return SkipTime(c);
+	if (c.name == "dealergive") return GiveDealerRepair(c);
+	if (c.name == "ski") return ProbeShopKeeper(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

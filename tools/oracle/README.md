@@ -6,8 +6,8 @@ probe script and prints JSON lines. It gives reference values for our reimplemen
 cost table, tactical lighting (`LightTrueLevel` of every tile), and the state of loaded saves: full soldier
 dumps, the chance to hit and AP cost of an aimed shot, and the AI's choice of the best shot; autoresolve battles
 are traced draw by draw and replayed through ja2-node, together with the created soldiers, their strategic aftermath and
-the encounter code of the pre-battle interface; the creature quest (spreading, night planning, town attacks, placements)
-and the hourly team morale are probed the same way.
+the encounter code of the pre-battle interface; the creature quest (spreading, night planning, town attacks, placements),
+the hourly team morale and the arms dealers (stock, restocks, prices, repairs, shop entry) are probed the same way.
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -26,6 +26,9 @@ commit them.
 | `patches/0004-sector-transition-oracle.patch` | Wrappers for the static sector-exit helpers and trace marks around each placement (see "Hooks") |
 | `patches/0005-pre-battle-oracle.patch` | The encounter-code block of `InitPreBattleInterface` as a callable function (see "Hooks") |
 | `patches/0006-creature-morale-oracle.patch` | Weighted creature draws in the trace, a stop before creature battles, the morale decay counter at file scope (see "Hooks") |
+| `patches/0008-merchants-oracle.patch` | A shop-hours override and wrappers around the static shopkeeper helpers (see "Hooks") |
+| `merchant-compare.ts` | The merchant probes of `compare.ts` (`dealers`, `dealerinit`, `dealerdaily`, `progress`, `fact`, `dealerprice`, `dealersell`, `shophours`, `dealerrepair`, `skiptime`, `dealergive`, `ski`) |
+| `probes/merchants.txt` | Merchant probe script (see "Merchants") |
 | `autoresolve-compare.ts` | Core replay of `autoresolve` probes through ja2-node's autoresolve |
 | `autoresolve-creation.ts` | Level 2 of `autoresolve` probes (the soldiers created by `CreateAutoResolveInterface`) |
 | `creature-compare.ts` | The creature probes of `compare.ts` (`creatures`, `creaturequest`, `creaturetrigger`, `creaturespread`, `creatureplanning`, `creatureattack`, `endcreaturequest`, `setcreatures`, `creaturecomposition`, `options`, `setcontrol`, `tacticalflags`) |
@@ -722,6 +725,39 @@ quartermorale [count=<n>]                          # DecayTacticalMoraleModifier
 2026-10-16 all 43 probes matched (hated relations within and past their tolerance, learning to like and to hate,
 sleeping mercs, the third-hour strategic decay, a nervous merc moved away from his squad).
 
+### Merchants
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data"
+tools/oracle/run.sh tools/oracle/probes/merchants.txt ~/ja2-oracle/merchants.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle/merchants.jsonl
+```
+
+Commands (dealer ids 0–18 as in `dealers.json`; every dump also prints the world day and minutes, the highest progress,
+gun nut and `FACT_ESTONI_REFUELLING_POSSIBLE`):
+```
+dealers                                     # status and every non-empty item header with its special elements
+dealerinit                                  # InitAllArmsDealers, draws traced
+dealerdaily [count=<n>]                     # n × (WarpGameTime 1 day without events, DailyUpdateOfArmsDealersInventory)
+progress highest=<n>                        # gStrategicStatus.ubHighestProgress
+fact id=<n> value=0|1                       # SetFactTrue/False, draws traced (the Estoni gas intercept)
+options gunnut=0|1                          # also scifi=, difficulty= (shared with the creature probes)
+dealerprice dealer= item= [status= count= ammo=<item>:<n> attach=<item>:<s>,… imprint=] [merc=<profile>]
+dealersell dealer= item= [status= count= statuses=a,b,… ammo= attach= imprint=]   # AddObjectToArmsDealerInventory
+shophours [open=<min> close=<min>]          # override GetArmsDealerShopHours (no arguments: off)
+dealerrepair dealer= item= [status= attach=] [start=<min>] [ks=k1,k2,…]   # cost, time, overnight delay, closed minutes
+skiptime seconds=<n>                        # WarpGameTime without events
+dealergive dealer= item= [status= attach= imprint=] [owner=<profile>]   # GiveObjectToArmsDealerForRepair now
+ski dealer= [merc=<profile>]                # repair delay + InitializeShopKeeper headless: boxes, prices, collected repairs
+```
+`merchant-compare.ts` keeps its own merchant state: a `save` imports section 23 (with the save's facts, progress, gun nut
+and clock), `dealerinit`, `dealerdaily`, `fact` and `ski` replay the native draws (main and `PreRandom` interleaved, every
+range asserted, none left over) through ja2-node and compare the dumps field by field; prices, repairs and sales compare
+directly. On 2026-10-16 all 202 comparisons matched: eight initialisations over progress 0–100 and gun nut, 51 daily
+updates (30 from SaveGame10), four facts, 41 prices, 10 sales, 16 repair estimates, 10 repair jobs, 27 shop entries
+(boxes and dealer state each; one delay excuse taken, one refused by its `PreRandom` roll) and eight dealer dumps
+including the six saves' sections.
+
 ## Shipped probes
 
 | Script | Content |
@@ -740,6 +776,7 @@ sleeping mercs, the third-hour strategic decay, a nervous merc moved away from h
 | `probes/creature-battles.txt` | Six creature autoresolve battles in D13 with 0–12 militia, the save's mercs and 3–20 creatures (bandaging, a full retreat) |
 | `probes/creature-placement.txt` | Creature placements in F13 b3 (with the queen), G13 b3, E13 b1, D13 b1, H8 b1 and bloodcat placements in I16, E13, C8 and D9 |
 | `probes/morale.txt` | Hourly and quarter-hour morale on SaveGame10, 07 and 01 with set modifiers, relations, traits and positions |
+| `probes/merchants.txt` | Dealer initialisation at progress 0–100 and with gun nut, daily restocks, the Estoni gas, shop entries for every merchant, prices and sales at Tony, Keith, Jake, Franz, Gabby, Micky and Devin (Flo's modifier, stacks, attachments, Keith's fact), repair estimates with and without shop hours, repair queues with collection and the delay excuse, and every save's dealer section with 30 restocks from SaveGame10 |
 | `probes/sectors.txt` | Edgepoints loaded and generated on eight maps, screen-space exit thresholds on both sides of every edge (A9, A10 basement), exit-grid checks in D13 and the basement, walk-off/walk-in/mirror from the centre and near the edges, class codes on the isolated maps H13 and I14, init list sorts and ten defence placements (A9, B13, C13, D13), and `OKForSectorExit` on SaveGame10, 07 (in combat) and 01 before and after moving mercs to an edge or an exit grid |
 
 All three were run on the user's Steam JA2 Gold 1.12 data: every command succeeds, and on these
@@ -813,6 +850,15 @@ call site), and the appended `OracleDeterminePersistentEncounterCode(group, sect
 `gOracleSkipCreatureBattle`, which stops `CreatureAttackTown` before the battle switch; false in the game) and
 `src/game/Tactical/Morale.cc` (the function-static decay counter of `HourlyMoraleUpdate` becomes the file-scope
 `gOracleStrategicMoraleUpdateCounter`, same behaviour). Regenerate it like 0002 with those paths.
+
+`patches/0008-merchants-oracle.patch` (applied after 0006) touches `src/game/Tactical/Arms_Dealer_Init.cc`
+(`gOracleShopHoursActive`, `gOracleShopOpeningTime`, `gOracleShopClosingTime`: when active, `GetArmsDealerShopHours`
+returns them without looking for the dealer's soldier and schedule; inactive in the game) and
+`src/game/Tactical/ShopKeeper_Interface.{h,cc}` (appended `OracleCalcShopKeeperItemPrice`, `OracleItemConditionModifier`,
+`OracleEvaluateInvSlot`, `OracleHandlePossibleRepairDelays` and `OracleInitializeShopKeeper`, which select the dealer and a
+probe SM-panel merc with the given profile, run the static helper and restore the globals; the last one runs the
+inventory part of `InitializeShopKeeper` without buttons and returns the boxes and the player's offer area). Regenerate it
+like 0002 with those paths.
 
 ## Notes
 

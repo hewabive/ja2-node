@@ -101,6 +101,7 @@ function setSoldierGridNo(t: TacticalState, s: Soldier, requested: number): void
   }
   unmarkMovementReserved(t, s);
   if (s.ai.patrolGrid.length === 0) s.ai.patrolGrid[0] = g;
+  if (s.initialGridNo === 0) s.initialGridNo = g;
   placeOccupant(t, s);
   s.placed = true;
   addMercStructure(t, s);

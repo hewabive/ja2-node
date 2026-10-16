@@ -43,6 +43,7 @@ export interface WorldTimeControl {
   compressing(): boolean;
   startCompression(mode?: number): string | null;
   stopCompression(): void;
+  modalRefusal?(): string | null;
 }
 
 export interface Steppable {
@@ -103,6 +104,8 @@ export function advance(sim: Steppable, until: StopCondition, budget = DEFAULT_A
     collected.push(...sim.drainEvents());
     return refused;
   };
+  const modal = clock?.modalRefusal?.() ?? null;
+  if (modal) return report('refused', modal);
   if (strategic && !clock.onMap() && target === null && !sim.hasPendingDecision())
     return report('refused', 'time compression works on the strategic map only');
   if (strategic && clock.onMap() && !clock.compressing() && !sim.hasPendingDecision()) {

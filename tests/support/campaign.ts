@@ -1,10 +1,12 @@
 import type { ArmyContent } from '../../src/content/strategic/army.ts';
+import type { MerchantContent } from '../../src/content/strategic/merchant-content.ts';
 import { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { hireMerc } from '../../src/sim/campaign/hiring.ts';
 import { initNewGame } from '../../src/sim/campaign/new-game.ts';
 import { campaignCombatContext } from '../../src/sim/campaign/off-map-combat.ts';
 import { Roster } from '../../src/sim/campaign/roster.ts';
 import { createItem, createItems } from '../../src/sim/items/object.ts';
+import type { MerchantHooks } from '../../src/sim/strategic/economy/merchants/context.ts';
 import { sectorInfo } from '../../src/sim/strategic/map/sectors.ts';
 import { createStrategicState } from '../../src/sim/strategic/state.ts';
 import { CompressMode } from '../../src/sim/strategic/time/constants.ts';
@@ -37,6 +39,8 @@ export interface CampaignOptions {
   readonly seed: number;
   readonly mercs?: number;
   readonly garrison?: { readonly admins: number; readonly troops: number; readonly elites: number };
+  readonly merchants?: MerchantContent;
+  readonly merchantHooks?: Partial<MerchantHooks>;
 }
 
 export interface TestCampaign {
@@ -78,6 +82,15 @@ export function createTestCampaign(kit: CampaignKit, options: CampaignOptions): 
     economy: { economy: kit.economy.economy, items: kit.economy.items, crew: roster },
     queen: { army: kit.army },
     sectors: { worlds: kit.sectors.worlds, content, roster },
+    ...(options.merchants
+      ? {
+          merchants: {
+            content: options.merchants,
+            items: kit.economy.items,
+            ...(options.merchantHooks ? { hooks: options.merchantHooks } : {}),
+          },
+        }
+      : {}),
   });
   campaign = c;
   initNewGame(c);

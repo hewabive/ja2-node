@@ -1,0 +1,217 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Tactical/Arms_Dealer.h ArmsDealerID; Arms_Dealer_Init.h dealer item categories; Arms_Dealer_Init.cc GetArmsDealerItemTypeFromItemNumber (IC_MISC and IC_FACE cases), ItemContainsLiquid; ArmsDealerInvInit.cc DealerItemSortInfo, GetCurrentSuitabilityForItem (staples)",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "dealer ids by role (BOBBYR = -1); dealer item category bits and masks; per item class the item names with their own category (default = everything else of that class); sort categories in order with item class, weapon class and whether sold used; staple items (always suitable); liquids (always sold full)",
+  "dealerIds": {
+    "BOBBYR": -1,
+    "TONY": 0,
+    "FRANZ": 1,
+    "KEITH": 2,
+    "JAKE": 3,
+    "GABBY": 4,
+    "DEVIN": 5,
+    "HOWARD": 6,
+    "SAM": 7,
+    "FRANK": 8,
+    "BAR_BRO_1": 9,
+    "BAR_BRO_2": 10,
+    "BAR_BRO_3": 11,
+    "BAR_BRO_4": 12,
+    "MICKY": 13,
+    "ARNIE": 14,
+    "FREDO": 15,
+    "PERKO": 16,
+    "ELGIN": 17,
+    "MANNY": 18
+  },
+  "categories": {
+    "HANDGUNCLASS": 1,
+    "SMGCLASS": 2,
+    "RIFLECLASS": 4,
+    "MGCLASS": 8,
+    "SHOTGUNCLASS": 16,
+    "KNIFECLASS": 32,
+    "BLADE": 64,
+    "LAUNCHER": 128,
+    "ARMOUR": 256,
+    "MEDKIT": 512,
+    "MISC": 1024,
+    "AMMO": 2048,
+    "GRENADE": 4096,
+    "BOMB": 8192,
+    "EXPLOSV": 16384,
+    "KIT": 32768,
+    "FACE": 65536,
+    "DETONATORS": 262144,
+    "ATTACHMENTS": 524288,
+    "ALCOHOL": 1048576,
+    "ELECTRONICS": 2097152,
+    "HARDWARE": 4227072,
+    "MEDICAL": 8389120,
+    "CREATURE_PARTS": 33554432,
+    "ROCKET_RIFLE": 67108864,
+    "ALL_GUNS": 31,
+    "BIG_GUNS": 30,
+    "ALL_WEAPONS": 255
+  },
+  "categoryExceptions": {
+    "MISC": {
+      "BEER": "ALCOHOL",
+      "WINE": "ALCOHOL",
+      "ALCOHOL": "ALCOHOL",
+      "METALDETECTOR": "ELECTRONICS",
+      "LASERSCOPE": "ELECTRONICS",
+      "CANTEEN": "HARDWARE",
+      "CROWBAR": "HARDWARE",
+      "WIRECUTTERS": "HARDWARE",
+      "ADRENALINE_BOOSTER": "MEDICAL",
+      "REGEN_BOOSTER": "MEDICAL",
+      "SYRINGE_3": "MEDICAL",
+      "SYRINGE_4": "MEDICAL",
+      "SYRINGE_5": "MEDICAL",
+      "SILENCER": "ATTACHMENTS",
+      "SNIPERSCOPE": "ATTACHMENTS",
+      "BIPOD": "ATTACHMENTS",
+      "DUCKBILL": "ATTACHMENTS",
+      "DETONATOR": "DETONATORS",
+      "REMDETONATOR": "DETONATORS",
+      "REMOTEBOMBTRIGGER": "DETONATORS",
+      "default": "MISC"
+    },
+    "FACE": {
+      "EXTENDEDEAR": "ELECTRONICS",
+      "NIGHTGOGGLES": "ELECTRONICS",
+      "ROBOT_REMOTE_CONTROL": "ELECTRONICS",
+      "default": "FACE"
+    }
+  },
+  "sortCategories": [
+    {
+      "itemClass": "GUN",
+      "weaponClass": "HANDGUNCLASS",
+      "allowUsed": true
+    },
+    {
+      "itemClass": "GUN",
+      "weaponClass": "SHOTGUNCLASS",
+      "allowUsed": true
+    },
+    {
+      "itemClass": "GUN",
+      "weaponClass": "SMGCLASS",
+      "allowUsed": true
+    },
+    {
+      "itemClass": "GUN",
+      "weaponClass": "RIFLECLASS",
+      "allowUsed": true
+    },
+    {
+      "itemClass": "GUN",
+      "weaponClass": "MGCLASS",
+      "allowUsed": false
+    },
+    {
+      "itemClass": "LAUNCHER",
+      "weaponClass": "NOGUNCLASS",
+      "allowUsed": false
+    },
+    {
+      "itemClass": "AMMO",
+      "weaponClass": "NOGUNCLASS",
+      "allowUsed": false
+    },
+    {
+      "itemClass": "GRENADE",
+      "weaponClass": "NOGUNCLASS",
+      "allowUsed": false
+    },
+    {
+      "itemClass": "BOMB",
+      "weaponClass": "NOGUNCLASS",
+      "allowUsed": false
+    },
+    {
+      "itemClass": "BLADE",
+      "weaponClass": "NOGUNCLASS",
+      "allowUsed": false
+    },
+    {
+      "itemClass": "THROWING_KNIFE",
+      "weaponClass": "NOGUNCLASS",
+      "allowUsed": false
+    },
+    {
+      "itemClass": "PUNCH",
+      "weaponClass": "NOGUNCLASS",
+      "allowUsed": false
+    },
+    {
+      "itemClass": "ARMOUR",
+      "weaponClass": "NOGUNCLASS",
+      "allowUsed": true
+    },
+    {
+      "itemClass": "FACE",
+      "weaponClass": "NOGUNCLASS",
+      "allowUsed": true
+    },
+    {
+      "itemClass": "MEDKIT",
+      "weaponClass": "NOGUNCLASS",
+      "allowUsed": false
+    },
+    {
+      "itemClass": "KIT",
+      "weaponClass": "NOGUNCLASS",
+      "allowUsed": false
+    },
+    {
+      "itemClass": "MISC",
+      "weaponClass": "NOGUNCLASS",
+      "allowUsed": true
+    },
+    {
+      "itemClass": "THROWN",
+      "weaponClass": "NOGUNCLASS",
+      "allowUsed": false
+    },
+    {
+      "itemClass": "KEY",
+      "weaponClass": "NOGUNCLASS",
+      "allowUsed": false
+    },
+    {
+      "itemClass": "MONEY",
+      "weaponClass": "NOGUNCLASS",
+      "allowUsed": false
+    }
+  ],
+  "staples": [
+    "CLIP38_6",
+    "CLIP9_15",
+    "CLIP9_30",
+    "CLIP357_6",
+    "CLIP357_9",
+    "CLIP45_7",
+    "CLIP45_30",
+    "CLIP12G_7",
+    "CLIP12G_7_BUCKSHOT",
+    "CLIP545_30_HP",
+    "CLIP556_30_HP",
+    "CLIP762W_10_HP",
+    "CLIP762W_30_HP",
+    "CLIP762N_5_HP",
+    "CLIP762N_20_HP",
+    "FIRSTAIDKIT",
+    "MEDICKIT",
+    "TOOLKIT",
+    "LOCKSMITHKIT",
+    "CANTEEN",
+    "CROWBAR",
+    "JAR",
+    "JAR_ELIXIR",
+    "JAR_CREATURE_BLOOD"
+  ],
+  "liquids": ["CANTEEN", "BEER", "ALCOHOL", "JAR_HUMAN_BLOOD", "JAR_CREATURE_BLOOD", "JAR_QUEEN_CREATURE_BLOOD", "JAR_ELIXIR", "GAS_CAN"]
+}

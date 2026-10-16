@@ -406,6 +406,7 @@ export interface Soldier {
   groupId: number;
   insertionGridNo: number;
   insertionData: number;
+  initialGridNo: number;
   useExitGridForReentryDirection: boolean;
   preTraversalGridNo: number;
   waitActionToDo: number;
@@ -687,6 +688,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     groupId: 0,
     insertionGridNo: NOWHERE,
     insertionData: 0,
+    initialGridNo: 0,
     useExitGridForReentryDirection: false,
     preTraversalGridNo: NOWHERE,
     waitActionToDo: 0,
