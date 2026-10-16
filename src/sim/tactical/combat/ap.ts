@@ -12,6 +12,7 @@ import { plotPathCost } from '../ai/utils.ts';
 import { AnimHeight, endHeight, hasAnimFlag, height } from '../animation.ts';
 import { InvSlot, isValidSecondHandShot } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
+import { boxingHalvesPoints } from '../narrative/boxing-state.ts';
 import { AP, AP_LIMITS, apsToChangeStance, apsToLook, apsToReadyWeapon, calcActionPoints } from '../points.ts';
 import { effectiveAgility, effectiveDexterity, effectiveMarksmanship } from '../skills.ts';
 import { Body, NOWHERE, type Soldier } from '../soldier.ts';
@@ -83,7 +84,7 @@ export function minAPsToShootOrStab(t: TacticalState, s: Soldier, g: number, add
     if (!afterMoving) s.dontChargeReadyAPs = false;
   }
   if (g !== s.lastTarget && !rocketLauncher) cost += AP.CHANGE_TARGET;
-  const full = calcActionPoints(t.content, s);
+  const full = calcActionPoints(t.content, s, boxingHalvesPoints(t));
   const skill = aimSkill(t, s, item);
   if (s.weaponMode === WeaponMode.ATTACHED) {
     const slot = findAttachment(inHand, itemIndex(t, 'UNDER_GLAUNCHER'));
@@ -129,7 +130,7 @@ export function minAPsToThrow(t: TacticalState, s: Soldier, g: number): number {
   let ap = AP.MIN_AIM_ATTACK;
   if (g !== s.lastTarget) ap += AP.CHANGE_TARGET;
   ap += apsToChangeStance(t.content, s, AnimHeight.STAND);
-  const full = calcActionPoints(t.content, s);
+  const full = calcActionPoints(t.content, s, boxingHalvesPoints(t));
   const top = 2 * full;
   const bottom = idiv(TOSSES_PER_10TURNS * (50 + idiv(s.stats.dexterity, 2)), 10);
   ap += idiv(idiv(100 * top, bottom) + 1, 2);
@@ -199,7 +200,11 @@ export function calcTotalAPsToAttack(t: TacticalState, s: Soldier, g: number, ad
     case ItemClass.THROWING_KNIFE:
       return (
         (minAPsToAttack(t, s, g, addTurning) +
-          (s.doBurst ? calcAPsToBurst(t, calcActionPoints(t.content, s), inHand) : s.weaponMode === WeaponMode.ATTACHED ? 0 : aimTime)) &
+          (s.doBurst
+            ? calcAPsToBurst(t, calcActionPoints(t.content, s, boxingHalvesPoints(t)), inHand)
+            : s.weaponMode === WeaponMode.ATTACHED
+              ? 0
+              : aimTime)) &
         0xff
       );
     case ItemClass.GRENADE:

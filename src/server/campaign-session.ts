@@ -1,12 +1,13 @@
 import type { TextKey } from '../content/narrative/dialogue-text.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
-import type { ConversationView, NpcRequestPromptView, PlayerView, SoldierView } from '../protocol/view.ts';
+import type { BoxingView, ConversationView, NpcRequestPromptView, PlayerView, SoldierView } from '../protocol/view.ts';
 import type { WorldTimeControl } from '../sim/advance.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { MercKind, type Roster } from '../sim/campaign/roster.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { isTimeBeingCompressed, worldDay, worldHour, worldMinute } from '../sim/strategic/time/world-clock.ts';
+import { BoxingState, boxingStateName } from '../sim/tactical/narrative/boxing-state.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { autoresolveView, npcRequestView, promptView } from './battle-view.ts';
@@ -130,6 +131,15 @@ export class CampaignSession implements SessionSim {
     return { conversation, npcRequest: npcRequestView(this.campaign), ...(talk.scriptedSequence() ? { scriptedSequence: true } : {}) };
   }
 
+  #boxing(): { boxing?: BoxingView | null } {
+    const t = this.campaign.tactical?.state;
+    if (!t || !this.campaign.talk) return {};
+    const b = t.boxing;
+    if (b.state === BoxingState.NOT_BOXING) return { boxing: null };
+    const boxers = t.soldiers.filter((s) => s?.placed && s.boxer).map((s) => s.id);
+    return { boxing: { state: boxingStateName(b.state) as BoxingView['state'], boxers, uiLocked: b.uiLocked } };
+  }
+
   view(): PlayerView {
     const c = this.campaign.state.clock;
     const clock = { day: worldDay(c), hour: worldHour(c), minute: worldMinute(c), compressing: isTimeBeingCompressed(c) };
@@ -143,7 +153,7 @@ export class CampaignSession implements SessionSim {
       : {};
     const shop = this.campaign.shop ? { shop: this.campaign.shop.view() } : {};
     const laptop = this.campaign.laptop ? { laptop: laptopView(this.campaign) } : {};
-    const talk = this.#conversation();
+    const talk = { ...this.#conversation(), ...this.#boxing() };
     const extra = strategic
       ? { clock, strategic, ...battle, ...shop, ...laptop, ...talk }
       : { clock, ...battle, ...shop, ...laptop, ...talk };

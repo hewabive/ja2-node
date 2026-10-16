@@ -23,7 +23,7 @@ import { createEncounterState, createMovementFlowState, type EncounterState, typ
 import { createForcesState, type ForcesState } from './forces/groups.ts';
 import { createMapState, type StrategicMapState } from './map/sectors.ts';
 import { type CivGroupState, createCivGroupState } from './narrative/civ-groups.ts';
-import { createNarrativeState, type NarrativeState } from './narrative/facts.ts';
+import { type BoxingRecord, createNarrativeState, type NarrativeState } from './narrative/facts.ts';
 import { createEnvironment, type Environment } from './time/environment.ts';
 import { createEventQueue, type EventQueue } from './time/event-queue.ts';
 import { createWorldClock, type WorldClock } from './time/world-clock.ts';
@@ -95,6 +95,7 @@ export interface StrategicStateOptions {
   readonly profiles?: Map<number, ProfileProgress>;
   readonly civGroups?: CivGroupState;
   readonly keyTable?: KeyTable;
+  readonly boxing?: BoxingRecord;
 }
 
 const DEFAULT_SEED = 1;
@@ -131,7 +132,7 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     merchants: createMerchantState(),
     contracts: createContractState(),
     laptop: createLaptopState(),
-    narrative: createNarrativeState(),
+    narrative: createNarrativeState(options.boxing),
     npcRecords: createNpcRecordState(),
     terrorists: { count: 0 },
     civGroups: options.civGroups ?? createCivGroupState(),

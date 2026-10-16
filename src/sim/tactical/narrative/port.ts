@@ -5,8 +5,10 @@
 // @src SoldierGiveItemFromAnimation (the dealer, team member and NPC branches); TileEngine/Explosion_Control.cc
 // @src PerformItemAction (ACTION_ITEM_SEX: HandleMoraleEvent, FatigueCharacter); Tactical/Soldier_Control.cc
 // @src CanRobotBeControlled, ControllingRobot, robot_remote_holder; Tactical/Items.cc PlaceObject (the remote control);
-// @src Tactical/Soldier_Profile.cc ChangeSoldierTeam (side changes of Overhead.cc).
-// @src See docs/25 §1, §2.1, §3, §6, §9.4, §11.5, docs/24 §4.
+// @src Tactical/Soldier_Profile.cc ChangeSoldierTeam (side changes of Overhead.cc); Tactical/Boxing.cc (PauseGame, UnPauseGame,
+// @src AddHistoryToPlayersLog, DeleteTalkingMenu); Tactical/Overhead.cc SetSoldierNeutral; TacticalAI/AIMain.cc EndAIGuysTurn
+// @src (TriggerFriendWithHostileQuote).
+// @src See docs/25 §1, §2.1, §3, §6, §7, §9.4, §11.5, docs/24 §4.
 
 import type { ItemObject } from '../../items/object.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
@@ -51,6 +53,12 @@ export interface NarrativePort {
   controllingRobot(s: Soldier): boolean;
   robotRemotePlaced(s: Soldier): void;
   changeSoldierTeam(s: Soldier, team: number): Soldier | null;
+  pauseGame(): void;
+  unPauseGame(): void;
+  addHistory(code: number, secondCode: number): void;
+  deleteTalkingMenu(): void;
+  setSoldierNeutral(s: Soldier): void;
+  triggerFriendWithHostileQuote(profile: number): void;
 }
 
 export const NO_NARRATIVE_PORT: NarrativePort = {
@@ -91,4 +99,12 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   controllingRobot: () => false,
   robotRemotePlaced: () => {},
   changeSoldierTeam: () => null,
+  pauseGame: () => {},
+  unPauseGame: () => {},
+  addHistory: () => {},
+  deleteTalkingMenu: () => {},
+  setSoldierNeutral: (s) => {
+    s.neutral = true;
+  },
+  triggerFriendWithHostileQuote: () => {},
 };

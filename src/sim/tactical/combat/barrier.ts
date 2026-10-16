@@ -2,15 +2,18 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc InternalReduceAttackBusyCount, ReduceAttackBusyCount, FreeUpAttacker,
 // @src FreeUpAttackerGivenTarget, ReduceAttackBusyGivenTarget, CalcSuppressionTolerance, HandleSuppressionFire,
-// @src OppList.cc NoticeUnseenAttacker. See docs/11 §8.
+// @src OppList.cc NoticeUnseenAttacker (with ReevaluateEnemyStance); the EndBoxingMatch of InternalReduceAttackBusyCount. See docs/11 §8, docs/25 §7.2.
 
 import { ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { AnimHeight, changeSoldierStance, endHeight } from '../animation.ts';
 import { InvSlot } from '../inventory.ts';
+import { endBoxingMatch } from '../narrative/boxing.ts';
+import { boxingFight } from '../narrative/boxing-state.ts';
 import { processImplicationsOfPCAttack } from '../narrative/civ-hostility.ts';
 import { calcInterruptDuelPts, interruptDuel, standardInterruptConditionsMet } from '../perception/duel.ts';
+import { reevaluateEnemyStance } from '../perception/enemy-stance.ts';
 import { closestKnownOpponent } from '../perception/knowledge.ts';
 import { dequeueDeferredNoises } from '../perception/noise.ts';
 import { Caller, Opp } from '../perception/opp.ts';
@@ -122,7 +125,7 @@ export function noticeUnseenAttacker(t: TacticalState, att: Soldier, def: Soldie
     if (def.team === Team.OUR) {
       statChange(t, def, StatKind.EXPERIENCE, 5, StatCause.SUCCESS);
       radioSightings(t, def, att, def.team);
-    }
+    } else reevaluateEnemyStance(t, def, def.state);
   } else {
     t.turnHooks.setNewSituation(t, def);
     if (def.ai.alertStatus < AlertStatus.RED) {
@@ -166,6 +169,7 @@ export function internalReduceAttackBusyCount(
     if (target && soldier.attackNoticed) {
       if (target.bodyType !== Body.CROW && soldier.team === Team.OUR) enterCombat = processImplicationsOfPCAttack(t, soldier, target);
       if (target.bodyType === Body.CROW) enterCombat = false;
+      if (boxingFight(t) && target.life <= 0) endBoxingMatch(t, target);
       if (soldier.team !== Team.OUR || target.team !== Team.OUR) {
         if ((target.oppList[soldier.id] ?? 0) !== Opp.SEEN_CURRENTLY) noticeUnseenAttacker(t, soldier, target);
         target.ai.underFire = 2;

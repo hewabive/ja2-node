@@ -5,9 +5,12 @@
 // @src Tactical/Overhead.cc HandleNPCTeamMemberDeath (terrorists and assassins); Map_Screen_Helicopter.cc
 // @src SetUpHelicopterForPlayer (from HandleAtNewGridNo); Game_Event_Hook.cc EVENT_PROCESS_TACTICAL_SCHEDULE; Scheduling.cc
 // @src (the strategic event calls of the schedules); Tactical/Soldier_Control.cc CanRobotBeControlled, GetRobotController;
-// @src Tactical/Items.cc PlaceObject (UpdateRobotControllerGivenController). See docs/25 §1, §5, §6.2, §9.4, §10.2.
+// @src Tactical/Items.cc PlaceObject (UpdateRobotControllerGivenController); Tactical/Boxing.cc (PauseGame, UnPauseGame,
+// @src AddHistoryToPlayersLog, DeleteTalkingMenu); Tactical/Overhead.cc SetSoldierNeutral; TacticalAI/AIMain.cc EndAIGuysTurn
+// @src (TriggerFriendWithHostileQuote). See docs/25 §1, §5, §6.2, §7, §9.4, §10.2.
 
 import { i8 } from '../../core/int.ts';
+import { deleteTalkingMenu } from '../narrative/converse.ts';
 import { decrementTownLoyalty, incrementTownLoyalty, reduceLoyaltyForRebelsBetrayed } from '../strategic/economy/loyalty.ts';
 import { setUpHelicopterForPlayer } from '../strategic/forces/helicopter.ts';
 import { makeCivGroupHostileOnNextSectorEntrance } from '../strategic/narrative/civ-groups.ts';
@@ -19,8 +22,9 @@ import {
   deleteAllStrategicEventsOfType,
   deleteStrategicEvent,
 } from '../strategic/time/event-queue.ts';
-import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
+import { pauseGame, unPauseGame, worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { HOSTILITY_DELAY_MINUTES } from '../tactical/narrative/constants.ts';
+import { triggerFriendWithHostileQuote } from '../tactical/narrative/npc-actions/generic.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from '../tactical/narrative/port.ts';
 import type { ScheduleClock } from '../tactical/narrative/schedule-state.ts';
 import { processTacticalSchedule } from '../tactical/narrative/schedules.ts';
@@ -75,6 +79,24 @@ export function campaignNarrativePort(campaign: CampaignSim): NarrativePort {
     controllingRobot: (soldier) => campaign.battle?.roster.controllingRobot(soldier.id) ?? false,
     robotRemotePlaced: (soldier) => campaign.battle?.roster.updateRobotControllerGivenController(soldier.id),
     changeSoldierTeam: (soldier, team) => campaign.talk?.npcActions.recruitFlow.changeTeam(soldier, team) ?? null,
+    pauseGame: () => pauseGame(s.clock),
+    unPauseGame: () => {
+      unPauseGame(s.clock);
+    },
+    addHistory: (code, secondCode) => campaign.narrative.history(code, secondCode, s.worldSector),
+    deleteTalkingMenu: () => {
+      const host = campaign.talk?.host;
+      if (host) deleteTalkingMenu(host, 'script');
+    },
+    setSoldierNeutral: (soldier) => {
+      const env = campaign.talk?.npcActions.env;
+      if (env) env.setSoldierNeutral(soldier);
+      else soldier.neutral = true;
+    },
+    triggerFriendWithHostileQuote: (profile) => {
+      const env = campaign.talk?.npcActions.env;
+      if (env) triggerFriendWithHostileQuote(env, profile);
+    },
   };
 }
 

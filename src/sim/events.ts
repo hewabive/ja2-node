@@ -5,6 +5,7 @@ import type { NarrativeEvent } from './narrative/events.ts';
 import type { ShopEvent } from './strategic/economy/merchants/events.ts';
 import type { HelicopterEvent } from './strategic/forces/helicopter-events.ts';
 import type { DoorEvent } from './tactical/doors/events.ts';
+import type { BoxingEvent } from './tactical/narrative/boxing-events.ts';
 
 export interface SimEventBase {
   readonly tick: number;
@@ -57,7 +58,7 @@ export interface InterruptEndedEvent extends SimEventBase {
 
 export interface CombatEndedEvent extends SimEventBase {
   readonly type: 'combatEnded';
-  readonly reason: 'lull' | 'won' | 'lost';
+  readonly reason: 'lull' | 'won' | 'lost' | 'boxing';
 }
 
 export interface DoorChangedEvent extends SimEventBase {
@@ -391,5 +392,6 @@ export type SimEvent =
   | DoorEvent
   | HelicopterEvent
   | NarrativeEvent
-  | QuestEvent;
+  | QuestEvent
+  | BoxingEvent;
 export type SimEventType = SimEvent['type'];

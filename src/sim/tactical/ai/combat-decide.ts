@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/TacticalAI/DecideAction.cc DecideActionYellow, DecideActionRed, DecideActionBlack. See docs/13 §3, §5, §6.
+// @src src/game/TacticalAI/DecideAction.cc DecideActionYellow, DecideActionRed, DecideActionBlack (with the boxer branches).
+// @src See docs/13 §3, §5, §6, docs/25 §7.2.
 
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, spacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
@@ -16,6 +17,7 @@ import { inGasOrSmoke } from '../explosions/smoke.ts';
 import { calcMaxTossRange } from '../explosions/throwing.ts';
 import { autoPlaceObject, InvSlot } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
+import { BoxingState, boxingHalvesPoints } from '../narrative/boxing-state.ts';
 import { CivGroupHostility } from '../narrative/constants.ts';
 import { isWater } from '../pathfinding.ts';
 import { closestKnownOpponent, noiseHeard, whatIKnowThatPublicDont } from '../perception/knowledge.ts';
@@ -47,6 +49,7 @@ import {
   inLightAtNight,
 } from './cover.ts';
 import { determineMovementMode, realtimeCivDelay } from './decide.ts';
+import { boxerClosesIn, decideActionBoxerEnteringRing } from './decide-boxing.ts';
 import { GoFlag, goAsFarAsPossibleTowards, internalGoAsFarAsPossibleTowards } from './destinations.ts';
 import { ItemSearch, searchForItems } from './item-search.ts';
 import { calcMorale, rangeChangeDesire } from './morale.ts';
@@ -434,7 +437,7 @@ export function decideActionRed(t: TacticalState, s: Soldier, hooks: CombatDecid
     ai.actionData = findNearbyDarkerSpot(t, s);
     if (ai.actionData !== NOWHERE) return AiAction.LEAVE_WATER_GAS;
   }
-  if (t.inCombat && !civilian && !water && !gas && canNPCAttack(t, s) === 1) {
+  if (t.inCombat && !civilian && !water && !gas && !s.boxer && canNPCAttack(t, s) === 1) {
     const toss = longRangeToss(t, s);
     if (toss !== null) return toss;
   }
@@ -723,15 +726,23 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
     return AiAction.NONE;
   }
   const canMove = s.actionPoints >= minPtsToMove(ctx(t), s, s.uiMovementMode);
-  const deep = deepWater(t, s.gridNo);
-  const gas = inGasOrSmoke(t, s, s.gridNo);
-  ai.morale = calcMorale(t, s);
-  if (gas || s.breath < 5) {
-    if (canMove) {
-      ai.actionData = findSpotMaxDistFromOpponents(t, s);
-      if (ai.actionData !== NOWHERE) return AiAction.RUN_AWAY;
+  let deep = false;
+  let gas = false;
+  if (s.boxer) {
+    if (t.boxing.state === BoxingState.PRE_BOXING) return decideActionBoxerEnteringRing(t, s);
+    if (t.boxing.state !== BoxingState.BOXING) return AiAction.NONE;
+    ai.morale = calcMorale(t, s);
+  } else {
+    deep = deepWater(t, s.gridNo);
+    gas = inGasOrSmoke(t, s, s.gridNo);
+    ai.morale = calcMorale(t, s);
+    if (gas || s.breath < 5) {
+      if (canMove) {
+        ai.actionData = findSpotMaxDistFromOpponents(t, s);
+        if (ai.actionData !== NOWHERE) return AiAction.RUN_AWAY;
+      }
+      ai.morale = AiMorale.HOPELESS;
     }
-    ai.morale = AiMorale.HOPELESS;
   }
   if ((deep || gas) && canMove) {
     ai.actionData = findNearestUngassedLand(t, s);
@@ -743,7 +754,10 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
   let canAttack: number;
   let tryPunching = false;
   if (s.actionPoints < 2 || deep || gas) canAttack = 0;
-  else {
+  else if (s.boxer) {
+    canAttack = 1;
+    tryPunching = true;
+  } else {
     for (;;) {
       canAttack = canNPCAttack(t, s);
       if (canAttack === 1) break;
@@ -876,7 +890,7 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
       Math.trunc((t.content.items.byIndex.get(s.inv[bestAttack.weaponIn]?.item ?? NOTHING)?.weapon?.range ?? 0) / 10) &&
     rangeChangeDesire(t, s) >= 4
   ) {
-    if (canMove && ai.orders !== Orders.STATIONARY && !t.turn.hiddenInterrupt) {
+    if (canMove && ai.orders !== Orders.STATIONARY && !t.turn.hiddenInterrupt && !s.boxer) {
       const roll = s.team === Team.MILITIA ? t.pre.int(20) : t.pre.int(40);
       if (roll > bestAttack.chanceToReallyHit) {
         allowCoverCheck = true;
@@ -891,7 +905,8 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
       !t.turn.skipCoverCheck &&
       !t.turn.hiddenInterrupt &&
       (bestAction === AiAction.NONE || s.lastAttackHit) &&
-      s.team !== Team.OUR) ||
+      s.team !== Team.OUR &&
+      !s.boxer) ||
     allowCoverCheck
   ) {
     const cover = findBestNearbyCover(t, s, ai.morale);
@@ -942,6 +957,7 @@ export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDec
   }
   if (bestAction !== AiAction.NONE) return executeAttackChoice(t, s, hooks, bestAction, bestAttack, bestShot);
   if (isTank(s)) return AiAction.NONE;
+  if (s.boxer) return boxerClosesIn(t, s, canMove, (soldier, action) => determineMovementMode(t, soldier, action));
   if (bestCover !== NOWHERE) {
     ai.actionData = bestCover;
     return AiAction.TAKE_COVER;
@@ -1080,7 +1096,7 @@ function executeAttackChoice(
     const gun = s.inv[best.weaponIn];
     const burstCapable = (t.content.items.byIndex.get(gun?.item ?? NOTHING)?.weapon?.shotsPerBurst ?? 0) > 0;
     if (burstCapable && (bestShot.opponent?.life ?? 0) >= OKLIFE && (gun?.gunShotsLeft ?? 0) > 1 && s.team !== Team.OUR && gun) {
-      const burstAPs = calcAPsToBurst(t, calcActionPoints(t.content, s), gun);
+      const burstAPs = calcAPsToBurst(t, calcActionPoints(t.content, s, boxingHalvesPoints(t)), gun);
       let reraise = 0;
       if (changeStanceFirst && hasFireReady(t, s)) reraise = t.content.items.byIndex.get(gun.item)?.weapon?.readyTime ?? 0;
       if (s.actionPoints - (best.apCost - best.aimTime) - reraise >= burstAPs) {
@@ -1112,7 +1128,9 @@ function executeAttackChoice(
         if (t.pre.int(100) < chance) {
           best.aimTime = BURSTING;
           best.apCost = u8(
-            best.apCost - best.aimTime + calcAPsToBurst(t, calcActionPoints(t.content, s), s.inv[InvSlot.HAND] as typeof gun),
+            best.apCost -
+              best.aimTime +
+              calcAPsToBurst(t, calcActionPoints(t.content, s, boxingHalvesPoints(t)), s.inv[InvSlot.HAND] as typeof gun),
           );
           if (ai.attitude !== Attitude.ATTACKSLAYONLY) calcSpreadBurst(t, s, best.target, best.targetLevel);
         }

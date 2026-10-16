@@ -1,15 +1,18 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/TacticalAI/AIMain.cc EndAIGuysTurn, StartNPCAI, TurnBasedHandleNPCAI, RefreshAI, ManChecksOnFriends,
+// @src src/game/TacticalAI/AIMain.cc EndAIGuysTurn (with the civilian group's proximity rule and its boxer exception),
+// @src StartNPCAI, TurnBasedHandleNPCAI, RefreshAI, ManChecksOnFriends,
 // @src NPCDoesNothing; AIUtils.cc IsActionAffordable; Soldier_Control.cc SetSoldierAsUnderAiControl. See docs/10 §6.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { endHeight } from '../animation.ts';
 import { haltMoveForSoldierOutOfPoints } from '../movement.ts';
+import { boxingHalvesPoints } from '../narrative/boxing-state.ts';
+import { civilianGroupMembersChangeSidesWithinProximity } from '../narrative/civ-hostility.ts';
 import { type HeightClass, soldierToSoldierLineOfSight } from '../perception/los.ts';
 import { distanceVisible } from '../perception/sight.ts';
 import { AP, apsToLook, minPtsToMove, type PointsContext } from '../points.ts';
-import { AlertStatus, isMonster, NOWHERE, OKLIFE, type Soldier } from '../soldier.ts';
+import { AlertStatus, CivilianGroup, isMonster, NO_PROFILE, NOWHERE, OKLIFE, type Soldier } from '../soldier.ts';
 import { mercs, type TacticalState } from '../state.ts';
 import { removeFirstAIListEntry } from '../turns/ai-list.ts';
 import { endAITurn } from '../turns/turns.ts';
@@ -141,8 +144,16 @@ export function startNPCAI(t: TacticalState, s: Soldier, control: AiControl): vo
   decideAlertStatus(t, s, control.hooks);
 }
 
+function hostileCivilianSpreadsTheWord(t: TacticalState, s: Soldier): void {
+  if (s.civilianGroup === CivilianGroup.NONE || s.neutral) return;
+  if (s.boxer && boxingHalvesPoints(t)) return;
+  const first = civilianGroupMembersChangeSidesWithinProximity(t, s);
+  if (first !== NO_PROFILE) t.narrative.triggerFriendWithHostileQuote(first);
+}
+
 export function endAIGuysTurn(t: TacticalState, s: Soldier, control: AiControl): void {
   if (!t.inCombat) return;
+  hostileCivilianSpreadsTheWord(t, s);
   s.aiTurnControl = false;
   s.turnInProgress = false;
   s.moved = true;

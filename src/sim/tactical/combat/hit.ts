@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/LOS.cc BulletHitMerc; Weapons.cc WeaponHit; Soldier_Control.cc EVENT_SoldierGotHit,
 // @src CalcScreamVolume, DoGenericHit, SoldierGotHitGunFire, SoldierGotHitExplosion, SoldierGotHitBlade, SoldierGotHitPunch,
-// @src SoldierTakeDamage, HandleTakeDamageDeath, CalcSoldierNextBleed, ReleaseSoldiersAttacker, CheckForFreeupFromHit,
+// @src SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest), HandleTakeDamageDeath, CalcSoldierNextBleed, ReleaseSoldiersAttacker, CheckForFreeupFromHit,
 // @src SoldierCollapse, ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
 // @src Soldier_Ani.cc OKFallDirection; Weapons.cc DoSpecialEffectAmmoMiss (creature spit gas). See docs/11 §4–§5.
 
@@ -13,6 +13,9 @@ import { TravelCost } from '../../../content/world/movement-costs.ts';
 import type { StructureInstance } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { copyObjectInto, createItem, deleteObject, type ItemObject, ObjectFlags } from '../../items/object.ts';
+import { Fact, Quest } from '../../strategic/narrative/fact-ids.ts';
+import { QuestStatus } from '../../strategic/narrative/facts.ts';
+import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { anim, animName } from '../anim-states.ts';
 import { AnimHeight, endHeight, hasAnimFlag, initNewSoldierAnim, setDesiredDirection, setSoldierDirection } from '../animation.ts';
 import { igniteExplosionXY } from '../explosions/explosion.ts';
@@ -21,6 +24,7 @@ import { newSmokeEffect } from '../explosions/smoke.ts';
 import { cancelGiveOnCollapse } from '../give.ts';
 import { InvSlot } from '../inventory.ts';
 import { directionToward, setSoldierDestination, worldIndexFromCoords } from '../movement.ts';
+import { boxingActive } from '../narrative/boxing-state.ts';
 import { newOKDestination } from '../pathfinding.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { SightFlags } from '../perception/opp.ts';
@@ -584,6 +588,12 @@ function checkForBreathCollapse(s: Soldier): void {
   if (s.breath === 0 && !s.collapsed && !isVehicle(s) && !isRobot(s) && !s.monsterOrAnimal) s.breathCollapsed = true;
 }
 
+function noticeMariaEscapeWhenKingpinsManIsHurt(t: TacticalState, s: Soldier): void {
+  if (s.team !== Team.CIV || s.civilianGroup !== CivilianGroup.KINGPIN || boxingActive(t)) return;
+  if (t.narrative.questStatus(Quest.RESCUE_MARIA) !== QuestStatus.IN_PROGRESS) return;
+  if (t.soldiers.some((x) => x?.placed && x.profile === Npc.MARIA)) t.narrative.setFactTrue(Fact.MARIA_ESCAPE_NOTICED);
+}
+
 export function soldierTakeDamage(
   t: TacticalState,
   s: Soldier,
@@ -595,6 +605,7 @@ export function soldierTakeDamage(
   let life = i16(lifeIn);
   let breath = i16(breathIn);
   s.lastDamageReason = reason;
+  noticeMariaEscapeWhenKingpinsManIsHurt(t, s);
   const oldLife = s.life;
   if (isVehicle(s)) return 0;
   const bandage = i8(s.lifeMax - s.life - s.bleeding);

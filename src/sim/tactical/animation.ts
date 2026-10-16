@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc EVENT_InitNewSoldierAnim, SetSoldierAniSpeed, CalculateSoldierAniSpeed,
 // @src SoldierGotoStationaryStance, ChangeSoldierStance, EVENT_SetSoldierDirection, EVENT_InternalSetSoldierDesiredDirection,
-// @src TurnSoldier, AdjustForFastTurnAnimation, BeginSoldierClimbFence; Soldier_Ani.cc AdjustToNextAnimationFrame.
+// @src TurnSoldier, AdjustForFastTurnAnimation, BeginSoldierClimbFence; Soldier_Ani.cc AdjustToNextAnimationFrame (code 444 with
+// @src its BoxingMovementCheck).
 // See docs/03, docs/06 §5, docs/07 §4.
 
 import { classifyCode, type OpOutcome } from '../../content/anim/script.ts';
@@ -22,6 +23,7 @@ import { aiDoorActionWithoutInteraction, soldierHandleInteractiveObject } from '
 import { InvSlot } from './inventory.ts';
 import { countMuzzleFlashFrame } from './lighting/muzzle-flash.ts';
 import { getNewSoldierPath, handleGotoNewGridNo, isJumpableFenceAt, moveMercFacingDirection, setSoldierPosition } from './movement.ts';
+import { boxingMovementCheckWhileTracked } from './narrative/boxing.ts';
 import { newOKDestination } from './pathfinding.ts';
 import { addMercStructure, isValidStance, okToAddMercToWorld } from './person-structure.ts';
 import { AP, apsToReadyWeapon, BP, deductPoints } from './points.ts';
@@ -503,6 +505,7 @@ function endHopFence(t: TacticalState, s: Soldier): OpOutcome {
   setSoldierPosition(t, s, s.forecastGridNo, { keepDestination: true, keepFinalDestination: true });
   setSoldierDirection(t, s, (s.direction + 2) % DIRECTION_COUNT);
   setDesiredDirection(t, s, s.direction);
+  boxingMovementCheckWhileTracked(t, s);
   if (s.gridNo !== s.finalDestination) return 'continue';
   const movementEnd = endHeight(t.content, s.uiMovementMode);
   if (endHeight(t.content, s.state) !== movementEnd) changeSoldierStance(t, s, movementEnd);

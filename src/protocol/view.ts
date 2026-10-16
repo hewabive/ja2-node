@@ -506,6 +506,12 @@ export interface ConversationView {
   readonly lastQuotes: readonly ConversationLineView[];
 }
 
+export interface BoxingView {
+  readonly state: 'waitingForPlayer' | 'preBoxing' | 'boxing' | 'disqualified' | 'wonRound' | 'lostRound';
+  readonly boxers: readonly number[];
+  readonly uiLocked: boolean;
+}
+
 export interface PlayerView {
   readonly tick: number;
   readonly mapPath: string | null;
@@ -519,6 +525,7 @@ export interface PlayerView {
   readonly conversation?: ConversationView | null;
   readonly npcRequest?: NpcRequestPromptView | null;
   readonly scriptedSequence?: boolean;
+  readonly boxing?: BoxingView | null;
   readonly soldiers: readonly SoldierView[];
   readonly openDoors?: readonly number[];
   readonly doors?: readonly DoorView[];
@@ -542,6 +549,7 @@ export interface ViewFrame {
   readonly conversation?: ConversationView | null;
   readonly npcRequest?: NpcRequestPromptView | null;
   readonly scriptedSequence?: boolean;
+  readonly boxing?: BoxingView | null;
   readonly openDoors?: readonly number[];
   readonly doors?: readonly DoorView[];
   readonly combat?: CombatView | null;
@@ -602,6 +610,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), npcRequest: next.npcRequest ?? null };
   if ((previous.scriptedSequence ?? false) !== (next.scriptedSequence ?? false))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), scriptedSequence: next.scriptedSequence ?? false };
+  if (JSON.stringify(previous.boxing ?? null) !== JSON.stringify(next.boxing ?? null))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), boxing: next.boxing ?? null };
   return frame;
 }
 

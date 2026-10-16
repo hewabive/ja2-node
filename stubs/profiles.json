@@ -377,6 +377,34 @@
         { "approach": "THREATEN", "desireToTalk": 25, "friendlyMod": 90, "directMod": 100, "threatenMod": 110 },
         { "approach": "RECRUIT", "desireToTalk": 60 }
       ]
+    },
+    {
+      "id": 87,
+      "name": "Ossian Brack",
+      "nickname": "Brack",
+      "bodyType": 1,
+      "sector": "D5",
+      "palettes": { "hair": "BLACKHEAD", "skin": "TANSKIN", "vest": "YELLOWVEST", "pants": "BLACKPANTS" },
+      "stats": {
+        "life": 74,
+        "lifeMax": 74,
+        "strength": 70,
+        "agility": 50,
+        "dexterity": 52,
+        "wisdom": 60,
+        "marksmanship": 35,
+        "medical": 10,
+        "mechanical": 20,
+        "explosives": 5,
+        "leadership": 55,
+        "experience": 3
+      },
+      "dialogue": [
+        { "approach": "FRIENDLY", "desireToTalk": 55, "friendlyMod": 110, "directMod": 100, "threatenMod": 70 },
+        { "approach": "DIRECT", "desireToTalk": 55, "friendlyMod": 100, "directMod": 100, "threatenMod": 80 },
+        { "approach": "THREATEN", "desireToTalk": 20, "friendlyMod": 90, "directMod": 100, "threatenMod": 110 },
+        { "approach": "RECRUIT", "desireToTalk": 10 }
+      ]
     }
   ]
 }

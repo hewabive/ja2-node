@@ -341,6 +341,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.visible = r.visible;
   s.monsterOrAnimal = (r.statusFlags & (SoldierStatusFlags.MONSTER | SoldierStatusFlags.ANIMAL)) !== 0;
   s.underAiControl = (r.statusFlags & SoldierStatusFlags.PCUNDERAICONTROL) !== 0;
+  s.boxer = (r.statusFlags & SoldierStatusFlags.BOXER) !== 0;
   s.cowering = (r.statusFlags & SoldierStatusFlags.COWERING) !== 0;
   s.heardGunshot = (r.miscSoldierFlags & SOLDIER_MISC_HEARD_GUNSHOT) !== 0;
   s.breathMax = r.stats.breathMax;

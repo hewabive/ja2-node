@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/AIUtils.cc CalcMorale, CalcManThreatValue, RangeChangeDesire; AIMain.cc ThreatPercent;
-// @src Tactical/Soldier_Macros.h CREATURE_OR_BLOODCAT. See docs/13 §4.
+// @src Tactical/Soldier_Macros.h CREATURE_OR_BLOODCAT. See docs/13 §4, docs/25 §7.2 (only boxers threaten while boxing).
 
 import { type ItemTable, WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -12,6 +12,7 @@ import { isCreatureOrBloodcat } from '../combat/impact.ts';
 import { AiMorale } from '../combat/types.ts';
 import { InvSlot, itemIn, NO_SLOT } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
+import { boxingFight, boxingHalvesPoints } from '../narrative/boxing-state.ts';
 import { seenOpponent } from '../perception/duel.ts';
 import { Opp } from '../perception/opp.ts';
 import { knowledge, publicOpp } from '../perception/sight.ts';
@@ -95,7 +96,7 @@ function creatureThreat(enemy: Soldier, myGrid: number): number {
 
 function soldierThreat(t: TacticalState, enemy: Soldier): number {
   let threat = enemy.stats.experience;
-  threat += calcActionPoints(t.content, enemy);
+  threat += calcActionPoints(t.content, enemy, boxingHalvesPoints(t));
   threat += idiv(enemy.actionPoints, 2);
   threat += idiv(enemy.life, 10);
   threat += idiv(armourPercent(t.content.items, maxArmour(t.content.items), enemy), 4);
@@ -109,6 +110,7 @@ function soldierThreat(t: TacticalState, enemy: Soldier): number {
 
 export function calcManThreatValue(t: TacticalState, enemy: Soldier, myGrid: number, reduceForCover: boolean, me: Soldier): number {
   if (!enemy.placed || enemy.life === 0) return NO_THREAT;
+  if (boxingFight(t) && !enemy.boxer) return NO_THREAT;
   let threat = isCreatureOrBloodcat(me) ? creatureThreat(enemy, myGrid) : soldierThreat(t, enemy);
   if (myGrid !== NOWHERE) {
     if (enemy.lastTarget === myGrid) threat += idiv(threat, 10);

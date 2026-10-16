@@ -9,6 +9,7 @@ import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import type { ItemObject } from '../items/object.ts';
 import type { CivGroupState } from '../strategic/narrative/civ-groups.ts';
+import type { BoxingRecord } from '../strategic/narrative/facts.ts';
 import { AiAction } from './ai/actions.ts';
 import {
   type AiControl,
@@ -187,6 +188,7 @@ export interface TacticalSimOptions {
   readonly profiles?: Map<number, ProfileProgress>;
   readonly keyTable?: KeyTable;
   readonly civGroups?: CivGroupState;
+  readonly boxing?: BoxingRecord;
   readonly startMs?: number;
   readonly realtimeClock?: RealtimeClock;
   readonly hour?: number;
@@ -214,6 +216,7 @@ export class TacticalSim {
         ...(options.profiles ? { profiles: options.profiles } : {}),
         ...(options.keyTable ? { keyTable: options.keyTable } : {}),
         ...(options.civGroups ? { civGroups: options.civGroups } : {}),
+        ...(options.boxing ? { boxing: options.boxing } : {}),
       },
     );
     const t = this.state;
@@ -337,7 +340,7 @@ export class TacticalSim {
     const t = this.state;
     if (t.turn.attackBusyCount > 0 || t.bullets.length > 0 || t.gameEvents.length > 0 || explosivesBusy(t.explosives)) return false;
     if (t.actionItems.active) return false;
-    if (t.mercsWaiting) return false;
+    if (t.mercsWaiting || t.boxing.uiLocked) return false;
     if (t.inCombat && t.turn.currentTeam !== Team.OUR) return false;
     return !teamMembers(t, Team.OUR).some((s) => this.isBusy(s));
   }
@@ -386,6 +389,8 @@ export class TacticalSim {
   dispatch(cmd: TacticalCommand): CommandResult {
     if (this.state.mercsWaiting && cmd.type !== 'estimateAttack')
       return { ok: false, reason: 'the interface is locked while mercs leave the sector' };
+    if (this.state.boxing.uiLocked && cmd.type !== 'estimateAttack')
+      return { ok: false, reason: 'the interface is locked while the boxers leave the ring', data: { refusal: 'boxingUiLock' } };
     switch (cmd.type) {
       case 'move':
         return this.#move(cmd);

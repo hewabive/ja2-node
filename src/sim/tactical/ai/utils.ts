@@ -1,12 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/AIUtils.cc ClosestReachableDisturbance, ClosestReachableFriendInTrouble,
-// @src EstimatePathCostToLocation (with the climb estimates), ClosestSeenOpponent; Tactical/PathAI.cc PlotPath, EstimatePlotPath, RecalculatePathCost;
+// @src EstimatePathCostToLocation (with the climb estimates), ClosestSeenOpponent, ClosestPC; Tactical/PathAI.cc PlotPath,
+// @src EstimatePlotPath, RecalculatePathCost;
 // @src Tactical/Items.cc FindAIUsableObjClass(Within); Tactical/OppList.cc GetHighestVisibleWatchedLoc, GetHighestWatchedLocPoints;
 // @src Tactical/LOS.cc LocationToLocationLineOfSightTest. See docs/13 §2, §4.4.
 
 import { ItemClass } from '../../../content/items/items.ts';
-import { newGridNo, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
+import { newGridNo, pythSpacesAway, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
 import { TravelCost } from '../../../content/world/movement-costs.ts';
 import { ObjectFlags, USABLE_STATUS } from '../../items/object.ts';
 import { climbingNecessary, findClosestClimbPointAvailableToAI } from '../buildings.ts';
@@ -19,7 +20,7 @@ import { Opp } from '../perception/opp.ts';
 import { distanceVisible, knowledge } from '../perception/sight.ts';
 import { AP, minAPsToStartMovement, stateName, terrainActionPoints } from '../points.ts';
 import { NOWHERE, OKLIFE, type Soldier, Team } from '../soldier.ts';
-import { type TacticalState, whoIsThere } from '../state.ts';
+import { type TacticalState, teamMembers, whoIsThere } from '../state.ts';
 import { NUM_WATCHED_LOCS } from '../turns/turn-state.ts';
 
 const MAX_DISTANCE_VISIBLE = 26;
@@ -27,6 +28,7 @@ const IRRELEVANT = -1;
 const STANDING_LOS_POS = 175;
 const HEIGHT_UNITS = 256;
 const RUNDIVISOR = 1.8;
+const UNSEEN_PC_DISTANCE_PENALTY = 10;
 
 export function findAIUsableObjClass(t: TacticalState, s: Soldier, itemClass: number): number {
   return findAIUsableObjClassWithin(t, s, itemClass, 0, s.inv.length - 1);
@@ -298,6 +300,21 @@ export function closestSeenOpponent(t: TacticalState, s: Soldier): number {
     if (range < closestRange) {
       closestRange = range;
       closest = opp.gridNo;
+    }
+  }
+  return closest;
+}
+
+export function closestPC(t: TacticalState, s: Soldier): number {
+  let closestDistance = WORLD_MAX;
+  let closest = NOWHERE;
+  for (const pc of teamMembers(t, Team.OUR)) {
+    if (pc.life < OKLIFE || t.narrative.isEpc(pc)) continue;
+    let distance = pythSpacesAway(s.gridNo, pc.gridNo);
+    if (pc.team !== s.team && s.oppList[pc.id] !== Opp.SEEN_CURRENTLY) distance += UNSEEN_PC_DISTANCE_PENALTY;
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closest = pc.gridNo;
     }
   }
   return closest;

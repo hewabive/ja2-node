@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (the campaign side of the actions),
 // @src StartDialogueMessageBox, DialogueMessageBoxCallBack, DoneFadeOutActionBasement, DoneFadeOutActionLeaveBasement,
-// @src CarmenLeavesSectorCallback (on game time); Tactical/Overhead.cc SetSoldierNeutral; Tactical/Handle_Items.cc
+// @src CarmenLeavesSectorCallback (on game time); Tactical/Boxing.cc CheckOnBoxers, ExitBoxing, BoxerAvailable (the boxing
+// @src actions); Tactical/Overhead.cc SetSoldierNeutral; Tactical/Handle_Items.cc
 // @src SoldierGiveItemFromAnimation (the NPC-to-merc branch, immediate); Strategic/StrategicMap_Secrets.cc SetTownAsFound.
 // @src See docs/25 §3, §13.2.
 
@@ -19,6 +20,7 @@ import { getGroup, setGroupSectorValue } from '../../strategic/forces/groups.ts'
 import { updateRefuelSiteAvailability } from '../../strategic/forces/helicopter.ts';
 import { calculateNonPersistentPbiInfo } from '../../strategic/forces/pre-battle.ts';
 import { markSecretFoundAt } from '../../strategic/map/control.ts';
+import { NOT_BOXING } from '../../strategic/narrative/facts.ts';
 import { removeObjectFromProfile } from '../../strategic/narrative/presence.ts';
 import type { SectorPosition } from '../../strategic/state.ts';
 import { addStrategicEvent } from '../../strategic/time/event-queue.ts';
@@ -26,13 +28,13 @@ import { worldDay, worldMinutesInDay, worldTotalMinutes } from '../../strategic/
 import { initNewSoldierAnim } from '../../tactical/animation.ts';
 import { Insertion } from '../../tactical/insertion.ts';
 import { autoPlaceObject } from '../../tactical/inventory.ts';
+import { boxerAvailable, checkOnBoxers, exitBoxing, startBoxingMatch } from '../../tactical/narrative/boxing.ts';
 import { handleNpcDoAction } from '../../tactical/narrative/npc-actions/catalog.ts';
 import {
   type BoxingActions,
   type ExitGridTarget,
   type MeanwhileActions,
   type MineActions,
-  NO_BOXING_ACTIONS,
   NO_MEANWHILE_ACTIONS,
   NO_MINE_ACTIONS,
   type NpcActionEnv,
@@ -250,6 +252,25 @@ export class NpcActionFlow {
     else kickOutWheelchair(t, s);
   }
 
+  #boxingActions(): BoxingActions {
+    const record = this.#state.narrative.boxing;
+    const tactical = () => this.#host.tactical();
+    return {
+      checkOnBoxers: () => checkOnBoxers(record, tactical()),
+      startMatch: () => {
+        const t = tactical();
+        if (t) startBoxingMatch(t);
+      },
+      exitBoxing: () => {
+        const t = tactical();
+        if (t) exitBoxing(t);
+      },
+      boxerAvailable: () => boxerAvailable(record, tactical()),
+      lastMatchWonByPlayer: () => record.lastMatchWonByPlayer,
+      inMatch: () => record.state !== NOT_BOXING,
+    };
+  }
+
   #createEnv(): NpcActionEnv {
     const campaign = this.#campaign;
     const s = this.#state;
@@ -266,7 +287,7 @@ export class NpcActionFlow {
       },
       hospital: s.narrative.hospital,
       mines: this.#mines(),
-      boxing: { ...NO_BOXING_ACTIONS, lastMatchWonByPlayer: () => s.narrative.boxing.lastMatchWonByPlayer, ...this.#ports.boxing },
+      boxing: { ...this.#boxingActions(), ...this.#ports.boxing },
       recruit: { ...this.recruitFlow.actions(), ...this.#ports.recruit },
       meanwhile: { ...NO_MEANWHILE_ACTIONS, ...this.#ports.meanwhile },
       hideout: {

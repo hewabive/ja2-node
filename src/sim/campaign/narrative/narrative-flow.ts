@@ -7,7 +7,8 @@
 // @src Strategic/StrategicMap.cc HandleQuestCodeOnSectorEntry, HandleQuestCodeOnSectorExit; Tactical/Overhead.cc
 // @src HandleNPCTeamMemberDeath (MakeRemainingTerroristsTougher, MakeRemainingAssassinsTougher, the DYNAMO, KINGPIN and DOREEN
 // @src cases); Strategic/Hourly_Update.cc HourlyLarryUpdate (the merc side); Tactical/Soldier_Profile.cc SwapLarrysProfiles
-// @src (the soldier side). See docs/25 §1–§4, §11.12.
+// @src (the soldier side); Strategic/Quests.cc CheckFact (the boxing inputs: AnotherFightPossible, BoxerAvailable, BoxerExists);
+// @src StrategicMap.cc HandleQuestCodeOnSectorEntry (gBoxer cleared in D5). See docs/25 §1–§4, §7, §11.12.
 
 import { NOTHING } from '../../../content/items/items.ts';
 import { MercType } from '../../../content/strategic/economy-content.ts';
@@ -29,11 +30,11 @@ import { countAllMilitiaInSector, playerMercsInSector } from '../../strategic/fo
 import { townIdOfSector } from '../../strategic/map/control.ts';
 import {
   checkFact,
+  type FactBoxing,
   type FactCampaign,
   type FactContext,
   type FactItems,
   type FactSoldier,
-  NO_FACT_BOXING,
   NO_FACT_ITEMS,
   NO_FACT_REPAIRS,
   NO_TALK,
@@ -80,6 +81,7 @@ import { addStrategicEvent } from '../../strategic/time/event-queue.ts';
 import { worldDay, worldHour, worldTotalMinutes } from '../../strategic/time/world-clock.ts';
 import type { TacticalContent } from '../../tactical/content.ts';
 import type { InsertionContext } from '../../tactical/insertion.ts';
+import { anotherFightPossible, boxerAvailable, boxerExists, clearBoxers } from '../../tactical/narrative/boxing.ts';
 import type { PlacementNarrative } from '../../tactical/narrative/placement.ts';
 import type { ProfileInsertionHooks } from '../../tactical/narrative/profile-insertion.ts';
 import { isProfileDead, type ProfileProgress, profileProgress } from '../../tactical/profiles.ts';
@@ -157,6 +159,7 @@ export class NarrativeFlow {
       ...NO_NARRATIVE_SLOTS,
       kingpinMoneyCheck: (onExit) => kingpinMoneyCheck(campaign, onExit),
       hospitalSupplies: () => hospitalSuppliesCheck(campaign),
+      boxersCleared: () => clearBoxers(campaign.state.narrative.boxing),
     };
   }
 
@@ -254,6 +257,16 @@ export class NarrativeFlow {
     };
   }
 
+  #factBoxing(): FactBoxing {
+    const record = this.state.narrative.boxing;
+    const tactical = () => this.campaign.tactical?.state ?? null;
+    return {
+      anotherFightPossible: () => anotherFightPossible(record, tactical()),
+      boxerAvailable: () => boxerAvailable(record, tactical()),
+      boxerExists: () => boxerExists(tactical()),
+    };
+  }
+
   #worldSource() {
     return { roster: this.roster(), tactical: this.campaign.tactical?.state ?? null, world: this.state.worldSector };
   }
@@ -293,7 +306,7 @@ export class NarrativeFlow {
       mines: economy ? economyFactMines(economy) : noMines,
       world: campaignFactWorld(this.#worldSource()),
       talk: this.talkContext(),
-      boxing: NO_FACT_BOXING,
+      boxing: this.#factBoxing(),
       repairs: merchants
         ? {
             fixingButNoneDone: (profile) => {

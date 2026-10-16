@@ -1,8 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/AIList.cc RemoveFirstAIListEntry, InsertIntoAIList, SatisfiesAIListConditions,
-// @src MoveToFrontOfAIList, BuildAIListForTeam. See docs/10 §6.3.
+// @src MoveToFrontOfAIList, BuildAIListForTeam. See docs/10 §6.3, docs/25 §7.2.
 
+import { boxingFight } from '../narrative/boxing-state.ts';
 import { AlertStatus, Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { mercs, type TacticalState } from '../state.ts';
 
@@ -10,6 +11,7 @@ const MAX_AI_PRIORITY = 100;
 const AI_ACTION_NONE = 0;
 
 function satisfiesAIListConditions(t: TacticalState, s: Soldier, done: { n: number } | null, randomChecks: boolean): boolean {
+  if (boxingFight(t) && !s.boxer) return false;
   if (!s.placed || s.life < OKLIFE || s.breath < OKBREATH) return false;
   if (s.moved) {
     if (s.actionPoints <= 1 && done) done.n++;

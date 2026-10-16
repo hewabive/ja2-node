@@ -23,7 +23,7 @@ import {
 import { defaultTacticalWorldPort, type StrategicContext, type TacticalWorldPort } from '../strategic/forces/ports.ts';
 import { isSectorDesert } from '../strategic/map/sectors.ts';
 import { Quest } from '../strategic/narrative/fact-ids.ts';
-import { QuestStatus, questStatus } from '../strategic/narrative/facts.ts';
+import { NOT_BOXING, QuestStatus, questStatus } from '../strategic/narrative/facts.ts';
 import { createStrategicState, type StrategicState } from '../strategic/state.ts';
 import { CompressMode, EventKind } from '../strategic/time/constants.ts';
 import { EventDispatch } from '../strategic/time/dispatch.ts';
@@ -69,6 +69,8 @@ export interface CampaignCommand {
 }
 
 export type StrategicSetup = Omit<StrategicContextOptions, 'state' | 'clock'>;
+
+const BOXING_UI_LOCK_TEXT = 'the interface is locked while the boxers leave the ring';
 
 export interface CampaignHooks {
   readonly compressionRefusal?: (campaign: CampaignSim) => string | null;
@@ -127,7 +129,7 @@ export class CampaignSim {
     this.strategic = hooks.strategic
       ? createStrategicContext({
           ...hooks.strategic,
-          ...this.#meanwhilePorts(this.#helicopterPorts(this.#sectorPorts(this.#economyPorts()))),
+          ...this.#narrativeWorldPorts(this.#helicopterPorts(this.#sectorPorts(this.#economyPorts()))),
           ...(ai ? { ai } : {}),
           state,
           clock: this.#clock,
@@ -277,9 +279,16 @@ export class CampaignSim {
     return { ...ports, world: this.helicopter.worldPort(base), helicopter: this.helicopter.port() };
   }
 
-  #meanwhilePorts<P extends Pick<StrategicSetup, 'world'>>(ports: P): P {
+  #narrativeWorldPorts<P extends Pick<StrategicSetup, 'world'>>(ports: P): P {
     const base = ports.world ?? this.#hooks.strategic?.world ?? defaultTacticalWorldPort;
-    return { ...ports, world: { ...base, inMeanwhile: () => (this.queen ? meanwhilePendingThisSecond(this.queen) : base.inMeanwhile()) } };
+    return {
+      ...ports,
+      world: {
+        ...base,
+        inMeanwhile: () => (this.queen ? meanwhilePendingThisSecond(this.queen) : base.inMeanwhile()),
+        boxing: () => this.state.narrative.boxing.state !== NOT_BOXING,
+      },
+    };
   }
 
   #sectorPorts(ports: Pick<StrategicSetup, 'mercs' | 'world'>): Pick<StrategicSetup, 'mercs' | 'world'> {
@@ -486,7 +495,15 @@ export class CampaignSim {
     return result;
   }
 
+  #boxingUiLockRefusal(cmd: CampaignCommand): CommandResult | null {
+    if (this.state.flow !== 'tactical' || !this.tactical?.state.boxing.uiLocked) return null;
+    if (cmd.type === 'estimateAttack' || cmd.type === 'answer') return null;
+    return { ok: false, reason: BOXING_UI_LOCK_TEXT, data: { refusal: 'boxingUiLock' } };
+  }
+
   #dispatch(cmd: CampaignCommand): CommandResult {
+    const locked = this.#boxingUiLockRefusal(cmd);
+    if (locked) return locked;
     const talk = this.talk?.dispatch(cmd);
     if (talk) return talk;
     const shop = this.shop?.dispatch(cmd);
@@ -502,7 +519,7 @@ export class CampaignSim {
         stopTimeCompression(this.#clock, CompressionStop.REQUESTED);
         return { ok: true };
       case 'mapScreen':
-        return openMapScreen(this);
+        return openMapScreen(this, cmd.abandonFight === true);
       case 'tacticalScreen':
         return openTacticalScreen(this);
       default:

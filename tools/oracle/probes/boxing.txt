@@ -1,0 +1,128 @@
+# Boxing in San Mona (docs/25 §7) on the user's saves. No save stands in D5, so boxingsquad moves the listed mercs (and
+# their groups) to D5 with grid insertion, loads the sector with SetCurrentWorldSector, unpauses and gives the moved mercs
+# CalcActionPoints. The other commands run the original's functions on the loaded club: boxingstart is Darren's
+# START_BOXING_MATCH action, boxingstep teleports a soldier and runs BoxingMovementCheck while a match is tracked,
+# boxingattack ProcessImplicationsOfPCAttack with the given usAttackingWeapon, boxingend EndBoxingMatch, boxinggetup
+# BeginSoldierGetup, boxingexit ExitBoxing, boxingrecord TriggerEndOfBoxingRecord, boxingdecide DecideAction (status=1 runs
+# DecideAlertStatus first), boxingpoints CalcActionPoints and CalcNewActionPoints, boxingfacts CheckFact for 210, 230,
+# 231 and 368, boxingset writes the boxing globals and a soldier's life, breath, collapse, APs, boxer flag or a slot.
+
+save SaveGame01
+boxingsquad sector=D5 who=0,1,2 grids=12036,12037,12038
+boxingfacts
+boxingstart
+boxingdecide who=137 status=1
+boxingpoints who=1 ap=4
+boxingstep who=0 to=11236
+boxingpoints who=1 ap=4
+boxingdecide who=138 status=1
+boxingstep who=138 to=11395
+boxingdecide who=138 status=1
+boxingstep who=138 to=11399
+boxingdecide who=138 status=1
+boxingstep who=138 to=11395
+boxingattack who=0 target=138 item=0
+boxingattack who=0 target=138 item=49
+boxingset who=138 collapsed=1 breath=0
+boxinggetup who=138
+boxinggetup who=138
+boxingexit
+boxingdecide who=138 status=1
+boxingdecide who=0 status=1
+boxingstep who=0 to=12036
+boxingdecide who=0 status=1
+boxingfacts
+boxing
+
+save SaveGame01
+boxingsquad sector=D5 who=0,1,2 grids=12036,12037,12038
+boxingfacts
+boxingstart
+boxingstep who=0 to=11236
+boxingstep who=1 to=11237
+boxing
+boxingstep who=1 to=12037
+boxingstep who=0 to=12036
+boxingfacts
+boxingstart
+boxingstep who=0 to=11237
+boxingstep who=126 to=11395
+boxingattack who=0 target=126 item=37
+boxingexit
+boxingstep who=126 to=11233
+boxingdecide who=126 status=1
+boxingrecord who=-1
+
+save SaveGame01
+boxingsquad sector=D5 who=0,1,2 grids=12036,12037,12038
+boxingset fought=1,0,0
+boxingfacts
+boxingstart
+boxingstep who=1 to=11236
+boxingstep who=126 to=11395
+boxingattack who=1 target=126 item=1
+boxing
+
+save SaveGame01
+boxingsquad sector=D5 who=0,1,2 grids=12036,12037,12038
+boxingfacts
+boxingstart
+boxingstep who=2 to=11236
+boxingstep who=138 to=11395
+boxingattack who=0 target=138 item=0
+boxing
+
+save SaveGame01
+boxingsquad sector=D5 who=0,1,2 grids=12036,12037,12038
+boxingfacts
+boxingstart
+boxingstep who=0 to=11236
+boxingstep who=138 to=11395
+boxingstep who=0 to=12036
+boxingdecide who=138 status=1
+boxingset who=0 collapsed=1 breath=0 boxer=1
+boxing
+
+save SaveGame01
+boxingsquad sector=D5 who=0,1,2 grids=12036,12037,12038
+boxingfacts
+boxingstart
+boxingstep who=0 to=11236
+boxingstep who=138 to=11395
+boxingset who=0 collapsed=1 breath=0 life=12
+boxinggetup who=0
+boxinggetup who=0
+boxingexit
+boxingdecide who=0 status=1
+boxingstep who=0 to=12197
+boxingdecide who=0 status=1
+boxingfacts
+
+save SaveGame02
+boxingsquad sector=D5 who=0,1,2 grids=12036,12037,12038
+boxingset rests=2 won=6 fought=1,1,0
+boxingfacts
+boxingstart
+boxingstep who=1 to=11236
+boxingdecide who=125 status=1
+boxingstep who=125 to=11395
+boxingdecide who=125 status=1
+boxingpoints who=0 ap=7
+boxingend loser=125
+boxingexit
+boxingdecide who=125 status=1
+boxingdecide who=1 status=1
+boxing
+
+save SaveGame02
+boxingsquad sector=D5 who=0,1,2 grids=12036,12037,12038
+boxingset fought=1,1,1
+boxingfacts
+boxingset fought=0,0,0
+boxingstep who=138 to=11553
+boxingstep who=126 to=11554
+boxingstep who=125 to=11555
+boxingset boxers=156,156,156
+boxingfacts
+boxingstart
+boxing

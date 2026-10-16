@@ -223,6 +223,78 @@
           "sayOncePerConvo": true
         }
       ]
+    },
+    {
+      "profile": 87,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 0,
+          "numQuotes": 1
+        },
+        {
+          "index": 1,
+          "requiredApproach": "DIRECT",
+          "quoteNum": 1,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 135
+          }
+        },
+        {
+          "index": 2,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 2,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        },
+        {
+          "index": 12,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 3,
+          "numQuotes": 1
+        },
+        {
+          "index": 13,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 4,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 138
+          }
+        },
+        {
+          "index": 21,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 5,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 205
+          }
+        },
+        {
+          "index": 22,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 6,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 205
+          }
+        },
+        {
+          "index": 23,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 7,
+          "numQuotes": 1
+        },
+        {
+          "index": 24,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 8,
+          "numQuotes": 1
+        }
+      ]
     }
   ],
   "recruited": {

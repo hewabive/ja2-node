@@ -42,6 +42,7 @@ import { calculateLaunchItemChanceToGetThrough } from '../explosions/trajectory.
 import { findObjWithin, InvSlot, NO_SLOT, NUM_INV_SLOTS, reloadGun } from '../inventory.ts';
 import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY } from '../lighting/lighting.ts';
 import { directionToward } from '../movement.ts';
+import { boxingHalvesPoints } from '../narrative/boxing-state.ts';
 import { closestKnownOpponent } from '../perception/knowledge.ts';
 import { Opp } from '../perception/opp.ts';
 import { animStructureDef, internalIsValidStance, isValidStance } from '../person-structure.ts';
@@ -390,7 +391,7 @@ function shotAttackValue(damage: number, hitRate: number, chanceToReallyHit: num
 export function calcBestShot(t: TacticalState, s: Soldier, best: AttackChoice = emptyAttackChoice()): AttackChoice {
   const hand = handObject(s);
   s.attackingWeapon = hand.item;
-  const burstAPs = calcAPsToBurst(t, calcActionPoints(t.content, s), hand);
+  const burstAPs = calcAPsToBurst(t, calcActionPoints(t.content, s, boxingHalvesPoints(t)), hand);
   initAttackType(best);
   const standing = states(t.content.animations).STANDING;
   for (const opp of mercs(t)) {
