@@ -19,9 +19,29 @@ export const NEW_SESSION_SHAPE = {
   campaign: z
     .object({
       difficulty: z.number().int().min(1).max(3).optional().describe('1 easy, 2 medium (default), 3 hard'),
-      profiles: z.array(z.number().int().min(0).max(39)).min(1).max(6).optional().describe('A.I.M. profile ids (original data)'),
-      mercs: z.number().int().min(1).max(6).optional().describe('number of stub mercs (stub data)'),
-      land: z.boolean().optional().describe('fly the squad in at once (default true); false leaves the game at the first hour'),
+      profiles: z.array(z.number().int().min(0).max(39)).min(1).max(6).optional().describe('A.I.M. profile ids hired on a week contract'),
+      hire: z
+        .array(
+          z.object({
+            profile: z.number().int().min(0).max(39),
+            contract: z.union([z.literal(1), z.literal(7), z.literal(14)]).optional(),
+            gear: z.boolean().optional(),
+          }),
+        )
+        .max(6)
+        .optional()
+        .describe(
+          'A.I.M. hires through the laptop (contract days, default 7; gear default: the kit if it has a cost); [] stays in the laptop',
+        ),
+      imp: z.object({}).passthrough().optional().describe('an impCreate command (without type) run after the hires'),
+      mercs: z
+        .number()
+        .int()
+        .min(1)
+        .max(6)
+        .optional()
+        .describe('size of the default squad (hired in order while affordable and available)'),
+      land: z.boolean().optional().describe('fly the squad in at once (default true); false closes the laptop at the first hour'),
     })
     .optional(),
 };

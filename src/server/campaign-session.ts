@@ -10,6 +10,7 @@ import { Team } from '../sim/tactical/soldier.ts';
 import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { autoresolveView, promptView } from './battle-view.ts';
 import { contractPromptView } from './contract-view.ts';
+import { laptopView } from './laptop-view.ts';
 import { tacticalPlayerView } from './sandbox.ts';
 import type { SessionSim } from './session.ts';
 import { strategicView } from './strategic-view.ts';
@@ -90,7 +91,8 @@ export class CampaignSession implements SessionSim {
         }
       : {};
     const shop = this.campaign.shop ? { shop: this.campaign.shop.view() } : {};
-    const extra = strategic ? { clock, strategic, ...battle, ...shop } : { clock, ...battle, ...shop };
+    const laptop = this.campaign.laptop ? { laptop: laptopView(this.campaign) } : {};
+    const extra = strategic ? { clock, strategic, ...battle, ...shop, ...laptop } : { clock, ...battle, ...shop, ...laptop };
     const tactical = this.campaign.tactical;
     if (!tactical) return { tick: this.tick, mapPath: null, soldiers: [], ...extra };
     const view = tacticalPlayerView(tactical, this.tick);

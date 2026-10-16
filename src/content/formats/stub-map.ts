@@ -13,6 +13,7 @@ import {
   type Placement,
   tileLayerFromLists,
 } from './map.ts';
+import { writeProfileDetailedPlacement } from './placement.ts';
 
 export const STUB_MAP_FORMAT = 'ja2-node.map/1';
 const STUB_MAP_MAJOR_VERSION = 5;
@@ -38,6 +39,7 @@ export interface StubSoldier {
   readonly attitude: number;
   readonly soldierClass: number;
   readonly priority: boolean;
+  readonly profile: number | null;
 }
 
 export const StubEntry = { NORTH: 'north', EAST: 'east', SOUTH: 'south', WEST: 'west', CENTER: 'center', ISOLATED: 'isolated' } as const;
@@ -112,13 +114,20 @@ function named(table: Readonly<Record<string, number>>, name: string | undefined
 }
 
 const OPTIONAL_PLACEMENT = 'optional';
+const PROFILE_FLAG = /^profile=(\d+)$/;
 const ENTRY_NAMES: readonly string[] = Object.values(StubEntry);
 
 function parseSoldier(spec: string, line: number): StubSoldier {
-  const [team, x, y, direction, orders, attitude, soldierClass, flag] = spec.split(/\s+/);
-  if (flag !== undefined && flag !== OPTIONAL_PLACEMENT) throw new FormatError(`line ${line}: unknown soldier flag '${flag}'`);
+  const [team, x, y, direction, orders, attitude, soldierClass, ...flags] = spec.split(/\s+/);
+  let profile: number | null = null;
+  for (const flag of flags) {
+    const m = PROFILE_FLAG.exec(flag);
+    if (m) profile = Number(m[1]);
+    else if (flag !== OPTIONAL_PLACEMENT) throw new FormatError(`line ${line}: unknown soldier flag '${flag}'`);
+  }
   return {
-    priority: flag !== OPTIONAL_PLACEMENT,
+    priority: !flags.includes(OPTIONAL_PLACEMENT),
+    profile,
     team: named(TEAMS, team, 'team', line),
     x: Number(x),
     y: Number(y),
@@ -303,9 +312,21 @@ function stubLightSprite(source: StubMapSource, l: StubLight): MapLightSprite {
 
 function stubPlacement(source: StubMapSource, s: StubSoldier): Placement {
   const g = (source.origin.y + s.y) * WORLD_COLS + source.origin.x + s.x;
+  const detailedRaw =
+    s.profile === null
+      ? null
+      : writeProfileDetailedPlacement({
+          profile: s.profile,
+          direction: s.direction,
+          insertionGridNo: g,
+          team: s.team,
+          attitude: s.attitude,
+          orders: s.orders,
+          soldierClass: s.soldierClass,
+        });
   return {
     basic: {
-      detailed: false,
+      detailed: detailedRaw !== null,
       startingGridNo: g,
       team: s.team,
       relativeAttributeLevel: AVERAGE_LEVEL,
@@ -322,6 +343,6 @@ function stubPlacement(source: StubMapSource, s: StubSoldier): Placement {
       priorityExistence: s.priority,
       hasKeys: false,
     },
-    detailedRaw: null,
+    detailedRaw,
   };
 }

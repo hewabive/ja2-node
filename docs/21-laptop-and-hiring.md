@@ -899,9 +899,10 @@ character generated 6 (§4.3, second code 0); insurance purchased 7, payout 9 (8
 fired 13, quit 14, contract expired 22, Slay left 76 (`StrategicRemoveMerc :677`, not for the dead); quest started 15 and
 finished 16 (`Quests.cc:1113, 1137`; not for `QUEST_HELD_IN_ALMA`); miner talk and mine events 17, 26–29 (`Strategic_Mines.cc:
 283-287`, second code = town; ja2-node's mines must start writing them); liberated town 18; cheat 19; Enrico complained 24;
-battle results 25, 63–73 (`LogBattleResults`, `PreBattle_Interface.cc:1391-1426`; the PBI/autoresolve aftermath of `19`
-must write them); RPC joined 23; Walker 20, married off 21, Tixa/Orta 30/31, NPC info 32–56, boxing 57–59, found money 60,
-assassin 61, NPC killed 74, Carmen's head 75 (M6).
+battle results 25, 64–73 (`LogBattleResults`, `PreBattle_Interface.cc:1391-1426`; the PBI/autoresolve aftermath of `19`
+must write them); RPC joined 23; Walker 20, married off 21, Tixa/Orta 30/31, rocket rifles 32, Deidranna's dead bodies 33,
+boxing matches 34, something in the mines 35, NPC info 36–58, boxing results 59–61, found money 62, assassin 63, NPC killed
+74, Carmen's head 75 (M6). (Numbers checked against `History.h`.)
 
 **Logic reader**: only `GetTimeQuestWasStarted(quest)` (`History.cc:737-753`: the date of the first `QUEST_STARTED` with that
 second code, 0 if none), used by `FACT_BLOODCAT_QUEST_STARTED_TWO_DAYS_AGO` (`Quests.cc:876-878`, M6). Everything else is a
@@ -1096,7 +1097,7 @@ with a scripted RNG (`docs/15` §4.6).
 | HD light flicker `Random(2)` per 50 ms of page loading (`Laptop.cc:2404`), ad rotation, page load waits, blinking | client only |
 | Bobby Ray "ship to X?" box, cart kept across pages | the command carries the order; no prompt |
 | Arrival rerouted / landing zone reset message boxes | events (`arrivalRerouted`, `landingZoneReset`), no prompt |
-| `ubShipmentsSinceNoBribes` function static (not saved) | saved state (deviation; the original resets it per process, inferred) |
+| `ubShipmentsSinceNoBribes` function static (not saved) | saved state (deviation; the original keeps it across loads and new games of one process, seen in the oracle) |
 
 ---
 
@@ -1109,20 +1110,27 @@ landing, underground, `GROUNDBARRIER`, enemy airspace). Laptop flow only (each a
 |---|---|---|
 | `closeLaptop` | §1.3 | — |
 | `readEmail {id}` / `deleteEmail {id}` | §6.1 (bookmarks on reading) | `noSuchMail` |
-| `aimHire {profile, contract: 1\|7\|14, gear?: boolean}` | contact + `CanMercBeHired` + §2.5; result: charge breakdown, soldier id, arrival `{minute, sector}` | `notAimMerc`, `unavailable` (annoyed), `away` (answering machine: dead/hired/away/returning/POW), `hangover`, `hatesTeammate {profile}`, `deathRate`, `reputation`, `funds`, `teamFull`, `noKit` (gear on a 0-cost kit) |
+| `aimHire {profile, contract: 1\|7\|14, gear?: boolean}` | contact + `CanMercBeHired` + §2.5; result: charge breakdown, soldier id, arrival `{minute, shownMinute, sector}`, the acceptance quote | `notAimMerc`, `badContract`, `noKit` (gear on a 0-cost kit), `unavailable` (annoyed), `away` (answering machine: dead/hired/away/returning/POW), `hangover`, `hatesTeammate {hated}`, `deathRate`, `reputation`, `funds {charge}`, `teamFull`, `cannotHire` |
 | `aimLeaveMessage {profile}` | answering machine: `PLAYER_LEFT_MSG` | `notAway`, `alreadyLeft` |
-| `mercOpenAccount` | §3.1 | `siteDown`, `noBookmark`, `hasAccount` |
-| `mercHire {profile}` | §3.3 | `noAccount`, `accountSuspended`, `accountInvalid`, `notListed`, `unavailable`, `teamFull`, `siteDown`, `noBookmark` |
-| `mercPay` | §3.4 | `nothingOwed`, `funds`, `siteDown` |
-| `impCreate {…}` | §4.4 | `noBookmark`, `badCode`, `noSlot`, `funds`, `teamFull`, `badName`, `badAnswers`, `badAttributes`, `badPortrait`, `badVoice` |
-| `bobbyRayOrder {lines: [{item, used?, quantity}], destination, speed: 0\|1\|2}` | cart rules + §5.4 (atomic) | `siteClosed`, `tooManyLines`, `notInStock`, `noDestination`, `funds` |
-| `insure {soldier}` | §7.1 with `insuranceLength` | `notInsurable`, `funds` |
-| `orderFlowers {bouquet, destination, nextDay, extras[]}` | §7.3 | `noSuchBouquet` |
+| `mercOpenAccount` | §3.1; data: the account number | `siteDown`, `noBookmark`, `hasAccount` |
+| `mercHire {profile}` | §3.3 | `noAccount`, `accountSuspended`, `accountInvalid`, `notListed`, `unavailable`, `teamFull`, `cannotHire`, `siteDown`, `noBookmark` |
+| `mercPay` | §3.4; data `{paid, full}` | `nothingOwed`, `funds`, `siteDown`, `noBookmark` |
+| `impCreate {code, name, nickname?, gender, answers[16] or skills[], attributes{health, agility, dexterity, strength, wisdom, leadership, marksmanship, medical, mechanical, explosives}, portrait, voice}` | §4.4; data: soldier, profile, skills, personality, attitude, arrival | `noBookmark`, `badCode`, `noSlot`, `funds`, `teamFull`, `badName`, `badAnswers`, `badSkills`, `badAttributes`, `badPortrait`, `badVoice`, `cannotHire` |
+| `bobbyRayOrder {lines: [{item, used?, quantity}], destination, speed: 0\|1\|2}` | cart rules + §5.4 (atomic; the order is also a visit of the site); data: the quote and the shipment index | `siteClosed`, `noLines`, `tooManyLines`, `notInStock`, `noDestination`, `badSpeed`, `funds` |
+| `insure {soldier}` | §7.1 with `insuranceLength`; data `{length, cost, insuredDays}` | `notInsurable`, `funds` |
+| `orderFlowers {bouquet: 0–9, destination, nextDay, extras: crushed\|blackRoses\|wilted\|fruitCake}` | §7.3 | `noSuchBouquet`, `noDestination`, `badExtra` |
 
-**Events** (in `advance` reports): `mercHired {profile, soldier, arrivalMinute, sector}`, `mercArrived {soldier}` (stops
-compression), `arrivalRerouted {from, to}`, `landingZoneReset {from}`, `emailReceived {id, type, sender}`, `historyAdded
-{code}`, `moneyChanged` (exists), `mercAccountStatus {status}`, `bobbyRayOpen`, `shipmentDelivered {sector}` (stops
-compression), `insurancePaid {profile, amount}`; departures are `22`'s. Silent profile changes (a merc back home, away, dead
+`openLaptop` is refused with `laptopOpen`, `mapScreenOnly`, `promptOpen`, `battlePending` or `renewalSequence`;
+`setLandingZone` with `mapScreenOnly`, `badSector`, `beforeFirstLanding`, `groundBarrier` or `enemyAirspace`. While the
+laptop is open every other command answers `laptop: the laptop is open, closeLaptop first` (also `advance`'s refusal);
+laptop commands sent while it is closed answer `laptopClosed`.
+
+**Events** (in `advance` reports): `laptopOpened`, `laptopClosed`, `mercHired {site, profile, soldier, arrivalMinute,
+sector}`, `mercArrived {soldier, profile, sector}` (stops compression), `arrivalRerouted {from, to}`, `landingZoneReset
+{from, to}`, `emailReceived {id, mail, sender}`, `historyAdded {code, profile, sector}`, `moneyChanged {code, amount,
+balance}`, `mercAccountStatus {status}`, `bobbyRayOpen`, `shipmentDelivered {shipment, sector, items, stolen}` (stops
+compression), `shipmentLost {shipment, reason: crashed|prevented|enemyHeld}`, `insurancePaid {profile, amount}`;
+departures are `22`'s. Silent profile changes (a merc back home, away, dead
 on another job without a mail, the M.E.R.C. outage) raise no event: they are visible in the view when the player looks,
 which costs no time.
 
@@ -1201,6 +1209,16 @@ Delivery needs no map when the airport sector is not loaded (`sector-loot.ts`).
 9. `src/content/formats/savegame-laptop.ts` + `save-import.ts`: section 4 (laptop info, Bobby Ray inventories, insurance
    payouts), the shipments section, sections 7–10 (finances exist; history, files, email), the profile and soldier fields.
 
+**Status (2026-10-16)**: (a)–(l) are implemented. Module names differ slightly from the list above: the content is
+`src/content/strategic/laptop-content.ts` with the transcribed `data/tables/laptop.json` (`tools/transcribe/laptop.ts`:
+mail offsets and lengths, senders, the quiz, named profiles, terrorists); history, files and personnel live in
+`records.ts`, mail in `mail.ts`, the flow and command table in `laptop-flow.ts`; the profile loop of `MercDailyUpdate`,
+the medical refund and level-ups were already `22`'s. The facts are the full 500-entry narrative store
+(`src/sim/campaign/narrative/facts.ts`, with 30 quest states), imported from saves. The new game also ports `InitNPCs`
+(the placement draws and alternate maps), so the M.E.R.C. day draw is in the original's place; undeclared profiles
+(51–56, 165–169) are empty structs as Stracciatella makes them. The oracle (§14) matches three new games, the arrival
+table and the save probes.
+
 **Order of work**: (a) profile fields and content; (b) laptop state, mail, history, files, flow and `openLaptop`/
 `closeLaptop`; (c) `hireMercCore`, A.I.M. pricing, refusals and `aimHire`, arrival, landing zone, medical refund hook;
 `createCampaignSession` via the laptop (stubs: the authored profiles); (d) new-game profile init draws and the daily
@@ -1249,6 +1267,16 @@ medical deposits and kit costs equal the oracle's (§14); the six user saves imp
 ---
 
 ## 14. Oracle probes
+
+**As built** (`tools/oracle/patches/0010-laptop-oracle.patch`, `probes/laptop.txt`, `laptop-compare.ts`): `newgamefull
+{difficulty, gunnut, scifi}` (after `seed`: `resetMercProfileStructs`, mails and laptop reset, the traced `InitNewGame`; the
+laptop, all 200 profiles and the terrorists), `arrival`, `laptop {range|who}`, `setbalance {amount}`, `setfact {id, value}`,
+`aimhire {profile, contract, gear}` (the headless `CanMercBeHired` quote and `AimMemberHireMerc`), `mercaccount`, `merchire
+{profile}`, `mercpay {index}`, `bobbyrestock`, `bobbyfresh {param}`, `bobbyorder {lines=item:count[:used],…, dest, speed}`,
+`bobbydeliver {index}` (facts and the items at the delivery gridnos), `insure {who, buy}`, `insuranceday`, `payout {who,
+suspicious}`, `insurancestep {slot, step=start|end|pay}`, `impcreate {gender, answers, attrs, portrait, voice, name, nick}`.
+Every probe dumps the laptop, the team's contract fields and inventories and the selected profiles; the comparer replays
+the traced draws (dropping the cosmetic face and first-frame draws) and diffs all of it. The plan as first written:
 
 New commands in `tools/oracle/src/Oracle.cc` (outputs derive from original data: keep them in `~/ja2-oracle`), a
 `laptop-compare.ts` beside `economy-compare.ts`, and a patch `0006-laptop-oracle.patch` exposing the static helpers
@@ -1300,7 +1328,8 @@ laptop init and mails, inferred safe).
 - Insurance: the length is added even when the purchase was refused; extensions have no balance check; autoresolve deaths
   are never suspicious; a fraud slot is never freed.
 
-**Deviations to log in `docs/deviations.md`** (by the implementer, when ported):
+**Deviations to log in `docs/deviations.md`** (logged in M5, with "Cosmetic face and frame draws", "Florist prices" and
+the amended contract, death, economy and dealer rows; the `docs/15` §2.7 fix is still open):
 - *A.I.M. annoyance*: the wall-clock impatience and its statuses are not simulated (kept for imports).
 - *Speck's opening*: run at the first M.E.R.C. command of a laptop session instead of after a UI timer.
 - *Cosmetic laptop draws*: I.M.P. results mail paragraph `Random(32767)`, florist order number, page-load flicker: not drawn.
@@ -1333,6 +1362,11 @@ are never paid; that the florist has no balance check; that the FLOWERS meanwhil
 ---
 
 ## 16. Open questions
+
+Decided for M5 (2026-10-16): 1 — the default squad is what the starting cash pays for, hired through the real A.I.M. path;
+2 — Speck's opening runs at the first M.E.R.C. command of a laptop session; 3 — the annoyance is dropped; 4 — Strac's JSON
+is kept; 5 — the full 500-fact store now (`state.narrative`); 6 — prices that are only original text are omitted; 7 — the
+history writers in mines, towns and battles come with M5.
 
 1. **Default campaign squad.** With original data the current default (six A.I.M. profiles) may not be affordable on 1-week
    contracts with kits; pick a cheaper default, shorter contracts, or require `hire` explicitly.

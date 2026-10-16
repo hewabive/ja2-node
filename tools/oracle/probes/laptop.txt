@@ -1,0 +1,62 @@
+# Laptop and hiring (docs/21): the new-game order of InitNewGame with its draw log (profiles, terrorists, mercs on
+# assignment, dealers, Bobby Ray, mails, M.E.R.C. day), the arrival slots, then on the user's saves: A.I.M. hires
+# (acceptance quote, ledger, arrival, kit), the M.E.R.C. account, hire and payment, Bobby Ray orders, restocks and
+# deliveries, life insurance (offer, purchase, expiry, payout, investigation) and an I.M.P. character.
+
+seed value=1 pre=reseed
+newgamefull difficulty=2
+arrival
+seed value=7 pre=reseed
+newgamefull difficulty=1 gunnut=1
+seed value=11 pre=reseed
+newgamefull difficulty=3 scifi=0
+
+save SaveGame01
+laptop range=0:60
+setbalance amount=200000
+aimhire profile=1 contract=7
+aimhire profile=3 contract=14 gear=0
+aimhire profile=34 contract=1 gear=0
+aimhire profile=13 contract=7 gear=1
+mercaccount
+merchire profile=40
+merchire profile=41
+mercpay index=0 who=40,41
+bobbyorder lines=2:1,5:2,176:1:1 dest=2 speed=0
+bobbyorder lines=1:2,99:1 dest=7 speed=2
+bobbyorder lines=3:1 dest=2 speed=1
+bobbydeliver index=0
+bobbydeliver index=1
+setfact id=124 value=0
+bobbydeliver index=2
+bobbyrestock
+bobbyfresh param=3
+insure who=0 buy=1
+insure who=1 buy=0
+insuranceday
+payout who=0
+payout who=1 suspicious=1
+insurancestep slot=0 step=start
+insurancestep slot=0 step=end
+insurancestep slot=0 step=pay
+impcreate gender=male answers=0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3 attrs=80,80,75,55,75,35,85,35,35,35 portrait=0 voice=0 name=Tester nick=Tester
+laptop range=0:60
+setbalance amount=100
+aimhire profile=2 contract=7
+
+save SaveGame07
+setbalance amount=50000
+aimhire profile=9 contract=1
+aimhire profile=12 contract=14
+insure who=1 buy=1
+bobbyorder lines=107:3,4:1 dest=2 speed=1
+bobbyorder lines=176:1:1 dest=2 speed=0
+setfact id=124 value=0
+bobbydeliver index=0
+bobbydeliver index=1
+impcreate gender=female answers=3,2,1,0,3,2,1,0,3,2,1,0,3,2,1,0 attrs=70,85,85,55,65,35,85,55,35,0 portrait=2 voice=1 name=Testa nick=Testa
+laptop range=0:60
+
+save SaveGame10
+bobbyrestock
+laptop range=40:60

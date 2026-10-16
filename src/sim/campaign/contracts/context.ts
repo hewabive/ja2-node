@@ -22,6 +22,8 @@ export interface ContractHooks {
   slayDailyEvent(): void;
   mercLeavingTeam(merc: RosterMerc): void;
   mercMercLost(): void;
+  history(code: number, profile: number, sector: Sector | null): void;
+  contractEvent(e: ContractEventWithoutTick): void;
 }
 
 export const NO_CONTRACT_HOOKS: ContractHooks = {
@@ -33,6 +35,8 @@ export const NO_CONTRACT_HOOKS: ContractHooks = {
   slayDailyEvent: () => {},
   mercLeavingTeam: () => {},
   mercMercLost: () => {},
+  history: () => {},
+  contractEvent: () => {},
 };
 
 export interface ContractRandom {

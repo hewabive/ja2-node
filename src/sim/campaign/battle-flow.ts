@@ -89,6 +89,7 @@ import {
   associateWithStrategicGroups,
   buildAutoresolveInput,
   type CreatureComposition,
+  eliminateAllEnemies,
   strategicClosePort,
 } from './autoresolve-strategic.ts';
 import type { CampaignSim } from './campaign-sim.ts';
@@ -179,6 +180,14 @@ export class BattleFlow implements FateContext {
 
   #arContext(): ArStrategicContext {
     return { economy: this.economy, queen: this.campaign.queen, content: this.content, roster: this.roster };
+  }
+
+  eliminateAllEnemiesIn(sector: Sector): void {
+    eliminateAllEnemies(this.#arContext(), sector, null);
+  }
+
+  #logBattleResults(victory: boolean, sector: Sector): void {
+    this.campaign.laptop?.logBattleResults(victory, this.state.encounter.code, sector);
   }
 
   emit(event: EventWithoutTick): void {
@@ -576,6 +585,7 @@ export class BattleFlow implements FateContext {
         this.moraleEvent(null, MoraleEvent.BATTLE_WON, s);
         this.#loyalty(LoyaltyEvent.BATTLE_WON, s);
         setThisSectorAsPlayerControlled(this.economy, s, true);
+        this.#logBattleResults(true, s);
         this.emit({ type: 'battleResult', sector: sectorShortString(s), result: 'victory', via: 'autoresolve' });
         break;
       case BattleStatus.SURRENDERED:
@@ -590,6 +600,7 @@ export class BattleFlow implements FateContext {
         this.#loyalty(LoyaltyEvent.BATTLE_LOST, s);
         battle.enemyGainedControlOf = s;
         if (creatures) battle.civiliansEaten = ar.aliveEnemies;
+        this.#logBattleResults(false, s);
         this.emit({ type: 'battleResult', sector: sectorShortString(s), result: 'defeat', via: 'autoresolve' });
         break;
       case BattleStatus.RETREAT:
@@ -935,6 +946,7 @@ export class BattleFlow implements FateContext {
       this.moraleEvent(null, MoraleEvent.BATTLE_WON, world);
       this.#loyalty(LoyaltyEvent.BATTLE_WON, world);
     }
+    this.#logBattleResults(true, world);
     this.emit({ type: 'battleResult', sector: sectorShortString(world), result: 'victory', via: 'tactical' });
     setThisSectorAsPlayerControlled(this.economy, world, true);
     if (this.state.battle.firstBattle.beingFought) this.#firstBattleEnded(world, true, false);
@@ -949,6 +961,7 @@ export class BattleFlow implements FateContext {
       (s) => s?.placed && s.life > 0 && !s.neutral && s.side !== Side.FRIENDLY && s.team !== Team.CREATURE,
     );
     if (enemiesLeft) setThisSectorAsEnemyControlled(this.economy, world);
+    this.#logBattleResults(false, world);
     this.emit({ type: 'battleResult', sector: sectorShortString(world), result: 'defeat', via: 'tactical' });
   }
 }

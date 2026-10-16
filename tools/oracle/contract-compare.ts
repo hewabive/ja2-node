@@ -199,7 +199,7 @@ export class ContractComparer {
       manDays: s.status.manDaysPlayed,
       reputation: s.status.badReputation,
       unhiredDeaths: s.status.unhiredMercDeaths,
-      account: s.contracts.mercAccountStatus,
+      account: s.laptop.merc.accountStatus,
       balance: s.finances.balance,
       leave: s.contracts.leaveList.map((l) => ({ owner: l.owner, items: l.items ? l.items.map((o) => o.item) : null })),
       events: s.queue.events.filter((e) => CONTRACT_EVENTS.has(e.kind)).map((e) => [e.stamp, e.kind, e.param]),
@@ -435,7 +435,7 @@ export class ContractComparer {
           status.mercDeaths = num(a.deaths, status.mercDeaths);
           status.manDaysPlayed = num(a.manDays, status.manDaysPlayed);
           status.badReputation = num(a.reputation, status.badReputation);
-          flow.state.contracts.mercAccountStatus = num(a.account, flow.state.contracts.mercAccountStatus);
+          flow.state.laptop.merc.accountStatus = num(a.account, flow.state.laptop.merc.accountStatus);
           if (a.balance !== undefined)
             addTransaction(
               flow.state.finances,

@@ -56,10 +56,17 @@ export function queenHasRegainedMineSector(ctx: EconomyContext, mine: number): v
   if (m.mineHasProducedForPlayer) m.queenRetookProducingMine = true;
 }
 
+export const MineHistory = { TALKED_TO_MINER: 17, MINE_RUNNING_OUT: 26, MINE_RAN_OUT: 27, MINE_SHUTDOWN: 28, MINE_REOPENED: 29 } as const;
+
+export function addMineHistoryEvent(ctx: EconomyContext, code: number, mine: number): void {
+  ctx.hooks.history(code, townAssociatedWithMine(ctx, mine), mineEntrance(ctx, mine));
+}
+
 export function shutOffMineProduction(ctx: EconomyContext, mine: number): void {
   const m = mineStatus(ctx, mine);
   if (m.shutDown) return;
   m.shutDown = true;
+  addMineHistoryEvent(ctx, MineHistory.MINE_SHUTDOWN, mine);
   ctx.events.push({ type: 'mineShutDown', mine });
 }
 
@@ -67,6 +74,7 @@ export function restartMineProduction(ctx: EconomyContext, mine: number): void {
   const m = mineStatus(ctx, mine);
   if (m.shutDownIsPermanent || !m.shutDown) return;
   m.shutDown = false;
+  addMineHistoryEvent(ctx, MineHistory.MINE_REOPENED, mine);
   ctx.events.push({ type: 'mineReopened', mine });
 }
 

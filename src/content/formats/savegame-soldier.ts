@@ -611,6 +611,7 @@ export interface SavedContract {
   readonly signedAnotherContract: boolean;
   readonly lastContractUpdate: number;
   readonly timeWillArrive: number;
+  readonly useLandingZone: boolean;
   readonly renewalQuoteCode: number;
   readonly leaveHistoryCode: number;
   readonly medicalDeposit: number;
@@ -944,6 +945,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       signedAnotherContract: r.bool('fSignedAnotherContract'),
       lastContractUpdate: n('uiTimeOfLastContractUpdate'),
       timeWillArrive: n('uiTimeSoldierWillArrive'),
+      useLandingZone: r.bool('fUseLandingZoneForArrival'),
       renewalQuoteCode: n('ubContractRenewalQuoteCode'),
       leaveHistoryCode: n('ubLeaveHistoryCode'),
       medicalDeposit: n('usMedicalDeposit'),

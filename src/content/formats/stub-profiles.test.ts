@@ -65,6 +65,11 @@ describe('authored stub profiles', () => {
     expect([p?.inventory[7], p?.inventoryStatus[7], p?.inventoryCount[7]]).toEqual([71, 80, 2]);
   });
 
+  it('reads a home sector and civilian group for authored NPCs', () => {
+    expect(parseOne({ sector: 'A10', civilianGroup: 3 })).toMatchObject({ sectorX: 10, sectorY: 1, civilianGroup: 3 });
+    expect(parseOne({})).toMatchObject({ sectorX: 0, sectorY: 0, civilianGroup: 0 });
+  });
+
   it('rejects unknown items, bad slots, too many relations and duplicate ids', () => {
     expect(() => parseOne({ inventory: [{ slot: 1, item: 'LASER' }] })).toThrow(FormatError);
     expect(() => parseOne({ inventory: [{ slot: 19, item: 'PISTOL' }] })).toThrow(FormatError);

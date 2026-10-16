@@ -9,7 +9,8 @@ are traced draw by draw and replayed through ja2-node, together with the created
 the encounter code of the pre-battle interface; the creature quest (spreading, night planning, town attacks, placements),
 the hourly team morale and the arms dealers (stock, restocks, prices, repairs, shop entry) are probed the same way, as
 are merc contracts and relationships (the daily merc update, the renewal sequence, extensions, departures and the leave
-list) and the tactical decisions of creatures and bloodcats.
+list), the tactical decisions of creatures and bloodcats, and the laptop (a full `InitNewGame`, A.I.M., M.E.R.C. and
+I.M.P. hires, Bobby Ray's orders, restocks and deliveries, life insurance).
 
 Nothing in this directory contains or produces game data by itself. Probe **outputs** are derived from
 the original data: keep them outside the repository (the default work dir is `~/ja2-oracle`) and never
@@ -33,6 +34,9 @@ commit them.
 | `probes/merchants.txt` | Merchant probe script (see "Merchants") |
 | `patches/0007-contracts-oracle.patch` | Wrappers for the static contract helpers, the renewal list and the leave list (see "Hooks") |
 | `patches/0009-creature-ai-oracle.patch` | Trace marks around every `FindBestPath` call (see "Hooks") |
+| `patches/0010-laptop-oracle.patch` | A headless switch in the A.I.M. member page and wrappers around the static laptop helpers (see "Hooks") |
+| `laptop-compare.ts` | The laptop probes of `compare.ts` (`newgamefull`, `arrival`, `laptop`, `setbalance`, `setfact`, `aimhire`, `mercaccount`, `merchire`, `mercpay`, `bobbyrestock`, `bobbyfresh`, `bobbyorder`, `bobbydeliver`, `insure`, `insuranceday`, `payout`, `insurancestep`, `impcreate`) |
+| `probes/laptop.txt` | Laptop probe script (see "Laptop") |
 | `autoresolve-compare.ts` | Core replay of `autoresolve` probes through ja2-node's autoresolve |
 | `autoresolve-creation.ts` | Level 2 of `autoresolve` probes (the soldiers created by `CreateAutoResolveInterface`) |
 | `creature-compare.ts` | The creature probes of `compare.ts` (`creatures`, `creaturequest`, `creaturetrigger`, `creaturespread`, `creatureplanning`, `creatureattack`, `endcreaturequest`, `setcreatures`, `creaturecomposition`, `options`, `setcontrol`, `tacticalflags`) |
@@ -841,6 +845,46 @@ bodies on SaveGame07 in combat and SaveGame10 in real time, GREEN to BLACK, call
 paths around walls; 8 `beststab`, 3 `stab`, 4 `creaturecall`, 2 `dropsmell`, 3 `trackscent`, 71 added soldiers with
 their AP per turn), and so did three runs of the same script with other seeds (`seed value=` +100, +200, +300).
 
+### Laptop
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data"
+tools/oracle/run.sh tools/oracle/probes/laptop.txt ~/ja2-oracle/laptop.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle/laptop.jsonl
+```
+
+Commands (each prints its arguments, the draws it made, a result, the laptop state (new-game flag, bookmarks, balance,
+I.M.P. flags, personnel lists, the M.E.R.C. fields, Bobby Ray's flags, new and used lists with item, on hand, on order,
+quality and eligibility, shipments, insurance payouts, mails, the landing zone, the hired flag, the pending laptop events,
+the world minutes), every OUR merc's contract fields and inventory, and the selected profiles (status, availability,
+salaries, deposit, kit cost, `CalcCompetence`, attractiveness, flags, hangover, precedent quotes, M.E.R.C. days, sector,
+traits, stats, inventory, taken I.M.P. slot)):
+```
+newgamefull [difficulty=1..3] [gunnut=0|1] [scifi=0|1]   # after `seed`: profiles reset, mails and laptop init, the traced
+                                                          # InitNewGame; all 200 profiles and the terrorists' sectors
+arrival                                                   # GetMercArrivalTimeOfDay at day 2 hh:30 for every hour
+laptop [range=<from>:<to>] [who=<a,b,…>]
+setbalance amount=<n> | setfact id=<fact> value=<n>       # balance through an anonymous deposit
+aimhire profile=<id> [contract=1|7|14] [gear=0|1]         # CanMercBeHired headless (the quote) + AimMemberHireMerc
+mercaccount | merchire profile=<id> | mercpay [index=<listing>] [who=<a,b,…>]
+bobbyrestock | bobbyfresh param=<item or item+1000>        # the 09:00 update; AddFreshBobbyRayInventory
+bobbyorder lines=<item>:<count>[:used],… dest=<id> [speed=0|1|2]
+bobbydeliver index=<shipment>                             # BobbyRayPurchaseEventCallback; facts and items at the gridnos
+insure who=<id> [buy=0|1] | insuranceday | payout who=<id> [suspicious=<n>]
+insurancestep slot=<n> step=start|end|pay
+impcreate gender=male|female answers=<16 indices> attrs=<10 values> [portrait=] [voice=] [name=] [nick=]
+```
+`laptop-compare.ts` builds the new game through `buildNewCampaign` with the traced draws in the state's streams (the
+`InitFace` triples of the preloaded NPC faces dropped), or opens a campaign session of the save, applies the same command
+through the laptop modules with `LaptopFlow.useRandom` (hire probes drop the face and first-frame draws: "Cosmetic face and
+frame draws"), and compares the whole dump. The Bobby Ray theft counter is a function static in the original; the
+comparer carries it across the saves of one file. On 2026-10-16 all 43 probes matched: three new games (medium, easy
+with gun nut, hard without sci-fi: 2,546–2,666 draws each, profile states, terrorists, Bobby Ray's stock, mails, events),
+the arrival table, five A.I.M. hires (week, two weeks without kit, Nails for a day, funds refusals), the M.E.R.C.
+account, two hires and the payment, five Bobby Ray orders with deliveries to a loaded Drassen (theft draws, hidden crate
+items), to Meduna and to an unloaded Drassen, a restock with 417 draws, insurance purchase, offer, expiry, two payouts
+and an investigation, and a male and a female I.M.P. character on SaveGame01, 07 and 10.
+
 ## Shipped probes
 
 | Script | Content |
@@ -862,6 +906,7 @@ their AP per turn), and so did three runs of the same script with other seeds (`
 | `probes/morale.txt` | Hourly and quarter-hour morale on SaveGame10, 07 and 01 with set modifiers, relations, traits and positions |
 | `probes/merchants.txt` | Dealer initialisation at progress 0–100 and with gun nut, daily restocks, the Estoni gas, shop entries for every merchant, prices and sales at Tony, Keith, Jake, Franz, Gabby, Micky and Devin (Flo's modifier, stacks, attachments, Keith's fact), repair estimates with and without shop hours, repair queues with collection and the delay excuse, and every save's dealer section with 30 restocks from SaveGame10 |
 | `probes/contracts.txt` | Contracts and relationships on SaveGame01, 02, 09, 10 and 07 (see "Contracts") |
+| `probes/laptop.txt` | Three seeded new games, the arrival table, and laptop commands on SaveGame01, 07 and 10 (see "Laptop") |
 | `probes/sectors.txt` | Edgepoints loaded and generated on eight maps, screen-space exit thresholds on both sides of every edge (A9, A10 basement), exit-grid checks in D13 and the basement, walk-off/walk-in/mirror from the centre and near the edges, class codes on the isolated maps H13 and I14, init list sorts and ten defence placements (A9, B13, C13, D13), and `OKForSectorExit` on SaveGame10, 07 (in combat) and 01 before and after moving mercs to an edge or an exit grid |
 
 All three were run on the user's Steam JA2 Gold 1.12 data: every command succeeds, and on these
@@ -952,6 +997,14 @@ setter for the renewal list and sequence state, and a reset of the sequence; to 
 `patches/0009-creature-ai-oracle.patch` (applied after 0006) touches `src/game/Tactical/PathAI.cc` only: a scope guard at
 the top of `FindBestPath` writes `OracleTraceMark(301)` on entry and `OracleTraceMark(302)` on every return, so the
 creature AI comparison can drop the skip-list draws of the pathfinder. Regenerate it like 0002 with that path.
+`patches/0010-laptop-oracle.patch` (applied after 0009): in `src/game/Laptop/AIMMembers.cc` a headless switch
+(`gOracleAimHeadless`, inactive in the game) makes `CanMercBeHired` record the quote instead of starting the video face
+and lets `AimMemberHireMerc` hire a given profile; the charge computation of `DisplayMercChargeAmount` moves into
+`CalcMercContractAmount` (same code, same call site), and the body of `BtnIMPConfirmYes` into `IMPConfirmYes` in
+`IMP_Confirm.cc`. Wrappers are appended for `CalcCompetence` (`Soldier_Profile.cc`), `MercFilesHireMerc`,
+`SettleMercAccounts` (with the total charge), `CalculateTotalPurchasePrice` and `PurchaseBobbyOrder` (`BobbyRGuns.cc`,
+`BobbyRMailOrder.cc`), `CalculateSoldiersInsuranceContractLength` and `CompileQuestionsInStatsAndWhatNot`. Regenerate it
+like 0002 with the nine paths of the patch.
 
 ## Notes
 

@@ -24,6 +24,7 @@ import {
   type Town,
   type UndergroundTemplate,
 } from './map-tables.ts';
+import { NPC_PLACEMENTS_PATH, type NpcPlacement, PROFILE_INFO_PATH, parseNpcPlacements } from './npc-placements.ts';
 import { parseStrategicPolicy, parseVehicleTypes, type StrategicPolicy, type VehicleType } from './policy.ts';
 import { parseShippingDestinations, SHIPPING_DESTINATIONS_PATH, type ShippingDestinations } from './shipping.ts';
 import {
@@ -53,6 +54,8 @@ export const STRATEGIC_CONTENT_PATHS = {
   travel: STRATEGIC_TRAVEL_PATH,
   facilities: SECTOR_FACILITIES_PATH,
   shipping: SHIPPING_DESTINATIONS_PATH,
+  npcPlacements: NPC_PLACEMENTS_PATH,
+  profileInfo: PROFILE_INFO_PATH,
 } as const;
 
 export type StrategicContentSources = { readonly [K in keyof typeof STRATEGIC_CONTENT_PATHS]: unknown };
@@ -74,6 +77,7 @@ export interface StrategicContent {
   readonly travel: TravelTable;
   readonly facilities: readonly SectorFacility[];
   readonly shipping: ShippingDestinations;
+  readonly npcPlacements: readonly NpcPlacement[];
 }
 
 export function parseStrategicContent(sources: StrategicContentSources): StrategicContent {
@@ -95,6 +99,7 @@ export function parseStrategicContent(sources: StrategicContentSources): Strateg
     travel: parseTravelTable(sources.travel),
     facilities: parseSectorFacilities(sources.facilities),
     shipping: parseShippingDestinations(sources.shipping),
+    npcPlacements: parseNpcPlacements(sources.npcPlacements, sources.profileInfo),
   };
 }
 

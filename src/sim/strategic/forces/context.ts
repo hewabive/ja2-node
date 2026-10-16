@@ -43,7 +43,7 @@ export function standaloneClockContext(state: StrategicState): ClockContext {
   return {
     clock: state.clock,
     queue: state.queue,
-    screen: () => (state.flow === 'autoresolve' ? 'other' : state.flow),
+    screen: () => (state.flow === 'autoresolve' || state.flow === 'laptop' ? 'other' : state.flow),
     inCombat: () => false,
     execute: () => true,
     afterAdvance: () => {},

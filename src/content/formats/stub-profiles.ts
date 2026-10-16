@@ -1,5 +1,6 @@
 import { FormatError } from '../binary/errors.ts';
 import { asArray, asInt, asObject, asString, type JsonObject } from '../strategic/json-fields.ts';
+import { parseSectorString } from '../strategic/sector-ids.ts';
 import type { ReadFile } from '../world/tileset-loader.ts';
 import type { MercProfile, ProfileStatGains } from './prof.ts';
 
@@ -104,6 +105,12 @@ function stats(o: JsonObject, what: string): Record<(typeof STAT_KEYS)[number], 
   >;
 }
 
+function homeSector(o: JsonObject, what: string): { readonly x: number; readonly y: number } {
+  if (o.sector === undefined) return { x: 0, y: 0 };
+  const sector = parseSectorString(asString(o.sector, `${what}.sector`));
+  return { x: sector.x, y: sector.y };
+}
+
 function parseStubProfile(json: unknown, itemIndex: ItemIndex, index: number): MercProfile {
   const what = `stub profile ${index}`;
   const o = asObject(json, what);
@@ -113,6 +120,7 @@ function parseStubProfile(json: unknown, itemIndex: ItemIndex, index: number): M
   const hatedTime = slots(o, 'hatedTime', 0, what);
   const learnToHateTime = int(o, 'learnToHateTime', 0, what);
   const learnToLikeTime = int(o, 'learnToLikeTime', 0, what);
+  const home = homeSector(o, what);
   return {
     id,
     name: asString(o.name, `${what}.name`),
@@ -130,9 +138,9 @@ function parseStubProfile(json: unknown, itemIndex: ItemIndex, index: number): M
     skillTrait: int(o, 'skillTrait', 0, what),
     skillTrait2: int(o, 'skillTrait2', 0, what),
     personalityTrait: int(o, 'personalityTrait', 0, what),
-    civilianGroup: 0,
-    sectorX: 0,
-    sectorY: 0,
+    civilianGroup: int(o, 'civilianGroup', 0, what),
+    sectorX: home.x,
+    sectorY: home.y,
     inventory: inv.items,
     inventoryStatus: inv.status,
     inventoryCount: inv.count,

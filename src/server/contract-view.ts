@@ -112,7 +112,7 @@ export function mercContractFields(campaign: CampaignSim, id: number): Partial<S
 }
 
 export function mercAccountStatusView(campaign: CampaignSim): Record<string, string> {
-  return campaign.contracts ? { mercAccountStatus: mercAccountStatusName(campaign.state.contracts.mercAccountStatus) } : {};
+  return campaign.contracts ? { mercAccountStatus: mercAccountStatusName(campaign.state.laptop.merc.accountStatus) } : {};
 }
 
 export function contractPromptView(campaign: CampaignSim): ContractPromptView | null {

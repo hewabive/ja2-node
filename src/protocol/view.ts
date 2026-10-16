@@ -92,6 +92,7 @@ export interface StrategicMercView {
   readonly moraleText?: string;
   readonly daysServed?: number;
   readonly totalCost?: number;
+  readonly arrival?: { readonly day: number; readonly hour: number; readonly minute: number };
 }
 
 export interface StrategicGroupView {
@@ -107,11 +108,13 @@ export interface StrategicGroupView {
 export interface StrategicView {
   readonly balance: number;
   readonly worldSector: string | null;
-  readonly flow: 'strategic' | 'tactical' | 'autoresolve';
+  readonly flow: 'strategic' | 'tactical' | 'autoresolve' | 'laptop';
   readonly sectors: readonly StrategicSectorView[];
   readonly mercs: readonly StrategicMercView[];
   readonly groups: readonly StrategicGroupView[];
   readonly mercAccountStatus?: string;
+  readonly landingZone?: string;
+  readonly unreadMail?: number;
 }
 
 export interface PromptOptionView {
@@ -233,6 +236,173 @@ export interface AutoresolveView {
   readonly cells: readonly AutoresolveCellView[];
 }
 
+export interface LaptopTimeView {
+  readonly day: number;
+  readonly hour: number;
+  readonly minute: number;
+}
+
+export interface LaptopEmailView {
+  readonly id: number;
+  readonly type: string;
+  readonly index?: number;
+  readonly sender: number;
+  readonly date: LaptopTimeView;
+  readonly read: boolean;
+  readonly firstData: number;
+  readonly secondData: number;
+}
+
+export interface LaptopHistoryView {
+  readonly code: number;
+  readonly secondCode: number;
+  readonly date: LaptopTimeView;
+  readonly sector: string | null;
+}
+
+export interface LaptopFinanceView {
+  readonly code: number;
+  readonly secondCode: number;
+  readonly date: LaptopTimeView;
+  readonly amount: number;
+  readonly balanceAfter: number;
+}
+
+export interface LaptopStatsView {
+  readonly health: number;
+  readonly agility: number;
+  readonly dexterity: number;
+  readonly strength: number;
+  readonly leadership: number;
+  readonly wisdom: number;
+  readonly experience: number;
+  readonly marksmanship: number;
+  readonly mechanical: number;
+  readonly explosives: number;
+  readonly medical: number;
+}
+
+export interface LaptopItemView {
+  readonly item: number;
+  readonly name: string;
+  readonly count: number;
+}
+
+export type AimFaceView = 'available' | 'hired' | 'dead' | 'pow' | 'onAssignment';
+
+export interface AimMercView {
+  readonly profile: number;
+  readonly name: string;
+  readonly nickname: string;
+  readonly stats: LaptopStatsView;
+  readonly salary: { readonly day: number; readonly week: number; readonly twoWeeks: number };
+  readonly medicalDeposit: number | null;
+  readonly kit: { readonly items: readonly LaptopItemView[]; readonly cost: number } | null;
+  readonly face: AimFaceView;
+}
+
+export interface MercListingView {
+  readonly profile: number;
+  readonly name: string;
+  readonly nickname: string;
+  readonly stats: LaptopStatsView;
+  readonly dailyFee: number;
+  readonly state: AimFaceView;
+  readonly unpaidDays: number;
+  readonly owed: number;
+}
+
+export interface MercSiteView {
+  readonly bookmarked: boolean;
+  readonly siteDown: boolean;
+  readonly accountStatus: string;
+  readonly accountNumber: number | null;
+  readonly listed: readonly MercListingView[];
+  readonly totalOwed: number;
+}
+
+export interface ImpSiteView {
+  readonly bookmarked: boolean;
+  readonly charactersLeft: number;
+  readonly canCreate: boolean;
+  readonly cost: number;
+  readonly pickSkillsDirectly: boolean;
+}
+
+export interface BobbyRayStockView {
+  readonly item: number;
+  readonly name: string;
+  readonly price: number;
+  readonly quantity: number;
+  readonly quality: number;
+}
+
+export interface BobbyRayShipmentView {
+  readonly index: number;
+  readonly active: boolean;
+  readonly destination: number;
+  readonly speed: number;
+  readonly orderDay: number;
+  readonly lines: readonly { readonly item: number; readonly name: string; readonly count: number; readonly used: boolean }[];
+}
+
+export interface ShippingDestinationView {
+  readonly id: number;
+  readonly name: string;
+  readonly rates: readonly [number, number, number];
+  readonly flowers: { readonly nextDay: number; readonly whenItGetsThere: number };
+  readonly canDeliver: boolean;
+  readonly primary: boolean;
+}
+
+export interface BobbyRayView {
+  readonly open: boolean;
+  readonly newStock: readonly BobbyRayStockView[];
+  readonly usedStock: readonly BobbyRayStockView[];
+  readonly shipments: readonly BobbyRayShipmentView[];
+  readonly destinations: readonly ShippingDestinationView[];
+}
+
+export interface InsuranceOfferView {
+  readonly soldier: number;
+  readonly profile: number;
+  readonly name: string;
+  readonly contractDaysLeft: number;
+  readonly insuredDaysLeft: number;
+  readonly insured: boolean;
+  readonly offeredLength: number;
+  readonly premium: number;
+}
+
+export interface InTransitView {
+  readonly soldier: number;
+  readonly profile: number;
+  readonly name: string;
+  readonly arrival: LaptopTimeView;
+  readonly sector: string;
+}
+
+export interface LaptopView {
+  readonly balance: number;
+  readonly bookmarks: readonly string[];
+  readonly emails: readonly LaptopEmailView[];
+  readonly history: readonly LaptopHistoryView[];
+  readonly finances: readonly LaptopFinanceView[];
+  readonly files: readonly { readonly code: number; readonly read: boolean }[];
+  readonly personnel: {
+    readonly dead: readonly number[];
+    readonly left: readonly number[];
+    readonly other: readonly number[];
+  };
+  readonly aim: readonly AimMercView[];
+  readonly merc: MercSiteView;
+  readonly imp: ImpSiteView;
+  readonly bobbyRay: BobbyRayView;
+  readonly insurance: readonly InsuranceOfferView[];
+  readonly inTransit: readonly InTransitView[];
+  readonly landingZone: string;
+}
+
 export interface PlayerView {
   readonly tick: number;
   readonly mapPath: string | null;
@@ -242,6 +412,7 @@ export interface PlayerView {
   readonly contractPrompt?: ContractPromptView | null;
   readonly autoresolve?: AutoresolveView | null;
   readonly shop?: ShopView | null;
+  readonly laptop?: LaptopView | null;
   readonly soldiers: readonly SoldierView[];
   readonly openDoors?: readonly number[];
   readonly combat?: CombatView | null;
@@ -260,6 +431,7 @@ export interface ViewFrame {
   readonly contractPrompt?: ContractPromptView | null;
   readonly autoresolve?: AutoresolveView | null;
   readonly shop?: ShopView | null;
+  readonly laptop?: LaptopView | null;
   readonly openDoors?: readonly number[];
   readonly combat?: CombatView | null;
   readonly revealedRooms?: readonly number[];
@@ -309,6 +481,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), autoresolve: next.autoresolve ?? null };
   if (JSON.stringify(previous.shop ?? null) !== JSON.stringify(next.shop ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), shop: next.shop ?? null };
+  if (JSON.stringify(previous.laptop ?? null) !== JSON.stringify(next.laptop ?? null))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), laptop: next.laptop ?? null };
   return frame;
 }
 

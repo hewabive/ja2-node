@@ -9,11 +9,11 @@ import { i32 } from '../../../core/int.ts';
 import { Assignment, CONSCIOUSNESS } from '../../strategic/economy/constants.ts';
 import { interruptTime, pauseGame, worldDay } from '../../strategic/time/world-clock.ts';
 import { isProfileDead } from '../../tactical/profiles.ts';
+import { MercAccountStatus } from '../laptop/laptop-state.ts';
 import { NUM_PROFILES } from '../profiles.ts';
 import { isMercOnTeam } from '../relations/relations.ts';
 import { MercKind, type RosterMerc } from '../roster.ts';
 import type { ContractContext } from './context.ts';
-import { MercAccountStatus } from './contract-state.ts';
 import type { MailKind } from './events.ts';
 import { HistoryCode, type QuoteName } from './quotes.ts';
 
@@ -61,9 +61,9 @@ function accountStatusFor(days: number): number | null {
 export function dailyUpdateOfMercSite(ctx: ContractContext): void {
   if (worldDay(ctx.state.clock) === 1) return;
   const status = accountStatusFor(longestUnpaidMercContract(ctx));
-  const contracts = ctx.contracts;
-  if (status !== null && contracts.mercAccountStatus !== status) {
-    contracts.mercAccountStatus = status;
+  const merc = ctx.state.laptop.merc;
+  if (status !== null && merc.accountStatus !== status) {
+    merc.accountStatus = status;
     ctx.emit({ type: 'mercAccountStatus', status: mercAccountStatusName(status) });
     const mail = STATUS_MAILS[status];
     if (mail) ctx.emit({ type: 'mailDue', mail });
@@ -80,7 +80,7 @@ function quitQuote(m: RosterMerc, accountStatus: number): QuoteName | null {
 export function mercsContractIsFinished(ctx: ContractContext, m: RosterMerc): void {
   if (ctx.roster.get(m.id) !== m) return;
   ctx.contracts.pendingEndings.push({ kind: 'enterMapScreen', soldier: m.id });
-  const quote = quitQuote(m, ctx.contracts.mercAccountStatus);
+  const quote = quitQuote(m, ctx.state.laptop.merc.accountStatus);
   if (!quote) return;
   interruptTime(ctx.state.clock);
   pauseGame(ctx.state.clock);
@@ -90,7 +90,7 @@ export function mercsContractIsFinished(ctx: ContractContext, m: RosterMerc): vo
 }
 
 export function mercsLeaveOverInvalidAccount(ctx: ContractContext): void {
-  if (ctx.contracts.mercAccountStatus !== MercAccountStatus.INVALID) return;
+  if (ctx.state.laptop.merc.accountStatus !== MercAccountStatus.INVALID) return;
   for (const m of ctx.team()) {
     if (m.assignment === Assignment.ASSIGNMENT_POW || m.assignment === Assignment.IN_TRANSIT) continue;
     if (m.kind !== MercKind.MERC || m.life < CONSCIOUSNESS) continue;

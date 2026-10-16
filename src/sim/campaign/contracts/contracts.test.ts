@@ -14,9 +14,10 @@ import { warpGameTime, worldTotalMinutes } from '../../strategic/time/world-cloc
 import { InvSlot } from '../../tactical/inventory.ts';
 import { MercStatus } from '../../tactical/profiles.ts';
 import { FinanceCode } from '../finances.ts';
+import { MercAccountStatus } from '../laptop/laptop-state.ts';
 import { strategicHandlePlayerTeamMercDeath } from '../merc-fate.ts';
 import { MercKind, type RosterMerc } from '../roster.ts';
-import { MercAccountStatus, RenewalQuoteCode } from './contract-state.ts';
+import { RenewalQuoteCode } from './contract-state.ts';
 import { checkIfMercGetsAnotherContract, dailyMoraleUpdate, mercDailyUpdate, soldierHasWorseEquipmentThanUsedTo } from './daily.ts';
 import {
   beginRemoveMercFromContract,
@@ -95,7 +96,7 @@ describe('contract fields at hire and arrival', () => {
       lastContractUpdate: at(1, 7),
       typeOfLastContract: 2,
       timeCanSignElsewhere: at(15, 7),
-      medicalDeposit: 600,
+      medicalDeposit: 1600,
     });
     expect(merc(cc, 1).contract.contractStartDay).toBe(1);
     expect(profile(cc, STUB.brack).mercMercContractLength).toBe(1);
@@ -407,7 +408,7 @@ describe('the daily update', () => {
     const statuses: number[] = [];
     for (let day = 0; day < 12; day++) {
       dailyUpdateOfMercSite(cc.flow);
-      statuses.push(cc.campaign.state.contracts.mercAccountStatus);
+      statuses.push(cc.campaign.state.laptop.merc.accountStatus);
     }
     expect(profile(cc, STUB.brack).mercMercContractLength).toBe(13);
     const S = MercAccountStatus;
@@ -454,7 +455,7 @@ describe('level-ups', () => {
     const kestrel = profile(cc, STUB.kestrel);
     cc.flow.experienceHooks.levelGained(kestrel, merc(cc, 0).soldier, 1);
     expect(merc(cc, 0).contract.contractPriceIncreased).toBe(true);
-    expect([kestrel.salary, kestrel.weeklySalary, kestrel.biWeeklySalary, kestrel.medicalDepositAmount]).toEqual([390, 2400, 4500, 750]);
+    expect([kestrel.salary, kestrel.weeklySalary, kestrel.biWeeklySalary, kestrel.medicalDepositAmount]).toEqual([390, 2400, 4500, 2000]);
     const rng = scripted(cc, [30]);
     cc.flow.experienceHooks.levelGained(profile(cc, STUB.brack), merc(cc, 1).soldier, 1);
     expect(rng.main.requested).toEqual([60]);

@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Profile.cc InitProfileFromContent (attractiveness, optional gear cost, relation counters),
-// @src LoadMercProfiles; Soldier_Profile_Type.h PROFILE_MISC_FLAG3_*; Laptop/AIM.h MAX_NUMBER_MERCS; Laptop/Mercs.h
+// @src src/game/Tactical/Soldier_Profile.cc InitProfileFromContent (dialogue check, medical deposit, attractiveness, optional gear
+// @src cost, relation counters),
+// @src LoadMercProfiles; Soldier_Profile_Type.h PROFILE_MISC_FLAG_*, PROFILE_MISC_FLAG3_*; Laptop/AIM.h MAX_NUMBER_MERCS; Laptop/Mercs.h
 // @src DAYS_TIL_M_E_R_C_AVAIL; src/externalized/mercs/MercProfile.cc (profile types). See docs/22 §0, docs/21 §0.
 
 import type { MercProfile } from '../../content/formats/prof.ts';
@@ -9,7 +10,8 @@ import { ItemClass, type ItemTable } from '../../content/items/items.ts';
 import { MercType } from '../../content/strategic/economy-content.ts';
 import { i8, u16 } from '../../core/int.ts';
 import { reducedGunListInventory } from '../tactical/inventory.ts';
-import { type ProfileProgress, profileProgress, progressFromProfile } from '../tactical/profiles.ts';
+import { MercStatus, type ProfileProgress, profileProgress, progressFromProfile } from '../tactical/profiles.ts';
+import { calcMedicalDeposit } from './laptop/profile-state.ts';
 import { MercKind } from './roster.ts';
 
 export const NUM_PROFILES = 200;
@@ -17,6 +19,11 @@ export const MAX_NUMBER_MERCS = 40;
 export const DAYS_TIL_MERC_AVAILABLE = 3;
 const NO_ATTRACTIVENESS = -1;
 const NOTHING = 0;
+
+export const ProfileMiscFlag = {
+  RECRUITED: 0x01,
+  ALREADY_USED_ITEMS: 0x80,
+} as const;
 
 export const ProfileMiscFlag3 = {
   PLAYER_LEFT_MSG_FOR_MERC_AT_AIM: 0x01,
@@ -28,6 +35,7 @@ export const ProfileMiscFlag3 = {
 export interface ProfileContent {
   readonly profiles: readonly MercProfile[];
   readonly items: ItemTable;
+  readonly dialogueProfiles?: ReadonlySet<number>;
 }
 
 export interface CampaignProfiles {
@@ -60,8 +68,10 @@ export function inventoryRatings(items: ItemTable, inventory: readonly number[])
   return { mainGunAttractiveness, armourAttractiveness, optionalGearCost };
 }
 
-export function initProfileFromContent(p: MercProfile, items: ItemTable, gunNut: boolean): ProfileProgress {
+export function initProfileFromContent(p: MercProfile, items: ItemTable, gunNut: boolean, hasDialogue = true): ProfileProgress {
   const progress = progressFromProfile(p);
+  progress.mercStatus = hasDialogue ? MercStatus.OK : MercStatus.HAS_NO_TEXT_FILE;
+  progress.medicalDepositAmount = progress.medicalDeposit ? calcMedicalDeposit(progress) : 0;
   const inventory = gunNut ? [...p.inventory] : reducedGunListInventory(items, p.inventory);
   progress.inventory.splice(0, progress.inventory.length, ...inventory);
   return Object.assign(progress, inventoryRatings(items, inventory));
@@ -69,7 +79,7 @@ export function initProfileFromContent(p: MercProfile, items: ItemTable, gunNut:
 
 export function loadMercProfiles(c: CampaignProfiles, gunNut: boolean): void {
   c.content.profiles.forEach((p, id) => {
-    if (p) c.profiles.set(id, initProfileFromContent(p, c.content.items, gunNut));
+    if (p) c.profiles.set(id, initProfileFromContent(p, c.content.items, gunNut, c.content.dialogueProfiles?.has(id) ?? true));
   });
 }
 

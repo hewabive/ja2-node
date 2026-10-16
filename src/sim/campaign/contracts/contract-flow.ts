@@ -193,6 +193,7 @@ export class ContractFlow implements ContractContext {
   }
 
   emit(e: ContractEventWithoutTick): void {
+    this.hooks.contractEvent(e);
     this.#events.push({ ...e, tick: this.campaign.tick } as SimEvent);
   }
 
@@ -202,6 +203,7 @@ export class ContractFlow implements ContractContext {
 
   history(code: number, profile: number, sector: { x: number; y: number; z: number } | null): void {
     const valid = sector !== null && sector.x >= 1 && sector.y >= 1;
+    this.hooks.history(code, profile, valid ? { x: sector.x, y: sector.y, z: sector.z } : null);
     this.emit({ type: 'historyAdded', code, profile, sector: valid ? sectorShortString(sector) : null });
   }
 
@@ -525,8 +527,9 @@ export class ContractFlow implements ContractContext {
     return { ok: true, data: { balance: this.state.finances.balance, options: contractOptions(this, m, this.#inCombat()) } };
   }
 
-  loadMercProfiles(): void {
-    loadMercProfiles({ profiles: this.state.profiles, content: this.content }, this.state.options.gunNut);
+  loadMercProfiles(dialogueProfiles?: ReadonlySet<number>): void {
+    const content = dialogueProfiles ? { ...this.content, dialogueProfiles } : this.content;
+    loadMercProfiles({ profiles: this.state.profiles, content }, this.state.options.gunNut);
   }
 
   hireContract(m: RosterMerc, length: number): number {

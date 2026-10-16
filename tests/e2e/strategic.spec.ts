@@ -24,7 +24,7 @@ test('starts a campaign and keeps the squad in the garrisoned start sector', asy
   await page.waitForFunction(() => window.__ja2Strategic?.ready && window.__ja2Strategic.worldSector !== null);
   expect(await page.evaluate(() => window.__ja2Strategic.worldSector)).toBe('A9');
   expect(await page.evaluate(() => window.__ja2Strategic.clock)).toBe('Day 1, 07:00');
-  await expect(page.locator('#status')).toContainText('balance $30,000');
+  await expect(page.locator('#status')).toContainText('balance $16,740');
   await expect(page.locator('[data-sector="A9"] .badge.squad')).toHaveText('S1');
   await expect(page.locator('#mercs tr')).toHaveCount(5);
 

@@ -2,15 +2,13 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.h SOLDIERTYPE contract fields, SOLDIER_CONTRACT_RENEW_QUOTE_*, SOLDIER_QUOTE_SAID_*;
 // @src Strategic/Merc_Contract.h CONTRACT_EXTEND_*; Merc_Contract.cc ContractRenewalList, ubNumContractRenewals and the
-// @src sequence flags; Strategic/Map_Screen_Interface.cc gpLeaveListHead, guiLeaveListOwnerProfileId; Laptop/Mercs.h
-// @src MERC_ACCOUNT_*. See docs/22 §0.
+// @src sequence flags; Strategic/Map_Screen_Interface.cc gpLeaveListHead, guiLeaveListOwnerProfileId. See docs/22 §0.
 
 import type { ItemObject } from '../../items/object.ts';
 import { NO_PROFILE } from '../../tactical/soldier.ts';
 
 export const ContractLength = { EXTEND_1_DAY: 0, EXTEND_1_WEEK: 1, EXTEND_2_WEEK: 2 } as const;
 export const RenewalQuoteCode = { NOT_USED: 0, CONTRACTS_OVER_USED: 1, LEAVING_SOON_USED: 2 } as const;
-export const MercAccountStatus = { NO_ACCOUNT: 0, SUSPENDED: 1, INVALID: 2, VALID_FIRST_WARNING: 3, VALID: 4 } as const;
 export const QuoteSaidFlag = {
   LOW_MORAL: 0x0010,
   ANNOYING_MERC: 0x0040,
@@ -31,6 +29,7 @@ export interface MercContract {
   signedAnotherContract: boolean;
   lastContractUpdate: number;
   timeWillArrive: number;
+  useLandingZone: boolean;
   renewalQuoteCode: number;
   leaveHistoryCode: number;
   medicalDeposit: number;
@@ -51,6 +50,7 @@ export function createMercContract(init: Partial<MercContract> = {}): MercContra
     signedAnotherContract: false,
     lastContractUpdate: 0,
     timeWillArrive: 0,
+    useLandingZone: false,
     renewalQuoteCode: RenewalQuoteCode.NOT_USED,
     leaveHistoryCode: 0,
     medicalDeposit: 0,
@@ -84,7 +84,6 @@ export type PendingEnding =
 export interface ContractState {
   readonly renewal: RenewalSequence;
   readonly leaveList: LeaveSlot[];
-  mercAccountStatus: number;
   readonly pendingEndings: PendingEnding[];
 }
 
@@ -92,7 +91,6 @@ export function createContractState(): ContractState {
   return {
     renewal: { list: [], on: false, current: 0, inProgress: false, fromSequence: false },
     leaveList: Array.from({ length: NUM_LEAVE_LIST_SLOTS }, () => ({ items: null, owner: NO_PROFILE })),
-    mercAccountStatus: MercAccountStatus.NO_ACCOUNT,
     pendingEndings: [],
   };
 }

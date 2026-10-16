@@ -49,11 +49,11 @@ wraps, i.e. for large balances.
 | 1 | Tactical status (`ExtractTacticalStatusTypeFromFile`) + `i16 x, i16 y, i8 z` world sector | 316 / 360 + 5 | flags, teams, current team, interrupt flags, sector |
 | 2 | Game clock (`LoadGameClock`) | 42 + 20 padding | all; `gameClock` is world seconds |
 | 3 | Strategic events | `u32 n` × 28 | all |
-| 4 | Laptop info | 7440, then Bobby Ray orders (`size × 84` if `used ≠ 0`) and insurance payouts (`n × 8` if `used ≠ 0`) | balance, counts |
-| 5 | Merc profiles | 170 (200 from v105) × encrypted 716 / 796; v104+: `n` voice ids + `n` IMP slot states | `prof.dat` fields + kills, status… |
+| 4 | Laptop info | 7440, then Bobby Ray orders (`size × 84` if `used ≠ 0`) and insurance payouts (`n × 8` if `used ≠ 0`) | all logic fields (`savegame-laptop.ts`, §11): bookmarks, balance, I.M.P. flags and voice, personnel lists, M.E.R.C. fields, both Bobby Ray lists (8-byte `STORE_INVENTORY`) cut to `usInventoryListLength`, site flags, Speck flags, florist number, payouts; the old order array is skipped |
+| 5 | Merc profiles | 170 (200 from v105) × encrypted 716 / 796; v104+: `n` voice ids + `n` IMP slot states | `prof.dat` fields + kills, status…; voice ids and I.M.P. slot states (`savegame-laptop.ts`) |
 | 6 | Soldiers | 156 × (`u8 active`; if set: encrypted 2328 / 2352, merc path `u32 n` × 20, `u8 hasKeyRing` + 128) | see §6; the assignment fields (`bTrainStat`, sleep, collapse, nothing-to-do, last change) also by `readSoldierAssignments` (`savegame-economy.ts`) |
-| 7–9 | Finances, history, files temp files | `u32 size` + data each | finances (`i32` balance + 14-byte records) decoded by `savegame-economy.ts`; history and files skipped |
-| 10 | Email | `u32 n` × (`u32 subjectSize` + subject + 44) | skipped |
+| 7–9 | Finances, history, files temp files | `u32 size` + data each | finances (`i32` balance + 14-byte records) decoded by `savegame-economy.ts`; history (12-byte records) and files (263-byte records) by `savegame-laptop.ts` |
+| 10 | Email | `u32 n` × (`u32 subjectSize` + subject + 44) | all (`savegame-laptop.ts`) |
 | 11 | Strategic info | 324 × 41 map elements, 256 × 116 `SECTORINFO`, 324 SAM bytes, 1 | all (`savegame-strategic.ts`): map elements, every `SECTORINFO` field, Orta found |
 | 12 | Underground sectors | `u32 n` × 72 | all |
 | 13 | Squads | 120 × 12 (`i16 id`, format version, squad id from v101, 8) + 20 movement group ids | members |
@@ -67,7 +67,7 @@ wraps, i.e. for large balances.
 | 21 | Temp NPC quote file | `u32 size` + data (Strac writes 0, vanilla a real file) | skipped |
 | 22 | PreRandom | `u32 index` + 256 × `u32` | all |
 | 23 | Arms dealers | 19 × 20 + 19 × 351 × 16 headers, then 28 × Σ special-item counts of items 1..350 | all: status, headers and special elements (`savegame-merchants.ts`, `docs/23` §15.4) |
-| 24 | General info (`LoadGeneralInfo`) | 1024 | selected soldier, render centre, panel, options, clock base, helicopter id and airborne flag, Tixa and SAM secrets, dead squad members, selected map sector |
+| 24 | General info (`LoadGeneralInfo`) | 1024 | selected soldier, render centre, panel, options, clock base, helicopter id and airborne flag, Tixa and SAM secrets, dead squad members, selected map sector; `g_merc_arrive_sector` (8 bytes after `sSelMap.z`) by `savegame-laptop.ts` |
 | 25–30 | Mines (6 × 44), town loyalty (13 × 26), vehicles (`u8 n` × (`bool valid` + 128 + merc path)), bullets (`u32 n` × 128), physics objects (`u32 n` × 256), air raid (132) | | mines and town loyalty decoded by `savegame-economy.ts` (`readSavedEconomy`), vehicles decoded, the rest skipped |
 | 31 | Team turns | 174 | interrupt queue, hidden interrupt, last interrupted |
 | 32 | Explosions | 4 + 40 × 12 queue, `u32 n` × 36 | skipped |
@@ -75,7 +75,7 @@ wraps, i.e. for large balances.
 | 35 | Strategic AI | 144 + 1200 + 1000 + 1400 + patrol count + garrison count (counts at offsets 8 and 4) | all (`savegame-strategic-ai.ts`, `docs/17` §1.4); the meanwhile flags and first-battle sector of section 24 too |
 | 36 | Watched locations | 156 × 3 × (2 + 1 + 1 + 1) | all |
 | 37–42 | Item cursor (44), civ quotes (100), backup NPC info (as 19 without civ sectors), meanwhile (17 × 8), schedules (`u8 n` × 36), vehicle movement groups (10) | | vehicle movement groups decoded, the rest skipped |
-| 43–45 | Contract renewals (81), leave item list (20 × (`bool` + `u32 n` × 40) + 80), Bobby Ray shipments (`i32 n` × 104) | | skipped |
+| 43–45 | Contract renewals (81), leave item list (20 × (`bool` + `u32 n` × 40) + 80), Bobby Ray shipments (`i32 n` × 104) | | renewals and leave list by `savegame-contracts.ts`; shipments by `savegame-laptop.ts` |
 | 46 | Game states (v101+) | `u32 len` + JSON text | text |
 
 Sections 11–14, the vehicles, the vehicle movement groups and the strategic part of the general info feed
@@ -164,7 +164,7 @@ the reader converts them and reuses the Windows parser.
 - The Strac Linux layout is implemented from the source and covered by a synthetic test only; no real Linux save was
   available.
 - Versions 100–105 are covered by the version gates in the code but were not tested against real files.
-- The skipped sections (laptop pages, email, NPC scripts, strategic AI, bullets, physics objects,
+- The skipped sections (NPC scripts, bullets, physics objects,
   explosions, schedules) and the raw temp files (revealed tiles, preserved enemies and civilians, smoke, lights) still
   need decoders before the strategic layer can continue a campaign. Rotting corpses (`decodeRottingCorpsesFile`,
   160-byte records after a `u32` count) and map modifications (`decodeMapModificationsFile`, 8-byte `MODIFY_MAP`
@@ -218,3 +218,27 @@ native oracle runs it, and `tools/oracle/compare.ts` rebuilds every probe from t
 6,815 comparisons over the six vanilla saves matched, including the `lights` dumps of both levels and 728
 `light … viewer=` probes; a tile lit by a map light (`LightTrueLevel` 10 instead of the ambient 12 at 02:00 in D13)
 extends `DistanceVisible` from 11 to 15 tiles in both.
+
+## 11. Laptop sections
+
+`src/content/formats/savegame-laptop.ts` (`readSavedLaptop`) decodes the laptop part of a save from the section offsets
+the parser records, and `src/sim/campaign/laptop/save-import.ts` (`importLaptop`, called by `createSaveSession` after
+the contract import) fills `StrategicState.laptop` and the narrative facts and quests (`docs/21` §0):
+
+| Source | Layout | Imported as |
+|---|---|---|
+| `LaptopSaveInfo` (section 4) | `LoadLaptopInfoFromSavedGame`: the 7440-byte block field by field; `fFirstVisitSinceServerWentDown` is read as a byte (it holds 0, 1 or 2); bookmarks end at the first −1 | new-game flag, bookmarks, personnel lists (256 × `i16`, −1 empty), M.E.R.C. account and site fields, I.M.P. flags and voice index, Bobby Ray site flags and both inventories in save order, florist order number, last hired merc |
+| Insurance payouts (after the block when `ubNumberLifeInsurancePayoutUsed ≠ 0`) | `numLifeInsurancePayouts` × 8: `bool active`, `u8 soldier`, `u8 profile`, 1 padding, `i32 payout` | payout list and used count |
+| Old Bobby Ray orders (after the block when used) | `size` × 84 | skipped (replaced by the shipment list in Strac) |
+| Bobby Ray shipments (section 45) | `i32 n` × 104: `bool active`, `u8 destination`, `u8 method`, 1 padding, 10 × 8 purchases (`u16 item`, `u8 count`, `i8 quality`, `u16 slot`, `bool used`, 1 padding), `u8 lines`, 3 padding, `u32 weight`, `u32 order day`, `bool shown`, 7 filler | shipments with their used lines; Pablo's theft counter (a function static in the original) starts at 0 |
+| History file (section 8) | 12-byte records: `u8 code`, `u8 second`, `u32 date`, `i16 x`, `i16 y`, `i8 z`, 1 padding | history log |
+| Files file (section 9) | 263-byte records: `u8 code`, 261 bytes, `u8 read` | file list |
+| Email (section 10) | per mail `u32 subjectSize` + subject (Strac 0) + 44 bytes: `u16 offset`, `u16 length`, `u8 sender`, 3, `u32 date`, 4, `i32 first`, `u32 second`, 16, `bool read`, 3 | mails in save order with fresh sequential ids |
+| Merc profiles (section 5, v104+) | the last `2n` bytes: voice ids, then I.M.P. slot states (1 = taken) | taken I.M.P. slots (their saved profiles become the characters' records); before v104 the slot `51 + iVoiceId` when `fIMPCompletedFlag` is set (`LoadSavedMercProfiles`) |
+| General info (section 24) | `g_merc_arrive_sector` as `i16 x, i16 y` | landing zone; an invalid sector falls back to the start sector as `LoadGeneralInfo` does |
+
+`SyncLastMercFromSaveGame` is applied: when `ubLastMercAvailableId` names Numb or Cougar and `gubLastMercIndex` is one
+past that merc's listing (old saves with both Larry profiles in the list), the index moves back by one. The soldier
+records also give `fUseLandingZoneForArrival` (`contract.useLandingZone`). On 2026-10-16 the six vanilla saves decode
+and import: the balance matches `iCurrentBalance`, both Bobby Ray lists match their saved lengths, every mail offset is
+a known mail and every hired A.I.M. merc keeps a 07/13/19 contract hour.
