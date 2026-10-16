@@ -123,6 +123,7 @@ export function teamJackedInAndGearedToGo(campaign: CampaignSim, loadStartSector
   if (!s.didGameJustStart || (campaign.strategic?.mercs.all().length ?? 0) === 0) return;
   loadStartSector();
   warpGameTime(campaign.clockContext, FIRST_ARRIVAL_DELAY, Warp.NORMAL);
+  campaign.laptop?.firstLanding();
   s.didGameJustStart = false;
   if (s.flow === 'tactical') setGameTimeCompressionLevel(campaign.clockContext, CompressMode.X1);
 }

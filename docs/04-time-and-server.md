@@ -413,10 +413,12 @@ Omerta A9 · turn 3 · ours · 07:42
 ### 6.6. Campaign sessions (M4)
 
 `src/server/campaign-factory.ts` `createCampaignSession(read, exists, seed, request)` builds a `CampaignSim` with the
-strategic map, the Queen, towns and the sector flow, runs `initNewGame`, hires the squad and, unless `land: false`,
-dispatches the first `compressTime` so the helicopter drop loads the start sector at 07:00 on day 1 (`docs/15` §4.5).
-With original data the squad is A.I.M. profiles (`profiles`, ids 0–39, default six); on stubs it is `mercs` stub mercs
-(default four, `src/server/stub-mercs.ts`, shared with the sandbox). `difficulty` is 1–3 (default 2). Maps are loaded by
+strategic map, the Queen, towns and the sector flow, runs `initNewGame` (which leaves the game in the laptop), hires the
+squad through the laptop (§6.9), closes it and, unless `land: false`, dispatches the first `compressTime` so the helicopter
+drop loads the start sector at 07:00 on day 1 (`docs/15` §4.5). `hire: [{profile, contract?, gear?}]` names the A.I.M.
+hires (a refusal fails the request), `mercs` sets the size of the default squad (original data: profiles 0, 3, 4, 7, 14,
+16, default six; stubs: the authored profiles 0–5, default four; hired in order while available and affordable), `imp`
+runs an `impCreate`, and `hire: []` without `imp` returns the session in the open laptop. `difficulty` is 1–3 (default 2). Maps are loaded by
 `WorldCache` before each command (`Session.prepareAndDispatch`).
 
 Sessions are created through MCP `newSession`, `POST /api/sessions` (same JSON body: `{seed?, save?, campaign?}`;
@@ -462,6 +464,28 @@ decision prompts in `observe.contractPrompt` (`contractRenewal`, `mercDeparture`
 `answer`; `advance` stops on them with `decision`. Strategic mercs show `kind`, `contract` (A.I.M. days left, end time,
 renewal costs; M.E.R.C. debt; R.P.C. rate), `morale` and `moraleText`, `daysServed`, `totalCost`; the strategic view shows
 the M.E.R.C. account status. Opinions, tolerances, reputation and the death rate stay hidden.
+
+### 6.9. Laptop and hiring (M5)
+
+The laptop is a modal flow (`docs/21` §1.3, §10): a new game starts in it (day 1, 01:00) and `openLaptop` opens it from
+the map screen (refused elsewhere and while a prompt, a pending battle or the renewal sequence is open). While it is open
+the clock stands still, every non-laptop command is refused with `laptop: the laptop is open, closeLaptop first` and
+`advance` returns `refused` with that refusal; laptop commands sent while it is closed answer `laptopClosed`. Commands:
+`closeLaptop`, `readEmail`/`deleteEmail {id}` (reading the I.M.P. intro bookmarks I.M.P., Speck's intro M.E.R.C.),
+`aimHire {profile, contract: 1|7|14, gear?}`, `aimLeaveMessage {profile}`, `mercOpenAccount`, `mercHire {profile}`,
+`mercPay`, `impCreate {code, name, nickname?, gender, answers[16], attributes, portrait, voice}`, `bobbyRayOrder {lines:
+[{item, used?, quantity}], destination, speed: 0|1|2}`, `insure {soldier}`, `orderFlowers {bouquet, destination, nextDay,
+extras}`; on the map screen `setLandingZone {sector}`. Queries that never act and work in any flow: `aimQuote`,
+`bobbyRayQuote`, `insuranceQuote`, `impPreview`, `arrivalTime`. Hires answer with the soldier id, the charge and the
+arrival (`{minute, shownMinute, sector}`); the hired merc is `IN_TRANSIT` until the 07:30, 13:30 or 19:30 flight lands him
+in the landing zone (after the first landing the arrival event stops compression and drops him into a loaded start
+sector by helicopter). `observe.laptop` (and the `laptop` field of view frames) is present only while the laptop is open:
+balance, bookmarks, mails, history, finance records, files, personnel lists, A.I.M. mercs (stats, salaries, medical
+deposit, kit, face state), the M.E.R.C. site (once bookmarked), I.M.P., Bobby Ray's stock, shipments and destinations,
+insurance offers, mercs in transit and the landing zone; the strategic view always carries `landingZone` and
+`unreadMail`, and in-transit strategic mercs their `arrival`. Events: `laptopOpened`, `laptopClosed`, `mercHired`,
+`mercArrived`, `arrivalRerouted`, `landingZoneReset`, `emailReceived`, `historyAdded`, `moneyChanged`, `bobbyRayOpen`,
+`shipmentDelivered`, `shipmentLost`, `insurancePaid`, `mercAccountStatus`. Native saves import the laptop sections.
 
 ## 7. Cost and limitations
 

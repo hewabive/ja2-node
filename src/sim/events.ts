@@ -1,4 +1,5 @@
 import type { ContractEvent } from './campaign/contracts/events.ts';
+import type { LaptopEvent } from './campaign/laptop/events.ts';
 import type { ShopEvent } from './strategic/economy/merchants/events.ts';
 
 export interface SimEventBase {
@@ -381,5 +382,6 @@ export type SimEvent =
   | CompressionStoppedEvent
   | WorldTimeReachedEvent
   | DayStartedEvent
-  | ShopEvent;
+  | ShopEvent
+  | LaptopEvent;
 export type SimEventType = SimEvent['type'];

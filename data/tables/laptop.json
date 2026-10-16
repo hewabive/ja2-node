@@ -1,0 +1,434 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Laptop/EMail.h (mail offsets, lengths and senders), src/game/Laptop/IMP_Personality_Quiz.cc CompileQuestionsInStatsAndWhatNot",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "mail: every email.edt record define (offsets and lengths) by name; senders: the sender ids; impQuiz: per question the effect of each answer (null = none; skill, attitude or personality with its enum value, or a skill that depends on the sex); profiles: the profile ids the laptop code names; terrorists: g_terrorist_infos in order (profile, the five candidate sectors, null = preplaced)",
+  "mail": {
+    "IMP_EMAIL_INTRO": 0,
+    "IMP_EMAIL_INTRO_LENGTH": 10,
+    "ENRICO_CONGRATS": 10,
+    "ENRICO_CONGRATS_LENGTH": 3,
+    "IMP_EMAIL_AGAIN": 13,
+    "IMP_EMAIL_AGAIN_LENGTH": 6,
+    "MERC_INTRO": 19,
+    "MERC_INTRO_LENGTH": 5,
+    "MERC_NEW_SITE_ADDRESS": 24,
+    "MERC_NEW_SITE_ADDRESS_LENGTH": 2,
+    "AIM_MEDICAL_DEPOSIT_REFUND": 26,
+    "AIM_MEDICAL_DEPOSIT_REFUND_LENGTH": 3,
+    "IMP_EMAIL_PROFILE_RESULTS": 29,
+    "IMP_EMAIL_PROFILE_RESULTS_LENGTH": 1,
+    "MERC_WARNING": 30,
+    "MERC_WARNING_LENGTH": 2,
+    "MERC_INVALID": 32,
+    "MERC_INVALID_LENGTH": 2,
+    "NEW_MERCS_AT_MERC": 34,
+    "NEW_MERCS_AT_MERC_LENGTH": 2,
+    "MERC_FIRST_WARNING": 36,
+    "MERC_FIRST_WARNING_LENGTH": 2,
+    "MERC_UP_LEVEL_BIFF": 38,
+    "MERC_UP_LEVEL_LENGTH_BIFF": 2,
+    "MERC_UP_LEVEL_HAYWIRE": 40,
+    "MERC_UP_LEVEL_LENGTH_HAYWIRE": 2,
+    "MERC_UP_LEVEL_GASKET": 42,
+    "MERC_UP_LEVEL_LENGTH_GASKET": 2,
+    "MERC_UP_LEVEL_RAZOR": 44,
+    "MERC_UP_LEVEL_LENGTH_RAZOR": 2,
+    "MERC_UP_LEVEL_FLO": 46,
+    "MERC_UP_LEVEL_LENGTH_FLO": 2,
+    "MERC_UP_LEVEL_GUMPY": 48,
+    "MERC_UP_LEVEL_LENGTH_GUMPY": 2,
+    "MERC_UP_LEVEL_LARRY": 50,
+    "MERC_UP_LEVEL_LENGTH_LARRY": 2,
+    "MERC_UP_LEVEL_COUGAR": 52,
+    "MERC_UP_LEVEL_LENGTH_COUGAR": 2,
+    "MERC_UP_LEVEL_NUMB": 54,
+    "MERC_UP_LEVEL_LENGTH_NUMB": 2,
+    "MERC_UP_LEVEL_BUBBA": 56,
+    "MERC_UP_LEVEL_LENGTH_BUBBA": 2,
+    "AIM_REPLY_BARRY": 58,
+    "AIM_REPLY_LENGTH_BARRY": 2,
+    "AIM_REPLY_MELTDOWN": 136,
+    "AIM_REPLY_LENGTH_MELTDOWN": 2,
+    "OLD_ENRICO_1": 138,
+    "OLD_ENRICO_1_LENGTH": 3,
+    "OLD_ENRICO_2": 141,
+    "OLD_ENRICO_2_LENGTH": 3,
+    "RIS_REPORT": 144,
+    "RIS_REPORT_LENGTH": 2,
+    "OLD_ENRICO_3": 146,
+    "OLD_ENRICO_3_LENGTH": 3,
+    "ENRICO_MIGUEL": 149,
+    "ENRICO_MIGUEL_LENGTH": 3,
+    "ENRICO_PROG_20": 152,
+    "ENRICO_PROG_20_LENGTH": 3,
+    "ENRICO_PROG_55": 155,
+    "ENRICO_PROG_55_LENGTH": 3,
+    "ENRICO_PROG_80": 158,
+    "ENRICO_PROG_80_LENGTH": 3,
+    "ENRICO_SETBACK": 161,
+    "ENRICO_SETBACK_LENGTH": 3,
+    "ENRICO_SETBACK_2": 164,
+    "ENRICO_SETBACK_2_LENGTH": 3,
+    "ENRICO_CREATURES": 167,
+    "ENRICO_CREATURES_LENGTH": 3,
+    "INSUR_PAYMENT": 170,
+    "INSUR_PAYMENT_LENGTH": 3,
+    "INSUR_SUSPIC": 173,
+    "INSUR_SUSPIC_LENGTH": 3,
+    "INSUR_INVEST_OVER": 176,
+    "INSUR_INVEST_OVER_LENGTH": 3,
+    "INSUR_SUSPIC_2": 179,
+    "INSUR_SUSPIC_2_LENGTH": 3,
+    "BOBBYR_NOW_OPEN": 182,
+    "BOBBYR_NOW_OPEN_LENGTH": 3,
+    "KING_PIN_LETTER": 185,
+    "KING_PIN_LETTER_LENGTH": 4,
+    "LACK_PLAYER_PROGRESS_1": 189,
+    "LACK_PLAYER_PROGRESS_1_LENGTH": 3,
+    "LACK_PLAYER_PROGRESS_2": 192,
+    "LACK_PLAYER_PROGRESS_2_LENGTH": 3,
+    "LACK_PLAYER_PROGRESS_3": 195,
+    "LACK_PLAYER_PROGRESS_3_LENGTH": 3,
+    "BOBBYR_SHIPMENT_ARRIVED": 198,
+    "BOBBYR_SHIPMENT_ARRIVED_LENGTH": 4,
+    "JOHN_KULBA_GIFT_IN_DRASSEN": 202,
+    "JOHN_KULBA_GIFT_IN_DRASSEN_LENGTH": 4,
+    "MERC_DIED_ON_OTHER_ASSIGNMENT": 206,
+    "MERC_DIED_ON_OTHER_ASSIGNMENT_LENGTH": 5,
+    "INSUR_1HOUR_FRAUD": 211,
+    "INSUR_1HOUR_FRAUD_LENGTH": 3,
+    "AIM_MEDICAL_DEPOSIT_PARTIAL_REFUND": 214,
+    "AIM_MEDICAL_DEPOSIT_PARTIAL_REFUND_LENGTH": 3,
+    "AIM_MEDICAL_DEPOSIT_NO_REFUND": 217,
+    "AIM_MEDICAL_DEPOSIT_NO_REFUND_LENGTH": 3,
+    "BOBBY_R_MEDUNA_SHIPMENT": 220,
+    "BOBBY_R_MEDUNA_SHIPMENT_LENGTH": 4
+  },
+  "senders": {
+    "MAIL_ENRICO": 0,
+    "CHAR_PROFILE_SITE": 1,
+    "GAME_HELP": 2,
+    "IMP_PROFILE_RESULTS": 3,
+    "SPECK_FROM_MERC": 4,
+    "RIS_EMAIL": 5,
+    "BARRY_MAIL": 6,
+    "MELTDOWN_MAIL": 45,
+    "INSURANCE_COMPANY": 46,
+    "BOBBY_R": 47,
+    "KING_PIN": 48,
+    "JOHN_KULBA": 49,
+    "AIM_SITE": 50
+  },
+  "impQuiz": [
+    [
+      {
+        "list": "skill",
+        "male": 12,
+        "female": 10
+      },
+      {
+        "list": "attitude",
+        "value": 2
+      },
+      {
+        "list": "skill",
+        "value": 2
+      },
+      {
+        "list": "skill",
+        "value": 1
+      },
+      {
+        "list": "skill",
+        "value": 5
+      },
+      {
+        "list": "attitude",
+        "value": 3
+      }
+    ],
+    [
+      {
+        "list": "skill",
+        "value": 6
+      },
+      {
+        "list": "skill",
+        "value": 9
+      },
+      {
+        "list": "personality",
+        "value": 7
+      },
+      {
+        "list": "attitude",
+        "value": 1
+      }
+    ],
+    [
+      {
+        "list": "skill",
+        "value": 1
+      },
+      {
+        "list": "attitude",
+        "value": 6
+      },
+      {
+        "list": "skill",
+        "value": 9
+      },
+      {
+        "list": "attitude",
+        "value": 0
+      }
+    ],
+    [
+      {
+        "list": "skill",
+        "value": 8
+      },
+      {
+        "list": "attitude",
+        "value": 1
+      },
+      {
+        "list": "attitude",
+        "value": 0
+      },
+      {
+        "list": "attitude",
+        "value": 8
+      },
+      {
+        "list": "attitude",
+        "value": 2
+      }
+    ],
+    [
+      {
+        "list": "attitude",
+        "value": 9
+      },
+      null,
+      {
+        "list": "attitude",
+        "value": 5
+      },
+      null
+    ],
+    [
+      {
+        "list": "attitude",
+        "value": 9
+      },
+      {
+        "list": "skill",
+        "value": 4
+      },
+      {
+        "list": "personality",
+        "value": 3
+      },
+      null,
+      null
+    ],
+    [
+      {
+        "list": "skill",
+        "value": 3
+      },
+      {
+        "list": "skill",
+        "value": 13
+      },
+      {
+        "list": "skill",
+        "value": 4
+      },
+      null
+    ],
+    [
+      {
+        "list": "skill",
+        "value": 10
+      },
+      null,
+      {
+        "list": "attitude",
+        "value": 3
+      },
+      {
+        "list": "personality",
+        "value": 7
+      }
+    ],
+    [
+      {
+        "list": "personality",
+        "value": 6
+      },
+      null,
+      {
+        "list": "attitude",
+        "value": 4
+      },
+      {
+        "list": "personality",
+        "value": 2
+      }
+    ],
+    [
+      null,
+      {
+        "list": "attitude",
+        "value": 4
+      },
+      {
+        "list": "attitude",
+        "value": 8
+      },
+      {
+        "list": "personality",
+        "value": 2
+      }
+    ],
+    [
+      null,
+      {
+        "list": "skill",
+        "value": 6
+      },
+      {
+        "list": "attitude",
+        "value": 5
+      },
+      {
+        "list": "attitude",
+        "value": 0
+      },
+      null
+    ],
+    [
+      {
+        "list": "skill",
+        "male": 12,
+        "female": 10
+      },
+      {
+        "list": "skill",
+        "value": 13
+      },
+      null,
+      {
+        "list": "skill",
+        "value": 8
+      },
+      {
+        "list": "skill",
+        "value": 2
+      },
+      {
+        "list": "skill",
+        "value": 3
+      },
+      null,
+      null
+    ],
+    [
+      {
+        "list": "personality",
+        "value": 6
+      },
+      {
+        "list": "attitude",
+        "value": 0
+      },
+      {
+        "list": "attitude",
+        "value": 0
+      },
+      {
+        "list": "personality",
+        "value": 1
+      }
+    ],
+    [
+      {
+        "list": "personality",
+        "value": 3
+      },
+      {
+        "list": "attitude",
+        "value": 0
+      },
+      {
+        "list": "personality",
+        "value": 1
+      },
+      null
+    ],
+    [
+      {
+        "list": "skill",
+        "value": 5
+      },
+      {
+        "list": "skill",
+        "value": 10
+      },
+      {
+        "list": "attitude",
+        "value": 6
+      },
+      null
+    ],
+    [null, null, null, null]
+  ],
+  "profiles": {
+    "NAILS": 34,
+    "BIFF": 40,
+    "FLO": 44,
+    "BUBBA": 50,
+    "LARRY_NORMAL": 46,
+    "LARRY_DRUNK": 47,
+    "NUMB": 49,
+    "COUGAR": 48,
+    "SAL": 99,
+    "CARMEN": 78,
+    "DRUGGIST": 112,
+    "SLAY": 64,
+    "ANNIE": 82,
+    "CHRIS": 83,
+    "TIFFANY": 110,
+    "T_REX": 111,
+    "HERVE": 151,
+    "CARLO": 154
+  },
+  "terrorists": [
+    {
+      "profile": 112,
+      "sectors": [null, null, null, null, null]
+    },
+    {
+      "profile": 64,
+      "sectors": ["F9", "I14", "G1", "G2", "G8"]
+    },
+    {
+      "profile": 82,
+      "sectors": ["I14", "C6", "B2", "L11", "G8"]
+    },
+    {
+      "profile": 83,
+      "sectors": ["G1", "F9", "L11", "G8", "G2"]
+    },
+    {
+      "profile": 110,
+      "sectors": ["I14", "G2", "H14", "C6", "B2"]
+    },
+    {
+      "profile": 111,
+      "sectors": ["F9", "H14", "H2", "G1", "B2"]
+    }
+  ]
+}

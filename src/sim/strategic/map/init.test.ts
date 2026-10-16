@@ -8,6 +8,7 @@ import { initStrategicLayerMap } from './init.ts';
 import { findUndergroundSector, getSectorFlagStatus, mapFileNameForSector, sectorInfo, setSectorFlag } from './sectors.ts';
 
 let content: StrategicContent;
+const UNDERGROUND_DRAWS = 6;
 
 beforeAll(async () => {
   content = await loadStrategicTestContent();
@@ -18,12 +19,39 @@ describe('new campaign map', () => {
     const rolls = new ScriptedRolls([1, 2, 0, 1, 1, 4]);
     const ctx = testContext({ content, random: rolls });
     initStrategicLayerMap(ctx);
-    expect(rolls.ranges).toEqual([2, 3, 2, 3, 2, 5]);
+    expect(rolls.ranges.slice(0, UNDERGROUND_DRAWS)).toEqual([2, 3, 2, 3, 2, 5]);
     const map = ctx.state.map;
     expect(map.underground).toHaveLength(36);
     expect(findUndergroundSector(map, { ...parseSectorString('J9'), z: 2 })?.numCreatures).toBe(6 + 1);
     expect(findUndergroundSector(map, { ...parseSectorString('K4'), z: 1 })).toMatchObject({ numTroops: 12, numElites: 6 });
     expect(findUndergroundSector(map, { ...parseSectorString('P3'), z: 1 })?.numElites).toBe(14);
+  });
+
+  it('places the NPCs in profile order with one draw each, flagging alternate maps (InitNPCs)', () => {
+    const rolls = new ScriptedRolls([0, 0, 0, 0, 0, 0, 3, 1, 2, 0, 3, 1, 1, 2]);
+    const ctx = testContext({ content, random: rolls });
+    initStrategicLayerMap(ctx);
+    expect(rolls.ranges.slice(UNDERGROUND_DRAWS)).toEqual(content.npcPlacements.map((p) => p.sectors.length));
+    expect(content.npcPlacements.map((p) => p.profile)).toEqual([...content.npcPlacements.map((p) => p.profile)].sort((a, b) => a - b));
+    const placed = content.npcPlacements.filter((p) => p.placedAtStart).map((p) => p.profile);
+    expect([...ctx.state.npcPlacements.keys()]).toEqual(placed);
+    for (const p of content.npcPlacements) {
+      const sector = ctx.state.npcPlacements.get(p.profile);
+      if (sector !== undefined) expect(p.sectors).toContain(sector);
+    }
+    const alternate = content.npcPlacements.filter((p) => p.useAlternateMap);
+    expect(alternate.length).toBeGreaterThan(0);
+    const flagged = ctx.state.map.sectors.flatMap((info, id) => (info.flags & SectorFlag.USE_ALTERNATE_MAP ? [id] : []));
+    expect(alternate.every((p) => p.sectors.some((s) => flagged.includes(s)))).toBe(true);
+  });
+
+  it('skips sci-fi-only placements without sci-fi', () => {
+    const rolls = new ScriptedRolls();
+    const ctx = testContext({ content, random: rolls });
+    ctx.state.options.sciFi = false;
+    initStrategicLayerMap(ctx);
+    const realistic = content.npcPlacements.filter((p) => !p.sciFiOnly);
+    expect(rolls.ranges.slice(UNDERGROUND_DRAWS)).toEqual(realistic.map((p) => p.sectors.length));
   });
 
   it('sets up ownership, facilities, the visited start sector, groups, SAM sites and bloodcats', () => {

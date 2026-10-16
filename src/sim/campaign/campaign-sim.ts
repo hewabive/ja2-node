@@ -2,8 +2,10 @@ import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '
 import { TICK_MS } from '../clock.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
+import { Meanwhile } from '../strategic/ai/constants.ts';
 import type { QueenContext, QueenContextOptions } from '../strategic/ai/context.ts';
 import { queenEconomyHooks, queenEconomySlots, queenMineIncome } from '../strategic/ai/economy-link.ts';
+import { meanwhileScheduled, scheduleMeanwhileEvent } from '../strategic/ai/meanwhile.ts';
 import { registerStrategicAiEvents, StrategicAi } from '../strategic/ai/strategic-ai.ts';
 import { createEconomyContext, type EconomySetup, economyWorldPort } from '../strategic/economy/context.ts';
 import { createMerchantContext, type MerchantContext, type MerchantSetup } from '../strategic/economy/merchants/context.ts';
@@ -17,7 +19,7 @@ import {
   handleGroupArrivalEvent,
   type StrategicContextOptions,
 } from '../strategic/forces/context.ts';
-import { defaultTacticalWorldPort, type StrategicContext } from '../strategic/forces/ports.ts';
+import { defaultTacticalWorldPort, type StrategicContext, type TacticalWorldPort } from '../strategic/forces/ports.ts';
 import { isSectorDesert } from '../strategic/map/sectors.ts';
 import { createStrategicState, type StrategicState } from '../strategic/state.ts';
 import { CompressMode, EventKind } from '../strategic/time/constants.ts';
@@ -48,6 +50,8 @@ import type { ContractHooks } from './contracts/context.ts';
 import { ContractFlow } from './contracts/contract-flow.ts';
 import { CreatureFlow } from './creature-flow.ts';
 import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
+import { LAPTOP_REFUSAL, LaptopFlow, type LaptopSetup } from './laptop/laptop-flow.ts';
+import { fact, factValue, setFact } from './narrative/facts.ts';
 import { openMapScreen, openTacticalScreen } from './screens.ts';
 import { dispatchSectorCommand, loadStartSector, SectorFlow, type SectorSetup, sectorWorldPort } from './sector-flow.ts';
 import { ShopFlow } from './shop-flow.ts';
@@ -69,6 +73,7 @@ export interface CampaignHooks {
   readonly battle?: BattleSetup;
   readonly merchants?: MerchantSetup;
   readonly contracts?: Partial<ContractHooks>;
+  readonly laptop?: LaptopSetup;
 }
 
 export class CampaignSim {
@@ -84,6 +89,7 @@ export class CampaignSim {
   readonly merchants: MerchantContext | null;
   readonly shop: ShopFlow | null;
   readonly contracts: ContractFlow | null;
+  readonly laptop: LaptopFlow | null;
   readonly worldClock: WorldTimeControl;
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
@@ -122,12 +128,13 @@ export class CampaignSim {
     this.creatures = this.economy ? new CreatureFlow(this) : null;
     this.merchants = hooks.merchants ? this.#merchantContext(hooks.merchants) : null;
     this.shop = this.merchants ? new ShopFlow(this) : null;
+    this.laptop =
+      this.battle && hooks.laptop
+        ? new LaptopFlow(this, hooks.laptop, { roster: this.battle.roster, tactical: this.battle.content })
+        : null;
+    const contractHooks = { ...this.laptop?.contractHooks(), ...hooks.contracts };
     this.contracts = this.battle
-      ? new ContractFlow(this, {
-          roster: this.battle.roster,
-          content: this.battle.content,
-          ...(hooks.contracts ? { hooks: hooks.contracts } : {}),
-        })
+      ? new ContractFlow(this, { roster: this.battle.roster, content: this.battle.content, hooks: contractHooks })
       : null;
     this.worldClock = this.#worldTimeControl();
     this.#registerEnvironment();
@@ -137,6 +144,7 @@ export class CampaignSim {
     this.creatures?.register(this.dispatchTable);
     this.#registerMerchants();
     this.contracts?.register(this.dispatchTable);
+    this.laptop?.register(this.dispatchTable);
     if (state.flow === 'tactical') setGameTimeCompressionLevel(this.#clock, CompressMode.X1);
     tactical?.attachWorldClock(state.clock);
     this.#compressing = isTimeBeingCompressed(state.clock);
@@ -149,8 +157,8 @@ export class CampaignSim {
       {
         ...setup,
         hooks: {
-          fact: (id) => (this.strategic?.world.fact(id) ?? 0) !== 0,
-          setFact: (id) => this.economy?.hooks.setFact(id),
+          fact: (id) => fact(s.narrative, id),
+          setFact: (id) => setFact(s.narrative, id),
           ...setup.hooks,
         },
       },
@@ -169,6 +177,7 @@ export class CampaignSim {
     const merchants = this.merchants;
     if (!merchants) return;
     this.dispatchTable.register(EventKind.DAILY_UPDATE_BOBBY_RAY_INVENTORY, () => {
+      this.laptop?.bobbyRayDaily();
       this.#hooks.merchants?.bobbyRayDaily?.();
       dailyUpdateOfArmsDealersInventory(merchants);
     });
@@ -182,6 +191,9 @@ export class CampaignSim {
         this.battle?.removeRandomItemsInSector(sector, chance),
       mineClearOfMonsters: (mine: number) => this.creatures?.mineClear(mine) ?? true,
       checkConditionsForTriggeringCreatureQuest: () => this.creatures?.checkConditionsForQuest(),
+      setFact: (id: number) => setFact(this.state.narrative, id),
+      history: (code: number, secondCode: number, sector: { x: number; y: number; z: number }) =>
+        this.laptop?.economyHistory(code, secondCode, sector),
     };
     const moraleSlots = {
       updateBuddyAndHatedCounters: () => this.battle?.updateBuddyAndHatedCounters(),
@@ -199,8 +211,30 @@ export class CampaignSim {
   #economyPorts(): Pick<StrategicSetup, 'mercs' | 'world'> {
     const economy = this.#hooks.economy;
     if (!economy) return {};
-    const world = economyWorldPort(this.#hooks.strategic?.world ?? defaultTacticalWorldPort, () => this.economy);
+    const world = economyWorldPort(this.#laptopWorldPort(this.#hooks.strategic?.world ?? defaultTacticalWorldPort), () => this.economy);
     return { mercs: economy.crew, world };
+  }
+
+  #laptopWorldPort(base: TacticalWorldPort): TacticalWorldPort {
+    if (!this.#hooks.laptop) return base;
+    return {
+      ...base,
+      fact: (id) => factValue(this.state.narrative, id) || base.fact(id),
+      playerControlsSurfaceSector: (sector) => {
+        base.playerControlsSurfaceSector?.(sector);
+        this.laptop?.surfaceSectorTaken(sector);
+      },
+      airspaceControlUpdated: () => {
+        base.airspaceControlUpdated?.();
+        this.laptop?.airspaceControlUpdated();
+      },
+    };
+  }
+
+  scheduleFlowersMeanwhile(minute: () => number): void {
+    const queen = this.queen;
+    if (!queen || meanwhileScheduled(queen, Meanwhile.FLOWERS)) return;
+    scheduleMeanwhileEvent(queen, Meanwhile.FLOWERS, minute());
   }
 
   #sectorPorts(ports: Pick<StrategicSetup, 'mercs' | 'world'>): Pick<StrategicSetup, 'mercs' | 'world'> {
@@ -218,7 +252,7 @@ export class CampaignSim {
     return {
       clock: s.clock,
       queue: s.queue,
-      screen: (): ClockScreen => (s.flow === 'autoresolve' ? 'other' : s.flow),
+      screen: (): ClockScreen => (s.flow === 'autoresolve' || s.flow === 'laptop' ? 'other' : s.flow),
       inCombat: () => this.tactical?.state.inCombat === true,
       execute: (e) => this.dispatchTable.execute(this, e),
       afterAdvance: () => this.#clearFlashingEnemyCounts(),
@@ -252,7 +286,7 @@ export class CampaignSim {
   #registerMovement(): void {
     const ctx = this.strategic;
     if (!ctx) return;
-    this.dispatchTable.register(EventKind.DELAYED_HIRING_OF_MERC, (c, e) => mercArrives(c, e.param));
+    if (!this.#hooks.laptop) this.dispatchTable.register(EventKind.DELAYED_HIRING_OF_MERC, (c, e) => mercArrives(c, e.param));
     this.dispatchTable.register(EventKind.GROUP_ARRIVAL, (_, e) => handleGroupArrivalEvent(ctx, e));
     this.dispatchTable.register(EventKind.GROUP_ABOUT_TO_ARRIVE, () => handleGroupAboutToArriveEvent());
   }
@@ -308,7 +342,10 @@ export class CampaignSim {
     return {
       worldTime: (): WorldTimeReading => worldTimeReading(this.state.clock.seconds),
       onMap: () => this.state.flow === 'strategic',
-      modalRefusal: () => (this.shop?.isOpen() ? 'shopOpen: a shop is open, closeShop first' : null),
+      modalRefusal: () => {
+        if (this.shop?.isOpen()) return 'shopOpen: a shop is open, closeShop first';
+        return this.laptop?.isOpen() ? LAPTOP_REFUSAL : null;
+      },
       compressing: () => isTimeBeingCompressed(this.state.clock),
       startCompression: (mode?: number) => {
         const refused = this.#compress(mode === undefined ? { type: 'compressTime' } : { type: 'compressTime', mode });
@@ -343,10 +380,11 @@ export class CampaignSim {
     if (this.battle) this.#events.push(...this.battle.drainEvents());
     if (this.shop) this.#events.push(...this.shop.drainEvents());
     if (this.contracts) this.#events.push(...this.contracts.drainEvents());
+    if (this.laptop) this.#events.push(...this.laptop.drainEvents());
   }
 
   step(): void {
-    if (this.battle?.hasPendingDecision() || this.shop?.isOpen()) return;
+    if (this.battle?.hasPendingDecision() || this.shop?.isOpen() || this.laptop?.isOpen()) return;
     const s = this.state;
     this.#tick++;
     if (s.flow === 'tactical' && this.tactical) {
@@ -398,6 +436,8 @@ export class CampaignSim {
   #dispatch(cmd: CampaignCommand): CommandResult {
     const shop = this.shop?.dispatch(cmd);
     if (shop) return shop;
+    const laptop = this.laptop?.dispatch(cmd);
+    if (laptop) return laptop;
     const battle = this.battle?.dispatch(cmd);
     if (battle) return battle;
     switch (cmd.type) {

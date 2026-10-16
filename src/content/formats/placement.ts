@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/LoadSaveSoldierCreate.cc ExtractSoldierCreateFromFile (Windows layout). See docs/06 §7.1.
+// @src src/game/Tactical/LoadSaveSoldierCreate.cc ExtractSoldierCreateFromFile, InjectSoldierCreateIntoFile (Windows layout).
+// @src See docs/06 §7.1.
 
 import { FormatError } from '../binary/errors.ts';
 import { decodeObject, OBJECT_RECORD_BYTES, type ObjectRecord } from './object.ts';
@@ -108,4 +109,35 @@ export function parseDetailedPlacement(raw: Uint8Array): DetailedPlacement {
     scheduleId: raw[919] ?? 0,
     hasKeys: raw[922] !== 0,
   };
+}
+
+const UNSET_STAT = -1;
+const FIRST_STAT_OFFSET = 18;
+const STAT_BYTES = 14;
+
+export interface ProfilePlacementSpec {
+  readonly profile: number;
+  readonly direction: number;
+  readonly insertionGridNo: number;
+  readonly team: number;
+  readonly attitude: number;
+  readonly orders: number;
+  readonly soldierClass: number;
+}
+
+export function writeProfileDetailedPlacement(spec: ProfilePlacementSpec): Uint8Array {
+  const raw = new Uint8Array(DETAILED_PLACEMENT_BYTES);
+  const v = new DataView(raw.buffer);
+  raw[0] = 1;
+  raw[1] = spec.profile;
+  v.setInt8(10, spec.direction);
+  v.setInt16(12, spec.insertionGridNo, true);
+  v.setInt8(14, spec.team);
+  v.setInt8(15, UNSET_STAT);
+  v.setInt8(16, spec.attitude);
+  v.setInt8(17, spec.orders);
+  for (let k = 0; k < STAT_BYTES; k++) v.setInt8(FIRST_STAT_OFFSET + k, UNSET_STAT);
+  for (let k = 0; k < PATROL_POINTS; k++) v.setInt16(866 + k * 2, spec.insertionGridNo, true);
+  raw[908] = spec.soldierClass;
+  return raw;
 }

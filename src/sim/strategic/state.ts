@@ -1,6 +1,8 @@
 import { PreRandom, Rng } from '../../core/rng.ts';
 import { type ContractState, createContractState } from '../campaign/contracts/contract-state.ts';
 import { createFinanceState, type FinanceState } from '../campaign/finances.ts';
+import { createLaptopState, type LaptopState } from '../campaign/laptop/laptop-state.ts';
+import { createNarrativeState, type NarrativeState } from '../campaign/narrative/facts.ts';
 import type { SectorDiff } from '../campaign/sector-diff.ts';
 import { createTeamMoraleState, type TeamMoraleState } from '../campaign/team-morale.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
@@ -23,7 +25,7 @@ import { createEnvironment, type Environment } from './time/environment.ts';
 import { createEventQueue, type EventQueue } from './time/event-queue.ts';
 import { createWorldClock, type WorldClock } from './time/world-clock.ts';
 
-export type Flow = 'strategic' | 'tactical' | 'autoresolve';
+export type Flow = 'strategic' | 'tactical' | 'autoresolve' | 'laptop';
 
 export interface SectorPosition {
   readonly x: number;
@@ -59,6 +61,15 @@ export interface StrategicState {
   readonly creatures: CreatureState;
   readonly merchants: MerchantState;
   readonly contracts: ContractState;
+  readonly laptop: LaptopState;
+  readonly narrative: NarrativeState;
+  readonly terrorists: TerroristState;
+  readonly npcPlacements: Map<number, number>;
+}
+
+export interface TerroristState {
+  count: number;
+  readonly sectors: Map<number, number>;
 }
 
 export interface GameOptions {
@@ -113,5 +124,9 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     creatures: createCreatureState(),
     merchants: createMerchantState(),
     contracts: createContractState(),
+    laptop: createLaptopState(),
+    narrative: createNarrativeState(),
+    terrorists: { count: 0, sectors: new Map() },
+    npcPlacements: new Map(),
   };
 }

@@ -89,6 +89,7 @@ export interface EconomyHooks {
   setFact(id: number): void;
   vehicleNeedsRepair(vehicle: number, mercId: number): boolean;
   repairVehicle(vehicle: number, points: number): number;
+  history(code: number, secondCode: number, sector: Sector): void;
 }
 
 export type DecisionAnswer = 'yes' | 'no' | 'defer';
@@ -142,6 +143,7 @@ export const defaultEconomyHooks: EconomyHooks = {
   setFact: () => {},
   vehicleNeedsRepair: () => false,
   repairVehicle: () => 0,
+  history: () => {},
 };
 
 export const deferringDecisions: EconomyDecisions = {

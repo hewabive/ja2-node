@@ -28,7 +28,6 @@
       "weeklySalary": 1950,
       "biWeeklySalary": 3600,
       "medicalDeposit": 1,
-      "medicalDepositAmount": 600,
       "deathRate": 101,
       "reputationTolerance": 101,
       "buddies": [1],
@@ -94,7 +93,6 @@
       "weeklySalary": 3300,
       "biWeeklySalary": 6200,
       "medicalDeposit": 1,
-      "medicalDepositAmount": 900,
       "deathRate": 4,
       "reputationTolerance": 40,
       "hated": [3],
@@ -245,6 +243,51 @@
       "deathRate": 101,
       "reputationTolerance": 101,
       "inventory": [{ "slot": 5, "item": "GLOCK_17" }, { "slot": 7, "item": "CLIP9_15", "count": 1 }]
+    },
+    {
+      "id": 91,
+      "name": "Rafael Okonjo",
+      "nickname": "Okonjo",
+      "bodyType": 2,
+      "sector": "A10",
+      "palettes": { "hair": "BLACKHEAD", "skin": "DARKSKIN", "vest": "PURPLESHIRT", "pants": "TANPANTS" },
+      "stats": {
+        "life": 64,
+        "lifeMax": 64,
+        "strength": 58,
+        "agility": 52,
+        "dexterity": 61,
+        "wisdom": 70,
+        "marksmanship": 40,
+        "medical": 12,
+        "mechanical": 35,
+        "explosives": 5,
+        "leadership": 44,
+        "experience": 2
+      }
+    },
+    {
+      "id": 128,
+      "name": "Lena Castell",
+      "nickname": "Castell",
+      "sex": 1,
+      "bodyType": 3,
+      "sector": "A10",
+      "palettes": { "hair": "dirtblnde", "skin": "PINKSKIN", "vest": "greyVEST", "pants": "BLUEPANTS" },
+      "stats": {
+        "life": 59,
+        "lifeMax": 59,
+        "strength": 47,
+        "agility": 55,
+        "dexterity": 78,
+        "wisdom": 72,
+        "marksmanship": 25,
+        "medical": 20,
+        "mechanical": 81,
+        "explosives": 30,
+        "leadership": 33,
+        "experience": 3
+      }
     }
   ]
 }

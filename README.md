@@ -52,7 +52,8 @@ native savegame from the game's `SavedGames` folder (needs `JA2_DATA_DIR`; `JA2_
 contracts `extendContract`, `contractOptions`, `dismiss`, `removeMerc`, merchants `openShop`, `quoteTrade`, `trade`,
 `closeShop`, and `answer` for the pre-battle, autoresolve and contract prompts; `observe` then includes the clock, the
 strategic view with contracts and morale, the open prompt, the autoresolve battle and the open shop; `advance` takes `worldTime`, `worldSeconds`, `compressionStopped` and `mode` on the map). `JA2_SAVE=SaveGame07 pnpm dev` opens the default session from that save, `JA2_CAMPAIGN=2 pnpm dev`
-a new campaign.
+a new campaign. The squad is hired through the laptop (`"hire":[]` keeps the new campaign in it); `openLaptop` opens it
+on the map screen for `aimHire`, `mercHire`, `impCreate`, `bobbyRayOrder`, `insure`, mail and the other laptop commands.
 
 The server listens on `127.0.0.1` only and requires the token from `.ja2/token`, which it creates
 itself. The Vite proxy adds the token, so it never appears in page code.

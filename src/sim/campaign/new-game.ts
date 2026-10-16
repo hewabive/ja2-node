@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Game_Init.cc InitNewGame, InitStrategicLayer; StrategicMap.cc SetupNewStrategicGame;
 // @src Game_Clock.cc InitNewGameClock; Campaign_Init.cc InitNewCampaign; Tactical/Soldier_Profile.cc LoadMercProfiles;
-// @src Tactical/Arms_Dealer_Init.cc InitAllArmsDealers (InitNewGame step 3). See docs/15 §4, docs/22 §0, docs/23 §3.
+// @src Tactical/Arms_Dealer_Init.cc InitAllArmsDealers (InitNewGame step 3); Laptop/BobbyR.cc InitBobbyRayInventory; Laptop/Laptop.cc
+// @src LaptopScreenInit, InitLaptopAndLaptopScreens, SetLaptopNewGameFlag. See docs/15 §4, docs/21 §8, docs/22 §0, docs/23 §3.
 
 import { initStrategicAiForNewCampaign } from '../strategic/ai/strategic-ai.ts';
 import { addStartingCash, initEconomyStrategicLayer } from '../strategic/economy/init.ts';
@@ -62,8 +63,13 @@ export function initNewGame(campaign: CampaignSim): void {
   const queen = campaign.queen;
   if (!economy || !queen) throw new Error('a new game needs the strategic AI and the economy');
   const s = campaign.state;
-  campaign.contracts?.loadMercProfiles();
+  const laptop = campaign.laptop;
+  laptop?.resetForNewGame();
+  campaign.contracts?.loadMercProfiles(laptop?.dialogueProfiles);
+  laptop?.initNewGameProfiles();
   if (campaign.merchants) initAllArmsDealers(campaign.merchants);
+  laptop?.initBobbyRay();
+  laptop?.initLaptopScreens();
   setupNewStrategicGame(campaign);
   initStrategicLayerMap(economy, {
     initStrategicAI: () => initStrategicAiForNewCampaign(queen),
@@ -73,9 +79,12 @@ export function initNewGame(campaign: CampaignSim): void {
   s.clock.secondsPerRealSecond = 0;
   s.clock.resolution = 0;
   s.clock.compressionOn = false;
+  laptop?.sendNewGameMails();
   addStartingCash(economy);
   const policy = economy.content.policy;
   const days = economy.random.int(policy.mercOnlineMaxDays - policy.mercOnlineMinDays + 1) + policy.mercOnlineMinDays;
   if (days > 0) addFutureDayStrategicEvent(s.queue, s.clock, EventKind.DAY3_ADD_EMAIL_FROM_SPECK, SPECK_EMAIL_TIME, 0, days);
+  else laptop?.mercOnlineNow();
   s.didGameJustStart = true;
+  laptop?.openForNewGame();
 }

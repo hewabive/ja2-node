@@ -20,7 +20,7 @@ export function importContracts(state: StrategicState, save: SaveGame, bytes: Ui
     leave.items = saved.items ? saved.items.map(objectFromRecord) : null;
     leave.owner = saved.owner;
   });
-  contracts.mercAccountStatus = readMercAccountStatus(bytes, save.sections);
+  state.laptop.merc.accountStatus = readMercAccountStatus(bytes, save.sections);
   save.profiles.forEach((p, id) => {
     if (p?.totalCostToDate) state.finances.profileCostToDate.set(id, p.totalCostToDate);
   });

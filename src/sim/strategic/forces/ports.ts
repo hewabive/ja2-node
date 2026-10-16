@@ -80,6 +80,8 @@ export interface TacticalWorldPort {
   startTownLoyalty(townId: number): void;
   sectorLiberated(event: LiberationEvent): void;
   sectorTakenByEnemy(sector: Sector, wasPlayerControlled: boolean): void;
+  playerControlsSurfaceSector?(sector: Sector): void;
+  airspaceControlUpdated?(): void;
 }
 
 export interface StrategicPorts {

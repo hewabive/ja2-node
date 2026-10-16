@@ -38,6 +38,7 @@ import type { EconomyContext } from './ports.ts';
 import { createTownLoyalty } from './state.ts';
 import { isTownUnderCompleteControl, isTownUnderCompleteEnemyControl, townOf } from './towns.ts';
 
+const HISTORY_LIBERATED_TOWN = 18;
 const SEC_J9 = 153;
 const SEC_K4 = 163;
 const HARD_DIFFICULTY = 3;
@@ -223,6 +224,7 @@ export function checkIfEntireTownHasBeenLiberated(ctx: EconomyContext, town: num
   if (t.liberatedAlready || !isTownUnderCompleteControl(ctx, town)) return;
   if (militiaTrainingAllowedInSector(ctx, sector)) {
     handleGlobalLoyaltyEvent(ctx, LoyaltyEvent.LIBERATE_WHOLE_TOWN, sector);
+    ctx.hooks.history(HISTORY_LIBERATED_TOWN, town, sector);
     ctx.hooks.meanwhile('townLiberation', town);
   }
   const grace = ctx.state.options.difficulty >= HARD_DIFFICULTY ? LIBERATION_GRACE_DAYS_HARD : LIBERATION_GRACE_DAYS;

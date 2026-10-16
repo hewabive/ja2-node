@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Doors.cc HandleDoorChangeFromGridNo, InteractWithOpenableStruct;
-// @src TileEngine/Structure.cc SwapStructureForPartner; Interactive_Tiles.cc StartInteractiveObject. See docs/07 §1.5.
+// @src TileEngine/Structure.cc SwapStructureForPartner; Interactive_Tiles.cc StartInteractiveObject; Structure_Wrap.cc
+// @src SetOpenableStructureToClosed. See docs/07 §1.5.
 
 import { recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
 import { has, PROFILE_Z_SIZE, StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
@@ -39,6 +40,14 @@ export function toggleDoorAt(t: TacticalState, gridNo: number): boolean {
   const open = has(swapped.flags, StructureFlags.OPEN);
   t.doorStatus.set(swapped.gridNo, { perceivedOpen: open });
   t.events.push({ type: 'doorChanged', gridNo: swapped.gridNo, open });
+  return true;
+}
+
+export function setOpenableStructureToClosed(t: TacticalState, gridNo: number): boolean {
+  const openable = t.world.structures.find(gridNo, StructureFlags.OPENABLE);
+  if (!openable) return false;
+  if (has(openable.flags, StructureFlags.OPEN) && swapStructureForPartner(t, openable))
+    recompileLocalMovementCosts(t.world.costs, t.world, gridNo);
   return true;
 }
 

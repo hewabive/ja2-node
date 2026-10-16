@@ -1,0 +1,385 @@
+Laptop oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-16. See LICENSE (SFI-SCLA).
+A headless switch in the A.I.M. member page (inactive in the game) records the quote CanMercBeHired would play instead of
+starting the video face and lets AimMemberHireMerc hire a given profile; the charge computation of DisplayMercChargeAmount
+moves into CalcMercContractAmount (same code, same call site); the body of BtnIMPConfirmYes moves into IMPConfirmYes (same
+code). Appends wrappers around the static helpers CalcCompetence, MercFilesHireMerc, SettleMercAccounts,
+CalculateTotalPurchasePrice, PurchaseBobbyOrder, CalculateSoldiersInsuranceContractLength,
+CompileQuestionsInStatsAndWhatNot and the I.M.P. confirm. No behaviour change. Applied by tools/oracle/build.sh after 0009.
+
+--- a/src/game/Laptop/AIMMembers.cc
++++ b/src/game/Laptop/AIMMembers.cc
+@@ -579,6 +579,10 @@
+ static void HandleVideoDistortion(void);
+ static void StopMercTalking(void);
+ 
++bool gOracleAimHeadless = false;
++UINT16 gOracleAimQuote = QUOTE_NONE;
++ProfileID gOracleAimProfile = NO_PROFILE;
++
+ void HandleAIMMembers()
+ {
+ 	//determine if the merc has a quote that is waiting to be said
+@@ -1183,7 +1187,7 @@
+ 		return FALSE;
+ 	}
+ 
+-	ProfileID const pid = AimMercArray[gbCurrentIndex];
++	ProfileID const pid = gOracleAimHeadless ? gOracleAimProfile : AimMercArray[gbCurrentIndex];
+ 
+ 	MERC_HIRE_STRUCT h;
+ 	h = MERC_HIRE_STRUCT{};
+@@ -1367,6 +1371,29 @@
+ }
+ 
+ 
++static INT32 CalcMercContractAmount(MERCPROFILESTRUCT const& p)
++{
++	INT32 amount;
++
++	// Get the salary rate
++	switch (gubContractLength)
++	{
++		case AIM_CONTRACT_LENGTH_ONE_DAY:   amount = p.sSalary;          break;
++		case AIM_CONTRACT_LENGTH_ONE_WEEK:  amount = p.uiWeeklySalary;   break;
++		case AIM_CONTRACT_LENGTH_TWO_WEEKS: amount = p.uiBiWeeklySalary; break;
++		default:                            amount = 0;                  break;
++	}
++
++	// If there is a medical deposit, add it in
++	if (p.bMedicalDeposit) amount += p.sMedicalDepositAmount;
++
++	// If hired with the equipment, add it in aswell
++	if (gfBuyEquipment) amount += p.usOptionalGearCost;
++
++	return amount;
++}
++
++
+ static void DisplayMercChargeAmount(void)
+ {
+ 	if (gubVideoConferencingMode != AIM_VIDEO_HIRE_MERC_MODE) return;
+@@ -1378,25 +1405,7 @@
+ 
+ 	if (FindSoldierByProfileIDOnPlayerTeam(gbCurrentSoldier) == NULL)
+ 	{
+-		//the contract charge amount
+-		INT32 amount;
+-
+-		// Get the salary rate
+-		switch (gubContractLength)
+-		{
+-			case AIM_CONTRACT_LENGTH_ONE_DAY:   amount = p.sSalary;          break;
+-			case AIM_CONTRACT_LENGTH_ONE_WEEK:  amount = p.uiWeeklySalary;   break;
+-			case AIM_CONTRACT_LENGTH_TWO_WEEKS: amount = p.uiBiWeeklySalary; break;
+-			default:                            amount = 0;                  break;
+-		}
+-
+-		// If there is a medical deposit, add it in
+-		if (p.bMedicalDeposit) amount += p.sMedicalDepositAmount;
+-
+-		// If hired with the equipment, add it in aswell
+-		if (gfBuyEquipment) amount += p.usOptionalGearCost;
+-
+-		giContractAmount = amount;
++		giContractAmount = CalcMercContractAmount(p);
+ 	}
+ 
+ 	ST::string wDollarTemp = SPrintMoney(giContractAmount);
+@@ -1637,6 +1646,11 @@
+ // InitVideoFaceTalking() is called to start a merc speaking a particular message
+ static BOOLEAN InitVideoFaceTalking(UINT8 ubMercID, UINT16 usQuoteNum)
+ {
++	if (gOracleAimHeadless)
++	{
++		gOracleAimQuote = usQuoteNum;
++		return TRUE;
++	}
+ 	//Starts the merc talking
+ 	CharacterDialogue(ubMercID, usQuoteNum, giMercFaceIndex, DIALOGUE_CONTACTPAGE_UI, FALSE);
+ 
+@@ -2251,6 +2265,7 @@
+ 
+ static void StopMercTalking(void)
+ {
++	if (gOracleAimHeadless) return;
+ 	if( gfIsShutUpMouseRegionActive )
+ 	{
+ 		gSelectedShutUpMercRegion.Disable();
+@@ -2858,6 +2873,7 @@
+ 
+ static void WaitForMercToFinishTalkingOrUserToClick(void)
+ {
++	if (gOracleAimHeadless) return;
+ 	//if the region is not active
+ 	if( !gfIsShutUpMouseRegionActive )
+ 	{
+@@ -2942,3 +2958,30 @@
+ 	DrawTextToScreen(AimMemberText[2], AIM_FI_RIGHT_CLICK_TEXT_X, AIM_FI_LEFT_CLICK_TEXT_Y,                                   AIM_FI_CLICK_TEXT_WIDTH, AIM_FI_HELP_TITLE_FONT, AIM_FONT_MCOLOR_WHITE, FONT_MCOLOR_BLACK, CENTER_JUSTIFIED);
+ 	DrawTextToScreen(AimMemberText[3], AIM_FI_RIGHT_CLICK_TEXT_X, AIM_FI_LEFT_CLICK_TEXT_Y + AIM_FI_CLICK_DESC_TEXT_Y_OFFSET, AIM_FI_CLICK_TEXT_WIDTH, AIM_FI_HELP_FONT,       AIM_FONT_MCOLOR_WHITE, FONT_MCOLOR_BLACK, CENTER_JUSTIFIED);
+ }
++
++
++UINT16 OracleAimHireDecision(ProfileID const pid, BOOLEAN* const accepted)
++{
++	gbCurrentSoldier = pid;
++	gOracleAimHeadless = true;
++	gOracleAimQuote = QUOTE_NONE;
++	*accepted = CanMercBeHired();
++	gOracleAimHeadless = false;
++	return gOracleAimQuote;
++}
++
++
++INT8 OracleAimMemberHireMerc(ProfileID const pid, UINT8 const contractLength, BOOLEAN const gear, INT32* const amount)
++{
++	gbCurrentSoldier = pid;
++	gubContractLength = contractLength;
++	gfBuyEquipment = gear;
++	giContractAmount = CalcMercContractAmount(GetProfile(pid));
++	*amount = giContractAmount;
++	if (LaptopSaveInfo.iCurrentBalance < giContractAmount) return -2;
++	gOracleAimHeadless = true;
++	gOracleAimProfile = pid;
++	INT8 const ret = AimMemberHireMerc();
++	gOracleAimHeadless = false;
++	return ret;
++}
+--- a/src/game/Laptop/BobbyRGuns.cc
++++ b/src/game/Laptop/BobbyRGuns.cc
+@@ -1383,3 +1383,9 @@
+ 	}
+ 	return n_items;
+ }
++
++
++UINT32 OracleCalculateTotalPurchasePrice()
++{
++	return CalculateTotalPurchasePrice();
++}
+--- a/src/game/Laptop/BobbyRMailOrder.cc
++++ b/src/game/Laptop/BobbyRMailOrder.cc
+@@ -1919,3 +1919,21 @@
+ }
+ 
+ #endif
++
++
++UINT32 OracleCalculateTotalPurchasePrice();
++
++INT32 OracleBobbyRayOrder(UINT8 const city, UINT8 const speed, UINT32* const subtotal, UINT32* const shipping)
++{
++	gbSelectedCity = city;
++	gubSelectedLight = speed;
++	guiSubTotal = OracleCalculateTotalPurchasePrice();
++	*subtotal = guiSubTotal;
++	*shipping = CalcCostFromWeightOfPackage(speed);
++	giGrandTotal = guiSubTotal + *shipping;
++	if (LaptopSaveInfo.iCurrentBalance < giGrandTotal) return -1;
++	PurchaseBobbyOrder();
++	RemovePurchasedItemsFromBobbyRayInventory();
++	std::fill_n(BobbyRayPurchases, MAX_PURCHASE_AMOUNT, BobbyRayPurchaseStruct{});
++	return giGrandTotal;
++}
+--- a/src/game/Laptop/IMP_Confirm.cc
++++ b/src/game/Laptop/IMP_Confirm.cc
+@@ -154,65 +154,71 @@
+ 	return HireMerc(HireMercStruct);
+ }
+ 
+-static void BtnIMPConfirmYes(GUI_BUTTON *btn, UINT32 reason)
++static void IMPConfirmYes(void)
+ {
+-	if (reason & MSYS_CALLBACK_REASON_POINTER_UP)
++	if (!CanCreateAnotherIMPCharacter())
+ 	{
+-		if (!CanCreateAnotherIMPCharacter())
+-		{
+-			// already made as many I.M.P. characters as allowed, leave
+-			return;
+-		}
++		// already made as many I.M.P. characters as allowed, leave
++		return;
++	}
+ 
+-		if (LaptopSaveInfo.iCurrentBalance < COST_OF_PROFILE)
+-		{
+-			// not enough
+-			return;
+-		}
++	if (LaptopSaveInfo.iCurrentBalance < COST_OF_PROFILE)
++	{
++		// not enough
++		return;
++	}
+ 
+-		// Taken before the slot is claimed, after which the first free slot is
+-		// the next character's, not this one's.
+-		ProfileID const profile = GetIMPSlotInProgress();
++	// Taken before the slot is claimed, after which the first free slot is
++	// the next character's, not this one's.
++	ProfileID const profile = GetIMPSlotInProgress();
+ 
+-		// line moved by CJC Nov 28 2002 to AFTER the check for money
+-		if (!AddCharacterToPlayersTeam()) return; // only if merc hiring failed: no charge, give it another go
++	// line moved by CJC Nov 28 2002 to AFTER the check for money
++	if (!AddCharacterToPlayersTeam()) return; // only if merc hiring failed: no charge, give it another go
+ 
+-		// holds the profile for the rest of the campaign
+-		MarkIMPCharacterCreated(profile);
++	// holds the profile for the rest of the campaign
++	MarkIMPCharacterCreated(profile);
+ 
+-		SOLDIERTYPE* const pSoldier = FindSoldierByProfileID(profile);
+-		if (!pSoldier) return;
++	SOLDIERTYPE* const pSoldier = FindSoldierByProfileID(profile);
++	if (!pSoldier) return;
+ 
+-		if (fLoadingCharacterForPreviousImpProfile && gamepolicy(imp_load_keep_inventory))
+-		{
+-			IMPSavedProfileLoadInventory(gMercProfiles[profile].zNickname, pSoldier);
+-			// re-add letter, since it just got wiped and almost certainly is not present in the import
+-			if (pSoldier->ubID == 0 && FindObj(pSoldier, LETTER) == NO_SLOT) {
+-				CreateSpecialItem(pSoldier, LETTER);
+-			}
++	if (fLoadingCharacterForPreviousImpProfile && gamepolicy(imp_load_keep_inventory))
++	{
++		IMPSavedProfileLoadInventory(gMercProfiles[profile].zNickname, pSoldier);
++		// re-add letter, since it just got wiped and almost certainly is not present in the import
++		if (pSoldier->ubID == 0 && FindObj(pSoldier, LETTER) == NO_SLOT) {
++			CreateSpecialItem(pSoldier, LETTER);
+ 		}
++	}
+ 
+-		// charge the player
+-		AddTransactionToPlayersBook(IMP_PROFILE, profile, GetWorldTotalMin(), -COST_OF_PROFILE);
+-		AddHistoryToPlayersLog(HISTORY_CHARACTER_GENERATED, 0, GetWorldTotalMin(), SGPSector(-1, -1));
+-
+-		fButtonPendingFlag = TRUE;
+-		iCurrentImpPage = IMP_HOME_PAGE;
+-
+-		// send email notice, naming the character it reports on: by the time the mail
+-		// arrives a further I.M.P. may be the one iVoiceId points at
+-		if (GCM->getIMPPolicy()->sendsProfileResultsEmail())
+-		{
+-			AddFutureDayStrategicEvent(EVENT_DAY2_ADD_EMAIL_FROM_IMP, 60 * 7, profile, 2);
+-		}
++	// charge the player
++	AddTransactionToPlayersBook(IMP_PROFILE, profile, GetWorldTotalMin(), -COST_OF_PROFILE);
++	AddHistoryToPlayersLog(HISTORY_CHARACTER_GENERATED, 0, GetWorldTotalMin(), SGPSector(-1, -1));
++
++	fButtonPendingFlag = TRUE;
++	iCurrentImpPage = IMP_HOME_PAGE;
++
++	// send email notice, naming the character it reports on: by the time the mail
++	// arrives a further I.M.P. may be the one iVoiceId points at
++	if (GCM->getIMPPolicy()->sendsProfileResultsEmail())
++	{
++		AddFutureDayStrategicEvent(EVENT_DAY2_ADD_EMAIL_FROM_IMP, 60 * 7, profile, 2);
++	}
+ 
+-		ResetCharacterStats();
++	ResetCharacterStats();
+ 
+-		//Display a popup msg box telling the user when and where the merc will arrive
+-		//DisplayPopUpBoxExplainingMercArrivalLocationAndTime();
++	//Display a popup msg box telling the user when and where the merc will arrive
++	//DisplayPopUpBoxExplainingMercArrivalLocationAndTime();
+ 
+-		//reset the id of the last merc so we dont get the DisplayPopUpBoxExplainingMercArrivalLocationAndTime() pop up box in another screen by accident
+-		LaptopSaveInfo.sLastHiredMerc.iIdOfMerc = -1;
++	//reset the id of the last merc so we dont get the DisplayPopUpBoxExplainingMercArrivalLocationAndTime() pop up box in another screen by accident
++	LaptopSaveInfo.sLastHiredMerc.iIdOfMerc = -1;
++}
++
++
++static void BtnIMPConfirmYes(GUI_BUTTON *btn, UINT32 reason)
++{
++	if (reason & MSYS_CALLBACK_REASON_POINTER_UP)
++	{
++		IMPConfirmYes();
+ 	}
+ }
+ 
+@@ -292,3 +298,9 @@
+ 	p.usMouthX = portrait.mouthX;
+ 	p.usMouthY = portrait.mouthY;
+ }
++
++
++void OracleIMPConfirmYes()
++{
++	IMPConfirmYes();
++}
+--- a/src/game/Laptop/IMP_Personality_Quiz.cc
++++ b/src/game/Laptop/IMP_Personality_Quiz.cc
+@@ -853,3 +853,10 @@
+ 		MoveAheadAQuestion( );
+ 	}
+ }
++
++
++void OracleCompileQuiz(INT32 const* const answers)
++{
++	for (INT32 i = 0; i < MAX_NUMBER_OF_IMP_QUESTIONS; ++i) iQuizAnswerList[i] = answers[i];
++	CompileQuestionsInStatsAndWhatNot();
++}
+--- a/src/game/Laptop/Insurance_Contract.cc
++++ b/src/game/Laptop/Insurance_Contract.cc
+@@ -1227,3 +1227,9 @@
+ 	}
+ 	return FALSE;
+ }
++
++
++INT32 OracleInsuranceContractLength(SOLDIERTYPE const* const s)
++{
++	return CalculateSoldiersInsuranceContractLength(s);
++}
+--- a/src/game/Laptop/Mercs_Account.cc
++++ b/src/game/Laptop/Mercs_Account.cc
+@@ -430,3 +430,21 @@
+ 
+ 	return( uiContractCharge );
+ }
++
++
++INT32 OracleSettleMercAccounts(UINT8 const ubCurMercIndex)
++{
++	giMercTotalContractCharge = 0;
++	for (const MERCListingModel* m : GCM->getMERCListings())
++	{
++		ProfileID         const  pid = GetProfileIDFromMERCListing(m);
++		MERCPROFILESTRUCT const& p   = GetProfile(pid);
++		if (IsMercOnTeam(pid) || p.iMercMercContractLength != 0)
++		{
++			giMercTotalContractCharge += p.sSalary * p.iMercMercContractLength;
++		}
++	}
++	gubCurMercIndex = ubCurMercIndex;
++	SettleMercAccounts();
++	return giMercTotalContractCharge;
++}
+--- a/src/game/Laptop/Mercs_Files.cc
++++ b/src/game/Laptop/Mercs_Files.cc
+@@ -476,3 +476,9 @@
+ 	EnableButton(guiNextButton, gubCurMercIndex <= LaptopSaveInfo.gubLastMercIndex - 1);
+ 	EnableButton(guiPrevButton, gubCurMercIndex > 0);
+ }
++
++
++BOOLEAN OracleMercFilesHireMerc(UINT8 const ubMercID)
++{
++	return MercFilesHireMerc(ubMercID);
++}
+--- a/src/game/Tactical/Soldier_Profile.cc
++++ b/src/game/Tactical/Soldier_Profile.cc
+@@ -1079,3 +1079,9 @@
+ 	MercProfile p(ubProfileID);
+ 	return p.isAIMMerc() || p.isMERCMerc();
+ }
++
++
++UINT16 OracleCalcCompetence(ProfileID const pid)
++{
++	return CalcCompetence(GetProfile(pid));
++}

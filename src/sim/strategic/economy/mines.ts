@@ -18,7 +18,9 @@ import { CompressionStop, stopTimeCompression, worldDayInMinutes, worldTotalMinu
 import { FACT_MINERS_PLACED, HeadMinerQuote, OKLIFE } from './constants.ts';
 import { decrementTownLoyalty } from './loyalty.ts';
 import {
+  addMineHistoryEvent,
   MINE_PRODUCTION_NUMBER_OF_PERIODS,
+  MineHistory,
   maxDailyRemovalFromMine,
   mineDef,
   mineEntrance,
@@ -137,6 +139,7 @@ function extractOreFromMine(ctx: EconomyContext, mine: number, amount: number): 
     m.empty = true;
     m.runningOut = false;
     ctx.hooks.queenMineRanOut(mineEntrance(ctx, mine));
+    addMineHistoryEvent(ctx, MineHistory.MINE_RAN_OUT, mine);
     ctx.events.push({ type: 'mineEmpty', mine });
     return extracted;
   }
@@ -147,6 +150,7 @@ function extractOreFromMine(ctx: EconomyContext, mine: number, amount: number): 
     if (playerControlsMine(ctx, mine) && !m.warnedOfRunningOut) {
       issueHeadMinerQuote(ctx, mine, HeadMinerQuote.RUNNING_OUT);
       m.warnedOfRunningOut = true;
+      addMineHistoryEvent(ctx, MineHistory.MINE_RUNNING_OUT, mine);
       ctx.events.push({ type: 'mineRunningOut', mine });
     }
   }
@@ -239,7 +243,11 @@ export function headMinersMineIndex(ctx: EconomyContext, profile: number): numbe
 }
 
 export function playerSpokeToHeadMiner(ctx: EconomyContext, profile: number): void {
-  mineStatus(ctx, headMinersMineIndex(ctx, profile)).spokeToHeadMiner = true;
+  const mine = headMinersMineIndex(ctx, profile);
+  const m = mineStatus(ctx, mine);
+  if (m.spokeToHeadMiner) return;
+  addMineHistoryEvent(ctx, MineHistory.TALKED_TO_MINER, mine);
+  m.spokeToHeadMiner = true;
 }
 
 export function playerAttackedHeadMiner(ctx: EconomyContext, profile: number): void {
@@ -303,7 +311,9 @@ export function startMineStandIn(ctx: EconomyContext, mine: number): StartMineRe
   if (!present) return { ok: false, reason: 'noMercThere' };
   const miner = ctx.economy.headMiners.headMiners.find((h) => ctx.hooks.headMinerTown(h.profile) === def.associatedTownId);
   if (miner && !ctx.hooks.headMinerAlive(miner.profile)) return { ok: false, reason: 'headMinerDead' };
-  mineStatus(ctx, mine).spokeToHeadMiner = true;
+  const m = mineStatus(ctx, mine);
+  if (!m.spokeToHeadMiner) addMineHistoryEvent(ctx, MineHistory.TALKED_TO_MINER, mine);
+  m.spokeToHeadMiner = true;
   restartMineProduction(ctx, mine);
   return { ok: true };
 }

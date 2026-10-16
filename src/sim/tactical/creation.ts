@@ -20,6 +20,7 @@ import type { PopulationEnv } from './init-list.ts';
 import { emptyInventory, hiredMercInventory, type Inventory, type InventoryContext, InvSlot, npcProfileInventory } from './inventory.ts';
 import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { calcActionPoints } from './points.ts';
+import type { ProfileProgress } from './profiles.ts';
 import {
   Body,
   createSoldier,
@@ -495,19 +496,21 @@ function assignNightOps(c: CreationContext, s: Soldier): void {
   if (progress >= rule.expertProgress && c.rng.int(100) < rule.expertChance) s.skillTrait2 = SkillTrait.NIGHTOPS;
 }
 
-function itemId(c: CreationContext, name: string): number {
+type BodyContext = Pick<CreationContext, 'content' | 'rng'>;
+
+function itemId(c: BodyContext, name: string): number {
   return c.content.items.byName.get(name)?.index ?? NOTHING;
 }
 
-function putItem(c: CreationContext, s: Soldier, slot: number, name: string, status: number): void {
+function putItem(c: BodyContext, s: Soldier, slot: number, name: string, status: number): void {
   copyObjectInto(s.inv[slot] ?? emptyObject(), createItem(c.content.items, itemId(c, name), status));
 }
 
-function creaturePartStatus(c: CreationContext): number {
+function creaturePartStatus(c: BodyContext): number {
   return CREATURE_PART_STATUS_BASE + c.rng.int(CREATURE_PART_STATUS_RANGE);
 }
 
-export function assignCreatureInventory(c: CreationContext, s: Soldier): void {
+export function assignCreatureInventory(c: BodyContext, s: Soldier): void {
   const kit = CREATURE_KITS[s.bodyType];
   if (!kit) return;
   if (kit.hand) putItem(c, s, InvSlot.HAND, kit.hand, 100);
@@ -551,7 +554,7 @@ function rollCivilianStats(c: CreationContext, s: Soldier): void {
   if (rolls.agility) s.stats.agility = rolls.agility[0] + c.rng.int(rolls.agility[1]);
 }
 
-function bodyTypeSetup(c: CreationContext, s: Soldier): void {
+function bodyTypeSetup(c: BodyContext, s: Soldier): void {
   const b = s.bodyType;
   if (b === Body.HATKIDCIV || b === Body.KIDCIV) s.battleSoundId = c.rng.int(2);
   else if (b === Body.REGFEMALE || b === Body.MINICIV || b === Body.DRESSCIV) {
@@ -755,6 +758,74 @@ export function createMercFromProfile(
     direction,
     state: states(t.content.animations).STANDING,
   });
+}
+
+export type HiredMercContext = BodyContext;
+
+function progressStats(p: ProfileProgress): SoldierStats {
+  const s = p.stats;
+  return {
+    agility: s.agility,
+    dexterity: s.dexterity,
+    strength: s.strength,
+    wisdom: s.wisdom,
+    leadership: s.leadership,
+    marksmanship: s.marksmanship,
+    mechanical: s.mechanical,
+    explosives: s.explosives,
+    medical: s.medical,
+    experience: s.experience,
+  };
+}
+
+export function createHiredMerc(
+  c: HiredMercContext,
+  id: number,
+  profile: MercProfile,
+  progress: ProfileProgress,
+  copyProfileItems: boolean,
+  direction: number,
+): Soldier {
+  const items = {
+    ...profile,
+    inventory: progress.inventory,
+    inventoryStatus: progress.inventoryStatus,
+    inventoryCount: progress.inventoryCount,
+  };
+  const s = createSoldier({
+    id,
+    team: Team.OUR,
+    name: profile.nickname || profile.name,
+    profile: profile.id,
+    bodyType: profile.bodyType,
+    palettes: {
+      hair: profile.palettes.hair,
+      skin: profile.palettes.skin,
+      vest: profile.palettes.vest || 'WHITEVEST',
+      pants: profile.palettes.pants || 'BLACKPANTS',
+    },
+    inv: copyProfileItems ? hiredMercInventory(creationContext(c), items, false) : emptyInventory(),
+    stats: progressStats(progress),
+    life: progress.life,
+    lifeMax: progress.stats.lifeMax,
+    morale: DEFAULT_MORALE,
+    skillTrait1: progress.skillTrait,
+    skillTrait2: progress.skillTrait2,
+    personalityTrait: progress.personalityTrait,
+    civilianGroup: profile.civilianGroup,
+    gridNo: NOWHERE,
+    direction,
+    state: states(c.content.animations).STANDING,
+  });
+  if (s.skillTrait1 === SkillTrait.CAMOUFLAGED || s.skillTrait2 === SkillTrait.CAMOUFLAGED) s.camo = FULL_CAMOUFLAGE;
+  s.breath = INITIAL_BREATH;
+  s.breathMax = INITIAL_BREATH_MAX;
+  s.visible = 1;
+  s.actionPoints = calcActionPoints(c.content, s);
+  s.initialActionPoints = s.actionPoints;
+  s.oldLife = s.lifeMax;
+  bodyTypeSetup(c, s);
+  return s;
 }
 
 export function createFromPlacement(t: TacticalState, id: number, placement: Placement, env: CreationEnv): Soldier | null {

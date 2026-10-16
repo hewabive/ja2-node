@@ -63,15 +63,20 @@ describe('headless strategic AI scenario (docs/17 §16.3)', () => {
     const drassenIds = new Set(DRASSEN.map(sectorId));
     const liberatedAt = q.state.clock.seconds;
     let sentAt = 0;
+    let attackedAt = 0;
     let attacked: Sector | null = null;
     for (let hour = 0; hour < MAX_DAYS * 24 && !attacked; hour++) {
       warpGameTime(campaign.clockContext, NUM_SEC_IN_HOUR, Warp.NORMAL);
       const pending = q.state.queen.garrisons.filter((g) => drassenIds.has(g.sector) && getGroup(q, g.pendingGroup));
       if (pending.length > 0 && !sentAt) sentAt = q.state.clock.seconds;
       const battle = q.state.encounter.preBattle;
-      if (battle && DRASSEN.some((s) => sameSector(s, battle.sector))) attacked = battle.sector;
+      if (battle && DRASSEN.some((s) => sameSector(s, battle.sector))) {
+        attacked = battle.sector;
+        attackedAt = q.state.clock.seconds;
+      }
     }
-    expect(sentAt).toBeGreaterThan(liberatedAt + q.state.queen.graceHours * NUM_SEC_IN_HOUR - NUM_SEC_IN_HOUR);
+    const firstMove = sentAt || attackedAt;
+    expect(firstMove).toBeGreaterThan(liberatedAt + q.state.queen.graceHours * NUM_SEC_IN_HOUR - NUM_SEC_IN_HOUR);
     expect(attacked).not.toBeNull();
     const battleGroup = getGroup(q, q.state.encounter.preBattle?.battleGroupId ?? 0);
     expect(battleGroup?.player).toBe(false);

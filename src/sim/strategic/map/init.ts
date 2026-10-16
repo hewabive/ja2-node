@@ -3,7 +3,7 @@
 // @src src/game/Strategic/StrategicMap.cc InitializeMapStructure, InitializeStrategicMapSectorTownNames, SetupNewStrategicGame;
 // @src Campaign_Init.cc InitNewCampaign, InitKnowFacilitiesFlags, BuildUndergroundSectorInfoList;
 // @src src/externalized/strategic/UndergroundSectorModel.cc createUndergroundSectorInfo; Strategic_Movement_Costs.cc
-// @src InitStrategicMovementCosts; Game_Init.cc InitStrategicLayer, InitBloodCatSectors, InitNPCs (Tixa basement). See docs/16 §1.3–§1.4.
+// @src InitStrategicMovementCosts; Game_Init.cc InitStrategicLayer, InitBloodCatSectors, InitNPCs (placements, Tixa basement). See docs/16 §1.3–§1.4, docs/15 §4.3.
 
 import { sectorFromId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { u8, u32 } from '../../../core/int.ts';
@@ -85,6 +85,19 @@ export function initNewCampaignMap(ctx: StrategicContext, hooks: StrategicLayerH
   hooks.initStrategicAI?.(ctx);
 }
 
+export function initNpcPlacements(ctx: StrategicContext): void {
+  const s = ctx.state;
+  s.npcPlacements.clear();
+  for (const placement of ctx.content.npcPlacements) {
+    if (placement.sciFiOnly && !s.options.sciFi) continue;
+    if (placement.sectors.length === 0) continue;
+    const sector = placement.sectors[ctx.random.int(placement.sectors.length)] ?? 0;
+    const info = s.map.sectors[sector];
+    if (placement.useAlternateMap && info) info.flags = u32(info.flags | SectorFlag.USE_ALTERNATE_MAP);
+    if (placement.placedAtStart) s.npcPlacements.set(placement.profile, sector);
+  }
+}
+
 export function initTixaBasementWithoutSciFi(ctx: StrategicContext): void {
   if (ctx.state.options.sciFi) return;
   const u = findUndergroundSector(ctx.state.map, TIXA_BASEMENT);
@@ -117,6 +130,7 @@ export function initStrategicLayerMap(ctx: StrategicContext, hooks: StrategicLay
   initSquads(ctx);
   initVehicles(ctx);
   hooks.initNpcs?.(ctx);
+  initNpcPlacements(ctx);
   initTixaBasementWithoutSciFi(ctx);
   ctx.state.forces.vehicles = [];
   initBloodCatSectors(ctx);

@@ -10,6 +10,7 @@
 // @src src/game/Strategic/StrategicMap.cc OKForSectorExit, SetupTacticalTraversalInformation; src/game/TileEngine/Map_Edgepoints.cc
 // @src GenerateMapEdgepoints, CalcMapEdgepointClassInsertionCode; src/game/Tactical/Soldier_Init_List.cc AddSoldierInitListEnemyDefenceSoldiers
 // @src src/game/Tactical/Arms_Dealer_Init.cc, ArmsDealerInvInit.cc, ShopKeeper_Interface.cc (merchants)
+// @src src/game/Strategic/Game_Init.cc InitNewGame; src/game/Laptop (A.I.M., M.E.R.C., I.M.P., Bobby Ray, insurance)
 #include "Oracle.h"
 
 #include "AI.h"
@@ -93,6 +94,17 @@
 #include "Mercs.h"
 #include "Smell.h"
 #include "Soldier_Macros.h"
+#include "BobbyR.h"
+#include "BobbyRMailOrder.h"
+#include "CharProfile.h"
+#include "EMail.h"
+#include "Game_Init.h"
+#include "IMP_Compile_Character.h"
+#include "IMP_Portraits.h"
+#include "Insurance_Contract.h"
+#include "Merc_Hiring.h"
+#include "Strategic_Event_Handler.h"
+#include "ShippingDestinationModel.h"
 
 #include <string_theory/string>
 
@@ -138,6 +150,17 @@ UINT32 OracleCalcNewSalary(UINT32 old, UINT32 max);
 void HandleEquipmentLeftInOmerta(UINT32 uiSlotIndex);
 void HandleEquipmentLeftInDrassen(UINT32 uiSlotIndex);
 void DailyUpdateOfMercSite();
+void LaptopScreenInit(void);
+extern UINT8 gubScreenCount;
+UINT16 OracleCalcCompetence(ProfileID pid);
+UINT16 OracleAimHireDecision(ProfileID pid, BOOLEAN* accepted);
+INT8 OracleAimMemberHireMerc(ProfileID pid, UINT8 contractLength, BOOLEAN gear, INT32* amount);
+BOOLEAN OracleMercFilesHireMerc(UINT8 ubMercID);
+INT32 OracleSettleMercAccounts(UINT8 ubCurMercIndex);
+INT32 OracleBobbyRayOrder(UINT8 city, UINT8 speed, UINT32* subtotal, UINT32* shipping);
+INT32 OracleInsuranceContractLength(SOLDIERTYPE const* s);
+void OracleCompileQuiz(INT32 const* answers);
+void OracleIMPConfirmYes();
 extern BOOLEAN gfContractRenewalSquenceOn;
 extern BOOLEAN gfInContractMenuFromRenewSequence;
 INT16 OraclePickGridNoToWalkIn(SOLDIERTYPE* s, UINT8 insertionCode, UINT32* attempts);
@@ -4036,6 +4059,422 @@ void ProbeTrackScent(Command const& c)
 }
 
 
+constexpr UINT8 LAPTOP_EVENTS[] = {
+	EVENT_BOBBYRAY_PURCHASE, EVENT_UPDATE_BOBBY_RAY_INVENTORY, EVENT_DAY3_ADD_EMAIL_FROM_SPECK, EVENT_DELAYED_HIRING_OF_MERC,
+	EVENT_PAY_LIFE_INSURANCE_FOR_DEAD_MERC, EVENT_DAY2_ADD_EMAIL_FROM_IMP, EVENT_MERC_COMPLAIN_EQUIPMENT, EVENT_SET_BY_NPC_SYSTEM,
+	EVENT_INSURANCE_INVESTIGATION_STARTED, EVENT_INSURANCE_INVESTIGATION_OVER, EVENT_MERC_SITE_BACK_ONLINE,
+	EVENT_HAVENT_MADE_IMP_CHARACTER_EMAIL, EVENT_MERC_SITE_NEW_MERC_AVAILABLE
+};
+constexpr ProfileID LAPTOP_TERRORISTS[] = { DRUGGIST, SLAY, ANNIE, CHRIS, TIFFANY, T_REX };
+
+std::string DescribeLaptopEvents()
+{
+	std::vector<std::string> events;
+	for (STRATEGICEVENT const* e = gpEventList; e; e = e->next)
+	{
+		if (std::find(std::begin(LAPTOP_EVENTS), std::end(LAPTOP_EVENTS), e->ubCallbackID) == std::end(LAPTOP_EVENTS)) continue;
+		events.push_back(Numbers({e->uiTimeStamp, e->ubCallbackID, e->uiParam}));
+	}
+	return JsonArray(events);
+}
+
+std::string DescribeStore(STORE_INVENTORY const* inv, UINT16 length)
+{
+	std::vector<std::string> slots;
+	for (UINT16 i = 0; i < length; ++i)
+	{
+		STORE_INVENTORY const& s = inv[i];
+		slots.push_back(Numbers({s.usItemIndex, s.ubQtyOnHand, s.ubQtyOnOrder, s.ubItemQuality, s.fPreviouslyEligible}));
+	}
+	return JsonArray(slots);
+}
+
+std::string DescribeShipments()
+{
+	std::vector<std::string> shipments;
+	for (NewBobbyRayOrderStruct const& o : gpNewBobbyrShipments)
+	{
+		std::vector<std::string> lines;
+		for (UINT8 i = 0; i < o.ubNumberPurchases; ++i)
+		{
+			BobbyRayPurchaseStruct const& l = o.BobbyRayPurchase[i];
+			lines.push_back(Numbers({l.usItemIndex, l.ubNumberPurchased, l.bItemQuality, l.usBobbyItemIndex, l.fUsed}));
+		}
+		shipments.push_back(Json{}
+			.flag("active", o.fActive)
+			.num("destination", o.ubDeliveryLoc)
+			.num("speed", o.ubDeliveryMethod)
+			.raw("lines", JsonArray(lines))
+			.num("weight", o.uiPackageWeight)
+			.num("day", o.uiOrderedOnDayNum)
+			.flag("shown", o.fDisplayedInShipmentPage)
+			.text());
+	}
+	return JsonArray(shipments);
+}
+
+std::string DescribeEmails()
+{
+	std::vector<std::string> mails;
+	for (Email const* m = pEmailList; m; m = m->Next)
+		mails.push_back(Numbers({m->usOffset, m->usLength, m->ubSender, m->iDate, m->iFirstData, m->uiSecondData, m->fRead}));
+	return JsonArray(mails);
+}
+
+std::string DescribePayouts()
+{
+	std::vector<std::string> payouts;
+	for (LIFE_INSURANCE_PAYOUT const& p : LaptopSaveInfo.pLifeInsurancePayouts)
+		payouts.push_back(Numbers({p.fActive, p.ubSoldierID, p.ubMercID, p.iPayOutPrice}));
+	return JsonArray(payouts);
+}
+
+std::string DescribeLaptop()
+{
+	LaptopSaveInfoStruct const& l = LaptopSaveInfo;
+	std::vector<long long> bookmarks;
+	for (INT32 const b : l.iBookMarkList)
+	{
+		if (b == -1) break;
+		bookmarks.push_back(b);
+	}
+	std::vector<long long> dead, left, other;
+	for (INT32 i = 0; i < 256; ++i)
+	{
+		if (l.ubDeadCharactersList[i] != -1) dead.push_back(l.ubDeadCharactersList[i]);
+		if (l.ubLeftCharactersList[i] != -1) left.push_back(l.ubLeftCharactersList[i]);
+		if (l.ubOtherCharactersList[i] != -1) other.push_back(l.ubOtherCharactersList[i]);
+	}
+	return Json{}
+		.flag("newGame", l.gfNewGameLaptop)
+		.nums("bookmarks", bookmarks)
+		.num("balance", l.iCurrentBalance)
+		.raw("imp", Numbers({l.fIMPCompletedFlag, l.fSentImpWarningAlready}))
+		.raw("personnel", Json{}.nums("dead", dead).nums("left", left).nums("other", other).text())
+		.raw("merc", Numbers({l.gubPlayersMercAccountStatus, l.gubLastMercIndex, l.ubLastMercAvailableId, l.uiTotalMoneyPaidToSpeck,
+			l.fMercSiteHasGoneDownYet, l.fFirstVisitSinceServerWentDown, l.fNewMercsAvailableAtMercSite, l.ubPlayerBeenToMercSiteStatus,
+			l.uiSpeckQuoteFlags, l.ubSpeckCanSayPlayersLostQuote, l.fSaidGenericOpeningInMercSite, l.fSpeckSaidFloMarriedCousinQuote,
+			l.fHasAMercDiedAtMercSite}))
+		.raw("bobbyRay", Numbers({l.fBobbyRSiteCanBeAccessed, l.ubHaveBeenToBobbyRaysAtLeastOnceWhileUnderConstruction}))
+		.raw("newStock", DescribeStore(l.BobbyRayInventory, l.usInventoryListLength[BOBBY_RAY_NEW]))
+		.raw("usedStock", DescribeStore(l.BobbyRayUsedInventory, l.usInventoryListLength[BOBBY_RAY_USED]))
+		.raw("shipments", DescribeShipments())
+		.raw("payouts", DescribePayouts())
+		.num("payoutsUsed", l.ubNumberLifeInsurancePayoutUsed)
+		.raw("mails", DescribeEmails())
+		.num("arriveSector", g_merc_arrive_sector.AsByte())
+		.flag("hired", gfAtLeastOneMercWasHired)
+		.raw("events", DescribeLaptopEvents())
+		.num("worldMinutes", GetWorldTotalMin())
+		.text();
+}
+
+std::string DescribeLaptopProfile(ProfileID const pid)
+{
+	MERCPROFILESTRUCT const& p = GetProfile(pid);
+	std::vector<long long> inventory;
+	for (UINT16 const item : p.inv) inventory.push_back(item);
+	std::vector<long long> statuses, counts;
+	for (UINT8 const v : p.bInvStatus) statuses.push_back(v);
+	for (UINT8 const v : p.bInvNumber) counts.push_back(v);
+	return Json{}
+		.num("id", pid)
+		.num("status", p.bMercStatus)
+		.num("available", p.uiDayBecomesAvailable)
+		.raw("salaries", Numbers({p.sSalary, p.uiWeeklySalary, p.uiBiWeeklySalary}))
+		.raw("deposit", Numbers({p.bMedicalDeposit, p.sMedicalDepositAmount}))
+		.num("gear", p.usOptionalGearCost)
+		.num("competence", OracleCalcCompetence(pid))
+		.raw("attractiveness", Numbers({p.bMainGunAttractiveness, p.bArmourAttractiveness}))
+		.num("flags", p.ubMiscFlags)
+		.num("flags3", p.ubMiscFlags3)
+		.num("hangover", p.ubDaysOfMoraleHangover)
+		.num("precedent", p.uiPrecedentQuoteSaid)
+		.num("mercDays", p.iMercMercContractLength)
+		.raw("sector", Numbers({p.sSector.x, p.sSector.y, p.sSector.z}))
+		.raw("traits", Numbers({p.bSkillTrait, p.bSkillTrait2, p.bPersonalityTrait, p.bAttitude, p.ubBodyType, p.bSex}))
+		.raw("stats", Numbers({p.bLifeMax, p.bAgility, p.bDexterity, p.bWisdom, p.bMedical, p.bExplosive, p.bMechanical, p.bMarksmanship,
+			p.bExpLevel, p.bStrength, p.bLeadership, p.bLife}))
+		.raw("inventory", Numbers(inventory))
+		.raw("invStatus", Numbers(statuses))
+		.raw("invCount", Numbers(counts))
+		.flag("taken", p.impSlotState == IMPSlotState::TAKEN)
+		.text();
+}
+
+std::vector<ProfileID> LaptopProfileSelection(Command const& c)
+{
+	std::vector<ProfileID> ids;
+	if (Has(c, "range"))
+	{
+		std::vector<std::string> const bounds = SplitList(Text(c, "range", ""), ':');
+		if (bounds.size() != 2) throw std::runtime_error("range needs <from>:<to>");
+		for (long long id = ParseInteger("range", bounds[0]); id < ParseInteger("range", bounds[1]); ++id) ids.push_back(static_cast<ProfileID>(id));
+	}
+	else if (Has(c, "who"))
+	{
+		for (std::string const& part : SplitList(Text(c, "who", ""), ',')) ids.push_back(static_cast<ProfileID>(ParseInteger("who", part)));
+	}
+	return ids;
+}
+
+void EmitLaptop(Command const& c, std::string const& draws, std::string const& result, std::vector<ProfileID> const& profiles)
+{
+	std::vector<std::string> mercs;
+	std::vector<std::string> inventories;
+	FOR_EACH_IN_TEAM(s, OUR_TEAM)
+	{
+		mercs.push_back(DescribeContractMerc(*s));
+		std::vector<std::string> slots;
+		for (OBJECTTYPE const& o : s->inv) slots.push_back(Numbers({o.usItem, o.ubNumberOfObjects, o.bStatus[0]}));
+		inventories.push_back(JsonArray(slots));
+	}
+	std::vector<std::string> dumped;
+	for (ProfileID const id : profiles) dumped.push_back(DescribeLaptopProfile(id));
+	Json json;
+	json.str("probe", c.name).num("line", c.line).raw("args", DescribeArgs(c));
+	if (!draws.empty()) json.raw("draws", draws);
+	if (!result.empty()) json.raw("result", result);
+	json.raw("laptop", DescribeLaptop()).raw("mercs", JsonArray(mercs)).raw("inventories", JsonArray(inventories))
+		.raw("profiles", JsonArray(dumped));
+	Emit(json);
+}
+
+void ProbeNewGameFull(Command const& c)
+{
+	gGameOptions.ubDifficultyLevel = static_cast<UINT8>(Integer(c, "difficulty", DIF_LEVEL_MEDIUM));
+	gGameOptions.fGunNut = Integer(c, "gunnut", 0) != 0;
+	gGameOptions.fSciFi = Integer(c, "scifi", 1) != 0;
+	if (Has(c, "seed")) OracleSeedRandom(static_cast<UINT32>(Integer(c, "seed", 0)), TRUE);
+	GCM->resetMercProfileStructs();
+	ShutDownEmailList();
+	LaptopScreenInit();
+	gubScreenCount = 0;
+	std::string const draws = TracedSaiDraws([] { InitNewGame(); });
+	std::vector<std::string> terrorists;
+	for (ProfileID const pid : LAPTOP_TERRORISTS) terrorists.push_back(Numbers({pid, GetProfile(pid).sSector.x, GetProfile(pid).sSector.y}));
+	std::vector<ProfileID> all;
+	for (ProfileID id = 0; id < NUM_PROFILES; ++id) all.push_back(id);
+	EmitLaptop(c, draws, Json{}.raw("terrorists", JsonArray(terrorists)).num("count", gubNumTerrorists).text(), all);
+}
+
+void ProbeArrivalTimes(Command const& c)
+{
+	UINT32 const saved[] = {guiGameClock, guiDay, guiHour, guiMin};
+	std::vector<long long> times;
+	for (UINT32 hour = 0; hour < 24; ++hour)
+	{
+		guiDay = 2;
+		guiHour = hour;
+		guiMin = 30;
+		guiGameClock = guiDay * NUM_SEC_IN_DAY + hour * NUM_SEC_IN_HOUR + guiMin * NUM_SEC_IN_MIN;
+		times.push_back(GetMercArrivalTimeOfDay());
+	}
+	guiGameClock = saved[0];
+	guiDay = saved[1];
+	guiHour = saved[2];
+	guiMin = saved[3];
+	Emit(Json{}.str("probe", "arrival").num("line", c.line).nums("times", times));
+}
+
+void DumpLaptop(Command const& c)
+{
+	EmitLaptop(c, "", "", LaptopProfileSelection(c));
+}
+
+UINT8 AimContractCode(long long days)
+{
+	switch (days)
+	{
+		case 1:  return 0;
+		case 7:  return 1;
+		case 14: return 2;
+		default: throw std::runtime_error("contract must be 1, 7 or 14");
+	}
+}
+
+void ProbeAimHire(Command const& c)
+{
+	ProfileID const pid = static_cast<ProfileID>(Required(c, "profile"));
+	UINT8 const contract = AimContractCode(Integer(c, "contract", 7));
+	BOOLEAN const gear = Integer(c, "gear", GetProfile(pid).usOptionalGearCost != 0) != 0;
+	BOOLEAN accepted = FALSE;
+	UINT16 quote = QUOTE_NONE;
+	INT8 hired = -3;
+	INT32 amount = 0;
+	std::string const draws = TracedSaiDraws([&] {
+		quote = OracleAimHireDecision(pid, &accepted);
+		if (accepted) hired = OracleAimMemberHireMerc(pid, contract, gear, &amount);
+	});
+	EmitLaptop(c, draws, Json{}.flag("accepted", accepted).num("quote", quote).num("hired", hired).num("amount", amount).text(), {pid});
+}
+
+void ProbeMercAccount(Command const& c)
+{
+	std::string const draws = TracedSaiDraws([] {
+		LaptopSaveInfo.gubPlayersMercAccountStatus = MERC_ACCOUNT_VALID;
+		LaptopSaveInfo.guiPlayersMercAccountNumber = Random(99999);
+	});
+	EmitLaptop(c, draws, "", {});
+}
+
+void ProbeMercHire(Command const& c)
+{
+	ProfileID const pid = static_cast<ProfileID>(Required(c, "profile"));
+	BOOLEAN hired = FALSE;
+	std::string const draws = TracedSaiDraws([&] { hired = OracleMercFilesHireMerc(pid); });
+	EmitLaptop(c, draws, Json{}.flag("hired", hired).text(), {pid});
+}
+
+void ProbeMercPay(Command const& c)
+{
+	INT32 total = 0;
+	std::string const draws = TracedSaiDraws([&] { total = OracleSettleMercAccounts(static_cast<UINT8>(Integer(c, "index", 0))); });
+	EmitLaptop(c, draws, Json{}.num("total", total).text(), LaptopProfileSelection(c));
+}
+
+void ProbeBobbyRestock(Command const& c)
+{
+	std::string const draws = TracedSaiDraws([] {
+		DailyUpdateOfBobbyRaysNewInventory();
+		DailyUpdateOfBobbyRaysUsedInventory();
+	});
+	EmitLaptop(c, draws, "", {});
+}
+
+void ProbeBobbyFresh(Command const& c)
+{
+	std::string const draws = TracedSaiDraws([&] { AddFreshBobbyRayInventory(static_cast<UINT16>(Required(c, "param"))); });
+	EmitLaptop(c, draws, "", {});
+}
+
+void ProbeBobbyOrder(Command const& c)
+{
+	std::fill_n(BobbyRayPurchases, MAX_PURCHASE_AMOUNT, BobbyRayPurchaseStruct{});
+	UINT8 n = 0;
+	for (std::string const& line : SplitList(Text(c, "lines", ""), ','))
+	{
+		std::vector<std::string> const parts = SplitList(line, ':');
+		UINT16 const item = static_cast<UINT16>(ParseInteger("lines", parts.at(0)));
+		UINT8 const count = static_cast<UINT8>(ParseInteger("lines", parts.at(1)));
+		BOOLEAN const used = parts.size() > 2 && ParseInteger("lines", parts[2]) != 0;
+		STORE_INVENTORY* const inv = used ? LaptopSaveInfo.BobbyRayUsedInventory : LaptopSaveInfo.BobbyRayInventory;
+		INT16 const slot = GetInventorySlotForItem(inv, item, used);
+		if (slot < 0) throw std::runtime_error("item not in Bobby Ray's list");
+		BobbyRayPurchaseStruct& p = BobbyRayPurchases[n++];
+		p.usItemIndex = item;
+		p.ubNumberPurchased = count;
+		p.bItemQuality = used ? inv[slot].ubItemQuality : 100;
+		p.usBobbyItemIndex = slot;
+		p.fUsed = used;
+	}
+	UINT32 subtotal = 0;
+	UINT32 shipping = 0;
+	INT32 total = 0;
+	std::string const draws = TracedSaiDraws([&] {
+		total = OracleBobbyRayOrder(static_cast<UINT8>(Required(c, "dest")), static_cast<UINT8>(Integer(c, "speed", 0)), &subtotal, &shipping);
+	});
+	EmitLaptop(c, draws, Json{}.num("subtotal", subtotal).num("shipping", shipping).num("total", total).text(), {});
+}
+
+void ProbeBobbyDeliver(Command const& c)
+{
+	UINT8 const index = static_cast<UINT8>(Integer(c, "index", 0));
+	if (index >= gpNewBobbyrShipments.size()) throw std::runtime_error("no such shipment");
+	GridNo const grid = GCM->getShippingDestination(gpNewBobbyrShipments[index].ubDeliveryLoc)->deliverySectorGridNo;
+	std::string const draws = TracedSaiDraws([&] { BobbyRayPurchaseEventCallback(index); });
+	std::vector<long long> facts;
+	for (Fact const f : {FACT_PABLOS_STOLE_FROM_LATEST_SHIPMENT, FACT_LAST_SHIPMENT_CRASHED, FACT_LAST_SHIPMENT_WENT_TO_WRONG_AIRPORT,
+		FACT_AGENTS_PREVENTED_SHIPMENT, FACT_MEDIUM_SIZED_SHIPMENT_WAITING, FACT_LARGE_SIZED_SHIPMENT_WAITING,
+		FACT_REALLY_NEW_BOBBYRAY_SHIPMENT_WAITING, FACT_LARGE_SIZED_OLD_SHIPMENT_WAITING})
+		facts.push_back(gubFact[f]);
+	std::vector<std::string> items;
+	for (WORLDITEM const& w : gWorldItems)
+	{
+		if (!w.fExists || (w.sGridNo != grid && w.sGridNo != LOST_SHIPMENT_GRIDNO)) continue;
+		items.push_back(Numbers({w.sGridNo, w.o.usItem, w.o.ubNumberOfObjects, w.o.bStatus[0], w.bVisible}));
+	}
+	EmitLaptop(c, draws, Json{}.nums("facts", facts).raw("worldItems", JsonArray(items)).text(), {});
+}
+
+void SetLaptopBalance(Command const& c)
+{
+	INT32 const delta = static_cast<INT32>(Required(c, "amount")) - LaptopSaveInfo.iCurrentBalance;
+	AddTransactionToPlayersBook(ANONYMOUS_DEPOSIT, 0, GetWorldTotalMin(), delta);
+	Emit(Json{}.str("probe", "setbalance").num("line", c.line).num("balance", LaptopSaveInfo.iCurrentBalance));
+}
+
+void ProbeFactValue(Command const& c)
+{
+	Fact const f = static_cast<Fact>(Required(c, "id"));
+	gubFact[f] = static_cast<UINT8>(Integer(c, "value", 1));
+	Emit(Json{}.str("probe", "setfact").num("line", c.line).num("id", f).num("value", gubFact[f]));
+}
+
+void ProbeInsure(Command const& c)
+{
+	SOLDIERTYPE& s = GetMan(static_cast<SoldierID>(Required(c, "who")));
+	INT32 const length = OracleInsuranceContractLength(&s);
+	INT32 const cost = CalculateInsuranceContractCost(length, s.ubProfile);
+	if (Integer(c, "buy", 1) != 0 && length > 0) PurchaseOrExtendInsuranceForSoldier(&s, length);
+	EmitLaptop(c, "", Json{}.num("length", length).num("cost", cost).text(), {s.ubProfile});
+}
+
+void ProbeInsuranceDaily(Command const& c)
+{
+	DailyUpdateOfInsuredMercs();
+	EmitLaptop(c, "", "", {});
+}
+
+void ProbeInsurancePayout(Command const& c)
+{
+	SOLDIERTYPE& s = GetMan(static_cast<SoldierID>(Required(c, "who")));
+	if (Has(c, "suspicious")) GetProfile(s.ubProfile).ubSuspiciousDeath = static_cast<UINT8>(Integer(c, "suspicious", 0));
+	AddLifeInsurancePayout(&s);
+	EmitLaptop(c, "", "", {s.ubProfile});
+}
+
+void ProbeInsuranceStep(Command const& c)
+{
+	UINT8 const slot = static_cast<UINT8>(Integer(c, "slot", 0));
+	if (slot >= LaptopSaveInfo.pLifeInsurancePayouts.size()) throw std::runtime_error("no such payout");
+	std::string const step = Text(c, "step", "pay");
+	std::string const draws = TracedSaiDraws([&] {
+		if (step == "start") StartInsuranceInvestigation(slot);
+		else if (step == "end") EndInsuranceInvestigation(slot);
+		else InsuranceContractPayLifeInsuranceForDeadMerc(slot);
+	});
+	EmitLaptop(c, draws, "", {});
+}
+
+void ProbeImpCreate(Command const& c)
+{
+	bool const male = Text(c, "gender", "male") == "male";
+	std::vector<std::string> const answers = SplitList(Text(c, "answers", ""), ',');
+	std::vector<std::string> const attrs = SplitList(Text(c, "attrs", ""), ',');
+	if (answers.size() != 16 || attrs.size() != 10) throw std::runtime_error("imp needs 16 answers and 10 attributes");
+	INT32 quiz[16];
+	for (int i = 0; i < 16; ++i) quiz[i] = static_cast<INT32>(ParseInteger("answers", answers[i]));
+	fCharacterIsMale = male;
+	pFullName = Text(c, "name", "Oracle Test").c_str();
+	pNickName = Text(c, "nick", "Oracle").c_str();
+	INT32* const targets[] = {&iHealth, &iAgility, &iDexterity, &iStrength, &iWisdom, &iLeadership, &iMarksmanship, &iMedical,
+		&iMechanical, &iExplosives};
+	for (int i = 0; i < 10; ++i) *targets[i] = static_cast<INT32>(ParseInteger("attrs", attrs[i]));
+	iPortraitNumber = GetIMPPortraitIndex(male, static_cast<INT32>(Integer(c, "portrait", 0)));
+	LaptopSaveInfo.iVoiceId = GetIMPVoiceIndex(male, static_cast<INT32>(Integer(c, "voice", 0)));
+	ProfileID const slot = GetIMPSlotInProgress();
+	std::string const draws = TracedSaiDraws([&] {
+		ResetSkillsAttributesAndPersonality();
+		OracleCompileQuiz(quiz);
+		CreatePlayersPersonalitySkillsAndAttitude();
+		CreateACharacterFromPlayerEnteredStats();
+		OracleIMPConfirmYes();
+	});
+	EmitLaptop(c, draws, Json{}.num("slot", slot).text(), {slot});
+}
+
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -4144,6 +4583,24 @@ void Dispatch(Command const& c)
 	if (c.name == "levelup") return ProbeLevelUp(c);
 	if (c.name == "salary") return ProbeSalary(c);
 	if (c.name == "setrenewals") return SetRenewals(c);
+	if (c.name == "newgamefull") return ProbeNewGameFull(c);
+	if (c.name == "arrival") return ProbeArrivalTimes(c);
+	if (c.name == "laptop") return DumpLaptop(c);
+	if (c.name == "aimhire") return ProbeAimHire(c);
+	if (c.name == "mercaccount") return ProbeMercAccount(c);
+	if (c.name == "merchire") return ProbeMercHire(c);
+	if (c.name == "mercpay") return ProbeMercPay(c);
+	if (c.name == "bobbyrestock") return ProbeBobbyRestock(c);
+	if (c.name == "bobbyfresh") return ProbeBobbyFresh(c);
+	if (c.name == "bobbyorder") return ProbeBobbyOrder(c);
+	if (c.name == "bobbydeliver") return ProbeBobbyDeliver(c);
+	if (c.name == "setfact") return ProbeFactValue(c);
+	if (c.name == "setbalance") return SetLaptopBalance(c);
+	if (c.name == "insure") return ProbeInsure(c);
+	if (c.name == "insuranceday") return ProbeInsuranceDaily(c);
+	if (c.name == "payout") return ProbeInsurancePayout(c);
+	if (c.name == "insurancestep") return ProbeInsuranceStep(c);
+	if (c.name == "impcreate") return ProbeImpCreate(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

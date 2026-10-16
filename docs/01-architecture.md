@@ -935,3 +935,10 @@ Specs: `docs/21` (laptop and hiring), `22` (contracts and relationships), `23` (
    `insuranceExtension`), extensions, dismissals, departures with the equipment left behind, R.P.C. pay, M.E.R.C. accounts,
    level-ups, relationships and reputation; stub profiles for the stub pack; contract state from native saves. 81 oracle
    probes (13,488 draws) match. The strategic page shows contracts and morale and answers contract prompts.
+3. **Laptop and hiring** (`sim/campaign/laptop`, `sim/campaign/narrative/facts.ts`, `server/laptop-view.ts`): the laptop as
+   a modal flow with A.I.M. (prices, deposits, refusals, arrivals by the 07:30/13:30/19:30 flights, landing zone),
+   M.E.R.C. (account, listings, debt, outages), I.M.P., Bobby Ray's (stock, restock at 09:00 before the dealers, orders,
+   deliveries with Pablo's theft), life insurance, florist, email, history and files; the new game in the original's
+   order (profiles, terrorists, mercs on assignment, dealers, Bobby Ray, `InitNPCs` placements, mails, the M.E.R.C. day);
+   campaigns hire through the laptop; the 500-fact narrative store; laptop sections of native saves; stub dealers in A10.
+   43 oracle probes (new games with 2,500–2,700 draws each, hires, orders, deliveries, insurance, I.M.P.) match.

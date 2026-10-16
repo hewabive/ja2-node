@@ -30,8 +30,9 @@ function enumValue(value: string, known: ReadonlyMap<string, number>, item: stri
   if (/^-?\d+$/.test(value)) return Number(value);
   if (/^0x[0-9a-f]+$/i.test(value)) return Number.parseInt(value, 16);
   const alias = known.get(value);
-  if (alias === undefined) throw new Error(`non-literal enum value ${item}`);
-  return alias;
+  if (alias !== undefined) return alias;
+  if (/^[\w\s()+*-]+$/.test(value)) return evaluateIntExpression(value, known);
+  throw new Error(`non-literal enum value ${item}`);
 }
 
 export function sequentialEnum(src: string, enumName: string): Map<string, number> {
@@ -56,7 +57,7 @@ export function arrayItems(src: string, declaration: string): string[] {
 }
 
 export function evaluateIntExpression(expression: string, names: ReadonlyMap<string, number>): number {
-  const tokens = expression.match(/[A-Za-z_]\w*|\d+|[+\-()]/g) ?? [];
+  const tokens = expression.match(/[A-Za-z_]\w*|\d+|[+\-*()]/g) ?? [];
   let pos = 0;
   const term = (): number => {
     const t = tokens[pos++];
@@ -72,9 +73,17 @@ export function evaluateIntExpression(expression: string, names: ReadonlyMap<str
     if (v === undefined) throw new Error(`unknown name ${t} in ${expression}`);
     return v;
   };
-  const sum = (): number => {
+  const product = (): number => {
     let v = term();
-    while (tokens[pos] === '+' || tokens[pos] === '-') v = tokens[pos++] === '+' ? v + term() : v - term();
+    while (tokens[pos] === '*') {
+      pos++;
+      v *= term();
+    }
+    return v;
+  };
+  const sum = (): number => {
+    let v = product();
+    while (tokens[pos] === '+' || tokens[pos] === '-') v = tokens[pos++] === '+' ? v + product() : v - product();
     return v;
   };
   return sum();

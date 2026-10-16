@@ -55,6 +55,7 @@ export function updateAirspaceControl(ctx: StrategicContext): void {
       if (element) element.enemyAirControlled = enemy;
     }
   }
+  ctx.world.airspaceControlUpdated?.();
 }
 
 export function initializeSamSites(ctx: StrategicContext): void {
@@ -88,6 +89,7 @@ export function setThisSectorAsPlayerControlled(ctx: StrategicContext, s: Sector
   let wasEnemy = false;
   if (s.z === 0) {
     if (numHostilesInSector(ctx, s)) return false;
+    ctx.world.playerControlsSurfaceSector?.(s);
     const element = ctx.state.map.elements[strategicIndex(s)];
     if (!element) return false;
     wasEnemy = element.enemyControlled;
