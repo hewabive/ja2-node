@@ -820,7 +820,11 @@ tactical page plays the session back. The specs behind it are `docs/06`–`09`.
 light sprites and gear for vision, FOV roof reveal and wireframes, breath recovery, door busy windows, enemy
 glow, equipment generation, prone/multi-tile soldiers.
 
-### M3: in progress (2026-10-15)
+### M3: what's done (2026-10-15)
+
+The milestone is closed. Result: battles in A9 on the original data and in the stub village, an agent fighting through
+MCP alone, native savegames continued in a session and checked against the native build. Known gaps are listed in
+`docs/deviations.md`; the largest is lighting (map light sprites, flares, night vision gear).
 
 Specs: `docs/10` (turn-based), `11` (attacks and damage), `12` (items and explosions), `13` (combat AI).
 
@@ -862,3 +866,6 @@ Specs: `docs/10` (turn-based), `11` (attacks and damage), `12` (items and explos
     `newSession {save}` and `JA2_SAVE` start one. `tools/oracle/save-probes.ts` and `compare.ts` check soldier state,
     hit chances, AI best shots, sight and paths against the native build on the user's six saves: 6,075 comparisons
     match. The known gap is lighting: map light sprites are not simulated, so lit tiles at night differ.
+13. **Drivers and cost**: the instant driver (`{mode: 'instant'}`) runs every order to idle on the server while the
+    tactical page plays the frames back at 1×, 4×, 16× or skips them. An enemy turn costs tens of milliseconds for
+    a small garrison and 100–250 ms for 16 soldiers (`04` §4.5).

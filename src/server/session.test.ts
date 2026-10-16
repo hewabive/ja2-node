@@ -80,4 +80,20 @@ describe('session', () => {
     expect(sim.tick).toBe(20);
     session.close();
   });
+
+  it('runs every accepted command to idle in instant mode and streams the frames', () => {
+    const sim = walker();
+    const session = new Session('s3', sim);
+    const messages: ServerMessage[] = [];
+    session.subscribe((m) => messages.push(m));
+    session.setDriver({ mode: 'instant' });
+    expect(session.dispatch({ type: 'walk', to: 42 })).toEqual({ ok: true });
+    expect(sim.isIdle()).toBe(true);
+    expect(sim.tick).toBe(42);
+    const frames = messages.flatMap((m) => (m.t === 'frames' ? m.frames : []));
+    expect(frames.reduce((shown, f) => applyFrame(shown, f), [] as SoldierView[])[0]?.gridNo).toBe(42);
+    expect(session.dispatch({ type: 'fly' })).toMatchObject({ ok: false });
+    expect(sim.tick).toBe(42);
+    session.close();
+  });
 });

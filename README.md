@@ -33,8 +33,9 @@ pnpm dev                           # server (7420) + Vite (5173)
 ```
 
 Open http://127.0.0.1:5173/ → "Tactical sandbox", "Asset browser" or "Map viewer". In the sandbox
-click a merc to select him, click a tile to walk there, right-click to run; the time buttons switch
-between paused and real time. Without `JA2_DATA_DIR` only the stubs (`stubs/…`, including the stub
+click a merc to select it, click a tile to walk there, right-click to run; the time buttons switch
+between paused, real time and instant (every order runs to the end on the server, the page plays it back at the
+chosen playback speed or skips it). Without `JA2_DATA_DIR` only the stubs (`stubs/…`, including the stub
 village map) are visible.
 
 Agents connect to `http://127.0.0.1:7420/mcp` with `Authorization: Bearer <.ja2/token>` and use the

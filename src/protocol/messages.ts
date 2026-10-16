@@ -1,9 +1,12 @@
 import type { StopCondition, StopReport } from '../sim/advance.ts';
+
+export { TICK_MS } from '../sim/clock.ts';
+
 import type { PlayerView, ViewFrame } from './view.ts';
 
 export type { StopCondition, StopReport };
 
-export type DriverMode = { readonly mode: 'manual' } | { readonly mode: 'realtime'; readonly speed: number };
+export type DriverMode = { readonly mode: 'manual' } | { readonly mode: 'instant' } | { readonly mode: 'realtime'; readonly speed: number };
 
 export interface CommandEnvelope {
   readonly type: string;
@@ -46,7 +49,10 @@ export function parseClientMessage(text: string): ClientMessage | null {
       return typeof m.id === 'number' && typeof m.until === 'object' && m.until !== null ? (m as ClientMessage) : null;
     case 'drive': {
       const d = m.driver as { mode?: unknown; speed?: unknown } | undefined;
-      const valid = d?.mode === 'manual' || (d?.mode === 'realtime' && typeof d.speed === 'number' && d.speed > 0 && d.speed <= 64);
+      const valid =
+        d?.mode === 'manual' ||
+        d?.mode === 'instant' ||
+        (d?.mode === 'realtime' && typeof d.speed === 'number' && d.speed > 0 && d.speed <= 64);
       return typeof m.id === 'number' && valid ? (m as ClientMessage) : null;
     }
     default:

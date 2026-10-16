@@ -80,6 +80,7 @@ export class Session {
     const frames: ViewFrame[] = [];
     this.#capture(frames);
     this.#publish(frames);
+    if (result.ok && this.#driver.mode === 'instant') this.advance({ idle: true });
     return result;
   }
 
@@ -100,6 +101,7 @@ export class Session {
       this.#carryMs = 0;
       this.#timer = setInterval(() => this.runRealtime(now()), REALTIME_INTERVAL_MS);
     }
+    if (driver.mode === 'instant') this.advance({ idle: true });
   }
 
   runRealtime(at: number): void {

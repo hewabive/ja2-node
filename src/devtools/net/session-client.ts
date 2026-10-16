@@ -1,4 +1,12 @@
-import type { ClientMessage, CommandEnvelope, DriverMode, ServerMessage, StopCondition, StopReport } from '../../protocol/messages.ts';
+import {
+  type ClientMessage,
+  type CommandEnvelope,
+  type DriverMode,
+  type ServerMessage,
+  type StopCondition,
+  type StopReport,
+  TICK_MS,
+} from '../../protocol/messages.ts';
 import { applyFrame, type CombatView, type ItemView, type PlayerView, type SoldierView, type ViewFrame } from '../../protocol/view.ts';
 
 type Pending = { resolve: (m: ServerMessage) => void; reject: (e: Error) => void };
@@ -126,6 +134,10 @@ export class SessionClient {
     return changed;
   }
 
+  playFor(elapsedMs: number): boolean {
+    return this.playUntil(this.#shownTick + (elapsedMs / TICK_MS) * this.playbackSpeed);
+  }
+
   skipToLatest(): void {
     this.playUntil(Number.POSITIVE_INFINITY);
   }
@@ -141,8 +153,8 @@ export class SessionClient {
   }
 
   async drive(driver: DriverMode): Promise<void> {
-    await this.#request({ t: 'drive', id: this.#nextId++, driver });
     this.driver = driver;
+    await this.#request({ t: 'drive', id: this.#nextId++, driver });
   }
 
   close(): void {

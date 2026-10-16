@@ -153,7 +153,7 @@ sim.advance(until: StopCondition): StopReport;  // internally the same step()
 | Driver | Who advances time | Purpose |
 |---|---|---|
 | Real time ×k | The server: ticks by the wall clock × k (k = 1, 2, 4, …), auto-pause on decision prompts | A human in the browser |
-| Instant | `advance` until `idle` or a decision prompt at full CPU speed | The enemy turn "at once", auto-resolve, tests |
+| Instant | `advance` until `idle` or a decision prompt at full CPU speed, after every accepted command (`{mode: 'instant'}`) | The enemy turn "at once", auto-resolve, tests |
 | Manual | Only explicit `advance` calls from the client | An agent via the API, step-by-step debugging |
 
 **Turn-based combat** gives the same outcome under any driver.
@@ -190,6 +190,10 @@ changed (`src/protocol/view.ts` `diffView`/`applyFrame`, `src/server/session.ts`
 `advance` therefore produces a compact frame stream that the browser plays back at any speed. Fine
 animation between frames is reconstructed by the client from the same animation scripts. The richer
 event log above stays the target once combat effects (bullets, explosions) appear.
+
+**Implemented in M3.** Under the instant driver the session runs every accepted command (and the switch to the
+driver) to `idle` or a decision prompt and streams the frames at once; the tactical page plays them back at 1×, 4×
+or 16× (`SessionClient.playFor`) or applies them all with "skip".
 
 The player view lists our soldiers (with AP, life, life max and breath), the militia and only those
 others the squad currently sees (`bVisible ≥ 0`, `docs/08` §2.7), plus the gridnos of open doors and,
@@ -230,8 +234,19 @@ and the target reacts (0.4–2.3 s). That adds up to 30–60 s of game time, i.e
 **AI decisions** are the expensive part: pathfinding on a 160×160 grid and LOS. But the original computed them in
 real time on a Pentium 200.
 
-**Expected:** tens, at worst hundreds of milliseconds per enemy turn without playback. We will measure it in M3.
-If that is not enough: event jumping (1b) and a worker.
+**Expected:** tens, at worst hundreds of milliseconds per enemy turn without playback. If that is not enough: event
+jumping (1b) and a worker.
+
+**Measured (M3, 2026-10-15)**: A9 battles on the original data, one core of an AMD EPYC 9354 VM, the instant driver
+(`advance … idle` after `endTurn`), wall time of the whole enemy side including the civilians:
+
+| Garrison | Enemy turn | Ticks (game time) |
+|---|---|---|
+| 4 soldiers + 2 civilians | 1–90 ms, most under 50 ms | 40–1,000 (0.2–5 s) |
+| 16 soldiers + 2 civilians | 2–370 ms, typically 100–250 ms while all are alive | 100–4,900 (0.5–25 s) |
+
+AI decisions (cover search, paths, sight) dominate; ticks without decisions are almost free. No event jumping or
+worker is needed for now.
 
 ---
 
@@ -263,6 +278,7 @@ type ClientMsg =
   | { t: 'answer'; id: number; prompt: PromptId; choice: string }
   | { t: 'advance'; id: number; until: StopCondition }
   | { t: 'drive'; mode: 'realtime'; speed: number }
+  | { t: 'drive'; mode: 'instant' }
   | { t: 'drive'; mode: 'manual' }
   | { t: 'query'; id: number; q: Query };                   // hit chance, path, AP, LOS
 

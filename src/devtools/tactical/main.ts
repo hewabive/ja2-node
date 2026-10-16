@@ -59,6 +59,7 @@ window.__ja2Tactical = debug;
 const OUR_TEAM = 0;
 const DOOR_FLAGS = 0x00cc0008;
 const OPEN_FLAG = 0x2;
+const DEFAULT_PLAYBACK = 4;
 
 function el<T extends HTMLElement>(id: string): T {
   const e = document.getElementById(id);
@@ -165,6 +166,8 @@ function drawCursor(g: number, region: typeof cursorRegion, options: SceneOption
   renderer.draw(cursorAtlas, region, o.x * zoom, y * zoom, zoom);
 }
 
+let lastRenderAt = performance.now();
+
 function render(): void {
   requestAnimationFrame(render);
   const dpr = window.devicePixelRatio || 1;
@@ -174,7 +177,10 @@ function render(): void {
     canvas.width = w;
     canvas.height = h;
   }
-  client?.playUntil(client.latestTick);
+  const now = performance.now();
+  if (client?.driver.mode === 'instant') client.playFor(now - lastRenderAt);
+  else client?.playUntil(client.latestTick);
+  lastRenderAt = now;
   openDoors = new Set(client?.openDoors ?? []);
   revealedRooms = new Set(client?.revealedRooms ?? []);
   gl.clearColor(0, 0, 0, 1);
@@ -198,8 +204,15 @@ function render(): void {
   info.textContent = describe();
 }
 
+function driverLabel(): string {
+  const driver = client?.driver;
+  if (driver?.mode === 'realtime') return `${driver.speed}×`;
+  if (driver?.mode === 'instant') return `instant, playback ${client?.playbackSpeed ?? 1}× (${Math.floor(client?.latestTick ?? 0)})`;
+  return 'paused';
+}
+
 function describe(): string {
-  const lines = [`tick ${client?.shownTick ?? 0}  ·  ${client?.driver.mode === 'realtime' ? `${client.driver.speed}×` : 'paused'}`];
+  const lines = [`tick ${Math.floor(client?.shownTick ?? 0)}  ·  ${driverLabel()}`];
   const combat = client?.combat;
   if (combat)
     lines.push(
@@ -276,11 +289,20 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-zoom]')) {
 }
 for (const b of document.querySelectorAll<HTMLButtonElement>('[data-speed]')) {
   b.addEventListener('click', () => {
-    const speed = Number(b.dataset.speed);
     for (const other of document.querySelectorAll<HTMLButtonElement>('[data-speed]')) other.classList.toggle('active', other === b);
-    void client?.drive(speed === 0 ? { mode: 'manual' } : { mode: 'realtime', speed });
+    const speed = Number(b.dataset.speed);
+    if (b.dataset.speed === 'instant') void client?.drive({ mode: 'instant' });
+    else void client?.drive(speed === 0 ? { mode: 'manual' } : { mode: 'realtime', speed });
   });
 }
+for (const b of document.querySelectorAll<HTMLButtonElement>('[data-playback]')) {
+  b.classList.toggle('active', Number(b.dataset.playback) === DEFAULT_PLAYBACK);
+  b.addEventListener('click', () => {
+    if (client) client.playbackSpeed = Number(b.dataset.playback);
+    for (const other of document.querySelectorAll<HTMLButtonElement>('[data-playback]')) other.classList.toggle('active', other === b);
+  });
+}
+el<HTMLButtonElement>('skip').addEventListener('click', () => client?.skipToLatest());
 el<HTMLButtonElement>('endTurn').addEventListener('click', () => {
   void client?.command({ type: 'endTurn' }).then((r) => {
     debug.lastResult = r.ok ? 'turn ended' : `end turn: ${r.reason ?? 'refused'}`;
@@ -297,6 +319,7 @@ async function start(): Promise<void> {
     const files = await fetchVfsList();
     const available = new Set(files.map((f) => f.path));
     client = await SessionClient.connect();
+    client.playbackSpeed = DEFAULT_PLAYBACK;
     const mapPath = client.view?.mapPath;
     if (!mapPath) throw new Error('the session has no map');
     assets = await SoldierAssets.load(available);
