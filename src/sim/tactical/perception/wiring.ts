@@ -60,9 +60,10 @@ export function sightHooks(previous: TacticalHooks): TacticalHooks {
       handleSight(t, s, SightFlags.LOOK | SightFlags.RADIO | (settled ? SightFlags.INTERRUPT : 0));
       previous.stanceChanged(t, s);
     },
-    doorOpened: (t, s) => {
+    doorOpeningNoise,
+    doorOpened: (t, s, noise) => {
       initOpplistForDoorOpening(t);
-      makeNoise(t, s, s.gridNo, s.level, doorOpeningNoise(t, s), NoiseKind.CREAKING);
+      makeNoise(t, s, s.gridNo, s.level, noise, NoiseKind.CREAKING);
       t.turn.interruptProvoker = s;
       allTeamsLookForAll(t, true);
     },

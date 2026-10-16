@@ -93,6 +93,9 @@
 #include "Mercs.h"
 #include "Smell.h"
 #include "Soldier_Macros.h"
+#include "Keys.h"
+#include "Handle_Doors.h"
+#include "Structure.h"
 
 #include <string_theory/string>
 
@@ -115,6 +118,8 @@
 INT32 OracleLineOfSightTest(GridNo start_pos, FLOAT dStartZ, GridNo end_pos, FLOAT dEndZ, UINT8 ubTileSightLimit, UINT8 ubTreeSightReduction, INT8 bAware, INT8 bCamouflage, BOOLEAN fSmell, INT16* psWindowGridNo);
 UINT8 OracleTreeSightReduction(UINT8 ubEndHeight);
 INT16 OraclePickGridNoNearestEdge(SOLDIERTYPE* s, UINT8 direction);
+bool OracleDoTrapCheckOnStartingMenu(SOLDIERTYPE& s, DOOR& d);
+void OracleHostileQuoteList(std::vector<UINT8>* ids);
 extern INT32 giHabitatedDistance;
 extern INT32 giPopulationModifier;
 extern INT32 giLairID;
@@ -4036,6 +4041,291 @@ void ProbeTrackScent(Command const& c)
 }
 
 
+
+std::map<std::string, HandleDoor> const DOOR_HANDLE_CODES{
+	{"open", HANDLE_DOOR_OPEN}, {"examine", HANDLE_DOOR_EXAMINE}, {"pickLock", HANDLE_DOOR_LOCKPICK}, {"force", HANDLE_DOOR_FORCE},
+	{"lock", HANDLE_DOOR_LOCK}, {"unlock", HANDLE_DOOR_UNLOCK}, {"explode", HANDLE_DOOR_EXPLODE}, {"untrap", HANDLE_DOOR_UNTRAP},
+	{"crowbar", HANDLE_DOOR_CROWBAR},
+};
+
+std::string DescribeDoorEntry(GridNo const g)
+{
+	DOOR const* const d = FindDoorInfoAtGridNo(g);
+	STRUCTURE const* const st = FindStructure(g, STRUCTURE_ANYDOOR);
+	Json j;
+	j.num("gridNo", g).flag("present", d != nullptr).flag("open", st && (st->fFlags & STRUCTURE_OPEN));
+	if (d)
+	{
+		j.flag("locked", d->fLocked).num("trapId", d->ubTrapID).num("trapLevel", d->ubTrapLevel).num("lockId", d->ubLockID)
+			.num("perceivedLocked", d->bPerceivedLocked).num("perceivedTrapped", d->bPerceivedTrapped).num("lockDamage", d->bLockDamage);
+	}
+	return j.text();
+}
+
+std::string DescribeDoorSoldier(SOLDIERTYPE const& s)
+{
+	std::vector<std::string> inventory;
+	for (int slot = 0; slot < NUM_INV_SLOTS; ++slot)
+	{
+		OBJECTTYPE const& o = s.inv[slot];
+		if (o.usItem == NOTHING) continue;
+		inventory.push_back(Numbers({slot, o.usItem, o.bStatus[0], o.ubNumberOfObjects, o.ubKeyID}));
+	}
+	std::vector<std::string> ring;
+	if (s.pKeyRing)
+	{
+		for (int k = 0; k < NUM_KEYS; ++k)
+		{
+			if (s.pKeyRing[k].ubNumber != 0) ring.push_back(Numbers({k, s.pKeyRing[k].ubKeyID, s.pKeyRing[k].ubNumber}));
+		}
+	}
+	Json j;
+	j.num("id", s.ubID).num("gridNo", s.sGridNo).num("ap", s.bActionPoints).num("life", s.bLife).num("breath", s.bBreath)
+		.num("breathMax", s.bBreathMax).num("bleeding", s.bBleeding).num("lastSkillCheck", s.bLastSkillCheck)
+		.num("skillCheckAttempts", s.ubSkillCheckAttempts).num("skillCheckGridNo", s.sSkillCheckGridNo)
+		.num("doorHandleCode", s.ubDoorHandleCode).num("beingAttacked", s.bBeingAttackedCount).num("side", static_cast<int>(s.bSide))
+		.flag("neutral", s.bNeutral).num("team", s.bTeam).raw("inventory", JsonArray(inventory)).raw("keyRing", JsonArray(ring));
+	if (s.ubProfile != NO_PROFILE)
+	{
+		MERCPROFILESTRUCT const& p = GetProfile(s.ubProfile);
+		j.raw("gains", Numbers({p.sLifeGain, p.sAgilityGain, p.sDexterityGain, p.sWisdomGain, p.sMedicalGain, p.sExplosivesGain,
+			p.sMechanicGain, p.sMarksmanshipGain, p.sExpLevelGain, p.sStrengthGain, p.sLeadershipGain}));
+		j.raw("stats", Numbers({s.bLifeMax, s.bAgility, s.bDexterity, s.bWisdom, s.bMedical, s.bExplosive, s.bMechanical,
+			s.bMarksmanship, s.bExpLevel, s.bStrength, s.bLeadership}));
+	}
+	return j.text();
+}
+
+void ApplyDoorSettings(Command const& c, GridNo const g)
+{
+	STRUCTURE const* const st = FindStructure(g, STRUCTURE_ANYDOOR);
+	if (Integer(c, "close", 0) != 0 && st && (st->fFlags & STRUCTURE_OPEN)) HandleDoorChangeFromGridNo(nullptr, g, TRUE);
+	DOOR* d = FindDoorInfoAtGridNo(g);
+	if (Has(c, "remove") && d)
+	{
+		RemoveDoorInfoFromTable(g);
+		return;
+	}
+	if (!d && Has(c, "lock"))
+	{
+		DOOR fresh{};
+		fresh.sGridNo = static_cast<INT16>(g);
+		AddDoorInfoToTable(&fresh);
+		d = FindDoorInfoAtGridNo(g);
+	}
+	if (!d) return;
+	if (Has(c, "locked")) d->fLocked = Integer(c, "locked", 0) != 0;
+	SetIfGiven(c, "trap", d->ubTrapID);
+	SetIfGiven(c, "level", d->ubTrapLevel);
+	SetIfGiven(c, "lock", d->ubLockID);
+	SetIfGiven(c, "damage", d->bLockDamage);
+	SetIfGiven(c, "perceivedLocked", d->bPerceivedLocked);
+	SetIfGiven(c, "perceivedTrapped", d->bPerceivedTrapped);
+}
+
+void ApplyDoorItems(Command const& c, SOLDIERTYPE& s)
+{
+	for (char const* key : {"give1", "give2", "give3"})
+	{
+		if (!Has(c, key)) continue;
+		std::vector<std::string> const parts = SplitList(Text(c, key, ""), ':');
+		if (parts.size() < 4) throw std::runtime_error("give looks like <slot>:<item>:<status>:<count>[:<keyId>]");
+		int const slot = static_cast<int>(ParseInteger(key, parts[0]));
+		CreateItems(static_cast<UINT16>(ParseInteger(key, parts[1])), static_cast<INT8>(ParseInteger(key, parts[2])),
+			static_cast<UINT8>(ParseInteger(key, parts[3])), &s.inv[slot]);
+		if (parts.size() > 4) s.inv[slot].ubKeyID = static_cast<UINT8>(ParseInteger(key, parts[4]));
+	}
+	if (Has(c, "clear"))
+	{
+		for (std::string const& part : SplitList(Text(c, "clear", ""), ':')) DeleteObj(&s.inv[ParseInteger("clear", part)]);
+	}
+	if (Has(c, "ring") && s.pKeyRing)
+	{
+		std::vector<std::string> const parts = SplitList(Text(c, "ring", ""), ':');
+		if (parts.size() != 2) throw std::runtime_error("ring looks like <keyId>:<count>");
+		s.pKeyRing[0].ubKeyID = static_cast<UINT8>(ParseInteger("ring", parts[0]));
+		s.pKeyRing[0].ubNumber = static_cast<UINT8>(ParseInteger("ring", parts[1]));
+	}
+}
+
+void ApplyDoorSoldier(Command const& c, SOLDIERTYPE& s)
+{
+	ApplySoldierSettings(c, s);
+	SetIfGiven(c, "bleeding", s.bBleeding);
+	SetIfGiven(c, "shock", s.bShock);
+	SetIfGiven(c, "explosives", s.bExplosive);
+	SetIfGiven(c, "mechanical", s.bMechanical);
+	SetIfGiven(c, "strength", s.bStrength);
+	SetIfGiven(c, "dexterity", s.bDexterity);
+	SetIfGiven(c, "wisdom", s.bWisdom);
+	SetIfGiven(c, "expLevel", s.bExpLevel);
+	SetIfGiven(c, "lastSkillCheck", s.bLastSkillCheck);
+	SetIfGiven(c, "skillCheckGridNo", s.sSkillCheckGridNo);
+	SetIfGiven(c, "skillCheckAttempts", s.ubSkillCheckAttempts);
+	ApplyDoorItems(c, s);
+}
+
+void ProbeDoor(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	GridNo const g = GridArgument(c, "g");
+	ApplyDoorSettings(c, g);
+	ApplyDoorSoldier(c, s);
+	std::string const action = Text(c, "action", "open");
+	HandleDoor const code = Lookup(DOOR_HANDLE_CODES, c, "action", "open");
+	STRUCTURE* const st = FindStructure(g, STRUCTURE_ANYDOOR);
+	if (!st) throw std::runtime_error("no door at " + std::to_string(g));
+	std::string const before = DescribeDoorEntry(g);
+	std::string const soldierBefore = DescribeDoorSoldier(s);
+	s.ubDoorHandleCode = static_cast<UINT8>(Integer(c, "code", code));
+	BOOLEAN handled = FALSE;
+	UINT32 const savedFlags = gTacticalStatus.uiFlags;
+	if (Integer(c, "incombat", 0) != 0) gTacticalStatus.uiFlags |= INCOMBAT;
+	std::string const draws = TracedSaiDraws([&] { handled = HandleOpenableStruct(&s, g, st); });
+	gTacticalStatus.uiFlags = savedFlags;
+	Emit(Json{}
+		.str("probe", "door")
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.num("who", s.ubID)
+		.num("gridNo", g)
+		.str("action", action)
+		.num("code", s.ubDoorHandleCode)
+		.flag("handled", handled)
+		.flag("inCombat", (gTacticalStatus.uiFlags & INCOMBAT) != 0)
+		.num("attackBusy", gTacticalStatus.ubAttackBusyCount)
+		.raw("before", before)
+		.raw("door", DescribeDoorEntry(g))
+		.raw("soldierBefore", soldierBefore)
+		.raw("soldier", DescribeDoorSoldier(s))
+		.num("preRandomIndex", guiPreRandomIndex)
+		.raw("draws", draws));
+}
+
+void ProbeDoorMenu(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	GridNo const g = GridArgument(c, "g");
+	ApplyDoorSettings(c, g);
+	ApplyDoorSoldier(c, s);
+	DOOR* const d = FindDoorInfoAtGridNo(g);
+	if (!d) throw std::runtime_error("no door table entry at " + std::to_string(g));
+	std::string const before = DescribeDoorEntry(g);
+	std::string const soldierBefore = DescribeDoorSoldier(s);
+	bool noticed = false;
+	std::string const draws = TracedSaiDraws([&] { noticed = OracleDoTrapCheckOnStartingMenu(s, *d); });
+	Emit(Json{}
+		.str("probe", "doormenu")
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.num("who", s.ubID)
+		.num("gridNo", g)
+		.flag("noticed", noticed)
+		.raw("before", before)
+		.raw("door", DescribeDoorEntry(g))
+		.raw("soldierBefore", soldierBefore)
+		.raw("draws", draws));
+}
+
+void DumpLockTable(Command const& c)
+{
+	std::vector<std::string> locks;
+	for (int id = 0; id < NUM_LOCKS; ++id)
+	{
+		LOCK const& l = LockTable[id];
+		locks.push_back(Numbers({id, l.usKeyItem, l.ubLockType, l.ubPickDifficulty, l.ubSmashDifficulty}));
+	}
+	Emit(Json{}.str("probe", "locks").num("line", c.line).raw("locks", JsonArray(locks)));
+}
+
+std::string DescribeCivState()
+{
+	std::vector<long long> groups;
+	for (int g = 0; g < NUM_CIV_GROUPS; ++g) groups.push_back(gTacticalStatus.fCivGroupHostile[g]);
+	std::vector<std::string> people;
+	FOR_EACH_SOLDIER(s)
+	{
+		if (!s->bInSector) continue;
+		if (s->bTeam != CIV_TEAM && s->bTeam != MILITIA_TEAM && s->bTeam != OUR_TEAM) continue;
+		people.push_back(Numbers({s->ubID, s->bTeam, static_cast<int>(s->bSide), s->bNeutral, s->ubCivilianGroup, s->bOppCnt, s->ubProfile}));
+	}
+	std::vector<UINT8> list;
+	OracleHostileQuoteList(&list);
+	std::vector<long long> listed(list.begin(), list.end());
+	std::vector<std::string> events;
+	for (STRATEGICEVENT const* e = gpEventList; e; e = e->next)
+	{
+		if (e->ubCallbackID == EVENT_MAKE_CIV_GROUP_HOSTILE_ON_NEXT_SECTOR_ENTRANCE) events.push_back(Numbers({e->uiTimeStamp, e->uiParam}));
+	}
+	return Json{}
+		.nums("groups", groups)
+		.raw("people", JsonArray(people))
+		.nums("hostileList", listed)
+		.raw("civGroupEvents", JsonArray(events))
+		.flag("inCombat", (gTacticalStatus.uiFlags & INCOMBAT) != 0)
+		.num("worldMinutes", GetWorldTotalMin())
+		.text();
+}
+
+void SetCivGroupState(Command const& c)
+{
+	for (std::string const& spec : SplitList(Text(c, "set", ""), ','))
+	{
+		std::vector<std::string> const parts = SplitList(spec, ':');
+		if (parts.size() != 2) throw std::runtime_error("set looks like <group>:<hostility>[,...]");
+		gTacticalStatus.fCivGroupHostile[ParseInteger("set", parts[0])] = static_cast<UINT8>(ParseInteger("set", parts[1]));
+	}
+	for (std::string const& spec : SplitList(Text(c, "neutral", ""), ','))
+	{
+		std::vector<std::string> const parts = SplitList(spec, ':');
+		if (parts.size() != 2) throw std::runtime_error("neutral looks like <id>:<0|1>[,...]");
+		GetMan(static_cast<SoldierID>(ParseInteger("neutral", parts[0]))).bNeutral = ParseInteger("neutral", parts[1]) != 0;
+	}
+	for (std::string const& spec : SplitList(Text(c, "group", ""), ','))
+	{
+		std::vector<std::string> const parts = SplitList(spec, ':');
+		if (parts.size() != 2) throw std::runtime_error("group looks like <id>:<civ group>[,...]");
+		GetMan(static_cast<SoldierID>(ParseInteger("group", parts[0]))).ubCivilianGroup = static_cast<UINT8>(ParseInteger("group", parts[1]));
+	}
+	Emit(Json{}.str("probe", "civgroups").num("line", c.line).raw("args", DescribeArgs(c)).raw("state", DescribeCivState()));
+}
+
+void ProbeMakeCivHostile(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	std::string const before = DescribeCivState();
+	std::string const draws = TracedSaiDraws([&] { MakeCivHostile(&s); });
+	Emit(Json{}.str("probe", "makecivhostile").num("line", c.line).raw("args", DescribeArgs(c)).num("who", s.ubID).raw("before", before).raw("state", DescribeCivState()).raw("draws", draws));
+}
+
+void ProbePcAttack(Command const& c)
+{
+	SOLDIERTYPE& attacker = ExistingSoldier(Required(c, "who"));
+	SOLDIERTYPE& target = ExistingSoldier(Required(c, "target"));
+	target.attacker = &attacker;
+	std::string const before = DescribeCivState();
+	BOOLEAN combat = FALSE;
+	std::string const draws = TracedSaiDraws([&] { combat = ProcessImplicationsOfPCAttack(&attacker, &target, REASON_NORMAL_ATTACK); });
+	Emit(Json{}
+		.str("probe", "pcattack")
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.num("who", attacker.ubID)
+		.num("target", target.ubID)
+		.flag("enterCombat", combat)
+		.raw("before", before)
+		.raw("state", DescribeCivState())
+		.raw("draws", draws));
+}
+
+void ProbeHostileList(Command const& c)
+{
+	std::string const before = DescribeCivState();
+	std::string const draws = TracedSaiDraws([] { CheckHostileOrSayQuoteList(); });
+	Emit(Json{}.str("probe", "hostilelist").num("line", c.line).raw("before", before).raw("state", DescribeCivState()).raw("draws", draws));
+}
+
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -4144,6 +4434,13 @@ void Dispatch(Command const& c)
 	if (c.name == "levelup") return ProbeLevelUp(c);
 	if (c.name == "salary") return ProbeSalary(c);
 	if (c.name == "setrenewals") return SetRenewals(c);
+	if (c.name == "door") return ProbeDoor(c);
+	if (c.name == "doormenu") return ProbeDoorMenu(c);
+	if (c.name == "locks") return DumpLockTable(c);
+	if (c.name == "civgroups") return SetCivGroupState(c);
+	if (c.name == "makecivhostile") return ProbeMakeCivHostile(c);
+	if (c.name == "pcattack") return ProbePcAttack(c);
+	if (c.name == "hostilelist") return ProbeHostileList(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

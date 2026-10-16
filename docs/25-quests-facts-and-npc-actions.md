@@ -109,7 +109,9 @@ adds the record/approach fields — whichever spec lands first adds the shared o
    today the draw happens for Kingpin's men and hicks and is skipped for Angel's and the junkyard group.
 7. `handleNPCTeamMemberDeath` (`combat/death.ts`) has no profile-specific effects (§11.12); `processImplicationsOfPCAttack`
    (`combat/barrier.ts`) has none of the civilian-group, boxing and quest rules (§6.3).
-8. There is no player door command and no lock or key system (§8).
+8. There is no player door command and no lock or key system (§8). *Implemented (first M6 slice, 2026-10-16):
+   `src/sim/tactical/doors/`, see §8; findings 6 (fixed earlier) and 7 are done for the civilian-group, militia, sight and
+   death rules that need no facts, quests or records (§6, §11.1, §11.12), the rest goes through the narrative port.*
 9. `startMineStandIn` and the deviation "Head miner stand-in" are replaced by `NPC_ACTION_START_MINE` (§3.7).
 10. The merchant hooks `shopHours` and `shopClosedByScript` get real implementations (§5.5, §3.2 action 41).
 11. `canEntireMovementGroupMove` lacks the robot, Maria and museum refusals (§9.3, §11).
@@ -1019,6 +1021,14 @@ rules; `docs/24` owns the "declare hostility" quote list that turns a flagged ci
 
 ### 6.1 State
 
+*Implemented:* `src/sim/strategic/narrative/civ-groups.ts` (state, the next-sector-entrance event 41, native import) and
+`src/sim/tactical/narrative/civ-hostility.ts` (§6.2–§6.3, the hostile-quote list, `ProcessImplicationsOfPCMessingWithDoor`).
+The state lives in `StrategicState.civGroups` and is shared with the loaded sector (`TacticalState.civGroups`); creation
+(neutral unless the Warden or the group is hostile) and the AI's civilian tests (`AIList.cc:143`, `DecideAction.cc:1466`) read
+it. Facts, quests and records go through `TacticalState.narrative` (`port.ts`, defaults: false / not started / no record);
+the hostile-quote list resolves at once when no speaker has an unused hostile record (`docs/24` fills that port). Oracle:
+`tools/oracle/probes/doors.txt` (`civgroups`, `makecivhostile`, `pcattack`, `hostilelist`).
+
 `civGroupHostile[20]` (`fCivGroupHostile`, tactical status, saved; groups `Tactical/Overhead_Types.h:269-290`: `REBEL 1`,
 `KINGPIN 2`, `SANMONA_ARMS 3`, `ANGELS 4`, `BEGGARS 5`, `TOURISTS 6`, `ALMA_MILITARY 7`, `DOCTORS 8`, `COUPLE1 9`, `HICKS 10`,
 `WARDEN 11`, `JUNKYARD 12`, `FACTORY_KIDS 13`, `QUEENS 14`) with `NEUTRAL 0`, `WILL_EVENTUALLY_BECOME_HOSTILE 1`,
@@ -1037,9 +1047,12 @@ rules; `docs/24` owns the "declare hostility" quote list that turns a flagged ci
 | Kingpin alarm (action item) | Kingpin group = 3, members seeing an OUR merc hostile, combat | `TileEngine/Explosion_Control.cc:1788-1816` |
 | Kingpin's threat (§3.13) | Kingpin group = 2 | `SEH:601` |
 
-`MakeCivHostile(s)` (`OH:2586-2670`): cows never. Side: IRA, DIMITRI, MIGUEL, CARLOS, MADLAB, DYNAMO, SHANK and the rebel
+`MakeCivHostile(s)` (`OH:2586-2670`): cows never. New side: IRA, DIMITRI, MIGUEL, CARLOS, MADLAB, DYNAMO, SHANK and the rebel
 group → `HOSTILE` (against player and army); MARIA and ANGEL while the Maria quest is in progress or done → `HOSTILE`; anyone
-else → `ENEMY` (with the army). Already hostile on that side → return. CONRAD and GENERAL change to the enemy team. Kingpin
+else → `ENEMY` (with the army). Not neutral and already on that side → return. CONRAD and GENERAL get the new side and change
+to the enemy team. **Correction:** Stracciatella assigns the new side only to Conrad and the General; everyone else just stops
+being neutral and keeps his side (vanilla `Overhead.c:3075-3077` also set `bSide`). So rebels stay allied with the army and
+`MilitiaChangesSides` leaves friendly militia friendly (they are not neutral, so nothing changes). The oracle confirms; kept. Kingpin
 group: Maria quest in progress, not boxing, Maria in sector → `MARIA_ESCAPE_NOTICED`. BILLY → `FARPATROL`. Neutral → non-neutral,
 opponent counts; in combat → added to the battle.
 
@@ -1125,6 +1138,14 @@ arriving enemy group never starts a battle in D5 while boxing (`Strategic/Strate
 370-381`), the AP/BP constants (`points.ts:67-72, 135-142`) and the AI's `bHasKeys` path rule, but no lock table, keys, key
 rings, perceived door state, traps or player door command. This section specifies them.
 
+*Implemented (first M6 slice):* `content/formats/locks.ts` (the `Locks.bin` reader, `stubs/locks.json` for the stub pack),
+`sim/tactical/doors/` (`door-table.ts`, `keys.ts`, `key-ring.ts`, `lock-attempts.ts`, `door-traps.ts`, `door-actions.ts`,
+`door-approach.ts`, `door-command.ts`, `door-view.ts`), the `door` command (§13.1, `docs/04` §6.10), key rings and the key
+table from native saves, lock shooting (`LOS.cc:2292-2324`) and key rings dropped with corpses and left equipment. The stub
+village has a locked, electrically trapped door (lock 1). Oracle: `tools/oracle/probes/doors.txt` (`locks`, `doormenu`,
+`door`), compared by `tools/oracle/doors-compare.ts`. Not done: `ExamineDoorsOnEnteringSector` (§8.5, deviation), the door
+busy window, `NPCOpenThing` (§8.6) and the schedule lock changes (§5).
+
 ### 8.1 Data
 
 - **Lock table** `LockTable[64]` from `BINARYDATA/Locks.bin` (original data, read at run time, `KEYS:97-117`): per lock the
@@ -1150,8 +1171,11 @@ quote, perceived trapped, no menu). Unlocked or lockless doors open directly. No
 
 The menu (`Tactical/Interface.cc:1386-1435`): open (normal cost by approach direction, `doorAPs`), use keys (needs any key;
 not for EPCs), crowbar (a usable `CROWBAR`), lock pick (a `LOCKSMITHKIT`; not EPCs), explode (a `SHAPED_CHARGE`; not EPCs),
-examine, force, untrap (not EPCs; disabled once proved untrapped), cancel; every option except open/cancel is disabled when
-facing diagonally, and any option without enough AP is disabled. Choosing pays nothing yet; the animation (`OPEN_DOOR`,
+examine (not EPCs; also disabled once proved trapped or proved untrapped), force (not EPCs), untrap (disabled once proved
+untrapped), cancel; every option except open/cancel is disabled when facing diagonally, and any option without enough AP is
+disabled. **Corrections:** the untrap button's `disable = PROVED_UNTRAPPED` *replaces* the EPC flag, so escorts may untrap
+(`Interface.cc:1365`); the crowbar has no EPC check; there is no lock button, so `HANDLE_DOOR_LOCK` is unreachable in the
+original (ja2-node offers `lock`, deviation "Door menu"). Choosing pays nothing yet; the animation (`OPEN_DOOR`,
 `KICK_DOOR`, `PICK_LOCK`, `HD:142-173`) reaches `HandleOpenableStruct`, which charges at the end (`DeductPoints`, `HD:806-810`).
 
 ### 8.3 `HandleOpenableStruct` for our mercs (`HD:309-812`)
@@ -1159,14 +1183,17 @@ facing diagonally, and any option without enough AP is disabled. Choosing pays n
 Unless examining, untrapping or unlocking: a locked, trapped door → AP/BP of opening; if `HasDoorTrapGoneOff` (`CalcTrapDetectLevel(s,
 FALSE) < trapLevel`, `KEYS:496-513`) → `HandleDoorTrap`, stop if the trap stops actions, one-shot traps are removed, perceived
 values updated; else (noticed): unknown trap → message, quote, stop this time; known trap → it fires anyway (same rules).
-Then by action:
+**Correction:** the AP of that check is `doorAPs[ubDoorHandleCode]`, and for menu actions the code (4–11) reads past the
+four-entry table (undefined; the oracle build charges 2 for force, at least 22 for lock picking); ja2-node charges
+`AP_OPEN_DOOR` (deviation). Opening a door that has a door-table entry costs nothing unless that trap check ran: `sAPCost` is
+set only for doors without an entry. Then by action:
 
 | Action | AP / BP | Rule |
 |---|---|---|
 | open | `doorAPs[code]` / `BP_OPEN_DOOR` | no lock entry → opens; locked → "locked" (battle sound or message for EPCs); unlocked → opens; perceived updated |
-| force (kick) | `AP_BOOT_DOOR`, `BP_BOOT_DOOR` | no entry → opens; `AttemptToSmashDoor` (`KEYS:300-372`): noise `SMASHING_DOOR_VOLUME`; unlocked → success (entry removed); `LOCK_UNOPENABLE` → fail; smash difficulty 254 → fail (−100 check); else `SkillCheck(SMASH_DOOR_CHECK, −(smash − lockDamage))`: > 0 → strength +20, entry removed (never lockable again), opens; in (−10, 0] → strength +5, `lockDamage += 10 + result`; in (−40, −10] and not from the same tile as last time → strength +1 |
+| force (kick) | `AP_BOOT_DOOR`, `BP_BOOT_DOOR` | no entry → opens; `AttemptToSmashDoor` (`KEYS:300-372`): noise `SMASHING_DOOR_VOLUME`; unlocked → success (entry removed); `LOCK_UNOPENABLE` → fail; smash difficulty 254 → fail (−100 check); else `SkillCheck(SMASH_DOOR_CHECK, (INT8)−(INT8)(smash − lockDamage))` (both casts wrap: a difficulty above 127 turns into a bonus): > 0 → strength +20, entry removed (never lockable again), opens; in (−10, 0] → strength +5, `lockDamage += 10 + result` (INT8, wraps); in (−40, −10] and not from the same tile as last time → strength +1 (**unreachable**: every failed `SkillCheck` sets `sSkillCheckGridNo` to the current tile) |
 | crowbar | `AP_USE_CROWBAR`, `BP_USE_CROWBAR` | as force with `OPEN_WITH_CROWBAR`, `CROWBAR_DOOR_VOLUME`, plus the crowbar loses `PreRandom(min(effective strength, smash + 30) / 20)` status first (`KEYS:213-298`) |
-| explode | `AP_EXPLODE_DOOR`, `BP_EXPLODE_DOOR` | needs a shaped charge; `SkillCheck(PLANTING_BOMB_CHECK, 0) ≥ −20` → the charge is used, the lock takes `2 × SHAPED_CHARGE blast damage` (`damageLock`: capped at 127, destroyed when above the smash difficulty → entry removed, opens); else the charge is used and explodes on the merc (`KEYS:593-683`) |
+| explode | `AP_EXPLODE_DOOR`, `BP_EXPLODE_DOOR` | needs a shaped charge; `SkillCheck(PLANTING_BOMB_CHECK, 0) ≥ −20` → the charge is used, the lock takes `2 × SHAPED_CHARGE blast damage` (`damageLock`: capped at 127, destroyed when above the smash difficulty → entry removed, opens); else the charge is used and explodes on the merc (`IgniteExplosionXY` at his x/y, z = the land height of his tile, level 0; `KEYS:593-683`) |
 | lock pick | `AP_PICKLOCK`, `BP_PICKLOCK` | `AttemptToPickLock` (`KEYS:374-433`): unopenable → fail; card/electronic → `ELECTRONIC_LOCKPICKING_CHECK` else `LOCKPICKING_CHECK`; difficulty 254 → fail; `SkillCheck(−pick)` > 0 → mechanical `+pick/5`, dexterity `+pick/10`, unlocked, opens (with the Strac policy `diagonally_interactable_doors`, off by default, it stays closed while capable enemies are in sector); failures give nothing |
 | examine | `AP_EXAMINE_DOOR`, `BP_EXAMINE_DOOR` | `ExamineDoorForTraps` (`KEYS:463-494`): no trap → perceived untrapped; trap known → found; `CalcTrapDetectLevel(s, TRUE) ≥ level` → proved trapped (quote, message), else perceived untrapped |
 | unlock (keys) | `AP_UNLOCK_DOOR`, `BP_UNLOCK_DOOR` | no entry → just opens the animation; `AttemptToUnlockDoor`: has the key of `lockId` → unlocked, opens (policy as above); else "wrong key", a cosmetic `Random(2)` curse |
@@ -1177,7 +1204,8 @@ Then by action:
 HAND_GRENADE)`); siren → klaxon, then as silent alarm: `CallAvailableEnemiesTo(door)`; brothel siren → klaxon,
 `CallAvailableKingpinMenTo(door)`, `MADAME.npcData = 0`; electric → the merc attacks himself: `SoldierTakeDamage(10 +
 PreRandom(10), breath 3 + PreRandom(3)·1000, ELECTRICITY)` (the breath term is `3 + 1000·PreRandom(3)`, a precedence slip:
-kept); super electric → `20 + PreRandom(20)`, `6 + PreRandom(6)·1000`. `UpdateDoorPerceivedValue` (`KEYS:772-804`) copies the
+kept); super electric → `20 + PreRandom(20)`, `6 + PreRandom(6)·1000`. The breath argument is evaluated first (GCC, right to
+left): `PreRandom(3)` before `PreRandom(10)`; the oracle confirms. `UpdateDoorPerceivedValue` (`KEYS:772-804`) copies the
 real lock state and sets the trap knowledge (untrap and examine prove, others prove unless the trap is none or silent).
 
 **Quest effects of messing with doors** (`ProcessImplicationsOfPCMessingWithDoor`, `HD:265-307`, after force, crowbar,
@@ -1362,6 +1390,10 @@ strategic step while the flow is `strategic` (the map screen), inferred equivale
 
 ### 11.1 Sight rules (`ManSeesMan` on a new sighting of an OUR merc, `OL:1530-1770`)
 
+*Implemented* in `sim/tactical/narrative/sight-rules.ts` (called from `manSeesMan` before the bloodcat rule) for every civilian
+and Iggy row; facts, records and the first-sighting flags go through the narrative port. Not done: our mercs seeing Mike or
+Joey (quotes and their two globals), the guard-room run (`OL:1282-1294`) and the assassins' 8-tile rule (`OH:1934-1955`).
+
 | Seer | Rule | Lines |
 |---|---|---|
 | profiled civilian, neutral, group hostility ≥ 2 | hostile-quote list | `OL:1549-1556` |
@@ -1507,6 +1539,11 @@ action 117 runs at once (`OH:2403-2418`).
 
 ### 11.12 Profile-specific death effects
 
+*Implemented* in `sim/tactical/narrative/death-rules.ts` (called from `handleNPCTeamMemberDeath` before the experience awards,
+and for our team when the skull is released): Brenda, Pablo (the `Random(60)` draw and the event), the robot, the terrorists
+and the assassins (port hooks for the toughening), Manny, Eldin, Joey and Martha, Slay and Carmen; Dynamo, Kingpin, Doreen and
+the Queen go to `NarrativePort.profileDied`. Not done: the history lines, the death message and `HandleMurderOfCivilian`.
+
 `HandleNPCTeamMemberDeath` (`OH:2262-2445`): every profiled death marks the profile dead with life 0 and adds history
 `MERC_KILLED_CHARACTER` (killer on our team) or `NPC_KILLED` (not for vehicles or tanks); a visible profiled civilian prints a
 message. Civilian-team cases: BRENDA (`OH:2305-2316`, fact, HANS 10 if Hans is near and neutral), PABLO (second attendant), ROBOT,
@@ -1558,7 +1595,7 @@ Manny's bartender position (210); Brenda stationary (248) and patient timer (121
 | Civilian groups (§6.2) | `Random(2)` per later profiled candidate in the side-change loops | main |
 | NPC system events (§3.13, §11.2, §11.4) | Kingpin `Random(120)`; Pablo's goods 2 × (`Random(10)`, `Random(10)`); damaged package `Random(100)`; Pablo's death `Random(60)` | main |
 | Boxing (§7.2) | `Random(2)` for the first team | main |
-| Doors (§8.3) | the `SkillCheck` draws; crowbar `PreRandom(bStress / 20)`; electric traps `PreRandom(10)` + `PreRandom(3)` (`20` + `6` for super); a failed unlock's curse `Random(2)` (cosmetic) | main, pre, fx |
+| Doors (§8.3) | the `SkillCheck` draws (and the `StatChange` draws of the gains); crowbar `PreRandom(bStress / 20)`; electric traps `PreRandom(3)` then `PreRandom(10)` (`6` then `20` for super); `CalcTrapDetectLevel` `PreRandom(level / 3 + 2)` when examining and `PreRandom(3)` when bleeding > 20 or shocked; code 495 draws `DoorOpeningNoise` before `HandleOpenableStruct`; sirens and silent alarms `Random(1000)` per alerted soldier in real time (`SetNewSituation`); a failed unlock's curse `Random(2)`, door creaks and the silent skill-check curse (cosmetic) | main, pre, fx |
 | Helicopter (§10.3) | per sector entered: SAM `PreRandom(100)` (if covered and working), notice `PreRandom(100)` (if enemies are unknown), quote `Random(2)` (cosmetic, `16` §12) | pre, fx |
 | "Stuff missing" quote (§11.2) | `Random(100)` per candidate, `Random(n)` | main |
 
@@ -1584,7 +1621,7 @@ then y and the oracle confirms (§17). Every other path draws in statement order
 
 | Command | Original | Checks and result |
 |---|---|---|
-| `door {soldier, gridNo, action: 'open' \| 'close' \| 'unlock' \| 'lock' \| 'pickLock' \| 'force' \| 'crowbar' \| 'explode' \| 'untrap' \| 'examine'}` | clicking a door; the door menu (§8.2) | tactical; walks next to the door like `pickUp`, then interacts. `open` on a locked door returns `{opened: false, locked: true, options}` (the menu as data, after the start-of-menu trap check); the other actions need a closed **locked** door (`notLocked`, as the original shows no menu otherwise), the item (`noKey`, `noCrowbar`, `noLockpickKit`, `noShapedCharge`), a non-EPC (`escortCannot`), a non-diagonal facing (`diagonal`), AP in combat (`notEnoughAp`), and `examine`/`untrap` refuse a door already proved untrapped (`alreadyKnown`). Result events (§13.3). There is no door command today, so `open`/`close` of ordinary doors arrive with it |
+| `door {soldier, gridNo, action: 'open' \| 'close' \| 'unlock' \| 'lock' \| 'pickLock' \| 'force' \| 'crowbar' \| 'explode' \| 'untrap' \| 'examine'}` | clicking a door; the door menu (§8.2) | tactical; walks next to the door like `pickUp`, then interacts. `open` on a locked door returns `{opened: false, locked: true, options}` (the menu as data, after the start-of-menu trap check); the other actions need a closed **locked** door (`notLocked`, as the original shows no menu otherwise), the item (`noKey`, `noCrowbar`, `noLockpickKit`, `noShapedCharge`), a non-EPC for keys, lock picks, charges, examining and forcing (`escortCannot`), a non-diagonal facing (`diagonal`), AP in combat (`notEnoughAp`), and `examine` refuses a door already proved trapped or untrapped, `untrap` one proved untrapped (`alreadyKnown`). Result events (§13.3). *Implemented* (`doors/door-command.ts`, exact fields in `docs/04` §6.10); `lock` needs a closed unlocked door with a lock (`noLock`, `alreadyLocked`) |
 | `unescort {soldier}` | assignment menu "remove escort" | an EPC on our team; map screen → `InternalUnescortEPC` (and the John/Mary partner); tactical → the EPC's wrong-sector record (`docs/24`) |
 | `heliRoute {to}` / `heliCancel` | plotting and confirming the helicopter's route (§10.3) | strategic; refusals `noHelicopter`, `skyriderOwed`, `returningToBase`, `grounded`, `skyriderUnwilling`; the one-time empty-helicopter hint is an informational event and the route is not plotted (as in the original) |
 | `answer {prompt, choice}` | the requestor boxes | `npcRequest` choices (§13.2) |
@@ -1607,8 +1644,9 @@ with `decision`. The outcome is visible only through the records it triggers (qu
 `questStarted {quest, sector?}`, `questFinished {quest, sector?}` (emitted with the history line, so never for silent
 changes); `historyAdded` (`21`); `npcRequest` (the prompt); `npcBalance {npc, owed}` (action 119 and the money messages);
 `terroristRevealed {npc}`; `townDiscovered {town}`; `samSitesRevealed {sites}`; `escortStarted {npc}`, `escortEnded {npc}`;
-`boxingStarted {boxer, merc}`, `boxingEnded {result: 'won' | 'lost' | 'disqualified' | 'abandoned'}`; `doorResult {gridNo,
-action, result}`, `doorTrap {gridNo, trap}`, `lockDestroyed {gridNo}`; `skyriderQuote {quote}`, `heliArrived {sector}`,
+`boxingStarted {boxer, merc}`, `boxingEnded {result: 'won' | 'lost' | 'disqualified' | 'abandoned'}`; `doorMenu {soldier, gridNo,
+options}`, `doorResult {soldier, gridNo, action, result, trap?}`, `doorTrap {soldier, gridNo, trap}`, `lockDestroyed {soldier,
+gridNo}` (implemented); `skyriderQuote {quote}`, `heliArrived {sector}`,
 `heliHovering {sector}`, `heliReturning {to}`, `heliHit {hits}`, `heliDestroyed`, `heliPaid {amount}`, `heliOwed {amount}`,
 `enemiesSpottedFromAir {sector}`; `sexScene` (presentation); `npcMoved` is **not** an event (profile sectors are hidden).
 
@@ -1838,7 +1876,9 @@ through `npcbox`); `EnterSector` needs the loading screen code to be inert headl
 - *Basement fades*: the sector change is immediate.
 - *Schedules after a ja2-node load*: snapshots keep schedules and events and do not re-post (native import follows the original).
 - *Door perception*: `door` exposes the menu as data and refuses menu actions on unlocked doors with a reason (the original
-  shows no menu); the diagonal-door policy stays at its default.
+  shows no menu); the diagonal-door policy stays at its default. Logged as "Door menu", together with "Trap check cost of
+  menu actions", "Doors on entering a sector", "Team changes", "Narrative port" and "Cosmetic draws of doors" (first M6
+  slice); "Shooting locks" and "Leaving equipment" are closed, "Implications of an attack" and "Building owners" narrowed.
 - Narrowed or removed: "Placement overrides", "Head miner stand-in", "Dealer availability and facts", "Repairmen's shop hours",
   "Helicopter and vehicle passengers", "Helicopter entrance" (the hiring drop stays), "Implications of an attack", "Leaving
   equipment" (key rings), "Shooting locks" (with the lock table), "Strategic move refusals" (robot, Maria, museum),

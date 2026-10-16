@@ -10,6 +10,7 @@ import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { endHeight, setSoldierAniSpeed, states } from '../animation.ts';
 import { wearsHeadGear } from '../inventory.ts';
 import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
+import { newSightingRules } from '../narrative/sight-rules.ts';
 import {
   AlertStatus,
   Body,
@@ -209,7 +210,7 @@ function addOneOpponent(s: Soldier, checkOrders: (s: Soldier) => void): void {
   }
 }
 
-function recalculateOppCntsDueToNoLongerNeutral(t: TacticalState, s: Soldier): void {
+export function recalculateOppCntsDueToNoLongerNeutral(t: TacticalState, s: Soldier): void {
   s.ai.oppCount = 0;
   if (s.neutral) return;
   for (const opp of mercs(t)) {
@@ -309,7 +310,10 @@ export function manSeesMan(t: TacticalState, s: Soldier, opp: Soldier, caller: n
   if (!validForSightings(s) || s.life < OKLIFE || !validForSightings(opp) || s.team === opp.team) return;
   const old = s.oppList[opp.id] ?? 0;
   let newOpp = false;
-  if (old !== Opp.SEEN_CURRENTLY) bloodcatSightingTurnsHostile(t, s, opp);
+  if (old !== Opp.SEEN_CURRENTLY) {
+    newSightingRules(t, s, opp);
+    bloodcatSightingTurnsHostile(t, s, opp);
+  }
   if (old !== Opp.SEEN_CURRENTLY && hostile(s, opp)) {
     addOneOpponent(s, t.perceptionHooks.checkForChangingOrders);
     if (old !== Opp.SEEN_THIS_TURN) {

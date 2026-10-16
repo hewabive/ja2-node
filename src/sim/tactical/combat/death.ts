@@ -22,9 +22,11 @@ import {
   setDesiredDirection,
   setSoldierDirection,
 } from '../animation.ts';
+import { dropKeysInKeyRing } from '../doors/keys.ts';
 import { worldSeconds } from '../explosions/state.ts';
 import { putOutMuzzleFlash } from '../lighting/muzzle-flash.ts';
 import { directionToward } from '../movement.ts';
+import { civilianDeathRules, playerTeamDeathRules } from '../narrative/death-rules.ts';
 import { atan8Of, SightFlags } from '../perception/opp.ts';
 import { distanceVisible, handleSight, removeManAsTarget, verifyPublicOpplistDueToDeath } from '../perception/sight.ts';
 import { removeMercStructure } from '../person-structure.ts';
@@ -233,6 +235,7 @@ function handleNPCTeamMemberDeath(t: TacticalState, old: Soldier): void {
       p.life = 0;
     }
   }
+  if (old.team === Team.CIV) civilianDeathRules(t, old, killer);
   if (old.team !== Team.CIV && old.team !== Team.MILITIA) {
     if (killer?.team === Team.OUR) handleMoraleEvent(t, killer, MoraleEvent.KILLED_ENEMY);
     checkForAlertWhenEnemyDies(t, old);
@@ -268,6 +271,7 @@ function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
         }
       }
     }
+    dropKeysInKeyRing(t, s, s.gridNo, s.level, visible);
   }
   const type = corpseTypeFor(t.content.corpses.table, s.bodyType, s.state);
   const direction = corpseDirection(s);
@@ -352,6 +356,7 @@ export function updateSkullReleases(t: TacticalState): void {
   t.pendingSkullReleases.splice(0, t.pendingSkullReleases.length, ...t.pendingSkullReleases.filter((r) => t.clockMs < r.at));
   for (const r of due) {
     if (!r.soldier.doingExternalDeath) releaseSoldiersAttacker(t, r.soldier);
+    playerTeamDeathRules(t, r.soldier);
     t.sectorHooks.mercDied(t, r.soldier);
     checkForEndOfBattle(t);
   }

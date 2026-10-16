@@ -284,6 +284,11 @@ export interface PreRandomTable {
   readonly numbers: readonly number[];
 }
 
+export interface SavedKeyFound {
+  readonly sectorFound: number;
+  readonly dateFound: number;
+}
+
 export interface SaveGame {
   readonly header: SaveGameHeader;
   readonly stracLinuxFormat: boolean;
@@ -308,6 +313,7 @@ export interface SaveGame {
   readonly currentSector: CurrentSectorState;
   readonly quests: readonly number[];
   readonly facts: readonly number[];
+  readonly keyTable: readonly SavedKeyFound[];
   readonly oppList: OppListInfo;
   readonly preRandom: PreRandomTable;
   readonly generalInfo: GeneralInfo;
@@ -412,6 +418,13 @@ function readSoldiers(ctx: Context, key: Uint8Array | null): SavedSoldierEntry[]
     entries.push({ soldier, mercPath, keyRing });
   }
   return entries;
+}
+
+function readKeyTable(c: SaveCursor): SavedKeyFound[] {
+  return Array.from({ length: NUM_KEYS }, () => {
+    c.skip(KEY_RECORD_BYTES - 4);
+    return { sectorFound: c.u16(), dateFound: c.u16() };
+  });
 }
 
 function readKeyRing(c: SaveCursor): { keyId: number; count: number }[] {
@@ -599,7 +612,7 @@ export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable
   const oppList = section(ctx, 'opplist', () => readOppList(c));
   section(ctx, 'map screen messages', () => skipMapScreenMessages(c));
   section(ctx, 'npc info', () => skipNpcQuoteArrays(c, profilesInSave(version) + NUM_CIVQUOTE_SECTORS));
-  section(ctx, 'key table', () => c.skip(NUM_KEYS * KEY_RECORD_BYTES));
+  const keyTable = section(ctx, 'key table', () => readKeyTable(c));
   section(ctx, 'temp npc quotes', () => skipSizedBlob(c));
   const preRandom = section(ctx, 'prerandom', () => readPreRandom(c));
   section(ctx, 'arms dealers', () => skipArmsDealers(c));
@@ -653,6 +666,7 @@ export function parseSaveGame(bytes: Uint8Array, encryption: SaveEncryptionTable
     currentSector,
     quests,
     facts,
+    keyTable,
     oppList,
     preRandom,
     generalInfo,

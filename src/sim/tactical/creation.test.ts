@@ -111,6 +111,7 @@ function create(o: Partial<SoldierCreate>): SoldierCreate {
       flags: 0,
       trap: 0,
       imprintId: 0,
+      keyId: 0,
     })),
     name: '',
     ...o,

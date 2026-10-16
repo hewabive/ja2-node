@@ -583,6 +583,10 @@ export interface SoldierMotion {
   readonly pathSize: number;
   readonly reservedGridNo: number;
   readonly endDoorOpenCode: number;
+  readonly doorHandleCode: number;
+  readonly lastSkillCheck: number;
+  readonly skillCheckAttempts: number;
+  readonly skillCheckGridNo: number;
   readonly delayedMovement: boolean;
   readonly weightCarriedAtTurnStart: number;
   readonly newOppCount: number;
@@ -916,6 +920,10 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       pathSize: pathSize,
       reservedGridNo: n('sReservedMovementGridNo'),
       endDoorOpenCode: n('bEndDoorOpenCode'),
+      doorHandleCode: n('ubDoorHandleCode'),
+      lastSkillCheck: n('bLastSkillCheck'),
+      skillCheckAttempts: n('ubSkillCheckAttempts'),
+      skillCheckGridNo: n('sSkillCheckGridNo'),
       delayedMovement: r.bool('fDelayedMovement'),
       weightCarriedAtTurnStart: n('sWeightCarriedAtTurnStart'),
       newOppCount: n('bNewOppCnt'),

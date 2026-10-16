@@ -6,6 +6,7 @@ import { ItemClass, NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, spacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { ObjectFlags } from '../../items/object.ts';
+import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { AnimHeight, endHeight, height } from '../animation.ts';
 import { calcAPsToBurst, minAPsToAttack } from '../combat/ap.ts';
 import { soldierDifficultyLevel } from '../combat/chance.ts';
@@ -15,6 +16,7 @@ import { inGasOrSmoke } from '../explosions/smoke.ts';
 import { calcMaxTossRange } from '../explosions/throwing.ts';
 import { autoPlaceObject, InvSlot } from '../inventory.ts';
 import { directionToward } from '../movement.ts';
+import { CivGroupHostility } from '../narrative/constants.ts';
 import { isWater } from '../pathfinding.ts';
 import { closestKnownOpponent, noiseHeard, whatIKnowThatPublicDont } from '../perception/knowledge.ts';
 import { distanceVisible } from '../perception/sight.ts';
@@ -85,12 +87,20 @@ const deepWater = (t: TacticalState, g: number) => (t.world.terrain[g] ?? 0) ===
 const ctx = (t: TacticalState) => ({ env: t.pathEnv, content: t.content, inCombat: t.inCombat });
 const mode = (t: TacticalState) => (s: Soldier, action: number) => determineMovementMode(t, s, action);
 
-function civilianForYellow(s: Soldier): boolean {
-  return s.team === Team.CIV && (s.civilianGroup === CivilianGroup.NONE || s.neutral || (FATCIV <= s.bodyType && s.bodyType <= CRIPPLECIV));
+const groupStillNeutral = (t: TacticalState, s: Soldier) => civGroupHostility(t.civGroups, s.civilianGroup) === CivGroupHostility.NEUTRAL;
+
+function civilianForYellow(t: TacticalState, s: Soldier): boolean {
+  return (
+    s.team === Team.CIV &&
+    (s.civilianGroup === CivilianGroup.NONE || (s.neutral && groupStillNeutral(t, s)) || (FATCIV <= s.bodyType && s.bodyType <= CRIPPLECIV))
+  );
 }
 
-function civilianForRed(s: Soldier): boolean {
-  return s.team === Team.CIV && (s.civilianGroup === CivilianGroup.NONE || s.neutral || (FATCIV <= s.bodyType && s.bodyType <= CRIPPLECIV));
+function civilianForRed(t: TacticalState, s: Soldier): boolean {
+  return (
+    s.team === Team.CIV &&
+    (s.civilianGroup === CivilianGroup.NONE || (s.neutral && groupStillNeutral(t, s)) || (FATCIV <= s.bodyType && s.bodyType <= CRIPPLECIV))
+  );
 }
 
 function ordersAdjust(orders: number, table: readonly number[]): number {
@@ -209,7 +219,7 @@ function pre100(t: TacticalState): number {
 
 export function decideActionYellow(t: TacticalState, s: Soldier, hooks: CombatDeciderHooks): number {
   const ai = s.ai;
-  const civilian = civilianForYellow(s);
+  const civilian = civilianForYellow(t, s);
   if (civilian && s.cowering) {
     ai.actionData = AnimHeight.STAND;
     return AiAction.STOP_COWERING;
@@ -403,7 +413,7 @@ function moraleRadioChance(chance: number, morale: number): number {
 
 export function decideActionRed(t: TacticalState, s: Soldier, hooks: CombatDeciderHooks): number {
   const ai = s.ai;
-  const civilian = civilianForRed(s);
+  const civilian = civilianForRed(t, s);
   if (!s.actionPoints) {
     ai.actionData = NOWHERE;
     return AiAction.NONE;
@@ -707,7 +717,7 @@ function stowUselessGun(t: TacticalState, s: Soldier): boolean {
 
 export function decideActionBlack(t: TacticalState, s: Soldier, hooks: CombatDeciderHooks): number {
   const ai = s.ai;
-  const civilian = civilianForYellow(s);
+  const civilian = civilianForYellow(t, s);
   if (!s.actionPoints) {
     ai.actionData = NOWHERE;
     return AiAction.NONE;

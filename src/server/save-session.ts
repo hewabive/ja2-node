@@ -81,7 +81,12 @@ export async function createSaveSession(
   const merchantContent = await loadMerchantContent(read, content.items);
   const sim = new TacticalSim(worldWithSavedDoors(world, save), content, seed);
   const report = importSave(sim, save);
-  const strategic = createStrategicState({ streams: { rng: sim.state.rng, pre: sim.state.pre }, profiles: sim.state.profiles });
+  const strategic = createStrategicState({
+    streams: { rng: sim.state.rng, pre: sim.state.pre },
+    profiles: sim.state.profiles,
+    civGroups: sim.state.civGroups,
+    keyTable: sim.state.keyTable,
+  });
   importStrategicTime(strategic, save);
   strategic.worldSector = save.tactical.worldSector;
   strategic.realMs = sim.state.clockMs;

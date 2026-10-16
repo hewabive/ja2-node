@@ -5,7 +5,9 @@
 // See docs/09 §1.4, §2.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
+import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { AnimHeight, endHeight, hasAnimFlag, states } from '../animation.ts';
+import { CivGroupHostility } from '../narrative/constants.ts';
 import { isMercBody, isWater, NOWHERE } from '../pathfinding.ts';
 import {
   AlertStatus,
@@ -50,6 +52,8 @@ export const NO_AI_HOOKS: AiHooks = {
 export function isCivOrMilitia(s: Soldier): boolean {
   return s.team === Team.CIV || s.team === Team.MILITIA;
 }
+
+const groupStillNeutral = (t: TacticalState, s: Soldier) => civGroupHostility(t.civGroups, s.civilianGroup) === CivGroupHostility.NEUTRAL;
 
 function menInSector(t: TacticalState, team: number): number {
   return t.soldiers.filter((s) => s?.placed && s.team === team && s.life > 0).length;
@@ -144,8 +148,11 @@ export function decideAlertStatus(t: TacticalState, s: Soldier, hooks: AiHooks):
   }
 }
 
-function isCivilianForGreen(s: Soldier): boolean {
-  return s.team === Team.CIV && (s.civilianGroup === CivilianGroup.NONE || s.neutral || (FATCIV <= s.bodyType && s.bodyType <= CRIPPLECIV));
+function isCivilianForGreen(t: TacticalState, s: Soldier): boolean {
+  return (
+    s.team === Team.CIV &&
+    (s.civilianGroup === CivilianGroup.NONE || (s.neutral && groupStillNeutral(t, s)) || (FATCIV <= s.bodyType && s.bodyType <= CRIPPLECIV))
+  );
 }
 
 function patrolChance(s: Soldier): number {
@@ -242,7 +249,7 @@ export function decideActionGreen(t: TacticalState, s: Soldier, hooks: GreenHook
   if (stats) stats.searches = 0;
   const mode = (soldier: Soldier, action: number) => determineMovementMode(t, soldier, action);
   const inWater = isWater(t.pathWorld, s.gridNo);
-  if (isCivilianForGreen(s)) {
+  if (isCivilianForGreen(t, s)) {
     if (s.cowering) {
       ai.actionData = AnimHeight.STAND;
       return AiAction.STOP_COWERING;

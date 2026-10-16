@@ -48,6 +48,7 @@ import type { ContractHooks } from './contracts/context.ts';
 import { ContractFlow } from './contracts/contract-flow.ts';
 import { CreatureFlow } from './creature-flow.ts';
 import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
+import { registerNarrativeEvents } from './narrative-port.ts';
 import { openMapScreen, openTacticalScreen } from './screens.ts';
 import { dispatchSectorCommand, loadStartSector, SectorFlow, type SectorSetup, sectorWorldPort } from './sector-flow.ts';
 import { ShopFlow } from './shop-flow.ts';
@@ -137,6 +138,7 @@ export class CampaignSim {
     this.creatures?.register(this.dispatchTable);
     this.#registerMerchants();
     this.contracts?.register(this.dispatchTable);
+    registerNarrativeEvents(this);
     if (state.flow === 'tactical') setGameTimeCompressionLevel(this.#clock, CompressMode.X1);
     tactical?.attachWorldClock(state.clock);
     this.#compressing = isTimeBeingCompressed(state.clock);

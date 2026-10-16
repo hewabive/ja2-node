@@ -95,6 +95,7 @@ import { TacticalSim } from '../tactical/tactical-sim.ts';
 import type { RealtimeClock } from '../tactical/turns/turns.ts';
 import { addItemToPool, loadWorldItemsFromMap, Visibility } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import { campaignNarrativePort } from './narrative-port.ts';
 import type { Roster, RosterMerc } from './roster.ts';
 import {
   applyPreservedEnemyRecord,
@@ -366,6 +367,8 @@ export class SectorFlow {
     const sim = new TacticalSim(world, this.setup.content, 0, {
       streams: { rng: s.rng, pre: s.pre },
       profiles: s.profiles,
+      keyTable: s.keyTable,
+      civGroups: s.civGroups,
       startMs: s.realMs,
       realtimeClock: this.realtimeClock,
       hour: worldHour(s.clock),
@@ -378,6 +381,7 @@ export class SectorFlow {
     t.equipment.weaponsAlreadyDropped = sharedWeaponsDropped(s.status, this.setup.content.items);
     t.perception.difficulty = s.options.difficulty;
     t.campaign = this.#tacticalCampaign();
+    t.sector = { x: sector.x, y: sector.y, z: sector.z };
     t.edgepoints = loadMapEdgepoints(t, sector);
     t.initList = buildSoldierInitList(world.map);
     loadWorldItemsFromMap(t, world.map.items);
@@ -389,6 +393,7 @@ export class SectorFlow {
 
   #installHooks(sim: TacticalSim): void {
     sim.state.experienceHooks = this.campaign.experienceHooks;
+    sim.state.narrative = campaignNarrativePort(this.campaign);
     sim.state.sectorHooks = {
       soldierDied: (_t, dead) => this.#soldierDied(dead),
       addPendingEnemies: () => this.addPossiblePendingEnemiesToBattle(),

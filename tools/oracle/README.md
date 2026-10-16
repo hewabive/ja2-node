@@ -40,6 +40,9 @@ commit them.
 | `probes/creature*.txt`, `probes/morale.txt` | Creature and morale probe scripts (see "Creatures" and "Morale") |
 | `contract-compare.ts` | The contract probes of `compare.ts` (`contracts`, `profiles`, `dailyupdate`, `relationshours`, `settime`, `aboutleave`, `beginrenewal`, `renewalstep`, `setcontract`, `setstatus`, `setprofilecontract`, `extend`, `beginremove`, `removemerc`, `leaveequip`, `equipleft`, `mercsite`, `levelup`, `salary`, `setrenewals`) |
 | `probes/contracts.txt` | Contract probe script (see "Contracts") |
+| `patches/0011-doors-oracle.patch` | A wrapper for the static start-of-menu trap check and an accessor for the hostile-quote list (see "Hooks") |
+| `doors-compare.ts` | The door and civilian-group probes of `compare.ts` (`locks`, `door`, `doormenu`, `civgroups`, `makecivhostile`, `pcattack`, `hostilelist`) |
+| `probes/doors.txt` | Door, lock, trap and civilian-group probe script (see "Doors") |
 | `creature-ai-compare.ts` | The tactical creature probes of `compare.ts` (`addsoldier`, `setsoldier`, `seen`, `decide`, `beststab`, `stab`, `creaturecall`, `smell`, `dropsmell`, `trackscent`) |
 | `probes/creature*.txt`, `probes/morale.txt` | Creature and morale probe scripts (see "Creatures", "Creature AI" and "Morale") |
 | `autoresolve-aftermath.ts` | Level 3 of `autoresolve` probes (the battle closed through ja2-node's battle flow on the imported save) and `enemycounts` |
@@ -841,6 +844,41 @@ bodies on SaveGame07 in combat and SaveGame10 in real time, GREEN to BLACK, call
 paths around walls; 8 `beststab`, 3 `stab`, 4 `creaturecall`, 2 `dropsmell`, 3 `trackscent`, 71 added soldiers with
 their AP per turn), and so did three runs of the same script with other seeds (`seed value=` +100, +200, +300).
 
+### Doors
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data" JA2_ORACLE_DIR=~/ja2-oracle-doors
+tools/oracle/run.sh tools/oracle/probes/doors.txt ~/ja2-oracle-doors/out/doors.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle-doors/out/doors.jsonl
+```
+
+Commands (each prints its arguments; the door commands print the door entry before and after, the soldier before and after
+with AP, life, breath, bleeding, the skill-check memory, inventory, key ring, profile gains and stats, the attack busy count
+and the draws):
+```
+locks                                                 # the 64 entries of LockTable
+door who=<id> g=<door> action=open|examine|pickLock|force|lock|unlock|explode|untrap|crowbar
+     [locked=] [trap=] [level=] [lock=] [damage=] [perceivedLocked=] [perceivedTrapped=] [remove=1] [close=1]
+     [give1..3=<slot>:<item>:<status>:<count>[:<keyId>]] [clear=<slot>:...] [ring=<keyId>:<count>]
+     [ap=] [life=] [breath=] [bleeding=] [shock=] [explosives=] [mechanical=] [strength=] [dexterity=] [wisdom=]
+     [expLevel=] [incombat=1]                         # HandleOpenableStruct with ubDoorHandleCode set
+doormenu who=<id> g=<door> [same settings]            # DoTrapCheckOnStartingMenu
+civgroups [set=<group>:<hostility>,...] [neutral=<id>:<0|1>,...] [group=<id>:<civ group>,...]
+makecivhostile who=<id> | pcattack who=<id> target=<id> | hostilelist   # with fCivGroupHostile, the civilians, militia and
+                                                      # mercs (team, side, neutral, group, opponents, profile), the
+                                                      # hostile-quote list and the pending civ-group events
+```
+`doors-compare.ts` applies the same settings to a campaign session of the save and replays the `PreRandom` draws strictly
+(every range asserted, none left over); `Random` draws are matched in order and the native extras (curses, door creaks,
+explosion sounds, all cosmetic) are skipped. The AP of a menu action stopped by the trap check is not compared (the native
+cost reads past `doorAPs`, deviation "Trap check cost of menu actions"). On 2026-10-16 all 49 probes matched on SaveGame09:
+the lock table, the start-of-menu trap check (noticed, missed, with bleeding, already known), locked doors opened through the
+menu with and without traps (electric, super electric, siren, silent alarm), forcing with lock damage and gains up to the
+broken lock, impossible and unopenable locks, crowbar wear, lock picking (mechanical and electronic, success and failure),
+examining, untrapping (success, explosion and silent alarm sprung), keys from the ring and from the inventory, the wrong
+key, locking, shaped charges (damaged, destroyed), opening and closing a lockless door, and the civilian-group probes
+(MakeCivHostile keeps the side, the rebels' proximity rule with the 300-minute event, a group already at 2).
+
 ## Shipped probes
 
 | Script | Content |
@@ -862,6 +900,7 @@ their AP per turn), and so did three runs of the same script with other seeds (`
 | `probes/morale.txt` | Hourly and quarter-hour morale on SaveGame10, 07 and 01 with set modifiers, relations, traits and positions |
 | `probes/merchants.txt` | Dealer initialisation at progress 0–100 and with gun nut, daily restocks, the Estoni gas, shop entries for every merchant, prices and sales at Tony, Keith, Jake, Franz, Gabby, Micky and Devin (Flo's modifier, stacks, attachments, Keith's fact), repair estimates with and without shop hours, repair queues with collection and the delay excuse, and every save's dealer section with 30 restocks from SaveGame10 |
 | `probes/contracts.txt` | Contracts and relationships on SaveGame01, 02, 09, 10 and 07 (see "Contracts") |
+| `probes/doors.txt` | Doors, locks, traps and civilian groups on SaveGame09 (see "Doors") |
 | `probes/sectors.txt` | Edgepoints loaded and generated on eight maps, screen-space exit thresholds on both sides of every edge (A9, A10 basement), exit-grid checks in D13 and the basement, walk-off/walk-in/mirror from the centre and near the edges, class codes on the isolated maps H13 and I14, init list sorts and ten defence placements (A9, B13, C13, D13), and `OKForSectorExit` on SaveGame10, 07 (in combat) and 01 before and after moving mercs to an edge or an exit grid |
 
 All three were run on the user's Steam JA2 Gold 1.12 data: every command succeeds, and on these
@@ -952,6 +991,10 @@ setter for the renewal list and sequence state, and a reset of the sequence; to 
 `patches/0009-creature-ai-oracle.patch` (applied after 0006) touches `src/game/Tactical/PathAI.cc` only: a scope guard at
 the top of `FindBestPath` writes `OracleTraceMark(301)` on entry and `OracleTraceMark(302)` on every return, so the
 creature AI comparison can drop the skip-list draws of the pathfinder. Regenerate it like 0002 with that path.
+`patches/0011-doors-oracle.patch` (applied after 0010) only appends: to `src/game/Tactical/Handle_Doors.cc`
+`OracleDoTrapCheckOnStartingMenu`, a wrapper around the static `DoTrapCheckOnStartingMenu`; to `src/game/Tactical/OppList.cc`
+`OracleHostileQuoteList`, which copies the ids of the static hostile-quote list (plus `#include <vector>`). Regenerate it
+like 0002 with those two paths.
 
 ## Notes
 

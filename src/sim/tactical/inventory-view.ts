@@ -1,4 +1,4 @@
-import { type ItemTable, NOTHING } from '../../content/items/items.ts';
+import { ItemClass, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import type { ItemObject } from '../items/object.ts';
 import type { Inventory } from './inventory.ts';
 
@@ -11,6 +11,7 @@ export interface InventoryItemView {
   readonly ammo?: { readonly item: string; readonly shots: number };
   readonly attachments?: readonly { readonly item: string; readonly status: number }[];
   readonly money?: number;
+  readonly keyId?: number;
 }
 
 function itemName(items: ItemTable, index: number): string {
@@ -29,6 +30,7 @@ function slotView(items: ItemTable, slot: number, o: ItemObject): InventoryItemV
     ...(def?.weapon && o.gunAmmoItem !== NOTHING ? { ammo: { item: itemName(items, o.gunAmmoItem), shots: o.gunShotsLeft } } : {}),
     ...(attachments.length > 0 ? { attachments } : {}),
     ...(o.money > 0 ? { money: o.money } : {}),
+    ...(def?.itemClass === ItemClass.KEY ? { keyId: o.keyId } : {}),
   };
 }
 

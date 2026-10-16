@@ -41,6 +41,7 @@ export interface ItemObject {
   flags: number;
   trap: number;
   imprintId: number;
+  keyId: number;
 }
 
 export function emptyObject(): ItemObject {
@@ -57,6 +58,7 @@ export function emptyObject(): ItemObject {
     flags: 0,
     trap: 0,
     imprintId: 0,
+    keyId: 0,
   };
 }
 
@@ -288,6 +290,7 @@ export function objectToRecord(o: ItemObject): ObjectRecord {
     flags: o.flags,
     trap: o.trap,
     imprintId: o.imprintId,
+    keyId: o.keyId,
   };
 }
 
@@ -309,5 +312,6 @@ export function objectFromRecord(rec: ObjectRecord): ItemObject {
   o.flags = rec.flags;
   o.trap = rec.trap;
   o.imprintId = rec.imprintId;
+  o.keyId = rec.keyId;
   return o;
 }

@@ -8,6 +8,7 @@ import {
   type LayerName,
   LightTime,
   type MapDef,
+  type MapDoor,
   MapFlags,
   type MapLightSprite,
   type Placement,
@@ -57,6 +58,15 @@ export interface StubLight {
   readonly time: number;
 }
 
+export interface StubDoor {
+  readonly x: number;
+  readonly y: number;
+  readonly lockId: number;
+  readonly locked: boolean;
+  readonly trapId: number;
+  readonly trapLevel: number;
+}
+
 export interface StubMapSource {
   readonly name: string;
   readonly tilesetId: number;
@@ -68,6 +78,7 @@ export interface StubMapSource {
   readonly lights: readonly StubLight[];
   readonly entries: ReadonlyMap<StubEntryName, { readonly x: number; readonly y: number }>;
   readonly exits: readonly StubExit[];
+  readonly doors: readonly StubDoor[];
   readonly basement: boolean;
 }
 
@@ -144,6 +155,32 @@ function parseExit(spec: string, line: number): StubExit {
   return { x: Number(x), y: Number(y), sector: target, destinationGridNo: Number(toY) * WORLD_COLS + Number(toX) };
 }
 
+const DOOR_TRAPS: Readonly<Record<string, number>> = {
+  NONE: 0,
+  EXPLOSION: 1,
+  ELECTRIC: 2,
+  SIREN: 3,
+  SILENT_ALARM: 4,
+  BROTHEL_SIREN: 5,
+  SUPER_ELECTRIC: 6,
+};
+
+function parseDoor(spec: string, line: number): StubDoor {
+  const [x, y, ...options] = spec.split(/\s+/);
+  if (x === undefined || y === undefined)
+    throw new FormatError(`line ${line}: expected '<x> <y> lock=<id> [locked] [trap=<NAME> level=<n>]'`);
+  const door = { x: Number(x), y: Number(y), lockId: 0, locked: false, trapId: 0, trapLevel: 0 };
+  for (const option of options) {
+    const [key, value] = option.split('=');
+    if (key === 'locked' && value === undefined) door.locked = true;
+    else if (key === 'lock') door.lockId = Number(value);
+    else if (key === 'trap') door.trapId = named(DOOR_TRAPS, value, 'door trap', line);
+    else if (key === 'level') door.trapLevel = Number(value);
+    else throw new FormatError(`line ${line}: unknown door option '${option}'`);
+  }
+  return door;
+}
+
 const SCROLL_BASEMENT = 'basement';
 const SCROLL_DEFAULT = 'default';
 const BASEMENT_RESTRICTED_SCROLL = 1;
@@ -190,6 +227,7 @@ export function parseStubMapSource(text: string, tables: TileTables): StubMapSou
   const lights: StubLight[] = [];
   const entries = new Map<StubEntryName, { x: number; y: number }>();
   const exits: StubExit[] = [];
+  const doors: StubDoor[] = [];
   let inMap = false;
   let basement = false;
   lines.slice(1).forEach((raw, i) => {
@@ -218,6 +256,7 @@ export function parseStubMapSource(text: string, tables: TileTables): StubMapSou
     else if (key === 'light') lights.push(parseLight(value, lineNo));
     else if (key === 'entry') entries.set(...parseEntry(value, lineNo));
     else if (key === 'exit') exits.push(parseExit(value, lineNo));
+    else if (key === 'door') doors.push(parseDoor(value, lineNo));
     else if (key === 'scroll') basement = parseScroll(value, lineNo);
     else throw new FormatError(`line ${lineNo}: unknown key '${key}'`);
   });
@@ -227,7 +266,7 @@ export function parseStubMapSource(text: string, tables: TileTables): StubMapSou
     throw new FormatError('stub map does not fit into the world');
   }
   for (const row of rows) for (const ch of row) if (!legend.has(ch)) throw new FormatError(`unknown map symbol '${ch}'`);
-  return { name, tilesetId, origin, fill, legend, rows, soldiers, lights, entries, exits, basement };
+  return { name, tilesetId, origin, fill, legend, rows, soldiers, lights, entries, exits, doors, basement };
 }
 
 function localGridNo(source: StubMapSource, x: number, y: number): number {
@@ -265,6 +304,7 @@ export function stubMapToMapDef(source: StubMapSource): Omit<MapDef, 'trailingBy
       (source.soldiers.length > 0 ? MapFlags.FULL_SOLDIER : 0) |
       (source.lights.length > 0 ? MapFlags.WORLD_LIGHTS : 0) |
       (source.exits.length > 0 ? MapFlags.EXIT_GRIDS : 0) |
+      (source.doors.length > 0 ? MapFlags.DOOR_TABLE : 0) |
       (source.basement ? MapFlags.AMBIENT_LIGHT_LEVEL : 0),
     tilesetId: source.tilesetId,
     heights: new Uint8Array(WORLD_MAX),
@@ -291,7 +331,18 @@ export function stubMapToMapDef(source: StubMapSource): Omit<MapDef, 'trailingBy
     exitGrids: source.exits.map(
       (e): ExitGrid => ({ mapIndex: localGridNo(source, e.x, e.y), gridNo: e.destinationGridNo, sector: e.sector }),
     ),
-    doors: [],
+    doors: source.doors.map(
+      (d): MapDoor => ({
+        gridNo: localGridNo(source, d.x, d.y),
+        locked: d.locked,
+        trapLevel: d.trapLevel,
+        trapId: d.trapId,
+        lockId: d.lockId,
+        perceivedLocked: 0,
+        perceivedTrapped: 0,
+        lockDamage: 0,
+      }),
+    ),
     edgepoints: null,
     schedules: [],
   };

@@ -2,13 +2,14 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc InternalReduceAttackBusyCount, ReduceAttackBusyCount, FreeUpAttacker,
 // @src FreeUpAttackerGivenTarget, ReduceAttackBusyGivenTarget, CalcSuppressionTolerance, HandleSuppressionFire,
-// @src ProcessImplicationsOfPCAttack (combat entry only); OppList.cc NoticeUnseenAttacker. See docs/11 §8.
+// @src OppList.cc NoticeUnseenAttacker. See docs/11 §8.
 
 import { ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { AnimHeight, changeSoldierStance, endHeight } from '../animation.ts';
 import { InvSlot } from '../inventory.ts';
+import { processImplicationsOfPCAttack } from '../narrative/civ-hostility.ts';
 import { calcInterruptDuelPts, interruptDuel, standardInterruptConditionsMet } from '../perception/duel.ts';
 import { closestKnownOpponent } from '../perception/knowledge.ts';
 import { dequeueDeferredNoises } from '../perception/noise.ts';
@@ -17,7 +18,7 @@ import { allTeamsLookForAll, distanceVisible, manSeesMan, radioSightings, update
 import { isValidStance } from '../person-structure.ts';
 import { AP } from '../points.ts';
 import { profileProgress, StatKind } from '../profiles.ts';
-import { AlertStatus, Body, NO_INTERRUPT, NO_PROFILE, NOWHERE, OKLIFE, Side, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Body, NO_INTERRUPT, NO_PROFILE, NOWHERE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { addToIntList, checkForEndOfBattle, doneAddingToIntList, enterCombatMode } from '../turns/turns.ts';
 import { handleAnyStatChangesAfterAttack, StatCause, statChange } from './experience.ts';
@@ -103,20 +104,6 @@ export function handleSuppressionFire(t: TacticalState, caused: Soldier | null):
   }
 }
 
-function militiaChangesSides(t: TacticalState): void {
-  for (const m of t.mercSlots) if (m?.placed && m.team === Team.MILITIA) m.side = Side.ENEMY;
-}
-
-export function processImplicationsOfPCAttack(t: TacticalState, tgt: Soldier): boolean {
-  if (tgt.team === Team.MILITIA && tgt.side === Side.FRIENDLY) militiaChangesSides(t);
-  else if (tgt.team === Team.CIV && tgt.civilianGroup === 0 && tgt.neutral) {
-    tgt.neutral = false;
-    militiaChangesSides(t);
-  } else if (tgt.civilianGroup && (tgt.team === Team.OUR || tgt.neutral)) tgt.neutral = false;
-  else if (tgt.team === Team.OUR && !t.inCombat) return false;
-  return true;
-}
-
 export function noticeUnseenAttacker(t: TacticalState, att: Soldier, def: Soldier): void {
   if (!t.inCombat) return;
   if (att.attackingWeapon === (t.content.items.byName.get('DART_GUN')?.index ?? -2)) {
@@ -177,7 +164,7 @@ export function internalReduceAttackBusyCount(
   if (soldier) {
     soldier.attackingHand = InvSlot.HAND;
     if (target && soldier.attackNoticed) {
-      if (target.bodyType !== Body.CROW && soldier.team === Team.OUR) enterCombat = processImplicationsOfPCAttack(t, target);
+      if (target.bodyType !== Body.CROW && soldier.team === Team.OUR) enterCombat = processImplicationsOfPCAttack(t, soldier, target);
       if (target.bodyType === Body.CROW) enterCombat = false;
       if (soldier.team !== Team.OUR || target.team !== Team.OUR) {
         if ((target.oppList[soldier.id] ?? 0) !== Opp.SEEN_CURRENTLY) noticeUnseenAttacker(t, soldier, target);

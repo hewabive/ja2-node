@@ -1,7 +1,9 @@
 import type { ShopView } from '../sim/strategic/economy/merchants/view.ts';
+import type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 import { type InventoryItemView, sameInventory } from '../sim/tactical/inventory-view.ts';
 
 export type { ShopBoxView, ShopEta, ShopKind, ShopView } from '../sim/strategic/economy/merchants/view.ts';
+export type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 export type { InventoryItemView } from '../sim/tactical/inventory-view.ts';
 
 export interface SoldierView {
@@ -23,6 +25,7 @@ export interface SoldierView {
   readonly lifeMax?: number;
   readonly breath?: number;
   readonly inventory?: readonly InventoryItemView[];
+  readonly keys?: readonly KeyView[];
   readonly merchant?: string;
   readonly profile?: number;
 }
@@ -248,6 +251,7 @@ export interface PlayerView {
   readonly shop?: ShopView | null;
   readonly soldiers: readonly SoldierView[];
   readonly openDoors?: readonly number[];
+  readonly doors?: readonly DoorView[];
   readonly combat?: CombatView | null;
   readonly revealedRooms?: readonly number[];
   readonly items?: readonly ItemView[];
@@ -265,6 +269,7 @@ export interface ViewFrame {
   readonly autoresolve?: AutoresolveView | null;
   readonly shop?: ShopView | null;
   readonly openDoors?: readonly number[];
+  readonly doors?: readonly DoorView[];
   readonly combat?: CombatView | null;
   readonly revealedRooms?: readonly number[];
   readonly items?: readonly ItemView[];
@@ -294,6 +299,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
   let frame = diffView(previous.soldiers, next.soldiers, next.tick);
   if (!sameList(previous.openDoors, next.openDoors))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), openDoors: next.openDoors ?? [] };
+  if (JSON.stringify(previous.doors ?? []) !== JSON.stringify(next.doors ?? []))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), doors: next.doors ?? [] };
   if (!sameList(previous.revealedRooms, next.revealedRooms))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), revealedRooms: next.revealedRooms ?? [] };
   if (!sameItems(previous.items, next.items))
@@ -338,6 +345,7 @@ function sameSoldier(a: SoldierView, b: SoldierView): boolean {
     a.breath === b.breath &&
     a.merchant === b.merchant &&
     a.profile === b.profile &&
+    JSON.stringify(a.keys ?? []) === JSON.stringify(b.keys ?? []) &&
     sameInventory(a.inventory, b.inventory)
   );
 }

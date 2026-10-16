@@ -55,6 +55,26 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('native savegames imported into the t
   }
 
   for (const file of saveFiles) {
+    it(`imports the doors, key rings, key table and civilian groups of ${file}`, async () => {
+      const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
+      const table = parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode((await read(SAVE_ENCRYPTION_PATH)) ?? new Uint8Array())));
+      const save = parseSaveGame(bytes, table);
+      const { session } = await createSaveSession(read, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);
+      const t = session.sim.state;
+      expect(save.keyTable).toHaveLength(64);
+      expect(t.keyTable).toEqual(save.keyTable.map((k) => ({ ...k })));
+      expect(t.civGroups.hostility).toEqual([...save.tactical.civGroupHostile]);
+      expect([...t.world.mapDoors.values()].map((d) => [d.gridNo, d.lockId, d.perceivedLocked])).toEqual(
+        (save.currentSector.doors ?? []).map((d) => [d.gridNo, d.lockId, d.perceivedLocked]),
+      );
+      for (const entry of save.soldiers.filter((e) => inLoadedSector(save, e.soldier) && e.soldier.team === Team.OUR)) {
+        const ring = t.soldiers[entry.soldier.id]?.keyRing ?? null;
+        expect(ring?.filter((k) => k.count > 0) ?? null).toEqual(entry.keyRing?.filter((k) => k.count > 0) ?? null);
+      }
+    });
+  }
+
+  for (const file of saveFiles) {
     it(`rebuilds ${file} and keeps playing from it`, async () => {
       const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
       const table = parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode((await read(SAVE_ENCRYPTION_PATH)) ?? new Uint8Array())));

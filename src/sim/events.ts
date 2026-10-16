@@ -1,5 +1,6 @@
 import type { ContractEvent } from './campaign/contracts/events.ts';
 import type { ShopEvent } from './strategic/economy/merchants/events.ts';
+import type { DoorEvent } from './tactical/doors/events.ts';
 
 export interface SimEventBase {
   readonly tick: number;
@@ -381,5 +382,6 @@ export type SimEvent =
   | CompressionStoppedEvent
   | WorldTimeReachedEvent
   | DayStartedEvent
-  | ShopEvent;
+  | ShopEvent
+  | DoorEvent;
 export type SimEventType = SimEvent['type'];

@@ -463,6 +463,23 @@ decision prompts in `observe.contractPrompt` (`contractRenewal`, `mercDeparture`
 renewal costs; M.E.R.C. debt; R.P.C. rate), `morale` and `moraleText`, `daysServed`, `totalCost`; the strategic view shows
 the M.E.R.C. account status. Opinions, tolerances, reputation and the death rate stay hidden.
 
+### 6.10. Doors (M6)
+
+`door {soldier, gridNo, action}` with `action` one of `open`, `close`, `unlock`, `lock`, `pickLock`, `force`, `crowbar`,
+`explode`, `untrap`, `examine` (`docs/25` §8, §13.1). The soldier walks next to the door (`FindAdjacentGridExAdvanced`) like
+`pickUp` and then interacts; `data` is `{walking: true, to}` while he walks, `{started: <action>}` when he is already there,
+or, for `open` on a locked door, `{opened: false, locked: true, options}`: the door menu as data, after the start-of-menu
+trap check (`{trapNoticed: true}` when the merc spots the trap instead). Each option is `{action, ap, enabled, reason?}`.
+Refusals (`data.refusal`): `noDoor`, `alreadyOpen`, `alreadyClosed`, `doorOpen`, `notLocked` (menu actions need a closed
+locked door), `noLock`, `alreadyLocked`, `noKey`, `noCrowbar`, `noLockpickKit`, `noShapedCharge`, `escortCannot`,
+`alreadyKnown`, `notEnoughAp`, `noPath`. Events: `doorMenu {soldier, gridNo, options}`, `doorResult {soldier, gridNo,
+action, result, trap?}` (`opened`, `closed`, `locked`, `failed`, `noLock`, `lockDamaged`, `chargeExploded`, `trapFound`,
+`noTrapFound`, `untrapped`, `trapSprung`, `notTrapped`, `wrongKey`, `trapStopped`, `trapNoticed`, `notEnoughAp`),
+`doorTrap {soldier, gridNo, trap}` (never for the silent alarm), `lockDestroyed {soldier, gridNo}` and `doorChanged`.
+`observe.doors` lists the doors whose lock or trap the player knows (`locked`: `unknown|locked|unlocked|broken`, `trap`:
+`unknown|none|noneFound|<trap>`); our soldiers carry `keys` (key ring: key id, count, sector and day found) and key items
+show `keyId`. Lock tables, trap levels and lock damage stay hidden.
+
 ## 7. Cost and limitations
 
 - **Amount of work.**

@@ -4,6 +4,7 @@ import { parseArgs } from 'node:util';
 import { CORPSES_TABLE_PATH, parseCorpseTable, stubCorpseStructureFiles } from '../src/content/anim/corpses.ts';
 import { stubAnimStructureFiles } from '../src/content/anim/structures.ts';
 import { writeStructureFile } from '../src/content/formats/jsd.ts';
+import { encodeLockTable, parseStubLockTable } from '../src/content/formats/locks.ts';
 import { encodePngIndexed } from '../src/content/formats/png.ts';
 import { STUB_SPRITE_FORMAT, STUB_SPRITE_SUFFIX, type StubSpriteManifest } from '../src/content/picture/stub-sprite.ts';
 import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR } from '../src/node/repo.ts';
@@ -15,6 +16,7 @@ import { buildStubWorld } from './world.ts';
 
 const ATLAS_WIDTH = 256;
 const STUB_PROFILES_FILE = 'profiles.json';
+const STUB_LOCKS_FILE = 'locks.json';
 
 function pack(sprite: StubSprite): { width: number; height: number; pixels: Uint8Array; manifest: StubSpriteManifest } {
   const placed: { x: number; y: number }[] = [];
@@ -92,7 +94,9 @@ export async function buildStubs(outDir: string): Promise<string[]> {
   await mkdir(join(out, 'binarydata'), { recursive: true });
   await writeFile(join(out, 'binarydata', 'ja2bin.dat'), await buildStubAnimationScripts());
   await writeFile(join(out, 'binarydata', 'ja2pal.dat'), stubSoldierPalettes());
-  written.push('binarydata/ja2bin.dat', 'binarydata/ja2pal.dat');
+  const locks = parseStubLockTable(JSON.parse(await readFile(join(import.meta.dirname, STUB_LOCKS_FILE), 'utf8')));
+  await writeFile(join(out, 'binarydata', 'locks.bin'), encodeLockTable(locks));
+  written.push('binarydata/ja2bin.dat', 'binarydata/ja2pal.dat', 'binarydata/locks.bin');
   await mkdir(join(out, 'anims', 'structdata'), { recursive: true });
   for (const [name, structures] of stubAnimStructureFiles()) {
     await writeFile(join(out, 'anims', 'structdata', `${name}.jsd`), writeStructureFile({ structureCount: structures.length, structures }));

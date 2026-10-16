@@ -294,8 +294,12 @@ merc in range charges 3 + 3 (`Tactical/Interface_Items.cc:3404-3420`).
 ### 3.5 Keys
 
 PCs collect keys on a key ring (`pKeyRing`, `KEY_ON_RING {ubKeyID, ubNumber}`), managed by the UI
-(`Tactical/Items.cc:2324-2391`); key objects store `ubKeyID`. Enemies "with keys" and profiled NPCs hold key items in
-pockets (`Tactical/Soldier_Create.cc:1993-2013`). Doors are `07`'s business.
+(`Tactical/Items.cc:2324-2391`); key objects store `ubKeyID` (byte 10 of the 36-byte record, the union slot after
+`bKeyStatus[6]`). Enemies "with keys" and profiled NPCs hold key items in pockets (`Tactical/Soldier_Create.cc:1993-2013`).
+ja2-node: `ItemObject.keyId`, `Soldier.keyRing` (our team only, 64 slots, imported from native saves), `KeyTable`
+(where and when each key was first placed into a PC's inventory, `CollectKey` in `PlaceObject`), key items found through
+`classIndex == LockTable[keyId].usKeyItem` (`CreateKeyObject`). The key ring drops with the corpse and with left equipment
+(`DropKeysInKeyRing`). Locks, door actions and traps: `25` §8 (`src/sim/tactical/doors/`).
 
 ### 3.6 Weight and encumbrance (`Tactical/Items.cc:819-867`)
 

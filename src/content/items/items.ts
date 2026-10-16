@@ -194,6 +194,7 @@ export interface ItemDef {
   readonly index: number;
   readonly name: string;
   readonly itemClass: number;
+  readonly classIndex: number;
   readonly cursor: number;
   readonly weight: number;
   readonly perPocket: number;
@@ -235,6 +236,7 @@ function baseItem(o: Json, itemClass: number, cursor: number): Omit<ItemDef, 'we
     index: num(o, 'itemIndex'),
     name: str(o, 'internalName') ?? '',
     itemClass,
+    classIndex: num(o, 'ubClassIndex'),
     cursor,
     weight: num(o, 'ubWeight'),
     perPocket: num(o, 'ubPerPocket'),
