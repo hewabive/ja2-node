@@ -63,6 +63,12 @@ strategic view with contracts and morale, the open prompt, the autoresolve battl
 a new campaign. The squad is hired through the laptop (`"hire":[]` keeps the new campaign in it); `openLaptop` opens it
 on the map screen for `aimHire`, `mercHire`, `impCreate`, `bobbyRayOrder`, `insure`, mail and the other laptop commands.
 
+Text follows the data: the server detects the data version (English, or the language folders of a localized release;
+`JA2_DATA_VERSION=russianGold` and the other version names override it, and Russian Gold must be named) and decodes the
+dialogue, item and laptop text accordingly. UI labels come from Stracciatella's string tables in a display language of
+their own: `JA2_LANG=rus` (or `eng`, `ger`, `dut`, `fr`, `it`, `pl`, `chs`; default: the data's language) for the server,
+`newSession {"language":"rus"}` per session, `GET /api/strings?lang=rus` for the tables.
+
 The server listens on `127.0.0.1` only and requires the token from `.ja2/token`, which it creates
 itself. The Vite proxy adds the token, so it never appears in page code.
 

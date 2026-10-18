@@ -362,7 +362,7 @@ There are few of them, and they are coarse-grained.
 | `act` | A command: `move`, `shoot`, `throw`, `stance`, `reload`, `open_door`, `climb`, `bandage`, `end_turn`, …; on the map: `travel`, `assign`, `hire`, …. By default, time then runs until `idle` or a decision prompt. The response is a summary of events and the new status |
 | `answer` | An answer to a decision prompt: interrupt, dialogue line, message box, PBI |
 | `advance` | Explicitly advances time in real time and on the strategic map: "until arrival", "until an event", "no longer than N" |
-| `newSession` | Starts another session and returns its id: the sandbox (optional seed), with `campaign {difficulty?, profiles?, mercs?, land?}` a new campaign (§6.6), or with `save` a native savegame from the game's `SavedGames` folder (`docs/14` §10); every other tool takes `session`, so agents and tests do not share one battle |
+| `newSession` | Starts another session and returns its id: the sandbox (optional seed), with `campaign {difficulty?, profiles?, mercs?, land?}` a new campaign (§6.6), or with `save` a native savegame from the game's `SavedGames` folder (`docs/14` §10); `language` sets the session's display language (§6.21); every other tool takes `session`, so agents and tests do not share one battle |
 | `save` / `load` | Saves on the server |
 
 ### 6.3. Example turn
@@ -421,7 +421,7 @@ hires (a refusal fails the request), `mercs` sets the size of the default squad 
 runs an `impCreate`, and `hire: []` without `imp` returns the session in the open laptop. `difficulty` is 1–3 (default 2). Maps are loaded by
 `WorldCache` before each command (`Session.prepareAndDispatch`).
 
-Sessions are created through MCP `newSession`, `POST /api/sessions` (same JSON body: `{seed?, save?, campaign?}`;
+Sessions are created through MCP `newSession`, `POST /api/sessions` (same JSON body: `{seed?, save?, campaign?, language?}`;
 `GET /api/sessions` lists them with `describeSession`), or for the default session with `JA2_CAMPAIGN=<difficulty>`.
 Both paths share `src/server/session-registry.ts` (at most 16 sessions).
 
@@ -571,7 +571,7 @@ and `chars` for lines from the queue), `npcMessage {kind, profile?, amount?}`, `
 
 The simulation only carries text keys `{file, row, width}` and lengths (12 ticks of speech per character). The session
 resolves keys to `text` in `observe`, command results and events from the EDT files of the VFS (original data, or the
-stub pack's invented lines); `GET /api/text?file=npcdata/NNN.edt&row=R&width=240` (token-protected) serves a single row.
+stub pack's invented lines); `GET /api/text?file=npcdata/NNN.edt&row=R` (token-protected) serves a single row (§6.21).
 Saving is not offered by the API, so there is nothing to refuse during a session.
 
 ### 6.13. Helicopter and vehicles (M6)
@@ -819,6 +819,39 @@ Boxing in the San Mona club (D5, `docs/25` §7) has no command of its own; it is
   {loser, result: won|lost}`; `boxerDisqualified {soldier, reason: outOfRing|nonBoxerInRing|badAttack}`; `boxingEnded {soldier,
   result: won|lost|disqualified|null}`. The boxer tiles, the fought flags, the rests, the stat bonus of rested boxers and the
   facts stay hidden.
+
+### 6.21. Text and languages (M7)
+
+Two independent settings decide text (`docs/27` §5.2). The **data version** belongs to the content: detected once at
+server start like Stracciatella's guesser (language folders inside the SLFs; English otherwise), overridden with
+`JA2_DATA_VERSION=english|russian|russianGold|german|dutch|french|italian|polish|simplifiedChinese` (Russian Gold must be
+named), `stubs` without original data. It selects the EDT decoding, the NPC record layout of the Buka release and the
+prof.dat name fix, and reaches the simulation only through decoded quote lengths and record layouts. The **display
+language** (`eng`, `rus`, `ger`, `dut`, `fr`, `it`, `pl`, `chs`) only picks the UI string tables: Stracciatella's
+`translation-<suffix>.json` and per-language files, `rus` reading `translation-rusgold.json` and the `-rus` files as
+Stracciatella does for both Russian versions. The server default is `JA2_LANG`, else the data version's language (stubs:
+`eng`); each session has its own. EDT text (dialogue, item names, mails) always comes in the data version's language.
+
+- **`GET /api/health`** adds `dataVersion` and `language` (the server default).
+- **`GET /api/strings?lang=`** (token, `ETag`, `cache-control: private, max-age=3600`; `lang` defaults to the server's):
+  `{language, files, tables, keys}`; `tables` holds the 217 `L10n` keys (arrays checked against the sizes of
+  `Localization.h`, `data/tables/l10n.json`) and the per-language files under their Stracciatella names (`new-strings`,
+  `strategic-map-land-types`, `strategic-map-town-names`, `strategic-map-town-name-locatives`, `ammo-calibre`,
+  `ammo-calibre-bobbyray`, `shipping-destinations`); `keys` maps machine tokens to `{table, index}` (below).
+- **`GET /api/text`**: `?file=<edt>&row=R[&column=C]` for every EDT file the game reads, with its record layout from
+  `data/tables/edt-layouts.json` (no `width` parameter): `{file, row, layout, columns, column, width, text}`; 400 for a
+  file without a layout, 404 for a missing file or row. Stub files (`stubs/…`) are read only when the data version is
+  `stubs`. `?table=<L10n key or file>&index=I&lang=` and `?key=<token>&lang=` resolve UI strings: `{key?, table, index,
+  language, text}`; `lang` applies only to these.
+- **Text keys** (`src/server/text-keys.ts`): `morale.<great|good|stable|poor|panic|bad>` → `pMoralStrings`,
+  `condition.<excellent…dead>` → `pConditionStrings`, `talkMenu.<repeat|friendly|direct|threaten|give|recruit>` →
+  `zTalkMenuStrings`, `shopKind.<buySell|buy|sell|repair>` → `zDealerStrings`, `moveRefusal.<token>` → `pMapErrorString`
+  (the entries with a string of their own), `assignment.<n>` → `pAssignmentStrings`.
+- **Sessions**: `newSession {language}` (MCP and `POST /api/sessions`) sets the session's display language; `status`,
+  `GET /api/sessions` and `observe` show `language` and `dataVersion`. MCP observations stay English-keyed JSON with the
+  machine tokens; `observe` adds labels in the session's language beside them: `moraleLabel` and `assignmentLabel` on
+  strategic mercs, `menuLabels` on the conversation (null where the original has no string), `kindLabel` on the shop.
+  Changing the language never touches the simulation, its saves or its logs.
 
 ## 7. Cost and limitations
 
