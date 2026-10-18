@@ -235,7 +235,7 @@ class Encoder {
 
   #plain(value: Record<string, unknown>): Json {
     const out: Record<string, Json> = {};
-    for (const key of Object.keys(value).sort()) {
+    for (const key of Object.keys(value)) {
       if (key.charCodeAt(0) === TAG_PREFIX) this.#fail(`the key ${key} is reserved for snapshot tags`);
       out[key] = this.#child(escapeSegment(key), value[key]);
     }

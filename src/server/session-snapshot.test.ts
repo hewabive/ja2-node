@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode, stableJson } from '../../tests/support/reload.ts';
+import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
@@ -108,8 +108,8 @@ describe('session snapshots on the stub pack', () => {
     const json = JSON.stringify(snapshotSession(session));
     const restored = await restoreSession(JSON.parse(json), kit.read, exists);
     expect(JSON.stringify(snapshotSession(restored))).toBe(json);
-    expect(stableJson(restored.view())).toBe(stableJson(session.view()));
-    expect(stableJson(advance(restored, { ticks: SANDBOX_TICKS }))).toBe(stableJson(advance(session, { ticks: SANDBOX_TICKS })));
+    expect(JSON.stringify(restored.view())).toBe(JSON.stringify(session.view()));
+    expect(JSON.stringify(advance(restored, { ticks: SANDBOX_TICKS }))).toBe(JSON.stringify(advance(session, { ticks: SANDBOX_TICKS })));
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(snapshotSession(session)));
   });
 
@@ -149,8 +149,8 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('snapshots of native save imports', (
         const json = JSON.stringify(snapshotSession(session));
         const restored = await restoreSession(JSON.parse(json), read, exists);
         expect(JSON.stringify(snapshotSession(restored)) === json).toBe(true);
-        const ahead = stableJson(advance(session, { ticks: CONTINUE_TICKS }));
-        expect(stableJson(advance(restored, { ticks: CONTINUE_TICKS })) === ahead).toBe(true);
+        const ahead = JSON.stringify(advance(session, { ticks: CONTINUE_TICKS }));
+        expect(JSON.stringify(advance(restored, { ticks: CONTINUE_TICKS })) === ahead).toBe(true);
         expect(JSON.stringify(snapshotSession(restored)) === JSON.stringify(snapshotSession(session))).toBe(true);
       },
       SCENARIO_TIMEOUT_MS,

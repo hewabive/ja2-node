@@ -105,10 +105,13 @@ describe('the snapshot codec', () => {
     expect(b).toBe(first.bytes);
   });
 
-  it('gives equal bytes for equal states whatever the key order', () => {
-    const a = encodeGraph([['root', { b: 1, a: { d: 2, c: 3 } }]], NO_EXTERNALS);
-    const b = encodeGraph([['root', { a: { c: 3, d: 2 }, b: 1 }]], NO_EXTERNALS);
-    expect(canonicalJson(a)).toBe(canonicalJson(b));
+  it('keeps the key order of plain objects, so a restored object is a replica of the original', () => {
+    const value = { b: 1, a: { d: 2, c: 3 }, 7: 'seven' };
+    const encoded = canonicalJson(encodeGraph([['root', value]], NO_EXTERNALS));
+    expect(encoded).toContain('{"7":"seven","b":1,"a":{"d":2,"c":3}}');
+    const out = decodeGraph(JSON.parse(encoded) as EncodedGraph, NO_RESOLVE).get('root') as typeof value;
+    expect(JSON.stringify(out)).toBe(JSON.stringify(value));
+    expect(canonicalJson(encodeGraph([['root', out]], NO_EXTERNALS))).toBe(encoded);
   });
 
   it('restores the streams so they continue the same sequences, with the PreRandom refill linked', () => {
@@ -132,7 +135,7 @@ describe('the snapshot codec', () => {
     const index = contentIndex({ content });
     const state = { def, tile: def.tiles[0], seven: content.table.get(7), own: { x: 1 } };
     const encoded = encodeGraph([['state', state]], { classes: SNAPSHOT_CODECS, external: (v) => index.keyOf(v) });
-    expect(encoded.externals).toEqual(['content/files/a~1b.jsd/0', 'content/table/0/1', 'content/files/a~1b.jsd/0/tiles/0']);
+    expect(encoded.externals).toEqual(['content/files/a~1b.jsd/0', 'content/files/a~1b.jsd/0/tiles/0', 'content/table/0/1']);
     const fresh = structuredClone(content);
     const out = decodeGraph(encoded, { classes: SNAPSHOT_CODECS, resolve: (key) => contentIndex({ content: fresh }).resolve(key) }).get(
       'state',

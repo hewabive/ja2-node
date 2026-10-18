@@ -12,7 +12,7 @@ export const RUN_MODES: readonly RunMode[] = ['plain', 'reload'];
 const RELOAD_ENV = 'JA2_RELOAD';
 
 export const RELOAD_TEST_TIMEOUT_MS = 120_000;
-const DIFFERENCE_CONTEXT = 160;
+const DIFFERENCE_CONTEXT = 300;
 
 export function defaultRunMode(): RunMode | null {
   return process.env[RELOAD_ENV] === '1' ? 'reload' : null;
@@ -52,26 +52,15 @@ interface Driver<T extends Drivable> {
 
 const drivers = new WeakMap<object, Driver<Drivable>>();
 
-function sortedKeys(value: unknown): unknown {
-  if (typeof value !== 'object' || value === null || Array.isArray(value) || Object.getPrototypeOf(value) !== Object.prototype)
-    return value;
-  const record = value as Record<string, unknown>;
-  return Object.fromEntries(
-    Object.keys(record)
-      .sort()
-      .map((k) => [k, record[k]]),
-  );
-}
-
-export function stableJson(value: unknown): string {
-  return JSON.stringify(value, (_key, v) => sortedKeys(v)) ?? 'undefined';
-}
-
 export function firstDifference(a: string, b: string): string {
   let i = 0;
   while (i < a.length && i < b.length && a[i] === b[i]) i++;
-  const from = Math.max(0, i - DIFFERENCE_CONTEXT);
-  return `at ${i}:\n  ${a.slice(from, i + DIFFERENCE_CONTEXT)}\n  ${b.slice(from, i + DIFFERENCE_CONTEXT)}`;
+  const from = Math.max(a.lastIndexOf('\n', i) + 1, i - DIFFERENCE_CONTEXT);
+  const end = (text: string) => {
+    const newline = text.indexOf('\n', i);
+    return Math.min(newline < 0 ? text.length : newline, i + DIFFERENCE_CONTEXT);
+  };
+  return `at ${i}:\n  ${a.slice(from, end(a))}\n  ${b.slice(from, end(b))}`;
 }
 
 function reload<T extends Drivable>(d: Driver<T>): void {
@@ -97,7 +86,7 @@ export function driven<T extends Drivable>(sim: T, adapter: ReloadAdapter<T>, mo
   const dispatch = (cmd: CommandEnvelope): CommandResult => {
     if (d.stepped) reload(d);
     const result = d.current.dispatch(cmd);
-    d.log.push(stableJson({ dispatch: cmd, result }));
+    d.log.push(JSON.stringify({ dispatch: cmd, result }));
     reload(d);
     return result;
   };
@@ -107,7 +96,7 @@ export function driven<T extends Drivable>(sim: T, adapter: ReloadAdapter<T>, mo
   };
   const drainEvents = (): SimEvent[] => {
     const events = [...d.pending.splice(0), ...d.current.drainEvents()];
-    if (events.length > 0) d.log.push(stableJson({ events }));
+    if (events.length > 0) d.log.push(JSON.stringify({ events }));
     return events;
   };
   const own: Readonly<Record<string, unknown>> = { dispatch, step, drainEvents };
