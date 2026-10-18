@@ -13,6 +13,7 @@ import { fetchFile } from '../asset-browser/api.ts';
 import { type CommandReply, SessionClient } from '../net/session-client.ts';
 import { LaptopPanel } from './laptop-panel.ts';
 import { HelicopterPanel, QuestPanel, StoryPanel } from './narrative-panels.ts';
+import { StrategicSound } from './sound.ts';
 
 interface StrategicHook {
   ready: boolean;
@@ -89,6 +90,7 @@ const contractButtons = document.querySelectorAll<HTMLButtonElement>('[data-cont
 const laptopPanel = new LaptopPanel((cmd) => send(cmd));
 
 let client: SessionClient | null = null;
+const sound = new StrategicSound();
 let shown: StrategicView | null = null;
 let shownPrompt: PromptView | null = null;
 let shownContractPrompt: ContractPromptView | null = null;
@@ -642,6 +644,8 @@ async function start(): Promise<void> {
   try {
     await Promise.all([loadTowns(), loadSessions(session)]);
     client = await SessionClient.connect(session ?? undefined);
+    sound.reset(client.laptop !== null);
+    client.onFrames = (frames) => sound.frames(frames);
     const id = session ?? sessionSelect.value;
     debug.session = id || null;
     tacticalLink.href = `../tactical/${id ? `?session=${encodeURIComponent(id)}` : ''}`;

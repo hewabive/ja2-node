@@ -5,7 +5,7 @@
 // @src Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame (codes 700-791); TileEngine/Structure.cc guiMaterialHitSound,
 // @src DamageStructure; TileEngine/Explosion_Control.cc GenerateExplosionFromExplosionPointer; Tactical/Handle_Doors.cc
 // @src HandleDoorChangeFromGridNo; Tactical/Keys.cc DoUnlockDoor, AttemptToUnlockDoor, AttemptToCrowbarLock, AttemptToSmashDoor,
-// @src HandleDoorTrap; Tactical/Handle_Items.cc (the drop impact). See docs/27 §3.1.
+// @src HandleDoorTrap; Tactical/Handle_Items.cc (the drop impact); Laptop/Laptop.cc (power up and down). See docs/27 §3.1.
 
 import { type Cue, cueOf, effectCue, type FileExists, type Rand, soundRange, VolumeLevel } from './cue.ts';
 import { type CueBook, soundPath, type WeaponSounds } from './cue-book.ts';
@@ -13,6 +13,8 @@ import { NOWHERE, Pan } from './sound-position.ts';
 import { BURST_ROUNDS_PLACEHOLDER } from './sound-table.ts';
 
 export const GENERIC_BURST_SOUND = 'sounds/weapons/bursttype1.wav';
+export const LAPTOP_POWER_UP = 'sounds/laptop power up (8-11).wav';
+export const LAPTOP_POWER_DOWN = 'sounds/laptop power down (8-11).wav';
 
 export const TerrainKind = {
   FLAT_FLOOR: 2,
@@ -375,7 +377,6 @@ export function opcodeSound(book: CueBook, code: number, ctx: OpContext, rand: R
   return cue ? { kind: 'cue', cue } : null;
 }
 
-export function fixedEffect(book: CueBook, name: string, volume: number = VolumeLevel.HIGH): Cue | null {
-  const file = soundPath(book, name);
-  return file ? cueOf(file, 'fixed', volume, NOWHERE, Pan.MIDDLE) : null;
+export function laptopPowerCue(open: boolean): Cue {
+  return cueOf(open ? LAPTOP_POWER_UP : LAPTOP_POWER_DOWN, 'fixed', VolumeLevel.HIGH);
 }
