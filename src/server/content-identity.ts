@@ -167,7 +167,7 @@ function sourceCommit(): string {
   }
 }
 
-function packageVersion(): string {
+export function packageVersion(): string {
   const pkg = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')) as { version?: unknown };
   return typeof pkg.version === 'string' ? pkg.version : '0.0.0';
 }
