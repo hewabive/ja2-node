@@ -1450,9 +1450,10 @@ labelled rectangles or simple shapes in the original layouts (`01` §4.4).
   attacks cannot be autoresolved, `PreBattle_Interface.cc:450-455`), which a scripted bot without cover or focus fire
   lost at D13; the scenario test covers them through the same commands.
 - **For part B** (the end-to-end stub campaign): a battle policy that wins Drassen with Glock-armed mercs (cover, focus
-  fire, retreat and heal) or better weapons; Tony in A10 sells rifles, but `act` has no command to put a bought weapon in
-  the hand; Drassen's loyalty after C13 alone refuses militia training (`loyaltyTooLow`); a step in tactical after
-  `closeTalk` or `closeShop` before `mapScreen` (finding 19); the landing battle in A9 can stall (finding 20); the palace
+  fire, retreat and heal) or better weapons; Tony in A10 sells rifles (once his stock has them), and the inventory
+  commands (`04` §6.24) now put a bought weapon in the hand and bandage the wounded; Drassen's loyalty after C13 alone
+  refuses militia training (`loyaltyTooLow`); findings 19 (no step needed after `closeTalk` any more) and 20 (the A9
+  stall) are fixed; the palace
   garrison (32 elites) must be fought before the Queen runs to P3 b1; the creature lairs have no way in on stubs, so
   a sci-fi stub campaign whose creatures invade a mine cannot reach their queen (keep sci-fi off or add a way down).
 
@@ -2146,7 +2147,7 @@ ja2-node does not port, deviations "Watchdogs"; 14–16 decided and fixed on 202
     without a sighting during the stance change before the attack; no source of such a new situation during an AI's
     own turn was found, and no run met it.
 
-**Findings of S13 part A** (2026-10-18; not fixed, outside the slice's content scope):
+**Findings of S13 part A** (2026-10-18; 19–22 fixed on 2026-10-18 by the inventory slice, `04` §6.24):
 
 19. *A conversation's pause lock survives a switch to the map screen.* `closeTalk` (or `closeShop`, which closes the
     merchant's conversation) clears `engagedInConv`, but the lock taken by `pauseForConversation(true)` is released only
@@ -2154,20 +2155,34 @@ ja2-node does not port, deviations "Watchdogs"; 14–16 decided and fixed on 202
     (`src/sim/campaign/talk-flow.ts:523`); the original also calls `HandleDialogue` in the map screen loop
     (`Strategic/MapScreen.cc:1901`). An agent that closes a talk and sends `mapScreen` at once gets every `advance`
     refused with "the game is paused" until it returns to tactical for a step (reproduced through MCP after `closeShop`
-    in C5 and through the session API after `closeTalk` in D13). Fix: step the dialogue in the strategic loop too.
+    in C5 and through the session API after `closeTalk` in D13). *Fixed:* the dialogue queue now steps on every
+    strategic step and after every command on the map screen (deviation "Map screen dialogue"); without compression no
+    step runs before `advance` asks for compression, so the step after `mapScreen` itself releases the lock. Test:
+    `src/server/inventory-stub.test.ts` (talk, `closeTalk`, `mapScreen`, `advance` reaches its world time).
 20. *Attack orders and `endTurn` in one tick leave an enemy firing forever.* Six `attack` orders followed by `endTurn`
     without an `advance` in between (all accepted) leave, in the next enemy turn, an enemy STANDING with the AI action
     `FIRE_GUN` and the busy count held (A9's landing battle, `mercs: 6`, seeds 71–74, also at 0b990a9); with an `advance
     {idle: true}` after each attack the battle runs. The original UI accepts no order while an attack resolves; the API
-    could refuse `endTurn` (and further attacks) until the attacks are resolved.
+    could refuse `endTurn` (and further attacks) until the attacks are resolved. *Fixed:* an accepted gun attack only
+    queues a `beginFireWeapon` game event, run after the next tick's soldier pass, so the attacker was not yet busy and
+    five more attacks and `endTurn` were accepted; the queued events then fired in the enemy turn. Orders and `endTurn`
+    are now refused while a game event is queued (the original's `SetUIBusy` after the click; deviation "Turn-based UI
+    lock"); seeds 71–74 no longer stall. Test: `src/sim/tactical/order-lock.test.ts`.
 21. *Stub structures fill their whole tile.* Stub walls, windows and fences use `syntheticStructure`'s full 5×5 shape,
     so they block sight and fire across their tile instead of along one edge: a merc standing on a wall tile cannot see
     along the room (seen in the stub shop). A fidelity limit of the stub structures, not of the port; edge shapes per
-    orientation would fix it (the movement costs already treat walls as edges).
+    orientation would fix it (the movement costs already treat walls as edges). *Fixed:* `syntheticStructure` takes
+    `edge`, which fills the cells of the original's wall shapes (left walls the far `y` row, right walls the far `x`
+    column, read from the tileset 0 wall and door structure files); the S13 stone walls, windows and both fences use it.
+    The first stub walls (`FIRSTWALL`: A9, the village houses, the bench arena) keep full tiles: the arena's sealed bunker
+    relies on them. Test: `src/sim/tactical/stub-tiles.test.ts` (sight and fire along a wall from its tiles).
 22. *The stub squad and player-initiated attacks.* Towns, mines and SAM sites are taken in tactical battles only
     (autoresolve is off for player-initiated attacks, `PreBattle_Interface.cc:450-455`, faithful); with the stub mercs'
     pistols a scripted MCP bot took C13 in two of seven runs and lost D13. `act` has no inventory command to move a
-    bought weapon into the hand, so the dealers' rifles cannot help an agent yet.
+    bought weapon into the hand, so the dealers' rifles cannot help an agent yet. *Fixed:* the inventory, reload and
+    first-aid commands of `04` §6.24; a stub scenario buys a rifle and magazines from Tony in A10, puts the rifle into
+    the hand, reloads, fires, unloads and reloads by hand, and a medic stops a merc's bleeding
+    (`src/server/inventory-stub.test.ts`).
 
 **Verified** by reading Stracciatella (vanilla where marked): the save list, names, folders, header, keys and gates,
 `CanGameBeSaved`, the three save modes, Dead is Dead's file, backups and save points, the end-of-turn autosave and its

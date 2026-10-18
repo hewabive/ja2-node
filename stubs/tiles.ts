@@ -232,25 +232,35 @@ function itemSprite(path: string, count: number, draw: (k: number) => StubFrame)
   return { path, frames: Array.from({ length: count }, (_, k) => draw(k)) };
 }
 
+const STONE = { armour: StubMaterial.STONE, edge: true } as const;
+
 const STONE_WALL_STRUCTURES = numbered([
-  syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT, { armour: StubMaterial.STONE }),
-  syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT, { armour: StubMaterial.STONE }),
-  { ...syntheticStructure(StructureFlags.WALLNWINDOW, Orientation.OUTSIDE_LEFT, { armour: StubMaterial.STONE }), partnerDelta: 1 },
-  syntheticStructure(StructureFlags.WALLNWINDOW | StructureFlags.OPEN, Orientation.OUTSIDE_LEFT, { armour: StubMaterial.STONE }),
-  { ...syntheticStructure(StructureFlags.WALLNWINDOW, Orientation.OUTSIDE_RIGHT, { armour: StubMaterial.STONE }), partnerDelta: 1 },
-  syntheticStructure(StructureFlags.WALLNWINDOW | StructureFlags.OPEN, Orientation.OUTSIDE_RIGHT, { armour: StubMaterial.STONE }),
+  syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT, STONE),
+  syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT, STONE),
+  { ...syntheticStructure(StructureFlags.WALLNWINDOW, Orientation.OUTSIDE_LEFT, STONE), partnerDelta: 1 },
+  syntheticStructure(StructureFlags.WALLNWINDOW | StructureFlags.OPEN, Orientation.OUTSIDE_LEFT, STONE),
+  { ...syntheticStructure(StructureFlags.WALLNWINDOW, Orientation.OUTSIDE_RIGHT, STONE), partnerDelta: 1 },
+  syntheticStructure(StructureFlags.WALLNWINDOW | StructureFlags.OPEN, Orientation.OUTSIDE_RIGHT, STONE),
 ]);
 
 const WIRE = StructureFlags.WIREFENCE | StructureFlags.TRANSPARENT;
 const CUT_WIRE = WIRE | StructureFlags.OPEN | StructureFlags.PASSABLE;
 const wireFenceDef = (flags: number, orientation: number) => ({
-  ...syntheticStructure(flags, orientation, { armour: StubMaterial.LIGHT_METAL, height: WIRE_FENCE_CUBES }),
+  ...syntheticStructure(flags, orientation, { armour: StubMaterial.LIGHT_METAL, height: WIRE_FENCE_CUBES, edge: true }),
   density: WIRE_FENCE_DENSITY,
 });
 
 const FENCE_STRUCTURES = numbered([
-  syntheticStructure(StructureFlags.FENCE, Orientation.OUTSIDE_LEFT, { armour: StubMaterial.WOOD_WALL, height: WOOD_FENCE_CUBES }),
-  syntheticStructure(StructureFlags.FENCE, Orientation.OUTSIDE_RIGHT, { armour: StubMaterial.WOOD_WALL, height: WOOD_FENCE_CUBES }),
+  syntheticStructure(StructureFlags.FENCE, Orientation.OUTSIDE_LEFT, {
+    armour: StubMaterial.WOOD_WALL,
+    height: WOOD_FENCE_CUBES,
+    edge: true,
+  }),
+  syntheticStructure(StructureFlags.FENCE, Orientation.OUTSIDE_RIGHT, {
+    armour: StubMaterial.WOOD_WALL,
+    height: WOOD_FENCE_CUBES,
+    edge: true,
+  }),
   { ...wireFenceDef(WIRE, Orientation.OUTSIDE_LEFT), partnerDelta: 1 },
   wireFenceDef(CUT_WIRE, Orientation.OUTSIDE_LEFT),
   { ...wireFenceDef(WIRE, Orientation.OUTSIDE_RIGHT), partnerDelta: 1 },

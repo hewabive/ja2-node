@@ -13,6 +13,7 @@ import { AnimHeight, height, initNewSoldierAnim, setDesiredDirection, setSoldier
 import { soldierTakeDamage } from './combat/hit.ts';
 import { DamageReason } from './combat/types.ts';
 import { DIRECTION_COUNT } from './directions.ts';
+import { cancelAllServices } from './first-aid.ts';
 import { moveMercFacingDirection, setSoldierPosition } from './movement.ts';
 import { newOKDestination } from './pathfinding.ts';
 import { addMercStructure } from './person-structure.ts';
@@ -97,6 +98,7 @@ export function beginSoldierClimbUpRoof(t: TacticalState, s: Soldier): boolean {
   s.tempNewGridNo = newGridNo(s.gridNo, DIRECTION_INCREMENT[direction] ?? 0);
   s.pendingDirection = direction;
   initNewSoldierAnim(t, s, anim(t.content, 'CLIMBUPROOF'), 0, false);
+  cancelAllServices(t, s, false);
   return true;
 }
 
@@ -106,6 +108,7 @@ export function beginSoldierClimbDownRoof(t: TacticalState, s: Soldier): boolean
   s.tempNewGridNo = newGridNo(s.gridNo, DIRECTION_INCREMENT[direction] ?? 0);
   s.pendingDirection = (direction + 2) % DIRECTION_COUNT;
   initNewSoldierAnim(t, s, anim(t.content, 'CLIMBDOWNROOF'), 0, false);
+  cancelAllServices(t, s, false);
   return true;
 }
 

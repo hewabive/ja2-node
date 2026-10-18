@@ -389,6 +389,8 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.endDoorOpenCode = m.endDoorOpenCode;
   s.doorHandleCode = m.doorHandleCode;
   s.lastSkillCheck = m.lastSkillCheck;
+  s.serviceCount = m.serviceCount;
+  s.servicePartner = m.servicePartner;
   s.skillCheckAttempts = m.skillCheckAttempts;
   s.skillCheckGridNo = grid(m.skillCheckGridNo);
   s.delayedMovement = m.delayedMovement ? 1 : 0;

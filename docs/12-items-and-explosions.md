@@ -383,10 +383,15 @@ loaded rounds back into a magazine object and keeps `usGunAmmoItem` (`:1315-1345
 
 | Action | AP | Breath | Source |
 |---|---|---|---|
-| Reload / unload attachment / attach (item box) | 5 (`AP_RELOAD_GUN`); 10 with a wrong-size magazine | – | `Points.cc:1432-1448`; `Interface_Items.cc:1987, 2001, 2585` |
+| Reload (cursor, hotkey, magazine dropped on the gun) | 5 (`AP_RELOAD_GUN`); 10 with a wrong-size magazine; free in real time | – | `Points.cc:1432-1448`; `Items.cc` `ReloadGun` |
+| Attach in the item box | 5 must be left, none spent (merges: §2) | – | `Interface_Items.cc:1987` |
+| Remove an attachment in the item box | 8 (`AP_RELOAD_GUN + AP_PICKUP_ITEM`) must be left, none spent | – | `Interface_Items.cc:2001` |
+| Unload the magazine (item box ammo button) | 0 | – | `Interface_Items.cc` `ItemDescAmmoCallback` |
+| Move inside one inventory | 0 | – | `Interface_Panels.cc` `SMInvClickCallbackPrimary` |
+| Hand to another merc through the panel | 3 each must be left, 2 each spent (conscious mercs only) | – | `Interface_Panels.cc:1549-1561, 1673-1712` |
 | Pick up item | 3 (`AP_PICKUP_ITEM`) + path cost | – | `Handle_Items.cc:1295-1297`; `Points.cc:1417-1423` |
 | Give item (to adjacent soldier) | 1 (`AP_GIVE_ITEM`) + path | – | `Points.cc:1426-1429` |
-| Drop item | 0 (animation only) | – | `Handle_Items.cc:970-984` |
+| Drop item from the cursor on the own tile | 3 (`AP_PICKUP_ITEM`), unless the pickup was free | – | `Interface_Items.cc` `HandleItemPointerClick`; `Handle_Items.cc:970-984` |
 | Toss item (non-explosive throw) | 8 (`AP_TOSS_ITEM`), charged at the release frame | – | `Soldier_Ani.cc:857-866` |
 | Throw grenade | `MinAPsToThrow` (+ aim): `AP_CHANGE_TARGET` 1 if new target + stance→stand + `(100·2·fullAP / (18·(50+dex/2)/10) + 1)/2`, capped at full APs | – | `Points.cc:1692-1742` |
 | Fire launcher | `MinAPsToShootOrStab` + aim (combat spec) | | `Points.cc:1081` |
@@ -1126,4 +1131,38 @@ damage, reduced/extended gun switch (stay on reduced), ownership items.
 | Re-armed duds | Timed but `usBombItem` is 0, so the queue deletes them (inferred) | Keep and log; verify with the tracing oracle |
 | Dud test operand order | `PreRandom(100) < status + PreRandom(50)` has unspecified evaluation order | Fixed left-to-right |
 | Sandbox equipment | `GenerateRandomEquipment` with the real `CalcDifficultyModifier` (A9 medium: 11) | Today: no equipment, modifier 30 (existing "Sandbox population" entry); drop those parts once §8 is ported |
-| Inventory UI paths | Item cursor, item description box, merge prompts, transfer by tossing | Agent API commands (`moveItem`, `reload`, `attach`, `pickUp`, `drop`, `give`) with the same AP rules |
+| Inventory UI paths | Item cursor, item description box, merge prompts, transfer by tossing | Agent API commands (`moveItem`, `attach`, `detach`, `unload`, `reload`, `swapHands`, `applyItem`, `bandage`, `pickUp`, `drop`, `give`) with the same AP rules; logged as "Item cursor" (§15) |
+
+---
+
+## 15. As built: the inventory commands (M7, 2026-10-18)
+
+The agent API commands of `04` §6.24 (`src/sim/tactical/inventory-panel.ts`, `inventory-commands.ts`, `item-merge.ts`,
+`hand-item.ts`, `first-aid.ts`, `item-reachability.ts`; the map screen in `src/sim/campaign/map-inventory.ts`):
+
+- **Cursor.** A command takes the whole slot (`RemoveObjectFromSlot`, the shift-click) or one object (`GetObjFrom`, the
+  stack popup), places it with `PlaceObject` and cancels what is left (`CancelItemPointer`). Before anything moves the
+  placement runs on copies, so a refused move changes nothing (the original keeps a refused item in the cursor).
+- **`PlaceObject` endings.** Every placement now ends like the original: a face item re-runs the soldier's sight and
+  `EnsureConsistentWeaponMode` drops a burst or launcher mode the new hand item cannot fire (`soldier-inventory.ts`).
+- **`HandleTacticalEffectsOfEquipmentChange`** after each pick-up and placement: the launcher mode check, and for hand
+  slots `ReLoadSoldierAnimationDueToHandItemChange` (burst off for guns without burst, out of the aim, first aid ends,
+  `LOWER_RIFLE`/`RAISE_RIFLE` when standing). NPC action 6 (`LOWER_GUN`) now calls it as the original does.
+- **`AttachObject` with a soldier** (`item-merge.ts`): the `ATTACHING_*` skill checks (`SkillCheck` gained the four
+  attaching skills of `SkillCheck.cc:191-299`), combo merges with mechanical experience, and the merges: `COMBINE_POINTS`
+  into the chosen stack object (ammo capacity or 100), `TREAT_ARMOUR`, `DESTRUCTION`, `ELECTRONIC_MERGE` and
+  `EXPLOSIVE` (−30 checks, explosives experience), `AP_MERGE` for all but point merges. `RemoveAttachment`,
+  `RenumberAttachments` and `EmptyWeaponMagazine` live in `src/sim/items/object.ts`.
+- **First aid** (§5 costs): `EVENT_SoldierBeginFirstAid` (NPC refusal through `PCDoesFirstAidOnNPC`, creatures, hostile
+  soldiers), the `START_AID`/`GIVING_AID`/`END_AID` animations (stub scripts copy the original's: `START_AID` jumps to
+  the `GIVING_AID` loop, `END_AID` runs code 768, standing up when no enemy is left), `SoldierGotoStationaryStance`
+  returning a medic to `GIVING_AID`, `SoldierDressWound` with `RT_FIRST_AID_GAIN_MODIFIER`, `HandlePlayerServices` in
+  `EndTurnEvents` and `HandleTacticalEndTurn`, the cancellations (`InternalReceivingSoldierCancelServices`,
+  `InternalGivingSoldierCancelServices`) at movement start, stop, stance change, climbs, blasts, collapse,
+  incapacitation, death, teleport, suppression and hand item changes, `BeginSoldierGetup` waiting for the bandage, and
+  the `AIM_PENALTY_GETTINGAID` terms of gun, thrown and close-combat chances plus the interrupt duel. The soldier carries
+  `servicePartner`, `serviceCount` and `pendingAid` (imported from native saves). Auto-bandage after a battle is not
+  ported (deviation).
+- **Map screen.** The sector inventory is the loaded sector's world items or the sector diff's items; the reachable flag
+  comes from `HandleAllReachAbleItemsInTheSector`, now also run when a sector is saved, so items left in a visited
+  sector become takeable on the map screen and stealable by `RemoveRandomItemsInSector` as in the original.

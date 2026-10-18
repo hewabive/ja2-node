@@ -23,6 +23,7 @@ const QUERY_COMMANDS: ReadonlySet<string> = new Set([
   'insuranceQuote',
   'impPreview',
   'arrivalTime',
+  'inventory',
 ]);
 
 function refuse(code: string): CommandResult {

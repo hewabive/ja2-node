@@ -21,6 +21,7 @@ import { AnimHeight, endHeight, hasAnimFlag, initNewSoldierAnim, setDesiredDirec
 import { igniteExplosionXY } from '../explosions/explosion.ts';
 import { checkEquipmentForDamage } from '../explosions/item-damage.ts';
 import { newSmokeEffect } from '../explosions/smoke.ts';
+import { cancelAllServices, receivingSoldierCancelServices } from '../first-aid.ts';
 import { cancelGiveOnCollapse } from '../give.ts';
 import { InvSlot } from '../inventory.ts';
 import { directionToward, setSoldierDestination, worldIndexFromCoords } from '../movement.ts';
@@ -468,6 +469,7 @@ function soldierGotHitGunFire(t: TacticalState, s: Soldier, direction: number, a
 
 function soldierGotHitExplosion(t: TacticalState, s: Soldier, weapon: number, direction: number, range: number): void {
   if (s.dead) return;
+  cancelAllServices(t, s);
   if (hasAnimFlag(t.content, s.state, AnimFlags.HITSTART) && endHeight(t.content, s.state) !== AnimHeight.PRONE) {
     s.pendingAnimation = -1;
     s.inNonInterruptibleAnimation = false;
@@ -528,6 +530,7 @@ export function soldierCollapse(t: TacticalState, s: Soldier): void {
     return;
   }
   s.collapsed = true;
+  receivingSoldierCancelServices(t, s);
   handleSight(t, s, SightFlags.LOOK);
   cancelGiveOnCollapse(t, s);
   switch (endHeight(t.content, s.state)) {

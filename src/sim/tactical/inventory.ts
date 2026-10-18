@@ -297,6 +297,10 @@ export function autoPlaceObject(ctx: InventoryContext, c: Carrier, o: ItemObject
   return internalAutoPlaceObject(ctx, c, o, NO_SLOT);
 }
 
+export function autoPlaceObjectExcluding(ctx: InventoryContext, c: Carrier, o: ItemObject, excludeSlot: number): boolean {
+  return internalAutoPlaceObject(ctx, c, o, excludeSlot);
+}
+
 export function apsToReloadGunWithAmmo(items: ItemTable, gun: ItemObject, ammo: ItemObject): number {
   const gunDef = items.byIndex.get(gun.item);
   if (gunDef?.itemClass === ItemClass.LAUNCHER) return AP_RELOAD_GUN;

@@ -20,6 +20,7 @@ import { TERRAIN_SPEED_DELAY } from './constants.ts';
 import type { TacticalContent } from './content.ts';
 import { DIRECTION_COUNT, DIRECTION_INCREMENT, quickestTurnIncrement } from './directions.ts';
 import { aiDoorActionWithoutInteraction, soldierHandleInteractiveObject } from './doors/door-actions.ts';
+import { cancelAllServices } from './first-aid.ts';
 import { InvSlot } from './inventory.ts';
 import { countMuzzleFlashFrame } from './lighting/muzzle-flash.ts';
 import { getNewSoldierPath, handleGotoNewGridNo, isJumpableFenceAt, moveMercFacingDirection, setSoldierPosition } from './movement.ts';
@@ -27,7 +28,7 @@ import { boxingMovementCheckWhileTracked } from './narrative/boxing.ts';
 import { newOKDestination } from './pathfinding.ts';
 import { addMercStructure, isValidStance, okToAddMercToWorld } from './person-structure.ts';
 import { AP, apsToReadyWeapon, BP, deductPoints } from './points.ts';
-import { NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOWHERE, type Soldier, Team } from './soldier.ts';
+import { NO_PENDING_ANIMATION, NO_PENDING_DIRECTION, NOBODY, NOWHERE, OKLIFE, type Soldier, Team } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
 export const AnimHeight = { STAND: 6, CROUCH: 3, PRONE: 1 } as const;
@@ -226,6 +227,10 @@ export function changeSoldierState(t: TacticalState, s: Soldier, state: number, 
 
 export function soldierGotoStationaryStance(t: TacticalState, s: Soldier): void {
   const st = states(t.content.animations);
+  if (s.servicePartner !== NOBODY && s.life >= OKLIFE && s.breath > 0) {
+    initNewSoldierAnim(t, s, anim(t.content, 'GIVING_AID'), 0, false);
+    return;
+  }
   switch (endHeight(t.content, s.state)) {
     case AnimHeight.STAND:
       initNewSoldierAnim(t, s, st.STANDING, 0, false);
@@ -367,6 +372,7 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
       if (!hasAnimFlag(content, next, AnimFlags.SPECIALMOVE)) {
         const result = handleGotoNewGridNo(t, s, true, next);
         if (!result.ok || !result.keepMoving) return;
+        cancelAllServices(t, s);
       }
     }
   }

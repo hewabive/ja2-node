@@ -488,6 +488,14 @@ export interface Soldier {
   walkToAttackCost: number;
   pendingMelee: PendingMelee | null;
   pendingActionData4: number;
+  servicePartner: number;
+  serviceCount: number;
+  pendingAid: PendingAid | null;
+}
+
+export interface PendingAid {
+  readonly targetGridNo: number;
+  readonly direction: number;
 }
 
 export interface PendingGive {
@@ -811,5 +819,8 @@ export function createSoldier(init: SoldierInit): Soldier {
     walkToAttackCost: 0,
     pendingMelee: null,
     pendingActionData4: 0,
+    servicePartner: NOBODY,
+    serviceCount: 0,
+    pendingAid: null,
   };
 }

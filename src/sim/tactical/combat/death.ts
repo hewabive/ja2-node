@@ -24,6 +24,7 @@ import {
 } from '../animation.ts';
 import { dropKeysInKeyRing } from '../doors/keys.ts';
 import { worldSeconds } from '../explosions/state.ts';
+import { cancelAllServices } from '../first-aid.ts';
 import { putOutMuzzleFlash } from '../lighting/muzzle-flash.ts';
 import { directionToward } from '../movement.ts';
 import { endBoxingMatch } from '../narrative/boxing.ts';
@@ -165,6 +166,7 @@ const state = (t: TacticalState, name: string) => anim(t.content, name);
 
 function checkForAndHandleSoldierIncapacitated(t: TacticalState, s: Soldier): void {
   if (s.life >= OKLIFE) return;
+  cancelAllServices(t, s);
   if (NO_UNCONSCIOUS_BODIES.has(s.bodyType)) s.life = 0;
   slapCheckWhenIncapacitated(t);
   if (checkSoldierHitRoof(t, s)) return;
@@ -317,6 +319,7 @@ export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDea
   let madeCorpse = false;
   let buddyJustDead = false;
   if (s.life === 0 && !s.dead) {
+    cancelAllServices(t, s);
     putOutMuzzleFlash(t, s);
     s.muzzleFlash = false;
     s.gettingHit = 0;
@@ -380,6 +383,7 @@ export function checkForAndHandleSoldierDeath(t: TacticalState, s: Soldier): boo
 }
 
 export function beginSoldierGetup(t: TacticalState, s: Soldier): void {
+  if (s.serviceCount > 0) return;
   if (inMeanwhile(t)) return;
   if (s.collapsed) {
     if (s.life >= OKLIFE && s.breath >= OKBREATH && s.sleepDrugCounter === 0) {

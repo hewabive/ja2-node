@@ -8,7 +8,7 @@
 // @src Soldier_Control.cc EVENT_BeginMercTurn, CheckForBreathCollapse;
 // @src OppList.cc BetweenTurnsVisibilityAdjustments, NonCombatDecayPublicOpplist; Tactical_Turns.cc HandleTacticalEndTurn;
 // @src Drugs_And_Alcohol.cc HandleEndTurnDrugAdjustments (regeneration only); the boxing gates of BeginTeamTurn,
-// @src CheckForEndOfCombatMode and CheckForEndOfBattle.
+// @src CheckForEndOfCombatMode and CheckForEndOfBattle; the first-aid services of EndTurnEvents and HandleTacticalEndTurn.
 // @src See docs/10 §1.4–§2, §4.4–§4.7, §8, docs/25 §7.2.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -22,6 +22,7 @@ import { DamageReason } from '../combat/types.ts';
 import { decayLightEffects } from '../explosions/light.ts';
 import { clearGassedAtTurnStart, decaySmokeEffects } from '../explosions/smoke.ts';
 import { worldSeconds } from '../explosions/state.ts';
+import { handlePlayerServices, handleTeamServices } from '../first-aid.ts';
 import { getNewSoldierPath, stopMerc } from '../movement.ts';
 import { boxingActive, boxingFight, boxingHalvesPoints, boxingRoundDecided } from '../narrative/boxing-state.ts';
 import { calcInterruptDuelPts, interruptDuel } from '../perception/duel.ts';
@@ -173,8 +174,16 @@ export function handleTacticalEndTurn(t: TacticalState, clock: RealtimeClock): v
     clock.lastDecayMs = t.clockMs;
   }
   if (!t.inCombat) {
-    for (const s of teamMembers(t, Team.OUR)) if (s.life > 0) beginMercTurn(t, s);
-    for (const s of mercs(t)) if (s.team !== Team.OUR) beginMercTurn(t, s);
+    for (const s of teamMembers(t, Team.OUR)) {
+      if (s.life <= 0) continue;
+      beginMercTurn(t, s);
+      handlePlayerServices(t, s);
+    }
+    for (const s of mercs(t)) {
+      if (s.team === Team.OUR) continue;
+      beginMercTurn(t, s);
+      handlePlayerServices(t, s);
+    }
   }
   t.sectorHooks.tacticalTurnEnded(t);
 }
@@ -187,6 +196,7 @@ export function betweenTurnsVisibilityAdjustments(t: TacticalState): void {
 }
 
 function endTurnEvents(t: TacticalState): void {
+  handleTeamServices(t, Team.OUR);
   decaySmells(t.smell);
   decaySmokeEffects(t);
   decayLightEffects(t);

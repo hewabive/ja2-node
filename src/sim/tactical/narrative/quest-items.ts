@@ -21,6 +21,7 @@ import { changeSoldierState, states } from '../animation.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
 import { callAvailableKingpinMenTo } from '../doors/door-traps.ts';
 import { toggleDoorAt } from '../doors.ts';
+import { givingSoldierCancelServices } from '../first-aid.ts';
 import { rangeInCellCoords } from '../insertion.ts';
 import { setSoldierPosition, stopMerc } from '../movement.ts';
 import { findBestPath, NOWHERE, newOKDestination, PathCopy, PathFlags } from '../pathfinding.ts';
@@ -219,6 +220,7 @@ export function teleportSoldier(t: TacticalState, s: Soldier, gridNo: number, fo
   s.finalDestination = gridNo;
   revealRoofsAndItems(t, s, true);
   handleSight(t, s, SightFlags.LOOK | SightFlags.RADIO);
+  givingSoldierCancelServices(t, s);
   return true;
 }
 
