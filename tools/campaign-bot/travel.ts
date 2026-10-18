@@ -1,5 +1,5 @@
 import type { StrategicMercView } from '../../src/protocol/view.ts';
-import { type BattleResult, fightHere, sectorEnemies } from './battle.ts';
+import { type BattleResult, fightHere, ourTurn, sectorEnemies } from './battle.ts';
 import type { Observation } from './mcp-game.ts';
 import type { Player } from './player.ts';
 import { answerPrompts } from './prompts.ts';
@@ -15,6 +15,9 @@ const HOUR_SECONDS = 3600;
 const MINUTE_SECONDS = 60;
 const TOO_INJURED = 'tooInjured';
 export const PRISONER = 32;
+const DEAD_MEMBER = ': dead';
+const COMBAT_GOING_ON = 'combat is in progress';
+const ABANDONED_COMBAT_TURNS = 20;
 
 export function squad(view: Observation): StrategicMercView[] {
   return (view.strategic?.mercs ?? []).filter(
@@ -73,9 +76,28 @@ async function routeSquads(p: Player, view: Observation, to: string): Promise<Ro
     else {
       p.log(`  route ${leader.name} to ${to} refused: ${result.reason ?? ''}`);
       if (outcome !== 'routed' && result.reason?.includes(TOO_INJURED)) outcome = 'injured';
+      if (result.reason?.endsWith(DEAD_MEMBER)) await removeTheDead(p, view);
     }
   }
   return outcome;
+}
+
+async function removeTheDead(p: Player, view: Observation): Promise<void> {
+  for (const m of (view.strategic?.mercs ?? []).filter((x) => x.life === 0)) {
+    const removed = await p.act({ type: 'removeMerc', soldier: m.id });
+    p.log(`  removing the dead ${m.name}: ${removed.ok ? 'ok' : (removed.reason ?? 'refused')}`);
+  }
+}
+
+async function finishAbandonedCombat(p: Player): Promise<void> {
+  await p.act({ type: 'tacticalScreen' });
+  for (let turn = 0; turn < ABANDONED_COMBAT_TURNS; turn++) {
+    const view = await p.observe();
+    if (!view.combat) break;
+    if (ourTurn(view)) await p.act({ type: 'endTurn' });
+    await p.advance({ idle: true });
+  }
+  await mapScreen(p);
 }
 
 export type Recover = () => Promise<void>;
@@ -111,7 +133,8 @@ export async function travel(p: Player, to: string, fight: Fight = fightHere, re
     const report = await p.advance({ worldSeconds: TRAVEL_SLICE_SECONDS });
     if (report.reason === 'refused') {
       p.log(`  travel to ${to}: advance refused: ${report.refusal ?? ''}`);
-      await p.advance({ idle: true });
+      if (report.refusal?.includes(COMBAT_GOING_ON)) await finishAbandonedCombat(p);
+      else await p.advance({ idle: true });
     }
   }
   return 'stuck';

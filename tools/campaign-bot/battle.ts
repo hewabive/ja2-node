@@ -80,7 +80,7 @@ export function hostilesInSight(p: Player, view: Observation): SoldierView[] {
   return view.soldiers.filter((s) => isHostile(s) && !p.memory.dead.has(s.id));
 }
 
-function ourTurn(view: Observation): boolean {
+export function ourTurn(view: Observation): boolean {
   return view.combat?.team === Team.OUR;
 }
 
