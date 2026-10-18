@@ -843,6 +843,9 @@ Stracciatella does for both Russian versions. The server default is `JA2_LANG`, 
   file without a layout, 404 for a missing file or row. Stub files (`stubs/…`) are read only when the data version is
   `stubs`. `?table=<L10n key or file>&index=I&lang=` and `?key=<token>&lang=` resolve UI strings: `{key?, table, index,
   language, text}`; `lang` applies only to these.
+- **`GET /vfs/<path>`** falls back to `stubs/<path>` when the data version is `stubs`, so stub sounds, music, speech
+  blips and text answer under the original path names (many names share one synthesized file through the stub layer's
+  alias manifest, `docs/27` §6.5); `x-vfs-layer` says `stubs`. With the original data there is no fallback.
 - **Text keys** (`src/server/text-keys.ts`): `morale.<great|good|stable|poor|panic|bad>` → `pMoralStrings`,
   `condition.<excellent…dead>` → `pConditionStrings`, `talkMenu.<repeat|friendly|direct|threaten|give|recruit>` →
   `zTalkMenuStrings`, `shopKind.<buySell|buy|sell|repair>` → `zDealerStrings`, `moveRefusal.<token>` → `pMapErrorString`
