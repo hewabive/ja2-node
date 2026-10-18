@@ -56,7 +56,7 @@ export type LoadProblem =
 
 export type LoadWarning = 'dataVersionDiffers' | 'engineDiffers';
 
-export type SaveProblem = SaveRefusal | 'invalidName' | 'reservedName' | 'notSaveable';
+export type SaveProblem = SaveRefusal | 'invalidName' | 'reservedName' | 'notSaveable' | 'actionInProgress';
 
 export class SaveLoadError extends Error {
   readonly problem: LoadProblem;
@@ -338,7 +338,7 @@ export class SaveService {
     const refusal = saveRefusal(session.sim, target.kind === 'player' ? 'player' : 'quick');
     if (refusal) return this.#refused(refusal, SAVE_REFUSAL_MESSAGES[refusal]);
     if (target.kind === 'deadIsDead' && !deadIsDeadWritable(session.sim))
-      return this.#refused('promptOpen', 'Dead is Dead saves only on our turn with nothing in progress');
+      return this.#refused('actionInProgress', 'Dead is Dead saves only on our turn with nothing in progress');
     const description = request.description ?? (target.kind === 'quick' ? QUICK_SAVE_NAME : target.name);
     const capture = this.#capture(session, target.kind, target.name, description);
     await this.#write(capture);

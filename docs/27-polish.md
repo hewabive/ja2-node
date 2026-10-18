@@ -468,6 +468,62 @@ The snapshot stores `main`, `pre` and the cosmetic streams exactly. Two load mod
 | WebSocket | `{t: 'save', id, name?, description?}`, `{t: 'load', id, name, reseed?}` → `result`; after a load every subscriber receives `welcome` with the new view |
 | Events | `gameSaved {name, kind}` (not for autosaves, as in the original), `gameLoaded {name, seed}` |
 
+**Status after S3 (2026-10-18).** §1.3's file, content binding, input log and replay, §1.5's load modes, §1.6's rules
+and §1.7's API exist; the browser surfaces (§1.8) wait for S11, the options for S5 and the music block for S9. The
+agent-facing description is `04` §6.22.
+
+| Module | Content |
+|---|---|
+| `src/server/save-file.ts` | `SaveFile` (`format: 'ja2-node-save'`, `version: 1`, `header`, `session {kind, origin, tick, preparedMaps}`, `contentFiles`, `sim`, `presentation {music: {mode: 'none', previous: 'none'}}`), written as two gzip members at the fastest level: the first holds `{"format", "version", "header",` and a newline, the second the rest, so the file is one JSON document for `gunzip` and the list reads the header from the first 64 KiB (also from a file gzipped again as one member); the migration chain (`SAVE_MIGRATIONS`, empty for version 1) runs before the snapshot's own `migrateSnapshot`; the header summary comes from the session |
+| `src/server/content-identity.ts` | `ContentLedger` wraps the server's `read` and `exists` once (one function for every session, so the narrative cache keyed by `read` still works) and records every file the simulation's content and maps read (size and SHA-256), every missing file and every existence probe; `.edt` files count only by presence, their text goes to the text identity. A save lists these paths (`contentFiles`, about 1,300 on the original data) and the header carries the hash over them; a load hashes the same paths in its own data and refuses another hash or another source. The text identity hashes the quote lengths (row by row, at the dialogue or civilian width) of the `DialogueTexts` in use (`none` for the sandbox); `engineIdentity` is the package version and the commit (`JA2_COMMIT`, else the repository's HEAD) |
+| `src/server/save-store.ts` | `$JA2_SAVE_DIR` (default `.ja2/saves/`), names `[A-Za-z0-9][A-Za-z0-9_-]{0,63}` (a client never passes a path), `QuickSave`, `Auto01`/`Auto02` (the older or missing one by modification time, then alternating in memory), player saves `<UTC time>-<slug>` like `SaveNewSave` and `clean_basename`, Dead is Dead backups `Backup/<name>.j2s.1`, `.2` as `BackupSavedGame`, writes through a temporary file and a rename, the list (unreadable files listed with their problem) and the native headers of `$JA2_SAVES_DIR` |
+| `src/server/save-rules.ts` | `CanGameBeSaved`, the §1.6 refusals, the Dead is Dead conditions of `DoDeadIsDeadSave` (our turn, no conversation, meanwhile, prompt or shop, the loaded sector idle) and its save points read from events (`turnStarted` of our team, `meanwhile`, `meanwhileStarted`) and from the strategic queue (a `GROUP_ABOUT_TO_ARRIVE` event that was due and left the queue); `saveStatus` for `status` and `observe` |
+| `src/server/save-service.ts` | saves, loads, the autosave and Dead is Dead hooks, upload and download, the list, the error log; attached to each server session through `Session.hooks` (before and after a dispatch, before and after an advance, after a whole input, on a throw), which only read the simulation |
+| `src/server/input-log.ts`, `src/server/replay.ts`, `tools/replay.ts` | the log, its JSON-lines file and `pnpm cli replay` |
+| `src/server/session-factory.ts`, `src/server/save-environment.ts` | the session factory moved out of `main.ts` (it also builds a session from a log origin) and the wiring shared by the server and the CLI |
+
+*Session.* `Session` logs every input before running it: `cmd` and `answer` (a command of type `answer`) with the
+command, `advance` with the stop condition and budget, real-time batches as `advance {until: {ticks}, realtime: true}`
+(consecutive batches that ran to their tick count are merged into one entry of at most 100,000 ticks, equivalent
+because a batch that ran fully left no decision, end or watched event behind), `drive` (informational: the advances a
+driver causes are logged themselves, so a replay uses the manual driver whatever the session used), `prepare {maps}`
+with the maps a command's preparation added, `reseed {seed}` and `load {name, digest}` for a load in place. A save
+writes the segment since the last load: the origin is then that save, identified by the SHA-256 of its decompressed
+text. Before a campaign snapshot the campaign's undrained output events move into a buffer of the `Session`, which the
+next advance reports first, so saving changes neither the state nor the events the session reports; the tactical
+event buffer is state and is written. `Session.sim` became replaceable for a load in place (`replace`).
+
+*Rules as built.* `promptOpen` also covers an autoresolve battle (the original has no save key on that screen). Dead is
+Dead: an explicit save is refused (`deadIsDead`); `save {name: 'quick'}` writes the Dead is Dead file as `DoQuickSave`
+does, or answers `actionInProgress` when `DoDeadIsDeadSave` would skip. The `endTurn` save point is the snapshot taken
+before the command, written when the command is accepted (in the other modes it is the autosave, written only when
+combat goes on). The other save points are evaluated after the input that produced them (an `advance` stops between
+ticks, never inside one), and a point that falls while the conditions fail is written at the first later input
+boundary where they hold (deviation "Dead is Dead save points"). The Dead is Dead file name lives in the server: chosen
+at the new game, the loaded save's name after a load, the native file's name after an import.
+
+*Load.* `load` reads the header, inflates and parses the body, runs the migration chain, checks the content (source,
+then the logic hash over the listed files), restores through S2's `restoreSession` with the ledger's `read`, compares
+the text identity and, for a player load, reseeds with `crypto.randomInt(0, 2^32)` through `reseedMain`. A load in
+place first takes the session's Dead is Dead save point, then replaces the simulation; a new session gets the log
+origin `load`.
+
+*Tests.* `save-file.test.ts` (one JSON document, the header from a prefix and from a file gzipped again, the
+migration chain from version 1, newer versions, non-saves, descriptions), `save-store.test.ts` (names, never paths,
+player names, autosave alternation, two backups, the list, native headers from the synthetic `.sav` header now shared
+in `tests/support/native-save.ts`), `input-log.test.ts`, `content-identity.test.ts`, `session.test.ts` (the log, held
+events, `replace`), `save-rules.test.ts` (conversation, shop, prompt and meanwhile refusals, Iron Man with enemies and
+in combat without autosaves, Dead is Dead at the quick save, the start of our turn, `endTurn`, not during the enemy's
+turn, before a load, at shutdown and when a group is about to arrive), `save-service.test.ts` (sandbox and campaign
+saves loaded exactly and with a reseed, a player load with seed s equal to an exact load followed by `reseed {s}`, the
+`PreRandom` ring repeating for 256 draws after a player load, a load in place with a fresh `welcome`, the autosave
+alternating and holding the state before `endTurn`, content mismatches refused, text and engine differences warned, a
+version-1 file loaded, uploads, downloads, the native list, the error log), `replay.test.ts` (real-time, instant and
+manual drivers, map preparation), `save-api.test.ts` (MCP, HTTP and WebSocket against a temporary save folder),
+`save-original.test.ts` (original data: a new campaign and a native import saved, replayed and loaded exactly) and the
+end-to-end `tests/e2e/saves.spec.ts` (an MCP agent saves in a battle, loads it exactly into a new session, and both
+sessions answer the same commands with the same reports and views for three rounds).
+
 ### 1.8 Browser UI (M7)
 
 The launcher's save panel (§8.3): the list newest first with the original's row fields (day and time, sector, mercs,
@@ -1167,7 +1223,7 @@ defaults to `$JA2_DATA_DIR`; `--data ''` forces stubs.
 | `realtime` | the patrol arena with 20, 40 and 64 soldiers (half enemies on patrol orders, half wandering civilians), six mercs sealed in a bunker so that nobody sees them; green, and yellow (the enemy team's public noise at the far side with `setNewSituation`, as `CallAvailableTeamEnemiesToAmbush` does); manual driver, 10 × 1,000 ticks through a `Session` | µs per tick (mean, p99, max), ticks per CPU second, alert states at the end, combats started (0, or the variant is void) |
 | `strategic` | a new campaign with one A.I.M. merc on a 14-day contract (renewed for two weeks when due, so the team never empties), the start sector's garrison emptied before landing (the scripted stand-in for "landed and cleared": a fought clearing is the `campaign` scenario), the squad routed to B9 so that no sector is loaded, then 7 and 30 world days of `MIN60` compression through a `Session`, prompts answered (pre-battle: retreat, else autoresolve); once more with the Queen's attacks enabled: Drassen (B13–D13) emptied and handed to the player as liberated (`setThisSectorAsPlayerControlled(…, contested)`), then `wakeUpQueen` (Omerta alone draws no attack in 30 days) | ms per world day; counters: days, `dayStarted`, compression stops, pre-battle, autoresolve, battle results, player-controlled sectors at the start and the end, frame views built and their ms per day; calls: strategic events, group arrivals, Queen evaluations, autoresolve battles |
 | `autoresolve` | 20 battles a run of 10, 20 and 40 per side: half mercs (profiles on original data, stub mercs on stubs, at most 20), the rest regular militia, against enemies from `tacticalCreateEnemySoldierForAutoresolve` (a quarter elites; capped at `MAX_AR_ENEMIES` 32) | ms per battle, slices per battle; calls: cell turns, attacks |
-| `save` | pending until S2/S3: snapshot and restore (§1.3) of the largest states the other scenarios produce (loaded sector with 64 soldiers, 30 sector diffs) | bytes raw and gzipped, ms to serialize, gzip, parse and rebuild |
+| `save` | (S3) five saves and loads a run of: the patrol arena with 64 soldiers (a tactical session), a new campaign with the squad landed and, with `--data`, the largest native save of `$JA2_SAVES_DIR` imported; each settled for 400 ticks; the save is `SaveService.saveFileOf` (snapshot, header, content identity) plus `encodeSaveFile` (stringify and gzip), the load `inflateSave`, `parseSaveText` and S2's `restoreSession` with fresh content | ms per save (primary), series `snapshotMs`, `encodeMs`, `parseMs`, `restoreMs`, `loadMs`; counters raw and gzipped KiB |
 | `server` | in process: a `node:http` server with the WebSocket endpoint on ports 7510–7512; 1, 4 and 16 viewer sessions (the 20-soldier patrol arena, realtime driver ×1) plus one instant battle session (16-enemy arena, `endTurn` until combat ends) per four viewers, driven by WebSocket clients in a worker thread for 4 s | event-loop delay max (the longest stall; `monitorEventLoopDelay` p50 and p99 in counters), frame diff ms and view build ms per frame, bytes per second (all, viewers), instant turn round trips |
 | `campaign` | shortened until S13: a new campaign with six mercs, the landing, then the first sector cleared (approach the nearest enemy until combat, prone, three aimed shots per merc a turn, again after a lull), in a child process | total ms (landing and clearing in series), peak RSS |
 
@@ -1197,8 +1253,8 @@ brackets. The bench carries each target in its JSON line and fails only above te
 | Real-time tick, worst single tick (new) | ≤ 50 ms | 5–13 ms (4–27 ms) | new: one AI decision with several path searches; above 50 ms a tick would show as a hitch at ×1 |
 | Strategic world day, no sector loaded, p95 | ≤ 100 ms | 80–92 ms (83–88 ms) with one merc; 120–145 ms with six (stubs) | kept: about two thirds of a day is the session building frame views (finding 11), the cheapest S12 win |
 | Autoresolve battle, 40 per side, p95 (new) | ≤ 10 ms | 3.3 ms (2.8 ms) | new, met |
-| Save (snapshot and gzip) | ≤ 100 ms and ≤ 2 MB gzipped | pending (the `save` scenario needs S3) | provisional |
-| Load (parse and rebuild) | ≤ 500 ms | pending | provisional |
+| Save (snapshot and gzip) | ≤ 100 ms and ≤ 2 MB gzipped | p50 / p95, measured by S3 on the same machine with a 1-minute load of 7–9 from other jobs: the largest native import 162 / 354 ms, 4.2 MiB raw, 222 KiB gzipped (snapshot 65 ms, stringify and gzip 80 ms at the median); a landed new campaign 80 / 198 ms, 3.5 MiB, 184 KiB; the 64-soldier arena 53 / 75 ms (stubs: 41 / 57 ms, 2.0 MiB, 77 KiB; landed campaign 49 / 83 ms, 2.4 MiB, 64 KiB). The p95 is the first save of a session, which builds the content index (about 150 ms on the original data) | size met with a wide margin; time met on stubs and for a landed campaign, not for the largest import on a loaded machine (S2 measured 81 ms snapshot and stringify for it on a quieter one); S12. Gzip runs at the fastest level (at the default level the import is 138 KiB but gzip takes three times longer) |
+| Load (parse and rebuild) | ≤ 500 ms | p50 / p95 with fresh content loading: the largest import 260 / 674 ms, a landed campaign 182 / 250 ms, the arena 125 / 194 ms (stubs 92–106 / 116–128 ms) | met at the median; the import's p95 exceeds it under the same load |
 | Event-loop stall for other sessions while one runs an instant turn (max delay) | ≤ 50 ms | 308–322 ms with one battle (230–247 ms), 1.24 s with four (0.83 s) | kept as the trigger of §7.5 and not met: the stall equals the longest instant turn, so the worker host is needed as soon as an instant battle shares the process with other sessions. Measured as the max: the p99 of `monitorEventLoopDelay` (1.5 ms) hides a stall, which is one sample |
 | Shortened campaign (land and clear the first sector), peak RSS (new) | ≤ 512 MB | 319 MB (286 MB) | new, met; the full campaign follows with S13 |
 | Tactical page | 60 FPS at 1920×1080 | not measured (client side) | provisional |
@@ -1490,7 +1546,7 @@ Every scenario of §7.2 runs once in CI on stubs (sanity bounds only, §7.6).
 |---|---|---|---|
 | **S1** State ownership | §1.4 rows 1–3, 8, 9, 11, 12: private session and flow state into `StrategicState`, the roster as records, saved and seeded cosmetic streams, restore constructor path, id comparisons, drained buffers; fix `dialogueProfiles` if confirmed | — | all existing tests and oracle compares unchanged (except fx-seeded outputs, open question 11) |
 | **S2** Snapshot codec | §1.3 codec, §1.4 rows 4–7, 10, 13; restore path; round trip and reload-at-every-boundary tests (§12.1) | S1 | every scenario passes in reload mode; native imports round-trip |
-| **S3** Saves | file format, content identity, save store, rules, autosave, input log and `replay`, MCP/HTTP/WS API, events, native list; `04` §6 section | S2 | §12.1 complete; an agent saves and loads through MCP |
+| **S3** Saves (landed, §1.7) | file format, content identity, save store, rules, autosave, input log and `replay`, MCP/HTTP/WS API, events, native list; `04` §6 section | S2 | §12.1 complete; an agent saves and loads through MCP |
 | **S4** Benchmarks | `tools/bench`, the stub arena map, the scenarios of §7.2 (the `save` scenario after S3), CI smoke, the first measurements on original data; revise §7.3 | — (can run beside S1–S3) | targets confirmed or revised in this doc |
 | **S5** Options | `GameOptions` unification, the policy copy, `setOption`, `newSession` options, `status`, import mapping, deviations | S3 | blood and gore off changes deaths in a stub scenario; options in the save header |
 | **S6** Text (landed, §5.5) | data version, `TextService`, string tables, `/api/strings`, widened `/api/text`, text keys, the Russian paths (EDT mode, NPC layout, speech prefix), per-session language | — (beside S5) | Russian labels on stubs; original-data tests for counts and lengths |

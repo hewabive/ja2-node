@@ -312,9 +312,11 @@ type ServerMsg =
 
 ### 5.5. Saves and the log
 
-- Stored as files on the server.
-- The command log with ticks plus the seed gives an exact replay of a game. This will come in handy for bug reports,
-  regression tests and analyzing an agent's play.
+- Stored as files on the server (`$JA2_SAVE_DIR`, default `.ja2/saves/`), named, never addressed by path (§6.22).
+- Every session keeps an input log (commands, answers, advances, real-time batches as tick counts, map preparation,
+  reseeds, loads) from its origin; a save carries it as `<name>.log.jsonl.gz`, and `pnpm cli replay <name>` re-runs it
+  and compares the result with the save byte for byte. This serves bug reports, regression tests and analyzing an
+  agent's play.
 
 ### 5.6. Determinism and multiple sessions
 
@@ -368,7 +370,7 @@ There are few of them, and they are coarse-grained.
 | `answer` | An answer to a decision prompt: interrupt, dialogue line, message box, PBI |
 | `advance` | Explicitly advances time in real time and on the strategic map: "until arrival", "until an event", "no longer than N" |
 | `newSession` | Starts another session and returns its id: the sandbox (optional seed), with `campaign {difficulty?, profiles?, mercs?, land?}` a new campaign (§6.6), or with `save` a native savegame from the game's `SavedGames` folder (`docs/14` §10); `language` sets the session's display language (§6.21); every other tool takes `session`, so agents and tests do not share one battle |
-| `save` / `load` | Saves on the server |
+| `save` / `load` | Saves on the server; `listSaves`, `deleteSave` (§6.22) |
 
 ### 6.3. Example turn
 
@@ -860,6 +862,66 @@ Stracciatella does for both Russian versions. The server default is `JA2_LANG`, 
   machine tokens; `observe` adds labels in the session's language beside them: `moraleLabel` and `assignmentLabel` on
   strategic mercs, `menuLabels` on the conversation (null where the original has no string), `kindLabel` on the shop.
   Changing the language never touches the simulation, its saves or its logs.
+
+### 6.22. Saves (M7)
+
+ja2-node's own save files (`docs/27` §1.3–§1.7): one `<name>.j2s` per save in `$JA2_SAVE_DIR` (default `.ja2/saves/`
+in the repository, gitignored), a gzip of one JSON document `{format: 'ja2-node-save', version, header, session,
+contentFiles, sim, presentation}` written as two gzip members, so the save list reads the header from the first few
+hundred bytes. Clients pass names, never paths: `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`; `QuickSave`, `Auto01`, `Auto02` and
+`Error` are reserved. Native `.sav` files stay in `$JA2_SAVES_DIR` (`docs/14` §10) and are listed read only.
+
+- **MCP.** `save {session?, name?, description?}`: without `name` a new save `<UTC time>-<slug of the description>`
+  (Stracciatella's naming), `name: 'quick'` writes `QuickSave`, any other name writes or overwrites that save;
+  `description` is cut to 46 characters. Returns `{ok, name, kind: player|quick|auto|deadIsDead, header}` or `{ok:
+  false, refused, reason}`. `load {name, session?, reseed?}` loads into `session` in place or, without it, into a new
+  session; `newSession {load, reseed?}` is the same. `listSaves {}` returns ja2-node saves (`native: false`, the header)
+  and native saves (`native: true`, the native header: description, day, hour, minute, sector, mercs, balance,
+  options), newest first, with `compatible` and `problems` (`versionTooNew`, `contentMismatch`, `needsOriginalData`).
+  `deleteSave {name}` deletes a ja2-node save and its log.
+- **HTTP.** `GET /api/saves`; `POST /api/sessions/:id/save` (`{name?, description?}`; 409 for a refusal, 400 for a bad
+  name); `POST /api/sessions/:id/load` (`{name, reseed?}`); `POST /api/sessions {load, reseed?}`; `DELETE
+  /api/saves/:name` (404 when absent); `GET /api/saves/:name/file` (`application/gzip`); `PUT /api/saves/:name/file`
+  (the body is the file, at most 32 MiB: 413 above; parsed, version and content checked before it is written);
+  developer only, `POST /api/sessions/:id/snapshot` (`{name?, description?}`) writes a save ignoring the save rules.
+  Load refusals map to 404 (`notFound`), 409 (`contentMismatch`, `versionTooNew`, `noMigration`) and 400 (`invalidName`,
+  `notASave`, `corrupt`).
+- **WebSocket.** `{t: 'save', id, name?, description?}` and `{t: 'load', id, name, reseed?}` answer with `result` (`data`
+  is the outcome, `reason` the refusal code). A load in place sends every subscriber of the session a fresh `welcome`;
+  when the real-time driver was running it stops (the driver becomes `manual`) and the subscribers first receive
+  `stopped {report: {reason: 'loaded'}}`.
+- **Events.** `gameSaved {name, kind}` after a player or quick save and `gameLoaded {name, seed}` after a load arrive with
+  the next `advance` report of that session; autosaves and Dead is Dead saves send none, as in the original.
+- **Save modes.** A campaign option chosen at the new game: `newSession {campaign: {saveMode: 'anywhere' | 'ironMan' |
+  'deadIsDead', deadIsDeadName?}}` (default `anywhere`; the Dead is Dead file defaults to `DeadIsDead`); a native import
+  takes the mode of its header, and a Dead is Dead import saves under the native file's name. `status`, `GET
+  /api/sessions` and `observe` show `saveMode`, `canSave` and, when a rule applies, `saveRefusal`. Refusals of `save`:
+  `conversation` (a conversation is open, a scripted sequence runs or the dialogue queue is busy), `meanwhileStarting`
+  (a meanwhile scene starts or plays), `promptOpen` (a battle, contract, militia or NPC prompt, or an autoresolve battle),
+  `shopOpen`, `ironMan` (Iron Man: in turn-based combat or while the loaded sector holds enemies) and `deadIsDead` (an
+  explicit save in Dead is Dead; `save {name: 'quick'}` writes the Dead is Dead file there, or answers
+  `actionInProgress` outside our turn or while something still acts), plus `invalidName`, `reservedName` and
+  `notSaveable`. A won campaign can be saved; loading is never restricted.
+- **Autosave.** When `endTurn` is accepted in turn-based combat and combat goes on, the state from just before the
+  command goes to `Auto01` or `Auto02` (the older or missing one), if the mode allows a save (never in Iron Man, the
+  original's `UIHandleEndTurn`). In Dead is Dead the game writes its one file, after two backups
+  (`Backup/<name>.j2s.1`, `.2`), at the start of our turn, at `endTurn`, when a meanwhile starts, when a group is about
+  to arrive, before another save is loaded into the session and when the server stops; it is written only on our turn
+  with no conversation, meanwhile, prompt, shop or action in progress, at the end of the input that saw the save point
+  (later, once these hold).
+- **Load modes.** By default a load is a player load: the saved state is restored exactly, then the main random stream
+  is reseeded from a server seed (`crypto.randomInt`), returned as `seed` and logged as `reseed {seed}`; the `PreRandom`
+  ring repeats its saved values until they are used up, as after a native reload. `reseed: false` is an exact load:
+  the game continues bit for bit like the saved one (reproducible experiments, bug reports). A load checks the logic
+  content before anything is built: another content source (stubs against original data) or other files feeding the
+  simulation refuse it (`contentMismatch`); another data version or other quote lengths load with the warning
+  `dataVersionDiffers`, another engine version or commit with `engineDiffers`. The result carries `warnings`.
+- **Input log and replay.** Every save whose session has a known origin (a new sandbox or campaign with its seed and
+  request, a native import with the file's digest, or the save it was loaded from) gets `<name>.log.jsonl.gz`: one
+  JSON line for the origin, then `{seq, tick, kind, payload}` per input (`cmd`, `answer`, `advance`, `drive`, `reseed`,
+  `load`, `prepare`). `pnpm cli replay <name>` rebuilds the origin, re-runs the log with the manual driver and compares
+  the snapshot with the save. When a command or a step throws, the server writes the whole log as
+  `Error.log.jsonl.gz` instead of an error save.
 
 ## 7. Cost and limitations
 
