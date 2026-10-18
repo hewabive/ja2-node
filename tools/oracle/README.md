@@ -29,6 +29,7 @@ commit them.
 |---|---|
 | `build.sh` | Copies `reference/stracciatella` to the work dir, adds `src/`, applies `patches/`, builds |
 | `run.sh` | Runs one probe script headless and prints JSONL (or writes it to a file) |
+| `compare-all.sh` | Runs `compare.ts` over every probe output in the work dir (the full regression gate; needs `JA2_DATA_DIR`) |
 | `src/Oracle.{h,cc}` | The probe harness, copied into `src/game/` of the Stracciatella copy |
 | `patches/0001-oracle-hooks.patch` | Hooks every probe needs (see "Hooks") |
 | `patches/0002-autoresolve-oracle.patch` | Draw trace, engine reseed and a headless autoresolve (see "Hooks") |
