@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
+import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
 import type { ConversationView } from '../protocol/view.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -8,7 +10,7 @@ import { questStatus } from '../sim/strategic/narrative/facts.ts';
 import { Body, NO_PROFILE, Team } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
-import { Session } from './session.ts';
+import type { Session } from './session.ts';
 
 let kit: StubSectorKit;
 
@@ -31,8 +33,9 @@ const QUEST_IN_PROGRESS = 1;
 const QUEST_DONE = 2;
 const CIV_LOW_LOYALTY_LINES: ReadonlySet<number> = new Set([6, 7]);
 
-async function inA10(seed: number): Promise<{ session: CampaignSession; live: Session }> {
-  const session = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
+async function inA10(seed: number, mode?: RunMode): Promise<{ session: CampaignSession; live: Session }> {
+  const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
+  const session = drivenSession(created, stubSessionSources(kit), mode);
   const start = sectorInfo(session.campaign.state.map, parseSectorString('A9'));
   start.numAdmins = 0;
   start.numTroops = 0;
@@ -44,7 +47,7 @@ async function inA10(seed: number): Promise<{ session: CampaignSession; live: Se
   const first = session.view().strategic?.mercs[0];
   if (!first) throw new Error('no merc');
   expect(session.dispatch({ type: 'route', soldier: first.id, to: 'A10' })).toMatchObject({ ok: true });
-  const live = new Session('t', session);
+  const live = new ReloadingSession('t', session);
   for (let k = 0; k < ROUTE_BUDGET && !session.view().strategic?.mercs.every((m) => m.sector === 'A10' && !m.betweenSectors); k++)
     live.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
   const enter = { type: 'enterSector', sector: 'A10' };
@@ -87,9 +90,9 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
 
     const direct = session.dispatch({ type: 'approach', kind: 'direct' });
     expect(lines(direct).map((l) => l.quote)).toEqual([14, 15]);
-    const n = session.campaign.state.narrative;
-    expect(questStatus(n, HERMIT_QUEST)).toBe(QUEST_IN_PROGRESS);
-    expect(n.facts[HERMIT_FACT]).toBe(1);
+    const n = () => session.campaign.state.narrative;
+    expect(questStatus(n(), HERMIT_QUEST)).toBe(QUEST_IN_PROGRESS);
+    expect(n().facts[HERMIT_FACT]).toBe(1);
     expect(lines(session.dispatch({ type: 'approach', kind: 'direct' })).map((l) => l.quote)).toEqual([5]);
     expect(lines(session.dispatch({ type: 'approach', kind: 'repeat' })).map((l) => l.quote)).toEqual([5]);
 
@@ -111,7 +114,7 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(reopened?.lastQuotes.map((q) => q.quote)).toEqual([18]);
     const vasko = session.campaign.tactical?.state.soldiers.find((s) => s?.profile === VASKO);
     expect(Math.abs((vasko?.gridNo ?? 0) - LOOKOUT_TILE) % 160).toBeLessThan(4);
-    expect(questStatus(n, HERMIT_QUEST)).toBe(QUEST_DONE);
+    expect(questStatus(n(), HERMIT_QUEST)).toBe(QUEST_DONE);
 
     expect(session.dispatch({ type: 'closeTalk' })).toEqual({ ok: true });
     expect(session.view().conversation).toBeNull();
@@ -187,30 +190,35 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(conversation(answered)?.lastQuotes.map((q) => q.quote)).toEqual([22]);
   });
 
-  it('lets an unnamed civilian bark a civilian quote instead of opening a panel', async () => {
-    const { session, live } = await inA10(11);
-    const merc = session.view().strategic?.mercs[0]?.id ?? 0;
-    const t = session.campaign.tactical?.state;
-    const villager = t?.soldiers.find((s) => s?.placed && s.team === Team.CIV && s.profile === NO_PROFILE && s.bodyType <= Body.KIDCIV);
-    if (!t || !villager) throw new Error('no villager');
-    expect(session.dispatch({ type: 'move', soldier: merc, to: villager.gridNo + 2, mode: 'walk' }).ok).toBe(true);
-    live.advance({ idle: true });
-    session.drainEvents();
-    const started = session.dispatch({ type: 'talk', soldier: merc, target: villager.id });
-    expect(started.ok, started.reason).toBe(true);
-    let bark = (started.data as { civQuote?: { text?: string; quote: number; entry: number } | null }).civQuote;
-    let events: readonly SimEvent[] = session.drainEvents();
-    if ((started.data as { walking?: boolean }).walking) {
-      const report = live.advance({ idle: true });
-      events = report.events;
-      bark = events.find((e) => e.type === 'civQuote') as unknown as typeof bark;
-    }
-    expect(CIV_LOW_LOYALTY_LINES.has(bark?.quote ?? -1)).toBe(true);
-    expect(bark?.text?.length ?? 0).toBeGreaterThan(0);
-    expect(events.some((e) => e.type === 'civQuote')).toBe(true);
-    expect(session.view().conversation ?? null).toBeNull();
-    expect(villager.currentCivQuote).toBeGreaterThanOrEqual(0);
-  });
+  it(
+    'continues exactly when the session is saved and restored after every input',
+    async () => {
+      await expectReloadsInvisible(async (mode) => {
+        const { session, live } = await inA10(9, mode);
+        const merc = session.view().strategic?.mercs[0]?.id ?? 0;
+        walkUpAndTalk(session, live, merc);
+        session.dispatch({ type: 'approach', kind: 'direct' });
+        session.dispatch({ type: 'approach', kind: 'recruit' });
+        live.advance({ ticks: 10 });
+        session.dispatch({ type: 'answer', prompt: session.view().npcRequest?.id, choice: 'no' });
+        session.dispatch({ type: 'approach', kind: 'friendly' });
+        session.dispatch({ type: 'approach', kind: 'friendly' });
+        live.advance({ idle: true });
+        session.dispatch({ type: 'closeTalk' });
+        live.advance({ ticks: 200 });
+        return session;
+      });
+    },
+    RELOAD_TEST_TIMEOUT_MS,
+  );
+
+  it(
+    'lets an unnamed civilian bark a civilian quote instead of opening a panel, the same across reloads',
+    async () => {
+      await expectReloadsInvisible(civilianBark);
+    },
+    RELOAD_TEST_TIMEOUT_MS,
+  );
 
   it('opens the shop of the stub dealer through the talk menu', async () => {
     const { session, live } = await inA10(7);
@@ -227,3 +235,29 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(session.dispatch({ type: 'closeShop' })).toEqual({ ok: true });
   });
 });
+
+async function civilianBark(mode: RunMode): Promise<CampaignSession> {
+  const { session, live } = await inA10(11, mode);
+  const merc = session.view().strategic?.mercs[0]?.id ?? 0;
+  const t = session.campaign.tactical?.state;
+  const villager = t?.soldiers.find((s) => s?.placed && s.team === Team.CIV && s.profile === NO_PROFILE && s.bodyType <= Body.KIDCIV);
+  if (!t || !villager) throw new Error('no villager');
+  expect(session.dispatch({ type: 'move', soldier: merc, to: villager.gridNo + 2, mode: 'walk' }).ok).toBe(true);
+  live.advance({ idle: true });
+  session.drainEvents();
+  const started = session.dispatch({ type: 'talk', soldier: merc, target: villager.id });
+  expect(started.ok, started.reason).toBe(true);
+  let bark = (started.data as { civQuote?: { text?: string; quote: number; entry: number } | null }).civQuote;
+  let events: readonly SimEvent[] = session.drainEvents();
+  if ((started.data as { walking?: boolean }).walking) {
+    const report = live.advance({ idle: true });
+    events = report.events;
+    bark = events.find((e) => e.type === 'civQuote') as unknown as typeof bark;
+  }
+  expect(CIV_LOW_LOYALTY_LINES.has(bark?.quote ?? -1)).toBe(true);
+  expect(bark?.text?.length ?? 0).toBeGreaterThan(0);
+  expect(events.some((e) => e.type === 'civQuote')).toBe(true);
+  expect(session.view().conversation ?? null).toBeNull();
+  expect(session.campaign.tactical?.state.soldiers[villager.id]?.currentCivQuote).toBeGreaterThanOrEqual(0);
+  return session;
+}

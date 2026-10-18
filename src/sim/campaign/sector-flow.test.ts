@@ -97,14 +97,14 @@ describe('leaving a sector', () => {
     const { campaign } = createTestCampaign(kit, { seed: 7, garrison: NO_GARRISON });
     landFirstSquad(campaign);
     walkSquadToEastEdge(campaign);
-    const before = campaign.tactical?.state;
-    if (!before) throw new Error('no sector');
     const minute = Math.trunc(campaign.state.clock.seconds / 60);
     const result = campaign.dispatch({ type: 'exitSector', soldier: 0, direction: 'east', who: 'squad' });
     expect(result).toMatchObject({ ok: true, data: { who: 'squad', load: true, target: 'A10' } });
-    expect(before.mercsWaiting?.code).toBe(WaitForMercs.WALKOFF_SCREEN);
-    expect(before.perception.disallowSight).toBe(true);
+    expect(campaign.tactical?.state.mercsWaiting?.code).toBe(WaitForMercs.WALKOFF_SCREEN);
+    expect(campaign.tactical?.state.perception.disallowSight).toBe(true);
     expect(campaign.dispatch({ type: 'move', soldier: 1, to: 12880 })).toMatchObject({ ok: false });
+    const before = campaign.tactical?.state;
+    if (!before) throw new Error('no sector');
     const startMs = before.clockMs;
     runTicks(campaign, 2000, () => campaign.tactical?.state !== before);
     expect(campaign.tactical?.state).not.toBe(before);
@@ -120,19 +120,19 @@ describe('leaving a sector', () => {
     expect(diff?.items).not.toBeNull();
     expect(getSectorFlagStatus(campaign.state.map, A9, SectorFlag.ITEM_TEMP_FILE_EXISTS)).toBe(true);
     runUntilIdle(campaign);
-    expect(after.mercsWaiting).toBeNull();
-    expect(after.perception.disallowSight).toBe(false);
+    expect(campaign.tactical?.state.mercsWaiting).toBeNull();
+    expect(campaign.tactical?.state.perception.disallowSight).toBe(false);
   });
 
   it('keeps the dropped items, corpses and revealed tiles of A9 and ages the corpses by the days away', () => {
     const { campaign } = createTestCampaign(kit, { seed: 8, garrison: NO_GARRISON });
     landFirstSquad(campaign);
-    const t = campaign.tactical?.state;
-    if (!t) throw new Error('no sector');
     const merc = ourSoldiers(campaign)[0];
     if (!merc) throw new Error('no merc');
     expect(campaign.dispatch({ type: 'drop', soldier: merc.id, slot: InvSlot.HAND })).toEqual({ ok: true });
     runUntilIdle(campaign);
+    const t = campaign.tactical?.state;
+    if (!t) throw new Error('no sector');
     const dropped = t.worldItems.map((wi) => [wi.gridNo, wi.object.item]);
     t.corpses.push(
       { gridNo: merc.gridNo + 3, level: 0, bodyType: 0, direction: 0, state: 0, profile: 200, type: 1, timeOfDeath: 0 },

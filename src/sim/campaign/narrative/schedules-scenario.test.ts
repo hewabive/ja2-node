@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type CampaignKit, createTestCampaign, landFirstSquad, runTicks } from '../../../../tests/support/campaign.ts';
 import { loadEconomyTestContent } from '../../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../../tests/support/queen.ts';
+import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../../tests/support/sectors.ts';
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { CompressMode, EventKind, Warp } from '../../strategic/time/constants.ts';
@@ -65,35 +66,46 @@ function compressUntil(c: CampaignSim, done: () => boolean): void {
   if (!done()) throw new Error('compression budget exhausted');
 }
 
-describe('NPC schedules in the stub A10 (docs/25 §5)', () => {
-  it('walks the villager to the square at 09:00, puts him to bed by compression and sends the default civilian away overnight', () => {
-    const { campaign: c } = createTestCampaign(kit, { seed: 21, garrison: NO_GARRISON });
-    landFirstSquad(c);
-    warpToMinuteOfDay(c, BEFORE_NINE);
-    const flow = c.sectors;
-    if (!flow) throw new Error('no sector flow');
-    for (const m of flow.setup.roster.all()) m.sector = { ...A10 };
-    expect(flow.setCurrentWorldSector(A10)).toBe(true);
-    const { villager, passerby } = civilians(c);
-    expect([villager.gridNo, villager.ai.asleep]).toEqual([BED, true]);
-    expect([passerby.placed, passerby.away]).toEqual([true, false]);
-    const t = c.tactical?.state;
-    const passerbySchedule = t ? getSchedule(t.schedules, passerby.scheduleId) : null;
-    expect(passerbySchedule?.actions.slice(0, 2)).toEqual([ScheduleAction.ENTERSECTOR, ScheduleAction.LEAVESECTOR]);
-    const visited = new Set<number>();
-    runTicks(c, WALK_BUDGET, () => {
-      visited.add(villager.gridNo);
-      return villager.gridNo === SQUARE && !villager.ai.checkSchedule;
-    });
-    expect([villager.gridNo, villager.ai.asleep, villager.ai.checkSchedule]).toEqual([SQUARE, false, false]);
-    expect(visited.size).toBeGreaterThan(MIN_TILES_WALKED);
-    compressUntil(c, () => worldHour(c.state.clock) === 21);
-    expect([passerby.away, passerby.placed]).toEqual([true, false]);
-    compressUntil(c, () => worldHour(c.state.clock) === 23);
-    expect([villager.gridNo, villager.ai.asleep]).toEqual([BED, true]);
-    compressUntil(c, () => worldHour(c.state.clock) === 8);
-    expect([passerby.away, passerby.placed, passerby.gridNo]).toEqual([false, true, PASSERBY_HOME]);
+function villagerDay(mode?: RunMode): CampaignSim {
+  const { campaign: c } = createTestCampaign(kit, { seed: 21, garrison: NO_GARRISON, ...(mode ? { mode } : {}) });
+  landFirstSquad(c);
+  warpToMinuteOfDay(c, BEFORE_NINE);
+  const flow = c.sectors;
+  if (!flow) throw new Error('no sector flow');
+  for (const m of flow.setup.roster.all()) m.sector = { ...A10 };
+  expect(flow.setCurrentWorldSector(A10)).toBe(true);
+  const villager = () => civilians(c).villager;
+  const passerby = () => civilians(c).passerby;
+  expect([villager().gridNo, villager().ai.asleep]).toEqual([BED, true]);
+  expect([passerby().placed, passerby().away]).toEqual([true, false]);
+  const t = c.tactical?.state;
+  const passerbySchedule = t ? getSchedule(t.schedules, passerby().scheduleId) : null;
+  expect(passerbySchedule?.actions.slice(0, 2)).toEqual([ScheduleAction.ENTERSECTOR, ScheduleAction.LEAVESECTOR]);
+  const visited = new Set<number>();
+  const walker = villager();
+  runTicks(c, WALK_BUDGET, () => {
+    visited.add(walker.gridNo);
+    return walker.gridNo === SQUARE && !walker.ai.checkSchedule;
   });
+  expect([villager().gridNo, villager().ai.asleep, villager().ai.checkSchedule]).toEqual([SQUARE, false, false]);
+  expect(visited.size).toBeGreaterThan(MIN_TILES_WALKED);
+  compressUntil(c, () => worldHour(c.state.clock) === 21);
+  expect([passerby().away, passerby().placed]).toEqual([true, false]);
+  compressUntil(c, () => worldHour(c.state.clock) === 23);
+  expect([villager().gridNo, villager().ai.asleep]).toEqual([BED, true]);
+  compressUntil(c, () => worldHour(c.state.clock) === 8);
+  expect([passerby().away, passerby().placed, passerby().gridNo]).toEqual([false, true, PASSERBY_HOME]);
+  return c;
+}
+
+describe('NPC schedules in the stub A10 (docs/25 §5)', () => {
+  it(
+    'walks the villager to the square at 09:00, puts him to bed by compression and sends the default civilian away overnight, the same across reloads',
+    async () => {
+      await expectReloadsInvisible(villagerDay);
+    },
+    RELOAD_TEST_TIMEOUT_MS,
+  );
 
   it('walks the default civilian two tiles past the map edge at his leave time and leaves him stuck there, in the sector (kept quirk)', () => {
     const { campaign: c } = createTestCampaign(kit, { seed: 22, garrison: NO_GARRISON });

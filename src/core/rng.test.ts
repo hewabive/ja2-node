@@ -19,6 +19,25 @@ describe('Rng', () => {
     for (let i = 0; i < 50; i++) expect(b.nextU32()).toBe(a.nextU32());
   });
 
+  it('restores a saved state in place, so a shared stream and a PreRandom refilling from it follow', () => {
+    const shared = Rng.fromSeed(7);
+    const pre = PreRandom.create(shared);
+    const saved = shared.state();
+    const preSaved = pre.state();
+    const expected = Array.from({ length: 300 }, () => [shared.nextU32(), pre.int(1000)]);
+    shared.restore(saved);
+    pre.restore(preSaved);
+    expect(pre.refillStream()).toBe(shared);
+    expect(Array.from({ length: 300 }, () => [shared.nextU32(), pre.int(1000)])).toEqual(expected);
+  });
+
+  it('refuses an all-zero or non-integer state', () => {
+    const r = Rng.fromSeed(1);
+    expect(() => r.restore({ s: [0, 0, 0, 0] })).toThrow(RangeError);
+    expect(() => r.restore({ s: [1.5, 0, 0, 0] })).toThrow(RangeError);
+    expect(() => Rng.fromState({ s: [0, 0, 0, 0] })).toThrow(RangeError);
+  });
+
   it('returns 0 for Random(0) and stays within [0, n)', () => {
     const r = Rng.fromSeed(1);
     expect(r.int(0)).toBe(0);

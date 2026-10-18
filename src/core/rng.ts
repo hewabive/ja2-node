@@ -26,6 +26,11 @@ function checkRange(n: number): void {
   }
 }
 
+function checkRngWords(...words: readonly number[]): void {
+  if (words.some((w) => !Number.isInteger(w))) throw new RangeError('xoshiro128** state must be four integers');
+  if (words.every((w) => w >>> 0 === 0)) throw new RangeError('xoshiro128** state must not be all zero');
+}
+
 export interface RngState {
   readonly s: readonly [number, number, number, number];
 }
@@ -37,7 +42,7 @@ export class Rng {
   #s3: number;
 
   private constructor(s0: number, s1: number, s2: number, s3: number) {
-    if ((s0 | s1 | s2 | s3) === 0) throw new RangeError('xoshiro128** state must not be all zero');
+    checkRngWords(s0, s1, s2, s3);
     this.#s0 = s0 >>> 0;
     this.#s1 = s1 >>> 0;
     this.#s2 = s2 >>> 0;
@@ -56,6 +61,15 @@ export class Rng {
 
   state(): RngState {
     return { s: [this.#s0, this.#s1, this.#s2, this.#s3] };
+  }
+
+  restore(state: RngState): void {
+    const [a, b, c, d] = state.s;
+    checkRngWords(a, b, c, d);
+    this.#s0 = a >>> 0;
+    this.#s1 = b >>> 0;
+    this.#s2 = c >>> 0;
+    this.#s3 = d >>> 0;
   }
 
   nextU32(): number {
@@ -134,6 +148,10 @@ export class PreRandom {
 
   state(): PreRandomState {
     return { ring: Array.from(this.#ring), index: this.#index };
+  }
+
+  refillStream(): Rng {
+    return this.#refill;
   }
 
   #take(): number {

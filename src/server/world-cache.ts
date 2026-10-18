@@ -28,6 +28,20 @@ export class WorldCache implements SectorWorlds {
     return inputs ? buildTacticalWorldFromInputs(inputs) : null;
   }
 
+  preparedPaths(): string[] {
+    return [...this.#inputs.keys()];
+  }
+
+  fork(paths: Iterable<string>): WorldCache {
+    const copy = new WorldCache(this.#read, this.#exists);
+    for (const path of paths) {
+      const inputs = this.#inputs.get(path);
+      if (!inputs) throw new Error(`the map ${path} is not prepared`);
+      copy.#inputs.set(path, inputs);
+    }
+    return copy;
+  }
+
   async prepare(paths: Iterable<string>): Promise<void> {
     for (const path of new Set(paths)) {
       if (this.#inputs.has(path) || !this.#exists(path)) continue;

@@ -97,6 +97,17 @@ const ORIENTATION_NAMES: Readonly<Record<number, string>> = {
 export class MovementCosts {
   readonly values = new Uint8Array(WORLD_MAX * DIRECTION_COUNT * LEVELS);
 
+  static fromSnapshot(values: Uint8Array): MovementCosts {
+    const costs = new MovementCosts();
+    if (values.length !== costs.values.length) throw new RangeError(`a movement cost snapshot needs ${costs.values.length} values`);
+    costs.values.set(values);
+    return costs;
+  }
+
+  toSnapshot(): Uint8Array {
+    return this.values;
+  }
+
   get(g: number, d: number, level: number): number {
     return this.values[(g * DIRECTION_COUNT + d) * LEVELS + level] ?? TravelCost.OFF_MAP;
   }

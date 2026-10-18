@@ -14,9 +14,10 @@ import { loadStrategicContent } from '../content/strategic/strategic-content.ts'
 import { type DataDecoding, DEFAULT_DATA_DECODING } from '../content/text/data-version.ts';
 import { loadTacticalWorld } from '../content/world/tactical-world.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
-import { CampaignSim } from '../sim/campaign/campaign-sim.ts';
+import { type CampaignHooks, CampaignSim, type SimConstruction } from '../sim/campaign/campaign-sim.ts';
 import { importContracts } from '../sim/campaign/contracts/save-import.ts';
 import { importLaptop } from '../sim/campaign/laptop/save-import.ts';
+import { offMapCombatContext } from '../sim/campaign/off-map-combat.ts';
 import { NO_ROSTER_HOOKS, Roster } from '../sim/campaign/roster.ts';
 import { addSavedMercsToRoster } from '../sim/campaign/save-roster.ts';
 import { importStory, type SavedStory, storyImportRefusal } from '../sim/campaign/story-import.ts';
@@ -26,13 +27,15 @@ import { importMerchants } from '../sim/strategic/economy/merchants/save-import.
 import { applySavedAssignment, importEconomy } from '../sim/strategic/economy/save-import.ts';
 import { importStrategicMap } from '../sim/strategic/map/save-import.ts';
 import { importNarrativeSave } from '../sim/strategic/narrative/save-import.ts';
-import { createStrategicState } from '../sim/strategic/state.ts';
+import { createStrategicState, type StrategicState } from '../sim/strategic/state.ts';
 import { importStrategicTime } from '../sim/strategic/time/save-import.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
 import { importSave, type SaveImportReport, saveMapPath, worldWithSavedDoors } from '../sim/tactical/save-import.ts';
 import { removeSoldierFromTacticalSector } from '../sim/tactical/sector-presence.ts';
 import { TEAM_FIRST_ID, TEAM_SIZES, Team } from '../sim/tactical/soldier.ts';
+import type { TacticalState } from '../sim/tactical/state.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
+import type { CampaignParts } from './campaign-factory.ts';
 import { CampaignSession } from './campaign-session.ts';
 import { narrativeSetup } from './narrative-content.ts';
 import { type FileExists, WorldCache } from './world-cache.ts';
@@ -100,16 +103,8 @@ export async function createSaveSession(
   const story = savedStory(save, saiSections.firstBattleSector);
   const storyRefusal = storyImportRefusal(story);
   if (storyRefusal) throw new Error(`cannot continue this save: ${storyRefusal}`);
-  const [world, content, strategicContent, army] = await Promise.all([
-    loadTacticalWorld(read, saveMapPath(save)),
-    loadTacticalContent(read, decoding),
-    loadStrategicContent(read),
-    loadArmyContent(read),
-  ]);
-  const economyContent = await loadEconomyContent(read, strategicContent.towns);
-  const merchantContent = await loadMerchantContent(read, content.items);
-  const laptopContent = await loadLaptopContent(read, content.items);
-  const narrative = await narrativeSetup(read, content.items, content.profiles, layers, decoding);
+  const [world, parts] = await Promise.all([loadTacticalWorld(read, saveMapPath(save)), loadImportParts(read, exists, layers, decoding)]);
+  const { content, strategic: strategicContent, economy: economyContent, laptop: laptopContent } = parts;
   const sim = new TacticalSim(worldWithSavedDoors(world, save), content, seed);
   const report = importSave(sim, save);
   const strategic = createStrategicState({
@@ -126,31 +121,8 @@ export async function createSaveSession(
   strategic.clock.driver.lastSecondMs = strategic.realMs;
   strategic.clock.paused = false;
   strategic.clock.pauseLocked = false;
-  let current: CampaignSim | null = null;
-  const tacticalState = () => current?.tactical?.state ?? sim.state;
-  const roster = new Roster({
-    state: strategic.roster,
-    content,
-    combat: tacticalState,
-    profiles: strategic.profiles,
-    hooks: { ...NO_ROSTER_HOOKS, removeFromTacticalSector: (merc) => removeSoldierFromTacticalSector(tacticalState(), merc.soldier) },
-  });
-  addSavedMercsToRoster(roster, save, sim.state);
   const worlds = exists ? new WorldCache(read, exists) : null;
-  const campaign = new CampaignSim(strategic, sim, {
-    strategic: { content: strategicContent, mercs: roster },
-    economy: { economy: economyContent, items: content.items, crew: roster },
-    queen: { army },
-    ...(worlds ? { sectors: { worlds, content, roster } } : {}),
-    merchants: { content: merchantContent, items: content.items },
-    laptop: {
-      content: laptopContent,
-      merchants: merchantContent,
-      dialogueProfiles: dialogueProfiles(exists ?? (() => false), economyContent.mercTypes, laptopContent),
-    },
-    narrative,
-  });
-  current = campaign;
+  const { campaign, roster } = assembleImportedCampaign(parts, strategic, sim, worlds, (r) => addSavedMercsToRoster(r, save, sim.state));
   importMerchants(strategic.merchants, readSavedMerchants(saveBytes, save.sections));
   if (campaign.strategic) importStrategicMap(campaign.strategic, save);
   if (campaign.queen) importStrategicAi(campaign.queen, saiSections, { runLoadHooks: true });
@@ -178,5 +150,75 @@ export async function createSaveSession(
     });
   }
   campaign.sectors?.adoptLoadedSector(savedSoldierLinks(save));
-  return { session: new CampaignSession(campaign, roster, worlds, narrative.texts), report };
+  return { session: new CampaignSession(campaign, roster, worlds, parts.narrative.texts, { kind: 'imported', parts }), report };
+}
+
+export async function loadImportParts(
+  read: ReadFile,
+  exists: FileExists | null,
+  layers?: LayerCount,
+  decoding: DataDecoding = DEFAULT_DATA_DECODING,
+): Promise<CampaignParts> {
+  const [content, strategic, army] = await Promise.all([
+    loadTacticalContent(read, decoding),
+    loadStrategicContent(read),
+    loadArmyContent(read),
+  ]);
+  const economy = await loadEconomyContent(read, strategic.towns);
+  const merchants = await loadMerchantContent(read, content.items);
+  const laptop = await loadLaptopContent(read, content.items);
+  const narrative = await narrativeSetup(read, content.items, content.profiles, layers, decoding);
+  return {
+    content,
+    strategic,
+    army,
+    economy,
+    merchants,
+    laptop,
+    dialogueProfiles: dialogueProfiles(exists ?? (() => false), economy.mercTypes, laptop),
+    narrative,
+  };
+}
+
+export interface AssembledImport {
+  readonly campaign: CampaignSim;
+  readonly roster: Roster;
+}
+
+export function assembleImportedCampaign(
+  parts: CampaignParts,
+  state: StrategicState,
+  first: TacticalSim | null,
+  worlds: WorldCache | null,
+  beforeCampaign: (roster: Roster) => void = () => {},
+  construction: SimConstruction = 'create',
+): AssembledImport {
+  const { content } = parts;
+  let current: CampaignSim | null = null;
+  const tacticalState = (): TacticalState | null => (current ? (current.tactical?.state ?? null) : (first?.state ?? null));
+  const roster = new Roster({
+    state: state.roster,
+    content,
+    combat: () => tacticalState() ?? offMapCombatContext(state, content, current?.experienceHooks),
+    profiles: state.profiles,
+    hooks: {
+      ...NO_ROSTER_HOOKS,
+      removeFromTacticalSector: (merc) => {
+        const t = tacticalState();
+        if (t) removeSoldierFromTacticalSector(t, merc.soldier);
+      },
+    },
+  });
+  beforeCampaign(roster);
+  const hooks: CampaignHooks = {
+    strategic: { content: parts.strategic, mercs: roster },
+    economy: { economy: parts.economy, items: content.items, crew: roster },
+    queen: { army: parts.army },
+    ...(worlds ? { sectors: { worlds, content, roster } } : {}),
+    merchants: { content: parts.merchants, items: content.items },
+    laptop: { content: parts.laptop, merchants: parts.merchants, dialogueProfiles: parts.dialogueProfiles },
+    narrative: parts.narrative,
+  };
+  current = construction === 'restore' ? CampaignSim.restore(state, first, hooks) : new CampaignSim(state, first, hooks);
+  return { campaign: current, roster };
 }

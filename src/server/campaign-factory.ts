@@ -20,6 +20,7 @@ import { createStrategicState, type StrategicState } from '../sim/strategic/stat
 import { CompressMode } from '../sim/strategic/time/constants.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
+import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { CampaignSession } from './campaign-session.ts';
 import { narrativeSetup } from './narrative-content.ts';
 import { type FileExists, WorldCache } from './world-cache.ts';
@@ -117,13 +118,18 @@ export interface CampaignParts {
   readonly merchants: MerchantContent;
   readonly laptop: LaptopContent;
   readonly dialogueProfiles: ReadonlySet<number>;
-  readonly narrative: NarrativeSetup;
+  readonly narrative: NarrativeSetup & { readonly texts: DialogueTexts };
 }
 
 export interface AssembledCampaign {
   readonly campaign: CampaignSim;
   readonly roster: Roster;
   readonly worlds: WorldCache;
+}
+
+export interface LoadedCampaignParts {
+  readonly parts: CampaignParts;
+  readonly stubbed: boolean;
 }
 
 export interface NewCampaign extends AssembledCampaign {
@@ -133,12 +139,18 @@ export interface NewCampaign extends AssembledCampaign {
   readonly texts: DialogueTexts;
 }
 
+export interface CampaignAssembly {
+  readonly construction?: SimConstruction;
+  readonly tactical?: TacticalSim | null;
+  readonly worlds?: WorldCache;
+}
+
 export function assembleCampaign(
   read: ReadFile,
   exists: FileExists,
   parts: CampaignParts,
   state: StrategicState,
-  construction: SimConstruction = 'create',
+  assembly: CampaignAssembly = {},
 ): AssembledCampaign {
   const { content } = parts;
   let campaign: CampaignSim | null = null;
@@ -148,7 +160,8 @@ export function assembleCampaign(
     combat: campaignCombatContext(() => campaign, state, content),
     profiles: state.profiles,
   });
-  const worlds = new WorldCache(read, exists);
+  const worlds = assembly.worlds ?? new WorldCache(read, exists);
+  const tactical = assembly.tactical ?? null;
   const hooks: CampaignHooks = {
     strategic: { content: parts.strategic, mercs: roster },
     economy: { economy: parts.economy, items: content.items, crew: roster },
@@ -158,17 +171,16 @@ export function assembleCampaign(
     laptop: { content: parts.laptop, merchants: parts.merchants, dialogueProfiles: parts.dialogueProfiles },
     narrative: parts.narrative,
   };
-  campaign = construction === 'restore' ? CampaignSim.restore(state, null, hooks) : new CampaignSim(state, null, hooks);
+  campaign = assembly.construction === 'restore' ? CampaignSim.restore(state, tactical, hooks) : new CampaignSim(state, tactical, hooks);
   return { campaign, roster, worlds };
 }
 
-export async function buildNewCampaign(
+export async function loadCampaignParts(
   read: ReadFile,
   exists: FileExists,
-  createState: () => StrategicState,
   layers?: LayerCount,
   decoding: DataDecoding = DEFAULT_DATA_DECODING,
-): Promise<NewCampaign> {
+): Promise<LoadedCampaignParts> {
   const [baseContent, strategicContent, army] = await Promise.all([
     loadTacticalContent(read, decoding),
     loadStrategicContent(read),
@@ -180,6 +192,7 @@ export async function buildNewCampaign(
   const merchantContent = await loadMerchantContent(read, content.items);
   const laptopContent = await loadLaptopContent(read, content.items);
   const narrative = await narrativeSetup(read, content.items, content.profiles, layers, decoding);
+  const stubbed = content !== baseContent;
   const parts: CampaignParts = {
     content,
     strategic: strategicContent,
@@ -187,12 +200,23 @@ export async function buildNewCampaign(
     economy: economyContent,
     merchants: merchantContent,
     laptop: laptopContent,
-    dialogueProfiles: dialogueProfiles(exists, economyContent.mercTypes, laptopContent, content !== baseContent),
+    dialogueProfiles: dialogueProfiles(exists, economyContent.mercTypes, laptopContent, stubbed),
     narrative,
   };
+  return { parts, stubbed };
+}
+
+export async function buildNewCampaign(
+  read: ReadFile,
+  exists: FileExists,
+  createState: () => StrategicState,
+  layers?: LayerCount,
+  decoding: DataDecoding = DEFAULT_DATA_DECODING,
+): Promise<NewCampaign> {
+  const { parts, stubbed } = await loadCampaignParts(read, exists, layers, decoding);
   const { campaign, roster, worlds } = assembleCampaign(read, exists, parts, createState());
   initNewGame(campaign);
-  return { campaign, roster, worlds, parts, laptopContent, stubbed: content !== baseContent, texts: narrative.texts };
+  return { campaign, roster, worlds, parts, laptopContent: parts.laptop, stubbed, texts: parts.narrative.texts };
 }
 
 export async function createCampaignSession(
@@ -204,7 +228,7 @@ export async function createCampaignSession(
   decoding: DataDecoding = DEFAULT_DATA_DECODING,
 ): Promise<CampaignSession> {
   validate(request);
-  const { campaign, roster, worlds, laptopContent, stubbed, texts } = await buildNewCampaign(
+  const { campaign, roster, worlds, parts, laptopContent, stubbed, texts } = await buildNewCampaign(
     read,
     exists,
     () =>
@@ -217,7 +241,7 @@ export async function createCampaignSession(
   );
   hireSquad(campaign, request, stubbed);
   if (request.imp) createImp(campaign, laptopContent, request.imp);
-  const session = new CampaignSession(campaign, roster, worlds, texts);
+  const session = new CampaignSession(campaign, roster, worlds, texts, { kind: 'campaign', parts });
   if (request.hire?.length === 0 && !request.imp) return session;
   const closed = campaign.dispatch({ type: 'closeLaptop' });
   if (!closed.ok) throw new Error(`cannot close the laptop: ${closed.reason ?? 'refused'}`);
