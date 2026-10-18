@@ -4,15 +4,20 @@ A non-commercial reimplementation of Jagged Alliance 2 in TypeScript. The game s
 server (Node), the browser is a client, and agents play through an API. The goal is the
 original's behaviour (mechanics, formulas, order of checks), not a line-by-line port of its code.
 
-**Status:** milestone M2 "Soldier and time": a tactical sandbox (Omerta on the original data, a stub
-village otherwise) where mercs walk, run and hop fences along the original's paths, the garrison and the
-civilians behave as in green alert, everyone sees and hears everyone, and the first hostile sighting stops
-the sector at the combat boundary. An agent can play it through MCP. Turn-based combat comes next (M3).
+**Status:** milestone M7 "Polish", the platform release. A whole campaign runs on the server, from the laptop
+and the first landing to the Queen's death and the ending, on the original data or on the project's own stub pack:
+tactical real time and turn-based combat, the strategic map with the Queen's army, towns, mines and militia, the
+laptop, contracts, merchants, NPCs, quests and meanwhile scenes, with saves, game options, sound, music, the videos and
+Russian or other UI languages. Agents play it through MCP; people play it through a DOM launcher and the developer
+pages. The canvas player UI with the original's screens is the next milestone (M8).
 
-Documents in [`docs/`](docs/): scope and license (`00`), architecture (`01`), mechanics catalog
-(`02`), how logic is tied to animation (`03`), time, server and agent API (`04`), the original's
-static render pipeline (`05`), soldiers and animation (`06`), structures, pathing and walking (`07`),
-sight and noise (`08`), green-alert AI (`09`) and the deviation log.
+Documents in [`docs/`](docs/): scope and license (`00`), architecture, decisions and milestone status (`01`), the
+mechanics catalog (`02`), how logic is tied to animation (`03`), time, server and the agent API (`04`), the render
+pipeline (`05`), the specs of each area (`06`–`26`: soldiers and animation, pathing, sight and noise, AI, turn-based
+combat, attacks, items, combat AI, savegames, strategic time, map and movement, the Queen's AI, towns and assignments,
+autoresolve, lighting, laptop and hiring, contracts, merchants, NPCs and dialogue, quests and NPC actions, meanwhiles and
+the ending), M7's spec (`27`: saves, options, sound, video, localization, stubs, performance) and the deviation log
+(`deviations.md`, every deliberate difference from the original).
 
 ## License and data
 
@@ -127,7 +132,7 @@ itself. The Vite proxy adds the token, so it never appears in page code.
 | `pnpm dev` | Server and Vite together; rebuilds the stub pack first |
 | `pnpm server` / `pnpm web` | Separately |
 | `pnpm check` | Biome, types (`tsc -b`), layer boundaries, unit tests |
-| `pnpm e2e` | Playwright on the stubs (own ports 7431/5183) |
+| `pnpm e2e` | Playwright on the stubs (own ports 7431/5183, `JA2_E2E_PORT`/`JA2_E2E_WEB_PORT` move them) |
 | `pnpm build` | Client build into `dist/client` |
 | `pnpm stubs` | Stub pack |
 | `pnpm cli inspect vfs` | VFS layers and per-file-type statistics |
@@ -149,15 +154,17 @@ Layers (details in `docs/01-architecture.md`, §2):
 | Layer | Runs in | Depends on |
 |---|---|---|
 | `src/core`: RNG, C integer semantics | everywhere, no DOM or Node | — |
-| `src/content`: VFS, formats (SLF, STI, PNG), picture model | everywhere, no DOM or Node | core |
+| `src/content`: VFS, formats (SLF, STI, maps, EDT, WAV, Smacker…), tables, cue rules | everywhere, no DOM or Node | core |
 | `src/node`: VFS over the disk, token | Node | core, content |
-| `src/sim`: deterministic tactical simulation (soldiers, pathing, AI, sight) | everywhere, no DOM or Node | core, content |
-| `src/protocol`: view frames and messages | everywhere | core, content, sim |
-| `src/server`: HTTP, WebSocket sessions, MCP, the sandbox | Node | core, content, sim, protocol, node |
-| `src/render`: WebGL2 R8UI atlases, palette texture, sprites | browser | core, content |
-| `src/devtools`: asset browser, map viewer, tactical page | browser | core, content, protocol, render |
+| `src/sim`: the deterministic simulation (tactical, strategic, campaign, snapshot codec) | everywhere, no DOM or Node | core, content |
+| `src/protocol`: view frames, messages, the music mode | everywhere | core, content, sim |
+| `src/server`: HTTP, WebSocket, MCP, session hosts, saves, text | Node | core, content, sim, protocol, node |
+| `src/render`: WebGL2 R8UI atlases, palette texture, sprites, indexed video frames | browser | core, content |
+| `src/audio`: Web Audio engine, sound director, music player | browser | content, protocol |
+| `src/app`: launcher, client settings, video player, credits | browser | content, protocol, audio, render |
+| `src/devtools`: asset browser, map viewer, tactical, strategic and video pages | browser | core, content, protocol, render, audio, app |
 | `stubs/`: stub pack generator | Node | core, content, node |
-| `tools/`: CLI, dev runner, import checker | Node | everything except browser code |
+| `tools/`: CLI, bench, dev runner, import checker, transcription, oracle | Node | everything except browser code |
 
 Boundaries are enforced three ways:
 - project references in `tsconfig`;
