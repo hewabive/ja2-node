@@ -45,7 +45,7 @@ export const FIRST_AIM_PROFILE = 0;
 export const LAST_AIM_PROFILE = 39;
 export const DEFAULT_AIM_SQUAD: readonly number[] = [0, 3, 4, 7, 14, 16];
 export const DEFAULT_STUB_SQUAD_SIZE = 4;
-export const STUB_SQUAD_PROFILES: readonly number[] = [0, 1, 2, 3, 4, 5];
+export const STUB_SQUAD_PROFILES: readonly number[] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 export const MAX_SQUAD = 6;
 const IMP_INTRO_MAIL = 'IMP_EMAIL_INTRO';
 
