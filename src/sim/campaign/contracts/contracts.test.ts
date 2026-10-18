@@ -358,8 +358,8 @@ describe('the daily update', () => {
     const cc = landed([{ profile: STUB.kestrel }]);
     const m = merc(cc, 0);
     const p = profile(cc, STUB.kestrel);
-    expect(p.mainGunAttractiveness).toBe(8);
-    p.mainGunAttractiveness = 20;
+    expect(p.mainGunAttractiveness).toBe(20);
+    p.mainGunAttractiveness = 50;
     m.soldier.morale = 74;
     expect(soldierHasWorseEquipmentThanUsedTo(cc.flow, m, p)).toBe(true);
     m.soldier.morale = 75;

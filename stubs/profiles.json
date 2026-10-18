@@ -45,12 +45,20 @@
       "inventory": [
         {
           "slot": 5,
-          "item": "GLOCK_17"
+          "item": "MINI14"
         },
         {
           "slot": 7,
-          "item": "CLIP9_15",
-          "count": 2
+          "item": "CLIP556_30_AP",
+          "count": 3
+        },
+        {
+          "slot": 11,
+          "item": "FIRSTAIDKIT"
+        },
+        {
+          "slot": 1,
+          "item": "FLAK_JACKET"
         }
       ]
     },
@@ -97,12 +105,20 @@
       "inventory": [
         {
           "slot": 5,
-          "item": "GLOCK_17"
+          "item": "G41"
         },
         {
           "slot": 7,
-          "item": "CLIP9_15",
-          "count": 2
+          "item": "CLIP556_30_AP",
+          "count": 3
+        },
+        {
+          "slot": 11,
+          "item": "FIRSTAIDKIT"
+        },
+        {
+          "slot": 1,
+          "item": "FLAK_JACKET"
         }
       ]
     },
@@ -153,12 +169,20 @@
       "inventory": [
         {
           "slot": 5,
-          "item": "GLOCK_17"
+          "item": "MP5K"
         },
         {
           "slot": 7,
-          "item": "CLIP9_15",
-          "count": 2
+          "item": "CLIP9_30",
+          "count": 3
+        },
+        {
+          "slot": 8,
+          "item": "MEDICKIT"
+        },
+        {
+          "slot": 11,
+          "item": "FIRSTAIDKIT"
         }
       ]
     },
@@ -202,11 +226,20 @@
       "inventory": [
         {
           "slot": 5,
-          "item": "GLOCK_17"
+          "item": "MINI14"
         },
         {
           "slot": 7,
-          "item": "CLIP9_15",
+          "item": "CLIP556_30_AP",
+          "count": 3
+        },
+        {
+          "slot": 11,
+          "item": "FIRSTAIDKIT"
+        },
+        {
+          "slot": 12,
+          "item": "HAND_GRENADE",
           "count": 2
         }
       ]
@@ -252,12 +285,20 @@
       "inventory": [
         {
           "slot": 5,
-          "item": "GLOCK_17"
+          "item": "MP5K"
         },
         {
           "slot": 7,
-          "item": "CLIP9_15",
-          "count": 2
+          "item": "CLIP9_30",
+          "count": 3
+        },
+        {
+          "slot": 8,
+          "item": "MEDICKIT"
+        },
+        {
+          "slot": 11,
+          "item": "FIRSTAIDKIT"
         }
       ]
     },
@@ -295,12 +336,20 @@
       "inventory": [
         {
           "slot": 5,
-          "item": "GLOCK_17"
+          "item": "MINI14"
         },
         {
           "slot": 7,
-          "item": "CLIP9_15",
-          "count": 2
+          "item": "CLIP556_30_AP",
+          "count": 3
+        },
+        {
+          "slot": 11,
+          "item": "FIRSTAIDKIT"
+        },
+        {
+          "slot": 1,
+          "item": "FLAK_JACKET"
         }
       ]
     },
@@ -347,12 +396,20 @@
       "inventory": [
         {
           "slot": 5,
-          "item": "GLOCK_17"
+          "item": "MP5K"
         },
         {
           "slot": 7,
-          "item": "CLIP9_15",
-          "count": 2
+          "item": "CLIP9_30",
+          "count": 3
+        },
+        {
+          "slot": 8,
+          "item": "MEDICKIT"
+        },
+        {
+          "slot": 11,
+          "item": "FIRSTAIDKIT"
         }
       ]
     },
@@ -394,11 +451,20 @@
       "inventory": [
         {
           "slot": 5,
-          "item": "GLOCK_17"
+          "item": "M14"
         },
         {
           "slot": 7,
-          "item": "CLIP9_15",
+          "item": "CLIP762N_20_AP",
+          "count": 3
+        },
+        {
+          "slot": 11,
+          "item": "FIRSTAIDKIT"
+        },
+        {
+          "slot": 12,
+          "item": "HAND_GRENADE",
           "count": 2
         }
       ]
@@ -442,12 +508,16 @@
       "inventory": [
         {
           "slot": 5,
-          "item": "GLOCK_17"
+          "item": "M14"
         },
         {
           "slot": 7,
-          "item": "CLIP9_15",
-          "count": 2
+          "item": "CLIP762N_20_AP",
+          "count": 3
+        },
+        {
+          "slot": 11,
+          "item": "FIRSTAIDKIT"
         }
       ]
     },
@@ -485,12 +555,16 @@
       "inventory": [
         {
           "slot": 5,
-          "item": "GLOCK_17"
+          "item": "MINI14"
         },
         {
           "slot": 7,
-          "item": "CLIP9_15",
-          "count": 2
+          "item": "CLIP556_30_AP",
+          "count": 3
+        },
+        {
+          "slot": 11,
+          "item": "FIRSTAIDKIT"
         }
       ]
     },
@@ -536,12 +610,20 @@
       "inventory": [
         {
           "slot": 5,
-          "item": "GLOCK_17"
+          "item": "MP5K"
         },
         {
           "slot": 7,
-          "item": "CLIP9_15",
-          "count": 2
+          "item": "CLIP9_30",
+          "count": 3
+        },
+        {
+          "slot": 11,
+          "item": "FIRSTAIDKIT"
+        },
+        {
+          "slot": 1,
+          "item": "FLAK_JACKET"
         }
       ]
     },
@@ -581,18 +663,26 @@
       "learnToLike": 2,
       "learnToLikeTime": 24,
       "opinions": {
-        "10": 22,
-        "2": 6
+        "2": 6,
+        "10": 22
       },
       "inventory": [
         {
           "slot": 5,
-          "item": "GLOCK_17"
+          "item": "G41"
         },
         {
           "slot": 7,
-          "item": "CLIP9_15",
-          "count": 2
+          "item": "CLIP556_30_AP",
+          "count": 3
+        },
+        {
+          "slot": 11,
+          "item": "FIRSTAIDKIT"
+        },
+        {
+          "slot": 1,
+          "item": "KEVLAR_VEST"
         }
       ]
     },
