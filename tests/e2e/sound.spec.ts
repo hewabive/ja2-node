@@ -65,19 +65,23 @@ test('the tactical page plays a stub firefight with sound after the first gestur
   await page.click('[data-playback="16"]');
 
   for (let step = 0; step < 12 && !(await observe()).combat; step++)
-    for (const s of (await observe()).soldiers.filter((x) => x.team === 0)) await act({ type: 'move', soldier: s.id, to: s.gridNo + COLS * 3, mode: 'swat' });
+    for (const s of (await observe()).soldiers.filter((x) => x.team === 0))
+      await act({ type: 'move', soldier: s.id, to: s.gridNo + COLS * 3, mode: 'swat' });
   expect((await observe()).combat).toBeTruthy();
   for (let round = 0; round < ROUNDS && (await observe()).combat; round++) {
     const view = await observe();
     const enemies = view.soldiers.filter((x) => x.team === 1 && (x.life ?? 1) > 0);
     for (const merc of view.soldiers.filter((x) => x.team === 0 && (x.life ?? 0) >= 15)) {
       const target = [...enemies].sort((a, b) => distance(merc.gridNo, a.gridNo) - distance(merc.gridNo, b.gridNo))[0];
-      if (target) for (let shot = 0; shot < 2; shot++) if (!(await act({ type: 'attack', soldier: merc.id, target: target.gridNo })).ok) break;
+      if (target)
+        for (let shot = 0; shot < 2; shot++) if (!(await act({ type: 'attack', soldier: merc.id, target: target.gridNo })).ok) break;
     }
     if ((await observe()).combat) await act({ type: 'endTurn' });
   }
 
-  await expect.poll(() => page.evaluate(() => window.__ja2Audio.played.some((f) => f.startsWith('sounds/weapons/'))), { timeout: 30_000 }).toBe(true);
+  await expect
+    .poll(() => page.evaluate(() => window.__ja2Audio.played.some((f) => f.startsWith('sounds/weapons/'))), { timeout: 30_000 })
+    .toBe(true);
   const fought = await counters(page);
   expect(fought.voicesStarted).toBeGreaterThan(0);
   expect(fought.filesMissing).toBe(0);
@@ -90,7 +94,8 @@ test('the tactical page plays a stub firefight with sound after the first gestur
   });
   await page.waitForTimeout(1500);
   const muted = await counters(page);
-  for (const s of (await observe()).soldiers.filter((x) => x.team === 0 && (x.life ?? 0) >= 15)) await act({ type: 'stance', soldier: s.id, stance: 'crouch' });
+  for (const s of (await observe()).soldiers.filter((x) => x.team === 0 && (x.life ?? 0) >= 15))
+    await act({ type: 'stance', soldier: s.id, stance: 'crouch' });
   if ((await observe()).combat) await act({ type: 'endTurn' });
   await expect.poll(async () => (await counters(page)).cuesResolved, { timeout: 30_000 }).toBeGreaterThan(muted.cuesResolved);
   await page.waitForTimeout(1500);
