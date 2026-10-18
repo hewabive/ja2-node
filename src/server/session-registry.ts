@@ -1,12 +1,21 @@
 import { z } from 'zod';
 import { UI_LANGUAGES } from '../content/text/data-version.ts';
+import { SAVE_MODES } from '../sim/strategic/state.ts';
 import type { CampaignRequest } from './campaign-factory.ts';
+import { saveStatus } from './save-rules.ts';
+import { SAVE_FILE_NAME } from './save-store.ts';
 import type { Session } from './session.ts';
+
+export interface LoadRequest {
+  readonly name: string;
+  readonly reseed: boolean;
+}
 
 export interface SessionRequest {
   readonly seed: number;
   readonly save?: string;
   readonly campaign?: CampaignRequest;
+  readonly load?: LoadRequest;
 }
 
 export type SessionFactory = (id: string, request: SessionRequest) => Promise<Session>;
@@ -22,7 +31,16 @@ export const NEW_SESSION_SHAPE = {
     .describe(
       "display language of the UI labels this session resolves (eng, rus, ger, dut, fr, it, pl, chs; default JA2_LANG or the data version's language); dialogue and other data text always come in the data version's language",
     ),
-  save: z.string().regex(SAVE_NAME).optional(),
+  save: z.string().regex(SAVE_NAME).optional().describe('a native savegame of the SavedGames folder, without .sav'),
+  load: z
+    .string()
+    .regex(SAVE_FILE_NAME)
+    .optional()
+    .describe('a ja2-node save (listSaves) to load into the new session; same as the load tool without session'),
+  reseed: z
+    .boolean()
+    .optional()
+    .describe('with load: false restores the random streams exactly (reproducible); default true reseeds the main stream'),
   campaign: z
     .object({
       difficulty: z.number().int().min(1).max(3).optional().describe('1 easy, 2 medium (default), 3 hard'),
@@ -49,6 +67,13 @@ export const NEW_SESSION_SHAPE = {
         .optional()
         .describe('size of the default squad (hired in order while affordable and available)'),
       land: z.boolean().optional().describe('fly the squad in at once (default true); false closes the laptop at the first hour'),
+      saveMode: z
+        .enum(SAVE_MODES)
+        .optional()
+        .describe(
+          'anywhere (default), ironMan (no saves in combat or with enemies in the loaded sector) or deadIsDead (one save file the game writes itself)',
+        ),
+      deadIsDeadName: z.string().regex(SAVE_FILE_NAME).optional().describe('the save name of a deadIsDead campaign (default DeadIsDead)'),
     })
     .optional(),
 };
@@ -68,6 +93,7 @@ export function describeSession(session: Session): Record<string, unknown> {
     dataVersion: session.dataVersion,
     soldiers: view.soldiers.length,
     idle: session.sim.isIdle(),
+    ...saveStatus(session.sim),
     ...(view.clock ? { clock: view.clock } : {}),
     ...(view.strategic
       ? {
@@ -96,7 +122,9 @@ export async function openSession(
 ): Promise<Session> {
   const pending = creating(sessions);
   if (sessions.size + pending.size >= MAX_SESSIONS) throw new Error(`at most ${MAX_SESSIONS} sessions`);
-  if (request.save && request.campaign) throw new Error('pass either save or campaign');
+  if ([request.save, request.campaign, request.load].filter((x) => x !== undefined).length > 1)
+    throw new Error('pass at most one of save, campaign and load');
+  if (request.reseed !== undefined && !request.load) throw new Error('reseed goes with load');
   let n = sessions.size + pending.size;
   const taken = (candidate: string) => sessions.has(candidate) || pending.has(candidate);
   while (taken(`${defaultSession}-${n}`)) n++;
@@ -107,6 +135,7 @@ export async function openSession(
       seed: request.seed ?? n,
       ...(request.save ? { save: request.save } : {}),
       ...(request.campaign ? { campaign: request.campaign } : {}),
+      ...(request.load ? { load: { name: request.load, reseed: request.reseed ?? true } } : {}),
     });
     if (request.language) created.language = request.language;
     sessions.set(id, created);

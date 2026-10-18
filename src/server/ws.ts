@@ -3,6 +3,7 @@ import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { type WebSocket, WebSocketServer } from 'ws';
 import { parseClientMessage, type ServerMessage } from '../protocol/messages.ts';
+import { loadProblemOf, type SaveService } from './save-service.ts';
 import type { Session } from './session.ts';
 
 const MAX_MESSAGE_BYTES = 1 << 20;
@@ -17,6 +18,7 @@ export interface WebSocketOptions {
   readonly sessions: ReadonlyMap<string, Session>;
   readonly defaultSession: string;
   readonly allowedHosts?: readonly string[];
+  readonly saves?: SaveService;
 }
 
 function tokenFrom(req: IncomingMessage, url: URL): string | undefined {
@@ -78,6 +80,25 @@ function serve(ws: WebSocket, options: WebSocketOptions): void {
         return inOrder(() => {
           current.setDriver(message.driver);
           send({ t: 'result', id: message.id, ok: true });
+        });
+      case 'save':
+        return inOrder(async () => {
+          const saves = options.saves;
+          if (!saves) return send({ t: 'result', id: message.id, ok: false, reason: 'saves are not available' });
+          const outcome = await saves.save(current, { name: message.name, description: message.description });
+          send({ t: 'result', id: message.id, ok: outcome.ok, ...(outcome.ok ? {} : { reason: outcome.refused }), data: outcome });
+        });
+      case 'load':
+        return inOrder(async () => {
+          const saves = options.saves;
+          if (!saves) return send({ t: 'result', id: message.id, ok: false, reason: 'saves are not available' });
+          try {
+            const outcome = await saves.loadInto(current, message.name, message.reseed ?? true);
+            send({ t: 'result', id: message.id, ok: true, data: outcome });
+          } catch (err) {
+            const refused = loadProblemOf(err);
+            send({ t: 'result', id: message.id, ok: false, reason: refused, data: { refused, reason: (err as Error).message } });
+          }
         });
     }
   });

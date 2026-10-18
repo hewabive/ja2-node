@@ -96,10 +96,15 @@ export interface TerroristState {
   count: number;
 }
 
+export const SAVE_MODES = ['anywhere', 'ironMan', 'deadIsDead'] as const;
+
+export type SaveMode = (typeof SAVE_MODES)[number];
+
 export interface GameOptions {
   difficulty: number;
   sciFi: boolean;
   gunNut: boolean;
+  saveMode: SaveMode;
 }
 
 export interface RandomStreams {
@@ -119,7 +124,7 @@ export interface StrategicStateOptions {
 }
 
 const DEFAULT_SEED = 1;
-const DEFAULT_OPTIONS: GameOptions = { difficulty: 2, sciFi: true, gunNut: false };
+const DEFAULT_OPTIONS: GameOptions = { difficulty: 2, sciFi: true, gunNut: false, saveMode: 'anywhere' };
 
 export function createStrategicState(options: StrategicStateOptions = {}): StrategicState {
   const seed = options.seed ?? DEFAULT_SEED;

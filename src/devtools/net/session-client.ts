@@ -3,8 +3,8 @@ import {
   type CommandEnvelope,
   type DriverMode,
   type ServerMessage,
+  type SessionStopReport,
   type StopCondition,
-  type StopReport,
   TICK_MS,
 } from '../../protocol/messages.ts';
 import {
@@ -263,7 +263,7 @@ export class SessionClient {
     return { ok: m.ok, ...(m.reason ? { reason: m.reason } : {}), ...(m.data !== undefined ? { data: m.data } : {}) };
   }
 
-  async advance(until: StopCondition): Promise<StopReport | null> {
+  async advance(until: StopCondition): Promise<SessionStopReport | null> {
     const m = await this.#request({ t: 'advance', id: this.#nextId++, until });
     return m.t === 'stopped' ? m.report : null;
   }

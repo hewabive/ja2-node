@@ -3,7 +3,8 @@
 // @src src/game/SaveLoadGame.cc LoadSavedGame (strategic info, underground, squads, groups, vehicles, general info);
 // @src Strategic_Movement.cc LoadStrategicMovementGroupsFromSavedGameFile, LoadPlayerGroupList; Tactical/Squads.cc
 // @src LoadSquadInfoFromSavedGameFile; StrategicMap_Secrets.cc; Tactical/Vehicles.cc; TileEngine/SaveLoadMap.cc
-// @src LoadAllMapChangesFromMapTempFileAndApplyThem (flag reset); LoadGeneralInfo (the helicopter globals). See docs/14 §4, docs/16 §2.1.
+// @src LoadAllMapChangesFromMapTempFileAndApplyThem (flag reset); LoadGeneralInfo (the helicopter globals); GameSettings.h
+// @src GameSaveMode. See docs/14 §4, docs/16 §2.1, docs/27 §1.1.
 
 import type { SaveGame, StrategicGroup } from '../../../content/formats/savegame.ts';
 import type { SavedHelicopter } from '../../../content/formats/savegame-tactical.ts';
@@ -13,6 +14,7 @@ import { NUMBER_OF_SQUADS, SectorFlag } from '../forces/constants.ts';
 import { emptyPassengerSlots, type Group, type VehicleRecord } from '../forces/groups.ts';
 import { type HelicopterState, REFUEL_SITES } from '../forces/helicopter-state.ts';
 import type { StrategicContext } from '../forces/ports.ts';
+import { SAVE_MODES, type SaveMode } from '../state.ts';
 import { type MapElement, resetSectorFlag, type SectorInfo, type UndergroundSector } from './sectors.ts';
 
 const PLAYER_TEAM = 0;
@@ -24,6 +26,10 @@ const MAP_CHANGES_WRITTEN_BACK_ON_LOAD: ReadonlySet<number> = new Set([
   MapModificationType.WINDOW_HIT,
 ]);
 const SOLDIER_VEHICLE_FLAG = 0x00008000;
+
+function nativeSaveMode(gameSaveMode: number): SaveMode {
+  return SAVE_MODES[gameSaveMode] ?? 'anywhere';
+}
 
 function playerSoldierByProfile(save: SaveGame): Map<number, { id: number; groupId: number }> {
   const byProfile = new Map<number, { id: number; groupId: number }>();
@@ -118,6 +124,7 @@ export function importStrategicMap(ctx: StrategicContext, save: SaveGame): void 
   state.options.difficulty = info.gameOptions.difficulty;
   state.options.sciFi = info.gameOptions.sciFi;
   state.options.gunNut = info.gameOptions.gunNut;
+  state.options.saveMode = nativeSaveMode(info.gameOptions.saveMode);
   state.map.sectors = importSectors(save);
   state.map.elements = importElements(save);
   state.map.underground = importUnderground(save);
