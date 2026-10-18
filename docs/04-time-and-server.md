@@ -5,6 +5,11 @@ The numbers come from the user's copy of `Ja2bin.dat` (Steam, 1.12, Build 04.12.
 Stracciatella code at `ae6bf01`. Paths of the form `Tactical/…` are relative to
 `reference/stracciatella/src/game/`.*
 
+*Since M2 the sections that describe what was built carry "Implemented in", "as built" or a milestone in their title; the
+rest is the v0.1 design. As of M7 (2026-10-18): §5.9 describes the session hosts and §6.2 the MCP tools as built, and
+§6.6–§6.24 the agent API per milestone; the tool descriptions in `src/server/mcp.ts` are the reference for every
+command.*
+
 ---
 
 ## 0. Questions and short answers
@@ -148,6 +153,11 @@ interface StopReport {
 sim.advance(until: StopCondition): StopReport;  // internally the same step()
 ```
 
+As built (M4–M7) a campaign's `advance` also takes world-time targets (`worldTime`, `worldSeconds`, `compressionStopped`,
+`mode`, `docs/15` §6), and the report's `reason` is one of `idle`, `event`, `ticks`, `worldTime`, `budget`, `refused`
+(with `refusal`), `decision` or `ended`; subscribers of a session loaded in place get `stopped {reason: 'loaded'}`
+(§6.22).
+
 ### 4.3. Drivers
 
 | Driver | Who advances time | Purpose |
@@ -264,6 +274,11 @@ generated arena with 8–32 enemies, and with the `server` scenario: an instant 
 whole duration (0.3 s for one battle, 1.2 s with four in one process), so the worker host of `27` §7.5 is needed once
 instant battles share a server with other sessions; numbers in `27` §7.1 and §7.3.
 
+**Since M7 S12** the in-process host runs advances in 10 ms slices, one per event-loop turn across sessions, and
+`JA2_SESSION_HOST=worker` puts each session on its own thread (§5.9): the longest event-loop stall while one session
+runs an instant battle drops to 28–30 ms at the median (36 ms at most), 35–42 ms with four battles and sixteen viewers,
+and a 16-enemy turn costs 131 ms at the median and 274 ms at the 95th percentile on the original arena (`27` §7.3).
+
 ---
 
 ## 5. The server as the source of truth
@@ -282,7 +297,8 @@ instant battles share a server with other sessions; numbers in `27` §7.1 and §
 ### 5.1. Session
 
 - Consists of a `GameState`, a driver, subscribers and a command log.
-- Logic content is loaded once and shared by all sessions, read-only.
+- Logic content is loaded once and shared by all sessions, read-only. As built (M7, §5.9) this holds for the default
+  in-process host; the worker host loads the content once per session in its worker.
 
 ### 5.2. Protocol
 
@@ -305,6 +321,12 @@ type ServerMsg =
   | { t: 'prompt'; prompt: Prompt }
   | { t: 'stopped'; report: StopReport };
 ```
+
+As built (`src/protocol/messages.ts`, M2–M7): the client sends `hello {session?}`, `cmd {id, cmd}` (prompt answers are
+commands of type `answer`), `advance {id, until}`, `drive {id, driver}`, `save` and `load` (§6.22); the server answers
+with `welcome {session, view, driver}` (also after a load in place), `frames` (view diffs every 10 ticks with the events
+of their tick, §4.4), `result {id, ok, reason?, data?}`, `stopped {id, report}` and `error`. Queries are commands that
+change nothing (`estimateAttack`, `quoteTrade`, `inventory`, …).
 
 ### 5.3. Player-view projection (D16)
 
@@ -339,6 +361,10 @@ New rules apply to the core.
   process.
 - Enforced by a linter and by the test "two sessions in one process with the same seed produce the same
   log".
+- As built, `tools/check-imports.ts` bans `Math.random`, `Date`, `performance.now` and timers in `core`, `content` and
+  `sim`; the trigonometric functions were not replaced: the movement, sight and throw code calls `Math.sin`,
+  `Math.cos` and `Math.atan2` and rounds to float32 where the original uses float math (deviations "Physics cadence and
+  floats"), which V8 computes with its own fdlibm-derived code on every platform.
 
 ### 5.7. Embedded mode
 
@@ -350,6 +376,9 @@ New rules apply to the core.
 
 - By default the server listens only on `127.0.0.1`. Access is by token.
 - The API accepts only game commands, never file paths from the client.
+- As built: `JA2_HOST` and `JA2_PORT` (default `127.0.0.1:7420`) set the address; `/api`, `/vfs` and `/mcp` take the token
+  of `.ja2/token` as `Authorization: Bearer`, the HttpOnly cookie set by `/login?token=…` or a `token` query; a Host
+  check guards against DNS rebinding; saves are addressed by name only (§6.22).
 
 ### 5.9. Heavy sessions (as built in M7, S12b)
 
@@ -406,31 +435,45 @@ diff.
 
 ## 6. Agent API
 
+§6.1–§6.5 are the v0.1 design with as-built notes; §6.6–§6.24 add the API milestone by milestone as it was built (there
+is no §6.15). The MCP tool descriptions in `src/server/mcp.ts` list every command with its fields and refusals and are
+the reference when this text and the code differ.
+
 ### 6.1. Transport
 
 - **An LLM agent** connects via MCP (Model Context Protocol). Claude Code connects to the
   local server with the `claude mcp add` command.
 - **Scripts and bots** get the same set via HTTP JSON and a TS client. For them it is also the route
   to mass headless runs.
+- **As built:** MCP over streamable HTTP at `http://127.0.0.1:7420/mcp` (`JA2_PORT` moves it) with `Authorization:
+  Bearer <.ja2/token>` (§5.8); the browser pages use the WebSocket protocol of §5.2; HTTP routes cover sessions
+  (`POST`/`GET /api/sessions`), saves (§6.22) and text (§6.21). There is no stdio transport and no TS client package;
+  the e2e tests and `tools/bench` drive the HTTP and WebSocket endpoints directly.
 
 ### 6.2. Tools
 
-There are few of them, and they are coarse-grained.
+There are few of them, and they are coarse-grained. As built (M7) the MCP server has nine tools; every tool but
+`newSession`, `listSaves` and `deleteSave` takes `session` (default: the session `sandbox`, which `JA2_SAVE` or
+`JA2_CAMPAIGN` open as a native save or a new campaign instead), so agents and tests do not share one battle.
 
 | Tool | What it does |
 |---|---|
-| `status` | Mode (strategy, real-time or turn-based tactics, awaiting a decision), whose turn it is, time, money, squads, the open prompt |
-| `observe` | What the player sees: own soldiers (tile, stance, AP, health, breath, weapon and ammo), visible enemies, heard noises, an ASCII map fragment with a legend (walls, doors, cover by height, roofs), events since the previous call |
-| `query` | Hit chance with N aim clicks, a path and its AP cost, LOS, tile visibility |
-| `act` | A command: `move`, `attack` (shoots, throws, stabs), `stance`, `pickUp`, `drop`, `moveItem`, `attach`, `detach`, `unload`, `reload`, `swapHands`, `applyItem`, `bandage`, `door`, `climb`, `endTurn`, …; on the map: `route`, `assign`, `aimHire`, `moveItem` with the sector inventory, …. By default, time then runs until `idle` or a decision prompt. The response is a summary of events and the new status (§6.24 for the inventory and first-aid commands) |
-| `answer` | An answer to a decision prompt: interrupt, dialogue line, message box, PBI |
-| `advance` | Explicitly advances time in real time and on the strategic map: "until arrival", "until an event", "no longer than N" |
-| `newSession` | Starts another session and returns its id: the sandbox (optional seed), with `campaign {options?, profiles?, hire?, mercs?, imp?, land?}` a new campaign (§6.6, options §6.23), or with `save` a native savegame from the game's `SavedGames` folder (`docs/14` §10); `language` sets the session's display language (§6.21); every other tool takes `session`, so agents and tests do not share one battle |
-| `save` / `load` | Saves on the server; `listSaves`, `deleteSave` (§6.22) |
+| `status` | Tick, map, driver, display language and data version, soldier count, whether the simulation is idle, the game options, `saveMode` and `canSave`; in a campaign also the clock, the flow (`strategic`, `tactical`, `autoresolve`, `laptop`, `meanwhile`, `endgame`, `ended`), the sector, the campaign state and `noUsableMercs` |
+| `observe` | The player view (D16) as JSON: own soldiers (tile, level, direction, animation, AP, life, breath, inventory, keys), the others the squad sees, open doors and the doors with a known lock or trap, items seen on the ground, the combat block; in a campaign the clock, the strategic view, the open prompt and the modal views (autoresolve, shop, laptop, conversation, NPC request, boxing, meanwhile, ended); UI labels in the session's language beside the machine tokens (§6.21). Noises arrive as `noiseHeard` events, never as positions |
+| `act` | One command `{"type": …}`: tactical orders (`move`, `turn`, `stance`, `stop`, `attack`, `pickUp`, `drop`, `climb`, `door`, `endTurn`, `useRemote`), inventory and first aid (§6.24), strategic commands (`route`, `assign`, `exitSector`, `mapScreen`, `compressTime`, …), contracts, shops, the laptop, conversations, `give`, `unescort`, the helicopter and vehicles, `setOption`, and `answer` for every decision prompt; queries are commands that change nothing (`estimateAttack`, `contractOptions`, `quoteTrade`, `inventory`, `aimQuote`, `bobbyRayQuote`, `insuranceQuote`, `impPreview`, `arrivalTime`). The answer is `{ok, reason?, data?}`. Under the default manual driver time moves only in `advance` (under the instant driver, which a browser page may set, every accepted command runs to idle) |
+| `advance` | Runs time: tactical until idle, a listed event or a tick count; on the strategic map to a world time (`worldTime`, `worldSeconds`, `compressionStopped`, `mode`); a decision prompt always stops it. The report carries the reason, the world time and the events |
+| `newSession` | Starts another session and returns its id: the sandbox (optional seed), with `campaign {options?, profiles?, hire?, mercs?, imp?, land?, deadIsDeadName?}` a new campaign (§6.6, options §6.23), with `save` a native savegame from the game's `SavedGames` folder (`docs/14` §10), or with `load` (and `reseed`) a ja2-node save (§6.22); `language` sets the session's display language (§6.21) |
+| `save`, `load`, `listSaves`, `deleteSave` | Saves on the server (§6.22) |
+
+The v0.1 design above listed `query` (hit chance, path, LOS) and `answer` as tools of their own, an ASCII map fragment
+in `observe` and events since the previous call; as built queries and answers are `act` commands, `observe` returns the
+JSON view, and events come with `advance` reports.
 
 ### 6.3. Example turn
 
-Abbreviated.
+Abbreviated, from the v0.1 design: the as-built calls take JSON commands (`act {"command": {"type": "attack",
+"soldier": 3, "target": 12880, "aimTime": 4}}`, `estimateAttack` for the chance) and `observe` has no ASCII map
+(§6.2).
 
 ```
 → act {soldier:"Ivan", action:"move", to:[52,61], stance:"crouch"}
@@ -460,7 +503,8 @@ Omerta A9 · turn 3 · ours · 07:42
 
 - **Fairness.** The agent sees exactly what the player's screen would show.
 - **Agent hints** ("cover from enemy #12: yes or no", "tiles with cover within a radius
-  of 5") are derived only from what is visible. They can be turned off.
+  of 5") are derived only from what is visible. They can be turned off. As built there are no hints beyond the query
+  commands (`estimateAttack` with `chanceToHit`, `chanceToGetThrough`, `inReach`, `landsAt`).
 
 ### 6.5. What the agent handles well and poorly
 
@@ -480,12 +524,14 @@ strategic map, the Queen, towns and the sector flow, runs `initNewGame` (which l
 squad through the laptop (§6.9), closes it and, unless `land: false`, dispatches the first `compressTime` so the helicopter
 drop loads the start sector at 07:00 on day 1 (`docs/15` §4.5). `hire: [{profile, contract?, gear?}]` names the A.I.M.
 hires (a refusal fails the request), `mercs` sets the size of the default squad (original data: profiles 0, 3, 4, 7, 14,
-16, default six; stubs: the authored profiles 0–5, default four; hired in order while available and affordable), `imp`
+16, default six; stubs: the twelve stub A.I.M. profiles 0–11 since M7 S13, default four; hired in order while available
+and affordable), `imp`
 runs an `impCreate`, and `hire: []` without `imp` returns the session in the open laptop. `options` are the game options of §6.23
 (`difficulty` 1–3, default 2; `campaign.difficulty` stays an alias). Maps are loaded by
 `WorldCache` before each command (`Session.prepareAndDispatch`).
 
-Sessions are created through MCP `newSession`, `POST /api/sessions` (same JSON body: `{seed?, save?, campaign?, language?}`;
+Sessions are created through MCP `newSession`, `POST /api/sessions` (same JSON body: `{seed?, save?, load?, reseed?,
+campaign?, language?}`;
 `GET /api/sessions` lists them with `describeSession`), or for the default session with `JA2_CAMPAIGN=<difficulty>`.
 Both paths share `src/server/session-registry.ts` (at most 16 sessions).
 
@@ -636,7 +682,8 @@ and `chars` for lines from the queue), `npcMessage {kind, profile?, amount?}`, `
 The simulation only carries text keys `{file, row, width}` and lengths (12 ticks of speech per character). The session
 resolves keys to `text` in `observe`, command results and events from the EDT files of the VFS (original data, or the
 stub pack's invented lines); `GET /api/text?file=npcdata/NNN.edt&row=R` (token-protected) serves a single row (§6.21).
-Saving is not offered by the API, so there is nothing to refuse during a session.
+Since M7 `save` is refused with `conversation` while a session is open, a scripted sequence runs or the dialogue
+queue is busy (§6.22).
 
 ### 6.13. Helicopter and vehicles (M6)
 

@@ -3,7 +3,13 @@ player UI. An implementable spec. 2026-10-16.
 Source: reference/stracciatella (ae6bf01, same snapshot as docs 01–26), cross-checked against vanilla
 (reference/vanilla/ja2/Build) where marked; an audit of ja2-node at 6812a37. The user's original data was inspected only for
 formats and file names (archive names, WAV encodings, Smacker headers, through `pnpm cli inspect slf` and header
-reads); nothing from it is reproduced. Read-only research: no code was built or changed. -->
+reads); nothing from it is reproduced. Read-only research: no code was built or changed.
+Landed 2026-10-18: slices S1–S12, S13 part A and S14 (S13 part B, the scripted stub campaign, is pending); the
+"Status after" and "What landed" sections record what was built, §13.2 the slices, §14 the decisions and findings. -->
+
+**Status (2026-10-18).** M7 has landed except S13 part B (§13.2); `01` §12 summarizes it, `docs/releases.md` is the
+release note of 0.7.0, the platform release. The sections below keep the spec as written; where the build differs, the
+"Status after" and "What landed" sections say so.
 
 # 27 — Polish: saves, options, sound, video, localization, stubs, performance
 
@@ -24,7 +30,7 @@ M7 in `01` §10 reads: saves in the UX, options, full sound and music, video, Ru
 performance, result "Release". This spec covers each item (§1–§7), decides the player-UI question (§8) and gives the
 agent API, determinism rules, data, tests and a slice plan (§9–§14).
 
-**Recommendation in one paragraph.** Split the old M7. **M7 Polish** delivers everything except the canvas player UI:
+**Recommendation in one paragraph** (taken, §14 decision 1). Split the old M7. **M7 Polish** delivers everything except the canvas player UI:
 ja2-node's own save format and its API, game options as session state, the sound and music engine driven by the event
 log, a Smacker decoder and player, data-version-aware text with the Russian string tables, the stub content that these
 features and a full stub campaign need, a benchmark suite with targets and a worker host, plus a DOM launcher (new game,
@@ -132,7 +138,7 @@ continues from whatever state the running process has: effectively a fresh strea
 last slot, the meanwhile scenes seen, help flags and two display sizes; written after every save and load
 (`SaveLoadGame.cc:521`, `:1075`). The current save name is runtime only.
 
-### 1.2 ja2-node today
+### 1.2 ja2-node before M7 (audit of 2026-10-16)
 
 - **No own save, no input log, no state version, no content identity.** The only file the server writes is `.ja2/token`
   (`src/node/token.ts:17`); native `.sav` files are only read (`src/server/main.ts:34-37`, `docs/14` §10). MCP has no
@@ -243,7 +249,7 @@ snapshot. The log is for bug reports, regression tests and agent analysis; loadi
 Each row is a prerequisite of the codec; they land in slices S1 (rows 1–3, 8, 9, 11, 12) and S2 (the rest) (§13), each
 with the reload test of §12.1.
 
-| # | Today | Change |
+| # | Before S1 (audit of 2026-10-16) | Change |
 |---|---|---|
 | 1 | Private session state: `CampaignSim.#tick`, `#compressing`, `#day`; `TacticalSim.#tick`, `#clock` (`src/sim/campaign/campaign-sim.ts:112-117`, `src/sim/tactical/tactical-sim.ts:202-208`) | move into `state.session {tick, tacticalTick, compressing, day, realtimeClock}`; the `#events` buffers stay private (not state) |
 | 2 | Private flow state: `SectorFlow` fields, `ShopFlow.#session`, `TalkFlow.talk`/`#scripted`/`#civQuote`, `NarrativeFlow.talk`, `NpcActionFlow.carmenTimerAtMs`, `AiControl` counters, `StrategicAi.#queen` | move into `StrategicState` (`state.shop`, `state.talk`, `state.sectorFlow`, `state.ai`); Carmen's timer becomes saved state (the "not saved either" of `deviations.md` "Carmen's departure timer" goes away) |
@@ -608,7 +614,7 @@ interface GameOptions {
   launcher's new game form preselects the original's defaults.
 - `bloodAndGore` is the only toggle that is both player-changeable at any time in the original and outcome-relevant, so
   it is changed by a command, `setOption {bloodAndGore}`, accepted at any time outside an open prompt, logged like every
-  command, and applied from the next tick. Today it is a constant `true` (`src/sim/tactical/state.ts:318`).
+  command, and applied from the next tick. Before S5 it was a constant `true` (`src/sim/tactical/state.ts:318`).
 - `turnTimeLimit` is not offered (JA2 Gold removed it). A native save that carries it imports with the flag dropped and
   a note in the import report; a deterministic port would need a wall-clock rule outside the simulation (the driver
   issuing `endTurn`), which is not worth it for an unreachable option (deviation entry).
@@ -763,7 +769,7 @@ the mouth frame is `Random(6)` every 120 ms (`Tactical/Faces.cc:1057-1067`).
 
 **Where the original's gameplay depends on sound** (all already replaced in ja2-node by simulation-side rules):
 
-| Original coupling | ja2-node today |
+| Original coupling | ja2-node (as of M7) |
 |---|---|
 | A quote ends when its sample stops (`Tactical/Faces.cc:627-629`), plus 300 ms | 60 ms per character always (`deviations.md` "Speech") |
 | A quote waits for the speaker's battle sound (`Tactical/Dialogue_Control.cc:632-637`); critical battle sounds cut speech (`Tactical/Soldier_Control.cc:5973-5980`) | never waits, never cut ("Speech") |
@@ -1594,7 +1600,7 @@ brackets. *After S12a* and *After S12b* give those slices' numbers (§7.1, §7.5
 | Load (parse and rebuild) | ≤ 500 ms | p50 / p95 with fresh content loading: the largest import 260 / 674 ms, a landed campaign 182 / 250 ms, the arena 125 / 194 ms (stubs 92–106 / 116–128 ms). *After S12a* (load 2): the import 184 / 243 ms (199 / 283 before), a landed campaign 160 / 233 ms, the arena 104 / 150 ms | met; most of a load is building the content again |
 | Event-loop stall for other sessions while one runs an instant turn (max delay) | ≤ 50 ms | 308–322 ms with one battle (230–247 ms), 1.24 s with four (0.83 s). *After S12b* (in process, back to back with the parent, p50 / max of three runs): one battle 214 / 225 → 28 / 36 ms with one viewer and 219 / 234 → 30 / 36 ms with four (179 / 181 → 22 / 28 ms and 183 / 192 → 19 / 27 ms), four battles with sixteen viewers 805 / 809 → 35 / 42 ms (666 / 687 → 23 / 23 ms); live check with `JA2_SESSION_HOST=worker`: another agent's `observe` at most 13 ms during a battle | met after S12b (§7.5): advances run in 10 ms slices, one slice per event-loop turn across sessions, so the stall is a slice plus the longest single tick. In process, saves still stall other sessions for their snapshot and stringify (about 40–70 ms each on the largest native import, also the autosave at `endTurn` in combat); the worker host removes those. Measured as the max: the p99 of `monitorEventLoopDelay` hides a stall, which is one sample |
 | Shortened campaign (land and clear the first sector), peak RSS (new) | ≤ 512 MB | 319 MB (286 MB) | new, met; the full campaign follows with S13 |
-| Tactical page | 60 FPS at 1920×1080 | not measured (client side) | provisional |
+| Tactical page | 60 FPS at 1920×1080 | not measured (client side) | provisional; left for M8, whose canvas UI and renderer it concerns |
 
 ### 7.4 Profiling and optimization rules
 
@@ -1838,8 +1844,9 @@ human plays the campaign in the browser without the devtools pages. Size XL.
 
 ## 9. Agent API and protocol (D13–D16)
 
-Everything below is added to MCP, HTTP and the WebSocket protocol together, and `04` §6 gets a section "Saves, options,
-text and presentation (M7)" when the slices land.
+Everything below is added to MCP, HTTP and the WebSocket protocol together. As built, `04` describes it in §6.21 (text
+and languages), §6.22 (saves), §6.23 (game options and music) and §6.24 (inventory, reloading and first aid), and the
+session hosts in §5.9.
 
 **Commands** (dispatched like every other command, logged):
 
@@ -1869,7 +1876,8 @@ same facts from events.
 music facts (`sectorLoaded {hostiles, enemyPresence, firstArrival}`, `enemyPresence`, `creatureAttack`, `combatEnded
 {fought, monsterKill}`, `mercsLeftSector {mapScreen}`, §3.7); the S8
 additions of §3.3 (`shotFired {item, silenced, rounds}`, `bulletStopped {material}`, `explosion {animation}`,
-`doorChanged {kind, noisy}`, `reloaded`, `itemAttached`, `vehicleMoved`).
+`doorChanged {kind, noisy}`, `reloaded`, `itemAttached`, `vehicleMoved`). As built, `itemAttached` came with the
+inventory commands (`04` §6.24) and `vehicleMoved` was not added (no tactical vehicle movement).
 
 **`advance`.** Unchanged; the client's sleep/wake setting is a stop condition (§2.2). A load stops any running advance
 and returns `stopped {reason: 'loaded'}` to the subscribers.
@@ -1915,10 +1923,11 @@ languages plus `rusgold` (§5.1); `translation_tables/*.json` (glyph tables, for
 |---|---|---|
 | `sound-effects.json` (S7) | `Utils/Sound_Control.h:28-352`, `Utils/Sound_Control.cc:17-328`, literal sound paths in `src/game/**/*.cc` | sound ids, ambient ids, paths, the pan and volume constants, the sound files the code names directly |
 | `battle-sounds.json` (S7) | `Tactical/Soldier_Control.h:178-198`, `Tactical/Soldier_Control.cc:97`, `:138-157`, `:5868` | the 17 kinds with variant counts and flags, the repeat filter, the low-morale threshold |
-| `button-sounds.json` | `src/sgp/Button_Sound_Control.cc:11-50` | click schemes per screen (M8 uses it; small, transcribed with the rest) |
-| `music-modes.json` (or constants) | `src/externalized/content/ContentMusic.h:3-17`, `Utils/Music_Control.cc:182-319` | mode ids, the victory and defeat end rules |
-| `intro-sequences.json` (or constants) | `Intro.cc:34-78`, `:252-329` | video names and sequence order |
-| `edt-layouts.json` | `src/externalized/strings/EDT.h:60-110`, `src/externalized/ItemModel.cc:11-20`, the laptop readers | EDT file → record layout for `/api/text` |
+| `button-sounds.json` | `src/sgp/Button_Sound_Control.cc:11-50` | click schemes per screen (M8 uses it; not transcribed in M7) |
+| `music-modes.json` (or constants) | `src/externalized/content/ContentMusic.h:3-17`, `Utils/Music_Control.cc:182-319` | mode ids, the victory and defeat end rules (S9: constants in `src/protocol/music-modes.ts`) |
+| `intro-sequences.json` (or constants) | `Intro.cc:34-78`, `:252-329` | video names and sequence order (S10: constants in `src/app/video/sequences.ts`) |
+| `edt-layouts.json` (S6) | `src/externalized/strings/EDT.h:60-110`, `src/externalized/ItemModel.cc:11-20`, the laptop readers | EDT file → record layout for `/api/text` |
+| `l10n.json` (S6) | `src/externalized/strings/Localization.h:20-196` | the `L10n` array sizes for the string tables' length check |
 
 Named constants with the SFI header instead of tables where a handful of values is all there is (fade steps, the 2 s
 battle-sound filter, the 46-character description, the 16-voice cap, the ambient time windows).
@@ -1973,13 +1982,15 @@ English glyph table for the stub font).
 
 ### 12.2 End to end (Playwright on stubs)
 
-- **Campaign with saves**: through MCP alone, a stub campaign from the new game to the Queen's death (the S13 stub
-  campaign path), saving in the middle of a battle, loading it into a new session with `reseed: false`, and finishing
-  with the same outcome as without the reload.
-- **Launcher**: start a campaign with options, quick save on the tactical page, quick load, see the save list, download
-  and upload a save, switch the language to Russian and see Russian labels.
-- **Media**: the splash plays (decoded frames counted), a stub sound and a music track start after the first gesture (an
-  `AudioContext` probe), muted when the volume is 0.
+- **Campaign with saves** (S13 part B, pending): through MCP alone, a stub campaign from the new game to the Queen's
+  death (the S13 stub campaign path), saving in the middle of a battle, loading it into a new session with `reseed:
+  false`, and finishing with the same outcome as without the reload. Landed meanwhile: `tests/e2e/saves.spec.ts` (a
+  save in a battle loaded exactly into a new session, three identical rounds).
+- **Launcher** (landed, `tests/e2e/launcher.spec.ts`): start a campaign with options, quick save on the tactical page,
+  quick load, see the save list, download and upload a save, switch the language to Russian and see Russian labels.
+- **Media** (landed, `tests/e2e/video.spec.ts`, `sound.spec.ts`, `music.spec.ts`): the splash plays (decoded frames
+  counted), a stub sound and a music track start after the first gesture (an `AudioContext` probe), muted when the
+  volume is 0.
 
 ### 12.3 Unit
 
@@ -2025,10 +2036,10 @@ Every scenario of §7.2 runs once in CI on stubs (sanity bounds only, §7.6).
 
 | Slice | Content | Depends on | Done when |
 |---|---|---|---|
-| **S1** State ownership | §1.4 rows 1–3, 8, 9, 11, 12: private session and flow state into `StrategicState`, the roster as records, saved and seeded cosmetic streams, restore constructor path, id comparisons, drained buffers; fix `dialogueProfiles` if confirmed | — | all existing tests and oracle compares unchanged (except fx-seeded outputs, open question 11) |
-| **S2** Snapshot codec | §1.3 codec, §1.4 rows 4–7, 10, 13; restore path; round trip and reload-at-every-boundary tests (§12.1) | S1 | every scenario passes in reload mode; native imports round-trip |
+| **S1** State ownership (landed, §1.4 "Status after S1") | §1.4 rows 1–3, 8, 9, 11, 12: private session and flow state into `StrategicState`, the roster as records, saved and seeded cosmetic streams, restore constructor path, id comparisons, drained buffers; fix `dialogueProfiles` if confirmed | — | all existing tests and oracle compares unchanged (except fx-seeded outputs, open question 11) |
+| **S2** Snapshot codec (landed, §1.4 "Status after S2") | §1.3 codec, §1.4 rows 4–7, 10, 13; restore path; round trip and reload-at-every-boundary tests (§12.1) | S1 | every scenario passes in reload mode; native imports round-trip |
 | **S3** Saves (landed, §1.7) | file format, content identity, save store, rules, autosave, input log and `replay`, MCP/HTTP/WS API, events, native list; `04` §6 section | S2 | §12.1 complete; an agent saves and loads through MCP |
-| **S4** Benchmarks | `tools/bench`, the stub arena map, the scenarios of §7.2 (the `save` scenario after S3), CI smoke, the first measurements on original data; revise §7.3 | — (can run beside S1–S3) | targets confirmed or revised in this doc |
+| **S4** Benchmarks (landed, §7.1–§7.3, findings 7–13) | `tools/bench`, the stub arena map, the scenarios of §7.2 (the `save` scenario after S3), CI smoke, the first measurements on original data; revise §7.3 | — (can run beside S1–S3) | targets confirmed or revised in this doc |
 | **S5** Options (landed, §2.4) | `GameOptions` unification, `setOption`, `newSession` options, `status`, import mapping, client settings, deviations (the policy copy was dropped, §2.2) | S3 | blood and gore off changes deaths in a stub scenario; options in the save header |
 | **S6** Text (landed, §5.5) | data version, `TextService`, string tables, `/api/strings`, widened `/api/text`, text keys, the Russian paths (EDT mode, NPC layout, speech prefix), per-session language | — (beside S5) | Russian labels on stubs; original-data tests for counts and lengths |
 | **S7** Stub media P0 (landed, §6.5) | §6.3 items 1–5 except the video | S6 | `/api/text` and the cue table resolve on stubs |
@@ -2036,12 +2047,13 @@ Every scenario of §7.2 runs once in CI on stubs (sanity bounds only, §7.6).
 | **S9** Music (landed, §3.7) | `musicMode`, `presentation.music` in sessions and snapshots, the client player, the victory clear of `useCreatureMusic` in the simulation | S8, S3 | music follows sector entry, combat, victory and defeat on stubs |
 | **S10** Video (landed, §4.5) | `smk.ts`, the stub encoder (or fixture), the player, sequences, credits parser and scroller | S8 | the splash and the ending play on original data; stub splash in e2e |
 | **S11** Launcher (landed, §8.4) | the DOM launcher (§8.3), quick keys in the pages, client settings, export and import | S3, S5, S6, S10 | §12.2 launcher test |
-| **S12** Performance | profile-driven fixes against §7.3, `SessionHost` and `WorkerHost` | S4 (and S2 for the save scenario) | targets met or documented |
-| **S13** Stub campaign | §6.3 P1 items 6–9 (part A, landed, §6.6) and the end-to-end campaign with a reload (§12.2, part B) | S3, S7 | the stub campaign is won through MCP alone with a reload in a battle |
-| **S14** Release | README (playing with data or stubs, connecting an agent), `deviations.md` consolidated, `01` §12 status, a version tag | all | maintainer's review |
+| **S12** Performance (landed: part A §7.1 "After S12a", findings 11–12; part B session hosts, §7.5) | profile-driven fixes against §7.3, `SessionHost` and `WorkerHost` | S4 (and S2 for the save scenario) | targets met or documented |
+| **S13** Stub campaign (part A landed, §6.6, findings 19–22; part B pending) | §6.3 P1 items 6–9 (part A, landed, §6.6) and the end-to-end campaign with a reload (§12.2, part B) | S3, S7 | the stub campaign is won through MCP alone with a reload in a battle |
+| **S14** Release (landed: `deviations.md` grouped and checked, `01` §12, `04` §6 tidied, `docs/releases.md`; the tag is the maintainer's) | README (playing with data or stubs, connecting an agent), `deviations.md` consolidated, `01` §12 status, a version tag | all | maintainer's review |
 
 S4 and S6 can run in parallel with the save slices; everything else is sequential to avoid conflicting edits of the
-session factory and the protocol.
+session factory and the protocol. As run, the stall fixes of findings 7–10 and 14–17 and the inventory and first-aid
+commands (`04` §6.24, findings 19–22) were slices of their own between S4 and S12.
 
 ---
 
@@ -2063,7 +2075,8 @@ session factory and the protocol.
 - Text: Ё and the other unmapped CP1251 characters stay unmapped in Russian data; money and numbers are never
   localized; both Russian versions read `translation-rusgold.json`.
 
-**Deviations to log in `docs/deviations.md`** (when the slice lands):
+**Deviations logged in `docs/deviations.md`** (each with its slice; since S14 the file is grouped by area, M7's entries
+sit mostly under "Saves, options and sessions" and "Presentation"):
 
 - *Save side effects*: the original draws `R(RAND_MAX)` for the save header (`SaveLoadGame.cc:380`); ja2-node saves
   draw nothing.
@@ -2079,22 +2092,31 @@ session factory and the protocol.
   data version in the tooltip) (§8.4).
 - *Video pacing*: frames paced by the audio clock instead of the wall clock.
 - *Display language*: UI strings may be in another language than the data's text.
+- Logged as well while building: *video scaling*, *credits screen*, *unseen gunfire*, *Queen's positional sound*, *sound
+  coverage*, *music mode on the server*, *last kill talked about*, *creature music clear* (S8–S10); *item cursor*, *panel
+  range for a dying merc*, *auto-bandage*, *drugs and alcohol*, *out-of-ammo quote*, *map screen dialogue* (the
+  inventory slice); *melee from a prone turn* and *knock-back and the sighting pause* (findings 14–15).
 
-**Findings outside M7's scope** (from the audit; 1–4 and 6 fixed or recorded on 2026-10-16: the terrorist set, the militia prompts as battle prompts, the economy events drained into the campaign events, the stub text probe, the D5/D7 notes in `01`; 5 fixed in S1 after decision 11, and 4 confirmed fixed):
+**Findings outside M7's scope** (from the audit of 2026-10-16; all six closed):
 
-1. `TERRORIST_PROFILES` is an empty `Set` (`src/sim/tactical/combat/death.ts:63`), so the terrorist exclusion of the
-   fall-back hit animation (`Tactical/Soldier_Ani.cc:3116-3117`, `!IsProfileATerrorist`) never applies.
-2. Deferred militia prompts in `state.economy.prompts` are never answered by campaign or server code
+1. *Fixed on 2026-10-16 (the terrorist set):* `TERRORIST_PROFILES` was an empty `Set`
+   (`src/sim/tactical/combat/death.ts:63`), so the terrorist exclusion of the fall-back hit animation
+   (`Tactical/Soldier_Ani.cc:3116-3117`, `!IsProfileATerrorist`) never applied.
+2. *Fixed on 2026-10-16 (the militia prompts are battle prompts, answered from the head of the list since S1):* deferred
+   militia prompts in `state.economy.prompts` were never answered by campaign or server code
    (`src/sim/strategic/economy/state.ts:40-65`).
-3. `EconomyContext.events` is never drained in a campaign (`src/sim/strategic/economy/context.ts:36`): unbounded growth
-   over a long campaign.
-4. `dialogueProfiles()` probes without the `stubs/` fallback (`src/content/strategic/laptop-content.ts:357`), so stub
-   R.P.C.s and NPCs may be marked as having no text.
-5. `TalkState.fx` is seeded with a constant whatever the session seed (`src/sim/narrative/talk-state.ts:98-124`).
-6. D5's resolution barrier is still the original's `attackBusyCount` (`src/sim/tactical/turns/turn-state.ts:35`); D7's
-   "ids instead of pointers" does not hold in the tactical layer (§1.4). Both are documentation drift to note in `01`.
+3. *Fixed on 2026-10-16 (drained into the campaign events, at every boundary since S1):* `EconomyContext.events` was
+   never drained in a campaign (`src/sim/strategic/economy/context.ts:36`): unbounded growth over a long campaign.
+4. *Fixed before S1 (confirmed):* `dialogueProfiles()` probed without the `stubs/` fallback
+   (`src/content/strategic/laptop-content.ts:357`), so stub R.P.C.s and NPCs could be marked as having no text.
+5. *Fixed in S1 (decision 11):* `TalkState.fx` was seeded with a constant whatever the session seed
+   (`src/sim/narrative/talk-state.ts:98-124`).
+6. *Recorded on 2026-10-16 (the D5 and D7 notes in `01` §1):* D5's resolution barrier is still the original's
+   `attackBusyCount` (`src/sim/tactical/turns/turn-state.ts:35`); D7's "ids instead of pointers" does not hold in the
+   tactical layer (§1.4).
 
-**Findings of the benchmarks** (S4, 2026-10-18; 7–10 fixed on 2026-10-18 after S4, with regression tests on stubs):
+**Findings of the benchmarks** (S4, 2026-10-18; all fixed: 7–10 after S4 with regression tests on stubs, 11–12 in
+S12a, 13 in S4):
 
 7. *Fixed: AI throws that never leave the hand.* Two porting gaps: TurnSoldier's return from a prone turn lacked the
    original's `pTempObject == NULL` check (`Tactical/Soldier_Control.cc:4339`), so a prone thrower who had to turn lay
@@ -2155,7 +2177,8 @@ session factory and the protocol.
     (`src/server/stub-mercs.test.ts`).
 
 **Findings of the stall fixes** (2026-10-18; the original's code paths, inferred to hang it too until a watchdog that
-ja2-node does not port, deviations "Watchdogs"; 14–16 decided and fixed on 2026-10-18 as minimal deviations):
+ja2-node does not port, deviations "Watchdogs"; 14–16 decided and fixed on 2026-10-18 as minimal deviations, 17 ported,
+18 the sweep that found no further stall):
 
 14. *Melee from a get-up* (fixed: deviation "Melee from a prone turn", no prone return while a melee attack plays; every
     prone attacker who must turn to a prone target met it, not only one getting up; test `ai/melee-ai.test.ts`): an AI
@@ -2245,37 +2268,58 @@ fake for sight, the options screen, the game init screen, timed turns compiled o
 ids, volume and pan formulas, positional sounds, animation opcodes, footsteps, gun and burst sounds, battle sounds,
 doors, explosions, ambient tables and scheduling, music modes, setters, end rules and track choice, speech file names,
 the couplings of gameplay to sound; the intro sequences, Smacker playback, credits; the data versions, string tables,
-EDT decoding, glyph tables, speech naming, formatting. **Checked on the user's data** (formats only): archive names
-including `Intro-old.slf`, WAV encodings per archive, Smacker headers. **Inferred**: that vanilla looped forever on
-`loop = 0`; that IMA ADPCM is not reliably decoded by browsers; that the Steam package renames the intro archive to skip
+EDT decoding, glyph tables, speech naming, formatting. **Verified while building M7**: the music setters (S9 corrected
+`SetEnemyPresence`: placement and `EnterCombatMode`, not a sighting); that the first helicopter drop in ja2-node does
+not wait for a sound fade (S8: the drop sequence is not ported at all, deviations "Helicopter entrance"); that the
+simulation never drew footstep variants (S8); the save and load paths against the reload-at-every-boundary tests and
+`pnpm cli replay` (S2, S3); that slicing and both session hosts change no tick (S12b). **Checked on the user's data**
+(formats only): archive names including `Intro-old.slf`, WAV encodings per archive, Smacker headers; and while building:
+every WAV of `sounds.slf`, `battlesnds.slf` and `music.slf`, all 8,353 `.gap` files and a sample of the speech decode
+(S7), every video decodes with its audio (S10), all 248 rows of the English credits parse (S10), every fixed EDT file
+holds whole records and all nine translation files pass the length check (S6), every native save imports with its
+options and music mode (S5, S9). **Inferred**: that vanilla looped forever on `loop = 0`; that IMA ADPCM is not reliably
+decoded by browsers (ja2-node decodes WAV itself either way); that the Steam package renames the intro archive to skip
 it; that Russian Gold cannot be guessed; that `translation-rus.json` is unused by Stracciatella; that Ё and the
 guillemets cannot render in Russian versions; that quick load is not blocked in Dead is Dead; that the death track's end
-silences the game; that the first helicopter drop in ja2-node does not wait for a sound fade. The performance figures of
-§7.1 and §7.3 are measured (2026-10-18).
+silences the game. The performance figures of §7.1, §7.3 and §7.5 are measured (2026-10-18).
 
-**Open questions for the maintainer** (with the recommendation first):
+**Open questions for the maintainer** (with the recommendation first; all decided on 2026-10-18: the recommendation was
+taken for every one, the decision follows each question):
 
 1. **Split M7 into M7 Polish and M8 Player UI** (§8)? Recommended; `01` §10 is edited accordingly in this change.
+   *Decided: split; M7 delivered the DOM launcher (S11), the canvas UI is M8.*
 2. **Snapshot strategy**: a codec with pointer encoding plus moving private state into `StrategicState` (recommended,
    S1–S2), or first refactoring the tactical layer to ids (D7) everywhere (cleaner, much larger, touches every combat
    and AI module), or replay-only saves (rejected: load time grows with the campaign and any code change breaks old
-   saves).
+   saves). *Decided: the codec with pointer encoding (S1, S2).*
 3. **Dead is Dead and quick load**: keep the original's unblocked quick load (recommended, faithful) or block every load
-   (the mode's intent)?
+   (the mode's intent)? *Decided: unblocked; loading is never restricted (S3).*
 4. **Double volume scaling** of soldier sounds (`Utils/Sound_Control.cc:409-420`): keep (recommended, faithful) or fix?
    *Decided: keep; implemented in S8 (`mix: 'soldier'`).*
-5. **Default load mode for agents**: reseed with a logged seed (recommended, faithful to D6) or exact?
+5. **Default load mode for agents**: reseed with a logged seed (recommended, faithful to D6) or exact? *Decided: the
+   reseed stays the default for MCP and the browser; `reseed: false` loads exactly (S3).*
 6. **Cyrillic with English data in the canvas UI (M8)**: the stub font as a fallback (recommended), capitals only with
-   the original glyphs, or require Russian data for a Russian UI?
+   the original glyphs, or require Russian data for a Russian UI? *Decided: the stub font, built with Cyrillic in S13
+   part A; drawing comes with M8.*
 7. **Russian UI strings**: `translation-rusgold.json` as Stracciatella picks for both Russian versions (recommended) or
-   `translation-rus.json`?
+   `translation-rus.json`? *Decided: `translation-rusgold.json` (S6).*
 8. **Extra autosaves** (sector entry, daily) as a server setting for long agent campaigns, or only the original's
-   end-of-turn autosave (recommended for M7)?
+   end-of-turn autosave (recommended for M7)? *Decided: only the end-of-turn autosave (S3).*
 9. **Stub video**: a minimal Smacker encoder in `stubs/` (recommended if under a day of work) or a test fixture only?
-10. **Intro switch**: accept the `playIntro` client setting (recommended) or always play the beginning intro?
+   *Decided: the encoder (S10, `stubs/smk-encode.ts`).*
+10. **Intro switch**: accept the `playIntro` client setting (recommended) or always play the beginning intro? *Decided:
+    accepted (S10), with `playSplash` beside it.*
 11. **Seeding the cosmetic streams from the session seed** changes the outputs of existing seeds (civilian quote picks,
     the triggering merc): accept and update the affected test expectations (recommended)? *Accepted; done in S1 (§1.4),
     and no existing expectation changed.*
-12. **API default difficulty**: keep 2 (recommended, documented) or switch to the original's easy?
+12. **API default difficulty**: keep 2 (recommended, documented) or switch to the original's easy? *Decided: 2 for the
+    API (S5); the launcher's form preselects the original's easy and always sends it.*
 13. **Save folder**: `.ja2/saves` in the repository (recommended for a developer server) or a per-user data folder?
-14. **Release naming**: tag the end of M7 as `0.x` "platform release" and keep `1.0` for M8 (recommended)?
+    *Decided: `.ja2/saves`, moved with `JA2_SAVE_DIR` (S3).*
+14. **Release naming**: tag the end of M7 as `0.x` "platform release" and keep `1.0` for M8 (recommended)? *Decided:
+    0.7.0, the platform release (`docs/releases.md`); 1.0 is kept for M8.*
+
+**Decided while building** (no question was open for them): the game policy is not copied into the session; the policy
+files stay logic content under the save's content hash (§2.2, S5). The worker host has no `auto` mode: a server runs all
+its sessions in one host (§7.5, S12b). The deadlock breaker stays unported; the stalls it would end are minimal
+deviations (findings 14–16).

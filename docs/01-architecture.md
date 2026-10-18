@@ -15,6 +15,9 @@ Related documents:
   [`16`](16-strategic-map-movement.md) map, groups, travel and sector transitions, [`17`](17-strategic-ai.md) the
   Queen, [`18`](18-militia-loyalty-mines-assignments.md) militia, loyalty, mines and assignments,
   [`19`](19-autoresolve-pbi.md) pre-battle interface and autoresolve.
+- `20` lighting; `21`–`23` laptop, contracts and merchants (M5); `24`–`26` NPCs, quests and the ending (M6);
+  [`27`](27-polish.md) saves, options, sound, video, localization, stubs and performance (M7);
+  [`deviations.md`](deviations.md) the deviation log; [`releases.md`](releases.md) the release notes.
 
 ---
 
@@ -37,18 +40,18 @@ Related documents:
 | # | Decision | Why, in short |
 |---|---|---|
 | D1 | **The behavioral reference is Stracciatella with default settings.** That is vanilla 1.12 Gold mechanics plus bug fixes. Its `game.json` flags are kept as configuration | The same JA2, just without bugs like "bandaging increases the to-hit penalty" |
-| D2 | **The simulation core is separate from presentation.** Deterministic, no DOM and no Node API, serializable, no global mutable state (multiple sessions in one process) | Tests, headless runs, comparison with the original, saves and replays "for free" |
+| D2 | **The simulation core is separate from presentation.** Deterministic, no DOM and no Node API, serializable, no global mutable state (multiple sessions in one process) | Tests, headless runs, comparison with the original, saves and replays "for free". *As built (M7) the whole session serializes through the snapshot codec (`src/sim/snapshot`) and restores exactly; sound, music and video are derived by the client from events and frames, the music mode by the server outside `sim` (`27` §1.3, §3.3)* |
 | D3 | **Unified game time: integer milliseconds, fixed 5 ms tick** (like `TOVERHEAD` in the original). All processes are tied to ticks, not to frame rate | Outcomes don't depend on FPS or machine speed |
 | D4 | **Animations enter the simulation as data.** Action timelines: frames, delays, gameplay markers. Sprites do not enter the simulation. Verified on `Ja2bin.dat`: 308 scripts, 54 gameplay opcodes (`04`, §1) | In the original, a shot, a death and a door opening happen on animation frames. Durations are numbers; they can be computed without waiting |
-| D5 | **A resolution barrier instead of `ubAttackBusyCount`.** An explicit set of pending effects | Same semantics, but debuggable. *As built (M3–M6) the barrier is still the original's counter (`turns/turn-state.ts` `attackBusyCount`)* |
+| D5 | **A resolution barrier instead of `ubAttackBusyCount`.** An explicit set of pending effects | Same semantics, but debuggable. *As built (M3–M7) the barrier is still the original's counter (`turns/turn-state.ts` `attackBusyCount`)* |
 | D6 | **Three randomness streams.** `pre` — a ring of 256 numbers, saved. `main` — gameplay. `fx` — cosmetics, not saved | Anti-save-scum protection as in the original; cosmetics don't affect outcomes. *As built (M7 S1) the cosmetic streams live in `StrategicState`, seeded from the session seed, and are saved, because a few cosmetic picks are stored in state (`27` §1.4 row 8); since M7 S2 a snapshot writes `main`, `pre` (ring, index and its refill link) and every cosmetic stream exactly, and `Rng.restore` restores a stream in place for the player load's reseed (`27` §1.5)* |
 | D7 | **State is plain data:** ids instead of pointers, grids in typed arrays | Serialization, debugging, moving to a worker. *As built the tactical layer holds soldier references; the session, flow and roster state moved into `StrategicState` and `TacticalState` in M7 S1, and the M7 S2 snapshot codec writes the references as references to the object's home (`soldiers/<id>`, `items/<i>`, the structure lists) and content as keys (`27` §1.4)* |
 | D8 | **Content is a canonical data model.** Original formats are read by importers on the server; decoders have no DOM and no Node, so media is decoded in the browser too. Stubs are an alternative source of the same model | The game doesn't know where the data came from |
 | D9 | **Rendering is our own thin layer on WebGL2:** indexed sprites, palettes, shading tables, strip-based depth | Soldier palettes and tile lighting are cheap only in a shader |
-| D10 | **Game UI is our own canvas widget set, with layouts stored as data.** DOM only for the launcher and dev tools | Pixel-perfect 640×480 with original art or a stub skin |
+| D10 | **Game UI is our own canvas widget set, with layouts stored as data.** DOM only for the launcher and dev tools | Pixel-perfect 640×480 with original art or a stub skin. *As built (M7) the DOM launcher exists (`src/app/launcher`); the canvas UI is M8 (`27` §8)* |
 | D11 | **Verification rests on two tooling pillars.** Rule tracing from a patched native Stracciatella and importing its saves | It's the only way to prove the mechanics match |
-| D12 | **One package (pnpm), layers separated by TS project references and our own import check** (`tools/check-imports.ts`; dependency-cruiser 18 doesn't read TS 7) | Simplicity for a solo project with strict boundaries |
-| D13 | **The server is the source of truth.** Sessions with simulations live in the Node process. The browser, the MCP agent and scripts are equal clients of one protocol | State on the server, play through the API, replays and saves in one place |
+| D12 | **One package (pnpm), layers separated by TS project references and our own import check** (`tools/check-imports.ts`; dependency-cruiser 18 doesn't read TS 7) | Simplicity for a solo project with strict boundaries. *As built (M7) the browser layers are `render`, `audio`, `app` and `devtools`; the MCP adapter lives in `server` (there is no `agent` or `ui` layer yet)* |
+| D13 | **The server is the source of truth.** Sessions with simulations live in the Node process. The browser, the MCP agent and scripts are equal clients of one protocol | State on the server, play through the API, replays and saves in one place. *As built (M7) every surface talks to a `SessionHost`: in process with 10 ms time slices, or one worker thread per session (`04` §5.9)* |
 | D14 | **Time is moved by a driver; playback is separate from the simulation.** `advance(until)` with stop conditions; "real time ×k", "instant" and "manual" drivers; the client plays back the event log at any speed or skips it | Instant enemy turns and arbitrary speed-up without changing outcomes |
 | D15 | **Every player action is a semantic command; every modal moment is a decision prompt.** Not a single rule in UI screens | The agent and the UI control the game the same way; the simulation never waits for the client |
 | D16 | **Player-view projection** (`PlayerView`) — one function for the UI, agents and queries | Honest information for the agent and no hidden-state leaks |
@@ -533,6 +536,8 @@ and in CI only on them.
   - The sample rate is determined by the device context (a pitfall ja2-web ran into).
   - Audio is unlocked on the first user gesture.
   - Music switches by mode according to `music.json`.
+  - Landed in M7 (`27` §3.6–§3.7): the client derives every sound from events, frames and animation codes; the server
+    computes the music mode.
 - **Video** (intro and ending in Smacker format), landed in M7 (`27` §4.5).
   - We write the decoder from the format specification.
   - We don't port libsmacker's code: it's LGPL, which is incompatible with SFI-SCLA.
@@ -551,14 +556,19 @@ and in CI only on them.
 - **Saves** are files on the server. A command log with ticks is kept alongside them and gives an exact
   replay of the playthrough.
 - **Listens on `127.0.0.1`,** with token access. Only game commands are accepted from clients.
-- **A heavy session** can be moved into `worker_threads`: the protocol is already message-based.
+- **A heavy session** can be moved into `worker_threads`: the protocol is already message-based. As built (M7):
+  `JA2_SESSION_HOST=worker` runs every session in its own worker; the default in-process host slices advances
+  (`04` §5.9).
 
 ### 6.2. Agents
 
 - **MCP adapter** (`agent`) on top of the same protocol. Tools: `status`, `observe`,
-  `query`, `act`, `answer`, `advance`, `save`/`load` (`04`, §6).
+  `query`, `act`, `answer`, `advance`, `save`/`load` (`04`, §6). As built (M7) the adapter is `src/server/mcp.ts`
+  with `status`, `observe`, `act`, `advance`, `newSession`, `save`, `load`, `listSaves` and `deleteSave`; queries
+  and prompt answers are `act` commands (`04` §6.2).
 - **Observation** is built from `PlayerView`: structured JSON, an ASCII map fragment with a
-  legend, deltas since the previous call.
+  legend, deltas since the previous call. As built `observe` returns the JSON view with labels in the session's
+  language; there is no ASCII fragment, and events arrive with `advance`.
 - **Connecting Claude Code:** `claude mcp add` pointing at the local server.
 
 ### 6.3. Client (browser)
@@ -705,7 +715,7 @@ build tactics without strategy and the laptop.
 | **M4 Strategy** | Strategic map, clock, event queue, squads and routes, Queen, militia, loyalty, mines, assignments, PBI and autoresolve, sector transitions and persisting sector state | You can wage war across the country map | XL |
 | **M5 Campaign** | The full laptop, contracts and relationships, merchants; a new game from the start | A full campaign start as in the original | L |
 | **M6 Narrative** | NPC records and actions, dialogue, quests and facts, schedules, meanwhile, ending | The campaign can be completed | L |
-| **M7 Polish** | Saves in the UX, options, full sound and music, video, Russian localization (Stracciatella strings already exist in 8 languages), stub completeness, performance; a DOM launcher instead of game screens (`27`) | Platform release: a full campaign by an agent or in the devtools pages, on the original data and on stubs | M–L |
+| **M7 Polish** | Saves in the UX, options, full sound and music, video, Russian localization (Stracciatella strings already exist in 8 languages), stub completeness, performance; a DOM launcher instead of game screens (`27`) | Platform release: a full campaign by an agent or in the devtools pages, on the original data and on stubs. *Done 2026-10-18 as 0.7.0 (§12, `releases.md`)* | M–L |
 | **M8 Player UI** | The D10 canvas widget set, layouts and bitmap fonts; the original screens (menus, options, save/load, tactical HUD and inventory, map screen, PBI, talk, shop, laptop), hotkeys, meanwhile playback (`27` §8) | Release for human players | XL |
 
 ---
@@ -716,12 +726,12 @@ build tactics without strategy and the laptop.
 |---|---|
 | Behavior silently "drifts" away from the original | The oracle already in M3; mechanics catalog with an "exact / approximate" flag; deviation log |
 | `ja2bin` opcode semantics are more complex than they seem | Timeline extractor and debugger at the very start of M2; the marker executor is a separate module with tests |
-| UI volume: laptop, strategic map, tactical HUD — about a third of the source | Layouts as data, a shared widget set, screens as needed (the sandbox bypasses the laptop) |
-| Logic stubs (timelines, profiles, maps) are game design | Minimal set: one body, ~40 states, 3–5 profiles, 1–2 maps. The rest gradually |
-| AI and LOS performance with many soldiers | Profile in M3; visibility cache; moving the simulation to a worker |
+| UI volume: laptop, strategic map, tactical HUD — about a third of the source | Layouts as data, a shared widget set, screens as needed (the sandbox bypasses the laptop). Since M7 isolated in its own milestone, M8, on top of a complete API (`27` §8) |
+| Logic stubs (timelines, profiles, maps) are game design | Minimal set: one body, ~40 states, 3–5 profiles, 1–2 maps. The rest gradually. As of M7: invented scripts for all 311 states, 44 profiles, 14 maps behind 95 sector aliases by kind, only what the tests and the stub campaign need (`27` §6) |
+| AI and LOS performance with many soldiers | Profile in M3; visibility cache; moving the simulation to a worker. M7 measured it (`pnpm cli bench`), met the enemy-turn targets with derived caches and slices sessions or runs them in workers; no visibility cache was needed (`27` §7) |
 | The original's logic lives in screens (laptop, trading, inventory, map) and is hard to lift into commands | The command catalog is maintained alongside the mechanics catalog; rule D15 is verified by the agent being able to do everything the UI can |
-| Playback diverges from the simulation (the client reconstructs frames itself) | Client and server take timelines from the same `content` module; periodic snapshots for reconciliation; e2e test "log replay = snapshot" |
-| It's hard for an agent to reason about space from text | We design observations on real playthroughs: ASCII with a legend, cover hints, `query` instead of mental arithmetic |
+| Playback diverges from the simulation (the client reconstructs frames itself) | Client and server take timelines from the same `content` module; periodic snapshots for reconciliation; e2e test "log replay = snapshot". Since M7 the input log of every save replays to a byte-identical snapshot (`pnpm cli replay`), and the scenario tests reload at every input |
+| It's hard for an agent to reason about space from text | We design observations on real playthroughs: ASCII with a legend, cover hints, `query` instead of mental arithmetic. As built through M7: the JSON view and query commands (`estimateAttack`, `inventory`, `quoteTrade`, …); no ASCII map yet |
 | Nondeterminism leaks into the core (Math, `Map` iteration order, global variables) | The rules in §3.2, linter, "two sessions, one log" test, log replays in CI |
 | Project scope | Sandbox and vertical slices; each milestone is valuable on its own |
 
@@ -1014,3 +1024,102 @@ table); the rebel basement's map changes in A10; NPC action 12 (no first aid sys
 robot through `give`; manual switches, toggled pressure items, pits and pressure mines; Kingpin's hitmen; native-save
 import of other sectors' temp files; `HandleNPCChangesForTacticalTraversal`; the `PC_HAS_CONRADS_RECRUIT_OPINION` input;
 playing meanwhile scenes in the browser (M7/M8).
+
+### M7: done (2026-10-18)
+
+Spec: `docs/27` (saves, options, sound and music, video, localization, stub completeness, performance, the scope of a
+player UI). Result: the platform release 0.7.0 (`docs/releases.md`). A whole campaign runs on the server and can be
+saved, loaded and replayed; the browser pages play it with sound, music and the videos, the DOM launcher starts and
+loads games, and the UI speaks every language of Stracciatella's string tables, on the original data and on stubs. The
+canvas player UI with the original's screens is M8.
+
+1. **State ownership and the snapshot** (S1, S2; `sim/snapshot`): session, flow and roster state and the cosmetic
+   streams moved into `StrategicState` and `TacticalState`, with a restore path that skips the creation side effects;
+   a graph codec writes the whole session, keeping insertion order, pointers as references to the object's home and
+   content as keys. Restore is exact: every campaign scenario also runs reloaded at every input and must produce the
+   same event log and final snapshot byte for byte (`JA2_RELOAD=1 pnpm test` reloads every test campaign). The largest
+   stub state is 2.3 MiB raw and 41 KiB gzipped, the largest native import 4.1 MiB and 144 KiB.
+2. **Saves** (S3; `server/save-*.ts`, `input-log.ts`, `replay.ts`): `.j2s` files whose header the save list reads from
+   the first gzip member, a content identity over every file the simulation read (about 1,300 on the original data),
+   the original's save modes (save anywhere, Iron Man, Dead is Dead with its save points and two backups), the
+   autosave at `endTurn` in combat, player loads that reseed `main` from a logged seed and exact loads, an input log
+   per save and `pnpm cli replay`, the MCP, HTTP and WebSocket surfaces (`04` §6.22). Saving draws nothing and changes
+   nothing.
+3. **Options** (S5; `sim/options.ts`): one `GameOptions` object shared by both layers, chosen at `newSession`, shown in
+   `status`, written into save headers and mapped from native saves; `setOption {bloodAndGore}` with the messy deaths
+   and corpse graphics it changes; client settings stay in the browser. Fixed on the way: campaigns ignored gun nut for
+   the army's guns.
+4. **Text and languages** (S6): the data version detected like Stracciatella's guesser (`JA2_DATA_VERSION` overrides),
+   EDT decoding and the Buka NPC layout per version; the display language separate from it (`JA2_LANG`, per session);
+   Stracciatella's string tables in eight languages with their length check (217 keys, 1,901 strings each),
+   `/api/strings`, `/api/text` for every EDT file with its record layout (`04` §6.21).
+5. **Sound and music** (S7–S9; `content/formats`, `content/audio`, `audio/`, `protocol/music.ts`): WAV (PCM and IMA
+   ADPCM), `.gap` and ambient decoders, the transcribed sound tables (291 ids, 237 paths), cue rules for footsteps,
+   guns and bursts, impacts, doors, explosions and battle sounds, a Web Audio engine with the original's 16 voices and
+   linear panning, a director that replays animation codes 700–798 between view frames, speech and ambient; the music
+   mode is computed by the server from the simulation's events and saved with the session, the browser picks and fades
+   the tracks. Every WAV of the user's sound, battle-sound and music archives decodes.
+6. **Video and credits** (S10): a Smacker 2 decoder written from the format description (all eleven videos of the
+   user's data decode, a 640×480 frame in 1.35 ms on average), a stub encoder and a 40 KB stub splash, a WebGL2 player
+   paced by the audio clock, the sequences of `Intro.cc` for the splash, the beginning and the ending, the credits
+   parser (all 248 rows) and a DOM scroller.
+7. **Launcher** (S11; `app/launcher`, served at `/`): new campaigns with the game init screen's options, the save list
+   with load, save, delete, download, upload and native imports, client settings with export and import, the splash
+   after a click and the intro after a new game, labels from the original string tables in the chosen language;
+   Alt+S and Alt+L in the game pages.
+8. **Stub content** (S7, S13 part A): synthesized sounds, music and speech blips under the original names, invented
+   merc, item, credit and mail text, a stub splash, every sector on a generic map by kind (towns with a dealer and a
+   jail, mines with head miners, caves, army camps, the airfield where Skyrider's helicopter is set up), 44 profiles
+   with twelve A.I.M. mercs, windows, fences, sandbags, roofs and cliffs in the stub tileset, two bitmap fonts with
+   Cyrillic subset from Terminus Font (OFL); 486 files, 6.7 MB.
+9. **Inventory and first aid** (`04` §6.24): `moveItem`, `drop`, `attach`, `detach`, `unload`, `reload`, `swapHands`,
+   `applyItem` and `bandage` follow the original inventory panel, description box, reload cursor and medkit code
+   paths; the map screen moves items between mercs and the sector stash, and `inventory` lists them. NPC action 12
+   (left out of M6) now ends a first-aid service.
+10. **Benchmarks and stalled turns** (S4 and two fix slices; `tools/bench`): `pnpm cli bench` with seven scenarios on
+    both sources and a CI smoke run. It found AI throws that never left the hand, a battle that never ended, refused
+    attacks with side effects, the missing `GunRange` port and a stats object shared by all stub mercs (`27` §14,
+    findings 7–13), then the stalls only the original's deadlock breaker would end (14–17, fixed as minimal deviations).
+    Afterwards the enemy-turn sweep (seeds 1–8, every variant, both sources) and the stub campaign sweep (seeds 1–16)
+    end without a stall.
+11. **Performance and session hosts** (S12): cheap frame views during compression and none without a viewer (a world
+    day of compression 79 → 37 ms at the median, 15 ms when nobody watches), cover traces taken once per position and
+    remembered throw searches (a 16-enemy turn 197 → 131 ms at the median, 393 → 274 ms at p95); a `SessionHost` for
+    every surface, in process with 10 ms slices and one slice per event-loop turn, or one worker thread per session
+    (`JA2_SESSION_HOST=worker`): the longest stall of other sessions during an instant battle fell from 214 to 28 ms at
+    the median. The targets of `27` §7.3 are met except the first save of a session on the original data, which builds
+    the content index (p95 148–186 ms against 100 ms), and the client frame rate, which was not measured.
+12. **Release** (S14): `deviations.md` grouped by area and checked against the code, this status, `04` §6 tidied,
+    `releases.md`.
+13. **Stub campaign end to end** (S13 part B): *placeholder for the lead: the scripted MCP campaign on stubs from the
+    new game to the Queen's death with a reload in a battle, and its numbers.*
+
+Tests at the end of M7: 1,722 tests in 295 files (216 files at the end of M6), 48 of them skipped without the original
+data;
+15 end-to-end specs (10). The full oracle comparison (`tools/oracle/compare-all.sh`, the regression gate added at the
+start of M7) is unchanged through every slice.
+
+**Left out of M7** (`27` §14, the slices' open issues, and the entries of `deviations.md` tagged **Later** or **M8**):
+- performance: the client frame rate (60 FPS at 1920×1080, with the M8 renderer); the first save of a session on the
+  original data stays above 100 ms (the content index); an in-process save still stalls other sessions for its
+  snapshot and stringify (40–70 ms; the worker host avoids it); the bench's `server` scenario has no worker variant;
+- sound and text: lip sync (needs faces, M8), button clicks (M8) and the cues of "Sound coverage"; the English and
+  Chinese battle-sound branch waits for the "see enemy" quote; the version guesser's resource-pack hashes, the MLG
+  pictures (M8); the oracle has never run on Russian data;
+- launcher: playback speed, display toggles and key-advance speech are stored for M8; the save list shows sector codes
+  without land types or town names; meanwhile scene playback in the browser (M8);
+- stubs: the creature lairs and the mine levels below the first have no way in, so a sci-fi stub campaign cannot
+  reach the creature queen; window climbing and wire cutting are not ported; the stub fonts are drawn only by M8;
+- decided against: extra autosaves (sector entry, daily) and a copy of the game policy in saves (`27` §14);
+- seen while tracing, not changed: `HandleSystemNewAISituation` can drop a pending melee animation without its busy
+  count during a stance change (no source of such a situation found, finding 18);
+- still open from M6: reloading the robot through `give`, Kingpin's hitmen, manual switches, toggled pressure items,
+  pits and pressure mines;
+- the **Later** gaps of `deviations.md`: drugs and alcohol, timed bombs and the bomb queue, catching tossed items,
+  martial arts and stealing, panic AI, the Warden, tanks and throwing knives, gas masks, camouflage, smoke and hearing
+  items in sight, corpses rotting in the loaded sector, auto-bandage, walk-and-strike orders in the API, the hummer
+  and the ice-cream truck, vehicle repair and fuel, throws underground, the helicopter drop sequence, native import of
+  other sectors' temp files, the rebel basement's map changes, Skyrider's profile sectors, the AI threat value's
+  assignment test, the lair quotes, the say-later lines and the own-merc bark table;
+- the **M8** gaps: the enemy glow, wireframes and slanted roofs, window and statue graphics, the helicopter's pieces
+  on the tactical map, the credits screen with faces and fonts.
