@@ -12,6 +12,7 @@ import {
 import { ambientSoundPath, ambientTablePath, parseAmbientTable } from '../src/content/formats/ambient.ts';
 import { DIALOGUE_SIZE, edtRowCount } from '../src/content/formats/edt.ts';
 import { gapPathFor, parseGap } from '../src/content/formats/gap.ts';
+import { createFrameReader, decodeAudio, openSmk } from '../src/content/formats/smk.ts';
 import { decodeWav, wavDurationMs } from '../src/content/formats/wav.ts';
 import { parseStubSpriteManifest, pictureFromStubSprite, STUB_SPRITE_SUFFIX } from '../src/content/picture/stub-sprite.ts';
 import { STUB_DATA_VERSION } from '../src/content/text/data-version.ts';
@@ -23,8 +24,18 @@ import { stubSoundPaths } from './audio.ts';
 import { buildStubs } from './build.ts';
 import { musicTracks } from './music.ts';
 import { npcSpeechSets, type SpeechSet, speechPaths } from './speech.ts';
+import {
+  STUB_SPLASH_FRAMES,
+  STUB_SPLASH_HEIGHT,
+  STUB_SPLASH_PATH,
+  STUB_SPLASH_SAMPLE_RATE,
+  STUB_SPLASH_WIDTH,
+  stubSplashAudio,
+  stubSplashFrames,
+} from './video.ts';
 
-const MEDIA_DIRS = ['synth', 'music', 'mercedt'];
+const MEDIA_DIRS = ['synth', 'music', 'mercedt', 'intro'];
+const SPLASH_BUDGET_BYTES = 64 * 1024;
 const TEXT_FILES = ['binarydata/itemdesc.edt', 'binarydata/credits.edt', 'binarydata/email.edt', 'ambient/0.bad', 'aliases.json'];
 const MEDIA_BUDGET_BYTES = 4 * 1024 * 1024;
 
@@ -178,6 +189,30 @@ describe('stub media', () => {
       const audio = decodeWav(await data.vfs.read(stub(ambientSoundPath(entry))));
       expect(audio.frameCount, entry.file).toBeGreaterThan(0);
     }
+  });
+
+  it('round-trips the stub splash video: title card frames, palette and tone', async () => {
+    const file = data.vfs.stat(stub(STUB_SPLASH_PATH));
+    expect(file?.size).toBeLessThan(SPLASH_BUDGET_BYTES);
+    const video = openSmk(await data.vfs.read(stub(STUB_SPLASH_PATH)));
+    expect([video.width, video.height, video.frameCount]).toEqual([STUB_SPLASH_WIDTH, STUB_SPLASH_HEIGHT, STUB_SPLASH_FRAMES]);
+    expect(video.audioTracks).toEqual([
+      { track: 0, sampleRate: STUB_SPLASH_SAMPLE_RATE, channels: 2, bitsPerSample: 16, compressed: true },
+    ]);
+    const source = stubSplashFrames();
+    const reader = createFrameReader(video);
+    for (let frame = reader.nextFrame(); frame; frame = reader.nextFrame()) {
+      const expected = source[frame.index];
+      expect(
+        frame.indices.every((v, i) => v === expected?.indices[i]),
+        `frame ${frame.index}`,
+      ).toBe(true);
+      expect(frame.paletteChanged).toBe(expected?.palette !== undefined);
+      if (expected?.palette) expect(frame.palette).toEqual(expected.palette);
+    }
+    const [track] = video.audioTracks;
+    if (!track) throw new Error('the stub splash has no audio');
+    expect(decodeAudio(video, track)).toEqual(stubSplashAudio().channels);
   });
 
   it('keeps the media small', async () => {
