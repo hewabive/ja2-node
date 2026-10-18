@@ -174,4 +174,20 @@ describe('a campaign snapshot', () => {
     expect(s.rng.state()).toEqual(Rng.fromSeed(77).state());
     expect(Array.from({ length: 256 }, () => s.pre.int(1000))).toEqual(Array.from({ length: 256 }, () => ring.int(1000)));
   });
+
+  it('fails loudly when new state cannot be written: a function, a class instance', () => {
+    const options = { seed: BATTLE_SEED, mercs: 3, garrison: GARRISON };
+    const { campaign: c } = createTestCampaign(kit, options);
+    landFirstSquad(c);
+    const content = testCampaignContent(kit, options);
+    const ending = c.state.ending as unknown as Record<string, unknown>;
+    ending.callback = () => 0;
+    expect(() => snapshotCampaign(c, content)).toThrow(/a function cannot be written at strategic\/ending\/callback/);
+    ending.callback = new Map([[1, new (class Pending {})()]]);
+    expect(() => snapshotCampaign(c, content)).toThrow(/a Pending instance cannot be written at strategic\/ending\/callback\/0\/1/);
+    delete ending.callback;
+    const t = tacticalOf(c) as unknown as Record<string, unknown>;
+    t.lastHit = { at: new Date(0) };
+    expect(() => snapshotCampaign(c, content)).toThrow(/a Date instance cannot be written at tactical\/lastHit\/at/);
+  });
 });

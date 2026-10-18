@@ -212,30 +212,13 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     RELOAD_TEST_TIMEOUT_MS,
   );
 
-  it('lets an unnamed civilian bark a civilian quote instead of opening a panel', async () => {
-    const { session, live } = await inA10(11);
-    const merc = session.view().strategic?.mercs[0]?.id ?? 0;
-    const t = session.campaign.tactical?.state;
-    const villager = t?.soldiers.find((s) => s?.placed && s.team === Team.CIV && s.profile === NO_PROFILE && s.bodyType <= Body.KIDCIV);
-    if (!t || !villager) throw new Error('no villager');
-    expect(session.dispatch({ type: 'move', soldier: merc, to: villager.gridNo + 2, mode: 'walk' }).ok).toBe(true);
-    live.advance({ idle: true });
-    session.drainEvents();
-    const started = session.dispatch({ type: 'talk', soldier: merc, target: villager.id });
-    expect(started.ok, started.reason).toBe(true);
-    let bark = (started.data as { civQuote?: { text?: string; quote: number; entry: number } | null }).civQuote;
-    let events: readonly SimEvent[] = session.drainEvents();
-    if ((started.data as { walking?: boolean }).walking) {
-      const report = live.advance({ idle: true });
-      events = report.events;
-      bark = events.find((e) => e.type === 'civQuote') as unknown as typeof bark;
-    }
-    expect(CIV_LOW_LOYALTY_LINES.has(bark?.quote ?? -1)).toBe(true);
-    expect(bark?.text?.length ?? 0).toBeGreaterThan(0);
-    expect(events.some((e) => e.type === 'civQuote')).toBe(true);
-    expect(session.view().conversation ?? null).toBeNull();
-    expect(session.campaign.tactical?.state.soldiers[villager.id]?.currentCivQuote).toBeGreaterThanOrEqual(0);
-  });
+  it(
+    'lets an unnamed civilian bark a civilian quote instead of opening a panel, the same across reloads',
+    async () => {
+      await expectReloadsInvisible(civilianBark);
+    },
+    RELOAD_TEST_TIMEOUT_MS,
+  );
 
   it('opens the shop of the stub dealer through the talk menu', async () => {
     const { session, live } = await inA10(7);
@@ -252,3 +235,29 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(session.dispatch({ type: 'closeShop' })).toEqual({ ok: true });
   });
 });
+
+async function civilianBark(mode: RunMode): Promise<CampaignSession> {
+  const { session, live } = await inA10(11, mode);
+  const merc = session.view().strategic?.mercs[0]?.id ?? 0;
+  const t = session.campaign.tactical?.state;
+  const villager = t?.soldiers.find((s) => s?.placed && s.team === Team.CIV && s.profile === NO_PROFILE && s.bodyType <= Body.KIDCIV);
+  if (!t || !villager) throw new Error('no villager');
+  expect(session.dispatch({ type: 'move', soldier: merc, to: villager.gridNo + 2, mode: 'walk' }).ok).toBe(true);
+  live.advance({ idle: true });
+  session.drainEvents();
+  const started = session.dispatch({ type: 'talk', soldier: merc, target: villager.id });
+  expect(started.ok, started.reason).toBe(true);
+  let bark = (started.data as { civQuote?: { text?: string; quote: number; entry: number } | null }).civQuote;
+  let events: readonly SimEvent[] = session.drainEvents();
+  if ((started.data as { walking?: boolean }).walking) {
+    const report = live.advance({ idle: true });
+    events = report.events;
+    bark = events.find((e) => e.type === 'civQuote') as unknown as typeof bark;
+  }
+  expect(CIV_LOW_LOYALTY_LINES.has(bark?.quote ?? -1)).toBe(true);
+  expect(bark?.text?.length ?? 0).toBeGreaterThan(0);
+  expect(events.some((e) => e.type === 'civQuote')).toBe(true);
+  expect(session.view().conversation ?? null).toBeNull();
+  expect(session.campaign.tactical?.state.soldiers[villager.id]?.currentCivQuote).toBeGreaterThanOrEqual(0);
+  return session;
+}

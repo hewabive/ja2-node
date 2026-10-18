@@ -165,6 +165,9 @@ describe('the snapshot codec', () => {
     expect(() => decodeGraph(graph({ $what: 1 }), NO_RESOLVE)).toThrow(/unknown snapshot tag/);
     expect(() => decodeGraph(graph([{ $ref: 'root/9' }]), NO_RESOLVE)).toThrow(/unresolved reference/);
     expect(() => decodeGraph(graph({ $x: 3 }), NO_RESOLVE)).toThrow(/unknown external/);
+    expect(() => decodeGraph(graph(JSON.parse('{"__proto__": {"polluted": 1}}')), NO_RESOLVE)).toThrow(/prototype/);
+    expect(() => contentIndex({ content: { items: [] } }).resolve('content/items/constructor')).toThrow(/does not resolve/);
+    expect(() => contentIndex({ content: { items: [] } }).resolve('content/__proto__')).toThrow(/does not resolve/);
   });
 });
 

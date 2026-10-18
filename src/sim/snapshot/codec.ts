@@ -74,6 +74,7 @@ const SET = '$set';
 const SPARSE = '$sparse';
 const SPARSE_ENTRIES = '$e';
 const TAG_PREFIX = 36;
+const PROTO_KEY = '__proto__';
 
 const SPECIAL_NUMBERS: Readonly<Record<string, number>> = {
   NaN: Number.NaN,
@@ -340,7 +341,10 @@ class Decoder {
   #plain(record: Record<string, Json>, trie: TrieNode | undefined): Record<string, unknown> {
     const out: Record<string, unknown> = {};
     this.#register(trie, out);
-    for (const key in record) out[key] = this.#value(record[key] as Json, trie?.children.get(escapeSegment(key)));
+    for (const key in record) {
+      if (key === PROTO_KEY) throw new SnapshotError('a snapshot object cannot set its prototype');
+      out[key] = this.#value(record[key] as Json, trie?.children.get(escapeSegment(key)));
+    }
     return out;
   }
 

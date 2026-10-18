@@ -390,7 +390,7 @@ references a module-level constant object.
 key order, streams, content keys, loud failures, versions, base64); `src/sim/snapshot/session.test.ts` (a turn-based
 battle restored with bullets and then a grenade in flight; snapshots between inputs change nothing; the restored world
 and the state shared by the two layers are re-linked, `registeredInTactical` holds, the cost table equals a recompile;
-reseeding); `src/server/session-snapshot.test.ts` (the sandbox, a new campaign from the laptop to the landing, a landed
+reseeding; a function or a class instance put into the campaign state fails with its path); `src/server/session-snapshot.test.ts` (the sandbox, a new campaign from the laptop to the landing, a landed
 squad through a sector change, the asynchronous restore with fresh content; on original data the sandbox, a landed new
 campaign and every native save import, with and without a world cache, each continued 300 ticks). Reload at every
 boundary: `tests/support/reload.ts` (`driven`, `expectReloadsInvisible`, `advance`, `reloadPoint`, `RUN_MODES`),
@@ -399,8 +399,8 @@ sim is snapshotted and restored into a fresh sim (and snapshotted again to check
 was stepped since the last reload, after every command, and after every `advance` of the support module or of a
 `ReloadingSession`; it records the raw JSON of every command result and drained event batch, and
 `expectReloadsInvisible(scenario)` runs a scenario plain and reloaded and compares the event log and the final snapshot
-byte for byte. The battle, shop, helicopter, meanwhile, creature, schedule, sector, talk, give, recruit, surrender,
-boxing, interrogation, endgame and shop-stub scenarios run that way; `JA2_RELOAD=1 pnpm test` reloads every test campaign
+byte for byte. The battle, shop, helicopter, meanwhile, creature, schedule, sector, talk, civilian quote, give,
+recruit, surrender, boxing, interrogation, endgame and shop-stub scenarios run that way; `JA2_RELOAD=1 pnpm test` reloads every test campaign
 and driven session after every input, and the whole suite passes. A test must look state up again after an input
 instead of holding objects across it, and `reloadPoint` belongs at input boundaries, not right after a direct flow call
 whose events still sit in a flow buffer.

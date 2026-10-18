@@ -63,8 +63,10 @@ function step(value: unknown, segments: readonly string[], i: number): { value: 
   }
   if (value instanceof Set) return { value: [...value][Number(segment)], next: i + 1 };
   if (Array.isArray(value)) return { value: value[Number(segment)], next: i + 1 };
-  if (typeof value === 'object' && value !== null)
-    return { value: (value as Record<string, unknown>)[unescapeSegment(segment)], next: i + 1 };
+  if (typeof value === 'object' && value !== null) {
+    const key = unescapeSegment(segment);
+    return { value: Object.hasOwn(value, key) ? (value as Record<string, unknown>)[key] : undefined, next: i + 1 };
+  }
   return { value: undefined, next: i + 1 };
 }
 
