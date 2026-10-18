@@ -338,6 +338,428 @@
           "numQuotes": 1
         }
       ]
+    },
+    {
+      "profile": 97,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 1,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "DIRECT",
+          "quoteNum": 2,
+          "numQuotes": 1
+        },
+        {
+          "index": 3,
+          "requiredApproach": "RECRUIT",
+          "quoteNum": 3,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 110
+          }
+        },
+        {
+          "index": 4,
+          "requiredApproach": "EPC_WHO_IS_RECRUITED",
+          "quoteNum": 4,
+          "numQuotes": 1
+        },
+        {
+          "index": 5,
+          "requiredApproach": "EPC_IN_WRONG_SECTOR",
+          "quoteNum": 5,
+          "numQuotes": 1
+        },
+        {
+          "index": 15,
+          "requiredApproach": "TRIGGER_NPC",
+          "quoteNum": 6,
+          "numQuotes": 1,
+          "endQuest": "ESCORT_SKYRIDER",
+          "actionData": {
+            "code": 149
+          },
+          "eraseOnceSaid": true
+        }
+      ]
+    },
+    {
+      "profile": 106,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 172
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 1,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "DIRECT",
+          "quoteNum": 2,
+          "numQuotes": 1
+        }
+      ]
+    },
+    {
+      "profile": 148,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 172
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 1,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "DIRECT",
+          "quoteNum": 2,
+          "numQuotes": 1
+        }
+      ]
+    },
+    {
+      "profile": 156,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 172
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 1,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "DIRECT",
+          "quoteNum": 2,
+          "numQuotes": 1
+        }
+      ]
+    },
+    {
+      "profile": 157,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 172
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 1,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "DIRECT",
+          "quoteNum": 2,
+          "numQuotes": 1
+        }
+      ]
+    },
+    {
+      "profile": 158,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "actionData": {
+            "code": 172
+          },
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 1,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "DIRECT",
+          "quoteNum": 2,
+          "numQuotes": 1
+        }
+      ]
+    },
+    {
+      "profile": 147,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 1,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "DIRECT",
+          "quoteNum": 2,
+          "numQuotes": 1
+        }
+      ]
+    },
+    {
+      "profile": 124,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 1,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "DIRECT",
+          "quoteNum": 2,
+          "numQuotes": 1
+        }
+      ]
+    },
+    {
+      "profile": 113,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 1,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "DIRECT",
+          "quoteNum": 2,
+          "numQuotes": 1
+        }
+      ]
+    },
+    {
+      "profile": 125,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 1,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "DIRECT",
+          "quoteNum": 2,
+          "numQuotes": 1
+        }
+      ]
+    },
+    {
+      "profile": 126,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 1,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "DIRECT",
+          "quoteNum": 2,
+          "numQuotes": 1
+        }
+      ]
+    },
+    {
+      "profile": 130,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 1,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "DIRECT",
+          "quoteNum": 2,
+          "numQuotes": 1
+        }
+      ]
+    },
+    {
+      "profile": 151,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 1,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "DIRECT",
+          "quoteNum": 2,
+          "numQuotes": 1
+        }
+      ]
+    },
+    {
+      "profile": 152,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 1,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "DIRECT",
+          "quoteNum": 2,
+          "numQuotes": 1
+        }
+      ]
+    },
+    {
+      "profile": 154,
+      "records": [
+        {
+          "index": 0,
+          "requiredApproach": "INITIAL_QUOTE",
+          "quoteNum": 0,
+          "numQuotes": 1,
+          "eraseOnceSaid": true
+        },
+        {
+          "index": 1,
+          "requiredApproach": "FRIENDLY",
+          "quoteNum": 1,
+          "numQuotes": 1,
+          "sayOncePerConvo": true
+        },
+        {
+          "index": 2,
+          "requiredApproach": "DIRECT",
+          "quoteNum": 2,
+          "numQuotes": 1
+        }
+      ]
     }
   ],
   "recruited": {

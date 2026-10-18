@@ -54,7 +54,8 @@ soldier: CIV 22 5 SOUTH STATIONARY DEFENSIVE NONE
 soldier: CIV 33 5 WEST STATIONARY DEFENSIVE NONE
 soldier: CIV 6 11 EAST STATIONARY BRAVESOLO NONE
 soldier: CIV 34 13 NORTH STATIONARY DEFENSIVE NONE
-soldier: CIV 16 11 WEST STATIONARY DEFENSIVE NONE profile=97
+schedule 'S': STAYINSECTOR
+soldier: CIV 16 11 WEST STATIONARY DEFENSIVE NONE profile=97 schedule=S
 map:
 ........................................
 ..:.....................................

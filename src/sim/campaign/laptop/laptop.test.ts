@@ -15,6 +15,12 @@ import { Bookmark, MercAccountStatus } from './laptop-state.ts';
 import { History } from './records.ts';
 
 const SLOW_SCENARIO_MS = 30_000;
+const VANT = 1;
+const HOLLIS = 3;
+const LASKO = 6;
+const PUIG = 7;
+const MARLOW = 8;
+const VOSS = 10;
 let kit: StubSectorKit;
 
 beforeAll(async () => {
@@ -68,7 +74,7 @@ describe('the laptop at the start of a new game', () => {
     ]);
     expect(laptop?.balance).toBe(35000);
     expect(laptop?.files).toEqual([{ code: 0, read: false }]);
-    expect(laptop?.aim.map((a) => a.profile)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(laptop?.aim.map((a) => a.profile)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
     expect(laptop?.merc).toMatchObject({ bookmarked: false, accountStatus: 'noAccount', listed: [] });
     expect(laptop?.bobbyRay.open).toBe(false);
   });
@@ -188,6 +194,20 @@ describe('after the landing', { timeout: SLOW_SCENARIO_MS }, () => {
     return session;
   }
 
+  async function landedWith(seed: number, profiles: readonly number[]): Promise<CampaignSession> {
+    const session = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, {
+      hire: profiles.map((profile) => ({ profile })),
+      land: false,
+    });
+    const start = sectorInfo(session.campaign.state.map, parseSectorString('A9'));
+    Object.assign(start, { numAdmins: 0, numTroops: 0, numElites: 0 });
+    const land = { type: 'compressTime', mode: 2 };
+    await session.prepare(land);
+    expect(session.dispatch(land).ok).toBe(true);
+    expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    return session;
+  }
+
   it('flies a later hire in on the next slot with the contract end recomputed at arrival', async () => {
     const session = await landed(31);
     expect(session.dispatch({ type: 'openLaptop' })).toEqual({ ok: true });
@@ -204,6 +224,42 @@ describe('after the landing', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(events.some((e) => e.type === 'mercArrived' && e.soldier === id)).toBe(true);
     expect(merc?.contract.contractEnd).toBe(2 * 1440 + 13 * 60);
     expect(merc?.sector).toEqual(parseSectorString('A9'));
+  });
+
+  it('lets the stub roster refuse for its own reasons and join for a friend', async () => {
+    const session = await landedWith(34, [VANT, 0]);
+    expect(session.dispatch({ type: 'openLaptop' })).toEqual({ ok: true });
+    for (const id of [HOLLIS, LASKO, PUIG, MARLOW, VOSS]) {
+      const p = session.campaign.state.profiles.get(id);
+      if (p) Object.assign(p, { mercStatus: MercStatus.OK, dayBecomesAvailable: 0 });
+    }
+    expect(session.dispatch({ type: 'aimHire', profile: LASKO, contract: 1, gear: false })).toMatchObject({
+      ok: false,
+      reason: 'hatesTeammate',
+      data: { hated: VANT },
+    });
+    const status = session.campaign.state.status;
+    status.badReputation = 1;
+    expect(session.dispatch({ type: 'aimHire', profile: MARLOW, contract: 1, gear: false })).toMatchObject({
+      ok: false,
+      reason: 'reputation',
+    });
+    status.badReputation = 0;
+    Object.assign(status, { mercDeaths: 1, manDaysPlayed: 10 });
+    expect(session.dispatch({ type: 'aimHire', profile: PUIG, contract: 1, gear: false })).toMatchObject({
+      ok: false,
+      reason: 'deathRate',
+    });
+    Object.assign(status, { mercDeaths: 0, manDaysPlayed: 0 });
+    expect(session.dispatch({ type: 'aimHire', profile: HOLLIS, contract: 1, gear: false })).toMatchObject({ ok: true });
+    expect(session.dispatch({ type: 'aimHire', profile: LASKO, contract: 1, gear: false })).toMatchObject({
+      ok: true,
+      data: { quote: 'JOINING_CAUSE_BUDDY_1_ON_TEAM' },
+    });
+    expect(session.dispatch({ type: 'aimHire', profile: VOSS, contract: 1, gear: false })).toMatchObject({
+      ok: true,
+      data: { quote: null },
+    });
   });
 
   it('moves the landing zone only to a surface sector with safe airspace', async () => {

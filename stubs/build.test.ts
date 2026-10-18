@@ -139,7 +139,7 @@ describe('stub media', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
       .list()
       .filter((f) => /^stubs\/mercedt\/\d{3}\.edt$/.test(f.path))
       .map((f): SpeechSet => ({ profile: Number(f.path.slice(-7, -4)), family: 'merc', quotes: f.size / (DIALOGUE_SIZE * 2) }));
-    expect(merc.map((s) => s.profile)).toEqual([0, 1, 2, 3, 4, 5, 42, 59, 65]);
+    expect(merc.map((s) => s.profile)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 42, 59, 65]);
     const sets = [...merc, ...(await npcSpeechSets())];
     for (const set of sets) {
       const paths = speechPaths(set);

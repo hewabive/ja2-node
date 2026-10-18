@@ -1,7 +1,7 @@
 {
   "format": "ja2-node stub merc dialogue v1",
   "note": "Invented lines for the stub mercs, one per quote key of data/tables/merc-quotes.json, compiled by pnpm stubs into mercedt/NNN.edt (240-unit rows in quote order). {nickname} is replaced by the profile's nickname. Original writing for ja2-node.",
-  "profiles": [0, 1, 2, 3, 4, 5, 42, 59, 65],
+  "profiles": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 42, 59, 65],
   "lines": {
     "seeEnemy": "Contact! Hostile in sight.",
     "seeEnemyVariation": "Movement out there. Looks armed.",
@@ -151,6 +151,36 @@
       "greeting": "Orrin. What's the job?",
       "smallTalk": "My boat sank last month. Long story. Need the work.",
       "outOfAmmo": "Out again. Story of my life."
+    },
+    "6": {
+      "greeting": "Lasko. I stitch people up and I shoot straight.",
+      "smallTalk": "Field hospitals teach you to work fast and talk little.",
+      "hateMerc1OnTeam": "You hired Vant? Then you can do without me."
+    },
+    "7": {
+      "greeting": "Puig here. You need something blown open?",
+      "smallTalk": "I like a job with a lot of noise and very little paperwork.",
+      "deathRateRefusal": "Too many of your people come home in boxes. Not me."
+    },
+    "8": {
+      "greeting": "Marlow. One shot, one name crossed off.",
+      "smallTalk": "Patience is the cheapest scope there is.",
+      "reputationRefusal": "I've heard what your outfit does. My name stays clean."
+    },
+    "9": {
+      "greeting": "Reede speaking. Engines, locks, radios. What's broken?",
+      "answeringMachineMsg": "This is Reede. I'm out on a job. Leave your number.",
+      "smallTalk": "Give me a wrench and an hour and I can fix nearly anything."
+    },
+    "10": {
+      "greeting": "Voss. I go first, I come back with the map.",
+      "joiningCauseBuddy1OnTeam": "Arden's with you? Then count me in.",
+      "learnedToHateMerc": "Kestrel, I've had it with your attitude."
+    },
+    "11": {
+      "greeting": "Arden. Tell me the plan, then tell me the real plan.",
+      "smallTalk": "A good squad is one that argues before the fight, not during it.",
+      "joiningCauseBuddy1OnTeam": "If Voss is in, I'm in."
     },
     "42": {
       "greeting": "Brack here. M.E.R.C. sent you? Good.",
