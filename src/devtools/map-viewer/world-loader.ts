@@ -14,6 +14,7 @@ export interface LoadedWorld {
   readonly tables: TileTables;
   readonly tiles: readonly TileElement[];
   readonly surfaces: readonly (LoadedTileSurface | null)[];
+  readonly ambientId: number;
 }
 
 export function worldRoot(mapPath: string): string {
@@ -30,8 +31,10 @@ export async function loadWorld(mapPath: string, available: ReadonlySet<string>)
   ]);
   const tables = parseTileTables(JSON.parse(new TextDecoder().decode(tablesJson)));
   const map = parseMap(mapBytes);
-  const surfaces = await loadTileSurfaces(readOptional, tables, parseTilesetDatabase(tilesetBytes), map.tilesetId, root);
+  const tilesets = parseTilesetDatabase(tilesetBytes);
+  const surfaces = await loadTileSurfaces(readOptional, tables, tilesets, map.tilesetId, root);
+  const ambientId = tilesets.tilesets[map.tilesetId]?.ambientId ?? 0;
   const tiles = buildTileDatabase(tables, surfaces, map.tilesetId);
   const { level } = placeWorldStructures(buildLevel(map, tables, tiles), tiles);
-  return { mapPath, map, level, tables, tiles, surfaces };
+  return { mapPath, map, level, tables, tiles, surfaces, ambientId };
 }
