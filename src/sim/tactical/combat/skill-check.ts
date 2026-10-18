@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/SkillCheck.cc SkillCheck, CalcTrapDetectLevel; SkillCheck.h SkillChecks. See docs/11 §1.7, §8.5,
-// @src docs/25 §8.3.
+// @src docs/25 §8.3; the attaching checks for the item description box (docs/12 §2).
 
 import { findObj } from '../../strategic/economy/kits.ts';
 import {
@@ -16,6 +16,7 @@ import {
 } from '../skills.ts';
 import { numSkillTraits, SKILL_TRAIT_BONUS, SkillTrait, type Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
+import type { RandomStream } from './context.ts';
 
 export const SkillCheckReason = {
   NONE: 0,
@@ -35,6 +36,11 @@ export const SkillCheckReason = {
   ATTACHING_SPECIAL_ELECTRONIC_ITEM: 14,
   DISARM_ELECTRONIC_TRAP: 15,
 } as const;
+
+export interface SkillCheckContext {
+  readonly content: TacticalState['content'];
+  readonly pre: RandomStream;
+}
 
 const R = SkillCheckReason;
 const NO_SLOT = -1;
@@ -56,7 +62,7 @@ const ZEROED_BELOW_REASONABLE: ReadonlySet<number> = new Set([
 
 const hasElectronics = (s: Soldier) => numSkillTraits(s, SkillTrait.ELECTRONICS) > 0;
 
-function lockpickingSkill(t: TacticalState, s: Soldier, electronic: boolean): number {
+function lockpickingSkill(t: SkillCheckContext, s: Soldier, electronic: boolean): number {
   let skill = effectiveMechanical(s);
   if (skill === 0) return 0;
   skill = Math.trunc((skill * (effectiveWisdom(s) + 100)) / 200);
@@ -86,8 +92,30 @@ function disarmSkill(s: Soldier, electronic: boolean): number {
   return skill;
 }
 
-function baseSkill(t: TacticalState, s: Soldier, reason: number): number {
+function attachingDetonatorSkill(s: Soldier, remote: boolean): number {
+  const explosive = effectiveExplosive(s);
+  if (explosive === 0) return 0;
+  const skill = Math.trunc((explosive * 3 + effectiveDexterity(s)) / 4);
+  return remote && !hasElectronics(s) ? Math.trunc(skill / 2) : skill;
+}
+
+function attachingSpecialItemSkill(s: Soldier, electronic: boolean): number {
+  let skill = effectiveMechanical(s);
+  if (skill === 0) return 0;
+  skill = Math.trunc((skill * (effectiveWisdom(s) + 100)) / 200);
+  skill = Math.trunc((skill * (effectiveDexterity(s) + 100)) / 200);
+  skill += effectiveExpLevel(s) * 3;
+  return electronic && !hasElectronics(s) ? Math.trunc(skill / 2) : skill;
+}
+
+function baseSkill(t: SkillCheckContext, s: Soldier, reason: number): number {
   switch (reason) {
+    case R.ATTACHING_DETONATOR:
+    case R.ATTACHING_REMOTE_DETONATOR:
+      return attachingDetonatorSkill(s, reason === R.ATTACHING_REMOTE_DETONATOR);
+    case R.ATTACHING_SPECIAL_ITEM:
+    case R.ATTACHING_SPECIAL_ELECTRONIC_ITEM:
+      return attachingSpecialItemSkill(s, reason === R.ATTACHING_SPECIAL_ELECTRONIC_ITEM);
     case R.LOCKPICKING:
     case R.ELECTRONIC_LOCKPICKING:
       return lockpickingSkill(t, s, reason === R.ELECTRONIC_LOCKPICKING);
@@ -110,7 +138,7 @@ function baseSkill(t: TacticalState, s: Soldier, reason: number): number {
   }
 }
 
-export function skillCheck(t: TacticalState, s: Soldier, reason: number, mod: number): number {
+export function skillCheck(t: SkillCheckContext, s: Soldier, reason: number, mod: number): number {
   let skill = baseSkill(t, s, reason);
   skill -= skillCheckFatiguePenalty(s, skill);
   let chance = skill + mod;

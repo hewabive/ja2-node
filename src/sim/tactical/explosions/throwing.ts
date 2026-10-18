@@ -108,6 +108,7 @@ export function calcThrownChanceToHit(t: TacticalState, s: Soldier, g: number, a
   if (g === s.lastTarget) c += Aim.BONUS_SAME_TARGET;
   if (aimTime) c += Aim.BONUS_PER_AP * aimTime;
   if (isGassed(t, s)) c -= Aim.PENALTY_GASSED;
+  if (s.serviceCount > 0) c -= Aim.PENALTY_GETTINGAID;
   if (s.shock) c -= s.shock * Aim.PENALTY_PER_SHOCK;
   let range = rangeInUnits(s.gridNo, g);
   if (wearsHeadGear(s.inv, itemIndex(t, 'SUNGOGGLES')) && lightTrueLevel(t, g, s.targetLevel) < NORMAL_LIGHTLEVEL_DAY)

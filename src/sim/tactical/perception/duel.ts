@@ -12,7 +12,7 @@ import { boxingActive } from '../narrative/boxing-state.ts';
 import { interruptBasePoints } from '../narrative/robot.ts';
 import { minPtsToMove } from '../points.ts';
 import { effectiveExpLevel } from '../skills.ts';
-import { NO_INTERRUPT, numSkillTraits, OKBREATH, OKLIFE, SkillTrait, type Soldier, Team, TOTAL_SOLDIERS } from '../soldier.ts';
+import { NO_INTERRUPT, NOBODY, numSkillTraits, OKBREATH, OKLIFE, SkillTrait, type Soldier, Team, TOTAL_SOLDIERS } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
 import { NUM_WATCHED_LOCS } from '../turns/turn-state.ts';
 import { atan8Of, Opp, SightFlags } from './opp.ts';
@@ -164,6 +164,7 @@ export function calcInterruptDuelPts(t: TacticalState, s: Soldier, opp: Soldier,
     else if (s.state === st.CRAWLING && d > MAX_DISTANCE_VISIBLE / 4) p += Math.trunc(d / STRAIGHT);
   }
   if (s.state === st.RUNNING && !seenOpponent(t, s.id, opp.id)) p -= 2;
+  if (s.servicePartner !== NOBODY) p -= 2;
   const nightOps = numSkillTraits(s, SkillTrait.NIGHTOPS);
   if (nightOps && lightTrueLevel(t, s.gridNo, s.level) > NORMAL_LIGHTLEVEL_DAY + DARK_LEVELS_ABOVE_DAY) p += nightOps;
   if (s.team === Team.OUR) {

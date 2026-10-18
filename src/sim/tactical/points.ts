@@ -89,6 +89,8 @@ export const AP = {
   PICKUP_ITEM: 3,
   GIVE_ITEM: 1,
   MERGE: 8,
+  DRINK: 5,
+  CAMOFLAGE: 10,
 } as const;
 
 export const DOOR_APS = [0, 3, 4, 5] as const;

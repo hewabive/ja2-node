@@ -9,7 +9,7 @@
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { DIRECTION_INCREMENT, newGridNo } from '../../content/world/grid.ts';
 import { has, STRUCTURE_ON_GROUND, STRUCTURE_ON_ROOF, StructureFlags } from '../../content/world/structures.ts';
-import { cloneObject, deleteObject } from '../items/object.ts';
+import { cloneObject, deleteObject, type ItemObject } from '../items/object.ts';
 import { AiAction } from './ai/actions.ts';
 import { anim } from './anim-states.ts';
 import { AnimHeight, height, initNewSoldierAnim, soldierGotoStationaryStance } from './animation.ts';
@@ -156,8 +156,13 @@ function soldierGetItemFromWorld(t: TacticalState, s: Soldier, pending: PendingP
 export function soldierDropItem(t: TacticalState, s: Soldier, slot: number): void {
   const o = s.inv[slot];
   if (!o) return;
-  s.tempObject = cloneObject(o);
+  const dropped = cloneObject(o);
   deleteObject(o);
+  soldierDropObject(t, s, dropped);
+}
+
+export function soldierDropObject(t: TacticalState, s: Soldier, o: ItemObject): void {
+  s.tempObject = o;
   if (height(t.content, s.state) === AnimHeight.STAND) initNewSoldierAnim(t, s, anim(t.content, 'DROP_ITEM'), 0, false);
   else {
     soldierHandleDropItem(t, s);

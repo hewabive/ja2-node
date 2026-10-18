@@ -603,6 +603,7 @@ export interface SoldierMotion {
   readonly pendingActionData1: number;
   readonly pendingActionData2: number;
   readonly serviceCount: number;
+  readonly servicePartner: number;
   readonly lastRenderVisible: number;
 }
 
@@ -954,6 +955,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       pendingActionData1: n('uiPendingActionData1'),
       pendingActionData2: n('sPendingActionData2'),
       serviceCount: n('ubServiceCount'),
+      servicePartner: n('service_partner'),
       lastRenderVisible: n('bLastRenderVisibleValue'),
     },
     palettes: { head: r.str('HeadPal'), pants: r.str('PantsPal'), vest: r.str('VestPal'), skin: r.str('SkinPal') },

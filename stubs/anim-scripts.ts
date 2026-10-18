@@ -94,6 +94,7 @@ function steppingLoop(): number[] {
   ];
 }
 const DROP_ITEM_CODE = 487;
+const END_FIRST_AID = 768;
 const GIVE_ITEM_CODE = 486;
 const ROLLOVER_GETUP = 437;
 const ClimbOp = {
@@ -130,6 +131,9 @@ const ITEM_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
   ],
   DROP_ITEM: () => [...frames(5), DROP_ITEM_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
   GIVE_ITEM: () => [...frames(5), GIVE_ITEM_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
+  START_AID: (t) => [...frames(4), NONINTERRUPTIBLE_DONE, stateJump(stateId(t, 'GIVING_AID'))],
+  GIVING_AID: () => [...frames(LOOP_FRAMES), JUMP_TO_START],
+  END_AID: () => [4, 3, 2, 1, END_FIRST_AID, END_OF_ANIMATION],
   ROLLOVER: () => [...frames(8), ROLLOVER_GETUP],
   GETUP_FROM_ROLLOVER: (t) => [...frames(5), stateJump(stateId(t, 'KNEEL_UP'))],
   START_COWER: (t) => [...frames(5), NONINTERRUPTIBLE_DONE, stateJump(stateId(t, 'COWERING'))],

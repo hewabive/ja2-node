@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Item_Types.h OBJECTTYPE; Items.cc DefaultMagazine, FindReplacementMagazine, CreateGun,
-// @src CreateMagazine, CreateItem, CreateItems, CreateMoney
+// @src CreateMagazine, CreateItem, CreateItems, CreateMoney, GetObjFrom, AttachObject, RenumberAttachments,
+// @src RemoveAttachment, EmptyWeaponMagazine
 
 import type { ObjectRecord } from '../../content/formats/object.ts';
 import { AmmoType, ItemClass, ItemFlags, type ItemTable, NOTHING, WeaponClass } from '../../content/items/items.ts';
@@ -227,17 +228,29 @@ export function validItemAttachment(table: ItemTable, o: ItemObject, attachment:
   return !(other && findAttachment(o, id(other)) !== -1);
 }
 
-export function attachObject(table: ItemTable, target: ItemObject, attachment: ItemObject): boolean {
+export const NO_ATTACHMENT_POSITION = -1;
+
+export function canAttachAsAttachment(table: ItemTable, target: ItemObject, attachment: number): boolean {
+  return validLaunchable(table, attachment, target.item) || validItemAttachment(table, target, attachment, true);
+}
+
+export function attachmentPosition(table: ItemTable, target: ItemObject, attachment: ItemObject): number {
   const ugl = table.byName.get('UNDER_GLAUNCHER')?.index ?? -1;
   const launchable = validLaunchable(table, attachment.item, target.item);
-  if (!launchable && !validItemAttachment(table, target, attachment.item, true)) return false;
+  if (!launchable && !validItemAttachment(table, target, attachment.item, true)) return NO_ATTACHMENT_POSITION;
   let pos: number;
   if (launchable || validLaunchable(table, attachment.item, ugl)) {
     pos = findAttachmentByClass(table, target, table.byIndex.get(attachment.item)?.itemClass ?? 0);
-    if (pos !== -1 && attachment.count > 1) return false;
+    if (pos !== -1 && attachment.count > 1) return NO_ATTACHMENT_POSITION;
   } else pos = findAttachment(target, attachment.item);
   if (pos === -1) pos = findAttachment(target, NOTHING);
-  if (pos === -1) return false;
+  return pos;
+}
+
+export function attachObject(table: ItemTable, target: ItemObject, attachment: ItemObject): boolean {
+  const ugl = table.byName.get('UNDER_GLAUNCHER')?.index ?? -1;
+  const pos = attachmentPosition(table, target, attachment);
+  if (pos === NO_ATTACHMENT_POSITION) return false;
   const slot = target.attachments[pos] as Attachment;
   const previous = { ...slot };
   slot.item = attachment.item;
@@ -256,6 +269,53 @@ export function attachObject(table: ItemTable, target: ItemObject, attachment: I
   else removeObjects(attachment, 1);
   applyComboMerge(table, target);
   return true;
+}
+
+function renumberAttachments(o: ItemObject): void {
+  const kept = o.attachments.filter((a) => a.item !== NOTHING).map((a) => ({ ...a }));
+  o.attachments = Array.from({ length: MAX_ATTACHMENTS }, (_, k) => kept[k] ?? { item: NOTHING, status: 0 });
+}
+
+export function removeAttachment(table: ItemTable, o: ItemObject, pos: number): ItemObject | null {
+  const a = o.attachments[pos];
+  if (!a || a.item === NOTHING) return null;
+  if ((table.byIndex.get(a.item)?.flags ?? 0) & ItemFlags.INSEPARABLE) return null;
+  const removed = createItem(table, a.item, a.status);
+  a.item = NOTHING;
+  a.status = 0;
+  if (removed.item === (table.byName.get('UNDER_GLAUNCHER')?.index ?? -1)) {
+    const grenade = findAttachmentByClass(table, o, ItemClass.GRENADE);
+    if (grenade !== -1) {
+      const g = o.attachments[grenade] as Attachment;
+      Object.assign(removed.attachments[0] as Attachment, { item: g.item, status: g.status });
+      g.item = NOTHING;
+      g.status = 0;
+    }
+  }
+  renumberAttachments(o);
+  return removed;
+}
+
+export function emptyWeaponMagazine(gun: ItemObject): ItemObject | null {
+  if (gun.gunShotsLeft <= 0) return null;
+  const magazine = blankObject(gun.gunAmmoItem);
+  magazine.status[0] = gun.gunShotsLeft;
+  gun.gunShotsLeft = 0;
+  gun.gunAmmoType = 0;
+  return magazine;
+}
+
+export function getObjFrom(o: ItemObject, index: number): ItemObject | null {
+  if (index < 0 || index >= o.count) return null;
+  if (o.count === 1) {
+    const whole = cloneObject(o);
+    deleteObject(o);
+    return whole;
+  }
+  const one = blankObject(o.item);
+  one.status[0] = o.status[index] ?? 0;
+  removeObjectAt(o, index);
+  return one;
 }
 
 function applyComboMerge(table: ItemTable, target: ItemObject): void {

@@ -131,6 +131,7 @@ export function calcChanceToHitGun(t: TacticalState, s: Soldier, g: number, aim:
   if (s.team !== Team.OUR)
     c += t.perception.difficulty === DIFFICULTY_EASY ? -5 : Math.min(0, ENEMY_TO_HIT_MOD[soldierDifficultyLevel(t, s)] ?? 0);
   if (isGassed(t, s)) c -= Aim.PENALTY_GASSED;
+  if (s.serviceCount > 0) c -= Aim.PENALTY_GETTINGAID;
   if (s.shock) c -= Aim.PENALTY_PER_SHOCK * s.shock;
   let maxRange = 10;
   if (def?.itemClass === ItemClass.GUN) {

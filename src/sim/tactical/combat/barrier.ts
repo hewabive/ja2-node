@@ -8,6 +8,7 @@ import { ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { AnimHeight, changeSoldierStance, endHeight } from '../animation.ts';
+import { givingSoldierCancelServices } from '../first-aid.ts';
 import { InvSlot } from '../inventory.ts';
 import { endBoxingMatch } from '../narrative/boxing.ts';
 import { boxingFight } from '../narrative/boxing-state.ts';
@@ -100,6 +101,7 @@ export function handleSuppressionFire(t: TacticalState, caused: Soldier | null):
       s.changingStanceDueToSuppression = true;
       s.dontChargeAPsForStanceChange = true;
       if (s.team !== Team.OUR) t.turnHooks.suppressedStanceChange(t, s, stance);
+      givingSoldierCancelServices(t, s, false);
       s.pendingAnimation = -1;
       s.inNonInterruptibleAnimation = false;
       s.rtNonInterruptible = false;

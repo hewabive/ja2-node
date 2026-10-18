@@ -67,6 +67,7 @@ export interface NarrativePort {
   giveToNpc(giver: Soldier, target: Soldier, object: ItemObject): void;
   triggerDoneGivingItem(profile: number): void;
   isNpcProfile(profile: number): boolean;
+  isNpcOrRpcProfile(profile: number): boolean;
   sexEffects(s: Soldier): void;
   robotCanBeControlled(robot: Soldier): boolean;
   robotController(robot: Soldier): Soldier | null;
@@ -126,6 +127,7 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
   giveToNpc: () => {},
   triggerDoneGivingItem: () => {},
   isNpcProfile: () => false,
+  isNpcOrRpcProfile: () => false,
   sexEffects: () => {},
   robotCanBeControlled: () => true,
   robotController: () => null,

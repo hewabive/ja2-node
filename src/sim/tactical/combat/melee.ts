@@ -100,6 +100,7 @@ function attackRating(t: TacticalState, att: Soldier, aim: number, mode: number)
   if (aim) a += Math.trunc((Aim.BONUS_PER_AP * aim) / 2);
   if (att.team !== Team.OUR) a += ENEMY_TO_HIT_MOD[soldierDifficultyLevel(t, att)] ?? 0;
   if (isGassed(t, att)) a -= Aim.PENALTY_GASSED;
+  if (att.serviceCount > 0) a -= Aim.PENALTY_GETTINGAID;
   if (att.shock) a -= att.shock * Aim.PENALTY_PER_SHOCK;
   if (a > 0 && att.life < att.lifeMax) a -= Math.trunc((2 * a * (att.lifeMax - effectiveLife(att))) / (3 * att.lifeMax));
   if (a > 0 && att.breath < 100) a -= Math.trunc((a * (100 - att.breath)) / 200);
@@ -121,6 +122,7 @@ function defenceRating(t: TacticalState, def: Soldier, mode: number, weapon: num
   d += moraleModifier(def);
   d -= skillCheckFatiguePenalty(def, d);
   if (isGassed(t, def)) d -= Aim.PENALTY_GASSED;
+  if (def.serviceCount > 0) d -= Aim.PENALTY_GETTINGAID;
   if (def.shock) d -= def.shock * Aim.PENALTY_PER_SHOCK;
   if (d > 0 && def.life < def.lifeMax) d -= Math.trunc((2 * d * (def.lifeMax - effectiveLife(def))) / (3 * def.lifeMax));
   if (d > 0 && def.breath < 100) d -= Math.trunc((d * (100 - def.breath)) / 200);

@@ -4,7 +4,7 @@
 // @src hostility, combat, traversal, drinks, bartenders, stationary NPCs, removal, say-later, conversation mode, experience,
 // @src history, Tixa and Orta, closest doors and cabinets); TacticalAI/NPC.cc TriggerFriendWithHostileQuote. See docs/25 §3.2.
 
-import { ItemClass } from '../../../../content/items/items.ts';
+import { ItemClass, NOTHING } from '../../../../content/items/items.ts';
 import { Approach, QuoteActionId } from '../../../../content/narrative/npc-constants.ts';
 import { DIRECTION_INCREMENT, Direction } from '../../../../content/world/grid.ts';
 import { i8 } from '../../../../core/int.ts';
@@ -21,6 +21,8 @@ import { pauseAiTemporarily } from '../../ai/pause.ts';
 import { findAIUsableObjClass } from '../../ai/utils.ts';
 import { AnimHeight, endHeight, setDesiredDirection } from '../../animation.ts';
 import { soldierReadyWeapon } from '../../combat/attack.ts';
+import { receivingSoldierCancelServices } from '../../first-aid.ts';
+import { reloadSoldierAnimationDueToHandItemChange } from '../../hand-item.ts';
 import { Insertion } from '../../insertion.ts';
 import { autoPlaceObject, InvSlot, NO_SLOT } from '../../inventory.ts';
 import { directionToward } from '../../movement.ts';
@@ -136,6 +138,7 @@ function lowerGun(env: NpcActionEnv, npc: number): void {
   const hand = s?.inv[InvSlot.HAND];
   if (!t || !s || !hand || hand.item === 0) return;
   const gun = hand.item;
+  reloadSoldierAnimationDueToHandItemChange(t, s, gun, NOTHING);
   autoPlaceObject(soldierInventoryContext(t, s), s, hand);
   const newSlot = s.inv.findIndex((o) => o.item === gun);
   const p = profileOf(env, npc);
@@ -394,8 +397,12 @@ export function handleGenericAction(env: NpcActionEnv, npc: number, code: number
     case A.BOOST_TOWN_LOYALTY:
       env.loyaltyForNpcAction(npc);
       return true;
-    case A.STOP_PLAYER_GIVING_FIRST_AID:
+    case A.STOP_PLAYER_GIVING_FIRST_AID: {
+      const t = tactical(env);
+      const s = npcSoldier(env, npc);
+      if (t && s) receivingSoldierCancelServices(t, s);
       return true;
+    }
     case A.FACE_NORTH:
       faceDirection(env, npc, Direction.NORTHWEST);
       return true;

@@ -548,6 +548,10 @@ export class TalkFlow {
         triggerNpcWithGivenApproach(host, profile, Approach.DONE_GIVING_ITEM);
       },
       isNpcProfile: (profile) => profileType(host, profile) === MercType.NPC,
+      isNpcOrRpcProfile: (profile) => {
+        const type = profileType(host, profile);
+        return type === MercType.NPC || type === MercType.RPC;
+      },
       sexEffects: (s) => this.#sexEffects(s),
       triggerNpcRecord: (profile, record) => triggerNpcRecord(host, profile, record),
       triggerNpcWithGivenApproach: (profile, approach) => {

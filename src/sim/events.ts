@@ -7,6 +7,7 @@ import type { EconomyEvent } from './strategic/economy/events.ts';
 import type { ShopEvent } from './strategic/economy/merchants/events.ts';
 import type { HelicopterEvent } from './strategic/forces/helicopter-events.ts';
 import type { DoorEvent } from './tactical/doors/events.ts';
+import type { InventoryEvent } from './tactical/inventory-events.ts';
 import type { BoxingEvent } from './tactical/narrative/boxing-events.ts';
 
 export interface SimEventBase {
@@ -410,6 +411,7 @@ export type SimEvent =
   | ShopEvent
   | LaptopEvent
   | DoorEvent
+  | InventoryEvent
   | HelicopterEvent
   | NarrativeEvent
   | QuestEvent

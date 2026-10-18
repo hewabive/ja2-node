@@ -66,11 +66,22 @@ import type { WorldClockSource } from './explosions/state.ts';
 import { explosivesBusy } from './explosions/state.ts';
 import { calcMaxTossRange, calcThrownChanceToHit, throwOpcode } from './explosions/throwing.ts';
 import { calculateLaunchItemChanceToGetThrough } from './explosions/trajectory.ts';
+import { cancelAllServices, firstAidOpcode, givingSoldierCancelServices, handlePendingAidOnArrival } from './first-aid.ts';
 import { dequeueAllGameEvents } from './game-events.ts';
 import { clearPendingGive, handlePendingGiveOnArrival } from './give.ts';
+import { handleTacticalEffectsOfEquipmentChange } from './hand-item.ts';
 import { InvSlot, itemIn } from './inventory.ts';
+import { dispatchInventoryCommand, INVENTORY_COMMANDS, parseCount, parseSlot } from './inventory-commands.ts';
+import { takeObjects } from './inventory-panel.ts';
 import { type InventoryItemView, inventoryView } from './inventory-view.ts';
-import { handlePendingPickupOnArrival, itemOpcode, pickupCandidates, soldierDropItem, soldierPickupItem } from './item-actions.ts';
+import {
+  handlePendingPickupOnArrival,
+  itemOpcode,
+  pickupCandidates,
+  soldierDropItem,
+  soldierDropObject,
+  soldierPickupItem,
+} from './item-actions.ts';
 import {
   initLighting,
   lightSetBaseLevel,
@@ -231,6 +242,7 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
       itemOpcode(state, s, code) ??
       roofOpcode(state, s, code) ??
       throwOpcode(state, s, code) ??
+      firstAidOpcode(state, s, code) ??
       wheelchairOpcode(state, s, code),
     turnFinished: freeUpFromTurning,
     stanceFreeUp: freeUpFromStanceChange,
@@ -239,7 +251,8 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
       handlePendingPickupOnArrival(state, s) ||
       handlePendingDoorOnArrival(state, s) ||
       handlePendingTalkOnArrival(state, s) ||
-      handlePendingGiveOnArrival(state, s),
+      handlePendingGiveOnArrival(state, s) ||
+      handlePendingAidOnArrival(state, s),
     runningIntoGas: checkForRunningIntoGas,
     enteredGridNo: updateGassedOnNewGridNo,
     endAiGuysTurn: (state, s) => endAIGuysTurn(state, s, ai),
@@ -414,6 +427,7 @@ export class TacticalSim {
       return { ok: false, reason: 'the interface is locked while mercs leave the sector' };
     if (this.state.boxing.uiLocked && cmd.type !== 'estimateAttack')
       return { ok: false, reason: 'the interface is locked while the boxers leave the ring', data: { refusal: 'boxingUiLock' } };
+    if (INVENTORY_COMMANDS.has(cmd.type)) return this.#inventory(cmd);
     switch (cmd.type) {
       case 'move':
         return this.#move(cmd);
@@ -440,6 +454,8 @@ export class TacticalSim {
       case 'stop': {
         const s = this.soldier(cmd.soldier);
         if (!s || s.team !== Team.OUR) return { ok: false, reason: 'no such soldier of yours' };
+        cancelAllServices(this.state, s);
+        s.pendingAid = null;
         s.pendingDoorAction = null;
         s.pendingTalk = null;
         clearPendingGive(this.state, s);
@@ -515,21 +531,38 @@ export class TacticalSim {
     return { ok: true, data: outcome.data };
   }
 
+  #inventory(cmd: TacticalCommand): CommandResult {
+    const s = this.soldier(cmd.soldier);
+    if (!s) return { ok: false, reason: 'no such soldier of yours' };
+    const refusal = this.canAct(s);
+    if (refusal) return { ok: false, reason: refusal };
+    if (cmd.type === 'moveItem' && cmd.to === 'ground') return this.#drop({ ...cmd, type: 'drop', slot: cmd.from });
+    selectSoldier(this.state, s);
+    return dispatchInventoryCommand(this.state, s, cmd);
+  }
+
   #drop(cmd: TacticalCommand): CommandResult {
     const t = this.state;
     const s = this.soldier(cmd.soldier);
     if (!s) return { ok: false, reason: 'no such soldier of yours' };
     const refusal = this.canAct(s);
     if (refusal) return { ok: false, reason: refusal };
-    const slot = cmd.slot === undefined || cmd.slot === 'hand' ? InvSlot.HAND : cmd.slot;
-    if (typeof slot !== 'number' || !Number.isInteger(slot) || slot < 0 || slot >= s.inv.length)
-      return { ok: false, reason: 'slot must be 0..18 or "hand"' };
+    const slot = cmd.slot === undefined ? InvSlot.HAND : parseSlot(cmd.slot);
+    if (slot === null) return { ok: false, reason: 'slot must be 0..18 or a slot name such as "hand"' };
     if (itemIn(s.inv, slot) === NOTHING) return { ok: false, reason: 'that slot is empty' };
+    const count = parseCount(cmd.count, 'all');
+    if (count === null) return { ok: false, reason: 'count must be 1 or "all"' };
+    const index = cmd.index ?? 0;
+    if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index >= Math.max(1, s.inv[slot]?.count ?? 0))
+      return { ok: false, reason: 'index must point to an object in the stack' };
     if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return { ok: false, reason: 'stop the soldier first' };
     if (!enoughPoints(t.inCombat, s, AP.PICKUP_ITEM)) return { ok: false, reason: `not enough APs: ${AP.PICKUP_ITEM} needed` };
     selectSoldier(t, s);
+    const item = itemIn(s.inv, slot);
+    const dropped = takeObjects(s.inv[slot] as ItemObject, count, index) as ItemObject;
+    handleTacticalEffectsOfEquipmentChange(t, s, slot, item, NOTHING);
     deductPoints(t.inCombat, s, AP.PICKUP_ITEM, 0);
-    soldierDropItem(t, s, slot);
+    soldierDropObject(t, s, dropped);
     return { ok: true };
   }
 
@@ -657,6 +690,7 @@ export class TacticalSim {
       s.goodContPath = false;
     } else if (hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) changeSoldierStance(t, s, wanted);
     else return { ok: false, reason: 'stop the soldier before changing stance in real time' };
+    givingSoldierCancelServices(t, s, false);
     const st = states(t.content.animations);
     s.uiMovementMode = wanted === AnimHeight.STAND ? st.WALKING : wanted === AnimHeight.CROUCH ? st.SWATTING : st.CRAWLING;
     selectSoldier(t, s);
