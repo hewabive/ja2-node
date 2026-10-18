@@ -1682,6 +1682,14 @@ ja2-node does not port, deviations "Watchdogs"; 14–16 decided and fixed on 202
     `stopMerc` does not release a turn to shoot nor reset `fTurningFromPronePosition`, the pending direction and the
     pending action (`EVENT_StopMerc`, `:7379-7421`); `handleSoldierAI` lacks the `fGettingHit` return
     (`TacticalAI/AIMain.cc:180-184`, listed in `13` §1).
+18. *Sweep after 14–17* (2026-10-18): `bench enemy-turn --runs 1` with seeds 1–8 and every variant on stubs and on the
+    original data and `bench campaign --runs 1` with seeds 1–16 on stubs end without a `stalled` outcome. The campaign
+    harness crashed with "the battle did not start" on six seeds; it now reports `notEngaged` (seeds 8, 12, 15, 16:
+    the last enemies hold a building and the approach leaves our merc outside its wall, nobody sees anyone) and
+    finishes the others (seeds 9 and 11 end `cleared` after the last enemies left the map). Seen, not changed:
+    `HandleSystemNewAISituation` drops a pending melee animation without its busy count when a new situation arrives
+    without a sighting during the stance change before the attack; no source of such a new situation during an AI's
+    own turn was found, and no run met it.
 
 **Verified** by reading Stracciatella (vanilla where marked): the save list, names, folders, header, keys and gates,
 `CanGameBeSaved`, the three save modes, Dead is Dead's file, backups and save points, the end-of-turn autosave and its
