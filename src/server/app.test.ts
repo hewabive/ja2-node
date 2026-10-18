@@ -77,13 +77,27 @@ describe('server', () => {
   });
 
   it('serves dialogue rows from the original or the stub layer', async () => {
+    const layouts = JSON.stringify({ files: [{ path: 'npcdata/{03d}.edt', columns: [240] }] });
     const texts = createApp({
-      vfs: new Vfs([new MemoryLayer('stubs', [['stubs/npcdata/094.edt', encodeEdtFile(['first line', 'second line'])]])]),
+      vfs: new Vfs([
+        new MemoryLayer('stubs', [
+          ['stubs/npcdata/094.edt', encodeEdtFile(['first line', 'second line'])],
+          ['tables/edt-layouts.json', new TextEncoder().encode(layouts)],
+        ]),
+      ]),
       token,
       info: { originalData: false, slfCount: 0, stubs: true },
     });
     const ok = await texts.request('http://localhost/api/text?file=npcdata/094.edt&row=1', { headers: auth });
-    expect(await ok.json()).toEqual({ file: 'npcdata/094.edt', row: 1, width: 240, text: 'second line' });
+    expect(await ok.json()).toEqual({
+      file: 'npcdata/094.edt',
+      row: 1,
+      layout: [240],
+      columns: ['second line'],
+      column: 0,
+      width: 240,
+      text: 'second line',
+    });
     expect((await texts.request('http://localhost/api/text?file=npcdata/094.edt&row=9', { headers: auth })).status).toBe(404);
     expect((await texts.request('http://localhost/api/text?file=../prof.dat&row=1', { headers: auth })).status).toBe(400);
     expect((await texts.request('http://localhost/api/text?file=npcdata/094.edt&row=1')).status).toBe(401);

@@ -2,15 +2,18 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { serve } from '@hono/node-server';
+import { dataDecoding } from '../content/text/data-version.ts';
 import { openDataVfs } from '../node/data-vfs.ts';
 import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR, REPO_ROOT } from '../node/repo.ts';
 import { loadOrCreateToken } from '../node/token.ts';
 import { createApp } from './app.ts';
 import { createCampaignSession } from './campaign-factory.ts';
+import { chooseDisplayLanguage, detectDataVersion, LANGUAGE_ENV } from './data-version.ts';
 import { createSandboxSession } from './sandbox.ts';
 import { createSaveSession } from './save-session.ts';
 import { Session } from './session.ts';
 import { SAVE_NAME, type SessionRequest } from './session-registry.ts';
+import { TextService } from './text-service.ts';
 import { attachWebSocket } from './ws.ts';
 
 const host = process.env.JA2_HOST ?? '127.0.0.1';
@@ -20,6 +23,11 @@ const data = await openDataVfs({
   dataDir: process.env.JA2_DATA_DIR || undefined,
   stubsDir: process.env.JA2_STUBS_DIR ?? DEFAULT_STUBS_DIR,
 });
+const dataVersion = detectDataVersion(data.vfs, data.dataDir !== null, process.env);
+const defaultLanguage = chooseDisplayLanguage(process.env[LANGUAGE_ENV], dataVersion.version);
+const decoding = dataDecoding(dataVersion.version);
+const texts = new TextService({ vfs: data.vfs, dataVersion: dataVersion.version });
+const sessionText = { language: defaultLanguage, dataVersion: dataVersion.version };
 const token = loadOrCreateToken();
 const clientDir = join(REPO_ROOT, 'dist/client');
 const sessions = new Map<string, Session>();
@@ -29,12 +37,14 @@ const savesDir = process.env.JA2_SAVES_DIR || (data.dataDir ? join(dirname(data.
 const exists = (path: string) => data.vfs.stat(path) !== undefined;
 const layers = (path: string) => data.vfs.layerCount(path);
 const createSession = async (id: string, request: SessionRequest): Promise<Session> => {
-  if (request.campaign) return new Session(id, await createCampaignSession(readVfs, exists, request.seed, request.campaign, layers));
-  if (!request.save) return new Session(id, await createSandboxSession(readVfs, data.dataDir !== null, request.seed));
+  if (request.campaign)
+    return new Session(id, await createCampaignSession(readVfs, exists, request.seed, request.campaign, layers, decoding), sessionText);
+  if (!request.save)
+    return new Session(id, await createSandboxSession(readVfs, data.dataDir !== null, request.seed, decoding), sessionText);
   if (!savesDir || data.dataDir === null) throw new Error('savegames need the original data (JA2_DATA_DIR)');
   if (!SAVE_NAME.test(request.save)) throw new Error(`invalid save name ${request.save}`);
   const bytes = new Uint8Array(await readFile(join(savesDir, `${request.save}.sav`)));
-  return new Session(id, (await createSaveSession(readVfs, bytes, request.seed, exists, layers)).session);
+  return new Session(id, (await createSaveSession(readVfs, bytes, request.seed, exists, layers, decoding)).session, sessionText);
 };
 try {
   const seed = Number(process.env.JA2_SEED ?? 1);
@@ -51,6 +61,8 @@ const app = createApp({
   sessions,
   defaultSession,
   createSession,
+  texts,
+  defaultLanguage,
   ...(existsSync(clientDir) ? { clientDir } : {}),
   info: { originalData: data.dataDir !== null, slfCount: data.slfCount, stubs: data.stubsDir !== null },
 });
@@ -59,6 +71,8 @@ const server = serve({ fetch: app.fetch, hostname: host, port }, (addr) => {
   console.log(`ja2-node server on http://${host}:${addr.port}`);
   console.log(`  original data: ${data.dataDir ?? 'not set (JA2_DATA_DIR)'}${data.dataDir ? `, ${data.slfCount} SLF` : ''}`);
   console.log(`  stubs: ${data.stubsDir ?? 'missing (run pnpm stubs)'}`);
+  console.log(`  data version: ${dataVersion.version} (${dataVersion.source}), display language: ${defaultLanguage}`);
+  if (dataVersion.warning) console.log(`  warning: ${dataVersion.warning}`);
   console.log(`  files in VFS: ${data.vfs.size}`);
   const sandbox = sessions.get(defaultSession);
   if (sandbox) console.log(`  sandbox: ${sandbox.sim.view().mapPath}, ${sandbox.sim.view().soldiers.length} visible soldiers`);

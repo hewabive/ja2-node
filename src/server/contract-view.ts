@@ -35,7 +35,9 @@ const LAST_CONTRACTS: Readonly<Record<number, 'day' | 'week' | 'twoWeeks'>> = {
   [ContractLength.EXTEND_2_WEEK]: 'twoWeeks',
 };
 
-const MORALE_TEXTS: readonly (readonly [number, string])[] = [
+export type MoraleText = 'great' | 'good' | 'stable' | 'poor' | 'panic' | 'bad';
+
+const MORALE_TEXTS: readonly (readonly [number, MoraleText])[] = [
   [80, 'great'],
   [65, 'good'],
   [35, 'stable'],
@@ -46,7 +48,7 @@ const TWO_WEEK_DAYS = 14;
 
 const sectorName = (s: Sector) => (s.z ? `${sectorShortString(s)}-${s.z}` : sectorShortString(s));
 
-function moraleText(m: RosterMerc): string {
+function moraleText(m: RosterMerc): MoraleText {
   if (m.statusFlags & SoldierStatusFlags.DEAD) return 'bad';
   return MORALE_TEXTS.find(([above]) => m.soldier.morale > above)?.[1] ?? 'panic';
 }

@@ -1,3 +1,4 @@
+import { type DataVersion, STUB_DATA_VERSION, type UiLanguage } from '../content/text/data-version.ts';
 import type { CommandEnvelope, DriverMode, ServerMessage } from '../protocol/messages.ts';
 import { diffPlayerView, type PlayerView, type ViewFrame } from '../protocol/view.ts';
 import { advance, type Steppable, type StopCondition, type StopReport } from '../sim/advance.ts';
@@ -18,9 +19,18 @@ export interface SessionSim extends Steppable {
 
 export type Listener = (message: ServerMessage) => void;
 
+export interface SessionText {
+  readonly language: UiLanguage;
+  readonly dataVersion: DataVersion;
+}
+
+export const DEFAULT_SESSION_TEXT: SessionText = { language: 'eng', dataVersion: STUB_DATA_VERSION };
+
 export class Session {
   readonly id: string;
   readonly sim: SessionSim;
+  readonly dataVersion: DataVersion;
+  language: UiLanguage;
   #driver: DriverMode = { mode: 'manual' };
   #timer: ReturnType<typeof setInterval> | null = null;
   #lastRealtime = 0;
@@ -28,9 +38,11 @@ export class Session {
   #lastView: PlayerView;
   readonly #listeners = new Set<Listener>();
 
-  constructor(id: string, sim: SessionSim) {
+  constructor(id: string, sim: SessionSim, text: SessionText = DEFAULT_SESSION_TEXT) {
     this.id = id;
     this.sim = sim;
+    this.dataVersion = text.dataVersion;
+    this.language = text.language;
     this.#lastView = sim.view();
   }
 

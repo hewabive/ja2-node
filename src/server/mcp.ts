@@ -4,6 +4,15 @@ import { z } from 'zod';
 import type { WorldTimeTarget } from '../sim/advance.ts';
 import type { Session } from './session.ts';
 import { describeSession, NEW_SESSION_SHAPE, openSession, type SessionFactory } from './session-registry.ts';
+import { labelledView } from './text-keys.ts';
+import type { TextService } from './text-service.ts';
+
+export interface McpOptions {
+  readonly sessions: Map<string, Session>;
+  readonly defaultSession: string;
+  readonly createSession?: SessionFactory | undefined;
+  readonly texts?: TextService | undefined;
+}
 
 const SERVER_INFO = { name: 'ja2-node', version: '0.1.0' };
 
@@ -20,7 +29,13 @@ function text(value: unknown): { content: { type: 'text'; text: string }[] } {
   return { content: [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value, null, 1) }] };
 }
 
-export function buildMcpServer(sessions: Map<string, Session>, defaultSession: string, createSession?: SessionFactory): McpServer {
+async function observation(session: Session, texts: TextService | undefined): Promise<Record<string, unknown>> {
+  const view = session.sim.view();
+  const strings = texts ? await texts.strings(session.language).catch(() => null) : null;
+  return { ...(strings ? labelledView(view, strings.strings) : view), language: session.language, dataVersion: session.dataVersion };
+}
+
+export function buildMcpServer({ sessions, defaultSession, createSession, texts }: McpOptions): McpServer {
   const server = new McpServer(SERVER_INFO);
   const pick = (id: string | undefined): Session => {
     const s = sessions.get(id ?? defaultSession);
@@ -33,7 +48,7 @@ export function buildMcpServer(sessions: Map<string, Session>, defaultSession: s
     'status',
     {
       description:
-        'Game status: tick, map, time driver, soldier count, whether the simulation is idle; in a campaign also the clock, flow (strategic, tactical, autoresolve, laptop, meanwhile, endgame, ended), sector, campaign (playing, endgame, won) and noUsableMercs: true when no usable merc is left (compression is refused; there is no game over).',
+        'Game status: tick, map, time driver, display language (language) and data version (dataVersion: english, russian, russianGold, … of the original data, or stubs), soldier count, whether the simulation is idle; in a campaign also the clock, flow (strategic, tactical, autoresolve, laptop, meanwhile, endgame, ended), sector, campaign (playing, endgame, won) and noUsableMercs: true when no usable merc is left (compression is refused; there is no game over).',
       inputSchema: sessionArg,
     },
     async ({ session }) => text(describeSession(pick(session))),
@@ -43,7 +58,7 @@ export function buildMcpServer(sessions: Map<string, Session>, defaultSession: s
       'newSession',
       {
         description:
-          'Start a fresh game in its own session and return its id; pass it as "session" to the other tools. With nothing else it is the tactical sandbox (same map and squad, independent state). With "campaign" it is a new campaign: the strategic layer runs (world clock, Queen, towns, travel), the squad is hired through the laptop (real A.I.M. prices, deposits and refusals; "hire": [{profile, contract: 1|7|14, gear}], or "mercs": the size of the default squad, hired while affordable; "imp": an impCreate command) and, unless land is false, flown into the start sector at 07:00 on day 1; with "hire": [] the session stays in the open laptop on day 1, 01:00. With "save" (a file name from the original game\'s SavedGames folder without .sav, e.g. SaveGame07) it continues that native savegame. Optional seed for the random streams. A won campaign is over: its session refuses every command with campaignOver and advance returns ended; start a new game with newSession. Native saves taken during a meanwhile scene or the endgame sequence cannot be continued.',
+          'Start a fresh game in its own session and return its id; pass it as "session" to the other tools. With nothing else it is the tactical sandbox (same map and squad, independent state). With "campaign" it is a new campaign: the strategic layer runs (world clock, Queen, towns, travel), the squad is hired through the laptop (real A.I.M. prices, deposits and refusals; "hire": [{profile, contract: 1|7|14, gear}], or "mercs": the size of the default squad, hired while affordable; "imp": an impCreate command) and, unless land is false, flown into the start sector at 07:00 on day 1; with "hire": [] the session stays in the open laptop on day 1, 01:00. With "save" (a file name from the original game\'s SavedGames folder without .sav, e.g. SaveGame07) it continues that native savegame. Optional seed for the random streams; optional language (eng, rus, ger, dut, fr, it, pl, chs) for the UI labels the session resolves in observe (default: the server\'s JA2_LANG or the data version\'s language; dialogue, mails and item text always come in the data version\'s language). A won campaign is over: its session refuses every command with campaignOver and advance returns ended; start a new game with newSession. Native saves taken during a meanwhile scene or the endgame sequence cannot be continued.',
         inputSchema: NEW_SESSION_SHAPE,
       },
       async (request) => {
@@ -56,10 +71,10 @@ export function buildMcpServer(sessions: Map<string, Session>, defaultSession: s
     'observe',
     {
       description:
-        "What the player can see right now: own soldiers (with AP, life, breath and inventory: slot 0-18, item, index, count, per-object status (rounds for magazines), loaded ammo, attachments, money) and the others the squad sees, with gridNo, level, sub-tile position, direction and animation; open doors and the doors with a known lock or trap state; key rings of own soldiers; items the squad has seen on the ground; in turn-based combat whose turn it is, the round and whether an interrupt is open; in a campaign also the clock, strategic map, open prompt (contract prompts in contractPrompt), autoresolve battle, open shop and open laptop (observe.laptop: balance, mails, history, finances, files, personnel, A.I.M. mercs with salaries and kit, M.E.R.C. listings and account, I.M.P., Bobby Ray stock and shipments, insurance offers, mercs in transit, landing zone); the strategic view shows landingZone and unreadMail and quests (the quest log from the history: [{id, quest, started: {minute, sector}|null, finished: {minute, sector}|null}]; a quest changed without a history line is not listed) and in-transit mercs their arrival; strategic mercs show their contract, morale, days served and cost (merchant NPCs carry merchant: buySell|buy|sell|repair); the strategic view lists vehicles (passengers, seats, path) and, once Skyrider's helicopter is available, helicopter {sector, next, airborne, hovering, returning, passengers, canFly, reason, owed, hits, path, etaMinutes, safeSectors, unsafeSectors, routeCost, refuelSites} ({destroyed: true} after it was shot down); mercs in a vehicle carry vehicle; in a conversation observe.conversation {npc, profile, name, talker, initiatedBy, menu, lastQuotes [{profile, quote, record, textKey, text}]} and observe.scriptedSequence; a yes/no question from an NPC in observe.npcRequest {id, kind: npcRequest, request: escort|hire|boxingBet|fightAgain|buyVest|payDoctor|freeTreatment|buyVehicle|spareKrott|marryDaryl|lie, npc, name, merc?, amount?, pair?, choices}; during a boxing match in the San Mona club observe.boxing {state: waitingForPlayer|preBoxing|boxing|disqualified|wonRound|lostRound, boxers: [ids of the soldiers in sight with the boxer flag], uiLocked} (null otherwise); the strategic view also carries flow (meanwhile, endgame, ended besides the others), campaign (playing|endgame|won), noUsableMercs and meanwhiles (the Meduna scenes resolved so far: [{seq, scene, at}]); during the interrogation scene observe.meanwhile {seq, scene: interrogation} (the Queen lines in observe.conversation, her lie question in observe.npcRequest with request lie); after the victory observe.ended {outcome: victory, at, day, ending: {miguelAlive, skyriderAlive}, mercDeaths} beside the last view; seen soldiers carry talkable (npc|epc|civilian) and profile. Civilians follow their map schedules: when time passes on the map screen they are moved, put to bed or sent off the map at once; in tactical they walk to their spots, use doors and leave or re-enter the map; a civilian off the map is absent from soldiers. Own soldiers and strategic mercs that are recruited NPCs carry kind (rpc|epc) and profile, the robot carries controlled (true while a merc with the remote control travels with it).",
+        "What the player can see right now (with language and dataVersion as in status; machine tokens stay English, and labels resolved from the original UI string tables in the session's language sit beside them: strategic mercs carry moraleLabel and assignmentLabel, observe.conversation menuLabels (null where the original has no string), observe.shop kindLabel): own soldiers (with AP, life, breath and inventory: slot 0-18, item, index, count, per-object status (rounds for magazines), loaded ammo, attachments, money) and the others the squad sees, with gridNo, level, sub-tile position, direction and animation; open doors and the doors with a known lock or trap state; key rings of own soldiers; items the squad has seen on the ground; in turn-based combat whose turn it is, the round and whether an interrupt is open; in a campaign also the clock, strategic map, open prompt (contract prompts in contractPrompt), autoresolve battle, open shop and open laptop (observe.laptop: balance, mails, history, finances, files, personnel, A.I.M. mercs with salaries and kit, M.E.R.C. listings and account, I.M.P., Bobby Ray stock and shipments, insurance offers, mercs in transit, landing zone); the strategic view shows landingZone and unreadMail and quests (the quest log from the history: [{id, quest, started: {minute, sector}|null, finished: {minute, sector}|null}]; a quest changed without a history line is not listed) and in-transit mercs their arrival; strategic mercs show their contract, morale, days served and cost (merchant NPCs carry merchant: buySell|buy|sell|repair); the strategic view lists vehicles (passengers, seats, path) and, once Skyrider's helicopter is available, helicopter {sector, next, airborne, hovering, returning, passengers, canFly, reason, owed, hits, path, etaMinutes, safeSectors, unsafeSectors, routeCost, refuelSites} ({destroyed: true} after it was shot down); mercs in a vehicle carry vehicle; in a conversation observe.conversation {npc, profile, name, talker, initiatedBy, menu, lastQuotes [{profile, quote, record, textKey, text}]} and observe.scriptedSequence; a yes/no question from an NPC in observe.npcRequest {id, kind: npcRequest, request: escort|hire|boxingBet|fightAgain|buyVest|payDoctor|freeTreatment|buyVehicle|spareKrott|marryDaryl|lie, npc, name, merc?, amount?, pair?, choices}; during a boxing match in the San Mona club observe.boxing {state: waitingForPlayer|preBoxing|boxing|disqualified|wonRound|lostRound, boxers: [ids of the soldiers in sight with the boxer flag], uiLocked} (null otherwise); the strategic view also carries flow (meanwhile, endgame, ended besides the others), campaign (playing|endgame|won), noUsableMercs and meanwhiles (the Meduna scenes resolved so far: [{seq, scene, at}]); during the interrogation scene observe.meanwhile {seq, scene: interrogation} (the Queen lines in observe.conversation, her lie question in observe.npcRequest with request lie); after the victory observe.ended {outcome: victory, at, day, ending: {miguelAlive, skyriderAlive}, mercDeaths} beside the last view; seen soldiers carry talkable (npc|epc|civilian) and profile. Civilians follow their map schedules: when time passes on the map screen they are moved, put to bed or sent off the map at once; in tactical they walk to their spots, use doors and leave or re-enter the map; a civilian off the map is absent from soldiers. Own soldiers and strategic mercs that are recruited NPCs carry kind (rpc|epc) and profile, the robot carries controlled (true while a merc with the remote control travels with it).",
       inputSchema: sessionArg,
     },
-    async ({ session }) => text(pick(session).sim.view()),
+    async ({ session }) => text(await observation(pick(session), texts)),
   );
   server.registerTool(
     'act',
@@ -117,13 +132,8 @@ export function buildMcpServer(sessions: Map<string, Session>, defaultSession: s
   return server;
 }
 
-export async function handleMcpRequest(
-  request: Request,
-  sessions: Map<string, Session>,
-  defaultSession: string,
-  createSession?: SessionFactory,
-): Promise<Response> {
-  const server = buildMcpServer(sessions, defaultSession, createSession);
+export async function handleMcpRequest(request: Request, options: McpOptions): Promise<Response> {
+  const server = buildMcpServer(options);
   const transport = new WebStandardStreamableHTTPServerTransport({ enableJsonResponse: true });
   await server.connect(transport);
   try {
