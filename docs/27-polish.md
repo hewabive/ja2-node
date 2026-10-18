@@ -930,7 +930,9 @@ Missing files are skipped silently, as the original skips failed plays.
   as last kill, an autoresolve victory, the queens' deaths, the move upstairs), so native saves and ours carry the same
   flag; no oracle probe covers the flag, and the full compare still matches.
 - **Session state.** `Session` (`src/server/session.ts`) keeps `music {mode, previous}` beside the simulation: a new
-  campaign starts at none, a sandbox at enemy present or nothing (as entering a sector), a native import at the saved
+  campaign starts at none and follows the events of its creation when the session is built (the new game's laptop, now
+  reported as `laptopOpened`, and the landing; the events are held for the next report, as before a save), a sandbox at
+  enemy present or nothing (as entering a sector), a native import at the saved
   byte (`SaveLoadGame.cc:1827`) with the menu as previous (the load sets the menu first), a ja2-node load at the file's
   `presentation.music`. After every captured frame the drained events update it; `welcome` carries `music {mode,
   creature}` and frames carry it when the mode or the flag changes (`fastFade: true` on the frame of a fast change).

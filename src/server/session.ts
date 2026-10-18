@@ -20,6 +20,7 @@ export interface SessionSim extends Steppable {
   dispatch(cmd: CommandEnvelope): CommandResult;
   view(): PlayerView;
   musicFacts?(): MusicFacts;
+  creationEvents?(): SimEvent[];
   readonly initialMusic?: MusicState;
   prepare?(cmd: CommandEnvelope): Promise<void>;
   preparedMaps?(): readonly string[];
@@ -74,6 +75,10 @@ export class Session {
     this.language = text.language;
     this.log = new InputLog(origin);
     this.#music = sim.initialMusic ?? initialMusic();
+    const created = sim.creationEvents?.() ?? [];
+    this.#held.push(...created);
+    this.#followMusic(created);
+    this.#fastFade = false;
     this.#lastView = this.#view();
   }
 

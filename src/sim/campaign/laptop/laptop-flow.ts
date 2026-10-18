@@ -432,6 +432,7 @@ export class LaptopFlow implements LaptopContext {
     this.state.flow = 'laptop';
     setBookmark(this.laptop, Bookmark.AIM);
     this.laptop.mercSiteOpenedThisSession = false;
+    this.emit({ type: 'laptopOpened' });
   }
 
   surfaceSectorTaken(sector: Sector): void {

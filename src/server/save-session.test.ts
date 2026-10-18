@@ -6,6 +6,7 @@ import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../content/forma
 import { StructureFlags } from '../content/world/structures.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
+import { musicMode } from '../protocol/music.ts';
 import { MusicMode, musicModeOfNativeByte } from '../protocol/music-modes.ts';
 import { advance } from '../sim/advance.ts';
 import { importNativeGameOptions, SAVE_MODES } from '../sim/options.ts';
@@ -50,6 +51,7 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('native savegames imported into the t
       expect(report.droppedOptions).toEqual(saved.turnTimeLimit ? ['turnTimeLimit'] : []);
       expect(session.initialMusic).toEqual({ mode: musicModeOfNativeByte(save.generalInfo.musicMode), previous: MusicMode.MAIN_MENU });
       expect(session.initialMusic.mode).not.toBe(MusicMode.RESTORE);
+      expect(musicMode(session.initialMusic, session.drainEvents(), session.musicFacts()).mode).toBe(session.initialMusic.mode);
     });
 
     it(`shows the contracts of ${file} at hour precision`, async () => {

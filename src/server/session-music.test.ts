@@ -37,6 +37,24 @@ function listen(session: Session): { messages: ServerMessage[]; music: () => Mus
 
 describe('the music mode of a session', () => {
   it(
+    'hears a campaign created with its landing at the first helicopter drop in the welcome',
+    async () => {
+      const k = await createSaveKit(kit);
+      try {
+        const session = await k.factory('campaign', { seed: 3, campaign: {} });
+        expect(session.music).toEqual({ mode: MusicMode.TACTICAL_ENEMY_PRESENT, previous: MusicMode.TACTICAL_NOTHING });
+        const heard = listen(session);
+        expect(heard.music()[0]).toEqual({ mode: MusicMode.TACTICAL_ENEMY_PRESENT, creature: false });
+        const report = session.advance({ ticks: 1 });
+        expect(report.events.map((e) => e.type)).toContain('sectorLoaded');
+      } finally {
+        await k.dispose();
+      }
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  it(
     'starts the sandbox in the enemy-present mode and switches to battle music when combat starts',
     async () => {
       const k = await createSaveKit(kit);
@@ -65,7 +83,8 @@ describe('the music mode of a session', () => {
       try {
         const session = await k.factory('campaign', { seed: 3, campaign: { hire: [] } });
         const heard = listen(session);
-        expect(heard.music()[0]?.mode).toBe(MusicMode.NONE);
+        expect(heard.music()[0]).toEqual({ mode: MusicMode.LAPTOP, creature: false });
+        expect(session.music.previous).toBe(MusicMode.NONE);
         expect(session.dispatch({ type: 'aimHire', profile: 0, contract: 7 }).ok).toBe(true);
         expect(session.dispatch({ type: 'closeLaptop' }).ok).toBe(true);
         session.advance({ ticks: 1 });

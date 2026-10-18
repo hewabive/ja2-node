@@ -159,6 +159,10 @@ export class CampaignSession implements SessionSim {
     return withText(this.campaign.dispatch(cmd), this.texts);
   }
 
+  creationEvents(): SimEvent[] {
+    return this.origin?.kind === 'campaign' ? this.drainEvents() : [];
+  }
+
   #conversation(): { conversation?: ConversationView | null; npcRequest?: NpcRequestPromptView | null; scriptedSequence?: boolean } {
     const talk = this.campaign.talk;
     if (!talk) return {};
