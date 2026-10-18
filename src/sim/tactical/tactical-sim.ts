@@ -709,7 +709,6 @@ export class TacticalSim {
       if (!enoughPoints(t.inCombat, s, calcTotalAPsToAttack(t, s, target, true, s.aimTime)))
         return { ok: false, reason: ATTACK_REFUSALS[ItemHandle.NOAPS] ?? 'not enough APs' };
     }
-    if (s.noAPToFinishMove) soldierGotoStationaryStance(t, s);
     const result = handleItem(t, s, target, level, s.attackingWeapon);
     if (result !== ItemHandle.OK) return { ok: false, reason: ATTACK_REFUSALS[result] ?? `attack refused (${result})` };
     selectSoldier(t, s);

@@ -30,6 +30,7 @@ import { InvSlot, isValidSecondHandShot } from '../inventory.ts';
 import { putOutMuzzleFlash, showMuzzleFlash } from '../lighting/muzzle-flash.ts';
 import { directionToward } from '../movement.ts';
 import { inMeanwhile } from '../narrative/meanwhile-rules.ts';
+import { removePendingAction } from '../pending-action.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { isValidStance } from '../person-structure.ts';
 import { deductPoints, enoughPoints } from '../points.ts';
@@ -96,7 +97,7 @@ export function sendBeginFireWeaponEvent(t: TacticalState, s: Soldier, target: n
 }
 
 export function handleItem(t: TacticalState, s: Soldier, g: number, level: number, handItem: number): number {
-  s.pendingAnimation = -1;
+  removePendingAction(t, s);
   s.attackingWeapon = handItem;
   s.targetLevel = level;
   const tgt = whoIsThere(t, g, level);
