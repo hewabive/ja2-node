@@ -96,4 +96,48 @@ describe('session', () => {
     expect(sim.tick).toBe(42);
     session.close();
   });
+
+  it('logs every input in order, merges real-time batches and keeps held events for the next report', () => {
+    const sim = walker();
+    const session = new Session('s4', sim, undefined, { kind: 'sandbox', seed: 1 });
+    session.setDriver({ mode: 'instant' });
+    session.dispatch({ type: 'walk', to: 5 });
+    session.dispatch({ type: 'answer', choice: 'yes' });
+    let now = 0;
+    session.setDriver({ mode: 'realtime', speed: 1 }, () => now);
+    sim.target = 1000;
+    for (now = 16; now <= 64; now += 16) session.runRealtime(now);
+    session.setDriver({ mode: 'manual' });
+    session.notify({ type: 'gameSaved', name: 'QuickSave', kind: 'quick', tick: sim.tick });
+    const report = session.advance({ ticks: 2 }, 50);
+    expect(report.events).toEqual([{ type: 'gameSaved', name: 'QuickSave', kind: 'quick', tick: 17 }]);
+    expect(session.log.entries().map((e) => [e.kind, e.payload])).toEqual([
+      ['drive', { driver: { mode: 'instant' } }],
+      ['advance', { until: { idle: true } }],
+      ['cmd', { cmd: { type: 'walk', to: 5 } }],
+      ['advance', { until: { idle: true } }],
+      ['answer', { cmd: { type: 'answer', choice: 'yes' } }],
+      ['drive', { driver: { mode: 'realtime', speed: 1 } }],
+      ['advance', { until: { ticks: 12 }, realtime: true }],
+      ['drive', { driver: { mode: 'manual' } }],
+      ['advance', { until: { ticks: 2 }, budget: 50 }],
+    ]);
+    session.close();
+  });
+
+  it('replaces its simulation on a load, stops real time and welcomes every viewer again', () => {
+    const session = new Session('s5', walker());
+    const messages: ServerMessage[] = [];
+    session.subscribe((m) => messages.push(m));
+    session.setDriver({ mode: 'realtime', speed: 1 }, () => 0);
+    const loaded = walker();
+    loaded.target = 3;
+    session.replace(loaded, { name: 'QuickSave', digest: 'abc' });
+    expect(session.sim).toBe(loaded);
+    expect(session.driver).toEqual({ mode: 'manual' });
+    expect(messages.map((m) => m.t)).toEqual(['welcome', 'stopped', 'welcome']);
+    expect(messages[1]).toMatchObject({ report: { reason: 'loaded' } });
+    expect(session.log.entries().at(-1)).toMatchObject({ kind: 'load', payload: { name: 'QuickSave', digest: 'abc' } });
+    session.close();
+  });
 });

@@ -1,18 +1,15 @@
 import { existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { serve } from '@hono/node-server';
 import { dataDecoding } from '../content/text/data-version.ts';
 import { openDataVfs } from '../node/data-vfs.ts';
 import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR, REPO_ROOT } from '../node/repo.ts';
 import { loadOrCreateToken } from '../node/token.ts';
 import { createApp } from './app.ts';
-import { ContentLedger, engineIdentity } from './content-identity.ts';
 import { chooseDisplayLanguage, detectDataVersion, LANGUAGE_ENV } from './data-version.ts';
-import { SaveService } from './save-service.ts';
-import { SaveStore, saveDirFromEnv } from './save-store.ts';
+import { createSaveEnvironment } from './save-environment.ts';
 import type { Session } from './session.ts';
 import { createSessionFactory } from './session-factory.ts';
-import { restoreSession } from './session-snapshot.ts';
 import { TextService } from './text-service.ts';
 import { attachWebSocket } from './ws.ts';
 
@@ -32,31 +29,14 @@ const token = loadOrCreateToken();
 const clientDir = join(REPO_ROOT, 'dist/client');
 const sessions = new Map<string, Session>();
 const defaultSession = 'sandbox';
-const readVfs = async (path: string): Promise<Uint8Array | null> => (data.vfs.stat(path) ? data.vfs.read(path) : null);
-const nativeSavesDir = process.env.JA2_SAVES_DIR || (data.dataDir ? join(dirname(data.dataDir), 'SavedGames') : null);
-const exists = (path: string) => data.vfs.stat(path) !== undefined;
-const layers = (path: string) => data.vfs.layerCount(path);
-const originalData = data.dataDir !== null;
-const ledger = new ContentLedger(originalData ? 'original' : 'stubs', readVfs, exists);
-const store = new SaveStore(saveDirFromEnv(), nativeSavesDir);
-const saves = new SaveService({
-  store,
-  ledger,
+const { store, saves, sources } = createSaveEnvironment({
+  vfs: data.vfs,
+  dataDir: data.dataDir,
   dataVersion: dataVersion.version,
-  engine: engineIdentity(),
-  restore: (snapshot) => restoreSession(snapshot, ledger.read, ledger.exists, { layers, decoding }),
+  decoding,
   warn: (message) => console.warn(message),
 });
-const createSession = createSessionFactory({
-  read: ledger.read,
-  exists: ledger.exists,
-  layers,
-  decoding,
-  originalData,
-  store,
-  text: sessionText,
-  saves,
-});
+const createSession = createSessionFactory({ ...sources, text: sessionText, saves });
 try {
   const seed = Number(process.env.JA2_SEED ?? 1);
   const save = process.env.JA2_SAVE;
@@ -88,7 +68,7 @@ const server = serve({ fetch: app.fetch, hostname: host, port }, (addr) => {
   console.log(`  files in VFS: ${data.vfs.size}`);
   const sandbox = sessions.get(defaultSession);
   if (sandbox) console.log(`  sandbox: ${sandbox.sim.view().mapPath}, ${sandbox.sim.view().soldiers.length} visible soldiers`);
-  console.log(`  saves: ${store.dir}${nativeSavesDir ? `, native saves: ${nativeSavesDir}` : ''}`);
+  console.log(`  saves: ${store.dir}${store.nativeDir ? `, native saves: ${store.nativeDir}` : ''}`);
   console.log('  token: .ja2/token (or $JA2_TOKEN)');
   if (existsSync(clientDir)) console.log(`  built client: http://${host}:${addr.port}/login?token=${token}`);
 });
