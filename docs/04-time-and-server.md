@@ -380,7 +380,7 @@ There are few of them, and they are coarse-grained.
 | `act` | A command: `move`, `shoot`, `throw`, `stance`, `reload`, `open_door`, `climb`, `bandage`, `end_turn`, …; on the map: `travel`, `assign`, `hire`, …. By default, time then runs until `idle` or a decision prompt. The response is a summary of events and the new status |
 | `answer` | An answer to a decision prompt: interrupt, dialogue line, message box, PBI |
 | `advance` | Explicitly advances time in real time and on the strategic map: "until arrival", "until an event", "no longer than N" |
-| `newSession` | Starts another session and returns its id: the sandbox (optional seed), with `campaign {difficulty?, profiles?, mercs?, land?}` a new campaign (§6.6), or with `save` a native savegame from the game's `SavedGames` folder (`docs/14` §10); `language` sets the session's display language (§6.21); every other tool takes `session`, so agents and tests do not share one battle |
+| `newSession` | Starts another session and returns its id: the sandbox (optional seed), with `campaign {options?, profiles?, hire?, mercs?, imp?, land?}` a new campaign (§6.6, options §6.23), or with `save` a native savegame from the game's `SavedGames` folder (`docs/14` §10); `language` sets the session's display language (§6.21); every other tool takes `session`, so agents and tests do not share one battle |
 | `save` / `load` | Saves on the server; `listSaves`, `deleteSave` (§6.22) |
 
 ### 6.3. Example turn
@@ -436,7 +436,8 @@ squad through the laptop (§6.9), closes it and, unless `land: false`, dispatche
 drop loads the start sector at 07:00 on day 1 (`docs/15` §4.5). `hire: [{profile, contract?, gear?}]` names the A.I.M.
 hires (a refusal fails the request), `mercs` sets the size of the default squad (original data: profiles 0, 3, 4, 7, 14,
 16, default six; stubs: the authored profiles 0–5, default four; hired in order while available and affordable), `imp`
-runs an `impCreate`, and `hire: []` without `imp` returns the session in the open laptop. `difficulty` is 1–3 (default 2). Maps are loaded by
+runs an `impCreate`, and `hire: []` without `imp` returns the session in the open laptop. `options` are the game options of §6.23
+(`difficulty` 1–3, default 2; `campaign.difficulty` stays an alias). Maps are loaded by
 `WorldCache` before each command (`Session.prepareAndDispatch`).
 
 Sessions are created through MCP `newSession`, `POST /api/sessions` (same JSON body: `{seed?, save?, campaign?, language?}`;
@@ -903,8 +904,9 @@ hundred bytes. Clients pass names, never paths: `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`
   `stopped {report: {reason: 'loaded'}}`.
 - **Events.** `gameSaved {name, kind}` after a player or quick save and `gameLoaded {name, seed}` after a load arrive with
   the next `advance` report of that session; autosaves and Dead is Dead saves send none, as in the original.
-- **Save modes.** A campaign option chosen at the new game: `newSession {campaign: {saveMode: 'anywhere' | 'ironMan' |
-  'deadIsDead', deadIsDeadName?}}` (default `anywhere`; the Dead is Dead file defaults to `DeadIsDead`); a native import
+- **Save modes.** A campaign option chosen at the new game: `newSession {campaign: {options: {saveMode: 'anywhere' |
+  'ironMan' | 'deadIsDead'}, deadIsDeadName?}}` (default `anywhere`, `campaign.saveMode` stays an alias; the Dead is Dead
+  file defaults to `DeadIsDead`); a native import
   takes the mode of its header, and a Dead is Dead import saves under the native file's name. `status`, `GET
   /api/sessions` and `observe` show `saveMode`, `canSave` and, when a rule applies, `saveRefusal`. Refusals of `save`:
   `conversation` (a conversation is open, a scripted sequence runs or the dialogue queue is busy), `meanwhileStarting`
@@ -933,6 +935,35 @@ hundred bytes. Clients pass names, never paths: `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`
   `load`, `prepare`). `pnpm cli replay <name>` rebuilds the origin, re-runs the log with the manual driver and compares
   the snapshot with the save. When a command or a step throws, the server writes the whole log as
   `Error.log.jsonl.gz` instead of an error save.
+
+### 6.23. Game options and music (M7)
+
+**Game options** (`docs/27` §2.2, §2.4) are session state, shared by the strategic and the tactical layer, saved and
+shown: `{difficulty: 1 | 2 | 3, sciFi, gunNut, saveMode: 'anywhere' | 'ironMan' | 'deadIsDead', bloodAndGore}`.
+
+- **New campaign.** `newSession {campaign: {options: {...}}}` (MCP and `POST /api/sessions`): missing fields take the
+  original's defaults (sci-fi on, reduced guns, save anywhere, blood on) except `difficulty`, whose default here is 2
+  (the original's is easy). `campaign.difficulty` and `campaign.saveMode` remain accepted as aliases; one that
+  contradicts `options` is refused. The sandbox uses the defaults.
+- **Shown** in `status`, `observe` and `GET /api/sessions` as `options`, in every save header (`listSaves`), and for
+  native saves in the same shape (`droppedOptions: ['turnTimeLimit']` when the original's timed turns were on: they are
+  not ported). A native import's `newSession` answer carries the import report as `import` (with `droppedOptions`).
+- **`setOption {bloodAndGore: true | false}`** (an `act` command, logged and replayed like any other): the only option
+  that may change during a game, as on the original's options screen; accepted in any flow, refused with `promptOpen`
+  while a battle, contract, militia or NPC prompt is open and with `badOption` for any other field; it applies from the
+  next tick and reports `optionChanged {bloodAndGore}`. Off: no messy deaths from close head and chest shots, no exploding
+  bodies, the clean corpse graphics.
+- **Client settings** (volumes, speech, subtitles, key-advance speech, the sleep/wake notification, display toggles,
+  playback speed, language, meanwhile scenes seen, help, cover and LOS sizes) are per browser
+  (`src/app/settings.ts`) and never reach the simulation; an agent that wants the original's sleep/wake stop passes
+  `fellAsleep` and `wokeUp` in `advance {until: {events}}`.
+
+**Music** (`docs/27` §3.3, §3.7) is presentation the server computes, so every client hears the same mode: the
+session keeps the original's music mode (`none`, `mainMenu`, `laptop`, `tacticalNothing`, `tacticalEnemyPresent`,
+`tacticalBattle`, `tacticalVictory`, `tacticalDefeat`) from the simulation's events and the creature flag, sends
+`music {mode, creature}` in the WebSocket `welcome` and in frames when it changes (`fastFade: true` after a sector entry
+or exit), and keeps it in saves (`presentation.music`); a native import starts at the saved mode. The browser chooses
+the tracks (`music.json`), fades and loops. MCP `observe` carries no music.
 
 ## 7. Cost and limitations
 

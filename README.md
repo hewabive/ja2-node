@@ -55,7 +55,8 @@ tools `status`, `observe`, `act` (`{"type":"move","soldier":0,"to":12880,"mode":
 gun in hand at a gridNo (`aimTime` 0–4, `bodyPart`), and `endTurn` hands the turn to the enemy.
 `newSession` starts a separate game: the sandbox, or with `{"save":"SaveGame07"}` the tactical situation of a
 native savegame from the game's `SavedGames` folder (needs `JA2_DATA_DIR`; `JA2_SAVES_DIR` overrides the folder).
-`{"campaign":{"difficulty":2}}` starts a new campaign (strategic commands `route`, `cancelRoute`, `assignSquad`,
+`{"campaign":{"options":{"difficulty":2}}}` starts a new campaign with its game options (`difficulty`, `sciFi`, `gunNut`,
+`saveMode`, `bloodAndGore`; shown by `status`, and `setOption {"bloodAndGore":false}` changes the last one; strategic commands `route`, `cancelRoute`, `assignSquad`,
 `assign`, `sleep`, `wake`, `enterSector`, `exitSector`, `mapScreen`, `tacticalScreen`, `compressTime`, `stopTime`, and
 contracts `extendContract`, `contractOptions`, `dismiss`, `removeMerc`, merchants `openShop`, `quoteTrade`, `trade`,
 `closeShop`, and `answer` for the pre-battle, autoresolve and contract prompts; `observe` then includes the clock, the
@@ -68,7 +69,7 @@ quick save), `load` (`{"name":"QuickSave"}` into a new session, or with `"sessio
 stream as the original does in effect, `"reseed":false` loads exactly), `listSaves` (ja2-node saves and the native
 savegames, newest first) and `deleteSave` write and read `.ja2/saves/<name>.j2s` (`JA2_SAVE_DIR` moves the folder;
 clients only ever pass names). The server autosaves into `Auto01`/`Auto02` when a turn ends in combat; campaigns take
-`"saveMode":"ironMan"` or `"deadIsDead"`. Each save carries the session's input log, and `pnpm cli replay <name>`
+`"options":{"saveMode":"ironMan"}` or `"deadIsDead"`. Each save carries the session's input log, and `pnpm cli replay <name>`
 re-runs it and checks that it reproduces the save byte for byte (`docs/04` §6.22).
 
 Text follows the data: the server detects the data version (English, or the language folders of a localized release;
@@ -77,7 +78,8 @@ dialogue, item and laptop text accordingly. UI labels come from Stracciatella's 
 their own: `JA2_LANG=rus` (or `eng`, `ger`, `dut`, `fr`, `it`, `pl`, `chs`; default: the data's language) for the server,
 `newSession {"language":"rus"}` per session, `GET /api/strings?lang=rus` for the tables.
 
-Without the original data the stub pack stands in for it, including synthesized sounds, music and speech blips and
+The tactical and strategic pages play sound and the original's music mode, which the server derives from the game and
+sends to every client (`docs/04` §6.23). Without the original data the stub pack stands in for it, including synthesized sounds, music and speech blips and
 invented merc, item, credit and mail text under the original file names (`GET /vfs/sounds/door open 01.wav` works on
 both; `docs/27` §6.5). The video page (`/src/devtools/video/`) plays the intro and ending videos of the original data
 (or the stub splash) and the credits (`docs/27` §4.5).
