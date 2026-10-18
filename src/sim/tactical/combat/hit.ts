@@ -327,6 +327,30 @@ export function eventSoldierGotHit(
   if (volume > 10 - effectiveExpLevel(s)) volume = u8(10 - effectiveExpLevel(s));
   if (!hasAnimFlag(t.content, s.state, AnimFlags.HITSTOP) || animName(t.content, s.state) !== 'JFK_HITDEATH_STOP')
     makeNoise(t, s, s.gridNo, s.level, volume, NoiseKind.SCREAM);
+  const before = s.state;
+  const locked = animationLocked(t, s);
+  startHitAnimation(t, s, cls, weapon, direction, range, att, special);
+  if (locked && hitAnimationDropped(t, s, before)) releaseSoldiersAttacker(t, s);
+}
+
+function animationLocked(t: TacticalState, s: Soldier): boolean {
+  return s.inNonInterruptibleAnimation || (s.rtNonInterruptible && !t.inCombat);
+}
+
+function hitAnimationDropped(t: TacticalState, s: Soldier, before: number): boolean {
+  return s.state === before && s.beingAttackedCount > 0 && !hasAnimFlag(t.content, s.state, AnimFlags.HITSTART | AnimFlags.HITSTOP);
+}
+
+function startHitAnimation(
+  t: TacticalState,
+  s: Soldier,
+  cls: number,
+  weapon: number,
+  direction: number,
+  range: number,
+  att: Soldier | null,
+  special: number,
+): void {
   if (hasAnimFlag(t.content, s.state, AnimFlags.HITSTOP)) {
     const twitch = TWITCHES[animName(t.content, s.state)];
     if (twitch) initNewSoldierAnim(t, s, anim(t.content, twitch), 0, false);
