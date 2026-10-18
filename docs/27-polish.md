@@ -1499,11 +1499,12 @@ labelled rectangles or simple shapes in the original layouts (`01` §4.4).
   (`d29b889`: riflemen with a MINI14, G41 or M14 and three AP magazines, two with grenades, medics with an MP5K and a
   medical kit, a first-aid kit for all) and armour on them (`7a694f3`: Kevlar vest and steel helmet for riflemen, flak
   jacket and steel helmet for medics and the SMG gunner) and a Glock sidearm with two CLIP9_15 (`d293cbb`, which the A10
-  stub NPC's give script and the give and talk e2e scenarios use); the palace laid out so that a squad can fight its way
-  to the stairs (`eae738e`: a west wing over the stairs with the six priority elites, the optional elites in a keep far
-  to the south-east, Derek and Oliver in the gatehouse); town and camp garrisons at four posts of five instead of one
-  block (`0f8b425`); the seven unjam animations end by resuming the shot (`ad43739`, finding 26); twenty enemy slots on
-  the wilderness map instead of six (`6a1bd6d`, finding 27).
+  stub NPC's give script and the give and talk e2e scenarios use; the last gun of a profile's kit sets its gun
+  attractiveness, `Tactical/Soldier_Profile.cc:189-199`, so the stub mercs now measure their weapons against a Glock);
+  the palace laid out so that a squad can fight its way to the stairs (`eae738e`: a west wing over the stairs with the
+  six priority elites, the optional elites in a keep far to the south-east, Derek and Oliver in the gatehouse); town and
+  camp garrisons at four posts of five instead of one block (`0f8b425`); the seven unjam animations end by resuming the
+  shot (`ad43739`, finding 26); twenty enemy slots on the wilderness map instead of six (`6a1bd6d`, finding 27).
 - **Fixes in the simulation** (each with a regression test; the oracle compare is unchanged): `enterSector` on the
   loaded sector switches to the tactical flow (finding 23, `51b2e82`); a hit whose animation cannot start releases its
   busy count (finding 24, `de21ae7`, deviation "Hit during a non-interruptible animation"); a suppression stance change
