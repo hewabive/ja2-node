@@ -3,7 +3,8 @@ import type { CommandEnvelope, ServerMessage } from '../protocol/messages.ts';
 import { applyFrame, type SoldierView, type ViewFrame } from '../protocol/view.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { Session, type SessionSim } from './session.ts';
-import { InProcessHost, SESSION_HOST_ENV, SliceScheduler, sessionHostKind, TimeSlicer } from './session-host.ts';
+import { InProcessHost, SESSION_HOST_ENV, sessionHostKind } from './session-host.ts';
+import { SliceScheduler, TimeSlicer } from './slicing.ts';
 
 const BUSY_TICK_MS = 2;
 const LONG_ADVANCE_TICKS = 150;

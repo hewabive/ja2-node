@@ -5,6 +5,7 @@ import {
   clampDescription,
   EMPTY_PRESENTATION,
   encodeSaveFile,
+  encodeSaveFileAsync,
   inflateSave,
   MAX_DESCRIPTION_CHARS,
   migrateSaveFile,
@@ -93,6 +94,13 @@ describe('save files', () => {
       version: SAVE_VERSION,
       header: HEADER,
     });
+  });
+
+  it('encodes to the same bytes with the gzip off the event loop', async () => {
+    const sync = encodeSaveFile(saveFile());
+    const offloaded = await encodeSaveFileAsync(saveFile());
+    expect(Buffer.from(offloaded.bytes).equals(Buffer.from(sync.bytes))).toBe(true);
+    expect(offloaded.digest).toBe(sync.digest);
   });
 
   it('reads the header of a file that was gzipped again as one member', () => {

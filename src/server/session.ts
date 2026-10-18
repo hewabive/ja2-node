@@ -7,6 +7,7 @@ import { TICK_MS } from '../sim/clock.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { type InputEntry, InputLog, type LoadPayload, type LogOrigin, UNKNOWN_ORIGIN } from './input-log.ts';
+import { NEVER_DUE, type Slicer, UNSLICED } from './slicing.ts';
 
 export const FRAME_TICKS = 10;
 const REALTIME_INTERVAL_MS = 16;
@@ -48,16 +49,6 @@ export type SessionEvent =
   | { readonly type: 'gameLoaded'; readonly tick: number; readonly name: string; readonly seed: number | null };
 
 export const DEFAULT_SESSION_TEXT: SessionText = { language: 'eng', dataVersion: STUB_DATA_VERSION };
-
-export interface Slicer {
-  begin(): void;
-  readonly due: PauseCheck;
-  pause(): Promise<void>;
-}
-
-const NEVER_DUE: PauseCheck = () => false;
-
-export const UNSLICED: Slicer = { begin: () => undefined, due: NEVER_DUE, pause: () => Promise.resolve() };
 
 type Run<T> = Generator<void, T, void>;
 

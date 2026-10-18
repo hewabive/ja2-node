@@ -5,7 +5,8 @@ import { Vfs } from '../content/vfs/vfs.ts';
 import type { SoldierView } from '../protocol/view.ts';
 import { createApp } from './app.ts';
 import { Session, type SessionSim } from './session.ts';
-import { InProcessHost, type SessionHost, SliceScheduler, TimeSlicer } from './session-host.ts';
+import { InProcessHost, type SessionHost } from './session-host.ts';
+import { SliceScheduler, TimeSlicer } from './slicing.ts';
 
 const token = 'mcp-test-token-0123456789';
 

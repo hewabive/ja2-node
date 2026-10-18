@@ -10,6 +10,7 @@ import { chooseDisplayLanguage, detectDataVersion, LANGUAGE_ENV } from './data-v
 import { createSaveEnvironment, saveDirsEnv } from './save-environment.ts';
 import { createSessionFactory } from './session-factory.ts';
 import { type HostFactory, inProcessHostFactory, type SessionHost, sessionHostKind } from './session-host.ts';
+import { SliceScheduler } from './slicing.ts';
 import { TextService } from './text-service.ts';
 import { workerHostFactory } from './worker-host.ts';
 import { attachWebSocket } from './ws.ts';
@@ -30,6 +31,7 @@ const token = loadOrCreateToken();
 const clientDir = join(REPO_ROOT, 'dist/client');
 const sessions = new Map<string, SessionHost>();
 const defaultSession = 'sandbox';
+const scheduler = new SliceScheduler();
 const { store, saves, sources, engine } = createSaveEnvironment({
   vfs: data.vfs,
   dataDir: data.dataDir,
@@ -47,7 +49,7 @@ const workerConfig = {
 const createSession: HostFactory =
   hostKind === 'worker'
     ? workerHostFactory(workerConfig)
-    : inProcessHostFactory(createSessionFactory({ ...sources, text: sessionText, saves }), saves);
+    : inProcessHostFactory(createSessionFactory({ ...sources, text: sessionText, saves }), saves, scheduler);
 try {
   const seed = Number(process.env.JA2_SEED ?? 1);
   const save = process.env.JA2_SAVE;

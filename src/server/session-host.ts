@@ -1,17 +1,17 @@
 import type { DataVersion, UiLanguage } from '../content/text/data-version.ts';
 import type { CommandEnvelope, DriverMode } from '../protocol/messages.ts';
 import type { PlayerView } from '../protocol/view.ts';
-import type { PauseCheck, StopCondition, StopReport } from '../sim/advance.ts';
+import type { StopCondition, StopReport } from '../sim/advance.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SaveImportReport } from '../sim/tactical/save-import.ts';
 import type { LogSegment } from './input-log.ts';
 import { snapshotText } from './save-file.ts';
 import { saveStatus } from './save-rules.ts';
 import { type LoadOutcome, SaveLoadError, type SaveOutcome, type SaveRequest, type SaveService, sessionSnapshot } from './save-service.ts';
-import type { Listener, Session, Slicer } from './session.ts';
+import type { Listener, Session } from './session.ts';
 import { describeSession, importReport, optionsStatus, type SessionFactory, type SessionRequest } from './session-registry.ts';
+import { type Slicer, SliceScheduler, TimeSlicer } from './slicing.ts';
 
-export const SLICE_BUDGET_MS = 10;
 export const SESSION_HOST_ENV = 'JA2_SESSION_HOST';
 export const SESSION_HOST_KINDS = ['inprocess', 'worker'] as const;
 
@@ -58,56 +58,6 @@ export function sessionHostKind(env: NodeJS.ProcessEnv = process.env): SessionHo
   const kind = SESSION_HOST_KINDS.find((k) => k === wanted);
   if (!kind) throw new Error(`${SESSION_HOST_ENV} must be one of ${SESSION_HOST_KINDS.join(', ')}`);
   return kind;
-}
-
-export class SliceScheduler {
-  readonly #waiting: (() => void)[] = [];
-  #armed = false;
-
-  turn(): Promise<void> {
-    return new Promise((resolve) => {
-      this.#waiting.push(resolve);
-      this.#arm();
-    });
-  }
-
-  #arm(): void {
-    if (this.#armed || this.#waiting.length === 0) return;
-    this.#armed = true;
-    setImmediate(() => {
-      this.#armed = false;
-      const next = this.#waiting.shift();
-      this.#arm();
-      next?.();
-    });
-  }
-}
-
-export class TimeSlicer implements Slicer {
-  readonly #scheduler: SliceScheduler;
-  readonly #budgetMs: number;
-  #deadline = 0;
-  #slices = 0;
-
-  constructor(scheduler: SliceScheduler, budgetMs = SLICE_BUDGET_MS) {
-    this.#scheduler = scheduler;
-    this.#budgetMs = budgetMs;
-  }
-
-  get slices(): number {
-    return this.#slices;
-  }
-
-  begin(): void {
-    this.#slices++;
-    this.#deadline = performance.now() + this.#budgetMs;
-  }
-
-  readonly due: PauseCheck = () => performance.now() >= this.#deadline;
-
-  pause(): Promise<void> {
-    return this.#scheduler.turn();
-  }
 }
 
 export function observeSession(session: Session): SessionObservation {
@@ -226,7 +176,10 @@ export class InProcessHost implements SessionHost {
   }
 }
 
-export function inProcessHostFactory(create: SessionFactory, saves: SaveService | null): HostFactory {
-  const scheduler = new SliceScheduler();
+export function inProcessHostFactory(
+  create: SessionFactory,
+  saves: SaveService | null,
+  scheduler: SliceScheduler = new SliceScheduler(),
+): HostFactory {
   return async (id, request) => new InProcessHost(await create(id, request), { saves, slicer: new TimeSlicer(scheduler) });
 }

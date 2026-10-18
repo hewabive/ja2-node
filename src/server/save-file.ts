@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { constants, gunzipSync, gzipSync } from 'node:zlib';
+import { promisify } from 'node:util';
+import { constants, gunzipSync, gzip, gzipSync } from 'node:zlib';
 import { sectorShortString } from '../content/strategic/sector-ids.ts';
 import { initialMusic, type MusicState } from '../protocol/music.ts';
 import { isMusicMode, MusicMode } from '../protocol/music-modes.ts';
@@ -25,6 +26,7 @@ const HEADER_LINE_END = '\n';
 const GZIP_OPTIONS = { level: constants.Z_BEST_SPEED };
 const SECTOR_MAP_NAME = /([a-p])(\d{1,2})(?:_b(\d))?\.dat$/i;
 const ROW_LETTER_BASE = 96;
+const gzipAsync = promisify(gzip);
 
 export type SaveKind = 'player' | 'quick' | 'auto' | 'deadIsDead';
 
@@ -145,6 +147,13 @@ export function encodeSaveFile(file: SaveFile): EncodedSave {
   const body = Buffer.from(bodyText(file), 'utf8');
   const bytes = Buffer.concat([gzipSync(head, GZIP_OPTIONS), gzipSync(body, GZIP_OPTIONS)]);
   return { bytes, digest: createHash('sha256').update(head).update(body).digest('hex') };
+}
+
+export async function encodeSaveFileAsync(file: SaveFile): Promise<EncodedSave> {
+  const head = Buffer.from(headLine(file), 'utf8');
+  const body = Buffer.from(bodyText(file), 'utf8');
+  const [zippedHead, zippedBody] = await Promise.all([gzipAsync(head, GZIP_OPTIONS), gzipAsync(body, GZIP_OPTIONS)]);
+  return { bytes: Buffer.concat([zippedHead, zippedBody]), digest: createHash('sha256').update(head).update(body).digest('hex') };
 }
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {

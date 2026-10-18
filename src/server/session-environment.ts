@@ -6,6 +6,7 @@ import type { SaveService } from './save-service.ts';
 import type { SessionText } from './session.ts';
 import { createSessionFactory } from './session-factory.ts';
 import { type HostFactory, inProcessHostFactory } from './session-host.ts';
+import { SliceScheduler } from './slicing.ts';
 
 export interface SessionDataDirs {
   readonly projectDataDir?: string | undefined;
@@ -31,6 +32,7 @@ export async function openSessionEnvironment(
   warn: (message: string) => void,
 ): Promise<SessionEnvironment> {
   const data = await openDataVfs(config.data);
+  const scheduler = new SliceScheduler();
   try {
     const dataVersion = config.text.dataVersion;
     const environment = createSaveEnvironment({
@@ -44,7 +46,7 @@ export async function openSessionEnvironment(
     });
     const factory = createSessionFactory({ ...environment.sources, text: config.text, saves: environment.saves });
     return {
-      createHost: inProcessHostFactory(factory, environment.saves),
+      createHost: inProcessHostFactory(factory, environment.saves, scheduler),
       saves: environment.saves,
       close: async () => {
         await environment.saves.flush();

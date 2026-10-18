@@ -8,9 +8,10 @@ import { SaveService } from '../../src/server/save-service.ts';
 import { SaveStore } from '../../src/server/save-store.ts';
 import { DEFAULT_SESSION_TEXT, type Session, type SessionSim } from '../../src/server/session.ts';
 import { createSessionFactory, type SessionSources, simFromOrigin } from '../../src/server/session-factory.ts';
-import { InProcessHost, SliceScheduler, TimeSlicer } from '../../src/server/session-host.ts';
+import { InProcessHost } from '../../src/server/session-host.ts';
 import { type NewSessionRequest, openSession, type SessionFactory, type SessionRequest } from '../../src/server/session-registry.ts';
 import { restoreSession } from '../../src/server/session-snapshot.ts';
+import { SliceScheduler, TimeSlicer } from '../../src/server/slicing.ts';
 import type { StubSectorKit } from './sectors.ts';
 
 export const TEST_ENGINE: EngineIdentity = { version: '0.0.0-test', commit: 'test' };
