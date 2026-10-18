@@ -25,11 +25,18 @@ const { values, positionals } = parseArgs({
     png: { type: 'string' },
     out: { type: 'string' },
     limit: { type: 'string' },
+    seed: { type: 'string' },
+    runs: { type: 'string' },
+    variant: { type: 'string' },
+    profile: { type: 'boolean' },
+    calls: { type: 'boolean' },
+    'save-baseline': { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
   },
 });
 
 const USAGE = `usage: pnpm cli inspect <command> [--data DIR] [--stubs DIR]
+       pnpm cli bench <scenario|all> [options]   (pnpm cli bench --help)
 
   vfs                         VFS layers and per-extension statistics
   ls [prefix] [--limit N]     list VFS files
@@ -66,8 +73,28 @@ function describeSti(sti: Sti): string {
   return `indexed, ${sti.subImages.length} frames (${uniq.slice(0, 4).join(', ')}${uniq.length > 4 ? ', …' : ''}), aux: ${sti.appData ? 'yes' : 'no'}, ETRLE anomalies: ${sti.anomalies}`;
 }
 
+async function bench(scenario: string | undefined): Promise<void> {
+  const { BENCH_USAGE, runBench } = await import('./bench/main.ts');
+  if (values.help) {
+    console.log(BENCH_USAGE);
+    return;
+  }
+  process.exitCode = await runBench({
+    scenario,
+    data: values.data,
+    seed: values.seed,
+    runs: values.runs,
+    profile: values.profile,
+    calls: values.calls,
+    variant: values.variant,
+    out: values.out,
+    saveBaseline: values['save-baseline'],
+  });
+}
+
 async function main(): Promise<void> {
   const [group, cmd, arg] = positionals;
+  if (group === 'bench') return bench(cmd);
   if (values.help || group !== 'inspect' || !cmd) {
     console.log(USAGE);
     process.exitCode = values.help ? 0 : 1;
