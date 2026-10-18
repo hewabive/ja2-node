@@ -68,11 +68,21 @@ function createOverlay(parent: HTMLElement): { overlay: HTMLDivElement; canvas: 
   return { overlay, canvas };
 }
 
+function createRenderer(canvas: HTMLCanvasElement, overlay: HTMLElement, monitor: SequenceMonitor): IndexedFrameRenderer {
+  try {
+    return new IndexedFrameRenderer(canvas);
+  } catch (err) {
+    overlay.remove();
+    monitor.playing = null;
+    throw err;
+  }
+}
+
 export async function playSequence(plan: SequencePlan, options: SequenceOptions = {}): Promise<SequenceResult> {
   const monitor = options.monitor ?? createSequenceMonitor();
   monitor.playing = plan;
   const { overlay, canvas } = createOverlay(options.parent ?? document.body);
-  const renderer = new IndexedFrameRenderer(canvas);
+  const renderer = createRenderer(canvas, overlay, monitor);
   renderer.clear();
   let escaped = options.signal?.aborted ?? false;
   let current = new AbortController();
