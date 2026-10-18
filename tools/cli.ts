@@ -37,6 +37,9 @@ const { values, positionals } = parseArgs({
 
 const USAGE = `usage: pnpm cli inspect <command> [--data DIR] [--stubs DIR]
        pnpm cli bench <scenario|all> [options]   (pnpm cli bench --help)
+       pnpm cli replay <save name> [--data DIR] [--stubs DIR]
+                              re-run the input log of a ja2-node save ($JA2_SAVE_DIR, default .ja2/saves)
+                              from its origin and compare the result with the save, byte for byte
 
   vfs                         VFS layers and per-extension statistics
   ls [prefix] [--limit N]     list VFS files
@@ -92,9 +95,20 @@ async function bench(scenario: string | undefined): Promise<void> {
   });
 }
 
+async function replay(name: string | undefined): Promise<void> {
+  if (!name) {
+    console.log(USAGE);
+    process.exitCode = 1;
+    return;
+  }
+  const { runReplay } = await import('./replay.ts');
+  process.exitCode = await withVfs((data) => runReplay(data, name));
+}
+
 async function main(): Promise<void> {
   const [group, cmd, arg] = positionals;
   if (group === 'bench') return bench(cmd);
+  if (group === 'replay') return replay(cmd);
   if (values.help || group !== 'inspect' || !cmd) {
     console.log(USAGE);
     process.exitCode = values.help ? 0 : 1;

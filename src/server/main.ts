@@ -1,18 +1,15 @@
 import { existsSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { serve } from '@hono/node-server';
 import { dataDecoding } from '../content/text/data-version.ts';
 import { openDataVfs } from '../node/data-vfs.ts';
 import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR, REPO_ROOT } from '../node/repo.ts';
 import { loadOrCreateToken } from '../node/token.ts';
 import { createApp } from './app.ts';
-import { createCampaignSession } from './campaign-factory.ts';
 import { chooseDisplayLanguage, detectDataVersion, LANGUAGE_ENV } from './data-version.ts';
-import { createSandboxSession } from './sandbox.ts';
-import { createSaveSession } from './save-session.ts';
-import { Session } from './session.ts';
-import { SAVE_NAME, type SessionRequest } from './session-registry.ts';
+import { createSaveEnvironment } from './save-environment.ts';
+import type { Session } from './session.ts';
+import { createSessionFactory } from './session-factory.ts';
 import { TextService } from './text-service.ts';
 import { attachWebSocket } from './ws.ts';
 
@@ -32,20 +29,14 @@ const token = loadOrCreateToken();
 const clientDir = join(REPO_ROOT, 'dist/client');
 const sessions = new Map<string, Session>();
 const defaultSession = 'sandbox';
-const readVfs = async (path: string): Promise<Uint8Array | null> => (data.vfs.stat(path) ? data.vfs.read(path) : null);
-const savesDir = process.env.JA2_SAVES_DIR || (data.dataDir ? join(dirname(data.dataDir), 'SavedGames') : null);
-const exists = (path: string) => data.vfs.stat(path) !== undefined;
-const layers = (path: string) => data.vfs.layerCount(path);
-const createSession = async (id: string, request: SessionRequest): Promise<Session> => {
-  if (request.campaign)
-    return new Session(id, await createCampaignSession(readVfs, exists, request.seed, request.campaign, layers, decoding), sessionText);
-  if (!request.save)
-    return new Session(id, await createSandboxSession(readVfs, data.dataDir !== null, request.seed, decoding), sessionText);
-  if (!savesDir || data.dataDir === null) throw new Error('savegames need the original data (JA2_DATA_DIR)');
-  if (!SAVE_NAME.test(request.save)) throw new Error(`invalid save name ${request.save}`);
-  const bytes = new Uint8Array(await readFile(join(savesDir, `${request.save}.sav`)));
-  return new Session(id, (await createSaveSession(readVfs, bytes, request.seed, exists, layers, decoding)).session, sessionText);
-};
+const { store, saves, sources } = createSaveEnvironment({
+  vfs: data.vfs,
+  dataDir: data.dataDir,
+  dataVersion: dataVersion.version,
+  decoding,
+  warn: (message) => console.warn(message),
+});
+const createSession = createSessionFactory({ ...sources, text: sessionText, saves });
 try {
   const seed = Number(process.env.JA2_SEED ?? 1);
   const save = process.env.JA2_SAVE;
@@ -63,6 +54,7 @@ const app = createApp({
   createSession,
   texts,
   defaultLanguage,
+  saves,
   ...(existsSync(clientDir) ? { clientDir } : {}),
   info: { originalData: data.dataDir !== null, slfCount: data.slfCount, stubs: data.stubsDir !== null },
 });
@@ -76,17 +68,23 @@ const server = serve({ fetch: app.fetch, hostname: host, port }, (addr) => {
   console.log(`  files in VFS: ${data.vfs.size}`);
   const sandbox = sessions.get(defaultSession);
   if (sandbox) console.log(`  sandbox: ${sandbox.sim.view().mapPath}, ${sandbox.sim.view().soldiers.length} visible soldiers`);
+  console.log(`  saves: ${store.dir}${store.nativeDir ? `, native saves: ${store.nativeDir}` : ''}`);
   console.log('  token: .ja2/token (or $JA2_TOKEN)');
   if (existsSync(clientDir)) console.log(`  built client: http://${host}:${addr.port}/login?token=${token}`);
 });
 
-attachWebSocket(server, { token, sessions, defaultSession });
+attachWebSocket(server, { token, sessions, defaultSession, saves });
 
 const shutdown = (): void => {
-  for (const session of sessions.values()) session.close();
-  server.close(() => {
-    void data.close().then(() => process.exit(0));
-  });
+  void saves
+    .shutdown()
+    .catch((err: Error) => console.error(`saving on shutdown failed: ${err.message}`))
+    .finally(() => {
+      for (const session of sessions.values()) session.close();
+      server.close(() => {
+        void data.close().then(() => process.exit(0));
+      });
+    });
 };
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);

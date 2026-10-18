@@ -63,6 +63,14 @@ strategic view with contracts and morale, the open prompt, the autoresolve battl
 a new campaign. The squad is hired through the laptop (`"hire":[]` keeps the new campaign in it); `openLaptop` opens it
 on the map screen for `aimHire`, `mercHire`, `impCreate`, `bobbyRayOrder`, `insure`, mail and the other laptop commands.
 
+Saving and loading: the tools `save` (`{"session":"…","description":"before the bridge"}`, `{"name":"quick"}` for the
+quick save), `load` (`{"name":"QuickSave"}` into a new session, or with `"session"` in place; it reseeds the main random
+stream as the original does in effect, `"reseed":false` loads exactly), `listSaves` (ja2-node saves and the native
+savegames, newest first) and `deleteSave` write and read `.ja2/saves/<name>.j2s` (`JA2_SAVE_DIR` moves the folder;
+clients only ever pass names). The server autosaves into `Auto01`/`Auto02` when a turn ends in combat; campaigns take
+`"saveMode":"ironMan"` or `"deadIsDead"`. Each save carries the session's input log, and `pnpm cli replay <name>`
+re-runs it and checks that it reproduces the save byte for byte (`docs/04` §6.22).
+
 Text follows the data: the server detects the data version (English, or the language folders of a localized release;
 `JA2_DATA_VERSION=russianGold` and the other version names override it, and Russian Gold must be named) and decodes the
 dialogue, item and laptop text accordingly. UI labels come from Stracciatella's string tables in a display language of
@@ -94,7 +102,8 @@ itself. The Vite proxy adds the token, so it never appears in page code.
 | `pnpm cli inspect map <path>` / `tilesets` | Describe a map, list tilesets |
 | `pnpm cli inspect slf <file>` / `cat <path> --out <file>` | Archive directory, file extraction |
 | `pnpm cli inspect save <file.sav>` | Summarise a native savegame: sector, time, combat state, soldiers |
-| `pnpm cli bench <scenario\|all>` | Benchmarks (enemy turn, real time, strategic, autoresolve, server, campaign): one JSON line per variant, `--profile`, `--calls`; see `docs/27` §7 |
+| `pnpm cli bench <scenario\|all>` | Benchmarks (enemy turn, real time, strategic, autoresolve, server, campaign, save): one JSON line per variant, `--profile`, `--calls`; see `docs/27` §7 |
+| `pnpm cli replay <name>` | Re-run the input log of a ja2-node save from its origin and compare the result with the save |
 
 The original-data test runs only when `JA2_DATA_DIR` is set.
 

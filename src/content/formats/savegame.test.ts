@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { SYNTHETIC_SAVE_SECTOR, SYNTHETIC_SAVE_VERSION, writeSyntheticSaveHeader } from '../../../tests/support/native-save.ts';
 import { FormatError } from '../binary/errors.ts';
 import { BinaryWriter } from '../binary/writer.ts';
 import { PROFILE_RECORD_BYTES } from './prof.ts';
@@ -29,8 +30,8 @@ import { decodeWorldItemsFile, WORLD_ITEM_BYTES } from './savegame-temp-files.ts
 const encryption = parseSaveEncryptionTable(
   JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/save-encryption.json'), 'utf8')),
 );
-const VERSION = 99;
-const SECTOR = { x: 13, y: 4, z: 0 };
+const VERSION = SYNTHETIC_SAVE_VERSION;
+const SECTOR = SYNTHETIC_SAVE_SECTOR;
 const SECTOR_INDEX = (SECTOR.y - 1) * 16 + SECTOR.x - 1;
 const ITEM_FLAG = 0x10000000;
 const DOOR_TABLE_FLAG = 0x80000000;
@@ -71,19 +72,8 @@ function fill(layout: Layout, linux: boolean, values: Readonly<Record<string, Fi
   return bytes;
 }
 
-function wideString(w: BinaryWriter, s: string, chars: number, linux: boolean): void {
-  for (let i = 0; i < chars; i++) {
-    const c = s.charCodeAt(i) || 0;
-    if (linux) w.u32(i < s.length ? c : 0);
-    else w.u16(i < s.length ? c : 0);
-  }
-}
-
 function writeHeader(w: BinaryWriter, linux: boolean, balance: number): void {
-  w.u32(VERSION).fixedString(16, 'Build 04.12.02');
-  wideString(w, 'Synthetic', 128, linux);
-  w.zeros(4).u32(2).u8(3).u8(4).i16(SECTOR.x).i16(SECTOR.y).u8(SECTOR.z).u8(1).i32(balance).u32(5).u8(0).u8(1).u8(12);
-  w.u8(0).u8(1).u8(2).u8(0).u8(0).zeros(7).zeros(1).u32(14).zeros(112);
+  writeSyntheticSaveHeader(w, linux, balance);
 }
 
 function headerOf(linux: boolean, balance: number): SaveGameHeader {

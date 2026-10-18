@@ -16,7 +16,7 @@ import { Roster } from '../sim/campaign/roster.ts';
 import type { NarrativeSetup } from '../sim/campaign/talk-flow.ts';
 import type { CommandResult } from '../sim/command.ts';
 import { Difficulty } from '../sim/strategic/forces/constants.ts';
-import { createStrategicState, type StrategicState } from '../sim/strategic/state.ts';
+import { createStrategicState, type GameOptions, type SaveMode, type StrategicState } from '../sim/strategic/state.ts';
 import { CompressMode } from '../sim/strategic/time/constants.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
@@ -38,6 +38,8 @@ export interface CampaignRequest {
   readonly mercs?: number | undefined;
   readonly imp?: Readonly<Record<string, unknown>> | undefined;
   readonly land?: boolean | undefined;
+  readonly saveMode?: SaveMode | undefined;
+  readonly deadIsDeadName?: string | undefined;
 }
 
 export const CAMPAIGN_DIFFICULTIES: readonly number[] = Object.values(Difficulty);
@@ -63,6 +65,13 @@ function validate(request: CampaignRequest): void {
   if (size !== undefined && (size < (request.hire ? 0 : 1) || size > MAX_SQUAD)) throw new Error(`the squad needs 1 to ${MAX_SQUAD} mercs`);
   if (explicit && new Set(explicit).size !== explicit.length) throw new Error('a merc can be hired once');
   if (explicit?.some((p) => p < FIRST_AIM_PROFILE || p > LAST_AIM_PROFILE)) throw new Error('profile ids are A.I.M. mercs 0-39');
+}
+
+function requestedOptions(request: CampaignRequest): Partial<GameOptions> {
+  return {
+    ...(request.difficulty !== undefined ? { difficulty: request.difficulty } : {}),
+    ...(request.saveMode !== undefined ? { saveMode: request.saveMode } : {}),
+  };
 }
 
 function explicitHires(request: CampaignRequest): CampaignHire[] | null {
@@ -231,11 +240,7 @@ export async function createCampaignSession(
   const { campaign, roster, worlds, parts, laptopContent, stubbed, texts } = await buildNewCampaign(
     read,
     exists,
-    () =>
-      createStrategicState({
-        seed,
-        ...(request.difficulty !== undefined ? { options: { difficulty: request.difficulty } } : {}),
-      }),
+    () => createStrategicState({ seed, options: requestedOptions(request) }),
     layers,
     decoding,
   );

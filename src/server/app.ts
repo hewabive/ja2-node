@@ -1,9 +1,11 @@
 import { timingSafeEqual } from 'node:crypto';
 import { serveStatic } from '@hono/node-server/serve-static';
-import { Hono } from 'hono';
+import { type Context, Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { compress } from 'hono/compress';
 import { getCookie, setCookie } from 'hono/cookie';
 import { createMiddleware } from 'hono/factory';
+import { z } from 'zod';
 import {
   DEFAULT_VANILLA_VERSION,
   displayLanguageOf,
@@ -15,6 +17,9 @@ import {
 import { vfsExtension } from '../content/vfs/path.ts';
 import { type Vfs, VfsNotFoundError } from '../content/vfs/vfs.ts';
 import { handleMcpRequest } from './mcp.ts';
+import { SAVE_EXTENSION } from './save-file.ts';
+import { type LoadProblem, loadProblemOf, type SaveOutcome, type SaveService } from './save-service.ts';
+import { MAX_UPLOAD_BYTES, playerSaveName } from './save-store.ts';
 import type { Session } from './session.ts';
 import { describeSession, newSessionRequest, openSession, type SessionFactory } from './session-registry.ts';
 import { textKeyFor } from './text-keys.ts';
@@ -38,6 +43,7 @@ export interface AppOptions {
   readonly createSession?: SessionFactory;
   readonly texts?: TextService;
   readonly defaultLanguage?: UiLanguage;
+  readonly saves?: SaveService;
 }
 
 export const TOKEN_COOKIE = 'ja2_token';
@@ -51,6 +57,31 @@ const EDT_ERRORS = {
   notFound: { status: 404, message: 'not found' },
   noRow: { status: 404, message: 'no such row' },
 } as const;
+
+const LOAD_STATUS: Readonly<Record<LoadProblem, 400 | 404 | 409 | 413>> = {
+  notFound: 404,
+  invalidName: 400,
+  contentMismatch: 409,
+  versionTooNew: 409,
+  noMigration: 409,
+  notASave: 400,
+  corrupt: 400,
+  tooLarge: 413,
+};
+const SNAPSHOT_DESCRIPTION = 'developer snapshot';
+
+const saveRequest = z.object({ name: z.string().max(64).optional(), description: z.string().max(200).optional() }).strict();
+const loadRequest = z.object({ name: z.string().max(64), reseed: z.boolean().optional() }).strict();
+
+function loadFailure(c: Context, err: unknown): Response {
+  const problem = loadProblemOf(err);
+  return c.json({ ok: false, refused: problem, reason: (err as Error).message }, LOAD_STATUS[problem]);
+}
+
+function saveResponse(c: Context, outcome: SaveOutcome): Response {
+  if (outcome.ok) return c.json(outcome);
+  return c.json(outcome, outcome.refused === 'invalidName' || outcome.refused === 'reservedName' ? 400 : 409);
+}
 
 const MIME: Record<string, string> = {
   json: 'application/json',
@@ -127,6 +158,7 @@ export function createApp(options: AppOptions): Hono {
       defaultSession: options.defaultSession ?? 'sandbox',
       createSession: options.createSession,
       texts,
+      saves: options.saves,
     }),
   );
   app.get('/login', (c) => {
@@ -202,11 +234,85 @@ export function createApp(options: AppOptions): Hono {
     const request = newSessionRequest.safeParse(await c.req.json().catch(() => null));
     if (!request.success) return c.json({ error: request.error.message }, 400);
     try {
-      return c.json(describeSession(await openSession(sessions, options.defaultSession ?? 'sandbox', createSession, request.data)));
+      const created = await openSession(sessions, options.defaultSession ?? 'sandbox', createSession, request.data);
+      const loaded = options.saves?.lastLoad(created);
+      return c.json({ ...describeSession(created), ...(loaded ? { load: loaded } : {}) });
     } catch (err) {
+      if (request.data.load) return loadFailure(c, err);
       return c.json({ error: (err as Error).message }, 400);
     }
   });
+
+  const saves = options.saves;
+  if (saves) {
+    const sessionOf = (c: Context): Session | null => options.sessions?.get(c.req.param('id') ?? '') ?? null;
+    const body = async <T>(c: Context, schema: z.ZodType<T>): Promise<T | null> => {
+      const parsed = schema.safeParse(await c.req.json().catch(() => ({})));
+      return parsed.success ? parsed.data : null;
+    };
+    app.get('/api/saves', async (c) => c.json(await saves.list()));
+    app.post('/api/sessions/:id/save', async (c) => {
+      const session = sessionOf(c);
+      if (!session) return c.json({ error: 'no such session' }, 404);
+      const request = await body(c, saveRequest);
+      if (!request) return c.json({ error: 'expected {name?, description?}' }, 400);
+      return saveResponse(c, await saves.save(session, request));
+    });
+    app.post('/api/sessions/:id/snapshot', async (c) => {
+      const session = sessionOf(c);
+      if (!session) return c.json({ error: 'no such session' }, 404);
+      const request = await body(c, saveRequest);
+      if (!request) return c.json({ error: 'expected {name?, description?}' }, 400);
+      const description = request.description ?? SNAPSHOT_DESCRIPTION;
+      return saveResponse(c, await saves.snapshot(session, request.name ?? playerSaveName(description, new Date()), description));
+    });
+    app.post('/api/sessions/:id/load', async (c) => {
+      const session = sessionOf(c);
+      if (!session) return c.json({ error: 'no such session' }, 404);
+      const request = await body(c, loadRequest);
+      if (!request) return c.json({ error: 'expected {name, reseed?}' }, 400);
+      try {
+        return c.json({ ...(await saves.loadInto(session, request.name, request.reseed ?? true)), ...describeSession(session) });
+      } catch (err) {
+        return loadFailure(c, err);
+      }
+    });
+    app.delete('/api/saves/:name', async (c) => {
+      try {
+        const deleted = await saves.delete(c.req.param('name'));
+        return c.json({ deleted }, deleted ? 200 : 404);
+      } catch (err) {
+        return loadFailure(c, err);
+      }
+    });
+    app.get('/api/saves/:name/file', async (c) => {
+      const name = c.req.param('name');
+      try {
+        const bytes = await saves.download(name);
+        return c.body(new Uint8Array(bytes), 200, {
+          'content-type': 'application/gzip',
+          'content-disposition': `attachment; filename="${name}${SAVE_EXTENSION}"`,
+          'cache-control': 'no-store',
+        });
+      } catch (err) {
+        return loadFailure(c, err);
+      }
+    });
+    app.put(
+      '/api/saves/:name/file',
+      bodyLimit({
+        maxSize: MAX_UPLOAD_BYTES,
+        onError: (c) => c.json({ ok: false, refused: 'tooLarge', reason: `a save may hold at most ${MAX_UPLOAD_BYTES} bytes` }, 413),
+      }),
+      async (c) => {
+        try {
+          return c.json(await saves.upload(c.req.param('name'), new Uint8Array(await c.req.arrayBuffer())));
+        } catch (err) {
+          return loadFailure(c, err);
+        }
+      },
+    );
+  }
 
   app.get('/vfs/*', async (c) => {
     let path: string;

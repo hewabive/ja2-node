@@ -6,6 +6,12 @@ import type { PlayerView, ViewFrame } from './view.ts';
 
 export type { StopCondition, StopReport };
 
+export type SessionStopReason = StopReport['reason'] | 'loaded';
+
+export interface SessionStopReport extends Omit<StopReport, 'reason'> {
+  readonly reason: SessionStopReason;
+}
+
 export type DriverMode = { readonly mode: 'manual' } | { readonly mode: 'instant' } | { readonly mode: 'realtime'; readonly speed: number };
 
 export interface CommandEnvelope {
@@ -17,13 +23,15 @@ export type ClientMessage =
   | { readonly t: 'hello'; readonly session?: string }
   | { readonly t: 'cmd'; readonly id: number; readonly cmd: CommandEnvelope }
   | { readonly t: 'advance'; readonly id: number; readonly until: StopCondition }
-  | { readonly t: 'drive'; readonly id: number; readonly driver: DriverMode };
+  | { readonly t: 'drive'; readonly id: number; readonly driver: DriverMode }
+  | { readonly t: 'save'; readonly id: number; readonly name?: string; readonly description?: string }
+  | { readonly t: 'load'; readonly id: number; readonly name: string; readonly reseed?: boolean };
 
 export type ServerMessage =
   | { readonly t: 'welcome'; readonly session: string; readonly view: PlayerView; readonly driver: DriverMode }
   | { readonly t: 'frames'; readonly frames: readonly ViewFrame[] }
   | { readonly t: 'result'; readonly id: number; readonly ok: boolean; readonly reason?: string; readonly data?: unknown }
-  | { readonly t: 'stopped'; readonly id: number; readonly report: StopReport }
+  | { readonly t: 'stopped'; readonly id: number; readonly report: SessionStopReport }
   | { readonly t: 'error'; readonly message: string };
 
 export function parseClientMessage(text: string): ClientMessage | null {
@@ -55,7 +63,17 @@ export function parseClientMessage(text: string): ClientMessage | null {
         (d?.mode === 'realtime' && typeof d.speed === 'number' && d.speed > 0 && d.speed <= 64);
       return typeof m.id === 'number' && valid ? (m as ClientMessage) : null;
     }
+    case 'save':
+      return typeof m.id === 'number' && optionalString(m.name) && optionalString(m.description) ? (m as ClientMessage) : null;
+    case 'load':
+      return typeof m.id === 'number' && typeof m.name === 'string' && (m.reseed === undefined || typeof m.reseed === 'boolean')
+        ? (m as ClientMessage)
+        : null;
     default:
       return null;
   }
+}
+
+function optionalString(value: unknown): boolean {
+  return value === undefined || typeof value === 'string';
 }

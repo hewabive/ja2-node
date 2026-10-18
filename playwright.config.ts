@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-import { SERVER_PORT, TOKEN, WEB_PORT } from './tests/e2e/env.ts';
+import { SAVE_DIR, SERVER_PORT, TOKEN, WEB_PORT } from './tests/e2e/env.ts';
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -17,6 +17,7 @@ export default defineConfig({
       JA2_PORT: String(SERVER_PORT),
       JA2_WEB_PORT: String(WEB_PORT),
       JA2_TOKEN: TOKEN,
+      JA2_SAVE_DIR: SAVE_DIR,
     },
   },
 });

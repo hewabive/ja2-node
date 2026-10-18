@@ -2,8 +2,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { z } from 'zod';
 import type { WorldTimeTarget } from '../sim/advance.ts';
+import { saveStatus } from './save-rules.ts';
+import { loadProblemOf, type SaveService } from './save-service.ts';
+import { SAVE_FILE_NAME } from './save-store.ts';
 import type { Session } from './session.ts';
-import { describeSession, NEW_SESSION_SHAPE, openSession, type SessionFactory } from './session-registry.ts';
+import { describeSession, NEW_SESSION_SHAPE, type NewSessionRequest, openSession, type SessionFactory } from './session-registry.ts';
 import { labelledView } from './text-keys.ts';
 import type { TextService } from './text-service.ts';
 
@@ -12,7 +15,17 @@ export interface McpOptions {
   readonly defaultSession: string;
   readonly createSession?: SessionFactory | undefined;
   readonly texts?: TextService | undefined;
+  readonly saves?: SaveService | undefined;
 }
+
+const SAVE_DESCRIPTION =
+  'Save the session into a ja2-node save file on the server (never a path: a name). Without name a new save named <UTC time>-<description slug>; name "quick" writes QuickSave; any other name (letters, digits, _ and -, up to 64) writes or overwrites that save. description: up to 46 characters. Saves follow the save mode of the session (status.saveMode): anywhere refuses while a conversation is open or the dialogue is busy (conversation), a meanwhile scene starts or plays (meanwhileStarting), a decision prompt is open (promptOpen) or a shop is open (shopOpen); ironMan also refuses in combat or while enemies are in the loaded sector (ironMan); deadIsDead refuses explicit saves (deadIsDead) because the game saves itself into its one file, and "quick" writes that file (refused with actionInProgress outside our turn or while something still acts). status and observe show canSave and saveRefusal. A won campaign can still be saved. Returns {ok, name, kind, header} or {ok: false, refused, reason}. The server also autosaves into Auto01/Auto02 when endTurn is accepted in turn-based combat and combat goes on (no event).';
+const LOAD_DESCRIPTION =
+  'Load a ja2-node save (a name from listSaves with native false) into the given session in place (its viewers get a fresh welcome; a running real-time driver stops) or, without session, into a new session (same as newSession with load). By default the load reseeds the main random stream from a server seed, like the original game which keeps whatever its random generator holds (PreRandom values repeat until used up): the seed is returned and logged. Pass reseed: false for an exact load, for reproducible experiments: the loaded game then continues bit for bit like the saved one. Refusals: notFound, invalidName, contentMismatch (made with other logic data or stubs), versionTooNew, corrupt; warnings: dataVersionDiffers (other text version: timings of speech may differ), engineDiffers. Native savegames of the original game are imported with newSession {save} instead.';
+const LIST_SAVES_DESCRIPTION =
+  'List the saves, newest first: ja2-node saves (native false; header with kind player|quick|auto|deadIsDead, description, savedAt, world day/hour/minute, sector, flow, mercs, balance, campaign, options with saveMode, content and engine) and the native savegames of the original game in the SavedGames folder (native true, read only; continue one with newSession {save: name}, then save it in ja2-node format). compatible false lists the problems (versionTooNew, contentMismatch, needsOriginalData).';
+const DELETE_SAVE_DESCRIPTION =
+  'Delete a ja2-node save (and its input log) by name; native savegames are never deleted. Returns {deleted}.';
 
 const SERVER_INFO = { name: 'ja2-node', version: '0.1.0' };
 
@@ -32,10 +45,19 @@ function text(value: unknown): { content: { type: 'text'; text: string }[] } {
 async function observation(session: Session, texts: TextService | undefined): Promise<Record<string, unknown>> {
   const view = session.sim.view();
   const strings = texts ? await texts.strings(session.language).catch(() => null) : null;
-  return { ...(strings ? labelledView(view, strings.strings) : view), language: session.language, dataVersion: session.dataVersion };
+  return {
+    ...(strings ? labelledView(view, strings.strings) : view),
+    language: session.language,
+    dataVersion: session.dataVersion,
+    ...saveStatus(session.sim),
+  };
 }
 
-export function buildMcpServer({ sessions, defaultSession, createSession, texts }: McpOptions): McpServer {
+function refusal(err: unknown): Record<string, unknown> {
+  return { ok: false, refused: loadProblemOf(err), reason: (err as Error).message };
+}
+
+export function buildMcpServer({ sessions, defaultSession, createSession, texts, saves }: McpOptions): McpServer {
   const server = new McpServer(SERVER_INFO);
   const pick = (id: string | undefined): Session => {
     const s = sessions.get(id ?? defaultSession);
@@ -58,15 +80,22 @@ export function buildMcpServer({ sessions, defaultSession, createSession, texts 
       'newSession',
       {
         description:
-          'Start a fresh game in its own session and return its id; pass it as "session" to the other tools. With nothing else it is the tactical sandbox (same map and squad, independent state). With "campaign" it is a new campaign: the strategic layer runs (world clock, Queen, towns, travel), the squad is hired through the laptop (real A.I.M. prices, deposits and refusals; "hire": [{profile, contract: 1|7|14, gear}], or "mercs": the size of the default squad, hired while affordable; "imp": an impCreate command) and, unless land is false, flown into the start sector at 07:00 on day 1; with "hire": [] the session stays in the open laptop on day 1, 01:00. With "save" (a file name from the original game\'s SavedGames folder without .sav, e.g. SaveGame07) it continues that native savegame. Optional seed for the random streams; optional language (eng, rus, ger, dut, fr, it, pl, chs) for the UI labels the session resolves in observe (default: the server\'s JA2_LANG or the data version\'s language; dialogue, mails and item text always come in the data version\'s language). A won campaign is over: its session refuses every command with campaignOver and advance returns ended; start a new game with newSession. Native saves taken during a meanwhile scene or the endgame sequence cannot be continued.',
+          'Start a fresh game in its own session and return its id; pass it as "session" to the other tools. With nothing else it is the tactical sandbox (same map and squad, independent state). With "campaign" it is a new campaign: the strategic layer runs (world clock, Queen, towns, travel), the squad is hired through the laptop (real A.I.M. prices, deposits and refusals; "hire": [{profile, contract: 1|7|14, gear}], or "mercs": the size of the default squad, hired while affordable; "imp": an impCreate command) and, unless land is false, flown into the start sector at 07:00 on day 1; with "hire": [] the session stays in the open laptop on day 1, 01:00. With "save" (a file name from the original game\'s SavedGames folder without .sav, e.g. SaveGame07) it continues that native savegame (save it in ja2-node format with save to keep going). With "load" (a ja2-node save from listSaves) it loads that save into the new session, like the load tool: reseeding the main random stream by default, "reseed": false for an exact load. campaign.saveMode: anywhere (default), ironMan or deadIsDead (with campaign.deadIsDeadName, the one save file; default DeadIsDead). Optional seed for the random streams; optional language (eng, rus, ger, dut, fr, it, pl, chs) for the UI labels the session resolves in observe (default: the server\'s JA2_LANG or the data version\'s language; dialogue, mails and item text always come in the data version\'s language). A won campaign is over: its session refuses every command with campaignOver and advance returns ended; start a new game with newSession. Native saves taken during a meanwhile scene or the endgame sequence cannot be continued.',
         inputSchema: NEW_SESSION_SHAPE,
       },
       async (request) => {
-        const created = await openSession(sessions, defaultSession, createSession, request);
-        return text(describeSession(created));
+        try {
+          const created = await openSession(sessions, defaultSession, createSession, request);
+          const loaded = saves?.lastLoad(created);
+          return text({ ...describeSession(created), ...(loaded ? { load: loaded } : {}) });
+        } catch (err) {
+          if (request.load) return text(refusal(err));
+          throw err;
+        }
       },
     );
   }
+  if (saves) registerSaveTools(server, { sessions, defaultSession, createSession, saves, pick });
   server.registerTool(
     'observe',
     {
@@ -130,6 +159,61 @@ export function buildMcpServer({ sessions, defaultSession, createSession, texts 
     },
   );
   return server;
+}
+
+interface SaveToolOptions {
+  readonly sessions: Map<string, Session>;
+  readonly defaultSession: string;
+  readonly createSession: SessionFactory | undefined;
+  readonly saves: SaveService;
+  readonly pick: (id: string | undefined) => Session;
+}
+
+function registerSaveTools(server: McpServer, { sessions, defaultSession, createSession, saves, pick }: SaveToolOptions): void {
+  const sessionArg = z.string().optional().describe('Session id; defaults to the sandbox session');
+  const name = z.string().regex(SAVE_FILE_NAME);
+  server.registerTool(
+    'save',
+    {
+      description: SAVE_DESCRIPTION,
+      inputSchema: {
+        session: sessionArg,
+        name: z.string().optional().describe('quick, or a save name; omit for a new save named after the time and description'),
+        description: z.string().max(200).optional(),
+      },
+    },
+    async ({ session, name: saveName, description }) => text(await saves.save(pick(session), { name: saveName, description })),
+  );
+  server.registerTool(
+    'load',
+    {
+      description: LOAD_DESCRIPTION,
+      inputSchema: {
+        name,
+        session: z.string().optional().describe('load into this session in place; omit to open a new session'),
+        reseed: z.boolean().optional().describe('default true; false for an exact, reproducible load'),
+      },
+    },
+    async ({ name: saveName, session, reseed }) => {
+      try {
+        if (session !== undefined) {
+          const target = pick(session);
+          const outcome = await saves.loadInto(target, saveName, reseed ?? true);
+          return text({ ...outcome, ...describeSession(target) });
+        }
+        if (!createSession) throw new Error('new sessions are not available');
+        const request: NewSessionRequest = { load: saveName, ...(reseed !== undefined ? { reseed } : {}) };
+        const created = await openSession(sessions, defaultSession, createSession, request);
+        return text({ ...saves.lastLoad(created), ...describeSession(created) });
+      } catch (err) {
+        return text(refusal(err));
+      }
+    },
+  );
+  server.registerTool('listSaves', { description: LIST_SAVES_DESCRIPTION, inputSchema: {} }, async () => text(await saves.list()));
+  server.registerTool('deleteSave', { description: DELETE_SAVE_DESCRIPTION, inputSchema: { name } }, async ({ name: saveName }) =>
+    text({ deleted: await saves.delete(saveName) }),
+  );
 }
 
 export async function handleMcpRequest(request: Request, options: McpOptions): Promise<Response> {

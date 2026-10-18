@@ -112,6 +112,14 @@ export class CampaignSession implements SessionSim {
     await this.worlds.prepare(flow.mapsNeededSoon(cmd.type === 'enterSector' ? cmd.sector : undefined));
   }
 
+  preparedMaps(): readonly string[] {
+    return this.worlds?.preparedPaths() ?? [];
+  }
+
+  async prepareMaps(paths: readonly string[]): Promise<void> {
+    await this.worlds?.prepare(paths);
+  }
+
   get sim(): TacticalSim {
     const tactical = this.campaign.tactical;
     if (!tactical) throw new Error('no sector is loaded');

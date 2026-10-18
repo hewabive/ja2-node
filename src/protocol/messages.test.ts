@@ -7,6 +7,8 @@ describe('client messages', () => {
     expect(parseClientMessage('{"t":"cmd","id":1,"cmd":{"type":"move","soldier":3}}')).toMatchObject({ t: 'cmd', id: 1 });
     expect(parseClientMessage('{"t":"advance","id":2,"until":{"idle":true}}')).toMatchObject({ t: 'advance' });
     expect(parseClientMessage('{"t":"drive","id":3,"driver":{"mode":"realtime","speed":4}}')).toMatchObject({ t: 'drive' });
+    expect(parseClientMessage('{"t":"save","id":4,"description":"before the bridge"}')).toMatchObject({ t: 'save', id: 4 });
+    expect(parseClientMessage('{"t":"load","id":5,"name":"QuickSave","reseed":false}')).toMatchObject({ t: 'load', reseed: false });
   });
 
   it('rejects garbage and out-of-range values', () => {
@@ -14,5 +16,8 @@ describe('client messages', () => {
     expect(parseClientMessage('{"t":"cmd","id":1,"cmd":{}}')).toBeNull();
     expect(parseClientMessage('{"t":"drive","id":3,"driver":{"mode":"realtime","speed":1000}}')).toBeNull();
     expect(parseClientMessage('{"t":"nuke"}')).toBeNull();
+    expect(parseClientMessage('{"t":"save","id":4,"name":7}')).toBeNull();
+    expect(parseClientMessage('{"t":"load","id":5}')).toBeNull();
+    expect(parseClientMessage('{"t":"load","id":5,"name":"QuickSave","reseed":"yes"}')).toBeNull();
   });
 });
