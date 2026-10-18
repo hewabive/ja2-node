@@ -828,8 +828,9 @@ with a 256-colour palette converted to 16-bit and blitted 1:1 at the centre of t
 `UILayout.cc:13-14`). A missing or broken file is logged and skipped, so a sequence with no files exits at once
 (`Utils/Cinematics.cc:193-219`, `Intro.cc:339-342`).
 
-**Credits** (`Credits.cc`): `interface/credits.sti` with blinking faces, the text from `binarydata/credits.edt` (496
-rows of 80 characters, `src/externalized/strings/EDT.h:61-65`) with inline `@` control codes for gaps, speed,
+**Credits** (`Credits.cc`): `interface/credits.sti` with blinking faces, the text from `binarydata/credits.edt` (rows
+of 80 characters, `src/externalized/strings/EDT.h:61-65`, whose comment says 496 rows; the English Gold file has 248, and
+row 0 is never read because the record counter is incremented before the first read) with inline `@` control codes for gaps, speed,
 justification and colours (`Credits.cc:44-58`, `:460-502`), scrolled 1 px every 25 ms (`:71-76`); 15 hoverable faces
 with names from the compiled strings (`:108-127`, `Utils/Text.h:212-214`). The main menu reaches the credits too
 (`MainMenuScreen.cc:217-220`).
@@ -873,12 +874,73 @@ one audio track: compressed, 16-bit stereo, 44.1 kHz. Sizes range from about 0.6
 
 ### 4.4 Stubs
 
-The stub pack has no video today. It gets one tiny Smacker file per sequence slot that matters for tests
+Before S10 the stub pack had no video. It gets one tiny Smacker file per sequence slot that matters for tests
 (`intro/splashscreen.smk` is enough), written by a minimal encoder in `stubs/` that emits only what the decoder must
 read anyway: a full palette, solid and void blocks, and an uncompressed or DPCM audio track of a generated tone. The
 picture is an original title card ("ja2-node" on a plain background). The other names stay missing and are skipped,
 which also exercises the missing-file path. If the encoder costs more than it is worth, the fallback is a fixture-only
 file generated in the decoder's tests and no stub video at all (open question 9).
+
+### 4.5 What landed (slice S10, 2026-10-18)
+
+- **Decoder** `src/content/formats/smk.ts` (DOM-free, Node-free, no SFI header: Smacker is RAD's format, written from
+  its public description, libsmacker neither read nor ported): `openSmk(bytes)` reads the 104-byte header, the frame
+  size and type tables and the four Huffman trees (mono map, mono colours, full, type: 16-bit trees built from two 8-bit
+  trees, with three escape leaves that return the three most recently decoded values, reset at every frame);
+  `decodeAudio(video, track)` decodes every chunk of a track up front into an `Int16Array` per channel (Huffman DPCM
+  with per-chunk trees, 8 and 16 bit, mono and stereo, wrap-around deltas; uncompressed 8/16-bit PCM copied); and
+  `createFrameReader(video).nextFrame()` returns `{index, indices, palette, paletteChanged}` (the index buffer and the
+  palette are reused across frames because void blocks keep the previous picture; copy them to keep them). Palette
+  chunks (skip, copy from the previous palette, 6-bit colours scaled by `(c << 2) | (c >> 4)`) and the four block types
+  (mono, full, void, solid, chained by the 64-entry run table) are covered. Ring frames, Y-interlaced and Y-doubled files,
+  Bink audio and SMK4 are refused with a clear error: none of the eleven game files uses them (all SMK2, flags 0) and
+  SMK4's extra full-block modes could not be checked against a sample. On the user's data every video decodes; the
+  decoded audio is as long as the video to within one frame; a 640×480 frame decodes in 1.35 ms or less on average,
+  2.5 ms at the 95th percentile and 8.7 ms at most (the first, full frames) in Node with a warm JIT, and the audio of the
+  longest video (`throne_nomig`, 2 minutes) in about 0.4 s, so a Worker keeps up with 15 and 30 fps easily.
+- **Stub video** (decision 9: the encoder took well under a day): `stubs/smk-encode.ts` writes SMK2 files with
+  frequency-built Huffman trees (optionally using the escape leaves), all four block types chosen per 4×4 block
+  (unchanged → void, one colour → solid, two → mono, else full), palette chunks with skip/copy/colour commands and a DPCM
+  or raw audio track. `stubs/video.ts` draws the title card ("ja2-node" in a 5×7 pixel font of our own, a colour band
+  whose ramp rotates through palette copies, a progress bar) and a two-note triangle chime, 30 frames at 15 fps,
+  22.05 kHz 16-bit stereo compressed like the originals: `intro/splashscreen.smk`, about 40 KB, byte-identical every
+  build. `stubs/build.test.ts` decodes it back to the source frames, palettes and samples.
+- **Player** `src/app/video/` (browser): `player.ts` fetches `/vfs/intro/<name>.smk` whole (404 → `missing`, skipped),
+  opens it in a module Worker (`decoder-worker.ts`, which decodes the audio up front and converts it to float), draws
+  through `src/render/indexed-frame.ts` (WebGL2: an R8UI index texture and a 256×1 RGB palette texture, sampled with
+  `texelFetch`; `app` may now import `render`) at the largest integer scale that fits the window, and plays the audio as
+  one buffer on the audio engine's music bus (`AudioEngine.playBuffer`, full volume as the original's `MAXVOLUME`, under
+  the master gain and mute) or on a plain `AudioContext` (`contextSound`). Frames are paced by the audio clock
+  (`currentTime` since the buffer started); without a running audio context, with the master at 0 or with a silent
+  video the wall clock paces instead. Each animation frame asks the Worker for the newest due frame; the Worker decodes
+  every frame up to it and posts only that one, so late frames are decoded but never shown, as in `SmkSkipFrames`; the
+  video ends when the frame after the last one is due (`pacing.ts`). `sequence-player.ts` covers the screen with a
+  black, cursorless overlay and handles the keys of `Intro.cc`: Escape (key up) ends the sequence, Space (key up) or
+  any mouse button (down) ends the current video.
+- **Sequences** `src/app/video/sequences.ts`: the eleven names, `splashPlan` (the splash only, then the main menu; the
+  TalonSoft logo is never played), `beginningPlan` (the four beginning videos, then the new game) and `endingPlan
+  ({miguelAlive, skyriderAlive})` from `observe.ended.ending` (throne video by Miguel's death, the fly-by, the helicopter
+  video by Skyrider's, then the credits). `sequenceEnabled` applies the client settings `playSplash` and `playIntro`
+  (`src/app/settings.ts`, default on, still settings version 1); the ending is always played.
+- **Credits**: `src/content/formats/credits.ts` parses a row's control codes like `GetNextCreditFromTextFile` (codes
+  `D B S J C R T { }` separated by `,` and ended by `;`, the rest of a code skipped up to the next separator, numbers
+  read like `sscanf("%u")`, colours truncated to 8 bits, unknown codes and justifications other than 0–2 reported and
+  ignored, the section flags applied after the codes of the same row); all 248 rows of the English credits parse
+  without unknown codes. `src/app/credits/` holds the roll (`roll.ts`: a row is read when the last node has risen
+  `gapBeforeNextRow` pixels above the bottom less the original's 16-pixel overlap, nodes rise 1 px per scroll delay,
+  the top node is dropped once off screen, the screen ends when the rows ran out and the last node left), a row feed
+  that prefetches `GET /api/text?file=binarydata/credits.edt&row=N` from row 1 until the first 404, and a DOM scroller
+  (Arial 12 px and bold 14 px in the 210-pixel column at x = 10 of a 640×480 stage, the `FONT_MCOLOR_*` indices mapped
+  to approximate CSS colours). Escape (key up) ends the credits.
+- **Page**: `src/devtools/video/` (in Vite and on the start page) plays the splash, the beginning, an ending variant
+  (followed by the credits) and the credits alone, toggles `playSplash`/`playIntro`, lists the last results and exposes
+  `window.__ja2Video` (`video.progress`, `video.sequences`, `credits`). `?autoplay=splash` plays the splash on load
+  unless `playSplash` is off, as the launcher of S11 will.
+- **Checks**: on the user's data the page plays the splash with audio-clock pacing (474 of 486 frames shown in headless
+  Chromium while taking screenshots), skips through the beginning with Space, a click and Escape, plays the ending with
+  `throne_nomig`, `heli_flyby` and `heli_sky` and then scrolls the original credits; on stubs the e2e test
+  (`tests/e2e/video.spec.ts`) plays the splash to the end (30 frames decoded), ends it with Escape, skips the four
+  missing beginning videos and scrolls the stub credits.
 
 ---
 
@@ -1049,7 +1111,8 @@ with per-path fallbacks (`src/node/data-vfs.ts`, `readLayered`) and an alias man
 | Sounds | 90 synthesized cue classes (`synth/sfx`) behind all 343 sound paths of the tables and 42 battle voices for three body classes (`synth/battle`) behind the 90 generic voice paths (`m_`, `f_`, `bad0-2`, `bad7-8`, `kid0-1`); since S8 an ambient table `ambient/0.bad` for the stub tileset | 370 + 1,581 WAV, `ambient/*.bad` |
 | Music | one chiptune loop (about 4 s) per track of `music.json`: 14 files under their own names | 14 tracks, up to two minutes |
 | Speech | one IMA ADPCM blip and `.gap` per stub profile and family (`synth/speech`), behind every merc and NPC quote that has stub text: 1,133 speech names | 8,568 WAV, 8,353 `.gap` |
-| Other media | none: no video, fonts, faces, item graphics, interface, laptop or map-screen art, radar maps, load screens, cursors | the other SLFs |
+| Video | since S10 the splash `intro/splashscreen.smk` (a title card and a tone, 2 s, 40 KB, §4.5); the other ten names stay missing | 11 Smacker files, 70 MB |
+| Other media | none: no fonts, faces, item graphics, interface, laptop or map-screen art, radar maps, load screens, cursors | the other SLFs |
 
 Items, weapons, dealers, the army and strategic tables come from `data/externalized` for every data version, so they
 need no stubs. One defect surfaced during this inventory: `dialogueProfiles()`
@@ -1068,7 +1131,7 @@ the minimum that the tests and the stub campaign path need (`01` §11, "logic st
 
 **P0, needed by M7 features** (each is original work, generated by a script in `stubs/`, deterministic, PNG/WAV/JSON):
 
-Items 1–4 landed in slice S7 (§6.5); item 5 waits for S10.
+Items 1–4 landed in slice S7 (§6.5), item 5 in S10 (§4.5).
 
 1. **Sounds** (`stubs/audio.ts`, done): one short synthesized WAV per cue class of §3.3 (footsteps by terrain class,
    gun classes and their silenced and burst variants, reload, punch and knife, hits, falls, explosions, doors open, close
@@ -1546,7 +1609,7 @@ Every scenario of §7.2 runs once in CI on stubs (sanity bounds only, §7.6).
 | **S7** Stub media P0 (landed, §6.5) | §6.3 items 1–5 except the video | S6 | `/api/text` and the cue table resolve on stubs |
 | **S8** Sound (landed, §3.6) | WAV/GAP/ambient decoders, transcribed tables, cues, the audio layer, the director with animation opcodes, speech, ambient; the event fields of §3.3; deviations | S7 | the tactical page plays a stub firefight with sound |
 | **S9** Music | `musicMode`, `presentation.music` in sessions and snapshots, the client player, the victory clear of `useCreatureMusic` in the simulation | S8, S3 | music follows sector entry, combat, victory and defeat on stubs |
-| **S10** Video | `smk.ts`, the stub encoder (or fixture), the player, sequences, credits parser and scroller | S8 | the splash and the ending play on original data; stub splash in e2e |
+| **S10** Video (landed, §4.5) | `smk.ts`, the stub encoder (or fixture), the player, sequences, credits parser and scroller | S8 | the splash and the ending play on original data; stub splash in e2e |
 | **S11** Launcher | the DOM launcher (§8.3), quick keys in the pages, client settings, export and import | S3, S5, S6, S10 | §12.2 launcher test |
 | **S12** Performance | profile-driven fixes against §7.3, `SessionHost` and `WorkerHost` | S4 (and S2 for the save scenario) | targets met or documented |
 | **S13** Stub campaign | §6.3 P1 items 6–9 and the end-to-end campaign with a reload (§12.2) | S3, S7 | the stub campaign is won through MCP alone with a reload in a battle |
