@@ -1,0 +1,132 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/externalized/strings/EDT.h, src/externalized/ItemModel.cc, src/externalized/mercs/AIMListingModel.cc, MERCListingModel.cc, src/game/Laptop/EMail.cc, Files.cc, History.cc, src/game/Tactical/Civ_Quotes.cc, src/externalized/content/Dialogs.cc, src/externalized/DefaultContentManager.cc, src/game/Directories.h",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "files: every EDT file the game reads, as a VFS path, with the record layout its reader uses: columns are UTF-16 code unit widths of one record, in order; {03d} and {02d} stand for a zero-padded number of that many digits, {sector} for a sector short string (row letter and column, e.g. a9)",
+  "files": [
+    {
+      "path": "binarydata/help.edt",
+      "columns": [640],
+      "src": "src/externalized/strings/EDT.h EDTFilesTable"
+    },
+    {
+      "path": "binarydata/credits.edt",
+      "columns": [80],
+      "src": "src/externalized/strings/EDT.h EDTFilesTable"
+    },
+    {
+      "path": "binarydata/aimhist.edt",
+      "columns": [400],
+      "src": "src/externalized/strings/EDT.h EDTFilesTable"
+    },
+    {
+      "path": "binarydata/alumname.edt",
+      "columns": [80],
+      "src": "src/externalized/strings/EDT.h EDTFilesTable"
+    },
+    {
+      "path": "binarydata/alumni.edt",
+      "columns": [80, 560],
+      "src": "src/externalized/strings/EDT.h EDTFilesTable"
+    },
+    {
+      "path": "binarydata/aimpol.edt",
+      "columns": [400],
+      "src": "src/externalized/strings/EDT.h EDTFilesTable"
+    },
+    {
+      "path": "binarydata/insurancesingle.edt",
+      "columns": [80],
+      "src": "src/externalized/strings/EDT.h EDTFilesTable"
+    },
+    {
+      "path": "binarydata/insurancemulti.edt",
+      "columns": [400],
+      "src": "src/externalized/strings/EDT.h EDTFilesTable"
+    },
+    {
+      "path": "binarydata/imptext.edt",
+      "columns": [400],
+      "src": "src/externalized/strings/EDT.h EDTFilesTable"
+    },
+    {
+      "path": "binarydata/flowercard.edt",
+      "columns": [400],
+      "src": "src/externalized/strings/EDT.h EDTFilesTable"
+    },
+    {
+      "path": "binarydata/flowerdesc.edt",
+      "columns": [80, 80, 320],
+      "src": "src/externalized/strings/EDT.h EDTFilesTable"
+    },
+    {
+      "path": "binarydata/itemdesc.edt",
+      "columns": [80, 80, 240],
+      "src": "src/externalized/ItemModel.cc ItemStrings"
+    },
+    {
+      "path": "binarydata/braydesc.edt",
+      "columns": [80, 320],
+      "src": "src/externalized/ItemModel.cc ItemStrings"
+    },
+    {
+      "path": "binarydata/aimbios.edt",
+      "columns": [400, 160],
+      "src": "src/externalized/mercs/AIMListingModel.cc BioStrings"
+    },
+    {
+      "path": "binarydata/mercbios.edt",
+      "columns": [400, 160],
+      "src": "src/externalized/mercs/MERCListingModel.cc BioStrings"
+    },
+    {
+      "path": "binarydata/email.edt",
+      "columns": [320],
+      "src": "src/game/Laptop/EMail.cc LoadEMailText, LoadIMPResultText"
+    },
+    {
+      "path": "binarydata/impass.edt",
+      "columns": [320],
+      "src": "src/game/Laptop/EMail.cc LoadEMailText, LoadIMPResultText"
+    },
+    {
+      "path": "binarydata/ris.edt",
+      "columns": [400],
+      "src": "src/game/Laptop/Files.cc LoadStringsIntoFileList"
+    },
+    {
+      "path": "binarydata/files.edt",
+      "columns": [400],
+      "src": "src/game/Laptop/Files.cc LoadStringsIntoFileList"
+    },
+    {
+      "path": "binarydata/quests.edt",
+      "columns": [80],
+      "src": "src/game/Laptop/History.cc GetQuestStartedString, GetQuestEndedString"
+    },
+    {
+      "path": "npcdata/civ{02d}.edt",
+      "columns": [160],
+      "src": "src/game/Tactical/Civ_Quotes.cc GetCivQuoteText"
+    },
+    {
+      "path": "npcdata/{sector}.edt",
+      "columns": [160],
+      "src": "src/game/Tactical/Civ_Quotes.cc GetCivQuoteText"
+    },
+    {
+      "path": "npcdata/d_{03d}.edt",
+      "columns": [240],
+      "src": "src/externalized/content/Dialogs.cc GetDialogueTextFilename, DefaultContentManager.cc DIALOGUESIZE"
+    },
+    {
+      "path": "npcdata/{03d}.edt",
+      "columns": [240],
+      "src": "src/externalized/content/Dialogs.cc GetDialogueTextFilename, DefaultContentManager.cc DIALOGUESIZE"
+    },
+    {
+      "path": "mercedt/{03d}.edt",
+      "columns": [240],
+      "src": "src/externalized/content/Dialogs.cc GetDialogueTextFilename, DefaultContentManager.cc DIALOGUESIZE"
+    }
+  ]
+}
