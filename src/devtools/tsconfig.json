@@ -20,6 +20,12 @@
     },
     {
       "path": "../protocol"
+    },
+    {
+      "path": "../audio"
+    },
+    {
+      "path": "../app"
     }
   ]
 }
