@@ -8,6 +8,7 @@ import { type PreRandom, Rng } from '../../core/rng.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import type { ItemObject } from '../items/object.ts';
+import { applyOptionChange, type GameOptions, parseOptionChange } from '../options.ts';
 import type { CivGroupState } from '../strategic/narrative/civ-groups.ts';
 import type { BoxingRecord } from '../strategic/narrative/facts.ts';
 import { AiAction } from './ai/actions.ts';
@@ -189,6 +190,7 @@ export interface TacticalCommand {
 }
 
 export interface TacticalSimOptions {
+  readonly options?: GameOptions;
   readonly streams?: { readonly rng: Rng; readonly pre: PreRandom };
   readonly profiles?: Map<number, ProfileProgress>;
   readonly keyTable?: KeyTable;
@@ -206,6 +208,7 @@ function createSimState(world: TacticalWorld, content: TacticalContent, seed: nu
     content,
     options.streams?.rng ?? Rng.fromSeed(seed),
     {
+      ...(options.options ? { options: options.options } : {}),
       ...(options.streams ? { pre: options.streams.pre } : {}),
       ...(options.profiles ? { profiles: options.profiles } : {}),
       ...(options.keyTable ? { keyTable: options.keyTable } : {}),
@@ -407,7 +410,16 @@ export class TacticalSim {
     return typeof id === 'number' ? (this.state.soldiers[id] ?? null) : null;
   }
 
+  #setOption(cmd: TacticalCommand): CommandResult {
+    const change = parseOptionChange(cmd);
+    if (typeof change === 'string') return { ok: false, reason: change, data: { refusal: 'badOption' } };
+    applyOptionChange(this.state.options, change);
+    this.state.events.push({ type: 'optionChanged', bloodAndGore: this.state.options.bloodAndGore });
+    return { ok: true, data: { options: { ...this.state.options } } };
+  }
+
   dispatch(cmd: TacticalCommand): CommandResult {
+    if (cmd.type === 'setOption') return this.#setOption(cmd);
     if (this.state.mercsWaiting && cmd.type !== 'estimateAttack')
       return { ok: false, reason: 'the interface is locked while mercs leave the sector' };
     if (this.state.boxing.uiLocked && cmd.type !== 'estimateAttack')

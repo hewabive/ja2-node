@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
 import type { BasicPlacement } from '../../content/formats/map.ts';
 import { NOTHING } from '../../content/items/items.ts';
+import { gameOptions } from '../options.ts';
 import { ScriptedStream } from '../strategic/forces/autoresolve/replay-rng.ts';
 import {
   type CreationContext,
@@ -26,14 +27,15 @@ afterAll(async () => {
 
 function creation(values: readonly number[], progress = 0): { c: CreationContext; rolls: ScriptedStream } {
   const rolls = new ScriptedStream(values);
-  const equipment = createEquipmentState(kit.content.items);
+  const options = gameOptions();
+  const equipment = createEquipmentState(kit.content.items, options);
   equipment.progress = progress;
   return {
     rolls,
     c: {
       rng: rolls,
       content: kit.content,
-      options: { gunNut: false, bloodAndGore: true },
+      options,
       equipment,
       campaign: { difficultyModifier: 30, progress },
     },

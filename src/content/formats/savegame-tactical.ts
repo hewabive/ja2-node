@@ -5,7 +5,7 @@
 // @src Tactical/TeamTurns.cc LoadTeamTurnsFromTheSavedGameFile
 
 import type { SaveCursor } from './savegame-cursor.ts';
-import type { GameOptions, SectorPosition } from './savegame-header.ts';
+import type { SavedGameOptions, SectorPosition } from './savegame-header.ts';
 import { field, type Layout, type LayoutRecord, layoutBytes, linuxPadding, linuxSkip, readLayout, skip } from './savegame-layout.ts';
 
 export const MAX_TEAMS = 6;
@@ -383,7 +383,7 @@ export interface GeneralInfo {
   readonly atLeastOneMercWasHired: boolean;
   readonly environmentWeather: number;
   readonly contractRehireSoldier: number;
-  readonly gameOptions: GameOptions;
+  readonly gameOptions: SavedGameOptions;
   readonly baseJA2Clock: number;
   readonly currentInterfacePanel: number;
   readonly smCurrentMerc: number;

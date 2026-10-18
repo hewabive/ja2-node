@@ -6,7 +6,15 @@ import { saveStatus } from './save-rules.ts';
 import { loadProblemOf, type SaveService } from './save-service.ts';
 import { SAVE_FILE_NAME } from './save-store.ts';
 import type { Session } from './session.ts';
-import { describeSession, NEW_SESSION_SHAPE, type NewSessionRequest, openSession, type SessionFactory } from './session-registry.ts';
+import {
+  describeSession,
+  importReport,
+  NEW_SESSION_SHAPE,
+  type NewSessionRequest,
+  openSession,
+  optionsStatus,
+  type SessionFactory,
+} from './session-registry.ts';
 import { labelledView } from './text-keys.ts';
 import type { TextService } from './text-service.ts';
 
@@ -49,6 +57,7 @@ async function observation(session: Session, texts: TextService | undefined): Pr
     ...(strings ? labelledView(view, strings.strings) : view),
     language: session.language,
     dataVersion: session.dataVersion,
+    ...optionsStatus(session.sim),
     ...saveStatus(session.sim),
   };
 }
@@ -87,7 +96,7 @@ export function buildMcpServer({ sessions, defaultSession, createSession, texts,
         try {
           const created = await openSession(sessions, defaultSession, createSession, request);
           const loaded = saves?.lastLoad(created);
-          return text({ ...describeSession(created), ...(loaded ? { load: loaded } : {}) });
+          return text({ ...describeSession(created), ...(loaded ? { load: loaded } : {}), ...importReport(created) });
         } catch (err) {
           if (request.load) return text(refusal(err));
           throw err;

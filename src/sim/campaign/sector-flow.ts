@@ -435,6 +435,7 @@ export class SectorFlow {
     const s = this.campaign.state;
     const dayAmbient = timeOfDayAmbientLightLevel(s.env, sector.z, sector.z === 0 && isSectorDesert(s.map, sector));
     const sim = new TacticalSim(world, this.setup.content, 0, {
+      options: s.options,
       streams: { rng: s.rng, pre: s.pre },
       profiles: s.profiles,
       keyTable: s.keyTable,
@@ -446,11 +447,8 @@ export class SectorFlow {
       dayAmbient,
     });
     const t = sim.state;
-    t.options.gunNut = s.options.gunNut;
-    t.equipment.sciFi = s.options.sciFi;
     t.equipment.progress = s.status.highestProgress;
     t.equipment.weaponsAlreadyDropped = sharedWeaponsDropped(s.status, this.setup.content.items);
-    t.perception.difficulty = s.options.difficulty;
     t.campaign = this.#tacticalCampaign();
     t.sector = { x: sector.x, y: sector.y, z: sector.z };
     t.edgepoints = loadMapEdgepoints(t, sector);

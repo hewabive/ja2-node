@@ -3,9 +3,8 @@ import { constants, gunzipSync, gzipSync } from 'node:zlib';
 import { sectorShortString } from '../content/strategic/sector-ids.ts';
 import { type CampaignStatus, campaignStatus } from '../sim/campaign/ending-state.ts';
 import { storyFlow } from '../sim/campaign/story-refusals.ts';
+import type { GameOptions } from '../sim/options.ts';
 import type { SimSnapshot } from '../sim/snapshot/session.ts';
-import { Difficulty } from '../sim/strategic/forces/constants.ts';
-import type { GameOptions, SaveMode } from '../sim/strategic/state.ts';
 import { worldDay, worldHour, worldMinute } from '../sim/strategic/time/world-clock.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { teamMembers } from '../sim/tactical/state.ts';
@@ -22,18 +21,12 @@ export const MAX_DESCRIPTION_CHARS = 46;
 export const MAX_SAVE_TEXT_BYTES = 512 * 1024 * 1024;
 const HEADER_LINE_END = '\n';
 const GZIP_OPTIONS = { level: constants.Z_BEST_SPEED };
-const SANDBOX_OPTIONS: Omit<GameOptions, 'gunNut'> = { difficulty: Difficulty.MEDIUM, sciFi: true, saveMode: 'anywhere' };
 const SECTOR_MAP_NAME = /([a-p])(\d{1,2})(?:_b(\d))?\.dat$/i;
 const ROW_LETTER_BASE = 96;
 
 export type SaveKind = 'player' | 'quick' | 'auto' | 'deadIsDead';
 
-export interface SaveOptions {
-  readonly difficulty: number;
-  readonly sciFi: boolean;
-  readonly gunNut: boolean;
-  readonly saveMode: SaveMode;
-}
+export type SaveOptions = Readonly<GameOptions>;
 
 export interface WorldTime {
   readonly day: number;
@@ -267,7 +260,7 @@ function campaignSummary(session: CampaignSession): SessionSummary {
 function sandboxSummary(session: TacticalSession): SessionSummary {
   const t = session.sim.state;
   return {
-    options: { ...SANDBOX_OPTIONS, gunNut: t.options.gunNut },
+    options: { ...t.options },
     world: null,
     sector: mapSector(session.sim.mapPath),
     flow: 'tactical',

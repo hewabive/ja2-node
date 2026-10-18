@@ -21,6 +21,7 @@ import {
   NO_PROFILE,
   ObjectFlags,
 } from '../items/object.ts';
+import type { GameOptions } from '../options.ts';
 import type { RandomStream } from './combat/context.ts';
 import { type Inventory, InvSlot, NUM_INV_SLOTS } from './inventory.ts';
 import { Body, SoldierClass } from './soldier.ts';
@@ -57,8 +58,7 @@ export interface EquipmentState {
   weaponsAlreadyDropped: Set<number>;
   mortarsRolledByTeam: number;
   progress: number;
-  gunNut: boolean;
-  sciFi: boolean;
+  readonly options: Pick<GameOptions, 'gunNut' | 'sciFi'>;
   underground: boolean;
   inEnemyHeldTixa: boolean;
   enemyWeaponMinimalStatus: number;
@@ -76,13 +76,16 @@ export function sharedWeaponsDropped(holder: { weaponsDropped: Set<number> | nul
   return holder.weaponsDropped;
 }
 
-export function createEquipmentState(items: ItemTable, weaponsAlreadyDropped: Set<number> = initArmyGunTypes(items)): EquipmentState {
+export function createEquipmentState(
+  items: ItemTable,
+  options: Pick<GameOptions, 'gunNut' | 'sciFi'>,
+  weaponsAlreadyDropped: Set<number> = initArmyGunTypes(items),
+): EquipmentState {
   return {
     weaponsAlreadyDropped,
     mortarsRolledByTeam: 0,
     progress: 0,
-    gunNut: false,
-    sciFi: true,
+    options,
     underground: false,
     inEnemyHeldTixa: false,
     enemyWeaponMinimalStatus: 0,
@@ -119,7 +122,7 @@ function markAllWeaponsOfSameGunClassAsDropped(items: ItemTable, dropped: Set<nu
 }
 
 function selectStandardArmyGun(items: ItemTable, rng: RandomStream, state: EquipmentState, level: number): number {
-  const choice = (state.gunNut ? items.gunChoice.extended : items.gunChoice.normal)[level] ?? [];
+  const choice = (state.options.gunNut ? items.gunChoice.extended : items.gunChoice.normal)[level] ?? [];
   return choice[rng.int(choice.length)] ?? NOTHING;
 }
 
@@ -458,7 +461,7 @@ const MISC_ITEMS = [
 
 function chooseMisc(items: ItemTable, rng: RandomStream, state: EquipmentState, inv: Inventory, miscClass: number): void {
   const found = MISC_ITEMS.map((n) => def(items, id(items, n))).filter(
-    (it): it is ItemDef => !!it && it.coolness > 0 && it.coolness <= miscClass && (it.name !== 'REGEN_BOOSTER' || state.sciFi),
+    (it): it is ItemDef => !!it && it.coolness > 0 && it.coolness <= miscClass && (it.name !== 'REGEN_BOOSTER' || state.options.sciFi),
   );
   if (found.length === 0) return;
   const chosen = found[rng.int(found.length)];

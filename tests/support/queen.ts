@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { type ArmyContent, loadArmyContent } from '../../src/content/strategic/army.ts';
 import { parseSectorId } from '../../src/content/strategic/sector-ids.ts';
 import type { StrategicContent } from '../../src/content/strategic/strategic-content.ts';
+import { gameOptions } from '../../src/sim/options.ts';
 import type { MineIncomePort, QueenContext, QueenHooks } from '../../src/sim/strategic/ai/context.ts';
 import { initStrategicAiForNewCampaign, StrategicAi } from '../../src/sim/strategic/ai/strategic-ai.ts';
 import { garrisonWeight } from '../../src/sim/strategic/ai/weights.ts';
@@ -31,7 +32,7 @@ export interface QueenTestOptions {
 }
 
 export function queenTestContext(o: QueenTestOptions): QueenContext {
-  const state = o.state ?? createStrategicState({ options: { difficulty: o.difficulty ?? 2, sciFi: false } });
+  const state = o.state ?? createStrategicState({ options: gameOptions({ difficulty: o.difficulty ?? 2, sciFi: false }) });
   const ai = new StrategicAi({ army: o.army, ...(o.mines ? { mines: o.mines } : {}), ...(o.hooks ? { hooks: o.hooks } : {}) });
   const ctx = createStrategicContext({
     state,

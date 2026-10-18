@@ -129,7 +129,7 @@ export function calcChanceToHitGun(t: TacticalState, s: Soldier, g: number, aim:
   if (sight > distVis * 10) sight += sight - distVis * 10;
   if (sight > 0 && aim && !s.doBurst) c += Aim.BONUS_PER_AP * aim;
   if (s.team !== Team.OUR)
-    c += t.perception.difficulty === DIFFICULTY_EASY ? -5 : Math.min(0, ENEMY_TO_HIT_MOD[soldierDifficultyLevel(t, s)] ?? 0);
+    c += t.options.difficulty === DIFFICULTY_EASY ? -5 : Math.min(0, ENEMY_TO_HIT_MOD[soldierDifficultyLevel(t, s)] ?? 0);
   if (isGassed(t, s)) c -= Aim.PENALTY_GASSED;
   if (s.shock) c -= Aim.PENALTY_PER_SHOCK * s.shock;
   let maxRange = 10;

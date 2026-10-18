@@ -205,7 +205,7 @@ function isPressureTriggered(t: TacticalState, item: number): boolean {
 
 export function loadWorldItemsFromMap(t: TacticalState, mapItems: readonly MapItem[]): void {
   t.worldItems.length = 0;
-  const sciFi = t.equipment.sciFi;
+  const sciFi = t.options.sciFi;
   for (const record of mapItems) {
     const o = objectFromRecord(decodeObject(record.raw, WORLD_ITEM_OBJECT_OFFSET));
     const nonExistChance = o.item === itemIndex(t, 'OWNERSHIP') ? 0 : record.nonExistChance;

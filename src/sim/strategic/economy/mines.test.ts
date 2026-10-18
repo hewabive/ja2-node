@@ -3,6 +3,7 @@ import { type EconomyTestContent, economyTestContext, loadEconomyTestContent, se
 import { ScriptedRolls } from '../../../../tests/support/strategic.ts';
 import { parseSectorString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { FinanceCode } from '../../campaign/finances.ts';
+import { gameOptions } from '../../options.ts';
 import { initializeMapStructure } from '../map/init.ts';
 import { EventKind, NUM_MIN_IN_DAY } from '../time/constants.ts';
 import { worldDayInMinutes } from '../time/world-clock.ts';
@@ -33,7 +34,7 @@ beforeAll(async () => {
 
 function context(rolls: readonly number[] = [], difficulty = 2) {
   const random = new ScriptedRolls(rolls);
-  const made = economyTestContext({ content, random, stateOptions: { options: { difficulty } } });
+  const made = economyTestContext({ content, random, stateOptions: { options: gameOptions({ difficulty }) } });
   initializeMapStructure(made.ctx);
   setTownNames(made.ctx);
   return { ...made, random };

@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { type EconomyTestContent, FakeCrew, loadEconomyTestContent, setTownNames } from '../../../../tests/support/economy.ts';
 import { ScriptedRolls, testContext } from '../../../../tests/support/strategic.ts';
 import { type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
+import { gameOptions } from '../../options.ts';
 import { createEconomyContext } from '../economy/context.ts';
 import type { EconomyContext } from '../economy/ports.ts';
 import { sectorInfo } from '../map/sectors.ts';
@@ -42,7 +43,7 @@ function harness(o: Setup = {}): Harness {
   const pre = new ScriptedRolls(o.pre);
   const strategic = testContext({
     content: content.strategic,
-    state: createStrategicState({ options: { difficulty: o.difficulty ?? 2 } }),
+    state: createStrategicState({ options: gameOptions({ difficulty: o.difficulty ?? 2 }) }),
     mercs: crew,
     random,
     preRandom: pre,

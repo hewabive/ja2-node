@@ -582,7 +582,7 @@ el<HTMLButtonElement>('newCampaign').addEventListener('click', () => {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       ...(seed !== null ? { seed: Number(seed) } : {}),
-      campaign: { difficulty, ...(hireInLaptop ? { hire: [] } : {}) },
+      campaign: { options: { difficulty }, ...(hireInLaptop ? { hire: [] } : {}) },
     }),
   })
     .then(async (res) => {

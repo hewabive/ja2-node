@@ -15,8 +15,8 @@ import { campaignCombatContext } from '../sim/campaign/off-map-combat.ts';
 import { Roster } from '../sim/campaign/roster.ts';
 import type { NarrativeSetup } from '../sim/campaign/talk-flow.ts';
 import type { CommandResult } from '../sim/command.ts';
-import { Difficulty } from '../sim/strategic/forces/constants.ts';
-import { createStrategicState, type GameOptions, type SaveMode, type StrategicState } from '../sim/strategic/state.ts';
+import { DIFFICULTY_LEVELS, type GameOptions, type GameOptionsRequest, gameOptions, type SaveMode } from '../sim/options.ts';
+import { createStrategicState, type StrategicState } from '../sim/strategic/state.ts';
 import { CompressMode } from '../sim/strategic/time/constants.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
@@ -32,6 +32,7 @@ export interface CampaignHire {
 }
 
 export interface CampaignRequest {
+  readonly options?: GameOptionsRequest | undefined;
   readonly difficulty?: number | undefined;
   readonly profiles?: readonly number[] | undefined;
   readonly hire?: readonly CampaignHire[] | undefined;
@@ -42,7 +43,7 @@ export interface CampaignRequest {
   readonly deadIsDeadName?: string | undefined;
 }
 
-export const CAMPAIGN_DIFFICULTIES: readonly number[] = Object.values(Difficulty);
+export const CAMPAIGN_DIFFICULTIES: readonly number[] = DIFFICULTY_LEVELS;
 export const FIRST_AIM_PROFILE = 0;
 export const LAST_AIM_PROFILE = 39;
 export const DEFAULT_AIM_SQUAD: readonly number[] = [0, 3, 4, 7, 14, 16];
@@ -58,8 +59,7 @@ async function withStubProfiles(read: ReadFile, content: TacticalContent): Promi
 }
 
 function validate(request: CampaignRequest): void {
-  if (request.difficulty !== undefined && !CAMPAIGN_DIFFICULTIES.includes(request.difficulty))
-    throw new Error(`difficulty must be one of ${CAMPAIGN_DIFFICULTIES.join(', ')}`);
+  requestedOptions(request);
   const explicit = request.hire?.map((h) => h.profile) ?? request.profiles;
   const size = explicit?.length ?? request.mercs;
   if (size !== undefined && (size < (request.hire ? 0 : 1) || size > MAX_SQUAD)) throw new Error(`the squad needs 1 to ${MAX_SQUAD} mercs`);
@@ -67,11 +67,22 @@ function validate(request: CampaignRequest): void {
   if (explicit?.some((p) => p < FIRST_AIM_PROFILE || p > LAST_AIM_PROFILE)) throw new Error('profile ids are A.I.M. mercs 0-39');
 }
 
-function requestedOptions(request: CampaignRequest): Partial<GameOptions> {
-  return {
-    ...(request.difficulty !== undefined ? { difficulty: request.difficulty } : {}),
-    ...(request.saveMode !== undefined ? { saveMode: request.saveMode } : {}),
-  };
+function aliased<K extends 'difficulty' | 'saveMode'>(request: CampaignRequest, key: K): GameOptionsRequest[K] {
+  const alias = request[key];
+  const option = request.options?.[key];
+  if (alias !== undefined && option !== undefined && alias !== option)
+    throw new Error(`campaign.${key} and campaign.options.${key} disagree; pass campaign.options.${key} only`);
+  return (option ?? alias) as GameOptionsRequest[K];
+}
+
+export function requestedOptions(request: CampaignRequest): GameOptions {
+  const difficulty = aliased(request, 'difficulty');
+  const saveMode = aliased(request, 'saveMode');
+  return gameOptions({
+    ...request.options,
+    ...(difficulty !== undefined ? { difficulty } : {}),
+    ...(saveMode !== undefined ? { saveMode } : {}),
+  });
 }
 
 function explicitHires(request: CampaignRequest): CampaignHire[] | null {

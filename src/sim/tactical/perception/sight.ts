@@ -92,7 +92,6 @@ export interface Perception {
   readonly publicNoiseLevel: number[];
   readonly lastMercToRadio: (Soldier | null)[];
   readonly awareOfOpposition: boolean[];
-  difficulty: number;
   bestSize: number;
   best: (Soldier | null)[];
   combatTeam: number;
@@ -108,7 +107,6 @@ export function createPerception(maxSoldiers: number): Perception {
     publicNoiseLevel: new Array<number>(TEAM_COUNT).fill(0),
     lastMercToRadio: new Array<Soldier | null>(TEAM_COUNT).fill(null),
     awareOfOpposition: new Array<boolean>(TEAM_COUNT).fill(false),
-    difficulty: DIFFICULTY_MEDIUM,
     bestSize: BEST_SIGHTING_NONCOMBAT,
     best: new Array<Soldier | null>(BEST_SIGHTING_ALL).fill(null),
     combatTeam: -1,
@@ -554,7 +552,7 @@ export function handleSight(t: TacticalState, s: Soldier, flags: number): void {
   s.ai.newSituation = Math.max(s.ai.newSituation, saved);
   if (flags & SightFlags.RADIO) {
     const enemyRadio = (x: Soldier) =>
-      p.difficulty >= DIFFICULTY_MEDIUM &&
+      t.options.difficulty >= DIFFICULTY_MEDIUM &&
       x.team === Team.ENEMY &&
       p.awareOfOpposition[Team.ENEMY] === true &&
       x.soldierClass !== SoldierClass.ADMINISTRATOR;

@@ -3,6 +3,7 @@ import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
+import { assignGameOptions } from '../../src/sim/options.ts';
 import {
   type CreatureContext,
   checkConditionsForTriggeringCreatureQuest,
@@ -223,8 +224,7 @@ export class CreatureComparer {
       const draws = (p.draws ?? []) as Draw[];
       switch (p.probe) {
         case 'options':
-          s.options.sciFi = p.sciFi === true;
-          s.options.difficulty = Number(p.difficulty);
+          assignGameOptions(s.options, { sciFi: p.sciFi === true, difficulty: Number(p.difficulty) });
           return report(label, true, `sci-fi ${String(p.sciFi)} difficulty ${String(p.difficulty)}`);
         case 'setcontrol': {
           const element = s.map.elements[strategicIndex(sectorFromId(Number(p.sector), 0))];

@@ -17,11 +17,12 @@ import {
 } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
 import { canonicalJson, decodeGraph, type EncodedGraph, encodeGraph, type Section, SnapshotError } from './codec.ts';
+import { SNAPSHOT_MIGRATIONS } from './migrations.ts';
 import type { ContentRoots } from './refs.ts';
 import { externalSources, SNAPSHOT_CODECS } from './world.ts';
 
 export const SNAPSHOT_FORMAT = 'ja2-node-snapshot';
-export const SNAPSHOT_VERSION = 1;
+export const SNAPSHOT_VERSION = 2;
 
 export type SnapshotKind = 'campaign' | 'tactical';
 
@@ -42,9 +43,7 @@ export interface CampaignRestoreSources extends RestoreSources {
   assemble(state: StrategicState, tactical: TacticalSim | null): CampaignSim;
 }
 
-type Migration = (snapshot: Readonly<Record<string, unknown>>) => Record<string, unknown>;
-
-const MIGRATIONS: Readonly<Record<number, Migration>> = {};
+const MIGRATIONS = SNAPSHOT_MIGRATIONS;
 
 const TRANSIENT_TACTICAL_FIELDS: ReadonlySet<string> = new Set([
   'hooks',

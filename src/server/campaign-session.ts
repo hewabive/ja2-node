@@ -16,6 +16,7 @@ import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { isTimeBeingCompressed, worldDay, worldHour, worldMinute } from '../sim/strategic/time/world-clock.ts';
 import { BoxingState, boxingStateName } from '../sim/tactical/narrative/boxing-state.ts';
+import type { SaveImportReport } from '../sim/tactical/save-import.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { autoresolveView, npcRequestView, promptView } from './battle-view.ts';
@@ -83,6 +84,7 @@ function withText<T>(value: T, texts: TextSource | null): T {
 export interface CampaignOrigin {
   readonly kind: 'campaign' | 'imported';
   readonly parts: CampaignParts;
+  readonly report?: SaveImportReport;
 }
 
 export class CampaignSession implements SessionSim {

@@ -21,7 +21,7 @@ import { SAVE_EXTENSION } from './save-file.ts';
 import { type LoadProblem, loadProblemOf, type SaveOutcome, type SaveService } from './save-service.ts';
 import { MAX_UPLOAD_BYTES, playerSaveName } from './save-store.ts';
 import type { Session } from './session.ts';
-import { describeSession, newSessionRequest, openSession, type SessionFactory } from './session-registry.ts';
+import { describeSession, importReport, newSessionRequest, openSession, type SessionFactory } from './session-registry.ts';
 import { textKeyFor } from './text-keys.ts';
 import { STUB_TEXT_PREFIX, TextService } from './text-service.ts';
 
@@ -236,7 +236,7 @@ export function createApp(options: AppOptions): Hono {
     try {
       const created = await openSession(sessions, options.defaultSession ?? 'sandbox', createSession, request.data);
       const loaded = options.saves?.lastLoad(created);
-      return c.json({ ...describeSession(created), ...(loaded ? { load: loaded } : {}) });
+      return c.json({ ...describeSession(created), ...(loaded ? { load: loaded } : {}), ...importReport(created) });
     } catch (err) {
       if (request.data.load) return loadFailure(c, err);
       return c.json({ error: (err as Error).message }, 400);

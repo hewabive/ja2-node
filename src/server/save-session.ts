@@ -22,6 +22,7 @@ import { NO_ROSTER_HOOKS, Roster } from '../sim/campaign/roster.ts';
 import { addSavedMercsToRoster } from '../sim/campaign/save-roster.ts';
 import { importStory, type SavedStory, storyImportRefusal } from '../sim/campaign/story-import.ts';
 import { importNpcRecords } from '../sim/narrative/save-import.ts';
+import { importNativeGameOptions } from '../sim/options.ts';
 import { importStrategicAi } from '../sim/strategic/ai/save-import.ts';
 import { importMerchants } from '../sim/strategic/economy/merchants/save-import.ts';
 import { applySavedAssignment, importEconomy } from '../sim/strategic/economy/save-import.ts';
@@ -105,10 +106,12 @@ export async function createSaveSession(
   if (storyRefusal) throw new Error(`cannot continue this save: ${storyRefusal}`);
   const [world, parts] = await Promise.all([loadTacticalWorld(read, saveMapPath(save)), loadImportParts(read, exists, layers, decoding)]);
   const { content, strategic: strategicContent, economy: economyContent, laptop: laptopContent } = parts;
-  const sim = new TacticalSim(worldWithSavedDoors(world, save), content, seed);
-  const report = importSave(sim, save);
+  const imported = importNativeGameOptions(save.generalInfo.gameOptions);
+  const sim = new TacticalSim(worldWithSavedDoors(world, save), content, seed, { options: imported.options });
+  const report: SaveImportReport = { ...importSave(sim, save), droppedOptions: imported.dropped };
   const strategic = createStrategicState({
     seed,
+    options: sim.state.options,
     streams: { rng: sim.state.rng, pre: sim.state.pre },
     profiles: sim.state.profiles,
     civGroups: sim.state.civGroups,
@@ -150,7 +153,7 @@ export async function createSaveSession(
     });
   }
   campaign.sectors?.adoptLoadedSector(savedSoldierLinks(save));
-  return { session: new CampaignSession(campaign, roster, worlds, parts.narrative.texts, { kind: 'imported', parts }), report };
+  return { session: new CampaignSession(campaign, roster, worlds, parts.narrative.texts, { kind: 'imported', parts, report }), report };
 }
 
 export async function loadImportParts(

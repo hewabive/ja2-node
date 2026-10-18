@@ -7,6 +7,7 @@ import { type ArmyContent, loadArmyContent } from '../../src/content/strategic/a
 import { sectorFromId, strategicIndex } from '../../src/content/strategic/sector-ids.ts';
 import { loadStrategicContent, type StrategicContent } from '../../src/content/strategic/strategic-content.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
+import { gameOptions, importNativeGameOptions } from '../../src/sim/options.ts';
 import type { MineIncomePort, QueenContext } from '../../src/sim/strategic/ai/context.ts';
 import { checkEnemyControlledSector } from '../../src/sim/strategic/ai/detection.ts';
 import { calcDifficultyModifier, currentPlayerProgressPercentage, pythDistanceFromPalace } from '../../src/sim/strategic/ai/difficulty.ts';
@@ -320,7 +321,7 @@ export class SaiComparer {
     if (!table) throw new Error(`missing ${SAVE_ENCRYPTION_PATH}`);
     const bytes = new Uint8Array(readFileSync(join(savesDir, `${name}.sav`)));
     const save = parseSaveGame(bytes, parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode(table))));
-    const state = createStrategicState();
+    const state = createStrategicState({ options: importNativeGameOptions(save.generalInfo.gameOptions).options });
     importStrategicTime(state, save);
     const session = await this.#newSession(state, savedMercPort(save), save.facts, save.tactical.enemyInSector);
     importStrategicMap(session.q, save);
@@ -350,7 +351,10 @@ export class SaiComparer {
 
   async #newGame(p: Json): Promise<number> {
     const difficulty = Number(p.difficulty);
-    const state = createStrategicState({ worldSeconds: Number(p.worldSeconds), options: { difficulty, sciFi: p.sciFi === true } });
+    const state = createStrategicState({
+      worldSeconds: Number(p.worldSeconds),
+      options: gameOptions({ difficulty, sciFi: p.sciFi === true }),
+    });
     const session = await this.#newSession(state, emptyMercPort, [], false);
     this.#session = session;
     const q = session.q;

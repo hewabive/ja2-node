@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import { UI_LANGUAGES } from '../content/text/data-version.ts';
-import { SAVE_MODES } from '../sim/strategic/state.ts';
+import { type GameOptions, SAVE_MODES } from '../sim/options.ts';
+import type { SaveImportReport } from '../sim/tactical/save-import.ts';
 import type { CampaignRequest } from './campaign-factory.ts';
-import { saveStatus } from './save-rules.ts';
+import { CampaignSession } from './campaign-session.ts';
+import { saveStatus, sessionOptions } from './save-rules.ts';
 import { SAVE_FILE_NAME } from './save-store.ts';
 import type { Session } from './session.ts';
 
@@ -43,7 +45,31 @@ export const NEW_SESSION_SHAPE = {
     .describe('with load: false restores the random streams exactly (reproducible); default true reseeds the main stream'),
   campaign: z
     .object({
-      difficulty: z.number().int().min(1).max(3).optional().describe('1 easy, 2 medium (default), 3 hard'),
+      options: z
+        .object({
+          difficulty: z
+            .number()
+            .int()
+            .min(1)
+            .max(3)
+            .optional()
+            .describe('1 easy, 2 medium (default here; the original game defaults to easy), 3 hard'),
+          sciFi: z.boolean().optional().describe('sci-fi mode: creatures and the sci-fi items (default true)'),
+          gunNut: z.boolean().optional().describe('the full gun list (default false: reduced guns)'),
+          saveMode: z
+            .enum(SAVE_MODES)
+            .optional()
+            .describe(
+              'anywhere (default), ironMan (no saves in combat or with enemies in the loaded sector) or deadIsDead (one save file the game writes itself)',
+            ),
+          bloodAndGore: z.boolean().optional().describe('messy deaths and bloody corpses (default true); changeable later with setOption'),
+        })
+        .strict()
+        .optional()
+        .describe(
+          'the game options of the new campaign, chosen once like on the original game init screen (bloodAndGore can change later)',
+        ),
+      difficulty: z.number().int().min(1).max(3).optional().describe('alias of options.difficulty'),
       profiles: z.array(z.number().int().min(0).max(39)).min(1).max(6).optional().describe('A.I.M. profile ids hired on a week contract'),
       hire: z
         .array(
@@ -67,12 +93,7 @@ export const NEW_SESSION_SHAPE = {
         .optional()
         .describe('size of the default squad (hired in order while affordable and available)'),
       land: z.boolean().optional().describe('fly the squad in at once (default true); false closes the laptop at the first hour'),
-      saveMode: z
-        .enum(SAVE_MODES)
-        .optional()
-        .describe(
-          'anywhere (default), ironMan (no saves in combat or with enemies in the loaded sector) or deadIsDead (one save file the game writes itself)',
-        ),
+      saveMode: z.enum(SAVE_MODES).optional().describe('alias of options.saveMode'),
       deadIsDeadName: z.string().regex(SAVE_FILE_NAME).optional().describe('the save name of a deadIsDead campaign (default DeadIsDead)'),
     })
     .optional(),
@@ -81,6 +102,16 @@ export const NEW_SESSION_SHAPE = {
 export const newSessionRequest = z.object(NEW_SESSION_SHAPE).strict();
 
 export type NewSessionRequest = z.infer<typeof newSessionRequest>;
+
+export function optionsStatus(sim: Session['sim']): { readonly options?: GameOptions } {
+  const options = sessionOptions(sim);
+  return options ? { options: { ...options } } : {};
+}
+
+export function importReport(session: Session): { readonly import?: SaveImportReport } {
+  const report = session.sim instanceof CampaignSession ? session.sim.origin?.report : undefined;
+  return report ? { import: report } : {};
+}
 
 export function describeSession(session: Session): Record<string, unknown> {
   const view = session.sim.view();
@@ -93,6 +124,7 @@ export function describeSession(session: Session): Record<string, unknown> {
     dataVersion: session.dataVersion,
     soldiers: view.soldiers.length,
     idle: session.sim.isIdle(),
+    ...optionsStatus(session.sim),
     ...saveStatus(session.sim),
     ...(view.clock ? { clock: view.clock } : {}),
     ...(view.strategic

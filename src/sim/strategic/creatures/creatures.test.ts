@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { type EconomyTestContent, loadEconomyTestContent } from '../../../../tests/support/economy.ts';
 import { CreatureHabitat } from '../../../content/strategic/creature-lairs.ts';
 import { parseSectorString, type Sector, sectorFromId, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
+import { gameOptions } from '../../options.ts';
 import { createMineStatus } from '../economy/state.ts';
 import { ScriptedStream } from '../forces/autoresolve/replay-rng.ts';
 import { SectorFlag } from '../forces/constants.ts';
@@ -37,7 +38,7 @@ function rolls(values: readonly number[], fallback: number | null = null): RollS
 }
 
 function state(difficulty = 1): StrategicState {
-  const s = createStrategicState({ options: { difficulty, sciFi: true } });
+  const s = createStrategicState({ options: gameOptions({ difficulty, sciFi: true }) });
   s.map.underground = content.strategic.underground.map((t) => createUndergroundSector(sectorFromId(t.sector, t.z), t.adjacentSectors));
   s.economy.mines = content.economy.mines.map(() => createMineStatus());
   for (const e of s.map.elements) e.enemyControlled = true;

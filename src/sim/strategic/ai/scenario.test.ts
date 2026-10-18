@@ -5,6 +5,7 @@ import type { ArmyContent } from '../../../content/strategic/army.ts';
 import { parseSectorId, parseSectorString, type Sector, sameSector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
 import { CampaignSim } from '../../campaign/campaign-sim.ts';
+import { gameOptions } from '../../options.ts';
 import { getGroup } from '../forces/groups.ts';
 import { setThisSectorAsPlayerControlled } from '../map/control.ts';
 import { initStrategicLayerMap } from '../map/init.ts';
@@ -27,7 +28,7 @@ const DRASSEN = ['B13', 'C13', 'D13'].map((s) => parseSectorString(s));
 const MAX_DAYS = 30;
 
 function newMediumCampaign(): CampaignSim {
-  const state = createStrategicState({ seed: 20261016, options: { difficulty: 2, sciFi: false } });
+  const state = createStrategicState({ seed: 20261016, options: gameOptions({ difficulty: 2, sciFi: false }) });
   const campaign = new CampaignSim(state, null, { strategic: { content }, queen: { army } });
   const ctx = campaign.strategic;
   const q = campaign.queen;

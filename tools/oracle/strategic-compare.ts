@@ -12,6 +12,7 @@ import {
 } from '../../src/content/strategic/sector-ids.ts';
 import { loadStrategicContent, type StrategicContent } from '../../src/content/strategic/strategic-content.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
+import { importNativeGameOptions } from '../../src/sim/options.ts';
 import { createStrategicContext, emptyMercPort } from '../../src/sim/strategic/forces/context.ts';
 import {
   createNewPlayerGroupDepartingFromSector,
@@ -126,7 +127,7 @@ export class StrategicComparer {
     if (!table) throw new Error(`missing ${SAVE_ENCRYPTION_PATH}`);
     const bytes = new Uint8Array(readFileSync(join(savesDir, `${name}.sav`)));
     const save = parseSaveGame(bytes, parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode(table))));
-    const state = createStrategicState();
+    const state = createStrategicState({ options: importNativeGameOptions(save.generalInfo.gameOptions).options });
     importStrategicTime(state, save);
     const ctx = createStrategicContext({ state, content: await this.#loadContent(), mercs: savedMercPort(save, sim) });
     importStrategicMap(ctx, save);

@@ -355,6 +355,11 @@ export interface DayStartedEvent extends SimEventBase {
   readonly day: number;
 }
 
+export interface OptionChangedEvent extends SimEventBase {
+  readonly type: 'optionChanged';
+  readonly bloodAndGore: boolean;
+}
+
 export type SimEvent =
   | TickBudgetEvent
   | SectorLoadedEvent
@@ -407,6 +412,7 @@ export type SimEvent =
   | CompressionStoppedEvent
   | WorldTimeReachedEvent
   | DayStartedEvent
+  | OptionChangedEvent
   | ShopEvent
   | LaptopEvent
   | DoorEvent

@@ -2,8 +2,8 @@ import { randomInt } from 'node:crypto';
 import type { CommandEnvelope } from '../protocol/messages.ts';
 import type { StopReport } from '../sim/advance.ts';
 import type { CommandResult } from '../sim/command.ts';
+import { type DroppedNativeOption, type GameOptions, importNativeGameOptions, type SaveMode } from '../sim/options.ts';
 import { reseedMain } from '../sim/snapshot/session.ts';
-import type { SaveMode } from '../sim/strategic/state.ts';
 import { CampaignSession } from './campaign-session.ts';
 import { type ContentLedger, type EngineIdentity, textIdentityOf } from './content-identity.ts';
 import { describeOrigin, encodeInputLog, inputLogText, isReplayable, type LogSegment } from './input-log.ts';
@@ -133,7 +133,8 @@ export interface NativeListingHeader {
   readonly mercs: number;
   readonly balance: number;
   readonly version: number;
-  readonly options: { readonly difficulty: number; readonly sciFi: boolean; readonly gunNut: boolean; readonly saveMode: number };
+  readonly options: GameOptions;
+  readonly droppedOptions?: readonly DroppedNativeOption[];
 }
 
 export interface UploadOutcome {
@@ -438,6 +439,7 @@ export class SaveService {
     const native = (await this.store.listNative()).map((s): SaveListing => {
       const h = s.header;
       const problems = this.ledger.source === 'original' ? [] : ['needsOriginalData'];
+      const imported = importNativeGameOptions(h.initialGameOptions);
       return {
         name: s.name,
         native: true,
@@ -449,12 +451,8 @@ export class SaveService {
           mercs: h.mercsOnPlayerTeam,
           balance: h.currentBalance,
           version: h.version,
-          options: {
-            difficulty: h.initialGameOptions.difficulty,
-            sciFi: h.initialGameOptions.sciFi,
-            gunNut: h.initialGameOptions.gunNut,
-            saveMode: h.initialGameOptions.saveMode,
-          },
+          options: imported.options,
+          ...(imported.dropped.length > 0 ? { droppedOptions: imported.dropped } : {}),
         },
         compatible: problems.length === 0,
         problems,

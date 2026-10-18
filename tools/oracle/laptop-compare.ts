@@ -25,6 +25,7 @@ import { Bookmark, NO_PERSONNEL_ENTRY } from '../../src/sim/campaign/laptop/lapt
 import { hireMercMerc, mercDebts, openMercAccount, payMercAccounts } from '../../src/sim/campaign/laptop/merc-site.ts';
 import { calcCompetence } from '../../src/sim/campaign/laptop/profile-state.ts';
 import type { RosterMerc } from '../../src/sim/campaign/roster.ts';
+import { gameOptions } from '../../src/sim/options.ts';
 import { DrawMismatch, ReplayStream, type TracedDraw } from '../../src/sim/strategic/forces/autoresolve/replay-rng.ts';
 import type { RollSource } from '../../src/sim/strategic/forces/ports.ts';
 import { Fact } from '../../src/sim/strategic/narrative/fact-ids.ts';
@@ -441,7 +442,7 @@ export class LaptopComparer {
     try {
       const built = await buildNewCampaign(this.#read, this.#exists, () => {
         const state = createStrategicState({
-          options: { difficulty: num(a.difficulty, 2), gunNut: num(a.gunnut, 0) !== 0, sciFi: num(a.scifi, 1) !== 0 },
+          options: gameOptions({ difficulty: num(a.difficulty, 2), gunNut: num(a.gunnut, 0) !== 0, sciFi: num(a.scifi, 1) !== 0 }),
         });
         restore = patchStreams(state, rng);
         return state;

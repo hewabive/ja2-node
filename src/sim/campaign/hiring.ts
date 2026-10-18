@@ -48,12 +48,7 @@ export const AIM_WEEK_CONTRACT: HireTerms = { kind: MercKind.AIM_MERC, length: 7
 
 export function profileRecruit(profile: MercProfile, options: HireOptions): (id: number) => Recruit {
   return (id) => ({
-    soldier: createMercFromProfile(
-      { content: options.content, options: { gunNut: options.gunNut, bloodAndGore: true } },
-      id,
-      profile,
-      DEFAULT_DIRECTION,
-    ),
+    soldier: createMercFromProfile({ content: options.content, options: { gunNut: options.gunNut } }, id, profile, DEFAULT_DIRECTION),
     profile,
   });
 }
