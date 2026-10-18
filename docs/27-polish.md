@@ -1465,8 +1465,8 @@ session factory and the protocol.
    now ends `lost`). A prone variant remains, finding 15.
 9. *Fixed: `enemyInSector` stays set.* `NumCapableEnemyInSector` skips `SOLDIER_DEAD` (`Tactical/Overhead.cc:4921`); the
    port counted the dying enemy until his corpse was made, so the check of `HandleNPCTeamMemberDeath` never saw the
-   battle won (the busy count was not the cause). Test: `turns/end-of-battle.test.ts`; the stub `campaign` run with
-   seed 7 ends `cleared`.
+   battle won (the busy count was not the cause). Test: `turns/end-of-battle.test.ts`; no stub `campaign` run with
+   seeds 1 to 16 keeps the flag (seed 10 ends `cleared`; seed 7 now loses the battle).
 10. *Fixed: a refused attack moves the soldier.* The `attack` order sent a halted soldier to his stationary stance
     before `HandleItem`, which `UIHandleMercAttack` never does (`Tactical/Handle_UI.cc:2115-2252`): a merc frozen
     mid-move with a pending breath collapse went down on an order refused for lack of APs. `HandleItem` also cleared the
