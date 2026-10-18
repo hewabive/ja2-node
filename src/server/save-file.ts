@@ -134,10 +134,10 @@ function bodyText(file: SaveFile): string {
 }
 
 export function encodeSaveFile(file: SaveFile): EncodedSave {
-  const head = headLine(file);
-  const body = bodyText(file);
-  const bytes = Buffer.concat([gzipSync(Buffer.from(head, 'utf8'), GZIP_OPTIONS), gzipSync(Buffer.from(body, 'utf8'), GZIP_OPTIONS)]);
-  return { bytes, digest: digestOf(head + body) };
+  const head = Buffer.from(headLine(file), 'utf8');
+  const body = Buffer.from(bodyText(file), 'utf8');
+  const bytes = Buffer.concat([gzipSync(head, GZIP_OPTIONS), gzipSync(body, GZIP_OPTIONS)]);
+  return { bytes, digest: createHash('sha256').update(head).update(body).digest('hex') };
 }
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {

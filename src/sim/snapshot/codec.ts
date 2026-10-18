@@ -99,6 +99,13 @@ export function unescapeSegment(segment: string): string {
   return segment.indexOf('~') < 0 ? segment : segment.replace(/~1/g, '/').replace(/~0/g, '~');
 }
 
+type Scalar = number | string | boolean | undefined | null;
+
+function isScalar(value: unknown): value is Scalar {
+  const type = typeof value;
+  return type === 'number' || type === 'string' || type === 'boolean' || type === 'undefined' || value === null;
+}
+
 function isTypedArray(value: object): value is TypedArray {
   return ArrayBuffer.isView(value) && !(value instanceof DataView);
 }
@@ -162,6 +169,10 @@ class Encoder {
     return out;
   }
 
+  #item(segment: string | number, value: unknown): Json {
+    return isScalar(value) ? this.#value(value) : this.#child(String(segment), value);
+  }
+
   #fail(message: string): never {
     throw new SnapshotError(message, pathOf(this.#node));
   }
@@ -194,8 +205,8 @@ class Encoder {
     if (this.#node) this.#seen.set(value, this.#node);
     if (isTypedArray(value)) return this.#typed(value);
     if (value instanceof Map) return this.#map(value);
-    if (value instanceof Set) return { [SET]: [...value].map((v, i) => this.#child(String(i), v)) };
-    if (Array.isArray(value)) return hasHoles(value) ? this.#sparse(value) : value.map((v, i) => this.#child(String(i), v));
+    if (value instanceof Set) return { [SET]: [...value].map((v, i) => this.#item(i, v)) };
+    if (Array.isArray(value)) return hasHoles(value) ? this.#sparse(value) : value.map((v, i) => this.#item(i, v));
     if (isPlainObject(value)) return this.#plain(value as Record<string, unknown>);
     return this.#instance(value);
   }
@@ -221,8 +232,13 @@ class Encoder {
     const parent = this.#node;
     let i = 0;
     for (const [k, v] of value) {
+      if (isScalar(k) && isScalar(v)) {
+        entries.push([this.#value(k), this.#value(v)]);
+        i++;
+        continue;
+      }
       this.#node = { parent, segment: String(i++) };
-      entries.push([this.#child('0', k), this.#child('1', v)]);
+      entries.push([this.#item('0', k), this.#item('1', v)]);
     }
     this.#node = parent;
     return { [MAP]: entries };
@@ -230,7 +246,7 @@ class Encoder {
 
   #sparse(value: readonly unknown[]): Json {
     const entries: Json[] = [];
-    for (let i = 0; i < value.length; i++) if (i in value) entries.push([i, this.#child(String(i), value[i])]);
+    for (let i = 0; i < value.length; i++) if (i in value) entries.push([i, this.#item(i, value[i])]);
     return { [SPARSE]: value.length, [SPARSE_ENTRIES]: entries };
   }
 
@@ -238,7 +254,8 @@ class Encoder {
     const out: Record<string, Json> = {};
     for (const key of Object.keys(value)) {
       if (key.charCodeAt(0) === TAG_PREFIX) this.#fail(`the key ${key} is reserved for snapshot tags`);
-      out[key] = this.#child(escapeSegment(key), value[key]);
+      const v = value[key];
+      out[key] = isScalar(v) ? this.#value(v) : this.#child(escapeSegment(key), v);
     }
     return out;
   }
