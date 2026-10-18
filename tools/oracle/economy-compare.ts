@@ -11,6 +11,7 @@ import { parseSectorString, sectorFromId, strategicIndex } from '../../src/conte
 import { loadStrategicContent, type StrategicContent } from '../../src/content/strategic/strategic-content.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import { objectFromRecord } from '../../src/sim/items/object.ts';
+import { importNativeGameOptions } from '../../src/sim/options.ts';
 import { changeSoldiersAssignment, setTimeOfAssignmentChange } from '../../src/sim/strategic/economy/assignment-done.ts';
 import { GUN_RANGE_SECTOR, LoyaltyEvent, NUM_TOWNS } from '../../src/sim/strategic/economy/constants.ts';
 import { createEconomyContext } from '../../src/sim/strategic/economy/context.ts';
@@ -207,7 +208,7 @@ export class EconomyComparer {
     const content = await this.#content();
     const bytes = new Uint8Array(readFileSync(join(savesDir, `${name}.sav`)));
     const save = parseSaveGame(bytes, content.encryption);
-    const state = createStrategicState();
+    const state = createStrategicState({ options: importNativeGameOptions(save.generalInfo.gameOptions).options });
     importStrategicTime(state, save);
     const crew = savedCrew(save, readSoldierAssignments(bytes, save, content.encryption));
     const dispatch = new EventDispatch<null>();

@@ -18,6 +18,7 @@ import { createRosterState, type RosterState } from '../campaign/merc-record.ts'
 import type { SectorDiff } from '../campaign/sector-diff.ts';
 import { createTeamMoraleState, type TeamMoraleState } from '../campaign/team-morale.ts';
 import { createNpcRecordState, type NpcRecordState } from '../narrative/records.ts';
+import { type GameOptions, gameOptions } from '../options.ts';
 import { createKeyTable, type KeyTable } from '../tactical/doors/keys.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
 import {
@@ -96,17 +97,6 @@ export interface TerroristState {
   count: number;
 }
 
-export const SAVE_MODES = ['anywhere', 'ironMan', 'deadIsDead'] as const;
-
-export type SaveMode = (typeof SAVE_MODES)[number];
-
-export interface GameOptions {
-  difficulty: number;
-  sciFi: boolean;
-  gunNut: boolean;
-  saveMode: SaveMode;
-}
-
 export interface RandomStreams {
   readonly rng: Rng;
   readonly pre: PreRandom;
@@ -116,7 +106,7 @@ export interface StrategicStateOptions {
   readonly worldSeconds?: number;
   readonly seed?: number;
   readonly streams?: RandomStreams;
-  readonly options?: Partial<GameOptions>;
+  readonly options?: GameOptions;
   readonly profiles?: Map<number, ProfileProgress>;
   readonly civGroups?: CivGroupState;
   readonly keyTable?: KeyTable;
@@ -124,7 +114,6 @@ export interface StrategicStateOptions {
 }
 
 const DEFAULT_SEED = 1;
-const DEFAULT_OPTIONS: GameOptions = { difficulty: 2, sciFi: true, gunNut: false, saveMode: 'anywhere' };
 
 export function createStrategicState(options: StrategicStateOptions = {}): StrategicState {
   const seed = options.seed ?? DEFAULT_SEED;
@@ -141,7 +130,7 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     didGameJustStart: false,
     atLeastOneMercHired: false,
     worldSector: null,
-    options: { ...DEFAULT_OPTIONS, ...options.options },
+    options: options.options ?? gameOptions(),
     profiles: options.profiles ?? new Map(),
     map: createMapState(),
     forces: createForcesState(),

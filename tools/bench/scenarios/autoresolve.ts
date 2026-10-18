@@ -1,6 +1,7 @@
 import { sectorId } from '../../../src/content/strategic/sector-ids.ts';
 import { PreRandom, Rng } from '../../../src/core/rng.ts';
 import { stubMerc } from '../../../src/server/stub-mercs.ts';
+import { gameOptions } from '../../../src/sim/options.ts';
 import { calcDifficultyModifier } from '../../../src/sim/strategic/ai/difficulty.ts';
 import { runAutoresolve } from '../../../src/sim/strategic/forces/autoresolve/loop.ts';
 import { enterAutoresolve } from '../../../src/sim/strategic/forces/autoresolve/setup.ts';
@@ -57,12 +58,13 @@ function creation(content: TacticalContent, rng: Rng): AutoresolveCreation {
     battleSectorTownId: NO_TOWN,
   };
   const difficultyModifier = (soldierClass: number) => calcDifficultyModifier(inputs, soldierClass);
+  const options = gameOptions();
   return {
     create: {
       rng,
       content,
-      options: { gunNut: false, bloodAndGore: true },
-      equipment: { ...createEquipmentState(content.items), autoResolveActive: true },
+      options,
+      equipment: { ...createEquipmentState(content.items, options), autoResolveActive: true },
       campaign: { difficultyModifier: difficultyModifier(SoldierClass.ARMY), progress: 0 },
     },
     population: {
@@ -85,7 +87,7 @@ function merc(content: TacticalContent, index: number, profiles: Map<number, Pro
   const profile = content.profiles[index];
   if (!profile) return stubMerc(content, id);
   profiles.set(profile.id, progressFromProfile(profile));
-  return createMercFromProfile({ content, options: { gunNut: false, bloodAndGore: true } }, id, profile, MERC_DIRECTION);
+  return createMercFromProfile({ content, options: { gunNut: false } }, id, profile, MERC_DIRECTION);
 }
 
 function created(s: Soldier | null, what: string): Soldier {

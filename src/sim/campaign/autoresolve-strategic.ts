@@ -90,10 +90,8 @@ export interface CreationStreams {
 
 export function autoresolveCreation(ctx: ArStrategicContext, sector: Sector, streams?: CreationStreams): AutoresolveCreation {
   const state = ctx.economy.state;
-  const equipment = createEquipmentState(ctx.content.items, sharedWeaponsDropped(state.status, ctx.content.items));
+  const equipment = createEquipmentState(ctx.content.items, state.options, sharedWeaponsDropped(state.status, ctx.content.items));
   equipment.progress = state.status.highestProgress;
-  equipment.gunNut = state.options.gunNut;
-  equipment.sciFi = state.options.sciFi;
   equipment.inEnemyHeldTixa = inEnemyHeldTixa(ctx);
   equipment.autoResolveActive = true;
   const townId = townIdOfSector(ctx.economy, sector);
@@ -115,7 +113,7 @@ export function autoresolveCreation(ctx: ArStrategicContext, sector: Sector, str
     create: {
       rng: streams?.rng ?? state.rng,
       content: ctx.content,
-      options: { gunNut: state.options.gunNut, bloodAndGore: true },
+      options: state.options,
       equipment,
       campaign: { difficultyModifier: difficultyModifier(SoldierClass.ARMY), progress: state.status.highestProgress },
     },

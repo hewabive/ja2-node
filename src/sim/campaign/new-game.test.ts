@@ -4,6 +4,7 @@ import { loadArmyTestContent } from '../../../tests/support/queen.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import type { ArmyContent } from '../../content/strategic/army.ts';
 import { parseSectorId, sectorFromId } from '../../content/strategic/sector-ids.ts';
+import { gameOptions } from '../options.ts';
 import { sectorInfo } from '../strategic/map/sectors.ts';
 import { createStrategicState } from '../strategic/state.ts';
 import { CompressMode, EventKind, FIRST_ARRIVAL_DELAY, Frequency, STARTING_TIME } from '../strategic/time/constants.ts';
@@ -58,7 +59,7 @@ function recruit(id: number) {
 }
 
 function newCampaign(seed: number, difficulty: number): CampaignSim {
-  const state = createStrategicState({ seed, options: { difficulty, sciFi: true, gunNut: false } });
+  const state = createStrategicState({ seed, options: gameOptions({ difficulty, sciFi: true, gunNut: false }) });
   const crew = new FakeCrew();
   const campaign = new CampaignSim(state, null, {
     strategic: { content: content.strategic, mercs: crew },

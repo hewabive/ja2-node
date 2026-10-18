@@ -1,11 +1,21 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
-// @src src/game/GameSettings.cc LoadGameSettings (volumes default to 63, speech or subtitles always on). See docs/27 §2.2.
+// @src src/game/GameSettings.cc InitGameSettings (the TOPTION defaults, volumes 63, sizes of the cover and LOS displays),
+// @src LoadGameSettings (speech or subtitles always on); GameSettings.h GAME_SETTINGS; Tactical/DisplayCover.cc DC__MIN_SIZE,
+// @src DC__MAX_SIZE. See docs/27 §2.2.
+
+import { UI_LANGUAGES, type UiLanguage } from '../content/text/data-version.ts';
 
 export const SETTINGS_KEY = 'ja2-node:settings';
-export const SETTINGS_VERSION = 1;
+export const SETTINGS_VERSION = 2;
+const PREVIOUS_VERSIONS: readonly number[] = [1];
 export const MAX_SETTING_VOLUME = 127;
 const DEFAULT_CATEGORY_VOLUME = 63;
+export const MIN_DISPLAY_SIZE = 4;
+export const MAX_DISPLAY_SIZE = 11;
+export const PLAYBACK_SPEEDS: readonly number[] = [0.25, 0.5, 1, 2, 4, 8, 16];
+const DEFAULT_PLAYBACK_SPEED = 1;
+const MEANWHILE_SCENE_BITS = 32;
 
 export interface VolumeSettings {
   readonly effects: number;
@@ -15,16 +25,65 @@ export interface VolumeSettings {
   readonly master: number;
 }
 
+export interface DisplaySettings {
+  readonly animateSmoke: boolean;
+  readonly dontMoveMouse: boolean;
+  readonly oldSelectionMethod: boolean;
+  readonly alwaysShowMovementPath: boolean;
+  readonly showMisses: boolean;
+  readonly rtConfirm: boolean;
+  readonly useMetricSystem: boolean;
+  readonly mercAlwaysLightUp: boolean;
+  readonly smartCursor: boolean;
+  readonly snapCursorToDoor: boolean;
+  readonly glowItems: boolean;
+  readonly treeTops: boolean;
+  readonly wireframe: boolean;
+  readonly cursor3d: boolean;
+  readonly mercCastsLight: boolean;
+  readonly hideBullets: boolean;
+  readonly trackingMode: boolean;
+}
+
 export interface ClientSettings {
   readonly version: typeof SETTINGS_VERSION;
   readonly volumes: VolumeSettings;
   readonly muted: boolean;
   readonly speech: boolean;
   readonly subtitles: boolean;
+  readonly keyAdvanceSpeech: boolean;
   readonly muteConfirmations: boolean;
+  readonly sleepWakeNotification: boolean;
+  readonly display: DisplaySettings;
+  readonly playbackSpeed: number;
+  readonly language: UiLanguage | null;
+  readonly meanwhileScenesSeen: number;
+  readonly helpHidden: boolean;
+  readonly coverSize: number;
+  readonly losSize: number;
   readonly playSplash: boolean;
   readonly playIntro: boolean;
 }
+
+export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
+  animateSmoke: true,
+  dontMoveMouse: false,
+  oldSelectionMethod: false,
+  alwaysShowMovementPath: false,
+  showMisses: false,
+  rtConfirm: false,
+  useMetricSystem: true,
+  mercAlwaysLightUp: false,
+  smartCursor: false,
+  snapCursorToDoor: true,
+  glowItems: true,
+  treeTops: true,
+  wireframe: true,
+  cursor3d: false,
+  mercCastsLight: true,
+  hideBullets: false,
+  trackingMode: true,
+};
 
 export const DEFAULT_SETTINGS: ClientSettings = {
   version: SETTINGS_VERSION,
@@ -38,7 +97,16 @@ export const DEFAULT_SETTINGS: ClientSettings = {
   muted: false,
   speech: true,
   subtitles: true,
+  keyAdvanceSpeech: false,
   muteConfirmations: false,
+  sleepWakeNotification: true,
+  display: DEFAULT_DISPLAY_SETTINGS,
+  playbackSpeed: DEFAULT_PLAYBACK_SPEED,
+  language: null,
+  meanwhileScenesSeen: 0,
+  helpHidden: false,
+  coverSize: MIN_DISPLAY_SIZE,
+  losSize: MIN_DISPLAY_SIZE,
   playSplash: true,
   playIntro: true,
 };
@@ -57,13 +125,42 @@ function flag(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
 
+function displaySize(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.min(MAX_DISPLAY_SIZE, Math.max(MIN_DISPLAY_SIZE, Math.round(value)));
+}
+
+function playbackSpeed(value: unknown): number {
+  return typeof value === 'number' && PLAYBACK_SPEEDS.includes(value) ? value : DEFAULT_PLAYBACK_SPEED;
+}
+
+function language(value: unknown): UiLanguage | null {
+  return UI_LANGUAGES.includes(value as UiLanguage) ? (value as UiLanguage) : null;
+}
+
+function sceneFlags(value: unknown): number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < 2 ** MEANWHILE_SCENE_BITS ? value : 0;
+}
+
 function record(value: unknown): Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
+function display(raw: unknown): DisplaySettings {
+  const o = record(raw);
+  const d = DEFAULT_DISPLAY_SETTINGS;
+  const out: Record<string, boolean> = {};
+  for (const key of Object.keys(d) as (keyof DisplaySettings)[]) out[key] = flag(o[key], d[key]);
+  return out as unknown as DisplaySettings;
+}
+
+function knownVersion(version: unknown): boolean {
+  return version === undefined || version === SETTINGS_VERSION || PREVIOUS_VERSIONS.includes(version as number);
+}
+
 export function normalizeSettings(raw: unknown): ClientSettings {
   const o = record(raw);
-  if (o.version !== undefined && o.version !== SETTINGS_VERSION) return DEFAULT_SETTINGS;
+  if (!knownVersion(o.version)) return DEFAULT_SETTINGS;
   const v = record(o.volumes);
   const d = DEFAULT_SETTINGS;
   const neither = !flag(o.speech, d.speech) && !flag(o.subtitles, d.subtitles);
@@ -81,7 +178,16 @@ export function normalizeSettings(raw: unknown): ClientSettings {
     muted: flag(o.muted, d.muted),
     speech,
     subtitles,
+    keyAdvanceSpeech: flag(o.keyAdvanceSpeech, d.keyAdvanceSpeech),
     muteConfirmations: flag(o.muteConfirmations, d.muteConfirmations),
+    sleepWakeNotification: flag(o.sleepWakeNotification, d.sleepWakeNotification),
+    display: display(o.display),
+    playbackSpeed: playbackSpeed(o.playbackSpeed),
+    language: language(o.language),
+    meanwhileScenesSeen: sceneFlags(o.meanwhileScenesSeen),
+    helpHidden: flag(o.helpHidden, d.helpHidden),
+    coverSize: displaySize(o.coverSize, d.coverSize),
+    losSize: displaySize(o.losSize, d.losSize),
     playSplash: flag(o.playSplash, d.playSplash),
     playIntro: flag(o.playIntro, d.playIntro),
   };
@@ -113,11 +219,27 @@ export function saveSettings(settings: ClientSettings, storage: SettingsStorage 
   }
 }
 
-export function updateSettings(
-  settings: ClientSettings,
-  change: Partial<Omit<ClientSettings, 'version' | 'volumes'>> & { volumes?: Partial<VolumeSettings> },
-): ClientSettings {
-  return normalizeSettings({ ...settings, ...change, volumes: { ...settings.volumes, ...change.volumes } });
+export type SettingsChange = Partial<Omit<ClientSettings, 'version' | 'volumes' | 'display'>> & {
+  volumes?: Partial<VolumeSettings>;
+  display?: Partial<DisplaySettings>;
+};
+
+export function updateSettings(settings: ClientSettings, change: SettingsChange): ClientSettings {
+  return normalizeSettings({
+    ...settings,
+    ...change,
+    volumes: { ...settings.volumes, ...change.volumes },
+    display: { ...settings.display, ...change.display },
+  });
+}
+
+export function markMeanwhileSceneSeen(settings: ClientSettings, scene: number): ClientSettings {
+  if (!Number.isInteger(scene) || scene < 0 || scene >= MEANWHILE_SCENE_BITS) return settings;
+  return updateSettings(settings, { meanwhileScenesSeen: (settings.meanwhileScenesSeen | (1 << scene)) >>> 0 });
+}
+
+export function meanwhileSceneSeen(settings: ClientSettings, scene: number): boolean {
+  return scene >= 0 && scene < MEANWHILE_SCENE_BITS && ((settings.meanwhileScenesSeen >>> scene) & 1) === 1;
 }
 
 export function effectiveMaster(settings: ClientSettings): number {

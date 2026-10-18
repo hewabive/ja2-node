@@ -6,7 +6,10 @@ import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../content/forma
 import { StructureFlags } from '../content/world/structures.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
+import { musicMode } from '../protocol/music.ts';
+import { MusicMode, musicModeOfNativeByte } from '../protocol/music-modes.ts';
 import { advance } from '../sim/advance.ts';
+import { importNativeGameOptions, SAVE_MODES } from '../sim/options.ts';
 import { LightSpriteFlags, lightTimeAt } from '../sim/tactical/lighting/lighting.ts';
 import { inLoadedSector } from '../sim/tactical/save-import.ts';
 import { Team } from '../sim/tactical/soldier.ts';
@@ -35,6 +38,22 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('native savegames imported into the t
   });
 
   for (const file of saveFiles) {
+    it(`imports the game options and the music mode of ${file}`, async () => {
+      const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
+      const table = parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode((await read(SAVE_ENCRYPTION_PATH)) ?? new Uint8Array())));
+      const save = parseSaveGame(bytes, table);
+      const { session, report } = await createSaveSession(read, bytes, undefined, (p) => data.vfs.stat(p) !== undefined);
+      const saved = save.generalInfo.gameOptions;
+      const options = session.campaign.state.options;
+      expect(options).toEqual({ ...importNativeGameOptions(saved).options });
+      expect(options.saveMode).toBe(SAVE_MODES[saved.saveMode]);
+      expect(session.campaign.tactical?.state.options).toBe(options);
+      expect(report.droppedOptions).toEqual(saved.turnTimeLimit ? ['turnTimeLimit'] : []);
+      expect(session.initialMusic).toEqual({ mode: musicModeOfNativeByte(save.generalInfo.musicMode), previous: MusicMode.MAIN_MENU });
+      expect(session.initialMusic.mode).not.toBe(MusicMode.RESTORE);
+      expect(musicMode(session.initialMusic, session.drainEvents(), session.musicFacts()).mode).toBe(session.initialMusic.mode);
+    });
+
     it(`shows the contracts of ${file} at hour precision`, async () => {
       const bytes = new Uint8Array(readFileSync(join(savesDir, file)));
       const table = parseSaveEncryptionTable(JSON.parse(new TextDecoder().decode((await read(SAVE_ENCRYPTION_PATH)) ?? new Uint8Array())));

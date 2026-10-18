@@ -3,7 +3,8 @@
 // @src src/game/Strategic/Creature_Spreading.cc NewDirective, InitCreatureLair, IsMineInfestible, InitCreatureQuest,
 // @src AddCreatureToNode, PlaceNewCreature, SpreadCreatures, CreatureNightPlanning, CheckConditionsForTriggeringCreatureQuest,
 // @src EndCreatureQuest, CreaturesInUndergroundSector, MineClearOfMonsters, PlayerGroupIsInACreatureInfestedMine,
-// @src GetWarpOutOfMineCodes, LoadCreatureDirectives, CreatureWeightsByHabitat, DistributeCreaturesByWeight. See docs/17 §12.1.
+// @src GetWarpOutOfMineCodes, LoadCreatureDirectives, CreatureWeightsByHabitat, DistributeCreaturesByWeight; Utils/Music_Control.cc
+// @src StartMusicBasedOnMode (the creature music ends with an above-ground victory). See docs/17 §12.1, docs/27 §3.3.
 
 import { CreatureHabitat, type CreatureLair, lairContainsSector } from '../../../content/strategic/creature-lairs.ts';
 import type { MineDef } from '../../../content/strategic/economy-content.ts';
@@ -44,6 +45,13 @@ export interface CreatureState {
   meanwhileScenePlayed: boolean;
   useCreatureMusic: boolean;
   readonly attack: CreatureAttack;
+}
+
+export function clearCreatureMusicAtVictory(state: {
+  readonly creatures: CreatureState;
+  readonly worldSector: { readonly z: number } | null;
+}): void {
+  if (state.worldSector?.z === 0) state.creatures.useCreatureMusic = false;
 }
 
 export function createCreatureState(): CreatureState {

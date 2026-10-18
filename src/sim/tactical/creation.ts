@@ -12,6 +12,7 @@ import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { compatibleFaceItem } from '../../content/items/rules.ts';
 import { cardinalSpacesAway, WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import { copyObjectInto, createItem, emptyObject, ObjectFlags, objectFromRecord } from '../items/object.ts';
+import type { GameOptions } from '../options.ts';
 import { type CivGroupState, civGroupHostility, createCivGroupState } from '../strategic/narrative/civ-groups.ts';
 import type { BoxingRecord } from '../strategic/narrative/facts.ts';
 import { states } from './animation.ts';
@@ -778,7 +779,7 @@ function creationContext(t: Pick<TacticalState, 'content'>): InventoryContext {
 }
 
 export function createMercFromProfile(
-  t: Pick<TacticalState, 'content' | 'options'>,
+  t: Pick<TacticalState, 'content'> & { readonly options: Pick<GameOptions, 'gunNut'> },
   id: number,
   profile: MercProfile,
   direction: number,

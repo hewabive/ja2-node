@@ -23,7 +23,7 @@ const GERMAN_SET_FACTOR = 11;
 const DIFFICULTY_MEDIUM = 2;
 const DIFFICULTY_HARD = 3;
 
-export interface GameOptions {
+export interface SavedGameOptions {
   readonly gunNut: boolean;
   readonly sciFi: boolean;
   readonly difficulty: number;
@@ -51,7 +51,7 @@ export interface SaveGameHeader {
   readonly alternateSector: boolean;
   readonly worldLoaded: boolean;
   readonly loadScreenId: number;
-  readonly initialGameOptions: GameOptions;
+  readonly initialGameOptions: SavedGameOptions;
   readonly random: number;
   readonly saveStateSize: number;
 }
@@ -61,7 +61,7 @@ export interface SaveEncryptionTable {
   readonly sets: readonly Uint8Array[];
 }
 
-function readGameOptions(c: SaveCursor): GameOptions {
+function readSavedGameOptions(c: SaveCursor): SavedGameOptions {
   const options = { gunNut: c.bool(), sciFi: c.bool(), difficulty: c.u8(), turnTimeLimit: c.bool(), saveMode: c.u8() };
   c.skip(GAME_OPTIONS_PADDING);
   return options;
@@ -83,7 +83,7 @@ function readHeader(bytes: Uint8Array, utf32: boolean): SaveGameHeader {
   const alternateSector = c.bool();
   const worldLoaded = c.bool();
   const loadScreenId = c.u8();
-  const initialGameOptions = readGameOptions(c);
+  const initialGameOptions = readSavedGameOptions(c);
   c.skip(1);
   const random = c.u32();
   const saveStateSize = version >= FIRST_VERSION_WITH_STATE_SIZE ? c.u32() : 0;

@@ -1,5 +1,6 @@
 import { type DataVersion, STUB_DATA_VERSION, type UiLanguage } from '../content/text/data-version.ts';
 import type { CommandEnvelope, DriverMode, ServerMessage, SessionStopReport } from '../protocol/messages.ts';
+import { initialMusic, type MusicFacts, type MusicState, musicMode, musicView } from '../protocol/music.ts';
 import { diffPlayerView, type PlayerView, type ViewFrame } from '../protocol/view.ts';
 import { advance, type Steppable, type StopCondition, type StopReport } from '../sim/advance.ts';
 import { TICK_MS } from '../sim/clock.ts';
@@ -11,12 +12,16 @@ export const FRAME_TICKS = 10;
 const REALTIME_INTERVAL_MS = 16;
 const MAX_FRAMES_PER_MESSAGE = 500;
 const LOADED_STOP_ID = 0;
+const NO_MUSIC_FACTS: MusicFacts = { creature: false, inCombat: false, sectorLoaded: false, hostiles: 0, gameJustStarted: false };
 
 export type { CommandResult };
 
 export interface SessionSim extends Steppable {
   dispatch(cmd: CommandEnvelope): CommandResult;
   view(): PlayerView;
+  musicFacts?(): MusicFacts;
+  readonly holdsCreationEvents?: boolean;
+  readonly initialMusic?: MusicState;
   prepare?(cmd: CommandEnvelope): Promise<void>;
   preparedMaps?(): readonly string[];
   prepareMaps?(paths: readonly string[]): Promise<void>;
@@ -56,6 +61,8 @@ export class Session {
   #lastRealtime = 0;
   #carryMs = 0;
   #lastView: PlayerView;
+  #music: MusicState;
+  #fastFade = false;
   #depth = 0;
   readonly #held: SimEvent[] = [];
   readonly #pendingEvents: SimEvent[] = [];
@@ -67,7 +74,31 @@ export class Session {
     this.dataVersion = text.dataVersion;
     this.language = text.language;
     this.log = new InputLog(origin);
-    this.#lastView = sim.view();
+    this.#music = sim.initialMusic ?? initialMusic();
+    const created = sim.holdsCreationEvents ? sim.drainEvents() : [];
+    this.#held.push(...created);
+    this.#followMusic(created);
+    this.#lastView = this.#view();
+  }
+
+  get music(): MusicState {
+    return this.#music;
+  }
+
+  #facts(): MusicFacts {
+    return this.#sim.musicFacts?.() ?? NO_MUSIC_FACTS;
+  }
+
+  #view(): PlayerView {
+    return { ...this.#sim.view(), music: musicView(this.#music, this.#facts().creature, this.#fastFade) };
+  }
+
+  #followMusic(events: readonly SimEvent[]): void {
+    this.#fastFade = false;
+    if (events.length === 0) return;
+    const next = musicMode(this.#music, events, this.#facts());
+    this.#fastFade = next.fastFade;
+    this.#music = { mode: next.mode, previous: next.previous };
   }
 
   get sim(): SessionSim {
@@ -85,7 +116,7 @@ export class Session {
   }
 
   #welcome(): ServerMessage {
-    return { t: 'welcome', session: this.id, view: this.#sim.view(), driver: this.#driver };
+    return { t: 'welcome', session: this.id, view: this.#view(), driver: this.#driver };
   }
 
   #broadcast(message: ServerMessage): void {
@@ -95,6 +126,12 @@ export class Session {
   #publish(frames: ViewFrame[]): void {
     for (let i = 0; i < frames.length; i += MAX_FRAMES_PER_MESSAGE)
       this.#broadcast({ t: 'frames', frames: frames.slice(i, i + MAX_FRAMES_PER_MESSAGE) });
+  }
+
+  restoreMusic(music: MusicState): void {
+    this.#music = music;
+    this.#fastFade = false;
+    this.#lastView = this.#view();
   }
 
   holdEvents(): void {
@@ -139,10 +176,11 @@ export class Session {
   }
 
   #capture(frames: ViewFrame[]): void {
-    const view = this.#sim.view();
+    const events = this.#pendingEvents.splice(0);
+    this.#followMusic(events);
+    const view = this.#view();
     const diff = diffPlayerView(this.#lastView, view);
     this.#lastView = view;
-    const events = this.#pendingEvents.splice(0);
     const frame = events.length > 0 ? { ...(diff ?? { tick: view.tick, changed: [], removed: [] }), events } : diff;
     if (frame) frames.push(frame);
   }
@@ -245,7 +283,7 @@ export class Session {
     if (report.reason === 'decision') this.setDriver({ mode: 'manual' });
   }
 
-  replace(sim: SessionSim, loaded: LoadPayload): void {
+  replace(sim: SessionSim, loaded: LoadPayload, music: MusicState = sim.initialMusic ?? initialMusic()): void {
     const wasRunning = this.#driver.mode === 'realtime';
     this.#stopTimer();
     this.#driver = { mode: 'manual' };
@@ -253,7 +291,9 @@ export class Session {
     this.#held.length = 0;
     this.#pendingEvents.length = 0;
     this.#sim = sim;
-    this.#lastView = sim.view();
+    this.#music = music;
+    this.#fastFade = false;
+    this.#lastView = this.#view();
     if (wasRunning) this.#broadcast({ t: 'stopped', id: LOADED_STOP_ID, report: this.#loadedStop() });
     this.#broadcast(this.#welcome());
   }

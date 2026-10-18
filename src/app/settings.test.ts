@@ -3,6 +3,8 @@ import {
   DEFAULT_SETTINGS,
   effectiveMaster,
   loadSettings,
+  markMeanwhileSceneSeen,
+  meanwhileSceneSeen,
   normalizeSettings,
   SETTINGS_KEY,
   type SettingsStorage,
@@ -34,7 +36,7 @@ describe('client settings', () => {
     const store = memory();
     const changed = updateSettings(DEFAULT_SETTINGS, { volumes: { effects: 100 }, muteConfirmations: true });
     expect(saveSettings(changed, store)).toBe(true);
-    expect(JSON.parse(store.data.get(SETTINGS_KEY) ?? '{}').version).toBe(1);
+    expect(JSON.parse(store.data.get(SETTINGS_KEY) ?? '{}').version).toBe(2);
     expect(loadSettings(store)).toEqual(changed);
   });
 
@@ -67,6 +69,46 @@ describe('client settings', () => {
     saveSettings(updateSettings(DEFAULT_SETTINGS, { playSplash: false }), store);
     expect(loadSettings(store)).toMatchObject({ playSplash: false, playIntro: true });
     expect(normalizeSettings({ version: 1, playIntro: 'no' })).toMatchObject({ playIntro: true });
+  });
+
+  it('keep the version 1 fields and add the version 2 ones with the original defaults', () => {
+    const v1 = { version: 1, volumes: { music: 90 }, muted: true, speech: false, subtitles: true, playIntro: false };
+    expect(normalizeSettings(v1)).toEqual({
+      ...DEFAULT_SETTINGS,
+      volumes: { ...DEFAULT_SETTINGS.volumes, music: 90 },
+      muted: true,
+      speech: false,
+      playIntro: false,
+    });
+    expect(DEFAULT_SETTINGS).toMatchObject({
+      keyAdvanceSpeech: false,
+      sleepWakeNotification: true,
+      playbackSpeed: 1,
+      language: null,
+      meanwhileScenesSeen: 0,
+      helpHidden: false,
+      coverSize: 4,
+      losSize: 4,
+    });
+    expect(DEFAULT_SETTINGS.display).toMatchObject({ useMetricSystem: true, snapCursorToDoor: true, cursor3d: false, trackingMode: true });
+  });
+
+  it('clamp the display sizes, the playback speed and the language, and keep the display toggles apart', () => {
+    expect(normalizeSettings({ coverSize: 30, losSize: 1 })).toMatchObject({ coverSize: 11, losSize: 4 });
+    expect(normalizeSettings({ playbackSpeed: 3, language: 'xx' })).toMatchObject({ playbackSpeed: 1, language: null });
+    expect(normalizeSettings({ playbackSpeed: 4, language: 'rus' })).toMatchObject({ playbackSpeed: 4, language: 'rus' });
+    const changed = updateSettings(DEFAULT_SETTINGS, { display: { glowItems: false }, keyAdvanceSpeech: true });
+    expect(changed.display).toEqual({ ...DEFAULT_SETTINGS.display, glowItems: false });
+    expect(changed.keyAdvanceSpeech).toBe(true);
+  });
+
+  it('remember the meanwhile scenes seen as flags', () => {
+    const seen = markMeanwhileSceneSeen(markMeanwhileSceneSeen(DEFAULT_SETTINGS, 3), 31);
+    expect(meanwhileSceneSeen(seen, 3)).toBe(true);
+    expect(meanwhileSceneSeen(seen, 31)).toBe(true);
+    expect(meanwhileSceneSeen(seen, 4)).toBe(false);
+    expect(markMeanwhileSceneSeen(seen, 40)).toBe(seen);
+    expect(normalizeSettings({ meanwhileScenesSeen: -1 }).meanwhileScenesSeen).toBe(0);
   });
 
   it('silence the master while muted without losing its value', () => {

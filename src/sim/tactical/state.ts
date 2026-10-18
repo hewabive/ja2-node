@@ -5,6 +5,7 @@ import type { MovementCosts, MovementWorld } from '../../content/world/movement-
 import type { TileElement } from '../../content/world/tile-database.ts';
 import { PreRandom, type Rng } from '../../core/rng.ts';
 import type { SimEvent } from '../events.ts';
+import { type GameOptions, gameOptions } from '../options.ts';
 import { type CivGroupState, createCivGroupState } from '../strategic/narrative/civ-groups.ts';
 import { type BoxingRecord, createBoxingRecord } from '../strategic/narrative/facts.ts';
 import { anim } from './anim-states.ts';
@@ -71,11 +72,6 @@ export function sectorMapOf(t: { readonly world: TacticalWorldData }): SectorMap
 export type TacticalEvent = DistributiveOmit<SimEvent, 'tick'>;
 
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
-
-export interface GameOptions {
-  gunNut: boolean;
-  bloodAndGore: boolean;
-}
 
 export interface CampaignState {
   difficultyModifier: number;
@@ -190,6 +186,7 @@ export interface SectorHooks {
   battleEnded(t: TacticalState, result: BattleResult): void;
   tacticalTurnEnded(t: TacticalState): void;
   combatEntered(t: TacticalState): void;
+  enemyPresence(t: TacticalState): void;
 }
 
 export const NO_SECTOR_HOOKS: SectorHooks = {
@@ -204,6 +201,7 @@ export const NO_SECTOR_HOOKS: SectorHooks = {
   battleEnded: () => {},
   tacticalTurnEnded: () => {},
   combatEntered: () => {},
+  enemyPresence: () => {},
 };
 
 export interface TacticalState {
@@ -222,7 +220,7 @@ export interface TacticalState {
   readonly rng: Rng;
   readonly pre: PreRandom;
   inCombat: boolean;
-  options: GameOptions;
+  readonly options: GameOptions;
   campaign: CampaignState;
   readonly events: TacticalEvent[];
   readonly gameEvents: GameEvent[];
@@ -300,6 +298,7 @@ export interface ActionItemQueue {
 }
 
 export interface SharedCampaignState {
+  readonly options?: GameOptions;
   readonly pre?: PreRandom;
   readonly profiles?: Map<number, ProfileProgress>;
   readonly keyTable?: KeyTable;
@@ -369,6 +368,7 @@ export function createTacticalState(
     mapDoors: world.mapDoors,
   };
   const pathEnv = createPathEnv({ pathWorld, occupant, soldiers, doorStatus, content }, defaultPathEnvSettings());
+  const options = shared.options ?? gameOptions();
   return {
     clockMs: 0,
     tick: 0,
@@ -385,7 +385,7 @@ export function createTacticalState(
     rng,
     pre: shared.pre ?? PreRandom.create(rng),
     inCombat: false,
-    options: { gunNut: false, bloodAndGore: true },
+    options,
     campaign: { difficultyModifier: 30, progress: 0 },
     events: [],
     gameEvents: [],
@@ -398,7 +398,7 @@ export function createTacticalState(
     perceptionHooks: NO_PERCEPTION_HOOKS,
     turn: createTurnState(TOTAL_SOLDIERS),
     turnHooks: NO_TURN_HOOKS,
-    equipment: createEquipmentState(content.items),
+    equipment: createEquipmentState(content.items, options),
     profiles: shared.profiles ?? new Map(),
     worldItems: [],
     buildings: createBuildings(),

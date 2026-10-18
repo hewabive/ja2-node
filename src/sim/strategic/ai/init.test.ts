@@ -4,6 +4,7 @@ import { loadStrategicTestContent } from '../../../../tests/support/strategic.ts
 import { type ArmyContent, byDifficultyLevel } from '../../../content/strategic/army.ts';
 import { parseSectorId, sectorFromId, sectorId } from '../../../content/strategic/sector-ids.ts';
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
+import { gameOptions } from '../../options.ts';
 import { EnemyIntention, MoveType } from '../forces/constants.ts';
 import { getGroup } from '../forces/groups.ts';
 import type { RollSource } from '../forces/ports.ts';
@@ -43,7 +44,7 @@ class SwitchableRolls implements RollSource {
 }
 
 function initialized(difficulty: number, stream: Stream): { q: QueenContext; rolls: RecordingRolls } {
-  const state = createStrategicState({ options: { difficulty, sciFi: false }, seed: 7 });
+  const state = createStrategicState({ options: gameOptions({ difficulty, sciFi: false }), seed: 7 });
   const rolls = stream === 'zeros' ? RecordingRolls.zeros() : RecordingRolls.maxima();
   const random = new SwitchableRolls(state.rng);
   const q = queenTestContext({ content, army, state, random });

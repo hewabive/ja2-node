@@ -3,6 +3,7 @@ import { testProfile } from '../../../../tests/support/profiles.ts';
 import { loadStrategicTestContent, ScriptedRolls, testContext } from '../../../../tests/support/strategic.ts';
 import { parseSectorId, parseSectorString, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
+import { assignGameOptions, gameOptions } from '../../options.ts';
 import { Facility, SectorFlag } from '../forces/constants.ts';
 import { createNewEnemyGroupDepartingFromSector } from '../forces/groups.ts';
 import { Npc } from '../narrative/npc-ids.ts';
@@ -53,7 +54,7 @@ describe('new campaign map', () => {
   it('skips sci-fi-only placements without sci-fi', () => {
     const rolls = new ScriptedRolls();
     const ctx = testContext({ content, random: rolls });
-    ctx.state.options.sciFi = false;
+    assignGameOptions(ctx.state.options, { sciFi: false });
     initStrategicLayerMap(ctx);
     const realistic = content.npcPlacements.filter((p) => !p.sciFiOnly);
     expect(rolls.ranges.slice(UNDERGROUND_DRAWS)).toEqual(realistic.map((p) => p.sectors.length));
@@ -84,7 +85,7 @@ describe('new campaign map', () => {
   });
 
   it('uses the Tixa basement without the cave stairs when sci-fi is off', () => {
-    const ctx = testContext({ content, stateOptions: { options: { sciFi: false } } });
+    const ctx = testContext({ content, stateOptions: { options: gameOptions({ sciFi: false }) } });
     initStrategicLayerMap(ctx);
     const tixa = { ...parseSectorString('J9'), z: 1 };
     expect(mapFileNameForSector(ctx.state.map, tixa)).toBe('J9_b1_a.dat');

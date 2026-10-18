@@ -40,7 +40,7 @@ state.
 | § | Item | Core decision |
 |---|---|---|
 | 1 | Saves | A canonical-JSON snapshot of the whole session with a codec in `sim`, exact restore, content binding, an input log; Stracciatella's list of named saves, quick save, autosave at turn end, Iron Man and Dead is Dead rules; reseed `main` on player loads |
-| 2 | Options | Game options and the policy JSON are session state; blood and gore is the only outcome-relevant toggle and becomes a command; all other toggles are client settings; timed turns are not ported |
+| 2 | Options | Game options are session state, the policy JSON stays logic content under the save's content hash; blood and gore is the only outcome-relevant toggle and becomes a command; all other toggles are client settings; timed turns are not ported |
 | 3 | Sound and music | Presentation only; the client derives cues from events, frames and timelines; the server computes the music mode as player-visible state; own WAV/IMA ADPCM decoder |
 | 4 | Video | Own Smacker decoder in `content`, a WebGL player in the browser, sequences as in `Intro.cc`, no transcoding |
 | 5 | Localization | Data version (from the data) and display language (chosen) are separate; Stracciatella's eight-language JSON tables are already in `data/externalized`; the data version reaches the simulation only through quote lengths and record layouts |
@@ -469,7 +469,8 @@ The snapshot stores `main`, `pre` and the cosmetic streams exactly. Two load mod
 | Events | `gameSaved {name, kind}` (not for autosaves, as in the original), `gameLoaded {name, seed}` |
 
 **Status after S3 (2026-10-18).** §1.3's file, content binding, input log and replay, §1.5's load modes, §1.6's rules
-and §1.7's API exist; the browser surfaces (§1.8) wait for S11, the options for S5 and the music block for S9. The
+and §1.7's API exist; the browser surfaces (§1.8) wait for S11; the options (S5, §2.4) and the music block (S9, §3.7)
+have landed since. The
 agent-facing description is `04` §6.22.
 
 | Module | Content |
@@ -583,7 +584,7 @@ these files into `data/externalized` unchanged.
 | Kind | Where it lives | Changes the outcome | Examples |
 |---|---|---|---|
 | **Game options** | session state, chosen at `newSession`, saved, shown in `status` | yes | difficulty, sci-fi, gun nut, save mode, blood and gore |
-| **Game policy** | session state: a copy of the policy JSON taken when the campaign starts, saved | yes | `game.json`, `imp.json`, `strategic-ai-policy.json` values |
+| **Game policy** | logic content (`data/externalized`), loaded like the other content and covered by the save's content hash | yes | `game.json`, `imp.json`, `strategic-ai-policy.json` values |
 | **Client settings** | browser `localStorage` per client (the original's per-user `Ja2.set`); never sent to the simulation | no | volumes, speech, subtitles, display toggles, playback speed, language, meanwhile scenes seen |
 
 Server settings (environment, one per process: data and stubs folders, data version, default language, saves folder,
@@ -614,9 +615,11 @@ interface GameOptions {
 - Native save import maps the header's options (`docs/14` §2) onto this type, `saveMode` included.
 - `observe`/`status` show the options; the save header (§1.3) repeats them for the save list.
 
-**Game policy.** At campaign creation the session copies the three policy files into `state.policy` (plain JSON, a few
-kilobytes) and every reader takes values from there. A save therefore replays with the policy it was played with even if
-`data/externalized` is updated later; the content fingerprint (§1.3) does not need to cover the policy files.
+**Game policy.** Decided for M7: the policy files stay logic content and are **not** copied into the session. The save's
+content identity (§1.3, `src/server/content-identity.ts`) already lists every file the simulation reads, the policy
+files among them, so a changed policy refuses an old save with `contentMismatch` instead of replaying it with other
+values. Copying the policy would duplicate content into every save for a case the content check already catches; it can
+be revisited if saves must survive policy edits (it would then be a migration, not a deviation).
 
 **Pacing options become stop conditions, not state.** `SPEECH`, `KEY_ADVANCE_SPEECH` and `HIDE_BULLETS` are client
 presentation (the simulation's timing is fixed: 60 ms per character, one bullet tile per tick). `SLEEPWAKE_NOTIFICATION`
@@ -637,7 +640,50 @@ and import as a file from the launcher. Agents have no client settings.
   the client only holds the subtitle.
 - *Sleep/wake notification*: the update box and its effect on compression become a client stop condition.
 - *Timed turns*: not ported (the option is unreachable in JA2 Gold and Stracciatella).
-- *Policy snapshot*: policy values are copied into the session at campaign start.
+
+All three are in `deviations.md` since S5. There is no policy deviation: the policy stays content (above).
+
+### 2.4 What landed (slice S5, 2026-10-18)
+
+- **`src/sim/options.ts`**: `GameOptions {difficulty: 1|2|3, sciFi, gunNut, saveMode, bloodAndGore}` replaces the three
+  partial interfaces (the tactical `{gunNut, bloodAndGore}`, the strategic `{difficulty, sciFi, gunNut, saveMode}`, the
+  native header record, now `SavedGameOptions` in `src/content/formats/savegame-header.ts`). `ORIGINAL_GAME_OPTIONS`
+  holds the original's defaults (easy, sci-fi, reduced guns, save anywhere, blood on, `GameSettings.cc` InitGameOptions
+  and InitGameSettings); `gameOptions(request)` builds a fresh object with the API default difficulty 2 (decision 12) and
+  refuses another difficulty; `importNativeGameOptions` maps a native record (`saveMode` from `ubGameSaveMode`, blood
+  and gore on because it lives in the user's `Ja2.set`, `turnTimeLimit` reported in `dropped`).
+- **One source of truth.** The strategic state owns the options object; a loaded sector's `TacticalState.options` is
+  the same object (`TacticalSimOptions.options`, like the profiles and the streams), and so is `EquipmentState.options`.
+  The tactical copies are gone: `Perception.difficulty`, `EquipmentState.gunNut` and `.sciFi` read the options. This
+  fixed a port gap: the campaign never set the equipment's gun nut flag, so the army gun choice (`items.gunChoice`)
+  ignored gun nut in campaigns. A sandbox owns its own options object (`gameOptions()`). The snapshot codec re-links the
+  shared object like any alias; snapshot version 2 migrates version 1 files (adds `bloodAndGore` to the strategic
+  options, turns the tactical copies into references, `src/sim/snapshot/migrations.ts`, tested on a sandbox and a
+  landed campaign in `src/server/snapshot-migration.test.ts`).
+- **`newSession {campaign: {options}}`** (MCP and `POST /api/sessions`): any of the five fields; missing ones take the
+  defaults above. `campaign.difficulty` and `campaign.saveMode` stay accepted as aliases (old input logs replay, old
+  callers work); an alias that contradicts `options` is refused. `deadIsDeadName` stays a campaign field: it names a
+  server file, not a game option. The devtools strategic page and `JA2_CAMPAIGN` use `options`.
+- **`status`, `observe`, `GET /api/sessions`** show `options`; the save header carries the full options; `listSaves`
+  maps a native header onto the same shape (`droppedOptions` when the timed turns were on). A native import's
+  `newSession` answer carries the import report (`import`, with `droppedOptions`).
+- **`setOption {bloodAndGore}`**: a command like every other (logged in the input log, replayed), accepted in any flow
+  (also in a meanwhile, the endgame and the laptop, before the story refusals), refused with `promptOpen` while a battle,
+  contract, militia or NPC prompt is open, `badOption` for anything else; it changes the shared object, so it applies
+  from the next tick, and reports `optionChanged {bloodAndGore}`. The paths it changes are ported: the messy shot deaths
+  (`JFK_HITDEATH`, `FLYBACK_HIT` within two tiles), the explosion deaths (`BODYEXPLODING`, `CHARIOTS_OF_FIRE`), the death
+  animation chain, the corpse file (`corpses.json` bloody or clean), the corpse structure damage; corpse vaporizing and
+  the blood graphics are cosmetic and not simulated. Test: `src/sim/tactical/combat/blood-and-gore.test.ts` (a grenade
+  death, a close head shot and the corpse file with the option on and off, on stub content).
+- **Client settings** (`src/app/settings.ts`, version 2, version 1 values kept): key-advance speech, the sleep/wake
+  notification switch, the display toggles of §2.1 (`display.*`, stored for M8), playback speed, display language,
+  meanwhile scenes seen (flags), help hidden, cover and LOS display sizes (4–11, `DisplayCover.cc`), every storage access
+  in `try`. The sleep/wake switch is stored for the launcher's real-time driver (S11); an agent passes `fellAsleep` and
+  `wokeUp` to `advance {until: {events}}`.
+- **Tests**: `src/sim/options.test.ts`, `src/server/options-api.test.ts` (MCP: options in the new campaign, `status`,
+  `observe`, the save header and `listSaves`, `setOption` logged and refused for other options; aliases and the
+  contradiction; HTTP; `promptOpen`), `src/app/settings.test.ts`, and on the original data every native save's options
+  and the shared object (`src/server/save-session.test.ts`).
 
 ---
 
@@ -703,7 +749,7 @@ mode is saved and restored (`SaveLoadGame.cc:1827`, `:1964`). Where modes are se
 | `MAIN_MENU` | main menu, loading a save (until the sector's mode applies), meanwhile scenes |
 | `LAPTOP` | entering the laptop; leaving restores the previous mode (`Laptop/Laptop.cc:446`, `:551-561`) |
 | `TACTICAL_NOTHING` | sector entry without hostiles, a battle ending without a fight, retreat, boxing exit, creature town attack (`Strategic/StrategicMap.cc:524-531`, `Tactical/Overhead.cc:4636`) |
-| `TACTICAL_ENEMYPRESENT` | first enemy seen in an untouched sector, leaving combat with enemies left, the first helicopter drop, the PBI, the end of a meanwhile (`Tactical/Overhead.cc:4080`, `:4124`, `:4369`) |
+| `TACTICAL_ENEMYPRESENT` | an enemy placed in an untouched sector without known enemies, outside the game start and meanwhile scenes (`SetEnemyPresence`, called by `AddSoldierToSectorGridNo` and `EnterCombatMode`, not by a sighting: S9 corrected this row), leaving combat with enemies left, the first helicopter drop, the PBI, the end of a meanwhile (`Tactical/Overhead.cc:4080`, `:4124`, `:4369`, `Tactical/Soldier_Add.cc:928`) |
 | `TACTICAL_BATTLE` | entering combat (`Tactical/Overhead.cc:3974-3979`) |
 | `TACTICAL_VICTORY` | a won tactical battle unless the last kill was a monster, an autoresolve win, the Queen's death (`Tactical/Overhead.cc:4598-4603`, `Strategic/Auto_Resolve.cc:1298`, `Tactical/End_Game.cc:163`) |
 | `TACTICAL_DEFEAT` | a lost tactical battle, autoresolve loss or surrender (`Tactical/Overhead.cc:4478`, `Strategic/Auto_Resolve.cc:1319-1330`) |
@@ -762,9 +808,9 @@ seeded per session view, never a simulation stream. The client keeps its own pre
 footstep variant, last battle sound time for the 2 s filter).
 
 **The music mode is player-visible state, so the server computes it.** A pure `musicMode(prev, events, view)` in
-`src/protocol/music.ts` reproduces the setters of §3.1 from simulation events (`sectorLoaded`, `enemySighted` in an
-untouched sector, `combatStarted`, `combatEnded {won|lost|lull}`, `preBattle`, `arBattleOver`, laptop open/close, the
-meanwhile and endgame events) and the creature flag. The session keeps `presentation.music {mode, previous}` beside the
+`src/protocol/music.ts` reproduces the setters of §3.1 from simulation events (`sectorLoaded`, the enemy presence of an
+untouched sector, `combatStarted`, `combatEnded {won|lost|lull|boxing}`, `preBattle`, `arBattleOver`, laptop open/close,
+the meanwhile and endgame events; the full list as built is in §3.7) and the creature flag. The session keeps `presentation.music {mode, previous}` beside the
 simulation (saved in snapshots, §1.3, never read by `sim`) and sends `music {mode, creature}` in view frames when it
 changes; the client only chooses tracks and fades. `useCreatureMusic` is already simulation state
 (`src/sim/strategic/creatures/creatures.ts:45`); the clear at the start of an above-ground victory track
@@ -851,6 +897,62 @@ Missing files are skipped silently, as the original skips failed plays.
   battle sounds (IMA ADPCM, `000_ok1`, `014_hit2`, the `014_dying` fallback), falls and stance sounds and the A9
   footsteps, with no missing files; the only ambient table of the data (`ambient/0.bad`, ten entries) decodes and names
   existing sounds. Not covered yet: see `deviations.md` "Sound coverage".
+
+
+### 3.7 What landed (slice S9, 2026-10-18)
+
+- **Modes and rules** (`src/protocol/music-modes.ts`, named constants with the SFI header): the twelve `MusicMode`
+  values in the native byte order (`ContentMusic.h`), the `music.json` key of each playable mode, the creature variants
+  of the nothing, enemy-present and battle modes, the end rules (`nextTrack`, the victory track `thenNothing`, the
+  defeat track `thenSilence`), the 10 ms poll step and the fade steps 1 and 5.
+- **`musicMode(prev, events, facts)`** (`src/protocol/music.ts`, pure): `setMusicMode` reproduces `SetMusicMode` (any
+  set remembers the replaced mode as `previous`; `RESTORE` returns to it, but to the nothing mode after the victory or
+  defeat track). The setters, in event order: `sectorLoaded` (the enemy presence of the load, then the entry rule
+  `mode == ENEMYPRESENT ? hostiles == 0 : mode != BATTLE` → nothing with a fast fade, then the first helicopter drop's
+  enemy-present mode), `enemyPresence`, `combatStarted`, a sighting in combat while no music plays, `combatEnded`
+  (`lull`: enemy present; `lost`: enemy present after a battle, then defeat; `won`: enemy present after a battle, then
+  victory if a fight took place and the last kill of a merc was no monster, nothing without a fight; `boxing`: nothing),
+  `preBattle` (twice, as `PrepareForPreBattleInterface` and `InitPreBattleInterface` both set it; once for an automatic
+  creature attack), `retreated` from the prebattle screen, `arBattleOver` (victory; defeat, surrender and capture),
+  `laptopOpened` and `laptopClosed` (restore, or the laptop again before the first landing), a resolved `meanwhile`
+  (menu, then with a loaded sector the entry rule as when the sector is reloaded), `meanwhileStarted` and the
+  interrogation's `meanwhileEnded`, `queenKilled`, `creatureQueenKilled`, `squadMovedUpstairs`, `creatureAttack`,
+  `mercsLeftSector` to the map screen (fast fade). The facts are read from the session after the events: the creature
+  flag, combat, whether a sector is loaded, the hostiles of the loaded sector (`NumHostilesInSector`), the game start.
+- **Simulation facts** (optional event fields, never read back): `sectorLoaded {hostiles, enemyPresence?, firstArrival?}`
+  (the sector flow records whether `SetEnemyPresence` fired while loading through the new `SectorHooks.enemyPresence`,
+  outside the game start and meanwhile scenes; later presence, as reinforcements arriving in an untouched sector, is an
+  `enemyPresence {sector}` event), `creatureAttack {sector}` (the creature battle setup's town attack), `combatEnded
+  {fought?, monsterKill?}`, `mercsLeftSector {mapScreen?}`. `turn.lastMercKill` ports `gLastMercTalkedAboutKilling`
+  (the enemy killed by a merc's attack). The creature battle setup now sets `useCreatureMusic` as
+  `PrepareCreaturesForBattle` does (the map's light colour has blue, creatures in the level, a town attack), and the
+  simulation clears it at the moment the victory mode is set above ground (a fought tactical battle won without a monster
+  as last kill, an autoresolve victory, the queens' deaths, the move upstairs), so native saves and ours carry the same
+  flag; no oracle probe covers the flag, and the full compare still matches.
+- **Session state.** `Session` (`src/server/session.ts`) keeps `music {mode, previous}` beside the simulation: a new
+  campaign starts at none and follows the events of its creation when the session is built (the new game's laptop, now
+  reported as `laptopOpened`, and the landing; the events are held for the next report, as before a save), a sandbox at
+  enemy present or nothing (as entering a sector), a native import at the saved
+  byte (`SaveLoadGame.cc:1827`) with the menu as previous (the load sets the menu first), a ja2-node load at the file's
+  `presentation.music`. After every captured frame the drained events update it; `welcome` carries `music {mode,
+  creature}` and frames carry it when the mode or the flag changes (`fastFade: true` on the frame of a fast change).
+  `observe` and the simulation's own view carry no music. Saves write `presentation.music`.
+- **Client player** (`src/audio/music.ts`): `show(music)` from the welcome and the frames; a new mode fades the playing
+  track out by one volume step per `poll()` (the pages poll every 10 ms; five steps after a sector entry or exit) and then
+  starts a track of the new mode at once at the music volume (no fade-in), chosen with the client PRNG (seeded from the
+  session id); when a track ends the next random track of the mode follows, the victory track switches the player to the
+  nothing mode (the server keeps the victory mode) and the defeat track ends in silence; the creature flag picks the
+  creature tracks when a track starts; music volume 0 (or mute) stops the music and raising it starts it again, as
+  `MusicSetVolume` does. `src/content/audio/music-table.ts` reads `music.json`. The tactical and strategic pages use it
+  through `src/devtools/net/music.ts` (`window.__ja2Audio.music` and `window.__ja2Music`: server mode, player mode,
+  current track, the tracks played).
+- **Tests**: `src/protocol/music.test.ts` (every row of §3.1, the restore rule, the event order, the fast fade),
+  `src/audio/music.test.ts` (fake audio graph: no fade-in, the fade steps, next track, victory and defeat ends, creature
+  tracks, volume 0), `src/server/session-music.test.ts` (the sandbox into combat, a new campaign from the laptop to the
+  landing, the mode through a save, a load into a new session and a load in place), `src/sim/campaign/creature-music.test.ts`
+  (the flag's sets and clears), the native imports on the original data (`src/server/save-session.test.ts`) and
+  `tests/e2e/music.spec.ts` (the tactical page on stubs starts the enemy-present track after the first gesture and
+  switches to the battle track when combat starts).
 
 ---
 
@@ -1571,7 +1673,7 @@ text and presentation (M7)" when the slices land.
 
 | Command | Where | Refusals |
 |---|---|---|
-| `setOption {bloodAndGore}` | any flow | `promptOpen` |
+| `setOption {bloodAndGore}` | any flow | `promptOpen`, `badOption` (S5: anything but a boolean `bloodAndGore`) |
 
 **Tools and routes** (not commands: they act on the session or the server):
 
@@ -1582,7 +1684,7 @@ text and presentation (M7)" when the slices land.
 | `listSaves {}` | `GET /api/saves` | headers of ja2-node and native saves |
 | `deleteSave {name}` | `DELETE /api/saves/:name` | |
 | — | `GET`/`PUT /api/saves/:name/file` | download and upload (browser only) |
-| `newSession {campaign: {options}, load?, language?}` | `POST /api/sessions` | options (§2.2), load, the session's display language for resolved text (§5.2) |
+| `newSession {campaign: {options}, load?, language?}` | `POST /api/sessions` | options (§2.2, §2.4; `campaign.difficulty` and `campaign.saveMode` stay aliases), load, the session's display language for resolved text (§5.2) |
 | — | `GET /api/strings?lang=` | UI string tables (§5.2) |
 | — | `GET /api/text` (widened) | EDT rows with their layouts (§5.2) |
 
@@ -1591,7 +1693,9 @@ save rule applies, `canSave: false` with the reason (so an agent need not try). 
 creature}` when it changes (§3.3) and soldier `voice`/`body` (§3.3). `observe` adds nothing about sound: agents get the
 same facts from events.
 
-**Events** (presentation fields are optional and never in state): `gameSaved`, `gameLoaded`, `optionChanged`; the S8
+**Events** (presentation fields are optional and never in state): `gameSaved`, `gameLoaded`, `optionChanged`; the S9
+music facts (`sectorLoaded {hostiles, enemyPresence, firstArrival}`, `enemyPresence`, `creatureAttack`, `combatEnded
+{fought, monsterKill}`, `mercsLeftSector {mapScreen}`, §3.7); the S8
 additions of §3.3 (`shotFired {item, silenced, rounds}`, `bulletStopped {material}`, `explosion {animation}`,
 `doorChanged {kind, noisy}`, `reloaded`, `itemAttached`, `vehicleMoved`).
 
@@ -1611,7 +1715,7 @@ follow the session's save mode, and that `listSaves` includes native saves which
 | `restore(snapshot(S))` continues bit-identically; enforced by the reload-at-every-boundary test | §1.3, §12.1 |
 | Player loads reseed `main` from a logged seed; `pre` and the cosmetic streams are restored | §1.5 |
 | Every outcome-relevant input (commands, answers, advances, real-time batches as tick counts, map preparation, reseeds) is logged with its tick | §1.3 |
-| Game options and the policy are session state; client settings never reach the simulation | §2.2 |
+| Game options are session state and the policy is logic content under the save's content hash; client settings never reach the simulation | §2.2 |
 | Blood and gore changes only through a logged command | §2.2 |
 | No sound, music, video or text affects a draw, a timer or a stop; the music mode is computed outside `sim` from events | §3.3, §4.3, §5.3 |
 | The data version may change quote lengths and record layouts (as in the original's versions); it is part of the save's content identity | §5.3 |
@@ -1631,7 +1735,7 @@ What stays deliberately nondeterministic: wall-clock save timestamps (presentati
 `music.json` (modes → tracks, §3.1); `strings/translation-*.json` and the other per-language string files, eight
 languages plus `rusgold` (§5.1); `translation_tables/*.json` (glyph tables, for M8); `calibres.json` and `weapons.json`
 (gun sound paths, §3.1); `explosion-animations.json` (explosion sounds); `vehicles.json` (vehicle sounds); `game.json`,
-`imp.json`, `strategic-ai-policy.json` (the policy copied into sessions, §2.2).
+`imp.json`, `strategic-ai-policy.json` (the policy, logic content covered by the save's content hash, §2.2).
 
 ### 11.2 Transcribe (`tools/transcribe/*.ts` → `data/tables/`)
 
@@ -1659,7 +1763,8 @@ opens and its first frame decodes).
 ### 11.4 Native save import
 
 Unchanged in format (`docs/14`); M7 adds: `GameOptions.saveMode` and `turnTimeLimit` (dropped with a note) from the
-header, the music mode byte (`SaveLoadGame.cc:1827`) into `presentation.music`, `useCreatureMusic` (already decoded,
+header (S5: `importNativeGameOptions`, the report's `droppedOptions`), the music mode byte (`SaveLoadGame.cc:1827`) into
+`presentation.music` (S9: the session's starting music), `useCreatureMusic` (already decoded,
 `src/content/formats/savegame.ts:567-577`), and the data version check: a save whose German encryption flag is set
 (`germanEncryption`, `docs/14` §3) or whose NPC layout is Russian is imported only when the server's data version
 matches. Native saves appear in `listSaves`.
@@ -1752,11 +1857,11 @@ Every scenario of §7.2 runs once in CI on stubs (sanity bounds only, §7.6).
 | **S2** Snapshot codec | §1.3 codec, §1.4 rows 4–7, 10, 13; restore path; round trip and reload-at-every-boundary tests (§12.1) | S1 | every scenario passes in reload mode; native imports round-trip |
 | **S3** Saves (landed, §1.7) | file format, content identity, save store, rules, autosave, input log and `replay`, MCP/HTTP/WS API, events, native list; `04` §6 section | S2 | §12.1 complete; an agent saves and loads through MCP |
 | **S4** Benchmarks | `tools/bench`, the stub arena map, the scenarios of §7.2 (the `save` scenario after S3), CI smoke, the first measurements on original data; revise §7.3 | — (can run beside S1–S3) | targets confirmed or revised in this doc |
-| **S5** Options | `GameOptions` unification, the policy copy, `setOption`, `newSession` options, `status`, import mapping, deviations | S3 | blood and gore off changes deaths in a stub scenario; options in the save header |
+| **S5** Options (landed, §2.4) | `GameOptions` unification, `setOption`, `newSession` options, `status`, import mapping, client settings, deviations (the policy copy was dropped, §2.2) | S3 | blood and gore off changes deaths in a stub scenario; options in the save header |
 | **S6** Text (landed, §5.5) | data version, `TextService`, string tables, `/api/strings`, widened `/api/text`, text keys, the Russian paths (EDT mode, NPC layout, speech prefix), per-session language | — (beside S5) | Russian labels on stubs; original-data tests for counts and lengths |
 | **S7** Stub media P0 (landed, §6.5) | §6.3 items 1–5 except the video | S6 | `/api/text` and the cue table resolve on stubs |
 | **S8** Sound (landed, §3.6) | WAV/GAP/ambient decoders, transcribed tables, cues, the audio layer, the director with animation opcodes, speech, ambient; the event fields of §3.3; deviations | S7 | the tactical page plays a stub firefight with sound |
-| **S9** Music | `musicMode`, `presentation.music` in sessions and snapshots, the client player, the victory clear of `useCreatureMusic` in the simulation | S8, S3 | music follows sector entry, combat, victory and defeat on stubs |
+| **S9** Music (landed, §3.7) | `musicMode`, `presentation.music` in sessions and snapshots, the client player, the victory clear of `useCreatureMusic` in the simulation | S8, S3 | music follows sector entry, combat, victory and defeat on stubs |
 | **S10** Video (landed, §4.5) | `smk.ts`, the stub encoder (or fixture), the player, sequences, credits parser and scroller | S8 | the splash and the ending play on original data; stub splash in e2e |
 | **S11** Launcher | the DOM launcher (§8.3), quick keys in the pages, client settings, export and import | S3, S5, S6, S10 | §12.2 launcher test |
 | **S12** Performance | profile-driven fixes against §7.3, `SessionHost` and `WorkerHost` | S4 (and S2 for the save scenario) | targets met or documented |
@@ -1794,7 +1899,7 @@ session factory and the protocol.
   from them.
 - *Carmen's departure timer*: now saved (replaces "not saved either").
 - *Error saves*: an input log instead of `Error.sav`.
-- *Key-advance speech*, *sleep/wake notification*, *timed turns*, *policy snapshot* (§2.3).
+- *Key-advance speech*, *sleep/wake notification*, *timed turns* (§2.3; the policy snapshot was dropped, §2.2).
 - *Music track choice*, *footstep variants*, *speech playback not cut*, *ambient timing* (§3.5).
 - *Intro and splash switches*: client settings `playIntro` and `playSplash` (the original always plays the beginning
   intro on a new game).

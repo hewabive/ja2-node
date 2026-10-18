@@ -205,7 +205,9 @@ export function addSoldierToSector(
 }
 
 function setEnemyPresence(t: TacticalState): void {
-  if (!t.turn.enemyInSector && t.turn.virginSector) t.turn.enemyInSector = true;
+  if (t.turn.enemyInSector || !t.turn.virginSector) return;
+  t.sectorHooks.enemyPresence(t);
+  t.turn.enemyInSector = true;
 }
 
 function movementModeForStance(t: TacticalState, s: Soldier): number {

@@ -15,6 +15,7 @@ import type { NarrativeHost } from '../narrative/host.ts';
 import { StrategicAiAction } from '../strategic/ai/constants.ts';
 import { processQueenCmdImplicationsOfDeath } from '../strategic/ai/queen-command.ts';
 import { executeStrategicAIAction } from '../strategic/ai/reactions.ts';
+import { clearCreatureMusicAtVictory } from '../strategic/creatures/creatures.ts';
 import { LoyaltyEvent } from '../strategic/economy/constants.ts';
 import { handleGlobalLoyaltyEvent } from '../strategic/economy/loyalty.ts';
 import { InsertionCode } from '../strategic/forces/constants.ts';
@@ -201,6 +202,7 @@ export class EndgameFlow {
 
   #handleDeidrannaDeath(): void {
     const c = this.#campaign;
+    clearCreatureMusicAtVictory(c.state);
     this.#sayKillQuotes(QUOTE_KILLING_DEIDRANNA, this.#scenes.deidrannaWitnesses);
     c.narrative.setFactTrue(Fact.QUEEN_DEAD);
     if (c.queen) executeStrategicAIAction(c.queen, StrategicAiAction.QUEEN_DEAD, null);
@@ -209,6 +211,7 @@ export class EndgameFlow {
   }
 
   #handleQueenBugDeath(): void {
+    clearCreatureMusicAtVictory(this.#campaign.state);
     this.#sayKillQuotes(QUOTE_KILLING_QUEEN, this.#scenes.queenBugWitnesses);
     if (this.#campaign.narrative.checkFact(Fact.QUEEN_DEAD, 0)) this.#beginEndCinematic();
     else {
@@ -286,6 +289,7 @@ export class EndgameFlow {
       if (p) changeNpcToDifferentSector(p, UPSTAIRS);
     }
     c.sectors?.setCurrentWorldSector(UPSTAIRS);
+    clearCreatureMusicAtVictory(s);
     const traversal = s.movement.tacticalTraversal;
     traversal.active = false;
     traversal.groupId = 0;

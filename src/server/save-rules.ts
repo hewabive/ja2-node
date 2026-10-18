@@ -7,8 +7,8 @@
 
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import type { SimEvent } from '../sim/events.ts';
+import type { GameOptions, SaveMode } from '../sim/options.ts';
 import { numEnemiesInAnySector } from '../sim/strategic/forces/groups.ts';
-import type { SaveMode } from '../sim/strategic/state.ts';
 import { EventKind } from '../sim/strategic/time/constants.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
@@ -43,6 +43,11 @@ function tacticalOf(sim: SessionSim): TacticalSim | null {
   if (sim instanceof TacticalSession) return sim.sim;
   const campaign = campaignOf(sim);
   return campaign?.state.flow === 'tactical' ? campaign.tactical : null;
+}
+
+export function sessionOptions(sim: SessionSim): GameOptions | null {
+  if (sim instanceof TacticalSession) return sim.sim.state.options;
+  return campaignOf(sim)?.state.options ?? null;
 }
 
 export function saveModeOf(sim: SessionSim): SaveMode {

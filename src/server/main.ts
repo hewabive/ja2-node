@@ -40,7 +40,7 @@ const createSession = createSessionFactory({ ...sources, text: sessionText, save
 try {
   const seed = Number(process.env.JA2_SEED ?? 1);
   const save = process.env.JA2_SAVE;
-  const campaign = process.env.JA2_CAMPAIGN ? { difficulty: Number(process.env.JA2_CAMPAIGN) } : undefined;
+  const campaign = process.env.JA2_CAMPAIGN ? { options: { difficulty: Number(process.env.JA2_CAMPAIGN) } } : undefined;
   sessions.set(defaultSession, await createSession(defaultSession, { seed, ...(save ? { save } : {}), ...(campaign ? { campaign } : {}) }));
 } catch (err) {
   console.error(`sandbox session unavailable: ${(err as Error).message}`);

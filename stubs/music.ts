@@ -1,12 +1,11 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { MUSIC_TABLE_PATH } from '../src/content/audio/music-table.ts';
 import { asArray, asObject, asString } from '../src/content/strategic/json-fields.ts';
 import { parseJsonc } from '../src/content/strategic/jsonc.ts';
 import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
 import { encodeStubWav, LOW } from './stub-wav.ts';
 import { envelope, highpass, noise, normalize, type Part, StubRandom, sequence, tone, type Wave } from './synth.ts';
-
-export const MUSIC_TABLE_PATH = 'externalized/music.json';
 
 interface MusicStyle {
   readonly tempo: number;

@@ -64,6 +64,7 @@ export interface TurnState {
   someoneHit: boolean;
   skipCoverCheck: boolean;
   spottersCalledForBy: number;
+  lastMercKill: Soldier | null;
 }
 
 export function createTurnState(maxSoldiers: number): TurnState {
@@ -107,5 +108,6 @@ export function createTurnState(maxSoldiers: number): TurnState {
     someoneHit: false,
     skipCoverCheck: false,
     spottersCalledForBy: -1,
+    lastMercKill: null,
   };
 }

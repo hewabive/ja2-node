@@ -18,6 +18,7 @@ import { has, StructureFlags } from '../../content/world/structures.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { u8 } from '../../core/int.ts';
 import { objectFromRecord } from '../items/object.ts';
+import type { DroppedNativeOption } from '../options.ts';
 import { importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
 import { addCorpseStructure } from './combat/death.ts';
 import { swapStructureForPartner } from './doors.ts';
@@ -63,6 +64,7 @@ export interface SaveImportReport {
   readonly worldItems: number;
   readonly corpses: number;
   readonly skippedMapModifications: number;
+  readonly droppedOptions?: readonly DroppedNativeOption[];
 }
 
 export function saveMapPath(save: SaveGame): string {
@@ -91,7 +93,7 @@ export function worldWithSavedDoors(world: TacticalWorld, save: SaveGame): Tacti
 
 export function importSave(sim: TacticalSim, save: SaveGame): SaveImportReport {
   const t = sim.state;
-  applyOptions(t, save);
+  applyClock(t, save);
   t.sector = { ...save.tactical.worldSector };
   importCivGroupHostility(t.civGroups, save.tactical.civGroupHostile);
   save.keyTable.forEach((k, id) => {
@@ -121,11 +123,7 @@ function importProfileProgress(t: TacticalState, save: SaveGame): void {
   });
 }
 
-function applyOptions(t: TacticalState, save: SaveGame): void {
-  const options = save.generalInfo.gameOptions;
-  t.options.gunNut = options.gunNut;
-  t.equipment.sciFi = options.sciFi;
-  t.perception.difficulty = options.difficulty;
+function applyClock(t: TacticalState, save: SaveGame): void {
   t.clockMs = save.generalInfo.baseJA2Clock;
 }
 

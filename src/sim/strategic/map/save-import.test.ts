@@ -94,7 +94,6 @@ function syntheticSave(mapModificationType: number): SaveGame {
     header: { worldLoaded: true },
     tactical: { worldSector: D13 },
     generalInfo: {
-      gameOptions: { difficulty: 3, sciFi: false, gunNut: true, saveMode: 1 },
       selectedSector: D13,
       foundTixa: true,
       samSitesFound: [false, true, false, false],
@@ -141,7 +140,6 @@ describe('importStrategicMap on a synthetic save', () => {
     const ctx = testContext({ content });
     importStrategicMap(ctx, syntheticSave(MapModificationType.OPENABLE_STRUCT));
     const s = ctx.state;
-    expect(s.options).toEqual({ difficulty: 3, sciFi: false, gunNut: true, saveMode: 'ironMan' });
     expect(s.forces.groups.map((g) => g.id)).toEqual([1, 30]);
     expect(s.forces.groups[1]).toMatchObject({ members: [0, 1], size: 2, next: { x: 13, y: 5, z: 0 } });
     expect(s.forces.groups[0]).toMatchObject({ size: 3, enemy: { numTroops: 3, intention: 3 }, waypoints: [{ x: 13, y: 5, z: 0 }] });

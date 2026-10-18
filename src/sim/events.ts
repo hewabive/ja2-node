@@ -61,6 +61,8 @@ export interface InterruptEndedEvent extends SimEventBase {
 export interface CombatEndedEvent extends SimEventBase {
   readonly type: 'combatEnded';
   readonly reason: 'lull' | 'won' | 'lost' | 'boxing';
+  readonly fought?: true;
+  readonly monsterKill?: true;
 }
 
 export type DoorSoundKind = 'wood' | 'cloth' | 'garage' | 'metal';
@@ -195,6 +197,19 @@ export interface StructureDamagedEvent extends SimEventBase {
 export interface SectorLoadedEvent extends SimEventBase {
   readonly type: 'sectorLoaded';
   readonly sector: string;
+  readonly hostiles?: number;
+  readonly enemyPresence?: true;
+  readonly firstArrival?: true;
+}
+
+export interface EnemyPresenceEvent extends SimEventBase {
+  readonly type: 'enemyPresence';
+  readonly sector: string;
+}
+
+export interface CreatureAttackEvent extends SimEventBase {
+  readonly type: 'creatureAttack';
+  readonly sector: string;
 }
 
 export interface SectorUnloadedEvent extends SimEventBase {
@@ -206,6 +221,7 @@ export interface MercsLeftSectorEvent extends SimEventBase {
   readonly type: 'mercsLeftSector';
   readonly sector: string;
   readonly to: string;
+  readonly mapScreen?: true;
 }
 
 export interface ArCellRef {
@@ -355,9 +371,16 @@ export interface DayStartedEvent extends SimEventBase {
   readonly day: number;
 }
 
+export interface OptionChangedEvent extends SimEventBase {
+  readonly type: 'optionChanged';
+  readonly bloodAndGore: boolean;
+}
+
 export type SimEvent =
   | TickBudgetEvent
   | SectorLoadedEvent
+  | EnemyPresenceEvent
+  | CreatureAttackEvent
   | SectorUnloadedEvent
   | MercsLeftSectorEvent
   | ArrivedEvent
@@ -407,6 +430,7 @@ export type SimEvent =
   | CompressionStoppedEvent
   | WorldTimeReachedEvent
   | DayStartedEvent
+  | OptionChangedEvent
   | ShopEvent
   | LaptopEvent
   | DoorEvent

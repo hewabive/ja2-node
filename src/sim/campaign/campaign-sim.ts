@@ -2,6 +2,7 @@ import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '
 import { TICK_MS } from '../clock.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
+import { applyOptionChange, parseOptionChange } from '../options.ts';
 import type { QueenContext, QueenContextOptions } from '../strategic/ai/context.ts';
 import { hourlyProgressUpdate } from '../strategic/ai/difficulty.ts';
 import { queenEconomyHooks, queenMineIncome } from '../strategic/ai/economy-link.ts';
@@ -77,6 +78,7 @@ export type StrategicSetup = Omit<StrategicContextOptions, 'state' | 'clock'>;
 export type SimConstruction = 'create' | 'restore';
 
 const BOXING_UI_LOCK_TEXT = 'the interface is locked while the boxers leave the ring';
+const PROMPT_OPEN_REFUSAL = 'promptOpen: a prompt is open, answer it first';
 
 export interface CampaignHooks {
   readonly compressionRefusal?: (campaign: CampaignSim) => string | null;
@@ -566,7 +568,22 @@ export class CampaignSim {
     return { ok: false, reason: BOXING_UI_LOCK_TEXT, data: { refusal: 'boxingUiLock' } };
   }
 
+  #promptOpen(): boolean {
+    return this.battle?.hasPendingDecision() === true || this.talk?.requestOpen() === true;
+  }
+
+  #setOption(cmd: CampaignCommand): CommandResult {
+    if (this.#promptOpen()) return { ok: false, reason: PROMPT_OPEN_REFUSAL, data: { refusal: 'promptOpen' } };
+    const change = parseOptionChange(cmd);
+    if (typeof change === 'string') return { ok: false, reason: change, data: { refusal: 'badOption' } };
+    const options = this.state.options;
+    applyOptionChange(options, change);
+    this.#events.push({ type: 'optionChanged', bloodAndGore: options.bloodAndGore, tick: this.tick });
+    return { ok: true, data: { options: { ...options } } };
+  }
+
   #dispatch(cmd: CampaignCommand): CommandResult {
+    if (cmd.type === 'setOption') return this.#setOption(cmd);
     const story = storyRefusal(this, cmd);
     if (story) return story;
     const locked = this.#boxingUiLockRefusal(cmd);

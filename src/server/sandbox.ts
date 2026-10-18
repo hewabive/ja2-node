@@ -3,6 +3,8 @@ import { isVisibleTile } from '../content/world/grid.ts';
 import { loadTacticalWorld } from '../content/world/tactical-world.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
+import { initialMusic, type MusicFacts, type MusicState } from '../protocol/music.ts';
+import { MusicMode } from '../protocol/music-modes.ts';
 import type { PlayerView } from '../protocol/view.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -22,7 +24,7 @@ import { lightSpriteRenderAll } from '../sim/tactical/lighting/lighting.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
 import { PlacementVerdict } from '../sim/tactical/narrative/placement.ts';
 import { revealedRooms } from '../sim/tactical/perception/fov.ts';
-import { firstFreeSoldierId, type Soldier, SoldierClass, Team } from '../sim/tactical/soldier.ts';
+import { firstFreeSoldierId, Side, type Soldier, SoldierClass, Team } from '../sim/tactical/soldier.ts';
 import { teamMembers } from '../sim/tactical/state.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { loadWorldItemsFromMap } from '../sim/tactical/world-items.ts';
@@ -69,6 +71,16 @@ export class TacticalSession implements SessionSim {
 
   view(): PlayerView {
     return tacticalPlayerView(this.sim, this.sim.tick);
+  }
+
+  get initialMusic(): MusicState {
+    return initialMusic(this.sim.state.turn.enemyInSector ? MusicMode.TACTICAL_ENEMY_PRESENT : MusicMode.TACTICAL_NOTHING);
+  }
+
+  musicFacts(): MusicFacts {
+    const t = this.sim.state;
+    const hostiles = t.soldiers.filter((s) => s?.placed && s.life > 0 && !s.neutral && s.side !== Side.FRIENDLY && s.team !== Team.OUR);
+    return { creature: false, inCombat: t.inCombat, sectorLoaded: true, hostiles: hostiles.length, gameJustStarted: false };
   }
 }
 

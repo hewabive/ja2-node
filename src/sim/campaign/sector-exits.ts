@@ -420,10 +420,12 @@ export function allMercsHaveWalkedOffSector(flow: SectorFlow): void {
   addWaypointToPGroup(flow.ctx, group, jump.target);
   if (jump.target.z > 0 && quick) movement.undergroundTacticalTraversal = true;
   setupTacticalTraversalInformation(flow, jump, group);
+  const toMapScreen = !isNoLoadJump(jump.jumpCode) && !quick;
   flow.events.push({
     type: 'mercsLeftSector',
     sector: sectorShortString(world),
     to: sectorShortString(jump.target),
+    ...(toMapScreen ? { mapScreen: true as const } : {}),
     tick: flow.campaign.tick,
   });
   if (isNoLoadJump(jump.jumpCode)) {

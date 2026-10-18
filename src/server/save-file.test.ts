@@ -35,7 +35,7 @@ const HEADER: SaveHeader = {
   savedAt: '2026-10-18T12:00:00.000Z',
   engine: { version: '0.0.0', commit: 'abc' },
   content: { source: 'stubs', dataVersion: 'stubs', logic: 'logic-hash', text: 'none' },
-  options: { difficulty: 2, sciFi: true, gunNut: false, saveMode: 'anywhere' },
+  options: { difficulty: 2, sciFi: true, gunNut: false, saveMode: 'anywhere', bloodAndGore: true },
   world: { day: 1, hour: 7, minute: 30 },
   sector: 'A9',
   flow: 'tactical',
