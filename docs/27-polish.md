@@ -880,8 +880,39 @@ labelled rectangles or simple shapes in the original layouts (`01` §4.4).
 
 - **Enemy turns** (M3, `04` §4.5): on A9 with the instant driver, 1–90 ms for 4 soldiers and 2 civilians, typically
   100–250 ms (up to 370 ms) for 16 soldiers; AI decisions (cover search, paths, sight) dominate, ticks without decisions
-  are almost free. Nothing larger was measured: no 32-soldier battle, no real-time tick cost with many soldiers, no
-  strategic compression over weeks, no save size.
+  are almost free.
+- **Measured 2026-10-18** (S4, `pnpm cli bench … --runs 3`, each variant in a fresh process after an untimed warm-up
+  run; machine: AMD EPYC 9354, KVM guest, `nproc` 8 with one thread per core, 15 GiB, Node 24.22.0; 1-minute load 1–2.5
+  from other work during the runs). Original data first, stubs in brackets; p50 / p95 / max unless stated.
+  - *Enemy turn* (ms per enemy side turn, every AI team): arena with 8 enemies 34 / 125 / 161 (42 / 141 / 172), 16
+    enemies 197 / 371 / 371 (166 / 204 / 204), 32 enemies with six militia 352 / 1,282 / 1,282 (437 / 1,071 / 1,071); A9
+    with 4 soldiers 29 / 157 / 191, 16 soldiers 64 / 254 / 429 (36 turns), 32 soldiers 484 / 766 / 766; the D13 save 31 /
+    38 / 38. A 16-enemy turn on the arena takes 4,227 ticks at the median (21 s of game time); per enemy turn (`--calls`,
+    counted over the whole scripted run) 46 AI decisions, 115 path searches, 1,275 LOS tests, 2,045 sight checks, 14.8 cover searches over 1,168 tiles and 26,988
+    chance-to-get-through traces. Top frames (`--profile`, original arena with 16): `calcChanceToGetThrough` 13.6 %, the
+    grenade physics of the AI's throw planning (`integrate`, `checkForCollisions`, `simulateObject`, `handleCollisions`)
+    22.5 %, the path search's `expand` 7.7 %, garbage collection 5.4 %.
+  - *Real-time tick* (µs, mean / p99 / max): 20 soldiers green 5.0 / 57 / 4,748 (5.7 / 67 / 4,198), yellow 9.7 / 79 /
+    4,859 (11 / 109 / 5,084); 40 soldiers green 20 / 143 / 9,684 (44 / 232 / 27,010), yellow 20 / 223 / 6,343 (19 / 210 /
+    6,629); 64 soldiers green 35 / 355 / 10,346 (69 / 569 / 21,784), yellow 46 / 549 / 13,193 (47 / 583 / 8,801). The
+    median tick costs 1–3.5 µs; the cost sits in single ticks where one AI decision runs several path searches
+    (`expand`, `findBestPath`, `remaining` together about 50 % with 64 soldiers on stubs, `lineOfSightTest` 11 %). No combat
+    started in any variant.
+  - *Strategic world day* (ms, one merc): 7 days 70 / 83 / 87 (73 / 88 / 100), 30 days 66 / 80 / 92 (67 / 83 / 104), with
+    the Queen's attacks 76 / 87 / 96 and 70 / 92 / 112 (78 / 87 / 87 and 71 / 86 / 97). Of each day, 43–48 ms go to the
+    session building the player view for the about 470 frames of a day (§14, finding 11); the simulation itself handles 1,230
+    strategic events, 250 group arrivals and 2.3 Queen evaluations a day. With six mercs a day took 120–145 ms (stubs).
+  - *Autoresolve* (ms per battle): 10 per side 0.51 / 0.72 / 0.83 (0.44 / 1.06 / 5.5), 20 per side 1.28 / 1.93 / 2.02
+    (1.20 / 2.34 / 13.4), 40 per side (20 mercs and 20 militia against 32) 1.71 / 3.33 / 11.8 (2.11 / 2.76 / 13.8); about
+    30 one-second slices per battle.
+  - *Server* (4 s windows): the event-loop stall, the longest delay seen, equals the longest instant enemy turn: 322 ms
+    (230) with one viewer and one battle, 308 ms (247) with four viewers and one battle, 1,240 ms (829) with sixteen
+    viewers and four battles; `monitorEventLoopDelay`'s p99 stays at 1.5–1.8 ms with one battle (a stall is one sample) and
+    reaches 1,190 ms with four. A frame diff costs 0.02–0.04 ms at p95 and building the view 0.05–0.07 ms; a real-time
+    viewer of the 20-soldier patrol receives 13–20 KB/s at ×1, an instant battle sends 0.34–0.65 MB/s in bursts; the
+    instant turn's round trip is 100–116 ms at the median alone and 318–748 ms with four battles.
+  - *Campaign* (shortened: new campaign, landing, first sector cleared): 2.19 s (3.09 s), of which the landing with
+    content loading 0.44 s; peak RSS 319 MB (286 MB).
 - **Plans on record**: a visibility cache and moving the simulation to a worker (`01` §11), sessions in
   `worker_threads` when instant runs start delaying network I/O (`04` §5.9), 60 FPS at 1920×1080 for the tactical view
   (`01` §5.1).
@@ -890,38 +921,66 @@ labelled rectangles or simple shapes in the original layouts (`01` §4.4).
 
 ### 7.2 Measure first: the benchmark suite
 
-`pnpm cli bench <scenario> [--data DIR] [--seed N] [--runs N] [--profile]` (`tools/bench/`). Every scenario is a fixed
-seed plus a scripted command list, so a rerun does exactly the same work; only machine noise varies. No scenario needs
-the native oracle. Each prints a JSON line (`scenario`, `source`, `seed`, `runs`, percentiles, counters) and, with
-`--profile`, writes a `.cpuprofile` under `.cache/bench/` (gitignored) for Chrome DevTools.
+`pnpm cli bench <scenario|all> [--data DIR] [--seed N] [--runs N] [--variant NAME] [--profile] [--calls] [--out FILE]
+[--save-baseline]` (`tools/bench/`, slice S4). Every scenario is a fixed seed plus a scripted command list, so a rerun
+does exactly the same work (the same ticks, shots and deaths, checked run against run); only machine noise varies. No
+scenario needs the native oracle. Each variant prints one JSON line on stdout and a summary on stderr: `scenario`,
+`variant`, `source` (`stubs` or `original`), `seed`, `runs`, `warmup`, `load` (the 1-minute load average before and
+after, to spot a busy machine), the primary metric (`metric`, `unit`, `n`, `mean`, `p50`, `p95`, `p99`, `max`),
+`target` with its sanity bound, `series` (secondary metrics as distributions), `counters` (counted from the event stream
+and the state), `calls` and `callsPerSample` with `--calls`, `info` (battle outcome, early stops) and `deterministic`:
+the runs' work signatures (turns, ticks, shots, hits, deaths; alert states; strategic events; autoresolve slices) must be
+equal, otherwise the line is flagged and the command fails, since shared mutable state would make the numbers
+meaningless. `--runs N` (default 3)
+repeats each variant from a fresh setup; with two or more an untimed warm-up run comes first. `--profile` runs the
+variant once more under the V8 sampling profiler, writes `.cache/bench/<scenario>-<variant>-<source>.cpuprofile` (Chrome
+DevTools) and prints the hottest self-time frames. Every variant runs in its own child process (the parent collects the
+lines), so variants cannot influence each other: in one process, four 8-enemy battles made the following 16-enemy arena
+three times slower (§14, finding 12). Each scenario has its own default seed (`enemy-turn` and `server` 2,
+`campaign` 7, the rest 1, chosen so the stub runs avoid the stalls of §14); `--seed` overrides them all. `--data`
+defaults to `$JA2_DATA_DIR`; `--data ''` forces stubs.
 
 | Scenario | What it does | Measures |
 |---|---|---|
-| `enemy-turn` | turn-based battle, instant driver, `endTurn` then `advance idle`, repeated until one side is gone; stubs: a generated arena map with 8, 16 and 32 enemies against six mercs; original: A9 (as in M3) and a large battle from a native save (D13 airport, `docs/14` §10) | ms per enemy turn (p50, p95, max), ticks per turn, AI decisions per turn, counters (paths, LOS rays, cover evaluations) |
-| `realtime` | real-time tactical with 20, 40 and 64 soldiers on green and yellow alert (patrols, civilians with schedules), manual driver in 1,000-tick steps | µs per tick (mean, p99), ticks per second of CPU |
-| `strategic` | a new campaign landed and cleared, then map-screen compression for 7 and 30 world days with no sector loaded; once more with the Queen's attacks enabled | ms per world day; events, group arrivals, autoresolve battles and Queen decisions per day |
-| `autoresolve` | battles of 10, 20 and 40 per side | ms per battle |
-| `save` | snapshot and restore (§1.3) of the largest states the other scenarios produce (loaded sector with 64 soldiers, 30 sector diffs) | bytes raw and gzipped, ms to serialize, gzip, parse and rebuild |
-| `server` | 1, 4 and 16 sessions: real-time view frames over WebSocket and concurrent instant runs | frame diff ms, bytes per second, event-loop delay p99 (`perf_hooks.monitorEventLoopDelay`) |
-| `campaign` | a scripted stub campaign from the new game to the Queen's death (the e2e scenario of §12.2 without a browser) | total ms, peak RSS |
+| `enemy-turn` | turn-based battle through a `Session` with the instant driver's semantics (dispatch, then advance to idle, here with a 50,000-tick budget so a stall is reported instead of spinning); the mercs go prone, each fires once a turn at the nearest visible enemy, then `endTurn`, interrupts are ended at once; until one side is gone, combat ends or 60 rounds. Stubs: the generated arena (below) with 8, 16 and 32 enemies (a quarter elites) against six mercs and four civilians, six regular militia with the 32. Original: the same arenas with the original content; A9 with 4, 16 and 32 garrison soldiers (the sandbox squad walks from the north entry towards the nearest enemy until combat starts); the D13 airport from `SaveGame10` (3 mercs, 5 soldiers, 17 civilians: the largest battle among the six native saves of `docs/14` §10) | ms per enemy side turn (every AI team, from `endTurn` to our next turn), ticks per turn; counters: turns, rounds, shots, hits, deaths, interrupts, view build ms; calls: AI decisions, path searches, LOS tests, sight checks, chance-to-get-through traces, cover searches, cover tiles (per turn in `callsPerSample`) |
+| `realtime` | the patrol arena with 20, 40 and 64 soldiers (half enemies on patrol orders, half wandering civilians), six mercs sealed in a bunker so that nobody sees them; green, and yellow (the enemy team's public noise at the far side with `setNewSituation`, as `CallAvailableTeamEnemiesToAmbush` does); manual driver, 10 × 1,000 ticks through a `Session` | µs per tick (mean, p99, max), ticks per CPU second, alert states at the end, combats started (0, or the variant is void) |
+| `strategic` | a new campaign with one A.I.M. merc on a 14-day contract (renewed for two weeks when due, so the team never empties), the start sector's garrison emptied before landing (the scripted stand-in for "landed and cleared": a fought clearing is the `campaign` scenario), the squad routed to B9 so that no sector is loaded, then 7 and 30 world days of `MIN60` compression through a `Session`, prompts answered (pre-battle: retreat, else autoresolve); once more with the Queen's attacks enabled: Drassen (B13–D13) emptied and handed to the player as liberated (`setThisSectorAsPlayerControlled(…, contested)`), then `wakeUpQueen` (Omerta alone draws no attack in 30 days) | ms per world day; counters: days, `dayStarted`, compression stops, pre-battle, autoresolve, battle results, player-controlled sectors at the start and the end, frame views built and their ms per day; calls: strategic events, group arrivals, Queen evaluations, autoresolve battles |
+| `autoresolve` | 20 battles a run of 10, 20 and 40 per side: half mercs (profiles on original data, stub mercs on stubs, at most 20), the rest regular militia, against enemies from `tacticalCreateEnemySoldierForAutoresolve` (a quarter elites; capped at `MAX_AR_ENEMIES` 32) | ms per battle, slices per battle; calls: cell turns, attacks |
+| `save` | pending until S2/S3: snapshot and restore (§1.3) of the largest states the other scenarios produce (loaded sector with 64 soldiers, 30 sector diffs) | bytes raw and gzipped, ms to serialize, gzip, parse and rebuild |
+| `server` | in process: a `node:http` server with the WebSocket endpoint on ports 7510–7512; 1, 4 and 16 viewer sessions (the 20-soldier patrol arena, realtime driver ×1) plus one instant battle session (16-enemy arena, `endTurn` until combat ends) per four viewers, driven by WebSocket clients in a worker thread for 4 s | event-loop delay max (the longest stall; `monitorEventLoopDelay` p50 and p99 in counters), frame diff ms and view build ms per frame, bytes per second (all, viewers), instant turn round trips |
+| `campaign` | shortened until S13: a new campaign with six mercs, the landing, then the first sector cleared (approach the nearest enemy until combat, prone, three aimed shots per merc a turn, again after a lull), in a child process | total ms (landing and clearing in series), peak RSS |
 
-Counters are plain integers in a `PerfCounters` object the bench passes through the simulation's dependency context
-(the same way roll sources are passed); they never enter simulation state and cost one increment each. The client side is
-measured with Playwright on the stub arena (`performance.measure` around frames) and by hand on the original A9 at
-1920×1080.
+The stub arena (`tools/bench/arena.ts`) is original work generated from the seed in the stub map format: 64 × 56 tiles
+at (48, 52) on the stub tileset, barrels and wall segments as cover; the battle layout puts a quarter of the enemies
+8–13 tiles in front of the mercs so that combat starts at once, the patrol layout keeps a sealed, roofed bunker in a
+corner. It is round-tripped through `parseStubMapSource`, `stubMapToMapDef` and `writeMap` and served from an in-memory
+overlay as `stubs/world/maps/bench-<name>.dat`, so the stub pack is unchanged.
 
-### 7.3 Targets (provisional; confirmed or revised by the first measurement slice)
+Counters: instead of a `PerfCounters` object in the simulation's dependency context, events are counted by a wrapper
+around the `SessionSim`, and `--calls` takes exact call counts of named simulation functions from V8 precise coverage
+(`node:inspector`) in one extra instrumented run. The counts are deterministic like the run itself, the timed runs pay
+nothing and `src/sim` is unchanged; the instrumented run is about 8× slower, hence opt-in. A unit test fails when a
+counted function is renamed. The client side is still to be measured with Playwright on the stub arena
+(`performance.measure` around frames) and by hand on the original A9 at 1920×1080.
 
-| Metric | Target | Reason |
-|---|---|---|
-| Enemy turn, 16 enemies, p95 | ≤ 300 ms | M3 typical 100–250 ms; the player waits on it |
-| Enemy turn, 32 enemies plus militia and civilians, p95 | ≤ 1 s | the largest original battles (Meduna, Drassen counterattacks; inferred sizes) |
-| Real-time tick, 40 soldiers, mean | ≤ 0.25 ms | 1× needs 200 ticks per second: 5 % of a core, room for 16× catch-up and several sessions |
-| Strategic world day, no sector loaded | ≤ 100 ms | 30 days of compression in 3 s under the instant driver |
-| Save (snapshot and gzip) | ≤ 100 ms and ≤ 2 MB gzipped | autosaves at every turn end (§1.6) must not stall |
-| Load (parse and rebuild) | ≤ 500 ms | |
-| Event-loop delay p99 for other sessions while one runs an instant turn | ≤ 50 ms | above it, the worker host of §7.5 is switched on |
-| Tactical page | 60 FPS at 1920×1080 | `01` §5.1 |
+### 7.3 Targets (measured 2026-10-18)
+
+Measured by S4 (§7.1; machine: AMD EPYC 9354 KVM guest, 8 vCPUs, Node 24.22.0). Original data first, stubs in
+brackets. The bench carries each target in its JSON line and fails only above ten times the target (§7.6).
+
+| Metric | Target | Measured 2026-10-18 | Verdict |
+|---|---|---|---|
+| Enemy turn, 16 enemies, p95 | ≤ 300 ms | A9 254 ms; open arena 371 ms (204 ms) | kept: met on A9, 24 % over on the open arena with the original content; S12 (chance-to-get-through volume, the AI's grenade trajectory planning, finding 12) |
+| Enemy turn, 32 enemies plus militia and civilians, p95 | ≤ 1 s | arena with six militia and four civilians 1.28 s (1.07 s); A9 with 32 0.77 s | kept: up to 28 % over on the arena; S12 |
+| Real-time tick, 40 soldiers, mean | ≤ 0.25 ms | 20 µs green and yellow (19–44 µs) | confirmed with a 5× margin; 64 soldiers 35–69 µs |
+| Real-time tick, worst single tick (new) | ≤ 50 ms | 5–13 ms (4–27 ms) | new: one AI decision with several path searches; above 50 ms a tick would show as a hitch at ×1 |
+| Strategic world day, no sector loaded, p95 | ≤ 100 ms | 80–92 ms (83–88 ms) with one merc; 120–145 ms with six (stubs) | kept: about two thirds of a day is the session building frame views (finding 11), the cheapest S12 win |
+| Autoresolve battle, 40 per side, p95 (new) | ≤ 10 ms | 3.3 ms (2.8 ms) | new, met |
+| Save (snapshot and gzip) | ≤ 100 ms and ≤ 2 MB gzipped | pending (the `save` scenario needs S3) | provisional |
+| Load (parse and rebuild) | ≤ 500 ms | pending | provisional |
+| Event-loop stall for other sessions while one runs an instant turn (max delay) | ≤ 50 ms | 308–322 ms with one battle (230–247 ms), 1.24 s with four (0.83 s) | kept as the trigger of §7.5 and not met: the stall equals the longest instant turn, so the worker host is needed as soon as an instant battle shares the process with other sessions. Measured as the max: the p99 of `monitorEventLoopDelay` (1.5 ms) hides a stall, which is one sample |
+| Shortened campaign (land and clear the first sector), peak RSS (new) | ≤ 512 MB | 319 MB (286 MB) | new, met; the full campaign follows with S13 |
+| Tactical page | 60 FPS at 1920×1080 | not measured (client side) | provisional |
 
 ### 7.4 Profiling and optimization rules
 
@@ -931,6 +990,9 @@ measured with Playwright on the stub arena (`performance.measure` around frames)
   candidates named so far (inferred, to be confirmed by the profile): sight results per tick between position changes
   (`01` §11), path costs within one AI decision, the reachability flood shared by cover and flee searches, allocation in
   the bullet and LOS loops, the per-10-tick view diff with many soldiers.
+- Measured hot spots (S4, §7.1): frame views during map-screen compression (finding 11), the bullet code's
+  deoptimization and the chance-to-get-through volume (finding 12), the AI's grenade trajectory planning in enemy turns,
+  repeated path searches in single real-time AI decisions.
 - No event jumping (`04` §2 level 1b) unless the real-time target fails after caches: it changes the stepping model.
 
 ### 7.5 Worker host
@@ -945,9 +1007,13 @@ stays later.
 
 ### 7.6 CI
 
-CI runs every bench scenario on stubs with `--runs 1` as a smoke test: it fails only on errors or on a sanity bound ten
-times above the target (CI machines vary), and uploads the JSON lines as an artifact. Local runs on the original data
-compare against `.cache/bench/baseline.json` and print the change per metric.
+CI runs every bench scenario on stubs with `--runs 1` as a smoke test (`pnpm cli bench all --runs 1 --data '' --out
+bench.jsonl`, about 40 s on the development VM) plus one `--calls` run (`autoresolve --variant side-10`) for the
+instrumented path: it fails only on errors or on a sanity bound ten times above the target (CI machines vary), and
+uploads `bench.jsonl` as the `bench` artifact. With one run there is no warm-up and no run-to-run check, so CI numbers
+are cold and only a smoke signal. Local runs compare against `.cache/bench/baseline.json` (written by
+`--save-baseline`, merged per scenario, variant and source) and print the change per metric (p50, p95, max, mean and
+the call counts).
 
 ---
 
@@ -1268,6 +1334,41 @@ session factory and the protocol.
 6. D5's resolution barrier is still the original's `attackBusyCount` (`src/sim/tactical/turns/turn-state.ts:35`); D7's
    "ids instead of pointers" does not hold in the tactical layer (§1.4). Both are documentation drift to note in `01`.
 
+**Findings of the benchmarks** (S4, 2026-10-18; not fixed in S4, each reproducible with one command):
+
+7. *AI throws that never leave the hand*: an AI soldier with `TOSS_PROJECTILE` keeps the grenade in `tempObject`,
+   `attackBusyCount` stays 1 and the enemy turn never ends. Traced once: a prone thrower goes `PRONE_UP` → `KNEEL_UP`
+   with `THROW_ITEM` pending and ends `STANDING` without throwing (`handleSoldierThrowItem`'s non-standing branch,
+   `src/sim/tactical/explosions/throwing.ts:162-180`, and the pending animation at the end of the stance change,
+   `src/sim/tactical/animation.ts:460-464`); other cases are standing throwers. Frequent in larger battles on both data
+   sets: `pnpm cli bench enemy-turn --data '' --seed 1 --variant arena-e8 --runs 1` (on stubs also `arena-e32` with
+   seeds 3 to 5 and all three arenas with seed 6; on original data `arena-e32` with seed 6). The bench reports
+   `outcome: stalled …` with the busy soldiers and drops the stalled turn.
+8. *Other stalled turns*: an AI `KNIFE_STAB` from a crouch (the `campaign` scenario on stubs with seed 2) and a
+   `SEEK_FRIEND` soldier swatting forever (original data, `arena-e32`, seed 3).
+9. *`enemyInSector` stays set* after the last enemy bleeds out in real time: `checkForEndOfBattle` runs at the death
+   while `attackBusyCount > 0` (`src/sim/tactical/turns/turns.ts:431-435`) and nothing checks again, so the strategic
+   counts are zero but `route` is refused with `enemiesPresent` and compression with "enemies are present in the loaded
+   sector" (the `campaign` scenario: `cleared (enemyInSector flag still set)`).
+10. *A refused attack moves the soldier*: `attack` refused for lack of APs can leave the merc busy (`PRONE_LAY_FROMHIT`
+    after `handleItem`'s side effects, `src/sim/tactical/tactical-sim.ts:683-698`) without the session advancing, so the
+    next command answers "soldier N is still acting" until the client advances.
+11. *Frames during compression*: the session builds and diffs the whole player view, including the 256-sector strategic
+    view, every 10 ticks (`src/server/session.ts:56-81`) also while the map screen compresses time: building the views
+    alone is about two thirds of a world day, the diff comes on top (`strategicView`/`sectorView` and `diffPlayerView` are the top frames), growing with the number of mercs.
+12. *Bullet code falls out of the optimizing compiler*: `fireBullet`, `fireBulletGivenTarget` and
+    `calcChanceToGetThrough` (`src/sim/tactical/combat/bullets.ts:271-400`, `:886-1006`) deoptimize again and again
+    (`node --trace-deopt`: wrong map, not a Smi, minus zero, lost precision or NaN, so the bullet record changes shape and
+    its fixed-point fields switch between small integers, doubles and −0); after a few battles in one process V8 stops
+    optimizing them, the small helpers (`fixInt`, `cellOf`, `cubeOf`) show up as separate frames and enemy turns get about
+    three times slower (original data, `arena-e16`: p50 198 ms in a fresh process, 598 ms after four `arena-e8` battles;
+    `fireBullet` from below 1.7 %, outside the twelve hottest frames, to 34 % of self time). A long-running server meets this; S12's first candidate together with
+    the chance-to-get-through volume (about 25,000 traces per 16-enemy turn).
+13. *Fixed in S4*: every stub merc of the sandbox shared the module constant `STUB_STATS` as its `stats`
+    (`src/server/stub-mercs.ts`), so a stat gain went to the whole squad and to every later session in the process (two
+    sessions with the same seed diverged); found by the bench's run-to-run check, now a copy per merc
+    (`src/server/stub-mercs.test.ts`).
+
 **Verified** by reading Stracciatella (vanilla where marked): the save list, names, folders, header, keys and gates,
 `CanGameBeSaved`, the three save modes, Dead is Dead's file, backups and save points, the end-of-turn autosave and its
 absence of an option (vanilla's hidden file), `SaveGame` and `LoadSavedGame` including the save-time draw and the
@@ -1281,8 +1382,8 @@ including `Intro-old.slf`, WAV encodings per archive, Smacker headers. **Inferre
 `loop = 0`; that IMA ADPCM is not reliably decoded by browsers; that the Steam package renames the intro archive to skip
 it; that Russian Gold cannot be guessed; that `translation-rus.json` is unused by Stracciatella; that Ё and the
 guillemets cannot render in Russian versions; that quick load is not blocked in Dead is Dead; that the death track's end
-silences the game; that the first helicopter drop in ja2-node does not wait for a sound fade; the cost estimates in
-§7.3.
+silences the game; that the first helicopter drop in ja2-node does not wait for a sound fade. The performance figures of
+§7.1 and §7.3 are measured (2026-10-18).
 
 **Open questions for the maintainer** (with the recommendation first):
 
