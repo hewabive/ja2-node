@@ -103,7 +103,7 @@ import {
   roofOpcode,
 } from './roofs.ts';
 import { checkMercsWaiting } from './sector-exit.ts';
-import { OKLIFE, type Soldier, Team } from './soldier.ts';
+import { OKBREATH, OKLIFE, type Soldier, Team } from './soldier.ts';
 import { createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { endTurn, handleEnemySightingPause, handleRealtimeTurns, selectSoldier } from './turns/turns.ts';
 import { type ItemSnapshot, Visibility } from './world-items.ts';
@@ -351,7 +351,8 @@ export class TacticalSim {
       s.delayedMovement !== 0 ||
       s.pendingAnimation !== -1 ||
       s.pendingPickup !== null ||
-      s.tempObject !== null
+      s.tempObject !== null ||
+      s.breathCollapsed
     );
   }
 
@@ -377,6 +378,7 @@ export class TacticalSim {
     const t = this.state;
     if (!s.placed || s.team !== Team.OUR) return 'no such soldier of yours';
     if (s.life < OKLIFE) return 'soldier cannot act';
+    if (s.breath < OKBREATH && (s.collapsed || s.breathCollapsed)) return 'soldier is out of breath';
     if (uncontrolledRobot(t, s)) return UNCONTROLLED_ROBOT;
     if (!t.inCombat) return null;
     if (t.turn.currentTeam !== Team.OUR) return 'it is not your turn';

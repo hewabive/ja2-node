@@ -12,8 +12,9 @@ import { Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { handleItem, ItemHandle } from './attack.ts';
 import { chanceOfBulletHittingStructure } from './bullets.ts';
+import { soldierTakeDamage } from './hit.ts';
 import { adjustImpactByHitLocation } from './impact.ts';
-import { AimShot } from './types.ts';
+import { AimShot, DamageReason } from './types.ts';
 
 let content: TacticalContent;
 
@@ -127,6 +128,26 @@ describe('gun attacks', () => {
     expect(merc.state).toBe(halted);
     expect(merc.collapsed).toBe(false);
     expect(sim.isBusy(merc)).toBe(false);
+  });
+
+  it('takes no orders from a merc out of breath and waits for his collapse', () => {
+    const sim = newSim();
+    const t = sim.state;
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    spawn(sim, 1, Team.OUR, gridNo(82, 80), Direction.SOUTH);
+    const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 86), Direction.NORTH);
+    sim.lookAround();
+    soldierTakeDamage(t, merc, 0, merc.breath * 100, DamageReason.GAS, null);
+    expect(merc.breath).toBe(0);
+    expect(merc.collapsed).toBe(false);
+    const outOfBreath = { ok: false, reason: 'soldier is out of breath' };
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual(outOfBreath);
+    expect(sim.dispatch({ type: 'move', soldier: 1, to: gridNo(84, 80) })).toEqual({ ok: false, reason: 'soldier 0 is still acting' });
+    run(sim);
+    expect(merc.collapsed).toBe(true);
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual(outOfBreath);
+    expect(t.turn.attackBusyCount).toBe(0);
+    expect(sim.dispatch({ type: 'move', soldier: 1, to: gridNo(84, 80) }).ok).toBe(true);
   });
 
   it('drops a pending action but keeps the pending animation when an attack starts', () => {
