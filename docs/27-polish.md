@@ -167,7 +167,8 @@ last slot, the meanwhile scenes seen, help flags and two display sizes; written 
    warned about before anything is built.
 
 **File** (`*.j2s`, gzip of canonical JSON: sorted keys, typed arrays as `{"$u8": "<base64>"}` etc., `Map` and `Set` as
-sorted entry arrays, so two equal states give equal bytes):
+sorted entry arrays, so two equal states give equal bytes; as built in S2 the codec keeps object key order and map and
+set insertion order instead, so equal histories give equal bytes, see §1.4 "Status after S2"):
 
 ```ts
 interface SaveFile {
