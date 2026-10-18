@@ -198,7 +198,8 @@ export class CampaignSession implements SessionSim {
       : { clock, ...battle, ...shop, ...laptop, ...talk, ...story };
     const tactical = this.campaign.tactical;
     if (!tactical) return { tick: this.tick, mapPath: null, soldiers: [], ...extra };
-    const view = tacticalPlayerView(tactical, this.tick);
+    const imp = this.campaign.state.laptop.imp.voices;
+    const view = tacticalPlayerView(tactical, this.tick, (profile) => imp.get(profile) ?? profile);
     return { ...view, soldiers: withMerchantLabels(this.campaign, view.soldiers), ...extra };
   }
 }

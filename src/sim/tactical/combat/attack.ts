@@ -380,6 +380,13 @@ export function getTargetWorldPositions(t: TacticalState, s: Soldier, g: number)
   };
 }
 
+function shotSound(t: TacticalState, s: Soldier, item: number): { item: number; silenced: boolean; burst: boolean; rounds: number } {
+  const gun = s.inv[s.attackingHand] as ItemObject;
+  const silenced = findAttachment(gun, itemIndex(t, 'SILENCER')) !== -1;
+  const firstOfBurst = s.doBurst === 1;
+  return { item, silenced, burst: s.doBurst > 0, rounds: s.doBurst ? (firstOfBurst ? s.bulletsLeft : 0) : 1 };
+}
+
 function useGun(t: TacticalState, s: Soldier, target: number): void {
   const items = t.content.items;
   const ap = calcTotalAPsToAttack(t, s, target, false, s.aimTime);
@@ -430,7 +437,7 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
     igniteExplosion(t, s, 0, s.gridNo, itemIndex(t, 'C1'), s.level);
     reduceAttackBusyCount(t, s, false);
   }
-  t.events.push({ type: 'shotFired', soldier: s.id, target, chance, hit });
+  t.events.push({ type: 'shotFired', soldier: s.id, target, chance, hit, ...shotSound(t, s, item) });
   fireBulletGivenTarget(t, s, pos.x, pos.y, pos.z, item, ((chance - roll) << 16) >> 16, buckshot, false);
   let volume = d?.weapon?.attackVolume ?? 0;
   const gun = s.inv[s.attackingHand] as ItemObject;

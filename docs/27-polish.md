@@ -668,8 +668,8 @@ the mouth frame is `Random(6)` every 120 ms (`Tactical/Faces.cc:1057-1067`).
 | The defeat track's end unloads the sector (`Utils/Music_Control.cc:188-193`), in parallel with a 10 s timer (`Tactical/Overhead.cc:4378-4381`) | the 10 s timer only (`src/sim/campaign/battle-flow.ts:319-323`) |
 | Skyrider's destruction runs in a sound's end callback (`Strategic/Map_Screen_Helicopter.cc:1041-1044`) | at once ("Helicopter destruction") |
 | `EVENT_AMBIENT` events carry sound-cache slots in the saved queue (`Strategic/Game_Event_Hook.cc:101`) | not queued ("Ambient sound events") |
-| Sound picks draw on the gameplay generator: `SoundRange`, footstep variants, battle-sound variants, explosion sounds, door sounds, the music track, ambient timing, mouth frames, cows, crows, bloodcat growls | not drawn, or drawn from the cosmetic stream (rows "Cosmetic draws …" in `deviations.md`); the footstep and music picks are not listed there yet (§3.5) |
-| The first helicopter drop waits for the engine sound to fade before unlocking and calling in enemies (`Tactical/Merc_Entering.cc:529-562`) | to check in slice S8 (inferred: the drop runs on simulation ticks with no fade wait) |
+| Sound picks draw on the gameplay generator: `SoundRange`, footstep variants, battle-sound variants, explosion sounds, door sounds, the music track, ambient timing, mouth frames, cows, crows, bloodcat growls | not drawn, or drawn from the cosmetic stream (rows "Cosmetic draws …" in `deviations.md`); checked in S8: the simulation never drew footstep variants (row "Footstep variants"); the music pick is S9's (§3.5) |
+| The first helicopter drop waits for the engine sound to fade before unlocking and calling in enemies (`Tactical/Merc_Entering.cc:529-562`) | checked in S8: the drop sequence is not ported at all; `INSERTION_CODE_CHOPPER` places the mercs at the north entry point at once (`src/sim/campaign/sector-flow.ts` `#heliDrop`, `deviations.md` "Helicopter entrance") and `HandleFirstHeliDropOfGame` (call the enemies to the sweet spot, the enemy-presence quote, the music) has no port yet; when it is ported its end must follow the script's ticks, never a fade |
 
 ### 3.2 The data
 
@@ -740,12 +740,61 @@ Missing files are skipped silently, as the original skips failed plays.
 
 - *Music track choice*: `Random(count)` on the gameplay generator → client PRNG (presentation).
 - *Footstep variants*: the `Random` loop and `ubLastFootPrintSound` (`Tactical/Soldier_Control.cc:8853-8859`) → client
-  presentation memory, no simulation draw (to confirm against the movement code in S8: if the draw is ported today, it
-  stays).
+  presentation memory, no simulation draw (confirmed in S8: the simulation has no footstep code and never drew it).
 - *Speech playback*: a speech sample is never cut by a simulation-side line end.
 - *Ambient timing*: real-time gaps → playback-time gaps on the client.
-- *Volume scaling*: `PlaySoldierJA2Sample`'s double scaling is kept (a faithful quirk, inferred to be audible only as
-  quieter soldier sounds), unless the maintainer prefers to fix it (open question 4).
+- *Volume scaling*: `PlaySoldierJA2Sample`'s double scaling is kept (a faithful quirk, audible only as quieter soldier
+  sounds; open question 4, decided: keep).
+
+### 3.6 What landed (slice S8, 2026-10-18)
+
+- **Content** (DOM-free, unit-tested): `src/content/formats/ambient.ts` (`.bad` tables: an `INT16` count and 116-byte
+  entries `{minTime, maxTime, timeCategory, file[100], volume}`); `src/content/audio/sound-position.ts` (`SoundVolume`,
+  `SoundDir`, `PositionSoundVolume`, the `(v·vol + 63)/127` scaling and the mixer's linear balance `vol·(127−pan)/127/128`);
+  `cue.ts` (a cue is `{file, baseVolume, mix, bus, gridNo, pan, loops}`; the mix rule encodes how the original computes
+  the channel volume and pan: `location` = `PlayLocationJA2Sample`, `soldier` = `PlaySoldierJA2Sample` with its double
+  effects scaling, `fixed`, `panned` (misses: fixed volume, `SoundDir` pan), `voiceOwn`/`voiceOther` (battle sounds:
+  speech volume, then `SoundVolume` for other teams), `creatureVoice`, `speech`, `ambient`, `music`, `positionLoop`);
+  `cue-book.ts` (sound ids, battle sounds, weapon sounds with calibre defaults and reload/lock-and-load per weapon class,
+  explosion candidates); `cues.ts` (footsteps, gunfire with burst names and the single-shot and `bursttype1` fallbacks,
+  dry fire, reload, lock and load, impacts, misses, material hits, explosions, doors by kind, lock outcomes, door traps,
+  drops, codes 700–798, laptop power); `battle-sound.ts` (substitutes for creatures, animals and the robot, the 2 s filter,
+  the still-playing and talking rules, mute confirmations, low-morale variants, variants, the `_dying` and `m_`/`f_`
+  fallbacks); `speech.ts` (the speech file of a text key, Russian `r_` prefix); `ambient-schedule.ts` (time windows, gaps,
+  silence underground); `src/content/anim/timeline-follower.ts` (the script codes passed between two view snapshots of a
+  soldier: within a state, across loops and into the next state, keeping the old tail only when it ends or jumps there
+  within two frames).
+- **Simulation and protocol** (optional fields, never state, never read back): `shotFired {item, silenced, burst, rounds}`
+  (`rounds` is the burst size on the first bullet of a burst, 0 on the others, 1 for single shots); `bulletStopped
+  {material, caveWall}` for structure hits; `explosion {animation}` (the water variant when shown); `doorChanged {kind:
+  wood|cloth|garage|metal, noisy}` (`noisy` is the opener's door noise at code 495); a new `reloaded {soldier, item}`. The
+  lock outcomes already were events (`doorResult`, `doorTrap`, `lockDestroyed`). Soldier views carry `voice` (the
+  profile's voice id as three digits, I.M.P. voices included, or the generic `badN`/`kidN` set); `bodyType` was already
+  there and gives the `m_`/`f_` fallback. `itemAttached` and `vehicleMoved` were not added: there is no attach command and
+  no tactical vehicle movement yet. Sessions attach the events drained during an advance to the view frame of their tick
+  (`ViewFrame.events`), so browser clients receive the event log too.
+- **Audio layer** (`src/audio`, imports `content` and `protocol`): `engine.ts` (buses effects, speech, music, ambient into
+  a master gain; 16 voices, a new one dropped when all are busy; two gains per voice for the linear balance, a splitter
+  for stereo files; an LRU of 128 decoded buffers; our WAV decoder; lazy `/vfs` loads; missing and undecodable files
+  counted and never refetched; nothing starts at master or channel volume 0; unlock on the first gesture);
+  `director.ts` (frames, events and replayed codes → cues; per-soldier presentation memory: timeline position, last
+  footstep variant, battle-sound memory and voice, death cry played, last weapon and attack kind; a speech queue; ambient
+  scheduling; a client PRNG seeded from the session id; frames more than 100 ticks behind the newest applied one update
+  the memory silently, so a skip or a manual advance does not replay its sounds); `positional.ts` (the listener from the
+  client camera and view size, the queen's positional loop). `src/app/settings.ts` holds the client settings of §2.2
+  that S8 needs (volumes, master, mute, speech, subtitles, mute confirmations) in `localStorage` under
+  `ja2-node:settings`, version 1, and works without storage.
+- **Pages**: the tactical page plays sound through the director, with a mute toggle and a master slider, OK on accepted
+  move orders and ATTN on selecting another merc; `window.__ja2Audio` exposes the engine counters (`cuesResolved`,
+  `voicesStarted`, `voicesDropped`, `voicesSilent`, `filesMissing`, `decodeErrors`), the director's statistics and the
+  last played files. The strategic page plays the laptop power-up and power-down sounds.
+- **Stubs**: `ambient/0.bad` for the stub tileset (invented entries) whose sounds alias the synthesized ambient classes;
+  the stub walking, running, swatting and crawling scripts carry 703/704, the stance transitions 773–776, the pick-up
+  scripts 777 (the simulation ignores these codes).
+- **Checks**: on the user's data the tactical page decodes and plays original gunfire (PCM), bursts, misses, profile
+  battle sounds (IMA ADPCM, `000_ok1`, `014_hit2`, the `014_dying` fallback), falls and stance sounds and the A9
+  footsteps, with no missing files; the only ambient table of the data (`ambient/0.bad`, ten entries) decodes and names
+  existing sounds. Not covered yet: see `deviations.md` "Sound coverage".
 
 ---
 
@@ -997,7 +1046,7 @@ with per-path fallbacks (`src/node/data-vfs.ts`, `readLayered`) and an alias man
 | Merc text | `mercedt/NNN.edt` for A.I.M. 0–5, M.E.R.C. 42 and R.P.C. 59 and 65: 117 invented quotes each | 1 EDT per merc |
 | Other text | `binarydata/itemdesc.edt` (31 items the stub campaign and tests use), `credits.edt` (credit control codes), `email.edt` (the new-game mails, the I.M.P. and M.E.R.C. intros); no history, files, bios, alumni, flowers, help | `binarydata/*.edt` |
 | Locks | 2 | `locks.bin` |
-| Sounds | 90 synthesized cue classes (`synth/sfx`) behind all 343 sound paths of the tables and 42 battle voices for three body classes (`synth/battle`) behind the 90 generic voice paths (`m_`, `f_`, `bad0-2`, `bad7-8`, `kid0-1`); no ambient `.bad` tables | 370 + 1,581 WAV, `ambient/*.bad` |
+| Sounds | 90 synthesized cue classes (`synth/sfx`) behind all 343 sound paths of the tables and 42 battle voices for three body classes (`synth/battle`) behind the 90 generic voice paths (`m_`, `f_`, `bad0-2`, `bad7-8`, `kid0-1`); since S8 an ambient table `ambient/0.bad` for the stub tileset | 370 + 1,581 WAV, `ambient/*.bad` |
 | Music | one chiptune loop (about 4 s) per track of `music.json`: 14 files under their own names | 14 tracks, up to two minutes |
 | Speech | one IMA ADPCM blip and `.gap` per stub profile and family (`synth/speech`), behind every merc and NPC quote that has stub text: 1,133 speech names | 8,568 WAV, 8,353 `.gap` |
 | Other media | none: no video, fonts, faces, item graphics, interface, laptop or map-screen art, radar maps, load screens, cursors | the other SLFs |
@@ -1495,7 +1544,7 @@ Every scenario of §7.2 runs once in CI on stubs (sanity bounds only, §7.6).
 | **S5** Options | `GameOptions` unification, the policy copy, `setOption`, `newSession` options, `status`, import mapping, deviations | S3 | blood and gore off changes deaths in a stub scenario; options in the save header |
 | **S6** Text (landed, §5.5) | data version, `TextService`, string tables, `/api/strings`, widened `/api/text`, text keys, the Russian paths (EDT mode, NPC layout, speech prefix), per-session language | — (beside S5) | Russian labels on stubs; original-data tests for counts and lengths |
 | **S7** Stub media P0 (landed, §6.5) | §6.3 items 1–5 except the video | S6 | `/api/text` and the cue table resolve on stubs |
-| **S8** Sound | WAV/GAP/ambient decoders, transcribed tables, cues, the audio layer, the director with animation opcodes, speech, ambient; the event fields of §3.3; deviations | S7 | the tactical page plays a stub firefight with sound |
+| **S8** Sound (landed, §3.6) | WAV/GAP/ambient decoders, transcribed tables, cues, the audio layer, the director with animation opcodes, speech, ambient; the event fields of §3.3; deviations | S7 | the tactical page plays a stub firefight with sound |
 | **S9** Music | `musicMode`, `presentation.music` in sessions and snapshots, the client player, the victory clear of `useCreatureMusic` in the simulation | S8, S3 | music follows sector entry, combat, victory and defeat on stubs |
 | **S10** Video | `smk.ts`, the stub encoder (or fixture), the player, sequences, credits parser and scroller | S8 | the splash and the ending play on original data; stub splash in e2e |
 | **S11** Launcher | the DOM launcher (§8.3), quick keys in the pages, client settings, export and import | S3, S5, S6, S10 | §12.2 launcher test |
@@ -1616,6 +1665,7 @@ silences the game; that the first helicopter drop in ja2-node does not wait for 
 3. **Dead is Dead and quick load**: keep the original's unblocked quick load (recommended, faithful) or block every load
    (the mode's intent)?
 4. **Double volume scaling** of soldier sounds (`Utils/Sound_Control.cc:409-420`): keep (recommended, faithful) or fix?
+   *Decided: keep; implemented in S8 (`mix: 'soldier'`).*
 5. **Default load mode for agents**: reseed with a logged seed (recommended, faithful to D6) or exact?
 6. **Cyrillic with English data in the canvas UI (M8)**: the stub font as a fallback (recommended), capitals only with
    the original glyphs, or require Russian data for a Russian UI?

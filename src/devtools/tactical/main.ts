@@ -27,6 +27,7 @@ import { DoorPanel } from './door-panel.ts';
 import { PromptPanel } from './prompt-panel.ts';
 import { nearestMerchant, ShopPanel } from './shop-panel.ts';
 import { SoldierAssets } from './soldier-assets.ts';
+import { TacticalSound } from './sound.ts';
 import { nearestTalkable, TalkPanel } from './talk-panel.ts';
 
 interface TacticalHook {
@@ -87,6 +88,9 @@ const doorPanel = new DoorPanel((cmd) => client?.command(cmd) ?? Promise.resolve
 const shopPanel = new ShopPanel((cmd) => client?.command(cmd) ?? Promise.resolve({ ok: false, reason: 'not connected' }));
 const promptPanel = new PromptPanel((cmd) => client?.command(cmd) ?? Promise.resolve({ ok: false, reason: 'not connected' }));
 const talkPanel = new TalkPanel((cmd) => client?.command(cmd) ?? Promise.resolve({ ok: false, reason: 'not connected' }));
+const muteBox = el<HTMLInputElement>('mute');
+const volumeSlider = el<HTMLInputElement>('volume');
+const sound = new TacticalSound();
 const gl = createContext(canvas, { depth: true, preserveDrawingBuffer: true });
 const renderer = new SpriteRenderer(gl);
 const sprites = new SoldierSprites(gl);
@@ -135,6 +139,23 @@ function sceneOptions(): SceneOptions {
     showRoofs: roofs.checked,
     showShadows: true,
   };
+}
+
+function moraleById(): Map<number, number> {
+  const mercs = client?.strategic?.mercs ?? [];
+  return new Map(mercs.flatMap((m) => (m.morale === undefined ? [] : [[m.id, m.morale] as const])));
+}
+
+function updateSound(options: SceneOptions): void {
+  sound.update({
+    camera,
+    width: options.width,
+    height: options.height,
+    selected,
+    inCombat: !!client?.combat,
+    clock: client?.clock ?? null,
+    morale: moraleById(),
+  });
 }
 
 function soldiers(): readonly SoldierView[] {
@@ -205,6 +226,7 @@ function render(): void {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   if (!world || !source || !atlas) return;
   const options = sceneOptions();
+  updateSound(options);
   debug.drawnSoldiers = collectMercs();
   debug.soldiers = soldiers().length;
   debug.tick = client?.shownTick ?? 0;
@@ -265,12 +287,15 @@ function gridAt(e: MouseEvent): number | null {
 async function clickTile(g: number, run: boolean): Promise<void> {
   const mine = soldiers().find((s) => s.gridNo === g && s.team === OUR_TEAM);
   if (mine) {
+    if (selected !== mine.id) sound.director?.attention(mine.id);
     selected = mine.id;
     debug.selected = selected;
     return;
   }
   if (selected === null || !client) return;
-  const result = await client.command({ type: 'move', soldier: selected, to: g, mode: run ? 'run' : 'walk' });
+  const mover = selected;
+  const result = await client.command({ type: 'move', soldier: mover, to: g, mode: run ? 'run' : 'walk' });
+  if (result.ok) sound.director?.confirm(mover);
   debug.lastResult = result.ok ? `move to ${g}: ok` : `move to ${g}: ${result.reason ?? 'refused'}`;
 }
 
@@ -394,6 +419,7 @@ async function loadSector(mapPath: string): Promise<void> {
       return def && def.flags & DOOR_FLAGS && !(def.flags & OPEN_FLAG) ? tile + def.partnerDelta : tile;
     },
   };
+  await sound.setWorld(loaded);
   await radar.load(mapPath, available);
   const squad = soldiers().filter((s) => s.team === OUR_TEAM);
   selected = squad.find((s) => s.id === selected)?.id ?? squad[0]?.id ?? null;
@@ -425,6 +451,10 @@ async function start(): Promise<void> {
     const mapPath = client.mapPath;
     if (!mapPath) throw new Error('no sector is loaded in this session');
     assets = await SoldierAssets.load(available);
+    await sound.load(available, assets.tables, client.session ?? 'local');
+    sound.director?.reset(client.soldiers);
+    client.onFrames = (frames) => sound.frames(frames);
+    client.onWelcome = () => sound.director?.reset(client?.soldiers ?? []);
     await loadSector(mapPath);
     for (const b of document.querySelectorAll<HTMLButtonElement>('[data-speed]'))
       b.classList.toggle('active', Number(b.dataset.speed) === 0);
@@ -433,6 +463,14 @@ async function start(): Promise<void> {
     setStatus((err as Error).message, true);
   }
 }
+
+const unlockSound = () => sound.unlock();
+window.addEventListener('pointerdown', unlockSound, { capture: true });
+window.addEventListener('keydown', unlockSound, { capture: true });
+muteBox.checked = sound.settings.muted;
+volumeSlider.value = String(sound.settings.volumes.master);
+muteBox.addEventListener('change', () => sound.change({ muted: muteBox.checked }));
+volumeSlider.addEventListener('input', () => sound.change({ volumes: { master: Number(volumeSlider.value) } }));
 
 requestAnimationFrame(render);
 void start();

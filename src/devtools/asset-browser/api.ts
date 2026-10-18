@@ -1,6 +1,7 @@
 export interface Health {
   readonly ok: boolean;
   readonly data: { readonly original: boolean; readonly slf: number; readonly stubs: boolean };
+  readonly dataVersion?: string;
   readonly files: number;
 }
 

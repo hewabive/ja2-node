@@ -39,6 +39,12 @@
       "path": "../src/render"
     },
     {
+      "path": "../src/audio"
+    },
+    {
+      "path": "../src/app"
+    },
+    {
       "path": "../src/devtools"
     },
     {

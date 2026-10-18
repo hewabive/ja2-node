@@ -63,6 +63,36 @@ const LIFE_ZERO = 465;
 const DEATH_COMMIT = 440;
 const DEATH_OR_RELEASE = 497;
 const PICKUP_ITEM_CODE = 493;
+const Sound = {
+  FOOTSTEP_LEFT: 703,
+  FOOTSTEP_RIGHT: 704,
+  KNEEL_UP: 773,
+  KNEEL_DOWN: 774,
+  PRONE_UP: 775,
+  PRONE_DOWN: 776,
+  PICK_UP: 777,
+} as const;
+const STEPPING_STATES = ['WALKING', 'RUNNING', 'SWATTING', 'CRAWLING'];
+const STANCE_SOUNDS: Readonly<Record<string, number>> = {
+  KNEEL_UP: Sound.KNEEL_UP,
+  KNEEL_DOWN: Sound.KNEEL_DOWN,
+  PRONE_UP: Sound.PRONE_UP,
+  PRONE_DOWN: Sound.PRONE_DOWN,
+};
+const STEP_AFTER_FRAMES = 3;
+const SECOND_STEP_AFTER_FRAMES = 6;
+
+function steppingLoop(): number[] {
+  const rest = LOOP_FRAMES - STEP_AFTER_FRAMES - SECOND_STEP_AFTER_FRAMES;
+  return [
+    ...frames(STEP_AFTER_FRAMES),
+    Sound.FOOTSTEP_LEFT,
+    ...frames(SECOND_STEP_AFTER_FRAMES, STEP_AFTER_FRAMES + 1),
+    Sound.FOOTSTEP_RIGHT,
+    ...frames(rest, STEP_AFTER_FRAMES + SECOND_STEP_AFTER_FRAMES + 1),
+    JUMP_TO_START,
+  ];
+}
 const DROP_ITEM_CODE = 487;
 const GIVE_ITEM_CODE = 486;
 const ROLLOVER_GETUP = 437;
@@ -80,8 +110,24 @@ const ClimbOp = {
   DOWN_COMMIT: 475,
 } as const;
 const ITEM_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
-  PICKUP_ITEM: () => [...frames(5), PICKUP_ITEM_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
-  ADJACENT_GET_ITEM: () => [...frames(5), PICKUP_ITEM_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
+  PICKUP_ITEM: () => [
+    ...frames(2),
+    Sound.PICK_UP,
+    ...frames(3, 3),
+    PICKUP_ITEM_CODE,
+    ...frames(4, 6),
+    NONINTERRUPTIBLE_DONE,
+    END_OF_ANIMATION,
+  ],
+  ADJACENT_GET_ITEM: () => [
+    ...frames(2),
+    Sound.PICK_UP,
+    ...frames(3, 3),
+    PICKUP_ITEM_CODE,
+    ...frames(4, 6),
+    NONINTERRUPTIBLE_DONE,
+    END_OF_ANIMATION,
+  ],
   DROP_ITEM: () => [...frames(5), DROP_ITEM_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
   GIVE_ITEM: () => [...frames(5), GIVE_ITEM_CODE, ...frames(4, 6), NONINTERRUPTIBLE_DONE, END_OF_ANIMATION],
   ROLLOVER: () => [...frames(8), ROLLOVER_GETUP],
@@ -393,7 +439,10 @@ export async function buildStubAnimationScripts(): Promise<Uint8Array> {
         ...releases,
         END_OF_ANIMATION,
       ];
+    else if (STEPPING_STATES.includes(control.id)) script = steppingLoop();
     else if (looping.has(control.index) || control.flags & AnimFlags.MOVING) script = [...frames(LOOP_FRAMES), JUMP_TO_START];
+    else if (STANCE_SOUNDS[control.id] !== undefined)
+      script = [1, STANCE_SOUNDS[control.id] as number, ...frames(ONE_SHOT_FRAMES - 1, 2), ...releases, END_OF_ANIMATION];
     else script = [...frames(ONE_SHOT_FRAMES), ...releases, END_OF_ANIMATION];
     script.forEach((code, pc) => {
       codes[control.index * MAX_FRAMES_PER_ANIM + pc] = code;

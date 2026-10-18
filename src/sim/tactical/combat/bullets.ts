@@ -448,6 +448,11 @@ function handleBulletStructureInteraction(t: TacticalState, b: Bullet, s: Struct
   return { remaining: 1, hit: false };
 }
 
+function hitMaterial(structure: StructureInstance | null): { material?: number; caveWall?: boolean } {
+  if (!structure || has(structure.flags, StructureFlags.PERSON | StructureFlags.CORPSE)) return {};
+  return { material: structure.def.armour, ...(has(structure.flags, StructureFlags.CAVEWALL) ? { caveWall: true } : {}) };
+}
+
 function structureHit(
   t: TacticalState,
   b: Bullet,
@@ -459,17 +464,17 @@ function structureHit(
   const attacker = b.firer;
   const weaponIndex = attacker.attackingWeapon;
   const weapon = t.content.items.byIndex.get(weaponIndex);
+  const structure = structureId !== INVALID_STRUCTURE_ID ? t.world.structures.findById(b.gridNo, structureId) : null;
   if (stopped) {
     const opp = attacker.opponent;
     if (opp) agilityForEnemyMissingPlayer(t, attacker, opp, 5);
-    t.events.push({ type: 'bulletStopped', soldier: attacker.id, gridNo: b.gridNo, reason });
+    t.events.push({ type: 'bulletStopped', soldier: attacker.id, gridNo: b.gridNo, reason, ...hitMaterial(structure) });
   }
   const sameAsBefore = structureId === b.lastStructureHit;
   const zPixels = Math.trunc((fixInt(b.z) * 50) / 256);
   const level = zPixels > 50 - ROOF_HIT_ADJUSTMENT + tileHeightPixels(t, attacker.gridNo) ? 1 : 0;
   const g = b.gridNo;
   let adjusted = g;
-  const structure = structureId !== INVALID_STRUCTURE_ID ? t.world.structures.findById(g, structureId) : null;
   if (structure?.wallOrientation) {
     const opposite = oppositeSideGridNo(structure, g);
     if (pythSpacesAway(attacker.gridNo, g) > pythSpacesAway(attacker.gridNo, opposite)) adjusted = opposite;

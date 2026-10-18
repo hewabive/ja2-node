@@ -5,6 +5,7 @@
 
 import { recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
 import { has, PROFILE_Z_SIZE, StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
+import type { DoorSoundKind } from '../events.ts';
 import type { TacticalState } from './state.ts';
 
 export function swapStructureForPartner(t: TacticalState, s: StructureInstance): StructureInstance | null {
@@ -26,7 +27,16 @@ export function swapStructureForPartner(t: TacticalState, s: StructureInstance):
   return added;
 }
 
-export function toggleDoorAt(t: TacticalState, gridNo: number): boolean {
+const MATERIAL_CLOTH = 17;
+const METAL_MATERIALS: ReadonlySet<number> = new Set([21, 22, 23]);
+
+export function doorSoundKind(door: StructureInstance): DoorSoundKind {
+  if (has(door.flags, StructureFlags.SLIDINGDOOR) && door.def.armour === MATERIAL_CLOTH) return 'cloth';
+  if (has(door.flags, StructureFlags.GARAGEDOOR)) return 'garage';
+  return METAL_MATERIALS.has(door.def.armour) ? 'metal' : 'wood';
+}
+
+export function toggleDoorAt(t: TacticalState, gridNo: number, noisy = false): boolean {
   const door = t.world.structures.find(gridNo, StructureFlags.ANYDOOR);
   if (!door) return false;
   const swapped = swapStructureForPartner(t, door);
@@ -34,7 +44,7 @@ export function toggleDoorAt(t: TacticalState, gridNo: number): boolean {
   recompileLocalMovementCosts(t.world.costs, t.world, gridNo);
   const open = has(swapped.flags, StructureFlags.OPEN);
   t.doorStatus.set(swapped.gridNo, { perceivedOpen: open });
-  t.events.push({ type: 'doorChanged', gridNo: swapped.gridNo, open });
+  t.events.push({ type: 'doorChanged', gridNo: swapped.gridNo, open, kind: doorSoundKind(swapped), noisy });
   return true;
 }
 

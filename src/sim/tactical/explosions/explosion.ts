@@ -124,6 +124,7 @@ export function internalIgniteExplosion(
   const animation = explosive.animation ? animations.get(explosive.animation) : undefined;
   if (!animation) return;
   const water = isWaterTile(t, g) && animation.waterAnimation ? animations.get(animation.waterAnimation) : undefined;
+  const shown = water ?? animation;
   t.explosives.aniTiles.unshift({
     kind: 'explosion',
     owner,
@@ -133,13 +134,13 @@ export function internalIgniteExplosion(
     z: z === 0 && level > 0 ? ROOF_LEVEL_HEIGHT : z,
     gridNo: g,
     level,
-    animation: water ?? animation,
+    animation: shown,
     delay: animation.blastSpeed,
     light: explosionLight(t, i16(x), i16(y)),
     frame: 0,
     lastUpdate: t.clockMs,
   });
-  t.events.push({ type: 'explosion', item, gridNo: g, level, owner: owner?.id ?? null });
+  t.events.push({ type: 'explosion', item, gridNo: g, level, owner: owner?.id ?? null, animation: shown.name });
 }
 
 export function igniteExplosion(t: TacticalState, owner: Soldier | null, z: number, g: number, item: number, level: number): void {

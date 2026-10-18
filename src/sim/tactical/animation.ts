@@ -572,7 +572,7 @@ function runOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome {
         return 'continue';
       }
       const noise = t.hooks.doorOpeningNoise(t, s);
-      if (soldierHandleInteractiveObject(t, s)) {
+      if (soldierHandleInteractiveObject(t, s, noise > 0)) {
         t.hooks.doorOpened(t, s, noise);
         t.hooks.newAiSituation(t, s);
       }

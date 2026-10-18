@@ -39,7 +39,10 @@ export class SessionClient {
   view: PlayerView | null = null;
   driver: DriverMode = { mode: 'manual' };
   playbackSpeed = 1;
+  session: string | null = null;
   onChange: (() => void) | null = null;
+  onFrames: ((frames: readonly ViewFrame[]) => void) | null = null;
+  onWelcome: (() => void) | null = null;
   readonly #socket: WebSocket;
   readonly #pending = new Map<number, Pending>();
   readonly #frames: ViewFrame[] = [];
@@ -178,6 +181,7 @@ export class SessionClient {
   #receive(m: ServerMessage): void {
     switch (m.t) {
       case 'welcome':
+        this.session = m.session;
         this.view = m.view;
         this.driver = m.driver;
         this.#shown = [...m.view.soldiers];
@@ -200,6 +204,7 @@ export class SessionClient {
         this.#boxing = m.view.boxing ?? null;
         this.#shownTick = m.view.tick;
         this.#latestTick = m.view.tick;
+        this.onWelcome?.();
         break;
       case 'frames':
         this.#frames.push(...m.frames);
@@ -221,9 +226,10 @@ export class SessionClient {
   }
 
   playUntil(tick: number): boolean {
-    let changed = false;
+    const applied: ViewFrame[] = [];
     while (this.#frames.length > 0 && (this.#frames[0]?.tick ?? 0) <= tick) {
       const frame = this.#frames.shift() as ViewFrame;
+      applied.push(frame);
       this.#shown = applyFrame(this.#shown, frame);
       if (frame.openDoors) this.#openDoors = frame.openDoors;
       if (frame.combat !== undefined) this.#combat = frame.combat;
@@ -242,11 +248,11 @@ export class SessionClient {
       if (frame.scriptedSequence !== undefined) this.#scriptedSequence = frame.scriptedSequence;
       if (frame.npcRequest !== undefined) this.#npcRequest = frame.npcRequest;
       if (frame.boxing !== undefined) this.#boxing = frame.boxing;
-      changed = true;
     }
     const target = Math.min(tick, this.#latestTick);
     if (target > this.#shownTick) this.#shownTick = target;
-    return changed;
+    if (applied.length > 0) this.onFrames?.(applied);
+    return applied.length > 0;
   }
 
   playFor(elapsedMs: number): boolean {

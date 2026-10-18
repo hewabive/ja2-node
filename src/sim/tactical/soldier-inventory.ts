@@ -21,5 +21,8 @@ export function soldierInventoryContext(t: TacticalState, s: Soldier): Inventory
     placed: (item: number) => {
       if (s.team === Team.OUR && item === t.content.items.byName.get(ROBOT_REMOTE_CONTROL)?.index) t.narrative.robotRemotePlaced(s);
     },
+    reloaded: (gun: number) => {
+      t.events.push({ type: 'reloaded', soldier: s.id, item: gun });
+    },
   };
 }

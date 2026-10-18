@@ -4,6 +4,7 @@ import { diffPlayerView, type PlayerView, type ViewFrame } from '../protocol/vie
 import { advance, type Steppable, type StopCondition, type StopReport } from '../sim/advance.ts';
 import { TICK_MS } from '../sim/clock.ts';
 import type { CommandResult } from '../sim/command.ts';
+import type { SimEvent } from '../sim/events.ts';
 
 export const FRAME_TICKS = 10;
 const REALTIME_INTERVAL_MS = 16;
@@ -36,6 +37,7 @@ export class Session {
   #lastRealtime = 0;
   #carryMs = 0;
   #lastView: PlayerView;
+  readonly #pendingEvents: SimEvent[] = [];
   readonly #listeners = new Set<Listener>();
 
   constructor(id: string, sim: SessionSim, text: SessionText = DEFAULT_SESSION_TEXT) {
@@ -67,6 +69,12 @@ export class Session {
 
   #recordingStepper(frames: ViewFrame[]): Steppable {
     const sim = this.sim;
+    const drained: SimEvent[] = [];
+    const drain = () => {
+      const events = sim.drainEvents();
+      drained.push(...events);
+      this.#pendingEvents.push(...events);
+    };
     return {
       get tick() {
         return sim.tick;
@@ -77,9 +85,13 @@ export class Session {
       isIdle: () => sim.isIdle(),
       hasPendingDecision: () => sim.hasPendingDecision(),
       ended: () => sim.ended?.() ?? false,
-      drainEvents: () => sim.drainEvents(),
+      drainEvents: () => {
+        drain();
+        return drained.splice(0);
+      },
       step: () => {
         sim.step();
+        drain();
         if (sim.tick % FRAME_TICKS === 0) this.#capture(frames);
       },
     };
@@ -87,8 +99,10 @@ export class Session {
 
   #capture(frames: ViewFrame[]): void {
     const view = this.sim.view();
-    const frame = diffPlayerView(this.#lastView, view);
+    const diff = diffPlayerView(this.#lastView, view);
     this.#lastView = view;
+    const events = this.#pendingEvents.splice(0);
+    const frame = events.length > 0 ? { ...(diff ?? { tick: view.tick, changed: [], removed: [] }), events } : diff;
     if (frame) frames.push(frame);
   }
 
