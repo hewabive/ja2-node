@@ -8,8 +8,10 @@ import { SaveService } from '../../src/server/save-service.ts';
 import { SaveStore } from '../../src/server/save-store.ts';
 import { DEFAULT_SESSION_TEXT, type Session, type SessionSim } from '../../src/server/session.ts';
 import { createSessionFactory, type SessionSources, simFromOrigin } from '../../src/server/session-factory.ts';
-import { type NewSessionRequest, openSession, type SessionFactory } from '../../src/server/session-registry.ts';
+import { InProcessHost } from '../../src/server/session-host.ts';
+import { type NewSessionRequest, openSession, type SessionFactory, type SessionRequest } from '../../src/server/session-registry.ts';
 import { restoreSession } from '../../src/server/session-snapshot.ts';
+import { SliceScheduler, TimeSlicer } from '../../src/server/slicing.ts';
 import type { StubSectorKit } from './sectors.ts';
 
 export const TEST_ENGINE: EngineIdentity = { version: '0.0.0-test', commit: 'test' };
@@ -29,6 +31,8 @@ export interface SaveKit {
   readonly sources: SessionSources;
   readonly factory: SessionFactory;
   readonly sessions: Map<string, Session>;
+  readonly hosts: Map<string, InProcessHost>;
+  readonly hostFactory: (id: string, request: SessionRequest) => Promise<InProcessHost>;
   readonly warnings: string[];
   open(request: NewSessionRequest): Promise<Session>;
   build: OriginBuilder;
@@ -55,6 +59,10 @@ export async function createSaveKit(kit: StubSectorKit, options: SaveKitOptions 
   const sources: SessionSources = { read: ledger.read, exists: ledger.exists, originalData: false, store };
   const factory = createSessionFactory({ ...sources, text: DEFAULT_SESSION_TEXT, saves });
   const sessions = new Map<string, Session>();
+  const hosts = new Map<string, InProcessHost>();
+  const scheduler = new SliceScheduler();
+  const hostFactory = async (id: string, request: SessionRequest) =>
+    new InProcessHost(await factory(id, request), { saves, slicer: new TimeSlicer(scheduler) });
   const build: OriginBuilder = (origin: LogOrigin): Promise<SessionSim> => simFromOrigin(sources, origin, saves);
   return {
     dir,
@@ -64,6 +72,8 @@ export async function createSaveKit(kit: StubSectorKit, options: SaveKitOptions 
     sources,
     factory,
     sessions,
+    hosts,
+    hostFactory,
     warnings,
     open: (request) => openSession(sessions, 'test', factory, request),
     build,

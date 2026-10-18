@@ -1,4 +1,5 @@
-import { gunzipSync, gzipSync } from 'node:zlib';
+import { promisify } from 'node:util';
+import { gunzipSync, gzip, gzipSync } from 'node:zlib';
 import type { CampaignRequest } from './campaign-factory.ts';
 
 export const INPUT_LOG_FORMAT = 'ja2-node-input-log';
@@ -128,8 +129,14 @@ export function inputLogText(segment: LogSegment, save: string | null): string {
   return [head, ...segment.entries.map((e) => JSON.stringify(e))].join('\n').concat('\n');
 }
 
+const gzipAsync = promisify(gzip);
+
 export function encodeInputLog(text: string): Uint8Array {
   return gzipSync(Buffer.from(text, 'utf8'));
+}
+
+export function encodeInputLogAsync(text: string): Promise<Uint8Array> {
+  return gzipAsync(Buffer.from(text, 'utf8'));
 }
 
 function parseEntry(line: string, index: number): InputEntry {

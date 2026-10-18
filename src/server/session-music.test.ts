@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createSaveKit } from '../../tests/support/saves.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import type { ServerMessage } from '../protocol/messages.ts';
-import type { MusicView } from '../protocol/music.ts';
+import type { MusicState, MusicView } from '../protocol/music.ts';
 import { MusicMode } from '../protocol/music-modes.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { enterCombatMode } from '../sim/tactical/turns/turns.ts';
@@ -33,6 +33,19 @@ function listen(session: Session): { messages: ServerMessage[]; music: () => Mus
       return [];
     });
   return { messages, music };
+}
+
+async function landingMusic(session: Session): Promise<MusicState[]> {
+  const seen: MusicState[] = [session.music];
+  expect(session.dispatch({ type: 'aimHire', profile: 0, contract: 7 }).ok).toBe(true);
+  expect(session.dispatch({ type: 'closeLaptop' }).ok).toBe(true);
+  seen.push(session.music);
+  await session.prepareAndDispatch({ type: 'compressTime', mode: 2 });
+  session.advance({ idle: true });
+  seen.push(session.music);
+  session.advance({ ticks: 1 });
+  seen.push(session.music);
+  return seen;
 }
 
 describe('the music mode of a session', () => {
@@ -109,6 +122,24 @@ describe('the music mode of a session', () => {
         const inPlace = await k.factory('sandbox', { seed: 9 });
         await k.saves.loadInto(inPlace, 'withMusic', false);
         expect(inPlace.music).toEqual(session.music);
+      } finally {
+        await k.dispose();
+      }
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  it(
+    'follows the same music modes when nobody listens and the session builds no frames',
+    async () => {
+      const k = await createSaveKit(kit);
+      try {
+        const heard = await k.factory('campaign', { seed: 3, campaign: { hire: [] } });
+        listen(heard);
+        const unheard = await k.factory('campaign', { seed: 3, campaign: { hire: [] } });
+        const withListener = await landingMusic(heard);
+        expect(await landingMusic(unheard)).toEqual(withListener);
+        expect(withListener.at(-1)).toEqual({ mode: MusicMode.TACTICAL_ENEMY_PRESENT, previous: MusicMode.TACTICAL_NOTHING });
       } finally {
         await k.dispose();
       }

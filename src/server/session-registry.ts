@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { UI_LANGUAGES } from '../content/text/data-version.ts';
+import { UI_LANGUAGES, type UiLanguage } from '../content/text/data-version.ts';
 import { type GameOptions, SAVE_MODES } from '../sim/options.ts';
 import type { SaveImportReport } from '../sim/tactical/save-import.ts';
 import type { CampaignRequest } from './campaign-factory.ts';
@@ -15,6 +15,7 @@ export interface LoadRequest {
 
 export interface SessionRequest {
   readonly seed: number;
+  readonly language?: UiLanguage;
   readonly save?: string;
   readonly campaign?: CampaignRequest;
   readonly load?: LoadRequest;
@@ -138,20 +139,20 @@ export function describeSession(session: Session): Record<string, unknown> {
   };
 }
 
-const sessionsBeingCreated = new WeakMap<Map<string, Session>, Set<string>>();
+const sessionsBeingCreated = new WeakMap<Map<string, unknown>, Set<string>>();
 
-function creating(sessions: Map<string, Session>): Set<string> {
+function creating(sessions: Map<string, unknown>): Set<string> {
   const ids = sessionsBeingCreated.get(sessions) ?? new Set<string>();
   sessionsBeingCreated.set(sessions, ids);
   return ids;
 }
 
-export async function openSession(
-  sessions: Map<string, Session>,
+export async function openSession<T>(
+  sessions: Map<string, T>,
   defaultSession: string,
-  createSession: SessionFactory,
+  createSession: (id: string, request: SessionRequest) => Promise<T>,
   request: NewSessionRequest,
-): Promise<Session> {
+): Promise<T> {
   const pending = creating(sessions);
   if (sessions.size + pending.size >= MAX_SESSIONS) throw new Error(`at most ${MAX_SESSIONS} sessions`);
   if ([request.save, request.campaign, request.load].filter((x) => x !== undefined).length > 1)
@@ -165,11 +166,11 @@ export async function openSession(
   try {
     const created = await createSession(id, {
       seed: request.seed ?? n,
+      ...(request.language ? { language: request.language } : {}),
       ...(request.save ? { save: request.save } : {}),
       ...(request.campaign ? { campaign: request.campaign } : {}),
       ...(request.load ? { load: { name: request.load, reseed: request.reseed ?? true } } : {}),
     });
-    if (request.language) created.language = request.language;
     sessions.set(id, created);
     return created;
   } finally {

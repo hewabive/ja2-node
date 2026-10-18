@@ -20,8 +20,8 @@ import { handleMcpRequest } from './mcp.ts';
 import { SAVE_EXTENSION } from './save-file.ts';
 import { type LoadProblem, loadProblemOf, type SaveOutcome, type SaveService } from './save-service.ts';
 import { MAX_UPLOAD_BYTES, playerSaveName } from './save-store.ts';
-import type { Session } from './session.ts';
-import { describeSession, importReport, newSessionRequest, openSession, type SessionFactory } from './session-registry.ts';
+import type { HostFactory, SessionHost } from './session-host.ts';
+import { newSessionRequest, openSession } from './session-registry.ts';
 import { textKeyFor } from './text-keys.ts';
 import { STUB_TEXT_PREFIX, TextService } from './text-service.ts';
 
@@ -38,9 +38,9 @@ export interface AppOptions {
   readonly allowedHosts?: readonly string[];
   readonly clientDir?: string;
   readonly vfsGeneration?: string;
-  readonly sessions?: Map<string, Session>;
+  readonly sessions?: Map<string, SessionHost>;
   readonly defaultSession?: string;
-  readonly createSession?: SessionFactory;
+  readonly createSession?: HostFactory;
   readonly texts?: TextService;
   readonly defaultLanguage?: UiLanguage;
   readonly saves?: SaveService;
@@ -227,7 +227,9 @@ export function createApp(options: AppOptions): Hono {
     return c.json({ ...record, column, width: record.layout[column], text: record.columns[column] });
   });
 
-  app.get('/api/sessions', (c) => c.json([...(options.sessions?.values() ?? [])].map(describeSession)));
+  const describeOrFail = (host: SessionHost) =>
+    host.describe().catch((err: Error) => ({ session: host.id, kind: host.kind, error: err.message }));
+  app.get('/api/sessions', async (c) => c.json(await Promise.all([...(options.sessions?.values() ?? [])].map(describeOrFail))));
 
   app.post('/api/sessions', async (c) => {
     const { sessions, createSession } = options;
@@ -236,8 +238,7 @@ export function createApp(options: AppOptions): Hono {
     if (!request.success) return c.json({ error: request.error.message }, 400);
     try {
       const created = await openSession(sessions, options.defaultSession ?? 'sandbox', createSession, request.data);
-      const loaded = options.saves?.lastLoad(created);
-      return c.json({ ...describeSession(created), ...(loaded ? { load: loaded } : {}), ...importReport(created) });
+      return c.json({ ...(await created.describe()), ...(await created.report()) });
     } catch (err) {
       if (request.data.load) return loadFailure(c, err);
       return c.json({ error: (err as Error).message }, 400);
@@ -246,7 +247,7 @@ export function createApp(options: AppOptions): Hono {
 
   const saves = options.saves;
   if (saves) {
-    const sessionOf = (c: Context): Session | null => options.sessions?.get(c.req.param('id') ?? '') ?? null;
+    const sessionOf = (c: Context): SessionHost | null => options.sessions?.get(c.req.param('id') ?? '') ?? null;
     const body = async <T>(c: Context, schema: z.ZodType<T>): Promise<T | null> => {
       const parsed = schema.safeParse(await c.req.json().catch(() => ({})));
       return parsed.success ? parsed.data : null;
@@ -257,7 +258,7 @@ export function createApp(options: AppOptions): Hono {
       if (!session) return c.json({ error: 'no such session' }, 404);
       const request = await body(c, saveRequest);
       if (!request) return c.json({ error: 'expected {name?, description?}' }, 400);
-      return saveResponse(c, await saves.save(session, request));
+      return saveResponse(c, await session.save(request));
     });
     app.post('/api/sessions/:id/snapshot', async (c) => {
       const session = sessionOf(c);
@@ -265,7 +266,7 @@ export function createApp(options: AppOptions): Hono {
       const request = await body(c, saveRequest);
       if (!request) return c.json({ error: 'expected {name?, description?}' }, 400);
       const description = request.description ?? SNAPSHOT_DESCRIPTION;
-      return saveResponse(c, await saves.snapshot(session, request.name ?? playerSaveName(description, new Date()), description));
+      return saveResponse(c, await session.saveSnapshot(request.name ?? playerSaveName(description, new Date()), description));
     });
     app.post('/api/sessions/:id/load', async (c) => {
       const session = sessionOf(c);
@@ -273,7 +274,7 @@ export function createApp(options: AppOptions): Hono {
       const request = await body(c, loadRequest);
       if (!request) return c.json({ error: 'expected {name, reseed?}' }, 400);
       try {
-        return c.json({ ...(await saves.loadInto(session, request.name, request.reseed ?? true)), ...describeSession(session) });
+        return c.json({ ...(await session.load(request.name, request.reseed ?? true)), ...(await session.describe()) });
       } catch (err) {
         return loadFailure(c, err);
       }

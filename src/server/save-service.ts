@@ -6,11 +6,11 @@ import { type DroppedNativeOption, type GameOptions, importNativeGameOptions, ty
 import { reseedMain } from '../sim/snapshot/session.ts';
 import { CampaignSession } from './campaign-session.ts';
 import { type ContentLedger, type EngineIdentity, textIdentityOf } from './content-identity.ts';
-import { describeOrigin, encodeInputLog, inputLogText, isReplayable, type LogSegment } from './input-log.ts';
+import { describeOrigin, encodeInputLog, encodeInputLogAsync, inputLogText, isReplayable, type LogSegment } from './input-log.ts';
 import { TacticalSession } from './sandbox.ts';
 import {
   clampDescription,
-  encodeSaveFile,
+  encodeSaveFileAsync,
   inflateSave,
   musicOfPresentation,
   parseSaveText,
@@ -314,15 +314,17 @@ export class SaveService {
     return { kind, name, file, log: isReplayable(segment.origin) ? segment : null };
   }
 
-  #encode(capture: Capture, name: string): { bytes: Uint8Array; log: Uint8Array | null } {
+  async #encode(capture: Capture, name: string): Promise<{ bytes: Uint8Array; log: Uint8Array | null }> {
     const file: SaveFile =
       capture.kind === 'auto' ? { ...capture.file, header: { ...capture.file.header, description: name } } : capture.file;
-    return { bytes: encodeSaveFile(file).bytes, log: capture.log ? encodeInputLog(inputLogText(capture.log, name)) : null };
+    const bytes = (await encodeSaveFileAsync(file)).bytes;
+    return { bytes, log: capture.log ? await encodeInputLogAsync(inputLogText(capture.log, name)) : null };
   }
 
   #write(capture: Capture): Promise<void> {
-    const encoded = this.#encode(capture, capture.name);
-    return this.#enqueue(() => this.store.write(capture.name, { ...encoded, backups: capture.kind === 'deadIsDead' }));
+    return this.#enqueue(async () =>
+      this.store.write(capture.name, { ...(await this.#encode(capture, capture.name)), backups: capture.kind === 'deadIsDead' }),
+    );
   }
 
   #refused(refused: SaveProblem, reason: string): SaveOutcome {
@@ -516,7 +518,7 @@ export class SaveService {
   async #writeAuto(pending: Capture): Promise<void> {
     await this.#enqueue(async () => {
       const name = await this.store.nextAutoName();
-      await this.store.write(name, { ...this.#encode(pending, name), backups: false });
+      await this.store.write(name, { ...(await this.#encode(pending, name)), backups: false });
       this.store.noteAutoWritten(name);
     });
   }

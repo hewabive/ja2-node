@@ -6,6 +6,7 @@ import { encodeEdtFile } from '../content/formats/edt.ts';
 import { MemoryLayer, Vfs } from '../content/vfs/vfs.ts';
 import { createApp, parseRange } from './app.ts';
 import { Session, type SessionSim } from './session.ts';
+import { InProcessHost, type SessionHost } from './session-host.ts';
 import type { SessionRequest } from './session-registry.ts';
 
 const token = 'test-token-0123456789';
@@ -144,7 +145,7 @@ describe('session endpoints', () => {
     view: () => ({ tick: 0, mapPath: null, soldiers: [] }),
   };
   const requests: SessionRequest[] = [];
-  const sessions = new Map([['sandbox', new Session('sandbox', still)]]);
+  const sessions = new Map<string, SessionHost>([['sandbox', new InProcessHost(new Session('sandbox', still))]]);
   const withSessions = createApp({
     vfs: new Vfs([]),
     token,
@@ -153,7 +154,7 @@ describe('session endpoints', () => {
     defaultSession: 'sandbox',
     createSession: async (id, request) => {
       requests.push(request);
-      return new Session(id, still);
+      return new InProcessHost(new Session(id, still));
     },
   });
   const post = (body: unknown) =>
@@ -169,6 +170,25 @@ describe('session endpoints', () => {
     expect(requests.at(-1)).toEqual({ seed: 4, campaign: { difficulty: 3, mercs: 2 } });
     const list = await (await withSessions.request('http://localhost/api/sessions', { headers: auth })).json();
     expect(list.map((s: { session: string }) => s.session)).toEqual(['sandbox', 'sandbox-1']);
+  });
+
+  it('lists a session whose host fails with its error instead of failing the whole list', async () => {
+    let broken = false;
+    const failing: SessionSim = {
+      ...still,
+      view: () => {
+        if (broken) throw new Error('worker gone');
+        return still.view();
+      },
+    };
+    const hosts = new Map<string, SessionHost>([
+      ['sandbox', new InProcessHost(new Session('sandbox', still))],
+      ['lost', new InProcessHost(new Session('lost', failing))],
+    ]);
+    broken = true;
+    const listing = createApp({ vfs: new Vfs([]), token, info: { originalData: false, slfCount: 0, stubs: true }, sessions: hosts });
+    const list = await (await listing.request('http://localhost/api/sessions', { headers: auth })).json();
+    expect(list).toEqual([expect.objectContaining({ session: 'sandbox' }), { session: 'lost', kind: 'inprocess', error: 'worker gone' }]);
   });
 
   it('refuses malformed and contradictory requests', async () => {

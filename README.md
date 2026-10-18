@@ -89,6 +89,9 @@ contracts `extendContract`, `contractOptions`, `dismiss`, `removeMerc`, merchant
 strategic view with contracts and morale, the open prompt, the autoresolve battle and the open shop; `advance` takes `worldTime`, `worldSeconds`, `compressionStopped` and `mode` on the map). `JA2_SAVE=SaveGame07 pnpm dev` opens the default session from that save, `JA2_CAMPAIGN=2 pnpm dev`
 a new campaign. The squad is hired through the laptop (`"hire":[]` keeps the new campaign in it); `openLaptop` opens it
 on the map screen for `aimHire`, `mercHire`, `impCreate`, `bobbyRayOrder`, `insure`, mail and the other laptop commands.
+Sessions share the server process and take turns in 10 ms slices, so one agent's long enemy turn does not hold up the
+others; `JA2_SESSION_HOST=worker` runs every session in its own worker thread instead (more memory and a content load
+per session, but several cores and no stall from another session's saves; `docs/04` §5.9).
 
 Saving and loading: the tools `save` (`{"session":"…","description":"before the bridge"}`, `{"name":"quick"}` for the
 quick save), `load` (`{"name":"QuickSave"}` into a new session, or with `"session"` in place; it reseeds the main random

@@ -351,11 +351,56 @@ New rules apply to the core.
 - By default the server listens only on `127.0.0.1`. Access is by token.
 - The API accepts only game commands, never file paths from the client.
 
-### 5.9. Heavy sessions
+### 5.9. Heavy sessions (as built in M7, S12b)
 
-- At first everything runs in a single thread.
-- If instant run-through starts delaying network I/O, the session moves to
-  `worker_threads`. The protocol is already message-based, so it will not need to be reworked.
+The server surfaces (MCP tools, the WebSocket endpoint, the HTTP routes) never touch a `Session` directly: they call a
+`SessionHost` (`src/server/session-host.ts`), an asynchronous interface with `dispatch`, `prepareAndDispatch`,
+`advance`, `setDriver`, `subscribe`, `save`, `saveSnapshot`, `load`, `describe`, `observe`, `report` (what a new session
+reports once: the load outcome, the native import report), `snapshot` (the session snapshot text a save would hold),
+`inputLog` and `close`. `JA2_SESSION_HOST` picks one of two implementations for every session of the server:
+
+- **`inprocess`** (default): `InProcessHost` keeps the session in the server's thread.
+  - *One queue per session.* Every input (commands, answers, advances, driver changes, saves, loads, the snapshot, the
+    input log, close) runs in arrival order, one at a time, even when calls arrive while an advance is running; so the
+    input log's order is the execution order. Reads (`describe`, `observe`, `report`) and `subscribe` answer at once,
+    between ticks: during a long advance they show the state reached so far. A WebSocket connection sends its replies
+    in the order of its requests.
+  - *Time slicing.* An advance, including the one the instant driver runs after an accepted command or a driver
+    change, runs in slices of `SLICE_BUDGET_MS` (10 ms) of wall-clock time and then yields to the event loop. The
+    simulation's `advance` is a resumable `AdvanceRun` whose `resume(pause)` checks the pause predicate only between
+    ticks, after at least one step, and after the stop checks; resuming goes straight to the next step. The session's
+    inputs are generators that yield at those pauses: the synchronous `Session.dispatch` / `advance` / `setDriver`
+    (replay, bench, tests) drive them without pausing, the host's sliced variants pause. Slicing decides where the
+    server pauses, never what a tick does: ticks, events, frames, reports and snapshots are those of an unsliced run
+    (tested frame for frame with a slice after every step). One `SliceScheduler` per server grants at most one slice
+    per event-loop turn: an advance claims a turn before its first slice and waits for one when another session has
+    already run a slice in that turn or is waiting; a taken turn closes at the next check phase and the next waiting
+    session is granted one turn later. So four battles in one process never run slices back to back, and commands that
+    need no advance run at once. The frames collected so far go out at every pause, so viewers watch a long enemy turn
+    as it happens. While a sliced input is paused, the real-time driver skips its batch (its timer catches up
+    afterwards, as it does after any stall).
+  - *What still blocks.* A single tick cannot be split: the longest AI decision of a tick (up to about 30 ms warm, 65
+    ms in a cold process) is the floor of the stall. A save's snapshot and its stringify are synchronous (each about
+    40–70 ms on the largest native import, also for the autosave when `endTurn` is accepted in combat); the gzip runs
+    on the thread pool. Opening a session and loading a save build the content (0.2–0.5 s).
+- **`worker`**: `WorkerHost` runs each session in its own `worker_threads` worker and forwards the same calls and the
+  subscription messages (structured clone). The worker opens its own data VFS from the same directories and its own
+  save environment with the server's engine identity and save directory (`openSessionEnvironment`), builds the session
+  and writes its save files itself (atomic renames, so two workers never leave a torn file), so no simulation object
+  crosses the thread boundary; inside, the session runs in an `InProcessHost`, so the ordering and reads are the same.
+  Load problems keep their kind across the boundary (`SaveLoadError`). The trade-off: every worker loads the content
+  again (its own data VFS and content, about 100–140 MB more RSS per session on the original data) and builds its own
+  content index on its first save, but battles, saves and loads of different sessions run on different cores and the
+  server thread only relays messages. The Auto01/Auto02 alternation is kept per worker (each continues from the older
+  file). A host whose worker died answers every call with that error; `GET /api/sessions` lists it with the error.
+
+The same contract test (`src/server/session-host-contract.test.ts`) drives a scripted stub battle with a save, an
+autosave and a load, calls made without waiting, and Dead is Dead through both hosts and expects the same results,
+frames, snapshots, input logs and save files.
+
+The session also skips the frame views nobody receives: with no subscriber it still follows the music mode from the
+events at every frame point, but builds and diffs no view; the first subscriber's welcome becomes the base of the next
+diff.
 
 ---
 

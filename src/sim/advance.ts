@@ -84,59 +84,129 @@ function targetSeconds(until: StopCondition, now: number): number | null {
   return targets.length === 0 ? null : Math.min(...targets);
 }
 
-export function advance(sim: Steppable, until: StopCondition, budget = DEFAULT_ADVANCE_BUDGET_TICKS): StopReport {
-  const start = sim.tick;
-  const clock = sim.worldClock ?? null;
-  const strategic = clock !== null && isStrategicCondition(until);
-  const startSeconds = clock?.worldTime().seconds ?? 0;
-  const target = clock ? targetSeconds(until, startSeconds) : null;
-  const tickBudget = strategic ? Math.max(budget, STRATEGIC_ADVANCE_BUDGET_TICKS) : budget;
-  const limit = Math.min(until.ticks ?? tickBudget, tickBudget);
-  const collected: SimEvent[] = [];
-  const watched = new Set<SimEventType>([...(until.events ?? []), ...ALWAYS_STOP_EVENTS]);
-  if (strategic && until.compressionStopped !== false) watched.add('compressionStopped');
-  const report = (reason: StopReason, refusal?: string): StopReport => ({
-    tick: sim.tick,
-    reason,
-    events: collected,
-    ...(clock ? { worldTime: clock.worldTime() } : {}),
-    ...(refusal ? { refusal } : {}),
-  });
-  const startCompression = (): string | null => {
-    const refused = clock?.startCompression(until.mode) ?? null;
-    collected.push(...sim.drainEvents());
-    return refused;
-  };
-  if (sim.ended?.()) return report('ended');
-  const modal = clock?.modalRefusal?.() ?? null;
-  if (modal) return report('refused', modal);
-  if (strategic && !clock.onMap() && target === null && !sim.hasPendingDecision())
-    return report('refused', 'time compression works on the strategic map only');
-  if (strategic && clock.onMap() && !clock.compressing() && !sim.hasPendingDecision()) {
-    const refused = startCompression();
-    if (refused) return report('refused', refused);
+export type PauseCheck = () => boolean;
+
+const NEVER_PAUSE: PauseCheck = () => false;
+
+export class AdvanceRun {
+  readonly #sim: Steppable;
+  readonly #until: StopCondition;
+  readonly #clock: WorldTimeControl | null;
+  readonly #strategic: boolean;
+  readonly #start: number;
+  readonly #startSeconds: number;
+  readonly #target: number | null;
+  readonly #tickBudget: number;
+  readonly #limit: number;
+  readonly #collected: SimEvent[] = [];
+  readonly #watched: Set<SimEventType>;
+  #started = false;
+  #checked = false;
+
+  constructor(sim: Steppable, until: StopCondition, budget = DEFAULT_ADVANCE_BUDGET_TICKS) {
+    this.#sim = sim;
+    this.#until = until;
+    this.#start = sim.tick;
+    this.#clock = sim.worldClock ?? null;
+    this.#strategic = this.#clock !== null && isStrategicCondition(until);
+    this.#startSeconds = this.#clock?.worldTime().seconds ?? 0;
+    this.#target = this.#clock ? targetSeconds(until, this.#startSeconds) : null;
+    this.#tickBudget = this.#strategic ? Math.max(budget, STRATEGIC_ADVANCE_BUDGET_TICKS) : budget;
+    this.#limit = Math.min(until.ticks ?? this.#tickBudget, this.#tickBudget);
+    this.#watched = new Set<SimEventType>([...(until.events ?? []), ...ALWAYS_STOP_EVENTS]);
+    if (this.#strategic && until.compressionStopped !== false) this.#watched.add('compressionStopped');
   }
-  for (;;) {
-    if (sim.hasPendingDecision()) return report('decision');
-    if (until.idle && sim.isIdle()) return report('idle');
-    if (clock && target !== null && clock.worldTime().seconds >= target) {
+
+  resume(pause: PauseCheck = NEVER_PAUSE): StopReport | null {
+    if (!this.#started) {
+      this.#started = true;
+      const refused = this.#opening();
+      if (refused) return refused;
+    }
+    let stepped = false;
+    for (;;) {
+      if (!this.#checked) {
+        const stop = this.#beforeStep();
+        if (stop) return stop;
+        this.#checked = true;
+      }
+      if (stepped && pause()) return null;
+      this.#checked = false;
+      stepped = true;
+      const stop = this.#step();
+      if (stop) return stop;
+    }
+  }
+
+  #report(reason: StopReason, refusal?: string): StopReport {
+    const clock = this.#clock;
+    return {
+      tick: this.#sim.tick,
+      reason,
+      events: this.#collected,
+      ...(clock ? { worldTime: clock.worldTime() } : {}),
+      ...(refusal ? { refusal } : {}),
+    };
+  }
+
+  #startCompression(): string | null {
+    const refused = this.#clock?.startCompression(this.#until.mode) ?? null;
+    this.#collected.push(...this.#sim.drainEvents());
+    return refused;
+  }
+
+  #opening(): StopReport | null {
+    const sim = this.#sim;
+    const clock = this.#clock;
+    if (sim.ended?.()) return this.#report('ended');
+    const modal = clock?.modalRefusal?.() ?? null;
+    if (modal) return this.#report('refused', modal);
+    if (!this.#strategic || !clock) return null;
+    if (!clock.onMap() && this.#target === null && !sim.hasPendingDecision())
+      return this.#report('refused', 'time compression works on the strategic map only');
+    if (clock.onMap() && !clock.compressing() && !sim.hasPendingDecision()) {
+      const refused = this.#startCompression();
+      if (refused) return this.#report('refused', refused);
+    }
+    return null;
+  }
+
+  #beforeStep(): StopReport | null {
+    const sim = this.#sim;
+    const clock = this.#clock;
+    const until = this.#until;
+    if (sim.hasPendingDecision()) return this.#report('decision');
+    if (until.idle && sim.isIdle()) return this.#report('idle');
+    if (clock && this.#target !== null && clock.worldTime().seconds >= this.#target) {
       clock.stopCompression();
-      collected.push(...sim.drainEvents(), { type: 'worldTimeReached', tick: sim.tick, seconds: clock.worldTime().seconds });
-      return report('worldTime');
+      this.#collected.push(...sim.drainEvents(), { type: 'worldTimeReached', tick: sim.tick, seconds: clock.worldTime().seconds });
+      return this.#report('worldTime');
     }
-    if (strategic && clock.onMap() && !clock.compressing()) {
-      if (until.compressionStopped !== false) return report('idle');
-      const refused = startCompression();
-      if (refused) return report('refused', refused);
-      if (!clock.compressing()) return report('idle');
+    if (this.#strategic && clock && clock.onMap() && !clock.compressing()) {
+      if (until.compressionStopped !== false) return this.#report('idle');
+      const refused = this.#startCompression();
+      if (refused) return this.#report('refused', refused);
+      if (!clock.compressing()) return this.#report('idle');
     }
-    if (strategic && clock.worldTime().seconds - startSeconds >= STRATEGIC_ADVANCE_BUDGET_SECONDS) return report('budget');
-    if (sim.tick - start >= limit) return report(until.ticks !== undefined && until.ticks <= tickBudget ? 'ticks' : 'budget');
+    if (this.#strategic && clock && clock.worldTime().seconds - this.#startSeconds >= STRATEGIC_ADVANCE_BUDGET_SECONDS)
+      return this.#report('budget');
+    if (sim.tick - this.#start >= this.#limit)
+      return this.#report(until.ticks !== undefined && until.ticks <= this.#tickBudget ? 'ticks' : 'budget');
+    return null;
+  }
+
+  #step(): StopReport | null {
+    const sim = this.#sim;
     sim.step();
     const events = sim.drainEvents();
-    collected.push(...events);
-    if (sim.ended?.()) return report('ended');
-    if (sim.hasPendingDecision()) return report('decision');
-    if (events.some((e) => watched.has(e.type))) return report('event');
+    this.#collected.push(...events);
+    if (sim.ended?.()) return this.#report('ended');
+    if (sim.hasPendingDecision()) return this.#report('decision');
+    if (events.some((e) => this.#watched.has(e.type))) return this.#report('event');
+    return null;
   }
+}
+
+export function advance(sim: Steppable, until: StopCondition, budget = DEFAULT_ADVANCE_BUDGET_TICKS): StopReport {
+  return new AdvanceRun(sim, until, budget).resume() as StopReport;
 }

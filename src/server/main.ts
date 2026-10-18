@@ -7,10 +7,12 @@ import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR, REPO_ROOT } from '../node/repo.ts'
 import { loadOrCreateToken } from '../node/token.ts';
 import { createApp } from './app.ts';
 import { chooseDisplayLanguage, detectDataVersion, LANGUAGE_ENV } from './data-version.ts';
-import { createSaveEnvironment } from './save-environment.ts';
-import type { Session } from './session.ts';
+import { createSaveEnvironment, saveDirsEnv } from './save-environment.ts';
 import { createSessionFactory } from './session-factory.ts';
+import { type HostFactory, inProcessHostFactory, type SessionHost, sessionHostKind } from './session-host.ts';
+import { SliceScheduler } from './slicing.ts';
 import { TextService } from './text-service.ts';
+import { workerHostFactory } from './worker-host.ts';
 import { attachWebSocket } from './ws.ts';
 
 const host = process.env.JA2_HOST ?? '127.0.0.1';
@@ -27,16 +29,27 @@ const texts = new TextService({ vfs: data.vfs, dataVersion: dataVersion.version 
 const sessionText = { language: defaultLanguage, dataVersion: dataVersion.version };
 const token = loadOrCreateToken();
 const clientDir = join(REPO_ROOT, 'dist/client');
-const sessions = new Map<string, Session>();
+const sessions = new Map<string, SessionHost>();
 const defaultSession = 'sandbox';
-const { store, saves, sources } = createSaveEnvironment({
+const scheduler = new SliceScheduler();
+const { store, saves, sources, engine } = createSaveEnvironment({
   vfs: data.vfs,
   dataDir: data.dataDir,
   dataVersion: dataVersion.version,
   decoding,
   warn: (message) => console.warn(message),
 });
-const createSession = createSessionFactory({ ...sources, text: sessionText, saves });
+const hostKind = sessionHostKind(process.env);
+const workerConfig = {
+  data: { projectDataDir: PROJECT_DATA_DIR, dataDir: data.dataDir ?? undefined, stubsDir: data.stubsDir ?? undefined },
+  text: sessionText,
+  engine,
+  env: saveDirsEnv(store),
+};
+const createSession: HostFactory =
+  hostKind === 'worker'
+    ? workerHostFactory(workerConfig)
+    : inProcessHostFactory(createSessionFactory({ ...sources, text: sessionText, saves }), saves, scheduler);
 try {
   const seed = Number(process.env.JA2_SEED ?? 1);
   const save = process.env.JA2_SAVE;
@@ -59,6 +72,7 @@ const app = createApp({
   info: { originalData: data.dataDir !== null, slfCount: data.slfCount, stubs: data.stubsDir !== null },
 });
 
+const sandbox = await sessions.get(defaultSession)?.describe();
 const server = serve({ fetch: app.fetch, hostname: host, port }, (addr) => {
   console.log(`ja2-node server on http://${host}:${addr.port}`);
   console.log(`  original data: ${data.dataDir ?? 'not set (JA2_DATA_DIR)'}${data.dataDir ? `, ${data.slfCount} SLF` : ''}`);
@@ -66,21 +80,20 @@ const server = serve({ fetch: app.fetch, hostname: host, port }, (addr) => {
   console.log(`  data version: ${dataVersion.version} (${dataVersion.source}), display language: ${defaultLanguage}`);
   if (dataVersion.warning) console.log(`  warning: ${dataVersion.warning}`);
   console.log(`  files in VFS: ${data.vfs.size}`);
-  const sandbox = sessions.get(defaultSession);
-  if (sandbox) console.log(`  sandbox: ${sandbox.sim.view().mapPath}, ${sandbox.sim.view().soldiers.length} visible soldiers`);
+  if (sandbox) console.log(`  sandbox: ${String(sandbox.map)}, ${String(sandbox.soldiers)} visible soldiers`);
+  console.log(`  sessions: ${hostKind === 'worker' ? 'one worker thread each' : 'in process, time-sliced'} (JA2_SESSION_HOST)`);
   console.log(`  saves: ${store.dir}${store.nativeDir ? `, native saves: ${store.nativeDir}` : ''}`);
   console.log('  token: .ja2/token (or $JA2_TOKEN)');
   if (existsSync(clientDir)) console.log(`  built client: http://${host}:${addr.port}/login?token=${token}`);
 });
 
-attachWebSocket(server, { token, sessions, defaultSession, saves });
+attachWebSocket(server, { token, sessions, defaultSession });
 
 const shutdown = (): void => {
-  void saves
-    .shutdown()
+  void Promise.all([...sessions.values()].map((session) => session.close()))
+    .then(() => saves.flush())
     .catch((err: Error) => console.error(`saving on shutdown failed: ${err.message}`))
     .finally(() => {
-      for (const session of sessions.values()) session.close();
       server.close(() => {
         void data.close().then(() => process.exit(0));
       });

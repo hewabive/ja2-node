@@ -1524,8 +1524,12 @@ labelled rectangles or simple shapes in the original layouts (`01` §4.4).
     233. The same import measured 400 ms at the median earlier the same day at a load below 1: the KVM guest's
     throughput varies by more than the load average shows, so only back-to-back runs compare.
   - *Real-time tick*: unchanged (mean 5–46 µs, worst tick 5–28 ms); item 5 of S12a found nothing to take for free.
+- **After S12b** (2026-10-18; session hosts, §7.5; measured back to back with the parent `ea4f18d` at a load of 1):
+  the event-loop stall while one session runs an instant battle drops from 214–805 ms to 28–35 ms at the median on
+  the original data (179–666 → 19–23 ms on stubs); a world day of compression without a viewer from 33–39 to 15–16 ms
+  at the median, since the session builds no frames nobody receives.
 - **Plans on record**: a visibility cache and moving the simulation to a worker (`01` §11), sessions in
-  `worker_threads` when instant runs start delaying network I/O (`04` §5.9), 60 FPS at 1920×1080 for the tactical view
+  `worker_threads` when instant runs start delaying network I/O (`04` §5.9; built in S12b, §7.5), 60 FPS at 1920×1080 for the tactical view
   (`01` §5.1).
 - **Constraints**: the simulation layers may not read clocks (`01` §3.2), so all timing is taken outside `sim`; the
   original data may not be committed, so baselines measured on it stay local.
@@ -1557,7 +1561,7 @@ defaults to `$JA2_DATA_DIR`; `--data ''` forces stubs.
 | `strategic` | a new campaign with one A.I.M. merc on a 14-day contract (renewed for two weeks when due, so the team never empties), the start sector's garrison emptied before landing (the scripted stand-in for "landed and cleared": a fought clearing is the `campaign` scenario), the squad routed to B9 so that no sector is loaded, then 7 and 30 world days of `MIN60` compression through a `Session`, prompts answered (pre-battle: retreat, else autoresolve); once more with the Queen's attacks enabled: Drassen (B13–D13) emptied and handed to the player as liberated (`setThisSectorAsPlayerControlled(…, contested)`), then `wakeUpQueen` (Omerta alone draws no attack in 30 days) | ms per world day; counters: days, `dayStarted`, compression stops, pre-battle, autoresolve, battle results, player-controlled sectors at the start and the end, frame views built and their ms per day; calls: strategic events, group arrivals, Queen evaluations, autoresolve battles |
 | `autoresolve` | 20 battles a run of 10, 20 and 40 per side: half mercs (profiles on original data, stub mercs on stubs, at most 20), the rest regular militia, against enemies from `tacticalCreateEnemySoldierForAutoresolve` (a quarter elites; capped at `MAX_AR_ENEMIES` 32) | ms per battle, slices per battle; calls: cell turns, attacks |
 | `save` | (S3) five saves and loads a run of: the patrol arena with 64 soldiers (a tactical session), a new campaign with the squad landed and, with `--data`, the largest native save of `$JA2_SAVES_DIR` imported; each settled for 400 ticks; the save is `SaveService.saveFileOf` (snapshot, header, content identity) plus `encodeSaveFile` (stringify and gzip), the load `inflateSave`, `parseSaveText` and S2's `restoreSession` with fresh content | ms per save (primary), series `snapshotMs`, `encodeMs`, `parseMs`, `restoreMs`, `loadMs`; counters raw and gzipped KiB |
-| `server` | in process: a `node:http` server with the WebSocket endpoint on ports 7510–7512; 1, 4 and 16 viewer sessions (the 20-soldier patrol arena, realtime driver ×1) plus one instant battle session (16-enemy arena, `endTurn` until combat ends) per four viewers, driven by WebSocket clients in a worker thread for 4 s | event-loop delay max (the longest stall; `monitorEventLoopDelay` p50 and p99 in counters), frame diff ms and view build ms per frame, bytes per second (all, viewers), instant turn round trips |
+| `server` | in process: a `node:http` server with the WebSocket endpoint on ports 7510–7512 and the sessions in `InProcessHost`s sharing one slice scheduler (S12b); 1, 4 and 16 viewer sessions (the 20-soldier patrol arena, realtime driver ×1) plus one instant battle session (16-enemy arena, `endTurn` until combat ends) per four viewers, driven by WebSocket clients in a worker thread for 4 s | event-loop delay max (the longest stall; `monitorEventLoopDelay` p50 and p99 in counters), frame diff ms and view build ms per frame, bytes per second (all, viewers), instant turn round trips |
 | `campaign` | shortened until S13: a new campaign with six mercs, the landing, then the first sector cleared (approach the nearest enemy until combat, prone, three aimed shots per merc a turn, again after a lull), in a child process | total ms (landing and clearing in series), peak RSS |
 
 The stub arena (`tools/bench/arena.ts`) is original work generated from the seed in the stub map format: 64 × 56 tiles
@@ -1576,19 +1580,19 @@ counted function is renamed. The client side is still to be measured with Playwr
 ### 7.3 Targets (measured 2026-10-18)
 
 Measured by S4 (§7.1; machine: AMD EPYC 9354 KVM guest, 8 vCPUs, Node 24.22.0). Original data first, stubs in
-brackets. *After S12a* gives the slice's numbers (§7.1, measured back to back with its parent commit). The bench carries each target in its JSON line and fails only above ten times the target (§7.6).
+brackets. *After S12a* and *After S12b* give those slices' numbers (§7.1, §7.5, each measured back to back with its parent commit). The bench carries each target in its JSON line and fails only above ten times the target (§7.6).
 
 | Metric | Target | Measured 2026-10-18 | Verdict |
 |---|---|---|---|
 | Enemy turn, 16 enemies, p95 | ≤ 300 ms | A9 254 ms; open arena 371 ms (204 ms). *After S12a*: A9 258 ms (267 before); open arena 274 ms (393 before), 187 ms on the changed stub battle | met after S12a (throw force searches remembered, occupied cover positions traced once, `gunRange` ported; finding 12 fixed) |
-| Enemy turn, 32 enemies plus militia and civilians, p95 | ≤ 1 s | arena with six militia and four civilians 1.28 s (1.07 s); A9 with 32 0.77 s. *After S12a*: arena 1.00 s (1.33 before; 0.69 s on the changed stub battle), A9 0.68 s | met after S12a, without margin on the arena: the turn is the cover search's chance-to-get-through traces (part B: the worker host keeps such a turn off the event loop) |
+| Enemy turn, 32 enemies plus militia and civilians, p95 | ≤ 1 s | arena with six militia and four civilians 1.28 s (1.07 s); A9 with 32 0.77 s. *After S12a*: arena 1.00 s (1.33 before; 0.69 s on the changed stub battle), A9 0.68 s | met after S12a, without margin on the arena: the turn is the cover search's chance-to-get-through traces (S12b: slicing and the worker host keep such a turn from stalling other sessions, §7.5) |
 | Real-time tick, 40 soldiers, mean | ≤ 0.25 ms | 20 µs green and yellow (19–44 µs) | confirmed with a 5× margin; 64 soldiers 35–69 µs |
 | Real-time tick, worst single tick (new) | ≤ 50 ms | 5–13 ms (4–27 ms) | new: one AI decision with several path searches; above 50 ms a tick would show as a hitch at ×1 |
-| Strategic world day, no sector loaded, p95 | ≤ 100 ms | 80–92 ms (83–88 ms) with one merc; 120–145 ms with six (stubs). *After S12a*: 41–51 ms (44–60 ms) with one merc, 48 ms (60 ms) with six (`7d-mercs6`) | met after S12a (finding 11 fixed: cheap views, structural diff) |
+| Strategic world day, no sector loaded, p95 | ≤ 100 ms | 80–92 ms (83–88 ms) with one merc; 120–145 ms with six (stubs). *After S12a*: 41–51 ms (44–60 ms) with one merc, 48 ms (60 ms) with six (`7d-mercs6`). *After S12b* (no frames without a viewer): 22 ms (24 ms) with one merc, 27 ms (21 ms) with six | met after S12a (finding 11 fixed: cheap views, structural diff); S12b builds no frames nobody receives |
 | Autoresolve battle, 40 per side, p95 (new) | ≤ 10 ms | 3.3 ms (2.8 ms) | new, met |
 | Save (snapshot and gzip) | ≤ 100 ms and ≤ 2 MB gzipped | p50 / p95, measured by S3 on the same machine with a 1-minute load of 7–9 from other jobs: the largest native import 162 / 354 ms, 4.2 MiB raw, 222 KiB gzipped (snapshot 65 ms, stringify and gzip 80 ms at the median); a landed new campaign 80 / 198 ms, 3.5 MiB, 184 KiB; the 64-soldier arena 53 / 75 ms (stubs: 41 / 57 ms, 2.0 MiB, 77 KiB; landed campaign 49 / 83 ms, 2.4 MiB, 64 KiB). The p95 is the first save of a session, which builds the content index (about 150 ms on the original data). *After S12a* (p50 / p95, back to back with the parent at load 2): the largest import 102 / 186 ms (122 / 221 before; 99 / 159 ms with the bench's clock pinned), a landed campaign 69 / 148 ms, the arena 39 / 52 ms (stubs 38 / 60 and 35 / 41 ms) | size met with a wide margin; time met on stubs, for the arena and at the median for a landed campaign; the largest import is at the target at the median and over it for the first save of a session (content index and text identity, now 0.2–0.8 s cheaper together in a cold process). Gzip runs at the fastest level (at the default level the import is 138 KiB but gzip takes three times longer) |
 | Load (parse and rebuild) | ≤ 500 ms | p50 / p95 with fresh content loading: the largest import 260 / 674 ms, a landed campaign 182 / 250 ms, the arena 125 / 194 ms (stubs 92–106 / 116–128 ms). *After S12a* (load 2): the import 184 / 243 ms (199 / 283 before), a landed campaign 160 / 233 ms, the arena 104 / 150 ms | met; most of a load is building the content again |
-| Event-loop stall for other sessions while one runs an instant turn (max delay) | ≤ 50 ms | 308–322 ms with one battle (230–247 ms), 1.24 s with four (0.83 s) | kept as the trigger of §7.5 and not met: the stall equals the longest instant turn, so the worker host is needed as soon as an instant battle shares the process with other sessions. Measured as the max: the p99 of `monitorEventLoopDelay` (1.5 ms) hides a stall, which is one sample |
+| Event-loop stall for other sessions while one runs an instant turn (max delay) | ≤ 50 ms | 308–322 ms with one battle (230–247 ms), 1.24 s with four (0.83 s). *After S12b* (in process, back to back with the parent, p50 / max of three runs): one battle 214 / 225 → 28 / 36 ms with one viewer and 219 / 234 → 30 / 36 ms with four (179 / 181 → 22 / 28 ms and 183 / 192 → 19 / 27 ms), four battles with sixteen viewers 805 / 809 → 35 / 42 ms (666 / 687 → 23 / 23 ms); live check with `JA2_SESSION_HOST=worker`: another agent's `observe` at most 13 ms during a battle | met after S12b (§7.5): advances run in 10 ms slices, one slice per event-loop turn across sessions, so the stall is a slice plus the longest single tick. In process, saves still stall other sessions for their snapshot and stringify (about 40–70 ms each on the largest native import, also the autosave at `endTurn` in combat); the worker host removes those. Measured as the max: the p99 of `monitorEventLoopDelay` hides a stall, which is one sample |
 | Shortened campaign (land and clear the first sector), peak RSS (new) | ≤ 512 MB | 319 MB (286 MB) | new, met; the full campaign follows with S13 |
 | Tactical page | 60 FPS at 1920×1080 | not measured (client side) | provisional |
 
@@ -1605,19 +1609,67 @@ brackets. *After S12a* gives the slice's numbers (§7.1, measured back to back w
   repeated path searches in single real-time AI decisions. S12a took the first three (derived data only: the roster's
   sorted list per `Roster`, sector views per map state, throw force searches per item table, none in the snapshot);
   left are the cover search's chance-to-get-through traces (within one AI decision under 4 % repeat exactly, so a memo
-  would not pay) and the path search. Profiles of the save path misattribute time to whatever runs during a garbage
+  would not pay) and the path search. S12b took the per-10-tick view when nobody listens (§7.5). Profiles of the save path misattribute time to whatever runs during a garbage
   collection; time phases with `performance.now()` around them before trusting a frame.
 - No event jumping (`04` §2 level 1b) unless the real-time target fails after caches: it changes the stepping model.
 
-### 7.5 Worker host
+### 7.5 Session hosts
 
-`src/server/session-host.ts` defines `SessionHost` (`dispatch`, `advance`, `snapshot`, `subscribe`, `close`) with two
-implementations: `InProcessHost` (today's behaviour) and `WorkerHost`, which runs one session in a `worker_threads`
-worker and forwards the protocol messages unchanged (the protocol is already message-based, `04` §5.9). Each worker
-builds its own content from the VFS (the disk cache is shared by the OS; the memory per worker is measured by the
-`server` bench). The registry picks the host by a server setting (`JA2_SESSION_HOST=inprocess|worker|auto`); `auto` uses
-workers when more than one session is open. The browser's embedded mode (`04` §5.7) is the same idea in a Web Worker and
-stays later.
+The plan (S4): a `SessionHost` interface with an in-process and a worker implementation, the host picked by a server
+setting, so that one session's instant run stops delaying the others. The browser's embedded mode (`04` §5.7) is the
+same idea in a Web Worker and stays later.
+
+**What landed (S12b, 2026-10-18).** `04` §5.9 describes the design as built; in short:
+
+- `SessionHost` (`src/server/session-host.ts`) is what the MCP tools, the WebSocket endpoint, the HTTP routes and the
+  `server` bench use; none of them touches a `Session`. Inputs run through one queue per session in arrival order (the
+  input log's order is the execution order), reads answer between ticks.
+- `InProcessHost` (default) runs advances, also the instant driver's, in slices of `SLICE_BUDGET_MS` (10 ms) on a
+  resumable `AdvanceRun`, and one `SliceScheduler` per server grants at most one slice per event-loop turn: an advance
+  claims a turn before its first slice and waits when another session already ran a slice in that turn. Slicing changes
+  where the server pauses, never a tick: the host's results, frames, input log and snapshots equal an unsliced run's
+  (`session-host.test.ts`, with a pause after every step).
+- `WorkerHost` (`JA2_SESSION_HOST=worker`) runs each session in its own `worker_threads` worker that opens its own data
+  VFS and save environment (`openSessionEnvironment`) and writes its own save files; the same contract test drives a
+  scripted stub battle with a save, an autosave in combat and a load, calls made without waiting, and Dead is Dead
+  through both hosts and expects the same results, frames, snapshots, input logs and save files. `auto` was not built: a
+  server runs all its sessions one way, since switching when a second session opens would move a running session between
+  threads.
+- Frames nobody receives are skipped (finding 11): without a subscriber the session follows the music mode from the
+  events at every frame point but builds and diffs no view; the first subscriber's welcome is the next diff's base.
+- Saves gzip on the thread pool (same bytes); the snapshot and the stringify stay synchronous.
+
+Measured (back to back with the parent commit `ea4f18d`, `bench … --runs 3`, original data first, stubs in brackets, p50
+/ max over the runs):
+
+- *Server* (event-loop delay max, in process): one viewer and one battle 214 → 28 ms at the median (225 → 36 ms at most;
+  stubs 179 → 22 ms, 181 → 28 ms), four viewers and one battle 219 → 30 ms (234 → 36 ms; 183 → 19 ms, 192 → 27 ms),
+  sixteen viewers and four battles 805 → 35 ms (809 → 42 ms; 666 → 23 ms, 687 → 23 ms); the instant turn's round trip
+  stays about the same: 98 → 93 ms at the median with one battle, 301 → 377 ms with four (stubs 30 → 36 ms and 307 → 199
+  ms), since the battles now take turns slice by slice. `monitorEventLoopDelay`'s p99 rises from 1.6 to 11 ms with one
+  battle (24 ms with four): the stall is now many short pauses instead of one long one. Before the scheduler granted one
+  slice per turn, sixteen viewers and four battles stalled 68 ms (57 ms): a battle's first slice in the poll phase and
+  another battle's continuation in the check phase of the same loop turn.
+- *Strategic world day* (frames skipped, nobody subscribed in the bench): one merc 7 days 33 / 41 → 15 / 22 ms per day
+  (p50 / p95; stubs 36 / 52 → 15 / 24 ms), six mercs (`7d-mercs6`) 39 / 51 → 16 / 27 ms (38 / 53 → 15 / 21 ms); the
+  3,227 frame views of a week (15–20 ms a day) are gone, every other counter is unchanged.
+- *Live check* (two MCP agents on original data, port 7512; the battle agent imports `SaveGame10`, the D13 airport,
+  walks into combat and sends `endTurn` then `advance idle` twelve times, the other agent alternates `observe` and a
+  one-tile `move` on a sandbox session meanwhile): in process the viewer's calls took 15 ms at the median and at most 44
+  ms (`observe`), 7 and 77 ms (`move`), over 13 calls (the battle session's `endTurn` autosave, a synchronous snapshot
+  and stringify of the largest native save, about 40–70 ms each, is now the longest stall); with workers 2.5 / 4.9 /
+  12.7 ms (`observe`, p50 / p95 / max) and at most 18 ms (`move`), over 239 calls during the twelve turns; the two runs
+  played the same battle tick for tick.
+- *Memory*: RSS with the default sandbox session 242 MB in process, 338 MB with a worker; with three sessions (two
+  sandboxes and the D13 import) 588 MB and 1,010 MB: a worker costs about 100–140 MB per session on the original data.
+
+Trade-off: in process is the default because it costs no extra memory and no content load per session; the worker host
+uses several cores and removes the stalls slicing cannot (single ticks of up to about 30 ms, saves, opening a session
+and loading a save, 0.2–0.5 s of content building), at about 100–140 MB and a content load per session, and each worker
+builds its own content index on its first save. Left: the bench's `server` scenario has no worker variant (its arenas
+are generated into an in-memory VFS overlay a worker cannot open); the Auto01/Auto02 alternation is kept per worker; a
+save's snapshot in process could be taken in slices too if sections were captured at one instant (the largest native
+import takes 40–70 ms).
 
 ### 7.6 CI
 
@@ -2076,7 +2128,8 @@ session factory and the protocol.
     per-sector original), unchanged sector views are reused between frames, and `diffPlayerView` compares with `sameJson`
     (`src/protocol/same-json.ts`, equal exactly when the `JSON.stringify` outputs are equal, fuzz-tested) instead of
     stringifying both sides. The frames are byte-identical (hashed over a compressed week and two campaign battles on
-    both sources); the session still builds a view every 10 ticks (part B could skip frames nobody receives).
+    both sources). S12b skips the frames nobody receives: without a subscriber the session builds and diffs no view
+    (§7.5; a world day 33 → 15 ms at the median).
 12. *Fixed in S12a: bullet code falls out of the optimizing compiler*: `fireBullet`, `fireBulletGivenTarget` and
     `calcChanceToGetThrough` (`src/sim/tactical/combat/bullets.ts:271-400`, `:886-1006`) deoptimize again and again
     (`node --trace-deopt`: wrong map, not a Smi, minus zero, lost precision or NaN, so the bullet record changes shape and

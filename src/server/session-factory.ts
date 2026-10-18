@@ -68,28 +68,34 @@ async function openLoad(saves: SaveService | null, name: string): Promise<Opened
 }
 
 export function createSessionFactory(options: SessionFactoryOptions): SessionFactory {
-  const { saves, text } = options;
   return async (id: string, request: SessionRequest): Promise<Session> => {
-    if (request.load) {
-      const opened = await openLoad(saves, request.load.name);
-      const session = new Session(id, opened.sim, text, { kind: 'load', name: opened.name, digest: opened.digest });
-      session.restoreMusic(musicOfPresentation(opened.file.presentation));
-      saves?.attach(session);
-      saves?.completeLoad(session, opened, request.load.reseed);
-      return session;
-    }
-    let origin: LogOrigin;
-    let deadIsDeadName: string | null = null;
-    if (request.campaign) {
-      origin = { kind: 'campaign', seed: request.seed, campaign: request.campaign };
-      deadIsDeadName = request.campaign.deadIsDeadName ?? null;
-    } else if (request.save) {
-      const bytes = await nativeSave(options, request.save);
-      origin = { kind: 'import', seed: request.seed, save: request.save, digest: digestOf(bytes) };
-      deadIsDeadName = request.save;
-    } else origin = { kind: 'sandbox', seed: request.seed };
-    const session = new Session(id, await simFromOrigin(options, origin, saves), text, origin);
-    saves?.attach(session, { deadIsDeadName });
+    const session = await createSession(options, id, request);
+    if (request.language) session.language = request.language;
     return session;
   };
+}
+
+async function createSession(options: SessionFactoryOptions, id: string, request: SessionRequest): Promise<Session> {
+  const { saves, text } = options;
+  if (request.load) {
+    const opened = await openLoad(saves, request.load.name);
+    const session = new Session(id, opened.sim, text, { kind: 'load', name: opened.name, digest: opened.digest });
+    session.restoreMusic(musicOfPresentation(opened.file.presentation));
+    saves?.attach(session);
+    saves?.completeLoad(session, opened, request.load.reseed);
+    return session;
+  }
+  let origin: LogOrigin;
+  let deadIsDeadName: string | null = null;
+  if (request.campaign) {
+    origin = { kind: 'campaign', seed: request.seed, campaign: request.campaign };
+    deadIsDeadName = request.campaign.deadIsDeadName ?? null;
+  } else if (request.save) {
+    const bytes = await nativeSave(options, request.save);
+    origin = { kind: 'import', seed: request.seed, save: request.save, digest: digestOf(bytes) };
+    deadIsDeadName = request.save;
+  } else origin = { kind: 'sandbox', seed: request.seed };
+  const session = new Session(id, await simFromOrigin(options, origin, saves), text, origin);
+  saves?.attach(session, { deadIsDeadName });
+  return session;
 }
