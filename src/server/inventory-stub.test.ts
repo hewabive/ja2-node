@@ -116,26 +116,26 @@ describe('inventory commands in a stub campaign', { timeout: SLOW_SCENARIO_MS },
     ];
     expect(squad.session.dispatch({ type: 'trade', buy, useBalance: true })).toMatchObject({ ok: true });
     expect(squad.session.dispatch({ type: 'closeShop' })).toEqual({ ok: true });
-    const s = soldier(squad, merc);
-    const bought = slotOf(s, rifle.item);
+    const s = () => soldier(squad, merc);
+    const bought = slotOf(s(), rifle.item);
     expect(bought).toBeGreaterThan(InvSlot.HAND);
     expect(squad.session.dispatch({ type: 'moveItem', soldier: merc, from: bought, to: 'hand' })).toMatchObject({ ok: true });
     squad.live.advance({ idle: true });
-    expect(s.inv[InvSlot.HAND]?.item).toBe(def(rifle.item)?.index);
-    expect(slotOf(s, 'GLOCK_17')).toBe(bought);
+    expect(s().inv[InvSlot.HAND]?.item).toBe(def(rifle.item)?.index);
+    expect(slotOf(s(), 'GLOCK_17')).toBe(bought);
     const reloaded = squad.session.dispatch({ type: 'reload', soldier: merc });
     expect(reloaded, reloaded.reason).toMatchObject({ ok: true });
-    const shots = s.inv[InvSlot.HAND]?.gunShotsLeft ?? 0;
+    const shots = s().inv[InvSlot.HAND]?.gunShotsLeft ?? 0;
     expect(shots).toBe(def(MAGAZINE)?.magazine?.capacity);
-    const target = s.gridNo + 6 * 160;
+    const target = s().gridNo + 6 * 160;
     expect(squad.session.dispatch({ type: 'attack', soldier: merc, target })).toMatchObject({ ok: true });
     const fired = squad.live.advance({ idle: true });
     expect(events(fired, 'shotFired')).toEqual(expect.arrayContaining([expect.objectContaining({ soldier: merc })]));
-    expect(s.inv[InvSlot.HAND]?.gunShotsLeft).toBeLessThan(shots);
+    expect(s().inv[InvSlot.HAND]?.gunShotsLeft).toBeLessThan(shots);
     const unloaded = squad.session.dispatch({ type: 'unload', soldier: merc });
     expect(unloaded, unloaded.reason).toMatchObject({ ok: true, data: { magazine: MAGAZINE } });
-    expect(s.inv[InvSlot.HAND]?.gunShotsLeft).toBe(0);
-    const full = s.inv.findIndex((o) => o.item === def(MAGAZINE)?.index && o.status[0] === shots);
+    expect(s().inv[InvSlot.HAND]?.gunShotsLeft).toBe(0);
+    const full = s().inv.findIndex((o) => o.item === def(MAGAZINE)?.index && o.status[0] === shots);
     const byHand = squad.session.dispatch({ type: 'reload', soldier: merc, ammo: full });
     expect(byHand, byHand.reason).toMatchObject({ ok: true, data: { shots } });
   });
@@ -145,6 +145,7 @@ describe('inventory commands in a stub campaign', { timeout: SLOW_SCENARIO_MS },
     const [medic, patient] = squad.mercs as [number, number];
     const m = soldier(squad, medic);
     const p = soldier(squad, patient);
+    const bleeding = () => soldier(squad, patient).bleeding;
     const kitItem = def('FIRSTAIDKIT');
     if (!kitItem) throw new Error('no first aid kit item');
     m.inv[InvSlot.SMALLPOCK1] = {
@@ -163,11 +164,11 @@ describe('inventory commands in a stub campaign', { timeout: SLOW_SCENARIO_MS },
     squad.live.advance({ idle: true });
     expect(squad.session.dispatch({ type: 'bandage', soldier: medic, target: patient })).toMatchObject({ ok: true });
     const seen: string[] = [];
-    for (let k = 0; k < AID_SLICES && p.bleeding > 0; k++)
+    for (let k = 0; k < AID_SLICES && bleeding() > 0; k++)
       seen.push(...squad.live.advance({ ticks: AID_SLICE_TICKS }).events.map((e) => e.type));
-    expect(p.bleeding).toBe(0);
+    expect(bleeding()).toBe(0);
     expect(seen).toEqual(expect.arrayContaining(['firstAidStarted', 'bandaged', 'firstAidDone']));
-    expect(m.inv[InvSlot.HAND]?.status[0]).toBeLessThan(100);
+    expect(soldier(squad, medic).inv[InvSlot.HAND]?.status[0]).toBeLessThan(100);
   });
 
   it('passes items between mercs and through the sector inventory on the map screen', async () => {
@@ -191,8 +192,7 @@ describe('inventory commands in a stub campaign', { timeout: SLOW_SCENARIO_MS },
     expect(session.dispatch({ type: 'moveItem', soldier: b, from: 'ground', item: clips?.index, to: 'smallPocket2' })).toMatchObject({
       ok: true,
     });
-    const sb = soldier(squad, b);
-    expect(sb.inv[InvSlot.SMALLPOCK2]?.item).toBe(def('CLIP9_15')?.index);
+    expect(soldier(squad, b).inv[InvSlot.SMALLPOCK2]?.item).toBe(def('CLIP9_15')?.index);
     expect(session.dispatch({ type: 'moveItem', soldier: b, from: 'hand', toSoldier: a, to: 'secondHand' })).toMatchObject({ ok: true });
     expect(soldier(squad, a).inv[InvSlot.SECOND_HAND]?.item).toBe(def('GLOCK_17')?.index);
     expect(session.dispatch({ type: 'moveItem', soldier: a, from: 'secondHand', to: 'ground' })).toMatchObject({ ok: true });
