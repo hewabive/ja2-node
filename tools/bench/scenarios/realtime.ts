@@ -91,14 +91,16 @@ function variant(ctx: BenchContext, soldiers: number, yellow: boolean): VariantS
       for (let i = 0; i < STEPS; i++) session.advance({ ticks: STEP_TICKS });
       const samples = [...timed.tickUs];
       const mean = samples.reduce((a, b) => a + b, 0) / Math.max(1, samples.length);
+      const alerts = alertCounts(sim);
       return {
         samples,
+        work: { combatStarted: timed.count('combatStarted') - combat0, ...alerts },
         counters: {
           ticks: samples.length,
           ticksPerCpuSecond: Math.round((US_PER_MS * US_PER_MS) / Math.max(mean, 1e-9)),
           combatStarted: timed.count('combatStarted') - combat0,
           viewMsPerFrame: round((timed.viewMs - viewMs0) / Math.max(1, samples.length / 10), 3),
-          ...alertCounts(sim),
+          ...alerts,
         },
         info: {
           soldiers: { enemies, civilians: soldiers - enemies, mercs: MERCS },

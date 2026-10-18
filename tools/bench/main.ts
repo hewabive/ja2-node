@@ -2,6 +2,7 @@ import { appendFileSync } from 'node:fs';
 import { availableParallelism, cpus, totalmem } from 'node:os';
 import { compareWithBaseline, saveBaseline } from './baseline.ts';
 import { openBenchData } from './data.ts';
+import { isolatedChild } from './isolate.ts';
 import type { BenchContext, BenchLine } from './measure.ts';
 import { autoresolve } from './scenarios/autoresolve.ts';
 import { CAMPAIGN_SEED, campaign } from './scenarios/campaign.ts';
@@ -73,7 +74,9 @@ function summarize(line: BenchLine): string {
     ? ` target ${line.target.stat} ≤ ${line.target.value}${line.target.ok ? '' : ` SANITY BOUND ${line.target.bound} EXCEEDED`}`
     : '';
   const info = line.info ? ` ${JSON.stringify(line.info)}` : '';
-  return `${line.scenario} ${line.variant} [${line.source}] ${line.metric}: p50 ${line.p50} p95 ${line.p95} max ${line.max} ${line.unit} (n=${line.n}, mean ${line.mean})${target}${info}`;
+  const load = line.load ? ` load ${line.load[0]}→${line.load[1]}` : '';
+  const drift = line.deterministic === false ? ' NONDETERMINISTIC: the runs did different work' : '';
+  return `${line.scenario} ${line.variant} [${line.source}] ${line.metric}: p50 ${line.p50} p95 ${line.p95} max ${line.max} ${line.unit} (n=${line.n}, mean ${line.mean})${target}${drift}${load}${info}`;
 }
 
 export async function runBench(args: BenchArgs): Promise<number> {
@@ -93,6 +96,7 @@ export async function runBench(args: BenchArgs): Promise<number> {
     profile: args.profile ?? false,
     calls: args.calls ?? false,
     variant: args.variant ?? null,
+    isolate: !isolatedChild(),
     log: (message) => console.error(message),
     emit: (line) => {
       lines.push(line);

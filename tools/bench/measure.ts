@@ -1,5 +1,7 @@
+import { loadavg } from 'node:os';
 import type { BenchData, DataSource } from './data.ts';
 import { type CounterSpec, countCalls, type HotFrame, hotFrames, profileCpu, writeProfile } from './inspector.ts';
+import { runIsolated } from './isolate.ts';
 import { type Distribution, distribution, round, sum } from './stats.ts';
 
 export interface BenchContext {
@@ -9,6 +11,7 @@ export interface BenchContext {
   readonly profile: boolean;
   readonly calls: boolean;
   readonly variant: string | null;
+  readonly isolate: boolean;
   log(message: string): void;
   emit(line: BenchLine): void;
 }
@@ -17,6 +20,7 @@ export interface VariantRun {
   readonly samples: readonly number[];
   readonly series?: Readonly<Record<string, readonly number[]>>;
   readonly counters?: Readonly<Record<string, number>>;
+  readonly work?: Readonly<Record<string, number>>;
   readonly info?: Readonly<Record<string, unknown>>;
 }
 
@@ -41,6 +45,8 @@ export interface BenchLine {
   readonly seed: number;
   readonly runs: number;
   readonly warmup?: boolean;
+  readonly load?: readonly [number, number];
+  readonly deterministic?: boolean;
   readonly metric: string;
   readonly unit: string;
   readonly n: number;
@@ -61,6 +67,10 @@ export interface BenchLine {
 }
 
 export const SANITY_FACTOR = 10;
+
+function loadAverage(): number {
+  return round(loadavg()[0] ?? 0, 2);
+}
 
 export function pendingLine(ctx: BenchContext, scenario: string, message: string): BenchLine {
   return {
@@ -90,6 +100,13 @@ function mergeSeries(runs: readonly VariantRun[]): Record<string, Distribution> 
   return out;
 }
 
+function sameWork(runs: readonly VariantRun[]): boolean | undefined {
+  const first = runs[0];
+  if (!first?.work || runs.length < 2) return undefined;
+  const signature = JSON.stringify(first.work);
+  return runs.every((r) => JSON.stringify(r.work) === signature);
+}
+
 function firstCounters(runs: readonly VariantRun[]): Record<string, number> {
   return { ...(runs[0]?.counters ?? {}) };
 }
@@ -102,6 +119,12 @@ function perSample(calls: Record<string, number>, samples: number): Record<strin
 
 export async function measure<S>(ctx: BenchContext, scenario: string, spec: VariantSpec<S>): Promise<void> {
   if (ctx.variant !== null && ctx.variant !== spec.variant) return;
+  if (ctx.isolate) {
+    const { data, seed, runs, profile, calls } = ctx;
+    ctx.emit(await runIsolated({ scenario, variant: spec.variant, seed, runs, dataDir: data.dataDir, profile, calls }));
+    return;
+  }
+  const loadBefore = loadAverage();
   const runs: VariantRun[] = [];
   const warmup = ctx.runs > 1 && (spec.inProcess ?? true);
   for (let r = warmup ? -1 : 0; r < ctx.runs; r++) {
@@ -114,6 +137,7 @@ export async function measure<S>(ctx: BenchContext, scenario: string, spec: Vari
     }
   }
   const primary = distribution(runs.flatMap((r) => [...r.samples]));
+  const deterministic = sameWork(runs);
   const name = `${scenario}-${spec.variant}-${ctx.data.source}`;
   let profile: { path: string; hot: HotFrame[] } | null = null;
   const inProcess = spec.inProcess ?? true;
@@ -151,6 +175,8 @@ export async function measure<S>(ctx: BenchContext, scenario: string, spec: Vari
     seed: ctx.seed,
     runs: ctx.runs,
     warmup,
+    load: [loadBefore, loadAverage()],
+    ...(deterministic !== undefined ? { deterministic } : {}),
     metric: spec.metric,
     unit: spec.unit,
     n: primary.n,

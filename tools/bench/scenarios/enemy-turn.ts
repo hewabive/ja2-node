@@ -57,6 +57,7 @@ function runBattle(b: Battle) {
       interrupts: b.metered.count('interrupt'),
       viewMs: round(b.metered.viewMs - viewMs0, 1),
     },
+    work: { turns, ticks: sum(r.turnTicks), shots, hits: b.metered.count('soldierHit'), deaths: b.metered.count('soldierDied') },
     info: { outcome: r.outcome },
   };
 }

@@ -88,7 +88,7 @@ function choiceFor(prompt: BattlePrompt): string[] {
     case 'simultaneousArrival':
       return ['separately', 'together'];
     case 'contractRenewal':
-      return ['week', 'day', 'letGo'];
+      return ['twoWeeks', 'week', 'day', 'letGo'];
     case 'mercDeparture':
       return [...prompt.choices];
     case 'insuranceExtension':

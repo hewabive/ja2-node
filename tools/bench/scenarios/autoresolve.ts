@@ -30,6 +30,7 @@ import { type BenchContext, measure, type VariantSpec } from '../measure.ts';
 export const AUTORESOLVE = 'autoresolve';
 
 const SIDES = [10, 20, 40] as const;
+const BATTLE_TARGET_MS = 10;
 const BATTLES_PER_RUN = 20;
 const MAX_SLICES = 100_000;
 const SECTOR = { x: 9, y: 1 };
@@ -128,6 +129,7 @@ function variant(ctx: BenchContext, side: number): VariantSpec<{ content: Tactic
     variant: `side-${side}`,
     metric: 'battle',
     unit: 'ms',
+    target: BATTLE_TARGET_MS,
     calls: AUTORESOLVE_COUNTERS,
     perSample: true,
     setup: async () => {
@@ -151,6 +153,7 @@ function variant(ctx: BenchContext, side: number): VariantSpec<{ content: Tactic
       const first = battles[0]?.input;
       return {
         samples,
+        work: { slices: slices.reduce((a, b) => a + b, 0), victories },
         series: { slicesPerBattle: slices },
         counters: {
           battles: battles.length,

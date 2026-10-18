@@ -1,19 +1,27 @@
 import { createCampaignSession } from '../../../src/server/campaign-factory.ts';
 import { Session } from '../../../src/server/session.ts';
 import { wakeUpQueen } from '../../../src/sim/strategic/ai/reactions.ts';
+import { setThisSectorAsPlayerControlled } from '../../../src/sim/strategic/map/control.ts';
 import { sectorInfo } from '../../../src/sim/strategic/map/sectors.ts';
 import { CompressMode } from '../../../src/sim/strategic/time/constants.ts';
 import { MeteredSim } from '../battle.ts';
 import { type Campaign, CompressionRefused, compressUntil, leaveSector, nextDay } from '../campaign-run.ts';
 import { STRATEGIC_COUNTERS } from '../inspector.ts';
 import { type BenchContext, measure, type VariantSpec } from '../measure.ts';
+import { round } from '../stats.ts';
 
 export const STRATEGIC = 'strategic';
 
 const DAY_TARGET_MS = 100;
-const SQUAD_PROFILES = [0, 1];
+const SQUAD_PROFILES = [0];
 const LONG_CONTRACT_DAYS = 14;
 const START_SECTOR = { x: 9, y: 1 };
+const LIBERATED_TOWN = [
+  { x: 13, y: 2 },
+  { x: 13, y: 3 },
+  { x: 13, y: 4 },
+];
+const CONTESTED = true;
 const DAY_LENGTHS = [7, 30] as const;
 const COUNTED_EVENTS = [
   'dayStarted',
@@ -43,10 +51,21 @@ async function clearedCampaign(ctx: BenchContext, queen: boolean): Promise<Campa
   c.session.advance({ idle: true });
   leaveSector(c);
   if (queen) {
-    if (!campaign.queen) throw new Error('bench: the campaign has no strategic AI');
+    if (!campaign.queen || !campaign.strategic) throw new Error('bench: the campaign has no strategic AI');
+    for (const sector of LIBERATED_TOWN) {
+      const info = sectorInfo(campaign.state.map, sector);
+      info.numAdmins = 0;
+      info.numTroops = 0;
+      info.numElites = 0;
+      setThisSectorAsPlayerControlled(campaign.strategic, { ...sector, z: 0 }, CONTESTED);
+    }
     wakeUpQueen(campaign.queen);
   }
   return c;
+}
+
+function playerSectors(c: Campaign): number {
+  return c.campaignSession.campaign.state.map.elements.filter((e) => !e.enemyControlled).length;
 }
 
 function eventDeltas(c: Campaign, before: ReadonlyMap<string, number>): Record<string, number> {
@@ -67,6 +86,9 @@ function variant(ctx: BenchContext, days: number, queen: boolean): VariantSpec<C
     run: (c) => {
       const samples: number[] = [];
       const before = new Map(c.metered.events);
+      const playerSectorsAtStart = playerSectors(c);
+      const viewMs0 = c.metered.viewMs;
+      const views0 = c.metered.views;
       let stops = 0;
       let stopped: string | null = null;
       for (let d = 0; d < days && stopped === null; d++) {
@@ -80,13 +102,19 @@ function variant(ctx: BenchContext, days: number, queen: boolean): VariantSpec<C
         }
       }
       const state = c.campaignSession.campaign.state;
+      const events = eventDeltas(c, before);
       return {
         samples,
+        work: { days: samples.length, advanceCalls: stops, ...events },
         counters: {
           days: samples.length,
           advanceCalls: stops,
-          ...eventDeltas(c, before),
+          ...events,
           mercsLeft: c.campaignSession.roster?.all().length ?? 0,
+          playerSectorsAtStart,
+          playerSectorsAtEnd: playerSectors(c),
+          frameViews: c.metered.views - views0,
+          viewBuildMsPerDay: round((c.metered.viewMs - viewMs0) / Math.max(1, samples.length), 1),
         },
         info: { flow: state.flow, queenAwake: state.queen.awake, ...(stopped ? { stoppedEarly: stopped } : {}) },
       };
