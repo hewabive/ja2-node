@@ -226,13 +226,21 @@ export class SaveService {
     if (context.deadIsDeadName !== undefined) state.deadIsDeadName = context.deadIsDeadName;
     this.#attached.add(session);
     session.hooks = {
-      beforeDispatch: (s, cmd) => this.#beforeDispatch(s, cmd),
-      afterDispatch: (s, cmd, result) => this.#afterDispatch(s, cmd, result),
-      beforeAdvance: (s) => this.#beforeAdvance(s),
-      afterAdvance: (s, report) => this.#afterAdvance(s, report),
-      afterInput: (s) => this.#afterInput(s),
-      failed: (s) => this.#failed(s),
+      beforeDispatch: (s, cmd) => this.#guarded(() => this.#beforeDispatch(s, cmd)),
+      afterDispatch: (s, cmd, result) => this.#guarded(() => this.#afterDispatch(s, cmd, result)),
+      beforeAdvance: (s) => this.#guarded(() => this.#beforeAdvance(s)),
+      afterAdvance: (s, report) => this.#guarded(() => this.#afterAdvance(s, report)),
+      afterInput: (s) => this.#guarded(() => this.#afterInput(s)),
+      failed: (s) => this.#guarded(() => this.#failed(s)),
     };
+  }
+
+  #guarded(work: () => void): void {
+    try {
+      work();
+    } catch (err) {
+      this.#warn(`automatic save skipped: ${(err as Error).message}`);
+    }
   }
 
   detach(session: Session): void {
@@ -316,7 +324,8 @@ export class SaveService {
   }
 
   #saveable(session: Session): boolean {
-    return session.sim instanceof CampaignSession || session.sim instanceof TacticalSession;
+    const sim = session.sim;
+    return sim instanceof CampaignSession ? sim.origin !== null : sim instanceof TacticalSession;
   }
 
   #target(session: Session, request: SaveRequest): { kind: SaveKind; name: string } | SaveOutcome {
