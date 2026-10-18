@@ -24,6 +24,7 @@ const ARENA_MERCS = 6;
 const SECTOR = { x: 9, y: 1 };
 const KIB = 1024;
 const UNUSED_DIR = '.cache/bench/saves';
+const SAVED_AT = 0;
 
 interface SaveBench {
   readonly session: Session;
@@ -42,6 +43,7 @@ function service(ctx: BenchContext): SaveService {
     ledger,
     dataVersion: ctx.data.source === 'stubs' ? 'stubs' : 'english',
     engine: { version: 'bench', commit: 'bench' },
+    now: () => new Date(SAVED_AT),
     restore: (snapshot) => restoreSession(snapshot, ledger.read, ledger.exists, { layers: ctx.data.layers }),
   });
 }

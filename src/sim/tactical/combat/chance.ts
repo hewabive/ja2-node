@@ -4,8 +4,8 @@
 // @src TileEngine/Isometric_Utils.cc GetRangeInCellCoordsFromGridNoDiff; TacticalAI/AIUtils.cc SoldierDifficultyLevel.
 // @src See docs/11 §2.
 
-import { ItemClass, ItemFlags, type ItemTable, NOTHING, WeaponClass } from '../../../content/items/items.ts';
-import { WORLD_COLS } from '../../../content/world/grid.ts';
+import { ItemClass, ItemFlags, type ItemTable, NOTHING, WEAPON_CLASSES, WeaponClass } from '../../../content/items/items.ts';
+import { CELL_X_SIZE, WORLD_COLS } from '../../../content/world/grid.ts';
 import { findAttachment, type ItemObject, USABLE_STATUS } from '../../items/object.ts';
 import { AnimHeight, endHeight, height, states } from '../animation.ts';
 import { isGassed } from '../explosions/smoke.ts';
@@ -41,8 +41,8 @@ export function rangeInUnits(a: number, b: number): number {
 
 export function gunRange(items: ItemTable, gun: ItemObject): number {
   const def = items.byIndex.get(gun.item);
-  if (def?.itemClass !== ItemClass.GUN || !def.weapon) return 0;
-  let range = def.weapon.range;
+  if (!def || !(def.itemClass & WEAPON_CLASSES)) return CELL_X_SIZE;
+  let range = def.weapon?.range ?? 0;
   const extender = findAttachment(gun, items.byName.get('GUN_BARREL_EXTENDER')?.index ?? -2);
   if (extender !== -1) range += Math.trunc((100 * weaponStatusMod(gun.attachments[extender]?.status ?? 0)) / 100);
   return range;

@@ -459,9 +459,16 @@ const TRAVEL_STATS: Readonly<Record<TravelStat, number>> = {
   [TravelStat.STRENGTH]: StatKind.STRENGTH,
 };
 
+interface OrderedMercs {
+  readonly records: readonly MercRecord[];
+  readonly ids: readonly number[];
+  readonly mercs: readonly RosterMerc[];
+}
+
 export class Roster implements CrewPort {
   readonly #state: RosterState;
   readonly #facades = new WeakMap<MercRecord, RosterMerc>();
+  #ordered: OrderedMercs | null = null;
   readonly #content: TacticalContent;
   readonly #combat: () => CombatContext;
   readonly #profiles: ReadonlyMap<number, ProfileProgress> | null;
@@ -486,10 +493,12 @@ export class Roster implements CrewPort {
   add(merc: RosterMerc): void {
     this.#state.mercs.set(merc.id, merc.record);
     this.#facades.set(merc.record, merc);
+    this.#ordered = null;
   }
 
   remove(id: number): void {
     this.#state.mercs.delete(id);
+    this.#ordered = null;
   }
 
   get(id: number): RosterMerc | undefined {
@@ -502,7 +511,23 @@ export class Roster implements CrewPort {
   }
 
   all(): readonly RosterMerc[] {
-    return [...this.#state.mercs.values()].sort((a, b) => a.soldier.id - b.soldier.id).map((r) => this.#facade(r));
+    const known = this.#ordered;
+    if (known && this.#stillOrdered(known)) return known.mercs;
+    const records = [...this.#state.mercs.values()];
+    const mercs = [...records].sort((a, b) => a.soldier.id - b.soldier.id).map((r) => this.#facade(r));
+    this.#ordered = { records, ids: records.map((r) => r.soldier.id), mercs };
+    return mercs;
+  }
+
+  #stillOrdered(known: OrderedMercs): boolean {
+    const records = this.#state.mercs;
+    if (records.size !== known.records.length) return false;
+    let i = 0;
+    for (const record of records.values()) {
+      if (record !== known.records[i] || record.soldier.id !== known.ids[i]) return false;
+      i++;
+    }
+    return true;
   }
 
   inSector(sector: Sector): RosterMerc[] {

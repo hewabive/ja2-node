@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { FakeMercs, loadStrategicTestContent, testContext } from '../../../../tests/support/strategic.ts';
-import { parseSectorId, parseSectorString } from '../../../content/strategic/sector-ids.ts';
+import { MAP_SIDE, parseSectorId, parseSectorString, sectorId } from '../../../content/strategic/sector-ids.ts';
 import type { StrategicContent } from '../../../content/strategic/strategic-content.ts';
 import { EventKind } from '../time/constants.ts';
 import { addStrategicEvent } from '../time/event-queue.ts';
@@ -12,6 +12,7 @@ import {
   findPlayerMovementGroupInSector,
   getGroup,
   groupAtFinalDestination,
+  numEnemiesInEverySurfaceSector,
   numEnemiesInSector,
   numHostilesInSector,
   playerMercsInSector,
@@ -104,6 +105,24 @@ describe('counting helpers', () => {
     expect(numEnemiesInSector(ctx, parseSectorString('C5'))).toBe(9);
     expect(numEnemiesInSector(ctx, { ...parseSectorString('C5'), z: 1 })).toBe(4);
     expect(numHostilesInSector(ctx, parseSectorString('C5'))).toBe(11);
+  });
+
+  it('counts every surface sector at once exactly as numEnemiesInSector does, wrapping at 256', () => {
+    const ctx = testContext({ content });
+    const c5 = ctx.state.map.sectors[parseSectorId('C5')];
+    if (c5) Object.assign(c5, { numTroops: 200, numElites: 40 });
+    const d7 = ctx.state.map.sectors[parseSectorId('D7')];
+    if (d7) Object.assign(d7, { numAdmins: 3 });
+    createNewEnemyGroupDepartingFromSector(ctx, parseSectorId('C5'), 0, 10, 10);
+    createNewEnemyGroupDepartingFromSector(ctx, parseSectorId('C5'), 1, 4, 1);
+    createNewEnemyGroupDepartingFromSector(ctx, parseSectorId('D7'), 0, 5, 0).betweenSectors = true;
+    const below = createNewEnemyGroupDepartingFromSector(ctx, parseSectorId('E2'), 0, 6, 0);
+    below.sector = { ...below.sector, z: 1 };
+    createNewPlayerGroupDepartingFromSector(ctx, A9);
+    const counts = numEnemiesInEverySurfaceSector(ctx);
+    for (let y = 1; y <= MAP_SIDE; y++)
+      for (let x = 1; x <= MAP_SIDE; x++) expect(counts[sectorId({ x, y })]).toBe(numEnemiesInSector(ctx, { x, y, z: 0 }));
+    expect(counts[parseSectorId('C5')]).toBe((240 + 20 + 5) & 0xff);
   });
 
   it('finds involved player groups only on the surface and without in-transit members', () => {

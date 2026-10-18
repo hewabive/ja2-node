@@ -9,7 +9,15 @@
 // @src Map_Screen_Helicopter.cc IsGroupTheHelicopterGroup. See docs/16 §2, §3.11, §3.14.
 
 import { TransportMask } from '../../../content/strategic/policy.ts';
-import { NO_PREVIOUS_SECTOR_ID, type Sector, sameSector, sectorFromId, sectorId } from '../../../content/strategic/sector-ids.ts';
+import {
+  MAP_SIDE,
+  NO_PREVIOUS_SECTOR_ID,
+  SECTOR_COUNT,
+  type Sector,
+  sameSector,
+  sectorFromId,
+  sectorId,
+} from '../../../content/strategic/sector-ids.ts';
 import { u8 } from '../../../core/int.ts';
 import { findUndergroundSector, sectorInfo, totalMilitia } from '../map/sectors.ts';
 import { EventKind } from '../time/constants.ts';
@@ -388,6 +396,24 @@ function mobileEnemiesIn(ctx: StrategicContext, s: Sector): number {
 export function numEnemiesInSector(ctx: StrategicContext, s: Sector): number {
   const info = sectorInfo(ctx.state.map, s);
   return u8(info.numAdmins + info.numTroops + info.numElites + mobileEnemiesIn(ctx, s));
+}
+
+export function isSurfaceMapSector(s: Sector): boolean {
+  return s.z === 0 && s.x >= 1 && s.x <= MAP_SIDE && s.y >= 1 && s.y <= MAP_SIDE;
+}
+
+export function numEnemiesInEverySurfaceSector(ctx: StrategicContext): Uint8Array {
+  const counts = new Uint8Array(SECTOR_COUNT);
+  for (const g of ctx.state.forces.groups)
+    if (!g.player && !g.vehicle && isSurfaceMapSector(g.sector)) {
+      const id = sectorId(g.sector);
+      counts[id] = u8((counts[id] ?? 0) + g.size);
+    }
+  for (let id = 0; id < SECTOR_COUNT; id++) {
+    const info = sectorInfo(ctx.state.map, sectorFromId(id));
+    counts[id] = u8(info.numAdmins + info.numTroops + info.numElites + (counts[id] ?? 0));
+  }
+  return counts;
 }
 
 export function numEnemiesInAnySector(ctx: StrategicContext, s: Sector): number {

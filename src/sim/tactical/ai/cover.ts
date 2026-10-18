@@ -23,7 +23,7 @@ import { TravelCost } from '../../../content/world/movement-costs.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { clamp, i8, i16, idiv, u8 } from '../../../core/int.ts';
 import { AnimHeight, states } from '../animation.ts';
-import { soldierToLocationChanceToGetThrough } from '../combat/bullets.ts';
+import { soldierToLocationChanceToGetThrough, soldierToSoldierChanceToGetThrough } from '../combat/bullets.ts';
 import { rangeInUnits, soldierDifficultyLevel } from '../combat/chance.ts';
 import { inGas, inSmoke } from '../explosions/smoke.ts';
 import { LIGHT_SIGHTING, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, surfaceAmbientLevel } from '../lighting/lighting.ts';
@@ -222,11 +222,22 @@ function cubeLevelAffordable(cubeLevel: number, aps: number): boolean {
   return true;
 }
 
+function locationChances(t: TacticalState, shooter: Soldier, target: Soldier, g: number, level: number): (cube: number) => number {
+  const occupant = shooter.gridNo === g ? null : whoIsThere(t, g, level);
+  if (!occupant) return (cube) => soldierToLocationChanceToGetThrough(t, shooter, g, level, cube, target);
+  let atOccupant: number | null = null;
+  return () => {
+    atOccupant ??= soldierToSoldierChanceToGetThrough(t, shooter, occupant);
+    return atOccupant;
+  };
+}
+
 function calcWorstCTGTForPosition(t: TacticalState, shooter: Soldier, target: Soldier, g: number, level: number, aps: number): number {
+  const chanceAt = locationChances(t, shooter, target, g, level);
   let worst = FULL_CHANCE;
   for (let cube = PRONE_CUBE; cube <= STAND_CUBE; cube++) {
     if (!cubeLevelAffordable(cube, aps)) continue;
-    const chance = soldierToLocationChanceToGetThrough(t, shooter, g, level, cube, target);
+    const chance = chanceAt(cube);
     if (chance < worst) {
       worst = chance;
       if (worst === 0) break;
@@ -236,11 +247,12 @@ function calcWorstCTGTForPosition(t: TacticalState, shooter: Soldier, target: So
 }
 
 function calcAverageCTGTForPosition(t: TacticalState, shooter: Soldier, target: Soldier, g: number, level: number, aps: number): number {
+  const chanceAt = locationChances(t, shooter, target, g, level);
   let total = 0;
   let cubes = 0;
   for (let cube = PRONE_CUBE; cube <= STAND_CUBE; cube++) {
     if (!cubeLevelAffordable(cube, aps)) continue;
-    total += soldierToLocationChanceToGetThrough(t, shooter, g, level, cube, target);
+    total += chanceAt(cube);
     cubes++;
   }
   return idiv(total, cubes);

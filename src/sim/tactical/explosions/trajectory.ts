@@ -45,6 +45,7 @@ const RANDOM_GRID_TRIES = 50;
 const WINDOW_LOS_TILES = 255;
 const WINDOW_EYE_Z = (87 + 220) / 2;
 const AI_THROW_END_Z = 0;
+const MAX_KNOWN_FORCES = 65_536;
 
 export interface LaunchParams {
   readonly force: number;
@@ -102,7 +103,30 @@ export function calculateObjectTrajectory(t: TacticalState, targetZ: number, obj
   return hypotf(f32(o.testTargetPosition.x - position.x), f32(o.testTargetPosition.y - position.y));
 }
 
+const knownForces = new WeakMap<object, Map<string, number>>();
+
 function findBestForce(t: TacticalState, src: number, dst: number, startZ: number, endZ: number, degrees: number, obj: ItemObject): number {
+  const items = t.content.items;
+  const known = knownForces.get(items) ?? new Map<string, number>();
+  if (known.size >= MAX_KNOWN_FORCES) known.clear();
+  knownForces.set(items, known);
+  const key = `${src}:${dst}:${startZ}:${endZ}:${degrees}:${obj.item === itemIndex(t, 'MORTAR_SHELL')}`;
+  const cached = known.get(key);
+  if (cached !== undefined) return cached;
+  const force = searchBestForce(t, src, dst, startZ, endZ, degrees, obj);
+  known.set(key, force);
+  return force;
+}
+
+function searchBestForce(
+  t: TacticalState,
+  src: number,
+  dst: number,
+  startZ: number,
+  endZ: number,
+  degrees: number,
+  obj: ItemObject,
+): number {
   const position = startPosition(src, startZ);
   const dir = directionNormal(src, dst, degrees);
   const range = f32(rangeInUnits(dst, src));

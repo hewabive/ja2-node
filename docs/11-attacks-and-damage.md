@@ -74,7 +74,8 @@ Invariants the port must keep:
 | JSD (`content/formats/jsd.ts`) | per structure `armour` (material index into `gubMaterialArmour`, `TileEngine/Structure.cc:119-149`), `density` (%), flags, shape |
 
 `WEAPON_STATUS_MOD(x) = x >= 85 ? 100 : idiv(x*100, 85)` (`Weapons.cc:74`). `GunRange(o) = usRange +
-100*WSM(extender)/100 − silencer penalty(0)` (`:86-103`). Item slots: `HANDPOS`, `SECONDHANDPOS`, `HELMETPOS`,
+100*WSM(extender)/100 − silencer penalty(0)` for every `IC_WEAPON` class, `CELL_X_SIZE` (10) for anything else
+(`:86-103`; a range of 0 would divide by zero in the bullet's range drop). Item slots: `HANDPOS`, `SECONDHANDPOS`, `HELMETPOS`,
 `VESTPOS`, `LEGPOS`, `HEAD1POS`, `HEAD2POS`. `bGunStatus` is `bStatus[0]` of the gun; `bGunAmmoStatus` < 0 means jammed.
 
 ### 1.2 Timeline at a glance (single aimed shot, standing, gun lowered, target in front)
