@@ -381,7 +381,7 @@ function resolveOurClosedDoor(t: TacticalState, s: Soldier, gridNo: number, isDo
   }
 }
 
-export function handleOpenableStruct(t: TacticalState, s: Soldier, gridNo: number, structure: StructureInstance): boolean {
+export function handleOpenableStruct(t: TacticalState, s: Soldier, gridNo: number, structure: StructureInstance, noisy = false): boolean {
   const isDoor = has(structure.flags, StructureFlags.ANYDOOR);
   const code = s.doorHandleCode;
   const r: Resolution = { handle: false, ap: 0, bp: 0, result: null };
@@ -398,7 +398,7 @@ export function handleOpenableStruct(t: TacticalState, s: Soldier, gridNo: numbe
     r.handle = true;
   }
   if (r.handle && isDoor) {
-    toggleDoorAt(t, gridNo);
+    toggleDoorAt(t, gridNo, noisy);
     if (!has(structure.flags, StructureFlags.OPEN)) checkPowPathsInAlmaPrison(t);
   }
   deductPoints(t.inCombat, s, r.ap, r.bp);
@@ -426,13 +426,13 @@ export function interactWithDoorAt(t: TacticalState, s: Soldier, gridNo: number,
   return interactWithOpenableStruct(t, s, structure, direction);
 }
 
-export function soldierHandleInteractiveObject(t: TacticalState, s: Soldier): boolean {
+export function soldierHandleInteractiveObject(t: TacticalState, s: Soldier, noisy = false): boolean {
   const gridNo = s.pendingDoorGridNo;
   s.pendingDoorGridNo = -1;
   if (gridNo < 0) return false;
   const structure = t.world.structures.find(gridNo, StructureFlags.OPENABLE);
   if (!structure) return false;
-  return handleOpenableStruct(t, s, gridNo, structure);
+  return handleOpenableStruct(t, s, gridNo, structure, noisy);
 }
 
 export function aiDoorActionWithoutInteraction(s: Soldier): boolean {

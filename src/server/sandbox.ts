@@ -27,6 +27,7 @@ import { teamMembers } from '../sim/tactical/state.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { loadWorldItemsFromMap } from '../sim/tactical/world-items.ts';
 import type { SessionSim } from './session.ts';
+import { PROFILE_VOICE, type VoiceOf, withVoices } from './soldier-voice.ts';
 import { stubMerc } from './stub-mercs.ts';
 
 export const ORIGINAL_SANDBOX_MAP = 'maps/a9.dat';
@@ -71,11 +72,15 @@ export class TacticalSession implements SessionSim {
   }
 }
 
-export function tacticalPlayerView(sim: TacticalSim, tick: number): PlayerView {
+export function tacticalPlayerView(sim: TacticalSim, tick: number, voiceOf: VoiceOf = PROFILE_VOICE): PlayerView {
   return {
     tick,
     mapPath: sim.mapPath,
-    soldiers: sim.snapshot((s) => s.team === Team.OUR || s.visible >= 0),
+    soldiers: withVoices(
+      sim.snapshot((s) => s.team === Team.OUR || s.visible >= 0),
+      sim.state.soldiers,
+      voiceOf,
+    ),
     openDoors: sim.openDoors(),
     doors: sim.doors(),
     combat: sim.combatView(),

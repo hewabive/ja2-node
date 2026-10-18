@@ -1,3 +1,4 @@
+import type { SimEvent } from '../sim/events.ts';
 import type { ShopView } from '../sim/strategic/economy/merchants/view.ts';
 import type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 import { type InventoryItemView, sameInventory } from '../sim/tactical/inventory-view.ts';
@@ -31,6 +32,7 @@ export interface SoldierView {
   readonly talkable?: string;
   readonly kind?: string;
   readonly controlled?: boolean;
+  readonly voice?: string;
 }
 
 export interface ItemView {
@@ -600,6 +602,7 @@ export interface ViewFrame {
   readonly tick: number;
   readonly changed: readonly SoldierView[];
   readonly removed: readonly number[];
+  readonly events?: readonly SimEvent[];
   readonly mapPath?: string | null;
   readonly clock?: ClockView;
   readonly strategic?: StrategicView;
@@ -708,6 +711,7 @@ function sameSoldier(a: SoldierView, b: SoldierView): boolean {
     a.talkable === b.talkable &&
     a.kind === b.kind &&
     a.controlled === b.controlled &&
+    a.voice === b.voice &&
     JSON.stringify(a.keys ?? []) === JSON.stringify(b.keys ?? []) &&
     sameInventory(a.inventory, b.inventory)
   );

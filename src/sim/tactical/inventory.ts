@@ -71,6 +71,7 @@ export interface InventoryContext {
   readonly dropAtFeet: (o: ItemObject) => void;
   readonly collectKey?: (o: ItemObject) => void;
   readonly placed?: (item: number) => void;
+  readonly reloaded?: (gun: number) => void;
 }
 
 export function emptyInventory(): Inventory {
@@ -368,6 +369,7 @@ export function reloadGun(ctx: InventoryContext, c: Carrier, gun: ItemObject, am
   }
   ctx.spendActionPoints(aps);
   if (gun.gunAmmoStatus >= 0) gun.gunAmmoStatus = 100;
+  ctx.reloaded?.(gun.item);
   return true;
 }
 

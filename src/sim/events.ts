@@ -63,10 +63,14 @@ export interface CombatEndedEvent extends SimEventBase {
   readonly reason: 'lull' | 'won' | 'lost' | 'boxing';
 }
 
+export type DoorSoundKind = 'wood' | 'cloth' | 'garage' | 'metal';
+
 export interface DoorChangedEvent extends SimEventBase {
   readonly type: 'doorChanged';
   readonly gridNo: number;
   readonly open: boolean;
+  readonly kind?: DoorSoundKind;
+  readonly noisy?: boolean;
 }
 
 export interface NoiseHeardEvent extends SimEventBase {
@@ -95,6 +99,10 @@ export interface ShotFiredEvent extends SimEventBase {
   readonly target: number;
   readonly chance: number;
   readonly hit: boolean;
+  readonly item?: number;
+  readonly silenced?: boolean;
+  readonly burst?: boolean;
+  readonly rounds?: number;
 }
 
 export interface MeleeStrikeEvent extends SimEventBase {
@@ -111,6 +119,8 @@ export interface BulletStoppedEvent extends SimEventBase {
   readonly soldier: number;
   readonly gridNo: number;
   readonly reason: 'structure' | 'ground' | 'roof' | 'offMap' | 'soldier';
+  readonly material?: number;
+  readonly caveWall?: boolean;
 }
 
 export interface SoldierHitEvent extends SimEventBase {
@@ -167,6 +177,13 @@ export interface ExplosionEvent extends SimEventBase {
   readonly gridNo: number;
   readonly level: number;
   readonly owner: number | null;
+  readonly animation?: string;
+}
+
+export interface ReloadedEvent extends SimEventBase {
+  readonly type: 'reloaded';
+  readonly soldier: number;
+  readonly item: number;
 }
 
 export interface StructureDamagedEvent extends SimEventBase {
@@ -362,6 +379,7 @@ export type SimEvent =
   | SoldierDiedEvent
   | AttackResolvedEvent
   | GunJammedEvent
+  | ReloadedEvent
   | StatChangedEvent
   | ExplosionEvent
   | StructureDamagedEvent
