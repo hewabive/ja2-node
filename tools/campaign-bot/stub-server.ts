@@ -31,9 +31,9 @@ export function freePort(): Promise<number> {
   });
 }
 
-async function answers(url: string): Promise<boolean> {
+async function answers(url: string, token: string): Promise<boolean> {
   try {
-    return (await fetch(`${url}/api/health`)).ok;
+    return (await fetch(`${url}/api/health`, { headers: { authorization: `Bearer ${token}` } })).ok;
   } catch {
     return false;
   }
@@ -72,7 +72,7 @@ export async function startStubServer(port?: number): Promise<StubServer> {
     await rm(saveDir, { recursive: true, force: true });
   };
   const deadline = performance.now() + START_TIMEOUT_MS;
-  while (!(await answers(url))) {
+  while (!(await answers(url, token))) {
     if (child.exitCode !== null || performance.now() > deadline) {
       await stop();
       throw new Error(`the stub server did not start on ${url}:\n${log.join('\n')}`);
