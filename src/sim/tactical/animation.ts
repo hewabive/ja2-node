@@ -649,7 +649,8 @@ export function turnSoldier(t: TacticalState, s: Soldier): void {
     s.dontUnsetLastTargetFromTurn = false;
     t.hooks.turnFinished(t, s);
     if (s.turningFromPronePosition === TurningFromProne.ON) {
-      if (isValidStance(t, s, AnimHeight.PRONE) && s.tempObject === null) changeSoldierStance(t, s, AnimHeight.PRONE);
+      if (isValidStance(t, s, AnimHeight.PRONE) && s.tempObject === null && !playsMeleeAttack(t, s))
+        changeSoldierStance(t, s, AnimHeight.PRONE);
       s.turningFromPronePosition = TurningFromProne.OFF;
     }
     const name = content.animations.controls[s.state]?.id ?? '';
@@ -683,6 +684,12 @@ export function turnSoldier(t: TacticalState, s: Soldier): void {
     changeSoldierStance(t, s, AnimHeight.CROUCH);
     s.turningFromPronePosition = TurningFromProne.ENDING_UP_FROM_MOVE;
   } else if ((s.structure?.def.tiles.length ?? 0) > 1) s.desiredDirection = s.direction;
+}
+
+const MELEE_ATTACK_STATES = ['STAB', 'SLICE', 'CROUCH_STAB', 'PUNCH', 'PUNCH_LOW', 'CROWBAR_ATTACK'];
+
+function playsMeleeAttack(t: TacticalState, s: Soldier): boolean {
+  return MELEE_ATTACK_STATES.includes(t.content.animations.controls[s.state]?.id ?? '');
 }
 
 const TurningFromProne = { OFF: 0, ON: 1, START_UP_FROM_MOVE: 2, ENDING_UP_FROM_MOVE: 3 } as const;

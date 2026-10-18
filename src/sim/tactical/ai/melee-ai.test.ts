@@ -4,7 +4,7 @@ import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { Rng } from '../../../core/rng.ts';
 import { emptyObject } from '../../items/object.ts';
-import { states } from '../animation.ts';
+import { AnimHeight, changeSoldierStance, setDesiredDirection, setSoldierDirection, states } from '../animation.ts';
 import { calcTotalAPsToAttack } from '../combat/ap.ts';
 import { calcChanceToStab } from '../combat/melee.ts';
 import type { TacticalContent } from '../content.ts';
@@ -76,6 +76,26 @@ describe('knife-armed enemy on his turn', () => {
     expect(enemy.pendingMelee).toBeNull();
     expect(t.turn.attackBusyCount).toBe(0);
   });
+
+  for (const getsUp of [false, true])
+    for (const hand of ['COMBAT_KNIFE', null])
+      it(`${getsUp ? 'gets up and' : 'lies prone and'} ${hand ? 'stabs' : 'punches'} a prone merc he must turn to`, () => {
+        const { sim, t, merc, enemy } = knifeFight(gridNo(80, 81), hand);
+        const st = states(content.animations);
+        expect(sim.dispatch({ type: 'stance', soldier: merc.id, stance: 'prone' }).ok).toBe(true);
+        changeSoldierStance(t, enemy, AnimHeight.PRONE);
+        for (let tick = 0; tick < 2_000 && !(enemy.state === st.PRONE && merc.state === st.PRONE); tick++) sim.step();
+        expect(enemy.state).toBe(st.PRONE);
+        setSoldierDirection(t, enemy, Direction.EAST);
+        setDesiredDirection(t, enemy, Direction.EAST);
+        enemy.collapsed = getsUp;
+        sim.drainEvents();
+        expect(sim.dispatch({ type: 'endTurn' }).ok).toBe(true);
+        const events = runUntilIdle(sim);
+        expect(events.some((e) => e.type === 'meleeStrike' && e.soldier === enemy.id && e.target === merc.gridNo)).toBe(true);
+        expect(t.turn.attackBusyCount).toBe(0);
+        expect(t.turn.currentTeam).toBe(Team.OUR);
+      });
 
   it('stabs the merc standing next to him', () => {
     const { sim, t, merc, enemy } = knifeFight(gridNo(80, 81), 'COMBAT_KNIFE');

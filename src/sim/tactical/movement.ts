@@ -450,7 +450,7 @@ export function handleAtNewGridNo(t: TacticalState, s: Soldier): boolean {
     }
   } else if (s.noAPToFinishMove || (s.pathIndex === s.pathSize && s.pathSize === 0)) {
     keepMoving = false;
-  } else if (pause) {
+  } else if (pause && !hasAnimFlag(t.content, s.state, AnimFlags.SPECIALMOVE)) {
     adjustNoAPToFinishMove(s, true);
     keepMoving = false;
   }
