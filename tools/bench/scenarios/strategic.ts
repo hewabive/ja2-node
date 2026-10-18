@@ -1,4 +1,11 @@
-import { createCampaignSession } from '../../../src/server/campaign-factory.ts';
+import {
+  createCampaignSession,
+  DEFAULT_AIM_SQUAD,
+  FIRST_AIM_PROFILE,
+  LAST_AIM_PROFILE,
+  STUB_SQUAD_PROFILES,
+} from '../../../src/server/campaign-factory.ts';
+import type { CampaignSession } from '../../../src/server/campaign-session.ts';
 import { Session } from '../../../src/server/session.ts';
 import { wakeUpQueen } from '../../../src/sim/strategic/ai/reactions.ts';
 import { setThisSectorAsPlayerControlled } from '../../../src/sim/strategic/map/control.ts';
@@ -13,8 +20,11 @@ import { round } from '../stats.ts';
 export const STRATEGIC = 'strategic';
 
 const DAY_TARGET_MS = 100;
-const SQUAD_PROFILES = [0];
+const SOLO_SQUAD = 1;
+const FULL_SQUAD = 6;
+const FULL_SQUAD_DAYS = 7;
 const LONG_CONTRACT_DAYS = 14;
+const SQUAD_FUNDS = 1_000_000;
 const START_SECTOR = { x: 9, y: 1 };
 const LIBERATED_TOWN = [
   { x: 13, y: 2 },
@@ -34,9 +44,29 @@ const COUNTED_EVENTS = [
   'meanwhileEnded',
 ] as const;
 
-async function clearedCampaign(ctx: BenchContext, queen: boolean): Promise<Campaign> {
-  const hire = SQUAD_PROFILES.map((profile) => ({ profile, contract: LONG_CONTRACT_DAYS }));
-  const campaignSession = await createCampaignSession(ctx.data.read, ctx.data.exists, ctx.seed, { hire, land: false }, ctx.data.layers);
+function candidateProfiles(ctx: BenchContext): number[] {
+  const preferred = ctx.data.source === 'stubs' ? STUB_SQUAD_PROFILES : DEFAULT_AIM_SQUAD;
+  const rest: number[] = [];
+  for (let p = FIRST_AIM_PROFILE; p <= LAST_AIM_PROFILE; p++) if (!preferred.includes(p)) rest.push(p);
+  return [...preferred, ...rest];
+}
+
+function hireSquad(ctx: BenchContext, campaignSession: CampaignSession, squad: number): void {
+  const campaign = campaignSession.campaign;
+  if (squad !== SOLO_SQUAD) campaign.state.finances.balance = SQUAD_FUNDS;
+  let hired = 0;
+  for (const profile of candidateProfiles(ctx)) {
+    if (hired === squad) break;
+    if (campaign.dispatch({ type: 'aimHire', profile, contract: LONG_CONTRACT_DAYS }).ok) hired++;
+  }
+  if (hired < squad) throw new Error(`bench: only ${hired} of ${squad} mercs could be hired`);
+  const closed = campaign.dispatch({ type: 'closeLaptop' });
+  if (!closed.ok) throw new Error(`bench: cannot close the laptop: ${closed.reason ?? ''}`);
+}
+
+async function clearedCampaign(ctx: BenchContext, queen: boolean, squad: number): Promise<Campaign> {
+  const campaignSession = await createCampaignSession(ctx.data.read, ctx.data.exists, ctx.seed, { hire: [], land: false }, ctx.data.layers);
+  hireSquad(ctx, campaignSession, squad);
   const campaign = campaignSession.campaign;
   const start = sectorInfo(campaign.state.map, START_SECTOR);
   start.numAdmins = 0;
@@ -74,15 +104,15 @@ function eventDeltas(c: Campaign, before: ReadonlyMap<string, number>): Record<s
   return out;
 }
 
-function variant(ctx: BenchContext, days: number, queen: boolean): VariantSpec<Campaign> {
+function variant(ctx: BenchContext, days: number, queen: boolean, squad = SOLO_SQUAD): VariantSpec<Campaign> {
   return {
-    variant: `${days}d${queen ? '-queen' : ''}`,
+    variant: `${days}d${queen ? '-queen' : ''}${squad === SOLO_SQUAD ? '' : `-mercs${squad}`}`,
     metric: 'worldDay',
     unit: 'ms',
     target: DAY_TARGET_MS,
     calls: STRATEGIC_COUNTERS,
     perSample: true,
-    setup: () => clearedCampaign(ctx, queen),
+    setup: () => clearedCampaign(ctx, queen, squad),
     run: (c) => {
       const samples: number[] = [];
       const before = new Map(c.metered.events);
@@ -124,4 +154,5 @@ function variant(ctx: BenchContext, days: number, queen: boolean): VariantSpec<C
 
 export async function strategic(ctx: BenchContext): Promise<void> {
   for (const queen of [false, true]) for (const days of DAY_LENGTHS) await measure(ctx, STRATEGIC, variant(ctx, days, queen));
+  await measure(ctx, STRATEGIC, variant(ctx, FULL_SQUAD_DAYS, false, FULL_SQUAD));
 }
