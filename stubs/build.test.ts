@@ -1,10 +1,30 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { join, relative } from 'node:path';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import {
+  BATTLE_SOUNDS_PATH,
+  battleSoundPath,
+  genericVoiceSets,
+  parseBattleSounds,
+  voiceSetKinds,
+} from '../src/content/audio/sound-table.ts';
+import { DIALOGUE_SIZE, edtRowCount } from '../src/content/formats/edt.ts';
+import { gapPathFor, parseGap } from '../src/content/formats/gap.ts';
+import { decodeWav, wavDurationMs } from '../src/content/formats/wav.ts';
 import { parseStubSpriteManifest, pictureFromStubSprite, STUB_SPRITE_SUFFIX } from '../src/content/picture/stub-sprite.ts';
-import { openDataVfs, STUBS_PREFIX } from '../src/node/data-vfs.ts';
+import { STUB_DATA_VERSION } from '../src/content/text/data-version.ts';
+import { type DataVfs, openDataVfs, STUBS_PREFIX } from '../src/node/data-vfs.ts';
+import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
+import { TextService } from '../src/server/text-service.ts';
+import { stubSoundPaths } from './audio.ts';
 import { buildStubs } from './build.ts';
+import { musicTracks } from './music.ts';
+import { npcSpeechSets, type SpeechSet, speechPaths } from './speech.ts';
+
+const MEDIA_DIRS = ['synth', 'music', 'mercedt'];
+const TEXT_FILES = ['binarydata/itemdesc.edt', 'binarydata/credits.edt', 'binarydata/email.edt', 'aliases.json'];
+const MEDIA_BUDGET_BYTES = 4 * 1024 * 1024;
 
 const dirs: string[] = [];
 afterAll(async () => {
@@ -18,11 +38,23 @@ async function build(): Promise<string> {
   return dir;
 }
 
+async function filesUnder(root: string, sub: string): Promise<string[]> {
+  const entries = await readdir(join(root, sub), { recursive: true, withFileTypes: true });
+  return entries
+    .filter((e) => e.isFile())
+    .map((e) => relative(root, join(e.parentPath, e.name)))
+    .sort();
+}
+
+async function mediaFiles(root: string): Promise<string[]> {
+  return [...(await Promise.all(MEDIA_DIRS.map((d) => filesUnder(root, d)))).flat(), ...TEXT_FILES];
+}
+
 describe('stub pack', () => {
   it('builds deterministically', async () => {
     const [a, b] = await Promise.all([build(), build()]);
-    for (const f of ['soldier/capsule.png', 'soldier/capsule.sprite.json', 'tiles/ground.png']) {
-      expect(await readFile(join(a, f))).toEqual(await readFile(join(b, f)));
+    for (const f of ['soldier/capsule.png', 'soldier/capsule.sprite.json', 'tiles/ground.png', ...(await mediaFiles(a))]) {
+      expect((await readFile(join(a, f))).equals(await readFile(join(b, f))), f).toBe(true);
     }
   });
 
@@ -44,5 +76,102 @@ describe('stub pack', () => {
     } finally {
       await data.close();
     }
+  });
+});
+
+describe('stub media', () => {
+  let dir: string;
+  let data: DataVfs;
+  const stub = (path: string) => `${STUBS_PREFIX}/${path}`;
+
+  beforeAll(async () => {
+    dir = await build();
+    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: dir });
+  });
+  afterAll(async () => {
+    await data.close();
+  });
+
+  async function battleVoicePaths(): Promise<string[]> {
+    const table = parseBattleSounds(JSON.parse(await readFile(join(PROJECT_DATA_DIR, BATTLE_SOUNDS_PATH), 'utf8')));
+    return genericVoiceSets().flatMap((set) => voiceSetKinds(table, set).map((kind) => battleSoundPath(table, set.basename, kind.file)));
+  }
+
+  it('resolves every sound and music name of the tables under its original path and decodes it', async () => {
+    const sounds = await stubSoundPaths();
+    const voices = await battleVoicePaths();
+    const music = (await musicTracks()).map((t) => t.path);
+    expect([sounds.length, voices.length, music.length]).toEqual([343, 90, 14]);
+    const formats = new Set<string>();
+    for (const path of [...sounds, ...voices, ...music]) {
+      expect(data.vfs.stat(stub(path)), path).toBeDefined();
+      const audio = decodeWav(await data.vfs.read(stub(path)));
+      expect(audio.frameCount, path).toBeGreaterThan(0);
+      expect(
+        audio.channels.every((c) => c.some((v) => v !== 0)),
+        path,
+      ).toBe(true);
+      formats.add(`${audio.info.encoding} ${audio.info.bitsPerSample}-bit ${audio.info.channelCount}ch ${audio.sampleRate}`);
+    }
+    expect([...formats].sort()).toEqual([
+      'imaAdpcm 4-bit 1ch 11025',
+      'pcm 16-bit 1ch 22050',
+      'pcm 16-bit 2ch 22050',
+      'pcm 8-bit 1ch 11025',
+    ]);
+  });
+
+  it('gives every stub merc and NPC quote a speech blip and a lip-sync file inside it', async () => {
+    const merc = data.vfs
+      .list()
+      .filter((f) => /^stubs\/mercedt\/\d{3}\.edt$/.test(f.path))
+      .map((f): SpeechSet => ({ profile: Number(f.path.slice(-7, -4)), family: 'merc', quotes: f.size / (DIALOGUE_SIZE * 2) }));
+    expect(merc.map((s) => s.profile)).toEqual([0, 1, 2, 3, 4, 5, 42, 59, 65]);
+    const sets = [...merc, ...(await npcSpeechSets())];
+    for (const set of sets) {
+      const paths = speechPaths(set);
+      expect(paths).toHaveLength(set.quotes);
+      const [first] = paths;
+      if (!first) throw new Error(`no quotes for ${set.profile}`);
+      const audio = decodeWav(await data.vfs.read(stub(first)));
+      expect(audio.info.encoding).toBe('imaAdpcm');
+      const gaps = parseGap(await data.vfs.read(stub(gapPathFor(first))));
+      expect(gaps.length).toBeGreaterThan(0);
+      expect(gaps.every((g, i) => g.start < g.end && g.end < wavDurationMs(audio.info) && g.start > (gaps[i - 1]?.end ?? 0))).toBe(true);
+      for (const path of paths) {
+        expect(data.vfs.stat(stub(path))?.size, path).toBe(data.vfs.stat(stub(first))?.size);
+        expect(data.vfs.stat(stub(gapPathFor(path))), path).toBeDefined();
+      }
+    }
+    expect(data.vfs.stat(stub('speech/000_108.wav'))).toBeDefined();
+    expect(data.vfs.stat(stub('npc_speech/094_000.gap'))).toBeDefined();
+  });
+
+  it('serves merc dialogue, item text, credits and mails through the text service', async () => {
+    const texts = new TextService({ vfs: data.vfs, dataVersion: STUB_DATA_VERSION });
+    const greeting = await texts.edtRecord('mercedt/000.edt', 108);
+    expect(greeting.ok && greeting.record.columns).toEqual(["Kestrel. Make it quick, I'm cleaning my rifle."]);
+    const answering = await texts.edtRecord('mercedt/001.edt', 84);
+    expect(answering.ok && answering.record.columns[0]).toContain('Vant here');
+    const pistol = await texts.edtRecord('binarydata/itemdesc.edt', 1);
+    expect(pistol.ok && pistol.record.columns.slice(0, 2)).toEqual(['Service pistol', 'Pistol']);
+    const unused = await texts.edtRecord('binarydata/itemdesc.edt', 2);
+    expect(unused.ok && unused.record.columns[0]).toBe('Machine pistol');
+    const credits = await texts.edtRecord('binarydata/credits.edt', 2);
+    expect(credits.ok && credits.record.columns[0]).toBe('@T,{;ja2-node');
+    const subject = await texts.edtRecord('binarydata/email.edt', 138);
+    expect(subject.ok && subject.record.columns[0]).toBe('The job');
+    const imp = await texts.edtRecord('binarydata/email.edt', 0);
+    expect(imp.ok && imp.record.columns[0]).toBe('Build your own mercenary');
+    const mercFile = await data.vfs.read(stub('mercedt/042.edt'));
+    expect(edtRowCount(mercFile)).toBe(117);
+    const original = new TextService({ vfs: data.vfs, dataVersion: 'english' });
+    expect((await original.edtRecord('mercedt/000.edt', 108)).ok).toBe(false);
+  });
+
+  it('keeps the media small', async () => {
+    let total = 0;
+    for (const f of await mediaFiles(dir)) total += (await stat(join(dir, f))).size;
+    expect(total).toBeLessThan(MEDIA_BUDGET_BYTES);
   });
 });

@@ -69,6 +69,10 @@ dialogue, item and laptop text accordingly. UI labels come from Stracciatella's 
 their own: `JA2_LANG=rus` (or `eng`, `ger`, `dut`, `fr`, `it`, `pl`, `chs`; default: the data's language) for the server,
 `newSession {"language":"rus"}` per session, `GET /api/strings?lang=rus` for the tables.
 
+Without the original data the stub pack stands in for it, including synthesized sounds, music and speech blips and
+invented merc, item, credit and mail text under the original file names (`GET /vfs/sounds/door open 01.wav` works on
+both; `docs/27` §6.5).
+
 The server listens on `127.0.0.1` only and requires the token from `.ja2/token`, which it creates
 itself. The Vite proxy adds the token, so it never appears in page code.
 

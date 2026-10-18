@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { writeSlf } from '../content/formats/slf.ts';
 import { decodeSti } from '../content/formats/sti.ts';
+import { encodeVfsAliases, VFS_ALIASES_FILE } from '../content/vfs/aliases.ts';
 import { openDataVfs, resolveDataDir } from './data-vfs.ts';
 
 const enc = (s: string) => new TextEncoder().encode(s);
@@ -61,6 +62,36 @@ describe('standard VFS stack', () => {
     const empty = await mkdtemp(join(tmpdir(), 'ja2-empty-'));
     temp.push(empty);
     await expect(resolveDataDir(empty)).rejects.toThrow(/no \*\.slf/);
+  });
+});
+
+describe('stub layer aliases', () => {
+  async function stubDir(aliases: Record<string, string>): Promise<string> {
+    const dir = await mkdtemp(join(tmpdir(), 'ja2-stub-aliases-'));
+    temp.push(dir);
+    await mkdir(join(dir, 'synth'), { recursive: true });
+    await mkdir(join(dir, 'sounds'), { recursive: true });
+    await writeFile(join(dir, 'synth', 'door.wav'), enc('door'));
+    await writeFile(join(dir, 'sounds', 'own.wav'), enc('own'));
+    await writeFile(join(dir, VFS_ALIASES_FILE), encodeVfsAliases(new Map(Object.entries(aliases))));
+    return dir;
+  }
+
+  it('lists aliases as files of the stub layer that read their target, without hiding real files', async () => {
+    const dir = await stubDir({ 'sounds/door open 01.wav': 'synth/door.wav', 'sounds/own.wav': 'synth/door.wav' });
+    const d = await openDataVfs({ stubsDir: dir });
+    try {
+      expect(d.vfs.stat('stubs/sounds/Door Open 01.wav')).toEqual({ path: 'stubs/sounds/door open 01.wav', size: 4, layer: 'stubs' });
+      expect(dec(await d.vfs.read('stubs/sounds/door open 01.wav', 1))).toBe('oor');
+      expect(dec(await d.vfs.read('stubs/sounds/own.wav'))).toBe('own');
+    } finally {
+      await d.close();
+    }
+  });
+
+  it('refuses an alias to a missing file', async () => {
+    const dir = await stubDir({ 'sounds/x.wav': 'synth/missing.wav' });
+    await expect(openDataVfs({ stubsDir: dir })).rejects.toThrow(/missing file synth\/missing.wav/);
   });
 });
 

@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { VFS_ALIASES_FILE } from '../content/vfs/aliases.ts';
 import { Vfs, type VfsLayer } from '../content/vfs/vfs.ts';
 import { DirLayer } from './dir-layer.ts';
 import { SlfFileLayer } from './slf-layer.ts';
@@ -59,7 +60,7 @@ export async function openDataVfs(options: DataVfsOptions): Promise<DataVfs> {
     let stubsDir: string | null = null;
     if (options.stubsDir && existsSync(options.stubsDir)) {
       stubsDir = resolve(options.stubsDir);
-      layers.push(await DirLayer.open(STUBS_LAYER, stubsDir, { prefix: STUBS_PREFIX }));
+      layers.push(await DirLayer.open(STUBS_LAYER, stubsDir, { prefix: STUBS_PREFIX, aliasFile: VFS_ALIASES_FILE }));
     }
     return {
       vfs: new Vfs(layers),

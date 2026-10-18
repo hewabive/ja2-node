@@ -1,0 +1,24 @@
+{
+  "format": "ja2-node stub credits v1",
+  "note": "Invented credits for the stub pack, compiled by pnpm stubs into binarydata/credits.edt (80-unit rows). Row 0 is never read by the credits screen. Rows use the credit control codes: @ starts codes separated by , and ended by ; D gap between nodes, B gap between sections, S scroll speed, J justification (0 left, 1 centre, 2 right), C title colour, R active colour, T title, { section start, } section end. Original writing for ja2-node.",
+  "rows": [
+    "ja2-node stub credits",
+    "@D12,B50,S25,J1,C208,R134;",
+    "@T,{;ja2-node",
+    "@};A fan reimplementation in TypeScript",
+    "@T,{;Simulation",
+    "@};The server keeps the rules",
+    "@T,{;Presentation",
+    "@};The browser draws and plays",
+    "@T,{;Stub pack",
+    "@};Shapes, tones and invented words",
+    "@J0;Sounds synthesized from noise and tone envelopes",
+    "@J0;Music generated from seeded scales",
+    "@J0;Dialogue written fresh for the stub mercs",
+    "@J1,T,{;Thanks",
+    "@};Everyone who keeps old games alive",
+    "@S15,B80;",
+    "@T,{;The end",
+    "@};Press any key"
+  ]
+}

@@ -1,5 +1,6 @@
-import { open, readdir, stat } from 'node:fs/promises';
+import { open, readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
+import { parseVfsAliases } from '../content/vfs/aliases.ts';
 import { joinVfsPath, vfsExtension } from '../content/vfs/path.ts';
 import { type VfsLayer, type VfsLayerEntry, VfsNotFoundError } from '../content/vfs/vfs.ts';
 import { readExactly } from './file-range.ts';
@@ -7,6 +8,20 @@ import { readExactly } from './file-range.ts';
 export interface DirLayerOptions {
   readonly prefix?: string;
   readonly skipExtensions?: readonly string[];
+  readonly aliasFile?: string;
+}
+
+type DirFiles = Map<string, { abs: string; size: number }>;
+
+async function addAliases(files: DirFiles, prefix: string, aliasFile: string): Promise<void> {
+  const manifest = files.get(joinVfsPath(prefix, aliasFile));
+  if (!manifest) return;
+  for (const [alias, target] of parseVfsAliases(JSON.parse(await readFile(manifest.abs, 'utf8')))) {
+    const path = joinVfsPath(prefix, alias);
+    const file = files.get(joinVfsPath(prefix, target));
+    if (!file) throw new Error(`vfs alias ${alias} points at a missing file ${target} in ${aliasFile}`);
+    if (!files.has(path)) files.set(path, file);
+  }
 }
 
 export class DirLayer implements VfsLayer {
@@ -39,6 +54,7 @@ export class DirLayer implements VfsLayer {
       }
     };
     await walk(root, '');
+    if (options.aliasFile) await addAliases(files, options.prefix ?? '', options.aliasFile);
     return new DirLayer(name, root, files);
   }
 

@@ -464,9 +464,10 @@ WebGL needs color indices.
 - A "capsule" soldier in 8 directions.
 - Labeled UI rectangles according to the layouts.
 - A rasterized free pixel font (CC0 or OFL).
-- Sounds: silence or beeps.
+- Sounds, music and speech blips: synthesized from noise and tone envelopes with a seeded generator, one
+  file per cue class, named like the original paths through an alias manifest (`docs/27` §6.5).
 
-Stored as PNG plus JSON so they can be edited in any editor. Writing STI for
+Stored as PNG plus JSON so they can be edited in any editor, sounds as WAV and text as EDT. Writing STI for
 stubs isn't needed.
 
 **Stub maps** are described in a simple text format (an ASCII grid plus a legend) and

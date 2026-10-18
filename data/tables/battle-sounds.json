@@ -1,0 +1,163 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Tactical/Soldier_Control.h BattleSound, src/game/Tactical/Soldier_Control.cc gBattleSndsData, MIN_SUBSEQUENT_SNDS_DELAY, InternalDoMercBattleSound, src/game/Directories.h",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "kinds: BattleSound enum order with the file name part, randomVariants (ubRandomVal: the kind and the next n-1 kinds are drawn from), badGuy (playable without a profile), dontAllowTwoInRow, stopDialogue (0 never, 1 cuts speech, 2 skipped while talking); directory: VFS directory; minSubsequentDelayMs and lowMoraleThreshold: the repeat filter and the morale below which the low-morale kinds replace OK1 and ATTN1",
+  "directory": "battlesnds",
+  "minSubsequentDelayMs": 2000,
+  "lowMoraleThreshold": 35,
+  "kinds": [
+    {
+      "id": 0,
+      "name": "OK1",
+      "file": "ok1",
+      "randomVariants": 2,
+      "badGuy": true,
+      "dontAllowTwoInRow": true,
+      "stopDialogue": 2
+    },
+    {
+      "id": 1,
+      "name": "OK2",
+      "file": "ok2",
+      "randomVariants": 0,
+      "badGuy": true,
+      "dontAllowTwoInRow": true,
+      "stopDialogue": 2
+    },
+    {
+      "id": 2,
+      "name": "COOL1",
+      "file": "cool",
+      "randomVariants": 0,
+      "badGuy": false,
+      "dontAllowTwoInRow": true,
+      "stopDialogue": 0
+    },
+    {
+      "id": 3,
+      "name": "CURSE1",
+      "file": "curse",
+      "randomVariants": 0,
+      "badGuy": true,
+      "dontAllowTwoInRow": true,
+      "stopDialogue": 0
+    },
+    {
+      "id": 4,
+      "name": "HIT1",
+      "file": "hit1",
+      "randomVariants": 2,
+      "badGuy": true,
+      "dontAllowTwoInRow": true,
+      "stopDialogue": 1
+    },
+    {
+      "id": 5,
+      "name": "HIT2",
+      "file": "hit2",
+      "randomVariants": 0,
+      "badGuy": true,
+      "dontAllowTwoInRow": true,
+      "stopDialogue": 1
+    },
+    {
+      "id": 6,
+      "name": "LAUGH1",
+      "file": "laugh",
+      "randomVariants": 0,
+      "badGuy": true,
+      "dontAllowTwoInRow": true,
+      "stopDialogue": 0
+    },
+    {
+      "id": 7,
+      "name": "ATTN1",
+      "file": "attn",
+      "randomVariants": 0,
+      "badGuy": false,
+      "dontAllowTwoInRow": true,
+      "stopDialogue": 0
+    },
+    {
+      "id": 8,
+      "name": "DIE1",
+      "file": "die",
+      "randomVariants": 0,
+      "badGuy": true,
+      "dontAllowTwoInRow": true,
+      "stopDialogue": 1
+    },
+    {
+      "id": 9,
+      "name": "HUMM",
+      "file": "humm",
+      "randomVariants": 0,
+      "badGuy": false,
+      "dontAllowTwoInRow": true,
+      "stopDialogue": 1
+    },
+    {
+      "id": 10,
+      "name": "NOTHING",
+      "file": "noth",
+      "randomVariants": 0,
+      "badGuy": false,
+      "dontAllowTwoInRow": true,
+      "stopDialogue": 1
+    },
+    {
+      "id": 11,
+      "name": "GOTIT",
+      "file": "gotit",
+      "randomVariants": 0,
+      "badGuy": false,
+      "dontAllowTwoInRow": true,
+      "stopDialogue": 1
+    },
+    {
+      "id": 12,
+      "name": "LOWMORALE_OK1",
+      "file": "lmok1",
+      "randomVariants": 2,
+      "badGuy": false,
+      "dontAllowTwoInRow": true,
+      "stopDialogue": 2
+    },
+    {
+      "id": 13,
+      "name": "LOWMORALE_OK2",
+      "file": "lmok2",
+      "randomVariants": 0,
+      "badGuy": false,
+      "dontAllowTwoInRow": true,
+      "stopDialogue": 2
+    },
+    {
+      "id": 14,
+      "name": "LOWMORALE_ATTN1",
+      "file": "lmattn",
+      "randomVariants": 0,
+      "badGuy": false,
+      "dontAllowTwoInRow": true,
+      "stopDialogue": 0
+    },
+    {
+      "id": 15,
+      "name": "LOCKED",
+      "file": "locked",
+      "randomVariants": 0,
+      "badGuy": false,
+      "dontAllowTwoInRow": true,
+      "stopDialogue": 0
+    },
+    {
+      "id": 16,
+      "name": "ENEMY",
+      "file": "enem",
+      "randomVariants": 0,
+      "badGuy": true,
+      "dontAllowTwoInRow": true,
+      "stopDialogue": 0
+    }
+  ]
+}

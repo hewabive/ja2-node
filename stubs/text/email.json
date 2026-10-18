@@ -1,0 +1,44 @@
+{
+  "format": "ja2-node stub mail text v1",
+  "note": "Invented mails for the stub pack, keyed by the mail names of data/tables/laptop.json. Each mail is its subject followed by its body rows and must have exactly the mail's length in rows. Compiled by pnpm stubs into binarydata/email.edt (320-unit rows at each mail's offset; other rows stay empty). Original writing for ja2-node.",
+  "mails": {
+    "IMP_EMAIL_INTRO": [
+      "Build your own mercenary",
+      "Not every soldier has to come from a catalogue.",
+      "Our personality profiling site turns you into a field-ready recruit.",
+      "Answer a set of questions about how you think and how you fight.",
+      "We measure your strengths and your weaknesses honestly.",
+      "Then we write up a profile your team can rely on.",
+      "The service is quick, private and paid once.",
+      "Bring patience and a sense of humour.",
+      "Visit the profiling site from your laptop bookmarks.",
+      "The profiling team"
+    ],
+    "MERC_INTRO": [
+      "Cheaper hands for hire",
+      "Our agency opens its doors to new clients this week.",
+      "We offer soldiers on daily contracts and fair prices.",
+      "Pay as you go, settle your account, keep your people happy.",
+      "The agency desk"
+    ],
+    "OLD_ENRICO_1": [
+      "The job",
+      "You have heard the rumours. The country needs outside help, and the money is real.",
+      "Hire a team, land them in the north and start taking the land back one sector at a time."
+    ],
+    "OLD_ENRICO_2": [
+      "About the funds",
+      "The account is open in your name. Spend it wisely: every day of a contract costs money.",
+      "The mines can pay for the war once they are in friendly hands."
+    ],
+    "RIS_REPORT": [
+      "Intelligence summary",
+      "Enemy patrols are thin near the coast and heavy around the capital. Expect resistance to stiffen as you advance."
+    ],
+    "OLD_ENRICO_3": [
+      "Good luck",
+      "The laptop links you to the hiring sites and your bank. Use it often.",
+      "Write back when your team has landed. We are counting on you."
+    ]
+  }
+}
