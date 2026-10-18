@@ -68,28 +68,50 @@ function step(value: unknown, segments: readonly string[], i: number): { value: 
   return { value: undefined, next: i + 1 };
 }
 
+interface MergedKeys {
+  readonly names: readonly string[];
+  readonly roots: readonly object[];
+  readonly keys: Map<object, string>;
+}
+
+const mergedByFirstRoot = new WeakMap<object, MergedKeys[]>();
+
+function sameRoots(merged: MergedKeys, names: readonly string[], roots: readonly object[]): boolean {
+  return merged.names.length === names.length && merged.names.every((name, i) => name === names[i] && merged.roots[i] === roots[i]);
+}
+
+function mergedKeys(names: readonly string[], roots: readonly object[], opaque: OpaqueKeys): Map<object, string> {
+  const first = roots[0];
+  if (!first) return new Map();
+  const known = mergedByFirstRoot.get(first) ?? [];
+  const hit = known.find((m) => sameRoots(m, names, roots));
+  if (hit) return hit.keys;
+  const keys = new Map<object, string>();
+  names.forEach((name, i) => {
+    for (const [value, path] of indexRoot(roots[i] as object, opaque[name] ?? []))
+      if (!keys.has(value)) keys.set(value, path === '' ? name : `${name}${SEPARATOR}${path}`);
+  });
+  known.push({ names, roots, keys });
+  mergedByFirstRoot.set(first, known);
+  return keys;
+}
+
 export function contentIndex(roots: ContentRoots, opaque: OpaqueKeys = {}): ContentIndex {
   const names = Object.keys(roots).sort();
   for (const name of names)
     if (name.includes(SEPARATOR)) throw new SnapshotError(`content root names cannot contain ${SEPARATOR}: ${name}`);
-  const indexed = names.map((name) => ({ name, root: roots[name] as object }));
-  const tables = indexed.map(({ name, root }) => ({ name, paths: indexRoot(root, opaque[name] ?? []) }));
+  const values = names.map((name) => roots[name] as object);
+  const keys = mergedKeys(names, values, opaque);
   const resolved = new Map<string, object>();
   return {
-    keyOf(value) {
-      for (const { name, paths: table } of tables) {
-        const path = table.get(value);
-        if (path !== undefined) return path === '' ? name : `${name}${SEPARATOR}${path}`;
-      }
-      return null;
-    },
+    keyOf: (value) => keys.get(value) ?? null,
     resolve(key) {
       const known = resolved.get(key);
       if (known) return known;
       const segments = key.split(SEPARATOR);
-      const root = indexed.find((r) => r.name === segments[0]);
-      if (!root) throw new SnapshotError(`unknown content root in ${key}`);
-      let value: unknown = root.root;
+      const at = names.indexOf(segments[0] as string);
+      if (at < 0) throw new SnapshotError(`unknown content root in ${key}`);
+      let value: unknown = values[at];
       for (let i = 1; i < segments.length; ) {
         const next = step(value, segments, i);
         value = next.value;

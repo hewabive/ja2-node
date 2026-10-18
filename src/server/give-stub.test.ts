@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
+import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
 import type { ConversationView } from '../protocol/view.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -9,7 +11,7 @@ import { InvSlot } from '../sim/tactical/inventory.ts';
 import type { Soldier } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
-import { Session } from './session.ts';
+import type { Session } from './session.ts';
 
 let kit: StubSectorKit;
 
@@ -28,8 +30,9 @@ const ROUTE_BUDGET = 10;
 const ROUTE_SLICE_SECONDS = 6 * 3600;
 const Quote = { FIRST_MEETING: 10, FIRST_MEETING_2: 11, NO_USE: 4, ROUNDS: 25, MONEY: 26, NO_GUNS: 27 } as const;
 
-async function inA10(seed: number): Promise<{ session: CampaignSession; live: Session }> {
-  const session = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
+async function inA10(seed: number, mode?: RunMode): Promise<{ session: CampaignSession; live: Session }> {
+  const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
+  const session = drivenSession(created, stubSessionSources(kit), mode);
   const start = sectorInfo(session.campaign.state.map, parseSectorString('A9'));
   start.numAdmins = 0;
   start.numTroops = 0;
@@ -41,7 +44,7 @@ async function inA10(seed: number): Promise<{ session: CampaignSession; live: Se
   const first = session.view().strategic?.mercs[0];
   if (!first) throw new Error('no merc');
   expect(session.dispatch({ type: 'route', soldier: first.id, to: 'A10' })).toMatchObject({ ok: true });
-  const live = new Session('t', session);
+  const live = new ReloadingSession('t', session);
   for (let k = 0; k < ROUTE_BUDGET && !session.view().strategic?.mercs.every((m) => m.sector === 'A10' && !m.betweenSectors); k++)
     live.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
   const enter = { type: 'enterSector', sector: 'A10' };
@@ -79,8 +82,8 @@ function quotes(r: { readonly data?: unknown }): number[] {
   return (data(r).lines ?? []).map((l) => l.quote);
 }
 
-async function nearVasko(seed: number) {
-  const { session, live } = await inA10(seed);
+async function nearVasko(seed: number, mode?: RunMode) {
+  const { session, live } = await inA10(seed, mode);
   const merc = session.view().strategic?.mercs[0]?.id ?? 0;
   expect(session.dispatch({ type: 'move', soldier: merc, to: NEAR_VASKO, mode: 'walk' }).ok).toBe(true);
   live.advance({ idle: true });
@@ -189,6 +192,29 @@ describe('giving items and money to the stub NPC in A10', { timeout: SLOW_SCENAR
     expect(after).toBe(before + 1);
     expect(soldier(session, merc).inv[pocket]?.count ?? 0).toBe(0);
   });
+
+  it(
+    'gives to the NPC and to a squad mate the same way when the session is saved and restored after every input',
+    async () => {
+      await expectReloadsInvisible(async (mode) => {
+        const { session, live, merc } = await nearVasko(26, mode);
+        const step = (cmd: Record<string, unknown>) => {
+          const r = live.dispatch({ type: String(cmd.type), ...cmd });
+          live.advance({ idle: true });
+          return r;
+        };
+        const pocket = () => soldier(session, merc).inv.findIndex((o) => o.item === item(session, 'CLIP9_15'));
+        step({ type: 'give', soldier: merc, target: { npc: VASKO }, slot: pocket(), count: 1 });
+        step({ type: 'closeTalk' });
+        step({ type: 'give', soldier: merc, target: { npc: VASKO }, slot: 'hand' });
+        step({ type: 'closeTalk' });
+        const mate = session.view().strategic?.mercs[1]?.id;
+        step({ type: 'give', soldier: merc, target: mate, slot: pocket(), count: 1 });
+        return session;
+      });
+    },
+    RELOAD_TEST_TIMEOUT_MS,
+  );
 
   it('ends in the same state under the instant and the manual driver', async () => {
     const digest = async (instant: boolean) => {

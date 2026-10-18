@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
+import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
 import type { ConversationView, NpcRequestPromptView } from '../protocol/view.ts';
 import { MercKind } from '../sim/campaign/roster.ts';
@@ -10,7 +12,7 @@ import { InvSlot } from '../sim/tactical/inventory.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
-import { Session } from './session.ts';
+import type { Session } from './session.ts';
 
 let kit: StubSectorKit;
 
@@ -31,8 +33,9 @@ const RPC_JOINED_TEAM = 23;
 const RECRUITED = 0x01;
 const EPC_ACTIVE = 0x40;
 
-async function inA10(seed: number): Promise<{ session: CampaignSession; live: Session; merc: number }> {
-  const session = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
+async function inA10(seed: number, mode?: RunMode): Promise<{ session: CampaignSession; live: Session; merc: number }> {
+  const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
+  const session = drivenSession(created, stubSessionSources(kit), mode);
   const start = sectorInfo(session.campaign.state.map, parseSectorString('A9'));
   start.numAdmins = 0;
   start.numTroops = 0;
@@ -44,7 +47,7 @@ async function inA10(seed: number): Promise<{ session: CampaignSession; live: Se
   const first = session.view().strategic?.mercs[0];
   if (!first) throw new Error('no merc');
   expect(session.dispatch({ type: 'route', soldier: first.id, to: 'A10' })).toMatchObject({ ok: true });
-  const live = new Session('t', session);
+  const live = new ReloadingSession('t', session);
   for (let k = 0; k < ROUTE_BUDGET && !session.view().strategic?.mercs.every((m) => m.sector === 'A10' && !m.betweenSectors); k++)
     live.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
   const enter = { type: 'enterSector', sector: 'A10' };
@@ -91,34 +94,13 @@ function escortMirela(session: CampaignSession, live: Session, merc: number): nu
 }
 
 describe('recruiting the stub RPC and escorting the stub EPC in A10', () => {
-  it('hires the RPC through the pay request: team, squad, weapon in hand, history and views', async () => {
-    const { session, live, merc } = await inA10(21);
-    expect(talkTo(session, live, merc, MARSH)?.lastQuotes.map((q) => q.quote)).toEqual([10]);
-    const asked = session.dispatch({ type: 'approach', kind: 'recruit' });
-    expect(lines(asked)).toEqual([11]);
-    const prompt = request(asked);
-    expect(prompt).toMatchObject({ request: 'hire', npc: MARSH, amount: MARSH_SALARY });
-    session.drainEvents();
-    const answered = session.dispatch({ type: 'answer', prompt: prompt?.id, choice: 'yes' });
-    expect(answered.ok, answered.reason).toBe(true);
-    expect(lines(answered)).toContain(14);
-    const events = session.drainEvents();
-    expect(events).toContainEqual(expect.objectContaining({ type: 'npcRecruited', profile: MARSH, kind: 'rpc', salary: MARSH_SALARY }));
-    expect(events).toContainEqual(expect.objectContaining({ type: 'npcMessage', kind: 'recruited', profile: MARSH }));
-    const c = session.campaign;
-    const m = c.battle?.roster.byProfile(MARSH);
-    expect(m?.kind).toBe(MercKind.NPC);
-    expect(m?.soldier.team).toBe(Team.OUR);
-    expect(m?.soldier.placed).toBe(true);
-    expect(c.state.forces.squads[m?.assignment ?? -1]).toContain(m?.id);
-    expect(m?.soldier.inv[InvSlot.HAND]?.item).toBe(c.battle?.content.items.byName.get('GLOCK_17')?.index);
-    expect((c.state.profiles.get(MARSH)?.miscFlags ?? 0) & RECRUITED).toBe(RECRUITED);
-    expect(c.state.laptop.history.at(-1)).toMatchObject({ code: RPC_JOINED_TEAM, secondCode: MARSH });
-    expect(c.tactical?.state.soldiers.some((s) => s?.placed && s.team === Team.CIV && s.profile === MARSH)).toBe(false);
-    expect(session.view().conversation).toBeNull();
-    expect(session.view().strategic?.mercs.find((x) => x.id === m?.id)).toMatchObject({ kind: 'rpc' });
-    expect(session.view().soldiers.find((x) => x.id === m?.id)).toMatchObject({ kind: 'rpc' });
-  });
+  it(
+    'hires the RPC through the pay request: team, squad, weapon in hand, history and views, the same across reloads',
+    async () => {
+      await expectReloadsInvisible(hireTheRpc);
+    },
+    RELOAD_TEST_TIMEOUT_MS,
+  );
 
   it('keeps the RPC when the pay request is refused', async () => {
     const { session, live, merc } = await inA10(22);
@@ -130,33 +112,74 @@ describe('recruiting the stub RPC and escorting the stub EPC in A10', () => {
     expect(session.campaign.battle?.roster.byProfile(MARSH)).toBeUndefined();
   });
 
-  it('escorts the EPC, talks to her as an escort and releases her in tactical through her wrong-sector record', async () => {
-    const { session, live, merc } = await inA10(23);
-    const id = escortMirela(session, live, merc);
-    const c = session.campaign;
-    expect((c.state.profiles.get(MIRELA)?.miscFlags ?? 0) & EPC_ACTIVE).toBe(EPC_ACTIVE);
-    expect(session.view().strategic?.mercs.find((x) => x.id === id)).toMatchObject({ kind: 'epc' });
-    expect(session.view().soldiers.find((x) => x.id === id)).toMatchObject({ kind: 'epc' });
-    if (session.view().conversation) session.dispatch({ type: 'closeTalk' });
-    const talk = talkTo(session, live, merc, MIRELA);
-    expect(talk?.lastQuotes.map((q) => q.quote)).toEqual([12]);
-    expect(session.dispatch({ type: 'closeTalk' })).toEqual({ ok: true });
-    expect(session.dispatch({ type: 'unescort', soldier: merc })).toMatchObject({ ok: false, data: { refusal: 'notAnEpc' } });
-    expect(session.dispatch({ type: 'unescort', soldier: 77 })).toMatchObject({ ok: false, data: { refusal: 'noSuchSoldier' } });
-    session.drainEvents();
-    const released = session.dispatch({ type: 'unescort', soldier: id });
-    expect(released).toMatchObject({ ok: true, data: { triggered: true } });
-    expect(lines(released)).toContain(13);
-    expect(session.view().conversation).toBeNull();
-    expect(eventsOf(session, 'epcReleased')).toEqual([expect.objectContaining({ profile: MIRELA })]);
-    expect(c.battle?.roster.byProfile(MIRELA)).toBeUndefined();
-    const civilian = c.tactical?.state.soldiers.find((s) => s?.placed && s.profile === MIRELA);
-    expect(civilian?.team).toBe(Team.CIV);
-    const p = c.state.profiles.get(MIRELA);
-    expect(p).toMatchObject({ useProfileInsertion: true, insertionCode: Insertion.GRIDNO, insertionData: civilian?.gridNo });
-    expect((p?.miscFlags ?? 0) & (EPC_ACTIVE | RECRUITED)).toBe(0);
-  });
+  it(
+    'escorts the EPC, talks to her as an escort and releases her in tactical through her wrong-sector record, the same across reloads',
+    async () => {
+      await expectReloadsInvisible(escortAndRelease);
+    },
+    RELOAD_TEST_TIMEOUT_MS,
+  );
+});
 
+async function hireTheRpc(mode: RunMode): Promise<CampaignSession> {
+  const { session, live, merc } = await inA10(21, mode);
+  expect(talkTo(session, live, merc, MARSH)?.lastQuotes.map((q) => q.quote)).toEqual([10]);
+  const asked = session.dispatch({ type: 'approach', kind: 'recruit' });
+  expect(lines(asked)).toEqual([11]);
+  const prompt = request(asked);
+  expect(prompt).toMatchObject({ request: 'hire', npc: MARSH, amount: MARSH_SALARY });
+  session.drainEvents();
+  const answered = session.dispatch({ type: 'answer', prompt: prompt?.id, choice: 'yes' });
+  expect(answered.ok, answered.reason).toBe(true);
+  expect(lines(answered)).toContain(14);
+  const events = session.drainEvents();
+  expect(events).toContainEqual(expect.objectContaining({ type: 'npcRecruited', profile: MARSH, kind: 'rpc', salary: MARSH_SALARY }));
+  expect(events).toContainEqual(expect.objectContaining({ type: 'npcMessage', kind: 'recruited', profile: MARSH }));
+  const c = session.campaign;
+  const m = c.battle?.roster.byProfile(MARSH);
+  expect(m?.kind).toBe(MercKind.NPC);
+  expect(m?.soldier.team).toBe(Team.OUR);
+  expect(m?.soldier.placed).toBe(true);
+  expect(c.state.forces.squads[m?.assignment ?? -1]).toContain(m?.id);
+  expect(m?.soldier.inv[InvSlot.HAND]?.item).toBe(c.battle?.content.items.byName.get('GLOCK_17')?.index);
+  expect((c.state.profiles.get(MARSH)?.miscFlags ?? 0) & RECRUITED).toBe(RECRUITED);
+  expect(c.state.laptop.history.at(-1)).toMatchObject({ code: RPC_JOINED_TEAM, secondCode: MARSH });
+  expect(c.tactical?.state.soldiers.some((s) => s?.placed && s.team === Team.CIV && s.profile === MARSH)).toBe(false);
+  expect(session.view().conversation).toBeNull();
+  expect(session.view().strategic?.mercs.find((x) => x.id === m?.id)).toMatchObject({ kind: 'rpc' });
+  expect(session.view().soldiers.find((x) => x.id === m?.id)).toMatchObject({ kind: 'rpc' });
+  return session;
+}
+
+async function escortAndRelease(mode: RunMode): Promise<CampaignSession> {
+  const { session, live, merc } = await inA10(23, mode);
+  const id = escortMirela(session, live, merc);
+  expect((session.campaign.state.profiles.get(MIRELA)?.miscFlags ?? 0) & EPC_ACTIVE).toBe(EPC_ACTIVE);
+  expect(session.view().strategic?.mercs.find((x) => x.id === id)).toMatchObject({ kind: 'epc' });
+  expect(session.view().soldiers.find((x) => x.id === id)).toMatchObject({ kind: 'epc' });
+  if (session.view().conversation) session.dispatch({ type: 'closeTalk' });
+  const talk = talkTo(session, live, merc, MIRELA);
+  expect(talk?.lastQuotes.map((q) => q.quote)).toEqual([12]);
+  expect(session.dispatch({ type: 'closeTalk' })).toEqual({ ok: true });
+  expect(session.dispatch({ type: 'unescort', soldier: merc })).toMatchObject({ ok: false, data: { refusal: 'notAnEpc' } });
+  expect(session.dispatch({ type: 'unescort', soldier: 77 })).toMatchObject({ ok: false, data: { refusal: 'noSuchSoldier' } });
+  session.drainEvents();
+  const released = session.dispatch({ type: 'unescort', soldier: id });
+  expect(released).toMatchObject({ ok: true, data: { triggered: true } });
+  expect(lines(released)).toContain(13);
+  expect(session.view().conversation).toBeNull();
+  expect(eventsOf(session, 'epcReleased')).toEqual([expect.objectContaining({ profile: MIRELA })]);
+  const c = session.campaign;
+  expect(c.battle?.roster.byProfile(MIRELA)).toBeUndefined();
+  const civilian = c.tactical?.state.soldiers.find((s) => s?.placed && s.profile === MIRELA);
+  expect(civilian?.team).toBe(Team.CIV);
+  const p = c.state.profiles.get(MIRELA);
+  expect(p).toMatchObject({ useProfileInsertion: true, insertionCode: Insertion.GRIDNO, insertionData: civilian?.gridNo });
+  expect((p?.miscFlags ?? 0) & (EPC_ACTIVE | RECRUITED)).toBe(0);
+  return session;
+}
+
+describe('releasing the stub EPC', () => {
   it('releases the EPC from the map screen with her abandoning quote', async () => {
     const { session, live, merc } = await inA10(24);
     const id = escortMirela(session, live, merc);

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type CampaignKit, createTestCampaign, landFirstSquad, ourSoldiers } from '../../../tests/support/campaign.ts';
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
+import { expectReloadsInvisible, type RunMode } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { sectorInfo } from '../strategic/map/sectors.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
@@ -25,6 +26,7 @@ const B9 = { x: 9, y: 2, z: 0 };
 const COLS = 160;
 const MAX_ROUNDS = 150;
 const SCENARIO_TIMEOUT_MS = 60_000;
+const RELOAD_SCENARIO_TIMEOUT_MS = 240_000;
 
 type Driver = (c: CampaignSim, until: () => boolean, budget?: number) => void;
 
@@ -107,6 +109,7 @@ function never(): never {
 }
 
 interface ScenarioResult {
+  readonly c: CampaignSim;
   readonly digest: string;
   readonly enemiesLeft: number;
   readonly corpsesBefore: number;
@@ -115,8 +118,12 @@ interface ScenarioResult {
   readonly itemsAfter: number;
 }
 
-function scenario(drive: Driver): ScenarioResult {
-  const { campaign: c, roster } = createTestCampaign(kit, { seed: 24, garrison: { admins: 0, troops: 0, elites: 0 } });
+function scenario(drive: Driver, mode?: RunMode): ScenarioResult {
+  const { campaign: c, roster } = createTestCampaign(kit, {
+    seed: 24,
+    garrison: { admins: 0, troops: 0, elites: 0 },
+    ...(mode ? { mode } : {}),
+  });
   const b9 = sectorInfo(c.state.map, B9);
   b9.numAdmins = 0;
   b9.numTroops = 2;
@@ -158,6 +165,7 @@ function scenario(drive: Driver): ScenarioResult {
     diff: [...c.state.sectorDiffs.keys()],
   });
   return {
+    c,
     digest,
     enemiesLeft,
     corpsesBefore,
@@ -181,6 +189,14 @@ describe('the stub scenario', () => {
       expect(b.digest).toBe(a.digest);
     },
     SCENARIO_TIMEOUT_MS,
+  );
+
+  it(
+    'plays the same scenario when the campaign is saved and restored after every input',
+    async () => {
+      await expectReloadsInvisible((mode) => scenario(instant, mode).c);
+    },
+    RELOAD_SCENARIO_TIMEOUT_MS,
   );
 });
 

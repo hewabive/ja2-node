@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload.ts';
+import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
@@ -190,23 +190,27 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(conversation(answered)?.lastQuotes.map((q) => q.quote)).toEqual([22]);
   });
 
-  it('continues exactly when the session is saved and restored after every input', async () => {
-    await expectReloadsInvisible(async (mode) => {
-      const { session, live } = await inA10(9, mode);
-      const merc = session.view().strategic?.mercs[0]?.id ?? 0;
-      walkUpAndTalk(session, live, merc);
-      session.dispatch({ type: 'approach', kind: 'direct' });
-      session.dispatch({ type: 'approach', kind: 'recruit' });
-      live.advance({ ticks: 10 });
-      session.dispatch({ type: 'answer', prompt: session.view().npcRequest?.id, choice: 'no' });
-      session.dispatch({ type: 'approach', kind: 'friendly' });
-      session.dispatch({ type: 'approach', kind: 'friendly' });
-      live.advance({ idle: true });
-      session.dispatch({ type: 'closeTalk' });
-      live.advance({ ticks: 200 });
-      return session;
-    });
-  });
+  it(
+    'continues exactly when the session is saved and restored after every input',
+    async () => {
+      await expectReloadsInvisible(async (mode) => {
+        const { session, live } = await inA10(9, mode);
+        const merc = session.view().strategic?.mercs[0]?.id ?? 0;
+        walkUpAndTalk(session, live, merc);
+        session.dispatch({ type: 'approach', kind: 'direct' });
+        session.dispatch({ type: 'approach', kind: 'recruit' });
+        live.advance({ ticks: 10 });
+        session.dispatch({ type: 'answer', prompt: session.view().npcRequest?.id, choice: 'no' });
+        session.dispatch({ type: 'approach', kind: 'friendly' });
+        session.dispatch({ type: 'approach', kind: 'friendly' });
+        live.advance({ idle: true });
+        session.dispatch({ type: 'closeTalk' });
+        live.advance({ ticks: 200 });
+        return session;
+      });
+    },
+    RELOAD_TEST_TIMEOUT_MS,
+  );
 
   it('lets an unnamed civilian bark a civilian quote instead of opening a panel', async () => {
     const { session, live } = await inA10(11);

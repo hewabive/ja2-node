@@ -1,58 +1,59 @@
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-const PAD = '=';
-const CHUNK_BYTES = 3 * 4096;
-const LOOKUP = new Int16Array(128).fill(-1);
-for (let i = 0; i < ALPHABET.length; i++) LOOKUP[ALPHABET.charCodeAt(i)] = i;
+const PAD = 61;
+const ENCODE = Uint8Array.from(ALPHABET, (c) => c.charCodeAt(0));
+const DECODE = new Int16Array(256).fill(-1);
+for (let i = 0; i < ENCODE.length; i++) DECODE[ENCODE[i] ?? 0] = i;
+const ASCII = new TextDecoder();
+const BYTES = new TextEncoder();
 
-function sextet(text: string, i: number): number {
-  const code = text.charCodeAt(i);
-  const value = code < LOOKUP.length ? (LOOKUP[code] ?? -1) : -1;
+export function encodeBase64(bytes: Uint8Array): string {
+  const n = bytes.length;
+  const out = new Uint8Array(Math.ceil(n / 3) * 4);
+  let o = 0;
+  let i = 0;
+  for (; i + 2 < n; i += 3) {
+    const v = ((bytes[i] ?? 0) << 16) | ((bytes[i + 1] ?? 0) << 8) | (bytes[i + 2] ?? 0);
+    out[o++] = ENCODE[v >>> 18] ?? 0;
+    out[o++] = ENCODE[(v >>> 12) & 63] ?? 0;
+    out[o++] = ENCODE[(v >>> 6) & 63] ?? 0;
+    out[o++] = ENCODE[v & 63] ?? 0;
+  }
+  if (i < n) {
+    const two = i + 1 < n;
+    const v = ((bytes[i] ?? 0) << 16) | (two ? (bytes[i + 1] ?? 0) << 8 : 0);
+    out[o++] = ENCODE[v >>> 18] ?? 0;
+    out[o++] = ENCODE[(v >>> 12) & 63] ?? 0;
+    out[o++] = two ? (ENCODE[(v >>> 6) & 63] ?? 0) : PAD;
+    out[o++] = PAD;
+  }
+  return ASCII.decode(out);
+}
+
+function sextet(codes: Uint8Array, i: number): number {
+  const value = DECODE[codes[i] ?? 0] ?? -1;
   if (value < 0) throw new SyntaxError(`invalid base64 character at ${i}`);
   return value;
 }
 
-function letter(index: number): string {
-  return ALPHABET.charAt(index);
-}
-
-function encodeChunk(bytes: Uint8Array, start: number, end: number): string {
-  let out = '';
-  let i = start;
-  for (; i + 2 < end; i += 3) {
-    const n = ((bytes[i] ?? 0) << 16) | ((bytes[i + 1] ?? 0) << 8) | (bytes[i + 2] ?? 0);
-    out += letter(n >>> 18) + letter((n >>> 12) & 63) + letter((n >>> 6) & 63) + letter(n & 63);
-  }
-  const rest = end - i;
-  if (rest === 1) {
-    const n = (bytes[i] ?? 0) << 16;
-    out += letter(n >>> 18) + letter((n >>> 12) & 63) + PAD + PAD;
-  } else if (rest === 2) {
-    const n = ((bytes[i] ?? 0) << 16) | ((bytes[i + 1] ?? 0) << 8);
-    out += letter(n >>> 18) + letter((n >>> 12) & 63) + letter((n >>> 6) & 63) + PAD;
-  }
-  return out;
-}
-
-export function encodeBase64(bytes: Uint8Array): string {
-  const parts: string[] = [];
-  for (let start = 0; start < bytes.length; start += CHUNK_BYTES)
-    parts.push(encodeChunk(bytes, start, Math.min(bytes.length, start + CHUNK_BYTES)));
-  return parts.join('');
-}
-
 export function decodeBase64(text: string): Uint8Array {
-  if (text.length % 4 !== 0) throw new SyntaxError('base64 length must be a multiple of 4');
-  const padding = text.endsWith(PAD + PAD) ? 2 : text.endsWith(PAD) ? 1 : 0;
-  const out = new Uint8Array((text.length / 4) * 3 - padding);
+  const codes = BYTES.encode(text);
+  if (codes.length !== text.length || codes.length % 4 !== 0) throw new SyntaxError('base64 text must be ASCII in groups of 4');
+  const padding = codes[codes.length - 1] === PAD ? (codes[codes.length - 2] === PAD ? 2 : 1) : 0;
+  const out = new Uint8Array((codes.length / 4) * 3 - padding);
+  const full = codes.length - (padding > 0 ? 4 : 0);
   let o = 0;
-  for (let i = 0; i < text.length; i += 4) {
-    const last = i + 4 === text.length;
-    const c = last && padding === 2 ? 0 : sextet(text, i + 2);
-    const d = last && padding >= 1 ? 0 : sextet(text, i + 3);
-    const n = (sextet(text, i) << 18) | (sextet(text, i + 1) << 12) | (c << 6) | d;
-    out[o++] = n >>> 16;
-    if (o < out.length) out[o++] = (n >>> 8) & 255;
-    if (o < out.length) out[o++] = n & 255;
+  let i = 0;
+  for (; i < full; i += 4) {
+    const v = (sextet(codes, i) << 18) | (sextet(codes, i + 1) << 12) | (sextet(codes, i + 2) << 6) | sextet(codes, i + 3);
+    out[o++] = v >>> 16;
+    out[o++] = (v >>> 8) & 255;
+    out[o++] = v & 255;
+  }
+  if (padding > 0) {
+    const third = padding === 1 ? sextet(codes, i + 2) << 6 : 0;
+    const v = (sextet(codes, i) << 18) | (sextet(codes, i + 1) << 12) | third;
+    out[o++] = v >>> 16;
+    if (padding === 1) out[o++] = (v >>> 8) & 255;
   }
   return out;
 }

@@ -7,6 +7,7 @@ import { type ClassCodec, SnapshotError } from './codec.ts';
 import { type ContentIndex, type ContentRoots, contentIndex, type OpaqueKeys } from './refs.ts';
 
 const LIGHT_TEMPLATE_PREFIX = 'light/';
+const WORLD_ROOT_PREFIX = 'world.';
 const RESERVED_ROOTS: ReadonlySet<string> = new Set(['light']);
 
 interface PreRandomPayload {
@@ -75,22 +76,25 @@ export interface ExternalSources {
 
 function checkRootNames(content: ContentRoots): void {
   for (const name of Object.keys(content)) {
-    if (RESERVED_ROOTS.has(name) || name.startsWith('world.')) throw new SnapshotError(`the content root name ${name} is reserved`);
+    if (RESERVED_ROOTS.has(name) || name.startsWith(WORLD_ROOT_PREFIX))
+      throw new SnapshotError(`the content root name ${name} is reserved`);
   }
 }
 
 export function externalSources(content: ContentRoots, world: TacticalWorld | null): ExternalSources {
   checkRootNames(content);
-  const index: ContentIndex = contentIndex({ ...content, ...worldRoots(world) }, WORLD_OPAQUE);
+  const shared: ContentIndex = contentIndex(content);
+  const loaded: ContentIndex = contentIndex(worldRoots(world), WORLD_OPAQUE);
   return {
     external(value) {
-      const key = index.keyOf(value);
+      const key = shared.keyOf(value) ?? loaded.keyOf(value);
       if (key !== null) return key;
       const light = cachedLightTemplateName(value);
       return light === null ? null : LIGHT_TEMPLATE_PREFIX + light;
     },
     resolve(key) {
-      if (!key.startsWith(LIGHT_TEMPLATE_PREFIX)) return index.resolve(key);
+      if (key.startsWith(WORLD_ROOT_PREFIX)) return loaded.resolve(key);
+      if (!key.startsWith(LIGHT_TEMPLATE_PREFIX)) return shared.resolve(key);
       const template = lightTemplate(key.slice(LIGHT_TEMPLATE_PREFIX.length));
       if (!template) throw new SnapshotError(`unknown light template ${key}`);
       return template;

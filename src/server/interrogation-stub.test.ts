@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
+import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
 import { beginCaptureSequence, endCaptureSequence, enemyCapturesPlayerSoldier } from '../sim/campaign/merc-fate.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -14,7 +16,7 @@ import { Team } from '../sim/tactical/soldier.ts';
 import { teamMembers } from '../sim/tactical/state.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
-import { Session } from './session.ts';
+import type { Session } from './session.ts';
 
 let kit: StubSectorKit;
 
@@ -30,20 +32,21 @@ const N7_MAP = 'stubs/world/maps/n7.dat';
 const SLOW_SCENARIO_MS = 30_000;
 const INTERROGATION_GRIDNOS = [7756, 7757];
 
-async function capturedTwice(seed: number): Promise<{ session: CampaignSession; live: Session }> {
-  const session = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 3, land: false });
-  const c = session.campaign;
-  const start = sectorInfo(c.state.map, parseSectorString('A9'));
+async function capturedTwice(seed: number, mode?: RunMode): Promise<{ session: CampaignSession; live: Session }> {
+  const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 3, land: false });
+  const session = drivenSession(created, stubSessionSources(kit), mode);
+  const start = sectorInfo(session.campaign.state.map, parseSectorString('A9'));
   start.numAdmins = 0;
   start.numTroops = 0;
   start.numElites = 0;
-  const n7 = sectorInfo(c.state.map, parseSectorString('N7'));
+  const n7 = sectorInfo(session.campaign.state.map, parseSectorString('N7'));
   n7.numAdmins = 0;
   n7.numTroops = 0;
   n7.numElites = 0;
   const land = { type: 'compressTime', mode: 2 };
   await session.prepare(land);
   expect(session.dispatch(land).ok).toBe(true);
+  const c = session.campaign;
   c.state.narrative.quests[Quest.HELD_IN_ALMA] = QuestStatus.DONE;
   const battle = c.battle;
   const t = c.tactical?.state;
@@ -65,7 +68,7 @@ async function capturedTwice(seed: number): Promise<{ session: CampaignSession; 
   expect(c.state.narrative.quests[Quest.INTERROGATION]).toBe(QuestStatus.IN_PROGRESS);
   c.sectors?.checkAndHandleUnloadingOfCurrentWorld();
   await session.worlds?.prepare([N7_MAP]);
-  return { session, live: new Session('interrogation', session) };
+  return { session, live: new ReloadingSession('interrogation', session) };
 }
 
 const types = (events: readonly SimEvent[]) => events.map((e) => e.type);
@@ -74,14 +77,13 @@ function quotesOf(events: readonly SimEvent[], profile: number): number[] {
   return events.flatMap((e) => (e.type === 'npcQuote' && e.profile === profile ? [e.quote] : []));
 }
 
-async function untilThePrompt(seed: number) {
-  const { session, live } = await capturedTwice(seed);
-  const c = session.campaign;
-  expect(c.state.flow).toBe('strategic');
+async function untilThePrompt(seed: number, mode?: RunMode) {
+  const { session, live } = await capturedTwice(seed, mode);
+  expect(session.campaign.state.flow).toBe('strategic');
   const begun = live.advance({ compressionStopped: true, mode: 2 });
   expect(types(begun.events)).toEqual(expect.arrayContaining(['meanwhileStarted', 'sectorLoaded']));
   expect(begun.events).toContainEqual(expect.objectContaining({ type: 'compressionStopped', reason: 'meanwhile' }));
-  expect(c.state.worldSector).toEqual({ x: 7, y: 14, z: 0 });
+  expect(session.campaign.state.worldSector).toEqual({ x: 7, y: 14, z: 0 });
   expect(session.view().meanwhile).toEqual({ seq: 1, scene: 'interrogation' });
   expect(session.view().strategic?.flow).toBe('meanwhile');
   expect(session.dispatch({ type: 'stopTime' })).toMatchObject({ ok: false, data: { refusal: 'inMeanwhile' } });
@@ -112,16 +114,25 @@ function expectEscapeSetUp(session: CampaignSession): void {
   expect(c.state.meanwhile.log.map((e) => e.id)).toEqual([11]);
 }
 
+async function answeredYes(mode?: RunMode): Promise<CampaignSession> {
+  const { session, live } = await untilThePrompt(51, mode);
+  const answered = session.dispatch({ type: 'answer', choice: 'yes' });
+  expect(answered.ok, answered.reason).toBe(true);
+  const all = types(session.drainEvents());
+  for (let k = 0; k < 4 && !all.includes('meanwhileEnded'); k++) all.push(...types(live.advance({ idle: true }).events));
+  expect(all).toContain('meanwhileEnded');
+  expectEscapeSetUp(session);
+  return session;
+}
+
 describe('the interrogation in the stub prison yard (docs/26 §2.3)', { timeout: SLOW_SCENARIO_MS }, () => {
-  it('loads N7 with the captives, asks the lie question and leaves the captives free on a squad', async () => {
-    const { session, live } = await untilThePrompt(51);
-    const answered = session.dispatch({ type: 'answer', choice: 'yes' });
-    expect(answered.ok, answered.reason).toBe(true);
-    const all = types(session.drainEvents());
-    for (let k = 0; k < 4 && !all.includes('meanwhileEnded'); k++) all.push(...types(live.advance({ idle: true }).events));
-    expect(all).toContain('meanwhileEnded');
-    expectEscapeSetUp(session);
-  });
+  it(
+    'loads N7 with the captives, asks the lie question and leaves the captives free on a squad, the same across reloads',
+    async () => {
+      await expectReloadsInvisible(answeredYes);
+    },
+    RELOAD_TEST_TIMEOUT_MS,
+  );
 
   it('runs the liar through the skill check and ends the scene either way', async () => {
     const { session, live } = await untilThePrompt(52);

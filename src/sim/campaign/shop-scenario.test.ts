@@ -3,9 +3,9 @@ import { type CampaignKit, createTestCampaign, landFirstSquad, ourSoldiers, runU
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { loadMerchantTestContent, type MerchantTestContent } from '../../../tests/support/merchants.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
+import { advance, expectReloadsInvisible, type RunMode } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';
-import { advance } from '../advance.ts';
 import type { SimEvent } from '../events.ts';
 import { createItem, createMoney } from '../items/object.ts';
 import { addItemToArmsDealerInventory } from '../strategic/economy/merchants/inventory.ts';
@@ -61,12 +61,13 @@ const manual: Driver = (c, ticks) => {
 
 const item = (name: string) => merchants.items.byName.get(name)?.index ?? -1;
 
-function startCampaign(seed: number): CampaignSim {
+function startCampaign(seed: number, mode?: RunMode): CampaignSim {
   const { campaign } = createTestCampaign(kit, {
     seed,
     garrison: { admins: 0, troops: 0, elites: 0 },
     merchants: merchants.content,
     merchantHooks: { shopHours: (profile) => (profile === PERKO_PROFILE ? { open: OPEN, close: CLOSE } : null) },
+    ...(mode ? { mode } : {}),
   });
   landFirstSquad(campaign);
   runUntilIdle(campaign);
@@ -123,10 +124,15 @@ function shopView(r: { readonly data?: unknown }): ShopView {
   return r.data as ShopView;
 }
 
-function franzScenario(drive: Driver, seed: number): SimEvent[] {
-  const c = startCampaign(seed);
+function firstMerc(c: CampaignSim): Soldier {
   const merc = ourSoldiers(c)[0];
   if (!merc) throw new Error('no merc');
+  return merc;
+}
+
+function franzScenario(drive: Driver, seed: number, mode?: RunMode): { readonly c: CampaignSim; readonly log: SimEvent[] } {
+  const c = startCampaign(seed, mode);
+  const merc = firstMerc(c);
   spawnDealer(c, FRANZ_PROFILE, DEALER_SLOT, merc);
   stockFranz(c);
   const log: SimEvent[] = [...c.drainEvents()];
@@ -162,24 +168,24 @@ function franzScenario(drive: Driver, seed: number): SimEvent[] {
     secondCode: FRANZ_PROFILE,
     amount: -250,
   });
-  expect(merc.inv.some((o) => o.item === item('VIDEO_CAMERA'))).toBe(true);
-  expect(merc.inv[InvSlot.SMALLPOCK1]?.item).not.toBe(item('MONEY'));
+  expect(firstMerc(c).inv.some((o) => o.item === item('VIDEO_CAMERA'))).toBe(true);
+  expect(firstMerc(c).inv[InvSlot.SMALLPOCK1]?.item).not.toBe(item('MONEY'));
   const sold = c.dispatch({ type: 'trade', sell: [{ soldier: merc.id, slot: 'hand' }] });
   expect(sold.ok, sold.reason).toBe(true);
-  expect(merc.inv[InvSlot.HAND]?.item).toBe(0);
-  const change = merc.inv.find((o) => o.item === item('MONEY'));
+  expect(firstMerc(c).inv[InvSlot.HAND]?.item).toBe(0);
+  const change = firstMerc(c).inv.find((o) => o.item === item('MONEY'));
   expect(change?.money).toBeGreaterThan(0);
-  const pocket = merc.inv.findIndex((o) => o.item === item('MONEY'));
+  const pocket = firstMerc(c).inv.findIndex((o) => o.item === item('MONEY'));
   const gift = c.dispatch({ type: 'trade', cash: [{ soldier: merc.id, slot: pocket, amount: 10 }] });
   expect(gift).toMatchObject({ ok: true, data: { giftAccepted: false } });
-  expect(merc.inv[pocket]?.money).toBe(change?.money);
+  expect(firstMerc(c).inv[pocket]?.money).toBe(change?.money);
   expect(c.dispatch({ type: 'closeShop' }).ok).toBe(true);
   log.push(...c.drainEvents());
   const types = log.map((e) => e.type);
   expect(types).toEqual(expect.arrayContaining(['shopOpened', 'itemsBought', 'moneyChanged', 'itemsSold', 'giftGiven', 'shopClosed']));
   expect(header(c.merchants?.state ?? never(), FRANZ, item('VIDEO_CAMERA')).total).toBe(0);
   expect(c.merchants?.state.dealers[FRANZ]?.status.flags).toBe(1);
-  return log;
+  return { c, log };
 }
 
 function never(): never {
@@ -190,10 +196,18 @@ describe('shop scenario on the stub village', () => {
   it(
     'trades with Franz: buy with cash and balance, sell, gift, close; identical under both drivers',
     () => {
-      const a = franzScenario(instant, 3);
-      const b = franzScenario(manual, 3);
+      const a = franzScenario(instant, 3).log;
+      const b = franzScenario(manual, 3).log;
       expect(b.map((e) => e.type)).toEqual(a.map((e) => e.type));
       expect(JSON.stringify(b)).toBe(JSON.stringify(a));
+    },
+    SCENARIO_TIMEOUT_MS,
+  );
+
+  it(
+    'trades with Franz the same way when the campaign is saved and restored after every input',
+    async () => {
+      await expectReloadsInvisible((mode) => franzScenario(manual, 3, mode).c);
     },
     SCENARIO_TIMEOUT_MS,
   );
@@ -212,38 +226,42 @@ describe('shop scenario on the stub village', () => {
       expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
       advance(c, { worldTime: { day: day + 3, hour: 9, minute: 30 }, mode: CompressMode.MIN60, compressionStopped: false });
       expect(worldDay(c.state.clock)).toBe(day + 3);
-      expect(franz?.cash).toBe(5000);
+      expect(c.merchants?.state.dealers[FRANZ]?.status.cash).toBe(5000);
     },
     SCENARIO_TIMEOUT_MS,
   );
 
   it(
-    'repairs a pistol at Perko inside shop hours and returns it at 100 % on the next visit',
-    () => {
-      const c = startCampaign(5);
-      const merc = ourSoldiers(c)[0];
-      if (!merc) throw new Error('no merc');
-      spawnDealer(c, PERKO_PROFILE, DEALER_SLOT, merc);
-      const glock = createItem(merchants.items, item('GLOCK_17'), 50);
-      merc.inv[InvSlot.HAND] = glock;
-      const ammo = glock.gunAmmoItem;
-      expect(c.dispatch({ type: 'openShop', dealer: PERKO_PROFILE, soldier: merc.id }).ok).toBe(true);
-      const repaired = c.dispatch({ type: 'trade', repair: [{ soldier: merc.id, slot: 'hand' }], useBalance: true });
-      expect(repaired.ok, repaired.reason).toBe(true);
-      const doneAt = (repaired.data as { repairs: { doneAt: number }[] }).repairs[0]?.doneAt ?? 0;
-      expect(doneAt).toBeGreaterThan(worldTotalMinutes(c.state.clock));
-      expect(merc.inv[InvSlot.HAND]?.item).toBe(0);
-      expect(merc.inv.some((o) => o.item === ammo && (o.status[0] ?? 0) > 0)).toBe(true);
-      expect(c.dispatch({ type: 'closeShop' }).ok).toBe(true);
-      expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
-      advance(c, { worldTime: (doneAt + 60) * 60, mode: CompressMode.MIN30, compressionStopped: false });
-      expect(c.dispatch({ type: 'tacticalScreen' }).ok).toBe(true);
-      const again = c.dispatch({ type: 'openShop', dealer: 'PERKO', soldier: merc.id });
-      expect(again.ok, again.reason).toBe(true);
-      const pistol = merc.inv.find((o) => o.item === item('GLOCK_17'));
-      expect(pistol?.status[0]).toBe(100);
-      expect(c.drainEvents().map((e) => e.type)).toContain('repairCollected');
+    'repairs a pistol at Perko inside shop hours and returns it at 100 % on the next visit, the same across reloads',
+    async () => {
+      await expectReloadsInvisible(perkoRepair);
     },
     SCENARIO_TIMEOUT_MS,
   );
 });
+
+function perkoRepair(mode: RunMode): CampaignSim {
+  const c = startCampaign(5, mode);
+  const merc = firstMerc(c);
+  spawnDealer(c, PERKO_PROFILE, DEALER_SLOT, merc);
+  const glock = createItem(merchants.items, item('GLOCK_17'), 50);
+  merc.inv[InvSlot.HAND] = glock;
+  const ammo = glock.gunAmmoItem;
+  expect(c.dispatch({ type: 'openShop', dealer: PERKO_PROFILE, soldier: merc.id }).ok).toBe(true);
+  const repaired = c.dispatch({ type: 'trade', repair: [{ soldier: merc.id, slot: 'hand' }], useBalance: true });
+  expect(repaired.ok, repaired.reason).toBe(true);
+  const doneAt = (repaired.data as { repairs: { doneAt: number }[] }).repairs[0]?.doneAt ?? 0;
+  expect(doneAt).toBeGreaterThan(worldTotalMinutes(c.state.clock));
+  expect(firstMerc(c).inv[InvSlot.HAND]?.item).toBe(0);
+  expect(firstMerc(c).inv.some((o) => o.item === ammo && (o.status[0] ?? 0) > 0)).toBe(true);
+  expect(c.dispatch({ type: 'closeShop' }).ok).toBe(true);
+  expect(c.dispatch({ type: 'mapScreen' }).ok).toBe(true);
+  advance(c, { worldTime: (doneAt + 60) * 60, mode: CompressMode.MIN30, compressionStopped: false });
+  expect(c.dispatch({ type: 'tacticalScreen' }).ok).toBe(true);
+  const again = c.dispatch({ type: 'openShop', dealer: 'PERKO', soldier: merc.id });
+  expect(again.ok, again.reason).toBe(true);
+  const pistol = firstMerc(c).inv.find((o) => o.item === item('GLOCK_17'));
+  expect(pistol?.status[0]).toBe(100);
+  expect(c.drainEvents().map((e) => e.type)).toContain('repairCollected');
+  return c;
+}

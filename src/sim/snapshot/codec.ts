@@ -123,63 +123,26 @@ function typedBytes(value: TypedArray, path: readonly string[]): Uint8Array {
   return new Uint8Array(value.buffer, 0, value.byteLength);
 }
 
-class Census {
-  readonly #options: EncodeOptions;
-  readonly #seen = new Set<object>();
-  readonly shared = new Set<object>();
-  readonly payloads = new Map<object, unknown>();
+interface PathNode {
+  readonly parent: PathNode | null;
+  readonly segment: string;
+}
 
-  constructor(options: EncodeOptions) {
-    this.#options = options;
-  }
-
-  visit(value: unknown): void {
-    if (typeof value !== 'object' || value === null) return;
-    if (this.#seen.has(value)) {
-      this.shared.add(value);
-      return;
-    }
-    if (this.#options.external(value) !== null) return;
-    this.#seen.add(value);
-    if (isTypedArray(value)) return;
-    if (value instanceof Map) {
-      for (const [k, v] of value) {
-        this.visit(k);
-        this.visit(v);
-      }
-      return;
-    }
-    if (value instanceof Set) {
-      for (const v of value) this.visit(v);
-      return;
-    }
-    if (Array.isArray(value)) {
-      for (let i = 0; i < value.length; i++) if (i in value) this.visit(value[i]);
-      return;
-    }
-    if (isPlainObject(value)) {
-      for (const key in value) this.visit((value as Record<string, unknown>)[key]);
-      return;
-    }
-    const codec = this.#options.classes.find((c) => c.matches(value));
-    if (!codec) return;
-    const payload = codec.payload(value);
-    this.payloads.set(value, payload);
-    this.visit(payload);
-  }
+function pathOf(node: PathNode | null): string[] {
+  const segments: string[] = [];
+  for (let at = node; at; at = at.parent) segments.push(at.segment);
+  return segments.reverse();
 }
 
 class Encoder {
   readonly #options: EncodeOptions;
-  readonly #census: Census;
-  readonly #emitted = new Map<object, string>();
+  readonly #seen = new Map<object, PathNode>();
   readonly #externals: string[] = [];
   readonly #externalIndex = new Map<string, number>();
-  readonly #path: string[] = [];
+  #node: PathNode | null = null;
 
-  constructor(options: EncodeOptions, census: Census) {
+  constructor(options: EncodeOptions) {
     this.#options = options;
-    this.#census = census;
   }
 
   get externals(): readonly string[] {
@@ -187,17 +150,19 @@ class Encoder {
   }
 
   section(name: string, value: unknown): Json {
-    this.#path.push(escapeSegment(name));
-    const out = this.#value(value);
-    this.#path.pop();
-    return out;
+    return this.#child(escapeSegment(name), value);
   }
 
   #child(segment: string, value: unknown): Json {
-    this.#path.push(segment);
+    const parent = this.#node;
+    this.#node = { parent, segment };
     const out = this.#value(value);
-    this.#path.pop();
+    this.#node = parent;
     return out;
+  }
+
+  #fail(message: string): never {
+    throw new SnapshotError(message, pathOf(this.#node));
   }
 
   #value(value: unknown): Json {
@@ -214,20 +179,18 @@ class Encoder {
       case 'object':
         return value === null ? null : this.#object(value);
       case 'function':
-        throw new SnapshotError('a function cannot be written', this.#path);
+        return this.#fail('a function cannot be written');
       default:
-        throw new SnapshotError(`a ${typeof value} cannot be written`, this.#path);
+        return this.#fail(`a ${typeof value} cannot be written`);
     }
   }
 
   #object(value: object): Json {
+    const first = this.#seen.get(value);
+    if (first) return { [REF]: pathOf(first).join('/') };
     const key = this.#options.external(value);
     if (key !== null) return { [EXTERNAL]: this.#externalId(key) };
-    if (this.#census.shared.has(value)) {
-      const at = this.#emitted.get(value);
-      if (at !== undefined) return { [REF]: at };
-      this.#emitted.set(value, this.#path.join('/'));
-    }
+    if (this.#node) this.#seen.set(value, this.#node);
     if (isTypedArray(value)) return this.#typed(value);
     if (value instanceof Map) return this.#map(value);
     if (value instanceof Set) return { [SET]: [...value].map((v, i) => this.#child(String(i), v)) };
@@ -248,19 +211,19 @@ class Encoder {
 
   #typed(value: TypedArray): Json {
     const kind = TYPED.find((k) => k.matches(value));
-    if (!kind) throw new SnapshotError(`a ${typeName(value)} cannot be written`, this.#path);
-    return { [kind.tag]: encodeBase64(typedBytes(value, this.#path)) };
+    if (!kind) return this.#fail(`a ${typeName(value)} cannot be written`);
+    return { [kind.tag]: encodeBase64(typedBytes(value, pathOf(this.#node))) };
   }
 
   #map(value: Map<unknown, unknown>): Json {
     const entries: Json[] = [];
+    const parent = this.#node;
     let i = 0;
     for (const [k, v] of value) {
-      const segment = String(i++);
-      this.#path.push(segment);
+      this.#node = { parent, segment: String(i++) };
       entries.push([this.#child('0', k), this.#child('1', v)]);
-      this.#path.pop();
     }
+    this.#node = parent;
     return { [MAP]: entries };
   }
 
@@ -273,7 +236,7 @@ class Encoder {
   #plain(value: Record<string, unknown>): Json {
     const out: Record<string, Json> = {};
     for (const key of Object.keys(value).sort()) {
-      if (key.charCodeAt(0) === TAG_PREFIX) throw new SnapshotError(`the key ${key} is reserved for snapshot tags`, this.#path);
+      if (key.charCodeAt(0) === TAG_PREFIX) this.#fail(`the key ${key} is reserved for snapshot tags`);
       out[key] = this.#child(escapeSegment(key), value[key]);
     }
     return out;
@@ -281,18 +244,15 @@ class Encoder {
 
   #instance(value: object): Json {
     const codec = this.#options.classes.find((c) => c.matches(value));
-    if (!codec) throw new SnapshotError(`a ${typeName(value)} cannot be written`, this.#path);
-    const payload = this.#census.payloads.has(value) ? this.#census.payloads.get(value) : codec.payload(value);
-    return { [codec.tag]: this.#value(payload) };
+    if (!codec) return this.#fail(`a ${typeName(value)} cannot be written`);
+    return { [codec.tag]: this.#value(codec.payload(value)) };
   }
 }
 
 export function encodeGraph(sections: readonly Section[], options: EncodeOptions): EncodedGraph {
   const names = new Set(sections.map(([name]) => name));
   if (names.size !== sections.length) throw new SnapshotError('section names must be unique');
-  const census = new Census(options);
-  for (const [, value] of sections) census.visit(value);
-  const encoder = new Encoder(options, census);
+  const encoder = new Encoder(options);
   const out = sections.map(([name, value]) => [name, encoder.section(name, value)] as const);
   return { externals: [...encoder.externals], sections: out };
 }

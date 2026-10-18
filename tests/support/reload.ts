@@ -1,4 +1,5 @@
 import { expect } from 'vitest';
+import type { TacticalWorld } from '../../src/content/world/tactical-world.ts';
 import type { CommandEnvelope } from '../../src/protocol/messages.ts';
 import { advance as advanceSim, type Steppable, type StopCondition, type StopReport } from '../../src/sim/advance.ts';
 import type { CommandResult } from '../../src/sim/command.ts';
@@ -9,10 +10,24 @@ export type RunMode = 'plain' | 'reload';
 export const RUN_MODES: readonly RunMode[] = ['plain', 'reload'];
 
 const RELOAD_ENV = 'JA2_RELOAD';
+
+export const RELOAD_TEST_TIMEOUT_MS = 120_000;
 const DIFFERENCE_CONTEXT = 160;
 
 export function defaultRunMode(): RunMode | null {
   return process.env[RELOAD_ENV] === '1' ? 'reload' : null;
+}
+
+export function worldContentOnce(build: (mapPath: string) => TacticalWorld): (mapPath: string) => TacticalWorld {
+  const built = new Map<string, TacticalWorld>();
+  return (mapPath) => {
+    let world = built.get(mapPath);
+    if (!world) {
+      world = build(mapPath);
+      built.set(mapPath, world);
+    }
+    return world;
+  };
 }
 
 export interface Drivable extends Steppable {

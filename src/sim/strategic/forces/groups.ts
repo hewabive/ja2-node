@@ -111,7 +111,9 @@ export function createForcesState(): ForcesState {
   };
 }
 
-const NO_SECTOR: Sector = { x: 0, y: 0, z: 0 };
+function noSector(): Sector {
+  return { x: 0, y: 0, z: 0 };
+}
 
 export function getGroup(ctx: StrategicContext, id: number): Group | undefined {
   return ctx.state.forces.groups.find((g) => g.id === id);
@@ -134,7 +136,7 @@ function newGroup(
     debug: false,
     persistent: false,
     size: 0,
-    prev: NO_SECTOR,
+    prev: noSector(),
     originalSector: original,
     createdSectorId: original,
     sectorIdOfLastReassignment: 255,
@@ -177,8 +179,8 @@ export function createNewEnemyGroupDepartingFromSector(
     persistent: false,
     size: u8(troops + elites),
     sector: s,
-    next: NO_SECTOR,
-    prev: NO_SECTOR,
+    next: noSector(),
+    prev: noSector(),
     originalSector: u8(id),
     createdSectorId: u8(id),
     sectorIdOfLastReassignment: 255,
@@ -219,9 +221,9 @@ export function cancelEmptyPersistentGroupMovement(ctx: StrategicContext, g: Gro
   g.traverseTime = 0;
   g.arrivalTime = 0;
   g.betweenSectors = false;
-  g.prev = NO_SECTOR;
-  g.sector = NO_SECTOR;
-  g.next = NO_SECTOR;
+  g.prev = noSector();
+  g.sector = noSector();
+  g.next = noSector();
 }
 
 function removeGroupFromList(ctx: StrategicContext, g: Group): void {

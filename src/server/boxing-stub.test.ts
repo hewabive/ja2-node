@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
+import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
 import { pythSpacesAway } from '../content/world/grid.ts';
 import type { BoxingView, NpcRequestPromptView } from '../protocol/view.ts';
@@ -12,7 +14,7 @@ import { BOXING_RING } from '../sim/tactical/narrative/boxing-state.ts';
 import { type Soldier, Team } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
-import { Session } from './session.ts';
+import type { Session } from './session.ts';
 
 let kit: StubSectorKit;
 
@@ -39,10 +41,10 @@ interface Club {
   readonly mercs: readonly number[];
 }
 
-async function inTheClub(seed: number): Promise<Club> {
-  const session = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
-  const c = session.campaign;
-  const start = sectorInfo(c.state.map, parseSectorString('A9'));
+async function inTheClub(seed: number, mode?: RunMode): Promise<Club> {
+  const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
+  const session = drivenSession(created, stubSessionSources(kit), mode);
+  const start = sectorInfo(session.campaign.state.map, parseSectorString('A9'));
   start.numAdmins = 0;
   start.numTroops = 0;
   start.numElites = 0;
@@ -50,6 +52,7 @@ async function inTheClub(seed: number): Promise<Club> {
   await session.prepare(land);
   expect(session.dispatch(land).ok).toBe(true);
   expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+  const c = session.campaign;
   const ctx = c.strategic;
   const roster = c.battle?.roster;
   if (!ctx || !roster) throw new Error('no strategic layer');
@@ -64,7 +67,7 @@ async function inTheClub(seed: number): Promise<Club> {
   const enter = { type: 'enterSector', sector: 'D5' };
   await session.prepare(enter);
   expect(session.dispatch(enter)).toMatchObject({ ok: true });
-  const live = new Session('boxing', session);
+  const live = new ReloadingSession('boxing', session);
   live.advance({ idle: true });
   return { session, live, mercs };
 }
@@ -151,47 +154,58 @@ function fightOneTurn(club: Club, merc: number): SimEvent[] {
   return events;
 }
 
-describe('a boxing match at the stub club (docs/25 §7, docs/04 §6.20)', () => {
-  it('is bet on through the requestor, fought bare-handed with attack and closed by the owner', async () => {
-    const club = await inTheClub(31);
-    const { session, live } = club;
-    const merc = club.mercs[0] as number;
-    freeHands(club, merc);
-    expect(boxing(club)).toBeNull();
-    const started = betAndStart(club, merc);
-    expect(started).toContainEqual(expect.objectContaining({ type: 'boxingBell' }));
-    expect(boxing(club)).toEqual({ state: 'waitingForPlayer', boxers: [], uiLocked: false });
-    expect(session.dispatch({ type: 'mapScreen' })).toMatchObject({ ok: false, data: { refusal: 'boxingInProgress' } });
-    expect(session.dispatch({ type: 'move', soldier: merc, to: RING_TILE, mode: 'walk' }).ok).toBe(true);
-    const events: SimEvent[] = [];
-    for (let k = 0; k < SETTLE_BUDGET && boxing(club)?.state !== 'boxing'; k++) events.push(...live.advance({ idle: true }).events);
-    expect(events).toContainEqual(expect.objectContaining({ type: 'boxingState', state: 'waitingForPlayer', previous: 'notBoxing' }));
-    expect(events).toContainEqual(expect.objectContaining({ type: 'boxingState', state: 'preBoxing' }));
-    expect(events).toContainEqual(expect.objectContaining({ type: 'boxerPicked' }));
-    expect(events).toContainEqual(expect.objectContaining({ type: 'combatStarted' }));
-    expect(boxing(club)?.state).toBe('boxing');
-    expect(boxing(club)?.boxers).toContain(merc);
-    expect(session.campaign.strategic?.world.boxing()).toBe(true);
-    const fight: SimEvent[] = [];
-    for (let turn = 0; turn < OUR_TURN_BUDGET && boxing(club)?.state === 'boxing'; turn++) {
-      if (ourTurn(club)) fight.push(...fightOneTurn(club, merc));
-      else fight.push(...live.advance({ idle: true }).events);
-    }
-    const round = session.campaign.state.narrative.boxing;
-    for (let k = 0; k < SETTLE_BUDGET && boxing(club) !== null; k++) fight.push(...live.advance({ idle: true }).events);
-    expect(fight).toContainEqual(expect.objectContaining({ type: 'boxingRoundOver' }));
-    expect(fight).toContainEqual(expect.objectContaining({ type: 'combatEnded', reason: 'boxing' }));
-    expect(fight).toContainEqual(expect.objectContaining({ type: 'boxingEnded', soldier: merc }));
-    expect(boxing(club)).toBeNull();
-    const won = round.lastMatchWonByPlayer;
-    expect(session.campaign.state.laptop.history.at(-1)).toMatchObject({
-      code: won ? NarrativeHistory.WON_BOXING : NarrativeHistory.LOST_BOXING,
-    });
-    expect(round.matchesWon).toBe(won ? 1 : 0);
-    expect(round.fought[0]).toBe(true);
-    expect(soldier(club, merc).underAiControl).toBe(false);
-    expect(session.view().conversation?.lastQuotes.map((q) => q.quote)).toEqual([won ? 7 : 8]);
-    expect(session.dispatch({ type: 'closeTalk' })).toEqual({ ok: true });
-    expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+async function boxingMatch(mode?: RunMode): Promise<CampaignSession> {
+  const club = await inTheClub(31, mode);
+  const { session, live } = club;
+  const merc = club.mercs[0] as number;
+  freeHands(club, merc);
+  expect(boxing(club)).toBeNull();
+  const started = betAndStart(club, merc);
+  expect(started).toContainEqual(expect.objectContaining({ type: 'boxingBell' }));
+  expect(boxing(club)).toEqual({ state: 'waitingForPlayer', boxers: [], uiLocked: false });
+  expect(session.dispatch({ type: 'mapScreen' })).toMatchObject({ ok: false, data: { refusal: 'boxingInProgress' } });
+  expect(session.dispatch({ type: 'move', soldier: merc, to: RING_TILE, mode: 'walk' }).ok).toBe(true);
+  const events: SimEvent[] = [];
+  for (let k = 0; k < SETTLE_BUDGET && boxing(club)?.state !== 'boxing'; k++) events.push(...live.advance({ idle: true }).events);
+  expect(events).toContainEqual(expect.objectContaining({ type: 'boxingState', state: 'waitingForPlayer', previous: 'notBoxing' }));
+  expect(events).toContainEqual(expect.objectContaining({ type: 'boxingState', state: 'preBoxing' }));
+  expect(events).toContainEqual(expect.objectContaining({ type: 'boxerPicked' }));
+  expect(events).toContainEqual(expect.objectContaining({ type: 'combatStarted' }));
+  expect(boxing(club)?.state).toBe('boxing');
+  expect(boxing(club)?.boxers).toContain(merc);
+  expect(session.campaign.strategic?.world.boxing()).toBe(true);
+  const fight: SimEvent[] = [];
+  for (let turn = 0; turn < OUR_TURN_BUDGET && boxing(club)?.state === 'boxing'; turn++) {
+    if (ourTurn(club)) fight.push(...fightOneTurn(club, merc));
+    else fight.push(...live.advance({ idle: true }).events);
+  }
+  for (let k = 0; k < SETTLE_BUDGET && boxing(club) !== null; k++) fight.push(...live.advance({ idle: true }).events);
+  const round = session.campaign.state.narrative.boxing;
+  expect(fight).toContainEqual(expect.objectContaining({ type: 'boxingRoundOver' }));
+  expect(fight).toContainEqual(expect.objectContaining({ type: 'combatEnded', reason: 'boxing' }));
+  expect(fight).toContainEqual(expect.objectContaining({ type: 'boxingEnded', soldier: merc }));
+  expect(boxing(club)).toBeNull();
+  const won = round.lastMatchWonByPlayer;
+  expect(session.campaign.state.laptop.history.at(-1)).toMatchObject({
+    code: won ? NarrativeHistory.WON_BOXING : NarrativeHistory.LOST_BOXING,
   });
+  expect(round.matchesWon).toBe(won ? 1 : 0);
+  expect(round.fought[0]).toBe(true);
+  expect(soldier(club, merc).underAiControl).toBe(false);
+  expect(session.view().conversation?.lastQuotes.map((q) => q.quote)).toEqual([won ? 7 : 8]);
+  expect(session.dispatch({ type: 'closeTalk' })).toEqual({ ok: true });
+  expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+  return session;
+}
+
+const BOXING_TIMEOUT_MS = 60_000;
+
+describe('a boxing match at the stub club (docs/25 §7, docs/04 §6.20)', () => {
+  it(
+    'is bet on through the requestor, fought bare-handed with attack and closed by the owner, the same across reloads',
+    async () => {
+      await expectReloadsInvisible(boxingMatch);
+    },
+    BOXING_TIMEOUT_MS,
+  );
 });

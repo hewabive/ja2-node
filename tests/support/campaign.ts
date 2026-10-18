@@ -17,7 +17,7 @@ import { createSoldier, type Soldier, Team } from '../../src/sim/tactical/soldie
 import { teamMembers } from '../../src/sim/tactical/state.ts';
 import type { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import type { EconomyTestContent } from './economy.ts';
-import { defaultRunMode, driven, follow, type ReloadAdapter, type RunMode, reloadPoint } from './reload.ts';
+import { defaultRunMode, driven, follow, type ReloadAdapter, type RunMode, reloadPoint, worldContentOnce } from './reload.ts';
 import type { StubSectorKit } from './sectors.ts';
 
 const STATS = {
@@ -125,13 +125,14 @@ export function assembleTestCampaign(
 
 export function testCampaignAdapter(kit: CampaignKit, options: CampaignOptions): ReloadAdapter<CampaignSim> {
   const content = testCampaignContent(kit, options);
+  const world = worldContentOnce((path) => kit.sectors.world(path));
   return {
     drainBeforeReload: () => true,
     snapshot: (c) => snapshotCampaign(c, content),
     restore: (snapshot) =>
       restoreCampaign(snapshot, {
         content,
-        world: (path) => kit.sectors.world(path),
+        world,
         assemble: (state, tactical) => assembleTestCampaign(kit, options, state, 'restore', tactical).campaign,
       }),
   };
