@@ -41,8 +41,8 @@ Related documents:
 | D3 | **Unified game time: integer milliseconds, fixed 5 ms tick** (like `TOVERHEAD` in the original). All processes are tied to ticks, not to frame rate | Outcomes don't depend on FPS or machine speed |
 | D4 | **Animations enter the simulation as data.** Action timelines: frames, delays, gameplay markers. Sprites do not enter the simulation. Verified on `Ja2bin.dat`: 308 scripts, 54 gameplay opcodes (`04`, §1) | In the original, a shot, a death and a door opening happen on animation frames. Durations are numbers; they can be computed without waiting |
 | D5 | **A resolution barrier instead of `ubAttackBusyCount`.** An explicit set of pending effects | Same semantics, but debuggable. *As built (M3–M6) the barrier is still the original's counter (`turns/turn-state.ts` `attackBusyCount`)* |
-| D6 | **Three randomness streams.** `pre` — a ring of 256 numbers, saved. `main` — gameplay. `fx` — cosmetics, not saved | Anti-save-scum protection as in the original; cosmetics don't affect outcomes |
-| D7 | **State is plain data:** ids instead of pointers, grids in typed arrays | Serialization, debugging, moving to a worker. *As built the tactical layer holds soldier references and some state lives in flow objects; `27` §1.4 plans the snapshot codec that makes it serializable* |
+| D6 | **Three randomness streams.** `pre` — a ring of 256 numbers, saved. `main` — gameplay. `fx` — cosmetics, not saved | Anti-save-scum protection as in the original; cosmetics don't affect outcomes. *As built (M7 S1) the cosmetic streams live in `StrategicState`, seeded from the session seed, and are saved, because a few cosmetic picks are stored in state (`27` §1.4 row 8)* |
+| D7 | **State is plain data:** ids instead of pointers, grids in typed arrays | Serialization, debugging, moving to a worker. *As built the tactical layer holds soldier references; the session, flow and roster state moved into `StrategicState` and `TacticalState` in M7 S1, and `27` §1.4 plans the snapshot codec that makes the rest serializable* |
 | D8 | **Content is a canonical data model.** Original formats are read by importers on the server; decoders have no DOM and no Node, so media is decoded in the browser too. Stubs are an alternative source of the same model | The game doesn't know where the data came from |
 | D9 | **Rendering is our own thin layer on WebGL2:** indexed sprites, palettes, shading tables, strip-based depth | Soldier palettes and tile lighting are cheap only in a shader |
 | D10 | **Game UI is our own canvas widget set, with layouts stored as data.** DOM only for the launcher and dev tools | Pixel-perfect 640×480 with original art or a stub skin |
@@ -295,7 +295,8 @@ Source: report `03`, §2–§4. This is the "skeleton" of tactics, and its order
   In test and replay mode the seed is fixed.
 - **`fx`.** Face blinking, idle animations, ambient, AIM static. In the original they consume
   the *shared* generator on wall-clock time. This is a source of nondeterminism, and we remove it
-  deliberately.
+  deliberately. The simulation's cosmetic streams (talk, helicopter, autoresolve) are seeded from the session seed
+  and saved (`27` §1.4).
 
 **The algorithm** is our own: xoshiro128** seeded via splitmix32 (chosen in M0: 32-bit operations only,
 no BigInt). Mapping to a range is done by multiplication, one generator call per roll. Bit-exact matching with `mt19937` and

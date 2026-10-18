@@ -347,7 +347,8 @@ the same persistence: `narrative.talk = {src: soldierId | null, dest: soldierId 
 when a conversation starts and read here; it is transient (not saved: after a native load the original's pointers are null,
 `ID:153-154`), and a soldier id that no longer resolves reads as null.
 *Implemented: `NarrativeFlow.talk = {src, dest, srcProfile}` (soldier ids, `srcProfile` 0 at start as the original's
-zero-initialised global), resolved per call by `NarrativeFlow.talkContext()`; `docs/24` writes it. The dialogue code calls
+zero-initialised global; since M7 S1 it is `StrategicState.talk.soldiers`, saved with ja2-node's own sessions, see
+`deviations.md` "Talk context in saves"), resolved per call by `NarrativeFlow.talkContext()`; `docs/24` writes it. The dialogue code calls
 `checkFact(narrative.factContext(), id, npc)` or `narrative.checkFact(id, npc)`; tactical rules call
 `TacticalState.narrative.fact(id, profile)`, which is `CheckFact`.*
 
