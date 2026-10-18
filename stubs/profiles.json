@@ -35,9 +35,7 @@
       "medicalDeposit": 1,
       "deathRate": 101,
       "reputationTolerance": 101,
-      "buddies": [
-        1
-      ],
+      "buddies": [1],
       "opinions": {
         "1": 18,
         "2": -4,
@@ -99,9 +97,7 @@
       "biWeeklySalary": 2800,
       "deathRate": 40,
       "reputationTolerance": 55,
-      "buddies": [
-        0
-      ],
+      "buddies": [0],
       "learnToLike": 4,
       "learnToLikeTime": 30,
       "opinions": {
@@ -168,12 +164,8 @@
       "medicalDeposit": 1,
       "deathRate": 4,
       "reputationTolerance": 40,
-      "hated": [
-        3
-      ],
-      "hatedTime": [
-        6
-      ],
+      "hated": [3],
+      "hatedTime": [6],
       "learnToHate": 1,
       "learnToHateTime": 10,
       "opinions": {
@@ -430,15 +422,9 @@
       "medicalDeposit": 1,
       "deathRate": 45,
       "reputationTolerance": 60,
-      "buddies": [
-        3
-      ],
-      "hated": [
-        1
-      ],
-      "hatedTime": [
-        0
-      ],
+      "buddies": [3],
+      "hated": [1],
+      "hatedTime": [0],
       "opinions": {
         "1": -30,
         "3": 20
@@ -682,9 +668,7 @@
       "biWeeklySalary": 3200,
       "deathRate": 50,
       "reputationTolerance": 50,
-      "buddies": [
-        11
-      ],
+      "buddies": [11],
       "learnToHate": 0,
       "learnToHateTime": 20,
       "opinions": {
@@ -747,9 +731,7 @@
       "medicalDeposit": 1,
       "deathRate": 20,
       "reputationTolerance": 35,
-      "buddies": [
-        10
-      ],
+      "buddies": [10],
       "learnToLike": 2,
       "learnToLikeTime": 24,
       "opinions": {
@@ -809,12 +791,8 @@
       "salary": 150,
       "deathRate": 101,
       "reputationTolerance": 101,
-      "hated": [
-        0
-      ],
-      "hatedTime": [
-        6
-      ],
+      "hated": [0],
+      "hatedTime": [6],
       "opinions": {
         "0": -25,
         "1": 4
