@@ -67,8 +67,12 @@ export function departureOptions(ctx: ContractContext, m: RosterMerc, rehireRequ
   return { choices: withRehire(['here', 'elsewhere']), elsewhere };
 }
 
+export function canBeRemovedFromContract(m: RosterMerc): boolean {
+  return m.life > 0 && m.assignment !== Assignment.ASSIGNMENT_POW;
+}
+
 export function beginRemoveMercFromContract(ctx: ContractContext, m: RosterMerc): void {
-  if (m.life <= 0 || m.assignment === Assignment.ASSIGNMENT_POW) return;
+  if (!canBeRemovedFromContract(m)) return;
   const sinceArrival = u32(worldTotalMinutes(ctx.state.clock) - m.contract.lastContractUpdate);
   if (m.kind === MercKind.MERC || m.kind === MercKind.NPC) ctx.say(m, 'RESPONSE_TO_MIGUEL_SLASH_QUOTE_MERC_OR_RPC_LETGO');
   else if (m.kind === MercKind.AIM_MERC && willMercRenew(ctx, m, false))
