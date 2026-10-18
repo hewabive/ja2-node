@@ -11,7 +11,7 @@ import type { ClientSettings } from './settings.ts';
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
 type EventType = FrameEvent['type'];
 
-export const SLEEP_WAKE_EVENTS = ['fellAsleep', 'wokeUp'] as const satisfies readonly EventType[];
+const SLEEP_WAKE_EVENTS = ['fellAsleep', 'wokeUp'] as const satisfies readonly EventType[];
 
 export interface SleepWakeNotice {
   readonly asleep: readonly number[];

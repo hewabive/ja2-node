@@ -1,7 +1,6 @@
 import type { UiLanguage } from '../../content/text/data-version.ts';
 
-export const SAVE_MODES = ['anywhere', 'ironMan', 'deadIsDead'] as const;
-export type SaveMode = (typeof SAVE_MODES)[number];
+export type SaveMode = 'anywhere' | 'ironMan' | 'deadIsDead';
 export type Difficulty = 1 | 2 | 3;
 
 export interface GameOptions {

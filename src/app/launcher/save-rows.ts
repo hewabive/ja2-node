@@ -20,7 +20,7 @@ const RESERVED_SAVE_NAMES: ReadonlySet<string> = new Set(['quicksave', 'auto01',
 const UPLOAD_FALLBACK_NAME = 'upload';
 export const QUICK_SAVE_NAME = 'QuickSave';
 export const QUICK_SAVE_ALIAS = 'quick';
-export const MAX_DESCRIPTION_CHARS = 46;
+const MAX_DESCRIPTION_CHARS = 46;
 
 const DIFFICULTY_LABELS: readonly LabelId[] = ['easy', 'medium', 'hard'];
 const SAVE_MODE_LABELS: Readonly<Record<GameOptions['saveMode'], LabelId>> = {
@@ -85,7 +85,7 @@ export function formatMercs(labels: Labels, mercs: number): string {
   return `${mercs} ${mercs === 1 ? labels.text('merc') : labels.text('mercs')}`;
 }
 
-export function optionLines(labels: Labels, options: GameOptions): string[] {
+function optionLines(labels: Labels, options: GameOptions): string[] {
   const difficulty = DIFFICULTY_LABELS[options.difficulty - 1] ?? 'medium';
   return [
     `${labels.text(difficulty)} ${labels.text('difficultySuffix')}`,

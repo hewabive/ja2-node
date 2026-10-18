@@ -22,7 +22,7 @@ export interface CampaignForm {
   readonly page: StartPage;
 }
 
-export const DEFAULT_DEAD_IS_DEAD_NAME = 'DeadIsDead';
+const DEFAULT_DEAD_IS_DEAD_NAME = 'DeadIsDead';
 export const MAX_SQUAD_SIZE = 6;
 const SAVE_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 const RESERVED_SAVE_NAMES: ReadonlySet<string> = new Set(['quicksave', 'auto01', 'auto02', 'error']);

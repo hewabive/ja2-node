@@ -1,6 +1,6 @@
 import type { Labels } from './labels.ts';
 
-export type MessageBoxKind = 'yesNo' | 'ok';
+type MessageBoxKind = 'yesNo' | 'ok';
 
 export class MessageBox {
   readonly #dialog: HTMLDialogElement;

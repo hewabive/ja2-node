@@ -163,7 +163,7 @@ function isOriginal(source: LabelSource): source is OriginalLabel {
   return 'table' in source;
 }
 
-export function ownText(label: OwnLabel, language: UiLanguage): string {
+function ownText(label: OwnLabel, language: UiLanguage): string {
   return language === 'rus' ? label.rus : label.eng;
 }
 
