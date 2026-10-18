@@ -126,4 +126,25 @@ describe('the audio engine', () => {
     await settle();
     expect(engine.cachedPaths()).toEqual(['b.wav', 'c.wav']);
   });
+  it('plays a decoded buffer on a bus with its own clock, only while running and audible', () => {
+    const { graph, engine } = engineWith({});
+    const samples = [new Float32Array(441), new Float32Array(441)];
+    expect(engine.playBuffer('music', samples, 44100)).toBeNull();
+    engine.unlock();
+    engine.setVolumes({ ...DEFAULT_ENGINE_VOLUMES, master: 0 });
+    expect(engine.playBuffer('music', samples, 44100)).toBeNull();
+    engine.setVolumes(DEFAULT_ENGINE_VOLUMES);
+    graph.currentTime = 2;
+    const playback = engine.playBuffer('music', samples, 44100);
+    const source = graph.sources.at(-1);
+    expect(source?.started).toBe(true);
+    expect(source?.buffer?.copied).toHaveLength(2);
+    expect(source?.connections).toEqual([graph.gains[3]]);
+    graph.currentTime = 2.5;
+    expect(playback?.elapsed()).toBe(0.5);
+    playback?.stop();
+    playback?.stop();
+    expect(source?.disconnected).toBe(true);
+    expect(engine.counters.voicesStarted).toBe(0);
+  });
 });

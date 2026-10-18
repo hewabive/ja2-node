@@ -530,7 +530,7 @@ and in CI only on them.
   - The sample rate is determined by the device context (a pitfall ja2-web ran into).
   - Audio is unlocked on the first user gesture.
   - Music switches by mode according to `music.json`.
-- **Video** (intro and ending in Smacker format) — later.
+- **Video** (intro and ending in Smacker format), landed in M7 (`27` §4.5).
   - We write the decoder from the format specification.
   - We don't port libsmacker's code: it's LGPL, which is incompatible with SFI-SCLA.
   - Cutscenes are skippable.
