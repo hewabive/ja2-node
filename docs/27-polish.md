@@ -1498,11 +1498,12 @@ labelled rectangles or simple shapes in the original layouts (`01` §4.4).
 - **Stub content changed for the path** (game design; each commit says why): role kits instead of one Glock each
   (`d29b889`: riflemen with a MINI14, G41 or M14 and three AP magazines, two with grenades, medics with an MP5K and a
   medical kit, a first-aid kit for all) and armour on them (`7a694f3`: Kevlar vest and steel helmet for riflemen, flak
-  jacket and steel helmet for medics and the SMG gunner); the palace laid out so that a squad can fight its way to the
-  stairs (`eae738e`: a west wing over the stairs with the six priority elites, the optional elites in a keep far to the
-  south-east, Derek and Oliver in the gatehouse); town and camp garrisons at four posts of five instead of one block
-  (`0f8b425`); the seven unjam animations end by resuming the shot (`ad43739`, finding 26); twenty enemy slots on the
-  wilderness map instead of six (`6a1bd6d`, finding 27).
+  jacket and steel helmet for medics and the SMG gunner) and a Glock sidearm with two CLIP9_15 (`d293cbb`, which the A10
+  stub NPC's give script and the give and talk e2e scenarios use); the palace laid out so that a squad can fight its way
+  to the stairs (`eae738e`: a west wing over the stairs with the six priority elites, the optional elites in a keep far
+  to the south-east, Derek and Oliver in the gatehouse); town and camp garrisons at four posts of five instead of one
+  block (`0f8b425`); the seven unjam animations end by resuming the shot (`ad43739`, finding 26); twenty enemy slots on
+  the wilderness map instead of six (`6a1bd6d`, finding 27).
 - **Fixes in the simulation** (each with a regression test; the oracle compare is unchanged): `enterSector` on the
   loaded sector switches to the tactical flow (finding 23, `51b2e82`); a hit whose animation cannot start releases its
   busy count (finding 24, `de21ae7`, deviation "Hit during a non-interruptible animation"); a suppression stance change
@@ -1520,23 +1521,26 @@ labelled rectangles or simple shapes in the original layouts (`01` §4.4).
   the end of the landing battle with the exact load at round 2: the battle is won with no merc lost, the mirrored
   session shows no difference over more than 20 compared steps, the campaign continues in the loaded session and A9 is
   player controlled with no enemies.
-- **Results** (2026-10-18, easy, no sci-fi). `pnpm cli campaign --seed N` (exact load in battle 1 round 2, player load
-  after the Drassen mine; one run each, at `2457d02`):
+- **Results** (2026-10-18, easy, no sci-fi, at `d293cbb`). `pnpm cli campaign --seed N` (exact load in battle 1 round 2,
+  player load after the Drassen mine; one run each):
 
   | Seed | Outcome | Where | Day | Battles (won) | Mercs lost | Enemies killed | Exact load (steps, differences) | Seconds |
   |---|---|---|---|---|---|---|---|---|
-  | 1 | stuck | march, D13: "the squad cannot move: dead" (finding 33) | 12 | 15 (15) | 3 | 52 | 616, 0 | 112 |
-  | 2 | lost | the second attack on M3 | 12 | 16 (15) | 7 | 66 | 230, 0 | 112 |
-  | 3 | stuck | march, K10: an enemy turn that did not end (finding 34) | 11 | 16 (15) | 0 | 68 | 561, 0 | 132 |
-  | 4 | stuck | after three retreats from M3: the abandoned combat (finding 32) | 13 | 20 (17) | 8 | 71 | 525, 0 | 151 |
+  | 1 | lost | the march, at L8 | 12 | 16 (15) | 10 | 55 | 616, 0 | 113 |
+  | 2 | lost | the fourth attack on M3 | 15 | 22 (18) | 9 | 92 | 476, 0 | 190 |
+  | 3 | stuck | the fifth attack on M3: nobody left to find while M3 still counts enemies (findings 27, 31) | 15 | 23 (18) | 4 | 80 | 325, 0 | 310 |
+  | 4 | lost | the march, at L8 | 12 | 19 (18) | 10 | 82 | 232, 0 | 112 |
 
-  Every exact load matched its original session over the rest of its battle.   The player load reseeds with the server's entropy (§1.5), so a run after it is not reproducible; without reloads a
-  seed always plays the same campaign, the same through MCP (`--no-reload`) as in process. Without reloads, at
-  `9b81f99`: seed 1 lost the fourth attack on M3 (day 13, 23 battles, 19 won, 6 mercs lost, 82 enemies killed), seed 2
-  lost its squad on the march at L8 (day 12, 15 battles, 10 mercs lost), seed 3 took M3 and lost the third attack on N3
-  (day 15, 21 battles, 19 won, 6 lost, 85 killed), seed 4 lost the third attack on M3 (day 15, 20 battles, 7 lost).
-- **Not reached**: the Queen. Drassen, the mine, Skyrider, militia and recruiting work on every seed; the squads
-  are worn down on the march and by the Meduna outskirts (finding 31). The endgame steps (`palace.ts`: storm P3 to the
+  Every exact load matched its original session over the rest of its battle. The player load reseeds with the server's
+  entropy (§1.5), so a run after it is not reproducible; earlier runs at `2457d02` met findings 32–34 that way. Without
+  reloads a seed always plays the same campaign, the same through MCP (`--no-reload`, checked with seed 3 at `9b81f99`:
+  identical summaries) as in process. Without reloads at `d293cbb`: seed 1 lost its squad on the march at L8 (day 12,
+  19 battles, 18 won, 8 mercs lost, 83 enemies killed), seed 2 reached L3 with three mercs and lost the fourth attack
+  on M3 (day 15, 21 battles, 17 won, 9 lost, 77 killed), seed 3 lost on the march at L8 (day 12, 16 battles, 15 won),
+  seed 4 lost at M3 (day 13, 19 battles, 18 won, 10 lost, 84 killed); with the kit before the sidearm (`9b81f99`) seed 3
+  took M3 and lost the third attack on N3.
+- **Not reached**: the Queen. Drassen, the mine, Skyrider, militia and recruiting work on every seed; the squads are
+  worn down on the march and by the Meduna outskirts (finding 31). The endgame steps (`palace.ts`: storm P3 to the
   stairs, `exitSector` down, kill the Queen, play the ending until `observe.ended`) were played in process with mercs
   placed in O3 during this slice and reached the victory; through a full campaign they were not reached.
 
@@ -2317,7 +2321,8 @@ ja2-node does not port, deviations "Watchdogs"; 14–16 decided and fixed on 202
     with cover an attacker can use (the stub camp and town maps are open ground around their posts), a battle policy
     that picks cover and attacks at night, a larger team (twelve A.I.M. and one M.E.R.C. profiles on stubs, fewer after
     deaths, Puig's death rule and Lasko's hatred), Skyrider's helicopter for the march (but enemy airspace beyond the
-    Drassen strip). Repro: `pnpm cli campaign --seed 3 --no-reload` (M3 taken, N3 lost).
+    Drassen strip). Repro: `pnpm cli campaign --seed 2 --no-reload` (four battles at M3, lost; with an earlier kit seed
+    3 took M3 and lost N3).
 32. *Open: a battle left with only unconscious mercs stays in combat.* After a retreat that leaves unconscious mercs
     behind in a sector in turn-based combat, the loaded sector stays in combat and the map screen refuses `advance`
     ("combat is in progress") until someone goes back and ends the turn; the bot then switches to the tactical screen
