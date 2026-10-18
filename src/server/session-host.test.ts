@@ -3,7 +3,7 @@ import type { CommandEnvelope, ServerMessage } from '../protocol/messages.ts';
 import { applyFrame, type SoldierView, type ViewFrame } from '../protocol/view.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { Session, type SessionSim } from './session.ts';
-import { InProcessHost, SliceScheduler, TimeSlicer } from './session-host.ts';
+import { InProcessHost, SESSION_HOST_ENV, SliceScheduler, sessionHostKind, TimeSlicer } from './session-host.ts';
 
 const BUSY_TICK_MS = 2;
 const LONG_ADVANCE_TICKS = 150;
@@ -169,5 +169,11 @@ describe('the in-process session host', () => {
     await expect(host.advance({ ticks: 1 })).rejects.toThrow(/closed/);
     expect(host.savesAvailable).toBe(false);
     await expect(new InProcessHost(new Session('nosaves', walker())).save({})).rejects.toThrow(/not available/);
+  });
+
+  it('picks the host kind from JA2_SESSION_HOST, in process by default', () => {
+    expect(sessionHostKind({})).toBe('inprocess');
+    expect(sessionHostKind({ [SESSION_HOST_ENV]: 'worker' })).toBe('worker');
+    expect(() => sessionHostKind({ [SESSION_HOST_ENV]: 'threads' })).toThrow(/inprocess, worker/);
   });
 });
