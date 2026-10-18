@@ -159,8 +159,8 @@ export class CampaignSession implements SessionSim {
     return withText(this.campaign.dispatch(cmd), this.texts);
   }
 
-  creationEvents(): SimEvent[] {
-    return this.origin?.kind === 'campaign' ? this.drainEvents() : [];
+  get holdsCreationEvents(): boolean {
+    return this.origin?.kind === 'campaign';
   }
 
   #conversation(): { conversation?: ConversationView | null; npcRequest?: NpcRequestPromptView | null; scriptedSequence?: boolean } {
