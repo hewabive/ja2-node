@@ -1,5 +1,5 @@
 import type { SoldierView } from '../../src/protocol/view.ts';
-import { bandageWounded, hasKit, kitInHand } from './first-aid.ts';
+import { bandageWounded, hasKit, holdsKit, kitInHand } from './first-aid.ts';
 import { handGun, readyHand } from './gear.ts';
 import { centroid, gridNo, nearest, ring, tiles, towards, WORLD_SIDE } from './grid.ts';
 import type { AdvanceReport, Observation } from './mcp-game.ts';
@@ -13,6 +13,7 @@ export interface BattleOptions {
   readonly objective?: number;
   readonly done?: (view: Observation) => boolean;
   readonly retreat?: Edge;
+  readonly casualtyLimit?: number;
 }
 
 const MAX_BATTLE_STEPS = 1000;
@@ -47,6 +48,7 @@ const IDLE_ROUNDS_BEFORE_ADVANCE = 1;
 const IDLE_ROUNDS_BEFORE_FLANKING = 3;
 const STILL_ACTING = /soldier (\d+) is still acting/;
 const END_TURN_ATTEMPTS = 4;
+const NOT_BLEEDING = 'notBleeding';
 
 interface Shot {
   readonly target: SoldierView;
@@ -184,18 +186,18 @@ async function push(p: Player, view: Observation, merc: SoldierView, turn: TurnS
 }
 
 async function treatSelf(p: Player, merc: SoldierView): Promise<boolean> {
-  const life = merc.life ?? 0;
-  if (life >= (merc.lifeMax ?? 0) || !hasKit(merc)) return false;
-  if ((p.memory.treated.get(merc.id) ?? Number.POSITIVE_INFINITY) <= life) return false;
-  p.memory.treated.set(merc.id, life);
+  if (!p.memory.bleeding.has(merc.id) || !hasKit(merc)) return false;
   if (!(await kitInHand(p, merc))) return false;
   const started = await p.act({ type: 'bandage', soldier: merc.id, target: merc.id });
+  if (!started.ok && JSON.stringify(started).includes(NOT_BLEEDING)) p.memory.bleeding.delete(merc.id);
   return started.ok;
 }
 
 async function mercAction(p: Player, view: Observation, merc: SoldierView, turn: TurnState): Promise<boolean> {
   const ap = merc.ap ?? 0;
   if (ap < MIN_AP_TO_ACT || !usable(merc)) return false;
+  if (p.memory.bandaging.has(merc.id) && holdsKit(merc)) return false;
+  p.memory.bandaging.delete(merc.id);
   const ready = await readyHand(p, merc, true);
   if (ready === 'acted') return true;
   const targets = hostilesInSight(p, view);
@@ -213,7 +215,7 @@ async function mercAction(p: Player, view: Observation, merc: SoldierView, turn:
       if (fired.ok) return true;
     }
   }
-  if (!turn.contact && (await treatSelf(p, merc))) return true;
+  if (await treatSelf(p, merc)) return true;
   const advance = targets.length > 0 ? turn.idleRounds >= IDLE_ROUNDS_BEFORE_FLANKING : turn.idleRounds >= IDLE_ROUNDS_BEFORE_ADVANCE;
   if (!advance) return hold(p, view, merc, turn);
   return push(p, view, merc, turn);
@@ -322,7 +324,16 @@ async function waitForStragglers(p: Player): Promise<void> {
   await p.advance({ ticks: STRAGGLER_TICKS, events: ['combatStarted', 'enemySighted'] });
 }
 
+async function stopBleeding(p: Player, view: Observation): Promise<boolean> {
+  const bleeders = ourMercs(view).filter((m) => p.memory.bleeding.has(m.id) && (m.life ?? 0) > 0);
+  if (bleeders.length === 0 || hostilesInSight(p, view).length > 0) return false;
+  await bandageWounded(p, p.medics, p.memory.bleeding);
+  for (const m of bleeders) p.memory.bleeding.delete(m.id);
+  return true;
+}
+
 async function seek(p: Player, view: Observation): Promise<void> {
+  if (await stopBleeding(p, view)) return;
   if (await catchBreath(p, view)) return;
   const goal = seekGoal(p, view);
   const anchor = squadAnchor(view) ?? goal;
@@ -371,7 +382,7 @@ async function fight(p: Player, options: BattleOptions): Promise<BattleResult> {
   for (let step = 0; step < MAX_BATTLE_STEPS; step++) {
     const view = await p.observe();
     if (await answerPrompts(p, view)) continue;
-    if (options.retreat && !retreat && ourMercs(view).length > 0) retreat = planRetreat(options.retreat, view);
+    if (options.retreat && !retreat && ourMercs(view).length > 0) retreat = planRetreat(options.retreat, view, options.casualtyLimit);
     if (ourMercs(view).filter(usable).length === 0) return retreat?.active ? 'retreated' : 'lost';
     if (options.done?.(view)) return 'reached';
     if (retreat && (!view.combat || ourTurn(view)) && shouldRetreat(retreat, view, hostilesInSight(p, view).length)) {

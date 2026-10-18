@@ -42,7 +42,8 @@ export interface BattleMemory {
   readonly life: Map<number, number>;
   readonly dead: Set<number>;
   readonly hits: Map<number, number>;
-  readonly treated: Map<number, number>;
+  readonly bleeding: Set<number>;
+  readonly bandaging: Set<number>;
   readonly visited: Set<number>;
   shots: number;
   noise: number | null;
@@ -72,7 +73,8 @@ export function newMemory(): BattleMemory {
     life: new Map(),
     dead: new Set(),
     hits: new Map(),
-    treated: new Map(),
+    bleeding: new Set(),
+    bandaging: new Set(),
     visited: new Set(),
     shots: 0,
     noise: null,
@@ -170,6 +172,14 @@ export class Player {
         const id = e.soldier as number;
         this.memory.life.set(id, e.life as number);
         this.memory.hits.set(id, (this.memory.hits.get(id) ?? 0) + 1);
+        if (id < OUR_TEAM_SIZE && (e.damage as number) > 0) this.memory.bleeding.add(id);
+      } else if (e.type === 'firstAidStarted') {
+        this.memory.bandaging.add(e.soldier as number);
+      } else if (e.type === 'bandaged' && e.bleeding === 0) {
+        this.memory.bleeding.delete(e.patient as number);
+      } else if (e.type === 'firstAidDone' || e.type === 'firstAidEnded' || e.type === 'outOfBandages') {
+        this.memory.bandaging.delete(e.soldier as number);
+        if (e.type === 'firstAidDone') this.memory.bleeding.delete(e.patient as number);
       }
     }
   }

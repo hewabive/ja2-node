@@ -9,6 +9,7 @@ export interface Retreat {
   readonly edge: Edge;
   readonly homes: Map<number, number>;
   readonly initial: number;
+  readonly casualtyLimit: number | null;
   active: boolean;
 }
 
@@ -16,15 +17,17 @@ const LEAVE_TICKS = 6000;
 const HALF = 0.5;
 const LAST_STAND = 2;
 
-export function planRetreat(edge: Edge, view: Observation): Retreat {
+export function planRetreat(edge: Edge, view: Observation, casualtyLimit: number | null = null): Retreat {
   const mercs = ourMercs(view).filter((m) => usable(m) && m.kind !== 'epc');
-  return { edge, homes: new Map(mercs.map((m) => [m.id, m.gridNo])), initial: mercs.length, active: false };
+  return { edge, homes: new Map(mercs.map((m) => [m.id, m.gridNo])), initial: mercs.length, casualtyLimit, active: false };
 }
 
 export function shouldRetreat(r: Retreat, view: Observation, hostiles: number): boolean {
   if (r.active) return true;
   const standing = ourMercs(view).filter((m) => usable(m) && m.kind !== 'epc').length;
-  if (standing === 0 || hostiles === 0) return false;
+  if (standing === 0) return false;
+  if (r.casualtyLimit !== null && r.initial - standing >= r.casualtyLimit) return true;
+  if (hostiles === 0) return false;
   const beaten = standing <= Math.ceil(r.initial * HALF) && hostiles >= standing;
   const lastStand = standing <= LAST_STAND && hostiles > standing;
   return beaten || lastStand;

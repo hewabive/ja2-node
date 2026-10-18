@@ -9,7 +9,8 @@ import { startStubServer } from './stub-server.ts';
 export const CAMPAIGN_USAGE = `usage: pnpm cli campaign [--seed N] [--server URL --token TOKEN] [--verbose] [--trace] [--stop-after STEP] [--no-reload]
   plays a stub campaign through the MCP API alone, from the new game to the Queen's death:
   hires a squad, lands in A9, liberates Drassen, starts the mine, buys at Keith's and Bobby Ray's,
-  escorts Skyrider, trains militia, hires reinforcements, marches on Meduna and storms the palace.
+  escorts Skyrider, trains militia, recruits up to twelve mercs from A.I.M. and M.E.R.C., marches on
+  Meduna (outfitting and healing at each stop), attacks its outskirts with retreats and storms the palace.
   In the first battle that reaches round 2 it saves, loads the save exactly into a new session and
   checks that both sessions play the rest of the battle identically, then plays on in the loaded one;
   after the Drassen mine it saves and loads once more as a player (reseeded).

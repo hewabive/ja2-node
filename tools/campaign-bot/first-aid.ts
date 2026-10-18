@@ -19,6 +19,10 @@ function kitSlot(merc: SoldierView): number | null {
   return null;
 }
 
+export function holdsKit(merc: SoldierView): boolean {
+  return KITS.has(handItem(merc)?.item ?? '');
+}
+
 export function hasKit(merc: SoldierView): boolean {
   return kitSlot(merc) !== null;
 }
@@ -36,17 +40,15 @@ export async function kitInHand(p: Player, medic: SoldierView): Promise<boolean>
   return (await p.act({ type: 'moveItem', soldier: medic.id, from: slot, to: 'hand' })).ok;
 }
 
-async function treat(p: Player, medic: SoldierView, patient: SoldierView): Promise<void> {
+async function treat(p: Player, medic: SoldierView, patient: SoldierView): Promise<boolean> {
   const started = await p.act({ type: 'bandage', soldier: medic.id, target: patient.id });
-  if (!started.ok) return;
+  if (!started.ok) return false;
   for (let slice = 0; slice < AID_SLICES; slice++) {
     const report = await p.advance({ ticks: AID_SLICE_TICKS, events: [...DONE_EVENTS, 'combatStarted'] });
-    if (
-      report.reason === 'decision' ||
-      report.events.some((e) => (DONE_EVENTS as readonly string[]).includes(e.type) || e.type === 'combatStarted')
-    )
-      return;
+    if (report.reason === 'decision' || report.events.some((e) => e.type === 'combatStarted')) return false;
+    if (report.events.some((e) => (DONE_EVENTS as readonly string[]).includes(e.type))) return true;
   }
+  return false;
 }
 
 export async function rearm(p: Player): Promise<void> {
@@ -58,11 +60,11 @@ export async function rearm(p: Player): Promise<void> {
   }
 }
 
-export async function bandageWounded(p: Player, medics: readonly number[]): Promise<void> {
+export async function bandageWounded(p: Player, medics: readonly number[], only: ReadonlySet<number> | null = null): Promise<void> {
   let view = await p.observe();
   if (view.combat || view.strategic?.flow !== 'tactical') return;
   const patients = ourMercs(view)
-    .filter((m) => (m.life ?? 0) > 0 && (m.life ?? 0) < (m.lifeMax ?? 0))
+    .filter((m) => (m.life ?? 0) > 0 && (m.life ?? 0) < (m.lifeMax ?? 0) && (only === null || only.has(m.id)))
     .sort((a, b) => (a.life ?? 0) - (b.life ?? 0) || a.id - b.id)
     .map((m) => m.id);
   for (const id of patients) {
@@ -74,7 +76,7 @@ export async function bandageWounded(p: Player, medics: readonly number[]): Prom
     if (!medic) break;
     if (!(await kitInHand(p, medic))) continue;
     const fresh = (await p.observe()).soldiers.find((s) => s.id === medic.id) ?? medic;
-    await treat(p, fresh, patient);
+    if (await treat(p, fresh, patient)) p.memory.bleeding.delete(id);
   }
   await rearm(p);
 }

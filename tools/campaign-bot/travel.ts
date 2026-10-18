@@ -14,10 +14,11 @@ const DAY_SECONDS = 86_400;
 const HOUR_SECONDS = 3600;
 const MINUTE_SECONDS = 60;
 const TOO_INJURED = 'tooInjured';
+export const PRISONER = 32;
 
 export function squad(view: Observation): StrategicMercView[] {
   return (view.strategic?.mercs ?? []).filter(
-    (m) => m.kind !== 'vehicle' && m.life > 0 && m.arrival === undefined && m.vehicle === undefined,
+    (m) => m.kind !== 'vehicle' && m.life > 0 && m.arrival === undefined && m.vehicle === undefined && m.assignment !== PRISONER,
   );
 }
 
@@ -40,8 +41,16 @@ export async function mapScreen(p: Player): Promise<boolean> {
 
 export type Fight = (p: Player) => Promise<BattleResult>;
 
+function battleLeftOnMapScreen(view: Observation): string | null {
+  const world = view.strategic?.worldSector;
+  if (view.strategic?.flow !== 'strategic' || !world || sectorEnemies(view) === 0) return null;
+  return squad(view).some((m) => m.sector === world && !m.betweenSectors) ? world : null;
+}
+
 async function battleOrPrompt(p: Player, view: Observation, fight: Fight): Promise<BattleResult | 'answered' | 'none'> {
   if (await answerPrompts(p, view)) return 'answered';
+  const left = battleLeftOnMapScreen(view);
+  if (left && (await enter(p, left))) return 'answered';
   if (view.strategic?.flow === 'tactical' && (view.combat || sectorEnemies(view) > 0)) {
     p.log(`  battle in ${view.strategic.worldSector}: ${sectorEnemies(view)} enemies`);
     const result = await fight(p);

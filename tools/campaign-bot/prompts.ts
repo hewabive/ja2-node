@@ -31,7 +31,7 @@ function battleChoices(prompt: PromptView, balance: number): readonly string[] {
     case 'autoresolveDone':
       return ['done'];
     case 'simultaneousArrival':
-      return ['separately', 'coordinate'];
+      return ['coordinate', 'separately'];
     case 'npcOfNote':
       return ['continue'];
     case 'militiaPayment':

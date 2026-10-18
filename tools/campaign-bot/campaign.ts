@@ -23,7 +23,7 @@ import {
   SKYRIDER_FARMS,
   TownShop,
 } from './stub-world.ts';
-import { enter, mapScreen, squad, travel, waitHours, worldSeconds } from './travel.ts';
+import { enter, mapScreen, PRISONER, squad, travel, waitHours, worldSeconds } from './travel.ts';
 
 export interface CampaignOptions {
   readonly seed: number;
@@ -66,19 +66,21 @@ const SHOPPING_RESERVE = 8000;
 const TRAINING_HOURS = 30;
 const TRAINING_SLICE_HOURS = 3;
 const ESCORT_TICKS = 20_000;
-const TARGET_TEAM = 11;
-const HIRE_ESTIMATE = 3600;
-const SAVING_DAYS = 5;
-const SAVING_HOURS = 12;
+const TARGET_TEAM = 12;
+const RECRUITING_SLICES = 12;
+const RECRUITING_HOURS = 12;
 const REINFORCEMENT_CONTRACT_DAYS = 7;
 const REINFORCEMENT_RESERVE = 4000;
 const ARRIVAL_HOURS = 36;
 const ARRIVAL_SLICE_HOURS = 3;
 const MARCH_REST_HOURS = 18;
 const ASSAULT_REST_HOURS = 18;
-const ASSAULT_ATTEMPTS = 4;
+const ASSAULT_ATTEMPTS = 6;
+const ASSAULT_CASUALTY_LIMIT = 2;
 const REGROUP_HOURS = 24;
 const ROWS = 'ABCDEFGHIJKLMNOP';
+const MERC_INTRO_MAIL = 'MERC_INTRO';
+const MERC_DAYS_FUNDED = 7;
 
 class CampaignStop extends Error {
   readonly outcome: CampaignOutcome;
@@ -185,9 +187,19 @@ export class CampaignBot {
 
   async orderSupplies(): Promise<void> {
     await this.laptop(async () => {
-      const lines = BOBBY_RAY_ORDER.map((l) => ({ item: this.p.items.byName.get(l.item)?.index ?? -1, used: false, quantity: l.quantity }));
+      const stock = (await this.p.observe()).laptop?.bobbyRay?.newStock ?? [];
+      const lines = BOBBY_RAY_ORDER.map((l) => {
+        const item = this.p.items.byName.get(l.item)?.index ?? -1;
+        const onHand = stock.find((s) => s.item === item)?.quantity ?? 0;
+        return { item, used: false, quantity: Math.min(l.quantity, onHand) };
+      }).filter((l) => l.quantity > 0);
+      if (lines.length === 0) {
+        this.p.log('  Bobby Ray has none of the supplies in stock');
+        return;
+      }
       const ordered = await this.p.act({ type: 'bobbyRayOrder', lines, destination: BOBBY_RAY.destination, speed: BOBBY_RAY.speed });
-      this.p.log(`  Bobby Ray order: ${ordered.ok ? 'placed' : `refused: ${ordered.reason ?? ''}`}`);
+      const what = lines.map((l) => `${l.quantity} ${this.p.items.byIndex.get(l.item)?.name ?? l.item}`).join(', ');
+      this.p.log(`  Bobby Ray order (${what}): ${ordered.ok ? 'placed' : `refused: ${ordered.reason ?? ''}`}`);
     });
   }
 
@@ -280,27 +292,27 @@ export class CampaignBot {
   }
 
   teamSize(view: Observation): number {
-    return squad(view).filter((m) => m.kind !== 'epc').length;
+    return (view.strategic?.mercs ?? []).filter((m) => m.kind !== 'epc' && m.kind !== 'vehicle' && m.life > 0 && m.assignment !== PRISONER)
+      .length;
   }
 
   async reinforce(): Promise<void> {
     if (!(await mapScreen(this.p))) return;
+    await this.orderSupplies();
     const zone = await this.p.act({ type: 'setLandingZone', sector: DRASSEN.airport });
     if (!zone.ok) this.p.log(`  landing zone refused: ${zone.reason ?? ''}`);
-    for (let day = 0; day <= SAVING_DAYS; day++) {
-      const view = await this.p.observe();
-      const missing = TARGET_TEAM - this.teamSize(view);
+    for (let slice = 0; slice < RECRUITING_SLICES; slice++) {
+      const missing = TARGET_TEAM - this.teamSize(await this.p.observe());
       if (missing <= 0) break;
-      const balance = view.strategic?.balance ?? 0;
-      if (balance >= missing * HIRE_ESTIMATE + REINFORCEMENT_RESERVE || day === SAVING_DAYS) {
-        await this.laptop(() =>
-          hireFromAim(this.p, { count: missing, contract: REINFORCEMENT_CONTRACT_DAYS, reserve: REINFORCEMENT_RESERVE }),
-        );
-        break;
-      }
-      this.p.log(`  saving up for ${missing} more mercs: $${balance}`);
-      await restAndHeal(this.p, DRASSEN.town, this.p.medics, SAVING_HOURS);
-      await waitHours(this.p, SAVING_HOURS);
+      await this.laptop(async () => {
+        await payMercBills(this.p);
+        const aim = await hireFromAim(this.p, { count: missing, contract: REINFORCEMENT_CONTRACT_DAYS, reserve: REINFORCEMENT_RESERVE });
+        await hireFromMerc(this.p, missing - aim.length, REINFORCEMENT_RESERVE);
+      });
+      if (TARGET_TEAM - this.teamSize(await this.p.observe()) <= 0) break;
+      this.p.log(`  recruiting: ${this.teamSize(this.p.view)} of ${TARGET_TEAM} mercs, $${this.p.view.strategic?.balance ?? '?'}`);
+      await restAndHeal(this.p, DRASSEN.town, this.p.medics, RECRUITING_HOURS);
+      await waitHours(this.p, RECRUITING_HOURS);
     }
     for (let hours = 0; hours < ARRIVAL_HOURS; hours += ARRIVAL_SLICE_HOURS) {
       const waiting = (await this.p.observe()).strategic?.mercs.filter((m) => m.arrival !== undefined) ?? [];
@@ -317,10 +329,11 @@ export class CampaignBot {
   }
 
   async march(): Promise<void> {
-    for (const waypoint of MEDUNA_APPROACH) await this.go(waypoint);
-    const last = MEDUNA_APPROACH[MEDUNA_APPROACH.length - 1] ?? DRASSEN.town;
-    await this.outfit(last);
-    await restAndHeal(this.p, last, this.p.medics, MARCH_REST_HOURS);
+    for (const waypoint of MEDUNA_APPROACH) {
+      await this.go(waypoint);
+      await this.outfit(waypoint);
+      await restAndHeal(this.p, waypoint, this.p.medics, waypoint === MEDUNA_APPROACH.at(-1) ? MARCH_REST_HOURS : HEAL_HOURS);
+    }
   }
 
   async attack(sector: string, from: string): Promise<void> {
@@ -329,7 +342,7 @@ export class CampaignBot {
       const result = await travel(
         this.p,
         sector,
-        (p) => fightHere(p, { retreat: edge }),
+        (p) => fightHere(p, { retreat: edge, casualtyLimit: ASSAULT_CASUALTY_LIMIT }),
         () => this.recover(),
       );
       if (result === 'arrived') {
@@ -341,25 +354,9 @@ export class CampaignBot {
       this.p.log(`  fell back from ${sector} to ${from} (attempt ${attempt})`);
       await this.outfit(from);
       await restAndHeal(this.p, from, this.p.medics, REGROUP_HOURS);
-      await this.topUp(from);
+      await this.laptop(() => payMercBills(this.p));
     }
     throw new CampaignStop('lost', `${sector} held out after ${ASSAULT_ATTEMPTS} attacks`);
-  }
-
-  async topUp(sector: string): Promise<void> {
-    const view = await this.p.observe();
-    const missing = TARGET_TEAM - this.teamSize(view);
-    if (missing <= 0) return;
-    const hired = await this.laptop(() =>
-      hireFromAim(this.p, { count: missing, contract: REINFORCEMENT_CONTRACT_DAYS, reserve: REINFORCEMENT_RESERVE }),
-    );
-    if (!hired || hired.length === 0) return;
-    for (let hours = 0; hours < ARRIVAL_HOURS; hours += ARRIVAL_SLICE_HOURS) {
-      const waiting = (await this.p.observe()).strategic?.mercs.filter((m) => m.arrival !== undefined) ?? [];
-      if (waiting.length === 0) break;
-      await waitHours(this.p, ARRIVAL_SLICE_HOURS);
-    }
-    await this.gather(sector);
   }
 
   async assault(): Promise<void> {
@@ -423,6 +420,8 @@ async function hireFromAim(p: Player, order: HireOrder): Promise<number[]> {
   const view = await p.observe();
   const available = new Set((view.laptop?.aim ?? []).filter((m) => m.face === 'available').map((m) => m.profile));
   const onTeam = new Set((view.laptop?.aim ?? []).filter((m) => m.face === 'hired').map((m) => m.profile));
+  const faces = (view.laptop?.aim ?? []).filter((m) => m.face !== 'hired').map((m) => `${m.profile}:${m.face}`);
+  p.log(`  A.I.M. ${faces.join(' ')}`);
   const hired: number[] = [];
   for (const profile of HIRE_PREFERENCE) {
     if (hired.length >= order.count) break;
@@ -444,6 +443,51 @@ async function hireFromAim(p: Player, order: HireOrder): Promise<number[]> {
   }
   p.log(`  hired A.I.M. ${hired.join(', ') || 'nobody'}; medics ${p.medics.join(', ')}`);
   return hired;
+}
+
+async function readMercIntro(p: Player): Promise<boolean> {
+  const site = (await p.observe()).laptop?.merc;
+  if (site?.bookmarked) return !site.siteDown;
+  const intro = p.view.laptop?.emails.find((m) => m.type === MERC_INTRO_MAIL);
+  if (!intro) return false;
+  await p.act({ type: 'readEmail', id: intro.id });
+  const opened = (await p.observe()).laptop?.merc;
+  return opened?.bookmarked === true && !opened.siteDown;
+}
+
+async function hireFromMerc(p: Player, count: number, reserve: number): Promise<number[]> {
+  if (count <= 0 || !(await readMercIntro(p))) return [];
+  if (p.view.laptop?.merc.accountNumber === null) {
+    const opened = await p.act({ type: 'mercOpenAccount' });
+    if (!opened.ok) {
+      p.log(`  M.E.R.C. account refused: ${opened.reason ?? ''}`);
+      return [];
+    }
+  }
+  const listed = (await p.observe()).laptop?.merc.listed ?? [];
+  p.log(`  M.E.R.C. ${listed.map((m) => `${m.profile}:${m.state}`).join(' ')}`);
+  const hired: number[] = [];
+  for (const merc of listed) {
+    if (hired.length >= count) break;
+    if (merc.state !== 'available') continue;
+    const balance = (await p.observe()).laptop?.balance ?? 0;
+    if (balance - merc.dailyFee * MERC_DAYS_FUNDED < reserve) continue;
+    const result = await p.act({ type: 'mercHire', profile: merc.profile });
+    if (!result.ok) {
+      p.log(`  M.E.R.C. ${merc.profile} refused: ${result.reason ?? ''}`);
+      continue;
+    }
+    hired.push(merc.profile);
+  }
+  p.log(`  hired M.E.R.C. ${hired.join(', ') || 'nobody'}`);
+  return hired;
+}
+
+async function payMercBills(p: Player): Promise<void> {
+  const owed = (await p.observe()).laptop?.merc.totalOwed ?? 0;
+  if (owed <= 0) return;
+  const paid = await p.act({ type: 'mercPay' });
+  p.log(`  paid M.E.R.C. $${owed}: ${paid.ok ? 'ok' : (paid.reason ?? 'refused')}`);
 }
 
 async function hireSquad(p: Player): Promise<void> {

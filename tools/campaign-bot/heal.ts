@@ -8,7 +8,7 @@ const HEALTHY = 0.85;
 const RESTED_BREATH = 70;
 const REST_SLICE_HOURS = 3;
 const MEDICAL_KIT = 'MEDICKIT';
-const SQUAD = 0;
+const SQUADS = [0, 1, 2, 3] as const;
 
 function hurt(m: StrategicMercView): boolean {
   return m.life > 0 && m.life < m.lifeMax * HEALTHY;
@@ -32,7 +32,13 @@ async function doctorFor(p: Player, sector: string, medics: readonly number[], e
 }
 
 export async function rejoinSquad(p: Player, ids: readonly number[]): Promise<void> {
-  for (const id of ids) await p.act({ type: 'assign', soldiers: [id], to: { kind: 'squad', squad: SQUAD } });
+  for (const id of ids) {
+    if (squad(await p.observe()).find((m) => m.id === id)?.squad !== null) continue;
+    for (const number of SQUADS) {
+      const joined = await p.act({ type: 'assign', soldiers: [id], to: { kind: 'squad', squad: number } });
+      if (joined.ok) break;
+    }
+  }
 }
 
 export async function restAndHeal(
