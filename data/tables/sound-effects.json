@@ -1,0 +1,1651 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Utils/Sound_Control.h, src/game/Utils/Sound_Control.cc szSoundEffects, szAmbientEffects, src/game/Directories.h, and every literal sound path in src/game/**/*.cc",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "sounds: SoundID enum order, id, name and VFS path (null where the original has none); ambient: AmbientSoundID order; files: sound paths named literally elsewhere in the game code, with the files naming them; pan 0 (left) to 127 (right); volume 0 to 127; farVolumeMod: SOUND_FAR_VOLUME_MOD",
+  "pan": {
+    "FARLEFT": 0,
+    "LEFTSIDE": 48,
+    "MIDDLE": 64,
+    "MIDDLEPAN": 64,
+    "RIGHTSIDE": 80,
+    "FARRIGHT": 127
+  },
+  "volume": {
+    "LOWVOLUME": 25,
+    "BTNVOLUME": 40,
+    "MIDVOLUME": 65,
+    "HIGHVOLUME": 127
+  },
+  "farVolumeMod": 25,
+  "sounds": [
+    {
+      "id": 0,
+      "name": "MISS_1",
+      "path": "sounds/ricochet 01.wav"
+    },
+    {
+      "id": 1,
+      "name": "MISS_2",
+      "path": "sounds/ricochet 02.wav"
+    },
+    {
+      "id": 2,
+      "name": "MISS_3",
+      "path": "sounds/ricochet 01.wav"
+    },
+    {
+      "id": 3,
+      "name": "MISS_4",
+      "path": "sounds/ricochet 02.wav"
+    },
+    {
+      "id": 4,
+      "name": "MISS_5",
+      "path": "sounds/ricochet 01.wav"
+    },
+    {
+      "id": 5,
+      "name": "MISS_6",
+      "path": "sounds/ricochet 02.wav"
+    },
+    {
+      "id": 6,
+      "name": "MISS_7",
+      "path": "sounds/ricochet 01.wav"
+    },
+    {
+      "id": 7,
+      "name": "MISS_8",
+      "path": "sounds/ricochet 02.wav"
+    },
+    {
+      "id": 8,
+      "name": "MISS_G1",
+      "path": "sounds/dirt impact 01.wav"
+    },
+    {
+      "id": 9,
+      "name": "MISS_G2",
+      "path": "sounds/dirt impact 01.wav"
+    },
+    {
+      "id": 10,
+      "name": "MISS_KNIFE",
+      "path": "sounds/knife hit ground.wav"
+    },
+    {
+      "id": 11,
+      "name": "FALL_1",
+      "path": "sounds/fall to knees 01.wav"
+    },
+    {
+      "id": 12,
+      "name": "FALL_2",
+      "path": "sounds/fall to knees 02.wav"
+    },
+    {
+      "id": 13,
+      "name": "FALL_TO_GROUND_1",
+      "path": "sounds/knees to dirt 01.wav"
+    },
+    {
+      "id": 14,
+      "name": "FALL_TO_GROUND_2",
+      "path": "sounds/knees to dirt 02.wav"
+    },
+    {
+      "id": 15,
+      "name": "FALL_TO_GROUND_3",
+      "path": "sounds/knees to dirt 03.wav"
+    },
+    {
+      "id": 16,
+      "name": "HEAVY_FALL_1",
+      "path": "sounds/heavy fall 01.wav"
+    },
+    {
+      "id": 17,
+      "name": "BODY_SPLAT_1",
+      "path": "sounds/body_splat.wav"
+    },
+    {
+      "id": 18,
+      "name": "GLASS_SHATTER1",
+      "path": "sounds/glass_break1.wav"
+    },
+    {
+      "id": 19,
+      "name": "GLASS_SHATTER2",
+      "path": "sounds/glass_break2.wav"
+    },
+    {
+      "id": 20,
+      "name": "DROPEN_1",
+      "path": "sounds/door open 01.wav"
+    },
+    {
+      "id": 21,
+      "name": "DROPEN_2",
+      "path": "sounds/door open 02.wav"
+    },
+    {
+      "id": 22,
+      "name": "DROPEN_3",
+      "path": "sounds/door open 03.wav"
+    },
+    {
+      "id": 23,
+      "name": "DRCLOSE_1",
+      "path": "sounds/door close 01.wav"
+    },
+    {
+      "id": 24,
+      "name": "DRCLOSE_2",
+      "path": "sounds/door close 02.wav"
+    },
+    {
+      "id": 25,
+      "name": "UNLOCK_DOOR_1",
+      "path": "sounds/unlock lock.wav"
+    },
+    {
+      "id": 26,
+      "name": "KICKIN_DOOR",
+      "path": "sounds/kickin lock.wav"
+    },
+    {
+      "id": 27,
+      "name": "BREAK_LOCK",
+      "path": "sounds/break lock.wav"
+    },
+    {
+      "id": 28,
+      "name": "PICKING_LOCK",
+      "path": "sounds/picking lock.wav"
+    },
+    {
+      "id": 29,
+      "name": "GARAGE_DOOR_OPEN",
+      "path": "sounds/garage door open.wav"
+    },
+    {
+      "id": 30,
+      "name": "GARAGE_DOOR_CLOSE",
+      "path": "sounds/garage door close.wav"
+    },
+    {
+      "id": 31,
+      "name": "S_UNUSED_31",
+      "path": null
+    },
+    {
+      "id": 32,
+      "name": "S_UNUSED_32",
+      "path": null
+    },
+    {
+      "id": 33,
+      "name": "S_UNUSED_33",
+      "path": null
+    },
+    {
+      "id": 34,
+      "name": "S_UNUSED_34",
+      "path": null
+    },
+    {
+      "id": 35,
+      "name": "CURTAINS_OPEN",
+      "path": "sounds/curtains door open.wav"
+    },
+    {
+      "id": 36,
+      "name": "CURTAINS_CLOSE",
+      "path": "sounds/curtains door close.wav"
+    },
+    {
+      "id": 37,
+      "name": "METAL_DOOR_OPEN",
+      "path": "sounds/metal door open.wav"
+    },
+    {
+      "id": 38,
+      "name": "METAL_DOOR_CLOSE",
+      "path": "sounds/metal door close.wav"
+    },
+    {
+      "id": 39,
+      "name": "WALK_LEFT_OUT",
+      "path": "sounds/ftp gravel 01.wav"
+    },
+    {
+      "id": 40,
+      "name": "WALK_RIGHT_OUT",
+      "path": "sounds/ftp gravel 02.wav"
+    },
+    {
+      "id": 41,
+      "name": "WALK_LEFT_OUT2",
+      "path": "sounds/ftp gravel 03.wav"
+    },
+    {
+      "id": 42,
+      "name": "WALK_RIGHT_OUT2",
+      "path": "sounds/ftp gravel 04.wav"
+    },
+    {
+      "id": 43,
+      "name": "WALK_LEFT_IN",
+      "path": "sounds/ftp gritty 01.wav"
+    },
+    {
+      "id": 44,
+      "name": "WALK_RIGHT_IN",
+      "path": "sounds/ftp gritty 02.wav"
+    },
+    {
+      "id": 45,
+      "name": "WALK_LEFT_IN2",
+      "path": "sounds/ftp gritty 03.wav"
+    },
+    {
+      "id": 46,
+      "name": "WALK_RIGHT_IN2",
+      "path": "sounds/ftp gritty 04.wav"
+    },
+    {
+      "id": 47,
+      "name": "WALK_LEFT_ROAD",
+      "path": "sounds/ftp leaves 01.wav"
+    },
+    {
+      "id": 48,
+      "name": "WALK_RIGHT_ROAD",
+      "path": "sounds/ftp leaves 02.wav"
+    },
+    {
+      "id": 49,
+      "name": "WALK_LEFT_ROAD2",
+      "path": "sounds/ftp leaves 03.wav"
+    },
+    {
+      "id": 50,
+      "name": "WALK_RIGHT_ROAD2",
+      "path": "sounds/ftp leaves 04.wav"
+    },
+    {
+      "id": 51,
+      "name": "CRAWL_1",
+      "path": "sounds/crawling 01.wav"
+    },
+    {
+      "id": 52,
+      "name": "CRAWL_2",
+      "path": "sounds/crawling 02.wav"
+    },
+    {
+      "id": 53,
+      "name": "CRAWL_3",
+      "path": "sounds/crawling 03.wav"
+    },
+    {
+      "id": 54,
+      "name": "CRAWL_4",
+      "path": "sounds/crawling 04.wav"
+    },
+    {
+      "id": 55,
+      "name": "TARG_REFINE_BEEP",
+      "path": "sounds/beep2.wav"
+    },
+    {
+      "id": 56,
+      "name": "ENDTURN_1",
+      "path": "sounds/endturn.wav"
+    },
+    {
+      "id": 57,
+      "name": "HEADCR_1",
+      "path": "sounds/ja2 death hit.wav"
+    },
+    {
+      "id": 58,
+      "name": "DOORCR_1",
+      "path": "sounds/doorcr.wav"
+    },
+    {
+      "id": 59,
+      "name": "HEADSPLAT_1",
+      "path": "sounds/head exploding 01.wav"
+    },
+    {
+      "id": 60,
+      "name": "BODY_EXPLODE_1",
+      "path": "sounds/body exploding.wav"
+    },
+    {
+      "id": 61,
+      "name": "EXPLOSION_1",
+      "path": "sounds/explode1.wav"
+    },
+    {
+      "id": 62,
+      "name": "CROW_EXPLODE_1",
+      "path": "sounds/crow exploding.wav"
+    },
+    {
+      "id": 63,
+      "name": "SMALL_EXPLODE_1",
+      "path": "sounds/small explosion 01.wav"
+    },
+    {
+      "id": 64,
+      "name": "HELI_1",
+      "path": "sounds/heli1.wav"
+    },
+    {
+      "id": 65,
+      "name": "BULLET_IMPACT_1",
+      "path": "sounds/bullet impact 01.wav"
+    },
+    {
+      "id": 66,
+      "name": "BULLET_IMPACT_2",
+      "path": "sounds/bullet impact 02.wav"
+    },
+    {
+      "id": 67,
+      "name": "BULLET_IMPACT_3",
+      "path": "sounds/bullet impact 02.wav"
+    },
+    {
+      "id": 68,
+      "name": "CREATURE_BATTLECRY_1",
+      "path": "stsounds/blah.wav"
+    },
+    {
+      "id": 69,
+      "name": "ENTER_WATER_1",
+      "path": "sounds/step into water.wav"
+    },
+    {
+      "id": 70,
+      "name": "ENTER_DEEP_WATER_1",
+      "path": "sounds/splash from shallow to deep.wav"
+    },
+    {
+      "id": 71,
+      "name": "COW_HIT_SND",
+      "path": "sounds/cow hit.wav"
+    },
+    {
+      "id": 72,
+      "name": "COW_DIE_SND",
+      "path": "sounds/cow die.wav"
+    },
+    {
+      "id": 73,
+      "name": "RG_ID_IMPRINTED",
+      "path": "sounds/line 02 fx.wav"
+    },
+    {
+      "id": 74,
+      "name": "RG_ID_INVALID",
+      "path": "sounds/line 01 fx.wav"
+    },
+    {
+      "id": 75,
+      "name": "RG_TARGET_SELECTED",
+      "path": "sounds/line 03 fx.wav"
+    },
+    {
+      "id": 76,
+      "name": "CAVE_COLLAPSE",
+      "path": "sounds/cave collapsing.wav"
+    },
+    {
+      "id": 77,
+      "name": "S_RAID_WHISTLE",
+      "path": "sounds/raid whistle.wav"
+    },
+    {
+      "id": 78,
+      "name": "S_RAID_AMBIENT",
+      "path": "sounds/raid ambient.wav"
+    },
+    {
+      "id": 79,
+      "name": "S_RAID_DIVE",
+      "path": "sounds/raid dive.wav"
+    },
+    {
+      "id": 80,
+      "name": "S_RAID_TB_DIVE",
+      "path": "sounds/raid dive.wav"
+    },
+    {
+      "id": 81,
+      "name": "S_RAID_TB_BOMB",
+      "path": "sounds/raid whistle.wav"
+    },
+    {
+      "id": 82,
+      "name": "S_VECH1_MOVE",
+      "path": "sounds/driving 01.wav"
+    },
+    {
+      "id": 83,
+      "name": "S_VECH1_ON",
+      "path": "sounds/engine start.wav"
+    },
+    {
+      "id": 84,
+      "name": "S_VECH1_OFF",
+      "path": "sounds/engine off.wav"
+    },
+    {
+      "id": 85,
+      "name": "S_VECH1_INTO",
+      "path": "sounds/into vehicle.wav"
+    },
+    {
+      "id": 86,
+      "name": "S_DRYFIRE1",
+      "path": "sounds/weapons/dry fire 1.wav"
+    },
+    {
+      "id": 87,
+      "name": "S_WOOD_IMPACT1",
+      "path": "sounds/wood impact 01a.wav"
+    },
+    {
+      "id": 88,
+      "name": "S_WOOD_IMPACT2",
+      "path": "sounds/wood impact 01b.wav"
+    },
+    {
+      "id": 89,
+      "name": "S_WOOD_IMPACT3",
+      "path": "sounds/wood impact 01a.wav"
+    },
+    {
+      "id": 90,
+      "name": "S_PORCELAIN_IMPACT1",
+      "path": "sounds/porcelain impact.wav"
+    },
+    {
+      "id": 91,
+      "name": "S_RUBBER_IMPACT1",
+      "path": "sounds/tire impact 01.wav"
+    },
+    {
+      "id": 92,
+      "name": "S_STONE_IMPACT1",
+      "path": "sounds/stone impact 01.wav"
+    },
+    {
+      "id": 93,
+      "name": "S_WATER_IMPACT1",
+      "path": "sounds/water impact 01.wav"
+    },
+    {
+      "id": 94,
+      "name": "S_VEG_IMPACT1",
+      "path": "sounds/veg impact 01.wav"
+    },
+    {
+      "id": 95,
+      "name": "S_METAL_IMPACT1",
+      "path": "sounds/metal hit 01.wav"
+    },
+    {
+      "id": 96,
+      "name": "S_METAL_IMPACT2",
+      "path": "sounds/metal hit 01.wav"
+    },
+    {
+      "id": 97,
+      "name": "S_METAL_IMPACT3",
+      "path": "sounds/metal hit 01.wav"
+    },
+    {
+      "id": 98,
+      "name": "S_SLAP_IMPACT",
+      "path": "sounds/slap_impact.wav"
+    },
+    {
+      "id": 99,
+      "name": "S_RELOAD_REVOLVER",
+      "path": "sounds/weapons/revolver reload.wav"
+    },
+    {
+      "id": 100,
+      "name": "S_RELOAD_PISTOL",
+      "path": "sounds/weapons/pistol reload.wav"
+    },
+    {
+      "id": 101,
+      "name": "S_RELOAD_SMG",
+      "path": "sounds/weapons/smg reload.wav"
+    },
+    {
+      "id": 102,
+      "name": "S_RELOAD_RIFLE",
+      "path": "sounds/weapons/rifle reload.wav"
+    },
+    {
+      "id": 103,
+      "name": "S_RELOAD_SHOTGUN",
+      "path": "sounds/weapons/shotgun reload.wav"
+    },
+    {
+      "id": 104,
+      "name": "S_RELOAD_LMG",
+      "path": "sounds/weapons/lmg reload.wav"
+    },
+    {
+      "id": 105,
+      "name": "S_LNL_REVOLVER",
+      "path": "sounds/weapons/revolver lnl.wav"
+    },
+    {
+      "id": 106,
+      "name": "S_LNL_PISTOL",
+      "path": "sounds/weapons/pistol lnl.wav"
+    },
+    {
+      "id": 107,
+      "name": "S_LNL_SMG",
+      "path": "sounds/weapons/smg lnl.wav"
+    },
+    {
+      "id": 108,
+      "name": "S_LNL_RIFLE",
+      "path": "sounds/weapons/rifle lnl.wav"
+    },
+    {
+      "id": 109,
+      "name": "S_LNL_SHOTGUN",
+      "path": "sounds/weapons/shotgun lnl.wav"
+    },
+    {
+      "id": 110,
+      "name": "S_LNL_LMG",
+      "path": "sounds/weapons/lmg lnl.wav"
+    },
+    {
+      "id": 111,
+      "name": "S_UNUSED_111",
+      "path": null
+    },
+    {
+      "id": 112,
+      "name": "S_UNUSED_112",
+      "path": null
+    },
+    {
+      "id": 113,
+      "name": "S_UNUSED_113",
+      "path": null
+    },
+    {
+      "id": 114,
+      "name": "S_UNUSED_114",
+      "path": null
+    },
+    {
+      "id": 115,
+      "name": "S_UNUSED_115",
+      "path": null
+    },
+    {
+      "id": 116,
+      "name": "S_UNUSED_116",
+      "path": null
+    },
+    {
+      "id": 117,
+      "name": "S_UNUSED_117",
+      "path": null
+    },
+    {
+      "id": 118,
+      "name": "S_UNUSED_118",
+      "path": null
+    },
+    {
+      "id": 119,
+      "name": "S_UNUSED_119",
+      "path": null
+    },
+    {
+      "id": 120,
+      "name": "S_UNUSED_120",
+      "path": null
+    },
+    {
+      "id": 121,
+      "name": "S_UNUSED_121",
+      "path": null
+    },
+    {
+      "id": 122,
+      "name": "S_UNUSED_122",
+      "path": null
+    },
+    {
+      "id": 123,
+      "name": "S_UNUSED_123",
+      "path": null
+    },
+    {
+      "id": 124,
+      "name": "S_UNUSED_124",
+      "path": null
+    },
+    {
+      "id": 125,
+      "name": "S_UNUSED_125",
+      "path": null
+    },
+    {
+      "id": 126,
+      "name": "S_UNUSED_126",
+      "path": null
+    },
+    {
+      "id": 127,
+      "name": "S_UNUSED_127",
+      "path": null
+    },
+    {
+      "id": 128,
+      "name": "S_UNUSED_128",
+      "path": null
+    },
+    {
+      "id": 129,
+      "name": "S_UNUSED_129",
+      "path": null
+    },
+    {
+      "id": 130,
+      "name": "S_UNUSED_130",
+      "path": null
+    },
+    {
+      "id": 131,
+      "name": "S_UNUSED_131",
+      "path": null
+    },
+    {
+      "id": 132,
+      "name": "S_UNUSED_132",
+      "path": null
+    },
+    {
+      "id": 133,
+      "name": "S_UNUSED_133",
+      "path": null
+    },
+    {
+      "id": 134,
+      "name": "S_UNUSED_134",
+      "path": null
+    },
+    {
+      "id": 135,
+      "name": "S_UNUSED_135",
+      "path": null
+    },
+    {
+      "id": 136,
+      "name": "S_UNUSED_136",
+      "path": null
+    },
+    {
+      "id": 137,
+      "name": "S_UNUSED_137",
+      "path": null
+    },
+    {
+      "id": 138,
+      "name": "S_UNUSED_138",
+      "path": null
+    },
+    {
+      "id": 139,
+      "name": "S_UNUSED_139",
+      "path": null
+    },
+    {
+      "id": 140,
+      "name": "S_UNUSED_140",
+      "path": null
+    },
+    {
+      "id": 141,
+      "name": "S_UNUSED_141",
+      "path": null
+    },
+    {
+      "id": 142,
+      "name": "S_UNUSED_142",
+      "path": null
+    },
+    {
+      "id": 143,
+      "name": "S_UNUSED_143",
+      "path": null
+    },
+    {
+      "id": 144,
+      "name": "S_UNUSED_144",
+      "path": null
+    },
+    {
+      "id": 145,
+      "name": "S_UNUSED_145",
+      "path": null
+    },
+    {
+      "id": 146,
+      "name": "S_UNUSED_146",
+      "path": null
+    },
+    {
+      "id": 147,
+      "name": "S_UNUSED_147",
+      "path": null
+    },
+    {
+      "id": 148,
+      "name": "S_UNUSED_148",
+      "path": null
+    },
+    {
+      "id": 149,
+      "name": "S_UNUSED_149",
+      "path": null
+    },
+    {
+      "id": 150,
+      "name": "S_UNUSED_150",
+      "path": null
+    },
+    {
+      "id": 151,
+      "name": "S_UNUSED_151",
+      "path": null
+    },
+    {
+      "id": 152,
+      "name": "S_UNUSED_152",
+      "path": null
+    },
+    {
+      "id": 153,
+      "name": "S_UNUSED_153",
+      "path": null
+    },
+    {
+      "id": 154,
+      "name": "S_UNUSED_154",
+      "path": null
+    },
+    {
+      "id": 155,
+      "name": "S_UNUSED_155",
+      "path": null
+    },
+    {
+      "id": 156,
+      "name": "S_SILENCER_1",
+      "path": "sounds/weapons/silencer 02.wav"
+    },
+    {
+      "id": 157,
+      "name": "S_SILENCER_2",
+      "path": "sounds/weapons/silencer 03.wav"
+    },
+    {
+      "id": 158,
+      "name": "SWOOSH_1",
+      "path": "sounds/swoosh 01.wav"
+    },
+    {
+      "id": 159,
+      "name": "SWOOSH_2",
+      "path": "sounds/swoosh 03.wav"
+    },
+    {
+      "id": 160,
+      "name": "SWOOSH_3",
+      "path": "sounds/swoosh 05.wav"
+    },
+    {
+      "id": 161,
+      "name": "SWOOSH_4",
+      "path": "sounds/swoosh 06.wav"
+    },
+    {
+      "id": 162,
+      "name": "SWOOSH_5",
+      "path": "sounds/swoosh 11.wav"
+    },
+    {
+      "id": 163,
+      "name": "SWOOSH_6",
+      "path": "sounds/swoosh 14.wav"
+    },
+    {
+      "id": 164,
+      "name": "ACR_FALL_1",
+      "path": "sounds/adult fall 01.wav"
+    },
+    {
+      "id": 165,
+      "name": "ACR_STEP_1",
+      "path": "sounds/adult step 01.wav"
+    },
+    {
+      "id": 166,
+      "name": "ACR_STEP_2",
+      "path": "sounds/adult step 02.wav"
+    },
+    {
+      "id": 167,
+      "name": "ACR_SWIPE",
+      "path": "sounds/adult swipe 01.wav"
+    },
+    {
+      "id": 168,
+      "name": "ACR_EATFLESH",
+      "path": "sounds/eating_flesh 01.wav"
+    },
+    {
+      "id": 169,
+      "name": "ACR_CRIPPLED",
+      "path": "sounds/adult crippled.wav"
+    },
+    {
+      "id": 170,
+      "name": "ACR_DIE_PART1",
+      "path": "sounds/adult dying part 1.wav"
+    },
+    {
+      "id": 171,
+      "name": "ACR_DIE_PART2",
+      "path": "sounds/adult dying part 2.wav"
+    },
+    {
+      "id": 172,
+      "name": "ACR_LUNGE",
+      "path": "sounds/adult lunge 01.wav"
+    },
+    {
+      "id": 173,
+      "name": "ACR_SMELL_THREAT",
+      "path": "sounds/adult smells threat.wav"
+    },
+    {
+      "id": 174,
+      "name": "ACR_SMELL_PREY",
+      "path": "sounds/adult smells prey.wav"
+    },
+    {
+      "id": 175,
+      "name": "ACR_SPIT",
+      "path": "sounds/adult spit.wav"
+    },
+    {
+      "id": 176,
+      "name": "BCR_DYING",
+      "path": "sounds/baby dying 01.wav"
+    },
+    {
+      "id": 177,
+      "name": "BCR_DRAGGING",
+      "path": "sounds/baby dragging 01.wav"
+    },
+    {
+      "id": 178,
+      "name": "BCR_SHRIEK",
+      "path": "sounds/baby shriek 01.wav"
+    },
+    {
+      "id": 179,
+      "name": "S_UNUSED_179",
+      "path": null
+    },
+    {
+      "id": 180,
+      "name": "LCR_MOVEMENT",
+      "path": "sounds/larvae movement 01.wav"
+    },
+    {
+      "id": 181,
+      "name": "LCR_RUPTURE",
+      "path": "sounds/larvae rupture 01.wav"
+    },
+    {
+      "id": 182,
+      "name": "LQ_SHRIEK",
+      "path": "sounds/queen shriek 01.wav"
+    },
+    {
+      "id": 183,
+      "name": "LQ_DYING",
+      "path": "sounds/queen dying 01.wav"
+    },
+    {
+      "id": 184,
+      "name": "LQ_ENRAGED_ATTACK",
+      "path": "sounds/queen enraged attack.wav"
+    },
+    {
+      "id": 185,
+      "name": "LQ_RUPTURING",
+      "path": "sounds/queen rupturing.wav"
+    },
+    {
+      "id": 186,
+      "name": "LQ_CRIPPLED",
+      "path": "sounds/queen crippled.wav"
+    },
+    {
+      "id": 187,
+      "name": "LQ_SMELLS_THREAT",
+      "path": "sounds/queen smells threat.wav"
+    },
+    {
+      "id": 188,
+      "name": "LQ_WHIP_ATTACK",
+      "path": "sounds/queen whip attack.wav"
+    },
+    {
+      "id": 189,
+      "name": "THROW_IMPACT_1",
+      "path": "sounds/rock hit 01.wav"
+    },
+    {
+      "id": 190,
+      "name": "THROW_IMPACT_2",
+      "path": "sounds/rock hit 02.wav"
+    },
+    {
+      "id": 191,
+      "name": "IDLE_SCRATCH",
+      "path": "sounds/scratch.wav"
+    },
+    {
+      "id": 192,
+      "name": "IDLE_ARMPIT",
+      "path": "sounds/armpit.wav"
+    },
+    {
+      "id": 193,
+      "name": "IDLE_BACKCRACK",
+      "path": "sounds/cracking back.wav"
+    },
+    {
+      "id": 194,
+      "name": "AUTORESOLVE_FINISHFX",
+      "path": "sounds/weapons/auto resolve composite 02 (8-22).wav"
+    },
+    {
+      "id": 195,
+      "name": "EMAIL_ALERT",
+      "path": "sounds/email alert 01.wav"
+    },
+    {
+      "id": 196,
+      "name": "ENTERING_TEXT",
+      "path": "sounds/entering text 02.wav"
+    },
+    {
+      "id": 197,
+      "name": "REMOVING_TEXT",
+      "path": "sounds/removing text 02.wav"
+    },
+    {
+      "id": 198,
+      "name": "COMPUTER_BEEP2_IN",
+      "path": "sounds/computer beep 01 in.wav"
+    },
+    {
+      "id": 199,
+      "name": "COMPUTER_BEEP2_OUT",
+      "path": "sounds/computer beep 01 out.wav"
+    },
+    {
+      "id": 200,
+      "name": "COMPUTER_SWITCH1_IN",
+      "path": "sounds/computer switch 01 in.wav"
+    },
+    {
+      "id": 201,
+      "name": "COMPUTER_SWITCH1_OUT",
+      "path": "sounds/computer switch 01 out.wav"
+    },
+    {
+      "id": 202,
+      "name": "VSM_SWITCH1_IN",
+      "path": "sounds/very small switch 01 in.wav"
+    },
+    {
+      "id": 203,
+      "name": "VSM_SWITCH1_OUT",
+      "path": "sounds/very small switch 01 out.wav"
+    },
+    {
+      "id": 204,
+      "name": "VSM_SWITCH2_IN",
+      "path": "sounds/very small switch 02 in.wav"
+    },
+    {
+      "id": 205,
+      "name": "VSM_SWITCH2_OUT",
+      "path": "sounds/very small switch 02 out.wav"
+    },
+    {
+      "id": 206,
+      "name": "SM_SWITCH1_IN",
+      "path": "sounds/small switch 01 in.wav"
+    },
+    {
+      "id": 207,
+      "name": "SM_SWITCH1_OUT",
+      "path": "sounds/small switch 01 out.wav"
+    },
+    {
+      "id": 208,
+      "name": "SM_SWITCH2_IN",
+      "path": "sounds/small switch 02 in.wav"
+    },
+    {
+      "id": 209,
+      "name": "SM_SWITCH2_OUT",
+      "path": "sounds/small switch 02 out.wav"
+    },
+    {
+      "id": 210,
+      "name": "SM_SWITCH3_IN",
+      "path": "sounds/small switch 03 in.wav"
+    },
+    {
+      "id": 211,
+      "name": "SM_SWITCH3_OUT",
+      "path": "sounds/small switch 03 out.wav"
+    },
+    {
+      "id": 212,
+      "name": "BIG_SWITCH3_IN",
+      "path": "sounds/big switch 03 in.wav"
+    },
+    {
+      "id": 213,
+      "name": "BIG_SWITCH3_OUT",
+      "path": "sounds/big switch 03 out.wav"
+    },
+    {
+      "id": 214,
+      "name": "KLAXON_ALARM",
+      "path": "sounds/alarm.wav"
+    },
+    {
+      "id": 215,
+      "name": "BOXING_BELL",
+      "path": "sounds/fight bell.wav"
+    },
+    {
+      "id": 216,
+      "name": "S_UNUSED_216",
+      "path": null
+    },
+    {
+      "id": 217,
+      "name": "ATTACH_TO_GUN",
+      "path": "sounds/attachment.wav"
+    },
+    {
+      "id": 218,
+      "name": "ATTACH_CERAMIC_PLATES",
+      "path": "sounds/ceramic armor insert.wav"
+    },
+    {
+      "id": 219,
+      "name": "ATTACH_DETONATOR",
+      "path": "sounds/detonator beep.wav"
+    },
+    {
+      "id": 220,
+      "name": "GRAB_ROOF",
+      "path": "sounds/grab roof.wav"
+    },
+    {
+      "id": 221,
+      "name": "LAND_ON_ROOF",
+      "path": "sounds/land on roof.wav"
+    },
+    {
+      "id": 222,
+      "name": "S_UNUSED_222",
+      "path": null
+    },
+    {
+      "id": 223,
+      "name": "S_UNUSED_223",
+      "path": null
+    },
+    {
+      "id": 224,
+      "name": "S_UNUSED_224",
+      "path": null
+    },
+    {
+      "id": 225,
+      "name": "OPEN_DEFAULT_OPENABLE",
+      "path": "sounds/fridge door open.wav"
+    },
+    {
+      "id": 226,
+      "name": "CLOSE_DEFAULT_OPENABLE",
+      "path": "sounds/fridge door close.wav"
+    },
+    {
+      "id": 227,
+      "name": "FIRE_ON_MERC",
+      "path": "sounds/fire 03 loop.wav"
+    },
+    {
+      "id": 228,
+      "name": "GLASS_CRACK",
+      "path": "sounds/glass_crack.wav"
+    },
+    {
+      "id": 229,
+      "name": "SPIT_RICOCHET",
+      "path": "sounds/spit ricochet.wav"
+    },
+    {
+      "id": 230,
+      "name": "BLOODCAT_HIT_1",
+      "path": "sounds/tiger hit.wav"
+    },
+    {
+      "id": 231,
+      "name": "BLOODCAT_DIE_1",
+      "path": "sounds/bloodcat dying 02.wav"
+    },
+    {
+      "id": 232,
+      "name": "SLAP_1",
+      "path": "sounds/slap.wav"
+    },
+    {
+      "id": 233,
+      "name": "ROBOT_BEEP",
+      "path": "sounds/robot beep.wav"
+    },
+    {
+      "id": 234,
+      "name": "DOOR_ELECTRICITY",
+      "path": "sounds/electricity.wav"
+    },
+    {
+      "id": 235,
+      "name": "SWIM_1",
+      "path": "sounds/swimming 01.wav"
+    },
+    {
+      "id": 236,
+      "name": "SWIM_2",
+      "path": "sounds/swimming 02.wav"
+    },
+    {
+      "id": 237,
+      "name": "KEY_FAILURE",
+      "path": "sounds/key failure.wav"
+    },
+    {
+      "id": 238,
+      "name": "TARGET_OUT_OF_RANGE",
+      "path": "sounds/target cursor.wav"
+    },
+    {
+      "id": 239,
+      "name": "OPEN_STATUE",
+      "path": "sounds/statue open.wav"
+    },
+    {
+      "id": 240,
+      "name": "USE_STATUE_REMOTE",
+      "path": "sounds/remote activate.wav"
+    },
+    {
+      "id": 241,
+      "name": "USE_WIRE_CUTTERS",
+      "path": "sounds/wirecutters.wav"
+    },
+    {
+      "id": 242,
+      "name": "DRINK_CANTEEN_FEMALE",
+      "path": "sounds/drink from canteen.wav"
+    },
+    {
+      "id": 243,
+      "name": "BLOODCAT_ATTACK",
+      "path": "sounds/bloodcat attack.wav"
+    },
+    {
+      "id": 244,
+      "name": "BLOODCAT_ROAR",
+      "path": "sounds/bloodcat loud roar.wav"
+    },
+    {
+      "id": 245,
+      "name": "ROBOT_GREETING",
+      "path": "sounds/robot greeting.wav"
+    },
+    {
+      "id": 246,
+      "name": "ROBOT_DEATH",
+      "path": "sounds/robot death.wav"
+    },
+    {
+      "id": 247,
+      "name": "GAS_EXPLODE_1",
+      "path": "sounds/gas grenade explode.wav"
+    },
+    {
+      "id": 248,
+      "name": "AIR_ESCAPING_1",
+      "path": "sounds/air escaping.wav"
+    },
+    {
+      "id": 249,
+      "name": "OPEN_DRAWER",
+      "path": "sounds/drawer open.wav"
+    },
+    {
+      "id": 250,
+      "name": "CLOSE_DRAWER",
+      "path": "sounds/drawer close.wav"
+    },
+    {
+      "id": 251,
+      "name": "OPEN_LOCKER",
+      "path": "sounds/locker door open.wav"
+    },
+    {
+      "id": 252,
+      "name": "CLOSE_LOCKER",
+      "path": "sounds/locker door close.wav"
+    },
+    {
+      "id": 253,
+      "name": "OPEN_WOODEN_BOX",
+      "path": "sounds/wooden box open.wav"
+    },
+    {
+      "id": 254,
+      "name": "CLOSE_WOODEN_BOX",
+      "path": "sounds/wooden box close.wav"
+    },
+    {
+      "id": 255,
+      "name": "ROBOT_STOP",
+      "path": "sounds/robot stop moving.wav"
+    },
+    {
+      "id": 256,
+      "name": "WATER_WALK1_IN",
+      "path": "sounds/water movement 01.wav"
+    },
+    {
+      "id": 257,
+      "name": "WATER_WALK1_OUT",
+      "path": "sounds/water movement 02.wav"
+    },
+    {
+      "id": 258,
+      "name": "WATER_WALK2_IN",
+      "path": "sounds/water movement 03.wav"
+    },
+    {
+      "id": 259,
+      "name": "WATER_WALK2_OUT",
+      "path": "sounds/water movement 04.wav"
+    },
+    {
+      "id": 260,
+      "name": "PRONE_UP_SOUND",
+      "path": "sounds/prone to crouch.wav"
+    },
+    {
+      "id": 261,
+      "name": "PRONE_DOWN_SOUND",
+      "path": "sounds/crouch to prone.wav"
+    },
+    {
+      "id": 262,
+      "name": "KNEEL_UP_SOUND",
+      "path": "sounds/crouch to stand.wav"
+    },
+    {
+      "id": 263,
+      "name": "KNEEL_DOWN_SOUND",
+      "path": "sounds/stand to crouch.wav"
+    },
+    {
+      "id": 264,
+      "name": "PICKING_SOMETHING_UP",
+      "path": "sounds/picking something up.wav"
+    },
+    {
+      "id": 265,
+      "name": "COW_FALL",
+      "path": "sounds/cow falling.wav"
+    },
+    {
+      "id": 266,
+      "name": "BLOODCAT_GROWL_1",
+      "path": "sounds/bloodcat_growl_01.wav"
+    },
+    {
+      "id": 267,
+      "name": "BLOODCAT_GROWL_2",
+      "path": "sounds/bloodcat_growl_02.wav"
+    },
+    {
+      "id": 268,
+      "name": "BLOODCAT_GROWL_3",
+      "path": "sounds/bloodcat_growl_03.wav"
+    },
+    {
+      "id": 269,
+      "name": "BLOODCAT_GROWL_4",
+      "path": "sounds/bloodcat_growl_04.wav"
+    },
+    {
+      "id": 270,
+      "name": "CREATURE_GAS_NOISE",
+      "path": "sounds/spit ricochet.wav"
+    },
+    {
+      "id": 271,
+      "name": "CREATURE_FALL_PART_2",
+      "path": "sounds/adult crippled.wav"
+    },
+    {
+      "id": 272,
+      "name": "CREATURE_DISSOLVE_1",
+      "path": "sounds/death disintegration.wav"
+    },
+    {
+      "id": 273,
+      "name": "QUEEN_AMBIENT_NOISE",
+      "path": "sounds/queen ambience.wav"
+    },
+    {
+      "id": 274,
+      "name": "CREATURE_FALL",
+      "path": "sounds/alien impact.wav"
+    },
+    {
+      "id": 275,
+      "name": "CROW_PECKING_AT_FLESH",
+      "path": "sounds/crow pecking flesh 01.wav"
+    },
+    {
+      "id": 276,
+      "name": "CROW_FLYING_AWAY",
+      "path": "sounds/crow fly.wav"
+    },
+    {
+      "id": 277,
+      "name": "SLAP_2",
+      "path": "sounds/slap 02.wav"
+    },
+    {
+      "id": 278,
+      "name": "MORTAR_START",
+      "path": "sounds/setting up mortar.wav"
+    },
+    {
+      "id": 279,
+      "name": "MORTAR_WHISTLE",
+      "path": "sounds/mortar whistle.wav"
+    },
+    {
+      "id": 280,
+      "name": "MORTAR_LOAD",
+      "path": "sounds/load mortar.wav"
+    },
+    {
+      "id": 281,
+      "name": "TURRET_MOVE",
+      "path": "sounds/tank turret a.wav"
+    },
+    {
+      "id": 282,
+      "name": "TURRET_STOP",
+      "path": "sounds/tank turret b.wav"
+    },
+    {
+      "id": 283,
+      "name": "COW_FALL_2",
+      "path": "sounds/cow falling b.wav"
+    },
+    {
+      "id": 284,
+      "name": "KNIFE_IMPACT",
+      "path": "sounds/stab into flesh.wav"
+    },
+    {
+      "id": 285,
+      "name": "EXPLOSION_ALT_BLAST_1",
+      "path": "sounds/explosion 10.wav"
+    },
+    {
+      "id": 286,
+      "name": "EXPLOSION_BLAST_2",
+      "path": "sounds/explosion 12.wav"
+    },
+    {
+      "id": 287,
+      "name": "DRINK_CANTEEN_MALE",
+      "path": "sounds/drink from canteen male.wav"
+    },
+    {
+      "id": 288,
+      "name": "USE_X_RAY_MACHINE",
+      "path": "sounds/x ray activated.wav"
+    },
+    {
+      "id": 289,
+      "name": "CATCH_OBJECT",
+      "path": "sounds/catch object.wav"
+    },
+    {
+      "id": 290,
+      "name": "FENCE_OPEN",
+      "path": "sounds/fence open.wav"
+    }
+  ],
+  "ambient": [
+    {
+      "id": 0,
+      "name": "LIGHTNING_1",
+      "path": "sounds/storm1.wav"
+    },
+    {
+      "id": 1,
+      "name": "LIGHTNING_2",
+      "path": "sounds/storm2.wav"
+    },
+    {
+      "id": 2,
+      "name": "RAIN_1",
+      "path": "sounds/rain_loop_22k.wav"
+    },
+    {
+      "id": 3,
+      "name": "BIRD_1",
+      "path": "sounds/bird1-22k.wav"
+    },
+    {
+      "id": 4,
+      "name": "BIRD_2",
+      "path": "sounds/bird3-22k.wav"
+    },
+    {
+      "id": 5,
+      "name": "CRICKETS_1",
+      "path": "sounds/crickety_loop.wav"
+    },
+    {
+      "id": 6,
+      "name": "CRICKETS_2",
+      "path": "sounds/crickety_loop2.wav"
+    },
+    {
+      "id": 7,
+      "name": "CRICKET_1",
+      "path": "sounds/cricket1.wav"
+    },
+    {
+      "id": 8,
+      "name": "CRICKET_2",
+      "path": "sounds/cricket2.wav"
+    },
+    {
+      "id": 9,
+      "name": "OWL_1",
+      "path": "sounds/owl1.wav"
+    },
+    {
+      "id": 10,
+      "name": "OWL_2",
+      "path": "sounds/owl2.wav"
+    },
+    {
+      "id": 11,
+      "name": "OWL_3",
+      "path": "sounds/owl3.wav"
+    },
+    {
+      "id": 12,
+      "name": "NIGHT_BIRD_1",
+      "path": "sounds/night_bird1.wav"
+    },
+    {
+      "id": 13,
+      "name": "NIGHT_BIRD_2",
+      "path": "sounds/night_bird3.wav"
+    }
+  ],
+  "files": [
+    {
+      "path": "battlesnds/033_chop1.wav",
+      "src": "src/game/Tactical/Soldier_Control.cc"
+    },
+    {
+      "path": "battlesnds/033_chop2.wav",
+      "src": "src/game/Tactical/Soldier_Control.cc"
+    },
+    {
+      "path": "battlesnds/033_chop3.wav",
+      "src": "src/game/Tactical/Soldier_Control.cc"
+    },
+    {
+      "path": "battlesnds/m_cool.wav",
+      "src": "src/game/Options_Screen.cc"
+    },
+    {
+      "path": "laptop/static1.wav",
+      "src": "src/game/Laptop/AIMMembers.cc"
+    },
+    {
+      "path": "laptop/static3.wav",
+      "src": "src/game/Laptop/AIMMembers.cc"
+    },
+    {
+      "path": "laptop/static4.wav",
+      "src": "src/game/Laptop/AIMMembers.cc"
+    },
+    {
+      "path": "laptop/static5.wav",
+      "src": "src/game/Laptop/AIMMembers.cc"
+    },
+    {
+      "path": "laptop/static6.wav",
+      "src": "src/game/Laptop/AIMMembers.cc"
+    },
+    {
+      "path": "sounds/cowmoo1.wav",
+      "src": "src/game/Tactical/Animation_Control.cc"
+    },
+    {
+      "path": "sounds/cowmoo2.wav",
+      "src": "src/game/Tactical/Animation_Control.cc"
+    },
+    {
+      "path": "sounds/cowmoo3.wav",
+      "src": "src/game/Tactical/Animation_Control.cc"
+    },
+    {
+      "path": "sounds/crow2.wav",
+      "src": "src/game/Tactical/Animation_Control.cc"
+    },
+    {
+      "path": "sounds/crow3.wav",
+      "src": "src/game/Tactical/Animation_Control.cc"
+    },
+    {
+      "path": "sounds/final psionic blast 01 (16-44).wav",
+      "src": "src/game/Strategic/StrategicMap.cc"
+    },
+    {
+      "path": "sounds/glowclick.wav",
+      "src": "src/game/Strategic/Map_Screen_Interface.cc"
+    },
+    {
+      "path": "sounds/initial power up (8-11).wav",
+      "src": "src/game/Strategic/MapScreen.cc"
+    },
+    {
+      "path": "sounds/laptop power down (8-11).wav",
+      "src": "src/game/Laptop/Laptop.cc"
+    },
+    {
+      "path": "sounds/laptop power up (8-11).wav",
+      "src": "src/game/Laptop/Laptop.cc, src/game/Strategic/Auto_Resolve.cc, src/game/Strategic/PreBattle_Interface.cc"
+    },
+    {
+      "path": "sounds/newbeep.wav",
+      "src": "src/game/Strategic/Map_Screen_Interface.cc, src/game/Utils/Message.cc"
+    },
+    {
+      "path": "sounds/sex.wav",
+      "src": "src/game/JAScreens.cc"
+    },
+    {
+      "path": "sounds/turn_near_end.wav",
+      "src": "src/game/Tactical/Interface.cc"
+    },
+    {
+      "path": "sounds/weapons/bursttype1.wav",
+      "src": "src/game/Tactical/Weapons.cc"
+    },
+    {
+      "path": "sounds/weapons/lmg reload.wav",
+      "src": "src/game/Options_Screen.cc"
+    },
+    {
+      "path": "stsounds/blah2.wav",
+      "src": "src/game/Strategic/Map_Screen_Helicopter.cc"
+    }
+  ]
+}
