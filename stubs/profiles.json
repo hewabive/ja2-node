@@ -35,7 +35,9 @@
       "medicalDeposit": 1,
       "deathRate": 101,
       "reputationTolerance": 101,
-      "buddies": [1],
+      "buddies": [
+        1
+      ],
       "opinions": {
         "1": 18,
         "2": -4,
@@ -43,6 +45,14 @@
         "42": -10
       },
       "inventory": [
+        {
+          "slot": 0,
+          "item": "STEEL_HELMET"
+        },
+        {
+          "slot": 1,
+          "item": "KEVLAR_VEST"
+        },
         {
           "slot": 5,
           "item": "MINI14"
@@ -55,10 +65,6 @@
         {
           "slot": 11,
           "item": "FIRSTAIDKIT"
-        },
-        {
-          "slot": 1,
-          "item": "FLAK_JACKET"
         }
       ]
     },
@@ -93,7 +99,9 @@
       "biWeeklySalary": 2800,
       "deathRate": 40,
       "reputationTolerance": 55,
-      "buddies": [0],
+      "buddies": [
+        0
+      ],
       "learnToLike": 4,
       "learnToLikeTime": 30,
       "opinions": {
@@ -103,6 +111,14 @@
         "4": 1
       },
       "inventory": [
+        {
+          "slot": 0,
+          "item": "STEEL_HELMET"
+        },
+        {
+          "slot": 1,
+          "item": "KEVLAR_VEST"
+        },
         {
           "slot": 5,
           "item": "G41"
@@ -115,10 +131,6 @@
         {
           "slot": 11,
           "item": "FIRSTAIDKIT"
-        },
-        {
-          "slot": 1,
-          "item": "FLAK_JACKET"
         }
       ]
     },
@@ -156,8 +168,12 @@
       "medicalDeposit": 1,
       "deathRate": 4,
       "reputationTolerance": 40,
-      "hated": [3],
-      "hatedTime": [6],
+      "hated": [
+        3
+      ],
+      "hatedTime": [
+        6
+      ],
       "learnToHate": 1,
       "learnToHateTime": 10,
       "opinions": {
@@ -167,6 +183,14 @@
         "4": 5
       },
       "inventory": [
+        {
+          "slot": 0,
+          "item": "STEEL_HELMET"
+        },
+        {
+          "slot": 1,
+          "item": "FLAK_JACKET"
+        },
         {
           "slot": 5,
           "item": "MP5K"
@@ -224,6 +248,14 @@
         "4": 0
       },
       "inventory": [
+        {
+          "slot": 0,
+          "item": "STEEL_HELMET"
+        },
+        {
+          "slot": 1,
+          "item": "KEVLAR_VEST"
+        },
         {
           "slot": 5,
           "item": "MINI14"
@@ -284,6 +316,14 @@
       },
       "inventory": [
         {
+          "slot": 0,
+          "item": "STEEL_HELMET"
+        },
+        {
+          "slot": 1,
+          "item": "FLAK_JACKET"
+        },
+        {
           "slot": 5,
           "item": "MP5K"
         },
@@ -335,6 +375,14 @@
       "reputationTolerance": 50,
       "inventory": [
         {
+          "slot": 0,
+          "item": "STEEL_HELMET"
+        },
+        {
+          "slot": 1,
+          "item": "KEVLAR_VEST"
+        },
+        {
           "slot": 5,
           "item": "MINI14"
         },
@@ -346,10 +394,6 @@
         {
           "slot": 11,
           "item": "FIRSTAIDKIT"
-        },
-        {
-          "slot": 1,
-          "item": "FLAK_JACKET"
         }
       ]
     },
@@ -386,14 +430,28 @@
       "medicalDeposit": 1,
       "deathRate": 45,
       "reputationTolerance": 60,
-      "buddies": [3],
-      "hated": [1],
-      "hatedTime": [0],
+      "buddies": [
+        3
+      ],
+      "hated": [
+        1
+      ],
+      "hatedTime": [
+        0
+      ],
       "opinions": {
         "1": -30,
         "3": 20
       },
       "inventory": [
+        {
+          "slot": 0,
+          "item": "STEEL_HELMET"
+        },
+        {
+          "slot": 1,
+          "item": "FLAK_JACKET"
+        },
         {
           "slot": 5,
           "item": "MP5K"
@@ -449,6 +507,14 @@
         "4": 12
       },
       "inventory": [
+        {
+          "slot": 0,
+          "item": "STEEL_HELMET"
+        },
+        {
+          "slot": 1,
+          "item": "KEVLAR_VEST"
+        },
         {
           "slot": 5,
           "item": "M14"
@@ -507,6 +573,14 @@
       },
       "inventory": [
         {
+          "slot": 0,
+          "item": "STEEL_HELMET"
+        },
+        {
+          "slot": 1,
+          "item": "KEVLAR_VEST"
+        },
+        {
           "slot": 5,
           "item": "M14"
         },
@@ -554,6 +628,14 @@
       "reputationTolerance": 55,
       "inventory": [
         {
+          "slot": 0,
+          "item": "STEEL_HELMET"
+        },
+        {
+          "slot": 1,
+          "item": "KEVLAR_VEST"
+        },
+        {
           "slot": 5,
           "item": "MINI14"
         },
@@ -600,7 +682,9 @@
       "biWeeklySalary": 3200,
       "deathRate": 50,
       "reputationTolerance": 50,
-      "buddies": [11],
+      "buddies": [
+        11
+      ],
       "learnToHate": 0,
       "learnToHateTime": 20,
       "opinions": {
@@ -608,6 +692,14 @@
         "11": 25
       },
       "inventory": [
+        {
+          "slot": 0,
+          "item": "STEEL_HELMET"
+        },
+        {
+          "slot": 1,
+          "item": "FLAK_JACKET"
+        },
         {
           "slot": 5,
           "item": "MP5K"
@@ -620,10 +712,6 @@
         {
           "slot": 11,
           "item": "FIRSTAIDKIT"
-        },
-        {
-          "slot": 1,
-          "item": "FLAK_JACKET"
         }
       ]
     },
@@ -659,7 +747,9 @@
       "medicalDeposit": 1,
       "deathRate": 20,
       "reputationTolerance": 35,
-      "buddies": [10],
+      "buddies": [
+        10
+      ],
       "learnToLike": 2,
       "learnToLikeTime": 24,
       "opinions": {
@@ -667,6 +757,14 @@
         "10": 22
       },
       "inventory": [
+        {
+          "slot": 0,
+          "item": "STEEL_HELMET"
+        },
+        {
+          "slot": 1,
+          "item": "KEVLAR_VEST"
+        },
         {
           "slot": 5,
           "item": "G41"
@@ -679,10 +777,6 @@
         {
           "slot": 11,
           "item": "FIRSTAIDKIT"
-        },
-        {
-          "slot": 1,
-          "item": "KEVLAR_VEST"
         }
       ]
     },
@@ -715,8 +809,12 @@
       "salary": 150,
       "deathRate": 101,
       "reputationTolerance": 101,
-      "hated": [0],
-      "hatedTime": [6],
+      "hated": [
+        0
+      ],
+      "hatedTime": [
+        6
+      ],
       "opinions": {
         "0": -25,
         "1": 4
