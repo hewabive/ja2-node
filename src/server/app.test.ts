@@ -103,6 +103,25 @@ describe('server', () => {
     expect((await texts.request('http://localhost/api/text?file=npcdata/094.edt&row=1')).status).toBe(401);
   });
 
+  it('serves stub media under the original path names only on the stub data version', async () => {
+    const layers = () => [
+      new MemoryLayer('ja2-node-data', [['music/own.wav', data]]),
+      new MemoryLayer('stubs', [['stubs/sounds/door open 01.wav', data]]),
+    ];
+    const stubbed = createApp({ vfs: new Vfs(layers()), token, info: { originalData: false, slfCount: 0, stubs: true } });
+    const sound = await stubbed.request('http://localhost/vfs/sounds/door%20open%2001.wav', { headers: { ...auth, range: 'bytes=0-3' } });
+    expect(sound.status).toBe(206);
+    expect(sound.headers.get('x-vfs-layer')).toBe('stubs');
+    expect(sound.headers.get('content-type')).toBe('audio/wav');
+    expect(await sound.text()).toBe('0123');
+    expect((await stubbed.request('http://localhost/vfs/stubs/sounds/door%20open%2001.wav', { headers: auth })).status).toBe(200);
+    expect((await stubbed.request('http://localhost/vfs/music/own.wav', { headers: auth })).headers.get('x-vfs-layer')).toBe(
+      'ja2-node-data',
+    );
+    const original = createApp({ vfs: new Vfs(layers()), token, info: { originalData: true, slfCount: 1, stubs: true } });
+    expect((await original.request('http://localhost/vfs/sounds/door%20open%2001.wav', { headers: auth })).status).toBe(404);
+  });
+
   it('parseRange', () => {
     expect(parseRange(undefined, 10)).toBeNull();
     expect(parseRange('bytes=0-', 10)).toEqual({ start: 0, end: 10 });

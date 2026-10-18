@@ -18,7 +18,7 @@ import { handleMcpRequest } from './mcp.ts';
 import type { Session } from './session.ts';
 import { describeSession, newSessionRequest, openSession, type SessionFactory } from './session-registry.ts';
 import { textKeyFor } from './text-keys.ts';
-import { TextService } from './text-service.ts';
+import { STUB_TEXT_PREFIX, TextService } from './text-service.ts';
 
 export interface AppInfo {
   readonly originalData: boolean;
@@ -102,6 +102,7 @@ export function createApp(options: AppOptions): Hono {
   };
   const hosts = new Set(options.allowedHosts ?? DEFAULT_HOSTS);
   const generation = options.vfsGeneration ?? 'dev';
+  const stubFallback = texts.dataVersion === STUB_DATA_VERSION;
   const app = new Hono();
 
   app.use('*', async (c, next) => {
@@ -216,7 +217,7 @@ export function createApp(options: AppOptions): Hono {
     }
     let info: ReturnType<Vfs['stat']>;
     try {
-      info = vfs.stat(path);
+      info = vfs.stat(path) ?? (stubFallback ? vfs.stat(`${STUB_TEXT_PREFIX}${path}`) : undefined);
     } catch (err) {
       if (err instanceof RangeError) return c.json({ error: err.message }, 400);
       throw err;
