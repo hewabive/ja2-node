@@ -1,15 +1,15 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { withSectorExitGrids } from '../../src/content/strategic/sector-maps.ts';
+import { parseVfsAliases, VFS_ALIASES_FILE } from '../../src/content/vfs/aliases.ts';
 import {
   buildTacticalWorldFromInputs,
   loadTacticalWorldInputs,
   type TacticalWorld,
   type TacticalWorldInputs,
 } from '../../src/content/world/tactical-world.ts';
-import { withSectorExitGrids } from '../../src/content/strategic/sector-maps.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
-import { parseVfsAliases, VFS_ALIASES_FILE } from '../../src/content/vfs/aliases.ts';
 import { openDataVfs, STUBS_PREFIX } from '../../src/node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../src/node/repo.ts';
 import type { SectorWorlds } from '../../src/sim/campaign/sector-flow.ts';
