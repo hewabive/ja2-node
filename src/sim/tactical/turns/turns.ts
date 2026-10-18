@@ -271,7 +271,7 @@ export function endAllAITurns(t: TacticalState): void {
 export function numCapableEnemyInSector(t: TacticalState): number {
   let n = 0;
   for (const s of t.soldiers) {
-    if (!s?.placed) continue;
+    if (!s?.placed || s.dead) continue;
     if (s.life < OKLIFE && s.life !== 0) continue;
     if (s.neutral || s.side === Side.FRIENDLY) continue;
     n++;
