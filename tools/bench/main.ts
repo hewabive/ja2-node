@@ -113,6 +113,10 @@ export async function runBench(args: BenchArgs): Promise<number> {
   } finally {
     await data.close();
   }
+  if (ctx.variant !== null && lines.length === 0) {
+    console.error(`bench: no variant named ${ctx.variant} in ${name}`);
+    return 1;
+  }
   if (args.saveBaseline) console.error(`baseline saved: ${await saveBaseline(lines)}`);
   else for (const message of await compareWithBaseline(lines)) console.error(message);
   const failed = lines.filter((l) => l.target && !l.target.ok);
