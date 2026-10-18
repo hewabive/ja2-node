@@ -1604,25 +1604,31 @@ session factory and the protocol.
 6. D5's resolution barrier is still the original's `attackBusyCount` (`src/sim/tactical/turns/turn-state.ts:35`); D7's
    "ids instead of pointers" does not hold in the tactical layer (§1.4). Both are documentation drift to note in `01`.
 
-**Findings of the benchmarks** (S4, 2026-10-18; not fixed in S4, each reproducible with one command):
+**Findings of the benchmarks** (S4, 2026-10-18; 7–10 fixed on 2026-10-18 after S4, with regression tests on stubs):
 
-7. *AI throws that never leave the hand*: an AI soldier with `TOSS_PROJECTILE` keeps the grenade in `tempObject`,
-   `attackBusyCount` stays 1 and the enemy turn never ends. Traced once: a prone thrower goes `PRONE_UP` → `KNEEL_UP`
-   with `THROW_ITEM` pending and ends `STANDING` without throwing (`handleSoldierThrowItem`'s non-standing branch,
-   `src/sim/tactical/explosions/throwing.ts:162-180`, and the pending animation at the end of the stance change,
-   `src/sim/tactical/animation.ts:460-464`); other cases are standing throwers. Frequent in larger battles on both data
-   sets: `pnpm cli bench enemy-turn --data '' --seed 1 --variant arena-e8 --runs 1` (on stubs also `arena-e32` with
-   seeds 3 to 5 and all three arenas with seed 6; on original data `arena-e32` with seed 6). The bench reports
-   `outcome: stalled …` with the busy soldiers and drops the stalled turn.
-8. *Other stalled turns*: an AI `KNIFE_STAB` from a crouch (the `campaign` scenario on stubs with seed 2) and a
-   `SEEK_FRIEND` soldier swatting forever (original data, `arena-e32`, seed 3).
-9. *`enemyInSector` stays set* after the last enemy bleeds out in real time: `checkForEndOfBattle` runs at the death
-   while `attackBusyCount > 0` (`src/sim/tactical/turns/turns.ts:431-435`) and nothing checks again, so the strategic
-   counts are zero but `route` is refused with `enemiesPresent` and compression with "enemies are present in the loaded
-   sector" (the `campaign` scenario: `cleared (enemyInSector flag still set)`).
-10. *A refused attack moves the soldier*: `attack` refused for lack of APs can leave the merc busy (`PRONE_LAY_FROMHIT`
-    after `handleItem`'s side effects, `src/sim/tactical/tactical-sim.ts:683-698`) without the session advancing, so the
-    next command answers "soldier N is still acting" until the client advances.
+7. *Fixed: AI throws that never leave the hand.* Two porting gaps: TurnSoldier's return from a prone turn lacked the
+   original's `pTempObject == NULL` check (`Tactical/Soldier_Control.cc:4339`), so a prone thrower who had to turn lay
+   down again, and `HaultSoldierFromSighting` (`:7271-7369`) was ported without its attack cancellation, so a sighting
+   cleared the pending `THROW_ITEM` but kept the grenade in `tempObject` and the busy count. Both ported (the halt also
+   frees pending melee attacks and turns to shoot, removes the pending action and resets the prone turn), with the AI's
+   escape for a tosser's new situation (`TacticalAI/AIMain.cc:287-321`). Tests: `perception/halt.test.ts`,
+   `explosions/grenade-attack.test.ts`, `ai/new-situation.test.ts`.
+8. *Fixed with 7: other stalled turns.* The `KNIFE_STAB` from a crouch is the halt above clearing a pending
+   `CROUCH_STAB` without releasing the attack (the stub `campaign` run with seed 2 no longer reproduces it at 4e74dec);
+   the `SEEK_FRIEND` swatter was only a frozen mover listed beside the real blocker (original data, `arena-e32`, seed 3
+   now ends `lost`). A prone variant remains, finding 15.
+9. *Fixed: `enemyInSector` stays set.* `NumCapableEnemyInSector` skips `SOLDIER_DEAD` (`Tactical/Overhead.cc:4921`); the
+   port counted the dying enemy until his corpse was made, so the check of `HandleNPCTeamMemberDeath` never saw the
+   battle won (the busy count was not the cause). Test: `turns/end-of-battle.test.ts`; no stub `campaign` run with
+   seeds 1 to 16 keeps the flag (seed 10 ends `cleared`; seed 7 now loses the battle).
+10. *Fixed: a refused attack moves the soldier.* The `attack` order sent a halted soldier to his stationary stance
+    before `HandleItem`, which `UIHandleMercAttack` never does (`Tactical/Handle_UI.cc:2115-2252`): a merc frozen
+    mid-move with a pending breath collapse went down on an order refused for lack of APs. `HandleItem` also cleared the
+    pending animation where the original removes the pending action (`Tactical/Handle_Items.cc:191`). Related, found
+    by the sweep: an attack ordered in the frames between a merc's breath reaching 0 and his collapse left
+    `fTurningToShoot` set under `PRONE_LAY_FROMHIT`, so the shot never came; the API now refuses orders from a merc
+    out of breath who has collapsed or is about to (the original's UI gives him no cursor, `Handle_UI.cc:2523`) and
+    counts the pending collapse as acting (deviations "Turn-based UI lock"). Tests: `combat/combat.test.ts`.
 11. *Frames during compression*: the session builds and diffs the whole player view, including the 256-sector strategic
     view, every 10 ticks (`src/server/session.ts:56-81`) also while the map screen compresses time: building the views
     alone is about two thirds of a world day, the diff comes on top (`strategicView`/`sectorView` and `diffPlayerView` are the top frames), growing with the number of mercs.
@@ -1638,6 +1644,32 @@ session factory and the protocol.
     (`src/server/stub-mercs.ts`), so a stat gain went to the whole squad and to every later session in the process (two
     sessions with the same seed diverged); found by the bench's run-to-run check, now a copy per merc
     (`src/server/stub-mercs.test.ts`).
+
+**Findings of the stall fixes** (2026-10-18; the original's code paths, inferred to hang it too until a watchdog that
+ja2-node does not port, deviations "Watchdogs"; not fixed, each needs a decision):
+
+14. *Melee from a get-up*: an AI soldier who gets up at the start of his turn (`BeginSoldierGetup` → `PRONE_UP`) and
+    stabs or punches a prone target at once: `EVENT_SetSoldierDesiredDirection` from the stationary `PRONE_UP` (start
+    height prone) sets `fTurningFromPronePosition`, `PUNCH_LOW`/`CROUCH_STAB` start from its crouched end height, and
+    TurnSoldier's prone return (`Tactical/Soldier_Control.cc:4335-4345`) replaces the attack with `PRONE_DOWN` before
+    its hit: the busy count stays 1. The original would end the turn through the 15 s AI deadlock breaker
+    (`TacticalAI/AIMain.cc:366-380, 577-602`). `node tools/bench/scenarios/campaign.ts --data '' --seed 5`
+    (`#23 PRONE ai KNIFE_STAB`).
+15. *Knock-back frozen by the sighting pause*: a merc thrown back by a blast during the enemy turn
+    (`FALLBACK_HIT_STAND`, special move, non-interruptible) who sees a new enemy on landing gets `fNoAPToFinishMove`
+    from the sighting-pause branch of `HandleAtNewGridNo` (`Tactical/Overhead.cc:1853-1858`); the 3 s timer unfreezes
+    only the paused enemy (`GameScreen.cc:316-325`), so the special move never resumes, its hit release never comes and
+    the thrower waits for the busy count (deadlock breaker in the original). `pnpm cli bench enemy-turn --data ''
+    --seed 4 --variant arena-e32 --runs 1` (the listed `#20 TOSS_PROJECTILE` is the waiting thrower).
+16. *Options for 14–15*: a minimal deviation per case in the manner of "Melee hold leaks" (14: no prone return while a
+    melee attack plays; 15: the pause does not freeze a special move), or porting the deadlock breaker on the sim
+    clock. Recommended: the deviations, so that a hang stays a test failure.
+17. *Gaps seen while tracing (no stall found)*: `HandleSystemNewAISituation` is still the no-op `newAiSituation` hook in
+    turn-based combat too (`10` §10 planned it active; `Soldier_Control.cc:8774-8817`): AI throws, turns to shoot and
+    pending animations are not cancelled at the end of a stance change, a door opening, a turn's look or a new tile;
+    `stopMerc` does not release a turn to shoot nor reset `fTurningFromPronePosition`, the pending direction and the
+    pending action (`EVENT_StopMerc`, `:7379-7421`); `handleSoldierAI` lacks the `fGettingHit` return
+    (`TacticalAI/AIMain.cc:180-184`, listed in `13` §1).
 
 **Verified** by reading Stracciatella (vanilla where marked): the save list, names, folders, header, keys and gates,
 `CanGameBeSaved`, the three save modes, Dead is Dead's file, backups and save points, the end-of-turn autosave and its

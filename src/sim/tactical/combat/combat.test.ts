@@ -1,16 +1,20 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
+import { AnimFlags } from '../../../content/anim/tables.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import type { SimEvent } from '../../events.ts';
+import { adjustNoAPToFinishMove, hasAnimFlag, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
-import { InvSlot } from '../inventory.ts';
+import { InvSlot, itemIn } from '../inventory.ts';
 import { Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
+import { handleItem, ItemHandle } from './attack.ts';
 import { chanceOfBulletHittingStructure } from './bullets.ts';
+import { soldierTakeDamage } from './hit.ts';
 import { adjustImpactByHitLocation } from './impact.ts';
-import { AimShot } from './types.ts';
+import { AimShot, DamageReason } from './types.ts';
 
 let content: TacticalContent;
 
@@ -103,6 +107,61 @@ describe('gun attacks', () => {
     expect(sim.dispatch({ type: 'move', soldier: 1, to: gridNo(84, 80) })).toEqual({ ok: false, reason: 'an attack is still resolving' });
     run(sim);
     expect(sim.dispatch({ type: 'move', soldier: 1, to: gridNo(84, 80) }).ok).toBe(true);
+  });
+
+  it('refuses an attack without APs and leaves a halted merc as he was', () => {
+    const sim = newSim();
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 86), Direction.NORTH);
+    sim.lookAround();
+    expect(sim.dispatch({ type: 'move', soldier: 0, to: gridNo(84, 80) }).ok).toBe(true);
+    for (let i = 0; i < 200 && !hasAnimFlag(content, merc.state, AnimFlags.MOVING); i++) sim.step();
+    expect(hasAnimFlag(content, merc.state, AnimFlags.MOVING)).toBe(true);
+    adjustNoAPToFinishMove(merc, true);
+    merc.actionPoints = 0;
+    merc.breathCollapsed = true;
+    const halted = merc.state;
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({
+      ok: false,
+      reason: 'not enough APs for this attack',
+    });
+    expect(merc.state).toBe(halted);
+    expect(merc.collapsed).toBe(false);
+    expect(sim.isBusy(merc)).toBe(false);
+  });
+
+  it('takes no orders from a merc out of breath and waits for his collapse', () => {
+    const sim = newSim();
+    const t = sim.state;
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    spawn(sim, 1, Team.OUR, gridNo(82, 80), Direction.SOUTH);
+    const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 86), Direction.NORTH);
+    sim.lookAround();
+    soldierTakeDamage(t, merc, 0, merc.breath * 100, DamageReason.GAS, null);
+    expect(merc.breath).toBe(0);
+    expect(merc.collapsed).toBe(false);
+    const outOfBreath = { ok: false, reason: 'soldier is out of breath' };
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual(outOfBreath);
+    expect(sim.dispatch({ type: 'move', soldier: 1, to: gridNo(84, 80) })).toEqual({ ok: false, reason: 'soldier 0 is still acting' });
+    run(sim);
+    expect(merc.collapsed).toBe(true);
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual(outOfBreath);
+    expect(t.turn.attackBusyCount).toBe(0);
+    expect(sim.dispatch({ type: 'move', soldier: 1, to: gridNo(84, 80) }).ok).toBe(true);
+  });
+
+  it('drops a pending action but keeps the pending animation when an attack starts', () => {
+    const sim = newSim();
+    const t = sim.state;
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 86), Direction.NORTH);
+    sim.lookAround();
+    const crouch = states(content.animations).CROUCHING;
+    merc.pendingTalk = enemy.id;
+    merc.pendingAnimation = crouch;
+    expect(handleItem(t, merc, enemy.gridNo, 0, itemIn(merc.inv, InvSlot.HAND))).toBe(ItemHandle.OK);
+    expect(merc.pendingTalk).toBeNull();
+    expect(merc.pendingAnimation).toBe(crouch);
   });
 
   it('stops bullets in a wall between shooter and target', () => {

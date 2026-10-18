@@ -649,7 +649,7 @@ export function turnSoldier(t: TacticalState, s: Soldier): void {
     s.dontUnsetLastTargetFromTurn = false;
     t.hooks.turnFinished(t, s);
     if (s.turningFromPronePosition === TurningFromProne.ON) {
-      if (isValidStance(t, s, AnimHeight.PRONE)) changeSoldierStance(t, s, AnimHeight.PRONE);
+      if (isValidStance(t, s, AnimHeight.PRONE) && s.tempObject === null) changeSoldierStance(t, s, AnimHeight.PRONE);
       s.turningFromPronePosition = TurningFromProne.OFF;
     }
     const name = content.animations.controls[s.state]?.id ?? '';

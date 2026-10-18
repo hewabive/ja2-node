@@ -8,8 +8,8 @@
 // @src HandleDoorTrap; Tactical/Handle_Items.cc (the drop impact); Laptop/Laptop.cc (power up and down). See docs/27 §3.1.
 
 import { type Cue, cueOf, effectCue, type FileExists, type Rand, soundRange, VolumeLevel } from './cue.ts';
-import { type CueBook, soundPath, type WeaponSounds } from './cue-book.ts';
-import { NOWHERE, Pan } from './sound-position.ts';
+import type { CueBook, WeaponSounds } from './cue-book.ts';
+import { NOWHERE } from './sound-position.ts';
 import { BURST_ROUNDS_PLACEHOLDER } from './sound-table.ts';
 
 export const GENERIC_BURST_SOUND = 'sounds/weapons/bursttype1.wav';

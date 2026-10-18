@@ -5,24 +5,61 @@
 // @src OppList.cc OurTeamSeesSomeone. See docs/08 §2.6, §2.8, §2.9 and docs/10 §4.8, §4.10.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
-import { adjustNoAPToFinishMove, hasAnimFlag } from '../animation.ts';
+import { adjustNoAPToFinishMove, hasAnimFlag, soldierGotoStationaryStance } from '../animation.ts';
+import { reduceAttackBusyCount } from '../combat/barrier.ts';
+import { unsetEngagedInConvFromPcAction } from '../give.ts';
+import { autoPlaceObject } from '../inventory.ts';
 import { stopMerc } from '../movement.ts';
 import { setOffActionItemsInGridNo } from '../narrative/quest-items.ts';
+import { hasPendingAction, removePendingAction } from '../pending-action.ts';
 import { NO_PENDING_ANIMATION, ReasonCantFinishMove, type Soldier } from '../soldier.ts';
+import { soldierInventoryContext } from '../soldier-inventory.ts';
 import type { PerceptionHooks, TacticalHooks, TacticalState } from '../state.ts';
 import { enterCombatMode } from '../turns/turns.ts';
 import { doorOpeningNoise, makeNoise, movementNoise, NoiseKind } from './noise.ts';
 import { allTeamsLookForAll, handleSight, initOpplistForDoorOpening, SightFlags } from './sight.ts';
 
-export function haltFromSighting(t: TacticalState, s: Soldier, fromSightingEnemy: boolean): void {
-  if (hasAnimFlag(t.content, s.state, AnimFlags.SPECIALMOVE)) return;
-  if (!t.inCombat) {
-    stopMerc(t, s);
-    return;
-  }
+const PENDING_MELEE_ATTACKS = ['THROW_KNIFE', 'SLICE', 'STAB', 'CROUCH_STAB', 'PUNCH', 'PUNCH_LOW', 'CROWBAR_ATTACK'];
+
+function pendingMeleeAttack(t: TacticalState, s: Soldier): boolean {
+  if (s.pendingAnimation === NO_PENDING_ANIMATION) return false;
+  return PENDING_MELEE_ATTACKS.includes(t.content.animations.controls[s.pendingAnimation]?.id ?? '');
+}
+
+function returnThrownObject(t: TacticalState, s: Soldier): void {
+  const thrown = s.tempObject;
+  if (thrown) autoPlaceObject(soldierInventoryContext(t, s), s, thrown);
+  s.tempObject = null;
+  s.pendingAnimation = NO_PENDING_ANIMATION;
+}
+
+function haltInCombat(t: TacticalState, s: Soldier, fromSightingEnemy: boolean): void {
   adjustNoAPToFinishMove(s, true);
   s.reasonCantFinishMove = ReasonCantFinishMove.STOPPED_SIGHT;
-  if (fromSightingEnemy) s.pendingAnimation = NO_PENDING_ANIMATION;
+  if (s.turningToShoot && fromSightingEnemy) {
+    s.turningToShoot = false;
+    s.dontUnsetLastTargetFromTurn = true;
+    reduceAttackBusyCount(t, s, false);
+  }
+  if (fromSightingEnemy) {
+    if (hasPendingAction(s) && s.gridNo === s.finalDestination) removePendingAction(t, s);
+    s.pendingAnimation = NO_PENDING_ANIMATION;
+  }
+  if (!s.turningToShoot) s.turningFromPronePosition = 0;
+}
+
+export function haltFromSighting(t: TacticalState, s: Soldier, fromSightingEnemy: boolean): void {
+  if (hasAnimFlag(t.content, s.state, AnimFlags.SPECIALMOVE)) return;
+  const throwing = s.tempObject !== null && fromSightingEnemy;
+  const attacking = pendingMeleeAttack(t, s);
+  if (throwing) returnThrownObject(t, s);
+  if (throwing || attacking) {
+    reduceAttackBusyCount(t, s, false);
+    soldierGotoStationaryStance(t, s);
+  }
+  if (!t.inCombat) stopMerc(t, s);
+  else haltInCombat(t, s, fromSightingEnemy);
+  unsetEngagedInConvFromPcAction(t, s);
 }
 
 export function perceptionHooks(

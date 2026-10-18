@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type CampaignKit, createTestCampaign, landFirstSquad, ourSoldiers } from '../../../tests/support/campaign.ts';
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
-import { expectReloadsInvisible, type RunMode } from '../../../tests/support/reload.ts';
+import { defaultRunMode, expectReloadsInvisible, type RunMode } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { sectorInfo } from '../strategic/map/sectors.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
@@ -25,8 +25,8 @@ afterAll(async () => {
 const B9 = { x: 9, y: 2, z: 0 };
 const COLS = 160;
 const MAX_ROUNDS = 150;
-const SCENARIO_TIMEOUT_MS = 60_000;
 const RELOAD_SCENARIO_TIMEOUT_MS = 240_000;
+const SCENARIO_TIMEOUT_MS = defaultRunMode() === 'reload' ? RELOAD_SCENARIO_TIMEOUT_MS : 60_000;
 
 type Driver = (c: CampaignSim, until: () => boolean, budget?: number) => void;
 
@@ -120,7 +120,7 @@ interface ScenarioResult {
 
 function scenario(drive: Driver, mode?: RunMode): ScenarioResult {
   const { campaign: c, roster } = createTestCampaign(kit, {
-    seed: 24,
+    seed: 25,
     garrison: { admins: 0, troops: 0, elites: 0 },
     ...(mode ? { mode } : {}),
   });

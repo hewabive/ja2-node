@@ -550,7 +550,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     bodyType: init.bodyType,
     palettes: init.palettes,
     inv: init.inv ?? emptyInventory(),
-    stats: init.stats,
+    stats: { ...init.stats },
     life: init.life,
     lifeMax: init.lifeMax ?? init.life,
     morale: init.morale ?? 50,

@@ -25,7 +25,6 @@ import {
 } from '../strategic/time/event-queue.ts';
 import { pauseGame, unPauseGame, worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { HOSTILITY_DELAY_MINUTES } from '../tactical/narrative/constants.ts';
-import { triggerFriendWithHostileQuote } from '../tactical/narrative/npc-actions/generic.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from '../tactical/narrative/port.ts';
 import type { ScheduleClock } from '../tactical/narrative/schedule-state.ts';
 import { processTacticalSchedule } from '../tactical/narrative/schedules.ts';

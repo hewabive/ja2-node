@@ -3,6 +3,7 @@ import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/supp
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { createItem } from '../../items/object.ts';
+import { animName } from '../anim-states.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot, itemIn } from '../inventory.ts';
 import { Team } from '../soldier.ts';
@@ -35,6 +36,32 @@ describe('grenade attacks through the attack command', () => {
     expect(before - merc.actionPoints).toBeGreaterThan(0);
     expect(before - merc.actionPoints).toBeLessThanOrEqual(apCost);
     expect(enemy.life).toBeLessThan(30);
+    expect(t.turn.attackBusyCount).toBe(0);
+  });
+
+  it('stands a prone thrower up to turn and throw without lying down again in between', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 87), Direction.NORTH);
+    merc.inv[InvSlot.HAND] = createItem(t.content.items, t.content.items.byName.get('HAND_GRENADE')?.index ?? -1, 100);
+    sim.lookAround();
+    expect(sim.dispatch({ type: 'stance', soldier: 0, stance: 'prone' }).ok).toBe(true);
+    runUntilIdle(sim);
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: gridNo(80, 72) })).toEqual({ ok: true });
+    const seen: string[] = [];
+    let exploded = false;
+    for (let tick = 0; tick < 20_000 && !(exploded && sim.isIdle()); tick++) {
+      sim.step();
+      const name = animName(t.content, merc.state);
+      if (seen.at(-1) !== name) seen.push(name);
+      exploded ||= sim.drainEvents().some((e) => e.type === 'explosion');
+    }
+    expect(exploded).toBe(true);
+    const thrown = seen.indexOf('THROW_ITEM');
+    expect(thrown).toBeGreaterThan(0);
+    expect(seen.slice(0, thrown)).not.toContain('PRONE_DOWN');
+    expect(merc.tempObject).toBeNull();
     expect(t.turn.attackBusyCount).toBe(0);
   });
 
