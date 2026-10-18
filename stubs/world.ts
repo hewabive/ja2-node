@@ -13,6 +13,7 @@ import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
 import { color, type RampName } from './palette.ts';
 import { IndexedRaster } from './raster.ts';
 import type { StubFrame, StubSprite } from './sprites.ts';
+import { STUB_TILE_SURFACES, type StubSurface } from './tiles.ts';
 
 export const STUB_WORLD_DIR = 'world';
 const STUB_TILESET_ID = 0;
@@ -83,7 +84,7 @@ const DOOR_STRUCTURES = numbered([
   { ...syntheticStructure(OPEN_DOOR, Orientation.OUTSIDE_RIGHT), partnerDelta: -1 },
 ]);
 
-const SURFACES: readonly { readonly type: string; readonly sprite: StubSprite; readonly structures?: readonly StructureDef[] }[] = [
+const SURFACES: readonly StubSurface[] = [
   { type: 'FIRSTTEXTURE', sprite: { path: 'grass', frames: [groundTile('green', 7, 1), groundTile('green', 6, 2)] } },
   { type: 'SECONDTEXTURE', sprite: { path: 'dirt', frames: [groundTile('brown', 8, 3), groundTile('brown', 7, 4)] } },
   { type: 'THIRDTEXTURE', sprite: { path: 'road', frames: [groundTile('gray', 7, 5)] } },
@@ -97,6 +98,7 @@ const SURFACES: readonly { readonly type: string; readonly sprite: StubSprite; r
     sprite: { path: 'door', frames: [door('left', false), door('left', true), door('right', false), door('right', true)] },
     structures: DOOR_STRUCTURES,
   },
+  ...STUB_TILE_SURFACES,
 ];
 
 export interface StubWorldWriter {
