@@ -224,6 +224,17 @@ Orders are accepted only on our turn, when no attack is resolving and no other m
 (`docs/10` §9, `deviations.md` "Turn-based UI lock"); `idle` also waits for bullets, queued game events and any
 of our soldiers still playing a one-shot animation (getting up, picking up, climbing).
 
+**Implemented in M7 (S8, sound).** View frames also carry the events drained during an advance (`ViewFrame.events`,
+attached to the frame of their tick), so a browser client receives the same event log an agent gets in `advance`
+reports. Presentation fields, optional and never part of the state or an outcome: `shotFired {item, silenced, burst,
+rounds}` (`rounds`: the burst size on the first bullet of a burst, 0 on the later ones, 1 for a single shot),
+`bulletStopped {material, caveWall}` (the hit structure's material), `explosion {animation}` (the animation shown,
+the water variant included), `doorChanged {kind: wood|cloth|garage|metal, noisy}` and the new event `reloaded {soldier,
+item}`. Soldier entries in the view carry `voice`: the battle-sound voice, the profile's voice id as three digits
+(I.M.P. voices included) or the generic `badN`/`kidN` set of soldiers without a profile; with `bodyType` it selects the
+`m_`/`f_` fallback. The client derives all sound from these events, the frames and the animation codes it replays
+between snapshots (`docs/27` §3.6); agents get the same events and never audio.
+
 ### 4.5. CPU cost
 
 **Estimate for a turn of 15 enemies.** Each moves ~6 tiles (≈0.7 s), shoots (0.35–1.15 s),
