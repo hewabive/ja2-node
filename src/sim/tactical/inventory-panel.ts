@@ -220,7 +220,7 @@ export function moveItem(env: PanelEnv, req: MoveRequest): PanelOutcome {
   if (placed) {
     chargeTransfer(env, mover, target);
     env.equipmentChanged(target, to, oldTarget, cursorItem);
-    owner = target;
+    owner = env.mapScreen ? mover : target;
   }
   cancelCursor(env, owner, from, cursor);
   if (!placed) return refuse(PanelRefusal.DOES_NOT_FIT);

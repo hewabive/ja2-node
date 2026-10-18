@@ -321,7 +321,7 @@ export class MapInventory {
 
   #context(s: Soldier): InventoryContext {
     const t = this.#campaign.tactical?.state;
-    if (t && s.placed && t.soldiers[s.id] === s) return { ...soldierInventoryContext(t, s), inCombat: false };
+    if (t && s.placed && t.soldiers[s.id] === s) return soldierInventoryContext(t, s);
     return {
       items: contentOf(this.#campaign).items,
       inCombat: false,
@@ -346,7 +346,7 @@ export class MapInventory {
     const combat = campaignCombatContext(() => campaign, campaign.state, contentOf(campaign))();
     return {
       items: contentOf(campaign).items,
-      combat: { ...combat, inCombat: false },
+      combat,
       inCombat: false,
       mapScreen: true,
       context: (s) => this.#context(s),

@@ -99,6 +99,22 @@ describe('moving items inside one inventory', () => {
   });
 });
 
+describe('throwing a grenade from a pocket', () => {
+  it('moves the grenade into the hand and throws it with attack', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    merc.inv[InvSlot.SMALLPOCK1] = createItem(content.items, item('HAND_GRENADE'), 100);
+    expect(sim.dispatch({ type: 'moveItem', soldier: 0, from: 'smallPocket1', to: 'hand' })).toMatchObject({ ok: true });
+    runUntilIdle(sim);
+    const target = gridNo(80, 88);
+    expect(sim.dispatch({ type: 'estimateAttack', soldier: 0, target })).toMatchObject({ ok: true, data: { pathClear: true } });
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target })).toEqual({ ok: true });
+    const events = runUntilIdle(sim);
+    expect(events.some((e) => e.type === 'explosion')).toBe(true);
+    expect(itemAt(merc, InvSlot.HAND)).toBe('NOTHING');
+  });
+});
+
 describe('reloading and unloading', () => {
   it('unloads for free, reloads by hand for 5 AP in combat and 10 AP with a magazine of another size', () => {
     const sim = newCombatSim(content);

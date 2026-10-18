@@ -363,6 +363,14 @@ el<HTMLButtonElement>('endTurn').addEventListener('click', () => {
     debug.lastResult = r.ok ? 'turn ended' : `end turn: ${r.reason ?? 'refused'}`;
   });
 });
+function selectedCommand(type: string, done: string): void {
+  if (selected === null || !client) return;
+  void client.command({ type, soldier: selected }).then((r) => {
+    debug.lastResult = r.ok ? done : `${type}: ${r.reason ?? 'refused'}`;
+  });
+}
+el<HTMLButtonElement>('reload').addEventListener('click', () => selectedCommand('reload', 'reloaded'));
+el<HTMLButtonElement>('swapHands').addEventListener('click', () => selectedCommand('swapHands', 'hands swapped'));
 tradeButton.addEventListener('click', () => {
   const merchant = nearestMerchant(
     soldiers(),
