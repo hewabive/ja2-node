@@ -127,7 +127,7 @@ import {
   startGuideCountdown,
 } from './narrative/guide-description.ts';
 import { campaignNarrativePort, campaignScheduleClock } from './narrative-port.ts';
-import type { Roster, RosterMerc } from './roster.ts';
+import { type Roster, type RosterMerc, registeredInTactical } from './roster.ts';
 import {
   applyPreservedEnemyRecord,
   captureDoorStatus,
@@ -799,7 +799,7 @@ export class SectorFlow {
 
   removeMercFromTacticalSector(m: RosterMerc): void {
     const t = this.campaign.tactical?.state;
-    if (t && t.soldiers[m.id] === m.soldier) removeSoldierFromTacticalSector(t, m.soldier);
+    if (t && registeredInTactical(t, m)) removeSoldierFromTacticalSector(t, m.soldier);
   }
 
   #tacticalCampaign(): { difficultyModifier: number; progress: number } {
@@ -1073,7 +1073,7 @@ export class SectorFlow {
         militia,
       });
     }
-    for (const m of this.setup.roster.all()) if (t.soldiers[m.id] === m.soldier) removeSoldierFromTacticalSector(t, m.soldier);
+    for (const m of this.setup.roster.all()) if (registeredInTactical(t, m)) removeSoldierFromTacticalSector(t, m.soldier);
   }
 
   #mercsStillHere(): boolean {
@@ -1124,7 +1124,7 @@ export class SectorFlow {
     const t = sim.state;
     for (const m of this.setup.roster.all()) {
       if (m.life === 0 || m.betweenSectors || m.isVehicle || m.isRobot || m.isEpc || !sameSector(m.sector, world)) continue;
-      if (t.soldiers[m.id] === m.soldier) removeSoldierFromTacticalSector(t, m.soldier);
+      if (registeredInTactical(t, m)) removeSoldierFromTacticalSector(t, m.soldier);
     }
     this.#endTacticalBattleForEnemy();
     this.handleDefiniteUnloadingOfWorld(UnloadCode.ABOUT_TO_TRASH_WORLD);

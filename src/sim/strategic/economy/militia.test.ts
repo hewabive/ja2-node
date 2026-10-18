@@ -20,7 +20,7 @@ import {
 } from './militia.ts';
 import { isAreaFullOfMilitia } from './militia-rules.ts';
 import type { DecisionAnswer } from './ports.ts';
-import { assignSoldiers, resumeMilitiaPayment } from './set-assignment.ts';
+import { answerPendingMilitiaPrompt, assignSoldiers } from './set-assignment.ts';
 import { updateAssignments } from './update.ts';
 
 const B13 = parseSectorString('B13');
@@ -112,9 +112,8 @@ describe('eligibility and payment', () => {
     made.crew.add({ id: 0, sector: C13 });
     made.crew.add({ id: 1, sector: C13 });
     expect(assignSoldiers(made.ctx, [0, 1], { kind: 'trainMilitia' })[0]).toEqual({ ok: true, militia: 'pending' });
-    const prompt = made.ctx.state.economy.prompts[0];
-    if (prompt?.kind !== 'militiaPayment') throw new Error('no payment prompt');
-    expect(resumeMilitiaPayment(made.ctx, prompt, true)).toBe('paid');
+    expect(made.ctx.state.economy.prompts[0]?.kind).toBe('militiaPayment');
+    expect(answerPendingMilitiaPrompt(made.ctx, true)).toBe('paid');
     expect(made.ctx.state.economy.prompts).toEqual([]);
     expect(sectorInfo(made.ctx.state.map, C13).militiaTrainingPaid).toBe(true);
     expect([made.crew.get(0)?.assignment, made.crew.get(1)?.assignment]).toEqual([Assignment.TRAIN_TOWN, Assignment.TRAIN_TOWN]);

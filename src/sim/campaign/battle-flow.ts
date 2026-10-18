@@ -23,10 +23,9 @@ import { clearSurfaceCreatures, determineCreatureTownComposition } from '../stra
 import { reEvaluateEveryonesNothingToDo } from '../strategic/economy/assignment-done.ts';
 import { Assignment, LoyaltyEvent } from '../strategic/economy/constants.ts';
 import { handleGlobalLoyaltyEvent } from '../strategic/economy/loyalty.ts';
-import { answerMilitiaContinue } from '../strategic/economy/militia.ts';
 import { countAllMilitiaInSector } from '../strategic/economy/militia-rules.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
-import { resumeMilitiaPayment } from '../strategic/economy/set-assignment.ts';
+import { answerPendingMilitiaPrompt } from '../strategic/economy/set-assignment.ts';
 import type { EconomyPrompt } from '../strategic/economy/state.ts';
 import { autoBandageMercs, canBandage } from '../strategic/forces/autoresolve/bandage.ts';
 import { closeAutoresolve } from '../strategic/forces/autoresolve/close.ts';
@@ -113,7 +112,7 @@ import {
   strategicHandlePlayerTeamMercDeath,
 } from './merc-fate.ts';
 import { ECONOMY_MORALE_EVENTS, handleMoraleEvent, type MoraleContext, MoraleEvent } from './morale.ts';
-import type { Roster, RosterMerc } from './roster.ts';
+import { type Roster, type RosterMerc, registeredInTactical } from './roster.ts';
 import { enterMapScreen } from './screens.ts';
 import { addDeadSoldierToUnloadedSector, removeRandomItemsInSector } from './sector-loot.ts';
 import { decayTacticalMoraleModifiers, hourlyMoraleUpdate, type TeamMoraleContext, updateBuddyAndHatedCounters } from './team-morale.ts';
@@ -294,14 +293,9 @@ export class BattleFlow implements FateContext {
 
   #answerMilitia(choice: string): CommandResult {
     if (choice !== 'yes' && choice !== 'no') return { ok: false, reason: 'choose one of yes, no' };
-    const pending = this.state.economy.prompts[0];
     this.state.battle.prompt = null;
-    if (!pending) return { ok: true };
-    const yes = choice === 'yes';
-    const outcome =
-      pending.kind === 'militiaPayment'
-        ? resumeMilitiaPayment(this.economy, pending, yes)
-        : answerMilitiaContinue(this.economy, pending, yes);
+    const outcome = answerPendingMilitiaPrompt(this.economy, choice === 'yes');
+    if (outcome === null) return { ok: true };
     this.settle();
     return { ok: true, data: { outcome } };
   }
@@ -852,7 +846,7 @@ export class BattleFlow implements FateContext {
   #captureSurrenderedMercs(t: TacticalState): void {
     const ours = this.roster
       .all()
-      .filter((m) => t.soldiers[m.id] === m.soldier && m.soldier.placed && m.soldier.life !== 0)
+      .filter((m) => registeredInTactical(t, m) && m.soldier.placed && m.soldier.life !== 0)
       .sort((a, b) => a.id - b.id);
     beginCaptureSequence(this);
     for (const m of ours) {
@@ -999,7 +993,7 @@ export class BattleFlow implements FateContext {
   }
 
   battleLost(t: TacticalState): void {
-    const ours = this.roster.all().filter((m) => t.soldiers[m.id] === m.soldier && m.soldier.placed);
+    const ours = this.roster.all().filter((m) => registeredInTactical(t, m) && m.soldier.placed);
     const capture = this.#captureAllowed(t, ours);
     if (capture) beginCaptureSequence(this);
     for (const m of ours) {

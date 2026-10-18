@@ -230,7 +230,6 @@ export function answerMilitiaPayment(
   yes: boolean,
   flow: MilitiaPaymentFlow,
 ): MilitiaPaymentOutcome {
-  removePrompt(ctx, prompt);
   if (!yes) {
     stopTimeCompression(ctx.clock, CompressionStop.MILITIA_TRAINING);
     rejectTraining(ctx, trainersOfUnpaidSectors(ctx), 'declined');
@@ -247,11 +246,6 @@ export function answerMilitiaPayment(
   const sectors = trainer ? unpaidTrainableSectors(ctx, [trainer, ...selected.filter((m) => m.id !== trainer.id)]) : prompt.sectors;
   for (const sector of sectors) payForTrainingInSector(ctx, sector);
   return 'paid';
-}
-
-function removePrompt(ctx: EconomyContext, prompt: MilitiaPaymentPrompt | MilitiaContinuePrompt): void {
-  const at = ctx.state.economy.prompts.indexOf(prompt);
-  if (at >= 0) ctx.state.economy.prompts.splice(at, 1);
 }
 
 export type ContinueOutcome = 'continued' | 'declined' | RejectReason | 'pending';
@@ -282,7 +276,6 @@ export function handleInterfaceMessageForContinuingTrainingMilitia(ctx: EconomyC
 }
 
 export function answerMilitiaContinue(ctx: EconomyContext, prompt: MilitiaContinuePrompt, yes: boolean): ContinueOutcome {
-  removePrompt(ctx, prompt);
   const sector = sectorFromId(prompt.sector);
   const trainer = ctx.crew.get(prompt.trainer);
   const trainerSector = trainer ? trainer.sector : sector;

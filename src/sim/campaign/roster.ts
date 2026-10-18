@@ -22,6 +22,7 @@ import {
   effectiveWisdom,
 } from '../tactical/skills.ts';
 import { Body, type Soldier, SoldierStatusFlags } from '../tactical/soldier.ts';
+import type { TacticalState } from '../tactical/state.ts';
 import type { MercContract } from './contracts/contract-state.ts';
 import { type MercRecord, type ProfileRecordTraits, profileRecordTraits, type RosterState } from './merc-record.ts';
 import {
@@ -421,6 +422,10 @@ export class RosterMerc implements CrewMember {
   get isPassengerOrDriver(): boolean {
     return (this.statusFlags & (SoldierStatusFlags.DRIVER | SoldierStatusFlags.PASSENGER)) !== 0;
   }
+}
+
+export function registeredInTactical(t: Pick<TacticalState, 'soldiers'>, merc: RosterMerc): boolean {
+  return t.soldiers[merc.id] === merc.soldier;
 }
 
 export interface RosterHooks {
