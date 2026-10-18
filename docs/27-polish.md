@@ -200,7 +200,8 @@ repeats what the save list shows without parsing the body (the original's reason
 
 **Codec** `src/sim/snapshot/` (DOM-free, Node-free, deterministic, SFI header only where it encodes original fields):
 `snapshotSession(sim): SimSnapshot` and `restoreSession(snapshot, deps): SessionSim`, where `deps` holds the shared
-content and the prepared maps. Encoding rules, one place for each:
+content and the prepared maps. Encoding rules, one place for each (as built in S2 with insertion order and references
+by path, see §1.4 "Status after S2"):
 
 | State | Encoded as |
 |---|---|
@@ -315,6 +316,109 @@ stamped at the next tactical step; plain data inside the tactical state, so the 
   `CampaignSim.tactical`); oracle overrides (`ContractFlow.rng`, `LaptopFlow.rng`, `RecruitFlow.reservedSoldierSlot`);
   the server's `Session` driver and real-time carry and the history-dependent `WorldCache` (§1.3); the output queues
   above.
+
+**Status after S2 (2026-10-18).** Rows 4–7, 10 and 13 are done and §1.3's codec and restore path exist; behaviour is
+unchanged (unit, scenario, original-data tests, the full oracle compare and the end-to-end tests). As built, the codec
+keeps two things §1.3 planned differently: map and set entries keep their insertion order and plain objects keep their
+key order (the roster's iteration order is hire order and a rehire reuses a lower soldier id, so sorting would change
+outcomes; a restored object must be a replica so that events re-emitted from restored state, such as the tactical event
+buffer, serialize to the same bytes; equal histories still give equal bytes), and pointers are references to the first
+occurrence of the object rather than per-field ids (the sections are ordered so that the first occurrence is the home
+collection, which makes a reference read like the planned id).
+
+*Codec* (`src/sim/snapshot/`, DOM-free and deterministic):
+
+| File | Content |
+|---|---|
+| `codec.ts` | generic graph codec: ordered named sections, tags for what JSON cannot hold, references, externals, class codecs, loud failures |
+| `refs.ts` | content index: every object reachable from the named content roots, keyed by its first path in a deterministic walk, merged per root set and cached per content object (row 13) |
+| `world.ts` | class codecs (`Rng`, `PreRandom`, `WorldStructures`, `MovementCosts`), the loaded world's content roots, light templates by name |
+| `session.ts` | `snapshotCampaign`, `snapshotTactical`, `restoreCampaign`, `restoreTactical`, `migrateSnapshot`, `reseedMain` |
+| `base64.ts` | base64 over byte buffers |
+
+| State | Written as |
+|---|---|
+| plain objects, arrays, strings, booleans, finite numbers | JSON; object keys in their order; `-0`, `NaN`, `±Infinity` as `{"$num": "-0"}` etc.; `undefined` as `{"$undefined": true}`; arrays with holes as `{"$sparse": length, "$e": [[index, value], …]}` |
+| typed arrays | `{"$u8": "<base64>"}` (`$i8`, `$u8c`, `$i16`, `$u16`, `$i32`, `$u32`, `$f32`, `$f64`), little-endian bytes; a view into a larger buffer is refused |
+| `Map`, `Set` | `{"$map": [[key, value], …]}`, `{"$set": […]}` in insertion order |
+| an object reached again (aliasing, cycles) | `{"$ref": "<path of its first occurrence>"}`, JSON-pointer segments (`~0`, `~1`) joined by `/`; map entries are `<map>/<i>/0` and `<map>/<i>/1`, sparse elements their real index |
+| soldiers, world items, light sprites, bullets | bodies in the sections `soldiers` (`t.soldiers`), `items` (`t.worldItems`), `lights` (`t.lighting.sprites`) and `bullets`, written before `strategic` and `tactical`, so a pointer reads `{"$ref": "soldiers/5"}`, `{"$ref": "items/3"}`, `{"$ref": "lights/12"}`; a soldier object that is not `t.soldiers[id]` (the stale object `registeredInTactical` guards against) keeps its own body, and a registered roster soldier is written once with both references re-linked |
+| structure instances | bodies in the per-tile lists of the `world` section; a pointer reads `{"$ref": "world/structures/lists/<gridNo>/<index>"}` |
+| content objects | `{"$x": n}` into the snapshot's `externals` table of keys such as `content/animStructures/3/2/structures/5`, `world.tiles/399/structure`, `light/L-R03.LHT`; roots: `content`, `strategic`, `army`, `economy`, `merchants`, `laptop`, `dialogueProfiles`, `narrative` (the caller's content) and `world.map` (without its door table), `world.tiles`, `world.tables`, `world.level`, `world.terrain`, `world.doorCosts` (the loaded world) |
+| `Rng`, `PreRandom` | `{"$rng": [s0, s1, s2, s3]}`; `{"$pre": {"index", "refill", "ring"}}` with the refill linked to `rng`; every cosmetic stream is an `Rng` in the state |
+| the loaded world | the `TacticalWorld` in section `world`: content parts as externals, `{"$structures": {heights, lists, nextId}}` (`WorldStructures.toSnapshot()`: per-tile lists in order with ids, flags, hit points and cached heights, and the id counter), `{"$costs": …}` (`MovementCosts.toSnapshot()`, the table as written; tests compare it with a recompile of the restored world), the exit grid set; the door table (`t.world.mapDoors`) and the door status are plain maps |
+| hooks | not written: `hooks`, `perceptionHooks`, `turnHooks`, `sectorHooks`, `experienceHooks`, `narrative`, `scheduleClock`; `pathEnv` is written as its settings (`showAllMercs`, `autoBandage`, the search counter) and rebuilt by `createPathEnv` |
+
+A function, any class instance without a codec (the oracle's autoresolve `ReplayStream`, a `Date`), a bigint, a
+null-prototype object or a key starting with `$` fails with its path (`SnapshotError: a Foo instance cannot be written
+at strategic/battle/autoresolve/rng/main`). The snapshot root is `{format: 'ja2-node-snapshot', version: 1, kind:
+'campaign' | 'tactical', mapPath, graph: {externals, sections}}`; `migrateSnapshot` checks the format and the version and
+runs a migration table that is empty for version 1. Sections: `world`, `lights`, `items`, `soldiers`, `bullets` (with a
+loaded sector), `rng`, `strategic` (campaign), `tactical`.
+
+*Restore.* `restoreCampaign(snapshot, {content, world, assemble})`: the caller gives the loaded sector's world (only its
+content parts are used; structures, costs and exit grids come from the snapshot), the graph is decoded against the
+content index, `TacticalSim.restore` re-installs the sim's hooks around the decoded state, the caller's `assemble` builds
+the campaign around the decoded strategic state with `CampaignSim.restore` (`assembleCampaign(..., {construction:
+'restore', tactical, worlds})`, `assembleImportedCampaign(..., 'restore')`), and `SectorFlow.reattachLoadedSector()`
+re-installs the sector hooks. The init list, edgepoints, schedules and everything else in the state are restored as
+written, never recomputed. `reseedMain(state, seed)` restores the main stream in place from a seed (`Rng.restore`), so
+the tactical layer and the `PreRandom` refill keep following it while the ring repeats: the player load of §1.5 for S3.
+
+*Server* (`src/server/session-snapshot.ts`, no files and no API yet): `snapshotSession(sim)` returns
+`{session: 'campaign' | 'imported' | 'sandbox', preparedMaps, sim}`, where `preparedMaps` are the world cache's prepared
+paths in order (a step may load a sector, so the cache is history-dependent); `restoreSession(snapshot, read, exists,
+options)` loads the content freshly (`loadCampaignParts`, `loadImportParts`), prepares the same maps, builds the loaded
+sector's world (from the cache when it was prepared, otherwise outside it, as a native import does) and calls
+`restoreSessionFrom(snapshot, inputs)`, the synchronous part the tests drive. `CampaignSession.origin` records how a
+campaign was built and its content; `WorldCache.preparedPaths()` and `fork(paths)` serve the snapshot and the test
+harness. The import's assembly moved into `assembleImportedCampaign`, shared by `createSaveSession` and the restore; its
+roster combat context uses the off-map context when no sector is loaded instead of the first imported sector's dead
+state (the fields that differ are not read off the map: `processUpdateStats` requires `placed`).
+
+*Rows.* Row 4: the pointer graph is re-linked by the codec; `hostileQuoteList`, `aiList` and `intList` stay soldier
+references, since they already read `soldiers/<id>` in a snapshot and converting them would touch the turn and AI code
+without changing the file. Row 5: `toSnapshot()`/`fromSnapshot()` on `WorldStructures` and `MovementCosts`; exit grids
+and the door table are plain state. Row 6: content keys. Row 7: shared maps and sets re-link like any shared object.
+Row 10: autoresolve cells keep soldier pointers re-linked by path; only the default streams can be written. Row 13:
+content indexes and light templates are derived caches. Group sector defaults were one module constant (`NO_SECTOR`)
+shared by many groups, so a restored campaign held copies while new groups held the constant and the aliasing differed
+after a reload; each group now gets its own empty sector (no group sector object is mutated in place). Rule: state never
+references a module-level constant object.
+
+*Tests.* `src/sim/snapshot/codec.test.ts` (special values, holes, typed arrays, map and set order, aliasing and cycles,
+key order, streams, content keys, loud failures, versions, base64); `src/sim/snapshot/session.test.ts` (a turn-based
+battle restored with bullets and then a grenade in flight; snapshots between inputs change nothing; the restored world
+and the state shared by the two layers are re-linked, `registeredInTactical` holds, the cost table equals a recompile;
+reseeding); `src/server/session-snapshot.test.ts` (the sandbox, a new campaign from the laptop to the landing, a landed
+squad through a sector change, the asynchronous restore with fresh content; on original data the sandbox, a landed new
+campaign and every native save import, with and without a world cache, each continued 300 ticks). Reload at every
+boundary: `tests/support/reload.ts` (`driven`, `expectReloadsInvisible`, `advance`, `reloadPoint`, `RUN_MODES`),
+`tests/support/session-reload.ts` (`drivenSession`, `ReloadingSession`) and `createTestCampaign(kit, {mode})`. A driven
+sim is snapshotted and restored into a fresh sim (and snapshotted again to check the round trip) before a command when it
+was stepped since the last reload, after every command, and after every `advance` of the support module or of a
+`ReloadingSession`; it records the raw JSON of every command result and drained event batch, and
+`expectReloadsInvisible(scenario)` runs a scenario plain and reloaded and compares the event log and the final snapshot
+byte for byte. The battle, shop, helicopter, meanwhile, creature, schedule, sector, talk, give, recruit, surrender,
+boxing, interrogation, endgame and shop-stub scenarios run that way; `JA2_RELOAD=1 pnpm test` reloads every test campaign
+and driven session after every input, and the whole suite passes. A test must look state up again after an input
+instead of holding objects across it, and `reloadPoint` belongs at input boundaries, not right after a direct flow call
+whose events still sit in a flow buffer.
+
+*Measured* (2026-10-18, Node 24 on an 8-core desktop shared with other jobs; gzip is fflate's default level):
+
+| State | Raw | Gzip (time) | Snapshot + stringify | Parse + restore |
+|---|---|---|---|---|
+| largest stub state: a landed squad or a battle in A9 | 2.3 MiB | 41 KiB (33 ms) | 33 ms | 60–75 ms |
+| largest original-data import (`SaveGame10.sav`) | 4.1 MiB | 144 KiB (89 ms) | 81 ms; 171 ms for the first snapshot of a session (content index) | 57 ms; 259 ms with content loading and map preparation |
+
+In the import the strategic section is 1.6 MiB (merchant inventories are most of it), the world 1.2 MiB (the base64 cost
+table is 0.55 MiB, the rest the structure lists), the tactical section 0.85 MiB (its typed arrays) and the soldiers
+0.3 MiB. A reload in the test harness (snapshot, parse, restore, snapshot again) costs about 0.1 s on stubs.
+
+*Left for S3.* The file (header, gzip, content identity), the input log and replay, the save rules and autosave, the
+API and events, player loads through `reseedMain`, the `presentation` block. A snapshot carries neither the server
+`Session`'s driver and real-time carry nor the undrained output queue (drained before saving, as §1.3 says).
 
 ### 1.5 Random streams on load
 
