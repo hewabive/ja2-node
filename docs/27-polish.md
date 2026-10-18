@@ -1669,7 +1669,14 @@ ja2-node does not port, deviations "Watchdogs"; 14–16 decided and fixed on 202
     the manner of "Melee hold leaks" (14: no prone return while a melee attack plays; 15: the pause does not freeze a
     special move), or porting the deadlock breaker on the sim clock. Recommended: the deviations, so that a hang stays
     a test failure.
-17. *Gaps seen while tracing (no stall found)*: `HandleSystemNewAISituation` is still the no-op `newAiSituation` hook in
+17. *Gaps seen while tracing (no stall found)* (fixed: all ported, the oracle compare unchanged. The `newAiSituation`
+    hook is `HandleSystemNewAISituation`; the door continuation, which called the same no-op hook, now calls
+    `CancelAIAction` as `Soldier_Ani.cc:1849-1855` does; `stopMerc` is the whole `EVENT_StopMerc`; `handleSoldierAI`
+    returns on `fGettingHit` and opcode 480 clears it. Two more gaps of the class: `SoldierCollapse` tested the
+    PC-under-AI flag instead of `SOLDIER_UNDERAICONTROL` before ending the AI turn (`:8047`), and an interrupt at the
+    final tile did not drop the pending action (`Overhead.cc:1826-1830`). Tests: `ai/system-situation.test.ts`,
+    `ai/getting-hit.test.ts`, `movement.test.ts`, `animation.test.ts`): `HandleSystemNewAISituation` is still the no-op
+    `newAiSituation` hook in
     turn-based combat too (`10` §10 planned it active; `Soldier_Control.cc:8774-8817`): AI throws, turns to shoot and
     pending animations are not cancelled at the end of a stance change, a door opening, a turn's look or a new tile;
     `stopMerc` does not release a turn to shoot nor reset `fTurningFromPronePosition`, the pending direction and the

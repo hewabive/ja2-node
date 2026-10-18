@@ -552,7 +552,7 @@ export function soldierCollapse(t: TacticalState, s: Soldier): void {
       break;
     }
   }
-  if (s.team === Team.ENEMY && t.inCombat && s.underAiControl) t.hooks.endAiGuysTurn(t, s);
+  if (s.team === Team.ENEMY && t.inCombat && s.aiTurnControl) t.hooks.endAiGuysTurn(t, s);
 }
 
 function setSpecialMovePath(t: TacticalState, s: Soldier, steps: number, destination: number, state: number): void {

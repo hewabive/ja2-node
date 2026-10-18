@@ -497,7 +497,7 @@ function continueAfterDoor(t: TacticalState, s: Soldier): boolean {
   if (!END_OPEN_DOOR_STATES.includes(name) || s.endDoorOpenCode !== 1) return false;
   s.endDoorOpenCode = 2;
   getNewSoldierPath(t, s, s.finalDestination, s.uiMovementMode);
-  if (!hasAnimFlag(t.content, s.state, AnimFlags.MOVING) && s.absoluteFinalDestination !== -1) t.hooks.newAiSituation(t, s);
+  if (!hasAnimFlag(t.content, s.state, AnimFlags.MOVING) && s.absoluteFinalDestination !== NOWHERE) t.turnHooks.cancelAIAction(t, s);
   return true;
 }
 
@@ -692,7 +692,7 @@ function playsMeleeAttack(t: TacticalState, s: Soldier): boolean {
   return MELEE_ATTACK_STATES.includes(t.content.animations.controls[s.state]?.id ?? '');
 }
 
-const TurningFromProne = { OFF: 0, ON: 1, START_UP_FROM_MOVE: 2, ENDING_UP_FROM_MOVE: 3 } as const;
+export const TurningFromProne = { OFF: 0, ON: 1, START_UP_FROM_MOVE: 2, ENDING_UP_FROM_MOVE: 3 } as const;
 const isVehicleBody = (s: Soldier) => s.bodyType >= 22 && s.bodyType <= 27;
 const isTankBody = (s: Soldier) => s.bodyType === 23 || s.bodyType === 24;
 

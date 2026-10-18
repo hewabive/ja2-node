@@ -1,15 +1,17 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent, testDoorCosts } from '../../../tests/support/tactical.ts';
 import { Orientation } from '../../content/formats/jsd.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
 import { StructureFlags, type WorldStructures } from '../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../content/world/synthetic.ts';
 import { Rng } from '../../core/rng.ts';
-import { initNewSoldierAnim, states } from './animation.ts';
+import { initNewSoldierAnim, states, TurningFromProne } from './animation.ts';
+import { eventFireSoldierWeapon } from './combat/attack.ts';
 import type { TacticalContent } from './content.ts';
-import { getNewSoldierPath, moveMerc, setSoldierDestination, setSoldierPosition } from './movement.ts';
+import { getNewSoldierPath, handleAtNewGridNo, moveMerc, setSoldierDestination, setSoldierPosition, stopMerc } from './movement.ts';
 import { executeOverhead } from './overhead.ts';
-import { createSoldier, type Soldier, Team } from './soldier.ts';
+import { createSoldier, NO_PENDING_DIRECTION, type Soldier, Team } from './soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState, whoIsThere } from './state.ts';
 
 const doorCosts = testDoorCosts();
@@ -160,5 +162,54 @@ describe('walking', () => {
     expect(getNewSoldierPath(t, s, gridNo(80, 77), s.uiMovementMode)).toBe(true);
     runUntilStill(t, 100_000);
     expect(s.gridNo).toBe(gridNo(80, 77));
+  });
+});
+
+describe('stopping a soldier in combat', () => {
+  function shooterTurningAway() {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 88), Direction.SOUTH);
+    sim.lookAround();
+    eventFireSoldierWeapon(t, enemy, merc.gridNo);
+    expect(enemy.turningToShoot).toBe(true);
+    expect(t.turn.attackBusyCount).toBe(1);
+    return { t, enemy };
+  }
+
+  it('releases a turn to shoot and clears the prone turn, the pending direction and the pending action', () => {
+    const { t, enemy } = shooterTurningAway();
+    enemy.turningFromPronePosition = TurningFromProne.ON;
+    enemy.pendingDirection = Direction.EAST;
+    enemy.pendingTalk = 5;
+    stopMerc(t, enemy);
+    expect(enemy.turningToShoot).toBe(false);
+    expect(t.turn.attackBusyCount).toBe(0);
+    expect(enemy.turningFromPronePosition).toBe(TurningFromProne.OFF);
+    expect(enemy.pendingDirection).toBe(NO_PENDING_DIRECTION);
+    expect(enemy.pendingTalk).toBeNull();
+  });
+
+  it('keeps the pending direction and action of a soldier waiting for a tile', () => {
+    const { t, enemy } = shooterTurningAway();
+    enemy.pendingDirection = Direction.EAST;
+    enemy.pendingTalk = 5;
+    enemy.delayedMovement = 1;
+    stopMerc(t, enemy);
+    expect(enemy.pendingDirection).toBe(Direction.EAST);
+    expect(enemy.pendingTalk).toBe(5);
+  });
+
+  it('drops the pending action of a soldier interrupted on his final tile only', () => {
+    const { t, enemy } = shooterTurningAway();
+    t.hooks = { ...t.hooks, atNewGridNo: () => true };
+    enemy.pendingTalk = 5;
+    enemy.finalDestination = gridNo(80, 90);
+    handleAtNewGridNo(t, enemy);
+    expect(enemy.pendingTalk).toBe(5);
+    enemy.finalDestination = enemy.gridNo;
+    handleAtNewGridNo(t, enemy);
+    expect(enemy.pendingTalk).toBeNull();
   });
 });

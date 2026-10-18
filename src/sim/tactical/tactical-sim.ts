@@ -26,6 +26,7 @@ import {
 } from './ai/control.ts';
 import { checkForChangingOrders, decideAlertStatus, setNewSituation } from './ai/decide.ts';
 import { endTimedAiPause } from './ai/pause.ts';
+import { handleSystemNewAISituation } from './ai/system-situation.ts';
 import { endAIGuysTurn, startNPCAI } from './ai/turn-based.ts';
 import {
   AnimHeight,
@@ -223,6 +224,7 @@ function installTacticalHooks(t: TacticalState, ai: AiControl): void {
   t.hooks = sightHooks({
     ...t.hooks,
     collapse: soldierCollapse,
+    newAiSituation: handleSystemNewAISituation,
     opcode: (state, s, code) =>
       attackOpcode(state, s, code) ??
       deathOpcode(state, s, code) ??

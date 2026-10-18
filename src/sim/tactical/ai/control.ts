@@ -606,6 +606,7 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
     ai.counter = t.clockMs + AI_DELAY;
   }
   ai.handleEveryFrame = false;
+  if (s.gettingHit) return;
   if (boxingIdlesNonBoxers(t) && !s.boxer) {
     endAIGuysTurn(t, s, control);
     return;

@@ -19,7 +19,9 @@ import {
   setSoldierDirection,
   soldierGotoStationaryStance,
   states,
+  TurningFromProne,
 } from './animation.ts';
+import { reduceAttackBusyCount } from './combat/barrier.ts';
 import { MOVE_SIN_COS } from './constants.ts';
 import { DIRECTION_INCREMENT, Direction } from './directions.ts';
 import { interactWithDoorAt } from './doors/door-actions.ts';
@@ -27,6 +29,7 @@ import { toggleDoorAt } from './doors.ts';
 import { assassinStepsCloseToPc } from './narrative/assassin-approach.ts';
 import { handleEscortArrival } from './narrative/escort-arrival.ts';
 import { findBestPath, isWater, MAX_PATH_LIST_SIZE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
+import { removePendingAction } from './pending-action.ts';
 import { addMercStructure, removeMercStructure } from './person-structure.ts';
 import { AP, actionPointCost, deductPoints, doorTravelCost, enoughPoints, type PointsContext, terrainBreathPoints } from './points.ts';
 import { handleWaitActionOnArrival } from './sector-exit.ts';
@@ -141,10 +144,12 @@ export function setSoldierPosition(t: TacticalState, s: Soldier, g: number, opti
 
 export function stopMerc(t: TacticalState, s: Soldier): void {
   if (!s.delayedMovement) {
-    s.pendingAnimation = -1;
-    s.pendingMelee = null;
+    s.pendingAnimation = NO_PENDING_ANIMATION;
+    s.pendingDirection = NO_PENDING_DIRECTION;
+    removePendingAction(t, s);
   }
   s.endDoorOpenCode = 0;
+  s.turningFromPronePosition = TurningFromProne.OFF;
   s.pathIndex = 0;
   s.pathSize = 0;
   s.delayedMovement = 0;
@@ -154,6 +159,10 @@ export function stopMerc(t: TacticalState, s: Soldier): void {
   s.destY = Math.trunc(s.y);
   setSoldierDirection(t, s, s.direction);
   if (hasAnimFlag(t.content, s.state, AnimFlags.MOVING)) soldierGotoStationaryStance(t, s);
+  if (s.turningToShoot) {
+    s.turningToShoot = false;
+    reduceAttackBusyCount(t, s, false);
+  }
   unmarkMovementReserved(t, s);
 }
 
@@ -441,8 +450,9 @@ export function handleAtNewGridNo(t: TacticalState, s: Soldier): boolean {
   if (interrupted) {
     adjustNoAPToFinishMove(s, true);
     keepMoving = false;
-    s.pendingAnimation = -1;
-    s.pendingDirection = -1;
+    s.pendingAnimation = NO_PENDING_ANIMATION;
+    s.pendingDirection = NO_PENDING_DIRECTION;
+    if (s.gridNo === s.finalDestination) removePendingAction(t, s);
     t.turn.interruptOccurred = false;
     if (pause?.enemy === s) {
       s.pauseAllAnimation = false;

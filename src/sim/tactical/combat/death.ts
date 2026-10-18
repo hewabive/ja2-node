@@ -502,6 +502,7 @@ export function deathOpcode(t: TacticalState, s: Soldier, code: number): OpOutco
       return 'continue';
     case 480:
       releaseSoldiersAttacker(t, s);
+      s.gettingHit = 0;
       return 'continue';
     case 496:
       changeSoldierState(t, s, s.oldState, s.oldPc);

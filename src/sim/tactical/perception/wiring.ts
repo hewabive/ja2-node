@@ -26,7 +26,7 @@ function pendingMeleeAttack(t: TacticalState, s: Soldier): boolean {
   return PENDING_MELEE_ATTACKS.includes(t.content.animations.controls[s.pendingAnimation]?.id ?? '');
 }
 
-function returnThrownObject(t: TacticalState, s: Soldier): void {
+export function returnThrownObject(t: TacticalState, s: Soldier): void {
   const thrown = s.tempObject;
   if (thrown) autoPlaceObject(soldierInventoryContext(t, s), s, thrown);
   s.tempObject = null;
