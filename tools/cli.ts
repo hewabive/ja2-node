@@ -31,12 +31,20 @@ const { values, positionals } = parseArgs({
     profile: { type: 'boolean' },
     calls: { type: 'boolean' },
     'save-baseline': { type: 'boolean' },
+    server: { type: 'string' },
+    token: { type: 'string' },
+    port: { type: 'string' },
+    verbose: { type: 'boolean' },
+    trace: { type: 'boolean' },
+    'stop-after': { type: 'string' },
+    'no-reload': { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
   },
 });
 
 const USAGE = `usage: pnpm cli inspect <command> [--data DIR] [--stubs DIR]
        pnpm cli bench <scenario|all> [options]   (pnpm cli bench --help)
+       pnpm cli campaign [--seed N] [options]       play a stub campaign through MCP (pnpm cli campaign --help)
        pnpm cli replay <save name> [--data DIR] [--stubs DIR]
                               re-run the input log of a ja2-node save ($JA2_SAVE_DIR, default .ja2/saves)
                               from its origin and compare the result with the save, byte for byte
@@ -95,6 +103,24 @@ async function bench(scenario: string | undefined): Promise<void> {
   });
 }
 
+async function campaign(): Promise<void> {
+  const { CAMPAIGN_USAGE, runCampaign } = await import('./campaign-bot/main.ts');
+  if (values.help) {
+    console.log(CAMPAIGN_USAGE);
+    return;
+  }
+  process.exitCode = await runCampaign({
+    seed: values.seed,
+    server: values.server,
+    token: values.token,
+    port: values.port,
+    verbose: values.verbose,
+    trace: values.trace,
+    stopAfter: values['stop-after'],
+    noReload: values['no-reload'],
+  });
+}
+
 async function replay(name: string | undefined): Promise<void> {
   if (!name) {
     console.log(USAGE);
@@ -109,6 +135,7 @@ async function main(): Promise<void> {
   const [group, cmd, arg] = positionals;
   if (group === 'bench') return bench(cmd);
   if (group === 'replay') return replay(cmd);
+  if (group === 'campaign') return campaign();
   if (values.help || group !== 'inspect' || !cmd) {
     console.log(USAGE);
     process.exitCode = values.help ? 0 : 1;

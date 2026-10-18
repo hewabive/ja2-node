@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { armSquadWithPistols } from '../../tests/support/pistol-kit.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { ItemClass, ItemFlags } from '../content/items/items.ts';
@@ -43,6 +44,7 @@ interface Squad {
 
 async function inA10(seed: number): Promise<Squad> {
   const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
+  armSquadWithPistols(created, kit.content.items);
   const session = drivenSession(created, stubSessionSources(kit));
   Object.assign(sectorInfo(session.campaign.state.map, parseSectorString('A9')), { numAdmins: 0, numTroops: 0, numElites: 0 });
   const land = { type: 'compressTime', mode: 2 };

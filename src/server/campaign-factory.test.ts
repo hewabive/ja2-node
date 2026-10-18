@@ -22,7 +22,7 @@ describe('a new campaign session', () => {
     const session = await create(3, {});
     const view = session.view();
     expect(view.clock).toMatchObject({ day: 1, hour: 7, minute: 0 });
-    expect(view.strategic).toMatchObject({ flow: 'tactical', worldSector: 'A9', balance: 25640 });
+    expect(view.strategic).toMatchObject({ flow: 'tactical', worldSector: 'A9', balance: 17660 });
     expect(view.mapPath).toBe('stubs/world/maps/a9.dat');
     expect(view.soldiers.filter((s) => s.team === Team.OUR)).toHaveLength(4);
     expect(view.strategic?.mercs.every((m) => m.sector === 'A9' && m.squad === 0)).toBe(true);
@@ -33,7 +33,7 @@ describe('a new campaign session', () => {
     const view = session.view();
     expect(view.mapPath).toBeNull();
     expect(view.clock).toMatchObject({ day: 1, hour: 1 });
-    expect(view.strategic).toMatchObject({ flow: 'strategic', worldSector: null, balance: 24220 });
+    expect(view.strategic).toMatchObject({ flow: 'strategic', worldSector: null, balance: 19900 });
     expect(view.strategic?.mercs).toHaveLength(2);
     const land = { type: 'compressTime', mode: CompressMode.MIN5 };
     await session.prepare(land);

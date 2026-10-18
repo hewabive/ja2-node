@@ -75,6 +75,10 @@ test('an MCP agent gives the stub NPC a magazine he keeps and a pistol he hands 
   expect(await act({ type: 'move', soldier: leader.id, to: NEAR_NPC, mode: 'walk' })).toMatchObject({ ok: true });
   await call('advance', { session, idle: true });
 
+  const armed = (await squad()).find((s) => s.id === leader.id);
+  const sidearm = armed?.inventory?.find((o) => o.item === 'GLOCK_17');
+  if (!sidearm) throw new Error('no sidearm');
+  expect(await act({ type: 'moveItem', soldier: leader.id, from: sidearm.slot, to: 'hand' })).toMatchObject({ ok: true });
   const me = (await squad()).find((s) => s.id === leader.id);
   const clips = me?.inventory?.find((o) => o.item === 'CLIP9_15');
   if (!clips) throw new Error('no magazines');

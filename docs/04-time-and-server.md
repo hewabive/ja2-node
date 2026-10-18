@@ -546,7 +546,7 @@ reloads the world when the loaded sector changes.
 
 The campaign runs in flows: `tactical` (the loaded sector steps in real time or turns), `strategic` (the map screen: the
 world clock runs, compressed on request, the loaded sector, if any, is frozen) and `autoresolve` (`docs/19` §5.2).
-`mapScreen` and `tacticalScreen` switch between the first two like the original's screen toggle. A strategic `advance`
+`mapScreen` and `tacticalScreen` switch between the first two like the original's screen toggle. `enterSector` on the sector that is already loaded (and the pre-battle `enterSector` answer for it) switches back to the tactical flow at normal speed, like the map screen's button for the current sector. A strategic `advance`
 (`worldTime`, `worldSeconds`, `compressionStopped`, `mode`; `docs/15` §6) is refused in tactical unless it has a time
 target, and compression is refused while the loaded sector holds enemies (`AllowedToTimeCompress`). `route` checks
 `CanEntireMovementGroupMercIsInMove` first, so the squad cannot leave the start sector before it is cleared.

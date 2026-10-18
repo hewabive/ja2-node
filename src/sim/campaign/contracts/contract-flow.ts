@@ -51,6 +51,7 @@ import type { ContractState, PendingEnding } from './contract-state.ts';
 import { mercComplainAboutEquipment, mercDailyUpdate } from './daily.ts';
 import {
   beginRemoveMercFromContract,
+  canBeRemovedFromContract,
   type DepartureChoice,
   departureOptions,
   handleEquipmentLeft,
@@ -412,14 +413,19 @@ export class ContractFlow implements ContractContext {
     if (!option) return { ok: false, reason: "choose 'day', 'week', 'twoWeeks', 'dismiss' or 'letGo'" };
     if (!option.enabled) return { ok: false, reason: option.reason ?? 'that choice is disabled' };
     this.state.battle.prompt = null;
+    const seq = this.contracts.renewal;
+    if ((choice === 'dismiss' || choice === 'letGo') && seq.fromSequence && !canBeRemovedFromContract(m)) {
+      endCurrentContractRenewal(seq);
+      return { ok: true };
+    }
     if (choice === 'dismiss') {
-      if (!this.contracts.renewal.fromSequence) this.#closeMessageBox();
+      if (!seq.fromSequence) this.#closeMessageBox();
       m.contract.leaveHistoryCode = HistoryCode.MERC_FIRED;
       beginRemoveMercFromContract(this, m);
       return { ok: true };
     }
     if (choice === 'letGo') {
-      if (this.contracts.renewal.fromSequence) beginRemoveMercFromContract(this, m);
+      if (seq.fromSequence) beginRemoveMercFromContract(this, m);
       return { ok: true };
     }
     const result = mercContractHandling(this, m, choice as ExtensionChoice);

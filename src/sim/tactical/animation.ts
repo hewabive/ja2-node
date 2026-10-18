@@ -456,7 +456,9 @@ function handleEndOfAnimation(t: TacticalState, s: Soldier): void {
     s.desiredHeight = NO_DESIRED_HEIGHT;
     if (s.changingStanceDueToSuppression) {
       s.changingStanceDueToSuppression = false;
+      const ending = s.state;
       reduceAttackBusyCount(t, s.suppressor, false);
+      if (s.changingStanceDueToSuppression && s.state !== ending) return;
     }
     if (hasAnimFlag(content, s.state, AnimFlags.STANCECHANGEANIM)) {
       t.hooks.stanceChanged(t, s);

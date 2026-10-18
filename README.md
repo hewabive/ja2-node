@@ -145,6 +145,7 @@ itself. The Vite proxy adds the token, so it never appears in page code.
 | `pnpm cli inspect save <file.sav>` | Summarise a native savegame: sector, time, combat state, soldiers |
 | `pnpm cli bench <scenario\|all>` | Benchmarks (enemy turn, real time, strategic, autoresolve, server, campaign, save): one JSON line per variant, `--profile`, `--calls`; see `docs/27` §7 |
 | `pnpm cli replay <name>` | Re-run the input log of a ja2-node save from its origin and compare the result with the save |
+| `pnpm cli campaign --seed N` | Play a stub campaign through MCP alone, from the new game to the Queen's death, with an exact and a player reload on the way; one JSON summary line (days, battles, mercs lost, outcome); see `docs/27` §6.7 |
 
 The original-data test runs only when `JA2_DATA_DIR` is set.
 

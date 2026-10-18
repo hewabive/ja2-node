@@ -197,7 +197,19 @@ const Op = {
   DEAD: 440,
   PREVIOUS: 496,
   LIFE_ZERO: 465,
+  LOCK_N_LOAD: 708,
+  RESUME_FIRE: 476,
 } as const;
+
+const UNJAM_STATES = [
+  'STANDING_SHOOT_UNJAM',
+  'CROUCH_SHOOT_UNJAM',
+  'PRONE_SHOOT_UNJAM',
+  'STANDING_SHOOT_DWEL_UNJAM',
+  'CROUCH_SHOOT_DWEL_UNJAM',
+  'PRONE_SHOOT_DWEL_UNJAM',
+  'STANDING_SHOOT_LOW_UNJAM',
+] as const;
 
 const STANCES = ['STAND', 'CROUCH', 'PRONE'] as const;
 const LOOPS = [
@@ -284,6 +296,7 @@ function combatScripts(t: Parameters<typeof stateId>[0]): Map<string, number[]> 
     Op.IMPROPER_END,
     to(aim),
   ];
+  for (const name of UNJAM_STATES) m.set(name, [1, Op.LOCK_N_LOAD, ...frames(6, 2), NONINTERRUPTIBLE_DONE, Op.RESUME_FIRE]);
   m.set('STANDING_BURST', burst('AIM_RIFLE_STAND', 0));
   m.set('CROUCHED_BURST', burst('AIM_RIFLE_CROUCH', 0));
   m.set('PRONE_BURST', burst('AIM_RIFLE_PRONE', 0));

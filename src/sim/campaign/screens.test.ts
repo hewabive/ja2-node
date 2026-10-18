@@ -45,6 +45,15 @@ describe('map and tactical screens', () => {
     expect(c.state.flow).toBe('tactical');
   });
 
+  it('enters the loaded sector from the map screen into the tactical screen', () => {
+    const c = landed(0);
+    expect(c.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+    expect(c.dispatch({ type: 'compressTime', mode: CompressMode.MIN30 })).toEqual({ ok: true });
+    expect(c.dispatch({ type: 'enterSector', sector: 'A9' })).toMatchObject({ ok: true, data: { sector: 'A9' } });
+    expect(c.state.flow).toBe('tactical');
+    expect(c.state.clock.mode).toBe(CompressMode.X1);
+  });
+
   it('lets a cleared sector wait on the map while the tactical world stays frozen', () => {
     const c = landed(0);
     const tacticalClock = c.tactical?.state.clockMs;

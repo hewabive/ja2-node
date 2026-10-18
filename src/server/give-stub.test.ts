@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { armSquadWithPistols } from '../../tests/support/pistol-kit.ts';
 import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
@@ -32,6 +33,7 @@ const Quote = { FIRST_MEETING: 10, FIRST_MEETING_2: 11, NO_USE: 4, ROUNDS: 25, M
 
 async function inA10(seed: number, mode?: RunMode): Promise<{ session: CampaignSession; live: Session }> {
   const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
+  armSquadWithPistols(created, kit.content.items);
   const session = drivenSession(created, stubSessionSources(kit), mode);
   const start = sectorInfo(session.campaign.state.map, parseSectorString('A9'));
   start.numAdmins = 0;

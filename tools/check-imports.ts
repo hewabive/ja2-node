@@ -40,7 +40,10 @@ const RULES: Record<Layer, Rule> = {
   app: { layers: ['core', 'content', 'protocol', 'render', 'audio', 'app'], packages: [] },
   devtools: { layers: ['core', 'content', 'protocol', 'render', 'audio', 'app', 'devtools'], packages: [] },
   stubs: { layers: ['core', 'content', 'node', 'stubs'], packages: ['node:*'] },
-  tools: { layers: ['core', 'content', 'sim', 'protocol', 'node', 'server', 'stubs', 'tools'], packages: ['node:*'] },
+  tools: {
+    layers: ['core', 'content', 'sim', 'protocol', 'node', 'server', 'stubs', 'tools'],
+    packages: ['node:*', '@modelcontextprotocol/sdk/*'],
+  },
   test: {
     layers: ['core', 'content', 'sim', 'protocol', 'node', 'server', 'render', 'audio', 'app', 'devtools', 'stubs', 'tools', 'test'],
     packages: ['node:*', 'vitest', 'vitest/*', '@playwright/test', 'fflate', 'vite', 'hono', 'hono/*', 'ws', '@modelcontextprotocol/sdk/*'],

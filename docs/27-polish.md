@@ -1455,13 +1455,101 @@ labelled rectangles or simple shapes in the original layouts (`01` §4.4).
   up the ladder. Mine income, militia training and the SAM site need won tactical battles through MCP (player-initiated
   attacks cannot be autoresolved, `PreBattle_Interface.cc:450-455`), which a scripted bot without cover or focus fire
   lost at D13; the scenario test covers them through the same commands.
-- **For part B** (the end-to-end stub campaign): a battle policy that wins Drassen with Glock-armed mercs (cover, focus
-  fire, retreat and heal) or better weapons; Tony in A10 sells rifles (once his stock has them), and the inventory
-  commands (`04` §6.24) now put a bought weapon in the hand and bandage the wounded; Drassen's loyalty after C13 alone
-  refuses militia training (`loyaltyTooLow`); findings 19 (no step needed after `closeTalk` any more) and 20 (the A9
-  stall) are fixed; the palace
-  garrison (32 elites) must be fought before the Queen runs to P3 b1; the creature lairs have no way in on stubs, so
-  a sci-fi stub campaign whose creatures invade a mine cannot reach their queen (keep sci-fi off or add a way down).
+- **For part B** (the end-to-end stub campaign; what landed is §6.7): a battle policy that wins Drassen with Glock-armed
+  mercs (cover, focus fire, retreat and heal) or better weapons; Tony in A10 sells rifles (once his stock has them), and
+  the inventory commands (`04` §6.24) now put a bought weapon in the hand and bandage the wounded; Drassen's loyalty
+  after C13 alone refuses militia training (`loyaltyTooLow`); findings 19 (no step needed after `closeTalk` any more)
+  and 20 (the A9 stall) are fixed; the palace garrison (32 elites) must be fought before the Queen runs to P3 b1; the
+  creature lairs have no way in on stubs, so a sci-fi stub campaign whose creatures invade a mine cannot reach their
+  queen (keep sci-fi off or add a way down).
+
+### 6.7 What landed (slice S13 part B, 2026-10-18)
+
+- **The campaign bot** (`tools/campaign-bot/`, `pnpm cli campaign [--seed N] [--server URL --token T | --port N]
+  [--verbose] [--trace] [--stop-after STEP] [--no-reload]`): a scripted player that uses the MCP tools alone
+  (`newSession`, `status`, `observe`, `act`, `advance`, `save`, `load`, and `deleteSave` to clean up) over Streamable
+  HTTP with the SDK client (`mcp-game.ts`). It decides from the observation only, with no clock and no randomness, so a
+  seed plays the same campaign every time. Without `--server` it builds the stub pack, starts its own stub server
+  (`src/server/main.ts` with an empty `JA2_DATA_DIR`, `--port` or a free port, a random token and a temporary save
+  folder, `stub-server.ts`), stops it by its handle at the end and prints one JSON line: seed, outcome (`won`, `lost`,
+  `stuck`, `stopped`), the step and reason, days, battles, battles won, rounds, mercs lost, enemies killed, the reloads
+  and the seconds; the exit code is 0 for a won campaign.
+- **Steps** (`campaign.ts`): hire six A.I.M. mercs through the laptop (`aimQuote`, then `aimHire` with the kit; a
+  preference list, two medics, never Lasko with Vant), land in A9 and win the landing battle, outfit from Omerta's
+  stash, liberate the Drassen airport, town, mine and SAM site (B13, C13, D13, D15), talk Fred into starting the mine,
+  order medical supplies from Bobby Ray (what is in stock), buy armour and first-aid kits at Keith's, rest and heal,
+  find Skyrider at his farm, take him along (a guard joins the escort's squad) and walk him to the helipad until the
+  helicopter is set up, train militia in C13, collect the delivery, recruit for up to six days (twelve hours at a time)
+  from A.I.M. and M.E.R.C. (Speck's mail, the account, the bills paid) up to twelve mercs, march F11, J11, L8, L3 with
+  an outfit and a rest at each stop, attack M3, N3 and O3 (falling back to the previous sector after two casualties, up
+  to six attacks each), storm P3 to the stairs (`palace.ts`), go down to P3 b1, kill the Queen and advance through the
+  ending until `observe.ended`.
+- **Battle policy** (`battle.ts`, `retreat.ts`, `first-aid.ts`, `gear.ts`): in turns every merc readies his hand
+  (reload, or the best gun he has ammunition for), scores each hostile in sight with `estimateAttack` (chance to hit ×
+  chance to get through, aim clicks from the spare APs, a bonus for a target already hit: focus fire) and fires above a
+  threshold; otherwise he bandages himself when bleeding (and goes on bandaging over the next turns), holds (back within
+  six tiles of the squad's centre, prone: cover by stance) or, after rounds without our shots, pushes in swat mode
+  toward the nearest known enemy or the objective; `endTurn` after the passes. In real time the medics stop the
+  bleeding, tired mercs catch their breath, then the squad seeks the last seen enemy, the objective, a heard noise or
+  sweep points; a sector that still counts enemies nobody finds is waited on (stragglers) and then reported as `stuck`.
+  A won battle bandages every wounded merc. A retreat leaves by the edge the squad came in (`exitSector` per merc) or
+  runs back to the start tiles when half the squad is down and outnumbered, or after the casualty limit of an assault.
+  Outfitting (`outfit.ts`) goes through `inventory` and `moveItem` on the map screen: the best gun with fitting
+  magazines (four), the best vest, helmet and leggings, medical kits for the medics and a first-aid kit for everyone.
+  Healing (`heal.ts`): a merc with a medical kit doctors, the hurt are patients, the others sleep, in three-hour slices
+  until healed and rested, then everyone back on a squad (the next one when the first is full).
+- **Prompts** (`prompts.ts`): pre-battle enter the sector (autoresolve only when entering is not allowed, retreat last),
+  a surrender offer rejected, contract renewals for a week while affordable, militia payments when affordable, escort
+  requests accepted, simultaneous arrivals coordinated.
+- **Stub content changed for the path** (game design; each commit says why): role kits instead of one Glock each
+  (`d29b889`: riflemen with a MINI14, G41 or M14 and three AP magazines, two with grenades, medics with an MP5K and a
+  medical kit, a first-aid kit for all) and armour on them (`7a694f3`: Kevlar vest and steel helmet for riflemen, flak
+  jacket and steel helmet for medics and the SMG gunner) and a Glock sidearm with two CLIP9_15 (`d293cbb`, which the A10
+  stub NPC's give script and the give and talk e2e scenarios use; the last gun of a profile's kit sets its gun
+  attractiveness, `Tactical/Soldier_Profile.cc:189-199`, so the stub mercs now measure their weapons against a Glock);
+  the palace laid out so that a squad can fight its way to the stairs (`eae738e`: a west wing over the stairs with the
+  six priority elites, the optional elites in a keep far to the south-east, Derek and Oliver in the gatehouse); town and
+  camp garrisons at four posts of five instead of one block (`0f8b425`); the seven unjam animations end by resuming the
+  shot (`ad43739`, finding 26); twenty enemy slots on the wilderness map instead of six (`6a1bd6d`, finding 27).
+- **Fixes in the simulation** (each with a regression test; the oracle compare is unchanged): `enterSector` on the
+  loaded sector switches to the tactical flow (finding 23, `51b2e82`); a hit whose animation cannot start releases its
+  busy count (finding 24, `de21ae7`, deviation "Hit during a non-interruptible animation"); a suppression stance change
+  chained to the previous one plays out (finding 25, `ae51fe2`, deviation "Suppression stance change from the end of the
+  previous one"); the renewal of a merc who cannot be let go ends (finding 28, `4bf88a5`, deviation "Renewal of a merc
+  who cannot leave").
+- **Reload checks** (`reload.ts`): *exact load*: in the first battle that reaches round 2 the bot saves
+  (`campaign-bot-battle`), loads that save with `reseed: false` into a new session and from then on sends every
+  `observe`, `act` and `advance` to both sessions until the battle ends, comparing the views (without `language` and
+  `dataVersion`) and the advance reports (without the `gameSaved`/`gameLoaded` events); the summary lists the steps
+  compared and the differences, and the battle is finished in the loaded session, which the campaign then plays on.
+  *Player load*: after the Drassen mine the bot saves (`campaign-bot-player`), loads with `reseed: true` into a new
+  session and plays on there.
+- **e2e** (`tests/e2e/campaign.spec.ts`, 90 s budget): the bot against the e2e stub server through MCP, seed 3, up to
+  the end of the landing battle with the exact load at round 2: the battle is won with no merc lost, the mirrored
+  session shows no difference over more than 20 compared steps, the campaign continues in the loaded session and A9 is
+  player controlled with no enemies.
+- **Results** (2026-10-18, easy, no sci-fi, at `d293cbb`). `pnpm cli campaign --seed N` (exact load in battle 1 round 2,
+  player load after the Drassen mine; one run each):
+
+  | Seed | Outcome | Where | Day | Battles (won) | Mercs lost | Enemies killed | Exact load (steps, differences) | Seconds |
+  |---|---|---|---|---|---|---|---|---|
+  | 1 | lost | the march, at L8 | 12 | 16 (15) | 10 | 55 | 616, 0 | 113 |
+  | 2 | lost | the fourth attack on M3 | 15 | 22 (18) | 9 | 92 | 476, 0 | 190 |
+  | 3 | stuck | the fifth attack on M3: nobody left to find while M3 still counts enemies (findings 27, 31) | 15 | 23 (18) | 4 | 80 | 325, 0 | 310 |
+  | 4 | lost | the march, at L8 | 12 | 19 (18) | 10 | 82 | 232, 0 | 112 |
+
+  Every exact load matched its original session over the rest of its battle. The player load reseeds with the server's
+  entropy (§1.5), so a run after it is not reproducible; earlier runs at `2457d02` met findings 32–34 that way. Without
+  reloads a seed always plays the same campaign, the same through MCP (`--no-reload`, checked with seed 3 at `9b81f99`:
+  identical summaries) as in process. Without reloads at `d293cbb`: seed 1 lost its squad on the march at L8 (day 12,
+  19 battles, 18 won, 8 mercs lost, 83 enemies killed), seed 2 reached L3 with three mercs and lost the fourth attack
+  on M3 (day 15, 21 battles, 17 won, 9 lost, 77 killed), seed 3 lost on the march at L8 (day 12, 16 battles, 15 won),
+  seed 4 lost at M3 (day 13, 19 battles, 18 won, 10 lost, 84 killed); with the kit before the sidearm (`9b81f99`) seed 3
+  took M3 and lost the third attack on N3.
+- **Not reached**: the Queen. Drassen, the mine, Skyrider, militia and recruiting work on every seed; the squads are
+  worn down on the march and by the Meduna outskirts (finding 31). The endgame steps (`palace.ts`: storm P3 to the
+  stairs, `exitSector` down, kill the Queen, play the ending until `observe.ended`) were played in process with mercs
+  placed in O3 during this slice and reached the victory; through a full campaign they were not reached.
 
 ---
 
@@ -1982,10 +2070,12 @@ English glyph table for the stub font).
 
 ### 12.2 End to end (Playwright on stubs)
 
-- **Campaign with saves** (S13 part B, pending): through MCP alone, a stub campaign from the new game to the Queen's
-  death (the S13 stub campaign path), saving in the middle of a battle, loading it into a new session with `reseed:
-  false`, and finishing with the same outcome as without the reload. Landed meanwhile: `tests/e2e/saves.spec.ts` (a
-  save in a battle loaded exactly into a new session, three identical rounds).
+- **Campaign with saves** (S13 part B landed, §6.7; the win is not reached yet, finding 31): through MCP alone, a stub
+  campaign from the new game to the Queen's death (the S13 stub campaign path), saving in the middle of a battle,
+  loading it into a new session with `reseed: false`, and finishing with the same outcome as without the reload.
+  `tests/e2e/campaign.spec.ts` runs the campaign bot through the landing battle with the exact load and the
+  comparison; the whole campaign is `pnpm cli campaign`, run locally (minutes per seed, not on CI). Also
+  `tests/e2e/saves.spec.ts` (a save in a battle loaded exactly into a new session, three identical rounds).
 - **Launcher** (landed, `tests/e2e/launcher.spec.ts`): start a campaign with options, quick save on the tactical page,
   quick load, see the save list, download and upload a save, switch the language to Russian and see Russian labels.
 - **Media** (landed, `tests/e2e/video.spec.ts`, `sound.spec.ts`, `music.spec.ts`): the splash plays (decoded frames
@@ -2048,7 +2138,7 @@ Every scenario of §7.2 runs once in CI on stubs (sanity bounds only, §7.6).
 | **S10** Video (landed, §4.5) | `smk.ts`, the stub encoder (or fixture), the player, sequences, credits parser and scroller | S8 | the splash and the ending play on original data; stub splash in e2e |
 | **S11** Launcher (landed, §8.4) | the DOM launcher (§8.3), quick keys in the pages, client settings, export and import | S3, S5, S6, S10 | §12.2 launcher test |
 | **S12** Performance (landed: part A §7.1 "After S12a", findings 11–12; part B session hosts, §7.5) | profile-driven fixes against §7.3, `SessionHost` and `WorkerHost` | S4 (and S2 for the save scenario) | targets met or documented |
-| **S13** Stub campaign (part A landed, §6.6, findings 19–22; part B pending) | §6.3 P1 items 6–9 (part A, landed, §6.6) and the end-to-end campaign with a reload (§12.2, part B) | S3, S7 | the stub campaign is won through MCP alone with a reload in a battle |
+| **S13** Stub campaign (part A landed, §6.6, findings 19–22; part B landed, §6.7, findings 23–34) | §6.3 P1 items 6–9 (part A, landed, §6.6) and the end-to-end campaign with a reload (§12.2, part B) | S3, S7 | the stub campaign is won through MCP alone with a reload in a battle (part B: the bot, the reloads and the e2e segment landed, the win not yet, §6.7, finding 31) |
 | **S14** Release (landed: `deviations.md` grouped and checked, `01` §12, `04` §6 tidied, `docs/releases.md`; the tag is the maintainer's) | README (playing with data or stubs, connecting an agent), `deviations.md` consolidated, `01` §12 status, a version tag | all | maintainer's review |
 
 S4 and S6 can run in parallel with the save slices; everything else is sequential to avoid conflicting edits of the
@@ -2259,6 +2349,69 @@ ja2-node does not port, deviations "Watchdogs"; 14–16 decided and fixed on 202
     first-aid commands of `04` §6.24; a stub scenario buys a rifle and magazines from Tony in A10, puts the rifle into
     the hand, reloads, fires, unloads and reloads by hand, and a medic stops a merc's bleeding
     (`src/server/inventory-stub.test.ts`).
+
+**Findings of S13 part B** (2026-10-18; the stub campaign bot, `pnpm cli campaign`; 23–28 fixed with regression tests):
+
+23. *Fixed: `enterSector` on the loaded sector stayed on the map screen.* The answer `enterSector` to a pre-battle
+    prompt for the sector that is already loaded (and the command itself) re-entered the world but left the strategic
+    flow, so every tactical command was refused while the battle waited. The original's callers switch to the tactical
+    screen; ja2-node now sets the flow to `tactical` at normal speed (`src/sim/campaign/sector-flow.ts`, test
+    `screens.test.ts`, `04` §6).
+24. *Fixed: a hit during a non-interruptible animation held the busy count.* A hit raises the attack busy count and asks
+    for a hit animation, which a soldier in a non-interruptible animation drops (the Queen's `START_COWER` when combat
+    starts in P3 b1); the original's 25 s UI watchdog would release the count. The count is now released when the hit
+    animation cannot start (deviation "Hit during a non-interruptible animation", test `combat/hit-locked.test.ts`).
+25. *Fixed: a suppression stance change chained to the previous one.* The end of a stance change caused by suppression
+    releases its busy count, which can start the next stance change of the same soldier (crouch, then prone); the end of
+    the first animation then replaced the new `PRONE_DOWN` with the stationary stance and its count was never released
+    (an AI burst at a squad in E12, seed 3). Deviation "Suppression stance change from the end of the previous one",
+    test `combat/suppression-chain.test.ts`.
+26. *Fixed: the stub unjam animations never resumed the shot* (stub content). The original's seven unjam scripts end
+    with the non-interruptible release and opcode 476, which returns to the shooting animation the jam interrupted; the
+    invented stub scripts ended like any one-shot animation, so after a jam cleared by the skill check the shot never
+    came and its busy count stayed (K10, seed 4). Test `stubs/anim-scripts.test.ts`.
+27. *Fixed: patrol members counted in battle without a slot* (stub content). `AddSoldierInitListEnemyDefenceSoldiers`
+    places soldiers on the map's enemy placements only; the stub wilderness map had six, the stub campaign's patrols up
+    to nine, so the rest were counted in battle and never placed. After the battle their group kept its count and its
+    in-battle numbers, the sector showed enemies that never came, and a passing group made the bot wait for them (E13
+    seed 1, G11 seed 2). The wilderness map has twenty slots now, like the town, camp, mine and airfield maps.
+28. *Fixed: the renewal of a merc who cannot be let go repeated forever.* The renewal list is made two hours before the
+    contracts end; a listed merc captured or killed since still gets his prompt, and `letGo` or `dismiss` start nothing
+    for the dead and prisoners (`Assignments.cc:4399`), so the sequence stayed on him and the prompt came back after
+    every answer (the bot answered it 28 times after a merc was left behind in M3). Deviation "Renewal of a merc who
+    cannot leave", test `contracts/renewal-unremovable.test.ts`.
+29. *Open: a merc waiting for a tile held by a squad mate.* In real time a merc whose next tile is taken by a squad mate
+    who stopped on it waits in `HandleNextTileWaiting` without end; the bot stops him after 4000 ticks ("keeps waiting
+    for a blocked tile: stop", seen in G11 with seed 3 during the S13 runs). Not traced, and not reproduced on demand.
+30. *Open (API): own mercs' bleeding is not in the view.* The original's health bar shows how much of a merc's lost life
+    is still bleeding; `SoldierView` and the strategic merc view carry life and maximum only, so an agent learns about
+    bleeding from `soldierHit` events, the `bandaged {bleeding}` events and the `notBleeding` refusal (what the bot
+    does). Bleeding to death between contacts was the bot's largest single loss before it treated hits.
+31. *Open: the stub campaign is not won by the bot.* Everything up to the march works on every seed; the squads are lost
+    (a) on the march F11–L3 through patrol country (groups of five to eighteen meet the squad; the patrols around K7–L10
+    are twelve and thirteen strong in the strategic tables), which costs two to ten mercs, and (b) at the Meduna
+    outskirts: M3 holds twenty (`LEVEL1_DEFENCE`, a fifth elites), N3 and O3 twenty each with 55 % elites
+    (`MEDUNA_DEFENCE`), refilled while the squad regroups (N3 at 13 elites and 7 troops after two attacks, seed 3), P3
+    22 elites on easy. Calibration in process with fresh mercs placed next to the sector (AK-74, four magazines, Kevlar
+    vest and helmet, the same bot, seeds 1–4): M3 with seven or eight mercs won 4 of 4, N3 with seven 1 of 4. Not
+    changed: garrisons and patrols are the original's strategic tables, not stub content. Candidates: outskirts maps
+    with cover an attacker can use (the stub camp and town maps are open ground around their posts), a battle policy
+    that picks cover and attacks at night, a larger team (twelve A.I.M. and one M.E.R.C. profiles on stubs, fewer after
+    deaths, Puig's death rule and Lasko's hatred), Skyrider's helicopter for the march (but enemy airspace beyond the
+    Drassen strip). Repro: `pnpm cli campaign --seed 2 --no-reload` (four battles at M3, lost; with an earlier kit seed
+    3 took M3 and lost N3).
+32. *Open: a battle left with only unconscious mercs stays in combat.* After a retreat that leaves unconscious mercs
+    behind in a sector in turn-based combat, the loaded sector stays in combat and the map screen refuses `advance`
+    ("combat is in progress") until someone goes back and ends the turn; the bot then switches to the tactical screen
+    and ends turns until the combat is over (seed 4 at M3 after a player load). Not traced against the original.
+33. *Open: a squad refused to move because of a dead member.* Once, after a player load, `route` for a squad answered
+    "the squad cannot move: dead" after a won battle (D13, seed 1), so `canEntireMovementGroupMercIsInMove` found a dead
+    merc in the squad's group although a death removes the merc from his squad (`HandleStrategicDeath`); the bot now
+    removes dead mercs with `removeMerc` when it sees that refusal. Not reproduced: a run after a player load depends on
+    the server's entropy (§6.7).
+34. *Open: an enemy turn that did not end.* After a player load, in K10 against fifteen soldiers (seed 3), the enemy
+    turn after `endTurn` did not end within `advance`'s 200,000-tick budget; not reproduced (the run depends on the
+    server's entropy). The stalls found earlier in this slice were 24–26.
 
 **Verified** by reading Stracciatella (vanilla where marked): the save list, names, folders, header, keys and gates,
 `CanGameBeSaved`, the three save modes, Dead is Dead's file, backups and save points, the end-of-turn autosave and its
