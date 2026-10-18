@@ -12,6 +12,7 @@ import { Rng } from '../src/core/rng.ts';
 import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
 import { color, type RampName } from './palette.ts';
 import { IndexedRaster } from './raster.ts';
+import { loadSectorKinds, sectorKindAliases } from './sector-kinds.ts';
 import type { StubFrame, StubSprite } from './sprites.ts';
 import { STUB_TILE_SURFACES, type StubSurface } from './tiles.ts';
 
@@ -105,7 +106,7 @@ export interface StubWorldWriter {
   writeSprite(dir: string, sprite: StubSprite): Promise<string>;
 }
 
-export async function buildStubWorld(outDir: string, writer: StubWorldWriter): Promise<string[]> {
+export async function buildStubWorld(outDir: string, writer: StubWorldWriter, aliases: Map<string, string>): Promise<string[]> {
   const root = join(outDir, STUB_WORLD_DIR);
   const tables = parseTileTables(JSON.parse(await readFile(join(PROJECT_DATA_DIR, 'tables/tiles.json'), 'utf8')));
   const surfaceFiles = tables.types.map(() => '');
@@ -126,12 +127,15 @@ export async function buildStubWorld(outDir: string, writer: StubWorldWriter): P
   await mkdir(dirname(dbPath), { recursive: true });
   await writeFile(dbPath, db);
   const written = [`${STUB_WORLD_DIR}/binarydata/ja2set.dat`];
+  const compiled = new Set<string>();
   for (const file of (await readdir(MAPS_SOURCE_DIR)).filter((f) => f.endsWith('.map.txt')).sort()) {
     const source = parseStubMapSource(await readFile(join(MAPS_SOURCE_DIR, file), 'utf8'), tables);
     const name = file.replace(/\.map\.txt$/, '.dat');
     await mkdir(join(root, 'maps'), { recursive: true });
     await writeFile(join(root, 'maps', name), writeMap(stubMapToMapDef(source)));
     written.push(`${STUB_WORLD_DIR}/maps/${name}`);
+    compiled.add(name);
   }
+  for (const [alias, target] of sectorKindAliases(await loadSectorKinds(), `${STUB_WORLD_DIR}/maps`, compiled)) aliases.set(alias, target);
   return written;
 }

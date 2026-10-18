@@ -1,0 +1,94 @@
+ja2-node.map/1
+name: Stub town (a town sector: a shop, two houses and a jail block with three cells)
+tileset: 0
+origin: 70 48
+fill: land FIRSTTEXTURE 1
+legend '.': land FIRSTTEXTURE 1
+legend ':': land FIRSTTEXTURE 2
+legend ',': land SECONDTEXTURE 1
+legend '=': land THIRDTEXTURE 1
+legend 'b': land SECONDTEXTURE 2; structs FIRSTOSTRUCT 1
+legend '_': land FIRSTFLOOR 1; roofs SECONDROOF 1; room 1
+legend 'B': land FIRSTFLOOR 1; structs SECONDWALL 1; roofs SECONDROOF 1; room 1
+legend 'K': land FIRSTFLOOR 1; structs SECONDWALL 2; roofs SECONDROOF 1; room 1
+legend 'J': land FIRSTFLOOR 1; structs SECONDWALL 1; structs SECONDWALL 2; roofs SECONDROOF 1; room 1
+legend 'W': land FIRSTFLOOR 1; structs SECONDWALL 3; roofs SECONDROOF 1; room 1
+legend 'V': land FIRSTFLOOR 1; structs SECONDWALL 5; roofs SECONDROOF 1; room 1
+legend 'D': land FIRSTFLOOR 1; structs FIRSTDOOR 1; roofs SECONDROOF 1; room 1
+legend 'P': land FIRSTFLOOR 1; structs FIRSTDOOR 3; roofs SECONDROOF 1; room 1
+legend 't': land FIRSTTEXTURE 1; structs SECONDWALL 1
+legend 'w': land FIRSTTEXTURE 1; structs SECONDWALL 2
+legend 'o': land FIRSTTEXTURE 1; structs SECONDWALL 3
+legend 'y': land FIRSTTEXTURE 1; structs SECONDWALL 5
+legend 'd': land FIRSTTEXTURE 1; structs FIRSTDOOR 1
+legend 'p': land FIRSTTEXTURE 1; structs FIRSTDOOR 3
+entry: north 8 0
+entry: east 35 15
+entry: south 8 21
+entry: west 0 15
+entry: center 12 14
+door: 19 8 lock=1 locked
+door: 19 11 lock=1 locked
+door: 22 8 lock=1 locked
+light: 9 13 L-R05.LHT NIGHT
+light: 22 14 L-R05.LHT NIGHT
+soldier: ENEMY 12 5 SOUTH ONGUARD DEFENSIVE ARMY
+soldier: ENEMY 14 11 WEST ONGUARD BRAVESOLO ARMY
+soldier: ENEMY 24 4 SOUTH CLOSEPATROL AGGRESSIVE ARMY
+soldier: ENEMY 30 8 WEST STATIONARY DEFENSIVE ARMY
+soldier: ENEMY 21 9 SOUTH STATIONARY DEFENSIVE ELITE
+soldier: ENEMY 25 11 WEST STATIONARY CUNNINGSOLO ADMINISTRATOR
+soldier: ENEMY 3 15 EAST FARPATROL AGGRESSIVE ADMINISTRATOR
+soldier: ENEMY 31 16 WEST ONGUARD BRAVEAID ELITE
+soldier: ENEMY 18 3 SOUTH ONGUARD DEFENSIVE ARMY optional
+soldier: ENEMY 27 15 NORTH CLOSEPATROL BRAVESOLO ARMY optional
+soldier: ENEMY 20 19 NORTH ONGUARD CUNNINGAID ARMY optional
+soldier: ENEMY 33 4 SOUTHWEST STATIONARY DEFENSIVE ARMY optional
+soldier: ENEMY 2 8 EAST ONGUARD AGGRESSIVE ARMY optional
+soldier: ENEMY 11 21 NORTH FARPATROL BRAVESOLO ARMY optional
+soldier: ENEMY 29 18 NORTHWEST ONGUARD DEFENSIVE ADMINISTRATOR optional
+soldier: ENEMY 16 16 EAST CLOSEPATROL BRAVEAID ADMINISTRATOR optional
+soldier: ENEMY 5 20 NORTHEAST STATIONARY DEFENSIVE ADMINISTRATOR optional
+soldier: ENEMY 34 12 WEST SEEKENEMY AGGRESSIVE ELITE optional
+soldier: ENEMY 25 20 NORTH ONGUARD CUNNINGSOLO ELITE optional
+soldier: ENEMY 12 1 SOUTH ONGUARD BRAVESOLO ELITE optional
+soldier: CIV 14 3 SOUTH STATIONARY DEFENSIVE NONE
+soldier: CIV 27 3 SOUTHWEST STATIONARY BRAVESOLO NONE
+soldier: CIV 31 10 WEST STATIONARY DEFENSIVE NONE
+soldier: CIV 2 16 EAST STATIONARY DEFENSIVE NONE
+soldier: CIV 22 18 NORTH STATIONARY CUNNINGSOLO NONE
+soldier: CIV 6 13 NORTH STATIONARY DEFENSIVE NONE
+soldier: CIV 3 11 SOUTH STATIONARY DEFENSIVE NONE
+soldier: CIV 14 19 NORTH STATIONARY DEFENSIVE NONE
+soldier: CIV 2 3 EAST STATIONARY DEFENSIVE NONE profile=147
+soldier: CIV 3 3 EAST STATIONARY DEFENSIVE NONE profile=124
+soldier: CIV 4 3 EAST STATIONARY DEFENSIVE NONE profile=113
+soldier: CIV 2 4 EAST STATIONARY DEFENSIVE NONE profile=125
+soldier: CIV 3 4 EAST STATIONARY DEFENSIVE NONE profile=126
+soldier: CIV 4 4 EAST STATIONARY DEFENSIVE NONE profile=130
+soldier: CIV 2 5 EAST STATIONARY DEFENSIVE NONE profile=151
+soldier: CIV 3 5 EAST STATIONARY DEFENSIVE NONE profile=152
+soldier: CIV 4 5 EAST STATIONARY DEFENSIVE NONE profile=154
+map:
+..:....,==,.........................
+.tottt.,==,.........................
+w____K.,==,b..................:.....
+w____K.,==,..:......................
+w____P.,==,.........................
+w____K.,==,.....ttotttttott.b.......
+wBBWBJ.,==,....w___K__K___K.........
+.......,==,....w___K__K___K.........
+.ttdttb,==,....w___P__P___K.........
+w____K.,==,.:..wBBBJ__KBBBJ......:..
+w____V.,==,....w___K__K___K.........
+w____K.,==,....w___P__P___K.........
+wBBBBJ.,==,...bwBBBJBDJBBBJ..b......
+.......,==,....................:....
+,,,,,,,====,,,,,,,,,,,,,,,,,,,,,,,,,
+====================================
+====================================
+,,,,,,,====,,,,,,,,,,,,,,,,,,,,,,,,,
+.......,==,.tdtt....................
+....:..,==,w___K........:........b..
+.......,==,wBBBJ...b.........:......
+.......,==,.........................

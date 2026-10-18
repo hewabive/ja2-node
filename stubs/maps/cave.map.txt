@@ -1,0 +1,55 @@
+ja2-node.map/1
+name: Stub cave (any underground level: mine tunnels, a creature lair or a cellar; a ladder up to the surface)
+tileset: 0
+origin: 70 60
+scroll: basement
+fill: land SECONDTEXTURE 2
+legend 'c': land SECONDTEXTURE 2; structs FIRSTCLIFF 1
+legend '.': land SECONDTEXTURE 1; room 1
+legend 'r': land SECONDTEXTURE 1; objects DEBRISROCKS 2; room 1
+legend ',': land FIRSTTEXTURE 2; room 1
+legend 'b': land SECONDTEXTURE 1; structs FIRSTOSTRUCT 1; room 1
+legend 'X': land FIRSTFLOOR 1; room 1
+entry: center 5 5
+exit: 4 4 -> here z=0 at 83 67
+light: 5 5 L-R05.LHT ALWAYS
+light: 21 9 L-R05.LHT ALWAYS
+light: 14 14 L-R05.LHT ALWAYS
+soldier: CREATURE 9 3 SOUTH ONGUARD AGGRESSIVE NONE optional
+soldier: CREATURE 11 5 SOUTH ONGUARD AGGRESSIVE NONE optional
+soldier: CREATURE 7 9 SOUTH ONGUARD AGGRESSIVE NONE optional
+soldier: CREATURE 8 12 SOUTH ONGUARD AGGRESSIVE NONE optional
+soldier: CREATURE 12 14 SOUTH ONGUARD AGGRESSIVE NONE optional
+soldier: CREATURE 16 13 SOUTH ONGUARD AGGRESSIVE NONE optional
+soldier: CREATURE 20 15 SOUTH ONGUARD AGGRESSIVE NONE optional
+soldier: CREATURE 23 13 SOUTH ONGUARD AGGRESSIVE NONE optional
+soldier: CREATURE 18 6 SOUTH ONGUARD AGGRESSIVE NONE optional
+soldier: CREATURE 21 4 SOUTH ONGUARD AGGRESSIVE NONE optional
+soldier: CREATURE 24 8 SOUTH ONGUARD AGGRESSIVE NONE optional
+soldier: CREATURE 25 11 SOUTH ONGUARD AGGRESSIVE NONE optional
+soldier: CREATURE 22 10 SOUTHWEST STATIONARY AGGRESSIVE NONE optional body=10
+soldier: CIV 10 4 SOUTH STATIONARY DEFENSIVE NONE
+soldier: CIV 8 10 EAST STATIONARY DEFENSIVE NONE
+soldier: CIV 19 14 NORTH STATIONARY DEFENSIVE NONE
+soldier: CIV 24 6 WEST STATIONARY DEFENSIVE NONE
+map:
+cccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccc
+cc.........b.ccccccccccccccccc
+cc...,......rccc.........b.ccc
+cc..X........ccc...........ccc
+cc...........ccc...,.......ccc
+cc.b......,..ccc...........ccc
+cc...........ccc...........ccc
+cccccc....cccccc...........ccc
+cccccc....cccccc......,....ccc
+cccccc.,..cccccc...........ccc
+cccccc....cccccc.r.........ccc
+cccccc.....................ccc
+ccccccr....................ccc
+cccccc........,.........,..ccc
+cccccc..b................r.ccc
+cccccc..............b......ccc
+cccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccc

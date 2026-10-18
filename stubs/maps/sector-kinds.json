@@ -1,0 +1,145 @@
+{
+  "format": "ja2-node stub sector kinds v1",
+  "note": "Which generic stub map each sector loads on the stub data version. Sector names follow the map file names (A9, D13_b1 for a level below, B15_a for an alternate map). Every listed sector becomes an alias of its kind's map in the stub pack's aliases.json; a sector with its own hand-made map loads that map; every other sector loads the fallback. Original maps always win. Kinds are game design for the stub campaign, not a description of the original maps.",
+  "fallback": "wilderness",
+  "handMade": {
+    "A9": "Omerta, the landing",
+    "A10": "Omerta, the rebels' town with the dealers of the shop tests",
+    "A10_b1": "the rebels' basement",
+    "D5": "San Mona, the boxing hall",
+    "N7": "the interrogation house",
+    "P3_b1": "the palace basement, the Queen's last room"
+  },
+  "kinds": [
+    {
+      "kind": "town",
+      "map": "town",
+      "note": "town sectors: militia training, a dealer's shop, civilians, a garrison of up to 20",
+      "sectors": [
+        "A2",
+        "C5",
+        "C6",
+        "C13",
+        "F8",
+        "F9",
+        "G1",
+        "G2",
+        "G8",
+        "G9",
+        "H1",
+        "H2",
+        "H13",
+        "H14",
+        "I6",
+        "K4",
+        "L11",
+        "L12",
+        "N3",
+        "N5",
+        "O3",
+        "O4"
+      ]
+    },
+    {
+      "kind": "prison",
+      "map": "town",
+      "note": "the town map's jail block holds the captives of a lost battle in its cells",
+      "sectors": ["I13", "J9"]
+    },
+    {
+      "kind": "mine",
+      "map": "mine",
+      "note": "mine entrances: the head miner's office and a shaft down to the level below",
+      "sectors": ["B2", "D4", "D13", "H3", "H8", "I14"]
+    },
+    {
+      "kind": "mine-level",
+      "map": "cave",
+      "note": "mine levels: tunnels with miners and creature slots, a ladder up to the surface above",
+      "sectors": [
+        "B2_b1",
+        "D4_b1",
+        "D5_b1",
+        "D13_b1",
+        "E13_b1",
+        "E13_b2",
+        "F13_b2",
+        "H3_b1",
+        "H3_b2",
+        "H8_b1",
+        "H9_b1",
+        "H9_b2",
+        "I3_b1",
+        "I3_b2",
+        "I14_b1",
+        "J14_b1",
+        "J14_b2"
+      ]
+    },
+    {
+      "kind": "lair",
+      "map": "cave",
+      "note": "creature lairs: the cave's creature slots and the creature queen's slot",
+      "sectors": ["F13_b3", "G4_b3", "G13_b2", "G13_b3", "H4_b2", "H4_b3", "H8_b2", "H8_b3", "I8_b3", "J8_b3", "J13_b2", "J13_b3", "K13_b3"]
+    },
+    {
+      "kind": "basement",
+      "map": "cave",
+      "note": "the other levels below the surface (Tixa's dungeon, Orta's cellar, the statue tunnel)",
+      "sectors": ["J9_b1", "J9_b2", "K4_b1", "O3_b1"]
+    },
+    {
+      "kind": "sam",
+      "map": "camp",
+      "note": "SAM sites: a launcher inside a ring of barricades",
+      "sectors": ["D2", "D15", "I8", "N4"]
+    },
+    {
+      "kind": "garrison",
+      "map": "camp",
+      "note": "sectors with a standing garrison outside the towns (the roads to Meduna, the roadblocks)",
+      "sectors": [
+        "C9",
+        "G3",
+        "G6",
+        "G7",
+        "G12",
+        "K3",
+        "K5",
+        "K10",
+        "L2",
+        "L3",
+        "L4",
+        "L5",
+        "L6",
+        "M2",
+        "M3",
+        "M4",
+        "M5",
+        "M6",
+        "M7",
+        "M10",
+        "N6",
+        "N8"
+      ]
+    },
+    {
+      "kind": "palace",
+      "map": "p3",
+      "note": "the palace: the hand-made map of the Queen's hall with the stairs down to P3_b1",
+      "sectors": ["P3"]
+    },
+    {
+      "kind": "airport",
+      "map": "airfield",
+      "note": "Drassen airport: the helipad where Skyrider's helicopter is set up",
+      "sectors": ["B13"]
+    },
+    {
+      "kind": "skyrider",
+      "map": "airfield",
+      "note": "the alternate maps of the sectors where Skyrider may start",
+      "sectors": ["B15_a", "C16_a", "D12_a", "E14_a"]
+    }
+  ]
+}

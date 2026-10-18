@@ -1,6 +1,7 @@
 import { FormatError } from '../binary/errors.ts';
 import { parseTilesetDatabase, TILESET_DATABASE_PATH } from '../formats/ja2set.ts';
 import { type MapDef, parseMap } from '../formats/map.ts';
+import { withSectorExitGrids } from '../strategic/sector-maps.ts';
 import { buildLevel, type Level } from './level.ts';
 import {
   compileWorldMovementCosts,
@@ -90,7 +91,7 @@ export async function loadTacticalWorldInputs(read: ReadFile, mapPath: string): 
     readRequired(read, mapPath),
   ]);
   const tables = parseTileTables(tablesJson);
-  const map = parseMap(mapBytes);
+  const map = withSectorExitGrids(parseMap(mapBytes), mapPath);
   const surfaces = await loadTileSurfaceGeometry(read, tables, parseTilesetDatabase(tilesetBytes), map.tilesetId, root);
   return { mapPath, map, tables, surfaces, doorCostsJson };
 }

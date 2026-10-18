@@ -1,0 +1,82 @@
+ja2-node.map/1
+name: Stub airfield (an airstrip with a helipad, a hangar and a shed; the airport and Skyrider's farm)
+tileset: 0
+origin: 30 44
+fill: land FIRSTTEXTURE 1
+legend '.': land FIRSTTEXTURE 1
+legend ':': land FIRSTTEXTURE 2
+legend ',': land SECONDTEXTURE 1
+legend '=': land THIRDTEXTURE 1
+legend 'b': land SECONDTEXTURE 2; structs FIRSTOSTRUCT 1
+legend 'F': land FIRSTTEXTURE 1; structs FENCESTRUCT 1
+legend '_': land FIRSTFLOOR 1; roofs SECONDROOF 1; room 1
+legend 'B': land FIRSTFLOOR 1; structs SECONDWALL 1; roofs SECONDROOF 1; room 1
+legend 'K': land FIRSTFLOOR 1; structs SECONDWALL 2; roofs SECONDROOF 1; room 1
+legend 'J': land FIRSTFLOOR 1; structs SECONDWALL 1; structs SECONDWALL 2; roofs SECONDROOF 1; room 1
+legend 'W': land FIRSTFLOOR 1; structs SECONDWALL 3; roofs SECONDROOF 1; room 1
+legend 'V': land FIRSTFLOOR 1; structs SECONDWALL 5; roofs SECONDROOF 1; room 1
+legend 'D': land FIRSTFLOOR 1; structs FIRSTDOOR 1; roofs SECONDROOF 1; room 1
+legend 'P': land FIRSTFLOOR 1; structs FIRSTDOOR 3; roofs SECONDROOF 1; room 1
+legend 't': land FIRSTTEXTURE 1; structs SECONDWALL 1
+legend 'w': land FIRSTTEXTURE 1; structs SECONDWALL 2
+legend 'o': land FIRSTTEXTURE 1; structs SECONDWALL 3
+legend 'y': land FIRSTTEXTURE 1; structs SECONDWALL 5
+legend 'd': land FIRSTTEXTURE 1; structs FIRSTDOOR 1
+legend 'p': land FIRSTTEXTURE 1; structs FIRSTDOOR 3
+entry: north 12 0
+entry: east 39 17
+entry: south 12 23
+entry: west 0 17
+entry: center 12 14
+light: 12 8 L-R05.LHT NIGHT
+light: 24 10 L-R05.LHT NIGHT
+soldier: ENEMY 12 7 SOUTH ONGUARD DEFENSIVE ARMY
+soldier: ENEMY 17 10 WEST ONGUARD BRAVESOLO ARMY
+soldier: ENEMY 24 11 NORTH CLOSEPATROL AGGRESSIVE ARMY
+soldier: ENEMY 33 9 WEST STATIONARY DEFENSIVE ARMY
+soldier: ENEMY 25 6 SOUTH STATIONARY DEFENSIVE ELITE
+soldier: ENEMY 33 6 WEST STATIONARY CUNNINGSOLO ADMINISTRATOR
+soldier: ENEMY 4 17 EAST FARPATROL AGGRESSIVE ADMINISTRATOR
+soldier: ENEMY 36 17 WEST ONGUARD BRAVEAID ELITE
+soldier: ENEMY 6 3 SOUTHEAST ONGUARD DEFENSIVE ARMY optional
+soldier: ENEMY 29 14 NORTH CLOSEPATROL BRAVESOLO ARMY optional
+soldier: ENEMY 16 21 NORTH ONGUARD CUNNINGAID ARMY optional
+soldier: ENEMY 37 2 SOUTHWEST STATIONARY DEFENSIVE ARMY optional
+soldier: ENEMY 2 9 EAST ONGUARD AGGRESSIVE ARMY optional
+soldier: ENEMY 11 22 NORTH FARPATROL BRAVESOLO ARMY optional
+soldier: ENEMY 31 21 NORTHWEST ONGUARD DEFENSIVE ADMINISTRATOR optional
+soldier: ENEMY 20 13 EAST CLOSEPATROL BRAVEAID ADMINISTRATOR optional
+soldier: ENEMY 7 14 NORTHEAST STATIONARY DEFENSIVE ADMINISTRATOR optional
+soldier: ENEMY 38 11 WEST SEEKENEMY AGGRESSIVE ELITE optional
+soldier: ENEMY 25 22 NORTH ONGUARD CUNNINGSOLO ELITE optional
+soldier: ENEMY 14 1 SOUTH ONGUARD BRAVESOLO ELITE optional
+soldier: CIV 22 5 SOUTH STATIONARY DEFENSIVE NONE
+soldier: CIV 33 5 WEST STATIONARY DEFENSIVE NONE
+soldier: CIV 6 11 EAST STATIONARY BRAVESOLO NONE
+soldier: CIV 34 13 NORTH STATIONARY DEFENSIVE NONE
+soldier: CIV 16 11 WEST STATIONARY DEFENSIVE NONE profile=97
+map:
+........................................
+..:.....................................
+..................b.ttttttttt....:......
+..................bw________K..ttttt....
+...................w________K.w____K....
+........b..........y________K.w____K....
+...................w________K.p____K....
+...................w________K.wBBBBJ....
+.........,,,,,,,...wBBWBDBBBJ...........
+.........,=====,............:...........
+.........,=====,.............b..........
+.........,=====,........................
+...b.....,=====,....................b...
+FFFFFFF..,,,,,,,........................
+........................................
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+========================================
+========================================
+========================================
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+.....................................:..
+.....:..................................
+....................:...................
+........................................
