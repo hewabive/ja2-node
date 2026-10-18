@@ -1,6 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-
-const WEB_PORT = 5183;
+import { SERVER_PORT, TOKEN, WEB_PORT } from './tests/e2e/env.ts';
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -15,9 +14,9 @@ export default defineConfig({
     timeout: 60_000,
     env: {
       JA2_DATA_DIR: '',
-      JA2_PORT: '7431',
+      JA2_PORT: String(SERVER_PORT),
       JA2_WEB_PORT: String(WEB_PORT),
-      JA2_TOKEN: 'e2e-token-not-secret-0123456789',
+      JA2_TOKEN: TOKEN,
     },
   },
 });

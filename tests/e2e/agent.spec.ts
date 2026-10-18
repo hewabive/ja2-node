@@ -1,9 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { expect, test } from '@playwright/test';
-
-const SERVER = 'http://127.0.0.1:7431';
-const TOKEN = 'e2e-token-not-secret-0123456789';
+import { SERVER, TOKEN } from './env.ts';
 
 interface Soldier {
   readonly id: number;

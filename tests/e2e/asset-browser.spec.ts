@@ -1,5 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
 import type {} from '../../src/devtools/asset-browser/debug-hook.ts';
+import { SERVER } from './env.ts';
 
 const PAGE = '/src/devtools/asset-browser/';
 
@@ -59,6 +60,6 @@ test('filters files, shows tiles and text files', async ({ page }) => {
 });
 
 test('rejects direct server access without a token', async ({ request }) => {
-  const res = await request.get('http://127.0.0.1:7431/api/health');
+  const res = await request.get(`${SERVER}/api/health`);
   expect(res.status()).toBe(401);
 });

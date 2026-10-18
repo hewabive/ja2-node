@@ -1,9 +1,8 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { expect, test } from '@playwright/test';
+import { SERVER, TOKEN } from './env.ts';
 
-const SERVER = 'http://127.0.0.1:7431';
-const TOKEN = 'e2e-token-not-secret-0123456789';
 const COLS = 160;
 const EAST_EDGE_ROW = 75;
 const EAST_EDGE_COLUMN = 150;
