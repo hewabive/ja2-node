@@ -78,7 +78,6 @@ export class Session {
     const created = sim.creationEvents?.() ?? [];
     this.#held.push(...created);
     this.#followMusic(created);
-    this.#fastFade = false;
     this.#lastView = this.#view();
   }
 
@@ -95,6 +94,8 @@ export class Session {
   }
 
   #followMusic(events: readonly SimEvent[]): void {
+    this.#fastFade = false;
+    if (events.length === 0) return;
     const next = musicMode(this.#music, events, this.#facts());
     this.#fastFade = next.fastFade;
     this.#music = { mode: next.mode, previous: next.previous };

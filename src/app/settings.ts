@@ -245,7 +245,3 @@ export function meanwhileSceneSeen(settings: ClientSettings, scene: number): boo
 export function effectiveMaster(settings: ClientSettings): number {
   return settings.muted ? 0 : settings.volumes.master;
 }
-
-export function effectiveMusicVolume(settings: ClientSettings): number {
-  return settings.muted ? 0 : settings.volumes.music;
-}
