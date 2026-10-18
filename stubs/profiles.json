@@ -61,8 +61,17 @@
           "count": 3
         },
         {
+          "slot": 9,
+          "item": "GLOCK_17"
+        },
+        {
           "slot": 11,
           "item": "FIRSTAIDKIT"
+        },
+        {
+          "slot": 13,
+          "item": "CLIP9_15",
+          "count": 2
         }
       ]
     },
@@ -125,8 +134,17 @@
           "count": 3
         },
         {
+          "slot": 9,
+          "item": "GLOCK_17"
+        },
+        {
           "slot": 11,
           "item": "FIRSTAIDKIT"
+        },
+        {
+          "slot": 13,
+          "item": "CLIP9_15",
+          "count": 2
         }
       ]
     },
@@ -197,8 +215,17 @@
           "item": "MEDICKIT"
         },
         {
+          "slot": 9,
+          "item": "GLOCK_17"
+        },
+        {
           "slot": 11,
           "item": "FIRSTAIDKIT"
+        },
+        {
+          "slot": 13,
+          "item": "CLIP9_15",
+          "count": 2
         }
       ]
     },
@@ -258,12 +285,21 @@
           "count": 3
         },
         {
+          "slot": 9,
+          "item": "GLOCK_17"
+        },
+        {
           "slot": 11,
           "item": "FIRSTAIDKIT"
         },
         {
           "slot": 12,
           "item": "HAND_GRENADE",
+          "count": 2
+        },
+        {
+          "slot": 13,
+          "item": "CLIP9_15",
           "count": 2
         }
       ]
@@ -329,8 +365,17 @@
           "item": "MEDICKIT"
         },
         {
+          "slot": 9,
+          "item": "GLOCK_17"
+        },
+        {
           "slot": 11,
           "item": "FIRSTAIDKIT"
+        },
+        {
+          "slot": 13,
+          "item": "CLIP9_15",
+          "count": 2
         }
       ]
     },
@@ -384,8 +429,17 @@
           "count": 3
         },
         {
+          "slot": 9,
+          "item": "GLOCK_17"
+        },
+        {
           "slot": 11,
           "item": "FIRSTAIDKIT"
+        },
+        {
+          "slot": 13,
+          "item": "CLIP9_15",
+          "count": 2
         }
       ]
     },
@@ -452,8 +506,17 @@
           "item": "MEDICKIT"
         },
         {
+          "slot": 9,
+          "item": "GLOCK_17"
+        },
+        {
           "slot": 11,
           "item": "FIRSTAIDKIT"
+        },
+        {
+          "slot": 13,
+          "item": "CLIP9_15",
+          "count": 2
         }
       ]
     },
@@ -511,12 +574,21 @@
           "count": 3
         },
         {
+          "slot": 9,
+          "item": "GLOCK_17"
+        },
+        {
           "slot": 11,
           "item": "FIRSTAIDKIT"
         },
         {
           "slot": 12,
           "item": "HAND_GRENADE",
+          "count": 2
+        },
+        {
+          "slot": 13,
+          "item": "CLIP9_15",
           "count": 2
         }
       ]
@@ -576,8 +648,17 @@
           "count": 3
         },
         {
+          "slot": 9,
+          "item": "GLOCK_17"
+        },
+        {
           "slot": 11,
           "item": "FIRSTAIDKIT"
+        },
+        {
+          "slot": 13,
+          "item": "CLIP9_15",
+          "count": 2
         }
       ]
     },
@@ -631,8 +712,17 @@
           "count": 3
         },
         {
+          "slot": 9,
+          "item": "GLOCK_17"
+        },
+        {
           "slot": 11,
           "item": "FIRSTAIDKIT"
+        },
+        {
+          "slot": 13,
+          "item": "CLIP9_15",
+          "count": 2
         }
       ]
     },
@@ -694,8 +784,17 @@
           "count": 3
         },
         {
+          "slot": 9,
+          "item": "GLOCK_17"
+        },
+        {
           "slot": 11,
           "item": "FIRSTAIDKIT"
+        },
+        {
+          "slot": 13,
+          "item": "CLIP9_15",
+          "count": 2
         }
       ]
     },
@@ -757,8 +856,17 @@
           "count": 3
         },
         {
+          "slot": 9,
+          "item": "GLOCK_17"
+        },
+        {
           "slot": 11,
           "item": "FIRSTAIDKIT"
+        },
+        {
+          "slot": 13,
+          "item": "CLIP9_15",
+          "count": 2
         }
       ]
     },
