@@ -16,9 +16,9 @@ mechanics catalog (`02`), how logic is tied to animation (`03`), time, server an
 pipeline (`05`), the specs of each area (`06`–`26`: soldiers and animation, pathing, sight and noise, AI, turn-based
 combat, attacks, items, combat AI, savegames, strategic time, map and movement, the Queen's AI, towns and assignments,
 autoresolve, lighting, laptop and hiring, contracts, merchants, NPCs and dialogue, quests and NPC actions, meanwhiles and
-the ending), M7's spec (`27`: saves, options, sound, video, localization, stubs, performance), the deviation log
-(`deviations.md`, every deliberate difference from the original) and the release notes (`releases.md`: 0.7.0, the
-platform release).
+the ending), M7's spec (`27`: saves, options, sound, video, localization, stubs, performance), M8's spec (`28`: the
+player UI), the deviation log (`deviations.md`, every deliberate difference from the original) and the release notes
+(`releases.md`: 0.7.0, the platform release).
 
 ## License and data
 
