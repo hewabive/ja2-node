@@ -47,6 +47,7 @@ import type { TacticalState } from '../../tactical/state.ts';
 import { findGridNoFromSweetSpotExcludingSweetSpot } from '../../tactical/sweet-spots.ts';
 import type { CampaignSim } from '../campaign-sim.ts';
 import { addToPersonnelList, removeNewlyHiredMercFromPersonnelDepartedList } from '../laptop/records.ts';
+import { createMercRecord } from '../merc-record.ts';
 import { MercKind, type Roster, RosterMerc } from '../roster.ts';
 
 type Emit = (e: Record<string, unknown> & { readonly type: string }) => void;
@@ -147,22 +148,24 @@ export class RecruitFlow {
   #join(fresh: Soldier, kind: number, sector: Sector): RosterMerc | null {
     const roster = this.#roster;
     if (!roster) return null;
-    const merc = new RosterMerc({
-      soldier: fresh,
-      profile: this.#campaign.battle?.content.profiles[fresh.profile] ?? null,
-      kind,
-      statusFlags: 0,
-      sector: { ...sector },
-      betweenSectors: false,
-      groupId: 0,
-      prevSectorId: NO_PREVIOUS_SECTOR,
-      insertionCode: InsertionCode.NORTH,
-      insertionDirection: fresh.direction,
-      path: [],
-      assignment: FIRST_SQUAD,
-      vehicleId: NO_VEHICLE,
-      asleep: false,
-    });
+    const merc = new RosterMerc(
+      createMercRecord({
+        soldier: fresh,
+        profile: this.#campaign.battle?.content.profiles[fresh.profile] ?? null,
+        kind,
+        statusFlags: 0,
+        sector: { ...sector },
+        betweenSectors: false,
+        groupId: 0,
+        prevSectorId: NO_PREVIOUS_SECTOR,
+        insertionCode: InsertionCode.NORTH,
+        insertionDirection: fresh.direction,
+        path: [],
+        assignment: FIRST_SQUAD,
+        vehicleId: NO_VEHICLE,
+        asleep: false,
+      }),
+    );
     merc.lastAssignmentChangeMin = worldTotalMinutes(this.#campaign.state.clock);
     roster.add(merc);
     return merc;

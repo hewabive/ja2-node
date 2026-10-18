@@ -37,7 +37,7 @@ import {
 } from '../points.ts';
 import { decayBloodAndSmells, decaySmells, dropBlood } from '../smell.ts';
 import { AlertStatus, Body, NO_INTERRUPT, NOWHERE, OKLIFE, Orders, ReasonCantFinishMove, Side, type Soldier, Team } from '../soldier.ts';
-import { mercs, soldiersById, type TacticalState, teamMembers } from '../state.ts';
+import { mercs, type RealtimeClock, soldiersById, type TacticalState, teamMembers } from '../state.ts';
 import { buildAIListForTeam, moveToFrontOfAIList, removeFirstAIListEntry } from './ai-list.ts';
 import { TEAM_COUNT } from './turn-state.ts';
 
@@ -125,12 +125,6 @@ export function beginMercTurn(t: TacticalState, s: Soldier): void {
     s.moved = false;
     s.passedLastInterrupt = false;
   }
-}
-
-export interface RealtimeClock {
-  lastTurnMs: number;
-  lastDecayMs: number;
-  lastOverheadMs: number;
 }
 
 export const RT_TURN_MS = 5000;

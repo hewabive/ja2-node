@@ -98,6 +98,7 @@ describe('a new game', () => {
   it('hires a squad that lands at 07:00 after the first compression warp', () => {
     const state = createStrategicState({ seed: 9 });
     const roster = new Roster({
+      state: state.roster,
       content: tactical,
       combat: () => {
         throw new Error('no combat');

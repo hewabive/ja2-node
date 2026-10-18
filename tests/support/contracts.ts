@@ -43,7 +43,12 @@ export function createContractCampaign(kit: CampaignKit, options: ContractCampai
   const base = kit.sectors.content;
   const content: TacticalContent = { ...base, profiles: stubProfiles(base.items) };
   let campaign: CampaignSim | null = null;
-  const roster = new Roster({ content, combat: campaignCombatContext(() => campaign, state, content), profiles: state.profiles });
+  const roster = new Roster({
+    state: state.roster,
+    content,
+    combat: campaignCombatContext(() => campaign, state, content),
+    profiles: state.profiles,
+  });
   const c = new CampaignSim(state, null, {
     strategic: { content: kit.economy.strategic, mercs: roster },
     economy: { economy: kit.economy.economy, items: kit.economy.items, crew: roster },

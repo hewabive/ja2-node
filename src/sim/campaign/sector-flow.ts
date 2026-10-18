@@ -114,11 +114,11 @@ import {
 import { destroyAllSchedules, postSchedules } from '../tactical/narrative/schedules.ts';
 import { hostileBloodcatsPresent, removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
-import { type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
+import { type RealtimeClock, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
-import type { RealtimeClock } from '../tactical/turns/turns.ts';
 import { addItemToPool, loadWorldItemsFromMap, Visibility } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import type { SectorFlowState } from './flow-state.ts';
 import { MoraleEvent as CampaignMoraleEvent } from './morale.ts';
 import {
   GUIDE_DESCRIPTION_COUNTDOWN_RANGE,
@@ -196,13 +196,7 @@ const MILITIA_LEVEL_ELITE = 2;
 export class SectorFlow {
   readonly campaign: CampaignSim;
   readonly setup: SectorSetup;
-  readonly realtimeClock: RealtimeClock = { lastTurnMs: 0, lastDecayMs: 0, lastOverheadMs: 0 };
   readonly events: SimEvent[] = [];
-  jump: AdjacentJump | null = null;
-  usingEdgepointsForEntry = false;
-  overrideInsertionWithExitGrid: number | null = null;
-  hasEnteredCombatModeSinceEntering = false;
-  #pendingWait: number | null = null;
 
   constructor(campaign: CampaignSim, setup: SectorSetup) {
     this.campaign = campaign;
@@ -213,6 +207,54 @@ export class SectorFlow {
       removeFromTacticalSector: (merc) => this.removeMercFromTacticalSector(merc),
       updateMercInSector: (merc) => this.updateMercInSector(merc),
     };
+  }
+
+  get #flow(): SectorFlowState {
+    return this.campaign.state.sectorFlow;
+  }
+
+  get realtimeClock(): RealtimeClock {
+    return this.#flow.realtimeClock;
+  }
+
+  get jump(): AdjacentJump | null {
+    return this.#flow.jump;
+  }
+
+  set jump(jump: AdjacentJump | null) {
+    this.#flow.jump = jump;
+  }
+
+  get usingEdgepointsForEntry(): boolean {
+    return this.#flow.usingEdgepointsForEntry;
+  }
+
+  set usingEdgepointsForEntry(using: boolean) {
+    this.#flow.usingEdgepointsForEntry = using;
+  }
+
+  get overrideInsertionWithExitGrid(): number | null {
+    return this.#flow.overrideInsertionWithExitGrid;
+  }
+
+  set overrideInsertionWithExitGrid(gridNo: number | null) {
+    this.#flow.overrideInsertionWithExitGrid = gridNo;
+  }
+
+  get hasEnteredCombatModeSinceEntering(): boolean {
+    return this.#flow.hasEnteredCombatModeSinceEntering;
+  }
+
+  set hasEnteredCombatModeSinceEntering(entered: boolean) {
+    this.#flow.hasEnteredCombatModeSinceEntering = entered;
+  }
+
+  get #pendingWait(): number | null {
+    return this.#flow.pendingWait;
+  }
+
+  set #pendingWait(code: number | null) {
+    this.#flow.pendingWait = code;
   }
 
   get ctx(): StrategicContext {

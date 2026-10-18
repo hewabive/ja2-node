@@ -111,6 +111,7 @@ export async function createSaveSession(
   const sim = new TacticalSim(worldWithSavedDoors(world, save), content, seed);
   const report = importSave(sim, save);
   const strategic = createStrategicState({
+    seed,
     streams: { rng: sim.state.rng, pre: sim.state.pre },
     profiles: sim.state.profiles,
     civGroups: sim.state.civGroups,
@@ -126,6 +127,7 @@ export async function createSaveSession(
   let current: CampaignSim | null = null;
   const tacticalState = () => current?.tactical?.state ?? sim.state;
   const roster = new Roster({
+    state: strategic.roster,
     content,
     combat: tacticalState,
     profiles: strategic.profiles,

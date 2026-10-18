@@ -40,7 +40,7 @@ function world(seed: number): { t: TacticalState; hooks: OverheadHooks } {
   return {
     t,
     hooks: {
-      beforePass: (s) => beginAiPass(s, control),
+      beforePass: beginAiPass,
       ai: (s, soldier, slot) => aiForSlot(s, soldier, slot, control),
       afterPass: dequeueAllGameEvents,
     },

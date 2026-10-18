@@ -54,13 +54,7 @@ import {
   resetOncePerConvoRecordsForAllNpcsInLoadedSector,
 } from '../narrative/records.ts';
 import { calcDesireToTalk, calcThreateningEffectiveness } from '../narrative/select.ts';
-import {
-  createTalkState,
-  dialogueIdle,
-  dialogueQueueIsEmptyAndNobodyIsTalking,
-  type SpokenLine,
-  type TalkState,
-} from '../narrative/talk-state.ts';
+import { dialogueIdle, dialogueQueueIsEmptyAndNobodyIsTalking, type SpokenLine, type TalkState } from '../narrative/talk-state.ts';
 import {
   CivType,
   getCivType,
@@ -243,23 +237,39 @@ function rangeBetween(a: number, b: number): number {
 }
 
 export class TalkFlow {
-  readonly talk: TalkState;
   readonly host: NarrativeHost;
   readonly npcActions: NpcActionFlow;
   readonly #campaign: CampaignSim;
   readonly #setup: NarrativeSetup;
   readonly #events: SimEvent[] = [];
-  #scripted = false;
-  #civQuote: CivQuoteSaid | null = null;
 
   constructor(campaign: CampaignSim, setup: NarrativeSetup) {
     this.#campaign = campaign;
     this.#setup = setup;
-    this.talk = createTalkState();
     this.host = this.#createHost();
     const ports = setup.npcActions ?? {};
     const meanwhile = { ...campaignMeanwhileActions(campaign, this.host), ...ports.meanwhile };
     this.npcActions = new NpcActionFlow(campaign, this.host, { ...ports, meanwhile }, (e) => this.#emit(e));
+  }
+
+  get talk(): TalkState {
+    return this.#campaign.state.talk.dialogue;
+  }
+
+  get #scripted(): boolean {
+    return this.#campaign.state.talk.scripted;
+  }
+
+  set #scripted(scripted: boolean) {
+    this.#campaign.state.talk.scripted = scripted;
+  }
+
+  get #civQuote(): CivQuoteSaid | null {
+    return this.#campaign.state.talk.civQuote;
+  }
+
+  set #civQuote(said: CivQuoteSaid | null) {
+    this.#campaign.state.talk.civQuote = said;
   }
 
   get #t(): TacticalState | null {

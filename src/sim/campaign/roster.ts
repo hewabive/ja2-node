@@ -22,7 +22,8 @@ import {
   effectiveWisdom,
 } from '../tactical/skills.ts';
 import { Body, type Soldier, SoldierStatusFlags } from '../tactical/soldier.ts';
-import { createMercContract, type MercContract } from './contracts/contract-state.ts';
+import type { MercContract } from './contracts/contract-state.ts';
+import { type MercRecord, type ProfileRecordTraits, profileRecordTraits, type RosterState } from './merc-record.ts';
 import {
   canRobotBeControlled,
   checkForRobotAndIfItsControlled,
@@ -34,87 +35,250 @@ import {
 } from './robot-control.ts';
 
 export const MercKind = { PLAYER_CHARACTER: 0, AIM_MERC: 1, MERC: 2, NPC: 3, EPC: 4, NPC_UNEXTENDABLE: 5, VEHICLE: 6 } as const;
-const NO_VEHICLE = -1;
 const NO_ITEM = -1;
 const ROBOT_REMOTE_CONTROL = 'ROBOT_REMOTE_CONTROL';
 
-export interface RosterMercInit {
-  readonly soldier: Soldier;
-  readonly profile: MercProfile | null;
-  readonly kind: number;
-  readonly statusFlags: number;
-  readonly sector: Sector;
-  readonly betweenSectors: boolean;
-  readonly groupId: number;
-  readonly prevSectorId: number;
-  readonly insertionCode: number;
-  readonly insertionDirection: number;
-  readonly path: readonly number[];
-  readonly assignment: number;
-  readonly vehicleId: number;
-  readonly asleep: boolean;
-  readonly fractLife?: number;
-  readonly contract?: Partial<MercContract>;
-  readonly quoteSaidFlags?: number;
-  readonly quoteSaidExtFlags?: number;
-  readonly corpseQuoteTolerance?: number;
-  readonly remoteHolder?: number | null;
-}
-
 export class RosterMerc implements CrewMember {
-  readonly soldier: Soldier;
-  profileRecord: MercProfile | null;
-  readonly kind: number;
-  statusFlags: number;
-  sector: Sector;
-  betweenSectors: boolean;
-  groupId: number;
-  prevSectorId: number;
-  insertionCode: number;
-  insertionDirection: number;
-  path: number[];
-  assignment: number;
-  vehicleId: number;
-  asleep: boolean;
-  fractLife: number;
-  collapsed = false;
-  forcedToStayAwake = false;
-  complainedThatTired = false;
-  nothingToDo = false;
-  doneQuoteSaid = false;
-  trainStat = 0;
-  lastAssignmentChangeMin = 0;
-  hospitalPriceModifier = 0;
-  fixingRobot = false;
-  vehicleUnderRepair = NO_VEHICLE;
-  offGridInSector = false;
-  readonly contract: MercContract;
-  quoteSaidFlags: number;
-  quoteSaidExtFlags: number;
-  corpseQuoteTolerance: number;
-  remoteHolder: number | null;
+  readonly record: MercRecord;
 
-  constructor(init: RosterMercInit) {
-    this.soldier = init.soldier;
-    this.profileRecord = init.profile;
-    this.kind = init.kind;
-    this.statusFlags = init.statusFlags;
-    this.sector = init.sector;
-    this.betweenSectors = init.betweenSectors;
-    this.groupId = init.groupId;
-    this.prevSectorId = init.prevSectorId;
-    this.insertionCode = init.insertionCode;
-    this.insertionDirection = init.insertionDirection;
-    this.path = [...init.path];
-    this.assignment = init.assignment;
-    this.vehicleId = init.vehicleId;
-    this.asleep = init.asleep;
-    this.fractLife = init.fractLife ?? 0;
-    this.contract = createMercContract(init.contract);
-    this.quoteSaidFlags = init.quoteSaidFlags ?? 0;
-    this.quoteSaidExtFlags = init.quoteSaidExtFlags ?? 0;
-    this.corpseQuoteTolerance = init.corpseQuoteTolerance ?? 0;
-    this.remoteHolder = init.remoteHolder ?? null;
+  constructor(record: MercRecord) {
+    this.record = record;
+  }
+
+  get soldier(): Soldier {
+    return this.record.soldier;
+  }
+
+  get profileRecord(): ProfileRecordTraits | null {
+    return this.record.profileRecord;
+  }
+
+  set profileRecord(value: ProfileRecordTraits | null) {
+    this.record.profileRecord = value;
+  }
+
+  get kind(): number {
+    return this.record.kind;
+  }
+
+  get statusFlags(): number {
+    return this.record.statusFlags;
+  }
+
+  set statusFlags(value: number) {
+    this.record.statusFlags = value;
+  }
+
+  get sector(): Sector {
+    return this.record.sector;
+  }
+
+  set sector(value: Sector) {
+    this.record.sector = value;
+  }
+
+  get betweenSectors(): boolean {
+    return this.record.betweenSectors;
+  }
+
+  set betweenSectors(value: boolean) {
+    this.record.betweenSectors = value;
+  }
+
+  get groupId(): number {
+    return this.record.groupId;
+  }
+
+  set groupId(value: number) {
+    this.record.groupId = value;
+  }
+
+  get prevSectorId(): number {
+    return this.record.prevSectorId;
+  }
+
+  set prevSectorId(value: number) {
+    this.record.prevSectorId = value;
+  }
+
+  get insertionCode(): number {
+    return this.record.insertionCode;
+  }
+
+  set insertionCode(value: number) {
+    this.record.insertionCode = value;
+  }
+
+  get insertionDirection(): number {
+    return this.record.insertionDirection;
+  }
+
+  set insertionDirection(value: number) {
+    this.record.insertionDirection = value;
+  }
+
+  get path(): number[] {
+    return this.record.path;
+  }
+
+  set path(value: number[]) {
+    this.record.path = value;
+  }
+
+  get assignment(): number {
+    return this.record.assignment;
+  }
+
+  set assignment(value: number) {
+    this.record.assignment = value;
+  }
+
+  get vehicleId(): number {
+    return this.record.vehicleId;
+  }
+
+  set vehicleId(value: number) {
+    this.record.vehicleId = value;
+  }
+
+  get asleep(): boolean {
+    return this.record.asleep;
+  }
+
+  set asleep(value: boolean) {
+    this.record.asleep = value;
+  }
+
+  get fractLife(): number {
+    return this.record.fractLife;
+  }
+
+  set fractLife(value: number) {
+    this.record.fractLife = value;
+  }
+
+  get collapsed(): boolean {
+    return this.record.collapsed;
+  }
+
+  set collapsed(value: boolean) {
+    this.record.collapsed = value;
+  }
+
+  get forcedToStayAwake(): boolean {
+    return this.record.forcedToStayAwake;
+  }
+
+  set forcedToStayAwake(value: boolean) {
+    this.record.forcedToStayAwake = value;
+  }
+
+  get complainedThatTired(): boolean {
+    return this.record.complainedThatTired;
+  }
+
+  set complainedThatTired(value: boolean) {
+    this.record.complainedThatTired = value;
+  }
+
+  get nothingToDo(): boolean {
+    return this.record.nothingToDo;
+  }
+
+  set nothingToDo(value: boolean) {
+    this.record.nothingToDo = value;
+  }
+
+  get doneQuoteSaid(): boolean {
+    return this.record.doneQuoteSaid;
+  }
+
+  set doneQuoteSaid(value: boolean) {
+    this.record.doneQuoteSaid = value;
+  }
+
+  get trainStat(): number {
+    return this.record.trainStat;
+  }
+
+  set trainStat(value: number) {
+    this.record.trainStat = value;
+  }
+
+  get lastAssignmentChangeMin(): number {
+    return this.record.lastAssignmentChangeMin;
+  }
+
+  set lastAssignmentChangeMin(value: number) {
+    this.record.lastAssignmentChangeMin = value;
+  }
+
+  get hospitalPriceModifier(): number {
+    return this.record.hospitalPriceModifier;
+  }
+
+  set hospitalPriceModifier(value: number) {
+    this.record.hospitalPriceModifier = value;
+  }
+
+  get fixingRobot(): boolean {
+    return this.record.fixingRobot;
+  }
+
+  set fixingRobot(value: boolean) {
+    this.record.fixingRobot = value;
+  }
+
+  get vehicleUnderRepair(): number {
+    return this.record.vehicleUnderRepair;
+  }
+
+  set vehicleUnderRepair(value: number) {
+    this.record.vehicleUnderRepair = value;
+  }
+
+  get offGridInSector(): boolean {
+    return this.record.offGridInSector;
+  }
+
+  set offGridInSector(value: boolean) {
+    this.record.offGridInSector = value;
+  }
+
+  get contract(): MercContract {
+    return this.record.contract;
+  }
+
+  get quoteSaidFlags(): number {
+    return this.record.quoteSaidFlags;
+  }
+
+  set quoteSaidFlags(value: number) {
+    this.record.quoteSaidFlags = value;
+  }
+
+  get quoteSaidExtFlags(): number {
+    return this.record.quoteSaidExtFlags;
+  }
+
+  set quoteSaidExtFlags(value: number) {
+    this.record.quoteSaidExtFlags = value;
+  }
+
+  get corpseQuoteTolerance(): number {
+    return this.record.corpseQuoteTolerance;
+  }
+
+  set corpseQuoteTolerance(value: number) {
+    this.record.corpseQuoteTolerance = value;
+  }
+
+  get remoteHolder(): number | null {
+    return this.record.remoteHolder;
+  }
+
+  set remoteHolder(value: number | null) {
+    this.record.remoteHolder = value;
   }
 
   get id(): number {
@@ -124,7 +288,7 @@ export class RosterMerc implements CrewMember {
   swapProfile(profile: number, record: MercProfile | null, stats: Readonly<Record<StatKey, number>>): void {
     const s = this.soldier;
     s.profile = profile;
-    this.profileRecord = record;
+    this.record.profileRecord = profileRecordTraits(record);
     s.stats.strength = stats.strength;
     s.stats.dexterity = stats.dexterity;
     s.stats.agility = stats.agility;
@@ -278,6 +442,7 @@ export const NO_ROSTER_HOOKS: RosterHooks = {
 };
 
 export interface RosterSetup {
+  readonly state: RosterState;
   readonly content: TacticalContent;
   readonly combat: () => CombatContext;
   readonly hooks?: RosterHooks;
@@ -290,29 +455,41 @@ const TRAVEL_STATS: Readonly<Record<TravelStat, number>> = {
 };
 
 export class Roster implements CrewPort {
-  readonly #mercs = new Map<number, RosterMerc>();
+  readonly #state: RosterState;
+  readonly #facades = new WeakMap<MercRecord, RosterMerc>();
   readonly #content: TacticalContent;
   readonly #combat: () => CombatContext;
   readonly #profiles: ReadonlyMap<number, ProfileProgress> | null;
   hooks: RosterHooks;
 
   constructor(setup: RosterSetup) {
+    this.#state = setup.state;
     this.#content = setup.content;
     this.#combat = setup.combat;
     this.#profiles = setup.profiles ?? null;
     this.hooks = setup.hooks ?? NO_ROSTER_HOOKS;
   }
 
+  #facade(record: MercRecord): RosterMerc {
+    const known = this.#facades.get(record);
+    if (known) return known;
+    const merc = new RosterMerc(record);
+    this.#facades.set(record, merc);
+    return merc;
+  }
+
   add(merc: RosterMerc): void {
-    this.#mercs.set(merc.id, merc);
+    this.#state.mercs.set(merc.id, merc.record);
+    this.#facades.set(merc.record, merc);
   }
 
   remove(id: number): void {
-    this.#mercs.delete(id);
+    this.#state.mercs.delete(id);
   }
 
   get(id: number): RosterMerc | undefined {
-    return this.#mercs.get(id);
+    const record = this.#state.mercs.get(id);
+    return record ? this.#facade(record) : undefined;
   }
 
   byProfile(profile: number): RosterMerc | undefined {
@@ -320,7 +497,7 @@ export class Roster implements CrewPort {
   }
 
   all(): readonly RosterMerc[] {
-    return [...this.#mercs.values()].sort((a, b) => a.id - b.id);
+    return [...this.#state.mercs.values()].sort((a, b) => a.soldier.id - b.soldier.id).map((r) => this.#facade(r));
   }
 
   inSector(sector: Sector): RosterMerc[] {

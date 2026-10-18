@@ -70,7 +70,7 @@ describe('strategic movement permission', () => {
     const robot = roster.get(1);
     const merc = roster.get(0);
     if (!robot || !merc) throw new Error('no squad');
-    Object.assign(robot, { kind: MercKind.EPC });
+    Object.assign(robot.record, { kind: MercKind.EPC });
     Object.assign(robot.soldier, { profile: ROBOT, bodyType: Body.ROBOTNOWEAPON });
     expect(canEntireMovementGroupMove(strategic(campaign), 1, PEACE)).toBe(MoveRefusal.ROBOT_ALONE);
     const head = merc.soldier.inv[InvSlot.HEAD1];

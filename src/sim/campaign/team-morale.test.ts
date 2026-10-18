@@ -4,6 +4,7 @@ import type { Sector } from '../../content/strategic/sector-ids.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
 import { createSoldier, Personality } from '../tactical/soldier.ts';
+import { createMercRecord } from './merc-record.ts';
 import { MercKind, RosterMerc } from './roster.ts';
 import {
   createTeamMoraleState,
@@ -56,22 +57,24 @@ function merc(id: number, o: MercOptions = {}): RosterMerc {
     personalityTrait: o.personality ?? Personality.NONE,
   });
   soldier.placed = o.placed ?? false;
-  return new RosterMerc({
-    soldier,
-    profile: null,
-    kind: o.kind ?? MercKind.AIM_MERC,
-    statusFlags: 0,
-    sector: o.sector ?? HERE,
-    betweenSectors: false,
-    groupId: 1,
-    prevSectorId: 255,
-    insertionCode: 0,
-    insertionDirection: 0,
-    path: [],
-    assignment: o.assignment ?? Assignment.SQUAD_1,
-    vehicleId: -1,
-    asleep: false,
-  });
+  return new RosterMerc(
+    createMercRecord({
+      soldier,
+      profile: null,
+      kind: o.kind ?? MercKind.AIM_MERC,
+      statusFlags: 0,
+      sector: o.sector ?? HERE,
+      betweenSectors: false,
+      groupId: 1,
+      prevSectorId: 255,
+      insertionCode: 0,
+      insertionDirection: 0,
+      path: [],
+      assignment: o.assignment ?? Assignment.SQUAD_1,
+      vehicleId: -1,
+      asleep: false,
+    }),
+  );
 }
 
 function opinions(about: Record<number, number>): number[] {

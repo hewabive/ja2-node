@@ -135,7 +135,12 @@ export async function buildNewCampaign(
   const narrative = await narrativeSetup(read, content.items, content.profiles, layers);
   const state = createState();
   let campaign: CampaignSim | null = null;
-  const roster = new Roster({ content, combat: campaignCombatContext(() => campaign, state, content), profiles: state.profiles });
+  const roster = new Roster({
+    state: state.roster,
+    content,
+    combat: campaignCombatContext(() => campaign, state, content),
+    profiles: state.profiles,
+  });
   const worlds = new WorldCache(read, exists);
   campaign = new CampaignSim(state, null, {
     strategic: { content: strategicContent, mercs: roster },

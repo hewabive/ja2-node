@@ -89,6 +89,7 @@ import type { Soldier } from '../../tactical/soldier.ts';
 import type { CampaignSim } from '../campaign-sim.ts';
 import { HistoryCode } from '../contracts/quotes.ts';
 import { addTransaction, FinanceCode } from '../finances.ts';
+import type { TalkSoldiers } from '../flow-state.ts';
 import { addHistory, timeQuestWasStarted } from '../laptop/records.ts';
 import type { Roster, RosterMerc } from '../roster.ts';
 import type { QuestEventWithoutTick } from './events.ts';
@@ -104,12 +105,6 @@ const HOSPITAL: SectorPosition = { x: 8, y: 6, z: 0 };
 const CONRAD_SECTOR: SectorPosition = { x: 13, y: 8, z: 0 };
 const KINGPIN_MONEY_SECTOR: SectorPosition = { x: 5, y: 4, z: 1 };
 const NPC_ACTION_FREE_KIDS = 117;
-
-export interface TalkSoldiers {
-  src: number | null;
-  dest: number | null;
-  srcProfile: number;
-}
 
 export interface NarrativeSlots {
   dialogueDesireToTalk(npc: number, merc: number, approach: number): number;
@@ -149,7 +144,6 @@ function questName(id: number): string {
 
 export class NarrativeFlow {
   readonly campaign: CampaignSim;
-  readonly talk: TalkSoldiers = { src: null, dest: null, srcProfile: SRC_PROFILE_AT_START };
   slots: NarrativeSlots;
   readonly #events: SimEvent[] = [];
 
@@ -161,6 +155,10 @@ export class NarrativeFlow {
       hospitalSupplies: () => hospitalSuppliesCheck(campaign),
       boxersCleared: () => clearBoxers(campaign.state.narrative.boxing),
     };
+  }
+
+  get talk(): TalkSoldiers {
+    return this.campaign.state.talk.soldiers;
   }
 
   get state() {

@@ -17,6 +17,7 @@ import { createHiredMerc } from '../../tactical/creation.ts';
 import { autoPlaceObject, InvSlot } from '../../tactical/inventory.ts';
 import { MercStatus } from '../../tactical/profiles.ts';
 import { firstFreeSoldierId, NO_PROFILE, type Soldier, SoldierStatusFlags, Team } from '../../tactical/soldier.ts';
+import { createMercRecord } from '../merc-record.ts';
 import { MercKind, RosterMerc } from '../roster.ts';
 import type { LaptopContext } from './context.ts';
 import { removeNewlyHiredMercFromPersonnelDepartedList } from './records.ts';
@@ -99,23 +100,25 @@ export function hireMercCore(ctx: LaptopContext, h: HireStruct, hooks: HireHooks
     if (id === 0) createSpecialItem(ctx, recruit.soldier, LETTER);
     insertion = InsertionCode.CHOPPER;
   }
-  const merc = new RosterMerc({
-    soldier: recruit.soldier,
-    profile: recruit.profile,
-    kind: h.kind,
-    statusFlags: 0,
-    sector: landingZone(ctx),
-    betweenSectors: false,
-    groupId: 0,
-    prevSectorId: NO_PREVIOUS_SECTOR,
-    insertionCode: insertion,
-    insertionDirection: 0,
-    path: [],
-    assignment: Assignment.IN_TRANSIT,
-    vehicleId: NO_VEHICLE,
-    asleep: false,
-    contract: { useLandingZone: h.useLandingZone },
-  });
+  const merc = new RosterMerc(
+    createMercRecord({
+      soldier: recruit.soldier,
+      profile: recruit.profile,
+      kind: h.kind,
+      statusFlags: 0,
+      sector: landingZone(ctx),
+      betweenSectors: false,
+      groupId: 0,
+      prevSectorId: NO_PREVIOUS_SECTOR,
+      insertionCode: insertion,
+      insertionDirection: 0,
+      path: [],
+      assignment: Assignment.IN_TRANSIT,
+      vehicleId: NO_VEHICLE,
+      asleep: false,
+      contract: { useLandingZone: h.useLandingZone },
+    }),
+  );
   merc.lastAssignmentChangeMin = ctx.now();
   ctx.roster.add(merc);
   const arrival = hooks.hireContract(merc, h.length);
