@@ -9,6 +9,7 @@ import {
   parseBattleSounds,
   voiceSetKinds,
 } from '../src/content/audio/sound-table.ts';
+import { ambientSoundPath, ambientTablePath, parseAmbientTable } from '../src/content/formats/ambient.ts';
 import { DIALOGUE_SIZE, edtRowCount } from '../src/content/formats/edt.ts';
 import { gapPathFor, parseGap } from '../src/content/formats/gap.ts';
 import { decodeWav, wavDurationMs } from '../src/content/formats/wav.ts';
@@ -17,13 +18,14 @@ import { STUB_DATA_VERSION } from '../src/content/text/data-version.ts';
 import { type DataVfs, openDataVfs, STUBS_PREFIX } from '../src/node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
 import { TextService } from '../src/server/text-service.ts';
+import { STUB_AMBIENT_ENTRIES, STUB_AMBIENT_ID } from './ambient.ts';
 import { stubSoundPaths } from './audio.ts';
 import { buildStubs } from './build.ts';
 import { musicTracks } from './music.ts';
 import { npcSpeechSets, type SpeechSet, speechPaths } from './speech.ts';
 
 const MEDIA_DIRS = ['synth', 'music', 'mercedt'];
-const TEXT_FILES = ['binarydata/itemdesc.edt', 'binarydata/credits.edt', 'binarydata/email.edt', 'aliases.json'];
+const TEXT_FILES = ['binarydata/itemdesc.edt', 'binarydata/credits.edt', 'binarydata/email.edt', 'ambient/0.bad', 'aliases.json'];
 const MEDIA_BUDGET_BYTES = 4 * 1024 * 1024;
 
 const dirs: string[] = [];
@@ -167,6 +169,15 @@ describe('stub media', () => {
     expect(edtRowCount(mercFile)).toBe(117);
     const original = new TextService({ vfs: data.vfs, dataVersion: 'english' });
     expect((await original.edtRecord('mercedt/000.edt', 108)).ok).toBe(false);
+  });
+
+  it('decodes the stub ambient table of the stub tileset and resolves each of its sounds', async () => {
+    const table = parseAmbientTable(await data.vfs.read(stub(ambientTablePath(STUB_AMBIENT_ID))));
+    expect(table).toEqual(STUB_AMBIENT_ENTRIES);
+    for (const entry of table) {
+      const audio = decodeWav(await data.vfs.read(stub(ambientSoundPath(entry))));
+      expect(audio.frameCount, entry.file).toBeGreaterThan(0);
+    }
   });
 
   it('keeps the media small', async () => {
