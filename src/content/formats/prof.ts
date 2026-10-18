@@ -1,8 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Tactical_Save.cc JA2EncryptedFileRead; LoadSaveMercProfile.cc ExtractMercProfile (NPC fields: docs/24 §1.2)
+// @src src/game/Tactical/Tactical_Save.cc JA2EncryptedFileRead; LoadSaveMercProfile.cc ExtractMercProfile (NPC fields: docs/24 §1.2);
+// @src src/sgp/LoadSaveData.cc DataReader::readUTF16 and src/externalized/mercs/BinaryProfileData.cc (Russian names)
 
 import { FormatError } from '../binary/errors.ts';
+import { fixRussianCodeUnit } from './edt.ts';
 
 export const PROFILES_PATH = 'binarydata/prof.dat';
 export const PROFILE_RECORD_BYTES = 716;
@@ -18,6 +20,8 @@ const STAT_CHANGE_COUNTERS = 12;
 export const NUM_REAL_APPROACHES = 4;
 export const NUM_APPROACH_MOD_ROWS = 3;
 const ROOM_RANGES = 2;
+
+export type ProfileNameEncoding = 'correct' | 'russian';
 
 export interface MercProfile {
   readonly id: number;
@@ -220,12 +224,12 @@ export function encryptRecord(plain: Uint8Array): Uint8Array {
   return encrypted;
 }
 
-function utf16(view: DataView, offset: number, chars: number): string {
+function utf16(view: DataView, offset: number, chars: number, encoding: ProfileNameEncoding): string {
   let s = '';
   for (let i = 0; i < chars; i++) {
     const c = view.getUint16(offset + i * 2, true);
     if (c === 0) break;
-    s += String.fromCharCode(c);
+    s += String.fromCharCode(encoding === 'russian' ? fixRussianCodeUnit(c) : c);
   }
   return s;
 }
@@ -240,13 +244,13 @@ function ascii(bytes: Uint8Array, offset: number): string {
   return s;
 }
 
-export function parseProfile(id: number, plain: Uint8Array): MercProfile {
+export function parseProfile(id: number, plain: Uint8Array, names: ProfileNameEncoding = 'correct'): MercProfile {
   const v = new DataView(plain.buffer, plain.byteOffset, plain.byteLength);
   const i8 = (o: number) => v.getInt8(o);
   return {
     id,
-    name: utf16(v, 0, 30),
-    nickname: utf16(v, 60, 10),
+    name: utf16(v, 0, 30, names),
+    nickname: utf16(v, 60, 10, names),
     palettes: { pants: ascii(plain, 109), vest: ascii(plain, 139), skin: ascii(plain, 169), hair: ascii(plain, 199) },
     sex: i8(229),
     bodyType: v.getUint8(260),
@@ -362,12 +366,12 @@ export function parseProfile(id: number, plain: Uint8Array): MercProfile {
   };
 }
 
-export function parseProfiles(bytes: Uint8Array): MercProfile[] {
+export function parseProfiles(bytes: Uint8Array, names: ProfileNameEncoding = 'correct'): MercProfile[] {
   if (bytes.length % PROFILE_RECORD_BYTES !== 0)
     throw new FormatError(`prof.dat size ${bytes.length} is not a multiple of ${PROFILE_RECORD_BYTES}`);
   const profiles: MercProfile[] = [];
   for (let i = 0; i < bytes.length / PROFILE_RECORD_BYTES; i++) {
-    profiles.push(parseProfile(i, decryptRecord(bytes.subarray(i * PROFILE_RECORD_BYTES, (i + 1) * PROFILE_RECORD_BYTES))));
+    profiles.push(parseProfile(i, decryptRecord(bytes.subarray(i * PROFILE_RECORD_BYTES, (i + 1) * PROFILE_RECORD_BYTES)), names));
   }
   return profiles;
 }

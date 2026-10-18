@@ -1,8 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/externalized/strings/EncryptedString.cc LoadEncryptedData; src/externalized/DefaultContentManager.cc
-// @src DIALOGUESIZE, loadDialogQuoteFromFile; Tactical/Civ_Quotes.cc CIV_QUOTE_TEXT_SIZE; Tactical/Dialogue_Control.cc
-// @src FindDelayForString. See docs/24 §1.5.
+// @src src/externalized/strings/EncryptedString.cc LoadEncryptedData; src/externalized/strings/EDT.cc ClassicEDT::at;
+// @src src/externalized/DefaultContentManager.cc DIALOGUESIZE, loadDialogQuoteFromFile; Tactical/Civ_Quotes.cc
+// @src CIV_QUOTE_TEXT_SIZE; Tactical/Dialogue_Control.cc FindDelayForString. See docs/24 §1.5, docs/27 §5.
 
 export const DIALOGUE_SIZE = 240;
 export const CIV_QUOTE_TEXT_SIZE = 160;
@@ -43,9 +43,13 @@ function fixCyrillic(c: number): number {
   return c;
 }
 
+export function fixRussianCodeUnit(c: number): number {
+  return c >= RUSSIAN_SHIFT.FIRST && c <= RUSSIAN_SHIFT.LAST ? c + RUSSIAN_SHIFT.OFFSET : c;
+}
+
 function fixUnit(raw: number, encoding: EdtEncoding): number {
   const c = raw > ROT_THRESHOLD ? raw - 1 : raw;
-  if (encoding === 'russian') return c >= RUSSIAN_SHIFT.FIRST && c <= RUSSIAN_SHIFT.LAST ? c + RUSSIAN_SHIFT.OFFSET : c;
+  if (encoding === 'russian') return fixRussianCodeUnit(c);
   const fixed = (encoding === 'english' ? ENGLISH_FIXES[c] : encoding === 'polish' ? POLISH_FIXES[c] : undefined) ?? c;
   return fixCyrillic(fixed);
 }
@@ -54,17 +58,40 @@ export function edtRowCount(bytes: Uint8Array, width = DIALOGUE_SIZE): number {
   return Math.floor(bytes.length / (width * UTF16_BYTES));
 }
 
-export function decodeEdtRow(bytes: Uint8Array, row: number, width = DIALOGUE_SIZE, encoding: EdtEncoding = 'english'): string | null {
-  if (row < 0 || row >= edtRowCount(bytes, width)) return null;
+function decodeEdtText(bytes: Uint8Array, startUnit: number, width: number, encoding: EdtEncoding): string {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const start = row * width * UTF16_BYTES;
   const units: number[] = [];
   for (let i = 0; i < width - 1; i++) {
-    const raw = view.getUint16(start + i * UTF16_BYTES, true);
+    const raw = view.getUint16((startUnit + i) * UTF16_BYTES, true);
     if (raw === 0) break;
     units.push(fixUnit(raw, encoding));
   }
   return String.fromCharCode(...units);
+}
+
+export function decodeEdtRow(bytes: Uint8Array, row: number, width = DIALOGUE_SIZE, encoding: EdtEncoding = 'english'): string | null {
+  if (row < 0 || row >= edtRowCount(bytes, width)) return null;
+  return decodeEdtText(bytes, row * width, width, encoding);
+}
+
+export function edtRecordWidth(columns: readonly number[]): number {
+  return columns.reduce((sum, width) => sum + width, 0);
+}
+
+export function decodeEdtRecord(
+  bytes: Uint8Array,
+  row: number,
+  columns: readonly number[],
+  encoding: EdtEncoding = 'english',
+): string[] | null {
+  const width = edtRecordWidth(columns);
+  if (!Number.isInteger(row) || row < 0 || row >= edtRowCount(bytes, width)) return null;
+  let start = row * width;
+  return columns.map((column) => {
+    const text = decodeEdtText(bytes, start, column, encoding);
+    start += column;
+    return text;
+  });
 }
 
 export function utf32Length(text: string): number {
@@ -89,9 +116,21 @@ export function encodeEdtRow(text: string, width = DIALOGUE_SIZE): Uint8Array {
 }
 
 export function encodeEdtFile(rows: readonly string[], width = DIALOGUE_SIZE): Uint8Array {
-  const out = new Uint8Array(rows.length * width * UTF16_BYTES);
-  rows.forEach((text, k) => {
-    out.set(encodeEdtRow(text, width), k * width * UTF16_BYTES);
+  return encodeEdtRecords(
+    rows.map((text) => [text]),
+    [width],
+  );
+}
+
+export function encodeEdtRecords(records: readonly (readonly string[])[], columns: readonly number[]): Uint8Array {
+  const recordBytes = edtRecordWidth(columns) * UTF16_BYTES;
+  const out = new Uint8Array(records.length * recordBytes);
+  records.forEach((record, k) => {
+    let offset = k * recordBytes;
+    columns.forEach((width, c) => {
+      out.set(encodeEdtRow(record[c] ?? '', width), offset);
+      offset += width * UTF16_BYTES;
+    });
   });
   return out;
 }

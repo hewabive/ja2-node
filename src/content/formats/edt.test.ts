@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { CIV_QUOTE_TEXT_SIZE, DIALOGUE_SIZE, decodeEdtRow, edtRowCount, encodeEdtFile, utf32Length } from './edt.ts';
+import {
+  CIV_QUOTE_TEXT_SIZE,
+  DIALOGUE_SIZE,
+  decodeEdtRecord,
+  decodeEdtRow,
+  edtRecordWidth,
+  edtRowCount,
+  encodeEdtFile,
+  encodeEdtRecords,
+  utf32Length,
+} from './edt.ts';
 
 function rawRow(units: readonly number[], width = DIALOGUE_SIZE): Uint8Array {
   const out = new Uint8Array(width * 2);
@@ -31,6 +41,27 @@ describe('EDT rows', () => {
   it('apply the English code point fix-ups', () => {
     expect(decodeEdtRow(rawRow([129, 131, 136]), 0, DIALOGUE_SIZE, 'english')).toBe('Çéç');
     expect(decodeEdtRow(rawRow([129]), 0, DIALOGUE_SIZE, 'other')).toBe('\u0080');
+  });
+
+  it('map the CP1252-read CP1251 range to Cyrillic in the Russian mode only', () => {
+    expect(decodeEdtRow(rawRow([0xc1, 0xe0, 0x101]), 0, DIALOGUE_SIZE, 'russian')).toBe('АЯĀ');
+    expect(decodeEdtRow(rawRow([0xc1]), 0, DIALOGUE_SIZE, 'english')).toBe('À');
+  });
+
+  it('decode multi-column records column by column', () => {
+    const columns = [8, 4, 6];
+    const file = encodeEdtRecords(
+      [
+        ['name', 'id', 'info'],
+        ['second', '', 'more'],
+      ],
+      columns,
+    );
+    expect(file.length).toBe(2 * edtRecordWidth(columns) * 2);
+    expect(decodeEdtRecord(file, 0, columns)).toEqual(['name', 'id', 'info']);
+    expect(decodeEdtRecord(file, 1, columns)).toEqual(['second', '', 'more']);
+    expect(decodeEdtRecord(file, 2, columns)).toBeNull();
+    expect(decodeEdtRecord(file, 0, [18])).toEqual(['name']);
   });
 
   it('count characters as UTF-32 code points', () => {
