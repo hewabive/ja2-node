@@ -700,7 +700,7 @@ Gold cannot be guessed (no resource pack, inferred). The version is one switch f
 1,901 strings per language; `translation-rus.json` and `translation-rusgold.json` differ in five (the copyright line and
 four mail sender names), and only the latter is read (no other caller passes `false` to `GetSuffix`, inferred). ja2-node
 already ships them: `data/externalized/strings/` holds `translation-*` in eight languages plus `rusgold`, the other
-per-language files, and `translation_tables/` (five tables). No code reads them yet.
+per-language files, and `translation_tables/` (five tables). Since S6 `src/content/text/strings.ts` reads them (§5.5).
 
 **Data text is EDT, per installed version.** Dialogue (`mercedt/NNN.edt`, `npcdata/NNN.edt`, `d_NNN.edt`), civilian
 quotes, item names and descriptions (`binarydata/itemdesc.edt`, `braydesc.edt`), A.I.M. and M.E.R.C. bios, mails, files,
@@ -711,8 +711,8 @@ history and quest lines, I.M.P. text, help, credits, insurance and florist text:
 the guillemets are not fixed (so they cannot render, inferred). Merc names in `prof.dat` get the same fix
 (`src/sgp/LoadSaveData.cc:77-90`). Record sizes are the same in every language. Item and merc names are never in JSON
 (`items.json` has none; `src/externalized/mercs/MercProfile.cc:151-152` allows overrides only). ja2-node's
-`src/content/formats/edt.ts` already implements the English, Russian and Polish modes; every caller passes the English
-default.
+`src/content/formats/edt.ts` implements the English, Russian and Polish modes; since S6 every decode uses the data
+version's mode (§5.5).
 
 **Fonts decide what can be drawn.** All 16 fonts are `fonts/*.sti` with the same names in every version
 (`Utils/Font_Control.cc:37-52`); one translation table maps code points to glyph indices for all of them
@@ -790,6 +790,27 @@ is allowed with a warning that a replay may differ, like Stracciatella's version
 - **Repository rule**: the Russian JSON strings are Stracciatella's externalized tables (SFI-SCLA, copied unchanged like
   the rest of `data/externalized`); nothing from the user's EDT files, fonts or speech is committed, and tests assert
   keys, counts and lengths, never original text (`24` §11.5).
+
+### 5.5 What landed (slice S6, 2026-10-18)
+
+- **Data version**: `src/content/text/data-version.ts` (versions, `dataDecoding`, `stringSuffix` = `GetSuffix`, the glyph
+  table name, the R.P.C. speech prefix, `guessVanillaVersion` = the language-folder half of `guess.rs`; the resource-pack
+  hash matching is not ported, English is the fallback) and `src/server/data-version.ts` (detection at start,
+  `JA2_DATA_VERSION`, `JA2_LANG`). The decoding is threaded through content loading as an optional `DataDecoding`
+  argument (default English): `loadTacticalContent` (the prof.dat name fix), `narrativeContent` (EDT mode, NPC record
+  layout), `createCampaignSession`, `createSaveSession` (also the NPC layout of native saves), `createSandboxSession`.
+  The map reader needs nothing: like `WorldDef.cc` it skips the 148 bytes by the map file's own version 6.00/26, so
+  `getMajorMapVersion` only matters for writing maps.
+- **Speech paths**: `src/content/narrative/speech-path.ts` (`Dialogs.cc` `GetDialogueVoiceFilename`), unused until S8.
+- **String tables**: `data/tables/l10n.json` (`tools/transcribe/l10n.ts`), `src/content/text/strings.ts`; all nine
+  translation files pass the length check.
+- **EDT layouts**: `data/tables/edt-layouts.json` (`tools/transcribe/edt-layouts.ts`): 20 fixed files and 5 name patterns
+  (dialogue, alternate dialogue, merc dialogue, civilian quotes, sector hints). On the English Gold data every fixed file
+  holds whole records; the row counts in the `EDT.h` comments are twice the real ones for all files but `help.edt`, so
+  they are not transcribed.
+- **Server**: `src/server/text-service.ts`, `src/server/text-keys.ts`, `GET /api/strings`, the widened `GET /api/text`,
+  `newSession {language}`, `language`/`dataVersion` in `status` and `observe`, labels in `observe` (`04` §6.21). The
+  English/Chinese battle-sound branch and the MLG picture paths wait for the slices that port them (S8, M8).
 
 ---
 
@@ -1206,7 +1227,7 @@ Every scenario of §7.2 runs once in CI on stubs (sanity bounds only, §7.6).
 | **S3** Saves | file format, content identity, save store, rules, autosave, input log and `replay`, MCP/HTTP/WS API, events, native list; `04` §6 section | S2 | §12.1 complete; an agent saves and loads through MCP |
 | **S4** Benchmarks | `tools/bench`, the stub arena map, the scenarios of §7.2 (the `save` scenario after S3), CI smoke, the first measurements on original data; revise §7.3 | — (can run beside S1–S3) | targets confirmed or revised in this doc |
 | **S5** Options | `GameOptions` unification, the policy copy, `setOption`, `newSession` options, `status`, import mapping, deviations | S3 | blood and gore off changes deaths in a stub scenario; options in the save header |
-| **S6** Text | data version, `TextService`, string tables, `/api/strings`, widened `/api/text`, text keys, the Russian paths (EDT mode, NPC layout, speech prefix), per-session language | — (beside S5) | Russian labels on stubs; original-data tests for counts and lengths |
+| **S6** Text (landed, §5.5) | data version, `TextService`, string tables, `/api/strings`, widened `/api/text`, text keys, the Russian paths (EDT mode, NPC layout, speech prefix), per-session language | — (beside S5) | Russian labels on stubs; original-data tests for counts and lengths |
 | **S7** Stub media P0 | §6.3 items 1–5 except the video | S6 | `/api/text` and the cue table resolve on stubs |
 | **S8** Sound | WAV/GAP/ambient decoders, transcribed tables, cues, the audio layer, the director with animation opcodes, speech, ambient; the event fields of §3.3; deviations | S7 | the tactical page plays a stub firefight with sound |
 | **S9** Music | `musicMode`, `presentation.music` in sessions and snapshots, the client player, the victory clear of `useCreatureMusic` in the simulation | S8, S3 | music follows sector entry, combat, victory and defeat on stubs |

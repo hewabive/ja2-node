@@ -6,6 +6,7 @@ import { loadEconomyContent } from '../content/strategic/economy-content.ts';
 import { dialogueProfiles, type LaptopContent, loadLaptopContent } from '../content/strategic/laptop-content.ts';
 import { loadMerchantContent } from '../content/strategic/merchant-content.ts';
 import { loadStrategicContent } from '../content/strategic/strategic-content.ts';
+import { type DataDecoding, DEFAULT_DATA_DECODING } from '../content/text/data-version.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { DEFAULT_AIM_CONTRACT } from '../sim/campaign/laptop/aim.ts';
@@ -121,9 +122,10 @@ export async function buildNewCampaign(
   exists: FileExists,
   createState: () => StrategicState,
   layers?: LayerCount,
+  decoding: DataDecoding = DEFAULT_DATA_DECODING,
 ): Promise<NewCampaign> {
   const [baseContent, strategicContent, army] = await Promise.all([
-    loadTacticalContent(read),
+    loadTacticalContent(read, decoding),
     loadStrategicContent(read),
     loadArmyContent(read),
   ]);
@@ -132,7 +134,7 @@ export async function buildNewCampaign(
   const economyContent = await loadEconomyContent(read, strategicContent.towns);
   const merchantContent = await loadMerchantContent(read, content.items);
   const laptopContent = await loadLaptopContent(read, content.items);
-  const narrative = await narrativeSetup(read, content.items, content.profiles, layers);
+  const narrative = await narrativeSetup(read, content.items, content.profiles, layers, decoding);
   const state = createState();
   let campaign: CampaignSim | null = null;
   const roster = new Roster({ content, combat: campaignCombatContext(() => campaign, state, content), profiles: state.profiles });
@@ -160,6 +162,7 @@ export async function createCampaignSession(
   seed: number,
   request: CampaignRequest = {},
   layers?: LayerCount,
+  decoding: DataDecoding = DEFAULT_DATA_DECODING,
 ): Promise<CampaignSession> {
   validate(request);
   const { campaign, roster, worlds, laptopContent, stubbed, texts } = await buildNewCampaign(
@@ -171,6 +174,7 @@ export async function createCampaignSession(
         ...(request.difficulty !== undefined ? { options: { difficulty: request.difficulty } } : {}),
       }),
     layers,
+    decoding,
   );
   hireSquad(campaign, request, stubbed);
   if (request.imp) createImp(campaign, laptopContent, request.imp);

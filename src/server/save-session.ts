@@ -11,6 +11,7 @@ import { loadEconomyContent } from '../content/strategic/economy-content.ts';
 import { dialogueProfiles, loadLaptopContent } from '../content/strategic/laptop-content.ts';
 import { loadMerchantContent } from '../content/strategic/merchant-content.ts';
 import { loadStrategicContent } from '../content/strategic/strategic-content.ts';
+import { type DataDecoding, DEFAULT_DATA_DECODING } from '../content/text/data-version.ts';
 import { loadTacticalWorld } from '../content/world/tactical-world.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import { CampaignSim } from '../sim/campaign/campaign-sim.ts';
@@ -89,6 +90,7 @@ export async function createSaveSession(
   seed = DEFAULT_SEED,
   exists: FileExists | null = null,
   layers?: LayerCount,
+  decoding: DataDecoding = DEFAULT_DATA_DECODING,
 ): Promise<SaveSession> {
   const table = await read(SAVE_ENCRYPTION_PATH);
   if (!table) throw new Error(`missing ${SAVE_ENCRYPTION_PATH}`);
@@ -100,14 +102,14 @@ export async function createSaveSession(
   if (storyRefusal) throw new Error(`cannot continue this save: ${storyRefusal}`);
   const [world, content, strategicContent, army] = await Promise.all([
     loadTacticalWorld(read, saveMapPath(save)),
-    loadTacticalContent(read),
+    loadTacticalContent(read, decoding),
     loadStrategicContent(read),
     loadArmyContent(read),
   ]);
   const economyContent = await loadEconomyContent(read, strategicContent.towns);
   const merchantContent = await loadMerchantContent(read, content.items);
   const laptopContent = await loadLaptopContent(read, content.items);
-  const narrative = await narrativeSetup(read, content.items, content.profiles, layers);
+  const narrative = await narrativeSetup(read, content.items, content.profiles, layers, decoding);
   const sim = new TacticalSim(worldWithSavedDoors(world, save), content, seed);
   const report = importSave(sim, save);
   const strategic = createStrategicState({
@@ -167,7 +169,7 @@ export async function createSaveSession(
   }
   if (campaign.talk) {
     const version = save.header.version;
-    const records = readSavedNpcRecords(saveBytes, save.sections, version);
+    const records = readSavedNpcRecords(saveBytes, save.sections, version, decoding.npcRecords);
     importNpcRecords(campaign.talk.host, records, version, strategic.worldSector, (p) => {
       const profile = strategic.profiles.get(p);
       return profile ? { x: profile.sectorX, y: profile.sectorY, z: profile.sectorZ } : null;

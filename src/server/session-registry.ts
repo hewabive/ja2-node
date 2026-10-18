@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { UI_LANGUAGES } from '../content/text/data-version.ts';
 import type { CampaignRequest } from './campaign-factory.ts';
 import type { Session } from './session.ts';
 
@@ -15,6 +16,12 @@ export const SAVE_NAME = /^[A-Za-z0-9_-]{1,64}$/;
 
 export const NEW_SESSION_SHAPE = {
   seed: z.number().int().nonnegative().optional(),
+  language: z
+    .enum(UI_LANGUAGES)
+    .optional()
+    .describe(
+      "display language of the UI labels this session resolves (eng, rus, ger, dut, fr, it, pl, chs; default JA2_LANG or the data version's language); dialogue and other data text always come in the data version's language",
+    ),
   save: z.string().regex(SAVE_NAME).optional(),
   campaign: z
     .object({
@@ -57,6 +64,8 @@ export function describeSession(session: Session): Record<string, unknown> {
     tick: view.tick,
     map: view.mapPath,
     driver: session.driver,
+    language: session.language,
+    dataVersion: session.dataVersion,
     soldiers: view.soldiers.length,
     idle: session.sim.isIdle(),
     ...(view.clock ? { clock: view.clock } : {}),
@@ -99,6 +108,7 @@ export async function openSession(
       ...(request.save ? { save: request.save } : {}),
       ...(request.campaign ? { campaign: request.campaign } : {}),
     });
+    if (request.language) created.language = request.language;
     sessions.set(id, created);
     return created;
   } finally {

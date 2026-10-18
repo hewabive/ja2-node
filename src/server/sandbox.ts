@@ -1,3 +1,4 @@
+import { type DataDecoding, DEFAULT_DATA_DECODING } from '../content/text/data-version.ts';
 import { isVisibleTile } from '../content/world/grid.ts';
 import { loadTacticalWorld } from '../content/world/tactical-world.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
@@ -150,9 +151,14 @@ export function populateSandbox(sim: TacticalSim): void {
   addSoldierInitListEnemyDefenceSoldiers(t, SANDBOX_GARRISON, env);
 }
 
-export async function createSandboxSession(read: ReadFile, originalData: boolean, seed = DEFAULT_SEED): Promise<TacticalSession> {
+export async function createSandboxSession(
+  read: ReadFile,
+  originalData: boolean,
+  seed = DEFAULT_SEED,
+  decoding: DataDecoding = DEFAULT_DATA_DECODING,
+): Promise<TacticalSession> {
   const mapPath = originalData ? ORIGINAL_SANDBOX_MAP : STUB_SANDBOX_MAP;
-  const [world, content] = await Promise.all([loadTacticalWorld(read, mapPath), loadTacticalContent(read)]);
+  const [world, content] = await Promise.all([loadTacticalWorld(read, mapPath), loadTacticalContent(read, decoding)]);
   const sim = new TacticalSim(world, content, seed);
   populateSandbox(sim);
   sim.lookAround();

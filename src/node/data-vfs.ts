@@ -7,6 +7,7 @@ import { SlfFileLayer } from './slf-layer.ts';
 
 export const STUBS_PREFIX = 'stubs';
 export const PROJECT_DATA_LAYER = 'ja2-node-data';
+export const STUBS_LAYER = 'stubs';
 
 export interface DataVfsOptions {
   readonly projectDataDir?: string | undefined;
@@ -58,7 +59,7 @@ export async function openDataVfs(options: DataVfsOptions): Promise<DataVfs> {
     let stubsDir: string | null = null;
     if (options.stubsDir && existsSync(options.stubsDir)) {
       stubsDir = resolve(options.stubsDir);
-      layers.push(await DirLayer.open('stubs', stubsDir, { prefix: STUBS_PREFIX }));
+      layers.push(await DirLayer.open(STUBS_LAYER, stubsDir, { prefix: STUBS_PREFIX }));
     }
     return {
       vfs: new Vfs(layers),

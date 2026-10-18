@@ -4,12 +4,21 @@ import { Hono } from 'hono';
 import { compress } from 'hono/compress';
 import { getCookie, setCookie } from 'hono/cookie';
 import { createMiddleware } from 'hono/factory';
-import { DIALOGUE_SIZE, decodeEdtRow } from '../content/formats/edt.ts';
+import {
+  DEFAULT_VANILLA_VERSION,
+  displayLanguageOf,
+  isUiLanguage,
+  STUB_DATA_VERSION,
+  UI_LANGUAGES,
+  type UiLanguage,
+} from '../content/text/data-version.ts';
 import { vfsExtension } from '../content/vfs/path.ts';
 import { type Vfs, VfsNotFoundError } from '../content/vfs/vfs.ts';
 import { handleMcpRequest } from './mcp.ts';
 import type { Session } from './session.ts';
 import { describeSession, newSessionRequest, openSession, type SessionFactory } from './session-registry.ts';
+import { textKeyFor } from './text-keys.ts';
+import { TextService } from './text-service.ts';
 
 export interface AppInfo {
   readonly originalData: boolean;
@@ -27,15 +36,21 @@ export interface AppOptions {
   readonly sessions?: Map<string, Session>;
   readonly defaultSession?: string;
   readonly createSession?: SessionFactory;
+  readonly texts?: TextService;
+  readonly defaultLanguage?: UiLanguage;
 }
 
 export const TOKEN_COOKIE = 'ja2_token';
 
 const DEFAULT_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
-const TEXT_FILE = /^(npcdata|mercedt)\/[a-z0-9_]{1,16}\.edt$/i;
-const STUB_TEXT_PREFIX = 'stubs/';
 const MAX_TEXT_ROW = 4096;
-const MAX_TEXT_WIDTH = 1024;
+const STRINGS_CACHE_CONTROL = 'private, max-age=3600';
+const LANGUAGE_ERROR = `lang must be one of ${UI_LANGUAGES.join(', ')}`;
+const EDT_ERRORS = {
+  noLayout: { status: 400, message: 'file must be an EDT file the game reads (data/tables/edt-layouts.json)' },
+  notFound: { status: 404, message: 'not found' },
+  noRow: { status: 404, message: 'no such row' },
+} as const;
 
 const MIME: Record<string, string> = {
   json: 'application/json',
@@ -71,8 +86,20 @@ export function parseRange(header: string | undefined, size: number): { start: n
   return { start, end };
 }
 
+function rowNumber(value: string | undefined, fallback?: number): number | null {
+  if (value === undefined) return fallback ?? null;
+  const n = Number(value);
+  return value !== '' && Number.isInteger(n) && n >= 0 && n <= MAX_TEXT_ROW ? n : null;
+}
+
 export function createApp(options: AppOptions): Hono {
   const { vfs, token, info } = options;
+  const texts = options.texts ?? new TextService({ vfs, dataVersion: info.originalData ? DEFAULT_VANILLA_VERSION : STUB_DATA_VERSION });
+  const defaultLanguage = options.defaultLanguage ?? displayLanguageOf(texts.dataVersion);
+  const languageParam = (value: string | undefined): UiLanguage | null => {
+    const wanted = value?.toLowerCase() ?? defaultLanguage;
+    return isUiLanguage(wanted) ? wanted : null;
+  };
   const hosts = new Set(options.allowedHosts ?? DEFAULT_HOSTS);
   const generation = options.vfsGeneration ?? 'dev';
   const app = new Hono();
@@ -94,7 +121,12 @@ export function createApp(options: AppOptions): Hono {
   app.use('/vfs/*', requireToken);
   app.use('/mcp', requireToken);
   app.all('/mcp', (c) =>
-    handleMcpRequest(c.req.raw, options.sessions ?? new Map(), options.defaultSession ?? 'sandbox', options.createSession),
+    handleMcpRequest(c.req.raw, {
+      sessions: options.sessions ?? new Map(),
+      defaultSession: options.defaultSession ?? 'sandbox',
+      createSession: options.createSession,
+      texts,
+    }),
   );
   app.get('/login', (c) => {
     if (!sameToken(c.req.query('token'), token)) return c.json({ error: 'unauthorized' }, 401);
@@ -108,6 +140,8 @@ export function createApp(options: AppOptions): Hono {
       ok: true,
       name: 'ja2-node',
       data: { original: info.originalData, slf: info.slfCount, stubs: info.stubs },
+      dataVersion: texts.dataVersion,
+      language: defaultLanguage,
       files: vfs.size,
     }),
   );
@@ -127,18 +161,36 @@ export function createApp(options: AppOptions): Hono {
     return c.json({ layers, files });
   });
 
+  app.get('/api/strings', async (c) => {
+    const language = languageParam(c.req.query('lang'));
+    if (!language) return c.json({ error: LANGUAGE_ERROR }, 400);
+    const loaded = await texts.strings(language).catch((err: Error) => err);
+    if (loaded instanceof Error) return c.json({ error: loaded.message }, 500);
+    const headers = { 'content-type': 'application/json', 'cache-control': STRINGS_CACHE_CONTROL, etag: loaded.etag };
+    if (c.req.header('if-none-match') === loaded.etag) return c.body(null, 304, headers);
+    return c.body(loaded.body, 200, headers);
+  });
+
   app.get('/api/text', async (c) => {
-    const file = c.req.query('file') ?? '';
-    const row = Number(c.req.query('row'));
-    const width = Number(c.req.query('width') ?? DIALOGUE_SIZE);
-    if (!TEXT_FILE.test(file)) return c.json({ error: 'file must be npcdata/*.edt or mercedt/*.edt' }, 400);
-    if (!Number.isInteger(row) || row < 0 || row > MAX_TEXT_ROW) return c.json({ error: 'row must be a non-negative integer' }, 400);
-    if (!Number.isInteger(width) || width < 2 || width > MAX_TEXT_WIDTH) return c.json({ error: 'width must be an integer' }, 400);
-    const path = vfs.stat(file) ? file : vfs.stat(`${STUB_TEXT_PREFIX}${file}`) ? `${STUB_TEXT_PREFIX}${file}` : null;
-    if (!path) return c.json({ error: `not found: ${file}` }, 404);
-    const text = decodeEdtRow(await vfs.read(path), row, width);
-    if (text === null) return c.json({ error: `no row ${row} in ${file}` }, 404);
-    return c.json({ file, row, width, text });
+    const { file, table, key } = c.req.query();
+    if (table !== undefined || key !== undefined) {
+      const language = languageParam(c.req.query('lang'));
+      if (!language) return c.json({ error: LANGUAGE_ERROR }, 400);
+      const uiKey = key !== undefined ? textKeyFor(key) : { table: table ?? '', index: rowNumber(c.req.query('index'), 0) ?? -1 };
+      if (!uiKey || uiKey.index < 0)
+        return c.json({ error: key !== undefined ? `unknown key ${key}` : 'index must be a non-negative integer' }, 400);
+      const text = await texts.uiText(language, uiKey.table, uiKey.index).catch(() => null);
+      if (text === null) return c.json({ error: `no string ${uiKey.table}[${uiKey.index}]` }, 404);
+      return c.json({ ...(key !== undefined ? { key } : {}), table: uiKey.table, index: uiKey.index, language, text });
+    }
+    const row = rowNumber(c.req.query('row'));
+    if (row === null) return c.json({ error: 'row must be a non-negative integer' }, 400);
+    const found = await texts.edtRecord(file ?? '', row);
+    if (!found.ok) return c.json({ error: `${EDT_ERRORS[found.error].message}: ${file ?? ''}` }, EDT_ERRORS[found.error].status);
+    const { record } = found;
+    const column = rowNumber(c.req.query('column'), 0);
+    if (column === null || column >= record.columns.length) return c.json({ error: `column must be below ${record.columns.length}` }, 400);
+    return c.json({ ...record, column, width: record.layout[column], text: record.columns[column] });
   });
 
   app.get('/api/sessions', (c) => c.json([...(options.sessions?.values() ?? [])].map(describeSession)));

@@ -7,6 +7,7 @@ import { decodeLockTable, emptyLockTable, LOCKS_PATH, type LockTable, STUB_LOCKS
 import { PROFILES_PATH, parseProfiles } from '../../content/formats/prof.ts';
 import { loadExplosionContent } from '../../content/items/explosions.ts';
 import { loadItemTable } from '../../content/items/items.ts';
+import { type DataDecoding, DEFAULT_DATA_DECODING } from '../../content/text/data-version.ts';
 import type { ReadFile } from '../../content/world/tileset-loader.ts';
 import type { TacticalContent } from './content.ts';
 
@@ -31,7 +32,7 @@ async function loadLockTable(read: ReadFile): Promise<LockTable> {
   return bytes ? decodeLockTable(bytes) : emptyLockTable();
 }
 
-export async function loadTacticalContent(read: ReadFile): Promise<TacticalContent> {
+export async function loadTacticalContent(read: ReadFile, decoding: DataDecoding = DEFAULT_DATA_DECODING): Promise<TacticalContent> {
   const scriptBytes = (await read(ANIMATION_SCRIPTS_PATH)) ?? (await read(STUB_ANIMATION_SCRIPTS_PATH));
   if (!scriptBytes) throw new FormatError(`missing ${ANIMATION_SCRIPTS_PATH} (and no stub pack)`);
   const [control, surfaces, items, profileBytes, animStructures, material, explosions, corpses, locks] = await Promise.all([
@@ -50,7 +51,7 @@ export async function loadTacticalContent(read: ReadFile): Promise<TacticalConte
     animations: parseAnimationTables(control, surfaces),
     animStructures,
     items,
-    profiles: profileBytes ? parseProfiles(profileBytes) : [],
+    profiles: profileBytes ? parseProfiles(profileBytes, decoding.profileNames) : [],
     materialArmour: parseMaterialArmour(material),
     explosions,
     corpses,
