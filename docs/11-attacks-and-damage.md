@@ -1846,7 +1846,8 @@ No RNG. Same tile as the thrower → false (Strac guard against an endless loop)
   soldier under AI control with `IS_NEW_SITUATION` (`:8774-8813`): `AutoPlaceObject(pTempObject)`, clear it, cancel
   the pending animation, `ReduceAttackBusyCount`. `pThrowParams` is left allocated (harmless). **Quirk:**
   `pTempObject` is a copy of the whole hand stack taken *before* `RemoveObjs(…, 1)`, so returning it can duplicate
-  stacked grenades (inferred; decide whether to keep, log in deviations).
+  stacked grenades (inferred; kept: `haltFromSighting` returns the copy as the original does). ja2-node ports the
+  halt (`perception/wiring.ts`); `HandleSystemNewAISituation` is still the no-op `newAiSituation` hook (`27` §14).
 - Hit while in `THROW_ITEM`/`LOB_ITEM`/`SHOOT_ROCKET`/`SHOOT_MORTAR`: `EVENT_SoldierGotHit` calls
   `ReduceAttackBusyCount` (`Soldier_Control.cc:2636-2645`). If the hit animation replaces the throw before 460, the
   object in `pTempObject` is never launched and is lost at the next `SetTempObject` (inferred).
