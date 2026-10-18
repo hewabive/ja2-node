@@ -502,6 +502,11 @@ export class SectorFlow {
     this.postSchedulesOfLoadedSector(t, true);
   }
 
+  reattachLoadedSector(): void {
+    const sim = this.campaign.tactical;
+    if (sim) this.#installHooks(sim);
+  }
+
   postSchedulesOfLoadedSector(t: TacticalState, loadingSave: boolean): void {
     postSchedules(t, { loadingSave });
   }

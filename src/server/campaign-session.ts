@@ -19,6 +19,7 @@ import { BoxingState, boxingStateName } from '../sim/tactical/narrative/boxing-s
 import { Team } from '../sim/tactical/soldier.ts';
 import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { autoresolveView, npcRequestView, promptView } from './battle-view.ts';
+import type { CampaignParts } from './campaign-factory.ts';
 import { contractPromptView } from './contract-view.ts';
 import { laptopView } from './laptop-view.ts';
 import { tacticalPlayerView } from './sandbox.ts';
@@ -79,17 +80,30 @@ function withText<T>(value: T, texts: TextSource | null): T {
   return out as T;
 }
 
+export interface CampaignOrigin {
+  readonly kind: 'campaign' | 'imported';
+  readonly parts: CampaignParts;
+}
+
 export class CampaignSession implements SessionSim {
   readonly campaign: CampaignSim;
   readonly roster: Roster | null;
   readonly worlds: WorldCache | null;
   readonly texts: TextSource | null;
+  readonly origin: CampaignOrigin | null;
 
-  constructor(campaign: CampaignSim, roster: Roster | null = null, worlds: WorldCache | null = null, texts: TextSource | null = null) {
+  constructor(
+    campaign: CampaignSim,
+    roster: Roster | null = null,
+    worlds: WorldCache | null = null,
+    texts: TextSource | null = null,
+    origin: CampaignOrigin | null = null,
+  ) {
     this.campaign = campaign;
     this.roster = roster;
     this.worlds = worlds;
     this.texts = texts;
+    this.origin = origin;
   }
 
   async prepare(cmd: CommandEnvelope): Promise<void> {

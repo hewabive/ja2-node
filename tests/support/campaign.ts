@@ -1,19 +1,23 @@
 import type { ArmyContent } from '../../src/content/strategic/army.ts';
 import type { MerchantContent } from '../../src/content/strategic/merchant-content.ts';
-import { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
+import { type CampaignHooks, CampaignSim, type SimConstruction } from '../../src/sim/campaign/campaign-sim.ts';
 import { hireMerc } from '../../src/sim/campaign/hiring.ts';
 import { initNewGame } from '../../src/sim/campaign/new-game.ts';
 import { campaignCombatContext } from '../../src/sim/campaign/off-map-combat.ts';
 import { Roster } from '../../src/sim/campaign/roster.ts';
 import { createItem, createItems } from '../../src/sim/items/object.ts';
+import type { ContentRoots } from '../../src/sim/snapshot/refs.ts';
+import { restoreCampaign, snapshotCampaign } from '../../src/sim/snapshot/session.ts';
 import type { MerchantHooks } from '../../src/sim/strategic/economy/merchants/context.ts';
 import { sectorInfo } from '../../src/sim/strategic/map/sectors.ts';
-import { createStrategicState } from '../../src/sim/strategic/state.ts';
+import { createStrategicState, type StrategicState } from '../../src/sim/strategic/state.ts';
 import { CompressMode } from '../../src/sim/strategic/time/constants.ts';
 import { InvSlot } from '../../src/sim/tactical/inventory.ts';
 import { createSoldier, type Soldier, Team } from '../../src/sim/tactical/soldier.ts';
 import { teamMembers } from '../../src/sim/tactical/state.ts';
+import type { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import type { EconomyTestContent } from './economy.ts';
+import { defaultRunMode, driven, follow, type ReloadAdapter, type RunMode, reloadPoint } from './reload.ts';
 import type { StubSectorKit } from './sectors.ts';
 
 const STATS = {
@@ -41,6 +45,7 @@ export interface CampaignOptions {
   readonly garrison?: { readonly admins: number; readonly troops: number; readonly elites: number };
   readonly merchants?: MerchantContent;
   readonly merchantHooks?: Partial<MerchantHooks>;
+  readonly mode?: RunMode;
 }
 
 export interface TestCampaign {
@@ -72,8 +77,24 @@ function recruit(kit: CampaignKit) {
   };
 }
 
-export function createTestCampaign(kit: CampaignKit, options: CampaignOptions): TestCampaign {
-  const state = createStrategicState({ seed: options.seed });
+export function testCampaignContent(kit: CampaignKit, options: CampaignOptions): ContentRoots {
+  return {
+    content: kit.sectors.content,
+    strategic: kit.economy.strategic,
+    economy: kit.economy.economy,
+    items: kit.economy.items,
+    army: kit.army,
+    ...(options.merchants ? { merchants: options.merchants } : {}),
+  };
+}
+
+export function assembleTestCampaign(
+  kit: CampaignKit,
+  options: CampaignOptions,
+  state: StrategicState,
+  construction: SimConstruction = 'create',
+  tactical: TacticalSim | null = null,
+): TestCampaign {
   let campaign: CampaignSim | null = null;
   const content = kit.sectors.content;
   const roster = new Roster({
@@ -82,7 +103,7 @@ export function createTestCampaign(kit: CampaignKit, options: CampaignOptions): 
     combat: campaignCombatContext(() => campaign, state, content),
     profiles: state.profiles,
   });
-  const c = new CampaignSim(state, null, {
+  const hooks: CampaignHooks = {
     strategic: { content: kit.economy.strategic, mercs: roster },
     economy: { economy: kit.economy.economy, items: kit.economy.items, crew: roster },
     queen: { army: kit.army },
@@ -96,8 +117,35 @@ export function createTestCampaign(kit: CampaignKit, options: CampaignOptions): 
           },
         }
       : {}),
-  });
+  };
+  const c = construction === 'restore' ? CampaignSim.restore(state, tactical, hooks) : new CampaignSim(state, null, hooks);
   campaign = c;
+  return { campaign: c, roster };
+}
+
+export function testCampaignAdapter(kit: CampaignKit, options: CampaignOptions): ReloadAdapter<CampaignSim> {
+  const content = testCampaignContent(kit, options);
+  return {
+    drainBeforeReload: () => true,
+    snapshot: (c) => snapshotCampaign(c, content),
+    restore: (snapshot) =>
+      restoreCampaign(snapshot, {
+        content,
+        world: (path) => kit.sectors.world(path),
+        assemble: (state, tactical) => assembleTestCampaign(kit, options, state, 'restore', tactical).campaign,
+      }),
+  };
+}
+
+function drivenTestCampaign(kit: CampaignKit, options: CampaignOptions, created: TestCampaign, mode: RunMode): TestCampaign {
+  const campaign = driven(created.campaign, testCampaignAdapter(kit, options), mode);
+  return { campaign, roster: follow(campaign, (c: CampaignSim) => c.battle?.roster ?? created.roster) };
+}
+
+export function createTestCampaign(kit: CampaignKit, options: CampaignOptions): TestCampaign {
+  const state = createStrategicState({ seed: options.seed });
+  const created = assembleTestCampaign(kit, options, state);
+  const { campaign: c, roster } = created;
   initNewGame(c);
   if (options.garrison) {
     const a9 = sectorInfo(c.state.map, { x: 9, y: 1 });
@@ -105,8 +153,9 @@ export function createTestCampaign(kit: CampaignKit, options: CampaignOptions): 
     a9.numTroops = options.garrison.troops;
     a9.numElites = options.garrison.elites;
   }
-  for (let k = 0; k < (options.mercs ?? 4); k++) hireMerc(c, roster, recruit(kit), content);
-  return { campaign: c, roster };
+  for (let k = 0; k < (options.mercs ?? 4); k++) hireMerc(c, roster, recruit(kit), kit.sectors.content);
+  const mode = options.mode ?? defaultRunMode();
+  return mode ? drivenTestCampaign(kit, options, created, mode) : created;
 }
 
 export function landFirstSquad(c: CampaignSim): void {
@@ -116,9 +165,13 @@ export function landFirstSquad(c: CampaignSim): void {
 
 export function runTicks(c: CampaignSim, ticks: number, until: () => boolean = () => false): number {
   for (let i = 0; i < ticks; i++) {
-    if (until()) return i;
+    if (until()) {
+      reloadPoint(c);
+      return i;
+    }
     c.step();
   }
+  reloadPoint(c);
   return ticks;
 }
 
@@ -128,6 +181,7 @@ export function runUntilIdle(c: CampaignSim, budget = 40_000): number {
     c.step();
     if (i > 2 && c.isIdle()) break;
   }
+  reloadPoint(c);
   return i;
 }
 

@@ -2,9 +2,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type CampaignKit, createTestCampaign, landFirstSquad } from '../../../tests/support/campaign.ts';
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
+import { advance, expectReloadsInvisible, type RunMode } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { sectorId } from '../../content/strategic/sector-ids.ts';
-import { advance } from '../advance.ts';
 import type { SimEvent } from '../events.ts';
 import { PromptKind } from '../strategic/forces/battle-state.ts';
 import { createNewEnemyGroupDepartingFromSector } from '../strategic/forces/groups.ts';
@@ -50,8 +50,13 @@ function sendEnemyGroup(c: CampaignSim): number {
   return g.id;
 }
 
-function landedTown(seed: number, militiaRanks: readonly number[] = MILITIA): { c: CampaignSim; events: SimEvent[] } {
-  const { campaign: c } = createTestCampaign(kit, { seed, mercs: 3, garrison: { admins: 0, troops: 0, elites: 0 } });
+function landedTown(seed: number, militiaRanks: readonly number[] = MILITIA, mode?: RunMode): { c: CampaignSim; events: SimEvent[] } {
+  const { campaign: c } = createTestCampaign(kit, {
+    seed,
+    mercs: 3,
+    garrison: { admins: 0, troops: 0, elites: 0 },
+    ...(mode ? { mode } : {}),
+  });
   landFirstSquad(c);
   const events: SimEvent[] = [];
   events.push(...advance(c, { idle: true }, 20_000).events);
@@ -65,8 +70,8 @@ interface Commands {
   readonly retreatAtSlice?: number;
 }
 
-function runBattle(seed: number, commands: Commands = {}) {
-  const { c, events } = landedTown(seed);
+function runBattle(seed: number, commands: Commands = {}, mode?: RunMode) {
+  const { c, events } = landedTown(seed, MILITIA, mode);
   const toPrompt = advance(c, { ticks: TICKS_TO_ARRIVAL });
   events.push(...toPrompt.events);
   const prompt = c.state.battle.prompt;
@@ -135,6 +140,10 @@ describe('autoresolve from the strategic state', () => {
     const second = runBattle(9, { retreatAtSlice: 3 });
     expect(strip(first)).toBe(strip(second));
     expect(first.events.some((e) => e.type === 'arRetreated' || e.type === 'retreated')).toBe(true);
+  });
+
+  it('continues exactly when the campaign is saved and restored after every input', async () => {
+    await expectReloadsInvisible((mode) => runBattle(9, { retreatAtSlice: 3 }, mode).c);
   });
 
   it('hands a tactical battle to autoresolve when every merc is down and militia still fight', () => {

@@ -110,6 +110,12 @@ function instanceFlags(def: StructureDef, tile: StructureTile): number {
   return flags;
 }
 
+export interface WorldStructuresSnapshot {
+  readonly heights: Uint8Array;
+  readonly lists: StructureInstance[][];
+  readonly nextId: number;
+}
+
 export class WorldStructures {
   readonly lists: StructureInstance[][] = Array.from({ length: WORLD_MAX }, () => []);
   private nextId = FIRST_AVAILABLE_STRUCTURE_ID;
@@ -117,6 +123,20 @@ export class WorldStructures {
 
   constructor(heights: Uint8Array) {
     this.heights = heights;
+  }
+
+  static fromSnapshot(snapshot: WorldStructuresSnapshot): WorldStructures {
+    if (snapshot.lists.length !== WORLD_MAX) throw new RangeError(`a structure snapshot needs ${WORLD_MAX} tile lists`);
+    const world = new WorldStructures(snapshot.heights);
+    snapshot.lists.forEach((list, g) => {
+      world.lists[g] = list;
+    });
+    world.nextId = snapshot.nextId;
+    return world;
+  }
+
+  toSnapshot(): WorldStructuresSnapshot {
+    return { heights: this.heights, lists: this.lists, nextId: this.nextId };
   }
 
   at(g: number): readonly StructureInstance[] {

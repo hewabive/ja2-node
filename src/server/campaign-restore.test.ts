@@ -42,7 +42,7 @@ async function sessionsAtTheMapScreen(): Promise<{ readonly original: CampaignSe
   expect(built.campaign.tactical).toBeNull();
   expect(original.tick).toBe(MAP_SCREEN_TICKS);
   const copy = copyStrategicState(built.campaign.state);
-  const assembled = assembleCampaign(kit.read, exists, built.parts, copy, 'restore');
+  const assembled = assembleCampaign(kit.read, exists, built.parts, copy, { construction: 'restore' });
   const restored = new CampaignSession(assembled.campaign, assembled.roster, assembled.worlds, built.texts);
   return { original, restored };
 }

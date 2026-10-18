@@ -125,6 +125,15 @@ export interface PerceptionHooks {
   enterCombatMode(team: number, s: Soldier): void;
 }
 
+export const NO_PERCEPTION_HOOKS: PerceptionHooks = {
+  checkForChangingOrders: () => {},
+  setNewSituation: () => {},
+  haltFromSighting: () => {},
+  haltFromItemSighting: () => {},
+  ourTeamSeesSomeone: () => {},
+  enterCombatMode: () => {},
+};
+
 export interface TurnHooks {
   startNPCAI(t: TacticalState, s: Soldier): void;
   cancelAIAction(t: TacticalState, s: Soldier): void;
@@ -305,6 +314,44 @@ export interface SectorRef {
   readonly z: number;
 }
 
+export interface PathEnvSettings {
+  readonly showAllMercs: boolean;
+  readonly autoBandage: boolean;
+  readonly stats: { searches: number };
+}
+
+export function defaultPathEnvSettings(): PathEnvSettings {
+  return { showAllMercs: false, autoBandage: false, stats: { searches: 0 } };
+}
+
+export function pathEnvSettings(env: PathEnv): PathEnvSettings {
+  return { showAllMercs: env.showAllMercs, autoBandage: env.autoBandage, stats: env.stats ?? { searches: 0 } };
+}
+
+export interface PathEnvParts {
+  readonly pathWorld: PathWorld;
+  readonly occupant: readonly [Int16Array, Int16Array];
+  readonly soldiers: Soldier[];
+  readonly doorStatus: Map<number, DoorStatus>;
+  readonly content: TacticalContent;
+}
+
+export function createPathEnv(parts: PathEnvParts, settings: PathEnvSettings): PathEnv {
+  const { pathWorld, occupant, soldiers, doorStatus, content } = parts;
+  return {
+    world: pathWorld,
+    whoIsThere: (g, level) => whoIsThere({ occupant, soldiers }, g, level),
+    doorStatus: (g) => doorStatus.get(g) ?? null,
+    showAllMercs: settings.showAllMercs,
+    autoBandage: settings.autoBandage,
+    multiTile: (p, mode) => {
+      const s = p as Soldier;
+      return multiTileShape(content, s, mode === null ? s.uiMovementMode : anim(content, mode));
+    },
+    stats: settings.stats,
+  };
+}
+
 export function createTacticalState(
   world: TacticalWorldData,
   content: TacticalContent,
@@ -321,18 +368,7 @@ export function createTacticalState(
     structures: world.structures,
     mapDoors: world.mapDoors,
   };
-  const pathEnv: PathEnv = {
-    world: pathWorld,
-    whoIsThere: (g, level) => whoIsThere({ occupant, soldiers }, g, level),
-    doorStatus: (g) => doorStatus.get(g) ?? null,
-    showAllMercs: false,
-    autoBandage: false,
-    multiTile: (p, mode) => {
-      const s = p as Soldier;
-      return multiTileShape(content, s, mode === null ? s.uiMovementMode : anim(content, mode));
-    },
-    stats: { searches: 0 },
-  };
+  const pathEnv = createPathEnv({ pathWorld, occupant, soldiers, doorStatus, content }, defaultPathEnvSettings());
   return {
     clockMs: 0,
     tick: 0,
@@ -359,14 +395,7 @@ export function createTacticalState(
     perception: createPerception(TOTAL_SOLDIERS),
     lighting: createLightingState(world.level),
     fog: createFogOfWar(),
-    perceptionHooks: {
-      checkForChangingOrders: () => {},
-      setNewSituation: () => {},
-      haltFromSighting: () => {},
-      haltFromItemSighting: () => {},
-      ourTeamSeesSomeone: () => {},
-      enterCombatMode: () => {},
-    },
+    perceptionHooks: NO_PERCEPTION_HOOKS,
     turn: createTurnState(TOTAL_SOLDIERS),
     turnHooks: NO_TURN_HOOKS,
     equipment: createEquipmentState(content.items),

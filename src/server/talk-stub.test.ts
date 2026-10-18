@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { expectReloadsInvisible, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
+import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
 import type { ConversationView } from '../protocol/view.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -8,7 +10,7 @@ import { questStatus } from '../sim/strategic/narrative/facts.ts';
 import { Body, NO_PROFILE, Team } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
-import { Session } from './session.ts';
+import type { Session } from './session.ts';
 
 let kit: StubSectorKit;
 
@@ -31,8 +33,9 @@ const QUEST_IN_PROGRESS = 1;
 const QUEST_DONE = 2;
 const CIV_LOW_LOYALTY_LINES: ReadonlySet<number> = new Set([6, 7]);
 
-async function inA10(seed: number): Promise<{ session: CampaignSession; live: Session }> {
-  const session = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
+async function inA10(seed: number, mode?: RunMode): Promise<{ session: CampaignSession; live: Session }> {
+  const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs: 2, land: false });
+  const session = drivenSession(created, stubSessionSources(kit), mode);
   const start = sectorInfo(session.campaign.state.map, parseSectorString('A9'));
   start.numAdmins = 0;
   start.numTroops = 0;
@@ -44,7 +47,7 @@ async function inA10(seed: number): Promise<{ session: CampaignSession; live: Se
   const first = session.view().strategic?.mercs[0];
   if (!first) throw new Error('no merc');
   expect(session.dispatch({ type: 'route', soldier: first.id, to: 'A10' })).toMatchObject({ ok: true });
-  const live = new Session('t', session);
+  const live = new ReloadingSession('t', session);
   for (let k = 0; k < ROUTE_BUDGET && !session.view().strategic?.mercs.every((m) => m.sector === 'A10' && !m.betweenSectors); k++)
     live.advance({ worldSeconds: ROUTE_SLICE_SECONDS });
   const enter = { type: 'enterSector', sector: 'A10' };
@@ -185,6 +188,24 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(session.view().npcRequest).toBeNull();
     expect(conversation(answered)).toMatchObject({ profile: VASKO, initiatedBy: 'npc' });
     expect(conversation(answered)?.lastQuotes.map((q) => q.quote)).toEqual([22]);
+  });
+
+  it('continues exactly when the session is saved and restored after every input', async () => {
+    await expectReloadsInvisible(async (mode) => {
+      const { session, live } = await inA10(9, mode);
+      const merc = session.view().strategic?.mercs[0]?.id ?? 0;
+      walkUpAndTalk(session, live, merc);
+      session.dispatch({ type: 'approach', kind: 'direct' });
+      session.dispatch({ type: 'approach', kind: 'recruit' });
+      live.advance({ ticks: 10 });
+      session.dispatch({ type: 'answer', prompt: session.view().npcRequest?.id, choice: 'no' });
+      session.dispatch({ type: 'approach', kind: 'friendly' });
+      session.dispatch({ type: 'approach', kind: 'friendly' });
+      live.advance({ idle: true });
+      session.dispatch({ type: 'closeTalk' });
+      live.advance({ ticks: 200 });
+      return session;
+    });
   });
 
   it('lets an unnamed civilian bark a civilian quote instead of opening a panel', async () => {

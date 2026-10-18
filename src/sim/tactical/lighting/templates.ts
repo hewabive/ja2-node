@@ -217,6 +217,11 @@ function buildTemplate(name: string): LightTemplate | null {
   return asShippedTemplate(name, lightCreateOmni(omni[0], omni[1]));
 }
 
+export function cachedLightTemplateName(value: object): string | null {
+  const name = (value as { readonly name?: unknown }).name;
+  return typeof name === 'string' && cache.get(name) === value ? name : null;
+}
+
 export function lightTemplate(name: string): LightTemplate | null {
   const key = name.toUpperCase();
   let template = cache.get(key);
