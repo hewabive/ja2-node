@@ -851,7 +851,8 @@ language** (`eng`, `rus`, `ger`, `dut`, `fr`, `it`, `pl`, `chs`) only picks the 
 Stracciatella does for both Russian versions. The server default is `JA2_LANG`, else the data version's language (stubs:
 `eng`); each session has its own. EDT text (dialogue, item names, mails) always comes in the data version's language.
 
-- **`GET /api/health`** adds `dataVersion` and `language` (the server default).
+- **`GET /api/health`** adds `dataVersion` and `language` (the server default) and, with saves, `engine {version,
+  commit}`, so a client can predict `engineDiffers` before a load (the launcher's warning box, `docs/27` §8.4).
 - **`GET /api/strings?lang=`** (token, `ETag`, `cache-control: private, max-age=3600`; `lang` defaults to the server's):
   `{language, files, tables, keys}`; `tables` holds the 217 `L10n` keys (arrays checked against the sizes of
   `Localization.h`, `data/tables/l10n.json`) and the per-language files under their Stracciatella names (`new-strings`,
@@ -901,7 +902,8 @@ hundred bytes. Clients pass names, never paths: `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`
 - **WebSocket.** `{t: 'save', id, name?, description?}` and `{t: 'load', id, name, reseed?}` answer with `result` (`data`
   is the outcome, `reason` the refusal code). A load in place sends every subscriber of the session a fresh `welcome`;
   when the real-time driver was running it stops (the driver becomes `manual`) and the subscribers first receive
-  `stopped {report: {reason: 'loaded'}}`.
+  `stopped {report: {reason: 'loaded'}}`. A client drops the frames it still has queued when the new `welcome`
+  arrives (they belong to the replaced simulation).
 - **Events.** `gameSaved {name, kind}` after a player or quick save and `gameLoaded {name, seed}` after a load arrive with
   the next `advance` report of that session; autosaves and Dead is Dead saves send none, as in the original.
 - **Save modes.** A campaign option chosen at the new game: `newSession {campaign: {options: {saveMode: 'anywhere' |
@@ -956,7 +958,8 @@ shown: `{difficulty: 1 | 2 | 3, sciFi, gunNut, saveMode: 'anywhere' | 'ironMan' 
 - **Client settings** (volumes, speech, subtitles, key-advance speech, the sleep/wake notification, display toggles,
   playback speed, language, meanwhile scenes seen, help, cover and LOS sizes) are per browser
   (`src/app/settings.ts`) and never reach the simulation; an agent that wants the original's sleep/wake stop passes
-  `fellAsleep` and `wokeUp` in `advance {until: {events}}`.
+  `fellAsleep` and `wokeUp` in `advance {until: {events}}`, as the browser pages do for the sleep/wake setting.
+  The launcher at `/` (`docs/27` §8.4) offers them with the new campaign form and the save list over the same API.
 
 **Music** (`docs/27` §3.3, §3.7) is presentation the server computes, so every client hears the same mode: the
 session keeps the original's music mode (`none`, `mainMenu`, `laptop`, `tacticalNothing`, `tacticalEnemyPresent`,

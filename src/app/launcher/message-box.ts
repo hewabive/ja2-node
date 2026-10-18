@@ -7,7 +7,7 @@ export class MessageBox {
   readonly #text: HTMLElement;
   readonly #yes: HTMLButtonElement;
   readonly #no: HTMLButtonElement;
-  #labels: () => Labels;
+  readonly #labels: () => Labels;
 
   constructor(labels: () => Labels) {
     this.#dialog = document.getElementById('messageBox') as HTMLDialogElement;

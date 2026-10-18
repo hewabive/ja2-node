@@ -469,7 +469,7 @@ The snapshot stores `main`, `pre` and the cosmetic streams exactly. Two load mod
 | Events | `gameSaved {name, kind}` (not for autosaves, as in the original), `gameLoaded {name, seed}` |
 
 **Status after S3 (2026-10-18).** §1.3's file, content binding, input log and replay, §1.5's load modes, §1.6's rules
-and §1.7's API exist; the browser surfaces (§1.8) wait for S11; the options (S5, §2.4) and the music block (S9, §3.7)
+and §1.7's API exist; the browser surfaces (§1.8) landed with S11 (§8.4); the options (S5, §2.4) and the music block (S9, §3.7)
 have landed since. The
 agent-facing description is `04` §6.22.
 
@@ -678,7 +678,7 @@ All three are in `deviations.md` since S5. There is no policy deviation: the pol
 - **Client settings** (`src/app/settings.ts`, version 2, version 1 values kept): key-advance speech, the sleep/wake
   notification switch, the display toggles of §2.1 (`display.*`, stored for M8), playback speed, display language,
   meanwhile scenes seen (flags), help hidden, cover and LOS display sizes (4–11, `DisplayCover.cc`), every storage access
-  in `try`. The sleep/wake switch is stored for the launcher's real-time driver (S11); an agent passes `fellAsleep` and
+  in `try`. The sleep/wake switch is applied by the pages' real-time driver and advance since S11 (§8.4); an agent passes `fellAsleep` and
   `wokeUp` to `advance {until: {events}}`.
 - **Tests**: `src/sim/options.test.ts`, `src/server/options-api.test.ts` (MCP: options in the new campaign, `status`,
   `observe`, the save header and `listSaves`, `setOption` logged and refused for other options; aliases and the
@@ -1093,7 +1093,7 @@ file generated in the decoder's tests and no stub video at all (open question 9)
 - **Page**: `src/devtools/video/` (in Vite and on the start page) plays the splash, the beginning, an ending variant
   (followed by the credits) and the credits alone, toggles `playSplash`/`playIntro`, lists the last results and exposes
   `window.__ja2Video` (`video.progress`, `video.sequences`, `credits`). `?autoplay=splash` plays the splash on load
-  unless `playSplash` is off, as the launcher of S11 will.
+  unless `playSplash` is off, as the launcher does since S11 (§8.4, after a click).
 - **Checks**: on the user's data the page plays the splash with audio-clock pacing (474 of 486 frames shown in headless
   Chromium while taking screenshots), skips through the beginning with Space, a click and Escape, plays the ending with
   `throne_nomig`, `heli_flyby` and `heli_sky` and then scrolls the original credits; on stubs the e2e test
@@ -1662,6 +1662,83 @@ font, with the language's glyph table (§5.2); the screens of `01` §5.2 in the 
 message boxes → laptop sites; the original hotkeys; meanwhile scene playback (`26` §2.4) and the enemy glow. Result: a
 human plays the campaign in the browser without the devtools pages. Size XL.
 
+### 8.4 What landed (slice S11, 2026-10-18)
+
+- **Launcher** `src/app/launcher/`, served at `/` (the repository's root `index.html` is the launcher's page and keeps
+  links to every devtools page): the data source (original data with the SLF count, or the stub pack), the data
+  version and the display language in the header; panels for the new campaign, the saved games, the settings, video
+  and credits, the running sessions (links to their strategic and tactical pages) and the developer pages. DOM glue in
+  `main.ts`, `campaign-panel.ts`, `save-panel.ts`, `settings-panel.ts` and `message-box.ts` (a `<dialog>` with the
+  original's YES, NO and OK of `pMessageStrings`); the logic in DOM-free modules: `campaign-form.ts`, `save-rows.ts`,
+  `settings-file.ts`, `labels.ts` with `string-ids.ts` and `printf.ts`, and `api.ts` (the HTTP shapes the launcher
+  reads; `app` may not import `server`).
+- **New campaign** (`campaign-form.ts`): the game init screen's choices with `InitGameOptions`'s defaults preselected
+  (easy, sci-fi, reduced guns, save anywhere, blood on); the form always sends all five options, so the API's default
+  difficulty 2 never applies; the Dead is Dead save name (checked against the server's name rule and the reserved names);
+  the default squad of the server or of 1–6 mercs, or hiring in the laptop (`hire: []`), and whether the squad flies in
+  at once; the page to open (the tactical view only when the squad lands). The session gets the client's display
+  language; `?seed=N` on the launcher's URL passes a seed (tests). After `POST /api/sessions` the beginning sequence
+  plays unless `playIntro` is off, then the strategic or tactical page of the new session opens.
+- **Saved games** (`save-rows.ts`, `save-panel.ts`): the server's list (newest first), each row with
+  `DisplaySaveGameEntry`'s fields: `pMessageStrings[MSG_DAY] N, hh:mm`, the location (the sector code; N/A before
+  `STARTING_TIME` and `STR_LATE_14` after it when there is no sector), `n` with `MercAccountText[MERC_ACCOUNT_MERC]` or
+  `pMessageStrings[MSG_MERCS]`, the balance as `InternalSPrintMoney` prints it (`$-1,234` for debts), the description
+  and the Dead is Dead mark (`gs_dead_is_dead_mode_tab_name[1]`) by the initial save mode; native saves carry a mark of
+  their own. The tooltip lists the difficulty with `SLG_DIFF`, the save mode, the guns, the style, blood and gore and
+  the data version (in place of the original's mods). Load asks once, as `SaveLoadSelectedSave` does: the warnings the
+  launcher can predict from the header and `/api/health` (`engineDiffers` with `SLG_GAME_VERSION_DIF`,
+  `dataVersionDiffers` with a ja2-node line) go into one box between `SLG_SAVED_GAME_ISSUE` and
+  `SLG_SAVED_GAME_CONTINUE_ANYWAYS`; the load goes into a new session or in place into a running one, and the warnings
+  the server returns (the text identity) are shown with the result; a native save imports with `newSession {save}`.
+  Save as new (`{description}`, at most 46 characters) or over the selected save (`SLG_CONFIRM_SAVE`; `QuickSave` is
+  written as `quick`, autosaves and native saves cannot be overwritten), for the session chosen in the panel (preset by
+  `?session=` when a game page links back); Delete (`SLG_CONFIRM_DELETE`); Download (`GET /api/saves/:name/file`) and
+  Upload (`PUT`, the name taken from the file, made valid and unique, never a reserved one). Refusals appear in the
+  status line: `ironMan` with `zNewTacticalMessages[TCTL_MSG__IRON_MAN_CANT_SAVE_NOW]`, the others with
+  `SLG_SAVE_GAME_ERROR`, the code and the server's reason.
+- **Settings** (`settings-panel.ts`, `settings-file.ts`): the five volumes, mute, speech, subtitles (unchecking the
+  last one shows `OPT_NEED_AT_LEAST_SPEECH_OR_SUBTITLE_OPTION_ON` and keeps it on), key-advance speech, mute
+  confirmations, the sleep/wake notification, the splash and intro switches, playback speed, the display language
+  (in the header) and export and import as a JSON file `{format: 'ja2-node-settings', settings}` (normalized on import,
+  so an older or edited file cannot store invalid values). Settings apply at once and are saved under
+  `ja2-node:settings`; the volumes drive the launcher's audio engine (splash and intro sound), and the game pages read
+  them as before.
+- **Splash**: unless `playSplash` is off, the launcher starts behind a "Click to start" button and plays the splash
+  after the click, which unlocks the audio context so the splash has sound; it is offered once per browser tab
+  (`sessionStorage`), not each time a game page links back (deviation "Splash start"). The video and credits panel
+  plays the splash, the beginning and the credits.
+- **Labels** (`labels.ts`): every label is either an original string `{table, index}` of the string tables
+  (`zSaveLoadText`, `gzGIOScreenText`, `zOptionsText`, `zOptionsToggleText`, `pMessageStrings`, `gpStrategicString`,
+  `pUpdateMercStrings`, …; the indices in `string-ids.ts` from `Text.h`, `GameSettings.h` and
+  `Map_Screen_Interface.h`) or a ja2-node label with an English and a Russian text (about fifty). The launcher loads
+  `GET /api/strings?lang=` for the chosen language (the setting, else the server's default); a ja2-node label falls
+  back to English in the other six languages, a missing original string shows its label id. Switching the language
+  re-renders the page and is remembered.
+- **Server**: `/api/health` adds `engine {version, commit}` (the save service's engine identity), so a client can predict
+  `engineDiffers` before it loads. Nothing else changed on the server.
+- **Game pages**: `src/devtools/net/session-client.ts` gained `save()` and `load()` over the WebSocket and drops its
+  queued frames whenever a `welcome` arrives (the S3 open issue: frames of the replaced simulation were applied after a
+  load in place). `src/devtools/net/save-controls.ts` binds Alt+S (`save {name: 'quick'}`) and Alt+L (`load QuickSave`)
+  by `KeyboardEvent.code`, so any keyboard layout works, adds "quick save", "quick load" and a link back to the save
+  list to the header, and shows the outcome as the page's message: `pMessageStrings[MSG_SAVESUCCESS]`,
+  `SLG_LOAD_GAME_OK`, `SLG_LOAD_GAME_ERROR` with the reason, the Iron Man text, or a ja2-node line when there is no
+  quick save (the original then does nothing). The sleep/wake notification (`src/app/sleep-wake.ts`, DOM-free, and
+  `src/devtools/net/sleep-wake-stop.ts`): with the setting on, a frame carrying `fellAsleep` (not a collapse) or
+  `wokeUp` of a merc off a squad or vehicle (the cases `HandleRestFatigueAndSleepStatus` opens the update box for)
+  switches the real-time driver to manual, and the strategic page's advance adds the two events to its stop
+  condition, restarting quietly when the stop was a case without a box; the message is `pUpdateMercStrings` with the
+  merc names. Debug hooks: `window.__ja2Launcher`, `window.__ja2SaveKeys`, `window.__ja2SleepWake`.
+- **Tests**: `src/app/launcher/labels.test.ts` (every original label resolves in all eight languages, Russian labels,
+  the fallbacks, `printf`), `save-rows.test.ts` (money, the row fields, the tooltip, native rows, the warning box,
+  overwrite targets, descriptions, upload names), `campaign-form.test.ts`, `settings-file.test.ts` (round trip, other
+  files refused, normalization, the speech-or-subtitles rule), `src/app/sleep-wake.test.ts`; the end-to-end
+  `tests/e2e/launcher.spec.ts` (§12.2): the splash after the click and Escape, a campaign with options from the form
+  (expert, gun nut, blood off) opened on the tactical page, Alt+S and Alt+L there with the tick restored, the save list
+  with the quick save, download and upload, Russian labels from the string tables and the ja2-node table, a delete
+  confirmed in Russian.
+- **Not covered**: the playback speed setting is stored for M8 (the devtools pages keep their own playback buttons);
+  the display toggles and key-advance speech are stored only; the location column has no land type or town name.
+
 ---
 
 ## 9. Agent API and protocol (D13–D16)
@@ -1863,7 +1940,7 @@ Every scenario of §7.2 runs once in CI on stubs (sanity bounds only, §7.6).
 | **S8** Sound (landed, §3.6) | WAV/GAP/ambient decoders, transcribed tables, cues, the audio layer, the director with animation opcodes, speech, ambient; the event fields of §3.3; deviations | S7 | the tactical page plays a stub firefight with sound |
 | **S9** Music (landed, §3.7) | `musicMode`, `presentation.music` in sessions and snapshots, the client player, the victory clear of `useCreatureMusic` in the simulation | S8, S3 | music follows sector entry, combat, victory and defeat on stubs |
 | **S10** Video (landed, §4.5) | `smk.ts`, the stub encoder (or fixture), the player, sequences, credits parser and scroller | S8 | the splash and the ending play on original data; stub splash in e2e |
-| **S11** Launcher | the DOM launcher (§8.3), quick keys in the pages, client settings, export and import | S3, S5, S6, S10 | §12.2 launcher test |
+| **S11** Launcher (landed, §8.4) | the DOM launcher (§8.3), quick keys in the pages, client settings, export and import | S3, S5, S6, S10 | §12.2 launcher test |
 | **S12** Performance | profile-driven fixes against §7.3, `SessionHost` and `WorkerHost` | S4 (and S2 for the save scenario) | targets met or documented |
 | **S13** Stub campaign | §6.3 P1 items 6–9 (part A, landed, §6.6) and the end-to-end campaign with a reload (§12.2, part B) | S3, S7 | the stub campaign is won through MCP alone with a reload in a battle |
 | **S14** Release | README (playing with data or stubs, connecting an agent), `deviations.md` consolidated, `01` §12 status, a version tag | all | maintainer's review |
@@ -1903,6 +1980,8 @@ session factory and the protocol.
 - *Music track choice*, *footstep variants*, *speech playback not cut*, *ambient timing* (§3.5).
 - *Intro and splash switches*: client settings `playIntro` and `playSplash` (the original always plays the beginning
   intro on a new game).
+- *Splash start* (the launcher waits for a click, once per tab) and *save list in the launcher* (sector code only, the
+  data version in the tooltip) (§8.4).
 - *Video pacing*: frames paced by the audio clock instead of the wall clock.
 - *Display language*: UI strings may be in another language than the data's text.
 

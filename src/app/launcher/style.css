@@ -11,6 +11,7 @@
   --selected: #3a3222;
 }
 body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); }
+[hidden] { display: none !important; }
 h1 { margin: 0; color: var(--accent); font-size: 22px; }
 h2 { margin: 0 0 8px; font-size: 16px; color: var(--accent); }
 a { color: var(--accent); }
