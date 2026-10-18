@@ -1,8 +1,8 @@
 import {
   MAP_SIDE,
   type Sector,
-  sameSector,
   sectorFromStrategicIndex,
+  sectorId,
   sectorShortString,
   strategicIndex,
 } from '../content/strategic/sector-ids.ts';
@@ -12,9 +12,9 @@ import { campaignStatus } from '../sim/campaign/ending-state.ts';
 import { storyFlow } from '../sim/campaign/story-refusals.ts';
 import { meanwhileSceneName } from '../sim/strategic/ai/meanwhile.ts';
 import { Assignment, SectorFlag } from '../sim/strategic/forces/constants.ts';
-import { numEnemiesInSector } from '../sim/strategic/forces/groups.ts';
+import { isSurfaceMapSector, numEnemiesInEverySurfaceSector } from '../sim/strategic/forces/groups.ts';
 import type { StrategicContext, StrategicMerc } from '../sim/strategic/forces/ports.ts';
-import { EnemyKnowledge, peekPlayerKnowledgeOfEnemies } from '../sim/strategic/map/knowledge.ts';
+import { EnemyKnowledge, surfaceKnowledgeOfEnemies } from '../sim/strategic/map/knowledge.ts';
 import { getSectorFlagStatus, sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { calculateTravelTimeOfGroup } from '../sim/strategic/map/travel.ts';
 import { mercAccountStatusView, mercContractFields } from './contract-view.ts';
@@ -24,11 +24,23 @@ import { questLog } from './quest-view.ts';
 
 const sectorName = (s: Sector) => (s.z ? `${sectorShortString(s)}-${s.z}` : sectorShortString(s));
 
-function knownEnemies(ctx: StrategicContext, s: Sector): number | '?' | null {
+interface SurfaceScan {
+  readonly enemies: Uint8Array;
+  readonly knowledge: (s: Sector) => number;
+  readonly mercSectors: ReadonlySet<number>;
+}
+
+function surfaceScan(ctx: StrategicContext): SurfaceScan {
+  const mercSectors = new Set<number>();
+  for (const m of ctx.mercs.all()) if (isSurfaceMapSector(m.sector)) mercSectors.add(sectorId(m.sector));
+  return { enemies: numEnemiesInEverySurfaceSector(ctx), knowledge: surfaceKnowledgeOfEnemies(ctx), mercSectors };
+}
+
+function knownEnemies(ctx: StrategicContext, s: Sector, scan: SurfaceScan): number | '?' | null {
   if (ctx.state.didGameJustStart || s.z !== 0) return null;
-  const count = numEnemiesInSector(ctx, s);
+  const count = scan.enemies[sectorId(s)] ?? 0;
   if (count === 0) return null;
-  switch (peekPlayerKnowledgeOfEnemies(ctx, s)) {
+  switch (scan.knowledge(s)) {
     case EnemyKnowledge.THEYRE_THERE:
       return '?';
     case EnemyKnowledge.HOW_MANY:
@@ -38,19 +50,63 @@ function knownEnemies(ctx: StrategicContext, s: Sector): number | '?' | null {
   }
 }
 
-function sectorView(ctx: StrategicContext, s: Sector): StrategicSectorView {
+function sameMilitia(a: readonly number[], b: readonly number[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+function sectorView(ctx: StrategicContext, s: Sector, scan: SurfaceScan, previous: StrategicSectorView | undefined): StrategicSectorView {
   const map = ctx.state.map;
   const info = sectorInfo(map, s);
   const element = map.elements[strategicIndex(s)];
   const visited = getSectorFlagStatus(map, s, SectorFlag.ALREADY_VISITED);
-  return {
-    sector: sectorName(s),
-    visited,
-    town: element?.nameId ?? 0,
-    playerControlled: visited && element ? !element.enemyControlled : null,
-    enemies: knownEnemies(ctx, s),
-    militia: [...info.militia],
-  };
+  const town = element?.nameId ?? 0;
+  const playerControlled = visited && element ? !element.enemyControlled : null;
+  const enemies = knownEnemies(ctx, s, scan);
+  if (
+    previous &&
+    previous.visited === visited &&
+    previous.town === town &&
+    previous.playerControlled === playerControlled &&
+    previous.enemies === enemies &&
+    sameMilitia(previous.militia, info.militia)
+  )
+    return previous;
+  return { sector: sectorName(s), visited, town, playerControlled, enemies, militia: [...info.militia] };
+}
+
+function interestingSector(view: StrategicSectorView, s: Sector, scan: SurfaceScan): boolean {
+  return view.visited || view.town !== 0 || view.enemies !== null || scan.mercSectors.has(sectorId(s));
+}
+
+interface SectorViews {
+  readonly bySector: (StrategicSectorView | undefined)[];
+  listed: readonly StrategicSectorView[];
+}
+
+const sectorViewsOfMap = new WeakMap<object, SectorViews>();
+
+function sameViews(a: readonly StrategicSectorView[], b: readonly StrategicSectorView[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+function sectorViews(ctx: StrategicContext, scan: SurfaceScan): readonly StrategicSectorView[] {
+  const known = sectorViewsOfMap.get(ctx.state.map) ?? { bySector: [], listed: [] };
+  sectorViewsOfMap.set(ctx.state.map, known);
+  const sectors: StrategicSectorView[] = [];
+  for (let y = 1; y <= MAP_SIDE; y++)
+    for (let x = 1; x <= MAP_SIDE; x++) {
+      const s = { x, y, z: 0 };
+      const id = sectorId(s);
+      const view = sectorView(ctx, s, scan, known.bySector[id]);
+      known.bySector[id] = view;
+      if (interestingSector(view, s, scan)) sectors.push(view);
+    }
+  if (!sameViews(known.listed, sectors)) known.listed = sectors;
+  return known.listed;
 }
 
 function mercView(
@@ -94,20 +150,10 @@ function groupViews(ctx: StrategicContext): StrategicGroupView[] {
     });
 }
 
-function interestingSector(ctx: StrategicContext, view: StrategicSectorView, s: Sector): boolean {
-  return view.visited || view.town !== 0 || view.enemies !== null || ctx.mercs.all().some((m) => sameSector(m.sector, s));
-}
-
 export function strategicView(campaign: CampaignSim): StrategicView | undefined {
   const ctx = campaign.strategic;
   if (!ctx) return undefined;
-  const sectors: StrategicSectorView[] = [];
-  for (let y = 1; y <= MAP_SIDE; y++)
-    for (let x = 1; x <= MAP_SIDE; x++) {
-      const s = { x, y, z: 0 };
-      const view = sectorView(ctx, s);
-      if (interestingSector(ctx, view, s)) sectors.push(view);
-    }
+  const sectors = sectorViews(ctx, surfaceScan(ctx));
   const world = campaign.state.worldSector;
   const vehicles = vehicleViews(campaign);
   const helicopter = helicopterView(campaign);

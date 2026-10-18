@@ -2,6 +2,7 @@ import type { SimEvent } from '../sim/events.ts';
 import type { ShopView } from '../sim/strategic/economy/merchants/view.ts';
 import type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 import { type InventoryItemView, sameInventory } from '../sim/tactical/inventory-view.ts';
+import { sameJson } from './same-json.ts';
 
 export type { ShopBoxView, ShopEta, ShopKind, ShopView } from '../sim/strategic/economy/merchants/view.ts';
 export type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
@@ -648,7 +649,7 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
   let frame = diffView(previous.soldiers, next.soldiers, next.tick);
   if (!sameList(previous.openDoors, next.openDoors))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), openDoors: next.openDoors ?? [] };
-  if (JSON.stringify(previous.doors ?? []) !== JSON.stringify(next.doors ?? []))
+  if (!sameJson(previous.doors ?? [], next.doors ?? []))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), doors: next.doors ?? [] };
   if (!sameList(previous.revealedRooms, next.revealedRooms))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), revealedRooms: next.revealedRooms ?? [] };
@@ -659,29 +660,29 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
   if (previous.mapPath !== next.mapPath) frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), mapPath: next.mapPath };
   if (next.clock && !sameClock(previous.clock, next.clock))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), clock: next.clock };
-  if (next.strategic && JSON.stringify(previous.strategic) !== JSON.stringify(next.strategic))
+  if (next.strategic && !sameJson(previous.strategic, next.strategic))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), strategic: next.strategic };
-  if (JSON.stringify(previous.prompt ?? null) !== JSON.stringify(next.prompt ?? null))
+  if (!sameJson(previous.prompt ?? null, next.prompt ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), prompt: next.prompt ?? null };
-  if (JSON.stringify(previous.contractPrompt ?? null) !== JSON.stringify(next.contractPrompt ?? null))
+  if (!sameJson(previous.contractPrompt ?? null, next.contractPrompt ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), contractPrompt: next.contractPrompt ?? null };
-  if (JSON.stringify(previous.autoresolve ?? null) !== JSON.stringify(next.autoresolve ?? null))
+  if (!sameJson(previous.autoresolve ?? null, next.autoresolve ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), autoresolve: next.autoresolve ?? null };
-  if (JSON.stringify(previous.shop ?? null) !== JSON.stringify(next.shop ?? null))
+  if (!sameJson(previous.shop ?? null, next.shop ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), shop: next.shop ?? null };
-  if (JSON.stringify(previous.laptop ?? null) !== JSON.stringify(next.laptop ?? null))
+  if (!sameJson(previous.laptop ?? null, next.laptop ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), laptop: next.laptop ?? null };
-  if (JSON.stringify(previous.conversation ?? null) !== JSON.stringify(next.conversation ?? null))
+  if (!sameJson(previous.conversation ?? null, next.conversation ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), conversation: next.conversation ?? null };
-  if (JSON.stringify(previous.npcRequest ?? null) !== JSON.stringify(next.npcRequest ?? null))
+  if (!sameJson(previous.npcRequest ?? null, next.npcRequest ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), npcRequest: next.npcRequest ?? null };
   if ((previous.scriptedSequence ?? false) !== (next.scriptedSequence ?? false))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), scriptedSequence: next.scriptedSequence ?? false };
-  if (JSON.stringify(previous.meanwhile ?? null) !== JSON.stringify(next.meanwhile ?? null))
+  if (!sameJson(previous.meanwhile ?? null, next.meanwhile ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), meanwhile: next.meanwhile ?? null };
-  if (JSON.stringify(previous.ended ?? null) !== JSON.stringify(next.ended ?? null))
+  if (!sameJson(previous.ended ?? null, next.ended ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), ended: next.ended ?? null };
-  if (JSON.stringify(previous.boxing ?? null) !== JSON.stringify(next.boxing ?? null))
+  if (!sameJson(previous.boxing ?? null, next.boxing ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), boxing: next.boxing ?? null };
   return frame;
 }
@@ -712,7 +713,7 @@ function sameSoldier(a: SoldierView, b: SoldierView): boolean {
     a.kind === b.kind &&
     a.controlled === b.controlled &&
     a.voice === b.voice &&
-    JSON.stringify(a.keys ?? []) === JSON.stringify(b.keys ?? []) &&
+    sameJson(a.keys ?? [], b.keys ?? []) &&
     sameInventory(a.inventory, b.inventory)
   );
 }
