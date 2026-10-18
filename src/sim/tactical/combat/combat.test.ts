@@ -2,16 +2,18 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';
-import { Direction, gridNo } from '../../../content/world/grid.ts';
+import { CELL_X_SIZE, Direction, gridNo } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import type { SimEvent } from '../../events.ts';
+import { createItem } from '../../items/object.ts';
 import { adjustNoAPToFinishMove, hasAnimFlag, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot, itemIn } from '../inventory.ts';
 import { Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { handleItem, ItemHandle } from './attack.ts';
-import { chanceOfBulletHittingStructure } from './bullets.ts';
+import { chanceOfBulletHittingStructure, soldierToSoldierChanceToGetThrough } from './bullets.ts';
+import { gunRange } from './chance.ts';
 import { soldierTakeDamage } from './hit.ts';
 import { adjustImpactByHitLocation } from './impact.ts';
 import { AimShot, DamageReason } from './types.ts';
@@ -39,6 +41,26 @@ describe('damage and structure rules', () => {
     expect(chanceOfBulletHittingStructure(180, 200, 10)).toBe(76);
     expect(chanceOfBulletHittingStructure(100, 200, -5)).toBe(40);
     expect(chanceOfBulletHittingStructure(260, 300, 10)).toBe(90);
+  });
+});
+
+describe('gun range', () => {
+  const item = (name: string) => createItem(content.items, content.items.byName.get(name)?.index ?? -1, 100);
+
+  it('is one tile for a non-weapon and the weapon range for any weapon class, as GunRange', () => {
+    expect(gunRange(content.items, item('FIRSTAIDKIT'))).toBe(CELL_X_SIZE);
+    for (const name of ['GLOCK_17', 'THROWING_KNIFE', 'COMBAT_KNIFE'])
+      expect(gunRange(content.items, item(name))).toBe(content.items.byName.get(name)?.weapon?.range);
+  });
+
+  it('gives a shooter holding no gun the one-tile range: through at two tiles, falling short at six', () => {
+    const sim = newSim();
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { gun: 'FIRSTAIDKIT' });
+    const near = spawn(sim, 20, Team.ENEMY, gridNo(80, 82), Direction.NORTH);
+    const far = spawn(sim, 21, Team.ENEMY, gridNo(82, 86), Direction.NORTH);
+    expect(soldierToSoldierChanceToGetThrough(t, merc, near)).toBe(100);
+    expect(soldierToSoldierChanceToGetThrough(t, merc, far)).toBe(0);
   });
 });
 
