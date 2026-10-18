@@ -140,6 +140,41 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('snapshots of native save imports', (
     await data.close();
   });
 
+  it(
+    'round-trips a new campaign landed in Omerta with the original data and continues exactly',
+    async () => {
+      const session = await createCampaignSession(read, exists, 7, {});
+      session.drainEvents();
+      const json = JSON.stringify(snapshotSession(session));
+      const restored = await restoreSession(JSON.parse(json), read, exists);
+      expect(JSON.stringify(snapshotSession(restored)) === json).toBe(true);
+      const ahead = JSON.stringify(advance(session, { ticks: CONTINUE_TICKS }));
+      expect(JSON.stringify(advance(restored, { ticks: CONTINUE_TICKS })) === ahead).toBe(true);
+      expect(JSON.stringify(snapshotSession(restored)) === JSON.stringify(snapshotSession(session))).toBe(true);
+    },
+    SCENARIO_TIMEOUT_MS,
+  );
+
+  it('round-trips the original-data sandbox and continues exactly', async () => {
+    const session = await createSandboxSession(read, true, 5);
+    const json = JSON.stringify(snapshotSession(session));
+    const restored = await restoreSession(JSON.parse(json), read, exists);
+    expect(JSON.stringify(snapshotSession(restored)) === json).toBe(true);
+    const ahead = JSON.stringify(advance(session, { ticks: CONTINUE_TICKS }));
+    expect(JSON.stringify(advance(restored, { ticks: CONTINUE_TICKS })) === ahead).toBe(true);
+    expect(JSON.stringify(snapshotSession(restored)) === JSON.stringify(snapshotSession(session))).toBe(true);
+  });
+
+  it.skipIf(saveFiles.length === 0)('round-trips an import without a world cache, as the tactical oracle builds it', async () => {
+    const { session } = await createSaveSession(read, new Uint8Array(readFileSync(join(savesDir, saveFiles[0] ?? ''))));
+    session.drainEvents();
+    const json = JSON.stringify(snapshotSession(session));
+    const restored = await restoreSession(JSON.parse(json), read, null);
+    expect(JSON.stringify(snapshotSession(restored)) === json).toBe(true);
+    const ahead = JSON.stringify(advance(session, { ticks: CONTINUE_TICKS }));
+    expect(JSON.stringify(advance(restored, { ticks: CONTINUE_TICKS })) === ahead).toBe(true);
+  });
+
   for (const file of saveFiles) {
     it(
       `round-trips the import of ${file} against freshly loaded content and continues exactly`,

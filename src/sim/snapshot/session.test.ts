@@ -20,13 +20,14 @@ import {
 } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts';
+import { PreRandom, Rng } from '../../core/rng.ts';
 import type { CampaignSim } from '../campaign/campaign-sim.ts';
 import { registeredInTactical } from '../campaign/roster.ts';
 import { createItem } from '../items/object.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { Team } from '../tactical/soldier.ts';
 import { teamMembers } from '../tactical/state.ts';
-import { snapshotCampaign, snapshotJson } from './session.ts';
+import { reseedMain, snapshotCampaign, snapshotJson } from './session.ts';
 
 let kit: CampaignKit;
 
@@ -159,5 +160,18 @@ describe('a campaign snapshot', () => {
     }
     expect(t.sectorHooks).not.toBe(c.tactical.state.sectorHooks);
     expect(Object.keys(t.sectorHooks)).toEqual(Object.keys(c.tactical.state.sectorHooks));
+  });
+
+  it('reseeds the main stream in place: the tactical layer and the PreRandom refill follow, the PreRandom ring repeats', () => {
+    const { campaign: c } = createTestCampaign(kit, { seed: BATTLE_SEED, mercs: 3, garrison: GARRISON });
+    landFirstSquad(c);
+    const s = c.state;
+    const t = tacticalOf(c);
+    const ring = PreRandom.fromState(s.pre.state(), Rng.fromSeed(1));
+    reseedMain(s, 77);
+    expect(t.rng).toBe(s.rng);
+    expect(s.pre.refillStream()).toBe(s.rng);
+    expect(s.rng.state()).toEqual(Rng.fromSeed(77).state());
+    expect(Array.from({ length: 256 }, () => s.pre.int(1000))).toEqual(Array.from({ length: 256 }, () => ring.int(1000)));
   });
 });

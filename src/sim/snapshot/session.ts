@@ -1,4 +1,5 @@
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
+import { Rng } from '../../core/rng.ts';
 import type { CampaignSim } from '../campaign/campaign-sim.ts';
 import type { StrategicState } from '../strategic/state.ts';
 import { NO_EXPERIENCE_HOOKS } from '../tactical/combat/context.ts';
@@ -168,4 +169,8 @@ export function restoreCampaign(snapshot: unknown, sources: CampaignRestoreSourc
 
 export function snapshotJson(snapshot: SimSnapshot): string {
   return canonicalJson(snapshot);
+}
+
+export function reseedMain(state: { readonly rng: Rng }, seed: number): void {
+  state.rng.restore(Rng.fromSeed(seed).state());
 }
