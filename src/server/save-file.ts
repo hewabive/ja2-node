@@ -21,6 +21,7 @@ export const SAVE_EXTENSION = '.j2s';
 export const MAX_DESCRIPTION_CHARS = 46;
 export const MAX_SAVE_TEXT_BYTES = 512 * 1024 * 1024;
 const HEADER_LINE_END = '\n';
+const GZIP_OPTIONS = { level: constants.Z_BEST_SPEED };
 const SANDBOX_OPTIONS: Omit<GameOptions, 'gunNut'> = { difficulty: Difficulty.MEDIUM, sciFi: true, saveMode: 'anywhere' };
 const SECTOR_MAP_NAME = /([a-p])(\d{1,2})(?:_b(\d))?\.dat$/i;
 const ROW_LETTER_BASE = 96;
@@ -135,7 +136,7 @@ function bodyText(file: SaveFile): string {
 export function encodeSaveFile(file: SaveFile): EncodedSave {
   const head = headLine(file);
   const body = bodyText(file);
-  const bytes = Buffer.concat([gzipSync(Buffer.from(head, 'utf8')), gzipSync(Buffer.from(body, 'utf8'))]);
+  const bytes = Buffer.concat([gzipSync(Buffer.from(head, 'utf8'), GZIP_OPTIONS), gzipSync(Buffer.from(body, 'utf8'), GZIP_OPTIONS)]);
   return { bytes, digest: digestOf(head + body) };
 }
 

@@ -258,6 +258,10 @@ export class SaveService {
     return next.then(() => undefined);
   }
 
+  saveFileOf(session: Session, description = ''): SaveFile {
+    return this.#capture(session, 'player', '', description).file;
+  }
+
   #capture(session: Session, kind: SaveKind, name: string, description: string): Capture {
     const snapshot = sessionSnapshot(session);
     const summary = summarizeSession(session.sim);
