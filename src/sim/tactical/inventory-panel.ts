@@ -11,6 +11,7 @@
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { validAttachment, validLaunchable } from '../../content/items/rules.ts';
 import {
+  attachmentPosition,
   canAttachAsAttachment,
   cloneObject,
   createItem,
@@ -18,6 +19,7 @@ import {
   emptyWeaponMagazine,
   getObjFrom,
   type ItemObject,
+  NO_ATTACHMENT_POSITION,
   removeAttachment,
 } from '../items/object.ts';
 import { totalPoints, useKitPoints } from '../strategic/economy/kits.ts';
@@ -35,7 +37,7 @@ import {
   NO_SLOT,
   placeObject,
 } from './inventory.ts';
-import { attachSucceeded, soldierAttachObject, validMerge } from './item-merge.ts';
+import { attachSucceeded, evaluateValidMerge, MergeAction, soldierAttachObject, validMerge } from './item-merge.ts';
 import { AP, deductPoints, enoughPoints } from './points.ts';
 import { Body, OKLIFE, type Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
@@ -185,6 +187,15 @@ export interface MoveRequest {
   readonly merge: boolean | undefined;
 }
 
+function attachPrecheck(env: PanelEnv, s: Soldier, target: ItemObject, cursor: ItemObject): PanelRefusal | null {
+  if (canAttachAsAttachment(env.items, target, cursor.item))
+    return attachmentPosition(env.items, target, cursor) === NO_ATTACHMENT_POSITION ? PanelRefusal.CANNOT_ATTACH : null;
+  const merge = evaluateValidMerge(env.items, cursor.item, target.item);
+  if (!merge) return PanelRefusal.CANNOT_ATTACH;
+  if (merge.action !== MergeAction.COMBINE_POINTS && !enoughPoints(env.combat.inCombat, s, AP.MERGE)) return PanelRefusal.NOT_ENOUGH_AP;
+  return null;
+}
+
 function attachOrMergeRefusal(env: PanelEnv, req: MoveRequest, cursorItem: number): PanelRefusal | null {
   if (!ATTACH_SLOTS.includes(req.to)) return null;
   const slotItem = itemIn(req.target.inv, req.to);
@@ -210,6 +221,10 @@ export function moveItem(env: PanelEnv, req: MoveRequest): PanelOutcome {
   const merging =
     !env.mapScreen && req.merge === true && ATTACH_SLOTS.includes(to) && validMerge(env.items, cursorItem, itemIn(target.inv, to));
   if (!merging && !placementFits(env, mover, from, target, to, req.count, req.index)) return refuse(PanelRefusal.DOES_NOT_FIT);
+  const mergeRefusal = merging
+    ? attachPrecheck(env, mover, target.inv[to] as ItemObject, takeObjects(cloneObject(source), req.count, req.index) as ItemObject)
+    : null;
+  if (mergeRefusal) return refuse(mergeRefusal);
   const cursor = takeObjects(source, req.count, req.index) as ItemObject;
   const moved = cursor.count;
   env.equipmentChanged(mover, from, cursorItem, NOTHING);
@@ -263,11 +278,13 @@ export function attachItem(env: PanelEnv, req: AttachRequest): PanelOutcome {
   if (source.item === NOTHING || target.item === NOTHING) return refuse(PanelRefusal.EMPTY_SLOT);
   if (attacher === owner && from === slot) return refuse(PanelRefusal.SAME_SLOT);
   if (!enoughPoints(env.inCombat, attacher, AP_RELOAD_GUN)) return refuse(PanelRefusal.NOT_ENOUGH_AP);
-  const attaching = canAttachAsAttachment(env.items, target, source.item) || validLaunchable(env.items, source.item, target.item);
-  if (!attaching && !validMerge(env.items, source.item, target.item)) return refuse(PanelRefusal.CANNOT_ATTACH);
+  if (!canAttachAsAttachment(env.items, target, source.item) && !validMerge(env.items, source.item, target.item))
+    return refuse(PanelRefusal.CANNOT_ATTACH);
   const inseparable = ((env.items.byIndex.get(source.item)?.flags ?? 0) & ItemFlags.INSEPARABLE) !== 0;
   if (inseparable && validAttachment(env.items, source.item, target.item) && !req.permanent) return refuse(PanelRefusal.PERMANENT);
   if (req.index < 0 || req.index >= Math.max(1, target.count)) return refuse(PanelRefusal.CANNOT_ATTACH);
+  const precheck = attachPrecheck(env, attacher, target, takeObjects(cloneObject(source), req.count, 0) as ItemObject);
+  if (precheck) return refuse(precheck);
   const cursorItem = source.item;
   const into = name(env.items, target.item);
   const cursor = takeObjects(source, req.count, 0) as ItemObject;

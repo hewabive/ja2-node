@@ -87,6 +87,33 @@ describe('moving items inside one inventory', () => {
     expect(merc.inv[InvSlot.HAND]?.attachments[0]?.item).toBe(0);
   });
 
+  it('treats armour with compound 18 for AP_MERGE in combat and pours magazine rounds into the chosen stack object', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    merc.inv[InvSlot.VEST] = createItem(content.items, item('KEVLAR_VEST'), 80);
+    merc.inv[InvSlot.BIGPOCK1] = createItem(content.items, item('COMPOUND18'), 100);
+    merc.inv[InvSlot.BIGPOCK2] = createItems(content.items, item('CLIP9_15'), 100, 2);
+    merc.inv[InvSlot.SMALLPOCK1] = createItem(content.items, item('CLIP9_15'), 100);
+    (merc.inv[InvSlot.BIGPOCK2] as { status: number[] }).status = [15, 4];
+    (merc.inv[InvSlot.SMALLPOCK1] as { status: number[] }).status = [6];
+    inCombat(sim);
+    const ap = merc.actionPoints;
+    expect(sim.dispatch({ type: 'attach', soldier: 0, item: 'bigPocket1', to: 'vest' })).toMatchObject({
+      ok: true,
+      data: { result: 'merged' },
+    });
+    expect(itemAt(merc, InvSlot.VEST)).toBe('KEVLAR_VEST_18');
+    expect(merc.inv[InvSlot.VEST]?.status[0]).toBe(80);
+    expect(ap - merc.actionPoints).toBe(AP.MERGE);
+    expect(sim.dispatch({ type: 'attach', soldier: 0, item: 'smallPocket1', to: 'bigPocket2', index: 1 })).toMatchObject({
+      ok: true,
+      data: { result: 'merged' },
+    });
+    expect(merc.inv[InvSlot.BIGPOCK2]?.status.slice(0, 2)).toEqual([15, 10]);
+    expect(itemAt(merc, InvSlot.SMALLPOCK1)).toBe('NOTHING');
+    expect(ap - merc.actionPoints).toBe(AP.MERGE);
+  });
+
   it('swaps the hands and lowers a rifle when the pistol comes up', () => {
     const sim = newCombatSim(content);
     const t = sim.state;
