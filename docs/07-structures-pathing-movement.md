@@ -752,7 +752,8 @@ and `continue`. On success the frame still runs `MoveMerc` with the **old** dire
 `HandleAtNewGridNo` again on the same tile (noise/sight twice), then steps to `ubPathingData[1]`.
 So long moves are re-planned from the current tile every 30 steps.
 
-`EVENT_StopMerc(s)` (`Soldier_Control.cc:7372-7421`): clear pending animation unless waiting; `bEndDoorOpenCode = 0`;
+`EVENT_StopMerc(s)` (`Soldier_Control.cc:7372-7421`): unless waiting, clear the pending animation, direction and action
+(`Soldier::removePendingAnimation`); `bEndDoorOpenCode = 0`;
 `fTurningFromPronePosition = 0`; `ubPathIndex = ubPathDataSize = 0`; `fDelayedMovement = 0`; `bReverse = 0`;
 `EVENT_SetSoldierPosition(s, s.sGridNo, SSP_NONE)` (snap to the centre of the tile currently occupied, which may be the
 tile ahead after the half-step switch; also `sDestination = sFinalDestination = sGridNo`);

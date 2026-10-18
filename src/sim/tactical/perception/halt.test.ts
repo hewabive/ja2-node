@@ -3,12 +3,16 @@ import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/supp
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { createItem } from '../../items/object.ts';
+import { animName } from '../anim-states.ts';
 import { states } from '../animation.ts';
 import { eventFireSoldierWeapon, handleItem, ItemHandle } from '../combat/attack.ts';
+import { eventSoldierGotHit } from '../combat/hit.ts';
 import { eventSoldierBeginBladeAttack } from '../combat/melee.ts';
+import { AimShot, Special } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { NO_PENDING_ANIMATION, type Soldier, Team } from '../soldier.ts';
+import { Opp } from './opp.ts';
 import { haltFromSighting } from './wiring.ts';
 
 let content: TacticalContent;
@@ -86,6 +90,34 @@ describe('HaultSoldierFromSighting in combat', () => {
     expect(t.turn.attackBusyCount).toBe(1);
     haltFromSighting(t, enemy, true);
     expect(enemy.turningToShoot).toBe(false);
+    expect(t.turn.attackBusyCount).toBe(0);
+  });
+});
+
+describe('the enemy sighting pause on their turn', () => {
+  it('does not freeze a merc knocked back by a blast who sees a new enemy on landing', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.NORTH);
+    const thrower = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 70), Direction.SOUTH);
+    const hidden = spawnSoldier(sim, 21, Team.ENEMY, gridNo(84, 82), Direction.WEST);
+    sim.lookAround();
+    expect(merc.oppList[thrower.id]).toBe(Opp.SEEN_CURRENTLY);
+    expect(merc.oppList[hidden.id]).toBe(Opp.NOT_HEARD_OR_SEEN);
+    t.turn.currentTeam = Team.ENEMY;
+    t.turn.attackBusyCount++;
+    eventSoldierGotHit(t, merc, itemIndex('HAND_GRENADE'), 5, 5, Direction.NORTH, 1, thrower, Special.NONE, AimShot.TORSO);
+    expect(animName(content, merc.state)).toBe('FALLBACK_HIT_STAND');
+    let paused = false;
+    for (let tick = 0; tick < 4_000 && t.turn.attackBusyCount > 0; tick++) {
+      sim.step();
+      paused ||= t.turn.enemySightingOnTheirTurn?.enemy === hidden;
+    }
+    expect(paused).toBe(true);
+    expect(merc.oppList[hidden.id]).toBe(Opp.SEEN_CURRENTLY);
+    expect(merc.gridNo).toBe(gridNo(80, 81));
+    expect(merc.noAPToFinishMove).toBe(false);
+    expect(animName(content, merc.state)).not.toBe('FALLBACK_HIT_STAND');
     expect(t.turn.attackBusyCount).toBe(0);
   });
 });

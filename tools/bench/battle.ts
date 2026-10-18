@@ -162,6 +162,10 @@ function mustAct(field: Battlefield, cmd: CommandEnvelope): void {
 }
 
 export function engage(field: Battlefield): void {
+  if (!startsBattle(field)) throw new Error('bench: the battle did not start');
+}
+
+export function startsBattle(field: Battlefield): boolean {
   const { session, sim } = field;
   for (let step = 0; step < ENGAGE_STEPS && !sim().state.inCombat; step++) {
     const enemies = sim()
@@ -177,7 +181,7 @@ export function engage(field: Battlefield): void {
     session.advance({ idle: true, events: ['combatStarted'] }, TURN_BUDGET_TICKS);
     field.resolve();
   }
-  if (!sim().state.inCombat) throw new Error('bench: the battle did not start');
+  return sim().state.inCombat;
 }
 
 function takeCover(field: Battlefield): void {

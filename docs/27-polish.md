@@ -1765,30 +1765,50 @@ session factory and the protocol.
     (`src/server/stub-mercs.test.ts`).
 
 **Findings of the stall fixes** (2026-10-18; the original's code paths, inferred to hang it too until a watchdog that
-ja2-node does not port, deviations "Watchdogs"; not fixed, each needs a decision):
+ja2-node does not port, deviations "Watchdogs"; 14–16 decided and fixed on 2026-10-18 as minimal deviations):
 
-14. *Melee from a get-up*: an AI soldier who gets up at the start of his turn (`BeginSoldierGetup` → `PRONE_UP`) and
+14. *Melee from a get-up* (fixed: deviation "Melee from a prone turn", no prone return while a melee attack plays; every
+    prone attacker who must turn to a prone target met it, not only one getting up; test `ai/melee-ai.test.ts`): an AI
+    soldier who gets up at the start of his turn (`BeginSoldierGetup` → `PRONE_UP`) and
     stabs or punches a prone target at once: `EVENT_SetSoldierDesiredDirection` from the stationary `PRONE_UP` (start
     height prone) sets `fTurningFromPronePosition`, `PUNCH_LOW`/`CROUCH_STAB` start from its crouched end height, and
     TurnSoldier's prone return (`Tactical/Soldier_Control.cc:4335-4345`) replaces the attack with `PRONE_DOWN` before
     its hit: the busy count stays 1. The original would end the turn through the 15 s AI deadlock breaker
     (`TacticalAI/AIMain.cc:366-380, 577-602`). `node tools/bench/scenarios/campaign.ts --data '' --seed 5`
     (`#23 PRONE ai KNIFE_STAB`).
-15. *Knock-back frozen by the sighting pause*: a merc thrown back by a blast during the enemy turn
+15. *Knock-back frozen by the sighting pause* (fixed: deviation "Knock-back and the sighting pause", the pause does not
+    freeze a special move; test `perception/halt.test.ts`; the bench run below ends `lost`): a merc thrown back by a
+    blast during the enemy turn
     (`FALLBACK_HIT_STAND`, special move, non-interruptible) who sees a new enemy on landing gets `fNoAPToFinishMove`
     from the sighting-pause branch of `HandleAtNewGridNo` (`Tactical/Overhead.cc:1853-1858`); the 3 s timer unfreezes
     only the paused enemy (`GameScreen.cc:316-325`), so the special move never resumes, its hit release never comes and
     the thrower waits for the busy count (deadlock breaker in the original). `pnpm cli bench enemy-turn --data ''
     --seed 4 --variant arena-e32 --runs 1` (the listed `#20 TOSS_PROJECTILE` is the waiting thrower).
-16. *Options for 14–15*: a minimal deviation per case in the manner of "Melee hold leaks" (14: no prone return while a
-    melee attack plays; 15: the pause does not freeze a special move), or porting the deadlock breaker on the sim
-    clock. Recommended: the deviations, so that a hang stays a test failure.
-17. *Gaps seen while tracing (no stall found)*: `HandleSystemNewAISituation` is still the no-op `newAiSituation` hook in
+16. *Options for 14–15* (decided: the deviations; the deadlock breaker stays unported): a minimal deviation per case in
+    the manner of "Melee hold leaks" (14: no prone return while a melee attack plays; 15: the pause does not freeze a
+    special move), or porting the deadlock breaker on the sim clock. Recommended: the deviations, so that a hang stays
+    a test failure.
+17. *Gaps seen while tracing (no stall found)* (fixed: all ported, the oracle compare unchanged. The `newAiSituation`
+    hook is `HandleSystemNewAISituation`; the door continuation, which called the same no-op hook, now calls
+    `CancelAIAction` as `Soldier_Ani.cc:1849-1855` does; `stopMerc` is the whole `EVENT_StopMerc`; `handleSoldierAI`
+    returns on `fGettingHit` and opcode 480 clears it. Two more gaps of the class: `SoldierCollapse` tested the
+    PC-under-AI flag instead of `SOLDIER_UNDERAICONTROL` before ending the AI turn (`:8047`), and an interrupt at the
+    final tile did not drop the pending action (`Overhead.cc:1826-1830`). Tests: `ai/system-situation.test.ts`,
+    `ai/getting-hit.test.ts`, `movement.test.ts`, `animation.test.ts`): `HandleSystemNewAISituation` is still the no-op
+    `newAiSituation` hook in
     turn-based combat too (`10` §10 planned it active; `Soldier_Control.cc:8774-8817`): AI throws, turns to shoot and
     pending animations are not cancelled at the end of a stance change, a door opening, a turn's look or a new tile;
     `stopMerc` does not release a turn to shoot nor reset `fTurningFromPronePosition`, the pending direction and the
     pending action (`EVENT_StopMerc`, `:7379-7421`); `handleSoldierAI` lacks the `fGettingHit` return
     (`TacticalAI/AIMain.cc:180-184`, listed in `13` §1).
+18. *Sweep after 14–17* (2026-10-18): `bench enemy-turn --runs 1` with seeds 1–8 and every variant on stubs and on the
+    original data and `bench campaign --runs 1` with seeds 1–16 on stubs end without a `stalled` outcome. The campaign
+    harness crashed with "the battle did not start" on six seeds; it now reports `notEngaged` (seeds 8, 12, 15, 16:
+    the last enemies hold a building and the approach leaves our merc outside its wall, nobody sees anyone) and
+    finishes the others (seeds 9 and 11 end `cleared` after the last enemies left the map). Seen, not changed:
+    `HandleSystemNewAISituation` drops a pending melee animation without its busy count when a new situation arrives
+    without a sighting during the stance change before the attack; no source of such a new situation during an AI's
+    own turn was found, and no run met it.
 
 **Verified** by reading Stracciatella (vanilla where marked): the save list, names, folders, header, keys and gates,
 `CanGameBeSaved`, the three save modes, Dead is Dead's file, backups and save points, the end-of-turn autosave and its

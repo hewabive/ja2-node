@@ -497,7 +497,7 @@ function continueAfterDoor(t: TacticalState, s: Soldier): boolean {
   if (!END_OPEN_DOOR_STATES.includes(name) || s.endDoorOpenCode !== 1) return false;
   s.endDoorOpenCode = 2;
   getNewSoldierPath(t, s, s.finalDestination, s.uiMovementMode);
-  if (!hasAnimFlag(t.content, s.state, AnimFlags.MOVING) && s.absoluteFinalDestination !== -1) t.hooks.newAiSituation(t, s);
+  if (!hasAnimFlag(t.content, s.state, AnimFlags.MOVING) && s.absoluteFinalDestination !== NOWHERE) t.turnHooks.cancelAIAction(t, s);
   return true;
 }
 
@@ -649,7 +649,8 @@ export function turnSoldier(t: TacticalState, s: Soldier): void {
     s.dontUnsetLastTargetFromTurn = false;
     t.hooks.turnFinished(t, s);
     if (s.turningFromPronePosition === TurningFromProne.ON) {
-      if (isValidStance(t, s, AnimHeight.PRONE) && s.tempObject === null) changeSoldierStance(t, s, AnimHeight.PRONE);
+      if (isValidStance(t, s, AnimHeight.PRONE) && s.tempObject === null && !playsMeleeAttack(t, s))
+        changeSoldierStance(t, s, AnimHeight.PRONE);
       s.turningFromPronePosition = TurningFromProne.OFF;
     }
     const name = content.animations.controls[s.state]?.id ?? '';
@@ -685,7 +686,13 @@ export function turnSoldier(t: TacticalState, s: Soldier): void {
   } else if ((s.structure?.def.tiles.length ?? 0) > 1) s.desiredDirection = s.direction;
 }
 
-const TurningFromProne = { OFF: 0, ON: 1, START_UP_FROM_MOVE: 2, ENDING_UP_FROM_MOVE: 3 } as const;
+const MELEE_ATTACK_STATES = ['STAB', 'SLICE', 'CROUCH_STAB', 'PUNCH', 'PUNCH_LOW', 'CROWBAR_ATTACK'];
+
+function playsMeleeAttack(t: TacticalState, s: Soldier): boolean {
+  return MELEE_ATTACK_STATES.includes(t.content.animations.controls[s.state]?.id ?? '');
+}
+
+export const TurningFromProne = { OFF: 0, ON: 1, START_UP_FROM_MOVE: 2, ENDING_UP_FROM_MOVE: 3 } as const;
 const isVehicleBody = (s: Soldier) => s.bodyType >= 22 && s.bodyType <= 27;
 const isTankBody = (s: Soldier) => s.bodyType === 23 || s.bodyType === 24;
 
