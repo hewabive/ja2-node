@@ -2,7 +2,7 @@ import { type DataVersion, STUB_DATA_VERSION, type UiLanguage } from '../content
 import type { CommandEnvelope, DriverMode, ServerMessage, SessionStopReport } from '../protocol/messages.ts';
 import { initialMusic, type MusicFacts, type MusicState, musicMode, musicView } from '../protocol/music.ts';
 import { diffPlayerView, type PlayerView, type ViewFrame } from '../protocol/view.ts';
-import { advance, type Steppable, type StopCondition, type StopReport } from '../sim/advance.ts';
+import { AdvanceRun, type PauseCheck, type Steppable, type StopCondition, type StopReport } from '../sim/advance.ts';
 import { TICK_MS } from '../sim/clock.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -48,6 +48,34 @@ export type SessionEvent =
   | { readonly type: 'gameLoaded'; readonly tick: number; readonly name: string; readonly seed: number | null };
 
 export const DEFAULT_SESSION_TEXT: SessionText = { language: 'eng', dataVersion: STUB_DATA_VERSION };
+
+export interface Slicer {
+  begin(): void;
+  readonly due: PauseCheck;
+  pause(): Promise<void>;
+}
+
+const NEVER_DUE: PauseCheck = () => false;
+
+export const UNSLICED: Slicer = { begin: () => undefined, due: NEVER_DUE, pause: () => Promise.resolve() };
+
+type Run<T> = Generator<void, T, void>;
+
+function finish<T>(run: Run<T>): T {
+  for (;;) {
+    const next = run.next();
+    if (next.done) return next.value;
+  }
+}
+
+async function sliced<T>(run: Run<T>, slicer: Slicer): Promise<T> {
+  slicer.begin();
+  for (let next = run.next(); ; next = run.next()) {
+    if (next.done) return next.value;
+    await slicer.pause();
+    slicer.begin();
+  }
+}
 
 export class Session {
   readonly id: string;
@@ -109,13 +137,23 @@ export class Session {
     return this.#driver;
   }
 
+  get listening(): boolean {
+    return this.#listeners.size > 0;
+  }
+
+  get busy(): boolean {
+    return this.#depth > 0;
+  }
+
   subscribe(listener: Listener): () => void {
+    const welcome = this.#welcome();
+    if (!this.listening) this.#lastView = welcome.view;
     this.#listeners.add(listener);
-    listener(this.#welcome());
+    listener(welcome);
     return () => this.#listeners.delete(listener);
   }
 
-  #welcome(): ServerMessage {
+  #welcome(): Extract<ServerMessage, { t: 'welcome' }> {
     return { t: 'welcome', session: this.id, view: this.#view(), driver: this.#driver };
   }
 
@@ -124,6 +162,7 @@ export class Session {
   }
 
   #publish(frames: ViewFrame[]): void {
+    if (!this.listening) return;
     for (let i = 0; i < frames.length; i += MAX_FRAMES_PER_MESSAGE)
       this.#broadcast({ t: 'frames', frames: frames.slice(i, i + MAX_FRAMES_PER_MESSAGE) });
   }
@@ -178,6 +217,7 @@ export class Session {
   #capture(frames: ViewFrame[]): void {
     const events = this.#pendingEvents.splice(0);
     this.#followMusic(events);
+    if (!this.listening) return;
     const view = this.#view();
     const diff = diffPlayerView(this.#lastView, view);
     this.#lastView = view;
@@ -185,11 +225,11 @@ export class Session {
     if (frame) frames.push(frame);
   }
 
-  #input<T>(work: () => T): T {
+  *#input<T>(work: Run<T>): Run<T> {
     this.#depth++;
     let failed = false;
     try {
-      return work();
+      return yield* work;
     } catch (err) {
       failed = true;
       if (this.#depth === 1) this.hooks?.failed?.(this, err);
@@ -200,12 +240,12 @@ export class Session {
     }
   }
 
-  async prepareAndDispatch(cmd: CommandEnvelope): Promise<CommandResult> {
+  async prepareAndDispatch(cmd: CommandEnvelope, slicer: Slicer = UNSLICED): Promise<CommandResult> {
     const before = new Set(this.#sim.preparedMaps?.() ?? []);
     await this.#sim.prepare?.(cmd);
     const maps = (this.#sim.preparedMaps?.() ?? []).filter((path) => !before.has(path));
     if (maps.length > 0) this.log.append('prepare', this.#sim.tick, { maps });
-    return this.dispatch(cmd);
+    return this.dispatchSliced(cmd, slicer);
   }
 
   async prepareMaps(maps: readonly string[]): Promise<void> {
@@ -215,30 +255,52 @@ export class Session {
   }
 
   dispatch(cmd: CommandEnvelope): CommandResult {
-    return this.#input(() => {
-      this.hooks?.beforeDispatch?.(this, cmd);
-      this.log.append(cmd.type === 'answer' ? 'answer' : 'cmd', this.#sim.tick, { cmd });
-      const result = this.#sim.dispatch(cmd);
-      this.hooks?.afterDispatch?.(this, cmd, result);
-      const frames: ViewFrame[] = [];
-      this.#capture(frames);
-      this.#publish(frames);
-      if (result.ok && this.#driver.mode === 'instant') this.advance({ idle: true });
-      return result;
-    });
+    return finish(this.#input(this.#dispatchRun(cmd, NEVER_DUE)));
+  }
+
+  dispatchSliced(cmd: CommandEnvelope, slicer: Slicer): Promise<CommandResult> {
+    return sliced(this.#input(this.#dispatchRun(cmd, slicer.due)), slicer);
+  }
+
+  *#dispatchRun(cmd: CommandEnvelope, due: PauseCheck): Run<CommandResult> {
+    this.hooks?.beforeDispatch?.(this, cmd);
+    this.log.append(cmd.type === 'answer' ? 'answer' : 'cmd', this.#sim.tick, { cmd });
+    const result = this.#sim.dispatch(cmd);
+    this.hooks?.afterDispatch?.(this, cmd, result);
+    const frames: ViewFrame[] = [];
+    this.#capture(frames);
+    this.#publish(frames);
+    if (result.ok && this.#driver.mode === 'instant') yield* this.#loggedAdvance({ idle: true }, undefined, due);
+    return result;
   }
 
   advance(until: StopCondition, budget?: number): StopReport {
-    return this.#input(() => {
-      this.log.append('advance', this.#sim.tick, { until, ...(budget !== undefined ? { budget } : {}) });
-      return this.#advance(until, budget);
-    });
+    return finish(this.#loggedAdvance(until, budget, NEVER_DUE));
   }
 
-  #advance(until: StopCondition, budget?: number): StopReport {
+  advanceSliced(until: StopCondition, budget: number | undefined, slicer: Slicer): Promise<StopReport> {
+    return sliced(this.#loggedAdvance(until, budget, slicer.due), slicer);
+  }
+
+  *#loggedAdvance(until: StopCondition, budget: number | undefined, due: PauseCheck): Run<StopReport> {
+    return yield* this.#input(this.#loggedAdvanceRun(until, budget, due));
+  }
+
+  *#loggedAdvanceRun(until: StopCondition, budget: number | undefined, due: PauseCheck): Run<StopReport> {
+    this.log.append('advance', this.#sim.tick, { until, ...(budget !== undefined ? { budget } : {}) });
+    return yield* this.#advanceRun(until, budget, due);
+  }
+
+  *#advanceRun(until: StopCondition, budget: number | undefined, due: PauseCheck): Run<StopReport> {
     this.hooks?.beforeAdvance?.(this);
     const frames: ViewFrame[] = [];
-    const report = advance(this.#recordingStepper(frames), until, budget);
+    const run = new AdvanceRun(this.#recordingStepper(frames), until, budget);
+    let report = run.resume(due);
+    while (report === null) {
+      this.#publish(frames.splice(0));
+      yield;
+      report = run.resume(due);
+    }
     this.#capture(frames);
     this.#publish(frames);
     this.hooks?.afterAdvance?.(this, report);
@@ -251,6 +313,14 @@ export class Session {
   }
 
   setDriver(driver: DriverMode, now: () => number = () => performance.now()): void {
+    finish(this.#driverRun(driver, now, NEVER_DUE));
+  }
+
+  setDriverSliced(driver: DriverMode, slicer: Slicer, now: () => number = () => performance.now()): Promise<void> {
+    return sliced(this.#driverRun(driver, now, slicer.due), slicer);
+  }
+
+  *#driverRun(driver: DriverMode, now: () => number, due: PauseCheck): Run<void> {
     this.log.append('drive', this.#sim.tick, { driver });
     this.#driver = driver;
     this.#stopTimer();
@@ -259,7 +329,7 @@ export class Session {
       this.#carryMs = 0;
       this.#timer = setInterval(() => this.runRealtime(now()), REALTIME_INTERVAL_MS);
     }
-    if (driver.mode === 'instant') this.advance({ idle: true });
+    if (driver.mode === 'instant') yield* this.#loggedAdvance({ idle: true }, undefined, due);
   }
 
   #stopTimer(): void {
@@ -268,19 +338,21 @@ export class Session {
   }
 
   runRealtime(at: number): void {
-    if (this.#driver.mode !== 'realtime') return;
+    if (this.#driver.mode !== 'realtime' || this.busy) return;
     this.#carryMs += (at - this.#lastRealtime) * this.#driver.speed;
     this.#lastRealtime = at;
     const ticks = Math.floor(this.#carryMs / TICK_MS);
     if (ticks <= 0) return;
     this.#carryMs -= ticks * TICK_MS;
-    const report = this.#input(() => {
-      const entry: InputEntry = this.log.appendRealtime(this.#sim.tick, ticks);
-      const stopped = this.#advance({ ticks });
-      if (stopped.reason === 'ticks') this.log.realtimeBatchCompleted(entry);
-      return stopped;
-    });
+    const report = finish(this.#input(this.#realtimeRun(ticks)));
     if (report.reason === 'decision') this.setDriver({ mode: 'manual' });
+  }
+
+  *#realtimeRun(ticks: number): Run<StopReport> {
+    const entry: InputEntry = this.log.appendRealtime(this.#sim.tick, ticks);
+    const stopped = yield* this.#advanceRun({ ticks }, undefined, NEVER_DUE);
+    if (stopped.reason === 'ticks') this.log.realtimeBatchCompleted(entry);
+    return stopped;
   }
 
   replace(sim: SessionSim, loaded: LoadPayload, music: MusicState = sim.initialMusic ?? initialMusic()): void {
@@ -293,9 +365,10 @@ export class Session {
     this.#sim = sim;
     this.#music = music;
     this.#fastFade = false;
-    this.#lastView = this.#view();
+    const welcome = this.#welcome();
+    this.#lastView = welcome.view;
     if (wasRunning) this.#broadcast({ t: 'stopped', id: LOADED_STOP_ID, report: this.#loadedStop() });
-    this.#broadcast(this.#welcome());
+    this.#broadcast(welcome);
   }
 
   #loadedStop(): SessionStopReport {

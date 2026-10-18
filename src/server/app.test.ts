@@ -6,6 +6,7 @@ import { encodeEdtFile } from '../content/formats/edt.ts';
 import { MemoryLayer, Vfs } from '../content/vfs/vfs.ts';
 import { createApp, parseRange } from './app.ts';
 import { Session, type SessionSim } from './session.ts';
+import { InProcessHost, type SessionHost } from './session-host.ts';
 import type { SessionRequest } from './session-registry.ts';
 
 const token = 'test-token-0123456789';
@@ -144,7 +145,7 @@ describe('session endpoints', () => {
     view: () => ({ tick: 0, mapPath: null, soldiers: [] }),
   };
   const requests: SessionRequest[] = [];
-  const sessions = new Map([['sandbox', new Session('sandbox', still)]]);
+  const sessions = new Map<string, SessionHost>([['sandbox', new InProcessHost(new Session('sandbox', still))]]);
   const withSessions = createApp({
     vfs: new Vfs([]),
     token,
@@ -153,7 +154,7 @@ describe('session endpoints', () => {
     defaultSession: 'sandbox',
     createSession: async (id, request) => {
       requests.push(request);
-      return new Session(id, still);
+      return new InProcessHost(new Session(id, still));
     },
   });
   const post = (body: unknown) =>

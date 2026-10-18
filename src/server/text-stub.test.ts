@@ -13,6 +13,7 @@ import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import type { StrategicMercView } from '../protocol/view.ts';
 import { createApp } from './app.ts';
 import { Session, type SessionSim } from './session.ts';
+import { InProcessHost, type SessionHost } from './session-host.ts';
 import type { SessionRequest } from './session-registry.ts';
 import { TEXT_KEYS } from './text-keys.ts';
 import { TextService } from './text-service.ts';
@@ -58,7 +59,7 @@ const campaignLike: SessionSim = {
 };
 
 function stubApp(requests: SessionRequest[] = []) {
-  const sessions = new Map([['sandbox', new Session('sandbox', campaignLike)]]);
+  const sessions = new Map<string, SessionHost>([['sandbox', new InProcessHost(new Session('sandbox', campaignLike))]]);
   const app = createApp({
     vfs: stubVfs,
     token,
@@ -68,7 +69,9 @@ function stubApp(requests: SessionRequest[] = []) {
     defaultSession: 'sandbox',
     createSession: async (id, request) => {
       requests.push(request);
-      return new Session(id, campaignLike, { language: 'eng', dataVersion: 'stubs' });
+      const session = new Session(id, campaignLike, { language: 'eng', dataVersion: 'stubs' });
+      if (request.language) session.language = request.language;
+      return new InProcessHost(session);
     },
   });
   return { app, sessions };
@@ -177,12 +180,12 @@ describe('per-session display language', () => {
       body: JSON.stringify(body),
     });
 
-  it('opens a session in Russian over HTTP without passing the language to the simulation', async () => {
+  it('opens a session in Russian over HTTP, setting the language on the session and never on the simulation', async () => {
     const requests: SessionRequest[] = [];
     const { app } = stubApp(requests);
     const created = await (await post(app, { seed: 2, language: 'rus' })).json();
     expect(created).toMatchObject({ session: 'sandbox-1', language: 'rus', dataVersion: 'stubs' });
-    expect(requests.at(-1)).toEqual({ seed: 2 });
+    expect(requests.at(-1)).toEqual({ seed: 2, language: 'rus' });
     expect((await post(app, { language: 'klingon' })).status).toBe(400);
     const list = await (await app.request('http://localhost/api/sessions', { headers: auth })).json();
     expect(list.map((s: { language: string }) => s.language)).toEqual(['eng', 'rus']);

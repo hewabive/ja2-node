@@ -2,9 +2,10 @@ import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { type WebSocket, WebSocketServer } from 'ws';
-import { parseClientMessage, type ServerMessage } from '../protocol/messages.ts';
-import { loadProblemOf, type SaveService } from './save-service.ts';
-import type { Session } from './session.ts';
+import { type ClientMessage, parseClientMessage, type ServerMessage } from '../protocol/messages.ts';
+import type { CommandResult } from '../sim/command.ts';
+import { loadProblemOf } from './save-service.ts';
+import type { SessionHost } from './session-host.ts';
 
 const MAX_MESSAGE_BYTES = 1 << 20;
 const DEFAULT_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
@@ -15,10 +16,9 @@ export interface UpgradeServer {
 
 export interface WebSocketOptions {
   readonly token: string;
-  readonly sessions: ReadonlyMap<string, Session>;
+  readonly sessions: ReadonlyMap<string, SessionHost>;
   readonly defaultSession: string;
   readonly allowedHosts?: readonly string[];
-  readonly saves?: SaveService;
 }
 
 function tokenFrom(req: IncomingMessage, url: URL): string | undefined {
@@ -40,67 +40,77 @@ function reject(socket: Duplex, status: string): void {
   socket.destroy();
 }
 
+type Reply = ServerMessage | null;
+
+function resultOf(id: number, r: CommandResult): ServerMessage {
+  return { t: 'result', id, ok: r.ok, ...(r.reason ? { reason: r.reason } : {}), ...(r.data !== undefined ? { data: r.data } : {}) };
+}
+
+function savesMissing(id: number): ServerMessage {
+  return { t: 'result', id, ok: false, reason: 'saves are not available' };
+}
+
+async function saveReply(host: SessionHost, id: number, name: string | undefined, description: string | undefined): Promise<Reply> {
+  if (!host.savesAvailable) return savesMissing(id);
+  const outcome = await host.save({ name, description });
+  return { t: 'result', id, ok: outcome.ok, ...(outcome.ok ? {} : { reason: outcome.refused }), data: outcome };
+}
+
+async function loadReply(host: SessionHost, id: number, name: string, reseed: boolean): Promise<Reply> {
+  if (!host.savesAvailable) return savesMissing(id);
+  try {
+    return { t: 'result', id, ok: true, data: await host.load(name, reseed) };
+  } catch (err) {
+    const refused = loadProblemOf(err);
+    return { t: 'result', id, ok: false, reason: refused, data: { refused, reason: (err as Error).message } };
+  }
+}
+
+function reply(host: SessionHost, message: Exclude<ClientMessage, { t: 'hello' }>): Promise<Reply> {
+  switch (message.t) {
+    case 'cmd':
+      return host.prepareAndDispatch(message.cmd).then((r) => resultOf(message.id, r));
+    case 'advance':
+      return host.advance(message.until).then((report) => ({ t: 'stopped', id: message.id, report }));
+    case 'drive':
+      return host.setDriver(message.driver).then(() => ({ t: 'result', id: message.id, ok: true }));
+    case 'save':
+      return saveReply(host, message.id, message.name, message.description);
+    case 'load':
+      return loadReply(host, message.id, message.name, message.reseed ?? true);
+  }
+}
+
 function serve(ws: WebSocket, options: WebSocketOptions): void {
   let unsubscribe: (() => void) | null = null;
-  let session: Session | null = null;
-  let pending: Promise<unknown> = Promise.resolve();
-  const inOrder = (work: () => unknown) => {
-    pending = pending.then(work);
-  };
+  let host: SessionHost | null = null;
+  let replies: Promise<unknown> = Promise.resolve();
   const send = (m: ServerMessage) => {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m));
+  };
+  const inOrder = (pending: Promise<Reply>) => {
+    replies = replies
+      .then(() => pending)
+      .then(
+        (m) => {
+          if (m) send(m);
+        },
+        (err: Error) => send({ t: 'error', message: err.message }),
+      );
   };
   ws.on('message', (data) => {
     const message = parseClientMessage(data.toString());
     if (!message) return send({ t: 'error', message: 'malformed message' });
     if (message.t === 'hello') {
       unsubscribe?.();
-      session = options.sessions.get(message.session ?? options.defaultSession) ?? null;
-      if (!session) return send({ t: 'error', message: 'no such session' });
-      unsubscribe = session.subscribe(send);
+      unsubscribe = null;
+      host = options.sessions.get(message.session ?? options.defaultSession) ?? null;
+      if (!host) return send({ t: 'error', message: 'no such session' });
+      unsubscribe = host.subscribe(send);
       return;
     }
-    const current = session;
-    if (!current) return send({ t: 'error', message: 'say hello first' });
-    switch (message.t) {
-      case 'cmd':
-        return inOrder(async () => {
-          const r = await current.prepareAndDispatch(message.cmd);
-          send({
-            t: 'result',
-            id: message.id,
-            ok: r.ok,
-            ...(r.reason ? { reason: r.reason } : {}),
-            ...(r.data !== undefined ? { data: r.data } : {}),
-          });
-        });
-      case 'advance':
-        return inOrder(() => send({ t: 'stopped', id: message.id, report: current.advance(message.until) }));
-      case 'drive':
-        return inOrder(() => {
-          current.setDriver(message.driver);
-          send({ t: 'result', id: message.id, ok: true });
-        });
-      case 'save':
-        return inOrder(async () => {
-          const saves = options.saves;
-          if (!saves) return send({ t: 'result', id: message.id, ok: false, reason: 'saves are not available' });
-          const outcome = await saves.save(current, { name: message.name, description: message.description });
-          send({ t: 'result', id: message.id, ok: outcome.ok, ...(outcome.ok ? {} : { reason: outcome.refused }), data: outcome });
-        });
-      case 'load':
-        return inOrder(async () => {
-          const saves = options.saves;
-          if (!saves) return send({ t: 'result', id: message.id, ok: false, reason: 'saves are not available' });
-          try {
-            const outcome = await saves.loadInto(current, message.name, message.reseed ?? true);
-            send({ t: 'result', id: message.id, ok: true, data: outcome });
-          } catch (err) {
-            const refused = loadProblemOf(err);
-            send({ t: 'result', id: message.id, ok: false, reason: refused, data: { refused, reason: (err as Error).message } });
-          }
-        });
-    }
+    if (!host) return send({ t: 'error', message: 'say hello first' });
+    inOrder(reply(host, message));
   });
   ws.on('close', () => unsubscribe?.());
 }

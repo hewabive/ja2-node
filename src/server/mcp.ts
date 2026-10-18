@@ -2,26 +2,17 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { z } from 'zod';
 import type { WorldTimeTarget } from '../sim/advance.ts';
-import { saveStatus } from './save-rules.ts';
 import { loadProblemOf, type SaveService } from './save-service.ts';
 import { SAVE_FILE_NAME } from './save-store.ts';
-import type { Session } from './session.ts';
-import {
-  describeSession,
-  importReport,
-  NEW_SESSION_SHAPE,
-  type NewSessionRequest,
-  openSession,
-  optionsStatus,
-  type SessionFactory,
-} from './session-registry.ts';
+import type { HostFactory, SessionHost } from './session-host.ts';
+import { NEW_SESSION_SHAPE, type NewSessionRequest, openSession } from './session-registry.ts';
 import { labelledView } from './text-keys.ts';
 import type { TextService } from './text-service.ts';
 
 export interface McpOptions {
-  readonly sessions: Map<string, Session>;
+  readonly sessions: Map<string, SessionHost>;
   readonly defaultSession: string;
-  readonly createSession?: SessionFactory | undefined;
+  readonly createSession?: HostFactory | undefined;
   readonly texts?: TextService | undefined;
   readonly saves?: SaveService | undefined;
 }
@@ -50,16 +41,14 @@ function text(value: unknown): { content: { type: 'text'; text: string }[] } {
   return { content: [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value, null, 1) }] };
 }
 
-async function observation(session: Session, texts: TextService | undefined): Promise<Record<string, unknown>> {
-  const view = session.sim.view();
-  const strings = texts ? await texts.strings(session.language).catch(() => null) : null;
-  return {
-    ...(strings ? labelledView(view, strings.strings) : view),
-    language: session.language,
-    dataVersion: session.dataVersion,
-    ...optionsStatus(session.sim),
-    ...saveStatus(session.sim),
-  };
+async function observation(host: SessionHost, texts: TextService | undefined): Promise<Record<string, unknown>> {
+  const { view, language, dataVersion, status } = await host.observe();
+  const strings = texts ? await texts.strings(language).catch(() => null) : null;
+  return { ...(strings ? labelledView(view, strings.strings) : view), language, dataVersion, ...status };
+}
+
+async function opened(host: SessionHost): Promise<Record<string, unknown>> {
+  return { ...(await host.describe()), ...(await host.report()) };
 }
 
 function refusal(err: unknown): Record<string, unknown> {
@@ -68,7 +57,7 @@ function refusal(err: unknown): Record<string, unknown> {
 
 export function buildMcpServer({ sessions, defaultSession, createSession, texts, saves }: McpOptions): McpServer {
   const server = new McpServer(SERVER_INFO);
-  const pick = (id: string | undefined): Session => {
+  const pick = (id: string | undefined): SessionHost => {
     const s = sessions.get(id ?? defaultSession);
     if (!s) throw new Error(`no session ${id ?? defaultSession}`);
     return s;
@@ -82,7 +71,7 @@ export function buildMcpServer({ sessions, defaultSession, createSession, texts,
         'Game status: tick, map, time driver, display language (language) and data version (dataVersion: english, russian, russianGold, … of the original data, or stubs), soldier count, whether the simulation is idle, the game options (options: difficulty, sciFi, gunNut, saveMode, bloodAndGore); in a campaign also the clock, flow (strategic, tactical, autoresolve, laptop, meanwhile, endgame, ended), sector, campaign (playing, endgame, won) and noUsableMercs: true when no usable merc is left (compression is refused; there is no game over).',
       inputSchema: sessionArg,
     },
-    async ({ session }) => text(describeSession(pick(session))),
+    async ({ session }) => text(await pick(session).describe()),
   );
   if (createSession) {
     server.registerTool(
@@ -94,9 +83,7 @@ export function buildMcpServer({ sessions, defaultSession, createSession, texts,
       },
       async (request) => {
         try {
-          const created = await openSession(sessions, defaultSession, createSession, request);
-          const loaded = saves?.lastLoad(created);
-          return text({ ...describeSession(created), ...(loaded ? { load: loaded } : {}), ...importReport(created) });
+          return text(await opened(await openSession(sessions, defaultSession, createSession, request)));
         } catch (err) {
           if (request.load) return text(refusal(err));
           throw err;
@@ -149,7 +136,7 @@ export function buildMcpServer({ sessions, defaultSession, createSession, texts,
       },
     },
     async ({ session, idle, ticks, events, worldTime, worldSeconds, compressionStopped, mode }) => {
-      const report = pick(session).advance({
+      const report = await pick(session).advance({
         ...(idle ? { idle: true as const } : {}),
         ...(ticks ? { ticks } : {}),
         ...(events ? { events: events as never } : {}),
@@ -171,11 +158,11 @@ export function buildMcpServer({ sessions, defaultSession, createSession, texts,
 }
 
 interface SaveToolOptions {
-  readonly sessions: Map<string, Session>;
+  readonly sessions: Map<string, SessionHost>;
   readonly defaultSession: string;
-  readonly createSession: SessionFactory | undefined;
+  readonly createSession: HostFactory | undefined;
   readonly saves: SaveService;
-  readonly pick: (id: string | undefined) => Session;
+  readonly pick: (id: string | undefined) => SessionHost;
 }
 
 function registerSaveTools(server: McpServer, { sessions, defaultSession, createSession, saves, pick }: SaveToolOptions): void {
@@ -191,7 +178,7 @@ function registerSaveTools(server: McpServer, { sessions, defaultSession, create
         description: z.string().max(200).optional(),
       },
     },
-    async ({ session, name: saveName, description }) => text(await saves.save(pick(session), { name: saveName, description })),
+    async ({ session, name: saveName, description }) => text(await pick(session).save({ name: saveName, description })),
   );
   server.registerTool(
     'load',
@@ -207,13 +194,13 @@ function registerSaveTools(server: McpServer, { sessions, defaultSession, create
       try {
         if (session !== undefined) {
           const target = pick(session);
-          const outcome = await saves.loadInto(target, saveName, reseed ?? true);
-          return text({ ...outcome, ...describeSession(target) });
+          const outcome = await target.load(saveName, reseed ?? true);
+          return text({ ...outcome, ...(await target.describe()) });
         }
         if (!createSession) throw new Error('new sessions are not available');
         const request: NewSessionRequest = { load: saveName, ...(reseed !== undefined ? { reseed } : {}) };
         const created = await openSession(sessions, defaultSession, createSession, request);
-        return text({ ...saves.lastLoad(created), ...describeSession(created) });
+        return text({ ...(await created.report()).load, ...(await created.describe()) });
       } catch (err) {
         return text(refusal(err));
       }

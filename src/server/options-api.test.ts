@@ -24,15 +24,14 @@ afterAll(async () => {
 });
 
 async function server(k: SaveKit) {
-  const sandbox = await k.factory('sandbox', { seed: 5 });
-  k.sessions.set('sandbox', sandbox);
+  k.hosts.set('sandbox', await k.hostFactory('sandbox', { seed: 5 }));
   return createApp({
     vfs: new Vfs([]),
     token,
     info: { originalData: false, slfCount: 0, stubs: true },
-    sessions: k.sessions,
+    sessions: k.hosts,
     defaultSession: 'sandbox',
-    createSession: k.factory,
+    createSession: k.hostFactory,
     saves: k.saves,
   });
 }
@@ -80,8 +79,8 @@ describe('game options over the agent API', () => {
           data: { refusal: 'badOption' },
         });
         expect((await call('status', { session })).options).toEqual({ ...CHOSEN, bloodAndGore: true });
-        const live = k.sessions.get(session);
-        expect(live?.log.full().entries.map((e) => (e.payload as { cmd?: { type: string } }).cmd?.type)).toContain('setOption');
+        const live = await k.hosts.get(session)?.inputLog();
+        expect(live?.entries.map((e) => (e.payload as { cmd?: { type: string } }).cmd?.type)).toContain('setOption');
         const saved = await call('save', { session, name: 'withOptions' });
         expect(saved).toMatchObject({ ok: true, header: { options: { ...CHOSEN, bloodAndGore: true } } });
         const bytes = await k.store.read('withOptions');
@@ -130,7 +129,7 @@ describe('game options over the agent API', () => {
         });
         const body = (await response.json()) as { session: string; options: unknown };
         expect(body.options).toEqual({ difficulty: 2, sciFi: true, gunNut: true, saveMode: 'anywhere', bloodAndGore: true });
-        const session = k.sessions.get(body.session);
+        const session = k.hosts.get(body.session)?.session;
         const sim = session?.sim;
         if (!(sim instanceof CampaignSession)) throw new Error('not a campaign');
         sim.campaign.state.battle.prompt = { id: 'p1', kind: PromptKind.NPC_OF_NOTE };

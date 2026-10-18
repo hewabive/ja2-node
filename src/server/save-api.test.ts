@@ -29,15 +29,16 @@ afterAll(async () => {
 
 async function appWithSandbox() {
   k = await createSaveKit(kit, { entropy: () => 4242 });
-  const sandbox = await k.factory('sandbox', { seed: 5 });
-  k.sessions.set('sandbox', sandbox);
+  const host = await k.hostFactory('sandbox', { seed: 5 });
+  const sandbox = host.session;
+  k.hosts.set('sandbox', host);
   const app = createApp({
     vfs: new Vfs([]),
     token,
     info: { originalData: false, slfCount: 0, stubs: true },
-    sessions: k.sessions,
+    sessions: k.hosts,
     defaultSession: 'sandbox',
-    createSession: k.factory,
+    createSession: k.hostFactory,
     saves: k.saves,
   });
   return { app, sandbox };
@@ -80,7 +81,7 @@ describe('save API', () => {
         expect(await call('newSession', { load: 'mcp' })).toMatchObject({ session: 'sandbox-2', load: { name: 'mcp', seed: 4242 } });
         const inPlace = await call('load', { name: 'QuickSave', session: 'sandbox' });
         expect(inPlace).toMatchObject({ ok: true, name: 'QuickSave', seed: 4242, session: 'sandbox' });
-        expect(k.sessions.get('sandbox')).toBe(sandbox);
+        expect(k.hosts.get('sandbox')?.session).toBe(sandbox);
         expect(await call('load', { name: 'missing' })).toMatchObject({ ok: false, refused: 'notFound' });
         expect(await call('deleteSave', { name: 'mcp' })).toEqual({ deleted: true });
         expect(await call('deleteSave', { name: 'mcp' })).toEqual({ deleted: false });
@@ -141,7 +142,7 @@ describe('save API', () => {
     async () => {
       const { sandbox } = await appWithSandbox();
       const http = createServer();
-      attachWebSocket(http, { token, sessions: k.sessions, defaultSession: 'sandbox', saves: k.saves });
+      attachWebSocket(http, { token, sessions: k.hosts, defaultSession: 'sandbox' });
       await new Promise<void>((resolve) => http.listen(0, '127.0.0.1', resolve));
       const ws = new WebSocket(`ws://127.0.0.1:${(http.address() as AddressInfo).port}/ws?token=${token}`);
       const inbox: ServerMessage[] = [];

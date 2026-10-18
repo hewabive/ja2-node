@@ -5,6 +5,7 @@ import { WebSocket } from 'ws';
 import type { ServerMessage } from '../protocol/messages.ts';
 import type { SoldierView } from '../protocol/view.ts';
 import { Session, type SessionSim } from './session.ts';
+import { InProcessHost, type SessionHost } from './session-host.ts';
 import { attachWebSocket } from './ws.ts';
 
 const token = 'ws-test-token-0123456789';
@@ -31,7 +32,7 @@ function counter(): SessionSim {
 }
 
 const http = createServer();
-const sessions = new Map([['sandbox', new Session('sandbox', counter())]]);
+const sessions = new Map<string, SessionHost>([['sandbox', new InProcessHost(new Session('sandbox', counter()))]]);
 attachWebSocket(http, { token, sessions, defaultSession: 'sandbox' });
 await new Promise<void>((resolve) => http.listen(0, '127.0.0.1', resolve));
 const port = (http.address() as AddressInfo).port;

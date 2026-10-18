@@ -3,6 +3,7 @@ import { monitorEventLoopDelay } from 'node:perf_hooks';
 import { Worker } from 'node:worker_threads';
 import { diffPlayerView, type PlayerView } from '../../../src/protocol/view.ts';
 import { Session } from '../../../src/server/session.ts';
+import { InProcessHost, SliceScheduler, TimeSlicer } from '../../../src/server/session-host.ts';
 import { attachWebSocket } from '../../../src/server/ws.ts';
 import { type Arena, ArenaLayout, generateArena } from '../arena.ts';
 import { MeteredSim } from '../battle.ts';
@@ -43,7 +44,7 @@ class RecordingSim extends MeteredSim {
 
 interface ServerRig {
   readonly server: Server;
-  readonly sessions: Map<string, Session>;
+  readonly sessions: Map<string, InProcessHost>;
   readonly recorders: RecordingSim[];
   readonly plan: ClientPlan;
   close(): Promise<void>;
@@ -73,7 +74,12 @@ function arenas(ctx: BenchContext): { patrol: Arena; battle: Arena } {
   return { patrol, battle };
 }
 
-async function session(ctx: BenchContext, arena: Arena, id: string): Promise<{ session: Session; recorder: RecordingSim }> {
+async function session(
+  ctx: BenchContext,
+  arena: Arena,
+  id: string,
+  scheduler: SliceScheduler,
+): Promise<{ session: InProcessHost; recorder: RecordingSim }> {
   const sim = await createTacticalBench(ctx.data, await ctx.data.addArena(arena), ctx.seed, {
     sector: SECTOR,
     mercs: MERCS,
@@ -82,7 +88,7 @@ async function session(ctx: BenchContext, arena: Arena, id: string): Promise<{ s
     militia: 0,
   });
   const recorder = new RecordingSim(sim);
-  return { session: new Session(id, recorder), recorder };
+  return { session: new InProcessHost(new Session(id, recorder), { slicer: new TimeSlicer(scheduler) }), recorder };
 }
 
 function listen(server: Server, port: number): Promise<void> {
@@ -94,14 +100,15 @@ function listen(server: Server, port: number): Promise<void> {
 
 async function rig(ctx: BenchContext, viewers: number, port: number): Promise<ServerRig> {
   const { patrol, battle } = arenas(ctx);
-  const sessions = new Map<string, Session>();
+  const sessions = new Map<string, InProcessHost>();
+  const scheduler = new SliceScheduler();
   const recorders: RecordingSim[] = [];
   const roles: { id: string; role: ClientRole }[] = [];
   const battles = Math.ceil(viewers / VIEWERS_PER_BATTLE);
   for (let i = 0; i < viewers + battles; i++) {
     const role: ClientRole = i < viewers ? 'viewer' : 'battle';
     const id = `${role}-${i}`;
-    const s = await session(ctx, role === 'viewer' ? patrol : battle, id);
+    const s = await session(ctx, role === 'viewer' ? patrol : battle, id, scheduler);
     sessions.set(id, s.session);
     recorders.push(s.recorder);
     roles.push({ id, role });
@@ -118,7 +125,7 @@ async function rig(ctx: BenchContext, viewers: number, port: number): Promise<Se
     close: async () => {
       if (closed) return;
       closed = true;
-      for (const s of sessions.values()) s.close();
+      await Promise.all([...sessions.values()].map((s) => s.close()));
       for (const ws of wss.clients) ws.terminate();
       wss.close();
       await new Promise<void>((resolve) => server.close(() => resolve()));
