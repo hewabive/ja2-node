@@ -1,0 +1,17 @@
+Stub Pixel fonts of the ja2-node stub pack
+
+stub-pixel-12.txt ("Stub Pixel 12") and stub-pixel-16b.txt ("Stub Pixel 16 Bold") are a subset of
+Terminus Font 4.49.1 by Dimitar Toshkov Zhekov, converted to a plain text bitmap format. The fonts
+built from them (fonts/stub-pixel-12.sti and fonts/stub-pixel-16b.sti in the stub pack) are
+Modified Versions of the Font Software under the SIL Open Font License, Version 1.1 (OFL.txt).
+As the license requires, they do not use the Reserved Font Name "Terminus Font".
+
+Source:   https://terminus-font.sourceforge.net/
+Archive:  https://sourceforge.net/projects/terminus-font/files/terminus-font-4.49/terminus-font-4.49.1.tar.gz
+          (SHA-256 d961c1b781627bf417f9b340693d64fc219e0113ad3a3af1a3424c7aa373ef79)
+Files:    ter-u12n.bdf (6x12, normal) and ter-u16b.bdf (8x16, bold)
+License:  SIL Open Font License, Version 1.1, Copyright (C) 2020 Dimitar Toshkov Zhekov,
+          with Reserved Font Name "Terminus Font"
+Changes:  only the characters of the stub glyph table are kept (ASCII, the Latin letters of
+          Stracciatella's English glyph table, Cyrillic, a few punctuation marks); the bitmaps are
+          unchanged; regenerate with tools/stub-font-subset.ts.

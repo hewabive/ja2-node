@@ -12,21 +12,32 @@ import {
 import { ambientSoundPath, ambientTablePath, parseAmbientTable } from '../src/content/formats/ambient.ts';
 import { DIALOGUE_SIZE, edtRowCount } from '../src/content/formats/edt.ts';
 import { gapPathFor, parseGap } from '../src/content/formats/gap.ts';
+import { decodeSti } from '../src/content/formats/sti.ts';
 import { decodeWav, wavDurationMs } from '../src/content/formats/wav.ts';
 import { parseStubSpriteManifest, pictureFromStubSprite, STUB_SPRITE_SUFFIX } from '../src/content/picture/stub-sprite.ts';
 import { STUB_DATA_VERSION } from '../src/content/text/data-version.ts';
+import { glyphCount, parseGlyphTable } from '../src/content/text/glyph-table.ts';
 import { type DataVfs, openDataVfs, STUBS_PREFIX } from '../src/node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
 import { TextService } from '../src/server/text-service.ts';
 import { STUB_AMBIENT_ENTRIES, STUB_AMBIENT_ID } from './ambient.ts';
 import { stubSoundPaths } from './audio.ts';
 import { buildStubs } from './build.ts';
+import { STUB_FONT_FACES, STUB_GLYPH_TABLE_PATH } from './fonts.ts';
 import { musicTracks } from './music.ts';
 import { npcSpeechSets, type SpeechSet, speechPaths } from './speech.ts';
 
-const MEDIA_DIRS = ['synth', 'music', 'mercedt'];
-const TEXT_FILES = ['binarydata/itemdesc.edt', 'binarydata/credits.edt', 'binarydata/email.edt', 'ambient/0.bad', 'aliases.json'];
+const MEDIA_DIRS = ['synth', 'music', 'mercedt', 'fonts'];
+const TEXT_FILES = [
+  'binarydata/itemdesc.edt',
+  'binarydata/credits.edt',
+  'binarydata/email.edt',
+  'ambient/0.bad',
+  STUB_GLYPH_TABLE_PATH,
+  'aliases.json',
+];
 const MEDIA_BUDGET_BYTES = 4 * 1024 * 1024;
+const STUB_BUILD_TIMEOUT_MS = 60_000;
 
 const dirs: string[] = [];
 afterAll(async () => {
@@ -52,7 +63,7 @@ async function mediaFiles(root: string): Promise<string[]> {
   return [...(await Promise.all(MEDIA_DIRS.map((d) => filesUnder(root, d)))).flat(), ...TEXT_FILES];
 }
 
-describe('stub pack', () => {
+describe('stub pack', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
   it('builds deterministically', async () => {
     const [a, b] = await Promise.all([build(), build()]);
     for (const f of ['soldier/capsule.png', 'soldier/capsule.sprite.json', 'tiles/ground.png', ...(await mediaFiles(a))]) {
@@ -81,7 +92,7 @@ describe('stub pack', () => {
   });
 });
 
-describe('stub media', () => {
+describe('stub media', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
   let dir: string;
   let data: DataVfs;
   const stub = (path: string) => `${STUBS_PREFIX}/${path}`;
@@ -89,7 +100,7 @@ describe('stub media', () => {
   beforeAll(async () => {
     dir = await build();
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: dir });
-  });
+  }, STUB_BUILD_TIMEOUT_MS);
   afterAll(async () => {
     await data.close();
   });
@@ -177,6 +188,19 @@ describe('stub media', () => {
     for (const entry of table) {
       const audio = decodeWav(await data.vfs.read(stub(ambientSoundPath(entry))));
       expect(audio.frameCount, entry.file).toBeGreaterThan(0);
+    }
+  });
+
+  it('decodes every stub font under each original font name with one glyph per slot of the stub glyph table', async () => {
+    const table = parseGlyphTable(JSON.parse(new TextDecoder().decode(await data.vfs.read(stub(STUB_GLYPH_TABLE_PATH)))));
+    const names = STUB_FONT_FACES.flatMap((face) => face.names);
+    expect(names).toHaveLength(17);
+    for (const name of names) {
+      const font = decodeSti(await data.vfs.read(stub(`fonts/${name}.sti`)));
+      expect(font.kind, name).toBe('indexed');
+      if (font.kind !== 'indexed') continue;
+      expect(font.subImages, name).toHaveLength(glyphCount(table));
+      expect(new Set(font.subImages.map((g) => g.height)).size, name).toBe(1);
     }
   });
 
