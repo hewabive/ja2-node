@@ -90,9 +90,9 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
 
     const direct = session.dispatch({ type: 'approach', kind: 'direct' });
     expect(lines(direct).map((l) => l.quote)).toEqual([14, 15]);
-    const n = session.campaign.state.narrative;
-    expect(questStatus(n, HERMIT_QUEST)).toBe(QUEST_IN_PROGRESS);
-    expect(n.facts[HERMIT_FACT]).toBe(1);
+    const n = () => session.campaign.state.narrative;
+    expect(questStatus(n(), HERMIT_QUEST)).toBe(QUEST_IN_PROGRESS);
+    expect(n().facts[HERMIT_FACT]).toBe(1);
     expect(lines(session.dispatch({ type: 'approach', kind: 'direct' })).map((l) => l.quote)).toEqual([5]);
     expect(lines(session.dispatch({ type: 'approach', kind: 'repeat' })).map((l) => l.quote)).toEqual([5]);
 
@@ -114,7 +114,7 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(reopened?.lastQuotes.map((q) => q.quote)).toEqual([18]);
     const vasko = session.campaign.tactical?.state.soldiers.find((s) => s?.profile === VASKO);
     expect(Math.abs((vasko?.gridNo ?? 0) - LOOKOUT_TILE) % 160).toBeLessThan(4);
-    expect(questStatus(n, HERMIT_QUEST)).toBe(QUEST_DONE);
+    expect(questStatus(n(), HERMIT_QUEST)).toBe(QUEST_DONE);
 
     expect(session.dispatch({ type: 'closeTalk' })).toEqual({ ok: true });
     expect(session.view().conversation).toBeNull();
@@ -234,7 +234,7 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(bark?.text?.length ?? 0).toBeGreaterThan(0);
     expect(events.some((e) => e.type === 'civQuote')).toBe(true);
     expect(session.view().conversation ?? null).toBeNull();
-    expect(villager.currentCivQuote).toBeGreaterThanOrEqual(0);
+    expect(session.campaign.tactical?.state.soldiers[villager.id]?.currentCivQuote).toBeGreaterThanOrEqual(0);
   });
 
   it('opens the shop of the stub dealer through the talk menu', async () => {

@@ -95,10 +95,10 @@ const SLOW_SCENARIO_MS = 30_000;
 describe('giving items and money to the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
   it('takes a magazine after his first-meeting lines, refuses the pistol and returns it, takes money', async () => {
     const { session, merc } = await nearVasko(21);
-    const m = soldier(session, merc);
+    const inv = () => soldier(session, merc).inv;
     const clip = item(session, 'CLIP9_15');
-    const pocket = m.inv.findIndex((o) => o.item === clip);
-    expect(m.inv[pocket]).toMatchObject({ item: clip, count: 2 });
+    const pocket = inv().findIndex((o) => o.item === clip);
+    expect(inv()[pocket]).toMatchObject({ item: clip, count: 2 });
 
     const rounds = session.dispatch({ type: 'give', soldier: merc, target: { npc: VASKO }, slot: pocket, count: 1 });
     expect(rounds.ok, rounds.reason).toBe(true);
@@ -106,9 +106,9 @@ describe('giving items and money to the stub NPC in A10', { timeout: SLOW_SCENAR
     expect(quotes(rounds)).toEqual([Quote.FIRST_MEETING, Quote.FIRST_MEETING_2, Quote.ROUNDS]);
     expect(data(rounds).lines?.at(-1)?.text).toContain('rounds');
     expect(data(rounds).conversation).toMatchObject({ profile: VASKO, initiatedBy: 'player', talker: merc });
-    expect(m.inv[pocket]).toMatchObject({ item: clip, count: 1 });
-    const profile = session.campaign.state.profiles.get(VASKO);
-    expect(profile?.inventory).toContain(clip);
+    expect(inv()[pocket]).toMatchObject({ item: clip, count: 1 });
+    const profile = () => session.campaign.state.profiles.get(VASKO);
+    expect(profile()?.inventory).toContain(clip);
     const vasko = session.campaign.tactical?.state.soldiers.find((s) => s?.profile === VASKO);
     expect(vasko?.inv.some((o) => o.item === clip)).toBe(true);
     expect(session.dispatch({ type: 'closeTalk' })).toEqual({ ok: true });
@@ -118,10 +118,10 @@ describe('giving items and money to the stub NPC in A10', { timeout: SLOW_SCENAR
     expect(pistol.ok, pistol.reason).toBe(true);
     expect(data(pistol).outcome).toBe('returned');
     expect(quotes(pistol)).toEqual([Quote.NO_GUNS]);
-    expect(m.inv[InvSlot.HAND]?.item).toBe(glock);
+    expect(inv()[InvSlot.HAND]?.item).toBe(glock);
     expect(session.dispatch({ type: 'closeTalk' })).toEqual({ ok: true });
 
-    Object.assign(m.inv[InvSlot.SMALLPOCK1] as object, createMoney(session.campaign.tactical?.state.content.items as never, 500));
+    Object.assign(inv()[InvSlot.SMALLPOCK1] as object, createMoney(session.campaign.tactical?.state.content.items as never, 500));
     expect(session.dispatch({ type: 'give', soldier: merc, target: { npc: VASKO }, money: 105 })).toMatchObject({
       ok: false,
       data: { refusal: 'badMoney' },
@@ -131,8 +131,8 @@ describe('giving items and money to the stub NPC in A10', { timeout: SLOW_SCENAR
     expect(cash.ok, cash.reason).toBe(true);
     expect(data(cash).outcome).toBe('taken');
     expect(quotes(cash)).toEqual([Quote.MONEY]);
-    expect(m.inv[InvSlot.SMALLPOCK1]?.money).toBe(400);
-    expect(profile?.money).toBe(100);
+    expect(inv()[InvSlot.SMALLPOCK1]?.money).toBe(400);
+    expect(profile()?.money).toBe(100);
     expect(session.drainEvents()).toContainEqual(
       expect.objectContaining({ type: 'npcTookItem', profile: VASKO, from: merc, item: 'MONEY', money: 100 }),
     );

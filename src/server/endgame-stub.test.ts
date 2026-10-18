@@ -79,13 +79,13 @@ describe('the end of the campaign in the stub palace (docs/26 §7)', { timeout: 
 
   it('defers the ending while the creature quest runs and wins once the creature queen dies', async () => {
     const { session, live } = await inThePalaceBasement(42);
-    const c = session.campaign;
-    c.state.narrative.quests[Quest.CREATURES] = QuestStatus.IN_PROGRESS;
+    session.campaign.state.narrative.quests[Quest.CREATURES] = QuestStatus.IN_PROGRESS;
     killTheQueen(session);
     const deferred = live.advance({ idle: true });
     expect(deferred.reason).toBe('event');
     expect(types(deferred.events)).toContain('endgameDeferred');
     expect(session.view().strategic).toMatchObject({ flow: 'tactical', campaign: 'playing' });
+    const c = session.campaign;
     const t = c.tactical?.state;
     const killer = t ? teamMembers(t, Team.OUR)[0] : undefined;
     c.endgame.creatureQueenDied(killer ?? null, 0, 0);
