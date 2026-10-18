@@ -931,9 +931,8 @@ after, to spot a busy machine), the primary metric (`metric`, `unit`, `n`, `mean
 and the state), `calls` and `callsPerSample` with `--calls`, `info` (battle outcome, early stops) and `deterministic`:
 the runs' work signatures (turns, ticks, shots, hits, deaths; alert states; strategic events; autoresolve slices) must be
 equal, otherwise the line is flagged and the command fails, since shared mutable state would make the numbers
-meaningless. `--runs N` (default 3)
-repeats each variant from a fresh setup; with two or more an untimed warm-up run comes first. `--profile` runs the
-variant once more under the V8 sampling profiler, writes `.cache/bench/<scenario>-<variant>-<source>.cpuprofile` (Chrome
+meaningless. `--runs N` (default 3) repeats each variant from a fresh setup; with two or more an untimed warm-up run
+comes first. `--profile` runs the variant once more under the V8 sampling profiler, writes `.cache/bench/<scenario>-<variant>-<source>.cpuprofile` (Chrome
 DevTools) and prints the hottest self-time frames. Every variant runs in its own child process (the parent collects the
 lines), so variants cannot influence each other: in one process, four 8-enemy battles made the following 16-enemy arena
 three times slower (§14, finding 12). Each scenario has its own default seed (`enemy-turn` and `server` 2,
