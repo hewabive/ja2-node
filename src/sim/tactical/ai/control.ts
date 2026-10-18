@@ -632,7 +632,7 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
   }
   const traversingOffMap = s.aiTurnControl && isTraversalQuoteAction(s.quoteActionId) && s.offMap;
   if (ai.newSituation === Situation.IS_NEW) {
-    if (t.turn.attackBusyCount === 0 && !traversingOffMap) {
+    if (newSituationCanBeProcessed(t, s) && !traversingOffMap) {
       cancelAIAction(t, s);
       if (ai.action !== AiAction.END_COWER_AND_MOVE) ai.nextAction = AiAction.NONE;
       decideAlertStatus(t, s, control.hooks);
@@ -678,6 +678,14 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
       if (!pendingMove) triesToContinueAlongPath(t, s);
     }
   }
+}
+
+function newSituationCanBeProcessed(t: TacticalState, s: Soldier): boolean {
+  if (t.turn.attackBusyCount === 0) return true;
+  if (s.ai.action === AiAction.FIRE_GUN) return t.bullets.length === 0;
+  if (s.ai.action !== AiAction.TOSS_PROJECTILE || t.explosives.objects.length > 0) return false;
+  t.turn.attackBusyCount = 0;
+  return true;
 }
 
 function nextAIToHandle(t: TacticalState): boolean {
