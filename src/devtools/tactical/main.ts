@@ -22,7 +22,9 @@ import { drawScene } from '../../render/world/world-renderer.ts';
 import { fetchVfsList } from '../asset-browser/api.ts';
 import { Radar } from '../map-viewer/radar.ts';
 import { type LoadedWorld, loadWorld } from '../map-viewer/world-loader.ts';
+import { installSaveControls } from '../net/save-controls.ts';
 import { SessionClient } from '../net/session-client.ts';
+import { SleepWakeStop } from '../net/sleep-wake-stop.ts';
 import { DoorPanel } from './door-panel.ts';
 import { PromptPanel } from './prompt-panel.ts';
 import { nearestMerchant, ShopPanel } from './shop-panel.ts';
@@ -204,6 +206,11 @@ function drawCursor(g: number, region: typeof cursorRegion, options: SceneOption
 }
 
 let lastRenderAt = performance.now();
+const showMessage = (text: string) => {
+  debug.lastResult = text;
+};
+const sleepWake = new SleepWakeStop(() => client, showMessage);
+installSaveControls({ client: () => client, show: showMessage, toolbar: document.querySelector('header') });
 
 function render(): void {
   requestAnimationFrame(render);
@@ -454,7 +461,10 @@ async function start(): Promise<void> {
     await sound.load(available, assets.tables, client.session ?? 'local');
     sound.director?.reset(client.soldiers);
     sound.music.reset(client.view?.music);
-    client.onFrames = (frames) => sound.frames(frames);
+    client.onFrames = (frames) => {
+      sound.frames(frames);
+      sleepWake.frames(frames);
+    };
     client.onWelcome = () => {
       sound.director?.reset(client?.soldiers ?? []);
       sound.music.reset(client?.view?.music);

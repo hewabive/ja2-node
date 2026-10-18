@@ -4,27 +4,145 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ja2-node</title>
-    <style>
-      :root { color-scheme: dark; font: 15px/1.5 system-ui, sans-serif; }
-      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #16181c; color: #d8dadf; }
-      main { max-width: 560px; padding: 24px; }
-      h1 { margin: 0 0 4px; color: #d0a85c; font-size: 22px; }
-      p { color: #8a909a; margin: 0 0 20px; }
-      a { color: #d0a85c; }
-      li { margin: 6px 0; }
-    </style>
+    <link rel="stylesheet" href="./src/app/launcher/style.css" />
   </head>
   <body>
-    <main>
-      <h1>ja2-node</h1>
-      <p>Non-commercial reimplementation of Jagged Alliance 2. Milestone M4: the strategic layer.</p>
-      <ul>
-        <li><a href="/src/devtools/tactical/">Tactical sandbox</a> — the server's sandbox session: select a merc, click to walk, right-click to run</li>
-        <li><a href="/src/devtools/strategic/">Strategic map</a> — start a campaign, watch the clock, plot routes, enter sectors</li>
-        <li><a href="/src/devtools/asset-browser/">Asset browser</a> — VFS files, STI sprites and stubs</li>
-        <li><a href="/src/devtools/map-viewer/">Map viewer</a> — tactical maps of the original and the stub world</li>
-        <li><a href="/src/devtools/video/">Video and credits</a> — the splash, the beginning and ending sequences, the credits</li>
-      </ul>
+    <div id="start" class="start" hidden>
+      <button type="button" id="startButton" data-label="clickToStart">Click to start</button>
+    </div>
+    <header class="top">
+      <div>
+        <h1>ja2-node</h1>
+        <p class="tagline" data-label="tagline">A non-commercial reimplementation of Jagged Alliance 2</p>
+      </div>
+      <div id="dataInfo" class="data-info"></div>
+      <label class="language"><span data-label="language">Display language</span> <select id="language"></select></label>
+    </header>
+    <main class="launcher">
+      <section id="campaign" class="panel">
+        <h2 data-label="newCampaign">New campaign</h2>
+        <p class="sub" data-label="initialSettings">Initial game settings</p>
+        <form id="campaignForm">
+          <fieldset>
+            <legend data-label="difficultyLevel">Difficulty</legend>
+            <label><input type="radio" name="difficulty" value="1" checked /> <span data-label="easy">easy</span></label>
+            <label><input type="radio" name="difficulty" value="2" /> <span data-label="medium">medium</span></label>
+            <label><input type="radio" name="difficulty" value="3" /> <span data-label="hard">hard</span></label>
+          </fieldset>
+          <fieldset>
+            <legend data-label="gameStyle">Game style</legend>
+            <label><input type="radio" name="style" value="realistic" /> <span data-label="realistic">realistic</span></label>
+            <label><input type="radio" name="style" value="sciFi" checked /> <span data-label="sciFi">sci-fi</span></label>
+          </fieldset>
+          <fieldset>
+            <legend data-label="gunOptions">Guns</legend>
+            <label><input type="radio" name="guns" value="gunNut" /> <span data-label="gunNut">gun nut</span></label>
+            <label><input type="radio" name="guns" value="reduced" checked /> <span data-label="reducedGuns">reduced guns</span></label>
+          </fieldset>
+          <fieldset>
+            <legend data-label="saveStyle">Save mode</legend>
+            <label><input type="radio" name="saveMode" value="anywhere" checked /> <span data-label="saveAnywhere">save anywhere</span></label>
+            <label><input type="radio" name="saveMode" value="ironMan" /> <span data-label="ironMan">Iron Man</span></label>
+            <label><input type="radio" name="saveMode" value="deadIsDead" /> <span data-label="deadIsDead">Dead is Dead</span></label>
+            <div id="deadIsDeadBox" class="indent" hidden>
+              <label><span data-label="deadIsDeadName">Dead is Dead save name</span> <input id="deadIsDeadName" type="text" maxlength="64" value="DeadIsDead" /></label>
+              <p class="hint" data-label="deadIsDeadHint">The save name stays with the campaign.</p>
+            </div>
+          </fieldset>
+          <fieldset>
+            <label><input type="checkbox" id="bloodAndGore" checked /> <span data-label="bloodAndGore">blood and gore</span></label>
+          </fieldset>
+          <fieldset>
+            <legend data-label="squad">Squad</legend>
+            <label><input type="radio" name="squad" value="default" checked /> <span data-label="defaultSquad">default squad</span></label>
+            <select id="squadSize"></select>
+            <label><input type="radio" name="squad" value="laptop" /> <span data-label="hireInLaptop">hire in the laptop</span></label>
+            <label><input type="checkbox" id="land" checked /> <span data-label="landAtOnce">fly in at once</span></label>
+          </fieldset>
+          <fieldset>
+            <legend data-label="openPage">Then open</legend>
+            <label><input type="radio" name="page" value="strategic" checked /> <span data-label="strategicPage">strategic map</span></label>
+            <label><input type="radio" name="page" value="tactical" /> <span data-label="tacticalPage">tactical view</span></label>
+          </fieldset>
+          <button type="submit" id="startCampaign" class="primary" data-label="startGame">Start</button>
+        </form>
+      </section>
+
+      <section id="saves" class="panel wide">
+        <h2 data-label="savedGames">Saved games</h2>
+        <div class="row">
+          <label><span data-label="session">Session</span> <select id="saveSession"></select></label>
+          <label><span data-label="loadInto">Load into</span> <select id="loadTarget"></select></label>
+        </div>
+        <div class="table-box">
+          <table id="saveList" class="save-list"></table>
+        </div>
+        <div class="row">
+          <label class="grow"><span data-label="description">Description</span> <input id="saveDescription" type="text" maxlength="46" /></label>
+        </div>
+        <div class="row actions">
+          <button type="button" id="saveNew" data-label="saveAsNew">Save as new</button>
+          <button type="button" id="saveOver" data-label="saveSelected" disabled>Save over selected</button>
+          <button type="button" id="loadSave" data-label="loadSelected" disabled>Load selected</button>
+          <button type="button" id="deleteSave" data-label="delete" disabled>Delete</button>
+          <button type="button" id="downloadSave" data-label="download" disabled>Download</button>
+          <label class="button"><span data-label="upload">Upload</span><input id="uploadSave" type="file" accept=".j2s,.gz" hidden /></label>
+        </div>
+      </section>
+
+      <section id="settings" class="panel">
+        <h2 data-label="settings">Settings</h2>
+        <div class="volumes">
+          <label><span data-label="effectsVolume">Effects</span> <input type="range" min="0" max="127" data-volume="effects" /></label>
+          <label><span data-label="speechVolume">Speech</span> <input type="range" min="0" max="127" data-volume="speech" /></label>
+          <label><span data-label="musicVolume">Music</span> <input type="range" min="0" max="127" data-volume="music" /></label>
+          <label><span data-label="ambientVolume">Ambient</span> <input type="range" min="0" max="127" data-volume="ambient" /></label>
+          <label><span data-label="masterVolume">Master</span> <input type="range" min="0" max="127" data-volume="master" /></label>
+        </div>
+        <div class="toggles">
+          <label><input type="checkbox" data-setting="muted" /> <span data-label="mute">mute</span></label>
+          <label><input type="checkbox" data-setting="speech" /> <span data-label="speech">speech</span></label>
+          <label><input type="checkbox" data-setting="subtitles" /> <span data-label="subtitles">subtitles</span></label>
+          <label><input type="checkbox" data-setting="keyAdvanceSpeech" /> <span data-label="keyAdvanceSpeech">key advance speech</span></label>
+          <label><input type="checkbox" data-setting="muteConfirmations" /> <span data-label="muteConfirmations">mute confirmations</span></label>
+          <label><input type="checkbox" data-setting="sleepWakeNotification" /> <span data-label="sleepWakeNotification">sleep and wake notification</span></label>
+          <label><input type="checkbox" data-setting="playSplash" /> <span data-label="playSplash">play the splash at start</span></label>
+          <label><input type="checkbox" data-setting="playIntro" /> <span data-label="playIntro">play the intro of a new campaign</span></label>
+          <label><span data-label="playbackSpeed">Playback speed</span> <select id="playbackSpeed"></select></label>
+        </div>
+        <div class="row actions">
+          <button type="button" id="exportSettings" data-label="exportSettings">Export settings</button>
+          <label class="button"><span data-label="importSettings">Import settings</span><input id="importSettings" type="file" accept=".json,application/json" hidden /></label>
+        </div>
+      </section>
+
+      <section id="media" class="panel">
+        <h2 data-label="media">Video and credits</h2>
+        <div class="row actions">
+          <button type="button" id="playSplash" data-label="splash">Splash</button>
+          <button type="button" id="playIntro" data-label="intro">Intro</button>
+          <button type="button" id="playCredits" data-label="credits">Credits</button>
+        </div>
+        <h2 data-label="sessions">Running sessions</h2>
+        <ul id="sessionList" class="links"></ul>
+        <h2 data-label="developerPages">Developer pages</h2>
+        <ul class="links">
+          <li><a href="/src/devtools/tactical/">Tactical sandbox</a></li>
+          <li><a href="/src/devtools/strategic/">Strategic map</a></li>
+          <li><a href="/src/devtools/asset-browser/">Asset browser</a></li>
+          <li><a href="/src/devtools/map-viewer/">Map viewer</a></li>
+          <li><a href="/src/devtools/video/">Video and credits</a></li>
+        </ul>
+      </section>
     </main>
+    <footer id="status" class="status" role="status"></footer>
+    <dialog id="messageBox" class="message-box">
+      <p id="messageText"></p>
+      <div class="actions">
+        <button type="button" id="messageYes" value="yes"></button>
+        <button type="button" id="messageNo" value="no"></button>
+      </div>
+    </dialog>
+    <script type="module" src="./src/app/launcher/main.ts"></script>
   </body>
 </html>

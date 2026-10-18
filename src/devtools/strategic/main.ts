@@ -10,7 +10,9 @@ import type {
   StrategicView,
 } from '../../protocol/view.ts';
 import { fetchFile } from '../asset-browser/api.ts';
+import { installSaveControls } from '../net/save-controls.ts';
 import { type CommandReply, SessionClient } from '../net/session-client.ts';
+import { SleepWakeStop } from '../net/sleep-wake-stop.ts';
 import { LaptopPanel } from './laptop-panel.ts';
 import { HelicopterPanel, QuestPanel, StoryPanel } from './narrative-panels.ts';
 import { StrategicSound } from './sound.ts';
@@ -113,6 +115,8 @@ function showResult(text: string, error = false): void {
   debug.lastResult = text;
 }
 
+const sleepWake = new SleepWakeStop(() => client, showResult);
+installSaveControls({ client: () => client, show: showResult, toolbar: document.querySelector('header') });
 const questPanel = new QuestPanel();
 const storyPanel = new StoryPanel();
 const helicopterPanel = new HelicopterPanel(
@@ -556,8 +560,10 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-drive]')) {
 
 el<HTMLButtonElement>('advance').addEventListener('click', () => {
   const battleRunning = client?.autoresolve !== null && client?.prompt === null && client?.contractPrompt === null;
-  void client?.advance(battleRunning ? { idle: true } : { compressionStopped: true }).then((report) => {
+  const stopped = battleRunning ? sleepWake.plain(client?.advance({ idle: true })) : sleepWake.advance({ compressionStopped: true });
+  void stopped.then(({ report, notice }) => {
     if (!report) return showResult('advance failed', true);
+    if (notice) return showResult(notice);
     const when = report.worldTime
       ? ` at day ${report.worldTime.day} ${report.worldTime.hour}:${String(report.worldTime.minute).padStart(2, '0')}`
       : '';
@@ -646,7 +652,10 @@ async function start(): Promise<void> {
     client = await SessionClient.connect(session ?? undefined);
     sound.reset(client.laptop !== null);
     void sound.attach(client.session ?? 'local', client.view);
-    client.onFrames = (frames) => sound.frames(frames);
+    client.onFrames = (frames) => {
+      sound.frames(frames);
+      sleepWake.frames(frames);
+    };
     client.onWelcome = () => sound.reset(client?.laptop !== null, client?.view ?? null);
     const id = session ?? sessionSelect.value;
     debug.session = id || null;

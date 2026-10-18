@@ -181,6 +181,7 @@ export class SessionClient {
   #receive(m: ServerMessage): void {
     switch (m.t) {
       case 'welcome':
+        this.#frames.length = 0;
         this.session = m.session;
         this.view = m.view;
         this.driver = m.driver;
@@ -264,14 +265,25 @@ export class SessionClient {
   }
 
   async command(cmd: CommandEnvelope): Promise<CommandReply> {
-    const m = await this.#request({ t: 'cmd', id: this.#nextId++, cmd });
-    if (m.t !== 'result') return { ok: false, reason: 'unexpected reply' };
-    return { ok: m.ok, ...(m.reason ? { reason: m.reason } : {}), ...(m.data !== undefined ? { data: m.data } : {}) };
+    return this.#reply(await this.#request({ t: 'cmd', id: this.#nextId++, cmd }));
   }
 
   async advance(until: StopCondition): Promise<SessionStopReport | null> {
     const m = await this.#request({ t: 'advance', id: this.#nextId++, until });
     return m.t === 'stopped' ? m.report : null;
+  }
+
+  async save(request: { readonly name?: string; readonly description?: string } = {}): Promise<CommandReply> {
+    return this.#reply(await this.#request({ t: 'save', id: this.#nextId++, ...request }));
+  }
+
+  async load(name: string, reseed?: boolean): Promise<CommandReply> {
+    return this.#reply(await this.#request({ t: 'load', id: this.#nextId++, name, ...(reseed !== undefined ? { reseed } : {}) }));
+  }
+
+  #reply(m: ServerMessage): CommandReply {
+    if (m.t !== 'result') return { ok: false, reason: 'unexpected reply' };
+    return { ok: m.ok, ...(m.reason ? { reason: m.reason } : {}), ...(m.data !== undefined ? { data: m.data } : {}) };
   }
 
   async drive(driver: DriverMode): Promise<void> {
