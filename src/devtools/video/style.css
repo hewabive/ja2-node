@@ -1,0 +1,9 @@
+.video-page { padding: 12px 16px; overflow: auto; background: #16181c; }
+.video-page section { margin-bottom: 18px; }
+.video-page h2 { margin: 0 0 6px; font-size: 14px; color: #d0a85c; }
+.video-page .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.video-page .group { display: inline-flex; gap: 8px; align-items: center; padding-left: 10px; border-left: 1px solid #2e333b; }
+.video-page .hint { color: #8a909a; margin: 6px 0 0; }
+.results { border-collapse: collapse; font: 12px ui-monospace, monospace; }
+.results th, .results td { padding: 2px 10px 2px 0; text-align: left; }
+.results th { color: #8a909a; font-weight: normal; }
