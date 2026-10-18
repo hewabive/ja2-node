@@ -71,7 +71,11 @@ their own: `JA2_LANG=rus` (or `eng`, `ger`, `dut`, `fr`, `it`, `pl`, `chs`; defa
 
 Without the original data the stub pack stands in for it, including synthesized sounds, music and speech blips and
 invented merc, item, credit and mail text under the original file names (`GET /vfs/sounds/door open 01.wav` works on
-both; `docs/27` §6.5).
+both; `docs/27` §6.5). Every sector loads a stub map by kind (`stubs/maps/sector-kinds.json`: towns with a dealer and a
+jail, mine entrances with their head miner and a shaft, caves below, army camps at the SAM sites and garrisons, the
+Drassen airfield where Skyrider's helicopter is set up), twelve invented A.I.M. mercs, Skyrider, the head miners and a
+dealer per town stand in for the original characters, and two bitmap fonts subset from Terminus Font (SIL OFL 1.1,
+`stubs/font/NOTICE.txt`) cover Latin and Cyrillic (`docs/27` §6.6).
 
 The server listens on `127.0.0.1` only and requires the token from `.ja2/token`, which it creates
 itself. The Vite proxy adds the token, so it never appears in page code.
