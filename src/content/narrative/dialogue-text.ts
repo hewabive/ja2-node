@@ -4,7 +4,7 @@
 // @src src/game/Tactical/Dialogue_Control.cc FindDelayForString, GetDialogue; Civ_Quotes.cc GetCivQuoteText. See docs/24 §1.5,
 // @src §8.4, §11.5.
 
-import { CIV_QUOTE_TEXT_SIZE, DIALOGUE_SIZE, decodeEdtRow, type EdtEncoding, utf32Length } from '../formats/edt.ts';
+import { CIV_QUOTE_TEXT_SIZE, DIALOGUE_SIZE, decodeEdtRow, type EdtEncoding, edtRowCount, utf32Length } from '../formats/edt.ts';
 import { sectorShortString } from '../strategic/sector-ids.ts';
 import type { ReadFile } from '../world/tileset-loader.ts';
 import { CIV_QUOTE_SECTORS, CivQuote, NUM_CIV_QUOTES, NUM_PROFILES, SharedDialogueFile } from './npc-constants.ts';
@@ -82,6 +82,11 @@ export class DialogueTexts implements QuoteLengths {
 
   has(file: string): boolean {
     return this.#files.has(file);
+  }
+
+  rows(file: string, width: number): number {
+    const bytes = this.#files.get(file);
+    return bytes ? edtRowCount(bytes, width) : 0;
   }
 
   text(key: TextKey): string | null {

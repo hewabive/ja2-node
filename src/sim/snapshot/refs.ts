@@ -13,18 +13,36 @@ const SEPARATOR = '/';
 const MAP_KEY = '0';
 const MAP_VALUE = '1';
 
-const paths = new WeakMap<object, Map<object, string>>();
+interface PartialRoot {
+  readonly name: string;
+  readonly skipped: readonly string[];
+}
 
-function indexRoot(root: object, opaqueKeys: readonly string[]): Map<object, string> {
-  const cached = paths.get(root);
-  if (cached) return cached;
-  const found = new Map<object, string>();
+function indexRoot(
+  keys: Map<object, string>,
+  partial: Map<object, PartialRoot>,
+  root: object,
+  name: string,
+  opaqueKeys: readonly string[],
+): void {
   const opaque = new Set(opaqueKeys);
+  const visitChild = (value: object, path: string, key: string) =>
+    visit((value as Record<string, unknown>)[key], `${path}${SEPARATOR}${escapeSegment(key)}`, false);
+  const visitSkipped = (value: object, path: string): void => {
+    const known = partial.get(value);
+    if (!known || known.name === name) return;
+    partial.delete(value);
+    for (const key of known.skipped) visitChild(value, path, key);
+  };
   const visit = (value: unknown, path: string, top: boolean): void => {
-    if (typeof value !== 'object' || value === null || found.has(value)) return;
-    found.set(value, path);
+    if (typeof value !== 'object' || value === null) return;
+    if (keys.has(value)) {
+      if (!top) visitSkipped(value, path);
+      return;
+    }
+    keys.set(value, path);
     if (ArrayBuffer.isView(value)) return;
-    const at = (segment: string) => (path === '' ? segment : `${path}${SEPARATOR}${segment}`);
+    const at = (segment: string) => `${path}${SEPARATOR}${segment}`;
     if (value instanceof Map) {
       let i = 0;
       for (const [k, v] of value) {
@@ -43,14 +61,14 @@ function indexRoot(root: object, opaqueKeys: readonly string[]): Map<object, str
       for (let i = 0; i < value.length; i++) visit(value[i], at(String(i)), false);
       return;
     }
+    const skipped: string[] = [];
     for (const key of Object.keys(value)) {
-      if (top && opaque.has(key)) continue;
-      visit((value as Record<string, unknown>)[key], at(escapeSegment(key)), false);
+      if (top && opaque.has(key)) skipped.push(key);
+      else visitChild(value, path, key);
     }
+    if (skipped.length > 0) partial.set(value, { name, skipped });
   };
-  visit(root, '', true);
-  paths.set(root, found);
-  return found;
+  visit(root, name, true);
 }
 
 function step(value: unknown, segments: readonly string[], i: number): { value: unknown; next: number } {
@@ -89,9 +107,9 @@ function mergedKeys(names: readonly string[], roots: readonly object[], opaque: 
   const hit = known.find((m) => sameRoots(m, names, roots));
   if (hit) return hit.keys;
   const keys = new Map<object, string>();
+  const partial = new Map<object, PartialRoot>();
   names.forEach((name, i) => {
-    for (const [value, path] of indexRoot(roots[i] as object, opaque[name] ?? []))
-      if (!keys.has(value)) keys.set(value, path === '' ? name : `${name}${SEPARATOR}${path}`);
+    indexRoot(keys, partial, roots[i] as object, name, opaque[name] ?? []);
   });
   known.push({ names, roots, keys });
   mergedByFirstRoot.set(first, known);

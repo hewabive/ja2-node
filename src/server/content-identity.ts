@@ -145,7 +145,8 @@ export function quoteLengthIdentity(texts: DialogueTexts): string {
     if (!texts.has(file)) continue;
     const width = textWidth(file, civFiles);
     const lengths: number[] = [];
-    for (let row = 0; texts.text({ file, row, width }) !== null; row++) lengths.push(texts.chars({ file, row, width }));
+    const rows = texts.rows(file, width);
+    for (let row = 0; row < rows; row++) lengths.push(texts.chars({ file, row, width }));
     lines.push(`${file} ${width} ${lengths.join(',')}`);
   }
   const hash = sha256(lines.join('\n'));
