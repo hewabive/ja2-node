@@ -16,7 +16,8 @@ import { TacticalSim } from '../tactical-sim.ts';
 import { HEIGHT_UNITS, stepThrownObjects, toGridNo } from './physics.ts';
 import { ThrowAction } from './state.ts';
 import { calcMaxTossRange, calcThrownChanceToHit, releaseThrow } from './throwing.ts';
-import { calculateLaunchItemParamsForThrow, predictLanding, randomGridFromRadius } from './trajectory.ts';
+import { calculateLaunchItemParamsForThrow, calculateObjectTrajectory, predictLanding, randomGridFromRadius } from './trajectory.ts';
+import { vec3 } from './vec3.ts';
 
 let content: TacticalContent;
 
@@ -193,6 +194,24 @@ describe('thrown object physics', () => {
     expect(flight).toEqual({ pre: 0, main: 0 });
     expect(landing).toEqual({ pre: 3, main: 0 });
     expect(explosivesBusy(t)).toBe(true);
+  });
+});
+
+describe('the force search behind throws', () => {
+  it('ignores the map and draws nothing, so its results can be remembered per item table', () => {
+    const open = newCombatSim(content);
+    const walled = simWithWallRow(84);
+    const flights = [open, walled].map((sim) => {
+      const t = sim.state;
+      const grenade = objectOf(t, 'HAND_GRENADE');
+      const before = { rng: t.rng.state(), pre: t.pre.state() };
+      const range = calculateObjectTrajectory(t, 0, grenade, vec3(805, 805, 191), vec3(0, 500, 350));
+      expect({ rng: t.rng.state(), pre: t.pre.state() }).toEqual(before);
+      expect(t.explosives.objects).toEqual([]);
+      return range;
+    });
+    expect(flights[0]).toBeGreaterThan(40);
+    expect(flights[1]).toBe(flights[0]);
   });
 });
 
