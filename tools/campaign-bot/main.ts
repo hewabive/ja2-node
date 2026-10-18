@@ -6,7 +6,7 @@ import { McpGame } from './mcp-game.ts';
 import type { ReloadPlan } from './reload.ts';
 import { startStubServer } from './stub-server.ts';
 
-export const CAMPAIGN_USAGE = `usage: pnpm cli campaign [--seed N] [--server URL --token TOKEN] [--verbose] [--trace] [--stop-after STEP] [--no-reload]
+export const CAMPAIGN_USAGE = `usage: pnpm cli campaign [--seed N] [--server URL --token TOKEN | --port N] [--verbose] [--trace] [--stop-after STEP] [--no-reload]
   plays a stub campaign through the MCP API alone, from the new game to the Queen's death:
   hires a squad, lands in A9, liberates Drassen, starts the mine, buys at Keith's and Bobby Ray's,
   escorts Skyrider, trains militia, recruits up to twelve mercs from A.I.M. and M.E.R.C., marches on
@@ -14,7 +14,7 @@ export const CAMPAIGN_USAGE = `usage: pnpm cli campaign [--seed N] [--server URL
   In the first battle that reaches round 2 it saves, loads the save exactly into a new session and
   checks that both sessions play the rest of the battle identically, then plays on in the loaded one;
   after the Drassen mine it saves and loads once more as a player (reseeded).
-  Without --server it starts its own stub server on a free port with a temporary save folder.
+  Without --server it starts its own stub server (on --port, else a free port) with a temporary save folder.
   Prints one JSON line: seed, outcome (won|lost|stuck|stopped), days, battles, mercsLost, reloads, ...
   The exit code is 0 for a won campaign.`;
 
@@ -22,6 +22,7 @@ export interface CampaignArgs {
   readonly seed?: string | undefined;
   readonly server?: string | undefined;
   readonly token?: string | undefined;
+  readonly port?: string | undefined;
   readonly verbose?: boolean | undefined;
   readonly trace?: boolean | undefined;
   readonly stopAfter?: string | undefined;
@@ -29,7 +30,15 @@ export interface CampaignArgs {
 }
 
 export const DEFAULT_CAMPAIGN_SEED = 1;
+const MAX_PORT = 65_535;
 export const DEFAULT_RELOADS: ReloadPlan = { exactInBattle: 2, playerLoadAfter: 'Drassen mine' };
+
+function portOf(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 1 || port > MAX_PORT) throw new Error(`--port must be a port number, got ${value}`);
+  return port;
+}
 
 function seedOf(value: string | undefined): number {
   if (value === undefined) return DEFAULT_CAMPAIGN_SEED;
@@ -44,7 +53,7 @@ async function connect(args: CampaignArgs): Promise<{ game: McpGame; stop: () =>
     return { game: await McpGame.connect(args.server, args.token), stop: async () => {} };
   }
   await buildStubs(DEFAULT_STUBS_DIR);
-  const server = await startStubServer();
+  const server = await startStubServer(portOf(args.port));
   try {
     return { game: await McpGame.connect(server.url, server.token), stop: () => server.stop() };
   } catch (err) {
