@@ -51,6 +51,12 @@ export interface AudioCounters {
   cachedBuffers: number;
 }
 
+export interface BufferPlayback {
+  readonly startedAt: number;
+  elapsed(): number;
+  stop(): void;
+}
+
 export type VoiceState = 'loading' | 'playing' | 'ended' | 'dropped' | 'missing' | 'silent' | 'stopped';
 
 export interface VoiceHandle {
@@ -204,6 +210,38 @@ export class AudioEngine {
 
   stopAll(): void {
     for (const v of [...this.#playing]) v.stop();
+  }
+
+  playBuffer(bus: Bus, channels: readonly Float32Array<ArrayBuffer>[], sampleRate: number): BufferPlayback | null {
+    const graph = this.#graph;
+    const node = this.#buses.get(bus);
+    const [first] = channels;
+    if (!graph || !node || !first || graph.state !== 'running' || this.#volumes.master === 0) return null;
+    const buffer = graph.createBuffer(channels.length, Math.max(1, first.length), sampleRate);
+    channels.forEach((samples, i) => {
+      buffer.copyToChannel(samples, i);
+    });
+    const source = graph.createBufferSource();
+    source.buffer = buffer;
+    source.connect(node);
+    const startedAt = graph.currentTime;
+    source.start(startedAt);
+    let stopped = false;
+    return {
+      startedAt,
+      elapsed: () => graph.currentTime - startedAt,
+      stop: () => {
+        if (stopped) return;
+        stopped = true;
+        try {
+          source.stop();
+        } catch {
+          return;
+        } finally {
+          source.disconnect();
+        }
+      },
+    };
   }
 
   #silent(cue: Cue): boolean {

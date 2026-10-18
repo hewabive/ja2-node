@@ -37,7 +37,7 @@ const RULES: Record<Layer, Rule> = {
   },
   render: { layers: ['core', 'content', 'protocol', 'render'], packages: [] },
   audio: { layers: ['content', 'protocol', 'audio'], packages: [] },
-  app: { layers: ['content', 'protocol', 'audio', 'app'], packages: [] },
+  app: { layers: ['core', 'content', 'protocol', 'render', 'audio', 'app'], packages: [] },
   devtools: { layers: ['core', 'content', 'protocol', 'render', 'audio', 'app', 'devtools'], packages: [] },
   stubs: { layers: ['core', 'content', 'node', 'stubs'], packages: ['node:*'] },
   tools: { layers: ['core', 'content', 'sim', 'protocol', 'node', 'server', 'stubs', 'tools'], packages: ['node:*'] },

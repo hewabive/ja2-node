@@ -61,6 +61,14 @@ describe('client settings', () => {
     expect(loadSettings(store)).toEqual(DEFAULT_SETTINGS);
   });
 
+  it('play the splash and the beginning intro by default and keep either switch off once saved', () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ playSplash: true, playIntro: true });
+    const store = memory();
+    saveSettings(updateSettings(DEFAULT_SETTINGS, { playSplash: false }), store);
+    expect(loadSettings(store)).toMatchObject({ playSplash: false, playIntro: true });
+    expect(normalizeSettings({ version: 1, playIntro: 'no' })).toMatchObject({ playIntro: true });
+  });
+
   it('silence the master while muted without losing its value', () => {
     const muted = updateSettings(DEFAULT_SETTINGS, { muted: true });
     expect(effectiveMaster(muted)).toBe(0);

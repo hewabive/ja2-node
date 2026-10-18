@@ -22,6 +22,8 @@ export interface ClientSettings {
   readonly speech: boolean;
   readonly subtitles: boolean;
   readonly muteConfirmations: boolean;
+  readonly playSplash: boolean;
+  readonly playIntro: boolean;
 }
 
 export const DEFAULT_SETTINGS: ClientSettings = {
@@ -37,6 +39,8 @@ export const DEFAULT_SETTINGS: ClientSettings = {
   speech: true,
   subtitles: true,
   muteConfirmations: false,
+  playSplash: true,
+  playIntro: true,
 };
 
 export interface SettingsStorage {
@@ -78,6 +82,8 @@ export function normalizeSettings(raw: unknown): ClientSettings {
     speech,
     subtitles,
     muteConfirmations: flag(o.muteConfirmations, d.muteConfirmations),
+    playSplash: flag(o.playSplash, d.playSplash),
+    playIntro: flag(o.playIntro, d.playIntro),
   };
 }
 
