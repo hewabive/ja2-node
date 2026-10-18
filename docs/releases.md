@@ -41,6 +41,9 @@ These are developer pages: text panels and the rendered map, not the original's 
   save that `pnpm cli replay` re-runs to the same bytes.
 - Sessions share the server in 10 ms slices, so one agent's long enemy turn does not hold up another; with
   `JA2_SESSION_HOST=worker` each session runs on its own thread.
+- An example agent: `pnpm cli campaign` plays a stub campaign through the MCP tools alone (hiring, the landing,
+  Drassen, the mine, the helicopter, militia, recruiting, the march on Meduna), checks an exact load in a battle against
+  the original session and prints a one-line summary.
 
 ### How to run
 
@@ -76,8 +79,8 @@ claude mcp add --transport http ja2-node http://127.0.0.1:7420/mcp --header "Aut
 | `JA2_SAVE`, `JA2_CAMPAIGN`, `JA2_SEED` | open the default session from a native save, as a new campaign of that difficulty, or with a seed |
 | `JA2_TOKEN` | the access token instead of `.ja2/token` |
 
-`pnpm check` runs Biome, the type check, the layer check and 1,722 unit and scenario tests (on stubs; 48 more need
-the original data); `pnpm e2e` runs 15 Playwright specs on stubs; `pnpm cli bench` measures enemy turns, real time,
+`pnpm check` runs Biome, the type check, the layer check and 1,682 unit and scenario tests (on stubs; 48 more need
+the original data); `pnpm e2e` runs 16 Playwright specs on stubs; `pnpm cli bench` measures enemy turns, real time,
 strategic days, autoresolve, saves, the server and a campaign.
 
 ### Known limitations
@@ -89,7 +92,9 @@ strategic days, autoresolve, saves, the server and a campaign.
   melee attack from the API, the civilian hummer and ice-cream truck, vehicle repair and fuel, the import of other
   sectors' temp files from native saves), the ones tagged **M8** wait for the player UI.
 - The stub campaign is a minimal world: generic maps by sector kind and only the scripts the tests and the stub
-  campaign path need; the creature lairs have no way in on stubs, so play stub campaigns with sci-fi off.
+  campaign path need; the creature lairs have no way in on stubs, so play stub campaigns with sci-fi off. The scripted
+  campaign bot (`pnpm cli campaign`) gets through Drassen and the recruiting but has not won a stub campaign yet: the
+  march and the Meduna outskirts beat it (`27-polish.md` §14, finding 31).
 - Sound: no lip sync, no button clicks and a few cues listed under "Sound coverage"; the playback speed, display
   toggles and key-advance speech settings are stored for M8.
 - Performance: the first save of a session on the original data takes about 150–190 ms (it builds the content index), an

@@ -1091,12 +1091,19 @@ canvas player UI with the original's screens is M8.
     the content index (p95 148–186 ms against 100 ms), and the client frame rate, which was not measured.
 12. **Release** (S14): `deviations.md` grouped by area and checked against the code, this status, `04` §6 tidied,
     `releases.md`.
-13. **Stub campaign end to end** (S13 part B): *placeholder for the lead: the scripted MCP campaign on stubs from the
-    new game to the Queen's death with a reload in a battle, and its numbers.*
+13. **Stub campaign end to end** (S13 part B; `tools/campaign-bot`, `pnpm cli campaign`): a scripted player that uses
+    the MCP tools alone hires the A.I.M. squad, wins the landing, takes Drassen, starts the mine, sets up Skyrider's
+    helicopter, trains militia, recruits up to twelve mercs and marches on Meduna. It does not win yet: over seeds 1–4
+    it fights 16–23 battles in 12–15 days and loses the squad on the march or at the Meduna outskirts, which hold the
+    original's twenty-strong garrisons (`27` finding 31). An exact load in the first battle matched the original
+    session over its whole remaining battle on every seed (232–616 compared steps, no difference); the e2e segment runs
+    the landing with that check. On the way it fixed `enterSector` on the loaded sector, the busy count of a hit
+    during a non-interruptible animation, chained suppression stance changes and a renewal prompt that came back
+    forever (the last three as deviations), and the stub kits, palace, garrison posts, unjam animations and
+    wilderness enemy slots.
 
-Tests at the end of M7: 1,722 tests in 295 files (216 files at the end of M6), 48 of them skipped without the original
-data;
-15 end-to-end specs (10). The full oracle comparison (`tools/oracle/compare-all.sh`, the regression gate added at the
+Tests at the end of M7: 1,730 tests in 300 files (216 files at the end of M6), 48 of them skipped without the original
+data; 16 end-to-end specs (10). The full oracle comparison (`tools/oracle/compare-all.sh`, the regression gate added at the
 start of M7) is unchanged through every slice.
 
 **Left out of M7** (`27` §14, the slices' open issues, and the entries of `deviations.md` tagged **Later** or **M8**):
@@ -1108,6 +1115,9 @@ start of M7) is unchanged through every slice.
   pictures (M8); the oracle has never run on Russian data;
 - launcher: playback speed, display toggles and key-advance speech are stored for M8; the save list shows sector codes
   without land types or town names; meanwhile scene playback in the browser (M8);
+- the stub campaign is not won by the bot yet (`27` finding 31); open from that slice: a merc waiting forever for a
+  tile held by a squad mate, own mercs' bleeding missing from the view, and three stalls seen once after a player load
+  (findings 29–34);
 - stubs: the creature lairs and the mine levels below the first have no way in, so a sci-fi stub campaign cannot
   reach the creature queen; window climbing and wire cutting are not ported; the stub fonts are drawn only by M8;
 - decided against: extra autosaves (sector entry, daily) and a copy of the game policy in saves (`27` §14);
