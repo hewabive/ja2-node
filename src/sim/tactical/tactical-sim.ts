@@ -150,6 +150,7 @@ export interface CombatSnapshot {
 
 const UNCONTROLLED_ROBOT = 'the robot has no controller: a merc in its squad must wear the robot remote control';
 const REMOTE_TRIGGER = 'REMOTETRIGGER';
+const QUEUED_ORDER = 'the last order has not started yet: advance first';
 const AP_USE_REMOTE = 2;
 
 const AIM_PARTS: Readonly<Record<string, number>> = {
@@ -398,6 +399,7 @@ export class TacticalSim {
     if (!t.inCombat) return null;
     if (t.turn.currentTeam !== Team.OUR) return 'it is not your turn';
     if (t.turn.attackBusyCount > 0) return 'an attack is still resolving';
+    if (t.gameEvents.length > 0) return QUEUED_ORDER;
     if (s.moved) return 'soldier has no move this turn';
     const other = teamMembers(t, Team.OUR).find((x) => x !== s && this.isBusy(x));
     if (other) return `soldier ${other.id} is still acting`;
@@ -818,6 +820,7 @@ export class TacticalSim {
     if (!t.inCombat) return { ok: false, reason: 'not in turn-based combat' };
     if (t.turn.currentTeam !== Team.OUR) return { ok: false, reason: 'it is not your turn' };
     if (t.turn.attackBusyCount > 0) return { ok: false, reason: 'an attack is still resolving' };
+    if (t.gameEvents.length > 0) return { ok: false, reason: QUEUED_ORDER };
     const busy = teamMembers(t, Team.OUR).find((x) => this.isBusy(x));
     if (busy) return { ok: false, reason: `soldier ${busy.id} is still acting` };
     endTurn(t, Team.OUR + 1);

@@ -19,6 +19,24 @@ export interface SyntheticStructureOptions {
   readonly armour?: number;
   readonly height?: number;
   readonly tiles?: readonly (readonly [number, number])[];
+  readonly edge?: boolean;
+}
+
+const PROFILE_SIDE = 5;
+const PROFILE_CELLS = PROFILE_SIDE * PROFILE_SIDE;
+const FAR_EDGE = PROFILE_SIDE - 1;
+
+function edgeCell(index: number, wallOrientation: number): boolean {
+  const x = Math.trunc(index / PROFILE_SIDE);
+  const y = index % PROFILE_SIDE;
+  if (wallOrientation & (Orientation.INSIDE_LEFT | Orientation.OUTSIDE_LEFT)) return y === FAR_EDGE;
+  if (wallOrientation & (Orientation.INSIDE_RIGHT | Orientation.OUTSIDE_RIGHT)) return x === FAR_EDGE;
+  return true;
+}
+
+function profileShape(wallOrientation: number, height: number, edge: boolean): Uint8Array {
+  const cubes = (1 << height) - 1;
+  return Uint8Array.from({ length: PROFILE_CELLS }, (_, k) => (!edge || edgeCell(k, wallOrientation) ? cubes : 0));
 }
 
 export function syntheticStructure(
@@ -42,7 +60,7 @@ export function syntheticStructure(
       posRelToBase: x + y * WORLD_COLS,
       xRelToBase: x,
       yRelToBase: y,
-      shape: new Uint8Array(25).fill((1 << height) - 1),
+      shape: profileShape(wallOrientation, height, opts.edge === true),
       flags: 0,
       vehicleHitLocation: 0,
     })),

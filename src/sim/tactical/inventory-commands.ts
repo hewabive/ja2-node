@@ -5,6 +5,7 @@
 // @src Handle_Items.cc HandleItem (the medkit branch); Handle_UI.cc the medkit checks of the item cursor.
 // @src See docs/04 §6.23, docs/12 §3–§5.
 
+import type { ItemTable } from '../../content/items/items.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';
 import type { CommandResult } from '../command.ts';
 import type { ItemObject } from '../items/object.ts';
@@ -203,7 +204,7 @@ function panelTarget(t: TacticalState, s: Soldier, value: unknown): Soldier | In
   return panelRangeRefusal(t, s, target) ?? target;
 }
 
-function optionalSlot(value: unknown): number | null | InventoryRefusal {
+export function optionalSlot(value: unknown): number | null | InventoryRefusal {
   if (value === undefined) return null;
   return parseSlot(value) ?? InventoryRefusal.BAD_SLOT;
 }
@@ -243,9 +244,9 @@ function attachCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): Com
   return outcomeResult(attachItem(env, { attacher: s, from, owner, slot, index, count, permanent: cmd.permanent === true }));
 }
 
-function attachmentPosition(t: TacticalState, o: ItemObject | undefined, value: unknown): number | InventoryRefusal {
+export function attachmentPosition(items: ItemTable, o: ItemObject | undefined, value: unknown): number | InventoryRefusal {
   if (typeof value === 'string') {
-    const item = t.content.items.byName.get(value)?.index;
+    const item = items.byName.get(value)?.index;
     const position = o?.attachments.findIndex((a) => a.item === item) ?? -1;
     return position >= 0 ? position : InventoryRefusal.NO_ATTACHMENT;
   }
@@ -258,7 +259,7 @@ function detachCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): Com
   if (slot === null) return refusal(InventoryRefusal.BAD_SLOT);
   const to = optionalSlot(cmd.to);
   if (typeof to === 'string') return refusal(to);
-  const position = attachmentPosition(t, s.inv[slot], cmd.attachment);
+  const position = attachmentPosition(t.content.items, s.inv[slot], cmd.attachment);
   if (typeof position === 'string') return refusal(position);
   return outcomeResult(detachItem(tacticalPanelEnv(t), s, slot, position, to));
 }

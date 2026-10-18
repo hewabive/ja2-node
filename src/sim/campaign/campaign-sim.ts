@@ -57,6 +57,7 @@ import { EndgameFlow } from './endgame-flow.ts';
 import { HelicopterFlow } from './helicopter-flow.ts';
 import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
 import { LAPTOP_REFUSAL, LaptopFlow, type LaptopSetup } from './laptop/laptop-flow.ts';
+import { MapInventory } from './map-inventory.ts';
 import { MeanwhileFlow } from './meanwhile-flow.ts';
 import { NarrativeFlow } from './narrative/narrative-flow.ts';
 import { registerNarrativeEvents } from './narrative-port.ts';
@@ -112,6 +113,7 @@ export class CampaignSim {
   readonly meanwhile: MeanwhileFlow;
   readonly endgame: EndgameFlow;
   readonly pows: PowFlow;
+  readonly mapInventory: MapInventory;
   readonly worldClock: WorldTimeControl;
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
@@ -132,6 +134,7 @@ export class CampaignSim {
     this.meanwhile = new MeanwhileFlow(this);
     this.endgame = new EndgameFlow(this);
     this.pows = new PowFlow(this);
+    this.mapInventory = new MapInventory(this);
     this.#clock = this.#clockContext();
     this.helicopter = new HelicopterFlow(this);
     const ai = hooks.queen
@@ -496,6 +499,7 @@ export class CampaignSim {
     this.#events.push(...this.meanwhile.drainEvents());
     this.#events.push(...this.endgame.drainEvents());
     this.#events.push(...this.pows.drainEvents());
+    this.#events.push(...this.mapInventory.drainEvents());
   }
 
   ended(): boolean {
@@ -518,6 +522,7 @@ export class CampaignSim {
     } else if (s.flow === 'autoresolve') this.battle?.stepAutoresolve();
     else {
       s.realMs += TICK_MS;
+      this.talk?.afterStrategicStep();
       this.#updatePausedStatesDueToTimeCompression();
     }
     updateClock(this.#clock, s.realMs);
@@ -552,6 +557,7 @@ export class CampaignSim {
 
   dispatch(cmd: CampaignCommand): CommandResult {
     const result = this.#dispatch(cmd);
+    if (this.state.flow === 'strategic') this.talk?.afterStrategicStep();
     this.#collectEvents();
     this.battle?.settle();
     this.contracts?.settle();
@@ -595,6 +601,7 @@ export class CampaignSim {
           (this.strategic ? this.helicopter.dispatch(cmd) : null) ??
           dispatchSectorCommand(this, cmd) ??
           dispatchStrategicCommand(this, cmd) ??
+          (this.battle ? this.mapInventory.dispatch(cmd) : null) ??
           (this.tactical ? this.tactical.dispatch(cmd) : { ok: false, reason: `unknown command ${cmd.type}` })
         );
     }

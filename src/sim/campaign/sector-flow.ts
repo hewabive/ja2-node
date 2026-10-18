@@ -96,6 +96,7 @@ import {
   stripEnemyDetailedPlacements,
 } from '../tactical/init-list.ts';
 import { CENTER_GRIDNO, Insertion, type InsertionContext, type InsertionOrder, updateMercInSector } from '../tactical/insertion.ts';
+import { handleAllReachableItemsInTheSector } from '../tactical/item-reachability.ts';
 import { lightSpriteRenderAll } from '../tactical/lighting/lighting.ts';
 import {
   civilianPlacementOverride,
@@ -1019,6 +1020,7 @@ export class SectorFlow {
       if (present) setSectorFlag(map, world, flag, day);
       else resetSectorFlag(map, world, flag);
     };
+    handleAllReachableItemsInTheSector(t, teamMembers(t, Team.OUR));
     diff.items = captureWorldItems(t);
     mark(SectorFlag.ITEM_TEMP_FILE_EXISTS, true);
     if (world.z === 0) sectorInfo(map, world).visibleItems = visibleItemCount(diff.items);

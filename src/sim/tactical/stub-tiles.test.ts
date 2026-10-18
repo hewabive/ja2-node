@@ -132,6 +132,17 @@ describe('the stub tile yard in the village', { timeout: SLOW_SCENARIO_MS }, () 
     expect(t.world.costs.get(at(18, 6), Direction.NORTH, 0)).toBe(TravelCost.WALL);
   });
 
+  it('sees along the wall from its tiles, the wall filling one edge of each tile like the original walls', () => {
+    const sim = village();
+    const t = sim.state;
+    const viewer = spawnSoldier(sim, 0, Team.OUR, at(15, 6), Direction.EAST);
+    const other = spawnSoldier(sim, 1, Team.OUR, at(21, 6), Direction.WEST);
+    const wall = structureAt(sim, at(16, 6), StructureFlags.WALL);
+    expect([...wall.tile.shape].filter((cubes) => cubes !== 0)).toHaveLength(5);
+    expect(soldierToSoldierLos(t, viewer, other, SIGHT_TILES, true)).toBeGreaterThan(0);
+    expect(soldierToSoldierChanceToGetThrough(t, viewer, other)).toBeGreaterThan(0);
+  });
+
   it('shatters the window glass with a shot through it', () => {
     const sim = village();
     const window = at(18, 6);

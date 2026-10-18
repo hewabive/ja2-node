@@ -217,7 +217,7 @@ the current stance; in combat refused unless the first step plus any stance chan
 no ammo, broken weapon, out of melee reach, an aimed throw) and `estimateAttack` with the same
 fields, a query that changes nothing and answers `data {apCost, actionPoints, chanceToHit, chanceToGetThrough}`.
 `pickUp {soldier, gridNo?, zLevel?, items?}` picks up the visible items on the soldier's tile (or on an adjacent
-blocked tile; `items` are indices into that tile's list, default all) for `AP_PICKUP_ITEM`; `drop {soldier, slot?}`
+blocked tile; `items` are indices into that tile's list, default all) for `AP_PICKUP_ITEM`; `drop {soldier, slot?, count?, index?}`
 drops a slot (default the hand) at the soldier's feet; `climb {soldier}` climbs onto the adjacent roof edge or
 down from the roof (`FindHigherLevel`/`FindLowerLevel`).
 Orders are accepted only on our turn, when no attack is resolving and no other merc of ours is acting
@@ -377,7 +377,7 @@ There are few of them, and they are coarse-grained.
 | `status` | Mode (strategy, real-time or turn-based tactics, awaiting a decision), whose turn it is, time, money, squads, the open prompt |
 | `observe` | What the player sees: own soldiers (tile, stance, AP, health, breath, weapon and ammo), visible enemies, heard noises, an ASCII map fragment with a legend (walls, doors, cover by height, roofs), events since the previous call |
 | `query` | Hit chance with N aim clicks, a path and its AP cost, LOS, tile visibility |
-| `act` | A command: `move`, `shoot`, `throw`, `stance`, `reload`, `open_door`, `climb`, `bandage`, `end_turn`, …; on the map: `travel`, `assign`, `hire`, …. By default, time then runs until `idle` or a decision prompt. The response is a summary of events and the new status |
+| `act` | A command: `move`, `attack` (shoots, throws, stabs), `stance`, `pickUp`, `drop`, `moveItem`, `attach`, `detach`, `unload`, `reload`, `swapHands`, `applyItem`, `bandage`, `door`, `climb`, `endTurn`, …; on the map: `route`, `assign`, `aimHire`, `moveItem` with the sector inventory, …. By default, time then runs until `idle` or a decision prompt. The response is a summary of events and the new status (§6.23 for the inventory and first-aid commands) |
 | `answer` | An answer to a decision prompt: interrupt, dialogue line, message box, PBI |
 | `advance` | Explicitly advances time in real time and on the strategic map: "until arrival", "until an event", "no longer than N" |
 | `newSession` | Starts another session and returns its id: the sandbox (optional seed), with `campaign {difficulty?, profiles?, mercs?, land?}` a new campaign (§6.6), or with `save` a native savegame from the game's `SavedGames` folder (`docs/14` §10); `language` sets the session's display language (§6.21); every other tool takes `session`, so agents and tests do not share one battle |
@@ -933,6 +933,55 @@ hundred bytes. Clients pass names, never paths: `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`
   `load`, `prepare`). `pnpm cli replay <name>` rebuilds the origin, re-runs the log with the manual driver and compares
   the snapshot with the save. When a command or a step throws, the server writes the whole log as
   `Error.log.jsonl.gz` instead of an error save.
+
+### 6.23. Inventory, reloading and first aid (M7)
+
+D15: everything a player does with the inventory panel, the item description box, the reload cursor and the medkit
+cursor is a command. The rules follow the original UI code paths (`docs/12` §3–§5); the API only replaces the item
+cursor: a command picks an item up, puts it down and, when something is left in the cursor (a swap), returns it at
+once the way the original's cancel does (`CancelItemPointer`: back into the slot it came from, else a free pocket, else
+the soldier's feet; on the map screen, where the cursor cannot be cancelled, the sector inventory instead of the feet;
+deviation "Item cursor"). Slots are `0`–`18` or the names `helmet`, `vest`, `legs`, `head1`, `head2`, `hand`,
+`secondHand`, `bigPocket1`–`4`, `smallPocket1`–`8`; `count` is `1` (one object, `index` picks it from the stack: the
+stack popup) or `"all"` (the shift-click, the default of `moveItem` and `drop`). Refusals carry `data.refusal`.
+
+| Command | Original | Rules, costs and refusals |
+|---|---|---|
+| `moveItem {soldier, from, to, toSoldier?, count?, index?, merge?}` | `SMInvClickCallbackPrimary`, `UIHandleItemPlacement`, `PlaceObject` | Free inside one inventory (also in combat). To another merc of ours (`CheckForDisabledForGiveItem`): he must be in sight within 3 tiles (2 when he is unconscious; for a merc below OK life, any merc of ours within 2 tiles who sees him enables it); both conscious mercs need 3 AP and pay 2 each in combat; a swapped-out item then stays with the receiving merc (the cancel puts it into his slot with the source slot's number, a free pocket or his feet). Onto a hand or armour slot whose item the moved item attaches to: `useAttach`; onto one it merges with (`ValidMerge`): `mergePrompt`, then `merge: true` runs `AttachObject` (no transfer AP, `AP_MERGE` for real merges) and `merge: false` swaps. `to: "ground"` is `drop`. Nails keeps his jacket (`nailsVest`). Other refusals: `badSlot`, `badCount`, `badIndex`, `emptySlot`, `sameSlot`, `noSuchTarget`, `noInventory` (escorts, vehicles), `tooFar`, `noLineOfSight`, `notEnoughAP`, `doesNotFit` (`CanItemFitInPosition`, face items that clash, a two-handed item into a full pair of hands). Ammunition dropped on a gun reloads it (`ReloadGun`, 5/10 AP in combat). Event `itemMoved`; a hand change plays `LOWER_RIFLE`/`RAISE_RIFLE` and resets burst mode (`ReLoadSoldierAnimationDueToHandItemChange`), a face item re-runs sight (`PlaceObject`) |
+| `drop {soldier, slot?, count?, index?}` | `HandleItemPointerClick` on the soldier's tile, `SoldierDropItem` | 3 AP (`AP_PICKUP_ITEM`), the `DROP_ITEM` animation when standing; event `itemDropped` |
+| `attach {soldier, item, to, toSoldier?, index?, count?, permanent?}` | `ItemDescAttachmentsCallbackPrimary`, `DoAttachment`, `AttachObject` | The item description box of the item in `to` (also another merc's in passing range, without transfer AP): needs `AP_RELOAD_GUN` (5) left in combat and spends nothing for an attachment; merges other than kit or ammo points cost `AP_MERGE` (8). The `ATTACHING_*` skill checks (`AttachmentInfo`; merges −30) draw `PreRandom` and damage both items on failure; combo merges (`SPRING_AND_BOLT_UPGRADE`, …) grant mechanical experience; `index` is the stack object that kit points pour into. Inseparable attachments ask first (`permanentAttachment`, repeat with `permanent: true`); `cannotAttach`. `data.result`: `attached`, `merged`, `destroyed` (a bad compound merge), `failedCheck`; event `itemAttached` |
+| `detach {soldier, slot, attachment, to?}` | `ItemDescAttachmentsCallbackPrimary`, `RemoveAttachment` | Needs 8 AP left in combat (`AP_RELOAD_GUN + AP_PICKUP_ITEM`), spends none; `inseparable`, `noAttachment`; into `to` or a free pocket (`noRoom`, `doesNotFit`); an under-barrel launcher takes its grenade along; event `itemDetached` |
+| `unload {soldier, slot?, to?}` | `ItemDescAmmoCallback`, `EmptyWeaponMagazine` | Free; the magazine keeps the rounds, the gun remembers the magazine type; `notAGun`, `gunEmpty`, `noRoom`; event `gunUnloaded` |
+| `reload {soldier, slot?, ammo?}` | `HandleUIReloading`, `AutoReload`, `GetAPsToAutoReload`; a magazine dropped on the gun: `PlaceObject` → `ReloadGun` | One magazine from `ammo` onto the gun (default the hand): `AP_RELOAD_GUN` 5, 10 with a magazine of another size, launchers 5; real-time reloads are free and top off. Without `ammo` the hand is the reload cursor (`FindAmmoToReload`; the cost of both pistols when the second can be afforded), another slot takes the best match. `notAGun`, `wrongAmmo` (calibre), `noAmmo`, `notEnoughAP`, `cannotReload` (the rocket launcher, no room for the old magazine); event `reloaded` |
+| `swapHands {soldier}` | `TMClickFirstHandInvCallbackSecondary`, `SwapHandItems` | Free; a two-handed item in the second hand pushes the main hand item into a pocket first (`noRoom`); the robot cannot (`robot`) |
+| `applyItem {soldier, slot, target?}` | `SMInvClickCamoCallback`, `ApplyCamo`, `ApplyCanteen`, `ApplyElixir` | On the soldier or a merc in passing range, paid by the target: canteen `AP_DRINK` 5 and breath `2 × min(20, points) × (100 − breath)` (allowed when collapsed from breath alone), camouflage kit `AP_CAMOFLAGE` 10 (one kit point per two camouflage points), elixir 10; `notEnoughAP`, `cannotApply` (full camouflage, empty kit), `unconsciousTarget`; drugs and alcohol `notPorted`; tactical only. Event `itemApplied` |
+| `bandage {soldier, target?}` | `HandleItem` (medkit branch), `EVENT_SoldierBeginFirstAid`, `SoldierDressWound`, `HandlePlayerServices` | The medkit cursor: a first aid kit or medical kit in the hand (`noKit`), the cursor checks (`mechanical`, `noMedicalSkill`, `notBleeding`: first aid only stops bleeding, `noNeed`), then `FindAdjacentGridEx` (`cannotGetThere`) and `GetAPsToBeginFirstAid` plus the path (`notEnoughAP`); walks up (`MERC_GIVEAID`, `data.walking`) or starts (`data.started`). `START_AID` costs `AP_START_FIRST_AID` 5 after the crouch (2 more from standing). The medic then dresses the wound (`SoldierDressWound`) at the end of every round in combat with the APs he has left, and on every 5 s real-time turn with `RT_FIRST_AID_GAIN_MODIFIER` 12 APs: life below OK life first at 2 points each, then bleeding; a medical kit gives half again for half the points; kit points are taken from the last object; an empty kit is replaced by another first aid kit, then a medical kit. A move, stance change, climb, blast, collapse, incapacitation, death or hand item change of the medic, and a move of the patient, end the service (`END_AID`, then standing up when no enemy is left). Being bandaged costs 20 to hit and in close combat, the medic loses 2 interrupt points. NPCs may refuse (`PCDoesFirstAidOnNPC`, creatures, hostile soldiers): event `firstAidRefused`. Events `firstAidStarted`, `bandaged {life, bleeding}`, `firstAidDone`, `firstAidEnded`, `outOfBandages`. NPC action 12 ends a service to the NPC |
+
+Throwing needs no command of its own: move the grenade into the hand (`moveItem {to: "hand"}`), check it with
+`estimateAttack` (`apCost`, `chanceToHit`, `landsAt`, `maxRange`) and throw it with `attack` at the tile.
+
+**Map screen.** In the campaign's strategic flow `moveItem`, `attach`, `detach`, `unload`, `reload` and `swapHands`
+take no APs (`MAPInvClickCallbackPrimary`) and work for every merc whose inventory is accessible
+(`MapCharacterHasAccessibleInventory`: not in transit, captured, an escort, a vehicle, the robot or below OK life;
+`inaccessible`). Items pass between mercs in the same sector only (on the road: the same squad or vehicle) and never while
+the loaded sector holds enemies (`MapscreenCanPassItemToChar`: `otherSector`, `hostileSector`); a swapped-out item goes
+back to where the moved one came from. A hand or armour item the moved item attaches to or merges with opens the
+description box (`useAttach`). The sector inventory: `moveItem {from: "ground", item: <stash index>, to, sector?}` and
+`moveItem {from, to: "ground", stashIndex?, sector?}` for a merc standing in that sector and not on the road
+(`notInSector`), not during a battle there (`CanPlayerUseSectorInventory`: `battleInSector`); only reachable items can be
+taken (`unreachable`); a stash slot takes up to `ubPerPocket` objects and swaps different items
+(`PlaceObjectInInventoryStash`); a new item lies on the merc's tile, flagged reachable. `inventory {sector?, z?,
+soldier?}` is a query (accepted in every flow): `{sector, z, usable, refusal?, stash: [{index, item, count, status,
+money?, reachable, gridNo, level}], mercs: [{id, name, accessible, betweenSectors, inventory}]}`. The stash lists the
+items seen on the ground of the sector (`IsMapScreenWorldItemVisibleInMapInventory`: visible, not trapped, no switches or
+action items): the loaded sector's items or the sector's saved items, which hold what was left there, dropped on a
+retreat or delivered by Bobby Ray once a merc has seen it. Leaving a sector and the query on the loaded sector recompute
+the reachable flag (`HandleAllReachAbleItemsInTheSector`). `applyItem` and `bandage` are refused on the map screen
+(`tacticalOnly`).
+
+**Turn-based lock of queued orders** (`docs/27` §14 finding 20). A gun attack starts with a queued `beginFireWeapon`
+game event; the original UI locks after the click (`SetUIBusy`), so every order and `endTurn` are refused while a game
+event is queued (`the last order has not started yet: advance first`).
 
 ## 7. Cost and limitations
 

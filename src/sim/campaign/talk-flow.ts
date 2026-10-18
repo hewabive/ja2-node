@@ -519,6 +519,11 @@ export class TalkFlow {
     handleWaitTimerForNpcTrigger(this.host);
   }
 
+  afterStrategicStep(): void {
+    stepDialogue(this.host);
+    this.#syncScripted();
+  }
+
   afterTacticalStep(): void {
     stepDialogue(this.host);
     this.npcActions.afterTacticalStep();
