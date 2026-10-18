@@ -551,7 +551,7 @@ export class MapInventory {
       item: items.byIndex.get(slot.object.item)?.name ?? String(slot.object.item),
       count: slot.object.count,
       status: slot.object.status.slice(0, Math.max(1, slot.object.count)),
-      ...(slot.object.money > 0 ? { money: slot.object.money } : {}),
+      ...(items.byIndex.get(slot.object.item)?.itemClass === ItemClass.MONEY ? { money: slot.object.money } : {}),
       reachable: (slot.flags & WorldItemFlags.REACHABLE) !== 0,
       gridNo: slot.gridNo,
       level: slot.level,

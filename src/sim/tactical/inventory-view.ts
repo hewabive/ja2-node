@@ -29,7 +29,7 @@ function slotView(items: ItemTable, slot: number, o: ItemObject): InventoryItemV
     status: o.status.slice(0, Math.max(1, o.count)),
     ...(def?.weapon && o.gunAmmoItem !== NOTHING ? { ammo: { item: itemName(items, o.gunAmmoItem), shots: o.gunShotsLeft } } : {}),
     ...(attachments.length > 0 ? { attachments } : {}),
-    ...(o.money > 0 ? { money: o.money } : {}),
+    ...(def?.itemClass === ItemClass.MONEY && o.money > 0 ? { money: o.money } : {}),
     ...(def?.itemClass === ItemClass.KEY ? { keyId: o.keyId } : {}),
   };
 }
