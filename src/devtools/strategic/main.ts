@@ -645,7 +645,9 @@ async function start(): Promise<void> {
     await Promise.all([loadTowns(), loadSessions(session)]);
     client = await SessionClient.connect(session ?? undefined);
     sound.reset(client.laptop !== null);
+    void sound.attach(client.session ?? 'local', client.view);
     client.onFrames = (frames) => sound.frames(frames);
+    client.onWelcome = () => sound.reset(client?.laptop !== null, client?.view ?? null);
     const id = session ?? sessionSelect.value;
     debug.session = id || null;
     tacticalLink.href = `../tactical/${id ? `?session=${encodeURIComponent(id)}` : ''}`;

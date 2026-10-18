@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { constants, gunzipSync, gzipSync } from 'node:zlib';
 import { sectorShortString } from '../content/strategic/sector-ids.ts';
+import { initialMusic, type MusicState } from '../protocol/music.ts';
+import { isMusicMode, MusicMode } from '../protocol/music-modes.ts';
 import { type CampaignStatus, campaignStatus } from '../sim/campaign/ending-state.ts';
 import { storyFlow } from '../sim/campaign/story-refusals.ts';
 import type { GameOptions } from '../sim/options.ts';
@@ -78,7 +80,19 @@ export interface SaveFileHead {
   readonly header: SaveHeader;
 }
 
-export const EMPTY_PRESENTATION: SavePresentation = { music: { mode: 'none', previous: 'none' } };
+export const EMPTY_PRESENTATION: SavePresentation = { music: { mode: MusicMode.NONE, previous: MusicMode.NONE } };
+
+export function presentationOf(music: MusicState): SavePresentation {
+  return { music: { mode: music.mode, previous: music.previous } };
+}
+
+export function musicOfPresentation(presentation: SavePresentation | undefined): MusicState {
+  const music = presentation?.music;
+  return initialMusic(
+    isMusicMode(music?.mode) ? music.mode : MusicMode.NONE,
+    isMusicMode(music?.previous) ? music.previous : MusicMode.NONE,
+  );
+}
 
 export type SaveFileProblem = 'notASave' | 'versionTooNew' | 'noMigration' | 'corrupt';
 

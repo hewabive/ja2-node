@@ -10,10 +10,11 @@ import { describeOrigin, encodeInputLog, inputLogText, isReplayable, type LogSeg
 import { TacticalSession } from './sandbox.ts';
 import {
   clampDescription,
-  EMPTY_PRESENTATION,
   encodeSaveFile,
   inflateSave,
+  musicOfPresentation,
   parseSaveText,
+  presentationOf,
   SAVE_FORMAT,
   SAVE_VERSION,
   type SaveFile,
@@ -304,7 +305,7 @@ export class SaveService {
       session: { kind: snapshot.session, origin: describeOrigin(segment.origin), tick: summary.tick, preparedMaps: snapshot.preparedMaps },
       contentFiles: files,
       sim: snapshot.sim,
-      presentation: EMPTY_PRESENTATION,
+      presentation: presentationOf(session.music),
     };
     return { kind, name, file, log: isReplayable(segment.origin) ? segment : null };
   }
@@ -416,7 +417,7 @@ export class SaveService {
     if (!isValidSaveName(name)) throw new SaveLoadError('invalidName', `invalid save name ${JSON.stringify(name)}`);
     this.#deadIsDeadSavePoint(session);
     const opened = await this.open(name);
-    session.replace(opened.sim, { name: opened.name, digest: opened.digest });
+    session.replace(opened.sim, { name: opened.name, digest: opened.digest }, musicOfPresentation(opened.file.presentation));
     return this.completeLoad(session, opened, reseed);
   }
 

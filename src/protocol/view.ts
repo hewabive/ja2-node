@@ -2,10 +2,12 @@ import type { SimEvent } from '../sim/events.ts';
 import type { ShopView } from '../sim/strategic/economy/merchants/view.ts';
 import type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 import { type InventoryItemView, sameInventory } from '../sim/tactical/inventory-view.ts';
+import { type MusicView, sameMusic } from './music.ts';
 
 export type { ShopBoxView, ShopEta, ShopKind, ShopView } from '../sim/strategic/economy/merchants/view.ts';
 export type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 export type { InventoryItemView } from '../sim/tactical/inventory-view.ts';
+export type { MusicView } from './music.ts';
 
 export interface SoldierView {
   readonly id: number;
@@ -596,6 +598,7 @@ export interface PlayerView {
   readonly combat?: CombatView | null;
   readonly revealedRooms?: readonly number[];
   readonly items?: readonly ItemView[];
+  readonly music?: MusicView;
 }
 
 export interface ViewFrame {
@@ -622,6 +625,7 @@ export interface ViewFrame {
   readonly combat?: CombatView | null;
   readonly revealedRooms?: readonly number[];
   readonly items?: readonly ItemView[];
+  readonly music?: MusicView;
 }
 
 function sameItems(a: readonly ItemView[] | undefined, b: readonly ItemView[] | undefined): boolean {
@@ -683,6 +687,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), ended: next.ended ?? null };
   if (JSON.stringify(previous.boxing ?? null) !== JSON.stringify(next.boxing ?? null))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), boxing: next.boxing ?? null };
+  if (next.music && !sameMusic(previous.music, next.music))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), music: next.music };
   return frame;
 }
 

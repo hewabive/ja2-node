@@ -14,6 +14,8 @@ import { loadStrategicContent } from '../content/strategic/strategic-content.ts'
 import { type DataDecoding, DEFAULT_DATA_DECODING } from '../content/text/data-version.ts';
 import { loadTacticalWorld } from '../content/world/tactical-world.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
+import { initialMusic } from '../protocol/music.ts';
+import { MusicMode, musicModeOfNativeByte } from '../protocol/music-modes.ts';
 import { type CampaignHooks, CampaignSim, type SimConstruction } from '../sim/campaign/campaign-sim.ts';
 import { importContracts } from '../sim/campaign/contracts/save-import.ts';
 import { importLaptop } from '../sim/campaign/laptop/save-import.ts';
@@ -153,7 +155,9 @@ export async function createSaveSession(
     });
   }
   campaign.sectors?.adoptLoadedSector(savedSoldierLinks(save));
-  return { session: new CampaignSession(campaign, roster, worlds, parts.narrative.texts, { kind: 'imported', parts, report }), report };
+  const session = new CampaignSession(campaign, roster, worlds, parts.narrative.texts, { kind: 'imported', parts, report });
+  session.initialMusic = initialMusic(musicModeOfNativeByte(save.generalInfo.musicMode), MusicMode.MAIN_MENU);
+  return { session, report };
 }
 
 export async function loadImportParts(

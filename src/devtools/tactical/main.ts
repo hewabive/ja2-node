@@ -453,8 +453,12 @@ async function start(): Promise<void> {
     assets = await SoldierAssets.load(available);
     await sound.load(available, assets.tables, client.session ?? 'local');
     sound.director?.reset(client.soldiers);
+    sound.music.reset(client.view?.music);
     client.onFrames = (frames) => sound.frames(frames);
-    client.onWelcome = () => sound.director?.reset(client?.soldiers ?? []);
+    client.onWelcome = () => {
+      sound.director?.reset(client?.soldiers ?? []);
+      sound.music.reset(client?.view?.music);
+    };
     await loadSector(mapPath);
     for (const b of document.querySelectorAll<HTMLButtonElement>('[data-speed]'))
       b.classList.toggle('active', Number(b.dataset.speed) === 0);

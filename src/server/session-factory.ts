@@ -6,6 +6,7 @@ import type { ReadFile } from '../content/world/tileset-loader.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { LogOrigin } from './input-log.ts';
 import { createSandboxSession } from './sandbox.ts';
+import { musicOfPresentation } from './save-file.ts';
 import { type OpenedSave, SaveLoadError, type SaveService } from './save-service.ts';
 import { createSaveSession } from './save-session.ts';
 import type { SaveStore } from './save-store.ts';
@@ -72,6 +73,7 @@ export function createSessionFactory(options: SessionFactoryOptions): SessionFac
     if (request.load) {
       const opened = await openLoad(saves, request.load.name);
       const session = new Session(id, opened.sim, text, { kind: 'load', name: opened.name, digest: opened.digest });
+      session.restoreMusic(musicOfPresentation(opened.file.presentation));
       saves?.attach(session);
       saves?.completeLoad(session, opened, request.load.reseed);
       return session;

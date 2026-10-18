@@ -1,5 +1,6 @@
 import type { TextKey } from '../content/narrative/dialogue-text.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
+import { initialMusic, type MusicFacts, type MusicState } from '../protocol/music.ts';
 import type {
   BoxingView,
   CampaignEndedView,
@@ -14,6 +15,7 @@ import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { MercKind, type Roster } from '../sim/campaign/roster.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
+import { numHostilesInSector } from '../sim/strategic/forces/groups.ts';
 import { isTimeBeingCompressed, worldDay, worldHour, worldMinute } from '../sim/strategic/time/world-clock.ts';
 import { BoxingState, boxingStateName } from '../sim/tactical/narrative/boxing-state.ts';
 import type { SaveImportReport } from '../sim/tactical/save-import.ts';
@@ -93,6 +95,7 @@ export class CampaignSession implements SessionSim {
   readonly worlds: WorldCache | null;
   readonly texts: TextSource | null;
   readonly origin: CampaignOrigin | null;
+  initialMusic: MusicState = initialMusic();
 
   constructor(
     campaign: CampaignSim,
@@ -177,6 +180,20 @@ export class CampaignSession implements SessionSim {
 
   ended(): boolean {
     return this.campaign.ended();
+  }
+
+  musicFacts(): MusicFacts {
+    const c = this.campaign;
+    const s = c.state;
+    const world = c.tactical ? s.worldSector : null;
+    const strategic = c.strategic;
+    return {
+      creature: s.creatures.useCreatureMusic,
+      inCombat: c.tactical?.state.inCombat ?? false,
+      sectorLoaded: world !== null,
+      hostiles: world && strategic ? numHostilesInSector(strategic, world) : 0,
+      gameJustStarted: s.didGameJustStart,
+    };
   }
 
   #boxing(): { boxing?: BoxingView | null } {

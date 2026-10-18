@@ -36,7 +36,19 @@ import {
   unusedAPsToBreath,
 } from '../points.ts';
 import { decayBloodAndSmells, decaySmells, dropBlood } from '../smell.ts';
-import { AlertStatus, Body, NO_INTERRUPT, NOWHERE, OKLIFE, Orders, ReasonCantFinishMove, Side, type Soldier, Team } from '../soldier.ts';
+import {
+  AlertStatus,
+  Body,
+  isMonster,
+  NO_INTERRUPT,
+  NOWHERE,
+  OKLIFE,
+  Orders,
+  ReasonCantFinishMove,
+  Side,
+  type Soldier,
+  Team,
+} from '../soldier.ts';
 import { mercs, type RealtimeClock, soldiersById, type TacticalState, teamMembers } from '../state.ts';
 import { buildAIListForTeam, moveToFrontOfAIList, removeFirstAIListEntry } from './ai-list.ts';
 import { TEAM_COUNT } from './turn-state.ts';
@@ -279,6 +291,16 @@ export function numCapableEnemyInSector(t: TacticalState): number {
   return n;
 }
 
+export function battleFought(t: TacticalState): boolean {
+  const fought = t.turn.numFoughtInBattle;
+  return (fought[Team.ENEMY] ?? 0) + (fought[Team.CREATURE] ?? 0) + (fought[Team.CIV] ?? 0) > 0;
+}
+
+export function lastMercKillWasMonster(t: TacticalState): boolean {
+  const killed = t.turn.lastMercKill;
+  return killed !== null && isMonster(killed);
+}
+
 export function checkForPotentialAddToBattleIncrement(t: TacticalState, s: Soldier): void {
   if (s.neutral || s.side === Side.FRIENDLY) return;
   if (s.team === Team.CIV) return;
@@ -462,7 +484,12 @@ export function checkForEndOfBattle(t: TacticalState): boolean {
       t.turnHooks.checkForChangingOrders(t, s);
     }
     t.perception.awareOfOpposition[Team.CIV] = false;
-    t.events.push({ type: 'combatEnded', reason: 'won' });
+    t.events.push({
+      type: 'combatEnded',
+      reason: 'won',
+      ...(battleFought(t) ? { fought: true as const } : {}),
+      ...(lastMercKillWasMonster(t) ? { monsterKill: true as const } : {}),
+    });
     t.sectorHooks.battleEnded(t, 'won');
     return true;
   }

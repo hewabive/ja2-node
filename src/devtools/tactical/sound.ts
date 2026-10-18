@@ -13,6 +13,7 @@ import { compileWorldTerrainIds } from '../../content/world/movement-costs.ts';
 import type { ViewFrame } from '../../protocol/view.ts';
 import { fetchFile, fetchHealth } from '../asset-browser/api.ts';
 import type { LoadedWorld } from '../map-viewer/world-loader.ts';
+import { type MusicHook, musicLevel, PageMusic } from '../net/music.ts';
 
 const STUB_PREFIX = 'stubs/';
 const MINUTES_PER_HOUR = 60;
@@ -25,7 +26,9 @@ export interface AudioHook {
   director: SoundDirector['stats'] | null;
   played: string[];
   settings: ClientSettings;
+  music: MusicHook;
   setMaster(volume: number): void;
+  setMusicVolume(volume: number): void;
 }
 
 declare global {
@@ -57,6 +60,7 @@ async function optionalFile(path: string): Promise<Uint8Array | null> {
 export class TacticalSound {
   readonly hook: AudioHook;
   readonly engine: AudioEngine;
+  readonly music: PageMusic;
   #settings: ClientSettings;
   #director: SoundDirector | null = null;
   #book: CueBook | null = null;
@@ -70,6 +74,7 @@ export class TacticalSound {
       createGraph: () => new AudioContext(),
       load: optionalFile,
     });
+    this.music = new PageMusic(musicLevel(this.#settings));
     this.hook = {
       ready: false,
       unlocked: false,
@@ -78,7 +83,9 @@ export class TacticalSound {
       director: null,
       played: [],
       settings: this.#settings,
+      music: this.music.hook,
       setMaster: (volume) => this.change({ volumes: { master: volume } }),
+      setMusicVolume: (volume) => this.change({ volumes: { music: volume } }),
     };
     window.__ja2Audio = this.hook;
     const play = this.engine.play.bind(this.engine);
@@ -104,12 +111,15 @@ export class TacticalSound {
     const s = this.#settings;
     this.engine.setVolumes({ ...s.volumes, master: effectiveMaster(s) });
     this.#director?.setSettings({ speech: s.speech, muteConfirmations: s.muteConfirmations });
+    this.music.setLevel(musicLevel(s));
     this.hook.settings = s;
   }
 
   unlock(): void {
+    const wasLocked = !this.engine.unlocked;
     this.engine.unlock();
     this.hook.unlocked = this.engine.unlocked;
+    if (wasLocked && this.engine.unlocked) this.music.unlocked();
   }
 
   exists = (path: string): boolean => {
@@ -139,6 +149,7 @@ export class TacticalSound {
         },
       });
       this.hook.director = this.#director.stats;
+      await this.music.load(this.engine, session);
       this.#applySettings();
       this.hook.ready = true;
     } catch (err) {
@@ -172,6 +183,7 @@ export class TacticalSound {
 
   frames(frames: readonly ViewFrame[]): void {
     this.#director?.applyFrames(frames);
+    this.music.frames(frames);
   }
 
   update(ctx: SoundContext): void {

@@ -57,7 +57,7 @@ import { mineIdForSector } from '../strategic/economy/mine-status.ts';
 import { areThereMinersInsideThisMine } from '../strategic/economy/mines.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
 import { EncounterCode, InsertionCode, SectorFlag } from '../strategic/forces/constants.ts';
-import { countAllMilitiaInSector } from '../strategic/forces/groups.ts';
+import { countAllMilitiaInSector, numHostilesInSector } from '../strategic/forces/groups.ts';
 import { handleHelicopterOnGround } from '../strategic/forces/helicopter.ts';
 import type { StrategicContext, TacticalWorldPort } from '../strategic/forces/ports.ts';
 import { calculateNonPersistentPbiInfo } from '../strategic/forces/pre-battle.ts';
@@ -162,7 +162,15 @@ export interface SectorSetup {
   readonly roster: Roster;
 }
 
-type SectorEvent = { readonly type: 'sectorLoaded' | 'sectorUnloaded'; readonly sector: string };
+type SectorEvent =
+  | { readonly type: 'sectorUnloaded' | 'enemyPresence'; readonly sector: string }
+  | {
+      readonly type: 'sectorLoaded';
+      readonly sector: string;
+      readonly hostiles: number;
+      readonly enemyPresence?: true;
+      readonly firstArrival?: true;
+    };
 
 export const UnloadCode = { ABOUT_TO_LOAD_NEW_MAP: 0, ABOUT_TO_TRASH_WORLD: 1 } as const;
 
@@ -197,6 +205,8 @@ export class SectorFlow {
   readonly campaign: CampaignSim;
   readonly setup: SectorSetup;
   readonly events: SimEvent[] = [];
+  #loadingSector = false;
+  #presenceWhileLoading = false;
 
   constructor(campaign: CampaignSim, setup: SectorSetup) {
     this.campaign = campaign;
@@ -388,7 +398,7 @@ export class SectorFlow {
     s.map.selectedSector = { ...sector };
     if (sameSector(sector, TIXA_CAVE)) this.campaign.creatures?.initQuest();
     handleHelicopterOnGround(this.ctx);
-    this.#enterSector(sector, baseWorld, options, previous);
+    const enemyPresence = this.#whileLoading(() => this.#enterSector(sector, baseWorld, options, previous));
     const day = worldDay(s.clock);
     setSectorFlag(s.map, sector, SectorFlag.ALREADY_LOADED, day);
     handleHelicopterOnGround(this.ctx);
@@ -399,8 +409,34 @@ export class SectorFlow {
     s.rng.int(CROWS_POSSIBLE_RANGE);
     s.flow = 'tactical';
     setGameTimeCompressionLevel(this.campaign.clockContext, CompressMode.X1);
-    this.#event({ type: 'sectorLoaded', sector: sectorShortString(sector) });
+    this.#event({
+      type: 'sectorLoaded',
+      sector: sectorShortString(sector),
+      hostiles: numHostilesInSector(this.ctx, sector),
+      ...(enemyPresence ? { enemyPresence: true as const } : {}),
+      ...(s.didGameJustStart ? { firstArrival: true as const } : {}),
+    });
     return true;
+  }
+
+  #whileLoading(load: () => void): boolean {
+    this.#loadingSector = true;
+    this.#presenceWhileLoading = false;
+    try {
+      load();
+      return this.#presenceWhileLoading;
+    } finally {
+      this.#loadingSector = false;
+      this.#presenceWhileLoading = false;
+    }
+  }
+
+  #enemyPresence(): void {
+    const s = this.campaign.state;
+    const world = this.world;
+    if (s.didGameJustStart || this.#inMeanwhile() || !world) return;
+    if (this.#loadingSector) this.#presenceWhileLoading = true;
+    else this.#event({ type: 'enemyPresence', sector: sectorShortString(world) });
   }
 
   #handleRpcDescriptionOfSector(sector: Sector, day: number): void {
@@ -478,6 +514,7 @@ export class SectorFlow {
       battleEnded: (t, result) => this.campaign.battle?.tacticalBattleEnded(t, result === 'won'),
       tacticalTurnEnded: () => handleRpcDescription(this.campaign),
       combatEntered: () => this.#combatEntered(),
+      enemyPresence: () => this.#enemyPresence(),
     };
   }
 
@@ -693,12 +730,17 @@ export class SectorFlow {
     addSoldierInitListBloodcats(t, info, spawns, this.populationEnv());
   }
 
+  #blueLight(): boolean {
+    const color = this.campaign.tactical?.world.map.lights?.colors[0];
+    return (color?.[2] ?? 0) !== 0;
+  }
+
   prepareCreaturesForBattle(): boolean {
     const t = this.campaign.tactical?.state;
     const world = this.world;
     const creatures = this.campaign.creatures;
     if (!t || !world || !creatures) return false;
-    const setup = creatures.battleSetup(world);
+    const setup = creatures.battleSetup(world, this.#blueLight());
     if (!setup) return false;
     const attack = this.campaign.state.creatures.attack;
     const env = this.populationEnv();

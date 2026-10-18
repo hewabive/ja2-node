@@ -52,7 +52,8 @@ function migrateTactical(tactical: JsonObject, options: Json): JsonObject {
     ? replaceKey(tactical.equipment, 'gunNut', OPTIONS_KEY, ref, ['sciFi'])
     : tactical.equipment;
   const perception = isObject(tactical.perception) ? withoutKeys(tactical.perception, ['difficulty']) : tactical.perception;
-  return { ...tactical, [OPTIONS_KEY]: options, equipment: equipment ?? null, perception: perception ?? null };
+  const turn = isObject(tactical.turn) ? { ...tactical.turn, lastMercKill: null } : tactical.turn;
+  return { ...tactical, [OPTIONS_KEY]: options, equipment: equipment ?? null, perception: perception ?? null, turn: turn ?? null };
 }
 
 function migrateStrategic(strategic: JsonObject, tactical: JsonObject | null): JsonObject {

@@ -324,7 +324,10 @@ export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDea
     else {
       const attacker = s.attacker;
       if (attacker) {
-        if (attacker.team === Team.OUR && t.turn.attackBusyCount > 0) t.turn.killedEnemyOnAttack = true;
+        if (attacker.team === Team.OUR && t.turn.attackBusyCount > 0) {
+          t.turn.killedEnemyOnAttack = true;
+          t.turn.lastMercKill = s;
+        }
       }
       handleNPCTeamMemberDeath(t, s);
       if (attacker?.team === Team.OUR) {

@@ -34,6 +34,12 @@ function legacyPerception(perception: JsonObject, difficulty: Json): JsonObject 
   return out;
 }
 
+function withoutLastMercKill(turn: JsonObject): JsonObject {
+  const { lastMercKill, ...rest } = turn;
+  expect(lastMercKill).toBeNull();
+  return rest;
+}
+
 function versionOne(snapshot: SimSnapshot): SimSnapshot {
   const graph = snapshot.graph;
   const strategic = graph.sections.find(([name]) => name === 'strategic')?.[1];
@@ -51,6 +57,7 @@ function versionOne(snapshot: SimSnapshot): SimSnapshot {
         options: { gunNut: options.gunNut ?? false, bloodAndGore: bloodAndGore ?? true },
         equipment: legacyEquipment(object(t.equipment), options),
         perception: legacyPerception(object(t.perception), options.difficulty ?? 2),
+        turn: withoutLastMercKill(object(t.turn)),
       },
     ];
   });

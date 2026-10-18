@@ -19,6 +19,7 @@ import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import { queenProgress } from '../strategic/ai/difficulty.ts';
 import { handleFirstBattleEndingWhileInTown, scheduleInterrogation } from '../strategic/ai/meanwhile.ts';
+import { clearCreatureMusicAtVictory } from '../strategic/creatures/creatures.ts';
 import { clearSurfaceCreatures, determineCreatureTownComposition } from '../strategic/creatures/town-attack.ts';
 import { reEvaluateEveryonesNothingToDo } from '../strategic/economy/assignment-done.ts';
 import { Assignment, LoyaltyEvent } from '../strategic/economy/constants.ts';
@@ -92,7 +93,7 @@ import { profileProgress } from '../tactical/profiles.ts';
 import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Body, NO_PROFILE, OKLIFE, Side, type Soldier, Team } from '../tactical/soldier.ts';
 import { type TacticalState, teamMembers } from '../tactical/state.ts';
-import { endBattleAfterSurrender } from '../tactical/turns/turns.ts';
+import { battleFought, endBattleAfterSurrender, lastMercKillWasMonster } from '../tactical/turns/turns.ts';
 import {
   type ArStrategicContext,
   associateWithStrategicGroups,
@@ -620,6 +621,7 @@ export class BattleFlow implements FateContext {
         this.moraleEvent(null, MoraleEvent.BATTLE_WON, s);
         this.#loyalty(LoyaltyEvent.BATTLE_WON, s);
         setThisSectorAsPlayerControlled(this.economy, s, true);
+        clearCreatureMusicAtVictory(this.state);
         this.#logBattleResults(true, s);
         this.emit({ type: 'battleResult', sector: sectorShortString(s), result: 'victory', via: 'autoresolve' });
         break;
@@ -1023,10 +1025,10 @@ export class BattleFlow implements FateContext {
   }
 
   #tacticalVictory(t: TacticalState, world: Sector): void {
-    const fought = t.turn.numFoughtInBattle;
-    if ((fought[Team.ENEMY] ?? 0) + (fought[Team.CREATURE] ?? 0) + (fought[Team.CIV] ?? 0) > 0) {
+    if (battleFought(t)) {
       this.moraleEvent(null, MoraleEvent.BATTLE_WON, world);
       this.#loyalty(LoyaltyEvent.BATTLE_WON, world);
+      if (!lastMercKillWasMonster(t)) clearCreatureMusicAtVictory(this.state);
     }
     this.#logBattleResults(true, world);
     this.emit({ type: 'battleResult', sector: sectorShortString(world), result: 'victory', via: 'tactical' });

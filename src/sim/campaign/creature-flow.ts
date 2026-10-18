@@ -129,18 +129,22 @@ export class CreatureFlow {
     interruptTime(c.state.clock);
   }
 
-  battleSetup(world: Sector): CreatureBattleSetup | null {
+  battleSetup(world: Sector, blueLight: boolean): CreatureBattleSetup | null {
     const s = this.campaign.state;
     const attack = s.creatures.attack;
     let habitat: number;
     let count: number;
     if (attack.battleCode === CreatureBattleCode.NONE) {
+      s.creatures.useCreatureMusic = blueLight;
       if (!world.z) return null;
       const level = findUndergroundSector(s.map, world);
       if (!level?.numCreatures) return null;
+      s.creatures.useCreatureMusic = true;
       habitat = level.creatureHabitat;
       count = level.numCreatures;
     } else {
+      s.creatures.useCreatureMusic = true;
+      this.campaign.battle?.emit({ type: 'creatureAttack', sector: sectorShortString(world) });
       habitat = CreatureHabitat.MINE_EXIT;
       count = attack.numAttacking;
     }
