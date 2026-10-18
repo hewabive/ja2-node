@@ -1736,6 +1736,18 @@ human plays the campaign in the browser without the devtools pages. Size XL.
   (expert, gun nut, blood off) opened on the tactical page, Alt+S and Alt+L there with the tick restored, the save list
   with the quick save, download and upload, Russian labels from the string tables and the ja2-node table, a delete
   confirmed in Russian.
+- **Checks** on the user's data (headless Chromium, a scratch save folder): the launcher shows the original data with
+  22 SLF files and the data version english; after the click the splash plays with audio-clock pacing and sound
+  (63 of 486 frames before Escape ended it); a campaign with medium difficulty, realistic style, gun nut and blood off
+  starts with exactly these options, the beginning intro plays (`rebel_cr` with sound) until Escape and the strategic
+  page of the new session opens in A9 at day 1, 07:00; there Alt+S answers "Game Saved." and Alt+L, after three seconds
+  of real time (600 ticks), restores tick 0; the save list shows the quick save (`Day 1, 07:00`, `A9`, the mercs, the
+  balance, the options tooltip with the data version) above the six native savegames, a new save with a description is
+  written for the session, a save whose engine commit differs is uploaded with `engineDiffers`, asks once with
+  `SLG_SAVED_GAME_ISSUE`, `SLG_GAME_VERSION_DIF` and `SLG_SAVED_GAME_CONTINUE_ANYWAYS` and then loads into a new session,
+  a native save imports into a new session (C13, day 1, 21:44), and the Russian display language shows the
+  `translation-rusgold` texts and the ja2-node table's Russian labels. The sleep/wake stop was not triggered live (it
+  needs a tired merc off a squad); its logic is covered by the unit tests.
 - **Not covered**: the playback speed setting is stored for M8 (the devtools pages keep their own playback buttons);
   the display toggles and key-advance speech are stored only; the location column has no land type or town name.
 
