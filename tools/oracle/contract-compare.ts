@@ -334,7 +334,7 @@ export class ContractComparer {
     m.soldier.morale = num(a.morale, m.soldier.morale);
     m.assignment = num(a.assignment, m.assignment);
     c.lifeInsurance = num(a.insurance, c.lifeInsurance);
-    if (a.kind !== undefined) Object.assign(m, { kind: Number(a.kind) });
+    if (a.kind !== undefined) Object.assign(m.record, { kind: Number(a.kind) });
   }
 
   #setProfile(flow: ContractFlow, a: Record<string, string>): void {

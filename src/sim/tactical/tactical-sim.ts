@@ -104,8 +104,8 @@ import {
 } from './roofs.ts';
 import { checkMercsWaiting } from './sector-exit.ts';
 import { OKLIFE, type Soldier, Team } from './soldier.ts';
-import { createTacticalState, type TacticalState, teamMembers, whoIsThere } from './state.ts';
-import { endTurn, handleEnemySightingPause, handleRealtimeTurns, type RealtimeClock, selectSoldier } from './turns/turns.ts';
+import { createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
+import { endTurn, handleEnemySightingPause, handleRealtimeTurns, selectSoldier } from './turns/turns.ts';
 import { type ItemSnapshot, Visibility } from './world-items.ts';
 
 export interface SoldierSnapshot {
@@ -200,107 +200,120 @@ export interface TacticalSimOptions {
   readonly dayAmbient?: number;
 }
 
+function createSimState(world: TacticalWorld, content: TacticalContent, seed: number, options: TacticalSimOptions): TacticalState {
+  const t = createTacticalState(
+    { ...world, mapDoors: new Map(world.map.doors.map((d) => [d.gridNo, d])) },
+    content,
+    options.streams?.rng ?? Rng.fromSeed(seed),
+    {
+      ...(options.streams ? { pre: options.streams.pre } : {}),
+      ...(options.profiles ? { profiles: options.profiles } : {}),
+      ...(options.keyTable ? { keyTable: options.keyTable } : {}),
+      ...(options.civGroups ? { civGroups: options.civGroups } : {}),
+      ...(options.boxing ? { boxing: options.boxing } : {}),
+      ...(options.realtimeClock ? { realtimeClock: options.realtimeClock } : {}),
+    },
+  );
+  t.clockMs = options.startMs ?? 0;
+  t.schedules = world.map.flags & MapFlags.NPC_SCHEDULES ? loadMapSchedules(world.map.schedules) : createScheduleList();
+  return t;
+}
+
+function installTacticalHooks(t: TacticalState, ai: AiControl): void {
+  t.hooks = sightHooks({
+    ...t.hooks,
+    collapse: soldierCollapse,
+    opcode: (state, s, code) =>
+      attackOpcode(state, s, code) ??
+      deathOpcode(state, s, code) ??
+      itemOpcode(state, s, code) ??
+      roofOpcode(state, s, code) ??
+      throwOpcode(state, s, code) ??
+      wheelchairOpcode(state, s, code),
+    turnFinished: freeUpFromTurning,
+    stanceFreeUp: freeUpFromStanceChange,
+    pendingAction: (state, s) =>
+      handlePendingMeleeOnArrival(state, s) ||
+      handlePendingPickupOnArrival(state, s) ||
+      handlePendingDoorOnArrival(state, s) ||
+      handlePendingTalkOnArrival(state, s) ||
+      handlePendingGiveOnArrival(state, s),
+    runningIntoGas: checkForRunningIntoGas,
+    enteredGridNo: updateGassedOnNewGridNo,
+    endAiGuysTurn: (state, s) => endAIGuysTurn(state, s, ai),
+  });
+  t.perceptionHooks = perceptionHooks(t, { checkForChangingOrders, setNewSituation: (s) => setNewSituation(t, s) });
+  t.turnHooks = {
+    startNPCAI: (state, s) => startNPCAI(state, s, ai),
+    cancelAIAction,
+    decideAlertStatus: (state, s) => decideAlertStatus(state, s, ai.hooks),
+    setNewSituation,
+    checkForChangingOrders: (_state, s) => checkForChangingOrders(s),
+    minAPsToAttack,
+    suppressedStanceChange: (state, s, stance) => {
+      cancelAIAction(state, s);
+      s.ai.action = AiAction.CHANGE_STANCE;
+      s.ai.actionData = stance;
+      s.ai.actionInProgress = true;
+    },
+    freeUpFromAttacking: actionDone,
+    aiAttack: (state, s, target, level) => handleItem(state, s, target, level, itemIn(s.inv, InvSlot.HAND)),
+    freeUpFromPendingAction,
+    actionDone,
+    freeUpFromRoofClimb,
+    aiPickup: (state, s, g, item) => soldierPickupItem(state, s, g, 0, item ? [item] : null),
+    aiDropHandItem: (state, s) => soldierDropItem(state, s, InvSlot.HAND),
+  };
+}
+
+function overheadHooks(ai: AiControl): OverheadHooks {
+  return {
+    beforePass: (state) => {
+      stepThrownObjects(state);
+      updateBullets(state);
+      stepExplosions(state);
+      handleActionItemQueue(state);
+      checkHostileOrSayQuoteList(state);
+      endTimedAiPause(state);
+      updateMissAnimations(state);
+      updateSkullReleases(state);
+      handleRealtimeTurns(state, state.realtimeClock);
+      handleEnemySightingPause(state);
+      beginAiPass(state);
+    },
+    ai: (state, s, slot) => aiForSlot(state, s, slot, ai),
+    afterPass: (state) => {
+      awayAiForPass(state, ai);
+      dequeueAllGameEvents(state);
+      checkMercsWaiting(state);
+    },
+  };
+}
+
 export class TacticalSim {
   readonly state: TacticalState;
   readonly world: TacticalWorld;
   readonly mapPath: string;
   readonly ai: AiControl;
   readonly hooks: OverheadHooks;
-  #tick = 0;
-  readonly #clock: RealtimeClock;
 
-  constructor(world: TacticalWorld, content: TacticalContent, seed: number, options: TacticalSimOptions = {}) {
+  constructor(world: TacticalWorld, content: TacticalContent, seed: number, options: TacticalSimOptions = {}, existing?: TacticalState) {
     this.world = world;
     this.mapPath = world.mapPath;
-    this.state = createTacticalState(
-      { ...world, mapDoors: new Map(world.map.doors.map((d) => [d.gridNo, d])) },
-      content,
-      options.streams?.rng ?? Rng.fromSeed(seed),
-      {
-        ...(options.streams ? { pre: options.streams.pre } : {}),
-        ...(options.profiles ? { profiles: options.profiles } : {}),
-        ...(options.keyTable ? { keyTable: options.keyTable } : {}),
-        ...(options.civGroups ? { civGroups: options.civGroups } : {}),
-        ...(options.boxing ? { boxing: options.boxing } : {}),
-      },
-    );
-    const t = this.state;
-    t.clockMs = options.startMs ?? 0;
-    t.schedules = world.map.flags & MapFlags.NPC_SCHEDULES ? loadMapSchedules(world.map.schedules) : createScheduleList();
-    this.#clock = options.realtimeClock ?? { lastTurnMs: 0, lastDecayMs: 0, lastOverheadMs: 0 };
+    this.state = existing ?? createSimState(world, content, seed, options);
     this.ai = createAiControl({
       awareOfOpposition: (state, team) => state.perception.awareOfOpposition[team] === true,
       mostImportantNoiseHeard: (state, s) => mostImportantNoiseHeard(state, s),
     });
-    const ai = this.ai;
-    t.hooks = sightHooks({
-      ...t.hooks,
-      collapse: soldierCollapse,
-      opcode: (state, s, code) =>
-        attackOpcode(state, s, code) ??
-        deathOpcode(state, s, code) ??
-        itemOpcode(state, s, code) ??
-        roofOpcode(state, s, code) ??
-        throwOpcode(state, s, code) ??
-        wheelchairOpcode(state, s, code),
-      turnFinished: freeUpFromTurning,
-      stanceFreeUp: freeUpFromStanceChange,
-      pendingAction: (state, s) =>
-        handlePendingMeleeOnArrival(state, s) ||
-        handlePendingPickupOnArrival(state, s) ||
-        handlePendingDoorOnArrival(state, s) ||
-        handlePendingTalkOnArrival(state, s) ||
-        handlePendingGiveOnArrival(state, s),
-      runningIntoGas: checkForRunningIntoGas,
-      enteredGridNo: updateGassedOnNewGridNo,
-      endAiGuysTurn: (state, s) => endAIGuysTurn(state, s, ai),
-    });
-    t.perceptionHooks = perceptionHooks(t, { checkForChangingOrders, setNewSituation: (s) => setNewSituation(t, s) });
-    t.turnHooks = {
-      startNPCAI: (state, s) => startNPCAI(state, s, ai),
-      cancelAIAction,
-      decideAlertStatus: (state, s) => decideAlertStatus(state, s, ai.hooks),
-      setNewSituation,
-      checkForChangingOrders: (_state, s) => checkForChangingOrders(s),
-      minAPsToAttack,
-      suppressedStanceChange: (state, s, stance) => {
-        cancelAIAction(state, s);
-        s.ai.action = AiAction.CHANGE_STANCE;
-        s.ai.actionData = stance;
-        s.ai.actionInProgress = true;
-      },
-      freeUpFromAttacking: actionDone,
-      aiAttack: (state, s, target, level) => handleItem(state, s, target, level, itemIn(s.inv, InvSlot.HAND)),
-      freeUpFromPendingAction,
-      actionDone,
-      freeUpFromRoofClimb,
-      aiPickup: (state, s, g, item) => soldierPickupItem(state, s, g, 0, item ? [item] : null),
-      aiDropHandItem: (state, s) => soldierDropItem(state, s, InvSlot.HAND),
-    };
-    const clock = this.#clock;
-    this.hooks = {
-      beforePass: (state) => {
-        stepThrownObjects(state);
-        updateBullets(state);
-        stepExplosions(state);
-        handleActionItemQueue(state);
-        checkHostileOrSayQuoteList(state);
-        endTimedAiPause(state);
-        updateMissAnimations(state);
-        updateSkullReleases(state);
-        handleRealtimeTurns(state, clock);
-        handleEnemySightingPause(state);
-        beginAiPass(state, ai);
-      },
-      ai: (state, s, slot) => aiForSlot(state, s, slot, ai),
-      afterPass: (state) => {
-        awayAiForPass(state, ai);
-        dequeueAllGameEvents(state);
-        checkMercsWaiting(state);
-      },
-    };
-    generateBuildings(t);
-    initLighting(t, world.map, options.hour ?? SANDBOX_WORLD_HOUR, options.dayAmbient ?? NORMAL_LIGHTLEVEL_DAY);
+    installTacticalHooks(this.state, this.ai);
+    this.hooks = overheadHooks(this.ai);
+    if (existing) return;
+    generateBuildings(this.state);
+    initLighting(this.state, world.map, options.hour ?? SANDBOX_WORLD_HOUR, options.dayAmbient ?? NORMAL_LIGHTLEVEL_DAY);
+  }
+
+  static restore(world: TacticalWorld, state: TacticalState): TacticalSim {
+    return new TacticalSim(world, state.content, 0, {}, state);
   }
 
   attachWorldClock(clock: WorldClockSource): void {
@@ -322,7 +335,7 @@ export class TacticalSim {
   }
 
   get tick(): number {
-    return this.#tick;
+    return this.state.tick;
   }
 
   isBusy(s: Soldier): boolean {
@@ -380,11 +393,11 @@ export class TacticalSim {
 
   step(): void {
     executeOverhead(this.state, this.hooks);
-    this.#tick++;
+    this.state.tick++;
   }
 
   drainEvents(): SimEvent[] {
-    const events = this.state.events.splice(0).map((e) => ({ ...e, tick: this.#tick }) as SimEvent);
+    const events = this.state.events.splice(0).map((e) => ({ ...e, tick: this.state.tick }) as SimEvent);
     return events;
   }
 

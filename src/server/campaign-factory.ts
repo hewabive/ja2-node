@@ -1,18 +1,19 @@
 import { loadStubProfiles } from '../content/formats/stub-profiles.ts';
 import type { DialogueTexts } from '../content/narrative/dialogue-text.ts';
 import type { LayerCount } from '../content/narrative/npc-records.ts';
-import { loadArmyContent } from '../content/strategic/army.ts';
-import { loadEconomyContent } from '../content/strategic/economy-content.ts';
+import { type ArmyContent, loadArmyContent } from '../content/strategic/army.ts';
+import { type EconomyContent, loadEconomyContent } from '../content/strategic/economy-content.ts';
 import { dialogueProfiles, type LaptopContent, loadLaptopContent } from '../content/strategic/laptop-content.ts';
-import { loadMerchantContent } from '../content/strategic/merchant-content.ts';
-import { loadStrategicContent } from '../content/strategic/strategic-content.ts';
+import { loadMerchantContent, type MerchantContent } from '../content/strategic/merchant-content.ts';
+import { loadStrategicContent, type StrategicContent } from '../content/strategic/strategic-content.ts';
 import { type DataDecoding, DEFAULT_DATA_DECODING } from '../content/text/data-version.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
-import { CampaignSim } from '../sim/campaign/campaign-sim.ts';
+import { type CampaignHooks, CampaignSim, type SimConstruction } from '../sim/campaign/campaign-sim.ts';
 import { DEFAULT_AIM_CONTRACT } from '../sim/campaign/laptop/aim.ts';
 import { initNewGame } from '../sim/campaign/new-game.ts';
 import { campaignCombatContext } from '../sim/campaign/off-map-combat.ts';
 import { Roster } from '../sim/campaign/roster.ts';
+import type { NarrativeSetup } from '../sim/campaign/talk-flow.ts';
 import type { CommandResult } from '../sim/command.ts';
 import { Difficulty } from '../sim/strategic/forces/constants.ts';
 import { createStrategicState, type StrategicState } from '../sim/strategic/state.ts';
@@ -108,13 +109,57 @@ function createImp(campaign: CampaignSim, content: LaptopContent, imp: Readonly<
   if (!result.ok) throw new Error(`cannot create the I.M.P. character: ${result.reason ?? 'refused'}`);
 }
 
-export interface NewCampaign {
+export interface CampaignParts {
+  readonly content: TacticalContent;
+  readonly strategic: StrategicContent;
+  readonly army: ArmyContent;
+  readonly economy: EconomyContent;
+  readonly merchants: MerchantContent;
+  readonly laptop: LaptopContent;
+  readonly dialogueProfiles: ReadonlySet<number>;
+  readonly narrative: NarrativeSetup;
+}
+
+export interface AssembledCampaign {
   readonly campaign: CampaignSim;
   readonly roster: Roster;
   readonly worlds: WorldCache;
+}
+
+export interface NewCampaign extends AssembledCampaign {
+  readonly parts: CampaignParts;
   readonly laptopContent: LaptopContent;
   readonly stubbed: boolean;
   readonly texts: DialogueTexts;
+}
+
+export function assembleCampaign(
+  read: ReadFile,
+  exists: FileExists,
+  parts: CampaignParts,
+  state: StrategicState,
+  construction: SimConstruction = 'create',
+): AssembledCampaign {
+  const { content } = parts;
+  let campaign: CampaignSim | null = null;
+  const roster = new Roster({
+    state: state.roster,
+    content,
+    combat: campaignCombatContext(() => campaign, state, content),
+    profiles: state.profiles,
+  });
+  const worlds = new WorldCache(read, exists);
+  const hooks: CampaignHooks = {
+    strategic: { content: parts.strategic, mercs: roster },
+    economy: { economy: parts.economy, items: content.items, crew: roster },
+    queen: { army: parts.army },
+    sectors: { worlds, content, roster },
+    merchants: { content: parts.merchants, items: content.items },
+    laptop: { content: parts.laptop, merchants: parts.merchants, dialogueProfiles: parts.dialogueProfiles },
+    narrative: parts.narrative,
+  };
+  campaign = construction === 'restore' ? CampaignSim.restore(state, null, hooks) : new CampaignSim(state, null, hooks);
+  return { campaign, roster, worlds };
 }
 
 export async function buildNewCampaign(
@@ -135,25 +180,19 @@ export async function buildNewCampaign(
   const merchantContent = await loadMerchantContent(read, content.items);
   const laptopContent = await loadLaptopContent(read, content.items);
   const narrative = await narrativeSetup(read, content.items, content.profiles, layers, decoding);
-  const state = createState();
-  let campaign: CampaignSim | null = null;
-  const roster = new Roster({ content, combat: campaignCombatContext(() => campaign, state, content), profiles: state.profiles });
-  const worlds = new WorldCache(read, exists);
-  campaign = new CampaignSim(state, null, {
-    strategic: { content: strategicContent, mercs: roster },
-    economy: { economy: economyContent, items: content.items, crew: roster },
-    queen: { army },
-    sectors: { worlds, content, roster },
-    merchants: { content: merchantContent, items: content.items },
-    laptop: {
-      content: laptopContent,
-      merchants: merchantContent,
-      dialogueProfiles: dialogueProfiles(exists, economyContent.mercTypes, laptopContent, content !== baseContent),
-    },
+  const parts: CampaignParts = {
+    content,
+    strategic: strategicContent,
+    army,
+    economy: economyContent,
+    merchants: merchantContent,
+    laptop: laptopContent,
+    dialogueProfiles: dialogueProfiles(exists, economyContent.mercTypes, laptopContent, content !== baseContent),
     narrative,
-  });
+  };
+  const { campaign, roster, worlds } = assembleCampaign(read, exists, parts, createState());
   initNewGame(campaign);
-  return { campaign, roster, worlds, laptopContent, stubbed: content !== baseContent, texts: narrative.texts };
+  return { campaign, roster, worlds, parts, laptopContent, stubbed: content !== baseContent, texts: narrative.texts };
 }
 
 export async function createCampaignSession(

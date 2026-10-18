@@ -49,7 +49,7 @@ import {
 } from '../tactical/sector-exit.ts';
 import { NOWHERE, OKLIFE, type Soldier } from '../tactical/soldier.ts';
 import { sectorMapOf, WaitForMercs } from '../tactical/state.ts';
-import type { RosterMerc } from './roster.ts';
+import { type RosterMerc, registeredInTactical } from './roster.ts';
 import type { SectorFlow } from './sector-flow.ts';
 
 export const JumpCode = { ALL_LOAD_NEW: 0, ALL_NO_LOAD: 1, SINGLE_LOAD_NEW: 2, SINGLE_NO_LOAD: 3 } as const;
@@ -120,7 +120,7 @@ const DIRECTION_NAMES: Readonly<Record<string, number>> = {
 
 function soldierOf(flow: SectorFlow, m: RosterMerc): Soldier | null {
   const t = flow.campaign.tactical?.state;
-  return t && t.soldiers[m.id] === m.soldier && m.soldier.placed ? m.soldier : null;
+  return t && registeredInTactical(t, m) && m.soldier.placed ? m.soldier : null;
 }
 
 function okControllable(flow: SectorFlow, m: RosterMerc): boolean {

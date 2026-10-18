@@ -257,6 +257,65 @@ with the reload test of §12.1.
 | 12 | `EconomyContext.events` and `CampaignSim.#events` grow without being drained in some paths (`src/sim/strategic/economy/context.ts:36`) | drain at command boundaries (also a memory leak in long campaigns, §7) |
 | 13 | Module-level caches (`WeakMap`s keyed by content, the light template `Map`) | allowed: derived from content, never state; documented as such |
 
+**Status after S1 (2026-10-18).** Rows 1–3, 8, 9, 11 and 12 are done; behaviour is unchanged (unit, scenario,
+original-data tests and the full oracle compare), and no existing test expectation depended on the cosmetic seeds.
+
+| Before | Now |
+|---|---|
+| `CampaignSim.#tick`, `#compressing`, `#day` | `state.session {tick, compressing, day}`; a new campaign sets them at construction |
+| `TacticalSim.#tick`, `#clock`; `SectorFlow.realtimeClock` | `TacticalState.tick`, `TacticalState.realtimeClock`; in a campaign the latter is the object in `state.sectorFlow.realtimeClock`, which outlives sector loads (a native import's first sim keeps its own, as before) |
+| `AiControl` counters (`lastTickMs`, `cursor`, `awayCursor`, `handleThisPass`, `paused`) | `TacticalState.aiPass`; `AiControl` holds only hooks |
+| `SectorFlow` fields (`jump`, `usingEdgepointsForEntry`, `overrideInsertionWithExitGrid`, `hasEnteredCombatModeSinceEntering`, `#pendingWait`), `PowFlow.#powSquad`, `#seen` | `state.sectorFlow` (`powSquad`, `powsSeen`); the flows read them through accessors |
+| `ShopFlow.#session` | `state.shop.session` |
+| `TalkFlow.talk`, `#scripted`, `#civQuote`; `NarrativeFlow.talk`; `NpcActionFlow.carmenTimerAtMs` | `state.talk.dialogue` (the `TalkState`), `.scripted`, `.civQuote`, `.soldiers`, `.carmenTimerAtMs` |
+| `Roster.#mercs`: `RosterMerc` instances holding the soldier and the content `MercProfile` | `state.roster.mercs: Map<soldier id, MercRecord>`; `RosterMerc` is a facade with no own fields (the `Roster` caches one per record in a `WeakMap`, derived); the profile is `soldier.profile`, and the four profile-record traits the economy and morale read (`skillTrait`, `skillTrait2`, `personalityTrait`, `needForSleep`) are copied into `MercRecord.profileRecord` at hire, because the record came from content, I.M.P., a native save or a stub recruit |
+| `TalkState.fx` (seed `0x7a1c`), `HelicopterFlow.#fx` (clock seed), `AutoresolveSession.fx` (clock and sector seed) | `state.talk.dialogue.fx`, `state.cosmetic.helicopter`, `state.cosmetic.autoresolve`, created once from the session seed (`seed ^ salt`); `ArRng.fx` stays an oracle override |
+| `StrategicAi.#queen` | unchanged: a binding of closures over the state (`QueenContext` is the strategic context plus hooks), rebuilt by the constructor; it holds no state |
+
+*Restore path.* `CampaignSim.restore(state, tactical, hooks)` builds the flows and contexts around existing state and
+skips the creation side effects (flow forced to `tactical`, the `X1` compression level, the session counters);
+`TacticalSim.restore(world, state)` skips state creation, the start clock, schedules, buildings and lighting and only
+re-installs the sim's hooks; `assembleCampaign(read, exists, parts, state, 'restore')` (`src/server/campaign-factory.ts`)
+wires a campaign the way `buildNewCampaign` does. `createMerchantContext` still fills `merchants.dealers` when it is
+empty (idempotent). `src/server/campaign-restore.test.ts` restores a map-screen campaign around a deep copy of its
+strategic state (`tests/support/state-copy.ts`, which also fails on any class instance other than the streams or any
+function) and runs both through a landing, a move and strategic movement; a sandbox sim restored around its own state
+continues like an uninterrupted one.
+
+*Identity.* Militia prompts are answered from the head of `economy.prompts` (`answerPendingMilitiaPrompt`), never found
+by identity. `t.soldiers[m.id] === m.soldier` stays an identity check, named `registeredInTactical`: `t.soldiers` keeps
+the object of a soldier who left the team until the slot is registered again, and a hire can reuse that id meanwhile, so
+an id comparison would act on the wrong soldier. The codec keeps it valid by writing a registered roster soldier once and
+re-linking both references.
+
+*Buffers.* Since 64d2fee every flow and context buffer, the economy's included, is collected into the campaign's output
+queue at each command and step boundary. Between commands only two can hold events: `CampaignSim.#events` (output,
+drained by the session's next advance or `drainEvents`) and `TacticalState.events` (events of the last tactical command,
+stamped at the next tactical step; plain data inside the tactical state, so the codec writes them).
+
+*Inventory for S2* (from walking a stub campaign on the map screen and after landing):
+
+- Class instances in `StrategicState`: `rng`, `pre` (refills from `rng`), `talk.dialogue.fx`, `cosmetic.helicopter`,
+  `cosmetic.autoresolve`. Everything else is plain data, `Map` or typed arrays.
+- Aliasing inside `StrategicState`: group sector objects (`forces.groups[i].prev`, `.next`, `.sector`) can be one object
+  shared by several groups or fields.
+- Aliasing with `TacticalState` while a sector is loaded: `t.rng`, `t.pre`, `t.profiles`, `t.keyTable`, `t.civGroups`,
+  `t.boxing` (= `narrative.boxing`), `t.realtimeClock` (= `sectorFlow.realtimeClock`), `t.equipment.weaponsAlreadyDropped`
+  (= `status.weaponsDropped`), `t.worldClock` (= `clock`), and every registered roster soldier (`t.soldiers[id]`,
+  `t.mercSlots[k]` = `roster.mercs.get(id).soldier`).
+- Pointers inside the plain state: `MercRecord.soldier` is a full `Soldier` whose tactical pointer fields (`structure`,
+  `target`, `attacker`, …) are null without a loaded sector but not while the soldier is placed; `battle.autoresolve.ar`
+  cells hold soldier pointers and `battle.autoresolve.rng` holds the oracle's replay streams (row 10).
+- `TacticalState` (rows 4–7): the pointer graph, `Map`/`Set` fields, content (`content`, `world` with the mutable
+  structures), and closures stored in it: `hooks`, `perceptionHooks` and `turnHooks` are re-installed by
+  `TacticalSim.restore`, `sectorHooks`, `experienceHooks`, `narrative` and `scheduleClock` by `adoptLoadedSector`, while
+  `pathEnv` is built with the state by `createTacticalState`, so the codec must rebuild it.
+- Outside both states: `TacticalSim.world` (the loaded sector's mutable world, row 5); wiring rebuilt by the constructors
+  (contexts, `Roster.hooks`, `NarrativeFlow.slots`, the event dispatch table, the strategic AI binding,
+  `CampaignSim.tactical`); oracle overrides (`ContractFlow.rng`, `LaptopFlow.rng`, `RecruitFlow.reservedSoldierSlot`);
+  the server's `Session` driver and real-time carry and the history-dependent `WorldCache` (§1.3); the output queues
+  above.
+
 ### 1.5 Random streams on load
 
 The snapshot stores `main`, `pre` and the cosmetic streams exactly. Two load modes:
@@ -1275,7 +1334,7 @@ session factory and the protocol.
 - *Video pacing*: frames paced by the audio clock instead of the wall clock.
 - *Display language*: UI strings may be in another language than the data's text.
 
-**Findings outside M7's scope** (from the audit; 1–4 and 6 fixed or recorded on 2026-10-16: the terrorist set, the militia prompts as battle prompts, the economy events drained into the campaign events, the stub text probe, the D5/D7 notes in `01`; 5 waits for decision 11):
+**Findings outside M7's scope** (from the audit; 1–4 and 6 fixed or recorded on 2026-10-16: the terrorist set, the militia prompts as battle prompts, the economy events drained into the campaign events, the stub text probe, the D5/D7 notes in `01`; 5 fixed in S1 after decision 11, and 4 confirmed fixed):
 
 1. `TERRORIST_PROFILES` is an empty `Set` (`src/sim/tactical/combat/death.ts:63`), so the terrorist exclusion of the
    fall-back hit animation (`Tactical/Soldier_Ani.cc:3116-3117`, `!IsProfileATerrorist`) never applies.
@@ -1325,7 +1384,8 @@ silences the game; that the first helicopter drop in ja2-node does not wait for 
 9. **Stub video**: a minimal Smacker encoder in `stubs/` (recommended if under a day of work) or a test fixture only?
 10. **Intro switch**: accept the `playIntro` client setting (recommended) or always play the beginning intro?
 11. **Seeding the cosmetic streams from the session seed** changes the outputs of existing seeds (civilian quote picks,
-    the triggering merc): accept and update the affected test expectations (recommended)?
+    the triggering merc): accept and update the affected test expectations (recommended)? *Accepted; done in S1 (§1.4),
+    and no existing expectation changed.*
 12. **API default difficulty**: keep 2 (recommended, documented) or switch to the original's easy?
 13. **Save folder**: `.ja2/saves` in the repository (recommended for a developer server) or a per-user data folder?
 14. **Release naming**: tag the end of M7 as `0.x` "platform release" and keep `1.0` for M8 (recommended)?

@@ -1388,7 +1388,8 @@ Steps 3–6, the simulation, protocol and server-view half of step 7, and step 8
   `locator`, `autoStart`, `transferTacticalOpposition`, `enterPreBattlePending`, `enemyGainedControlOf`,
   `civiliansEaten`, `resetAllPlayerKnowsEnemiesFlags`, the unload time after a lost battle, the first-battle facts, the
   Alma and interrogation quest states), the open prompt with its sequence number (ids `<kind>-<n>`) and the AR session
-  (state, sector, cosmetic stream, tick counter). `state.flow` gains `'autoresolve'`.
+  (state, sector, tick counter; the cosmetic stream is `state.cosmetic.autoresolve` since M7 S1). `state.flow` gains
+  `'autoresolve'`.
 - `sim/strategic/forces/pre-battle.ts`: §1.3 `initPreBattleInterface` (wake-up, encounter code with `Chance(90)` for a
   high ambush potential and the `PreRandom(100)` random ambush, Q1), §1.4 options and reasons, §1.6 involvement,
   `calculateNonPersistentPbiInfo`, `putNonSquadMercsInBattleSectorOnSquads`, `clearMovementForAllInvolvedPlayerGroups`,

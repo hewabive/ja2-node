@@ -4,6 +4,7 @@ import type { Sector } from '../../content/strategic/sector-ids.ts';
 import { Assignment } from '../strategic/economy/constants.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
 import { createSoldier, NO_PROFILE } from '../tactical/soldier.ts';
+import { createMercRecord } from './merc-record.ts';
 import { handleMoraleEvent, type MoraleContext, MoraleEvent } from './morale.ts';
 import { RosterMerc } from './roster.ts';
 
@@ -43,22 +44,24 @@ function merc(
     direction: 0,
     state: 0,
   });
-  return new RosterMerc({
-    soldier,
-    profile: null,
-    kind: 1,
-    statusFlags: 0,
-    sector,
-    betweenSectors: extra.betweenSectors ?? false,
-    groupId: 1,
-    prevSectorId: extra.prev ?? 255,
-    insertionCode: 0,
-    insertionDirection: 0,
-    path: [],
-    assignment: extra.assignment ?? Assignment.SQUAD_1,
-    vehicleId: -1,
-    asleep: false,
-  });
+  return new RosterMerc(
+    createMercRecord({
+      soldier,
+      profile: null,
+      kind: 1,
+      statusFlags: 0,
+      sector,
+      betweenSectors: extra.betweenSectors ?? false,
+      groupId: 1,
+      prevSectorId: extra.prev ?? 255,
+      insertionCode: 0,
+      insertionDirection: 0,
+      path: [],
+      assignment: extra.assignment ?? Assignment.SQUAD_1,
+      vehicleId: -1,
+      asleep: false,
+    }),
+  );
 }
 
 type TestContext = MoraleContext & { readonly profiles: Map<number, ProfileProgress> };

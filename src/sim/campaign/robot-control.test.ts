@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Assignment } from '../strategic/forces/constants.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { Body, createSoldier, Team } from '../tactical/soldier.ts';
+import { createMercRecord } from './merc-record.ts';
 import {
   canRobotBeControlled,
   checkForRobotAndIfItsControlled,
@@ -58,22 +59,24 @@ function merc(id: number, options: MercOptions = {}): RosterMerc {
   });
   const head = soldier.inv[InvSlot.HEAD1];
   if (options.remote && head) head.item = REMOTE;
-  return new RosterMerc({
-    soldier,
-    profile: null,
-    kind: options.kind ?? MercKind.AIM_MERC,
-    statusFlags: 0,
-    sector: { ...D13 },
-    betweenSectors: false,
-    groupId: 0,
-    prevSectorId: 255,
-    insertionCode: 0,
-    insertionDirection: 0,
-    path: [],
-    assignment: options.assignment ?? SQUAD,
-    vehicleId: -1,
-    asleep: false,
-  });
+  return new RosterMerc(
+    createMercRecord({
+      soldier,
+      profile: null,
+      kind: options.kind ?? MercKind.AIM_MERC,
+      statusFlags: 0,
+      sector: { ...D13 },
+      betweenSectors: false,
+      groupId: 0,
+      prevSectorId: 255,
+      insertionCode: 0,
+      insertionDirection: 0,
+      path: [],
+      assignment: options.assignment ?? SQUAD,
+      vehicleId: -1,
+      asleep: false,
+    }),
+  );
 }
 
 function crew(...mercs: RosterMerc[]): RobotCrew {

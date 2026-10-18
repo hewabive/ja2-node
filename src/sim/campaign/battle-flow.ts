@@ -15,7 +15,6 @@
 import { type Sector, sameSector, sectorFromId, sectorShortString, strategicIndex } from '../../content/strategic/sector-ids.ts';
 import { spacesAway } from '../../content/world/grid.ts';
 import { u8 } from '../../core/int.ts';
-import { Rng } from '../../core/rng.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import { queenProgress } from '../strategic/ai/difficulty.ts';
@@ -24,10 +23,9 @@ import { clearSurfaceCreatures, determineCreatureTownComposition } from '../stra
 import { reEvaluateEveryonesNothingToDo } from '../strategic/economy/assignment-done.ts';
 import { Assignment, LoyaltyEvent } from '../strategic/economy/constants.ts';
 import { handleGlobalLoyaltyEvent } from '../strategic/economy/loyalty.ts';
-import { answerMilitiaContinue } from '../strategic/economy/militia.ts';
 import { countAllMilitiaInSector } from '../strategic/economy/militia-rules.ts';
 import type { EconomyContext } from '../strategic/economy/ports.ts';
-import { resumeMilitiaPayment } from '../strategic/economy/set-assignment.ts';
+import { answerPendingMilitiaPrompt } from '../strategic/economy/set-assignment.ts';
 import type { EconomyPrompt } from '../strategic/economy/state.ts';
 import { autoBandageMercs, canBandage } from '../strategic/forces/autoresolve/bandage.ts';
 import { closeAutoresolve } from '../strategic/forces/autoresolve/close.ts';
@@ -114,7 +112,7 @@ import {
   strategicHandlePlayerTeamMercDeath,
 } from './merc-fate.ts';
 import { ECONOMY_MORALE_EVENTS, handleMoraleEvent, type MoraleContext, MoraleEvent } from './morale.ts';
-import type { Roster, RosterMerc } from './roster.ts';
+import { type Roster, type RosterMerc, registeredInTactical } from './roster.ts';
 import { enterMapScreen } from './screens.ts';
 import { addDeadSoldierToUnloadedSector, removeRandomItemsInSector } from './sector-loot.ts';
 import { decayTacticalMoraleModifiers, hourlyMoraleUpdate, type TeamMoraleContext, updateBuddyAndHatedCounters } from './team-morale.ts';
@@ -132,7 +130,6 @@ const PBI_RETREAT_WARP_SECONDS = 300;
 const LOST_BATTLE_UNLOAD_DELAY_MS = 10_000;
 const MAX_CAPTURED_REAL_MERCS = 4;
 const MIN_CAPTURED_REAL_MERCS = 1;
-const FX_SEED = 0x41520001;
 
 const STATUS_NAMES: Readonly<Record<number, string>> = {
   [BattleStatus.IN_PROGRESS]: 'inProgress',
@@ -296,14 +293,9 @@ export class BattleFlow implements FateContext {
 
   #answerMilitia(choice: string): CommandResult {
     if (choice !== 'yes' && choice !== 'no') return { ok: false, reason: 'choose one of yes, no' };
-    const pending = this.state.economy.prompts[0];
     this.state.battle.prompt = null;
-    if (!pending) return { ok: true };
-    const yes = choice === 'yes';
-    const outcome =
-      pending.kind === 'militiaPayment'
-        ? resumeMilitiaPayment(this.economy, pending, yes)
-        : answerMilitiaContinue(this.economy, pending, yes);
+    const outcome = answerPendingMilitiaPrompt(this.economy, choice === 'yes');
+    if (outcome === null) return { ok: true };
     this.settle();
     return { ok: true, data: { outcome } };
   }
@@ -448,12 +440,12 @@ export class BattleFlow implements FateContext {
     if (enc.code !== EncounterCode.CREATURE_ATTACK) enc.code = EncounterCode.ENEMY_INVASION;
   }
 
-  #arEnv(session: Pick<AutoresolveSession, 'fx' | 'sector' | 'rng'>): AutoresolveEnv {
+  #arEnv(session: Pick<AutoresolveSession, 'sector' | 'rng'>): AutoresolveEnv {
     const s = this.state;
     return {
       content: this.content,
       profiles: s.profiles,
-      rng: session.rng ?? { pre: s.pre, main: s.rng, fx: session.fx },
+      rng: session.rng ?? { pre: s.pre, main: s.rng, fx: s.cosmetic.autoresolve },
       world: { day: worldDay(s.clock), playerCapturedForRescue: (s.status.flags & CaptureFlag.FOR_RESCUE) !== 0 },
       hooks: {
         surrender: () => null,
@@ -484,7 +476,6 @@ export class BattleFlow implements FateContext {
     const session: AutoresolveSession = {
       ar,
       sector: { ...sector },
-      fx: Rng.fromSeed(FX_SEED ^ s.clock.seconds ^ strategicIndex(sector)),
       rng,
       ticks: 0,
       ended: false,
@@ -855,7 +846,7 @@ export class BattleFlow implements FateContext {
   #captureSurrenderedMercs(t: TacticalState): void {
     const ours = this.roster
       .all()
-      .filter((m) => t.soldiers[m.id] === m.soldier && m.soldier.placed && m.soldier.life !== 0)
+      .filter((m) => registeredInTactical(t, m) && m.soldier.placed && m.soldier.life !== 0)
       .sort((a, b) => a.id - b.id);
     beginCaptureSequence(this);
     for (const m of ours) {
@@ -1002,7 +993,7 @@ export class BattleFlow implements FateContext {
   }
 
   battleLost(t: TacticalState): void {
-    const ours = this.roster.all().filter((m) => t.soldiers[m.id] === m.soldier && m.soldier.placed);
+    const ours = this.roster.all().filter((m) => registeredInTactical(t, m) && m.soldier.placed);
     const capture = this.#captureAllowed(t, ours);
     if (capture) beginCaptureSequence(this);
     for (const m of ours) {

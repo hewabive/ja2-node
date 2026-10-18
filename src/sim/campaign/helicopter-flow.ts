@@ -17,7 +17,6 @@ import {
   sectorFromStrategicIndex,
   sectorShortString,
 } from '../../content/strategic/sector-ids.ts';
-import { Rng } from '../../core/rng.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import { handleKillChopperMeanwhileScene } from '../strategic/ai/meanwhile.ts';
@@ -66,7 +65,6 @@ import { Team } from '../tactical/soldier.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 
 const BLOODLOSS_DAMAGE = 100;
-const FX_SEED = 0x48454c49;
 
 type Command = { readonly type: string; readonly [key: string]: unknown };
 
@@ -131,11 +129,9 @@ const SQUAD_REFUSALS: Readonly<Record<number, string>> = {
 export class HelicopterFlow {
   readonly campaign: CampaignSim;
   readonly #events: SimEvent[] = [];
-  #fx: Rng;
 
   constructor(campaign: CampaignSim) {
     this.campaign = campaign;
-    this.#fx = Rng.fromSeed(FX_SEED ^ campaign.state.clock.seconds);
   }
 
   get ctx(): StrategicContext {
@@ -154,7 +150,7 @@ export class HelicopterFlow {
       fact: (id) => narrative.fact(id),
       setFactTrue: (id) => narrative.setFactTrue(id),
       skyriderLoyaltyLow: () => narrative.checkFact(Fact.LOYALTY_LOW, SKYRIDER),
-      cosmeticChoice: (n) => this.#fx.int(n),
+      cosmeticChoice: (n) => this.campaign.state.cosmetic.helicopter.int(n),
       killInVehicle: (id) => this.#killInVehicle(id),
       scheduleKillChopperMeanwhile: () => this.#scheduleKillChopperMeanwhile(),
       skyriderOnGround: (sector) => this.#skyriderOnGround(sector),

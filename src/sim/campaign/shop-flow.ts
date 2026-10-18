@@ -62,7 +62,7 @@ const DIRECTIONS = 8;
 const NOT_VISIBLE = -1;
 const SHOP_COMMANDS: ReadonlySet<string> = new Set(['openShop', 'quoteTrade', 'trade', 'closeShop']);
 
-interface ShopSession {
+export interface ShopSession {
   readonly dealer: number;
   readonly dealerSoldier: number;
   readonly selected: number;
@@ -96,10 +96,17 @@ function itemRef(ctx: MerchantContext, o: ItemObject): ShopItemRef {
 export class ShopFlow {
   readonly #campaign: CampaignSim;
   readonly #events: SimEvent[] = [];
-  #session: ShopSession | null = null;
 
   constructor(campaign: CampaignSim) {
     this.#campaign = campaign;
+  }
+
+  get #session(): ShopSession | null {
+    return this.#campaign.state.shop.session;
+  }
+
+  set #session(session: ShopSession | null) {
+    this.#campaign.state.shop.session = session;
   }
 
   isOpen(): boolean {

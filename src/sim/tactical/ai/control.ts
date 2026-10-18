@@ -37,7 +37,7 @@ import { beginSoldierClimbDownRoof, beginSoldierClimbUpRoof } from '../roofs.ts'
 import { adjustSoldierPathToGoOffEdge } from '../sector-exit.ts';
 import { removeSoldierFromTacticalSector } from '../sector-presence.ts';
 import { AlertStatus, Attitude, CivilianGroup, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
-import type { TacticalState } from '../state.ts';
+import { RESET_AWAY_AI_CURSOR, type TacticalState } from '../state.ts';
 import { checkForEndOfBattle, displayHiddenInterrupt } from '../turns/turns.ts';
 import {
   AI_DELAY,
@@ -72,7 +72,6 @@ import { endAIGuysTurn, isActionAffordable, turnBasedHandleNPCAI } from './turn-
 import { recalculatePathCost } from './utils.ts';
 
 const OFF_MAP_CURSOR = 0xffff;
-const RESET_AWAY_CURSOR = 0xffff;
 const MAX_DISTANCE_VISIBLE = 26;
 const CLOSE_ENOUGH_TILES = 4;
 const NPC_ARRIVAL_WAIT_MS = 500;
@@ -80,11 +79,6 @@ const NPC_ARRIVAL_WAIT_MS = 500;
 export interface AiControl {
   readonly hooks: AiHooks;
   readonly green: GreenHooks;
-  lastTickMs: number;
-  cursor: number;
-  awayCursor: number;
-  handleThisPass: boolean;
-  paused: boolean;
 }
 
 export function createAiControl(hooks: Partial<AiHooks & GreenHooks> = {}): AiControl {
@@ -102,15 +96,7 @@ export function createAiControl(hooks: Partial<AiHooks & GreenHooks> = {}): AiCo
     decideActionBlack: (t, s) => decideActionBlack(t, s, combat),
     ...hooks,
   };
-  return {
-    hooks: { ...NO_AI_HOOKS, ...hooks },
-    green,
-    lastTickMs: 0,
-    cursor: 0,
-    awayCursor: RESET_AWAY_CURSOR,
-    handleThisPass: false,
-    paused: false,
-  };
+  return { hooks: { ...NO_AI_HOOKS, ...hooks }, green };
 }
 
 export function actionDone(t: TacticalState, s: Soldier): void {
@@ -694,56 +680,61 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
   }
 }
 
-function nextAIToHandle(t: TacticalState, control: AiControl): boolean {
-  const start = control.cursor >= t.mercSlots.length ? 0 : control.cursor + 1;
+function nextAIToHandle(t: TacticalState): boolean {
+  const pass = t.aiPass;
+  const start = pass.cursor >= t.mercSlots.length ? 0 : pass.cursor + 1;
   for (let c = start; c < t.mercSlots.length; c++) {
     const s = t.mercSlots[c];
     if (s && (s.placed || s.offMap) && (s.team !== Team.OUR || s.underAiControl)) {
-      control.cursor = c;
+      pass.cursor = c;
       return true;
     }
   }
-  control.cursor = OFF_MAP_CURSOR;
-  if (t.awaySlots.length > 0) nextAwayAIToHandle(t, control);
+  pass.cursor = OFF_MAP_CURSOR;
+  if (t.awaySlots.length > 0) nextAwayAIToHandle(t);
   return false;
 }
 
-function nextAwayAIToHandle(t: TacticalState, control: AiControl): void {
-  const start = control.awayCursor + 1 >= t.awaySlots.length ? 0 : control.awayCursor + 1;
+function nextAwayAIToHandle(t: TacticalState): void {
+  const pass = t.aiPass;
+  const start = pass.awayCursor + 1 >= t.awaySlots.length ? 0 : pass.awayCursor + 1;
   for (let c = start; c < t.awaySlots.length; c++) {
     const s = t.awaySlots[c];
     if (s && s.team !== Team.OUR) {
-      control.awayCursor = c;
+      pass.awayCursor = c;
       return;
     }
   }
-  control.awayCursor = RESET_AWAY_CURSOR;
+  pass.awayCursor = RESET_AWAY_AI_CURSOR;
 }
 
 export function awayAiForPass(t: TacticalState, control: AiControl): void {
-  if (t.awaySlots.length === 0 || control.paused || t.turn.pauseAllAi || t.inCombat) return;
-  if (control.cursor !== OFF_MAP_CURSOR || control.awayCursor === RESET_AWAY_CURSOR) return;
-  const s = t.awaySlots[control.awayCursor];
+  const pass = t.aiPass;
+  if (t.awaySlots.length === 0 || pass.paused || t.turn.pauseAllAi || t.inCombat) return;
+  if (pass.cursor !== OFF_MAP_CURSOR || pass.awayCursor === RESET_AWAY_AI_CURSOR) return;
+  const s = t.awaySlots[pass.awayCursor];
   if (s?.ai.checkSchedule) handleSoldierAI(t, s, control);
 }
 
-export function beginAiPass(t: TacticalState, control: AiControl): void {
-  control.handleThisPass = false;
-  if (control.paused || t.inCombat || t.turn.pauseAllAi) return;
-  if (t.clockMs - control.lastTickMs > RT_DELAY_BETWEEN_AI_HANDLING) {
-    control.lastTickMs = t.clockMs;
-    control.handleThisPass = nextAIToHandle(t, control);
+export function beginAiPass(t: TacticalState): void {
+  const pass = t.aiPass;
+  pass.handleThisPass = false;
+  if (pass.paused || t.inCombat || t.turn.pauseAllAi) return;
+  if (t.clockMs - pass.lastTickMs > RT_DELAY_BETWEEN_AI_HANDLING) {
+    pass.lastTickMs = t.clockMs;
+    pass.handleThisPass = nextAIToHandle(t);
   }
 }
 
 export function aiForSlot(t: TacticalState, s: Soldier, slot: number, control: AiControl): void {
-  if (control.paused || t.turn.pauseAllAi) return;
+  const pass = t.aiPass;
+  if (pass.paused || t.turn.pauseAllAi) return;
   if (t.inCombat) {
     handleSoldierAI(t, s, control);
     return;
   }
-  const scheduled = control.handleThisPass && control.cursor === slot;
+  const scheduled = pass.handleThisPass && pass.cursor === slot;
   if (!scheduled && !s.ai.handleEveryFrame) return;
   handleSoldierAI(t, s, control);
-  if (!t.inCombat) control.handleThisPass = nextAIToHandle(t, control);
+  if (!t.inCombat) pass.handleThisPass = nextAIToHandle(t);
 }

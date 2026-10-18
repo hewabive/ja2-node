@@ -23,7 +23,13 @@ import {
 } from './conditions.ts';
 import { Assignment, MAX_MILITIA_TRAINERS_PER_SECTOR, Town } from './constants.ts';
 import { kitItems, makeSureMedKitIsInHand, makeSureToolKitIsInHand } from './kits.ts';
-import { answerMilitiaPayment, type MilitiaPaymentOutcome, startMilitiaPaymentFlow } from './militia.ts';
+import {
+  answerMilitiaContinue,
+  answerMilitiaPayment,
+  type ContinueOutcome,
+  type MilitiaPaymentOutcome,
+  startMilitiaPaymentFlow,
+} from './militia.ts';
 import { isAreaFullOfMilitia, militiaTrainingAllowedInSector, sectorHasSufficientLoyaltyToTrainMilitia } from './militia-rules.ts';
 import type { CrewMember, EconomyContext } from './ports.ts';
 import { canCharacterRepair, canCharacterRepairRobot, canCharacterRepairVehicle } from './repair-rules.ts';
@@ -298,4 +304,10 @@ export function resumeMilitiaPayment(ctx: EconomyContext, prompt: MilitiaPayment
     if (leader) for (const o of others) setForListMember(ctx, o, leader, to);
   };
   return answerMilitiaPayment(ctx, prompt, yes, { leader: prompt.leader, setAssignmentForList });
+}
+
+export function answerPendingMilitiaPrompt(ctx: EconomyContext, yes: boolean): MilitiaPaymentOutcome | ContinueOutcome | null {
+  const prompt = ctx.state.economy.prompts.shift();
+  if (!prompt) return null;
+  return prompt.kind === 'militiaPayment' ? resumeMilitiaPayment(ctx, prompt, yes) : answerMilitiaContinue(ctx, prompt, yes);
 }

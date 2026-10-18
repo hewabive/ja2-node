@@ -18,6 +18,7 @@ import { createMercFromProfile } from '../tactical/creation.ts';
 import { autoPlaceObject } from '../tactical/inventory.ts';
 import { firstFreeSoldierId, type Soldier, Team } from '../tactical/soldier.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import { createMercRecord } from './merc-record.ts';
 import { MercKind, type Roster, RosterMerc } from './roster.ts';
 
 const MAX_MERCS_ON_TEAM = 18;
@@ -71,22 +72,24 @@ export function hireMerc(
   if (id < 0) return 'no free soldier slot';
   const { soldier, profile } = recruit(id);
   const s = campaign.state;
-  const merc = new RosterMerc({
-    soldier,
-    profile,
-    kind: terms.kind,
-    statusFlags: 0,
-    sector: sectorFromId(strategic.content.policy.startSector),
-    betweenSectors: false,
-    groupId: 0,
-    prevSectorId: NO_PREVIOUS_SECTOR,
-    insertionCode: s.didGameJustStart ? InsertionCode.CHOPPER : InsertionCode.NORTH,
-    insertionDirection: 0,
-    path: [],
-    assignment: Assignment.IN_TRANSIT,
-    vehicleId: NO_VEHICLE,
-    asleep: false,
-  });
+  const merc = new RosterMerc(
+    createMercRecord({
+      soldier,
+      profile,
+      kind: terms.kind,
+      statusFlags: 0,
+      sector: sectorFromId(strategic.content.policy.startSector),
+      betweenSectors: false,
+      groupId: 0,
+      prevSectorId: NO_PREVIOUS_SECTOR,
+      insertionCode: s.didGameJustStart ? InsertionCode.CHOPPER : InsertionCode.NORTH,
+      insertionDirection: 0,
+      path: [],
+      assignment: Assignment.IN_TRANSIT,
+      vehicleId: NO_VEHICLE,
+      asleep: false,
+    }),
+  );
   if (s.didGameJustStart && id === 0) giveLetter(content, merc);
   roster.add(merc);
   const arrival = campaign.contracts?.hireContract(merc, terms.length) ?? (s.didGameJustStart ? FIRST_ARRIVAL_MINUTE : 0);

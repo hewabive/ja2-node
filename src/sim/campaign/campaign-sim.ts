@@ -74,6 +74,8 @@ export interface CampaignCommand {
 
 export type StrategicSetup = Omit<StrategicContextOptions, 'state' | 'clock'>;
 
+export type SimConstruction = 'create' | 'restore';
+
 const BOXING_UI_LOCK_TEXT = 'the interface is locked while the boxers leave the ring';
 
 export interface CampaignHooks {
@@ -114,15 +116,18 @@ export class CampaignSim {
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
   readonly #clock: ClockContext;
-  #tick = 0;
-  #compressing = false;
-  #day = 0;
 
-  constructor(state: StrategicState = createStrategicState(), tactical: TacticalSim | null = null, hooks: CampaignHooks = {}) {
+  constructor(
+    state: StrategicState = createStrategicState(),
+    tactical: TacticalSim | null = null,
+    hooks: CampaignHooks = {},
+    construction: SimConstruction = 'create',
+  ) {
+    const creating = construction === 'create';
     this.state = state;
     this.tactical = tactical;
     this.#hooks = hooks;
-    if (tactical) state.flow = 'tactical';
+    if (creating && tactical) state.flow = 'tactical';
     this.narrative = new NarrativeFlow(this);
     this.meanwhile = new MeanwhileFlow(this);
     this.endgame = new EndgameFlow(this);
@@ -181,10 +186,20 @@ export class CampaignSim {
     registerNarrativeEvents(this);
     if (this.strategic) this.helicopter.register();
     this.narrative.register(this.dispatchTable);
-    if (state.flow === 'tactical') setGameTimeCompressionLevel(this.#clock, CompressMode.X1);
+    if (creating && state.flow === 'tactical') setGameTimeCompressionLevel(this.#clock, CompressMode.X1);
     tactical?.attachWorldClock(state.clock);
-    this.#compressing = isTimeBeingCompressed(state.clock);
-    this.#day = worldDay(state.clock);
+    if (creating) this.#startSession();
+  }
+
+  static restore(state: StrategicState, tactical: TacticalSim | null, hooks: CampaignHooks): CampaignSim {
+    return new CampaignSim(state, tactical, hooks, 'restore');
+  }
+
+  #startSession(): void {
+    const s = this.state;
+    s.session.tick = 0;
+    s.session.compressing = isTimeBeingCompressed(s.clock);
+    s.session.day = worldDay(s.clock);
   }
 
   #merchantContext(setup: MerchantSetup): MerchantContext {
@@ -316,7 +331,7 @@ export class CampaignSim {
   }
 
   get tick(): number {
-    return this.#tick;
+    return this.state.session.tick;
   }
 
   #clockContext(): ClockContext {
@@ -454,21 +469,22 @@ export class CampaignSim {
 
   #syncClockEvents(): void {
     const c = this.state.clock;
+    const session = this.state.session;
     const compressing = isTimeBeingCompressed(c);
-    if (compressing !== this.#compressing) {
-      this.#compressing = compressing;
-      if (compressing) this.#events.push({ type: 'compressionStarted', mode: c.mode, tick: this.#tick });
-      else this.#events.push({ type: 'compressionStopped', reason: compressionStopReason(c), tick: this.#tick });
+    if (compressing !== session.compressing) {
+      session.compressing = compressing;
+      if (compressing) this.#events.push({ type: 'compressionStarted', mode: c.mode, tick: session.tick });
+      else this.#events.push({ type: 'compressionStopped', reason: compressionStopReason(c), tick: session.tick });
     }
     const day = worldDay(c);
-    if (day !== this.#day) {
-      this.#day = day;
-      this.#events.push({ type: 'dayStarted', day, tick: this.#tick });
+    if (day !== session.day) {
+      session.day = day;
+      this.#events.push({ type: 'dayStarted', day, tick: session.tick });
     }
   }
 
   #collectEvents(): void {
-    if (this.economy) for (const e of this.economy.events.splice(0)) this.#events.push({ ...e, tick: this.#tick } as SimEvent);
+    if (this.economy) for (const e of this.economy.events.splice(0)) this.#events.push({ ...e, tick: this.tick } as SimEvent);
     if (this.sectors) this.#events.push(...this.sectors.drainEvents());
     if (this.battle) this.#events.push(...this.battle.drainEvents());
     if (this.talk) this.#events.push(...this.talk.drainEvents());
@@ -490,7 +506,7 @@ export class CampaignSim {
     if (this.ended()) return;
     if (this.battle?.hasPendingDecision() || this.shop?.isOpen() || this.laptop?.isOpen() || this.talk?.hasPendingDecision()) return;
     const s = this.state;
-    this.#tick++;
+    s.session.tick++;
     if (s.flow === 'tactical' && this.tactical) {
       this.#environmentController();
       this.talk?.beforeTacticalStep();

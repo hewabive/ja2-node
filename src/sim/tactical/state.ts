@@ -199,6 +199,9 @@ export const NO_SECTOR_HOOKS: SectorHooks = {
 
 export interface TacticalState {
   clockMs: number;
+  tick: number;
+  readonly realtimeClock: RealtimeClock;
+  readonly aiPass: AiPassState;
   readonly world: TacticalWorldData;
   readonly content: TacticalContent;
   readonly soldiers: Soldier[];
@@ -256,6 +259,30 @@ export interface TacticalState {
   readonly actionItems: ActionItemQueue;
 }
 
+export interface RealtimeClock {
+  lastTurnMs: number;
+  lastDecayMs: number;
+  lastOverheadMs: number;
+}
+
+export function createRealtimeClock(): RealtimeClock {
+  return { lastTurnMs: 0, lastDecayMs: 0, lastOverheadMs: 0 };
+}
+
+export const RESET_AWAY_AI_CURSOR = 0xffff;
+
+export interface AiPassState {
+  lastTickMs: number;
+  cursor: number;
+  awayCursor: number;
+  handleThisPass: boolean;
+  paused: boolean;
+}
+
+export function createAiPassState(): AiPassState {
+  return { lastTickMs: 0, cursor: 0, awayCursor: RESET_AWAY_AI_CURSOR, handleThisPass: false, paused: false };
+}
+
 export interface ActionItemQueue {
   readonly queue: WorldItem[];
   active: boolean;
@@ -269,6 +296,7 @@ export interface SharedCampaignState {
   readonly keyTable?: KeyTable;
   readonly civGroups?: CivGroupState;
   readonly boxing?: BoxingRecord;
+  readonly realtimeClock?: RealtimeClock;
 }
 
 export interface SectorRef {
@@ -307,6 +335,9 @@ export function createTacticalState(
   };
   return {
     clockMs: 0,
+    tick: 0,
+    realtimeClock: shared.realtimeClock ?? createRealtimeClock(),
+    aiPass: createAiPassState(),
     world,
     content,
     soldiers,

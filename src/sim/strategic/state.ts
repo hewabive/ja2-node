@@ -2,7 +2,19 @@ import { PreRandom, Rng } from '../../core/rng.ts';
 import { type ContractState, createContractState } from '../campaign/contracts/contract-state.ts';
 import { createEndingState, type EndingState } from '../campaign/ending-state.ts';
 import { createFinanceState, type FinanceState } from '../campaign/finances.ts';
+import {
+  type CosmeticStreams,
+  createCosmeticStreams,
+  createSectorFlowState,
+  createSessionState,
+  createTalkFlowState,
+  type SectorFlowState,
+  type SessionState,
+  type ShopFlowState,
+  type TalkFlowState,
+} from '../campaign/flow-state.ts';
 import { createLaptopState, type LaptopState } from '../campaign/laptop/laptop-state.ts';
+import { createRosterState, type RosterState } from '../campaign/merc-record.ts';
 import type { SectorDiff } from '../campaign/sector-diff.ts';
 import { createTeamMoraleState, type TeamMoraleState } from '../campaign/team-morale.ts';
 import { createNpcRecordState, type NpcRecordState } from '../narrative/records.ts';
@@ -38,6 +50,7 @@ export interface SectorPosition {
 }
 
 export interface StrategicState {
+  readonly session: SessionState;
   readonly clock: WorldClock;
   readonly queue: EventQueue;
   readonly env: Environment;
@@ -72,6 +85,11 @@ export interface StrategicState {
   readonly terrorists: TerroristState;
   readonly civGroups: CivGroupState;
   readonly keyTable: KeyTable;
+  readonly roster: RosterState;
+  readonly sectorFlow: SectorFlowState;
+  readonly shop: ShopFlowState;
+  readonly talk: TalkFlowState;
+  readonly cosmetic: CosmeticStreams;
 }
 
 export interface TerroristState {
@@ -104,8 +122,10 @@ const DEFAULT_SEED = 1;
 const DEFAULT_OPTIONS: GameOptions = { difficulty: 2, sciFi: true, gunNut: false };
 
 export function createStrategicState(options: StrategicStateOptions = {}): StrategicState {
-  const rng = options.streams?.rng ?? Rng.fromSeed(options.seed ?? DEFAULT_SEED);
+  const seed = options.seed ?? DEFAULT_SEED;
+  const rng = options.streams?.rng ?? Rng.fromSeed(seed);
   return {
+    session: createSessionState(),
     clock: createWorldClock(options.worldSeconds),
     queue: createEventQueue(),
     env: createEnvironment(),
@@ -140,5 +160,10 @@ export function createStrategicState(options: StrategicStateOptions = {}): Strat
     terrorists: { count: 0 },
     civGroups: options.civGroups ?? createCivGroupState(),
     keyTable: options.keyTable ?? createKeyTable(),
+    roster: createRosterState(),
+    sectorFlow: createSectorFlowState(),
+    shop: { session: null },
+    talk: createTalkFlowState(seed),
+    cosmetic: createCosmeticStreams(seed),
   };
 }

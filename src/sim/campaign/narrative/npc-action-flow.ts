@@ -90,7 +90,6 @@ export class NpcActionFlow {
   readonly #emit: Emit;
   readonly recruitFlow: RecruitFlow;
   readonly env: NpcActionEnv;
-  carmenTimerAtMs: number | null = null;
 
   constructor(campaign: CampaignSim, host: NarrativeHost, ports: NpcActionPorts, emit: Emit) {
     this.#campaign = campaign;
@@ -103,6 +102,14 @@ export class NpcActionFlow {
 
   get #state() {
     return this.#campaign.state;
+  }
+
+  get carmenTimerAtMs(): number | null {
+    return this.#state.talk.carmenTimerAtMs;
+  }
+
+  set carmenTimerAtMs(at: number | null) {
+    this.#state.talk.carmenTimerAtMs = at;
   }
 
   handle(npc: number, code: number, record: number): boolean {

@@ -28,11 +28,21 @@ function inAlmaPrison(sector: { readonly x: number; readonly y: number; readonly
 export class PowFlow {
   readonly #campaign: CampaignSim;
   readonly #events: SimEvent[] = [];
-  #powSquad: number = NO_CURRENT_SQUAD;
-  readonly #seen: number[] = [];
 
   constructor(campaign: CampaignSim) {
     this.#campaign = campaign;
+  }
+
+  get #powSquad(): number {
+    return this.#campaign.state.sectorFlow.powSquad;
+  }
+
+  set #powSquad(squad: number) {
+    this.#campaign.state.sectorFlow.powSquad = squad;
+  }
+
+  get #seen(): number[] {
+    return this.#campaign.state.sectorFlow.powsSeen;
   }
 
   drainEvents(): SimEvent[] {

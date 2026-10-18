@@ -5,7 +5,6 @@
 // @src fLastBattleWon. See docs/19 §1.1, §5, docs/26 §0.
 
 import type { Sector } from '../../../content/strategic/sector-ids.ts';
-import type { Rng } from '../../../core/rng.ts';
 import type { ArRng, AutoresolveState } from './autoresolve/state.ts';
 import { EncounterCode } from './constants.ts';
 
@@ -102,7 +101,6 @@ export type BattlePrompt =
 export interface AutoresolveSession {
   readonly ar: AutoresolveState;
   readonly sector: Sector;
-  readonly fx: Rng;
   rng: ArRng | null;
   ticks: number;
   ended: boolean;
