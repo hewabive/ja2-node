@@ -32,7 +32,33 @@ export JA2_DATA_DIR="/path/to/Jagged Alliance 2 Gold/Data"   # optional
 pnpm dev                           # server (7420) + Vite (5173)
 ```
 
-Open http://127.0.0.1:5173/ → "Strategic map", "Tactical sandbox", "Asset browser" or "Map viewer". The strategic
+## How to play
+
+1. Start the server and the client: `pnpm dev` (with `JA2_DATA_DIR` set for the original data, without it on the stub
+   pack). For a built client run `pnpm build` once, then `pnpm server`, and open the `login?token=…` link the server
+   prints (it sets the token cookie).
+2. Open the launcher at http://127.0.0.1:5173/. It shows the data source, the data version and the display language,
+   and starts with "Click to start": browsers block sound until the page gets a click or a key, so the splash waits for
+   one (once per browser tab; the "play the splash" setting turns it off).
+3. **New campaign**: the game init screen's options with the original's defaults preselected (easy, sci-fi, reduced
+   guns, save anywhere, blood on), the Dead is Dead save name, the default squad (optionally of a chosen size) or
+   hiring in the laptop, and whether the strategic map or the tactical view opens. The beginning intro plays (Escape
+   ends it, Space or a click skips a video; the "play the intro" setting turns it off) and the page of the new session
+   opens.
+4. **Saved games**: ja2-node saves and the native savegames of the game's `SavedGames` folder, newest first, with the
+   original's row fields (day and time, sector, mercs, balance, description, a mark for Dead is Dead) and the options
+   in the tooltip. Load into a new session or a running one, import a native save, save the chosen session as a new
+   save or over the selected one, delete, download a `.j2s` file and upload one.
+5. **Settings**: volumes, mute, speech and subtitles, mute confirmations, the sleep/wake notification, playback speed,
+   the splash and intro switches, the display language, and export or import of the settings as a file. They live in
+   the browser and never reach the game.
+6. In the game pages Alt+S quick saves and Alt+L quick loads (also as buttons in the header, next to a link back to
+   the save list).
+
+## Developer pages, agents and the API
+
+The launcher keeps links to the developer pages: "Strategic map", "Tactical sandbox", "Asset browser", "Map viewer" and
+"Video and credits". The strategic
 map starts a new campaign (the squad lands in A9 at 07:00 on day 1, or "hire in laptop" keeps it in the laptop), plots
 routes, runs the world clock, extends or ends contracts, releases escorts, answers battle and contract prompts, shows the
 quest log, flies

@@ -175,6 +175,7 @@ export function createApp(options: AppOptions): Hono {
       data: { original: info.originalData, slf: info.slfCount, stubs: info.stubs },
       dataVersion: texts.dataVersion,
       language: defaultLanguage,
+      ...(options.saves ? { engine: options.saves.engine } : {}),
       files: vfs.size,
     }),
   );

@@ -202,6 +202,10 @@ export class SaveService {
     this.ledger = options.ledger;
   }
 
+  get engine(): EngineIdentity {
+    return this.#options.engine;
+  }
+
   #now(): Date {
     return this.#options.now?.() ?? new Date();
   }
