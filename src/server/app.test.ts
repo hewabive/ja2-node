@@ -172,6 +172,25 @@ describe('session endpoints', () => {
     expect(list.map((s: { session: string }) => s.session)).toEqual(['sandbox', 'sandbox-1']);
   });
 
+  it('lists a session whose host fails with its error instead of failing the whole list', async () => {
+    let broken = false;
+    const failing: SessionSim = {
+      ...still,
+      view: () => {
+        if (broken) throw new Error('worker gone');
+        return still.view();
+      },
+    };
+    const hosts = new Map<string, SessionHost>([
+      ['sandbox', new InProcessHost(new Session('sandbox', still))],
+      ['lost', new InProcessHost(new Session('lost', failing))],
+    ]);
+    broken = true;
+    const listing = createApp({ vfs: new Vfs([]), token, info: { originalData: false, slfCount: 0, stubs: true }, sessions: hosts });
+    const list = await (await listing.request('http://localhost/api/sessions', { headers: auth })).json();
+    expect(list).toEqual([expect.objectContaining({ session: 'sandbox' }), { session: 'lost', kind: 'inprocess', error: 'worker gone' }]);
+  });
+
   it('refuses malformed and contradictory requests', async () => {
     expect((await post({ campaign: { difficulty: 9 } })).status).toBe(400);
     expect((await post({ save: 'SaveGame01', campaign: {} })).status).toBe(400);

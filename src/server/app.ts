@@ -226,7 +226,9 @@ export function createApp(options: AppOptions): Hono {
     return c.json({ ...record, column, width: record.layout[column], text: record.columns[column] });
   });
 
-  app.get('/api/sessions', async (c) => c.json(await Promise.all([...(options.sessions?.values() ?? [])].map((host) => host.describe()))));
+  const describeOrFail = (host: SessionHost) =>
+    host.describe().catch((err: Error) => ({ session: host.id, kind: host.kind, error: err.message }));
+  app.get('/api/sessions', async (c) => c.json(await Promise.all([...(options.sessions?.values() ?? [])].map(describeOrFail))));
 
   app.post('/api/sessions', async (c) => {
     const { sessions, createSession } = options;

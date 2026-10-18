@@ -50,7 +50,9 @@ export type SessionEvent =
 
 export const DEFAULT_SESSION_TEXT: SessionText = { language: 'eng', dataVersion: STUB_DATA_VERSION };
 
-type Run<T> = Generator<void, T, void>;
+type Yield = 'claim' | 'pause';
+
+type Run<T> = Generator<Yield, T, void>;
 
 function finish<T>(run: Run<T>): T {
   for (;;) {
@@ -63,7 +65,7 @@ async function sliced<T>(run: Run<T>, slicer: Slicer): Promise<T> {
   slicer.begin();
   for (let next = run.next(); ; next = run.next()) {
     if (next.done) return next.value;
-    await slicer.pause();
+    if (next.value === 'pause' || !slicer.claim()) await slicer.pause();
     slicer.begin();
   }
 }
@@ -283,13 +285,14 @@ export class Session {
   }
 
   *#advanceRun(until: StopCondition, budget: number | undefined, due: PauseCheck): Run<StopReport> {
+    yield 'claim';
     this.hooks?.beforeAdvance?.(this);
     const frames: ViewFrame[] = [];
     const run = new AdvanceRun(this.#recordingStepper(frames), until, budget);
     let report = run.resume(due);
     while (report === null) {
       this.#publish(frames.splice(0));
-      yield;
+      yield 'pause';
       report = run.resume(due);
     }
     this.#capture(frames);

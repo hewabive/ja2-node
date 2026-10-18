@@ -177,4 +177,27 @@ describe('the in-process session host', () => {
     expect(sessionHostKind({ [SESSION_HOST_ENV]: 'worker' })).toBe('worker');
     expect(() => sessionHostKind({ [SESSION_HOST_ENV]: 'threads' })).toThrow(/inprocess, worker/);
   });
+
+  it('grants at most one slice per event-loop turn, also to a session that starts while another runs', async () => {
+    const scheduler = new SliceScheduler();
+    let turn = 0;
+    let counting = true;
+    const count = () => {
+      turn++;
+      if (counting) setImmediate(count);
+    };
+    setImmediate(count);
+    expect(scheduler.claim()).toBe(true);
+    expect(scheduler.claim()).toBe(false);
+    const granted: number[] = [];
+    await Promise.all(
+      [0, 1, 2].map(async () => {
+        await scheduler.turn();
+        granted.push(turn);
+      }),
+    );
+    counting = false;
+    expect(new Set(granted).size).toBe(granted.length);
+    expect(granted[0]).toBeGreaterThan(1);
+  });
 });
