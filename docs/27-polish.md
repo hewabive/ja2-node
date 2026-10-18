@@ -1303,6 +1303,32 @@ labelled rectangles or simple shapes in the original layouts (`01` §4.4).
     instant turn's round trip is 100–116 ms at the median alone and 318–748 ms with four battles.
   - *Campaign* (shortened: new campaign, landing, first sector cleared): 2.19 s (3.09 s), of which the landing with
     content loading 0.44 s; peak RSS 319 MB (286 MB).
+- **After S12a** (2026-10-18; `bench … --runs 3`, the parent commit `545957d` and the slice measured back to back per
+  scenario and source, 1-minute load 1.3–6; original data first, stubs in brackets, p50 / p95 in ms, before → after).
+  Every optimization keeps the outcomes: the same counters in every bench line, byte-identical frames and event logs
+  (hashed), the oracle compare unchanged; the exception is the `gunRange` fix of finding 12, which changes the stub
+  arenas' battles (the original-data runs did the same work).
+  - *Strategic world day*: one merc 7 days 79 / 103 → 37 / 44 (83 / 109 → 39 / 48), 30 days 79 / 92 → 32 / 41
+    (81 / 99 → 34 / 45), with the Queen's attacks 87 / 100 → 40 / 51 and 80 / 97 → 36 / 46 (98 / 110 → 48 / 60 and 84 /
+    97 → 37 / 44); six mercs (new variant `7d-mercs6`) 157 / 190 → 43 / 48 (170 / 205 → 48 / 60), the before measured
+    separately at a load of 6. Finding 11.
+  - *Enemy turn*: arena with 8 enemies 44 / 130 → 41 / 98, 16 enemies 197 / 393 → 131 / 274, 32 enemies with six
+    militia 587 / 1,327 → 450 / 998; A9 with 4 soldiers 34 / 158 → 31 / 152, 16 soldiers 62 / 267 → 59 / 258, 32
+    soldiers 500 / 789 → 484 / 677; the D13 save 31 / 36 → 22 / 30. Stubs: 8 enemies 83 / 144 → 52 / 86 (the same work),
+    16 and 32 enemies 165 / 217 → 117 / 187 and 400 / 1,059 → 264 / 687 (different battles after the fix). Per 16-enemy
+    turn (`--calls`) the chance-to-get-through traces drop from 24,948 to 17,531 (an occupied cover position is traced
+    once for all three stances), and the AI's throw planning from 23 % to 6 % of the profile (the collision-free force
+    searches are remembered); the top frames are now the cover search's traces (47 % of the 32-enemy profile, with
+    `calcChanceToGetThrough` itself at 28 % self time) and the path search (14 %). In one process, `arena-e16` after five `arena-e8` battles is no longer
+    three times slower (finding 12).
+  - *Save* (snapshot, stringify and gzip): the largest native import 122 / 221 → 102 / 186 (snapshot 60 → 46 and
+    stringify and gzip 63 → 54 at the median; the p95 is the first save, which builds the content index and the text
+    identity), a landed campaign 69 / 181 → 69 / 148, the 64-soldier arena 48 / 57 → 39 / 52 (40 / 72 → 38 / 60 and
+    37 / 45 → 35 / 41); with the save clock pinned (the bench's runs now do the same work) the import measured 99 / 159.
+    Load (parse and restore with fresh content): the import 199 / 283 → 184 / 243, a landed campaign 161 / 233 → 160 /
+    233. The same import measured 400 ms at the median earlier the same day at a load below 1: the KVM guest's
+    throughput varies by more than the load average shows, so only back-to-back runs compare.
+  - *Real-time tick*: unchanged (mean 5–46 µs, worst tick 5–28 ms); item 5 of S12a found nothing to take for free.
 - **Plans on record**: a visibility cache and moving the simulation to a worker (`01` §11), sessions in
   `worker_threads` when instant runs start delaying network I/O (`04` §5.9), 60 FPS at 1920×1080 for the tactical view
   (`01` §5.1).
@@ -1355,18 +1381,18 @@ counted function is renamed. The client side is still to be measured with Playwr
 ### 7.3 Targets (measured 2026-10-18)
 
 Measured by S4 (§7.1; machine: AMD EPYC 9354 KVM guest, 8 vCPUs, Node 24.22.0). Original data first, stubs in
-brackets. The bench carries each target in its JSON line and fails only above ten times the target (§7.6).
+brackets. *After S12a* gives the slice's numbers (§7.1, measured back to back with its parent commit). The bench carries each target in its JSON line and fails only above ten times the target (§7.6).
 
 | Metric | Target | Measured 2026-10-18 | Verdict |
 |---|---|---|---|
-| Enemy turn, 16 enemies, p95 | ≤ 300 ms | A9 254 ms; open arena 371 ms (204 ms) | kept: met on A9, 24 % over on the open arena with the original content; S12 (chance-to-get-through volume, the AI's grenade trajectory planning, finding 12) |
-| Enemy turn, 32 enemies plus militia and civilians, p95 | ≤ 1 s | arena with six militia and four civilians 1.28 s (1.07 s); A9 with 32 0.77 s | kept: up to 28 % over on the arena; S12 |
+| Enemy turn, 16 enemies, p95 | ≤ 300 ms | A9 254 ms; open arena 371 ms (204 ms). *After S12a*: A9 258 ms (267 before); open arena 274 ms (393 before), 187 ms on the changed stub battle | met after S12a (throw force searches remembered, occupied cover positions traced once, `gunRange` ported; finding 12 fixed) |
+| Enemy turn, 32 enemies plus militia and civilians, p95 | ≤ 1 s | arena with six militia and four civilians 1.28 s (1.07 s); A9 with 32 0.77 s. *After S12a*: arena 1.00 s (1.33 before; 0.69 s on the changed stub battle), A9 0.68 s | met after S12a, without margin on the arena: the turn is the cover search's chance-to-get-through traces (part B: the worker host keeps such a turn off the event loop) |
 | Real-time tick, 40 soldiers, mean | ≤ 0.25 ms | 20 µs green and yellow (19–44 µs) | confirmed with a 5× margin; 64 soldiers 35–69 µs |
 | Real-time tick, worst single tick (new) | ≤ 50 ms | 5–13 ms (4–27 ms) | new: one AI decision with several path searches; above 50 ms a tick would show as a hitch at ×1 |
-| Strategic world day, no sector loaded, p95 | ≤ 100 ms | 80–92 ms (83–88 ms) with one merc; 120–145 ms with six (stubs) | kept: about two thirds of a day is the session building frame views (finding 11), the cheapest S12 win |
+| Strategic world day, no sector loaded, p95 | ≤ 100 ms | 80–92 ms (83–88 ms) with one merc; 120–145 ms with six (stubs). *After S12a*: 41–51 ms (44–60 ms) with one merc, 48 ms (60 ms) with six (`7d-mercs6`) | met after S12a (finding 11 fixed: cheap views, structural diff) |
 | Autoresolve battle, 40 per side, p95 (new) | ≤ 10 ms | 3.3 ms (2.8 ms) | new, met |
-| Save (snapshot and gzip) | ≤ 100 ms and ≤ 2 MB gzipped | p50 / p95, measured by S3 on the same machine with a 1-minute load of 7–9 from other jobs: the largest native import 162 / 354 ms, 4.2 MiB raw, 222 KiB gzipped (snapshot 65 ms, stringify and gzip 80 ms at the median); a landed new campaign 80 / 198 ms, 3.5 MiB, 184 KiB; the 64-soldier arena 53 / 75 ms (stubs: 41 / 57 ms, 2.0 MiB, 77 KiB; landed campaign 49 / 83 ms, 2.4 MiB, 64 KiB). The p95 is the first save of a session, which builds the content index (about 150 ms on the original data) | size met with a wide margin; time met on stubs and for a landed campaign, not for the largest import on a loaded machine (S2 measured 81 ms snapshot and stringify for it on a quieter one); S12. Gzip runs at the fastest level (at the default level the import is 138 KiB but gzip takes three times longer) |
-| Load (parse and rebuild) | ≤ 500 ms | p50 / p95 with fresh content loading: the largest import 260 / 674 ms, a landed campaign 182 / 250 ms, the arena 125 / 194 ms (stubs 92–106 / 116–128 ms) | met at the median; the import's p95 exceeds it under the same load |
+| Save (snapshot and gzip) | ≤ 100 ms and ≤ 2 MB gzipped | p50 / p95, measured by S3 on the same machine with a 1-minute load of 7–9 from other jobs: the largest native import 162 / 354 ms, 4.2 MiB raw, 222 KiB gzipped (snapshot 65 ms, stringify and gzip 80 ms at the median); a landed new campaign 80 / 198 ms, 3.5 MiB, 184 KiB; the 64-soldier arena 53 / 75 ms (stubs: 41 / 57 ms, 2.0 MiB, 77 KiB; landed campaign 49 / 83 ms, 2.4 MiB, 64 KiB). The p95 is the first save of a session, which builds the content index (about 150 ms on the original data). *After S12a* (p50 / p95, back to back with the parent at load 2): the largest import 102 / 186 ms (122 / 221 before; 99 / 159 ms with the bench's clock pinned), a landed campaign 69 / 148 ms, the arena 39 / 52 ms (stubs 38 / 60 and 35 / 41 ms) | size met with a wide margin; time met on stubs, for the arena and at the median for a landed campaign; the largest import is at the target at the median and over it for the first save of a session (content index and text identity, now 0.2–0.8 s cheaper together in a cold process). Gzip runs at the fastest level (at the default level the import is 138 KiB but gzip takes three times longer) |
+| Load (parse and rebuild) | ≤ 500 ms | p50 / p95 with fresh content loading: the largest import 260 / 674 ms, a landed campaign 182 / 250 ms, the arena 125 / 194 ms (stubs 92–106 / 116–128 ms). *After S12a* (load 2): the import 184 / 243 ms (199 / 283 before), a landed campaign 160 / 233 ms, the arena 104 / 150 ms | met; most of a load is building the content again |
 | Event-loop stall for other sessions while one runs an instant turn (max delay) | ≤ 50 ms | 308–322 ms with one battle (230–247 ms), 1.24 s with four (0.83 s) | kept as the trigger of §7.5 and not met: the stall equals the longest instant turn, so the worker host is needed as soon as an instant battle shares the process with other sessions. Measured as the max: the p99 of `monitorEventLoopDelay` (1.5 ms) hides a stall, which is one sample |
 | Shortened campaign (land and clear the first sector), peak RSS (new) | ≤ 512 MB | 319 MB (286 MB) | new, met; the full campaign follows with S13 |
 | Tactical page | 60 FPS at 1920×1080 | not measured (client side) | provisional |
@@ -1381,7 +1407,11 @@ brackets. The bench carries each target in its JSON line and fails only above te
   the bullet and LOS loops, the per-10-tick view diff with many soldiers.
 - Measured hot spots (S4, §7.1): frame views during map-screen compression (finding 11), the bullet code's
   deoptimization and the chance-to-get-through volume (finding 12), the AI's grenade trajectory planning in enemy turns,
-  repeated path searches in single real-time AI decisions.
+  repeated path searches in single real-time AI decisions. S12a took the first three (derived data only: the roster's
+  sorted list per `Roster`, sector views per map state, throw force searches per item table, none in the snapshot);
+  left are the cover search's chance-to-get-through traces (within one AI decision under 4 % repeat exactly, so a memo
+  would not pay) and the path search. Profiles of the save path misattribute time to whatever runs during a garbage
+  collection; time phases with `performance.now()` around them before trusting a frame.
 - No event jumping (`04` §2 level 1b) unless the real-time target fails after caches: it changes the stepping model.
 
 ### 7.5 Worker host
@@ -1748,10 +1778,17 @@ session factory and the protocol.
     `fTurningToShoot` set under `PRONE_LAY_FROMHIT`, so the shot never came; the API now refuses orders from a merc
     out of breath who has collapsed or is about to (the original's UI gives him no cursor, `Handle_UI.cc:2523`) and
     counts the pending collapse as acting (deviations "Turn-based UI lock"). Tests: `combat/combat.test.ts`.
-11. *Frames during compression*: the session builds and diffs the whole player view, including the 256-sector strategic
+11. *Fixed in S12a: frames during compression*: the session builds and diffs the whole player view, including the 256-sector strategic
     view, every 10 ticks (`src/server/session.ts:56-81`) also while the map screen compresses time: building the views
     alone is about two thirds of a world day, the diff comes on top (`strategicView`/`sectorView` and `diffPlayerView` are the top frames), growing with the number of mercs.
-12. *Bullet code falls out of the optimizing compiler*: `fireBullet`, `fireBulletGivenTarget` and
+    The view scanned the roster (sorted anew on every `Roster.all()`) and the group list once per sector: the roster
+    list is now reused until the roster changes, enemy counts and the player's knowledge of them are computed for the
+    whole surface map at once (`numEnemiesInEverySurfaceSector`, `surfaceKnowledgeOfEnemies`, each tested against its
+    per-sector original), unchanged sector views are reused between frames, and `diffPlayerView` compares with `sameJson`
+    (`src/protocol/same-json.ts`, equal exactly when the `JSON.stringify` outputs are equal, fuzz-tested) instead of
+    stringifying both sides. The frames are byte-identical (hashed over a compressed week and two campaign battles on
+    both sources); the session still builds a view every 10 ticks (part B could skip frames nobody receives).
+12. *Fixed in S12a: bullet code falls out of the optimizing compiler*: `fireBullet`, `fireBulletGivenTarget` and
     `calcChanceToGetThrough` (`src/sim/tactical/combat/bullets.ts:271-400`, `:886-1006`) deoptimize again and again
     (`node --trace-deopt`: wrong map, not a Smi, minus zero, lost precision or NaN, so the bullet record changes shape and
     its fixed-point fields switch between small integers, doubles and −0); after a few battles in one process V8 stops
@@ -1759,6 +1796,17 @@ session factory and the protocol.
     three times slower (original data, `arena-e16`: p50 198 ms in a fresh process, 598 ms after four `arena-e8` battles;
     `fireBullet` from below 1.7 %, outside the twelve hottest frames, to 34 % of self time). A long-running server meets this; S12's first candidate together with
     the chance-to-get-through volume (about 25,000 traces per 16-enemy turn).
+    The trigger was a porting gap, not the record's shape (it is built in one literal; normalising −0 and keeping the
+    fixed-point fields small integers left the slowdown in place, three runs out of three): `gunRange` returned 0 for
+    everything but guns, where `GunRange` (`Tactical/Weapons.cc:86`) returns `CELL_X_SIZE` for non-weapons and the
+    weapon range for every `IC_WEAPON` class. A trace from a soldier holding a knife, a grenade or nothing, and a thrown
+    knife or rocket, divided by zero in the range drop (`LOS.cc:2844`), so its vertical increment became −Infinity
+    after the first tile: it flew flat over open ground (`Math.imul` turned the step into 0), dropped at the first tile
+    with a structure, and the Infinity and NaN values drove V8 into deoptimizing `calcChanceToGetThrough` until it gave
+    up on it. `gunRange` is now ported (a behaviour fix: the oracle compare and every test are unchanged, two
+    regression tests); `arena-e16` after five `arena-e8` battles in one process: p50 543–668 ms before, 181–248 ms after
+    (three runs each, the same as in a fresh process). The remaining deopts of the bullet code are the ordinary
+    feedback ones (about 25 per process, the same count with or without −0 normalisation).
 13. *Fixed in S4*: every stub merc of the sandbox shared the module constant `STUB_STATS` as its `stats`
     (`src/server/stub-mercs.ts`), so a stat gain went to the whole squad and to every later session in the process (two
     sessions with the same seed diverged); found by the bench's run-to-run check, now a copy per merc
