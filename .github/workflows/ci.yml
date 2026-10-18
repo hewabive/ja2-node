@@ -19,6 +19,16 @@ jobs:
         run: pnpm check
       - name: Stub pack
         run: pnpm stubs
+      - name: Benchmarks (smoke run on stubs, docs/27 §7.6)
+        run: |
+          pnpm cli bench all --runs 1 --data '' --out bench.jsonl
+          pnpm cli bench autoresolve --variant side-10 --runs 1 --calls --data '' --out bench.jsonl
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench
+          path: bench.jsonl
+          if-no-files-found: ignore
       - name: Client build
         run: pnpm build
       - name: E2E (Playwright, stubs only)

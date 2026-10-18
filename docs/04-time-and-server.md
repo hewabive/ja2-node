@@ -248,6 +248,11 @@ jumping (1b) and a worker.
 AI decisions (cover search, paths, sight) dominate; ticks without decisions are almost free. No event jumping or
 worker is needed for now.
 
+**Measured again (M7 S4, 2026-10-18)** with `pnpm cli bench enemy-turn` on the original A9, the D13 save and a
+generated arena with 8–32 enemies, and with the `server` scenario: an instant enemy turn blocks the event loop for its
+whole duration (0.3 s for one battle, 1.2 s with four in one process), so the worker host of `27` §7.5 is needed once
+instant battles share a server with other sessions; numbers in `27` §7.1 and §7.3.
+
 ---
 
 ## 5. The server as the source of truth

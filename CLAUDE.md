@@ -22,7 +22,7 @@ The simulation is server-side (Node), the browser is a client, agents play throu
 - `pnpm check`: Biome, `tsc -b`, layer imports, unit tests. Run before calling a change done.
 - `pnpm e2e`: Playwright against the stub pack.
 - `pnpm dev`: server (7420) + Vite (5173). Add `JA2_DATA_DIR="…/Data"` for the original data.
-- `pnpm stubs`, `pnpm cli inspect …` (`pnpm cli --help`).
+- `pnpm stubs`, `pnpm cli inspect …` (`pnpm cli --help`), `pnpm cli bench <scenario|all>` (`docs/27` §7).
 
 ## Conventions
 

@@ -93,6 +93,7 @@ itself. The Vite proxy adds the token, so it never appears in page code.
 | `pnpm cli inspect map <path>` / `tilesets` | Describe a map, list tilesets |
 | `pnpm cli inspect slf <file>` / `cat <path> --out <file>` | Archive directory, file extraction |
 | `pnpm cli inspect save <file.sav>` | Summarise a native savegame: sector, time, combat state, soldiers |
+| `pnpm cli bench <scenario\|all>` | Benchmarks (enemy turn, real time, strategic, autoresolve, server, campaign): one JSON line per variant, `--profile`, `--calls`; see `docs/27` §7 |
 
 The original-data test runs only when `JA2_DATA_DIR` is set.
 

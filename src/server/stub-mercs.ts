@@ -48,7 +48,7 @@ export function stubMerc(content: TacticalContent, id: number): Soldier {
         vest: STUB_VESTS[id % STUB_VESTS.length] ?? 'BLUEVEST',
         pants: 'JEANPANTS',
       },
-      stats: STUB_STATS,
+      stats: { ...STUB_STATS },
       life: STUB_LIFE,
       gridNo: -1,
       direction: SOUTH,
