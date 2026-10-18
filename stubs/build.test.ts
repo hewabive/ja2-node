@@ -12,11 +12,17 @@ import {
 import { ambientSoundPath, ambientTablePath, parseAmbientTable } from '../src/content/formats/ambient.ts';
 import { DIALOGUE_SIZE, edtRowCount } from '../src/content/formats/edt.ts';
 import { gapPathFor, parseGap } from '../src/content/formats/gap.ts';
+import { parseTilesetDatabase } from '../src/content/formats/ja2set.ts';
+import { parseStructureFile } from '../src/content/formats/jsd.ts';
+import { parseMap } from '../src/content/formats/map.ts';
 import { decodeSti } from '../src/content/formats/sti.ts';
+import { loadStubProfiles } from '../src/content/formats/stub-profiles.ts';
 import { decodeWav, wavDurationMs } from '../src/content/formats/wav.ts';
 import { parseStubSpriteManifest, pictureFromStubSprite, STUB_SPRITE_SUFFIX } from '../src/content/picture/stub-sprite.ts';
 import { STUB_DATA_VERSION } from '../src/content/text/data-version.ts';
 import { glyphCount, parseGlyphTable } from '../src/content/text/glyph-table.ts';
+import { parseVfsAliases, VFS_ALIASES_FILE } from '../src/content/vfs/aliases.ts';
+import { parseTileTables } from '../src/content/world/tile-tables.ts';
 import { type DataVfs, openDataVfs, STUBS_PREFIX } from '../src/node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
 import { TextService } from '../src/server/text-service.ts';
@@ -25,9 +31,13 @@ import { stubSoundPaths } from './audio.ts';
 import { buildStubs } from './build.ts';
 import { STUB_FONT_FACES, STUB_GLYPH_TABLE_PATH } from './fonts.ts';
 import { musicTracks } from './music.ts';
+import { loadSectorKinds, sectorMapFile } from './sector-kinds.ts';
 import { npcSpeechSets, type SpeechSet, speechPaths } from './speech.ts';
+import { STUB_TILE_SURFACES } from './tiles.ts';
 
 const MEDIA_DIRS = ['synth', 'music', 'mercedt', 'fonts'];
+const CONTENT_DIRS = ['world', 'npcdata', 'binarydata'];
+const STUB_PROFILE_FILE = 'profiles.json';
 const TEXT_FILES = [
   'binarydata/itemdesc.edt',
   'binarydata/credits.edt',
@@ -66,7 +76,15 @@ async function mediaFiles(root: string): Promise<string[]> {
 describe('stub pack', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
   it('builds deterministically', async () => {
     const [a, b] = await Promise.all([build(), build()]);
-    for (const f of ['soldier/capsule.png', 'soldier/capsule.sprite.json', 'tiles/ground.png', ...(await mediaFiles(a))]) {
+    const content = (await Promise.all(CONTENT_DIRS.map((d) => filesUnder(a, d)))).flat();
+    for (const f of [
+      'soldier/capsule.png',
+      'soldier/capsule.sprite.json',
+      'tiles/ground.png',
+      STUB_PROFILE_FILE,
+      ...content,
+      ...(await mediaFiles(a)),
+    ]) {
       expect((await readFile(join(a, f))).equals(await readFile(join(b, f))), f).toBe(true);
     }
   });
@@ -202,6 +220,48 @@ describe('stub media', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
       expect(font.subImages, name).toHaveLength(glyphCount(table));
       expect(new Set(font.subImages.map((g) => g.height)).size, name).toBe(1);
     }
+  });
+
+  it('decodes the stub tileset with a sprite for every stub tile type and a structure file for every structured one', async () => {
+    const tables = parseTileTables(JSON.parse(await readFile(join(PROJECT_DATA_DIR, 'tables/tiles.json'), 'utf8')));
+    const db = parseTilesetDatabase(await data.vfs.read(stub('world/binarydata/ja2set.dat')));
+    const [tileset] = db.tilesets;
+    for (const surface of STUB_TILE_SURFACES) {
+      const file = tileset?.surfaceFiles[tables.types.findIndex((t) => t.name === surface.type)];
+      expect(file, surface.type).toBe(`${surface.sprite.path}${STUB_SPRITE_SUFFIX}`);
+      if (!surface.structures) continue;
+      const jsd = parseStructureFile(await data.vfs.read(stub(`world/tilesets/0/${surface.sprite.path}.jsd`)));
+      expect(
+        jsd.structures.filter(Boolean).map((d) => d?.flags),
+        surface.type,
+      ).toEqual(surface.structures.map((d) => d.flags));
+    }
+  });
+
+  it('decodes every stub map and reads every sector of the kind table through the alias manifest', async () => {
+    const kinds = await loadSectorKinds();
+    const aliases = parseVfsAliases(JSON.parse(await readFile(join(dir, VFS_ALIASES_FILE), 'utf8')));
+    for (const f of await filesUnder(dir, 'world/maps')) expect(parseMap(await data.vfs.read(stub(f))).tilesetId, f).toBe(0);
+    for (const kind of kinds.kinds) {
+      for (const name of kind.sectors) {
+        const path = `world/maps/${sectorMapFile(name)}`;
+        if (path === `world/maps/${kind.map}.dat`) continue;
+        expect(aliases.get(path), name).toBe(`world/maps/${kind.map}.dat`);
+        expect(parseMap(await data.vfs.read(stub(path))).placements.length, name).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('loads every stub profile with its stub text where it speaks', async () => {
+    const profiles = await loadStubProfiles(
+      (path) => data.vfs.read(stub(path.replace(/^stubs\//, ''))),
+      () => 1,
+    );
+    const ids = profiles.flatMap((p, id) => (p ? [id] : []));
+    expect(ids.filter((id) => id < 40)).toHaveLength(12);
+    expect(ids.filter((id) => id >= 160)).toEqual([160, 161, 162, 163]);
+    for (const id of [97, 106, 113, 124, 125, 126, 130, 147, 148, 151, 152, 154, 156, 157, 158])
+      expect(data.vfs.stat(stub(`npcdata/${String(id).padStart(3, '0')}.edt`)), String(id)).toBeDefined();
   });
 
   it('keeps the media small', async () => {
