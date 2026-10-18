@@ -45,5 +45,22 @@ process.on('SIGINT', () => shutdown(0));
 process.on('SIGTERM', () => shutdown(0));
 
 if (!process.env.JA2_DATA_DIR) console.log('[dev] JA2_DATA_DIR is not set: only the stub pack is available');
+const SERVER_URL = `http://127.0.0.1:${Number(process.env.JA2_PORT ?? 7420)}/api/health`;
+const SERVER_POLL_MS = 100;
+
+async function serverAnswers(): Promise<boolean> {
+  try {
+    await fetch(SERVER_URL);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function waitForServer(): Promise<void> {
+  while (!stopping && !(await serverAnswers())) await new Promise((resolve) => setTimeout(resolve, SERVER_POLL_MS));
+}
+
 run('server', process.execPath, [join(REPO_ROOT, 'src/server/main.ts')]);
-run('web', process.execPath, [join(REPO_ROOT, 'node_modules/vite/bin/vite.js')]);
+await waitForServer();
+if (!stopping) run('web', process.execPath, [join(REPO_ROOT, 'node_modules/vite/bin/vite.js')]);

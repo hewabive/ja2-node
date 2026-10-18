@@ -31,6 +31,11 @@ function parseOne(extra: Record<string, unknown>) {
   return parseStubProfiles({ profiles: [{ ...MINIMAL, ...extra }] }, itemIndex)[4];
 }
 
+const FIRST_AIM = 0;
+const LAST_AIM = 39;
+const VEHICLES = [160, 161, 162, 163];
+const SKYRIDER = 97;
+
 describe('authored stub profiles', () => {
   it('fills the defaults of a minimal profile', () => {
     const p = parseOne({});
@@ -86,6 +91,13 @@ describe('authored stub profiles', () => {
     );
     expect(profiles.filter(Boolean).length).toBeGreaterThanOrEqual(6);
     for (const [id, p] of profiles.entries()) if (p) expect(p.id).toBe(id);
+    const aim = profiles.slice(FIRST_AIM, LAST_AIM + 1).filter(Boolean);
+    expect(aim.length).toBeGreaterThanOrEqual(12);
+    expect(VEHICLES.every((id) => profiles[id])).toBe(true);
+    expect(profiles[SKYRIDER]?.nickname).toBeTruthy();
+    for (const p of aim)
+      for (const other of [...(p?.buddies ?? []), ...(p?.hated ?? []), p?.learnToHate ?? -1, p?.learnToLike ?? -1])
+        if (other >= 0) expect(profiles[other], `${p?.id} -> ${other}`).toBeDefined();
     expect(await loadStubProfiles(async () => null, itemIndex)).toEqual([]);
   });
 });

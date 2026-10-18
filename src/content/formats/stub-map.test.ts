@@ -43,6 +43,12 @@ describe('stub map entries, exits and placements', () => {
     ]);
   });
 
+  it('writes a same-sector exit as sector 0,0 with its level', () => {
+    const here = parseMap(writeMap(stubMapToMapDef(parseStubMapSource(SOURCE.replace('-> A10 z=1', '-> here z=1'), tables))));
+    expect(here.exitGrids.map((e) => e.sector)).toEqual([{ x: 0, y: 0, z: 1 }]);
+    expect(() => parseStubMapSource(SOURCE.replace('-> A10 z=1', '-> there z=1'), tables)).toThrow(/expected/);
+  });
+
   it('writes a detailed placement with the profile for a profile= soldier', () => {
     const map = parseMap(writeMap(stubMapToMapDef(parseStubMapSource(SOURCE, tables))));
     const raw = map.placements[2]?.detailedRaw;

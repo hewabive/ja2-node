@@ -463,15 +463,18 @@ WebGL needs color indices.
 - Isometric tiles by category (151 types).
 - A "capsule" soldier in 8 directions.
 - Labeled UI rectangles according to the layouts.
-- A rasterized free pixel font (CC0 or OFL).
+- A rasterized free pixel font: a subset of Terminus Font (SIL OFL 1.1, renamed "Stub Pixel" for its Reserved
+  Font Name) compiled into STI fonts under the original font names, with a stub glyph table (`docs/27` §6.6).
 - Sounds, music and speech blips: synthesized from noise and tone envelopes with a seeded generator, one
   file per cue class, named like the original paths through an alias manifest (`docs/27` §6.5).
 
-Stored as PNG plus JSON so they can be edited in any editor, sounds as WAV and text as EDT. Writing STI for
-stubs isn't needed.
+Stored as PNG plus JSON so they can be edited in any editor, sounds as WAV and text as EDT; the fonts are the one
+family written as STI, because the font loader reads nothing else.
 
 **Stub maps** are described in a simple text format (an ASCII grid plus a legend) and
-converted to `MapDef`. The same files serve as test fixtures.
+converted to `MapDef`. The same files serve as test fixtures. A handful of generic maps stand in for every sector by
+kind (town, mine, cave, army camp, airfield; `stubs/maps/sector-kinds.json`), each listed sector an alias of its kind's
+map; an exit grid may lead to the sector the map is loaded for (`docs/27` §6.6).
 
 **Done criterion for each milestone:** the functionality also runs on stubs,
 and in CI only on them.

@@ -1,6 +1,8 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { withSectorExitGrids } from '../../src/content/strategic/sector-maps.ts';
+import { parseVfsAliases, VFS_ALIASES_FILE } from '../../src/content/vfs/aliases.ts';
 import {
   buildTacticalWorldFromInputs,
   loadTacticalWorldInputs,
@@ -8,7 +10,7 @@ import {
   type TacticalWorldInputs,
 } from '../../src/content/world/tactical-world.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
-import { openDataVfs } from '../../src/node/data-vfs.ts';
+import { openDataVfs, STUBS_PREFIX } from '../../src/node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../src/node/repo.ts';
 import type { SectorWorlds } from '../../src/sim/campaign/sector-flow.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
@@ -25,6 +27,11 @@ export const STUB_MAPS = [
   'stubs/world/maps/p3.dat',
   'stubs/world/maps/p3_b1.dat',
   'stubs/world/maps/d5.dat',
+  'stubs/world/maps/town.dat',
+  'stubs/world/maps/mine.dat',
+  'stubs/world/maps/camp.dat',
+  'stubs/world/maps/airfield.dat',
+  'stubs/world/maps/cave.dat',
 ] as const;
 
 export interface StubSectorKit {
@@ -43,8 +50,14 @@ export async function loadStubSectorKit(): Promise<StubSectorKit> {
   const content = await loadTacticalContent(read);
   const inputs = new Map<string, TacticalWorldInputs>();
   for (const path of STUB_MAPS) inputs.set(path, await loadTacticalWorldInputs(read, path));
+  const aliases = parseVfsAliases(JSON.parse(await readFile(join(dir, VFS_ALIASES_FILE), 'utf8')));
+  const aliased = (path: string): TacticalWorldInputs | null => {
+    const target = aliases.get(path.slice(STUBS_PREFIX.length + 1));
+    const i = target === undefined ? undefined : inputs.get(`${STUBS_PREFIX}/${target}`);
+    return i ? { ...i, mapPath: path, map: withSectorExitGrids(i.map, path) } : null;
+  };
   const build = (path: string): TacticalWorld | null => {
-    const i = inputs.get(path);
+    const i = inputs.get(path) ?? aliased(path);
     return i ? buildTacticalWorldFromInputs(i) : null;
   };
   return {

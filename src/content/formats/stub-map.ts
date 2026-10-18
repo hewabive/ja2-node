@@ -18,6 +18,7 @@ import {
 import { writeProfileDetailedPlacement } from './placement.ts';
 
 export const STUB_MAP_FORMAT = 'ja2-node.map/1';
+export const SAME_SECTOR = { x: 0, y: 0 } as const;
 const STUB_MAP_MAJOR_VERSION = 5;
 const STUB_MAP_MINOR_VERSION = 25;
 
@@ -190,11 +191,17 @@ function parseEntry(spec: string, line: number): [StubEntryName, { x: number; y:
   return [name as StubEntryName, { x: Number(x), y: Number(y) }];
 }
 
+const HERE = 'here';
+
+function exitTarget(sectorName: string, z: number): { x: number; y: number; z: number } {
+  return sectorName === HERE ? { ...SAME_SECTOR, z } : parseSectorString(sectorName, z);
+}
+
 function parseExit(spec: string, line: number): StubExit {
-  const m = /^(\d+)\s+(\d+)\s*->\s*([A-Pa-p]\d{1,2})(?:\s+z=(\d))?\s+at\s+(\d+)\s+(\d+)$/.exec(spec);
-  if (!m) throw new FormatError(`line ${line}: expected '<x> <y> -> <SECTOR> [z=<level>] at <worldX> <worldY>'`);
+  const m = /^(\d+)\s+(\d+)\s*->\s*([A-Pa-p]\d{1,2}|here)(?:\s+z=(\d))?\s+at\s+(\d+)\s+(\d+)$/.exec(spec);
+  if (!m) throw new FormatError(`line ${line}: expected '<x> <y> -> <SECTOR|here> [z=<level>] at <worldX> <worldY>'`);
   const [, x, y, sectorName, z, toX, toY] = m;
-  const target = parseSectorString(sectorName ?? '', Number(z ?? 0));
+  const target = exitTarget(sectorName ?? '', Number(z ?? 0));
   return { x: Number(x), y: Number(y), sector: target, destinationGridNo: Number(toY) * WORLD_COLS + Number(toX) };
 }
 

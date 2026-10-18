@@ -1,0 +1,90 @@
+ja2-node.map/1
+name: Stub mine (mine entrance sector: shaft house, mine office, settling pond)
+tileset: 0
+origin: 66 60
+fill: land FIRSTTEXTURE 1
+legend '.': land FIRSTTEXTURE 1
+legend ':': land FIRSTTEXTURE 2
+legend ',': land SECONDTEXTURE 1
+legend '=': land THIRDTEXTURE 1
+legend 'b': land SECONDTEXTURE 2; structs FIRSTOSTRUCT 1
+legend ';': land REGWATERTEXTURE 1
+legend 'c': land SECONDTEXTURE 2; structs FIRSTCLIFF 1
+legend 'h': land FIRSTTEXTURE 2; objects FIRSTCLIFFHANG 1
+legend 'r': land SECONDTEXTURE 1; objects DEBRISROCKS 1
+legend '_': land FIRSTFLOOR 1; roofs SECONDROOF 1; room 1
+legend 'B': land FIRSTFLOOR 1; structs SECONDWALL 1; roofs SECONDROOF 1; room 1
+legend 'K': land FIRSTFLOOR 1; structs SECONDWALL 2; roofs SECONDROOF 1; room 1
+legend 'J': land FIRSTFLOOR 1; structs SECONDWALL 1; structs SECONDWALL 2; roofs SECONDROOF 1; room 1
+legend 'W': land FIRSTFLOOR 1; structs SECONDWALL 3; roofs SECONDROOF 1; room 1
+legend 'V': land FIRSTFLOOR 1; structs SECONDWALL 5; roofs SECONDROOF 1; room 1
+legend 'D': land FIRSTFLOOR 1; structs FIRSTDOOR 1; roofs SECONDROOF 1; room 1
+legend 'P': land FIRSTFLOOR 1; structs FIRSTDOOR 3; roofs SECONDROOF 1; room 1
+legend 't': land FIRSTTEXTURE 1; structs SECONDWALL 1
+legend 'w': land FIRSTTEXTURE 1; structs SECONDWALL 2
+legend 'o': land FIRSTTEXTURE 1; structs SECONDWALL 3
+legend 'y': land FIRSTTEXTURE 1; structs SECONDWALL 5
+legend 'd': land FIRSTTEXTURE 1; structs FIRSTDOOR 1
+legend 'p': land FIRSTTEXTURE 1; structs FIRSTDOOR 3
+entry: north 17 0
+entry: east 33 14
+entry: south 17 19
+entry: west 0 14
+entry: center 17 12
+exit: 16 6 -> here z=1 at 75 65
+light: 17 10 L-R05.LHT NIGHT
+soldier: ENEMY 12 6 EAST ONGUARD DEFENSIVE ARMY
+soldier: ENEMY 20 11 NORTH ONGUARD BRAVESOLO ARMY
+soldier: ENEMY 26 10 WEST CLOSEPATROL AGGRESSIVE ARMY
+soldier: ENEMY 17 2 SOUTH STATIONARY DEFENSIVE ELITE
+soldier: ENEMY 5 11 EAST ONGUARD CUNNINGSOLO ADMINISTRATOR
+soldier: ENEMY 30 14 WEST FARPATROL AGGRESSIVE ADMINISTRATOR
+soldier: ENEMY 15 10 SOUTH ONGUARD DEFENSIVE ARMY
+soldier: ENEMY 1 15 EAST ONGUARD BRAVEAID ELITE
+soldier: ENEMY 22 3 SOUTH ONGUARD DEFENSIVE ARMY optional
+soldier: ENEMY 31 7 WEST CLOSEPATROL BRAVESOLO ARMY optional
+soldier: ENEMY 10 12 NORTH ONGUARD CUNNINGAID ARMY optional
+soldier: ENEMY 2 2 SOUTHEAST STATIONARY DEFENSIVE ARMY optional
+soldier: ENEMY 13 17 NORTH ONGUARD AGGRESSIVE ARMY optional
+soldier: ENEMY 24 19 NORTH FARPATROL BRAVESOLO ARMY optional
+soldier: ENEMY 29 2 SOUTHWEST ONGUARD DEFENSIVE ADMINISTRATOR optional
+soldier: ENEMY 7 18 NORTHEAST CLOSEPATROL BRAVEAID ADMINISTRATOR optional
+soldier: ENEMY 19 18 NORTH STATIONARY DEFENSIVE ADMINISTRATOR optional
+soldier: ENEMY 32 11 WEST SEEKENEMY AGGRESSIVE ELITE optional
+soldier: ENEMY 27 17 NORTH ONGUARD CUNNINGSOLO ELITE optional
+soldier: ENEMY 9 1 SOUTH ONGUARD BRAVESOLO ELITE optional
+soldier: CIV 15 5 SOUTH STATIONARY DEFENSIVE NONE
+soldier: CIV 18 7 WEST STATIONARY DEFENSIVE NONE
+soldier: CIV 24 9 NORTH STATIONARY BRAVESOLO NONE
+soldier: CIV 11 10 EAST STATIONARY DEFENSIVE NONE
+schedule 'M': STAYINSECTOR
+schedule 'N': STAYINSECTOR
+schedule 'O': STAYINSECTOR
+schedule 'P': STAYINSECTOR
+schedule 'Q': STAYINSECTOR
+soldier: CIV 4 5 EAST STATIONARY DEFENSIVE NONE profile=106 schedule=M
+soldier: CIV 5 5 EAST STATIONARY DEFENSIVE NONE profile=148 schedule=N
+soldier: CIV 6 5 EAST STATIONARY DEFENSIVE NONE profile=156 schedule=O
+soldier: CIV 4 6 EAST STATIONARY DEFENSIVE NONE profile=157 schedule=P
+soldier: CIV 5 6 EAST STATIONARY DEFENSIVE NONE profile=158 schedule=Q
+map:
+..........ccccccccccccc...........
+.:........hhhhhhhhhhhhh...........
+.........................:........
+...tttttt..bb.tttttt..............
+..w_____K....w_____K...,,,,,,..b..
+..w_____K....w_____K...,;;;;,.....
+..w_____P....w_____V...,;;;;,.....
+..w_____K....w_____K...,;;;;,.....
+..wBBBBBJ....wBBBDBJ...,,,,,,.....
+.....................b.......b....
+................,,,..r..r.........
+..b.............,,,...r.......:...
+................,,,r..............
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+==================================
+==================================
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+......:...........................
+........b...........:.....b.......
+..................................

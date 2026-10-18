@@ -12,18 +12,29 @@ import {
 import { ambientSoundPath, ambientTablePath, parseAmbientTable } from '../src/content/formats/ambient.ts';
 import { DIALOGUE_SIZE, edtRowCount } from '../src/content/formats/edt.ts';
 import { gapPathFor, parseGap } from '../src/content/formats/gap.ts';
+import { parseTilesetDatabase } from '../src/content/formats/ja2set.ts';
+import { parseStructureFile } from '../src/content/formats/jsd.ts';
+import { parseMap } from '../src/content/formats/map.ts';
 import { createFrameReader, decodeAudio, openSmk } from '../src/content/formats/smk.ts';
+import { decodeSti } from '../src/content/formats/sti.ts';
+import { loadStubProfiles } from '../src/content/formats/stub-profiles.ts';
 import { decodeWav, wavDurationMs } from '../src/content/formats/wav.ts';
 import { parseStubSpriteManifest, pictureFromStubSprite, STUB_SPRITE_SUFFIX } from '../src/content/picture/stub-sprite.ts';
 import { STUB_DATA_VERSION } from '../src/content/text/data-version.ts';
+import { glyphCount, parseGlyphTable } from '../src/content/text/glyph-table.ts';
+import { parseVfsAliases, VFS_ALIASES_FILE } from '../src/content/vfs/aliases.ts';
+import { parseTileTables } from '../src/content/world/tile-tables.ts';
 import { type DataVfs, openDataVfs, STUBS_PREFIX } from '../src/node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
 import { TextService } from '../src/server/text-service.ts';
 import { STUB_AMBIENT_ENTRIES, STUB_AMBIENT_ID } from './ambient.ts';
 import { stubSoundPaths } from './audio.ts';
 import { buildStubs } from './build.ts';
+import { STUB_FONT_FACES, STUB_GLYPH_TABLE_PATH } from './fonts.ts';
 import { musicTracks } from './music.ts';
+import { loadSectorKinds, sectorMapFile } from './sector-kinds.ts';
 import { npcSpeechSets, type SpeechSet, speechPaths } from './speech.ts';
+import { STUB_TILE_SURFACES } from './tiles.ts';
 import {
   STUB_SPLASH_FRAMES,
   STUB_SPLASH_HEIGHT,
@@ -34,12 +45,20 @@ import {
   stubSplashFrames,
 } from './video.ts';
 
-const BUILD_TIMEOUT_MS = 60_000;
-
-const MEDIA_DIRS = ['synth', 'music', 'mercedt', 'intro'];
+const MEDIA_DIRS = ['synth', 'music', 'mercedt', 'intro', 'fonts'];
 const SPLASH_BUDGET_BYTES = 64 * 1024;
-const TEXT_FILES = ['binarydata/itemdesc.edt', 'binarydata/credits.edt', 'binarydata/email.edt', 'ambient/0.bad', 'aliases.json'];
+const CONTENT_DIRS = ['world', 'npcdata', 'binarydata'];
+const STUB_PROFILE_FILE = 'profiles.json';
+const TEXT_FILES = [
+  'binarydata/itemdesc.edt',
+  'binarydata/credits.edt',
+  'binarydata/email.edt',
+  'ambient/0.bad',
+  STUB_GLYPH_TABLE_PATH,
+  'aliases.json',
+];
 const MEDIA_BUDGET_BYTES = 4 * 1024 * 1024;
+const STUB_BUILD_TIMEOUT_MS = 60_000;
 
 const dirs: string[] = [];
 afterAll(async () => {
@@ -65,17 +84,21 @@ async function mediaFiles(root: string): Promise<string[]> {
   return [...(await Promise.all(MEDIA_DIRS.map((d) => filesUnder(root, d)))).flat(), ...TEXT_FILES];
 }
 
-describe('stub pack', () => {
-  it(
-    'builds deterministically',
-    async () => {
-      const [a, b] = await Promise.all([build(), build()]);
-      for (const f of ['soldier/capsule.png', 'soldier/capsule.sprite.json', 'tiles/ground.png', ...(await mediaFiles(a))]) {
-        expect((await readFile(join(a, f))).equals(await readFile(join(b, f))), f).toBe(true);
-      }
-    },
-    BUILD_TIMEOUT_MS,
-  );
+describe('stub pack', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
+  it('builds deterministically', async () => {
+    const [a, b] = await Promise.all([build(), build()]);
+    const content = (await Promise.all(CONTENT_DIRS.map((d) => filesUnder(a, d)))).flat();
+    for (const f of [
+      'soldier/capsule.png',
+      'soldier/capsule.sprite.json',
+      'tiles/ground.png',
+      STUB_PROFILE_FILE,
+      ...content,
+      ...(await mediaFiles(a)),
+    ]) {
+      expect((await readFile(join(a, f))).equals(await readFile(join(b, f))), f).toBe(true);
+    }
+  });
 
   it('loads through the VFS into pictures', async () => {
     const dir = await build();
@@ -98,7 +121,7 @@ describe('stub pack', () => {
   });
 });
 
-describe('stub media', () => {
+describe('stub media', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
   let dir: string;
   let data: DataVfs;
   const stub = (path: string) => `${STUBS_PREFIX}/${path}`;
@@ -106,7 +129,7 @@ describe('stub media', () => {
   beforeAll(async () => {
     dir = await build();
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: dir });
-  });
+  }, STUB_BUILD_TIMEOUT_MS);
   afterAll(async () => {
     await data.close();
   });
@@ -145,7 +168,7 @@ describe('stub media', () => {
       .list()
       .filter((f) => /^stubs\/mercedt\/\d{3}\.edt$/.test(f.path))
       .map((f): SpeechSet => ({ profile: Number(f.path.slice(-7, -4)), family: 'merc', quotes: f.size / (DIALOGUE_SIZE * 2) }));
-    expect(merc.map((s) => s.profile)).toEqual([0, 1, 2, 3, 4, 5, 42, 59, 65]);
+    expect(merc.map((s) => s.profile)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 42, 59, 65]);
     const sets = [...merc, ...(await npcSpeechSets())];
     for (const set of sets) {
       const paths = speechPaths(set);
@@ -219,6 +242,61 @@ describe('stub media', () => {
     const [track] = video.audioTracks;
     if (!track) throw new Error('the stub splash has no audio');
     expect(decodeAudio(video, track)).toEqual(stubSplashAudio().channels);
+  });
+
+  it('decodes every stub font under each original font name with one glyph per slot of the stub glyph table', async () => {
+    const table = parseGlyphTable(JSON.parse(new TextDecoder().decode(await data.vfs.read(stub(STUB_GLYPH_TABLE_PATH)))));
+    const names = STUB_FONT_FACES.flatMap((face) => face.names);
+    expect(names).toHaveLength(17);
+    for (const name of names) {
+      const font = decodeSti(await data.vfs.read(stub(`fonts/${name}.sti`)));
+      expect(font.kind, name).toBe('indexed');
+      if (font.kind !== 'indexed') continue;
+      expect(font.subImages, name).toHaveLength(glyphCount(table));
+      expect(new Set(font.subImages.map((g) => g.height)).size, name).toBe(1);
+    }
+  });
+
+  it('decodes the stub tileset with a sprite for every stub tile type and a structure file for every structured one', async () => {
+    const tables = parseTileTables(JSON.parse(await readFile(join(PROJECT_DATA_DIR, 'tables/tiles.json'), 'utf8')));
+    const db = parseTilesetDatabase(await data.vfs.read(stub('world/binarydata/ja2set.dat')));
+    const [tileset] = db.tilesets;
+    for (const surface of STUB_TILE_SURFACES) {
+      const file = tileset?.surfaceFiles[tables.types.findIndex((t) => t.name === surface.type)];
+      expect(file, surface.type).toBe(`${surface.sprite.path}${STUB_SPRITE_SUFFIX}`);
+      if (!surface.structures) continue;
+      const jsd = parseStructureFile(await data.vfs.read(stub(`world/tilesets/0/${surface.sprite.path}.jsd`)));
+      expect(
+        jsd.structures.filter(Boolean).map((d) => d?.flags),
+        surface.type,
+      ).toEqual(surface.structures.map((d) => d.flags));
+    }
+  });
+
+  it('decodes every stub map and reads every sector of the kind table through the alias manifest', async () => {
+    const kinds = await loadSectorKinds();
+    const aliases = parseVfsAliases(JSON.parse(await readFile(join(dir, VFS_ALIASES_FILE), 'utf8')));
+    for (const f of await filesUnder(dir, 'world/maps')) expect(parseMap(await data.vfs.read(stub(f))).tilesetId, f).toBe(0);
+    for (const kind of kinds.kinds) {
+      for (const name of kind.sectors) {
+        const path = `world/maps/${sectorMapFile(name)}`;
+        if (path === `world/maps/${kind.map}.dat`) continue;
+        expect(aliases.get(path), name).toBe(`world/maps/${kind.map}.dat`);
+        expect(parseMap(await data.vfs.read(stub(path))).placements.length, name).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('loads every stub profile with its stub text where it speaks', async () => {
+    const profiles = await loadStubProfiles(
+      (path) => data.vfs.read(stub(path.replace(/^stubs\//, ''))),
+      () => 1,
+    );
+    const ids = profiles.flatMap((p, id) => (p ? [id] : []));
+    expect(ids.filter((id) => id < 40)).toHaveLength(12);
+    expect(ids.filter((id) => id >= 160)).toEqual([160, 161, 162, 163]);
+    for (const id of [97, 106, 113, 124, 125, 126, 130, 147, 148, 151, 152, 154, 156, 157, 158])
+      expect(data.vfs.stat(stub(`npcdata/${String(id).padStart(3, '0')}.edt`)), String(id)).toBeDefined();
   });
 
   it('keeps the media small', async () => {

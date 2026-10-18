@@ -1,0 +1,73 @@
+ja2-node.map/1
+name: Stub camp (an army camp: a SAM launcher in a ring of barricades, barracks, a store; SAM sites and garrisons)
+tileset: 0
+origin: 64 58
+fill: land FIRSTTEXTURE 1
+legend '.': land FIRSTTEXTURE 1
+legend ':': land FIRSTTEXTURE 2
+legend ',': land SECONDTEXTURE 1
+legend '=': land THIRDTEXTURE 1
+legend 'b': land SECONDTEXTURE 2; structs FIRSTOSTRUCT 1
+legend 's': land SECONDTEXTURE 1; structs SECONDOSTRUCT 1
+legend 'S': land SECONDTEXTURE 1; structs SECONDOSTRUCT 2
+legend '_': land FIRSTFLOOR 1; roofs SECONDROOF 1; room 1
+legend 'B': land FIRSTFLOOR 1; structs SECONDWALL 1; roofs SECONDROOF 1; room 1
+legend 'K': land FIRSTFLOOR 1; structs SECONDWALL 2; roofs SECONDROOF 1; room 1
+legend 'J': land FIRSTFLOOR 1; structs SECONDWALL 1; structs SECONDWALL 2; roofs SECONDROOF 1; room 1
+legend 'W': land FIRSTFLOOR 1; structs SECONDWALL 3; roofs SECONDROOF 1; room 1
+legend 'V': land FIRSTFLOOR 1; structs SECONDWALL 5; roofs SECONDROOF 1; room 1
+legend 'D': land FIRSTFLOOR 1; structs FIRSTDOOR 1; roofs SECONDROOF 1; room 1
+legend 'P': land FIRSTFLOOR 1; structs FIRSTDOOR 3; roofs SECONDROOF 1; room 1
+legend 't': land FIRSTTEXTURE 1; structs SECONDWALL 1
+legend 'w': land FIRSTTEXTURE 1; structs SECONDWALL 2
+legend 'o': land FIRSTTEXTURE 1; structs SECONDWALL 3
+legend 'y': land FIRSTTEXTURE 1; structs SECONDWALL 5
+legend 'd': land FIRSTTEXTURE 1; structs FIRSTDOOR 1
+legend 'p': land FIRSTTEXTURE 1; structs FIRSTDOOR 3
+entry: north 14 0
+entry: east 31 9
+entry: south 14 19
+entry: west 0 9
+entry: center 14 9
+light: 15 10 L-R05.LHT NIGHT
+soldier: ENEMY 21 4 SOUTH STATIONARY DEFENSIVE ARMY
+soldier: ENEMY 26 4 WEST STATIONARY DEFENSIVE ARMY
+soldier: ENEMY 21 6 EAST ONGUARD BRAVESOLO ELITE
+soldier: ENEMY 27 6 NORTH ONGUARD CUNNINGSOLO ARMY
+soldier: ENEMY 17 8 SOUTH ONGUARD AGGRESSIVE ARMY
+soldier: ENEMY 6 8 SOUTH ONGUARD DEFENSIVE ADMINISTRATOR
+soldier: ENEMY 17 15 WEST ONGUARD DEFENSIVE ADMINISTRATOR
+soldier: ENEMY 12 11 EAST CLOSEPATROL BRAVEAID ELITE
+soldier: ENEMY 16 1 SOUTH ONGUARD DEFENSIVE ARMY optional
+soldier: ENEMY 30 9 WEST FARPATROL AGGRESSIVE ARMY optional
+soldier: ENEMY 1 10 EAST FARPATROL BRAVESOLO ARMY optional
+soldier: ENEMY 16 18 NORTH ONGUARD CUNNINGAID ARMY optional
+soldier: ENEMY 10 3 SOUTHEAST STATIONARY DEFENSIVE ARMY optional
+soldier: ENEMY 29 4 WEST ONGUARD AGGRESSIVE ARMY optional
+soldier: ENEMY 4 15 NORTHEAST CLOSEPATROL DEFENSIVE ADMINISTRATOR optional
+soldier: ENEMY 11 17 NORTH ONGUARD BRAVEAID ADMINISTRATOR optional
+soldier: ENEMY 28 15 WEST STATIONARY DEFENSIVE ADMINISTRATOR optional
+soldier: ENEMY 24 11 NORTH SEEKENEMY AGGRESSIVE ELITE optional
+soldier: ENEMY 7 9 EAST ONGUARD CUNNINGSOLO ELITE optional
+soldier: ENEMY 19 0 SOUTH ONGUARD BRAVESOLO ELITE optional
+map:
+..............==................
+...tttttt.....==...........:....
+.:w_____K.....==...SSSSSSSSSS...
+..w_____K.....==...S........S...
+..w_____V.....==...,..,b,,..S...
+..w_____K.....==...S..,,b,..S...
+..wBBDBBJ.....==...S........S...
+..............==...ssss,sssss...
+..............==................
+================================
+================================
+..............==................
+..............==....ttttttt..b..
+..bb..........==...w______K.....
+..............==...p______K.....
+..............==...w______K.....
+.........bb...==...wBBBBBBJ.....
+..............==..............:.
+....:.........==................
+..............==................
