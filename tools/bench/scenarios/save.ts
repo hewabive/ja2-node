@@ -2,7 +2,7 @@ import { readdirSync, statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createCampaignSession } from '../../../src/server/campaign-factory.ts';
-import { ContentLedger } from '../../../src/server/content-identity.ts';
+import type { LogicIdentity } from '../../../src/server/content-identity.ts';
 import { encodeSaveFile, inflateSave, parseSaveText, snapshotOf } from '../../../src/server/save-file.ts';
 import { SaveService } from '../../../src/server/save-service.ts';
 import { createSaveSession } from '../../../src/server/save-session.ts';
@@ -36,15 +36,20 @@ function elapsed(t0: number): number {
   return performance.now() - t0;
 }
 
+const BENCH_RULES = 'bench';
+
+function identity(ctx: BenchContext): LogicIdentity {
+  return { source: ctx.data.source, hash: BENCH_RULES, legacyHash: async () => BENCH_RULES };
+}
+
 function service(ctx: BenchContext): SaveService {
-  const ledger = new ContentLedger(ctx.data.source, ctx.data.read, (path) => ctx.data.exists(path));
   return new SaveService({
     store: new SaveStore(UNUSED_DIR),
-    ledger,
+    identity: identity(ctx),
     dataVersion: ctx.data.source === 'stubs' ? 'stubs' : 'english',
     engine: { version: 'bench', commit: 'bench' },
     now: () => new Date(SAVED_AT),
-    restore: (snapshot) => restoreSession(snapshot, ledger.read, ledger.exists, { layers: ctx.data.layers }),
+    restore: (snapshot) => restoreSession(snapshot, ctx.data.read, (path) => ctx.data.exists(path), { layers: ctx.data.layers }),
   });
 }
 
@@ -52,7 +57,7 @@ function bench(ctx: BenchContext, session: Session, s: SaveService): SaveBench {
   return {
     session,
     service: s,
-    restore: (snapshot) => restoreSession(snapshot, s.ledger.read, s.ledger.exists, { layers: ctx.data.layers }),
+    restore: (snapshot) => restoreSession(snapshot, ctx.data.read, (path) => ctx.data.exists(path), { layers: ctx.data.layers }),
   };
 }
 
@@ -151,8 +156,8 @@ export async function save(ctx: BenchContext): Promise<void> {
   await measure(
     ctx,
     SAVE,
-    variant(ctx, 'campaign-landed', { campaign: 'new campaign, squad landed' }, async (s) => {
-      const sim = await createCampaignSession(s.ledger.read, s.ledger.exists, ctx.seed, {}, ctx.data.layers);
+    variant(ctx, 'campaign-landed', { campaign: 'new campaign, squad landed' }, async () => {
+      const sim = await createCampaignSession(ctx.data.read, (path) => ctx.data.exists(path), ctx.seed, {}, ctx.data.layers);
       return new Session('save-campaign', sim);
     }),
   );
@@ -161,9 +166,9 @@ export async function save(ctx: BenchContext): Promise<void> {
   await measure(
     ctx,
     SAVE,
-    variant(ctx, 'native-import', { save: 'largest native save of the SavedGames folder' }, async (s) => {
+    variant(ctx, 'native-import', { save: 'largest native save of the SavedGames folder' }, async () => {
       const bytes = new Uint8Array(await readFile(native));
-      const { session } = await createSaveSession(s.ledger.read, bytes, ctx.seed, s.ledger.exists, ctx.data.layers);
+      const { session } = await createSaveSession(ctx.data.read, bytes, ctx.seed, (path) => ctx.data.exists(path), ctx.data.layers);
       return new Session('save-import', session);
     }),
   );

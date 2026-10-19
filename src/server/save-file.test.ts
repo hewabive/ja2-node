@@ -61,13 +61,19 @@ function saveFile(version = SAVE_VERSION): SaveFile {
     version,
     header: HEADER,
     session: { kind: 'campaign', origin: 'new campaign seed 1', tick: 900, preparedMaps: ['stubs/world/maps/a9.dat'] },
-    contentFiles: [
-      ['binarydata/prof.dat', 'f'],
-      ['npcdata/000.npc', 'm'],
-    ],
     sim: SIM,
     presentation: EMPTY_PRESENTATION,
   };
+}
+
+const LEGACY_FILES = [
+  ['binarydata/prof.dat', 'f'],
+  ['npcdata/000.npc', 'm'],
+] as const;
+
+function versionOneFile(): Record<string, unknown> {
+  const { sim, presentation, ...head } = saveFile(1);
+  return { ...head, contentFiles: LEGACY_FILES, sim, presentation };
 }
 
 function problemOf(work: () => unknown): string {
@@ -86,7 +92,7 @@ describe('save files', () => {
     const { text, digest } = inflateSave(encoded.bytes);
     expect(digest).toBe(encoded.digest);
     expect(JSON.parse(text)).toEqual(saveFile());
-    expect(Object.keys(JSON.parse(text))).toEqual(['format', 'version', 'header', 'session', 'contentFiles', 'sim', 'presentation']);
+    expect(Object.keys(JSON.parse(text))).toEqual(['format', 'version', 'header', 'session', 'sim', 'presentation']);
     expect(parseSaveText(text)).toEqual(saveFile());
     expect(encoded.bytes.length).toBeGreaterThan(HEAD_PREFIX_BYTES * 10);
     expect(readSaveHead(encoded.bytes.subarray(0, HEAD_PREFIX_BYTES))).toEqual({
@@ -109,7 +115,7 @@ describe('save files', () => {
   });
 
   it('migrates older versions through the chain and refuses newer ones', () => {
-    const v1 = JSON.parse(inflateSave(encodeSaveFile(saveFile(1)).bytes).text);
+    const v1 = JSON.parse(JSON.stringify(versionOneFile()));
     const migrated = migrateSaveFile(v1, {
       current: 3,
       migrations: {
@@ -120,7 +126,8 @@ describe('save files', () => {
     expect(migrated.version).toBe(3);
     expect(migrated.presentation.music.mode).toBe('battle');
     expect(migrated.header.description).toBe('migrated');
-    expect(migrateSaveFile(v1)).toEqual(saveFile(1));
+    expect(migrateSaveFile(v1)).toEqual({ ...saveFile(SAVE_VERSION), legacyContent: { files: LEGACY_FILES } });
+    expect(problemOf(() => migrateSaveFile({ ...v1, contentFiles: undefined }))).toBe('corrupt');
     expect(problemOf(() => migrateSaveFile(v1, { current: 2, migrations: {} }))).toBe('noMigration');
     expect(problemOf(() => migrateSaveFile({ ...v1, version: SAVE_VERSION + 1 }))).toBe('versionTooNew');
     expect(problemOf(() => readSaveHead(encodeSaveFile(saveFile(SAVE_VERSION + 1)).bytes))).toBe('none');

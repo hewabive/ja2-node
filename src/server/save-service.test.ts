@@ -1,6 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { syntheticSaveHeaderBytes } from '../../tests/support/native-save.ts';
 import { battleSandbox, ourTurn } from '../../tests/support/save-scenarios.ts';
@@ -10,6 +11,7 @@ import { PRE_RANDOM_RING_SIZE } from '../core/rng.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { CampaignSession } from './campaign-session.ts';
+import type { ContentFileEntry } from './content-identity.ts';
 import { decodeInputLog } from './input-log.ts';
 import type { TacticalSession } from './sandbox.ts';
 import { encodeSaveFile, inflateSave, parseSaveText, SAVE_VERSION, type SaveFile, snapshotText } from './save-file.ts';
@@ -57,6 +59,19 @@ async function storedFile(k: SaveKit, name: string): Promise<SaveFile> {
   const bytes = await k.store.read(name);
   if (!bytes) throw new Error(`no save ${name}`);
   return parseSaveText(inflateSave(bytes).text);
+}
+
+async function writeVersionOne(k: SaveKit, from: string, to: string, files: readonly ContentFileEntry[], logic: string): Promise<void> {
+  const file = await storedFile(k, from);
+  const header = { ...file.header, content: { ...file.header.content, logic } };
+  const head = `{"format":${JSON.stringify(file.format)},"version":1,"header":${JSON.stringify(header)},\n`;
+  const parts = [
+    `"session":${JSON.stringify(file.session)}`,
+    `"contentFiles":${JSON.stringify(files)}`,
+    `"sim":${JSON.stringify(file.sim)}`,
+  ];
+  const body = `${[...parts, `"presentation":${JSON.stringify(file.presentation)}`].join(',')}}`;
+  await k.store.write(to, { bytes: gzipSync(head + body), log: null, backups: false });
 }
 
 async function rewrite(k: SaveKit, from: string, to: string, change: (file: SaveFile) => SaveFile): Promise<void> {
@@ -211,11 +226,17 @@ describe('saves and loads on the stub pack', () => {
           ...f,
           header: { ...f.header, content: { ...f.header.content, source: 'original' } },
         }));
-        await rewrite(k, 'base', 'files', (f) => ({ ...f, contentFiles: [...f.contentFiles, ['maps/a9.dat', 'f']] }));
+        const legacyFiles: ContentFileEntry[] = [
+          ['tables/tiles.json', 'f'],
+          ['npcdata/199.npc', 'm'],
+          ['stubs/world/maps/village.dat', 'f'],
+        ];
+        const legacyHash = await k.identity.legacyHash(legacyFiles);
+        await writeVersionOne(k, 'base', 'version1', legacyFiles, legacyHash);
+        await writeVersionOne(k, 'base', 'files', [...legacyFiles, ['stubs/world/maps/a9.dat', 'f']], legacyHash);
         await rewrite(k, 'base', 'newer', (f) => ({ ...f, version: SAVE_VERSION + 1 }));
         await rewrite(k, 'base', 'text', (f) => ({ ...f, header: { ...f.header, content: { ...f.header.content, text: 'other' } } }));
         await rewrite(k, 'base', 'engine', (f) => ({ ...f, header: { ...f.header, engine: { version: '9.9.9', commit: 'zzz' } } }));
-        await rewrite(k, 'base', 'version1', (f) => ({ ...f, version: 1 }));
         expect(await loadProblem(k, 'logic')).toBe('contentMismatch');
         expect(await loadProblem(k, 'source')).toBe('contentMismatch');
         expect(await loadProblem(k, 'files')).toBe('contentMismatch');

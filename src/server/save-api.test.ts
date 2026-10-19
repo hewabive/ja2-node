@@ -5,7 +5,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
-import { createSaveKit, type SaveKit } from '../../tests/support/saves.ts';
+import { createSaveKit, type SaveKit, TEST_ENGINE } from '../../tests/support/saves.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { Vfs } from '../content/vfs/vfs.ts';
 import type { ServerMessage } from '../protocol/messages.ts';
@@ -167,7 +167,12 @@ describe('save API', () => {
         ws.send(JSON.stringify({ t: 'load', id: 3, name: 'ws', reseed: false }));
         expect(await until((m) => m.t === 'result' && m.id === 3)).toMatchObject({ ok: true, data: { name: 'ws', seed: null } });
         expect(inbox.find((m) => m.t === 'stopped')).toMatchObject({ report: { reason: 'loaded' } });
-        expect(inbox.find((m) => m.t === 'welcome')).toMatchObject({ session: 'sandbox', driver: { mode: 'manual' } });
+        expect(inbox.find((m) => m.t === 'welcome')).toMatchObject({
+          session: 'sandbox',
+          driver: { mode: 'manual' },
+          engine: TEST_ENGINE,
+          rules: { pack: k.pack.hash, scripts: k.pack.scriptsHash },
+        });
         expect(sandbox.driver).toEqual({ mode: 'manual' });
         ws.send(JSON.stringify({ t: 'load', id: 4, name: 'nothing' }));
         expect(await until((m) => m.t === 'result' && m.id === 4)).toMatchObject({ ok: false, reason: 'notFound' });

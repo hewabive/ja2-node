@@ -78,6 +78,10 @@ describe(`saves written by ${LEGACY_VERSION} on the stub pack`, () => {
         session.advance({ ticks: TICKS_AFTER_MOVE });
         expect(soldiers(session)).toEqual(run.after400);
         expect(session.sim.tick).toBe(run.tick);
+        const resaved = await saves.saves.save(session, { name: `${name}-again` });
+        expect(resaved).toMatchObject({ ok: true, header: { content: { source: 'stubs', logic: saves.pack.hash } } });
+        const again = await saves.open({ load: `${name}-again`, reseed: false });
+        expect(soldiers(again)).toEqual(run.after400);
       },
       TEST_TIMEOUT_MS,
     );

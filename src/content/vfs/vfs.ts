@@ -9,6 +9,7 @@ export interface VfsLayer {
   readonly name: string;
   entries(): Iterable<VfsLayerEntry>;
   read(path: string, start: number, end: number): Promise<Uint8Array<ArrayBuffer>>;
+  stamp?(path: string): string | null;
 }
 
 export interface VfsFileInfo {
@@ -50,6 +51,11 @@ export class Vfs {
 
   list(): VfsFileInfo[] {
     return [...this.#index.values()].map((v) => v.info).sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  }
+
+  stamp(path: string): string | null {
+    const hit = this.#index.get(normalizeVfsPath(path));
+    return hit?.layer.stamp?.(hit.info.path) ?? null;
   }
 
   async read(path: string, start = 0, end?: number): Promise<Uint8Array<ArrayBuffer>> {

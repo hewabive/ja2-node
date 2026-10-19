@@ -7,7 +7,8 @@ import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR, REPO_ROOT } from '../node/repo.ts'
 import { loadOrCreateToken } from '../node/token.ts';
 import { createApp } from './app.ts';
 import { chooseDisplayLanguage, detectDataVersion, LANGUAGE_ENV } from './data-version.ts';
-import { createSaveEnvironment, saveDirsEnv } from './save-environment.ts';
+import { cacheDirFromEnv, openRulePack } from './rule-pack.ts';
+import { contentSourceOf, createSaveEnvironment, saveDirsEnv } from './save-environment.ts';
 import { createSessionFactory } from './session-factory.ts';
 import { type HostFactory, inProcessHostFactory, type SessionHost, sessionHostKind } from './session-host.ts';
 import { SliceScheduler } from './slicing.ts';
@@ -32,8 +33,11 @@ const clientDir = join(REPO_ROOT, 'dist/client');
 const sessions = new Map<string, SessionHost>();
 const defaultSession = 'sandbox';
 const scheduler = new SliceScheduler();
-const { store, saves, sources, engine } = createSaveEnvironment({
+const cacheDir = cacheDirFromEnv();
+const rules = await openRulePack({ vfs: data.vfs, source: contentSourceOf(data.dataDir), cacheDir });
+const { store, saves, sources, engine, welcome } = createSaveEnvironment({
   vfs: data.vfs,
+  pack: rules.pack,
   dataDir: data.dataDir,
   dataVersion: dataVersion.version,
   decoding,
@@ -45,11 +49,12 @@ const workerConfig = {
   text: sessionText,
   engine,
   env: saveDirsEnv(store),
+  cacheDir,
 };
 const createSession: HostFactory =
   hostKind === 'worker'
     ? workerHostFactory(workerConfig)
-    : inProcessHostFactory(createSessionFactory({ ...sources, text: sessionText, saves }), saves, scheduler);
+    : inProcessHostFactory(createSessionFactory({ ...sources, text: sessionText, saves, identity: welcome }), saves, scheduler);
 try {
   const seed = Number(process.env.JA2_SEED ?? 1);
   const save = process.env.JA2_SAVE;
@@ -80,6 +85,9 @@ const server = serve({ fetch: app.fetch, hostname: host, port }, (addr) => {
   console.log(`  data version: ${dataVersion.version} (${dataVersion.source}), display language: ${defaultLanguage}`);
   if (dataVersion.warning) console.log(`  warning: ${dataVersion.warning}`);
   console.log(`  files in VFS: ${data.vfs.size}`);
+  console.log(
+    `  rule pack: ${rules.pack.hash.slice(0, 16)}, ${rules.pack.manifest.files.length} files (${rules.cached ? 'cached' : 'built'} in ${rules.dir ?? 'memory'})`,
+  );
   if (sandbox) console.log(`  sandbox: ${String(sandbox.map)}, ${String(sandbox.soldiers)} visible soldiers`);
   console.log(`  sessions: ${hostKind === 'worker' ? 'one worker thread each' : 'in process, time-sliced'} (JA2_SESSION_HOST)`);
   console.log(`  saves: ${store.dir}${store.nativeDir ? `, native saves: ${store.nativeDir}` : ''}`);

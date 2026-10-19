@@ -10,6 +10,7 @@ import type { ReadFile } from '../world/tileset-loader.ts';
 import type { FrameGeometry } from '../world/zstrip.ts';
 
 export const GRAPHIC_FACTS_PREFIX = '@rules/graphics/';
+export const GRAPHIC_FACTS_VERSION = 1;
 const GRAPHIC_FACTS_SUFFIX = '.json';
 
 export type GraphicFacts =
