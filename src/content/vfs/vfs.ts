@@ -9,6 +9,7 @@ export interface VfsLayer {
   readonly name: string;
   entries(): Iterable<VfsLayerEntry>;
   read(path: string, start: number, end: number): Promise<Uint8Array<ArrayBuffer>>;
+  stamp?(path: string): string | null;
 }
 
 export interface VfsFileInfo {
@@ -52,6 +53,11 @@ export class Vfs {
     return [...this.#index.values()].map((v) => v.info).sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   }
 
+  stamp(path: string): string | null {
+    const hit = this.#index.get(normalizeVfsPath(path));
+    return hit?.layer.stamp?.(hit.info.path) ?? null;
+  }
+
   async read(path: string, start = 0, end?: number): Promise<Uint8Array<ArrayBuffer>> {
     const hit = this.#index.get(normalizeVfsPath(path));
     if (!hit) throw new VfsNotFoundError(path);
@@ -59,6 +65,10 @@ export class Vfs {
     if (start < 0 || start > stop) throw new RangeError(`bad range [${start}, ${end}) for ${path}`);
     return hit.layer.read(hit.info.path, start, stop);
   }
+}
+
+export function vfsFileReader(vfs: Pick<Vfs, 'stat' | 'read'>): (path: string) => Promise<Uint8Array<ArrayBuffer> | null> {
+  return async (path) => (vfs.stat(path) ? vfs.read(path) : null);
 }
 
 export class VfsNotFoundError extends Error {

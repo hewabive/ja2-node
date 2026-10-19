@@ -1,5 +1,5 @@
-import { scriptLoops } from '../../content/anim/script.ts';
 import { AnimFlags } from '../../content/anim/tables.ts';
+import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
 import { MapFlags } from '../../content/formats/map.ts';
 import { handClass, ItemClass, ItemCursor, NOTHING } from '../../content/items/items.ts';
 import { isVisibleTile } from '../../content/world/grid.ts';
@@ -363,7 +363,7 @@ export class TacticalSim {
     if (frozen) return false;
     return (
       !hasAnimFlag(content, s.state, AnimFlags.STATIONARY) ||
-      !scriptLoops(content.scripts, s.state) ||
+      !timelineLoops(content.timeline, s.state) ||
       hasAnimFlag(content, s.state, AnimFlags.STANCECHANGEANIM) ||
       s.desiredDirection !== s.direction ||
       s.inNonInterruptibleAnimation ||
@@ -850,7 +850,7 @@ export class TacticalSim {
       .sort((a, b) => a - b);
   }
 
-  snapshot(filter: (s: Soldier) => boolean = () => true): SoldierSnapshot[] {
+  snapshot(presentation: PresentationTimeline, filter: (s: Soldier) => boolean = () => true): SoldierSnapshot[] {
     return this.state.soldiers
       .filter((s) => s?.placed && filter(s))
       .map((s) => ({
@@ -864,7 +864,7 @@ export class TacticalSim {
         level: s.level,
         direction: s.direction,
         animation: s.state,
-        frame: s.frame,
+        frame: spriteFrameAt(presentation, s.frameSlot),
         palettes: [s.palettes.hair, s.palettes.skin, s.palettes.vest, s.palettes.pants] as const,
         hand: handClass(this.state.content.items, itemIn(s.inv, InvSlot.HAND)),
         ...(s.team === Team.OUR

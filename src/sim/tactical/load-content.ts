@@ -1,8 +1,8 @@
 import { CORPSES_TABLE_PATH, loadCorpseContent } from '../../content/anim/corpses.ts';
 import { loadAnimStructures } from '../../content/anim/structures.ts';
 import { ANIM_CONTROL_PATH, ANIM_SURFACES_PATH, parseAnimationTables } from '../../content/anim/tables.ts';
+import { requireAnimationTimelines } from '../../content/anim/timelines.ts';
 import { FormatError } from '../../content/binary/errors.ts';
-import { ANIMATION_SCRIPTS_PATH, parseAnimationScripts } from '../../content/formats/ja2bin.ts';
 import { decodeLockTable, emptyLockTable, LOCKS_PATH, type LockTable, STUB_LOCKS_PATH } from '../../content/formats/locks.ts';
 import { PROFILES_PATH, parseProfiles } from '../../content/formats/prof.ts';
 import { loadExplosionContent } from '../../content/items/explosions.ts';
@@ -19,8 +19,6 @@ export function parseMaterialArmour(json: unknown): number[] {
   return armour.map(Number);
 }
 
-export const STUB_ANIMATION_SCRIPTS_PATH = `stubs/${ANIMATION_SCRIPTS_PATH}`;
-
 async function json(read: ReadFile, path: string): Promise<unknown> {
   const bytes = await read(path);
   if (!bytes) throw new FormatError(`missing ${path}`);
@@ -33,8 +31,7 @@ async function loadLockTable(read: ReadFile): Promise<LockTable> {
 }
 
 export async function loadTacticalContent(read: ReadFile, decoding: DataDecoding = DEFAULT_DATA_DECODING): Promise<TacticalContent> {
-  const scriptBytes = (await read(ANIMATION_SCRIPTS_PATH)) ?? (await read(STUB_ANIMATION_SCRIPTS_PATH));
-  if (!scriptBytes) throw new FormatError(`missing ${ANIMATION_SCRIPTS_PATH} (and no stub pack)`);
+  const timelines = await requireAnimationTimelines(read);
   const [control, surfaces, items, profileBytes, animStructures, material, explosions, corpses, locks] = await Promise.all([
     json(read, ANIM_CONTROL_PATH),
     json(read, ANIM_SURFACES_PATH),
@@ -47,7 +44,7 @@ export async function loadTacticalContent(read: ReadFile, decoding: DataDecoding
     loadLockTable(read),
   ]);
   return {
-    scripts: parseAnimationScripts(scriptBytes),
+    timeline: timelines.logic,
     animations: parseAnimationTables(control, surfaces),
     animStructures,
     items,

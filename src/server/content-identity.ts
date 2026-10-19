@@ -5,15 +5,23 @@ import { join } from 'node:path';
 import { CIV_QUOTE_TEXT_SIZE, DIALOGUE_SIZE } from '../content/formats/edt.ts';
 import { civHintFile, civQuoteFile, DialogueTexts, dialogueFileCandidates } from '../content/narrative/dialogue-text.ts';
 import { CIV_QUOTE_SECTORS, NUM_CIV_QUOTES } from '../content/narrative/npc-constants.ts';
+import type { RulePack, RuleSource } from '../content/rules/pack.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import { REPO_ROOT } from '../node/repo.ts';
+import type { WelcomeIdentity } from '../protocol/messages.ts';
 import type { FileExists } from './world-cache.ts';
 
-export type ContentSource = 'original' | 'stubs';
+export type ContentSource = RuleSource;
 
 export interface EngineIdentity {
   readonly version: string;
   readonly commit: string;
+}
+
+export interface LogicIdentity {
+  readonly source: ContentSource;
+  readonly hash: string;
+  legacyHash(files: readonly ContentFileEntry[]): Promise<string>;
 }
 
 export interface ContentIdentityHeader {
@@ -121,6 +129,14 @@ export class ContentLedger {
     for (const [path, state] of files) lines.push(await this.#line(path, state));
     return sha256(lines.join('\n'));
   }
+}
+
+export function logicIdentityOf(pack: RulePack, legacy: ContentLedger): LogicIdentity {
+  return { source: pack.source, hash: pack.hash, legacyHash: (files) => legacy.logicHash(files) };
+}
+
+export function welcomeIdentityOf(engine: EngineIdentity, pack: RulePack): WelcomeIdentity {
+  return { engine, rules: { pack: pack.hash, scripts: pack.scriptsHash } };
 }
 
 const textHashes = new WeakMap<DialogueTexts, string>();

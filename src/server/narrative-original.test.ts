@@ -8,7 +8,9 @@ import { readSavedNpcRecords } from '../content/formats/savegame-npc.ts';
 import { civQuoteTextKey, DialogueTexts, npcDialogueFile } from '../content/narrative/dialogue-text.ts';
 import { CIV_QUOTE_SECTORS, CivQuote, civQuoteEntries, MINERS_CIV_QUOTE_INDEX } from '../content/narrative/npc-constants.ts';
 import { loadNpcRecordContent } from '../content/narrative/npc-records.ts';
+import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
 import { MercType } from '../content/strategic/economy-content.ts';
+import { vfsFileReader } from '../content/vfs/vfs.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
@@ -28,7 +30,7 @@ const CHOSEN_CIV_QUOTES = [
 
 describe.skipIf(!process.env.JA2_DATA_DIR)('NPC records and dialogue on the original data', () => {
   let data: DataVfs;
-  const read = async (p: string) => (data.vfs.stat(p) ? data.vfs.read(p) : null);
+  const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
 
   beforeAll(async () => {
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir });

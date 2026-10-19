@@ -3,8 +3,10 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { decodeEdtRecord, edtRecordWidth, edtRowCount } from '../content/formats/edt.ts';
 import { DialogueTexts, dialogueFileCandidates, type TextKey } from '../content/narrative/dialogue-text.ts';
+import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
 import { parseJsonc } from '../content/strategic/jsonc.ts';
 import { EDT_LAYOUTS_PATH, EdtLayouts } from '../content/text/edt-layouts.ts';
+import { vfsFileReader } from '../content/vfs/vfs.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import { detectDataVersion } from './data-version.ts';
@@ -25,7 +27,7 @@ async function bioRows(path: string): Promise<number> {
 describe.skipIf(!process.env.JA2_DATA_DIR)('text on the original data', () => {
   let data: DataVfs;
   let layouts: EdtLayouts;
-  const read = async (path: string) => (data.vfs.stat(path) ? data.vfs.read(path) : null);
+  const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
 
   beforeAll(async () => {
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: process.env.JA2_DATA_DIR });

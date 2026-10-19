@@ -11,7 +11,13 @@ export interface DirLayerOptions {
   readonly aliasFile?: string;
 }
 
-type DirFiles = Map<string, { abs: string; size: number }>;
+interface DirFile {
+  readonly abs: string;
+  readonly size: number;
+  readonly mtimeMs: number;
+}
+
+type DirFiles = Map<string, DirFile>;
 
 async function addAliases(files: DirFiles, prefix: string, aliasFile: string): Promise<void> {
   const manifest = files.get(joinVfsPath(prefix, aliasFile));
@@ -27,9 +33,9 @@ async function addAliases(files: DirFiles, prefix: string, aliasFile: string): P
 export class DirLayer implements VfsLayer {
   readonly name: string;
   readonly root: string;
-  readonly #files: Map<string, { abs: string; size: number }>;
+  readonly #files: DirFiles;
 
-  private constructor(name: string, root: string, files: Map<string, { abs: string; size: number }>) {
+  private constructor(name: string, root: string, files: DirFiles) {
     this.name = name;
     this.root = root;
     this.#files = files;
@@ -37,7 +43,7 @@ export class DirLayer implements VfsLayer {
 
   static async open(name: string, root: string, options: DirLayerOptions = {}): Promise<DirLayer> {
     const skip = new Set(options.skipExtensions ?? []);
-    const files = new Map<string, { abs: string; size: number }>();
+    const files: DirFiles = new Map();
     const walk = async (dir: string, rel: string): Promise<void> => {
       const items = await readdir(dir, { withFileTypes: true });
       items.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
@@ -49,7 +55,8 @@ export class DirLayer implements VfsLayer {
         } else if (it.isFile()) {
           const path = joinVfsPath(options.prefix ?? '', relPath);
           if (skip.has(vfsExtension(path)) || files.has(path)) continue;
-          files.set(path, { abs, size: (await stat(abs)).size });
+          const info = await stat(abs);
+          files.set(path, { abs, size: info.size, mtimeMs: info.mtimeMs });
         }
       }
     };
@@ -60,6 +67,11 @@ export class DirLayer implements VfsLayer {
 
   *entries(): Iterable<VfsLayerEntry> {
     for (const [path, f] of this.#files) yield { path, size: f.size };
+  }
+
+  stamp(path: string): string | null {
+    const f = this.#files.get(path);
+    return f ? [f.abs, f.size, f.mtimeMs].join('\t') : null;
   }
 
   async read(path: string, start: number, end: number): Promise<Uint8Array<ArrayBuffer>> {

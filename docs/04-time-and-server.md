@@ -299,6 +299,8 @@ and a 16-enemy turn costs 131 ms at the median and 274 ms at the 95th percentile
 - Consists of a `GameState`, a driver, subscribers and a command log.
 - Logic content is loaded once and shared by all sessions, read-only. As built (M7, §5.9) this holds for the default
   in-process host; the worker host loads the content once per session in its worker.
+- As built in M8 (U0b, §5.10) every session loads its logic content from the server's rule pack, never from the raw
+  data, and reads no graphic.
 
 ### 5.2. Protocol
 
@@ -324,7 +326,8 @@ type ServerMsg =
 
 As built (`src/protocol/messages.ts`, M2–M7): the client sends `hello {session?}`, `cmd {id, cmd}` (prompt answers are
 commands of type `answer`), `advance {id, until}`, `drive {id, driver}`, `save` and `load` (§6.22); the server answers
-with `welcome {session, view, driver}` (also after a load in place), `frames` (view diffs every 10 ticks with the events
+with `welcome {session, view, driver, engine: {version, commit}, rules: {pack, scripts}}` (also after a load in place;
+`engine` and `rules` since M8, §5.10), `frames` (view diffs every 10 ticks with the events
 of their tick, §4.4), `result {id, ok, reason?, data?}`, `stopped {id, report}` and `error`. Queries are commands that
 change nothing (`estimateAttack`, `quoteTrade`, `inventory`, …).
 
@@ -430,6 +433,33 @@ frames, snapshots, input logs and save files.
 The session also skips the frame views nobody receives: with no subscriber it still follows the music mode from the
 events at every frame point, but builds and diffs no view; the first subscriber's welcome becomes the base of the next
 diff.
+
+### 5.10. The rule pack and the assets (as built in M8, U0b)
+
+The game data splits into the **rule pack** (everything the simulation reads) and media (`28` §1.3, §2.5, §17.4).
+
+- **The rule pack** (`src/content/rules/pack.ts`, `src/server/rule-pack.ts`). At start the server builds the pack from
+  its VFS (original data or stubs) and caches it in `.ja2/cache/rules-<pack hash>/` (`JA2_CACHE_DIR` moves the cache;
+  `rules-index.json` finds it by a key over every VFS file's path, size, layer count and stamp, so a change of the data
+  rebuilds it). It holds the rule files (project tables, `ja2bin.dat`, `ja2set.dat`, `prof.dat`, `locks.bin`, maps,
+  structure files, NPC records, text files, the stub profiles) and the **graphic facts** (`@rules/graphics/<path>.json`:
+  the frame geometry and app data of the tileset surfaces and the explosion animations), and refuses every other path.
+  Sessions read their content through it, so the simulation never reads an STI file. Its hash (inputs by content hash,
+  text files by presence) is the logic hash of the content identity; its scripts' hash is the content hash of the
+  animation scripts. The animation scripts are split at load into a logic timeline the simulation steps and a
+  presentation timeline the views take the sprite frame from.
+- **`welcome`** carries `engine: {version, commit}` and `rules: {pack, scripts}`; a client compares them with its own
+  code and data (`src/app/rules/client-rules.ts`). `/api/health` names the pack too.
+- **`GET /api/assets/manifest`** → `{format: 'ja2-node-assets', version: 1, source, stubText, files}` with `[path, size,
+  hash]` per VFS file (`[path, size, hash, layers]` when the path is in several layers), `hash` = the first 16 hex digits
+  of the file's SHA-256; gzipped when the client accepts it, revalidated by ETag. Hashes are computed on demand and kept
+  in `.ja2/cache/vfs-hashes.json` by file stamp (SLF archive path, size and mtime plus entry offset and length; loose
+  files by path, size and mtime), so a restart reads no file again.
+- **`GET /vfs/@<hash>/<path>`** answers with `cache-control: private, max-age=31536000, immutable` when `<hash>` is the
+  file's current content hash, 404 when it is not (the client fetches the manifest again), 400 for a malformed hash;
+  ranges work as on `/vfs/<path>`. Plain **`/vfs/<path>`** stays for tools and agents: `cache-control: private,
+  no-cache` with the content hash as a strong ETag (before M8 the ETag changed at every server start). Both take the
+  token like every `/vfs` route.
 
 ---
 
@@ -971,9 +1001,9 @@ Stracciatella does for both Russian versions. The server default is `JA2_LANG`, 
 ### 6.22. Saves (M7)
 
 ja2-node's own save files (`docs/27` §1.3–§1.7): one `<name>.j2s` per save in `$JA2_SAVE_DIR` (default `.ja2/saves/`
-in the repository, gitignored), a gzip of one JSON document `{format: 'ja2-node-save', version, header, session,
-contentFiles, sim, presentation}` written as two gzip members, so the save list reads the header from the first few
-hundred bytes. Clients pass names, never paths: `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`; `QuickSave`, `Auto01`, `Auto02` and
+in the repository, gitignored), a gzip of one JSON document `{format: 'ja2-node-save', version, header, session, sim,
+presentation}` (version 2 since M8; a version 1 file also carries `contentFiles`, kept as `legacyContent` by the
+migration) written as two gzip members, so the save list reads the header from the first few hundred bytes. Clients pass names, never paths: `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`; `QuickSave`, `Auto01`, `Auto02` and
 `Error` are reserved. Native `.sav` files stay in `$JA2_SAVES_DIR` (`docs/14` §10) and are listed read only.
 
 - **MCP.** `save {session?, name?, description?}`: without `name` a new save `<UTC time>-<slug of the description>`
@@ -1020,9 +1050,11 @@ hundred bytes. Clients pass names, never paths: `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`
   is reseeded from a server seed (`crypto.randomInt`), returned as `seed` and logged as `reseed {seed}`; the `PreRandom`
   ring repeats its saved values until they are used up, as after a native reload. `reseed: false` is an exact load:
   the game continues bit for bit like the saved one (reproducible experiments, bug reports). A load checks the logic
-  content before anything is built: another content source (stubs against original data) or other files feeding the
-  simulation refuse it (`contentMismatch`); another data version or other quote lengths load with the warning
-  `dataVersionDiffers`, another engine version or commit with `engineDiffers`. The result carries `warnings`.
+  content before anything is built: another content source (stubs against original data) or another rule pack (§5.10;
+  a 0.7.0 save is checked by its own hash over the files it lists, read from the raw data) refuse it
+  (`contentMismatch`, also shown by `listSaves` for version 2 saves); another data version or other quote lengths load
+  with the warning `dataVersionDiffers`, another engine version or commit with `engineDiffers`. The result carries
+  `warnings`.
 - **Input log and replay.** Every save whose session has a known origin (a new sandbox or campaign with its seed and
   request, a native import with the file's digest, or the save it was loaded from) gets `<name>.log.jsonl.gz`: one
   JSON line for the origin, then `{seq, tick, kind, payload}` per input (`cmd`, `answer`, `advance`, `drive`, `reseed`,

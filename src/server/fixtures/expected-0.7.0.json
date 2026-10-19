@@ -1,0 +1,243 @@
+{
+  "campaign": {
+    "atSave": [
+      {
+        "id": 0,
+        "gridNo": 10637,
+        "animation": 6,
+        "frame": 1,
+        "direction": 4,
+        "life": 90,
+        "ap": 19
+      },
+      {
+        "id": 1,
+        "gridNo": 10477,
+        "animation": 6,
+        "frame": 1,
+        "direction": 3,
+        "life": 77,
+        "ap": 20
+      },
+      {
+        "id": 2,
+        "gridNo": 10636,
+        "animation": 6,
+        "frame": 1,
+        "direction": 4,
+        "life": 82,
+        "ap": 19
+      },
+      {
+        "id": 3,
+        "gridNo": 10638,
+        "animation": 6,
+        "frame": 1,
+        "direction": 4,
+        "life": 74,
+        "ap": 19
+      }
+    ],
+    "afterLoad": [
+      {
+        "id": 0,
+        "gridNo": 10637,
+        "animation": 6,
+        "frame": 1,
+        "direction": 4,
+        "life": 90,
+        "ap": 19
+      },
+      {
+        "id": 1,
+        "gridNo": 10477,
+        "animation": 6,
+        "frame": 1,
+        "direction": 3,
+        "life": 77,
+        "ap": 20
+      },
+      {
+        "id": 2,
+        "gridNo": 10636,
+        "animation": 6,
+        "frame": 1,
+        "direction": 4,
+        "life": 82,
+        "ap": 19
+      },
+      {
+        "id": 3,
+        "gridNo": 10638,
+        "animation": 6,
+        "frame": 1,
+        "direction": 4,
+        "life": 74,
+        "ap": 19
+      }
+    ],
+    "after400": [
+      {
+        "id": 0,
+        "gridNo": 11277,
+        "animation": 1,
+        "frame": 2,
+        "direction": 4,
+        "life": 90,
+        "ap": 19
+      },
+      {
+        "id": 1,
+        "gridNo": 11117,
+        "animation": 6,
+        "frame": 5,
+        "direction": 6,
+        "life": 77,
+        "ap": 20
+      },
+      {
+        "id": 2,
+        "gridNo": 11276,
+        "animation": 1,
+        "frame": 2,
+        "direction": 4,
+        "life": 82,
+        "ap": 19
+      },
+      {
+        "id": 3,
+        "gridNo": 11278,
+        "animation": 1,
+        "frame": 2,
+        "direction": 4,
+        "life": 74,
+        "ap": 19
+      }
+    ],
+    "tick": 420
+  },
+  "sandbox": {
+    "atSave": [
+      {
+        "id": 0,
+        "gridNo": 11600,
+        "animation": 6,
+        "frame": 1,
+        "direction": 4,
+        "life": 100,
+        "ap": 21
+      },
+      {
+        "id": 1,
+        "gridNo": 11440,
+        "animation": 6,
+        "frame": 1,
+        "direction": 3,
+        "life": 100,
+        "ap": 21
+      },
+      {
+        "id": 2,
+        "gridNo": 11599,
+        "animation": 6,
+        "frame": 1,
+        "direction": 4,
+        "life": 100,
+        "ap": 21
+      },
+      {
+        "id": 3,
+        "gridNo": 11601,
+        "animation": 6,
+        "frame": 1,
+        "direction": 4,
+        "life": 100,
+        "ap": 21
+      }
+    ],
+    "afterLoad": [
+      {
+        "id": 0,
+        "gridNo": 11600,
+        "animation": 6,
+        "frame": 1,
+        "direction": 4,
+        "life": 100,
+        "ap": 21
+      },
+      {
+        "id": 1,
+        "gridNo": 11440,
+        "animation": 6,
+        "frame": 1,
+        "direction": 3,
+        "life": 100,
+        "ap": 21
+      },
+      {
+        "id": 2,
+        "gridNo": 11599,
+        "animation": 6,
+        "frame": 1,
+        "direction": 4,
+        "life": 100,
+        "ap": 21
+      },
+      {
+        "id": 3,
+        "gridNo": 11601,
+        "animation": 6,
+        "frame": 1,
+        "direction": 4,
+        "life": 100,
+        "ap": 21
+      }
+    ],
+    "after400": [
+      {
+        "id": 0,
+        "gridNo": 11920,
+        "animation": 1,
+        "frame": 8,
+        "direction": 4,
+        "life": 100,
+        "ap": 25
+      },
+      {
+        "id": 1,
+        "gridNo": 11602,
+        "animation": 1,
+        "frame": 8,
+        "direction": 3,
+        "life": 100,
+        "ap": 25
+      },
+      {
+        "id": 2,
+        "gridNo": 11919,
+        "animation": 1,
+        "frame": 8,
+        "direction": 4,
+        "life": 100,
+        "ap": 25
+      },
+      {
+        "id": 3,
+        "gridNo": 11921,
+        "animation": 1,
+        "frame": 8,
+        "direction": 4,
+        "life": 100,
+        "ap": 25
+      },
+      {
+        "id": 20,
+        "gridNo": 16079,
+        "animation": 11,
+        "frame": 0,
+        "direction": 0
+      }
+    ],
+    "tick": 713
+  }
+}

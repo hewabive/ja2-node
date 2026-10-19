@@ -1,12 +1,15 @@
 import { dataDecoding } from '../src/content/text/data-version.ts';
 import type { DataVfs } from '../src/node/data-vfs.ts';
 import { detectDataVersion } from '../src/server/data-version.ts';
-import { createSaveEnvironment, replayStoredSave } from '../src/server/save-environment.ts';
+import { cacheDirFromEnv, openRulePack } from '../src/server/rule-pack.ts';
+import { contentSourceOf, createSaveEnvironment, replayStoredSave } from '../src/server/save-environment.ts';
 
 export async function runReplay(data: DataVfs, name: string): Promise<number> {
   const dataVersion = detectDataVersion(data.vfs, data.dataDir !== null, process.env);
+  const { pack } = await openRulePack({ vfs: data.vfs, source: contentSourceOf(data.dataDir), cacheDir: cacheDirFromEnv() });
   const environment = createSaveEnvironment({
     vfs: data.vfs,
+    pack,
     dataDir: data.dataDir,
     dataVersion: dataVersion.version,
     decoding: dataDecoding(dataVersion.version),

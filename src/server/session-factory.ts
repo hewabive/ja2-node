@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import type { LayerCount } from '../content/narrative/npc-records.ts';
 import type { DataDecoding } from '../content/text/data-version.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
+import type { WelcomeIdentity } from '../protocol/messages.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { LogOrigin } from './input-log.ts';
 import { createSandboxSession } from './sandbox.ts';
@@ -26,6 +27,7 @@ export interface SessionSources {
 export interface SessionFactoryOptions extends SessionSources {
   readonly text: SessionText;
   readonly saves: SaveService | null;
+  readonly identity?: WelcomeIdentity;
 }
 
 function digestOf(bytes: Uint8Array): string {
@@ -70,6 +72,7 @@ async function openLoad(saves: SaveService | null, name: string): Promise<Opened
 export function createSessionFactory(options: SessionFactoryOptions): SessionFactory {
   return async (id: string, request: SessionRequest): Promise<Session> => {
     const session = await createSession(options, id, request);
+    if (options.identity) session.identity = options.identity;
     if (request.language) session.language = request.language;
     return session;
   };

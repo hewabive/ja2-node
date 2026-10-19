@@ -7,6 +7,7 @@ import { dataDecoding } from '../content/text/data-version.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import { detectDataVersion } from './data-version.ts';
+import { openRulePack } from './rule-pack.ts';
 import { createSaveEnvironment, replayStoredSave, type SaveEnvironment } from './save-environment.ts';
 import { snapshotText } from './save-file.ts';
 import { sessionSnapshot } from './save-service.ts';
@@ -31,8 +32,10 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('ja2-node saves with the original dat
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir });
     saveDir = await mkdtemp(join(tmpdir(), 'ja2-original-saves-'));
     const version = detectDataVersion(data.vfs, true, process.env).version;
+    const { pack } = await openRulePack({ vfs: data.vfs, source: 'original', cacheDir: null });
     environment = createSaveEnvironment({
       vfs: data.vfs,
+      pack,
       dataDir,
       dataVersion: version,
       decoding: dataDecoding(version),

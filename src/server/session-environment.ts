@@ -1,7 +1,8 @@
 import { dataDecoding } from '../content/text/data-version.ts';
 import { openDataVfs } from '../node/data-vfs.ts';
 import type { EngineIdentity } from './content-identity.ts';
-import { createSaveEnvironment } from './save-environment.ts';
+import { openRulePack } from './rule-pack.ts';
+import { contentSourceOf, createSaveEnvironment } from './save-environment.ts';
 import type { SaveService } from './save-service.ts';
 import type { SessionText } from './session.ts';
 import { createSessionFactory } from './session-factory.ts';
@@ -19,6 +20,7 @@ export interface SessionEnvironmentConfig {
   readonly text: SessionText;
   readonly engine: EngineIdentity;
   readonly env: Readonly<Record<string, string>>;
+  readonly cacheDir?: string | null;
 }
 
 export interface SessionEnvironment {
@@ -35,8 +37,10 @@ export async function openSessionEnvironment(
   const scheduler = new SliceScheduler();
   try {
     const dataVersion = config.text.dataVersion;
+    const { pack } = await openRulePack({ vfs: data.vfs, source: contentSourceOf(data.dataDir), cacheDir: config.cacheDir ?? null });
     const environment = createSaveEnvironment({
       vfs: data.vfs,
+      pack,
       dataDir: data.dataDir,
       dataVersion,
       decoding: dataDecoding(dataVersion),
@@ -44,7 +48,12 @@ export async function openSessionEnvironment(
       engine: config.engine,
       warn,
     });
-    const factory = createSessionFactory({ ...environment.sources, text: config.text, saves: environment.saves });
+    const factory = createSessionFactory({
+      ...environment.sources,
+      text: config.text,
+      saves: environment.saves,
+      identity: environment.welcome,
+    });
     return {
       createHost: inProcessHostFactory(factory, environment.saves, scheduler),
       saves: environment.saves,

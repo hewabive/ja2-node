@@ -34,7 +34,7 @@ type Step = { readonly command: CommandEnvelope } | { readonly until: StopCondit
 async function sessionsAtTheMapScreen(): Promise<{ readonly original: CampaignSession; readonly restored: CampaignSession }> {
   const exists = (path: string) => kit.worlds.exists(path);
   const built = await buildNewCampaign(kit.read, exists, () => createStrategicState({ seed: SEED }));
-  const original = new CampaignSession(built.campaign, built.roster, built.worlds, built.texts);
+  const original = new CampaignSession(built.campaign, built.parts.presentation, built.roster, built.worlds, built.texts);
   for (const profile of HIRED_PROFILES)
     expect(original.dispatch({ type: 'aimHire', profile, contract: DEFAULT_AIM_CONTRACT })).toMatchObject({ ok: true });
   expect(original.dispatch({ type: 'closeLaptop' })).toMatchObject({ ok: true });
@@ -43,7 +43,7 @@ async function sessionsAtTheMapScreen(): Promise<{ readonly original: CampaignSe
   expect(original.tick).toBe(MAP_SCREEN_TICKS);
   const copy = copyStrategicState(built.campaign.state);
   const assembled = assembleCampaign(kit.read, exists, built.parts, copy, { construction: 'restore' });
-  const restored = new CampaignSession(assembled.campaign, assembled.roster, assembled.worlds, built.texts);
+  const restored = new CampaignSession(assembled.campaign, built.parts.presentation, assembled.roster, assembled.worlds, built.texts);
   return { original, restored };
 }
 
@@ -88,7 +88,7 @@ describe('a tactical sim restored around its own state', () => {
     const interrupted = await createSandboxSession(kit.read, false, SEED);
     expect(advance(interrupted, { ticks: SANDBOX_TICKS })).toEqual(advance(uninterrupted, { ticks: SANDBOX_TICKS }));
     const state = interrupted.sim.state;
-    const restored = new TacticalSession(TacticalSim.restore(interrupted.sim.world, state));
+    const restored = new TacticalSession(TacticalSim.restore(interrupted.sim.world, state), interrupted.presentation);
     expect(restored.sim.state).toBe(state);
     expect(restored.tick).toBe(SANDBOX_TICKS);
     expect(restored.view()).toEqual(uninterrupted.view());

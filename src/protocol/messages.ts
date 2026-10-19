@@ -27,8 +27,35 @@ export type ClientMessage =
   | { readonly t: 'save'; readonly id: number; readonly name?: string; readonly description?: string }
   | { readonly t: 'load'; readonly id: number; readonly name: string; readonly reseed?: boolean };
 
+export interface EngineIdentityView {
+  readonly version: string;
+  readonly commit: string;
+}
+
+export interface RulePackIdentityView {
+  readonly pack: string;
+  readonly scripts: string;
+}
+
+export interface WelcomeIdentity {
+  readonly engine: EngineIdentityView;
+  readonly rules: RulePackIdentityView;
+}
+
+export const UNKNOWN_IDENTITY: WelcomeIdentity = {
+  engine: { version: 'unknown', commit: 'unknown' },
+  rules: { pack: 'unknown', scripts: 'unknown' },
+};
+
+export interface WelcomeMessage extends WelcomeIdentity {
+  readonly t: 'welcome';
+  readonly session: string;
+  readonly view: PlayerView;
+  readonly driver: DriverMode;
+}
+
 export type ServerMessage =
-  | { readonly t: 'welcome'; readonly session: string; readonly view: PlayerView; readonly driver: DriverMode }
+  | WelcomeMessage
   | { readonly t: 'frames'; readonly frames: readonly ViewFrame[] }
   | { readonly t: 'result'; readonly id: number; readonly ok: boolean; readonly reason?: string; readonly data?: unknown }
   | { readonly t: 'stopped'; readonly id: number; readonly report: SessionStopReport }

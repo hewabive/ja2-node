@@ -1924,6 +1924,93 @@ quantisation option of §3.11 and the sharp-bilinear fit of §2.6 are not built)
 screen's own constants until U1's layouts declare them, read through `UiAssets` (`src/app/game/ui-assets.ts`) with an
 injectable reader for U0b's `HttpVfsLayer`.
 
+#### U0b: data platform (2026-10-19)
+
+The data half of U0: the rule pack, the split animation scripts, the asset manifest with immutable URLs and the
+client's asset and rule modules (not wired into a page yet; the lead wires them after U0a). Every gate is unchanged:
+the oracle compare-all matches every probe and the 0.7.0 saves continue as they did.
+
+**Graphic facts** (`src/content/rules/graphic-facts.ts`). The logic loaders no longer decode STI files: the tileset
+geometry (`loadTileSurfaceGeometry`) and the explosion frame counts (`loadExplosionContent`) read
+`@rules/graphics/<graphic path>.json`, the frame offsets and widths, the app data and the kind of a graphic (indexed,
+RGB, stub sprite, not an STI, broken). The rule pack stores these files; `withGraphicFacts(read)` derives them on demand
+for callers that read the raw VFS (tests, the oracle tools, the benchmarks). The render path (`loadTileSurfaces`)
+still decodes the pictures.
+
+**The split scripts** (`src/content/anim/timelines.ts`). `splitAnimationScripts` turns `ja2bin.dat` into a
+**logic timeline** (per slot: frame, empty, opcode, jump, state transition, or an empty step for the sound-range codes
+no simulation handler acts on, at the same position so jumps and opcode skips are unchanged) and a **presentation
+timeline** (the sprite frame and the sound-range code per slot). `TacticalContent.timeline` replaces `scripts`; the
+soldier keeps `frameSlot`, the timeline slot of the frame it shows (`NO_FRAME_SLOT` before the first frame of a state,
+`OUTSIDE_SCRIPT_SLOT` past the script), instead of the sprite frame. Views derive `SoldierView.frame` from the
+presentation timeline the session hands to `tacticalPlayerView` (sessions take it from `loadAnimationTimelines(read)`,
+memoized per reader). The native save import maps the saved frame and code to the slot (`frameSlotOfSpriteFrame`);
+snapshot version 3 migrates version 2 snapshots the same way on restore. A test runs every sound-range code that the
+logic timeline leaves out through the simulation's opcode hooks and checks they return nothing and change nothing.
+
+**The rule pack** (`src/content/rules/pack.ts`, `families.ts`, `graphics.ts`, `rule-reader.ts`).
+
+| Part | Content |
+|---|---|
+| File families | `externalized/**.json`, `tables/**.json`; `binarydata/{ja2bin.dat, ja2set.dat, prof.dat, locks.bin}` under any root (the stub ones included); `maps/*.dat` under any root; every `.jsd`, `.npc` and `.edt`; `stubs/profiles.json` |
+| Graphic facts | one file per graphic the simulation takes numbers from: every tileset surface of every tileset under every map root (`ja2set.dat` × `tables/tiles.json`) and every explosion graphic of `externalized/explosion-animations.json` |
+| Layer counts | per rule file present in several VFS layers (the NPC record layering reads them) |
+| Hash | SHA-256 over lines `ja2-node-rules 1`, `source <original\|stubs>`, `f <path> <size> <hash>` per rule file, `p <path>` per text file (presence only: quote lengths stay the separate text identity, so a text change still only warns), `g <graphic> <size> <hash>` per graphic, `l <path> <count>`; `<hash>` is the first 16 hex digits of the file's SHA-256, the asset manifest's hash, so a client computes the pack hash from the manifest and three small rule files |
+| Scripts hash | the content hash of the animation scripts file the pack holds |
+| Read | `RulePack.read` / `exists` / `layers` answer from the pack and throw `NotARuleFileError` for any path outside the families and the facts; `liveRuleReader` does the same over any listing (the client) |
+| Size | original data: 4,548 entries (2,574 rule files, 1,974 facts), 118 MB, built in 1.9 s, loaded from the cache in 0.1 s; stubs: 477 entries, 29 MB, 0.3 s |
+
+`src/server/rule-pack.ts` builds the pack at start (`openRulePack`) into `.ja2/cache/rules-<pack hash>/` (`pack.json`:
+the source key and the manifest; `blobs/<sha256>`: the bytes) and finds it again through `.ja2/cache/rules-index.json`,
+keyed by a SHA-256 over the format, facts and family versions, the source and every VFS file's path, size, layer
+count and stamp (an SLF entry: archive path, size, mtime, offset, length; a loose file: path, size, mtime); any change
+of the data rebuilds it, a cached manifest is verified against its hash, and the four most recently used packs are
+kept. `JA2_CACHE_DIR` moves the cache. The server, the worker hosts and `pnpm cli replay` load the simulation's
+content only through the pack; tests build packs in memory.
+
+**Content identity and saves.** The logic hash of the content identity is the pack hash. Save version 2 drops the file
+list (`contentFiles`); the migration from version 1 keeps it as `legacyContent`, and such a save is checked by the
+0.7.0 hash over those files read from the raw data (`ContentLedger.logicHash`), so 0.7.0 saves keep loading; a
+re-save writes version 2. The save list flags a version 2 save of another pack as `contentMismatch` without reading
+its body. `src/server/fixtures/` holds a campaign and a sandbox save written by the code at 91a4365 on the stub pack
+with the views it showed; `legacy-save.test.ts` loads them and expects the same views 400 ticks later.
+
+**Manifest and immutable URLs** (`src/server/assets-manifest.ts`, `src/server/app.ts`, `src/protocol/assets.ts`).
+`GET /api/assets/manifest` → `{format: 'ja2-node-assets', version: 1, source, stubText, files: [[path, size, hash],
+…]}` (a fourth element when a path sits in several layers), gzipped when accepted, revalidated by ETag. `VfsHashes`
+hashes on demand and persists in `.ja2/cache/vfs-hashes.json` by stamp (entries of other data sets kept); the pack
+build seeds it. On the original data the first manifest takes 2.1 s (34,279 files) and 0.2 s after a restart; it is
+449 KB gzipped. `GET /vfs/@<hash>/<path>` answers with `cache-control: private, max-age=31536000, immutable` when the
+hash is current and 404 otherwise (400 for a malformed hash); plain `/vfs/<path>` sends the content hash as a strong
+ETag. Token rules are unchanged. `/api/health` names the rule pack.
+
+**`welcome`** carries `engine: {version, commit}` and `rules: {pack, scripts}` (`WelcomeIdentity`,
+`src/protocol/messages.ts`; set on each session by the session factory).
+
+**Client modules** (`src/app/assets/`, `src/app/rules/`).
+
+| Module | Content |
+|---|---|
+| `http-vfs-layer.ts` | `HttpVfsLayer implements VfsLayer` from the manifest; reads through `/vfs/@hash/path` (ranges with `Range`), 8–16 parallel requests (default 12), one fetch per file in flight shared by its readers, per-read `AbortSignal` (the fetch stops when its last reader leaves) and `abortAll`; `StaleAssetError` on a 404 (refetch the manifest); `fetchAssetManifest` |
+| `asset-source.ts` | `AssetSource` (the replaceable seam for the later local folder) and `HttpAssetSource`: the same `Vfs` class over the layer, the stub text fallback the server's `/vfs` has, `hashOf`, `read`, `readOptional` |
+| `asset-cache.ts` | `AssetCache`: values by (content hash, decoder name), LRU by bytes (256 MB), loads shared while in flight, raw bytes reused by decoders; `loadDecodedAsset` |
+| `preload.ts` | `preloadAssets(source, paths, {cache, signal, onProgress})` → loaded and missing paths, progress per file |
+| `client-rules.ts` | `clientRulePackIdentity` (the pack and scripts hashes from the manifest, SubtleCrypto by default) and `loadClientRules(source, welcome.rules)`: the check (`packMatches`, `scriptsMatch`, `onMismatch`) and a strict rule reader with live graphic facts, so `loadTacticalContent(rules.read)` and the world loader give the server's content |
+
+Tests: `graphic-facts.test.ts` (facts equal the decoded pictures' geometry on stubs and the original tilesets),
+`timelines.test.ts` (the split is faithful for the stub and the original scripts), `animation-timeline.test.ts`,
+`snapshot-migration.test.ts` (version 2 sprite frames), `pack.test.ts`, `rule-pack.test.ts` (every read and probe of
+a campaign, a sandbox and every map answered by the pack as by the data, on stubs and the original data; a campaign
+and a sandbox run while every graphic read throws; the disk cache, its reuse, its rebuild and its pruning),
+`legacy-save.test.ts`, `app.test.ts` (manifest, pinned URLs, persisted hashes), `src/app/assets/*.test.ts`,
+`client-rules.test.ts` (the client's pack hash equals the server's on stubs and the original data, the same world and
+tactical content through both readers) and `tests/e2e/assets.spec.ts` (the browser builds its source, reads a map
+through an immutable URL and computes the server's pack hash with SubtleCrypto).
+
+Open for the lead and later slices: wire `HttpAssetSource`, `AssetCache` and `loadClientRules` into the `/play` page
+after U0a; turning the client's rule reader into `TacticalContent` needs `app` → `sim` (U0a's import rule); U3 sends
+the frame slot (the logic position) instead of `frame` and lets the client follow the presentation timeline.
+
 ---
 
 ## 18. Decisions and open questions

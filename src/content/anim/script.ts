@@ -81,31 +81,3 @@ export function framesUntilStateChange(scripts: AnimationScripts, state: number,
   }
   return frames;
 }
-
-const END_OF_ANIMATION = 499;
-const loopCache = new WeakMap<AnimationScripts, Map<number, boolean>>();
-
-export function scriptLoops(scripts: AnimationScripts, state: number): boolean {
-  let cache = loopCache.get(scripts);
-  if (!cache) {
-    cache = new Map();
-    loopCache.set(scripts, cache);
-  }
-  const known = cache.get(state);
-  if (known !== undefined) return known;
-  const loops = computeScriptLoops(scripts, state);
-  cache.set(state, loops);
-  return loops;
-}
-
-function computeScriptLoops(scripts: AnimationScripts, state: number): boolean {
-  for (let pc = 0; pc < MAX_FRAMES_PER_ANIM; pc++) {
-    const raw = scriptCode(scripts, state, pc);
-    if (raw === 0) return false;
-    const c = classifyCode(raw);
-    if (c.kind === 'jump') return c.pc <= pc;
-    if (c.kind === 'state') return c.state === state;
-    if (c.kind === 'op' && c.code === END_OF_ANIMATION) return false;
-  }
-  return false;
-}

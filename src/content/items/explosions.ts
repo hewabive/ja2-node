@@ -3,7 +3,8 @@
 // @src src/externalized/ExplosionAnimationModel.cc, SmokeEffectModel.cc; DefaultContentManager.cc smoke effect ids;
 // @src src/game/TileEngine/Tile_Cache.cc ubNumFrames from the STI aux data. See docs/12 §10.1.
 
-import { decodeSti, isSti } from '../formats/sti.ts';
+import { animationFrameCount, readGraphicFacts } from '../rules/graphic-facts.ts';
+import type { ReadFile } from '../world/tileset-loader.ts';
 
 export const EXPLOSION_ANIMATIONS_PATH = 'externalized/explosion-animations.json';
 export const SMOKE_EFFECTS_PATH = 'externalized/smoke-effects.json';
@@ -89,21 +90,18 @@ export function parseExplosionContent(animations: unknown, smokeEffects: unknown
   };
 }
 
-export function stiFrameCount(bytes: Uint8Array | null): number | null {
-  if (!bytes || !isSti(bytes)) return null;
-  const sti = decodeSti(bytes, false);
-  if (sti.kind !== 'indexed') return 1;
-  return sti.appData?.[0]?.numberOfFrames ?? 1;
-}
-
-export async function loadExplosionContent(read: (path: string) => Promise<Uint8Array | null>): Promise<ExplosionContent> {
+export async function loadExplosionContent(read: ReadFile): Promise<ExplosionContent> {
   const json = async (path: string) => {
     const bytes = await read(path);
     if (!bytes) throw new Error(`missing ${path}`);
     return JSON.parse(new TextDecoder().decode(bytes)) as unknown;
   };
   const [animations, smokes] = await Promise.all([json(EXPLOSION_ANIMATIONS_PATH), json(SMOKE_EFFECTS_PATH)]);
-  const graphics = [...new Set((animations as Json[]).map((o) => str(o, 'graphics') ?? ''))];
-  const frames = new Map(await Promise.all(graphics.map(async (g) => [g, stiFrameCount(await read(g))] as const)));
+  const graphics = explosionGraphics(animations);
+  const frames = new Map(await Promise.all(graphics.map(async (g) => [g, animationFrameCount(await readGraphicFacts(read, g))] as const)));
   return parseExplosionContent(animations, smokes, (g) => frames.get(g) ?? null);
+}
+
+export function explosionGraphics(animations: unknown): string[] {
+  return [...new Set((animations as Json[]).map((o) => str(o, 'graphics') ?? ''))];
 }

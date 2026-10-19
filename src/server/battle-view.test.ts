@@ -39,7 +39,7 @@ function sessionWithInvasion(): CampaignSession {
   g.arrivalTime = worldTotalMinutes(c.state.clock) + 1;
   addStrategicEvent(c.state.queue, EventKind.GROUP_ARRIVAL, g.arrivalTime, g.id);
   advance(c, { ticks: 24_000 });
-  return new CampaignSession(c, roster);
+  return new CampaignSession(c, kit.sectors.timelines.presentation, roster);
 }
 
 describe('the battle view', () => {

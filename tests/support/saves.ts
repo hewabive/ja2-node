@@ -1,9 +1,11 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ContentLedger, type EngineIdentity } from '../../src/server/content-identity.ts';
+import type { RulePack } from '../../src/content/rules/pack.ts';
+import { type EngineIdentity, type LogicIdentity, logicIdentityOf, welcomeIdentityOf } from '../../src/server/content-identity.ts';
 import type { LogOrigin } from '../../src/server/input-log.ts';
 import { type OriginBuilder, replaySave } from '../../src/server/replay.ts';
+import { legacyContentLedger } from '../../src/server/save-environment.ts';
 import { SaveService } from '../../src/server/save-service.ts';
 import { SaveStore } from '../../src/server/save-store.ts';
 import { DEFAULT_SESSION_TEXT, type Session, type SessionSim } from '../../src/server/session.ts';
@@ -25,7 +27,8 @@ export interface SaveKitOptions {
 
 export interface SaveKit {
   readonly dir: string;
-  readonly ledger: ContentLedger;
+  readonly pack: RulePack;
+  readonly identity: LogicIdentity;
   readonly store: SaveStore;
   readonly saves: SaveService;
   readonly sources: SessionSources;
@@ -42,22 +45,23 @@ export interface SaveKit {
 
 export async function createSaveKit(kit: StubSectorKit, options: SaveKitOptions = {}): Promise<SaveKit> {
   const dir = await mkdtemp(join(tmpdir(), 'ja2-saves-'));
-  const ledger = new ContentLedger('stubs', kit.read, (path) => kit.worlds.exists(path));
+  const pack = await kit.rulePack();
+  const identity = logicIdentityOf(pack, legacyContentLedger(kit.vfs, pack));
   const store = new SaveStore(dir, options.nativeDir ?? null);
   const warnings: string[] = [];
   let tick = 0;
   const saves = new SaveService({
     store,
-    ledger,
+    identity,
     dataVersion: options.dataVersion ?? 'stubs',
     engine: TEST_ENGINE,
-    restore: (snapshot) => restoreSession(snapshot, ledger.read, ledger.exists),
+    restore: (snapshot) => restoreSession(snapshot, pack.read, pack.exists, { layers: pack.layers }),
     now: () => new Date(TEST_SAVED_AT.getTime() + 1000 * tick++),
     warn: (message) => warnings.push(message),
     ...(options.entropy ? { entropy: options.entropy } : {}),
   });
-  const sources: SessionSources = { read: ledger.read, exists: ledger.exists, originalData: false, store };
-  const factory = createSessionFactory({ ...sources, text: DEFAULT_SESSION_TEXT, saves });
+  const sources: SessionSources = { read: pack.read, exists: pack.exists, layers: pack.layers, originalData: false, store };
+  const factory = createSessionFactory({ ...sources, text: DEFAULT_SESSION_TEXT, saves, identity: welcomeIdentityOf(TEST_ENGINE, pack) });
   const sessions = new Map<string, Session>();
   const hosts = new Map<string, InProcessHost>();
   const scheduler = new SliceScheduler();
@@ -66,7 +70,8 @@ export async function createSaveKit(kit: StubSectorKit, options: SaveKitOptions 
   const build: OriginBuilder = (origin: LogOrigin): Promise<SessionSim> => simFromOrigin(sources, origin, saves);
   return {
     dir,
-    ledger,
+    pack,
+    identity,
     store,
     saves,
     sources,

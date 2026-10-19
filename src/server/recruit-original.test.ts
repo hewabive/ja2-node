@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
+import { vfsFileReader } from '../content/vfs/vfs.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
@@ -36,7 +38,7 @@ function addProfiledCivilian(c: CampaignSim, profile: number, at: number): numbe
 
 describe.skipIf(!process.env.JA2_DATA_DIR || !existsSync(save))('escorting the tourists on the original data', () => {
   let data: DataVfs;
-  const read = async (p: string) => (data.vfs.stat(p) ? data.vfs.read(p) : null);
+  const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
 
   beforeAll(async () => {
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir });

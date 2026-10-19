@@ -18,7 +18,8 @@ import type { SessionSim } from './session.ts';
 import type { SessionKind, SessionSnapshot } from './session-snapshot.ts';
 
 export const SAVE_FORMAT = 'ja2-node-save';
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
+export const RULE_PACK_SAVE_VERSION = 2;
 export const SAVE_EXTENSION = '.j2s';
 export const MAX_DESCRIPTION_CHARS = 46;
 export const MAX_SAVE_TEXT_BYTES = 512 * 1024 * 1024;
@@ -66,14 +67,18 @@ export interface SavePresentation {
   readonly music: { readonly mode: string; readonly previous: string };
 }
 
+export interface LegacyContentBinding {
+  readonly files: readonly ContentFileEntry[];
+}
+
 export interface SaveFile {
   readonly format: typeof SAVE_FORMAT;
   readonly version: number;
   readonly header: SaveHeader;
   readonly session: SaveSessionPart;
-  readonly contentFiles: readonly ContentFileEntry[];
   readonly sim: SimSnapshot;
   readonly presentation: SavePresentation;
+  readonly legacyContent?: LegacyContentBinding;
 }
 
 export interface SaveFileHead {
@@ -109,7 +114,17 @@ export class SaveFileError extends Error {
 
 export type SaveMigration = (file: Readonly<Record<string, unknown>>) => Record<string, unknown>;
 
-export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {};
+const LEGACY_CONTENT_FILES_KEY = 'contentFiles';
+
+function legacyContentBinding(file: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const { [LEGACY_CONTENT_FILES_KEY]: files, ...rest } = file;
+  if (!Array.isArray(files)) throw new SaveFileError('corrupt', 'the save has no content file list');
+  return { ...rest, legacyContent: { files } };
+}
+
+export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
+  1: legacyContentBinding,
+};
 
 export interface MigrationTable {
   readonly current: number;
@@ -134,9 +149,9 @@ function headLine(file: SaveFile): string {
 function bodyText(file: SaveFile): string {
   return [
     `"session":${JSON.stringify(file.session)}`,
-    `"contentFiles":${JSON.stringify(file.contentFiles)}`,
     `"sim":${JSON.stringify(file.sim)}`,
     `"presentation":${JSON.stringify(file.presentation)}`,
+    ...(file.legacyContent ? [`"legacyContent":${JSON.stringify(file.legacyContent)}`] : []),
   ]
     .join(',')
     .concat('}');
@@ -217,7 +232,8 @@ export function migrateSaveFile(raw: unknown, table: MigrationTable = DEFAULT_MI
   }
   for (const key of ['session', 'sim', 'presentation'])
     if (!isRecord(current[key])) throw new SaveFileError('corrupt', `the save has no ${key} part`);
-  if (!Array.isArray(current.contentFiles)) throw new SaveFileError('corrupt', 'the save has no content file list');
+  const legacy = current.legacyContent as Partial<LegacyContentBinding> | undefined;
+  if (legacy !== undefined && !Array.isArray(legacy.files)) throw new SaveFileError('corrupt', 'the save has a bad legacy content list');
   return current as unknown as SaveFile;
 }
 

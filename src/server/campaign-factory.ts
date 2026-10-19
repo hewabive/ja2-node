@@ -1,3 +1,4 @@
+import { type PresentationTimeline, requireAnimationTimelines } from '../content/anim/timelines.ts';
 import { loadStubProfiles } from '../content/formats/stub-profiles.ts';
 import type { DialogueTexts } from '../content/narrative/dialogue-text.ts';
 import type { LayerCount } from '../content/narrative/npc-records.ts';
@@ -132,6 +133,7 @@ function createImp(campaign: CampaignSim, content: LaptopContent, imp: Readonly<
 
 export interface CampaignParts {
   readonly content: TacticalContent;
+  readonly presentation: PresentationTimeline;
   readonly strategic: StrategicContent;
   readonly army: ArmyContent;
   readonly economy: EconomyContent;
@@ -201,10 +203,11 @@ export async function loadCampaignParts(
   layers?: LayerCount,
   decoding: DataDecoding = DEFAULT_DATA_DECODING,
 ): Promise<LoadedCampaignParts> {
-  const [baseContent, strategicContent, army] = await Promise.all([
+  const [baseContent, strategicContent, army, timelines] = await Promise.all([
     loadTacticalContent(read, decoding),
     loadStrategicContent(read),
     loadArmyContent(read),
+    requireAnimationTimelines(read),
   ]);
   const content = await withStubProfiles(read, baseContent);
   if (content.profiles.length === 0) throw new Error('no merc profiles: neither prof.dat nor the stub profiles were found');
@@ -215,6 +218,7 @@ export async function loadCampaignParts(
   const stubbed = content !== baseContent;
   const parts: CampaignParts = {
     content,
+    presentation: timelines.presentation,
     strategic: strategicContent,
     army,
     economy: economyContent,
@@ -257,7 +261,7 @@ export async function createCampaignSession(
   );
   hireSquad(campaign, request, stubbed);
   if (request.imp) createImp(campaign, laptopContent, request.imp);
-  const session = new CampaignSession(campaign, roster, worlds, texts, { kind: 'campaign', parts });
+  const session = new CampaignSession(campaign, parts.presentation, roster, worlds, texts, { kind: 'campaign', parts });
   if (request.hire?.length === 0 && !request.imp) return session;
   const closed = campaign.dispatch({ type: 'closeLaptop' });
   if (!closed.ok) throw new Error(`cannot close the laptop: ${closed.reason ?? 'refused'}`);

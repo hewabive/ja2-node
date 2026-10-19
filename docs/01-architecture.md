@@ -238,7 +238,9 @@ roof-climb commit 408/475, throw payment 460/461. Therefore:
   event log for presentation and don't affect outcomes. The exception is the fall sound 721/722:
   in the original it also breaks fragile items, and this is carried over into the simulation.
 - The soldier state stores only `anim: {state, frame, accumulator}`. The renderer finds the sprite
-  by `(body, state, frame, direction)`.
+  by `(body, state, frame, direction)`. As built in M8 (U0b) the simulation steps a *logic timeline* that holds no
+  sprite frame numbers and the soldier keeps the slot of its current frame (`frameSlot`); the view takes the sprite
+  frame from the *presentation timeline* (`src/content/anim/timelines.ts`, §4.2).
 - **The client uses the same timelines.** On an "animation started" event it plays the
   frames itself with the right delay and playback speed. That is why timelines live in `content`,
   not in `sim`.
@@ -424,11 +426,24 @@ Paths are normalized as in Stracciatella: case doesn't matter, `\` becomes `/`.
 
 **Backends:**
 - Node `fs` — the main one. Used by the server, tools and tests;
-- HTTP — the browser fetches media from our server at `/vfs/<path>`, with range requests;
+- HTTP — the browser fetches media from our server at `/vfs/<path>`, with range requests; as built in M8 (U0b) the
+  browser's `HttpVfsLayer` (`src/app/assets/`) builds the same `Vfs` from the server's asset manifest and fetches
+  content-hash URLs `/vfs/@<hash>/<path>` that the HTTP cache keeps (`04` §5.10);
 - OPFS and `File` — only for embedded mode without a server (`04`, §5.7), later.
 
 **The SLF index** is built as `Map<path, {source, offset, length}>`. Range reads are
 lazy (`Blob.slice` or a sync access handle in a worker); archives are never loaded whole.
+
+**The rule pack** (as built in M8, U0b; `28` §1.3, §17.4). The simulation does not read the VFS directly: the server
+builds a **rule pack** from it at start, every file the simulation reads (the rule families: project tables, the rule
+binaries, maps, structure files, NPC records, text files) plus the few numbers it takes from graphics (tileset frame
+geometry and app data, explosion frame counts) as derived *graphic facts*, and loads every session's content from it;
+the pack refuses any other path, so no graphic is read by the rules. It is cached in `.ja2/cache/rules-<hash>/`, its
+hash (over the inputs) is the logic hash that saves are bound to, and `welcome` names it, so a client building the same
+rule content from its own asset source (for the hints, `28` §2.4) can check it has the server's rules. The
+`ja2bin.dat` scripts are split at load into a logic timeline (the simulation) and a presentation timeline (sprite
+frames and sounds, the views and clients). Media stays outside the pack. The pack is never committed: it is built
+from the user's data.
 
 ### 4.3. Importing the original
 

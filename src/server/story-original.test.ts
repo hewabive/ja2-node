@@ -5,6 +5,8 @@ import { parseSaveGame } from '../content/formats/savegame.ts';
 import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../content/formats/savegame-header.ts';
 import { readStrategicAiSections } from '../content/formats/savegame-strategic-ai.ts';
 import { loadNpcRecordContent, meanwhileKey } from '../content/narrative/npc-records.ts';
+import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
+import { vfsFileReader } from '../content/vfs/vfs.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import { MEANWHILE_FLAGS, Meanwhile } from '../sim/strategic/ai/constants.ts';
@@ -22,7 +24,7 @@ const ELLIOT_MAX_SLAPS = 17;
 
 describe.skipIf(!process.env.JA2_DATA_DIR)('meanwhile scenes and the ending on the original data', () => {
   let data: DataVfs;
-  const read = async (p: string) => (data.vfs.stat(p) ? data.vfs.read(p) : null);
+  const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
 
   beforeAll(async () => {
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir });

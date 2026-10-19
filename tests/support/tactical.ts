@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { CORPSES_TABLE_PATH, type CorpseContent, parseCorpseTable, stubCorpseStructureFiles } from '../../src/content/anim/corpses.ts';
 import { stubAnimStructures } from '../../src/content/anim/structures.ts';
 import { ANIM_CONTROL_PATH, ANIM_SURFACES_PATH, parseAnimationTables } from '../../src/content/anim/tables.ts';
+import { type AnimationTimelines, splitAnimationScripts } from '../../src/content/anim/timelines.ts';
 import { parseAnimationScripts } from '../../src/content/formats/ja2bin.ts';
 import type { StructureFile } from '../../src/content/formats/jsd.ts';
 import { parseStubLockTable } from '../../src/content/formats/locks.ts';
@@ -38,9 +39,13 @@ export function stubLockTable() {
   return parseStubLockTable(JSON.parse(readFileSync(join(import.meta.dirname, '../../stubs/locks.json'), 'utf8')));
 }
 
+export async function loadTestTimelines(): Promise<AnimationTimelines> {
+  return splitAnimationScripts(parseAnimationScripts(await buildStubAnimationScripts()));
+}
+
 export async function loadTestContent(): Promise<TacticalContent> {
   return {
-    scripts: parseAnimationScripts(await buildStubAnimationScripts()),
+    timeline: (await loadTestTimelines()).logic,
     animations: parseAnimationTables(readDataJson(ANIM_CONTROL_PATH), readDataJson(ANIM_SURFACES_PATH)),
     animStructures: stubAnimStructures(),
     items: await loadItemTable(async (path) => readDataJson(path)),

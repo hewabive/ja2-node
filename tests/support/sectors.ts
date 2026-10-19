@@ -1,8 +1,12 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { type AnimationTimelines, requireAnimationTimelines } from '../../src/content/anim/timelines.ts';
+import { withGraphicFacts } from '../../src/content/rules/graphic-facts.ts';
+import { buildMemoryRulePack, type RulePack } from '../../src/content/rules/pack.ts';
 import { withSectorExitGrids } from '../../src/content/strategic/sector-maps.ts';
 import { parseVfsAliases, VFS_ALIASES_FILE } from '../../src/content/vfs/aliases.ts';
+import { type Vfs, vfsFileReader } from '../../src/content/vfs/vfs.ts';
 import {
   buildTacticalWorldFromInputs,
   loadTacticalWorldInputs,
@@ -12,6 +16,7 @@ import {
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import { openDataVfs, STUBS_PREFIX } from '../../src/node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../src/node/repo.ts';
+import { nodeSha256, vfsRuleListing } from '../../src/server/rule-pack.ts';
 import type { SectorWorlds } from '../../src/sim/campaign/sector-flow.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
 import { loadTacticalContent } from '../../src/sim/tactical/load-content.ts';
@@ -35,6 +40,10 @@ export const STUB_MAPS = [
 ] as const;
 
 export interface StubSectorKit {
+  readonly vfs: Vfs;
+  rulePack(): Promise<RulePack>;
+  readonly timelines: AnimationTimelines;
+  readonly stubsDir: string;
   readonly content: TacticalContent;
   readonly worlds: SectorWorlds;
   readonly read: ReadFile;
@@ -46,7 +55,7 @@ export async function loadStubSectorKit(): Promise<StubSectorKit> {
   const dir = await mkdtemp(join(tmpdir(), 'ja2-sector-stubs-'));
   await buildStubs(dir);
   const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: dir });
-  const read: ReadFile = async (path) => (data.vfs.stat(path) ? data.vfs.read(path) : null);
+  const read: ReadFile = withGraphicFacts(vfsFileReader(data.vfs));
   const content = await loadTacticalContent(read);
   const inputs = new Map<string, TacticalWorldInputs>();
   for (const path of STUB_MAPS) inputs.set(path, await loadTacticalWorldInputs(read, path));
@@ -60,7 +69,21 @@ export async function loadStubSectorKit(): Promise<StubSectorKit> {
     const i = inputs.get(path) ?? aliased(path);
     return i ? buildTacticalWorldFromInputs(i) : null;
   };
+  const timelines = await requireAnimationTimelines(read);
+  let pack: Promise<RulePack> | null = null;
   return {
+    vfs: data.vfs,
+    rulePack: () => {
+      pack ??= buildMemoryRulePack({
+        source: 'stubs',
+        listing: vfsRuleListing(data.vfs),
+        read: (p) => data.vfs.read(p),
+        sha256: nodeSha256,
+      });
+      return pack;
+    },
+    timelines,
+    stubsDir: dir,
     content,
     read,
     worlds: { exists: (path) => data.vfs.stat(path) !== undefined, world: build },

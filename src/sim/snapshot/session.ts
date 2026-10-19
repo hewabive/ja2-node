@@ -17,12 +17,12 @@ import {
 } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
 import { canonicalJson, decodeGraph, type EncodedGraph, encodeGraph, type Section, SnapshotError } from './codec.ts';
-import { SNAPSHOT_MIGRATIONS } from './migrations.ts';
+import { NO_MIGRATION_CONTEXT, type SnapshotMigrationContext, snapshotMigrations } from './migrations.ts';
 import type { ContentRoots } from './refs.ts';
 import { externalSources, SNAPSHOT_CODECS } from './world.ts';
 
 export const SNAPSHOT_FORMAT = 'ja2-node-snapshot';
-export const SNAPSHOT_VERSION = 2;
+export const SNAPSHOT_VERSION = 3;
 
 export type SnapshotKind = 'campaign' | 'tactical';
 
@@ -42,8 +42,6 @@ export interface RestoreSources {
 export interface CampaignRestoreSources extends RestoreSources {
   assemble(state: StrategicState, tactical: TacticalSim | null): CampaignSim;
 }
-
-const MIGRATIONS = SNAPSHOT_MIGRATIONS;
 
 const TRANSIENT_TACTICAL_FIELDS: ReadonlySet<string> = new Set([
   'hooks',
@@ -121,15 +119,16 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-export function migrateSnapshot(raw: unknown): SimSnapshot {
+export function migrateSnapshot(raw: unknown, context: SnapshotMigrationContext = NO_MIGRATION_CONTEXT): SimSnapshot {
   if (!isRecord(raw) || raw.format !== SNAPSHOT_FORMAT) throw new SnapshotError('not a ja2-node snapshot');
   let version = raw.version;
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 1)
     throw new SnapshotError('the snapshot has no valid version');
   if (version > SNAPSHOT_VERSION) throw new SnapshotError(`the snapshot version ${version} is newer than ${SNAPSHOT_VERSION}`);
   let current: Readonly<Record<string, unknown>> = raw;
+  const migrations = snapshotMigrations(context);
   while (version < SNAPSHOT_VERSION) {
-    const migrate = MIGRATIONS[version];
+    const migrate = migrations[version];
     if (!migrate) throw new SnapshotError(`no migration from snapshot version ${version}`);
     current = { ...migrate(current), version: version + 1 };
     version++;

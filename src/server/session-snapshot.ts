@@ -1,9 +1,11 @@
+import { frameSlotOfSpriteFrame, type PresentationTimeline, requireAnimationTimelines } from '../content/anim/timelines.ts';
 import type { LayerCount } from '../content/narrative/npc-records.ts';
 import { type DataDecoding, DEFAULT_DATA_DECODING } from '../content/text/data-version.ts';
 import { loadTacticalWorld, type TacticalWorld } from '../content/world/tactical-world.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import type { Roster } from '../sim/campaign/roster.ts';
+import type { SnapshotMigrationContext } from '../sim/snapshot/migrations.ts';
 import type { ContentRoots } from '../sim/snapshot/refs.ts';
 import {
   migrateSnapshot,
@@ -34,6 +36,7 @@ export interface SessionSnapshot {
 
 export interface SessionRestoreInputs {
   readonly read: ReadFile;
+  readonly presentation: PresentationTimeline;
   readonly exists: FileExists | null;
   readonly parts: CampaignParts | null;
   readonly content: TacticalContent | null;
@@ -77,11 +80,15 @@ export function snapshotSession(sim: SessionSim): SessionSnapshot {
   };
 }
 
-function checkSessionSnapshot(raw: unknown): SessionSnapshot {
+export function snapshotMigrationContext(presentation: PresentationTimeline): SnapshotMigrationContext {
+  return { frameSlotOf: (state, pc, spriteFrame) => frameSlotOfSpriteFrame(presentation, state, pc, spriteFrame) };
+}
+
+function checkSessionSnapshot(raw: unknown, context: SnapshotMigrationContext): SessionSnapshot {
   const s = raw as Partial<SessionSnapshot> | null;
   if (typeof s !== 'object' || s === null || !SESSION_KINDS.includes(s.session as SessionKind)) throw new Error('not a session snapshot');
   if (!Array.isArray(s.preparedMaps) || s.preparedMaps.some((p) => typeof p !== 'string')) throw new Error('bad prepared map list');
-  return { session: s.session as SessionKind, preparedMaps: s.preparedMaps, sim: migrateSnapshot(s.sim) };
+  return { session: s.session as SessionKind, preparedMaps: s.preparedMaps, sim: migrateSnapshot(s.sim, context) };
 }
 
 function loadedWorld(inputs: SessionRestoreInputs): (mapPath: string) => TacticalWorld {
@@ -94,7 +101,8 @@ function loadedWorld(inputs: SessionRestoreInputs): (mapPath: string) => Tactica
 
 function restoreSandbox(snapshot: SessionSnapshot, inputs: SessionRestoreInputs): TacticalSession {
   if (!inputs.content) throw new Error('a sandbox restore needs the tactical content');
-  return new TacticalSession(restoreTactical(snapshot.sim, { content: tacticalContentRoots(inputs.content), world: loadedWorld(inputs) }));
+  const sim = restoreTactical(snapshot.sim, { content: tacticalContentRoots(inputs.content), world: loadedWorld(inputs) });
+  return new TacticalSession(sim, inputs.presentation);
 }
 
 function restoreCampaignSession(snapshot: SessionSnapshot, inputs: SessionRestoreInputs): CampaignSession {
@@ -115,11 +123,11 @@ function restoreCampaignSession(snapshot: SessionSnapshot, inputs: SessionRestor
     return assembled.campaign;
   };
   const campaign = restoreCampaign(snapshot.sim, { content: campaignContentRoots(parts), world: loadedWorld(inputs), assemble });
-  return new CampaignSession(campaign, roster, inputs.worlds, parts.narrative.texts, { kind, parts });
+  return new CampaignSession(campaign, parts.presentation, roster, inputs.worlds, parts.narrative.texts, { kind, parts });
 }
 
 export function restoreSessionFrom(raw: unknown, inputs: SessionRestoreInputs): SessionSim {
-  const snapshot = checkSessionSnapshot(raw);
+  const snapshot = checkSessionSnapshot(raw, snapshotMigrationContext(inputs.presentation));
   return snapshot.session === 'sandbox' ? restoreSandbox(snapshot, inputs) : restoreCampaignSession(snapshot, inputs);
 }
 
@@ -147,11 +155,12 @@ export async function restoreSession(
   exists: FileExists | null,
   options: SessionLoadOptions = {},
 ): Promise<SessionSim> {
-  const snapshot = checkSessionSnapshot(raw);
+  const timelines = await requireAnimationTimelines(read);
+  const snapshot = checkSessionSnapshot(raw, snapshotMigrationContext(timelines.presentation));
   const decoding = options.decoding ?? DEFAULT_DATA_DECODING;
   if (snapshot.session === 'sandbox') {
     const [content, world] = await Promise.all([loadTacticalContent(read, decoding), freshLoadedWorld(snapshot, read, null)]);
-    return restoreSessionFrom(snapshot, { read, exists, parts: null, content, worlds: null, world });
+    return restoreSessionFrom(snapshot, { read, presentation: timelines.presentation, exists, parts: null, content, worlds: null, world });
   }
   if (snapshot.session === 'campaign' && !exists) throw new Error('a new-campaign restore needs a file lookup');
   const parts =
@@ -160,5 +169,5 @@ export async function restoreSession(
       : await loadImportParts(read, exists, options.layers, decoding);
   const worlds = await preparedWorlds(snapshot, read, exists);
   const world = await freshLoadedWorld(snapshot, read, worlds);
-  return restoreSessionFrom(snapshot, { read, exists, parts, content: parts.content, worlds, world });
+  return restoreSessionFrom(snapshot, { read, presentation: parts.presentation, exists, parts, content: parts.content, worlds, world });
 }

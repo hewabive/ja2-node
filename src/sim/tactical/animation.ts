@@ -6,9 +6,10 @@
 // @src its BoxingMovementCheck).
 // See docs/03, docs/06 §5, docs/07 §4.
 
-import { classifyCode, type OpOutcome } from '../../content/anim/script.ts';
+import type { OpOutcome } from '../../content/anim/script.ts';
 import { type AnimationTables, AnimFlags, stateId } from '../../content/anim/tables.ts';
-import { MAX_FRAMES_PER_ANIM, scriptCode } from '../../content/formats/ja2bin.ts';
+import { NO_FRAME_SLOT, SlotKind, slotArgument, slotKind, timelineSlot } from '../../content/anim/timelines.ts';
+import { MAX_FRAMES_PER_ANIM } from '../../content/formats/ja2bin.ts';
 import { ItemClass, ItemFlags } from '../../content/items/items.ts';
 import { newGridNo } from '../../content/world/grid.ts';
 import { anim } from './anim-states.ts';
@@ -402,7 +403,7 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
   s.state = next;
   countPendingMeleeAnimation(t, s, s.oldState, next);
   s.pc = nextName === 'CHARIOTS_OF_FIRE' || nextName === 'BODYEXPLODING' ? t.rng.int(10) : startCode;
-  s.frame = 0;
+  s.frameSlot = NO_FRAME_SLOT;
   setSoldierAniSpeed(t, s);
   resetFrameTimer(t, s);
   adjustToNextAnimationFrame(t, s);
@@ -534,21 +535,25 @@ export function adjustToNextAnimationFrame(t: TacticalState, s: Soldier): void {
         return;
       }
     }
-    const code = classifyCode(scriptCode(content.scripts, s.state, s.pc));
-    switch (code.kind) {
-      case 'frame':
+    const slot = timelineSlot(s.state, s.pc);
+    switch (slotKind(content.timeline, slot)) {
+      case SlotKind.EMPTY:
+      case SlotKind.FRAME:
         countMuzzleFlashFrame(t, s);
-        s.frame = code.frame;
+        s.frameSlot = slot;
         s.pc++;
         return;
-      case 'jump':
-        s.pc = code.pc;
+      case SlotKind.JUMP:
+        s.pc = slotArgument(content.timeline, slot);
         break;
-      case 'state':
-        changeSoldierState(t, s, code.state);
+      case SlotKind.STATE:
+        changeSoldierState(t, s, slotArgument(content.timeline, slot));
         return;
-      case 'op': {
-        const outcome = runOpcode(t, s, code.code);
+      case SlotKind.NOP:
+        s.pc++;
+        break;
+      case SlotKind.OP: {
+        const outcome = runOpcode(t, s, slotArgument(content.timeline, slot));
         if (outcome === 'stop') return;
         if (typeof outcome === 'object') s.pc += outcome.skip;
         s.pc++;

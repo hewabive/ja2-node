@@ -5,7 +5,7 @@ import type { CommandResult } from '../sim/command.ts';
 import { type DroppedNativeOption, type GameOptions, importNativeGameOptions, type SaveMode } from '../sim/options.ts';
 import { reseedMain } from '../sim/snapshot/session.ts';
 import { CampaignSession } from './campaign-session.ts';
-import { type ContentLedger, type EngineIdentity, textIdentityOf } from './content-identity.ts';
+import { type EngineIdentity, type LogicIdentity, textIdentityOf } from './content-identity.ts';
 import { describeOrigin, encodeInputLog, encodeInputLogAsync, inputLogText, isReplayable, type LogSegment } from './input-log.ts';
 import { TacticalSession } from './sandbox.ts';
 import {
@@ -15,10 +15,12 @@ import {
   musicOfPresentation,
   parseSaveText,
   presentationOf,
+  RULE_PACK_SAVE_VERSION,
   SAVE_FORMAT,
   SAVE_VERSION,
   type SaveFile,
   SaveFileError,
+  type SaveFileHead,
   type SaveHeader,
   type SaveKind,
   snapshotOf,
@@ -99,7 +101,7 @@ export interface SaveContextInput {
 
 export interface SaveServiceOptions {
   readonly store: SaveStore;
-  readonly ledger: ContentLedger;
+  readonly identity: LogicIdentity;
   readonly dataVersion: string;
   readonly engine: EngineIdentity;
   readonly restore: (snapshot: SessionSnapshot) => Promise<SessionSim>;
@@ -189,7 +191,7 @@ function textOf(sim: SessionSim): unknown {
 
 export class SaveService {
   readonly store: SaveStore;
-  readonly ledger: ContentLedger;
+  readonly identity: LogicIdentity;
   readonly #options: SaveServiceOptions;
   readonly #states = new WeakMap<Session, SessionSaveState>();
   readonly #attached = new Set<Session>();
@@ -199,7 +201,7 @@ export class SaveService {
   constructor(options: SaveServiceOptions) {
     this.#options = options;
     this.store = options.store;
-    this.ledger = options.ledger;
+    this.identity = options.identity;
   }
 
   get engine(): EngineIdentity {
@@ -280,16 +282,15 @@ export class SaveService {
     const snapshot = sessionSnapshot(session);
     const summary = summarizeSession(session.sim);
     const segment = session.log.segment();
-    const files = this.ledger.files();
     const header: SaveHeader = {
       kind,
       description: clampDescription(description),
       savedAt: this.#now().toISOString(),
       engine: this.#options.engine,
       content: {
-        source: this.ledger.source,
+        source: this.identity.source,
         dataVersion: this.#options.dataVersion,
-        logic: this.ledger.currentLogicHash(),
+        logic: this.identity.hash,
         text: textIdentityOf(textOf(session.sim)),
       },
       options: summary.options,
@@ -307,7 +308,6 @@ export class SaveService {
       version: SAVE_VERSION,
       header,
       session: { kind: snapshot.session, origin: describeOrigin(segment.origin), tick: summary.tick, preparedMaps: snapshot.preparedMaps },
-      contentFiles: files,
       sim: snapshot.sim,
       presentation: presentationOf(session.music),
     };
@@ -373,15 +373,22 @@ export class SaveService {
 
   async #verify(name: string, file: SaveFile): Promise<LoadWarning[]> {
     const content = file.header.content;
-    if (content.source !== this.ledger.source)
-      throw new SaveLoadError('contentMismatch', `${name} was made with ${content.source} content, the server runs ${this.ledger.source}`);
-    if ((await this.ledger.logicHash(file.contentFiles)) !== content.logic)
-      throw new SaveLoadError('contentMismatch', `${name} was made with other logic content (files the simulation reads differ)`);
+    if (content.source !== this.identity.source)
+      throw new SaveLoadError(
+        'contentMismatch',
+        `${name} was made with ${content.source} content, the server runs ${this.identity.source}`,
+      );
+    if ((await this.#logicHashFor(file)) !== content.logic)
+      throw new SaveLoadError('contentMismatch', `${name} was made with other logic content (the rule pack differs)`);
     const warnings: LoadWarning[] = [];
     if (content.dataVersion !== this.#options.dataVersion) warnings.push('dataVersionDiffers');
     const engine = file.header.engine;
     if (engine.version !== this.#options.engine.version || engine.commit !== this.#options.engine.commit) warnings.push('engineDiffers');
     return warnings;
+  }
+
+  #logicHashFor(file: SaveFile): Promise<string> {
+    return file.legacyContent ? this.identity.legacyHash(file.legacyContent.files) : Promise.resolve(this.identity.hash);
   }
 
   async #decode(name: string, bytes: Uint8Array): Promise<{ file: SaveFile; digest: string; warnings: LoadWarning[] }> {
@@ -432,7 +439,7 @@ export class SaveService {
       const problems: string[] = [];
       if (s.problem) problems.push(s.problem);
       if (s.head && s.head.version > SAVE_VERSION) problems.push('versionTooNew');
-      if (s.head && s.head.header.content?.source !== this.ledger.source) problems.push('contentMismatch');
+      if (s.head && this.#mismatched(s.head)) problems.push('contentMismatch');
       return {
         name: s.name,
         native: false,
@@ -445,7 +452,7 @@ export class SaveService {
     });
     const native = (await this.store.listNative()).map((s): SaveListing => {
       const h = s.header;
-      const problems = this.ledger.source === 'original' ? [] : ['needsOriginalData'];
+      const problems = this.identity.source === 'original' ? [] : ['needsOriginalData'];
       const imported = importNativeGameOptions(h.initialGameOptions);
       return {
         name: s.name,
@@ -466,6 +473,12 @@ export class SaveService {
       };
     });
     return [...own, ...native].sort((a, b) => (a.modified < b.modified ? 1 : a.modified > b.modified ? -1 : a.name < b.name ? -1 : 1));
+  }
+
+  #mismatched(head: SaveFileHead): boolean {
+    const content = head.header.content;
+    if (content?.source !== this.identity.source) return true;
+    return head.version >= RULE_PACK_SAVE_VERSION && content.logic !== this.identity.hash;
   }
 
   async delete(name: string): Promise<boolean> {

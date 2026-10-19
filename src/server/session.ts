@@ -1,5 +1,13 @@
 import { type DataVersion, STUB_DATA_VERSION, type UiLanguage } from '../content/text/data-version.ts';
-import type { CommandEnvelope, DriverMode, ServerMessage, SessionStopReport } from '../protocol/messages.ts';
+import {
+  type CommandEnvelope,
+  type DriverMode,
+  type ServerMessage,
+  type SessionStopReport,
+  UNKNOWN_IDENTITY,
+  type WelcomeIdentity,
+  type WelcomeMessage,
+} from '../protocol/messages.ts';
 import { initialMusic, type MusicFacts, type MusicState, musicMode, musicView } from '../protocol/music.ts';
 import { diffPlayerView, type PlayerView, type ViewFrame } from '../protocol/view.ts';
 import { AdvanceRun, type PauseCheck, type Steppable, type StopCondition, type StopReport } from '../sim/advance.ts';
@@ -75,6 +83,7 @@ export class Session {
   readonly dataVersion: DataVersion;
   readonly log: InputLog;
   language: UiLanguage;
+  identity: WelcomeIdentity = UNKNOWN_IDENTITY;
   hooks: SessionHooks | null = null;
   #sim: SessionSim;
   #driver: DriverMode = { mode: 'manual' };
@@ -146,8 +155,8 @@ export class Session {
     return () => this.#listeners.delete(listener);
   }
 
-  #welcome(): Extract<ServerMessage, { t: 'welcome' }> {
-    return { t: 'welcome', session: this.id, view: this.#view(), driver: this.#driver };
+  #welcome(): WelcomeMessage {
+    return { t: 'welcome', session: this.id, view: this.#view(), driver: this.#driver, ...this.identity };
   }
 
   #broadcast(message: ServerMessage): void {
