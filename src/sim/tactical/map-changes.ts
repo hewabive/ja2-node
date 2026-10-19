@@ -97,9 +97,15 @@ function tileOfStructure(t: TacticalState): Map<object, number> {
   return table;
 }
 
+const changeTiles = new WeakMap<MapChange, number | null>();
+
 export function mapChangeTile(t: TacticalState, c: MapChange): number | null {
+  const known = changeTiles.get(c);
+  if (known !== undefined) return known;
   const def = fileForKey(t, c.fileKey)?.structures[c.number];
-  return def ? (tileOfStructure(t).get(def) ?? null) : null;
+  const tile = def ? (tileOfStructure(t).get(def) ?? null) : null;
+  changeTiles.set(c, tile);
+  return tile;
 }
 
 function findRecordedBase(t: TacticalState, c: MapChange): StructureInstance | null {

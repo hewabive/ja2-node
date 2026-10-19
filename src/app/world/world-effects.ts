@@ -25,11 +25,14 @@ import { zStripInfo } from '../../content/world/zstrip.ts';
 import type { CorpseView, SmokeTileView } from '../../protocol/view.ts';
 import type { SceneAniTile } from '../../render/world/dynamic-scene.ts';
 import type { LoadedSoldierSheet, WorldSprites } from '../../render/world/world-sprites.ts';
+
+export type EffectSprites = Pick<WorldSprites, 'addSheet' | 'soldierFrame' | 'shadedPaletteBase' | 'plainPaletteRow'>;
+
 import type { ReadVfsFile } from '../net/vfs.ts';
 
 const TILE_CACHE_DIR = 'tilecache/';
 const STUB_PREFIX = 'stubs/';
-const CAMO_PALETTE = 'anims/camo.COL';
+const CAMO_PALETTE = 'anims/camo.col';
 const ROTTING_STAGE2 = 'ROTTING_STAGE2';
 const VEHICLE_CORPSE_FRAME_MS = 150;
 const SMOKE_START_FRAMES = 5;
@@ -39,10 +42,10 @@ const DIRECTIONS = 8;
 const FIRST_VEHICLE_BODY = 22;
 const FOUR_DIRECTION_TYPES = ['SMERC_FALL', 'SMERC_FALLF', 'MMERC_FALL', 'MMERC_FALLF', 'FMERC_FALL', 'FMERC_FALLF'];
 const MONSTER_PALETTES: Readonly<Record<number, string>> = {
-  4: 'anims/monsters/femmon.COL',
-  5: 'anims/monsters/monster.COL',
-  6: 'anims/monsters/fm_brite.COL',
-  7: 'anims/monsters/mn_brite.COL',
+  4: 'anims/monsters/femmon.col',
+  5: 'anims/monsters/monster.col',
+  6: 'anims/monsters/fm_brite.col',
+  7: 'anims/monsters/mn_brite.col',
 };
 const OWN_PALETTE_BODIES: ReadonlySet<number> = new Set([10, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]);
 
@@ -125,7 +128,7 @@ export class WorldEffects {
   readonly #palettes = new AsyncCache<Uint8Array>();
   readonly #structures = new AsyncCache<StructureFile>();
   readonly #smokeSince = new Map<string, number>();
-  #sprites: WorldSprites | null = null;
+  #sprites: EffectSprites | null = null;
 
   private constructor(
     read: ReadVfsFile,
@@ -147,7 +150,7 @@ export class WorldEffects {
     return new WorldEffects(read, available, parseCorpseTable(corpses), parseSmokeGraphics(smoke), soldierPalettes);
   }
 
-  setSprites(sprites: WorldSprites | null): void {
+  setSprites(sprites: EffectSprites | null): void {
     this.#sprites = sprites;
     this.#smokeSince.clear();
   }
