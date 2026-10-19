@@ -17,6 +17,8 @@ export const MAX_DISPLAY_SIZE = 11;
 export const PLAYBACK_SPEEDS: readonly number[] = [0.25, 0.5, 1, 2, 4, 8, 16];
 const DEFAULT_PLAYBACK_SPEED = 1;
 const MEANWHILE_SCENE_BITS = 32;
+export const DEFAULT_WEBSITE_LOADING_TIME_SCALE = 1;
+export const MAX_WEBSITE_LOADING_TIME_SCALE = 10;
 
 export interface VolumeSettings {
   readonly effects: number;
@@ -66,6 +68,7 @@ export interface ClientSettings {
   readonly playIntro: boolean;
   readonly uiScale: number;
   readonly fixed640: boolean;
+  readonly websiteLoadingTimeScale: number;
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
@@ -114,6 +117,7 @@ export const DEFAULT_SETTINGS: ClientSettings = {
   playIntro: true,
   uiScale: AUTO_UI_SCALE,
   fixed640: false,
+  websiteLoadingTimeScale: DEFAULT_WEBSITE_LOADING_TIME_SCALE,
 };
 
 export interface SettingsStorage {
@@ -141,6 +145,12 @@ function playbackSpeed(value: unknown): number {
 
 function uiScale(value: unknown): number {
   return typeof value === 'number' && Number.isInteger(value) && value >= AUTO_UI_SCALE && value <= MAX_UI_SCALE ? value : AUTO_UI_SCALE;
+}
+
+function loadingTimeScale(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= MAX_WEBSITE_LOADING_TIME_SCALE
+    ? value
+    : DEFAULT_WEBSITE_LOADING_TIME_SCALE;
 }
 
 function language(value: unknown): UiLanguage | null {
@@ -201,6 +211,7 @@ export function normalizeSettings(raw: unknown): ClientSettings {
     playIntro: flag(o.playIntro, d.playIntro),
     uiScale: uiScale(o.uiScale),
     fixed640: flag(o.fixed640, d.fixed640),
+    websiteLoadingTimeScale: loadingTimeScale(o.websiteLoadingTimeScale),
   };
 }
 

@@ -123,4 +123,12 @@ describe('client settings', () => {
     expect(normalizeSettings({ uiScale: 2.5 })).toMatchObject({ uiScale: 0 });
     expect(normalizeSettings({ uiScale: 99 })).toMatchObject({ uiScale: 0 });
   });
+
+  it('keep the World Wide Wait at the original speed by default, allow it off and reject junk', () => {
+    expect(DEFAULT_SETTINGS.websiteLoadingTimeScale).toBe(1);
+    expect(normalizeSettings({ websiteLoadingTimeScale: 0 })).toMatchObject({ websiteLoadingTimeScale: 0 });
+    expect(normalizeSettings({ websiteLoadingTimeScale: 2.5 })).toMatchObject({ websiteLoadingTimeScale: 2.5 });
+    expect(normalizeSettings({ websiteLoadingTimeScale: -1 })).toMatchObject({ websiteLoadingTimeScale: 1 });
+    expect(normalizeSettings({ websiteLoadingTimeScale: 'slow' })).toMatchObject({ websiteLoadingTimeScale: 1 });
+  });
 });
