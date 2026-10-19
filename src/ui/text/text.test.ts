@@ -8,6 +8,7 @@ import { centerAlign, charWidth, hCenterVCenterAlign, rightAlign, stringPixLengt
 import { sprintMoney, sprintMoneyNoDollarOnZero } from './money.ts';
 import { fontColors, mprint } from './print.ts';
 import { printf } from './printf.ts';
+import { weightBasedOnMetricOption, weightUnit } from './weight.ts';
 import {
   cleanOutControlCodes,
   displayWrappedString,
@@ -221,6 +222,13 @@ describe('ReduceStringLength, money and printf', () => {
     expect(sprintMoney(0)).toBe('$0');
     expect(sprintMoneyNoDollarOnZero(0)).toBe('0');
     expect(sprintMoneyNoDollarOnZero(1000)).toBe('$1,000');
+  });
+
+  it('converts weights by the metric option and names the unit', () => {
+    expect(weightBasedOnMetricOption(12, true)).toBe(12);
+    expect(weightBasedOnMetricOption(12, false)).toBe(Math.fround(12 * Math.fround(2.2)));
+    const text = { string: (table: string, index: number) => `${table}:${index}`, edt: () => null };
+    expect([weightUnit(text, true), weightUnit(text, false)]).toEqual(['pMessageStrings:16', 'pMessageStrings:17']);
   });
 
   it('formats printf templates', () => {

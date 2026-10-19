@@ -3,8 +3,13 @@ import { type Resolution, toLogical } from '../../ui/resolution.ts';
 
 export type InputSink = (event: UiInputEvent) => void;
 
+export interface DomInputOptions {
+  readonly pointerLeft?: () => void;
+}
+
 const SUPPRESSED_BUTTONS: ReadonlySet<number> = new Set([MouseButton.MIDDLE, MouseButton.BACK, MouseButton.FORWARD]);
 const NUM_LOCK = 'NumLock';
+const FULLSCREEN_KEY = 'Enter';
 
 function rawKey(event: KeyboardEvent): RawKey {
   return {
@@ -22,7 +27,33 @@ function wheelStep(deltaY: number): number {
   return Math.sign(deltaY);
 }
 
-export function installDomInput(canvas: HTMLCanvasElement, sink: InputSink, resolution: () => Resolution): () => void {
+interface KeyboardLock {
+  lock(keys?: string[]): Promise<void>;
+}
+
+const LOCKED_KEYS = ['Escape'];
+
+function keyboardLock(): KeyboardLock | undefined {
+  return (navigator as Navigator & { keyboard?: KeyboardLock }).keyboard;
+}
+
+function toggleFullscreen(canvas: HTMLCanvasElement): void {
+  if (document.fullscreenElement) {
+    void document.exitFullscreen().catch(() => undefined);
+    return;
+  }
+  void canvas
+    .requestFullscreen()
+    .then(() => keyboardLock()?.lock(LOCKED_KEYS))
+    .catch(() => undefined);
+}
+
+export function installDomInput(
+  canvas: HTMLCanvasElement,
+  sink: InputSink,
+  resolution: () => Resolution,
+  domOptions: DomInputOptions = {},
+): () => void {
   const controller = new AbortController();
   const options = { signal: controller.signal };
   const logical = (event: MouseEvent) => {
@@ -54,6 +85,7 @@ export function installDomInput(canvas: HTMLCanvasElement, sink: InputSink, reso
     options,
   );
   canvas.addEventListener('pointermove', (event) => pointer('pointerMove', event), options);
+  canvas.addEventListener('pointerleave', () => domOptions.pointerLeft?.(), options);
   canvas.addEventListener(
     'wheel',
     (event) => {
@@ -95,6 +127,10 @@ export function installDomInput(canvas: HTMLCanvasElement, sink: InputSink, reso
     (event) => {
       if (event.metaKey) return;
       event.preventDefault();
+      if (event.altKey && event.key === FULLSCREEN_KEY) {
+        toggleFullscreen(canvas);
+        return;
+      }
       sink(keyUpEvent(rawKey(event)));
     },
     options,

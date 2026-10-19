@@ -1,6 +1,9 @@
 import type { CapturedFrame } from '../../render/ui-draw/logical-framebuffer.ts';
 import type { UiDrawStats } from '../../render/ui-draw/ui-renderer.ts';
 import type { LogicalPoint } from '../../ui/resolution.ts';
+import type { CursorReport } from '../../ui/runtime.ts';
+import type { ButtonSoundRequest } from '../../ui/widgets/button-sounds.ts';
+import type { WidgetInfo } from '../../ui/widgets/widget-info.ts';
 
 export interface CapturedPixels {
   readonly width: number;
@@ -16,7 +19,9 @@ export interface UiHook {
   scale: number;
   origin: LogicalPoint;
   logical: { width: number; height: number };
-  widgets: readonly unknown[];
+  widgets: readonly WidgetInfo[];
+  cursor: CursorReport | null;
+  sounds: readonly ButtonSoundRequest[];
   frameCount: number;
   session: string | null;
   dataVersion: string | null;
@@ -50,6 +55,8 @@ export function createUiHook(capture: () => CapturedFrame | null): UiHook {
     origin: { x: 0, y: 0 },
     logical: { width: 0, height: 0 },
     widgets: [],
+    cursor: null,
+    sounds: [],
     frameCount: 0,
     session: null,
     dataVersion: null,

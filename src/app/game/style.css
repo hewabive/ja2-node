@@ -12,4 +12,5 @@ body {
   height: 100vh;
   touch-action: none;
   user-select: none;
+  cursor: none;
 }

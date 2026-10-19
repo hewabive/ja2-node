@@ -65,7 +65,7 @@ describe('the gallery layout', () => {
     t.frame();
   };
   const status = () => widget('status').text;
-  const key = (kind: UiKeyEvent['kind'], k: string) => t.runtime.input({ kind, key: k, code: '', modifiers: 0 });
+  const key = (kind: UiKeyEvent['kind'], k: string, modifiers = 0) => t.runtime.input({ kind, key: k, code: '', modifiers });
 
   beforeEach(async () => {
     t = await testRuntime();
@@ -106,10 +106,13 @@ describe('the gallery layout', () => {
   });
 
   it('opens the popup menu by its hotkey on release and selects an unshaded line', () => {
-    key('keyDown', 'm');
+    key('keyDown', 'm', 4);
     t.frame();
     expect(widget('menu').visible).toBe(false);
     key('keyUp', 'm');
+    t.frame();
+    expect(widget('menu').visible).toBe(false);
+    key('keyUp', 'm', 4);
     t.frame();
     expect(widget('menu').visible).toBe(true);
     clickWidget('menu.line2');

@@ -365,7 +365,7 @@
       "frames": { "offNormal": 0, "onNormal": 1 },
       "priority": "HIGH",
       "primary": "openMenu",
-      "tooltip": { "literal": "Opens a popup menu (|M)" },
+      "tooltip": { "literal": "Opens a popup menu (|A|l|t+|M)" },
       "text": { "source": { "literal": "Menu" }, "font": "FONT12ARIAL", "color": "FONT_MCOLOR_WHITE" }
     },
     {
@@ -572,5 +572,5 @@
       "text": { "source": { "literal": "+10%" }, "font": "FONT12ARIAL", "color": "FONT_MCOLOR_WHITE" }
     }
   ],
-  "hotkeys": [{ "key": "m", "on": "up", "action": "openMenu" }, { "key": "Escape", "on": "up", "action": "menuClose", "when": "menuOpen" }]
+  "hotkeys": [{ "key": "m", "on": "up", "mods": 4, "action": "openMenu" }, { "key": "Escape", "on": "up", "action": "menuClose", "when": "menuOpen" }]
 }
