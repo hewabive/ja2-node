@@ -6,6 +6,7 @@ import {
   type SessionStopReport,
   type StopCondition,
   TICK_MS,
+  type WelcomeIdentity,
 } from '../../protocol/messages.ts';
 import {
   type AutoresolveView,
@@ -46,6 +47,7 @@ export class SessionClient {
   driver: DriverMode = { mode: 'manual' };
   playbackSpeed = 1;
   session: string | null = null;
+  identity: WelcomeIdentity | null = null;
   onChange: (() => void) | null = null;
   onFrames: ((frames: readonly ViewFrame[]) => void) | null = null;
   onWelcome: (() => void) | null = null;
@@ -192,6 +194,7 @@ export class SessionClient {
       case 'welcome':
         this.#frames.length = 0;
         this.session = m.session;
+        this.identity = { engine: m.engine, rules: m.rules };
         this.driver = m.driver;
         this.#shown = m.view;
         this.#latest = m.view;

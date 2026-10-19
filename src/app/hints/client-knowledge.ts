@@ -31,6 +31,7 @@ export class ClientWorlds {
   readonly #reader: RuleReader;
   readonly #inputs: { readonly path: string; readonly inputs: TacticalWorldInputs }[] = [];
   readonly #loading = new Map<string, Promise<void>>();
+  readonly failures = new Map<string, string>();
 
   constructor(reader: RuleReader) {
     this.#reader = reader;
@@ -41,14 +42,20 @@ export class ClientWorlds {
   }
 
   ensure(path: string): Promise<void> {
-    if (this.has(path) || !this.#reader.exists(path)) return Promise.resolve();
+    if (this.has(path) || this.failures.has(path)) return Promise.resolve();
     let pending = this.#loading.get(path);
     if (!pending) {
-      pending = loadTacticalWorldInputs(this.#reader.read, path).then((inputs) => {
-        this.#loading.delete(path);
-        this.#inputs.unshift({ path, inputs });
-        this.#inputs.length = Math.min(this.#inputs.length, MAX_CACHED_MAPS);
-      });
+      pending = loadTacticalWorldInputs(this.#reader.read, path).then(
+        (inputs) => {
+          this.#loading.delete(path);
+          this.#inputs.unshift({ path, inputs });
+          this.#inputs.length = Math.min(this.#inputs.length, MAX_CACHED_MAPS);
+        },
+        (err: unknown) => {
+          this.#loading.delete(path);
+          this.failures.set(path, err instanceof Error ? err.message : String(err));
+        },
+      );
       this.#loading.set(path, pending);
     }
     return pending;

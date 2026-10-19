@@ -16,6 +16,7 @@ import { type Camera, screenToGridNo, type Viewport } from '../../render/world/g
 import { type WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
 import { Radar } from '../map-viewer/radar.ts';
 import { DoorPanel } from './door-panel.ts';
+import { HintPanel } from './hint-panel.ts';
 import { PromptPanel } from './prompt-panel.ts';
 import { nearestMerchant, ShopPanel } from './shop-panel.ts';
 import { nearestTalkable, TalkPanel } from './talk-panel.ts';
@@ -119,6 +120,8 @@ let view: TacticalWorldView | null = null;
 let assets: SoldierAssets | null = null;
 let soldierScene: SoldierScene | null = null;
 let client: SessionClient | null = null;
+let hintPanel: HintPanel | null = null;
+let hintLine = '';
 let camera: Camera = { centerX: 805, centerY: 805 };
 let limits: ScrollLimits = scrollLimits(0);
 let zoom = 2;
@@ -240,6 +243,7 @@ function render(): void {
   debug.stats = stats;
   debug.camera = camera;
   radar.drawViewport({ ...v, camera });
+  hintLine = hintPanel?.update({ selected, hoverGridNo, hoveredSoldier, soldiers: soldiers() }) ?? '';
   info.textContent = describe();
   shopPanel.update(client?.shop ?? null, soldiers());
   doorPanel.update(client?.doors ?? [], new Set(client?.openDoors ?? []));
@@ -276,6 +280,7 @@ function describe(): string {
   if (hoverGridNo !== null) lines.push(`tile ${hoverGridNo} (${hoverGridNo % WORLD_COLS}, ${Math.floor(hoverGridNo / WORLD_COLS)})`);
   const hovered = soldiers().find((s) => s.id === hoveredSoldier);
   if (hovered) lines.push(`over: ${hovered.name || `#${hovered.id}`} (team ${hovered.team})`);
+  if (hintLine) lines.push(hintLine);
   if (debug.stats) lines.push(`${debug.stats.drawCalls} draw calls, ${debug.stats.instances} sprites`);
   if (debug.lastResult) lines.push(debug.lastResult);
   return lines.join('\n');
@@ -468,6 +473,15 @@ async function start(): Promise<void> {
     available = new Set(files.map((f) => f.path));
     client = await SessionClient.connect(new URLSearchParams(location.search).get('session') ?? undefined);
     client.playbackSpeed = DEFAULT_PLAYBACK;
+    const panel = new HintPanel(
+      client,
+      new URLSearchParams(location.search).get('shadowHints') === '1',
+      document.querySelector('main') ?? document.body,
+    );
+    hintPanel = panel;
+    void panel.start(client).catch((err: Error) => {
+      debug.error = `hints: ${err.message}`;
+    });
     const mapPath = client.mapPath;
     if (!mapPath) throw new Error('no sector is loaded in this session');
     assets = await SoldierAssets.load(available);

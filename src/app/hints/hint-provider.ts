@@ -2,7 +2,7 @@ import type { CommandEnvelope } from '../../protocol/messages.ts';
 import type { PlayerView } from '../../protocol/view.ts';
 import { answerHint } from '../../sim/hints/answer.ts';
 import { isHintKind } from '../../sim/hints/types.ts';
-import { type KnowledgeRules, knowledgeWorld } from '../../sim/knowledge/knowledge-world.ts';
+import { type KnowledgeRules, type KnowledgeWorld, knowledgeWorld } from '../../sim/knowledge/knowledge-world.ts';
 import { type GameClient, type HintAnswer, type HintAnswerSource, type HintReply, PENDING_HINT } from '../../ui/game-client.ts';
 
 export const PATHFIND_REST_MS = 80;
@@ -56,6 +56,7 @@ export interface HintStats {
   readonly mismatchCount: number;
   readonly mismatches: readonly HintMismatch[];
   readonly latency: LatencySummary;
+  readonly projection: LatencySummary;
 }
 
 interface Ready {
@@ -77,6 +78,11 @@ function plain(answer: HintAnswer): HintAnswer {
   );
 }
 
+function keepSample(samples: number[], value: number): void {
+  samples.push(value);
+  if (samples.length > MAX_KEPT_LATENCIES) samples.shift();
+}
+
 function percentile(sorted: readonly number[], p: number): number {
   if (sorted.length === 0) return 0;
   return sorted[Math.min(sorted.length - 1, Math.floor((sorted.length * p) / 100))] ?? 0;
@@ -88,10 +94,11 @@ export class HintProvider implements GameClient {
   readonly #cache = new Map<string, Ready>();
   readonly #inflight = new Set<string>();
   readonly #latencies: number[] = [];
+  readonly #projections: number[] = [];
   readonly #mismatches: HintMismatch[] = [];
   #cachedFor: PlayerView | null = null;
-  #pendingKey: string | null = null;
-  #pendingSince = 0;
+  #world: { readonly view: PlayerView; readonly rules: KnowledgeRules; readonly world: KnowledgeWorld } | null = null;
+  readonly #resting = new Map<string, { key: string; since: number }>();
   #local = 0;
   #server = 0;
   #cacheHits = 0;
@@ -108,7 +115,10 @@ export class HintProvider implements GameClient {
   }
 
   get stats(): HintStats {
-    const sorted = [...this.#latencies].sort((a, b) => a - b);
+    const summary = (samples: readonly number[]): LatencySummary => {
+      const sorted = [...samples].sort((a, b) => a - b);
+      return { count: sorted.length, p50: percentile(sorted, 50), p95: percentile(sorted, 95), max: sorted.at(-1) ?? 0 };
+    };
     return {
       local: this.#local,
       server: this.#server,
@@ -118,12 +128,14 @@ export class HintProvider implements GameClient {
       shadowFailed: this.#shadowFailed,
       mismatchCount: this.#mismatchCount,
       mismatches: [...this.#mismatches],
-      latency: { count: sorted.length, p50: percentile(sorted, 50), p95: percentile(sorted, 95), max: sorted.at(-1) ?? 0 },
+      latency: summary(this.#latencies),
+      projection: summary(this.#projections),
     };
   }
 
   resetStats(): void {
     this.#latencies.length = 0;
+    this.#projections.length = 0;
     this.#mismatches.length = 0;
     this.#local = 0;
     this.#server = 0;
@@ -163,12 +175,15 @@ export class HintProvider implements GameClient {
       return { state: 'ready', ...cached };
     }
     const now = this.#options.now();
-    if (key !== this.#pendingKey) {
-      this.#pendingKey = key;
-      this.#pendingSince = now;
-    }
-    if (now - this.#pendingSince < this.#restMs) return PENDING_HINT;
+    if (!this.#rested(request.type, key, now)) return PENDING_HINT;
     return this.#resolve(request, key, view);
+  }
+
+  #rested(kind: string, key: string, now: number): boolean {
+    const entry = this.#resting.get(kind);
+    const since = entry?.key === key ? entry.since : now;
+    this.#resting.set(kind, { key, since });
+    return now - since >= this.#restMs;
   }
 
   async hintNow(request: CommandEnvelope): Promise<HintAnswer> {
@@ -209,13 +224,23 @@ export class HintProvider implements GameClient {
   }
 
   #computeLocal(request: CommandEnvelope, view: PlayerView, knowledge: LocalKnowledge): HintAnswer {
+    const world = this.#worldOf(view, knowledge.rules);
     const started = performance.now();
-    const answer = plain(answerHint(knowledgeWorld(view, knowledge.rules), request));
-    this.#latencies.push(performance.now() - started);
-    if (this.#latencies.length > MAX_KEPT_LATENCIES) this.#latencies.shift();
+    const answer = plain(answerHint(world, request));
+    keepSample(this.#latencies, performance.now() - started);
     this.#local++;
     if (this.shadow) this.#compareWithServer(request, view, answer);
     return answer;
+  }
+
+  #worldOf(view: PlayerView, rules: KnowledgeRules): KnowledgeWorld {
+    const cached = this.#world;
+    if (cached && cached.view === view && cached.rules === rules) return cached.world;
+    const started = performance.now();
+    const world = knowledgeWorld(view, rules);
+    keepSample(this.#projections, performance.now() - started);
+    this.#world = { view, rules, world };
+    return world;
   }
 
   #compareWithServer(request: CommandEnvelope, view: PlayerView, local: HintAnswer): void {
