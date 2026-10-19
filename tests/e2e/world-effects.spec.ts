@@ -10,7 +10,10 @@ interface WorldEffectsHook {
   ambient: number | null;
   dynamicLights: number;
   soldierGridNos: { readonly id: number; readonly team: number; readonly gridNo: number }[];
-  command(cmd: { readonly type: string; readonly [key: string]: unknown }): Promise<{ ok: boolean; reason?: string; data?: { refusal?: string } }>;
+  command(cmd: {
+    readonly type: string;
+    readonly [key: string]: unknown;
+  }): Promise<{ ok: boolean; reason?: string; data?: { refusal?: string } }>;
 }
 
 const MAX_ORDERS = 120;
@@ -55,6 +58,8 @@ test('follows the animation schedule, lights from the view and draws a corpse th
     if (refusal === 'notEnoughAP') await order({ type: 'endTurn' });
     await page.waitForTimeout(ORDER_PAUSE_MS);
   }
-  await expect.poll(async () => (await hook(page)).corpses, { message: [...new Set(refusals)].join(', '), timeout: 15_000 }).toBeGreaterThan(0);
+  await expect
+    .poll(async () => (await hook(page)).corpses, { message: [...new Set(refusals)].join(', '), timeout: 15_000 })
+    .toBeGreaterThan(0);
   await expect.poll(async () => (await hook(page)).drawnEffects, { timeout: 15_000 }).toBeGreaterThan(0);
 });

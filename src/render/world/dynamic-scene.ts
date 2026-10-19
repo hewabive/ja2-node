@@ -147,7 +147,7 @@ export interface PlacedSoldier {
   readonly topmost: boolean;
 }
 
-interface DynamicNode {
+export interface DynamicNode {
   readonly layer: LayerName | 'shadows';
   readonly tile: number;
 }
@@ -161,7 +161,7 @@ const UI_LAYER_OF: Readonly<Record<UiNodeLayer, ListLayer | 'topmost'>> = {
   topmost: 'topmost',
 };
 
-function isDynamic(te: TileElement | undefined): boolean {
+export function isDynamic(te: TileElement | undefined): boolean {
   return !!te && (te.flags & (TileFlags.DYNAMIC | TileFlags.ANIMATED)) !== 0;
 }
 
@@ -210,11 +210,15 @@ export class DynamicScene {
   #itemsByTile = new Map<number, SceneItem[]>();
   #aniByTile = new Map<number, SceneAniTile[]>();
 
-  constructor(world: StaticWorld, prepared: LevelRenderData) {
+  constructor(world: StaticWorld, prepared: LevelRenderData, mapNodes?: Map<number, DynamicNode[]>) {
     this.#world = world;
-    this.#mapNodes = dynamicMapNodes(world, prepared);
+    this.#mapNodes = mapNodes ?? dynamicMapNodes(world, prepared);
     this.#mapRows = rowsOf([...this.#mapNodes.keys()]);
     this.#noBurn = prepared.noBurn;
+  }
+
+  get mapNodes(): Map<number, DynamicNode[]> {
+    return this.#mapNodes;
   }
 
   build(frame: DynamicFrame): void {
@@ -304,7 +308,7 @@ export class DynamicScene {
     const height = this.#world.level.heights[g] ?? 0;
     return {
       x: c.x + Math.trunc(2 * dx - 2 * dy) - offX,
-      y: c.y + Math.trunc(dx + dy) - height - level * WALL_HEIGHT + frame.renderHeight - offY,
+      y: c.y + Math.trunc(dx + dy) - height - MERC_SCREEN_OFFSET_Y - level * WALL_HEIGHT + frame.renderHeight - offY,
     };
   }
 

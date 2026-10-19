@@ -5,9 +5,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildStubs } from '../../../stubs/build.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
+import { levelTilesAt } from '../../content/world/level.ts';
 import { Rng } from '../../core/rng.ts';
 import { type DataVfs, openDataVfs } from '../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
+import { prepareLevelRenderData, updateLevelRenderData } from '../../render/world/level-render-data.ts';
+import { applyTileChanges } from '../../render/world/tile-changes.ts';
 import { initLighting, lightTrueLevel } from '../../sim/tactical/lighting/lighting.ts';
 import { createTacticalState } from '../../sim/tactical/state.ts';
 import { loadItemTiles } from './item-tiles.ts';
@@ -94,6 +97,18 @@ describe('client lighting on the stub village', () => {
     });
     expect(merc.land[g]).toBeLessThan(without);
     expect(lighting.field({ time: NIGHT, openDoors: NO_DOORS, mercLights: [] }).land[g]).toBe(without);
+  });
+
+  it('updates the level render data of patched tiles as a full preparation would', () => {
+    let at = 0;
+    while (levelTilesAt(world.level.layers.structs, at).length === 0) at++;
+    const tile = levelTilesAt(world.level.layers.structs, at)[0] as number;
+    const level = applyTileChanges(world.level, [{ kind: 'remove', gridNo: at, level: 0, tile }]);
+    const full = prepareLevelRenderData(level, world.tiles, world.tables, world.map.info, world.underground);
+    const local = updateLevelRenderData(world.prepared, level, world.tiles, world.tables, new Set([at]));
+    expect(local.noBurn).toEqual(full.noBurn);
+    expect(local.shadows.offsets).toEqual(full.shadows.offsets);
+    expect(local.shadows.tiles).toEqual(full.shadows.tiles);
   });
 
   it('resolves item names to their world tile graphics', async () => {

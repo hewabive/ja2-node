@@ -24,6 +24,8 @@ export interface LevelRenderData {
   readonly shadows: LevelLayer;
   readonly renderHeight: number;
   readonly noBurn: Uint8Array;
+  readonly hasStructure: Uint8Array;
+  readonly hasTree: Uint8Array;
 }
 
 const WALLSTUFF = 0x00cf0008;
@@ -77,6 +79,52 @@ function renderHeight(level: Level, info: MapInformation, underground: boolean):
   return entry === undefined ? 0 : (level.heights[entry] ?? 0);
 }
 
+interface ShadowInputs {
+  readonly level: Level;
+  readonly tiles: readonly TileElement[];
+  readonly firstFloor: number;
+  readonly lastFloor: number;
+  readonly hasStructure: Uint8Array;
+  readonly hasTree: Uint8Array;
+}
+
+function shadowList(inputs: ShadowInputs, g: number): number[] {
+  const { level, tiles, firstFloor, lastFloor, hasStructure, hasTree } = inputs;
+  const land = levelTilesAt(level.layers.land, g);
+  const indoors = [...land].some((t) => {
+    const type = tiles[t]?.type ?? -1;
+    return type >= firstFloor && type <= lastFloor;
+  });
+  const buddies: number[] = [];
+  if (!indoors) {
+    for (const t of levelTilesAt(level.layers.structs, g)) {
+      const te = tiles[t];
+      if (te && te.flags & TileFlags.HAS_SHADOW_BUDDY && te.buddy !== -1) buddies.unshift(te.buddy);
+    }
+  }
+  const surrounded = hasTree[g] === 1 && SHADOW_SEARCH_DIRECTIONS.every(([dx, dy]) => hasStructure[neighbourOrSelf(g, dx, dy)] === 1);
+  return surrounded ? [] : [...buddies, ...levelTilesAt(level.layers.shadows, g)];
+}
+
+function packShadows(lists: (g: number) => ArrayLike<number>): LevelLayer {
+  const offsets = new Uint32Array(WORLD_MAX + 1);
+  const all: ArrayLike<number>[] = [];
+  for (let g = 0; g < WORLD_MAX; g++) {
+    const l = lists(g);
+    all.push(l);
+    offsets[g + 1] = (offsets[g] ?? 0) + l.length;
+  }
+  const shadowTiles = new Uint16Array(offsets[WORLD_MAX] ?? 0);
+  all.forEach((l, g) => {
+    shadowTiles.set(l, offsets[g] ?? 0);
+  });
+  return { offsets, tiles: shadowTiles };
+}
+
+function floorRange(tables: TileTables): { readonly firstFloor: number; readonly lastFloor: number } {
+  return { firstFloor: typeIndex(tables, 'FIRSTFLOOR'), lastFloor: typeIndex(tables, 'FIRSTROOF') - 1 };
+}
+
 export function prepareLevelRenderData(
   level: Level,
   tiles: readonly TileElement[],
@@ -84,37 +132,28 @@ export function prepareLevelRenderData(
   info: MapInformation,
   underground: boolean,
 ): LevelRenderData {
-  const firstFloor = typeIndex(tables, 'FIRSTFLOOR');
-  const lastFloor = typeIndex(tables, 'FIRSTROOF') - 1;
   const landStart = new Int8Array(WORLD_MAX);
   const noBurn = new Uint8Array(WORLD_MAX);
-  const shadowLists: number[][] = [];
   const { hasStructure, hasTree } = structureFootprints(level, tiles);
+  const inputs: ShadowInputs = { level, tiles, ...floorRange(tables), hasStructure, hasTree };
   for (let g = 0; g < WORLD_MAX; g++) {
-    const land = levelTilesAt(level.layers.land, g);
-    landStart[g] = firstFullLandFromHead(land, tiles);
+    landStart[g] = firstFullLandFromHead(levelTilesAt(level.layers.land, g), tiles);
     noBurn[g] = noBurnStruct(levelTilesAt(level.layers.structs, g), tiles);
-    const indoors = [...land].some((t) => {
-      const type = tiles[t]?.type ?? -1;
-      return type >= firstFloor && type <= lastFloor;
-    });
-    const buddies: number[] = [];
-    if (!indoors) {
-      for (const t of levelTilesAt(level.layers.structs, g)) {
-        const te = tiles[t];
-        if (te && te.flags & TileFlags.HAS_SHADOW_BUDDY && te.buddy !== -1) buddies.unshift(te.buddy);
-      }
-    }
-    const surrounded = hasTree[g] === 1 && SHADOW_SEARCH_DIRECTIONS.every(([dx, dy]) => hasStructure[neighbourOrSelf(g, dx, dy)] === 1);
-    shadowLists.push(surrounded ? [] : [...buddies, ...levelTilesAt(level.layers.shadows, g)]);
   }
-  const offsets = new Uint32Array(WORLD_MAX + 1);
-  shadowLists.forEach((l, g) => {
-    offsets[g + 1] = (offsets[g] ?? 0) + l.length;
-  });
-  const shadowTiles = new Uint16Array(offsets[WORLD_MAX] ?? 0);
-  shadowLists.forEach((l, g) => {
-    shadowTiles.set(l, offsets[g] ?? 0);
-  });
-  return { landStart, shadows: { offsets, tiles: shadowTiles }, renderHeight: renderHeight(level, info, underground), noBurn };
+  const shadows = packShadows((g) => shadowList(inputs, g));
+  return { landStart, shadows, renderHeight: renderHeight(level, info, underground), noBurn, hasStructure, hasTree };
+}
+
+export function updateLevelRenderData(
+  previous: LevelRenderData,
+  level: Level,
+  tiles: readonly TileElement[],
+  tables: TileTables,
+  gridNos: ReadonlySet<number>,
+): LevelRenderData {
+  const noBurn = previous.noBurn.slice();
+  for (const g of gridNos) noBurn[g] = noBurnStruct(levelTilesAt(level.layers.structs, g), tiles);
+  const inputs: ShadowInputs = { level, tiles, ...floorRange(tables), hasStructure: previous.hasStructure, hasTree: previous.hasTree };
+  const shadows = packShadows((g) => (gridNos.has(g) ? shadowList(inputs, g) : levelTilesAt(previous.shadows, g)));
+  return { ...previous, shadows, noBurn };
 }

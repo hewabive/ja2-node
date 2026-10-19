@@ -6,6 +6,7 @@ import {
   ANIMATED_TILE_FRAME_MS,
   type DrawRun,
   DynamicScene,
+  isDynamic,
   type PlacedSoldier,
   type SceneAniTile,
   type SceneItem,
@@ -26,7 +27,7 @@ import {
 } from './geometry.ts';
 import { itemOutlineColour } from './glow.ts';
 import { DrawState } from './instances.ts';
-import type { LevelRenderData } from './level-render-data.ts';
+import { type LevelRenderData, updateLevelRenderData } from './level-render-data.ts';
 import { pickSoldierAt } from './picking.ts';
 import { changedRevealTiles, computeReveal, type RevealState } from './reveal.ts';
 import type { LightColour } from './soldier-palettes.ts';
@@ -109,6 +110,7 @@ interface LoadedScene {
   scene: StaticScene;
   dynamic: DynamicScene;
   tileChanges: string;
+  changes: readonly TileChange[];
   reveal: RevealState;
   revealedRooms: ReadonlySet<number>;
   uploaded: boolean;
@@ -176,6 +178,7 @@ export class WorldRenderer {
       scene,
       dynamic: new DynamicScene(staticWorld, world.prepared),
       tileChanges: '',
+      changes: [],
       reveal,
       revealedRooms: new Set(),
       uploaded: false,
@@ -199,14 +202,22 @@ export class WorldRenderer {
     const key = tileChangesKey(changes);
     if (key === s.tileChanges) return;
     const started = performance.now();
+    const both = [...s.changes, ...changes];
+    const touched = new Set(both.map((c) => c.gridNo));
     const level = applyTileChanges(s.original.level, changes);
-    const world: RenderWorld = level === s.original.level ? s.original : { ...s.original, level, prepared: s.original.prepare(level) };
+    const prepared = updateLevelRenderData(s.world.prepared, level, s.original.tiles, s.original.tables, touched);
+    const world: RenderWorld = { ...s.original, level, prepared };
+    const previousReveal = s.reveal;
     s.world = world;
     s.tileChanges = key;
+    s.changes = changes;
     s.staticWorld = this.#staticWorld(world, s.sprites);
     s.reveal = computeReveal(this.#revealWorld(world), s.revealedRooms);
-    s.scene = new StaticScene(s.staticWorld, { ...s.scene.state, reveal: s.reveal });
-    s.dynamic = new DynamicScene(s.staticWorld, world.prepared);
+    const rows = new Set([...touched].map(rowOf));
+    for (const g of changedRevealTiles(previousReveal, s.reveal, level)) rows.add(rowOf(g));
+    s.scene.replaceWorld(s.staticWorld, { ...s.scene.state, reveal: s.reveal }, rows);
+    const dynamicTouched = both.some((c) => isDynamic(s.original.tiles[c.tile]));
+    s.dynamic = new DynamicScene(s.staticWorld, prepared, dynamicTouched ? undefined : s.dynamic.mapNodes);
     s.uploaded = false;
     this.#rebuildMs = performance.now() - started;
   }
