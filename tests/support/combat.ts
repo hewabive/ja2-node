@@ -5,11 +5,11 @@ import { syntheticStructure, syntheticWorld } from '../../src/content/world/synt
 import type { TacticalWorld } from '../../src/content/world/tactical-world.ts';
 import { advance } from '../../src/sim/advance.ts';
 import type { CommandResult } from '../../src/sim/command.ts';
+import type { SimEvent } from '../../src/sim/events.ts';
 import { answerHint } from '../../src/sim/hints/answer.ts';
+import { createItem } from '../../src/sim/items/object.ts';
 import { knowledgeRules, knowledgeWorld } from '../../src/sim/knowledge/knowledge-world.ts';
 import { knowledgeViewOf } from '../../src/sim/knowledge/sim-view.ts';
-import type { SimEvent } from '../../src/sim/events.ts';
-import { createItem } from '../../src/sim/items/object.ts';
 import { initNewSoldierAnim, states } from '../../src/sim/tactical/animation.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
 import { InvSlot } from '../../src/sim/tactical/inventory.ts';

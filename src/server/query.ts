@@ -11,6 +11,7 @@ import type { CommandResult } from '../sim/command.ts';
 import { answerHint } from '../sim/hints/answer.ts';
 import { isHintKind, isServerQueryKind, refuseHint } from '../sim/hints/types.ts';
 import { type KnowledgeRules, knowledgeRules, knowledgeWorld } from '../sim/knowledge/knowledge-world.ts';
+import type { StrategicRules } from '../sim/knowledge/strategic.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
 import type { FileExists } from './world-cache.ts';
 
@@ -25,6 +26,7 @@ export interface QuerySubject {
   readonly tick: number;
   dispatch(cmd: CommandEnvelope): CommandResult;
   tacticalContent?(): TacticalContent | null;
+  strategicRules?(): StrategicRules | null;
 }
 
 export function isQueryCommand(cmd: CommandEnvelope): boolean {
@@ -56,19 +58,27 @@ class ProjectionWorlds {
   }
 }
 
+const NO_CONTENT = {};
+
 export class QueryService {
   readonly #worlds: ProjectionWorlds;
-  readonly #rules = new WeakMap<TacticalContent, KnowledgeRules>();
+  readonly #rules = new WeakMap<object, Map<StrategicRules | null, KnowledgeRules>>();
 
   constructor(read: ReadFile, exists: FileExists) {
     this.#worlds = new ProjectionWorlds(read, exists);
   }
 
-  #rulesFor(content: TacticalContent): KnowledgeRules {
-    let rules = this.#rules.get(content);
+  #rulesFor(content: TacticalContent | null, strategic: StrategicRules | null): KnowledgeRules {
+    const key = content ?? NO_CONTENT;
+    let byStrategic = this.#rules.get(key);
+    if (!byStrategic) {
+      byStrategic = new Map();
+      this.#rules.set(key, byStrategic);
+    }
+    let rules = byStrategic.get(strategic);
     if (!rules) {
-      rules = knowledgeRules(content, this.#worlds);
-      this.#rules.set(content, rules);
+      rules = knowledgeRules(content, this.#worlds, strategic);
+      byStrategic.set(strategic, rules);
     }
     return rules;
   }
@@ -82,9 +92,7 @@ export class QueryService {
     const tick = view.tick;
     if (isServerQueryKind(q.type)) return { ...subject.dispatch(q), tick };
     if (!isQueryCommand(q)) return { ...refuseHint('notAQuery', `${q.type} is not a query`), tick };
-    const content = subject.tacticalContent?.() ?? null;
-    if (!content) return { ...refuseHint('noSector', 'no sector is loaded'), tick };
-    const world = knowledgeWorld(view, this.#rulesFor(content));
-    return { ...answerHint(world, q), tick };
+    const rules = this.#rulesFor(subject.tacticalContent?.() ?? null, subject.strategicRules?.() ?? null);
+    return { ...answerHint(knowledgeWorld(view, rules), q), tick };
   }
 }

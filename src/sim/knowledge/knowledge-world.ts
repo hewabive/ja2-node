@@ -3,6 +3,7 @@ import type { TacticalContent } from '../tactical/content.ts';
 import { type Soldier, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import type { GuardOptions } from './guard.ts';
+import { type StrategicKnowledge, type StrategicRules, strategicKnowledge } from './strategic.ts';
 import { TacticalProjection } from './tactical.ts';
 import type { KnowledgeSoldier, KnowledgeView } from './view.ts';
 
@@ -39,12 +40,17 @@ export class ProjectionCache {
 }
 
 export interface KnowledgeRules {
-  readonly content: TacticalContent;
-  readonly projections: ProjectionCache;
+  readonly content: TacticalContent | null;
+  readonly projections: ProjectionCache | null;
+  readonly strategic: StrategicRules | null;
 }
 
-export function knowledgeRules(content: TacticalContent, worlds: KnowledgeWorlds): KnowledgeRules {
-  return { content, projections: new ProjectionCache(content, worlds) };
+export function knowledgeRules(
+  content: TacticalContent | null,
+  worlds: KnowledgeWorlds,
+  strategic: StrategicRules | null = null,
+): KnowledgeRules {
+  return { content, projections: content ? new ProjectionCache(content, worlds) : null, strategic };
 }
 
 export interface KnowledgeOptions {
@@ -64,10 +70,11 @@ export interface KnowledgeWorld {
   readonly rules: KnowledgeRules;
   readonly guard: GuardOptions;
   readonly tactical: TacticalKnowledge | null;
+  readonly strategic: StrategicKnowledge | null;
 }
 
 function tacticalKnowledge(view: KnowledgeView, rules: KnowledgeRules, guard: GuardOptions): TacticalKnowledge | null {
-  if (!view.mapPath) return null;
+  if (!view.mapPath || !rules.projections) return null;
   const projection = rules.projections.projection(view.mapPath);
   if (!projection) return null;
   const state = projection.sync(view, guard);
@@ -84,5 +91,11 @@ function tacticalKnowledge(view: KnowledgeView, rules: KnowledgeRules, guard: Gu
 
 export function knowledgeWorld(view: KnowledgeView, rules: KnowledgeRules, options: KnowledgeOptions = {}): KnowledgeWorld {
   const guard: GuardOptions = { strict: options.strict ?? false };
-  return { view, rules, guard, tactical: tacticalKnowledge(view, rules, guard) };
+  return {
+    view,
+    rules,
+    guard,
+    tactical: tacticalKnowledge(view, rules, guard),
+    strategic: strategicKnowledge(view, rules.strategic, guard),
+  };
 }

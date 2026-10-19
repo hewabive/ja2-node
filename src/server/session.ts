@@ -17,6 +17,7 @@ import { AdvanceRun, type PauseCheck, type Steppable, type StopCondition, type S
 import { TICK_MS } from '../sim/clock.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent, SimEventType } from '../sim/events.ts';
+import type { StrategicRules } from '../sim/knowledge/strategic.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
 import { type InputEntry, InputLog, type LoadPayload, type LogOrigin, UNKNOWN_ORIGIN } from './input-log.ts';
 import { gameSavedEntry, type MessageFacts, messageEntriesOf, NO_MESSAGE_FACTS, refusalEntry } from './message-entries.ts';
@@ -36,6 +37,7 @@ export interface SessionSim extends Steppable {
   dispatch(cmd: CommandEnvelope): CommandResult;
   view(): PlayerView;
   tacticalContent?(): TacticalContent | null;
+  strategicRules?(): StrategicRules | null;
   musicFacts?(): MusicFacts;
   messageFacts?(): MessageFacts;
   profileFaceRecords?(): readonly ProfileFaceRecord[];

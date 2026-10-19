@@ -16,8 +16,8 @@ import {
   lightSpritePower,
   NORMAL_LIGHTLEVEL_DAY,
 } from '../tactical/lighting/lighting.ts';
-import { BOXING_STATE_NAMES } from '../tactical/narrative/boxing-state.ts';
 import type { BoxingStateName } from '../tactical/narrative/boxing-events.ts';
+import { BOXING_STATE_NAMES } from '../tactical/narrative/boxing-state.ts';
 import { type NarrativePort, NO_NARRATIVE_PORT } from '../tactical/narrative/port.ts';
 import { Opp } from '../tactical/perception/opp.ts';
 import { addMercStructure, removeMercStructure } from '../tactical/person-structure.ts';
