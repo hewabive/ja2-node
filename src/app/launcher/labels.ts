@@ -1,5 +1,5 @@
 import type { UiLanguage } from '../../content/text/data-version.ts';
-import { printf } from './printf.ts';
+import { printf } from '../../ui/text/printf.ts';
 import {
   DEAD_IS_DEAD_TAB,
   FINANCE_HEADER_BALANCE,

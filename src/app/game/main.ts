@@ -1,13 +1,11 @@
-import { type DataVersion, glyphTablePath, STUB_DATA_VERSION } from '../../content/text/data-version.ts';
 import { AUTO_UI_SCALE, type ScaleSetting } from '../../ui/resolution.ts';
-import { TEST_PATTERN_FONTS, TEST_PATTERN_IMAGES, TestPatternScreen } from '../../ui/screens/test-pattern.ts';
+import { TEST_PATTERN_IMAGES, TestPatternScreen } from '../../ui/screens/test-pattern.ts';
 import { SessionClient } from '../net/session-client.ts';
-import { fetchHealth } from '../net/vfs.ts';
 import { type ClientSettings, loadSettings } from '../settings.ts';
 import { installDomInput } from './dom-input.ts';
 import { startFrameLoop } from './frame-loop.ts';
 import { GamePage } from './game-page.ts';
-import { UiAssets } from './ui-assets.ts';
+import { bootUi } from './ui-boot.ts';
 
 const SESSION_PARAM = 'session';
 const SCALE_PARAM = 'scale';
@@ -45,6 +43,7 @@ installDomInput(
     page.hook.presses = testScreen?.presses ?? 0;
   },
   () => page.resolution,
+  { pointerLeft: () => page.pointerLeft() },
 );
 startFrameLoop({ now: clock, requestFrame: (run) => requestAnimationFrame(run), frame: (now) => page.frame(now), failed: fail });
 
@@ -56,12 +55,10 @@ SessionClient.connect(params.get(SESSION_PARAM) ?? undefined)
   .catch(fail);
 
 async function boot(): Promise<void> {
-  const health = await fetchHealth();
-  const version = (health.dataVersion as DataVersion | undefined) ?? STUB_DATA_VERSION;
-  page.hook.dataVersion = version;
-  const assets = new UiAssets(page.renderer);
-  await assets.preload(TEST_PATTERN_IMAGES, TEST_PATTERN_FONTS, glyphTablePath(version));
-  testScreen = new TestPatternScreen(() => page.resolution, assets.fonts, assets.images);
+  const ui = await bootUi(page, { images: TEST_PATTERN_IMAGES });
+  page.canvas.addEventListener('pointerdown', () => ui.audio.unlock());
+  window.addEventListener('keydown', () => ui.audio.unlock());
+  testScreen = new TestPatternScreen(() => page.resolution, ui.assets.fonts, ui.assets.images);
   page.host.push(testScreen);
   requestAnimationFrame(() =>
     requestAnimationFrame(() => {

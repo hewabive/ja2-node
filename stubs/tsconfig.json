@@ -8,5 +8,5 @@
   },
   "include": ["**/*.ts"],
   "exclude": ["**/*.test.ts"],
-  "references": [{ "path": "../src/core" }, { "path": "../src/content" }, { "path": "../src/node" }]
+  "references": [{ "path": "../src/core" }, { "path": "../src/content" }, { "path": "../src/node" }, { "path": "../src/ui" }]
 }

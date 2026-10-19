@@ -55,6 +55,8 @@ const FIRST_PRINTABLE = 0x20;
 const LAST_PRINTABLE = 0x7e;
 const KEYPAD_PREFIX = 'Numpad';
 const KEYPAD_DIGIT = /^Numpad\d$/;
+const KEYPAD_ENTER = 'NumpadEnter';
+const ENTER = 'Enter';
 
 const CODE_CHARACTERS: Readonly<Record<string, string>> = {
   Space: ' ',
@@ -85,6 +87,7 @@ function latinFromCode(code: string): string | null {
 }
 
 export function uiKeyOf(raw: Pick<RawKey, 'key' | 'code' | 'numLock'>): string {
+  if (raw.code === KEYPAD_ENTER) return ENTER;
   if (raw.code.startsWith(KEYPAD_PREFIX)) {
     const navigates = KEYPAD_DIGIT.test(raw.code) && !raw.numLock && !isPrintableAscii(raw.key);
     return navigates ? raw.key : raw.code;

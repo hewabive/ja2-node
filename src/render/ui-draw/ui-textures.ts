@@ -43,6 +43,7 @@ export class UiTextures {
   readonly #gl: WebGL2RenderingContext;
   readonly #images = new Map<AssetKey, UiImage>();
   readonly #fonts = new Map<FontId, UiFont>();
+  readonly #snapshots = new Map<string, RgbUiImage>();
 
   constructor(gl: WebGL2RenderingContext) {
     this.#gl = gl;
@@ -97,6 +98,34 @@ export class UiTextures {
     return this.#fonts.get(id);
   }
 
+  snapshot(id: string): RgbUiImage | undefined {
+    return this.#snapshots.get(id);
+  }
+
+  ensureSnapshot(id: string, width: number, height: number): RgbUiImage {
+    const gl = this.#gl;
+    let snapshot = this.#snapshots.get(id);
+    if (!snapshot || snapshot.width !== width || snapshot.height !== height) {
+      if (snapshot) gl.deleteTexture(snapshot.texture);
+      const texture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, width, height);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      snapshot = { kind: 'rgb', texture, width, height };
+      this.#snapshots.set(id, snapshot);
+    }
+    return snapshot;
+  }
+
+  captureSnapshot(id: string, width: number, height: number): void {
+    const gl = this.#gl;
+    gl.bindTexture(gl.TEXTURE_2D, this.ensureSnapshot(id, width, height).texture);
+    gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 0, 0, width, height);
+  }
+
   paletteRow(image: IndexedUiImage, shade: PaletteShade | null): number {
     const key = shadeKey(shade);
     let row = image.rows.get(key);
@@ -109,7 +138,9 @@ export class UiTextures {
 
   clear(): void {
     for (const image of this.#images.values()) if (image.kind === 'rgb') this.#gl.deleteTexture(image.texture);
+    for (const snapshot of this.#snapshots.values()) this.#gl.deleteTexture(snapshot.texture);
     this.#images.clear();
+    this.#snapshots.clear();
     this.#fonts.clear();
     this.atlas.clear();
     this.palettes.clear();

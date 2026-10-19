@@ -1,0 +1,205 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/MessageBoxScreen.cc g_msg_box_style, MSGBOX_* defines",
+    "src/game/Utils/MercTextBox.cc zMercBorderPopupFilenames, zMercBackgroundPopupFilenames, guiBoxIcons, guiSkullIcons, PrepareMercPopupBox (the border pieces at 10-pixel steps: 10×10 corners, the bottom row at h − 10 + 6 and the right column at w − 4)"
+  ],
+  "screen": "messageBox",
+  "frame": "screen",
+  "constants": ["MessageBoxScreen", "MercTextBox"],
+  "assets": {
+    "popupButtons": {
+      "sti": "interface/popupbuttons.sti",
+      "stub": {
+        "sizes": [
+          ["MSGBOX_BUTTON_WIDTH", "MSGBOX_BUTTON_HEIGHT"],
+          ["MSGBOX_BUTTON_WIDTH", "MSGBOX_BUTTON_HEIGHT"],
+          ["MSGBOX_SMALL_BUTTON_WIDTH", "MSGBOX_BUTTON_HEIGHT"],
+          ["MSGBOX_SMALL_BUTTON_WIDTH", "MSGBOX_BUTTON_HEIGHT"]
+        ],
+        "states": ["normal", "pressed", "normal", "pressed"]
+      }
+    },
+    "redButtons": {
+      "sti": "interface/msgboxredbuttons.sti",
+      "stub": { "frames": 2, "size": ["MSGBOX_BUTTON_WIDTH", "MSGBOX_BUTTON_HEIGHT"], "states": ["normal", "pressed"] }
+    },
+    "greyButtons": {
+      "sti": "interface/msgboxgreybuttons.sti",
+      "stub": { "frames": 2, "size": ["MSGBOX_BUTTON_WIDTH", "MSGBOX_BUTTON_HEIGHT"], "states": ["normal", "pressed"] }
+    },
+    "tactPopup": {
+      "sti": "interface/tactpopup.sti",
+      "stub": {
+        "sizes": [
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"]
+        ]
+      }
+    },
+    "tactRedPopup": {
+      "sti": "interface/tactredpopup.sti",
+      "stub": {
+        "sizes": [
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"]
+        ]
+      }
+    },
+    "tactBluePopup": {
+      "sti": "interface/tactbluepopup.sti",
+      "stub": {
+        "sizes": [
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"]
+        ]
+      }
+    },
+    "tactPopupMain": {
+      "sti": "interface/tactpopupmain.sti",
+      "stub": {
+        "sizes": [
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"]
+        ]
+      }
+    },
+    "laptopPopup": {
+      "sti": "interface/laptoppopup.sti",
+      "stub": {
+        "sizes": [
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"]
+        ]
+      }
+    },
+    "basicBackground": {
+      "pcx": "interface/tactpopupbackground.pcx",
+      "stub": { "size": ["MERC_BACKGROUND_WIDTH", "MERC_BACKGROUND_HEIGHT"] }
+    },
+    "whiteBackground": {
+      "pcx": "interface/tactpopupwhitebackground.pcx",
+      "stub": { "size": ["MERC_BACKGROUND_WIDTH", "MERC_BACKGROUND_HEIGHT"] }
+    },
+    "greyBackground": {
+      "pcx": "interface/tactpopupgreybackground.pcx",
+      "stub": { "size": ["MERC_BACKGROUND_WIDTH", "MERC_BACKGROUND_HEIGHT"] }
+    },
+    "dialogBackground": {
+      "pcx": "interface/tactpopupbackgroundmain.pcx",
+      "stub": { "size": ["MERC_BACKGROUND_WIDTH", "MERC_BACKGROUND_HEIGHT"] }
+    },
+    "laptopBackground": {
+      "pcx": "interface/laptoppopupbackground.pcx",
+      "stub": { "size": ["MERC_BACKGROUND_WIDTH", "MERC_BACKGROUND_HEIGHT"] }
+    },
+    "impBackground": {
+      "pcx": "interface/imp_popup_background.pcx",
+      "stub": { "size": ["MERC_BACKGROUND_WIDTH", "MERC_BACKGROUND_HEIGHT"] }
+    },
+    "stopIcon": { "sti": "interface/msgboxicons.sti", "stub": { "frames": 1, "size": [24, 32] } },
+    "skullIcon": { "sti": "interface/msgboxiconskull.sti", "stub": { "frames": 1, "size": [20, 32] } }
+  },
+  "styles": {
+    "textBoxes": {
+      "basic": {
+        "background": "basicBackground",
+        "border": "tactPopup",
+        "backgroundIndex": "BASIC_MERC_POPUP_BACKGROUND",
+        "stopIcon": "stopIcon",
+        "skullIcon": "skullIcon"
+      },
+      "redOnWhite": { "background": "whiteBackground", "border": "tactRedPopup", "backgroundIndex": "WHITE_MERC_POPUP_BACKGROUND" },
+      "blueOnGrey": { "background": "greyBackground", "border": "tactBluePopup", "backgroundIndex": "GREY_MERC_POPUP_BACKGROUND" },
+      "dialog": { "background": "dialogBackground", "border": "tactPopupMain", "backgroundIndex": "DIALOG_MERC_POPUP_BACKGROUND" },
+      "laptop": { "background": "laptopBackground", "border": "laptopPopup", "backgroundIndex": "LAPTOP_POPUP_BACKGROUND" },
+      "imp": { "background": "impBackground", "border": "tactPopupMain", "backgroundIndex": "IMP_POPUP_BACKGROUND" }
+    },
+    "messageBoxes": [
+      {
+        "textBox": { "background": "dialogBackground", "border": "tactPopupMain", "backgroundIndex": "DIALOG_MERC_POPUP_BACKGROUND" },
+        "buttons": "popupButtons",
+        "off": 0,
+        "on": 1,
+        "color": "FONT_MCOLOR_WHITE",
+        "shadow": "DEFAULT_SHADOW",
+        "cursor": "CURSOR_NORMAL"
+      },
+      {
+        "textBox": { "background": "whiteBackground", "border": "tactRedPopup", "backgroundIndex": "WHITE_MERC_POPUP_BACKGROUND" },
+        "buttons": "redButtons",
+        "off": 0,
+        "on": 1,
+        "color": 2,
+        "shadow": "NO_SHADOW",
+        "cursor": "CURSOR_LAPTOP_SCREEN"
+      },
+      {
+        "textBox": { "background": "greyBackground", "border": "tactBluePopup", "backgroundIndex": "GREY_MERC_POPUP_BACKGROUND" },
+        "buttons": "greyButtons",
+        "off": 0,
+        "on": 1,
+        "color": 2,
+        "shadow": "FONT_MCOLOR_WHITE",
+        "cursor": "CURSOR_LAPTOP_SCREEN"
+      },
+      {
+        "textBox": { "background": "dialogBackground", "border": "tactPopupMain", "backgroundIndex": "DIALOG_MERC_POPUP_BACKGROUND" },
+        "buttons": "popupButtons",
+        "off": 2,
+        "on": 3,
+        "color": "FONT_MCOLOR_WHITE",
+        "shadow": "DEFAULT_SHADOW",
+        "cursor": "CURSOR_NORMAL"
+      },
+      {
+        "textBox": { "background": "impBackground", "border": "tactPopupMain", "backgroundIndex": "IMP_POPUP_BACKGROUND" },
+        "buttons": "greyButtons",
+        "off": 0,
+        "on": 1,
+        "color": 2,
+        "shadow": "FONT_MCOLOR_WHITE",
+        "cursor": "CURSOR_LAPTOP_SCREEN"
+      },
+      {
+        "textBox": { "background": "laptopBackground", "border": "laptopPopup", "backgroundIndex": "LAPTOP_POPUP_BACKGROUND" },
+        "buttons": "popupButtons",
+        "off": 0,
+        "on": 1,
+        "color": "FONT_MCOLOR_WHITE",
+        "shadow": "DEFAULT_SHADOW",
+        "cursor": "CURSOR_LAPTOP_SCREEN"
+      }
+    ]
+  }
+}

@@ -15,6 +15,7 @@ import { gapPathFor, parseGap } from '../src/content/formats/gap.ts';
 import { parseTilesetDatabase } from '../src/content/formats/ja2set.ts';
 import { parseStructureFile } from '../src/content/formats/jsd.ts';
 import { parseMap } from '../src/content/formats/map.ts';
+import { decodePcx } from '../src/content/formats/pcx.ts';
 import { createFrameReader, decodeAudio, openSmk } from '../src/content/formats/smk.ts';
 import { decodeSti } from '../src/content/formats/sti.ts';
 import { loadStubProfiles } from '../src/content/formats/stub-profiles.ts';
@@ -27,6 +28,7 @@ import { parseTileTables } from '../src/content/world/tile-tables.ts';
 import { type DataVfs, openDataVfs, STUBS_PREFIX } from '../src/node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
 import { TextService } from '../src/server/text-service.ts';
+import { cursorFilePaths, cursorFramesUsed } from '../src/ui/cursors/cursor-table.ts';
 import { STUB_AMBIENT_ENTRIES, STUB_AMBIENT_ID } from './ambient.ts';
 import { stubSoundPaths } from './audio.ts';
 import { buildStubs } from './build.ts';
@@ -35,6 +37,8 @@ import { musicTracks } from './music.ts';
 import { loadSectorKinds, sectorMapFile } from './sector-kinds.ts';
 import { npcSpeechSets, type SpeechSet, speechPaths } from './speech.ts';
 import { STUB_TILE_SURFACES } from './tiles.ts';
+import { ANIMATED_STUB_CURSORS, loadCursorTable } from './ui/cursors.ts';
+import { planStubSkin, readOriginalLayouts } from './ui/skin.ts';
 import { OUTLINE_INDEX, TEST_CARD_PATH, TEST_CARD_RGB_PATH } from './ui-test-card.ts';
 import {
   STUB_SPLASH_FRAMES,
@@ -46,7 +50,7 @@ import {
   stubSplashFrames,
 } from './video.ts';
 
-const MEDIA_DIRS = ['synth', 'music', 'mercedt', 'intro', 'fonts'];
+const MEDIA_DIRS = ['synth', 'music', 'mercedt', 'intro', 'fonts', 'cursors', 'interface', 'laptop'];
 const SPLASH_BUDGET_BYTES = 64 * 1024;
 const CONTENT_DIRS = ['world', 'npcdata', 'binarydata'];
 const STUB_PROFILE_FILE = 'profiles.json';
@@ -309,6 +313,51 @@ describe('stub media', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
     expect(ids.filter((id) => id >= 160)).toEqual([160, 161, 162, 163]);
     for (const id of [97, 106, 113, 124, 125, 126, 130, 147, 148, 151, 152, 154, 156, 157, 158])
       expect(data.vfs.stat(stub(`npcdata/${String(id).padStart(3, '0')}.edt`)), String(id)).toBeDefined();
+  });
+
+  it('decodes every stub cursor with the frames the cursor table uses, the animated ones with AUX_ANIMATED_TILE', async () => {
+    const table = await loadCursorTable();
+    const used = cursorFramesUsed(table);
+    for (const path of cursorFilePaths(table)) {
+      const sti = decodeSti(await data.vfs.read(stub(path)));
+      if (sti.kind !== 'indexed') throw new Error(`${path} is not indexed`);
+      expect(sti.subImages.length, path).toBeGreaterThanOrEqual(used.get(path) ?? 1);
+      for (const frame of sti.subImages)
+        expect(
+          frame.pixels.some((p) => p !== 0),
+          path,
+        ).toBe(true);
+      const animated = ANIMATED_STUB_CURSORS[path];
+      if (animated) expect(sti.appData?.[0], path).toMatchObject({ numberOfFrames: animated, flags: 2 });
+    }
+  });
+
+  it('writes the stub skin of the original layouts at the declared sizes with distinct button states', async () => {
+    const plans = planStubSkin(await readOriginalLayouts());
+    expect(plans.size).toBeGreaterThan(10);
+    for (const plan of plans.values()) {
+      const bytes = await data.vfs.read(stub(plan.path));
+      if (plan.kind === 'pcx') {
+        const pcx = decodePcx(bytes);
+        expect([pcx.width, pcx.height], plan.path).toEqual([plan.frames[0]?.width, plan.frames[0]?.height]);
+        continue;
+      }
+      const sti = decodeSti(bytes);
+      if (sti.kind !== 'indexed') throw new Error(`${plan.path} is not indexed`);
+      expect(
+        sti.subImages.map((f) => [f.width, f.height]),
+        plan.path,
+      ).toEqual(plan.frames.map((f) => [f.width, f.height]));
+    }
+    const buttons = plans.get('interface/popupbuttons.sti');
+    expect(buttons?.frames.map((f) => f.state)).toEqual(['normal', 'pressed', 'normal', 'pressed']);
+    const sti = decodeSti(await data.vfs.read(stub('interface/popupbuttons.sti')));
+    if (sti.kind !== 'indexed') throw new Error('popupbuttons is not indexed');
+    const centre = (i: number) => {
+      const f = sti.subImages[i];
+      return f ? f.pixels[(f.height - 3) * f.width + f.width - 3] : -1;
+    };
+    expect(centre(0)).not.toBe(centre(1));
   });
 
   it('keeps the media small', async () => {

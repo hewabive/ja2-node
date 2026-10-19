@@ -4,6 +4,8 @@ import { buildStubFonts } from './fonts.ts';
 import { buildStubMusic } from './music.ts';
 import { buildStubSpeech, mercSpeechSets, npcSpeechSets } from './speech.ts';
 import { buildStubText } from './text.ts';
+import { buildStubCursors } from './ui/cursors.ts';
+import { buildStubSkin } from './ui/skin.ts';
 import { buildStubTestCard } from './ui-test-card.ts';
 import { buildStubVideo } from './video.ts';
 
@@ -16,5 +18,9 @@ export async function buildStubMedia(out: string, aliases: Map<string, string>):
   const video = await buildStubVideo(out);
   const fonts = await buildStubFonts(out, aliases);
   const testCard = await buildStubTestCard(out);
-  return [...text.written, ...sounds, ...ambient, ...music, ...speech, ...video, ...fonts, ...testCard];
+  const cursors = await buildStubCursors(out);
+  const before = [...text.written, ...sounds, ...ambient, ...music, ...speech, ...video, ...fonts, ...testCard, ...cursors];
+  const present = new Set(before);
+  const skin = await buildStubSkin(out, (path) => present.has(path) || aliases.has(path));
+  return [...before, ...skin];
 }

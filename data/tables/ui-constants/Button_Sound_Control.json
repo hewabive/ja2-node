@@ -1,0 +1,23 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/sgp/Button_Sound_Control.h",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
+  "constants": {
+    "BUTTON_SOUND_SCHEME_NONE": 0,
+    "BUTTON_SOUND_SCHEME_GENERIC": 1,
+    "BUTTON_SOUND_SCHEME_VERYSMALLSWITCH1": 2,
+    "BUTTON_SOUND_SCHEME_VERYSMALLSWITCH2": 3,
+    "BUTTON_SOUND_SCHEME_SMALLSWITCH1": 4,
+    "BUTTON_SOUND_SCHEME_SMALLSWITCH2": 5,
+    "BUTTON_SOUND_SCHEME_SMALLSWITCH3": 6,
+    "BUTTON_SOUND_SCHEME_BIGSWITCH3": 7,
+    "BUTTON_SOUND_SCHEME_COMPUTERBEEP2": 8,
+    "BUTTON_SOUND_SCHEME_COMPUTERSWITCH1": 9,
+    "BUTTON_SOUND_NONE": 0,
+    "BUTTON_SOUND_CLICKED_ON": 1,
+    "BUTTON_SOUND_CLICKED_OFF": 2,
+    "BUTTON_SOUND_DISABLED_CLICK": 3
+  },
+  "stdScreen": [],
+  "skipped": []
+}

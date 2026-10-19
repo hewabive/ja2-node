@@ -1,0 +1,24 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/sgp/Cursor_Control.h",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
+  "constants": {
+    "USE_OUTLINE_BLITTER": 8,
+    "EXTERN_CURSOR": 65520,
+    "MAX_COMPOSITES": 5,
+    "CENTER_SUBCURSOR": 31000,
+    "HIDE_SUBCURSOR": 32000,
+    "CENTER_CURSOR": 32000,
+    "RIGHT_CURSOR": 32001,
+    "LEFT_CURSOR": 32002,
+    "TOP_CURSOR": 32003,
+    "BOTTOM_CURSOR": 32004,
+    "CURSOR_TO_FLASH": 1,
+    "CURSOR_TO_FLASH2": 2,
+    "CURSOR_TO_SUB_CONDITIONALLY": 4,
+    "DELAY_START_CURSOR": 8,
+    "CURSOR_TO_PLAY_SOUND": 16
+  },
+  "stdScreen": [],
+  "skipped": []
+}

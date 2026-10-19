@@ -45,6 +45,7 @@ export default defineConfig(() => {
           tactical: fileURLToPath(new URL('./src/devtools/tactical/index.html', import.meta.url)),
           strategic: fileURLToPath(new URL('./src/devtools/strategic/index.html', import.meta.url)),
           video: fileURLToPath(new URL('./src/devtools/video/index.html', import.meta.url)),
+          uiGallery: fileURLToPath(new URL('./src/devtools/ui-gallery/index.html', import.meta.url)),
         },
       },
     },

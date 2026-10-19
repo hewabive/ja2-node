@@ -3,7 +3,8 @@
 // @src src/sgp/VObject_Blitters.cc Blt16BPPBufferHatchRect and Blt16BPPBufferLooseHatchRectWithColor (8×8 patterns
 // @src from the clipped top-left corner), Blt8BPPDataTo16BPPBufferOutline (index 254 in a colour or skipped),
 // @src BltOutlineShadow (non-254 pixels darken), Blt8BPPDataTo16BPPBufferMonoShadowClip (0 background, 1 shadow,
-// @src else foreground); src/sgp/VSurface.cc InternalShadowVideoSurfaceRect (colour modulation). See docs/28 §3.11.
+// @src else foreground); src/sgp/VSurface.cc InternalShadowVideoSurfaceRect (colour modulation), BltStretchVideoSurface
+// @src (destination pixel i takes source pixel floor(i × source size / destination size)). See docs/28 §3.11.
 
 export const UiMode = {
   FILL: 0,
@@ -15,6 +16,7 @@ export const UiMode = {
   OUTLINE_SHADOW: 6,
   RGB: 7,
   GLYPH: 8,
+  SNAPSHOT: 9,
 } as const;
 export type UiMode = (typeof UiMode)[keyof typeof UiMode];
 
@@ -73,6 +75,7 @@ const int OUTLINE = ${UiMode.OUTLINE};
 const int OUTLINE_SHADOW = ${UiMode.OUTLINE_SHADOW};
 const int RGB = ${UiMode.RGB};
 const int GLYPH = ${UiMode.GLYPH};
+const int SNAPSHOT = ${UiMode.SNAPSHOT};
 const uint OUTLINE_INDEX = ${OUTLINE_INDEX}u;
 const uint GLYPH_BACKGROUND = 0u;
 const uint GLYPH_SHADOW = 1u;
@@ -104,6 +107,14 @@ void main() {
   }
   if (mode == RGB) {
     o_color = vec4(texelFetch(u_rgb, ivec2(floor(v_src)), 0).rgb, 1.0);
+    return;
+  }
+  if (mode == SNAPSHOT) {
+    ivec2 d = ivec2(floor(v_pos)) - ivec2(v_c0.xy);
+    ivec2 size = max(ivec2(v_c0.zw), ivec2(1));
+    int sx = int(v_origin.x) + (d.x * int(v_c1.x)) / size.x;
+    int sy = int(v_origin.y) + (d.y * int(v_c1.y)) / size.y;
+    o_color = vec4(texelFetch(u_rgb, ivec2(sx, int(v_c1.z) - 1 - sy), 0).rgb, 1.0);
     return;
   }
   uint index = texelFetch(u_index, ivec2(floor(v_src)), 0).r;

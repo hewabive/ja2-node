@@ -1,0 +1,624 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/MessageBoxScreen.cc, src/game/Utils/MercTextBox.cc, src/game/Utils/Slider.cc, src/game/Utils/PopUpBox.cc (the art, its sizes and constants)",
+    "src/game/Strategic/Assignments.cc:5166, :5425-5426 (popup margins 6, 6, 4, 4 and line space 2)",
+    "src/game/Options_Screen.cc (interface/optionscheckboxes.sti, interface/sliderbox.sti)"
+  ],
+  "screen": "gallery",
+  "frame": "std640",
+  "debug": true,
+  "tooltips": true,
+  "constants": ["MessageBoxScreen", "MercTextBox", "PopUpBox", "Slider"],
+  "assets": {
+    "popupButtons": {
+      "sti": "interface/popupbuttons.sti",
+      "stub": {
+        "sizes": [
+          ["MSGBOX_BUTTON_WIDTH", "MSGBOX_BUTTON_HEIGHT"],
+          ["MSGBOX_BUTTON_WIDTH", "MSGBOX_BUTTON_HEIGHT"],
+          ["MSGBOX_SMALL_BUTTON_WIDTH", "MSGBOX_BUTTON_HEIGHT"],
+          ["MSGBOX_SMALL_BUTTON_WIDTH", "MSGBOX_BUTTON_HEIGHT"]
+        ],
+        "states": ["normal", "pressed", "normal", "pressed"]
+      }
+    },
+    "checkboxes": {
+      "sti": "interface/optionscheckboxes.sti",
+      "stub": { "frames": 4, "size": [16, 16], "states": ["normal", "hover", "pressed", "pressedHover"] }
+    },
+    "sliderBox": { "sti": "interface/sliderbox.sti", "stub": { "frames": 1, "size": ["STEEL_SLIDER_WIDTH", "STEEL_SLIDER_HEIGHT"] } },
+    "popupBorder": {
+      "sti": "interface/popup.sti",
+      "stub": { "sizes": [[2, 2], [2, 2], [2, 2], [2, 2], ["BORDER_WIDTH", 2], [2, "BORDER_HEIGHT"]] }
+    },
+    "popupBackground": { "pcx": "interface/popupbackground.pcx", "stub": { "size": [320, 240] } },
+    "stopIcon": { "sti": "interface/msgboxicons.sti", "stub": { "frames": 1, "size": [24, 32] } },
+    "tactPopup": {
+      "sti": "interface/tactpopup.sti",
+      "stub": {
+        "sizes": [
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"]
+        ]
+      }
+    },
+    "basicBackground": {
+      "pcx": "interface/tactpopupbackground.pcx",
+      "stub": { "size": ["MERC_BACKGROUND_WIDTH", "MERC_BACKGROUND_HEIGHT"] }
+    }
+  },
+  "styles": {
+    "textBoxes": {
+      "basic": {
+        "background": "basicBackground",
+        "border": "tactPopup",
+        "backgroundIndex": "BASIC_MERC_POPUP_BACKGROUND",
+        "stopIcon": "stopIcon"
+      }
+    }
+  },
+  "widgets": [
+    { "type": "fill", "x": 0, "y": 0, "width": 640, "height": 480, "color": [24, 26, 34] },
+    { "type": "region", "id": "backdrop", "x": 0, "y": 0, "width": 640, "height": 480, "priority": "LOWEST", "cursor": "CURSOR_NORMAL" },
+    {
+      "type": "text",
+      "x": 8,
+      "y": 6,
+      "font": "FONT14ARIAL",
+      "color": "FONT_MCOLOR_WHITE",
+      "text": { "literal": "ja2-node widget gallery" }
+    },
+    {
+      "type": "text",
+      "id": "status",
+      "x": 8,
+      "y": 464,
+      "width": 624,
+      "font": "FONT10ARIAL",
+      "color": "FONT_YELLOW",
+      "text": { "bind": "status" }
+    },
+
+    { "type": "text", "x": 8, "y": 30, "font": "FONT12ARIAL", "color": "FONT_LTGREEN", "text": { "literal": "Buttons" } },
+    {
+      "type": "button",
+      "id": "push",
+      "x": 8,
+      "y": 46,
+      "asset": "popupButtons",
+      "frames": { "offNormal": 0, "onNormal": 1 },
+      "priority": "HIGH",
+      "tooltip": { "literal": "A push |button: the click fires on release" },
+      "primary": "push",
+      "text": {
+        "source": { "key": ["pMessageStrings", "MSG_OK"] },
+        "font": "FONT12ARIAL",
+        "color": "FONT_MCOLOR_WHITE",
+        "downColor": "FONT_MCOLOR_WHITE"
+      }
+    },
+    {
+      "type": "button",
+      "id": "toggle",
+      "kind": "toggle",
+      "x": 80,
+      "y": 46,
+      "asset": "popupButtons",
+      "frames": { "offNormal": 0, "onNormal": 1 },
+      "priority": "HIGH",
+      "checked": "toggled",
+      "primary": "toggle",
+      "text": { "source": { "literal": "Toggle" }, "font": "FONT12ARIAL", "color": "FONT_MCOLOR_WHITE" }
+    },
+    {
+      "type": "repeat",
+      "count": 3,
+      "dy": 22,
+      "template": [
+        {
+          "type": "button",
+          "id": "choice$i",
+          "kind": "checkbox",
+          "x": 8,
+          "y": 74,
+          "asset": "checkboxes",
+          "frames": { "offNormal": 0, "offHilite": 1, "onNormal": 2, "onHilite": 3 },
+          "priority": "HIGH+10",
+          "tooltip": { "format": { "literal": "Choose ^%s" }, "args": [{ "bind": "choiceNames[$i]" }] }
+        },
+        { "type": "text", "x": 30, "y": 76, "font": "FONT12ARIAL", "color": "FONT_MCOLOR_WHITE", "text": { "bind": "choiceNames[$i]" } }
+      ]
+    },
+    { "type": "group", "members": ["choice0", "choice1", "choice2"], "value": "choice", "select": "choose" },
+    {
+      "type": "button",
+      "id": "sound",
+      "kind": "checkbox",
+      "x": 8,
+      "y": 144,
+      "asset": "checkboxes",
+      "frames": { "offNormal": 0, "offHilite": 1, "onNormal": 2, "onHilite": 3 },
+      "priority": "HIGH+10",
+      "checked": "sound",
+      "primary": "toggleSound"
+    },
+    { "type": "text", "x": 30, "y": 146, "font": "FONT12ARIAL", "color": "FONT_MCOLOR_WHITE", "text": { "literal": "Button sounds" } },
+    { "type": "fill", "x": 8, "y": 170, "width": 60, "height": 20, "color": [56, 64, 88] },
+    {
+      "type": "text",
+      "x": 8,
+      "y": 170,
+      "width": 60,
+      "height": 20,
+      "valign": "center",
+      "align": "center",
+      "font": "FONT10ARIAL",
+      "color": "FONT_GRAY2",
+      "text": { "literal": "hot spot" }
+    },
+    {
+      "type": "button",
+      "id": "hotspot",
+      "kind": "hotspot",
+      "x": 8,
+      "y": 170,
+      "width": 60,
+      "height": 20,
+      "priority": "HIGH",
+      "primary": "hotspot",
+      "tooltip": { "literal": "Gold |b|o|l|d, ^g^r^e^e^n, ~r~e~d\nand a second line" }
+    },
+    {
+      "type": "button",
+      "id": "iconButton",
+      "x": 80,
+      "y": 170,
+      "asset": "popupButtons",
+      "frames": { "offNormal": 0, "onNormal": 1 },
+      "priority": "HIGH",
+      "primary": "icon",
+      "icon": { "asset": "stopIcon", "frame": 0 }
+    },
+    {
+      "type": "button",
+      "id": "disabledDefault",
+      "x": 8,
+      "y": 222,
+      "asset": "popupButtons",
+      "frames": { "offNormal": 0, "onNormal": 1 },
+      "enabled": false,
+      "allowDisabledTooltip": true,
+      "tooltip": { "literal": "Disabled with text: ~shaded" },
+      "text": { "source": { "literal": "Shaded" }, "font": "FONT12ARIAL", "color": "FONT_MCOLOR_WHITE" }
+    },
+    {
+      "type": "button",
+      "id": "disabledHatched",
+      "x": 80,
+      "y": 222,
+      "asset": "popupButtons",
+      "frames": { "offNormal": 0, "onNormal": 1 },
+      "enabled": false
+    },
+    {
+      "type": "button",
+      "id": "disabledShaded",
+      "x": 8,
+      "y": 248,
+      "asset": "popupButtons",
+      "frames": { "offNormal": 0, "onNormal": 1 },
+      "enabled": false,
+      "disabledStyle": "shaded"
+    },
+    {
+      "type": "button",
+      "id": "disabledNone",
+      "x": 80,
+      "y": 248,
+      "asset": "popupButtons",
+      "frames": { "offNormal": 0, "onNormal": 1 },
+      "enabled": false,
+      "disabledStyle": "none",
+      "text": { "source": { "literal": "None" }, "font": "FONT12ARIAL", "color": "FONT_MCOLOR_WHITE" }
+    },
+
+    { "type": "text", "x": 160, "y": 30, "font": "FONT12ARIAL", "color": "FONT_LTGREEN", "text": { "literal": "Text" } },
+    { "type": "rect", "x": 159, "y": 45, "x2": 360, "y2": 58, "color": [96, 96, 112] },
+    { "type": "text", "x": 160, "y": 46, "width": 200, "font": "FONT10ARIAL", "color": "FONT_MCOLOR_WHITE", "text": { "literal": "Left" } },
+    {
+      "type": "text",
+      "x": 160,
+      "y": 46,
+      "width": 200,
+      "align": "center",
+      "font": "FONT10ARIAL",
+      "color": "FONT_MCOLOR_WHITE",
+      "text": { "literal": "Centre" }
+    },
+    {
+      "type": "text",
+      "x": 160,
+      "y": 46,
+      "width": 200,
+      "align": "right",
+      "font": "FONT10ARIAL",
+      "color": "FONT_MCOLOR_WHITE",
+      "text": { "literal": "Right" }
+    },
+    {
+      "type": "text",
+      "x": 160,
+      "y": 64,
+      "width": 200,
+      "wrap": { "gap": 2 },
+      "font": "FONT10ARIAL",
+      "color": "FONT_GRAY2",
+      "text": { "literal": "LineWrap breaks at spaces, after hyphens and inside words longer than the line: supercalifragilistic." }
+    },
+    {
+      "type": "text",
+      "id": "ianText",
+      "x": 160,
+      "y": 112,
+      "width": 200,
+      "ian": true,
+      "wrap": { "gap": 2 },
+      "font": "FONT12ARIAL",
+      "color": "FONT_MCOLOR_WHITE",
+      "text": { "literal": "Ian codes: ²bold² text, ´xgreen µand back,±a new line ³centred³" }
+    },
+    {
+      "type": "text",
+      "id": "ellipsis",
+      "x": 160,
+      "y": 174,
+      "width": 100,
+      "ellipsis": true,
+      "font": "FONT10ARIAL",
+      "color": "FONT_MCOLOR_WHITE",
+      "text": { "literal": "This sentence is cut with three dots" }
+    },
+    {
+      "type": "text",
+      "id": "money",
+      "x": 270,
+      "y": 174,
+      "font": "FONT10ARIAL",
+      "color": "FONT_YELLOW",
+      "text": { "money": { "bind": "money" } }
+    },
+    { "type": "text", "x": 160, "y": 190, "font": "FONT12ARIAL", "color": "FONT_LTBLUE", "text": { "literal": "Привет, Арулько!" } },
+    {
+      "type": "text",
+      "x": 270,
+      "y": 190,
+      "width": 90,
+      "shadowed": true,
+      "font": "FONT10ARIAL",
+      "color": "FONT_MCOLOR_WHITE",
+      "text": { "literal": "TEXT_SHADOWED" }
+    },
+    {
+      "type": "textBox",
+      "id": "textBox",
+      "x": 160,
+      "y": 210,
+      "style": "textBoxes.basic",
+      "width": 200,
+      "marginX": 0,
+      "marginTop": 0,
+      "marginBottom": 0,
+      "icon": "stop",
+      "text": { "literal": "A merc text box: the 9-slice border, the cropped background and the Ian wrap." }
+    },
+
+    { "type": "text", "x": 380, "y": 30, "font": "FONT12ARIAL", "color": "FONT_LTGREEN", "text": { "literal": "Controls" } },
+    {
+      "type": "slider",
+      "id": "volume",
+      "style": "verticalSteel",
+      "x": 404,
+      "y": 58,
+      "length": 120,
+      "steps": 127,
+      "thumb": "sliderBox",
+      "priority": "HIGH",
+      "value": "volume",
+      "change": "setVolume"
+    },
+    {
+      "type": "text",
+      "id": "volumeText",
+      "x": 384,
+      "y": 192,
+      "width": 40,
+      "align": "center",
+      "font": "FONT10ARIAL",
+      "color": "FONT_MCOLOR_WHITE",
+      "text": { "format": { "literal": "%d" }, "args": [{ "bind": "volume" }] }
+    },
+    {
+      "type": "textField",
+      "id": "name",
+      "x": 440,
+      "y": 50,
+      "width": 150,
+      "height": 20,
+      "maxLength": 20,
+      "priority": "HIGH",
+      "value": "name",
+      "change": "rename"
+    },
+    {
+      "type": "button",
+      "id": "openMenu",
+      "x": 440,
+      "y": 80,
+      "asset": "popupButtons",
+      "frames": { "offNormal": 0, "onNormal": 1 },
+      "priority": "HIGH",
+      "primary": "openMenu",
+      "tooltip": { "literal": "Opens a popup menu (|A|l|t+|M)" },
+      "text": { "source": { "literal": "Menu" }, "font": "FONT12ARIAL", "color": "FONT_MCOLOR_WHITE" }
+    },
+    {
+      "type": "popupMenu",
+      "id": "menu",
+      "x": 440,
+      "y": 104,
+      "border": "popupBorder",
+      "background": "popupBackground",
+      "font": "FONT10ARIAL",
+      "margins": [6, 6, 4, 4],
+      "lineSpace": 2,
+      "minWidth": 80,
+      "secondColumnOffset": 10,
+      "colors": {
+        "foreground": "FONT_LTGREEN",
+        "background": "FONT_BLACK",
+        "highlight": "FONT_WHITE",
+        "shade": "FONT_GRAY7",
+        "secondaryShade": "FONT_YELLOW"
+      },
+      "secondColors": {
+        "foreground": "FONT_YELLOW",
+        "background": "FONT_BLACK",
+        "highlight": "FONT_WHITE",
+        "shade": "FONT_GRAY7",
+        "secondaryShade": "FONT_YELLOW"
+      },
+      "lines": "menuLines",
+      "open": "menuOpen",
+      "select": "menuSelect",
+      "close": "menuClose"
+    },
+    {
+      "type": "repeat",
+      "count": 3,
+      "dx": 64,
+      "template": {
+        "type": "button",
+        "id": "box$i",
+        "x": 440,
+        "y": 220,
+        "asset": "popupButtons",
+        "frames": { "offNormal": 0, "onNormal": 1 },
+        "priority": "HIGH",
+        "primary": "openBox($i)",
+        "text": { "source": { "bind": "boxNames[$i]" }, "font": "FONT12ARIAL", "color": "FONT_MCOLOR_WHITE" }
+      }
+    },
+    {
+      "type": "modal",
+      "id": "boxYesNo",
+      "style": "MSG_BOX_BASIC_STYLE",
+      "buttons": "MSG_BOX_FLAG_YESNO",
+      "open": { "eq": ["box", 0] },
+      "result": "boxResult",
+      "text": { "literal": "A message box over a frozen screen. Keys: Y, N, Enter, Esc on release." }
+    },
+    {
+      "type": "modal",
+      "id": "boxOk",
+      "style": "MSG_BOX_RED_ON_WHITE",
+      "buttons": "MSG_BOX_FLAG_OK",
+      "open": { "eq": ["box", 1] },
+      "result": "boxResult",
+      "text": { "literal": "Red on white with one OK button." }
+    },
+    {
+      "type": "modal",
+      "id": "boxFour",
+      "style": "MSG_BOX_BASIC_SMALL_BUTTONS",
+      "buttons": "MSG_BOX_FLAG_FOUR_NUMBERED_BUTTONS",
+      "open": { "eq": ["box", 2] },
+      "result": "boxResult",
+      "text": { "literal": "Four numbered buttons; keys 1 to 4." }
+    },
+    {
+      "type": "button",
+      "id": "fade",
+      "x": 440,
+      "y": 248,
+      "asset": "popupButtons",
+      "frames": { "offNormal": 0, "onNormal": 1 },
+      "priority": "HIGH",
+      "primary": "fade",
+      "text": { "source": { "literal": "Fade" }, "font": "FONT12ARIAL", "color": "FONT_MCOLOR_WHITE" }
+    },
+    {
+      "type": "button",
+      "id": "zoom",
+      "x": 504,
+      "y": 248,
+      "asset": "popupButtons",
+      "frames": { "offNormal": 0, "onNormal": 1 },
+      "priority": "HIGH",
+      "primary": "zoom",
+      "text": { "source": { "literal": "Zoom" }, "font": "FONT12ARIAL", "color": "FONT_MCOLOR_WHITE" }
+    },
+
+    { "type": "text", "x": 8, "y": 290, "font": "FONT12ARIAL", "color": "FONT_LTGREEN", "text": { "literal": "Cursors (hover)" } },
+    {
+      "type": "repeat",
+      "count": 5,
+      "dx": 52,
+      "template": [
+        { "type": "fill", "x": 8, "y": 306, "width": 48, "height": 36, "color": [48, 56, 72] },
+        {
+          "type": "text",
+          "x": 8,
+          "y": 344,
+          "width": 48,
+          "align": "center",
+          "font": "FONT10ARIAL",
+          "color": "FONT_GRAY2",
+          "text": { "bind": "cursorNames[$i]" }
+        }
+      ]
+    },
+    {
+      "type": "region",
+      "id": "cursorTarget",
+      "x": 8,
+      "y": 306,
+      "width": 48,
+      "height": 36,
+      "priority": "NORMAL",
+      "cursor": "CURSOR_TARGET",
+      "animatesCursor": true
+    },
+    {
+      "type": "region",
+      "id": "cursorWait",
+      "x": 60,
+      "y": 306,
+      "width": 48,
+      "height": 36,
+      "priority": "NORMAL",
+      "cursor": "CURSOR_WAIT",
+      "animatesCursor": true
+    },
+    {
+      "type": "region",
+      "id": "cursorIbeam",
+      "x": 112,
+      "y": 306,
+      "width": 48,
+      "height": 36,
+      "priority": "NORMAL",
+      "cursor": "CURSOR_IBEAM"
+    },
+    {
+      "type": "region",
+      "id": "cursorFlash",
+      "x": 164,
+      "y": 306,
+      "width": 48,
+      "height": 36,
+      "priority": "NORMAL",
+      "cursor": "CURSOR_FLASH_TARGET",
+      "flashesCursor": true
+    },
+    {
+      "type": "region",
+      "id": "cursorText",
+      "x": 216,
+      "y": 306,
+      "width": 48,
+      "height": 36,
+      "priority": "NORMAL",
+      "cursor": "CURSOR_TARGET",
+      "mouseText": true
+    },
+
+    { "type": "text", "x": 300, "y": 290, "font": "FONT12ARIAL", "color": "FONT_LTGREEN", "text": { "literal": "Primitives" } },
+    { "type": "image", "id": "image", "asset": "stopIcon", "frame": 0, "x": 300, "y": 306 },
+    {
+      "type": "frame",
+      "id": "frame",
+      "x": 330,
+      "y": 306,
+      "width": 80,
+      "height": 40,
+      "border": "popupBorder",
+      "background": "popupBackground"
+    },
+    { "type": "fill", "x": 420, "y": 306, "width": 40, "height": 40, "color": [200, 120, 40] },
+    { "type": "shade", "x": 420, "y": 316, "width": 40, "height": 20, "factor": 0.48 },
+    { "type": "fill", "x": 470, "y": 306, "width": 40, "height": 40, "color": [80, 160, 200] },
+    { "type": "hatch", "x": 470, "y": 306, "width": 40, "height": 20 },
+    { "type": "hatch", "x": 470, "y": 326, "width": 40, "height": 20, "pattern": "loose", "color": [255, 255, 255] },
+    { "type": "line", "x": 520, "y": 306, "x2": 560, "y2": 346, "color": [255, 224, 64] },
+    { "type": "rect", "x": 570, "y": 306, "x2": 610, "y2": 346, "color": [255, 224, 64] },
+    {
+      "type": "list",
+      "count": { "bind": "rows" },
+      "dy": 12,
+      "template": {
+        "type": "text",
+        "id": "row$i",
+        "x": 300,
+        "y": 352,
+        "font": "FONT10ARIAL",
+        "color": "FONT_GRAY2",
+        "text": { "bind": "rows[$i]" }
+      }
+    },
+    { "type": "custom", "id": "swatch", "renderer": "swatch", "x": 420, "y": 352, "width": 90, "height": 28 },
+    {
+      "type": "text",
+      "id": "edtText",
+      "x": 520,
+      "y": 352,
+      "width": 110,
+      "ellipsis": true,
+      "font": "FONT10ARIAL",
+      "color": "FONT_MCOLOR_WHITE",
+      "text": { "edt": ["binarydata/credits.edt", 0] }
+    },
+    { "type": "text", "x": 8, "y": 380, "font": "FONT12ARIAL", "color": "FONT_LTGREEN", "text": { "literal": "Progress" } },
+    {
+      "type": "progressBar",
+      "id": "loadBar",
+      "x": 8,
+      "y": 398,
+      "width": 300,
+      "height": 16,
+      "style": "loadBar",
+      "value": { "bind": "progress" }
+    },
+    {
+      "type": "progressBar",
+      "id": "panelBar",
+      "x": 320,
+      "y": 398,
+      "width": 300,
+      "height": 16,
+      "style": "panel",
+      "value": { "bind": "progress" }
+    },
+    {
+      "type": "button",
+      "id": "progressButton",
+      "x": 8,
+      "y": 424,
+      "asset": "popupButtons",
+      "frames": { "offNormal": 0, "onNormal": 1 },
+      "priority": "HIGH",
+      "primary": "progress",
+      "text": { "source": { "literal": "+10%" }, "font": "FONT12ARIAL", "color": "FONT_MCOLOR_WHITE" }
+    }
+  ],
+  "hotkeys": [
+    { "key": "m", "on": "up", "mods": 4, "action": "openMenu" },
+    { "key": "Escape", "on": "up", "action": "menuClose", "when": "menuOpen" }
+  ]
+}
