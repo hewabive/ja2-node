@@ -3,7 +3,7 @@ import type { Level } from '../../content/world/level.ts';
 import type { WorldStructures } from '../../content/world/structures.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
 import type { TileTables } from '../../content/world/tile-tables.ts';
-import { type DrawRun, DynamicScene, type SceneItem, type SceneSoldier, type WorldUiNode } from './dynamic-scene.ts';
+import { type DrawRun, DynamicScene, type PlacedSoldier, type SceneItem, type SceneSoldier, type WorldUiNode } from './dynamic-scene.ts';
 import {
   type Camera,
   cameraOffset,
@@ -20,7 +20,7 @@ import { itemOutlineColour } from './glow.ts';
 import { DrawState } from './instances.ts';
 import type { LevelRenderData } from './level-render-data.ts';
 import { pickSoldierAt } from './picking.ts';
-import { computeReveal, type RevealState } from './reveal.ts';
+import { changedRevealTiles, computeReveal, type RevealState } from './reveal.ts';
 import type { LightColour } from './soldier-palettes.ts';
 import { STATIC_SEGMENT_STATES, StaticScene, StaticSegment, type StaticState, type StaticWorld } from './static-scene.ts';
 import { type WorldCapture, WorldFramebuffer } from './world-framebuffer.ts';
@@ -182,10 +182,12 @@ export class WorldRenderer {
 
   #syncStatic(s: LoadedScene, f: WorldFrameInput): void {
     const old = s.scene.state;
-    const roomsChanged = !sameSet(s.revealedRooms, f.revealedRooms);
-    if (roomsChanged) {
+    const rows = new Set<number>();
+    if (!sameSet(s.revealedRooms, f.revealedRooms)) {
+      const previous = s.reveal;
       s.reveal = computeReveal(this.#revealWorld(s.world), f.revealedRooms);
       s.revealedRooms = new Set(f.revealedRooms);
+      for (const g of changedRevealTiles(previous, s.reveal, s.world.level)) rows.add(rowOf(g));
     }
     const next: StaticState = {
       reveal: s.reveal,
@@ -194,11 +196,14 @@ export class WorldRenderer {
       wireframes: f.options.wireframes,
       roofLevel: f.roofLevel,
     };
-    const full = roomsChanged || next.treeTops !== old.treeTops || next.wireframes !== old.wireframes || next.roofLevel !== old.roofLevel;
+    for (const row of changedDoorRows(old.openDoors, next.openDoors)) rows.add(row);
+    const full = next.treeTops !== old.treeTops || next.wireframes !== old.wireframes || next.roofLevel !== old.roofLevel;
+    if (!full && rows.size === 0) {
+      if (next.reveal !== old.reveal) s.scene.setState(next, []);
+      return;
+    }
     const started = performance.now();
-    if (full) s.scene.setState(next, 'all');
-    else if (next.openDoors !== old.openDoors) s.scene.setState(next, changedDoorRows(old.openDoors, next.openDoors));
-    else return;
+    s.scene.setState(next, full ? 'all' : rows);
     this.#rebuildMs = performance.now() - started;
     s.uploaded = false;
   }
@@ -306,6 +311,10 @@ export class WorldRenderer {
   gridNoAt(sx: number, sy: number): number | null {
     const f = this.#last;
     return f ? screenToGridNo(sx, sy, f.viewport, f.camera) : null;
+  }
+
+  get placedSoldiers(): readonly PlacedSoldier[] {
+    return this.#scene?.dynamic.placedSoldiers ?? [];
   }
 
   soldierAt(sx: number, sy: number): number | null {

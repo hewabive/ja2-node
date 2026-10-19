@@ -38,6 +38,8 @@ interface TacticalHook {
   camera: Camera | null;
   hoveredSoldier: number | null;
   renderMs: number;
+  zoom: number;
+  soldierBoxes: { readonly id: number; readonly x: number; readonly y: number; readonly width: number; readonly height: number }[];
 }
 
 declare global {
@@ -64,6 +66,8 @@ const debug: TacticalHook = {
   camera: null,
   hoveredSoldier: null,
   renderMs: 0,
+  zoom: 2,
+  soldierBoxes: [],
 };
 window.__ja2Tactical = debug;
 
@@ -222,6 +226,8 @@ function render(): void {
     debug.hoveredSoldier = hoveredSoldier;
   }
   debug.drawnSoldiers = view.drawnSoldiers;
+  debug.zoom = zoom;
+  debug.soldierBoxes = renderer.placedSoldiers.map((p) => ({ id: p.id, x: p.x, y: p.y, width: p.width, height: p.height }));
   debug.drawCalls = stats.drawCalls;
   debug.stats = stats;
   debug.camera = camera;

@@ -29,6 +29,7 @@ export interface WireframeNode {
 
 export interface RevealState {
   readonly revealed: Uint8Array;
+  readonly touched: ReadonlySet<number>;
   nodeFlags(layer: LayerName, g: number, index: number): number;
   wireframes(g: number): readonly WireframeNode[];
 }
@@ -196,8 +197,11 @@ export function computeReveal(w: RevealWorld, revealedRooms: ReadonlySet<number>
     }
   }
   for (let g = 0; g < WORLD_MAX; g++) b.wireframesAt(g);
+  const touched = new Set<number>(b.wires.keys());
+  for (const m of b.flags.values()) for (const key of m.keys()) touched.add(Math.floor(key / MAX_NODES_PER_TILE));
   return {
     revealed: b.revealed,
+    touched,
     nodeFlags: (layer, g, index) => b.flags.get(layer)?.get(nodeKey(g, index)) ?? 0,
     wireframes: (g) => b.wires.get(g) ?? NO_WIREFRAMES,
   };
@@ -205,6 +209,26 @@ export function computeReveal(w: RevealWorld, revealedRooms: ReadonlySet<number>
 
 export const NO_REVEAL: RevealState = {
   revealed: new Uint8Array(WORLD_MAX),
+  touched: new Set(),
   nodeFlags: () => 0,
   wireframes: () => NO_WIREFRAMES,
 };
+
+function tileSignature(r: RevealState, level: Level, g: number): string {
+  const parts: string[] = [];
+  for (const layer of NODE_LAYERS) {
+    const count = levelTilesAt(level.layers[layer], g).length;
+    for (let i = 0; i < count; i++) {
+      const f = r.nodeFlags(layer, g, i);
+      if (f !== 0) parts.push(`${layer}${i}:${f}`);
+    }
+  }
+  for (const w of r.wireframes(g)) parts.push(`w${w.tile}${w.optional ? 'o' : ''}`);
+  return parts.join(',');
+}
+
+export function changedRevealTiles(a: RevealState, b: RevealState, level: Level): number[] {
+  const changed: number[] = [];
+  for (const g of new Set([...a.touched, ...b.touched])) if (tileSignature(a, level, g) !== tileSignature(b, level, g)) changed.push(g);
+  return changed;
+}
