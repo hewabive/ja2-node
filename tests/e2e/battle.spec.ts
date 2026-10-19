@@ -5,6 +5,19 @@ import { SERVER, TOKEN } from './env.ts';
 
 const COLS = 160;
 const MAX_ROUNDS = 40;
+const STUB_SANDBOX_AMBIENT = 3;
+
+interface WorldHook {
+  readonly ready: boolean;
+  readonly error: string | null;
+  readonly framePolicy: string | null;
+  readonly mercLightOrigin: string | null;
+  readonly ambient: number | null;
+  readonly corpses: number;
+  readonly drawnEffects: number;
+}
+
+const worldHook = () => (window as unknown as { __ja2Tactical?: WorldHook }).__ja2Tactical;
 
 interface SoldierView {
   readonly id: number;
@@ -26,7 +39,7 @@ interface Report {
 
 const distance = (a: number, b: number) => Math.hypot((a % COLS) - (b % COLS), Math.trunc(a / COLS) - Math.trunc(b / COLS));
 
-test('an MCP agent fights the stub garrison through the API in its own session', async () => {
+test('an MCP agent fights the stub garrison through the API in its own session, and the renderer draws the corpses', async ({ page }) => {
   test.setTimeout(120_000);
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {
     requestInit: { headers: { authorization: `Bearer ${TOKEN}` } },
@@ -75,5 +88,20 @@ test('an MCP agent fights the stub garrison through the API in its own session',
 
   expect(events.some((e) => e.type === 'shotFired' && (e.soldier ?? 99) < 20)).toBe(true);
   expect(events.some((e) => e.type === 'soldierHit')).toBe(true);
+  const corpses = ((await observe()) as View & { readonly corpses?: readonly unknown[] }).corpses ?? [];
+  expect(corpses.length).toBeGreaterThan(0);
   await client.close();
+
+  await page.goto(`/src/devtools/tactical/?session=${session}`);
+  await page.waitForFunction(() => {
+    const h = (window as unknown as { __ja2Tactical?: WorldHook }).__ja2Tactical;
+    return h?.ready || (h?.error ?? null) !== null;
+  });
+  const world = (await page.evaluate(worldHook)) as WorldHook;
+  expect(world.error).toBeNull();
+  expect(world.framePolicy).toBe('exact');
+  expect(world.mercLightOrigin).toBe('standIn');
+  expect(world.ambient).toBe(STUB_SANDBOX_AMBIENT);
+  expect(world.corpses).toBe(corpses.length);
+  await expect.poll(async () => (await page.evaluate(worldHook))?.drawnEffects).toBe(corpses.length);
 });
