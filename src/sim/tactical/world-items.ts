@@ -50,6 +50,8 @@ export interface ItemSnapshot {
   readonly item: string;
   readonly count: number;
   readonly status: number;
+  readonly money?: number;
+  readonly attachments?: readonly { readonly item: string; readonly status: number }[];
 }
 
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
@@ -161,7 +163,7 @@ export function removeWorldItem(t: TacticalState, item: WorldItem): void {
   if (k >= 0) t.worldItems.splice(k, 1);
 }
 
-export function setItemsVisibilityOn(t: TacticalState, g: number, level: number, allGreaterThan: number): boolean {
+export function setItemsVisibilityOn(t: TacticalState, g: number, level: number, allGreaterThan: number, setLocator: boolean): boolean {
   let modified = false;
   for (const wi of itemsAt(t, g, level)) {
     if (wi.visible === Visibility.VISIBLE || wi.visible < allGreaterThan) continue;
@@ -169,12 +171,13 @@ export function setItemsVisibilityOn(t: TacticalState, g: number, level: number,
     wi.visible = Visibility.VISIBLE;
     modified = true;
   }
+  if (modified && setLocator) t.events.push({ type: 'itemsRevealed', gridNo: g, level });
   return modified;
 }
 
 export function lookForHiddenItems(t: TacticalState, g: number, level: number): boolean {
   const found = itemsAt(t, g, level).some((wi) => wi.visible === Visibility.HIDDEN_ITEM && wi.object.item !== itemIndex(t, 'OWNERSHIP'));
-  if (found) setItemsVisibilityOn(t, g, level, Visibility.INVISIBLE);
+  if (found) setItemsVisibilityOn(t, g, level, Visibility.INVISIBLE, true);
   return found;
 }
 

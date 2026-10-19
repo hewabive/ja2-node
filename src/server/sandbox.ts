@@ -6,7 +6,7 @@ import type { ReadFile } from '../content/world/tileset-loader.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
 import { initialMusic, type MusicFacts, type MusicState } from '../protocol/music.ts';
 import { MusicMode } from '../protocol/music-modes.ts';
-import type { PlayerView } from '../protocol/view.ts';
+import type { PlayerView, SoldierView } from '../protocol/view.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { calcDifficultyModifier } from '../sim/strategic/ai/difficulty.ts';
@@ -87,6 +87,13 @@ export class TacticalSession implements SessionSim {
   }
 }
 
+const SANDBOX_SQUAD_INDEX = 0;
+const SANDBOX_CREW: Pick<SoldierView, 'asleep' | 'squad' | 'vehicle'> = { asleep: false, squad: SANDBOX_SQUAD_INDEX, vehicle: null };
+
+function withSandboxCrew(views: readonly SoldierView[]): SoldierView[] {
+  return views.map((v) => (v.team === Team.OUR ? { ...v, ...SANDBOX_CREW } : v));
+}
+
 export function tacticalPlayerView(
   sim: TacticalSim,
   tick: number,
@@ -96,10 +103,12 @@ export function tacticalPlayerView(
   return {
     tick,
     mapPath: sim.mapPath,
-    soldiers: withVoices(
-      sim.snapshot(presentation, (s) => s.team === Team.OUR || s.visible >= 0),
-      sim.state.soldiers,
-      voiceOf,
+    soldiers: withSandboxCrew(
+      withVoices(
+        sim.snapshot(presentation, (s) => s.team === Team.OUR || s.visible >= 0),
+        sim.state.soldiers,
+        voiceOf,
+      ),
     ),
     openDoors: sim.openDoors(),
     doors: sim.doors(),

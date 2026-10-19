@@ -278,6 +278,7 @@ export interface Soldier {
   initialActionPoints: number;
   weightCarriedAtTurnStart: number;
   stealthMode: boolean;
+  muted: boolean;
   cowering: boolean;
   heardGunshot: boolean;
   civilianGroup: number;
@@ -290,6 +291,7 @@ export interface Soldier {
   state: number;
   pc: number;
   frameSlot: number;
+  stateTick: number;
   aniDelay: number;
   nextFrameAt: number;
   pendingAnimation: number;
@@ -575,6 +577,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     initialActionPoints: 0,
     weightCarriedAtTurnStart: 0,
     stealthMode: false,
+    muted: false,
     cowering: false,
     heardGunshot: false,
     civilianGroup: init.civilianGroup ?? 0,
@@ -586,6 +589,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     state: init.state,
     pc: 0,
     frameSlot: NO_FRAME_SLOT,
+    stateTick: 0,
     aniDelay: 0,
     nextFrameAt: 0,
     pendingAnimation: NO_PENDING_ANIMATION,

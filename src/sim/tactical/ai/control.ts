@@ -207,7 +207,7 @@ function setSoldierCowerState(t: TacticalState, s: Soldier, on: boolean): void {
 const AP_RADIO = 5;
 
 export function npcDoesAct(t: TacticalState, s: Soldier): void {
-  if (t.turn.hiddenInterrupt) displayHiddenInterrupt(t);
+  if (t.turn.hiddenInterrupt) displayHiddenInterrupt(t, s);
   if (s.desiredDirection !== s.direction) s.desiredDirection = s.direction;
 }
 

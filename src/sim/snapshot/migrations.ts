@@ -111,9 +111,65 @@ function spriteFramesToFrameSlots(snapshot: Readonly<Record<string, unknown>>, c
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const PRESENTATION_SOLDIER_KEYS = ['state', 'pc', FRAME_SLOT_KEY, 'aniDelay'];
+const OUR_TEAM = 0;
+const TOP_MESSAGE_COMPUTER_TURN = 1;
+const TOP_MESSAGE_PLAYER_INTERRUPT = 3;
+const TOP_MESSAGE_PLAYER_TURN = 6;
+
+function isSoldierRecord(o: JsonObject): boolean {
+  return PRESENTATION_SOLDIER_KEYS.every((key) => o[key] !== undefined) && typeof o.state === 'number';
+}
+
+function withSoldierPresentation(value: Json, tick: number): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withSoldierPresentation(v, tick));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withSoldierPresentation(v, tick);
+  if (!isSoldierRecord(mapped)) return mapped;
+  return { ...mapped, ...withDefault(mapped, 'stateTick', tick), ...withDefault(mapped, 'muted', false) };
+}
+
+function withDefault(o: JsonObject, key: string, value: Json): JsonObject {
+  return o[key] === undefined ? { [key]: value } : {};
+}
+
+function derivedTopMessage(inCombat: boolean, turn: JsonObject): Json {
+  if (!inCombat) return null;
+  const team = typeof turn.currentTeam === 'number' ? turn.currentTeam : OUR_TEAM;
+  const interrupted = Array.isArray(turn.intList) && turn.intList.length > 0;
+  if (team === OUR_TEAM || turn.hiddenInterrupt === true)
+    return {
+      kind: interrupted && team === OUR_TEAM ? TOP_MESSAGE_PLAYER_INTERRUPT : TOP_MESSAGE_PLAYER_TURN,
+      team: OUR_TEAM,
+      bloodcats: false,
+    };
+  return { kind: TOP_MESSAGE_COMPUTER_TURN, team, bloodcats: false };
+}
+
+function withTurnPresentation(tactical: JsonObject): JsonObject {
+  const turn = tactical.turn;
+  if (!isObject(turn) || turn[REF] !== undefined) return tactical;
+  const topMessage = withDefault(turn, 'topMessage', derivedTopMessage(tactical.inCombat === true, turn));
+  const aiProgress = withDefault(turn, 'aiProgress', { current: 0, next: 0, total: 0 });
+  return { ...tactical, turn: { ...turn, ...topMessage, ...aiProgress } };
+}
+
+function addPresentationState(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const tactical = sectionOf(graph.sections, 'tactical');
+  const tick = isObject(tactical) && typeof tactical.tick === 'number' ? tactical.tick : 0;
+  const sections = graph.sections.map(([name, value]): Section => {
+    const soldiers = withSoldierPresentation(value, tick);
+    return [name, name === 'tactical' && isObject(soldiers) ? withTurnPresentation(soldiers) : soldiers];
+  });
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
     2: (snapshot) => spriteFramesToFrameSlots(snapshot, context),
+    3: addPresentationState,
   };
 }

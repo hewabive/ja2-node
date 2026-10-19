@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/AIMain.cc EndAIGuysTurn (with the civilian-group proximity rule and its boxer exception),
-// @src StartNPCAI, TurnBasedHandleNPCAI, RefreshAI, ManChecksOnFriends, NPCDoesNothing; AIUtils.cc IsActionAffordable;
+// @src StartNPCAI (the locator and UpdateEnemyUIBar as events), TurnBasedHandleNPCAI, RefreshAI, ManChecksOnFriends, NPCDoesNothing; AIUtils.cc IsActionAffordable;
 // @src Soldier_Control.cc SetSoldierAsUnderAiControl. See docs/10 §6.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
@@ -12,9 +12,10 @@ import { civilianGroupMembersChangeSidesWithinProximity } from '../narrative/civ
 import { type HeightClass, soldierToSoldierLineOfSight } from '../perception/los.ts';
 import { distanceVisible } from '../perception/sight.ts';
 import { AP, apsToLook, minPtsToMove, type PointsContext } from '../points.ts';
-import { AlertStatus, CivilianGroup, isMonster, NO_PROFILE, NOWHERE, OKLIFE, type Soldier } from '../soldier.ts';
+import { AlertStatus, CivilianGroup, isMonster, NO_PROFILE, NOWHERE, OKLIFE, Side, type Soldier, Team } from '../soldier.ts';
 import { mercs, type TacticalState } from '../state.ts';
 import { removeFirstAIListEntry } from '../turns/ai-list.ts';
+import { updateEnemyUIBar } from '../turns/top-message.ts';
 import { endAITurn } from '../turns/turns.ts';
 import { AiAction, Situation } from './actions.ts';
 import type { AiControl } from './control.ts';
@@ -136,11 +137,22 @@ function refreshAI(t: TacticalState, s: Soldier, control: AiControl): void {
   }
 }
 
+function locatorSkipped(s: Soldier): boolean {
+  return s.team === Team.MILITIA && s.side === Side.FRIENDLY && s.ai.alertStatus === AlertStatus.GREEN;
+}
+
+function announceAiTurn(t: TacticalState, s: Soldier): void {
+  if (!t.inCombat || t.turn.intList.length > 0) return;
+  if (s.visible !== -1 && s.life !== 0 && !locatorSkipped(s)) t.events.push({ type: 'aiTurn', soldier: s.id });
+  updateEnemyUIBar(t);
+}
+
 export function startNPCAI(t: TacticalState, s: Soldier, control: AiControl): void {
   setSoldierAsUnderAiControl(t, s);
   s.turnInProgress = true;
   s.lastTwoLocations = [NOWHERE, NOWHERE];
   refreshAI(t, s, control);
+  announceAiTurn(t, s);
   decideAlertStatus(t, s, control.hooks);
 }
 

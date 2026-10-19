@@ -44,6 +44,7 @@ describe('strategic movement permission', () => {
     expect(campaign.dispatch({ type: 'route', soldier: 0, to: 'B9' })).toEqual({
       ok: false,
       reason: 'the squad cannot move: enemiesPresent',
+      data: { refusal: 'enemiesPresent' },
     });
   });
 

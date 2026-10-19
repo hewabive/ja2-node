@@ -1,5 +1,5 @@
 import { ItemClass, type ItemTable, NOTHING } from '../../content/items/items.ts';
-import type { ItemObject } from '../items/object.ts';
+import { type ItemObject, NO_PROFILE } from '../items/object.ts';
 import type { Inventory } from './inventory.ts';
 
 export interface InventoryItemView {
@@ -12,6 +12,19 @@ export interface InventoryItemView {
   readonly attachments?: readonly { readonly item: string; readonly status: number }[];
   readonly money?: number;
   readonly keyId?: number;
+  readonly jammed?: true;
+  readonly imprint?: number;
+}
+
+const IMPRINTABLE_ITEMS = ['ROCKET_RIFLE', 'AUTO_ROCKET_RIFLE'];
+
+export function itemJammed(items: ItemTable, o: ItemObject): boolean {
+  return items.byIndex.get(o.item)?.itemClass === ItemClass.GUN && o.gunAmmoStatus < 0;
+}
+
+export function itemImprint(items: ItemTable, o: ItemObject): number | null {
+  if (o.item === NOTHING || o.imprintId === NO_PROFILE) return null;
+  return IMPRINTABLE_ITEMS.includes(items.byIndex.get(o.item)?.name ?? '') ? o.imprintId : null;
 }
 
 function itemName(items: ItemTable, index: number): string {
@@ -20,6 +33,7 @@ function itemName(items: ItemTable, index: number): string {
 
 function slotView(items: ItemTable, slot: number, o: ItemObject): InventoryItemView {
   const def = items.byIndex.get(o.item);
+  const imprint = itemImprint(items, o);
   const attachments = o.attachments.filter((a) => a.item !== NOTHING).map((a) => ({ item: itemName(items, a.item), status: a.status }));
   return {
     slot,
@@ -31,6 +45,8 @@ function slotView(items: ItemTable, slot: number, o: ItemObject): InventoryItemV
     ...(attachments.length > 0 ? { attachments } : {}),
     ...(def?.itemClass === ItemClass.MONEY && o.money > 0 ? { money: o.money } : {}),
     ...(def?.itemClass === ItemClass.KEY ? { keyId: o.keyId } : {}),
+    ...(itemJammed(items, o) ? { jammed: true as const } : {}),
+    ...(imprint !== null ? { imprint } : {}),
   };
 }
 

@@ -52,6 +52,18 @@ export interface InterruptEvent extends SimEventBase {
   readonly type: 'interrupt';
   readonly team: number;
   readonly soldiers?: readonly number[];
+  readonly selected?: number;
+}
+
+export interface AiTurnEvent extends SimEventBase {
+  readonly type: 'aiTurn';
+  readonly soldier: number;
+}
+
+export interface EnemyTurnProgressEvent extends SimEventBase {
+  readonly type: 'enemyTurnProgress';
+  readonly done: number;
+  readonly total: number;
 }
 
 export interface InterruptEndedEvent extends SimEventBase {
@@ -89,6 +101,7 @@ export interface EnemySightedEvent extends SimEventBase {
   readonly soldier: number;
   readonly newEnemies: number;
   readonly revealedEnemies: number;
+  readonly enemies?: readonly number[];
 }
 
 export interface RoomRevealedEvent extends SimEventBase {
@@ -137,6 +150,12 @@ export interface SoldierHitEvent extends SimEventBase {
   readonly life: number;
 }
 
+export interface LifeLostEvent extends SimEventBase {
+  readonly type: 'lifeLost';
+  readonly soldier: number;
+  readonly amount: number;
+}
+
 export interface SoldierDiedEvent extends SimEventBase {
   readonly type: 'soldierDied';
   readonly soldier: number;
@@ -166,6 +185,12 @@ export interface ItemsPickedUpEvent extends SimEventBase {
   readonly type: 'itemsPickedUp';
   readonly soldier: number;
   readonly gridNo: number;
+}
+
+export interface ItemsRevealedEvent extends SimEventBase {
+  readonly type: 'itemsRevealed';
+  readonly gridNo: number;
+  readonly level: number;
 }
 
 export interface ItemDroppedEvent extends SimEventBase {
@@ -390,6 +415,8 @@ export type SimEvent =
   | CombatStartedEvent
   | TurnStartedEvent
   | InterruptEvent
+  | AiTurnEvent
+  | EnemyTurnProgressEvent
   | InterruptEndedEvent
   | CombatEndedEvent
   | DoorChangedEvent
@@ -400,6 +427,7 @@ export type SimEvent =
   | MeleeStrikeEvent
   | BulletStoppedEvent
   | SoldierHitEvent
+  | LifeLostEvent
   | SoldierDiedEvent
   | AttackResolvedEvent
   | GunJammedEvent
@@ -408,6 +436,7 @@ export type SimEvent =
   | ExplosionEvent
   | StructureDamagedEvent
   | ItemsPickedUpEvent
+  | ItemsRevealedEvent
   | ItemDroppedEvent
   | PreBattleEvent
   | RetreatedEvent

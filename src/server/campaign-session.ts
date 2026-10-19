@@ -13,14 +13,15 @@ import type {
 } from '../protocol/view.ts';
 import type { WorldTimeControl } from '../sim/advance.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
-import { MercKind, type Roster } from '../sim/campaign/roster.ts';
+import { MercKind, type Roster, type RosterMerc } from '../sim/campaign/roster.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
+import { Assignment } from '../sim/strategic/forces/constants.ts';
 import { numHostilesInSector } from '../sim/strategic/forces/groups.ts';
 import { isTimeBeingCompressed, worldDay, worldHour, worldMinute } from '../sim/strategic/time/world-clock.ts';
 import { BoxingState, boxingStateName } from '../sim/tactical/narrative/boxing-state.ts';
 import type { SaveImportReport } from '../sim/tactical/save-import.ts';
-import { Team } from '../sim/tactical/soldier.ts';
+import { SoldierStatusFlags, Team } from '../sim/tactical/soldier.ts';
 import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { autoresolveView, npcRequestView, promptView } from './battle-view.ts';
 import type { CampaignParts } from './campaign-factory.ts';
@@ -39,13 +40,19 @@ const NO_PROFILE = 200;
 
 const RECRUITED_KINDS: Readonly<Record<number, string>> = { [MercKind.NPC]: 'rpc', [MercKind.EPC]: 'epc' };
 
+function crewFields(m: RosterMerc): Pick<SoldierView, 'asleep' | 'squad' | 'vehicle'> {
+  const vehicle =
+    m.assignment === Assignment.VEHICLE ? { id: m.vehicleId, driver: (m.statusFlags & SoldierStatusFlags.DRIVER) !== 0 } : null;
+  return { asleep: m.asleep, squad: m.assignment < Assignment.ON_DUTY ? m.assignment : null, vehicle };
+}
+
 function ownSoldierLabels(campaign: CampaignSim, v: SoldierView): SoldierView {
   const roster = campaign.battle?.roster;
   const m = roster?.get(v.id);
   if (!roster || !m) return v;
   const kind = RECRUITED_KINDS[m.kind];
   const recruited = kind ? { kind, profile: m.profile } : {};
-  return { ...v, ...recruited, ...(m.isRobot ? { controlled: roster.canRobotBeControlled(m.id) } : {}) };
+  return { ...v, ...crewFields(m), ...recruited, ...(m.isRobot ? { controlled: roster.canRobotBeControlled(m.id) } : {}) };
 }
 
 function withMerchantLabels(campaign: CampaignSim, soldiers: readonly SoldierView[]): SoldierView[] {

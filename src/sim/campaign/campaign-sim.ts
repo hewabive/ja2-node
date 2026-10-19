@@ -47,10 +47,12 @@ import {
 } from '../strategic/time/world-clock.ts';
 import { type ExperienceHooks, NO_EXPERIENCE_HOOKS } from '../tactical/combat/context.ts';
 import { extractScheduleDoorLockAndUnlockInfo } from '../tactical/narrative/schedules.ts';
+import { refuse } from '../tactical/refusal.ts';
 import { hostileBloodcatsPresent } from '../tactical/sector-presence.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import { BattleFlow, type BattleSetup } from './battle-flow.ts';
 import { dispatchStrategicCommand } from './commands.ts';
+import { COMPRESSION_REFUSALS, type CompressionRefusal, compressionRefusalToken } from './compression-refusals.ts';
 import type { ContractHooks } from './contracts/context.ts';
 import { ContractFlow } from './contracts/contract-flow.ts';
 import { CreatureFlow } from './creature-flow.ts';
@@ -371,15 +373,20 @@ export class CampaignSim {
   }
 
   #defaultRefusal(): string | null {
+    const token = this.#defaultRefusalToken();
+    return token ? COMPRESSION_REFUSALS[token] : null;
+  }
+
+  #defaultRefusalToken(): CompressionRefusal | null {
     const t = this.tactical?.state;
-    if (this.strategic && !this.state.atLeastOneMercHired) return 'no merc has been hired yet';
-    if (this.state.meanwhile.trying) return 'a meanwhile scene is about to start';
-    if (this.noUsableMercs()) return 'no usable mercs are left on the team';
-    if (t?.inCombat) return 'combat is in progress';
-    if (t?.turn.enemyInSector) return 'enemies are present in the loaded sector';
-    if (this.creatures?.playerInInfestedMine()) return 'mercs are in a creature-infested mine';
-    if (this.state.encounter.code === EncounterCode.BLOODCAT_AMBUSH && t && hostileBloodcatsPresent(t)) return 'bloodcats are attacking';
-    if (this.contracts?.sequenceOn) return 'the contract renewal sequence is on';
+    if (this.strategic && !this.state.atLeastOneMercHired) return 'noMercsHired';
+    if (this.state.meanwhile.trying) return 'meanwhileStarting';
+    if (this.noUsableMercs()) return 'noUsableMercs';
+    if (t?.inCombat) return 'inCombat';
+    if (t?.turn.enemyInSector) return 'enemiesPresent';
+    if (this.creatures?.playerInInfestedMine()) return 'creatureMine';
+    if (this.state.encounter.code === EncounterCode.BLOODCAT_AMBUSH && t && hostileBloodcatsPresent(t)) return 'bloodcatAmbush';
+    if (this.contracts?.sequenceOn) return 'contractRenewal';
     return null;
   }
 
@@ -625,17 +632,17 @@ export class CampaignSim {
   }
 
   #compress(cmd: CampaignCommand): CommandResult {
-    if (this.state.flow !== 'strategic') return { ok: false, reason: 'time compression works on the strategic map only' };
+    if (this.state.flow !== 'strategic') return refuse('mapScreenOnly', 'time compression works on the strategic map only');
     const mode = cmd.mode;
     if (mode !== undefined && (typeof mode !== 'number' || mode < CompressMode.MIN5 || mode > CompressMode.MIN60))
-      return { ok: false, reason: 'mode must be 2 (5 min/s), 3 (30 min/s) or 4 (60 min/s)' };
+      return refuse('badMode', 'mode must be 2 (5 min/s), 3 (30 min/s) or 4 (60 min/s)');
     if (typeof mode === 'number') {
       const refused = setGameTimeCompressionLevel(this.#clock, mode);
-      if (refused) return { ok: false, reason: refused };
+      if (refused) return refuse(compressionRefusalToken(refused), refused);
       if (this.state.flow !== 'strategic') return { ok: true };
     }
     const refused = startTimeCompression(this.#clock);
-    if (refused) return { ok: false, reason: refused };
+    if (refused) return refuse(compressionRefusalToken(refused), refused);
     this.#updatePausedStatesDueToTimeCompression();
     return { ok: true };
   }

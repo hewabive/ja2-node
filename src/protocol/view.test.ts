@@ -81,6 +81,9 @@ function soldier(id: number, gridNo: number): SoldierView {
     frame: 0,
     palettes: ['a', 'b', 'c', 'd'],
     hand: 'NOTHING',
+    frameSlot: 0,
+    stateTick: 0,
+    frameDelay: 0,
   };
 }
 

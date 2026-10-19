@@ -113,6 +113,7 @@ import {
   updateSoldierPointerDataIntoProfile,
 } from '../tactical/narrative/profile-insertion.ts';
 import { destroyAllSchedules, postSchedules } from '../tactical/narrative/schedules.ts';
+import { type Refusal, refuse, refused } from '../tactical/refusal.ts';
 import { hostileBloodcatsPresent, removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
 import { type RealtimeClock, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
@@ -370,14 +371,19 @@ export class SectorFlow {
   }
 
   enterSectorRefusal(sector: Sector): string | null {
+    return this.enterSectorRefusalOf(sector)?.reason ?? null;
+  }
+
+  enterSectorRefusalOf(sector: Sector): Refusal | null {
     const s = this.campaign.state;
     if (s.encounter.preBattle || s.encounter.simultaneousArrival || s.movement.groupPrompting !== null)
-      return 'a strategic decision is pending';
+      return { token: 'decisionPending', reason: 'a strategic decision is pending' };
     const t = this.campaign.tactical?.state;
     const world = this.world;
-    if (t && (t.inCombat || t.turn.enemyInSector) && world && !sameSector(world, sector)) return 'enemies are present in the loaded sector';
-    if (!this.canGoToTacticalInSector(sector)) return 'no merc of yours can go there';
-    if (!this.setup.worlds.world(this.mapPathOf(sector))) return 'sector map is not loaded';
+    if (t && (t.inCombat || t.turn.enemyInSector) && world && !sameSector(world, sector))
+      return { token: 'battleElsewhere', reason: 'enemies are present in the loaded sector' };
+    if (!this.canGoToTacticalInSector(sector)) return { token: 'noMercThere', reason: 'no merc of yours can go there' };
+    if (!this.setup.worlds.world(this.mapPathOf(sector))) return { token: 'mapNotLoaded', reason: 'sector map is not loaded' };
     return null;
   }
 
@@ -1290,10 +1296,10 @@ function parseSector(value: unknown): Sector | null {
 
 function enterSectorCommand(flow: SectorFlow, cmd: { readonly [key: string]: unknown }): CommandResult {
   const sector = parseSector(cmd.sector);
-  if (!sector) return { ok: false, reason: "sector must be like 'B9' or {x, y, z}" };
-  const refusal = flow.enterSectorRefusal(sector);
-  if (refusal) return { ok: false, reason: refusal };
-  if (!flow.setCurrentWorldSector(sector)) return { ok: false, reason: 'sector map is not loaded' };
+  if (!sector) return refuse('badSector', "sector must be like 'B9' or {x, y, z}");
+  const refusal = flow.enterSectorRefusalOf(sector);
+  if (refusal) return refused(refusal);
+  if (!flow.setCurrentWorldSector(sector)) return refuse('mapNotLoaded', 'sector map is not loaded');
   return { ok: true, data: { sector: sectorShortString(sector) } };
 }
 

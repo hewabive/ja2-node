@@ -70,8 +70,8 @@ export function perceptionHooks(
     ...base,
     haltFromSighting: (s) => haltFromSighting(t, s, true),
     haltFromItemSighting: (s) => haltFromSighting(t, s, false),
-    ourTeamSeesSomeone: (s, revealed, unknown) => {
-      t.events.push({ type: 'enemySighted', soldier: s.id, newEnemies: unknown, revealedEnemies: revealed });
+    ourTeamSeesSomeone: (s, revealed, unknown, enemies) => {
+      t.events.push({ type: 'enemySighted', soldier: s.id, newEnemies: unknown, revealedEnemies: revealed, enemies: [...enemies] });
       haltFromSighting(t, s, true);
     },
     enterCombatMode: (team) => enterCombatMode(t, team),

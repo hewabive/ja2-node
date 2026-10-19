@@ -11,8 +11,9 @@ import {
   plotPathForCharacter,
   soldierGroup,
 } from '../strategic/forces/routes.ts';
-import { addCharacterToAnySquad, addCharacterToSquad, addCharacterToUniqueSquad } from '../strategic/forces/squads.ts';
+import { addCharacterToAnySquad, addCharacterToSquad, addCharacterToUniqueSquad, squadJoinRefusal } from '../strategic/forces/squads.ts';
 import { calculateTravelTimeOfGroup } from '../strategic/map/travel.ts';
+import { refuse } from '../tactical/refusal.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 
 export interface StrategicCommand {
@@ -38,14 +39,14 @@ function soldierId(cmd: StrategicCommand): number | null {
 function route(ctx: StrategicContext, cmd: StrategicCommand, loaded: LoadedSectorStatus): CommandResult {
   const id = soldierId(cmd);
   const to = parseSector(cmd.to);
-  if (id === null || !ctx.mercs.get(id)) return { ok: false, reason: 'no such merc' };
-  if (!to) return { ok: false, reason: 'to must be a sector such as B9' };
+  if (id === null || !ctx.mercs.get(id)) return refuse('noSuchMerc', 'no such merc');
+  if (!to) return refuse('badSector', 'to must be a sector such as B9');
   const refusal = canEntireMovementGroupMove(ctx, id, loaded);
-  if (refusal) return { ok: false, reason: `the squad cannot move: ${refusal}` };
+  if (refusal) return refuse(refusal, `the squad cannot move: ${refusal}`);
   const current = ctx.mercs.get(id);
   if (current && current.path.length > 0 && lastSectorInMercPath(current) === strategicIndex(to)) return routeResult(ctx, id);
   cancelPathForCharacter(ctx, id);
-  if (!plotPathForCharacter(ctx, id, to)) return { ok: false, reason: 'no route to that sector for this merc' };
+  if (!plotPathForCharacter(ctx, id, to)) return refuse('noRoute', 'no route to that sector for this merc');
   confirmPathForCharacter(ctx, id);
   return routeResult(ctx, id);
 }
@@ -65,31 +66,34 @@ function cancelRoute(ctx: StrategicContext, cmd: StrategicCommand): CommandResul
 
 function assignSquad(ctx: StrategicContext, cmd: StrategicCommand): CommandResult {
   const id = soldierId(cmd);
-  if (id === null || !ctx.mercs.get(id)) return { ok: false, reason: 'no such merc' };
+  if (id === null || !ctx.mercs.get(id)) return refuse('noSuchMerc', 'no such merc');
   if (cmd.squad === 'any') return { ok: true, data: { squad: addCharacterToAnySquad(ctx, id) } };
   if (cmd.squad === 'new') return { ok: true, data: { squad: addCharacterToUniqueSquad(ctx, id) } };
-  if (typeof cmd.squad !== 'number') return { ok: false, reason: "squad must be 0..19, 'new' or 'any'" };
+  if (typeof cmd.squad !== 'number') return refuse('badSquad', "squad must be 0..19, 'new' or 'any'");
+  const refusal = squadJoinRefusal(ctx, id, cmd.squad);
+  if (refusal) return refuse(refusal, `cannot join that squad: ${refusal}`);
   return addCharacterToSquad(ctx, id, cmd.squad)
     ? { ok: true, data: { squad: cmd.squad } }
-    : { ok: false, reason: 'cannot join that squad' };
+    : refuse('cannotJoinSquad', 'cannot join that squad');
 }
 
 function assign(campaign: CampaignSim, cmd: StrategicCommand): CommandResult {
   const economy = campaign.economy;
-  if (!economy) return { ok: false, reason: 'assignments need the economy' };
+  if (!economy) return refuse('noEconomy', 'assignments need the economy');
   const ids = Array.isArray(cmd.soldiers) ? cmd.soldiers.filter((x): x is number => typeof x === 'number') : [];
   const to = cmd.to as AssignTarget | undefined;
-  if (ids.length === 0 || !to || !ASSIGN_KINDS.has(String(to.kind))) return { ok: false, reason: 'need soldiers and an assignment' };
+  if (ids.length === 0 || !to || !ASSIGN_KINDS.has(String(to.kind))) return refuse('badAssignment', 'need soldiers and an assignment');
   const results = assignSoldiers(economy, ids, to);
-  return { ok: results.every((r) => r.ok), data: results };
+  const failed = results.find((r) => !r.ok);
+  return { ok: failed === undefined, ...(failed && !failed.ok ? { reason: failed.reason } : {}), data: results };
 }
 
 function sleepOrWake(campaign: CampaignSim, cmd: StrategicCommand, sleep: boolean): CommandResult {
   const economy = campaign.economy;
   const id = soldierId(cmd);
-  if (!economy || id === null) return { ok: false, reason: 'no such merc' };
+  if (!economy || id === null) return refuse('noSuchMerc', 'no such merc');
   const result = sleep ? sleepSoldier(economy, id) : wakeSoldier(economy, id);
-  return result.ok ? { ok: true } : { ok: false, reason: result.reason };
+  return result.ok ? { ok: true } : refuse(result.reason, result.reason);
 }
 
 export function dispatchStrategicCommand(campaign: CampaignSim, cmd: StrategicCommand): CommandResult | null {

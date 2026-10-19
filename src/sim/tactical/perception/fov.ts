@@ -256,7 +256,7 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
           throughWindowDirection = dir;
         }
         if (blocking === Blocking.TOPLEFT_DOOR || blocking === Blocking.TOPRIGHT_DOOR) goneThroughDoor = 1;
-        if (revealItems && setItemsVisibilityOn(t, marker, level, Visibility.INVISIBLE) && showLocators && t.inCombat)
+        if (revealItems && setItemsVisibilityOn(t, marker, level, Visibility.INVISIBLE, showLocators) && showLocators && t.inCombat)
           t.perceptionHooks.haltFromItemSighting(s);
         tilesLeftToSee--;
         if (tilesLeftToSee <= 0) break;

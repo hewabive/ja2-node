@@ -76,6 +76,7 @@ describe('bursts', () => {
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo, burst: true })).toEqual({
       ok: false,
       reason: 'this weapon cannot fire bursts',
+      data: { refusal: 'noBurst' },
     });
   });
 });

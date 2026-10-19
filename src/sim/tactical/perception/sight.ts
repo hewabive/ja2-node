@@ -397,6 +397,7 @@ export function radioSightings(t: TacticalState, s: Soldier, about: Soldier | nu
   if (!table) return;
   let revealed = 0;
   let unknown = 0;
+  const contacts: number[] = [];
   const targets = about ? [about] : t.soldiers.filter((x) => x !== undefined);
   for (const opp of targets) {
     if (!validForSightings(opp)) continue;
@@ -421,6 +422,7 @@ export function radioSightings(t: TacticalState, s: Soldier, about: Soldier | nu
         revealed++;
         contact = true;
       }
+      if (contact) contacts.push(opp.id);
       if (contact && t.turn.currentTeam !== Team.OUR) {
         const pause = t.turn.enemySightingOnTheirTurn;
         if (pause) pause.enemy.pauseAllAnimation = false;
@@ -435,7 +437,7 @@ export function radioSightings(t: TacticalState, s: Soldier, about: Soldier | nu
     p.publicNoiseLevel[toTeam] = s.ai.noiseLevel;
     p.publicNoiseVolume[toTeam] = s.ai.noiseVolume;
   }
-  if (s.team === Team.OUR && (revealed || unknown)) t.perceptionHooks.ourTeamSeesSomeone(s, revealed, unknown);
+  if (s.team === Team.OUR && (revealed || unknown)) t.perceptionHooks.ourTeamSeesSomeone(s, revealed, unknown, contacts);
 }
 
 export function ourTeamRadiosRandomlyAbout(t: TacticalState, about: Soldier): void {

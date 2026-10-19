@@ -192,7 +192,7 @@ function setOpenableStructStatus(t: TacticalState, gridNo: number, open: boolean
   if (!structure || has(structure.flags, StructureFlags.OPEN) === open) return;
   const baseGridNo = t.world.structures.findBase(structure)?.gridNo ?? gridNo;
   swapStructureForPartner(t, structure);
-  if (open) setItemsVisibilityOn(t, baseGridNo, 0, ANY_VISIBILITY_VALUE);
+  if (open) setItemsVisibilityOn(t, baseGridNo, 0, ANY_VISIBILITY_VALUE, false);
   else for (const item of t.worldItems) if (item.gridNo === baseGridNo && item.level === 0) item.visible = Visibility.HIDDEN_IN_OBJECT;
 }
 

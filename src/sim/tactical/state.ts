@@ -117,7 +117,7 @@ export interface PerceptionHooks {
   setNewSituation(s: Soldier): void;
   haltFromSighting(s: Soldier): void;
   haltFromItemSighting(s: Soldier): void;
-  ourTeamSeesSomeone(s: Soldier, revealed: number, unknown: number): void;
+  ourTeamSeesSomeone(s: Soldier, revealed: number, unknown: number, enemies: readonly number[]): void;
   enterCombatMode(team: number, s: Soldier): void;
 }
 
