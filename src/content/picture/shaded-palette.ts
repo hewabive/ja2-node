@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
-// @src src/sgp/HImage.cc Create16BPPPaletteShaded. See docs/28 §3.11.
+// @src src/sgp/HImage.cc Create16BPPPaletteShaded; src/game/Tactical/Faces.cc InitFace (the all-white palette of the portrait
+// @src flash and the grey ramp i % 128 + 128). See docs/28 §3.11.
 
 const PALETTE_COLOURS = 256;
 const CHANNEL_MAX = 255;
@@ -10,18 +11,34 @@ const LUMINANCE_GREEN = 587;
 const LUMINANCE_BLUE = 114;
 const LUMINANCE_DIVISOR = 1000;
 
+export type PaletteBase = 'image' | 'white' | 'grayRamp';
+
 export interface PaletteScale {
   readonly red: number;
   readonly green: number;
   readonly blue: number;
   readonly mono: boolean;
+  readonly base?: PaletteBase;
+}
+
+const GRAY_RAMP_STEP = 128;
+
+export function basePalette(palette: Uint8Array, base: PaletteBase): Uint8Array {
+  if (base === 'image') return palette;
+  const out = new Uint8Array(PALETTE_COLOURS * 3);
+  for (let i = 0; i < PALETTE_COLOURS; i++) {
+    const value = base === 'white' ? CHANNEL_MAX : (i % GRAY_RAMP_STEP) + GRAY_RAMP_STEP;
+    out.fill(value, i * 3, i * 3 + 3);
+  }
+  return out;
 }
 
 function scaled(scale: number, value: number): number {
   return Math.min(Math.floor((scale * value) / SCALE_UNIT), CHANNEL_MAX);
 }
 
-export function shadedPalette(palette: Uint8Array, scale: PaletteScale): Uint8Array {
+export function shadedPalette(source: Uint8Array, scale: PaletteScale): Uint8Array {
+  const palette = basePalette(source, scale.base ?? 'image');
   const out = new Uint8Array(PALETTE_COLOURS * 3);
   for (let i = 0; i < PALETTE_COLOURS; i++) {
     const r = palette[i * 3] ?? 0;

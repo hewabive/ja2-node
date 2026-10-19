@@ -47,6 +47,7 @@ const INPUT: Readonly<Record<string, Kind>> = {
   wheelDown: 'action',
   hover: 'action',
   press: 'action',
+  down: 'action',
   doubleClick: 'action',
 };
 

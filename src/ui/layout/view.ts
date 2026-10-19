@@ -30,12 +30,18 @@ import {
 import { type WidgetInfo, widgetRect } from '../widgets/widget-info.ts';
 import type { Variables } from './constants.ts';
 import { type LayoutController, parseAction, substituteIndex } from './controller.ts';
-import { anchorPoint, type FrameRect, frameRect } from './frames.ts';
+import { anchorPoint, type FrameRect, frameRect, TEAMPANEL_SLOT_WIDTH, teamPanelSlots } from './frames.ts';
 import type { LayoutModel } from './model.ts';
 import { popupBoxStyle, textBoxArt } from './styles.ts';
 import type { AnchorName, ChoiceJson, ColorJson, Condition, FrameName, NumberExpr, TextSourceJson, WidgetJson } from './types.ts';
 
-export type CustomRenderer = (list: DrawList, rect: Area, params: Readonly<Record<string, unknown>>, view: LayoutView) => void;
+export type CustomRenderer = (
+  list: DrawList,
+  rect: Area,
+  params: Readonly<Record<string, unknown>>,
+  view: LayoutView,
+  vars: Variables,
+) => void;
 
 export interface LayoutViewOptions {
   readonly model: LayoutModel;
@@ -78,6 +84,11 @@ function asObject(value: unknown): JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as JsonObject) : {};
 }
 
+function customId(json: WidgetJson, vars: Variables): string {
+  const base = json.id ?? String(json.renderer);
+  return vars.i === undefined || base.includes('$i') ? substituteIndex(base, vars.i ?? 0) : `${base}.${vars.i}`;
+}
+
 export class LayoutView {
   readonly model: LayoutModel;
   readonly controller: LayoutController;
@@ -114,7 +125,11 @@ export class LayoutView {
     this.#geometryKey = `${geometry.width}x${geometry.height}`;
     this.#frame = frameRect(this.model.json.frame, geometry);
     this.#counter = 0;
-    const screen = { screenWidth: geometry.width, screenHeight: geometry.height };
+    const screen = {
+      screenWidth: geometry.width,
+      screenHeight: geometry.height,
+      slotsWidth: teamPanelSlots(geometry.width) * TEAMPANEL_SLOT_WIDTH,
+    };
     this.#widgets = (this.model.json.widgets ?? []).map((json) => this.#build(json, screen, 0, 0));
   }
 
@@ -503,6 +518,7 @@ export class LayoutView {
       onButton: (_r: MouseRegion, reason: number) => {
         if (reason & MouseReason.LBUTTON_DOUBLECLICK) this.invoke(json.doubleClick, vars);
         if (reason & PRESS_REASONS) this.invoke(json.press, vars);
+        if (reason & MouseReason.LBUTTON_DWN) this.invoke(json.down, vars);
         if (reason & MouseReason.LBUTTON_DWN) {
           pointerDown = true;
           rightDown = false;
@@ -978,13 +994,14 @@ export class LayoutView {
           },
           params,
           this,
+          vars,
         );
       },
       () => {
         const { x, y } = this.#position(json, vars, dx, dy);
         return [
           {
-            id: json.id ?? String(json.renderer),
+            id: customId(json, vars),
             kind: 'custom',
             rect: widgetRect(
               x,

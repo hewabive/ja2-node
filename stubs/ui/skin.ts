@@ -7,7 +7,7 @@ import { PROJECT_DATA_DIR } from '../../src/node/repo.ts';
 import { LayoutLoader } from '../../src/ui/layout/loader.ts';
 import type { LayoutModel } from '../../src/ui/layout/model.ts';
 import { collectReferences } from '../../src/ui/layout/references.ts';
-import { LAYOUTS_DIR, ORIGINAL_SKIN, type StubFrameState } from '../../src/ui/layout/types.ts';
+import { LAYOUTS_DIR, ORIGINAL_SKIN, type StubFrameState, type StubStyle } from '../../src/ui/layout/types.ts';
 import { buildPalette, color } from '../palette.ts';
 import { IndexedRaster } from '../raster.ts';
 import { labelFont, labelHeight, labelWidth, stampLabel } from './label.ts';
@@ -31,6 +31,7 @@ export interface StubAssetPlan {
   readonly frames: FramePlan[];
   readonly animated: number;
   readonly layouts: string[];
+  readonly style: StubStyle;
 }
 
 const FILLS: Readonly<Record<StubFrameState, number>> = {
@@ -73,7 +74,14 @@ export function planStubSkin(models: readonly LayoutModel[]): Map<string, StubAs
       const declared = stub?.frames === undefined ? 0 : model.number(stub.frames as number | string);
       const used = Math.max(-1, ...use.frames.keys()) + 1;
       const count = Math.max(1, declared, sizes.length, used);
-      const plan = plans.get(asset.path) ?? { path: asset.path, kind: asset.kind, frames: [], animated: 0, layouts: [] };
+      const plan = plans.get(asset.path) ?? {
+        path: asset.path,
+        kind: asset.kind,
+        frames: [],
+        animated: 0,
+        layouts: [],
+        style: stub?.style ?? 'solid',
+      };
       plan.layouts.push(model.json.screen);
       for (let i = 0; i < count; i++) {
         const [width, height] = sizes[i] ?? size ?? DEFAULT_STUB_SIZE;
@@ -111,7 +119,30 @@ function bevelled(width: number, height: number, state: StubFrameState): Indexed
   return raster;
 }
 
-async function frameImage(name: string, index: number, frame: FramePlan): Promise<IndexedRaster> {
+function hollow(width: number, height: number, state: StubFrameState): IndexedRaster {
+  const raster = new IndexedRaster(width, height);
+  const ink = FILLS[state];
+  for (let x = 0; x < width; x++) {
+    raster.set(x, 0, ink);
+    raster.set(x, height - 1, ink);
+  }
+  for (let y = 0; y < height; y++) {
+    raster.set(0, y, ink);
+    raster.set(width - 1, y, ink);
+  }
+  return raster;
+}
+
+function checker(width: number, height: number): IndexedRaster {
+  const raster = new IndexedRaster(width, height);
+  const ink = color('gray', 0);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if ((x + y) % 2 === 0) raster.set(x, y, ink);
+  return raster;
+}
+
+async function frameImage(name: string, index: number, frame: FramePlan, style: StubStyle): Promise<IndexedRaster> {
+  if (style === 'hollow') return hollow(frame.width, frame.height, frame.state);
+  if (style === 'checker') return checker(frame.width, frame.height);
   const raster = bevelled(frame.width, frame.height, frame.state);
   const font = await labelFont();
   const label = `${name}#${index}`;
@@ -132,12 +163,12 @@ export async function encodeStubAsset(plan: StubAssetPlan): Promise<Uint8Array> 
   const name = baseName(plan.path);
   if (plan.kind === 'pcx') {
     const frame = plan.frames[0] as FramePlan;
-    const raster = await frameImage(name, 0, frame);
+    const raster = await frameImage(name, 0, frame, plan.style);
     return encodePcx(raster.width, raster.height, raster.pixels, buildPalette());
   }
   const subImages: StiSubImage[] = [];
   for (const [i, frame] of plan.frames.entries()) {
-    const raster = await frameImage(name, i, frame);
+    const raster = await frameImage(name, i, frame, plan.style);
     subImages.push({ offsetX: 0, offsetY: 0, width: raster.width, height: raster.height, pixels: raster.pixels });
   }
   const appData: StiAppData[] | undefined =
@@ -159,7 +190,7 @@ function sharedPicture(plan: StubAssetPlan): StubAssetPlan | null {
   if (plan.kind !== 'sti' || plan.frames.length !== 1 || plan.animated > 0 || !frame) return null;
   if (frame.width * frame.height < SHARED_FRAME_PIXELS) return null;
   const path = `${SHARED_DIR}/screen-${frame.width}x${frame.height}-${frame.state}.sti`;
-  return { path, kind: 'sti', frames: [frame], animated: 0, layouts: plan.layouts };
+  return { path, kind: 'sti', frames: [frame], animated: 0, layouts: plan.layouts, style: plan.style };
 }
 
 async function writeAsset(out: string, plan: StubAssetPlan): Promise<void> {
