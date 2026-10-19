@@ -7,6 +7,7 @@ export interface Screen {
   readonly id: string;
   readonly soundScreen?: UiScreenKind | undefined;
   readonly rendersTooltips?: boolean;
+  readonly drawsWorld?: boolean;
   enter(): void;
   exit(): void;
   update(now: number): void;

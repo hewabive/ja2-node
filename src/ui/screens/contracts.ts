@@ -9,6 +9,9 @@ import { PLACEHOLDER_CONTRACT } from './front-end/placeholder.ts';
 import { SAN_MONA_CONTRACT } from './front-end/san-mona.ts';
 import { SAVE_LOAD_CONTRACT } from './front-end/save-load.ts';
 import { GALLERY_CONTRACT } from './gallery.ts';
+import { HUD_CONTRACT } from './tactical/hud.ts';
+import { SM_PANEL_CONTRACT } from './tactical/sm-panel.ts';
+import { TEAM_PANEL_CONTRACT } from './tactical/team-panel.ts';
 
 export const MESSAGE_BOX_CONTRACT: ControllerContract = { id: 'messageBox', actions: {}, bindings: {} };
 
@@ -25,5 +28,8 @@ export const LAYOUT_CONTRACTS: Readonly<Record<string, ControllerContract>> = Ob
     EXIT_BOX_CONTRACT,
     SAN_MONA_CONTRACT,
     PLACEHOLDER_CONTRACT,
+    TEAM_PANEL_CONTRACT,
+    SM_PANEL_CONTRACT,
+    HUD_CONTRACT,
   ].map((contract) => [contract.id, contract]),
 );

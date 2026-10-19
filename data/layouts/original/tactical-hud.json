@@ -1,0 +1,275 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Tactical/Interface.cc CreateTopMessage (rect.sti, timebargreen.sti, timebaryellow.sti; frame 0 at STD_SCREEN_X, 0, the end pieces 1 and 12, the fill pieces 2 to 11; TINYFONT1 centred in m_progress_bar_box), HandleTopMessages (the viewport starts at 20 while the bar shows), DrawSelectedUIAboveGuy (radio.sti and radio2.sti 40 \u00d7 40), BeginUIMessage (the feedback box at y 150); src/game/UILayout.cc:115 m_progress_bar_box (STD_SCREEN_X + 5, 2, 630, 12), :50-53 the clock at m_teamPanelSlotsTotalWidth + 56, H - 23 and the radar at + 45, H - 107",
+    "src/game/Utils/Message.cc X_START, Y_START (SCREEN_HEIGHT - 150); src/game/Strategic/Game_Clock.cc RenderClock (COMPFONT, FONT_FCOLOR_NICERED in combat, FONT_LTGREEN, centred in CLOCK_WIDTH \u00d7 CLOCK_HEIGHT), CreateMouseRegionForPauseOfClock (MSYS_PRIORITY_HIGHEST, pPausedGameText 1 or 2), CreateDestroyScreenMaskForPauseGame (the full-screen mask at MSYS_PRIORITY_HIGHEST), RenderPausedGameBox (the basic merc popup box, 300 wide, centred at y 200 - h / 2)",
+    "src/game/Tactical/Interface_Panels.cc RenderTownIDString (COMPFONT colour 183, cut to 80 pixels, centred in 80 \u00d7 16 at m_teamPanelSlotsTotalWidth + 50, H - 55); src/game/TileEngine/Radar_Screen.cc InitRadarScreen (the radar region at MSYS_PRIORITY_HIGHEST), CreateDestroyMouseRegionsForSquadList (squadpanel.sti at INTERFACE_START_X + 538, the viewport end, 102 \u00d7 120)"
+  ],
+  "screen": "tacticalHud",
+  "frame": "screen",
+  "tooltips": true,
+  "constants": ["Interface", "Message", "Game_Clock", "Radar_Screen", "Interface_Utils", "UILayout", "Text"],
+  "assets": {
+    "rect": {
+      "sti": "interface/rect.sti",
+      "stub": {
+        "sizes": [[640, 20], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12]]
+      }
+    },
+    "timeBarGreen": {
+      "sti": "interface/timebargreen.sti",
+      "stub": {
+        "sizes": [[640, 20], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12]]
+      }
+    },
+    "timeBarYellow": {
+      "sti": "interface/timebaryellow.sti",
+      "stub": {
+        "sizes": [[640, 20], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12], [1, 12]]
+      }
+    },
+    "radio": {
+      "sti": "interface/radio.sti",
+      "stub": {
+        "style": "hollow",
+        "sizes": [[8, 8], [16, 16], [24, 24], [32, 32], [40, 40]]
+      }
+    },
+    "radio2": {
+      "sti": "interface/radio2.sti",
+      "stub": {
+        "style": "hollow",
+        "sizes": [[8, 8], [16, 16], [24, 24], [32, 32], [40, 40]],
+        "states": ["grayed", "grayed", "grayed", "grayed", "grayed"]
+      }
+    },
+    "hatch": {
+      "sti": "interface/hatch.sti",
+      "stub": {
+        "style": "checker",
+        "size": ["FACE_WIDTH", "FACE_HEIGHT"]
+      }
+    },
+    "dead": {
+      "sti": "interface/p_dead.sti",
+      "stub": {
+        "frames": 6,
+        "size": ["FACE_WIDTH", "FACE_HEIGHT"],
+        "states": ["grayed", "grayed", "grayed", "grayed", "grayed", "grayed"]
+      }
+    },
+    "close": {
+      "sti": "interface/p_close.sti",
+      "stub": {
+        "frames": 6,
+        "size": ["FACE_WIDTH", "FACE_HEIGHT"]
+      }
+    },
+    "portraitIcons": {
+      "sti": "interface/portraiticons.sti",
+      "stub": {
+        "frames": 9,
+        "size": [8, 8]
+      }
+    },
+    "bars": {
+      "sti": "interface/bars.sti",
+      "stub": {
+        "frames": 2,
+        "size": [3, 43],
+        "states": ["plain", "hover"]
+      }
+    },
+    "squadPanel": {
+      "sti": "interface/squadpanel.sti",
+      "stub": {
+        "size": [102, 120]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "custom",
+      "id": "topBar",
+      "renderer": "topBar",
+      "x": 0,
+      "y": 0,
+      "width": "$screenWidth",
+      "height": 20,
+      "params": {
+        "turn": "timeBarGreen",
+        "interrupt": "timeBarYellow",
+        "computer": "rect",
+        "box": [5, 2, 630, 12]
+      }
+    },
+    {
+      "type": "custom",
+      "id": "viewportOverlays",
+      "renderer": "viewportOverlays",
+      "x": 0,
+      "y": 0,
+      "width": "$screenWidth",
+      "height": "$screenHeight - TEAMPANEL_HEIGHT",
+      "params": {
+        "radio": "radio",
+        "hostileRadio": "radio2"
+      }
+    },
+    {
+      "type": "custom",
+      "id": "radar",
+      "renderer": "radar",
+      "within": "tacticalPanel",
+      "x": "$slotsWidth + 45",
+      "y": "TEAMPANEL_HEIGHT - 107",
+      "width": "RADAR_WINDOW_WIDTH",
+      "height": "RADAR_WINDOW_HEIGHT",
+      "params": {
+        "squadPanel": "squadPanel",
+        "squadPanelX": 538,
+        "font": "SQUAD_FONT",
+        "regionHeight": "SQUAD_REGION_HEIGHT - SUBTRACTOR_FOR_SQUAD_LIST"
+      }
+    },
+    {
+      "type": "region",
+      "id": "radarRegion",
+      "within": "tacticalPanel",
+      "x": "$slotsWidth + 45",
+      "y": "TEAMPANEL_HEIGHT - 107",
+      "width": "RADAR_WINDOW_WIDTH",
+      "height": "RADAR_WINDOW_HEIGHT",
+      "priority": "HIGHEST",
+      "enabled": "radarEnabled",
+      "down": "radarPress",
+      "hover": "radarHover"
+    },
+    {
+      "type": "text",
+      "id": "sectorName",
+      "within": "tacticalPanel",
+      "x": "$slotsWidth + 50",
+      "y": "TEAMPANEL_HEIGHT - 55",
+      "width": 80,
+      "height": 16,
+      "align": "center",
+      "alignRule": "font",
+      "valign": "center",
+      "ellipsis": true,
+      "font": "COMPFONT",
+      "color": 183,
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "radarShown",
+      "text": {
+        "bind": "sector"
+      }
+    },
+    {
+      "type": "text",
+      "id": "clock",
+      "within": "tacticalPanel",
+      "x": "$slotsWidth + 56",
+      "y": "TEAMPANEL_HEIGHT - 23",
+      "width": "CLOCK_WIDTH",
+      "height": "CLOCK_HEIGHT",
+      "align": "center",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "CLOCK_FONT",
+      "color": {
+        "by": "inCombat",
+        "map": {
+          "true": "FONT_FCOLOR_NICERED",
+          "false": "FONT_LTGREEN"
+        }
+      },
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "radarShown",
+      "text": {
+        "bind": "clock"
+      }
+    },
+    {
+      "type": "region",
+      "id": "clockRegion",
+      "within": "tacticalPanel",
+      "x": "$slotsWidth + 56",
+      "y": "TEAMPANEL_HEIGHT - 23",
+      "width": "CLOCK_WIDTH",
+      "height": "CLOCK_HEIGHT",
+      "priority": "HIGHEST",
+      "visible": "radarShown",
+      "tooltip": {
+        "bind": "pauseHelp"
+      },
+      "primary": "togglePause"
+    },
+    {
+      "type": "custom",
+      "id": "messageLog",
+      "renderer": "messageLog",
+      "x": "X_START",
+      "y": "$screenHeight - 150",
+      "width": "LINE_WIDTH",
+      "height": 0
+    },
+    {
+      "type": "region",
+      "id": "pauseMask",
+      "x": 0,
+      "y": 0,
+      "width": "$screenWidth",
+      "height": "$screenHeight",
+      "priority": "HIGHEST",
+      "visible": "paused",
+      "cursor": "CURSOR_NORMAL",
+      "primary": "togglePause"
+    },
+    {
+      "type": "custom",
+      "id": "pausedBox",
+      "renderer": "pausedBox",
+      "x": 0,
+      "y": 200,
+      "width": 300,
+      "height": 0,
+      "visible": "paused"
+    },
+    {
+      "type": "custom",
+      "id": "feedbackBox",
+      "renderer": "feedbackBox",
+      "x": 0,
+      "y": 150,
+      "width": "$screenWidth",
+      "height": 0
+    }
+  ],
+  "hotkeys": [
+    {
+      "key": "o",
+      "on": "down",
+      "mods": 0,
+      "action": "options"
+    },
+    {
+      "key": "s",
+      "on": "down",
+      "mods": 2,
+      "action": "saveGame"
+    },
+    {
+      "key": "l",
+      "on": "down",
+      "mods": 2,
+      "action": "loadGame"
+    },
+    {
+      "key": "x",
+      "on": "down",
+      "mods": 4,
+      "action": "exitGame"
+    }
+  ]
+}
