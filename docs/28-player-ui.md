@@ -8,10 +8,12 @@ screens, tactical panels, tactical input and overlays, map screen with PBI and a
 client); their full notes are kept outside the repository (the maintainer's `~/ja2-notes/m8/`), this document is the
 consolidated spec. -->
 
-**Status (2026-10-18).** Spec, not started. The maintainer's direction: pixel fidelity to the original 640×480 screens
+**Status (2026-10-19).** Spec, not started. The maintainer's direction: pixel fidelity to the original 640×480 screens
 as the target of this milestone, without absurdity (whatever is expensive to reproduce may be simplified or deferred),
 and a design that lets later milestones add one or more alternative modern layouts on the same widgets and screen logic.
-Play is local (server and browser on one machine).
+Revised 2026-10-19: the four data scenarios (§1.3, M8 builds scenario 2), the rule pack, cursor hints computed on the
+client with the simulation's own code (§2.4), the animation schedule and the client's time warp (§2.3), the stub art
+cut to the CI minimum (§13).
 
 # 28 — Player UI: widgets, layouts, fonts and the original screens
 
@@ -39,35 +41,40 @@ save/load, tactical HUD and inventory, map screen, PBI, talk, shop, laptop), hot
 **Recommendation in one paragraph.** Build a DOM-free `ui` layer (region dispatcher with the original's `MouseSystem`
 semantics, buttons, bitmap text with the original's wrap and colour model, cursors, popups, message boxes) that emits a
 draw list for a WebGL renderer drawing at a logical resolution (640×480 frames centred in a Stracciatella-style screen
-scaled by an integer UI scale). Each screen is a controller with a view model over `PlayerView` and queries, bound by a
+scaled by an integer UI scale). Each screen is a controller with a view model over `PlayerView` and hints, bound by a
 JSON layout transcribed from Stracciatella's constants; the original layout is one skin, a modern layout later is
 another skin for the same controllers. Reproduce the screens exactly by default; simplify what cannot work in a browser
 or depends on frame rate; defer what needs simulation that does not exist (meanwhile scene playback, tactical placement,
-the helicopter drop) or flavour with a high cost. The server gains an unlogged query channel for cursor feedback
-(path previews, action costs, valid drop targets, route previews), the view fields the original's panels show
-(bleeding, stats, faces, morale, map-screen economy and control), message entries, a `pauseOn` real-time driver option,
-a session profile endpoint and an item catalogue, and a dozen small commands the panels' buttons need (stealth, weapon
-mode, spread bursts, group moves, swaps, jumps). Assets keep flowing raw through `/vfs` with content-hash immutable
-URLs and a browser-side cache; nothing is transcoded for local play.
+the helicopter drop) or flavour with a high cost. **Cursor hints** (path previews with AP bands, action costs, chance to
+hit, valid drop targets, route previews) are computed in the browser by the simulation's own functions over a
+*player-knowledge projection* of the view; the server answers the same hint kinds over the same projection on an
+unlogged query channel, so both agree by construction (agents, verification, fallback). The server gains the view fields
+the original's panels show (bleeding, stats, faces, morale, map-screen economy and control), message entries, an
+animation schedule the client plays its own frames against, a `pauseOn` real-time driver option, a session profile
+endpoint and an item catalogue, and a dozen small commands the panels' buttons need (stealth, weapon mode, spread
+bursts, group moves, swaps, jumps). The game data splits into a **rule pack** (everything the simulation reads, never
+graphics) and media; M8 plays scenario 2 of §1.3 (the server holds the user's data and serves it raw through `/vfs` with
+content-hash immutable URLs) and is shaped so that the client's own copy (scenario 3) and an uploaded rule pack
+(scenario 4) can follow without rework.
 
 **The largest single items** are the tactical HUD with its input state machine (U5, U6) and the laptop (about 50
 screens, U10–U12); the foundation (U0, U1) comes first because every screen is built from it.
 
 | § | Item | Core decision |
 |---|---|---|
-| 1 | Principles | exact by default; no rule and no hidden state in the client; four parts per screen; client modals pause the driver, event boxes pause on the tick |
-| 2 | Architecture | new `ui` layer; one `/play` page; generic frame application; a query channel; manifest and immutable asset URLs; Stracciatella's resolution model with a UI scale; renderer work first |
+| 1 | Principles | exact by default; no hand-written rule and no hidden state in the client; four parts per screen; four data scenarios (M8 = scenario 2); client modals pause the driver, event boxes pause on the tick |
+| 2 | Architecture | new `ui` layer; one `/play` page; generic frame application; the animation schedule and the client's time warp; cursor hints on the client with shared simulation code, the query channel for agents and verification; the rule pack, the manifest and immutable asset URLs; Stracciatella's resolution model with a UI scale; renderer work first |
 | 3 | Foundation | `MouseSystem`, buttons, fonts, cursors and shared widgets reproduced exactly; fifteen widget types; JSON layouts with generated constants and a bindings contract |
 | 4 | Front-end | all screens exact; save/load on Stracciatella's list with the original art; the GIO opens the laptop with nobody hired; help late |
-| 5 | Tactical panels | exact panels, faces with lip sync, bars, item tiles; local item cursor; server-computed stats, costs and placements |
-| 6 | Tactical input | the original state machine as client code, cursors and paths from queries, every gameplay hotkey; input locked until playback catches up |
-| 7 | Map screen | exact; assignment shading, route and helicopter previews from queries; economy and control fields added |
+| 5 | Tactical panels | exact panels, faces with lip sync, bars, item tiles; local item cursor; stats from the view, costs and placements from hints |
+| 6 | Tactical input | the original state machine as client code, cursors and paths from hints, every gameplay hotkey; input locked until playback catches up |
+| 7 | Map screen | exact; assignment shading, route and helicopter previews from hints; economy and control fields added |
 | 8 | Battle entry | PBI and autoresolve exact; tactical placement deferred |
 | 9 | Laptop | shell and every needed page exact; 16 groups of small server gaps, one of them a rule (site visits) |
 | 10 | Story | meanwhile box exact, scene playback deferred; the ending wired |
 | 11 | Sound | button sounds, lip sync, music without a session |
 | 12 | Server | view fields, events, message entries, protocol, commands, eight rule findings |
-| 13 | Stubs | UI art as STIs under the original names, sized from layout data |
+| 13 | Stubs | the CI minimum: labelled STIs under the original names generated from the layouts, a few special cases |
 | 14–18 | Deviations, tests, performance, slices, decisions | U0–U15; goldens on stubs only |
 
 ---
@@ -87,11 +94,15 @@ screens' auto-show bookkeeping can come late, the A.I.M. conference distortion, 
 
 Rules that follow from D15 and D16 and bind every screen:
 
-1. **No rule in the client.** Every number a screen shows that the simulation computes (costs, chances, ETAs, prices,
-   what fits where, what is enabled) comes from the view or from a query (§2.4). A screen may restate an *enable* rule
-   on view fields only when the rule is trivial and the command refuses anyway (try-and-refuse is always acceptable).
+1. **No hand-written rule in the client.** Every number a screen shows that the simulation computes (costs, chances,
+   ETAs, prices, what fits where, what is enabled) comes from the view, from a hint computed by the simulation's own
+   functions over the player-knowledge projection (§2.4), or from a server query. The client never reimplements a rule;
+   a screen may restate an *enable* rule on view fields only when the rule is trivial and the command refuses anyway
+   (try-and-refuse is always acceptable). Commands are always validated by the server on the full state.
 2. **No hidden state.** A screen shows only what the original shows at that moment; additions to the view (§12) reveal
-   nothing more. Queries treat soldiers the player does not see as absent.
+   nothing more. Hints and queries run on the projection, where soldiers the player does not see do not exist. Where
+   the original's own UI leaks hidden state (a menu line shaded because of enemies nobody has seen), the projection
+   does not; the command then refuses with the original's message.
 3. **Presentation never feeds the simulation.** Client timers (blinks, flashes, lip sync, fades, loading bars) and
    cosmetic randomness (`src/audio/client-random.ts`) stay in the client.
 
@@ -99,7 +110,7 @@ Rules that follow from D15 and D16 and bind every screen:
 
 | Part | Lives in | Knows | Never knows |
 |---|---|---|---|
-| **Controller** (screen logic: state machine, selection, popups, what a click sends) | `src/ui/screens/` | the view, queries, commands, client settings | coordinates, art, fonts |
+| **Controller** (screen logic: state machine, selection, popups, what a click sends) | `src/ui/screens/` | the view, hints, queries, commands, client settings | coordinates, art, fonts |
 | **View model** (named values, booleans and lists the layout binds to) | produced by the controller | display strings (formatted through the text service), enable flags | pixels |
 | **Layout** (which widgets, where, with which art, fonts and colours, bound to view model names and controller actions) | `data/layouts/<skin>/<screen>.json` | the widget vocabulary, asset ids, font ids | rules, the view |
 | **Widgets and renderer** (region dispatcher, buttons, text, popups; the draw list; WebGL) | `src/ui/widgets/`, `src/render/ui-draw/` | geometry, input events | game state |
@@ -110,13 +121,49 @@ them unsupported (§3.10). Screen-specific renderers that cannot be generic (tac
 faces, inventory slots, the video player) are `custom` widgets whose geometry comes from layout parameters, so a
 modern layout can resize them without touching the controller.
 
-### 1.3 Local play and assets
+### 1.3 Data scenarios
 
-Play is local for now: the browser fetches the original files raw through `/vfs` and decodes them itself (D8); STI,
-PCX, ETRLE, IMA ADPCM, GAP and Smacker are all decoded by ja2-node's own code, so no browser codec support matters.
-Graphics stay palette-indexed (soldier palettes, shade tables and outline colours need indices). M8 adds a manifest with
-content hashes, immutable URLs, a client `AssetSource` and a decoded-asset cache (§2.5); server-side transcoding (Opus
-for speech and music) and compression are for a later remote mode and are not built now.
+The game data splits in two:
+
+- **The rule pack**: everything the simulation reads. The animation scripts (`binarydata/ja2bin.dat`), maps, structure
+  files (JSD), tileset definitions with their frame counts and aux data, profiles (`prof.dat`), NPC scripts, the lock
+  table, the explosion animations' frame counts, the text files (their lengths time speech, and agents read them), plus
+  the externalized and transcribed tables already in the repository. About 15 MB compressed, 12 MB of it maps. The
+  simulation never reads graphics: the few numbers it takes from STI headers today (explosion frame counts,
+  `src/content/items/explosions.ts:92-107`; tileset frame counts and aux data, `src/content/world/tileset-loader.ts:33-62`)
+  move into the pack. The pack has one hash, which becomes the logic hash of the content identity
+  (`src/server/content-identity.ts`, saves are bound to it). It is built from the user's data and never committed.
+- **Media**: graphics, sounds, music, videos, fonts; needed only by the client.
+
+The server is always authoritative over the rules; the client draws with its media and plays its animation frames
+against the server's schedule (§2.3).
+
+| # | Scenario | Rules on the server from | Media on the client from | Status |
+|---|---|---|---|---|
+| 1 | Stubs only | the stub pack | the server (`/vfs`) | kept as it is; M8 adds only the stub art CI needs (§13) |
+| 2 | The user's data on the server, served to the client | `JA2_DATA_DIR`, built into the rule pack at start and cached | the server: `/vfs` with a manifest of content hashes and immutable URLs (§2.5) | **M8** |
+| 3 | The user's data on the server and on the client | `JA2_DATA_DIR` | the client's own `Data` folder, every file checked against the server's manifest on first read, a mismatch or a missing file fetched from the server | after M8 |
+| 4 | The user's data only on the client | a rule pack the client builds from its folder and uploads (the hash first; no upload when the server has it); stored in the server's cache, never in the repository; sessions bound to a pack | the client's own folder, as in 3 | a later milestone |
+
+Scenario 2 is what M8 builds, shaped so that 3 and 4 need no rework: the rule pack is an explicit server artifact with
+a hash; the client reads files through a replaceable `AssetSource` layer (HTTP now, a local folder later); the client
+builds the same rule content with the same loaders from whatever its source is (for the hints, §2.4); the animation
+schedule and the client's time warp work when the client's scripts differ from the server's.
+
+**Scenario 3 compatibility rules** (recorded now, built later): the data version (`src/server/data-version.ts`) must
+match, because versions differ in rules too (text lengths time speech); every file the client reads from its folder is
+hashed (SubtleCrypto) on first read and compared with the manifest entry; equal → local, different or missing → the
+server's copy through `/vfs/@<hash>/…`; no upfront hashing of the whole folder. Chromium keeps the folder handle across
+sessions (`showDirectoryPicker`); Firefox and Safari use `<input webkitdirectory>` every session; archives are read in
+ranges through `Blob.slice`.
+
+**Scenario 4 needs** (recorded now, built later): the rule pack serialised and validated by the server (parsed, hashed),
+per-session content (today the content is one per server), and per-user storage of packs on a shared server (no
+cross-user deduplication, so the server never hands one user's upload to another user's session).
+
+Graphics stay palette-indexed in every scenario (soldier palettes, shade tables and outline colours need indices); STI,
+PCX, ETRLE, IMA ADPCM, GAP and Smacker are decoded by ja2-node's own code, so no browser codec support matters.
+Compression of `/vfs` and audio transcoding belong to remote play and are not built in M8.
 
 ### 1.4 Time while the client shows something modal
 
@@ -142,14 +189,16 @@ A new DOM-free layer **`ui`** joins the browser layers (`tools/check-imports.ts`
 
 | Layer | May import | lib | Contents |
 |---|---|---|---|
-| `ui` (new, `src/ui`) | core, content, protocol, ui | ES2024 only, like `content`; the `NONDETERMINISM` forbid list (time is injected) | region dispatcher, widgets, layout model and loader, bitmap font metrics and text layout over `src/content/text/glyph-table.ts`, hotkey tables, the cursor database, the **draw list** type, screen controllers written against an abstract `GameClient` (view, `command()`, `query()`, `drive()`, text service, asset ids) |
+| `ui` (new, `src/ui`) | core, content, protocol, ui | ES2024 only, like `content`; the `NONDETERMINISM` forbid list (time is injected) | region dispatcher, widgets, layout model and loader, bitmap font metrics and text layout over `src/content/text/glyph-table.ts`, hotkey tables, the cursor database, the **draw list** type, screen controllers written against an abstract `GameClient` (view, `hint()`, `command()`, `query()`, `drive()`, text service, asset ids) |
+| `sim` (extend) | as today | — | `src/sim/knowledge/` (the player-knowledge projection) and `src/sim/hints/` (the hint functions over it), used by the server's query handlers and by the client |
 | `render` | + ui (types only) | DOM | `render/ui-draw`: draw list → sprite batches (UI atlases, font palette rows, fills, shades, hatches, scissor) |
-| `app` | + ui | DOM | the game page: DOM events → `ui` input, `SessionClient`, `AssetSource`, audio, GL, video overlay, `localStorage`; the launcher stays |
+| `app` | + ui, sim | DOM | the game page: DOM events → `ui` input, `SessionClient`, `AssetSource`, the client's rule content and the local hint provider (`sim/hints` over the projection), audio, GL, video overlay, `localStorage`; the launcher stays |
 | `devtools` | + ui | DOM | a widget and layout gallery page, a layout debug overlay |
 
-Changes: add `'ui'` to `Layer`, `RULES` and the `layerOf` regex in `tools/check-imports.ts`; `src/ui/tsconfig.json`
-referencing core, content and protocol; `../ui` in the references of render, app, devtools, tests and the root. D12's
-note "there is no `ui` layer yet" is updated when it lands.
+Changes: add `'ui'` to `Layer`, `RULES` and the `layerOf` regex in `tools/check-imports.ts`; allow `app` → `sim`;
+`src/ui/tsconfig.json` referencing core, content and protocol; `../ui` (and `../sim` for app) in the references of
+render, app, devtools, tests and the root. The simulation is DOM-free, Node-free and deterministic, so it runs in the
+browser unchanged (`04` §5.7). D12's note "there is no `ui` layer yet" is updated when it lands.
 
 **Promote before the first screen** (app may not import devtools, `tools/check-imports.ts:40`): `SessionClient`
 (`src/devtools/net/session-client.ts`), the `/vfs` fetch helpers (three copies today: `devtools/asset-browser/api.ts:28`,
@@ -177,31 +226,84 @@ into the logical framebuffer (§2.6) → blit to the canvas → software cursor 
 `SessionClient` mirrors 18 view fields by hand and drops `meanwhile`, `ended` and `music` from frames
 (`session-client.ts:229-257`). M8 replaces the hand mirror with a generic `applyViewFrame(view, frame)` in `protocol`
 next to `diffPlayerView` (`src/protocol/view.ts:652`), tested as its inverse over the scenario suites, so every field
-added in §12 reaches the screens without client work. Fine animation between the 50 ms frames is reconstructed by the
-client from the same timelines (`04` §4.4, D4), as the sound director already does; no smaller `FRAME_TICKS`.
+added in §12 reaches the screens without client work. The `welcome` message carries the engine version and commit and
+the rule pack's hash and its scripts' hash.
 
-### 2.4 Queries
+**Animation scripts split at load.** The server parses `ja2bin.dat` into two parts in memory (never committed): the
+**logic timeline** (per state: frame slots, the gameplay markers, jumps, transitions and the stop and wait points; no
+sprite frame numbers) that the simulation runs, and the **presentation timeline** (sprite frame numbers, sound
+opcodes) that only a client needs. The simulation reads no sprite frame number today except to export it
+(`SoldierView.frame` is set from the script's frame code, `src/sim/tactical/animation.ts:541`); the native save import
+keeps mapping the saved frame and code.
+
+**The animation schedule.** Instead of the sprite frame, a soldier's view entry carries the animation state, the logic
+position within it (the frame slot counted from the state's start), the tick the state started and the current frame
+delay (`sAniDelay`, which depends on breath, life, agility, terrain, combat and stealth: the client cannot compute it);
+gameplay markers arrive as events with their ticks (`shotFired`, `soldierHit`, steps, door changes). The client turns
+this into sprite frames with its own presentation timeline:
+
+- **Same scripts** (its scripts' hash equals the server's, always the case in scenario 2): it follows the timeline
+  exactly as the sound director does today (`src/content/anim/timeline-follower.ts`); the picture is exact.
+- **Different scripts** (stubs against original rules, another data version, a mod; scenarios 3 and 4): a piecewise
+  time warp between the markers: the client's frames between two markers are stretched or squeezed to the server's
+  ticks of those markers, so a muzzle flash still coincides with `shotFired`. The animation may look slightly off
+  (feet sliding); the rules, traces and saves are untouched, because nothing flows back from the picture.
+
+Fine animation between the 50 ms frames comes from this schedule; no smaller `FRAME_TICKS`.
+
+### 2.4 Cursor hints and queries
 
 Cursor feedback needs answers several times a second (path and AP cost under the pointer, chance to hit, valid drop
-targets, ETAs while plotting). Queries today are ordinary commands: appended to the input log, queued behind a running
-advance, followed by a frame capture and, under the instant driver, an `advance {idle}` (`src/server/session.ts:260-266`,
-`session-host.ts:101-117`). M8 adds a separate channel:
+targets, ETAs while plotting). The original computes them in the UI with the same functions as the rules. ja2-node does
+the same, in the browser, with the simulation's own code:
+
+- **The player-knowledge projection** (`src/sim/knowledge/`): one function `knowledgeWorld(view, rules)` builds, from a
+  `PlayerView` and the rule content, the minimal world the hint functions read: the map and its structures, doors as
+  the player perceives them, the items the squad has seen, the light, the player's soldiers in full (stats, AP,
+  stance, inventory) and only the other soldiers the player sees, with only their visible fields. Unseen soldiers do
+  not exist in it.
+- **The hint functions** (`src/sim/hints/`): pure functions of the projection, written over the simulation's existing
+  functions (`findBestPath`, `plotPathCost`, the AP functions, the chance-to-hit and chance-to-get-through code,
+  `CanItemFitInPosition`, the strategic path builder…), never reimplementations. The kinds are in the table below.
+- **The client** keeps the rule content it built with the same loaders from its asset source (`loadTacticalContent(read)`
+  and the world loader already take a `ReadFile`), rebuilds the projection from the latest received view (not the
+  playback-delayed one; in turn-based play input is locked until playback has caught up anyway) and computes hints
+  locally: one per change of (hovered tile, mode, aim, selection), on the original's 80 ms rest timer
+  (`PATHFINDCOUNTER`, `Utils/Timer_Control.cc:19`), cached by (soldier, tile, mode, AP). No network round trip.
+- **The server** answers the same hint kinds by running the same functions on `knowledgeWorld` of the same view it
+  sends the player. That is also what makes a query fair (D16). So client and server agree **by construction**: same
+  code (the client checks the engine commit in `welcome`), same inputs (the projection of the same view; the client
+  checks the rule pack hash). On a mismatch of either, the client falls back to the server's query channel.
+- **Legitimate differences** exist only against the full state: a path through a tile held by an unseen enemy is shown,
+  and the merc stops when he meets him, as in the original. Commands are validated on the full state.
+
+**Which answers stay on the server.** Hover-rate answers are hints (local). Click-rate answers that depend on state the
+player does not see (an A.I.M. merc's availability and mood, a dealer's hidden flags) or that only price a decision
+stay server queries: `hireCheck`, `impCheckCode`, `aimQuote`, `bobbyRayQuote`, `insuranceQuote`, `impPreview`,
+`arrivalTime`, `quoteTrade`, `contractOptions`, `inventory` for other sectors.
+
+**The query channel** remains, for agents (MCP keeps queries as `act` commands and may gain a `query` tool), for the
+server-only answers above, for the client's fallback and for verification:
 
 - WebSocket `{t: 'query', id, q}` → `{t: 'answer', id, ok, data | reason}`; handled like `observe`: answered between
   ticks without entering the session's input queue, never logged, no frame, no advance; the worker host forwards it the
-  same way. MCP keeps queries as `act` commands (they stay valid there) and may gain a `query` tool later.
-- A query handler leaves the state byte-identical: a unit test snapshots the session before and after every query kind
-  over the stub scenarios.
-- **Fairness:** a query treats soldiers the player does not see as absent. `estimateAttack` resolves its target with
-  `whoIsThere` (`tactical-sim.ts:733`), which finds unseen soldiers: fix it (a D16 leak) together with the channel.
-- Client side: one query per change of (hovered tile, mode, aim, selection), debounced on the original's 80 ms rest
-  timer (`PATHFINDCOUNTER`, `Utils/Timer_Control.cc:19`, after which the original recomputes the path), cached by
-  (soldier, tile, mode, AP); stale answers dropped by id. A single combined `cursor` query is possible later; separate
-  kinds are simpler to test and come first.
+  same way. Today a query is an ordinary command: appended to the input log, queued behind a running advance, followed
+  by a frame capture and, under the instant driver, an `advance {idle}` (`src/server/session.ts:260-266`,
+  `session-host.ts:101-117`).
+- A query leaves the state byte-identical: a unit test snapshots the session before and after every kind over the stub
+  scenarios.
+- `estimateAttack` resolves its target with `whoIsThere` (`tactical-sim.ts:733`), which finds unseen soldiers: it moves
+  onto the projection with the other hints (a D16 leak fixed).
 
-New query kinds (all computed by existing simulation functions; details in the screen sections):
+**Keeping them equal** (§15): (1) scenario tests compute every hint kind on the client side (the projection built from
+the serialised view alone) and on the server side over thousands of sampled points and compare; (2) in tests the
+projection fills every field the view does not supply with a value that throws when read, so a hint function that reads
+hidden state fails at once; (3) a **shadow mode** (developer setting, on in e2e) sends every local hint to the server
+as well and reports any difference; (4) the view must carry every input a hint reads (§12.1).
 
-| Query | Answer | Screen | Built from |
+Hint kinds (the screen sections name them; "query" there means the same kind, wherever it is computed):
+
+| Hint | Answer | Screen | Built from |
 |---|---|---|---|
 | `previewMove {soldier, to, mode, reverse?}` | `{destination: ok \| blocked \| heightDiffers \| robotUncontrolled, apCost, firstStepCost, affordable, steps: [{gridNo, enterDir, leaveDir, band}], refusal?}` | tactical move cursor, footstep path with AP colour bands | `UIPlotPath`/`PlotPath` incl. `MinAPsToStartMovement` and the run start cost; `findBestPath`, `plotPathCost` (`src/sim/tactical/pathfinding.ts:404`, `ai/utils.ts:53-61`) |
 | `previewAction {soldier, gridNo, level, kind, target?}` | `{ok, refusal?, apCost, affordable, actionGridNo, steps?}`; kinds door, pickUp, steal, aid, cutFence, repair, refuel, jar, can, bomb, talk, give, jump, swap, look, enterVehicle (one per `MOVEUI_TARGET_*` branch) | tactical action cursors, the walk-up path | `DrawUIMovementPath` branches (`Handle_UI.cc:3116-3465`) restated on the simulation's functions |
@@ -214,11 +316,10 @@ New query kinds (all computed by existing simulation functions; details in the s
 | `assignmentOptions {soldier}` | every assignment menu line `{enabled, shade, reason?}` | assignment popups | `HandleShadingOfLinesForAssignmentMenus`, the `CanCharacter*` checks |
 | `exitSectorOptions {soldier}` | the exit dialog's choices | sector exit dialog | `Strategic_Exit_GUI.cc` rules |
 | `canEnterSector {sector}` | `{allowed, reason?}` | map screen Tactical button | `AllowedToExitFromMapscreenTo`, `CanGoToTacticalInSector` |
-| `hireCheck {profile}`, `impCheckCode {code}` | refusal and quote | A.I.M. conference, I.M.P. home | `docs/21` hire rules |
+| `hireCheck {profile}`, `impCheckCode {code}` (server only) | refusal and quote | A.I.M. conference, I.M.P. home | `docs/21` hire rules |
 
-The existing query commands (`estimateAttack`, `inventory`, `quoteTrade`, `contractOptions`, `aimQuote`,
-`bobbyRayQuote`, `insuranceQuote`, `impPreview`, `arrivalTime`) move to the channel too; measured costs are 0.06 ms
-(`estimateAttack`) to 0.5 ms (a path search) in process.
+Measured costs in Node: 0.06 ms (`estimateAttack`) to 0.5 ms (a path search); the browser's V8 is the same engine. The
+client bundle grows by the parts of `sim` the hints import (tree-shaken).
 
 ### 2.5 Assets
 
@@ -228,8 +329,12 @@ the sector's tileset, the map, sheets of the soldiers in view, HUD art and faces
 
 Today `/vfs` answers `cache-control: private, no-cache` with an ETag that changes on every server restart
 (`src/server/app.ts:334-338`, `main.ts:64`): every use of every file is a conditional request, and a restart
-revalidates everything. M8:
+revalidates everything. M8 (scenario 2 of §1.3):
 
+0. **Rule pack.** At start the server builds the rule pack from its data (the files the content loaders read, the
+   numbers taken from STI headers, the split scripts), caches it in `.ja2/cache/rules-<hash>/` and loads the
+   simulation's content from it; the logic hash of the content identity is the pack's hash. The serialised, uploadable
+   form is scenario 4's work; M8 needs the boundary and the hash.
 1. **Manifest.** `GET /api/assets/manifest` returns `[path, size, hash]` (first 16 hex digits of SHA-256; all 22 SLFs
    hash in 2.2 s), gzipped. Hashes are computed lazily and persisted in `.ja2/cache/vfs-hashes.json` keyed by archive
    path, size and mtime plus entry offset and length (loose files by path, size, mtime), so a restart costs nothing.
@@ -252,8 +357,13 @@ revalidates everything. M8:
 6. **RGB565 pictures** (load screens, the tactical bottom filler, some full screens) upload as `RGB565` /
    `UNSIGNED_SHORT_5_6_5` textures (`StiRgb.pixels` is a `Uint16Array`, `src/content/formats/sti.ts:53-59`).
 
-Not in M8: compression of `/vfs` (measured brotli ratios are good for maps, laptop and interface art, 16–31 % of raw,
-but loopback is not the bottleneck) and transcoding audio; both belong to a remote mode.
+7. **The client's rule content.** The client loads the rule files it needs for hints (the map and its structures,
+   the tactical content, the strategic tables) through the same `AssetSource` and the same loaders as the server, so
+   its rule content is the server's (its hash is checked against `welcome`).
+
+Not in M8: the local folder source and the per-file check (scenario 3), the rule pack upload and per-session content
+(scenario 4), compression of `/vfs` (measured brotli ratios are good for maps, laptop and interface art, 16–31 % of raw,
+but loopback is not the bottleneck) and transcoding audio; the last two belong to remote play.
 
 ### 2.6 Resolution and scaling
 
@@ -786,7 +896,7 @@ flag would desynchronise sound and noise).
 ### 5.3 Inventory slots and items (`Interface_Items.cc`) — exact; cursor simplified
 
 - 19 slots at `UILayout.cc:72-90` (tactical) and `:93-111` (map screen), sizes from `gSMInvData`; what fits where is the
-  server's (`placements` query, §2.4), never re-implemented.
+  server's (`placements` hint, §2.4), never re-implemented.
 - Per slot: the second hand covered by `secondary_gun_hidden.sti` under a two-handed weapon; the small item graphic
   centred with a drop shadow at (−2,+2) and the index-254 outline (transparent; white for compatible items; a grey ramp
   for new items, 20 steps every 100 ms for 4 cycles); the hatch when the cursor item cannot go there; a 2 px status bar
@@ -816,7 +926,7 @@ flag would desynchronise sound and noise).
   calibre and type, wrapped description, pros and cons, weapon stats (weight by the metric option, status, range,
   damage, AP, burst AP; white when exceptional), ROF bullets, the ammo button (`unload`), four attachment slots
   (`attach`, `detach`, the "permanent?" box), the money box (split, deferred outside give and trade). The computed stats,
-  pros and cons come from the **`itemInfo`** query.
+  pros and cons come from the **`itemInfo`** hint.
   **Rule finding:** closing the box in combat charges `AP_RELOAD_GUN` once when the attachments changed
   (`Interface_Items.cc:2530-2588`, also vanilla); ja2-node's `attach`/`detach` charge nothing (`docs/12` §5). §12.5.
 - **Item pickup menu** (`:4279-4647`) — simplify: the original opens it after the merc reaches a tile with several
@@ -1172,7 +1282,7 @@ lets the merc go. The salary-rise quote plays first when it fires. Opening pause
   x ≥ 598, which looks like it drops column 16 (`Map_Screen_Interface_Map.cc:1400-1401`); verify in the oracle before
   copying.
 - ETA box `eta_pop_up.sti` at (476,291), "ETA:" and the value from `previewRoute`. The original counts the remaining
-  arrival time twice when a path exists (`MapScreen.cc:939-1045`); D1 says keep it: the query reproduces it.
+  arrival time twice when a path exists (`MapScreen.cc:939-1045`); D1 says keep it: the hint reproduces it.
 - Move box (clicking an already-selected sector with several movable units): a PopUpBox listing squads, vehicles with
   passengers and others with toggles, "Plot Travel Route", Cancel; Done regroups split-off mercs (a rule) →
   **`moveGroup {soldiers, to, via?, shortest?}`** (new).
@@ -1213,7 +1323,7 @@ lets the merc go. The salary-rise quote plays first when it fires. Opening pause
   map screen. Content from the server's message entries (§12.2).
 - Laptop (456,410), Tactical (496,410), Options (458,372) buttons; the new-mail icon blinking 667 of 1000 ms (needs
   **`newMail`**); enabled per frame from `AllowedToExitFromMapscreenTo` and `CanGoToTacticalInSector` (no message, the
-  button is hatched): **`canEnterSector`** query or a view flag; Laptop → `openLaptop`, Tactical → `enterSector` or
+  button is hatched): **`canEnterSector`** hint; Laptop → `openLaptop`, Tactical → `enterSector` or
   `tacticalScreen`.
 - Compression: less/more buttons and the label ("Paused" blinking, "5 min", "30 min", "60 min"); X1 is skipped on the
   map; when compression is not allowed the buttons are masked and a click explains why. Needs `clock.mode`,
@@ -1530,7 +1640,8 @@ Everything below keeps the rules on the server (D15) and reveals only what an or
 | G19 | **item catalogue** `GET /api/items?lang=`: per item the names (short and long, from the data version's item text), description, class, `inventoryGraphics.small/big`, `tileGraphic`, weight, calibre, magazine, the static stats Bobby Ray's and the description box print; `ItemDef` (`src/content/items/items.ts`) gains the graphic fields | inventory, shop, Bobby Ray's, A.I.M. kit | U3 |
 | G20 | key ring: the key item per lock id | key ring popup | U5 |
 
-`SessionClient` applies every field through the generic `applyViewFrame` (§2.3).
+`SessionClient` applies every field through the generic `applyViewFrame` (§2.3). The view must carry every input a hint
+function reads (§2.4): the test that fills unsupplied projection fields with throwing values finds a missing one.
 
 ### 12.2 Events and the message log
 
@@ -1550,7 +1661,10 @@ Everything below keeps the rules on the server (D15) and reveals only what an or
 
 ### 12.3 Protocol
 
-- The **query channel** and the query kinds (§2.4); the fairness fix of `estimateAttack`.
+- The **query channel** (§2.4) for agents, the server-only answers, the client's fallback and the shadow mode; every
+  hint kind answered over `knowledgeWorld`; `estimateAttack` moved onto the projection.
+- `welcome` carries the engine version and commit, the rule pack hash and its scripts' hash; soldier entries carry the
+  animation schedule (state, logic position, start tick, frame delay) instead of the sprite frame (§2.3).
 - **`drive {mode: 'realtime', speed, pauseOn: EventType[]}`**: the real-time driver stops on the tick of the first listed
   event (§1.4).
 - **`closeSession`** (WebSocket and `DELETE /api/sessions/:id`): runs the Dead is Dead save point "when the session is
@@ -1598,7 +1712,8 @@ Everything below keeps the rules on the server (D15) and reveals only what an or
 5. **A.I.M. conference distortion** draws `Random(200)` from the main stream (`AIMMembers.cc:1973`): add to the
    "Cosmetic laptop draws" deviation.
 6. **Bobby Ray speed labels** are reversed in the developer panel (`src/devtools/strategic/laptop-panel.ts:25`): fix.
-7. **Fairness**: `estimateAttack` sees unseen soldiers; `combat.team` reveals hidden AI interrupts (§12.1 G6).
+7. **Fairness**: `estimateAttack` sees unseen soldiers (fixed by the projection, §2.4); `combat.team` reveals hidden AI
+   interrupts (§12.1 G6).
 8. **Map path quirks**: the column-16 node skip in `TracePathRoute` and the doubled remaining time in the plotting ETA;
    verify, then keep (D1) or log.
 
@@ -1606,10 +1721,8 @@ Everything below keeps the rules on the server (D15) and reveals only what an or
 
 ## 13. Stub skin
 
-The stub pack has two fonts (Latin, Polish and Cyrillic, 222 code points) and one unused button sprite; every M8
-screen needs art. The original screens reference about 140 `interface/`, 209 `laptop/` and 63 `cursors/` files by
-literal path, plus `faces/`, `bigitems/`, the small item sheets, `loadscreens/`, `radarmaps/` and the map-screen
-pictures.
+Scenario 1 stays as it is (§1.3); the only stub work M8 does is what CI needs to render and test every screen, since CI
+runs on stubs only. Quality is not a goal: labelled rectangles are enough.
 
 **Rules** (`docs/27` §6.4 apply): original work, deterministic bytes, nothing derived from the game data. Stubs are
 written as **STIs (and PCX where the code loads a PCX) under the original names**, like the fonts, so layouts reference
@@ -1618,20 +1731,26 @@ written as **STIs (and PCX where the code loads a PCX) under the original names*
 (the art does), the stub chooses its own and the layout carries the size it needs, so no layout centres a sprite on an
 original image's measured size. MLG ids resolve to the base names on the stub data version.
 
-| Generator (`stubs/ui/`) | Output | Technique |
-|---|---|---|
-| `ui-kit.ts` | interface panels, buttons (five frames per image), check boxes, radio buttons, slider thumbs, scroll arrows, popup frames (corner and edge pieces), message box frames and icons, PBI and autoresolve panels, shop frame, talk box, map border, filter buttons | bevelled rectangles on the `ui` ramp (`stubs/raster.ts`), a **text stamp** that renders the stub font's glyph sources into captions ("MAP", "DONE", "AIM") |
-| `faces.ts` | `faces/NN.sti`, `bNN.sti`, `33face/`, `65face/`, `bigfaces/` for the 44 stub profiles and I.M.P. portraits | seeded per profile: head, hair from the profile's palette names, eye and mouth frames at fixed offsets (blink and talk frames for lip sync), offsets written to `stubs/profiles.json`; small `.gap` files for a few stub speech lines |
-| `items.ts` | `interface/md*.sti`, `bigitems/*.sti` | silhouettes per item class with the item's initials; frame indices from `items.json` `inventoryGraphics` |
-| `cursors.ts` | `cursors/*.sti` | crosshair, boot, hand, balloon, arrow, X, hourglass with a one-pixel outline; animated cursors as several frames |
-| `mapscreen.ts` | `interface/b_map.pcx` and the map-screen icons | a 16×16 board coloured by the externalized traversability and town data, sector labels stamped |
-| `laptop.ts` | laptop frame, desktop, site headers and backgrounds, program windows | panels with stamped site names, simple shape logos |
-| `loadscreens.ts` | `loadscreens/*.sti` (RGB565) | a gradient per sector kind with its name; one or two images behind aliases to keep the pack small |
-| `radar.ts` | `radarmaps/<map>.sti` for the 14 stub maps | downscaled from the stub maps' own tile colours |
-| text | `binarydata/help.edt`, the laptop EDTs the CI paths read | authored rows |
+**One generator driven by the layouts** (`stubs/ui/skin.ts`): for every asset a layout of the `original` skin
+references and the stub pack lacks, it writes an STI with the frames the layout uses, each a bevelled rectangle on the
+`ui` ramp (`stubs/raster.ts`) at the size the layout declares, stamped with the file name and frame number in the stub
+font. Button frame sets get visibly different states (normal, hover, pressed, grayed). Adding a layout adds its stub
+art; the layout contract test (§3.10) then resolves on stubs by construction.
 
-Budget: the pack is 6.7 MB today; alias most RGB565 full screens. A decoder round-trip test per family in
-`stubs/build.test.ts`; the layout contract test (§3.10) checks every reference on the stub pack.
+**A few special cases** that a labelled rectangle cannot serve:
+
+| Family | Why | Stub |
+|---|---|---|
+| Cursors (`cursors/*.sti`) | hot spots and animation frames are tested | simple shapes with a one-pixel outline; animated cursors with several frames |
+| Faces (`faces/NN.sti`, `bNN.sti`, `65face/`) | blink and lip sync are tested | one generic face per body type with the eye and mouth frames at fixed offsets, offsets in `stubs/profiles.json`; a few `.gap` files for stub speech lines |
+| Small item sheets and big item pictures | the item tile and the description box are tested | one generic silhouette per item class with the class name; frame indices from `items.json` `inventoryGraphics` |
+| Map-screen board (`interface/b_map.pcx`) | sector picking and shading are tested | a 16×16 board coloured by the externalized traversability data, sector labels stamped |
+| Radar maps (`radarmaps/<map>.sti`) | the radar is tested | downscaled from the stub maps' own tile colours |
+| Load screens (`loadscreens/*.sti`) | the loading screen is tested | one RGB565 image behind aliases |
+| Text (`binarydata/help.edt`, the laptop EDTs the e2e paths read) | help and laptop pages are tested | authored rows |
+
+Budget: the pack is 6.7 MB today; the generated art should add no more than a few MB (aliases for full screens). A
+decoder round-trip test per generated family in `stubs/build.test.ts`.
 
 ---
 
@@ -1678,9 +1797,18 @@ entries of `01` §12 "Left out of M7".
   `tests/support`): what it shows, what a click sends; **draw-list snapshots** (a screen in a given state produces this
   list of quads and glyph runs): exact, GPU-free regression tests.
 - **Server:** query purity (snapshot before and after every query kind on the stub scenarios), fairness (no unseen
-  soldier reachable through a query), each new view field and event in scenario tests (and the `JA2_RELOAD=1` mode),
-  each new command with its refusals; rules with an oracle probe where they port original code (time warp, loading
-  screen draw, attachment AP, the new tactical commands).
+  soldier reachable through a hint or query), each new view field and event in scenario tests (and the `JA2_RELOAD=1`
+  mode), each new command with its refusals; rules with an oracle probe where they port original code (time warp,
+  loading screen draw, attachment AP, the new tactical commands); the rule pack: the simulation loads only from it
+  (no STI read), its hash is stable across restarts, a save records it.
+- **Hints, client against server:** for every hint kind, over the stub scenarios and the original-data scenarios
+  (`describe.skipIf`), sampled points (tiles, modes, aims, slots, sectors) computed on `knowledgeWorld` built from the
+  serialised view alone and by the server's query handler; equal answers required. The projection used in these tests
+  fills every field the view does not supply with a value that throws when read. A **shadow mode** in e2e sends every
+  local hint to the server as well and fails the test on any difference.
+- **Animation schedule:** with the server's scripts the client's sprite frames equal today's timeline playback over the
+  scenario suites; with stub scripts against original rules the markers' ticks are hit (the warp) and nothing is
+  sent back.
 - **End to end (Playwright on stubs):** a widget-tree hook `window.__ja2Ui = {ready, screen, scale, widgets: [{id, kind,
   rect, visible, enabled, state, text, frame}], modal, cursor, lastCommand, lastResult, frameCount, capture()}`; tests
   click widget centres through `page.mouse` (so hit testing, priorities and scaling are exercised) and press the original
@@ -1703,7 +1831,8 @@ entries of `01` §12 "Left out of M7".
 | Draw calls, tactical with HUD | ≤ 250 | renderer counter |
 | Screen switch tactical ↔ map ↔ laptop (assets cached) | ≤ 100 ms | hook timing |
 | First tactical load from a cold HTTP cache (local) | ≤ 2 s including the loading screen | hook timing |
-| Cursor query round trip (local) | ≤ 10 ms p95 while an enemy turn is not running; never queued behind an advance | WebSocket timing |
+| A cursor hint computed in the browser | ≤ 2 ms p95 (path search included) | hook timing |
+| Server query round trip (local; agents and fallback) | ≤ 10 ms p95 while no enemy turn runs; never queued behind an advance | WebSocket timing |
 
 ---
 
@@ -1725,8 +1854,11 @@ entries of `01` §12 "Left out of M7".
 | `src/render/world/` (extend) | render | texture arrays, static scene buffer, UI nodes, items, roofs, light, glow |
 | `src/app/game/` | app | the game page, screen stack host, DOM input glue, asset source and cache |
 | `src/app/net/` (promoted) | app | `SessionClient`, save keys, sleep/wake stop, page music |
-| `src/protocol/view.ts` (extend) | protocol | `applyViewFrame`, the new fields |
-| `src/server/` (`query.ts`, `presentation-messages.ts`, `profiles-api.ts`, `items-api.ts`, `assets-manifest.ts`) | server | §12 |
+| `src/protocol/view.ts` (extend) | protocol | `applyViewFrame`, the new fields, the animation schedule |
+| `src/sim/knowledge/`, `src/sim/hints/` | sim | the player-knowledge projection and the hint functions (§2.4) |
+| `src/content/rules/` | content | the rule pack: its file set, the numbers taken from STI headers, the split scripts, its hash |
+| `src/app/game/hints.ts` | app | the local hint provider, the fallback to the server, the shadow mode |
+| `src/server/` (`query.ts`, `rule-pack.ts`, `presentation-messages.ts`, `profiles-api.ts`, `items-api.ts`, `assets-manifest.ts`) | server | §12, §2.5 |
 | `data/layouts/original/` | data | the layouts |
 | `data/tables/ui-constants/`, `data/tables/cursors.json` | data | generated by `tools/transcribe/ui-constants.ts`, `cursors.ts` |
 | `stubs/ui/` | stubs | §13 |
@@ -1735,26 +1867,35 @@ entries of `01` §12 "Left out of M7".
 
 | Slice | Content | Depends on | Done when |
 |---|---|---|---|
-| **U0** Platform | the `ui` layer and import rules; promote the devtools client pieces to `app`; generic `applyViewFrame` (meanwhile, ended, music applied); the `/play` page with the screen and modal stacks; the logical framebuffer and UI scale; the draw list and `ui-draw` with fills, shades, hatches, lines, scissor, outline, RGB565, the text shader; the asset manifest, immutable URLs, `HttpVfsLayer`, `AssetCache`, per-screen preload; the `__ja2Ui` hook and stub goldens | — | an empty game page boots on stubs and original data, draws a test screen through the draw list, goldens run in CI |
-| **U1** Widgets and text | §3 complete: regions, tooltips, buttons, fonts and text layout, cursors (transcriber + compositor, software cursor), popup menu, merc popup box, message box, slider, text field, progress bar, fade, snapshot zoom, hotkey tables; the layout schema, loader, `ui-constants` transcriber and the contract test; a devtools widget gallery; stub `ui-kit.ts` and `cursors.ts` | U0 | every §3 rule has a unit test; the gallery shows each widget on both data sets |
+| **U0** Platform | the `ui` layer and import rules (`app` → `sim`); promote the devtools client pieces to `app`; generic `applyViewFrame` (meanwhile, ended, music applied); the `/play` page with the screen and modal stacks; the logical framebuffer and UI scale; the draw list and `ui-draw` with fills, shades, hatches, lines, scissor, outline, RGB565, the text shader; **the rule pack** (the simulation reads no STI: explosion and tileset frame counts and aux data move into it; the scripts split into logic and presentation; the content identity's logic hash is the pack's); the asset manifest, immutable URLs, `HttpVfsLayer`, `AssetCache`, per-screen preload, the client's rule content; the `__ja2Ui` hook and stub goldens | — | an empty game page boots on stubs and original data and draws a test screen through the draw list; the oracle compare-all and every gate unchanged with the simulation loading from the rule pack; goldens run in CI |
+| **U1** Widgets and text | §3 complete: regions, tooltips, buttons, fonts and text layout, cursors (transcriber + compositor, software cursor), popup menu, merc popup box, message box, slider, text field, progress bar, fade, snapshot zoom, hotkey tables; the layout schema, loader, `ui-constants` transcriber and the contract test; a devtools widget gallery; the layout-driven stub generator and the stub cursors (§13) | U0 | every §3 rule has a unit test; the gallery shows each widget on both data sets |
 | **U2** Front-end | main menu, game init, options (all 23 toggles take effect or are listed as inert), save/load (DOM-free save controller shared with the launcher), message boxes, credits on canvas, loading screens and bar, fades, exit, music without a session, `closeSession`, the Dead is Dead description; client settings `bloodAndGore` and the help mask; stub front-end art | U1 | a stub new game starts from the canvas main menu and reaches the laptop; save and load round-trip through the canvas screens |
-| **U3** Server for the HUD | the query channel with fairness and purity tests; `previewMove`, `previewAction`, extended `estimateAttack`, `placements`, `itemInfo`, `exitSector` dry run; G1–G7, G14 base fields, G18 profiles endpoint, G19 item catalogue; `lifeLost`, `aiTurn`, `enemyTurnProgress`, `itemsRevealed`, interrupt selection; message entries; refusal tokens; `pauseOn`; rule findings 1, 2, 4, 6, 7 | U0 (parallel with U1, U2) | `pnpm check`, data tests, `JA2_RELOAD=1`, oracle compare-all unchanged except the deliberate fixes |
-| **U4** World renderer | texture arrays, the static scene buffer, persistent instance buffer, camera snap and limits, sprite picking, the UI node pass, animated tiles, items, mercs on roofs, corpses and clouds, per-tile light (`20` §8), glow and fade palettes, wireframes and slanted roofs; G8 | U0 (parallel) | the performance targets of §16 for the world alone; the M8 rendering deviations closed |
+| **U3** Hints and server for the HUD | `knowledgeWorld` and the tactical hint functions (`previewMove`, `previewAction`, extended `estimateAttack`, `placements`, `itemInfo`, `exitSector` dry run) in `sim`; the query channel answering them over the projection, with purity, fairness and client-against-server tests; the local hint provider with fallback and shadow mode; G1–G7, G14 base fields, G18 profiles endpoint, G19 item catalogue; `lifeLost`, `aiTurn`, `enemyTurnProgress`, `itemsRevealed`, interrupt selection; the animation schedule in the view; message entries; refusal tokens; `pauseOn`; rule findings 1, 2, 4, 6, 7 | U0 (parallel with U1, U2) | `pnpm check`, data tests, `JA2_RELOAD=1`, oracle compare-all unchanged except the deliberate fixes; every hint kind equal on both sides over the scenario suites |
+| **U4** World renderer | texture arrays, the static scene buffer, persistent instance buffer, camera snap and limits, sprite picking, the UI node pass, animated tiles, items, mercs on roofs, corpses and clouds, per-tile light (`20` §8), glow and fade palettes, wireframes and slanted roofs; soldier frames from the animation schedule with the time warp; G8 | U0 (parallel; the schedule from U3) | the performance targets of §16 for the world alone; the M8 rendering deviations closed |
 | **U5** Tactical HUD | team and SM panels, faces with blink and lip sync, bars, radar and squad list, inventory slots with the local cursor, stack and key-ring popups, item description box, pickup menu, the clock, top bar, message log, overhead labels, damage numbers, locators, glow; stub faces, items, interface panels, radar | U1, U3, U4 | a stub battle is fought with the HUD (no developer panels) |
 | **U6** Tactical input | the UI state machine, mouse and world cursors, footstep paths, hotkeys, rubber band, scrolling, movement and door menus, exit dialog, overhead map, the input lock with playback catch-up; the new tactical commands (`stealth`, `weaponMode`, `attack.spread`, `move.reverse`, `moveGroup`, `swapPlaces`, `jump`, `climbWindow`, `mute`, `combineStack`, `leaveVehicle` in tactical, `door openManually`) | U5 | every gameplay hotkey and gesture of §6 works or shows the original refusal |
 | **U7** Talk and shop | speech presenter, talk panel, comm and external popups, civilian boxes; shop screen with the shop model; G14, G15, `setShopPricing`; money commands | U5 | a stub conversation, a recruitment and a trade through the canvas |
-| **U8** Map screen | §7 complete incl. assignments (`assignmentOptions`), plotting (`previewRoute`, `route via/shortest`, `shortenRoute`, `moveGroup`), helicopter (`previewHeliRoute`, progress), town box, sector inventory, bottom panel, update box (`pauseOn`), popups, hotkeys; G9–G13, `groupArrived`, `discardItem`, `canEnterSector`; militia popup with `moveMilitia`/`distributeMilitia` | U5, U6 (inventory and faces) | a stub campaign moves, trains, assigns and travels by helicopter through the canvas |
+| **U8** Map screen | §7 complete incl. assignments (`assignmentOptions` hint), plotting (`previewRoute` hint, `route via/shortest`, `shortenRoute`, `moveGroup`), helicopter (`previewHeliRoute` hint, progress), town box, sector inventory, bottom panel, update box (`pauseOn`), popups, hotkeys; G9–G13, `groupArrived`, `discardItem`, `canEnterSector`; militia popup with `moveMilitia`/`distributeMilitia` | U5, U6 (inventory and faces) | a stub campaign moves, trains, assigns and travels by helicopter through the canvas |
 | **U9** Battle entry | PBI and autoresolve screens, G16, `battleSummary` | U8 | both PBI kinds and every autoresolve outcome on stubs |
 | **U10** Laptop I | laptop widgets (drop-down, paged text, item picture cell, portrait shading), shell, Email, Finances, A.I.M. hiring; X1–X5, X7 (finances), X8, X16 | U1, U3 (profiles, items) | a human hires the squad through the canvas laptop on stubs and original data |
 | **U11** Laptop II | Bobby Ray's, M.E.R.C., I.M.P.; X6, X11, X12, X15; rule finding 5 | U10 | an order is delivered, a M.E.R.C. merc hired, an I.M.P. character created |
 | **U12** Laptop III | Personnel, History, Files, Insurance, Florist, Funeral; X9, X10, X13, X14 | U11 | every bookmark leads to a finished page |
 | **U13** Story and help | the meanwhile box, the ending wiring, help screens, the brothel screen; rule finding 3 settled | U2, U5, U8, U10 | a stub campaign's meanwhile and ending play through the canvas |
-| **U14** Stub skin and e2e | the remaining stub art, the e2e flows of §15, goldens for every screen, the original-data structural tests | all screens | §15 complete in CI |
+| **U14** Stub art and e2e | the remaining special-case stubs, the e2e flows of §15 (shadow mode on), goldens for every screen, the original-data structural tests | all screens | §15 complete in CI |
 | **U15** Release | `deviations.md`, `01` §12, README, `releases.md` (1.0.0), the launcher's place | all | maintainer's review |
 
 U1, U3 and U4 can run in parallel after U0 (they touch different layers); the laptop slices U10–U12 can run beside the
 map and battle slices once U5's faces and item tiles exist. Every slice keeps the M7 gates (`pnpm check`, the data
 tests, `JA2_RELOAD=1`, oracle compare-all, e2e) and adds its own.
+
+### 17.3 After M8
+
+| Work | Scenario (§1.3) | Content |
+|---|---|---|
+| The client's own data | 3 | `LocalFolderLayer` (`showDirectoryPicker` or `<input webkitdirectory>`, ranged reads of the archives), the per-file check against the manifest with fallback to the server, the data version check, the warp when scripts differ |
+| Data uploaded by the client | 4 | the serialised rule pack built in the browser, upload by hash, validation and per-user storage on the server, per-session content, sessions bound to a pack |
+| Remote play | 3, 4 | compression of `/vfs` for compressible families, optional audio transcoding |
+| Stub game | 1 | nothing planned |
 
 ---
 
@@ -1782,3 +1923,11 @@ Recommendations first; the maintainer may override any of them.
 11. **Map path quirks** (column 16, the doubled ETA remainder): verify in the oracle, then keep. *Recommended.*
 12. **Release version**: M8 is 1.0.0, the release for human players. *Recommended* (`docs/27` §14 decision 14).
 13. **Cover and line-of-sight display, 3D cursor, touch input, key remapping UI**: Later.
+14. **Data scenarios** (§1.3): M8 builds scenario 2 and the boundaries 3 and 4 need (the rule pack, the replaceable asset
+    source, the client's rule content, the schedule and the warp); scenario 1 gets only the CI stub art; scenarios 3
+    and 4 follow M8. *Decided (2026-10-19).*
+15. **Cursor hints on the client** with the simulation's own functions over the player-knowledge projection; the server
+    answers the same kinds over the same projection for agents, fallback and verification. *Decided (2026-10-19).*
+16. **The animation scripts stay data from the user's files**: parsed at load into logic and presentation parts, never
+    extracted into the repository (CLAUDE.md); the client plays its own frames against the server's schedule and warps
+    them when its scripts differ. *Decided (2026-10-19).*
