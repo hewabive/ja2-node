@@ -1,0 +1,10 @@
+fill 0,0 640x480 #000000
+image loadscreens/mainmenubackground.sti#0 0,0
+image loadscreens/ja2logo.sti#0 188,15
+image loadscreens/titletext.sti#0 240,277
+image loadscreens/titletext.sti#3 240,314
+image loadscreens/titletext.sti#7 240,351
+image loadscreens/titletext.sti#10 240,388
+image loadscreens/titletext.sti#14 240,425
+glyphs font10arial 10,465 n=15 fg=208 sh=2 bg=0
+glyphs font10arial 164,465 n=61 fg=208 sh=2 bg=0

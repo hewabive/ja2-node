@@ -1,0 +1,21 @@
+image interface/credits.sti#0 0,0
+image interface/credit faces.sti#0 310,157
+image interface/credit faces.sti#3 354,153
+image interface/credit faces.sti#6 408,151
+image interface/credit faces.sti#9 447,151
+image interface/credit faces.sti#12 493,155
+image interface/credit faces.sti#15 536,164
+image interface/credit faces.sti#18 584,150
+image interface/credit faces.sti#21 283,232
+image interface/credit faces.sti#24 323,227
+image interface/credit faces.sti#27 364,226
+image interface/credit faces.sti#30 406,220
+image interface/credit faces.sti#33 452,220
+image interface/credit faces.sti#36 501,207
+image interface/credit faces.sti#39 541,221
+image interface/credit faces.sti#42 593,218
+clip 10,476 210x4
+glyphs font14arial 83,477 n=8 fg=163 sh=2 bg=0
+clipPop
+glyphs font12arial 468,420 n=14 fg=208 sh=2 bg=0
+glyphs font12arial 435,435 n=25 fg=208 sh=2 bg=0

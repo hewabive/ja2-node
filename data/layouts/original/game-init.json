@@ -277,6 +277,6 @@
   ],
   "hotkeys": [
     { "key": "Escape", "on": "down", "mods": "any", "action": "cancel" },
-    { "key": "Enter", "on": "down", "mods": "any", "action": "start" }
+    { "key": "Enter", "on": "up", "mods": "any", "action": "start" }
   ]
 }

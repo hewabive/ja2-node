@@ -1,0 +1,37 @@
+image interface/optionsscreenbackground.sti#0 0,0
+shadow 48,55 545x354 0.48
+glyphs font16arial 244,68 n=21 fg=208 sh=2 bg=0
+glyphs font16arial 80,115 n=16 fg=208 sh=2 bg=0
+glyphs font16arial 100,152 n=6 fg=208 sh=2 bg=0
+glyphs font16arial 100,187 n=11 fg=208 sh=2 bg=0
+glyphs font16arial 100,222 n=6 fg=208 sh=2 bg=0
+glyphs font16arial 350,265 n=10 fg=208 sh=2 bg=0
+glyphs font16arial 370,302 n=9 fg=208 sh=2 bg=0
+glyphs font16arial 370,337 n=6 fg=208 sh=2 bg=0
+glyphs font16arial 350,115 n=11 fg=208 sh=2 bg=0
+glyphs font16arial 370,152 n=6 fg=208 sh=2 bg=0
+glyphs font16arial 370,187 n=12 fg=208 sh=2 bg=0
+glyphs font16arial 80,265 n=16 fg=208 sh=2 bg=0
+glyphs font16arial 100,302 n=12 fg=208 sh=2 bg=0
+glyphs font16arial 100,337 n=8 fg=208 sh=2 bg=0
+glyphs font16arial 100,372 n=12 fg=208 sh=2 bg=0
+glyphs font12arial 100,357 n=27 fg=208 sh=2 bg=0
+glyphs font12arial 100,392 n=32 fg=208 sh=2 bg=0
+image interface/optionscheck.sti#2 235,141
+image interface/optionscheck.sti#0 235,176
+image interface/optionscheck.sti#0 235,211
+image interface/optionscheck.sti#0 505,291
+image interface/optionscheck.sti#2 505,326
+image interface/optionscheck.sti#0 235,291
+image interface/optionscheck.sti#0 235,326
+image interface/optionscheck.sti#2 235,361
+image interface/optionscheck.sti#0 505,141
+image interface/optionscheck.sti#2 505,176
+image interface/preferencesbuttons.sti#0 141,418
+clip 144,420 114x26
+glyphs font14arial 192,424 n=2 fg=73 sh=2 bg=0
+clipPop
+image interface/preferencesbuttons.sti#1 379,418
+clip 382,420 114x26
+glyphs font14arial 415,424 n=6 fg=73 sh=2 bg=0
+clipPop
