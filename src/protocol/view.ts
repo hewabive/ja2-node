@@ -153,6 +153,10 @@ export interface StrategicMercView {
   readonly arrival?: { readonly day: number; readonly hour: number; readonly minute: number };
   readonly vehicle?: number;
   readonly controlled?: boolean;
+  readonly profile?: number;
+  readonly stats?: SoldierStatsView;
+  readonly inventory?: readonly InventoryItemView[];
+  readonly weight?: number;
 }
 
 export interface StrategicVehicleView {
@@ -163,6 +167,11 @@ export interface StrategicVehicleView {
   readonly passengers: readonly number[];
   readonly seats: number;
   readonly path: readonly string[];
+  readonly type?: number;
+  readonly group?: number;
+  readonly usable?: boolean;
+  readonly next?: string | null;
+  readonly nextArrivalMinutes?: number | null;
 }
 
 export interface RefuelSiteView {
@@ -195,6 +204,11 @@ export interface DestroyedHelicopterView {
   readonly destroyed: true;
 }
 
+export interface StrategicTownView {
+  readonly town: number;
+  readonly loyalty: number;
+}
+
 export interface StrategicGroupView {
   readonly id: number;
   readonly sector: string;
@@ -203,6 +217,7 @@ export interface StrategicGroupView {
   readonly members: readonly number[];
   readonly etaMinutes: number;
   readonly path: readonly string[];
+  readonly nextArrivalMinutes?: number | null;
 }
 
 export interface QuestStepView {
@@ -253,6 +268,8 @@ export interface StrategicView {
   readonly groups: readonly StrategicGroupView[];
   readonly vehicles?: readonly StrategicVehicleView[];
   readonly helicopter?: StrategicHelicopterView | DestroyedHelicopterView;
+  readonly enemyAirspace?: readonly string[];
+  readonly towns?: readonly StrategicTownView[];
   readonly mercAccountStatus?: string;
   readonly landingZone?: string;
   readonly unreadMail?: number;

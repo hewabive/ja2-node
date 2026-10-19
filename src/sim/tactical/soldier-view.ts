@@ -67,7 +67,7 @@ const WEAPON_MODES: Readonly<Record<number, WeaponModeView>> = {
   [WeaponMode.ATTACHED]: 'launcher',
 };
 
-function statsView(s: Soldier): SoldierStatsView {
+export function statsView(s: Soldier): SoldierStatsView {
   const st = s.stats;
   return {
     agility: st.agility,

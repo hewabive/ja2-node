@@ -17,6 +17,7 @@ import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { MercKind, type Roster, type RosterMerc } from '../sim/campaign/roster.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
+import type { StrategicRules } from '../sim/knowledge/strategic.ts';
 import { Assignment } from '../sim/strategic/forces/constants.ts';
 import { numHostilesInSector } from '../sim/strategic/forces/groups.ts';
 import { isTimeBeingCompressed, worldDay, worldHour, worldMinute } from '../sim/strategic/time/world-clock.ts';
@@ -108,6 +109,7 @@ export class CampaignSession implements SessionSim {
   readonly texts: TextSource | null;
   readonly origin: CampaignOrigin | null;
   initialMusic: MusicState = initialMusic();
+  #strategicRules: StrategicRules | null = null;
 
   constructor(
     campaign: CampaignSim,
@@ -151,6 +153,17 @@ export class CampaignSession implements SessionSim {
 
   tacticalContent(): TacticalContent | null {
     return this.campaign.tactical?.state.content ?? null;
+  }
+
+  strategicRules(): StrategicRules | null {
+    if (this.#strategicRules) return this.#strategicRules;
+    const content = this.campaign.strategic?.content;
+    const economy = this.campaign.economy?.economy;
+    const items = this.campaign.battle?.content.items;
+    const worlds = this.worlds;
+    if (!content || !economy || !items || !worlds) return null;
+    this.#strategicRules = { content, economy, items, mapExists: (path) => worlds.exists(path) };
+    return this.#strategicRules;
   }
 
   get worldClock(): WorldTimeControl {

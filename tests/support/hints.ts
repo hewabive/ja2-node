@@ -11,6 +11,7 @@ import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CommandResult } from '../../src/sim/command.ts';
 import { answerHint } from '../../src/sim/hints/answer.ts';
 import { type KnowledgeRules, knowledgeRules, knowledgeWorld } from '../../src/sim/knowledge/knowledge-world.ts';
+import { loadStrategicRules } from '../../src/sim/knowledge/strategic.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
 import { loadTacticalContent } from '../../src/sim/tactical/load-content.ts';
 
@@ -27,7 +28,8 @@ export interface ClientSide {
 
 export async function clientSide(sources: HintSources): Promise<ClientSide> {
   const content = await loadTacticalContent(sources.read);
-  return { content, rules: knowledgeRules(content, { world: (path) => sources.world(path) }) };
+  const strategic = await loadStrategicRules(sources.read, content.items, sources.exists);
+  return { content, rules: knowledgeRules(content, { world: (path) => sources.world(path) }, strategic) };
 }
 
 export function withQueries(session: Session, sources: HintSources): Session {

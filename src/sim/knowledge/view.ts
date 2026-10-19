@@ -105,4 +105,89 @@ export interface KnowledgeView {
   readonly clock?: KnowledgeClock;
   readonly light?: KnowledgeLight | null;
   readonly boxing?: KnowledgeBoxing | null;
+  readonly strategic?: KnowledgeStrategic;
+  readonly prompt?: KnowledgePrompt | null;
+}
+
+export interface KnowledgePrompt {
+  readonly kind: string;
+}
+
+export interface KnowledgeSector {
+  readonly sector: string;
+  readonly visited: boolean;
+  readonly town: number;
+  readonly playerControlled: boolean | null;
+  readonly enemies: number | '?' | null;
+  readonly militia: readonly number[];
+}
+
+export interface KnowledgeMerc {
+  readonly id: number;
+  readonly sector: string;
+  readonly betweenSectors: boolean;
+  readonly squad: number | null;
+  readonly assignment: number;
+  readonly life: number;
+  readonly lifeMax: number;
+  readonly breath: number;
+  readonly breathMax: number;
+  readonly asleep: boolean;
+  readonly kind?: string;
+  readonly vehicle?: number;
+  readonly controlled?: boolean;
+  readonly profile?: number;
+  readonly stats?: SoldierStatsView;
+  readonly inventory?: readonly InventoryItemView[];
+  readonly weight?: number;
+}
+
+export interface KnowledgeGroup {
+  readonly id: number;
+  readonly sector: string;
+  readonly next: string | null;
+  readonly betweenSectors: boolean;
+  readonly members: readonly number[];
+  readonly path: readonly string[];
+  readonly nextArrivalMinutes?: number | null;
+}
+
+export interface KnowledgeVehicle {
+  readonly id: number;
+  readonly sector: string;
+  readonly betweenSectors: boolean;
+  readonly passengers: readonly number[];
+  readonly path: readonly string[];
+  readonly type?: number;
+  readonly group?: number;
+  readonly usable?: boolean;
+  readonly next?: string | null;
+  readonly nextArrivalMinutes?: number | null;
+}
+
+export interface KnowledgeHelicopter {
+  readonly vehicle?: number;
+  readonly airborne?: boolean;
+  readonly returning?: boolean;
+  readonly canFly?: boolean;
+  readonly reason?: string;
+  readonly owed?: number;
+  readonly destroyed?: true;
+}
+
+export interface KnowledgeTown {
+  readonly town: number;
+  readonly loyalty: number;
+}
+
+export interface KnowledgeStrategic {
+  readonly worldSector: string | null;
+  readonly flow: string;
+  readonly sectors: readonly KnowledgeSector[];
+  readonly mercs: readonly KnowledgeMerc[];
+  readonly groups: readonly KnowledgeGroup[];
+  readonly vehicles?: readonly KnowledgeVehicle[];
+  readonly helicopter?: KnowledgeHelicopter;
+  readonly enemyAirspace?: readonly string[];
+  readonly towns?: readonly KnowledgeTown[];
 }

@@ -1,12 +1,13 @@
 import { type Sector, sectorFromStrategicIndex, sectorShortString, strategicIndex } from '../content/strategic/sector-ids.ts';
 import type { DestroyedHelicopterView, StrategicHelicopterView, StrategicVehicleView } from '../protocol/view.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
-import { passengersOf, type VehicleRecord } from '../sim/strategic/forces/groups.ts';
+import { getGroup, passengersOf, type VehicleRecord } from '../sim/strategic/forces/groups.ts';
 import {
   canHelicopterFly,
   helicopterGroup,
   helicopterVehicle,
   heliState,
+  okUseVehicle,
   skyriderBalance,
   whyHelicopterCannotFly,
 } from '../sim/strategic/forces/helicopter.ts';
@@ -15,6 +16,7 @@ import { groupBetweenSectorsAndSectorXYIsInDifferentDirection } from '../sim/str
 import type { StrategicContext } from '../sim/strategic/forces/ports.ts';
 import { vehicleSeats } from '../sim/strategic/forces/vehicles.ts';
 import { calculateTravelTimeOfGroup } from '../sim/strategic/map/travel.ts';
+import { worldTotalMinutes } from '../sim/strategic/time/world-clock.ts';
 
 const name = (s: Sector) => sectorShortString(s);
 const pathNames = (path: readonly number[]) => path.map((i) => name(sectorFromStrategicIndex(i)));
@@ -31,6 +33,12 @@ function kindOf(ctx: StrategicContext, v: VehicleRecord): string {
   return KIND_NAMES[profile] ?? profile;
 }
 
+function vehicleLeg(ctx: StrategicContext, v: VehicleRecord): Pick<StrategicVehicleView, 'next' | 'nextArrivalMinutes'> {
+  const g = getGroup(ctx, v.movementGroup);
+  if (!g?.betweenSectors) return { next: null, nextArrivalMinutes: null };
+  return { next: name(g.next), nextArrivalMinutes: Math.max(0, g.arrivalTime - worldTotalMinutes(ctx.state.clock)) };
+}
+
 export function vehicleViews(campaign: CampaignSim): StrategicVehicleView[] | undefined {
   const ctx = campaign.strategic;
   if (!ctx) return undefined;
@@ -45,6 +53,10 @@ export function vehicleViews(campaign: CampaignSim): StrategicVehicleView[] | un
             passengers: passengersOf(v),
             seats: vehicleSeats(ctx, v),
             path: pathNames(v.path),
+            type: v.type,
+            group: v.movementGroup,
+            usable: okUseVehicle(ctx, v),
+            ...vehicleLeg(ctx, v),
           },
         ]
       : [],
