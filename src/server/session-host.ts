@@ -6,6 +6,7 @@ import type { StopCondition } from '../sim/advance.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SaveImportReport } from '../sim/tactical/save-import.ts';
 import type { LogSegment } from './input-log.ts';
+import { isQueryCommand, type QueryAnswer } from './query.ts';
 import { snapshotText } from './save-file.ts';
 import { saveStatus } from './save-rules.ts';
 import { type LoadOutcome, SaveLoadError, type SaveOutcome, type SaveRequest, type SaveService, sessionSnapshot } from './save-service.ts';
@@ -38,6 +39,7 @@ export interface SessionHost {
   readonly savesAvailable: boolean;
   dispatch(cmd: CommandEnvelope): Promise<CommandResult>;
   prepareAndDispatch(cmd: CommandEnvelope): Promise<CommandResult>;
+  query(q: CommandEnvelope): Promise<QueryAnswer>;
   advance(until: StopCondition, budget?: number): Promise<SessionAdvanceReport>;
   setDriver(driver: DriverMode): Promise<void>;
   subscribe(listener: Listener): () => void;
@@ -115,11 +117,18 @@ export class InProcessHost implements SessionHost {
   }
 
   dispatch(cmd: CommandEnvelope): Promise<CommandResult> {
+    if (isQueryCommand(cmd)) return this.query(cmd);
     return this.#queued(() => this.session.dispatchSliced(cmd, this.#slicer));
   }
 
   prepareAndDispatch(cmd: CommandEnvelope): Promise<CommandResult> {
+    if (isQueryCommand(cmd)) return this.query(cmd);
     return this.#queued(() => this.session.prepareAndDispatch(cmd, this.#slicer));
+  }
+
+  query(q: CommandEnvelope): Promise<QueryAnswer> {
+    if (this.#closing) return Promise.reject(new Error(`session ${this.id} is closed`));
+    return Promise.resolve().then(() => this.session.query(q));
   }
 
   advance(until: StopCondition, budget?: number): Promise<SessionAdvanceReport> {

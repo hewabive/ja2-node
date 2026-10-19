@@ -4,6 +4,7 @@ import type { CommandEnvelope, DriverMode, ServerMessage, SessionAdvanceReport }
 import type { StopCondition } from '../sim/advance.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { LogSegment } from './input-log.ts';
+import type { QueryAnswer } from './query.ts';
 import { SaveFileError } from './save-file.ts';
 import { type LoadOutcome, type LoadProblem, SaveLoadError, type SaveOutcome, type SaveRequest } from './save-service.ts';
 import type { Listener } from './session.ts';
@@ -27,6 +28,7 @@ export interface WireError {
 export const HOST_CALLS = [
   'dispatch',
   'prepareAndDispatch',
+  'query',
   'advance',
   'setDriver',
   'save',
@@ -182,6 +184,10 @@ export class WorkerHost implements SessionHost {
 
   prepareAndDispatch(cmd: CommandEnvelope): Promise<CommandResult> {
     return this.#call('prepareAndDispatch', cmd);
+  }
+
+  query(q: CommandEnvelope): Promise<QueryAnswer> {
+    return this.#call('query', q);
   }
 
   advance(until: StopCondition, budget?: number): Promise<SessionAdvanceReport> {

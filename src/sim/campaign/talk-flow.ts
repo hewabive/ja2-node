@@ -15,7 +15,6 @@ import { Approach, NPC_TALK_RADIUS } from '../../content/narrative/npc-constants
 import type { NpcRecordContent } from '../../content/narrative/npc-records.ts';
 import { type NarrativeScenes, NO_NARRATIVE_SCENES } from '../../content/narrative/scenes.ts';
 import { MercType } from '../../content/strategic/economy-content.ts';
-import { u8 } from '../../core/int.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import { beginCivQuote, type CivQuoteSaid, startCivQuote } from '../narrative/civ-quotes.ts';
@@ -79,7 +78,6 @@ import { lockPauseState, pauseGame, unLockPauseState, unPauseGame, warpGameTime,
 import { cancelAIAction } from '../tactical/ai/control.ts';
 import { setDesiredDirection } from '../tactical/animation.ts';
 import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
-import { soldierTo3DLocationLos } from '../tactical/combat/positions.ts';
 import { findGridNoFromSweetSpot } from '../tactical/creation.ts';
 import { setEngagedInConvFromPcAction, soldierGiveItem } from '../tactical/give.ts';
 import { InvSlot } from '../tactical/inventory.ts';
@@ -88,9 +86,9 @@ import { addToShouldBecomeHostileOrSayQuoteList } from '../tactical/narrative/ci
 import { triggerFriendWithHostileQuote } from '../tactical/narrative/npc-actions/generic.ts';
 import { sexSceneWarpSeconds } from '../tactical/narrative/npc-actions/san-mona.ts';
 import type { NarrativePort } from '../tactical/narrative/port.ts';
-import { findBestPath } from '../tactical/pathfinding.ts';
+import { talkLineOfSight, talkRange, talkWalkUp } from '../tactical/narrative/talk-reach.ts';
 import { revealRoofsAndItems } from '../tactical/perception/fov.ts';
-import { distanceVisible, handleSight } from '../tactical/perception/sight.ts';
+import { handleSight } from '../tactical/perception/sight.ts';
 import { deductPoints, enoughPoints } from '../tactical/points.ts';
 import { type ProfileProgress, profileProgress } from '../tactical/profiles.ts';
 import { effectiveLeadership, effectiveStrength } from '../tactical/skills.ts';
@@ -108,12 +106,8 @@ import { MercKind, type RosterMerc } from './roster.ts';
 
 export const AP_TALK = 6;
 const LOCK_PAUSE_ENGAGED_IN_CONV = 14;
-const TALK_LOS_CUBE_LEVEL = 3;
-const DIRECTION_IRRELEVANT = -1;
 const OPPOSITE = 4;
 const DIRECTIONS = 8;
-const COLS = 160;
-const SWEET_SPOT_RADIUS = NPC_TALK_RADIUS - 1;
 const VALIDATED_TALK_RANGE = NPC_TALK_RADIUS * 2;
 const DRAIN_BUDGET_TICKS = 200_000;
 const QUEST_ARRAY_LENGTH = 30;
@@ -235,11 +229,7 @@ function civQuoteView(said: CivQuoteSaid): Json {
   return { soldier: said.soldier, quote: said.quote, entry: said.entry, hint: said.hint, textKey: said.textKey };
 }
 
-function rangeBetween(a: number, b: number): number {
-  const dx = (a % COLS) - (b % COLS);
-  const dy = Math.trunc(a / COLS) - Math.trunc(b / COLS);
-  return Math.trunc(Math.sqrt(dx * dx + dy * dy));
-}
+const rangeBetween = talkRange;
 
 export class TalkFlow {
   readonly host: NarrativeHost;
@@ -723,8 +713,7 @@ export class TalkFlow {
   }
 
   #hasLineOfSight(t: TacticalState, merc: Soldier, target: Soldier): boolean {
-    const visible = distanceVisible(t, merc, DIRECTION_IRRELEVANT, DIRECTION_IRRELEVANT, target.gridNo, target.level);
-    return soldierTo3DLocationLos(t, merc, target.gridNo, target.level, TALK_LOS_CUBE_LEVEL, u8(visible), true) !== 0;
+    return talkLineOfSight(t, merc, target);
   }
 
   #talkCommand(cmd: CampaignCommand): CommandResult {
@@ -762,19 +751,13 @@ export class TalkFlow {
   }
 
   #walkUp(t: TacticalState, merc: Soldier, target: Soldier): CommandResult {
-    const adjacent = findAdjacentGridEx(t, merc, target.gridNo, false);
-    if (!adjacent) {
+    const walkUp = talkWalkUp(t, merc, target);
+    if (!walkUp) {
       this.#emit({ type: 'npcMessage', kind: 'noPath' });
       refuse('noPath');
     }
-    const destination = adjacent?.actionGridNo ?? NOWHERE;
-    if (findBestPath(t.pathEnv, merc, destination, merc.level).length === 0) {
-      this.#emit({ type: 'npcMessage', kind: 'noPath' });
-      refuse('noPath');
-    }
-    const spot = findGridNoFromSweetSpot(t, merc, target.gridNo, SWEET_SPOT_RADIUS);
     if (!enoughPoints(t.inCombat, merc, AP_TALK)) refuse('notEnoughAP');
-    const to = spot === NOWHERE ? destination : spot;
+    const to = walkUp?.to ?? NOWHERE;
     selectSoldier(t, merc);
     merc.pendingTalk = target.id;
     if (!getNewSoldierPath(t, merc, to, merc.uiMovementMode, 1, merc.noAPToFinishMove)) {

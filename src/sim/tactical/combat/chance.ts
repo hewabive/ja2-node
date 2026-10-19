@@ -196,7 +196,7 @@ export function calcChanceToHitGun(t: TacticalState, s: Soldier, g: number, aim:
         break;
     }
     c -= Math.min(Math.trunc((target.tilesMoved * 3) / 2), 30);
-    if (target.oppList[s.id] === Opp.SEEN_CURRENTLY && !isTank(target) && s.bodyType === Body.QUEENMONSTER) {
+    if (s.bodyType === Body.QUEENMONSTER && !isTank(target) && target.oppList[s.id] === Opp.SEEN_CURRENTLY) {
       let p = Math.trunc(effectiveAgility(target) / 5) + 2 * effectiveExpLevel(target);
       if (height(t.content, target.state) === AnimHeight.CROUCH) p = Math.trunc((p * 2) / 3);
       else if (height(t.content, target.state) === AnimHeight.PRONE) p = Math.trunc(p / 3);

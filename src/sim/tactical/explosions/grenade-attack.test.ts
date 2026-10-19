@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
+import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { createItem } from '../../items/object.ts';
@@ -24,7 +24,7 @@ describe('grenade attacks through the attack command', () => {
     merc.inv[InvSlot.HAND] = createItem(t.content.items, grenade, 100);
     sim.lookAround();
     expect(t.inCombat).toBe(true);
-    const estimate = sim.dispatch({ type: 'estimateAttack', soldier: 0, target: enemy.gridNo });
+    const estimate = estimateAttack(sim, { soldier: 0, target: enemy.gridNo });
     expect(estimate.ok).toBe(true);
     const { apCost, pathClear } = estimate.data as { apCost: number; pathClear: boolean };
     expect(pathClear).toBe(true);

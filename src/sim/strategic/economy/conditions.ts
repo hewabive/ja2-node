@@ -102,13 +102,18 @@ export function enoughTimeOnAssignment(ctx: EconomyContext, s: CrewMember): bool
   return worldTotalMinutes(ctx.state.clock) - s.lastAssignmentChangeMin >= MINUTES_FOR_ASSIGNMENT_TO_COUNT;
 }
 
+export function basicCanCharacterDoctor(ctx: EconomyContext, s: CrewMember): boolean {
+  return s.stats.medical > 0 && areAssignmentConditionsMet(ctx, s, AC.UNDERGROUND);
+}
+
 export function canCharacterDoctor(ctx: EconomyContext, s: CrewMember): boolean {
-  return s.stats.medical > 0 && areAssignmentConditionsMet(ctx, s, AC.UNDERGROUND) && hasMedicalKitInPockets(s.inv, kitItems(ctx.items));
+  return basicCanCharacterDoctor(ctx, s) && hasMedicalKitInPockets(s.inv, kitItems(ctx.items));
 }
 
 export function canStatsBeHealed(ctx: EconomyContext, s: CrewMember): boolean {
+  if (!ctx.economy.policy.enableStatHealing) return false;
   const d = s.statDamage;
-  return ctx.economy.policy.enableStatHealing && (d.agility > 0 || d.dexterity > 0 || d.strength > 0 || d.wisdom > 0);
+  return d.agility > 0 || d.dexterity > 0 || d.strength > 0 || d.wisdom > 0;
 }
 
 export function canCharacterPatient(ctx: EconomyContext, s: CrewMember): boolean {
@@ -165,6 +170,10 @@ export function canCharacterPractise(ctx: EconomyContext, s: CrewMember): boolea
 }
 
 export function canCharacterTrainTeammates(ctx: EconomyContext, s: CrewMember): boolean {
+  return canCharacterPractise(ctx, s) && playerMercsInSector(ctx, s.sector) !== 0;
+}
+
+export function canCharacterBeTrainedByOther(ctx: EconomyContext, s: CrewMember): boolean {
   return canCharacterPractise(ctx, s) && playerMercsInSector(ctx, s.sector) !== 0;
 }
 

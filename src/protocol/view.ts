@@ -1,4 +1,5 @@
 import type { SimEvent } from '../sim/events.ts';
+import type { KnowledgeLight, OwnHintInputs } from '../sim/knowledge/view.ts';
 import type { FaceVariant } from '../sim/narrative/face-variant.ts';
 import type { ShopView } from '../sim/strategic/economy/merchants/view.ts';
 import type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
@@ -9,6 +10,7 @@ import type { MessageEntry } from './message-log.ts';
 import { type MusicView, sameMusic } from './music.ts';
 import { sameJson } from './same-json.ts';
 
+export type { KnowledgeLight as LightView, KnowledgeLightSprite as LightSpriteView, OwnHintInputs } from '../sim/knowledge/view.ts';
 export type { FaceVariant } from '../sim/narrative/face-variant.ts';
 export type { ShopBoxView, ShopEta, ShopKind, ShopView } from '../sim/strategic/economy/merchants/view.ts';
 export type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
@@ -66,6 +68,7 @@ export interface SoldierView {
   readonly blinded?: boolean;
   readonly hostile?: boolean;
   readonly healthIndex?: number;
+  readonly hint?: OwnHintInputs;
 }
 
 export interface ItemAttachmentView {
@@ -81,6 +84,7 @@ export interface ItemView {
   readonly status: number;
   readonly money?: number;
   readonly attachments?: readonly ItemAttachmentView[];
+  readonly zHeight?: number;
 }
 
 export interface CombatView {
@@ -150,6 +154,10 @@ export interface StrategicMercView {
   readonly arrival?: { readonly day: number; readonly hour: number; readonly minute: number };
   readonly vehicle?: number;
   readonly controlled?: boolean;
+  readonly profile?: number;
+  readonly stats?: SoldierStatsView;
+  readonly inventory?: readonly InventoryItemView[];
+  readonly weight?: number;
 }
 
 export interface StrategicVehicleView {
@@ -160,6 +168,11 @@ export interface StrategicVehicleView {
   readonly passengers: readonly number[];
   readonly seats: number;
   readonly path: readonly string[];
+  readonly type?: number;
+  readonly group?: number;
+  readonly usable?: boolean;
+  readonly next?: string | null;
+  readonly nextArrivalMinutes?: number | null;
 }
 
 export interface RefuelSiteView {
@@ -192,6 +205,11 @@ export interface DestroyedHelicopterView {
   readonly destroyed: true;
 }
 
+export interface StrategicTownView {
+  readonly town: number;
+  readonly loyalty: number;
+}
+
 export interface StrategicGroupView {
   readonly id: number;
   readonly sector: string;
@@ -200,6 +218,7 @@ export interface StrategicGroupView {
   readonly members: readonly number[];
   readonly etaMinutes: number;
   readonly path: readonly string[];
+  readonly nextArrivalMinutes?: number | null;
 }
 
 export interface QuestStepView {
@@ -250,6 +269,8 @@ export interface StrategicView {
   readonly groups: readonly StrategicGroupView[];
   readonly vehicles?: readonly StrategicVehicleView[];
   readonly helicopter?: StrategicHelicopterView | DestroyedHelicopterView;
+  readonly enemyAirspace?: readonly string[];
+  readonly towns?: readonly StrategicTownView[];
   readonly mercAccountStatus?: string;
   readonly landingZone?: string;
   readonly unreadMail?: number;
@@ -641,6 +662,7 @@ export interface PlayerView {
   readonly combat?: CombatView | null;
   readonly revealedRooms?: readonly number[];
   readonly items?: readonly ItemView[];
+  readonly light?: KnowledgeLight | null;
   readonly music?: MusicView;
 }
 
@@ -669,6 +691,7 @@ export interface ViewFrame {
   readonly combat?: CombatView | null;
   readonly revealedRooms?: readonly number[];
   readonly items?: readonly ItemView[];
+  readonly light?: KnowledgeLight | null;
   readonly music?: MusicView;
 }
 
@@ -685,6 +708,7 @@ function sameItems(a: readonly ItemView[] | undefined, b: readonly ItemView[] | 
       v.count === w.count &&
       v.status === w.status &&
       v.money === w.money &&
+      v.zHeight === w.zHeight &&
       sameJson(v.attachments ?? [], w.attachments ?? [])
     );
   });
@@ -718,6 +742,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), revealedRooms: next.revealedRooms ?? [] };
   if (!sameItems(previous.items, next.items))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), items: next.items ?? [] };
+  if (!sameJson(previous.light ?? null, next.light ?? null))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), light: next.light ?? null };
   if (!sameCombat(previous.combat, next.combat))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), combat: next.combat ?? null };
   if (previous.mapPath !== next.mapPath) frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), mapPath: next.mapPath };
@@ -779,7 +805,7 @@ const SCALAR_SOLDIER_FIELDS = [
   'healthIndex',
 ] as const satisfies readonly (keyof SoldierView)[];
 
-const STRUCTURED_SOLDIER_FIELDS = ['stats', 'sees', 'vehicle'] as const satisfies readonly (keyof SoldierView)[];
+const STRUCTURED_SOLDIER_FIELDS = ['stats', 'sees', 'vehicle', 'hint'] as const satisfies readonly (keyof SoldierView)[];
 
 function samePresentationFields(a: SoldierView, b: SoldierView): boolean {
   return SCALAR_SOLDIER_FIELDS.every((key) => a[key] === b[key]) && STRUCTURED_SOLDIER_FIELDS.every((key) => sameJson(a[key], b[key]));

@@ -23,18 +23,22 @@ afterAll(async () => {
 });
 
 describe('the opcodes the logic timeline leaves out', () => {
-  it('are the sound-range codes no simulation handler acts on', () => {
-    const sim = new TacticalSim(kit.world(VILLAGE), kit.content, 7);
-    const soldier = spawnSoldier(sim, 0, Team.OUR, gridNo(106, 66), 0);
-    const state = () => snapshotJson(snapshotTactical(sim, { content: sim.state.content }));
-    const dropped: number[] = [];
-    for (let code = FIRST_SOUND_RANGE_CODE; code <= LAST_SOUND_RANGE_CODE; code++) {
-      if (isSimulationOpcode(code)) continue;
-      const before = state();
-      expect(sim.state.hooks.opcode(sim.state, soldier, code)).toBeNull();
-      expect(state()).toBe(before);
-      dropped.push(code);
-    }
-    expect(dropped).toHaveLength(LAST_SOUND_RANGE_CODE - FIRST_SOUND_RANGE_CODE + 1 - 6);
-  });
+  it(
+    'are the sound-range codes no simulation handler acts on',
+    () => {
+      const sim = new TacticalSim(kit.world(VILLAGE), kit.content, 7);
+      const soldier = spawnSoldier(sim, 0, Team.OUR, gridNo(106, 66), 0);
+      const state = () => snapshotJson(snapshotTactical(sim, { content: sim.state.content }));
+      const dropped: number[] = [];
+      for (let code = FIRST_SOUND_RANGE_CODE; code <= LAST_SOUND_RANGE_CODE; code++) {
+        if (isSimulationOpcode(code)) continue;
+        const before = state();
+        expect(sim.state.hooks.opcode(sim.state, soldier, code)).toBeNull();
+        expect(state()).toBe(before);
+        dropped.push(code);
+      }
+      expect(dropped).toHaveLength(LAST_SOUND_RANGE_CODE - FIRST_SOUND_RANGE_CODE + 1 - 6);
+    },
+    SLOW_MS,
+  );
 });

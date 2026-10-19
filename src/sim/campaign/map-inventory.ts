@@ -205,8 +205,9 @@ function unloadedStash(campaign: CampaignSim, sector: Sector): Stash {
     diff.items ??= [];
     return diff.items;
   };
+  const known = (): readonly DiffWorldItem[] => state.sectorDiffs.get(key)?.items ?? [];
   const visibleIndices = () =>
-    records()
+    known()
       .map((wi, k) => [wi, k] as const)
       .filter(([wi]) => wi.exists && visibleInMapInventory(campaign, wi.object, wi.visible))
       .map(([, k]) => k);
@@ -214,7 +215,7 @@ function unloadedStash(campaign: CampaignSim, sector: Sector): Stash {
     if (sector.z === 0) sectorInfo(state.map, sector).visibleItems = visibleItemCount(records());
   };
   return {
-    slots: () => visibleIndices().map((k) => records()[k] as DiffWorldItem),
+    slots: () => visibleIndices().map((k) => known()[k] as DiffWorldItem),
     take: (index, count) => {
       const k = visibleIndices()[index] as number;
       const items = records();

@@ -365,13 +365,7 @@ export class SectorFlow {
   }
 
   canGoToTacticalInSector(sector: Sector): boolean {
-    for (const m of this.setup.roster.all()) {
-      if (m.life === 0 || m.isVehicle || m.betweenSectors) continue;
-      if (m.assignment === EconomyAssignment.IN_TRANSIT || m.assignment === EconomyAssignment.ASSIGNMENT_POW) continue;
-      if (m.assignment === EconomyAssignment.ASSIGNMENT_DEAD) continue;
-      if (sameSector(m.sector, sector)) return true;
-    }
-    return false;
+    return canGoToTacticalInSector(this.setup.roster.all(), sector);
   }
 
   enterSectorRefusal(sector: Sector): string | null {
@@ -1303,6 +1297,24 @@ function parseSector(value: unknown): Sector | null {
     if (typeof v.x === 'number' && typeof v.y === 'number') return { x: v.x, y: v.y, z: typeof v.z === 'number' ? v.z : 0 };
   }
   return null;
+}
+
+export interface TacticalEntrant {
+  readonly life: number;
+  readonly isVehicle: boolean;
+  readonly betweenSectors: boolean;
+  readonly assignment: number;
+  readonly sector: Sector;
+}
+
+export function canGoToTacticalInSector(mercs: readonly TacticalEntrant[], sector: Sector): boolean {
+  for (const m of mercs) {
+    if (m.life === 0 || m.isVehicle || m.betweenSectors) continue;
+    if (m.assignment === EconomyAssignment.IN_TRANSIT || m.assignment === EconomyAssignment.ASSIGNMENT_POW) continue;
+    if (m.assignment === EconomyAssignment.ASSIGNMENT_DEAD) continue;
+    if (sameSector(m.sector, sector)) return true;
+  }
+  return false;
 }
 
 function enterSectorCommand(flow: SectorFlow, cmd: { readonly [key: string]: unknown }): CommandResult {

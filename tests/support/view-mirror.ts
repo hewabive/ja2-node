@@ -24,6 +24,7 @@ export function canonicalView(view: PlayerView): Omit<PlayerView, 'tick' | 'musi
     combat: view.combat ?? null,
     revealedRooms: view.revealedRooms ?? [],
     items: view.items ?? [],
+    light: view.light ?? null,
     music: view.music ? { mode: view.music.mode, creature: view.music.creature } : undefined,
   };
 }

@@ -123,8 +123,8 @@ const SAM_SITE_ONE = 0;
 const SAM_SITE_TWO = 1;
 const SAM_SITE_THREE = 2;
 const SAM_SITE_FOUR = 3;
-const PROF_HUMMER = 'PROF_HUMMER';
-const PROF_ICECREAM = 'PROF_ICECREAM';
+export const PROF_HUMMER = 'PROF_HUMMER';
+export const PROF_ICECREAM = 'PROF_ICECREAM';
 const PROF_HELICOPTER = 'PROF_HELICOPTER';
 
 const name = (s: Sector) => sectorShortString(s);

@@ -1,3 +1,4 @@
+import type { ItemTable } from '../content/items/items.ts';
 import {
   MAP_SIDE,
   type Sector,
@@ -6,17 +7,21 @@ import {
   sectorShortString,
   strategicIndex,
 } from '../content/strategic/sector-ids.ts';
-import type { StrategicGroupView, StrategicMercView, StrategicSectorView, StrategicView } from '../protocol/view.ts';
+import type { StrategicGroupView, StrategicMercView, StrategicSectorView, StrategicTownView, StrategicView } from '../protocol/view.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { campaignStatus } from '../sim/campaign/ending-state.ts';
 import { storyFlow } from '../sim/campaign/story-refusals.ts';
 import { meanwhileSceneName } from '../sim/strategic/ai/meanwhile.ts';
 import { Assignment, SectorFlag } from '../sim/strategic/forces/constants.ts';
-import { isSurfaceMapSector, numEnemiesInEverySurfaceSector } from '../sim/strategic/forces/groups.ts';
+import { type Group, isSurfaceMapSector, numEnemiesInEverySurfaceSector } from '../sim/strategic/forces/groups.ts';
 import type { StrategicContext, StrategicMerc } from '../sim/strategic/forces/ports.ts';
 import { EnemyKnowledge, surfaceKnowledgeOfEnemies } from '../sim/strategic/map/knowledge.ts';
 import { getSectorFlagStatus, sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { calculateTravelTimeOfGroup } from '../sim/strategic/map/travel.ts';
+import { worldTotalMinutes } from '../sim/strategic/time/world-clock.ts';
+import { inventoryView } from '../sim/tactical/inventory-view.ts';
+import type { Soldier } from '../sim/tactical/soldier.ts';
+import { statsView } from '../sim/tactical/soldier-view.ts';
 import { mercAccountStatusView, mercContractFields } from './contract-view.ts';
 import { helicopterView, vehicleViews } from './helicopter-view.ts';
 import { arrivalTime, laptopSummary } from './laptop-view.ts';
@@ -109,9 +114,20 @@ function sectorViews(ctx: StrategicContext, scan: SurfaceScan): readonly Strateg
   return known.listed;
 }
 
-function mercView(
-  m: StrategicMerc & { readonly soldier?: { readonly name: string; readonly breath: number; readonly breathMax: number } },
-): StrategicMercView {
+type ViewedMerc = StrategicMerc & { readonly soldier?: Soldier };
+
+function mercInventoryFields(ctx: StrategicContext, items: ItemTable | null, m: ViewedMerc): Partial<StrategicMercView> {
+  const s = m.soldier;
+  if (!s || !items) return {};
+  return {
+    profile: m.profile,
+    stats: statsView(s),
+    inventory: inventoryView(items, s.inv),
+    weight: ctx.mercs.carriedWeightPercent(m.id),
+  };
+}
+
+function mercView(m: ViewedMerc): StrategicMercView {
   return {
     id: m.id,
     name: m.soldier?.name ?? `#${m.id}`,
@@ -133,6 +149,11 @@ function robotControl(campaign: CampaignSim, m: StrategicMerc): { controlled?: b
   return m.isRobot && roster ? { controlled: roster.canRobotBeControlled(m.id) } : {};
 }
 
+function nextArrivalMinutes(ctx: StrategicContext, g: Group): number | null {
+  if (!g.betweenSectors) return null;
+  return Math.max(0, g.arrivalTime - worldTotalMinutes(ctx.state.clock));
+}
+
 function groupViews(ctx: StrategicContext): StrategicGroupView[] {
   return ctx.state.forces.groups
     .filter((g) => g.player && g.members.length > 0)
@@ -146,8 +167,23 @@ function groupViews(ctx: StrategicContext): StrategicGroupView[] {
         members: [...g.members],
         etaMinutes: calculateTravelTimeOfGroup(ctx, g),
         path: (leader?.path ?? []).map((i) => sectorName(sectorFromStrategicIndex(i))),
+        nextArrivalMinutes: nextArrivalMinutes(ctx, g),
       };
     });
+}
+
+function enemyAirspace(ctx: StrategicContext): string[] {
+  const sectors: string[] = [];
+  for (let y = 1; y <= MAP_SIDE; y++)
+    for (let x = 1; x <= MAP_SIDE; x++) {
+      const s = { x, y, z: 0 };
+      if (ctx.state.map.elements[strategicIndex(s)]?.enemyAirControlled) sectors.push(sectorName(s));
+    }
+  return sectors;
+}
+
+function townLoyalties(campaign: CampaignSim): StrategicTownView[] {
+  return campaign.state.economy.towns.flatMap((t, town) => (t.started ? [{ town, loyalty: t.rating }] : []));
 }
 
 export function strategicView(campaign: CampaignSim): StrategicView | undefined {
@@ -157,6 +193,7 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
   const world = campaign.state.worldSector;
   const vehicles = vehicleViews(campaign);
   const helicopter = helicopterView(campaign);
+  const items = campaign.battle?.content.items ?? null;
   return {
     balance: campaign.state.finances.balance,
     worldSector: world ? sectorName(world) : null,
@@ -167,11 +204,19 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
     sectors,
     mercs: ctx.mercs.all().map((m) => {
       const arrival = arrivalTime(campaign, m.id);
-      return { ...mercView(m), ...mercContractFields(campaign, m.id), ...robotControl(campaign, m), ...(arrival ? { arrival } : {}) };
+      return {
+        ...mercView(m),
+        ...mercContractFields(campaign, m.id),
+        ...robotControl(campaign, m),
+        ...(arrival ? { arrival } : {}),
+        ...mercInventoryFields(ctx, items, m),
+      };
     }),
     groups: groupViews(ctx),
     ...(vehicles ? { vehicles } : {}),
     ...(helicopter ? { helicopter } : {}),
+    enemyAirspace: enemyAirspace(ctx),
+    towns: townLoyalties(campaign),
     ...mercAccountStatusView(campaign),
     ...laptopSummary(campaign),
     quests: questLog(campaign),

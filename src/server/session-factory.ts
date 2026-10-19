@@ -6,6 +6,7 @@ import type { ReadFile } from '../content/world/tileset-loader.ts';
 import type { WelcomeIdentity } from '../protocol/messages.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { LogOrigin } from './input-log.ts';
+import { QueryService } from './query.ts';
 import { createSandboxSession } from './sandbox.ts';
 import { messagesOfPresentation, musicOfPresentation } from './save-file.ts';
 import { type OpenedSave, SaveLoadError, type SaveService } from './save-service.ts';
@@ -73,6 +74,7 @@ async function openLoad(saves: SaveService | null, name: string): Promise<Opened
 export function createSessionFactory(options: SessionFactoryOptions): SessionFactory {
   return async (id: string, request: SessionRequest): Promise<Session> => {
     const session = await createSession(options, id, request);
+    session.queries = new QueryService(options.read, options.exists);
     if (options.identity) session.identity = options.identity;
     if (request.language) session.language = request.language;
     return session;

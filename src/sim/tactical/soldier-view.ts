@@ -6,8 +6,10 @@
 // @src location); Interface.cc GetSoldierHealthString; RenderWorld.cc (the enemy glow test !bNeutral && bSide !=
 // @src FRIENDLY). See docs/28 §12.1 G1-G5.
 
+import type { OwnHintInputs } from '../knowledge/view.ts';
 import { armourPercent, maxArmourPerClass } from './combat/armour.ts';
 import { WeaponMode } from './combat/types.ts';
+import { isGassed } from './explosions/smoke.ts';
 import { HEALTH_CATEGORIES, healthCategory } from './health.ts';
 import { Opp } from './perception/opp.ts';
 import { carriedWeightPercentOf } from './points.ts';
@@ -51,6 +53,7 @@ export interface OwnSoldierFields {
   readonly continueTo: number | null;
   readonly firstAid: FirstAidRole | null;
   readonly blinded: boolean;
+  readonly hint: OwnHintInputs;
 }
 
 export interface OtherSoldierFields {
@@ -64,7 +67,7 @@ const WEAPON_MODES: Readonly<Record<number, WeaponModeView>> = {
   [WeaponMode.ATTACHED]: 'launcher',
 };
 
-function statsView(s: Soldier): SoldierStatsView {
+export function statsView(s: Soldier): SoldierStatsView {
   const st = s.stats;
   return {
     agility: st.agility,
@@ -124,6 +127,21 @@ export function ownSoldierFields(t: TacticalState, s: Soldier, visible: Readonly
     continueTo: continueLocation(t, s),
     firstAid: firstAidRole(s),
     blinded: s.blindedCounter > 0,
+    hint: ownHintInputs(t, s),
+  };
+}
+
+export function ownHintInputs(t: TacticalState, s: Soldier): OwnHintInputs {
+  return {
+    skills: [s.skillTrait1, s.skillTrait2],
+    personality: s.personalityTrait,
+    shock: s.shock,
+    lastTarget: s.lastTarget,
+    tilesMoved: s.tilesMoved,
+    weightAtTurnStart: s.weightCarriedAtTurnStart,
+    collapsed: s.collapsed,
+    gassed: isGassed(t, s),
+    underAiControl: s.underAiControl,
   };
 }
 

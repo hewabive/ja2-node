@@ -55,14 +55,22 @@ export function apsToBeginFirstAid(t: TacticalState, s: Soldier): number {
   return apsToChangeStance(t.content, s, AnimHeight.CROUCH) + AP.START_FIRST_AID;
 }
 
-export function firstAidTargetRefusal(t: TacticalState, s: Soldier, target: Soldier | null): FirstAidRefusal | null {
+export function firstAidMedicRefusal(t: TacticalState, s: Soldier, target: Soldier | null): FirstAidRefusal | null {
   if (!isMedKit(t, itemIn(s.inv, InvSlot.HAND))) return FirstAidRefusal.NO_KIT;
   if (!target) return FirstAidRefusal.NO_TARGET;
   if (isMechanical(target)) return FirstAidRefusal.MECHANICAL;
   if (s.stats.medical === 0) return FirstAidRefusal.NO_MEDICAL_SKILL;
+  return null;
+}
+
+export function firstAidNeedRefusal(target: Soldier): FirstAidRefusal | null {
   if (target.bleeding === 0 && target.life !== target.lifeMax) return FirstAidRefusal.NOT_BLEEDING;
   if (target.bleeding === 0 && target.life >= OKLIFE) return FirstAidRefusal.NO_NEED;
   return null;
+}
+
+export function firstAidTargetRefusal(t: TacticalState, s: Soldier, target: Soldier | null): FirstAidRefusal | null {
+  return firstAidMedicRefusal(t, s, target) ?? (target ? firstAidNeedRefusal(target) : null);
 }
 
 export function beginFirstAid(t: TacticalState, s: Soldier, targetGridNo: number): FirstAidRefusal | null {

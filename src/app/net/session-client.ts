@@ -6,6 +6,7 @@ import {
   type SessionStopReport,
   type StopCondition,
   TICK_MS,
+  type WelcomeIdentity,
 } from '../../protocol/messages.ts';
 import {
   type AutoresolveView,
@@ -38,10 +39,15 @@ export interface CommandReply {
   readonly data?: unknown;
 }
 
+export interface QueryReply extends CommandReply {
+  readonly tick: number;
+}
+
 export class SessionClient {
   driver: DriverMode = { mode: 'manual' };
   playbackSpeed = 1;
   session: string | null = null;
+  identity: WelcomeIdentity | null = null;
   onChange: (() => void) | null = null;
   onFrames: ((frames: readonly ViewFrame[]) => void) | null = null;
   onWelcome: (() => void) | null = null;
@@ -188,6 +194,7 @@ export class SessionClient {
       case 'welcome':
         this.#frames.length = 0;
         this.session = m.session;
+        this.identity = { engine: m.engine, rules: m.rules };
         this.driver = m.driver;
         this.#shown = m.view;
         this.#latest = m.view;
@@ -199,6 +206,7 @@ export class SessionClient {
         for (const frame of m.frames) this.#latest = this.#latest && applyViewFrame(this.#latest, frame);
         break;
       case 'result':
+      case 'answer':
       case 'stopped': {
         const p = this.#pending.get(m.id);
         this.#pending.delete(m.id);
@@ -236,6 +244,12 @@ export class SessionClient {
 
   async command(cmd: CommandEnvelope): Promise<CommandReply> {
     return this.#reply(await this.#request({ t: 'cmd', id: this.#nextId++, cmd }));
+  }
+
+  async query(q: CommandEnvelope): Promise<QueryReply> {
+    const m = await this.#request({ t: 'query', id: this.#nextId++, q });
+    if (m.t !== 'answer') return { ok: false, reason: 'unexpected reply', tick: -1 };
+    return { ok: m.ok, tick: m.tick, ...(m.reason ? { reason: m.reason } : {}), ...(m.data !== undefined ? { data: m.data } : {}) };
   }
 
   async advance(until: StopCondition): Promise<SessionStopReport | null> {

@@ -75,4 +75,22 @@ describe('websocket transport', () => {
     expect(await until(inbox, (m) => m.t === 'error')).toMatchObject({ message: 'malformed message' });
     ws.close();
   });
+
+  it('answers a query with an answer message outside the command order, without a frame or a log entry', async () => {
+    const host = sessions.get('sandbox') as InProcessHost;
+    const { ws, inbox } = await open(`?token=${token}`);
+    ws.send(JSON.stringify({ t: 'hello' }));
+    await until(inbox, (m) => m.t === 'welcome');
+    const logged = host.session.log.full().entries.length;
+    const framesBefore = inbox.filter((m) => m.t === 'frames').length;
+    ws.send(JSON.stringify({ t: 'query', id: 7, q: { type: 'previewMove', soldier: 1, to: 5 } }));
+    const answer = await until(inbox, (m) => m.t === 'answer');
+    expect(answer).toMatchObject({ t: 'answer', id: 7, ok: false, tick: expect.any(Number), data: { refusal: 'noQueries' } });
+    expect(inbox.some((m) => m.t === 'result')).toBe(false);
+    expect(inbox.filter((m) => m.t === 'frames').length).toBe(framesBefore);
+    expect(host.session.log.full().entries.length).toBe(logged);
+    ws.send(JSON.stringify({ t: 'query', id: 8 }));
+    expect(await until(inbox, (m) => m.t === 'error')).toMatchObject({ message: 'malformed message' });
+    ws.close();
+  });
 });

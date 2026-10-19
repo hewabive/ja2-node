@@ -23,6 +23,7 @@ import {
   clearMercPathsAndWaypointsForAllInGroup,
   resetMovementForEnemyGroupsInLocation,
 } from '../strategic/forces/movement.ts';
+import type { StrategicContext } from '../strategic/forces/ports.ts';
 import { plotPathForCharacter } from '../strategic/forces/routes.ts';
 import {
   addCharacterToUniqueSquad,
@@ -48,7 +49,7 @@ import {
   soldierOKForSectorExit,
 } from '../tactical/sector-exit.ts';
 import { NOWHERE, OKLIFE, type Soldier } from '../tactical/soldier.ts';
-import { sectorMapOf, WaitForMercs } from '../tactical/state.ts';
+import { sectorMapOf, type TacticalState, WaitForMercs } from '../tactical/state.ts';
 import { type RosterMerc, registeredInTactical } from './roster.ts';
 import type { SectorFlow } from './sector-flow.ts';
 
@@ -118,6 +119,30 @@ const DIRECTION_NAMES: Readonly<Record<string, number>> = {
   west: Direction.WEST,
 };
 
+export interface ExitMerc {
+  readonly id: number;
+  readonly life: number;
+  readonly assignment: number;
+  readonly isEpc: boolean;
+  readonly isRobot: boolean;
+  readonly groupId: number;
+  readonly betweenSectors: boolean;
+  readonly sector: Sector;
+  readonly soldier: Soldier;
+}
+
+export interface ExitWorld {
+  readonly tactical: TacticalState | null;
+  readonly world: Sector | null;
+  readonly enemyInSector: boolean;
+  mercs(): readonly ExitMerc[];
+  inTactical(m: ExitMerc): boolean;
+  canRobotBeControlled(id: number): boolean;
+  traverseTime(groupId: number | null, exitDirection: number, anyUnderground: boolean): number;
+  controllableInSquad(squad: number): number;
+  militiaInWorld(): number;
+}
+
 function soldierOf(flow: SectorFlow, m: RosterMerc): Soldier | null {
   const t = flow.campaign.tactical?.state;
   return t && registeredInTactical(t, m) && m.soldier.placed ? m.soldier : null;
@@ -127,24 +152,54 @@ function okControllable(flow: SectorFlow, m: RosterMerc): boolean {
   return soldierOf(flow, m) !== null && m.life >= OKLIFE && m.assignment < Assignment.ON_DUTY;
 }
 
-function undergroundTraversalTime(flow: SectorFlow, exitDirection: number): number {
-  const t = flow.campaign.tactical?.state;
+function exitControllable(w: ExitWorld, m: ExitMerc): boolean {
+  return w.inTactical(m) && m.life >= OKLIFE && m.assignment < Assignment.ON_DUTY;
+}
+
+function undergroundTraversalTime(t: TacticalState | null, exitDirection: number): number {
   if (!t) return TRAVERSE_TIME_IMPOSSIBLE;
   const info = sectorMapOf(t).info;
   const g = [info.northGridNo, info.eastGridNo, info.southGridNo, info.westGridNo][exitDirection] ?? -1;
   return g !== -1 ? 0 : TRAVERSE_TIME_IMPOSSIBLE;
 }
 
-function traverseTime(flow: SectorFlow, g: Group | undefined, exitDirection: number, anyUnderground: boolean): number {
-  const world = flow.world;
+export function exitTraverseTime(
+  ctx: StrategicContext,
+  world: Sector | null,
+  t: TacticalState | null,
+  g: Group | undefined,
+  exitDirection: number,
+  anyUnderground: boolean,
+): number {
   if (!world || !g) return TRAVERSE_TIME_IMPOSSIBLE;
-  if (world.z === 0) return getSectorMvtTimeForGroup(flow.ctx, sectorId(g.sector), exitDirection, g);
-  if (anyUnderground ? world.z > 0 : world.z > 1) return undergroundTraversalTime(flow, exitDirection);
+  if (world.z === 0) return getSectorMvtTimeForGroup(ctx, sectorId(g.sector), exitDirection, g);
+  if (anyUnderground ? world.z > 0 : world.z > 1) return undergroundTraversalTime(t, exitDirection);
   return TRAVERSE_TIME_IMPOSSIBLE;
 }
 
-export function okForSectorExit(flow: SectorFlow, exitDirection: number, exitGridNo: number, selected: RosterMerc): ExitCheck {
-  const t = flow.campaign.tactical?.state;
+function traverseTime(flow: SectorFlow, g: Group | undefined, exitDirection: number, anyUnderground: boolean): number {
+  return exitTraverseTime(flow.ctx, flow.world, flow.campaign.tactical?.state ?? null, g, exitDirection, anyUnderground);
+}
+
+export function flowExitWorld(flow: SectorFlow): ExitWorld {
+  const t = flow.campaign.tactical?.state ?? null;
+  const roster = flow.setup.roster;
+  return {
+    tactical: t,
+    world: flow.world,
+    enemyInSector: t?.turn.enemyInSector === true,
+    mercs: () => roster.all(),
+    inTactical: (m) => t !== null && t.soldiers[m.id] === m.soldier && m.soldier.placed,
+    canRobotBeControlled: (id) => roster.canRobotBeControlled(id),
+    traverseTime: (groupId, exitDirection, anyUnderground) =>
+      traverseTime(flow, groupId === null ? undefined : getGroup(flow.ctx, groupId), exitDirection, anyUnderground),
+    controllableInSquad: (squad) => numberOfPlayerControllableMercsInSquad(flow.ctx, squad),
+    militiaInWorld: () => (flow.world ? countAllMilitiaInSector(flow.ctx, flow.world) : 0),
+  };
+}
+
+export function okForSectorExit(w: ExitWorld, exitDirection: number, exitGridNo: number, selected: ExitMerc): ExitCheck {
+  const t = w.tactical;
   const refuse = (extra: Partial<ExitCheck> = {}): ExitCheck => ({
     result: 0,
     minutes: 0,
@@ -155,40 +210,40 @@ export function okForSectorExit(flow: SectorFlow, exitDirection: number, exitGri
     ...extra,
   });
   let uncontrolledRobot = false;
-  if (!t || !soldierOf(flow, selected)) return refuse();
+  if (!t || !w.inTactical(selected)) return refuse();
   let atLeast = 0;
   let onlySelected = false;
-  let valid: RosterMerc | null = null;
+  let valid: ExitMerc | null = null;
   let mercs = 0;
   let epcs = 0;
   let minutes = 0;
-  for (const m of flow.setup.roster.all()) {
-    if (!okControllable(flow, m) || m.assignment !== selected.assignment) continue;
+  for (const m of w.mercs()) {
+    if (!exitControllable(w, m) || m.assignment !== selected.assignment) continue;
     valid = m;
     if (m.isEpc) {
       epcs++;
-      if (m.isRobot && !flow.setup.roster.canRobotBeControlled(m.id)) {
+      if (m.isRobot && !w.canRobotBeControlled(m.id)) {
         uncontrolledRobot = true;
         continue;
       }
     } else mercs++;
     if (soldierOKForSectorExit(t, m.soldier, exitDirection, exitGridNo)) {
       atLeast++;
-      if (m === selected) onlySelected = true;
+      if (m.id === selected.id) onlySelected = true;
     } else if (exitDirection !== ExitDirection.EXIT_GRID) {
-      minutes = traverseTime(flow, getGroup(flow.ctx, valid.groupId), exitDirection, false);
+      minutes = w.traverseTime(valid.groupId, exitDirection, false);
       if (minutes === TRAVERSE_TIME_IMPOSSIBLE) return refuse({ minutes, invalidTraversal: true });
     } else minutes = 0;
   }
   if (atLeast === 0) return refuse({ minutes });
-  const squadCount = numberOfPlayerControllableMercsInSquad(flow.ctx, selected.assignment);
+  const squadCount = w.controllableInSquad(selected.assignment);
   if (atLeast <= squadCount) {
     if (selected.isEpc) {
       if (atLeast < squadCount || atLeast === 1) return refuse({ minutes, loneEpc: true });
     } else if (epcs && mercs === 1 && atLeast < squadCount) return refuse({ minutes, abandonedEpcs: epcs });
   }
   if (exitDirection !== ExitDirection.EXIT_GRID) {
-    minutes = traverseTime(flow, valid ? getGroup(flow.ctx, valid.groupId) : undefined, exitDirection, true);
+    minutes = w.traverseTime(valid ? valid.groupId : null, exitDirection, true);
     if (minutes === TRAVERSE_TIME_IMPOSSIBLE) return refuse({ minutes, invalidTraversal: true });
   } else minutes = 0;
   let result: 0 | 1 | 2 = 0;
@@ -197,14 +252,14 @@ export function okForSectorExit(flow: SectorFlow, exitDirection: number, exitGri
   return { result, minutes, invalidTraversal: false, loneEpc: false, abandonedEpcs: 0, uncontrolledRobot };
 }
 
-function multipleSquadsInSector(flow: SectorFlow, selected: RosterMerc): boolean {
-  const world = flow.world;
+function multipleSquadsInSector(w: ExitWorld, selected: ExitMerc): boolean {
+  const world = w.world;
   if (!world) return false;
-  return flow.setup.roster
-    .all()
+  return w
+    .mercs()
     .some(
       (m) =>
-        m !== selected &&
+        m.id !== selected.id &&
         !m.betweenSectors &&
         m.sector.x === world.x &&
         m.sector.y === world.y &&
@@ -217,31 +272,30 @@ function multipleSquadsInSector(flow: SectorFlow, selected: RosterMerc): boolean
     );
 }
 
-function controllableCount(flow: SectorFlow): number {
-  return flow.setup.roster.all().filter((m) => okControllable(flow, m)).length;
+function controllableCount(w: ExitWorld): number {
+  return w.mercs().filter((m) => exitControllable(w, m)).length;
 }
 
-export function exitMenu(flow: SectorFlow, check: ExitCheck, selected: RosterMerc): ExitMenu {
-  const t = flow.campaign.tactical?.state;
-  const world = flow.world;
-  const enemyInSector = t?.turn.enemyInSector === true;
+export function exitMenu(w: ExitWorld, check: ExitCheck, selected: ExitMerc): ExitMenu {
+  const t = w.tactical;
+  const enemyInSector = w.enemyInSector;
   const allMoveDisabled = check.result === 1;
   const singleMove = check.result === 1;
   let allMoveOn = check.result === 2;
   const allMove = check.result === 2;
-  let gotoSectorDisabled = t?.inCombat === true && controllableCount(flow) !== 1;
+  let gotoSectorDisabled = t?.inCombat === true && controllableCount(w) !== 1;
   let gotoSector = allMoveOn;
   let singleMoveDisabled = false;
-  const peopleOnSquad = numberOfPlayerControllableMercsInSquad(flow.ctx, selected.assignment);
-  const multipleSquads = multipleSquadsInSector(flow, selected);
+  const peopleOnSquad = w.controllableInSquad(selected.assignment);
+  const multipleSquads = multipleSquadsInSector(w, selected);
   if (selected.isEpc) {
     if (peopleOnSquad > 1) allMoveOn = true;
     singleMoveDisabled = true;
   } else {
     let mercs = 1;
     let epcs = 0;
-    for (const m of flow.setup.roster.all()) {
-      if (m === selected || m.assignment !== selected.assignment) continue;
+    for (const m of w.mercs()) {
+      if (m.id === selected.id || m.assignment !== selected.assignment) continue;
       if (m.isEpc) epcs++;
       else {
         mercs++;
@@ -254,7 +308,7 @@ export function exitMenu(flow: SectorFlow, check: ExitCheck, selected: RosterMer
     }
   }
   if (enemyInSector) {
-    if (multipleSquads || (world && countAllMilitiaInSector(flow.ctx, world))) {
+    if (multipleSquads || (w.world && w.militiaInWorld())) {
       gotoSectorDisabled = true;
       gotoSector = false;
     }
@@ -277,9 +331,9 @@ export function exitMenu(flow: SectorFlow, check: ExitCheck, selected: RosterMer
   };
 }
 
-export function singleMoveAction(flow: SectorFlow, menu: ExitMenu): void {
+export function singleMoveAction(w: ExitWorld, menu: ExitMenu): void {
   if (!menu.multipleSquads) {
-    if (flow.campaign.tactical?.state.turn.enemyInSector) {
+    if (w.enemyInSector) {
       menu.gotoSectorDisabled = true;
       menu.gotoSector = false;
     } else menu.gotoSectorDisabled = false;
@@ -515,10 +569,10 @@ export interface ExitPlan {
   readonly menu: ExitMenu | null;
 }
 
-export function exitCheck(flow: SectorFlow, selected: RosterMerc, direction: number, exitGridNo: number): ExitPlan {
+export function exitCheck(w: ExitWorld, selected: ExitMerc, direction: number, exitGridNo: number): ExitPlan {
   const exitDirection = direction === DIRECTION_EXITGRID ? ExitDirection.EXIT_GRID : (STRATEGIC_MOVE_OF[direction] ?? 0);
-  const check = okForSectorExit(flow, exitDirection, exitGridNo, selected);
-  return { check, menu: check.result === 0 ? null : exitMenu(flow, check, selected) };
+  const check = okForSectorExit(w, exitDirection, exitGridNo, selected);
+  return { check, menu: check.result === 0 ? null : exitMenu(w, check, selected) };
 }
 
 function refusalOf(check: ExitCheck): string {
@@ -529,6 +583,71 @@ function refusalOf(check: ExitCheck): string {
   return 'tooFar';
 }
 
+export type ExitDecision =
+  | { readonly ok: false; readonly refusal: string; readonly reason: string; readonly minutes?: number }
+  | {
+      readonly ok: true;
+      readonly check: ExitCheck;
+      readonly menu: ExitMenu;
+      readonly jumpCode: number;
+      readonly direction: number;
+      readonly exitGridNo: number;
+    };
+
+const DIRECTION_REASON = "give direction 'north'|'east'|'south'|'west' or exitGrid: gridNo";
+
+function declined(refusal: string, reason = refusal): ExitDecision {
+  return { ok: false, refusal, reason };
+}
+
+export function decideSectorExit(w: ExitWorld, selected: ExitMerc, cmd: { readonly [key: string]: unknown }): ExitDecision {
+  const t = w.tactical;
+  if (!t) return declined('noSector', 'no sector is loaded');
+  const direction = cmd.exitGrid !== undefined ? DIRECTION_EXITGRID : parseDirection(cmd.direction);
+  if (direction === null) return declined('badDirection', DIRECTION_REASON);
+  const exitGridNo = typeof cmd.exitGrid === 'number' ? cmd.exitGrid : 0;
+  if (direction === DIRECTION_EXITGRID && !exitGridAt(t, exitGridNo)) return declined('noExitGrid', 'no exit grid at that gridNo');
+  const plan = exitCheck(w, selected, direction, exitGridNo);
+  if (!plan.menu) {
+    const refusal = refusalOf(plan.check);
+    return { ok: false, refusal, reason: refusal, minutes: plan.check.minutes };
+  }
+  const menu = plan.menu;
+  if (cmd.who === 'squad' && !menu.allMove) {
+    if (menu.allMoveDisabled) return declined('squadNotAllowed');
+    allMoveAction(menu);
+  } else if (cmd.who === 'merc' && !menu.singleMove) {
+    if (menu.singleMoveDisabled) return declined('mercNotAllowed');
+    singleMoveAction(w, menu);
+  }
+  if (typeof cmd.load === 'boolean' && cmd.load !== menu.gotoSector) {
+    if (menu.gotoSectorDisabled) return declined('loadDisabled');
+    menu.gotoSector = cmd.load;
+  }
+  if (selected.isEpc && menu.peopleOnSquad === 0) return declined('loneEPC');
+  const jumpCode = jumpCodeOf(menu);
+  if (jumpCode === null) return declined(menu.allMoveDisabled ? 'mercNotAllowed' : 'squadNotAllowed');
+  return { ok: true, check: plan.check, menu, jumpCode, direction, exitGridNo };
+}
+
+export function exitTarget(w: ExitWorld, direction: number, exitGridNo: number): Sector | null {
+  const world = w.world;
+  if (!world || !w.tactical) return null;
+  if (direction === DIRECTION_EXITGRID) return exitGridAt(w.tactical, exitGridNo)?.sector ?? null;
+  const [dx, dy] = SECTOR_STEP[direction] ?? [0, 0];
+  return { x: world.x + dx, y: world.y + dy, z: world.z };
+}
+
+export function exitResultData(check: ExitCheck, menu: ExitMenu, jumpCode: number, target: Sector) {
+  return {
+    minutes: check.minutes,
+    who: menu.allMove ? 'squad' : 'merc',
+    load: isLoadJump(jumpCode),
+    target: sectorShortString(target),
+    level: target.z,
+  };
+}
+
 export function exitSectorCommand(flow: SectorFlow, cmd: { readonly [key: string]: unknown }): CommandResult {
   const sim = flow.campaign.tactical;
   if (!sim) return { ok: false, reason: 'no sector is loaded' };
@@ -537,37 +656,11 @@ export function exitSectorCommand(flow: SectorFlow, cmd: { readonly [key: string
   if (!selected || !soldierOf(flow, selected)) return { ok: false, reason: 'no such soldier of yours in this sector' };
   const refusal = sim.canAct(selected.soldier);
   if (refusal) return { ok: false, reason: refusal };
-  const direction = cmd.exitGrid !== undefined ? DIRECTION_EXITGRID : parseDirection(cmd.direction);
-  if (direction === null) return { ok: false, reason: "give direction 'north'|'east'|'south'|'west' or exitGrid: gridNo" };
-  const exitGridNo = typeof cmd.exitGrid === 'number' ? cmd.exitGrid : 0;
-  if (direction === DIRECTION_EXITGRID && !exitGridAt(sim.state, exitGridNo)) return { ok: false, reason: 'no exit grid at that gridNo' };
-  const plan = exitCheck(flow, selected, direction, exitGridNo);
-  if (!plan.menu) return { ok: false, reason: refusalOf(plan.check), data: { minutes: plan.check.minutes } };
-  const menu = plan.menu;
-  if (cmd.who === 'squad' && !menu.allMove) {
-    if (menu.allMoveDisabled) return { ok: false, reason: 'squadNotAllowed' };
-    allMoveAction(menu);
-  } else if (cmd.who === 'merc' && !menu.singleMove) {
-    if (menu.singleMoveDisabled) return { ok: false, reason: 'mercNotAllowed' };
-    singleMoveAction(flow, menu);
-  }
-  if (typeof cmd.load === 'boolean' && cmd.load !== menu.gotoSector) {
-    if (menu.gotoSectorDisabled) return { ok: false, reason: 'loadDisabled' };
-    menu.gotoSector = cmd.load;
-  }
-  if (selected.isEpc && menu.peopleOnSquad === 0) return { ok: false, reason: 'loneEPC' };
-  const jumpCode = jumpCodeOf(menu);
-  if (jumpCode === null) return { ok: false, reason: menu.allMoveDisabled ? 'mercNotAllowed' : 'squadNotAllowed' };
+  const decision = decideSectorExit(flowExitWorld(flow), selected, cmd);
+  if (!decision.ok)
+    return { ok: false, reason: decision.reason, ...(decision.minutes !== undefined ? { data: { minutes: decision.minutes } } : {}) };
+  const { check, menu, jumpCode, direction, exitGridNo } = decision;
   if (!jumpIntoAdjacentSector(flow, direction, jumpCode, exitGridNo, selected)) return { ok: false, reason: 'cannot leave from here' };
   const target = flow.jump?.target ?? flow.world ?? { x: 1, y: 1, z: 0 };
-  return {
-    ok: true,
-    data: {
-      minutes: plan.check.minutes,
-      who: menu.allMove ? 'squad' : 'merc',
-      load: isLoadJump(jumpCode),
-      target: sectorShortString(target),
-      level: target.z,
-    },
-  };
+  return { ok: true, data: exitResultData(check, menu, jumpCode, target) };
 }

@@ -134,14 +134,18 @@ export function takeObjects(o: ItemObject, count: Count, index: number): ItemObj
   return whole;
 }
 
-function dryContext(env: PanelEnv, s: Soldier): InventoryContext {
+export function dryInventoryContext(items: ItemTable, inCombat: boolean, s: Soldier): InventoryContext {
   return {
-    items: env.items,
-    inCombat: env.inCombat,
+    items,
+    inCombat,
     actionPoints: () => s.actionPoints,
     spendActionPoints: () => {},
     dropAtFeet: () => {},
   };
+}
+
+function dryContext(env: PanelEnv, s: Soldier): InventoryContext {
+  return dryInventoryContext(env.items, env.inCombat, s);
 }
 
 function clonedCarrier(s: Soldier): { inv: ItemObject[] } {

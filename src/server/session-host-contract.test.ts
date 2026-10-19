@@ -20,6 +20,7 @@ const BATTLE_SEED = 7;
 const SOUTH_STEP = 160 * 3;
 const APPROACH_STEPS = 16;
 const SETTLE_TICKS = 40;
+const QUERY_ADVANCE_TICKS = 400;
 const DEAD_IS_DEAD_NAME = 'OneLife';
 const UNSTABLE_KEYS = new Set(['savedAt', 'digest']);
 
@@ -169,6 +170,26 @@ async function deadIsDeadScript(r: Rig): Promise<{ results: unknown[]; written: 
   return { results, written: await savedSim(r.store, DEAD_IS_DEAD_NAME) };
 }
 
+async function queryScript(r: Rig): Promise<{ order: string[]; during: unknown; answers: unknown[]; logged: string[] }> {
+  const host = await r.create('queries', { seed: BATTLE_SEED });
+  const [merc] = await ownSoldiers(host);
+  if (!merc) throw new Error('no merc');
+  const order: string[] = [];
+  const move = { type: 'previewMove', soldier: merc.id, to: merc.gridNo + SOUTH_STEP };
+  const start = (await host.observe()).view.tick;
+  const running = host.advance({ ticks: QUERY_ADVANCE_TICKS }).then(() => order.push('advance'));
+  const first = await host.query(move);
+  order.push('query');
+  const during = { ok: first.ok, withinAdvance: first.tick >= start && first.tick <= start + QUERY_ADVANCE_TICKS };
+  await running;
+  const answers: unknown[] = [await host.query(move)];
+  answers.push(await host.prepareAndDispatch({ type: 'estimateAttack', soldier: merc.id, target: merc.gridNo + SOUTH_STEP }));
+  answers.push(await host.dispatch({ type: 'exitSector', soldier: merc.id, direction: 'south', dryRun: true }));
+  const logged = (await host.inputLog()).entries.map((e) => e.kind);
+  await host.close();
+  return { order, during, answers: answers.map(stable), logged };
+}
+
 async function both<T>(script: (r: Rig) => Promise<T>): Promise<[T, T]> {
   const results: T[] = [];
   for (const kind of ['inprocess', 'worker'] as const) {
@@ -208,6 +229,20 @@ describe('the session host contract, in process and in a worker thread', () => {
       const [inProcess, worker] = await both(concurrentScript);
       const moves = inProcess.order.filter((name) => name.startsWith('move'));
       expect(inProcess.order).toEqual([...moves, 'advance', 'instant', 'stance', 'manual', 'ticks']);
+      expect(worker).toEqual(inProcess);
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  it(
+    'answers queries between ticks, outside the input queue and the input log',
+    async () => {
+      const [inProcess, worker] = await both(queryScript);
+      expect(inProcess.order).toEqual(['query', 'advance']);
+      expect(inProcess.during).toEqual({ ok: true, withinAdvance: true });
+      expect(inProcess.answers[0]).toMatchObject({ ok: true, data: { destination: 'ok' } });
+      expect(inProcess.answers[1]).toHaveProperty('tick');
+      expect(inProcess.logged).toEqual(['advance']);
       expect(worker).toEqual(inProcess);
     },
     TEST_TIMEOUT_MS,

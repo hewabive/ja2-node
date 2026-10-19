@@ -7,18 +7,17 @@
 // @src Tactical/LOS.cc LocationToLocationLineOfSightTest. See docs/13 §2, §4.4.
 
 import { ItemClass } from '../../../content/items/items.ts';
-import { newGridNo, pythSpacesAway, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
-import { TravelCost } from '../../../content/world/movement-costs.ts';
+import { pythSpacesAway, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
 import { ObjectFlags, USABLE_STATUS } from '../../items/object.ts';
 import { climbingNecessary, findClosestClimbPointAvailableToAI } from '../buildings.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
-import { DIRECTION_INCREMENT } from '../directions.ts';
-import { findBestPath, isWater, PathCopy } from '../pathfinding.ts';
+import { findBestPath, PathCopy } from '../pathfinding.ts';
 import { guySawEnemyThisTurnOrBefore } from '../perception/knowledge.ts';
 import { landHeightUnits, lineOfSightTest, STANDING_TREE_REDUCTION } from '../perception/los.ts';
 import { Opp } from '../perception/opp.ts';
 import { distanceVisible, knowledge } from '../perception/sight.ts';
-import { AP, minAPsToStartMovement, stateName, terrainActionPoints } from '../points.ts';
+import { plotPathSteps } from '../plot-path.ts';
+import { AP, stateName } from '../points.ts';
 import { NOWHERE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, teamMembers, whoIsThere } from '../state.ts';
 import { NUM_WATCHED_LOCS } from '../turns/turn-state.ts';
@@ -27,7 +26,6 @@ const MAX_DISTANCE_VISIBLE = 26;
 const IRRELEVANT = -1;
 const STANDING_LOS_POS = 175;
 const HEIGHT_UNITS = 256;
-const RUNDIVISOR = 1.8;
 const UNSEEN_PC_DISTANCE_PENALTY = 10;
 
 export function findAIUsableObjClass(t: TacticalState, s: Soldier, itemClass: number): number {
@@ -66,37 +64,7 @@ export function recalculatePathCost(t: TacticalState, s: Soldier, mode: number):
 }
 
 function routeCost(t: TacticalState, s: Soldier, steps: readonly number[], mode: number): number {
-  const ctx = { env: t.pathEnv, content: t.content, inCombat: t.inCombat };
-  const walking = t.content.animations.stateIndex.get('WALKING') ?? -1;
-  const running = t.content.animations.stateIndex.get('RUNNING') ?? -1;
-  let pts = minAPsToStartMovement(t.content, s, mode);
-  const first = newGridNo(s.gridNo, DIRECTION_INCREMENT[steps[0] ?? 0] ?? 0);
-  if (t.world.costs.get(first, steps[0] ?? 0, s.level) === TravelCost.FENCE && mode === running && s.state !== running) pts -= 1;
-  let ignoreNext = false;
-  let g = s.gridNo;
-  const n = steps.length;
-  for (let i = 0; i < n; i++) {
-    const d = steps[i] ?? 0;
-    g = newGridNo(g, DIRECTION_INCREMENT[d] ?? 0);
-    const sw = t.world.costs.get(g, d, s.level);
-    const tile = terrainActionPoints(ctx, s, g, d, s.level);
-    const m = isWater(t.pathWorld, g) ? walking : mode;
-    const cls = stateName(t.content, m);
-    if (ignoreNext) ignoreNext = false;
-    else if (sw === TravelCost.FENCE) {
-      pts += tile;
-      ignoreNext = true;
-      if ((cls === 'RUNNING' || cls === 'WALKING') && i + 2 < n) pts += 2 + (cls === 'RUNNING' ? 1 : 0);
-      if (cls === 'SWATTING') pts += 2;
-    } else if (tile > 0) {
-      const extra = sw === TravelCost.NOT_STANDING && (cls === 'RUNNING' || cls === 'WALKING') ? 2 : 0;
-      if (cls === 'RUNNING') pts += Math.trunc(tile / RUNDIVISOR) + extra;
-      else if (cls === 'WALKING') pts += tile - 1 + extra;
-      else if (cls === 'CRAWLING') pts += tile + 1;
-      else pts += tile;
-    }
-  }
-  return pts;
+  return plotPathSteps(t, s, steps, mode, { plot: false, budget: 0 }).points;
 }
 
 function moveModeName(t: TacticalState, mode: number): 'WALKING' | 'RUNNING' | 'SWATTING' | 'CRAWLING' {

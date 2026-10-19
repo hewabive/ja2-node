@@ -326,11 +326,13 @@ type ServerMsg =
 
 As built (`src/protocol/messages.ts`, M2–M8): the client sends `hello {session?}`, `cmd {id, cmd}` (prompt answers are
 commands of type `answer`), `advance {id, until}`, `drive {id, driver}` (a real-time driver may carry `pauseOn`, §6.25),
-`save` and `load` (§6.22) and `closeSession {id}` (§6.25); the server answers
+`save` and `load` (§6.22), `closeSession {id}` (§6.25) and `query {id, q}` (§6.26); the server answers
 with `welcome {session, view, driver, messages, engine: {version, commit}, rules: {pack, scripts}}` (also after a load in place;
 `engine` and `rules` since M8, §5.10, `messages` since U3a, §6.25), `frames` (view diffs every 10 ticks with the events
-and message entries of their tick, §4.4), `result {id, ok, reason?, data?}`, `stopped {id, report}` and `error`. Queries are commands that
-change nothing (`estimateAttack`, `quoteTrade`, `inventory`, …).
+and message entries of their tick, §4.4), `result {id, ok, reason?, data?}`, `answer {id, ok, tick, reason?, data?}` (§6.26),
+`stopped {id, report}` and `error`. Queries change nothing (`estimateAttack`, the cursor hints, `quoteTrade`,
+`inventory`, …); since M8 they are answered outside the input queue and the input log, also when they arrive as
+commands (§6.26).
 
 ### 5.3. Player-view projection (D16)
 
@@ -346,6 +348,8 @@ change nothing (`estimateAttack`, `quoteTrade`, `inventory`, …).
   does not leak.
 - For the cursor in the browser this is ~1 ms over localhost. If needed, they can run directly in
   the client.
+- As built (M8, U3b, §6.26): the player-knowledge projection (`src/sim/knowledge/`) and the hint functions
+  (`src/sim/hints/`) run on the server for agents and on the client for the cursor, over the same view.
 
 ### 5.5. Saves and the log
 
@@ -539,8 +543,8 @@ Omerta A9 · turn 3 · ours · 07:42
 
 - **Fairness.** The agent sees exactly what the player's screen would show.
 - **Agent hints** ("cover from enemy #12: yes or no", "tiles with cover within a radius
-  of 5") are derived only from what is visible. They can be turned off. As built there are no hints beyond the query
-  commands (`estimateAttack` with `chanceToHit`, `chanceToGetThrough`, `inReach`, `landsAt`).
+  of 5") are derived only from what is visible. They can be turned off. As built the hints are the query kinds of §6.26
+  (the cursor hints over the player-knowledge projection and the server-only quotes).
 
 ### 6.5. What the agent handles well and poorly
 
@@ -1244,6 +1248,82 @@ the WebSocket `welcome` (`messages`, the whole ring) and in frames (`ViewFrame.m
   and explosives (magazines: the short name; other items: the name), calibre names from `ammo-calibre` and
   `ammo-calibre-bobbyray` in the display language. `ItemDef` parses `inventoryGraphics` and `tileGraphic` with the
   defaults of `ItemModel` (`interface/mdguns.sti` 0, `bigitems/gun00.sti` 0, `GUNS` 1).
+
+### 6.26. Queries, cursor hints and the player-knowledge projection (M8, U3b)
+
+Cursor feedback (the path and its AP cost under the pointer, the chance to hit, valid drop targets, ETAs while
+plotting, which menu lines are enabled) needs answers several times a second. The original computes them in the UI
+with the rules' own functions; ja2-node does the same, in the browser and on the server, with the simulation's own
+functions over the **player-knowledge projection** (`28` §2.4).
+
+**The projection** (`src/sim/knowledge/`). `knowledgeWorld(view, rules, {strict?})` builds from a player view and the
+rule content the minimal world the hint functions read: for tactical hints a `TacticalState` over a fresh copy of the
+sector's world (`TacticalProjection`, cached per map and synced per view), with the doors set to the view's `openDoors`
+and their perceived lock and trap from `doors`, the ground items of `items`, the light of `light` (the base level and the
+powered light sprites, drawn by the simulation's lighting over the projected doors), the player's soldiers in full
+(the view's own fields, the inventory rebuilt as objects, and the own soldiers' `hint` inputs: skill traits,
+personality, shock, last target, tiles moved, carried weight at the turn start, collapsed, gassed, under AI control)
+and only the soldiers the player sees, with only their visible fields (position, stance, body, the hand item class and
+the health category as appearance stand-ins for the person structure). Unseen soldiers do not exist in it, so they
+block no path, absorb no bullet in a chance to get through and are no target. For strategic hints a minimal strategic
+state built from the strategic view and the static strategic content (`strategic.ts`). In **strict mode** (tests) every
+field the view does not supply throws `UnsuppliedFieldError` when a hint reads it, so a hint that reads hidden state
+fails at once; every such read was decided: supplied from the view (own soldiers), given a documented neutral value
+(other soldiers' tiles moved, awareness and collapse; `deviations.md` §6), or the answer part dropped (the melee chance
+to hit). `knowledgeViewOf(sim)` gives the same view from a `TacticalSim` for simulation tests.
+
+**The hint kinds** (`src/sim/hints/`, dispatched by `answerHint`; each answer is `{ok, reason?, data}` with
+`data.refusal` on a refusal, like a command):
+
+| Kind | Request | Answer (`data`) |
+|---|---|---|
+| `previewMove` | `{soldier, to, mode?, reverse?, level?}` | `{destination: ok \| blocked \| heightDiffers \| robotUncontrolled, apCost, firstStepCost, affordable, steps: [{gridNo, enterDir, leaveDir, band}], refusal?}`: `UIPlotPath`/`PlotPath` (start cost, the run start cost, the fence rule), the footstep colour bands (crawl, swat, walk, run, none; real time: none), the first step plus the stance change (`SelectedMercCanAffordMove`), `UIOKMoveDestination` and the land height check; `level` is the interface level (another level plots nothing); `refusal` names a view-level lock (`uiLocked`, `mercUnavailable`, `cannotAct`) |
+| `estimateAttack` | `{soldier, target, level?, aimTime?, bodyPart?, burst?, weaponMode?}` | `{cursor, weaponMode, apCost, apCostByAim[0..4], actionPoints, chanceToHit, chanceToGetThrough, inRange, ammo {empty, canReload, reloadAp}, inReach?, pathClear?, landsAt?, landsOnLevel?, maxRange?}`: `GetActionModeCursor`, the reload cursors, `InRange`, the toss and trajectory branch with the launchable attachment and the attached grenade launcher (`CalculateLaunchItemChanceToGetThrough` with the landing level) |
+| `previewAction` | `{soldier, gridNo, level?, kind, target?, mode?}`, kinds `door`, `pickUp`, `talk`, `give`, `jump`, `swap`, `look`, `aid` (`steal`, `cutFence`, `repair`, `refuel`, `jar`, `can`, `bomb`, `enterVehicle` answer `notSupported`) | `{kind, ok, refusal?, apCost, affordable, actionGridNo, steps, direction?, open?, menu?, inRange?, lineOfSight?}`: one branch of `DrawUIMovementPath` each (the adjacent tile, the walk-up footsteps, the action's AP: `doorAPs`, `AP_PICKUP_ITEM`, `AP_TALK`, `GetAPsToGiveItem`, `GetAPsToJumpOver`, `AP_EXCHANGE_PLACES`, `GetAPsToLook`, `GetAPsToBeginFirstAid`), the door menu for a door the player believes locked, `IsValidJumpLocation`, `ValidQuickExchangePosition` |
+| `placements` | `{soldier, slot, count?, index?, mapScreen?}` | `{cursor {item, count}, slots: [{slot, invalid, hatched, attach, merge, highlight, fits}], secondHandBlocked, applyOnMerc, compatibleMercs}`: `ReevaluateItemHatches` (`CanItemFitInPosition`, `ValidAttachment`, `ValidMerge`), `InternalHandleCompatibleAmmoUI` (two-way attachments and launchables, the calibre) and a dry-run placement |
+| `itemInfo` | `{soldier, slot, index?, metric?}` or `{item, metric?}` | `{item, kind, count, weight, status?, amount?, money?, weapon?, title?, ammo?, pros?, cons?}`: the description box's numbers (`Weight()` per object in kg or lb, `GunRange`/10, impact, `BaseAPsToShootOrStab(20, 80)`, the burst AP, the white highlights), the gun title and the pros and cons as `Message` indices |
+| `exitSector` with `dryRun: true` | the `exitSector` fields | `{minutes, who, load, target, level}` or the refusal the command would give: `OKForSectorExit` and the exit menu rules, shared with the command (`sector-exits.ts` runs on a narrow `ExitWorld`) |
+| `exitSectorOptions` | `{soldier}` | the exit dialog's result (0, 1, 2) and choices (single or squad, load, their enabled states): `InternalInitSectorExitMenu` |
+| `canEnterSector` | `{sector}` | `{allowed, reason?}`: an open strategic prompt, a battle in another loaded sector, `CanGoToTacticalInSector`, a map for the sector |
+| `assignmentOptions` | `{soldier}` | `{box: assignment \| epc \| removeMerc, lines, squads, vehicles, repair, training, attributes {self, teammate, byOther}}`, each line `{line, enabled, shade: none \| gray \| yellow, reason?, target?}`: `HandleShadingOfLinesForAssignmentMenus` and the `CanCharacter*` checks |
+| `previewRoute` | `{soldier, to, via?, shortest?}` | `{path, temp, edgeMinutes, etaMinutes}`: `BuildAStrategicPath` from the end of the merc's path (`shortest` = Shift, every edge 60 minutes), `FindTravelTimeBetweenWaypoints`, and the ETA as the map screen shows it while plotting: `GetGroundTravelTimeOfSoldier` sums `GetPathTravelTimeDuringPlotting` over the temporary and the merc's path, so while the group is between sectors the remaining leg counts twice and the temporary path's first edge is dropped (`MapScreen.cc:939-1045`, `:7142-7153`; kept, D1) |
+| `previewHeliRoute` | `{to, via?}` | `{path, temp, distance, safe, unsafe, cost, etaMinutes, passengers, refusal?}`: `DistanceOfIntendedHelicopterPath` (9999 when it cannot fly), the safe and unsafe counts with the original's first-node rules, safe × 100 + unsafe × 1000, the ETA with the same double count (`Map_Screen_Interface_Map.cc:2169-2226`) |
+
+**Server-only queries.** Answers that depend on state the player does not see or that price a decision stay on the
+server: `aimQuote`, `bobbyRayQuote`, `insuranceQuote`, `impPreview`, `arrivalTime`, `quoteTrade`, `contractOptions` and
+`inventory` (other sectors' stashes included), plus `hireCheck` and `impCheckCode`, which the simulation does not answer
+yet (`unknownCommand`, U10/U11). The query service passes them to the simulation's own command handlers without
+logging them; the purity test (`src/server/query-purity.test.ts`) runs every one of them and compares the session
+snapshot byte for byte (it found the stash read of another sector creating an empty sector diff, fixed).
+
+**The query channel.** WebSocket `{t: 'query', id, q}` → `{t: 'answer', id, ok, tick, reason?, data?}`. `SessionHost`
+gains `query(q)`: the in-process host answers it like `observe`, between ticks, outside the session's input queue
+(during a sliced advance it runs between slices), never appends it to the input log, captures no frame and runs no
+advance under the instant driver; the worker host forwards it as a host call. The WebSocket server sends the answer as
+soon as it is ready, outside the ordered reply chain of commands. `isQueryCommand` (every hint kind, `exitSector` with
+`dryRun: true`, and the server-only kinds) also routes a query that arrives as a command (MCP `act`, WebSocket `cmd`)
+to the same path, so agents keep queries as `act` commands and get the projection's answer; replaying an old input log
+that holds a query still dispatches it to the simulation (`estimateAttack` is gone from `TacticalSim` and is refused
+there). The answer's `tick` is the tick of the view it was computed on. `Session.queries` is a `QueryService`
+(`src/server/query.ts`, attached by the session factory) that keeps a fresh copy of the loaded map's world inputs for
+the projection (two maps) and the knowledge rules per content; the server builds the projection per query.
+
+**Fairness.** The server answers every hint over the projection of the same view it sends the player (D16): unseen
+soldiers do not exist (`src/server/hints-fairness.test.ts`, `hints-actions-stub.test.ts`: an unseen enemy on the target
+tile and the path changes no answer), the strategic hints read only the enemy counts the view shows, and the melee chance
+to hit, which needs the defender's hidden ratings, is `null`. Where the original UI itself read hidden state the
+projection does not; the command then refuses on the full state with the original's message (`deviations.md` §6).
+
+**The client** (`src/app/hints/`). `ClientKnowledge.open(source, welcome identity)` loads the rule content with U0b's
+`loadClientRules` and the same loaders (`loadTacticalContent`, `loadStrategicRules`, the world loader on demand per
+map), and is usable when the engine identity Vite injects (`__JA2_ENGINE__`, from `engineIdentity()`) and the rule
+pack and scripts hashes equal `welcome`'s. `HintProvider` (implementing `GameClient` of `src/ui/game-client.ts`:
+`hint(request)` every frame, `hintNow`, `query`) computes hints on the latest received view (not the playback view)
+once the request has rested 80 ms (`PATHFIND_REST_MS`, per hint kind), caches them per view, builds the projection once
+per view, and falls back to the query channel when the knowledge is unusable or the map is not loaded yet. In **shadow
+mode** (`?shadowHints=1` on the devtools tactical page, on in e2e) it sends every local hint to the server as well and
+counts compared, stale (another tick) and differing answers; `window.__ja2Ui.hints` exposes the statistics, including
+the latency of hints and of projection builds.
 
 ## 7. Cost and limitations
 
