@@ -17,10 +17,11 @@ const BEVEL = 1;
 const LABEL_MARGIN = 2;
 const AUX_ANIMATED_TILE = 0x02;
 
-interface FramePlan {
+export interface FramePlan {
   width: number;
   height: number;
   state: StubFrameState;
+  hollow: boolean;
 }
 
 export interface StubAssetPlan {
@@ -81,7 +82,9 @@ export function planStubSkin(models: readonly LayoutModel[]): Map<string, StubAs
           throw new Error(
             `${asset.path} frame ${i}: ${plan.layouts.join(', ')} declare ${known.width}×${known.height} and ${width}×${height}`,
           );
-        if (!known) plan.frames[i] = { width, height, state };
+        const hollow = stub?.hollow === true || (Array.isArray(stub?.hollow) && stub.hollow.includes(i));
+        if (!known) plan.frames[i] = { width, height, state, hollow };
+        else if (hollow) known.hollow = true;
         else if (known.state === 'plain') known.state = state;
       }
       const animated = stub?.animated === undefined ? 0 : model.number(stub.animated as number | string);
@@ -109,8 +112,22 @@ function bevelled(width: number, height: number, state: StubFrameState): Indexed
   return raster;
 }
 
+function outlined(width: number, height: number): IndexedRaster {
+  const raster = new IndexedRaster(width, height);
+  const ink = color('ui', 13);
+  for (let x = 0; x < width; x++) {
+    raster.set(x, 0, ink);
+    raster.set(x, height - 1, ink);
+  }
+  for (let y = 0; y < height; y++) {
+    raster.set(0, y, ink);
+    raster.set(width - 1, y, ink);
+  }
+  return raster;
+}
+
 async function frameImage(name: string, index: number, frame: FramePlan): Promise<IndexedRaster> {
-  const raster = bevelled(frame.width, frame.height, frame.state);
+  const raster = frame.hollow ? outlined(frame.width, frame.height) : bevelled(frame.width, frame.height, frame.state);
   const font = await labelFont();
   const label = `${name}#${index}`;
   const short = String(index);

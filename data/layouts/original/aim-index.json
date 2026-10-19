@@ -1,0 +1,463 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/AIMFacialIndex.cc EnterAimFacialIndex (8 x 5 regions of AIM_FI_PORTRAIT_WIDTH x AIM_FI_PORTRAIT_HEIGHT, the screen region at MSYS_PRIORITY_HIGH - 1), RenderAimFacialIndex, DrawMercsFaceToScreen (mugshotborder3.sti frame 1, frame 0 under the pointer, the face at AIM_FI_FACE_OFFSET, ShadowRect over 48 x 43, the overlay in FONT10ARIAL colour 145, AIMFacialIndex.cc:280-288)"
+  ],
+  "screen": "aimIndex",
+  "frame": "std640",
+  "constants": ["Laptop", "AIM", "AIMFacialIndex"],
+  "assets": {
+    "border": {
+      "sti": "laptop/mugshotborder3.sti",
+      "stub": {
+        "frames": 2,
+        "size": ["AIM_FI_PORTRAIT_WIDTH", "AIM_FI_PORTRAIT_HEIGHT"],
+        "states": ["hover", "normal"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "text",
+      "x": "AIM_FI_MEMBER_TEXT_X",
+      "y": "AIM_FI_MEMBER_TEXT_Y",
+      "font": "AIM_MAINTITLE_FONT",
+      "color": "AIM_MAINTITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "sortedTitle"
+      },
+      "id": "sortedTitle",
+      "width": "AIM_FI_MEMBER_TEXT_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "region",
+      "id": "indexScreen",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "width": "LAPTOP_SCREEN_LR_X - LAPTOP_SCREEN_UL_X",
+      "height": "LAPTOP_SCREEN_WEB_LR_Y - LAPTOP_SCREEN_WEB_UL_Y",
+      "priority": "HIGH-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "secondary": "sortPage"
+    },
+    {
+      "type": "repeat",
+      "count": "AIM_FI_NUM_MUHSHOTS_X",
+      "x": "AIM_FI_FIRST_MUGSHOT_X",
+      "y": "AIM_FI_FIRST_MUGSHOT_Y + (AIM_FI_PORTRAIT_HEIGHT + AIM_FI_MUGSHOT_GAP_Y) * 0",
+      "dx": "AIM_FI_PORTRAIT_WIDTH + AIM_FI_MUGSHOT_GAP_X",
+      "template": [
+        {
+          "type": "image",
+          "asset": "border",
+          "frame": {
+            "bind": "mugRows[0][$i].border"
+          },
+          "x": 0,
+          "y": 0,
+          "visible": "mugRows[0][$i].present"
+        },
+        {
+          "type": "portrait",
+          "id": "mugShot0_$i",
+          "face": {
+            "bind": "mugRows[0][$i].face"
+          },
+          "size": "small",
+          "state": "mugRows[0][$i].state",
+          "x": "AIM_FI_FACE_OFFSET",
+          "y": "AIM_FI_FACE_OFFSET",
+          "shadeWidth": 48,
+          "shadeHeight": 43,
+          "visible": "mugRows[0][$i].present"
+        },
+        {
+          "type": "text",
+          "x": "0 - AIM_FI_NNAME_OFFSET_X",
+          "y": "AIM_FI_NNAME_OFFSET_Y",
+          "font": "AIM_FONT12ARIAL",
+          "color": "AIM_FONT_MCOLOR_WHITE",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "mugRows[0][$i].nickname"
+          },
+          "id": "mugName0_$i",
+          "width": "AIM_FI_NNAME_WIDTH",
+          "align": "center"
+        },
+        {
+          "type": "text",
+          "x": "AIM_FI_AWAY_TEXT_OFFSET_X",
+          "y": "AIM_FI_AWAY_TEXT_OFFSET_Y",
+          "font": "FONT10ARIAL",
+          "color": 145,
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "mugRows[0][$i].overlay"
+          },
+          "width": "AIM_FI_AWAY_TEXT_OFFSET_WIDTH",
+          "align": "center"
+        },
+        {
+          "type": "region",
+          "id": "mugRegion0_$i",
+          "x": 0,
+          "y": 0,
+          "width": "AIM_FI_PORTRAIT_WIDTH",
+          "height": "AIM_FI_PORTRAIT_HEIGHT",
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "primary": "selectFace(0,$i)",
+          "secondary": "sortPage",
+          "hover": "hoverFace(0,$i)"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": "AIM_FI_NUM_MUHSHOTS_X",
+      "x": "AIM_FI_FIRST_MUGSHOT_X",
+      "y": "AIM_FI_FIRST_MUGSHOT_Y + (AIM_FI_PORTRAIT_HEIGHT + AIM_FI_MUGSHOT_GAP_Y) * 1",
+      "dx": "AIM_FI_PORTRAIT_WIDTH + AIM_FI_MUGSHOT_GAP_X",
+      "template": [
+        {
+          "type": "image",
+          "asset": "border",
+          "frame": {
+            "bind": "mugRows[1][$i].border"
+          },
+          "x": 0,
+          "y": 0,
+          "visible": "mugRows[1][$i].present"
+        },
+        {
+          "type": "portrait",
+          "id": "mugShot1_$i",
+          "face": {
+            "bind": "mugRows[1][$i].face"
+          },
+          "size": "small",
+          "state": "mugRows[1][$i].state",
+          "x": "AIM_FI_FACE_OFFSET",
+          "y": "AIM_FI_FACE_OFFSET",
+          "shadeWidth": 48,
+          "shadeHeight": 43,
+          "visible": "mugRows[1][$i].present"
+        },
+        {
+          "type": "text",
+          "x": "0 - AIM_FI_NNAME_OFFSET_X",
+          "y": "AIM_FI_NNAME_OFFSET_Y",
+          "font": "AIM_FONT12ARIAL",
+          "color": "AIM_FONT_MCOLOR_WHITE",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "mugRows[1][$i].nickname"
+          },
+          "id": "mugName1_$i",
+          "width": "AIM_FI_NNAME_WIDTH",
+          "align": "center"
+        },
+        {
+          "type": "text",
+          "x": "AIM_FI_AWAY_TEXT_OFFSET_X",
+          "y": "AIM_FI_AWAY_TEXT_OFFSET_Y",
+          "font": "FONT10ARIAL",
+          "color": 145,
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "mugRows[1][$i].overlay"
+          },
+          "width": "AIM_FI_AWAY_TEXT_OFFSET_WIDTH",
+          "align": "center"
+        },
+        {
+          "type": "region",
+          "id": "mugRegion1_$i",
+          "x": 0,
+          "y": 0,
+          "width": "AIM_FI_PORTRAIT_WIDTH",
+          "height": "AIM_FI_PORTRAIT_HEIGHT",
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "primary": "selectFace(1,$i)",
+          "secondary": "sortPage",
+          "hover": "hoverFace(1,$i)"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": "AIM_FI_NUM_MUHSHOTS_X",
+      "x": "AIM_FI_FIRST_MUGSHOT_X",
+      "y": "AIM_FI_FIRST_MUGSHOT_Y + (AIM_FI_PORTRAIT_HEIGHT + AIM_FI_MUGSHOT_GAP_Y) * 2",
+      "dx": "AIM_FI_PORTRAIT_WIDTH + AIM_FI_MUGSHOT_GAP_X",
+      "template": [
+        {
+          "type": "image",
+          "asset": "border",
+          "frame": {
+            "bind": "mugRows[2][$i].border"
+          },
+          "x": 0,
+          "y": 0,
+          "visible": "mugRows[2][$i].present"
+        },
+        {
+          "type": "portrait",
+          "id": "mugShot2_$i",
+          "face": {
+            "bind": "mugRows[2][$i].face"
+          },
+          "size": "small",
+          "state": "mugRows[2][$i].state",
+          "x": "AIM_FI_FACE_OFFSET",
+          "y": "AIM_FI_FACE_OFFSET",
+          "shadeWidth": 48,
+          "shadeHeight": 43,
+          "visible": "mugRows[2][$i].present"
+        },
+        {
+          "type": "text",
+          "x": "0 - AIM_FI_NNAME_OFFSET_X",
+          "y": "AIM_FI_NNAME_OFFSET_Y",
+          "font": "AIM_FONT12ARIAL",
+          "color": "AIM_FONT_MCOLOR_WHITE",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "mugRows[2][$i].nickname"
+          },
+          "id": "mugName2_$i",
+          "width": "AIM_FI_NNAME_WIDTH",
+          "align": "center"
+        },
+        {
+          "type": "text",
+          "x": "AIM_FI_AWAY_TEXT_OFFSET_X",
+          "y": "AIM_FI_AWAY_TEXT_OFFSET_Y",
+          "font": "FONT10ARIAL",
+          "color": 145,
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "mugRows[2][$i].overlay"
+          },
+          "width": "AIM_FI_AWAY_TEXT_OFFSET_WIDTH",
+          "align": "center"
+        },
+        {
+          "type": "region",
+          "id": "mugRegion2_$i",
+          "x": 0,
+          "y": 0,
+          "width": "AIM_FI_PORTRAIT_WIDTH",
+          "height": "AIM_FI_PORTRAIT_HEIGHT",
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "primary": "selectFace(2,$i)",
+          "secondary": "sortPage",
+          "hover": "hoverFace(2,$i)"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": "AIM_FI_NUM_MUHSHOTS_X",
+      "x": "AIM_FI_FIRST_MUGSHOT_X",
+      "y": "AIM_FI_FIRST_MUGSHOT_Y + (AIM_FI_PORTRAIT_HEIGHT + AIM_FI_MUGSHOT_GAP_Y) * 3",
+      "dx": "AIM_FI_PORTRAIT_WIDTH + AIM_FI_MUGSHOT_GAP_X",
+      "template": [
+        {
+          "type": "image",
+          "asset": "border",
+          "frame": {
+            "bind": "mugRows[3][$i].border"
+          },
+          "x": 0,
+          "y": 0,
+          "visible": "mugRows[3][$i].present"
+        },
+        {
+          "type": "portrait",
+          "id": "mugShot3_$i",
+          "face": {
+            "bind": "mugRows[3][$i].face"
+          },
+          "size": "small",
+          "state": "mugRows[3][$i].state",
+          "x": "AIM_FI_FACE_OFFSET",
+          "y": "AIM_FI_FACE_OFFSET",
+          "shadeWidth": 48,
+          "shadeHeight": 43,
+          "visible": "mugRows[3][$i].present"
+        },
+        {
+          "type": "text",
+          "x": "0 - AIM_FI_NNAME_OFFSET_X",
+          "y": "AIM_FI_NNAME_OFFSET_Y",
+          "font": "AIM_FONT12ARIAL",
+          "color": "AIM_FONT_MCOLOR_WHITE",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "mugRows[3][$i].nickname"
+          },
+          "id": "mugName3_$i",
+          "width": "AIM_FI_NNAME_WIDTH",
+          "align": "center"
+        },
+        {
+          "type": "text",
+          "x": "AIM_FI_AWAY_TEXT_OFFSET_X",
+          "y": "AIM_FI_AWAY_TEXT_OFFSET_Y",
+          "font": "FONT10ARIAL",
+          "color": 145,
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "mugRows[3][$i].overlay"
+          },
+          "width": "AIM_FI_AWAY_TEXT_OFFSET_WIDTH",
+          "align": "center"
+        },
+        {
+          "type": "region",
+          "id": "mugRegion3_$i",
+          "x": 0,
+          "y": 0,
+          "width": "AIM_FI_PORTRAIT_WIDTH",
+          "height": "AIM_FI_PORTRAIT_HEIGHT",
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "primary": "selectFace(3,$i)",
+          "secondary": "sortPage",
+          "hover": "hoverFace(3,$i)"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": "AIM_FI_NUM_MUHSHOTS_X",
+      "x": "AIM_FI_FIRST_MUGSHOT_X",
+      "y": "AIM_FI_FIRST_MUGSHOT_Y + (AIM_FI_PORTRAIT_HEIGHT + AIM_FI_MUGSHOT_GAP_Y) * 4",
+      "dx": "AIM_FI_PORTRAIT_WIDTH + AIM_FI_MUGSHOT_GAP_X",
+      "template": [
+        {
+          "type": "image",
+          "asset": "border",
+          "frame": {
+            "bind": "mugRows[4][$i].border"
+          },
+          "x": 0,
+          "y": 0,
+          "visible": "mugRows[4][$i].present"
+        },
+        {
+          "type": "portrait",
+          "id": "mugShot4_$i",
+          "face": {
+            "bind": "mugRows[4][$i].face"
+          },
+          "size": "small",
+          "state": "mugRows[4][$i].state",
+          "x": "AIM_FI_FACE_OFFSET",
+          "y": "AIM_FI_FACE_OFFSET",
+          "shadeWidth": 48,
+          "shadeHeight": 43,
+          "visible": "mugRows[4][$i].present"
+        },
+        {
+          "type": "text",
+          "x": "0 - AIM_FI_NNAME_OFFSET_X",
+          "y": "AIM_FI_NNAME_OFFSET_Y",
+          "font": "AIM_FONT12ARIAL",
+          "color": "AIM_FONT_MCOLOR_WHITE",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "mugRows[4][$i].nickname"
+          },
+          "id": "mugName4_$i",
+          "width": "AIM_FI_NNAME_WIDTH",
+          "align": "center"
+        },
+        {
+          "type": "text",
+          "x": "AIM_FI_AWAY_TEXT_OFFSET_X",
+          "y": "AIM_FI_AWAY_TEXT_OFFSET_Y",
+          "font": "FONT10ARIAL",
+          "color": 145,
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "mugRows[4][$i].overlay"
+          },
+          "width": "AIM_FI_AWAY_TEXT_OFFSET_WIDTH",
+          "align": "center"
+        },
+        {
+          "type": "region",
+          "id": "mugRegion4_$i",
+          "x": 0,
+          "y": 0,
+          "width": "AIM_FI_PORTRAIT_WIDTH",
+          "height": "AIM_FI_PORTRAIT_HEIGHT",
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "primary": "selectFace(4,$i)",
+          "secondary": "sortPage",
+          "hover": "hoverFace(4,$i)"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "x": "AIM_FI_LEFT_CLICK_TEXT_X",
+      "y": "AIM_FI_LEFT_CLICK_TEXT_Y",
+      "font": "AIM_FI_HELP_TITLE_FONT",
+      "color": "AIM_FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimFiText", "AIM_FI_LEFT_CLICK"]
+      },
+      "width": "AIM_FI_CLICK_TEXT_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "AIM_FI_LEFT_CLICK_TEXT_X",
+      "y": "AIM_FI_LEFT_CLICK_TEXT_Y + AIM_FI_CLICK_DESC_TEXT_Y_OFFSET",
+      "font": "AIM_FI_HELP_FONT",
+      "color": "AIM_FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimFiText", "AIM_FI_TO_SELECT"]
+      },
+      "width": "AIM_FI_CLICK_TEXT_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "AIM_FI_RIGHT_CLICK_TEXT_X",
+      "y": "AIM_FI_LEFT_CLICK_TEXT_Y",
+      "font": "AIM_FI_HELP_TITLE_FONT",
+      "color": "AIM_FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimFiText", "AIM_FI_RIGHT_CLICK"]
+      },
+      "width": "AIM_FI_CLICK_TEXT_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "AIM_FI_RIGHT_CLICK_TEXT_X",
+      "y": "AIM_FI_LEFT_CLICK_TEXT_Y + AIM_FI_CLICK_DESC_TEXT_Y_OFFSET",
+      "font": "AIM_FI_HELP_FONT",
+      "color": "AIM_FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimFiText", "AIM_FI_TO_ENTER_SORT_PAGE"]
+      },
+      "width": "AIM_FI_CLICK_TEXT_WIDTH",
+      "align": "center"
+    }
+  ]
+}

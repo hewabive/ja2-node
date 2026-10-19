@@ -1,0 +1,816 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/Finances.cc RenderBackGround (financeswindow.sti at TOP_X, TOP_Y + 22), DrawSummaryLines, DrawSummaryText (the labels pFinanceSummary 2-11 at TEXT_X, the amounts right-aligned at 580), DrawRecordsBackGround (recordcolumns.sti for i 6-34, divisionline480.sti), DrawRecordsColumnHeadersText, DrawRecordsText (rows from 12 + RECORD_Y), DisplayFinancePageNumberAndDateRange, CreateFinanceButtons (arrows.sti 0/1, 6/7, 3/4, 9/10 at BTN_Y, priority HIGHEST - 1; the wheel region TOP_X + 8, TOP_Y + 53, 482 x 354)"
+  ],
+  "screen": "laptopFinances",
+  "frame": "std640",
+  "constants": ["Laptop", "Finances"],
+  "assets": {
+    "window": {
+      "sti": "laptop/financeswindow.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["LAPTOP_SCREEN_WIDTH", "LAPTOP_SCREEN_HEIGHT - 22"]
+      }
+    },
+    "line": {
+      "sti": "laptop/divisionline.sti",
+      "stub": {
+        "frames": 1,
+        "size": [450, 2]
+      }
+    },
+    "longLine": {
+      "sti": "laptop/divisionline480.sti",
+      "stub": {
+        "frames": 1,
+        "size": [480, 2]
+      }
+    },
+    "columns": {
+      "sti": "laptop/recordcolumns.sti",
+      "stub": {
+        "frames": 1,
+        "size": [480, "BLOCK_HEIGHT"]
+      }
+    },
+    "arrows": {
+      "sti": "laptop/arrows.sti",
+      "stub": {
+        "frames": 11,
+        "size": [22, 16],
+        "states": ["normal", "pressed", "plain", "normal", "pressed", "plain", "normal", "pressed", "plain", "normal", "pressed"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "asset": "window",
+      "frame": 0,
+      "x": "TOP_X",
+      "y": "TOP_Y + 22"
+    },
+    {
+      "type": "image",
+      "asset": "line",
+      "frame": 0,
+      "x": "DIVLINE_X",
+      "y": "TOP_DIVLINE_Y",
+      "visible": "summary"
+    },
+    {
+      "type": "image",
+      "asset": "line",
+      "frame": 0,
+      "x": "DIVLINE_X",
+      "y": "TOP_DIVLINE_Y + 2",
+      "visible": "summary"
+    },
+    {
+      "type": "image",
+      "asset": "line",
+      "frame": 0,
+      "x": "DIVLINE_X",
+      "y": "BOT_DIVLINE_Y",
+      "visible": "summary"
+    },
+    {
+      "type": "image",
+      "asset": "line",
+      "frame": 0,
+      "x": "DIVLINE_X",
+      "y": "MID_DIVLINE_Y2",
+      "visible": "summary"
+    },
+    {
+      "type": "text",
+      "x": "TEXT_X",
+      "y": "YESTERDAYS_INCOME",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "key": ["pFinanceSummary", 2]
+      },
+      "visible": "summary"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "YESTERDAYS_INCOME",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[0].text"
+      },
+      "visible": "amounts[0].black",
+      "id": "amount0"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "YESTERDAYS_INCOME",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_RED",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[0].text"
+      },
+      "visible": "amounts[0].red"
+    },
+    {
+      "type": "text",
+      "x": "TEXT_X",
+      "y": "YESTERDAYS_OTHER",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "key": ["pFinanceSummary", 3]
+      },
+      "visible": "summary"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "YESTERDAYS_OTHER",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[1].text"
+      },
+      "visible": "amounts[1].black",
+      "id": "amount1"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "YESTERDAYS_OTHER",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_RED",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[1].text"
+      },
+      "visible": "amounts[1].red"
+    },
+    {
+      "type": "text",
+      "x": "TEXT_X",
+      "y": "YESTERDAYS_DEBITS",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "key": ["pFinanceSummary", 4]
+      },
+      "visible": "summary"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "YESTERDAYS_DEBITS",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[2].text"
+      },
+      "visible": "amounts[2].black",
+      "id": "amount2"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "YESTERDAYS_DEBITS",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_RED",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[2].text"
+      },
+      "visible": "amounts[2].red"
+    },
+    {
+      "type": "text",
+      "x": "TEXT_X",
+      "y": "YESTERDAYS_BALANCE",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "key": ["pFinanceSummary", 5]
+      },
+      "visible": "summary"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "YESTERDAYS_BALANCE",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[3].text"
+      },
+      "visible": "amounts[3].black",
+      "id": "amount3"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "YESTERDAYS_BALANCE",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_RED",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[3].text"
+      },
+      "visible": "amounts[3].red"
+    },
+    {
+      "type": "text",
+      "x": "TEXT_X",
+      "y": "TODAYS_INCOME",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "key": ["pFinanceSummary", 6]
+      },
+      "visible": "summary"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "TODAYS_INCOME",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[4].text"
+      },
+      "visible": "amounts[4].black",
+      "id": "amount4"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "TODAYS_INCOME",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_RED",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[4].text"
+      },
+      "visible": "amounts[4].red"
+    },
+    {
+      "type": "text",
+      "x": "TEXT_X",
+      "y": "TODAYS_OTHER",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "key": ["pFinanceSummary", 7]
+      },
+      "visible": "summary"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "TODAYS_OTHER",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[5].text"
+      },
+      "visible": "amounts[5].black",
+      "id": "amount5"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "TODAYS_OTHER",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_RED",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[5].text"
+      },
+      "visible": "amounts[5].red"
+    },
+    {
+      "type": "text",
+      "x": "TEXT_X",
+      "y": "TODAYS_DEBITS",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "key": ["pFinanceSummary", 8]
+      },
+      "visible": "summary"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "TODAYS_DEBITS",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[6].text"
+      },
+      "visible": "amounts[6].black",
+      "id": "amount6"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "TODAYS_DEBITS",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_RED",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[6].text"
+      },
+      "visible": "amounts[6].red"
+    },
+    {
+      "type": "text",
+      "x": "TEXT_X",
+      "y": "TODAYS_CURRENT_BALANCE",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "key": ["pFinanceSummary", 9]
+      },
+      "visible": "summary"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "TODAYS_CURRENT_BALANCE",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[7].text"
+      },
+      "visible": "amounts[7].black",
+      "id": "amount7"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "TODAYS_CURRENT_BALANCE",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_RED",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[7].text"
+      },
+      "visible": "amounts[7].red"
+    },
+    {
+      "type": "text",
+      "x": "TEXT_X",
+      "y": "TODAYS_CURRENT_FORCAST_INCOME",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "key": ["pFinanceSummary", 10]
+      },
+      "visible": "summary"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "TODAYS_CURRENT_FORCAST_INCOME",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[8].text"
+      },
+      "visible": "amounts[8].black",
+      "id": "amount8"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "TODAYS_CURRENT_FORCAST_INCOME",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_RED",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[8].text"
+      },
+      "visible": "amounts[8].red"
+    },
+    {
+      "type": "text",
+      "x": "TEXT_X",
+      "y": "TODAYS_CURRENT_FORCAST_BALANCE",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "key": ["pFinanceSummary", 11]
+      },
+      "visible": "summary"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "TODAYS_CURRENT_FORCAST_BALANCE",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[9].text"
+      },
+      "visible": "amounts[9].black",
+      "id": "amount9"
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": "TODAYS_CURRENT_FORCAST_BALANCE",
+      "width": 580,
+      "align": "right",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_RED",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "amounts[9].text"
+      },
+      "visible": "amounts[9].red"
+    },
+    {
+      "type": "repeat",
+      "count": 29,
+      "x": "TOP_X + 10",
+      "y": "TOP_Y + 18 + 6 * BLOCK_HEIGHT + 1",
+      "dy": "BLOCK_HEIGHT",
+      "visible": "ledger",
+      "template": [
+        {
+          "type": "image",
+          "asset": "columns",
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "asset": "longLine",
+      "frame": 0,
+      "x": "TOP_X + 10",
+      "y": "TOP_Y + 17 + 6 * BLOCK_HEIGHT",
+      "visible": "ledger"
+    },
+    {
+      "type": "image",
+      "asset": "longLine",
+      "frame": 0,
+      "x": "TOP_X + 10",
+      "y": "TOP_Y + 19 + 6 * BLOCK_HEIGHT",
+      "visible": "ledger"
+    },
+    {
+      "type": "image",
+      "asset": "longLine",
+      "frame": 0,
+      "x": "TOP_X + 10",
+      "y": "TOP_Y + 19 + 35 * BLOCK_HEIGHT",
+      "visible": "ledger"
+    },
+    {
+      "type": "text",
+      "x": "RECORD_DATE_X",
+      "y": "RECORD_HEADER_Y",
+      "width": "RECORD_DATE_WIDTH",
+      "align": "center",
+      "alignRule": "font",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "key": ["pFinanceHeaders", 0]
+      },
+      "visible": "ledger"
+    },
+    {
+      "type": "text",
+      "x": "RECORD_DEBIT_X",
+      "y": "RECORD_HEADER_Y",
+      "width": "RECORD_DEBIT_WIDTH",
+      "align": "center",
+      "alignRule": "font",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "key": ["pFinanceHeaders", 1]
+      },
+      "visible": "ledger"
+    },
+    {
+      "type": "text",
+      "x": "RECORD_CREDIT_X",
+      "y": "RECORD_HEADER_Y",
+      "width": "RECORD_CREDIT_WIDTH",
+      "align": "center",
+      "alignRule": "font",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "key": ["pFinanceHeaders", 2]
+      },
+      "visible": "ledger"
+    },
+    {
+      "type": "text",
+      "x": "RECORD_TRANSACTION_X",
+      "y": "RECORD_HEADER_Y",
+      "width": "RECORD_TRANSACTION_WIDTH",
+      "align": "center",
+      "alignRule": "font",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "key": ["pFinanceHeaders", 3]
+      },
+      "visible": "ledger"
+    },
+    {
+      "type": "text",
+      "x": "RECORD_BALANCE_X",
+      "y": "RECORD_HEADER_Y",
+      "width": "RECORD_BALANCE_WIDTH",
+      "align": "center",
+      "alignRule": "font",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "key": ["pFinanceHeaders", 4]
+      },
+      "visible": "ledger"
+    },
+    {
+      "type": "repeat",
+      "count": "NUM_RECORDS_PER_PAGE",
+      "x": 0,
+      "y": "12 + RECORD_Y",
+      "dy": {
+        "bind": "rowStep"
+      },
+      "visible": "ledger",
+      "template": [
+        {
+          "type": "text",
+          "x": "RECORD_DATE_X",
+          "y": 0,
+          "width": "RECORD_DATE_WIDTH",
+          "align": "center",
+          "alignRule": "font",
+          "font": "FINANCE_TEXT_FONT",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": {
+            "bind": "rows[$i].date"
+          },
+          "visible": "rows[$i].present",
+          "id": "ledgerDate$i"
+        },
+        {
+          "type": "text",
+          "x": "RECORD_DEBIT_X",
+          "y": 0,
+          "width": "RECORD_DEBIT_WIDTH",
+          "align": "center",
+          "alignRule": "font",
+          "font": "FINANCE_TEXT_FONT",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": {
+            "bind": "rows[$i].income"
+          },
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "RECORD_CREDIT_X",
+          "y": 0,
+          "width": "RECORD_CREDIT_WIDTH",
+          "align": "center",
+          "alignRule": "font",
+          "font": "FINANCE_TEXT_FONT",
+          "color": "FONT_RED",
+          "shadow": "NO_SHADOW",
+          "text": {
+            "bind": "rows[$i].expense"
+          },
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "RECORD_BALANCE_X",
+          "y": 0,
+          "width": "RECORD_BALANCE_WIDTH",
+          "align": "center",
+          "alignRule": "font",
+          "font": "FINANCE_TEXT_FONT",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": {
+            "bind": "rows[$i].balance"
+          },
+          "visible": "rows[$i].positive"
+        },
+        {
+          "type": "text",
+          "x": "RECORD_BALANCE_X",
+          "y": 0,
+          "width": "RECORD_BALANCE_WIDTH",
+          "align": "center",
+          "alignRule": "font",
+          "font": "FINANCE_TEXT_FONT",
+          "color": "FONT_RED",
+          "shadow": "NO_SHADOW",
+          "text": {
+            "bind": "rows[$i].balance"
+          },
+          "visible": "rows[$i].negative"
+        },
+        {
+          "type": "text",
+          "x": "RECORD_TRANSACTION_X",
+          "y": 0,
+          "width": "RECORD_TRANSACTION_WIDTH",
+          "align": "center",
+          "alignRule": "font",
+          "font": "FINANCE_TEXT_FONT",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": {
+            "bind": "rows[$i].text"
+          },
+          "visible": "rows[$i].positive",
+          "id": "ledgerText$i"
+        },
+        {
+          "type": "text",
+          "x": "RECORD_TRANSACTION_X",
+          "y": 0,
+          "width": "RECORD_TRANSACTION_WIDTH",
+          "align": "center",
+          "alignRule": "font",
+          "font": "FINANCE_TEXT_FONT",
+          "color": "FONT_RED",
+          "shadow": "NO_SHADOW",
+          "text": {
+            "bind": "rows[$i].text"
+          },
+          "visible": "rows[$i].negative"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "financePage",
+      "x": "PAGE_NUMBER_X",
+      "y": "PAGE_NUMBER_Y",
+      "font": "FINANCE_TEXT_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "bind": "pageText"
+      }
+    },
+    {
+      "type": "button",
+      "id": "prevFinancePage",
+      "x": "PREV_BTN_X",
+      "y": "BTN_Y",
+      "asset": "arrows",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "prevEnabled",
+      "primary": "prevPage"
+    },
+    {
+      "type": "button",
+      "id": "nextFinancePage",
+      "x": "NEXT_BTN_X",
+      "y": "BTN_Y",
+      "asset": "arrows",
+      "frames": {
+        "offNormal": 6,
+        "onNormal": 7
+      },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "nextEnabled",
+      "primary": "nextPage"
+    },
+    {
+      "type": "button",
+      "id": "firstFinancePage",
+      "x": "FIRST_PAGE_X",
+      "y": "BTN_Y",
+      "asset": "arrows",
+      "frames": {
+        "offNormal": 3,
+        "onNormal": 4
+      },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "prevEnabled",
+      "primary": "firstPage"
+    },
+    {
+      "type": "button",
+      "id": "lastFinancePage",
+      "x": "LAST_PAGE_X",
+      "y": "BTN_Y",
+      "asset": "arrows",
+      "frames": {
+        "offNormal": 9,
+        "onNormal": 10
+      },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "nextEnabled",
+      "primary": "lastPage"
+    },
+    {
+      "type": "region",
+      "id": "financeScroll",
+      "x": "TOP_X + 8",
+      "y": "TOP_Y + 53",
+      "width": 482,
+      "height": 354,
+      "priority": "HIGH",
+      "wheelUp": "prevPage",
+      "wheelDown": "nextPage"
+    }
+  ]
+}

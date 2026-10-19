@@ -1,0 +1,12 @@
+{
+  "format": "ja2-node stub row text v1",
+  "note": "Invented rows for the stub pack's A.I.M. site texts: the slogan, the two warning rows and the three copyright rows the home page reads. Compiled by pnpm stubs into binarydata/aimhist.edt (400-unit rows). Original writing for ja2-node.",
+  "rows": [
+    "Professional soldiers, vetted and insured, ready when your cause needs them.",
+    "Contracts are binding. Payment is due before any soldier leaves for the field.",
+    "We cannot guarantee the safety of those you send into harm's way.",
+    "Stub association of hired soldiers",
+    "All profiles on this site are invented for testing.",
+    "No soldier here exists outside the stub pack."
+  ]
+}

@@ -1,0 +1,425 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/AIM.cc EnterAIM (the four LINK_SIZE_X x LINK_SIZE_Y cards and the banner region at MSYS_PRIORITY_HIGH, CURSOR_WWW), RenderAIM, DisplayAimSlogan, DisplayAimCopyright, DrawWarningBox, DisplayAd, DisplayFlowerAd, DisplayBobbyRAd, HandleTextOnAimAdd"
+  ],
+  "screen": "aimHome",
+  "frame": "std640",
+  "constants": ["Laptop", "AIM"],
+  "assets": {
+    "memberCard": {
+      "sti": "laptop/membercard.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["LINK_SIZE_X", "LINK_SIZE_Y"]
+      }
+    },
+    "policies": {
+      "sti": "laptop/policies.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["LINK_SIZE_X", "LINK_SIZE_Y"]
+      }
+    },
+    "history": {
+      "mlg": "MLG_HISTORY",
+      "stub": {
+        "frames": 1,
+        "size": ["LINK_SIZE_X", "LINK_SIZE_Y"]
+      }
+    },
+    "links": {
+      "sti": "laptop/links.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["LINK_SIZE_X", "LINK_SIZE_Y"]
+      }
+    },
+    "warning": {
+      "mlg": "MLG_WARNING",
+      "stub": {
+        "frames": 1,
+        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"]
+      }
+    },
+    "flowerAd": {
+      "sti": "laptop/flowerad_16.sti",
+      "stub": {
+        "frames": "AIM_FLOWER_NUM_SUBIMAGES",
+        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"]
+      }
+    },
+    "forAdsAd": {
+      "mlg": "MLG_YOURAD13",
+      "stub": {
+        "frames": "AIM_AD_FOR_ADS__NUM_SUBIMAGES",
+        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"]
+      }
+    },
+    "insuranceAd": {
+      "mlg": "MLG_INSURANCEAD10",
+      "stub": {
+        "frames": "AIM_AD_INSURANCE_AD__NUM_SUBIMAGES",
+        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"]
+      }
+    },
+    "funeralAd": {
+      "mlg": "MLG_FUNERALAD9",
+      "stub": {
+        "frames": "AIM_AD_FUNERAL_AD__NUM_SUBIMAGES",
+        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"]
+      }
+    },
+    "bobbyRayAd": {
+      "mlg": "MLG_BOBBYRAYAD21",
+      "stub": {
+        "frames": "AIM_AD_BOBBYR_AD__NUM_SUBIMAGES",
+        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "asset": "memberCard",
+      "frame": 0,
+      "x": "MEMBERCARD_X",
+      "y": "MEMBERCARD_Y"
+    },
+    {
+      "type": "image",
+      "asset": "policies",
+      "frame": 0,
+      "x": "POLICIES_X",
+      "y": "POLICIES_Y"
+    },
+    {
+      "type": "image",
+      "asset": "history",
+      "frame": 0,
+      "x": "HISTORY_X",
+      "y": "HISTORY_Y"
+    },
+    {
+      "type": "image",
+      "asset": "links",
+      "frame": 0,
+      "x": "LINKS_X",
+      "y": "LINKS_Y"
+    },
+    {
+      "type": "text",
+      "x": "AIM_LOGO_TEXT_X",
+      "y": "AIM_LOGO_TEXT_Y",
+      "font": "AIM_LOGO_FONT",
+      "color": "AIM_FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/aimhist.edt", "AIM_SLOGAN"]
+      },
+      "id": "slogan",
+      "width": "AIM_LOGO_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "AIM_COPYRIGHT_X",
+      "y": "AIM_COPYRIGHT_Y + AIM_COPYRIGHT_GAP * 0",
+      "font": "AIM_COPYRIGHT_FONT",
+      "color": "FONT_MCOLOR_DKWHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/aimhist.edt", "AIM_COPYRIGHT_1"]
+      },
+      "width": "AIM_COPYRIGHT_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "AIM_COPYRIGHT_X",
+      "y": "AIM_COPYRIGHT_Y + AIM_COPYRIGHT_GAP * 1",
+      "font": "AIM_COPYRIGHT_FONT",
+      "color": "FONT_MCOLOR_DKWHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/aimhist.edt", "AIM_COPYRIGHT_2"]
+      },
+      "width": "AIM_COPYRIGHT_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "AIM_COPYRIGHT_X",
+      "y": "AIM_COPYRIGHT_Y + AIM_COPYRIGHT_GAP * 2",
+      "font": "AIM_COPYRIGHT_FONT",
+      "color": "FONT_MCOLOR_DKWHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/aimhist.edt", "AIM_COPYRIGHT_3"]
+      },
+      "width": "AIM_COPYRIGHT_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "MEMBERCARD_X",
+      "y": "MEMBERS_TEXT_Y",
+      "font": "FONT12ARIAL",
+      "color": "AIM_FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimBottomMenuText", "AIM_MEMBERS"]
+      },
+      "width": "LINK_SIZE_X",
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "POLICIES_X",
+      "y": "POLICIES_TEXT_Y",
+      "font": "FONT12ARIAL",
+      "color": "AIM_FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimBottomMenuText", "AIM_POLICIES"]
+      },
+      "width": "LINK_SIZE_X",
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "HISTORY_X",
+      "y": "HISTORY_TEXT_Y",
+      "font": "FONT12ARIAL",
+      "color": "AIM_FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimBottomMenuText", "AIM_HISTORY"]
+      },
+      "width": "LINK_SIZE_X",
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "LINKS_X",
+      "y": "LINK_TEXT_Y",
+      "font": "FONT12ARIAL",
+      "color": "AIM_FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimBottomMenuText", "AIM_LINKS"]
+      },
+      "width": "LINK_SIZE_X",
+      "align": "center"
+    },
+    {
+      "type": "image",
+      "id": "warning",
+      "asset": "warning",
+      "frame": {
+        "bind": "adFrame"
+      },
+      "x": "WARNING_X",
+      "y": "WARNING_Y",
+      "visible": "adWarning"
+    },
+    {
+      "type": "image",
+      "id": "flowerAd",
+      "asset": "flowerAd",
+      "frame": {
+        "bind": "adFrame"
+      },
+      "x": "WARNING_X",
+      "y": "WARNING_Y",
+      "visible": "adFlower"
+    },
+    {
+      "type": "image",
+      "id": "forAdsAd",
+      "asset": "forAdsAd",
+      "frame": {
+        "bind": "adFrame"
+      },
+      "x": "WARNING_X",
+      "y": "WARNING_Y",
+      "visible": "adForAds"
+    },
+    {
+      "type": "image",
+      "id": "insuranceAd",
+      "asset": "insuranceAd",
+      "frame": {
+        "bind": "adFrame"
+      },
+      "x": "WARNING_X",
+      "y": "WARNING_Y",
+      "visible": "adInsurance"
+    },
+    {
+      "type": "image",
+      "id": "funeralAd",
+      "asset": "funeralAd",
+      "frame": {
+        "bind": "adFrame"
+      },
+      "x": "WARNING_X",
+      "y": "WARNING_Y",
+      "visible": "adFuneral"
+    },
+    {
+      "type": "image",
+      "id": "bobbyRayAd",
+      "asset": "bobbyRayAd",
+      "frame": {
+        "bind": "adFrame"
+      },
+      "x": "WARNING_X",
+      "y": "WARNING_Y",
+      "visible": "adBobbyRay"
+    },
+    {
+      "type": "text",
+      "x": "AIM_WARNING_TEXT_X",
+      "y": "AIM_WARNING_TEXT_Y",
+      "font": "AIM_WARNING_FONT",
+      "color": "FONT_RED",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/aimhist.edt", "AIM_WARNING_1"]
+      },
+      "id": "aimWarning",
+      "width": "AIM_WARNING_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "visible": "adWarning"
+    },
+    {
+      "type": "text",
+      "x": "AIM_WARNING_TEXT_X",
+      "y": "AIM_WARNING_TEXT_Y",
+      "font": "FONT14ARIAL",
+      "color": "FONT_GREEN",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimScreenText", "AIM_INFO_6"]
+      },
+      "width": "AIM_WARNING_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "visible": "textFlower"
+    },
+    {
+      "type": "text",
+      "x": "AIM_WARNING_TEXT_X",
+      "y": "AIM_FLOWER_LINK_TEXT_Y",
+      "font": "FONT12ARIAL",
+      "color": 2,
+      "shadow": "FONT_MCOLOR_WHITE",
+      "text": {
+        "key": ["AimScreenText", "AIM_INFO_7"]
+      },
+      "width": "AIM_WARNING_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "visible": "textFlower"
+    },
+    {
+      "type": "text",
+      "x": "AIM_BOBBYR1_LINK_TEXT_X",
+      "y": "AIM_BOBBYR1_LINK_TEXT_Y",
+      "font": "BOBBYR_UNDER_CONSTRUCTION_AD_FONT",
+      "color": "BOBBYR_UNDER_CONSTRUCTION_AD_COLOR",
+      "shadow": 2,
+      "text": {
+        "key": ["AimScreenText", "AIM_BOBBYR_ADD1"]
+      },
+      "width": "AIM_WARNING_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "visible": "textBobbyRay1"
+    },
+    {
+      "type": "text",
+      "x": "AIM_BOBBYR2_LINK_TEXT_X",
+      "y": "AIM_BOBBYR2_LINK_TEXT_Y",
+      "font": "BOBBYR_UNDER_CONSTRUCTION_AD_FONT",
+      "color": "BOBBYR_UNDER_CONSTRUCTION_AD_COLOR",
+      "shadow": 2,
+      "text": {
+        "key": ["AimScreenText", "AIM_BOBBYR_ADD2"]
+      },
+      "width": "AIM_WARNING_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "visible": "textBobbyRay2"
+    },
+    {
+      "type": "region",
+      "id": "memberCardLink",
+      "x": "MEMBERCARD_X",
+      "y": "MEMBERCARD_Y",
+      "width": "LINK_SIZE_X",
+      "height": "LINK_SIZE_Y",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "members"
+    },
+    {
+      "type": "region",
+      "id": "policiesLink",
+      "x": "POLICIES_X",
+      "y": "POLICIES_Y",
+      "width": "LINK_SIZE_X",
+      "height": "LINK_SIZE_Y",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "policies"
+    },
+    {
+      "type": "region",
+      "id": "historyLink",
+      "x": "HISTORY_X",
+      "y": "HISTORY_Y",
+      "width": "LINK_SIZE_X",
+      "height": "LINK_SIZE_Y",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "history"
+    },
+    {
+      "type": "region",
+      "id": "linksLink",
+      "x": "LINKS_X",
+      "y": "LINKS_Y",
+      "width": "LINK_SIZE_X",
+      "height": "LINK_SIZE_Y",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "links"
+    },
+    {
+      "type": "region",
+      "id": "aimBanner",
+      "x": "AIM_AD_TOP_LEFT_X",
+      "y": "AIM_AD_TOP_LEFT_Y",
+      "width": "AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X",
+      "height": "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "enabled": "bannerEnabled",
+      "primary": "banner"
+    }
+  ]
+}

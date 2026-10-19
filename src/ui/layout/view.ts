@@ -14,9 +14,11 @@ import { printf } from '../text/printf.ts';
 import type { UiTextService } from '../text/text-service.ts';
 import { displayWrappedString, drawTextToScreen, ianDisplayWrappedString, reduceStringLength, TextFlag } from '../text/wrap.ts';
 import { type Button, type ButtonImage, type ButtonKind, type DisabledStyle, NO_IMAGE, type TextJustification } from '../widgets/button.ts';
+import { drawItemPicture, isItemGraphic } from '../widgets/item-picture.ts';
 import { type MercIcon, MercTextBox } from '../widgets/merc-text-box.ts';
 import { MessageBox, type MessageBoxFlag, type MessageBoxLabels, type MessageBoxStyle } from '../widgets/message-box.ts';
 import { type LineShade, PopupBox, type PopupLine, PopupMenu } from '../widgets/popup-box.ts';
+import { drawPortrait, portraitState } from '../widgets/portrait.ts';
 import { ProgressBar, type ProgressBarStyle } from '../widgets/progress-bar.ts';
 import type { Slider, SliderSystem } from '../widgets/slider.ts';
 import { defaultTextFieldScheme, type TextField, type TextFieldGroup, TextFieldGroup as TextFields } from '../widgets/text-field.ts';
@@ -60,6 +62,7 @@ const SECONDARY_UP = MouseReason.RBUTTON_UP;
 const BUTTON_FRAME_KEYS = ['grayed', 'offNormal', 'offHilite', 'onNormal', 'onHilite'] as const;
 const HOVER_ON = 1;
 const HOVER_OFF = 0;
+const NO_FACE = -1;
 
 function truthy(value: unknown): boolean {
   if (Array.isArray(value)) return value.length > 0;
@@ -250,6 +253,12 @@ export class LayoutView {
         return this.#modal(json, vars);
       case 'custom':
         return this.#custom(json, vars, dx, dy);
+      case 'tiles':
+        return this.#tiles(json, vars, dx, dy);
+      case 'portrait':
+        return this.#portrait(json, vars, dx, dy);
+      case 'itemPicture':
+        return this.#itemPicture(json, vars, dx, dy);
       default:
         throw new Error(`${this.model.json.screen}: unknown widget type ${json.type}`);
     }
@@ -871,6 +880,52 @@ export class LayoutView {
       },
       describe: () => [],
     };
+  }
+
+  #tiles(json: WidgetJson, vars: Variables, dx: number, dy: number): Live {
+    const asset = this.model.asset(String(json.asset));
+    return this.#static(json, vars, (list) => {
+      const { x, y } = this.#position(json, vars, dx, dy);
+      const frame = this.number(json.frame as NumberExpr | undefined, vars);
+      const columns = this.number(json.columns as NumberExpr | undefined, vars, 1);
+      const rows = this.number(json.rows as NumberExpr | undefined, vars, 1);
+      const stepX = this.number(json.dx as NumberExpr | undefined, vars);
+      const stepY = this.number(json.dy as NumberExpr | undefined, vars);
+      for (let row = 0; row < rows; row++)
+        for (let column = 0; column < columns; column++) list.image(asset.path, frame, x + column * stepX, y + row * stepY);
+    });
+  }
+
+  #portrait(json: WidgetJson, vars: Variables, dx: number, dy: number): Live {
+    return this.#static(json, vars, (list) => {
+      const { x, y } = this.#position(json, vars, dx, dy);
+      drawPortrait(list, {
+        face: this.number(json.face as NumberExpr | undefined, vars, NO_FACE),
+        size: json.size === 'big' ? 'big' : 'small',
+        state: portraitState(json.state === undefined ? undefined : this.get(String(json.state), vars)),
+        x,
+        y,
+        shadeWidth: this.number(json.shadeWidth as NumberExpr | undefined, vars),
+        shadeHeight: this.number(json.shadeHeight as NumberExpr | undefined, vars),
+      });
+    });
+  }
+
+  #itemPicture(json: WidgetJson, vars: Variables, dx: number, dy: number): Live {
+    return this.#static(json, vars, (list) => {
+      const graphic = this.get(String(json.graphic), vars);
+      if (!isItemGraphic(graphic)) return;
+      const { x, y } = this.#position(json, vars, dx, dy);
+      const width = this.number(json.width as NumberExpr | undefined, vars);
+      const height = this.number(json.height as NumberExpr | undefined, vars);
+      drawItemPicture(
+        list,
+        this.services.images,
+        graphic,
+        { x, y, width, height },
+        this.condition(json.shadow as Condition | undefined, vars),
+      );
+    });
   }
 
   #custom(json: WidgetJson, vars: Variables, dx: number, dy: number): Live {

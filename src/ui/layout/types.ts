@@ -47,6 +47,7 @@ export interface StubSpecJson {
   readonly sizes?: readonly (readonly [NumberExpr, NumberExpr])[];
   readonly states?: readonly StubFrameState[];
   readonly animated?: NumberExpr;
+  readonly hollow?: boolean | readonly number[];
 }
 
 export type AssetJson =

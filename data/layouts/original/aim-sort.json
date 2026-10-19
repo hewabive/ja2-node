@@ -1,0 +1,543 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/AIMSort.cc g_aim_sort_info (the offsets and justification of the eight entries, AIMSort.cc:92-102), EnterAimSort (the 54 x 54 link regions; an entry's region from its checkbox over 4 + the label width), RenderAimSort, DrawSelectLight (selectlight.sti AIM_SORT_ON)"
+  ],
+  "screen": "aimSort",
+  "frame": "std640",
+  "constants": ["Laptop", "AIM", "AIMSort"],
+  "assets": {
+    "sortBy": {
+      "sti": "laptop/sortby.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["AIM_SORT_AIM_MEMBER_WIDTH", 75]
+      }
+    },
+    "toMugShots": {
+      "mlg": "MLG_TOMUGSHOTS",
+      "stub": {
+        "frames": 1,
+        "size": ["AIM_SORT_TO_MUGSHOTS_SIZE", "AIM_SORT_TO_MUGSHOTS_SIZE"]
+      }
+    },
+    "toStats": {
+      "mlg": "MLG_TOSTATS",
+      "stub": {
+        "frames": 1,
+        "size": ["AIM_SORT_TO_STATS_SIZE", "AIM_SORT_TO_STATS_SIZE"]
+      }
+    },
+    "toAlumni": {
+      "mlg": "MLG_TOALUMNI",
+      "stub": {
+        "frames": 1,
+        "size": ["AIM_SORT_TO_ALUMNI_SIZE", "AIM_SORT_TO_ALUMNI_SIZE"]
+      }
+    },
+    "selectLight": {
+      "sti": "laptop/selectlight.sti",
+      "stub": {
+        "frames": 2,
+        "size": ["AIM_SORT_CHECKBOX_SIZE", "AIM_SORT_CHECKBOX_SIZE"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "asset": "sortBy",
+      "frame": 0,
+      "x": "AIM_SORT_SORT_BY_X",
+      "y": "AIM_SORT_SORT_BY_Y"
+    },
+    {
+      "type": "image",
+      "asset": "toMugShots",
+      "frame": 0,
+      "x": "AIM_SORT_TO_MUGSHOTS_X",
+      "y": "AIM_SORT_TO_MUGSHOTS_Y"
+    },
+    {
+      "type": "image",
+      "asset": "toStats",
+      "frame": 0,
+      "x": "AIM_SORT_TO_STATS_X",
+      "y": "AIM_SORT_TO_STATS_Y"
+    },
+    {
+      "type": "image",
+      "asset": "toAlumni",
+      "frame": 0,
+      "x": "AIM_SORT_TO_ALUMNI_X",
+      "y": "AIM_SORT_TO_ALUMNI_Y"
+    },
+    {
+      "type": "text",
+      "x": "AIM_LOGO_TEXT_X",
+      "y": "AIM_LOGO_TEXT_Y",
+      "font": "AIM_LOGO_FONT",
+      "color": "AIM_FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/aimhist.edt", "AIM_SLOGAN"]
+      },
+      "id": "slogan",
+      "width": "AIM_LOGO_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "AIM_SORT_AIM_MEMBER_X",
+      "y": "AIM_SORT_AIM_MEMBER_Y",
+      "font": "AIM_MAINTITLE_FONT",
+      "color": "AIM_MAINTITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimSortText", "AIM_AIMMEMBERS"]
+      },
+      "width": "AIM_SORT_AIM_MEMBER_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "AIM_SORT_SORT_BY_TEXT_X",
+      "y": "AIM_SORT_SORT_BY_TEXT_Y",
+      "font": "AIM_SORT_FONT_TITLE",
+      "color": "AIM_SORT_SORT_BY_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimSortText", "SORT_BY"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "AIM_SORT_SORT_BY_X + 9 + 14",
+      "y": "AIM_SORT_SORT_BY_Y + 34 + 2",
+      "font": "AIM_SORT_FONT_SORT_TEXT",
+      "color": "AIM_SORT_COLOR_SORT_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_aim_sort_list", 0]
+      },
+      "id": "sortLabel0",
+      "width": "AIM_SORT_ASC_DESC_WIDTH",
+      "align": "left"
+    },
+    {
+      "type": "text",
+      "x": "AIM_SORT_SORT_BY_X + 9 + 14",
+      "y": "AIM_SORT_SORT_BY_Y + 47 + 2",
+      "font": "AIM_SORT_FONT_SORT_TEXT",
+      "color": "AIM_SORT_COLOR_SORT_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_aim_sort_list", 1]
+      },
+      "id": "sortLabel1",
+      "width": "AIM_SORT_ASC_DESC_WIDTH",
+      "align": "left"
+    },
+    {
+      "type": "text",
+      "x": "AIM_SORT_SORT_BY_X + 9 + 14",
+      "y": "AIM_SORT_SORT_BY_Y + 60 + 2",
+      "font": "AIM_SORT_FONT_SORT_TEXT",
+      "color": "AIM_SORT_COLOR_SORT_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_aim_sort_list", 2]
+      },
+      "id": "sortLabel2",
+      "width": "AIM_SORT_ASC_DESC_WIDTH",
+      "align": "left"
+    },
+    {
+      "type": "text",
+      "x": "AIM_SORT_SORT_BY_X + 111 + 14",
+      "y": "AIM_SORT_SORT_BY_Y + 34 + 2",
+      "font": "AIM_SORT_FONT_SORT_TEXT",
+      "color": "AIM_SORT_COLOR_SORT_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_aim_sort_list", 3]
+      },
+      "id": "sortLabel3",
+      "width": "AIM_SORT_ASC_DESC_WIDTH",
+      "align": "left"
+    },
+    {
+      "type": "text",
+      "x": "AIM_SORT_SORT_BY_X + 111 + 14",
+      "y": "AIM_SORT_SORT_BY_Y + 47 + 2",
+      "font": "AIM_SORT_FONT_SORT_TEXT",
+      "color": "AIM_SORT_COLOR_SORT_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_aim_sort_list", 4]
+      },
+      "id": "sortLabel4",
+      "width": "AIM_SORT_ASC_DESC_WIDTH",
+      "align": "left"
+    },
+    {
+      "type": "text",
+      "x": "AIM_SORT_SORT_BY_X + 111 + 14",
+      "y": "AIM_SORT_SORT_BY_Y + 60 + 2",
+      "font": "AIM_SORT_FONT_SORT_TEXT",
+      "color": "AIM_SORT_COLOR_SORT_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_aim_sort_list", 5]
+      },
+      "id": "sortLabel5",
+      "width": "AIM_SORT_ASC_DESC_WIDTH",
+      "align": "left"
+    },
+    {
+      "type": "text",
+      "x": "AIM_SORT_SORT_BY_X + 172 + (0 - AIM_SORT_ASC_DESC_WIDTH - 4)",
+      "y": "AIM_SORT_SORT_BY_Y + 4 + 2",
+      "font": "AIM_SORT_FONT_SORT_TEXT",
+      "color": "AIM_SORT_COLOR_SORT_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_aim_sort_list", 6]
+      },
+      "id": "sortLabel6",
+      "width": "AIM_SORT_ASC_DESC_WIDTH",
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "AIM_SORT_SORT_BY_X + 172 + (0 - AIM_SORT_ASC_DESC_WIDTH - 4)",
+      "y": "AIM_SORT_SORT_BY_Y + 17 + 2",
+      "font": "AIM_SORT_FONT_SORT_TEXT",
+      "color": "AIM_SORT_COLOR_SORT_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_aim_sort_list", 7]
+      },
+      "id": "sortLabel7",
+      "width": "AIM_SORT_ASC_DESC_WIDTH",
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "AIM_SORT_MUGSHOT_TEXT_X",
+      "y": "AIM_SORT_MUGSHOT_TEXT_Y",
+      "font": "AIM_SORT_FONT_SORT_TEXT",
+      "color": "AIM_SORT_LINK_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimSortText", "MUGSHOT_INDEX"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "AIM_SORT_MERC_STATS_TEXT_X",
+      "y": "AIM_SORT_MERC_STATS_TEXT_Y",
+      "font": "AIM_SORT_FONT_SORT_TEXT",
+      "color": "AIM_SORT_LINK_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimSortText", "MERCENARY_FILES"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "AIM_SORT_ALUMNI_TEXT_X",
+      "y": "AIM_SORT_ALUMNI_TEXT_Y",
+      "font": "AIM_SORT_FONT_SORT_TEXT",
+      "color": "AIM_SORT_LINK_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimSortText", "ALUMNI_GALLERY"]
+      }
+    },
+    {
+      "type": "image",
+      "asset": "selectLight",
+      "frame": "AIM_SORT_ON",
+      "x": "AIM_SORT_SORT_BY_X + 9",
+      "y": "AIM_SORT_SORT_BY_Y + 34",
+      "visible": "lights[0]"
+    },
+    {
+      "type": "image",
+      "asset": "selectLight",
+      "frame": "AIM_SORT_ON",
+      "x": "AIM_SORT_SORT_BY_X + 9",
+      "y": "AIM_SORT_SORT_BY_Y + 47",
+      "visible": "lights[1]"
+    },
+    {
+      "type": "image",
+      "asset": "selectLight",
+      "frame": "AIM_SORT_ON",
+      "x": "AIM_SORT_SORT_BY_X + 9",
+      "y": "AIM_SORT_SORT_BY_Y + 60",
+      "visible": "lights[2]"
+    },
+    {
+      "type": "image",
+      "asset": "selectLight",
+      "frame": "AIM_SORT_ON",
+      "x": "AIM_SORT_SORT_BY_X + 111",
+      "y": "AIM_SORT_SORT_BY_Y + 34",
+      "visible": "lights[3]"
+    },
+    {
+      "type": "image",
+      "asset": "selectLight",
+      "frame": "AIM_SORT_ON",
+      "x": "AIM_SORT_SORT_BY_X + 111",
+      "y": "AIM_SORT_SORT_BY_Y + 47",
+      "visible": "lights[4]"
+    },
+    {
+      "type": "image",
+      "asset": "selectLight",
+      "frame": "AIM_SORT_ON",
+      "x": "AIM_SORT_SORT_BY_X + 111",
+      "y": "AIM_SORT_SORT_BY_Y + 60",
+      "visible": "lights[5]"
+    },
+    {
+      "type": "image",
+      "asset": "selectLight",
+      "frame": "AIM_SORT_ON",
+      "x": "AIM_SORT_SORT_BY_X + 172",
+      "y": "AIM_SORT_SORT_BY_Y + 4",
+      "visible": "lights[6]"
+    },
+    {
+      "type": "image",
+      "asset": "selectLight",
+      "frame": "AIM_SORT_ON",
+      "x": "AIM_SORT_SORT_BY_X + 172",
+      "y": "AIM_SORT_SORT_BY_Y + 17",
+      "visible": "lights[7]"
+    },
+    {
+      "type": "region",
+      "id": "toMugShotsLink",
+      "x": "AIM_SORT_TO_MUGSHOTS_X",
+      "y": "AIM_SORT_TO_MUGSHOTS_Y",
+      "width": "AIM_SORT_TO_MUGSHOTS_SIZE",
+      "height": "AIM_SORT_TO_MUGSHOTS_SIZE",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "mugShots"
+    },
+    {
+      "type": "region",
+      "id": "toStatsLink",
+      "x": "AIM_SORT_TO_STATS_X",
+      "y": "AIM_SORT_TO_STATS_Y",
+      "width": "AIM_SORT_TO_STATS_SIZE",
+      "height": "AIM_SORT_TO_STATS_SIZE",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "stats"
+    },
+    {
+      "type": "region",
+      "id": "toAlumniLink",
+      "x": "AIM_SORT_TO_ALUMNI_X",
+      "y": "AIM_SORT_TO_ALUMNI_Y",
+      "width": "AIM_SORT_TO_ALUMNI_SIZE",
+      "height": "AIM_SORT_TO_ALUMNI_SIZE",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "alumni"
+    },
+    {
+      "type": "repeat",
+      "count": 1,
+      "x": {
+        "bind": "regionShifts[0]"
+      },
+      "y": 0,
+      "template": [
+        {
+          "type": "region",
+          "id": "sortBy0",
+          "x": "AIM_SORT_SORT_BY_X + 9",
+          "y": "AIM_SORT_SORT_BY_Y + 34",
+          "width": {
+            "bind": "regionWidths[0]"
+          },
+          "height": "AIM_SORT_CHECKBOX_SIZE",
+          "priority": "HIGH",
+          "cursor": "MSYS_NO_CURSOR",
+          "primary": "sortBy(0)"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": 1,
+      "x": {
+        "bind": "regionShifts[1]"
+      },
+      "y": 0,
+      "template": [
+        {
+          "type": "region",
+          "id": "sortBy1",
+          "x": "AIM_SORT_SORT_BY_X + 9",
+          "y": "AIM_SORT_SORT_BY_Y + 47",
+          "width": {
+            "bind": "regionWidths[1]"
+          },
+          "height": "AIM_SORT_CHECKBOX_SIZE",
+          "priority": "HIGH",
+          "cursor": "MSYS_NO_CURSOR",
+          "primary": "sortBy(1)"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": 1,
+      "x": {
+        "bind": "regionShifts[2]"
+      },
+      "y": 0,
+      "template": [
+        {
+          "type": "region",
+          "id": "sortBy2",
+          "x": "AIM_SORT_SORT_BY_X + 9",
+          "y": "AIM_SORT_SORT_BY_Y + 60",
+          "width": {
+            "bind": "regionWidths[2]"
+          },
+          "height": "AIM_SORT_CHECKBOX_SIZE",
+          "priority": "HIGH",
+          "cursor": "MSYS_NO_CURSOR",
+          "primary": "sortBy(2)"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": 1,
+      "x": {
+        "bind": "regionShifts[3]"
+      },
+      "y": 0,
+      "template": [
+        {
+          "type": "region",
+          "id": "sortBy3",
+          "x": "AIM_SORT_SORT_BY_X + 111",
+          "y": "AIM_SORT_SORT_BY_Y + 34",
+          "width": {
+            "bind": "regionWidths[3]"
+          },
+          "height": "AIM_SORT_CHECKBOX_SIZE",
+          "priority": "HIGH",
+          "cursor": "MSYS_NO_CURSOR",
+          "primary": "sortBy(3)"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": 1,
+      "x": {
+        "bind": "regionShifts[4]"
+      },
+      "y": 0,
+      "template": [
+        {
+          "type": "region",
+          "id": "sortBy4",
+          "x": "AIM_SORT_SORT_BY_X + 111",
+          "y": "AIM_SORT_SORT_BY_Y + 47",
+          "width": {
+            "bind": "regionWidths[4]"
+          },
+          "height": "AIM_SORT_CHECKBOX_SIZE",
+          "priority": "HIGH",
+          "cursor": "MSYS_NO_CURSOR",
+          "primary": "sortBy(4)"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": 1,
+      "x": {
+        "bind": "regionShifts[5]"
+      },
+      "y": 0,
+      "template": [
+        {
+          "type": "region",
+          "id": "sortBy5",
+          "x": "AIM_SORT_SORT_BY_X + 111",
+          "y": "AIM_SORT_SORT_BY_Y + 60",
+          "width": {
+            "bind": "regionWidths[5]"
+          },
+          "height": "AIM_SORT_CHECKBOX_SIZE",
+          "priority": "HIGH",
+          "cursor": "MSYS_NO_CURSOR",
+          "primary": "sortBy(5)"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": 1,
+      "x": {
+        "bind": "regionShifts[6]"
+      },
+      "y": 0,
+      "template": [
+        {
+          "type": "region",
+          "id": "sortBy6",
+          "x": "AIM_SORT_SORT_BY_X + 172",
+          "y": "AIM_SORT_SORT_BY_Y + 4",
+          "width": {
+            "bind": "regionWidths[6]"
+          },
+          "height": "AIM_SORT_CHECKBOX_SIZE",
+          "priority": "HIGH",
+          "cursor": "MSYS_NO_CURSOR",
+          "primary": "sortBy(6)"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": 1,
+      "x": {
+        "bind": "regionShifts[7]"
+      },
+      "y": 0,
+      "template": [
+        {
+          "type": "region",
+          "id": "sortBy7",
+          "x": "AIM_SORT_SORT_BY_X + 172",
+          "y": "AIM_SORT_SORT_BY_Y + 17",
+          "width": {
+            "bind": "regionWidths[7]"
+          },
+          "height": "AIM_SORT_CHECKBOX_SIZE",
+          "priority": "HIGH",
+          "cursor": "MSYS_NO_CURSOR",
+          "primary": "sortBy(7)"
+        }
+      ]
+    }
+  ]
+}

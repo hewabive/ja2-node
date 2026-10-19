@@ -1,0 +1,56 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/AIM.cc InitAimDefaults, DrawAimDefaults (rustbackground.sti tiled 4 x 4 from the web area, MLG_AIMSYMBOL at AIM_SYMBOL_X, AIM_SYMBOL_Y, the logo region back to the home page, MSYS_PRIORITY_HIGH, CURSOR_WWW)"
+  ],
+  "screen": "aimChrome",
+  "frame": "std640",
+  "constants": ["Laptop", "AIM"],
+  "assets": {
+    "rust": {
+      "sti": "laptop/rustbackground.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["RUSTBACKGROUND_SIZE_X", "RUSTBACKGROUND_SIZE_Y"]
+      }
+    },
+    "logo": {
+      "mlg": "MLG_AIMSYMBOL",
+      "stub": {
+        "frames": 1,
+        "size": ["AIM_SYMBOL_WIDTH", "AIM_SYMBOL_HEIGHT"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "tiles",
+      "asset": "rust",
+      "frame": 0,
+      "x": "RUSTBACKGROUND_1_X",
+      "y": "RUSTBACKGROUND_1_Y",
+      "columns": 4,
+      "rows": 4,
+      "dx": "RUSTBACKGROUND_SIZE_X",
+      "dy": "RUSTBACKGROUND_SIZE_Y"
+    },
+    {
+      "type": "image",
+      "asset": "logo",
+      "frame": 0,
+      "x": "AIM_SYMBOL_X",
+      "y": "AIM_SYMBOL_Y"
+    },
+    {
+      "type": "region",
+      "id": "aimLogo",
+      "x": "AIM_SYMBOL_X",
+      "y": "AIM_SYMBOL_Y",
+      "width": "AIM_SYMBOL_WIDTH",
+      "height": "AIM_SYMBOL_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "home"
+    }
+  ]
+}

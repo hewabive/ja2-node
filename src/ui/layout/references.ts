@@ -155,6 +155,13 @@ export function collectReferences(model: LayoutModel): LayoutReferences {
       case 'slider':
         if (typeof json.thumb === 'string') useAsset(json.thumb, 0, 'plain', 'thumb');
         break;
+      case 'tiles':
+        if (typeof json.asset === 'string') useAsset(json.asset, staticNumber(json.frame, vars), 'plain', 'image');
+        break;
+      case 'portrait':
+      case 'itemPicture':
+        binding(json.type === 'portrait' ? json.state : json.graphic);
+        break;
       case 'group':
         binding(json.value);
         break;

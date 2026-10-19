@@ -1,0 +1,507 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/EMail.cc RenderEmail (mailwindow.sti at LAPTOP_SCREEN_UL_X, EMAIL_LIST_WINDOW_Y + LAPTOP_SCREEN_UL_Y), InitializeMouseRegions (rows of MIDDLE_WIDTH from MIDDLE_Y, LINE_WIDTH wide, MSYS_PRIORITY_NORMAL + 2), DrawEmailSummary, DrawLineDividers (maillistdivider.sti at INDIC_X - 10, MIDDLE_Y + i * MIDDLE_WIDTH - 1 for i 1-18), CreateMailScreenButtons and MakeButton (mailbuttons.sti frames idx and idx + 4 at FROM_BOX_Y, EMAIL_WARNING_FONT black on black, priority HIGHEST - 1), CreateNextPreviousEmailPageButtons and MakeButtonNewMail (newmailbuttons.sti frames image and image + 3), DisplayWhichPageOfEmailProgramIsDisplayed",
+    "src/game/Laptop/EMail.cc DisplayEmailMessage (emailviewer.sti frame 0 at VIEWER_X, VIEWER_Y, frame 1 strips of the font height from VIEWER_MESSAGE_BODY_START_Y, frame 2 or 3 after them, the body at VIEWER_X + MESSAGE_X + 4 one line down), DisplayEmailMessageSubjectDateFromLines, DrawEmailMessageDisplayTitleText, AddDeleteRegionsToMessageRegion (x.sti at BUTTON_X + 2, BUTTON_Y + 1, the page buttons at LOWER_BUTTON_Y + 2, the delete button at BUTTON_LOWER_Y + 2), DisplayNumberOfPagesToThisEmail",
+    "src/game/Laptop/EMail.cc CreateDestroyDeleteNoticeMailButton (yesnobuttons.sti 0 at NEW_BTN_X + 1 and 2 at NEW_BTN_X + 40, the mask at MSYS_PRIORITY_HIGHEST - 3), DisplayDeleteNotice"
+  ],
+  "screen": "laptopEmail",
+  "frame": "std640",
+  "constants": ["Laptop", "EMail"],
+  "assets": {
+    "mailWindow": {
+      "sti": "laptop/mailwindow.sti",
+      "stub": { "frames": 1, "size": ["LAPTOP_SCREEN_WIDTH", "LAPTOP_SCREEN_HEIGHT - EMAIL_LIST_WINDOW_Y"] }
+    },
+    "indicator": { "sti": "laptop/mailindicator.sti", "stub": { "frames": 2, "size": [14, 10] } },
+    "divider": { "sti": "laptop/maillistdivider.sti", "stub": { "frames": 1, "size": ["LINE_WIDTH", 2] } },
+    "sortButtons": {
+      "sti": "laptop/mailbuttons.sti",
+      "stub": {
+        "sizes": [
+          ["FROM_BOX_X - ENVELOPE_BOX_X", "MIDDLE_Y - FROM_BOX_Y"],
+          ["SUBJECT_BOX_X - FROM_BOX_X", "MIDDLE_Y - FROM_BOX_Y"],
+          ["DATE_BOX_X - SUBJECT_BOX_X", "MIDDLE_Y - FROM_BOX_Y"],
+          ["LAPTOP_SCREEN_LR_X - DATE_BOX_X - 30", "MIDDLE_Y - FROM_BOX_Y"],
+          ["FROM_BOX_X - ENVELOPE_BOX_X", "MIDDLE_Y - FROM_BOX_Y"],
+          ["SUBJECT_BOX_X - FROM_BOX_X", "MIDDLE_Y - FROM_BOX_Y"],
+          ["DATE_BOX_X - SUBJECT_BOX_X", "MIDDLE_Y - FROM_BOX_Y"],
+          ["LAPTOP_SCREEN_LR_X - DATE_BOX_X - 30", "MIDDLE_Y - FROM_BOX_Y"]
+        ],
+        "states": ["normal", "normal", "normal", "normal", "pressed", "pressed", "pressed", "pressed"]
+      }
+    },
+    "pageButtons": {
+      "sti": "laptop/newmailbuttons.sti",
+      "stub": {
+        "sizes": [[18, 16], [18, 16], [48, 18], [18, 16], [18, 16], [48, 18]],
+        "states": ["normal", "normal", "normal", "pressed", "pressed", "pressed"]
+      }
+    },
+    "viewer": {
+      "sti": "laptop/emailviewer.sti",
+      "stub": {
+        "sizes": [
+          ["MESSAGE_WIDTH + 20", "VIEWER_MESSAGE_BODY_START_Y - VIEWER_Y"],
+          ["MESSAGE_WIDTH + 20", 10],
+          ["MESSAGE_WIDTH + 20", 24],
+          ["MESSAGE_WIDTH + 20", 36]
+        ]
+      }
+    },
+    "titleIcons": { "sti": "laptop/icons.sti", "stub": { "frames": 8, "size": [16, 16] } },
+    "close": { "sti": "laptop/x.sti", "stub": { "frames": 2, "size": [16, 16], "states": ["normal", "pressed"] } },
+    "mailWarning": { "sti": "laptop/newmailwarning.sti", "stub": { "frames": 1, "size": ["EMAIL_WARNING_WIDTH", "EMAIL_WARNING_HEIGHT"] } },
+    "yesNoButtons": {
+      "sti": "laptop/yesnobuttons.sti",
+      "stub": { "frames": 4, "size": [62, 20], "states": ["normal", "pressed", "normal", "pressed"] }
+    }
+  },
+  "widgets": [
+    { "type": "image", "asset": "mailWindow", "frame": 0, "x": "LAPTOP_SCREEN_UL_X", "y": "EMAIL_LIST_WINDOW_Y + LAPTOP_SCREEN_UL_Y" },
+    {
+      "type": "repeat",
+      "count": "MAX_MESSAGES_PAGE",
+      "x": 0,
+      "y": "MIDDLE_Y",
+      "dy": "MIDDLE_WIDTH",
+      "template": [
+        {
+          "type": "image",
+          "asset": "indicator",
+          "frame": { "bind": "rows[$i].indicator" },
+          "x": "INDIC_X",
+          "y": 2,
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "id": "subject$i",
+          "x": "SUBJECT_X",
+          "y": 4,
+          "width": "SUBJECT_WIDTH - 10",
+          "ellipsis": true,
+          "font": "MESSAGE_FONT",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": { "bind": "rows[$i].subject" },
+          "visible": "rows[$i].read"
+        },
+        {
+          "type": "text",
+          "id": "unreadSubject$i",
+          "x": "SUBJECT_X",
+          "y": 4,
+          "width": "SUBJECT_WIDTH - 10",
+          "ellipsis": true,
+          "font": "FONT10ARIALBOLD",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": { "bind": "rows[$i].subject" },
+          "visible": "rows[$i].unread"
+        },
+        {
+          "type": "text",
+          "id": "sender$i",
+          "x": "SENDER_X",
+          "y": 4,
+          "font": "MESSAGE_FONT",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": { "bind": "rows[$i].sender" },
+          "visible": "rows[$i].read"
+        },
+        {
+          "type": "text",
+          "x": "SENDER_X",
+          "y": 4,
+          "font": "FONT10ARIALBOLD",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": { "bind": "rows[$i].sender" },
+          "visible": "rows[$i].unread"
+        },
+        {
+          "type": "text",
+          "x": "DATE_X",
+          "y": 4,
+          "font": "MESSAGE_FONT",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": { "bind": "rows[$i].date" },
+          "visible": "rows[$i].read"
+        },
+        {
+          "type": "text",
+          "x": "DATE_X",
+          "y": 4,
+          "font": "FONT10ARIALBOLD",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": { "bind": "rows[$i].date" },
+          "visible": "rows[$i].unread"
+        },
+        {
+          "type": "region",
+          "id": "mailRow$i",
+          "x": "MIDDLE_X",
+          "y": 0,
+          "width": "LINE_WIDTH",
+          "height": "MIDDLE_WIDTH",
+          "priority": "NORMAL+2",
+          "primary": "openMail($i)",
+          "secondary": "askDelete($i)",
+          "wheelUp": "prevList",
+          "wheelDown": "nextList"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": 18,
+      "x": "INDIC_X - 10",
+      "y": "MIDDLE_Y + MIDDLE_WIDTH - 1",
+      "dy": "MIDDLE_WIDTH",
+      "template": [{ "type": "image", "asset": "divider", "frame": 0, "x": 0, "y": 0 }]
+    },
+    {
+      "type": "text",
+      "id": "listPage",
+      "x": "PAGE_NUMBER_X",
+      "y": "PAGE_NUMBER_Y",
+      "font": "MESSAGE_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": { "bind": "pageText" }
+    },
+    {
+      "type": "button",
+      "id": "sortRead",
+      "x": "ENVELOPE_BOX_X",
+      "y": "FROM_BOX_Y",
+      "asset": "sortButtons",
+      "frames": { "offNormal": 0, "onNormal": 4 },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "sortRead"
+    },
+    {
+      "type": "button",
+      "id": "sortFrom",
+      "x": "FROM_BOX_X",
+      "y": "FROM_BOX_Y",
+      "asset": "sortButtons",
+      "frames": { "offNormal": 1, "onNormal": 5 },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "sortFrom",
+      "text": { "source": { "key": ["pEmailHeaders", 0] }, "font": "EMAIL_WARNING_FONT", "color": "FONT_BLACK", "shadow": "FONT_BLACK" }
+    },
+    {
+      "type": "button",
+      "id": "sortSubject",
+      "x": "SUBJECT_BOX_X",
+      "y": "FROM_BOX_Y",
+      "asset": "sortButtons",
+      "frames": { "offNormal": 2, "onNormal": 6 },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "sortSubject",
+      "text": { "source": { "key": ["pEmailHeaders", 1] }, "font": "EMAIL_WARNING_FONT", "color": "FONT_BLACK", "shadow": "FONT_BLACK" }
+    },
+    {
+      "type": "button",
+      "id": "sortDate",
+      "x": "DATE_BOX_X",
+      "y": "FROM_BOX_Y",
+      "asset": "sortButtons",
+      "frames": { "offNormal": 3, "onNormal": 7 },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "sortDate",
+      "text": { "source": { "key": ["pEmailHeaders", 2] }, "font": "EMAIL_WARNING_FONT", "color": "FONT_BLACK", "shadow": "FONT_BLACK" }
+    },
+    {
+      "type": "button",
+      "id": "nextListPage",
+      "x": "NEXT_PAGE_X",
+      "y": "NEXT_PAGE_Y",
+      "asset": "pageButtons",
+      "frames": { "offNormal": 1, "onNormal": 4 },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "nextListEnabled",
+      "primary": "nextList"
+    },
+    {
+      "type": "button",
+      "id": "prevListPage",
+      "x": "PREVIOUS_PAGE_X",
+      "y": "NEXT_PAGE_Y",
+      "asset": "pageButtons",
+      "frames": { "offNormal": 0, "onNormal": 3 },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "prevListEnabled",
+      "primary": "prevList"
+    },
+    {
+      "type": "repeat",
+      "count": { "bind": "viewer" },
+      "x": 0,
+      "y": { "bind": "viewerY" },
+      "template": [
+        { "type": "image", "asset": "viewer", "frame": 0, "x": "VIEWER_X", "y": "VIEWER_Y" },
+        { "type": "image", "asset": "titleIcons", "frame": 0, "x": "VIEWER_X + 5", "y": "VIEWER_Y + 2" },
+        {
+          "type": "text",
+          "x": "MESSAGE_HEADER_X - 20",
+          "y": "MESSAGE_FROM_Y",
+          "width": "MESSAGE_HEADER_WIDTH",
+          "align": "right",
+          "font": "MESSAGE_FONT",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": { "key": ["pEmailHeaders", 0] }
+        },
+        {
+          "type": "text",
+          "id": "viewerSender",
+          "x": "MESSAGE_HEADER_X + MESSAGE_HEADER_WIDTH - 13",
+          "y": "MESSAGE_FROM_Y",
+          "font": "MESSAGE_FONT",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": { "bind": "viewerSender" }
+        },
+        {
+          "type": "text",
+          "x": "MESSAGE_HEADER_X + 168",
+          "y": "MESSAGE_DATE_Y",
+          "width": "MESSAGE_HEADER_WIDTH",
+          "align": "right",
+          "font": "MESSAGE_FONT",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": { "key": ["pEmailHeaders", 2] }
+        },
+        {
+          "type": "text",
+          "id": "viewerDate",
+          "x": "MESSAGE_HEADER_X + 235",
+          "y": "MESSAGE_DATE_Y",
+          "font": "MESSAGE_FONT",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": { "bind": "viewerDate" }
+        },
+        {
+          "type": "text",
+          "x": "MESSAGE_HEADER_X - 20",
+          "y": "MESSAGE_SUBJECT_Y",
+          "width": "MESSAGE_HEADER_WIDTH",
+          "align": "right",
+          "font": "MESSAGE_FONT",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": { "key": ["pEmailHeaders", 1] }
+        },
+        {
+          "type": "text",
+          "id": "viewerSubject",
+          "x": "SUBJECT_LINE_X + 2",
+          "y": "SUBJECT_LINE_Y + 2",
+          "width": "SUBJECT_LINE_WIDTH",
+          "ian": true,
+          "wrap": { "gap": "MESSAGE_GAP" },
+          "font": "MESSAGE_FONT",
+          "color": "MESSAGE_COLOR",
+          "shadow": "NO_SHADOW",
+          "text": { "bind": "viewerSubject" }
+        },
+        {
+          "type": "text",
+          "id": "viewerTitle",
+          "x": "VIEWER_X + 30",
+          "y": "VIEWER_Y + 8",
+          "font": "EMAIL_HEADER_FONT",
+          "color": "FONT_WHITE",
+          "shadow": "DEFAULT_SHADOW",
+          "text": { "key": ["pEmailTitleText", 0] }
+        },
+        {
+          "type": "repeat",
+          "count": { "bind": "strips" },
+          "x": 0,
+          "y": "VIEWER_MESSAGE_BODY_START_Y",
+          "dy": { "bind": "lineHeight" },
+          "template": [{ "type": "image", "asset": "viewer", "frame": 1, "x": "VIEWER_X", "y": 0 }]
+        },
+        {
+          "type": "repeat",
+          "count": 1,
+          "x": 0,
+          "y": { "bind": "stripsHeight" },
+          "template": [
+            { "type": "image", "asset": "viewer", "frame": { "bind": "bottomFrame" }, "x": "VIEWER_X", "y": "VIEWER_MESSAGE_BODY_START_Y" }
+          ]
+        },
+        {
+          "type": "custom",
+          "id": "emailBody",
+          "renderer": "emailBody",
+          "x": "VIEWER_X + MESSAGE_X + 4",
+          "y": "VIEWER_MESSAGE_BODY_START_Y",
+          "width": "MESSAGE_WIDTH",
+          "height": "MESSAGE_WIDTH"
+        },
+        {
+          "type": "text",
+          "id": "mailPage",
+          "x": "VIEWER_X + INDENT_X_OFFSET",
+          "y": "VIEWER_Y + INDENT_Y_OFFSET - 2",
+          "width": "INDENT_X_WIDTH",
+          "align": "center",
+          "alignRule": "font",
+          "font": "FONT12ARIAL",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": { "bind": "mailPageText" },
+          "visible": "multiPage"
+        },
+        {
+          "type": "button",
+          "id": "closeMail",
+          "x": "BUTTON_X + 2",
+          "y": "BUTTON_Y + 1",
+          "asset": "close",
+          "frames": { "offNormal": 0, "onNormal": 1 },
+          "priority": "HIGHEST-1",
+          "cursor": "CURSOR_LAPTOP_SCREEN",
+          "primary": "closeViewer",
+          "secondary": "closeViewer"
+        },
+        {
+          "type": "button",
+          "id": "prevMailPage",
+          "x": "PREVIOUS_PAGE_BUTTON_X",
+          "y": "LOWER_BUTTON_Y + 2",
+          "asset": "pageButtons",
+          "frames": { "offNormal": 0, "onNormal": 3 },
+          "priority": "HIGHEST-1",
+          "cursor": "CURSOR_LAPTOP_SCREEN",
+          "enabled": "prevMailEnabled",
+          "primary": "prevMailPage",
+          "visible": "multiPage"
+        },
+        {
+          "type": "button",
+          "id": "nextMailPage",
+          "x": "NEXT_PAGE_BUTTON_X",
+          "y": "LOWER_BUTTON_Y + 2",
+          "asset": "pageButtons",
+          "frames": { "offNormal": 1, "onNormal": 4 },
+          "priority": "HIGHEST-1",
+          "cursor": "CURSOR_LAPTOP_SCREEN",
+          "enabled": "nextMailEnabled",
+          "primary": "nextMailPage",
+          "visible": "multiPage"
+        },
+        {
+          "type": "region",
+          "id": "mailScroll",
+          "x": "VIEWER_X + MESSAGE_X + 1",
+          "y": "VIEWER_MESSAGE_BODY_START_Y",
+          "width": "MESSAGE_WIDTH + 3",
+          "height": 227,
+          "priority": "HIGHEST-2",
+          "wheelUp": "prevMailPage",
+          "wheelDown": "nextMailPage",
+          "visible": "multiPage"
+        },
+        {
+          "type": "button",
+          "id": "deleteMail",
+          "x": "DELETE_BUTTON_X",
+          "y": "BUTTON_LOWER_Y + 2",
+          "asset": "pageButtons",
+          "frames": { "offNormal": 2, "onNormal": 5 },
+          "priority": "HIGHEST-1",
+          "cursor": "CURSOR_LAPTOP_SCREEN",
+          "primary": "deleteCurrent"
+        }
+      ]
+    },
+    {
+      "type": "region",
+      "id": "deleteMask",
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 480,
+      "priority": "HIGHEST-3",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "laptopLeftUp",
+      "secondary": "laptopRightUp",
+      "visible": "deleteBox"
+    },
+    { "type": "image", "asset": "mailWarning", "frame": 0, "x": "EMAIL_WARNING_X", "y": "EMAIL_WARNING_Y", "visible": "deleteBox" },
+    { "type": "image", "asset": "titleIcons", "frame": 0, "x": "EMAIL_WARNING_X + 5", "y": "EMAIL_WARNING_Y + 2", "visible": "deleteBox" },
+    {
+      "type": "text",
+      "x": "EMAIL_WARNING_X + 30",
+      "y": "EMAIL_WARNING_Y + 8",
+      "font": "EMAIL_HEADER_FONT",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": { "key": ["pEmailTitleText", 0] },
+      "visible": "deleteBox"
+    },
+    {
+      "type": "text",
+      "id": "deleteReadText",
+      "x": "EMAIL_WARNING_X + 95",
+      "y": "EMAIL_WARNING_Y + 65",
+      "font": "EMAIL_WARNING_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": { "key": ["pDeleteMailStrings", 0] },
+      "visible": "deleteRead"
+    },
+    {
+      "type": "text",
+      "id": "deleteUnreadText",
+      "x": "EMAIL_WARNING_X + 70",
+      "y": "EMAIL_WARNING_Y + 65",
+      "font": "EMAIL_WARNING_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": { "key": ["pDeleteMailStrings", 1] },
+      "visible": "deleteUnread"
+    },
+    {
+      "type": "button",
+      "id": "deleteYes",
+      "x": "NEW_BTN_X + 1",
+      "y": "NEW_BTN_Y",
+      "asset": "yesNoButtons",
+      "frames": { "offNormal": 0, "onNormal": 1 },
+      "priority": "HIGHEST-2",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "confirmDelete",
+      "visible": "deleteBox"
+    },
+    {
+      "type": "button",
+      "id": "deleteNo",
+      "x": "NEW_BTN_X + 40",
+      "y": "NEW_BTN_Y",
+      "asset": "yesNoButtons",
+      "frames": { "offNormal": 2, "onNormal": 3 },
+      "priority": "HIGHEST-2",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "cancelDelete",
+      "visible": "deleteBox"
+    }
+  ]
+}

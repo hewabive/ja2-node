@@ -3,6 +3,11 @@ import { dirname, join } from 'node:path';
 import { encodeEdtRecords } from '../src/content/formats/edt.ts';
 import { loadItemTable } from '../src/content/items/items.ts';
 import { mercDialogueFile } from '../src/content/narrative/dialogue-text.ts';
+import {
+  AIM_BIOS_FILE as AIM_BIOS_PATH,
+  PROFILE_PRESENTATION_PATHS,
+  parseProfilePresentationTables,
+} from '../src/content/narrative/profile-presentation.ts';
 import { asArray, asInt, asObject, asString } from '../src/content/strategic/json-fields.ts';
 import { parseJsonc } from '../src/content/strategic/jsonc.ts';
 import { EDT_LAYOUTS_PATH, EdtLayouts } from '../src/content/text/edt-layouts.ts';
@@ -14,6 +19,9 @@ const MERC_LINES_FILE = 'text/merc-quotes.json';
 const ITEM_TEXT_FILE = 'text/items.json';
 const CREDITS_FILE = 'text/credits.json';
 const MAIL_FILE = 'text/email.json';
+const AIM_HISTORY_FILE = 'text/aimhist.json';
+const AIM_BIOS_FILE = 'text/aimbios.json';
+const AIM_HISTORY_PATH = 'binarydata/aimhist.edt';
 const ITEM_TEXT_PATH = 'binarydata/itemdesc.edt';
 const CREDITS_PATH = 'binarydata/credits.edt';
 const MAIL_PATH = 'binarydata/email.edt';
@@ -138,9 +146,52 @@ async function buildMail(out: string, layouts: EdtLayouts): Promise<string> {
   return put(out, MAIL_PATH, encodeEdtRecords(records, columnsOf(layouts, MAIL_PATH)));
 }
 
+async function buildAimHistory(out: string, layouts: EdtLayouts): Promise<string> {
+  const rows = strings(asObject(await stubJson(AIM_HISTORY_FILE), 'stub aim history').rows, 'stub aim history.rows');
+  return put(
+    out,
+    AIM_HISTORY_PATH,
+    encodeEdtRecords(
+      rows.map((row) => [row]),
+      columnsOf(layouts, AIM_HISTORY_PATH),
+    ),
+  );
+}
+
+async function buildAimBios(out: string, layouts: EdtLayouts): Promise<string> {
+  const tables = parseProfilePresentationTables({
+    aimListings: await dataJson(PROFILE_PRESENTATION_PATHS.aimListings),
+    mercListings: await dataJson(PROFILE_PRESENTATION_PATHS.mercListings),
+    smallFaces: await dataJson(PROFILE_PRESENTATION_PATHS.smallFaces),
+    profileInfo: await dataJson(PROFILE_PRESENTATION_PATHS.profileInfo),
+  });
+  const bios = asObject(asObject(await stubJson(AIM_BIOS_FILE), 'stub aim bios').bios, 'stub aim bios.bios');
+  const records: string[][] = [];
+  for (const [profile, value] of Object.entries(bios)) {
+    const row = tables.aimBio.get(Number(profile));
+    if (row === undefined) throw new Error(`stub aim bios: profile ${profile} has no A.I.M. bio row`);
+    records[row] = strings(value, `stub aim bios.${profile}`);
+  }
+  return put(
+    out,
+    AIM_BIOS_PATH,
+    encodeEdtRecords(
+      Array.from({ length: records.length }, (_, row) => records[row] ?? []),
+      columnsOf(layouts, AIM_BIOS_PATH),
+    ),
+  );
+}
+
 export async function buildStubText(out: string): Promise<StubText> {
   const layouts = EdtLayouts.parse(await dataJson(EDT_LAYOUTS_PATH));
   const merc = await buildMercDialogue(out, layouts);
-  const written = [...merc.written, await buildItemText(out, layouts), await buildCredits(out, layouts), await buildMail(out, layouts)];
+  const written = [
+    ...merc.written,
+    await buildItemText(out, layouts),
+    await buildCredits(out, layouts),
+    await buildMail(out, layouts),
+    await buildAimHistory(out, layouts),
+    await buildAimBios(out, layouts),
+  ];
   return { written, mercDialogue: merc.rows };
 }
