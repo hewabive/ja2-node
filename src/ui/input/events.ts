@@ -35,6 +35,12 @@ export interface UiTextEvent {
 
 export type UiInputEvent = UiPointerEvent | UiKeyEvent | UiTextEvent;
 
+const POINTER_KINDS: ReadonlySet<string> = new Set<PointerKind>(['pointerDown', 'pointerUp', 'pointerMove', 'wheel']);
+
+export function isPointerEvent(event: UiInputEvent): event is UiPointerEvent {
+  return POINTER_KINDS.has(event.kind);
+}
+
 export interface RawKey {
   readonly key: string;
   readonly code: string;

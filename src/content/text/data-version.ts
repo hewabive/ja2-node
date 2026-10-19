@@ -26,6 +26,9 @@ export type VanillaVersion = (typeof VANILLA_VERSIONS)[number];
 export const STUB_DATA_VERSION = 'stubs';
 export type DataVersion = VanillaVersion | typeof STUB_DATA_VERSION;
 
+export const STUB_GLYPH_TABLE_FILE = 'translation_tables/translation-table-stub.json';
+const STUBS_PREFIX = 'stubs/';
+
 export const DEFAULT_VANILLA_VERSION: VanillaVersion = 'english';
 export const STUB_TEXT_VERSION: VanillaVersion = 'english';
 
@@ -121,6 +124,7 @@ export function isUiLanguage(value: string): value is UiLanguage {
 }
 
 export function glyphTablePath(version: DataVersion): string {
+  if (version === STUB_DATA_VERSION) return `${STUBS_PREFIX}${STUB_GLYPH_TABLE_FILE}`;
   return `externalized/translation_tables/translation-table-${GLYPH_TABLE_SUFFIX[textVersion(version)] ?? DEFAULT_GLYPH_TABLE_SUFFIX}.json`;
 }
 

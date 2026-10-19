@@ -35,6 +35,7 @@ import { musicTracks } from './music.ts';
 import { loadSectorKinds, sectorMapFile } from './sector-kinds.ts';
 import { npcSpeechSets, type SpeechSet, speechPaths } from './speech.ts';
 import { STUB_TILE_SURFACES } from './tiles.ts';
+import { OUTLINE_INDEX, TEST_CARD_PATH, TEST_CARD_RGB_PATH } from './ui-test-card.ts';
 import {
   STUB_SPLASH_FRAMES,
   STUB_SPLASH_HEIGHT,
@@ -255,6 +256,17 @@ describe('stub media', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
       expect(font.subImages, name).toHaveLength(glyphCount(table));
       expect(new Set(font.subImages.map((g) => g.height)).size, name).toBe(1);
     }
+  });
+
+  it('decodes the UI test card: two indexed frames, one with an outline of index 254, and an RGB565 picture', async () => {
+    const card = decodeSti(await data.vfs.read(stub(TEST_CARD_PATH)));
+    expect(card.kind).toBe('indexed');
+    if (card.kind !== 'indexed') return;
+    expect(card.subImages).toHaveLength(2);
+    expect(card.subImages[1]?.pixels.includes(OUTLINE_INDEX)).toBe(true);
+    expect(card.subImages[0]?.pixels.includes(OUTLINE_INDEX)).toBe(false);
+    const rgb = decodeSti(await data.vfs.read(stub(TEST_CARD_RGB_PATH)));
+    expect(rgb.kind).toBe('rgb');
   });
 
   it('decodes the stub tileset with a sprite for every stub tile type and a structure file for every structured one', async () => {

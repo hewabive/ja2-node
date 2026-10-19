@@ -44,6 +44,7 @@ describe('data version', () => {
   it('names the glyph table and the speech prefix per version', () => {
     expect(glyphTablePath('russianGold')).toBe('externalized/translation_tables/translation-table-rus-gold.json');
     expect(glyphTablePath('german')).toBe('externalized/translation_tables/translation-table-eng.json');
+    expect(glyphTablePath('stubs')).toBe('stubs/translation_tables/translation-table-stub.json');
     expect(rpcSpeechPrefixed('russian') && rpcSpeechPrefixed('russianGold')).toBe(true);
     expect(rpcSpeechPrefixed('english') || rpcSpeechPrefixed('stubs')).toBe(false);
   });
