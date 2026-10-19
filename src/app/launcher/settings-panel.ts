@@ -1,10 +1,11 @@
-// Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
-// Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
-// @src src/game/Options_Screen.cc BtnOptionsTogglesCallback (speech and subtitles cannot both be off, with the
-// @src OPT_NEED_AT_LEAST_SPEECH_OR_SUBTITLE_OPTION_ON message). See docs/27 §2.2, §8.3.
-
-import { type ClientSettings, PLAYBACK_SPEEDS, type SettingsChange, type VolumeSettings } from '../settings.ts';
-import type { Labels } from './labels.ts';
+import {
+  type ClientSettings,
+  PLAYBACK_SPEEDS,
+  type SettingsChange,
+  speechOrSubtitlesKept,
+  type VolumeSettings,
+} from '../../ui/settings.ts';
+import type { Labels } from '../../ui/text/labels.ts';
 import type { MessageBox } from './message-box.ts';
 import { parseSettingsFile, SETTINGS_FILE_NAME, settingsFileText } from './settings-file.ts';
 
@@ -30,7 +31,6 @@ const FLAG_SETTINGS: readonly FlagSetting[] = [
 ];
 const VOLUME_SETTINGS: readonly (keyof VolumeSettings)[] = ['effects', 'speech', 'music', 'ambient', 'master'];
 const REVOKE_DELAY_MS = 1000;
-const SPEECH_OR_SUBTITLES: readonly FlagSetting[] = ['speech', 'subtitles'];
 
 export interface SettingsPanelContext {
   readonly settings: () => ClientSettings;
@@ -47,12 +47,6 @@ function isFlagSetting(value: string | undefined): value is FlagSetting {
 
 function isVolumeSetting(value: string | undefined): value is keyof VolumeSettings {
   return VOLUME_SETTINGS.includes(value as keyof VolumeSettings);
-}
-
-export function speechOrSubtitlesKept(settings: ClientSettings, flag: FlagSetting, on: boolean): boolean {
-  if (on || !SPEECH_OR_SUBTITLES.includes(flag)) return true;
-  const other: FlagSetting = flag === 'speech' ? 'subtitles' : 'speech';
-  return settings[other] === true;
 }
 
 export class SettingsPanel {

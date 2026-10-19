@@ -4,7 +4,7 @@
 // @src INTRO_BEGINING, INTRO_ENDING, INTRO_SPLASH; src/game/Directories.h INTRODIR. See docs/27 §4.1, §4.3.
 
 import type { CampaignEndingView } from '../../protocol/view.ts';
-import type { ClientSettings } from '../settings.ts';
+import type { ClientSettings } from '../../ui/settings.ts';
 
 export const INTRO_DIR = 'intro';
 export const VIDEO_EXTENSION = 'smk';

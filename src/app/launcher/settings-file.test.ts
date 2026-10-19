@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS, updateSettings } from '../settings.ts';
+import { DEFAULT_SETTINGS, speechOrSubtitlesKept, updateSettings } from '../../ui/settings.ts';
 import { parseSettingsFile, SETTINGS_FILE_FORMAT, settingsFileText } from './settings-file.ts';
-import { speechOrSubtitlesKept } from './settings-panel.ts';
 
 describe('settings export and import', () => {
   it('round-trip the settings through a file', () => {

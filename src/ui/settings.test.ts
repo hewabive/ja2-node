@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SETTINGS,
   effectiveMaster,
-  loadSettings,
   markMeanwhileSceneSeen,
   meanwhileSceneSeen,
   normalizeSettings,
+  readSettings,
   SETTINGS_KEY,
   type SettingsStorage,
-  saveSettings,
   updateSettings,
+  writeSettings,
 } from './settings.ts';
 
 function memory(): SettingsStorage & { data: Map<string, string> } {
@@ -28,16 +28,16 @@ const broken: SettingsStorage = {
 
 describe('client settings', () => {
   it('default the four volumes to 63, the master to full, speech and subtitles on', () => {
-    expect(loadSettings(memory())).toEqual(DEFAULT_SETTINGS);
+    expect(readSettings(memory())).toEqual(DEFAULT_SETTINGS);
     expect(DEFAULT_SETTINGS.volumes).toEqual({ effects: 63, speech: 63, music: 63, ambient: 63, master: 127 });
   });
 
   it('round-trip through storage under one versioned key', () => {
     const store = memory();
     const changed = updateSettings(DEFAULT_SETTINGS, { volumes: { effects: 100 }, muteConfirmations: true });
-    expect(saveSettings(changed, store)).toBe(true);
+    expect(writeSettings(changed, store)).toBe(true);
     expect(JSON.parse(store.data.get(SETTINGS_KEY) ?? '{}').version).toBe(2);
-    expect(loadSettings(store)).toEqual(changed);
+    expect(readSettings(store)).toEqual(changed);
   });
 
   it('clamp volumes, ignore junk and other versions, and keep speech or subtitles on', () => {
@@ -55,19 +55,19 @@ describe('client settings', () => {
   });
 
   it('work without storage or with storage that throws', () => {
-    expect(loadSettings(null)).toEqual(DEFAULT_SETTINGS);
-    expect(loadSettings(broken)).toEqual(DEFAULT_SETTINGS);
-    expect(saveSettings(DEFAULT_SETTINGS, broken)).toBe(false);
+    expect(readSettings(null)).toEqual(DEFAULT_SETTINGS);
+    expect(readSettings(broken)).toEqual(DEFAULT_SETTINGS);
+    expect(writeSettings(DEFAULT_SETTINGS, broken)).toBe(false);
     const store = memory();
     store.data.set(SETTINGS_KEY, '{not json');
-    expect(loadSettings(store)).toEqual(DEFAULT_SETTINGS);
+    expect(readSettings(store)).toEqual(DEFAULT_SETTINGS);
   });
 
   it('play the splash and the beginning intro by default and keep either switch off once saved', () => {
     expect(DEFAULT_SETTINGS).toMatchObject({ playSplash: true, playIntro: true });
     const store = memory();
-    saveSettings(updateSettings(DEFAULT_SETTINGS, { playSplash: false }), store);
-    expect(loadSettings(store)).toMatchObject({ playSplash: false, playIntro: true });
+    writeSettings(updateSettings(DEFAULT_SETTINGS, { playSplash: false }), store);
+    expect(readSettings(store)).toMatchObject({ playSplash: false, playIntro: true });
     expect(normalizeSettings({ version: 1, playIntro: 'no' })).toMatchObject({ playIntro: true });
   });
 

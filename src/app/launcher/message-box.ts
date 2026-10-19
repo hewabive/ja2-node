@@ -1,4 +1,4 @@
-import type { Labels } from './labels.ts';
+import type { Labels } from '../../ui/text/labels.ts';
 
 type MessageBoxKind = 'yesNo' | 'ok';
 

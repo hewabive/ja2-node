@@ -1,4 +1,4 @@
-import { type ClientSettings, normalizeSettings } from '../settings.ts';
+import { type ClientSettings, normalizeSettings } from '../../ui/settings.ts';
 
 export const SETTINGS_FILE_FORMAT = 'ja2-node-settings';
 export const SETTINGS_FILE_NAME = 'ja2-node-settings.json';

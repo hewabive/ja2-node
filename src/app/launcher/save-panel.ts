@@ -1,23 +1,28 @@
 import type { UiLanguage } from '../../content/text/data-version.ts';
+import type { Health, LoadSuccess, SaveListing, SessionSummary } from '../../ui/client/api-types.ts';
+import type { StartPage } from '../../ui/client/campaign-form.ts';
+import {
+  clampDescription,
+  loadWarningText,
+  overwriteTarget,
+  predictLoadWarnings,
+  type SaveRow,
+  saveRow,
+  uploadName,
+} from '../../ui/saves/save-rows.ts';
+import type { LabelId, Labels } from '../../ui/text/labels.ts';
 import {
   ApiError,
   createSession,
   deleteSave,
   fetchSaves,
   fetchSessions,
-  type Health,
-  type LoadSuccess,
   loadIntoSession,
-  type SaveListing,
-  type SessionSummary,
   saveFileUrl,
   saveSession,
   uploadSave,
 } from './api.ts';
-import type { StartPage } from './campaign-form.ts';
-import type { LabelId, Labels } from './labels.ts';
 import type { MessageBox } from './message-box.ts';
-import { clampDescription, loadWarningText, overwriteTarget, predictLoadWarnings, type SaveRow, saveRow, uploadName } from './save-rows.ts';
 
 export interface SavePanelContext {
   readonly labels: () => Labels;

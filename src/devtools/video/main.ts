@@ -1,11 +1,12 @@
 import { type CreditsMonitor, createCreditsMonitor, playCredits } from '../../app/credits/scroller.ts';
 import { fetchHealth, readVfsFileOrNull } from '../../app/net/vfs.ts';
-import { type ClientSettings, effectiveMaster, loadSettings, saveSettings, updateSettings } from '../../app/settings.ts';
+import { loadSettings, saveSettings } from '../../app/settings.ts';
 import type { VideoResult } from '../../app/video/player.ts';
 import { createSequenceMonitor, playSequence, type SequenceMonitor } from '../../app/video/sequence-player.ts';
 import { beginningPlan, endingPlan, type SequencePlan, sequenceEnabled, splashPlan } from '../../app/video/sequences.ts';
 import { engineSound } from '../../app/video/sound.ts';
 import { AudioEngine } from '../../audio/engine.ts';
+import { type ClientSettings, effectiveMaster, updateSettings } from '../../ui/settings.ts';
 
 interface VideoPageHook {
   ready: boolean;

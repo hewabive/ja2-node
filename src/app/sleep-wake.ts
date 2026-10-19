@@ -6,7 +6,7 @@
 
 import type { StopCondition } from '../protocol/messages.ts';
 import type { StrategicMercView, ViewFrame } from '../protocol/view.ts';
-import type { ClientSettings } from './settings.ts';
+import type { ClientSettings } from '../ui/settings.ts';
 
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
 type EventType = FrameEvent['type'];

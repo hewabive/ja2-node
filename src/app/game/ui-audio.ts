@@ -1,9 +1,10 @@
 import { AudioEngine } from '../../audio/engine.ts';
 import { cueOf } from '../../content/audio/cue.ts';
 import { parseSoundEffects, SOUND_EFFECTS_PATH, type SoundEffectTable } from '../../content/audio/sound-table.ts';
+import { effectiveMaster } from '../../ui/settings.ts';
 import type { ButtonSoundRequest, UiSoundSink } from '../../ui/widgets/button-sounds.ts';
 import type { AssetSource } from '../assets/asset-source.ts';
-import { effectiveMaster, loadSettings } from '../settings.ts';
+import { loadSettings } from '../settings.ts';
 
 const FIXED_MIX = 'fixed';
 

@@ -1,7 +1,8 @@
 import { AUTO_UI_SCALE, type ScaleSetting } from '../../ui/resolution.ts';
 import { TEST_PATTERN_IMAGES, TestPatternScreen } from '../../ui/screens/test-pattern.ts';
+import type { ClientSettings } from '../../ui/settings.ts';
 import { SessionClient } from '../net/session-client.ts';
-import { type ClientSettings, loadSettings } from '../settings.ts';
+import { loadSettings } from '../settings.ts';
 import { installDomInput } from './dom-input.ts';
 import { startFrameLoop } from './frame-loop.ts';
 import { GamePage } from './game-page.ts';

@@ -4,7 +4,7 @@
 // @src src/game/GameInitOptionsScreen.cc (the game init screen's choices). See docs/27 §2.2, §8.3.
 
 import type { UiLanguage } from '../../content/text/data-version.ts';
-import type { Difficulty, GameOptions, SaveMode } from './api.ts';
+import type { Difficulty, GameOptions, SaveMode } from './api-types.ts';
 
 export type SquadChoice = 'default' | 'laptop';
 export type StartPage = 'strategic' | 'tactical';
