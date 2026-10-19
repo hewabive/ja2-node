@@ -1,0 +1,38 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/UILayout.h",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls); panelRelative: the names whose value contains INTERFACE_START_X, INTERFACE_START_Y or INV_INTERFACE_START_Y, evaluated as 0 (positions inside the tactical panel frames)",
+  "constants": {
+    "NUM_INVENTORY_SLOTS": 19,
+    "INV_INTERFACE_HEIGHT": 140,
+    "SM_BODYINV_X": 244,
+    "SM_BODYINV_Y": 6,
+    "SM_INVINTERFACE_WIDTH": 532,
+    "EDITOR_TASKBAR_HEIGHT": 120,
+    "DEFAULT_EXTERN_PANEL_X_POS": 320,
+    "DEFAULT_EXTERN_PANEL_Y_POS": 40,
+    "TEAMPANEL_SLOT_WIDTH": 83,
+    "TEAMPANEL_BUTTONSBOX_WIDTH": 142,
+    "TEAMPANEL_HEIGHT": 120
+  },
+  "stdScreen": ["DEFAULT_EXTERN_PANEL_X_POS", "DEFAULT_EXTERN_PANEL_Y_POS"],
+  "panelRelative": ["SM_BODYINV_X", "SM_BODYINV_Y"],
+  "skipped": [
+    "SCREEN_HEIGHT",
+    "SCREEN_WIDTH",
+    "INV_INTERFACE_START_Y",
+    "INTERFACE_START_X",
+    "INTERFACE_START_Y",
+    "gsVIEWPORT_START_X",
+    "gsVIEWPORT_START_Y",
+    "gsVIEWPORT_WINDOW_START_Y",
+    "gsVIEWPORT_END_X",
+    "gsVIEWPORT_END_Y",
+    "gsVIEWPORT_WINDOW_END_Y",
+    "STD_SCREEN_X",
+    "STD_SCREEN_Y",
+    "MAP_SCREEN_WIDTH",
+    "MAP_SCREEN_HEIGHT",
+    "EDITOR_TASKBAR_POS_Y"
+  ]
+}

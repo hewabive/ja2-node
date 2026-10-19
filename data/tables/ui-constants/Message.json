@@ -1,0 +1,28 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Utils/Message.h, src/game/Utils/Message.cc",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
+  "constants": {
+    "MSG_INTERFACE": 0,
+    "MSG_DIALOG": 1,
+    "MSG_CHAT": 2,
+    "MSG_DEBUG": 3,
+    "MSG_UI_FEEDBACK": 4,
+    "MSG_SKULL_UI_FEEDBACK": 11,
+    "MSG_FONT_RED": 163,
+    "MSG_FONT_YELLOW": 144,
+    "MSG_FONT_WHITE": 208,
+    "MAX_LINE_COUNT": 6,
+    "X_START": 2,
+    "MAX_AGE": 10000,
+    "LINE_WIDTH": 320,
+    "MAP_LINE_WIDTH": 300,
+    "WIDTH_BETWEEN_NEW_STRINGS": 5,
+    "DEBUG_COLOR": 163,
+    "DIALOGUE_COLOR": 208,
+    "INTERFACE_COLOR": 145,
+    "MAP_SCREEN_MESSAGE_FONT": "TINYFONT1"
+  },
+  "stdScreen": [],
+  "skipped": ["Y_START"]
+}
