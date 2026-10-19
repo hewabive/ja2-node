@@ -1,4 +1,4 @@
-import type { VfsFile } from './api.ts';
+import type { VfsFile } from '../../app/net/vfs.ts';
 
 interface Dir {
   readonly name: string;

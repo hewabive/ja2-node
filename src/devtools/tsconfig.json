@@ -25,6 +25,9 @@
       "path": "../audio"
     },
     {
+      "path": "../ui"
+    },
+    {
       "path": "../app"
     }
   ]

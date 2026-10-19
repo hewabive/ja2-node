@@ -1,6 +1,7 @@
 import { AudioEngine } from '../../audio/engine.ts';
 import { UI_LANGUAGES, type UiLanguage } from '../../content/text/data-version.ts';
 import { type CreditsMonitor, createCreditsMonitor, playCredits } from '../credits/scroller.ts';
+import { readVfsFileOrNull } from '../net/vfs.ts';
 import { type ClientSettings, effectiveMaster, loadSettings, type SettingsChange, saveSettings, updateSettings } from '../settings.ts';
 import { createSequenceMonitor, playSequence, type SequenceMonitor } from '../video/sequence-player.ts';
 import { beginningPlan, type SequencePlan, sequenceEnabled, splashPlan } from '../video/sequences.ts';
@@ -79,15 +80,6 @@ function element<T extends HTMLElement>(id: string): T {
   return found as T;
 }
 
-async function optionalFile(path: string): Promise<Uint8Array | null> {
-  try {
-    const res = await fetch(`/vfs/${path.split('/').map(encodeURIComponent).join('/')}`);
-    return res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
-  } catch {
-    return null;
-  }
-}
-
 function splashShownThisTab(): boolean {
   try {
     return sessionStorage.getItem(SPLASH_SHOWN_KEY) === '1';
@@ -110,7 +102,7 @@ let settings: ClientSettings = loadSettings();
 let health: Health | null = null;
 let labels = new Labels(settings.language ?? 'eng', null);
 let sessions: readonly SessionSummary[] = [];
-const engine = new AudioEngine({ createGraph: () => new AudioContext(), load: optionalFile });
+const engine = new AudioEngine({ createGraph: () => new AudioContext(), load: readVfsFileOrNull });
 const sound = engineSound(engine);
 const box = new MessageBox(() => labels);
 

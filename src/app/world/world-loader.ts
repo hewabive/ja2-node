@@ -5,7 +5,7 @@ import { placeWorldStructures } from '../../content/world/placement.ts';
 import { buildTileDatabase, type TileElement } from '../../content/world/tile-database.ts';
 import { parseTileTables, TILE_TABLES_PATH, type TileTables } from '../../content/world/tile-tables.ts';
 import { type LoadedTileSurface, loadTileSurfaces } from '../../content/world/tileset-loader.ts';
-import { fetchFile } from '../asset-browser/api.ts';
+import { fetchVfsFile, type ReadVfsFile } from '../net/vfs.ts';
 
 export interface LoadedWorld {
   readonly mapPath: string;
@@ -21,13 +21,13 @@ export function worldRoot(mapPath: string): string {
   return mapPath.slice(0, mapPath.lastIndexOf('maps/'));
 }
 
-export async function loadWorld(mapPath: string, available: ReadonlySet<string>): Promise<LoadedWorld> {
-  const readOptional = async (path: string): Promise<Uint8Array | null> => (available.has(path) ? fetchFile(path) : null);
+export async function loadWorld(mapPath: string, available: ReadonlySet<string>, read: ReadVfsFile = fetchVfsFile): Promise<LoadedWorld> {
+  const readOptional = async (path: string): Promise<Uint8Array | null> => (available.has(path) ? read(path) : null);
   const root = worldRoot(mapPath);
   const [tablesJson, tilesetBytes, mapBytes] = await Promise.all([
-    fetchFile(TILE_TABLES_PATH),
-    fetchFile(root + TILESET_DATABASE_PATH),
-    fetchFile(mapPath),
+    read(TILE_TABLES_PATH),
+    read(root + TILESET_DATABASE_PATH),
+    read(mapPath),
   ]);
   const tables = parseTileTables(JSON.parse(new TextDecoder().decode(tablesJson)));
   const map = parseMap(mapBytes);

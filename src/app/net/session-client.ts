@@ -9,8 +9,9 @@ import {
 } from '../../protocol/messages.ts';
 import {
   type AutoresolveView,
-  applyFrame,
+  applyViewFrame,
   type BoxingView,
+  type CampaignEndedView,
   type ClockView,
   type CombatView,
   type ContractPromptView,
@@ -18,6 +19,8 @@ import {
   type DoorView,
   type ItemView,
   type LaptopView,
+  type MeanwhileSceneView,
+  type MusicView,
   type NpcRequestPromptView,
   type PlayerView,
   type PromptView,
@@ -36,7 +39,6 @@ export interface CommandReply {
 }
 
 export class SessionClient {
-  view: PlayerView | null = null;
   driver: DriverMode = { mode: 'manual' };
   playbackSpeed = 1;
   session: string | null = null;
@@ -47,26 +49,9 @@ export class SessionClient {
   readonly #pending = new Map<number, Pending>();
   readonly #frames: ViewFrame[] = [];
   #nextId = 1;
-  #shown: SoldierView[] = [];
-  #openDoors: readonly number[] = [];
-  #combat: CombatView | null = null;
-  #revealedRooms: readonly number[] = [];
-  #items: readonly ItemView[] = [];
-  #mapPath: string | null = null;
-  #clock: ClockView | null = null;
-  #strategic: StrategicView | null = null;
-  #prompt: PromptView | null = null;
-  #autoresolve: AutoresolveView | null = null;
-  #contractPrompt: ContractPromptView | null = null;
-  #shop: ShopView | null = null;
-  #laptop: LaptopView | null = null;
-  #doors: readonly DoorView[] = [];
-  #conversation: ConversationView | null = null;
-  #scriptedSequence = false;
-  #npcRequest: NpcRequestPromptView | null = null;
-  #boxing: BoxingView | null = null;
+  #shown: PlayerView | null = null;
+  #latest: PlayerView | null = null;
   #shownTick = 0;
-  #latestTick = 0;
 
   private constructor(socket: WebSocket) {
     this.#socket = socket;
@@ -87,76 +72,96 @@ export class SessionClient {
     });
   }
 
-  get soldiers(): readonly SoldierView[] {
+  get view(): PlayerView | null {
     return this.#shown;
   }
 
+  get latestView(): PlayerView | null {
+    return this.#latest;
+  }
+
+  get soldiers(): readonly SoldierView[] {
+    return this.#shown?.soldiers ?? [];
+  }
+
   get items(): readonly ItemView[] {
-    return this.#items;
+    return this.#shown?.items ?? [];
   }
 
   get revealedRooms(): readonly number[] {
-    return this.#revealedRooms;
+    return this.#shown?.revealedRooms ?? [];
   }
 
   get combat(): CombatView | null {
-    return this.#combat;
+    return this.#shown?.combat ?? null;
   }
 
   get openDoors(): readonly number[] {
-    return this.#openDoors;
+    return this.#shown?.openDoors ?? [];
   }
 
   get mapPath(): string | null {
-    return this.#mapPath;
+    return this.#shown?.mapPath ?? null;
   }
 
   get clock(): ClockView | null {
-    return this.#clock;
+    return this.#shown?.clock ?? null;
   }
 
   get strategic(): StrategicView | null {
-    return this.#strategic;
+    return this.#shown?.strategic ?? null;
   }
 
   get prompt(): PromptView | null {
-    return this.#prompt;
+    return this.#shown?.prompt ?? null;
   }
 
   get autoresolve(): AutoresolveView | null {
-    return this.#autoresolve;
+    return this.#shown?.autoresolve ?? null;
   }
 
   get contractPrompt(): ContractPromptView | null {
-    return this.#contractPrompt;
+    return this.#shown?.contractPrompt ?? null;
   }
 
   get shop(): ShopView | null {
-    return this.#shop;
+    return this.#shown?.shop ?? null;
   }
 
   get laptop(): LaptopView | null {
-    return this.#laptop;
+    return this.#shown?.laptop ?? null;
   }
 
   get doors(): readonly DoorView[] {
-    return this.#doors;
+    return this.#shown?.doors ?? [];
   }
 
   get conversation(): ConversationView | null {
-    return this.#conversation;
+    return this.#shown?.conversation ?? null;
   }
 
   get scriptedSequence(): boolean {
-    return this.#scriptedSequence;
+    return this.#shown?.scriptedSequence ?? false;
   }
 
   get npcRequest(): NpcRequestPromptView | null {
-    return this.#npcRequest;
+    return this.#shown?.npcRequest ?? null;
   }
 
   get boxing(): BoxingView | null {
-    return this.#boxing;
+    return this.#shown?.boxing ?? null;
+  }
+
+  get meanwhile(): MeanwhileSceneView | null {
+    return this.#shown?.meanwhile ?? null;
+  }
+
+  get ended(): CampaignEndedView | null {
+    return this.#shown?.ended ?? null;
+  }
+
+  get music(): MusicView | null {
+    return this.#shown?.music ?? null;
   }
 
   get shownTick(): number {
@@ -164,7 +169,7 @@ export class SessionClient {
   }
 
   get latestTick(): number {
-    return this.#latestTick;
+    return this.#latest?.tick ?? 0;
   }
 
   #send(message: ClientMessage): void {
@@ -183,33 +188,15 @@ export class SessionClient {
       case 'welcome':
         this.#frames.length = 0;
         this.session = m.session;
-        this.view = m.view;
         this.driver = m.driver;
-        this.#shown = [...m.view.soldiers];
-        this.#openDoors = m.view.openDoors ?? [];
-        this.#combat = m.view.combat ?? null;
-        this.#revealedRooms = m.view.revealedRooms ?? [];
-        this.#items = m.view.items ?? [];
-        this.#mapPath = m.view.mapPath;
-        this.#clock = m.view.clock ?? null;
-        this.#strategic = m.view.strategic ?? null;
-        this.#prompt = m.view.prompt ?? null;
-        this.#autoresolve = m.view.autoresolve ?? null;
-        this.#contractPrompt = m.view.contractPrompt ?? null;
-        this.#shop = m.view.shop ?? null;
-        this.#laptop = m.view.laptop ?? null;
-        this.#doors = m.view.doors ?? [];
-        this.#conversation = m.view.conversation ?? null;
-        this.#scriptedSequence = m.view.scriptedSequence ?? false;
-        this.#npcRequest = m.view.npcRequest ?? null;
-        this.#boxing = m.view.boxing ?? null;
+        this.#shown = m.view;
+        this.#latest = m.view;
         this.#shownTick = m.view.tick;
-        this.#latestTick = m.view.tick;
         this.onWelcome?.();
         break;
       case 'frames':
         this.#frames.push(...m.frames);
-        this.#latestTick = Math.max(this.#latestTick, m.frames.at(-1)?.tick ?? 0);
+        for (const frame of m.frames) this.#latest = this.#latest && applyViewFrame(this.#latest, frame);
         break;
       case 'result':
       case 'stopped': {
@@ -231,26 +218,9 @@ export class SessionClient {
     while (this.#frames.length > 0 && (this.#frames[0]?.tick ?? 0) <= tick) {
       const frame = this.#frames.shift() as ViewFrame;
       applied.push(frame);
-      this.#shown = applyFrame(this.#shown, frame);
-      if (frame.openDoors) this.#openDoors = frame.openDoors;
-      if (frame.combat !== undefined) this.#combat = frame.combat;
-      if (frame.revealedRooms) this.#revealedRooms = frame.revealedRooms;
-      if (frame.items) this.#items = frame.items;
-      if (frame.mapPath !== undefined) this.#mapPath = frame.mapPath;
-      if (frame.clock) this.#clock = frame.clock;
-      if (frame.strategic) this.#strategic = frame.strategic;
-      if (frame.prompt !== undefined) this.#prompt = frame.prompt;
-      if (frame.autoresolve !== undefined) this.#autoresolve = frame.autoresolve;
-      if (frame.contractPrompt !== undefined) this.#contractPrompt = frame.contractPrompt;
-      if (frame.shop !== undefined) this.#shop = frame.shop;
-      if (frame.laptop !== undefined) this.#laptop = frame.laptop;
-      if (frame.doors) this.#doors = frame.doors;
-      if (frame.conversation !== undefined) this.#conversation = frame.conversation;
-      if (frame.scriptedSequence !== undefined) this.#scriptedSequence = frame.scriptedSequence;
-      if (frame.npcRequest !== undefined) this.#npcRequest = frame.npcRequest;
-      if (frame.boxing !== undefined) this.#boxing = frame.boxing;
+      this.#shown = this.#shown && applyViewFrame(this.#shown, frame);
     }
-    const target = Math.min(tick, this.#latestTick);
+    const target = Math.min(tick, this.latestTick);
     if (target > this.#shownTick) this.#shownTick = target;
     if (applied.length > 0) this.onFrames?.(applied);
     return applied.length > 0;

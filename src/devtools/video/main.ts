@@ -1,11 +1,11 @@
 import { type CreditsMonitor, createCreditsMonitor, playCredits } from '../../app/credits/scroller.ts';
+import { fetchHealth, readVfsFileOrNull } from '../../app/net/vfs.ts';
 import { type ClientSettings, effectiveMaster, loadSettings, saveSettings, updateSettings } from '../../app/settings.ts';
 import type { VideoResult } from '../../app/video/player.ts';
 import { createSequenceMonitor, playSequence, type SequenceMonitor } from '../../app/video/sequence-player.ts';
 import { beginningPlan, endingPlan, type SequencePlan, sequenceEnabled, splashPlan } from '../../app/video/sequences.ts';
 import { engineSound } from '../../app/video/sound.ts';
 import { AudioEngine } from '../../audio/engine.ts';
-import { fetchFile, fetchHealth } from '../asset-browser/api.ts';
 
 interface VideoPageHook {
   ready: boolean;
@@ -30,14 +30,6 @@ function element<T extends HTMLElement>(id: string): T {
   return found as T;
 }
 
-async function optionalFile(path: string): Promise<Uint8Array | null> {
-  try {
-    return await fetchFile(path);
-  } catch {
-    return null;
-  }
-}
-
 const status = element<HTMLSpanElement>('status');
 const results = element<HTMLTableElement>('results');
 const hook: VideoPageHook = {
@@ -51,7 +43,7 @@ const hook: VideoPageHook = {
 window.__ja2Video = hook;
 
 let settings: ClientSettings = loadSettings();
-const engine = new AudioEngine({ createGraph: () => new AudioContext(), load: optionalFile });
+const engine = new AudioEngine({ createGraph: () => new AudioContext(), load: readVfsFileOrNull });
 engine.setVolumes({ ...settings.volumes, master: effectiveMaster(settings) });
 const unlock = () => {
   engine.unlock();

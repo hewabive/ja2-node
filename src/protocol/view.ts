@@ -741,3 +741,22 @@ export function applyFrame(soldiers: readonly SoldierView[], frame: ViewFrame): 
   for (const s of frame.changed) byId.set(s.id, s);
   return [...byId.values()].sort((a, b) => a.id - b.id);
 }
+
+const FRAME_ONLY_KEYS = ['tick', 'changed', 'removed', 'events'] as const;
+type FrameFields = Omit<ViewFrame, (typeof FRAME_ONLY_KEYS)[number]>;
+
+function frameFields(frame: ViewFrame): FrameFields {
+  const fields: Record<string, unknown> = { ...frame };
+  for (const key of FRAME_ONLY_KEYS) delete fields[key];
+  return fields as FrameFields;
+}
+
+export function applyViewFrame(view: PlayerView, frame: ViewFrame): PlayerView {
+  const soldiersChanged = frame.changed.length > 0 || frame.removed.length > 0;
+  return {
+    ...view,
+    ...frameFields(frame),
+    tick: frame.tick,
+    soldiers: soldiersChanged ? applyFrame(view.soldiers, frame) : view.soldiers,
+  };
+}

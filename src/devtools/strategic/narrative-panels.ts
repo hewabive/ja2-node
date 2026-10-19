@@ -1,3 +1,4 @@
+import type { CommandReply } from '../../app/net/session-client.ts';
 import type {
   DestroyedHelicopterView,
   MeanwhileLogView,
@@ -6,7 +7,6 @@ import type {
   StrategicHelicopterView,
   StrategicView,
 } from '../../protocol/view.ts';
-import type { CommandReply } from '../net/session-client.ts';
 
 type Send = (cmd: { type: string; [key: string]: unknown }) => Promise<CommandReply>;
 type Report = (text: string, error?: boolean) => void;

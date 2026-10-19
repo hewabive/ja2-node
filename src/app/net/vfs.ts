@@ -11,9 +11,17 @@ export interface VfsFile {
   readonly layer: string;
 }
 
+export type ReadVfsFile = (path: string) => Promise<Uint8Array<ArrayBuffer>>;
+
+const NOT_FOUND = 404;
+
 async function ok(res: Response): Promise<Response> {
   if (!res.ok) throw new Error(`${res.url}: HTTP ${res.status}`);
   return res;
+}
+
+export function vfsUrl(path: string): string {
+  return `/vfs/${path.split('/').map(encodeURIComponent).join('/')}`;
 }
 
 export async function fetchHealth(): Promise<Health> {
@@ -25,7 +33,20 @@ export async function fetchVfsList(): Promise<VfsFile[]> {
   return body.files.map(([path, size, layer]) => ({ path, size, layer: body.layers[layer] ?? '?' }));
 }
 
-export async function fetchFile(path: string): Promise<Uint8Array<ArrayBuffer>> {
-  const url = `/vfs/${path.split('/').map(encodeURIComponent).join('/')}`;
-  return new Uint8Array(await (await ok(await fetch(url))).arrayBuffer());
+export async function fetchVfsFile(path: string): Promise<Uint8Array<ArrayBuffer>> {
+  return new Uint8Array(await (await ok(await fetch(vfsUrl(path)))).arrayBuffer());
+}
+
+export async function fetchOptionalVfsFile(path: string): Promise<Uint8Array<ArrayBuffer> | null> {
+  const res = await fetch(vfsUrl(path));
+  if (res.status === NOT_FOUND) return null;
+  return new Uint8Array(await (await ok(res)).arrayBuffer());
+}
+
+export async function readVfsFileOrNull(path: string): Promise<Uint8Array<ArrayBuffer> | null> {
+  try {
+    return await fetchVfsFile(path);
+  } catch {
+    return null;
+  }
 }

@@ -5,15 +5,8 @@
 // @src mouse button ends the video). See docs/27 §4.1, §4.3.
 
 import { IndexedFrameRenderer } from '../../render/indexed-frame.ts';
-import {
-  createDecoderWorker,
-  emptyProgress,
-  type FetchVideo,
-  fetchVfsVideo,
-  playVideo,
-  type VideoProgress,
-  type VideoResult,
-} from './player.ts';
+import { fetchOptionalVfsFile } from '../net/vfs.ts';
+import { createDecoderWorker, emptyProgress, type FetchVideo, playVideo, type VideoProgress, type VideoResult } from './player.ts';
 import { introVideoPath, type SequencePlan } from './sequences.ts';
 import type { VideoSound } from './sound.ts';
 
@@ -112,7 +105,7 @@ export async function playSequence(plan: SequencePlan, options: SequenceOptions 
         sound: options.sound ?? null,
         signal: current.signal,
         createWorker: options.createWorker ?? createDecoderWorker,
-        fetchVideo: options.fetchVideo ?? fetchVfsVideo,
+        fetchVideo: options.fetchVideo ?? fetchOptionalVfsFile,
         progress: monitor.progress,
       });
       videos.push(result);

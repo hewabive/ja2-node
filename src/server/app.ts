@@ -16,6 +16,7 @@ import {
 } from '../content/text/data-version.ts';
 import { vfsExtension } from '../content/vfs/path.ts';
 import { type Vfs, VfsNotFoundError } from '../content/vfs/vfs.ts';
+import { clientPagePath } from '../node/client-pages.ts';
 import { handleMcpRequest } from './mcp.ts';
 import { SAVE_EXTENSION } from './save-file.ts';
 import { type LoadProblem, loadProblemOf, type SaveOutcome, type SaveService } from './save-service.ts';
@@ -356,7 +357,7 @@ export function createApp(options: AppOptions): Hono {
     }
   });
 
-  if (options.clientDir) app.use('*', serveStatic({ root: options.clientDir }));
+  if (options.clientDir) app.use('*', serveStatic({ root: options.clientDir, rewriteRequestPath: clientPagePath }));
 
   return app;
 }

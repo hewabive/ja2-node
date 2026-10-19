@@ -5,6 +5,7 @@
 // @src DC__MAX_SIZE. See docs/27 §2.2.
 
 import { UI_LANGUAGES, type UiLanguage } from '../content/text/data-version.ts';
+import { AUTO_UI_SCALE, MAX_UI_SCALE } from '../ui/resolution.ts';
 
 export const SETTINGS_KEY = 'ja2-node:settings';
 export const SETTINGS_VERSION = 2;
@@ -63,6 +64,8 @@ export interface ClientSettings {
   readonly losSize: number;
   readonly playSplash: boolean;
   readonly playIntro: boolean;
+  readonly uiScale: number;
+  readonly fixed640: boolean;
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
@@ -109,6 +112,8 @@ export const DEFAULT_SETTINGS: ClientSettings = {
   losSize: MIN_DISPLAY_SIZE,
   playSplash: true,
   playIntro: true,
+  uiScale: AUTO_UI_SCALE,
+  fixed640: false,
 };
 
 export interface SettingsStorage {
@@ -132,6 +137,10 @@ function displaySize(value: unknown, fallback: number): number {
 
 function playbackSpeed(value: unknown): number {
   return typeof value === 'number' && PLAYBACK_SPEEDS.includes(value) ? value : DEFAULT_PLAYBACK_SPEED;
+}
+
+function uiScale(value: unknown): number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= AUTO_UI_SCALE && value <= MAX_UI_SCALE ? value : AUTO_UI_SCALE;
 }
 
 function language(value: unknown): UiLanguage | null {
@@ -190,6 +199,8 @@ export function normalizeSettings(raw: unknown): ClientSettings {
     losSize: displaySize(o.losSize, d.losSize),
     playSplash: flag(o.playSplash, d.playSplash),
     playIntro: flag(o.playIntro, d.playIntro),
+    uiScale: uiScale(o.uiScale),
+    fixed640: flag(o.fixed640, d.fixed640),
   };
 }
 

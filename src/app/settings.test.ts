@@ -116,4 +116,11 @@ describe('client settings', () => {
     expect(effectiveMaster(muted)).toBe(0);
     expect(effectiveMaster(updateSettings(muted, { muted: false }))).toBe(127);
   });
+
+  it('default to the automatic UI scale without the 640×480-only option and keep only whole scales in range', () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ uiScale: 0, fixed640: false });
+    expect(normalizeSettings({ uiScale: 3, fixed640: true })).toMatchObject({ uiScale: 3, fixed640: true });
+    expect(normalizeSettings({ uiScale: 2.5 })).toMatchObject({ uiScale: 0 });
+    expect(normalizeSettings({ uiScale: 99 })).toMatchObject({ uiScale: 0 });
+  });
 });

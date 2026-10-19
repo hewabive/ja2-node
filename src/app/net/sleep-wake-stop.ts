@@ -1,8 +1,8 @@
-import { fetchLabels, type Labels } from '../../app/launcher/labels.ts';
-import { loadSettings } from '../../app/settings.ts';
-import { type SleepWakeNotice, sleepWakeNotice, sleepWakeStop } from '../../app/sleep-wake.ts';
 import type { SessionStopReport, StopCondition } from '../../protocol/messages.ts';
 import type { ViewFrame } from '../../protocol/view.ts';
+import { fetchLabels, type Labels } from '../launcher/labels.ts';
+import { loadSettings } from '../settings.ts';
+import { type SleepWakeNotice, sleepWakeNotice, sleepWakeStop } from '../sleep-wake.ts';
 import type { SessionClient } from './session-client.ts';
 
 export interface SleepWakeHook {

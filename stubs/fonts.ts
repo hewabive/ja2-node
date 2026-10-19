@@ -1,10 +1,12 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { encodeStiIndexed, type StiSubImage } from '../src/content/formats/sti.ts';
+import { STUB_GLYPH_TABLE_FILE } from '../src/content/text/data-version.ts';
+import { DEFAULT_SHADOW, FontColor } from '../src/content/text/font-colors.ts';
 import { type GlyphTable, glyphCount, parseGlyphTable } from '../src/content/text/glyph-table.ts';
 import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
 
-export const STUB_GLYPH_TABLE_PATH = 'translation_tables/translation-table-stub.json';
+export const STUB_GLYPH_TABLE_PATH = STUB_GLYPH_TABLE_FILE;
 export const STUB_FONT_LICENSE_FILES = ['fonts/OFL.txt', 'fonts/NOTICE.txt'] as const;
 export const GLYPH_SOURCE_FORMAT = 'ja2-node.glyphs/1';
 export const FONT_INK_INDEX = 2;
@@ -19,7 +21,41 @@ const BITS_PER_BYTE = 8;
 const HEX_DIGITS_PER_BYTE = 2;
 const PALETTE_COLOURS = 256;
 const SHADOW_COLOUR = [32, 32, 32] as const;
-const INK_COLOUR = [255, 255, 255] as const;
+const BLACK = [0, 0, 0] as const;
+
+const NAMED_COLOURS: readonly (readonly [number, readonly [number, number, number]])[] = [
+  [DEFAULT_SHADOW, BLACK],
+  [FontColor.WHITE, [255, 255, 255]],
+  [FontColor.GRAY1, [224, 224, 224]],
+  [FontColor.GRAY2, [200, 200, 200]],
+  [FontColor.GRAY3, [176, 176, 176]],
+  [FontColor.GRAY4, [152, 152, 152]],
+  [FontColor.GRAY5, [128, 128, 128]],
+  [FontColor.GRAY6, [104, 104, 104]],
+  [FontColor.GRAY7, [80, 80, 80]],
+  [FontColor.GRAY8, [56, 56, 56]],
+  [FontColor.NEARBLACK, [24, 24, 24]],
+  [FontColor.LTRED, [255, 104, 104]],
+  [FontColor.RED, [224, 40, 40]],
+  [FontColor.MCOLOR_DKRED, [168, 24, 24]],
+  [FontColor.DKRED, [128, 16, 16]],
+  [FontColor.ORANGE, [240, 144, 32]],
+  [FontColor.MCOLOR_LTYELLOW, [255, 255, 144]],
+  [FontColor.YELLOW, [255, 232, 64]],
+  [FontColor.DKYELLOW, [184, 152, 32]],
+  [FontColor.LTGREEN, [128, 240, 128]],
+  [FontColor.GREEN, [40, 200, 64]],
+  [FontColor.DKGREEN, [24, 120, 40]],
+  [FontColor.LTBLUE, [128, 176, 255]],
+  [FontColor.BLUE, [64, 104, 240]],
+  [FontColor.DKBLUE, [32, 48, 160]],
+  [FontColor.BEIGE, [224, 200, 160]],
+  [FontColor.METALGRAY, [144, 152, 168]],
+  [FontColor.BURGUNDY, [128, 24, 56]],
+  [FontColor.LTKHAKI, [200, 192, 136]],
+  [FontColor.KHAKI, [168, 160, 104]],
+  [FontColor.DKKHAKI, [120, 112, 64]],
+];
 
 export interface StubFontFace {
   readonly source: string;
@@ -155,10 +191,10 @@ export function glyphImage(source: GlyphSource, rows: readonly number[]): StiSub
   return { offsetX: 0, offsetY: 0, width, height, pixels };
 }
 
-function fontPalette(): Uint8Array {
+export function stubFontPalette(): Uint8Array {
   const palette = new Uint8Array(PALETTE_COLOURS * 3);
   palette.set(SHADOW_COLOUR, FONT_SHADOW_INDEX * 3);
-  palette.set(INK_COLOUR, FONT_INK_INDEX * 3);
+  for (const [index, rgb] of NAMED_COLOURS) palette.set(rgb, index * 3);
   return palette;
 }
 
@@ -169,7 +205,7 @@ export function encodeStubFont(source: GlyphSource, table: GlyphTable): Uint8Arr
     if (!rows) throw new Error(`${source.name}: no glyph for U+${(cp ?? fallback).toString(16).toUpperCase().padStart(4, '0')}`);
     return glyphImage(source, rows);
   });
-  return encodeStiIndexed({ palette: fontPalette(), subImages });
+  return encodeStiIndexed({ palette: stubFontPalette(), subImages });
 }
 
 export async function loadGlyphSource(file: string): Promise<GlyphSource> {

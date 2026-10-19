@@ -1,3 +1,4 @@
+import type { CommandReply } from '../../app/net/session-client.ts';
 import type {
   AimMercView,
   BobbyRayStockView,
@@ -6,7 +7,6 @@ import type {
   MercListingView,
   ShippingDestinationView,
 } from '../../protocol/view.ts';
-import type { CommandReply } from '../net/session-client.ts';
 
 type Send = (cmd: { type: string; [key: string]: unknown }) => Promise<CommandReply>;
 

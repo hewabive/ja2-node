@@ -1,3 +1,10 @@
+import { installSaveControls } from '../../app/net/save-controls.ts';
+import { SessionClient } from '../../app/net/session-client.ts';
+import { SleepWakeStop } from '../../app/net/sleep-wake-stop.ts';
+import { fetchVfsList } from '../../app/net/vfs.ts';
+import { TacticalSound } from '../../app/sound/tactical-sound.ts';
+import { SoldierAssets } from '../../app/world/soldier-assets.ts';
+import { type LoadedWorld, loadWorld } from '../../app/world/world-loader.ts';
 import { soldierSheetFrame } from '../../content/anim/soldier-sprite.ts';
 import { WORLD_COLS } from '../../content/world/grid.ts';
 import { typeIndex } from '../../content/world/tile-tables.ts';
@@ -19,17 +26,10 @@ import {
 import { type MercDrawSpec, SoldierSprites } from '../../render/world/soldier-sprites.ts';
 import { TileAtlas } from '../../render/world/tile-atlas.ts';
 import { drawScene } from '../../render/world/world-renderer.ts';
-import { fetchVfsList } from '../asset-browser/api.ts';
 import { Radar } from '../map-viewer/radar.ts';
-import { type LoadedWorld, loadWorld } from '../map-viewer/world-loader.ts';
-import { installSaveControls } from '../net/save-controls.ts';
-import { SessionClient } from '../net/session-client.ts';
-import { SleepWakeStop } from '../net/sleep-wake-stop.ts';
 import { DoorPanel } from './door-panel.ts';
 import { PromptPanel } from './prompt-panel.ts';
 import { nearestMerchant, ShopPanel } from './shop-panel.ts';
-import { SoldierAssets } from './soldier-assets.ts';
-import { TacticalSound } from './sound.ts';
 import { nearestTalkable, TalkPanel } from './talk-panel.ts';
 
 interface TacticalHook {

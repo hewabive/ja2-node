@@ -50,7 +50,7 @@ Related documents:
 | D9 | **Rendering is our own thin layer on WebGL2:** indexed sprites, palettes, shading tables, strip-based depth | Soldier palettes and tile lighting are cheap only in a shader |
 | D10 | **Game UI is our own canvas widget set, with layouts stored as data.** DOM only for the launcher and dev tools | Pixel-perfect 640×480 with original art or a stub skin. *As built (M7) the DOM launcher exists (`src/app/launcher`); the canvas UI is M8 (`27` §8), specified in `28`: a DOM-free `ui` layer, layouts as JSON skins (the original's one of them) bound to screen controllers* |
 | D11 | **Verification rests on two tooling pillars.** Rule tracing from a patched native Stracciatella and importing its saves | It's the only way to prove the mechanics match |
-| D12 | **One package (pnpm), layers separated by TS project references and our own import check** (`tools/check-imports.ts`; dependency-cruiser 18 doesn't read TS 7) | Simplicity for a solo project with strict boundaries. *As built (M7) the browser layers are `render`, `audio`, `app` and `devtools`; the MCP adapter lives in `server` (there is no `agent` or `ui` layer yet)* |
+| D12 | **One package (pnpm), layers separated by TS project references and our own import check** (`tools/check-imports.ts`; dependency-cruiser 18 doesn't read TS 7) | Simplicity for a solo project with strict boundaries. *As built (M7) the browser layers are `render`, `audio`, `app` and `devtools`; the MCP adapter lives in `server` (there is no `agent` layer). M8 U0a added the DOM-free `ui` layer (`28` §2.1, §17.4)* |
 | D13 | **The server is the source of truth.** Sessions with simulations live in the Node process. The browser, the MCP agent and scripts are equal clients of one protocol | State on the server, play through the API, replays and saves in one place. *As built (M7) every surface talks to a `SessionHost`: in process with 10 ms time slices, or one worker thread per session (`04` §5.9)* |
 | D14 | **Time is moved by a driver; playback is separate from the simulation.** `advance(until)` with stop conditions; "real time ×k", "instant" and "manual" drivers; the client plays back the event log at any speed or skips it | Instant enemy turns and arbitrary speed-up without changing outcomes |
 | D15 | **Every player action is a semantic command; every modal moment is a decision prompt.** Not a single rule in UI screens | The agent and the UI control the game the same way; the simulation never waits for the client |
@@ -99,8 +99,14 @@ Per-layer rules:
   about the simulation.
 - `server` and `agent` depend on `sim`, `content` and `protocol`. They live only in Node.
 - The client (`app`, `ui`, `render`, `audio`) depends on `protocol` and the `content` model (sprites,
-  timelines for playback), but **not on `sim`**. It receives state as snapshots and an event stream,
-  and can change it only through commands.
+  timelines for playback). It receives state as snapshots and an event stream, and can change it only
+  through commands. As built (M8 U0a, `28` §2.1):
+  - `ui` (DOM-free, deterministic, time injected) depends on `core`, `content` and `protocol`: the draw list, the
+    screen and modal stacks, input events, the UI scale and the screen controllers;
+  - `render` may import only types from `ui` (the draw list it draws);
+  - `app` may import `ui` and `sim`: the cursor hints run the simulation's own functions over the player-knowledge
+    projection in the browser (`28` §2.4); the client never reimplements a rule and never feeds the simulation;
+  - `devtools` may import `ui`.
 - `node` is the shared Node layer (VFS on top of the disk, token, repository paths) for `server`,
   `tools` and `stubs`.
 - `tools` may use anything, but live outside the browser build.
@@ -676,8 +682,8 @@ ja2-node/
     agent/       mcp.ts observe/ (JSON, ASCII, deltas)                          (Node)
     render/      gl/ atlas/ palette/ tactical/ ui-draw/                         (browser)
     audio/                                                                      (browser)
-    ui/          widgets/ screens/ layouts/                                     (browser)
-    app/         main.ts playback/ input.ts net/ launcher/                      (browser)
+    ui/          draw-list.ts screen.ts resolution.ts input/ text/ screens/     (no DOM, no Node)
+    app/         game/ net/ world/ sound/ media/ launcher/ video/ credits/      (browser)
     devtools/    asset-browser/ state-inspector/ timeline-debugger/             (browser)
   data/          JSON that we distribute: externalized (from Stracciatella) + transcribed tables
   stubs/         stub pack sources: authored JSON, generators; build → dist/stubs

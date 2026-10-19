@@ -51,13 +51,6 @@ export function createDecoderWorker(): Worker {
   return new Worker(new URL('./decoder-worker.ts', import.meta.url), { type: 'module' });
 }
 
-export async function fetchVfsVideo(path: string): Promise<Uint8Array | null> {
-  const res = await fetch(`/vfs/${path.split('/').map(encodeURIComponent).join('/')}`);
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
-  return new Uint8Array(await res.arrayBuffer());
-}
-
 export function integerScale(width: number, height: number, availableWidth: number, availableHeight: number): number {
   return Math.max(1, Math.floor(Math.min(availableWidth / width, availableHeight / height)));
 }

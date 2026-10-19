@@ -1,3 +1,8 @@
+import { installSaveControls } from '../../app/net/save-controls.ts';
+import { type CommandReply, SessionClient } from '../../app/net/session-client.ts';
+import { SleepWakeStop } from '../../app/net/sleep-wake-stop.ts';
+import { fetchVfsFile } from '../../app/net/vfs.ts';
+import { StrategicSound } from '../../app/sound/strategic-sound.ts';
 import { parseJsoncBytes } from '../../content/strategic/jsonc.ts';
 import { MAP_SIDE, sectorShortString } from '../../content/strategic/sector-ids.ts';
 import type {
@@ -9,13 +14,8 @@ import type {
   StrategicSectorView,
   StrategicView,
 } from '../../protocol/view.ts';
-import { fetchFile } from '../asset-browser/api.ts';
-import { installSaveControls } from '../net/save-controls.ts';
-import { type CommandReply, SessionClient } from '../net/session-client.ts';
-import { SleepWakeStop } from '../net/sleep-wake-stop.ts';
 import { LaptopPanel } from './laptop-panel.ts';
 import { HelicopterPanel, QuestPanel, StoryPanel } from './narrative-panels.ts';
-import { StrategicSound } from './sound.ts';
 
 interface StrategicHook {
   ready: boolean;
@@ -137,7 +137,7 @@ function townName(id: number): string {
 
 async function loadTowns(): Promise<void> {
   try {
-    const entries = parseJsoncBytes(await fetchFile(TOWNS_PATH)) as TownEntry[];
+    const entries = parseJsoncBytes(await fetchVfsFile(TOWNS_PATH)) as TownEntry[];
     towns = new Map(entries.map((t) => [t.townId, t.internalName]));
   } catch {
     towns = new Map();
