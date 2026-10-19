@@ -37,6 +37,7 @@ const ACTION_KEYS = [
   'wheelDown',
   'hover',
   'press',
+  'down',
   'doubleClick',
   'select',
   'close',

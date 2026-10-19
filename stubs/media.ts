@@ -5,7 +5,9 @@ import { buildStubMusic } from './music.ts';
 import { buildStubSpeech, mercSpeechSets, npcSpeechSets } from './speech.ts';
 import { buildStubText } from './text.ts';
 import { buildStubCursors } from './ui/cursors.ts';
-import { buildStubFaces } from './ui/faces.ts';
+import { buildStubFaces, buildStubPortraits } from './ui/faces.ts';
+import { buildStubItemGraphics } from './ui/items.ts';
+import { buildStubRadarMaps } from './ui/radar.ts';
 import { buildStubSkin } from './ui/skin.ts';
 import { buildStubTestCard } from './ui-test-card.ts';
 import { buildStubVideo } from './video.ts';
@@ -20,9 +22,25 @@ export async function buildStubMedia(out: string, aliases: Map<string, string>):
   const fonts = await buildStubFonts(out, aliases);
   const testCard = await buildStubTestCard(out);
   const cursors = await buildStubCursors(out);
-  const before = [...text.written, ...sounds, ...ambient, ...music, ...speech, ...video, ...fonts, ...testCard, ...cursors];
+  const faces = await buildStubFaces(out, aliases);
+  const items = await buildStubItemGraphics(out, aliases);
+  const radar = await buildStubRadarMaps(out, aliases);
+  const before = [
+    ...text.written,
+    ...sounds,
+    ...ambient,
+    ...music,
+    ...speech,
+    ...video,
+    ...fonts,
+    ...testCard,
+    ...cursors,
+    ...faces,
+    ...items,
+    ...radar,
+  ];
   const present = new Set(before);
   const skin = await buildStubSkin(out, (path) => present.has(path) || aliases.has(path), aliases);
-  const faces = await buildStubFaces(out, (path) => present.has(path) || aliases.has(path));
-  return [...before, ...skin, ...faces];
+  const portraits = await buildStubPortraits(out, (path) => present.has(path) || aliases.has(path));
+  return [...before, ...skin, ...portraits];
 }

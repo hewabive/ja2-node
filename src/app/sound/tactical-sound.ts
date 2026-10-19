@@ -50,6 +50,11 @@ export interface SoundContext {
   readonly morale: ReadonlyMap<number, number>;
 }
 
+export interface TacticalSoundOptions {
+  readonly engine?: AudioEngine;
+  readonly music?: boolean;
+}
+
 export class TacticalSound {
   readonly hook: AudioHook;
   readonly engine: AudioEngine;
@@ -60,13 +65,17 @@ export class TacticalSound {
   #scripts: AnimationScripts | null = null;
   #version: DataVersion = STUB_DATA_VERSION;
   #available: ReadonlySet<string> = new Set();
+  readonly #withMusic: boolean;
 
-  constructor() {
+  constructor(options: TacticalSoundOptions = {}) {
     this.#settings = loadSettings();
-    this.engine = new AudioEngine({
-      createGraph: () => new AudioContext(),
-      load: readVfsFileOrNull,
-    });
+    this.#withMusic = options.music ?? true;
+    this.engine =
+      options.engine ??
+      new AudioEngine({
+        createGraph: () => new AudioContext(),
+        load: readVfsFileOrNull,
+      });
     this.music = new PageMusic(musicLevel(this.#settings));
     this.hook = {
       ready: false,
@@ -81,13 +90,17 @@ export class TacticalSound {
       setMusicVolume: (volume) => this.change({ volumes: { music: volume } }),
     };
     window.__ja2Audio = this.hook;
+    if (!options.engine) this.#logPlayed();
+    this.#applySettings();
+  }
+
+  #logPlayed(): void {
     const play = this.engine.play.bind(this.engine);
     this.engine.play = (cue) => {
       this.hook.played.push(cue.file);
       if (this.hook.played.length > PLAYED_LOG) this.hook.played.shift();
       return play(cue);
     };
-    this.#applySettings();
   }
 
   get settings(): ClientSettings {
@@ -143,7 +156,7 @@ export class TacticalSound {
         },
       });
       this.hook.director = this.#director.stats;
-      await this.music.load(this.engine, session);
+      if (this.#withMusic) await this.music.load(this.engine, session);
       this.#applySettings();
       this.hook.ready = true;
     } catch (err) {
@@ -177,7 +190,7 @@ export class TacticalSound {
 
   frames(frames: readonly ViewFrame[]): void {
     this.#director?.applyFrames(frames);
-    this.music.frames(frames);
+    if (this.#withMusic) this.music.frames(frames);
   }
 
   update(ctx: SoundContext): void {

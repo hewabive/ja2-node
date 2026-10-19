@@ -1,0 +1,232 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Tactical/Interface_Panels.cc InitializeTEAMPanel (bottom_bar.sti, the slots after the sixth copied from 5 * TEAMPANEL_SLOT_WIDTH, the panel region from the viewport end at MSYS_PRIORITY_NORMAL with CURSOR_NORMAL, per slot the face, enemy indicator, bars, left bars and the two hand regions), RenderTEAMPanel (p_close.sti frame 5 for an empty slot, the border, the name in BLOCKFONT2, the AP, the bars at TM_BARS_X + 2, TM_BARS_Y + 2 + TM_LIFEBAR_HEIGHT, the hand items), RenderTeamSlotBorder (gold_front.sti), CreateTEAMPanelButtons (bottom_bar_buttons.sti 0/3, 1/4, 2/5 at TM_ENDTURN_X, TM_ROSTERMODE_X, TM_DISK_X = m_teamPanelSlotsTotalWidth + 9, MSYS_PRIORITY_HIGH - 1; the fast help END_TURN_POPUPTEXT, MAPSCREEN_POPUPTEXT, CHANGE_SQUAD_POPUPTEXT), UpdateTEAMPanel, RenderSoldierTeamInv (inventor.sti for the driver and passengers), SetStatsHelp, PrintAP",
+    "src/game/UILayout.h TEAMPANEL_HEIGHT; src/game/Tactical/Interface_Panels.cc:2556-2560 the AP box, :2561-2566 the bars"
+  ],
+  "screen": "tacticalTeam",
+  "frame": "tacticalPanel",
+  "tooltips": true,
+  "constants": ["Interface_Panels", "UILayout", "Text"],
+  "assets": {
+    "panel": { "sti": "interface/bottom_bar.sti", "stub": { "size": [640, "TEAMPANEL_HEIGHT"] } },
+    "border": {
+      "sti": "interface/gold_front.sti",
+      "stub": { "style": "hollow", "frames": 2, "size": [56, 52], "states": ["normal", "grayed"] }
+    },
+    "vehicleSlots": { "sti": "interface/inventor.sti", "stub": { "frames": 2, "size": ["TM_INV_WIDTH", "TM_INV_HEIGHT"] } },
+    "buttons": {
+      "sti": "interface/bottom_bar_buttons.sti",
+      "stub": { "frames": 6, "size": [120, 30], "states": ["normal", "normal", "normal", "pressed", "pressed", "pressed"] }
+    }
+  },
+  "widgets": [
+    {
+      "type": "region",
+      "id": "teamPanelArea",
+      "within": "screen",
+      "x": 0,
+      "y": "$screenHeight - TEAMPANEL_HEIGHT",
+      "width": "$screenWidth",
+      "height": "TEAMPANEL_HEIGHT",
+      "priority": "NORMAL",
+      "cursor": "CURSOR_NORMAL"
+    },
+    {
+      "type": "custom",
+      "id": "teamPanelArt",
+      "renderer": "teamPanelArt",
+      "x": 0,
+      "y": 0,
+      "width": "$slotsWidth + TEAMPANEL_BUTTONSBOX_WIDTH",
+      "height": "TEAMPANEL_HEIGHT",
+      "params": {
+        "panel": "panel",
+        "copyFrom": "5 * TEAMPANEL_SLOT_WIDTH",
+        "copyWidth": "TEAMPANEL_SLOT_WIDTH + TEAMPANEL_BUTTONSBOX_WIDTH"
+      }
+    },
+    {
+      "type": "repeat",
+      "count": { "bind": "slots" },
+      "dx": "TM_INV_HAND_SEP",
+      "template": [
+        {
+          "type": "custom",
+          "id": "teamFace$i",
+          "renderer": "teamFace",
+          "x": "TM_FACE_X",
+          "y": "TM_FACE_Y",
+          "width": "TM_FACE_WIDTH",
+          "height": "TM_FACE_HEIGHT",
+          "params": { "border": "border", "borderX": "TM_FACEHIGHTL_X", "borderY": "TM_FACEHIGHTL_Y" }
+        },
+        {
+          "type": "text",
+          "id": "teamName$i",
+          "x": "TM_NAME_X",
+          "y": "TM_NAME_Y",
+          "width": "TM_NAME_WIDTH",
+          "height": "TM_NAME_HEIGHT",
+          "align": "center",
+          "alignRule": "font",
+          "valign": "center",
+          "font": "BLOCKFONT2",
+          "color": { "by": "slots[$i].stealth", "map": { "true": "FONT_MCOLOR_LTYELLOW", "false": "FONT_MCOLOR_LTGRAY" } },
+          "shadow": "DEFAULT_SHADOW",
+          "visible": "slots[$i].occupied",
+          "text": { "bind": "slots[$i].name" }
+        },
+        {
+          "type": "text",
+          "id": "teamAp$i",
+          "x": "TM_AP_X",
+          "y": "TM_AP_Y",
+          "width": "TM_AP_WIDTH",
+          "height": "TM_AP_HEIGHT",
+          "align": "center",
+          "alignRule": "font",
+          "valign": "center",
+          "font": "TINYFONT1",
+          "color": {
+            "by": "slots[$i].apColor",
+            "map": {
+              "dkred": "FONT_MCOLOR_DKRED",
+              "ltblue": "FONT_MCOLOR_LTBLUE",
+              "ltyellow": "FONT_MCOLOR_LTYELLOW",
+              "ltgray": "FONT_MCOLOR_LTGRAY"
+            }
+          },
+          "shadow": "DEFAULT_SHADOW",
+          "visible": "slots[$i].showAp",
+          "text": { "bind": "slots[$i].ap" }
+        },
+        {
+          "type": "custom",
+          "id": "teamBars$i",
+          "renderer": "teamBars",
+          "x": "TM_BARS_X + 2",
+          "y": "TM_BARS_Y + 2 + TM_LIFEBAR_HEIGHT",
+          "width": 15,
+          "height": "TM_LIFEBAR_HEIGHT"
+        },
+        {
+          "type": "custom",
+          "id": "teamHands$i",
+          "renderer": "teamHands",
+          "x": "TM_INV_HAND1STARTX",
+          "y": "TM_INV_HAND1STARTY",
+          "width": "TM_INV_WIDTH",
+          "height": "TM_INV_HEIGHT + TM_INV_HAND_SEPY",
+          "params": { "separation": "TM_INV_HAND_SEPY", "vehicle": "vehicleSlots" }
+        },
+        {
+          "type": "region",
+          "id": "teamFaceRegion$i",
+          "x": "TM_FACE_X",
+          "y": "TM_FACE_Y",
+          "width": "TM_FACE_WIDTH",
+          "height": "TM_FACE_HEIGHT",
+          "priority": "NORMAL",
+          "down": "selectFace($i)",
+          "secondary": "openSmPanel($i)",
+          "hover": "faceHover($i)"
+        },
+        {
+          "type": "region",
+          "id": "teamEnemyIndicator$i",
+          "x": "TM_FACE_X + 1",
+          "y": "TM_FACE_Y + 1",
+          "width": "INDICATOR_BOX_WIDTH - 1",
+          "height": "INDICATOR_BOX_HEIGHT - 1",
+          "priority": "NORMAL",
+          "enabled": "panelRegionsEnabled",
+          "down": "enemyIndicator($i)"
+        },
+        {
+          "type": "region",
+          "id": "teamBarsRegion$i",
+          "x": "TM_BARS_X",
+          "y": "TM_BARS_Y",
+          "width": "TM_BARS_WIDTH",
+          "height": "TM_BARS_HEIGHT",
+          "priority": "NORMAL",
+          "tooltip": { "bind": "slots[$i].statsHelp" },
+          "down": "selectFace($i)",
+          "secondary": "openSmPanel($i)"
+        },
+        {
+          "type": "region",
+          "id": "teamLeftBars$i",
+          "x": "TM_FACE_X - 8",
+          "y": "TM_FACE_Y",
+          "width": 8,
+          "height": "TM_BARS_HEIGHT",
+          "priority": "NORMAL",
+          "down": "selectFace($i)",
+          "secondary": "openSmPanel($i)"
+        },
+        {
+          "type": "region",
+          "id": "teamFirstHand$i",
+          "x": "TM_INV_HAND1STARTX",
+          "y": "TM_INV_HAND1STARTY",
+          "width": "TM_INV_WIDTH",
+          "height": "TM_INV_HEIGHT",
+          "priority": "NORMAL",
+          "enabled": "panelRegionsEnabled",
+          "tooltip": { "bind": "slots[$i].firstHandHelp" },
+          "secondary": "swapHands($i)"
+        },
+        {
+          "type": "region",
+          "id": "teamSecondHand$i",
+          "x": "TM_INV_HAND1STARTX",
+          "y": "TM_INV_HAND1STARTY + TM_INV_HAND_SEPY",
+          "width": "TM_INV_WIDTH",
+          "height": "TM_INV_HEIGHT",
+          "priority": "NORMAL",
+          "enabled": "panelRegionsEnabled",
+          "tooltip": { "bind": "slots[$i].secondHandHelp" },
+          "secondary": "swapHands($i)"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "id": "teamEndTurn",
+      "x": "$slotsWidth + 9",
+      "y": "TM_ENDTURN_Y",
+      "asset": "buttons",
+      "frames": { "offNormal": 0, "onNormal": 3 },
+      "priority": "HIGH-1",
+      "enabled": "endTurnEnabled",
+      "tooltip": { "key": ["TacticalStr", "END_TURN_POPUPTEXT"] },
+      "primary": "endTurn"
+    },
+    {
+      "type": "button",
+      "id": "teamMapScreen",
+      "x": "$slotsWidth + 9",
+      "y": "TM_ROSTERMODE_Y",
+      "asset": "buttons",
+      "frames": { "offNormal": 1, "onNormal": 4 },
+      "priority": "HIGH-1",
+      "enabled": "mapScreenEnabled",
+      "tooltip": { "key": ["TacticalStr", "MAPSCREEN_POPUPTEXT"] },
+      "primary": "mapScreen"
+    },
+    {
+      "type": "button",
+      "id": "teamSquad",
+      "x": "$slotsWidth + 9",
+      "y": "TM_DISK_Y",
+      "asset": "buttons",
+      "frames": { "offNormal": 2, "onNormal": 5 },
+      "priority": "HIGH-1",
+      "enabled": "squadEnabled",
+      "tooltip": { "key": ["TacticalStr", "CHANGE_SQUAD_POPUPTEXT"] },
+      "primary": "toggleSquadList"
+    }
+  ]
+}

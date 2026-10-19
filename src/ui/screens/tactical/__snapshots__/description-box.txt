@@ -1,0 +1,85 @@
+fill 0,340 0x140 #000000
+fill 640,340 0x140 #000000
+image interface/inventory_bottom_panel.sti#0 0,340 normal
+image interface/inventory_gold_front.sti#0 4,342 normal
+image faces/generic/body0.sti#0 13,346 shaded normal
+rectangle 11,345 62,389 #000000
+image interface/infobox.sti#0 214,341 normal
+image bigitems/gun01.sti#0 251,362 outlineShadow
+image bigitems/gun01.sti#0 253,360 normal
+line 220,401 220,351 #c9ac85
+line 221,401 221,351 #8c8877
+image interface/mdp1items.sti#52 352,357 outlineShadow
+image interface/mdp1items.sti#52 354,355 outline
+line 344,374 344,353 #c9ac85
+line 345,374 345,353 #8c8877
+image interface/bullet.sti#0 436,390 normal
+glyphs blockfont2 230,408 n=6 fg=208 sh=2 bg=0
+glyphs blockfont2 225,421 n=50 fg=0 sh=32 bg=0
+glyphs blockfont2 225,436 n=28 fg=0 sh=32 bg=0
+glyphs blockfont2 469,406 n=10 fg=0 sh=32 bg=0
+glyphs blockfont2 225,451 n=5 fg=134 sh=2 bg=0
+glyphs blockfont2 225,461 n=5 fg=134 sh=2 bg=0
+glyphs blockfont2 261,451 n=52 fg=0 sh=32 bg=0
+glyphs blockfont2 261,461 n=38 fg=0 sh=32 bg=0
+image interface/infobox.sti#1 223,391 normal
+clip 226,393 30x10
+glyphs tinyfont1 228,392 n=5 fg=209 sh=0 bg=0
+clipPop
+glyphs blockfont2 416,366 n=12 fg=6 sh=2 bg=0
+glyphs blockfont2 479,381 n=4 fg=6 sh=2 bg=0
+glyphs blockfont2 416,381 n=4 fg=6 sh=2 bg=0
+glyphs blockfont2 416,391 n=3 fg=6 sh=2 bg=0
+glyphs blockfont2 448,391 n=1 fg=6 sh=2 bg=0
+glyphs blockfont2 416,356 n=7 fg=6 sh=2 bg=0
+glyphs blockfont2 502,354 n=4 fg=5 sh=2 bg=0
+glyphs blockfont2 513,364 n=3 fg=208 sh=2 bg=0
+glyphs blockfont2 518,379 n=2 fg=5 sh=2 bg=0
+glyphs blockfont2 464,379 n=2 fg=5 sh=2 bg=0
+glyphs blockfont2 465,389 n=2 fg=208 sh=2 bg=0
+glyphs blockfont2 22,392 n=6 fg=134 sh=2 bg=0
+image interface/bars.sti#1 75,345 normal
+line 69,387 69,345 #6c0c0c
+line 70,387 70,345 #c80000
+line 71,387 71,345 #6c0c0c
+line 75,387 75,345 #000000
+line 76,387 76,345 #000000
+line 77,387 77,345 #000000
+line 75,387 75,345 #080c76
+line 76,387 76,345 #080ca0
+line 77,387 77,345 #080c76
+line 81,387 81,366 #08700c
+line 82,387 82,366 #08b40c
+line 83,387 83,366 #08700c
+image interface/inventory_buttons_2.sti#0 589,344 normal
+image interface/inventory_buttons_2.sti#1 543,344 normal
+hatch checker 543,344 44x28
+image interface/inventory_buttons.sti#6 155,448 normal
+image interface/inventory_buttons.sti#5 91,448 normal
+hatch checker 91,448 30x28
+image interface/inventory_buttons.sti#0 187,380 normal
+hatch checker 187,380 30x28
+image interface/inventory_buttons.sti#9 91,413 normal
+image interface/inventory_buttons.sti#3 187,348 normal
+image interface/inventory_buttons.sti#8 187,448 normal
+image interface/inventory_buttons.sti#1 123,413 normal
+image interface/inventory_buttons.sti#20 9,410 normal
+image interface/inventory_buttons.sti#21 51,410 normal
+image interface/inventory_buttons.sti#24 9,445 normal
+image interface/inventory_buttons.sti#7 155,413 normal
+hatch checker 155,413 30x28
+image interface/inventory_buttons.sti#2 123,448 normal
+image interface/invadd-ons.sti#16 187,413 normal
+clip 0,0 640x360
+glyphs tinyfont1 305,112 n=6 fg=208 sh=2 bg=0
+rectangle 312,126 328,126 #c80000
+rectangle 312,129 328,129 #141496
+rectangle 312,129 328,129 #6464dc
+clipPop
+clip 543,373 88x44
+rectangle 573,383 593,398 #00ff00
+rectangle 583,391 584,392 #ffff00
+rectangle 583,390 584,391 #ffff00
+rectangle 582,391 583,392 #ffff00
+rectangle 583,391 584,392 #ffff00
+clipPop

@@ -46,7 +46,10 @@ export const ANCHOR_NAMES: readonly AnchorName[] = [
 
 export type StubFrameState = 'plain' | 'normal' | 'hover' | 'pressed' | 'pressedHover' | 'grayed';
 
+export type StubStyle = 'solid' | 'hollow' | 'checker';
+
 export interface StubSpecJson {
+  readonly style?: StubStyle;
   readonly frames?: NumberExpr;
   readonly size?: readonly [NumberExpr, NumberExpr];
   readonly sizes?: readonly (readonly [NumberExpr, NumberExpr])[];

@@ -15,6 +15,8 @@ const TICKS_BEFORE_MOVE = 200;
 const TICKS_AFTER_MOVE = 200;
 const TEST_TIMEOUT_MS = 120_000;
 const RECORDED_STUB_FILE = 'stubs/npcdata/000.npc';
+const STUB_PROFILES_FILE = 'stubs/profiles.json';
+const FACE_OFFSETS_ADDED_AFTER_070 = /\n {6}"face": \{\n[^}]*\n {6}\},/g;
 const SAVE_NAMES = ['campaign', 'sandbox'];
 
 interface SoldierSummary {
@@ -61,14 +63,21 @@ async function withChangedStubFile(vfs: Vfs): Promise<Vfs> {
   return new Vfs([new MemoryLayer(STUBS_LAYER, [[RECORDED_STUB_FILE, changed]]), ...vfs.layers]);
 }
 
+async function withStubProfilesAsRecorded(vfs: Vfs): Promise<Vfs> {
+  const current = new TextDecoder().decode(await vfs.read(STUB_PROFILES_FILE));
+  const recorded = new TextEncoder().encode(current.replace(FACE_OFFSETS_ADDED_AFTER_070, ''));
+  return new Vfs([new MemoryLayer(STUBS_LAYER, [[STUB_PROFILES_FILE, recorded]]), ...vfs.layers]);
+}
+
 async function copyFixtures(k: SaveKit): Promise<void> {
   for (const name of SAVE_NAMES) await copyFile(join(FIXTURES, `${name}-${LEGACY_VERSION}.j2s`), join(k.dir, `${name}.j2s`));
 }
 
 beforeAll(async () => {
   kit = await loadStubSectorKit();
-  saves = await createSaveKit(kit);
-  changedStubs = await createSaveKit(kit, { legacyVfs: await withChangedStubFile(kit.vfs) });
+  const recorded = await withStubProfilesAsRecorded(kit.vfs);
+  saves = await createSaveKit(kit, { legacyVfs: recorded });
+  changedStubs = await createSaveKit(kit, { legacyVfs: await withChangedStubFile(recorded) });
   expected = JSON.parse(await readFile(join(FIXTURES, `expected-${LEGACY_VERSION}.json`), 'utf8')) as Record<string, ExpectedRun>;
   await copyFixtures(saves);
   await copyFixtures(changedStubs);

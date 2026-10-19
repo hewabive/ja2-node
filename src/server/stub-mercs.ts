@@ -7,6 +7,7 @@ import { createSoldier, type Soldier, Team } from '../sim/tactical/soldier.ts';
 const STUB_MERC_GUN = 'GLOCK_17';
 const STUB_MERC_MAGAZINE = 'CLIP9_15';
 const STUB_MERC_SPARE_MAGAZINES = 2;
+const STUB_MERC_ATTACHMENT = 'SILENCER';
 const FULL_STATUS = 100;
 const STUB_BODIES = [0, 1, 3, 2];
 const STUB_VESTS = ['BLUEVEST', 'GREENVEST', 'YELLOWVEST', 'BROWNVEST'];
@@ -31,6 +32,8 @@ function armStubMerc(content: TacticalContent, s: Soldier): Soldier {
   const magazine = items.byName.get(STUB_MERC_MAGAZINE);
   if (gun) s.inv[InvSlot.HAND] = createItem(items, gun.index, FULL_STATUS);
   if (magazine) s.inv[InvSlot.BIGPOCK1] = createItems(items, magazine.index, FULL_STATUS, STUB_MERC_SPARE_MAGAZINES);
+  const attachment = items.byName.get(STUB_MERC_ATTACHMENT);
+  if (attachment) s.inv[InvSlot.SMALLPOCK1] = createItem(items, attachment.index, FULL_STATUS);
   return s;
 }
 

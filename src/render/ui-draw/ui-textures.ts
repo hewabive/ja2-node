@@ -34,7 +34,7 @@ export interface UiFont {
 const BASE_ROW = 'base';
 
 function shadeKey(shade: PaletteShade | null): string {
-  return shade ? `${shade.red},${shade.green},${shade.blue},${shade.mono ? 1 : 0}` : BASE_ROW;
+  return shade ? `${shade.red},${shade.green},${shade.blue},${shade.mono ? 1 : 0},${shade.base ?? 'image'}` : BASE_ROW;
 }
 
 export class UiTextures {

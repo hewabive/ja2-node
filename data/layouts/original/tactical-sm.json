@@ -1,0 +1,1732 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Tactical/Interface_Panels.cc InitializeSMPanel (inventory_bottom_panel.sti, the second blit and the overheadinterface.sti filler of a wider panel at SM_INVINTERFACE_WIDTH, 2, the panel region, the face, enemy indicator, money and bars regions at dx + 62, dy + 2 to dx + 85, dy + 51), CreateSMPanelButtons (inventory_buttons.sti and inventory_buttons_2.sti frames, the burst images 7, 17, 26 per weapon mode, MSYS_PRIORITY_HIGH - 1, the fast help), UpdateSMPanel (the stealth button from invadd-ons.sti: stand 11, crouch 5, prone 17, + 3 without stealth, the grayed frame + 2 and pressed + 1), RenderSMPanel (the plates, the face, the body figure, the stat labels at dx + 92 and dx + 137, dy + 7 + i * 10, the armour label centred at SM_ARMOR_LABEL_X, the weight and camo labels right-aligned at their x, the % signs, PrintStat in a SM_STATS_WIDTH × SM_STATS_HEIGHT box, the armour, weight and camo values in SM_PERCENT boxes, the name, the AP, the bars, the slots, the hatch from dx + 87 to dx + 536), PrintAP, PrintStat, SetStatsHelp",
+    "src/game/UILayout.cc:72-90 m_invSlotPositionTac; src/game/Tactical/Interface_Items.cc gSMInvData (the slot sizes), InitInvSlotInterface (the slot regions at MSYS_PRIORITY_HIGH, the camo region CAMO_REGION_WIDTH × CAMO_REGION_HEIGHT), InitKeyRingInterface (KEYRING_X, KEYRING_Y, KEYRING_HELP_TEXT), RenderInvBodyPanel, INVRenderINVPanelItem (secondary_gun_hidden.sti at 217, 108), HandleRenderInvSlots (gold_key_button.sti)",
+    "src/sgp/MouseSystem.h CallbackPrimarySecondary (the face and slot regions fire the primary action on the button down)"
+  ],
+  "screen": "tacticalSingleMerc",
+  "frame": "tacticalInventory",
+  "tooltips": true,
+  "constants": ["Interface_Panels", "Interface_Items", "UILayout", "Text"],
+  "assets": {
+    "panel": {
+      "sti": "interface/inventory_bottom_panel.sti",
+      "stub": {
+        "size": [640, "INV_INTERFACE_HEIGHT"]
+      }
+    },
+    "filler": {
+      "sti": "interface/overheadinterface.sti",
+      "stub": {
+        "size": [640, 160]
+      }
+    },
+    "goldPlate": {
+      "sti": "interface/inventory_gold_front.sti",
+      "stub": {
+        "style": "hollow",
+        "size": ["SM_SELMERC_PLATE_WIDTH", "SM_SELMERC_PLATE_HEIGHT"]
+      }
+    },
+    "disabledPlate": {
+      "sti": "interface/inv_frn.sti",
+      "stub": {
+        "style": "hollow",
+        "size": ["SM_SELMERC_PLATE_WIDTH", "SM_SELMERC_PLATE_HEIGHT"],
+        "states": ["grayed"]
+      }
+    },
+    "buttons": {
+      "sti": "interface/inventory_buttons.sti",
+      "stub": {
+        "frames": 27,
+        "size": [30, 28]
+      }
+    },
+    "buttons2": {
+      "sti": "interface/inventory_buttons_2.sti",
+      "stub": {
+        "frames": 4,
+        "size": [44, 28]
+      }
+    },
+    "stealth": {
+      "sti": "interface/invadd-ons.sti",
+      "stub": {
+        "frames": 22,
+        "size": [30, 28]
+      }
+    },
+    "regularMale": {
+      "sti": "interface/inventory_normal_male.sti",
+      "stub": {
+        "size": [96, 128]
+      }
+    },
+    "regularMaleHighlight": {
+      "sti": "interface/inventory_normal_male_h.sti",
+      "stub": {
+        "size": [96, 128],
+        "states": ["hover"]
+      }
+    },
+    "bigMale": {
+      "sti": "interface/inventory_figure_large_male.sti",
+      "stub": {
+        "size": [96, 128]
+      }
+    },
+    "bigMaleHighlight": {
+      "sti": "interface/inventory_figure_large_male_h.sti",
+      "stub": {
+        "size": [96, 128],
+        "states": ["hover"]
+      }
+    },
+    "female": {
+      "sti": "interface/inventory_figure_female.sti",
+      "stub": {
+        "size": [96, 128]
+      }
+    },
+    "femaleHighlight": {
+      "sti": "interface/inventory_figure_female_h.sti",
+      "stub": {
+        "size": [96, 128],
+        "states": ["hover"]
+      }
+    },
+    "goldKey": {
+      "sti": "interface/gold_key_button.sti",
+      "stub": {
+        "size": ["KEYRING_WIDTH", "KEYRING_HEIGHT"]
+      }
+    },
+    "secondaryGunHidden": {
+      "sti": "interface/secondary_gun_hidden.sti",
+      "stub": {
+        "size": [72, 28],
+        "states": ["grayed"]
+      }
+    },
+    "infoBox": {
+      "sti": "interface/infobox.sti",
+      "stub": {
+        "sizes": [
+          ["ITEMDESC_WIDTH", "ITEMDESC_HEIGHT"],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14]
+        ],
+        "states": [
+          "plain",
+          "normal",
+          "normal",
+          "pressed",
+          "grayed",
+          "normal",
+          "normal",
+          "pressed",
+          "grayed",
+          "normal",
+          "normal",
+          "pressed",
+          "grayed"
+        ]
+      }
+    },
+    "bullet": {
+      "sti": "interface/bullet.sti",
+      "stub": {
+        "size": ["BULLET_WIDTH", 8]
+      }
+    },
+    "infoBil": {
+      "sti": "interface/info_bil.sti",
+      "stub": {
+        "sizes": [[66, 54], [30, 20], [30, 20], [30, 20], [30, 20]],
+        "states": ["plain", "normal", "pressed", "normal", "pressed"]
+      }
+    },
+    "extraInventory": {
+      "sti": "interface/extra_inventory.sti",
+      "stub": {
+        "style": "hollow",
+        "size": [42, 28]
+      }
+    },
+    "itemBox": {
+      "sti": "interface/itembox.sti",
+      "stub": {
+        "sizes": [
+          [180, 38],
+          [180, 26],
+          [180, 30],
+          [180, 30],
+          [22, 18],
+          [22, 18],
+          [22, 18],
+          [22, 18],
+          [22, 18],
+          [22, 18],
+          [22, 18],
+          [22, 18],
+          [22, 18],
+          [22, 18]
+        ],
+        "states": [
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed"
+        ]
+      }
+    }
+  },
+  "styles": {
+    "slots": [
+      [344, 6, "HEAD_INV_SLOT_WIDTH", "HEAD_INV_SLOT_HEIGHT"],
+      [344, 35, "VEST_INV_SLOT_WIDTH", "VEST_INV_SLOT_HEIGHT"],
+      [344, 95, "LEGS_INV_SLOT_WIDTH", "LEGS_INV_SLOT_HEIGHT"],
+      [226, 6, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [226, 30, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [226, 84, "BIG_INV_SLOT_WIDTH", "BIG_INV_SLOT_HEIGHT"],
+      [226, 108, "BIG_INV_SLOT_WIDTH", "BIG_INV_SLOT_HEIGHT"],
+      [468, 5, "BIG_INV_SLOT_WIDTH", "BIG_INV_SLOT_HEIGHT"],
+      [468, 29, "BIG_INV_SLOT_WIDTH", "BIG_INV_SLOT_HEIGHT"],
+      [468, 53, "BIG_INV_SLOT_WIDTH", "BIG_INV_SLOT_HEIGHT"],
+      [468, 77, "BIG_INV_SLOT_WIDTH", "BIG_INV_SLOT_HEIGHT"],
+      [396, 5, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [396, 29, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [396, 53, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [396, 77, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [432, 5, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [432, 29, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [432, 53, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [432, 77, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"]
+    ]
+  },
+  "widgets": [
+    {
+      "type": "region",
+      "id": "smPanelArea",
+      "x": 0,
+      "y": 0,
+      "width": "$screenWidth",
+      "height": "INV_INTERFACE_HEIGHT",
+      "priority": "NORMAL",
+      "cursor": "CURSOR_NORMAL"
+    },
+    {
+      "type": "custom",
+      "id": "smPanelArt",
+      "renderer": "smPanelArt",
+      "x": 0,
+      "y": 0,
+      "width": "$slotsWidth + TEAMPANEL_BUTTONSBOX_WIDTH",
+      "height": "INV_INTERFACE_HEIGHT",
+      "params": {
+        "panel": "panel",
+        "filler": "filler",
+        "fillerX": "SM_INVINTERFACE_WIDTH",
+        "fillerY": 2,
+        "fillerHeight": "INV_INTERFACE_HEIGHT - 6",
+        "fillerSource": [80, 42, 560, 112]
+      }
+    },
+    {
+      "type": "custom",
+      "id": "smPlate",
+      "renderer": "smPlate",
+      "x": "SM_SELMERC_PLATE_X",
+      "y": "SM_SELMERC_PLATE_Y",
+      "width": "SM_SELMERC_PLATE_WIDTH",
+      "height": "SM_SELMERC_PLATE_HEIGHT",
+      "params": {
+        "gold": "goldPlate",
+        "disabled": "disabledPlate"
+      }
+    },
+    {
+      "type": "custom",
+      "id": "smFace",
+      "renderer": "smFace",
+      "x": "SM_SELMERC_FACE_X",
+      "y": "SM_SELMERC_FACE_Y",
+      "width": "SM_SELMERC_FACE_WIDTH",
+      "height": "SM_SELMERC_FACE_HEIGHT"
+    },
+    {
+      "type": "custom",
+      "id": "smBody",
+      "renderer": "smBody",
+      "x": "SM_BODYINV_X",
+      "y": "SM_BODYINV_Y",
+      "width": "CAMO_REGION_WIDTH",
+      "height": "CAMO_REGION_HEIGHT",
+      "visible": "!descriptionOpen",
+      "params": {
+        "figures": [
+          ["regularMale", "regularMaleHighlight"],
+          ["bigMale", "bigMaleHighlight"],
+          ["regularMale", "regularMale"],
+          ["female", "femaleHighlight"]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "x": 92,
+      "y": 7,
+      "font": "BLOCKFONT2",
+      "color": "STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "key": ["pShortAttributeStrings", 0]
+      }
+    },
+    {
+      "type": "text",
+      "x": 137,
+      "y": 7,
+      "font": "BLOCKFONT2",
+      "color": "STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "key": ["pShortAttributeStrings", 5]
+      }
+    },
+    {
+      "type": "text",
+      "x": 92,
+      "y": 17,
+      "font": "BLOCKFONT2",
+      "color": "STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "key": ["pShortAttributeStrings", 1]
+      }
+    },
+    {
+      "type": "text",
+      "x": 137,
+      "y": 17,
+      "font": "BLOCKFONT2",
+      "color": "STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "key": ["pShortAttributeStrings", 6]
+      }
+    },
+    {
+      "type": "text",
+      "x": 92,
+      "y": 27,
+      "font": "BLOCKFONT2",
+      "color": "STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "key": ["pShortAttributeStrings", 2]
+      }
+    },
+    {
+      "type": "text",
+      "x": 137,
+      "y": 27,
+      "font": "BLOCKFONT2",
+      "color": "STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "key": ["pShortAttributeStrings", 7]
+      }
+    },
+    {
+      "type": "text",
+      "x": 92,
+      "y": 37,
+      "font": "BLOCKFONT2",
+      "color": "STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "key": ["pShortAttributeStrings", 3]
+      }
+    },
+    {
+      "type": "text",
+      "x": 137,
+      "y": 37,
+      "font": "BLOCKFONT2",
+      "color": "STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "key": ["pShortAttributeStrings", 8]
+      }
+    },
+    {
+      "type": "text",
+      "x": 92,
+      "y": 47,
+      "font": "BLOCKFONT2",
+      "color": "STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "key": ["pShortAttributeStrings", 4]
+      }
+    },
+    {
+      "type": "text",
+      "x": 137,
+      "y": 47,
+      "font": "BLOCKFONT2",
+      "color": "STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "key": ["pShortAttributeStrings", 9]
+      }
+    },
+    {
+      "type": "text",
+      "x": "SM_ARMOR_LABEL_X - 50",
+      "y": "SM_ARMOR_LABEL_Y",
+      "font": "BLOCKFONT2",
+      "color": "STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "key": ["pInvPanelTitleStrings", 0]
+      },
+      "width": 100,
+      "align": "center",
+      "alignRule": "font"
+    },
+    {
+      "type": "text",
+      "x": "SM_ARMOR_PERCENT_X",
+      "y": "SM_ARMOR_PERCENT_Y",
+      "font": "BLOCKFONT2",
+      "color": "STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "bind": "percentSign"
+      }
+    },
+    {
+      "type": "text",
+      "x": "SM_WEIGHT_LABEL_X - 100",
+      "y": "SM_WEIGHT_LABEL_Y",
+      "font": "BLOCKFONT2",
+      "color": "STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "key": ["pInvPanelTitleStrings", 1]
+      },
+      "width": 100,
+      "align": "right",
+      "alignRule": "font"
+    },
+    {
+      "type": "text",
+      "x": "SM_WEIGHT_PERCENT_X",
+      "y": "SM_WEIGHT_PERCENT_Y",
+      "font": "BLOCKFONT2",
+      "color": "STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "bind": "percentSign"
+      }
+    },
+    {
+      "type": "text",
+      "x": "SM_CAMO_LABEL_X - 100",
+      "y": "SM_CAMO_LABEL_Y",
+      "font": "BLOCKFONT2",
+      "color": "STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "key": ["pInvPanelTitleStrings", 2]
+      },
+      "width": 100,
+      "align": "right",
+      "alignRule": "font"
+    },
+    {
+      "type": "text",
+      "x": "SM_CAMO_PERCENT_X",
+      "y": "SM_CAMO_PERCENT_Y",
+      "font": "BLOCKFONT2",
+      "color": "STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "bind": "percentSign"
+      }
+    },
+    {
+      "type": "text",
+      "id": "smStat0",
+      "x": "SM_AGI_X",
+      "y": "SM_AGI_Y",
+      "width": "SM_STATS_WIDTH",
+      "height": "SM_STATS_HEIGHT",
+      "align": "right",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "BLOCKFONT2",
+      "color": {
+        "by": "stats[0].color",
+        "map": {
+          "normal": "STATS_TEXT_FONT_COLOR",
+          "dim": "FONT_MCOLOR_DKGRAY",
+          "up": "FONT_LTGREEN",
+          "down": "FONT_RED"
+        }
+      },
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "bind": "stats[0].value"
+      }
+    },
+    {
+      "type": "text",
+      "id": "smStat1",
+      "x": "SM_DEX_X",
+      "y": "SM_DEX_Y",
+      "width": "SM_STATS_WIDTH",
+      "height": "SM_STATS_HEIGHT",
+      "align": "right",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "BLOCKFONT2",
+      "color": {
+        "by": "stats[1].color",
+        "map": {
+          "normal": "STATS_TEXT_FONT_COLOR",
+          "dim": "FONT_MCOLOR_DKGRAY",
+          "up": "FONT_LTGREEN",
+          "down": "FONT_RED"
+        }
+      },
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "bind": "stats[1].value"
+      }
+    },
+    {
+      "type": "text",
+      "id": "smStat2",
+      "x": "SM_STR_X",
+      "y": "SM_STR_Y",
+      "width": "SM_STATS_WIDTH",
+      "height": "SM_STATS_HEIGHT",
+      "align": "right",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "BLOCKFONT2",
+      "color": {
+        "by": "stats[2].color",
+        "map": {
+          "normal": "STATS_TEXT_FONT_COLOR",
+          "dim": "FONT_MCOLOR_DKGRAY",
+          "up": "FONT_LTGREEN",
+          "down": "FONT_RED"
+        }
+      },
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "bind": "stats[2].value"
+      }
+    },
+    {
+      "type": "text",
+      "id": "smStat3",
+      "x": "SM_CHAR_X",
+      "y": "SM_CHAR_Y",
+      "width": "SM_STATS_WIDTH",
+      "height": "SM_STATS_HEIGHT",
+      "align": "right",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "BLOCKFONT2",
+      "color": {
+        "by": "stats[3].color",
+        "map": {
+          "normal": "STATS_TEXT_FONT_COLOR",
+          "dim": "FONT_MCOLOR_DKGRAY",
+          "up": "FONT_LTGREEN",
+          "down": "FONT_RED"
+        }
+      },
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "bind": "stats[3].value"
+      }
+    },
+    {
+      "type": "text",
+      "id": "smStat4",
+      "x": "SM_WIS_X",
+      "y": "SM_WIS_Y",
+      "width": "SM_STATS_WIDTH",
+      "height": "SM_STATS_HEIGHT",
+      "align": "right",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "BLOCKFONT2",
+      "color": {
+        "by": "stats[4].color",
+        "map": {
+          "normal": "STATS_TEXT_FONT_COLOR",
+          "dim": "FONT_MCOLOR_DKGRAY",
+          "up": "FONT_LTGREEN",
+          "down": "FONT_RED"
+        }
+      },
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "bind": "stats[4].value"
+      }
+    },
+    {
+      "type": "text",
+      "id": "smStat5",
+      "x": "SM_EXPLVL_X",
+      "y": "SM_EXPLVL_Y",
+      "width": "SM_STATS_WIDTH",
+      "height": "SM_STATS_HEIGHT",
+      "align": "right",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "BLOCKFONT2",
+      "color": {
+        "by": "stats[5].color",
+        "map": {
+          "normal": "STATS_TEXT_FONT_COLOR",
+          "dim": "FONT_MCOLOR_DKGRAY",
+          "up": "FONT_LTGREEN",
+          "down": "FONT_RED"
+        }
+      },
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "bind": "stats[5].value"
+      }
+    },
+    {
+      "type": "text",
+      "id": "smStat6",
+      "x": "SM_MRKM_X",
+      "y": "SM_MRKM_Y",
+      "width": "SM_STATS_WIDTH",
+      "height": "SM_STATS_HEIGHT",
+      "align": "right",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "BLOCKFONT2",
+      "color": {
+        "by": "stats[6].color",
+        "map": {
+          "normal": "STATS_TEXT_FONT_COLOR",
+          "dim": "FONT_MCOLOR_DKGRAY",
+          "up": "FONT_LTGREEN",
+          "down": "FONT_RED"
+        }
+      },
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "bind": "stats[6].value"
+      }
+    },
+    {
+      "type": "text",
+      "id": "smStat7",
+      "x": "SM_EXPL_X",
+      "y": "SM_EXPL_Y",
+      "width": "SM_STATS_WIDTH",
+      "height": "SM_STATS_HEIGHT",
+      "align": "right",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "BLOCKFONT2",
+      "color": {
+        "by": "stats[7].color",
+        "map": {
+          "normal": "STATS_TEXT_FONT_COLOR",
+          "dim": "FONT_MCOLOR_DKGRAY",
+          "up": "FONT_LTGREEN",
+          "down": "FONT_RED"
+        }
+      },
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "bind": "stats[7].value"
+      }
+    },
+    {
+      "type": "text",
+      "id": "smStat8",
+      "x": "SM_MECH_X",
+      "y": "SM_MECH_Y",
+      "width": "SM_STATS_WIDTH",
+      "height": "SM_STATS_HEIGHT",
+      "align": "right",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "BLOCKFONT2",
+      "color": {
+        "by": "stats[8].color",
+        "map": {
+          "normal": "STATS_TEXT_FONT_COLOR",
+          "dim": "FONT_MCOLOR_DKGRAY",
+          "up": "FONT_LTGREEN",
+          "down": "FONT_RED"
+        }
+      },
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "bind": "stats[8].value"
+      }
+    },
+    {
+      "type": "text",
+      "id": "smStat9",
+      "x": "SM_MED_X",
+      "y": "SM_MED_Y",
+      "width": "SM_STATS_WIDTH",
+      "height": "SM_STATS_HEIGHT",
+      "align": "right",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "BLOCKFONT2",
+      "color": {
+        "by": "stats[9].color",
+        "map": {
+          "normal": "STATS_TEXT_FONT_COLOR",
+          "dim": "FONT_MCOLOR_DKGRAY",
+          "up": "FONT_LTGREEN",
+          "down": "FONT_RED"
+        }
+      },
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "bind": "stats[9].value"
+      }
+    },
+    {
+      "type": "text",
+      "id": "smArmour",
+      "x": "SM_ARMOR_X",
+      "y": "SM_ARMOR_Y",
+      "width": "SM_PERCENT_WIDTH",
+      "height": "SM_PERCENT_HEIGHT",
+      "align": "right",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "BLOCKFONT2",
+      "color": {
+        "by": "valueColor",
+        "map": {
+          "normal": "STATS_TEXT_FONT_COLOR",
+          "dim": "FONT_MCOLOR_DKGRAY"
+        }
+      },
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "bind": "armour"
+      }
+    },
+    {
+      "type": "text",
+      "id": "smWeight",
+      "x": "SM_WEIGHT_X",
+      "y": "SM_WEIGHT_Y",
+      "width": "SM_PERCENT_WIDTH",
+      "height": "SM_PERCENT_HEIGHT",
+      "align": "right",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "BLOCKFONT2",
+      "color": {
+        "by": "valueColor",
+        "map": {
+          "normal": "STATS_TEXT_FONT_COLOR",
+          "dim": "FONT_MCOLOR_DKGRAY"
+        }
+      },
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "bind": "weight"
+      }
+    },
+    {
+      "type": "text",
+      "id": "smCamo",
+      "x": "SM_CAMO_X",
+      "y": "SM_CAMO_Y",
+      "width": "SM_PERCENT_WIDTH",
+      "height": "SM_PERCENT_HEIGHT",
+      "align": "right",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "BLOCKFONT2",
+      "color": {
+        "by": "valueColor",
+        "map": {
+          "normal": "STATS_TEXT_FONT_COLOR",
+          "dim": "FONT_MCOLOR_DKGRAY"
+        }
+      },
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "!descriptionOpen",
+      "text": {
+        "bind": "camo"
+      }
+    },
+    {
+      "type": "custom",
+      "id": "smDescription",
+      "renderer": "itemDescription",
+      "x": "ITEMDESC_START_X",
+      "y": "ITEMDESC_START_Y",
+      "width": "ITEMDESC_WIDTH",
+      "height": "ITEMDESC_HEIGHT",
+      "visible": "descriptionOpen",
+      "params": {
+        "box": "infoBox",
+        "bullet": "bullet",
+        "money": "infoBil",
+        "item": [9, 9, 117, 55],
+        "status": [6, 60, 2, 51],
+        "name": [16, 67, 291, 8],
+        "description": [11, 80, 301, 0],
+        "prosCons": [11, 110, 301, 10],
+        "weaponStats": [
+          [202, 25, 83],
+          [202, 15, 83],
+          [265, 40, 20],
+          [202, 40, 32],
+          [202, 50, 32],
+          [265, 50, 20],
+          [234, 50, 0],
+          [290, 50, 0]
+        ],
+        "moneyStats": [[202, 14, 78], [212, 25, 78], [202, 40, 78], [212, 51, 78]],
+        "attachmentItem": [7, 0, 28, 25],
+        "attachmentBar": [2, 2, 2, 22],
+        "attachmentSlots": [[128, 10], [162, 10], [128, 36], [162, 36]],
+        "bulletSingle": [222, 49],
+        "bulletBurst": [263, 49],
+        "bulletWidth": "BULLET_WIDTH",
+        "ammoText": ["ITEMDESC_AMMO_TEXT_X", "ITEMDESC_AMMO_TEXT_Y", "ITEMDESC_AMMO_TEXT_WIDTH"],
+        "moneyBox": [343, 11],
+        "stackArea": ["SM_ITEMDESC_START_X", 0, "SM_ITEMDESC_WIDTH", "INV_INTERFACE_HEIGHT"],
+        "cell": "extraInventory",
+        "pickup": "itemBox"
+      }
+    },
+    {
+      "type": "text",
+      "id": "smName",
+      "x": "SM_SELMERCNAME_X",
+      "y": "SM_SELMERCNAME_Y",
+      "width": "SM_SELMERCNAME_WIDTH",
+      "height": "SM_SELMERCNAME_HEIGHT",
+      "align": "center",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "BLOCKFONT2",
+      "color": {
+        "by": "stealth",
+        "map": {
+          "true": "FONT_MCOLOR_LTYELLOW",
+          "false": "FONT_MCOLOR_LTGRAY"
+        }
+      },
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "name"
+      }
+    },
+    {
+      "type": "text",
+      "id": "smAp",
+      "x": "SM_SELMERC_AP_X",
+      "y": "SM_SELMERC_AP_Y",
+      "width": "SM_SELMERC_AP_WIDTH",
+      "height": "SM_SELMERC_AP_HEIGHT",
+      "align": "center",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "TINYFONT1",
+      "color": {
+        "by": "apColor",
+        "map": {
+          "dkred": "FONT_MCOLOR_DKRED",
+          "ltblue": "FONT_MCOLOR_LTBLUE",
+          "ltyellow": "FONT_MCOLOR_LTYELLOW",
+          "ltgray": "FONT_MCOLOR_LTGRAY"
+        }
+      },
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "showAp",
+      "text": {
+        "bind": "ap"
+      }
+    },
+    {
+      "type": "custom",
+      "id": "smBars",
+      "renderer": "smBars",
+      "x": "SM_SELMERC_HEALTH_X",
+      "y": "SM_SELMERC_HEALTH_Y",
+      "width": 15,
+      "height": 42
+    },
+    {
+      "type": "custom",
+      "id": "smInventory",
+      "renderer": "inventory",
+      "x": 0,
+      "y": 0,
+      "width": "SM_INVINTERFACE_WIDTH",
+      "height": "INV_INTERFACE_HEIGHT",
+      "params": {
+        "secondHandCover": "secondaryGunHidden",
+        "secondHandCoverAt": [217, 108],
+        "keyRing": "goldKey",
+        "keyRingAt": ["KEYRING_X", "KEYRING_Y"],
+        "hatchFrom": 87,
+        "hatchTo": 536
+      }
+    },
+    {
+      "type": "region",
+      "id": "smFaceRegion",
+      "x": "SM_SELMERC_FACE_X",
+      "y": "SM_SELMERC_FACE_Y",
+      "width": "SM_SELMERC_FACE_WIDTH",
+      "height": "SM_SELMERC_FACE_HEIGHT",
+      "priority": "NORMAL",
+      "down": "selectMerc",
+      "secondary": "closePanel",
+      "hover": "faceHover"
+    },
+    {
+      "type": "region",
+      "id": "smEnemyIndicator",
+      "x": "SM_SELMERC_FACE_X + 1",
+      "y": "SM_SELMERC_FACE_Y + 1",
+      "width": "INDICATOR_BOX_WIDTH - 1",
+      "height": "INDICATOR_BOX_HEIGHT - 1",
+      "priority": "NORMAL",
+      "primary": "enemyIndicator"
+    },
+    {
+      "type": "region",
+      "id": "smMoney",
+      "x": "MONEY_X",
+      "y": "MONEY_Y",
+      "width": "MONEY_WIDTH",
+      "height": "MONEY_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "MONEY_BUTTON_HELP_TEXT"]
+      }
+    },
+    {
+      "type": "region",
+      "id": "smBarsRegion",
+      "x": 62,
+      "y": 2,
+      "width": 23,
+      "height": 49,
+      "priority": "NORMAL",
+      "tooltip": {
+        "bind": "statsHelp"
+      },
+      "down": "selectMerc",
+      "secondary": "closePanel"
+    },
+    {
+      "type": "region",
+      "id": "slot0",
+      "x": 344,
+      "y": 6,
+      "width": "HEAD_INV_SLOT_WIDTH",
+      "height": "HEAD_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[0].tooltip"
+      },
+      "down": "slotPrimary(0)",
+      "secondary": "slotSecondary(0)",
+      "hover": "slotHover(0)"
+    },
+    {
+      "type": "region",
+      "id": "slot1",
+      "x": 344,
+      "y": 35,
+      "width": "VEST_INV_SLOT_WIDTH",
+      "height": "VEST_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[1].tooltip"
+      },
+      "down": "slotPrimary(1)",
+      "secondary": "slotSecondary(1)",
+      "hover": "slotHover(1)"
+    },
+    {
+      "type": "region",
+      "id": "slot2",
+      "x": 344,
+      "y": 95,
+      "width": "LEGS_INV_SLOT_WIDTH",
+      "height": "LEGS_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[2].tooltip"
+      },
+      "down": "slotPrimary(2)",
+      "secondary": "slotSecondary(2)",
+      "hover": "slotHover(2)"
+    },
+    {
+      "type": "region",
+      "id": "slot3",
+      "x": 226,
+      "y": 6,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[3].tooltip"
+      },
+      "down": "slotPrimary(3)",
+      "secondary": "slotSecondary(3)",
+      "hover": "slotHover(3)"
+    },
+    {
+      "type": "region",
+      "id": "slot4",
+      "x": 226,
+      "y": 30,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[4].tooltip"
+      },
+      "down": "slotPrimary(4)",
+      "secondary": "slotSecondary(4)",
+      "hover": "slotHover(4)"
+    },
+    {
+      "type": "region",
+      "id": "slot5",
+      "x": 226,
+      "y": 84,
+      "width": "BIG_INV_SLOT_WIDTH",
+      "height": "BIG_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[5].tooltip"
+      },
+      "down": "slotPrimary(5)",
+      "secondary": "slotSecondary(5)",
+      "hover": "slotHover(5)"
+    },
+    {
+      "type": "region",
+      "id": "slot6",
+      "x": 226,
+      "y": 108,
+      "width": "BIG_INV_SLOT_WIDTH",
+      "height": "BIG_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[6].tooltip"
+      },
+      "down": "slotPrimary(6)",
+      "secondary": "slotSecondary(6)",
+      "hover": "slotHover(6)"
+    },
+    {
+      "type": "region",
+      "id": "slot7",
+      "x": 468,
+      "y": 5,
+      "width": "BIG_INV_SLOT_WIDTH",
+      "height": "BIG_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[7].tooltip"
+      },
+      "down": "slotPrimary(7)",
+      "secondary": "slotSecondary(7)",
+      "hover": "slotHover(7)"
+    },
+    {
+      "type": "region",
+      "id": "slot8",
+      "x": 468,
+      "y": 29,
+      "width": "BIG_INV_SLOT_WIDTH",
+      "height": "BIG_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[8].tooltip"
+      },
+      "down": "slotPrimary(8)",
+      "secondary": "slotSecondary(8)",
+      "hover": "slotHover(8)"
+    },
+    {
+      "type": "region",
+      "id": "slot9",
+      "x": 468,
+      "y": 53,
+      "width": "BIG_INV_SLOT_WIDTH",
+      "height": "BIG_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[9].tooltip"
+      },
+      "down": "slotPrimary(9)",
+      "secondary": "slotSecondary(9)",
+      "hover": "slotHover(9)"
+    },
+    {
+      "type": "region",
+      "id": "slot10",
+      "x": 468,
+      "y": 77,
+      "width": "BIG_INV_SLOT_WIDTH",
+      "height": "BIG_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[10].tooltip"
+      },
+      "down": "slotPrimary(10)",
+      "secondary": "slotSecondary(10)",
+      "hover": "slotHover(10)"
+    },
+    {
+      "type": "region",
+      "id": "slot11",
+      "x": 396,
+      "y": 5,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[11].tooltip"
+      },
+      "down": "slotPrimary(11)",
+      "secondary": "slotSecondary(11)",
+      "hover": "slotHover(11)"
+    },
+    {
+      "type": "region",
+      "id": "slot12",
+      "x": 396,
+      "y": 29,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[12].tooltip"
+      },
+      "down": "slotPrimary(12)",
+      "secondary": "slotSecondary(12)",
+      "hover": "slotHover(12)"
+    },
+    {
+      "type": "region",
+      "id": "slot13",
+      "x": 396,
+      "y": 53,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[13].tooltip"
+      },
+      "down": "slotPrimary(13)",
+      "secondary": "slotSecondary(13)",
+      "hover": "slotHover(13)"
+    },
+    {
+      "type": "region",
+      "id": "slot14",
+      "x": 396,
+      "y": 77,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[14].tooltip"
+      },
+      "down": "slotPrimary(14)",
+      "secondary": "slotSecondary(14)",
+      "hover": "slotHover(14)"
+    },
+    {
+      "type": "region",
+      "id": "slot15",
+      "x": 432,
+      "y": 5,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[15].tooltip"
+      },
+      "down": "slotPrimary(15)",
+      "secondary": "slotSecondary(15)",
+      "hover": "slotHover(15)"
+    },
+    {
+      "type": "region",
+      "id": "slot16",
+      "x": 432,
+      "y": 29,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[16].tooltip"
+      },
+      "down": "slotPrimary(16)",
+      "secondary": "slotSecondary(16)",
+      "hover": "slotHover(16)"
+    },
+    {
+      "type": "region",
+      "id": "slot17",
+      "x": 432,
+      "y": 53,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[17].tooltip"
+      },
+      "down": "slotPrimary(17)",
+      "secondary": "slotSecondary(17)",
+      "hover": "slotHover(17)"
+    },
+    {
+      "type": "region",
+      "id": "slot18",
+      "x": 432,
+      "y": 77,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "tooltip": {
+        "bind": "slots[18].tooltip"
+      },
+      "down": "slotPrimary(18)",
+      "secondary": "slotSecondary(18)",
+      "hover": "slotHover(18)"
+    },
+    {
+      "type": "region",
+      "id": "smBodyRegion",
+      "x": "SM_BODYINV_X",
+      "y": "SM_BODYINV_Y",
+      "width": "CAMO_REGION_WIDTH",
+      "height": "CAMO_REGION_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "inventoryEnabled",
+      "down": "bodyPrimary",
+      "hover": "bodyHover"
+    },
+    {
+      "type": "region",
+      "id": "smKeyRing",
+      "x": "KEYRING_X",
+      "y": "KEYRING_Y",
+      "width": "KEYRING_WIDTH",
+      "height": "KEYRING_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "keyRingEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "KEYRING_HELP_TEXT"]
+      },
+      "primary": "keyRing"
+    },
+    {
+      "type": "button",
+      "id": "smMapScreen",
+      "x": "$slotsWidth + 91",
+      "y": "SM_MAPSCREEN_Y",
+      "asset": "buttons2",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 2
+      },
+      "priority": "HIGH-1",
+      "enabled": "mapScreenEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "MAPSCREEN_POPUPTEXT"]
+      },
+      "primary": "mapScreen"
+    },
+    {
+      "type": "button",
+      "id": "smDone",
+      "x": "$slotsWidth + 45",
+      "y": "SM_DONE_Y",
+      "asset": "buttons2",
+      "frames": {
+        "offNormal": 1,
+        "onNormal": 3
+      },
+      "priority": "HIGH-1",
+      "enabled": "doneEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "END_TURN_POPUPTEXT"]
+      },
+      "primary": "done"
+    },
+    {
+      "type": "button",
+      "id": "smTalk",
+      "kind": "toggle",
+      "x": "SM_TALKB_X",
+      "y": "SM_TALKB_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 6,
+        "onNormal": 16
+      },
+      "priority": "HIGH-1",
+      "enabled": "talkEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "TALK_CURSOR_POPUPTEXT"]
+      },
+      "primary": "talk",
+      "checked": "talkChecked"
+    },
+    {
+      "type": "button",
+      "id": "smMute",
+      "kind": "toggle",
+      "x": "SM_MUTEB_X",
+      "y": "SM_MUTEB_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 5,
+        "onNormal": 15
+      },
+      "priority": "HIGH-1",
+      "enabled": "muteEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "TOGGLE_MUTE_POPUPTEXT"]
+      },
+      "primary": "mute",
+      "checked": "muteChecked"
+    },
+    {
+      "type": "button",
+      "id": "smStanceUp",
+      "x": "SM_STANCEUPB_X",
+      "y": "SM_STANCEUPB_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 10
+      },
+      "priority": "HIGH-1",
+      "enabled": "stanceUpEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "CHANGE_STANCE_UP_POPUPTEXT"]
+      },
+      "primary": "stanceUp"
+    },
+    {
+      "type": "button",
+      "id": "smLevel",
+      "kind": "toggle",
+      "x": "SM_UPDOWNB_X",
+      "y": "SM_UPDOWNB_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 9,
+        "onNormal": 19
+      },
+      "priority": "HIGH-1",
+      "enabled": "levelEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "CURSOR_LEVEL_POPUPTEXT"]
+      },
+      "primary": "level",
+      "checked": "levelChecked"
+    },
+    {
+      "type": "button",
+      "id": "smClimb",
+      "x": "SM_CLIMBB_X",
+      "y": "SM_CLIMBB_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 3,
+        "onNormal": 13
+      },
+      "priority": "HIGH-1",
+      "enabled": "climbEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "JUMPCLIMB_POPUPTEXT"]
+      },
+      "primary": "climb"
+    },
+    {
+      "type": "button",
+      "id": "smStanceDown",
+      "x": "SM_STANCEDOWNB_X",
+      "y": "SM_STANCEDOWNB_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 8,
+        "onNormal": 18
+      },
+      "priority": "HIGH-1",
+      "enabled": "stanceDownEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "CHANGE_STANCE_DOWN_POPUPTEXT"]
+      },
+      "primary": "stanceDown"
+    },
+    {
+      "type": "button",
+      "id": "smHand",
+      "kind": "toggle",
+      "x": "SM_HANDCURSORB_X",
+      "y": "SM_HANDCURSORB_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 1,
+        "onNormal": 11
+      },
+      "priority": "HIGH-1",
+      "enabled": "handEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "EXAMINE_CURSOR_POPUPTEXT"]
+      },
+      "primary": "hand",
+      "checked": "handChecked"
+    },
+    {
+      "type": "button",
+      "id": "smPrevMerc",
+      "x": "SM_PREVMERCB_X",
+      "y": "SM_PREVMERCB_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 20,
+        "onNormal": 22
+      },
+      "priority": "HIGH-1",
+      "enabled": "prevEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "PREV_MERC_POPUPTEXT"]
+      },
+      "primary": "prevMerc"
+    },
+    {
+      "type": "button",
+      "id": "smNextMerc",
+      "x": "SM_NEXTMERCB_X",
+      "y": "SM_NEXTMERCB_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 21,
+        "onNormal": 23
+      },
+      "priority": "HIGH-1",
+      "enabled": "nextEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "NEXT_MERC_POPUPTEXT"]
+      },
+      "primary": "nextMerc"
+    },
+    {
+      "type": "button",
+      "id": "smOptions",
+      "x": "SM_OPTIONSB_X",
+      "y": "SM_OPTIONSB_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 24,
+        "onNormal": 25
+      },
+      "priority": "HIGH-1",
+      "enabled": "optionsEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "CHANGE_OPTIONS_POPUPTEXT"]
+      },
+      "primary": "options"
+    },
+    {
+      "type": "button",
+      "id": "smBurst_single",
+      "x": "SM_BURSTMODEB_X",
+      "y": "SM_BURSTMODEB_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 7,
+        "onNormal": 7
+      },
+      "priority": "HIGH-1",
+      "enabled": "burstEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "TOGGLE_BURSTMODE_POPUPTEXT"]
+      },
+      "primary": "burstMode",
+      "visible": {
+        "eq": ["weaponMode", "single"]
+      }
+    },
+    {
+      "type": "button",
+      "id": "smBurst_burst",
+      "x": "SM_BURSTMODEB_X",
+      "y": "SM_BURSTMODEB_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 17,
+        "onNormal": 17
+      },
+      "priority": "HIGH-1",
+      "enabled": "burstEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "TOGGLE_BURSTMODE_POPUPTEXT"]
+      },
+      "primary": "burstMode",
+      "visible": {
+        "eq": ["weaponMode", "burst"]
+      }
+    },
+    {
+      "type": "button",
+      "id": "smBurst_launcher",
+      "x": "SM_BURSTMODEB_X",
+      "y": "SM_BURSTMODEB_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 26,
+        "onNormal": 26
+      },
+      "priority": "HIGH-1",
+      "enabled": "burstEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "TOGGLE_BURSTMODE_POPUPTEXT"]
+      },
+      "primary": "burstMode",
+      "visible": {
+        "eq": ["weaponMode", "launcher"]
+      }
+    },
+    {
+      "type": "button",
+      "id": "smLook",
+      "kind": "toggle",
+      "x": "SM_LOOKB_X",
+      "y": "SM_LOOKB_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 12
+      },
+      "priority": "HIGH-1",
+      "enabled": "lookEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "LOOK_CURSOR_POPUPTEXT"]
+      },
+      "primary": "look",
+      "checked": "lookChecked"
+    },
+    {
+      "type": "button",
+      "id": "smStealth_stand_on",
+      "x": "SM_STEALTHMODE_X",
+      "y": "SM_STEALTHMODE_Y",
+      "asset": "stealth",
+      "frames": {
+        "grayed": 13,
+        "offNormal": 11,
+        "onNormal": 12
+      },
+      "priority": "HIGH-1",
+      "enabled": "stealthEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "TOGGLE_STEALTH_MODE_POPUPTEXT"]
+      },
+      "primary": "stealth",
+      "visible": "stealthButton.standOn"
+    },
+    {
+      "type": "button",
+      "id": "smStealth_stand_off",
+      "x": "SM_STEALTHMODE_X",
+      "y": "SM_STEALTHMODE_Y",
+      "asset": "stealth",
+      "frames": {
+        "grayed": 16,
+        "offNormal": 14,
+        "onNormal": 15
+      },
+      "priority": "HIGH-1",
+      "enabled": "stealthEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "TOGGLE_STEALTH_MODE_POPUPTEXT"]
+      },
+      "primary": "stealth",
+      "visible": "stealthButton.standOff"
+    },
+    {
+      "type": "button",
+      "id": "smStealth_crouch_on",
+      "x": "SM_STEALTHMODE_X",
+      "y": "SM_STEALTHMODE_Y",
+      "asset": "stealth",
+      "frames": {
+        "grayed": 7,
+        "offNormal": 5,
+        "onNormal": 6
+      },
+      "priority": "HIGH-1",
+      "enabled": "stealthEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "TOGGLE_STEALTH_MODE_POPUPTEXT"]
+      },
+      "primary": "stealth",
+      "visible": "stealthButton.crouchOn"
+    },
+    {
+      "type": "button",
+      "id": "smStealth_crouch_off",
+      "x": "SM_STEALTHMODE_X",
+      "y": "SM_STEALTHMODE_Y",
+      "asset": "stealth",
+      "frames": {
+        "grayed": 10,
+        "offNormal": 8,
+        "onNormal": 9
+      },
+      "priority": "HIGH-1",
+      "enabled": "stealthEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "TOGGLE_STEALTH_MODE_POPUPTEXT"]
+      },
+      "primary": "stealth",
+      "visible": "stealthButton.crouchOff"
+    },
+    {
+      "type": "button",
+      "id": "smStealth_prone_on",
+      "x": "SM_STEALTHMODE_X",
+      "y": "SM_STEALTHMODE_Y",
+      "asset": "stealth",
+      "frames": {
+        "grayed": 19,
+        "offNormal": 17,
+        "onNormal": 18
+      },
+      "priority": "HIGH-1",
+      "enabled": "stealthEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "TOGGLE_STEALTH_MODE_POPUPTEXT"]
+      },
+      "primary": "stealth",
+      "visible": "stealthButton.proneOn"
+    },
+    {
+      "type": "button",
+      "id": "smStealth_prone_off",
+      "x": "SM_STEALTHMODE_X",
+      "y": "SM_STEALTHMODE_Y",
+      "asset": "stealth",
+      "frames": {
+        "grayed": 22,
+        "offNormal": 20,
+        "onNormal": 21
+      },
+      "priority": "HIGH-1",
+      "enabled": "stealthEnabled",
+      "tooltip": {
+        "key": ["TacticalStr", "TOGGLE_STEALTH_MODE_POPUPTEXT"]
+      },
+      "primary": "stealth",
+      "visible": "stealthButton.proneOff"
+    }
+  ]
+}

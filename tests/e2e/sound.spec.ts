@@ -103,4 +103,5 @@ test('the tactical page plays a stub firefight with sound after the first gestur
   expect(after.voicesStarted).toBe(muted.voicesStarted);
   expect(after.voicesSilent).toBeGreaterThan(muted.voicesSilent);
   await client.close();
+  await fetch(`${SERVER}/api/sessions/${encodeURIComponent(session)}`, { method: 'DELETE', headers: { authorization: `Bearer ${TOKEN}` } });
 });

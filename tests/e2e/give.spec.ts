@@ -103,4 +103,5 @@ test('an MCP agent gives the stub NPC a magazine he keeps and a pistol he hands 
   expect(after?.inventory?.find((o) => o.slot === 5)?.item).toBe('GLOCK_17');
   expect(after?.inventory?.find((o) => o.slot === clips.slot)?.count).toBe(clips.count - 1);
   await client.close();
+  await fetch(`${SERVER}/api/sessions/${encodeURIComponent(session)}`, { method: 'DELETE', headers: { authorization: `Bearer ${TOKEN}` } });
 });

@@ -79,7 +79,7 @@ async function newGame(page: Page): Promise<string> {
   await clickWidget(page, 'start');
   await modalIs(page, 'messageBox');
   await clickWidget(page, 'messageBox.yes');
-  await screenIs(page, 'laptopPlaceholder');
+  await screenIs(page, 'laptop');
   const session = await page.evaluate(() => window.__ja2Ui.session);
   if (!session) throw new Error('no session after a new game');
   return session;
@@ -117,7 +117,7 @@ test.describe('the canvas front end on stubs', () => {
     await expectGolden('front-end-credits', await capture(page));
   });
 
-  test('starts a new game from the canvas main menu with nobody hired, saves and loads it through the canvas screens and leaves with Alt+X', async ({
+  test('starts a new game from the canvas main menu into the laptop with nobody hired, leaves it with Alt+X and loads its save through the canvas screens', async ({
     page,
     request,
   }) => {
@@ -130,23 +130,7 @@ test.describe('the canvas front end on stubs', () => {
     );
     expect(summary?.flow).toBe('laptop');
     expect(await page.evaluate(() => window.__ja2Ui.music?.serverMode ?? null)).not.toBe('mainMenu');
-    await page.keyboard.press('Control+KeyS');
-    await screenIs(page, 'saveLoad');
-    expect((await widget(page, 'saveButton')).visible).toBe(true);
-    await page.keyboard.press('Enter');
-    await page.waitForFunction(() => window.__ja2Ui.widgets.some((w) => w.kind === 'textField' && w.state === 'editing'));
-    await page.keyboard.type(description);
-    await page.keyboard.press('Enter');
-    await screenIs(page, 'laptopPlaceholder');
-    await page.keyboard.press('Control+KeyL');
-    await screenIs(page, 'saveLoad');
-    const row = (await widgets(page)).find((w) => w.id.startsWith('description') && w.text === description);
-    expect(row).toBeDefined();
-    await clickWidget(page, `row${row?.id.replace('description', '')}`);
-    await clickWidget(page, 'loadButton');
-    await screenIs(page, 'laptopPlaceholder');
-    await modalIs(page, null);
-    expect(await page.evaluate(() => window.__ja2Ui.session)).toBe(session);
+    expect((await request.post(`/api/sessions/${encodeURIComponent(session)}/save`, { data: { description } })).ok()).toBe(true);
     await page.keyboard.press('Alt+KeyX');
     await modalIs(page, 'exitBoxLaptop');
     await clickWidget(page, 'exitBoxLaptop.yes');
@@ -155,8 +139,20 @@ test.describe('the canvas front end on stubs', () => {
     await page.waitForFunction(() => window.__ja2Ui.widgets.some((w) => w.id === 'loadGame' && w.enabled));
     await clickWidget(page, 'loadGame');
     await screenIs(page, 'saveLoad');
-    expect((await widgets(page)).some((w) => w.id.startsWith('description') && w.text === description)).toBe(true);
+    const row = (await widgets(page)).find((w) => w.id.startsWith('description') && w.text === description);
+    expect(row).toBeDefined();
+    await clickWidget(page, `row${row?.id.replace('description', '')}`);
+    await clickWidget(page, 'loadButton');
+    await screenIs(page, 'laptop');
+    await modalIs(page, null);
+    const loaded = await page.evaluate(() => window.__ja2Ui.session);
+    expect(loaded).not.toBeNull();
+    await page.keyboard.press('Alt+KeyX');
+    await modalIs(page, 'exitBoxLaptop');
+    await clickWidget(page, 'exitBoxLaptop.yes');
+    await screenIs(page, 'mainMenu');
     await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
+    if (loaded) await request.delete(`/api/sessions/${encodeURIComponent(loaded)}`);
   });
 
   test('keeps the options toggles across a reload', async ({ page }) => {

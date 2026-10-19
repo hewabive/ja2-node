@@ -19,11 +19,18 @@ const CONTEXT_OPTIONS: WebGLContextAttributes = {
   preserveDrawingBuffer: false,
 };
 
+export interface WorldLayer {
+  draw(target: WebGLFramebuffer, width: number, height: number): void;
+}
+
 export class GamePage {
   readonly canvas: HTMLCanvasElement;
+  readonly gl: WebGL2RenderingContext;
   readonly renderer: UiRenderer;
   readonly hook: UiHook;
   client: SessionClient | null = null;
+  world: WorldLayer | null = null;
+  frameListener: ((ms: number) => void) | null = null;
   readonly #fallbackHost = new ScreenHost();
   readonly #framebuffer: LogicalFramebuffer;
   readonly #list = new DrawList();
@@ -36,6 +43,7 @@ export class GamePage {
     this.canvas = canvas;
     this.#setting = setting;
     const gl = createContext(canvas, CONTEXT_OPTIONS);
+    this.gl = gl;
     this.renderer = new UiRenderer(gl);
     this.#framebuffer = new LogicalFramebuffer(gl);
     this.#resolution = this.#resize();
@@ -84,6 +92,7 @@ export class GamePage {
   }
 
   frame(now: number): void {
+    const started = performance.now();
     const elapsed = this.#lastNow === null ? 0 : now - this.#lastNow;
     this.#lastNow = now;
     this.#resolution = this.#resize();
@@ -96,9 +105,14 @@ export class GamePage {
     }
     const { logicalWidth, logicalHeight } = this.#resolution;
     this.#framebuffer.begin();
+    if (this.world && this.host.screen?.drawsWorld) {
+      this.world.draw(this.#framebuffer.target, logicalWidth, logicalHeight);
+      this.#framebuffer.bind();
+    }
     const stats = this.renderer.draw(this.#list.items, logicalWidth, logicalHeight);
     this.#framebuffer.present(this.#resolution, this.canvas.width, this.canvas.height);
     this.#report(stats);
+    this.frameListener?.(performance.now() - started);
   }
 
   #report(stats: UiHook['draw']): void {

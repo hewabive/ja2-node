@@ -1714,6 +1714,9 @@ function reads (§2.4): the test that fills unsupplied projection fields with th
    box in combat charges `AP_RELOAD_GUN` once when the attachments changed; `attach`/`detach` charge nothing
    (`docs/12` §5). Verify with an oracle probe, then charge per accepted `attach`/`detach` in combat (the box session
    becomes one command; a player attaching two items in one opening pays twice: deviation) or add a batch form.
+   *Settled in U5 (2026-10-19):* the oracle probe `attachbox` (`tools/oracle/probes/attach.txt`) confirmed the box rule;
+   each accepted `attach`/`detach` that changes the attachments now charges `AP_RELOAD_GUN` in combat (deviation
+   "Attachment AP", `docs/12` §5).
 4. **`aimLeaveMessage`** never refuses with `alreadyLeft` although `docs/21` §10 lists it: fix the code or the doc.
 5. **A.I.M. conference distortion** draws `Random(200)` from the main stream (`AIMMembers.cc:1973`): add to the
    "Cosmetic laptop draws" deviation.
@@ -2331,6 +2334,58 @@ numbers and the A.I.M. state survive reopening; the conference distortion, the i
 (U5) wait; the M.E.R.C. slow load (`LONG_UNIT_TIME`) is not wired (no view field says the site is still up after a
 visit); X16 (the saved page numbers in the save's `presentation` block) is not built; the drop-down with 17
 destinations, the paged text template and the generic frame animator arrive with the pages that use them.
+
+#### U5: tactical HUD (2026-10-19)
+
+The tactical screen on `/play`: the U4 world under the original's team panel, single merc panel and HUD, entered from
+U2's flow when the session's flow is tactical (the tactical placeholder is gone; the map and laptop placeholders stay
+for U8 and U10). World input is U6: the viewport only selects own mercs, ends an item cursor and opens the pickup menu.
+
+| Area | As built |
+|---|---|
+| Tables | `tools/transcribe/ui-constants.ts` gains `UILayout`, `Item_Types`, `Overhead_Types`, `Soldier_Control`, `Squads`, `Interface_Panels`, `Interface_Items`, `Interface_Utils`, `Interface`, `Faces`, `Radar_Screen`, `Message` and `Game_Clock`; constants written relative to `INTERFACE_START_X`, `INTERFACE_START_Y` or `INV_INTERFACE_START_Y` are stored panel-relative (`panelRelative`) and laid out in the `tacticalPanel` and `tacticalInventory` frames; `FROMRGB` colours are read as RGB |
+| Layouts | `data/layouts/original/tactical-team.json` (screen `tacticalTeam`: `bottom_bar.sti` extended per slot beyond six as `InitializeTEAMPanel` does, the faces, names, AP, bars, hands, enemy indicators, Done, Map, Squad), `tactical-sm.json` (`tacticalSingleMerc`: `inventory_bottom_panel.sti` with the `overheadinterface.sti` filler of wide panels, plate, face, the ten stats, armour, weight and camo, the body figure, the 19 slots, key ring and money regions, the 18 buttons with their enable rules, the description box geometry of `ITEMDESC_*` and the pickup menu art), `tactical-hud.json` (`tacticalHud`: the top bar, the overhead labels, radar and squad list, sector name and clock with the pause help, the message log, the pause mask, the paused and feedback boxes, the in-game keys o, Ctrl+S, Ctrl+L, Alt+X). Format additions: custom renderers receive the repeat variables, `down` (left button down: the original's primary callbacks with `triggerPrimaryOnMouseDown`, used by faces and slots), `$slotsWidth`, stub styles `hollow` and `checker`, palette bases `white` and `grayRamp` (the portrait flash and the grey face of `InitFace`) |
+| Controllers | `src/ui/screens/tactical/`: `team-panel.ts` and `sm-panel.ts` (contracts and view models, `panel-models.ts` builds them: AP colours, stat texts with the 60 s up/down flash from `statChanged`, the button enable rules of `EnableSMPanelButtons`), `faces.ts` (the face record from `/api/sessions/:id/profiles` or the generic stub face of the body type, blink and expressions from the face record's frequencies on the client PRNG, lip sync from the `.gap` gaps of the speaking voice, the hit flash in white, the shades for unconscious, hatched and grey faces, the icons, the enemy count, the white, moving, stealth and compatible-item rectangles), `bars.ts` (`DrawSoldierUIBars` with the gold background of the selected merc, the bandage and the breath maximum; `DrawBarsInUIBox`; the item status bar), `item-tile.ts` (`INVRenderItem`: graphic, outline, outline shadow, status bar, ammo count, stack count, the weapon mode marker, the new-item glow), `inventory.ts` (slots, hatches and compatible outlines from the `placements` hint, the second-hand cover, the local item cursor), `item-cursor.ts` (the commands an item cursor ends in), `item-description.ts` (`InitItemDescriptionBox` from the `itemInfo` hint: picture, status, name, description, pros and cons, weapon and money stats, the ammo button that ejects the magazine into the cursor, four attachment slots, metric weights from the client setting), `item-popups.ts` (stack popup, key ring with the G20 key items), `pickup-menu.ts` (`InitializeItemPickupMenu`: rows with tile graphics, All, OK, Cancel, paging, help texts), `overlays.ts` (top bar with the enemy turn progress, radio locators, damage numbers, the UI feedback box, overhead labels), `message-log.ts` and `message-format.ts` (the six-line scroll of `ScrollString` with ageing, the queue rule and the beep, fed by the server's message entries without dialogue lines), `hud.ts` (radar, clock, pause), `tactical-screen.ts` (the screen) |
+| Screen | Selection follows `HandleLocateSelectMerc` with the new selection method (below `OKLIFE` and with Alt only locate; a second click on the selected merc locates with a radio locator, a third recentres; another merc is selected with the attention sound) and `SelectSoldier` (a merc who cannot act refuses with `MERC_IS_UNAVAILABLE_STR` in the log and the feedback box; the interface level follows the merc). A face click continues a halted move (`continueTo`); the enemy indicator cycles the seen enemies (`CycleVisibleEnemies`); right click opens the single merc panel unless the merc is dead, an escort or in a vehicle; panel switches take effect on the next update (`HandleTacticalPanelSwitch`), non-merc bodies and escorts keep the team panel. A merc's death plays `p_close.sti` then `p_dead.sti` every 160 ms in his slot and leaves the dead face hatched while he stays in the squad. The viewport region (ending at the panel) ends an item cursor (on an other merc `give`, else `drop`), selects own mercs, and on a tile with items sends `pickUp` for a single item or opens the pickup menu for more. Keys: \` switches panels, k opens the key ring, Pause pauses, Esc closes the pickup menu, the description box, a popup or the item cursor in that order. Radar clicks and drags move the camera, the squad button swaps in the squad list |
+| `/play` | `src/app/tactical/`: `TacticalHost` (per session: the VFS listing, soldier assets, frames, effects and light templates, the `TacticalWorldView` on the page's WebGL context, the sector's sounds, the three layouts with their assets, the item catalogue, profiles and the gun nut option, the radar map, the squad's sheets and item graphics; the loading screen of U2 shows the progress with the picture of the last `sectorLoaded.loadScreen`), `world-presenter.ts` (camera with snap and limits, true screen positions, stance offsets and marker flags from the animation table, picking, radar box and dots, tile pictures registered as UI images at shade 4 over the map's light colour for the pickup menu and the overhead bar boxes), `tactical-media.ts`, `tactical-client.ts` (commands, the hint provider, the player pause). `GamePage` draws the world into the logical framebuffer before the UI when the screen declares `drawsWorld`. The screen is kept across the options and save/load screens and rebuilt after a sector change. Entering starts the real-time driver at speed 1 unless it already runs (`?drive=manual` keeps a manual driver, for tests); the player pause is the driver at manual plus the original's mask, and any click or key up resumes |
+| Hints and sound | The `/play` page wires U3b's `HintProvider` with `ClientKnowledge` (`?shadowHints=1` for the shadow mode, `window.__ja2Ui.hints`). `TacticalSound` shares the UI audio engine without its own music (the front end keeps playing the session's music); `VoiceHandle.elapsedMs` and `SoundDirector.speaking` give the faces the speaker, file and position for lip sync |
+| Server and data | The item catalogue carries `calibre.showInHelpText` (from `calibres.json`, for the hand slots' help texts); rule finding 3 is settled (e173dea, deviation "Attachment AP"); key ring entries name their key item (G20, 4df5656); `protocol/hints.ts` re-exports the hint data types for the `ui` layer |
+| Stub art | 04dc3f1: a generic face per body type with blink and mouth frames and `.gap` files, item silhouettes per shape for every small and big item graphic, radar maps for the stub maps; the layout-driven generator draws the panel art (hollow slots, checkered hatches). The stub sandbox mercs now carry a silencer in a small pocket, so the canvas can attach on stubs |
+| Hook | `window.__ja2Ui.tactical`: `ready`, `map`, `panel`, `selected`, `smMerc`, `squad`, `slots`, `radarShown`, `paused`, `faces` (eye and mouth frames), `messages`, `feedback`, `cursorItem`, `descriptionOpen`, `descriptionItem`, `pickupOpen`, `stackOpen`, `keyRingOpen`, `commands`, `camera`, `drawCalls`, `drawnSoldiers`, `pendingImages`, `enemyBar`, `topMessage`, `frameMs`, `worldMs`, and `command`, `advance`, `inventory`, `soldiers`, `items`, `soldierScreen`, `gridNoScreen`, `gridNoAt`, `soldierAt`, `centerOn`, `resetTimes` |
+
+**Measured** with original data on `/play`, 1920×1080, UI scale 2 (logical 960×540, six slots), headless Chromium on
+SwiftShader, real time, 15 s after the load: the A9 sandbox (six mercs in view, 224 UI instances in 47 batches, 26 world
+draw calls): JS per frame p50 / p95 1.4 / 2.1 ms, of it the world render call 0.3 / 0.5 ms; frame interval 50 / 50 ms
+(SwiftShader). Drassen (B13 from `SaveGame01`, three soldiers in view, 158 UI instances in 26 batches): 1.2 / 1.8 ms
+JS, world 0.4 / 0.5 ms, interval 33 / 50 ms. A sector with twelve or more soldiers in view was not reachable on this
+machine's data; the 60 FPS target of §16 still needs the maintainer's GPU.
+
+Tests: `src/ui/screens/tactical/tactical-screen.test.ts` over a stub sandbox `Session` with the client-side hint
+answers (`tests/support/tactical-ui.ts`: a fake world presenter and media over the real item catalogue): selection
+through the faces, the single merc panel, one magazine and the whole stack with Shift moved by one `moveItem`, the
+silencer attached through the description box, the pickup menu sending one `pickUp`, the message log, the feedback box,
+the stat flash, the death animation, the blink, and draw-list snapshots of the team panel, the single merc panel and
+the description box; the layout contract test covers the three layouts on stubs and on the original data;
+`tests/e2e/tactical-hud.spec.ts` on stubs through `__ja2Ui` (golden `tactical-team-panel.png` with a pinned clock, the
+faces blinking, selection, the single merc panel and back, a move and an attach checked in the view, the pickup menu).
+
+Decisions and limits: the item cursor is local and ends in one command (deviation "Item cursor on the canvas"); the
+pickup menu opens before the walk (deviation "Pickup menu"); the camera jumps where the original slides; the money box,
+moving keys in and out of the key ring, the stealth, burst and mute buttons and the hand, talk and look cursors wait for
+their commands and the input state machine (U6, U7); the clock shows only in a campaign (the sandbox has no world
+clock); the sector name is the code. Open for U6: world cursors, paths, hotkeys, scrolling, menus; the stance buttons
+send `stance`, climb is enabled and refused by the server; for U7: talk, shop and the money commands.
+
+
+#### Lead wiring after U5 and U10 (2026-10-19)
+
+`/play` opens the canvas laptop (`bootLaptopScreen`) when a session's flow is the laptop, through a `LaptopPort` of the
+front-end flow (`src/ui/screens/front-end/flow.ts`, `src/app/game/front-end.ts`) with one `LaptopMemory` per session;
+closing it re-enters the game once a frame shows the server has left the laptop (`closeLaptop` always succeeds), which
+today is the map screen placeholder until U8. The laptop takes no save hotkeys, as in the original (Esc, Tab, Alt+X, H
+only), so the front-end e2e saves through the API and loads through the canvas save/load screen. The merge also
+unified the stub faces (U5's animated face per body type behind every small face, U10's labelled big portraits) and
+raised the stub media budget to 5 MiB.
 
 ---
 

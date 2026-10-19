@@ -221,7 +221,7 @@ type Token =
 
 function tokenize(expression: string): Token[] | null {
   const tokens: Token[] = [];
-  const re = /\s*(?:(0[xX][0-9a-fA-F]+|\d+)(?:[uUlL]+|ms)?|([A-Za-z_]\w*(?:::\w+)*)|(<<|>>|[-+*/%()|&~^]))/y;
+  const re = /\s*(?:(0[xX][0-9a-fA-F]+|\d+)(?:[uUlL]+|ms)?|([A-Za-z_]\w*(?:::\w+)*)|(<<|>>|[-+*/%()|&~^,]))/y;
   let pos = 0;
   const text = expression.trim();
   while (pos < text.length) {
@@ -239,6 +239,10 @@ function tokenize(expression: string): Token[] | null {
 }
 
 export type NameLookup = (name: string) => number | null;
+
+const RGB_MACRO = 'FROMRGB';
+const RGB_CHANNELS = 3;
+const BYTE_MASK = 0xff;
 
 class Parser {
   readonly #tokens: readonly Token[];
@@ -318,6 +322,20 @@ class Parser {
     return this.#primary();
   }
 
+  #rgb(): number | null {
+    this.#pos++;
+    const channels: number[] = [];
+    for (let i = 0; i < RGB_CHANNELS; i++) {
+      const v = this.#or();
+      if (v === null) return null;
+      channels.push(v & BYTE_MASK);
+      if (!this.#isOp(i === RGB_CHANNELS - 1 ? ')' : ',')) return null;
+      this.#pos++;
+    }
+    const [r, g, b] = channels as [number, number, number];
+    return (r << 16) | (g << 8) | b;
+  }
+
   #primary(): number | null {
     const t = this.#peek();
     if (!t) return null;
@@ -327,6 +345,7 @@ class Parser {
     }
     if (t.kind === 'name') {
       this.#pos++;
+      if (t.value === RGB_MACRO && this.#isOp('(')) return this.#rgb();
       return this.#lookup(t.value);
     }
     if (t.value !== '(') return null;

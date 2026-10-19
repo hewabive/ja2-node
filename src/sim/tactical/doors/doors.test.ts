@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runUntilIdle as runSimUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
+import { ItemClass } from '../../../content/items/items.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import type { SimEvent } from '../../events.ts';
 import { createItem } from '../../items/object.ts';
@@ -11,6 +12,8 @@ import { Team } from '../soldier.ts';
 import { TacticalSim } from '../tactical-sim.ts';
 import { doorMenu, handleOpenableStruct } from './door-actions.ts';
 import { DoorTrap, findDoorInfo, HandleDoor, PerceivedLock, PerceivedTrap, updateDoor } from './door-table.ts';
+import { keyRingView } from './door-view.ts';
+import { newKeyRing } from './key-ring.ts';
 import { attemptToCrowbarLock, attemptToSmashDoor, damageLock } from './lock-attempts.ts';
 
 const VILLAGE = 'stubs/world/maps/village.dat';
@@ -115,6 +118,24 @@ describe('the stub village door', () => {
     expect(findDoorInfo(sim.state, DOOR)).toMatchObject({ locked: false, perceivedLocked: PerceivedLock.UNLOCKED });
     expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'close' }).ok).toBe(true);
     expect(runSimUntilIdle(sim).some((e) => e.type === 'doorChanged' && !e.open)).toBe(true);
+  });
+
+  it('names the key item of each lock on the key ring (LockTable[keyID].usKeyItem)', () => {
+    const sim = village();
+    const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
+    s.keyRing = newKeyRing();
+    s.keyRing[0] = { keyId: 1, count: 2 };
+    s.keyRing[1] = { keyId: 2, count: 1 };
+    const items = sim.state.content.items;
+    const keyOfClass = (classIndex: number) => items.ordered.find((d) => d.itemClass === ItemClass.KEY && d.classIndex === classIndex);
+    const first = keyOfClass(0);
+    const second = keyOfClass(1);
+    expect(first?.name).toBe('KEY_1');
+    expect(second?.name).toBeDefined();
+    expect(keyRingView(sim.state, s)).toEqual([
+      { keyId: 1, count: 2, item: first?.name, index: first?.index },
+      { keyId: 2, count: 1, item: second?.name, index: second?.index },
+    ]);
   });
 
   it('refuses menu actions on unlocked doors and what the soldier cannot do', () => {

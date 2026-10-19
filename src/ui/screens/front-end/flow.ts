@@ -17,6 +17,7 @@ import { SaveController } from '../../saves/save-controller.ts';
 import type { Screen } from '../../screen.ts';
 import { Fade, type FadeDirection } from '../../widgets/fade.ts';
 import type { RowFeed } from '../credit-roll.ts';
+import type { TacticalFlow } from '../tactical/environment.ts';
 import { CreditsController, creditsScreen } from './credits.ts';
 import { type FrontEndEnvironment, FrontEndLayout, type SettingsStore } from './environment.ts';
 import { type ExitBoxStyle, openExitBox } from './exit-box.ts';
@@ -24,15 +25,34 @@ import { type GameInitChoice, GameInitController, gameInitScreen, INITIAL_GAME_C
 import { LoadingController, loadingScreen } from './loading.ts';
 import { type MainMenuModel, mainMenuScreen } from './main-menu.ts';
 import { OptionsController, type OptionsOrigin, optionsScreen } from './options.ts';
-import { type GameScreenKind, placeholderScreen } from './placeholder.ts';
+import { type GameScreenKind, type PlaceholderActions, placeholderScreen } from './placeholder.ts';
 import { SanMonaController, sanMonaScreen } from './san-mona.ts';
 import { SaveLoadController, type SaveLoadMode, saveLoadScreen } from './save-load.ts';
 
 export type FrontEndMusic = 'mainMenu' | 'none' | 'session';
 export type SaveLoadOrigin = 'mainMenu' | 'options' | 'game' | 'gameInit';
 
+export interface TacticalPort {
+  readonly loaded: boolean;
+  readonly stale: boolean;
+  readonly loadScreen: number | null;
+  load(onProgress: (done: number, total: number) => void): Promise<void>;
+  screen(flow: TacticalFlow): Screen;
+}
+
+export interface LaptopFlow {
+  closed(): void;
+  quit(): void;
+}
+
+export interface LaptopPort {
+  open(flow: LaptopFlow): Promise<Screen>;
+}
+
 export interface FrontEndHost {
   readonly version: string;
+  tactical?(): TacticalPort | null;
+  laptop?(): LaptopPort | null;
   playBeginning(): Promise<void>;
   music(mode: FrontEndMusic): void;
   quit(): void;
@@ -42,6 +62,7 @@ export interface FrontEndHost {
 }
 
 const SEX_SCENE = 'sexScene';
+const TACTICAL_SCREEN_ID = 'tactical';
 const BLACK_SCREEN = 'black';
 
 class BlackScreen implements Screen {
@@ -84,6 +105,7 @@ export class FrontEndFlow {
   readonly #client: FrontEndClient;
   readonly #settings: SettingsStore;
   readonly #host: FrontEndHost;
+  #leavingLaptop: string | null = null;
   readonly #menu: MainMenuModel;
   #choice: GameInitChoice = INITIAL_GAME_CHOICE;
   #pendingOptions: GameOptions | null = null;
@@ -315,13 +337,76 @@ export class FrontEndFlow {
     }
     const kind = gameScreenOf(this.#client.view);
     this.#host.music('session');
+    const tactical = kind === 'tactical' ? (this.#host.tactical?.() ?? null) : null;
+    if (tactical) {
+      void this.#enterTactical(tactical, session);
+      return;
+    }
+    const laptop = kind === 'laptop' ? (this.#host.laptop?.() ?? null) : null;
+    if (laptop) {
+      void this.#enterLaptop(laptop, session);
+      return;
+    }
+    this.#show(placeholderScreen(this.#env, kind, session, this.#gameActions(kind)));
+  }
+
+  async #enterLaptop(port: LaptopPort, session: string): Promise<void> {
+    let screen: Screen;
+    try {
+      screen = await port.open({ closed: () => this.#laptopClosed(session), quit: () => this.exitBox('laptop') });
+    } catch (err) {
+      this.#show(placeholderScreen(this.#env, 'laptop', session, this.#gameActions('laptop')));
+      await this.#env.boxes.alert((err as Error).message);
+      return;
+    }
+    if (this.#client.session === session) this.#show(screen);
+  }
+
+  #laptopClosed(session: string): void {
+    this.#leavingLaptop = session;
+    this.#afterLaptop();
+  }
+
+  #afterLaptop(): void {
+    const session = this.#leavingLaptop;
+    if (session === null || gameScreenOf(this.#client.view) === 'laptop') return;
+    this.#leavingLaptop = null;
+    if (this.#client.session === session) this.enterGame();
+  }
+
+  #gameActions(kind: GameScreenKind): PlaceholderActions {
+    return {
+      options: () => void this.options('game'),
+      saveGame: () => void this.saveLoad('save', 'game'),
+      loadGame: () => void this.saveLoad('load', 'game'),
+      exitGame: () => this.exitBox(kind),
+      mainMenu: () => this.leaveGame(),
+    };
+  }
+
+  async #enterTactical(port: TacticalPort, session: string): Promise<void> {
+    if (!port.loaded) {
+      const loading = new LoadingController('sector', port.loadScreen);
+      this.#show(loadingScreen(this.#env, loading));
+      try {
+        await port.load((done, total) => loading.progress(done, total));
+      } catch (err) {
+        this.#show(placeholderScreen(this.#env, 'tactical', session, this.#gameActions('tactical')));
+        await this.#env.boxes.alert((err as Error).message);
+        return;
+      }
+    }
+    if (this.#client.session !== session) return;
+    const actions = this.#gameActions('tactical');
     this.#show(
-      placeholderScreen(this.#env, kind, session, {
-        options: () => void this.options('game'),
-        saveGame: () => void this.saveLoad('save', 'game'),
-        loadGame: () => void this.saveLoad('load', 'game'),
-        exitGame: () => this.exitBox(kind),
-        mainMenu: () => this.leaveGame(),
+      port.screen({
+        options: actions.options,
+        saveGame: actions.saveGame,
+        loadGame: actions.loadGame,
+        exitGame: actions.exitGame,
+        mapScreen: () => {
+          if (this.#client.view?.strategic) this.#show(placeholderScreen(this.#env, 'map', session, this.#gameActions('map')));
+        },
       }),
     );
   }
@@ -338,7 +423,9 @@ export class FrontEndFlow {
   }
 
   frames(frames: readonly ViewFrame[]): void {
+    this.#afterLaptop();
     if (frames.some((f) => f.events?.some((e) => e.type === SEX_SCENE))) this.sexScene();
+    else if (this.#screens.screen?.id === TACTICAL_SCREEN_ID && this.#host.tactical?.()?.stale) this.enterGame();
   }
 
   sexScene(): void {

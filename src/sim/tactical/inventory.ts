@@ -9,6 +9,7 @@
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { ArmourClass, ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { compatibleFaceItem, validAttachment, validLaunchable } from '../../content/items/rules.ts';
+import { slotLimitOf } from '../../content/items/slot-limit.ts';
 import {
   attachObject,
   cloneObject,
@@ -95,9 +96,7 @@ function slot(inv: Inventory, pos: number): ItemObject {
 const twoHanded = (items: ItemTable, item: number): boolean => ((items.byIndex.get(item)?.flags ?? 0) & ItemFlags.TWO_HANDED) !== 0;
 
 export function itemSlotLimit(items: ItemTable, item: number, pos: number): number {
-  if (pos < InvSlot.BIGPOCK1) return 1;
-  const perPocket = items.byIndex.get(item)?.perPocket ?? 0;
-  return pos >= InvSlot.SMALLPOCK1 && perPocket > 1 ? Math.trunc(perPocket / 2) : perPocket;
+  return slotLimitOf(items.byIndex.get(item)?.perPocket ?? 0, pos);
 }
 
 export function moneySlotLimit(pos: number): number {

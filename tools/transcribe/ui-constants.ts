@@ -61,11 +61,31 @@ const SCREEN_TABLES: readonly TableSpec[] = [
   { table: 'AIMSort', files: ['game/Laptop/AIMSort.h', 'game/Laptop/AIMSort.cc'] },
   { table: 'AIMFacialIndex', files: ['game/Laptop/AIMFacialIndex.h', 'game/Laptop/AIMFacialIndex.cc'] },
   { table: 'AIMLinks', files: ['game/Laptop/AIMLinks.h', 'game/Laptop/AIMLinks.cc'] },
+  { table: 'UILayout', files: ['game/UILayout.h'] },
+  { table: 'Item_Types', files: ['game/Tactical/Item_Types.h'] },
+  { table: 'Overhead_Types', files: ['game/Tactical/Overhead_Types.h'] },
+  { table: 'Soldier_Control', files: ['game/Tactical/Soldier_Control.h'] },
+  { table: 'Squads', files: ['game/Tactical/Squads.h'] },
+  { table: 'Interface_Panels', files: ['game/Tactical/Interface_Panels.h', 'game/Tactical/Interface_Panels.cc'] },
+  { table: 'Interface_Items', files: ['game/Tactical/Interface_Items.h', 'game/Tactical/Interface_Items.cc'] },
+  { table: 'Interface_Utils', files: ['game/Tactical/Interface_Utils.h', 'game/Tactical/Interface_Utils.cc'] },
+  { table: 'Interface', files: ['game/Tactical/Interface.h', 'game/Tactical/Interface.cc'] },
+  { table: 'Faces', files: ['game/Tactical/Faces.h', 'game/Tactical/Faces.cc'] },
+  { table: 'Radar_Screen', files: ['game/TileEngine/Radar_Screen.h', 'game/TileEngine/Radar_Screen.cc'] },
+  { table: 'Message', files: ['game/Utils/Message.h', 'game/Utils/Message.cc'] },
+  { table: 'Game_Clock', files: ['game/Strategic/Game_Clock.h', 'game/Strategic/Game_Clock.cc'] },
 ];
 
 const FRAME_ORIGIN_NAMES: ReadonlyMap<string, number> = new Map([
   ['STD_SCREEN_X', 0],
   ['STD_SCREEN_Y', 0],
+]);
+const PANEL_RELATIVE_FORMAT =
+  '; panelRelative: the names whose value contains INTERFACE_START_X, INTERFACE_START_Y or INV_INTERFACE_START_Y, evaluated as 0 (positions inside the tactical panel frames)';
+const PANEL_ORIGIN_NAMES: ReadonlyMap<string, number> = new Map([
+  ['INTERFACE_START_X', 0],
+  ['INTERFACE_START_Y', 0],
+  ['INV_INTERFACE_START_Y', 0],
 ]);
 const FONT_CONTROL_SOURCE = 'game/Utils/Font_Control.cc';
 const TIMER_CONTROL_SOURCE = 'game/Utils/Timer_Control.cc';
@@ -79,6 +99,7 @@ export interface ConstantTable {
   readonly format: string;
   readonly constants: Readonly<Record<string, ConstantValue>>;
   readonly stdScreen: readonly string[];
+  readonly panelRelative?: readonly string[];
   readonly fonts?: Readonly<Record<string, string>>;
   readonly skipped: readonly string[];
 }
@@ -88,6 +109,7 @@ class Resolver {
   readonly #shared: readonly ConstantTable[];
   readonly #values = new Map<string, ConstantValue | null>();
   readonly #relative = new Set<string>();
+  readonly #panelRelative = new Set<string>();
   readonly #fonts: ReadonlySet<string>;
   readonly #resolving = new Set<string>();
 
@@ -99,6 +121,10 @@ class Resolver {
 
   get relative(): ReadonlySet<string> {
     return this.#relative;
+  }
+
+  get panelRelative(): ReadonlySet<string> {
+    return this.#panelRelative;
   }
 
   #sharedValue(name: string): ConstantValue | null {
@@ -115,9 +141,15 @@ class Resolver {
       this.#relative.add(user);
       return origin;
     }
+    const panelOrigin = PANEL_ORIGIN_NAMES.get(name);
+    if (panelOrigin !== undefined) {
+      this.#panelRelative.add(user);
+      return panelOrigin;
+    }
     const value = this.value(name);
     if (typeof value === 'number') {
       if (this.#relative.has(name)) this.#relative.add(user);
+      if (this.#panelRelative.has(name)) this.#panelRelative.add(user);
       return value;
     }
     return null;
@@ -241,10 +273,12 @@ function buildTable(spec: TableSpec, shared: readonly ConstantTable[]): Constant
     license: 'Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.',
     format:
       'constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)' +
+      (resolver.panelRelative.size > 0 ? PANEL_RELATIVE_FORMAT : '') +
       (spec.table === 'Font_Control' ? '; fonts: the font macros and the font files InitializeFonts loads for them' : '') +
       (spec.table === 'Timer_Control' ? '; <COUNTER>_MS: the giTimerIntervals entry of each PredefinedCounters value' : ''),
     constants,
     stdScreen: [...resolver.relative].filter((n) => n in constants).sort(),
+    ...(resolver.panelRelative.size > 0 ? { panelRelative: [...resolver.panelRelative].filter((n) => n in constants).sort() } : {}),
     ...(spec.table === 'Font_Control' ? { fonts: fontFiles(constants) } : {}),
     skipped,
   };

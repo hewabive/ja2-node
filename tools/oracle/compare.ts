@@ -38,6 +38,7 @@ import { createSoldier, NOWHERE, type Soldier, Team } from '../../src/sim/tactic
 import { registerSoldier, unregisterSoldier, whoIsThere } from '../../src/sim/tactical/state.ts';
 import { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import { ACTION_PROBES, ActionComparer } from './actions-compare.ts';
+import { ATTACH_PROBES, AttachComparer } from './attach-compare.ts';
 import { compareAutoresolveAftermath, compareEnemyCounts } from './autoresolve-aftermath.ts';
 import { compareAutoresolve } from './autoresolve-compare.ts';
 import { compareAutoresolveCreation } from './autoresolve-creation.ts';
@@ -586,6 +587,7 @@ for (const file of files) {
   const creatureAi = new CreatureAiComparer(read, exists);
   const laptop = new LaptopComparer(read, exists);
   const doors = new DoorComparer(read, exists);
+  const attach = new AttachComparer(read, exists);
   const heli = new HeliComparer(read, exists);
   const talk = new TalkComparer(read, exists, (path) => data.vfs.layerCount(path));
   const give = new GiveComparer(read, exists, (path) => data.vfs.layerCount(path));
@@ -620,6 +622,7 @@ for (const file of files) {
       if (ctx.bytes) creatureAi.loadSave(ctx.bytes);
       if (ctx.bytes) laptop.loadSave(ctx.bytes);
       if (ctx.bytes) doors.loadSave(ctx.bytes);
+      if (ctx.bytes) attach.loadSave(ctx.bytes);
       if (ctx.bytes) heli.loadSave(ctx.bytes);
       if (ctx.bytes) talk.loadSave(ctx.bytes);
       if (ctx.bytes) give.loadSave(ctx.bytes);
@@ -647,6 +650,7 @@ for (const file of files) {
     else if (CREATURE_AI_PROBES.has(String(p.probe))) failures += await creatureAi.compare(p);
     else if (LAPTOP_PROBES.has(String(p.probe))) failures += await laptop.compare(p);
     else if (DOOR_PROBES.has(String(p.probe))) failures += await doors.compare(p);
+    else if (ATTACH_PROBES.has(String(p.probe))) failures += await attach.compare(p);
     else if (HELI_PROBES.has(String(p.probe))) failures += await heli.compare(p);
     else if (TALK_PROBES.has(String(p.probe))) failures += await talk.compare(p);
     else if (GIVE_PROBES.has(String(p.probe))) failures += await give.compare(p);

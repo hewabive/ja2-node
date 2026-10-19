@@ -29,6 +29,7 @@ import { type DataVfs, openDataVfs, STUBS_PREFIX } from '../src/node/data-vfs.ts
 import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
 import { TextService } from '../src/server/text-service.ts';
 import { cursorFilePaths, cursorFramesUsed } from '../src/ui/cursors/cursor-table.ts';
+import { GENERIC_FACE, GENERIC_FACE_BODY_TYPES, genericFacePath } from '../src/ui/screens/tactical/generic-face.ts';
 import { STUB_AMBIENT_ENTRIES, STUB_AMBIENT_ID } from './ambient.ts';
 import { stubSoundPaths } from './audio.ts';
 import { buildStubs } from './build.ts';
@@ -38,6 +39,9 @@ import { loadSectorKinds, sectorMapFile } from './sector-kinds.ts';
 import { npcSpeechSets, type SpeechSet, speechPaths } from './speech.ts';
 import { STUB_TILE_SURFACES } from './tiles.ts';
 import { ANIMATED_STUB_CURSORS, loadCursorTable } from './ui/cursors.ts';
+import { EYES_HEIGHT, EYES_WIDTH, FACE_HEIGHT, FACE_WIDTH, MOUTH_HEIGHT, MOUTH_WIDTH, smallFacePath } from './ui/faces.ts';
+import { BIG_ITEM_DIR, ITEM_OUTLINE_INDEX, smallSheetPlans, stubItemTable } from './ui/items.ts';
+import { RADAR_MAP_HEIGHT, RADAR_MAP_WIDTH, radarMapPath, STUB_MAPS_DIR } from './ui/radar.ts';
 import { planStubSkin, readOriginalLayouts } from './ui/skin.ts';
 import { OUTLINE_INDEX, TEST_CARD_PATH, TEST_CARD_RGB_PATH } from './ui-test-card.ts';
 import {
@@ -62,7 +66,28 @@ const TEXT_FILES = [
   STUB_GLYPH_TABLE_PATH,
   'aliases.json',
 ];
-const MEDIA_BUDGET_BYTES = 4 * 1024 * 1024;
+const MEDIA_BUDGET_BYTES = 5 * 1024 * 1024;
+const EYE_FRAMES = 4;
+const MOUTH_FRAMES = 3;
+const MIN_LIP_GAPS = 2;
+const MAX_LIP_GAPS = 4;
+const BIG_PICTURE_AREA = { width: 117, height: 55 } as const;
+
+interface Crop {
+  readonly width: number;
+  readonly height: number;
+  readonly pixels: Uint8Array;
+}
+
+function crop(frame: Crop, x: number, y: number, width: number, height: number): string {
+  const rows: number[] = [];
+  for (let j = 0; j < height; j++) for (let i = 0; i < width; i++) rows.push(frame.pixels[(y + j) * frame.width + x + i] ?? 0);
+  return rows.join(',');
+}
+
+function pixelsOf(frame: Crop): string {
+  return crop(frame, 0, 0, frame.width, frame.height);
+}
 const STUB_BUILD_TIMEOUT_MS = 60_000;
 
 const dirs: string[] = [];
@@ -183,7 +208,8 @@ describe('stub media', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
       const audio = decodeWav(await data.vfs.read(stub(first)));
       expect(audio.info.encoding).toBe('imaAdpcm');
       const gaps = parseGap(await data.vfs.read(stub(gapPathFor(first))));
-      expect(gaps.length).toBeGreaterThan(0);
+      expect(gaps.length).toBeGreaterThanOrEqual(MIN_LIP_GAPS);
+      expect(gaps.length).toBeLessThanOrEqual(MAX_LIP_GAPS);
       expect(gaps.every((g, i) => g.start < g.end && g.end < wavDurationMs(audio.info) && g.start > (gaps[i - 1]?.end ?? 0))).toBe(true);
       for (const path of paths) {
         expect(data.vfs.stat(stub(path))?.size, path).toBe(data.vfs.stat(stub(first))?.size);
@@ -271,6 +297,89 @@ describe('stub media', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
     expect(card.subImages[0]?.pixels.includes(OUTLINE_INDEX)).toBe(false);
     const rgb = decodeSti(await data.vfs.read(stub(TEST_CARD_RGB_PATH)));
     expect(rgb.kind).toBe('rgb');
+  });
+
+  it('decodes the generic stub faces: the face, four eye and three mouth frames at the generic offsets, aliased by every stub profile', async () => {
+    const faces: string[] = [];
+    for (let body = 0; body < GENERIC_FACE_BODY_TYPES; body++) {
+      const sti = decodeSti(await data.vfs.read(stub(genericFacePath(body))));
+      if (sti.kind !== 'indexed') throw new Error(`${genericFacePath(body)} is not indexed`);
+      expect(sti.subImages.map((f) => [f.width, f.height])).toEqual([
+        [FACE_WIDTH, FACE_HEIGHT],
+        ...Array.from({ length: EYE_FRAMES }, () => [EYES_WIDTH, EYES_HEIGHT]),
+        ...Array.from({ length: MOUTH_FRAMES }, () => [MOUTH_WIDTH, MOUTH_HEIGHT]),
+      ]);
+      const [face, ...patches] = sti.subImages;
+      if (!face) throw new Error('no face frame');
+      expect(face.pixels.includes(0)).toBe(false);
+      expect(sti.subImages.some((f) => f.pixels.includes(ITEM_OUTLINE_INDEX))).toBe(false);
+      const [eyesX, eyesY] = GENERIC_FACE.eyes;
+      const [mouthX, mouthY] = GENERIC_FACE.mouth;
+      const eyes = [crop(face, eyesX, eyesY, EYES_WIDTH, EYES_HEIGHT), ...patches.slice(0, EYE_FRAMES).map(pixelsOf)];
+      const mouths = [crop(face, mouthX, mouthY, MOUTH_WIDTH, MOUTH_HEIGHT), ...patches.slice(EYE_FRAMES).map(pixelsOf)];
+      expect(new Set(eyes).size).toBe(1 + EYE_FRAMES);
+      expect(new Set(mouths).size).toBe(1 + MOUTH_FRAMES);
+      faces.push(pixelsOf(face));
+    }
+    expect(new Set(faces).size).toBe(GENERIC_FACE_BODY_TYPES);
+    expect(GENERIC_FACE.blinkFrequency).toBeGreaterThan(0);
+    const profiles = await loadStubProfiles(
+      (path) => data.vfs.read(stub(path.replace(/^stubs\//, ''))),
+      () => 1,
+    );
+    for (const p of profiles) {
+      if (!p) continue;
+      const face = await data.vfs.read(stub(smallFacePath(p.faceIndex)));
+      expect(Buffer.from(face).equals(Buffer.from(await data.vfs.read(stub(genericFacePath(p.bodyType))))), p.name).toBe(true);
+      expect([p.eyesX, p.eyesY, p.mouthX, p.mouthY], p.name).toEqual([...GENERIC_FACE.eyes, ...GENERIC_FACE.mouth]);
+      expect([p.blinkFrequency, p.expressionFrequency], p.name).toEqual([GENERIC_FACE.blinkFrequency, GENERIC_FACE.expressionFrequency]);
+    }
+  });
+
+  it('decodes a stub item graphic for every small and big picture the item tables name, outlined with index 254', async () => {
+    const table = await stubItemTable();
+    const plans = smallSheetPlans(table);
+    expect(plans.map((p) => p.path)).toEqual([
+      'interface/mdguns.sti',
+      'interface/mdp1items.sti',
+      'interface/mdp2items.sti',
+      'interface/mdp3items.sti',
+    ]);
+    const sheets = new Map<string, readonly Crop[]>();
+    for (const plan of plans) {
+      const sti = decodeSti(await data.vfs.read(stub(plan.path)));
+      if (sti.kind !== 'indexed') throw new Error(`${plan.path} is not indexed`);
+      sheets.set(plan.path, sti.subImages);
+      for (const frame of sti.subImages) expect(frame.pixels.includes(ITEM_OUTLINE_INDEX), plan.path).toBe(true);
+    }
+    for (const def of table.byIndex.values()) {
+      const small = def.inventoryGraphics.small;
+      const frame = sheets.get(small.path)?.[small.subImageIndex];
+      expect(frame, `${def.name} small`).toBeDefined();
+      if (def.inventoryGraphics.big.path.startsWith(`${BIG_ITEM_DIR}/`)) {
+        const big = decodeSti(await data.vfs.read(stub(def.inventoryGraphics.big.path)));
+        if (big.kind !== 'indexed') throw new Error(`${def.name} big is not indexed`);
+        const picture = big.subImages[def.inventoryGraphics.big.subImageIndex];
+        expect(picture?.pixels.includes(ITEM_OUTLINE_INDEX), `${def.name} big`).toBe(true);
+        expect((picture?.width ?? 0) <= BIG_PICTURE_AREA.width && (picture?.height ?? 0) <= BIG_PICTURE_AREA.height, def.name).toBe(true);
+      }
+    }
+  });
+
+  it('decodes a radar map of 88 × 44 indexed pixels for every stub map, aliased sector maps included', async () => {
+    const maps = await filesUnder(dir, STUB_MAPS_DIR);
+    expect(maps.length).toBeGreaterThan(0);
+    const aliases = parseVfsAliases(JSON.parse(await readFile(join(dir, VFS_ALIASES_FILE), 'utf8')));
+    const aliasedMaps = [...aliases.keys()].filter((path) => path.startsWith(`${STUB_MAPS_DIR}/`));
+    for (const map of [...maps, ...aliasedMaps]) {
+      const sti = decodeSti(await data.vfs.read(stub(radarMapPath(map))));
+      if (sti.kind !== 'indexed') throw new Error(`${map}: the radar map is not indexed`);
+      expect(
+        sti.subImages.map((f) => [f.width, f.height]),
+        map,
+      ).toEqual([[RADAR_MAP_WIDTH, RADAR_MAP_HEIGHT]]);
+      expect(new Set(sti.subImages[0]?.pixels).size, map).toBeGreaterThan(1);
+    }
   });
 
   it('decodes the stub tileset with a sprite for every stub tile type and a structure file for every structured one', async () => {

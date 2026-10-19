@@ -1156,3 +1156,35 @@ start of M7) is unchanged through every slice.
   assignment test, the lair quotes, the say-later lines and the own-merc bark table;
 - the **M8** gaps: the enemy glow, wireframes and slanted roofs, window and statue graphics, the helicopter's pieces
   on the tactical map, the credits screen with faces and fonts.
+
+### M8: in progress (paused 2026-10-19)
+
+Spec: `docs/28` (slices U0–U15; the maintainer's decisions in §18, M8 is 0.8.0). Landed, each with its part in
+`28` §17.4:
+
+1. **Platform** (U0a, U0b, U0c): the DOM-free `ui` layer, the `/play` page with screen and modal stacks, the logical
+   framebuffer with an integer UI scale, the draw list and its WebGL renderer; the rule pack (the simulation reads no
+   graphics; the animation scripts split into logic and presentation), the content identity bound to the game data
+   only, the asset manifest with content-hash immutable URLs, the client's asset source and cache.
+2. **Widgets and text** (U1): mouse regions, tooltips, buttons, bitmap text with the original's wrap and colour rules,
+   cursors, popups, message boxes, sliders, text fields, layouts as JSON with generated constants and a bindings
+   contract, the layout-driven stub skin, a widget gallery.
+3. **Front-end** (U2): main menu, game init, options, save/load, credits, loading screens, exit and the San Mona screen
+   on the canvas, the save controller shared with the launcher.
+4. **Server for the screens** (U3a, U3b): the HUD's view fields, events, message entries, refusal tokens, `pauseOn`,
+   `closeSession`, the profiles and items endpoints, five rule findings fixed; cursor hints computed in the browser by
+   the simulation's own functions over a player-knowledge projection, equal to the server's answers on the query
+   channel.
+5. **World renderer** (U4, U4b): texture arrays, a static scene buffer (A9 at 1920×1080: 436 → 26 draw calls), the
+   camera, sprite picking, items, roofs, client-side lighting, the enemy glow, wireframes and slanted roofs, corpses,
+   smoke, tile changes, the animation schedule with the time warp; `Light0`–`Light6` from Stracciatella's
+   `light-templates.json`.
+6. **Tactical HUD** (U5): the tactical screen on `/play` with the team and single-merc panels, animated faces with
+   lip sync, bars, radar, clock, top bar, message log, overhead labels, the inventory with the item description box and
+   the pickup menu.
+7. **Laptop, part one** (U10): the shell, Email, Finances and the A.I.M. hiring path with their server gaps, opened
+   from `/play`.
+
+Next (`28` §17.2): U6 tactical input (the UI state machine, cursors, paths, hotkeys and the new tactical commands),
+U7 talk and shop, U8 the map screen, U9 PBI and autoresolve, U11–U12 the rest of the laptop, U13 story and help, U14
+the remaining stub art and e2e, U15 the release.

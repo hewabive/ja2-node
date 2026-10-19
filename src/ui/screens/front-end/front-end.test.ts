@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { type FrontEndTest, frontEndTest, listing } from '../../../../tests/support/front-end.ts';
 import { KeyModifier } from '../../input/events.ts';
+import type { Screen } from '../../screen.ts';
 import { MessageBoxReturn } from '../../widgets/message-box.ts';
+import type { LaptopFlow } from './flow.ts';
 import { OPTION_TOGGLES } from './options.ts';
 
 let f: FrontEndTest;
@@ -343,5 +345,42 @@ describe('in the game', () => {
     expect(f.draw().items.some((i) => i.kind === 'image' && i.asset === 'interface/luckysmile.sti')).toBe(true);
     for (let i = 0; i < 300 && f.screen() === 'sanMona'; i++) f.t.frame(16);
     expect(f.screen()).toBe('laptopPlaceholder');
+  });
+});
+
+describe('the laptop port', () => {
+  it('opens the laptop screen for a laptop session and enters the map once the server has left the laptop', async () => {
+    let flow: LaptopFlow | null = null;
+    const laptopScreen: Screen = {
+      id: 'laptop',
+      enter: () => undefined,
+      exit: () => undefined,
+      update: () => undefined,
+      input: () => false,
+      render: () => undefined,
+    };
+    f.host.laptopPort = {
+      open: async (opened) => {
+        flow = opened;
+        return laptopScreen;
+      },
+    };
+    f.client.nextFlow = 'laptop';
+    f.flow.mainMenu();
+    await f.settle();
+    f.click('newGame');
+    await until(() => f.screen() === 'gameInit');
+    f.click('start');
+    await answer('messageBox', 'yes');
+    await until(() => f.screen() === 'laptop');
+    (flow as LaptopFlow | null)?.closed();
+    await f.settle();
+    expect(f.screen()).toBe('laptop');
+    const view = f.client.view;
+    if (!view?.strategic) throw new Error('no strategic view');
+    f.client.view = { ...view, strategic: { ...view.strategic, flow: 'strategic' } };
+    f.flow.frames([{ tick: 1, changed: [], removed: [] }]);
+    await f.settle();
+    expect(f.screen()).toBe('mapPlaceholder');
   });
 });

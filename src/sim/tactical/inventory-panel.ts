@@ -3,6 +3,7 @@
 // @src src/game/Tactical/Interface_Panels.cc SMInvClickCallbackPrimary, UIHandleItemPlacement, MergeMessageBoxCallBack,
 // @src HandleNailsVestFetish, SMInvClickCamoCallback, TMClickFirstHandInvCallbackSecondary; Interface_Items.cc
 // @src BeginItemPointer, CancelItemPointer, ItemDescAttachmentsCallbackPrimary, DoAttachment, ItemDescAmmoCallback,
+// @src DeleteItemDescriptionBox (AP_RELOAD_GUN when the attachments changed, charged per command, see docs/deviations.md),
 // @src ItemPopupRegionCallbackPrimary (one object of a stack), CompatibleItemForApplyingOnMerc; Turn_Based_Input.cc
 // @src HandleUIReloading; Points.cc GetAPsToAutoReload; Items.cc RemoveObjectFromSlot, ApplyCamo, ApplyCanteen,
 // @src ApplyElixir; Strategic/MapScreen.cc MAPInvClickCallbackPrimary (no APs, attachments through the description box).
@@ -265,6 +266,24 @@ function mergeIntoSlot(env: PanelEnv, req: MoveRequest, cursor: ItemObject, curs
   return { ok: true, data: { result } };
 }
 
+type AttachmentSnapshot = readonly { readonly item: number; readonly status: number }[];
+
+function attachmentSnapshot(o: ItemObject): AttachmentSnapshot {
+  return o.attachments.map((a) => ({ item: a.item, status: a.status }));
+}
+
+function allFoundIn(from: AttachmentSnapshot, within: AttachmentSnapshot): boolean {
+  return from.every((a) => a.item === NOTHING || within.some((b) => b.item === a.item && b.status === a.status));
+}
+
+export function attachmentsChanged(before: AttachmentSnapshot, after: AttachmentSnapshot): boolean {
+  return !allFoundIn(before, after) || !allFoundIn(after, before);
+}
+
+function chargeAttachmentChange(env: PanelEnv, payer: Soldier, before: AttachmentSnapshot, host: ItemObject): void {
+  if (env.inCombat && attachmentsChanged(before, attachmentSnapshot(host))) deductPoints(env.inCombat, payer, AP_RELOAD_GUN, 0);
+}
+
 export interface AttachRequest {
   readonly attacher: Soldier;
   readonly from: number;
@@ -293,10 +312,12 @@ export function attachItem(env: PanelEnv, req: AttachRequest): PanelOutcome {
   const into = name(env.items, target.item);
   const cursor = takeObjects(source, req.count, 0) as ItemObject;
   env.equipmentChanged(attacher, from, cursorItem, NOTHING);
+  const before = attachmentSnapshot(target);
   const result = soldierAttachObject(env.combat, attacher, target, cursor, req.index);
   cancelCursor(env, attacher, from, cursor);
   if (result === 'noAPs') return refuse(PanelRefusal.NOT_ENOUGH_AP);
   if (result === 'impossible') return refuse(PanelRefusal.CANNOT_ATTACH);
+  chargeAttachmentChange(env, attacher, before, target);
   env.emit({ type: 'itemAttached', soldier: attacher.id, item: name(env.items, cursorItem), to: into, result });
   return { ok: true, data: { result, succeeded: attachSucceeded(result) } };
 }
@@ -324,9 +345,11 @@ export function detachItem(env: PanelEnv, s: Soldier, slot: number, position: nu
   if ((env.items.byIndex.get(attachment.item)?.flags ?? 0) & ItemFlags.INSEPARABLE) return refuse(PanelRefusal.INSEPARABLE);
   const preview = createItem(env.items, attachment.item, attachment.status);
   if (!newObjectFits(env, s, preview, to)) return refuse(to === null ? PanelRefusal.NO_ROOM : PanelRefusal.DOES_NOT_FIT);
+  const before = attachmentSnapshot(host);
   const removed = removeAttachment(env.items, host, position) as ItemObject;
   placeNewObject(env, s, removed, to);
   cancelCursor(env, s, NO_SLOT, removed);
+  chargeAttachmentChange(env, s, before, host);
   env.emit({ type: 'itemDetached', soldier: s.id, item: name(env.items, preview.item), from: name(env.items, host.item) });
   return { ok: true, data: { item: name(env.items, preview.item) } };
 }
