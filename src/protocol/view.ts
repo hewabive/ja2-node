@@ -84,6 +84,7 @@ export interface ItemView {
   readonly status: number;
   readonly money?: number;
   readonly attachments?: readonly ItemAttachmentView[];
+  readonly zHeight?: number;
 }
 
 export interface CombatView {
@@ -707,6 +708,7 @@ function sameItems(a: readonly ItemView[] | undefined, b: readonly ItemView[] | 
       v.count === w.count &&
       v.status === w.status &&
       v.money === w.money &&
+      v.zHeight === w.zHeight &&
       sameJson(v.attachments ?? [], w.attachments ?? [])
     );
   });

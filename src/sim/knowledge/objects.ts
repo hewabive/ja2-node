@@ -24,7 +24,7 @@ const OWN_OBJECT_FIELDS: ReadonlySet<PropertyKey> = new Set([
   'trap',
 ]);
 const GROUND_OBJECT_FIELDS: ReadonlySet<PropertyKey> = new Set(['item', 'count', 'status', 'money', 'attachments']);
-const WORLD_ITEM_FIELDS: ReadonlySet<PropertyKey> = new Set(['gridNo', 'level', 'object', 'visible']);
+const WORLD_ITEM_FIELDS: ReadonlySet<PropertyKey> = new Set(['gridNo', 'level', 'object', 'visible', 'zHeight']);
 
 function itemIndexOf(items: ItemTable, name: string): number {
   return items.byName.get(name)?.index ?? NOTHING;
@@ -81,7 +81,7 @@ export function worldItemFromView(items: ItemTable, v: KnowledgeItem, label: str
     level: v.level,
     object: guardFields(o, GROUND_OBJECT_FIELDS, `${label}.object`, guard),
     flags: 0,
-    zHeight: 0,
+    zHeight: v.zHeight ?? 0,
     visible: Visibility.VISIBLE,
   };
   return guardFields(item, WORLD_ITEM_FIELDS, label, guard);

@@ -525,6 +525,7 @@ export class TacticalSim {
           count: o.count,
           status: o.status[0] ?? 0,
           ...(items.byIndex.get(o.item)?.itemClass === ItemClass.MONEY ? { money: o.money } : {}),
+          ...(wi.zHeight > 0 ? { zHeight: wi.zHeight } : {}),
           ...(attachments.length > 0 ? { attachments } : {}),
         };
       })

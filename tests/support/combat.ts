@@ -59,11 +59,15 @@ export function newCombatSim(
   return sim;
 }
 
-export function estimateAttack(sim: TacticalSim, cmd: Readonly<Record<string, unknown>>): CommandResult {
+export function hintAnswer(sim: TacticalSim, type: string, cmd: Readonly<Record<string, unknown>>): CommandResult {
   const build = WORLD_BUILDERS.get(sim);
-  if (!build) throw new Error('estimateAttack needs a sim made by newCombatSim');
+  if (!build) throw new Error('hints need a sim made by newCombatSim');
   const rules = knowledgeRules(sim.state.content, { world: () => build() });
-  return answerHint(knowledgeWorld(knowledgeViewOf(sim), rules, { strict: true }), { type: 'estimateAttack', ...cmd });
+  return answerHint(knowledgeWorld(knowledgeViewOf(sim), rules, { strict: true }), { type, ...cmd });
+}
+
+export function estimateAttack(sim: TacticalSim, cmd: Readonly<Record<string, unknown>>): CommandResult {
+  return hintAnswer(sim, 'estimateAttack', cmd);
 }
 
 export interface SpawnOptions {

@@ -58,3 +58,16 @@ export function withTemporaryFields<T extends object, R>(target: T, patch: Parti
     for (const k of fresh) written?.delete(k);
   }
 }
+
+export function preservingFields<T extends object, R>(target: T, keys: readonly (keyof T)[], run: () => R): R {
+  const raw = rawObject(target);
+  const written = writtenKeys(target);
+  const fresh = keys.filter((k) => written !== null && !written.has(k));
+  const saved = keys.map((k) => [k, raw[k]] as const);
+  try {
+    return run();
+  } finally {
+    for (const [k, v] of saved) raw[k] = v;
+    for (const k of fresh) written?.delete(k);
+  }
+}

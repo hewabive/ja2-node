@@ -65,6 +65,7 @@ export interface KnowledgeItem {
   readonly status: number;
   readonly money?: number;
   readonly attachments?: readonly KnowledgeItemAttachment[];
+  readonly zHeight?: number;
 }
 
 export interface KnowledgeCombat {

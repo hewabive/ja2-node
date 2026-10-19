@@ -3,9 +3,19 @@ import { createItem } from '../items/object.ts';
 import { WeaponMode } from '../tactical/combat/types.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { newKeyRing } from '../tactical/doors/key-ring.ts';
-import { InvSlot } from '../tactical/inventory.ts';
+import { emptyInventory, InvSlot } from '../tactical/inventory.ts';
 import { Opp } from '../tactical/perception/opp.ts';
-import { createSoldier, NO_PROFILE, NOBODY, type Soldier, type SoldierStats, Team } from '../tactical/soldier.ts';
+import {
+  Body,
+  createSoldier,
+  isCreatureOrBloodcat,
+  NO_PROFILE,
+  NOBODY,
+  Side,
+  type Soldier,
+  type SoldierStats,
+  Team,
+} from '../tactical/soldier.ts';
 import type { WeaponModeView } from '../tactical/soldier-view.ts';
 import { type GuardOptions, guardFields } from './guard.ts';
 import { inventoryFromView } from './objects.ts';
@@ -26,9 +36,17 @@ const SHOWN_FIELDS = [
   'structure',
   'multiTile',
   'overTerrain',
+  'monsterOrAnimal',
 ] as const;
 
-const HIDDEN_WITH_NEUTRAL_VALUE = ['tilesMoved', 'oppList', 'life', 'collapsed'] as const;
+const DERIVED_FROM_HOSTILE = ['side', 'neutral'] as const;
+
+const APPEARANCE_STAND_INS = ['inv'] as const;
+const HAND_SLOTS: ReadonlySet<PropertyKey> = new Set([String(InvSlot.HAND), String(InvSlot.SECOND_HAND)]);
+
+const OWN_TRANSIENT_WITH_NEUTRAL_VALUE = ['turningUntilDone', 'tempObject', 'pendingGive', 'dead'] as const;
+
+const HIDDEN_WITH_NEUTRAL_VALUE = ['tilesMoved', 'oppList', 'life', 'collapsed', 'dead'] as const;
 
 const OWN_FIELDS = [
   ...SHOWN_FIELDS,
@@ -62,7 +80,6 @@ const OWN_FIELDS = [
   'weightCarriedAtTurnStart',
   'collapsed',
   'underAiControl',
-  'monsterOrAnimal',
 ] as const;
 
 const WEAPON_MODES: Readonly<Record<WeaponModeView, number>> = {
@@ -114,7 +131,14 @@ function representativeHandItem(items: ItemTable, hand: string | undefined): num
   return NOTHING;
 }
 
+function sideFromHostile(s: Soldier, v: KnowledgeSoldier): void {
+  const hostile = v.hostile ?? s.team !== Team.MILITIA;
+  s.neutral = !hostile && s.team !== Team.MILITIA;
+  s.side = hostile ? (s.team === Team.CREATURE ? Side.NONE : Side.ENEMY) : Side.FRIENDLY;
+}
+
 function applyAppearanceStandIns(content: TacticalContent, s: Soldier, v: KnowledgeSoldier, ownIds: readonly number[]): void {
+  sideFromHostile(s, v);
   const item = representativeHandItem(content.items, v.hand);
   if (item !== NOTHING) s.inv[InvSlot.HAND] = createItem(content.items, item, FULL_APPEARANCE_LIFE);
   s.life = APPEARANCE_LIFE_BY_HEALTH[v.healthIndex ?? APPEARANCE_LIFE_BY_HEALTH.length - 1] ?? FULL_APPEARANCE_LIFE;
@@ -201,15 +225,21 @@ export function soldierFromView(
     level: v.level,
     direction: v.direction,
     state: v.animation,
+    ...(own ? {} : { inv: guardFields(emptyInventory(), HAND_SLOTS, `soldier ${v.id}.inv`, guard) }),
   });
   s.x = v.x;
   s.y = v.y;
   s.placed = true;
   s.visible = SEEN_BY_OUR_TEAM;
   s.servicePartner = NOBODY;
+  s.monsterOrAnimal = isCreatureOrBloodcat(s) || s.bodyType === Body.COW || s.bodyType === Body.CROW;
   if (own) applyOwnFields(content, s, v, guard);
   else applyAppearanceStandIns(content, s, v, ownIds);
-  const fields = new Set<PropertyKey>(own ? OWN_FIELDS : [...SHOWN_FIELDS, ...HIDDEN_WITH_NEUTRAL_VALUE]);
+  const fields = new Set<PropertyKey>(
+    own
+      ? [...OWN_FIELDS, ...OWN_TRANSIENT_WITH_NEUTRAL_VALUE]
+      : [...SHOWN_FIELDS, ...DERIVED_FROM_HOSTILE, ...HIDDEN_WITH_NEUTRAL_VALUE, ...APPEARANCE_STAND_INS],
+  );
   if (!own && v.profile !== undefined) fields.add('profile');
   return { soldier: guardFields(s, fields, `soldier ${v.id}`, guard), raw: s, own };
 }
