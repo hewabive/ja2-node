@@ -76,6 +76,17 @@ async function hover(page: Page, x: number, y: number): Promise<void> {
 test('the shadow mode computes cursor hints in the browser and finds no difference with the server', async ({ page }) => {
   test.setTimeout(180_000);
   const session = await battleSession();
+  try {
+    await shadowHover(page, session);
+  } finally {
+    await fetch(`${SERVER}/api/sessions/${encodeURIComponent(session)}`, {
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${TOKEN}` },
+    });
+  }
+});
+
+async function shadowHover(page: Page, session: string): Promise<void> {
   await page.goto(`/src/devtools/tactical/?session=${encodeURIComponent(session)}&shadowHints=1`);
   await page.waitForFunction(() => (window as unknown as HintWindow).__ja2Tactical?.ready);
   await page.waitForFunction(() => (window as unknown as HintWindow).__ja2Ui?.hints?.ready === true);
@@ -112,4 +123,4 @@ test('the shadow mode computes cursor hints in the browser and finds no differen
   expect(stats.mismatchCount).toBe(0);
   expect(stats.local).toBeGreaterThan(10);
   expect(stats.latency.p95).toBeLessThan(MAX_LOCAL_P95_MS);
-});
+}
