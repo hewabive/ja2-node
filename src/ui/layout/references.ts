@@ -24,11 +24,11 @@ export interface LayoutReferences {
 type JsonObject = Readonly<Record<string, unknown>>;
 
 const BUTTON_STATES: Readonly<Record<string, StubFrameState>> = {
-  grayed: 'grayed',
   offNormal: 'normal',
   offHilite: 'hover',
   onNormal: 'pressed',
   onHilite: 'pressedHover',
+  grayed: 'grayed',
 };
 const ACTION_KEYS = [
   'primary',

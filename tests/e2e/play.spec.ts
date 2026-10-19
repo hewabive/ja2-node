@@ -79,7 +79,7 @@ test.describe('the game page', () => {
   test.use({ viewport: { width: 1280, height: 960 } });
 
   test('draws the test screen on stubs at UI scale 2 exactly like the golden', async ({ page }) => {
-    await openGamePage(page, '?pinClock=1');
+    await openGamePage(page, '?screen=testPattern&pinClock=1');
     const hook = await page.evaluate(() => {
       const h = window.__ja2Ui;
       return {
@@ -108,7 +108,7 @@ test.describe('the game page', () => {
   });
 
   test('maps pointer positions through the integer scale and suppresses the context menu', async ({ page }) => {
-    await openGamePage(page, '?pinClock=1');
+    await openGamePage(page, '?screen=testPattern&pinClock=1');
     await page.mouse.click(2 * 100 + 1, 2 * 50 + 1);
     expect(await page.evaluate(() => [window.__ja2Ui.pointer, window.__ja2Ui.presses])).toEqual([{ x: 100, y: 50 }, 1]);
     const prevented = await page.evaluate(() => {
@@ -123,14 +123,14 @@ test.describe('the 640×480-only option', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
   test('keeps a 640×480 frame centred with black bars and maps the pointer into it', async ({ page }) => {
-    await openGamePage(page, '?pinClock=1&fixed640=1');
+    await openGamePage(page, '?screen=testPattern&pinClock=1&fixed640=1');
     expect(await page.evaluate(() => [window.__ja2Ui.scale, window.__ja2Ui.logical])).toEqual([1, { width: 640, height: 480 }]);
     await page.mouse.click(320 + 10, 160 + 20);
     expect(await page.evaluate(() => window.__ja2Ui.pointer)).toEqual({ x: 10, y: 20 });
   });
 
   test('extends the logical screen at scale 1 without it and centres the std640 frame', async ({ page }) => {
-    await openGamePage(page, '?pinClock=1');
+    await openGamePage(page, '?screen=testPattern&pinClock=1');
     expect(await page.evaluate(() => [window.__ja2Ui.scale, window.__ja2Ui.logical, window.__ja2Ui.origin])).toEqual([
       1,
       { width: 1280, height: 800 },

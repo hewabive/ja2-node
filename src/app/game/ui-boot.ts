@@ -35,6 +35,7 @@ export interface UiBoot {
 
 export interface BootOptions {
   readonly images?: readonly AssetKey[];
+  readonly pauseGame?: (paused: boolean) => void;
 }
 
 async function textService(source: HttpAssetSource, version: DataVersion, edt: EdtTextCache): Promise<UiTextService> {
@@ -59,7 +60,14 @@ export async function bootUi(page: GamePage, options: BootOptions = {}): Promise
   const fonts = assets.fontSet(fontFiles);
   const audio = new UiAudio(source);
   audio.useTable(await assets.json(UiAudio.tablePath()));
-  const runtime = new UiRuntime({ fonts, images: assets, cursors, geometry: () => page.geometry(), sounds: audio });
+  const runtime = new UiRuntime({
+    fonts,
+    images: assets,
+    cursors,
+    geometry: () => page.geometry(),
+    sounds: audio,
+    ...(options.pauseGame ? { pauseGame: options.pauseGame } : {}),
+  });
   page.attach(runtime);
   page.hook.sounds = audio.requests;
   const layouts = new LayoutLoader((path) => assets.text(path), dataVersion);

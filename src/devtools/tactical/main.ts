@@ -2,10 +2,12 @@ import { installSaveControls } from '../../app/net/save-controls.ts';
 import { SessionClient } from '../../app/net/session-client.ts';
 import { SleepWakeStop } from '../../app/net/sleep-wake-stop.ts';
 import { fetchVfsList } from '../../app/net/vfs.ts';
+import { loadSettings } from '../../app/settings.ts';
 import { TacticalSound } from '../../app/sound/tactical-sound.ts';
+import { tacticalOptionsOf } from '../../app/world/display-options.ts';
 import { SoldierAssets } from '../../app/world/soldier-assets.ts';
 import type { SoldierScene } from '../../app/world/soldier-scene.ts';
-import { DEFAULT_TACTICAL_OPTIONS, type TacticalDisplayOptions, TacticalWorldView } from '../../app/world/tactical-world-view.ts';
+import { type TacticalDisplayOptions, TacticalWorldView } from '../../app/world/tactical-world-view.ts';
 import { WORLD_COLS } from '../../content/world/grid.ts';
 import type { TileTables } from '../../content/world/tile-tables.ts';
 import type { SoldierView } from '../../protocol/view.ts';
@@ -105,7 +107,7 @@ const sound = new TacticalSound();
 const gl = createContext(canvas, { depth: false });
 const renderer = new WorldRenderer(gl);
 const pageStart = performance.now();
-const options: MutableOptions = { ...DEFAULT_TACTICAL_OPTIONS };
+const options: MutableOptions = { ...tacticalOptionsOf(loadSettings()) };
 const OPTION_BOXES: readonly [keyof MutableOptions, string][] = [
   ['roofs', 'roofs'],
   ['treeTops', 'treetops'],

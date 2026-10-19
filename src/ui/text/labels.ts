@@ -102,6 +102,7 @@ export const LABELS = {
   mercsAsleep: original('pUpdateMercStrings', UpdateBoxReason.ASLEEP_GOING_AUTO),
   mercsAwake: original('pUpdateMercStrings', UpdateBoxReason.ASSIGNMENT_RETURNING),
   tagline: own('A non-commercial reimplementation of Jagged Alliance 2', 'Некоммерческая реимплементация Jagged Alliance 2'),
+  play: own('Play', 'Играть'),
   data: own('Data', 'Данные'),
   originalData: own('original game data', 'данные оригинальной игры'),
   stubData: own('stub pack', 'набор заглушек'),
