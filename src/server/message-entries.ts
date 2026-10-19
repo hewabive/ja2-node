@@ -277,6 +277,6 @@ export function refusalEntry(tick: number, cmd: CommandEnvelope, result: Command
   const token = (result.data as { readonly refusal?: unknown } | undefined)?.refusal;
   if (typeof token !== 'string') return null;
   const message = refusalMessage(token);
-  if (!message || message.shown !== 'log') return null;
+  if (message?.shown !== 'log') return null;
   return { tick, ...line(message.table, message.index, refusalArgs(token, cmd, facts)) };
 }
