@@ -97,6 +97,7 @@
           "text": {
             "bind": "mugRows[0][$i].overlay"
           },
+          "id": "mugOverlay0_$i",
           "width": "AIM_FI_AWAY_TEXT_OFFSET_WIDTH",
           "align": "center"
         },
@@ -170,6 +171,7 @@
           "text": {
             "bind": "mugRows[1][$i].overlay"
           },
+          "id": "mugOverlay1_$i",
           "width": "AIM_FI_AWAY_TEXT_OFFSET_WIDTH",
           "align": "center"
         },
@@ -243,6 +245,7 @@
           "text": {
             "bind": "mugRows[2][$i].overlay"
           },
+          "id": "mugOverlay2_$i",
           "width": "AIM_FI_AWAY_TEXT_OFFSET_WIDTH",
           "align": "center"
         },
@@ -316,6 +319,7 @@
           "text": {
             "bind": "mugRows[3][$i].overlay"
           },
+          "id": "mugOverlay3_$i",
           "width": "AIM_FI_AWAY_TEXT_OFFSET_WIDTH",
           "align": "center"
         },
@@ -389,6 +393,7 @@
           "text": {
             "bind": "mugRows[4][$i].overlay"
           },
+          "id": "mugOverlay4_$i",
           "width": "AIM_FI_AWAY_TEXT_OFFSET_WIDTH",
           "align": "center"
         },

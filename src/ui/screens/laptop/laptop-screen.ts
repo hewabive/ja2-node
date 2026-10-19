@@ -196,7 +196,6 @@ interface ActivePage {
   readonly mode: number;
   readonly page: LaptopPage;
   readonly views: readonly LayoutView[];
-  readonly owner: object;
 }
 
 interface Zoom {
@@ -335,7 +334,6 @@ export class LaptopScreen implements Screen {
     const visited = site === undefined ? undefined : VISITED_SITES[site];
     if (visited) void this.#options.client.command({ type: 'visitSite', site: visited });
     const page = this.#pageFactory(mode)(this.#context);
-    const owner = {};
     const views = page.layouts.map(
       (layout) =>
         new LayoutView({
@@ -347,11 +345,10 @@ export class LaptopScreen implements Screen {
           messageBoxStyle: this.#options.messageBoxStyle,
           messageBoxLabels: this.#options.messageBoxLabels,
           ...(page.custom ? { custom: page.custom } : {}),
-          owner,
         }),
     );
     for (const view of views) view.build();
-    this.#page = { mode, page, views, owner };
+    this.#page = { mode, page, views };
   }
 
   #exitPage(mode: number): void {
