@@ -3,6 +3,7 @@ import { createSaveKit, type SaveKit } from '../../tests/support/saves.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { AIM_BIOS_FILE } from '../content/narrative/profile-presentation.ts';
 import type { ItemCatalogue } from '../protocol/items.ts';
+import { GENERIC_FACE } from '../ui/screens/tactical/generic-face.ts';
 import { createApp } from './app.ts';
 import { TextService } from './text-service.ts';
 
@@ -82,8 +83,10 @@ describe('the profile presentation endpoint (G18)', () => {
         name: expect.any(String),
         nickname: expect.any(String),
         faceIndex: STUB_PROFILE,
-        eyes: [0, 0],
-        mouth: [0, 0],
+        eyes: [...GENERIC_FACE.eyes],
+        mouth: [...GENERIC_FACE.mouth],
+        blinkFrequency: GENERIC_FACE.blinkFrequency,
+        expressionFrequency: GENERIC_FACE.expressionFrequency,
         smallFace: null,
         aimBio: 0,
       });
