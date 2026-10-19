@@ -2,7 +2,11 @@ import type { CommandResult } from '../command.ts';
 
 export type MoveModeName = 'walk' | 'run' | 'swat' | 'crawl';
 
-export type HintRefusal = { readonly ok: false; readonly reason: string; readonly data: { readonly refusal: string } };
+export type HintRefusal = {
+  readonly ok: false;
+  readonly reason: string;
+  readonly data: { readonly refusal: string; readonly [key: string]: unknown };
+};
 
 export type HintResult<T> = { readonly ok: true; readonly data: T } | HintRefusal;
 

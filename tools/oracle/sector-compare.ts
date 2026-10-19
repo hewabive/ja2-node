@@ -7,7 +7,7 @@ import { STRATEGIC_CONTENT_PATHS } from '../../src/content/strategic/strategic-c
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
 import { createSaveSession, type SaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
-import { okForSectorExit } from '../../src/sim/campaign/sector-exits.ts';
+import { flowExitWorld, okForSectorExit } from '../../src/sim/campaign/sector-exits.ts';
 import { addSoldierInitListEnemyDefenceSoldiers, sortSoldierInitList } from '../../src/sim/strategic/ai/defence-placement.ts';
 import type { RollSource } from '../../src/sim/strategic/forces/ports.ts';
 import { anim } from '../../src/sim/tactical/anim-states.ts';
@@ -402,7 +402,7 @@ export class SectorComparer {
     if (!flow || !roster || !t || !selected) return report(label, false, 'no save session with a sector flow');
     const direction = Number(p.exitDirection);
     const exitGrid = Number(p.exitGrid);
-    const check = okForSectorExit(flow, direction, exitGrid, selected);
+    const check = okForSectorExit(flowExitWorld(flow), direction, exitGrid, selected);
     const soldiers = roster
       .all()
       .filter((m) => m.soldier.placed && t.soldiers[m.id] === m.soldier)

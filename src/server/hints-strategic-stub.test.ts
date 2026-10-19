@@ -3,9 +3,13 @@ import { type ClientSide, clientSide, expectHintsAgree, type HintSources, serial
 import { sampleStrategicHints } from '../../tests/support/hints-strategic.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { parseSectorString, strategicIndex } from '../content/strategic/sector-ids.ts';
+import { Direction } from '../content/world/grid.ts';
+import { exitCheck, flowExitWorld } from '../sim/campaign/sector-exits.ts';
+import { assignmentOptionsFor } from '../sim/hints/assignment-options.ts';
 import { SKYRIDER, setUpHelicopterForPlayer } from '../sim/strategic/forces/helicopter.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { progressFromProfile } from '../sim/tactical/profiles.ts';
+import { DIRECTION_EXITGRID } from '../sim/tactical/sector-exit.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
 import { Session } from './session.ts';
@@ -74,5 +78,72 @@ describe('strategic cursor hints on a stub campaign, client against server', { t
     const view = serialisedView(c.session);
     expect(view.strategic?.groups.some((g) => g.betweenSectors)).toBe(true);
     await expectHintsAgree(c.session, client, sampleStrategicHints(view));
+  });
+
+  it('answer like the full state when the player sees everything that matters', async () => {
+    const c = await landedCampaign(33);
+    const campaign = c.sim.campaign;
+    const roster = campaign.battle?.roster;
+    const economy = campaign.economy;
+    const flow = campaign.sectors;
+    if (!roster || !economy || !flow) throw new Error('no campaign layers');
+    for (const m of roster.all()) {
+      const hint = await c.session.query({ type: 'assignmentOptions', soldier: m.id });
+      expect(hint.data, `assignment menu of ${m.id}`).toEqual(JSON.parse(JSON.stringify(assignmentOptionsFor(economy, m))));
+      for (const [name, direction] of Object.entries({
+        north: Direction.NORTH,
+        east: Direction.EAST,
+        south: Direction.SOUTH,
+        west: Direction.WEST,
+      })) {
+        const options = await c.session.query({ type: 'exitSectorOptions', soldier: m.id, direction: name });
+        const plan = exitCheck(flowExitWorld(flow), m, direction, 0);
+        expect(options.data, `exit ${name} for ${m.id}`).toEqual(JSON.parse(JSON.stringify({ ...plan.check, menu: plan.menu })));
+      }
+      expect(DIRECTION_EXITGRID).toBeGreaterThan(Direction.NORTHWEST);
+    }
+    const merc = roster.all()[0]?.id;
+    const preview = await c.session.query({ type: 'previewRoute', soldier: merc, to: 'B11' });
+    const routed = c.sim.dispatch({ type: 'route', soldier: merc, to: 'B11' });
+    const data = preview.data as { temp: string[]; etaMinutes: number };
+    const plotted = routed.data as { path: number[]; etaMinutes: number };
+    expect(data.temp.length).toBe(plotted.path.length);
+    expect(data.etaMinutes).toBe(plotted.etaMinutes);
+  });
+
+  it('count the remaining leg twice and drop the first temporary edge while the squad travels, as the original', async () => {
+    const c = await landedCampaign(34);
+    const merc = c.sim.view().strategic?.mercs[0]?.id;
+    expect(c.sim.dispatch({ type: 'route', soldier: merc, to: 'A12' })).toMatchObject({ ok: true });
+    c.session.advance({ worldSeconds: ROUTE_STEP_SECONDS });
+    const view = serialisedView(c.session);
+    const group = view.strategic?.groups.find((g) => g.members.includes(merc ?? -1));
+    expect(group?.betweenSectors).toBe(true);
+    expect(group?.path).toEqual(['A10', 'A11', 'A12']);
+    const remaining = group?.nextArrivalMinutes ?? 0;
+    expect(remaining).toBeGreaterThan(0);
+    const preview = (await c.session.query({ type: 'previewRoute', soldier: merc, to: 'A14' })).data as {
+      path: string[];
+      temp: string[];
+      edgeMinutes: number[];
+      etaMinutes: number;
+    };
+    expect(preview.path).toEqual(['A10', 'A11', 'A12']);
+    expect(preview.temp).toEqual(['A12', 'A13', 'A14']);
+    const [, elevenToTwelve = 0, twelveToThirteen = 0, thirteenToFourteen = 0] = preview.edgeMinutes;
+    expect(preview.etaMinutes).toBe(remaining + elevenToTwelve + remaining + thirteenToFourteen);
+    expect(preview.etaMinutes).not.toBe(remaining + elevenToTwelve + twelveToThirteen + thirteenToFourteen);
+  });
+
+  it('give the same answers whether or not an enemy group the player has not seen stands on the map', async () => {
+    const c = await landedCampaign(35);
+    withHelicopter(c);
+    const requests = sampleStrategicHints(serialisedView(c.session));
+    const before = await Promise.all(requests.map((q) => c.session.query(q)));
+    const viewBefore = serialisedView(c.session).strategic;
+    Object.assign(sectorInfo(c.sim.campaign.state.map, parseSectorString('J9')), { numTroops: 12, numElites: 4 });
+    expect(serialisedView(c.session).strategic).toEqual(viewBefore);
+    const after = await Promise.all(requests.map((q) => c.session.query(q)));
+    expect(after).toEqual(before);
   });
 });

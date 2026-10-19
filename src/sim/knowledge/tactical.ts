@@ -48,6 +48,7 @@ const STATE_FIELDS: ReadonlySet<PropertyKey> = new Set([
   'fog',
   'explosives',
   'boxing',
+  'addedExitGrids',
 ]);
 
 const BOXING_FIELDS: ReadonlySet<PropertyKey> = new Set(['state']);

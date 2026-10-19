@@ -102,10 +102,25 @@ export function exitGridAt(
 const sameSector = (a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }) =>
   a.x === b.x && a.y === b.y && a.z === b.z;
 
+function exitGridProbe(s: Soldier) {
+  return {
+    id: s.id,
+    team: Team.ENEMY,
+    bodyType: 0,
+    gridNo: s.gridNo,
+    level: 0,
+    visible: s.visible,
+    hasKeys: s.hasKeys,
+    underAiControl: s.underAiControl,
+    monsterOrAnimal: s.monsterOrAnimal,
+    multiTile: false,
+  };
+}
+
 export function findGridNoFromSweetSpotCloseToExitGrid(t: TacticalState, s: Soldier, sweet: number, radius: number): number {
   const target = exitGridAt(t, sweet);
   if (!target) return NOWHERE;
-  const probe = { ...s, team: Team.ENEMY, level: 0, bodyType: 0 };
+  const probe = s.multiTile ? { ...s, team: Team.ENEMY, level: 0, bodyType: 0 } : exitGridProbe(s);
   const flood = findBestPath(t.pathEnv, probe, NOWHERE, 0, {
     copy: PathCopy.REACHABLE,
     flags: PathFlags.THROUGH_PEOPLE,

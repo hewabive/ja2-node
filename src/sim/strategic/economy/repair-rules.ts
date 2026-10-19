@@ -1,12 +1,12 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Assignments.cc gRepairPassSlotList, IsAnythingAroundForSoldierToRepair, HasCharacterFinishedRepairing,
-// @src DoesCharacterHaveAnyItemsToRepair, BasicCanCharacterRepair, CanCharacterRepair, FindRepairableItemOnOtherSoldier,
+// @src DoesCharacterHaveAnyItemsToRepair, BasicCanCharacterRepair, CanCharacterRepair, FindRepairableItemOnOtherSoldier, IsRobotInThisSector,
 // @src CanCharacterRepairAnotherSoldiersStuff, CanCharacterRepairRobot, IsRobotInThisSector, CanCharacterRepairVehicle.
 // See docs/18 §5.7.
 
 import { NOTHING } from '../../../content/items/items.ts';
-import { sameSector } from '../../../content/strategic/sector-ids.ts';
+import { type Sector, sameSector } from '../../../content/strategic/sector-ids.ts';
 import type { ItemObject } from '../../items/object.ts';
 import { AC, areAssignmentConditionsMet, isMechanical } from './conditions.ts';
 import { Assignment } from './constants.ts';
@@ -69,6 +69,11 @@ export function doesCharacterHaveAnyItemsToRepair(ctx: EconomyContext, s: CrewMe
 
 export function robotSoldier(ctx: EconomyContext): CrewMember | null {
   return ctx.crew.all().find((m) => m.isRobot) ?? null;
+}
+
+export function isRobotInThisSector(ctx: EconomyContext, sector: Sector): boolean {
+  const robot = robotSoldier(ctx);
+  return robot !== null && sameSector(robot.sector, sector) && !robot.betweenSectors;
 }
 
 export function canCharacterRepairRobot(ctx: EconomyContext, s: CrewMember): boolean {
