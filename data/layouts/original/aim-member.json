@@ -12,14 +12,16 @@
       "sti": "laptop/stats.sti",
       "stub": {
         "frames": 1,
-        "size": ["PRICE_X - STATS_X - 6", 110]
+        "size": ["PRICE_X - STATS_X - 6", 110],
+        "hollow": true
       }
     },
     "price": {
       "sti": "laptop/price.sti",
       "stub": {
         "frames": 1,
-        "size": ["PRICE_WIDTH", 110]
+        "size": ["PRICE_WIDTH", 110],
+        "hollow": true
       }
     },
     "portraitFrame": {
@@ -62,7 +64,8 @@
       "sti": "laptop/bwsnow.sti",
       "stub": {
         "frames": "VC_NUM_LINES_SNOW",
-        "size": ["AIM_MEMBER_VIDEO_FACE_WIDTH", "AIM_MEMBER_VIDEO_FACE_HEIGHT"]
+        "size": ["AIM_MEMBER_VIDEO_FACE_WIDTH", "AIM_MEMBER_VIDEO_FACE_HEIGHT"],
+        "hollow": true
       }
     },
     "contractCharge": {

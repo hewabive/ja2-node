@@ -11,7 +11,8 @@
       "sti": "laptop/financeswindow.sti",
       "stub": {
         "frames": 1,
-        "size": ["LAPTOP_SCREEN_WIDTH", "LAPTOP_SCREEN_HEIGHT - 22"]
+        "size": ["LAPTOP_SCREEN_WIDTH", "LAPTOP_SCREEN_HEIGHT - 22"],
+        "hollow": true
       }
     },
     "line": {

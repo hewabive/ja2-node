@@ -11,7 +11,8 @@
       "sti": "laptop/sortby.sti",
       "stub": {
         "frames": 1,
-        "size": ["AIM_SORT_AIM_MEMBER_WIDTH", 75]
+        "size": ["AIM_SORT_AIM_MEMBER_WIDTH", 75],
+        "hollow": true
       }
     },
     "toMugShots": {

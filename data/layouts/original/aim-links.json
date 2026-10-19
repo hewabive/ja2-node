@@ -11,21 +11,24 @@
       "mlg": "MLG_BOBBYRAYLINK",
       "stub": {
         "frames": 1,
-        "size": ["AIM_LINK_LINK_WIDTH", "AIM_LINK_LINK_HEIGHT"]
+        "size": ["AIM_LINK_LINK_WIDTH", "AIM_LINK_LINK_HEIGHT"],
+        "hollow": true
       }
     },
     "mortuaryLink": {
       "mlg": "MLG_MORTUARYLINK",
       "stub": {
         "frames": 1,
-        "size": ["AIM_LINK_LINK_WIDTH", "AIM_LINK_LINK_HEIGHT"]
+        "size": ["AIM_LINK_LINK_WIDTH", "AIM_LINK_LINK_HEIGHT"],
+        "hollow": true
       }
     },
     "insuranceLink": {
       "mlg": "MLG_INSURANCELINK",
       "stub": {
         "frames": 1,
-        "size": ["AIM_LINK_LINK_WIDTH", "AIM_LINK_LINK_HEIGHT"]
+        "size": ["AIM_LINK_LINK_WIDTH", "AIM_LINK_LINK_HEIGHT"],
+        "hollow": true
       }
     }
   },

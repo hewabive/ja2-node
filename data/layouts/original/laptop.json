@@ -9,7 +9,7 @@
   "tooltips": true,
   "constants": ["Laptop", "EMail"],
   "assets": {
-    "laptopImage": { "sti": "laptop/laptop3.sti", "stub": { "frames": 1, "size": [640, 480] } },
+    "laptopImage": { "sti": "laptop/laptop3.sti", "stub": { "frames": 1, "size": [640, 480], "hollow": true } },
     "taskbar": {
       "sti": "laptop/taskbar.sti",
       "stub": {

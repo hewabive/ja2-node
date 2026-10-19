@@ -39,42 +39,48 @@
       "mlg": "MLG_WARNING",
       "stub": {
         "frames": 1,
-        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"]
+        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"],
+        "hollow": true
       }
     },
     "flowerAd": {
       "sti": "laptop/flowerad_16.sti",
       "stub": {
         "frames": "AIM_FLOWER_NUM_SUBIMAGES",
-        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"]
+        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"],
+        "hollow": true
       }
     },
     "forAdsAd": {
       "mlg": "MLG_YOURAD13",
       "stub": {
         "frames": "AIM_AD_FOR_ADS__NUM_SUBIMAGES",
-        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"]
+        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"],
+        "hollow": true
       }
     },
     "insuranceAd": {
       "mlg": "MLG_INSURANCEAD10",
       "stub": {
         "frames": "AIM_AD_INSURANCE_AD__NUM_SUBIMAGES",
-        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"]
+        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"],
+        "hollow": true
       }
     },
     "funeralAd": {
       "mlg": "MLG_FUNERALAD9",
       "stub": {
         "frames": "AIM_AD_FUNERAL_AD__NUM_SUBIMAGES",
-        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"]
+        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"],
+        "hollow": true
       }
     },
     "bobbyRayAd": {
       "mlg": "MLG_BOBBYRAYAD21",
       "stub": {
         "frames": "AIM_AD_BOBBYR_AD__NUM_SUBIMAGES",
-        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"]
+        "size": ["AIM_AD_BOTTOM_RIGHT_X - AIM_AD_TOP_LEFT_X", "AIM_AD_BOTTOM_RIGHT_Y - AIM_AD_TOP_LEFT_Y"],
+        "hollow": true
       }
     }
   },
