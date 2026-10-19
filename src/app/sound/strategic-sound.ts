@@ -1,9 +1,9 @@
-import { effectiveMaster, loadSettings } from '../../app/settings.ts';
 import { AudioEngine } from '../../audio/engine.ts';
 import { laptopPowerCue } from '../../content/audio/cues.ts';
 import type { PlayerView, ViewFrame } from '../../protocol/view.ts';
-import { fetchFile } from '../asset-browser/api.ts';
 import { type MusicHook, musicLevel, PageMusic } from '../net/music.ts';
+import { readVfsFileOrNull } from '../net/vfs.ts';
+import { effectiveMaster, loadSettings } from '../settings.ts';
 
 declare global {
   interface Window {
@@ -11,16 +11,8 @@ declare global {
   }
 }
 
-async function optionalFile(path: string): Promise<Uint8Array | null> {
-  try {
-    return await fetchFile(path);
-  } catch {
-    return null;
-  }
-}
-
 export class StrategicSound {
-  readonly engine = new AudioEngine({ createGraph: () => new AudioContext(), load: optionalFile });
+  readonly engine = new AudioEngine({ createGraph: () => new AudioContext(), load: readVfsFileOrNull });
   readonly music: PageMusic;
   #laptopOpen = false;
 

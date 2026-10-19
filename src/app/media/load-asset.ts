@@ -7,7 +7,7 @@ import { pictureFromSti } from '../../content/picture/from-sti.ts';
 import type { Picture } from '../../content/picture/picture.ts';
 import { parseStubSpriteManifest, pictureFromStubSprite, STUB_SPRITE_SUFFIX } from '../../content/picture/stub-sprite.ts';
 import { vfsExtension } from '../../content/vfs/path.ts';
-import { fetchFile } from './api.ts';
+import { fetchVfsFile, type ReadVfsFile } from '../net/vfs.ts';
 
 export type Asset =
   | { readonly kind: 'picture'; readonly picture: Picture; readonly format: string; readonly sti?: Sti }
@@ -37,11 +37,11 @@ function pictureFromPng(bytes: Uint8Array): Picture {
   return { kind: 'rgba', width: png.width, height: png.height, pixels: rgba };
 }
 
-export async function loadAsset(path: string): Promise<Asset> {
-  const bytes = await fetchFile(path);
+export async function loadAsset(path: string, read: ReadVfsFile = fetchVfsFile): Promise<Asset> {
+  const bytes = await read(path);
   if (path.endsWith(STUB_SPRITE_SUFFIX)) {
     const manifest = parseStubSpriteManifest(JSON.parse(new TextDecoder().decode(bytes)));
-    const png = await fetchFile(path.replace(/[^/]+$/, manifest.image));
+    const png = await read(path.replace(/[^/]+$/, manifest.image));
     return { kind: 'picture', picture: pictureFromStubSprite(manifest, png), format: `stub sprite (${manifest.image})` };
   }
   const ext = vfsExtension(path);
@@ -54,16 +54,4 @@ export async function loadAsset(path: string): Promise<Asset> {
   if (ext === 'tga') return { kind: 'picture', picture: pictureFromTga(decodeTga(bytes)), format: 'TGA' };
   if (TEXT_EXT.has(ext)) return { kind: 'text', text: new TextDecoder().decode(bytes) };
   return { kind: 'binary', bytes };
-}
-
-export function hexDump(bytes: Uint8Array, limit = 1024): string {
-  const lines: string[] = [];
-  for (let off = 0; off < Math.min(bytes.length, limit); off += 16) {
-    const row = bytes.subarray(off, Math.min(off + 16, bytes.length));
-    const hex = [...row].map((b) => b.toString(16).padStart(2, '0')).join(' ');
-    const ascii = [...row].map((b) => (b >= 32 && b < 127 ? String.fromCharCode(b) : '.')).join('');
-    lines.push(`${off.toString(16).padStart(8, '0')}  ${hex.padEnd(47)}  ${ascii}`);
-  }
-  if (bytes.length > limit) lines.push(`… ${bytes.length - limit} more bytes`);
-  return lines.join('\n');
 }

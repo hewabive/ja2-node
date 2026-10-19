@@ -1,6 +1,7 @@
+import { fetchVfsList } from '../../app/net/vfs.ts';
+import { type LoadedWorld, loadWorld } from '../../app/world/world-loader.ts';
 import { WORLD_COLS } from '../../content/world/grid.ts';
 import { levelTilesAt } from '../../content/world/level.ts';
-
 import { TextureAtlas } from '../../render/atlas.ts';
 import { createContext } from '../../render/gl.ts';
 import { SpriteRenderer } from '../../render/sprite-renderer.ts';
@@ -16,9 +17,7 @@ import {
 } from '../../render/world/scene.ts';
 import { TileAtlas } from '../../render/world/tile-atlas.ts';
 import { drawScene } from '../../render/world/world-renderer.ts';
-import { fetchVfsList } from '../asset-browser/api.ts';
 import { Radar } from './radar.ts';
-import { type LoadedWorld, loadWorld } from './world-loader.ts';
 
 interface MapViewerHook {
   ready: boolean;

@@ -1,4 +1,3 @@
-import { type ClientSettings, effectiveMaster } from '../../app/settings.ts';
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import type { AudioEngine } from '../../audio/engine.ts';
 import { MusicPlayer, type MusicStats } from '../../audio/music.ts';
@@ -6,7 +5,8 @@ import { loadMusicTable } from '../../content/audio/music-table.ts';
 import type { MusicView } from '../../protocol/music.ts';
 import { MUSIC_OVERHEAD_MS, type MusicModeName } from '../../protocol/music-modes.ts';
 import type { ViewFrame } from '../../protocol/view.ts';
-import { fetchFile } from '../asset-browser/api.ts';
+import { type ClientSettings, effectiveMaster } from '../settings.ts';
+import { fetchVfsFile, type ReadVfsFile } from './vfs.ts';
 
 export interface MusicHook {
   ready: boolean;
@@ -42,13 +42,16 @@ export class PageMusic {
   #level: number;
   #timer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(level: number) {
+  readonly #read: ReadVfsFile;
+
+  constructor(level: number, read: ReadVfsFile = fetchVfsFile) {
     this.#level = level;
+    this.#read = read;
   }
 
   async load(engine: AudioEngine, session: string): Promise<void> {
     try {
-      const table = await loadMusicTable(fetchFile);
+      const table = await loadMusicTable(this.#read);
       const rng = new ClientRandom(seedFromText(`${session}${MUSIC_SEED_SUFFIX}`));
       this.#player = new MusicPlayer({ engine, table, rand: rng.rand });
       this.hook.stats = this.#player.stats;

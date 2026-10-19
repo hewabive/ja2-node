@@ -4,9 +4,9 @@
 // @src src/game/Strategic/MapScreen.cc (the same keys on the map screen); src/game/SaveLoadScreen.cc DoQuickSave,
 // @src DoQuickLoad (nothing happens without a quick save). See docs/27 §1.8.
 
-import { fetchLabels, type Labels } from '../../app/launcher/labels.ts';
-import { QUICK_SAVE_ALIAS, QUICK_SAVE_NAME } from '../../app/launcher/save-rows.ts';
-import { loadSettings } from '../../app/settings.ts';
+import { fetchLabels, type Labels } from '../launcher/labels.ts';
+import { QUICK_SAVE_ALIAS, QUICK_SAVE_NAME } from '../launcher/save-rows.ts';
+import { loadSettings } from '../settings.ts';
 import type { CommandReply, SessionClient } from './session-client.ts';
 
 export type SaveAction = 'save' | 'load';

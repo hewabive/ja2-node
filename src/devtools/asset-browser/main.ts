@@ -1,8 +1,9 @@
+import { type Asset, loadAsset } from '../../app/media/load-asset.ts';
+import { fetchHealth, fetchVfsList, type Health, type VfsFile } from '../../app/net/vfs.ts';
 import type { Sti } from '../../content/formats/sti.ts';
-import { fetchHealth, fetchVfsList, type Health, type VfsFile } from './api.ts';
 import type { DebugHook } from './debug-hook.ts';
 import { FileTree } from './file-tree.ts';
-import { type Asset, hexDump, loadAsset } from './loaders.ts';
+import { hexDump } from './hex-dump.ts';
 import { PictureViewer, type ViewMode } from './viewer.ts';
 
 const SOLDIER_DIRECTIONS = 8;

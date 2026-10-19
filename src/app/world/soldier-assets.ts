@@ -16,7 +16,7 @@ import type { IndexedPicture } from '../../content/picture/picture.ts';
 import { parseStubSpriteManifest, pictureFromStubSprite } from '../../content/picture/stub-sprite.ts';
 import type { SoldierView } from '../../protocol/view.ts';
 import type { SoldierSheet } from '../../render/world/soldier-sprites.ts';
-import { fetchFile } from '../asset-browser/api.ts';
+import { fetchVfsFile, type ReadVfsFile } from '../net/vfs.ts';
 
 const STUB_PREFIX = 'stubs/';
 const STUB_SHEET_FRAMES_PER_DIRECTION = 18;
@@ -39,21 +39,23 @@ export class SoldierAssets {
   readonly tables: AnimationTables;
   readonly palettes: SoldierPalettes | null;
   readonly #available: ReadonlySet<string>;
+  readonly #read: ReadVfsFile;
   readonly #sheets = new Map<string, Promise<SoldierSheet | null>>();
   readonly #ready = new Map<string, SoldierSheet | null>();
 
-  private constructor(tables: AnimationTables, palettes: SoldierPalettes | null, available: ReadonlySet<string>) {
+  private constructor(tables: AnimationTables, palettes: SoldierPalettes | null, available: ReadonlySet<string>, read: ReadVfsFile) {
     this.tables = tables;
     this.palettes = palettes;
     this.#available = available;
+    this.#read = read;
   }
 
-  static async load(available: ReadonlySet<string>): Promise<SoldierAssets> {
-    const json = async (path: string) => JSON.parse(new TextDecoder().decode(await fetchFile(path)));
+  static async load(available: ReadonlySet<string>, read: ReadVfsFile = fetchVfsFile): Promise<SoldierAssets> {
+    const json = async (path: string) => JSON.parse(new TextDecoder().decode(await read(path)));
     const tables = parseAnimationTables(await json(ANIM_CONTROL_PATH), await json(ANIM_SURFACES_PATH));
     const palettePath = [SOLDIER_PALETTES_PATH, `${STUB_PREFIX}${SOLDIER_PALETTES_PATH}`].find((p) => available.has(p));
-    const palettes = palettePath ? parseSoldierPalettes(await fetchFile(palettePath)) : null;
-    return new SoldierAssets(tables, palettes, available);
+    const palettes = palettePath ? parseSoldierPalettes(await read(palettePath)) : null;
+    return new SoldierAssets(tables, palettes, available, read);
   }
 
   #surfaceFor(view: SoldierView, state: number): number {
@@ -106,13 +108,13 @@ export class SoldierAssets {
 
   async #load(request: SheetRequest): Promise<SoldierSheet | null> {
     if (request.id.startsWith(STUB_PREFIX)) {
-      const manifest = parseStubSpriteManifest(JSON.parse(new TextDecoder().decode(await fetchFile(request.id))));
-      const png = await fetchFile(request.id.replace(/[^/]+$/, manifest.image));
+      const manifest = parseStubSpriteManifest(JSON.parse(new TextDecoder().decode(await this.#read(request.id))));
+      const png = await this.#read(request.id.replace(/[^/]+$/, manifest.image));
       const picture = pictureFromStubSprite(manifest, png);
       const perDirection = Number(manifest.meta?.framesPerDirection ?? STUB_SHEET_FRAMES_PER_DIRECTION);
       return { picture, layout: { directions: 8, framesPerDirection: perDirection, noFrames: false, frameCount: picture.frames.length } };
     }
-    const sti = decodeSti(await fetchFile(request.id));
+    const sti = decodeSti(await this.#read(request.id));
     const picture = pictureFromSti(sti);
     if (picture.kind !== 'indexed' || sti.kind !== 'indexed') return null;
     const info = this.tables.surfaces[request.surface];

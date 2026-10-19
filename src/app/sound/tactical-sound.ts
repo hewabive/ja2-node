@@ -1,4 +1,3 @@
-import { type ClientSettings, effectiveMaster, loadSettings, saveSettings, updateSettings } from '../../app/settings.ts';
 import { seedFromText } from '../../audio/client-random.ts';
 import { SoundDirector, type SoundWorld } from '../../audio/director.ts';
 import { type AudioCounters, AudioEngine } from '../../audio/engine.ts';
@@ -11,9 +10,10 @@ import { ANIMATION_SCRIPTS_PATH, type AnimationScripts, parseAnimationScripts } 
 import { type DataVersion, rpcSpeechPrefixed, STUB_DATA_VERSION } from '../../content/text/data-version.ts';
 import { compileWorldTerrainIds } from '../../content/world/movement-costs.ts';
 import type { ViewFrame } from '../../protocol/view.ts';
-import { fetchFile, fetchHealth } from '../asset-browser/api.ts';
-import type { LoadedWorld } from '../map-viewer/world-loader.ts';
 import { type MusicHook, musicLevel, PageMusic } from '../net/music.ts';
+import { fetchHealth, fetchVfsFile, readVfsFileOrNull } from '../net/vfs.ts';
+import { type ClientSettings, effectiveMaster, loadSettings, saveSettings, updateSettings } from '../settings.ts';
+import type { LoadedWorld } from '../world/world-loader.ts';
 
 const STUB_PREFIX = 'stubs/';
 const MINUTES_PER_HOUR = 60;
@@ -49,14 +49,6 @@ export interface SoundContext {
   readonly morale: ReadonlyMap<number, number>;
 }
 
-async function optionalFile(path: string): Promise<Uint8Array | null> {
-  try {
-    return await fetchFile(path);
-  } catch {
-    return null;
-  }
-}
-
 export class TacticalSound {
   readonly hook: AudioHook;
   readonly engine: AudioEngine;
@@ -72,7 +64,7 @@ export class TacticalSound {
     this.#settings = loadSettings();
     this.engine = new AudioEngine({
       createGraph: () => new AudioContext(),
-      load: optionalFile,
+      load: readVfsFileOrNull,
     });
     this.music = new PageMusic(musicLevel(this.#settings));
     this.hook = {
@@ -132,8 +124,9 @@ export class TacticalSound {
       this.#available = available;
       const health = await fetchHealth();
       this.#version = (health.dataVersion as DataVersion | undefined) ?? STUB_DATA_VERSION;
-      this.#book = await loadCueBook(fetchFile);
-      const scripts = (await optionalFile(ANIMATION_SCRIPTS_PATH)) ?? (await optionalFile(`${STUB_PREFIX}${ANIMATION_SCRIPTS_PATH}`));
+      this.#book = await loadCueBook(fetchVfsFile);
+      const scripts =
+        (await readVfsFileOrNull(ANIMATION_SCRIPTS_PATH)) ?? (await readVfsFileOrNull(`${STUB_PREFIX}${ANIMATION_SCRIPTS_PATH}`));
       this.#scripts = scripts ? parseAnimationScripts(scripts) : null;
       this.#director = new SoundDirector({
         engine: this.engine,
@@ -173,7 +166,7 @@ export class TacticalSound {
   async #ambientTable(id: number): Promise<AmbientEntry[]> {
     const path = ambientTablePath(id);
     if (!this.exists(path)) return [];
-    const bytes = await optionalFile(path);
+    const bytes = await readVfsFileOrNull(path);
     try {
       return bytes ? parseAmbientTable(bytes) : [];
     } catch {
