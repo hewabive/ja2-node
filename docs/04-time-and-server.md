@@ -1246,7 +1246,8 @@ the WebSocket `welcome` (`messages`, the whole ring) and in frames (`ViewFrame.m
   price, coolness, reliability, repairEase, flags, weapon, magazine, armour, explosive}]}` (ETag, an hour's cache): names
   and descriptions from `itemdesc.edt` of the data version, Bobby Ray's texts from `braydesc.edt` for weapons, armour
   and explosives (magazines: the short name; other items: the name), calibre names from `ammo-calibre` and
-  `ammo-calibre-bobbyray` in the display language. `ItemDef` parses `inventoryGraphics` and `tileGraphic` with the
+  `ammo-calibre-bobbyray` in the display language with `showInHelpText` (from `calibres.json`: whether the hand slots'
+  help text names the calibre, `GetHelpTextForItem`). `ItemDef` parses `inventoryGraphics` and `tileGraphic` with the
   defaults of `ItemModel` (`interface/mdguns.sti` 0, `bigitems/gun00.sti` 0, `GUNS` 1).
 
 ### 6.26. Queries, cursor hints and the player-knowledge projection (M8, U3b)
