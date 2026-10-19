@@ -3,13 +3,17 @@
 // @src src/game/Tactical/Soldier_Control.cc CreateSoldierLight (Light2, Light3 with night goggles, Light4 with UV
 // @src goggles); src/game/TileEngine/Lighting.cc LightLoadCachedTemplate. See docs/20 §2 and the deviation "Merc lights".
 
-import { type LightTemplateData, parseLightTemplateFile, parseLightTemplatesJson } from '../../content/formats/lht.ts';
+import {
+  type LightTemplateData,
+  parseLightTemplateFile,
+  parseLightTemplatesJson,
+  SHIPPED_LIGHT_TEMPLATES_PATH,
+} from '../../content/formats/lht.ts';
 import { isRepositoryLayer } from '../../content/vfs/layers.ts';
 import type { InventoryItemView } from '../../protocol/view.ts';
 import { asShippedTemplate, type LightTemplate, lightTemplate } from '../../sim/tactical/lighting/templates.ts';
 import type { ReadVfsFile, VfsFile } from '../net/vfs.ts';
 
-export const LIGHT_TEMPLATES_JSON = 'externalized/light-templates.json';
 const LHT_EXTENSION = '.lht';
 const HEAD_SLOTS: readonly number[] = [3, 4];
 
@@ -30,9 +34,9 @@ export interface ResolvedLightTemplate {
   readonly origin: LightTemplateOrigin;
 }
 
-function userFile(files: readonly VfsFile[], path: string): VfsFile | null {
+function anyFile(files: readonly VfsFile[], path: string): VfsFile | null {
   const lower = path.toLowerCase();
-  return files.find((f) => f.path.toLowerCase() === lower && !isRepositoryLayer(f.layer)) ?? null;
+  return files.find((f) => f.path.toLowerCase() === lower) ?? null;
 }
 
 function lhtFiles(files: readonly VfsFile[]): VfsFile[] {
@@ -61,7 +65,7 @@ export class LightTemplates {
 
   static async load(files: readonly VfsFile[], read: ReadVfsFile): Promise<LightTemplates> {
     const found: LightTemplateData[] = [];
-    const json = userFile(files, LIGHT_TEMPLATES_JSON);
+    const json = anyFile(files, SHIPPED_LIGHT_TEMPLATES_PATH);
     if (json) found.push(...parseLightTemplatesJson(JSON.parse(new TextDecoder().decode(await read(json.path)))));
     for (const f of lhtFiles(files)) found.push(asShippedTemplate(f.path, parseLightTemplateFile(f.path, await read(f.path))));
     return new LightTemplates(found);

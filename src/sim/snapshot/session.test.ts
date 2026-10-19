@@ -24,6 +24,7 @@ import { PreRandom, Rng } from '../../core/rng.ts';
 import type { CampaignSim } from '../campaign/campaign-sim.ts';
 import { registeredInTactical } from '../campaign/roster.ts';
 import { createItem } from '../items/object.ts';
+import { newLightEffect } from '../tactical/explosions/light.ts';
 import { InvSlot } from '../tactical/inventory.ts';
 import { Team } from '../tactical/soldier.ts';
 import { teamMembers } from '../tactical/state.ts';
@@ -47,6 +48,8 @@ const COLS = 160;
 const STEP_BUDGET = 3000;
 const IDLE_BUDGET = 20_000;
 const SCENARIO_TIMEOUT_MS = 60_000;
+const FLARE_RADIUS = 4;
+const FLARE_TURNS = 6;
 
 function stepUntil(c: CampaignSim, done: () => boolean): void {
   for (let i = 0; i < STEP_BUDGET && !done(); i++) c.step();
@@ -160,6 +163,22 @@ describe('a campaign snapshot', () => {
     }
     expect(t.sectorHooks).not.toBe(c.tactical.state.sectorHooks);
     expect(Object.keys(t.sectorHooks)).toEqual(Object.keys(c.tactical.state.sectorHooks));
+  });
+
+  it('writes a flare lit by a shipped Light template as a reference to that template and restores it', () => {
+    const options = { seed: BATTLE_SEED, mercs: 3, garrison: GARRISON };
+    const { campaign: c } = createTestCampaign(kit, options);
+    landFirstSquad(c);
+    advance(c, { idle: true }, IDLE_BUDGET);
+    const t = c.tactical?.state;
+    if (!t) throw new Error('no sector is loaded');
+    const lit = newLightEffect(t, ourSoldiers(c)[0]?.gridNo ?? 0, FLARE_RADIUS, FLARE_TURNS);
+    expect(lit?.sprite?.template.name).toBe(`Light${FLARE_RADIUS}`);
+    const json = snapshotJson(snapshotCampaign(c, testCampaignContent(kit, options)));
+    const restored = testCampaignAdapter(kit, options).restore(JSON.parse(json), c);
+    const flare = restored.tactical?.state.explosives.lights.find((l) => l?.radius === FLARE_RADIUS);
+    expect(flare?.sprite?.template).toBe(t.content.lightTemplates.get(`LIGHT${FLARE_RADIUS}`));
+    expect(snapshotJson(snapshotCampaign(restored, testCampaignContent(kit, options)))).toBe(json);
   });
 
   it('reseeds the main stream in place: the tactical layer and the PreRandom refill follow, the PreRandom ring repeats', () => {

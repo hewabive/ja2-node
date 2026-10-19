@@ -6,11 +6,13 @@ import { ANIM_CONTROL_PATH, ANIM_SURFACES_PATH, parseAnimationTables } from '../
 import { type AnimationTimelines, splitAnimationScripts } from '../../src/content/anim/timelines.ts';
 import { parseAnimationScripts } from '../../src/content/formats/ja2bin.ts';
 import type { StructureFile } from '../../src/content/formats/jsd.ts';
+import { parseLightTemplatesJson, SHIPPED_LIGHT_TEMPLATES_PATH } from '../../src/content/formats/lht.ts';
 import { parseStubLockTable } from '../../src/content/formats/locks.ts';
 import { EXPLOSION_ANIMATIONS_PATH, parseExplosionContent, SMOKE_EFFECTS_PATH } from '../../src/content/items/explosions.ts';
 import { loadItemTable } from '../../src/content/items/items.ts';
 import { type DoorCostTable, parseDoorCostTable } from '../../src/content/world/movement-costs.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
+import { shippedLightTemplates } from '../../src/sim/tactical/lighting/templates.ts';
 import { parseMaterialArmour } from '../../src/sim/tactical/load-content.ts';
 import { buildStubAnimationScripts } from '../../stubs/anim-scripts.ts';
 
@@ -54,5 +56,6 @@ export async function loadTestContent(): Promise<TacticalContent> {
     explosions: parseExplosionContent(readDataJson(EXPLOSION_ANIMATIONS_PATH), readDataJson(SMOKE_EFFECTS_PATH)),
     corpses: stubCorpseContent(),
     locks: stubLockTable(),
+    lightTemplates: shippedLightTemplates(parseLightTemplatesJson(readDataJson(SHIPPED_LIGHT_TEMPLATES_PATH))),
   };
 }

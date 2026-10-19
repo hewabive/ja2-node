@@ -222,8 +222,16 @@ export function cachedLightTemplateName(value: object): string | null {
   return typeof name === 'string' && cache.get(name) === value ? name : null;
 }
 
+export function lightTemplateKey(name: string): string {
+  return name.toUpperCase();
+}
+
+export function shippedLightTemplates(templates: readonly LightTemplate[]): ReadonlyMap<string, LightTemplate> {
+  return new Map(templates.filter((t) => lightTemplate(t.name) === null).map((t) => [lightTemplateKey(t.name), t]));
+}
+
 export function lightTemplate(name: string): LightTemplate | null {
-  const key = name.toUpperCase();
+  const key = lightTemplateKey(name);
   let template = cache.get(key);
   if (template === undefined) {
     template = buildTemplate(key);

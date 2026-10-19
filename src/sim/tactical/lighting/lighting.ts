@@ -17,7 +17,7 @@ import { clamp, i16, u8 } from '../../../core/int.ts';
 import { doorObstacleIfClosed, doorState, terrainCost } from '../pathfinding.ts';
 import { atan8 } from '../perception/opp.ts';
 import type { TacticalState } from '../state.ts';
-import { LIGHT_CENTRE_NODE, LIGHT_NEW_RAY, type LightTemplate, lightTemplate } from './templates.ts';
+import { LIGHT_CENTRE_NODE, LIGHT_NEW_RAY, type LightTemplate, lightTemplate, lightTemplateKey } from './templates.ts';
 
 export const LightSpriteFlags = {
   ACTIVE: 0x0001,
@@ -284,7 +284,7 @@ function placedOnMap(l: LightSprite): boolean {
 }
 
 export function lightSpriteCreate(t: TacticalState, name: string): LightSprite | null {
-  const template = lightTemplate(name);
+  const template = lightTemplate(name) ?? t.content.lightTemplates.get(lightTemplateKey(name)) ?? null;
   return template ? lightSpriteFromTemplate(t, template) : null;
 }
 

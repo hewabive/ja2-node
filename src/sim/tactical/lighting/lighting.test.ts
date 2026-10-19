@@ -131,10 +131,11 @@ describe('light sprites', () => {
     expect(level(t, X + 1, Y, 1)).toBe(0);
   });
 
-  it('refuses templates that are not generated', () => {
+  it('takes generated templates first, then the shipped ones, and refuses others', () => {
     const t = tactical();
-    expect(lightSpriteCreate(t, 'Light3')).toBeNull();
+    expect(lightSpriteCreate(t, 'light3')?.template.name).toBe('Light3');
     expect(lightSpriteCreate(t, 'l-r03.lht')?.template.name).toBe('L-R03.LHT');
+    expect(lightSpriteCreate(t, 'Light9')).toBeNull();
   });
 });
 

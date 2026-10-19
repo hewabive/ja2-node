@@ -2293,6 +2293,14 @@ the map"); added exit grids matter to the cursor, not the picture; the client's 
 map's original structures, so a wall destroyed by a grenade does not let a lamp's light through on the client; the
 cover and line-of-sight tiles; the world in the `/play` page (U5).
 
+
+#### Light templates (2026-10-19)
+
+By the maintainer's decision the simulation and the renderer use `Light0` … `Light6` from Stracciatella's
+`light-templates.json` (in the repository since M2): flares and break lights now light their tiles and merc lights use
+`Light2`/`Light3`/`Light4` as in Stracciatella (`TacticalContent.lightTemplates`, `src/app/world/light-templates.ts`,
+`docs/20` §2); the deviations "Light effects" and "Merc lights" are closed.
+
 ---
 
 ## 18. Decisions and open questions

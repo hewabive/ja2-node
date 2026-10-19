@@ -6,6 +6,8 @@
 import { FormatError } from '../binary/errors.ts';
 import { BinaryReader } from '../binary/reader.ts';
 
+export const SHIPPED_LIGHT_TEMPLATES_PATH = 'externalized/light-templates.json';
+
 const RAY_FLAG_MASK = 0x4000;
 const LIGHTS_ENTRY_LENGTH = 4;
 

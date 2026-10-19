@@ -100,7 +100,7 @@ test('an MCP agent fights the stub garrison through the API in its own session, 
   const world = (await page.evaluate(worldHook)) as WorldHook;
   expect(world.error).toBeNull();
   expect(world.framePolicy).toBe('exact');
-  expect(world.mercLightOrigin).toBe('standIn');
+  expect(world.mercLightOrigin).toBe('data');
   expect(world.ambient).toBe(STUB_SANDBOX_AMBIENT);
   expect(world.corpses).toBe(corpses.length);
   await expect.poll(async () => (await page.evaluate(worldHook))?.drawnEffects).toBe(corpses.length);

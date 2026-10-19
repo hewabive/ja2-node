@@ -69,12 +69,12 @@ describe('explosion lights', () => {
 });
 
 describe('light effects', () => {
-  it('keep their records but light nothing without the Light templates', () => {
+  it("light their tiles with Stracciatella's shipped Light templates", () => {
     const sim = newCombatSim(content);
     const t = sim.state;
     lightSetBaseLevel(t, NIGHT);
     const light = newLightEffect(t, AT, 6, 6);
-    expect(light?.sprite).toBeNull();
-    expect(lightTrueLevel(t, AT, 0)).toBe(NIGHT);
+    expect(light?.sprite?.template.name).toBe('Light6');
+    expect(lightTrueLevel(t, AT, 0)).toBeLessThan(NIGHT);
   });
 });
