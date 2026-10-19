@@ -75,4 +75,5 @@ test('the tactical page plays the music of the session mode after the first gest
   expect(heard.mode).toBe('tacticalBattle');
   expect(heard.tracks.some((t) => t.startsWith('music/tensor '))).toBe(true);
   await client.close();
+  await fetch(`${SERVER}/api/sessions/${encodeURIComponent(session)}`, { method: 'DELETE', headers: { authorization: `Bearer ${TOKEN}` } });
 });
