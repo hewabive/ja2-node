@@ -749,7 +749,7 @@ export function tacticalCreateSoldier(c: CreationContext, pp: SoldierCreate, id:
 }
 
 export function findGridNoFromSweetSpot(t: TacticalState, s: Soldier, sweet: number, radius: number): number {
-  const probe = { ...s, team: Team.ENEMY, gridNo: sweet, level: s.level };
+  const probe: Soldier = Object.assign(Object.create(s) as Soldier, { team: Team.ENEMY, gridNo: sweet, level: s.level });
   const flood = findBestPath(t.pathEnv, probe, NOWHERE, s.level, {
     copy: PathCopy.REACHABLE,
     flags: PathFlags.IGNORE_PERSON_AT_DEST | PathFlags.THROUGH_PEOPLE,

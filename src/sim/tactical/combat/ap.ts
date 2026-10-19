@@ -5,7 +5,7 @@
 // @src walk-to-attack cost and its sWalkToAttack cache). See docs/11 §1.5, §6.1.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
-import { ItemClass, NOTHING } from '../../../content/items/items.ts';
+import { ItemClass, type ItemTable, NOTHING } from '../../../content/items/items.ts';
 import { idiv } from '../../../core/int.ts';
 import { findAttachment, findAttachmentByClass, type ItemObject } from '../../items/object.ts';
 import { plotPathCost } from '../ai/utils.ts';
@@ -25,12 +25,18 @@ const isRobot = (s: Soldier) => s.bodyType === Body.ROBOTNOWEAPON;
 const BASE_APS_TO_PUNCH = 4;
 const TOSSES_PER_10TURNS = 18;
 
-export function calcAPsToBurst(t: TacticalState, baseAPs: number, o: ItemObject): number {
-  if (o.item === itemIndex(t, 'G11')) return 1;
+const tableIndex = (items: ItemTable, name: string) => items.byName.get(name)?.index ?? -2;
+
+export function calcAPsToBurstWith(items: ItemTable, baseAPs: number, o: ItemObject): number {
+  if (o.item === tableIndex(items, 'G11')) return 1;
   const base = Math.max(3, Math.trunc((AP.BURST * baseAPs + (AP_LIMITS.MAXIMUM - 1)) / AP_LIMITS.MAXIMUM));
-  const spring = findAttachment(o, itemIndex(t, 'SPRING_AND_BOLT_UPGRADE'));
+  const spring = findAttachment(o, tableIndex(items, 'SPRING_AND_BOLT_UPGRADE'));
   if (spring === -1) return base;
   return Math.trunc((base * 100) / (100 + Math.trunc((o.attachments[spring]?.status ?? 0) / 5))) & 0xff;
+}
+
+export function calcAPsToBurst(t: TacticalState, baseAPs: number, o: ItemObject): number {
+  return calcAPsToBurstWith(t.content.items, baseAPs, o);
 }
 
 function aimSkill(t: TacticalState, s: Soldier, item: number): number {
@@ -39,13 +45,17 @@ function aimSkill(t: TacticalState, s: Soldier, item: number): number {
   return Math.trunc((effectiveDexterity(s) + effectiveAgility(s)) / 2);
 }
 
-export function baseAPsToShootOrStab(t: TacticalState, aps: number, skill: number, o: ItemObject): number {
+export function baseAPsToShootOrStabWith(items: ItemTable, aps: number, skill: number, o: ItemObject): number {
   const top = 2 * aps;
-  const rate = t.content.items.byIndex.get(o.item)?.weapon?.shotsPer4Turns ?? 0;
+  const rate = items.byIndex.get(o.item)?.weapon?.shotsPer4Turns ?? 0;
   let bottom = Math.trunc(((50 + Math.trunc(skill / 2)) * rate) / 4);
-  const spring = findAttachment(o, itemIndex(t, 'SPRING_AND_BOLT_UPGRADE'));
+  const spring = findAttachment(o, tableIndex(items, 'SPRING_AND_BOLT_UPGRADE'));
   if (spring !== -1) bottom = Math.trunc((bottom * (100 + Math.trunc((o.attachments[spring]?.status ?? 0) / 5))) / 100);
   return Math.trunc((Math.trunc((100 * top) / bottom) + 1) / 2) & 0xff;
+}
+
+export function baseAPsToShootOrStab(t: TacticalState, aps: number, skill: number, o: ItemObject): number {
+  return baseAPsToShootOrStabWith(t.content.items, aps, skill, o);
 }
 
 export function apChargeForShootOrStab(

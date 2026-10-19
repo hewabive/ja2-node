@@ -377,7 +377,7 @@ export function reloadGun(ctx: InventoryContext, c: Carrier, gun: ItemObject, am
   return true;
 }
 
-export function objectWeight(items: ItemTable, o: ItemObject): number {
+export function objectGrams(items: ItemTable, o: ItemObject): number {
   const def = items.byIndex.get(o.item);
   if (!def || o.item === NOTHING) return 0;
   let grams = 100 * def.weight;
@@ -385,7 +385,12 @@ export function objectWeight(items: ItemTable, o: ItemObject): number {
     for (const a of o.attachments) if (a.item !== NOTHING) grams += 100 * (items.byIndex.get(a.item)?.weight ?? 0);
     if (def.itemClass === ItemClass.GUN && o.gunShotsLeft > 0) grams += 100 * (items.byIndex.get(o.gunAmmoItem)?.weight ?? 0);
   }
-  return def.perPocket > 1 ? grams * o.count : grams;
+  return grams;
+}
+
+export function objectWeight(items: ItemTable, o: ItemObject): number {
+  const grams = objectGrams(items, o);
+  return (items.byIndex.get(o.item)?.perPocket ?? 0) > 1 ? grams * o.count : grams;
 }
 
 export function carriedWeightPercent(items: ItemTable, inv: Inventory, effectiveStrength: number): number {
