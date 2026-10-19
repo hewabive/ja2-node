@@ -72,14 +72,6 @@ export class WorldSprites {
     return { ...region, offsetX: frame.offsetX, offsetY: frame.offsetY, paletteBase: surface.paletteBase };
   }
 
-  tilePixel(tile: number, x: number, y: number): number {
-    const te = this.#tiles[tile];
-    const surface = te ? this.#surfaces[te.type] : null;
-    const frame = te && surface ? surface.picture.frames[te.regionIndex] : undefined;
-    if (!frame || x < 0 || y < 0 || x >= frame.width || y >= frame.height) return 0;
-    return frame.pixels[y * frame.width + x] ?? 0;
-  }
-
   sheet(id: string): LoadedSoldierSheet | undefined {
     return this.#sheets.get(id);
   }

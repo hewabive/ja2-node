@@ -1,4 +1,4 @@
-import { type AtlasLayer, ShelfPacker } from './shelf-packer.ts';
+import { ShelfPacker } from './shelf-packer.ts';
 
 const PREFERRED_LAYER_SIZE = 4096;
 const INITIAL_LAYERS = 1;
@@ -33,10 +33,6 @@ export class ArrayAtlas {
 
   get layerCount(): number {
     return this.#packer.layers.length;
-  }
-
-  get layers(): readonly AtlasLayer[] {
-    return this.#packer.layers;
   }
 
   add(width: number, height: number, pixels: Uint8Array): ArrayRegion {

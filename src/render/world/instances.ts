@@ -38,19 +38,6 @@ export interface SpriteSource {
   readonly height: number;
 }
 
-export interface Instance {
-  readonly x: number;
-  readonly y: number;
-  readonly src: SpriteSource;
-  readonly srcX: number;
-  readonly srcWidth: number;
-  readonly paletteRow: number;
-  readonly z: number;
-  readonly shadeKey: number;
-  readonly flags: number;
-  readonly outline: number;
-}
-
 const INITIAL_INSTANCES = 1024;
 
 export class InstanceBuffer {
@@ -98,40 +85,6 @@ export class InstanceBuffer {
     d[o + 10] = flags;
     d[o + 11] = outline;
     this.count++;
-  }
-
-  append(other: InstanceBuffer): void {
-    this.appendRange(other.data, 0, other.count);
-  }
-
-  appendRange(data: Float32Array, first: number, count: number): void {
-    if (count <= 0) return;
-    this.reserve(this.count + count);
-    this.data.set(data.subarray(first * FLOATS_PER_INSTANCE, (first + count) * FLOATS_PER_INSTANCE), this.count * FLOATS_PER_INSTANCE);
-    this.count += count;
-  }
-
-  instance(i: number): Instance {
-    const d = this.data;
-    const o = i * FLOATS_PER_INSTANCE;
-    return {
-      x: d[o] as number,
-      y: d[o + 1] as number,
-      src: {
-        layer: d[o + 6] as number,
-        x: d[o + 4] as number,
-        y: d[o + 5] as number,
-        width: d[o + 2] as number,
-        height: d[o + 3] as number,
-      },
-      srcX: 0,
-      srcWidth: d[o + 2] as number,
-      paletteRow: d[o + 7] as number,
-      z: d[o + 8] as number,
-      shadeKey: d[o + 9] as number,
-      flags: d[o + 10] as number,
-      outline: d[o + 11] as number,
-    };
   }
 }
 

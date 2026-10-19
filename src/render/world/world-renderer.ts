@@ -1,9 +1,16 @@
-import { WORLD_COLS } from '../../content/world/grid.ts';
 import type { Level } from '../../content/world/level.ts';
 import type { WorldStructures } from '../../content/world/structures.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
 import type { TileTables } from '../../content/world/tile-tables.ts';
-import { type DrawRun, DynamicScene, type PlacedSoldier, type SceneItem, type SceneSoldier, type WorldUiNode } from './dynamic-scene.ts';
+import {
+  ANIMATED_TILE_FRAME_MS,
+  type DrawRun,
+  DynamicScene,
+  type PlacedSoldier,
+  type SceneItem,
+  type SceneSoldier,
+  type WorldUiNode,
+} from './dynamic-scene.ts';
 import {
   type Camera,
   cameraOffset,
@@ -87,7 +94,6 @@ export interface WorldDrawStats {
   readonly staticRebuildMs: number;
 }
 
-const ANIMATED_TILE_FRAME_MS = 200;
 const NO_STATS: WorldDrawStats = { drawCalls: 0, instances: 0, staticInstances: 0, dynamicInstances: 0, staticRebuildMs: 0 };
 
 interface LoadedScene {
@@ -320,17 +326,6 @@ export class WorldRenderer {
   soldierAt(sx: number, sy: number): number | null {
     const s = this.#scene;
     return s ? pickSoldierAt(s.dynamic.placedSoldiers, sx, sy) : null;
-  }
-
-  tileScreenPosition(g: number): { readonly x: number; readonly y: number } | null {
-    const f = this.#last;
-    const s = this.#scene;
-    if (!f || !s) return null;
-    const renderHeight = s.world.prepared.renderHeight + (f.roofLevel ? ROOF_LEVEL_HEIGHT : 0);
-    const off = cameraOffset(f.viewport, f.camera, renderHeight);
-    const x = g % WORLD_COLS;
-    const y = Math.floor(g / WORLD_COLS);
-    return { x: 20 * (x - y) - 20 + off.x, y: 10 * (x + y) - 10 + off.y - (s.world.level.heights[g] ?? 0) };
   }
 
   dispose(): void {
