@@ -2172,8 +2172,19 @@ channel, the client's local provider with the fallback and the shadow mode. The 
 | Client | `src/app/hints/`: `ClientKnowledge` (U0b's client rules, the engine identity Vite injects, the content and per-map worlds), `HintProvider` (rest 80 ms per kind, cache per view, one projection per view, fallback, shadow mode, statistics), `createHintHook`/`attachHintHook` (`window.__ja2Ui.hints`); `SessionClient.query` and `identity`; `GameClient` in `src/ui/game-client.ts`. The devtools tactical page shows the hints of the hovered tile, enemy and inventory slot (`hint-panel.ts`); `?shadowHints=1` turns the shadow mode on. The `/play` page wires the provider with U5/U6 |
 | Tests | Client against server over sampled points, the client projection strict and built from the serialised view, with the snapshot purity check (`tests/support/hints.ts`, `hints-actions.ts`, `hints-strategic.ts`): `src/server/hints-stub.test.ts`, `hints-actions-stub.test.ts`, `hints-strategic-stub.test.ts` and the original-data `hints-original.test.ts`, `hints-actions-original.test.ts`, `hints-strategic-original.test.ts` (A9 sandbox and battle, a new campaign, SaveGame01/02/07/10). Fairness: `hints-fairness.test.ts` and the actions suite (unseen enemies on the target and the path change no answer). Purity of every server-only query: `query-purity.test.ts`. The channel: `ws.test.ts`, the host contract (answered before a running advance ends, unlogged, equal in both hosts), `messages.test.ts`. The client: `hint-provider.test.ts`, `client-knowledge.test.ts`. Unit tests of the new ports and `preview-action.test.ts`. E2E: `tests/e2e/hints.spec.ts` (a battle session with the shadow mode: tiles, soldiers and slots hovered, no difference). The simulation tests that used `estimateAttack` call it on the projection (`tests/support/combat.ts`) |
 
-**Measured** (headless Chromium on this machine, devtools tactical page, the hint's own time without the projection
-build): LATENCY_TABLE
+**Measured** (headless Chromium on this machine while other agents ran test suites, load average 10–19; devtools
+tactical page; the hint's own time, the projection build counted apart):
+
+| Data | Hints | p50 | p95 | max | Projection build (first, with the world copy) |
+|---|---|---|---|---|---|
+| Stubs, village battle (e2e, shadow mode) | 31 | 0.2–0.3 ms | 2.8–3.2 ms | 4.9–7.2 ms | 98–130 ms |
+| Original data, A9 in real time | 126 | 0.2 ms | 1.3 ms | 10.7 ms | 65 ms |
+| Original data, A9 battle (moves and attack estimates) | 124 | 0.2 ms | 2.1 ms | 21.6 ms | 99 ms |
+
+In Node on A9 (the same load): the projection sync for a new view 0.45 ms p50, 1.7 ms p95; `previewMove` 0.18 ms p50,
+1.15 ms p95. The tail is the path search to an unreachable tile, which explores the whole map as the original does.
+The §16 target (2 ms p95) holds on A9 in real time and is at the limit in battle and on the stub map on a loaded
+machine; it has to be confirmed on the maintainer's machine without other load.
 
 Decisions and limits: the projection is built once per received view on the client (about 0.5 ms, p95 under 2 ms on
 A9 in Node) and per query on the server; its first build for a map includes the world copy (about 0.1 s on A9) and is
