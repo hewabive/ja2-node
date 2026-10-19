@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { type Connect, defineConfig, type Plugin, type ProxyOptions } from 'vite';
 import { CLIENT_PAGE_ALIASES, clientPagePath } from './src/node/client-pages.ts';
 import { loadOrCreateToken } from './src/node/token.ts';
+import { engineIdentity } from './src/server/content-identity.ts';
 
 function pageAliases(): Plugin {
   const rewrite: Connect.NextHandleFunction = (req, _res, next) => {
@@ -25,6 +26,7 @@ export default defineConfig(() => {
   const proxy: ProxyOptions = { target, headers: { authorization: `Bearer ${token}` } };
   const proxies = { '/api': proxy, '/vfs': proxy, '/mcp': proxy, '/ws': { ...proxy, ws: true } };
   return {
+    define: { __JA2_ENGINE__: JSON.stringify(engineIdentity()) },
     plugins: [pageAliases()],
     server: { host: '127.0.0.1', port: Number(process.env.JA2_WEB_PORT ?? 5173), strictPort: true, proxy: proxies },
     preview: { host: '127.0.0.1', port: 4173, strictPort: true, proxy: proxies },
