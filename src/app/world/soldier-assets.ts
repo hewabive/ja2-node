@@ -15,10 +15,14 @@ import { pictureFromSti } from '../../content/picture/from-sti.ts';
 import type { IndexedPicture } from '../../content/picture/picture.ts';
 import { parseStubSpriteManifest, pictureFromStubSprite } from '../../content/picture/stub-sprite.ts';
 import type { SoldierView } from '../../protocol/view.ts';
-import type { SoldierSheet } from '../../render/world/soldier-sprites.ts';
 import { fetchVfsFile, type ReadVfsFile } from '../net/vfs.ts';
 
 const STUB_PREFIX = 'stubs/';
+
+export interface SoldierSheet {
+  readonly picture: IndexedPicture;
+  readonly layout: SheetLayout;
+}
 const STUB_SHEET_FRAMES_PER_DIRECTION = 18;
 const BIGMALE = 1;
 

@@ -4,28 +4,16 @@ import { SleepWakeStop } from '../../app/net/sleep-wake-stop.ts';
 import { fetchVfsList } from '../../app/net/vfs.ts';
 import { TacticalSound } from '../../app/sound/tactical-sound.ts';
 import { SoldierAssets } from '../../app/world/soldier-assets.ts';
-import { type LoadedWorld, loadWorld } from '../../app/world/world-loader.ts';
-import { soldierSheetFrame } from '../../content/anim/soldier-sprite.ts';
+import type { SoldierScene } from '../../app/world/soldier-scene.ts';
+import { DEFAULT_TACTICAL_OPTIONS, type TacticalDisplayOptions, TacticalWorldView } from '../../app/world/tactical-world-view.ts';
 import { WORLD_COLS } from '../../content/world/grid.ts';
-import { typeIndex } from '../../content/world/tile-tables.ts';
+import type { TileTables } from '../../content/world/tile-tables.ts';
 import type { SoldierView } from '../../protocol/view.ts';
-import { TextureAtlas } from '../../render/atlas.ts';
 import { createContext } from '../../render/gl.ts';
-import { SpriteRenderer } from '../../render/sprite-renderer.ts';
-import { prepareLevelRenderData } from '../../render/world/level-render-data.ts';
-import {
-  buildScene,
-  type Camera,
-  type FrameGeometry,
-  type SceneMerc,
-  type SceneOptions,
-  type SceneSource,
-  screenToGridNo,
-  tileOrigin,
-} from '../../render/world/scene.ts';
-import { type MercDrawSpec, SoldierSprites } from '../../render/world/soldier-sprites.ts';
-import { TileAtlas } from '../../render/world/tile-atlas.ts';
-import { drawScene } from '../../render/world/world-renderer.ts';
+import { cameraOnGridNo, type ScrollLimits, scrollBy, scrollLimits, setRenderCenter } from '../../render/world/camera.ts';
+import type { WorldUiNode } from '../../render/world/dynamic-scene.ts';
+import { type Camera, screenToGridNo, type Viewport } from '../../render/world/geometry.ts';
+import { type WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
 import { Radar } from '../map-viewer/radar.ts';
 import { DoorPanel } from './door-panel.ts';
 import { PromptPanel } from './prompt-panel.ts';
@@ -45,6 +33,11 @@ interface TacticalHook {
   doorResult: string;
   talkOpen: boolean;
   talkResult: string;
+  drawCalls: number;
+  stats: WorldDrawStats | null;
+  camera: Camera | null;
+  hoveredSoldier: number | null;
+  renderMs: number;
 }
 
 declare global {
@@ -66,13 +59,20 @@ const debug: TacticalHook = {
   doorResult: '',
   talkOpen: false,
   talkResult: '',
+  drawCalls: 0,
+  stats: null,
+  camera: null,
+  hoveredSoldier: null,
+  renderMs: 0,
 };
 window.__ja2Tactical = debug;
 
 const OUR_TEAM = 0;
-const DOOR_FLAGS = 0x00cc0008;
-const OPEN_FLAG = 0x2;
 const DEFAULT_PLAYBACK = 4;
+const HOVER_POINTER = 'FIRSTPOINTERS1';
+const SELECTED_POINTER = 'FIRSTPOINTERS2';
+
+type MutableOptions = { -readonly [K in keyof TacticalDisplayOptions]: TacticalDisplayOptions[K] };
 
 function el<T extends HTMLElement>(id: string): T {
   const e = document.getElementById(id);
@@ -83,7 +83,6 @@ function el<T extends HTMLElement>(id: string): T {
 const canvas = el<HTMLCanvasElement>('canvas');
 const status = el('status');
 const info = el('info');
-const roofs = el<HTMLInputElement>('roofs');
 const tradeButton = el<HTMLButtonElement>('trade');
 const talkButton = el<HTMLButtonElement>('talkButton');
 const doorPanel = new DoorPanel((cmd) => client?.command(cmd) ?? Promise.resolve({ ok: false, reason: 'not connected' }));
@@ -93,54 +92,42 @@ const talkPanel = new TalkPanel((cmd) => client?.command(cmd) ?? Promise.resolve
 const muteBox = el<HTMLInputElement>('mute');
 const volumeSlider = el<HTMLInputElement>('volume');
 const sound = new TacticalSound();
-const gl = createContext(canvas, { depth: true, preserveDrawingBuffer: true });
-const renderer = new SpriteRenderer(gl);
-const sprites = new SoldierSprites(gl);
-const cursorAtlas = new TextureAtlas(gl, 'rgba', 64);
-const cursorRegion = cursorAtlas.add(40, 20, diamond([255, 230, 120, 255]));
-const selectRegion = cursorAtlas.add(40, 20, diamond([120, 230, 120, 255]));
+const gl = createContext(canvas, { depth: false });
+const renderer = new WorldRenderer(gl);
+const pageStart = performance.now();
+const options: MutableOptions = { ...DEFAULT_TACTICAL_OPTIONS };
+const OPTION_BOXES: readonly [keyof MutableOptions, string][] = [
+  ['roofs', 'roofs'],
+  ['treeTops', 'treetops'],
+  ['wireframes', 'wireframes'],
+  ['glowItems', 'glowItems'],
+  ['mercCastsLight', 'mercLight'],
+  ['mercAlwaysLit', 'mercAlwaysLit'],
+];
 
-let world: LoadedWorld | null = null;
-let source: SceneSource | null = null;
-let atlas: TileAtlas | null = null;
+let view: TacticalWorldView | null = null;
 let assets: SoldierAssets | null = null;
+let soldierScene: SoldierScene | null = null;
 let client: SessionClient | null = null;
 let camera: Camera = { centerX: 805, centerY: 805 };
+let limits: ScrollLimits = scrollLimits(0);
 let zoom = 2;
+let pointer: { x: number; y: number } | null = null;
 let hoverGridNo: number | null = null;
+let hoveredSoldier: number | null = null;
 let selected: number | null = null;
-let mercsByGrid = new Map<number, SceneMerc[]>();
-let openDoors: ReadonlySet<number> = new Set();
-let revealedRooms: ReadonlySet<number> = new Set();
-const lastDrawn = new Map<number, { spec: MercDrawSpec; frame: FrameGeometry }>();
+let pointerTiles = { hover: -1, selected: -1 };
 const radar = new Radar(el<HTMLCanvasElement>('radar'), (cellX, cellY) => {
-  camera = { centerX: cellX, centerY: cellY };
+  camera = setRenderCenter({ centerX: cellX, centerY: cellY }, viewport(), limits);
 });
-
-function diamond(rgba: readonly number[]): Uint8Array {
-  const out = new Uint8Array(40 * 20 * 4);
-  for (let y = 0; y < 20; y++) {
-    const dy = y < 10 ? y : 19 - y;
-    const half = 2 + dy * 2;
-    for (const x of [20 - half, 20 + half - 1]) out.set(rgba, (y * 40 + x) * 4);
-  }
-  return out;
-}
 
 function setStatus(text: string, error = false): void {
   status.textContent = text;
   status.classList.toggle('error', error);
 }
 
-function sceneOptions(): SceneOptions {
-  return {
-    width: Math.floor(canvas.width / zoom),
-    height: Math.floor(canvas.height / zoom),
-    camera,
-    ambientShade: 3,
-    showRoofs: roofs.checked,
-    showShadows: true,
-  };
+function viewport(): Viewport {
+  return { width: Math.max(1, Math.floor(canvas.width / zoom)), height: Math.max(1, Math.floor(canvas.height / zoom)) };
 }
 
 function moraleById(): Map<number, number> {
@@ -148,11 +135,11 @@ function moraleById(): Map<number, number> {
   return new Map(mercs.flatMap((m) => (m.morale === undefined ? [] : [[m.id, m.morale] as const])));
 }
 
-function updateSound(options: SceneOptions): void {
+function updateSound(v: Viewport): void {
   sound.update({
     camera,
-    width: options.width,
-    height: options.height,
+    width: v.width,
+    height: v.height,
     selected,
     inCombat: !!client?.combat,
     clock: client?.clock ?? null,
@@ -164,45 +151,18 @@ function soldiers(): readonly SoldierView[] {
   return client?.soldiers ?? [];
 }
 
-function currentSprite(s: SoldierView): { spec: MercDrawSpec; frame: FrameGeometry } | null {
-  if (!assets) return null;
-  const request = assets.sheetFor(s);
-  const standingRequest = assets.standingSheetFor(s);
-  const sheet = request ? assets.ready(request) : null;
-  const standing = standingRequest ? assets.ready(standingRequest) : null;
-  if (!request || !standingRequest || !sheet || !standing) return null;
-  const loaded = sprites.addSheet(request.id, sheet);
-  const index = soldierSheetFrame(loaded.layout, s.frame, s.direction);
-  const region = loaded.regions[index];
-  const f = loaded.picture.frames[index];
-  if (!region || !f) return null;
-  const paletteKey = `${standingRequest.id}|${s.palettes.join('|')}`;
-  const paletteRowBase = sprites.paletteRowBase(paletteKey, () => assets?.paletteFor(s, standing) ?? standing.picture.palette);
-  return { spec: { region, paletteRowBase }, frame: { offsetX: f.offsetX, offsetY: f.offsetY, width: f.width, height: f.height } };
+function pointerTile(tables: TileTables, name: string): number {
+  return tables.tileIndexByName.get(name) ?? -1;
 }
 
-function collectMercs(): number {
-  sprites.beginFrame();
-  mercsByGrid = new Map();
-  let drawn = 0;
-  for (const s of soldiers()) {
-    const sprite = currentSprite(s) ?? lastDrawn.get(s.id) ?? null;
-    if (!sprite) continue;
-    lastDrawn.set(s.id, sprite);
-    const key = sprites.addSpec(sprite.spec);
-    const list = mercsByGrid.get(s.gridNo) ?? [];
-    list.push({ key, gridNo: s.gridNo, x: s.x, y: s.y, level: s.level, frame: sprite.frame });
-    mercsByGrid.set(s.gridNo, list);
-    drawn++;
+function uiNodes(): WorldUiNode[] {
+  const nodes: WorldUiNode[] = [];
+  const sel = soldiers().find((s) => s.id === selected);
+  if (sel && pointerTiles.selected >= 0) {
+    nodes.push({ gridNo: sel.gridNo, layer: sel.level > 0 ? 'roof' : 'object', tile: pointerTiles.selected, head: true });
   }
-  return drawn;
-}
-
-function drawCursor(g: number, region: typeof cursorRegion, options: SceneOptions): void {
-  if (!world || !source) return;
-  const o = tileOrigin(g % WORLD_COLS, Math.floor(g / WORLD_COLS), options);
-  const y = o.y - (world.level.heights[g] ?? 0) + source.prepared.renderHeight;
-  renderer.draw(cursorAtlas, region, o.x * zoom, y * zoom, zoom);
+  if (hoverGridNo !== null && pointerTiles.hover >= 0) nodes.push({ gridNo: hoverGridNo, layer: 'topmost', tile: pointerTiles.hover });
+  return nodes;
 }
 
 let lastRenderAt = performance.now();
@@ -225,31 +185,50 @@ function render(): void {
   if (client?.driver.mode === 'instant') client.playFor(now - lastRenderAt);
   else client?.playUntil(client.latestTick);
   lastRenderAt = now;
-  openDoors = new Set(client?.openDoors ?? []);
-  revealedRooms = new Set(client?.revealedRooms ?? []);
   followSectorChange();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, canvas.width, canvas.height);
   gl.clearColor(0, 0, 0, 1);
-  gl.clearDepth(0);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  if (!world || !source || !atlas) return;
-  const options = sceneOptions();
-  updateSound(options);
-  debug.drawnSoldiers = collectMercs();
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  if (!view) return;
+  const v = viewport();
+  updateSound(v);
   debug.soldiers = soldiers().length;
   debug.tick = client?.shownTick ?? 0;
-  renderer.begin();
-  drawScene(renderer, atlas, world.tiles, buildScene(source, options), zoom, sprites);
-  renderer.end(canvas.width, canvas.height, atlas.palettes);
-  renderer.begin();
   const sel = soldiers().find((s) => s.id === selected);
   debug.selectedGridNo = sel?.gridNo ?? null;
-  if (sel) drawCursor(sel.gridNo, selectRegion, options);
-  if (hoverGridNo !== null) drawCursor(hoverGridNo, cursorRegion, options);
-  renderer.end(canvas.width, canvas.height, null);
-  radar.drawViewport(options);
+  const renderStart = performance.now();
+  const stats = view.render({
+    viewport: v,
+    camera,
+    clockMs: now - pageStart,
+    roofLevel: false,
+    options,
+    view: {
+      soldiers: soldiers(),
+      items: client?.items ?? [],
+      openDoors: client?.openDoors ?? [],
+      revealedRooms: client?.revealedRooms ?? [],
+      clock: client?.clock ?? null,
+      combat: client?.combat ?? null,
+    },
+    hovered: hoveredSoldier,
+    uiNodes: uiNodes(),
+  });
+  renderer.present(null, canvas.height, 0, 0, zoom);
+  debug.renderMs = performance.now() - renderStart;
+  if (pointer) {
+    hoveredSoldier = renderer.soldierAt(pointer.x, pointer.y);
+    debug.hoveredSoldier = hoveredSoldier;
+  }
+  debug.drawnSoldiers = view.drawnSoldiers;
+  debug.drawCalls = stats.drawCalls;
+  debug.stats = stats;
+  debug.camera = camera;
+  radar.drawViewport({ ...v, camera });
   info.textContent = describe();
   shopPanel.update(client?.shop ?? null, soldiers());
-  doorPanel.update(client?.doors ?? [], openDoors);
+  doorPanel.update(client?.doors ?? [], new Set(client?.openDoors ?? []));
   debug.doorResult = doorPanel.result;
   tradeButton.disabled = !!client?.shop || !nearestMerchant(soldiers(), sel);
   talkPanel.update(client?.conversation ?? null, client?.scriptedSequence ?? false, client?.npcRequest ?? null, soldiers());
@@ -281,22 +260,35 @@ function describe(): string {
       `selected: ${sel.name || `#${sel.id}`} at ${sel.gridNo}${sel.ap !== undefined ? `  AP ${sel.ap}  life ${sel.life}/${sel.lifeMax}  breath ${sel.breath}` : ''}`,
     );
   if (hoverGridNo !== null) lines.push(`tile ${hoverGridNo} (${hoverGridNo % WORLD_COLS}, ${Math.floor(hoverGridNo / WORLD_COLS)})`);
+  const hovered = soldiers().find((s) => s.id === hoveredSoldier);
+  if (hovered) lines.push(`over: ${hovered.name || `#${hovered.id}`} (team ${hovered.team})`);
+  if (debug.stats) lines.push(`${debug.stats.drawCalls} draw calls, ${debug.stats.instances} sprites`);
   if (debug.lastResult) lines.push(debug.lastResult);
   return lines.join('\n');
 }
 
-function gridAt(e: MouseEvent): number | null {
+function logicalPoint(e: MouseEvent): { x: number; y: number } {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
-  return screenToGridNo(((e.clientX - rect.left) * dpr) / zoom, ((e.clientY - rect.top) * dpr) / zoom, sceneOptions());
+  return { x: ((e.clientX - rect.left) * dpr) / zoom, y: ((e.clientY - rect.top) * dpr) / zoom };
 }
 
-async function clickTile(g: number, run: boolean): Promise<void> {
-  const mine = soldiers().find((s) => s.gridNo === g && s.team === OUR_TEAM);
+function gridAt(e: MouseEvent): number | null {
+  const p = logicalPoint(e);
+  return screenToGridNo(p.x, p.y, viewport(), camera);
+}
+
+function select(id: number): void {
+  if (selected !== id) sound.director?.attention(id);
+  selected = id;
+  debug.selected = selected;
+}
+
+async function clickTile(g: number, run: boolean, picked: number | null): Promise<void> {
+  const pickedMerc = soldiers().find((s) => s.id === picked && s.team === OUR_TEAM);
+  const mine = pickedMerc ?? soldiers().find((s) => s.gridNo === g && s.team === OUR_TEAM);
   if (mine) {
-    if (selected !== mine.id) sound.director?.attention(mine.id);
-    selected = mine.id;
-    debug.selected = selected;
+    select(mine.id);
     return;
   }
   if (selected === null || !client) return;
@@ -307,11 +299,19 @@ async function clickTile(g: number, run: boolean): Promise<void> {
 }
 
 function centerOn(g: number): void {
-  camera = { centerX: (g % WORLD_COLS) * 10 + 5, centerY: Math.floor(g / WORLD_COLS) * 10 + 5 };
+  camera = setRenderCenter(cameraOnGridNo(g), viewport(), limits);
 }
 
+let dragRemainder = { x: 0, y: 0 };
+
 function pan(dx: number, dy: number): void {
-  camera = { centerX: camera.centerX + Math.round(dx / 4 + dy / 2), centerY: camera.centerY + Math.round(dy / 2 - dx / 4) };
+  const x = dragRemainder.x + dx;
+  const y = dragRemainder.y + dy;
+  const next = scrollBy(camera, Math.trunc(x), Math.trunc(y), viewport(), limits);
+  if (next.centerX !== camera.centerX || next.centerY !== camera.centerY) {
+    camera = next;
+    dragRemainder = { x: 0, y: 0 };
+  } else dragRemainder = { x, y };
 }
 
 let drag: { x: number; y: number; moved: boolean } | null = null;
@@ -326,8 +326,9 @@ canvas.addEventListener('pointerup', (e) => {
   if (wasDrag) return;
   const g = gridAt(e);
   if (g === null) return;
+  const p = logicalPoint(e);
   if ((e.ctrlKey || e.altKey) && selected !== null) doorPanel.act(selected, g);
-  else void clickTile(g, e.button === 2 || e.shiftKey);
+  else void clickTile(g, e.button === 2 || e.shiftKey, renderer.soldierAt(p.x, p.y));
 });
 canvas.addEventListener('pointermove', (e) => {
   const dpr = window.devicePixelRatio || 1;
@@ -336,17 +337,31 @@ canvas.addEventListener('pointermove', (e) => {
     drag = { x: e.clientX, y: e.clientY, moved: true };
   }
   hoverGridNo = gridAt(e);
+  pointer = logicalPoint(e);
+});
+canvas.addEventListener('pointerleave', () => {
+  pointer = null;
+  hoverGridNo = null;
+  hoveredSoldier = null;
 });
 window.addEventListener('keydown', (e) => {
-  const moves: Record<string, [number, number]> = { ArrowLeft: [-40, 0], ArrowRight: [40, 0], ArrowUp: [0, -40], ArrowDown: [0, 40] };
+  const moves: Record<string, [number, number]> = { ArrowLeft: [-40, 0], ArrowRight: [40, 0], ArrowUp: [0, -20], ArrowDown: [0, 20] };
   const m = moves[e.key];
   if (m) pan(m[0], m[1]);
 });
+for (const [key, id] of OPTION_BOXES) {
+  const box = el<HTMLInputElement>(id);
+  box.checked = options[key];
+  box.addEventListener('change', () => {
+    options[key] = box.checked;
+  });
+}
 for (const b of document.querySelectorAll<HTMLButtonElement>('[data-zoom]')) {
   b.classList.toggle('active', Number(b.dataset.zoom) === zoom);
   b.addEventListener('click', () => {
     zoom = Number(b.dataset.zoom);
     for (const other of document.querySelectorAll<HTMLButtonElement>('[data-zoom]')) other.classList.toggle('active', other === b);
+    camera = setRenderCenter(camera, viewport(), limits);
   });
 }
 for (const b of document.querySelectorAll<HTMLButtonElement>('[data-speed]')) {
@@ -405,41 +420,17 @@ let loadingMap: string | null = null;
 async function loadSector(mapPath: string): Promise<void> {
   loadingMap = mapPath;
   debug.ready = false;
-  const loaded = await loadWorld(mapPath, available);
-  atlas?.dispose();
-  world = loaded;
-  atlas = new TileAtlas(gl, loaded.surfaces);
-  const firstRoofType = typeIndex(loaded.tables, 'FIRSTROOF');
-  const lastRoofType = typeIndex(loaded.tables, 'SECONDSLANTROOF');
-  const underground = loaded.map.ambient?.basement === true || loaded.map.ambient?.caves === true;
-  source = {
-    level: loaded.level,
-    tiles: loaded.tiles,
-    prepared: prepareLevelRenderData(loaded.level, loaded.tiles, loaded.tables, loaded.map.info, underground),
-    frame: (tile) => {
-      const te = loaded.tiles[tile];
-      const f = te ? loaded.surfaces[te.type]?.picture.frames[te.regionIndex] : undefined;
-      return f ? { offsetX: f.offsetX, offsetY: f.offsetY, width: f.width, height: f.height } : null;
-    },
-    mercsAt: (g) => mercsByGrid.get(g) ?? [],
-    roofHidden: (g, tile) => {
-      const room = loaded.level.rooms[g] ?? 0;
-      if (room === 0 || !revealedRooms.has(room)) return false;
-      const type = loaded.tiles[tile]?.type ?? -1;
-      return type >= firstRoofType && type <= lastRoofType;
-    },
-    substitute: (g, tile) => {
-      if (!openDoors.has(g)) return tile;
-      const def = loaded.tiles[tile]?.structure;
-      return def && def.flags & DOOR_FLAGS && !(def.flags & OPEN_FLAG) ? tile + def.partnerDelta : tile;
-    },
-  };
-  await sound.setWorld(loaded);
+  if (!soldierScene) throw new Error('soldier assets are not loaded');
+  const loaded = await TacticalWorldView.load(renderer, mapPath, available, soldierScene);
+  view = loaded;
+  limits = scrollLimits(loaded.world.map.info.restrictedScrollId);
+  pointerTiles = { hover: pointerTile(loaded.world.tables, HOVER_POINTER), selected: pointerTile(loaded.world.tables, SELECTED_POINTER) };
+  await sound.setWorld(loaded.world);
   await radar.load(mapPath, available);
   const squad = soldiers().filter((s) => s.team === OUR_TEAM);
   selected = squad.find((s) => s.id === selected)?.id ?? squad[0]?.id ?? null;
   debug.selected = selected;
-  centerOn(squad[0]?.gridNo ?? loaded.map.info.centerGridNo);
+  centerOn(squad[0]?.gridNo ?? loaded.world.map.info.centerGridNo);
   await Promise.all(soldiers().flatMap((s) => assets?.preload(s) ?? []));
   debug.map = mapPath;
   loadingMap = null;
@@ -449,7 +440,7 @@ async function loadSector(mapPath: string): Promise<void> {
 
 function followSectorChange(): void {
   const mapPath = client?.mapPath ?? null;
-  if (!mapPath || mapPath === debug.map || loadingMap !== null) return;
+  if (!mapPath || mapPath === debug.map || loadingMap !== null || !soldierScene) return;
   void loadSector(mapPath).catch((err: Error) => {
     loadingMap = null;
     debug.error = err.message;
@@ -466,6 +457,7 @@ async function start(): Promise<void> {
     const mapPath = client.mapPath;
     if (!mapPath) throw new Error('no sector is loaded in this session');
     assets = await SoldierAssets.load(available);
+    soldierScene = TacticalWorldView.soldierScene(assets);
     await sound.load(available, assets.tables, client.session ?? 'local');
     sound.director?.reset(client.soldiers);
     sound.music.reset(client.view?.music);
