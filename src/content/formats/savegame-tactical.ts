@@ -381,6 +381,7 @@ export interface GeneralInfo {
   readonly renderCenterX: number;
   readonly renderCenterY: number;
   readonly atLeastOneMercWasHired: boolean;
+  readonly newMailFlag: boolean;
   readonly environmentWeather: number;
   readonly contractRehireSoldier: number;
   readonly gameOptions: SavedGameOptions;
@@ -558,6 +559,7 @@ export function readGeneralInfo(c: SaveCursor): GeneralInfo {
     renderCenterX: n('gsRenderCenterX'),
     renderCenterY: n('gsRenderCenterY'),
     atLeastOneMercWasHired: r.bool('gfAtLeastOneMercWasHired'),
+    newMailFlag: r.bool('fNewMailFlag'),
     environmentWeather: n('guiEnvWeather'),
     contractRehireSoldier: n('contract_rehire_soldier'),
     gameOptions: {

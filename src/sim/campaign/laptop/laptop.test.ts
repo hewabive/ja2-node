@@ -237,25 +237,35 @@ describe('after the landing', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(session.dispatch({ type: 'aimHire', profile: LASKO, contract: 1, gear: false })).toMatchObject({
       ok: false,
       reason: 'hatesTeammate',
-      data: { hated: VANT },
+      data: { hated: VANT, quote: { id: expect.any(Number), name: expect.stringMatching(/^HATE_MERC_[12]_ON_TEAM$/) } },
+    });
+    expect(session.dispatch({ type: 'hireCheck', profile: LASKO })).toMatchObject({
+      ok: true,
+      data: { profile: LASKO, contact: 'firstContact', accepted: false, refusal: 'hatesTeammate', hated: VANT },
     });
     const status = session.campaign.state.status;
     status.badReputation = 1;
     expect(session.dispatch({ type: 'aimHire', profile: MARLOW, contract: 1, gear: false })).toMatchObject({
       ok: false,
       reason: 'reputation',
+      data: { quote: { id: 80, name: 'REPUTATION_REFUSAL' } },
     });
     status.badReputation = 0;
     Object.assign(status, { mercDeaths: 1, manDaysPlayed: 10 });
     expect(session.dispatch({ type: 'aimHire', profile: PUIG, contract: 1, gear: false })).toMatchObject({
       ok: false,
       reason: 'deathRate',
+      data: { quote: { id: 81, name: 'DEATH_RATE_REFUSAL' } },
     });
     Object.assign(status, { mercDeaths: 0, manDaysPlayed: 0 });
     expect(session.dispatch({ type: 'aimHire', profile: HOLLIS, contract: 1, gear: false })).toMatchObject({ ok: true });
+    expect(session.dispatch({ type: 'hireCheck', profile: LASKO })).toMatchObject({
+      ok: true,
+      data: { accepted: true, quote: { id: 92, name: 'JOINING_CAUSE_BUDDY_1_ON_TEAM' } },
+    });
     expect(session.dispatch({ type: 'aimHire', profile: LASKO, contract: 1, gear: false })).toMatchObject({
       ok: true,
-      data: { quote: 'JOINING_CAUSE_BUDDY_1_ON_TEAM' },
+      data: { quote: { id: 92, name: 'JOINING_CAUSE_BUDDY_1_ON_TEAM' } },
     });
     expect(session.dispatch({ type: 'aimHire', profile: VOSS, contract: 1, gear: false })).toMatchObject({
       ok: true,

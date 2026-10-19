@@ -9,7 +9,9 @@
 // @src (Speck's lost-merc flag); Strategic/Merc_Contract.cc CalculateMedicalDepositRefund (the mails), StrategicRemoveMerc
 // @src (personnel lists); Laptop/Mercs.cc DailyUpdateOfMercSite (the mails); Tactical/Campaign.cc MERCMercWentUpALevelSendEmail,
 // @src HandleUnhiredMercDeaths (the mail); Strategic/PreBattle_Interface.cc LogBattleResults; Laptop/Files.cc
-// @src AddFilesAboutTerrorists. See docs/21 §1, §6, §8, §10.
+// @src AddFilesAboutTerrorists; Laptop/BobbyR.cc EnterBobbyR, Laptop/Mercs.cc EnterMercs, Laptop/Funeral.cc EnterFuneral,
+// @src Laptop/Florist.cc EnterFlorist, Laptop/Insurance.cc EnterInsurance (the effects of entering a site: visitSite);
+// @src Laptop/Laptop.cc LeaveLapTopScreen (fNewMailFlag cleared). See docs/21 §1, §6, §8, §10.
 
 import type { MercProfile } from '../../../content/formats/prof.ts';
 import type { LaptopContent } from '../../../content/strategic/laptop-content.ts';
@@ -43,6 +45,7 @@ import {
   aimCharge,
   aimContact,
   aimHire,
+  aimHireCheck,
   aimLeaveMessageRefusal,
   decideActiveTerrorists,
   defaultGear,
@@ -59,6 +62,7 @@ import {
   type OrderRequest,
   placeOrder,
   quoteOrder,
+  visitBobbyRay,
 } from './bobby-ray.ts';
 import type { LaptopContext, LaptopRandom, MailOptions } from './context.ts';
 import type { LaptopEventWithoutTick } from './events.ts';
@@ -78,6 +82,7 @@ import {
 } from './insurance.ts';
 import {
   Bookmark,
+  bookmarkNames,
   type Email,
   type LaptopState,
   MercAccountStatus,
@@ -87,6 +92,7 @@ import {
 } from './laptop-state.ts';
 import { addEmail, deleteEmail, findEmail, type MailSpec, mailSpec, mailType, readEmail, sender } from './mail.ts';
 import {
+  enterMercSite,
   getMercSiteBackOnline,
   larryRelapsed,
   makeNewMercsAvailable,
@@ -101,6 +107,7 @@ import { addFile, addHistory, addToPersonnelList, ENRICO_BACKGROUND_FILE, Histor
 
 const LAPTOP_COMMANDS: ReadonlySet<string> = new Set([
   'closeLaptop',
+  'visitSite',
   'readEmail',
   'deleteEmail',
   'aimHire',
@@ -113,7 +120,12 @@ const LAPTOP_COMMANDS: ReadonlySet<string> = new Set([
   'insure',
   'orderFlowers',
 ]);
-const QUERIES: ReadonlySet<string> = new Set(['aimQuote', 'bobbyRayQuote', 'insuranceQuote', 'impPreview', 'arrivalTime']);
+const QUERIES: ReadonlySet<string> = new Set(['aimQuote', 'hireCheck', 'bobbyRayQuote', 'insuranceQuote', 'impPreview', 'arrivalTime']);
+const SITE_BOOKMARKS: Readonly<Record<string, number>> = {
+  funeral: Bookmark.FUNERAL,
+  florist: Bookmark.FLORIST,
+  insurance: Bookmark.INSURANCE,
+};
 export const LAPTOP_REFUSAL = 'laptop: the laptop is open, closeLaptop first';
 const IMP_REMINDER_FIRST_HOUR = 8;
 const IMP_REMINDER_HOURS = 4;
@@ -492,6 +504,8 @@ export class LaptopFlow implements LaptopContext {
     switch (cmd.type) {
       case 'closeLaptop':
         return this.#close();
+      case 'visitSite':
+        return this.#visitSite(cmd);
       case 'readEmail':
         return this.#readEmail(cmd);
       case 'deleteEmail':
@@ -536,6 +550,7 @@ export class LaptopFlow implements LaptopContext {
       addFutureDayStrategicEvent(s.queue, s.clock, EventKind.HAVENT_MADE_IMP_CHARACTER_EMAIL, minute, 0, 1);
     }
     if (s.atLeastOneMercHired && l.newGameLaptop) l.newGameLaptop = false;
+    l.newMail = false;
     s.flow = 'strategic';
     this.emit({ type: 'laptopClosed' });
     return { ok: true };
@@ -553,6 +568,32 @@ export class LaptopFlow implements LaptopContext {
     return refusal ? { ok: false, reason: refusal } : { ok: true, data: { sector: sectorShortString(sector) } };
   }
 
+  #visitSite(cmd: Command): CommandResult {
+    const site = typeof cmd.site === 'string' ? cmd.site : '';
+    if (site === 'merc') return this.#visitMercSite();
+    if (site === 'bobbyRay') visitBobbyRay(this);
+    else {
+      const bookmark = SITE_BOOKMARKS[site];
+      if (bookmark === undefined) return { ok: false, reason: 'badSite' };
+      setBookmark(this.laptop, bookmark);
+    }
+    return { ok: true, data: { site, bookmarks: bookmarkNames(this.laptop) } };
+  }
+
+  #visitMercSite(): CommandResult {
+    const refusal = mercCommandRefusal(this);
+    if (refusal) return { ok: false, reason: refusal };
+    enterMercSite(this);
+    const speck = this.#mercOpening();
+    return { ok: true, data: { site: 'merc', bookmarks: bookmarkNames(this.laptop), ...(speck ? { speck } : {}) } };
+  }
+
+  #mercOpening(): number[] | null {
+    if (this.laptop.mercSiteOpenedThisSession) return null;
+    this.laptop.mercSiteOpenedThisSession = true;
+    return speckOpening(this);
+  }
+
   #readEmail(cmd: Command): CommandResult {
     const mail = isInt(cmd.id) ? findEmail(this.laptop, cmd.id) : undefined;
     if (!mail) return { ok: false, reason: 'noSuchMail' };
@@ -568,12 +609,14 @@ export class LaptopFlow implements LaptopContext {
     if (!isInt(cmd.profile) || !isInt(cmd.contract)) return { ok: false, reason: 'profile and contract (1, 7 or 14) are required' };
     if (cmd.gear !== undefined && typeof cmd.gear !== 'boolean') return { ok: false, reason: 'gear must be true or false' };
     const result = aimHire(this, { profile: cmd.profile, contract: cmd.contract, gear: cmd.gear }, this.hireHooks());
-    if (!result.ok)
-      return {
-        ok: false,
-        reason: result.reason,
-        ...(result.hated !== undefined || result.charge ? { data: { hated: result.hated, charge: result.charge } } : {}),
+    if (!result.ok) {
+      const data = {
+        ...(result.hated !== undefined ? { hated: result.hated } : {}),
+        ...(result.charge ? { charge: result.charge } : {}),
+        ...(result.quote ? { quote: result.quote } : {}),
       };
+      return { ok: false, reason: result.reason, ...(Object.keys(data).length > 0 ? { data } : {}) };
+    }
     this.#hired('aim', result.merc, result.arrival);
     return {
       ok: true,
@@ -607,10 +650,8 @@ export class LaptopFlow implements LaptopContext {
   #mercSession(): string | null {
     const refusal = mercCommandRefusal(this);
     if (refusal) return refusal;
-    if (!this.laptop.mercSiteOpenedThisSession) {
-      this.laptop.mercSiteOpenedThisSession = true;
-      speckOpening(this);
-    }
+    if (!this.laptop.mercSiteOpenedThisSession) enterMercSite(this);
+    this.#mercOpening();
     return null;
   }
 
@@ -703,6 +744,10 @@ export class LaptopFlow implements LaptopContext {
     switch (cmd.type) {
       case 'aimQuote':
         return this.#aimQuote(cmd);
+      case 'hireCheck': {
+        const check = isInt(cmd.profile) ? aimHireCheck(this, cmd.profile) : null;
+        return check ? { ok: true, data: check } : { ok: false, reason: 'notAimMerc' };
+      }
       case 'bobbyRayQuote': {
         const request = this.#orderRequest(cmd);
         if (!request) return { ok: false, reason: 'lines, destination and speed are required' };

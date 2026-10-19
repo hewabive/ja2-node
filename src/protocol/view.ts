@@ -253,6 +253,7 @@ export interface StrategicView {
   readonly mercAccountStatus?: string;
   readonly landingZone?: string;
   readonly unreadMail?: number;
+  readonly newMail?: boolean;
   readonly quests: readonly QuestLogEntryView[];
 }
 
@@ -421,6 +422,9 @@ export interface LaptopEmailView {
   readonly id: number;
   readonly type: string;
   readonly index?: number;
+  readonly offset: number;
+  readonly length: number;
+  readonly subject: string;
   readonly sender: number;
   readonly date: LaptopTimeView;
   readonly read: boolean;
@@ -441,6 +445,20 @@ export interface LaptopFinanceView {
   readonly date: LaptopTimeView;
   readonly amount: number;
   readonly balanceAfter: number;
+  readonly text: string;
+}
+
+export interface LaptopFinanceDayView {
+  readonly income: number;
+  readonly otherDeposits: number;
+  readonly debits: number;
+}
+
+export interface LaptopFinanceSummaryView {
+  readonly yesterday: LaptopFinanceDayView & { readonly closingBalance: number };
+  readonly today: LaptopFinanceDayView & { readonly balance: number };
+  readonly projectedIncome: number;
+  readonly projectedBalance: number;
 }
 
 export interface LaptopStatsView {
@@ -464,6 +482,7 @@ export interface LaptopItemView {
 }
 
 export type AimFaceView = 'available' | 'hired' | 'dead' | 'pow' | 'onAssignment';
+export type AimContactView = 'firstContact' | 'answeringMachine' | 'unavailable';
 
 export interface AimMercView {
   readonly profile: number;
@@ -474,6 +493,8 @@ export interface AimMercView {
   readonly medicalDeposit: number | null;
   readonly kit: { readonly items: readonly LaptopItemView[]; readonly cost: number } | null;
   readonly face: AimFaceView;
+  readonly contact: AimContactView;
+  readonly messageLeft: boolean;
 }
 
 export interface MercListingView {
@@ -559,10 +580,12 @@ export interface InTransitView {
 
 export interface LaptopView {
   readonly balance: number;
+  readonly newMail: boolean;
   readonly bookmarks: readonly string[];
   readonly emails: readonly LaptopEmailView[];
   readonly history: readonly LaptopHistoryView[];
   readonly finances: readonly LaptopFinanceView[];
+  readonly financeSummary: LaptopFinanceSummaryView;
   readonly files: readonly { readonly code: number; readonly read: boolean }[];
   readonly personnel: {
     readonly dead: readonly number[];

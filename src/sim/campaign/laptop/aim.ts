@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Laptop/AIMMembers.cc WillMercAcceptCall, CanMercBeHired (via relations/hiring-check.ts),
 // @src DisplayMercChargeAmount, DisplayMercsFace, BtnAnsweringMachineButtonCallback, AimMemberHireMerc, AIM_VIDEO_INIT_MODE
-// @src (default contract and kit); Tactical/Soldier_Profile.cc StartSomeMercsOnAssignment, DecideActiveTerrorists. See
+// @src (default contract and kit), BtnHireButtonCallback (the check at HIRE, before the funds); Tactical/Dialogue_Control.h
+// @src (the quote ids); Tactical/Soldier_Profile.cc StartSomeMercsOnAssignment, DecideActiveTerrorists. See
 // @src docs/21 §2.1–§2.5, §8.1.
 
 import { MercType } from '../../../content/strategic/economy-content.ts';
@@ -15,6 +16,7 @@ import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { setProfileSector } from '../../strategic/narrative/presence.ts';
 import { InvSlot } from '../../tactical/inventory.ts';
 import { MercStatus, type ProfileProgress } from '../../tactical/profiles.ts';
+import { Quote, type QuoteName } from '../contracts/quotes.ts';
 import { addTransaction, FinanceCode } from '../finances.ts';
 import { ProfileMiscFlag, ProfileMiscFlag3 } from '../profiles.ts';
 import { canMercBeHired, type HireRefusal } from '../relations/hiring-check.ts';
@@ -40,6 +42,20 @@ const MAX_ADDITIONAL_TERRORISTS = 4;
 const TERRORIST_PLACEMENT_CHANCE = 40;
 
 export type AimContact = 'unavailable' | 'answeringMachine' | 'firstContact';
+
+export interface AimQuote {
+  readonly id: number;
+  readonly name: QuoteName;
+}
+
+export interface AimHireCheck {
+  readonly profile: number;
+  readonly contact: AimContact;
+  readonly accepted: boolean;
+  readonly refusal?: 'unavailable' | 'away' | HireRefusal;
+  readonly quote: AimQuote | null;
+  readonly hated?: number;
+}
 export type AimFace = 'available' | 'hired' | 'dead' | 'pow' | 'onAssignment';
 
 export interface AimCharge {
@@ -67,11 +83,21 @@ export interface AimHireRequest {
 }
 
 export type AimHireResult =
-  | { readonly ok: true; readonly merc: RosterMerc; readonly charge: AimCharge; readonly arrival: number; readonly quote: string | null }
-  | { readonly ok: false; readonly reason: AimHireRefusal; readonly hated?: number; readonly charge?: AimCharge };
+  | { readonly ok: true; readonly merc: RosterMerc; readonly charge: AimCharge; readonly arrival: number; readonly quote: AimQuote | null }
+  | {
+      readonly ok: false;
+      readonly reason: AimHireRefusal;
+      readonly hated?: number;
+      readonly charge?: AimCharge;
+      readonly quote?: AimQuote;
+    };
 
 export function isAimMerc(ctx: LaptopContext, profile: number): boolean {
   return ctx.mercType(profile) === MercType.AIM && ctx.profile(profile) !== null;
+}
+
+export function aimQuote(name: QuoteName | null): AimQuote | null {
+  return name === null ? null : { id: Quote[name], name };
 }
 
 export function aimContact(p: ProfileProgress): AimContact {
@@ -119,8 +145,15 @@ export function aimHireRefusal(ctx: LaptopContext, request: AimHireRequest): Aim
   if (contact === 'unavailable') return { ok: false, reason: 'unavailable' };
   if (contact === 'answeringMachine') return { ok: false, reason: 'away' };
   const check = canMercBeHired({ team: ctx.team(), profiles: ctx.state.profiles }, ctx.state.status, p);
-  if (!check.accepted)
-    return { ok: false, reason: check.refusal ?? 'cannotHire', ...(check.hated !== undefined ? { hated: check.hated } : {}) };
+  if (!check.accepted) {
+    const quote = aimQuote(check.quote);
+    return {
+      ok: false,
+      reason: check.refusal ?? 'cannotHire',
+      ...(check.hated !== undefined ? { hated: check.hated } : {}),
+      ...(quote ? { quote } : {}),
+    };
+  }
   const charge = aimCharge(p, request.contract, gear);
   if (ctx.state.finances.balance < charge.total) return { ok: false, reason: 'funds', charge };
   return null;
@@ -160,12 +193,33 @@ export function aimHire(ctx: LaptopContext, request: AimHireRequest, hooks: Hire
   ctx.emitMoney(addTransaction(f, FinanceCode.HIRED_MERC, request.profile, now, -charge.total + p.medicalDepositAmount));
   if (p.medicalDeposit) ctx.emitMoney(addTransaction(f, FinanceCode.MEDICAL_DEPOSIT, request.profile, now, -p.medicalDepositAmount));
   ctx.history(History.HIRED_MERC_FROM_AIM, request.profile, null);
-  return { ok: true, merc, charge, arrival, quote: check.quote };
+  return { ok: true, merc, charge, arrival, quote: aimQuote(check.quote) };
+}
+
+export function aimHireCheck(ctx: LaptopContext, profile: number): AimHireCheck | null {
+  const p = ctx.profile(profile);
+  if (!p || !isAimMerc(ctx, profile)) return null;
+  const contact = aimContact(p);
+  if (contact === 'unavailable') return { profile, contact, accepted: false, refusal: 'unavailable', quote: null };
+  if (contact === 'answeringMachine') return { profile, contact, accepted: false, refusal: 'away', quote: null };
+  const check = canMercBeHired({ team: ctx.team(), profiles: ctx.state.profiles }, ctx.state.status, p);
+  return {
+    profile,
+    contact,
+    accepted: check.accepted,
+    ...(check.refusal ? { refusal: check.refusal } : {}),
+    quote: aimQuote(check.quote),
+    ...(check.hated !== undefined ? { hated: check.hated } : {}),
+  };
+}
+
+export function aimMessageLeft(p: ProfileProgress): boolean {
+  return (p.miscFlags3 & ProfileMiscFlag3.PLAYER_LEFT_MSG_FOR_MERC_AT_AIM) !== 0;
 }
 
 export function aimLeaveMessageRefusal(p: ProfileProgress): 'notAway' | 'alreadyLeft' | null {
   if (aimContact(p) !== 'answeringMachine') return 'notAway';
-  return p.miscFlags3 & ProfileMiscFlag3.PLAYER_LEFT_MSG_FOR_MERC_AT_AIM ? 'alreadyLeft' : null;
+  return aimMessageLeft(p) ? 'alreadyLeft' : null;
 }
 
 function aimOrMercProfiles(ctx: LaptopContext): number[] {

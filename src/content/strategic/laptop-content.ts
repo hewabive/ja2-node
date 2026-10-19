@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/externalized/policy/DefaultIMPPolicy.cc (imp.json), IMPPolicy.h IMPItemCondition; policy/DefaultGamePolicy.cc
-// @src (imp.*, pablo_wont_steal); MERCListingModel.cc (mercs-MERC-listings.json); DealerInventory.cc (bobby-ray-inventory-*.json);
+// @src (imp.*, pablo_wont_steal); MERCListingModel.cc (mercs-MERC-listings.json with the Speck quotes); AIMListingModel.cc
+// @src (mercs-AIM-listings.json, the listing order); DealerInventory.cc (bobby-ray-inventory-*.json);
 // @src ShippingDestinationModel.cc (shipping-destinations.json); internals/enums.cc (inventory slot names). See docs/21 §11.
 
 import { FormatError } from '../binary/errors.ts';
@@ -16,6 +17,7 @@ export const LAPTOP_CONTENT_PATHS = {
   imp: 'externalized/imp.json',
   policy: 'externalized/game.json',
   mercListings: 'externalized/mercs-MERC-listings.json',
+  aimListings: 'externalized/mercs-AIM-listings.json',
   profileInfo: 'externalized/mercs-profile-info.json',
   bobbyRayNew: 'externalized/bobby-ray-inventory-new.json',
   bobbyRayUsed: 'externalized/bobby-ray-inventory-used.json',
@@ -68,11 +70,20 @@ export interface ImpContent {
   readonly pickSkillsDirectly: boolean;
 }
 
+export type SpeckQuoteType = 'ADVERTISE' | 'MERC_DEAD' | 'CROSS_SELL';
+
+export interface SpeckListingQuote {
+  readonly type: SpeckQuoteType;
+  readonly quote: number;
+  readonly profile?: number;
+}
+
 export interface MercListing {
   readonly index: number;
   readonly profile: number;
   readonly minTotalSpending: number;
   readonly minDays: number;
+  readonly quotes: readonly SpeckListingQuote[];
 }
 
 export interface ShippingDestination {
@@ -103,6 +114,7 @@ export interface LaptopContent {
   readonly impQuiz: readonly (readonly (QuizEffect | null)[])[];
   readonly imp: ImpContent;
   readonly mercListings: readonly MercListing[];
+  readonly aimListings: readonly number[];
   readonly bobbyRayNew: ReadonlyMap<number, number>;
   readonly bobbyRayUsed: ReadonlyMap<number, number>;
   readonly destinations: readonly ShippingDestination[];
@@ -236,17 +248,35 @@ function profileId(ids: ReadonlyMap<string, number>, value: unknown, what: strin
   return id;
 }
 
+const SPECK_QUOTE_TYPES: readonly SpeckQuoteType[] = ['ADVERTISE', 'MERC_DEAD', 'CROSS_SELL'];
+
+function speckQuote(value: unknown, ids: ReadonlyMap<string, number>, what: string): SpeckListingQuote {
+  const o = asObject(value, what);
+  const type = asString(o.type, `${what}.type`) as SpeckQuoteType;
+  if (!SPECK_QUOTE_TYPES.includes(type)) throw new FormatError(`${what}.type: unknown Speck quote type ${type}`);
+  const quote = asInt(o.quoteID, `${what}.quoteID`);
+  return o.profile === undefined ? { type, quote } : { type, quote, profile: profileId(ids, o.profile, `${what}.profile`) };
+}
+
 function parseMercListings(json: unknown, ids: ReadonlyMap<string, number>): MercListing[] {
   return asArray(json, 'mercs MERC listings').map((v, index) => {
     const what = `mercs MERC listings[${index}]`;
     const o = asObject(v, what);
+    const quotes = o.quotes === undefined ? [] : asArray(o.quotes, `${what}.quotes`);
     return {
       index,
       profile: profileId(ids, o.profile, `${what}.profile`),
       minTotalSpending: intOr(o, 'minTotalSpending', 0, what),
       minDays: intOr(o, 'minDays', 0, what),
+      quotes: quotes.map((q, k) => speckQuote(q, ids, `${what}.quotes[${k}]`)),
     };
   });
+}
+
+function parseAimListings(json: unknown, ids: ReadonlyMap<string, number>): number[] {
+  return asArray(json, 'mercs AIM listings').map((v, index) =>
+    profileId(ids, asObject(v, `mercs AIM listings[${index}]`).profile, `mercs AIM listings[${index}].profile`),
+  );
 }
 
 function parseStoreMaxima(json: unknown, items: ItemTable, what: string): Map<number, number> {
@@ -316,6 +346,7 @@ export function parseLaptopContent(sources: LaptopContentSources, items: ItemTab
     ),
     imp: parseImpContent(sources.imp, sources.policy, items),
     mercListings: parseMercListings(sources.mercListings, profileIds),
+    aimListings: parseAimListings(sources.aimListings, profileIds),
     bobbyRayNew: parseStoreMaxima(sources.bobbyRayNew, items, 'bobby ray inventory new'),
     bobbyRayUsed: parseStoreMaxima(sources.bobbyRayUsed, items, 'bobby ray inventory used'),
     destinations: parseDestinations(sources.destinations),

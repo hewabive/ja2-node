@@ -169,3 +169,44 @@ describe('snapshot version 2 (sprite frames in the soldiers) migrates to frame s
     SCENARIO_TIMEOUT_MS,
   );
 });
+
+function versionFour(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'strategic') return [name, value];
+    const strategic = object(value);
+    const { newMail, ...laptop } = object(strategic.laptop);
+    expect(newMail).toBe(false);
+    return [name, { ...strategic, laptop }];
+  });
+  return { ...snapshot, version: 4, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 4 (no new-mail flag) migrates with the flag down', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it(
+    'a campaign in the laptop restores the same laptop with newMail false',
+    async () => {
+      const campaign = await createCampaignSession(kit.read, exists, 9, { hire: [] });
+      expect(campaign.campaign.state.laptop.newMail).toBe(true);
+      campaign.campaign.state.laptop.newMail = false;
+      const current = snapshotSession(campaign);
+      const legacy = versionFour(current.sim);
+      expect(JSON.stringify(legacy)).not.toContain('"newMail"');
+      expect(migrateSnapshot(JSON.parse(JSON.stringify(legacy)))).toEqual(JSON.parse(JSON.stringify(current.sim)));
+      const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+      expect(restored.view().laptop?.newMail).toBe(false);
+      expect(restored.view()).toEqual(campaign.view());
+    },
+    SCENARIO_TIMEOUT_MS,
+  );
+});

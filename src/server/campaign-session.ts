@@ -1,6 +1,7 @@
 import type { PresentationTimeline } from '../content/anim/timelines.ts';
 import type { TextKey } from '../content/narrative/dialogue-text.ts';
 import { type ProfileFaceRecord, profileFaceRecord } from '../content/narrative/profile-presentation.ts';
+import type { UiStrings } from '../content/text/strings.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
 import { initialMusic, type MusicFacts, type MusicState } from '../protocol/music.ts';
 import type {
@@ -14,6 +15,7 @@ import type {
 } from '../protocol/view.ts';
 import type { WorldTimeControl } from '../sim/advance.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
+import { findEmail } from '../sim/campaign/laptop/mail.ts';
 import { MercKind, type Roster, type RosterMerc } from '../sim/campaign/roster.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -28,6 +30,7 @@ import { autoresolveView, npcRequestView, promptView } from './battle-view.ts';
 import type { CampaignParts } from './campaign-factory.ts';
 import { contractPromptView } from './contract-view.ts';
 import { laptopView } from './laptop-view.ts';
+import { emailText } from './mail-text.ts';
 import { type MessageFacts, tacticalMessageFacts } from './message-facts.ts';
 import { tacticalPlayerView } from './sandbox.ts';
 import type { SessionSim } from './session.ts';
@@ -39,6 +42,7 @@ export interface TextSource {
 }
 
 const NO_PROFILE = 200;
+const EMAIL_TEXT = 'emailText';
 
 const RECRUITED_KINDS: Readonly<Record<number, string>> = { [MercKind.NPC]: 'rpc', [MercKind.EPC]: 'epc' };
 
@@ -107,6 +111,7 @@ export class CampaignSession implements SessionSim {
   readonly texts: TextSource | null;
   readonly origin: CampaignOrigin | null;
   initialMusic: MusicState = initialMusic();
+  #labels: UiStrings | null = null;
 
   constructor(
     campaign: CampaignSim,
@@ -169,7 +174,24 @@ export class CampaignSession implements SessionSim {
   }
 
   dispatch(cmd: CommandEnvelope): CommandResult {
+    if (cmd.type === EMAIL_TEXT) return this.#emailText(cmd);
     return withText(this.campaign.dispatch(cmd), this.texts);
+  }
+
+  #emailText(cmd: CommandEnvelope): CommandResult {
+    const id = cmd.id;
+    const mail = typeof id === 'number' && Number.isInteger(id) ? findEmail(this.campaign.state.laptop, id) : undefined;
+    if (!mail) return { ok: false, reason: 'noSuchMail' };
+    const text = this.texts ? emailText(this.campaign, mail, this.texts) : null;
+    return text ? { ok: true, data: text } : { ok: false, reason: 'noText' };
+  }
+
+  useLabels(labels: UiStrings | null): void {
+    this.#labels = labels;
+  }
+
+  get labels(): UiStrings | null {
+    return this.#labels;
   }
 
   get holdsCreationEvents(): boolean {
@@ -250,7 +272,7 @@ export class CampaignSession implements SessionSim {
         }
       : {};
     const shop = this.campaign.shop ? { shop: this.campaign.shop.view() } : {};
-    const laptop = this.campaign.laptop ? { laptop: laptopView(this.campaign) } : {};
+    const laptop = this.campaign.laptop ? { laptop: laptopView(this.campaign, { texts: this.texts, labels: this.#labels }) } : {};
     const talk = { ...this.#conversation(), ...this.#boxing() };
     const story = this.#story();
     const extra = strategic

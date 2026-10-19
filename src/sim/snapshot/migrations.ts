@@ -166,10 +166,28 @@ function addPresentationState(snapshot: Readonly<Record<string, unknown>>): Reco
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const LAPTOP_KEY = 'laptop';
+const NEW_MAIL_KEY = 'newMail';
+
+function withNewMailFlag(strategic: JsonObject): JsonObject {
+  const laptop = strategic[LAPTOP_KEY];
+  if (!isObject(laptop) || laptop[REF] !== undefined || laptop[NEW_MAIL_KEY] !== undefined) return strategic;
+  return { ...strategic, [LAPTOP_KEY]: { ...laptop, [NEW_MAIL_KEY]: false } };
+}
+
+function addNewMailFlag(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(
+    ([name, value]): Section => [name, name === 'strategic' && isObject(value) ? withNewMailFlag(value) : value],
+  );
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
     2: (snapshot) => spriteFramesToFrameSlots(snapshot, context),
     3: addPresentationState,
+    4: addNewMailFlag,
   };
 }

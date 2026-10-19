@@ -88,7 +88,7 @@ function saved(overrides: Partial<SavedLaptop> = {}, infoOverrides: Partial<Save
   };
 }
 
-const SAVE = { profiles: [], facts: [0, 1], quests: [2] } as unknown as SaveGame;
+const SAVE = { profiles: [], facts: [0, 1], quests: [2], generalInfo: { newMailFlag: true } } as unknown as SaveGame;
 
 describe('importing the laptop state', () => {
   it('copies mails with fresh ids, records, sites, payouts and the landing zone', () => {
@@ -115,6 +115,7 @@ describe('importing the laptop state', () => {
     expect(l.insurance).toEqual({ payouts: [{ active: true, soldier: 2, profile: 11, payout: 1500 }], used: 1 });
     expect(l.mercArriveSector).toBe(8);
     expect(l.floristOrderNumber).toBe(12);
+    expect(l.newMail).toBe(true);
     expect(state.narrative.facts[1]).toBe(1);
   });
 
@@ -145,6 +146,7 @@ describe('importing the laptop state', () => {
       profile,
       minTotalSpending: 0,
       minDays: 0,
+      quotes: [],
     }));
     applySavedLaptop(state, SAVE, saved({}, { lastMercAvailableId: 3, lastMercIndex: 10 }), {
       mercListings,
@@ -188,6 +190,7 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('the laptop of the native savegames i
       expect(l.bobbyRay.inventory).toHaveLength(decoded.info.inventoryListLength[0]);
       expect(l.bobbyRay.used).toHaveLength(decoded.info.inventoryListLength[1]);
       expect(l.merc.accountStatus).toBe(decoded.info.mercAccountStatus);
+      expect(l.newMail).toBe(save.generalInfo.newMailFlag);
       expect(l.merc.lastMercIndex).toBeLessThan(content.mercListings.length);
       expect(Array.from(state.narrative.facts.slice(0, save.facts.length))).toEqual([...save.facts]);
       const aim = save.soldiers

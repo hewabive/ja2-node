@@ -4,7 +4,6 @@ import { createSaveSession } from '../../src/server/save-session.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import { mercArrivalTimeOfDay } from '../../src/sim/campaign/contracts/contract-times.ts';
-import { Quote } from '../../src/sim/campaign/contracts/quotes.ts';
 import { addTransaction, FinanceCode } from '../../src/sim/campaign/finances.ts';
 import { aimHire } from '../../src/sim/campaign/laptop/aim.ts';
 import { addFreshBobbyRayInventory, bobbyRayPurchaseEvent, purchaseBobbyRayOrder } from '../../src/sim/campaign/laptop/bobby-ray.ts';
@@ -500,7 +499,7 @@ export class LaptopComparer {
     let ours: Json = {};
     const replay = this.#replay(flow, withoutCosmeticHireDraws((p.draws as Draw[]) ?? []), () => {
       const result = aimHire(flow, { profile, contract, gear }, flow.hireHooks());
-      const quote = result.ok ? (result.quote ? Quote[result.quote as keyof typeof Quote] : NO_QUOTE) : NO_QUOTE;
+      const quote = result.ok ? (result.quote?.id ?? NO_QUOTE) : NO_QUOTE;
       const accepted = result.ok || result.reason === 'funds';
       ours = {
         accepted,
