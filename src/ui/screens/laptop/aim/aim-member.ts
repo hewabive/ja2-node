@@ -11,7 +11,7 @@
 // @src stretched into 96 x 86, the answering machine shaded with its caption), DrawButtonSelection and DisplaySelectLights
 // @src (an 8 x 8 fill, green when selected, at +105, +7), DisplayMercChargeAmount, DisplayAimPopUpBox,
 // @src DisplayPopUpBoxExplainingMercArrivalLocationAndTime (nickname, sector, day = arrival / 1440, "HH:00"; the German
-// @src argument order). See docs/28 §9.4.
+// @src argument order; over the page redrawn without the conference, as HandleCurrentVideoConfMode). See docs/28 §9.4.
 
 import { idiv } from '../../../../core/int.ts';
 import type { AimMercView } from '../../../../protocol/view.ts';
@@ -199,6 +199,7 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
   let charge: number | null = null;
   let chargeKey = '';
   let disposed = false;
+  let arrivalAfterRender = false;
   const mercs = () => context.view()?.aim ?? [];
   const current = () => context.aim.current(mercs());
   const faceOf = (merc: AimMercView) => context.data.profile(merc.profile)?.faceIndex ?? merc.profile;
@@ -244,7 +245,9 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
       stopTalking: () => {
         subtitle = null;
       },
-      popdownDone: () => arrivalBox(),
+      popdownDone: () => {
+        arrivalAfterRender = true;
+      },
       teamFullBox: () => context.messageBox(context.string(AIM_POPUP_TEXT, AIM_MEMBER_ALREADY_HAVE_20_MERCS), MessageBoxFlag.OK),
     },
     context.settings.slideStepMs ?? 16,
@@ -405,6 +408,10 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
   };
 
   const refresh = (now: number): void => {
+    if (arrivalAfterRender) {
+      arrivalAfterRender = false;
+      arrivalBox();
+    }
     conference.update(now);
     const merc = current();
     if (!merc) return;
