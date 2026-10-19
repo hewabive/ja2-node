@@ -8,6 +8,7 @@
 // @src from the saved clock); Strategic/Scheduling.cc LoadSchedulesFromSave; Tactical/Soldier_Add.cc InternalAddSoldierToSector
 // @src (away slots of off-map soldiers). See docs/14 §10, docs/20, docs/25 §5.6.
 
+import { frameSlotOfSpriteFrame, type PresentationTimeline } from '../../content/anim/timelines.ts';
 import type { MapDoor } from '../../content/formats/map.ts';
 import type { SavedSoldierEntry, SaveGame } from '../../content/formats/savegame.ts';
 import type { SavedSoldier } from '../../content/formats/savegame-soldier.ts';
@@ -91,7 +92,7 @@ export function worldWithSavedDoors(world: TacticalWorld, save: SaveGame): Tacti
   return { ...world, map: { ...world.map, doors: mapDoors } };
 }
 
-export function importSave(sim: TacticalSim, save: SaveGame): SaveImportReport {
+export function importSave(sim: TacticalSim, save: SaveGame, presentation: PresentationTimeline): SaveImportReport {
   const t = sim.state;
   applyClock(t, save);
   t.sector = { ...save.tactical.worldSector };
@@ -107,7 +108,7 @@ export function importSave(sim: TacticalSim, save: SaveGame): SaveImportReport {
   const skippedMapModifications = applyMapModifications(t, save);
   applyDoorStatus(t, save.currentSector.doorStatus ?? []);
   t.world.costs.values.set(compileWorldMovementCosts(t.world).values);
-  const soldiers = importSoldiers(t, save);
+  const soldiers = importSoldiers(t, save, presentation);
   importAwaySoldiers(t, save);
   t.schedules = loadSavedSchedules(save.schedules, (id) => activeSoldier(t, id));
   importOpplists(t, save);
@@ -254,9 +255,9 @@ function importAwaySoldiers(t: TacticalState, save: SaveGame): void {
   }
 }
 
-function importSoldiers(t: TacticalState, save: SaveGame): number {
+function importSoldiers(t: TacticalState, save: SaveGame, presentation: PresentationTimeline): number {
   const entries = save.soldiers.filter((e) => e.soldier.id < TOTAL_SOLDIERS && inLoadedSector(save, e.soldier));
-  const created = entries.map((e) => placeSoldier(t, save, e));
+  const created = entries.map((e) => placeSoldier(t, save, e, presentation));
   entries.forEach((e, k) => {
     const s = created[k];
     if (s) linkSoldier(t, s, e.soldier);
@@ -264,7 +265,7 @@ function importSoldiers(t: TacticalState, save: SaveGame): number {
   return created.length;
 }
 
-function placeSoldier(t: TacticalState, save: SaveGame, entry: SavedSoldierEntry): Soldier {
+function placeSoldier(t: TacticalState, save: SaveGame, entry: SavedSoldierEntry, presentation: PresentationTimeline): Soldier {
   const r = entry.soldier;
   const s = createSavedSoldier(save, entry);
   registerSoldier(t, s);
@@ -277,7 +278,7 @@ function placeSoldier(t: TacticalState, save: SaveGame, entry: SavedSoldierEntry
   s.desiredDirection = r.desiredDirection;
   s.overTerrain = r.overTerrainType;
   s.pc = r.aniCode;
-  s.frame = r.aniFrame;
+  s.frameSlot = frameSlotOfSpriteFrame(presentation, r.animState, r.aniCode, r.aniFrame);
   s.nextFrameAt = t.clockMs;
   s.reservedGridNo = grid(r.motion.reservedGridNo);
   if (s.reservedGridNo !== NOWHERE && s.reservedGridNo >= 0 && s.reservedGridNo < WORLD_MAX) t.reserved[s.reservedGridNo] = s.id;

@@ -1,3 +1,4 @@
+import { requireAnimationTimelines } from '../../src/content/anim/timelines.ts';
 import { isVisibleTile } from '../../src/content/world/grid.ts';
 import { TacticalSession } from '../../src/server/sandbox.ts';
 import { stubMerc } from '../../src/server/stub-mercs.ts';
@@ -102,11 +103,11 @@ export function populateTactical(sim: TacticalSim, p: TacticalPopulation): void 
 }
 
 export async function createTacticalBench(data: BenchData, mapPath: string, seed: number, p: TacticalPopulation): Promise<TacticalSession> {
-  const [world, content] = await Promise.all([data.world(mapPath), data.content()]);
+  const [world, content, timelines] = await Promise.all([data.world(mapPath), data.content(), requireAnimationTimelines(data.read)]);
   const sim = new TacticalSim(world, content, seed);
   populateTactical(sim, p);
   sim.lookAround();
-  return new TacticalSession(sim);
+  return new TacticalSession(sim, timelines.presentation);
 }
 
 export function livingOf(sim: TacticalSim, teams: readonly number[]): number {

@@ -1,3 +1,4 @@
+import { requireAnimationTimelines } from '../content/anim/timelines.ts';
 import { parseSaveGame, type SaveGame } from '../content/formats/savegame.ts';
 import { readSavedEconomy, readSoldierAssignments } from '../content/formats/savegame-economy.ts';
 import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../content/formats/savegame-header.ts';
@@ -110,7 +111,7 @@ export async function createSaveSession(
   const { content, strategic: strategicContent, economy: economyContent, laptop: laptopContent } = parts;
   const imported = importNativeGameOptions(save.generalInfo.gameOptions);
   const sim = new TacticalSim(worldWithSavedDoors(world, save), content, seed, { options: imported.options });
-  const report: SaveImportReport = { ...importSave(sim, save), droppedOptions: imported.dropped };
+  const report: SaveImportReport = { ...importSave(sim, save, parts.presentation), droppedOptions: imported.dropped };
   const strategic = createStrategicState({
     seed,
     options: sim.state.options,
@@ -155,7 +156,11 @@ export async function createSaveSession(
     });
   }
   campaign.sectors?.adoptLoadedSector(savedSoldierLinks(save));
-  const session = new CampaignSession(campaign, roster, worlds, parts.narrative.texts, { kind: 'imported', parts, report });
+  const session = new CampaignSession(campaign, parts.presentation, roster, worlds, parts.narrative.texts, {
+    kind: 'imported',
+    parts,
+    report,
+  });
   session.initialMusic = initialMusic(musicModeOfNativeByte(save.generalInfo.musicMode), MusicMode.MAIN_MENU);
   return { session, report };
 }
@@ -166,10 +171,11 @@ export async function loadImportParts(
   layers?: LayerCount,
   decoding: DataDecoding = DEFAULT_DATA_DECODING,
 ): Promise<CampaignParts> {
-  const [content, strategic, army] = await Promise.all([
+  const [content, strategic, army, timelines] = await Promise.all([
     loadTacticalContent(read, decoding),
     loadStrategicContent(read),
     loadArmyContent(read),
+    requireAnimationTimelines(read),
   ]);
   const economy = await loadEconomyContent(read, strategic.towns);
   const merchants = await loadMerchantContent(read, content.items);
@@ -177,6 +183,7 @@ export async function loadImportParts(
   const narrative = await narrativeSetup(read, content.items, content.profiles, layers, decoding);
   return {
     content,
+    presentation: timelines.presentation,
     strategic,
     army,
     economy,

@@ -1,3 +1,4 @@
+import type { PresentationTimeline } from '../content/anim/timelines.ts';
 import type { TextKey } from '../content/narrative/dialogue-text.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
 import { initialMusic, type MusicFacts, type MusicState } from '../protocol/music.ts';
@@ -91,6 +92,7 @@ export interface CampaignOrigin {
 
 export class CampaignSession implements SessionSim {
   readonly campaign: CampaignSim;
+  readonly presentation: PresentationTimeline;
   readonly roster: Roster | null;
   readonly worlds: WorldCache | null;
   readonly texts: TextSource | null;
@@ -99,12 +101,14 @@ export class CampaignSession implements SessionSim {
 
   constructor(
     campaign: CampaignSim,
+    presentation: PresentationTimeline,
     roster: Roster | null = null,
     worlds: WorldCache | null = null,
     texts: TextSource | null = null,
     origin: CampaignOrigin | null = null,
   ) {
     this.campaign = campaign;
+    this.presentation = presentation;
     this.roster = roster;
     this.worlds = worlds;
     this.texts = texts;
@@ -230,7 +234,7 @@ export class CampaignSession implements SessionSim {
     const tactical = this.campaign.tactical;
     if (!tactical) return { tick: this.tick, mapPath: null, soldiers: [], ...extra };
     const imp = this.campaign.state.laptop.imp.voices;
-    const view = tacticalPlayerView(tactical, this.tick, (profile) => imp.get(profile) ?? profile);
+    const view = tacticalPlayerView(tactical, this.tick, this.presentation, (profile) => imp.get(profile) ?? profile);
     return { ...view, soldiers: withMerchantLabels(this.campaign, view.soldiers), ...extra };
   }
 }

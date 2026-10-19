@@ -1,6 +1,7 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { type AnimationTimelines, requireAnimationTimelines } from '../../src/content/anim/timelines.ts';
 import { withGraphicFacts } from '../../src/content/rules/graphic-facts.ts';
 import { withSectorExitGrids } from '../../src/content/strategic/sector-maps.ts';
 import { parseVfsAliases, VFS_ALIASES_FILE } from '../../src/content/vfs/aliases.ts';
@@ -38,6 +39,7 @@ export const STUB_MAPS = [
 
 export interface StubSectorKit {
   readonly vfs: Vfs;
+  readonly timelines: AnimationTimelines;
   readonly stubsDir: string;
   readonly content: TacticalContent;
   readonly worlds: SectorWorlds;
@@ -64,8 +66,10 @@ export async function loadStubSectorKit(): Promise<StubSectorKit> {
     const i = inputs.get(path) ?? aliased(path);
     return i ? buildTacticalWorldFromInputs(i) : null;
   };
+  const timelines = await requireAnimationTimelines(read);
   return {
     vfs: data.vfs,
+    timelines,
     stubsDir: dir,
     content,
     read,

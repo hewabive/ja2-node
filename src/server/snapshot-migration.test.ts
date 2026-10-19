@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
+import { type PresentationTimeline, spriteFrameAt } from '../content/anim/timelines.ts';
 import type { EncodedGraph, Json } from '../sim/snapshot/codec.ts';
 import { migrateSnapshot, type SimSnapshot, snapshotJson } from '../sim/snapshot/session.ts';
 import { createCampaignSession } from './campaign-factory.ts';
@@ -101,6 +102,69 @@ describe('snapshot version 1 (separate option copies) migrates to the unified ga
       const campaign = await createCampaignSession(kit.read, exists, 9, { options: { difficulty: 3, gunNut: true } });
       expect(campaign.campaign.tactical?.state.options).toBe(campaign.campaign.state.options);
       await expectMigratesExactly(campaign);
+    },
+    SCENARIO_TIMEOUT_MS,
+  );
+});
+
+function withSpriteFrames(value: Json, presentation: PresentationTimeline): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withSpriteFrames(v, presentation));
+  if (typeof value !== 'object' || value === null) return value;
+  const out: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (key === 'frameSlot' && typeof v === 'number') out.frame = spriteFrameAt(presentation, v);
+    else out[key] = withSpriteFrames(v, presentation);
+  }
+  return out;
+}
+
+function versionTwo(snapshot: SimSnapshot, presentation: PresentationTimeline): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withSpriteFrames(value, presentation)]);
+  return { ...snapshot, version: 2, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 2 (sprite frames in the soldiers) migrates to frame slots', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+  const STEP_SOUTH = 320;
+  const MOVE_TICKS = 13;
+  const AFTER_TICKS = 300;
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  async function expectSameViews(session: SessionSim & { readonly presentation: PresentationTimeline }): Promise<void> {
+    const current = snapshotSession(session);
+    const legacy = { ...current, sim: versionTwo(current.sim, session.presentation) };
+    expect(JSON.stringify(legacy.sim)).toContain('"frame":');
+    expect(() => migrateSnapshot(JSON.parse(JSON.stringify(legacy.sim)))).toThrow(/animation timelines/);
+    const restored = await restoreSession(JSON.parse(JSON.stringify(legacy)), kit.read, exists);
+    expect(restored.view()).toEqual(session.view());
+    for (const s of [session, restored]) for (let i = 0; i < AFTER_TICKS; i++) s.step();
+    expect(restored.view()).toEqual(session.view());
+  }
+
+  it(
+    'a sandbox in the middle of a run keeps its frames and continues the same',
+    async () => {
+      const sandbox = await createSandboxSession(kit.read, false, 5);
+      for (const merc of sandbox.view().soldiers.filter((s) => s.team === 0))
+        sandbox.dispatch({ type: 'move', soldier: merc.id, to: merc.gridNo + STEP_SOUTH, mode: 'run' });
+      for (let i = 0; i < MOVE_TICKS; i++) sandbox.step();
+      await expectSameViews(sandbox);
+    },
+    SCENARIO_TIMEOUT_MS,
+  );
+
+  it(
+    'a landed campaign keeps its frames and continues the same',
+    async () => {
+      await expectSameViews(await createCampaignSession(kit.read, exists, 9));
     },
     SCENARIO_TIMEOUT_MS,
   );

@@ -1,3 +1,4 @@
+import { type PresentationTimeline, requireAnimationTimelines } from '../content/anim/timelines.ts';
 import { type DataDecoding, DEFAULT_DATA_DECODING } from '../content/text/data-version.ts';
 import { isVisibleTile } from '../content/world/grid.ts';
 import { loadTacticalWorld } from '../content/world/tactical-world.ts';
@@ -40,9 +41,11 @@ const DEFAULT_SEED = 1;
 
 export class TacticalSession implements SessionSim {
   readonly sim: TacticalSim;
+  readonly presentation: PresentationTimeline;
 
-  constructor(sim: TacticalSim) {
+  constructor(sim: TacticalSim, presentation: PresentationTimeline) {
     this.sim = sim;
+    this.presentation = presentation;
   }
 
   get tick(): number {
@@ -70,7 +73,7 @@ export class TacticalSession implements SessionSim {
   }
 
   view(): PlayerView {
-    return tacticalPlayerView(this.sim, this.sim.tick);
+    return tacticalPlayerView(this.sim, this.sim.tick, this.presentation);
   }
 
   get initialMusic(): MusicState {
@@ -84,12 +87,17 @@ export class TacticalSession implements SessionSim {
   }
 }
 
-export function tacticalPlayerView(sim: TacticalSim, tick: number, voiceOf: VoiceOf = PROFILE_VOICE): PlayerView {
+export function tacticalPlayerView(
+  sim: TacticalSim,
+  tick: number,
+  presentation: PresentationTimeline,
+  voiceOf: VoiceOf = PROFILE_VOICE,
+): PlayerView {
   return {
     tick,
     mapPath: sim.mapPath,
     soldiers: withVoices(
-      sim.snapshot((s) => s.team === Team.OUR || s.visible >= 0),
+      sim.snapshot(presentation, (s) => s.team === Team.OUR || s.visible >= 0),
       sim.state.soldiers,
       voiceOf,
     ),
@@ -175,9 +183,13 @@ export async function createSandboxSession(
   decoding: DataDecoding = DEFAULT_DATA_DECODING,
 ): Promise<TacticalSession> {
   const mapPath = originalData ? ORIGINAL_SANDBOX_MAP : STUB_SANDBOX_MAP;
-  const [world, content] = await Promise.all([loadTacticalWorld(read, mapPath), loadTacticalContent(read, decoding)]);
+  const [world, content, timelines] = await Promise.all([
+    loadTacticalWorld(read, mapPath),
+    loadTacticalContent(read, decoding),
+    requireAnimationTimelines(read),
+  ]);
   const sim = new TacticalSim(world, content, seed);
   populateSandbox(sim);
   sim.lookAround();
-  return new TacticalSession(sim);
+  return new TacticalSession(sim, timelines.presentation);
 }

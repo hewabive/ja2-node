@@ -1,10 +1,20 @@
 import { gameOptions, ORIGINAL_GAME_OPTIONS } from '../options.ts';
-import type { EncodedGraph, Json } from './codec.ts';
+import { type EncodedGraph, type Json, SnapshotError } from './codec.ts';
 
 type JsonObject = { readonly [key: string]: Json };
 type Section = readonly [string, Json];
 
 export type SnapshotMigration = (snapshot: Readonly<Record<string, unknown>>) => Record<string, unknown>;
+
+export interface SnapshotMigrationContext {
+  frameSlotOf(state: number, pc: number, spriteFrame: number): number;
+}
+
+export const NO_MIGRATION_CONTEXT: SnapshotMigrationContext = {
+  frameSlotOf: () => {
+    throw new SnapshotError('a version 2 snapshot holds sprite frames: loading it needs the animation timelines');
+  },
+};
 
 const OPTIONS_KEY = 'options';
 const REF = '$ref';
@@ -77,6 +87,33 @@ function unifyGameOptions(snapshot: Readonly<Record<string, unknown>>): Record<s
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
-export const SNAPSHOT_MIGRATIONS: Readonly<Record<number, SnapshotMigration>> = {
-  1: unifyGameOptions,
-};
+const SPRITE_FRAME_KEY = 'frame';
+const FRAME_SLOT_KEY = 'frameSlot';
+const SOLDIER_KEYS = ['state', 'pc', SPRITE_FRAME_KEY, 'aniDelay'];
+
+function isSoldierWithSpriteFrame(o: JsonObject): boolean {
+  return SOLDIER_KEYS.every((key) => o[key] !== undefined) && typeof o.state === 'number' && typeof o.pc === 'number';
+}
+
+function withFrameSlots(value: Json, context: SnapshotMigrationContext): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withFrameSlots(v, context));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withFrameSlots(v, context);
+  if (!isSoldierWithSpriteFrame(mapped)) return mapped;
+  const slot = context.frameSlotOf(mapped.state as number, mapped.pc as number, mapped[SPRITE_FRAME_KEY] as number);
+  return replaceKey(mapped, SPRITE_FRAME_KEY, FRAME_SLOT_KEY, slot, []);
+}
+
+function spriteFramesToFrameSlots(snapshot: Readonly<Record<string, unknown>>, context: SnapshotMigrationContext): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withFrameSlots(value, context)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
+export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
+  return {
+    1: unifyGameOptions,
+    2: (snapshot) => spriteFramesToFrameSlots(snapshot, context),
+  };
+}

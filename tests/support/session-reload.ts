@@ -25,12 +25,19 @@ function restoreInputs(
   const base = { read: sources.read, exists: sources.exists };
   if (previous instanceof TacticalSession) {
     const loaded = mapPath === null ? null : (world?.(mapPath) ?? previous.sim.world);
-    return { ...base, parts: null, content: previous.sim.state.content, worlds: null, world: loaded };
+    return { ...base, presentation: previous.presentation, parts: null, content: previous.sim.state.content, worlds: null, world: loaded };
   }
   if (!(previous instanceof CampaignSession) || !previous.origin) throw new Error('this session cannot be reloaded');
   const worlds = previous.worlds?.fork(snapshot.preparedMaps) ?? null;
   const loaded = mapPath === null ? null : (world?.(mapPath) ?? previous.campaign.tactical?.world ?? null);
-  return { ...base, parts: previous.origin.parts, content: previous.origin.parts.content, worlds, world: loaded };
+  return {
+    ...base,
+    presentation: previous.presentation,
+    parts: previous.origin.parts,
+    content: previous.origin.parts.content,
+    worlds,
+    world: loaded,
+  };
 }
 
 export function sessionAdapter(sources: SessionSources): ReloadAdapter<SessionSim> {

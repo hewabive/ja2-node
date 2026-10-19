@@ -3,6 +3,7 @@
 // @src src/game/Tactical/Soldier_Control.h SOLDIERTYPE (movement, animation and AI fields used by ja2-node), CONSIDERED_NEUTRAL;
 // @src Tactical/Overhead_Types.h CivilianGroup
 
+import { NO_FRAME_SLOT } from '../../content/anim/timelines.ts';
 import type { StructureInstance } from '../../content/world/structures.ts';
 import type { ItemObject } from '../items/object.ts';
 import { type KeyOnRing, newKeyRing, type PendingDoorAction } from './doors/key-ring.ts';
@@ -288,7 +289,7 @@ export interface Soldier {
 
   state: number;
   pc: number;
-  frame: number;
+  frameSlot: number;
   aniDelay: number;
   nextFrameAt: number;
   pendingAnimation: number;
@@ -584,7 +585,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     monsterOrAnimal: false,
     state: init.state,
     pc: 0,
-    frame: 0,
+    frameSlot: NO_FRAME_SLOT,
     aniDelay: 0,
     nextFrameAt: 0,
     pendingAnimation: NO_PENDING_ANIMATION,
