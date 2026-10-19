@@ -15,6 +15,7 @@ import type {
   PaletteShade,
   RgbColor,
   ShadowItem,
+  SnapshotItem,
 } from '../../ui/draw-list.ts';
 import { lineRuns, rectangleRuns } from './line-runs.ts';
 import { UiMode } from './ui-shader.ts';
@@ -30,6 +31,7 @@ export interface UiDrawSources {
   image(key: string): UiImage | undefined;
   font(id: string): UiFont | undefined;
   paletteRow(image: IndexedUiImage, shade: PaletteShade | null): number;
+  snapshot?(id: string): RgbUiImage | undefined;
 }
 
 export interface UiBatch {
@@ -39,6 +41,7 @@ export interface UiBatch {
   rgb: RgbUiImage | null;
   readonly multiply: boolean;
   readonly clip: Area | null;
+  readonly capture: string | null;
 }
 
 export interface UiDrawPlan {
@@ -47,6 +50,7 @@ export interface UiDrawPlan {
   readonly batches: readonly UiBatch[];
   readonly missingImages: ReadonlySet<string>;
   readonly missingFonts: ReadonlySet<string>;
+  readonly missingSnapshots: ReadonlySet<string>;
   readonly multiplyAreas: readonly Area[];
 }
 
@@ -56,6 +60,7 @@ interface Instance {
   readonly mode: UiMode;
   readonly row?: number;
   readonly factor?: number;
+  readonly extra?: number;
   readonly colors?: readonly (readonly number[])[];
   readonly indexPage?: number;
   readonly rgb?: RgbUiImage;
@@ -100,6 +105,7 @@ export class UiDrawPlanner {
   #screen: Area = { x: 0, y: 0, width: 0, height: 0 };
   #missingImages = new Set<string>();
   #missingFonts = new Set<string>();
+  #missingSnapshots = new Set<string>();
   #multiplyAreas: Area[] = [];
 
   plan(items: readonly DrawItem[], width: number, height: number, sources: UiDrawSources): UiDrawPlan {
@@ -109,6 +115,7 @@ export class UiDrawPlanner {
     this.#clips = [];
     this.#missingImages = new Set();
     this.#missingFonts = new Set();
+    this.#missingSnapshots = new Set();
     this.#multiplyAreas = [];
     for (const item of items) this.#item(item, sources);
     return {
@@ -117,6 +124,7 @@ export class UiDrawPlanner {
       batches: this.#batches,
       missingImages: this.#missingImages,
       missingFonts: this.#missingFonts,
+      missingSnapshots: this.#missingSnapshots,
       multiplyAreas: this.#multiplyAreas,
     };
   }
@@ -152,7 +160,44 @@ export class UiDrawPlanner {
       case 'clipPop':
         this.#clips.pop();
         return;
+      case 'capture':
+        this.#batches.push({
+          first: this.#count,
+          count: 0,
+          indexPage: null,
+          rgb: null,
+          multiply: false,
+          clip: this.#currentClip(),
+          capture: item.target,
+        });
+        return;
+      case 'snapshot':
+        this.#snapshot(item, sources);
+        return;
     }
+  }
+
+  #currentClip(): Area | null {
+    return this.#clips.length > 0 ? this.#clip : null;
+  }
+
+  #snapshot(item: SnapshotItem, sources: UiDrawSources): void {
+    const texture = sources.snapshot?.(item.source);
+    if (!texture) {
+      this.#missingSnapshots.add(item.source);
+      return;
+    }
+    const src = item.sourceArea;
+    this.#push({
+      dst: item,
+      src: [src.x, src.y, src.width, src.height],
+      mode: UiMode.SNAPSHOT,
+      rgb: texture,
+      colors: [
+        [item.x, item.y, item.width, item.height],
+        [src.width, src.height, texture.height, 0],
+      ],
+    });
   }
 
   #fill(area: Area, color: RgbColor): void {
@@ -226,7 +271,7 @@ export class UiDrawPlanner {
   }
 
   #batchFor(instance: Instance): UiBatch {
-    const clip = this.#clips.length > 0 ? this.#clip : null;
+    const clip = this.#currentClip();
     const multiply = instance.multiply ?? false;
     const last = this.#batches.at(-1);
     const fits =
@@ -235,7 +280,7 @@ export class UiDrawPlanner {
       sameArea(last.clip, clip) &&
       (instance.indexPage === undefined || last.indexPage === null || last.indexPage === instance.indexPage) &&
       (instance.rgb === undefined || last.rgb === null || last.rgb === instance.rgb);
-    const batch = fits ? last : { first: this.#count, count: 0, indexPage: null, rgb: null, multiply, clip };
+    const batch = fits ? last : { first: this.#count, count: 0, indexPage: null, rgb: null, multiply, clip, capture: null };
     if (!fits) this.#batches.push(batch);
     if (instance.indexPage !== undefined) batch.indexPage = instance.indexPage;
     if (instance.rgb !== undefined) batch.rgb = instance.rgb;
@@ -258,7 +303,20 @@ export class UiDrawPlanner {
     const [c0 = NONE, c1 = NONE, c2 = NONE] = instance.colors ?? [];
     const { dst, src } = instance;
     this.#data.set(
-      [dst.x, dst.y, dst.width, dst.height, ...src, instance.mode, instance.row ?? 0, instance.factor ?? 0, 0, ...c0, ...c1, ...c2],
+      [
+        dst.x,
+        dst.y,
+        dst.width,
+        dst.height,
+        ...src,
+        instance.mode,
+        instance.row ?? 0,
+        instance.factor ?? 0,
+        instance.extra ?? 0,
+        ...c0,
+        ...c1,
+        ...c2,
+      ],
       this.#count * FLOATS_PER_INSTANCE,
     );
     this.#count++;

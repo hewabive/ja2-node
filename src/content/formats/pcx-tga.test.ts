@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FormatError } from '../binary/errors.ts';
 import { BinaryWriter } from '../binary/writer.ts';
-import { decodePcx } from './pcx.ts';
+import { decodePcx, encodePcx } from './pcx.ts';
 import { rgbToRgb565 } from './rgb565.ts';
 import { decodeTga } from './tga.ts';
 
@@ -64,5 +64,16 @@ describe('TGA', () => {
 
   it('rejects compressed images', () => {
     expect(() => decodeTga(Uint8Array.of(0, 0, 10, ...new Array(15).fill(0)))).toThrow(FormatError);
+  });
+});
+
+describe('encodePcx', () => {
+  it('round-trips through decodePcx, runs and values at or above 0xC0 included', () => {
+    const palette = new Uint8Array(768).map((_, i) => i % 251);
+    const pixels = Uint8Array.from({ length: 13 * 7 }, (_, i) => (i < 70 ? 5 : (i * 37) % 256));
+    const decoded = decodePcx(encodePcx(13, 7, pixels, palette));
+    expect([decoded.width, decoded.height]).toEqual([13, 7]);
+    expect([...decoded.pixels]).toEqual([...pixels]);
+    expect([...decoded.palette]).toEqual([...palette]);
   });
 });

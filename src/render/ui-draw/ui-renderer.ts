@@ -110,6 +110,11 @@ export class UiRenderer {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.#buffer);
     gl.bufferData(gl.ARRAY_BUFFER, plan.data, gl.STREAM_DRAW);
     for (const batch of plan.batches) {
+      if (batch.capture) {
+        gl.activeTexture(gl.TEXTURE0 + RGB_UNIT);
+        this.textures.captureSnapshot(batch.capture, width, height);
+      }
+      if (batch.count === 0) continue;
       this.#bindBatch(batch, height);
       this.#pointAttributes(batch.first);
       gl.drawArraysInstanced(gl.TRIANGLES, 0, QUAD_VERTICES, batch.count);
@@ -124,8 +129,9 @@ export class UiRenderer {
       image: (key) => textures.image(key),
       font: (id) => textures.font(id),
       paletteRow: (image, shade) => textures.paletteRow(image, shade),
+      snapshot: (id) => textures.ensureSnapshot(id, width, height),
     });
-    if (plan.instances > 0) this.#execute(plan, width, height);
+    if (plan.instances > 0 || plan.batches.some((b) => b.capture)) this.#execute(plan, width, height);
     this.#stats = {
       instances: plan.instances,
       batches: plan.batches.length,

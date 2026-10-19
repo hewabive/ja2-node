@@ -42,7 +42,7 @@ const RULES: Record<Layer, Rule> = {
   audio: { layers: ['content', 'protocol', 'audio'], packages: [] },
   app: { layers: ['core', 'content', 'sim', 'protocol', 'ui', 'render', 'audio', 'app'], packages: [] },
   devtools: { layers: ['core', 'content', 'protocol', 'ui', 'render', 'audio', 'app', 'devtools'], packages: [] },
-  stubs: { layers: ['core', 'content', 'node', 'stubs'], packages: ['node:*'] },
+  stubs: { layers: ['core', 'content', 'node', 'ui', 'stubs'], packages: ['node:*'] },
   tools: {
     layers: ['core', 'content', 'sim', 'protocol', 'node', 'server', 'stubs', 'tools'],
     packages: ['node:*', '@modelcontextprotocol/sdk/*'],

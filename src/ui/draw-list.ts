@@ -4,7 +4,7 @@
 // @src src/sgp/Line.cc LineDraw, RectangleDraw; src/sgp/VObject_Blitters.cc Blt16BPPBufferHatchRect,
 // @src Blt16BPPBufferLooseHatchRectWithColor, Blt8BPPDataTo16BPPBufferOutline, BltOutlineShadow; src/sgp/HImage.cc
 // @src Create16BPPPaletteShaded; src/sgp/VObject.cc BltVideoObject; src/sgp/Font.cc SetFontForeground, SetFontShadow,
-// @src SetFontBackground; src/sgp/VSurface.cc SetClippingRect. See docs/28 §3.11.
+// @src SetFontBackground; src/sgp/VSurface.cc SetClippingRect, BltStretchVideoSurface. See docs/28 §3.11.
 
 import type { PaletteScale } from '../content/picture/shaded-palette.ts';
 
@@ -98,7 +98,28 @@ export interface ClipPopItem {
   readonly kind: 'clipPop';
 }
 
-export type DrawItem = ImageItem | GlyphRunItem | FillItem | ShadowItem | HatchItem | LineItem | ClipPushItem | ClipPopItem;
+export interface CaptureItem {
+  readonly kind: 'capture';
+  readonly target: string;
+}
+
+export interface SnapshotItem extends Area {
+  readonly kind: 'snapshot';
+  readonly source: string;
+  readonly sourceArea: Area;
+}
+
+export type DrawItem =
+  | ImageItem
+  | GlyphRunItem
+  | FillItem
+  | ShadowItem
+  | HatchItem
+  | LineItem
+  | ClipPushItem
+  | ClipPopItem
+  | CaptureItem
+  | SnapshotItem;
 
 export interface ImageOptions {
   readonly shade?: PaletteShade | null;
@@ -155,6 +176,14 @@ export class DrawList {
 
   looseHatch(x1: number, y1: number, x2: number, y2: number, color: RgbColor): void {
     this.items.push({ kind: 'hatch', ...inclusiveArea(x1, y1, x2, y2), pattern: 'loose', color });
+  }
+
+  capture(target: string): void {
+    this.items.push({ kind: 'capture', target });
+  }
+
+  snapshot(source: string, sourceArea: Area, destination: Area): void {
+    this.items.push({ kind: 'snapshot', source, sourceArea, ...destination });
   }
 
   pushClip(left: number, top: number, right: number, bottom: number): void {
