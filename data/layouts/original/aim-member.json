@@ -1,0 +1,1700 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/AIMMembers.cc EnterAIMMembers (the face region over the portrait, the shut-up region over the web area at MSYS_PRIORITY_HIGH - 1, the Previous, Contact and Next buttons on bottombuttons2.sti in AIM_M_FONT_PREV_NEXT_CONTACT), RenderAIMMembers, UpdateMercInfo, DisplayMercsInventory, DisplayMercsFace (the overlay at FACE_X + 1, FACE_Y + 107 in FONT14ARIAL colour 145), DisplayMercStats, DisplayAimMemberClickOnFaceHelpText",
+    "src/game/Laptop/AIMMembers.cc DisplayVideoConferencingDisplay, DisplayMercsVideoFace, DisplayMercChargeAmount (the amount at AIM_CONTRACT_CHARGE_AMOUNNT_X + 1, Y + 3), InitDeleteVideoConferencePopUp and MakeButtonVideo (videoconfbuttons.sti 0/1 and 2/3 in FONT12ARIAL, the contract and kit buttons left-justified AIM_MEMBER_BUY_EQUIPMENT_GAP apart, the others AIM_MEMBER_AUTHORIZE_PAY_GAP apart; x_button.sti at AIM_MEMBER_VIDEO_CONF_XCLOSE_X), DrawButtonSelection, CreateAimPopUpBox (videoconfpopup.sti, the OK button at +20, +62 with priority MSYS_PRIORITY_HIGH + 5), DisplayAimPopUpBox, the subtitle box (BASIC_MERC_POPUP, 300 wide, at TEXT_POPUP_WINDOW_Y)"
+  ],
+  "screen": "aimMember",
+  "frame": "std640",
+  "constants": ["Laptop", "AIM", "AIMMembers", "AIMFacialIndex", "MercTextBox"],
+  "assets": {
+    "stats": {
+      "sti": "laptop/stats.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["PRICE_X - STATS_X - 6", 110],
+        "hollow": true
+      }
+    },
+    "price": {
+      "sti": "laptop/price.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["PRICE_WIDTH", 110],
+        "hollow": true
+      }
+    },
+    "portraitFrame": {
+      "sti": "laptop/portrait.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["PORTRAIT_WIDTH", "PORTRAIT_HEIGHT"]
+      }
+    },
+    "weaponBox": {
+      "sti": "laptop/weaponbox.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["WEAPONBOX_SIZE_X", "WEAPONBOX_SIZE_Y"]
+      }
+    },
+    "bottomButtons": {
+      "sti": "laptop/bottombuttons2.sti",
+      "stub": {
+        "frames": 2,
+        "size": ["BOTTOM_BUTTON_START_WIDTH - 2", "BOTTOM_BUTTON_START_HEIGHT"],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "terminal": {
+      "sti": "laptop/videoconfterminal.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["AIM_MEMBER_VIDEO_TITLE_BAR_WIDTH", 214]
+      }
+    },
+    "titleBar": {
+      "sti": "laptop/videotitlebar.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["AIM_MEMBER_VIDEO_TITLE_BAR_WIDTH", "AIM_MEMBER_VIDEO_TITLE_BAR_HEIGHT"]
+      }
+    },
+    "snow": {
+      "sti": "laptop/bwsnow.sti",
+      "stub": {
+        "frames": "VC_NUM_LINES_SNOW",
+        "size": ["AIM_MEMBER_VIDEO_FACE_WIDTH", "AIM_MEMBER_VIDEO_FACE_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "contractCharge": {
+      "sti": "laptop/videocontractcharge.sti",
+      "stub": {
+        "frames": 1,
+        "size": [220, 16]
+      }
+    },
+    "videoButtons": {
+      "sti": "laptop/videoconfbuttons.sti",
+      "stub": {
+        "sizes": [[115, 20], [115, 20], [100, 22], [100, 22]],
+        "states": ["normal", "pressed", "normal", "pressed"]
+      }
+    },
+    "popupBox": {
+      "sti": "laptop/videoconfpopup.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["AIM_POPUP_BOX_WIDTH", 90]
+      }
+    },
+    "close": {
+      "sti": "laptop/x_button.sti",
+      "stub": {
+        "frames": 2,
+        "size": [14, 14],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "tactPopup": {
+      "sti": "interface/tactpopup.sti",
+      "stub": {
+        "sizes": [
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"]
+        ]
+      }
+    },
+    "basicBackground": {
+      "pcx": "interface/tactpopupbackground.pcx",
+      "stub": {
+        "size": ["MERC_BACKGROUND_WIDTH", "MERC_BACKGROUND_HEIGHT"]
+      }
+    }
+  },
+  "styles": {
+    "textBoxes": {
+      "basic": {
+        "background": "basicBackground",
+        "border": "tactPopup",
+        "backgroundIndex": "BASIC_MERC_POPUP_BACKGROUND"
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "asset": "stats",
+      "frame": 0,
+      "x": "STATS_X",
+      "y": "STATS_Y"
+    },
+    {
+      "type": "image",
+      "asset": "price",
+      "frame": 0,
+      "x": "PRICE_X",
+      "y": "PRICE_Y"
+    },
+    {
+      "type": "repeat",
+      "count": "WEAPONBOX_NUMBER",
+      "x": "WEAPONBOX_X",
+      "y": "WEAPONBOX_Y",
+      "dx": "WEAPONBOX_SIZE_X",
+      "template": [
+        {
+          "type": "image",
+          "asset": "weaponBox",
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "x": "FEE_X",
+      "y": "FEE_Y",
+      "font": "AIM_M_FONT_PREV_NEXT_CONTACT",
+      "color": "AIM_M_FEE_CONTRACT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["CharacterInfo", "AIM_MEMBER_FEE"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "AIM_CONTRACT_X",
+      "y": "AIM_CONTRACT_Y",
+      "font": "AIM_M_FONT_PREV_NEXT_CONTACT",
+      "color": "AIM_M_FEE_CONTRACT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["CharacterInfo", "AIM_MEMBER_CONTRACT"]
+      },
+      "width": "AIM_CONTRACT_WIDTH",
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "ONEDAY_X",
+      "y": "EXPLEVEL_Y",
+      "font": "AIM_M_FONT_STATIC_TEXT",
+      "color": "AIM_M_COLOR_STATIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["CharacterInfo", "AIM_MEMBER_1_DAY"]
+      },
+      "width": "AIM_CONTRACT_WIDTH",
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "ONEWEEK_X",
+      "y": "MARKSMAN_Y",
+      "font": "AIM_M_FONT_STATIC_TEXT",
+      "color": "AIM_M_COLOR_STATIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["CharacterInfo", "AIM_MEMBER_1_WEEK"]
+      },
+      "width": "AIM_CONTRACT_WIDTH",
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "TWOWEEK_X",
+      "y": "MECHANAICAL_Y",
+      "font": "AIM_M_FONT_STATIC_TEXT",
+      "color": "AIM_M_COLOR_STATIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["CharacterInfo", "AIM_MEMBER_2_WEEKS"]
+      },
+      "width": "AIM_CONTRACT_WIDTH",
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "AIM_MEMBER_ACTIVE_TEXT_X",
+      "y": "AIM_MEMBER_ACTIVE_TEXT_Y",
+      "font": "AIM_MAINTITLE_FONT",
+      "color": "AIM_M_ACTIVE_MEMBER_TITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["CharacterInfo", "AIM_MEMBER_ACTIVE_MEMBERS"]
+      },
+      "width": "AIM_MEMBER_ACTIVE_TEXT_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "AIM_MEMBER_OPTIONAL_GEAR_X",
+      "y": "AIM_MEMBER_OPTIONAL_GEAR_Y",
+      "font": "AIM_M_FONT_STATIC_TEXT",
+      "color": "AIM_M_COLOR_STATIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["CharacterInfo", "AIM_MEMBER_OPTIONAL_GEAR"]
+      }
+    },
+    {
+      "type": "repeat",
+      "count": 1,
+      "x": {
+        "bind": "gearShift"
+      },
+      "y": 0,
+      "template": [
+        {
+          "type": "text",
+          "x": "AIM_MEMBER_OPTIONAL_GEAR_X",
+          "y": "AIM_MEMBER_OPTIONAL_GEAR_Y",
+          "font": "AIM_M_FONT_STATIC_TEXT",
+          "color": "AIM_M_COLOR_DYNAMIC_TEXT",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "gearCost"
+          },
+          "id": "gearCost"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "x": "FEE_X",
+      "y": "HEALTH_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "AIM_M_COLOR_DYNAMIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "salaryDay"
+      },
+      "id": "salaryDay",
+      "width": "FEE_WIDTH",
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "FEE_X",
+      "y": "AGILITY_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "AIM_M_COLOR_DYNAMIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "salaryWeek"
+      },
+      "id": "salaryWeek",
+      "width": "FEE_WIDTH",
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "FEE_X",
+      "y": "DEXTERITY_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "AIM_M_COLOR_DYNAMIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "salaryTwoWeeks"
+      },
+      "id": "salaryTwoWeeks",
+      "width": "FEE_WIDTH",
+      "align": "right"
+    },
+    {
+      "type": "repeat",
+      "count": {
+        "bind": "medicalNormal"
+      },
+      "x": 0,
+      "y": 0,
+      "template": [
+        {
+          "type": "text",
+          "x": "AIM_MEDICAL_DEPOSIT_X",
+          "y": "AIM_MEDICAL_DEPOSIT_Y",
+          "font": "AIM_FONT12ARIAL",
+          "color": "AIM_M_COLOR_DYNAMIC_TEXT",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "medicalText"
+          },
+          "width": "AIM_MEDICAL_DEPOSIT_WIDTH",
+          "wrap": {
+            "gap": 2
+          },
+          "align": "center",
+          "id": "medical"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": {
+        "bind": "medicalTall"
+      },
+      "x": 0,
+      "y": {
+        "bind": "medicalLift"
+      },
+      "template": [
+        {
+          "type": "text",
+          "x": "AIM_MEDICAL_DEPOSIT_X",
+          "y": "AIM_MEDICAL_DEPOSIT_Y",
+          "font": "AIM_FONT12ARIAL",
+          "color": "AIM_M_COLOR_DYNAMIC_TEXT",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "medicalText"
+          },
+          "width": "AIM_MEDICAL_DEPOSIT_WIDTH",
+          "wrap": {
+            "gap": 2
+          },
+          "align": "center",
+          "id": "medicalTall"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "x": "AIM_MERC_INFO_X",
+      "y": "AIM_MERC_INFO_Y",
+      "font": "AIM_M_FONT_DYNAMIC_TEXT",
+      "color": "AIM_FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "bio"
+      },
+      "id": "bio",
+      "width": "AIM_MERC_INFO_WIDTH",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "AIM_MERC_ADD_X",
+      "y": "AIM_MERC_ADD_Y",
+      "font": "AIM_M_FONT_STATIC_TEXT",
+      "color": "AIM_M_COLOR_STATIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["CharacterInfo", "AIM_MEMBER_ADDTNL_INFO"]
+      },
+      "visible": "hasAdditional"
+    },
+    {
+      "type": "text",
+      "x": "AIM_MERC_ADD_INFO_X",
+      "y": "AIM_MERC_ADD_INFO_Y",
+      "font": "AIM_M_FONT_DYNAMIC_TEXT",
+      "color": "AIM_FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "additionalInfo"
+      },
+      "width": "AIM_MERC_INFO_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "visible": "hasAdditional"
+    },
+    {
+      "type": "repeat",
+      "count": "WEAPONBOX_NUMBER",
+      "x": "WEAPONBOX_X + 3",
+      "y": 0,
+      "dx": "WEAPONBOX_SIZE_X",
+      "template": [
+        {
+          "type": "itemPicture",
+          "id": "kitItem$i",
+          "graphic": "kit[$i].graphic",
+          "x": 0,
+          "y": "WEAPONBOX_Y",
+          "width": "WEAPONBOX_SIZE_X - 3",
+          "height": "WEAPONBOX_SIZE_Y",
+          "shadow": true,
+          "visible": "kit[$i].present"
+        },
+        {
+          "type": "text",
+          "x": -1,
+          "y": "WEAPONBOX_Y + 20",
+          "font": "AIM_M_FONT_DYNAMIC_TEXT",
+          "color": "AIM_M_WEAPON_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "kit[$i].count"
+          },
+          "width": "AIM_MEMBER_WEAPON_NAME_WIDTH",
+          "align": "right",
+          "visible": "kit[$i].present"
+        },
+        {
+          "type": "text",
+          "x": -1,
+          "y": "AIM_MEMBER_WEAPON_NAME_Y",
+          "font": "AIM_M_WEAPON_TEXT_FONT",
+          "color": "AIM_M_WEAPON_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "kit[$i].name"
+          },
+          "id": "kitName$i",
+          "width": "AIM_MEMBER_WEAPON_NAME_WIDTH",
+          "height": {
+            "bind": "nameBox"
+          },
+          "valign": "center",
+          "wrap": {
+            "gap": 2
+          },
+          "align": "center",
+          "visible": "kit[$i].oneLine"
+        },
+        {
+          "type": "text",
+          "x": -1,
+          "y": "AIM_MEMBER_WEAPON_NAME_Y",
+          "font": "AIM_M_WEAPON_TEXT_FONT",
+          "color": "AIM_M_WEAPON_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "kit[$i].name"
+          },
+          "width": "AIM_MEMBER_WEAPON_NAME_WIDTH",
+          "wrap": {
+            "gap": 2
+          },
+          "align": "center",
+          "visible": "kit[$i].twoLines"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "asset": "portraitFrame",
+      "frame": 0,
+      "x": "PORTRAIT_X",
+      "y": "PORTRAIT_Y"
+    },
+    {
+      "type": "portrait",
+      "id": "memberFace",
+      "face": {
+        "bind": "face"
+      },
+      "size": "big",
+      "state": "faceState",
+      "x": "FACE_X",
+      "y": "FACE_Y",
+      "shadeWidth": "FACE_WIDTH",
+      "shadeHeight": "FACE_HEIGHT"
+    },
+    {
+      "type": "text",
+      "x": "FACE_X + 1",
+      "y": "FACE_Y + 107",
+      "font": "FONT14ARIAL",
+      "color": 145,
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "faceOverlay"
+      },
+      "id": "faceOverlay",
+      "width": "FACE_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "NAME_X",
+      "y": "NAME_Y",
+      "font": "FONT14ARIAL",
+      "color": "AIM_M_COLOR_DYNAMIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "name"
+      },
+      "id": "memberName"
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL",
+      "y": "HEALTH_Y",
+      "font": "AIM_M_FONT_STATIC_TEXT",
+      "color": "AIM_M_COLOR_STATIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_stat_health", 0]
+      }
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL",
+      "y": "AGILITY_Y",
+      "font": "AIM_M_FONT_STATIC_TEXT",
+      "color": "AIM_M_COLOR_STATIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_stat_agility", 0]
+      }
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL",
+      "y": "DEXTERITY_Y",
+      "font": "AIM_M_FONT_STATIC_TEXT",
+      "color": "AIM_M_COLOR_STATIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_stat_dexterity", 0]
+      }
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL",
+      "y": "STRENGTH_Y",
+      "font": "AIM_M_FONT_STATIC_TEXT",
+      "color": "AIM_M_COLOR_STATIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_stat_strength", 0]
+      }
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL",
+      "y": "LEADERSHIP_Y",
+      "font": "AIM_M_FONT_STATIC_TEXT",
+      "color": "AIM_M_COLOR_STATIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_stat_leadership", 0]
+      }
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL",
+      "y": "WISDOM_Y",
+      "font": "AIM_M_FONT_STATIC_TEXT",
+      "color": "AIM_M_COLOR_STATIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_stat_wisdom", 0]
+      }
+    },
+    {
+      "type": "text",
+      "x": "STATS_SECOND_COL",
+      "y": "EXPLEVEL_Y",
+      "font": "AIM_M_FONT_STATIC_TEXT",
+      "color": "AIM_M_COLOR_STATIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_stat_exp_level", 0]
+      }
+    },
+    {
+      "type": "text",
+      "x": "STATS_SECOND_COL",
+      "y": "MARKSMAN_Y",
+      "font": "AIM_M_FONT_STATIC_TEXT",
+      "color": "AIM_M_COLOR_STATIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_stat_marksmanship", 0]
+      }
+    },
+    {
+      "type": "text",
+      "x": "STATS_SECOND_COL",
+      "y": "MECHANAICAL_Y",
+      "font": "AIM_M_FONT_STATIC_TEXT",
+      "color": "AIM_M_COLOR_STATIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_stat_mechanical", 0]
+      }
+    },
+    {
+      "type": "text",
+      "x": "STATS_SECOND_COL",
+      "y": "EXPLOSIVE_Y",
+      "font": "AIM_M_FONT_STATIC_TEXT",
+      "color": "AIM_M_COLOR_STATIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_stat_explosive", 0]
+      }
+    },
+    {
+      "type": "text",
+      "x": "STATS_SECOND_COL",
+      "y": "MEDICAL_Y",
+      "font": "AIM_M_FONT_STATIC_TEXT",
+      "color": "AIM_M_COLOR_STATIC_TEXT",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["str_stat_medical", 0]
+      }
+    },
+    {
+      "type": "custom",
+      "id": "statDots",
+      "renderer": "statDots",
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0,
+      "params": {
+        "rows": [
+          ["STATS_FIRST_COL", "HEALTH_Y"],
+          ["STATS_FIRST_COL", "AGILITY_Y"],
+          ["STATS_FIRST_COL", "DEXTERITY_Y"],
+          ["STATS_FIRST_COL", "STRENGTH_Y"],
+          ["STATS_FIRST_COL", "LEADERSHIP_Y"],
+          ["STATS_FIRST_COL", "WISDOM_Y"],
+          ["STATS_SECOND_COL", "EXPLEVEL_Y"],
+          ["STATS_SECOND_COL", "MARKSMAN_Y"],
+          ["STATS_SECOND_COL", "MECHANAICAL_Y"],
+          ["STATS_SECOND_COL", "EXPLOSIVE_Y"],
+          ["STATS_SECOND_COL", "MEDICAL_Y"]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL + STAT_VALUE_DX",
+      "y": "HEALTH_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "HIGH_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[0].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[0].high",
+      "id": "stat0"
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL + STAT_VALUE_DX",
+      "y": "HEALTH_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "MED_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[0].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[0].low"
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL + STAT_VALUE_DX",
+      "y": "AGILITY_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "HIGH_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[1].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[1].high",
+      "id": "stat1"
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL + STAT_VALUE_DX",
+      "y": "AGILITY_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "MED_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[1].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[1].low"
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL + STAT_VALUE_DX",
+      "y": "DEXTERITY_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "HIGH_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[2].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[2].high",
+      "id": "stat2"
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL + STAT_VALUE_DX",
+      "y": "DEXTERITY_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "MED_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[2].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[2].low"
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL + STAT_VALUE_DX",
+      "y": "STRENGTH_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "HIGH_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[3].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[3].high",
+      "id": "stat3"
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL + STAT_VALUE_DX",
+      "y": "STRENGTH_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "MED_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[3].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[3].low"
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL + STAT_VALUE_DX",
+      "y": "LEADERSHIP_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "HIGH_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[4].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[4].high",
+      "id": "stat4"
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL + STAT_VALUE_DX",
+      "y": "LEADERSHIP_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "MED_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[4].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[4].low"
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL + STAT_VALUE_DX",
+      "y": "WISDOM_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "HIGH_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[5].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[5].high",
+      "id": "stat5"
+    },
+    {
+      "type": "text",
+      "x": "STATS_FIRST_COL + STAT_VALUE_DX",
+      "y": "WISDOM_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "MED_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[5].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[5].low"
+    },
+    {
+      "type": "text",
+      "x": "STATS_SECOND_COL + STAT_VALUE_DX",
+      "y": "EXPLEVEL_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "HIGH_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[6].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[6].high",
+      "id": "stat6"
+    },
+    {
+      "type": "text",
+      "x": "STATS_SECOND_COL + STAT_VALUE_DX",
+      "y": "EXPLEVEL_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "MED_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[6].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[6].low"
+    },
+    {
+      "type": "text",
+      "x": "STATS_SECOND_COL + STAT_VALUE_DX",
+      "y": "MARKSMAN_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "HIGH_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[7].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[7].high",
+      "id": "stat7"
+    },
+    {
+      "type": "text",
+      "x": "STATS_SECOND_COL + STAT_VALUE_DX",
+      "y": "MARKSMAN_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "MED_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[7].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[7].low"
+    },
+    {
+      "type": "text",
+      "x": "STATS_SECOND_COL + STAT_VALUE_DX",
+      "y": "MECHANAICAL_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "HIGH_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[8].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[8].high",
+      "id": "stat8"
+    },
+    {
+      "type": "text",
+      "x": "STATS_SECOND_COL + STAT_VALUE_DX",
+      "y": "MECHANAICAL_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "MED_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[8].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[8].low"
+    },
+    {
+      "type": "text",
+      "x": "STATS_SECOND_COL + STAT_VALUE_DX",
+      "y": "EXPLOSIVE_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "HIGH_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[9].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[9].high",
+      "id": "stat9"
+    },
+    {
+      "type": "text",
+      "x": "STATS_SECOND_COL + STAT_VALUE_DX",
+      "y": "EXPLOSIVE_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "MED_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[9].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[9].low"
+    },
+    {
+      "type": "text",
+      "x": "STATS_SECOND_COL + STAT_VALUE_DX",
+      "y": "MEDICAL_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "HIGH_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[10].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[10].high",
+      "id": "stat10"
+    },
+    {
+      "type": "text",
+      "x": "STATS_SECOND_COL + STAT_VALUE_DX",
+      "y": "MEDICAL_Y",
+      "font": "AIM_M_NUMBER_FONT",
+      "color": "MED_STAT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "stats[10].value"
+      },
+      "width": 3,
+      "align": "right",
+      "visible": "stats[10].low"
+    },
+    {
+      "type": "button",
+      "id": "aimPrevious",
+      "x": "PREVIOUS_X",
+      "y": "BTN_BOX_Y",
+      "asset": "bottomButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "prev",
+      "text": {
+        "source": {
+          "key": ["CharacterInfo", "AIM_MEMBER_PREVIOUS"]
+        },
+        "font": "AIM_M_FONT_PREV_NEXT_CONTACT",
+        "color": "AIM_M_FONT_PREV_NEXT_CONTACT_COLOR_UP",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "AIM_M_FONT_PREV_NEXT_CONTACT_COLOR_DOWN",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    },
+    {
+      "type": "button",
+      "id": "aimContact",
+      "x": "CONTACT_X",
+      "y": "BTN_BOX_Y",
+      "asset": "bottomButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "contact",
+      "text": {
+        "source": {
+          "key": ["CharacterInfo", "AIM_MEMBER_CONTACT"]
+        },
+        "font": "AIM_M_FONT_PREV_NEXT_CONTACT",
+        "color": "AIM_M_FONT_PREV_NEXT_CONTACT_COLOR_UP",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "AIM_M_FONT_PREV_NEXT_CONTACT_COLOR_DOWN",
+        "downShadow": "DEFAULT_SHADOW"
+      },
+      "enabled": "contactEnabled"
+    },
+    {
+      "type": "button",
+      "id": "aimNext",
+      "x": "NEXT_X",
+      "y": "BTN_BOX_Y",
+      "asset": "bottomButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "next",
+      "text": {
+        "source": {
+          "key": ["CharacterInfo", "AIM_MEMBER_NEXT"]
+        },
+        "font": "AIM_M_FONT_PREV_NEXT_CONTACT",
+        "color": "AIM_M_FONT_PREV_NEXT_CONTACT_COLOR_UP",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "AIM_M_FONT_PREV_NEXT_CONTACT_COLOR_DOWN",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    },
+    {
+      "type": "region",
+      "id": "memberFaceRegion",
+      "x": "PORTRAIT_X",
+      "y": "PORTRAIT_Y",
+      "width": "PORTRAIT_WIDTH",
+      "height": "PORTRAIT_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "enabled": "!terminal",
+      "primary": "faceClick",
+      "secondary": "faceRight",
+      "hover": "faceHover"
+    },
+    {
+      "type": "text",
+      "x": "AIM_FI_LEFT_CLICK_TEXT_X",
+      "y": "AIM_FI_LEFT_CLICK_TEXT_Y",
+      "font": "AIM_FI_HELP_TITLE_FONT",
+      "color": "AIM_FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimMemberText", 0]
+      },
+      "width": "AIM_FI_CLICK_TEXT_WIDTH",
+      "align": "center",
+      "visible": "faceHelp"
+    },
+    {
+      "type": "text",
+      "x": "AIM_FI_LEFT_CLICK_TEXT_X",
+      "y": "AIM_FI_LEFT_CLICK_TEXT_Y + AIM_FI_CLICK_DESC_TEXT_Y_OFFSET",
+      "font": "AIM_FI_HELP_FONT",
+      "color": "AIM_FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimMemberText", 1]
+      },
+      "width": "AIM_FI_CLICK_TEXT_WIDTH",
+      "align": "center",
+      "visible": "faceHelp"
+    },
+    {
+      "type": "text",
+      "x": "AIM_FI_RIGHT_CLICK_TEXT_X",
+      "y": "AIM_FI_LEFT_CLICK_TEXT_Y",
+      "font": "AIM_FI_HELP_TITLE_FONT",
+      "color": "AIM_FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimMemberText", 2]
+      },
+      "width": "AIM_FI_CLICK_TEXT_WIDTH",
+      "align": "center",
+      "visible": "faceHelp"
+    },
+    {
+      "type": "text",
+      "x": "AIM_FI_RIGHT_CLICK_TEXT_X",
+      "y": "AIM_FI_LEFT_CLICK_TEXT_Y + AIM_FI_CLICK_DESC_TEXT_Y_OFFSET",
+      "font": "AIM_FI_HELP_FONT",
+      "color": "AIM_FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimMemberText", 3]
+      },
+      "width": "AIM_FI_CLICK_TEXT_WIDTH",
+      "align": "center",
+      "visible": "faceHelp"
+    },
+    {
+      "type": "custom",
+      "id": "terminalShadow",
+      "renderer": "terminalShadow",
+      "x": "AIM_MEMBER_VIDEO_CONF_TERMINAL_X",
+      "y": "AIM_MEMBER_VIDEO_CONF_TERMINAL_Y",
+      "width": 0,
+      "height": 0,
+      "params": {
+        "asset": "laptop/videoconfterminal.sti"
+      }
+    },
+    {
+      "type": "custom",
+      "id": "videoFaceSource",
+      "renderer": "videoFaceSource",
+      "x": "AIM_MEMBER_VIDEO_FACE_X",
+      "y": "AIM_MEMBER_VIDEO_FACE_Y",
+      "width": 48,
+      "height": 43
+    },
+    {
+      "type": "image",
+      "id": "terminal",
+      "asset": "terminal",
+      "frame": 0,
+      "x": "AIM_MEMBER_VIDEO_CONF_TERMINAL_X",
+      "y": "AIM_MEMBER_VIDEO_CONF_TERMINAL_Y",
+      "visible": "terminal"
+    },
+    {
+      "type": "text",
+      "x": "AIM_MEMBER_VIDEO_NAME_X",
+      "y": "AIM_MEMBER_VIDEO_NAME_Y",
+      "font": "FONT12ARIAL",
+      "color": "AIM_M_VIDEO_TITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["VideoConfercingText", "AIM_MEMBER_CONNECTING"]
+      },
+      "id": "connecting",
+      "visible": "connecting"
+    },
+    {
+      "type": "text",
+      "x": "AIM_MEMBER_VIDEO_NAME_X",
+      "y": "AIM_MEMBER_VIDEO_NAME_Y",
+      "font": "FONT12ARIAL",
+      "color": "AIM_M_VIDEO_TITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "confTitle"
+      },
+      "id": "confTitle",
+      "visible": "conferencing"
+    },
+    {
+      "type": "custom",
+      "id": "videoFace",
+      "renderer": "videoFace",
+      "x": "AIM_MEMBER_VIDEO_FACE_X",
+      "y": "AIM_MEMBER_VIDEO_FACE_Y",
+      "width": "AIM_MEMBER_VIDEO_FACE_WIDTH",
+      "height": "AIM_MEMBER_VIDEO_FACE_HEIGHT"
+    },
+    {
+      "type": "text",
+      "x": "AIM_CONTRACT_CHARGE_X",
+      "y": "AIM_CONTRACT_CHARGE_Y",
+      "font": "FONT12ARIAL",
+      "color": "AIM_M_VIDEO_NAME_COLOR",
+      "shadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+      "text": {
+        "key": ["VideoConfercingText", "AIM_MEMBER_CONTRACT_CHARGE"]
+      },
+      "visible": "hireMode"
+    },
+    {
+      "type": "image",
+      "asset": "contractCharge",
+      "frame": 0,
+      "x": "AIM_MEMBER_VIDEO_CONF_CONTRACT_IMAGE_X",
+      "y": "AIM_MEMBER_VIDEO_CONF_CONTRACT_IMAGE_Y",
+      "visible": "hireMode"
+    },
+    {
+      "type": "text",
+      "x": "AIM_CONTRACT_CHARGE_AMOUNNT_X + 1",
+      "y": "AIM_CONTRACT_CHARGE_AMOUNNT_Y + 3",
+      "font": "AIM_M_VIDEO_CONTRACT_AMOUNT_FONT",
+      "color": "AIM_M_VIDEO_CONTRACT_AMOUNT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "chargeText"
+      },
+      "id": "chargeText",
+      "visible": "hireMode"
+    },
+    {
+      "type": "button",
+      "id": "contract0",
+      "x": "AIM_MEMBER_BUY_CONTRACT_LENGTH_X",
+      "y": "AIM_MEMBER_BUY_CONTRACT_LENGTH_Y + AIM_MEMBER_BUY_EQUIPMENT_GAP * 0",
+      "asset": "videoButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "contract(0)",
+      "visible": "hireMode",
+      "text": {
+        "source": {
+          "key": ["VideoConfercingText", "AIM_MEMBER_ONE_DAY"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "AIM_M_VIDEO_NAME_COLOR",
+        "shadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "downColor": "AIM_M_VIDEO_NAME_COLOR",
+        "downShadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "align": "left"
+      },
+      "enabled": "hireButtonsEnabled",
+      "disabledStyle": "none"
+    },
+    {
+      "type": "custom",
+      "renderer": "selectLight",
+      "x": "AIM_MEMBER_BUY_CONTRACT_LENGTH_X + AIM_SELECT_LIGHT_OFF_X",
+      "y": "AIM_MEMBER_BUY_CONTRACT_LENGTH_Y + AIM_MEMBER_BUY_EQUIPMENT_GAP * 0 + AIM_SELECT_LIGHT_OFF_Y",
+      "width": 8,
+      "height": 8,
+      "params": {
+        "index": 0
+      }
+    },
+    {
+      "type": "button",
+      "id": "contract1",
+      "x": "AIM_MEMBER_BUY_CONTRACT_LENGTH_X",
+      "y": "AIM_MEMBER_BUY_CONTRACT_LENGTH_Y + AIM_MEMBER_BUY_EQUIPMENT_GAP * 1",
+      "asset": "videoButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "contract(1)",
+      "visible": "hireMode",
+      "text": {
+        "source": {
+          "key": ["VideoConfercingText", "AIM_MEMBER_ONE_WEEK"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "AIM_M_VIDEO_NAME_COLOR",
+        "shadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "downColor": "AIM_M_VIDEO_NAME_COLOR",
+        "downShadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "align": "left"
+      },
+      "enabled": "hireButtonsEnabled",
+      "disabledStyle": "none"
+    },
+    {
+      "type": "custom",
+      "renderer": "selectLight",
+      "x": "AIM_MEMBER_BUY_CONTRACT_LENGTH_X + AIM_SELECT_LIGHT_OFF_X",
+      "y": "AIM_MEMBER_BUY_CONTRACT_LENGTH_Y + AIM_MEMBER_BUY_EQUIPMENT_GAP * 1 + AIM_SELECT_LIGHT_OFF_Y",
+      "width": 8,
+      "height": 8,
+      "params": {
+        "index": 1
+      }
+    },
+    {
+      "type": "button",
+      "id": "contract2",
+      "x": "AIM_MEMBER_BUY_CONTRACT_LENGTH_X",
+      "y": "AIM_MEMBER_BUY_CONTRACT_LENGTH_Y + AIM_MEMBER_BUY_EQUIPMENT_GAP * 2",
+      "asset": "videoButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "contract(2)",
+      "visible": "hireMode",
+      "text": {
+        "source": {
+          "key": ["VideoConfercingText", "AIM_MEMBER_TWO_WEEKS"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "AIM_M_VIDEO_NAME_COLOR",
+        "shadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "downColor": "AIM_M_VIDEO_NAME_COLOR",
+        "downShadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "align": "left"
+      },
+      "enabled": "hireButtonsEnabled",
+      "disabledStyle": "none"
+    },
+    {
+      "type": "custom",
+      "renderer": "selectLight",
+      "x": "AIM_MEMBER_BUY_CONTRACT_LENGTH_X + AIM_SELECT_LIGHT_OFF_X",
+      "y": "AIM_MEMBER_BUY_CONTRACT_LENGTH_Y + AIM_MEMBER_BUY_EQUIPMENT_GAP * 2 + AIM_SELECT_LIGHT_OFF_Y",
+      "width": 8,
+      "height": 8,
+      "params": {
+        "index": 2
+      }
+    },
+    {
+      "type": "button",
+      "id": "equipment0",
+      "x": "AIM_MEMBER_BUY_EQUIPMENT_X",
+      "y": "AIM_MEMBER_BUY_CONTRACT_LENGTH_Y + AIM_MEMBER_BUY_EQUIPMENT_GAP * 0",
+      "asset": "videoButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "equipment(0)",
+      "visible": "hireMode",
+      "text": {
+        "source": {
+          "key": ["VideoConfercingText", "AIM_MEMBER_NO_EQUIPMENT"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "AIM_M_VIDEO_NAME_COLOR",
+        "shadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "downColor": "AIM_M_VIDEO_NAME_COLOR",
+        "downShadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "align": "left"
+      },
+      "enabled": "hireButtonsEnabled",
+      "disabledStyle": "shaded"
+    },
+    {
+      "type": "custom",
+      "renderer": "selectLight",
+      "x": "AIM_MEMBER_BUY_EQUIPMENT_X + AIM_SELECT_LIGHT_OFF_X",
+      "y": "AIM_MEMBER_BUY_CONTRACT_LENGTH_Y + AIM_MEMBER_BUY_EQUIPMENT_GAP * 0 + AIM_SELECT_LIGHT_OFF_Y",
+      "width": 8,
+      "height": 8,
+      "params": {
+        "index": 3
+      }
+    },
+    {
+      "type": "button",
+      "id": "equipment1",
+      "x": "AIM_MEMBER_BUY_EQUIPMENT_X",
+      "y": "AIM_MEMBER_BUY_CONTRACT_LENGTH_Y + AIM_MEMBER_BUY_EQUIPMENT_GAP * 1",
+      "asset": "videoButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "equipment(1)",
+      "visible": "hireMode",
+      "text": {
+        "source": {
+          "key": ["VideoConfercingText", "AIM_MEMBER_BUY_EQUIPMENT"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "AIM_M_VIDEO_NAME_COLOR",
+        "shadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "downColor": "AIM_M_VIDEO_NAME_COLOR",
+        "downShadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "align": "left"
+      },
+      "enabled": "buyEnabled",
+      "disabledStyle": "shaded"
+    },
+    {
+      "type": "custom",
+      "renderer": "selectLight",
+      "x": "AIM_MEMBER_BUY_EQUIPMENT_X + AIM_SELECT_LIGHT_OFF_X",
+      "y": "AIM_MEMBER_BUY_CONTRACT_LENGTH_Y + AIM_MEMBER_BUY_EQUIPMENT_GAP * 1 + AIM_SELECT_LIGHT_OFF_Y",
+      "width": 8,
+      "height": 8,
+      "params": {
+        "index": 4
+      }
+    },
+    {
+      "type": "button",
+      "id": "transferFunds",
+      "x": "AIM_MEMBER_AUTHORIZE_PAY_X",
+      "y": "AIM_MEMBER_AUTHORIZE_PAY_Y",
+      "asset": "videoButtons",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 3
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "transfer",
+      "visible": "hireMode",
+      "text": {
+        "source": {
+          "key": ["VideoConfercingText", "AIM_MEMBER_TRANSFER_FUNDS"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "AIM_M_VIDEO_NAME_COLOR",
+        "shadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "downColor": "AIM_M_VIDEO_NAME_COLOR",
+        "downShadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR"
+      },
+      "enabled": "hireButtonsEnabled",
+      "disabledStyle": "none"
+    },
+    {
+      "type": "button",
+      "id": "cancelHire",
+      "x": "AIM_MEMBER_AUTHORIZE_PAY_X + AIM_MEMBER_AUTHORIZE_PAY_GAP",
+      "y": "AIM_MEMBER_AUTHORIZE_PAY_Y",
+      "asset": "videoButtons",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 3
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "cancel",
+      "visible": "hireMode",
+      "text": {
+        "source": {
+          "key": ["VideoConfercingText", "AIM_MEMBER_CANCEL"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "AIM_M_VIDEO_NAME_COLOR",
+        "shadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "downColor": "AIM_M_VIDEO_NAME_COLOR",
+        "downShadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR"
+      },
+      "enabled": "hireButtonsEnabled",
+      "disabledStyle": "none"
+    },
+    {
+      "type": "button",
+      "id": "hire",
+      "x": "AIM_MEMBER_AUTHORIZE_PAY_X",
+      "y": "AIM_MEMBER_HANG_UP_Y",
+      "asset": "videoButtons",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 3
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "hire",
+      "visible": "firstContact",
+      "text": {
+        "source": {
+          "key": ["VideoConfercingText", "AIM_MEMBER_HIRE"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "AIM_M_VIDEO_NAME_COLOR",
+        "shadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "downColor": "AIM_M_VIDEO_NAME_COLOR",
+        "downShadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR"
+      },
+      "enabled": "hireEnabled"
+    },
+    {
+      "type": "button",
+      "id": "hangUp",
+      "x": "AIM_MEMBER_AUTHORIZE_PAY_X + AIM_MEMBER_AUTHORIZE_PAY_GAP",
+      "y": "AIM_MEMBER_HANG_UP_Y",
+      "asset": "videoButtons",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 3
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "hangUp",
+      "visible": "firstContact",
+      "text": {
+        "source": {
+          "key": ["VideoConfercingText", "AIM_MEMBER_HANG_UP"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "AIM_M_VIDEO_NAME_COLOR",
+        "shadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "downColor": "AIM_M_VIDEO_NAME_COLOR",
+        "downShadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR"
+      }
+    },
+    {
+      "type": "button",
+      "id": "leaveMessage",
+      "x": "AIM_MEMBER_AUTHORIZE_PAY_X",
+      "y": "AIM_MEMBER_HANG_UP_Y",
+      "asset": "videoButtons",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 3
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "leaveMessage",
+      "visible": "answeringMachine",
+      "text": {
+        "source": {
+          "key": ["VideoConfercingText", "AIM_MEMBER_LEAVE_MESSAGE"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "AIM_M_VIDEO_NAME_COLOR",
+        "shadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "downColor": "AIM_M_VIDEO_NAME_COLOR",
+        "downShadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR"
+      },
+      "enabled": "leaveEnabled"
+    },
+    {
+      "type": "button",
+      "id": "machineHangUp",
+      "x": "AIM_MEMBER_AUTHORIZE_PAY_X + AIM_MEMBER_AUTHORIZE_PAY_GAP",
+      "y": "AIM_MEMBER_HANG_UP_Y",
+      "asset": "videoButtons",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 3
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "hangUp",
+      "visible": "answeringMachine",
+      "text": {
+        "source": {
+          "key": ["VideoConfercingText", "AIM_MEMBER_HANG_UP"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "AIM_M_VIDEO_NAME_COLOR",
+        "shadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "downColor": "AIM_M_VIDEO_NAME_COLOR",
+        "downShadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR"
+      },
+      "enabled": "answeringEnabled",
+      "disabledStyle": "none"
+    },
+    {
+      "type": "button",
+      "id": "busyHangUp",
+      "x": "AIM_MEMBER_HANG_UP_X",
+      "y": "AIM_MEMBER_HANG_UP_Y",
+      "asset": "videoButtons",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 3
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "hangUp",
+      "visible": "unavailable",
+      "text": {
+        "source": {
+          "key": ["VideoConfercingText", "AIM_MEMBER_HANG_UP"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "AIM_M_VIDEO_NAME_COLOR",
+        "shadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "downColor": "AIM_M_VIDEO_NAME_COLOR",
+        "downShadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR"
+      }
+    },
+    {
+      "type": "button",
+      "id": "closeConference",
+      "x": "AIM_MEMBER_VIDEO_CONF_XCLOSE_X",
+      "y": "AIM_MEMBER_VIDEO_CONF_XCLOSE_Y",
+      "asset": "close",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "disabledStyle": "none",
+      "enabled": "closeEnabled",
+      "primary": "hangUp",
+      "visible": "terminal"
+    },
+    {
+      "type": "region",
+      "id": "shutUp",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "width": "LAPTOP_SCREEN_LR_X - LAPTOP_SCREEN_UL_X",
+      "height": "LAPTOP_SCREEN_WEB_LR_Y - LAPTOP_SCREEN_WEB_UL_Y",
+      "priority": "HIGH-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "shutUp",
+      "secondary": "shutUp",
+      "visible": "talking"
+    },
+    {
+      "type": "custom",
+      "id": "subtitle",
+      "renderer": "subtitle",
+      "x": 0,
+      "y": "TEXT_POPUP_WINDOW_Y",
+      "width": 300,
+      "height": 0,
+      "params": {
+        "style": "textBoxes.basic"
+      }
+    },
+    {
+      "type": "image",
+      "asset": "popupBox",
+      "frame": 0,
+      "x": "AIM_POPUP_BOX_X",
+      "y": "AIM_POPUP_BOX_Y",
+      "visible": "popup"
+    },
+    {
+      "type": "custom",
+      "id": "popupTexts",
+      "renderer": "popupTexts",
+      "x": "AIM_POPUP_BOX_X",
+      "y": "AIM_POPUP_BOX_Y + AIM_POPUP_BOX_STRING1_Y",
+      "width": "AIM_POPUP_BOX_WIDTH",
+      "height": 0
+    },
+    {
+      "type": "button",
+      "id": "popupOk",
+      "x": "AIM_POPUP_BOX_X + AIM_POPUP_BOX_BUTTON_OFFSET_X",
+      "y": "AIM_POPUP_BOX_Y + AIM_POPUP_BOX_BUTTON_OFFSET_Y",
+      "asset": "videoButtons",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 3
+      },
+      "priority": "HIGH+5",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "popupOk",
+      "visible": "popup",
+      "text": {
+        "source": {
+          "key": ["VideoConfercingText", "AIM_MEMBER_OK"]
+        },
+        "font": "FONT14ARIAL",
+        "color": "AIM_POPUP_BOX_COLOR",
+        "shadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR",
+        "downColor": "AIM_POPUP_BOX_COLOR",
+        "downShadow": "AIM_M_VIDEO_NAME_SHADOWCOLOR"
+      }
+    }
+  ]
+}

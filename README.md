@@ -97,7 +97,8 @@ a new campaign. The squad is hired through the laptop (`"hire":[]` keeps the new
 on the map screen for `aimHire`, `mercHire`, `impCreate`, `bobbyRayOrder`, `insure`, mail and the other laptop commands.
 Sessions share the server process and take turns in 10 ms slices, so one agent's long enemy turn does not hold up the
 others; `JA2_SESSION_HOST=worker` runs every session in its own worker thread instead (more memory and a content load
-per session, but several cores and no stall from another session's saves; `docs/04` §5.9).
+per session, but several cores and no stall from another session's saves; `docs/04` §5.9). A server keeps at most 16
+sessions (`JA2_MAX_SESSIONS` raises the cap; the e2e server uses 64).
 
 Saving and loading: the tools `save` (`{"session":"…","description":"before the bridge"}`, `{"name":"quick"}` for the
 quick save), `load` (`{"name":"QuickSave"}` into a new session, or with `"session"` in place; it reseeds the main random

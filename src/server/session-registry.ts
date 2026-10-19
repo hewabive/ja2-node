@@ -24,6 +24,12 @@ export interface SessionRequest {
 export type SessionFactory = (id: string, request: SessionRequest) => Promise<Session>;
 
 export const MAX_SESSIONS = 16;
+export const MAX_SESSIONS_ENV = 'JA2_MAX_SESSIONS';
+
+export function sessionLimit(env: NodeJS.ProcessEnv = process.env): number {
+  const configured = Number(env[MAX_SESSIONS_ENV]);
+  return Number.isInteger(configured) && configured > 0 ? configured : MAX_SESSIONS;
+}
 const MAX_DEAD_IS_DEAD_DESCRIPTION = 200;
 export const SAVE_NAME = /^[A-Za-z0-9_-]{1,64}$/;
 
@@ -178,7 +184,8 @@ export async function openSession<T>(
   request: NewSessionRequest,
 ): Promise<T> {
   const pending = creating(sessions);
-  if (sessions.size + pending.size >= MAX_SESSIONS) throw new Error(`at most ${MAX_SESSIONS} sessions`);
+  const limit = sessionLimit();
+  if (sessions.size + pending.size >= limit) throw new Error(`at most ${limit} sessions`);
   if ([request.save, request.campaign, request.load].filter((x) => x !== undefined).length > 1)
     throw new Error('pass at most one of save, campaign and load');
   if (request.reseed !== undefined && !request.load) throw new Error('reseed goes with load');

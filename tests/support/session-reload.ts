@@ -49,7 +49,11 @@ export function sessionAdapter(sources: SessionSources): ReloadAdapter<SessionSi
   return {
     drainBeforeReload: (sim) => sim instanceof CampaignSession,
     snapshot: (sim) => snapshotSession(sim),
-    restore: (snapshot, previous) => restoreSessionFrom(snapshot, restoreInputs(previous, snapshot as SessionSnapshot, sources, world)),
+    restore: (snapshot, previous) => {
+      const restored = restoreSessionFrom(snapshot, restoreInputs(previous, snapshot as SessionSnapshot, sources, world));
+      if (previous instanceof CampaignSession) restored.useLabels?.(previous.labels);
+      return restored;
+    },
   };
 }
 

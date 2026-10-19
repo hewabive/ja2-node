@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import type { LayerCount } from '../content/narrative/npc-records.ts';
 import type { DataDecoding } from '../content/text/data-version.ts';
+import { loadUiStrings } from '../content/text/strings.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import type { WelcomeIdentity } from '../protocol/messages.ts';
 import { createCampaignSession } from './campaign-factory.ts';
@@ -77,6 +78,7 @@ export function createSessionFactory(options: SessionFactoryOptions): SessionFac
     session.queries = new QueryService(options.read, options.exists);
     if (options.identity) session.identity = options.identity;
     if (request.language) session.language = request.language;
+    session.useLabels(await loadUiStrings(options.read, session.language).catch(() => null));
     return session;
   };
 }

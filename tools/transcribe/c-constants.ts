@@ -1,4 +1,4 @@
-import { bracedBody, stripCComments } from './c-source.ts';
+import { bracedBody } from './c-source.ts';
 
 export type ConstantValue = number | string;
 
@@ -48,8 +48,46 @@ export function joinContinuations(src: string): string {
   return src.replace(/\\\r?\n/g, ' ');
 }
 
+type ScanState = 'code' | 'line' | 'block' | 'string' | 'char';
+
+const QUOTES: Readonly<Record<string, ScanState>> = { '"': 'string', "'": 'char' };
+
+export function stripComments(src: string): string {
+  let out = '';
+  let state: ScanState = 'code';
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i] as string;
+    const next = src[i + 1];
+    if (state === 'line') {
+      if (c === '\n') {
+        state = 'code';
+        out += c;
+      }
+    } else if (state === 'block') {
+      if (c === '*' && next === '/') {
+        state = 'code';
+        i++;
+      } else if (c === '\n') out += c;
+    } else if (state === 'string' || state === 'char') {
+      out += c;
+      if (c === '\\') out += src[++i] ?? '';
+      else if (QUOTES[c] === state) state = 'code';
+    } else if (c === '/' && next === '/') {
+      state = 'line';
+      i++;
+    } else if (c === '/' && next === '*') {
+      state = 'block';
+      i++;
+    } else {
+      out += c;
+      state = QUOTES[c] ?? 'code';
+    }
+  }
+  return out;
+}
+
 export function cleanSource(src: string): string {
-  return stripCComments(joinContinuations(src).replace(/\r/g, ''));
+  return stripComments(joinContinuations(src).replace(/\r/g, ''));
 }
 
 export function objectDefines(src: string): Definition[] {

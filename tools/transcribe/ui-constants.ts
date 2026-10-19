@@ -35,6 +35,8 @@ const SHARED_TABLES: readonly TableSpec[] = [
   { table: 'Text_Input', files: ['game/Utils/Text_Input.h'] },
   { table: 'Timer_Control', files: ['game/Utils/Timer_Control.h'] },
   { table: 'Text', files: ['game/Utils/Text.h'] },
+  { table: 'Laptop', files: ['game/Laptop/Laptop.h', 'game/Laptop/Laptop.cc'] },
+  { table: 'AIM', files: ['game/Laptop/AIM.h', 'game/Laptop/AIM.cc'] },
 ];
 
 const SCREEN_TABLES: readonly TableSpec[] = [
@@ -53,6 +55,12 @@ const SCREEN_TABLES: readonly TableSpec[] = [
   { table: 'JAScreens', files: ['game/JAScreens.h', 'game/JAScreens.cc'] },
   { table: 'Fade_Screen', files: ['game/Fade_Screen.h', 'game/Fade_Screen.cc'] },
   { table: 'Sound_Control', files: ['game/Utils/Sound_Control.h', 'sgp/SoundMan.h'] },
+  { table: 'EMail', files: ['game/Laptop/EMail.h', 'game/Laptop/EMail.cc'] },
+  { table: 'Finances', files: ['game/Laptop/Finances.h', 'game/Laptop/Finances.cc'] },
+  { table: 'AIMMembers', files: ['game/Laptop/AIMMembers.h', 'game/Laptop/AIMMembers.cc'] },
+  { table: 'AIMSort', files: ['game/Laptop/AIMSort.h', 'game/Laptop/AIMSort.cc'] },
+  { table: 'AIMFacialIndex', files: ['game/Laptop/AIMFacialIndex.h', 'game/Laptop/AIMFacialIndex.cc'] },
+  { table: 'AIMLinks', files: ['game/Laptop/AIMLinks.h', 'game/Laptop/AIMLinks.cc'] },
 ];
 
 const FRAME_ORIGIN_NAMES: ReadonlyMap<string, number> = new Map([

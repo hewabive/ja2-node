@@ -141,6 +141,9 @@ export const WIDGET_PROPERTIES: Readonly<Record<string, Readonly<Record<string, 
   progressBar: { ...BOX, style: 'string', color: 'color', value: 'number' },
   modal: { style: 'number', text: 'text', buttons: 'number', open: 'condition', result: 'action', centering: 'array' },
   custom: { ...BOX, renderer: 'string', params: 'object' },
+  tiles: { asset: 'asset', frame: 'number', columns: 'number', rows: 'number', dx: 'number', dy: 'number' },
+  portrait: { face: 'number', size: 'string', state: 'binding', shadeWidth: 'number', shadeHeight: 'number' },
+  itemPicture: { ...BOX, graphic: 'binding', shadow: 'condition' },
 };
 
 const TOP_LEVEL = new Set([

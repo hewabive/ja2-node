@@ -1,0 +1,91 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/AIMLinks.cc EnterAimLinks (the regions from STD_SCREEN_X + AIM_LINK_LINK_OFFSET_X, AIM_LINK_LINK_OFFSET_Y apart, not under the pictures), RenderAimLinks"
+  ],
+  "screen": "aimLinks",
+  "frame": "std640",
+  "constants": ["Laptop", "AIM", "AIMLinks"],
+  "assets": {
+    "bobbyRayLink": {
+      "mlg": "MLG_BOBBYRAYLINK",
+      "stub": {
+        "frames": 1,
+        "size": ["AIM_LINK_LINK_WIDTH", "AIM_LINK_LINK_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "mortuaryLink": {
+      "mlg": "MLG_MORTUARYLINK",
+      "stub": {
+        "frames": 1,
+        "size": ["AIM_LINK_LINK_WIDTH", "AIM_LINK_LINK_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "insuranceLink": {
+      "mlg": "MLG_INSURANCELINK",
+      "stub": {
+        "frames": 1,
+        "size": ["AIM_LINK_LINK_WIDTH", "AIM_LINK_LINK_HEIGHT"],
+        "hollow": true
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "asset": "bobbyRayLink",
+      "frame": 0,
+      "x": "AIM_LINK_BOBBY_LINK_X",
+      "y": "AIM_LINK_BOBBY_LINK_Y"
+    },
+    {
+      "type": "image",
+      "asset": "mortuaryLink",
+      "frame": 0,
+      "x": "AIM_LINK_FUNERAL_LINK_X",
+      "y": "AIM_LINK_FUNERAL_LINK_Y"
+    },
+    {
+      "type": "image",
+      "asset": "insuranceLink",
+      "frame": 0,
+      "x": "AIM_LINK_INSURANCE_LINK_X",
+      "y": "AIM_LINK_INSURANCE_LINK_Y"
+    },
+    {
+      "type": "text",
+      "x": "AIM_LINK_TITLE_X",
+      "y": "AIM_LINK_TITLE_Y",
+      "font": "AIM_LINK_TITLE_FONT",
+      "color": "AIM_LINK_TITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimLinkText", 0]
+      },
+      "width": "AIM_LINK_TITLE_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "repeat",
+      "count": "AIM_LINK_NUM_LINKS",
+      "x": "AIM_LINK_LINK_OFFSET_X",
+      "y": "AIM_LINK_BOBBY_LINK_Y",
+      "dy": "AIM_LINK_LINK_OFFSET_Y",
+      "template": [
+        {
+          "type": "region",
+          "id": "aimLink$i",
+          "x": 0,
+          "y": 0,
+          "width": "AIM_LINK_LINK_WIDTH",
+          "height": "AIM_LINK_LINK_HEIGHT",
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "primary": "link($i)"
+        }
+      ]
+    }
+  ]
+}

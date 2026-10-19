@@ -9,6 +9,15 @@
 import type { MercProfile } from '../../../content/formats/prof.ts';
 
 export const Bookmark = { AIM: 0, BOBBYR: 1, IMP: 2, MERC: 3, FUNERAL: 4, FLORIST: 5, INSURANCE: 6 } as const;
+export const BOOKMARK_NAMES: Readonly<Record<number, string>> = {
+  [Bookmark.AIM]: 'aim',
+  [Bookmark.BOBBYR]: 'bobbyRay',
+  [Bookmark.IMP]: 'imp',
+  [Bookmark.MERC]: 'merc',
+  [Bookmark.FUNERAL]: 'funeral',
+  [Bookmark.FLORIST]: 'florist',
+  [Bookmark.INSURANCE]: 'insurance',
+};
 export const MAX_BOOKMARKS = 20;
 export const MercAccountStatus = { NO_ACCOUNT: 0, SUSPENDED: 1, INVALID: 2, VALID_FIRST_WARNING: 3, VALID: 4 } as const;
 export const SpeckQuoteFlag = { ALREADY_TOLD_PLAYER_THAT_LARRY_RELAPSED: 0x01, SENT_EMAIL_ABOUT_LACK_OF_PAYMENT: 0x02 } as const;
@@ -129,6 +138,7 @@ export interface LastHiredMerc {
 
 export interface LaptopState {
   newGameLaptop: boolean;
+  newMail: boolean;
   readonly bookmarks: number[];
   readonly emails: Email[];
   nextEmailId: number;
@@ -171,6 +181,7 @@ export function createMercSiteState(): MercSiteState {
 export function createLaptopState(startSector = 0): LaptopState {
   return {
     newGameLaptop: true,
+    newMail: false,
     bookmarks: [],
     emails: [],
     nextEmailId: 0,
@@ -206,4 +217,8 @@ export function setBookmark(l: LaptopState, bookmark: number): void {
 
 export function hasBookmark(l: LaptopState, bookmark: number): boolean {
   return l.bookmarks.includes(bookmark);
+}
+
+export function bookmarkNames(l: LaptopState): string[] {
+  return l.bookmarks.map((b) => BOOKMARK_NAMES[b] ?? String(b));
 }

@@ -1,0 +1,27 @@
+{
+  "format": "ja2-node stub row text v1",
+  "note": "Invented biographies for the stub A.I.M. mercenaries, keyed by stub profile id and compiled by pnpm stubs into binarydata/aimbios.edt at each profile's bio row of externalized/mercs-AIM-listings.json (400 and 160 units: the biography and the additional information). Original writing for ja2-node.",
+  "bios": {
+    "0": [
+      "Kestrel learned to shoot on a hill farm and never lost the habit of patience. She prefers the long view and the quiet approach.",
+      "Allergic to cats. Insists on carrying her own maps."
+    ],
+    "1": ["Vant spent ten years guarding convoys across three borders. He talks little and checks his gear twice.", ""],
+    "2": [
+      "Moraga trained as a field medic before she picked up a rifle. She keeps a squad alive and expects it to return the favour.",
+      "Will not work night shifts two days in a row."
+    ],
+    "3": ["Hollis is a demolitions man who believes every problem has a fuse somewhere. His employers mostly agree.", ""],
+    "4": ["Tarrow was a mechanic for a racing team and still treats every engine like a patient.", "Brings his own toolbox."],
+    "5": ["Orrin is a scout who moves like weather. Few people see him arrive and fewer see him leave.", ""],
+    "6": ["Lasko served as a sergeant and still counts heads at every halt. Recruits like him; officers fear him.", ""],
+    "7": ["Puig grew up near the coast and swims better than he walks. He is cheerful under fire and grumpy at breakfast.", ""],
+    "8": ["Marlow was a radio operator who now prefers louder instruments. He has a steady hand and an unsteady sense of humour.", ""],
+    "9": ["Reede keeps to herself and to her rifle. Clients hire her for the jobs that must not be talked about.", ""],
+    "10": ["Voss came up through a mountain unit and hates the lowlands. He climbs anything and complains about everything.", ""],
+    "11": [
+      "Arden is the newest name on the list and the most eager. She has a lot to prove and the skill to prove it.",
+      "Accepts short contracts only."
+    ]
+  }
+}

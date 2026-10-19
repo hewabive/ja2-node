@@ -56,6 +56,7 @@ export function addEmail(l: LaptopState, spec: MailSpec, from: number, date: num
     read,
   };
   l.emails.push(mail);
+  l.newMail = true;
   return mail;
 }
 

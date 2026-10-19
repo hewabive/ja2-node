@@ -130,7 +130,15 @@ loaded sector is frozen, `advance` is refused with reason `laptop` (the agent mu
      ignores duplicates once the mail went out, §6.1);
   2. if `atLeastOneMercHired` and `gfNewGameLaptop`: `gfNewGameLaptop = false` (the original returns once more and
      leaves on the next frame; no state difference);
-  3. `flow = 'strategic'`.
+  3. `newMail = false` (`fNewMailFlag`, cleared in `ExitLaptop`, `Laptop.cc:605-609`);
+  4. `flow = 'strategic'`.
+- `visitSite {site}` (M8) runs what entering a site's page does in the original (`EnterBobbyR`, `EnterMercs`,
+  `EnterFuneral`, `EnterFlorist`, `EnterInsurance`): `bobbyRay` sets its bookmark and, while the site is under
+  construction, `ubHaveBeenToBobbyRaysAtLeastOnceWhileUnderConstruction = BEEN_TO_SITE_ONCE` (the gate of the
+  `BOBBYR_NOW_OPEN` mail, §5.1); `funeral`, `florist` and `insurance` set their bookmarks; `merc` (refused with `noBookmark`
+  without its bookmark and `siteDown` during the outage, when the browser shows the broken link) increments
+  `ubPlayerBeenToMercSiteStatus` on every visit and runs Speck's opening (§3.6) the first time in a laptop session. No time
+  passes; the page that is shown is client state.
 - A new campaign starts with `flow = 'laptop'` after `initNewGame` (§8).
 
 Entry side effects in the original: the A.I.M. bookmark (`Laptop.cc:519`; `openLaptop` sets it too); the rest is UI state:
@@ -574,10 +582,16 @@ the video intro, a UI timer). Effects that matter: `ubPlayerBeenToMercSiteStatus
 `miscFlags3 |= MERC_MERC_IS_DEAD_AND_QUOTE_SAID`; **Biff goes away for `Random(2) + 2` days** when Speck tells of Flo's death
 (Biff alive) or of her marriage (`fSpeckSaidFloMarriedCousinQuote`); the Larry relapse flag in `uiSpeckQuoteFlags`. The
 opening also draws `Random(100)`, `Chance(50)`, `Random(4)` for the quote choice and `CoinToss` after a hire
-(`:1274-1334`). ja2-node runs this opening at the first M.E.R.C. command of a laptop session (§10), so its draws and the
-Biff side effect happen at a defined command instead of when the video intro ends (deviation; with the clock stopped in the
-laptop no strategic draw can interleave, so only the order relative to other laptop commands can differ, inferred). Idle
-chatter (`:1388-1551`) is UI only.
+(`:1274-1334`). ja2-node runs this opening at `visitSite merc` the first time in a laptop session, or at the first M.E.R.C.
+command of a session without a visit (§10), so its draws and the Biff side effect happen at a defined command instead of
+when the video intro ends (deviation; with the clock stopped in the laptop no strategic draw can interleave, so only the
+order relative to other laptop commands can differ, inferred). `visitSite` returns the quote ids the opening queues, in the
+queue's order: the first visit says 0, then the tags below, then 1–8 (each later call of `GetSpeckConditionalOpening`
+queues the next intro quote); the second visit 10; later visits one branch (11 nobody hired yet; 19 back after the outage;
+23 two or more dead; 14 suspended; 15 + 16 owing more than $5,000; 12, 13 or 20 + 21 once by `Random(100)`) and, after
+19, 12, 13 or 20, a tag 41–44 when `Chance(50)`; then 24 (the unpaid-account mail), 22 (new mercs), 27 (the first death),
+per newly dead listing its `MERC_DEAD` quote from `mercs-MERC-listings.json` (Flo: 32 with Biff alive, else 33), 34 (Flo
+married) and 37 (Larry relapsed). Idle chatter (`:1388-1551`) is UI only.
 
 ---
 
@@ -862,7 +876,9 @@ date, first, second)` (`EMail.cc:492-569`). The player may delete any mail (`:14
 `fRead` and runs `HandleAnySpecialEmailMessageEvents` and `HandleMailSpecialMessages` (`:1641-1720`) on every display
 (idempotent): **the only effects of reading** are the I.M.P. bookmark (`IMP_EMAIL_INTRO`, `IMP_EMAIL_AGAIN`) and the
 M.E.R.C. bookmark (`MERC_INTRO`, `MERC_NEW_SITE_ADDRESS`). `$MERCNAME$` is `profile(uiSecondData).zName`, `$AMOUN$` is
-`iFirstData` as money (`:2439-2470`). `fNewMailFlag`/`fUnReadMailFlag` (general info) are UI. Save: section 10 (`u32 n`,
+`iFirstData` as money (`:2439-2470`). `fNewMailFlag` (general info) is set by every added mail, pre-read ones included
+(`EMail.cc:562`), and cleared when the laptop closes; ja2-node keeps it as the saved `newMail` (M8: it raises the laptop's
+new-mail box and the map screen's blinking icon); `fUnReadMailFlag` is derived (`unreadMail`). Save: section 10 (`u32 n`,
 per mail `u32 subjectSize` (Strac 0) + 44 bytes, `LoadSaveEMail.cc`), currently skipped by ja2-node's reader.
 
 **Catalogue** (offset (length) from `EMail.h`; "data" = special data; no mail other than the four above has an effect
@@ -919,8 +935,18 @@ minute, amount, balanceAfter}`, `docs/18` §3.9). Codes written by M5 code: `ANO
 `TRANSACTION_FEE`, `REDUCED_INSURANCE`, `CANCELLED_INSURANCE`, `NO_MEDICAL_REFUND`, `TRANSFER_FUNDS_FROM_MERC`,
 `DEPOSIT_FROM_GOLD_MINE` (all mine income is `DEPOSIT_FROM_SILVER_MINE`, `Strategic_Mines.cc:538`). `uiTotalCostToDate` also
 changes outside the ledger: +charge on M.E.R.C. payment (§3.4) and money handed to NPCs (`TacticalAI/NPC.cc:878, 928`, M6).
-Game logic reads only the balance; the "yesterday/today" summaries (`Finances.cc:989-1178`) are display (and buggy: today's
-income counts only the latest matching record); `GetProjectedTotalDailyIncome` is `PredictIncomeFromPlayerMines`.
+Game logic reads only the balance; the "yesterday/today" summaries (`Finances.cc:989-1294`) are display, and the server
+computes them (`financeSummary`, M8) so their quirks stay out of the client: the functions walk the ledger from the newest
+record backwards with UINT32 day numbers (day − 1 and day − 2 wrap on days 0 and 1); "yesterday's" opening balance
+(`GetPreviousDaysBalance`) subtracts a day and then looks for a record of day − 2, three days back, and is 0 before day 3;
+yesterday's closing balance is the balance after the newest record of yesterday, or 0 on a day without records; yesterday's
+sums count the first record of the day before yesterday too; today's sums re-arm their flag on every record of today, so
+they count every matching record of today and, when today's oldest record does not match, yesterday's newest record if it
+matches; the debits are what the balances leave over. `GetProjectedTotalDailyIncome` is `PredictIncomeFromPlayerMines`.
+The ledger row labels (`ProcessTransactionString`, `Finances.cc:777-825`) are rendered by the server in the session's
+display language: `pTransactionText` verbatim (a silver-mine deposit shows the gold-mine text), with the profile's nickname
+for the codes that name a merc, and with the sector label for militia training (the sector and its town, or the mine's
+town and the word "Mine"; the land types of other sectors are not rendered yet).
 
 ### 6.4 Files
 
@@ -1109,8 +1135,9 @@ landing, underground, `GROUNDBARRIER`, enemy airspace). Laptop flow only (each a
 | Command | Semantics | Refusal reasons |
 |---|---|---|
 | `closeLaptop` | §1.3 | — |
+| `visitSite {site: bobbyRay\|merc\|funeral\|florist\|insurance}` (M8) | §1.3; data `{site, bookmarks, speck?}` (`speck`: the opening's quote ids, §3.6) | `badSite`, `noBookmark`, `siteDown` |
 | `readEmail {id}` / `deleteEmail {id}` | §6.1 (bookmarks on reading) | `noSuchMail` |
-| `aimHire {profile, contract: 1\|7\|14, gear?: boolean}` | contact + `CanMercBeHired` + §2.5; result: charge breakdown, soldier id, arrival `{minute, shownMinute, sector}`, the acceptance quote | `notAimMerc`, `badContract`, `noKit` (gear on a 0-cost kit), `unavailable` (annoyed), `away` (answering machine: dead/hired/away/returning/POW), `hangover`, `hatesTeammate {hated}`, `deathRate`, `reputation`, `funds {charge}`, `teamFull`, `cannotHire` |
+| `aimHire {profile, contract: 1\|7\|14, gear?: boolean}` | contact + `CanMercBeHired` + §2.5; result: charge breakdown, soldier id, arrival `{minute, shownMinute, sector}`, the acceptance quote `{id, name}` or null | `notAimMerc`, `badContract`, `noKit` (gear on a 0-cost kit), `unavailable` (annoyed), `away` (answering machine: dead/hired/away/returning/POW), `hangover`, `hatesTeammate {hated}`, `deathRate`, `reputation` (the four with `quote {id, name}`), `funds {charge}`, `teamFull`, `cannotHire` |
 | `aimLeaveMessage {profile}` | answering machine: `PLAYER_LEFT_MSG` | `notAway`, `alreadyLeft` |
 | `mercOpenAccount` | §3.1; data: the account number | `siteDown`, `noBookmark`, `hasAccount` |
 | `mercHire {profile}` | §3.3 | `noAccount`, `accountSuspended`, `accountInvalid`, `notListed`, `unavailable`, `teamFull`, `cannotHire`, `siteDown`, `noBookmark` |
@@ -1134,10 +1161,12 @@ departures are `22`'s. Silent profile changes (a merc back home, away, dead
 on another job without a mail, the M.E.R.C. outage) raise no event: they are visible in the view when the player looks,
 which costs no time.
 
-**Observation** (`PlayerView.laptop`, only what the screens show): balance; mails (id, type, sender, date, read, data);
-history and finance records; files; bookmarks; personnel lists; A.I.M. (per profile 0–39: nickname, the AIM page stats,
-salaries for 1/7/14 days, medical deposit when required, kit items and cost unless already bought, face state
-`available | hired | dead | pow | onAssignment`); M.E.R.C. (online, account status and number, listed mercs with stats,
+**Observation** (`PlayerView.laptop`, only what the screens show): balance; `newMail`; mails (id, type, offset, length,
+the rendered subject, sender, date, read, data); history and finance records (finance rows with their rendered `text`) and
+`financeSummary` (§6.3); files; bookmarks; personnel lists; A.I.M. (per profile 0–39 in the order of
+`mercs-AIM-listings.json`: nickname, the AIM page stats, salaries for 1/7/14 days, medical deposit when required, kit items
+and cost unless already bought, face state `available | hired | dead | pow | onAssignment`, `contact` (the conference mode
+`firstContact | answeringMachine | unavailable`, `WillMercAcceptCall`) and `messageLeft`); M.E.R.C. (online, account status and number, listed mercs with stats,
 daily fee and state, debt per merc and total); I.M.P. (reachable, characters left, cost); Bobby Ray (open, new and used
 stock with price, quantity, used quality; shipments with destination, speed and order day as on the shipments page);
 insurance (per insurable merc: contract days left, insured days left, offered length and premium); in-transit mercs with
@@ -1146,9 +1175,15 @@ insurance (per insurable merc: contract days left, insured days left, offered le
 improvements before they show, the restock state (`onOrder`, `fPreviouslyEligible`, pending restock events), theft counters
 and Pablo facts, investigation outcomes, the outage roll, every queued event.
 
-**Queries**: `aimQuote {profile, contract, gear}` (amount breakdown, affordability); `bobbyRayQuote {lines, destination,
-speed}` (subtotal, weight, shipping, total); `insuranceQuote {soldier}`; `impPreview {answers, gender}` (skill/attitude/
-personality lists, no draws); `arrivalTime` (`GetMercArrivalTimeOfDay` for now).
+**Queries**: `aimQuote {profile, contract, gear}` (amount breakdown, affordability); `hireCheck {profile}` (M8: the
+check the conference makes at HIRE, before the contract page and the funds: `{profile, contact, accepted, refusal?, quote:
+{id, name} | null, hated?}`, `refusal` `unavailable` or `away` from the contact mode, else `CanMercBeHired`'s; quote ids
+from `Dialogue_Control.h`: 82, 86/87/88, 81, 80, on acceptance 92/93/94 or 113/114); `emailText {id}` (M8: `{id, subject,
+paragraphs}`: the subject and the body records of `email.edt` with `$MERCNAME$`/`$AMOUN$` filled in where the original
+fills them, the I.M.P. report assembled from `impass.edt` for the mail's profile, Ian codes kept; refusals `noSuchMail`,
+`noText`); `bobbyRayQuote {lines, destination, speed}` (subtotal, weight, shipping, total); `insuranceQuote {soldier}`;
+`impPreview {answers, gender}` (skill/attitude/personality lists, no draws); `arrivalTime` (`GetMercArrivalTimeOfDay` for
+now).
 
 ---
 

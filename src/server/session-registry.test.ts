@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Session } from './session.ts';
-import { openSession, type SessionRequest } from './session-registry.ts';
+import { MAX_SESSIONS, MAX_SESSIONS_ENV, openSession, type SessionRequest, sessionLimit } from './session-registry.ts';
 
 function slowFactory(seeds: number[]) {
   return async (id: string, request: SessionRequest): Promise<Session> => {
@@ -28,5 +28,14 @@ describe('openSession', () => {
     await expect(openSession(sessions, 'sandbox', failing, {})).rejects.toThrow('no such save');
     const next = await openSession(sessions, 'sandbox', slowFactory([]), {});
     expect(next.id).toBe('sandbox-0');
+  });
+});
+
+describe('sessionLimit', () => {
+  it('is 16 unless the environment names a positive whole number', () => {
+    expect(sessionLimit({})).toBe(MAX_SESSIONS);
+    expect(sessionLimit({ [MAX_SESSIONS_ENV]: '64' })).toBe(64);
+    expect(sessionLimit({ [MAX_SESSIONS_ENV]: '0' })).toBe(MAX_SESSIONS);
+    expect(sessionLimit({ [MAX_SESSIONS_ENV]: 'many' })).toBe(MAX_SESSIONS);
   });
 });

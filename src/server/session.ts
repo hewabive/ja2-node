@@ -1,5 +1,6 @@
 import type { ProfileFaceRecord } from '../content/narrative/profile-presentation.ts';
 import { type DataVersion, STUB_DATA_VERSION, type UiLanguage } from '../content/text/data-version.ts';
+import type { UiStrings } from '../content/text/strings.ts';
 import { appendToLog, MESSAGE_LOG_SIZE, type MessageEntry } from '../protocol/message-log.ts';
 import {
   type CommandEnvelope,
@@ -41,6 +42,7 @@ export interface SessionSim extends Steppable {
   musicFacts?(): MusicFacts;
   messageFacts?(): MessageFacts;
   profileFaceRecords?(): readonly ProfileFaceRecord[];
+  useLabels?(labels: UiStrings | null): void;
   readonly holdsCreationEvents?: boolean;
   readonly initialMusic?: MusicState;
   prepare?(cmd: CommandEnvelope): Promise<void>;
@@ -108,6 +110,7 @@ export class Session {
   #fastFade = false;
   #depth = 0;
   #messages: MessageEntry[] = [];
+  #labels: UiStrings | null = null;
   readonly #framedMessages: MessageEntry[] = [];
   readonly #unreportedMessages: MessageEntry[] = [];
   readonly #held: SimEvent[] = [];
@@ -126,6 +129,11 @@ export class Session {
     this.#followMusic(created);
     this.#followMessages(created);
     this.#lastView = this.#view();
+  }
+
+  useLabels(labels: UiStrings | null): void {
+    this.#labels = labels;
+    this.#sim.useLabels?.(labels);
   }
 
   get music(): MusicState {
@@ -439,6 +447,7 @@ export class Session {
     this.#held.length = 0;
     this.#pendingEvents.length = 0;
     this.#sim = sim;
+    sim.useLabels?.(this.#labels);
     this.#music = music;
     this.#fastFade = false;
     this.restoreMessages(messages);

@@ -1,0 +1,569 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/Laptop.cc RenderLapTopImage, DisplayProgramBoundingBox, DrawDeskTopBackground, RenderWWWProgramTitleBar, BlitTitleBarIcons, CreateLaptopButtons and MakeButton (buttonsforlaptop.sti frames idx and idx + 8 at x 29, the label offsets, FONT10ARIAL colour 2 shadow 0), PrintDate, PrintNumberOnTeam, PrintBalance, DisplayTaskBarIcons, CreateDestroyMouseRegionForNewMailIcon (16 x 11 regions from y + 5), ShowLights (44, 466 and 88, 466), CreateMinimizeButtonForCurrentMode (x.sti at 590, 30), CreateMinimizeRegionsForLaptopProgramIcons, DisplayBookMarks and CreateBookMarkMouseRegions (rows of BOOK_HEIGHT + 6 from BOOK_TOP_Y + 6, the text clipped at BOOK_WIDTH - 10), DisplayLoadPending (the download box and the bar), DisplayWebBookMarkNotify, CreateLapTopMouseRegions (LaptopScreenRect), HandleKeyBoardShortCutsForLapTop",
+    "src/game/Laptop/EMail.cc CreateDestroyNewMailButton (the full-screen mask at MSYS_PRIORITY_HIGHEST - 3, yesnobuttons.sti 0 and 1 at NEW_BTN_X + 10, NEW_BTN_Y, priority HIGHEST - 2), DisplayNewMailBox"
+  ],
+  "screen": "laptop",
+  "frame": "std640",
+  "tooltips": true,
+  "constants": ["Laptop", "EMail"],
+  "assets": {
+    "laptopImage": { "sti": "laptop/laptop3.sti", "stub": { "frames": 1, "size": [640, 480], "hollow": true } },
+    "taskbar": {
+      "sti": "laptop/taskbar.sti",
+      "stub": {
+        "sizes": [["LAPTOP_SCREEN_LR_X - 108 + 3", "LAPTOP_SCREEN_LR_Y - 23 + 4"], [80, 452]],
+        "hollow": [0]
+      }
+    },
+    "desktop": { "mlg": "MLG_DESKTOP", "stub": { "size": ["LAPTOP_SCREEN_WIDTH + 4", "LAPTOP_SCREEN_HEIGHT + 8"] } },
+    "titleBar": {
+      "sti": "laptop/programtitlebar.sti",
+      "stub": { "frames": 1, "size": ["LAPTOP_TITLE_BAR_WIDTH", "LAPTOP_TITLE_BAR_HEIGHT"] }
+    },
+    "titleIcons": { "sti": "laptop/icons.sti", "stub": { "frames": 8, "size": [16, 16] } },
+    "sideButtons": {
+      "sti": "laptop/buttonsforlaptop.sti",
+      "stub": {
+        "frames": 15,
+        "size": [72, 26],
+        "states": [
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "plain",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed"
+        ]
+      }
+    },
+    "lights": { "sti": "laptop/lights.sti", "stub": { "frames": 2, "size": [14, 11] } },
+    "minimize": { "sti": "laptop/x.sti", "stub": { "frames": 2, "size": [16, 16], "states": ["normal", "pressed"] } },
+    "bookmark": { "sti": "laptop/webpages.sti", "stub": { "frames": 1, "size": ["BOOK_WIDTH", "BOOK_HEIGHT + 6"] } },
+    "bookmarkHilite": { "sti": "laptop/hilite.sti", "stub": { "frames": 1, "size": ["BOOK_WIDTH", "BOOK_HEIGHT + 6"] } },
+    "downloadTop": { "sti": "laptop/downloadtop.sti", "stub": { "frames": 1, "size": [150, "DOWN_HEIGHT"] } },
+    "downloadMid": { "sti": "laptop/downloadmid.sti", "stub": { "frames": 1, "size": [150, "DOWN_HEIGHT"] } },
+    "downloadBottom": { "sti": "laptop/downloadbot.sti", "stub": { "frames": 1, "size": [150, "DOWN_HEIGHT"] } },
+    "graphWindow": { "sti": "laptop/graphwindow.sti", "stub": { "frames": 1, "size": ["UNIT_WIDTH * 31 + 2", 12] } },
+    "graphSegment": { "sti": "laptop/graphsegment.sti", "stub": { "frames": 1, "size": ["UNIT_WIDTH", 8] } },
+    "mailWarning": { "sti": "laptop/newmailwarning.sti", "stub": { "frames": 1, "size": ["EMAIL_WARNING_WIDTH", "EMAIL_WARNING_HEIGHT"] } },
+    "yesNoButtons": {
+      "sti": "laptop/yesnobuttons.sti",
+      "stub": { "frames": 4, "size": [62, 20], "states": ["normal", "pressed", "normal", "pressed"] }
+    }
+  },
+  "widgets": [
+    { "type": "image", "asset": "laptopImage", "frame": 0, "x": "LAPTOP_X", "y": "LAPTOP_Y" },
+    { "type": "image", "asset": "taskbar", "frame": 1, "x": "LAPTOP_X + 25", "y": "LAPTOP_Y + 23" },
+    {
+      "type": "image",
+      "id": "desktop",
+      "asset": "desktop",
+      "x": "LAPTOP_SCREEN_UL_X - 2",
+      "y": "LAPTOP_SCREEN_UL_Y - 4",
+      "visible": "desktop"
+    },
+    {
+      "type": "custom",
+      "id": "page",
+      "renderer": "page",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_UL_Y",
+      "width": "LAPTOP_SCREEN_WIDTH",
+      "height": "LAPTOP_SCREEN_HEIGHT"
+    },
+    {
+      "type": "image",
+      "asset": "titleBar",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_UL_Y - 2",
+      "visible": "titleVisible"
+    },
+    {
+      "type": "image",
+      "asset": "titleIcons",
+      "frame": { "bind": "titleIcon" },
+      "x": "LAPTOP_TITLE_ICONS_X",
+      "y": "LAPTOP_TITLE_ICONS_Y",
+      "visible": "titleVisible"
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "x": 140,
+      "y": 33,
+      "font": "FONT14ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": { "bind": "titleText" },
+      "visible": "titleVisible"
+    },
+    { "type": "image", "asset": "taskbar", "frame": 1, "x": "LAPTOP_X + 25", "y": "LAPTOP_Y + 23" },
+    { "type": "image", "asset": "taskbar", "frame": 0, "x": "LAPTOP_X + 108", "y": "LAPTOP_Y + 23", "visible": "programBox" },
+    {
+      "type": "region",
+      "id": "laptopScreen",
+      "x": "LAPTOP_UL_X",
+      "y": "LAPTOP_UL_Y - 5",
+      "width": "LAPTOP_SCREEN_LR_X + 2 - LAPTOP_UL_X",
+      "height": "LAPTOP_SCREEN_LR_Y + 5 + 19 - LAPTOP_UL_Y + 5",
+      "priority": "NORMAL+1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "laptopLeftUp",
+      "secondary": "laptopRightUp"
+    },
+    {
+      "type": "button",
+      "id": "emailButton",
+      "x": "LAPTOP_X + 29",
+      "y": "LAPTOP_Y + 66",
+      "asset": "sideButtons",
+      "frames": { "offNormal": 0, "onNormal": 8 },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "tooltip": { "key": ["gzLaptopHelpText", "LAPTOP_BN_HLP_TXT_VIEW_EMAIL"] },
+      "primary": "email",
+      "text": {
+        "source": { "key": ["pLaptopIcons", 0] },
+        "font": "FONT10ARIAL",
+        "color": 2,
+        "shadow": 0,
+        "align": "left",
+        "offsetX": 30,
+        "offsetY": 11
+      }
+    },
+    {
+      "type": "button",
+      "id": "webButton",
+      "x": "LAPTOP_X + 29",
+      "y": "LAPTOP_Y + 98",
+      "asset": "sideButtons",
+      "frames": { "offNormal": 1, "onNormal": 9 },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "tooltip": { "key": ["gzLaptopHelpText", "LAPTOP_BN_HLP_TXT_BROWSE_VARIOUS_WEB_SITES"] },
+      "primary": "web",
+      "secondary": "webSecondary",
+      "text": {
+        "source": { "key": ["pLaptopIcons", 1] },
+        "font": "FONT10ARIAL",
+        "color": 2,
+        "shadow": 0,
+        "align": "left",
+        "offsetX": 30,
+        "offsetY": 11
+      }
+    },
+    {
+      "type": "button",
+      "id": "filesButton",
+      "x": "LAPTOP_X + 29",
+      "y": "LAPTOP_Y + 130",
+      "asset": "sideButtons",
+      "frames": { "offNormal": 2, "onNormal": 10 },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "tooltip": { "key": ["gzLaptopHelpText", "LAPTOP_BN_HLP_TXT_VIEW_FILES_AND_EMAIL_ATTACHMENTS"] },
+      "primary": "files",
+      "text": {
+        "source": { "key": ["pLaptopIcons", 5] },
+        "font": "FONT10ARIAL",
+        "color": 2,
+        "shadow": 0,
+        "align": "left",
+        "offsetX": 30,
+        "offsetY": 11
+      }
+    },
+    {
+      "type": "button",
+      "id": "personnelButton",
+      "x": "LAPTOP_X + 29",
+      "y": "LAPTOP_Y + 194",
+      "asset": "sideButtons",
+      "frames": { "offNormal": 3, "onNormal": 11 },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "tooltip": { "key": ["gzLaptopHelpText", "LAPTOP_BN_HLP_TXT_VIEW_TEAM_INFO"] },
+      "primary": "personnel",
+      "text": {
+        "source": { "key": ["pLaptopIcons", 3] },
+        "font": "FONT10ARIAL",
+        "color": 2,
+        "shadow": 0,
+        "align": "left",
+        "offsetX": 30,
+        "offsetY": 11
+      }
+    },
+    {
+      "type": "button",
+      "id": "historyButton",
+      "x": "LAPTOP_X + 29",
+      "y": "LAPTOP_Y + 162",
+      "asset": "sideButtons",
+      "frames": { "offNormal": 4, "onNormal": 12 },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "tooltip": { "key": ["gzLaptopHelpText", "LAPTOP_BN_HLP_TXT_READ_LOG_OF_EVENTS"] },
+      "primary": "history",
+      "text": {
+        "source": { "key": ["pLaptopIcons", 4] },
+        "font": "FONT10ARIAL",
+        "color": 2,
+        "shadow": 0,
+        "align": "left",
+        "offsetX": 30,
+        "offsetY": 11
+      }
+    },
+    {
+      "type": "button",
+      "id": "financesButton",
+      "x": "LAPTOP_X + 29",
+      "y": "LAPTOP_Y + 241",
+      "asset": "sideButtons",
+      "frames": { "offNormal": 5, "onNormal": 13 },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "tooltip": { "key": ["gzLaptopHelpText", "LAPTOP_BN_HLP_TXT_VIEW_FINANCIAL_SUMMARY_AND_HISTORY"] },
+      "primary": "finances",
+      "text": {
+        "source": { "key": ["pLaptopIcons", 2] },
+        "font": "FONT10ARIAL",
+        "color": 2,
+        "shadow": 0,
+        "align": "left",
+        "offsetX": 30,
+        "offsetY": 11
+      }
+    },
+    {
+      "type": "button",
+      "id": "powerButton",
+      "x": "LAPTOP_X + 29",
+      "y": "LAPTOP_Y + 378",
+      "asset": "sideButtons",
+      "frames": { "offNormal": 6, "onNormal": 14 },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "tooltip": { "key": ["gzLaptopHelpText", "LAPTOP_BN_HLP_TXT_CLOSE_LAPTOP"] },
+      "primary": "power",
+      "text": {
+        "source": { "key": ["pLaptopIcons", 6] },
+        "font": "FONT10ARIAL",
+        "color": 2,
+        "shadow": 0,
+        "align": "left",
+        "offsetX": 25,
+        "offsetY": 11
+      }
+    },
+    {
+      "type": "text",
+      "id": "date",
+      "x": "LAPTOP_X + 30",
+      "y": "LAPTOP_Y + 433",
+      "width": 70,
+      "align": "center",
+      "font": "FONT10ARIAL",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": { "bind": "date" }
+    },
+    {
+      "type": "text",
+      "id": "personnel",
+      "x": "LAPTOP_X + 47",
+      "y": "LAPTOP_Y + 194 + 30",
+      "font": "FONT10ARIAL",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": { "bind": "personnel" }
+    },
+    {
+      "type": "text",
+      "id": "balance",
+      "x": "LAPTOP_X + 47",
+      "y": "LAPTOP_Y + 257 + 15",
+      "font": "FONT10ARIAL",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": { "money": { "bind": "balance" } }
+    },
+    {
+      "type": "image",
+      "asset": "titleIcons",
+      "frame": 7,
+      "x": "LAPTOP__NEW_FILE_ICON_X",
+      "y": "LAPTOP__NEW_FILE_ICON_Y",
+      "visible": "fileIcon"
+    },
+    {
+      "type": "image",
+      "asset": "titleIcons",
+      "frame": 6,
+      "x": "LAPTOP__NEW_EMAIL_ICON_X",
+      "y": "LAPTOP__NEW_EMAIL_ICON_Y",
+      "visible": "mailIcon"
+    },
+    {
+      "type": "region",
+      "id": "newMailIcon",
+      "x": "LAPTOP__NEW_EMAIL_ICON_X",
+      "y": "LAPTOP__NEW_EMAIL_ICON_Y + 5",
+      "width": 16,
+      "height": 11,
+      "priority": "HIGHEST-3",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "tooltip": { "bind": "mailIconHelp" },
+      "primary": "openNewMail"
+    },
+    {
+      "type": "region",
+      "id": "newFileIcon",
+      "x": "LAPTOP__NEW_FILE_ICON_X",
+      "y": "LAPTOP__NEW_FILE_ICON_Y + 5",
+      "width": 16,
+      "height": 11,
+      "priority": "HIGHEST-3",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "tooltip": { "bind": "fileIconHelp" },
+      "primary": "openNewFile"
+    },
+    {
+      "type": "image",
+      "id": "powerLight",
+      "asset": "lights",
+      "frame": { "bind": "powerLight" },
+      "x": "LAPTOP_X + 44",
+      "y": "LAPTOP_Y + 466"
+    },
+    { "type": "image", "id": "hdLight", "asset": "lights", "frame": { "bind": "hdLight" }, "x": "LAPTOP_X + 88", "y": "LAPTOP_Y + 466" },
+    {
+      "type": "button",
+      "id": "minimizeButton",
+      "x": "LAPTOP_X + 590",
+      "y": "LAPTOP_Y + 30",
+      "asset": "minimize",
+      "frames": { "offNormal": 0, "onNormal": 1 },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "minimize",
+      "visible": "minimizeVisible"
+    },
+    {
+      "type": "region",
+      "id": "programIcon",
+      "x": "LAPTOP_PROGRAM_ICON_X",
+      "y": "LAPTOP_PROGRAM_ICON_Y",
+      "width": "LAPTOP_PROGRAM_ICON_WIDTH",
+      "height": "LAPTOP_PROGRAM_ICON_HEIGHT",
+      "priority": "NORMAL+1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "minimize",
+      "visible": "minimizeVisible"
+    },
+    {
+      "type": "repeat",
+      "count": { "bind": "bookmarkRows" },
+      "x": "BOOK_X",
+      "y": "BOOK_TOP_Y + 6 + BOOK_HEIGHT + 6",
+      "dy": "BOOK_HEIGHT + 6",
+      "visible": "bookmarksOpen",
+      "template": [
+        { "type": "image", "asset": "bookmark", "frame": 0, "x": 0, "y": 0, "visible": "!bookmarkRows[$i].highlighted" },
+        { "type": "image", "asset": "bookmarkHilite", "frame": 0, "x": 0, "y": 0, "visible": "bookmarkRows[$i].highlighted" },
+        {
+          "type": "text",
+          "id": "bookmark$i",
+          "x": 3,
+          "y": 2,
+          "width": "BOOK_WIDTH - 3",
+          "height": "BOOK_HEIGHT + 6",
+          "align": "center",
+          "alignRule": "font",
+          "valign": "center",
+          "font": "BOOK_FONT",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": { "bind": "bookmarkRows[$i].text" },
+          "visible": "!bookmarkRows[$i].highlighted"
+        },
+        {
+          "type": "text",
+          "x": 3,
+          "y": 2,
+          "width": "BOOK_WIDTH - 3",
+          "height": "BOOK_HEIGHT + 6",
+          "align": "center",
+          "alignRule": "font",
+          "valign": "center",
+          "font": "BOOK_FONT",
+          "color": "FONT_WHITE",
+          "shadow": "NO_SHADOW",
+          "text": { "bind": "bookmarkRows[$i].text" },
+          "visible": "bookmarkRows[$i].highlighted"
+        },
+        {
+          "type": "region",
+          "id": "bookmarkRegion$i",
+          "x": 0,
+          "y": 0,
+          "width": "BOOK_WIDTH",
+          "height": "BOOK_HEIGHT + 6",
+          "priority": "HIGHEST-2",
+          "cursor": "CURSOR_LAPTOP_SCREEN",
+          "tooltip": { "bind": "bookmarkRows[$i].help" },
+          "hover": "bookmarkHover($i)",
+          "primary": "bookmarkSelect($i)",
+          "visible": "bookmarksOpen"
+        }
+      ]
+    },
+    { "type": "image", "asset": "downloadTop", "frame": 0, "x": "DOWNLOAD_X", "y": "DOWNLOAD_Y", "visible": "boxVisible" },
+    { "type": "image", "asset": "downloadMid", "frame": 0, "x": "DOWNLOAD_X", "y": "DOWNLOAD_Y + DOWN_HEIGHT", "visible": "boxVisible" },
+    {
+      "type": "image",
+      "asset": "downloadBottom",
+      "frame": 0,
+      "x": "DOWNLOAD_X",
+      "y": "DOWNLOAD_Y + DOWN_HEIGHT * 2",
+      "visible": "boxVisible"
+    },
+    { "type": "image", "asset": "titleIcons", "frame": 1, "x": "DOWNLOAD_X + 4", "y": "DOWNLOAD_Y + 1", "visible": "boxVisible" },
+    {
+      "type": "text",
+      "id": "download",
+      "x": 328,
+      "y": "DOWN_STRING_Y",
+      "width": "446 - 328",
+      "align": "center",
+      "alignRule": "font",
+      "font": "DOWNLOAD_FONT",
+      "color": "FONT_WHITE",
+      "shadow": "NO_SHADOW",
+      "text": { "key": ["pDownloadString", 0] },
+      "visible": "downloading"
+    },
+    {
+      "type": "text",
+      "id": "reload",
+      "x": 328,
+      "y": "DOWN_STRING_Y",
+      "width": "446 - 328",
+      "align": "center",
+      "alignRule": "font",
+      "font": "DOWNLOAD_FONT",
+      "color": "FONT_WHITE",
+      "shadow": "NO_SHADOW",
+      "text": { "key": ["pDownloadString", 1] },
+      "visible": "reloading"
+    },
+    { "type": "image", "asset": "graphWindow", "frame": 0, "x": "LAPTOP_WINDOW_X", "y": "LAPTOP_WINDOW_Y", "visible": "loading" },
+    {
+      "type": "repeat",
+      "count": { "bind": "segments" },
+      "x": "LAPTOP_BAR_X",
+      "y": "LAPTOP_BAR_Y",
+      "dx": "UNIT_WIDTH",
+      "visible": "loading",
+      "template": [{ "type": "image", "asset": "graphSegment", "frame": 0, "x": 0, "y": 0 }]
+    },
+    {
+      "type": "text",
+      "id": "bookmarkHintTitle",
+      "x": "DOWN_STRING_X",
+      "y": "DOWN_STRING_Y",
+      "font": "DOWNLOAD_FONT",
+      "color": "FONT_WHITE",
+      "shadow": "NO_SHADOW",
+      "text": { "key": ["pShowBookmarkString", 0] },
+      "visible": "hint"
+    },
+    {
+      "type": "text",
+      "id": "bookmarkHint",
+      "x": "DOWN_STRING_X - 42",
+      "y": "DOWN_STRING_Y + 20",
+      "width": "BOOK_WIDTH + 45",
+      "wrap": { "gap": 2 },
+      "align": "center",
+      "font": "BOOK_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": { "key": ["pShowBookmarkString", 1] },
+      "visible": "hint"
+    },
+    {
+      "type": "region",
+      "id": "newMailMask",
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 480,
+      "priority": "HIGHEST-3",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "laptopLeftUp",
+      "secondary": "laptopRightUp",
+      "visible": "newMailBox"
+    },
+    { "type": "image", "asset": "mailWarning", "frame": 0, "x": "EMAIL_WARNING_X", "y": "EMAIL_WARNING_Y", "visible": "newMailBox" },
+    { "type": "image", "asset": "titleIcons", "frame": 0, "x": "EMAIL_WARNING_X + 5", "y": "EMAIL_WARNING_Y + 2", "visible": "newMailBox" },
+    {
+      "type": "text",
+      "id": "newMailTitle",
+      "x": "EMAIL_WARNING_X + 30",
+      "y": "EMAIL_WARNING_Y + 8",
+      "font": "EMAIL_HEADER_FONT",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": { "key": ["pEmailTitleText", 0] },
+      "visible": "newMailBox"
+    },
+    {
+      "type": "text",
+      "id": "newMailText",
+      "x": "EMAIL_WARNING_X + 60",
+      "y": "EMAIL_WARNING_Y + 63",
+      "font": "EMAIL_WARNING_FONT",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": { "key": ["pNewMailStrings", 0] },
+      "visible": "newMailBox"
+    },
+    {
+      "type": "button",
+      "id": "newMailOk",
+      "x": "NEW_BTN_X + 10",
+      "y": "NEW_BTN_Y",
+      "asset": "yesNoButtons",
+      "frames": { "offNormal": 0, "onNormal": 1 },
+      "priority": "HIGHEST-2",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "closeNewMail",
+      "visible": "newMailBox"
+    },
+    { "type": "custom", "id": "slide", "renderer": "slide", "x": 0, "y": 0, "width": 640, "height": 480 }
+  ],
+  "hotkeys": [
+    { "key": "Escape", "on": "down", "mods": "any", "action": "escape" },
+    { "key": "Tab", "on": "down", "mods": 2, "action": "tabBack" },
+    { "key": "Tab", "on": "down", "mods": 0, "action": "tab" },
+    { "key": "Tab", "on": "down", "mods": 1, "action": "tab" },
+    { "key": "x", "on": "down", "mods": 4, "action": "quit" },
+    { "key": "h", "on": "down", "mods": "any", "action": "help" }
+  ]
+}

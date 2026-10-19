@@ -1,0 +1,55 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/AIM.cc InitAimMenuBar (bottombuttons2.sti frames 0 and 1, AimBottomMenuText in FONT10ARIAL, AIM_BUTTON_ON_COLOR up and AIM_BUTTON_OFF_COLOR down with DEFAULT_SHADOW, BOTTOM_BUTTON_START_WIDTH apart, MSYS_PRIORITY_HIGH, CURSOR_LAPTOP_SCREEN), DisableAimButton"
+  ],
+  "screen": "aimBar",
+  "frame": "std640",
+  "constants": ["Laptop", "AIM"],
+  "assets": {
+    "bottomButtons": {
+      "sti": "laptop/bottombuttons2.sti",
+      "stub": {
+        "frames": 2,
+        "size": ["BOTTOM_BUTTON_START_WIDTH - 2", "BOTTOM_BUTTON_START_HEIGHT"],
+        "states": ["normal", "pressed"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "repeat",
+      "count": "NUM_AIM_BOTTOMBUTTONS",
+      "x": "BOTTOM_BUTTON_START_X",
+      "y": "BOTTOM_BUTTON_START_Y",
+      "dx": "BOTTOM_BUTTON_START_WIDTH",
+      "template": [
+        {
+          "type": "button",
+          "id": "aimBottom$i",
+          "x": 0,
+          "y": 0,
+          "asset": "bottomButtons",
+          "frames": {
+            "offNormal": 0,
+            "onNormal": 1
+          },
+          "priority": "HIGH",
+          "cursor": "CURSOR_LAPTOP_SCREEN",
+          "checked": "barChecked[$i]",
+          "primary": "bottom($i)",
+          "text": {
+            "source": {
+              "key": ["AimBottomMenuText", "$i"]
+            },
+            "font": "FONT10ARIAL",
+            "color": "AIM_BUTTON_ON_COLOR",
+            "shadow": "DEFAULT_SHADOW",
+            "downColor": "AIM_BUTTON_OFF_COLOR",
+            "downShadow": "DEFAULT_SHADOW"
+          }
+        }
+      ]
+    }
+  ]
+}

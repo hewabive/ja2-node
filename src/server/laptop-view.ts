@@ -1,5 +1,6 @@
 import { MercType } from '../content/strategic/economy-content.ts';
 import { sectorFromId, sectorShortString } from '../content/strategic/sector-ids.ts';
+import type { UiStrings } from '../content/text/strings.ts';
 import type {
   AimMercView,
   BobbyRayView,
@@ -13,27 +14,29 @@ import type {
 } from '../protocol/view.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { mercAccountStatusName } from '../sim/campaign/contracts/merc-account.ts';
-import { aimFace, contractSalary } from '../sim/campaign/laptop/aim.ts';
+import { financeSummary } from '../sim/campaign/finance-summary.ts';
+import { aimContact, aimFace, aimMessageLeft, contractSalary } from '../sim/campaign/laptop/aim.ts';
 import { bobbyRayUnitPrice } from '../sim/campaign/laptop/bobby-ray.ts';
 import { COST_OF_PROFILE, canCreateAnotherImpCharacter, impCharactersCreated } from '../sim/campaign/laptop/imp.ts';
 import { contractDaysLeft, insuranceDaysLeft, insuranceLength, insurancePremium, isInsurable } from '../sim/campaign/laptop/insurance.ts';
 import type { LaptopFlow } from '../sim/campaign/laptop/laptop-flow.ts';
-import { Bookmark, type StoreSlot } from '../sim/campaign/laptop/laptop-state.ts';
+import { Bookmark, bookmarkNames, type StoreSlot } from '../sim/campaign/laptop/laptop-state.ts';
 import { mailType } from '../sim/campaign/laptop/mail.ts';
 import { isMercListed, isMercSiteDown, listingProfile, owedToSpeck } from '../sim/campaign/laptop/merc-site.ts';
 import { Assignment } from '../sim/strategic/economy/constants.ts';
+import { predictIncomeFromPlayerMines } from '../sim/strategic/economy/mines.ts';
 import { NUM_MIN_IN_DAY, NUM_MIN_IN_HOUR } from '../sim/strategic/time/constants.ts';
 import type { ProfileProgress } from '../sim/tactical/profiles.ts';
+import type { TextSource } from './campaign-session.ts';
+import { financeRowText } from './finance-labels.ts';
+import { mailSubject } from './mail-text.ts';
 
-const BOOKMARK_NAMES: Readonly<Record<number, string>> = {
-  [Bookmark.AIM]: 'aim',
-  [Bookmark.BOBBYR]: 'bobbyRay',
-  [Bookmark.IMP]: 'imp',
-  [Bookmark.MERC]: 'merc',
-  [Bookmark.FUNERAL]: 'funeral',
-  [Bookmark.FLORIST]: 'florist',
-  [Bookmark.INSURANCE]: 'insurance',
-};
+export interface LaptopViewText {
+  readonly texts: TextSource | null;
+  readonly labels: UiStrings | null;
+}
+
+const NO_TEXT: LaptopViewText = { texts: null, labels: null };
 const NO_ITEM = 0;
 const AIM_PROFILES = 40;
 
@@ -72,10 +75,21 @@ function kit(flow: LaptopFlow, p: ProfileProgress): { readonly items: readonly L
   return { items, cost: p.optionalGearCost };
 }
 
+export interface AimListingSource {
+  readonly aimListings: readonly number[];
+  mercType(id: number): number | undefined;
+}
+
+export function aimListingOrder(source: AimListingSource): number[] {
+  const isAim = (id: number) => source.mercType(id) === MercType.AIM;
+  const listed = source.aimListings.filter(isAim);
+  const rest = Array.from({ length: AIM_PROFILES }, (_, id) => id).filter((id) => isAim(id) && !listed.includes(id));
+  return [...new Set(listed), ...rest];
+}
+
 function aimView(flow: LaptopFlow): AimMercView[] {
   const out: AimMercView[] = [];
-  for (let id = 0; id < AIM_PROFILES; id++) {
-    if (flow.mercType(id) !== MercType.AIM) continue;
+  for (const id of aimListingOrder({ aimListings: flow.content.aimListings, mercType: (id) => flow.mercType(id) })) {
     const p = flow.profile(id);
     const record = flow.profileRecord(id);
     if (!p || !record) continue;
@@ -88,6 +102,8 @@ function aimView(flow: LaptopFlow): AimMercView[] {
       medicalDeposit: p.medicalDeposit ? p.medicalDepositAmount : null,
       kit: kit(flow, p),
       face: aimFace(flow, id, p),
+      contact: aimContact(p),
+      messageLeft: aimMessageLeft(p),
     });
   }
   return out;
@@ -201,18 +217,23 @@ function inTransitView(flow: LaptopFlow): InTransitView[] {
     }));
 }
 
-export function laptopView(campaign: CampaignSim): LaptopView | null {
+export function laptopView(campaign: CampaignSim, text: LaptopViewText = NO_TEXT): LaptopView | null {
   const flow = campaign.laptop;
   if (!flow?.isOpen()) return null;
   const l = flow.laptop;
   const f = campaign.state.finances;
   const imp = flow.content.imp;
+  const projectedIncome = campaign.economy ? predictIncomeFromPlayerMines(campaign.economy) : 0;
   return {
     balance: f.balance,
-    bookmarks: l.bookmarks.map((b) => BOOKMARK_NAMES[b] ?? String(b)),
+    newMail: l.newMail,
+    bookmarks: bookmarkNames(l),
     emails: l.emails.map((m) => ({
       id: m.id,
       ...mailType(flow.content, m.offset),
+      offset: m.offset,
+      length: m.length,
+      subject: mailSubject(campaign, m, text.texts),
       sender: m.sender,
       date: time(m.date),
       read: m.read,
@@ -231,7 +252,9 @@ export function laptopView(campaign: CampaignSim): LaptopView | null {
       date: time(r.minute),
       amount: r.amount,
       balanceAfter: r.balanceAfter,
+      text: financeRowText(campaign, text.labels, r.code, r.secondCode),
     })),
+    financeSummary: financeSummary(f.ledger, flow.now(), f.balance, projectedIncome),
     files: l.files.map((file) => ({ code: file.code, read: file.read })),
     personnel: {
       dead: l.personnel.dead.filter((p) => p >= 0),
@@ -254,13 +277,18 @@ export function laptopView(campaign: CampaignSim): LaptopView | null {
   };
 }
 
-export function laptopSummary(campaign: CampaignSim): { readonly landingZone?: string; readonly unreadMail?: number } {
+export function laptopSummary(campaign: CampaignSim): {
+  readonly landingZone?: string;
+  readonly unreadMail?: number;
+  readonly newMail?: boolean;
+} {
   const flow = campaign.laptop;
   if (!flow) return {};
   const l = flow.laptop;
   return {
     landingZone: sectorShortString(sectorFromId(l.mercArriveSector)),
     unreadMail: l.emails.filter((m) => !m.read).length,
+    newMail: l.newMail,
   };
 }
 

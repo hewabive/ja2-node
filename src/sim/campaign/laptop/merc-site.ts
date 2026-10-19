@@ -1,13 +1,15 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Laptop/Mercs.cc GameInitMercs, EnterMercs (visit count), GetSpeckConditionalOpening, IsSpeckTryingToRecruit,
+// @src src/game/Laptop/Mercs.cc GameInitMercs, EnterMercs (visit count), GetSpeckConditionalOpening (with the quote ids it
+// @src queues; the intro quotes 1-8 follow the tags, as the repeated calls queue them), IsSpeckTryingToRecruit,
 // @src DailyUpdateOfMercSite (the part after the account), ShouldTheMercSiteServerGoDown, GetMercSiteBackOnline,
 // @src GetProfileIDFromMERCListing, HasLarryRelapsed, MakeBiffAwayForCoupleOfDays, AreAnyOfTheNewMercsAvailable,
 // @src ScheduleNewMercsToBeAvailable, CanMercBeAvailableYet, SetLastMercArrival, MakeNewMercsAvailable,
 // @src NewMercsAvailableAtMercSiteCallBack, IsMercMercAvailable, ShouldSpeckStartTalkingDueToActionOnSubPage (the coin toss),
 // @src IsAnyMercMercsHired, IsAnyMercMercsDead, CountNumberOfMercMercsHired, CountNumberOfMercMercsWhoAreDead, CalcMercDaysServed;
 // @src Laptop/Mercs_No_Account.cc BtnOpenAccountBoxButtonCallback; Laptop/Mercs_Files.cc BtnMercHireButtonCallback,
-// @src MercFilesHireMerc; Laptop/Mercs_Account.cc SettleMercAccounts, CalculateHowMuchPlayerOwesSpeck. See docs/21 §3.
+// @src MercFilesHireMerc; Laptop/Mercs_Account.cc SettleMercAccounts, CalculateHowMuchPlayerOwesSpeck; Laptop/Speck_Quotes.h.
+// @src See docs/21 §3.
 
 import type { MercListing } from '../../../content/strategic/laptop-content.ts';
 import { i32, u32 } from '../../../core/int.ts';
@@ -45,6 +47,30 @@ const BIFF_AWAY_BASE = 2;
 const BIFF_AWAY_SPREAD = 2;
 const FIRST_VISIT_SINCE_DOWN = 1;
 const SPOKEN_SINCE_DOWN = 2;
+
+export const SpeckQuote = {
+  FIRST_TIME_IN: 0,
+  LAST_FIRST_TIME_IN: 8,
+  TOUGH_START: 10,
+  BUSINESS_BAD: 11,
+  BUSINESS_GOOD: 12,
+  TRYING_TO_RECRUIT: 13,
+  ACCOUNT_SUSPENDED: 14,
+  ALMOST_BANKRUPT_1: 15,
+  ALMOST_BANKRUPT_2: 16,
+  FIRST_VISIT_SINCE_SERVER_WENT_DOWN: 19,
+  GENERIC_OPENING: 20,
+  TAG_FOR_GENERIC_OPENING: 21,
+  NEW_MERCS_AVAILABLE: 22,
+  PLAYERS_LOST_MERCS: 23,
+  TAG_PLAYER_OWES_MONEY: 24,
+  FIRST_MERC_DIES: 27,
+  FLO_IS_DEAD_BIFF_ALIVE: 32,
+  FLO_IS_DEAD_BIFF_IS_DEAD: 33,
+  FLO_MARRIED_A_COUSIN_BIFF_IS_ALIVE: 34,
+  LARRY_RELAPSED: 37,
+  FIRST_IDLE_TAG: 41,
+} as const;
 
 export type MercCommandRefusal = 'noBookmark' | 'siteDown';
 export type MercHireRefusal =
@@ -188,7 +214,7 @@ function makeBiffAwayForCoupleOfDays(ctx: LaptopContext): void {
   if (biff) biff.dayBecomesAvailable = days;
 }
 
-function enterMercSite(ctx: LaptopContext): void {
+export function enterMercSite(ctx: LaptopContext): void {
   const merc = ctx.laptop.merc;
   setBookmark(ctx.laptop, Bookmark.MERC);
   if (merc.playerBeenToSiteStatus === MercSiteVisit.NEVER_VISITED) merc.playerBeenToSiteStatus = MercSiteVisit.FIRST_VISIT;
@@ -196,59 +222,115 @@ function enterMercSite(ctx: LaptopContext): void {
   else merc.playerBeenToSiteStatus = MercSiteVisit.THIRD_OR_MORE_VISITS;
 }
 
-function businessOrRecruitingOpening(ctx: LaptopContext, roll: number): boolean {
-  return (
-    (roll < BUSINESS_GOOD && areAnyOfTheNewMercsAvailable(ctx) && mercMercsOnTeam(ctx) > 1) ||
-    (roll < TRYING_TO_RECRUIT && isSpeckTryingToRecruit(ctx))
-  );
+function businessOrRecruitingOpening(ctx: LaptopContext, roll: number): number | null {
+  if (roll < BUSINESS_GOOD && areAnyOfTheNewMercsAvailable(ctx) && mercMercsOnTeam(ctx) > 1) return SpeckQuote.BUSINESS_GOOD;
+  if (roll < TRYING_TO_RECRUIT && isSpeckTryingToRecruit(ctx)) return SpeckQuote.TRYING_TO_RECRUIT;
+  return null;
 }
 
-function openingQuoteEffects(ctx: LaptopContext): boolean {
+function genericOpening(ctx: LaptopContext, quotes: number[]): void {
+  const merc = ctx.laptop.merc;
+  const quote = businessOrRecruitingOpening(ctx, ctx.rng.main.int(DAILY_DIE));
+  if (quote !== null) {
+    quotes.push(quote);
+    return;
+  }
+  quotes.push(SpeckQuote.GENERIC_OPENING);
+  if (merc.saidGenericOpening) return;
+  merc.saidGenericOpening = true;
+  quotes.push(SpeckQuote.TAG_FOR_GENERIC_OPENING);
+}
+
+function laterVisitOpening(ctx: LaptopContext, quotes: number[]): boolean {
   const merc = ctx.laptop.merc;
   const main = ctx.rng.main;
-  if (mercMercsOnTeam(ctx) === 0 && mercDaysServed(ctx) === 0) return true;
+  if (mercMercsOnTeam(ctx) === 0 && mercDaysServed(ctx) === 0) {
+    quotes.push(SpeckQuote.BUSINESS_BAD);
+    return true;
+  }
   let canUseIdleTag = true;
   let canSayLackOfPayment = true;
-  if (merc.firstVisitSinceServerWentDown === FIRST_VISIT_SINCE_DOWN) merc.firstVisitSinceServerWentDown = SPOKEN_SINCE_DOWN;
-  else if (deadMercMercs(ctx) >= 2 && merc.speckCanSayPlayersLostQuote) {
+  if (merc.firstVisitSinceServerWentDown === FIRST_VISIT_SINCE_DOWN) {
+    merc.firstVisitSinceServerWentDown = SPOKEN_SINCE_DOWN;
+    quotes.push(SpeckQuote.FIRST_VISIT_SINCE_SERVER_WENT_DOWN);
+  } else if (deadMercMercs(ctx) >= 2 && merc.speckCanSayPlayersLostQuote) {
     merc.speckCanSayPlayersLostQuote = 0;
+    quotes.push(SpeckQuote.PLAYERS_LOST_MERCS);
     canUseIdleTag = false;
-  } else if (merc.accountStatus === MercAccountStatus.SUSPENDED || owedToSpeck(ctx) > OWES_A_LOT) {
+  } else if (merc.accountStatus === MercAccountStatus.SUSPENDED) {
+    quotes.push(SpeckQuote.ACCOUNT_SUSPENDED);
     canSayLackOfPayment = false;
     canUseIdleTag = false;
-  } else if (!businessOrRecruitingOpening(ctx, main.int(DAILY_DIE))) merc.saidGenericOpening = true;
-  if (canUseIdleTag && main.int(DAILY_DIE) < DAILY_DIE / 2) main.int(IDLE_TAGS);
+  } else if (owedToSpeck(ctx) > OWES_A_LOT) {
+    quotes.push(SpeckQuote.ALMOST_BANKRUPT_1, SpeckQuote.ALMOST_BANKRUPT_2);
+    canSayLackOfPayment = false;
+    canUseIdleTag = false;
+  } else genericOpening(ctx, quotes);
+  if (canUseIdleTag && main.int(DAILY_DIE) < DAILY_DIE / 2) quotes.push(SpeckQuote.FIRST_IDLE_TAG + main.int(IDLE_TAGS));
   return canSayLackOfPayment;
 }
 
-function deadMercQuoteEffects(ctx: LaptopContext): void {
+function deadMercQuotes(ctx: LaptopContext, quotes: number[]): void {
   const merc = ctx.laptop.merc;
   const named = ctx.content.namedProfiles;
   if (deadMercMercs(ctx) === 0) return;
-  merc.hasAMercDiedAtSite = true;
-  for (const { profile, p } of listed(ctx)) {
+  if (!merc.hasAMercDiedAtSite) {
+    merc.hasAMercDiedAtSite = true;
+    quotes.push(SpeckQuote.FIRST_MERC_DIES);
+  }
+  for (const { listing, profile, p } of listed(ctx)) {
     if (!isMercDead(p) || p.miscFlags3 & ProfileMiscFlag3.MERC_MERC_IS_DEAD_AND_QUOTE_SAID) continue;
     p.miscFlags3 |= ProfileMiscFlag3.MERC_MERC_IS_DEAD_AND_QUOTE_SAID;
-    const biff = ctx.profile(named.BIFF ?? -1);
-    if (profile === named.FLO && biff && !isMercDead(biff)) makeBiffAwayForCoupleOfDays(ctx);
+    if (profile === named.FLO) {
+      const biff = ctx.profile(named.BIFF ?? -1);
+      if (biff && !isMercDead(biff)) {
+        quotes.push(SpeckQuote.FLO_IS_DEAD_BIFF_ALIVE);
+        makeBiffAwayForCoupleOfDays(ctx);
+      } else quotes.push(SpeckQuote.FLO_IS_DEAD_BIFF_IS_DEAD);
+      continue;
+    }
+    const dead = listing.quotes.find((q) => q.type === 'MERC_DEAD');
+    if (dead) quotes.push(dead.quote);
   }
 }
 
-export function speckOpening(ctx: LaptopContext): void {
+function openingTail(ctx: LaptopContext, canSayLackOfPayment: boolean, quotes: number[]): void {
   const merc = ctx.laptop.merc;
-  enterMercSite(ctx);
-  const status = merc.playerBeenToSiteStatus;
-  const canSayLackOfPayment =
-    status === MercSiteVisit.FIRST_VISIT || status === MercSiteVisit.SECOND_VISIT ? true : openingQuoteEffects(ctx);
-  if (canSayLackOfPayment) merc.speckQuoteFlags &= ~SpeckQuoteFlag.SENT_EMAIL_ABOUT_LACK_OF_PAYMENT;
-  merc.newMercsAvailable = false;
-  deadMercQuoteEffects(ctx);
+  if (canSayLackOfPayment && merc.speckQuoteFlags & SpeckQuoteFlag.SENT_EMAIL_ABOUT_LACK_OF_PAYMENT) {
+    merc.speckQuoteFlags &= ~SpeckQuoteFlag.SENT_EMAIL_ABOUT_LACK_OF_PAYMENT;
+    quotes.push(SpeckQuote.TAG_PLAYER_OWES_MONEY);
+  }
+  if (merc.newMercsAvailable) {
+    merc.newMercsAvailable = false;
+    quotes.push(SpeckQuote.NEW_MERCS_AVAILABLE);
+  }
+  deadMercQuotes(ctx, quotes);
   const biff = ctx.profile(ctx.content.namedProfiles.BIFF ?? -1);
   if (fact(ctx.state.narrative, Fact.PC_MARRYING_DARYL_IS_FLO) && !merc.speckSaidFloMarriedCousinQuote && biff && !isMercDead(biff)) {
     merc.speckSaidFloMarriedCousinQuote = true;
+    quotes.push(SpeckQuote.FLO_MARRIED_A_COUSIN_BIFF_IS_ALIVE);
     makeBiffAwayForCoupleOfDays(ctx);
   }
-  if (larryRelapsed(ctx)) merc.speckQuoteFlags |= SpeckQuoteFlag.ALREADY_TOLD_PLAYER_THAT_LARRY_RELAPSED;
+  if (larryRelapsed(ctx) && !(merc.speckQuoteFlags & SpeckQuoteFlag.ALREADY_TOLD_PLAYER_THAT_LARRY_RELAPSED)) {
+    merc.speckQuoteFlags |= SpeckQuoteFlag.ALREADY_TOLD_PLAYER_THAT_LARRY_RELAPSED;
+    quotes.push(SpeckQuote.LARRY_RELAPSED);
+  }
+}
+
+export function speckOpening(ctx: LaptopContext): number[] {
+  const status = ctx.laptop.merc.playerBeenToSiteStatus;
+  const quotes: number[] = [];
+  let canSayLackOfPayment = true;
+  if (status === MercSiteVisit.FIRST_VISIT) quotes.push(SpeckQuote.FIRST_TIME_IN);
+  else if (status === MercSiteVisit.SECOND_VISIT) quotes.push(SpeckQuote.TOUGH_START);
+  else canSayLackOfPayment = laterVisitOpening(ctx, quotes);
+  openingTail(ctx, canSayLackOfPayment, quotes);
+  if (status === MercSiteVisit.FIRST_VISIT) quotes.push(...range(SpeckQuote.FIRST_TIME_IN + 1, SpeckQuote.LAST_FIRST_TIME_IN));
+  return quotes;
+}
+
+function range(first: number, last: number): number[] {
+  return Array.from({ length: last - first + 1 }, (_, i) => first + i);
 }
 
 export function openMercAccount(ctx: LaptopContext): void {

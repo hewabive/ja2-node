@@ -1,0 +1,25 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Laptop/AIMLinks.h, src/game/Laptop/AIMLinks.cc",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
+  "constants": {
+    "AIM_LINK_TITLE_FONT": "FONT14ARIAL",
+    "AIM_LINK_TITLE_COLOR": 157,
+    "AIM_LINK_NUM_LINKS": 3,
+    "AIM_LINK_LINK_OFFSET_X": 94,
+    "AIM_LINK_LINK_OFFSET_Y": 94,
+    "AIM_LINK_LINK_WIDTH": 420,
+    "AIM_LINK_LINK_HEIGHT": 70,
+    "AIM_LINK_BOBBY_LINK_X": 151,
+    "AIM_LINK_BOBBY_LINK_Y": 137,
+    "AIM_LINK_FUNERAL_LINK_X": 151,
+    "AIM_LINK_FUNERAL_LINK_Y": 231,
+    "AIM_LINK_INSURANCE_LINK_X": 151,
+    "AIM_LINK_INSURANCE_LINK_Y": 325,
+    "AIM_LINK_TITLE_X": 260,
+    "AIM_LINK_TITLE_Y": 110,
+    "AIM_LINK_TITLE_WIDTH": 203
+  },
+  "stdScreen": [],
+  "skipped": []
+}
