@@ -16,6 +16,8 @@ import {
 } from '../content/text/data-version.ts';
 import { vfsExtension } from '../content/vfs/path.ts';
 import { type Vfs, VfsNotFoundError } from '../content/vfs/vfs.ts';
+import type { WelcomeIdentity } from '../protocol/messages.ts';
+import { type EncodedAssetManifest, encodeAssetManifest, isContentHash, VfsHashes } from './assets-manifest.ts';
 import { handleMcpRequest } from './mcp.ts';
 import { SAVE_EXTENSION } from './save-file.ts';
 import { type LoadProblem, loadProblemOf, type SaveOutcome, type SaveService } from './save-service.ts';
@@ -37,7 +39,8 @@ export interface AppOptions {
   readonly info: AppInfo;
   readonly allowedHosts?: readonly string[];
   readonly clientDir?: string;
-  readonly vfsGeneration?: string;
+  readonly hashes?: VfsHashes;
+  readonly rules?: WelcomeIdentity['rules'];
   readonly sessions?: Map<string, SessionHost>;
   readonly defaultSession?: string;
   readonly createSession?: HostFactory;
@@ -69,6 +72,26 @@ const LOAD_STATUS: Readonly<Record<LoadProblem, 400 | 404 | 409 | 413>> = {
   tooLarge: 413,
 };
 const SNAPSHOT_DESCRIPTION = 'developer snapshot';
+const PINNED_PREFIX = '@';
+const IMMUTABLE_CACHE_CONTROL = 'private, max-age=31536000, immutable';
+const REVALIDATE_CACHE_CONTROL = 'private, no-cache';
+const VFS_ROUTE = '/vfs/';
+
+interface VfsRequest {
+  readonly path: string;
+  readonly pinned: string | null;
+}
+
+function vfsRequestOf(raw: string): VfsRequest | 'malformed' {
+  if (!raw.startsWith(PINNED_PREFIX)) return { path: raw, pinned: null };
+  const slash = raw.indexOf('/');
+  const hash = slash < 0 ? '' : raw.slice(PINNED_PREFIX.length, slash);
+  return isContentHash(hash) ? { path: raw.slice(slash + 1), pinned: hash } : 'malformed';
+}
+
+function acceptsGzip(header: string | undefined): boolean {
+  return header?.split(',').some((part) => part.trim().split(';')[0]?.trim().toLowerCase() === 'gzip') ?? false;
+}
 
 const saveRequest = z.object({ name: z.string().max(64).optional(), description: z.string().max(200).optional() }).strict();
 const loadRequest = z.object({ name: z.string().max(64), reseed: z.boolean().optional() }).strict();
@@ -132,8 +155,16 @@ export function createApp(options: AppOptions): Hono {
     return isUiLanguage(wanted) ? wanted : null;
   };
   const hosts = new Set(options.allowedHosts ?? DEFAULT_HOSTS);
-  const generation = options.vfsGeneration ?? 'dev';
+  const hashes = options.hashes ?? VfsHashes.memory(vfs);
   const stubFallback = texts.dataVersion === STUB_DATA_VERSION;
+  let manifest: Promise<EncodedAssetManifest> | null = null;
+  const assetManifest = (): Promise<EncodedAssetManifest> => {
+    manifest ??= hashes.manifest(info.originalData ? 'original' : 'stubs', stubFallback).then(encodeAssetManifest);
+    manifest.catch(() => {
+      manifest = null;
+    });
+    return manifest;
+  };
   const app = new Hono();
 
   app.use('*', async (c, next) => {
@@ -176,6 +207,7 @@ export function createApp(options: AppOptions): Hono {
       dataVersion: texts.dataVersion,
       language: defaultLanguage,
       ...(options.saves ? { engine: options.saves.engine } : {}),
+      ...(options.rules ? { rules: options.rules } : {}),
       files: vfs.size,
     }),
   );
@@ -193,6 +225,20 @@ export function createApp(options: AppOptions): Hono {
       return [f.path, f.size, i] as const;
     });
     return c.json({ layers, files });
+  });
+
+  app.get('/api/assets/manifest', async (c) => {
+    const encoded = await assetManifest();
+    const headers = {
+      'content-type': 'application/json',
+      'cache-control': REVALIDATE_CACHE_CONTROL,
+      etag: encoded.etag,
+      vary: 'Accept-Encoding',
+    };
+    if (c.req.header('if-none-match') === encoded.etag) return c.body(null, 304, headers);
+    if (acceptsGzip(c.req.header('accept-encoding')))
+      return c.body(new Uint8Array(encoded.gzip), 200, { ...headers, 'content-encoding': 'gzip' });
+    return c.body(new Uint8Array(encoded.json), 200, headers);
   });
 
   app.get('/api/strings', async (c) => {
@@ -317,12 +363,14 @@ export function createApp(options: AppOptions): Hono {
   }
 
   app.get('/vfs/*', async (c) => {
-    let path: string;
+    let request: VfsRequest | 'malformed';
     try {
-      path = decodeURIComponent(new URL(c.req.url).pathname.slice('/vfs/'.length));
+      request = vfsRequestOf(decodeURIComponent(new URL(c.req.url).pathname.slice(VFS_ROUTE.length)));
     } catch {
       return c.json({ error: 'bad path encoding' }, 400);
     }
+    if (request === 'malformed') return c.json({ error: 'expected /vfs/@<16 hex digits>/<path>' }, 400);
+    const { path, pinned } = request;
     let info: ReturnType<Vfs['stat']>;
     try {
       info = vfs.stat(path) ?? (stubFallback ? vfs.stat(`${STUB_TEXT_PREFIX}${path}`) : undefined);
@@ -331,11 +379,13 @@ export function createApp(options: AppOptions): Hono {
       throw err;
     }
     if (!info) return c.json({ error: `not found: ${path}` }, 404);
-    const etag = `"${generation}-${info.layer}-${info.size}"`;
+    const hash = await hashes.contentHash(info.path);
+    if (pinned !== null && pinned !== hash) return c.json({ error: `stale: ${path} has changed, fetch the manifest again` }, 404);
+    const etag = `"${hash}"`;
     const headers: Record<string, string> = {
       'content-type': MIME[vfsExtension(info.path)] ?? 'application/octet-stream',
       'accept-ranges': 'bytes',
-      'cache-control': 'private, no-cache',
+      'cache-control': pinned !== null ? IMMUTABLE_CACHE_CONTROL : REVALIDATE_CACHE_CONTROL,
       etag,
       'x-vfs-layer': info.layer,
     };

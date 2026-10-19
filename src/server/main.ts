@@ -6,6 +6,7 @@ import { openDataVfs } from '../node/data-vfs.ts';
 import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR, REPO_ROOT } from '../node/repo.ts';
 import { loadOrCreateToken } from '../node/token.ts';
 import { createApp } from './app.ts';
+import { VfsHashes } from './assets-manifest.ts';
 import { chooseDisplayLanguage, detectDataVersion, LANGUAGE_ENV } from './data-version.ts';
 import { cacheDirFromEnv, openRulePack } from './rule-pack.ts';
 import { contentSourceOf, createSaveEnvironment, saveDirsEnv } from './save-environment.ts';
@@ -34,7 +35,8 @@ const sessions = new Map<string, SessionHost>();
 const defaultSession = 'sandbox';
 const scheduler = new SliceScheduler();
 const cacheDir = cacheDirFromEnv();
-const rules = await openRulePack({ vfs: data.vfs, source: contentSourceOf(data.dataDir), cacheDir });
+const hashes = await VfsHashes.open(data.vfs, cacheDir);
+const rules = await openRulePack({ vfs: data.vfs, source: contentSourceOf(data.dataDir), cacheDir, onDigest: hashes.remember });
 const { store, saves, sources, engine, welcome } = createSaveEnvironment({
   vfs: data.vfs,
   pack: rules.pack,
@@ -66,7 +68,8 @@ try {
 const app = createApp({
   vfs: data.vfs,
   token,
-  vfsGeneration: Date.now().toString(36),
+  hashes,
+  rules: welcome.rules,
   sessions,
   defaultSession,
   createSession,
@@ -99,7 +102,7 @@ attachWebSocket(server, { token, sessions, defaultSession });
 
 const shutdown = (): void => {
   void Promise.all([...sessions.values()].map((session) => session.close()))
-    .then(() => saves.flush())
+    .then(() => Promise.all([saves.flush(), hashes.flush()]))
     .catch((err: Error) => console.error(`saving on shutdown failed: ${err.message}`))
     .finally(() => {
       server.close(() => {

@@ -1,16 +1,21 @@
+import { createHash } from 'node:crypto';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { gunzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { encodeEdtFile } from '../content/formats/edt.ts';
 import { MemoryLayer, Vfs } from '../content/vfs/vfs.ts';
+import { DirLayer } from '../node/dir-layer.ts';
 import { createApp, parseRange } from './app.ts';
+import { VfsHashes } from './assets-manifest.ts';
 import { Session, type SessionSim } from './session.ts';
 import { InProcessHost, type SessionHost } from './session-host.ts';
 import type { SessionRequest } from './session-registry.ts';
 
 const token = 'test-token-0123456789';
 const data = new TextEncoder().encode('0123456789');
+const DATA_HASH = createHash('sha256').update(data).digest('hex').slice(0, 16);
 const app = createApp({
   vfs: new Vfs([new MemoryLayer('mem', [['Interface/Panel.STI', data]])]),
   token,
@@ -53,12 +58,69 @@ describe('server', () => {
     expect((await app.request('http://localhost/vfs/%E0%A4%A', { headers: auth })).status).toBe(400);
   });
 
-  it('answers 304 for a matching ETag', async () => {
+  it('answers 304 for a matching ETag, the content hash', async () => {
     const first = await app.request('http://localhost/vfs/interface/panel.sti', { headers: auth });
     const etag = first.headers.get('etag') ?? '';
-    expect(etag).toMatch(/^"dev-mem-10"$/);
+    expect(etag).toBe(`"${DATA_HASH}"`);
+    expect(first.headers.get('cache-control')).toBe('private, no-cache');
     const again = await app.request('http://localhost/vfs/interface/panel.sti', { headers: { ...auth, 'if-none-match': etag } });
     expect(again.status).toBe(304);
+  });
+
+  it('serves the asset manifest gzipped, with the content hash of every file', async () => {
+    const zipped = await app.request('http://localhost/api/assets/manifest', { headers: { ...auth, 'accept-encoding': 'gzip, br' } });
+    expect(zipped.headers.get('content-encoding')).toBe('gzip');
+    const plain = await app.request('http://localhost/api/assets/manifest', { headers: auth });
+    expect(plain.headers.get('content-encoding')).toBeNull();
+    const manifest = await plain.json();
+    expect(manifest).toEqual({
+      format: 'ja2-node-assets',
+      version: 1,
+      source: 'stubs',
+      stubText: true,
+      files: [['interface/panel.sti', 10, DATA_HASH]],
+    });
+    expect(JSON.parse(gunzipSync(Buffer.from(await zipped.arrayBuffer())).toString('utf8'))).toEqual(manifest);
+    const etag = plain.headers.get('etag') ?? '';
+    expect((await app.request('http://localhost/api/assets/manifest', { headers: { ...auth, 'if-none-match': etag } })).status).toBe(304);
+    expect((await app.request('http://localhost/api/assets/manifest')).status).toBe(401);
+  });
+
+  it('serves a file under its content hash as immutable, and refuses a stale or malformed hash', async () => {
+    const pinned = await app.request(`http://localhost/vfs/@${DATA_HASH}/Interface/Panel.sti`, { headers: auth });
+    expect(pinned.status).toBe(200);
+    expect(pinned.headers.get('cache-control')).toBe('private, max-age=31536000, immutable');
+    expect(await pinned.text()).toBe('0123456789');
+    const part = await app.request(`http://localhost/vfs/@${DATA_HASH}/interface/panel.sti`, { headers: { ...auth, range: 'bytes=1-2' } });
+    expect(await part.text()).toBe('12');
+    expect((await app.request('http://localhost/vfs/@0000000000000000/interface/panel.sti', { headers: auth })).status).toBe(404);
+    expect((await app.request('http://localhost/vfs/@xyz/interface/panel.sti', { headers: auth })).status).toBe(400);
+    expect((await app.request(`http://localhost/vfs/@${DATA_HASH}/interface/panel.sti`)).status).toBe(401);
+  });
+
+  it('keeps the content hashes in the cache folder, so a restart reads no file again', async () => {
+    const cacheDir = mkdtempSync(join(tmpdir(), 'ja2-hashes-'));
+    const root = mkdtempSync(join(tmpdir(), 'ja2-loose-'));
+    writeFileSync(join(root, 'panel.sti'), data);
+    const vfs = new Vfs([await DirLayer.open('dir', root)]);
+    const first = await VfsHashes.open(vfs, cacheDir);
+    expect(await first.contentHash('panel.sti')).toBe(DATA_HASH);
+    await first.flush();
+    const reads: string[] = [];
+    const counted = new Vfs([
+      {
+        name: 'dir',
+        entries: () => vfs.layers[0]?.entries() ?? [],
+        stamp: (path) => vfs.stamp(path),
+        read: async (path, start, end) => {
+          reads.push(path);
+          return vfs.read(path, start, end);
+        },
+      },
+    ]);
+    const second = await VfsHashes.open(counted, cacheDir);
+    expect(await second.contentHash('panel.sti')).toBe(DATA_HASH);
+    expect(reads).toEqual([]);
   });
 
   it('logs in with a token link and serves the built client without a token', async () => {
