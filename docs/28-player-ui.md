@@ -2201,9 +2201,9 @@ at the tick of a shot on the stub rules, and the same scripts give `frame` on ev
 the static graphic when smoke is not animated), `world-lighting.test.ts` (the local update of the level render data
 equals a full preparation), `light-templates.test.ts` (with `JA2_DATA_DIR`: the Gold data has the map templates, equal to
 the generated ones, and no `Light` templates), `glow-context.test.ts`, `dynamic-scene.test.ts` (corpse, vehicle, roof
-and smoke z, multi-tile strips, raised items), `tile-changes.test.ts`, `tests/e2e/battle.spec.ts` (on stubs, after the MCP agent's fight: the tactical page on
-that session follows the schedule exactly, lights the mercs with the stand-in, takes the view's ambient and draws
-every corpse the server reports).
+and smoke z, multi-tile strips, raised items), `tile-changes.test.ts`, `tests/e2e/battle.spec.ts` (on stubs, after
+the MCP agent's fight: the tactical page on that session follows the schedule exactly, lights the mercs with the
+stand-in, takes the view's ambient and draws every corpse the server reports).
 
 Decisions and limits: the warp anchors only the state start and opcode 430 (other gameplay opcodes carry no event
 with a tick); the scripts' hash `unknown` counts as equal; `Light0` … `Light6` are read from the user's data only,
