@@ -143,4 +143,53 @@ describe('session', () => {
     expect(session.log.entries().at(-1)).toMatchObject({ kind: 'load', payload: { name: 'QuickSave', digest: 'abc' } });
     session.close();
   });
+
+  it('stops real time on the tick of the first pauseOn event, tells the viewers and logs the batch with its events', () => {
+    const sim = alarmedAt(walker(), 7);
+    const session = new Session('s6', sim, undefined, { kind: 'sandbox', seed: 1 });
+    const messages: ServerMessage[] = [];
+    session.subscribe((m) => messages.push(m));
+    let now = 0;
+    session.setDriver({ mode: 'realtime', speed: 1, pauseOn: ['enemySighted'] }, () => now);
+    sim.target = 1000;
+    now = 100;
+    session.runRealtime(now);
+    expect(sim.tick).toBe(7);
+    expect(session.driver).toEqual({ mode: 'manual' });
+    expect(messages.at(-1)).toMatchObject({ t: 'stopped', report: { reason: 'event', tick: 7 } });
+    expect(session.log.entries().map((e) => e.payload)).toContainEqual({ until: { ticks: 20, events: ['enemySighted'] }, realtime: true });
+    session.close();
+  });
+
+  it('turns saves and refusals into message entries for frames, reports and the saved ring', () => {
+    const sim = walker();
+    const session = new Session('s7', sim);
+    const messages: ServerMessage[] = [];
+    session.subscribe((m) => messages.push(m));
+    session.notify({ type: 'gameSaved', name: 'QuickSave', kind: 'quick', tick: 0 });
+    const report = session.advance({ ticks: 10 });
+    const saved = { tick: 0, kind: 'interface', colour: 145, table: 'pMessageStrings', index: 8 };
+    expect(report.messages).toEqual([saved]);
+    expect(messages.flatMap((m) => (m.t === 'frames' ? m.frames : [])).flatMap((f) => f.messages ?? [])).toEqual([saved]);
+    expect(session.messages).toEqual([saved]);
+    expect(session.advance({ ticks: 1 }).messages).toEqual([]);
+    const later: ServerMessage[] = [];
+    session.subscribe((m) => later.push(m));
+    expect(later[0]).toMatchObject({ t: 'welcome', messages: [saved] });
+    session.restoreMessages([]);
+    expect(session.messages).toEqual([]);
+    session.close();
+  });
 });
+
+function alarmedAt<T extends SessionSim>(sim: T, alarmTick: number): T {
+  const step = sim.step.bind(sim);
+  const pending: SimEvent[] = [];
+  return Object.assign(sim, {
+    step: () => {
+      step();
+      if (sim.tick === alarmTick) pending.push({ type: 'enemySighted', soldier: 1, newEnemies: 1, revealedEnemies: 0, tick: alarmTick });
+    },
+    drainEvents: () => pending.splice(0),
+  });
+}

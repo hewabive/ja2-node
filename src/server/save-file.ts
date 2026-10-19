@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import { constants, gunzipSync, gzip, gzipSync } from 'node:zlib';
 import { sectorShortString } from '../content/strategic/sector-ids.ts';
+import type { MessageEntry } from '../protocol/message-log.ts';
 import { initialMusic, type MusicState } from '../protocol/music.ts';
 import { isMusicMode, MusicMode } from '../protocol/music-modes.ts';
 import { type CampaignStatus, campaignStatus } from '../sim/campaign/ending-state.ts';
@@ -65,6 +66,7 @@ export interface SaveSessionPart {
 
 export interface SavePresentation {
   readonly music: { readonly mode: string; readonly previous: string };
+  readonly messages?: readonly MessageEntry[];
 }
 
 export interface LegacyContentBinding {
@@ -89,8 +91,12 @@ export interface SaveFileHead {
 
 export const EMPTY_PRESENTATION: SavePresentation = { music: { mode: MusicMode.NONE, previous: MusicMode.NONE } };
 
-export function presentationOf(music: MusicState): SavePresentation {
-  return { music: { mode: music.mode, previous: music.previous } };
+export function presentationOf(music: MusicState, messages: readonly MessageEntry[] = []): SavePresentation {
+  return { music: { mode: music.mode, previous: music.previous }, messages: [...messages] };
+}
+
+export function messagesOfPresentation(presentation: SavePresentation | undefined): readonly MessageEntry[] {
+  return Array.isArray(presentation?.messages) ? presentation.messages : [];
 }
 
 export function musicOfPresentation(presentation: SavePresentation | undefined): MusicState {

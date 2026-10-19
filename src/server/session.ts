@@ -1,8 +1,10 @@
 import { type DataVersion, STUB_DATA_VERSION, type UiLanguage } from '../content/text/data-version.ts';
+import { appendToLog, MESSAGE_LOG_SIZE, type MessageEntry } from '../protocol/message-log.ts';
 import {
   type CommandEnvelope,
   type DriverMode,
   type ServerMessage,
+  type SessionAdvanceReport,
   type SessionStopReport,
   UNKNOWN_IDENTITY,
   type WelcomeIdentity,
@@ -13,14 +15,16 @@ import { diffPlayerView, type PlayerView, type ViewFrame } from '../protocol/vie
 import { AdvanceRun, type PauseCheck, type Steppable, type StopCondition, type StopReport } from '../sim/advance.ts';
 import { TICK_MS } from '../sim/clock.ts';
 import type { CommandResult } from '../sim/command.ts';
-import type { SimEvent } from '../sim/events.ts';
+import type { SimEvent, SimEventType } from '../sim/events.ts';
 import { type InputEntry, InputLog, type LoadPayload, type LogOrigin, UNKNOWN_ORIGIN } from './input-log.ts';
+import { gameSavedEntry, type MessageFacts, messageEntriesOf, NO_MESSAGE_FACTS, refusalEntry } from './message-entries.ts';
 import { NEVER_DUE, type Slicer, UNSLICED } from './slicing.ts';
 
 export const FRAME_TICKS = 10;
 const REALTIME_INTERVAL_MS = 16;
 const MAX_FRAMES_PER_MESSAGE = 500;
 const LOADED_STOP_ID = 0;
+const PAUSED_STOP_ID = 0;
 const NO_MUSIC_FACTS: MusicFacts = { creature: false, inCombat: false, sectorLoaded: false, hostiles: 0, gameJustStarted: false };
 
 export type { CommandResult };
@@ -29,6 +33,7 @@ export interface SessionSim extends Steppable {
   dispatch(cmd: CommandEnvelope): CommandResult;
   view(): PlayerView;
   musicFacts?(): MusicFacts;
+  messageFacts?(): MessageFacts;
   readonly holdsCreationEvents?: boolean;
   readonly initialMusic?: MusicState;
   prepare?(cmd: CommandEnvelope): Promise<void>;
@@ -94,6 +99,9 @@ export class Session {
   #music: MusicState;
   #fastFade = false;
   #depth = 0;
+  #messages: MessageEntry[] = [];
+  readonly #framedMessages: MessageEntry[] = [];
+  readonly #unreportedMessages: MessageEntry[] = [];
   readonly #held: SimEvent[] = [];
   readonly #pendingEvents: SimEvent[] = [];
   readonly #listeners = new Set<Listener>();
@@ -108,11 +116,38 @@ export class Session {
     const created = sim.holdsCreationEvents ? sim.drainEvents() : [];
     this.#held.push(...created);
     this.#followMusic(created);
+    this.#followMessages(created);
     this.#lastView = this.#view();
   }
 
   get music(): MusicState {
     return this.#music;
+  }
+
+  get messages(): readonly MessageEntry[] {
+    return this.#messages;
+  }
+
+  #messageFacts(): MessageFacts {
+    return this.#sim.messageFacts?.() ?? NO_MESSAGE_FACTS;
+  }
+
+  #followMessages(events: readonly SimEvent[]): void {
+    if (events.length > 0) this.#recordMessages(messageEntriesOf(events, this.#messageFacts()));
+  }
+
+  #recordMessages(entries: readonly MessageEntry[]): void {
+    if (entries.length === 0) return;
+    this.#messages = appendToLog(this.#messages, entries);
+    this.#framedMessages.push(...entries);
+    this.#unreportedMessages.push(...entries);
+    const excess = this.#unreportedMessages.length - MESSAGE_LOG_SIZE;
+    if (excess > 0) this.#unreportedMessages.splice(0, excess);
+  }
+
+  #takeFramedMessages(): { readonly messages?: readonly MessageEntry[] } {
+    if (this.#framedMessages.length === 0) return {};
+    return { messages: this.#framedMessages.splice(0) };
   }
 
   #facts(): MusicFacts {
@@ -156,7 +191,7 @@ export class Session {
   }
 
   #welcome(): WelcomeMessage {
-    return { t: 'welcome', session: this.id, view: this.#view(), driver: this.#driver, ...this.identity };
+    return { t: 'welcome', session: this.id, view: this.#view(), driver: this.#driver, messages: this.#messages, ...this.identity };
   }
 
   #broadcast(message: ServerMessage): void {
@@ -175,6 +210,12 @@ export class Session {
     this.#lastView = this.#view();
   }
 
+  restoreMessages(messages: readonly MessageEntry[]): void {
+    this.#messages = appendToLog([], messages);
+    this.#framedMessages.length = 0;
+    this.#unreportedMessages.length = 0;
+  }
+
   holdEvents(): void {
     const events = this.#sim.drainEvents();
     this.#held.push(...events);
@@ -183,6 +224,7 @@ export class Session {
 
   notify(event: SessionEvent): void {
     this.#held.push(event as unknown as SimEvent);
+    if (event.type === 'gameSaved') this.#recordMessages([gameSavedEntry(event.tick)]);
   }
 
   #recordingStepper(frames: ViewFrame[]): Steppable {
@@ -219,11 +261,14 @@ export class Session {
   #capture(frames: ViewFrame[]): void {
     const events = this.#pendingEvents.splice(0);
     this.#followMusic(events);
+    this.#followMessages(events);
+    const messages = this.#takeFramedMessages();
     if (!this.listening) return;
     const view = this.#view();
     const diff = diffPlayerView(this.#lastView, view);
     this.#lastView = view;
-    const frame = events.length > 0 ? { ...(diff ?? { tick: view.tick, changed: [], removed: [] }), events } : diff;
+    const extra = { ...(events.length > 0 ? { events } : {}), ...messages };
+    const frame = Object.keys(extra).length > 0 ? { ...(diff ?? { tick: view.tick, changed: [], removed: [] }), ...extra } : diff;
     if (frame) frames.push(frame);
   }
 
@@ -268,6 +313,8 @@ export class Session {
     this.hooks?.beforeDispatch?.(this, cmd);
     this.log.append(cmd.type === 'answer' ? 'answer' : 'cmd', this.#sim.tick, { cmd });
     const result = this.#sim.dispatch(cmd);
+    const refusal = refusalEntry(this.#sim.tick, cmd, result, this.#messageFacts());
+    if (refusal) this.#recordMessages([refusal]);
     this.hooks?.afterDispatch?.(this, cmd, result);
     const frames: ViewFrame[] = [];
     this.#capture(frames);
@@ -276,24 +323,24 @@ export class Session {
     return result;
   }
 
-  advance(until: StopCondition, budget?: number): StopReport {
+  advance(until: StopCondition, budget?: number): SessionAdvanceReport {
     return finish(this.#loggedAdvance(until, budget, NEVER_DUE));
   }
 
-  advanceSliced(until: StopCondition, budget: number | undefined, slicer: Slicer): Promise<StopReport> {
+  advanceSliced(until: StopCondition, budget: number | undefined, slicer: Slicer): Promise<SessionAdvanceReport> {
     return sliced(this.#loggedAdvance(until, budget, slicer.due), slicer);
   }
 
-  *#loggedAdvance(until: StopCondition, budget: number | undefined, due: PauseCheck): Run<StopReport> {
+  *#loggedAdvance(until: StopCondition, budget: number | undefined, due: PauseCheck): Run<SessionAdvanceReport> {
     return yield* this.#input(this.#loggedAdvanceRun(until, budget, due));
   }
 
-  *#loggedAdvanceRun(until: StopCondition, budget: number | undefined, due: PauseCheck): Run<StopReport> {
+  *#loggedAdvanceRun(until: StopCondition, budget: number | undefined, due: PauseCheck): Run<SessionAdvanceReport> {
     this.log.append('advance', this.#sim.tick, { until, ...(budget !== undefined ? { budget } : {}) });
     return yield* this.#advanceRun(until, budget, due);
   }
 
-  *#advanceRun(until: StopCondition, budget: number | undefined, due: PauseCheck): Run<StopReport> {
+  *#advanceRun(until: StopCondition, budget: number | undefined, due: PauseCheck): Run<SessionAdvanceReport> {
     yield 'claim';
     this.hooks?.beforeAdvance?.(this);
     const frames: ViewFrame[] = [];
@@ -307,7 +354,7 @@ export class Session {
     this.#capture(frames);
     this.#publish(frames);
     this.hooks?.afterAdvance?.(this, report);
-    return report;
+    return { ...report, messages: this.#unreportedMessages.splice(0) };
   }
 
   reseed(seed: number, apply: () => void): void {
@@ -347,18 +394,29 @@ export class Session {
     const ticks = Math.floor(this.#carryMs / TICK_MS);
     if (ticks <= 0) return;
     this.#carryMs -= ticks * TICK_MS;
-    const report = finish(this.#input(this.#realtimeRun(ticks)));
+    const pauseOn = this.#driver.pauseOn ?? [];
+    const report = finish(this.#input(this.#realtimeRun(ticks, pauseOn)));
     if (report.reason === 'decision') this.setDriver({ mode: 'manual' });
+    if (report.reason === 'event') {
+      this.setDriver({ mode: 'manual' });
+      this.#broadcast({ t: 'stopped', id: PAUSED_STOP_ID, report });
+    }
   }
 
-  *#realtimeRun(ticks: number): Run<StopReport> {
-    const entry: InputEntry = this.log.appendRealtime(this.#sim.tick, ticks);
-    const stopped = yield* this.#advanceRun({ ticks }, undefined, NEVER_DUE);
+  *#realtimeRun(ticks: number, pauseOn: readonly SimEventType[]): Run<SessionAdvanceReport> {
+    const entry: InputEntry = this.log.appendRealtime(this.#sim.tick, ticks, pauseOn);
+    const until: StopCondition = pauseOn.length > 0 ? { ticks, events: [...pauseOn] } : { ticks };
+    const stopped = yield* this.#advanceRun(until, undefined, NEVER_DUE);
     if (stopped.reason === 'ticks') this.log.realtimeBatchCompleted(entry);
     return stopped;
   }
 
-  replace(sim: SessionSim, loaded: LoadPayload, music: MusicState = sim.initialMusic ?? initialMusic()): void {
+  replace(
+    sim: SessionSim,
+    loaded: LoadPayload,
+    music: MusicState = sim.initialMusic ?? initialMusic(),
+    messages: readonly MessageEntry[] = [],
+  ): void {
     const wasRunning = this.#driver.mode === 'realtime';
     this.#stopTimer();
     this.#driver = { mode: 'manual' };
@@ -368,6 +426,7 @@ export class Session {
     this.#sim = sim;
     this.#music = music;
     this.#fastFade = false;
+    this.restoreMessages(messages);
     const welcome = this.#welcome();
     this.#lastView = welcome.view;
     if (wasRunning) this.#broadcast({ t: 'stopped', id: LOADED_STOP_ID, report: this.#loadedStop() });

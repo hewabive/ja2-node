@@ -24,6 +24,7 @@ export interface SessionRequest {
 export type SessionFactory = (id: string, request: SessionRequest) => Promise<Session>;
 
 export const MAX_SESSIONS = 16;
+const MAX_DEAD_IS_DEAD_DESCRIPTION = 200;
 export const SAVE_NAME = /^[A-Za-z0-9_-]{1,64}$/;
 
 export const NEW_SESSION_SHAPE = {
@@ -96,6 +97,14 @@ export const NEW_SESSION_SHAPE = {
       land: z.boolean().optional().describe('fly the squad in at once (default true); false closes the laptop at the first hour'),
       saveMode: z.enum(SAVE_MODES).optional().describe('alias of options.saveMode'),
       deadIsDeadName: z.string().regex(SAVE_FILE_NAME).optional().describe('the save name of a deadIsDead campaign (default DeadIsDead)'),
+      deadIsDeadDescription: z
+        .string()
+        .min(1)
+        .max(MAX_DEAD_IS_DEAD_DESCRIPTION)
+        .optional()
+        .describe(
+          'the description typed on the save screen of a deadIsDead campaign: the server derives the save name from it (<UTC time>-<slug>) and keeps it as the save description',
+        ),
     })
     .optional(),
 };
@@ -139,6 +148,21 @@ export function describeSession(session: Session): Record<string, unknown> {
   };
 }
 
+export type CloseOutcome = 'closed' | 'notFound' | 'defaultSession';
+
+export async function closeRegisteredSession<T extends { close(): Promise<void> }>(
+  sessions: Map<string, T>,
+  defaultSession: string,
+  id: string,
+): Promise<CloseOutcome> {
+  const session = sessions.get(id);
+  if (!session) return 'notFound';
+  if (id === defaultSession) return 'defaultSession';
+  sessions.delete(id);
+  await session.close();
+  return 'closed';
+}
+
 const sessionsBeingCreated = new WeakMap<Map<string, unknown>, Set<string>>();
 
 function creating(sessions: Map<string, unknown>): Set<string> {
@@ -158,6 +182,8 @@ export async function openSession<T>(
   if ([request.save, request.campaign, request.load].filter((x) => x !== undefined).length > 1)
     throw new Error('pass at most one of save, campaign and load');
   if (request.reseed !== undefined && !request.load) throw new Error('reseed goes with load');
+  if (request.campaign?.deadIsDeadName !== undefined && request.campaign.deadIsDeadDescription !== undefined)
+    throw new Error('pass deadIsDeadName or deadIsDeadDescription, not both');
   let n = sessions.size + pending.size;
   const taken = (candidate: string) => sessions.has(candidate) || pending.has(candidate);
   while (taken(`${defaultSession}-${n}`)) n++;

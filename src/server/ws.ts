@@ -6,6 +6,7 @@ import { type ClientMessage, parseClientMessage, type ServerMessage } from '../p
 import type { CommandResult } from '../sim/command.ts';
 import { loadProblemOf } from './save-service.ts';
 import type { SessionHost } from './session-host.ts';
+import { closeRegisteredSession } from './session-registry.ts';
 
 const MAX_MESSAGE_BYTES = 1 << 20;
 const DEFAULT_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
@@ -16,7 +17,7 @@ export interface UpgradeServer {
 
 export interface WebSocketOptions {
   readonly token: string;
-  readonly sessions: ReadonlyMap<string, SessionHost>;
+  readonly sessions: Map<string, SessionHost>;
   readonly defaultSession: string;
   readonly allowedHosts?: readonly string[];
 }
@@ -66,8 +67,15 @@ async function loadReply(host: SessionHost, id: number, name: string, reseed: bo
   }
 }
 
-function reply(host: SessionHost, message: Exclude<ClientMessage, { t: 'hello' }>): Promise<Reply> {
+async function closeReply(options: WebSocketOptions, host: SessionHost, id: number): Promise<Reply> {
+  const outcome = await closeRegisteredSession(options.sessions, options.defaultSession, host.id);
+  return { t: 'result', id, ok: outcome === 'closed', ...(outcome === 'closed' ? {} : { reason: outcome }) };
+}
+
+function reply(options: WebSocketOptions, host: SessionHost, message: Exclude<ClientMessage, { t: 'hello' }>): Promise<Reply> {
   switch (message.t) {
+    case 'closeSession':
+      return closeReply(options, host, message.id);
     case 'cmd':
       return host.prepareAndDispatch(message.cmd).then((r) => resultOf(message.id, r));
     case 'advance':
@@ -110,7 +118,7 @@ function serve(ws: WebSocket, options: WebSocketOptions): void {
       return;
     }
     if (!host) return send({ t: 'error', message: 'say hello first' });
-    inOrder(reply(host, message));
+    inOrder(reply(options, host, message));
   });
   ws.on('close', () => unsubscribe?.());
 }

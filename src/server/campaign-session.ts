@@ -27,6 +27,7 @@ import { autoresolveView, npcRequestView, promptView } from './battle-view.ts';
 import type { CampaignParts } from './campaign-factory.ts';
 import { contractPromptView } from './contract-view.ts';
 import { laptopView } from './laptop-view.ts';
+import { type MessageFacts, tacticalMessageFacts } from './message-facts.ts';
 import { tacticalPlayerView } from './sandbox.ts';
 import type { SessionSim } from './session.ts';
 import { strategicView } from './strategic-view.ts';
@@ -195,6 +196,16 @@ export class CampaignSession implements SessionSim {
 
   ended(): boolean {
     return this.campaign.ended();
+  }
+
+  messageFacts(): MessageFacts {
+    const c = this.campaign;
+    const soldierOf = (id: number) => c.tactical?.state.soldiers[id] ?? c.battle?.roster.get(id)?.soldier ?? null;
+    const profiles = c.battle?.content.profiles ?? [];
+    return {
+      ...tacticalMessageFacts(c.tactical, soldierOf),
+      profileName: (profile) => profiles[profile]?.nickname ?? null,
+    };
   }
 
   musicFacts(): MusicFacts {

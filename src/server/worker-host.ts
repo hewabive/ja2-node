@@ -1,6 +1,6 @@
 import { Worker } from 'node:worker_threads';
-import type { CommandEnvelope, DriverMode, ServerMessage } from '../protocol/messages.ts';
-import type { StopCondition, StopReport } from '../sim/advance.ts';
+import type { CommandEnvelope, DriverMode, ServerMessage, SessionAdvanceReport } from '../protocol/messages.ts';
+import type { StopCondition } from '../sim/advance.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { LogSegment } from './input-log.ts';
 import { SaveFileError } from './save-file.ts';
@@ -182,7 +182,7 @@ export class WorkerHost implements SessionHost {
     return this.#call('prepareAndDispatch', cmd);
   }
 
-  advance(until: StopCondition, budget?: number): Promise<StopReport> {
+  advance(until: StopCondition, budget?: number): Promise<SessionAdvanceReport> {
     return this.#call('advance', until, budget);
   }
 

@@ -1,13 +1,13 @@
 import type { TacticalWorld } from '../../src/content/world/tactical-world.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
-import type { CommandEnvelope } from '../../src/protocol/messages.ts';
+import type { CommandEnvelope, SessionAdvanceReport } from '../../src/protocol/messages.ts';
 import { CampaignSession } from '../../src/server/campaign-session.ts';
 import { TacticalSession } from '../../src/server/sandbox.ts';
 import { Session, type SessionSim } from '../../src/server/session.ts';
 import { restoreSessionFrom, type SessionRestoreInputs, type SessionSnapshot, snapshotSession } from '../../src/server/session-snapshot.ts';
 import type { Slicer } from '../../src/server/slicing.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
-import type { StopCondition, StopReport } from '../../src/sim/advance.ts';
+import type { StopCondition } from '../../src/sim/advance.ts';
 import type { CommandResult } from '../../src/sim/command.ts';
 import { defaultRunMode, driven, type ReloadAdapter, type RunMode, reloadPoint, worldContentOnce } from './reload.ts';
 import type { StubSectorKit } from './sectors.ts';
@@ -64,7 +64,7 @@ export function stubSessionSources(kit: StubSectorKit): SessionSources {
 export class ReloadingSession extends Session {
   readonly mirror = new ViewMirror(this);
 
-  override advance(until: StopCondition, budget?: number): StopReport {
+  override advance(until: StopCondition, budget?: number): SessionAdvanceReport {
     const report = super.advance(until, budget);
     reloadPoint(this.sim);
     this.mirror.expectMatches(this);

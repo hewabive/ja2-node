@@ -152,6 +152,7 @@ export function buildMcpServer({ sessions, defaultSession, createSession, texts,
         ...(report.worldTime ? { worldTime: report.worldTime } : {}),
         ...(report.refusal ? { refusal: report.refusal } : {}),
         events: report.events,
+        messages: report.messages,
       });
     },
   );

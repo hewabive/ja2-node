@@ -42,6 +42,7 @@ export interface CampaignRequest {
   readonly land?: boolean | undefined;
   readonly saveMode?: SaveMode | undefined;
   readonly deadIsDeadName?: string | undefined;
+  readonly deadIsDeadDescription?: string | undefined;
 }
 
 export const CAMPAIGN_DIFFICULTIES: readonly number[] = DIFFICULTY_LEVELS;

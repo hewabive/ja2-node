@@ -251,6 +251,10 @@ export class SessionClient {
     return this.#reply(await this.#request({ t: 'load', id: this.#nextId++, name, ...(reseed !== undefined ? { reseed } : {}) }));
   }
 
+  async closeSession(): Promise<CommandReply> {
+    return this.#reply(await this.#request({ t: 'closeSession', id: this.#nextId++ }));
+  }
+
   #reply(m: ServerMessage): CommandReply {
     if (m.t !== 'result') return { ok: false, reason: 'unexpected reply' };
     return { ok: m.ok, ...(m.reason ? { reason: m.reason } : {}), ...(m.data !== undefined ? { data: m.data } : {}) };

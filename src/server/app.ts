@@ -25,7 +25,7 @@ import { SAVE_EXTENSION } from './save-file.ts';
 import { type LoadProblem, loadProblemOf, type SaveOutcome, type SaveService } from './save-service.ts';
 import { MAX_UPLOAD_BYTES, playerSaveName } from './save-store.ts';
 import type { HostFactory, SessionHost } from './session-host.ts';
-import { newSessionRequest, openSession } from './session-registry.ts';
+import { closeRegisteredSession, newSessionRequest, openSession } from './session-registry.ts';
 import { textKeyFor } from './text-keys.ts';
 import { STUB_TEXT_PREFIX, TextService } from './text-service.ts';
 
@@ -289,6 +289,14 @@ export function createApp(options: AppOptions): Hono {
       if (request.data.load) return loadFailure(c, err);
       return c.json({ error: (err as Error).message }, 400);
     }
+  });
+
+  app.delete('/api/sessions/:id', async (c) => {
+    const sessions = options.sessions;
+    if (!sessions) return c.json({ error: 'sessions are not available' }, 404);
+    const outcome = await closeRegisteredSession(sessions, options.defaultSession ?? 'sandbox', c.req.param('id'));
+    if (outcome === 'closed') return c.json({ closed: true });
+    return c.json({ closed: false, refused: outcome }, outcome === 'notFound' ? 404 : 409);
   });
 
   const saves = options.saves;

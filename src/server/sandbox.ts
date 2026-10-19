@@ -29,6 +29,7 @@ import { firstFreeSoldierId, Side, type Soldier, SoldierClass, Team } from '../s
 import { teamMembers } from '../sim/tactical/state.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { loadWorldItemsFromMap } from '../sim/tactical/world-items.ts';
+import { type MessageFacts, tacticalMessageFacts } from './message-facts.ts';
 import type { SessionSim } from './session.ts';
 import { PROFILE_VOICE, type VoiceOf, withVoices } from './soldier-voice.ts';
 import { stubMerc } from './stub-mercs.ts';
@@ -78,6 +79,10 @@ export class TacticalSession implements SessionSim {
 
   get initialMusic(): MusicState {
     return initialMusic(this.sim.state.turn.enemyInSector ? MusicMode.TACTICAL_ENEMY_PRESENT : MusicMode.TACTICAL_NOTHING);
+  }
+
+  messageFacts(): MessageFacts {
+    return tacticalMessageFacts(this.sim, (id) => this.sim.state.soldiers[id] ?? null);
   }
 
   musicFacts(): MusicFacts {

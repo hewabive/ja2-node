@@ -5,6 +5,7 @@ import type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 import { type InventoryItemView, sameInventory } from '../sim/tactical/inventory-view.ts';
 import type { FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
 import type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
+import type { MessageEntry } from './message-log.ts';
 import { type MusicView, sameMusic } from './music.ts';
 import { sameJson } from './same-json.ts';
 
@@ -648,6 +649,7 @@ export interface ViewFrame {
   readonly changed: readonly SoldierView[];
   readonly removed: readonly number[];
   readonly events?: readonly SimEvent[];
+  readonly messages?: readonly MessageEntry[];
   readonly mapPath?: string | null;
   readonly clock?: ClockView;
   readonly strategic?: StrategicView;
@@ -829,7 +831,7 @@ export function applyFrame(soldiers: readonly SoldierView[], frame: ViewFrame): 
   return [...byId.values()].sort((a, b) => a.id - b.id);
 }
 
-const FRAME_ONLY_KEYS = ['tick', 'changed', 'removed', 'events'] as const;
+const FRAME_ONLY_KEYS = ['tick', 'changed', 'removed', 'events', 'messages'] as const;
 type FrameFields = Omit<ViewFrame, (typeof FRAME_ONLY_KEYS)[number]>;
 
 function frameFields(frame: ViewFrame): FrameFields {
