@@ -213,6 +213,14 @@ describe('San Mona', () => {
     expect(e.fake.drawsTaken).toEqual([3, 2, 2]);
   });
 
+  it('warps game time by 5 + Random(20) minutes after the sex scene, as the screen does (rule finding 1)', () => {
+    const e = env({ draws: [7] });
+    run(e, Npc.MADAME, A.SEX);
+    expect(e.presented).toEqual([['sexScene', Npc.MADAME]]);
+    expect(e.fake.drawsTaken).toEqual([20]);
+    expect(e.warps).toEqual([(5 + 7) * 60]);
+  });
+
   it('delays the girls by one or two minutes', () => {
     const e = env({ minute: 500, draws: [1] });
     run(e, Npc.MADAME, A.SET_DELAY_TILL_GIRLS_AVAILABLE);

@@ -28,6 +28,7 @@ export interface FakeActionEnv extends NpcActionEnv {
   readonly requests: NpcRequestOpening[];
   readonly messages: [string, number | undefined, number | undefined][];
   readonly presented: [string, number | undefined][];
+  readonly warps: number[];
   readonly histories: [number, number][];
   readonly calls: string[];
   readonly preDraws: number[];
@@ -62,6 +63,7 @@ export function fakeActionEnv(options: FakeActionEnvOptions = {}): FakeActionEnv
     requests: [],
     messages: [],
     presented: [],
+    warps: [],
     histories: [],
     calls: [],
     preDraws,
@@ -135,6 +137,7 @@ export function fakeActionEnv(options: FakeActionEnvOptions = {}): FakeActionEnv
     },
     message: (kind, profile, amount) => env.messages.push([kind, profile, amount]),
     presentation: (kind, profile) => env.presented.push([kind, profile]),
+    warpTimeWithoutEvents: (seconds) => env.warps.push(seconds),
     profileName: (npc) => `Name${npc}`,
     kickOutOfWheelchair: (s) => env.calls.push(`kickout ${s.id}`),
     leatherJacketPrice: () => 950,

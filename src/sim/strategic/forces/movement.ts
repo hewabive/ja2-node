@@ -8,6 +8,7 @@
 // @src PlaceGroupInSector, MoveAllGroupsInCurrentSectorToSector, GroupWillMoveThroughSector, SpendVehicleFuel;
 // @src Strategic_Pathing.cc RebuildWayPointsForGroupPath, ClearMercPathsAndWaypointsForAllInGroup, MoveGroupFromSectorToSector*,
 // @src AddSectorToFrontOfMercPathForAllSoldiersInGroup, GetGroupMercPathPtr. See docs/16 §3.4–§3.12.
+// @src The MSG_ARRIVE line of GroupArrivedAtSector becomes the groupArrived event (docs/28 §12.2).
 
 import { StrategicMove } from '../../../content/strategic/map-tables.ts';
 import {
@@ -16,6 +17,7 @@ import {
   sectorFromId,
   sectorFromStrategicIndex,
   sectorId,
+  sectorShortString,
   strategicIndex,
 } from '../../../content/strategic/sector-ids.ts';
 import { Direction } from '../../../content/world/grid.ts';
@@ -49,6 +51,7 @@ import {
   type Waypoint,
 } from './groups.ts';
 import { handleHeliEnteringSector } from './helicopter.ts';
+import type { ArrivedWho } from './helicopter-events.ts';
 import { type StrategicContext, TravelStat } from './ports.ts';
 import { resetDeadSquadMemberList } from './squads.ts';
 import { setVehicleSectorValues } from './vehicles.ts';
@@ -352,8 +355,23 @@ function spendVehicleFuel(ctx: StrategicContext, g: Group): void {
 
 type ArrivalOutcome = 'invalid' | 'arrived' | 'destroyed';
 
+function arrivedWho(ctx: StrategicContext, g: Group): ArrivedWho | null {
+  if (g.vehicle) return { kind: 'vehicle', vehicleType: vehicleOfGroup(ctx, g).type };
+  const first = groupMembers(ctx, g)[0];
+  if (!first) return null;
+  return first.assignment >= Assignment.ON_DUTY ? { kind: 'merc', soldier: first.id } : { kind: 'squad', squad: first.assignment };
+}
+
+function announceArrival(ctx: StrategicContext, g: Group, arrival: Sector, final: boolean, neverLeft: boolean): void {
+  const who = arrivedWho(ctx, g);
+  if (!who || neverLeft) return;
+  const sector = arrival.z ? `${sectorShortString(arrival)}-${arrival.z}` : sectorShortString(arrival);
+  ctx.helicopter.emit({ type: 'groupArrived', group: g.id, sector, final, who });
+}
+
 function updateArrivedPlayerGroup(ctx: StrategicContext, g: Group, arrival: Sector, neverLeft: boolean): ArrivalOutcome {
-  if (groupAtFinalDestination(g)) clearMercPathsAndWaypointsForAllInGroup(ctx, g);
+  const final = groupAtFinalDestination(g);
+  if (final) clearMercPathsAndWaypointsForAllInGroup(ctx, g);
   if (arrival.z === 0 && secretIndexAt(ctx, sectorId(arrival)) >= 0) markSecretFoundAt(ctx, sectorId(arrival));
   const insertion = insertionFromTravel(arrival, g.prev);
   if (!insertion) return 'invalid';
@@ -390,6 +408,7 @@ function updateArrivedPlayerGroup(ctx: StrategicContext, g: Group, arrival: Sect
     } else destroyed = handleHeliEnteringSector(ctx, arrival, neverLeft);
   }
   if (destroyed) return 'destroyed';
+  announceArrival(ctx, g, arrival, final, neverLeft);
   if (!g.vehicle || !isHelicopterGroup(ctx, g)) {
     const spawn = ctx.content.bloodCatSpawns.find((b) => b.sector === sectorId(arrival));
     if (spawn?.isLair && !getSectorFlagStatus(ctx.state.map, arrival, SectorFlag.ALREADY_VISITED))

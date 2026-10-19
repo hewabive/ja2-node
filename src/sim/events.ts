@@ -5,6 +5,7 @@ import type { StoryEvent } from './campaign/narrative/story-events.ts';
 import type { NarrativeEvent } from './narrative/events.ts';
 import type { EconomyEvent } from './strategic/economy/events.ts';
 import type { ShopEvent } from './strategic/economy/merchants/events.ts';
+import type { ImportantSectorKind } from './strategic/economy/sector-loss.ts';
 import type { HelicopterEvent } from './strategic/forces/helicopter-events.ts';
 import type { DoorEvent } from './tactical/doors/events.ts';
 import type { InventoryEvent } from './tactical/inventory-events.ts';
@@ -220,10 +221,16 @@ export interface StructureDamagedEvent extends SimEventBase {
   readonly destroyed: boolean;
 }
 
+export interface LoadScreenView {
+  readonly id: number;
+  readonly path: string;
+}
+
 export interface SectorLoadedEvent extends SimEventBase {
   readonly type: 'sectorLoaded';
   readonly sector: string;
   readonly hostiles?: number;
+  readonly loadScreen?: LoadScreenView;
   readonly enemyPresence?: true;
   readonly firstArrival?: true;
 }
@@ -363,6 +370,8 @@ export interface SectorControlChangedEvent extends SimEventBase {
   readonly type: 'sectorControlChanged';
   readonly sector: string;
   readonly controller: 'player' | 'enemy';
+  readonly kind?: ImportantSectorKind;
+  readonly dailyIncome?: number;
 }
 
 export interface MercCapturedEvent extends SimEventBase {

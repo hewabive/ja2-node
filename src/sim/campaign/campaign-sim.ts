@@ -1,3 +1,4 @@
+import { sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
 import { TICK_MS } from '../clock.ts';
 import type { CommandResult } from '../command.ts';
@@ -25,6 +26,7 @@ import { defaultTacticalWorldPort, type StrategicContext, type TacticalWorldPort
 import { isSectorDesert } from '../strategic/map/sectors.ts';
 import { Quest } from '../strategic/narrative/fact-ids.ts';
 import { NOT_BOXING, QuestStatus, questStatus } from '../strategic/narrative/facts.ts';
+import { Npc } from '../strategic/narrative/npc-ids.ts';
 import { createStrategicState, type StrategicState } from '../strategic/state.ts';
 import { CompressMode, EventKind } from '../strategic/time/constants.ts';
 import { EventDispatch } from '../strategic/time/dispatch.ts';
@@ -561,7 +563,31 @@ export class CampaignSim {
 
   drainEvents(): SimEvent[] {
     this.#collectEvents();
-    return this.#events.splice(0);
+    return this.#events.splice(0).map((e) => this.#withQuoteText(e));
+  }
+
+  #withQuoteText(e: SimEvent): SimEvent {
+    const talk = this.talk;
+    if (!talk) return e;
+    switch (e.type) {
+      case 'mercQuote': {
+        const sector = this.#speakerSector(e.soldier);
+        return { ...(e.textKey ? {} : talk.quoteText(e.profile, e.id)), ...e, ...(sector ? { sector } : {}) };
+      }
+      case 'headMinerQuote':
+        return e.quote < 0 ? e : { ...e, ...talk.quoteText(e.profile, e.quote) };
+      case 'skyriderQuote':
+        return { ...e, profile: Npc.SKYRIDER, ...talk.quoteText(Npc.SKYRIDER, e.quote) };
+      default:
+        return e;
+    }
+  }
+
+  #speakerSector(soldier: number): string | null {
+    const merc = this.battle?.roster.get(soldier);
+    if (!merc) return null;
+    const s = merc.sector;
+    return s.z ? `${sectorShortString(s)}-${s.z}` : sectorShortString(s);
   }
 
   dispatch(cmd: CampaignCommand): CommandResult {

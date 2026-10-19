@@ -23,8 +23,9 @@ import { markSecretFoundAt } from '../../strategic/map/control.ts';
 import { NOT_BOXING } from '../../strategic/narrative/facts.ts';
 import { removeObjectFromProfile } from '../../strategic/narrative/presence.ts';
 import type { SectorPosition } from '../../strategic/state.ts';
+import { Warp } from '../../strategic/time/constants.ts';
 import { addStrategicEvent } from '../../strategic/time/event-queue.ts';
-import { worldDay, worldMinutesInDay, worldTotalMinutes } from '../../strategic/time/world-clock.ts';
+import { warpGameTime, worldDay, worldMinutesInDay, worldTotalMinutes } from '../../strategic/time/world-clock.ts';
 import { initNewSoldierAnim } from '../../tactical/animation.ts';
 import { Insertion } from '../../tactical/insertion.ts';
 import { autoPlaceObject } from '../../tactical/inventory.ts';
@@ -376,6 +377,7 @@ export class NpcActionFlow {
           ...(amount !== undefined ? { amount } : {}),
         }),
       presentation: (kind, profile) => this.#emit({ type: kind, ...(profile !== undefined ? { npc: profile } : {}) }),
+      warpTimeWithoutEvents: (seconds) => warpGameTime(campaign.clockContext, seconds, Warp.NO_PROCESSING),
       profileName: (npc) => campaign.battle?.content.profiles[npc]?.name ?? '',
       kickOutOfWheelchair: (soldier) => this.#kickOutOfWheelchair(soldier),
       leatherJacketPrice: () => host.tactical()?.content.items.byName.get('LEATHER_JACKET_W_KEVLAR')?.price ?? 0,

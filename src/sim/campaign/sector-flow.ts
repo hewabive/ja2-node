@@ -16,6 +16,7 @@
 // @src docs/25 §4.5–§4.6, §5.2, §5.6.
 
 import type { MapDoor } from '../../content/formats/map.ts';
+import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
 import {
   parseSectorString,
   type Sector,
@@ -28,7 +29,7 @@ import { sectorMapPath } from '../../content/strategic/sector-maps.ts';
 import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import type { CommandResult } from '../command.ts';
-import type { SimEvent } from '../events.ts';
+import type { LoadScreenView, SimEvent } from '../events.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
 import type { QueenContext } from '../strategic/ai/context.ts';
 import { getNumberOfEnemiesInSector } from '../strategic/ai/counts.ts';
@@ -62,6 +63,7 @@ import { handleHelicopterOnGround } from '../strategic/forces/helicopter.ts';
 import type { StrategicContext, TacticalWorldPort } from '../strategic/forces/ports.ts';
 import { calculateNonPersistentPbiInfo } from '../strategic/forces/pre-battle.ts';
 import { townIdOfSector } from '../strategic/map/control.ts';
+import { loadScreenId } from '../strategic/map/loading-screen.ts';
 import {
   findUndergroundSector,
   getSectorFlagStatus,
@@ -170,6 +172,7 @@ type SectorEvent =
       readonly type: 'sectorLoaded';
       readonly sector: string;
       readonly hostiles: number;
+      readonly loadScreen: LoadScreenView;
       readonly enemyPresence?: true;
       readonly firstArrival?: true;
     };
@@ -209,6 +212,7 @@ export class SectorFlow {
   readonly events: SimEvent[] = [];
   #loadingSector = false;
   #presenceWhileLoading = false;
+  #loadScreen: number = LoadingScreen.NOTHING;
 
   constructor(campaign: CampaignSim, setup: SectorSetup) {
     this.campaign = campaign;
@@ -422,10 +426,16 @@ export class SectorFlow {
       type: 'sectorLoaded',
       sector: sectorShortString(sector),
       hostiles: numHostilesInSector(this.ctx, sector),
+      loadScreen: this.#loadScreenView(),
       ...(enemyPresence ? { enemyPresence: true as const } : {}),
       ...(s.didGameJustStart ? { firstArrival: true as const } : {}),
     });
     return true;
+  }
+
+  #loadScreenView(): LoadScreenView {
+    const screen = this.ctx.content.loadingScreens.screens[this.#loadScreen];
+    return { id: this.#loadScreen, path: screen?.path ?? '' };
   }
 
   #whileLoading(load: () => void): boolean {
@@ -560,6 +570,7 @@ export class SectorFlow {
     const narrative = this.campaign.narrative;
     if (previous) setupProfileInsertionDataForCivilians(previous.state, this.#profileInsertionHooks());
     narrative.handleQuestCodeOnSectorEntry(sector);
+    this.#loadScreen = loadScreenId(this.ctx, sector, s.rng);
     for (const m of this.setup.roster.all()) m.soldier.placed = false;
     if (!this.#inMeanwhile()) setSectorFlag(s.map, sector, SectorFlag.ALREADY_VISITED, worldDay(s.clock));
     const diff = s.sectorDiffs.get(sectorKey(sector)) ?? null;

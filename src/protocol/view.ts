@@ -1,4 +1,5 @@
 import type { SimEvent } from '../sim/events.ts';
+import type { FaceVariant } from '../sim/narrative/face-variant.ts';
 import type { ShopView } from '../sim/strategic/economy/merchants/view.ts';
 import type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 import { type InventoryItemView, sameInventory } from '../sim/tactical/inventory-view.ts';
@@ -7,6 +8,7 @@ import type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
 import { type MusicView, sameMusic } from './music.ts';
 import { sameJson } from './same-json.ts';
 
+export type { FaceVariant } from '../sim/narrative/face-variant.ts';
 export type { ShopBoxView, ShopEta, ShopKind, ShopView } from '../sim/strategic/economy/merchants/view.ts';
 export type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 export type { InventoryItemView } from '../sim/tactical/inventory-view.ts';
@@ -595,12 +597,14 @@ export interface ConversationLineView {
   readonly quote: number;
   readonly record?: number;
   readonly textKey: TextKeyView;
+  readonly chars: number;
   readonly text?: string;
 }
 
 export interface ConversationView {
   readonly npc: number | null;
   readonly profile: number;
+  readonly faceVariant: FaceVariant | null;
   readonly name: string;
   readonly talker: number | null;
   readonly initiatedBy: 'player' | 'npc';
