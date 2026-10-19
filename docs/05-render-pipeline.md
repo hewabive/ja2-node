@@ -9,6 +9,17 @@ topmost. It leaves out mercs, items, corpses, animated tiles and the editor, exc
 is a WebGL2 renderer whose output matches the original pixel order: one quad per sprite, a GPU depth buffer, and multi-tile
 structure images split into 20 px strips.
 
+**Status (2026-10-19, M8 slice U4).** Implemented in `src/render/world/` (`static-scene.ts`, `dynamic-scene.ts`,
+`world-program.ts`, `camera.ts`, `reveal.ts`; `docs/28` §17.4 "U4"): the projection and heights (§1), the camera snap
+and scroll limits (§1.4), every static and dynamic pass with its node filters (§2), the z formulas, strips and
+blitter comparisons (§3) on a GPU depth buffer per §3.5, shadows (§4), roofs, revealed rooms and wireframes (§5),
+per-tile shade from the client's lighting with the strongest-light rule and the light colour (§6), picking (§7) and the
+merc, item, UI-node and animated-tile layers this document leaves out. Differences, all in `docs/deviations.md`: pass 4
+is drawn per segment instead of per row (exact, because the segments write depth and never tie), the obscured pass
+draws its dithered halves before its depth-writing halves, structure nodes take their tile's land shade (no wall
+orientation filters), every sprite of a visible row is drawn (no horizontal sweep window), and `MAPELEMENT_REDUNDENT`
+is not used (§2.4: it changes nothing visible).
+
 **Notation.**
 - Unmarked statements were read in the code (fact) and carry a `file:line` reference.
 - **(inferred)** marks my derivations and assumptions.

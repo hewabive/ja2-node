@@ -2081,6 +2081,49 @@ session driver with U2; Scroll Lock → Pointer Lock and the Print Screen PNG (d
 fields have no IME and no editor input types; later screens add their sources to `SCREEN_TABLES` of the
 `ui-constants` transcriber and their layouts under `data/layouts/original/`.
 
+#### U4: world renderer, first part (2026-10-19)
+
+The renderer half of U4 that needs no new view field. Soldier frames still come from `SoldierView.frame`; the
+animation schedule, corpses, clouds, tile changes, the view's ambient level and known mines are U4b (after U3a).
+
+| Area | As built |
+|---|---|
+| Atlas | `src/render/array-atlas.ts`: one `TEXTURE_2D_ARRAY` of R8UI layers (4096², or `MAX_TEXTURE_SIZE`) per world, shelf-packed (`shelf-packer.ts`), the layer per sprite; it grows by re-creating the array and re-uploading the retained frames. Tiles and soldier sheets share it, and share one growable palette texture (`palette-rows.ts`), so the world never switches textures. `TextureAtlas` and `PaletteTexture` stay for the UI and the asset browser |
+| Static scene | `static-scene.ts` builds the whole map once into eleven segments kept per row: land, objects, shadows, structs (with the wall strips), strict strips (non-wall multi-Z, `<`), roofs, on-roof, topmost (wireframes) and the obscured pass (dithered, dithered multi-Z, then the depth-writing half). Within a row the original's per-row interleaving of structs, roofs, on-roof and topmost is replaced by segments: every one of them writes depth, and z modulo 8 is the sublayer (structs 4, items 1, roofs 5, on-roof 6, topmost 7, wrapped values keep it), so two sprites of different segments never tie and the depth test gives the same picture in any order; ties inside a segment keep the sweep order, and the strict strips go last because a strict sprite loses every tie anyway. Positions are camera-free world pixels; the camera, the render height and the viewport are uniforms. Each frame draws, per segment, the instance range of the visible rows (the original's ±200 px sweep margins). Doors rebuild their rows, a revealed room the rows whose roof flags, show-through obstacles or wireframes change (`changedRevealTiles`), the tree-top, wireframe and roof-level options everything (A9: 16.6 ms for 43,039 sprites, 2.4 ms to assemble, a door row 0.1 ms) |
+| Draw path | `world-program.ts`: sprites are pulled by `gl_VertexID` from an RGBA32F data texture (three texels per sprite) with plain `drawArrays(first × 6, count × 6)`, so a row range needs no base instance and no attribute re-pointing; one upload per change for the static stream, one per frame for the dynamic and item streams (persistent textures, no per-batch arrays). The shade comes from a 160×160 RG8UI texture (land and roof shade per tile) read in the vertex shader, or is fixed per sprite (soldiers, UI nodes). Instancing was dropped: SwiftShader (headless Chromium without a GPU, CI) pays per instance, and the instanced version drew A9 at 300 ms a frame there |
+| Framebuffer | `world-framebuffer.ts`: colour and 24-bit depth at the logical size, cleared to depth 0, blitted with `NEAREST` at the integer scale (`present`) or read back (`capture`). The devtools pages render through it and drop `preserveDrawingBuffer` |
+| Dynamic pass | `dynamic-scene.ts`, per frame over the tiles of the visible rows that hold dynamic content: the item pass (all pools, at most two items each, dithered `<=` then depth-writing `>`, the outline colour on index 254), then per row the original's three groups: dynamic objects, dynamic shadows, roof soldiers (STRUCT_MERCS), ground soldiers, dynamic structs; dynamic roofs, roof soldiers again (HIGHMERCS, as the original draws them twice), dynamic on-roof; topmost. A soldier is three sprites (shadow index 254 multiplied where `zbuf < z`, the body where `zbuf <= z`, the dithered body where `zbuf > z`) at the merc z, the on-roof z for `level > 0` (no longer skipped) or 32767 at the glow peak; on a tile whose last structure is a single-tile non-wall one (`MAPELEMENT_EXT_NOBURN_STRUCT`, `LevelRenderData.noBurn`) 2 nearer and without the dithered part. Consecutive sprites of the same depth state share a draw call |
+| UI nodes | `WorldUiNode {gridNo, layer: object \| roof \| onRoof \| topmost, tile, head?, offsetX?, offsetY?, shade?}` merged into the dynamic pass of its layer and tile, before (head) or after the map's dynamic nodes, with the layer's z (`OBJECTLAYER_USEZHEIGHT` objects at `8·wy`, topmost 32767) and shade 4 by default. Animated tiles (map and UI) show `animationFrames[⌊clock / 200 ms⌋ mod n]` |
+| Camera | `camera.ts`: `ApplyScrolling` with the tile-centre snap, the scroll rectangle of restriction 0 and 1, the per-axis scroll steps and the forced recentre (`setRenderCenter`); the devtools pages pan through it |
+| Picking | `picking.ts`: the soldier whose drawn frame has an opaque, non-shadow pixel under the pointer, topmost (glowing) sprites first, then the last drawn; next to the tile picking of `screenToGridNo` |
+| Lighting | `src/app/world/world-lighting.ts` runs the simulation's lighting (`initLighting`, `lightSpriteRenderAll`, the sprite API) over the client's own `TacticalWorld` and the view's clock: the ambient from the dawn and dusk schedule the simulation queues (`buildDayLightLevels`), the map's light sprites powered for the hour, the open doors as perceived door states. The shade of a tile is `natural − strongest light` (`LightAddTileNode`'s `ubMaxLights`, not the gameplay sum): each powered sprite is drawn alone and its template light taken on the tiles it reached. Map lights are cached per (hour, ambient, doors), merc lights added per frame. Tiles and soldier shade rows use the map's light colour |
+| Soldiers | `src/app/world/soldier-scene.ts`: the sheet and frame as before, palette rows per soldier palette (16 shades, 20 red glow, 20 orange roof glow, `soldier-palettes.ts`), the node shade (own mercs personally lit at shade 3 unless "merc casts light" at night, others the land or roof shade of their tile, then `max(shade − 2, 4)`), the glow (`glow.ts`: 30 frames of 100 ms, hostiles on our turn or under AI control, topmost at frame ≥ 7, grey offset 10 when `selectedSees(id)` returns false, the hovered hostile glowing and the unseen others in the mono effect shade), and the fades (`soldier-fade.ts`: a newcomer of another team from shade 12 down, a soldier who left the view up to 12 at his last tile, 60 ms a step) |
+| Fog of war | `reveal.ts` turns the view's `revealedRooms` into the original's node flags (`SetGridNoRevealedFlag`: `FIRSTROOF…FOURTHROOF` hidden, A-frame walls on the tile and its south and east neighbours hidden, obstacles shown through, slanted roofs hidden and shown through) and the wireframes of `CalculateWorldWireFrameTiles` (doors, windows, walls, corners, the optional flag for revealed neighbours). Hidden roofs reappear at the roof interface level. Options: tree tops (FULL3D trees drawn as their trunk frame), wireframes, roofs, item glow (static white or yellow outline when off), merc casts light ("Show Lights under Mercs": own mercs carry their light at night, otherwise they are personally lit), merc always lit ("Merc Lights during Movement": the light follows a walking merc instead of waiting until he stops) |
+| Items | the view's `items` with the `tileGraphic` of `externalized/{items,weapons,magazines,armours,explosives}.json` (`item-tiles.ts`), on the ground at `8·wy + 1` or on roofs at the on-roof z, outlined with the 20-step white (red, yellow on roofs) cycle |
+| Hooks | `__ja2Tactical` gains `drawCalls`, `stats`, `camera`, `hoveredSoldier`, `renderMs`, `soldierBoxes`, `items`, `soldierTeams` and `command`; `__ja2MapViewer` gains `drawCalls`, `stats` and `camera` |
+
+**Measured** on A9 with original data, devtools tactical page, 1920×1080 canvas, UI scale 2 (logical 960×540),
+the sandbox squad of six in view, headless Chromium on this machine (no GPU: ANGLE on SwiftShader), the base commit
+`9867f03` and this slice served side by side and measured back to back:
+
+| | before | after |
+|---|---|---|
+| Draw calls per frame | 436 | 26 (two more with items on the ground, three per further soldier) |
+| JS per frame, whole page (p50 / p95) | 4.9–5.0 / 9.2–9.3 ms | 0.5 / 0.7 ms |
+| World render call (p50 / p95) | — | 0.3 / 0.5 ms |
+| Frame interval on SwiftShader (p50 / p95) | 133–150 / 150–167 ms | 33 / 50 ms |
+
+In Node on A9: the dynamic pass with 16 soldiers 0.07 ms, the lighting field at night 0.3 ms, a room reveal
+(`computeReveal`) 1 ms plus the patched rows. A real GPU was not available; the frame time target of §16 still has to
+be confirmed on the maintainer's machine.
+
+Open for U4b: soldier frames from the animation schedule (U3a); corpses, smoke and gas clouds, dynamic lights
+(explosions, muzzle flashes, flares), tile changes (destroyed structures, window states, the O3 statue, the
+helicopter), added exit grids and known mines from the view (G8); the view's ambient level instead of the client's
+clock schedule (hot desert days); `sees` and `hostile` feeding `selectedSees` and `hostile` (U3a), the AI baton holder
+for `underAiControl`; `bRenderZHeightAboveLevel` of items on tables; multi-tile soldiers (vehicles); the cover and line-of-sight tiles (`LEVELNODE_REVEAL` translucency); the
+world in the `/play` page's logical framebuffer (U5).
+
 ---
 
 ## 18. Decisions and open questions

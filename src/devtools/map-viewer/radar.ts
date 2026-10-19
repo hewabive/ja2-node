@@ -1,5 +1,5 @@
 import { loadRadarPixels, RADAR_HEIGHT, RADAR_WIDTH, radarCellAt, radarViewportBox } from '../../app/world/radar.ts';
-import type { SceneOptions } from '../../render/world/scene.ts';
+import type { Camera, Viewport } from '../../render/world/geometry.ts';
 
 export class Radar {
   readonly #canvas: HTMLCanvasElement;
@@ -27,7 +27,7 @@ export class Radar {
     this.#canvas.hidden = false;
   }
 
-  drawViewport(o: SceneOptions): void {
+  drawViewport(o: Viewport & { readonly camera: Camera }): void {
     if (!this.#image) return;
     const ctx = this.#ctx;
     ctx.putImageData(this.#image, 0, 0);

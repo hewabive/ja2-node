@@ -4,7 +4,7 @@
 
 import { rgb565ToRgba } from '../../content/formats/rgb565.ts';
 import { decodeSti, type Sti } from '../../content/formats/sti.ts';
-import type { SceneOptions } from '../../render/world/scene.ts';
+import type { Camera, Viewport } from '../../render/world/geometry.ts';
 import { fetchVfsFile, type ReadVfsFile } from '../net/vfs.ts';
 
 export const RADAR_WIDTH = 88;
@@ -75,7 +75,7 @@ export function radarCellAt(fractionX: number, fractionY: number): RadarCell {
   };
 }
 
-export function radarViewportBox(o: SceneOptions): RadarBox {
+export function radarViewportBox(o: Viewport & { readonly camera: Camera }): RadarBox {
   const { centerX, centerY } = o.camera;
   const screenX = 2 * (centerX - centerY);
   const screenY = centerX + centerY - 10;
