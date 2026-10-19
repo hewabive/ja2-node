@@ -117,7 +117,11 @@ test.describe('the canvas front end on stubs', () => {
     await expectGolden('front-end-credits', await capture(page));
   });
 
-  test('starts a new game from the canvas main menu that opens the laptop with nobody hired', async ({ page, request }) => {
+  test('starts a new game from the canvas main menu with nobody hired, saves and loads it through the canvas screens and leaves with Alt+X', async ({
+    page,
+    request,
+  }) => {
+    const description = `canvas ${Date.now() % 100000}`;
     await openUiPage(page, PLAY);
     await screenIs(page, 'mainMenu');
     const session = await newGame(page);
@@ -125,13 +129,34 @@ test.describe('the canvas front end on stubs', () => {
       (s) => s.session === session,
     );
     expect(summary?.flow).toBe('laptop');
-    const music = await page.evaluate(() => window.__ja2Ui.music?.serverMode ?? null);
-    expect(music).not.toBe('mainMenu');
+    expect(await page.evaluate(() => window.__ja2Ui.music?.serverMode ?? null)).not.toBe('mainMenu');
+    await page.keyboard.press('Control+KeyS');
+    await screenIs(page, 'saveLoad');
+    expect((await widget(page, 'saveButton')).visible).toBe(true);
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => window.__ja2Ui.widgets.some((w) => w.kind === 'textField' && w.state === 'editing'));
+    await page.keyboard.type(description);
+    await page.keyboard.press('Enter');
+    await screenIs(page, 'laptopPlaceholder');
+    await page.keyboard.press('Control+KeyL');
+    await screenIs(page, 'saveLoad');
+    const row = (await widgets(page)).find((w) => w.id.startsWith('description') && w.text === description);
+    expect(row).toBeDefined();
+    await clickWidget(page, `row${row?.id.replace('description', '')}`);
+    await clickWidget(page, 'loadButton');
+    await screenIs(page, 'laptopPlaceholder');
+    await modalIs(page, null);
+    expect(await page.evaluate(() => window.__ja2Ui.session)).toBe(session);
     await page.keyboard.press('Alt+KeyX');
     await modalIs(page, 'exitBoxLaptop');
     await clickWidget(page, 'exitBoxLaptop.yes');
     await screenIs(page, 'mainMenu');
     expect(await page.evaluate(() => window.__ja2Ui.session)).toBeNull();
+    await page.waitForFunction(() => window.__ja2Ui.widgets.some((w) => w.id === 'loadGame' && w.enabled));
+    await clickWidget(page, 'loadGame');
+    await screenIs(page, 'saveLoad');
+    expect((await widgets(page)).some((w) => w.id.startsWith('description') && w.text === description)).toBe(true);
+    await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
   });
 
   test('keeps the options toggles across a reload', async ({ page }) => {
@@ -156,33 +181,6 @@ test.describe('the canvas front end on stubs', () => {
       [false, false, true],
     );
     await page.evaluate(() => localStorage.removeItem('ja2-node:settings'));
-  });
-
-  test('saves through the canvas save screen and loads the save from the main menu', async ({ page }) => {
-    const description = `canvas ${Date.now() % 100000}`;
-    await openUiPage(page, PLAY);
-    await screenIs(page, 'mainMenu');
-    await newGame(page);
-    await page.keyboard.press('Control+KeyS');
-    await screenIs(page, 'saveLoad');
-    expect((await widget(page, 'saveButton')).visible).toBe(true);
-    await page.keyboard.press('Enter');
-    await page.waitForFunction(() => window.__ja2Ui.widgets.some((w) => w.kind === 'textField' && w.state === 'editing'));
-    await page.keyboard.type(description);
-    await page.keyboard.press('Enter');
-    await screenIs(page, 'laptopPlaceholder');
-    await clickWidget(page, 'mainMenu');
-    await screenIs(page, 'mainMenu');
-    await page.waitForFunction(() => window.__ja2Ui.widgets.some((w) => w.id === 'loadGame' && w.enabled));
-    await clickWidget(page, 'loadGame');
-    await screenIs(page, 'saveLoad');
-    const row = (await widgets(page)).find((w) => w.id.startsWith('description') && w.text === description);
-    expect(row).toBeDefined();
-    await clickWidget(page, `row${row?.id.replace('description', '')}`);
-    await clickWidget(page, 'loadButton');
-    await screenIs(page, 'laptopPlaceholder');
-    await modalIs(page, null);
-    expect(await page.evaluate(() => window.__ja2Ui.session)).toMatch(/\S/);
   });
 
   test('plays the credits on the canvas and ends them on Escape', async ({ page }) => {
