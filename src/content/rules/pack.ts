@@ -125,6 +125,55 @@ function scriptsHashOf(files: readonly RuleBlob[]): string {
   return NO_SCRIPTS;
 }
 
+function listingByPath<T extends RuleListingEntry>(listing: readonly T[]): Map<string, T> {
+  return new Map(listing.map((e) => [normalizeVfsPath(e.path), e]));
+}
+
+function ruleReaderOver(listed: ReadonlyMap<string, RuleListingEntry>, read: (path: string) => Promise<Uint8Array>): ReadFile {
+  return async (path) => {
+    const normalized = normalizeVfsPath(path);
+    return listed.has(normalized) && isRuleFile(normalized) ? read(normalized) : null;
+  };
+}
+
+async function listedRuleGraphics(
+  listed: ReadonlyMap<string, RuleListingEntry>,
+  read: (path: string) => Promise<Uint8Array>,
+): Promise<string[]> {
+  const maps = [...listed.keys()].filter((path) => isMapFile(path) && isRuleFile(path));
+  return (await ruleGraphicPaths(ruleReaderOver(listed, read), maps)).filter((path) => listed.has(path));
+}
+
+export interface RuleListingWithHash extends RuleListingEntry {
+  readonly hash: string;
+}
+
+export async function rulePackIdentityOfListing(
+  source: RuleSource,
+  listing: readonly RuleListingWithHash[],
+  read: (path: string) => Promise<Uint8Array>,
+): Promise<RulePackIdentityInput> {
+  const listed = listingByPath(listing);
+  const rules = [...listed.values()].filter((e) => isRuleFile(e.path));
+  const hashed = (e: RuleListingWithHash): RuleHashedEntry => ({ path: e.path, size: e.size, hash: e.hash });
+  const graphics = (await listedRuleGraphics(listed, read)).map((path) => hashed(listed.get(path) as RuleListingWithHash));
+  return {
+    source,
+    files: rules.map(hashed),
+    graphics,
+    layers: rules.filter((e) => e.layers > 1).map((e): RuleLayerCount => [e.path, e.layers]),
+  };
+}
+
+export function scriptsHashOfListing(listing: readonly RuleListingWithHash[]): string {
+  const listed = listingByPath(listing);
+  for (const path of ANIMATION_SCRIPTS_PATHS) {
+    const found = listed.get(path);
+    if (found) return found.hash;
+  }
+  return NO_SCRIPTS;
+}
+
 async function storeBlob(input: RulePackBuildInput, path: string, bytes: Uint8Array): Promise<RuleBlob> {
   const sha256 = await input.sha256(bytes);
   await input.sink.put(sha256, bytes);
@@ -132,7 +181,7 @@ async function storeBlob(input: RulePackBuildInput, path: string, bytes: Uint8Ar
 }
 
 export async function buildRulePackManifest(input: RulePackBuildInput): Promise<RulePackManifest> {
-  const listed = new Map(input.listing.map((e) => [normalizeVfsPath(e.path), e]));
+  const listed = listingByPath(input.listing);
   const rules = [...listed.values()].filter((e) => isRuleFile(e.path)).sort(byPath);
   const files: RuleBlob[] = [];
   for (const entry of rules) {
@@ -140,18 +189,8 @@ export async function buildRulePackManifest(input: RulePackBuildInput): Promise<
     input.onDigest?.(entry.path, blob.sha256);
     files.push(blob);
   }
-  const readRule: ReadFile = async (path) => {
-    const normalized = normalizeVfsPath(path);
-    return listed.has(normalized) && isRuleFile(normalized) ? input.read(normalized) : null;
-  };
-  const graphicPaths = (
-    await ruleGraphicPaths(
-      readRule,
-      rules.filter((e) => isMapFile(e.path)).map((e) => e.path),
-    )
-  ).filter((p) => listed.has(p));
   const graphics: RuleHashedEntry[] = [];
-  for (const path of graphicPaths) {
+  for (const path of await listedRuleGraphics(listed, input.read)) {
     const bytes = await input.read(path);
     const sha256 = await input.sha256(bytes);
     input.onDigest?.(path, sha256);

@@ -2,30 +2,17 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import { CONTENT_HASH_LENGTH, contentHashOf } from '../content/rules/pack.ts';
+import { contentHashOf } from '../content/rules/pack.ts';
 import type { Vfs } from '../content/vfs/vfs.ts';
+import { ASSET_MANIFEST_FORMAT, ASSET_MANIFEST_VERSION, type AssetManifest, type AssetManifestEntry } from '../protocol/assets.ts';
 
 export const VFS_HASHES_FILE = 'vfs-hashes.json';
-export const ASSET_MANIFEST_FORMAT = 'ja2-node-assets';
-export const ASSET_MANIFEST_VERSION = 1;
 const HASHES_FORMAT = 'ja2-node vfs hashes';
 const HASHES_VERSION = 1;
 const HASHING_CONCURRENCY = 8;
 const PERSIST_DELAY_MS = 2000;
 const STAMP_FILE_FIELD = 0;
 const STAMP_SEPARATOR = '\t';
-
-export type AssetManifestEntry =
-  | readonly [path: string, size: number, hash: string]
-  | readonly [path: string, size: number, hash: string, layers: number];
-
-export interface AssetManifest {
-  readonly format: typeof ASSET_MANIFEST_FORMAT;
-  readonly version: number;
-  readonly source: 'original' | 'stubs';
-  readonly stubText: boolean;
-  readonly files: readonly AssetManifestEntry[];
-}
 
 export interface EncodedAssetManifest {
   readonly json: Uint8Array;
@@ -55,10 +42,6 @@ async function readStored(file: string): Promise<Map<string, string>> {
   } catch {
     return new Map();
   }
-}
-
-export function isContentHash(value: string): boolean {
-  return value.length === CONTENT_HASH_LENGTH && /^[0-9a-f]+$/.test(value);
 }
 
 export class VfsHashes {

@@ -16,8 +16,9 @@ import {
 } from '../content/text/data-version.ts';
 import { vfsExtension } from '../content/vfs/path.ts';
 import { type Vfs, VfsNotFoundError } from '../content/vfs/vfs.ts';
+import { ASSET_MANIFEST_ROUTE, isAssetHash, PINNED_PREFIX, VFS_ROUTE } from '../protocol/assets.ts';
 import type { WelcomeIdentity } from '../protocol/messages.ts';
-import { type EncodedAssetManifest, encodeAssetManifest, isContentHash, VfsHashes } from './assets-manifest.ts';
+import { type EncodedAssetManifest, encodeAssetManifest, VfsHashes } from './assets-manifest.ts';
 import { handleMcpRequest } from './mcp.ts';
 import { SAVE_EXTENSION } from './save-file.ts';
 import { type LoadProblem, loadProblemOf, type SaveOutcome, type SaveService } from './save-service.ts';
@@ -72,10 +73,8 @@ const LOAD_STATUS: Readonly<Record<LoadProblem, 400 | 404 | 409 | 413>> = {
   tooLarge: 413,
 };
 const SNAPSHOT_DESCRIPTION = 'developer snapshot';
-const PINNED_PREFIX = '@';
 const IMMUTABLE_CACHE_CONTROL = 'private, max-age=31536000, immutable';
 const REVALIDATE_CACHE_CONTROL = 'private, no-cache';
-const VFS_ROUTE = '/vfs/';
 
 interface VfsRequest {
   readonly path: string;
@@ -86,7 +85,7 @@ function vfsRequestOf(raw: string): VfsRequest | 'malformed' {
   if (!raw.startsWith(PINNED_PREFIX)) return { path: raw, pinned: null };
   const slash = raw.indexOf('/');
   const hash = slash < 0 ? '' : raw.slice(PINNED_PREFIX.length, slash);
-  return isContentHash(hash) ? { path: raw.slice(slash + 1), pinned: hash } : 'malformed';
+  return isAssetHash(hash) ? { path: raw.slice(slash + 1), pinned: hash } : 'malformed';
 }
 
 function acceptsGzip(header: string | undefined): boolean {
@@ -227,7 +226,7 @@ export function createApp(options: AppOptions): Hono {
     return c.json({ layers, files });
   });
 
-  app.get('/api/assets/manifest', async (c) => {
+  app.get(ASSET_MANIFEST_ROUTE, async (c) => {
     const encoded = await assetManifest();
     const headers = {
       'content-type': 'application/json',
