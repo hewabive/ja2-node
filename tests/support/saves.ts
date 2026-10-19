@@ -2,7 +2,15 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { RulePack } from '../../src/content/rules/pack.ts';
-import { type EngineIdentity, type LogicIdentity, logicIdentityOf, welcomeIdentityOf } from '../../src/server/content-identity.ts';
+import type { Vfs } from '../../src/content/vfs/vfs.ts';
+import {
+  type ContentLedger,
+  type ContentSource,
+  type EngineIdentity,
+  type LogicIdentity,
+  logicIdentityOf,
+  welcomeIdentityOf,
+} from '../../src/server/content-identity.ts';
 import type { LogOrigin } from '../../src/server/input-log.ts';
 import { type OriginBuilder, replaySave } from '../../src/server/replay.ts';
 import { legacyContentLedger } from '../../src/server/save-environment.ts';
@@ -23,12 +31,15 @@ export interface SaveKitOptions {
   readonly entropy?: () => number;
   readonly nativeDir?: string | null;
   readonly dataVersion?: string;
+  readonly source?: ContentSource;
+  readonly legacyVfs?: Vfs;
 }
 
 export interface SaveKit {
   readonly dir: string;
   readonly pack: RulePack;
   readonly identity: LogicIdentity;
+  readonly legacy: ContentLedger;
   readonly store: SaveStore;
   readonly saves: SaveService;
   readonly sources: SessionSources;
@@ -46,7 +57,9 @@ export interface SaveKit {
 export async function createSaveKit(kit: StubSectorKit, options: SaveKitOptions = {}): Promise<SaveKit> {
   const dir = await mkdtemp(join(tmpdir(), 'ja2-saves-'));
   const pack = await kit.rulePack();
-  const identity = logicIdentityOf(pack, legacyContentLedger(kit.vfs, pack));
+  const legacy = legacyContentLedger(options.legacyVfs ?? kit.vfs, pack);
+  const packIdentity = logicIdentityOf(pack, legacy);
+  const identity = options.source ? { ...packIdentity, source: options.source } : packIdentity;
   const store = new SaveStore(dir, options.nativeDir ?? null);
   const warnings: string[] = [];
   let tick = 0;
@@ -72,6 +85,7 @@ export async function createSaveKit(kit: StubSectorKit, options: SaveKitOptions 
     dir,
     pack,
     identity,
+    legacy,
     store,
     saves,
     sources,

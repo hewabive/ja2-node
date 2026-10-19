@@ -55,7 +55,7 @@ export function cacheDirFromEnv(env: NodeJS.ProcessEnv = process.env): string {
 }
 
 export function vfsRuleListing(vfs: Vfs): RuleListingEntry[] {
-  return vfs.list().map((f) => ({ path: f.path, size: f.size, layers: vfs.layerCount(f.path) }));
+  return vfs.list().map((f) => ({ path: f.path, size: f.size, layers: vfs.layerCount(f.path), layer: f.layer }));
 }
 
 export function ruleSourceKey(vfs: Vfs, source: RuleSource): string | null {
@@ -117,7 +117,7 @@ async function loadCached(cacheDir: string, sourceKey: string): Promise<OpenedRu
   if (!cached || cached.sourceKey !== sourceKey) return null;
   try {
     const manifest = parseRulePackManifest(cached.manifest);
-    if (manifest.hash !== hash || !(await verifyRulePackManifest(manifest, nodeSha256))) return null;
+    if (manifest.allLayersHash !== hash || !(await verifyRulePackManifest(manifest, nodeSha256))) return null;
     const now = new Date();
     await utimes(join(dir, PACK_FILE), now, now);
     return { pack: new RulePack(manifest, new DirRuleBlobs(join(dir, BLOB_DIR))), cached: true, dir };
@@ -132,7 +132,7 @@ async function moveMissingBlobs(from: string, to: string): Promise<void> {
 }
 
 async function settle(cacheDir: string, built: string, cached: CachedRulePack): Promise<string> {
-  const dir = packDir(cacheDir, cached.manifest.hash);
+  const dir = packDir(cacheDir, cached.manifest.allLayersHash);
   await writeJsonAtomically(join(built, PACK_FILE), cached);
   try {
     await rename(built, dir);
@@ -142,7 +142,7 @@ async function settle(cacheDir: string, built: string, cached: CachedRulePack): 
     await rm(built, { recursive: true, force: true });
   }
   const index = await readIndex(cacheDir);
-  await writeJsonAtomically(join(cacheDir, INDEX_FILE), { ...index, [cached.sourceKey]: cached.manifest.hash });
+  await writeJsonAtomically(join(cacheDir, INDEX_FILE), { ...index, [cached.sourceKey]: cached.manifest.allLayersHash });
   return dir;
 }
 

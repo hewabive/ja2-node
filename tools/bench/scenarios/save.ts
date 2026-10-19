@@ -39,7 +39,7 @@ function elapsed(t0: number): number {
 const BENCH_RULES = 'bench';
 
 function identity(ctx: BenchContext): LogicIdentity {
-  return { source: ctx.data.source, hash: BENCH_RULES, legacyHash: async () => BENCH_RULES };
+  return { source: ctx.data.source, hash: BENCH_RULES, matches: (logic) => logic === BENCH_RULES, matchesLegacy: async () => true };
 }
 
 function service(ctx: BenchContext): SaveService {

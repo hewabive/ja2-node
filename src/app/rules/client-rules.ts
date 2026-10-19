@@ -7,7 +7,7 @@ import {
   scriptsHashOfListing,
 } from '../../content/rules/pack.ts';
 import { liveRuleReader, type RuleReader } from '../../content/rules/rule-reader.ts';
-import { type AssetManifest, entryLayers } from '../../protocol/assets.ts';
+import { type AssetManifest, entryLayer, entryLayers } from '../../protocol/assets.ts';
 import type { RulePackIdentityView } from '../../protocol/messages.ts';
 import type { AssetSource } from '../assets/asset-source.ts';
 
@@ -36,7 +36,7 @@ export const subtleSha256: Sha256 = async (bytes) => {
 };
 
 export function manifestRuleListing(manifest: AssetManifest): RuleListingWithHash[] {
-  return manifest.files.map((e) => ({ path: e[0], size: e[1], hash: e[2], layers: entryLayers(e) }));
+  return manifest.files.map((e) => ({ path: e[0], size: e[1], hash: e[2], layers: entryLayers(e), layer: entryLayer(manifest, e) }));
 }
 
 export async function clientRulePackIdentity(source: AssetSource, sha256: Sha256 = subtleSha256): Promise<RulePackIdentityView> {

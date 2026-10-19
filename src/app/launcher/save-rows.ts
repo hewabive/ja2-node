@@ -31,6 +31,7 @@ const SAVE_MODE_LABELS: Readonly<Record<GameOptions['saveMode'], LabelId>> = {
 const WARNING_LABELS: Readonly<Record<LoadWarning, LabelId>> = {
   engineDiffers: 'gameVersionDiffers',
   dataVersionDiffers: 'dataVersionDiffers',
+  stubPackDiffers: 'stubPackDiffers',
 };
 
 export interface SaveRow {
@@ -141,8 +142,12 @@ export function saveRow(listing: SaveListing, labels: Labels): SaveRow {
   return listing.native ? nativeRow(listing, labels) : ownRow(listing, labels);
 }
 
-export function predictLoadWarnings(header: SaveHeader, health: Pick<Health, 'dataVersion' | 'engine'>): LoadWarning[] {
-  const warnings: LoadWarning[] = [];
+export function predictLoadWarnings(
+  header: SaveHeader,
+  health: Pick<Health, 'dataVersion' | 'engine'>,
+  listed: readonly LoadWarning[] = [],
+): LoadWarning[] {
+  const warnings: LoadWarning[] = [...listed];
   if (header.content.dataVersion !== health.dataVersion) warnings.push('dataVersionDiffers');
   const engine = health.engine;
   if (engine && (engine.version !== header.engine.version || engine.commit !== header.engine.commit)) warnings.push('engineDiffers');

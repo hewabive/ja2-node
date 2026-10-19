@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { CIV_QUOTE_TEXT_SIZE, DIALOGUE_SIZE } from '../content/formats/edt.ts';
 import { civHintFile, civQuoteFile, DialogueTexts, dialogueFileCandidates } from '../content/narrative/dialogue-text.ts';
 import { CIV_QUOTE_SECTORS, NUM_CIV_QUOTES } from '../content/narrative/npc-constants.ts';
-import type { RulePack, RuleSource } from '../content/rules/pack.ts';
+import { isIdentityLayer, type RulePack, type RuleSource } from '../content/rules/pack.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import { REPO_ROOT } from '../node/repo.ts';
 import type { WelcomeIdentity } from '../protocol/messages.ts';
@@ -18,10 +18,23 @@ export interface EngineIdentity {
   readonly commit: string;
 }
 
+export interface LegacyLogic {
+  readonly logic: string;
+  readonly commit: string;
+}
+
 export interface LogicIdentity {
   readonly source: ContentSource;
   readonly hash: string;
-  legacyHash(files: readonly ContentFileEntry[]): Promise<string>;
+  matches(logic: string): boolean;
+  matchesLegacy(files: readonly ContentFileEntry[], saved: LegacyLogic): Promise<boolean>;
+}
+
+export type SavedRepositoryFile = (commit: string, layer: string, path: string) => Promise<Uint8Array | null>;
+
+export interface LegacyScope {
+  readonly layerOf: (path: string) => string | null;
+  readonly savedRepositoryFile: SavedRepositoryFile;
 }
 
 export interface ContentIdentityHeader {
@@ -65,12 +78,14 @@ export class ContentLedger {
   readonly exists: FileExists;
   readonly #baseRead: ReadFile;
   readonly #baseExists: FileExists;
+  readonly #scope: LegacyScope | null;
   readonly #files = new Map<string, FileRecord>();
 
-  constructor(source: ContentSource, read: ReadFile, exists: FileExists) {
+  constructor(source: ContentSource, read: ReadFile, exists: FileExists, scope: LegacyScope | null = null) {
     this.source = source;
     this.#baseRead = read;
     this.#baseExists = exists;
+    this.#scope = scope;
     this.read = async (path) => {
       const bytes = await read(path);
       this.#recordRead(path, bytes);
@@ -124,15 +139,45 @@ export class ContentLedger {
     return `${this.#baseExists(path) ? 'p' : 'm'} ${path}`;
   }
 
+  async #savedRepositoryLine(scope: LegacyScope, path: string, state: ContentFileState, commit: string): Promise<string | null> {
+    const layer = scope.layerOf(path);
+    if (layer === null || isIdentityLayer(this.source, layer)) return null;
+    if (state !== 'f') return `${state} ${path}`;
+    const saved = await scope.savedRepositoryFile(commit, layer, path);
+    return saved ? `f ${path} ${fileDigest(saved)}` : null;
+  }
+
+  async #identityScopedLine(path: string, state: ContentFileState, commit: string): Promise<string> {
+    const saved = this.#scope ? await this.#savedRepositoryLine(this.#scope, path, state, commit) : null;
+    return saved ?? this.#line(path, state);
+  }
+
   async logicHash(files: readonly ContentFileEntry[] = this.files()): Promise<string> {
     const lines: string[] = [`source ${this.source}`];
     for (const [path, state] of files) lines.push(await this.#line(path, state));
     return sha256(lines.join('\n'));
   }
+
+  async #identityScopedLogicHash(files: readonly ContentFileEntry[], commit: string): Promise<string> {
+    const lines: string[] = [`source ${this.source}`];
+    for (const [path, state] of files) lines.push(await this.#identityScopedLine(path, state, commit));
+    return sha256(lines.join('\n'));
+  }
+
+  async matchesSaved(files: readonly ContentFileEntry[], saved: LegacyLogic): Promise<boolean> {
+    if ((await this.logicHash(files)) === saved.logic) return true;
+    return this.#scope !== null && (await this.#identityScopedLogicHash(files, saved.commit)) === saved.logic;
+  }
 }
 
 export function logicIdentityOf(pack: RulePack, legacy: ContentLedger): LogicIdentity {
-  return { source: pack.source, hash: pack.hash, legacyHash: (files) => legacy.logicHash(files) };
+  const accepted = new Set([pack.hash, pack.allLayersHash]);
+  return {
+    source: pack.source,
+    hash: pack.hash,
+    matches: (logic) => accepted.has(logic),
+    matchesLegacy: (files, saved) => legacy.matchesSaved(files, saved),
+  };
 }
 
 export function welcomeIdentityOf(engine: EngineIdentity, pack: RulePack): WelcomeIdentity {

@@ -1,5 +1,6 @@
 import { ANIMATION_SCRIPTS_PATHS } from '../anim/timelines.ts';
 import { FormatError } from '../binary/errors.ts';
+import { PROJECT_DATA_LAYER, REPOSITORY_LAYERS } from '../vfs/layers.ts';
 import { normalizeVfsPath } from '../vfs/path.ts';
 import type { ReadFile } from '../world/tileset-loader.ts';
 import { isMapFile, isRuleFile, isTextRuleFile } from './families.ts';
@@ -7,11 +8,18 @@ import { encodeGraphicFacts, graphicFactsOf, graphicFactsPath, isGraphicFactsPat
 import { ruleGraphicPaths } from './graphics.ts';
 
 export const RULE_PACK_FORMAT = 'ja2-node-rules';
-export const RULE_PACK_VERSION = 1;
+export const RULE_PACK_VERSION = 2;
+export const DATA_IDENTITY_VERSION = 2;
+export const ALL_LAYERS_IDENTITY_VERSION = 1;
 export const CONTENT_HASH_LENGTH = 16;
 export const NO_SCRIPTS = 'none';
 
 export type RuleSource = 'original' | 'stubs';
+
+const LAYERS_OUTSIDE_IDENTITY: Readonly<Record<RuleSource, readonly string[]>> = {
+  original: REPOSITORY_LAYERS,
+  stubs: [PROJECT_DATA_LAYER],
+};
 
 export type Sha256 = (bytes: Uint8Array) => Promise<string>;
 
@@ -19,18 +27,21 @@ export interface RuleListingEntry {
   readonly path: string;
   readonly size: number;
   readonly layers: number;
+  readonly layer: string;
 }
 
 export interface RuleHashedEntry {
   readonly path: string;
   readonly size: number;
   readonly hash: string;
+  readonly layer: string;
 }
 
 export interface RuleBlob {
   readonly path: string;
   readonly size: number;
   readonly sha256: string;
+  readonly layer: string;
 }
 
 export type RuleLayerCount = readonly [path: string, count: number];
@@ -40,6 +51,7 @@ export interface RulePackManifest {
   readonly version: number;
   readonly source: RuleSource;
   readonly hash: string;
+  readonly allLayersHash: string;
   readonly scripts: string;
   readonly files: readonly RuleBlob[];
   readonly graphics: readonly RuleHashedEntry[];
@@ -92,9 +104,25 @@ function fileLine(e: RuleHashedEntry): string {
   return isTextRuleFile(e.path) ? `p ${e.path}` : `f ${e.path} ${e.size} ${e.hash}`;
 }
 
-export function rulePackIdentityText(input: RulePackIdentityInput): string {
+export function isIdentityLayer(source: RuleSource, layer: string): boolean {
+  return !LAYERS_OUTSIDE_IDENTITY[source].includes(layer);
+}
+
+function identityScope(input: RulePackIdentityInput): RulePackIdentityInput {
+  const inScope = (entry: { readonly layer: string }) => isIdentityLayer(input.source, entry.layer);
+  const files = input.files.filter(inScope);
+  const paths = new Set(files.map((f) => f.path));
+  return {
+    source: input.source,
+    files,
+    graphics: input.graphics.filter(inScope),
+    layers: input.layers.filter(([path]) => paths.has(path)),
+  };
+}
+
+function identityText(version: number, input: RulePackIdentityInput): string {
   return [
-    `${RULE_PACK_FORMAT} ${RULE_PACK_VERSION}`,
+    `${RULE_PACK_FORMAT} ${version}`,
     `source ${input.source}`,
     ...[...input.files].sort(byPath).map(fileLine),
     ...[...input.graphics].sort(byPath).map((g) => `g ${g.path} ${g.size} ${g.hash}`),
@@ -102,8 +130,24 @@ export function rulePackIdentityText(input: RulePackIdentityInput): string {
   ].join('\n');
 }
 
+export function rulePackIdentityText(input: RulePackIdentityInput): string {
+  return identityText(DATA_IDENTITY_VERSION, identityScope(input));
+}
+
+export function allLayersIdentityText(input: RulePackIdentityInput): string {
+  return identityText(ALL_LAYERS_IDENTITY_VERSION, input);
+}
+
+function textHash(text: string, sha256: Sha256): Promise<string> {
+  return sha256(new TextEncoder().encode(text));
+}
+
 export function rulePackHash(input: RulePackIdentityInput, sha256: Sha256): Promise<string> {
-  return sha256(new TextEncoder().encode(rulePackIdentityText(input)));
+  return textHash(rulePackIdentityText(input), sha256);
+}
+
+export function allLayersHash(input: RulePackIdentityInput, sha256: Sha256): Promise<string> {
+  return textHash(allLayersIdentityText(input), sha256);
 }
 
 export function manifestIdentity(manifest: Pick<RulePackManifest, 'source' | 'files' | 'graphics' | 'layers'>): RulePackIdentityInput {
@@ -111,7 +155,7 @@ export function manifestIdentity(manifest: Pick<RulePackManifest, 'source' | 'fi
     source: manifest.source,
     files: manifest.files
       .filter((f) => !isGraphicFactsPath(f.path))
-      .map((f) => ({ path: f.path, size: f.size, hash: contentHashOf(f.sha256) })),
+      .map((f) => ({ path: f.path, size: f.size, hash: contentHashOf(f.sha256), layer: f.layer })),
     graphics: manifest.graphics,
     layers: manifest.layers,
   };
@@ -155,7 +199,7 @@ export async function rulePackIdentityOfListing(
 ): Promise<RulePackIdentityInput> {
   const listed = listingByPath(listing);
   const rules = [...listed.values()].filter((e) => isRuleFile(e.path));
-  const hashed = (e: RuleListingWithHash): RuleHashedEntry => ({ path: e.path, size: e.size, hash: e.hash });
+  const hashed = (e: RuleListingWithHash): RuleHashedEntry => ({ path: e.path, size: e.size, hash: e.hash, layer: e.layer });
   const graphics = (await listedRuleGraphics(listed, read)).map((path) => hashed(listed.get(path) as RuleListingWithHash));
   return {
     source,
@@ -174,10 +218,16 @@ export function scriptsHashOfListing(listing: readonly RuleListingWithHash[]): s
   return NO_SCRIPTS;
 }
 
-async function storeBlob(input: RulePackBuildInput, path: string, bytes: Uint8Array): Promise<RuleBlob> {
+async function storeBlob(input: RulePackBuildInput, path: string, layer: string, bytes: Uint8Array): Promise<RuleBlob> {
   const sha256 = await input.sha256(bytes);
   await input.sink.put(sha256, bytes);
-  return { path, size: bytes.length, sha256 };
+  return { path, size: bytes.length, sha256, layer };
+}
+
+function listedLayer(listed: ReadonlyMap<string, RuleListingEntry>, path: string): string {
+  const entry = listed.get(path);
+  if (!entry) throw new FormatError(`${path} is not in the listing`);
+  return entry.layer;
 }
 
 export async function buildRulePackManifest(input: RulePackBuildInput): Promise<RulePackManifest> {
@@ -185,7 +235,7 @@ export async function buildRulePackManifest(input: RulePackBuildInput): Promise<
   const rules = [...listed.values()].filter((e) => isRuleFile(e.path)).sort(byPath);
   const files: RuleBlob[] = [];
   for (const entry of rules) {
-    const blob = await storeBlob(input, entry.path, await input.read(entry.path));
+    const blob = await storeBlob(input, entry.path, entry.layer, await input.read(entry.path));
     input.onDigest?.(entry.path, blob.sha256);
     files.push(blob);
   }
@@ -193,18 +243,20 @@ export async function buildRulePackManifest(input: RulePackBuildInput): Promise<
   for (const path of await listedRuleGraphics(listed, input.read)) {
     const bytes = await input.read(path);
     const sha256 = await input.sha256(bytes);
+    const layer = listedLayer(listed, path);
     input.onDigest?.(path, sha256);
-    graphics.push({ path, size: bytes.length, hash: contentHashOf(sha256) });
-    files.push(await storeBlob(input, graphicFactsPath(path), encodeGraphicFacts(graphicFactsOf(path, bytes))));
+    graphics.push({ path, size: bytes.length, hash: contentHashOf(sha256), layer });
+    files.push(await storeBlob(input, graphicFactsPath(path), layer, encodeGraphicFacts(graphicFactsOf(path, bytes))));
   }
   files.sort(byPath);
   const layers = rules.filter((e) => e.layers > 1).map((e): RuleLayerCount => [e.path, e.layers]);
-  const partial = { source: input.source, files, graphics, layers };
+  const identity = manifestIdentity({ source: input.source, files, graphics, layers });
   return {
     format: RULE_PACK_FORMAT,
     version: RULE_PACK_VERSION,
     source: input.source,
-    hash: await rulePackHash(manifestIdentity(partial), input.sha256),
+    hash: await rulePackHash(identity, input.sha256),
+    allLayersHash: await allLayersHash(identity, input.sha256),
     scripts: scriptsHashOf(files),
     files,
     graphics,
@@ -217,14 +269,21 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 }
 
 function isHashedEntry(value: unknown, hashKey: 'hash' | 'sha256'): boolean {
-  return isRecord(value) && typeof value.path === 'string' && typeof value.size === 'number' && typeof value[hashKey] === 'string';
+  return (
+    isRecord(value) &&
+    typeof value.path === 'string' &&
+    typeof value.size === 'number' &&
+    typeof value[hashKey] === 'string' &&
+    typeof value.layer === 'string'
+  );
 }
 
 export function parseRulePackManifest(value: unknown): RulePackManifest {
   if (!isRecord(value) || value.format !== RULE_PACK_FORMAT) throw new FormatError('not a ja2-node rule pack');
   if (value.version !== RULE_PACK_VERSION) throw new FormatError(`rule pack version ${String(value.version)} is not ${RULE_PACK_VERSION}`);
   if (value.source !== 'original' && value.source !== 'stubs') throw new FormatError('rule pack source must be original or stubs');
-  if (typeof value.hash !== 'string' || typeof value.scripts !== 'string') throw new FormatError('rule pack hashes are missing');
+  if (typeof value.hash !== 'string' || typeof value.allLayersHash !== 'string' || typeof value.scripts !== 'string')
+    throw new FormatError('rule pack hashes are missing');
   if (!Array.isArray(value.files) || !value.files.every((f) => isHashedEntry(f, 'sha256'))) throw new FormatError('bad rule pack files');
   if (!Array.isArray(value.graphics) || !value.graphics.every((g) => isHashedEntry(g, 'hash')))
     throw new FormatError('bad rule pack graphics');
@@ -235,7 +294,12 @@ export function parseRulePackManifest(value: unknown): RulePackManifest {
 }
 
 export async function verifyRulePackManifest(manifest: RulePackManifest, sha256: Sha256): Promise<boolean> {
-  return (await rulePackHash(manifestIdentity(manifest), sha256)) === manifest.hash && scriptsHashOf(manifest.files) === manifest.scripts;
+  const identity = manifestIdentity(manifest);
+  return (
+    (await rulePackHash(identity, sha256)) === manifest.hash &&
+    (await allLayersHash(identity, sha256)) === manifest.allLayersHash &&
+    scriptsHashOf(manifest.files) === manifest.scripts
+  );
 }
 
 export class RulePack {
@@ -253,6 +317,10 @@ export class RulePack {
 
   get hash(): string {
     return this.manifest.hash;
+  }
+
+  get allLayersHash(): string {
+    return this.manifest.allLayersHash;
   }
 
   get scriptsHash(): string {

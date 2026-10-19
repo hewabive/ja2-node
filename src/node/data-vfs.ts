@@ -2,13 +2,12 @@ import { existsSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { VFS_ALIASES_FILE } from '../content/vfs/aliases.ts';
+import { PROJECT_DATA_LAYER, STUBS_LAYER } from '../content/vfs/layers.ts';
 import { Vfs, type VfsLayer } from '../content/vfs/vfs.ts';
 import { DirLayer } from './dir-layer.ts';
 import { SlfFileLayer } from './slf-layer.ts';
 
 export const STUBS_PREFIX = 'stubs';
-export const PROJECT_DATA_LAYER = 'ja2-node-data';
-export const STUBS_LAYER = 'stubs';
 
 export interface DataVfsOptions {
   readonly projectDataDir?: string | undefined;

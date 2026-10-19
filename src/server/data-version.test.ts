@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { PROJECT_DATA_LAYER, STUBS_LAYER } from '../content/vfs/layers.ts';
 import { MemoryLayer, Vfs } from '../content/vfs/vfs.ts';
-import { PROJECT_DATA_LAYER, STUBS_LAYER } from '../node/data-vfs.ts';
 import { chooseDataVersion, chooseDisplayLanguage, detectDataVersion, originalDataPaths } from './data-version.ts';
 
 const nothing = () => [];

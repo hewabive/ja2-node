@@ -132,6 +132,10 @@ export const LABELS = {
     'The save was made with another data version or other text, so a replay may differ.',
     'Сохранение сделано с другой версией данных или другим текстом, повтор может отличаться.',
   ),
+  stubPackDiffers: own(
+    'The save was made with another build of the stub data, so the game may continue differently.',
+    'Сохранение сделано с другой сборкой данных-заглушек, игра может пойти иначе.',
+  ),
   noSaves: own('No saved games.', 'Сохранённых игр нет.'),
   settings: own('Settings', 'Настройки'),
   ambientVolume: own('Ambient', 'Окружение'),

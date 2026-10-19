@@ -10,8 +10,8 @@ import {
   type UiLanguage,
   VANILLA_VERSIONS,
 } from '../content/text/data-version.ts';
+import { isRepositoryLayer } from '../content/vfs/layers.ts';
 import type { Vfs } from '../content/vfs/vfs.ts';
-import { PROJECT_DATA_LAYER, STUBS_LAYER } from '../node/data-vfs.ts';
 
 export const DATA_VERSION_ENV = 'JA2_DATA_VERSION';
 export const LANGUAGE_ENV = 'JA2_LANG';
@@ -30,12 +30,10 @@ export interface DataVersionInput {
   readonly override?: string | undefined;
 }
 
-const NON_ORIGINAL_LAYERS = new Set([PROJECT_DATA_LAYER, STUBS_LAYER]);
-
 export function originalDataPaths(vfs: Vfs): string[] {
   return vfs
     .list()
-    .filter((f) => !NON_ORIGINAL_LAYERS.has(f.layer))
+    .filter((f) => !isRepositoryLayer(f.layer))
     .map((f) => f.path);
 }
 

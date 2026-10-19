@@ -5,7 +5,7 @@ import type { CommandResult } from '../sim/command.ts';
 import { type DroppedNativeOption, type GameOptions, importNativeGameOptions, type SaveMode } from '../sim/options.ts';
 import { reseedMain } from '../sim/snapshot/session.ts';
 import { CampaignSession } from './campaign-session.ts';
-import { type EngineIdentity, type LogicIdentity, textIdentityOf } from './content-identity.ts';
+import { type ContentSource, type EngineIdentity, type LogicIdentity, textIdentityOf } from './content-identity.ts';
 import { describeOrigin, encodeInputLog, encodeInputLogAsync, inputLogText, isReplayable, type LogSegment } from './input-log.ts';
 import { TacticalSession } from './sandbox.ts';
 import {
@@ -46,6 +46,8 @@ import { type SessionSnapshot, snapshotSession } from './session-snapshot.ts';
 
 export const QUICK_ALIAS = 'quick';
 const SEED_LIMIT = 2 ** 32;
+const WARNED_LOGIC_SOURCE: ContentSource = 'stubs';
+const LOGIC_DIFFERENCE_WARNING: LoadWarning = 'stubPackDiffers';
 
 export type LoadProblem =
   | 'notFound'
@@ -57,7 +59,7 @@ export type LoadProblem =
   | 'corrupt'
   | 'tooLarge';
 
-export type LoadWarning = 'dataVersionDiffers' | 'engineDiffers';
+export type LoadWarning = 'dataVersionDiffers' | 'engineDiffers' | 'stubPackDiffers';
 
 export type SaveProblem = SaveRefusal | 'invalidName' | 'reservedName' | 'notSaveable' | 'actionInProgress';
 
@@ -119,6 +121,7 @@ export type SaveListing =
       readonly version: number | null;
       readonly compatible: boolean;
       readonly problems: readonly string[];
+      readonly warnings: readonly LoadWarning[];
     }
   | {
       readonly name: string;
@@ -378,17 +381,26 @@ export class SaveService {
         'contentMismatch',
         `${name} was made with ${content.source} content, the server runs ${this.identity.source}`,
       );
-    if ((await this.#logicHashFor(file)) !== content.logic)
-      throw new SaveLoadError('contentMismatch', `${name} was made with other logic content (the rule pack differs)`);
     const warnings: LoadWarning[] = [];
+    if (!(await this.#sameLogic(file))) {
+      if (!this.#logicDifferenceWarns())
+        throw new SaveLoadError('contentMismatch', `${name} was made with other game data (the rule pack differs)`);
+      warnings.push(LOGIC_DIFFERENCE_WARNING);
+    }
     if (content.dataVersion !== this.#options.dataVersion) warnings.push('dataVersionDiffers');
     const engine = file.header.engine;
     if (engine.version !== this.#options.engine.version || engine.commit !== this.#options.engine.commit) warnings.push('engineDiffers');
     return warnings;
   }
 
-  #logicHashFor(file: SaveFile): Promise<string> {
-    return file.legacyContent ? this.identity.legacyHash(file.legacyContent.files) : Promise.resolve(this.identity.hash);
+  #sameLogic(file: SaveFile): Promise<boolean> {
+    const logic = file.header.content.logic;
+    if (!file.legacyContent) return Promise.resolve(this.identity.matches(logic));
+    return this.identity.matchesLegacy(file.legacyContent.files, { logic, commit: file.header.engine.commit });
+  }
+
+  #logicDifferenceWarns(): boolean {
+    return this.identity.source === WARNED_LOGIC_SOURCE;
   }
 
   async #decode(name: string, bytes: Uint8Array): Promise<{ file: SaveFile; digest: string; warnings: LoadWarning[] }> {
@@ -437,9 +449,14 @@ export class SaveService {
   async list(): Promise<SaveListing[]> {
     const own = (await this.store.list()).map((s): SaveListing => {
       const problems: string[] = [];
+      const warnings: LoadWarning[] = [];
       if (s.problem) problems.push(s.problem);
       if (s.head && s.head.version > SAVE_VERSION) problems.push('versionTooNew');
-      if (s.head && this.#mismatched(s.head)) problems.push('contentMismatch');
+      if (s.head && this.#otherSource(s.head)) problems.push('contentMismatch');
+      else if (s.head && this.#otherLogic(s.head)) {
+        if (this.#logicDifferenceWarns()) warnings.push(LOGIC_DIFFERENCE_WARNING);
+        else problems.push('contentMismatch');
+      }
       return {
         name: s.name,
         native: false,
@@ -448,6 +465,7 @@ export class SaveService {
         version: s.head?.version ?? null,
         compatible: problems.length === 0,
         problems,
+        warnings,
       };
     });
     const native = (await this.store.listNative()).map((s): SaveListing => {
@@ -475,10 +493,12 @@ export class SaveService {
     return [...own, ...native].sort((a, b) => (a.modified < b.modified ? 1 : a.modified > b.modified ? -1 : a.name < b.name ? -1 : 1));
   }
 
-  #mismatched(head: SaveFileHead): boolean {
-    const content = head.header.content;
-    if (content?.source !== this.identity.source) return true;
-    return head.version >= RULE_PACK_SAVE_VERSION && content.logic !== this.identity.hash;
+  #otherSource(head: SaveFileHead): boolean {
+    return head.header.content?.source !== this.identity.source;
+  }
+
+  #otherLogic(head: SaveFileHead): boolean {
+    return head.version >= RULE_PACK_SAVE_VERSION && !this.identity.matches(head.header.content.logic);
   }
 
   async delete(name: string): Promise<boolean> {

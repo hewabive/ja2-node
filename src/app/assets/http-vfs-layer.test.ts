@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MemoryLayer, Vfs, VfsNotFoundError } from '../../content/vfs/vfs.ts';
+import { ASSET_MANIFEST_VERSION } from '../../protocol/assets.ts';
 import { createApp } from '../../server/app.ts';
 import { HttpAssetSource } from './asset-source.ts';
 import { type Fetcher, fetchAssetManifest, HttpVfsLayer, MAX_CONCURRENCY, MIN_CONCURRENCY, StaleAssetError } from './http-vfs-layer.ts';
@@ -45,10 +46,11 @@ const MANIFEST_HASH = '0123456789abcdef';
 function manifestOf(paths: readonly string[]) {
   return {
     format: 'ja2-node-assets' as const,
-    version: 1,
+    version: ASSET_MANIFEST_VERSION,
     source: 'stubs' as const,
     stubText: true,
-    files: paths.map((p) => [p, 4, MANIFEST_HASH] as const),
+    layers: ['stubs'],
+    files: paths.map((p) => [p, 4, MANIFEST_HASH, 0] as const),
   };
 }
 
