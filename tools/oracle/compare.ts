@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
+import { withGraphicFacts } from '../../src/content/rules/graphic-facts.ts';
+import { vfsFileReader } from '../../src/content/vfs/vfs.ts';
 import { WORLD_MAX } from '../../src/content/world/grid.ts';
 import { structureHeight } from '../../src/content/world/structures.ts';
 import { loadTacticalWorld, type TacticalWorld } from '../../src/content/world/tactical-world.ts';
@@ -567,7 +569,7 @@ if (dataDir === null) {
   console.error('JA2_DATA_DIR is required');
   process.exit(2);
 }
-const read: ReadFile = async (p) => (data.vfs.stat(p) ? data.vfs.read(p) : null);
+const read: ReadFile = withGraphicFacts(vfsFileReader(data.vfs));
 const exists: FileExists = (p) => data.vfs.stat(p) !== undefined;
 const content = await loadTacticalContent(read);
 const worlds = new Map<string, TacticalWorld>();

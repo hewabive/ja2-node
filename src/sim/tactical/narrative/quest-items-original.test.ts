@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseMap } from '../../../content/formats/map.ts';
 import { decodeObject } from '../../../content/formats/object.ts';
+import { withGraphicFacts } from '../../../content/rules/graphic-facts.ts';
+import { vfsFileReader } from '../../../content/vfs/vfs.ts';
 import { type DataVfs, openDataVfs } from '../../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../../node/repo.ts';
 import { objectFromRecord } from '../../items/object.ts';
@@ -20,7 +22,7 @@ interface ArmedItem extends BombFields {
 
 describe.skipIf(!process.env.JA2_DATA_DIR)('quest action items in the original maps', () => {
   let data: DataVfs;
-  const read = async (p: string) => (data.vfs.stat(p) ? data.vfs.read(p) : null);
+  const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
 
   beforeAll(async () => {
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir });

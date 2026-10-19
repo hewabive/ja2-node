@@ -5,7 +5,9 @@ import type { SaveGame } from '../../../content/formats/savegame.ts';
 import { parseSaveGame } from '../../../content/formats/savegame.ts';
 import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../../../content/formats/savegame-header.ts';
 import { readSavedLaptop, type SavedLaptop, type SavedLaptopInfo } from '../../../content/formats/savegame-laptop.ts';
+import { withGraphicFacts } from '../../../content/rules/graphic-facts.ts';
 import { loadLaptopContent } from '../../../content/strategic/laptop-content.ts';
+import { vfsFileReader } from '../../../content/vfs/vfs.ts';
 import { type DataVfs, openDataVfs } from '../../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../../node/repo.ts';
 import { createSaveSession } from '../../../server/save-session.ts';
@@ -159,7 +161,7 @@ const saveFiles = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter
 
 describe.skipIf(!process.env.JA2_DATA_DIR)('the laptop of the native savegames in a campaign session', () => {
   let data: DataVfs;
-  const read = async (p: string) => (data.vfs.stat(p) ? data.vfs.read(p) : null);
+  const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
 
   beforeAll(async () => {
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir });

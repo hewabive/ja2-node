@@ -4,6 +4,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
+import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
+import { vfsFileReader } from '../content/vfs/vfs.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import { advance } from '../sim/advance.ts';
@@ -129,7 +131,7 @@ const CONTINUE_TICKS = 300;
 
 describe.skipIf(!process.env.JA2_DATA_DIR)('snapshots of native save imports', () => {
   let data: DataVfs;
-  const read = async (p: string) => (data.vfs.stat(p) ? data.vfs.read(p) : null);
+  const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
   const exists = (p: string) => data.vfs.stat(p) !== undefined;
 
   beforeAll(async () => {

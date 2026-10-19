@@ -61,6 +61,10 @@ export class Vfs {
   }
 }
 
+export function vfsFileReader(vfs: Pick<Vfs, 'stat' | 'read'>): (path: string) => Promise<Uint8Array<ArrayBuffer> | null> {
+  return async (path) => (vfs.stat(path) ? vfs.read(path) : null);
+}
+
 export class VfsNotFoundError extends Error {
   override readonly name = 'VfsNotFoundError';
   readonly path: string;

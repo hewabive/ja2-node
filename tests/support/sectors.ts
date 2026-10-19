@@ -1,8 +1,10 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { withGraphicFacts } from '../../src/content/rules/graphic-facts.ts';
 import { withSectorExitGrids } from '../../src/content/strategic/sector-maps.ts';
 import { parseVfsAliases, VFS_ALIASES_FILE } from '../../src/content/vfs/aliases.ts';
+import { type Vfs, vfsFileReader } from '../../src/content/vfs/vfs.ts';
 import {
   buildTacticalWorldFromInputs,
   loadTacticalWorldInputs,
@@ -35,6 +37,8 @@ export const STUB_MAPS = [
 ] as const;
 
 export interface StubSectorKit {
+  readonly vfs: Vfs;
+  readonly stubsDir: string;
   readonly content: TacticalContent;
   readonly worlds: SectorWorlds;
   readonly read: ReadFile;
@@ -46,7 +50,7 @@ export async function loadStubSectorKit(): Promise<StubSectorKit> {
   const dir = await mkdtemp(join(tmpdir(), 'ja2-sector-stubs-'));
   await buildStubs(dir);
   const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: dir });
-  const read: ReadFile = async (path) => (data.vfs.stat(path) ? data.vfs.read(path) : null);
+  const read: ReadFile = withGraphicFacts(vfsFileReader(data.vfs));
   const content = await loadTacticalContent(read);
   const inputs = new Map<string, TacticalWorldInputs>();
   for (const path of STUB_MAPS) inputs.set(path, await loadTacticalWorldInputs(read, path));
@@ -61,6 +65,8 @@ export async function loadStubSectorKit(): Promise<StubSectorKit> {
     return i ? buildTacticalWorldFromInputs(i) : null;
   };
   return {
+    vfs: data.vfs,
+    stubsDir: dir,
     content,
     read,
     worlds: { exists: (path) => data.vfs.stat(path) !== undefined, world: build },

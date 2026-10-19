@@ -1,6 +1,7 @@
 import { dirname, join } from 'node:path';
+import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
 import type { DataDecoding, DataVersion } from '../content/text/data-version.ts';
-import type { Vfs } from '../content/vfs/vfs.ts';
+import { type Vfs, vfsFileReader } from '../content/vfs/vfs.ts';
 import { ContentLedger, type EngineIdentity, engineIdentity } from './content-identity.ts';
 import type { LogOrigin } from './input-log.ts';
 import { type OriginBuilder, replaySave } from './replay.ts';
@@ -42,7 +43,7 @@ export function saveDirsEnv(store: SaveStore): Record<string, string> {
 export function createSaveEnvironment(input: SaveEnvironmentInput): SaveEnvironment {
   const { vfs, dataDir, decoding } = input;
   const env = input.env ?? process.env;
-  const read = async (path: string): Promise<Uint8Array | null> => (vfs.stat(path) ? vfs.read(path) : null);
+  const read = withGraphicFacts(vfsFileReader(vfs));
   const exists = (path: string) => vfs.stat(path) !== undefined;
   const layers = (path: string) => vfs.layerCount(path);
   const originalData = dataDir !== null;

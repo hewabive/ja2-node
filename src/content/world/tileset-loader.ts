@@ -4,6 +4,7 @@ import { decodeSti, type StiAppData } from '../formats/sti.ts';
 import { pictureFromSti } from '../picture/from-sti.ts';
 import type { IndexedPicture } from '../picture/picture.ts';
 import { parseStubSpriteManifest, pictureFromStubSprite, STUB_SPRITE_SUFFIX } from '../picture/stub-sprite.ts';
+import { readGraphicFacts, stiFrameGeometry } from '../rules/graphic-facts.ts';
 import type { TileSurface } from './tile-database.ts';
 import type { TileTables } from './tile-tables.ts';
 import type { FrameGeometry } from './zstrip.ts';
@@ -20,22 +21,28 @@ interface DecodedSurface {
   readonly appData: readonly StiAppData[] | null;
 }
 
-async function decodeSurface(read: ReadFile, path: string, withPixels: boolean): Promise<DecodedSurface | null> {
+type SurfaceDecoder = (read: ReadFile, path: string) => Promise<DecodedSurface | null>;
+
+async function decodeSurfacePicture(read: ReadFile, path: string): Promise<DecodedSurface | null> {
   const bytes = await read(path);
   if (!bytes) return null;
   if (path.endsWith(STUB_SPRITE_SUFFIX)) {
     const manifest = parseStubSpriteManifest(JSON.parse(new TextDecoder().decode(bytes)));
     const frames = manifest.frames.map((f) => ({ offsetX: f.ox, offsetY: f.oy, width: f.w }));
-    if (!withPixels) return { frames, picture: null, appData: null };
     const png = await read(path.replace(/[^/]+$/, manifest.image));
     return png ? { frames, picture: pictureFromStubSprite(manifest, png), appData: null } : null;
   }
-  const sti = decodeSti(bytes, withPixels);
+  const sti = decodeSti(bytes, true);
   if (sti.kind !== 'indexed') return null;
   const frames = sti.subImages.map((f) => ({ offsetX: f.offsetX, offsetY: f.offsetY, width: f.width }));
-  if (!withPixels) return { frames, picture: null, appData: sti.appData };
   const picture = pictureFromSti(sti);
   return picture.kind === 'indexed' ? { frames, picture, appData: sti.appData } : null;
+}
+
+async function decodeSurfaceGeometry(read: ReadFile, path: string): Promise<DecodedSurface | null> {
+  const facts = await readGraphicFacts(read, path);
+  const geometry = facts ? stiFrameGeometry(facts) : null;
+  return geometry ? { ...geometry, picture: null } : null;
 }
 
 function structurePathFor(path: string): string {
@@ -48,14 +55,14 @@ async function loadSurfaces(
   tilesets: TilesetDatabase,
   tilesetId: number,
   root: string,
-  withPixels: boolean,
+  decode: SurfaceDecoder,
 ): Promise<((TileSurface & { picture: IndexedPicture | null }) | null)[]> {
   return Promise.all(
     tables.types.map(async (t) => {
       const source = tileSurfaceSource(tilesets, tilesetId, t.index);
       if (!source) return null;
       const path = root + source.path;
-      const decoded = await decodeSurface(read, path, withPixels);
+      const decoded = await decode(read, path);
       if (!decoded) return null;
       const jsd = await read(structurePathFor(path));
       const structures = jsd ? parseStructureFile(jsd) : null;
@@ -79,7 +86,7 @@ export async function loadTileSurfaces(
   tilesetId: number,
   root = '',
 ): Promise<(LoadedTileSurface | null)[]> {
-  const surfaces = await loadSurfaces(read, tables, tilesets, tilesetId, root, true);
+  const surfaces = await loadSurfaces(read, tables, tilesets, tilesetId, root, decodeSurfacePicture);
   return surfaces.map((s) => (s?.picture ? { ...s, picture: s.picture } : null));
 }
 
@@ -90,5 +97,5 @@ export async function loadTileSurfaceGeometry(
   tilesetId: number,
   root = '',
 ): Promise<(TileSurface | null)[]> {
-  return loadSurfaces(read, tables, tilesets, tilesetId, root, false);
+  return loadSurfaces(read, tables, tilesets, tilesetId, root, decodeSurfaceGeometry);
 }

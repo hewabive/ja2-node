@@ -3,6 +3,8 @@ import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseSaveGame } from '../../../content/formats/savegame.ts';
 import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../../../content/formats/savegame-header.ts';
+import { withGraphicFacts } from '../../../content/rules/graphic-facts.ts';
+import { vfsFileReader } from '../../../content/vfs/vfs.ts';
 import { type DataVfs, openDataVfs } from '../../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../../node/repo.ts';
 import { questLog } from '../../../server/quest-view.ts';
@@ -19,7 +21,7 @@ const saveFiles = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter
 
 describe.skipIf(!process.env.JA2_DATA_DIR)('facts, quests and NPC profiles of the native savegames', () => {
   let data: DataVfs;
-  const read = async (p: string) => (data.vfs.stat(p) ? data.vfs.read(p) : null);
+  const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
 
   beforeAll(async () => {
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir });

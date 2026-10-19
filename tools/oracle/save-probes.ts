@@ -4,6 +4,8 @@ import { parseSaveGame } from '../../src/content/formats/savegame.ts';
 import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../../src/content/formats/savegame-header.ts';
 import type { SavedSoldier } from '../../src/content/formats/savegame-soldier.ts';
 import { ItemClass } from '../../src/content/items/items.ts';
+import { withGraphicFacts } from '../../src/content/rules/graphic-facts.ts';
+import { vfsFileReader } from '../../src/content/vfs/vfs.ts';
 import { isVisibleTile, WORLD_COLS } from '../../src/content/world/grid.ts';
 import { openDataVfs } from '../../src/node/data-vfs.ts';
 import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR } from '../../src/node/repo.ts';
@@ -43,7 +45,7 @@ if (dataDir === null) {
   console.error('JA2_DATA_DIR is required');
   process.exit(2);
 }
-const read = async (p: string) => (data.vfs.stat(p) ? data.vfs.read(p) : null);
+const read = withGraphicFacts(vfsFileReader(data.vfs));
 const content = await loadTacticalContent(read);
 const tableBytes = await read(SAVE_ENCRYPTION_PATH);
 if (!tableBytes) throw new Error(`missing ${SAVE_ENCRYPTION_PATH}`);
