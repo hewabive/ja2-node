@@ -1,0 +1,282 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/GameInitOptionsScreen.cc RenderGIOScreen (the background, the shadow rectangle (48,55)–(592,408), the title, the group labels GIO_GAP_BN_SETTINGS above, the option texts at + GIO_OFFSET_TO_TEXT and y + 2, the iron man and Dead is Dead explanations in FONT12ARIAL 220 wide at y + 20), EnterGIOScreen and MakeCheckBoxes (the check boxes at + GIO_OFFSET_TO_TOGGLE_BOX, y − GIO_OFFSET_TO_TOGGLE_BOX_Y, MSYS_PRIORITY_HIGH + 10), MakeButton (CreateIconAndTextButton, OPT_BUTTON_FONT, BUTTON_SOUND_SCHEME_BIGSWITCH3, MSYS_PRIORITY_HIGH; the OK button keeps its look when disabled), GetGIOScreenUserInput (Escape and Enter on KEY_DOWN)",
+    "src/game/GameInitOptionsScreen.cc:136 interface/optionsscreenbackground.sti; EnterGIOScreen interface/preferencesbuttons.sti frames 0/2 (OK) and 1/3 (Cancel); src/sgp/Button_System.cc CreateCheckBoxButton (frames 0–3)"
+  ],
+  "screen": "gameInit",
+  "frame": "std640",
+  "constants": ["GameInitOptionsScreen", "Options_Screen", "GameSettings"],
+  "assets": {
+    "background": { "sti": "interface/optionsscreenbackground.sti", "stub": { "size": [640, 480] } },
+    "check": {
+      "sti": "interface/optionscheck.sti",
+      "stub": { "frames": 4, "size": [34, 29], "states": ["normal", "hover", "pressed", "pressedHover"] }
+    },
+    "buttons": {
+      "sti": "interface/preferencesbuttons.sti",
+      "stub": { "frames": 4, "size": [120, 30], "states": ["normal", "normal", "pressed", "pressed"] }
+    }
+  },
+  "widgets": [
+    { "type": "image", "x": 0, "y": 0, "asset": "background", "frame": 0 },
+    { "type": "shade", "x": 48, "y": 55, "width": 545, "height": 354 },
+    {
+      "type": "text",
+      "id": "title",
+      "x": "GIO_MAIN_TITLE_X",
+      "y": "GIO_MAIN_TITLE_Y",
+      "width": "GIO_MAIN_TITLE_WIDTH",
+      "align": "center",
+      "font": "GIO_TITLE_FONT",
+      "color": "GIO_TITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": { "key": ["gzGIOScreenText", "GIO_INITIAL_GAME_SETTINGS"] }
+    },
+
+    {
+      "type": "text",
+      "x": "GIO_DIF_SETTINGS_X",
+      "y": "GIO_DIF_SETTINGS_Y - GIO_GAP_BN_SETTINGS",
+      "width": "GIO_DIF_SETTINGS_WIDTH",
+      "wrap": { "gap": 2 },
+      "font": "GIO_TOGGLE_TEXT_FONT",
+      "color": "GIO_TOGGLE_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": { "key": ["gzGIOScreenText", "GIO_DIF_LEVEL_TEXT"] }
+    },
+    {
+      "type": "repeat",
+      "count": "NUM_DIF_LEVELS",
+      "template": {
+        "type": "text",
+        "x": "GIO_DIF_SETTINGS_X + GIO_OFFSET_TO_TEXT",
+        "y": "GIO_DIF_SETTINGS_Y + 2 + $i * GIO_GAP_BN_SETTINGS",
+        "width": "GIO_DIF_SETTINGS_WIDTH",
+        "wrap": { "gap": 2 },
+        "font": "GIO_TOGGLE_TEXT_FONT",
+        "color": "GIO_TOGGLE_TEXT_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "background": "FONT_MCOLOR_BLACK",
+        "text": { "key": ["gzGIOScreenText", "GIO_EASY_TEXT + $i"] }
+      }
+    },
+
+    {
+      "type": "text",
+      "x": "GIO_GAME_SETTINGS_X",
+      "y": "GIO_GAME_SETTINGS_Y - GIO_GAP_BN_SETTINGS",
+      "width": "GIO_GAME_SETTINGS_WIDTH",
+      "wrap": { "gap": 2 },
+      "font": "GIO_TOGGLE_TEXT_FONT",
+      "color": "GIO_TOGGLE_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": { "key": ["gzGIOScreenText", "GIO_GAME_STYLE_TEXT"] }
+    },
+    {
+      "type": "repeat",
+      "count": "NUM_GAME_STYLES",
+      "template": {
+        "type": "text",
+        "x": "GIO_GAME_SETTINGS_X + GIO_OFFSET_TO_TEXT",
+        "y": "GIO_GAME_SETTINGS_Y + 2 + $i * GIO_GAP_BN_SETTINGS",
+        "width": "GIO_GAME_SETTINGS_WIDTH",
+        "wrap": { "gap": 2 },
+        "font": "GIO_TOGGLE_TEXT_FONT",
+        "color": "GIO_TOGGLE_TEXT_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "background": "FONT_MCOLOR_BLACK",
+        "text": { "key": ["gzGIOScreenText", "GIO_REALISTIC_TEXT + $i"] }
+      }
+    },
+
+    {
+      "type": "text",
+      "x": "GIO_GUN_SETTINGS_X",
+      "y": "GIO_GUN_SETTINGS_Y - GIO_GAP_BN_SETTINGS",
+      "width": "GIO_GUN_SETTINGS_WIDTH",
+      "wrap": { "gap": 2 },
+      "font": "GIO_TOGGLE_TEXT_FONT",
+      "color": "GIO_TOGGLE_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": { "key": ["gzGIOScreenText", "GIO_GUN_OPTIONS_TEXT"] }
+    },
+    {
+      "type": "repeat",
+      "count": "NUM_GUN_OPTIONS",
+      "template": {
+        "type": "text",
+        "x": "GIO_GUN_SETTINGS_X + GIO_OFFSET_TO_TEXT",
+        "y": "GIO_GUN_SETTINGS_Y + 2 + $i * GIO_GAP_BN_SETTINGS",
+        "width": "GIO_GUN_SETTINGS_WIDTH",
+        "wrap": { "gap": 2 },
+        "font": "GIO_TOGGLE_TEXT_FONT",
+        "color": "GIO_TOGGLE_TEXT_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "background": "FONT_MCOLOR_BLACK",
+        "text": { "key": ["gzGIOScreenText", "GIO_REDUCED_GUNS_TEXT - $i"] }
+      }
+    },
+
+    {
+      "type": "text",
+      "x": "GIO_IRON_MAN_SETTING_X",
+      "y": "GIO_IRON_MAN_SETTING_Y - GIO_GAP_BN_SETTINGS",
+      "width": "GIO_DIF_SETTINGS_WIDTH",
+      "wrap": { "gap": 2 },
+      "font": "GIO_TOGGLE_TEXT_FONT",
+      "color": "GIO_TOGGLE_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": { "key": ["gzGIOScreenText", "GIO_GAME_SAVE_STYLE_TEXT"] }
+    },
+    {
+      "type": "repeat",
+      "count": "NUM_SAVE_OPTIONS",
+      "template": {
+        "type": "text",
+        "x": "GIO_IRON_MAN_SETTING_X + GIO_OFFSET_TO_TEXT",
+        "y": "GIO_IRON_MAN_SETTING_Y + 2 + $i * GIO_GAP_BN_SETTINGS",
+        "width": "GIO_DIF_SETTINGS_WIDTH",
+        "wrap": { "gap": 2 },
+        "font": "GIO_TOGGLE_TEXT_FONT",
+        "color": "GIO_TOGGLE_TEXT_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "background": "FONT_MCOLOR_BLACK",
+        "text": { "key": ["gzGIOScreenText", "GIO_SAVE_ANYWHERE_TEXT + $i"] }
+      }
+    },
+    {
+      "type": "repeat",
+      "count": 2,
+      "start": "GIO_IRON_MAN",
+      "dy": "GIO_GAP_BN_SETTINGS",
+      "template": {
+        "type": "text",
+        "x": "GIO_IRON_MAN_SETTING_X + GIO_OFFSET_TO_TEXT",
+        "y": "GIO_IRON_MAN_SETTING_Y + 2 + GIO_IRON_MAN * GIO_GAP_BN_SETTINGS + 20",
+        "width": 220,
+        "wrap": { "gap": 2 },
+        "font": "FONT12ARIAL",
+        "color": "GIO_TOGGLE_TEXT_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "background": "FONT_MCOLOR_BLACK",
+        "text": { "key": ["zNewTacticalMessages", "TCTL_MSG__CANNOT_SAVE_DURING_COMBAT - GIO_IRON_MAN + $i"] }
+      }
+    },
+
+    {
+      "type": "repeat",
+      "count": "NUM_DIF_LEVELS",
+      "dy": "GIO_GAP_BN_SETTINGS",
+      "template": {
+        "type": "button",
+        "id": "difficulty$i",
+        "kind": "checkbox",
+        "x": "GIO_DIF_SETTINGS_X + GIO_OFFSET_TO_TOGGLE_BOX",
+        "y": "GIO_DIF_SETTINGS_Y - GIO_OFFSET_TO_TOGGLE_BOX_Y",
+        "asset": "check",
+        "frames": { "offNormal": 0, "offHilite": 1, "onNormal": 2, "onHilite": 3 },
+        "priority": "HIGH+10"
+      }
+    },
+    { "type": "group", "members": ["difficulty0", "difficulty1", "difficulty2"], "value": "difficulty", "select": "chooseDifficulty" },
+    {
+      "type": "repeat",
+      "count": "NUM_GAME_STYLES",
+      "dy": "GIO_GAP_BN_SETTINGS",
+      "template": {
+        "type": "button",
+        "id": "style$i",
+        "kind": "checkbox",
+        "x": "GIO_GAME_SETTINGS_X + GIO_OFFSET_TO_TOGGLE_BOX",
+        "y": "GIO_GAME_SETTINGS_Y - GIO_OFFSET_TO_TOGGLE_BOX_Y",
+        "asset": "check",
+        "frames": { "offNormal": 0, "offHilite": 1, "onNormal": 2, "onHilite": 3 },
+        "priority": "HIGH+10"
+      }
+    },
+    { "type": "group", "members": ["style0", "style1"], "value": "style", "select": "chooseStyle" },
+    {
+      "type": "repeat",
+      "count": "NUM_SAVE_OPTIONS",
+      "dy": "GIO_GAP_BN_SETTINGS",
+      "template": {
+        "type": "button",
+        "id": "saveMode$i",
+        "kind": "checkbox",
+        "x": "GIO_IRON_MAN_SETTING_X + GIO_OFFSET_TO_TOGGLE_BOX",
+        "y": "GIO_IRON_MAN_SETTING_Y - GIO_OFFSET_TO_TOGGLE_BOX_Y",
+        "asset": "check",
+        "frames": { "offNormal": 0, "offHilite": 1, "onNormal": 2, "onHilite": 3 },
+        "priority": "HIGH+10"
+      }
+    },
+    { "type": "group", "members": ["saveMode0", "saveMode1", "saveMode2"], "value": "saveMode", "select": "chooseSaveMode" },
+    {
+      "type": "repeat",
+      "count": "NUM_GUN_OPTIONS",
+      "dy": "GIO_GAP_BN_SETTINGS",
+      "template": {
+        "type": "button",
+        "id": "guns$i",
+        "kind": "checkbox",
+        "x": "GIO_GUN_SETTINGS_X + GIO_OFFSET_TO_TOGGLE_BOX",
+        "y": "GIO_GUN_SETTINGS_Y - GIO_OFFSET_TO_TOGGLE_BOX_Y",
+        "asset": "check",
+        "frames": { "offNormal": 0, "offHilite": 1, "onNormal": 2, "onHilite": 3 },
+        "priority": "HIGH+10"
+      }
+    },
+    { "type": "group", "members": ["guns0", "guns1"], "value": "guns", "select": "chooseGuns" },
+
+    {
+      "type": "button",
+      "id": "start",
+      "x": "GIO_BTN_OK_X",
+      "y": "GIO_BTN_OK_Y",
+      "asset": "buttons",
+      "frames": { "offNormal": 0, "onNormal": 2 },
+      "priority": "HIGH",
+      "sound": "BIGSWITCH3",
+      "disabledStyle": "none",
+      "enabled": "!starting",
+      "primary": "start",
+      "text": {
+        "source": { "key": ["gzGIOScreenText", "GIO_OK_TEXT"] },
+        "font": "OPT_BUTTON_FONT",
+        "color": "OPT_BUTTON_ON_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "OPT_BUTTON_OFF_COLOR",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    },
+    {
+      "type": "button",
+      "id": "cancel",
+      "x": "GIO_CANCEL_X",
+      "y": "GIO_BTN_OK_Y",
+      "asset": "buttons",
+      "frames": { "offNormal": 1, "onNormal": 3 },
+      "priority": "HIGH",
+      "sound": "BIGSWITCH3",
+      "primary": "cancel",
+      "text": {
+        "source": { "key": ["gzGIOScreenText", "GIO_CANCEL_TEXT"] },
+        "font": "OPT_BUTTON_FONT",
+        "color": "OPT_BUTTON_ON_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "OPT_BUTTON_OFF_COLOR",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    }
+  ],
+  "hotkeys": [
+    { "key": "Escape", "on": "down", "mods": "any", "action": "cancel" },
+    { "key": "Enter", "on": "up", "mods": "any", "action": "start" }
+  ]
+}

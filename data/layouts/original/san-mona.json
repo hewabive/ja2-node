@@ -1,0 +1,15 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/JAScreens.cc SexScreenHandle (a black screen without a cursor, interface/luckysmile.sti centred on the screen by the size of frame 0)"
+  ],
+  "screen": "sanMona",
+  "frame": "screen",
+  "assets": {
+    "smile": { "sti": "interface/luckysmile.sti", "stub": { "frames": 8, "size": [96, 96] } }
+  },
+  "widgets": [
+    { "type": "fill", "x": 0, "y": 0, "width": "$screenWidth", "height": "$screenHeight", "color": [0, 0, 0] },
+    { "type": "image", "id": "smile", "center": true, "asset": "smile", "frame": { "bind": "frame" } }
+  ]
+}

@@ -1,0 +1,142 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/externalized/LoadingScreenModel.cc PREDEFINED_SCREENS, src/game/Loading_Screen.h",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "predefined: the hard-coded loading screens by id (index), their internal name and their file under loadscreens/; the ids from the predefined count on are the entries of externalized/loading-screens.json in order",
+  "predefined": [
+    {
+      "index": 0,
+      "name": "NOTHING",
+      "file": "ls_heli.sti"
+    },
+    {
+      "index": 1,
+      "name": "DAYGENERIC",
+      "file": "ls_daygeneric.sti"
+    },
+    {
+      "index": 2,
+      "name": "DAYTOWN1",
+      "file": "ls_daytown1.sti"
+    },
+    {
+      "index": 3,
+      "name": "DAYTOWN2",
+      "file": "ls_daytown2.sti"
+    },
+    {
+      "index": 4,
+      "name": "DAYWILD",
+      "file": "ls_daywild.sti"
+    },
+    {
+      "index": 5,
+      "name": "DAYTROPICAL",
+      "file": "ls_daytropical.sti"
+    },
+    {
+      "index": 6,
+      "name": "DAYFOREST",
+      "file": "ls_dayforest.sti"
+    },
+    {
+      "index": 7,
+      "name": "DAYDESERT",
+      "file": "ls_daydesert.sti"
+    },
+    {
+      "index": 8,
+      "name": "DAYPALACE",
+      "file": "ls_daypalace.sti"
+    },
+    {
+      "index": 9,
+      "name": "NIGHTGENERIC",
+      "file": "ls_nightgeneric.sti"
+    },
+    {
+      "index": 10,
+      "name": "NIGHTWILD",
+      "file": "ls_nightwild.sti"
+    },
+    {
+      "index": 11,
+      "name": "NIGHTTOWN1",
+      "file": "ls_nighttown1.sti"
+    },
+    {
+      "index": 12,
+      "name": "NIGHTTOWN2",
+      "file": "ls_nighttown2.sti"
+    },
+    {
+      "index": 13,
+      "name": "NIGHTFOREST",
+      "file": "ls_nightforest.sti"
+    },
+    {
+      "index": 14,
+      "name": "NIGHTTROPICAL",
+      "file": "ls_nighttropical.sti"
+    },
+    {
+      "index": 15,
+      "name": "NIGHTDESERT",
+      "file": "ls_nightdesert.sti"
+    },
+    {
+      "index": 16,
+      "name": "NIGHTPALACE",
+      "file": "ls_nightpalace.sti"
+    },
+    {
+      "index": 17,
+      "name": "HELI",
+      "file": "ls_heli.sti"
+    },
+    {
+      "index": 18,
+      "name": "BASEMENT",
+      "file": "ls_basement.sti"
+    },
+    {
+      "index": 19,
+      "name": "MINE",
+      "file": "ls_mine.sti"
+    },
+    {
+      "index": 20,
+      "name": "CAVE",
+      "file": "ls_cave.sti"
+    },
+    {
+      "index": 21,
+      "name": "DAYPINE",
+      "file": "ls_daypine.sti"
+    },
+    {
+      "index": 22,
+      "name": "NIGHTPINE",
+      "file": "ls_nightpine.sti"
+    },
+    {
+      "index": 23,
+      "name": "DAYMILITARY",
+      "file": "ls_daymilitary.sti"
+    },
+    {
+      "index": 24,
+      "name": "NIGHTMILITARY",
+      "file": "ls_nightmilitary.sti"
+    },
+    {
+      "index": 25,
+      "name": "DAYSAM",
+      "file": "ls_daysam.sti"
+    },
+    {
+      "index": 26,
+      "name": "NIGHTSAM",
+      "file": "ls_nightsam.sti"
+    }
+  ]
+}

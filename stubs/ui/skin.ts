@@ -16,6 +16,8 @@ export const DEFAULT_STUB_SIZE: readonly [number, number] = [32, 32];
 const BEVEL = 1;
 const LABEL_MARGIN = 2;
 const AUX_ANIMATED_TILE = 0x02;
+const SHARED_FRAME_PIXELS = 320 * 240;
+const SHARED_DIR = 'ui';
 
 interface FramePlan {
   width: number;
@@ -152,14 +154,35 @@ export async function encodeStubAsset(plan: StubAssetPlan): Promise<Uint8Array> 
   return encodeStiIndexed({ palette: buildPalette(), subImages, ...(appData ? { appData } : {}) });
 }
 
-export async function buildStubSkin(out: string, exists: (path: string) => boolean): Promise<string[]> {
+function sharedPicture(plan: StubAssetPlan): StubAssetPlan | null {
+  const [frame] = plan.frames;
+  if (plan.kind !== 'sti' || plan.frames.length !== 1 || plan.animated > 0 || !frame) return null;
+  if (frame.width * frame.height < SHARED_FRAME_PIXELS) return null;
+  const path = `${SHARED_DIR}/screen-${frame.width}x${frame.height}-${frame.state}.sti`;
+  return { path, kind: 'sti', frames: [frame], animated: 0, layouts: plan.layouts };
+}
+
+async function writeAsset(out: string, plan: StubAssetPlan): Promise<void> {
+  const target = join(out, plan.path);
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, await encodeStubAsset(plan));
+}
+
+export async function buildStubSkin(out: string, exists: (path: string) => boolean, aliases: Map<string, string>): Promise<string[]> {
   const written: string[] = [];
   for (const plan of planStubSkin(await readOriginalLayouts()).values()) {
     if (exists(plan.path)) continue;
-    const target = join(out, plan.path);
-    await mkdir(dirname(target), { recursive: true });
-    await writeFile(target, await encodeStubAsset(plan));
-    written.push(plan.path);
+    const shared = sharedPicture(plan);
+    if (!shared) {
+      await writeAsset(out, plan);
+      written.push(plan.path);
+      continue;
+    }
+    if (!written.includes(shared.path)) {
+      await writeAsset(out, shared);
+      written.push(shared.path);
+    }
+    aliases.set(plan.path, shared.path);
   }
   return written.sort();
 }

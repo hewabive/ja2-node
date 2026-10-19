@@ -1,0 +1,3 @@
+fill 0,0 640x480 #000000
+image loadscreens/ls_heli.sti#0 0,0
+fill 162,427 127x16 #000096

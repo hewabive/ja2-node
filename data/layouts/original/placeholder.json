@@ -1,0 +1,127 @@
+{
+  "screen": "placeholder",
+  "frame": "std640",
+  "debug": true,
+  "widgets": [
+    { "type": "fill", "x": 0, "y": 0, "width": 640, "height": 480, "color": [16, 18, 24] },
+    { "type": "rect", "x": 40, "y": 120, "x2": 599, "y2": 359, "color": [88, 92, 110] },
+    {
+      "type": "text",
+      "id": "heading",
+      "x": 40,
+      "y": 150,
+      "width": 560,
+      "align": "center",
+      "font": "FONT14ARIAL",
+      "color": "FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": { "eq": ["kind", "laptop"] },
+      "text": { "literal": "The laptop is not built yet (M8 slice U10)." }
+    },
+    {
+      "type": "text",
+      "x": 40,
+      "y": 150,
+      "width": 560,
+      "align": "center",
+      "font": "FONT14ARIAL",
+      "color": "FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": { "eq": ["kind", "map"] },
+      "text": { "literal": "The map screen is not built yet (M8 slice U8)." }
+    },
+    {
+      "type": "text",
+      "x": 40,
+      "y": 150,
+      "width": 560,
+      "align": "center",
+      "font": "FONT14ARIAL",
+      "color": "FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": { "eq": ["kind", "tactical"] },
+      "text": { "literal": "The tactical screen is not built yet (M8 slices U5 and U6)." }
+    },
+    {
+      "type": "text",
+      "id": "session",
+      "x": 40,
+      "y": 185,
+      "width": 560,
+      "align": "center",
+      "font": "FONT12ARIAL",
+      "color": "FONT_GRAY2",
+      "shadow": "DEFAULT_SHADOW",
+      "text": { "format": { "literal": "Session %s" }, "args": [{ "bind": "session" }] }
+    },
+    {
+      "type": "text",
+      "x": 40,
+      "y": 215,
+      "width": 560,
+      "align": "center",
+      "font": "FONT10ARIAL",
+      "color": "FONT_GRAY2",
+      "shadow": "DEFAULT_SHADOW",
+      "text": { "literal": "o: options    Ctrl+S: save    Ctrl+L: load    Alt+X: exit" }
+    },
+    { "type": "fill", "x": 200, "y": 290, "width": 110, "height": 26, "color": [56, 64, 88] },
+    { "type": "rect", "x": 200, "y": 290, "x2": 309, "y2": 315, "color": [140, 146, 170] },
+    {
+      "type": "text",
+      "x": 200,
+      "y": 290,
+      "width": 110,
+      "height": 26,
+      "align": "center",
+      "valign": "center",
+      "font": "FONT12ARIAL",
+      "color": "FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": { "literal": "Options" }
+    },
+    {
+      "type": "button",
+      "id": "options",
+      "kind": "hotspot",
+      "x": 200,
+      "y": 290,
+      "width": 110,
+      "height": 26,
+      "priority": "HIGH",
+      "primary": "options"
+    },
+    { "type": "fill", "x": 330, "y": 290, "width": 110, "height": 26, "color": [56, 64, 88] },
+    { "type": "rect", "x": 330, "y": 290, "x2": 439, "y2": 315, "color": [140, 146, 170] },
+    {
+      "type": "text",
+      "x": 330,
+      "y": 290,
+      "width": 110,
+      "height": 26,
+      "align": "center",
+      "valign": "center",
+      "font": "FONT12ARIAL",
+      "color": "FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": { "literal": "Main menu" }
+    },
+    {
+      "type": "button",
+      "id": "mainMenu",
+      "kind": "hotspot",
+      "x": 330,
+      "y": 290,
+      "width": 110,
+      "height": 26,
+      "priority": "HIGH",
+      "primary": "mainMenu"
+    }
+  ],
+  "hotkeys": [
+    { "key": "o", "on": "down", "mods": 0, "action": "options" },
+    { "key": "s", "on": "down", "mods": 2, "action": "saveGame" },
+    { "key": "l", "on": "down", "mods": 2, "action": "loadGame" },
+    { "key": "x", "on": "down", "mods": 4, "action": "exitGame" }
+  ]
+}

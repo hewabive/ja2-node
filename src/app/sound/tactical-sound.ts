@@ -10,9 +10,10 @@ import { ANIMATION_SCRIPTS_PATH, type AnimationScripts, parseAnimationScripts } 
 import { type DataVersion, rpcSpeechPrefixed, STUB_DATA_VERSION } from '../../content/text/data-version.ts';
 import { compileWorldTerrainIds } from '../../content/world/movement-costs.ts';
 import type { ViewFrame } from '../../protocol/view.ts';
+import { type ClientSettings, effectiveMaster, updateSettings } from '../../ui/settings.ts';
 import { type MusicHook, musicLevel, PageMusic } from '../net/music.ts';
 import { fetchHealth, fetchVfsFile, readVfsFileOrNull } from '../net/vfs.ts';
-import { type ClientSettings, effectiveMaster, loadSettings, saveSettings, updateSettings } from '../settings.ts';
+import { loadSettings, saveSettings } from '../settings.ts';
 import type { LoadedWorld } from '../world/world-loader.ts';
 
 const STUB_PREFIX = 'stubs/';

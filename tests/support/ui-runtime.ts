@@ -55,11 +55,22 @@ export interface TestRuntime {
   click(x: number, y: number, button?: number): void;
 }
 
-export async function testRuntime(geometry: ScreenGeometry = GEOMETRY_640): Promise<TestRuntime> {
+export interface TestRuntimeOptions {
+  readonly pauseGame?: (paused: boolean) => void;
+}
+
+export async function testRuntime(geometry: ScreenGeometry = GEOMETRY_640, options: TestRuntimeOptions = {}): Promise<TestRuntime> {
   const fonts = await stubFontSet();
   const images = new StaticImageCatalog();
   const sounds = new RecordingSounds();
-  const runtime = new UiRuntime({ fonts, images, cursors: await cursorTable(), geometry: () => geometry, sounds });
+  const runtime = new UiRuntime({
+    fonts,
+    images,
+    cursors: await cursorTable(),
+    geometry: () => geometry,
+    sounds,
+    ...(options.pauseGame ? { pauseGame: options.pauseGame } : {}),
+  });
   const pointer = (kind: UiPointerEvent['kind'], x: number, y: number, button: number): UiPointerEvent => ({
     kind,
     x,

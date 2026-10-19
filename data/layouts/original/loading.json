@@ -1,0 +1,367 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Loading_Screen.cc DisplayLoadScreenWithID (the picture at (0,0) of the std640 frame), src/externalized/LoadingScreenModel.cc PREDEFINED_SCREENS and data/externalized/loading-screens.json (the picture of each id), src/game/Utils/Animated_ProgressBar.cc CreateLoadingScreenProgressBar (162, 427, 318 × 16, PROGRESS_LOAD_BAR), CreateProgressBar (red (150,0,0) by default), src/game/SaveLoadGame.cc LoadSavedGame (blue (0,0,150) while a save loads)"
+  ],
+  "screen": "loading",
+  "frame": "std640",
+  "constants": ["Loading_Screen", "Animated_ProgressBar"],
+  "assets": {
+    "picture0": {
+      "sti": "loadscreens/ls_heli.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture1": {
+      "sti": "loadscreens/ls_daygeneric.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture2": {
+      "sti": "loadscreens/ls_daytown1.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture3": {
+      "sti": "loadscreens/ls_daytown2.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture4": {
+      "sti": "loadscreens/ls_daywild.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture5": {
+      "sti": "loadscreens/ls_daytropical.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture6": {
+      "sti": "loadscreens/ls_dayforest.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture7": {
+      "sti": "loadscreens/ls_daydesert.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture8": {
+      "sti": "loadscreens/ls_daypalace.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture9": {
+      "sti": "loadscreens/ls_nightgeneric.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture10": {
+      "sti": "loadscreens/ls_nightwild.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture11": {
+      "sti": "loadscreens/ls_nighttown1.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture12": {
+      "sti": "loadscreens/ls_nighttown2.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture13": {
+      "sti": "loadscreens/ls_nightforest.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture14": {
+      "sti": "loadscreens/ls_nighttropical.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture15": {
+      "sti": "loadscreens/ls_nightdesert.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture16": {
+      "sti": "loadscreens/ls_nightpalace.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture17": {
+      "sti": "loadscreens/ls_heli.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture18": {
+      "sti": "loadscreens/ls_basement.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture19": {
+      "sti": "loadscreens/ls_mine.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture20": {
+      "sti": "loadscreens/ls_cave.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture21": {
+      "sti": "loadscreens/ls_daypine.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture22": {
+      "sti": "loadscreens/ls_nightpine.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture23": {
+      "sti": "loadscreens/ls_daymilitary.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture24": {
+      "sti": "loadscreens/ls_nightmilitary.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture25": {
+      "sti": "loadscreens/ls_daysam.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture26": {
+      "sti": "loadscreens/ls_nightsam.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture27": {
+      "sti": "loadscreens/ls_dayprison.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture28": {
+      "sti": "loadscreens/ls_nightprison.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture29": {
+      "sti": "loadscreens/ls_dayhospital.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture30": {
+      "sti": "loadscreens/ls_nighthospital.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture31": {
+      "sti": "loadscreens/ls_dayairport.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture32": {
+      "sti": "loadscreens/ls_nightairport.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture33": {
+      "sti": "loadscreens/ls_daylab.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture34": {
+      "sti": "loadscreens/ls_nightlab.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture35": {
+      "sti": "loadscreens/ls_dayomerta.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture36": {
+      "sti": "loadscreens/ls_nightomerta.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture37": {
+      "sti": "loadscreens/ls_daychitzena.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture38": {
+      "sti": "loadscreens/ls_nightchitzena.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture39": {
+      "sti": "loadscreens/ls_daymine.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture40": {
+      "sti": "loadscreens/ls_nightmine.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture41": {
+      "sti": "loadscreens/ls_daybalime.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "picture42": {
+      "sti": "loadscreens/ls_nightbalime.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "fill",
+      "within": "screen",
+      "x": 0,
+      "y": 0,
+      "width": "$screenWidth",
+      "height": "$screenHeight",
+      "color": [0, 0, 0]
+    },
+    {
+      "type": "image",
+      "id": "picture",
+      "x": 0,
+      "y": 0,
+      "asset": {
+        "by": "picture",
+        "map": {
+          "0": "picture0",
+          "1": "picture1",
+          "2": "picture2",
+          "3": "picture3",
+          "4": "picture4",
+          "5": "picture5",
+          "6": "picture6",
+          "7": "picture7",
+          "8": "picture8",
+          "9": "picture9",
+          "10": "picture10",
+          "11": "picture11",
+          "12": "picture12",
+          "13": "picture13",
+          "14": "picture14",
+          "15": "picture15",
+          "16": "picture16",
+          "17": "picture17",
+          "18": "picture18",
+          "19": "picture19",
+          "20": "picture20",
+          "21": "picture21",
+          "22": "picture22",
+          "23": "picture23",
+          "24": "picture24",
+          "25": "picture25",
+          "26": "picture26",
+          "27": "picture27",
+          "28": "picture28",
+          "29": "picture29",
+          "30": "picture30",
+          "31": "picture31",
+          "32": "picture32",
+          "33": "picture33",
+          "34": "picture34",
+          "35": "picture35",
+          "36": "picture36",
+          "37": "picture37",
+          "38": "picture38",
+          "39": "picture39",
+          "40": "picture40",
+          "41": "picture41",
+          "42": "picture42"
+        }
+      },
+      "frame": 0
+    },
+    {
+      "type": "progressBar",
+      "id": "sectorBar",
+      "x": 162,
+      "y": 427,
+      "width": 318,
+      "height": 16,
+      "style": "loadBar",
+      "color": [150, 0, 0],
+      "value": {
+        "bind": "progress"
+      },
+      "visible": {
+        "eq": ["kind", "sector"]
+      }
+    },
+    {
+      "type": "progressBar",
+      "id": "saveBar",
+      "x": 162,
+      "y": 427,
+      "width": 318,
+      "height": 16,
+      "style": "loadBar",
+      "color": [0, 0, 150],
+      "value": {
+        "bind": "progress"
+      },
+      "visible": {
+        "eq": ["kind", "save"]
+      }
+    }
+  ]
+}

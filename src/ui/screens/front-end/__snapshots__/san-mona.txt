@@ -1,0 +1,2 @@
+fill 0,0 640x480 #000000
+image interface/luckysmile.sti#0 272,192

@@ -10,6 +10,7 @@ type Kind =
   | 'action'
   | 'binding'
   | 'asset'
+  | 'assetChoice'
   | 'font'
   | 'color'
   | 'cursor'
@@ -17,6 +18,8 @@ type Kind =
   | 'array'
   | 'widgets'
   | 'anchor'
+  | 'frame'
+  | 'centerX'
   | 'any';
 
 const COMMON: Readonly<Record<string, Kind>> = {
@@ -25,7 +28,8 @@ const COMMON: Readonly<Record<string, Kind>> = {
   x: 'number',
   y: 'number',
   anchor: 'anchor',
-  centerX: 'boolean',
+  within: 'frame',
+  centerX: 'centerX',
   visible: 'condition',
 };
 
@@ -42,10 +46,12 @@ const INPUT: Readonly<Record<string, Kind>> = {
   wheelUp: 'action',
   wheelDown: 'action',
   hover: 'action',
+  press: 'action',
+  doubleClick: 'action',
 };
 
 export const WIDGET_PROPERTIES: Readonly<Record<string, Readonly<Record<string, Kind>>>> = {
-  image: { asset: 'asset', frame: 'number', shade: 'object', effect: 'string', outline: 'color' },
+  image: { asset: 'assetChoice', frame: 'number', shade: 'object', effect: 'string', outline: 'color', clip: 'array', center: 'boolean' },
   fill: { ...BOX, color: 'color' },
   shade: { ...BOX, factor: 'number' },
   hatch: { ...BOX, pattern: 'string', color: 'color' },
@@ -76,7 +82,7 @@ export const WIDGET_PROPERTIES: Readonly<Record<string, Readonly<Record<string, 
     marginBottom: 'number',
     icon: 'string',
   },
-  region: { ...BOX, ...INPUT, animatesCursor: 'boolean', flashesCursor: 'boolean', mouseText: 'boolean' },
+  region: { ...BOX, ...INPUT, animatesCursor: 'boolean', flashesCursor: 'boolean', mouseText: 'boolean', fit: 'object' },
   button: {
     ...BOX,
     ...INPUT,
@@ -100,7 +106,16 @@ export const WIDGET_PROPERTIES: Readonly<Record<string, Readonly<Record<string, 
     value: 'binding',
     change: 'action',
   },
-  textField: { ...BOX, maxLength: 'number', filter: 'string', priority: 'number', value: 'binding', change: 'action', font: 'font' },
+  textField: {
+    ...BOX,
+    maxLength: 'number',
+    filter: 'string',
+    priority: 'number',
+    value: 'binding',
+    change: 'action',
+    font: 'font',
+    scheme: 'object',
+  },
   popupMenu: {
     width: 'number',
     border: 'asset',
@@ -121,8 +136,8 @@ export const WIDGET_PROPERTIES: Readonly<Record<string, Readonly<Record<string, 
     close: 'action',
     priority: 'number',
   },
-  list: { count: 'number', dx: 'number', dy: 'number', template: 'widgets' },
-  repeat: { count: 'number', dx: 'number', dy: 'number', template: 'widgets' },
+  list: { count: 'number', start: 'number', dx: 'number', dy: 'number', template: 'widgets' },
+  repeat: { count: 'number', start: 'number', dx: 'number', dy: 'number', template: 'widgets' },
   progressBar: { ...BOX, style: 'string', color: 'color', value: 'number' },
   modal: { style: 'number', text: 'text', buttons: 'number', open: 'condition', result: 'action', centering: 'array' },
   custom: { ...BOX, renderer: 'string', params: 'object' },
@@ -150,12 +165,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function isChoice(value: unknown): boolean {
+  return isRecord(value) && typeof value.by === 'string' && isRecord(value.map);
+}
+
 function checkKind(kind: Kind, value: unknown, where: string, problems: string[]): void {
   const bad = (what: string) => problems.push(`${where}: expected ${what}`);
   switch (kind) {
     case 'number':
-      if (typeof value !== 'number' && typeof value !== 'string' && !(isRecord(value) && typeof value.bind === 'string'))
-        bad('a number, a constant expression or {bind}');
+      if (
+        typeof value !== 'number' &&
+        typeof value !== 'string' &&
+        !(isRecord(value) && typeof value.bind === 'string') &&
+        !isChoice(value)
+      )
+        bad('a number, a constant expression, {bind} or {by, map}');
       return;
     case 'string':
     case 'action':
@@ -165,8 +189,17 @@ function checkKind(kind: Kind, value: unknown, where: string, problems: string[]
     case 'cursor':
       if (typeof value !== 'string' || value.length === 0) bad('a non-empty string');
       return;
+    case 'assetChoice':
+      if (!(typeof value === 'string' && value.length > 0) && !isChoice(value)) bad('an asset name or {by, map}');
+      return;
     case 'anchor':
       if (typeof value !== 'string' || !(ANCHOR_NAMES as readonly string[]).includes(value)) bad(`one of ${ANCHOR_NAMES.join(', ')}`);
+      return;
+    case 'frame':
+      if (typeof value !== 'string' || !(FRAME_NAMES as readonly string[]).includes(value)) bad(`one of ${FRAME_NAMES.join(', ')}`);
+      return;
+    case 'centerX':
+      if (typeof value !== 'boolean' && value !== 'screen') bad('a boolean or "screen"');
       return;
     case 'boolean':
       if (typeof value !== 'boolean') bad('a boolean');
@@ -179,7 +212,8 @@ function checkKind(kind: Kind, value: unknown, where: string, problems: string[]
       if (typeof value !== 'string' && !isRecord(value)) bad('a text source');
       return;
     case 'color':
-      if (typeof value !== 'number' && typeof value !== 'string' && !Array.isArray(value) && value !== null) bad('a colour');
+      if (typeof value !== 'number' && typeof value !== 'string' && !Array.isArray(value) && value !== null && !isChoice(value))
+        bad('a colour');
       return;
     case 'object':
       if (!isRecord(value)) bad('an object');

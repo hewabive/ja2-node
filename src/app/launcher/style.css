@@ -15,6 +15,7 @@ h1 { margin: 0; color: var(--accent); font-size: 22px; }
 h2 { margin: 0 0 8px; font-size: 16px; color: var(--accent); }
 a { color: var(--accent); }
 .top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 32px; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+.play { font-weight: 600; font-size: 1.1em; }
 .tagline, .sub, .hint { margin: 2px 0 0; color: var(--muted); }
 .hint { font-size: 12px; max-width: 520px; }
 .data-info { color: var(--muted); }

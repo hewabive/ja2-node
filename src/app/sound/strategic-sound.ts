@@ -1,9 +1,10 @@
 import { AudioEngine } from '../../audio/engine.ts';
 import { laptopPowerCue } from '../../content/audio/cues.ts';
 import type { PlayerView, ViewFrame } from '../../protocol/view.ts';
+import { effectiveMaster } from '../../ui/settings.ts';
 import { type MusicHook, musicLevel, PageMusic } from '../net/music.ts';
 import { readVfsFileOrNull } from '../net/vfs.ts';
-import { effectiveMaster, loadSettings } from '../settings.ts';
+import { loadSettings } from '../settings.ts';
 
 declare global {
   interface Window {

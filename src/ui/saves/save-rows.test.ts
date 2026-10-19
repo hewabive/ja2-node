@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { GameOptions, SaveHeader, SaveListing } from './api.ts';
-import { LABELS, type LabelId, Labels } from './labels.ts';
+import type { GameOptions, SaveHeader, SaveListing } from '../client/api-types.ts';
+import { LABELS, type LabelId, Labels } from '../text/labels.ts';
 import {
   clampDescription,
   formatDay,

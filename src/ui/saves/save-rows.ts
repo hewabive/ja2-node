@@ -5,8 +5,8 @@
 // @src src/game/Strategic/Game_Clock.h STARTING_TIME; src/sgp/Types.cc SGPSector::IsValid. See docs/27 §1.8, §8.3.
 
 import { isValidSector, sectorShortString } from '../../content/strategic/sector-ids.ts';
-import type { GameOptions, Health, LoadWarning, SaveHeader, SaveKind, SaveListing, SessionKind, WorldTime } from './api.ts';
-import type { LabelId, Labels } from './labels.ts';
+import type { GameOptions, Health, LoadWarning, SaveHeader, SaveKind, SaveListing, SessionKind, WorldTime } from '../client/api-types.ts';
+import type { LabelId, Labels } from '../text/labels.ts';
 
 const SECONDS_PER_DAY = 86_400;
 const SECONDS_PER_HOUR = 3600;

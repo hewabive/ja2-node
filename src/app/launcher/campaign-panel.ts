@@ -1,6 +1,12 @@
-import type { Difficulty, SaveMode } from './api.ts';
-import { type CampaignForm, DEFAULT_CAMPAIGN_FORM, MAX_SQUAD_SIZE, type SquadChoice, type StartPage } from './campaign-form.ts';
-import type { Labels } from './labels.ts';
+import type { Difficulty, SaveMode } from '../../ui/client/api-types.ts';
+import {
+  type CampaignForm,
+  DEFAULT_CAMPAIGN_FORM,
+  MAX_SQUAD_SIZE,
+  type SquadChoice,
+  type StartPage,
+} from '../../ui/client/campaign-form.ts';
+import type { Labels } from '../../ui/text/labels.ts';
 
 const SERVER_DEFAULT_SIZE = '';
 

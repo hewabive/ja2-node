@@ -1,6 +1,7 @@
 import type { SessionStopReport, StopCondition } from '../../protocol/messages.ts';
 import type { ViewFrame } from '../../protocol/view.ts';
-import { fetchLabels, type Labels } from '../launcher/labels.ts';
+import type { Labels } from '../../ui/text/labels.ts';
+import { fetchLabels } from '../launcher/labels.ts';
 import { loadSettings } from '../settings.ts';
 import { type SleepWakeNotice, sleepWakeNotice, sleepWakeStop } from '../sleep-wake.ts';
 import type { SessionClient } from './session-client.ts';

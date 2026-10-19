@@ -1,29 +1,27 @@
 import type { UiLanguage } from '../../content/text/data-version.ts';
+import type { Health, SaveListing, SessionSummary } from '../../ui/client/api-types.ts';
+import type { StartPage } from '../../ui/client/campaign-form.ts';
+import type { MessageBoxes } from '../../ui/message-boxes.ts';
+import { type SaveApi, SaveController } from '../../ui/saves/save-controller.ts';
+import { overwriteTarget, type SaveRow, saveRow, uploadName } from '../../ui/saves/save-rows.ts';
+import type { LabelId, Labels } from '../../ui/text/labels.ts';
 import {
   ApiError,
   createSession,
   deleteSave,
   fetchSaves,
   fetchSessions,
-  type Health,
-  type LoadSuccess,
   loadIntoSession,
-  type SaveListing,
-  type SessionSummary,
   saveFileUrl,
   saveSession,
   uploadSave,
 } from './api.ts';
-import type { StartPage } from './campaign-form.ts';
-import type { LabelId, Labels } from './labels.ts';
-import type { MessageBox } from './message-box.ts';
-import { clampDescription, loadWarningText, overwriteTarget, predictLoadWarnings, type SaveRow, saveRow, uploadName } from './save-rows.ts';
 
 export interface SavePanelContext {
   readonly labels: () => Labels;
   readonly health: () => Health | null;
   readonly language: () => UiLanguage | null;
-  readonly box: MessageBox;
+  readonly box: MessageBoxes;
   readonly status: (text: string, error?: boolean) => void;
   readonly open: (page: StartPage, session: string) => void;
   readonly sessionsChanged: (sessions: readonly SessionSummary[]) => void;
@@ -35,13 +33,17 @@ export interface SavePanelHook {
   sessions: string[];
 }
 
-interface LoadedSave {
-  readonly session: string;
-  readonly outcome: LoadSuccess | null;
-}
+const LAUNCHER_SAVE_API: SaveApi = {
+  save: saveSession,
+  loadInPlace: loadIntoSession,
+  createSession: async (start) => {
+    const created = await createSession(start);
+    return { session: created.session, load: created.load ?? null };
+  },
+  deleteSave,
+};
 
 const SAVE_EXTENSION = '.j2s';
-const IRON_MAN_REFUSAL = 'ironMan';
 const SANDBOX_SESSION = 'sandbox';
 const COLUMNS: readonly (LabelId | null)[] = [null, null, 'sectorColumn', 'mercsColumn', 'balanceColumn', 'description'];
 
@@ -89,9 +91,11 @@ export class SavePanel {
   #sessions: SessionSummary[] = [];
   #selected: string | null = null;
   #preferredSession: string | null;
+  readonly #saves: SaveController;
 
   constructor(ctx: SavePanelContext, preferredSession: string | null) {
     this.#ctx = ctx;
+    this.#saves = new SaveController({ labels: ctx.labels, health: ctx.health, box: ctx.box, api: LAUNCHER_SAVE_API });
     this.#preferredSession = preferredSession;
     this.#saveNew.addEventListener('click', () => void this.#save(false));
     this.#saveOver.addEventListener('click', () => void this.#save(true));
@@ -221,94 +225,58 @@ export class SavePanel {
     link.remove();
   }
 
-  #refusalText(refused: string, reason: string): string {
-    const labels = this.#ctx.labels();
-    if (refused === IRON_MAN_REFUSAL) return labels.text('ironManCannotSave');
-    return `${labels.text('saveError')} (${refused}: ${reason})`;
-  }
-
   async #save(overwrite: boolean): Promise<void> {
     const labels = this.#ctx.labels();
     const session = this.#sessionSelect.value;
     if (!session) return;
     const row = this.#selectedRow();
-    const typed = clampDescription(this.#description.value).trim();
-    let request: { name?: string; description?: string } = { description: typed };
-    if (overwrite) {
-      const target = row ? overwriteTarget(row) : null;
-      if (!row || !target) return;
-      if (!(await this.#ctx.box.confirm(labels.format('confirmOverwrite', row.description || row.name)))) return;
-      request = { name: target, description: typed || row.description };
+    if (overwrite && !row) return;
+    if (!overwrite) this.#ctx.status(labels.text('saving'));
+    const outcome =
+      overwrite && row
+        ? await this.#saves.saveOver(session, row, this.#description.value)
+        : await this.#saves.saveNew(session, this.#description.value);
+    if (!outcome.ok) {
+      if (!outcome.cancelled) this.#ctx.status(outcome.text, true);
+      return;
     }
-    this.#ctx.status(labels.text('saving'));
-    try {
-      const outcome = await saveSession(session, request);
-      if (!outcome.ok) return this.#ctx.status(this.#refusalText(outcome.refused, outcome.reason), true);
-      this.#ctx.status(labels.text('saveOk'));
-      this.#description.value = '';
-      await this.refresh();
-      this.select(outcome.name);
-    } catch (err) {
-      this.#ctx.status(`${labels.text('saveError')} (${(err as Error).message})`, true);
-    }
-  }
-
-  #sessionLanguage(): { readonly language?: UiLanguage } {
-    const language = this.#ctx.language();
-    return language ? { language } : {};
-  }
-
-  async #confirmWarnings(listing: SaveListing): Promise<boolean> {
-    const health = this.#ctx.health();
-    if (listing.native || !listing.header || !health) return true;
-    const warnings = predictLoadWarnings(listing.header, health, listing.warnings);
-    return warnings.length === 0 || this.#ctx.box.confirm(loadWarningText(this.#ctx.labels(), warnings));
+    this.#ctx.status(labels.text('saveOk'));
+    this.#description.value = '';
+    await this.refresh();
+    this.select(outcome.name);
   }
 
   async #loadSelected(): Promise<void> {
     const labels = this.#ctx.labels();
     const listing = this.#selectedListing();
     if (!listing?.compatible) return;
-    if (!(await this.#confirmWarnings(listing))) return;
-    this.#ctx.status(labels.text('loadGame'));
-    try {
-      if (listing.native) {
-        const created = await createSession({ save: listing.name, ...this.#sessionLanguage() });
-        this.#ctx.status(labels.text('loadOk'));
-        return this.#ctx.open('strategic', created.session);
-      }
-      const target = this.#loadTarget.value;
-      const loaded = target ? await this.#loadInPlace(target, listing.name) : await this.#loadIntoNew(listing.name);
-      const warnings = loaded.outcome?.warnings ?? [];
-      this.#ctx.status(warnings.length > 0 ? `${labels.text('loadOk')} (${warnings.join(', ')})` : labels.text('loadOk'));
-      this.#ctx.open(listing.header?.session === SANDBOX_SESSION ? 'tactical' : 'strategic', loaded.session);
-    } catch (err) {
-      this.#ctx.status(labels.format('loadError', (err as Error).message), true);
+    const target = this.#loadTarget.value;
+    const outcome = await this.#saves.load(
+      listing,
+      target ? { kind: 'inPlace', session: target } : { kind: 'newSession' },
+      this.#ctx.language(),
+    );
+    if (!outcome.ok) {
+      if (!outcome.cancelled) this.#ctx.status(outcome.text, true);
+      return;
     }
-  }
-
-  async #loadInPlace(session: string, name: string): Promise<LoadedSave> {
-    return { session, outcome: await loadIntoSession(session, name) };
-  }
-
-  async #loadIntoNew(name: string): Promise<LoadedSave> {
-    const created = await createSession({ load: name, ...this.#sessionLanguage() });
-    return { session: created.session, outcome: created.load ?? null };
+    this.#ctx.status(outcome.warnings.length > 0 ? `${labels.text('loadOk')} (${outcome.warnings.join(', ')})` : labels.text('loadOk'));
+    const sandbox = !listing.native && listing.header?.session === SANDBOX_SESSION;
+    this.#ctx.open(sandbox ? 'tactical' : 'strategic', outcome.session);
   }
 
   async #deleteSelected(): Promise<void> {
     const labels = this.#ctx.labels();
     const row = this.#selectedRow();
-    if (!row || row.native) return;
-    if (!(await this.#ctx.box.confirm(labels.format('confirmDelete', row.description || row.name)))) return;
-    try {
-      await deleteSave(row.name);
-      this.select(null);
-      await this.refresh();
-      this.#ctx.status(`${labels.text('delete')}: ${row.name}`);
-    } catch (err) {
-      this.#ctx.status((err as Error).message, true);
+    if (!row) return;
+    const outcome = await this.#saves.delete(row);
+    if (!outcome.ok) {
+      if (!outcome.cancelled) this.#ctx.status(outcome.text, true);
+      return;
     }
+    this.select(null);
+    await this.refresh();
+    this.#ctx.status(`${labels.text('delete')}: ${row.name}`);
   }
 
   async #uploadFile(): Promise<void> {

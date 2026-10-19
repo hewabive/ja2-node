@@ -1,11 +1,13 @@
 import { AudioEngine } from '../../audio/engine.ts';
 import { cueOf } from '../../content/audio/cue.ts';
 import { parseSoundEffects, SOUND_EFFECTS_PATH, type SoundEffectTable } from '../../content/audio/sound-table.ts';
+import { effectiveMaster } from '../../ui/settings.ts';
 import type { ButtonSoundRequest, UiSoundSink } from '../../ui/widgets/button-sounds.ts';
 import type { AssetSource } from '../assets/asset-source.ts';
-import { effectiveMaster, loadSettings } from '../settings.ts';
+import { loadSettings } from '../settings.ts';
 
 const FIXED_MIX = 'fixed';
+const SPEECH_MIX = 'speech';
 
 export class UiAudio implements UiSoundSink {
   readonly engine: AudioEngine;
@@ -34,6 +36,7 @@ export class UiAudio implements UiSoundSink {
   play(request: ButtonSoundRequest): void {
     this.requests.push(request);
     const file = 'sample' in request ? this.#paths.get(request.sample) : request.file;
-    if (file) this.engine.play(cueOf(file, FIXED_MIX, request.volume));
+    const mix = 'speech' in request && request.speech ? SPEECH_MIX : FIXED_MIX;
+    if (file) this.engine.play(cueOf(file, mix, request.volume));
   }
 }

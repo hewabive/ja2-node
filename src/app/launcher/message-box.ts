@@ -1,8 +1,10 @@
-import type { Labels } from './labels.ts';
+import type { MessageBoxButtons, MessageBoxes } from '../../ui/message-boxes.ts';
+import type { Labels } from '../../ui/text/labels.ts';
+import { MessageBoxReturn } from '../../ui/widgets/message-box.ts';
 
 type MessageBoxKind = 'yesNo' | 'ok';
 
-export class MessageBox {
+export class MessageBox implements MessageBoxes {
   readonly #dialog: HTMLDialogElement;
   readonly #text: HTMLElement;
   readonly #yes: HTMLButtonElement;
@@ -51,5 +53,13 @@ export class MessageBox {
 
   async alert(text: string): Promise<void> {
     await this.#show(text, 'ok');
+  }
+
+  async ask(text: string, buttons: MessageBoxButtons): Promise<number> {
+    if (buttons === 'ok') {
+      await this.#show(text, 'ok');
+      return MessageBoxReturn.OK;
+    }
+    return (await this.#show(text, 'yesNo')) ? MessageBoxReturn.YES : MessageBoxReturn.NO;
   }
 }

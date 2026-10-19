@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { UI_LANGUAGES } from '../../content/text/data-version.ts';
 import { loadUiStrings } from '../../content/text/strings.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
-import { printf } from '../../ui/text/printf.ts';
 import { LABELS, type LabelId, Labels, type OriginalLabel, originalText } from './labels.ts';
+import { printf } from './printf.ts';
 
 const read = async (path: string): Promise<Uint8Array | null> => readFile(join(PROJECT_DATA_DIR, path)).catch(() => null);
 const CYRILLIC = /[Ѐ-ӿ]/;

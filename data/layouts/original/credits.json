@@ -1,0 +1,312 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Credits.cc EnterCreditsScreen (the background region, the face regions at MSYS_PRIORITY_HIGHEST with CURSOR_WWW), gCreditFaces (the face rectangles and eye positions), RenderCreditScreen (interface/credits.sti), HandleCreditScreen (the name, title and joke of the hovered face centred in CRDT_NAME_LOC_WIDTH at CRDT_NAME_LOC_X), AddCreditNode and DisplayCreditNode (the text column at CRDT_TEXT_START_LOC, CRDT_WIDTH_OF_TEXT_AREA wide, wrapped with a gap of 2, drawn one pixel into its node), HandleCreditEyeBlinking (interface/credit faces.sti frame 3 · i at the eye position, CRDT_EYE_WIDTH × CRDT_EYE_HEIGHT), GetCreditScreenUserInput (Escape on KEY_UP)"
+  ],
+  "screen": "credits",
+  "frame": "std640",
+  "constants": ["Credits"],
+  "assets": {
+    "background": {
+      "sti": "interface/credits.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "faces": {
+      "sti": "interface/credit faces.sti",
+      "stub": {
+        "frames": 45,
+        "size": ["CRDT_EYE_WIDTH", "CRDT_EYE_HEIGHT"]
+      }
+    }
+  },
+  "styles": {
+    "eyes": {
+      "asset": "faces",
+      "framesPerFace": 3,
+      "positions": [
+        [310, 157],
+        [354, 153],
+        [408, 151],
+        [447, 151],
+        [493, 155],
+        [536, 164],
+        [584, 150],
+        [283, 232],
+        [323, 227],
+        [364, 226],
+        [406, 220],
+        [452, 220],
+        [501, 207],
+        [541, 221],
+        [593, 218]
+      ]
+    },
+    "roll": {
+      "titleFont": "FONT14ARIAL",
+      "bodyFont": "FONT12ARIAL",
+      "gap": 2,
+      "shadow": "DEFAULT_SHADOW"
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "x": 0,
+      "y": 0,
+      "asset": "background",
+      "frame": 0
+    },
+    {
+      "type": "region",
+      "id": "background",
+      "within": "screen",
+      "x": 0,
+      "y": 0,
+      "width": "$screenWidth",
+      "height": "$screenHeight",
+      "priority": "NORMAL",
+      "cursor": "CURSOR_NORMAL"
+    },
+    {
+      "type": "custom",
+      "id": "eyes",
+      "renderer": "creditEyes",
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 480
+    },
+    {
+      "type": "custom",
+      "id": "roll",
+      "renderer": "creditRoll",
+      "x": "CRDT_TEXT_START_LOC",
+      "y": 0,
+      "width": "CRDT_WIDTH_OF_TEXT_AREA",
+      "height": 480
+    },
+    {
+      "type": "text",
+      "id": "name",
+      "x": "CRDT_NAME_LOC_X",
+      "y": "CRDT_NAME_LOC_Y",
+      "width": "CRDT_NAME_LOC_WIDTH",
+      "align": "center",
+      "font": "CRDT_NAME_FONT",
+      "color": "FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "visible": "faceSelected",
+      "text": {
+        "bind": "name"
+      }
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "x": "CRDT_NAME_LOC_X",
+      "y": "CRDT_NAME_TITLE_LOC_Y",
+      "width": "CRDT_NAME_LOC_WIDTH",
+      "align": "center",
+      "font": "CRDT_NAME_FONT",
+      "color": "FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "visible": "faceSelected",
+      "text": {
+        "bind": "title"
+      }
+    },
+    {
+      "type": "text",
+      "id": "funny",
+      "x": "CRDT_NAME_LOC_X",
+      "y": "CRDT_NAME_FUNNY_LOC_Y",
+      "width": "CRDT_NAME_LOC_WIDTH",
+      "align": "center",
+      "font": "CRDT_NAME_FONT",
+      "color": "FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "visible": "faceSelected",
+      "text": {
+        "bind": "funny"
+      }
+    },
+    {
+      "type": "region",
+      "id": "face0",
+      "x": 298,
+      "y": 137,
+      "width": 37,
+      "height": 49,
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_WWW",
+      "hover": "hoverFace(0)"
+    },
+    {
+      "type": "region",
+      "id": "face1",
+      "x": 348,
+      "y": 137,
+      "width": 43,
+      "height": 47,
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_WWW",
+      "hover": "hoverFace(1)"
+    },
+    {
+      "type": "region",
+      "id": "face2",
+      "x": 407,
+      "y": 132,
+      "width": 30,
+      "height": 50,
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_WWW",
+      "hover": "hoverFace(2)"
+    },
+    {
+      "type": "region",
+      "id": "face3",
+      "x": 443,
+      "y": 131,
+      "width": 30,
+      "height": 50,
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_WWW",
+      "hover": "hoverFace(3)"
+    },
+    {
+      "type": "region",
+      "id": "face4",
+      "x": 487,
+      "y": 136,
+      "width": 43,
+      "height": 50,
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_WWW",
+      "hover": "hoverFace(4)"
+    },
+    {
+      "type": "region",
+      "id": "face5",
+      "x": 529,
+      "y": 145,
+      "width": 43,
+      "height": 50,
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_WWW",
+      "hover": "hoverFace(5)"
+    },
+    {
+      "type": "region",
+      "id": "face6",
+      "x": 581,
+      "y": 132,
+      "width": 43,
+      "height": 48,
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_WWW",
+      "hover": "hoverFace(6)"
+    },
+    {
+      "type": "region",
+      "id": "face7",
+      "x": 278,
+      "y": 211,
+      "width": 36,
+      "height": 51,
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_WWW",
+      "hover": "hoverFace(7)"
+    },
+    {
+      "type": "region",
+      "id": "face8",
+      "x": 319,
+      "y": 210,
+      "width": 34,
+      "height": 49,
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_WWW",
+      "hover": "hoverFace(8)"
+    },
+    {
+      "type": "region",
+      "id": "face9",
+      "x": 358,
+      "y": 211,
+      "width": 38,
+      "height": 49,
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_WWW",
+      "hover": "hoverFace(9)"
+    },
+    {
+      "type": "region",
+      "id": "face10",
+      "x": 396,
+      "y": 200,
+      "width": 42,
+      "height": 50,
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_WWW",
+      "hover": "hoverFace(10)"
+    },
+    {
+      "type": "region",
+      "id": "face11",
+      "x": 444,
+      "y": 202,
+      "width": 43,
+      "height": 51,
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_WWW",
+      "hover": "hoverFace(11)"
+    },
+    {
+      "type": "region",
+      "id": "face12",
+      "x": 493,
+      "y": 188,
+      "width": 36,
+      "height": 51,
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_WWW",
+      "hover": "hoverFace(12)"
+    },
+    {
+      "type": "region",
+      "id": "face13",
+      "x": 531,
+      "y": 199,
+      "width": 47,
+      "height": 56,
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_WWW",
+      "hover": "hoverFace(13)"
+    },
+    {
+      "type": "region",
+      "id": "face14",
+      "x": 585,
+      "y": 196,
+      "width": 39,
+      "height": 49,
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_WWW",
+      "hover": "hoverFace(14)"
+    }
+  ],
+  "hotkeys": [
+    {
+      "key": "Escape",
+      "on": "up",
+      "mods": "any",
+      "action": "end"
+    }
+  ]
+}

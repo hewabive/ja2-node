@@ -1,0 +1,439 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Options_Screen.cc RenderOptionsScreen (the background, MLG_OPTIONHEADER frame 0 at (0,0) and frame 1 at (0,434), the toggle texts wrapped at OPT_TOGGLE_BOX_TEXT_WIDTH, the slider texts centred), EnterOptionsScreen (the check boxes from OPT_TOGGLE_BOX_START_Y in two columns cut at OPT_FIRST_COLUMN_TOGGLE_CUT_OFF, MSYS_PRIORITY_HIGH + 10; the text regions from box + 13 to box + OPT_SPACE_BETWEEN_TEXT_AND_TOGGLE_BOX + the text width, the wrapped height when wider than OPT_TOGGLE_BOX_TEXT_WIDTH; the fast help zOptionsScreenHelpText on both; the full-screen region at MSYS_PRIORITY_NORMAL; the three SLIDER_VERTICAL_STEEL sliders of MAXVOLUME steps; the buttons from interface/optionscreenaddons.sti frames 2/3, the Save button hatched when disabled), HandleHighLightedText (OPT_HIGHLIGHT_COLOR), GetOptionsScreenUserInput (Escape, S and L on KEY_DOWN)",
+    "src/sgp/Button_System.cc CreateCheckBoxButton (frames 0–3); src/game/Utils/Slider.cc (interface/sliderbox.sti); src/sgp/SoundMan.h MAXVOLUME"
+  ],
+  "screen": "options",
+  "frame": "std640",
+  "tooltips": true,
+  "constants": ["Options_Screen", "GameSettings", "Slider", "Sound_Control"],
+  "assets": {
+    "background": {
+      "sti": "interface/optionscreenbase.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "header": {
+      "mlg": "MLG_OPTIONHEADER",
+      "stub": {
+        "sizes": [[640, 40], [640, 46], [100, 30], [100, 30]],
+        "states": ["plain", "plain", "normal", "pressed"]
+      }
+    },
+    "buttons": {
+      "sti": "interface/optionscreenaddons.sti",
+      "stub": {
+        "sizes": [[640, 40], [640, 46], [100, 30], [100, 30]],
+        "states": ["plain", "plain", "normal", "pressed"]
+      }
+    },
+    "checkboxes": {
+      "sti": "interface/optionscheckboxes.sti",
+      "stub": {
+        "frames": 4,
+        "size": [16, 16],
+        "states": ["normal", "hover", "pressed", "pressedHover"]
+      }
+    },
+    "sliderBox": {
+      "sti": "interface/sliderbox.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["STEEL_SLIDER_WIDTH", "STEEL_SLIDER_HEIGHT"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "x": 0,
+      "y": 0,
+      "asset": "background",
+      "frame": 0
+    },
+    {
+      "type": "image",
+      "x": 0,
+      "y": 0,
+      "asset": "header",
+      "frame": 0
+    },
+    {
+      "type": "image",
+      "x": 0,
+      "y": 434,
+      "asset": "header",
+      "frame": 1
+    },
+    {
+      "type": "region",
+      "id": "toggleArea",
+      "within": "screen",
+      "x": 0,
+      "y": 0,
+      "width": "$screenWidth",
+      "height": "$screenHeight",
+      "priority": "NORMAL",
+      "cursor": "CURSOR_NORMAL",
+      "hover": "unhighlight"
+    },
+    {
+      "type": "repeat",
+      "start": 0,
+      "count": "OPT_FIRST_COLUMN_TOGGLE_CUT_OFF",
+      "dy": "OPT_GAP_BETWEEN_TOGGLE_BOXES",
+      "template": [
+        {
+          "type": "text",
+          "x": "OPT_TOGGLE_BOX_FIRST_COL_TEXT_X",
+          "y": "OPT_TOGGLE_BOX_START_Y + OPT_TOGGLE_TEXT_OFFSET_Y",
+          "width": "OPT_TOGGLE_BOX_TEXT_WIDTH",
+          "wrap": {
+            "gap": 2
+          },
+          "font": "OPT_MAIN_FONT",
+          "color": {
+            "by": "toggles[$i].highlighted",
+            "map": {
+              "true": "OPT_HIGHLIGHT_COLOR",
+              "false": "OPT_MAIN_COLOR"
+            }
+          },
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "key": ["zOptionsToggleText", "$i"]
+          }
+        },
+        {
+          "type": "region",
+          "id": "toggleLabel$i",
+          "x": "OPT_TOGGLE_BOX_FIRST_COLUMN_X + 13",
+          "y": "OPT_TOGGLE_BOX_START_Y",
+          "fit": {
+            "text": {
+              "key": ["zOptionsToggleText", "$i"]
+            },
+            "font": "OPT_MAIN_FONT",
+            "maxWidth": "OPT_TOGGLE_BOX_TEXT_WIDTH",
+            "gap": 2,
+            "extra": "OPT_SPACE_BETWEEN_TEXT_AND_TOGGLE_BOX - 13"
+          },
+          "priority": "HIGH",
+          "cursor": "CURSOR_NORMAL",
+          "tooltip": {
+            "key": ["zOptionsScreenHelpText", "$i"]
+          },
+          "hover": "hover($i)",
+          "press": "labelPress($i)",
+          "primary": "labelToggle($i)"
+        },
+        {
+          "type": "button",
+          "id": "toggle$i",
+          "kind": "checkbox",
+          "x": "OPT_TOGGLE_BOX_FIRST_COLUMN_X",
+          "y": "OPT_TOGGLE_BOX_START_Y",
+          "asset": "checkboxes",
+          "frames": {
+            "offNormal": 0,
+            "offHilite": 1,
+            "onNormal": 2,
+            "onHilite": 3
+          },
+          "priority": "HIGH+10",
+          "checked": "toggles[$i].on",
+          "tooltip": {
+            "key": ["zOptionsScreenHelpText", "$i"]
+          },
+          "hover": "hover($i)",
+          "primary": "toggle($i)"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "start": "OPT_FIRST_COLUMN_TOGGLE_CUT_OFF",
+      "count": "NUM_GAME_OPTIONS - OPT_FIRST_COLUMN_TOGGLE_CUT_OFF",
+      "dy": "OPT_GAP_BETWEEN_TOGGLE_BOXES",
+      "template": [
+        {
+          "type": "text",
+          "x": "OPT_TOGGLE_BOX_SECOND_TEXT_X",
+          "y": "OPT_TOGGLE_BOX_START_Y + OPT_TOGGLE_TEXT_OFFSET_Y",
+          "width": "OPT_TOGGLE_BOX_TEXT_WIDTH",
+          "wrap": {
+            "gap": 2
+          },
+          "font": "OPT_MAIN_FONT",
+          "color": {
+            "by": "toggles[$i].highlighted",
+            "map": {
+              "true": "OPT_HIGHLIGHT_COLOR",
+              "false": "OPT_MAIN_COLOR"
+            }
+          },
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "key": ["zOptionsToggleText", "$i"]
+          }
+        },
+        {
+          "type": "region",
+          "id": "toggleLabel$i",
+          "x": "OPT_TOGGLE_BOX_SECOND_COLUMN_X + 13",
+          "y": "OPT_TOGGLE_BOX_START_Y",
+          "fit": {
+            "text": {
+              "key": ["zOptionsToggleText", "$i"]
+            },
+            "font": "OPT_MAIN_FONT",
+            "maxWidth": "OPT_TOGGLE_BOX_TEXT_WIDTH",
+            "gap": 2,
+            "extra": "OPT_SPACE_BETWEEN_TEXT_AND_TOGGLE_BOX - 13"
+          },
+          "priority": "HIGH",
+          "cursor": "CURSOR_NORMAL",
+          "tooltip": {
+            "key": ["zOptionsScreenHelpText", "$i"]
+          },
+          "hover": "hover($i)",
+          "press": "labelPress($i)",
+          "primary": "labelToggle($i)"
+        },
+        {
+          "type": "button",
+          "id": "toggle$i",
+          "kind": "checkbox",
+          "x": "OPT_TOGGLE_BOX_SECOND_COLUMN_X",
+          "y": "OPT_TOGGLE_BOX_START_Y",
+          "asset": "checkboxes",
+          "frames": {
+            "offNormal": 0,
+            "offHilite": 1,
+            "onNormal": 2,
+            "onHilite": 3
+          },
+          "priority": "HIGH+10",
+          "checked": "toggles[$i].on",
+          "tooltip": {
+            "key": ["zOptionsScreenHelpText", "$i"]
+          },
+          "hover": "hover($i)",
+          "primary": "toggle($i)"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "x": "OPT_SOUND_FX_TEXT_X",
+      "y": "OPT_SOUND_FX_TEXT_Y",
+      "width": "OPT_SLIDER_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "OPT_MAIN_FONT",
+      "color": "OPT_MAIN_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["zOptionsText", "OPT_SOUND_FX"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "OPT_SPEECH_TEXT_X",
+      "y": "OPT_SPEECH_TEXT_Y",
+      "width": "OPT_SLIDER_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "OPT_MAIN_FONT",
+      "color": "OPT_MAIN_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["zOptionsText", "OPT_SPEECH"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "OPT_MUSIC_TEXT_X",
+      "y": "OPT_MUSIC_TEXT_Y",
+      "width": "OPT_SLIDER_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "OPT_MAIN_FONT",
+      "color": "OPT_MAIN_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["zOptionsText", "OPT_MUSIC"]
+      }
+    },
+    {
+      "type": "slider",
+      "id": "effectsVolume",
+      "style": "verticalSteel",
+      "x": "OPT_SOUND_EFFECTS_SLIDER_X",
+      "y": "OPT_SOUND_EFFECTS_SLIDER_Y",
+      "length": "OPT_SLIDER_BAR_SIZE",
+      "steps": "MAXVOLUME",
+      "thumb": "sliderBox",
+      "priority": "HIGH",
+      "cursor": "CURSOR_NORMAL",
+      "value": "effects",
+      "change": "setEffects"
+    },
+    {
+      "type": "slider",
+      "id": "speechVolume",
+      "style": "verticalSteel",
+      "x": "OPT_SPEECH_SLIDER_X",
+      "y": "OPT_SPEECH_SLIDER_Y",
+      "length": "OPT_SLIDER_BAR_SIZE",
+      "steps": "MAXVOLUME",
+      "thumb": "sliderBox",
+      "priority": "HIGH",
+      "cursor": "CURSOR_NORMAL",
+      "value": "speech",
+      "change": "setSpeech"
+    },
+    {
+      "type": "slider",
+      "id": "musicVolume",
+      "style": "verticalSteel",
+      "x": "OPT_MUSIC_SLIDER_X",
+      "y": "OPT_MUSIC_SLIDER_Y",
+      "length": "OPT_SLIDER_BAR_SIZE",
+      "steps": "MAXVOLUME",
+      "thumb": "sliderBox",
+      "priority": "HIGH",
+      "cursor": "CURSOR_NORMAL",
+      "value": "music",
+      "change": "setMusic"
+    },
+    {
+      "type": "button",
+      "id": "saveGame",
+      "x": "OPT_SAVE_BTN_X",
+      "y": "OPT_BTN_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 3
+      },
+      "priority": "HIGH",
+      "disabledStyle": "hatched",
+      "enabled": "saveEnabled",
+      "primary": "saveGame",
+      "text": {
+        "source": {
+          "key": ["zOptionsText", "OPT_SAVE_GAME"]
+        },
+        "font": "OPT_BUTTON_FONT",
+        "color": "OPT_BUTTON_ON_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "OPT_BUTTON_OFF_COLOR",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    },
+    {
+      "type": "button",
+      "id": "loadGame",
+      "x": "OPT_LOAD_BTN_X",
+      "y": "OPT_BTN_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 3
+      },
+      "priority": "HIGH",
+      "primary": "loadGame",
+      "text": {
+        "source": {
+          "key": ["zOptionsText", "OPT_LOAD_GAME"]
+        },
+        "font": "OPT_BUTTON_FONT",
+        "color": "OPT_BUTTON_ON_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "OPT_BUTTON_OFF_COLOR",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    },
+    {
+      "type": "button",
+      "id": "mainMenu",
+      "x": "OPT_QUIT_BTN_X",
+      "y": "OPT_BTN_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 3
+      },
+      "priority": "HIGH",
+      "primary": "mainMenu",
+      "text": {
+        "source": {
+          "key": ["zOptionsText", "OPT_MAIN_MENU"]
+        },
+        "font": "OPT_BUTTON_FONT",
+        "color": "OPT_BUTTON_ON_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "OPT_BUTTON_OFF_COLOR",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    },
+    {
+      "type": "button",
+      "id": "done",
+      "x": "OPT_DONE_BTN_X",
+      "y": "OPT_BTN_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 3
+      },
+      "priority": "HIGH",
+      "primary": "done",
+      "text": {
+        "source": {
+          "key": ["zOptionsText", "OPT_DONE"]
+        },
+        "font": "OPT_BUTTON_FONT",
+        "color": "OPT_BUTTON_ON_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "OPT_BUTTON_OFF_COLOR",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    }
+  ],
+  "hotkeys": [
+    {
+      "key": "Escape",
+      "on": "down",
+      "mods": "any",
+      "action": "done"
+    },
+    {
+      "key": "s",
+      "on": "down",
+      "mods": "any",
+      "action": "saveGame",
+      "when": "saveEnabled"
+    },
+    {
+      "key": "l",
+      "on": "down",
+      "mods": "any",
+      "action": "loadGame"
+    }
+  ]
+}

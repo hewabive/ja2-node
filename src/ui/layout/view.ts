@@ -1,5 +1,6 @@
 import { DEFAULT_SHADOW, FontColor } from '../../content/text/font-colors.ts';
 import { idiv } from '../../core/int.ts';
+import { frameOf } from '../assets.ts';
 import { type Area, type DrawList, type ImageEffect, type PaletteShade, rgb, SHADOW_FACTOR } from '../draw-list.ts';
 import { isPointerEvent, type UiInputEvent } from '../input/events.ts';
 import { findHotkey, type Hotkey } from '../input/hotkeys.ts';
@@ -7,26 +8,32 @@ import { MouseButtonMask, MouseReason, NO_CURSOR, Priority } from '../input/mous
 import type { MouseRegion } from '../input/regions.ts';
 import type { UiServices } from '../services.ts';
 import { type BitmapFont, fontHeight } from '../text/bitmap-font.ts';
-import { centerAlign, rightAlign } from '../text/measure.ts';
+import { centerAlign, rightAlign, stringPixLength } from '../text/measure.ts';
 import { sprintMoney } from '../text/money.ts';
 import { mprint } from '../text/print.ts';
 import { printf } from '../text/printf.ts';
 import type { UiTextService } from '../text/text-service.ts';
-import { displayWrappedString, drawTextToScreen, ianDisplayWrappedString, reduceStringLength, TextFlag } from '../text/wrap.ts';
+import { displayWrappedString, drawTextToScreen, ianDisplayWrappedString, lineWrap, reduceStringLength, TextFlag } from '../text/wrap.ts';
 import { type Button, type ButtonImage, type ButtonKind, type DisabledStyle, NO_IMAGE, type TextJustification } from '../widgets/button.ts';
 import { type MercIcon, MercTextBox } from '../widgets/merc-text-box.ts';
 import { MessageBox, type MessageBoxFlag, type MessageBoxLabels, type MessageBoxStyle } from '../widgets/message-box.ts';
 import { type LineShade, PopupBox, type PopupLine, PopupMenu } from '../widgets/popup-box.ts';
 import { ProgressBar, type ProgressBarStyle } from '../widgets/progress-bar.ts';
 import type { Slider, SliderSystem } from '../widgets/slider.ts';
-import { defaultTextFieldScheme, type TextField, type TextFieldGroup, TextFieldGroup as TextFields } from '../widgets/text-field.ts';
+import {
+  defaultTextFieldScheme,
+  type TextField,
+  type TextFieldGroup,
+  type TextFieldScheme,
+  TextFieldGroup as TextFields,
+} from '../widgets/text-field.ts';
 import { type WidgetInfo, widgetRect } from '../widgets/widget-info.ts';
 import type { Variables } from './constants.ts';
 import { type LayoutController, parseAction, substituteIndex } from './controller.ts';
 import { anchorPoint, type FrameRect, frameRect } from './frames.ts';
 import type { LayoutModel } from './model.ts';
 import { popupBoxStyle, textBoxArt } from './styles.ts';
-import type { AnchorName, ColorJson, Condition, NumberExpr, TextSourceJson, WidgetJson } from './types.ts';
+import type { AnchorName, ChoiceJson, ColorJson, Condition, FrameName, NumberExpr, TextSourceJson, WidgetJson } from './types.ts';
 
 export type CustomRenderer = (list: DrawList, rect: Area, params: Readonly<Record<string, unknown>>, view: LayoutView) => void;
 
@@ -57,6 +64,7 @@ const NOOP_DISPOSE = () => undefined;
 const DEFAULT_TEXT_FOREGROUND = FontColor.MCOLOR_WHITE;
 const PRIMARY_UP = MouseReason.LBUTTON_UP;
 const SECONDARY_UP = MouseReason.RBUTTON_UP;
+const PRESS_REASONS = MouseReason.LBUTTON_DWN | MouseReason.LBUTTON_REPEAT;
 const BUTTON_FRAME_KEYS = ['grayed', 'offNormal', 'offHilite', 'onNormal', 'onHilite'] as const;
 const HOVER_ON = 1;
 const HOVER_OFF = 0;
@@ -106,7 +114,8 @@ export class LayoutView {
     this.#geometryKey = `${geometry.width}x${geometry.height}`;
     this.#frame = frameRect(this.model.json.frame, geometry);
     this.#counter = 0;
-    this.#widgets = (this.model.json.widgets ?? []).map((json) => this.#build(json, {}, 0, 0));
+    const screen = { screenWidth: geometry.width, screenHeight: geometry.height };
+    this.#widgets = (this.model.json.widgets ?? []).map((json) => this.#build(json, screen, 0, 0));
   }
 
   dispose(): void {
@@ -160,8 +169,20 @@ export class LayoutView {
 
   number(expression: NumberExpr | undefined, vars: Variables, fallback = 0): number {
     if (expression === undefined) return fallback;
-    if (typeof expression === 'object') return Number(this.get(expression.bind, vars) ?? fallback);
+    if (typeof expression === 'object') {
+      if ('by' in expression) return this.number(this.#choice(expression, vars), vars, fallback);
+      return Number(this.get(expression.bind, vars) ?? fallback);
+    }
     return this.model.number(expression, vars);
+  }
+
+  color(value: ColorJson | undefined, vars: Variables, fallback: number): number {
+    if (typeof value === 'object' && value !== null && 'by' in value) return this.model.color(this.#choice(value, vars), fallback);
+    return this.model.color(value, fallback);
+  }
+
+  #choice<T>(choice: ChoiceJson<T>, vars: Variables): T | undefined {
+    return choice.map[String(this.get(choice.by, vars))];
   }
 
   text(source: TextSourceJson | undefined, vars: Variables): string {
@@ -201,11 +222,18 @@ export class LayoutView {
     return vars.i === undefined || json.id?.includes('$i') ? substituteIndex(base, vars.i ?? 0) : `${base}.${vars.i}`;
   }
 
+  #widgetFrame(json: WidgetJson): FrameRect {
+    return json.within === undefined ? this.#frame : frameRect(json.within as FrameName, this.services.geometry());
+  }
+
   #position(json: WidgetJson, vars: Variables, dx: number, dy: number, width = 0): { x: number; y: number } {
-    const anchor = anchorPoint(this.#frame, (json.anchor as AnchorName | undefined) ?? 'topLeft');
+    const frame = this.#widgetFrame(json);
+    const anchor = anchorPoint(frame, (json.anchor as AnchorName | undefined) ?? 'topLeft');
     let x = anchor.x + this.number(json.x as NumberExpr | undefined, vars) + dx;
-    if (json.centerX === true)
-      x = this.#frame.x + idiv(this.#frame.width - width, 2) + this.number(json.x as NumberExpr | undefined, vars) + dx;
+    if (json.centerX !== undefined && json.centerX !== false) {
+      const across = json.centerX === 'screen' ? frameRect('screen', this.services.geometry()) : frame;
+      x = across.x + idiv(across.width - width, 2) + this.number(json.x as NumberExpr | undefined, vars) + dx;
+    }
     return { x, y: anchor.y + this.number(json.y as NumberExpr | undefined, vars) + dy };
   }
 
@@ -269,8 +297,12 @@ export class LayoutView {
     };
   }
 
+  #imageAsset(json: WidgetJson, vars: Variables): string | null {
+    const name = typeof json.asset === 'object' && json.asset !== null ? this.#choice(json.asset as ChoiceJson<string>, vars) : json.asset;
+    return typeof name === 'string' ? this.model.asset(name).path : null;
+  }
+
   #image(json: WidgetJson, vars: Variables, dx: number, dy: number): Live {
-    const asset = this.model.asset(String(json.asset));
     const effectName = json.effect as string | undefined;
     const effect: ImageEffect =
       effectName === 'outline'
@@ -282,10 +314,21 @@ export class LayoutView {
           ? { kind: 'outlineShadow' }
           : { kind: 'normal' };
     const shadeJson = json.shade as PaletteShade | undefined;
+    const clip = Array.isArray(json.clip) ? (json.clip as NumberExpr[]) : null;
     return this.#static(json, vars, (list) => {
-      const { x, y } = this.#position(json, vars, dx, dy);
-      list.image(asset.path, this.number(json.frame as NumberExpr | undefined, vars), x, y, { shade: shadeJson ?? null, effect });
+      const path = this.#imageAsset(json, vars);
+      if (path === null) return;
+      const { x, y } = json.center === true ? this.#centered(json, path) : this.#position(json, vars, dx, dy);
+      if (clip) list.pushClip(x, y, x + this.number(clip[0], vars), y + this.number(clip[1], vars));
+      list.image(path, this.number(json.frame as NumberExpr | undefined, vars), x, y, { shade: shadeJson ?? null, effect });
+      if (clip) list.popClip();
     });
+  }
+
+  #centered(json: WidgetJson, path: string): { x: number; y: number } {
+    const frame = this.#widgetFrame(json);
+    const first = frameOf(this.services.images, path, 0);
+    return { x: frame.x + idiv(frame.width - first.width, 2), y: frame.y + idiv(frame.height - first.height, 2) };
   }
 
   #primitive(json: WidgetJson, vars: Variables, dx: number, dy: number): Live {
@@ -324,9 +367,9 @@ export class LayoutView {
       const width = this.number(json.width as NumberExpr | undefined, vars);
       const height = this.number(json.height as NumberExpr | undefined, vars);
       const colors = {
-        foreground: this.model.color(json.color as ColorJson | undefined, DEFAULT_TEXT_FOREGROUND),
-        shadow: this.model.color(json.shadow as ColorJson | undefined, DEFAULT_SHADOW),
-        background: this.model.color(json.background as ColorJson | undefined, FontColor.MCOLOR_BLACK),
+        foreground: this.color(json.color as ColorJson | undefined, vars, DEFAULT_TEXT_FOREGROUND),
+        shadow: this.color(json.shadow as ColorJson | undefined, vars, DEFAULT_SHADOW),
+        background: this.color(json.background as ColorJson | undefined, vars, FontColor.MCOLOR_BLACK),
       };
       let text = this.text(json.text as TextSourceJson | undefined, vars);
       if (json.ellipsis === true && width > 0) text = reduceStringLength(text, width, font);
@@ -458,6 +501,8 @@ export class LayoutView {
         else if (reason & MouseReason.LOST_MOUSE) this.invoke(json.hover, vars, [HOVER_OFF]);
       },
       onButton: (_r: MouseRegion, reason: number) => {
+        if (reason & MouseReason.LBUTTON_DOUBLECLICK) this.invoke(json.doubleClick, vars);
+        if (reason & PRESS_REASONS) this.invoke(json.press, vars);
         if (reason & MouseReason.LBUTTON_DWN) {
           pointerDown = true;
           rightDown = false;
@@ -477,11 +522,23 @@ export class LayoutView {
     };
   }
 
+  #fittedSize(fit: JsonObject, vars: Variables): { width: number; height: number } {
+    const font = this.#font(fit.font);
+    const text = this.text(fit.text as TextSourceJson | undefined, vars);
+    const maxWidth = this.number(fit.maxWidth as NumberExpr | undefined, vars);
+    const extra = this.number(fit.extra as NumberExpr | undefined, vars);
+    const length = stringPixLength(text, font);
+    if (length <= maxWidth) return { width: extra + length, height: fontHeight(font) };
+    const gap = this.number(fit.gap as NumberExpr | undefined, vars);
+    return { width: extra + maxWidth, height: lineWrap(font, maxWidth, text).length * (fontHeight(font) + gap) };
+  }
+
   #region(json: WidgetJson, vars: Variables, dx: number, dy: number): Live {
     const id = this.#id(json, vars);
     const { x, y } = this.#position(json, vars, dx, dy);
-    const width = this.number(json.width as NumberExpr | undefined, vars);
-    const height = this.number(json.height as NumberExpr | undefined, vars);
+    const fitted = json.fit === undefined ? null : this.#fittedSize(asObject(json.fit), vars);
+    const width = fitted?.width ?? this.number(json.width as NumberExpr | undefined, vars);
+    const height = fitted?.height ?? this.number(json.height as NumberExpr | undefined, vars);
     const region = this.services.regions.define({
       x1: x,
       y1: y,
@@ -569,6 +626,9 @@ export class LayoutView {
           else this.invoke(json.primary, vars);
         }
         if (reason & SECONDARY_UP) this.invoke(json.secondary, vars);
+        if (reason & PRESS_REASONS) this.invoke(json.press, vars);
+        if (reason & MouseReason.WHEEL_UP) this.invoke(json.wheelUp, vars);
+        if (reason & MouseReason.WHEEL_DOWN) this.invoke(json.wheelDown, vars);
       },
       ...(json.hover ? { onMove: (_b: Button, reason: number) => this.#regionCallbacks(json, vars).onMove(button.region, reason) } : {}),
     });
@@ -576,7 +636,7 @@ export class LayoutView {
     const syncText = () => {
       if (!textJson) return;
       const font = this.#font(textJson.font ?? 'FONT12ARIAL');
-      const color = (key: string) => (textJson[key] === undefined ? undefined : this.model.color(textJson[key] as ColorJson, 0));
+      const color = (key: string) => (textJson[key] === undefined ? undefined : this.color(textJson[key] as ColorJson, vars, 0));
       const optional = (key: string) => (textJson[key] === undefined ? {} : { [key]: this.number(textJson[key] as NumberExpr, vars) });
       const colorEntry = (key: string) => {
         const value = color(key);
@@ -660,11 +720,37 @@ export class LayoutView {
     return { id, kind: 'slider', sync, render: (list) => slider.render(list), dispose: NOOP_DISPOSE, describe: () => [slider.describe()] };
   }
 
+  #textFieldScheme(json: WidgetJson, font: BitmapFont, vars: Variables): TextFieldScheme {
+    const base = defaultTextFieldScheme(font);
+    if (json.scheme === undefined) return base;
+    const scheme = asObject(json.scheme);
+    const palette = (key: keyof TextFieldScheme, fallback: number) => this.color(scheme[key] as ColorJson | undefined, vars, fallback);
+    const bevel = Array.isArray(scheme.bevel) ? scheme.bevel : null;
+    return {
+      font,
+      fieldColor: this.model.rgbColor(scheme.fieldColor as ColorJson | undefined, base.fieldColor),
+      foreground: palette('foreground', base.foreground),
+      shadow: palette('shadow', base.shadow),
+      hiForeground: palette('hiForeground', base.hiForeground),
+      hiShadow: palette('hiShadow', base.hiShadow),
+      hiBackground: palette('hiBackground', base.hiBackground),
+      bevel: bevel
+        ? {
+            brighter: this.model.rgbColor(bevel[0] as ColorJson, rgb(0, 0, 0)),
+            darker: this.model.rgbColor(bevel[1] as ColorJson, rgb(0, 0, 0)),
+          }
+        : scheme.bevel === null
+          ? null
+          : base.bevel,
+      cursorColor: this.model.rgbColor(scheme.cursorColor as ColorJson | undefined, base.cursorColor),
+    };
+  }
+
   #textField(json: WidgetJson, vars: Variables, dx: number, dy: number): Live {
     const id = this.#id(json, vars);
     const { x, y } = this.#position(json, vars, dx, dy);
     const font = this.#font(json.font ?? 'FONT12POINT1');
-    this.#fields ??= new TextFields(this.services.regions, this.services.sounds, defaultTextFieldScheme(font), this.owner);
+    this.#fields ??= new TextFields(this.services.regions, this.services.sounds, this.#textFieldScheme(json, font, vars), this.owner);
     const field: TextField = this.#fields.add({
       x,
       y,
@@ -684,7 +770,7 @@ export class LayoutView {
       render: (list) => {
         if (this.#fields && this.#fields.fields[0] === field) this.#fields.render(list, this.services.clock.ja2Now);
       },
-      dispose: NOOP_DISPOSE,
+      dispose: () => this.#fields?.remove(field),
       describe: () => [],
     };
   }
@@ -767,7 +853,7 @@ export class LayoutView {
     let built = -1;
     const count = () => {
       const c = json.count as NumberExpr | undefined;
-      if (typeof c === 'object') {
+      if (typeof c === 'object' && 'bind' in c) {
         const value = this.get(c.bind, vars);
         return Array.isArray(value) ? value.length : Number(value ?? 0);
       }
@@ -780,9 +866,10 @@ export class LayoutView {
       const stepY = this.number(json.dy as NumberExpr | undefined, vars);
       const baseX = this.number(json.x as NumberExpr | undefined, vars);
       const baseY = this.number(json.y as NumberExpr | undefined, vars);
-      for (let i = 0; i < n; i++) {
-        const inner = { ...vars, i };
-        for (const template of templates) children.push(this.#build(template, inner, dx + baseX + stepX * i, dy + baseY + stepY * i));
+      const start = this.number(json.start as NumberExpr | undefined, vars);
+      for (let step = 0; step < n; step++) {
+        const inner = { ...vars, i: start + step };
+        for (const template of templates) children.push(this.#build(template, inner, dx + baseX + stepX * step, dy + baseY + stepY * step));
       }
       built = n;
     };

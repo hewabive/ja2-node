@@ -1,0 +1,74 @@
+image interface/optionscreenbase.sti#0 0,0
+image interface/optionscreenaddons.sti#0 0,0
+image interface/optionscreenaddons.sti#1 0,434
+glyphs font12arial 295,91 n=6 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#2 265,89
+glyphs font12arial 295,118 n=18 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#0 265,116
+glyphs font12arial 295,145 n=9 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#2 265,143
+glyphs font12arial 295,172 n=19 fg=208 sh=2 bg=0
+image interface/optionscheckboxes.sti#0 265,170
+glyphs font12arial 295,199 n=13 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#2 265,197
+glyphs font12arial 295,226 n=12 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#2 265,224
+glyphs font12arial 295,253 n=20 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#0 265,251
+glyphs font12arial 295,280 n=20 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#0 265,278
+glyphs font12arial 295,307 n=18 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#0 265,305
+glyphs font12arial 295,334 n=11 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#0 265,332
+glyphs font12arial 295,361 n=22 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#0 265,359
+glyphs font12arial 458,91 n=18 fg=73 sh=2 bg=0
+glyphs font12arial 458,106 n=13 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#2 428,89
+glyphs font12arial 458,118 n=17 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#2 428,116
+glyphs font12arial 458,145 n=18 fg=73 sh=2 bg=0
+glyphs font12arial 458,160 n=8 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#0 428,143
+glyphs font12arial 458,172 n=20 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#0 428,170
+glyphs font12arial 458,199 n=20 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#2 428,197
+glyphs font12arial 458,226 n=15 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#2 428,224
+glyphs font12arial 458,253 n=14 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#2 428,251
+glyphs font12arial 458,280 n=15 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#2 428,278
+glyphs font12arial 458,307 n=14 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#0 428,305
+glyphs font12arial 458,334 n=23 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#2 428,332
+glyphs font12arial 458,361 n=12 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#0 428,359
+glyphs font12arial 458,388 n=13 fg=73 sh=2 bg=0
+image interface/optionscheckboxes.sti#2 428,386
+glyphs font12arial 41,87 n=7 fg=73 sh=2 bg=0
+glyphs font12arial 89,87 n=6 fg=73 sh=2 bg=0
+glyphs font12arial 145,87 n=5 fg=73 sh=2 bg=0
+image interface/sliderbox.sti#0 35,244
+image interface/sliderbox.sti#0 86,244
+image interface/sliderbox.sti#0 137,244
+image interface/optionscreenaddons.sti#2 51,438
+clip 54,440 94x26
+glyphs font14arial 66,444 n=9 fg=73 sh=2 bg=0
+clipPop
+hatch checker 51,438 100x30
+image interface/optionscreenaddons.sti#2 190,438
+clip 193,440 94x26
+glyphs font14arial 205,444 n=9 fg=73 sh=2 bg=0
+clipPop
+image interface/optionscreenaddons.sti#2 329,438
+clip 332,440 94x26
+glyphs font14arial 363,444 n=4 fg=73 sh=2 bg=0
+clipPop
+image interface/optionscreenaddons.sti#2 469,438
+clip 472,440 94x26
+glyphs font14arial 502,444 n=4 fg=73 sh=2 bg=0
+clipPop

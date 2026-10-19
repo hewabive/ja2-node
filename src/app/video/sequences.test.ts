@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS, updateSettings } from '../settings.ts';
+import { DEFAULT_SETTINGS, updateSettings } from '../../ui/settings.ts';
 import { beginningPlan, endingPlan, IntroVideo, introVideoPath, sequenceEnabled, splashPlan } from './sequences.ts';
 
 describe('intro sequences', () => {

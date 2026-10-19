@@ -5,7 +5,7 @@ import { loadMusicTable } from '../../content/audio/music-table.ts';
 import type { MusicView } from '../../protocol/music.ts';
 import { MUSIC_OVERHEAD_MS, type MusicModeName } from '../../protocol/music-modes.ts';
 import type { ViewFrame } from '../../protocol/view.ts';
-import { type ClientSettings, effectiveMaster } from '../settings.ts';
+import { type ClientSettings, effectiveMaster } from '../../ui/settings.ts';
 import { fetchVfsFile, type ReadVfsFile } from './vfs.ts';
 
 export interface MusicHook {

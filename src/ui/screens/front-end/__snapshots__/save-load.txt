@@ -1,0 +1,57 @@
+image interface/loadscreen.sti#0 0,0
+image interface/loadscreenaddons.sti#0 0,0
+fill 599,49 23x378 #181a16
+fill 599,49 23x23 #605c4a
+line 599,49 621,49 #a49e80
+line 599,49 599,71 #a49e80
+line 599,71 621,71 #24221a
+line 621,49 621,71 #24221a
+fill 599,404 23x23 #605c4a
+line 599,404 621,404 #a49e80
+line 599,404 599,426 #a49e80
+line 599,426 621,426 #24221a
+line 621,404 621,426 #24221a
+line 610,57 610,57 #dcd6b4
+line 609,58 611,58 #dcd6b4
+line 608,59 612,59 #dcd6b4
+line 607,60 613,60 #dcd6b4
+line 606,61 614,61 #dcd6b4
+line 605,62 615,62 #dcd6b4
+line 604,63 616,63 #dcd6b4
+line 610,418 610,418 #dcd6b4
+line 609,417 611,417 #dcd6b4
+line 608,416 612,416 #dcd6b4
+line 607,415 613,415 #dcd6b4
+line 606,414 614,414 #dcd6b4
+line 605,413 615,413 #dcd6b4
+line 604,412 616,412 #dcd6b4
+fill 601,73 19x19 #605c4a
+line 601,73 619,73 #a49e80
+line 601,73 601,91 #a49e80
+line 601,91 619,91 #24221a
+line 619,73 619,91 #24221a
+clip 17,49 575x30
+image interface/loadscreenaddons.sti#3 17,49
+clipPop
+glyphs font12arial 31,59 n=12 fg=2 sh=130 bg=0
+glyphs font12arial 113,59 n=2 fg=2 sh=130 bg=0
+glyphs font12arial 214,59 n=7 fg=2 sh=130 bg=0
+glyphs font12arial 278,59 n=7 fg=2 sh=130 bg=0
+glyphs font12arial 336,59 n=6 fg=2 sh=130 bg=0
+clip 17,84 575x30
+image interface/loadscreenaddons.sti#2 17,84
+clipPop
+glyphs font12arial 30,95 n=12 fg=2 sh=118 bg=0
+glyphs font12arial 112,95 n=2 fg=2 sh=118 bg=0
+glyphs font12arial 213,95 n=7 fg=2 sh=118 bg=0
+glyphs font12arial 277,95 n=7 fg=2 sh=118 bg=0
+glyphs font12arial 335,95 n=5 fg=2 sh=118 bg=0
+glyphs font12arial 569,95 n=3 fg=2 sh=118 bg=0
+image interface/loadscreenaddons.sti#6 329,438
+clip 332,440 94x26
+glyphs font14arial 355,444 n=6 fg=73 sh=2 bg=0
+clipPop
+image interface/loadscreenaddons.sti#4 123,438
+clip 126,440 94x26
+glyphs font14arial 138,444 n=9 fg=73 sh=2 bg=0
+clipPop

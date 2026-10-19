@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ViewFrame } from '../protocol/view.ts';
-import { DEFAULT_SETTINGS, updateSettings } from './settings.ts';
+import { DEFAULT_SETTINGS, updateSettings } from '../ui/settings.ts';
 import { sleepWakeNotice, sleepWakeStop } from './sleep-wake.ts';
 
 type FrameEvent = NonNullable<ViewFrame['events']>[number];

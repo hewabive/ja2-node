@@ -1,8 +1,13 @@
 export const LAYOUTS_DIR = 'layouts';
 export const ORIGINAL_SKIN = 'original';
 
-export type NumberExpr = number | string | { readonly bind: string };
-export type ColorJson = number | string | readonly [number, number, number];
+export interface ChoiceJson<T> {
+  readonly by: string;
+  readonly map: Readonly<Record<string, T>>;
+}
+
+export type NumberExpr = number | string | { readonly bind: string } | ChoiceJson<number | string>;
+export type ColorJson = number | string | readonly [number, number, number] | ChoiceJson<number | string>;
 export type Condition = boolean | string | { readonly eq: readonly [string, string | number | boolean] } | { readonly not: Condition };
 
 export type TextSourceJson =
