@@ -59,6 +59,9 @@ interface TacticalHook {
   ambient: number | null;
   dynamicLights: number;
   aiTurn: number | null;
+  drawnEffects: number;
+  soldierGridNos: { readonly id: number; readonly team: number; readonly gridNo: number }[];
+  centerOn(gridNo: number): void;
   command(cmd: { readonly type: string; readonly [key: string]: unknown }): Promise<unknown>;
   soldierBoxes: { readonly id: number; readonly x: number; readonly y: number; readonly width: number; readonly height: number }[];
 }
@@ -99,6 +102,9 @@ const debug: TacticalHook = {
   ambient: null,
   dynamicLights: 0,
   aiTurn: null,
+  drawnEffects: 0,
+  soldierGridNos: [],
+  centerOn: (gridNo) => centerOn(gridNo),
   command: (cmd) => client?.command(cmd) ?? Promise.resolve({ ok: false, reason: 'not connected' }),
   soldierBoxes: [],
 };
@@ -279,6 +285,8 @@ function render(): void {
   debug.ambient = client?.view?.light?.ambient ?? null;
   debug.dynamicLights = client?.view?.light?.sprites.length ?? 0;
   debug.aiTurn = aiTurns.soldier;
+  debug.drawnEffects = view.drawnEffects;
+  debug.soldierGridNos = soldiers().map((s) => ({ id: s.id, team: s.team, gridNo: s.gridNo }));
   debug.soldierBoxes = renderer.placedSoldiers.map((p) => ({ id: p.id, x: p.x, y: p.y, width: p.width, height: p.height }));
   debug.drawCalls = stats.drawCalls;
   debug.stats = stats;

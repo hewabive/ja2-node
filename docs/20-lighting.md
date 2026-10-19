@@ -55,7 +55,10 @@ A template is a list of nodes (`dx`, `dy`, `light`) and a list of rays: node ind
   (`templates.test.ts`) checks the result against the user's `.LHT` files.
 - **Not available**: `TRANSLUC.LHT` (only used by `ApplyTranslucencyToWalls`, rendering) and `Light0` … `Light6`
   (flares and merc lights). They are data, not reproducible from the source, and `lightTemplate` returns `null` for
-  them; `LightSpriteCreate` then fails as it does for a missing file (`docs/deviations.md`, "Light effects").
+  them; `LightSpriteCreate` then fails as it does for a missing file (`docs/deviations.md`, "Light effects"). The
+  Gold files hold only `L-R01` … `L-R08`, `L-R01I2` and `TRANSLUC`; Stracciatella's `light-templates.json` (copied
+  into `data/externalized/` with the other externalized tables) has `Light0` … `Light6`, but neither the simulation nor
+  the renderer reads them from that repository copy (§8).
 - Every original map uses only `L-R02` … `L-R08` (2,300 `L-R05`, 1,836 `L-R08`, …); explosions use `L-R04`, muzzle
   flashes `L-R03`.
 
@@ -200,4 +203,9 @@ ambient level and the light schedule stay as they were at session start until th
 `EnvironmentController`; hot desert days (`HOT_DAY_LIGHTLEVEL` 2) are not modelled in imported saves; muzzle flashes do
 not yet count as daylight in `DistanceVisible`. The renderer shades the world from the map's light sprites and the
 merc lights, computed in the browser with these functions (`src/app/world/world-lighting.ts`, `docs/28` §17.4 "U4");
-explosion, muzzle-flash and flare lights reach it with the view (U4b).
+since U4b the ambient level comes from the view's `light.ambient` (hot desert days included) and the explosion and
+muzzle-flash sprites from `light.sprites`, drawn with the same strongest-light rule. Merc lights take `Light2`, `Light3`
+(night goggles) or `Light4` (UV goggles) by the merc's head slots, read from the user's data when it has them
+(`externalized/light-templates.json` or a loose `.LHT` file outside the repository layers,
+`src/app/world/light-templates.ts`); the Gold data has none, so the client falls back to `L-R06`, `L-R07` and `L-R08`.
+The map templates of the user's data (`L-R0n.LHT`) are read the same way and equal the generated ones.

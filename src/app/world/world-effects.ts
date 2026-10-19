@@ -28,6 +28,7 @@ import type { LoadedSoldierSheet, WorldSprites } from '../../render/world/world-
 import type { ReadVfsFile } from '../net/vfs.ts';
 
 const TILE_CACHE_DIR = 'tilecache/';
+const STUB_PREFIX = 'stubs/';
 const CAMO_PALETTE = 'anims/camo.COL';
 const ROTTING_STAGE2 = 'ROTTING_STAGE2';
 const VEHICLE_CORPSE_FRAME_MS = 150;
@@ -151,8 +152,12 @@ export class WorldEffects {
     this.#smokeSince.clear();
   }
 
+  #resolve(path: string): string {
+    return this.#available.has(path) ? path : `${STUB_PREFIX}${path}`;
+  }
+
   #picture(path: string): EffectPicture | null | undefined {
-    return this.#pictures.get(path, this.#available, this.#read, (bytes) => {
+    return this.#pictures.get(this.#resolve(path), this.#available, this.#read, (bytes) => {
       const sti = decodeSti(bytes);
       const picture = pictureFromSti(sti);
       if (picture.kind !== 'indexed' || sti.kind !== 'indexed') throw new Error(`${path} is not indexed`);
@@ -161,7 +166,7 @@ export class WorldEffects {
   }
 
   #colPalette(path: string): Uint8Array | null | undefined {
-    return this.#palettes.get(path, this.#available, this.#read, parseColPalette);
+    return this.#palettes.get(this.#resolve(path), this.#available, this.#read, parseColPalette);
   }
 
   #structureFile(base: string): StructureFile | null | undefined {

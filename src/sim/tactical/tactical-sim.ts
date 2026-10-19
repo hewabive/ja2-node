@@ -122,7 +122,7 @@ import { type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, own
 import { createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { showsAiProgress, type TopMessageName, topMessageName } from './turns/top-message.ts';
 import { endTurn, handleEnemySightingPause, handleRealtimeTurns, selectSoldier } from './turns/turns.ts';
-import { type ItemSnapshot, Visibility } from './world-items.ts';
+import { type ItemSnapshot, Visibility, WorldItemFlags } from './world-items.ts';
 
 export interface SoldierSnapshot {
   readonly id: number;
@@ -533,6 +533,8 @@ export class TacticalSim {
           status: o.status[0] ?? 0,
           ...(items.byIndex.get(o.item)?.itemClass === ItemClass.MONEY ? { money: o.money } : {}),
           ...(attachments.length > 0 ? { attachments } : {}),
+          ...(wi.zHeight > 0 ? { height: wi.zHeight } : {}),
+          ...(wi.flags & WorldItemFlags.DONTRENDER ? { notRendered: true } : {}),
         };
       })
       .sort((a, b) => a.gridNo - b.gridNo || a.level - b.level);

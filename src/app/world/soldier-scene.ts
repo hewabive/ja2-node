@@ -8,21 +8,23 @@
 
 import { soldierSheetFrame } from '../../content/anim/soldier-sprite.ts';
 import { stateId } from '../../content/anim/tables.ts';
+import { zStripInfo } from '../../content/world/zstrip.ts';
 import type { SoldierView } from '../../protocol/view.ts';
-import type { SceneSoldier, SoldierSprite } from '../../render/world/dynamic-scene.ts';
+import type { MultiTileLook, SceneSoldier, SoldierSprite } from '../../render/world/dynamic-scene.ts';
 import { type GlowContext, PERSONAL_LIGHT_SHADE, soldierLook } from '../../render/world/glow.ts';
 import { SoldierFades } from '../../render/world/soldier-fade.ts';
 import type { ShadeField } from '../../render/world/world-renderer.ts';
 import type { WorldSprites } from '../../render/world/world-sprites.ts';
 import { LightSpriteFlags, lightTimeAt } from '../../sim/tactical/lighting/lighting.ts';
 import type { LightTemplate } from '../../sim/tactical/lighting/templates.ts';
-import type { SoldierAssets } from './soldier-assets.ts';
+import type { SoldierAssets, SoldierSheet } from './soldier-assets.ts';
 import type { MercLight } from './world-lighting.ts';
 
 const OUR_TEAM = 0;
 const ENEMY_TEAM = 1;
 const CREATURE_TEAM = 2;
 const OKLIFE = 15;
+const FIRST_VEHICLE_BODY = 22;
 const UNGREYED_STATES = ['CHARIOTS_OF_FIRE', 'BODYEXPLODING'];
 
 export interface SoldierLightOptions {
@@ -45,6 +47,7 @@ export interface SoldierSceneInput {
 interface DrawnSprite {
   readonly sprite: SoldierSprite;
   readonly paletteBase: number;
+  readonly multiTile: MultiTileLook | null;
 }
 
 export function defaultHostile(s: SoldierView): boolean {
@@ -104,7 +107,19 @@ export class SoldierScene {
     if (!sprite) return null;
     const key = `${standingRequest.id}|${s.palettes.join('|')}`;
     const paletteBase = sprites.soldierPaletteBase(key, () => this.#assets.paletteFor(s, standing));
-    return { sprite, paletteBase };
+    return { sprite, paletteBase, multiTile: this.#multiTile(s, sheet) };
+  }
+
+  #multiTile(s: SoldierView, sheet: SoldierSheet): MultiTileLook | null {
+    const def = this.#assets.structureDef(s);
+    if (!def || def.tiles.length <= 1) return null;
+    const first = sheet.picture.frames[soldierSheetFrame(sheet.layout, 0, s.direction)];
+    return {
+      zStrip: first ? zStripInfo({ offsetX: first.offsetX, offsetY: first.offsetY, width: first.width }, def) : null,
+      zTileOffsetX: def.zTileOffsetX,
+      zTileOffsetY: def.zTileOffsetY,
+      vehicle: s.bodyType >= FIRST_VEHICLE_BODY,
+    };
   }
 
   mercLights(
@@ -168,6 +183,7 @@ export class SoldierScene {
         sprite: sprite.sprite,
         paletteRow: sprite.paletteBase + look.row,
         topmost: look.topmost,
+        multiTile: sprite.multiTile,
       });
     }
     this.#drawn = drawn;

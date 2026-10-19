@@ -52,6 +52,8 @@ export interface ItemSnapshot {
   readonly status: number;
   readonly money?: number;
   readonly attachments?: readonly { readonly item: string; readonly status: number }[];
+  readonly height?: number;
+  readonly notRendered?: boolean;
 }
 
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;

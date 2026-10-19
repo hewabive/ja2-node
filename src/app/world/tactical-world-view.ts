@@ -11,9 +11,9 @@ import type {
 } from '../../protocol/view.ts';
 import type { SceneItem, WorldUiNode } from '../../render/world/dynamic-scene.ts';
 import type { Camera, Viewport } from '../../render/world/geometry.ts';
-import { type GlowContext, glowFrame } from '../../render/world/glow.ts';
 import type { WorldDisplayOptions, WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { ReadVfsFile } from '../net/vfs.ts';
+import { glowContext } from './glow-context.ts';
 import { type ItemTileLookup, loadItemTiles } from './item-tiles.ts';
 import { LightTemplates, mercLightTemplateName } from './light-templates.ts';
 import type { SoldierAssets } from './soldier-assets.ts';
@@ -23,7 +23,6 @@ import type { WorldEffects } from './world-effects.ts';
 import { type DynamicLight, type LightingTime, WorldLighting } from './world-lighting.ts';
 import { type LoadedWorld, loadWorld, renderWorldOf } from './world-loader.ts';
 
-const OUR_TEAM = 0;
 const SANDBOX_TIME: LightingTime = { hour: 12, minute: 0 };
 const NO_CORPSES: readonly CorpseView[] = [];
 const NO_SMOKE: readonly SmokeTileView[] = [];
@@ -95,6 +94,7 @@ export class TacticalWorldView {
   readonly #templates: LightTemplates;
   readonly #itemTiles: ItemTileLookup;
   readonly #roofed: Uint8Array;
+  #drawnEffects = 0;
 
   private constructor(world: LoadedWorld, renderer: WorldRenderer, presentation: TacticalPresentation, itemTiles: ItemTileLookup) {
     this.world = world;
@@ -133,14 +133,18 @@ export class TacticalWorldView {
     return this.#soldiers.drawn;
   }
 
+  get drawnEffects(): number {
+    return this.#drawnEffects;
+  }
+
   get lightTemplates(): LightTemplates {
     return this.#templates;
   }
 
   #items(items: readonly ItemView[]): SceneItem[] {
     return items.flatMap((i) => {
-      const tile = this.#itemTiles(i.item);
-      return tile === null ? [] : [{ gridNo: i.gridNo, level: i.level, tile }];
+      const tile = i.notRendered ? null : this.#itemTiles(i.item);
+      return tile === null ? [] : [{ gridNo: i.gridNo, level: i.level, tile, height: i.height ?? 0 }];
     });
   }
 
@@ -154,26 +158,6 @@ export class TacticalWorldView {
   #frameOf(tick: number): (s: SoldierView) => number {
     const frames = this.#frames;
     return frames ? (s) => frames.frameOf(s.id, s, tick) : (s) => s.frame;
-  }
-
-  #glow(f: TacticalFrame, hostile: (s: SoldierView) => boolean): GlowContext {
-    const soldiers = f.view.soldiers;
-    const hoveredSoldier = f.hovered === null ? null : soldiers.find((s) => s.id === f.hovered);
-    const selected = f.selected === undefined || f.selected === null ? null : soldiers.find((s) => s.id === f.selected);
-    const sees = selected?.sees ? new Set(selected.sees) : null;
-    const byId = new Map(soldiers.map((s) => [s.id, s] as const));
-    return {
-      ourTurn: !f.view.combat || f.view.combat.team === OUR_TEAM,
-      frame: glowFrame(f.clockMs),
-      hovered: f.hovered,
-      hoveredHostile: !!hoveredSoldier && hostile(hoveredSoldier),
-      selectedSees: (id) => {
-        if (!sees) return null;
-        const s = byId.get(id);
-        return sees.has(id) || (!!s && this.#soldiers.ungreyed(s));
-      },
-      underAiControl: f.underAiControl ?? (() => false),
-    };
   }
 
   render(f: TacticalFrame): WorldDrawStats {
@@ -196,7 +180,16 @@ export class TacticalWorldView {
       hour: time.hour,
       shade,
       hasRoof: (g) => this.#roofed[g] === 1,
-      glow: this.#glow(f, hostile),
+      glow: glowContext({
+        soldiers: view.soldiers,
+        combat: view.combat,
+        clockMs: f.clockMs,
+        hovered: f.hovered,
+        selected: f.selected ?? null,
+        hostile,
+        ungreyed: (s) => this.#soldiers.ungreyed(s),
+        underAiControl: f.underAiControl ?? (() => false),
+      }),
       hostile,
       lights: f.options,
       frameOf: this.#frameOf(view.tick),
@@ -209,6 +202,7 @@ export class TacticalWorldView {
         bloodAndGore: f.options.bloodAndGore,
         animateSmoke: f.options.animateSmoke,
       }) ?? [];
+    this.#drawnEffects = aniTiles.length;
     return this.#renderer.render({
       viewport: f.viewport,
       camera: f.camera,

@@ -1,4 +1,5 @@
 import { composeSoldierPalette, type SheetLayout } from '../../content/anim/soldier-sprite.ts';
+import { AnimStruct, type AnimStructures, animStructType, loadAnimStructures } from '../../content/anim/structures.ts';
 import { chooseSurface, SubAnimFlags } from '../../content/anim/surface-choice.ts';
 import {
   ANIM_CONTROL_PATH,
@@ -9,6 +10,7 @@ import {
   stateId,
 } from '../../content/anim/tables.ts';
 import { parseSoldierPalettes, SOLDIER_PALETTES_PATH, type SoldierPalettes } from '../../content/formats/ja2pal.ts';
+import type { StructureDef } from '../../content/formats/jsd.ts';
 import { decodeSti } from '../../content/formats/sti.ts';
 import type { HandClass } from '../../content/items/items.ts';
 import { pictureFromSti } from '../../content/picture/from-sti.ts';
@@ -16,6 +18,9 @@ import type { IndexedPicture } from '../../content/picture/picture.ts';
 import { parseStubSpriteManifest, pictureFromStubSprite } from '../../content/picture/stub-sprite.ts';
 import type { SoldierView } from '../../protocol/view.ts';
 import { fetchVfsFile, type ReadVfsFile } from '../net/vfs.ts';
+
+const QUEEN_BODY = 10;
+const DIRECTIONS = 8;
 
 const STUB_PREFIX = 'stubs/';
 
@@ -42,14 +47,22 @@ export interface SheetRequest {
 export class SoldierAssets {
   readonly tables: AnimationTables;
   readonly palettes: SoldierPalettes | null;
+  readonly structures: AnimStructures;
   readonly #available: ReadonlySet<string>;
   readonly #read: ReadVfsFile;
   readonly #sheets = new Map<string, Promise<SoldierSheet | null>>();
   readonly #ready = new Map<string, SoldierSheet | null>();
 
-  private constructor(tables: AnimationTables, palettes: SoldierPalettes | null, available: ReadonlySet<string>, read: ReadVfsFile) {
+  private constructor(
+    tables: AnimationTables,
+    palettes: SoldierPalettes | null,
+    structures: AnimStructures,
+    available: ReadonlySet<string>,
+    read: ReadVfsFile,
+  ) {
     this.tables = tables;
     this.palettes = palettes;
+    this.structures = structures;
     this.#available = available;
     this.#read = read;
   }
@@ -59,7 +72,8 @@ export class SoldierAssets {
     const tables = parseAnimationTables(await json(ANIM_CONTROL_PATH), await json(ANIM_SURFACES_PATH));
     const palettePath = [SOLDIER_PALETTES_PATH, `${STUB_PREFIX}${SOLDIER_PALETTES_PATH}`].find((p) => available.has(p));
     const palettes = palettePath ? parseSoldierPalettes(await read(palettePath)) : null;
-    return new SoldierAssets(tables, palettes, available, read);
+    const structures = await loadAnimStructures(async (path) => (available.has(path) ? read(path) : null));
+    return new SoldierAssets(tables, palettes, structures, available, read);
   }
 
   #surfaceFor(view: SoldierView, state: number): number {
@@ -83,6 +97,15 @@ export class SoldierAssets {
 
   sheetFor(view: SoldierView): SheetRequest | null {
     return this.#request(this.#surfaceFor(view, view.animation));
+  }
+
+  structureDef(view: SoldierView): StructureDef | null {
+    const surface = this.#surfaceFor(view, view.animation);
+    if (surface === INVALID_SURFACE) return null;
+    const type = animStructType(this.tables.surfaces[surface]?.struct ?? AnimStruct.NONE, this.tables.controls[view.animation]?.id ?? '');
+    if (type === AnimStruct.NONE) return null;
+    const file = this.structures[view.bodyType]?.[type];
+    return file?.structures[view.bodyType === QUEEN_BODY ? 0 : (view.direction + 1) % DIRECTIONS] ?? null;
   }
 
   standingSheetFor(view: SoldierView): SheetRequest | null {

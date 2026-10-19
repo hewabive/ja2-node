@@ -223,4 +223,33 @@ describe('dynamic scene', () => {
     expect(states).toContain(DrawState.TRANSLUCENT);
     expect(states).toContain(DrawState.NEARER_OR_EQUAL);
   });
+
+  it('draws multi-tile soldiers in the struct-merc pass, vehicles at the struct z of their structure offset, in z strips', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    const strip = { zChanges: [1, 0, -1], initialZChange: -1, firstStripWidth: 10 };
+    const prone = { ...soldier(4, g(80, 80), 0), multiTile: { zStrip: strip, zTileOffsetX: 1, zTileOffsetY: 0, vehicle: false } };
+    const tank = { ...soldier(5, g(84, 80), 0), multiTile: { zStrip: null, zTileOffsetX: 0, zTileOffsetY: 1, vehicle: true } };
+    scene.build(frame({ soldiers: [prone, tank] }));
+    const parts = decode(scene);
+    const proneParts = parts.filter((p) => p.tile === 9004);
+    expect(proneParts).toHaveLength(9);
+    expect(Math.max(...proneParts.map((p) => p.z))).toBe(mercZ(worldY(81, 80, 860)));
+    expect(parts.find((p) => p.tile === 9005)?.z).toBe((worldY(84, 81, 860) * Z_SUBLAYERS + STRUCT_Z_LEVEL) & 0xffff);
+    expect(scene.runs.some((r) => r.state === DrawState.NEARER_WRITE)).toBe(true);
+    expect(scene.placedSoldiers.map((p) => p.id)).toEqual([4, 5]);
+  });
+
+  it('raises items lying on a structure by their height, at the struct z plus the height', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    const gun = tileIndexFromTypeSubIndex(tables, typeIndex(tables, 'GUNS'), 1);
+    scene.build(frame({ items: [{ gridNo: g(80, 80), level: 0, tile: gun, height: 12 }] }));
+    const d = scene.itemInstances.data;
+    expect(d[8]).toBe((worldY(80, 80, 860) * Z_SUBLAYERS + STRUCT_Z_LEVEL + 12) & 0xffff);
+    scene.build(frame({ items: [{ gridNo: g(80, 80), level: 0, tile: gun }] }));
+    const groundY = scene.itemInstances.data[1] as number;
+    scene.build(frame({ items: [{ gridNo: g(80, 80), level: 0, tile: gun, height: 12 }] }));
+    expect(scene.itemInstances.data[1]).toBe(groundY - 12);
+  });
 });
