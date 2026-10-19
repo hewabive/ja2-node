@@ -1,0 +1,99 @@
+fill 0,360 0x120 #000000
+fill 640,360 0x120 #000000
+image interface/bottom_bar.sti#0 0,360 normal
+image faces/generic/body0.sti#0 14,366 shaded normal
+image interface/gold_front.sti#0 4,362 normal
+rectangle 12,365 63,409 #000000
+glyphs blockfont2 22,412 n=6 fg=134 sh=2 bg=0
+image interface/bars.sti#1 75,365 normal
+line 69,407 69,365 #6c0c0c
+line 70,407 70,365 #c80000
+line 71,407 71,365 #6c0c0c
+line 75,407 75,365 #000000
+line 76,407 76,365 #000000
+line 77,407 77,365 #000000
+line 75,407 75,365 #080c76
+line 76,407 76,365 #080ca0
+line 77,407 77,365 #080c76
+line 81,407 81,386 #08700c
+line 82,407 82,386 #08b40c
+line 83,407 83,386 #08700c
+image interface/mdguns.sti#1 23,433 outlineShadow
+image interface/mdguns.sti#1 25,431 outline
+glyphs tinyfont1 9,440 n=2 fg=136 sh=2 bg=0
+image faces/generic/body1.sti#0 97,366 shaded normal
+rectangle 95,365 146,409 #000000
+glyphs blockfont2 104,412 n=6 fg=134 sh=2 bg=0
+image interface/bars.sti#0 158,365 normal
+line 152,407 152,365 #6c0c0c
+line 153,407 153,365 #c80000
+line 154,407 154,365 #6c0c0c
+line 158,407 158,365 #000000
+line 159,407 159,365 #000000
+line 160,407 160,365 #000000
+line 158,407 158,365 #080c76
+line 159,407 159,365 #080ca0
+line 160,407 160,365 #080c76
+line 164,407 164,386 #08700c
+line 165,407 165,386 #08b40c
+line 166,407 166,386 #08700c
+image interface/mdguns.sti#1 106,433 outlineShadow
+image interface/mdguns.sti#1 108,431 outline
+glyphs tinyfont1 92,440 n=2 fg=136 sh=2 bg=0
+image faces/generic/body3.sti#0 180,366 shaded normal
+rectangle 178,365 229,409 #000000
+glyphs blockfont2 187,412 n=6 fg=134 sh=2 bg=0
+image interface/bars.sti#0 241,365 normal
+line 235,407 235,365 #6c0c0c
+line 236,407 236,365 #c80000
+line 237,407 237,365 #6c0c0c
+line 241,407 241,365 #000000
+line 242,407 242,365 #000000
+line 243,407 243,365 #000000
+line 241,407 241,365 #080c76
+line 242,407 242,365 #080ca0
+line 243,407 243,365 #080c76
+line 247,407 247,386 #08700c
+line 248,407 248,386 #08b40c
+line 249,407 249,386 #08700c
+image interface/mdguns.sti#1 189,433 outlineShadow
+image interface/mdguns.sti#1 191,431 outline
+glyphs tinyfont1 175,440 n=2 fg=136 sh=2 bg=0
+image faces/generic/body2.sti#0 263,366 shaded normal
+rectangle 261,365 312,409 #000000
+glyphs blockfont2 270,412 n=6 fg=134 sh=2 bg=0
+image interface/bars.sti#0 324,365 normal
+line 318,407 318,365 #6c0c0c
+line 319,407 319,365 #c80000
+line 320,407 320,365 #6c0c0c
+line 324,407 324,365 #000000
+line 325,407 325,365 #000000
+line 326,407 326,365 #000000
+line 324,407 324,365 #080c76
+line 325,407 325,365 #080ca0
+line 326,407 326,365 #080c76
+line 330,407 330,386 #08700c
+line 331,407 331,386 #08b40c
+line 332,407 332,386 #08700c
+image interface/mdguns.sti#1 272,433 outlineShadow
+image interface/mdguns.sti#1 274,431 outline
+glyphs tinyfont1 258,440 n=2 fg=136 sh=2 bg=0
+image interface/p_close.sti#5 346,366 normal
+image interface/p_close.sti#5 429,366 normal
+image interface/bottom_bar_buttons.sti#0 507,369 normal
+hatch checker 507,369 120x30
+image interface/bottom_bar_buttons.sti#1 507,405 normal
+image interface/bottom_bar_buttons.sti#2 507,441 normal
+clip 0,0 640x360
+glyphs tinyfont1 305,112 n=6 fg=208 sh=2 bg=0
+rectangle 312,126 328,126 #c80000
+rectangle 312,129 328,129 #141496
+rectangle 312,129 328,129 #6464dc
+clipPop
+clip 543,373 88x44
+rectangle 573,383 593,398 #00ff00
+rectangle 583,391 584,392 #ffff00
+rectangle 583,390 584,391 #ffff00
+rectangle 582,391 583,392 #ffff00
+rectangle 583,391 584,392 #ffff00
+clipPop
