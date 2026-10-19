@@ -11,7 +11,8 @@ function labels(): Labels {
   const tables: Record<string, string[]> = {};
   for (const [id, source] of Object.entries(LABELS)) {
     if (!('table' in source) || source.index === null) continue;
-    const table = (tables[source.table] ??= []);
+    const table = tables[source.table] ?? [];
+    tables[source.table] = table;
     table[source.index] = `[${id as LabelId}%s]`;
   }
   return new Labels('eng', tables);

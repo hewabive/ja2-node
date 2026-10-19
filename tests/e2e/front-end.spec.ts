@@ -152,11 +152,9 @@ test.describe('the canvas front end on stubs', () => {
     await screenIs(page, 'mainMenu');
     await page.keyboard.press('KeyO');
     await screenIs(page, 'options');
-    expect([(await widget(page, 'toggle17')).state, (await widget(page, 'toggle12')).state, (await widget(page, 'toggle0')).state]).toEqual([
-      false,
-      false,
-      true,
-    ]);
+    expect([(await widget(page, 'toggle17')).state, (await widget(page, 'toggle12')).state, (await widget(page, 'toggle0')).state]).toEqual(
+      [false, false, true],
+    );
     await page.evaluate(() => localStorage.removeItem('ja2-node:settings'));
   });
 

@@ -159,8 +159,8 @@ export function collectReferences(model: LayoutModel): LayoutReferences {
     else if (Array.isArray(json.lines)) for (const line of json.lines) text(isRecord(line) && 'text' in line ? line.text : line, vars);
     switch (json.type) {
       case 'image':
-        if (typeof json.asset === 'string')
-          for (const frame of choiceFrames(json.frame, vars)) useAsset(json.asset, frame, 'plain', 'image');
+        for (const name of choiceAssets(json.asset))
+          for (const frame of choiceFrames(json.frame, vars)) useAsset(name, frame, 'plain', 'image');
         break;
       case 'button': {
         if (typeof json.asset === 'string') {
