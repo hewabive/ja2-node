@@ -1,5 +1,6 @@
 import { DEFAULT_SHADOW, FontColor } from '../../content/text/font-colors.ts';
 import { idiv } from '../../core/int.ts';
+import { frameOf } from '../assets.ts';
 import { type Area, type DrawList, type ImageEffect, type PaletteShade, rgb, SHADOW_FACTOR } from '../draw-list.ts';
 import { isPointerEvent, type UiInputEvent } from '../input/events.ts';
 import { findHotkey, type Hotkey } from '../input/hotkeys.ts';
@@ -113,7 +114,8 @@ export class LayoutView {
     this.#geometryKey = `${geometry.width}x${geometry.height}`;
     this.#frame = frameRect(this.model.json.frame, geometry);
     this.#counter = 0;
-    this.#widgets = (this.model.json.widgets ?? []).map((json) => this.#build(json, {}, 0, 0));
+    const screen = { screenWidth: geometry.width, screenHeight: geometry.height };
+    this.#widgets = (this.model.json.widgets ?? []).map((json) => this.#build(json, screen, 0, 0));
   }
 
   dispose(): void {
@@ -221,7 +223,7 @@ export class LayoutView {
   }
 
   #widgetFrame(json: WidgetJson): FrameRect {
-    return json.frame === undefined ? this.#frame : frameRect(json.frame as FrameName, this.services.geometry());
+    return json.within === undefined ? this.#frame : frameRect(json.within as FrameName, this.services.geometry());
   }
 
   #position(json: WidgetJson, vars: Variables, dx: number, dy: number, width = 0): { x: number; y: number } {
@@ -295,8 +297,12 @@ export class LayoutView {
     };
   }
 
+  #imageAsset(json: WidgetJson, vars: Variables): string | null {
+    const name = typeof json.asset === 'object' && json.asset !== null ? this.#choice(json.asset as ChoiceJson<string>, vars) : json.asset;
+    return typeof name === 'string' ? this.model.asset(name).path : null;
+  }
+
   #image(json: WidgetJson, vars: Variables, dx: number, dy: number): Live {
-    const asset = this.model.asset(String(json.asset));
     const effectName = json.effect as string | undefined;
     const effect: ImageEffect =
       effectName === 'outline'
@@ -310,11 +316,19 @@ export class LayoutView {
     const shadeJson = json.shade as PaletteShade | undefined;
     const clip = Array.isArray(json.clip) ? (json.clip as NumberExpr[]) : null;
     return this.#static(json, vars, (list) => {
-      const { x, y } = this.#position(json, vars, dx, dy);
+      const path = this.#imageAsset(json, vars);
+      if (path === null) return;
+      const { x, y } = json.center === true ? this.#centered(json, path) : this.#position(json, vars, dx, dy);
       if (clip) list.pushClip(x, y, x + this.number(clip[0], vars), y + this.number(clip[1], vars));
-      list.image(asset.path, this.number(json.frame as NumberExpr | undefined, vars), x, y, { shade: shadeJson ?? null, effect });
+      list.image(path, this.number(json.frame as NumberExpr | undefined, vars), x, y, { shade: shadeJson ?? null, effect });
       if (clip) list.popClip();
     });
+  }
+
+  #centered(json: WidgetJson, path: string): { x: number; y: number } {
+    const frame = this.#widgetFrame(json);
+    const first = frameOf(this.services.images, path, 0);
+    return { x: frame.x + idiv(frame.width - first.width, 2), y: frame.y + idiv(frame.height - first.height, 2) };
   }
 
   #primitive(json: WidgetJson, vars: Variables, dx: number, dy: number): Live {

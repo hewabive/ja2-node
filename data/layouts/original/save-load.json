@@ -1,0 +1,570 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/SaveLoadScreen.cc EnterSaveLoadScreen (interface/loadscreen.sti; the Cancel button from interface/loadscreenaddons.sti 6/9, the action button 5/8 to save or 4/7 to load, hatched when disabled; the NUM_SAVE_GAMES row regions at MSYS_PRIORITY_HIGH, SLG_SAVELOCATION_WIDTH × SLG_SAVELOCATION_HEIGHT from (SLG_FIRST_SAVED_SPOT_X, SLG_FIRST_SAVED_SPOT_Y), SLG_GAP_BETWEEN_LOCATIONS apart; the scroll buttons at SLG_SCROLLBAR_POS_X; the full-screen region at MSYS_PRIORITY_HIGH − 10 for the right click and the wheel), RenderSaveLoadScreen (MLG_LOADSAVEHEADER frame 0 to load, 1 to save, at (SLG_TITLE_POS_X, SLG_TITLE_POS_Y)), RenderScrollBar, DisplaySaveGameEntry (MSG_NEW_SAVE centred in 609 pixels; the fields at the SLG_*_OFFSET_X offsets and SLG_DATE_OFFSET_Y, a selected row one pixel right and up; the colours and shadows per state; the sector shortened to SLG_SECTOR_WIDTH), InitSaveLoadScreenTextInputBoxes (FONT12ARIALFIXEDWIDTH, a black field, the bevel (136,138,135)/(24,61,81), white text and caret, at + SLG_SAVE_GAME_DESC_X, + SLG_SAVE_GAME_DESC_Y − 5, SLG_SAVELOCATION_WIDTH − SLG_SAVE_GAME_DESC_X − 7 by 17, MSYS_PRIORITY_HIGH + 2, 46 characters), GetSaveLoadScreenUserInput (Up and Down on KEY_DOWN and KEY_REPEAT; Escape, Enter and Delete on KEY_UP)",
+    "V:SaveLoadScreen.c:117-118 SLG_SELECTED_SLOT_GRAPHICS_NUMBER 3, SLG_UNSELECTED_SLOT_GRAPHICS_NUMBER 2 (the rows of interface/loadscreenaddons.sti, drawn clipped to Stracciatella’s SLG_SAVELOCATION_WIDTH); src/game/Utils/Text.h gs_dead_is_dead_mode_tab_name (the Dead is Dead mark at SLG_SAVE_GAME_SKULL_X in place of Stracciatella’s skull art)"
+  ],
+  "screen": "saveLoad",
+  "frame": "std640",
+  "tooltips": true,
+  "constants": ["SaveLoadScreen", "Options_Screen"],
+  "assets": {
+    "background": {
+      "sti": "interface/loadscreen.sti",
+      "stub": {
+        "size": [640, 480]
+      }
+    },
+    "header": {
+      "mlg": "MLG_LOADSAVEHEADER",
+      "stub": {
+        "sizes": [[640, 40], [640, 40], [605, 30], [605, 30], [100, 30], [100, 30], [100, 30], [100, 30], [100, 30], [100, 30]],
+        "states": ["plain", "plain", "plain", "plain", "normal", "normal", "normal", "pressed", "pressed", "pressed"]
+      }
+    },
+    "buttons": {
+      "sti": "interface/loadscreenaddons.sti",
+      "stub": {
+        "sizes": [[640, 40], [640, 40], [605, 30], [605, 30], [100, 30], [100, 30], [100, 30], [100, 30], [100, 30], [100, 30]],
+        "states": ["plain", "plain", "plain", "plain", "normal", "normal", "normal", "pressed", "pressed", "pressed"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "x": 0,
+      "y": 0,
+      "asset": "background",
+      "frame": 0
+    },
+    {
+      "type": "image",
+      "x": "SLG_TITLE_POS_X",
+      "y": "SLG_TITLE_POS_Y",
+      "asset": "header",
+      "frame": {
+        "by": "mode",
+        "map": {
+          "load": 0,
+          "save": 1
+        }
+      }
+    },
+    {
+      "type": "custom",
+      "id": "scrollBar",
+      "renderer": "scrollBar",
+      "x": "SLG_SCROLLBAR_POS_X",
+      "y": "SLG_SCROLLBAR_POS_Y",
+      "width": "SLG_SCROLLBAR_WIDTH",
+      "height": "SLG_SCROLLBAR_HEIGHT",
+      "params": {
+        "buttonHeight": "SLG_SCROLLBAR_BTN_HEIGHT",
+        "innerTop": "SLG_SCROLLBAR_INNER_POS_Y - SLG_SCROLLBAR_POS_Y",
+        "innerHeight": "SLG_SCROLLBAR_INNER_HEIGHT",
+        "indicatorHeight": "SLG_SCROLLBAR_INDICATOR_HEIGHT",
+        "top": { "bind": "scrollTop" },
+        "max": { "bind": "scrollMax" },
+        "track": [24, 26, 22],
+        "face": [96, 92, 74],
+        "light": [164, 158, 128],
+        "dark": [36, 34, 26],
+        "arrow": [220, 214, 180]
+      }
+    },
+    {
+      "type": "region",
+      "id": "screenMask",
+      "within": "screen",
+      "x": 0,
+      "y": 0,
+      "width": "$screenWidth",
+      "height": "$screenHeight",
+      "priority": "HIGH-10",
+      "cursor": "CURSOR_NORMAL",
+      "secondary": "clearSelection",
+      "wheelUp": "scrollUp",
+      "wheelDown": "scrollDown"
+    },
+    {
+      "type": "repeat",
+      "count": "NUM_SAVE_GAMES",
+      "dy": "SLG_GAP_BETWEEN_LOCATIONS",
+      "template": [
+        {
+          "type": "image",
+          "x": "SLG_FIRST_SAVED_SPOT_X",
+          "y": "SLG_FIRST_SAVED_SPOT_Y",
+          "asset": "buttons",
+          "frame": {
+            "by": "rows[$i].selected",
+            "map": {
+              "true": 3,
+              "false": 2
+            }
+          },
+          "clip": ["SLG_SAVELOCATION_WIDTH", "SLG_SAVELOCATION_HEIGHT"],
+          "visible": "rows[$i].shown"
+        },
+        {
+          "type": "text",
+          "id": "newSave$i",
+          "x": "SLG_FIRST_SAVED_SPOT_X",
+          "y": "SLG_FIRST_SAVED_SPOT_Y + SLG_DATE_OFFSET_Y",
+          "width": 609,
+          "align": "center",
+          "font": "SAVE_LOAD_NORMAL_FONT",
+          "color": "SAVE_LOAD_EMPTYSLOT_COLOR",
+          "shadow": "SAVE_LOAD_EMPTYSLOT_SHADOW_COLOR",
+          "background": "FONT_MCOLOR_BLACK",
+          "visible": "rows[$i].newLabel",
+          "text": {
+            "key": ["pMessageStrings", "MSG_NEW_SAVE"]
+          }
+        },
+        {
+          "type": "text",
+          "id": "date$i",
+          "x": {
+            "by": "rows[$i].selected",
+            "map": {
+              "true": "SLG_FIRST_SAVED_SPOT_X + SLG_DATE_OFFSET_X + 1",
+              "false": "SLG_FIRST_SAVED_SPOT_X + SLG_DATE_OFFSET_X"
+            }
+          },
+          "y": {
+            "by": "rows[$i].selected",
+            "map": {
+              "true": "SLG_FIRST_SAVED_SPOT_Y + SLG_DATE_OFFSET_Y - 1",
+              "false": "SLG_FIRST_SAVED_SPOT_Y + SLG_DATE_OFFSET_Y"
+            }
+          },
+          "font": "SAVE_LOAD_NORMAL_FONT",
+          "color": {
+            "by": "rows[$i].state",
+            "map": {
+              "normal": "SAVE_LOAD_NORMAL_COLOR",
+              "newRow": "SAVE_LOAD_EMPTYSLOT_COLOR",
+              "highlighted": "SAVE_LOAD_HIGHLIGHTED_COLOR",
+              "selected": "SAVE_LOAD_SELECTED_COLOR"
+            }
+          },
+          "shadow": {
+            "by": "rows[$i].state",
+            "map": {
+              "normal": "SAVE_LOAD_NORMAL_SHADOW_COLOR",
+              "newRow": "SAVE_LOAD_EMPTYSLOT_SHADOW_COLOR",
+              "highlighted": "SAVE_LOAD_HIGHLIGHTED_SHADOW_COLOR",
+              "selected": "SAVE_LOAD_SELECTED_SHADOW_COLOR"
+            }
+          },
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].date"
+          },
+          "visible": "rows[$i].fields"
+        },
+        {
+          "type": "text",
+          "id": "sector$i",
+          "x": {
+            "by": "rows[$i].selected",
+            "map": {
+              "true": "SLG_FIRST_SAVED_SPOT_X + SLG_SECTOR_OFFSET_X + 1",
+              "false": "SLG_FIRST_SAVED_SPOT_X + SLG_SECTOR_OFFSET_X"
+            }
+          },
+          "y": {
+            "by": "rows[$i].selected",
+            "map": {
+              "true": "SLG_FIRST_SAVED_SPOT_Y + SLG_DATE_OFFSET_Y - 1",
+              "false": "SLG_FIRST_SAVED_SPOT_Y + SLG_DATE_OFFSET_Y"
+            }
+          },
+          "font": "SAVE_LOAD_NORMAL_FONT",
+          "color": {
+            "by": "rows[$i].state",
+            "map": {
+              "normal": "SAVE_LOAD_NORMAL_COLOR",
+              "newRow": "SAVE_LOAD_EMPTYSLOT_COLOR",
+              "highlighted": "SAVE_LOAD_HIGHLIGHTED_COLOR",
+              "selected": "SAVE_LOAD_SELECTED_COLOR"
+            }
+          },
+          "shadow": {
+            "by": "rows[$i].state",
+            "map": {
+              "normal": "SAVE_LOAD_NORMAL_SHADOW_COLOR",
+              "newRow": "SAVE_LOAD_EMPTYSLOT_SHADOW_COLOR",
+              "highlighted": "SAVE_LOAD_HIGHLIGHTED_SHADOW_COLOR",
+              "selected": "SAVE_LOAD_SELECTED_SHADOW_COLOR"
+            }
+          },
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].sector"
+          },
+          "visible": "rows[$i].fields",
+          "width": "SLG_SECTOR_WIDTH",
+          "ellipsis": true
+        },
+        {
+          "type": "text",
+          "id": "mercs$i",
+          "x": {
+            "by": "rows[$i].selected",
+            "map": {
+              "true": "SLG_FIRST_SAVED_SPOT_X + SLG_NUM_MERCS_OFFSET_X + 1",
+              "false": "SLG_FIRST_SAVED_SPOT_X + SLG_NUM_MERCS_OFFSET_X"
+            }
+          },
+          "y": {
+            "by": "rows[$i].selected",
+            "map": {
+              "true": "SLG_FIRST_SAVED_SPOT_Y + SLG_DATE_OFFSET_Y - 1",
+              "false": "SLG_FIRST_SAVED_SPOT_Y + SLG_DATE_OFFSET_Y"
+            }
+          },
+          "font": "SAVE_LOAD_NORMAL_FONT",
+          "color": {
+            "by": "rows[$i].state",
+            "map": {
+              "normal": "SAVE_LOAD_NORMAL_COLOR",
+              "newRow": "SAVE_LOAD_EMPTYSLOT_COLOR",
+              "highlighted": "SAVE_LOAD_HIGHLIGHTED_COLOR",
+              "selected": "SAVE_LOAD_SELECTED_COLOR"
+            }
+          },
+          "shadow": {
+            "by": "rows[$i].state",
+            "map": {
+              "normal": "SAVE_LOAD_NORMAL_SHADOW_COLOR",
+              "newRow": "SAVE_LOAD_EMPTYSLOT_SHADOW_COLOR",
+              "highlighted": "SAVE_LOAD_HIGHLIGHTED_SHADOW_COLOR",
+              "selected": "SAVE_LOAD_SELECTED_SHADOW_COLOR"
+            }
+          },
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].mercs"
+          },
+          "visible": "rows[$i].fields"
+        },
+        {
+          "type": "text",
+          "id": "balance$i",
+          "x": {
+            "by": "rows[$i].selected",
+            "map": {
+              "true": "SLG_FIRST_SAVED_SPOT_X + SLG_BALANCE_OFFSET_X + 1",
+              "false": "SLG_FIRST_SAVED_SPOT_X + SLG_BALANCE_OFFSET_X"
+            }
+          },
+          "y": {
+            "by": "rows[$i].selected",
+            "map": {
+              "true": "SLG_FIRST_SAVED_SPOT_Y + SLG_DATE_OFFSET_Y - 1",
+              "false": "SLG_FIRST_SAVED_SPOT_Y + SLG_DATE_OFFSET_Y"
+            }
+          },
+          "font": "SAVE_LOAD_NORMAL_FONT",
+          "color": {
+            "by": "rows[$i].state",
+            "map": {
+              "normal": "SAVE_LOAD_NORMAL_COLOR",
+              "newRow": "SAVE_LOAD_EMPTYSLOT_COLOR",
+              "highlighted": "SAVE_LOAD_HIGHLIGHTED_COLOR",
+              "selected": "SAVE_LOAD_SELECTED_COLOR"
+            }
+          },
+          "shadow": {
+            "by": "rows[$i].state",
+            "map": {
+              "normal": "SAVE_LOAD_NORMAL_SHADOW_COLOR",
+              "newRow": "SAVE_LOAD_EMPTYSLOT_SHADOW_COLOR",
+              "highlighted": "SAVE_LOAD_HIGHLIGHTED_SHADOW_COLOR",
+              "selected": "SAVE_LOAD_SELECTED_SHADOW_COLOR"
+            }
+          },
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].balance"
+          },
+          "visible": "rows[$i].fields"
+        },
+        {
+          "type": "text",
+          "id": "description$i",
+          "x": {
+            "by": "rows[$i].selected",
+            "map": {
+              "true": "SLG_FIRST_SAVED_SPOT_X + SLG_SAVE_GAME_DESC_X + 1",
+              "false": "SLG_FIRST_SAVED_SPOT_X + SLG_SAVE_GAME_DESC_X"
+            }
+          },
+          "y": {
+            "by": "rows[$i].selected",
+            "map": {
+              "true": "SLG_FIRST_SAVED_SPOT_Y + SLG_DATE_OFFSET_Y - 1",
+              "false": "SLG_FIRST_SAVED_SPOT_Y + SLG_DATE_OFFSET_Y"
+            }
+          },
+          "font": "SAVE_LOAD_NORMAL_FONT",
+          "color": {
+            "by": "rows[$i].state",
+            "map": {
+              "normal": "SAVE_LOAD_NORMAL_COLOR",
+              "newRow": "SAVE_LOAD_EMPTYSLOT_COLOR",
+              "highlighted": "SAVE_LOAD_HIGHLIGHTED_COLOR",
+              "selected": "SAVE_LOAD_SELECTED_COLOR"
+            }
+          },
+          "shadow": {
+            "by": "rows[$i].state",
+            "map": {
+              "normal": "SAVE_LOAD_NORMAL_SHADOW_COLOR",
+              "newRow": "SAVE_LOAD_EMPTYSLOT_SHADOW_COLOR",
+              "highlighted": "SAVE_LOAD_HIGHLIGHTED_SHADOW_COLOR",
+              "selected": "SAVE_LOAD_SELECTED_SHADOW_COLOR"
+            }
+          },
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].description"
+          },
+          "visible": "rows[$i].showDescription"
+        },
+        {
+          "type": "text",
+          "id": "mark$i",
+          "x": {
+            "by": "rows[$i].selected",
+            "map": {
+              "true": "SLG_FIRST_SAVED_SPOT_X + SLG_SAVE_GAME_SKULL_X + 1",
+              "false": "SLG_FIRST_SAVED_SPOT_X + SLG_SAVE_GAME_SKULL_X"
+            }
+          },
+          "y": {
+            "by": "rows[$i].selected",
+            "map": {
+              "true": "SLG_FIRST_SAVED_SPOT_Y + SLG_DATE_OFFSET_Y - 1",
+              "false": "SLG_FIRST_SAVED_SPOT_Y + SLG_DATE_OFFSET_Y"
+            }
+          },
+          "font": "SAVE_LOAD_NORMAL_FONT",
+          "color": {
+            "by": "rows[$i].state",
+            "map": {
+              "normal": "SAVE_LOAD_NORMAL_COLOR",
+              "newRow": "SAVE_LOAD_EMPTYSLOT_COLOR",
+              "highlighted": "SAVE_LOAD_HIGHLIGHTED_COLOR",
+              "selected": "SAVE_LOAD_SELECTED_COLOR"
+            }
+          },
+          "shadow": {
+            "by": "rows[$i].state",
+            "map": {
+              "normal": "SAVE_LOAD_NORMAL_SHADOW_COLOR",
+              "newRow": "SAVE_LOAD_EMPTYSLOT_SHADOW_COLOR",
+              "highlighted": "SAVE_LOAD_HIGHLIGHTED_SHADOW_COLOR",
+              "selected": "SAVE_LOAD_SELECTED_SHADOW_COLOR"
+            }
+          },
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "key": ["gs_dead_is_dead_mode_tab_name", 1]
+          },
+          "visible": "rows[$i].deadIsDead"
+        },
+        {
+          "type": "region",
+          "id": "row$i",
+          "x": "SLG_FIRST_SAVED_SPOT_X",
+          "y": "SLG_FIRST_SAVED_SPOT_Y",
+          "width": "SLG_SAVELOCATION_WIDTH",
+          "height": "SLG_SAVELOCATION_HEIGHT",
+          "priority": "HIGH",
+          "cursor": "CURSOR_NORMAL",
+          "tooltip": {
+            "bind": "rows[$i].tooltip"
+          },
+          "hover": "hoverRow($i)",
+          "primary": "select($i)",
+          "doubleClick": "activate($i)",
+          "secondary": "clearSelection",
+          "wheelUp": "scrollUp",
+          "wheelDown": "scrollDown"
+        },
+        {
+          "type": "repeat",
+          "count": {
+            "bind": "rows[$i].editing"
+          },
+          "template": {
+            "type": "textField",
+            "id": "description",
+            "x": "SLG_FIRST_SAVED_SPOT_X + SLG_SAVE_GAME_DESC_X",
+            "y": "SLG_FIRST_SAVED_SPOT_Y + SLG_SAVE_GAME_DESC_Y - 5",
+            "width": "SLG_SAVELOCATION_WIDTH - SLG_SAVE_GAME_DESC_X - 7",
+            "height": 17,
+            "maxLength": 46,
+            "font": "FONT12ARIALFIXEDWIDTH",
+            "priority": "HIGH+2",
+            "value": "description",
+            "change": "describe",
+            "scheme": {
+              "fieldColor": [0, 0, 0],
+              "foreground": "FONT_WHITE",
+              "shadow": 2,
+              "hiForeground": 2,
+              "hiShadow": "FONT_WHITE",
+              "hiBackground": "FONT_WHITE",
+              "bevel": [[136, 138, 135], [24, 61, 81]],
+              "cursorColor": [255, 255, 255]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "id": "scrollUp",
+      "kind": "hotspot",
+      "x": "SLG_SCROLLBAR_POS_X",
+      "y": "SLG_SCROLLBAR_POS_Y",
+      "width": "SLG_SCROLLBAR_WIDTH",
+      "height": "SLG_SCROLLBAR_BTN_HEIGHT",
+      "priority": "HIGH",
+      "press": "scrollUp"
+    },
+    {
+      "type": "button",
+      "id": "scrollDown",
+      "kind": "hotspot",
+      "x": "SLG_SCROLLBAR_POS_X",
+      "y": "SLG_SCROLLBAR_BTN_SCROLL_DOWN_POS_Y",
+      "width": "SLG_SCROLLBAR_WIDTH",
+      "height": "SLG_SCROLLBAR_BTN_HEIGHT",
+      "priority": "HIGH",
+      "press": "scrollDown"
+    },
+    {
+      "type": "button",
+      "id": "cancel",
+      "x": "SLG_LOAD_CANCEL_POS_X",
+      "y": "SLG_BTN_POS_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 6,
+        "onNormal": 9
+      },
+      "priority": "HIGH",
+      "primary": "cancel",
+      "wheelUp": "scrollUp",
+      "wheelDown": "scrollDown",
+      "text": {
+        "source": {
+          "key": ["zSaveLoadText", "SLG_CANCEL"]
+        },
+        "font": "OPT_BUTTON_FONT",
+        "color": "OPT_BUTTON_ON_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "OPT_BUTTON_OFF_COLOR",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    },
+    {
+      "type": "button",
+      "id": "saveButton",
+      "x": "SLG_SAVE_LOAD_BTN_POS_X",
+      "y": "SLG_BTN_POS_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 5,
+        "onNormal": 8
+      },
+      "priority": "HIGH",
+      "disabledStyle": "hatched",
+      "visible": {
+        "eq": ["mode", "save"]
+      },
+      "enabled": "actionEnabled",
+      "primary": "act",
+      "wheelUp": "scrollUp",
+      "wheelDown": "scrollDown",
+      "text": {
+        "source": {
+          "key": ["zSaveLoadText", "SLG_SAVE_GAME"]
+        },
+        "font": "OPT_BUTTON_FONT",
+        "color": "OPT_BUTTON_ON_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "OPT_BUTTON_OFF_COLOR",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    },
+    {
+      "type": "button",
+      "id": "loadButton",
+      "x": "SLG_SAVE_LOAD_BTN_POS_X",
+      "y": "SLG_BTN_POS_Y",
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 4,
+        "onNormal": 7
+      },
+      "priority": "HIGH",
+      "disabledStyle": "hatched",
+      "visible": {
+        "eq": ["mode", "load"]
+      },
+      "enabled": "actionEnabled",
+      "primary": "act",
+      "wheelUp": "scrollUp",
+      "wheelDown": "scrollDown",
+      "text": {
+        "source": {
+          "key": ["zSaveLoadText", "SLG_LOAD_GAME"]
+        },
+        "font": "OPT_BUTTON_FONT",
+        "color": "OPT_BUTTON_ON_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "OPT_BUTTON_OFF_COLOR",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    }
+  ],
+  "hotkeys": [
+    {
+      "key": "ArrowUp",
+      "on": ["down", "repeat"],
+      "mods": "any",
+      "action": "moveUp"
+    },
+    {
+      "key": "ArrowDown",
+      "on": ["down", "repeat"],
+      "mods": "any",
+      "action": "moveDown"
+    },
+    {
+      "key": "Escape",
+      "on": "up",
+      "mods": "any",
+      "action": "escape"
+    },
+    {
+      "key": "Enter",
+      "on": "up",
+      "mods": "any",
+      "action": "enter"
+    },
+    {
+      "key": "Delete",
+      "on": "up",
+      "mods": "any",
+      "action": "delete"
+    }
+  ]
+}

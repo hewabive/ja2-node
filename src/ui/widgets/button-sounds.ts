@@ -65,7 +65,9 @@ const SAMPLES: Readonly<Partial<Record<ButtonSoundScheme, readonly [string, stri
   computerSwitch1: ['COMPUTER_SWITCH1_IN', 'COMPUTER_SWITCH1_OUT'],
 };
 
-export type ButtonSoundRequest = { readonly sample: string; readonly volume: number } | { readonly file: string; readonly volume: number };
+export type ButtonSoundRequest =
+  | { readonly sample: string; readonly volume: number }
+  | { readonly file: string; readonly volume: number; readonly speech?: boolean };
 
 export interface UiSoundSink {
   play(request: ButtonSoundRequest): void;

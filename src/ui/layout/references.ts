@@ -111,6 +111,12 @@ export function collectReferences(model: LayoutModel): LayoutReferences {
   };
   const choiceFrames = (expr: unknown, vars: Readonly<Record<string, number>>): (number | null)[] =>
     isRecord(expr) && isRecord(expr.map) ? Object.values(expr.map).map((v) => staticNumber(v, vars)) : [staticNumber(expr, vars)];
+  const choiceAssets = (asset: unknown): string[] =>
+    typeof asset === 'string'
+      ? [asset]
+      : isRecord(asset) && isRecord(asset.map)
+        ? Object.values(asset.map).filter((v) => typeof v === 'string')
+        : [];
   const text = (source: unknown, vars: Readonly<Record<string, number>>) => {
     if (source === undefined) return;
     if (typeof source === 'string') {

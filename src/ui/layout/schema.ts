@@ -10,6 +10,7 @@ type Kind =
   | 'action'
   | 'binding'
   | 'asset'
+  | 'assetChoice'
   | 'font'
   | 'color'
   | 'cursor'
@@ -27,7 +28,7 @@ const COMMON: Readonly<Record<string, Kind>> = {
   x: 'number',
   y: 'number',
   anchor: 'anchor',
-  frame: 'frame',
+  within: 'frame',
   centerX: 'centerX',
   visible: 'condition',
 };
@@ -50,7 +51,7 @@ const INPUT: Readonly<Record<string, Kind>> = {
 };
 
 export const WIDGET_PROPERTIES: Readonly<Record<string, Readonly<Record<string, Kind>>>> = {
-  image: { asset: 'asset', frame: 'number', shade: 'object', effect: 'string', outline: 'color', clip: 'array' },
+  image: { asset: 'assetChoice', frame: 'number', shade: 'object', effect: 'string', outline: 'color', clip: 'array', center: 'boolean' },
   fill: { ...BOX, color: 'color' },
   shade: { ...BOX, factor: 'number' },
   hatch: { ...BOX, pattern: 'string', color: 'color' },
@@ -187,6 +188,9 @@ function checkKind(kind: Kind, value: unknown, where: string, problems: string[]
     case 'font':
     case 'cursor':
       if (typeof value !== 'string' || value.length === 0) bad('a non-empty string');
+      return;
+    case 'assetChoice':
+      if (!(typeof value === 'string' && value.length > 0) && !isChoice(value)) bad('an asset name or {by, map}');
       return;
     case 'anchor':
       if (typeof value !== 'string' || !(ANCHOR_NAMES as readonly string[]).includes(value)) bad(`one of ${ANCHOR_NAMES.join(', ')}`);

@@ -1,6 +1,13 @@
 import { type CreditNode, FontColour } from '../../content/formats/credits.ts';
+import {
+  CREDIT_TEXT_WIDTH,
+  CREDIT_TEXT_X,
+  CREDITS_SCREEN_HEIGHT,
+  CREDITS_SCREEN_WIDTH,
+  CreditRoll,
+  type RolledNode,
+} from '../../ui/screens/credit-roll.ts';
 import { integerScale } from '../video/player.ts';
-import { CREDIT_TEXT_WIDTH, CREDIT_TEXT_X, CREDITS_SCREEN_HEIGHT, CREDITS_SCREEN_WIDTH, CreditRoll, type RolledNode } from './roll.ts';
 import { CreditRowFeed, type FetchCreditRow, fetchCreditRow } from './rows.ts';
 
 export type CreditsOutcome = 'finished' | 'escaped';

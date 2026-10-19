@@ -1,0 +1,103 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/MainMenuScreen.cc RenderMainMenu (the background at (0,0), the logo at (188,15)), CreateDestroyMainMenuButtons (the MLG_TITLETEXT frames per button, centred on the screen width at MAINMENU_Y + i * MAINMENU_Y_SPACE, MSYS_PRIORITY_HIGHEST), HandleMainMenuInput (the keys on KEY_UP)",
+    "src/game/MainMenuScreen.cc RenderGameVersion (FONT10ARIAL white at g_ui.m_versionPosition), RenderCopyright (gzCopyrightText at (0, SCREEN_HEIGHT - 15), SCREEN_WIDTH wide, centred); src/game/UILayout.cc:137 m_versionPosition (10, m_screenHeight - 15)"
+  ],
+  "screen": "mainMenu",
+  "frame": "std640",
+  "constants": ["MainMenuScreen"],
+  "assets": {
+    "background": { "sti": "loadscreens/mainmenubackground.sti", "stub": { "size": [640, 480] } },
+    "logo": { "sti": "loadscreens/ja2logo.sti", "stub": { "size": [264, 150] } },
+    "titleText": { "mlg": "MLG_TITLETEXT", "stub": { "frames": 17, "size": [160, 30] } }
+  },
+  "widgets": [
+    { "type": "fill", "within": "screen", "x": 0, "y": 0, "width": "$screenWidth", "height": "$screenHeight", "color": [0, 0, 0] },
+    { "type": "image", "x": 0, "y": 0, "asset": "background", "frame": 0 },
+    { "type": "image", "x": 188, "y": 15, "asset": "logo", "frame": 0 },
+    {
+      "type": "button",
+      "id": "newGame",
+      "centerX": "screen",
+      "y": "MAINMENU_Y + NEW_GAME * MAINMENU_Y_SPACE",
+      "asset": "titleText",
+      "frames": { "grayed": 0, "offNormal": 0, "offHilite": 1, "onNormal": 2 },
+      "priority": "HIGHEST",
+      "primary": "newGame"
+    },
+    {
+      "type": "button",
+      "id": "loadGame",
+      "centerX": "screen",
+      "y": "MAINMENU_Y + LOAD_GAME * MAINMENU_Y_SPACE",
+      "asset": "titleText",
+      "frames": { "grayed": 6, "offNormal": 3, "offHilite": 4, "onNormal": 5 },
+      "priority": "HIGHEST",
+      "enabled": "savesExist",
+      "primary": "loadGame"
+    },
+    {
+      "type": "button",
+      "id": "preferences",
+      "centerX": "screen",
+      "y": "MAINMENU_Y + PREFERENCES * MAINMENU_Y_SPACE",
+      "asset": "titleText",
+      "frames": { "grayed": 7, "offNormal": 7, "offHilite": 8, "onNormal": 9 },
+      "priority": "HIGHEST",
+      "primary": "preferences"
+    },
+    {
+      "type": "button",
+      "id": "credits",
+      "centerX": "screen",
+      "y": "MAINMENU_Y + CREDITS * MAINMENU_Y_SPACE",
+      "asset": "titleText",
+      "frames": { "grayed": 13, "offNormal": 10, "offHilite": 11, "onNormal": 12 },
+      "priority": "HIGHEST",
+      "primary": "credits"
+    },
+    {
+      "type": "button",
+      "id": "quit",
+      "centerX": "screen",
+      "y": "MAINMENU_Y + QUIT * MAINMENU_Y_SPACE",
+      "asset": "titleText",
+      "frames": { "grayed": 14, "offNormal": 14, "offHilite": 15, "onNormal": 16 },
+      "priority": "HIGHEST",
+      "primary": "quit"
+    },
+    {
+      "type": "text",
+      "id": "version",
+      "within": "screen",
+      "x": 10,
+      "y": "$screenHeight - 15",
+      "font": "FONT10ARIAL",
+      "color": "FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": { "bind": "version" }
+    },
+    {
+      "type": "text",
+      "id": "copyright",
+      "within": "screen",
+      "x": 0,
+      "y": "$screenHeight - 15",
+      "width": "$screenWidth",
+      "align": "center",
+      "font": "FONT10ARIAL",
+      "color": "FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": { "key": ["gzCopyrightText", 0] }
+    }
+  ],
+  "hotkeys": [
+    { "key": "c", "on": "up", "mods": 4, "action": "loadNewest" },
+    { "key": "c", "on": "up", "mods": "any", "action": "loadGame" },
+    { "key": "o", "on": "up", "mods": "any", "action": "preferences" },
+    { "key": "s", "on": "up", "mods": "any", "action": "credits" },
+    { "key": "q", "on": "up", "mods": 2, "action": "quit" }
+  ]
+}

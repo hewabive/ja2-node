@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CREDIT_START_Y, CreditRoll } from './roll.ts';
-import { CreditRowFeed } from './rows.ts';
+import { CreditRowFeed } from '../../app/credits/rows.ts';
+import { CREDIT_START_Y, CreditRoll } from './credit-roll.ts';
 
 const LINE = 15;
 

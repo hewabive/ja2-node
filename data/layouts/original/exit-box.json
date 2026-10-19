@@ -1,0 +1,39 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/GameLoop.cc HandleShortCutExitState (MSG_EXITGAME as a YES/NO box: the laptop's system box, the map screen's basic box, and for the other screens a basic box centred on (0, 0, SCREEN_WIDTH, INV_INTERFACE_START_Y)); src/game/UILayout.h INV_INTERFACE_HEIGHT (140)"
+  ],
+  "screen": "exitBox",
+  "frame": "screen",
+  "constants": ["MessageBoxScreen"],
+  "widgets": [
+    {
+      "type": "modal",
+      "id": "exitBoxGame",
+      "style": "MSG_BOX_BASIC_STYLE",
+      "text": { "key": ["pMessageStrings", "MSG_EXITGAME"] },
+      "buttons": "MSG_BOX_FLAG_YESNO",
+      "centering": [0, 0, "$screenWidth", "$screenHeight - 140"],
+      "open": { "eq": ["open", "game"] },
+      "result": "answer"
+    },
+    {
+      "type": "modal",
+      "id": "exitBoxMap",
+      "style": "MSG_BOX_BASIC_STYLE",
+      "text": { "key": ["pMessageStrings", "MSG_EXITGAME"] },
+      "buttons": "MSG_BOX_FLAG_YESNO",
+      "open": { "eq": ["open", "map"] },
+      "result": "answer"
+    },
+    {
+      "type": "modal",
+      "id": "exitBoxLaptop",
+      "style": "MSG_BOX_LAPTOP_DEFAULT",
+      "text": { "key": ["pMessageStrings", "MSG_EXITGAME"] },
+      "buttons": "MSG_BOX_FLAG_YESNO",
+      "open": { "eq": ["open", "laptop"] },
+      "result": "answer"
+    }
+  ]
+}

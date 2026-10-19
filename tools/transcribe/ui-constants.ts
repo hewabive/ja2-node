@@ -52,6 +52,7 @@ const SCREEN_TABLES: readonly TableSpec[] = [
   { table: 'Loading_Screen', files: ['game/Loading_Screen.h', 'game/Loading_Screen.cc'] },
   { table: 'JAScreens', files: ['game/JAScreens.h', 'game/JAScreens.cc'] },
   { table: 'Fade_Screen', files: ['game/Fade_Screen.h', 'game/Fade_Screen.cc'] },
+  { table: 'Sound_Control', files: ['game/Utils/Sound_Control.h', 'sgp/SoundMan.h'] },
 ];
 
 const FRAME_ORIGIN_NAMES: ReadonlyMap<string, number> = new Map([
