@@ -39,6 +39,9 @@ interface TacticalHook {
   hoveredSoldier: number | null;
   renderMs: number;
   zoom: number;
+  items: number;
+  soldierTeams: number[];
+  command(cmd: { readonly type: string; readonly [key: string]: unknown }): Promise<unknown>;
   soldierBoxes: { readonly id: number; readonly x: number; readonly y: number; readonly width: number; readonly height: number }[];
 }
 
@@ -67,6 +70,9 @@ const debug: TacticalHook = {
   hoveredSoldier: null,
   renderMs: 0,
   zoom: 2,
+  items: 0,
+  soldierTeams: [],
+  command: (cmd) => client?.command(cmd) ?? Promise.resolve({ ok: false, reason: 'not connected' }),
   soldierBoxes: [],
 };
 window.__ja2Tactical = debug;
@@ -227,6 +233,8 @@ function render(): void {
   }
   debug.drawnSoldiers = view.drawnSoldiers;
   debug.zoom = zoom;
+  debug.items = client?.items.length ?? 0;
+  debug.soldierTeams = soldiers().map((s) => s.team);
   debug.soldierBoxes = renderer.placedSoldiers.map((p) => ({ id: p.id, x: p.x, y: p.y, width: p.width, height: p.height }));
   debug.drawCalls = stats.drawCalls;
   debug.stats = stats;

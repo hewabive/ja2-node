@@ -16,6 +16,7 @@ import {
   MERC_SCREEN_OFFSET_Y,
   mapCenter,
   mercZ,
+  NOBURN_Z_BONUS,
   OBJECT_Z_LEVEL,
   objectZ,
   onRoofZ,
@@ -160,6 +161,7 @@ export class DynamicScene {
   readonly #world: StaticWorld;
   readonly #mapNodes: Map<number, DynamicNode[]>;
   readonly #mapRows: Map<number, number[]>;
+  readonly #noBurn: Uint8Array;
   #frameRows = new Map<number, number[]>();
   #frame: DynamicFrame | null = null;
   #soldiersByTile = new Map<number, SceneSoldier[]>();
@@ -170,6 +172,7 @@ export class DynamicScene {
     this.#world = world;
     this.#mapNodes = dynamicMapNodes(world, prepared);
     this.#mapRows = rowsOf([...this.#mapNodes.keys()]);
+    this.#noBurn = prepared.noBurn;
   }
 
   build(frame: DynamicFrame): void {
@@ -337,7 +340,9 @@ export class DynamicScene {
       const screenY = c.y + Math.trunc(Math.fround(dx + dy)) - height - MERC_SCREEN_OFFSET_Y - m.level * WALL_HEIGHT + frame.renderHeight;
       const sx = screenX + m.sprite.offsetX - offX;
       const sy = screenY + m.sprite.offsetY - offY;
-      const z = m.topmost ? TOPMOST_Z_LEVEL : m.level > 0 ? roofMercZ(wy) : mercZ(wy);
+      const noBurn = this.#noBurn[g] === 1;
+      const baseZ = m.topmost ? TOPMOST_Z_LEVEL : m.level > 0 ? roofMercZ(wy) : mercZ(wy);
+      const z = noBurn ? wrap16(baseZ + NOBURN_Z_BONUS) : baseZ;
       const out = this.instances;
       const sprite = m.sprite;
       this.#push(out, this.runs, DrawState.NEARER_SHADOW, () =>
@@ -346,9 +351,11 @@ export class DynamicScene {
       this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL, () =>
         out.push(sx, sy, sprite, 0, sprite.width, m.paletteRow, z, ShadeKey.FIXED, BODY_FLAGS, 0),
       );
-      this.#push(out, this.runs, DrawState.FARTHER, () =>
-        out.push(sx, sy, sprite, 0, sprite.width, m.paletteRow, z, ShadeKey.FIXED, OBSCURED_FLAGS, 0),
-      );
+      if (!noBurn) {
+        this.#push(out, this.runs, DrawState.FARTHER, () =>
+          out.push(sx, sy, sprite, 0, sprite.width, m.paletteRow, z, ShadeKey.FIXED, OBSCURED_FLAGS, 0),
+        );
+      }
       this.placedSoldiers.push({
         id: m.id,
         x: sx + offX,

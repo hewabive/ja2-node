@@ -23,6 +23,21 @@ export interface LevelRenderData {
   readonly landStart: Int8Array;
   readonly shadows: LevelLayer;
   readonly renderHeight: number;
+  readonly noBurn: Uint8Array;
+}
+
+const WALLSTUFF = 0x00cf0008;
+
+function noBurnStruct(structs: Uint16Array, tiles: readonly TileElement[]): number {
+  let wall = false;
+  let flag = 0;
+  for (const t of structs) {
+    const def = tiles[t]?.structure;
+    if (!def) continue;
+    if (def.flags & WALLSTUFF) wall = true;
+    flag = !wall && def.tiles.length === 1 ? 1 : 0;
+  }
+  return flag;
 }
 
 function firstFullLandFromHead(land: Uint16Array, tiles: readonly TileElement[]): number {
@@ -72,11 +87,13 @@ export function prepareLevelRenderData(
   const firstFloor = typeIndex(tables, 'FIRSTFLOOR');
   const lastFloor = typeIndex(tables, 'FIRSTROOF') - 1;
   const landStart = new Int8Array(WORLD_MAX);
+  const noBurn = new Uint8Array(WORLD_MAX);
   const shadowLists: number[][] = [];
   const { hasStructure, hasTree } = structureFootprints(level, tiles);
   for (let g = 0; g < WORLD_MAX; g++) {
     const land = levelTilesAt(level.layers.land, g);
     landStart[g] = firstFullLandFromHead(land, tiles);
+    noBurn[g] = noBurnStruct(levelTilesAt(level.layers.structs, g), tiles);
     const indoors = [...land].some((t) => {
       const type = tiles[t]?.type ?? -1;
       return type >= firstFloor && type <= lastFloor;
@@ -99,5 +116,5 @@ export function prepareLevelRenderData(
   shadowLists.forEach((l, g) => {
     shadowTiles.set(l, offsets[g] ?? 0);
   });
-  return { landStart, shadows: { offsets, tiles: shadowTiles }, renderHeight: renderHeight(level, info, underground) };
+  return { landStart, shadows: { offsets, tiles: shadowTiles }, renderHeight: renderHeight(level, info, underground), noBurn };
 }

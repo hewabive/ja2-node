@@ -198,4 +198,6 @@ light-dependent AI decisions; they are covered by unit tests.
 See `docs/deviations.md`: `Light0` … `Light6` and `TRANSLUC.LHT` are not available, so flares light nothing; the
 ambient level and the light schedule stay as they were at session start until the strategic clock drives
 `EnvironmentController`; hot desert days (`HOT_DAY_LIGHTLEVEL` 2) are not modelled in imported saves; muzzle flashes do
-not yet count as daylight in `DistanceVisible`; the renderer does not draw light sprites.
+not yet count as daylight in `DistanceVisible`. The renderer shades the world from the map's light sprites and the
+merc lights, computed in the browser with these functions (`src/app/world/world-lighting.ts`, `docs/28` §17.4 "U4");
+explosion, muzzle-flash and flare lights reach it with the view (U4b).
