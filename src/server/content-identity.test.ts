@@ -1,7 +1,71 @@
 import { describe, expect, it } from 'vitest';
 import { DIALOGUE_SIZE } from '../content/formats/edt.ts';
 import { DialogueTexts } from '../content/narrative/dialogue-text.ts';
-import { ContentLedger, engineIdentity, NO_TEXT_IDENTITY, quoteLengthIdentity, textIdentityOf } from './content-identity.ts';
+import { PROJECT_DATA_LAYER, STUBS_LAYER } from '../content/vfs/layers.ts';
+import { MemoryLayer, Vfs, vfsFileReader } from '../content/vfs/vfs.ts';
+import {
+  type ContentFileEntry,
+  ContentLedger,
+  type ContentSource,
+  engineIdentity,
+  NO_TEXT_IDENTITY,
+  quoteLengthIdentity,
+  type SavedRepositoryFile,
+  textIdentityOf,
+} from './content-identity.ts';
+
+const SAVE_COMMIT = '0123abc';
+const USER_DATA_LAYER = 'maps.slf';
+const encode = (s: string) => new TextEncoder().encode(s);
+
+interface LayeredData {
+  readonly tables: Readonly<Record<string, string>>;
+  readonly user: Readonly<Record<string, string>>;
+  readonly stubs: Readonly<Record<string, string>>;
+}
+
+const SAVED_DATA: LayeredData = {
+  tables: { 'tables/a.json': '{"a":1}' },
+  user: { 'binarydata/prof.dat': 'profiles', 'maps/a9.dat': 'map' },
+  stubs: { 'stubs/anims/structdata/cr_crouch.jsd': 'stub jsd', 'stubs/npcdata/000.npc': 'stub records' },
+};
+
+const RECORDED: readonly ContentFileEntry[] = [
+  ['binarydata/prof.dat', 'f'],
+  ['maps/a9.dat', 'p'],
+  ['maps/b9.dat', 'm'],
+  ['stubs/anims/structdata/cr_crouch.jsd', 'p'],
+  ['stubs/npcdata/000.npc', 'f'],
+  ['tables/a.json', 'f'],
+  ['tables/b.json', 'm'],
+];
+
+function layeredVfs(data: LayeredData): Vfs {
+  const layer = (name: string, files: Readonly<Record<string, string>>) =>
+    new MemoryLayer(
+      name,
+      Object.entries(files).map(([path, text]) => [path, encode(text)] as const),
+    );
+  return new Vfs([layer(PROJECT_DATA_LAYER, data.tables), layer(USER_DATA_LAYER, data.user), layer(STUBS_LAYER, data.stubs)]);
+}
+
+const savedTables: SavedRepositoryFile = async (commit, layer, path) => {
+  const text = commit === SAVE_COMMIT && layer === PROJECT_DATA_LAYER ? SAVED_DATA.tables[path] : undefined;
+  return text === undefined ? null : encode(text);
+};
+
+function scopedLedger(source: ContentSource, data: LayeredData, history: SavedRepositoryFile = savedTables): ContentLedger {
+  const vfs = layeredVfs(data);
+  return new ContentLedger(source, vfsFileReader(vfs), (path) => vfs.stat(path) !== undefined, {
+    layerOf: (path) => vfs.stat(path)?.layer ?? null,
+    savedRepositoryFile: history,
+  });
+}
+
+async function matchesAfter(source: ContentSource, change: (data: LayeredData) => LayeredData, history?: SavedRepositoryFile) {
+  const logic = await scopedLedger(source, SAVED_DATA).logicHash(RECORDED);
+  return scopedLedger(source, change(SAVED_DATA), history).matchesSaved(RECORDED, { logic, commit: SAVE_COMMIT });
+}
 
 function files(entries: Record<string, string>): Map<string, Uint8Array> {
   return new Map(Object.entries(entries).map(([path, text]) => [path, new TextEncoder().encode(text)]));
@@ -64,5 +128,28 @@ describe('content identity', () => {
 
   it('names the engine version and commit', () => {
     expect(engineIdentity({ JA2_COMMIT: 'abc123' })).toEqual({ version: expect.any(String), commit: 'abc123' });
+  });
+
+  it('checks a 0.7.0 file list on the original data against the user data only', async () => {
+    const same = (d: LayeredData) => d;
+    expect(await matchesAfter('original', same)).toBe(true);
+    expect(await matchesAfter('original', (d) => ({ ...d, tables: { 'tables/a.json': '{"a":2}', 'tables/b.json': '{}' } }))).toBe(true);
+    expect(await matchesAfter('original', (d) => ({ ...d, stubs: { ...d.stubs, 'stubs/anims/structdata/cr_crouch.jsd': 'new' } }))).toBe(
+      true,
+    );
+    expect(await matchesAfter('original', (d) => ({ ...d, user: { ...d.user, 'binarydata/prof.dat': 'profilez' } }))).toBe(false);
+    expect(await matchesAfter('original', (d) => ({ ...d, user: { ...d.user, 'maps/b9.dat': 'new map' } }))).toBe(false);
+    expect(
+      await matchesAfter(
+        'original',
+        (d) => ({ ...d, tables: { 'tables/a.json': '{"a":2}' } }),
+        async () => null,
+      ),
+    ).toBe(false);
+  });
+
+  it('checks a 0.7.0 file list on the stubs against the stub pack, not the project tables', async () => {
+    expect(await matchesAfter('stubs', (d) => ({ ...d, tables: { 'tables/a.json': '{"a":2}', 'tables/b.json': '{}' } }))).toBe(true);
+    expect(await matchesAfter('stubs', (d) => ({ ...d, stubs: { ...d.stubs, 'stubs/npcdata/000.npc': 'other records' } }))).toBe(false);
   });
 });

@@ -132,7 +132,12 @@ The game data splits in two:
   simulation never reads graphics: the few numbers it takes from STI headers today (explosion frame counts,
   `src/content/items/explosions.ts:92-107`; tileset frame counts and aux data, `src/content/world/tileset-loader.ts:33-62`)
   move into the pack. The pack has one hash, which becomes the logic hash of the content identity
-  (`src/server/content-identity.ts`, saves are bound to it). It is built from the user's data and never committed.
+  (`src/server/content-identity.ts`, saves are bound to it). The hash binds a save to the **game data** only: on the
+  original data it covers the entries whose winning VFS layer is the data folder or an SLF archive (rule files,
+  graphic facts, text presence, layer counts), on the stubs the stub pack; the externalized and transcribed tables
+  (`ja2-node-data`) and, on the original data, the stub pack stay in the pack for the simulation but ship with the
+  engine and are versioned by its version and commit (U0c, §17.4). It is built from the user's data and never
+  committed.
 - **Media**: graphics, sounds, music, videos, fonts; needed only by the client.
 
 The server is always authoritative over the rules; the client draws with its media and plays its animation frames
@@ -333,7 +338,8 @@ revalidates everything. M8 (scenario 2 of §1.3):
 
 0. **Rule pack.** At start the server builds the rule pack from its data (the files the content loaders read, the
    numbers taken from STI headers, the split scripts), caches it in `.ja2/cache/rules-<hash>/` and loads the
-   simulation's content from it; the logic hash of the content identity is the pack's hash. The serialised, uploadable
+   simulation's content from it; the logic hash of the content identity is the pack's hash, over the game data's
+   entries only (U0c, §17.4). The serialised, uploadable
    form is scenario 4's work; M8 needs the boundary and the hash.
 1. **Manifest.** `GET /api/assets/manifest` returns `[path, size, hash]` (first 16 hex digits of SHA-256; all 22 SLFs
    hash in 2.2 s), gzipped. Hashes are computed lazily and persisted in `.ja2/cache/vfs-hashes.json` keyed by archive
@@ -2010,6 +2016,33 @@ through an immutable URL and computes the server's pack hash with SubtleCrypto).
 Open for the lead and later slices: wire `HttpAssetSource`, `AssetCache` and `loadClientRules` into the `/play` page
 after U0a; turning the client's rule reader into `TacticalContent` needs `app` → `sim` (U0a's import rule); U3 sends
 the frame slot (the logic position) instead of `frame` and lets the client follow the presentation timeline.
+
+#### U0c: the scope of the content identity (2026-10-19)
+
+U0b's pack hash covered every rule entry of every VFS layer, so a new or regenerated project table or a stub generator
+change refused every save made on the original data. The identity now binds a save to the game data (`docs/27` §1.7):
+
+| Source | The identity covers | Another identity |
+|---|---|---|
+| `original` | the entries whose winning layer is the data folder or an SLF archive | refused (`contentMismatch`) |
+| `stubs` | the entries of the stub layer | loads with the new warning `stubPackDiffers` |
+
+The `ja2-node-data` layer (`tables/**`, `externalized/**`) is never covered, nor the stub layer on the original data:
+those entries stay in the pack and answer reads and probes as before, and a difference there shows as `engineDiffers`.
+The pack manifest (version 2) records each entry's winning layer and keeps U0b's hash over every layer as
+`allLayersHash`, which names the cache directory and is still accepted from saves written by 9867f03. The identity
+text's format line is `ja2-node-rules 2`. The asset manifest (version 2) adds `layers` and the winning layer's index
+per entry, so `clientRulePackIdentity` applies the same scope. 0.7.0 saves compare only the files that come from the
+identity layers at load time (files of `ja2-node-data` are taken from the repository's history at the save's commit;
+generated stub files cannot be recovered and count with their current bytes). The launcher shows the warning with its
+own line (`stubPackDiffers` in `labels.ts`), the save list predicts it, and the MCP load description names it.
+
+Tests: `pack.test.ts` (new or changed tables and stub files keep the original-source identity, user rule files and
+graphics change it; on the stubs a stub change changes it, a table does not; the all-layers hash equals U0b's for a
+pinned input), `rule-pack.test.ts` (the same through VFS layers and `openRulePack`), `content-identity.test.ts` (the
+scoped 0.7.0 check), `repository-history.test.ts`, `save-service.test.ts` (on the stubs another pack warns, on the
+original data it refuses, a U0b identity loads), `legacy-save.test.ts` (the 0.7.0 fixtures warn after a recorded stub
+file changes), `save-rows.test.ts` and the unchanged `client-rules.test.ts` and `tests/e2e/assets.spec.ts`.
 
 ---
 

@@ -71,6 +71,7 @@ export type SaveListing =
       readonly version: number | null;
       readonly compatible: boolean;
       readonly problems: readonly string[];
+      readonly warnings?: readonly LoadWarning[];
     }
   | {
       readonly name: string;
@@ -81,7 +82,7 @@ export type SaveListing =
       readonly problems: readonly string[];
     };
 
-export type LoadWarning = 'dataVersionDiffers' | 'engineDiffers';
+export type LoadWarning = 'dataVersionDiffers' | 'engineDiffers' | 'stubPackDiffers';
 
 export interface SessionSummary {
   readonly session: string;

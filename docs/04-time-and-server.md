@@ -434,26 +434,31 @@ The session also skips the frame views nobody receives: with no subscriber it st
 events at every frame point, but builds and diffs no view; the first subscriber's welcome becomes the base of the next
 diff.
 
-### 5.10. The rule pack and the assets (as built in M8, U0b)
+### 5.10. The rule pack and the assets (as built in M8, U0b and U0c)
 
 The game data splits into the **rule pack** (everything the simulation reads) and media (`28` §1.3, §2.5, §17.4).
 
 - **The rule pack** (`src/content/rules/pack.ts`, `src/server/rule-pack.ts`). At start the server builds the pack from
-  its VFS (original data or stubs) and caches it in `.ja2/cache/rules-<pack hash>/` (`JA2_CACHE_DIR` moves the cache;
-  `rules-index.json` finds it by a key over every VFS file's path, size, layer count and stamp, so a change of the data
-  rebuilds it). It holds the rule files (project tables, `ja2bin.dat`, `ja2set.dat`, `prof.dat`, `locks.bin`, maps,
+  its VFS (original data or stubs) and caches it in `.ja2/cache/rules-<all-layers hash>/` (`JA2_CACHE_DIR` moves the
+  cache; `rules-index.json` finds it by a key over every VFS file's path, size, layer count and stamp, so a change of
+  the data rebuilds it). It holds the rule files (project tables, `ja2bin.dat`, `ja2set.dat`, `prof.dat`, `locks.bin`, maps,
   structure files, NPC records, text files, the stub profiles) and the **graphic facts** (`@rules/graphics/<path>.json`:
   the frame geometry and app data of the tileset surfaces and the explosion animations), and refuses every other path.
   Sessions read their content through it, so the simulation never reads an STI file. Its hash (inputs by content hash,
-  text files by presence) is the logic hash of the content identity; its scripts' hash is the content hash of the
-  animation scripts. The animation scripts are split at load into a logic timeline the simulation steps and a
+  text files by presence) is the logic hash of the content identity and covers only the **game data**: the entries whose
+  winning VFS layer is the data folder or an SLF archive on the original data, the stub pack on the stubs (U0c). The
+  project tables (`ja2-node-data`) and, on the original data, the stub pack stay in the pack but not in the hash: they
+  ship with the engine, whose version and commit the save header and `welcome` carry. Every entry records its layer;
+  the all-layers hash (U0b's identity over every entry) names the cache directory. Its scripts' hash is the content hash
+  of the animation scripts. The animation scripts are split at load into a logic timeline the simulation steps and a
   presentation timeline the views take the sprite frame from.
 - **`welcome`** carries `engine: {version, commit}` and `rules: {pack, scripts}`; a client compares them with its own
   code and data (`src/app/rules/client-rules.ts`). `/api/health` names the pack too.
-- **`GET /api/assets/manifest`** → `{format: 'ja2-node-assets', version: 1, source, stubText, files}` with `[path, size,
-  hash]` per VFS file (`[path, size, hash, layers]` when the path is in several layers), `hash` = the first 16 hex digits
-  of the file's SHA-256; gzipped when the client accepts it, revalidated by ETag. Hashes are computed on demand and kept
-  in `.ja2/cache/vfs-hashes.json` by file stamp (SLF archive path, size and mtime plus entry offset and length; loose
+- **`GET /api/assets/manifest`** → `{format: 'ja2-node-assets', version: 2, source, stubText, layers, files}`: `layers`
+  names the VFS layers in priority order, `files` holds `[path, size, hash, layer]` per VFS file (`[path, size, hash,
+  layer, layers]` when the path is in several layers), `layer` = the index of the winning layer in `layers` (so a client
+  applies the same identity scope), `hash` = the first 16 hex digits of the file's SHA-256; gzipped when the client
+  accepts it, revalidated by ETag. Hashes are computed on demand and kept in `.ja2/cache/vfs-hashes.json` by file stamp (SLF archive path, size and mtime plus entry offset and length; loose
   files by path, size and mtime), so a restart reads no file again.
 - **`GET /vfs/@<hash>/<path>`** answers with `cache-control: private, max-age=31536000, immutable` when `<hash>` is the
   file's current content hash, 404 when it is not (the client fetches the manifest again), 400 for a malformed hash;
@@ -1012,7 +1017,8 @@ migration) written as two gzip members, so the save list reads the header from t
   false, refused, reason}`. `load {name, session?, reseed?}` loads into `session` in place or, without it, into a new
   session; `newSession {load, reseed?}` is the same. `listSaves {}` returns ja2-node saves (`native: false`, the header)
   and native saves (`native: true`, the native header: description, day, hour, minute, sector, mercs, balance,
-  options), newest first, with `compatible` and `problems` (`versionTooNew`, `contentMismatch`, `needsOriginalData`).
+  options), newest first, with `compatible` and `problems` (`versionTooNew`, `contentMismatch`, `needsOriginalData`); a
+  ja2-node save also carries `warnings` predicted from its header (`stubPackDiffers`).
   `deleteSave {name}` deletes a ja2-node save and its log.
 - **HTTP.** `GET /api/saves`; `POST /api/sessions/:id/save` (`{name?, description?}`; 409 for a refusal, 400 for a bad
   name); `POST /api/sessions/:id/load` (`{name, reseed?}`); `POST /api/sessions {load, reseed?}`; `DELETE
@@ -1050,11 +1056,13 @@ migration) written as two gzip members, so the save list reads the header from t
   is reseeded from a server seed (`crypto.randomInt`), returned as `seed` and logged as `reseed {seed}`; the `PreRandom`
   ring repeats its saved values until they are used up, as after a native reload. `reseed: false` is an exact load:
   the game continues bit for bit like the saved one (reproducible experiments, bug reports). A load checks the logic
-  content before anything is built: another content source (stubs against original data) or another rule pack (§5.10;
-  a 0.7.0 save is checked by its own hash over the files it lists, read from the raw data) refuse it
-  (`contentMismatch`, also shown by `listSaves` for version 2 saves); another data version or other quote lengths load
-  with the warning `dataVersionDiffers`, another engine version or commit with `engineDiffers`. The result carries
-  `warnings`.
+  content before anything is built: another content source (stubs against original data) refuses it
+  (`contentMismatch`); other game data (§5.10: the pack's identity, or the all-layers hash a save of U0b carries; a
+  0.7.0 save is checked by its own hash over the files it lists, read from the raw data, with the files of the
+  repository layers taken as they were saved, `docs/27` §1.7) refuses it on the original data (`contentMismatch`, also
+  shown by `listSaves` for version 2 saves) and loads with the warning `stubPackDiffers` on the stubs, whose pack the
+  repository generates; another data version or other quote lengths load with the warning `dataVersionDiffers`,
+  another engine version or commit with `engineDiffers`. The result carries `warnings`.
 - **Input log and replay.** Every save whose session has a known origin (a new sandbox or campaign with its seed and
   request, a native import with the file's digest, or the save it was loaded from) gets `<name>.log.jsonl.gz`: one
   JSON line for the origin, then `{seq, tick, kind, payload}` per input (`cmd`, `answer`, `advance`, `drive`, `reseed`,

@@ -261,7 +261,7 @@ export class SavePanel {
   async #confirmWarnings(listing: SaveListing): Promise<boolean> {
     const health = this.#ctx.health();
     if (listing.native || !listing.header || !health) return true;
-    const warnings = predictLoadWarnings(listing.header, health);
+    const warnings = predictLoadWarnings(listing.header, health, listing.warnings);
     return warnings.length === 0 || this.#ctx.box.confirm(loadWarningText(this.#ctx.labels(), warnings));
   }
 

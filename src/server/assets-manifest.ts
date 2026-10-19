@@ -117,12 +117,14 @@ export class VfsHashes {
     };
     await Promise.all(Array.from({ length: HASHING_CONCURRENCY }, worker));
     await this.flush();
+    const layerNames = this.vfs.layers.map((layer) => layer.name);
     const files = listing.map((f, i): AssetManifestEntry => {
       const layers = this.vfs.layerCount(f.path);
       const hash = hashes[i] as string;
-      return layers > 1 ? [f.path, f.size, hash, layers] : [f.path, f.size, hash];
+      const layer = layerNames.indexOf(f.layer);
+      return layers > 1 ? [f.path, f.size, hash, layer, layers] : [f.path, f.size, hash, layer];
     });
-    return { format: ASSET_MANIFEST_FORMAT, version: ASSET_MANIFEST_VERSION, source, stubText, files };
+    return { format: ASSET_MANIFEST_FORMAT, version: ASSET_MANIFEST_VERSION, source, stubText, layers: layerNames, files };
   }
 
   #schedulePersist(): void {

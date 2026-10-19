@@ -75,10 +75,11 @@ describe('server', () => {
     const manifest = await plain.json();
     expect(manifest).toEqual({
       format: 'ja2-node-assets',
-      version: 1,
+      version: 2,
       source: 'stubs',
       stubText: true,
-      files: [['interface/panel.sti', 10, DATA_HASH]],
+      layers: ['mem'],
+      files: [['interface/panel.sti', 10, DATA_HASH, 0]],
     });
     expect(JSON.parse(gunzipSync(Buffer.from(await zipped.arrayBuffer())).toString('utf8'))).toEqual(manifest);
     const etag = plain.headers.get('etag') ?? '';

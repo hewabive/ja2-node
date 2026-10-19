@@ -1,14 +1,16 @@
-import { appendFile, mkdir, mkdtemp, readdir, rm, utimes, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, mkdtemp, readdir, readFile, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { isMapFile } from '../content/rules/families.ts';
 import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
-import type { RulePack } from '../content/rules/pack.ts';
+import type { RulePack, RuleSource } from '../content/rules/pack.ts';
 import { dataDecoding } from '../content/text/data-version.ts';
-import { type Vfs, vfsFileReader } from '../content/vfs/vfs.ts';
+import { PROJECT_DATA_LAYER, STUBS_LAYER } from '../content/vfs/layers.ts';
+import { MemoryLayer, Vfs, vfsFileReader } from '../content/vfs/vfs.ts';
 import { loadTacticalWorldInputs } from '../content/world/tactical-world.ts';
+import { TILE_TABLES_PATH } from '../content/world/tile-tables.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import { openDataVfs } from '../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
@@ -80,6 +82,42 @@ async function expectRunsWithoutGraphics(vfs: Vfs, pack: RulePack, originalData:
   expect(sandbox.view().soldiers.length).toBeGreaterThan(0);
 }
 
+type Files = Readonly<Record<string, string>>;
+
+const TABLES: Files = { 'tables/merchant-tables.json': '{}' };
+const USER_DATA: Files = { 'maps/a9.dat': 'map', 'npcdata/000.npc': 'records' };
+const STUBS: Files = { 'stubs/maps/a9.dat': 'stub map', 'stubs/npcdata/000.npc': 'stub records' };
+
+async function memoryPackHash(source: RuleSource, tables: Files, user: Files, stubs: Files): Promise<string> {
+  const tiles = await readFile(join(PROJECT_DATA_DIR, TILE_TABLES_PATH));
+  const layer = (name: string, files: Files) =>
+    new MemoryLayer(
+      name,
+      Object.entries(files).map(([path, text]) => [path, new TextEncoder().encode(text)] as const),
+    );
+  const vfs = new Vfs([
+    new MemoryLayer(PROJECT_DATA_LAYER, [[TILE_TABLES_PATH, tiles]]),
+    layer(PROJECT_DATA_LAYER, tables),
+    layer('data-dir', user),
+    layer(STUBS_LAYER, stubs),
+  ]);
+  return (await openRulePack({ vfs, source, cacheDir: null })).pack.hash;
+}
+
+describe('the identity of a rule pack built from VFS layers', () => {
+  it('binds the original data to the user data and the stubs to the stub pack, never to the project tables', async () => {
+    const original = await memoryPackHash('original', TABLES, USER_DATA, STUBS);
+    const stubs = await memoryPackHash('stubs', TABLES, USER_DATA, STUBS);
+    const newTables = { ...TABLES, 'tables/cursors.json': '[]', 'tables/merchant-tables.json': '{"a":1}' };
+    const newStubs = { ...STUBS, 'stubs/npcdata/000.npc': 'other stub records' };
+    const newUserData = { ...USER_DATA, 'maps/a9.dat': 'other map' };
+    expect(await memoryPackHash('original', newTables, USER_DATA, newStubs)).toBe(original);
+    expect(await memoryPackHash('original', TABLES, newUserData, STUBS)).not.toBe(original);
+    expect(await memoryPackHash('stubs', newTables, USER_DATA, STUBS)).toBe(stubs);
+    expect(await memoryPackHash('stubs', TABLES, USER_DATA, newStubs)).not.toBe(stubs);
+  });
+});
+
 describe('the rule pack on the stub data', () => {
   let kit: StubSectorKit;
   let pack: RulePack;
@@ -121,7 +159,7 @@ describe('the rule pack on the stub data', () => {
           await utimes(join(dir, 'pack.json'), new Date(2000, 0, i + 1), new Date(2000, 0, i + 1));
         }
         const built = await openRulePack({ vfs: kit.vfs, source: 'stubs', cacheDir });
-        expect(built).toMatchObject({ cached: false, dir: join(cacheDir, `rules-${pack.hash}`) });
+        expect(built).toMatchObject({ cached: false, dir: join(cacheDir, `rules-${pack.allLayersHash}`) });
         expect(built.pack.hash).toBe(pack.hash);
         expect(
           (await readdir(cacheDir, { withFileTypes: true })).filter((e) => e.isDirectory() && e.name.startsWith('rules-')),

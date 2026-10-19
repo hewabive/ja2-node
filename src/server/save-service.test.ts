@@ -78,6 +78,15 @@ async function rewrite(k: SaveKit, from: string, to: string, change: (file: Save
   await k.store.write(to, { bytes: encodeSaveFile(change(await storedFile(k, from))).bytes, log: null, backups: false });
 }
 
+function withLogic(logic: string): (file: SaveFile) => SaveFile {
+  return (f) => ({ ...f, header: { ...f.header, content: { ...f.header.content, logic } } });
+}
+
+async function loadWarnings(k: SaveKit, name: string): Promise<readonly string[] | undefined> {
+  const session = await k.open({ load: name, reseed: false });
+  return k.saves.lastLoad(session)?.warnings;
+}
+
 async function loadProblem(k: SaveKit, name: string): Promise<string> {
   try {
     await k.open({ load: name, reseed: false });
@@ -215,13 +224,14 @@ describe('saves and loads on the stub pack', () => {
   );
 
   it(
-    'refuses content mismatches and newer versions, and warns about text and engine differences',
+    'refuses another source and newer versions, warns about another stub pack, text and engine',
     async () => {
       await withKit(async (k) => {
         const session = await k.open({ seed: 5 });
         session.advance({ ticks: 50 });
         expect(await k.saves.save(session, { name: 'base' })).toMatchObject({ ok: true });
-        await rewrite(k, 'base', 'logic', (f) => ({ ...f, header: { ...f.header, content: { ...f.header.content, logic: 'x' } } }));
+        await rewrite(k, 'base', 'logic', withLogic('x'));
+        await rewrite(k, 'base', 'u0b', withLogic(k.pack.allLayersHash));
         await rewrite(k, 'base', 'source', (f) => ({
           ...f,
           header: { ...f.header, content: { ...f.header.content, source: 'original' } },
@@ -231,27 +241,52 @@ describe('saves and loads on the stub pack', () => {
           ['npcdata/199.npc', 'm'],
           ['stubs/world/maps/village.dat', 'f'],
         ];
-        const legacyHash = await k.identity.legacyHash(legacyFiles);
+        const legacyHash = await k.legacy.logicHash(legacyFiles);
         await writeVersionOne(k, 'base', 'version1', legacyFiles, legacyHash);
         await writeVersionOne(k, 'base', 'files', [...legacyFiles, ['stubs/world/maps/a9.dat', 'f']], legacyHash);
         await rewrite(k, 'base', 'newer', (f) => ({ ...f, version: SAVE_VERSION + 1 }));
         await rewrite(k, 'base', 'text', (f) => ({ ...f, header: { ...f.header, content: { ...f.header.content, text: 'other' } } }));
         await rewrite(k, 'base', 'engine', (f) => ({ ...f, header: { ...f.header, engine: { version: '9.9.9', commit: 'zzz' } } }));
-        expect(await loadProblem(k, 'logic')).toBe('contentMismatch');
         expect(await loadProblem(k, 'source')).toBe('contentMismatch');
-        expect(await loadProblem(k, 'files')).toBe('contentMismatch');
         expect(await loadProblem(k, 'newer')).toBe('versionTooNew');
         expect(await loadProblem(k, 'missing')).toBe('notFound');
-        expect(await loadProblem(k, 'version1')).toBe('none');
-        const warned = await k.open({ load: 'text', reseed: false });
-        expect(k.saves.lastLoad(warned)?.warnings).toEqual(['dataVersionDiffers']);
-        const engine = await k.open({ load: 'engine', reseed: false });
-        expect(k.saves.lastLoad(engine)?.warnings).toEqual(['engineDiffers']);
+        expect(await loadWarnings(k, 'logic')).toEqual(['stubPackDiffers']);
+        expect(await loadWarnings(k, 'files')).toEqual(['stubPackDiffers']);
+        expect(await loadWarnings(k, 'u0b')).toEqual([]);
+        expect(await loadWarnings(k, 'version1')).toEqual([]);
+        expect(await loadWarnings(k, 'text')).toEqual(['dataVersionDiffers']);
+        expect(await loadWarnings(k, 'engine')).toEqual(['engineDiffers']);
         const listed = await k.saves.list();
         expect(listed.find((s) => s.name === 'newer')).toMatchObject({ compatible: false, problems: ['versionTooNew'] });
         expect(listed.find((s) => s.name === 'source')).toMatchObject({ compatible: false, problems: ['contentMismatch'] });
+        expect(listed.find((s) => s.name === 'logic')).toMatchObject({ compatible: true, problems: [], warnings: ['stubPackDiffers'] });
+        expect(listed.find((s) => s.name === 'u0b')).toMatchObject({ compatible: true, problems: [], warnings: [] });
+        expect(listed.find((s) => s.name === 'files')).toMatchObject({ compatible: true, problems: [], warnings: [] });
         await expect(k.saves.loadInto(session, '../base')).rejects.toMatchObject({ problem: 'invalidName' });
       });
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  it(
+    'refuses other game data on the original data, but takes a save with the identity U0b wrote',
+    async () => {
+      await withKit(
+        async (k) => {
+          const session = await k.open({ seed: 5 });
+          session.advance({ ticks: 50 });
+          expect(await k.saves.save(session, { name: 'base' })).toMatchObject({ ok: true, header: { content: { source: 'original' } } });
+          await rewrite(k, 'base', 'logic', withLogic('x'));
+          await rewrite(k, 'base', 'u0b', withLogic(k.pack.allLayersHash));
+          expect(await loadProblem(k, 'logic')).toBe('contentMismatch');
+          expect(await loadWarnings(k, 'u0b')).toEqual([]);
+          expect(await loadWarnings(k, 'base')).toEqual([]);
+          const listed = await k.saves.list();
+          expect(listed.find((s) => s.name === 'logic')).toMatchObject({ compatible: false, problems: ['contentMismatch'], warnings: [] });
+          expect(listed.find((s) => s.name === 'u0b')).toMatchObject({ compatible: true, problems: [] });
+        },
+        { source: 'original' },
+      );
     },
     TEST_TIMEOUT_MS,
   );

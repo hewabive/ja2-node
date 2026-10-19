@@ -9,10 +9,12 @@ import {
   engineIdentity,
   type LogicIdentity,
   logicIdentityOf,
+  type SavedRepositoryFile,
   welcomeIdentityOf,
 } from './content-identity.ts';
 import type { LogOrigin } from './input-log.ts';
 import { type OriginBuilder, replaySave } from './replay.ts';
+import { gitRepositoryHistory } from './repository-history.ts';
 import { SaveService } from './save-service.ts';
 import { SAVE_DIR_ENV, SaveStore, saveDirFromEnv } from './save-store.ts';
 import type { SessionSim } from './session.ts';
@@ -54,8 +56,15 @@ export function contentSourceOf(dataDir: string | null): 'original' | 'stubs' {
   return dataDir !== null ? 'original' : 'stubs';
 }
 
-export function legacyContentLedger(vfs: Vfs, pack: RulePack): ContentLedger {
-  return new ContentLedger(pack.source, vfsFileReader(vfs), (path) => vfs.stat(path) !== undefined);
+export function legacyContentLedger(
+  vfs: Vfs,
+  pack: RulePack,
+  savedRepositoryFile: SavedRepositoryFile = gitRepositoryHistory(),
+): ContentLedger {
+  return new ContentLedger(pack.source, vfsFileReader(vfs), (path) => vfs.stat(path) !== undefined, {
+    layerOf: (path) => vfs.stat(path)?.layer ?? null,
+    savedRepositoryFile,
+  });
 }
 
 export function createSaveEnvironment(input: SaveEnvironmentInput): SaveEnvironment {

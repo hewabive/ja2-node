@@ -161,6 +161,16 @@ describe('save rows', () => {
     ]);
   });
 
+  it('add the warnings the server lists for a save, such as another stub pack', () => {
+    const health = { dataVersion: 'english', engine: { version: '0.0.0', commit: 'abc' } };
+    expect(predictLoadWarnings(header(), health, ['stubPackDiffers'])).toEqual(['stubPackDiffers', 'dataVersionDiffers']);
+    expect(loadWarningText(labels, ['stubPackDiffers']).split('\n')).toEqual([
+      '<savedGameIssue>',
+      `- ${LABELS.stubPackDiffers.eng}`,
+      '<continueAnyway>',
+    ]);
+  });
+
   it('save over player and quick saves but never over autosaves or native saves', () => {
     expect(overwriteTarget({ name: 'save-1', native: false, kind: 'player' })).toBe('save-1');
     expect(overwriteTarget({ name: 'QuickSave', native: false, kind: 'quick' })).toBe('quick');

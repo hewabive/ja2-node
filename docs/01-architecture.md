@@ -439,7 +439,9 @@ builds a **rule pack** from it at start, every file the simulation reads (the ru
 binaries, maps, structure files, NPC records, text files) plus the few numbers it takes from graphics (tileset frame
 geometry and app data, explosion frame counts) as derived *graphic facts*, and loads every session's content from it;
 the pack refuses any other path, so no graphic is read by the rules. It is cached in `.ja2/cache/rules-<hash>/`, its
-hash (over the inputs) is the logic hash that saves are bound to, and `welcome` names it, so a client building the same
+hash (over the inputs of the game data: the user's data on the original data, the stub pack on the stubs, never the
+tables that ship with the engine; U0c, `27` §1.7) is the logic hash that saves are bound to, and `welcome` names it,
+so a client building the same
 rule content from its own asset source (for the hints, `28` §2.4) can check it has the server's rules. The
 `ja2bin.dat` scripts are split at load into a logic timeline (the simulation) and a presentation timeline (sprite
 frames and sounds, the views and clients). Media stays outside the pack. The pack is never committed: it is built
