@@ -7,7 +7,7 @@ import {
 } from '../../content/world/tactical-world.ts';
 import type { EngineIdentityView, WelcomeIdentity } from '../../protocol/messages.ts';
 import { type KnowledgeRules, knowledgeRules } from '../../sim/knowledge/knowledge-world.ts';
-import type { StrategicRules } from '../../sim/knowledge/strategic.ts';
+import { loadStrategicRules, type StrategicRules } from '../../sim/knowledge/strategic.ts';
 import type { TacticalContent } from '../../sim/tactical/content.ts';
 import { loadTacticalContent } from '../../sim/tactical/load-content.ts';
 import type { AssetSource } from '../assets/asset-source.ts';
@@ -25,7 +25,10 @@ export function knowledgeUsable(check: KnowledgeCheck): boolean {
   return check.engine.matches && check.rules.packMatches && check.rules.scriptsMatch;
 }
 
-export type StrategicRulesLoader = (reader: RuleReader) => Promise<StrategicRules | null>;
+export type StrategicRulesLoader = (reader: RuleReader, content: TacticalContent) => Promise<StrategicRules | null>;
+
+export const loadClientStrategicRules: StrategicRulesLoader = (reader, content) =>
+  loadStrategicRules(reader.read, content.items, (path) => reader.exists(path));
 
 export class ClientWorlds {
   readonly #reader: RuleReader;
@@ -87,7 +90,7 @@ export class ClientKnowledge {
   static async open(
     source: AssetSource,
     identity: WelcomeIdentity,
-    strategic: StrategicRulesLoader = async () => null,
+    strategic: StrategicRulesLoader = loadClientStrategicRules,
     engine: EngineIdentityView = clientEngineIdentity(),
   ): Promise<ClientKnowledge> {
     const reader = await loadClientRules(source, identity.rules);
@@ -95,7 +98,7 @@ export class ClientKnowledge {
       engine: { expected: identity.engine, actual: engine, matches: sameEngine(engine, identity.engine) },
       rules: reader.check,
     };
-    const [content, strategicRules] = await Promise.all([loadTacticalContent(reader.read), strategic(reader)]);
-    return new ClientKnowledge(check, content, new ClientWorlds(reader), strategicRules);
+    const content = await loadTacticalContent(reader.read);
+    return new ClientKnowledge(check, content, new ClientWorlds(reader), await strategic(reader, content));
   }
 }
