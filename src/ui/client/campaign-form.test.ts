@@ -50,6 +50,14 @@ describe('new campaign form', () => {
     expect(validDeadIsDeadName('-dash')).toBe(false);
   });
 
+  it('sends a typed Dead is Dead description instead of a name, for the server to derive the save name', () => {
+    const form = { ...DEFAULT_CAMPAIGN_FORM, saveMode: 'deadIsDead' as const, deadIsDeadDescription: ' Last stand ' };
+    const request = campaignRequest(form, null);
+    expect(request).toMatchObject({ ok: true, body: { campaign: { deadIsDeadDescription: 'Last stand' } } });
+    expect(request.ok && 'deadIsDeadName' in request.body.campaign).toBe(false);
+    expect(campaignRequest({ ...form, saveMode: 'anywhere' }, null)).toMatchObject({ ok: true, body: { campaign: {} } });
+  });
+
   it('refuses a squad size outside 1 to 6', () => {
     expect(campaignRequest({ ...DEFAULT_CAMPAIGN_FORM, squadSize: 7 }, null)).toEqual({ ok: false, problem: 'squadSize' });
     expect(campaignRequest({ ...DEFAULT_CAMPAIGN_FORM, squadSize: 0 }, null)).toEqual({ ok: false, problem: 'squadSize' });

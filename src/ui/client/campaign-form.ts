@@ -16,6 +16,7 @@ export interface CampaignForm {
   readonly saveMode: SaveMode;
   readonly bloodAndGore: boolean;
   readonly deadIsDeadName: string;
+  readonly deadIsDeadDescription?: string;
   readonly squad: SquadChoice;
   readonly squadSize: number | null;
   readonly land: boolean;
@@ -50,6 +51,7 @@ export interface CampaignBody {
   readonly campaign: {
     readonly options: GameOptions;
     readonly deadIsDeadName?: string;
+    readonly deadIsDeadDescription?: string;
     readonly hire?: readonly never[];
     readonly mercs?: number;
     readonly land?: false;
@@ -79,10 +81,17 @@ function startPage(form: CampaignForm): StartPage {
   return landed ? form.page : 'strategic';
 }
 
-export function campaignRequest(form: CampaignForm, language: UiLanguage | null, seed: number | null = null): CampaignRequest {
-  const deadIsDead = form.saveMode === 'deadIsDead';
+function deadIsDeadPart(form: CampaignForm): { readonly deadIsDeadName?: string; readonly deadIsDeadDescription?: string } | null {
+  if (form.saveMode !== 'deadIsDead') return {};
+  const description = form.deadIsDeadDescription?.trim();
+  if (description) return { deadIsDeadDescription: description };
   const name = form.deadIsDeadName.trim();
-  if (deadIsDead && !validDeadIsDeadName(name)) return { ok: false, problem: 'deadIsDeadName' };
+  return validDeadIsDeadName(name) ? { deadIsDeadName: name } : null;
+}
+
+export function campaignRequest(form: CampaignForm, language: UiLanguage | null, seed: number | null = null): CampaignRequest {
+  const deadIsDead = deadIsDeadPart(form);
+  if (!deadIsDead) return { ok: false, problem: 'deadIsDeadName' };
   if (form.squadSize !== null && (!Number.isInteger(form.squadSize) || form.squadSize < 1 || form.squadSize > MAX_SQUAD_SIZE))
     return { ok: false, problem: 'squadSize' };
   const options: GameOptions = {
@@ -98,7 +107,7 @@ export function campaignRequest(form: CampaignForm, language: UiLanguage | null,
     body: {
       ...(seed !== null ? { seed } : {}),
       ...(language ? { language } : {}),
-      campaign: { options, ...(deadIsDead ? { deadIsDeadName: name } : {}), ...squadPart(form) },
+      campaign: { options, ...deadIsDead, ...squadPart(form) },
     },
   };
 }

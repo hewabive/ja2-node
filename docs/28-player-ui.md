@@ -2189,13 +2189,12 @@ load shows `LOADINGSCREEN_NOTHING` (`ls_heli.sti`) until a picture id arrives; a
 default loads when it is first shown; the in-game screens are placeholders with the in-game keys (o, Ctrl+S, Ctrl+L,
 Alt+X); `/play` plays no splash and has no "connection lost" panel yet.
 
-Open for the lead after U3a: `HttpFrontEndClient.closeSession` only leaves the session (wire `closeSession` for the
-Dead is Dead save point); `newCampaign` drops the Dead is Dead description and lets the server name the slot
-`DeadIsDead` unless the player picked an existing row (send `deadIsDeadDescription`); the sector-entry event's picture id
-goes into `LoadingController` (preload it before the screen shows); `sexScene` already opens the San Mona screen, the
-time warp is the server's. The e2e suite was at the server's 16-session cap before U2 and the canvas new game adds a
-session, so `talk.spec.ts` fails on the cap until the front-end spec's `DELETE /api/sessions/:id` (sent already)
-finds U3a's route.
+Wired after U3a (2026-10-19): `HttpFrontEndClient.closeSession` sends the session's `closeSession` (the Dead is Dead
+save point) before leaving it; a new Dead is Dead game sends the typed description (`campaign.deadIsDeadDescription`,
+`campaignRequest`) unless the player chose an existing row, so the server derives the save name; the front-end e2e
+spec's `DELETE /api/sessions/:id` frees its session, so the suite stays under the server's 16-session cap. Still open:
+the sector-entry event's picture id goes into `LoadingController` when the map and tactical screens exist (U5, U8);
+`sexScene` already opens the San Mona screen, the time warp is the server's.
 
 ---
 

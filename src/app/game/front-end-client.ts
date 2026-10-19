@@ -54,6 +54,7 @@ export class HttpFrontEndClient implements FrontEndClient {
         ...campaign.options,
         squad: 'laptop',
         deadIsDeadName: campaign.deadIsDead?.name ?? DEFAULT_CAMPAIGN_FORM.deadIsDeadName,
+        ...(campaign.deadIsDead && campaign.deadIsDead.name === null ? { deadIsDeadDescription: campaign.deadIsDead.description } : {}),
       },
       this.#language(),
     );
@@ -81,6 +82,7 @@ export class HttpFrontEndClient implements FrontEndClient {
   }
 
   async closeSession(): Promise<void> {
+    await this.#client?.closeSession().catch(() => undefined);
     this.leaveSession();
   }
 
