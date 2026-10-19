@@ -80,5 +80,6 @@ export function renderWorldOf(w: LoadedWorld): RenderWorld {
     restrictedScrollId: w.map.info.restrictedScrollId,
     basement: w.map.ambient?.basement === true,
     lightColour: mapLightColour(w.map),
+    prepare: (level) => prepareLevelRenderData(level, w.tiles, w.tables, w.map.info, w.underground),
   };
 }

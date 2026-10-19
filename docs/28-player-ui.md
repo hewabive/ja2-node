@@ -2235,6 +2235,64 @@ view (G8, U4b), so the projection's world lacks destroyed structures until U4b a
 (`enable_stat_healing`) is not in the view; the exit dry run cannot know mercs already walking off; the client loads the
 tactical content without the stub profiles a stub campaign adds (`withStubProfiles`), which no hint reads today.
 
+#### U4b: world renderer, second part (2026-10-19)
+
+The rest of U4 on top of U3a's view: the animation schedule, the world state of G8, the glow and the merc lights, in
+the devtools tactical page (the `/play` page gets the world with U5).
+
+| Area | As built |
+|---|---|
+| Animation schedule | `src/content/anim/schedule-track.ts` and `src/app/world/soldier-frames.ts`. `loadSoldierFrames` reads the client's own `ja2bin.dat` through the asset reader and compares its hash with `welcome.rules.scripts` (`SessionClient.rules`, new). Equal scripts (always on scenario 2): the sprite frame is the presentation frame of the view's `frameSlot`, the same frame as `frame`. Different scripts (`?scripts=stub` forces the stub scripts on the page): per state the client walks its own script into a track (frames, the frames shown with opcode 430, a loop or an end) and plays it from `stateTick` at `frameDelay`, warped piecewise between the state start and the ticks of `shotFired`/`meleeStrike` (taken from received frames through `SessionClient.onReceive`, so playback behind the latest tick interpolates), holding the frame before an unconfirmed marker. `SoldierView.frame` stays: the sound director (`src/audio/director.ts`) still walks the scripts from `frame`, and agents see it; it can go once the director follows `frameSlot` |
+| World view (G8) | `src/sim/tactical/world-view.ts`, `04` §6.27: `corpses` (with the soldier's palettes and the camouflage flag, now kept on corpse records), `smoke` (effect per tile and the dissipating graphic, bit 0x40 of the smoke tile flags), `light {ambient, sprites}` (explosion and muzzle-flash sprites), `tileChanges` (the sector's structure map changes as tile removals and additions; a bullet's window hit is now recorded like an explosion's), ground items' `height` and `notRendered` |
+| Corpses and smoke | `src/app/world/world-effects.ts` loads `tables/corpses.json`, `smoke-effects.json`, the corpse and smoke graphics, `anims/camo.col` and the monster COL palettes on demand (stub art under `stubs/` on stubs). A corpse is drawn at the start frame of its direction block (four blocks for the fall types, vehicles loop at 150 ms), with `CreateCorpsePalette`'s palette (the graphic's own at `ROTTING_STAGE2`, camo, the monster COLs, the own palette of animals and vehicles, else the soldier's replacements) in 16 shaded rows, its z strips from the corpse structure, its shadow pixels and the tile's shade. Smoke tiles cycle their 12 frames from a per-tile start frame and delay, translucent; with "animate smoke" off the static graphic opaque. `src/render/world/dynamic-scene.ts` emits both in the structure (or on-roof) layer of the dynamic pass at the original's z (`05`) |
+| Tile changes | `src/render/world/tile-changes.ts` applies the view's `tileChanges` to the map's struct and on-roof layers (a removal followed by an addition on the same tile keeps the node's place, as a partner swap does); the renderer then updates the level render data of the touched tiles (`updateLevelRenderData`: no-burn flags and shadow lists), recomputes the reveal state and rebuilds only the static rows of the touched tiles and of changed reveal flags, keeping the dynamic map nodes unless a dynamic tile changed (A9 in Node on a loaded machine: 7–12 ms per change of the list, against 55–130 ms for a full rebuild). Windows show cracked and shattered, wrecked structures disappear, the O3 statue opens |
+| Lighting | `WorldLighting.field` takes the view's ambient level and the dynamic sprites, drawn like the merc lights with the strongest-light rule. `src/app/world/light-templates.ts` resolves templates from the user's data (`externalized/light-templates.json` or loose `.LHT` files whose winning layer is not a repository layer, `src/content/formats/lht.ts`), then the generated ones, then the stand-ins `L-R06`/`L-R07`/`L-R08` for `Light2`/`Light3`/`Light4`; the merc light follows the head slots (UV goggles, night goggles) of the view's inventory |
+| Glow | `src/app/world/glow-context.ts`: hostility from the view's `hostile`, grey when the selected merc's `sees` lacks the soldier (not while on fire or exploding), the AI baton holder from `aiTurn` events (`AiTurnHolder`, released at a turn start, an interrupt or the end of combat) |
+| Multi-tile soldiers | `SoldierAssets` loads the animation structures; a soldier whose structure for the state and direction spans several tiles (prone mercs, vehicles, the tank, large creatures) is drawn in the struct-merc pass at the z of its structure's z offset (vehicles at the structure z), in the z strips of the first frame of its direction block |
+| Items | Items lying on a structure are raised by their height at the structure z plus the height; items inside an open container are not drawn |
+| Stub art | `stubs/effects.ts`: a lying body in eight directions for every corpse graphic and twelve-frame puffs for every smoke graphic |
+| Hooks | `__ja2Tactical` gains `framePolicy`, `mercLightOrigin`, `lightTemplatesFromData`, `corpses`, `smokeTiles`, `tileChanges`, `ambient`, `dynamicLights`, `aiTurn`, `drawnEffects`, `soldierGridNos` and `centerOn` |
+
+**Measured** with original data on the devtools tactical page, 1920×1080, UI scale 2, headless Chromium on SwiftShader,
+the base commit `09ce2de` and this slice served side by side and measured alternately (the machine was shared with
+other agents, so the frame intervals are noisy):
+
+| | base | U4b |
+|---|---|---|
+| A9 sandbox, six mercs: draw calls | 26 | 26 |
+| A9: world render call p50 / p95 | 0.3 / 0.5–0.6 ms | 0.4 / 0.6–0.8 ms |
+| A9: frame interval p50 / p95 | 50–83 / 83–117 ms | 33–67 / 83–100 ms |
+| D13 at night (SaveGame07), four corpses in view: draw calls | 15 | 23 |
+| D13: world render call p50 / p95 | 0.3–0.4 / 0.8–1.6 ms | 0.4–0.5 / 1.1–2.4 ms |
+| D13: frame interval p50 / p95 | 33–50 / 67–83 ms | 33 / 50–83 ms |
+
+The original data has no smoke source in reach of the page (no smoke grenade in the sandbox kits, smoke records of
+native saves are not imported), so a smoke cloud was measured in Node on A9: 81 smoke tiles and 10 corpses add 161
+sprites in 21 draw runs (smoke merges into one run, a corpse costs two) and 0.09 / 0.18 ms (p50 / p95) to the
+dynamic pass.
+
+Tests: `src/app/world/soldier-frames.test.ts` (the track walk, exact frames, stretch, squeeze, loops; with
+`JA2_DATA_DIR` the stub scripts hit their fire marker at the tick of a shot on the original rules, the original scripts
+at the tick of a shot on the stub rules, and the same scripts give `frame` on every tick), `world-view.test.ts`,
+`world-effects.test.ts` (on the stub pack: a corpse at its direction's start frame, smoke with the dissipating graphic,
+the static graphic when smoke is not animated), `world-lighting.test.ts` (the local update of the level render data
+equals a full preparation), `light-templates.test.ts` (with `JA2_DATA_DIR`: the Gold data has the map templates, equal to
+the generated ones, and no `Light` templates), `glow-context.test.ts`, `dynamic-scene.test.ts` (corpse, vehicle, roof
+and smoke z, multi-tile strips, raised items), `tile-changes.test.ts`, `tests/e2e/battle.spec.ts` (on stubs, after
+the MCP agent's fight: the tactical page on that session follows the schedule exactly, lights the mercs with the
+stand-in, takes the view's ambient and draws every corpse the server reports).
+
+Decisions and limits: the warp anchors only the state start and opcode 430 (other gameplay opcodes carry no event
+with a tick); the scripts' hash `unknown` counts as equal; `Light0` … `Light6` are read from the user's data only,
+never from the copy of Stracciatella's `light-templates.json` that `data/externalized/` has carried since M2 (whether
+that copy may be used is the maintainer's call, `20` §2); corpses follow the tile's shade every frame; translucency is
+a 50 % alpha blend. Open: explosion, ripple and miss animations are not in the view (their light is); known mines and
+bombs have nothing to show yet, since the simulation neither detects nor plants mines (no blue flags, deviations "Map
+items" and "Duds and timed bombs"); the helicopter's pieces need the simulation to add them (deviation "Helicopter on
+the map"); added exit grids matter to the cursor, not the picture; the client's lighting casts light through the
+map's original structures, so a wall destroyed by a grenade does not let a lamp's light through on the client; the
+cover and line-of-sight tiles; the world in the `/play` page (U5).
+
 ---
 
 ## 18. Decisions and open questions

@@ -58,6 +58,13 @@ export interface Corpse {
   readonly type: number;
   readonly timeOfDeath: number;
   readonly findSweetSpot?: boolean;
+  readonly palettes?: readonly [hair: string, skin: string, vest: string, pants: string];
+  readonly camo?: boolean;
+}
+
+export function corpseLook(s: Soldier): Pick<Corpse, 'palettes' | 'camo'> {
+  const p = s.palettes;
+  return { palettes: [p.hair, p.skin, p.vest, p.pants], ...(s.camo !== 0 ? { camo: true } : {}) };
 }
 
 const isMercBody = (s: Soldier) => s.bodyType <= Body.REGFEMALE;
@@ -297,6 +304,7 @@ function turnSoldierIntoCorpse(t: TacticalState, s: Soldier): boolean {
     profile: s.profile,
     type,
     timeOfDeath: Math.trunc(worldSeconds(t) / SECONDS_PER_MINUTE),
+    ...corpseLook(s),
   });
   addCorpseStructure(t, s.gridNo, s.level, type, direction);
   return true;

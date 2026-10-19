@@ -27,6 +27,7 @@ export const DrawState = {
   FARTHER: 7,
   FARTHER_OR_EQUAL: 8,
   ALWAYS_WRITE: 9,
+  TRANSLUCENT: 10,
 } as const;
 export type DrawState = (typeof DrawState)[keyof typeof DrawState];
 

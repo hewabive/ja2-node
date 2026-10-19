@@ -13,6 +13,7 @@ import { setSectorFlag } from '../strategic/map/sectors.ts';
 import type { StrategicState } from '../strategic/state.ts';
 import { worldDay, worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { anim } from '../tactical/anim-states.ts';
+import { corpseLook } from '../tactical/combat/death.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { removeWorldItem, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
@@ -79,6 +80,7 @@ export function addDeadSoldierToUnloadedSector(
     type: corpseTypeFor(content.corpses.table, s.bodyType, anim(content, record.deathAnimation)),
     timeOfDeath: worldTotalMinutes(state.clock),
     findSweetSpot: true,
+    ...corpseLook(s),
   });
   setSectorFlag(state.map, sector, SectorFlag.ROTTING_CORPSE_TEMP_FILE_EXISTS, worldDay(state.clock));
 }

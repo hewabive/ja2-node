@@ -1175,7 +1175,7 @@ index of `zHealthStr`, `GetSoldierHealthString`), never life. **Ground items** a
 
 **The animation schedule.** Every soldier entry carries `frameSlot` (the timeline slot of the frame it shows, `28`
 §2.3), `stateTick` (the tick its animation state started) and `frameDelay` (`sAniDelay` in ms); `frame` (the sprite
-frame) stays until the client follows the schedule (U4b).
+frame) stays for the devtools pages and the sound director (U4b's renderer follows the schedule, §6.27).
 
 **The combat block** adds `uiLocked` (orders are refused: not our turn, an attack resolving, a queued order or an own
 merc acting), `topMessage {kind, team, bloodcats}` and `ai {current, total}`. The turn state keeps the top message the
@@ -1324,6 +1324,34 @@ per view, and falls back to the query channel when the knowledge is unusable or 
 mode** (`?shadowHints=1` on the devtools tactical page, on in e2e) it sends every local hint to the server as well and
 counts compared, stale (another tick) and differing answers; `window.__ja2Ui.hints` exposes the statistics, including
 the latency of hints and of projection builds.
+
+### 6.27. The world view (M8, U4b)
+
+What the original draws in the loaded sector besides the soldiers and the items (`28` §12.1 G8), from
+`src/sim/tactical/world-view.ts`. Every field is in the tactical view whenever a sector is loaded and is re-sent whole
+when it changes.
+
+- `corpses [{gridNo, level, type, direction, bodyType, palettes?, camo?}]`: every rotting corpse of the sector (the
+  original draws all of them, `bVisible` is always 1); `type` is the corpse type of `tables/corpses.json` (the rotting
+  stage is `ROTTING_STAGE2`, decided when the sector loads), `palettes` the soldier's `[hair, skin, vest, pants]`
+  palette names and `camo` the camouflage flag (`ROTTING_CORPSE_USE_CAMO_PALETTE`). Corpse records now keep the
+  palettes and the flag (deaths, unloaded-sector deaths, native save import); older records have none and are drawn
+  with the graphic's own palette.
+- `smoke [{gridNo, level, effect, dissipating?}]`: every tile with a smoke effect, `effect` the name of
+  `smoke-effects.json`; `dissipating` marks a tile whose graphic was added while its cloud had fewer than two turns
+  left (`AddSmokeEffectToTile`), kept as bit 0x40 of the smoke tile flags.
+- `light {ambient, sprites [{x, y, template}]}`: the ambient light level (`ubAmbientLightLevel`) and the light sprites
+  that are not map lights: explosions (`L-R04.LHT`) and muzzle flashes (`L-R03.LHT`); light effects would add
+  `Light{radius}`, which the simulation cannot create (deviation "Light effects").
+- `tileChanges [{kind: remove|add, gridNo, level, tile}]`: the structure graphics changed since the map was loaded, in
+  order, from the map changes the sector diff keeps (a structure record turned into the tile index whose structure it
+  is): wrecked and damaged structures, the O3 statue and window hits. A bullet's window hit is now recorded like an
+  explosion's (`AddWindowHitToMapTempFile`), so a broken window stays broken when the sector loads again.
+- Ground items add `height` (`bRenderZHeightAboveLevel`, when lying on a structure) and `notRendered`
+  (`WORLD_ITEM_DONTRENDER`, items inside an open container).
+- `light` is the one light block of §6.26: every active light sprite with `dynamic: true` on the muzzle flashes,
+  explosions and flares; the renderer draws the map's own lights from the map and adds only the dynamic ones, the hints
+  read them all.
 
 ## 7. Cost and limitations
 

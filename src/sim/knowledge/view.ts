@@ -65,7 +65,7 @@ export interface KnowledgeItem {
   readonly status: number;
   readonly money?: number;
   readonly attachments?: readonly KnowledgeItemAttachment[];
-  readonly zHeight?: number;
+  readonly height?: number;
 }
 
 export interface KnowledgeCombat {
@@ -84,6 +84,7 @@ export interface KnowledgeLightSprite {
   readonly x: number;
   readonly y: number;
   readonly roof?: true;
+  readonly dynamic?: true;
 }
 
 export interface KnowledgeLight {

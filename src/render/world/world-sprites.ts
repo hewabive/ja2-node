@@ -1,5 +1,5 @@
 import type { IndexedPicture } from '../../content/picture/picture.ts';
-import { SHADE_LEVEL_COUNT, shadedDisplayPalette } from '../../content/world/shading.ts';
+import { displayRgbFrom565, rgbTo565, SHADE_LEVEL_COUNT, shadedDisplayPalette } from '../../content/world/shading.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
 import { ArrayAtlas, type ArrayRegion } from '../array-atlas.ts';
 import { PaletteRows } from '../palette-rows.ts';
@@ -30,6 +30,7 @@ export class WorldSprites {
   readonly #tileSprites: (TileSprite | null | undefined)[];
   readonly #sheets = new Map<string, LoadedSoldierSheet>();
   readonly #soldierPalettes = new Map<string, number>();
+  readonly #shadedPalettes = new Map<string, number>();
   readonly #light: LightColour;
 
   constructor(
@@ -102,10 +103,42 @@ export class WorldSprites {
     return first;
   }
 
+  shadedPaletteBase(key: string, palette: () => Uint8Array): number {
+    const cached = this.#shadedPalettes.get(key);
+    if (cached !== undefined) return cached;
+    const source = palette();
+    let first = -1;
+    for (let shade = 0; shade < SHADE_LEVEL_COUNT; shade++) {
+      const row = this.palettes.add(shadedDisplayPalette(source, shade, this.#light));
+      if (first < 0) first = row;
+    }
+    this.#shadedPalettes.set(key, first);
+    return first;
+  }
+
+  plainPaletteRow(key: string, palette: () => Uint8Array): number {
+    const cached = this.#shadedPalettes.get(key);
+    if (cached !== undefined) return cached;
+    const row = this.palettes.add(plainDisplayPalette(palette()));
+    this.#shadedPalettes.set(key, row);
+    return row;
+  }
+
   dispose(): void {
     this.atlas.dispose();
     this.palettes.dispose();
     this.#sheets.clear();
     this.#soldierPalettes.clear();
+    this.#shadedPalettes.clear();
   }
+}
+
+const RGB = 3;
+
+function plainDisplayPalette(palette: Uint8Array): Uint8Array {
+  const out = new Uint8Array(palette.length);
+  for (let i = 0; i + RGB <= palette.length; i += RGB) {
+    out.set(displayRgbFrom565(rgbTo565(palette[i] ?? 0, palette[i + 1] ?? 0, palette[i + 2] ?? 0)), i);
+  }
+  return out;
 }

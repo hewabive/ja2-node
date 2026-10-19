@@ -9,7 +9,7 @@ import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_COLS } from '../../../
 import { recompileLocalMovementCosts } from '../../../content/world/movement-costs.ts';
 import { has, ORIENT_LEFT, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
 import { u8 } from '../../../core/int.ts';
-import { swapStructureForPartner } from '../doors.ts';
+import { swapStructureForPartnerAndRecord } from '../doors.ts';
 import { recordStructureAdded, recordStructureDamaged, recordStructureRemoved } from '../map-changes.ts';
 import { statueTakesExplosion } from '../narrative/statue.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
@@ -57,20 +57,11 @@ export function damageStructureByExplosion(t: TacticalState, s: StructureInstanc
 export function windowHit(t: TacticalState, g: number, structureId: number): void {
   let window = t.world.structures.findById(g, structureId);
   if (!window) return;
-  window = swapRecorded(t, window);
+  window = swapStructureForPartnerAndRecord(t, window);
   if (!window) return;
-  if (window.def.partnerDelta !== 0) window = swapRecorded(t, window) ?? window;
+  if (window.def.partnerDelta !== 0) window = swapStructureForPartnerAndRecord(t, window) ?? window;
   if (window.def.armour === MATERIAL_THICKER_METAL_WITH_SCREEN_WINDOWS) return;
   makeNoise(t, null, g, 0, window.def.partnerDelta !== 0 ? WINDOW_CRACK_VOLUME : WINDOW_SMASH_VOLUME, NoiseKind.BULLET_IMPACT);
-}
-
-function swapRecorded(t: TacticalState, s: StructureInstance): StructureInstance | null {
-  const base = t.world.structures.findBase(s);
-  const swapped = swapStructureForPartner(t, s);
-  if (!swapped || !base) return swapped;
-  recordStructureRemoved(t, base);
-  recordStructureAdded(t, swapped);
-  return swapped;
 }
 
 function removeAllUnburiedItems(t: TacticalState, g: number, level: number): void {

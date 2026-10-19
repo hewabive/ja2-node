@@ -5,11 +5,13 @@
 // @src SetUpInterface (UI nodes). See docs/05 §2.5, docs/28 §6.4.
 
 import type { LayerName } from '../../content/formats/map.ts';
-import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
+import { CELL_X_SIZE, CELL_Y_SIZE, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { levelTilesAt } from '../../content/world/level.ts';
 import { type TileElement, TileFlags } from '../../content/world/tile-database.ts';
+import type { ZStripInfo } from '../../content/world/zstrip.ts';
 import {
   type Camera,
+  corpseZ,
   HALF_TILE_X,
   heightAdjusted,
   itemZ,
@@ -21,8 +23,10 @@ import {
   objectZ,
   onRoofZ,
   ROW_COUNT,
+  roofCorpseZ,
   roofMercZ,
   roofZ,
+  STRUCT_Z_LEVEL,
   structZ,
   TOPMOST_Z_LEVEL,
   type Viewport,
@@ -31,6 +35,7 @@ import {
   worldY,
   wrap16,
   Z_STRIP_DELTA,
+  Z_SUBLAYERS,
 } from './geometry.ts';
 import { DrawState, InstanceBuffer, InstanceFlags, ShadeKey, type SpriteSource } from './instances.ts';
 import type { LevelRenderData } from './level-render-data.ts';
@@ -39,6 +44,7 @@ import type { StaticWorld, TileSprite } from './static-scene.ts';
 export const ANIMATED_TILE_FRAME_MS = 200;
 export const MAX_RENDERED_ITEMS = 2;
 const SHADOW_INDEX_FLAGS = InstanceFlags.ONLY_SHADOW_INDEX;
+const CENTRE_OFFSET = 5;
 const BODY_FLAGS = InstanceFlags.EXCEPT_SHADOW_INDEX;
 const OBSCURED_FLAGS = InstanceFlags.EXCEPT_SHADOW_INDEX | InstanceFlags.DITHER;
 
@@ -54,10 +60,20 @@ export interface WorldUiNode {
   readonly shade?: number;
 }
 
-export interface SoldierSprite extends SpriteSource {
+export interface OffsetSprite extends SpriteSource {
   readonly offsetX: number;
   readonly offsetY: number;
+}
+
+export interface SoldierSprite extends OffsetSprite {
   readonly pixels: Uint8Array;
+}
+
+export interface MultiTileLook {
+  readonly zStrip: ZStripInfo | null;
+  readonly zTileOffsetX: number;
+  readonly zTileOffsetY: number;
+  readonly vehicle: boolean;
 }
 
 export interface SceneSoldier {
@@ -69,12 +85,36 @@ export interface SceneSoldier {
   readonly sprite: SoldierSprite;
   readonly paletteRow: number;
   readonly topmost: boolean;
+  readonly multiTile?: MultiTileLook | null;
+}
+
+type MercPass = 'structMercs' | 'mercs' | 'highMercs';
+
+function inPass(m: SceneSoldier, pass: MercPass): boolean {
+  if (m.multiTile) return pass === 'structMercs';
+  if (pass === 'mercs') return m.level === 0;
+  return m.level > 0;
+}
+
+export type AniTileKind = 'corpse' | 'vehicleCorpse' | 'smoke' | 'staticSmoke';
+
+export interface SceneAniTile {
+  readonly kind: AniTileKind;
+  readonly gridNo: number;
+  readonly level: number;
+  readonly sprite: OffsetSprite;
+  readonly paletteRow: number;
+  readonly shaded: boolean;
+  readonly zStrip: ZStripInfo | null;
+  readonly zTileOffsetX: number;
+  readonly zTileOffsetY: number;
 }
 
 export interface SceneItem {
   readonly gridNo: number;
   readonly level: number;
   readonly tile: number;
+  readonly height?: number;
 }
 
 export interface DrawRun {
@@ -94,6 +134,7 @@ export interface DynamicFrame {
   readonly items: readonly SceneItem[];
   readonly itemOutline: (onRoof: boolean) => number;
   readonly uiNodes: readonly WorldUiNode[];
+  readonly aniTiles: readonly SceneAniTile[];
 }
 
 export interface PlacedSoldier {
@@ -106,7 +147,7 @@ export interface PlacedSoldier {
   readonly topmost: boolean;
 }
 
-interface DynamicNode {
+export interface DynamicNode {
   readonly layer: LayerName | 'shadows';
   readonly tile: number;
 }
@@ -120,7 +161,7 @@ const UI_LAYER_OF: Readonly<Record<UiNodeLayer, ListLayer | 'topmost'>> = {
   topmost: 'topmost',
 };
 
-function isDynamic(te: TileElement | undefined): boolean {
+export function isDynamic(te: TileElement | undefined): boolean {
   return !!te && (te.flags & (TileFlags.DYNAMIC | TileFlags.ANIMATED)) !== 0;
 }
 
@@ -167,12 +208,17 @@ export class DynamicScene {
   #soldiersByTile = new Map<number, SceneSoldier[]>();
   #uiByTile = new Map<number, WorldUiNode[]>();
   #itemsByTile = new Map<number, SceneItem[]>();
+  #aniByTile = new Map<number, SceneAniTile[]>();
 
-  constructor(world: StaticWorld, prepared: LevelRenderData) {
+  constructor(world: StaticWorld, prepared: LevelRenderData, mapNodes?: Map<number, DynamicNode[]>) {
     this.#world = world;
-    this.#mapNodes = dynamicMapNodes(world, prepared);
+    this.#mapNodes = mapNodes ?? dynamicMapNodes(world, prepared);
     this.#mapRows = rowsOf([...this.#mapNodes.keys()]);
     this.#noBurn = prepared.noBurn;
+  }
+
+  get mapNodes(): Map<number, DynamicNode[]> {
+    return this.#mapNodes;
   }
 
   build(frame: DynamicFrame): void {
@@ -185,10 +231,12 @@ export class DynamicScene {
     this.#soldiersByTile = groupBy(frame.soldiers, (s) => s.gridNo);
     this.#uiByTile = groupBy(frame.uiNodes, (n) => n.gridNo);
     this.#itemsByTile = groupBy(frame.items, (i) => i.gridNo * 2 + (i.level > 0 ? 1 : 0));
+    this.#aniByTile = groupBy(frame.aniTiles, (a) => a.gridNo * 2 + (a.level > 0 ? 1 : 0));
     this.#frameRows = rowsOf([
       ...frame.soldiers.map((s) => s.gridNo),
       ...frame.uiNodes.map((n) => n.gridNo),
       ...frame.items.map((i) => i.gridNo),
+      ...frame.aniTiles.map((a) => a.gridNo),
     ]);
     const first = Math.max(0, frame.rows.first);
     const last = Math.min(ROW_COUNT - 1, frame.rows.last);
@@ -199,13 +247,13 @@ export class DynamicScene {
     for (const tiles of rows) {
       this.#forRow(tiles, (g, x, y) => this.#emitLayer(g, x, y, 'objects'));
       this.#forRow(tiles, (g, x, y) => this.#emitLayer(g, x, y, 'shadows'));
-      this.#forRow(tiles, (g, x, y) => this.#emitSoldiers(g, x, y, true));
-      this.#forRow(tiles, (g, x, y) => this.#emitSoldiers(g, x, y, false));
+      this.#forRow(tiles, (g, x, y) => this.#emitSoldiers(g, x, y, 'structMercs'));
+      this.#forRow(tiles, (g, x, y) => this.#emitSoldiers(g, x, y, 'mercs'));
       this.#forRow(tiles, (g, x, y) => this.#emitLayer(g, x, y, 'structs'));
     }
     for (const tiles of rows) {
       if (frame.showRoofs) this.#forRow(tiles, (g, x, y) => this.#emitLayer(g, x, y, 'roofs'));
-      this.#forRow(tiles, (g, x, y) => this.#emitSoldiers(g, x, y, true));
+      this.#forRow(tiles, (g, x, y) => this.#emitSoldiers(g, x, y, 'highMercs'));
       if (frame.showRoofs) this.#forRow(tiles, (g, x, y) => this.#emitLayer(g, x, y, 'onRoof'));
     }
     for (const tiles of rows) this.#forRow(tiles, (g, x, y) => this.#emitTopmost(g, x, y));
@@ -245,7 +293,56 @@ export class DynamicScene {
     const ui = (this.#uiByTile.get(g) ?? []).filter((n) => UI_LAYER_OF[n.layer] === layer);
     for (const n of ui) if (n.head) this.#emitUiNode(n, x, y, layer);
     for (const node of this.#mapNodes.get(g) ?? []) if (node.layer === layer) this.#emitMapNode(g, x, y, layer, node.tile);
+    if (layer === 'structs' || layer === 'onRoof')
+      for (const a of this.#aniByTile.get(g * 2 + (layer === 'onRoof' ? 1 : 0)) ?? []) this.#emitAniTile(a, x, y);
     for (const n of ui) if (!n.head) this.#emitUiNode(n, x, y, layer);
+  }
+
+  #centreScreen(g: number, level: number): { readonly x: number; readonly y: number } {
+    const frame = this.#frame as DynamicFrame;
+    const c = mapCenter(frame.viewport);
+    const offX = c.x - 2 * (frame.camera.centerX - frame.camera.centerY);
+    const offY = c.y - (frame.camera.centerX + frame.camera.centerY) + frame.renderHeight;
+    const dx = (g % WORLD_COLS) * CELL_X_SIZE + CENTRE_OFFSET - frame.camera.centerX;
+    const dy = Math.floor(g / WORLD_COLS) * CELL_Y_SIZE + CENTRE_OFFSET - frame.camera.centerY;
+    const height = this.#world.level.heights[g] ?? 0;
+    return {
+      x: c.x + Math.trunc(2 * dx - 2 * dy) - offX,
+      y: c.y + Math.trunc(dx + dy) - height - MERC_SCREEN_OFFSET_Y - level * WALL_HEIGHT + frame.renderHeight - offY,
+    };
+  }
+
+  #aniZ(a: SceneAniTile, x: number, y: number): number {
+    const topY = this.#world.topY;
+    if (a.kind === 'smoke' || a.kind === 'staticSmoke') return a.level > 0 ? onRoofZ(worldY(x, y, topY)) : itemZ(worldY(x, y, topY));
+    if (a.level > 0) return roofCorpseZ(worldY(x, y, topY));
+    if (a.kind === 'vehicleCorpse') return wrap16(worldY(x + a.zTileOffsetX, y + a.zTileOffsetY, topY) * Z_SUBLAYERS + STRUCT_Z_LEVEL);
+    return corpseZ(worldY(x - 1, y - 1, topY));
+  }
+
+  #emitAniTile(a: SceneAniTile, x: number, y: number): void {
+    const centre = this.#centreScreen(a.gridNo, a.level);
+    const p = { x: centre.x + a.sprite.offsetX, y: centre.y + a.sprite.offsetY };
+    const z = this.#aniZ(a, x, y);
+    const shadeKey = a.shaded ? (a.level > 0 ? ShadeKey.ROOF_BASE + a.gridNo : a.gridNo) : ShadeKey.FIXED;
+    const out = this.instances;
+    const s = a.sprite;
+    if (a.kind === 'smoke' || a.kind === 'staticSmoke') {
+      const state = a.kind === 'smoke' ? DrawState.TRANSLUCENT : DrawState.NEARER_OR_EQUAL;
+      this.#push(out, this.runs, state, () => out.push(p.x, p.y, s, 0, s.width, a.paletteRow, z, shadeKey, 0, 0));
+      return;
+    }
+    const strip = a.zStrip;
+    this.#push(out, this.runs, DrawState.NEARER_SHADOW, () =>
+      strip
+        ? emitStrips(out, p, strip, s, z, shadeKey, a.paletteRow, SHADOW_INDEX_FLAGS)
+        : out.push(p.x, p.y, s, 0, s.width, a.paletteRow, z, shadeKey, SHADOW_INDEX_FLAGS, 0),
+    );
+    this.#push(out, this.runs, DrawState.NEARER_WRITE, () =>
+      strip
+        ? emitStrips(out, p, strip, s, z, shadeKey, a.paletteRow, BODY_FLAGS)
+        : out.push(p.x, p.y, s, 0, s.width, a.paletteRow, z, shadeKey, BODY_FLAGS, 0),
+    );
   }
 
   #emitTopmost(g: number, x: number, y: number): void {
@@ -303,7 +400,8 @@ export class DynamicScene {
       case 'structs': {
         const z = structZ(wy);
         if (d.te.flags & TileFlags.MULTI_Z && d.te.zStrip) {
-          this.#push(out, this.runs, DrawState.NEARER_WRITE, () => emitStrips(out, p, d.te, s, z, shadeKey, row));
+          const strip = d.te.zStrip;
+          this.#push(out, this.runs, DrawState.NEARER_WRITE, () => emitStrips(out, p, strip, s, z, shadeKey, row, 0));
           return;
         }
         this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL, () => out.push(p.x, p.y, s, 0, s.width, row, wrap16(z), shadeKey, 0, 0));
@@ -323,17 +421,39 @@ export class DynamicScene {
     }
   }
 
-  #emitSoldiers(g: number, x: number, y: number, roof: boolean): void {
+  #soldierZ(m: SceneSoldier, x: number, y: number, noBurn: boolean): number {
+    const mt = m.multiTile;
+    const wy = worldY(x + (mt?.zTileOffsetX ?? 0), y + (mt?.zTileOffsetY ?? 0), this.#world.topY);
+    let z: number;
+    if (mt?.vehicle) z = wrap16(wy * Z_SUBLAYERS + STRUCT_Z_LEVEL);
+    else if (m.topmost) z = TOPMOST_Z_LEVEL;
+    else z = m.level > 0 ? roofMercZ(wy) : mercZ(wy);
+    return noBurn ? wrap16(z + NOBURN_Z_BONUS) : z;
+  }
+
+  #emitSoldierParts(m: SceneSoldier, p: { x: number; y: number }, z: number, noBurn: boolean): void {
+    const out = this.instances;
+    const sprite = m.sprite;
+    const strip = m.multiTile?.zStrip ?? null;
+    const part = (flags: number) => () =>
+      strip
+        ? emitStrips(out, p, strip, sprite, z, ShadeKey.FIXED, m.paletteRow, flags)
+        : out.push(p.x, p.y, sprite, 0, sprite.width, m.paletteRow, z, ShadeKey.FIXED, flags, 0);
+    this.#push(out, this.runs, DrawState.NEARER_SHADOW, part(SHADOW_INDEX_FLAGS));
+    this.#push(out, this.runs, strip ? DrawState.NEARER_WRITE : DrawState.NEARER_OR_EQUAL, part(BODY_FLAGS));
+    if (!noBurn) this.#push(out, this.runs, DrawState.FARTHER, part(OBSCURED_FLAGS));
+  }
+
+  #emitSoldiers(g: number, x: number, y: number, pass: MercPass): void {
     const soldiers = this.#soldiersByTile.get(g);
     if (!soldiers) return;
     const frame = this.#frame as DynamicFrame;
     const c = mapCenter(frame.viewport);
-    const wy = worldY(x, y, this.#world.topY);
     const height = this.#world.level.heights[g] ?? 0;
     const offX = c.x - 2 * (frame.camera.centerX - frame.camera.centerY);
     const offY = c.y - (frame.camera.centerX + frame.camera.centerY) + frame.renderHeight;
     for (const m of soldiers) {
-      if (m.level > 0 !== roof) continue;
+      if (!inPass(m, pass)) continue;
       const dx = Math.fround(m.x - frame.camera.centerX);
       const dy = Math.fround(m.y - frame.camera.centerY);
       const screenX = c.x + Math.trunc(Math.fround(2 * dx - 2 * dy));
@@ -341,28 +461,14 @@ export class DynamicScene {
       const sx = screenX + m.sprite.offsetX - offX;
       const sy = screenY + m.sprite.offsetY - offY;
       const noBurn = this.#noBurn[g] === 1;
-      const baseZ = m.topmost ? TOPMOST_Z_LEVEL : m.level > 0 ? roofMercZ(wy) : mercZ(wy);
-      const z = noBurn ? wrap16(baseZ + NOBURN_Z_BONUS) : baseZ;
-      const out = this.instances;
-      const sprite = m.sprite;
-      this.#push(out, this.runs, DrawState.NEARER_SHADOW, () =>
-        out.push(sx, sy, sprite, 0, sprite.width, m.paletteRow, z, ShadeKey.FIXED, SHADOW_INDEX_FLAGS, 0),
-      );
-      this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL, () =>
-        out.push(sx, sy, sprite, 0, sprite.width, m.paletteRow, z, ShadeKey.FIXED, BODY_FLAGS, 0),
-      );
-      if (!noBurn) {
-        this.#push(out, this.runs, DrawState.FARTHER, () =>
-          out.push(sx, sy, sprite, 0, sprite.width, m.paletteRow, z, ShadeKey.FIXED, OBSCURED_FLAGS, 0),
-        );
-      }
+      this.#emitSoldierParts(m, { x: sx, y: sy }, this.#soldierZ(m, x, y, noBurn), noBurn);
       this.placedSoldiers.push({
         id: m.id,
         x: sx + offX,
         y: sy + offY,
-        width: sprite.width,
-        height: sprite.height,
-        sprite,
+        width: m.sprite.width,
+        height: m.sprite.height,
+        sprite: m.sprite,
         topmost: m.topmost,
       });
     }
@@ -376,13 +482,15 @@ export class DynamicScene {
     for (const roof of [false, true]) {
       const items = this.#itemsByTile.get(g * 2 + (roof ? 1 : 0));
       if (!items) continue;
-      const z = roof ? onRoofZ(wy) : itemZ(wy);
       const outline = frame.itemOutline(roof);
       const shadeKey = roof ? ShadeKey.ROOF_BASE + g : g;
       for (const item of items.slice(0, MAX_RENDERED_ITEMS)) {
         const d = this.#sprite(item.tile);
         if (!d) continue;
-        const p = this.#position(g, x, y, d.te, d.sprite, roof ? 'onRoof' : 'structs');
+        const raised = item.height ?? 0;
+        const z = raised > 0 ? wrap16(wy * Z_SUBLAYERS + STRUCT_Z_LEVEL + raised) : roof ? onRoofZ(wy) : itemZ(wy);
+        const at = this.#position(g, x, y, d.te, d.sprite, roof ? 'onRoof' : 'structs');
+        const p = { x: at.x, y: at.y - raised };
         const out = this.itemInstances;
         const s = d.sprite;
         this.#push(out, this.itemRuns, state, () => out.push(p.x, p.y, s, 0, s.width, s.paletteBase, z, shadeKey, flags, outline));
@@ -396,20 +504,19 @@ const UI_NODE_SHADE = 4;
 function emitStrips(
   out: InstanceBuffer,
   p: { x: number; y: number },
-  te: TileElement,
-  sprite: TileSprite,
+  strip: ZStripInfo,
+  sprite: SpriteSource,
   base: number,
   shadeKey: number,
   row: number,
+  flags: number,
 ): void {
-  const strip = te.zStrip;
-  if (!strip) return;
   let z = base + Z_STRIP_DELTA * strip.initialZChange;
   let srcX = 0;
   let width = Math.min(strip.firstStripWidth, sprite.width);
   let k = 0;
   while (srcX < sprite.width) {
-    out.push(p.x, p.y, sprite, srcX, width, row, wrap16(z), shadeKey, 0, 0);
+    out.push(p.x, p.y, sprite, srcX, width, row, wrap16(z), shadeKey, flags, 0);
     srcX += width;
     width = Math.min(HALF_TILE_X, sprite.width - srcX);
     z += Z_STRIP_DELTA * (strip.zChanges[k++] ?? 0);

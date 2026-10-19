@@ -10,6 +10,7 @@ import { STUB_SPRITE_FORMAT, STUB_SPRITE_SUFFIX, type StubSpriteManifest } from 
 import { encodeVfsAliases, VFS_ALIASES_FILE } from '../src/content/vfs/aliases.ts';
 import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR } from '../src/node/repo.ts';
 import { buildStubAnimationScripts } from './anim-scripts.ts';
+import { buildStubEffects } from './effects.ts';
 import { buildStubMedia } from './media.ts';
 import { buildStubNpcData } from './npc.ts';
 import { buildPalette } from './palette.ts';
@@ -112,6 +113,7 @@ export async function buildStubs(outDir: string): Promise<string[]> {
     await writeFile(join(out, 'tilecache', `${name}.jsd`), writeStructureFile({ structureCount: structures.length, structures }));
     written.push(`tilecache/${name}.jsd`);
   }
+  written.push(...(await buildStubEffects(out, palette)));
   await writeFile(join(out, STUB_PROFILES_FILE), await readFile(join(import.meta.dirname, STUB_PROFILES_FILE)));
   written.push(STUB_PROFILES_FILE);
   written.push(...(await buildStubNpcData(out)));

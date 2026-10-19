@@ -20,6 +20,14 @@ draws its dithered halves before its depth-writing halves, structure nodes take 
 orientation filters), every sprite of a visible row is drawn (no horizontal sweep window), and `MAPELEMENT_REDUNDENT`
 is not used (§2.4: it changes nothing visible).
 
+**Status (2026-10-19, M8 slice U4b).** The dynamic pass also draws the animation tiles of the world view
+(`docs/28` §17.4 "U4b"): corpses in the structure layer (z of the tile to the north-west plus 20, vehicles at the
+structure z of their structure's z offset, on roofs the doubled on-roof offset) with their z strips, shadow pixels and
+the tile's shade; smoke and gas translucent (§4) at the object z, on roofs at the on-roof z. Multi-tile soldiers
+(prone mercs, vehicles, the tank, large creatures) go to the struct-merc pass with the z-strip info of their animation
+structure; items lying on a structure are raised by their height at the structure z. Structure graphics changed in the
+simulation (`tileChanges`) patch the struct and on-roof layers and rebuild the static scene.
+
 **Notation.**
 - Unmarked statements were read in the code (fact) and carry a `file:line` reference.
 - **(inferred)** marks my derivations and assumptions.

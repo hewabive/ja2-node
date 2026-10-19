@@ -81,7 +81,7 @@ export function worldItemFromView(items: ItemTable, v: KnowledgeItem, label: str
     level: v.level,
     object: guardFields(o, GROUND_OBJECT_FIELDS, `${label}.object`, guard),
     flags: 0,
-    zHeight: v.zHeight ?? 0,
+    zHeight: v.height ?? 0,
     visible: Visibility.VISIBLE,
   };
   return guardFields(item, WORLD_ITEM_FIELDS, label, guard);

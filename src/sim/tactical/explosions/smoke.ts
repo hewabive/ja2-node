@@ -21,7 +21,7 @@ import type { TacticalState } from '../state.ts';
 import { Spread, spreadEffectSmoke } from './explosion.ts';
 import { type SmokeCloud, SmokeFlags, worldSeconds } from './state.ts';
 
-export const SmokeTile = { SMOKE: 0x01, TEARGAS: 0x02, MUSTARDGAS: 0x04, CREATUREGAS: 0x80 } as const;
+export const SmokeTile = { SMOKE: 0x01, TEARGAS: 0x02, MUSTARDGAS: 0x04, DISSIPATING: 0x40, CREATUREGAS: 0x80 } as const;
 export const ANY_SMOKE = SmokeTile.SMOKE | SmokeTile.TEARGAS | SmokeTile.MUSTARDGAS | SmokeTile.CREATUREGAS;
 export const HitByGas = { TEARGAS: 0x01, MUSTARDGAS: 0x02, CREATUREGAS: 0x04 } as const;
 
@@ -148,15 +148,16 @@ export function restoreSmokeCloud(t: TacticalState, cloud: SmokeCloud): void {
 }
 
 export function addSmokeEffectToTile(t: TacticalState, cloud: SmokeCloud, type: SmokeEffectType, g: number, level: number): void {
-  if (cloud.duration - cloud.age < DISSIPATING_TURNS) removeSmokeEffectFromTile(t, g, level);
+  const dissipating = cloud.duration - cloud.age < DISSIPATING_TURNS;
+  if (dissipating) removeSmokeEffectFromTile(t, g, level);
   const tiles = t.explosives.smokeTiles[level > 0 ? 1 : 0];
   if ((tiles[g] ?? 0) & ANY_SMOKE) return;
-  tiles[g] = (tiles[g] ?? 0) | (TILE_FLAG_BY_ID[type.id] ?? 0);
+  tiles[g] = (tiles[g] ?? 0) | (TILE_FLAG_BY_ID[type.id] ?? 0) | (dissipating ? SmokeTile.DISSIPATING : 0);
 }
 
 export function removeSmokeEffectFromTile(t: TacticalState, g: number, level: number): void {
   const tiles = t.explosives.smokeTiles[level > 0 ? 1 : 0];
-  tiles[g] = (tiles[g] ?? 0) & ~ANY_SMOKE;
+  tiles[g] = (tiles[g] ?? 0) & ~(ANY_SMOKE | SmokeTile.DISSIPATING);
 }
 
 function ageCloud(t: TacticalState, k: number, cloud: SmokeCloud, updates: number): void {

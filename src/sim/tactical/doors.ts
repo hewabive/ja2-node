@@ -1,11 +1,12 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Doors.cc HandleDoorChangeFromGridNo;
-// @src TileEngine/Structure.cc SwapStructureForPartner; Structure_Wrap.cc SetOpenableStructureToClosed. See docs/07 §1.5.
+// @src TileEngine/Structure.cc SwapStructureForPartner, SwapStructureForPartnerAndStoreChangeInMap; Structure_Wrap.cc SetOpenableStructureToClosed. See docs/07 §1.5.
 
 import { recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
 import { has, PROFILE_Z_SIZE, StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
 import type { DoorSoundKind } from '../events.ts';
+import { recordStructureAdded, recordStructureRemoved } from './map-changes.ts';
 import type { TacticalState } from './state.ts';
 
 export function swapStructureForPartner(t: TacticalState, s: StructureInstance): StructureInstance | null {
@@ -25,6 +26,15 @@ export function swapStructureForPartner(t: TacticalState, s: StructureInstance):
   }
   added.hitPoints = hitPoints;
   return added;
+}
+
+export function swapStructureForPartnerAndRecord(t: TacticalState, s: StructureInstance): StructureInstance | null {
+  const base = t.world.structures.findBase(s);
+  const swapped = swapStructureForPartner(t, s);
+  if (!swapped || !base) return swapped;
+  recordStructureRemoved(t, base);
+  recordStructureAdded(t, swapped);
+  return swapped;
 }
 
 const MATERIAL_CLOTH = 17;

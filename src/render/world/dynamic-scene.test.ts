@@ -6,8 +6,19 @@ import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { buildLevel } from '../../content/world/level.ts';
 import { buildTileDatabase, type TileElement, TileFlags, type TileSurface } from '../../content/world/tile-database.ts';
 import { parseTileTables, tileIndex, tileIndexFromTypeSubIndex, typeIndex } from '../../content/world/tile-tables.ts';
-import { animatedTile, type DynamicFrame, DynamicScene, type SceneSoldier } from './dynamic-scene.ts';
-import { mercZ, roofMercZ, TOPMOST_Z_LEVEL, worldY } from './geometry.ts';
+import { animatedTile, type DynamicFrame, DynamicScene, type SceneAniTile, type SceneSoldier } from './dynamic-scene.ts';
+import {
+  corpseZ,
+  itemZ,
+  mercZ,
+  onRoofZ,
+  roofCorpseZ,
+  roofMercZ,
+  STRUCT_Z_LEVEL,
+  TOPMOST_Z_LEVEL,
+  worldY,
+  Z_SUBLAYERS,
+} from './geometry.ts';
 import { DrawState, FLOATS_PER_INSTANCE, InstanceFlags } from './instances.ts';
 import { prepareLevelRenderData } from './level-render-data.ts';
 import type { StaticWorld } from './static-scene.ts';
@@ -78,6 +89,7 @@ function frame(overrides: Partial<DynamicFrame>): DynamicFrame {
     items: [],
     itemOutline: () => 0xffffff,
     uiNodes: [],
+    aniTiles: [],
     ...overrides,
   };
 }
@@ -165,5 +177,79 @@ describe('dynamic scene', () => {
       [DrawState.FARTHER_OR_EQUAL, 2],
       [DrawState.NEARER_WRITE, 2],
     ]);
+  });
+
+  const aniTile = (kind: SceneAniTile['kind'], gridNo: number, level: number, id: number): SceneAniTile => ({
+    kind,
+    gridNo,
+    level,
+    sprite: { layer: 0, x: 0, y: 7000 + id, width: 40, height: 20, offsetX: -20, offsetY: -10 },
+    paletteRow: 50 + id,
+    shaded: kind !== 'smoke',
+    zStrip: null,
+    zTileOffsetX: 1,
+    zTileOffsetY: 0,
+  });
+
+  it('draws corpses with their shadow pixels and a depth write at the corpse z of the tile to the north-west', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    scene.build(
+      frame({
+        aniTiles: [aniTile('corpse', g(80, 80), 0, 1), aniTile('vehicleCorpse', g(82, 80), 0, 2), aniTile('corpse', g(84, 80), 1, 3)],
+      }),
+    );
+    const parts = decode(scene);
+    const corpse = parts.filter((p) => p.tile === 7001);
+    expect(corpse.map((p) => p.flags)).toEqual([InstanceFlags.ONLY_SHADOW_INDEX, InstanceFlags.EXCEPT_SHADOW_INDEX]);
+    expect(corpse[0]?.z).toBe(corpseZ(worldY(79, 79, 860)));
+    expect(parts.find((p) => p.tile === 7002)?.z).toBe((worldY(83, 80, 860) * Z_SUBLAYERS + STRUCT_Z_LEVEL) & 0xffff);
+    expect(parts.find((p) => p.tile === 7003)?.z).toBe(roofCorpseZ(worldY(84, 80, 860)));
+    expect(scene.runs.slice(0, 2).map((r) => r.state)).toEqual([DrawState.NEARER_SHADOW, DrawState.NEARER_WRITE]);
+  });
+
+  it('draws animated smoke translucent at the object z, static smoke opaque, smoke on roofs at the on-roof z', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    scene.build(
+      frame({
+        aniTiles: [aniTile('smoke', g(80, 80), 0, 4), aniTile('staticSmoke', g(90, 80), 0, 5), aniTile('smoke', g(85, 80), 1, 6)],
+      }),
+    );
+    const parts = decode(scene);
+    expect(parts.find((p) => p.tile === 7004)?.z).toBe(itemZ(worldY(80, 80, 860)));
+    expect(parts.find((p) => p.tile === 7006)?.z).toBe(onRoofZ(worldY(85, 80, 860)));
+    const states = scene.runs.map((r) => r.state);
+    expect(states).toContain(DrawState.TRANSLUCENT);
+    expect(states).toContain(DrawState.NEARER_OR_EQUAL);
+  });
+
+  it('draws multi-tile soldiers in the struct-merc pass, vehicles at the struct z of their structure offset, in z strips', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    const strip = { zChanges: [1, 0, -1], initialZChange: -1, firstStripWidth: 10 };
+    const prone = { ...soldier(4, g(80, 80), 0), multiTile: { zStrip: strip, zTileOffsetX: 1, zTileOffsetY: 0, vehicle: false } };
+    const tank = { ...soldier(5, g(84, 80), 0), multiTile: { zStrip: null, zTileOffsetX: 0, zTileOffsetY: 1, vehicle: true } };
+    scene.build(frame({ soldiers: [prone, tank] }));
+    const parts = decode(scene);
+    const proneParts = parts.filter((p) => p.tile === 9004);
+    expect(proneParts).toHaveLength(9);
+    expect(Math.max(...proneParts.map((p) => p.z))).toBe(mercZ(worldY(81, 80, 860)));
+    expect(parts.find((p) => p.tile === 9005)?.z).toBe((worldY(84, 81, 860) * Z_SUBLAYERS + STRUCT_Z_LEVEL) & 0xffff);
+    expect(scene.runs.some((r) => r.state === DrawState.NEARER_WRITE)).toBe(true);
+    expect(scene.placedSoldiers.map((p) => p.id)).toEqual([4, 5]);
+  });
+
+  it('raises items lying on a structure by their height, at the struct z plus the height', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    const gun = tileIndexFromTypeSubIndex(tables, typeIndex(tables, 'GUNS'), 1);
+    scene.build(frame({ items: [{ gridNo: g(80, 80), level: 0, tile: gun, height: 12 }] }));
+    const d = scene.itemInstances.data;
+    expect(d[8]).toBe((worldY(80, 80, 860) * Z_SUBLAYERS + STRUCT_Z_LEVEL + 12) & 0xffff);
+    scene.build(frame({ items: [{ gridNo: g(80, 80), level: 0, tile: gun }] }));
+    const groundY = scene.itemInstances.data[1] as number;
+    scene.build(frame({ items: [{ gridNo: g(80, 80), level: 0, tile: gun, height: 12 }] }));
+    expect(scene.itemInstances.data[1]).toBe(groundY - 12);
   });
 });

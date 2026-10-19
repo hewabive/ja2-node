@@ -105,7 +105,7 @@ export function substituteOpenDoor(tiles: readonly TileElement[], openDoors: Rea
 }
 
 export class StaticScene {
-  readonly #world: StaticWorld;
+  #world: StaticWorld;
   #state: StaticState;
   readonly #rows: Float32Array[][] = Array.from({ length: STATIC_SEGMENT_COUNT }, () => new Array<Float32Array>(ROW_COUNT).fill(EMPTY_ROW));
   readonly #scratch: InstanceBuffer[] = Array.from({ length: STATIC_SEGMENT_COUNT }, () => new InstanceBuffer());
@@ -126,6 +126,11 @@ export class StaticScene {
     if (rows === 'all') this.rebuildAll();
     else for (const s of rows) this.#buildRow(s);
     this.#assembled = null;
+  }
+
+  replaceWorld(world: StaticWorld, state: StaticState, rows: Iterable<number>): void {
+    this.#world = world;
+    this.setState(state, rows);
   }
 
   rebuildAll(): void {

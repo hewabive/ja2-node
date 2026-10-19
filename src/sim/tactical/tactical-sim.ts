@@ -118,7 +118,8 @@ import { type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, own
 import { createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { showsAiProgress, type TopMessageName, topMessageName } from './turns/top-message.ts';
 import { endTurn, handleEnemySightingPause, handleRealtimeTurns, selectSoldier } from './turns/turns.ts';
-import { type ItemSnapshot, Visibility } from './world-items.ts';
+import { type ItemSnapshot, Visibility, WorldItemFlags } from './world-items.ts';
+import { dynamicLightSprites } from './world-view.ts';
 
 export interface SoldierSnapshot {
   readonly id: number;
@@ -525,8 +526,9 @@ export class TacticalSim {
           count: o.count,
           status: o.status[0] ?? 0,
           ...(items.byIndex.get(o.item)?.itemClass === ItemClass.MONEY ? { money: o.money } : {}),
-          ...(wi.zHeight > 0 ? { zHeight: wi.zHeight } : {}),
           ...(attachments.length > 0 ? { attachments } : {}),
+          ...(wi.zHeight > 0 ? { height: wi.zHeight } : {}),
+          ...(wi.flags & WorldItemFlags.DONTRENDER ? { notRendered: true } : {}),
         };
       })
       .sort((a, b) => a.gridNo - b.gridNo || a.level - b.level);
@@ -853,11 +855,13 @@ export class TacticalSim {
 
   lightView(): KnowledgeLight {
     const l = this.state.lighting;
+    const dynamic = new Set(dynamicLightSprites(this.state));
     const sprites = l.sprites.flatMap((sprite) => {
       if (!sprite || !(sprite.flags & LightSpriteFlags.ACTIVE) || !(sprite.flags & LightSpriteFlags.ON)) return [];
       if (sprite.x >= WORLD_COLS || sprite.y >= WORLD_ROWS) return [];
       const roof = sprite.flags & LightSpriteFlags.ONROOF ? { roof: true as const } : {};
-      return [{ template: sprite.template.name, x: sprite.x, y: sprite.y, ...roof }];
+      const moving = dynamic.has(sprite) ? { dynamic: true as const } : {};
+      return [{ template: sprite.template.name, x: sprite.x, y: sprite.y, ...roof, ...moving }];
     });
     return { ambient: l.ambient, sprites };
   }

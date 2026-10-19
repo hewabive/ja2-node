@@ -1,0 +1,111 @@
+// Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
+// Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
+// @src src/game/Tactical/Rotting_Corpses.cc ROTTING_CORPSE_DEFINITION (what a corpse is drawn from);
+// @src src/game/TileEngine/SmokeEffects.cc AddSmokeEffectToTile (graphic per tile); Lighting.cc LightSpriteRenderAll
+// @src (dynamic sprites); Structure.cc InternalSwapStructureForPartner, SaveLoadMap.cc (tile changes). See docs/28 §12.1 G8.
+
+import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
+import { ANY_SMOKE, SmokeTile, smokeEffectIdFromFlags } from './explosions/smoke.ts';
+import { type LightSprite, LightSpriteFlags } from './lighting/lighting.ts';
+import { type MapChange, MapChangeKind, mapChangeTile } from './map-changes.ts';
+import type { TacticalState } from './state.ts';
+
+export type SoldierPaletteNames = readonly [hair: string, skin: string, vest: string, pants: string];
+
+export interface CorpseView {
+  readonly gridNo: number;
+  readonly level: number;
+  readonly type: number;
+  readonly direction: number;
+  readonly bodyType: number;
+  readonly palettes?: SoldierPaletteNames;
+  readonly camo?: boolean;
+}
+
+export interface SmokeTileView {
+  readonly gridNo: number;
+  readonly level: number;
+  readonly effect: string;
+  readonly dissipating?: boolean;
+}
+
+export type { KnowledgeLight as WorldLightView, KnowledgeLightSprite as LightSpriteView } from '../knowledge/view.ts';
+
+export type TileChangeKind = 'remove' | 'add';
+
+export interface TileChangeView {
+  readonly kind: TileChangeKind;
+  readonly gridNo: number;
+  readonly level: number;
+  readonly tile: number;
+}
+
+const LEVELS = [0, 1] as const;
+
+export function corpseViews(t: TacticalState): CorpseView[] {
+  return t.corpses.map((c) => ({
+    gridNo: c.gridNo,
+    level: c.level,
+    type: c.type,
+    direction: c.direction,
+    bodyType: c.bodyType,
+    ...(c.palettes ? { palettes: c.palettes } : {}),
+    ...(c.camo ? { camo: true } : {}),
+  }));
+}
+
+function anySmokeCloud(t: TacticalState): boolean {
+  return t.explosives.smokeClouds.some((c) => c !== null);
+}
+
+function effectNames(t: TacticalState): Map<number, string> {
+  const names = new Map<number, string>();
+  for (const type of t.content.explosions.smokeEffects.values()) names.set(type.id, type.name);
+  return names;
+}
+
+export function smokeViews(t: TacticalState): SmokeTileView[] {
+  if (!anySmokeCloud(t)) return [];
+  const names = effectNames(t);
+  const out: SmokeTileView[] = [];
+  for (const level of LEVELS) {
+    const tiles = t.explosives.smokeTiles[level];
+    for (let g = 0; g < WORLD_MAX; g++) {
+      const flags = tiles[g] ?? 0;
+      if (!(flags & ANY_SMOKE)) continue;
+      const effect = names.get(smokeEffectIdFromFlags(flags));
+      if (effect === undefined) continue;
+      out.push({ gridNo: g, level, effect, ...(flags & SmokeTile.DISSIPATING ? { dissipating: true } : {}) });
+    }
+  }
+  return out;
+}
+
+function shining(l: LightSprite | null | undefined): l is LightSprite {
+  return !!l && (l.flags & LightSpriteFlags.ACTIVE) !== 0 && (l.flags & LightSpriteFlags.ON) !== 0 && l.x < WORLD_COLS;
+}
+
+export function dynamicLightSprites(t: TacticalState): LightSprite[] {
+  const sprites: (LightSprite | null | undefined)[] = [
+    ...t.soldiers.map((s) => s?.muzzleFlashLight),
+    ...t.explosives.aniTiles.map((a) => (a.kind === 'explosion' ? a.light : null)),
+    ...t.explosives.lights.map((l) => l?.sprite),
+  ];
+  return sprites.filter(shining);
+}
+
+function tileChangeKind(c: MapChange): TileChangeKind | null {
+  if (c.kind === MapChangeKind.REMOVE) return 'remove';
+  if (c.kind === MapChangeKind.ADD) return 'add';
+  return null;
+}
+
+export function tileChangeViews(t: TacticalState): TileChangeView[] {
+  const out: TileChangeView[] = [];
+  for (const c of t.mapChanges) {
+    const kind = tileChangeKind(c);
+    const tile = kind === null ? null : mapChangeTile(t, c);
+    if (kind !== null && tile !== null) out.push({ kind, gridNo: c.gridNo, level: c.level, tile });
+  }
+  return out;
+}

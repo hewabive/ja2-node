@@ -128,6 +128,17 @@ export function mercZ(wy: number): number {
   return wrap16(wy * Z_SUBLAYERS + MERC_Z_LEVEL);
 }
 
+export const CORPSE_WORLD_Y_OFFSET = 20;
+export const ROOF_CORPSE_WORLD_Y_OFFSET = 2 * (WALL_HEIGHT + 40);
+
+export function corpseZ(wyOfNorthWest: number): number {
+  return wrap16((wyOfNorthWest + CORPSE_WORLD_Y_OFFSET) * Z_SUBLAYERS + LAND_Z_LEVEL);
+}
+
+export function roofCorpseZ(wy: number): number {
+  return wrap16((wy + ROOF_CORPSE_WORLD_Y_OFFSET) * Z_SUBLAYERS + ONROOF_Z_LEVEL);
+}
+
 export function roofMercZ(wy: number): number {
   return wrap16((wy + ROOF_MERC_WORLD_Y_OFFSET) * Z_SUBLAYERS + ONROOF_Z_LEVEL);
 }

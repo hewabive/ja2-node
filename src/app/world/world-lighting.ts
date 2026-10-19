@@ -18,13 +18,14 @@ import {
   initLighting,
   type LightSprite,
   LightSpriteFlags,
-  lightSpriteCreate,
   lightSpriteDestroy,
+  lightSpriteFromTemplate,
   lightSpritePosition,
   lightSpritePower,
   lightSpriteRenderAll,
   MIN_AMB_LEVEL_FOR_MERC_LIGHTS,
 } from '../../sim/tactical/lighting/lighting.ts';
+import type { LightTemplate } from '../../sim/tactical/lighting/templates.ts';
 import type { DoorStatus, PathEnv, PathWorld } from '../../sim/tactical/pathfinding.ts';
 import type { TacticalState } from '../../sim/tactical/state.ts';
 
@@ -32,12 +33,26 @@ const SHADE_MAX = 1;
 const SHADE_MIN = 15;
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_HOUR = 60;
-const MERC_LIGHT_STAND_IN = 'L-R06.LHT';
+const CELLS_PER_TILE = 10;
 
 export interface MercLight {
   readonly x: number;
   readonly y: number;
   readonly level: number;
+  readonly template: LightTemplate;
+}
+
+export interface DynamicLight {
+  readonly x: number;
+  readonly y: number;
+  readonly template: LightTemplate;
+}
+
+interface PlacedLight {
+  readonly x: number;
+  readonly y: number;
+  readonly flags: number;
+  readonly template: LightTemplate;
 }
 
 export interface LightingTime {
@@ -47,8 +62,10 @@ export interface LightingTime {
 
 export interface LightingInput {
   readonly time: LightingTime;
+  readonly ambient?: number | null;
   readonly openDoors: ReadonlySet<number>;
   readonly mercLights: readonly MercLight[];
+  readonly dynamicLights?: readonly DynamicLight[];
 }
 
 type LightingHost = Pick<TacticalState, 'lighting' | 'world' | 'pathWorld' | 'pathEnv'>;
@@ -107,18 +124,20 @@ export class WorldLighting {
     return this.#map.ambient !== null && this.#map.ambient !== undefined;
   }
 
-  ambientAt(time: LightingTime): number {
+  ambientAt(time: LightingTime, fromView: number | null = null): number {
+    if (fromView !== null) return fromView;
     return this.#map.ambient ? this.#map.ambient.lightLevel : surfaceAmbientAt(time);
   }
 
-  mercLightsShine(time: LightingTime): boolean {
-    return this.ambientAt(time) >= MIN_AMB_LEVEL_FOR_MERC_LIGHTS;
+  mercLightsShine(time: LightingTime, fromView: number | null = null): boolean {
+    return this.ambientAt(time, fromView) >= MIN_AMB_LEVEL_FOR_MERC_LIGHTS;
   }
 
   field(input: LightingInput): ShadeField {
-    const ambient = this.ambientAt(input.time);
+    const ambient = this.ambientAt(input.time, input.ambient ?? null);
     const staticKey = `${input.time.hour}|${ambient}|${[...input.openDoors].sort((a, b) => a - b).join(',')}`;
-    const mercKey = input.mercLights.map((m) => `${m.x},${m.y},${m.level}`).join(';');
+    const placed = placedLights(input);
+    const mercKey = placed.map((m) => `${m.x},${m.y},${m.flags},${m.template.name}`).join(';');
     if (this.#field && staticKey === this.#staticKey && mercKey === this.#mercKey) return this.#field;
     const t = this.#host as TacticalState;
     if (!this.#static || staticKey !== this.#staticKey) {
@@ -129,7 +148,7 @@ export class WorldLighting {
       this.#staticKey = staticKey;
     }
     this.#mercKey = mercKey;
-    const maxima = input.mercLights.length > 0 ? this.#withMercLights(t, this.#static, input.mercLights) : this.#static;
+    const maxima = placed.length > 0 ? this.#withLights(t, this.#static, placed) : this.#static;
     this.#field = this.#shade(t.lighting.ambient, t.lighting.natural, maxima);
     return this.#field;
   }
@@ -150,16 +169,16 @@ export class WorldLighting {
     return { land, roof };
   }
 
-  #withMercLights(t: TacticalState, base: LightMaxima, lights: readonly MercLight[]): LightMaxima {
+  #withLights(t: TacticalState, base: LightMaxima, lights: readonly PlacedLight[]): LightMaxima {
     const land = base.land.slice();
     const roof = base.roof.slice();
     for (const m of lights) {
-      const l = lightSpriteCreate(t, MERC_LIGHT_STAND_IN);
+      const l = lightSpriteFromTemplate(t, m.template);
       if (!l) continue;
-      l.flags |= LightSpriteFlags.MERC_LIGHT | (m.level > 0 ? LightSpriteFlags.ONROOF : 0);
+      l.flags |= m.flags;
       lightSpritePower(l, true);
       lightSpriteRenderAll(t);
-      lightSpritePosition(t, l, Math.trunc(m.x / 10), Math.trunc(m.y / 10));
+      lightSpritePosition(t, l, m.x, m.y);
       accumulate(l, t.lighting.landLight, land);
       accumulate(l, t.lighting.roofLight, roof);
       lightSpriteDestroy(t, l);
@@ -177,6 +196,17 @@ export class WorldLighting {
     this.#version++;
     return { version: this.#version, ambient, natural, land, roof };
   }
+}
+
+function placedLights(input: LightingInput): PlacedLight[] {
+  const mercs = input.mercLights.map((m) => ({
+    x: Math.trunc(m.x / CELLS_PER_TILE),
+    y: Math.trunc(m.y / CELLS_PER_TILE),
+    flags: LightSpriteFlags.MERC_LIGHT | (m.level > 0 ? LightSpriteFlags.ONROOF : 0),
+    template: m.template,
+  }));
+  const dynamic = (input.dynamicLights ?? []).map((d) => ({ x: d.x, y: d.y, flags: 0, template: d.template }));
+  return [...mercs, ...dynamic];
 }
 
 function accumulate(l: LightSprite, sums: Uint8Array, max: Uint8Array): void {
