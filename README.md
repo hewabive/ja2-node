@@ -123,6 +123,11 @@ dealer per town stand in for the original characters, and two bitmap fonts subse
 `stubs/font/NOTICE.txt`) cover Latin and Cyrillic (`docs/27` §6.6). The video page (`/src/devtools/video/`) plays the intro and ending videos of the original data
 (or the stub splash) and the credits (`docs/27` §4.5).
 
+The canvas game page of M8 is at `/play` (`?session=<id>` joins a session, like the tactical page). For now it shows a
+test screen that draws every UI primitive, a stub-font text run and STI pictures through the UI renderer at the UI scale
+(auto: the largest whole scale that keeps 640×480; `?scale=2` forces one, `?fixed640=1` keeps a 640×480 frame with black
+bars; both are client settings too); `window.__ja2Ui` reports its state (`docs/28` §17.4).
+
 The server listens on `127.0.0.1` only and requires the token from `.ja2/token`, which it creates
 itself. The Vite proxy adds the token, so it never appears in page code.
 
@@ -161,10 +166,11 @@ Layers (details in `docs/01-architecture.md`, §2):
 | `src/sim`: the deterministic simulation (tactical, strategic, campaign, snapshot codec) | everywhere, no DOM or Node | core, content |
 | `src/protocol`: view frames, messages, the music mode | everywhere | core, content, sim |
 | `src/server`: HTTP, WebSocket, MCP, session hosts, saves, text | Node | core, content, sim, protocol, node |
-| `src/render`: WebGL2 R8UI atlases, palette texture, sprites, indexed video frames | browser | core, content |
+| `src/ui`: the DOM-free player UI: draw list, screen and modal stacks, input events, UI scale, screens | everywhere, no DOM or Node | core, content, protocol |
+| `src/render`: WebGL2 R8UI atlases, palette texture, sprites, indexed video frames, the UI draw list renderer | browser | core, content, protocol, ui (types only) |
 | `src/audio`: Web Audio engine, sound director, music player | browser | content, protocol |
-| `src/app`: launcher, client settings, video player, credits | browser | content, protocol, audio, render |
-| `src/devtools`: asset browser, map viewer, tactical, strategic and video pages | browser | core, content, protocol, render, audio, app |
+| `src/app`: launcher, the game page (`/play`), session client, client settings, video player, credits | browser | core, content, sim, protocol, ui, audio, render |
+| `src/devtools`: asset browser, map viewer, tactical, strategic and video pages | browser | core, content, protocol, ui, render, audio, app |
 | `stubs/`: stub pack generator | Node | core, content, node |
 | `tools/`: CLI, bench, dev runner, import checker, transcription, oracle | Node | everything except browser code |
 
@@ -172,7 +178,7 @@ Boundaries are enforced three ways:
 - project references in `tsconfig`;
 - `lib` and `types` settings: no DOM and no `@types/node` in shared layers;
 - `tools/check-imports.ts`: allowed layers and packages per layer, plus a ban on
-  nondeterminism (`Math.random`, `Date`, timers) in `core`, `content` and `sim`.
+  nondeterminism (`Math.random`, `Date`, timers) in `core`, `content`, `sim` and `ui`.
 
 Node runs TypeScript without a build step (type stripping), so the code uses no `enum` or
 `namespace`, and relative imports carry the `.ts` extension.
