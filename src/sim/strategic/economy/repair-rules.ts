@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Assignments.cc gRepairPassSlotList, IsAnythingAroundForSoldierToRepair, HasCharacterFinishedRepairing,
-// @src DoesCharacterHaveAnyItemsToRepair, BasicCanCharacterRepair, CanCharacterRepair, FindRepairableItemOnOtherSoldier, IsRobotInThisSector,
+// @src DoesCharacterHaveAnyItemsToRepair, BasicCanCharacterRepair, CanCharacterRepair, FindRepairableItemOnOtherSoldier,
 // @src CanCharacterRepairAnotherSoldiersStuff, CanCharacterRepairRobot, IsRobotInThisSector, CanCharacterRepairVehicle.
 // See docs/18 §5.7.
 

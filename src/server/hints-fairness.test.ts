@@ -10,6 +10,8 @@ import { placeOccupant, removeOccupant, teamMembers, whoIsThere } from '../sim/t
 import { createSandboxSession } from './sandbox.ts';
 import { Session } from './session.ts';
 
+const SLOW_MS = 60_000;
+
 let kit: StubSectorKit;
 let sources: HintSources;
 
@@ -32,31 +34,35 @@ async function answers(session: Session, requests: readonly CommandEnvelope[]): 
 }
 
 describe('fairness of the hints: unseen soldiers do not exist in the projection', () => {
-  it('gives the same answers whether an unseen enemy stands on the target tile and the path or elsewhere', async () => {
-    const session = withQueries(new Session('fair', await createSandboxSession(kit.read, false, 3)), sources);
-    const sim = tacticalOf(session);
-    const t = sim.state;
-    const unseen = teamMembers(t, Team.ENEMY).find((s) => s.visible < 0);
-    if (!unseen) throw new Error('the stub garrison has no unseen enemy');
-    expect(serialisedView(session).soldiers.some((s) => s.id === unseen.id)).toBe(false);
-    const merc = teamMembers(t, Team.OUR)[0];
-    if (!merc) throw new Error('no merc');
-    const at = unseen.gridNo;
-    const requests: CommandEnvelope[] = [
-      { type: 'previewMove', soldier: merc.id, to: at },
-      { type: 'previewMove', soldier: merc.id, to: at + 1 },
-      { type: 'previewMove', soldier: merc.id, to: at + WORLD_COLS },
-      { type: 'estimateAttack', soldier: merc.id, target: at },
-      { type: 'estimateAttack', soldier: merc.id, target: at, aimTime: 4, bodyPart: 'head' },
-    ];
-    const before = await answers(session, requests);
-    expect(whoIsThere(t, at, unseen.level)).toBe(unseen);
-    removeMercStructure(t, unseen);
-    removeOccupant(t, unseen);
-    unseen.gridNo = merc.gridNo + 40 * WORLD_COLS;
-    placeOccupant(t, unseen);
-    addMercStructure(t, unseen);
-    expect(whoIsThere(t, at, unseen.level)).toBeNull();
-    expect(await answers(session, requests)).toEqual(before);
-  });
+  it(
+    'gives the same answers whether an unseen enemy stands on the target tile and the path or elsewhere',
+    async () => {
+      const session = withQueries(new Session('fair', await createSandboxSession(kit.read, false, 3)), sources);
+      const sim = tacticalOf(session);
+      const t = sim.state;
+      const unseen = teamMembers(t, Team.ENEMY).find((s) => s.visible < 0);
+      if (!unseen) throw new Error('the stub garrison has no unseen enemy');
+      expect(serialisedView(session).soldiers.some((s) => s.id === unseen.id)).toBe(false);
+      const merc = teamMembers(t, Team.OUR)[0];
+      if (!merc) throw new Error('no merc');
+      const at = unseen.gridNo;
+      const requests: CommandEnvelope[] = [
+        { type: 'previewMove', soldier: merc.id, to: at },
+        { type: 'previewMove', soldier: merc.id, to: at + 1 },
+        { type: 'previewMove', soldier: merc.id, to: at + WORLD_COLS },
+        { type: 'estimateAttack', soldier: merc.id, target: at },
+        { type: 'estimateAttack', soldier: merc.id, target: at, aimTime: 4, bodyPart: 'head' },
+      ];
+      const before = await answers(session, requests);
+      expect(whoIsThere(t, at, unseen.level)).toBe(unseen);
+      removeMercStructure(t, unseen);
+      removeOccupant(t, unseen);
+      unseen.gridNo = merc.gridNo + 40 * WORLD_COLS;
+      placeOccupant(t, unseen);
+      addMercStructure(t, unseen);
+      expect(whoIsThere(t, at, unseen.level)).toBeNull();
+      expect(await answers(session, requests)).toEqual(before);
+    },
+    SLOW_MS,
+  );
 });

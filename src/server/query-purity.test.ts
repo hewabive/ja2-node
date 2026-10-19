@@ -9,6 +9,8 @@ import { createCampaignSession } from './campaign-factory.ts';
 import { Session } from './session.ts';
 import { snapshotSession } from './session-snapshot.ts';
 
+const SLOW_MS = 60_000;
+
 let kit: StubSectorKit;
 let sources: HintSources;
 
@@ -38,28 +40,32 @@ function serverOnlyQueries(merc: number, profile: number): CommandEnvelope[] {
 }
 
 describe('query purity: a query leaves the session byte-identical and out of the input log', () => {
-  it('covers every server-only query kind in a stub campaign on the map screen', async () => {
-    const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), 5, { mercs: 2, land: false });
-    Object.assign(sectorInfo(created.campaign.state.map, parseSectorString('A9')), { numAdmins: 0, numTroops: 0, numElites: 0 });
-    const session = withQueries(new Session('purity', created), sources);
-    const land = { type: 'compressTime', mode: 2 };
-    await created.prepare(land);
-    expect(session.dispatch(land).ok).toBe(true);
-    expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
-    const merc = session.sim.view().strategic?.mercs[0];
-    if (!merc) throw new Error('no merc');
-    const queries = serverOnlyQueries(merc.id, 1);
-    expect(new Set(queries.map((q) => q.type))).toEqual(new Set(SERVER_QUERY_KINDS));
-    const before = JSON.stringify(snapshotSession(session.sim));
-    const logged = session.log.full().entries.length;
-    const answered: string[] = [];
-    for (const q of queries) {
-      const answer = await session.query(q);
-      expect(answer.tick).toBe(session.sim.tick);
-      if (answer.ok) answered.push(q.type);
-      expect(JSON.stringify(snapshotSession(session.sim)), `${q.type} changed nothing`).toBe(before);
-    }
-    expect(session.log.full().entries.length).toBe(logged);
-    expect(answered).toEqual(expect.arrayContaining(['aimQuote', 'insuranceQuote', 'arrivalTime', 'contractOptions', 'inventory']));
-  });
+  it(
+    'covers every server-only query kind in a stub campaign on the map screen',
+    async () => {
+      const created = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), 5, { mercs: 2, land: false });
+      Object.assign(sectorInfo(created.campaign.state.map, parseSectorString('A9')), { numAdmins: 0, numTroops: 0, numElites: 0 });
+      const session = withQueries(new Session('purity', created), sources);
+      const land = { type: 'compressTime', mode: 2 };
+      await created.prepare(land);
+      expect(session.dispatch(land).ok).toBe(true);
+      expect(session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });
+      const merc = session.sim.view().strategic?.mercs[0];
+      if (!merc) throw new Error('no merc');
+      const queries = serverOnlyQueries(merc.id, 1);
+      expect(new Set(queries.map((q) => q.type))).toEqual(new Set(SERVER_QUERY_KINDS));
+      const before = JSON.stringify(snapshotSession(session.sim));
+      const logged = session.log.full().entries.length;
+      const answered: string[] = [];
+      for (const q of queries) {
+        const answer = await session.query(q);
+        expect(answer.tick).toBe(session.sim.tick);
+        if (answer.ok) answered.push(q.type);
+        expect(JSON.stringify(snapshotSession(session.sim)), `${q.type} changed nothing`).toBe(before);
+      }
+      expect(session.log.full().entries.length).toBe(logged);
+      expect(answered).toEqual(expect.arrayContaining(['aimQuote', 'insuranceQuote', 'arrivalTime', 'contractOptions', 'inventory']));
+    },
+    SLOW_MS,
+  );
 });

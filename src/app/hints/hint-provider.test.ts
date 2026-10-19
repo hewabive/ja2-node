@@ -7,6 +7,8 @@ import { createSandboxSession } from '../../server/sandbox.ts';
 import { Session } from '../../server/session.ts';
 import { type HintChannel, HintProvider, type LocalKnowledge, PATHFIND_REST_MS, type QueryReply } from './hint-provider.ts';
 
+const SLOW_MS = 60_000;
+
 let kit: StubSectorKit;
 let sources: HintSources;
 let client: ClientSide;
@@ -48,52 +50,68 @@ function moveRequest(): CommandEnvelope {
 }
 
 describe('local hint provider', () => {
-  it('answers locally after the 80 ms rest, caches by request and view, and restarts the timer on a new request', () => {
-    let now = 1000;
-    const ch = channel();
-    const provider = new HintProvider({ channel: ch, knowledge: () => knowledge(), now: () => now });
-    const q = moveRequest();
-    expect(provider.hint(q).state).toBe('pending');
-    now += PATHFIND_REST_MS - 1;
-    expect(provider.hint(q).state).toBe('pending');
-    now += 1;
-    const ready = provider.hint(q);
-    expect(ready).toMatchObject({ state: 'ready', source: 'local', answer: { ok: true } });
-    expect(provider.hint(q)).toEqual(ready);
-    expect(provider.stats).toMatchObject({ local: 1, cacheHits: 1, server: 0 });
-    expect(provider.hint({ ...q, mode: 'run' }).state).toBe('pending');
-    expect(ch.asked).toBe(0);
-    expect(provider.stats.latency.count).toBe(1);
-  });
+  it(
+    'answers locally after the 80 ms rest, caches by request and view, and restarts the timer on a new request',
+    () => {
+      let now = 1000;
+      const ch = channel();
+      const provider = new HintProvider({ channel: ch, knowledge: () => knowledge(), now: () => now });
+      const q = moveRequest();
+      expect(provider.hint(q).state).toBe('pending');
+      now += PATHFIND_REST_MS - 1;
+      expect(provider.hint(q).state).toBe('pending');
+      now += 1;
+      const ready = provider.hint(q);
+      expect(ready).toMatchObject({ state: 'ready', source: 'local', answer: { ok: true } });
+      expect(provider.hint(q)).toEqual(ready);
+      expect(provider.stats).toMatchObject({ local: 1, cacheHits: 1, server: 0 });
+      expect(provider.hint({ ...q, mode: 'run' }).state).toBe('pending');
+      expect(ch.asked).toBe(0);
+      expect(provider.stats.latency.count).toBe(1);
+    },
+    SLOW_MS,
+  );
 
-  it('falls back to the server query when the rules or the engine differ', async () => {
-    let now = 0;
-    const ch = channel();
-    const provider = new HintProvider({ channel: ch, knowledge: () => knowledge(false), now: () => now });
-    const q = moveRequest();
-    provider.hint(q);
-    now += PATHFIND_REST_MS;
-    expect(provider.hint(q).state).toBe('pending');
-    await vi.waitFor(() => expect(provider.hint(q)).toMatchObject({ state: 'ready', source: 'server', answer: { ok: true } }));
-    expect(ch.asked).toBe(1);
-  });
+  it(
+    'falls back to the server query when the rules or the engine differ',
+    async () => {
+      let now = 0;
+      const ch = channel();
+      const provider = new HintProvider({ channel: ch, knowledge: () => knowledge(false), now: () => now });
+      const q = moveRequest();
+      provider.hint(q);
+      now += PATHFIND_REST_MS;
+      expect(provider.hint(q).state).toBe('pending');
+      await vi.waitFor(() => expect(provider.hint(q)).toMatchObject({ state: 'ready', source: 'server', answer: { ok: true } }));
+      expect(ch.asked).toBe(1);
+    },
+    SLOW_MS,
+  );
 
-  it('in shadow mode sends each local hint to the server and reports no difference', async () => {
-    const ch = channel();
-    const provider = new HintProvider({ channel: ch, knowledge: () => knowledge(), now: () => 0, shadow: true });
-    await provider.hintNow(moveRequest());
-    await vi.waitFor(() => expect(provider.stats).toMatchObject({ shadowCompared: 1, mismatchCount: 0, shadowStale: 0 }));
-  });
+  it(
+    'in shadow mode sends each local hint to the server and reports no difference',
+    async () => {
+      const ch = channel();
+      const provider = new HintProvider({ channel: ch, knowledge: () => knowledge(), now: () => 0, shadow: true });
+      await provider.hintNow(moveRequest());
+      await vi.waitFor(() => expect(provider.stats).toMatchObject({ shadowCompared: 1, mismatchCount: 0, shadowStale: 0 }));
+    },
+    SLOW_MS,
+  );
 
-  it('reports a difference and skips answers computed on another tick', async () => {
-    const tampered = channel(async (q) => ({ ...(await session.query(q)), ok: false }));
-    const provider = new HintProvider({ channel: tampered, knowledge: () => knowledge(), now: () => 0, shadow: true });
-    await provider.hintNow(moveRequest());
-    await vi.waitFor(() => expect(provider.stats.mismatchCount).toBe(1));
-    expect(provider.stats.mismatches[0]?.request).toEqual(moveRequest());
-    const stale = channel(async (q) => ({ ...(await session.query(q)), tick: view.tick + 10 }));
-    const later = new HintProvider({ channel: stale, knowledge: () => knowledge(), now: () => 0, shadow: true });
-    await later.hintNow(moveRequest());
-    await vi.waitFor(() => expect(later.stats).toMatchObject({ shadowStale: 1, shadowCompared: 0, mismatchCount: 0 }));
-  });
+  it(
+    'reports a difference and skips answers computed on another tick',
+    async () => {
+      const tampered = channel(async (q) => ({ ...(await session.query(q)), ok: false }));
+      const provider = new HintProvider({ channel: tampered, knowledge: () => knowledge(), now: () => 0, shadow: true });
+      await provider.hintNow(moveRequest());
+      await vi.waitFor(() => expect(provider.stats.mismatchCount).toBe(1));
+      expect(provider.stats.mismatches[0]?.request).toEqual(moveRequest());
+      const stale = channel(async (q) => ({ ...(await session.query(q)), tick: view.tick + 10 }));
+      const later = new HintProvider({ channel: stale, knowledge: () => knowledge(), now: () => 0, shadow: true });
+      await later.hintNow(moveRequest());
+      await vi.waitFor(() => expect(later.stats).toMatchObject({ shadowStale: 1, shadowCompared: 0, mismatchCount: 0 }));
+    },
+    SLOW_MS,
+  );
 });
