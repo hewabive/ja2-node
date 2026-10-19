@@ -301,6 +301,10 @@ export class TacticalScreen implements Screen {
     return this.#log.lines.map((l) => l.text);
   }
 
+  get enemyBar(): { readonly counter: number; readonly max: number } {
+    return { counter: this.#topBar.counter, max: this.#topBar.max };
+  }
+
   get feedbackText(): string | null {
     return this.#feedback.text;
   }
@@ -1287,7 +1291,7 @@ export class TacticalScreen implements Screen {
     const borderY = panel.y + view.number(params.borderY as string, {});
     const viewState = this.#view();
     if (!ourTurn(viewState)) list.image(borderAsset, 1, borderX, borderY);
-    else if (s && inCombat(viewState) && !okInterrupt(s)) list.image(borderAsset, 1, borderX, borderY);
+    else if (viewState?.combat?.interrupt === true && (!s || !okInterrupt(s))) list.image(borderAsset, 1, borderX, borderY);
     else if (s && s.id === this.#selected) list.image(borderAsset, 0, borderX, borderY);
     if (s && !running) this.#drawHighlights(list, s, rect.x, rect.y, this.#compatibleFace(s));
   }

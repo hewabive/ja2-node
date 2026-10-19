@@ -391,6 +391,8 @@ export class TacticalHost {
       drawCalls: 0,
       drawnSoldiers: 0,
       pendingImages: 0,
+      enemyBar: { counter: 0, max: 0 },
+      topMessage: null,
       frameMs: this.#frameTimes.summary(),
       worldMs: this.#worldTimes.summary(),
       command: (cmd) => this.#command(cmd),
@@ -435,6 +437,8 @@ export class TacticalHost {
     hook.radarShown = screen.radarShown;
     hook.messages = screen.messageLines;
     hook.feedback = screen.feedbackText;
+    hook.enemyBar = screen.enemyBar;
+    hook.topMessage = this.#o.session.combat?.topMessage?.kind ?? null;
     hook.cursorItem = screen.inventory.cursor?.item ?? null;
     hook.descriptionOpen = screen.description.open;
     hook.descriptionItem = screen.description.item;

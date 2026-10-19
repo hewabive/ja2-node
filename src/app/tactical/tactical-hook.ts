@@ -54,6 +54,8 @@ export interface TacticalHook {
   drawCalls: number;
   drawnSoldiers: number;
   pendingImages: number;
+  enemyBar: { readonly counter: number; readonly max: number };
+  topMessage: string | null;
   frameMs: TimeSummary;
   worldMs: TimeSummary;
   command(cmd: CommandEnvelope): Promise<unknown>;
