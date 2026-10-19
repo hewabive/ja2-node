@@ -54,9 +54,10 @@ describe('the item catalogue (docs/28 §12.1 G19)', () => {
         class: 'GUN',
         inventoryGraphics: { small: { path: 'interface/mdguns.sti', subImageIndex: 1 }, big: { path: 'bigitems/gun01.sti' } },
         tileGraphic: { type: 'GUNS' },
-        weapon: { calibre: { index: 2, name: '9mm' }, magSize: 15 },
+        weapon: { calibre: { index: 2, name: '9mm', showInHelpText: true }, magSize: 15 },
       });
       expect(glock?.shortName.length).toBeGreaterThan(0);
+      expect(catalogue.items.find((i) => i.name === 'ROCKET_RIFLE')?.weapon?.calibre?.showInHelpText).toBe(false);
       const magazine = catalogue.items.find((i) => i.magazine !== null);
       expect(magazine?.bobbyRayName).toBe(magazine?.shortName);
       const etag = response.headers.get('etag') ?? '';
