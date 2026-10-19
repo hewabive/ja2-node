@@ -186,6 +186,12 @@ export class HintProvider implements GameClient {
     return now - since >= this.#restMs;
   }
 
+  warm(): void {
+    const view = this.#view();
+    const knowledge = view ? this.#knowledgeFor(view) : null;
+    if (view && knowledge) this.#worldOf(view, knowledge.rules);
+  }
+
   async hintNow(request: CommandEnvelope): Promise<HintAnswer> {
     const view = this.#view();
     if (!view) return this.query(request);

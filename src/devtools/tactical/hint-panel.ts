@@ -64,6 +64,7 @@ export class HintPanel {
     const mapPath = client.latestView?.mapPath;
     if (mapPath) await knowledge.worlds.ensure(mapPath);
     this.#knowledge = knowledge;
+    this.provider.warm();
     this.hook.error = mapPath ? (knowledge.worlds.failures.get(mapPath) ?? null) : null;
     this.hook.usable = knowledge.usable;
     this.hook.ready = true;
