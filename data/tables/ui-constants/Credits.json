@@ -1,0 +1,42 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Credits.cc",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
+  "constants": {
+    "CRDT_FLAG__TITLE": 1,
+    "CRDT_FLAG__START_SECTION": 2,
+    "CRDT_FLAG__END_SECTION": 4,
+    "CRDT_NAME_LOC_X": 375,
+    "CRDT_NAME_LOC_Y": 420,
+    "CRDT_NAME_TITLE_LOC_Y": 435,
+    "CRDT_NAME_FUNNY_LOC_Y": 450,
+    "CRDT_NAME_LOC_WIDTH": 260,
+    "CRDT_NAME_FONT": "FONT12ARIAL",
+    "CRDT_WIDTH_OF_TEXT_AREA": 210,
+    "CRDT_TEXT_START_LOC": 10,
+    "CRDT_SCROLL_PIXEL_AMOUNT": 1,
+    "CRDT_NODE_DELAY_AMOUNT": 25,
+    "CRDT_SPACE_BN_SECTIONS": 50,
+    "CRDT_SPACE_BN_NODES": 12,
+    "CRDT_EYE_WIDTH": 30,
+    "CRDT_EYE_HEIGHT": 12,
+    "CRDT_EYES_CLOSED_TIME": 150
+  },
+  "stdScreen": ["CRDT_NAME_FUNNY_LOC_Y", "CRDT_NAME_LOC_X", "CRDT_NAME_LOC_Y", "CRDT_NAME_TITLE_LOC_Y", "CRDT_TEXT_START_LOC"],
+  "skipped": [
+    "CRDT_START_CODE",
+    "CRDT_SEPARATION_CODE",
+    "CRDT_END_CODE",
+    "CRDT_DELAY_BN_STRINGS_CODE",
+    "CRDT_DELAY_BN_SECTIONS_CODE",
+    "CRDT_SCROLL_SPEED",
+    "CRDT_FONT_JUSTIFICATION",
+    "CRDT_TITLE_FONT_COLOR",
+    "CRDT_ACTIVE_FONT_COLOR",
+    "CRDT_TITLE",
+    "CRDT_START_OF_SECTION",
+    "CRDT_END_OF_SECTION",
+    "CRDT_NAME_LOC_HEIGHT",
+    "CRDT_START_POS_Y"
+  ]
+}

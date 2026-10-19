@@ -94,7 +94,8 @@ export class LayoutModel {
   }
 
   number(expression: NumberExpr, variables: Variables = {}, prefix = ''): number {
-    if (typeof expression === 'object') throw new Error(`${this.json.screen}: a binding is not a constant (${expression.bind})`);
+    if (typeof expression === 'object')
+      throw new Error(`${this.json.screen}: a binding is not a constant (${'bind' in expression ? expression.bind : expression.by})`);
     return this.scope.number(expression, variables, prefix);
   }
 

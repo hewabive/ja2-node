@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildCursorTable } from '../../../tools/transcribe/cursors.ts';
+import { buildLoadScreenTable } from '../../../tools/transcribe/load-screens.ts';
 import { buildMlgTable } from '../../../tools/transcribe/mlg.ts';
 import { buildUiConstantTables } from '../../../tools/transcribe/ui-constants.ts';
 import { PROJECT_DATA_DIR, REPO_ROOT } from '../../node/repo.ts';
@@ -41,6 +42,16 @@ describe('the transcribed UI tables', () => {
     expect(Object.keys(fonts.fonts ?? {})).toHaveLength(18);
   });
 
+  it('list the hard-coded loading screens by id and the credits, loading screen and game settings constants', async () => {
+    const screens = (await table('tables/load-screens.json')) as { predefined: { index: number; name: string; file: string }[] };
+    expect(screens.predefined).toHaveLength(27);
+    expect(screens.predefined[17]).toEqual({ index: 17, name: 'HELI', file: 'ls_heli.sti' });
+    const credits = parseConstantTable(await table(constantTablePath('Credits')), 'Credits');
+    expect(credits.constants).toMatchObject({ CRDT_NAME_LOC_X: 375, CRDT_EYE_WIDTH: 30, CRDT_EYES_CLOSED_TIME: 150 });
+    const settings = parseConstantTable(await table(constantTablePath('GameSettings')), 'GameSettings');
+    expect(settings.constants).toMatchObject({ NUM_GAME_OPTIONS: 23, TOPTION_TRACKING_MODE: 22 });
+  });
+
   it('map the MLG ids per data version', async () => {
     const mlg = parseMlgTable(await table(MLG_TABLE_PATH));
     expect(mlg.ids).toHaveLength(33);
@@ -55,6 +66,7 @@ describe('the transcribed UI tables', () => {
       for (const [name, generated] of buildUiConstantTables()) expect(await table(constantTablePath(name)), name).toEqual(generated);
       expect(await table(MLG_TABLE_PATH)).toEqual(buildMlgTable());
       expect(await table('tables/cursors.json')).toEqual(buildCursorTable());
+      expect(await table('tables/load-screens.json')).toEqual(buildLoadScreenTable());
     },
   );
 });

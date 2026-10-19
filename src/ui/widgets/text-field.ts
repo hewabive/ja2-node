@@ -174,6 +174,18 @@ export class TextFieldGroup {
     return field;
   }
 
+  remove(field: TextField): void {
+    const at = this.#fields.indexOf(field);
+    if (at < 0) return;
+    field.region.remove();
+    this.#fields.splice(at, 1);
+    if (this.#active !== field) return;
+    this.#active = this.#fields[0] ?? null;
+    this.#editing = this.#active !== null;
+    this.#cursor = this.#active?.length ?? 0;
+    this.#startHilite = this.#cursor;
+  }
+
   dispose(): void {
     for (const field of this.#fields) field.region.remove();
     this.#fields.length = 0;

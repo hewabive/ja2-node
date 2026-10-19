@@ -30,7 +30,19 @@ const BUTTON_STATES: Readonly<Record<string, StubFrameState>> = {
   onNormal: 'pressed',
   onHilite: 'pressedHover',
 };
-const ACTION_KEYS = ['primary', 'secondary', 'wheelUp', 'wheelDown', 'hover', 'select', 'close', 'change', 'result'] as const;
+const ACTION_KEYS = [
+  'primary',
+  'secondary',
+  'wheelUp',
+  'wheelDown',
+  'hover',
+  'press',
+  'doubleClick',
+  'select',
+  'close',
+  'change',
+  'result',
+] as const;
 const CONDITION_KEYS = ['visible', 'enabled', 'checked', 'open'] as const;
 const BINDING_KEYS = ['value'] as const;
 const FONT_KEYS = ['font'] as const;
@@ -91,6 +103,14 @@ export function collectReferences(model: LayoutModel): LayoutReferences {
       fail(where, error);
     }
   };
+  const choiceBindings = (value: unknown) => {
+    if (!isRecord(value)) return;
+    if (Object.keys(value).length === 1 && typeof value.bind === 'string') binding(value.bind);
+    if (typeof value.by === 'string' && isRecord(value.map)) binding(value.by);
+    for (const child of Object.values(value)) if (isRecord(child)) choiceBindings(child);
+  };
+  const choiceFrames = (expr: unknown, vars: Readonly<Record<string, number>>): (number | null)[] =>
+    isRecord(expr) && isRecord(expr.map) ? Object.values(expr.map).map((v) => staticNumber(v, vars)) : [staticNumber(expr, vars)];
   const text = (source: unknown, vars: Readonly<Record<string, number>>) => {
     if (source === undefined) return;
     if (typeof source === 'string') {
@@ -123,14 +143,18 @@ export function collectReferences(model: LayoutModel): LayoutReferences {
     for (const key of BINDING_KEYS) binding(json[key]);
     for (const key of FONT_KEYS) if (typeof json[key] === 'string') refs.fonts.add(json[key] as string);
     for (const key of TEXT_KEYS) text(json[key], vars);
-    for (const value of Object.values(json))
-      if (isRecord(value) && Object.keys(value).length === 1 && typeof value.bind === 'string') binding(value.bind);
+    for (const value of Object.values(json)) choiceBindings(value);
+    if (isRecord(json.fit)) {
+      text(json.fit.text, vars);
+      if (typeof json.fit.font === 'string') refs.fonts.add(json.fit.font);
+    }
     if (typeof json.cursor === 'string') refs.cursors.add(json.cursor);
     if (typeof json.lines === 'string') binding(json.lines);
     else if (Array.isArray(json.lines)) for (const line of json.lines) text(isRecord(line) && 'text' in line ? line.text : line, vars);
     switch (json.type) {
       case 'image':
-        if (typeof json.asset === 'string') useAsset(json.asset, staticNumber(json.frame, vars), 'plain', 'image');
+        if (typeof json.asset === 'string')
+          for (const frame of choiceFrames(json.frame, vars)) useAsset(json.asset, frame, 'plain', 'image');
         break;
       case 'button': {
         if (typeof json.asset === 'string') {
@@ -161,9 +185,10 @@ export function collectReferences(model: LayoutModel): LayoutReferences {
       case 'list':
       case 'repeat': {
         const count = staticNumber(json.count, vars);
+        const start = staticNumber(json.start, vars) ?? 0;
         const templates = (Array.isArray(json.template) ? json.template : [json.template]) as WidgetJson[];
         const n = count ?? 1;
-        for (let i = 0; i < Math.max(1, n); i++) for (const template of templates) widget(template, { ...vars, i });
+        for (let i = start; i < start + Math.max(1, n); i++) for (const template of templates) widget(template, { ...vars, i });
         break;
       }
     }

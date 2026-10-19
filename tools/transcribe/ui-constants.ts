@@ -47,6 +47,11 @@ const SCREEN_TABLES: readonly TableSpec[] = [
   { table: 'PopUpBox', files: ['game/Utils/PopUpBox.h', 'game/Utils/PopUpBox.cc'] },
   { table: 'Slider', files: ['game/Utils/Slider.h', 'game/Utils/Slider.cc'] },
   { table: 'Animated_ProgressBar', files: ['game/Utils/Animated_ProgressBar.h', 'game/Utils/Animated_ProgressBar.cc'] },
+  { table: 'GameSettings', files: ['game/GameSettings.h'] },
+  { table: 'Credits', files: ['game/Credits.cc'] },
+  { table: 'Loading_Screen', files: ['game/Loading_Screen.h', 'game/Loading_Screen.cc'] },
+  { table: 'JAScreens', files: ['game/JAScreens.h', 'game/JAScreens.cc'] },
+  { table: 'Fade_Screen', files: ['game/Fade_Screen.h', 'game/Fade_Screen.cc'] },
 ];
 
 const FRAME_ORIGIN_NAMES: ReadonlyMap<string, number> = new Map([
