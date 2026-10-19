@@ -203,7 +203,8 @@ scripts, locks, the transcribed tables); `content.text` is a hash of the quote l
 another `logic` hash or `source` is refused (`contentMismatch`); another `text` hash or `dataVersion` loads with a
 warning that a replay may diverge, like Stracciatella's version warning (`SaveLoadScreen.cc:707-731`). The header
 repeats what the save list shows without parsing the body (the original's reason for its header,
-`SaveLoadGame.h:24-60`).
+`SaveLoadGame.h:24-60`). As built in M8 (U0b, §1.7) `content.logic` is the hash of the server's rule pack, which
+holds every file the simulation can read rather than the files read so far; text files still count by presence only.
 
 **Codec** `src/sim/snapshot/` (DOM-free, Node-free, deterministic, SFI header only where it encodes original fields):
 `snapshotSession(sim): SimSnapshot` and `restoreSession(snapshot, deps): SessionSim`, where `deps` holds the shared
@@ -530,6 +531,26 @@ manual drivers, map preparation), `save-api.test.ts` (MCP, HTTP and WebSocket ag
 `save-original.test.ts` (original data: a new campaign and a native import saved, replayed and loaded exactly) and the
 end-to-end `tests/e2e/saves.spec.ts` (an MCP agent saves in a battle, loads it exactly into a new session, and both
 sessions answer the same commands with the same reports and views for three rounds).
+
+**Status after U0b (M8, 2026-10-19): the content identity is the rule pack.** The logic hash of the content
+identity is now the rule pack's hash (`04` §5.10, `28` §17.4): a SHA-256 over the pack's inputs (each rule file's path,
+size and content hash, each text file by presence, each graphic the simulation takes numbers from by content hash, the
+layer counts). The sessions load their content from the pack, so the hash covers every file the simulation can read,
+not only those read before the save, and it is known before any session exists (`welcome` carries it).
+
+- **Save version 2** drops `contentFiles`; `header.content.logic` is the pack hash and a load compares it with the
+  server's pack. The save list reports `contentMismatch` for a version 2 save of another pack from its header alone.
+- **Saves of 0.7.0** (version 1) keep loading: the migration to version 2 moves their file list to `legacyContent`,
+  and the load checks it the old way, with `ContentLedger.logicHash` over those paths read from the raw data (the
+  0.7.0 lists include the STI files the logic loaders read then, so this check needs the data, not the pack); a
+  re-save writes version 2. The snapshot inside goes from version 2 to 3 on restore: the soldiers' sprite frames
+  become timeline slots through the presentation timeline (`28` §17.4).
+- **Fixture.** `src/server/fixtures/` holds a landed campaign and a sandbox saved by the code at 91a4365 on the stub
+  pack, with the views they showed; `legacy-save.test.ts` loads them, expects the same views 400 ticks later and
+  re-saves them as version 2.
+- The text identity and the warnings are unchanged. Because the pack contains every rule file of every layer, a
+  change of a stub rule file (a regenerated stub map or table) also changes the pack hash on the original data, where
+  0.7.0 counted only the stub files a session had read.
 
 ### 1.8 Browser UI (M7)
 
