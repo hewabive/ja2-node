@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from 'node:util';
 import type { ItemDef, ItemTable } from '../../src/content/items/items.ts';
+import { isSessionMessage } from '../../src/protocol/message-log.ts';
 import type { SoldierView } from '../../src/protocol/view.ts';
 import { column, gridNo, row, WORLD_SIDE } from './grid.ts';
 import type { ActResult, AdvanceReport, AdvanceRequest, Command, Game, GameEvent, Observation } from './mcp-game.ts';
@@ -92,7 +93,11 @@ function comparableView(view: Observation): unknown {
 }
 
 function comparableReport(report: AdvanceReport): unknown {
-  return { ...report, events: report.events.filter((e) => !SESSION_EVENTS.has(e.type)) };
+  return {
+    ...report,
+    events: report.events.filter((e) => !SESSION_EVENTS.has(e.type)),
+    messages: (report.messages ?? []).filter((m) => !isSessionMessage(m)),
+  };
 }
 
 export class Player {

@@ -92,7 +92,14 @@ describe('turn-based combat', () => {
     expect(t.turn.currentTeam).toBe(Team.OUR);
     expect(merc.actionPoints).toBe(5 + 19);
     expect(sim.isIdle()).toBe(true);
-    expect(sim.combatView()).toEqual({ team: Team.OUR, round: 1, interrupt: false });
+    expect(sim.combatView()).toEqual({
+      team: Team.OUR,
+      round: 1,
+      interrupt: false,
+      uiLocked: false,
+      topMessage: { kind: 'playerTurn', team: Team.OUR, bloodcats: false },
+      ai: null,
+    });
   });
 
   it('passes the turn to the enemy team and back, starting a new round', () => {

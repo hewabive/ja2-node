@@ -12,6 +12,7 @@ import {
   clampDescription,
   encodeSaveFileAsync,
   inflateSave,
+  messagesOfPresentation,
   musicOfPresentation,
   parseSaveText,
   presentationOf,
@@ -99,6 +100,7 @@ export interface SaveRequest {
 
 export interface SaveContextInput {
   readonly deadIsDeadName?: string | null | undefined;
+  readonly deadIsDeadDescription?: string | null | undefined;
 }
 
 export interface SaveServiceOptions {
@@ -152,6 +154,7 @@ export interface UploadOutcome {
 
 interface SessionSaveState {
   deadIsDeadName: string | null;
+  deadIsDeadDescription: string | null;
   pendingEndTurn: Capture | null;
   deadIsDeadDue: boolean;
   arrivals: PendingArrival[];
@@ -226,7 +229,7 @@ export class SaveService {
   #state(session: Session): SessionSaveState {
     let state = this.#states.get(session);
     if (!state) {
-      state = { deadIsDeadName: null, pendingEndTurn: null, deadIsDeadDue: false, arrivals: [] };
+      state = { deadIsDeadName: null, deadIsDeadDescription: null, pendingEndTurn: null, deadIsDeadDue: false, arrivals: [] };
       this.#states.set(session, state);
     }
     return state;
@@ -235,6 +238,7 @@ export class SaveService {
   attach(session: Session, context: SaveContextInput = {}): void {
     const state = this.#state(session);
     if (context.deadIsDeadName !== undefined) state.deadIsDeadName = context.deadIsDeadName;
+    if (context.deadIsDeadDescription !== undefined) state.deadIsDeadDescription = context.deadIsDeadDescription;
     this.#attached.add(session);
     session.hooks = {
       beforeDispatch: (s, cmd) => this.#guarded(() => this.#beforeDispatch(s, cmd)),
@@ -261,6 +265,10 @@ export class SaveService {
 
   deadIsDeadName(session: Session): string {
     return this.#state(session).deadIsDeadName ?? DEFAULT_DEAD_IS_DEAD_NAME;
+  }
+
+  deadIsDeadDescription(session: Session): string {
+    return this.#state(session).deadIsDeadDescription ?? this.deadIsDeadName(session);
   }
 
   lastLoad(session: Session): LoadOutcome | null {
@@ -312,7 +320,7 @@ export class SaveService {
       header,
       session: { kind: snapshot.session, origin: describeOrigin(segment.origin), tick: summary.tick, preparedMaps: snapshot.preparedMaps },
       sim: snapshot.sim,
-      presentation: presentationOf(session.music),
+      presentation: presentationOf(session.music, session.messages),
     };
     return { kind, name, file, log: isReplayable(segment.origin) ? segment : null };
   }
@@ -423,7 +431,10 @@ export class SaveService {
 
   completeLoad(session: Session, opened: OpenedSave, reseed: boolean): LoadOutcome {
     const state = this.#state(session);
-    if (opened.file.header.options.saveMode === 'deadIsDead') state.deadIsDeadName = opened.name;
+    if (opened.file.header.options.saveMode === 'deadIsDead') {
+      state.deadIsDeadName = opened.name;
+      state.deadIsDeadDescription = opened.file.header.description;
+    }
     state.pendingEndTurn = null;
     state.deadIsDeadDue = false;
     let seed: number | null = null;
@@ -442,7 +453,12 @@ export class SaveService {
     if (!isValidSaveName(name)) throw new SaveLoadError('invalidName', `invalid save name ${JSON.stringify(name)}`);
     this.#deadIsDeadSavePoint(session);
     const opened = await this.open(name);
-    session.replace(opened.sim, { name: opened.name, digest: opened.digest }, musicOfPresentation(opened.file.presentation));
+    session.replace(
+      opened.sim,
+      { name: opened.name, digest: opened.digest },
+      musicOfPresentation(opened.file.presentation),
+      messagesOfPresentation(opened.file.presentation),
+    );
     return this.completeLoad(session, opened, reseed);
   }
 
@@ -529,7 +545,7 @@ export class SaveService {
     const mode: SaveMode = saveModeOf(session.sim);
     if (mode === 'deadIsDead') {
       if (deadIsDeadWritable(session.sim))
-        state.pendingEndTurn = this.#capture(session, 'deadIsDead', this.deadIsDeadName(session), this.deadIsDeadName(session));
+        state.pendingEndTurn = this.#capture(session, 'deadIsDead', this.deadIsDeadName(session), this.deadIsDeadDescription(session));
       return;
     }
     if (canGameBeSaved(session.sim)) state.pendingEndTurn = this.#capture(session, 'auto', AUTO_PENDING_NAME, AUTO_PENDING_NAME);
@@ -578,8 +594,7 @@ export class SaveService {
   }
 
   #deadIsDeadSave(session: Session): void {
-    const name = this.deadIsDeadName(session);
-    void this.#write(this.#capture(session, 'deadIsDead', name, name));
+    void this.#write(this.#capture(session, 'deadIsDead', this.deadIsDeadName(session), this.deadIsDeadDescription(session)));
   }
 
   #deadIsDeadSavePoint(session: Session): void {

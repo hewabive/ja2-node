@@ -1,6 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { expect, test } from '@playwright/test';
+import { isSessionMessage, type MessageEntry } from '../../src/protocol/message-log.ts';
 import { SERVER, TOKEN } from './env.ts';
 
 const COLS = 160;
@@ -25,6 +26,7 @@ interface Report {
   readonly reason: string;
   readonly tick: number;
   readonly events: readonly { readonly type: string }[];
+  readonly messages: readonly MessageEntry[];
 }
 
 const distance = (a: number, b: number) => Math.hypot((a % COLS) - (b % COLS), Math.trunc(a / COLS) - Math.trunc(b / COLS));
@@ -62,7 +64,11 @@ test('an MCP agent saves in the middle of a battle and an exact load continues i
   expect(copy).not.toBe(original);
 
   const comparable = (view: View) => ({ ...view, language: undefined, dataVersion: undefined });
-  const withoutSessionEvents = (report: Report) => ({ ...report, events: report.events.filter((e) => !SESSION_EVENTS.has(e.type)) });
+  const withoutSessionEvents = (report: Report) => ({
+    ...report,
+    events: report.events.filter((e) => !SESSION_EVENTS.has(e.type)),
+    messages: report.messages.filter((m) => !isSessionMessage(m)),
+  });
   expect(comparable(await observe(copy))).toEqual(comparable(await observe(original)));
 
   let accepted = 0;

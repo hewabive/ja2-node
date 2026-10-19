@@ -21,6 +21,7 @@ const CALLS: Readonly<Record<Exclude<HostCall, 'close'>, CallHandler>> = {
   report: (h) => h.report(),
   snapshot: (h) => h.snapshot(),
   inputLog: (h) => h.inputLog(),
+  profiles: (h) => h.profiles(),
 };
 
 interface Booted {

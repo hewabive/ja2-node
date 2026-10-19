@@ -16,6 +16,7 @@
 // @src docs/25 §4.5–§4.6, §5.2, §5.6.
 
 import type { MapDoor } from '../../content/formats/map.ts';
+import { LoadingScreen } from '../../content/strategic/loading-screens.ts';
 import {
   parseSectorString,
   type Sector,
@@ -28,7 +29,7 @@ import { sectorMapPath } from '../../content/strategic/sector-maps.ts';
 import { compileWorldMovementCosts } from '../../content/world/movement-costs.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import type { CommandResult } from '../command.ts';
-import type { SimEvent } from '../events.ts';
+import type { LoadScreenView, SimEvent } from '../events.ts';
 import { Meanwhile } from '../strategic/ai/constants.ts';
 import type { QueenContext } from '../strategic/ai/context.ts';
 import { getNumberOfEnemiesInSector } from '../strategic/ai/counts.ts';
@@ -62,6 +63,7 @@ import { handleHelicopterOnGround } from '../strategic/forces/helicopter.ts';
 import type { StrategicContext, TacticalWorldPort } from '../strategic/forces/ports.ts';
 import { calculateNonPersistentPbiInfo } from '../strategic/forces/pre-battle.ts';
 import { townIdOfSector } from '../strategic/map/control.ts';
+import { loadScreenId } from '../strategic/map/loading-screen.ts';
 import {
   findUndergroundSector,
   getSectorFlagStatus,
@@ -113,6 +115,7 @@ import {
   updateSoldierPointerDataIntoProfile,
 } from '../tactical/narrative/profile-insertion.ts';
 import { destroyAllSchedules, postSchedules } from '../tactical/narrative/schedules.ts';
+import { type Refusal, refuse, refused } from '../tactical/refusal.ts';
 import { hostileBloodcatsPresent, removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
 import { type RealtimeClock, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
@@ -169,6 +172,7 @@ type SectorEvent =
       readonly type: 'sectorLoaded';
       readonly sector: string;
       readonly hostiles: number;
+      readonly loadScreen: LoadScreenView;
       readonly enemyPresence?: true;
       readonly firstArrival?: true;
     };
@@ -208,6 +212,7 @@ export class SectorFlow {
   readonly events: SimEvent[] = [];
   #loadingSector = false;
   #presenceWhileLoading = false;
+  #loadScreen: number = LoadingScreen.NOTHING;
 
   constructor(campaign: CampaignSim, setup: SectorSetup) {
     this.campaign = campaign;
@@ -370,14 +375,19 @@ export class SectorFlow {
   }
 
   enterSectorRefusal(sector: Sector): string | null {
+    return this.enterSectorRefusalOf(sector)?.reason ?? null;
+  }
+
+  enterSectorRefusalOf(sector: Sector): Refusal | null {
     const s = this.campaign.state;
     if (s.encounter.preBattle || s.encounter.simultaneousArrival || s.movement.groupPrompting !== null)
-      return 'a strategic decision is pending';
+      return { token: 'decisionPending', reason: 'a strategic decision is pending' };
     const t = this.campaign.tactical?.state;
     const world = this.world;
-    if (t && (t.inCombat || t.turn.enemyInSector) && world && !sameSector(world, sector)) return 'enemies are present in the loaded sector';
-    if (!this.canGoToTacticalInSector(sector)) return 'no merc of yours can go there';
-    if (!this.setup.worlds.world(this.mapPathOf(sector))) return 'sector map is not loaded';
+    if (t && (t.inCombat || t.turn.enemyInSector) && world && !sameSector(world, sector))
+      return { token: 'battleElsewhere', reason: 'enemies are present in the loaded sector' };
+    if (!this.canGoToTacticalInSector(sector)) return { token: 'noMercThere', reason: 'no merc of yours can go there' };
+    if (!this.setup.worlds.world(this.mapPathOf(sector))) return { token: 'mapNotLoaded', reason: 'sector map is not loaded' };
     return null;
   }
 
@@ -416,10 +426,16 @@ export class SectorFlow {
       type: 'sectorLoaded',
       sector: sectorShortString(sector),
       hostiles: numHostilesInSector(this.ctx, sector),
+      loadScreen: this.#loadScreenView(),
       ...(enemyPresence ? { enemyPresence: true as const } : {}),
       ...(s.didGameJustStart ? { firstArrival: true as const } : {}),
     });
     return true;
+  }
+
+  #loadScreenView(): LoadScreenView {
+    const screen = this.ctx.content.loadingScreens.screens[this.#loadScreen];
+    return { id: this.#loadScreen, path: screen?.path ?? '' };
   }
 
   #whileLoading(load: () => void): boolean {
@@ -554,6 +570,7 @@ export class SectorFlow {
     const narrative = this.campaign.narrative;
     if (previous) setupProfileInsertionDataForCivilians(previous.state, this.#profileInsertionHooks());
     narrative.handleQuestCodeOnSectorEntry(sector);
+    this.#loadScreen = loadScreenId(this.ctx, sector, s.rng);
     for (const m of this.setup.roster.all()) m.soldier.placed = false;
     if (!this.#inMeanwhile()) setSectorFlag(s.map, sector, SectorFlag.ALREADY_VISITED, worldDay(s.clock));
     const diff = s.sectorDiffs.get(sectorKey(sector)) ?? null;
@@ -1290,10 +1307,10 @@ function parseSector(value: unknown): Sector | null {
 
 function enterSectorCommand(flow: SectorFlow, cmd: { readonly [key: string]: unknown }): CommandResult {
   const sector = parseSector(cmd.sector);
-  if (!sector) return { ok: false, reason: "sector must be like 'B9' or {x, y, z}" };
-  const refusal = flow.enterSectorRefusal(sector);
-  if (refusal) return { ok: false, reason: refusal };
-  if (!flow.setCurrentWorldSector(sector)) return { ok: false, reason: 'sector map is not loaded' };
+  if (!sector) return refuse('badSector', "sector must be like 'B9' or {x, y, z}");
+  const refusal = flow.enterSectorRefusalOf(sector);
+  if (refusal) return refused(refusal);
+  if (!flow.setCurrentWorldSector(sector)) return refuse('mapNotLoaded', 'sector map is not loaded');
   return { ok: true, data: { sector: sectorShortString(sector) } };
 }
 

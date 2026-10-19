@@ -126,7 +126,11 @@ describe('gun attacks', () => {
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo }).ok).toBe(true);
     for (let i = 0; i < 20; i++) sim.step();
     expect(sim.state.turn.attackBusyCount).toBeGreaterThan(0);
-    expect(sim.dispatch({ type: 'move', soldier: 1, to: gridNo(84, 80) })).toEqual({ ok: false, reason: 'an attack is still resolving' });
+    expect(sim.dispatch({ type: 'move', soldier: 1, to: gridNo(84, 80) })).toEqual({
+      ok: false,
+      reason: 'an attack is still resolving',
+      data: { refusal: 'attackResolving' },
+    });
     run(sim);
     expect(sim.dispatch({ type: 'move', soldier: 1, to: gridNo(84, 80) }).ok).toBe(true);
   });
@@ -146,6 +150,7 @@ describe('gun attacks', () => {
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({
       ok: false,
       reason: 'not enough APs for this attack',
+      data: { refusal: 'notEnoughAP' },
     });
     expect(merc.state).toBe(halted);
     expect(merc.collapsed).toBe(false);
@@ -162,9 +167,13 @@ describe('gun attacks', () => {
     soldierTakeDamage(t, merc, 0, merc.breath * 100, DamageReason.GAS, null);
     expect(merc.breath).toBe(0);
     expect(merc.collapsed).toBe(false);
-    const outOfBreath = { ok: false, reason: 'soldier is out of breath' };
+    const outOfBreath = { ok: false, reason: 'soldier is out of breath', data: { refusal: 'outOfBreath' } };
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual(outOfBreath);
-    expect(sim.dispatch({ type: 'move', soldier: 1, to: gridNo(84, 80) })).toEqual({ ok: false, reason: 'soldier 0 is still acting' });
+    expect(sim.dispatch({ type: 'move', soldier: 1, to: gridNo(84, 80) })).toEqual({
+      ok: false,
+      reason: 'soldier 0 is still acting',
+      data: { refusal: 'mercActing' },
+    });
     run(sim);
     expect(merc.collapsed).toBe(true);
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual(outOfBreath);

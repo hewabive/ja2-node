@@ -153,6 +153,7 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('native savegames imported into the t
           expect(session.dispatch({ type: 'compressTime', mode: 4 })).toEqual({
             ok: false,
             reason: 'enemies are present in the loaded sector',
+            data: { refusal: 'enemiesPresent' },
           });
         } else {
           expect(session.dispatch({ type: 'compressTime', mode: 4 })).toEqual({ ok: true });

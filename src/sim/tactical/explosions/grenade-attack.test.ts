@@ -73,6 +73,7 @@ describe('grenade attacks through the attack command', () => {
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: gridNo(80, 86), aimTime: 2 })).toEqual({
       ok: false,
       reason: 'throws cannot be aimed',
+      data: { refusal: 'throwNoAim' },
     });
   });
 });

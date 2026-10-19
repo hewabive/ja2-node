@@ -1,7 +1,8 @@
+import type { ProfileFaceRecord } from '../content/narrative/profile-presentation.ts';
 import type { DataVersion, UiLanguage } from '../content/text/data-version.ts';
-import type { CommandEnvelope, DriverMode } from '../protocol/messages.ts';
+import type { CommandEnvelope, DriverMode, SessionAdvanceReport } from '../protocol/messages.ts';
 import type { PlayerView } from '../protocol/view.ts';
-import type { StopCondition, StopReport } from '../sim/advance.ts';
+import type { StopCondition } from '../sim/advance.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SaveImportReport } from '../sim/tactical/save-import.ts';
 import type { LogSegment } from './input-log.ts';
@@ -37,7 +38,7 @@ export interface SessionHost {
   readonly savesAvailable: boolean;
   dispatch(cmd: CommandEnvelope): Promise<CommandResult>;
   prepareAndDispatch(cmd: CommandEnvelope): Promise<CommandResult>;
-  advance(until: StopCondition, budget?: number): Promise<StopReport>;
+  advance(until: StopCondition, budget?: number): Promise<SessionAdvanceReport>;
   setDriver(driver: DriverMode): Promise<void>;
   subscribe(listener: Listener): () => void;
   save(request: SaveRequest): Promise<SaveOutcome>;
@@ -48,6 +49,7 @@ export interface SessionHost {
   report(): Promise<CreationReport>;
   snapshot(): Promise<string>;
   inputLog(): Promise<LogSegment>;
+  profiles(): Promise<readonly ProfileFaceRecord[]>;
   close(): Promise<void>;
 }
 
@@ -120,7 +122,7 @@ export class InProcessHost implements SessionHost {
     return this.#queued(() => this.session.prepareAndDispatch(cmd, this.#slicer));
   }
 
-  advance(until: StopCondition, budget?: number): Promise<StopReport> {
+  advance(until: StopCondition, budget?: number): Promise<SessionAdvanceReport> {
     return this.#queued(() => this.session.advanceSliced(until, budget, this.#slicer));
   }
 
@@ -165,6 +167,10 @@ export class InProcessHost implements SessionHost {
 
   inputLog(): Promise<LogSegment> {
     return this.#queued(() => this.session.log.full());
+  }
+
+  profiles(): Promise<readonly ProfileFaceRecord[]> {
+    return Promise.resolve().then(() => this.session.sim.profileFaceRecords?.() ?? []);
   }
 
   close(): Promise<void> {

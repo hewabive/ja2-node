@@ -667,6 +667,7 @@ export function soldierTakeDamage(
   }
   s.damageWindow = i16(s.damageWindow + life);
   if (s.life < 0) s.life = 0;
+  if (s.life < oldLife && s.visible !== -1) t.events.push({ type: 'lifeLost', soldier: s.id, amount: oldLife - s.life });
   if (reason === DamageReason.EXPLOSION || reason === DamageReason.STRUCTURE_EXPLOSION) checkEquipmentForDamage(t, s, life);
   if (reason !== DamageReason.GAS && !isRobot(s)) {
     if (reason === DamageReason.HANDTOHAND) {

@@ -1,13 +1,20 @@
 import type { SimEvent } from '../sim/events.ts';
+import type { FaceVariant } from '../sim/narrative/face-variant.ts';
 import type { ShopView } from '../sim/strategic/economy/merchants/view.ts';
 import type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 import { type InventoryItemView, sameInventory } from '../sim/tactical/inventory-view.ts';
+import type { FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
+import type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
+import type { MessageEntry } from './message-log.ts';
 import { type MusicView, sameMusic } from './music.ts';
 import { sameJson } from './same-json.ts';
 
+export type { FaceVariant } from '../sim/narrative/face-variant.ts';
 export type { ShopBoxView, ShopEta, ShopKind, ShopView } from '../sim/strategic/economy/merchants/view.ts';
 export type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 export type { InventoryItemView } from '../sim/tactical/inventory-view.ts';
+export type { FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
+export type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
 export type { MusicView } from './music.ts';
 
 export interface SoldierView {
@@ -24,6 +31,9 @@ export interface SoldierView {
   readonly frame: number;
   readonly palettes: readonly [string, string, string, string];
   readonly hand: string;
+  readonly frameSlot: number;
+  readonly stateTick: number;
+  readonly frameDelay: number;
   readonly ap?: number;
   readonly life?: number;
   readonly lifeMax?: number;
@@ -36,6 +46,31 @@ export interface SoldierView {
   readonly kind?: string;
   readonly controlled?: boolean;
   readonly voice?: string;
+  readonly bleeding?: number;
+  readonly breathMax?: number;
+  readonly morale?: number;
+  readonly stats?: SoldierStatsView;
+  readonly armour?: number;
+  readonly weight?: number;
+  readonly camo?: number;
+  readonly asleep?: boolean;
+  readonly squad?: number | null;
+  readonly stealth?: boolean;
+  readonly weaponMode?: WeaponModeView;
+  readonly muted?: boolean;
+  readonly sees?: readonly number[];
+  readonly canAct?: boolean;
+  readonly continueTo?: number | null;
+  readonly vehicle?: VehicleSeatView | null;
+  readonly firstAid?: FirstAidRole | null;
+  readonly blinded?: boolean;
+  readonly hostile?: boolean;
+  readonly healthIndex?: number;
+}
+
+export interface ItemAttachmentView {
+  readonly item: string;
+  readonly status: number;
 }
 
 export interface ItemView {
@@ -44,12 +79,17 @@ export interface ItemView {
   readonly item: string;
   readonly count: number;
   readonly status: number;
+  readonly money?: number;
+  readonly attachments?: readonly ItemAttachmentView[];
 }
 
 export interface CombatView {
   readonly team: number;
   readonly round: number;
   readonly interrupt: boolean;
+  readonly uiLocked: boolean;
+  readonly topMessage: TopMessageView | null;
+  readonly ai: { readonly current: number; readonly total: number } | null;
 }
 
 export interface ClockView {
@@ -558,12 +598,14 @@ export interface ConversationLineView {
   readonly quote: number;
   readonly record?: number;
   readonly textKey: TextKeyView;
+  readonly chars: number;
   readonly text?: string;
 }
 
 export interface ConversationView {
   readonly npc: number | null;
   readonly profile: number;
+  readonly faceVariant: FaceVariant | null;
   readonly name: string;
   readonly talker: number | null;
   readonly initiatedBy: 'player' | 'npc';
@@ -607,6 +649,7 @@ export interface ViewFrame {
   readonly changed: readonly SoldierView[];
   readonly removed: readonly number[];
   readonly events?: readonly SimEvent[];
+  readonly messages?: readonly MessageEntry[];
   readonly mapPath?: string | null;
   readonly clock?: ClockView;
   readonly strategic?: StrategicView;
@@ -634,13 +677,29 @@ function sameItems(a: readonly ItemView[] | undefined, b: readonly ItemView[] | 
   if (!a || !b || a.length !== b.length) return false;
   return a.every((v, i) => {
     const w = b[i];
-    return !!w && v.gridNo === w.gridNo && v.level === w.level && v.item === w.item && v.count === w.count && v.status === w.status;
+    return (
+      !!w &&
+      v.gridNo === w.gridNo &&
+      v.level === w.level &&
+      v.item === w.item &&
+      v.count === w.count &&
+      v.status === w.status &&
+      v.money === w.money &&
+      sameJson(v.attachments ?? [], w.attachments ?? [])
+    );
   });
 }
 
 function sameCombat(a: CombatView | null | undefined, b: CombatView | null | undefined): boolean {
   if (!a || !b) return !a === !b;
-  return a.team === b.team && a.round === b.round && a.interrupt === b.interrupt;
+  return (
+    a.team === b.team &&
+    a.round === b.round &&
+    a.interrupt === b.interrupt &&
+    a.uiLocked === b.uiLocked &&
+    sameJson(a.topMessage, b.topMessage) &&
+    sameJson(a.ai, b.ai)
+  );
 }
 
 function sameList(a: readonly number[] | undefined, b: readonly number[] | undefined): boolean {
@@ -697,8 +756,38 @@ function sameClock(a: ClockView | undefined, b: ClockView): boolean {
   return !!a && a.day === b.day && a.hour === b.hour && a.minute === b.minute && a.compressing === b.compressing;
 }
 
+const SCALAR_SOLDIER_FIELDS = [
+  'frameSlot',
+  'stateTick',
+  'frameDelay',
+  'bleeding',
+  'breathMax',
+  'morale',
+  'armour',
+  'weight',
+  'camo',
+  'asleep',
+  'squad',
+  'stealth',
+  'weaponMode',
+  'muted',
+  'canAct',
+  'continueTo',
+  'firstAid',
+  'blinded',
+  'hostile',
+  'healthIndex',
+] as const satisfies readonly (keyof SoldierView)[];
+
+const STRUCTURED_SOLDIER_FIELDS = ['stats', 'sees', 'vehicle'] as const satisfies readonly (keyof SoldierView)[];
+
+function samePresentationFields(a: SoldierView, b: SoldierView): boolean {
+  return SCALAR_SOLDIER_FIELDS.every((key) => a[key] === b[key]) && STRUCTURED_SOLDIER_FIELDS.every((key) => sameJson(a[key], b[key]));
+}
+
 function sameSoldier(a: SoldierView, b: SoldierView): boolean {
   return (
+    samePresentationFields(a, b) &&
     a.gridNo === b.gridNo &&
     a.x === b.x &&
     a.y === b.y &&
@@ -742,7 +831,7 @@ export function applyFrame(soldiers: readonly SoldierView[], frame: ViewFrame): 
   return [...byId.values()].sort((a, b) => a.id - b.id);
 }
 
-const FRAME_ONLY_KEYS = ['tick', 'changed', 'removed', 'events'] as const;
+const FRAME_ONLY_KEYS = ['tick', 'changed', 'removed', 'events', 'messages'] as const;
 type FrameFields = Omit<ViewFrame, (typeof FRAME_ONLY_KEYS)[number]>;
 
 function frameFields(frame: ViewFrame): FrameFields {

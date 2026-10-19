@@ -404,6 +404,7 @@ export function initNewSoldierAnim(t: TacticalState, s: Soldier, requested: numb
   countPendingMeleeAnimation(t, s, s.oldState, next);
   s.pc = nextName === 'CHARIOTS_OF_FIRE' || nextName === 'BODYEXPLODING' ? t.rng.int(10) : startCode;
   s.frameSlot = NO_FRAME_SLOT;
+  s.stateTick = t.tick;
   setSoldierAniSpeed(t, s);
   resetFrameTimer(t, s);
   adjustToNextAnimationFrame(t, s);

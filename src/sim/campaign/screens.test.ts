@@ -40,6 +40,7 @@ describe('map and tactical screens', () => {
     expect(c.dispatch({ type: 'compressTime', mode: CompressMode.MIN30 })).toEqual({
       ok: false,
       reason: 'enemies are present in the loaded sector',
+      data: { refusal: 'enemiesPresent' },
     });
     expect(c.dispatch({ type: 'tacticalScreen' })).toEqual({ ok: true });
     expect(c.state.flow).toBe('tactical');

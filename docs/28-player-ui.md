@@ -795,9 +795,9 @@ end cinematic and the main menu after the splash. A multiplier over fixed steps 
   mine, levels 2–3 → cave. Pictures `loadscreens/ls_*.sti` (640×480 RGB565).
 - **The town choice draws `Random(2)` from the gameplay generator** at every sector entry outside a save load and the
   PBI transition (`:48-51`, `Strategic/StrategicMap.cc:245-253`) and again at every save for the header
-  (`SaveLoadGame.cc:372`). ja2-node draws neither and has no deviation row: M8 simulates the entry draw (its result is a
-  field of the sector-entry event, so the client shows the right picture) and logs the save-time draw as a deviation
-  (a ja2-node save never changes the state, `docs/27` §1.3).
+  (`SaveLoadGame.cc:372`). Since U3a ja2-node simulates the entry draw (its result is `sectorLoaded.loadScreen`, so the
+  client shows the right picture) and logs the save-time draw as a deviation (a ja2-node save never changes the state,
+  `docs/27` §1.3).
 - Bar at (162,427), 318×16, red for a sector, blue for a save load, filled from x + 2; driven by the client's preload
   (§2.5).
 - The 2 s zoom from the map into the sector (`StrategicMap.cc:196-243`) is deferred (cosmetic).
@@ -912,8 +912,8 @@ flag would desynchronise sound and noise).
 - Compatible-item highlight after 100 ms on a slot; with an item in the cursor the squad faces of mercs with compatible
   items get a red rectangle.
 - Item graphics: small `interface/mdguns.sti`, `mdp1items.sti`, `mdp2items.sti`, `mdp3items.sti`; big
-  `bigitems/*.sti`; world tiles from the tileset's GUNS/P1ITEMS/P2ITEMS/P3ITEMS. **Content gap:** `ItemDef`
-  (`src/content/items/items.ts`) parses neither `inventoryGraphics` nor `tileGraphic`.
+  `bigitems/*.sti`; world tiles from the tileset's GUNS/P1ITEMS/P2ITEMS/P3ITEMS. `ItemDef`
+  (`src/content/items/items.ts`) parses `inventoryGraphics` and `tileGraphic` and `GET /api/items` serves them since U3a.
 - **Item cursor** (deviation "Item cursor", already accepted): the client keeps a local selection (soldier, slot, count,
   index) drawn as the mouse cursor and turns the drop into one command: `moveItem`, `attach`, `moveItem {merge}` after
   the merge prompt, `reload`, `drop`, `give`, `applyItem`. A swap shows the displaced item back in its slot; a cursor
@@ -946,7 +946,7 @@ flag would desynchronise sound and noise).
   `faces/bigfaces/` (laptop); `NN` = the profile's face index; Elliot's beaten variants by `bNPCData`; Herve, Peter,
   Alberto and Carlo share a face. Animated STIs: 0 face, 1–4 eyes (lid down, lid up, frown, surprise), 5–7 mouth.
 - Eye and mouth positions, blink and expression frequencies from the profile (`prof.dat`; recruited RPC small faces
-  from `mercs-rpc-small-faces.json`). **Content gap:** these profile fields are "UI only, not loaded" (`docs/24` §1.2).
+  from `mercs-rpc-small-faces.json`). The profile endpoint serves them since U3a (§17.4).
 - Blink every `blinkFrequency ± Random(2000)` ms (frames 1 → 2 → 0, steps of 50 + Random(30) ms); while talking a frown
   or surprise every `expressionFrequency` ms; no blinking asleep, below OKLIFE or as a prisoner. Client PRNG.
 - **Lip sync** (`MouthAutoFace`, `:552-612`): while the face talks, the mouth is closed while the playing sample is
@@ -2123,6 +2123,39 @@ helicopter), added exit grids and known mines from the view (G8); the view's amb
 clock schedule (hot desert days); `sees` and `hostile` feeding `selectedSees` and `hostile` (U3a), the AI baton holder
 for `underAiControl`; `bRenderZHeightAboveLevel` of items on tables; multi-tile soldiers (vehicles); the cover and line-of-sight tiles (`LEVELNODE_REVEAL` translucency); the
 world in the `/play` page's logical framebuffer (U5).
+
+#### U3a: server view, events and protocol for the HUD (2026-10-19)
+
+The server half of U3 (§12): what the HUD reads, without the knowledge projection, the hint functions and the query
+channel (U3b). The details and the field lists are in `04` §6.25 and the MCP descriptions.
+
+| Area | As built |
+|---|---|
+| View fields | G1–G5: own soldiers carry `profile`, `bleeding`, `breathMax`, `morale` (also in the sandbox), `stats`, `armour`, `weight`, `camo` (the original's formulas), `asleep`, `squad`, `vehicle`, `stealth`, `weaponMode`, `muted`, `sees`, `canAct` (the face hatch rule), `continueTo`, `firstAid`, `blinded`; others `hostile` and `healthIndex`. G6: `combat.uiLocked`, `combat.topMessage` and `combat.ai`, from a top message and a progress bar kept in the turn state at the original's `AddTopMessage`, `InitEnemyUIBar` and `UpdateEnemyUIBar` sites (`src/sim/tactical/turns/top-message.ts`). G7: `jammed`, `imprint`, ground `money` and `attachments`. G14 base: conversation `chars` and `faceVariant`, `textKey`/`chars` on merc, head miner and Skyrider quotes, the speaker's sector on merc quotes |
+| Animation schedule | Soldier entries carry `frameSlot`, `stateTick` (set where `EVENT_InitNewSoldierAnim` changes the state) and `frameDelay`; `frame` stays for the devtools and U4 until U4b. Snapshot version 4 adds `stateTick`, `muted`, the top message and the progress bar |
+| Events | `lifeLost`, `aiTurn`, `enemyTurnProgress`, `itemsRevealed`, `enemySighted.enemies`, `interrupt.selected`, `groupArrived`, `invasion`, `sectorControlChanged.kind`/`dailyIncome`, `sectorLoaded.loadScreen` |
+| Message entries | `src/server/message-entries.ts` turns events (and refusals the original logs) into message list entries; the session keeps a 256-entry ring in its presentation block (saved as `presentation.messages`), sends it in `welcome`, new entries in frames and in every `advance` report |
+| Refusal tokens | `data.refusal` on `move`, `turn`, `stance`, `attack`, `climb`, `pickUp`, `drop`, `useRemote`, `route`, `assignSquad`, `sleep`, `wake`, `compressTime`, `enterSector` (`assign` names its first per-soldier failure); `refusal.<token>` text keys and `REFUSAL_MESSAGES` map them to the original's strings |
+| Protocol | `drive realtime {pauseOn}`, `closeSession` (WebSocket) and `DELETE /api/sessions/:id` (the Dead is Dead save point), `campaign.deadIsDeadDescription`; `SessionClient.closeSession()` |
+| Endpoints | `GET /api/sessions/:id/profiles` (`src/content/narrative/profile-presentation.ts`) and `GET /api/items?lang=` (`src/server/item-catalogue.ts`); `ItemDef` parses the item graphics; the face index is the profile id as `LoadMercProfiles` sets it; I.M.P. characters take their portrait's face |
+| Rule findings | 1: the brothel time warp at the action (and after the action item). 2: the loading-screen draw at every sector entry (`src/sim/strategic/map/loading-screen.ts`, `src/content/strategic/loading-screens.ts`). 4: `aimLeaveMessage` refuses `alreadyLeft`. 6: the developer panel names the Bobby Ray speeds right (`protocol/bobby-ray.ts`). 7: hidden AI interrupts stay hidden in `combat` and in the refusals |
+
+Tests: `src/sim/tactical/hud-view.test.ts` (own and other fields, the top message through an enemy turn, a hidden
+interrupt and an interrupt in our favour, `lifeLost`), `src/sim/strategic/map/loading-screen.test.ts`,
+`src/sim/strategic/economy/sector-loss.test.ts`, `src/sim/narrative/face-variant.test.ts`, the warp in
+`npc-actions/catalog.test.ts`, `src/server/message-entries.test.ts`, the session tests of `pauseOn` and the message ring,
+`src/server/session-close-api.test.ts` (HTTP and WebSocket close, the Dead is Dead name and save point, the ring through
+a save and a load), `src/server/hud-campaign-stub.test.ts` (arrival, loading screen, refusal tokens, bark text in a stub
+campaign, also in the reload mode), `src/server/catalogue-api.test.ts`, `catalogue-original.test.ts` (original data) and
+`protocol/bobby-ray.test.ts`. The text test checks every `refusal.*` key in every language.
+
+Decisions and limits: rule findings 1 and 2 port a single call each (`WarpGameTime` at the end of `SexScreenHandle`,
+`GetLoadScreenID` in `BeginLoadScreen`) and were checked against the source rather than an oracle probe, since a probe
+needs a rebuild of the shared oracle; the ring holds entries, not wrapped lines; `combat.team` now names the team the
+player believes acts (our team during a hidden interrupt); closing the default session is refused; a stub sandbox has no
+profiles. Open: `sectorControlChanged` is still not emitted for an uncontested takeover by the Queen (deviation "Lost
+sector notices without a battle"); refusals finer than the original's menus (`noMedKit`, `noToolKit`,
+`noMilitiaAllowed`) stay folded into `notEligible`/`noMilitiaHere`.
 
 ---
 

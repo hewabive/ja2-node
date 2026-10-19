@@ -3,6 +3,10 @@
 // @src src/game/Strategic/Map_Screen_Interface.cc GetMoraleString, CanCharacterMoveInStrategic, Map_Screen_Interface.h
 // @src MoveError; Strategic/PreBattle_Interface.cc GetSoldierConditionInfo; Tactical/Interface_Dialogue.cc (talk menu,
 // @src zDealerStrings by dealer type); Tactical/Interface.cc (pAssignmentStrings by bAssignment). See docs/27 §5.2.
+// @src Refusal messages: Points.cc EnoughPoints (NOT_ENOUGH_APS_STR), Turn_Based_Input.cc / Handle_UI.cc (NO_PATH,
+// @src MERC_IS_UNAVAILABLE_STR, NOBODY_USING_REMOTE_STR, STR_LATE_04), Weapons.cc (STR_NOT_BURST_CAPABLE), Handle_UI.cc
+// @src (MSG_CANT_FIRE_HERE), Assignments.cc CanCharacterSquad / CanCharacterSleep / CanCharacterBeAwakened / militia
+// @src training checks, MapScreen.cc TellPlayerWhyHeCantCompressTime. See docs/28 §12.2.
 
 import { type UiStrings, uiString } from '../content/text/strings.ts';
 import type { PlayerView, StrategicMercView } from '../protocol/view.ts';
@@ -15,6 +19,12 @@ import type { MoraleText } from './contract-view.ts';
 export interface UiTextKey {
   readonly table: string;
   readonly index: number;
+}
+
+export type RefusalShown = 'log' | 'box';
+
+export interface RefusalMessage extends UiTextKey {
+  readonly shown: RefusalShown;
 }
 
 const MORALE: Readonly<Record<MoraleText, number>> = { great: 0, good: 1, stable: 2, poor: 3, panic: 4, bad: 5 };
@@ -46,6 +56,39 @@ const MOVE_REFUSAL: Partial<Readonly<Record<MoveRefusal, number>>> = {
   robotAlone: 49,
   cannotLeaveSector: 29,
 };
+const log = (table: string, index: number): RefusalMessage => ({ table, index, shown: 'log' });
+const box = (table: string, index: number): RefusalMessage => ({ table, index, shown: 'box' });
+const NOT_ENOUGH_APS = log('TacticalStr', 87);
+
+export const REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = {
+  notEnoughAP: NOT_ENOUGH_APS,
+  notEnoughAp: NOT_ENOUGH_APS,
+  noPath: log('TacticalStr', 114),
+  mercUnavailable: log('TacticalStr', 82),
+  uncontrolledRobot: log('TacticalStr', 88),
+  outOfBreath: log('gzLateLocalizedString', 3),
+  noBurst: log('Message', 34),
+  noRoomToFire: log('pMessageStrings', 34),
+  ...Object.fromEntries(Object.entries(MOVE_REFUSAL).map(([token, index]) => [token, box('pMapErrorString', index ?? 0)])),
+  notEligible: box('pMapErrorString', 18),
+  squadFull: box('pMapErrorString', 19),
+  squadElsewhere: box('pMapErrorString', 20),
+  squadMoving: box('pMapErrorString', 36),
+  squadHasVehicle: box('pMapErrorString', 37),
+  cannotJoinSquad: box('pMapErrorString', 38),
+  loyaltyTooLow: box('zMarksMapScreenText', 19),
+  militiaFull: box('zMarksMapScreenText', 20),
+  tooManyTrainers: box('gzLateLocalizedString', 46),
+  walking: box('zMarksMapScreenText', 5),
+  driving: box('zMarksMapScreenText', 7),
+  sectorNotCleared: box('Message', 44),
+  notTired: box('zMarksMapScreenText', 4),
+  collapsed: box('zMarksMapScreenText', 6),
+  noMercsHired: box('pMapScreenJustStartedHelpText', 0),
+  noUsableMercs: box('pMapErrorString', 39),
+  creatureMine: box('gzLateLocalizedString', 27),
+};
+
 const TRADE_MENU_PREFIX = 'buySell:';
 const ASSIGNMENT_COUNT = Assignment.ASSIGNMENT_EMPTY + 1;
 
@@ -64,7 +107,12 @@ export const TEXT_KEYS: Readonly<Record<string, UiTextKey>> = Object.fromEntries
   ...group('shopKind', 'zDealerStrings', SHOP_KIND),
   ...group('moveRefusal', 'pMapErrorString', MOVE_REFUSAL),
   ...assignments(),
+  ...Object.entries(REFUSAL_MESSAGES).map(([token, m]): [string, UiTextKey] => [`refusal.${token}`, { table: m.table, index: m.index }]),
 ]);
+
+export function refusalMessage(token: string): RefusalMessage | null {
+  return REFUSAL_MESSAGES[token] ?? null;
+}
 
 export function textKeyFor(token: string): UiTextKey | null {
   return TEXT_KEYS[token] ?? null;

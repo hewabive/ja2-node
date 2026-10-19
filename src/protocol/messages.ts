@@ -1,18 +1,28 @@
 import type { StopCondition, StopReport } from '../sim/advance.ts';
+import type { SimEventType } from '../sim/events.ts';
 
 export { TICK_MS } from '../sim/clock.ts';
 
+import type { MessageEntry } from './message-log.ts';
 import type { PlayerView, ViewFrame } from './view.ts';
 
 export type { StopCondition, StopReport };
 
 export type SessionStopReason = StopReport['reason'] | 'loaded';
 
-export interface SessionStopReport extends Omit<StopReport, 'reason'> {
-  readonly reason: SessionStopReason;
+export interface SessionAdvanceReport extends StopReport {
+  readonly messages: readonly MessageEntry[];
 }
 
-export type DriverMode = { readonly mode: 'manual' } | { readonly mode: 'instant' } | { readonly mode: 'realtime'; readonly speed: number };
+export interface SessionStopReport extends Omit<StopReport, 'reason'> {
+  readonly reason: SessionStopReason;
+  readonly messages?: readonly MessageEntry[];
+}
+
+export type DriverMode =
+  | { readonly mode: 'manual' }
+  | { readonly mode: 'instant' }
+  | { readonly mode: 'realtime'; readonly speed: number; readonly pauseOn?: readonly SimEventType[] };
 
 export interface CommandEnvelope {
   readonly type: string;
@@ -25,7 +35,8 @@ export type ClientMessage =
   | { readonly t: 'advance'; readonly id: number; readonly until: StopCondition }
   | { readonly t: 'drive'; readonly id: number; readonly driver: DriverMode }
   | { readonly t: 'save'; readonly id: number; readonly name?: string; readonly description?: string }
-  | { readonly t: 'load'; readonly id: number; readonly name: string; readonly reseed?: boolean };
+  | { readonly t: 'load'; readonly id: number; readonly name: string; readonly reseed?: boolean }
+  | { readonly t: 'closeSession'; readonly id: number };
 
 export interface EngineIdentityView {
   readonly version: string;
@@ -52,6 +63,7 @@ export interface WelcomeMessage extends WelcomeIdentity {
   readonly session: string;
   readonly view: PlayerView;
   readonly driver: DriverMode;
+  readonly messages: readonly MessageEntry[];
 }
 
 export type ServerMessage =
@@ -83,11 +95,11 @@ export function parseClientMessage(text: string): ClientMessage | null {
     case 'advance':
       return typeof m.id === 'number' && typeof m.until === 'object' && m.until !== null ? (m as ClientMessage) : null;
     case 'drive': {
-      const d = m.driver as { mode?: unknown; speed?: unknown } | undefined;
+      const d = m.driver as { mode?: unknown; speed?: unknown; pauseOn?: unknown } | undefined;
       const valid =
         d?.mode === 'manual' ||
         d?.mode === 'instant' ||
-        (d?.mode === 'realtime' && typeof d.speed === 'number' && d.speed > 0 && d.speed <= 64);
+        (d?.mode === 'realtime' && typeof d.speed === 'number' && d.speed > 0 && d.speed <= 64 && validPauseOn(d.pauseOn));
       return typeof m.id === 'number' && valid ? (m as ClientMessage) : null;
     }
     case 'save':
@@ -96,9 +108,17 @@ export function parseClientMessage(text: string): ClientMessage | null {
       return typeof m.id === 'number' && typeof m.name === 'string' && (m.reseed === undefined || typeof m.reseed === 'boolean')
         ? (m as ClientMessage)
         : null;
+    case 'closeSession':
+      return typeof m.id === 'number' ? (m as ClientMessage) : null;
     default:
       return null;
   }
+}
+
+const MAX_PAUSE_EVENTS = 64;
+
+function validPauseOn(value: unknown): boolean {
+  return value === undefined || (Array.isArray(value) && value.length <= MAX_PAUSE_EVENTS && value.every((e) => typeof e === 'string'));
 }
 
 function optionalString(value: unknown): boolean {

@@ -16,7 +16,7 @@ import { setProfileSector } from '../../strategic/narrative/presence.ts';
 import { InvSlot } from '../../tactical/inventory.ts';
 import { MercStatus, type ProfileProgress } from '../../tactical/profiles.ts';
 import { addTransaction, FinanceCode } from '../finances.ts';
-import { ProfileMiscFlag } from '../profiles.ts';
+import { ProfileMiscFlag, ProfileMiscFlag3 } from '../profiles.ts';
 import { canMercBeHired, type HireRefusal } from '../relations/hiring-check.ts';
 import { MercKind, type RosterMerc } from '../roster.ts';
 import type { LaptopContext } from './context.ts';
@@ -165,7 +165,7 @@ export function aimHire(ctx: LaptopContext, request: AimHireRequest, hooks: Hire
 
 export function aimLeaveMessageRefusal(p: ProfileProgress): 'notAway' | 'alreadyLeft' | null {
   if (aimContact(p) !== 'answeringMachine') return 'notAway';
-  return null;
+  return p.miscFlags3 & ProfileMiscFlag3.PLAYER_LEFT_MSG_FOR_MERC_AT_AIM ? 'alreadyLeft' : null;
 }
 
 function aimOrMercProfiles(ctx: LaptopContext): number[] {

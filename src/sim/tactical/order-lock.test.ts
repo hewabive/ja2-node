@@ -22,8 +22,9 @@ describe('the turn-based UI lock of queued orders', () => {
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
     expect(sim.state.gameEvents).not.toHaveLength(0);
     const queued = 'the last order has not started yet: advance first';
-    expect(sim.dispatch({ type: 'attack', soldier: 1, target: enemy.gridNo })).toEqual({ ok: false, reason: queued });
-    expect(sim.dispatch({ type: 'endTurn' })).toEqual({ ok: false, reason: queued });
+    const refused = { ok: false, reason: queued, data: { refusal: 'orderQueued' } };
+    expect(sim.dispatch({ type: 'attack', soldier: 1, target: enemy.gridNo })).toEqual(refused);
+    expect(sim.dispatch({ type: 'endTurn' })).toEqual(refused);
     runUntilIdle(sim);
     expect(sim.dispatch({ type: 'endTurn' })).toEqual({ ok: true });
   });

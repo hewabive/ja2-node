@@ -1,8 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Dialogue.cc HandleNPCDoAction (Kingpin, Darren and the boxing actions, Madame and the
-// @src girls, Angel and Maria, Kyle's money, Joey, Carmen and the terrorists), CarmenLeavesSectorCallback, carmenSector.
-// @src See docs/25 §3.6.
+// @src girls, Angel and Maria, Kyle's money, Joey, Carmen and the terrorists), CarmenLeavesSectorCallback, carmenSector;
+// @src JAScreens.cc SexScreenHandle (its WarpGameTime of 5 + Random(20) minutes, simulated at the action). See docs/25 §3.6,
+// @src docs/28 §12.5.
 
 import { ItemClass, NOTHING } from '../../../../content/items/items.ts';
 import { i8, u32 } from '../../../../core/int.ts';
@@ -37,6 +38,13 @@ const DEED_GRIDNO = 12541;
 const KYLE_MONEY_GRIDNO = 14952;
 const KYLE_MONEY_AMOUNT = 10000;
 const CARMEN_TIMER_MS = 10000;
+const SEX_SCENE_BASE_MINUTES = 5;
+const SEX_SCENE_SPREAD_MINUTES = 20;
+const SECONDS_PER_MINUTE = 60;
+
+export function sexSceneWarpSeconds(random: (n: number) => number): number {
+  return (SEX_SCENE_BASE_MINUTES + random(SEX_SCENE_SPREAD_MINUTES)) * SECONDS_PER_MINUTE;
+}
 const ITEM_IGNORE_Z_LEVEL = -1;
 const DAYS_TILL_JOEY_MOVES = 3;
 const CARLA_CHANCE_DIE = 3;
@@ -279,6 +287,7 @@ export function handleSanMonaAction(env: NpcActionEnv, npc: number, code: number
       return true;
     case A.SEX:
       env.presentation('sexScene', npc);
+      env.warpTimeWithoutEvents(sexSceneWarpSeconds(env.random));
       return true;
     case A.TRIGGER_ANGEL_17_OR_18:
       trigger(env, Npc.ANGEL, env.checkFact(Fact.ANGEL_SOLD_VEST, Npc.ANGEL) ? 18 : 17);

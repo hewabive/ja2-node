@@ -95,7 +95,7 @@ Offsets are into the decrypted 716-byte record (`Tactical/LoadSaveMercProfile.cc
 | `ubMiscFlags`, `ubMiscFlags2`, `ubMiscFlags3` | 233, 231, 689 | u8 | yes (raw) | flags below |
 | `sGridNo`, `sSector.z`, `fUseProfileInsertionInfo`, `ubStrategicInsertionCode`, `usStrategicInsertionData` | 408, 669, 406, 522, 670 | | 408/669 by `savegame-profile.ts` | placement (`25`); written by `UnRecruitEPC` (§9.4) |
 | `ubRoomRangeStart[2]`, `ubRoomRangeEnd[2]` | 413, 523 | u8 ×2 | no | room facts (`25`) |
-| `ubFaceIndex`, eyes, mouth, blink, expression | 108, 262–269, 280, 284 | | no | portraits (UI only) |
+| `ubFaceIndex`, eyes, mouth, blink, expression | 108, 262–269, 280, 284 | | no | portraits (UI only): loaded, served by `GET /api/sessions/:id/profiles` since M8 (the face index is the profile id, `LoadMercProfiles`; `04` §6.25) |
 | `ubVoiceId` | save v104+ (`docs/14` §4 row 5) | u8 | no | merc text and speech file id (§1.5) |
 
 Flags read or written by this spec (`Tactical/Soldier_Profile_Type.h:25-51`): `RECRUITED 0x01`, `FORCENPCQUOTE 0x04` (an

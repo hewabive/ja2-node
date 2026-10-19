@@ -154,16 +154,26 @@ export function removeCharacterFromSquads(ctx: StrategicContext, id: number): bo
   return false;
 }
 
-export function addCharacterToSquad(ctx: StrategicContext, id: number, q: number): boolean {
-  if (ctx.state.movement.exitingVehicleToSquad) return false;
+export type SquadJoinRefusal = 'cannotJoinSquad' | 'squadHasVehicle' | 'squadMoving' | 'squadFull' | 'squadElsewhere';
+
+export function squadJoinRefusal(ctx: StrategicContext, id: number, q: number): SquadJoinRefusal | null {
+  if (ctx.state.movement.exitingVehicleToSquad) return 'cannotJoinSquad';
   const s = requireMerc(ctx, id);
-  if (doesVehicleExistInSquad(ctx, q) && !(s.isPassengerOrDriver || s.isVehicle)) return false;
-  if (isThisSquadOnTheMove(ctx, q)) return false;
+  if (doesVehicleExistInSquad(ctx, q) && !(s.isPassengerOrDriver || s.isVehicle)) return 'squadHasVehicle';
+  if (isThisSquadOnTheMove(ctx, q)) return 'squadMoving';
+  const members = squad(ctx, q);
+  if (members.includes(id)) return null;
+  if (members.length >= ctx.content.policy.squadSize) return 'squadFull';
+  const at = sectorSquadIsIn(ctx, q);
+  if (at && !sameSector(at, s.sector)) return 'squadElsewhere';
+  return null;
+}
+
+export function addCharacterToSquad(ctx: StrategicContext, id: number, q: number): boolean {
+  if (squadJoinRefusal(ctx, id, q)) return false;
+  const s = requireMerc(ctx, id);
   const members = squad(ctx, q);
   if (members.includes(id)) return true;
-  if (members.length >= ctx.content.policy.squadSize) return false;
-  const at = sectorSquadIsIn(ctx, q);
-  if (at && !sameSector(at, s.sector)) return false;
   removeCharacterFromSquads(ctx, id);
   copyPathOfSquadToCharacter(ctx, id, q);
   if (s.groupId !== NO_GROUP) {

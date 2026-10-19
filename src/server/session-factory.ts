@@ -7,10 +7,11 @@ import type { WelcomeIdentity } from '../protocol/messages.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { LogOrigin } from './input-log.ts';
 import { createSandboxSession } from './sandbox.ts';
-import { musicOfPresentation } from './save-file.ts';
+import { messagesOfPresentation, musicOfPresentation } from './save-file.ts';
 import { type OpenedSave, SaveLoadError, type SaveService } from './save-service.ts';
 import { createSaveSession } from './save-session.ts';
 import type { SaveStore } from './save-store.ts';
+import { playerSaveName } from './save-store.ts';
 import { Session, type SessionSim, type SessionText } from './session.ts';
 import type { SessionFactory, SessionRequest } from './session-registry.ts';
 import type { FileExists } from './world-cache.ts';
@@ -84,21 +85,24 @@ async function createSession(options: SessionFactoryOptions, id: string, request
     const opened = await openLoad(saves, request.load.name);
     const session = new Session(id, opened.sim, text, { kind: 'load', name: opened.name, digest: opened.digest });
     session.restoreMusic(musicOfPresentation(opened.file.presentation));
+    session.restoreMessages(messagesOfPresentation(opened.file.presentation));
     saves?.attach(session);
     saves?.completeLoad(session, opened, request.load.reseed);
     return session;
   }
   let origin: LogOrigin;
   let deadIsDeadName: string | null = null;
+  let deadIsDeadDescription: string | null = null;
   if (request.campaign) {
     origin = { kind: 'campaign', seed: request.seed, campaign: request.campaign };
-    deadIsDeadName = request.campaign.deadIsDeadName ?? null;
+    deadIsDeadDescription = request.campaign.deadIsDeadDescription ?? null;
+    deadIsDeadName = request.campaign.deadIsDeadName ?? (deadIsDeadDescription ? playerSaveName(deadIsDeadDescription, new Date()) : null);
   } else if (request.save) {
     const bytes = await nativeSave(options, request.save);
     origin = { kind: 'import', seed: request.seed, save: request.save, digest: digestOf(bytes) };
     deadIsDeadName = request.save;
   } else origin = { kind: 'sandbox', seed: request.seed };
   const session = new Session(id, await simFromOrigin(options, origin, saves), text, origin);
-  saves?.attach(session, { deadIsDeadName });
+  saves?.attach(session, { deadIsDeadName, deadIsDeadDescription });
   return session;
 }

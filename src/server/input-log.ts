@@ -90,7 +90,11 @@ export class InputLog {
     return entry;
   }
 
-  appendRealtime(tick: number, ticks: number): InputEntry {
+  appendRealtime(tick: number, ticks: number, pauseOn: readonly string[] = []): InputEntry {
+    if (pauseOn.length > 0) {
+      this.#mergeableRealtime = null;
+      return this.append('advance', tick, { until: { ticks, events: [...pauseOn] }, realtime: true });
+    }
     const previous = this.#mergeableRealtime;
     const previousTicks = previous ? realtimeTicks(previous) : 0;
     if (previous && previous === this.#entries.at(-1) && previousTicks + ticks <= MAX_MERGED_REALTIME_TICKS) {

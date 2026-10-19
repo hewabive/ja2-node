@@ -5,6 +5,7 @@ import type { StoryEvent } from './campaign/narrative/story-events.ts';
 import type { NarrativeEvent } from './narrative/events.ts';
 import type { EconomyEvent } from './strategic/economy/events.ts';
 import type { ShopEvent } from './strategic/economy/merchants/events.ts';
+import type { ImportantSectorKind } from './strategic/economy/sector-loss.ts';
 import type { HelicopterEvent } from './strategic/forces/helicopter-events.ts';
 import type { DoorEvent } from './tactical/doors/events.ts';
 import type { InventoryEvent } from './tactical/inventory-events.ts';
@@ -52,6 +53,18 @@ export interface InterruptEvent extends SimEventBase {
   readonly type: 'interrupt';
   readonly team: number;
   readonly soldiers?: readonly number[];
+  readonly selected?: number;
+}
+
+export interface AiTurnEvent extends SimEventBase {
+  readonly type: 'aiTurn';
+  readonly soldier: number;
+}
+
+export interface EnemyTurnProgressEvent extends SimEventBase {
+  readonly type: 'enemyTurnProgress';
+  readonly done: number;
+  readonly total: number;
 }
 
 export interface InterruptEndedEvent extends SimEventBase {
@@ -89,6 +102,7 @@ export interface EnemySightedEvent extends SimEventBase {
   readonly soldier: number;
   readonly newEnemies: number;
   readonly revealedEnemies: number;
+  readonly enemies?: readonly number[];
 }
 
 export interface RoomRevealedEvent extends SimEventBase {
@@ -137,6 +151,12 @@ export interface SoldierHitEvent extends SimEventBase {
   readonly life: number;
 }
 
+export interface LifeLostEvent extends SimEventBase {
+  readonly type: 'lifeLost';
+  readonly soldier: number;
+  readonly amount: number;
+}
+
 export interface SoldierDiedEvent extends SimEventBase {
   readonly type: 'soldierDied';
   readonly soldier: number;
@@ -168,6 +188,12 @@ export interface ItemsPickedUpEvent extends SimEventBase {
   readonly gridNo: number;
 }
 
+export interface ItemsRevealedEvent extends SimEventBase {
+  readonly type: 'itemsRevealed';
+  readonly gridNo: number;
+  readonly level: number;
+}
+
 export interface ItemDroppedEvent extends SimEventBase {
   readonly type: 'itemDropped';
   readonly soldier: number;
@@ -195,10 +221,16 @@ export interface StructureDamagedEvent extends SimEventBase {
   readonly destroyed: boolean;
 }
 
+export interface LoadScreenView {
+  readonly id: number;
+  readonly path: string;
+}
+
 export interface SectorLoadedEvent extends SimEventBase {
   readonly type: 'sectorLoaded';
   readonly sector: string;
   readonly hostiles?: number;
+  readonly loadScreen?: LoadScreenView;
   readonly enemyPresence?: true;
   readonly firstArrival?: true;
 }
@@ -338,6 +370,8 @@ export interface SectorControlChangedEvent extends SimEventBase {
   readonly type: 'sectorControlChanged';
   readonly sector: string;
   readonly controller: 'player' | 'enemy';
+  readonly kind?: ImportantSectorKind;
+  readonly dailyIncome?: number;
 }
 
 export interface MercCapturedEvent extends SimEventBase {
@@ -390,6 +424,8 @@ export type SimEvent =
   | CombatStartedEvent
   | TurnStartedEvent
   | InterruptEvent
+  | AiTurnEvent
+  | EnemyTurnProgressEvent
   | InterruptEndedEvent
   | CombatEndedEvent
   | DoorChangedEvent
@@ -400,6 +436,7 @@ export type SimEvent =
   | MeleeStrikeEvent
   | BulletStoppedEvent
   | SoldierHitEvent
+  | LifeLostEvent
   | SoldierDiedEvent
   | AttackResolvedEvent
   | GunJammedEvent
@@ -408,6 +445,7 @@ export type SimEvent =
   | ExplosionEvent
   | StructureDamagedEvent
   | ItemsPickedUpEvent
+  | ItemsRevealedEvent
   | ItemDroppedEvent
   | PreBattleEvent
   | RetreatedEvent

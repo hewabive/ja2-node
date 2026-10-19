@@ -1,6 +1,7 @@
 import { Worker } from 'node:worker_threads';
-import type { CommandEnvelope, DriverMode, ServerMessage } from '../protocol/messages.ts';
-import type { StopCondition, StopReport } from '../sim/advance.ts';
+import type { ProfileFaceRecord } from '../content/narrative/profile-presentation.ts';
+import type { CommandEnvelope, DriverMode, ServerMessage, SessionAdvanceReport } from '../protocol/messages.ts';
+import type { StopCondition } from '../sim/advance.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { LogSegment } from './input-log.ts';
 import { SaveFileError } from './save-file.ts';
@@ -36,6 +37,7 @@ export const HOST_CALLS = [
   'report',
   'snapshot',
   'inputLog',
+  'profiles',
   'close',
 ] as const;
 
@@ -182,7 +184,7 @@ export class WorkerHost implements SessionHost {
     return this.#call('prepareAndDispatch', cmd);
   }
 
-  advance(until: StopCondition, budget?: number): Promise<StopReport> {
+  advance(until: StopCondition, budget?: number): Promise<SessionAdvanceReport> {
     return this.#call('advance', until, budget);
   }
 
@@ -230,6 +232,10 @@ export class WorkerHost implements SessionHost {
 
   inputLog(): Promise<LogSegment> {
     return this.#call('inputLog');
+  }
+
+  profiles(): Promise<readonly ProfileFaceRecord[]> {
+    return this.#call('profiles');
   }
 
   close(): Promise<void> {

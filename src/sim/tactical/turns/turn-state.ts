@@ -5,6 +5,7 @@
 // @src ENEMY_OFFERED_SURRENDER. See docs/10 §0, docs/24 §3.6, §8.5.
 
 import type { Soldier } from '../soldier.ts';
+import type { AiProgress, TopMessage } from './top-message.ts';
 
 export const TEAM_COUNT = 6;
 export const NUM_WATCHED_LOCS = 3;
@@ -65,6 +66,8 @@ export interface TurnState {
   skipCoverCheck: boolean;
   spottersCalledForBy: number;
   lastMercKill: Soldier | null;
+  topMessage: TopMessage | null;
+  aiProgress: AiProgress;
 }
 
 export function createTurnState(maxSoldiers: number): TurnState {
@@ -108,6 +111,8 @@ export function createTurnState(maxSoldiers: number): TurnState {
     someoneHit: false,
     skipCoverCheck: false,
     spottersCalledForBy: -1,
+    topMessage: null,
+    aiProgress: { current: 0, next: 0, total: 0 },
     lastMercKill: null,
   };
 }

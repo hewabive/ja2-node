@@ -5,7 +5,7 @@
 // @src PrepareForPreBattleInterface, TriggerPrebattleInterface, NotifyPlayerOfBloodcatBattle, TestForBloodcatAmbush,
 // @src HandleArrivalOfReinforcements; Map_Screen_Interface.cc NotifyPlayerOfInvasionByEnemyForces. See docs/16 §4.
 
-import { type Sector, sameSector, sectorId, strategicIndex } from '../../../content/strategic/sector-ids.ts';
+import { type Sector, sameSector, sectorId, sectorShortString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
 import { u32 } from '../../../core/int.ts';
 import { OKLIFE } from '../../tactical/soldier.ts';
 import { isThisSectorASamSector, townIdOfSector } from '../map/control.ts';
@@ -39,6 +39,7 @@ import {
   vehicleGroupHasPassengers,
   vehicleOfGroup,
 } from './groups.ts';
+import type { InvasionKind } from './helicopter-events.ts';
 import { delayEnemyGroupsIfPathsCross, groupArrivedAtSector, nowMinutes } from './movement.ts';
 import type { StrategicContext } from './ports.ts';
 
@@ -177,11 +178,17 @@ function triggerPrebattleInterface(ctx: StrategicContext, g: Group, s: Sector, n
   ctx.state.movement.initPrebattleGroup = null;
 }
 
+function invasionKind(ctx: StrategicContext, s: Sector): InvasionKind {
+  if (isThisSectorASamSector(ctx, s)) return 'sam';
+  return townIdOfSector(ctx, s) !== BLANK_SECTOR ? 'town' : 'other';
+}
+
 function notifyPlayerOfInvasionByEnemyForces(ctx: StrategicContext, g: Group, s: Sector, inputs: EncounterInputs): void {
   if (s.z !== 0) return;
   if (ctx.state.map.elements[strategicIndex(s)]?.enemyControlled) return;
-  if (isThisSectorASamSector(ctx, s) || townIdOfSector(ctx, s) !== BLANK_SECTOR)
-    triggerPrebattleInterface(ctx, g, s, Notice.INVASION, inputs);
+  const kind = invasionKind(ctx, s);
+  ctx.helicopter.emit({ type: 'invasion', sector: sectorShortString(s), kind });
+  if (kind !== 'other') triggerPrebattleInterface(ctx, g, s, Notice.INVASION, inputs);
 }
 
 export function prepareForPreBattleInterface(

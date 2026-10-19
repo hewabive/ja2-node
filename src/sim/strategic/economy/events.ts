@@ -1,3 +1,4 @@
+import type { TextKey } from '../../../content/narrative/dialogue-text.ts';
 import type { EconomyPrompt } from './state.ts';
 
 export type EconomyEvent =
@@ -17,7 +18,14 @@ export type EconomyEvent =
   | { readonly type: 'mineEmpty'; readonly mine: number }
   | { readonly type: 'mineShutDown'; readonly mine: number }
   | { readonly type: 'mineReopened'; readonly mine: number }
-  | { readonly type: 'headMinerQuote'; readonly mine: number; readonly profile: number; readonly quote: number }
+  | {
+      readonly type: 'headMinerQuote';
+      readonly mine: number;
+      readonly profile: number;
+      readonly quote: number;
+      readonly textKey?: TextKey;
+      readonly chars?: number;
+    }
   | { readonly type: 'moneyChanged'; readonly code: number; readonly amount: number; readonly balance: number }
   | { readonly type: 'militiaPrompt'; readonly prompt: EconomyPrompt }
   | { readonly type: 'militiaTrainingRejected'; readonly soldiers: readonly number[]; readonly reason: RejectReason };

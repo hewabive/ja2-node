@@ -324,11 +324,12 @@ type ServerMsg =
   | { t: 'stopped'; report: StopReport };
 ```
 
-As built (`src/protocol/messages.ts`, M2–M7): the client sends `hello {session?}`, `cmd {id, cmd}` (prompt answers are
-commands of type `answer`), `advance {id, until}`, `drive {id, driver}`, `save` and `load` (§6.22); the server answers
-with `welcome {session, view, driver, engine: {version, commit}, rules: {pack, scripts}}` (also after a load in place;
-`engine` and `rules` since M8, §5.10), `frames` (view diffs every 10 ticks with the events
-of their tick, §4.4), `result {id, ok, reason?, data?}`, `stopped {id, report}` and `error`. Queries are commands that
+As built (`src/protocol/messages.ts`, M2–M8): the client sends `hello {session?}`, `cmd {id, cmd}` (prompt answers are
+commands of type `answer`), `advance {id, until}`, `drive {id, driver}` (a real-time driver may carry `pauseOn`, §6.25),
+`save` and `load` (§6.22) and `closeSession {id}` (§6.25); the server answers
+with `welcome {session, view, driver, messages, engine: {version, commit}, rules: {pack, scripts}}` (also after a load in place;
+`engine` and `rules` since M8, §5.10, `messages` since U3a, §6.25), `frames` (view diffs every 10 ticks with the events
+and message entries of their tick, §4.4), `result {id, ok, reason?, data?}`, `stopped {id, report}` and `error`. Queries are commands that
 change nothing (`estimateAttack`, `quoteTrade`, `inventory`, …).
 
 ### 5.3. Player-view projection (D16)
@@ -470,7 +471,7 @@ The game data splits into the **rule pack** (everything the simulation reads) an
 
 ## 6. Agent API
 
-§6.1–§6.5 are the v0.1 design with as-built notes; §6.6–§6.24 add the API milestone by milestone as it was built (there
+§6.1–§6.5 are the v0.1 design with as-built notes; §6.6–§6.25 add the API milestone by milestone as it was built (there
 is no §6.15). The MCP tool descriptions in `src/server/mcp.ts` list every command with its fields and refusals and are
 the reference when this text and the code differ.
 
@@ -628,7 +629,8 @@ the clock stands still, every non-laptop command is refused with `laptop: the la
 `closeLaptop`, `readEmail`/`deleteEmail {id}` (reading the I.M.P. intro bookmarks I.M.P., Speck's intro M.E.R.C.),
 `aimHire {profile, contract: 1|7|14, gear?}`, `aimLeaveMessage {profile}`, `mercOpenAccount`, `mercHire {profile}`,
 `mercPay`, `impCreate {code, name, nickname?, gender, answers[16], attributes, portrait, voice}`, `bobbyRayOrder {lines:
-[{item, used?, quantity}], destination, speed: 0|1|2}`, `insure {soldier}`, `orderFlowers {bouquet, destination, nextDay,
+[{item, used?, quantity}], destination, speed: 0|1|2}` (0 overnight express, 1 two business days, 2 standard service,
+`CalculateOrderDelay`), `insure {soldier}`, `orderFlowers {bouquet, destination, nextDay,
 extras}`; on the map screen `setLandingZone {sector}`. Queries that never act and work in any flow: `aimQuote`,
 `bobbyRayQuote`, `insuranceQuote`, `impPreview`, `arrivalTime`. Hires answer with the soldier id, the charge and the
 arrival (`{minute, shownMinute, sector}`); the hired merc is `IN_TRANSIT` until the 07:30, 13:30 or 19:30 flight lands him
@@ -1148,6 +1150,100 @@ the reachable flag (`HandleAllReachAbleItemsInTheSector`). `applyItem` and `band
 **Turn-based lock of queued orders** (`docs/27` §14 finding 20). A gun attack starts with a queued `beginFireWeapon`
 game event; the original UI locks after the click (`SetUIBusy`), so every order and `endTurn` are refused while a game
 event is queued (`the last order has not started yet: advance first`).
+
+### 6.25. The HUD view, events and protocol (M8, U3a)
+
+What the original's tactical panels, top bar, message list and speech surfaces read, added to the view and the event
+log without revealing more than those screens show (D16, `28` §12). The full field list is in the MCP `observe`
+description; this section names the rules.
+
+**Own soldiers** (`src/sim/tactical/soldier-view.ts`): `profile` always (when the soldier has one), `bleeding`,
+`breathMax`, `morale`, `stats {agility, dexterity, strength, leadership, wisdom, level, marksmanship, explosives,
+mechanical, medical}` (the SM panel values), `armour` (`ArmourPercent`), `weight` (`CalculateCarriedWeight`), `camo`,
+`stealth`, `weaponMode` (`single`, `burst`, `launcher`), `muted` (the flag U6's `mute` will set), `sees` (the ids of the
+enemies in the view this merc sees now), `canAct` (the face hatch rule: our turn and not moved during an interrupt; a
+hidden enemy interrupt keeps it true), `continueTo` (the End key's target: `sContPathLocation` with `bGoodContPath`,
+else the final destination of a halted move), `firstAid` (`medic`, `patient` or null) and `blinded`; in a campaign
+`asleep`, `squad` (null outside a squad) and `vehicle {id, driver}` from the roster, in the sandbox squad 0. Inventory
+objects add `jammed` and `imprint` (the profile a rocket rifle answers to, 201 for an unknown owner, `GetObjectImprint`).
+**Other soldiers in sight** carry `hostile` (`!bNeutral && bSide != FRIENDLY`, the glow test) and `healthIndex` (the
+index of `zHealthStr`, `GetSoldierHealthString`), never life. **Ground items** add `money` and `attachments`.
+
+**The animation schedule.** Every soldier entry carries `frameSlot` (the timeline slot of the frame it shows, `28`
+§2.3), `stateTick` (the tick its animation state started) and `frameDelay` (`sAniDelay` in ms); `frame` (the sprite
+frame) stays until the client follows the schedule (U4b).
+
+**The combat block** adds `uiLocked` (orders are refused: not our turn, an attack resolving, a queued order or an own
+merc acting), `topMessage {kind, team, bloodcats}` and `ai {current, total}`. The turn state keeps the top message the
+original creates (`AddTopMessage` at the start of our turn, an interrupt in our favour and its end, the enemy team's
+turn, a displayed hidden interrupt: `computerInterrupt` or `militiaInterrupt`) and the progress bar
+(`InitEnemyUIBar` when an AI list is built, `UpdateEnemyUIBar` when an AI soldier starts outside an interrupt); `ai` is
+shown while a computer message is up. A hidden enemy interrupt shows our turn in `team` and `topMessage`, and orders
+during it are refused with `uiLocked` rather than `notYourTurn` (rule finding 7). Snapshot version 4 adds these fields
+(older snapshots get the stateTick of the save and a derived top message).
+
+**Events.** `lifeLost {soldier, amount}` from every life deduction of a visible soldier (`SoldierTakeDamage`: hits,
+bleeding, gas, falls); `aiTurn {soldier}` when the original locates the acting AI soldier (visible, alive, outside an
+interrupt, not green friendly militia); `enemyTurnProgress {done, total}` at every `UpdateEnemyUIBar`; `itemsRevealed
+{gridNo, level}` where the original sets an item locator (`SetItemsVisibilityOn` with locators); `enemySighted` carries
+`enemies` (the ids that became known); `interrupt` carries `selected`; `groupArrived {group, sector, final, who}` for
+every player group arrival (`who`: `{kind: merc, soldier}`, `{kind: squad, squad}` or `{kind: vehicle, vehicleType}`, the
+`MSG_ARRIVE` subject); `invasion {sector, kind: sam|town|other}` (`NotifyPlayerOfInvasionByEnemyForces`);
+`sectorControlChanged` carries `kind` (`sam`, `mine`, `town`: the notice of `NotifyPlayerWhenEnemyTakesControlOfImportantSector`)
+and `dailyIncome` (the projected income after a producing mine is lost); `sectorLoaded` carries `loadScreen {id, path}`
+(`GetLoadScreenID`, drawn at every sector entry outside a save load and the PBI transition, with `Random(2)` on the
+gameplay stream for town sectors without a mapped picture, rule finding 2); `mercQuote`, `headMinerQuote` and
+`skyriderQuote` carry `textKey` and `chars`, merc quotes also the speaker's `sector`. Conversation lines carry `chars`,
+the conversation `faceVariant` (Elliot's beaten big faces).
+
+**Message entries** (`src/server/message-entries.ts`, `src/protocol/message-log.ts`). A presentation module outside
+`sim` turns events into the entries of the original's message list (`Utils/Message.cc`): `{tick, kind, colour, table,
+index, args}` with `kind` `interface` (yellow, `INTERFACE_COLOR`), `dialog` (white; `textKey` and `speaker` instead of a
+table: `Nick: "line"`, civilian hints without a speaker), `uiFeedback` or `skullFeedback` (their own colour, never kept);
+`args` are `{text}`, `{number}`, `{money}`, `{string: {table, index}}` or `{item, name: short|long}`, consumed by the
+format's placeholders in order with extra args appended; an entry without a table joins its args with spaces (the stat
+gain line). Covered sites: noises, deaths of visible named civilians (our dead on the skull feedback), enemy in sector,
+interrupts, stat gains, reloads, first aid done, out of bandages, refused aid, out of APs, the lock and trap lines,
+recruits, escorts, balances, items placed on the ground, arrivals, history updates, unpaid R.P.C.s, Skyrider's bill,
+repairs, unjammed guns, aborted assignments, group arrivals, invasions of open sectors, game saved, and dialogue lines.
+Refused commands add an entry only where the original prints the refusal in the log (`notEnoughAP`, `noPath`,
+`mercUnavailable`, `uncontrolledRobot`, `outOfBreath`, `noBurst`, `noRoomToFire`). The session keeps the last 256
+entries (`MESSAGE_LOG_SIZE`) in its presentation block: they are saved with the game (`presentation.messages`), arrive in
+the WebSocket `welcome` (`messages`, the whole ring) and in frames (`ViewFrame.messages`, the new ones), and every
+`advance` report carries `messages` (the entries since the last report). The simulation never reads them.
+
+**Refusal tokens.** `move`, `turn`, `stance`, `attack`, `climb`, `pickUp`, `drop`, `useRemote`, `route`, `assignSquad`,
+`sleep`, `wake`, `compressTime` and `enterSector` answer refusals with `data.refusal` (the tokens are listed in the MCP
+`act` description); `assign` keeps its per-soldier results and names the first failure in `reason`. The text keys
+`refusal.<token>` (`GET /api/strings`, `/api/text?key=`) map each token to the original's message where it has one
+(`TacticalStr`, `pMapErrorString`, `zMarksMapScreenText`, `Message`, `pMessageStrings`, `gzLateLocalizedString`);
+`REFUSAL_MESSAGES` (`src/server/text-keys.ts`) also says whether the original logs it or shows a box.
+
+**Protocol.**
+
+- `drive {driver: {mode: 'realtime', speed, pauseOn?: EventType[]}}`: the real-time driver stops on the tick of the
+  first listed event, becomes `manual` and sends `stopped {id: 0, report}` with reason `event`; the input log records the
+  batch as `advance {until: {ticks, events}}`, so a replay stops at the same tick.
+- `closeSession` (WebSocket `{t: 'closeSession', id}`) and `DELETE /api/sessions/:id`: run the Dead is Dead save point
+  "when the session is closed" (`docs/27` §1.6) and release the session; the default session is refused
+  (`defaultSession`, 409), an unknown one is 404.
+- `POST /api/sessions` and `newSession` take `campaign.deadIsDeadDescription`: the server derives the save name
+  (`<UTC time>-<slug>`, like player saves) and keeps the description in the Dead is Dead save's header; it cannot be
+  combined with `deadIsDeadName`.
+- `GET /api/sessions/:id/profiles` → `{profiles: [{id, name, nickname, faceIndex, eyes, mouth, blinkFrequency,
+  expressionFrequency, smallFace, aimBio, mercBio}]}`, revalidated by ETag: the face index is the profile id
+  (`LoadMercProfiles`; Herve, Peter, Alberto and Carlo share Herve's portrait), an I.M.P. character gets its portrait's
+  face with zero eye and mouth offsets (`SelectMercFace`), `smallFace` comes from `mercs-rpc-small-faces.json`, the bio
+  rows from the A.I.M. and M.E.R.C. listings (rows of `aimbios.edt` and `mercbios.edt`). On stubs the faces come from
+  `stubs/profiles.json` (an optional `face {index, eyes, mouth, blinkFrequency, expressionFrequency}`, the index defaults
+  to the id); a stub sandbox has no profiles.
+- `GET /api/items?lang=` → `{language, dataVersion, items: [{index, name, shortName, longName, description,
+  bobbyRayName, bobbyRayDescription, class, classIndex, inventoryGraphics {small, big}, tileGraphic, weight, perPocket,
+  price, coolness, reliability, repairEase, flags, weapon, magazine, armour, explosive}]}` (ETag, an hour's cache): names
+  and descriptions from `itemdesc.edt` of the data version, Bobby Ray's texts from `braydesc.edt` for weapons, armour
+  and explosives (magazines: the short name; other items: the name), calibre names from `ammo-calibre` and
+  `ammo-calibre-bobbyray` in the display language. `ItemDef` parses `inventoryGraphics` and `tileGraphic` with the
+  defaults of `ItemModel` (`interface/mdguns.sti` 0, `bigitems/gun00.sti` 0, `GUNS` 1).
 
 ## 7. Cost and limitations
 

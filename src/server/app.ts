@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { type Context, Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -6,6 +6,12 @@ import { compress } from 'hono/compress';
 import { getCookie, setCookie } from 'hono/cookie';
 import { createMiddleware } from 'hono/factory';
 import { z } from 'zod';
+import { type ItemTable, loadItemTable } from '../content/items/items.ts';
+import {
+  loadProfilePresentationTables,
+  type ProfilePresentationTables,
+  profilePresentation,
+} from '../content/narrative/profile-presentation.ts';
 import {
   DEFAULT_VANILLA_VERSION,
   displayLanguageOf,
@@ -18,14 +24,16 @@ import { vfsExtension } from '../content/vfs/path.ts';
 import { type Vfs, VfsNotFoundError } from '../content/vfs/vfs.ts';
 import { clientPagePath } from '../node/client-pages.ts';
 import { ASSET_MANIFEST_ROUTE, isAssetHash, PINNED_PREFIX, VFS_ROUTE } from '../protocol/assets.ts';
+import { ITEM_CATALOGUE_ROUTE } from '../protocol/items.ts';
 import type { WelcomeIdentity } from '../protocol/messages.ts';
 import { type EncodedAssetManifest, encodeAssetManifest, VfsHashes } from './assets-manifest.ts';
+import { buildItemCatalogue, type EncodedCatalogue } from './item-catalogue.ts';
 import { handleMcpRequest } from './mcp.ts';
 import { SAVE_EXTENSION } from './save-file.ts';
 import { type LoadProblem, loadProblemOf, type SaveOutcome, type SaveService } from './save-service.ts';
 import { MAX_UPLOAD_BYTES, playerSaveName } from './save-store.ts';
 import type { HostFactory, SessionHost } from './session-host.ts';
-import { newSessionRequest, openSession } from './session-registry.ts';
+import { closeRegisteredSession, newSessionRequest, openSession } from './session-registry.ts';
 import { textKeyFor } from './text-keys.ts';
 import { STUB_TEXT_PREFIX, TextService } from './text-service.ts';
 
@@ -76,6 +84,7 @@ const LOAD_STATUS: Readonly<Record<LoadProblem, 400 | 404 | 409 | 413>> = {
 const SNAPSHOT_DESCRIPTION = 'developer snapshot';
 const IMMUTABLE_CACHE_CONTROL = 'private, max-age=31536000, immutable';
 const REVALIDATE_CACHE_CONTROL = 'private, no-cache';
+const PROFILES_ETAG_DIGITS = 16;
 
 interface VfsRequest {
   readonly path: string;
@@ -273,6 +282,48 @@ export function createApp(options: AppOptions): Hono {
     return c.json({ ...record, column, width: record.layout[column], text: record.columns[column] });
   });
 
+  const readVfs = async (path: string): Promise<Uint8Array | null> => (vfs.stat(path) ? vfs.read(path) : null);
+  let itemTable: Promise<ItemTable> | null = null;
+  const catalogues = new Map<UiLanguage, Promise<EncodedCatalogue>>();
+  const catalogue = (language: UiLanguage): Promise<EncodedCatalogue> => {
+    itemTable ??= loadItemTable(async (path) => {
+      const bytes = await readVfs(path);
+      if (!bytes) throw new Error(`missing ${path}`);
+      return JSON.parse(new TextDecoder().decode(bytes));
+    });
+    const known = catalogues.get(language);
+    if (known) return known;
+    const fresh = itemTable.then((items) => buildItemCatalogue(items, texts, language));
+    catalogues.set(language, fresh);
+    fresh.catch(() => {
+      catalogues.delete(language);
+      itemTable = null;
+    });
+    return fresh;
+  };
+  app.get(ITEM_CATALOGUE_ROUTE, async (c) => {
+    const language = languageParam(c.req.query('lang'));
+    if (!language) return c.json({ error: LANGUAGE_ERROR }, 400);
+    const encoded = await catalogue(language).catch((err: Error) => err);
+    if (encoded instanceof Error) return c.json({ error: encoded.message }, 500);
+    const headers = { 'content-type': 'application/json', 'cache-control': STRINGS_CACHE_CONTROL, etag: encoded.etag };
+    if (c.req.header('if-none-match') === encoded.etag) return c.body(null, 304, headers);
+    return c.body(encoded.body, 200, headers);
+  });
+
+  let profileTables: Promise<ProfilePresentationTables> | null = null;
+  app.get('/api/sessions/:id/profiles', async (c) => {
+    const host = options.sessions?.get(c.req.param('id'));
+    if (!host) return c.json({ error: 'no such session' }, 404);
+    profileTables ??= loadProfilePresentationTables(readVfs);
+    const [records, tables] = await Promise.all([host.profiles(), profileTables]);
+    const body = JSON.stringify({ profiles: records.map((r) => profilePresentation(r, tables)) });
+    const etag = `"profiles-${createHash('sha256').update(body).digest('hex').slice(0, PROFILES_ETAG_DIGITS)}"`;
+    const headers = { 'content-type': 'application/json', 'cache-control': REVALIDATE_CACHE_CONTROL, etag };
+    if (c.req.header('if-none-match') === etag) return c.body(null, 304, headers);
+    return c.body(body, 200, headers);
+  });
+
   const describeOrFail = (host: SessionHost) =>
     host.describe().catch((err: Error) => ({ session: host.id, kind: host.kind, error: err.message }));
   app.get('/api/sessions', async (c) => c.json(await Promise.all([...(options.sessions?.values() ?? [])].map(describeOrFail))));
@@ -289,6 +340,14 @@ export function createApp(options: AppOptions): Hono {
       if (request.data.load) return loadFailure(c, err);
       return c.json({ error: (err as Error).message }, 400);
     }
+  });
+
+  app.delete('/api/sessions/:id', async (c) => {
+    const sessions = options.sessions;
+    if (!sessions) return c.json({ error: 'sessions are not available' }, 404);
+    const outcome = await closeRegisteredSession(sessions, options.defaultSession ?? 'sandbox', c.req.param('id'));
+    if (outcome === 'closed') return c.json({ closed: true });
+    return c.json({ closed: false, refused: outcome }, outcome === 'notFound' ? 404 : 409);
   });
 
   const saves = options.saves;

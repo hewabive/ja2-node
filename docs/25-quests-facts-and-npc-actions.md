@@ -599,7 +599,7 @@ the delivery sector (`SEH:435-442`).
 | 134 | `POSSIBLY_ADVERTISE_BAMBI` | Bambi available → MADAME 15 | `ID:2331-2336` |
 | 124 | `LAYLA_GIVEN_WRONG_AMOUNT_OF_CASH` | no girls → MADAME 27 and **continue**; else Carla → 28 and stop; then 217 | `ID:2338-2351` |
 | 217–220 | `LAYLAS_NEXT_LINE_AFTER_CARLA/CINDY/BAMBI/MARIA` | chain: Cindy → 29 stop; Bambi → 30 stop; Maria quest in progress → 31 stop; `MULTIPLE_MERCS_CLOSE` (of Madame) → 32 | `ID:2352-2386` |
-| 122 | `SEX` | `SetPendingNewScreen(SEX_SCREEN)` only (presentation); the gameplay effects come from the sex action item (§11.5) | `ID:2184-2190` |
+| 122 | `SEX` | `SetPendingNewScreen(SEX_SCREEN)`; the screen warps game time by `(5 + Random(20))` minutes without event processing when it ends (`JAScreens.cc:478-483`), simulated at the action since M8 (deviation "Brothel time warp"); the other gameplay effects come from the sex action item (§11.5), which also warps | `ID:2184-2190` |
 | 143 | `TRIGGER_ANGEL_17_OR_18` | `ANGEL_SOLD_VEST` → R 18, else R 17 | `ID:2470-2479` |
 | 146, 148 | `TRIGGER_ANGEL_16_OR_19`, `…_21_OR_22` | a PC in Angel's room → R 16 / R 22, else R 19 / R 21 | `ID:2481-2501` |
 | 246 | `TRIGGER_ANGEL_22_OR_24` | `ANGEL_LEFT_DEED` → R 22, else R 24 | `ID:3596-3605` |

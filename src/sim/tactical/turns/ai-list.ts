@@ -1,11 +1,12 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TacticalAI/AIList.cc RemoveFirstAIListEntry, InsertIntoAIList, SatisfiesAIListConditions,
-// @src MoveToFrontOfAIList, BuildAIListForTeam. See docs/10 §6.3, docs/25 §7.2.
+// @src MoveToFrontOfAIList, BuildAIListForTeam (and its InitEnemyUIBar). See docs/10 §6.3, docs/25 §7.2.
 
 import { boxingFight } from '../narrative/boxing-state.ts';
 import { AlertStatus, Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { mercs, type TacticalState } from '../state.ts';
+import { initEnemyUIBar } from './top-message.ts';
 
 const MAX_AI_PRIORITY = 100;
 const AI_ACTION_NONE = 0;
@@ -53,6 +54,7 @@ export function buildAIListForTeam(t: TacticalState, team: number): boolean {
     insertIntoAIList(t, s, s.ai.alertStatus + (s.visible === 1 ? 3 : 0));
     n++;
   }
+  if (n > 0) initEnemyUIBar(t, n, done.n);
   return n > 0;
 }
 

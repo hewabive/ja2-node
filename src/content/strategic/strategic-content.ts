@@ -2,6 +2,7 @@ import { FormatError } from '../binary/errors.ts';
 import type { ReadFile } from '../world/tileset-loader.ts';
 import { CREATURE_LAIRS_PATH, type CreatureLair, parseCreatureLairs } from './creature-lairs.ts';
 import { parseJsoncBytes } from './jsonc.ts';
+import { LOADING_SCREENS_MAPPING_PATH, LOADING_SCREENS_PATH, type LoadingScreenTable, parseLoadingScreens } from './loading-screens.ts';
 import {
   type BloodCatPlacement,
   type BloodCatSpawn,
@@ -58,6 +59,8 @@ export const STRATEGIC_CONTENT_PATHS = {
   npcPlacements: NPC_PLACEMENTS_PATH,
   profileInfo: PROFILE_INFO_PATH,
   npcActionParams: NPC_ACTION_PARAMS_PATH,
+  loadingScreens: LOADING_SCREENS_PATH,
+  loadingScreensMapping: LOADING_SCREENS_MAPPING_PATH,
 } as const;
 
 export type StrategicContentSources = { readonly [K in keyof typeof STRATEGIC_CONTENT_PATHS]: unknown };
@@ -81,6 +84,7 @@ export interface StrategicContent {
   readonly shipping: ShippingDestinations;
   readonly npcPlacements: readonly NpcPlacement[];
   readonly npcActionParams: NpcActionParamTable;
+  readonly loadingScreens: LoadingScreenTable;
 }
 
 export function parseStrategicContent(sources: StrategicContentSources): StrategicContent {
@@ -104,6 +108,7 @@ export function parseStrategicContent(sources: StrategicContentSources): Strateg
     shipping: parseShippingDestinations(sources.shipping),
     npcPlacements: parseNpcPlacements(sources.npcPlacements, sources.profileInfo),
     npcActionParams: parseNpcActionParams(sources.npcActionParams),
+    loadingScreens: parseLoadingScreens(sources.loadingScreens, sources.loadingScreensMapping),
   };
 }
 

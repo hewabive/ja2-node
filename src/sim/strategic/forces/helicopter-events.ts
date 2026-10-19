@@ -1,3 +1,4 @@
+import type { TextKey } from '../../../content/narrative/dialogue-text.ts';
 import type { SimEventBase } from '../../events.ts';
 
 export type HoverStage = 'started' | 'long' | 'tooLong';
@@ -11,6 +12,9 @@ export interface HelicopterSetUpEvent extends SimEventBase {
 export interface SkyriderQuoteEvent extends SimEventBase {
   readonly type: 'skyriderQuote';
   readonly quote: number;
+  readonly profile?: number;
+  readonly textKey?: TextKey;
+  readonly chars?: number;
 }
 
 export interface HeliTakeOffEvent extends SimEventBase {
@@ -103,8 +107,31 @@ export interface VehicleLeftEvent extends SimEventBase {
   readonly vehicle: number;
 }
 
+export type ArrivedWho =
+  | { readonly kind: 'merc'; readonly soldier: number }
+  | { readonly kind: 'squad'; readonly squad: number }
+  | { readonly kind: 'vehicle'; readonly vehicleType: number };
+
+export interface GroupArrivedEvent extends SimEventBase {
+  readonly type: 'groupArrived';
+  readonly group: number;
+  readonly sector: string;
+  readonly final: boolean;
+  readonly who: ArrivedWho;
+}
+
+export type InvasionKind = 'sam' | 'town' | 'other';
+
+export interface InvasionEvent extends SimEventBase {
+  readonly type: 'invasion';
+  readonly sector: string;
+  readonly kind: InvasionKind;
+}
+
 export type HelicopterEvent =
   | HelicopterSetUpEvent
+  | GroupArrivedEvent
+  | InvasionEvent
   | SkyriderQuoteEvent
   | HeliTakeOffEvent
   | HeliArrivedEvent

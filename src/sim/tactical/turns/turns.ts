@@ -52,6 +52,7 @@ import {
 } from '../soldier.ts';
 import { mercs, type RealtimeClock, soldiersById, type TacticalState, teamMembers } from '../state.ts';
 import { buildAIListForTeam, moveToFrontOfAIList, removeFirstAIListEntry } from './ai-list.ts';
+import { addTopMessage, endTopMessage, initPlayerUIBar, TopMessageKind } from './top-message.ts';
 import { TEAM_COUNT } from './turn-state.ts';
 
 export const AUTOMATIC_INTERRUPT = 100;
@@ -204,6 +205,7 @@ function endTurnEvents(t: TacticalState): void {
 
 export function startPlayerTeamTurn(t: TacticalState, entering: boolean): void {
   t.turn.currentTeam = Team.OUR;
+  initPlayerUIBar(t, false);
   if (t.inCombat) {
     const selected = selectedSoldier(t);
     if (selected && selected.life < OKLIFE) selectNextAvailSoldier(t, selected);
@@ -237,6 +239,7 @@ export function beginTeamTurn(t: TacticalState, start: number): void {
       const s = removeFirstAIListEntry(t);
       if (s) {
         t.events.push({ type: 'turnStarted', team, round: t.turn.round });
+        addTopMessage(t, TopMessageKind.COMPUTER_TURN);
         t.turnHooks.startNPCAI(t, s);
         return;
       }
@@ -366,6 +369,7 @@ export function exitCombatMode(t: TacticalState): void {
   pauseAiTemporarily(t);
   t.turn.intList.length = 0;
   t.turn.forceRealtimeTurn = true;
+  endTopMessage(t);
 }
 
 function soldierHasSeenEnemiesLastFewTurns(t: TacticalState, s: Soldier): boolean {
@@ -611,7 +615,8 @@ function startInterrupt(t: TacticalState): void {
     selectSoldier(t, first);
     turn.currentTeam = Team.OUR;
     const soldiers = teamMembers(t, Team.OUR).filter((s) => !s.moved);
-    t.events.push({ type: 'interrupt', team, soldiers: soldiers.map((s) => s.id) });
+    t.events.push({ type: 'interrupt', team, soldiers: soldiers.map((s) => s.id), selected: first.id });
+    initPlayerUIBar(t, true);
   } else {
     if (!buildAIListForTeam(t, team)) {
       endInterrupt(t, false);
@@ -633,11 +638,12 @@ function startInterrupt(t: TacticalState): void {
   }
 }
 
-export function displayHiddenInterrupt(t: TacticalState): void {
+export function displayHiddenInterrupt(t: TacticalState, actor: Soldier): void {
   const turn = t.turn;
   if (!turn.hiddenInterrupt) return;
   const latest = latestInterruptGuy(t);
   if (latest) adjustNoAPToFinishMove(latest, true);
+  addTopMessage(t, actor.team === Team.MILITIA ? TopMessageKind.MILITIA_INTERRUPT : TopMessageKind.COMPUTER_INTERRUPT);
   turn.hiddenInterrupt = false;
   t.events.push({ type: 'interrupt', team: turn.currentTeam });
 }
@@ -681,7 +687,10 @@ export function endInterrupt(t: TacticalState, markOccurred: boolean): void {
           getNewSoldierPath(t, selected, selected.finalDestination, selected.uiMovementMode, 0, false);
       }
       turn.unlockUIAfterHiddenInterrupt = false;
-    } else t.events.push({ type: 'interruptEnded', team: Team.OUR });
+    } else {
+      t.events.push({ type: 'interruptEnded', team: Team.OUR });
+      initPlayerUIBar(t, false);
+    }
     return;
   }
   turn.hiddenInterrupt = false;
@@ -697,6 +706,7 @@ export function endInterrupt(t: TacticalState, markOccurred: boolean): void {
       }
     }
   }
+  addTopMessage(t, TopMessageKind.COMPUTER_TURN);
   clearIntList(t);
   if (!found) endAITurn(t);
 }

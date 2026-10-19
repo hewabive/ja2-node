@@ -42,7 +42,8 @@ import {
   triggerNpcWithGivenApproach,
   triggerNpcWithIHateYouQuote,
 } from '../narrative/converse.ts';
-import { soldierByProfile, tacticalCharacterDialogue } from '../narrative/dialogue-queue.ts';
+import { dialogueTextKey, soldierByProfile, tacticalCharacterDialogue } from '../narrative/dialogue-queue.ts';
+import { elliotFaceVariant, type FaceVariant } from '../narrative/face-variant.ts';
 import { dealerTakesGive, giveToNpc, handleNpcItemGiven, returnItemToPlayer, takeGivenObject } from '../narrative/give.ts';
 import type { FactSource, NarrativeHost, NpcActionPort, QuestPort } from '../narrative/host.ts';
 import { ASSASSIN_PROFILES, NarrativeProfile, ProfileFlag, ProfileFlag2 } from '../narrative/narrative-ids.ts';
@@ -73,7 +74,8 @@ import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import { townIdOfSector } from '../strategic/map/control.ts';
 import { MikeGreeting } from '../strategic/narrative/facts.ts';
 import { Npc } from '../strategic/narrative/npc-ids.ts';
-import { lockPauseState, pauseGame, unLockPauseState, unPauseGame, worldDay } from '../strategic/time/world-clock.ts';
+import { Warp } from '../strategic/time/constants.ts';
+import { lockPauseState, pauseGame, unLockPauseState, unPauseGame, warpGameTime, worldDay } from '../strategic/time/world-clock.ts';
 import { cancelAIAction } from '../tactical/ai/control.ts';
 import { setDesiredDirection } from '../tactical/animation.ts';
 import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
@@ -84,6 +86,7 @@ import { InvSlot } from '../tactical/inventory.ts';
 import { directionToward, getNewSoldierPath, setSoldierPosition, stopMerc } from '../tactical/movement.ts';
 import { addToShouldBecomeHostileOrSayQuoteList } from '../tactical/narrative/civ-hostility.ts';
 import { triggerFriendWithHostileQuote } from '../tactical/narrative/npc-actions/generic.ts';
+import { sexSceneWarpSeconds } from '../tactical/narrative/npc-actions/san-mona.ts';
 import type { NarrativePort } from '../tactical/narrative/port.ts';
 import { findBestPath } from '../tactical/pathfinding.ts';
 import { revealRoofsAndItems } from '../tactical/perception/fov.ts';
@@ -194,11 +197,13 @@ export interface ConversationLineView {
   readonly quote: number;
   readonly record?: number;
   readonly textKey: SpokenLine['textKey'];
+  readonly chars: number;
 }
 
 export interface ConversationView {
   readonly npc: number | null;
   readonly profile: number;
+  readonly faceVariant: FaceVariant | null;
   readonly name: string;
   readonly talker: number | null;
   readonly initiatedBy: 'player' | 'npc';
@@ -374,8 +379,13 @@ export class TalkFlow {
     if (merc && sector) this.#campaign.battle?.moraleEvent(merc, MoraleEvent.SEX, sector);
     const economy = this.#campaign.economy;
     const crew = economy?.crew.get(s.id);
-    if (!economy || !crew) return;
-    for (let k = 0; k < SEX_FATIGUE_STEPS; k++) fatigueCharacter(economy, crew);
+    if (economy && crew) for (let k = 0; k < SEX_FATIGUE_STEPS; k++) fatigueCharacter(economy, crew);
+    const rng = this.#campaign.state.rng;
+    warpGameTime(
+      this.#campaign.clockContext,
+      sexSceneWarpSeconds((n) => rng.int(n)),
+      Warp.NO_PROCESSING,
+    );
   }
 
   #createHost(): NarrativeHost {
@@ -1022,7 +1032,22 @@ export class TalkFlow {
   }
 
   #lineView(l: SpokenLine): ConversationLineView {
-    return { profile: l.profile, quote: l.quote, ...(l.record !== undefined ? { record: l.record } : {}), textKey: l.textKey };
+    return {
+      profile: l.profile,
+      quote: l.quote,
+      ...(l.record !== undefined ? { record: l.record } : {}),
+      textKey: l.textKey,
+      chars: l.chars,
+    };
+  }
+
+  quoteText(profile: number, quote: number): { readonly textKey: SpokenLine['textKey']; readonly chars: number } {
+    const textKey = dialogueTextKey(this.host, profile, quote, false);
+    return { textKey, chars: this.#setup.texts.chars(textKey) };
+  }
+
+  #faceVariant(profile: number): FaceVariant | null {
+    return profile === NarrativeProfile.ELLIOT ? elliotFaceVariant(this.host.profile(profile)?.npcData ?? 0) : null;
   }
 
   #menu(): string[] {
@@ -1040,6 +1065,7 @@ export class TalkFlow {
     return {
       npc: dest?.id ?? null,
       profile,
+      faceVariant: this.#faceVariant(profile),
       name: dest?.name ?? this.#setup.profiles[profile]?.nickname ?? String(profile),
       talker: talkerSoldier(this.host)?.id ?? null,
       initiatedBy: this.talk.initiatedBy,
