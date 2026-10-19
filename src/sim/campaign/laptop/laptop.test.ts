@@ -175,6 +175,7 @@ describe('hiring from A.I.M.', { timeout: SLOW_SCENARIO_MS }, () => {
     p.mercStatus = MercStatus.WORKING_ELSEWHERE;
     p.dayBecomesAvailable = 1;
     expect(session.dispatch({ type: 'aimLeaveMessage', profile: 1 })).toEqual({ ok: true });
+    expect(session.dispatch({ type: 'aimLeaveMessage', profile: 1 })).toEqual({ ok: false, reason: 'alreadyLeft' });
     expect(session.dispatch({ type: 'aimLeaveMessage', profile: 0 })).toMatchObject({ ok: false });
     expect(p.miscFlags3 & 0x01).toBe(1);
   });

@@ -1,4 +1,5 @@
 import type { CommandReply } from '../../app/net/session-client.ts';
+import { BOBBY_RAY_SPEEDS, bobbyRaySpeedLabel } from '../../protocol/bobby-ray.ts';
 import type {
   AimMercView,
   BobbyRayStockView,
@@ -22,7 +23,6 @@ const TAB_LABELS: Readonly<Record<Tab, string>> = {
   records: 'records',
 };
 const CONTRACT_DAYS = [1, 7, 14] as const;
-const SPEEDS = ['standard', 'express', 'overnight'] as const;
 const RECENT_RECORDS = 25;
 const IMP_QUIZ_QUESTIONS = 16;
 const IMP_START_ATTRIBUTE = 55;
@@ -392,7 +392,7 @@ export class LaptopPanel {
         },
       ),
       select(
-        SPEEDS.map((s, i) => ({ value: i, label: s })),
+        BOBBY_RAY_SPEEDS.map((_, i) => ({ value: i, label: bobbyRaySpeedLabel(i) })),
         this.#speed,
         (v) => {
           this.#speed = v;
@@ -455,7 +455,7 @@ export class LaptopPanel {
       row([
         String(s.index),
         names.get(s.destination) ?? String(s.destination),
-        SPEEDS[s.speed] ?? String(s.speed),
+        bobbyRaySpeedLabel(s.speed),
         `day ${s.orderDay}`,
         s.lines.map((l) => `${l.name}${l.used ? ' (used)' : ''} ×${l.count}`).join(', '),
       ]),
