@@ -1,3 +1,4 @@
+import type { ProfileFaceRecord } from '../content/narrative/profile-presentation.ts';
 import { type DataVersion, STUB_DATA_VERSION, type UiLanguage } from '../content/text/data-version.ts';
 import { appendToLog, MESSAGE_LOG_SIZE, type MessageEntry } from '../protocol/message-log.ts';
 import {
@@ -34,6 +35,7 @@ export interface SessionSim extends Steppable {
   view(): PlayerView;
   musicFacts?(): MusicFacts;
   messageFacts?(): MessageFacts;
+  profileFaceRecords?(): readonly ProfileFaceRecord[];
   readonly holdsCreationEvents?: boolean;
   readonly initialMusic?: MusicState;
   prepare?(cmd: CommandEnvelope): Promise<void>;

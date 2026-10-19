@@ -1,4 +1,5 @@
 import { type PresentationTimeline, requireAnimationTimelines } from '../content/anim/timelines.ts';
+import { type ProfileFaceRecord, profileFaceRecord } from '../content/narrative/profile-presentation.ts';
 import { type DataDecoding, DEFAULT_DATA_DECODING } from '../content/text/data-version.ts';
 import { isVisibleTile } from '../content/world/grid.ts';
 import { loadTacticalWorld } from '../content/world/tactical-world.ts';
@@ -79,6 +80,10 @@ export class TacticalSession implements SessionSim {
 
   get initialMusic(): MusicState {
     return initialMusic(this.sim.state.turn.enemyInSector ? MusicMode.TACTICAL_ENEMY_PRESENT : MusicMode.TACTICAL_NOTHING);
+  }
+
+  profileFaceRecords(): ProfileFaceRecord[] {
+    return this.sim.state.content.profiles.filter((p) => p !== undefined).map(profileFaceRecord);
   }
 
   messageFacts(): MessageFacts {

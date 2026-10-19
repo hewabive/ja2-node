@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Item_Types.h, Weapons.h; src/externalized/{Item,Weapon,Magazine,Armour,Explosive}Model.cc
+// @src src/game/Tactical/Item_Types.h, Weapons.h; src/externalized/{Item,Weapon,Magazine,Armour,Explosive}Model.cc;
+// @src ItemModel.cc (the default inventory and tile graphics), InventoryGraphicsModel.cc, TilesetTileIndexModel.cc
 
 import { ITEM_RULES_PATH, type ItemRules, parseItemRules } from './rules.ts';
 
@@ -190,9 +191,26 @@ export interface ExplosiveDef {
   readonly animation: string | null;
 }
 
+export interface GraphicRef {
+  readonly path: string;
+  readonly subImageIndex: number;
+}
+
+export interface InventoryGraphics {
+  readonly small: GraphicRef;
+  readonly big: GraphicRef;
+}
+
+export interface TileGraphic {
+  readonly type: string;
+  readonly subIndex: number;
+}
+
 export interface ItemDef {
   readonly index: number;
   readonly name: string;
+  readonly inventoryGraphics: InventoryGraphics;
+  readonly tileGraphic: TileGraphic;
   readonly itemClass: number;
   readonly classIndex: number;
   readonly cursor: number;
@@ -231,10 +249,34 @@ function flagsOf(o: Json): number {
   return flags;
 }
 
+const DEFAULT_SMALL_GRAPHIC: GraphicRef = { path: 'interface/mdguns.sti', subImageIndex: 0 };
+const DEFAULT_BIG_GRAPHIC: GraphicRef = { path: 'bigitems/gun00.sti', subImageIndex: 0 };
+const DEFAULT_TILE_GRAPHIC: TileGraphic = { type: 'GUNS', subIndex: 1 };
+
+function graphicRef(o: Json | null, fallback: GraphicRef): GraphicRef {
+  if (!o) return fallback;
+  return { path: (str(o, 'path') ?? fallback.path).toLowerCase(), subImageIndex: num(o, 'subImageIndex') };
+}
+
+function inventoryGraphics(o: Json): InventoryGraphics {
+  const graphics = sub(o, 'inventoryGraphics');
+  return {
+    small: graphicRef(graphics ? sub(graphics, 'small') : null, DEFAULT_SMALL_GRAPHIC),
+    big: graphicRef(graphics ? sub(graphics, 'big') : null, DEFAULT_BIG_GRAPHIC),
+  };
+}
+
+function tileGraphic(o: Json): TileGraphic {
+  const tile = sub(o, 'tileGraphic');
+  return tile ? { type: str(tile, 'type') ?? DEFAULT_TILE_GRAPHIC.type, subIndex: num(tile, 'subIndex') } : DEFAULT_TILE_GRAPHIC;
+}
+
 function baseItem(o: Json, itemClass: number, cursor: number): Omit<ItemDef, 'weapon' | 'magazine' | 'armour' | 'explosive'> {
   return {
     index: num(o, 'itemIndex'),
     name: str(o, 'internalName') ?? '',
+    inventoryGraphics: inventoryGraphics(o),
+    tileGraphic: tileGraphic(o),
     itemClass,
     classIndex: num(o, 'ubClassIndex'),
     cursor,

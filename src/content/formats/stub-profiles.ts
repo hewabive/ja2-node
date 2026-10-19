@@ -112,6 +112,37 @@ function stats(o: JsonObject, what: string): Record<(typeof STAT_KEYS)[number], 
   >;
 }
 
+interface StubFace {
+  readonly faceIndex: number;
+  readonly eyesX: number;
+  readonly eyesY: number;
+  readonly mouthX: number;
+  readonly mouthY: number;
+  readonly blinkFrequency: number;
+  readonly expressionFrequency: number;
+}
+
+function offsetPair(o: JsonObject, key: string, what: string): readonly [number, number] {
+  if (o[key] === undefined) return [0, 0];
+  const pair = asArray(o[key], `${what}.${key}`);
+  return [asInt(pair[0], `${what}.${key}[0]`), asInt(pair[1], `${what}.${key}[1]`)];
+}
+
+function face(o: JsonObject, id: number, what: string): StubFace {
+  const f = o.face === undefined ? {} : asObject(o.face, `${what}.face`);
+  const [eyesX, eyesY] = offsetPair(f, 'eyes', `${what}.face`);
+  const [mouthX, mouthY] = offsetPair(f, 'mouth', `${what}.face`);
+  return {
+    faceIndex: int(f, 'index', id, `${what}.face`),
+    eyesX,
+    eyesY,
+    mouthX,
+    mouthY,
+    blinkFrequency: int(f, 'blinkFrequency', 0, `${what}.face`),
+    expressionFrequency: int(f, 'expressionFrequency', 0, `${what}.face`),
+  };
+}
+
 function homeSector(o: JsonObject, what: string): { readonly x: number; readonly y: number; readonly z: number } {
   if (o.sector === undefined) return { x: 0, y: 0, z: 0 };
   const sector = parseSectorString(asString(o.sector, `${what}.sector`), int(o, 'sectorZ', 0, what));
@@ -235,13 +266,7 @@ function parseStubProfile(json: unknown, itemIndex: ItemIndex, index: number): M
     suspiciousDeath: 0,
     mercMercContractLength: 0,
     totalCostToDate: 0,
-    faceIndex: 0,
-    eyesX: 0,
-    eyesY: 0,
-    mouthX: 0,
-    mouthY: 0,
-    blinkFrequency: 0,
-    expressionFrequency: 0,
+    ...face(o, id, what),
     ...talk,
     approached: 0,
     lastQuoteSaid: NO_QUOTE,

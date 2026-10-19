@@ -84,6 +84,14 @@ export class TextService {
     return { ok: true, record: { file: layout.path, row, layout: layout.columns, columns } };
   }
 
+  async edtTable(file: string): Promise<((row: number) => readonly string[] | null) | null> {
+    const layout = await this.layoutOf(file);
+    if (!layout) return null;
+    const bytes = await this.#bytes(layout.path);
+    if (!bytes) return null;
+    return (row) => decodeEdtRecord(bytes, row, layout.columns, this.encoding);
+  }
+
   async text(key: TextKey): Promise<string | null> {
     const bytes = await this.#bytes(key.file);
     return bytes ? decodeEdtRow(bytes, key.row, key.width, this.encoding) : null;

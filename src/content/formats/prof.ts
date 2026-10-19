@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Tactical_Save.cc JA2EncryptedFileRead; LoadSaveMercProfile.cc ExtractMercProfile (NPC fields: docs/24 §1.2);
+// @src Soldier_Profile.cc LoadMercProfiles (ubFaceIndex is the profile id, whatever prof.dat holds);
 // @src src/sgp/LoadSaveData.cc DataReader::readUTF16 and src/externalized/mercs/BinaryProfileData.cc (Russian names)
 
 import { FormatError } from '../binary/errors.ts';
@@ -343,7 +344,7 @@ export function parseProfile(id: number, plain: Uint8Array, names: ProfileNameEn
     suspiciousDeath: v.getUint8(703),
     mercMercContractLength: v.getInt32(704, true),
     totalCostToDate: v.getUint32(708, true),
-    faceIndex: v.getUint8(108),
+    faceIndex: id,
     eyesX: v.getUint16(262, true),
     eyesY: v.getUint16(264, true),
     mouthX: v.getUint16(266, true),

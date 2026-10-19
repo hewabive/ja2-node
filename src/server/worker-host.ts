@@ -1,4 +1,5 @@
 import { Worker } from 'node:worker_threads';
+import type { ProfileFaceRecord } from '../content/narrative/profile-presentation.ts';
 import type { CommandEnvelope, DriverMode, ServerMessage, SessionAdvanceReport } from '../protocol/messages.ts';
 import type { StopCondition } from '../sim/advance.ts';
 import type { CommandResult } from '../sim/command.ts';
@@ -36,6 +37,7 @@ export const HOST_CALLS = [
   'report',
   'snapshot',
   'inputLog',
+  'profiles',
   'close',
 ] as const;
 
@@ -230,6 +232,10 @@ export class WorkerHost implements SessionHost {
 
   inputLog(): Promise<LogSegment> {
     return this.#call('inputLog');
+  }
+
+  profiles(): Promise<readonly ProfileFaceRecord[]> {
+    return this.#call('profiles');
   }
 
   close(): Promise<void> {

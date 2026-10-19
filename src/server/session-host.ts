@@ -1,3 +1,4 @@
+import type { ProfileFaceRecord } from '../content/narrative/profile-presentation.ts';
 import type { DataVersion, UiLanguage } from '../content/text/data-version.ts';
 import type { CommandEnvelope, DriverMode, SessionAdvanceReport } from '../protocol/messages.ts';
 import type { PlayerView } from '../protocol/view.ts';
@@ -48,6 +49,7 @@ export interface SessionHost {
   report(): Promise<CreationReport>;
   snapshot(): Promise<string>;
   inputLog(): Promise<LogSegment>;
+  profiles(): Promise<readonly ProfileFaceRecord[]>;
   close(): Promise<void>;
 }
 
@@ -165,6 +167,10 @@ export class InProcessHost implements SessionHost {
 
   inputLog(): Promise<LogSegment> {
     return this.#queued(() => this.session.log.full());
+  }
+
+  profiles(): Promise<readonly ProfileFaceRecord[]> {
+    return Promise.resolve().then(() => this.session.sim.profileFaceRecords?.() ?? []);
   }
 
   close(): Promise<void> {

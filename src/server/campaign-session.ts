@@ -1,5 +1,6 @@
 import type { PresentationTimeline } from '../content/anim/timelines.ts';
 import type { TextKey } from '../content/narrative/dialogue-text.ts';
+import { type ProfileFaceRecord, profileFaceRecord } from '../content/narrative/profile-presentation.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
 import { initialMusic, type MusicFacts, type MusicState } from '../protocol/music.ts';
 import type {
@@ -196,6 +197,12 @@ export class CampaignSession implements SessionSim {
 
   ended(): boolean {
     return this.campaign.ended();
+  }
+
+  profileFaceRecords(): ProfileFaceRecord[] {
+    const imp = this.campaign.state.laptop.imp.profiles;
+    const base = this.origin?.parts.content.profiles ?? this.campaign.battle?.content.profiles ?? [];
+    return base.filter((p) => p !== undefined).map((p) => profileFaceRecord(imp.get(p.id) ?? p));
   }
 
   messageFacts(): MessageFacts {
