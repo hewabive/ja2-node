@@ -1,5 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import type { MessageEntry } from '../../src/protocol/message-log.ts';
 import type { PlayerView } from '../../src/protocol/view.ts';
 
 export interface GameEvent {
@@ -13,6 +14,7 @@ export interface AdvanceReport {
   readonly worldTime?: { readonly day: number; readonly hour: number; readonly minute: number; readonly seconds: number };
   readonly refusal?: string;
   readonly events: readonly GameEvent[];
+  readonly messages?: readonly MessageEntry[];
 }
 
 export interface ActResult {

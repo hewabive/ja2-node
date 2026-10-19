@@ -9,7 +9,7 @@
 // @src (repairs, aborted assignments), Strategic_Movement.cc (MSG_ARRIVE), SaveLoadGame.cc (game saved), Soldier_Control.cc
 // @src (refused first aid), Dialogue_Control.cc and Civ_Quotes.cc (dialogue lines). See docs/28 §12.2.
 
-import type { MessageArg, MessageEntry, MessageKind } from '../protocol/message-log.ts';
+import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -262,7 +262,7 @@ export function messageEntriesOf(events: readonly SimEvent[], facts: MessageFact
 }
 
 export function gameSavedEntry(tick: number): MessageEntry {
-  return { tick, ...line('pMessageStrings', 8) };
+  return { tick, ...line(GAME_SAVED_MESSAGE.table, GAME_SAVED_MESSAGE.index) };
 }
 
 const REFUSALS_NAMING_THE_MERC: ReadonlySet<string> = new Set(['mercUnavailable', 'outOfBreath', 'noBurst']);

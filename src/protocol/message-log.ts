@@ -31,6 +31,12 @@ export interface MessageEntry {
   readonly args?: readonly MessageArg[];
 }
 
+export const GAME_SAVED_MESSAGE: MessageStringRef = { table: 'pMessageStrings', index: 8 };
+
+export function isSessionMessage(entry: Pick<MessageEntry, 'table' | 'index'>): boolean {
+  return entry.table === GAME_SAVED_MESSAGE.table && entry.index === GAME_SAVED_MESSAGE.index;
+}
+
 export function storedInLog(entry: MessageEntry): boolean {
   return entry.kind === 'interface' || entry.kind === 'dialog';
 }
