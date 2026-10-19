@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
+import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { AmmoType } from '../../../content/items/items.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
@@ -29,7 +29,7 @@ function standoff(gun: string, distance: number, marksmanship: number): { sim: T
 }
 
 function apCostOf(sim: TacticalSim, cmd: Record<string, unknown>): number {
-  const estimate = sim.dispatch({ type: 'estimateAttack', soldier: 0, ...cmd });
+  const estimate = estimateAttack(sim, { soldier: 0, ...cmd });
   expect(estimate.ok).toBe(true);
   return (estimate.data as { apCost: number }).apCost;
 }

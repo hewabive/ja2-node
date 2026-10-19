@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
+import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { CELL_X_SIZE, Direction, gridNo } from '../../../content/world/grid.ts';
@@ -73,7 +73,7 @@ describe('gun attacks', () => {
     sim.lookAround();
     expect(t.inCombat).toBe(true);
     sim.drainEvents();
-    const estimate = sim.dispatch({ type: 'estimateAttack', soldier: 0, target: enemy.gridNo, aimTime: 2 });
+    const estimate = estimateAttack(sim, { soldier: 0, target: enemy.gridNo, aimTime: 2 });
     expect(estimate.ok).toBe(true);
     const { apCost, chanceToHit, chanceToGetThrough } = estimate.data as {
       apCost: number;
@@ -204,7 +204,7 @@ describe('gun attacks', () => {
     const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 88), Direction.NORTH);
     t.inCombat = true;
     merc.oppList[enemy.id] = 1;
-    const estimate = sim.dispatch({ type: 'estimateAttack', soldier: 0, target: enemy.gridNo });
+    const estimate = estimateAttack(sim, { soldier: 0, target: enemy.gridNo });
     expect((estimate.data as { chanceToGetThrough: number }).chanceToGetThrough).toBe(0);
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo }).ok).toBe(true);
     const events = run(sim);

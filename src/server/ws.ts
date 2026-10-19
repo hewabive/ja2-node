@@ -4,6 +4,7 @@ import type { Duplex } from 'node:stream';
 import { type WebSocket, WebSocketServer } from 'ws';
 import { type ClientMessage, parseClientMessage, type ServerMessage } from '../protocol/messages.ts';
 import type { CommandResult } from '../sim/command.ts';
+import type { QueryAnswer } from './query.ts';
 import { loadProblemOf } from './save-service.ts';
 import type { SessionHost } from './session-host.ts';
 import { closeRegisteredSession } from './session-registry.ts';
@@ -72,7 +73,22 @@ async function closeReply(options: WebSocketOptions, host: SessionHost, id: numb
   return { t: 'result', id, ok: outcome === 'closed', ...(outcome === 'closed' ? {} : { reason: outcome }) };
 }
 
-function reply(options: WebSocketOptions, host: SessionHost, message: Exclude<ClientMessage, { t: 'hello' }>): Promise<Reply> {
+function answerOf(id: number, a: QueryAnswer): ServerMessage {
+  return {
+    t: 'answer',
+    id,
+    ok: a.ok,
+    tick: a.tick,
+    ...(a.reason ? { reason: a.reason } : {}),
+    ...(a.data !== undefined ? { data: a.data } : {}),
+  };
+}
+
+function reply(
+  options: WebSocketOptions,
+  host: SessionHost,
+  message: Exclude<ClientMessage, { t: 'hello' } | { t: 'query' }>,
+): Promise<Reply> {
   switch (message.t) {
     case 'closeSession':
       return closeReply(options, host, message.id);
@@ -118,6 +134,14 @@ function serve(ws: WebSocket, options: WebSocketOptions): void {
       return;
     }
     if (!host) return send({ t: 'error', message: 'say hello first' });
+    if (message.t === 'query') {
+      const id = message.id;
+      host.query(message.q).then(
+        (a) => send(answerOf(id, a)),
+        (err: Error) => send({ t: 'answer', id, ok: false, tick: 0, reason: err.message }),
+      );
+      return;
+    }
     inOrder(reply(options, host, message));
   });
   ws.on('close', () => unsubscribe?.());

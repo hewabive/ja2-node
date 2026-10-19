@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
+import { estimateAttack, newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { WORLD_COLS } from '../../../content/world/grid.ts';
 import { createItem, emptyObject } from '../../items/object.ts';
@@ -343,7 +343,7 @@ describe('around a match', () => {
     sim.state.boxing.uiLocked = true;
     expect(sim.isIdle()).toBe(false);
     expect(sim.dispatch({ type: 'move', soldier: merc.id, to: IN_RING })).toMatchObject({ ok: false, data: { refusal: 'boxingUiLock' } });
-    expect(sim.dispatch({ type: 'estimateAttack', soldier: merc.id, target: IN_RING }).reason).not.toMatch(/locked/);
+    expect(estimateAttack(sim, { soldier: merc.id, target: IN_RING }).reason).not.toMatch(/locked/);
   });
 
   it('keeps a hostile boxer from spreading hostility to his group while the boxers are in the ring', () => {

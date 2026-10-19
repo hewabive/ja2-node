@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
+import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { PreRandom, Rng } from '../../../core/rng.ts';
@@ -84,11 +84,11 @@ describe('knife attacks', () => {
     const t = sim.state;
     master(merc);
     novice(enemy);
-    const estimate = sim.dispatch({ type: 'estimateAttack', soldier: 0, target: enemy.gridNo });
+    const estimate = estimateAttack(sim, { soldier: 0, target: enemy.gridNo });
     expect(estimate.ok).toBe(true);
-    const { apCost, chanceToHit, inReach } = estimate.data as { apCost: number; chanceToHit: number; inReach: boolean };
+    const { apCost, chanceToHit, inReach } = estimate.data as { apCost: number; chanceToHit: number | null; inReach: boolean };
     expect(inReach).toBe(true);
-    expect(chanceToHit).toBe(99);
+    expect(chanceToHit).toBeNull();
     const before = merc.actionPoints;
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
     const events = runUntilIdle(sim);
@@ -109,7 +109,7 @@ describe('knife attacks', () => {
   it('refuses through the API a diagonal knife target, which needs a walk to a side neighbour', () => {
     const { sim, merc } = duel(KNIFE, gridNo(81, 81), Direction.SOUTHEAST);
     const before = merc.actionPoints;
-    const estimate = sim.dispatch({ type: 'estimateAttack', soldier: 0, target: gridNo(81, 81) });
+    const estimate = estimateAttack(sim, { soldier: 0, target: gridNo(81, 81) });
     expect(estimate.data).toMatchObject({ inReach: false });
     expect((estimate.data as { apCost: number }).apCost).toBeGreaterThan(0);
     expect(merc.walkToAttackCost).toBe(0);
@@ -167,10 +167,10 @@ describe('punches', () => {
     const t = sim.state;
     master(merc);
     novice(enemy);
-    const estimate = sim.dispatch({ type: 'estimateAttack', soldier: 0, target: enemy.gridNo });
-    const { apCost, chanceToHit } = estimate.data as { apCost: number; chanceToHit: number };
+    const estimate = estimateAttack(sim, { soldier: 0, target: enemy.gridNo });
+    const { apCost, chanceToHit } = estimate.data as { apCost: number; chanceToHit: number | null };
     expect(apCost).toBe(4);
-    expect(chanceToHit).toBe(99);
+    expect(chanceToHit).toBeNull();
     const before = merc.actionPoints;
     const breathBefore = enemy.breath;
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });

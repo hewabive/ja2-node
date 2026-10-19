@@ -20,6 +20,7 @@ import type { SimEvent } from '../sim/events.ts';
 import { Assignment } from '../sim/strategic/forces/constants.ts';
 import { numHostilesInSector } from '../sim/strategic/forces/groups.ts';
 import { isTimeBeingCompressed, worldDay, worldHour, worldMinute } from '../sim/strategic/time/world-clock.ts';
+import type { TacticalContent } from '../sim/tactical/content.ts';
 import { BoxingState, boxingStateName } from '../sim/tactical/narrative/boxing-state.ts';
 import type { SaveImportReport } from '../sim/tactical/save-import.ts';
 import { SoldierStatusFlags, Team } from '../sim/tactical/soldier.ts';
@@ -146,6 +147,10 @@ export class CampaignSession implements SessionSim {
 
   get tick(): number {
     return this.campaign.tick;
+  }
+
+  tacticalContent(): TacticalContent | null {
+    return this.campaign.tactical?.state.content ?? null;
   }
 
   get worldClock(): WorldTimeControl {

@@ -17,8 +17,10 @@ import { AdvanceRun, type PauseCheck, type Steppable, type StopCondition, type S
 import { TICK_MS } from '../sim/clock.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent, SimEventType } from '../sim/events.ts';
+import type { TacticalContent } from '../sim/tactical/content.ts';
 import { type InputEntry, InputLog, type LoadPayload, type LogOrigin, UNKNOWN_ORIGIN } from './input-log.ts';
 import { gameSavedEntry, type MessageFacts, messageEntriesOf, NO_MESSAGE_FACTS, refusalEntry } from './message-entries.ts';
+import type { QueryAnswer, QueryService } from './query.ts';
 import { NEVER_DUE, type Slicer, UNSLICED } from './slicing.ts';
 
 export const FRAME_TICKS = 10;
@@ -33,6 +35,7 @@ export type { CommandResult };
 export interface SessionSim extends Steppable {
   dispatch(cmd: CommandEnvelope): CommandResult;
   view(): PlayerView;
+  tacticalContent?(): TacticalContent | null;
   musicFacts?(): MusicFacts;
   messageFacts?(): MessageFacts;
   profileFaceRecords?(): readonly ProfileFaceRecord[];
@@ -92,6 +95,7 @@ export class Session {
   language: UiLanguage;
   identity: WelcomeIdentity = UNKNOWN_IDENTITY;
   hooks: SessionHooks | null = null;
+  queries: QueryService | null = null;
   #sim: SessionSim;
   #driver: DriverMode = { mode: 'manual' };
   #timer: ReturnType<typeof setInterval> | null = null;
@@ -357,6 +361,13 @@ export class Session {
     this.#publish(frames);
     this.hooks?.afterAdvance?.(this, report);
     return { ...report, messages: this.#unreportedMessages.splice(0) };
+  }
+
+  async query(q: CommandEnvelope): Promise<QueryAnswer> {
+    const queries = this.queries;
+    if (!queries) return { ok: false, reason: 'queries are not available', data: { refusal: 'noQueries' }, tick: this.#sim.tick };
+    await queries.prepare(this.#sim);
+    return queries.answer(this.#sim, q);
   }
 
   reseed(seed: number, apply: () => void): void {

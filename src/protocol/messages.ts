@@ -32,6 +32,7 @@ export interface CommandEnvelope {
 export type ClientMessage =
   | { readonly t: 'hello'; readonly session?: string }
   | { readonly t: 'cmd'; readonly id: number; readonly cmd: CommandEnvelope }
+  | { readonly t: 'query'; readonly id: number; readonly q: CommandEnvelope }
   | { readonly t: 'advance'; readonly id: number; readonly until: StopCondition }
   | { readonly t: 'drive'; readonly id: number; readonly driver: DriverMode }
   | { readonly t: 'save'; readonly id: number; readonly name?: string; readonly description?: string }
@@ -66,10 +67,20 @@ export interface WelcomeMessage extends WelcomeIdentity {
   readonly messages: readonly MessageEntry[];
 }
 
+export interface AnswerMessage {
+  readonly t: 'answer';
+  readonly id: number;
+  readonly ok: boolean;
+  readonly tick: number;
+  readonly reason?: string;
+  readonly data?: unknown;
+}
+
 export type ServerMessage =
   | WelcomeMessage
   | { readonly t: 'frames'; readonly frames: readonly ViewFrame[] }
   | { readonly t: 'result'; readonly id: number; readonly ok: boolean; readonly reason?: string; readonly data?: unknown }
+  | AnswerMessage
   | { readonly t: 'stopped'; readonly id: number; readonly report: SessionStopReport }
   | { readonly t: 'error'; readonly message: string };
 
@@ -90,6 +101,10 @@ export function parseClientMessage(text: string): ClientMessage | null {
         typeof m.cmd === 'object' &&
         m.cmd !== null &&
         typeof (m.cmd as { type?: unknown }).type === 'string'
+        ? (m as ClientMessage)
+        : null;
+    case 'query':
+      return typeof m.id === 'number' && typeof m.q === 'object' && m.q !== null && typeof (m.q as { type?: unknown }).type === 'string'
         ? (m as ClientMessage)
         : null;
     case 'advance':

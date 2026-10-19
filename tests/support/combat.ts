@@ -4,6 +4,10 @@ import { StructureFlags } from '../../src/content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../src/content/world/synthetic.ts';
 import type { TacticalWorld } from '../../src/content/world/tactical-world.ts';
 import { advance } from '../../src/sim/advance.ts';
+import type { CommandResult } from '../../src/sim/command.ts';
+import { answerHint } from '../../src/sim/hints/answer.ts';
+import { knowledgeRules, knowledgeWorld } from '../../src/sim/knowledge/knowledge-world.ts';
+import { knowledgeViewOf } from '../../src/sim/knowledge/sim-view.ts';
 import type { SimEvent } from '../../src/sim/events.ts';
 import { createItem } from '../../src/sim/items/object.ts';
 import { initNewSoldierAnim, states } from '../../src/sim/tactical/animation.ts';
@@ -31,22 +35,35 @@ export function combatStats(marksmanship: number): SoldierStats {
   };
 }
 
+const WORLD_BUILDERS = new WeakMap<TacticalSim, () => TacticalWorld>();
+
 export function newCombatSim(
   content: TacticalContent,
   walls: readonly number[] = [],
   seed = 3,
   roofs: ReadonlySet<number> = new Set(),
 ): TacticalSim {
-  const base = syntheticWorld(
-    testDoorCosts(),
-    (structures) => {
-      for (const g of walls) structures.add(g, 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT, { armour: 12 }));
-      for (const g of roofs) structures.add(g, 1, syntheticStructure(StructureFlags.NORMAL_ROOF, Orientation.NONE, { height: 1 }));
-    },
-    roofs,
-  );
-  const world = { ...base, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld;
-  return new TacticalSim(world, content, seed);
+  const build = () => {
+    const base = syntheticWorld(
+      testDoorCosts(),
+      (structures) => {
+        for (const g of walls) structures.add(g, 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT, { armour: 12 }));
+        for (const g of roofs) structures.add(g, 1, syntheticStructure(StructureFlags.NORMAL_ROOF, Orientation.NONE, { height: 1 }));
+      },
+      roofs,
+    );
+    return { ...base, map: { doors: [], placements: [] }, mapPath: 'synthetic' } as unknown as TacticalWorld;
+  };
+  const sim = new TacticalSim(build(), content, seed);
+  WORLD_BUILDERS.set(sim, build);
+  return sim;
+}
+
+export function estimateAttack(sim: TacticalSim, cmd: Readonly<Record<string, unknown>>): CommandResult {
+  const build = WORLD_BUILDERS.get(sim);
+  if (!build) throw new Error('estimateAttack needs a sim made by newCombatSim');
+  const rules = knowledgeRules(sim.state.content, { world: () => build() });
+  return answerHint(knowledgeWorld(knowledgeViewOf(sim), rules, { strict: true }), { type: 'estimateAttack', ...cmd });
 }
 
 export interface SpawnOptions {

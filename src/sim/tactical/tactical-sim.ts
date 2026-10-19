@@ -2,12 +2,13 @@ import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
 import { MapFlags } from '../../content/formats/map.ts';
 import { handClass, ItemClass, ItemCursor, NOTHING } from '../../content/items/items.ts';
-import { isVisibleTile } from '../../content/world/grid.ts';
+import { isVisibleTile, WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { type PreRandom, Rng } from '../../core/rng.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import type { ItemObject } from '../items/object.ts';
+import type { KnowledgeLight } from '../knowledge/view.ts';
 import { applyOptionChange, type GameOptions, parseOptionChange } from '../options.ts';
 import type { CivGroupState } from '../strategic/narrative/civ-groups.ts';
 import type { BoxingRecord } from '../strategic/narrative/facts.ts';
@@ -42,16 +43,10 @@ import {
 import { generateBuildings } from './buildings.ts';
 import { calcTotalAPsToAttack, minAPsToAttack } from './combat/ap.ts';
 import { attackOpcode, handleItem, ItemHandle } from './combat/attack.ts';
-import {
-  soldierToLocationChanceToGetThrough,
-  soldierToSoldierBodyPartChanceToGetThrough,
-  updateBullets,
-  updateMissAnimations,
-} from './combat/bullets.ts';
-import { calcChanceToHitGun } from './combat/chance.ts';
+import { updateBullets, updateMissAnimations } from './combat/bullets.ts';
 import { deathOpcode, updateSkullReleases } from './combat/death.ts';
 import { soldierCollapse } from './combat/hit.ts';
-import { handlePendingMeleeOnArrival, meleeChanceToHit } from './combat/melee.ts';
+import { handlePendingMeleeOnArrival } from './combat/melee.ts';
 import { meleeSpot } from './combat/melee-reach.ts';
 import { AimShot, WeaponMode } from './combat/types.ts';
 import type { TacticalContent } from './content.ts';
@@ -61,12 +56,11 @@ import { type DoorView, doorViews, type KeyView, keyRingView } from './doors/doo
 import type { KeyTable } from './doors/keys.ts';
 import { isDoorOpenAt } from './doors.ts';
 import { stepExplosions } from './explosions/explosion.ts';
-import { HEIGHT_UNITS, stepThrownObjects } from './explosions/physics.ts';
+import { stepThrownObjects } from './explosions/physics.ts';
 import { checkForRunningIntoGas, updateGassedOnNewGridNo } from './explosions/smoke.ts';
 import type { WorldClockSource } from './explosions/state.ts';
 import { explosivesBusy } from './explosions/state.ts';
-import { calcMaxTossRange, calcThrownChanceToHit, throwOpcode } from './explosions/throwing.ts';
-import { calculateLaunchItemChanceToGetThrough } from './explosions/trajectory.ts';
+import { throwOpcode } from './explosions/throwing.ts';
 import { cancelAllServices, firstAidOpcode, givingSoldierCancelServices, handlePendingAidOnArrival } from './first-aid.ts';
 import { dequeueAllGameEvents } from './game-events.ts';
 import { clearPendingGive, handlePendingGiveOnArrival } from './give.ts';
@@ -85,6 +79,7 @@ import {
 } from './item-actions.ts';
 import {
   initLighting,
+  LightSpriteFlags,
   lightSetBaseLevel,
   NORMAL_LIGHTLEVEL_DAY,
   turnOffNightLights,
@@ -93,6 +88,7 @@ import {
   turnOnPrimeLights,
 } from './lighting/lighting.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
+import { movementModeState } from './movement-mode.ts';
 import { checkHostileOrSayQuoteList } from './narrative/civ-hostility.ts';
 import { handleActionItemQueue } from './narrative/quest-items.ts';
 import { uncontrolledRobot } from './narrative/robot.ts';
@@ -221,7 +217,7 @@ const DOOR_REFUSALS: Readonly<Record<string, string>> = {
 const NOT_ADJACENT =
   'a melee target must stand next to the soldier (a knife reaches the four side tiles, fists all eight); walking up to it is not supported';
 
-const MELEE_CHANCE_TO_GET_THROUGH = 100;
+const _MELEE_CHANCE_TO_GET_THROUGH = 100;
 const SANDBOX_WORLD_HOUR = 12;
 
 const isMeleeItemClass = (cls: number) => cls === ItemClass.BLADE || (cls & (ItemClass.NONE | ItemClass.PUNCH)) !== 0;
@@ -472,9 +468,8 @@ export class TacticalSim {
 
   dispatch(cmd: TacticalCommand): CommandResult {
     if (cmd.type === 'setOption') return this.#setOption(cmd);
-    if (this.state.mercsWaiting && cmd.type !== 'estimateAttack')
-      return refuse('uiLocked', 'the interface is locked while mercs leave the sector');
-    if (this.state.boxing.uiLocked && cmd.type !== 'estimateAttack')
+    if (this.state.mercsWaiting) return refuse('uiLocked', 'the interface is locked while mercs leave the sector');
+    if (this.state.boxing.uiLocked)
       return { ok: false, reason: 'the interface is locked while the boxers leave the ring', data: { refusal: 'boxingUiLock' } };
     if (INVENTORY_COMMANDS.has(cmd.type)) return this.#inventory(cmd);
     switch (cmd.type) {
@@ -488,8 +483,6 @@ export class TacticalSim {
         return this.#endTurn();
       case 'attack':
         return this.#attack(cmd);
-      case 'estimateAttack':
-        return this.#estimateAttack(cmd);
       case 'pickUp':
         return this.#pickUp(cmd);
       case 'drop':
@@ -655,22 +648,6 @@ export class TacticalSim {
     return { ok: true, data: { result: opened ? 'statueOpened' : 'nothing' } };
   }
 
-  #movementMode(s: Soldier, mode: unknown): number {
-    const st = states(this.state.content.animations);
-    switch (mode) {
-      case 'run':
-        return st.RUNNING;
-      case 'walk':
-        return st.WALKING;
-      case 'swat':
-        return st.SWATTING;
-      case 'crawl':
-        return st.CRAWLING;
-    }
-    const stance = endHeight(this.state.content, s.state);
-    return stance === AnimHeight.PRONE ? st.CRAWLING : stance === AnimHeight.CROUCH ? st.SWATTING : st.WALKING;
-  }
-
   #move(cmd: TacticalCommand): CommandResult {
     const t = this.state;
     const s = this.soldier(cmd.soldier);
@@ -680,7 +657,7 @@ export class TacticalSim {
     const to = cmd.to;
     if (typeof to !== 'number' || !Number.isInteger(to) || !isVisibleTile(to))
       return refuse('badDestination', 'destination must be a visible gridNo');
-    s.uiMovementMode = this.#movementMode(s, cmd.mode);
+    s.uiMovementMode = movementModeState(t.content, s, cmd.mode);
     s.pathStored = false;
     s.pendingDoorAction = null;
     s.pendingTalk = null;
@@ -815,66 +792,6 @@ export class TacticalSim {
     return { ok: true };
   }
 
-  #estimateAttack(cmd: TacticalCommand): CommandResult {
-    const t = this.state;
-    const s = this.soldier(cmd.soldier);
-    if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
-    const saved = { ...s, inv: s.inv };
-    const setup = this.#attackSetup(cmd);
-    if ('error' in setup) return refuse(setup.token, setup.error);
-    const { target, level, melee, thrown } = setup;
-    const victim = whoIsThere(t, target, level);
-    if (thrown && t.content.items.byIndex.get(s.attackingWeapon)?.cursor === ItemCursor.TOSS) {
-      const throwEstimate = this.#estimateThrow(s, target, level, victim);
-      Object.assign(s, {
-        aimTime: saved.aimTime,
-        attackingHand: saved.attackingHand,
-        attackingWeapon: saved.attackingWeapon,
-        targetLevel: saved.targetLevel,
-      });
-      return { ok: true, data: throwEstimate };
-    }
-    const apCost = calcTotalAPsToAttack(t, s, victim ? victim.gridNo : target, true, s.aimTime);
-    const blade = t.content.items.byIndex.get(s.attackingWeapon)?.itemClass === ItemClass.BLADE;
-    const chanceToHit =
-      melee && victim
-        ? meleeChanceToHit(t, s, victim, s.aimTime, blade)
-        : calcChanceToHitGun(t, s, target, s.aimTime, s.aimShotLocation, false);
-    const chanceToGetThrough = melee
-      ? MELEE_CHANCE_TO_GET_THROUGH
-      : victim
-        ? soldierToSoldierBodyPartChanceToGetThrough(t, s, victim, s.aimShotLocation)
-        : soldierToLocationChanceToGetThrough(t, s, target, level, 0, null);
-    const reach = melee ? { inReach: meleeSpot(t, s, target, level) !== null } : {};
-    Object.assign(s, {
-      aimTime: saved.aimTime,
-      aimShotLocation: saved.aimShotLocation,
-      weaponMode: saved.weaponMode,
-      doBurst: saved.doBurst,
-      attackingHand: saved.attackingHand,
-      attackingWeapon: saved.attackingWeapon,
-      targetLevel: saved.targetLevel,
-      targetCubeLevel: saved.targetCubeLevel,
-      dontChargeReadyAPs: saved.dontChargeReadyAPs,
-      ctgtTarget: saved.ctgtTarget,
-    });
-    return { ok: true, data: { apCost, actionPoints: s.actionPoints, chanceToHit, chanceToGetThrough, ...reach } };
-  }
-
-  #estimateThrow(s: Soldier, target: number, level: number, victim: Soldier | null): Record<string, unknown> {
-    const t = this.state;
-    const hand = s.inv[InvSlot.HAND] as ItemObject;
-    const landing = calculateLaunchItemChanceToGetThrough(t, s, hand, target, level, level * HEIGHT_UNITS, true, true);
-    return {
-      apCost: minAPsToAttack(t, s, victim ? victim.gridNo : target, true),
-      actionPoints: s.actionPoints,
-      chanceToHit: landing.ok ? calcThrownChanceToHit(t, s, landing.gridNo, 0) : 0,
-      pathClear: landing.ok,
-      landsAt: landing.gridNo,
-      maxRange: calcMaxTossRange(t, s, hand.item, true),
-    };
-  }
-
   #endTurn(): CommandResult {
     const t = this.state;
     if (!t.inCombat) return refuse('notInCombat', 'not in turn-based combat');
@@ -931,6 +848,17 @@ export class TacticalSim {
           }
         : otherSoldierFields(s)),
     }));
+  }
+
+  lightView(): KnowledgeLight {
+    const l = this.state.lighting;
+    const sprites = l.sprites.flatMap((sprite) => {
+      if (!sprite || !(sprite.flags & LightSpriteFlags.ACTIVE) || !(sprite.flags & LightSpriteFlags.ON)) return [];
+      if (sprite.x >= WORLD_COLS || sprite.y >= WORLD_ROWS) return [];
+      const roof = sprite.flags & LightSpriteFlags.ONROOF ? { roof: true as const } : {};
+      return [{ template: sprite.template.name, x: sprite.x, y: sprite.y, ...roof }];
+    });
+    return { ambient: l.ambient, sprites };
   }
 
   visibleTeam(): number {

@@ -10,8 +10,10 @@ import { MusicMode } from '../protocol/music-modes.ts';
 import type { PlayerView, SoldierView } from '../protocol/view.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
+import { tacticalViewParts } from '../sim/knowledge/sim-view.ts';
 import { calcDifficultyModifier } from '../sim/strategic/ai/difficulty.ts';
 import { Difficulty } from '../sim/strategic/forces/constants.ts';
+import type { TacticalContent } from '../sim/tactical/content.ts';
 import { createMercFromProfile } from '../sim/tactical/creation.ts';
 import { loadMapEdgepoints } from '../sim/tactical/edgepoints.ts';
 import {
@@ -25,7 +27,6 @@ import { addSoldierToSector, Insertion } from '../sim/tactical/insertion.ts';
 import { lightSpriteRenderAll } from '../sim/tactical/lighting/lighting.ts';
 import { loadTacticalContent } from '../sim/tactical/load-content.ts';
 import { PlacementVerdict } from '../sim/tactical/narrative/placement.ts';
-import { revealedRooms } from '../sim/tactical/perception/fov.ts';
 import { firstFreeSoldierId, Side, type Soldier, SoldierClass, Team } from '../sim/tactical/soldier.ts';
 import { teamMembers } from '../sim/tactical/state.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
@@ -78,6 +79,10 @@ export class TacticalSession implements SessionSim {
     return tacticalPlayerView(this.sim, this.sim.tick, this.presentation);
   }
 
+  tacticalContent(): TacticalContent {
+    return this.sim.state.content;
+  }
+
   get initialMusic(): MusicState {
     return initialMusic(this.sim.state.turn.enemyInSector ? MusicMode.TACTICAL_ENEMY_PRESENT : MusicMode.TACTICAL_NOTHING);
   }
@@ -110,22 +115,8 @@ export function tacticalPlayerView(
   presentation: PresentationTimeline,
   voiceOf: VoiceOf = PROFILE_VOICE,
 ): PlayerView {
-  return {
-    tick,
-    mapPath: sim.mapPath,
-    soldiers: withSandboxCrew(
-      withVoices(
-        sim.snapshot(presentation, (s) => s.team === Team.OUR || s.visible >= 0),
-        sim.state.soldiers,
-        voiceOf,
-      ),
-    ),
-    openDoors: sim.openDoors(),
-    doors: sim.doors(),
-    combat: sim.combatView(),
-    revealedRooms: revealedRooms(sim.state),
-    items: sim.visibleItems(),
-  };
+  const parts = tacticalViewParts(sim, presentation);
+  return { tick, ...parts, soldiers: withSandboxCrew(withVoices(parts.soldiers, sim.state.soldiers, voiceOf)) };
 }
 
 function sectorOf(mapPath: string): { x: number; y: number } | null {

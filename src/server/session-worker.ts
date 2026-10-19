@@ -11,6 +11,7 @@ type CallHandler = (host: SessionHost, args: readonly unknown[]) => Promise<unkn
 const CALLS: Readonly<Record<Exclude<HostCall, 'close'>, CallHandler>> = {
   dispatch: (h, [cmd]) => h.dispatch(cmd as CommandEnvelope),
   prepareAndDispatch: (h, [cmd]) => h.prepareAndDispatch(cmd as CommandEnvelope),
+  query: (h, [q]) => h.query(q as CommandEnvelope),
   advance: (h, [until, budget]) => h.advance(until as StopCondition, budget as number | undefined),
   setDriver: (h, [driver]) => h.setDriver(driver as DriverMode),
   save: (h, [request]) => h.save(request as SaveRequest),
