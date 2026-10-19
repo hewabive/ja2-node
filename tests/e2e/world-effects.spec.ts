@@ -16,7 +16,6 @@ interface WorldEffectsHook {
   }): Promise<{ ok: boolean; reason?: string; data?: { refusal?: string } }>;
 }
 
-const MAX_ORDERS = 120;
 const ORDER_PAUSE_MS = 400;
 const OUR_TEAM = 0;
 const KILL_TIMEOUT_MS = 90_000;
@@ -44,18 +43,31 @@ test('follows the animation schedule, lights from the view and draws a corpse th
   expect(start.ambient).toBe(3);
   expect(start.dynamicLights).toBe(0);
   expect(start.corpses).toBe(0);
-  const squad = start.soldierGridNos.filter((s) => s.team === OUR_TEAM);
-  const [shooter, victim] = squad;
-  if (!shooter || !victim) throw new Error('the stub squad has fewer than two mercs');
+  expect(start.soldierGridNos.filter((s) => s.team === OUR_TEAM).length).toBeGreaterThanOrEqual(2);
   await page.click('[data-speed="8"]');
   const refusals: string[] = [];
   const order = (cmd: { readonly type: string; readonly [key: string]: unknown }) =>
     page.evaluate((c) => (window as unknown as { __ja2Tactical: WorldEffectsHook }).__ja2Tactical.command(c), cmd);
-  for (let n = 0; n < MAX_ORDERS && (await hook(page)).corpses === 0; n++) {
+  const deadline = Date.now() + KILL_TIMEOUT_MS;
+  let turn = 0;
+  let refused = 0;
+  while (Date.now() < deadline && (await hook(page)).corpses === 0) {
+    const squad = (await hook(page)).soldierGridNos.filter((s) => s.team === OUR_TEAM);
+    const shooter = squad[turn % Math.max(1, squad.length)];
+    const victim = squad.find((s) => s.id !== shooter?.id);
+    turn++;
+    if (!shooter || !victim) {
+      await page.waitForTimeout(ORDER_PAUSE_MS);
+      continue;
+    }
     const result = await order({ type: 'attack', soldier: shooter.id, target: victim.gridNo, aimTime: 0 });
     const refusal = result.data?.refusal ?? (result.ok ? null : (result.reason ?? 'refused'));
+    refused = refusal ? refused + 1 : 0;
     if (refusal) refusals.push(refusal);
-    if (refusal === 'notEnoughAP') await order({ type: 'endTurn' });
+    if (refusal === 'notEnoughAP' || refused > squad.length) {
+      await order({ type: 'endTurn' });
+      refused = 0;
+    }
     await page.waitForTimeout(ORDER_PAUSE_MS);
   }
   await expect
