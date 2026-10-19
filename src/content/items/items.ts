@@ -234,6 +234,7 @@ export interface ItemTable {
   readonly magazines: readonly ItemDef[];
   readonly rules: ItemRules;
   readonly gunChoice: { readonly normal: readonly (readonly number[])[]; readonly extended: readonly (readonly number[])[] };
+  readonly helpTextCalibres: ReadonlySet<number>;
 }
 
 type Json = Record<string, unknown>;
@@ -474,6 +475,7 @@ export function parseItemTable(sources: ItemTableSources): ItemTable {
     magazines: all.filter((item) => item.magazine),
     rules: parseItemRules(sources.rules, byName),
     gunChoice: { normal: gunLevels(sources.gunChoiceNormal), extended: gunLevels(sources.gunChoiceExtended) },
+    helpTextCalibres: new Set((sources.calibres as Json[]).filter((c) => bool(c, 'showInHelpText')).map((c) => num(c, 'index'))),
   };
 }
 

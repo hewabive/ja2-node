@@ -9,6 +9,7 @@ export interface CatalogueCalibre {
   readonly index: number;
   readonly name: string | null;
   readonly bobbyRayName: string | null;
+  readonly showInHelpText: boolean;
 }
 
 export interface CatalogueWeapon {

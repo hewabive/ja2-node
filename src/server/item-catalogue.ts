@@ -39,8 +39,13 @@ function flagNames(flags: number): string[] {
   return FLAG_NAMES.filter(([, bit]) => (flags & bit) !== 0).map(([name]) => name);
 }
 
-function calibre(strings: UiStrings, index: number): CatalogueCalibre {
-  return { index, name: uiString(strings, 'ammo-calibre', index), bobbyRayName: uiString(strings, 'ammo-calibre-bobbyray', index) };
+function calibre(strings: UiStrings, index: number, helpText: ReadonlySet<number>): CatalogueCalibre {
+  return {
+    index,
+    name: uiString(strings, 'ammo-calibre', index),
+    bobbyRayName: uiString(strings, 'ammo-calibre-bobbyray', index),
+    showInHelpText: helpText.has(index),
+  };
 }
 
 function usesBobbyRayFile(def: ItemDef): boolean {
@@ -53,7 +58,13 @@ function bobbyRayTexts(def: ItemDef, item: readonly string[], bray: readonly str
   return { name: item[LONG_NAME] ?? '', description: item[DESCRIPTION] ?? '' };
 }
 
-function catalogueItem(def: ItemDef, strings: UiStrings, itemText: Rows | null, bobbyRayText: Rows | null): CatalogueItem {
+function catalogueItem(
+  def: ItemDef,
+  strings: UiStrings,
+  helpText: ReadonlySet<number>,
+  itemText: Rows | null,
+  bobbyRayText: Rows | null,
+): CatalogueItem {
   const item = itemText?.(def.index) ?? [];
   const bray = bobbyRayText?.(def.index) ?? [];
   const bobbyRay = bobbyRayTexts(def, item, bray);
@@ -81,7 +92,7 @@ function catalogueItem(def: ItemDef, strings: UiStrings, itemText: Rows | null, 
       ? {
           type: w.type,
           weaponClass: w.weaponClass,
-          calibre: w.calibre !== 0 ? calibre(strings, w.calibre) : null,
+          calibre: w.calibre !== 0 ? calibre(strings, w.calibre, helpText) : null,
           explosiveCalibre: w.explosiveCalibre,
           readyTime: w.readyTime,
           shotsPer4Turns: w.shotsPer4Turns,
@@ -97,7 +108,7 @@ function catalogueItem(def: ItemDef, strings: UiStrings, itemText: Rows | null, 
         }
       : null,
     magazine: def.magazine
-      ? { calibre: calibre(strings, def.magazine.calibre), capacity: def.magazine.capacity, ammoType: def.magazine.ammoType }
+      ? { calibre: calibre(strings, def.magazine.calibre, helpText), capacity: def.magazine.capacity, ammoType: def.magazine.ammoType }
       : null,
     armour: def.armour
       ? { armourClass: def.armour.armourClass, protection: def.armour.protection, explosivesProtection: def.armour.explosivesProtection }
@@ -123,7 +134,7 @@ export async function buildItemCatalogue(items: ItemTable, texts: TextService, l
   const catalogue: ItemCatalogue = {
     language,
     dataVersion: texts.dataVersion,
-    items: items.ordered.map((def) => catalogueItem(def, loaded.strings, itemText, bobbyRayText)),
+    items: items.ordered.map((def) => catalogueItem(def, loaded.strings, items.helpTextCalibres, itemText, bobbyRayText)),
   };
   const body = JSON.stringify(catalogue);
   const digest = createHash('sha256').update(body).digest('hex').slice(0, ETAG_HEX_DIGITS);
