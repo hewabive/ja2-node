@@ -1,0 +1,31 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Directories.h",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
+  "constants": {
+    "AMBIENTDIR": "ambient",
+    "ANIMSDIR": "anims",
+    "BATTLESNDSDIR": "battlesnds",
+    "BIGITEMSDIR": "bigitems",
+    "BINARYDATADIR": "binarydata",
+    "CURSORSDIR": "cursors",
+    "EDITORDIR": "editor",
+    "FACESDIR": "faces",
+    "FONTSDIR": "fonts",
+    "INTERFACEDIR": "interface",
+    "INTRODIR": "intro",
+    "LAPTOPDIR": "laptop",
+    "LOADSCREENSDIR": "loadscreens",
+    "MERCEDTDIR": "mercedt",
+    "MUSICDIR": "music",
+    "NPC_SPEECHDIR": "npc_speech",
+    "NPCDATADIR": "npcdata",
+    "SOUNDSDIR": "sounds",
+    "SPEECHDIR": "speech",
+    "STSOUNDSDIR": "stsounds",
+    "TILECACHEDIR": "tilecache",
+    "TACTICAL_SAVE_TEMPDIR": "tactical-save"
+  },
+  "stdScreen": [],
+  "skipped": []
+}

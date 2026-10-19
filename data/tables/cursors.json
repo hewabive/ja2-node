@@ -1,0 +1,3643 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Utils/Cursors.cc CursorFileDatabase, CursorDatabase; src/game/Utils/Cursors.h CursorSurfaceDefines, CursorTypeDefines; src/sgp/Cursor_Control.h; src/game/Directories.h",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "files: CursorFileDatabase in CursorSurfaceDefines order (path null = the extern item graphic, drawn with the outline blitter); cursors: CursorDatabase in CursorTypeDefines order: composites (file index, frame, position or \"center\" = CENTER_SUBCURSOR or \"hide\" = HIDE_SUBCURSOR), the hot spot (a number or the CENTER/LEFT/RIGHT/TOP/BOTTOM_CURSOR name), flags (CURSOR_TO_FLASH 1, CURSOR_TO_FLASH2 2, CURSOR_TO_SUB_CONDITIONALLY 4, DELAY_START_CURSOR 8, CURSOR_TO_PLAY_SOUND 16) and fHideOnTouch",
+  "flags": {
+    "CURSOR_TO_FLASH": 1,
+    "CURSOR_TO_FLASH2": 2,
+    "CURSOR_TO_SUB_CONDITIONALLY": 4,
+    "DELAY_START_CURSOR": 8,
+    "CURSOR_TO_PLAY_SOUND": 16
+  },
+  "specialCursors": {
+    "VIDEO_NO_CURSOR": 65535,
+    "VIDEO_DEFAULT_TO_NO_CURSOR": 65534,
+    "EXTERN_CURSOR": 65520
+  },
+  "files": [
+    {
+      "name": "C_MISC",
+      "path": "cursors/cursor.sti",
+      "outline": false
+    },
+    {
+      "name": "C_ACTIONMODE",
+      "path": "cursors/cur_targ.sti",
+      "outline": false
+    },
+    {
+      "name": "C_ACTIONMODERED",
+      "path": "cursors/cur_tagr.sti",
+      "outline": false
+    },
+    {
+      "name": "C_ACTIONMODEBLACK",
+      "path": "cursors/targblak.sti",
+      "outline": false
+    },
+    {
+      "name": "C_TARGMODEBURST",
+      "path": "cursors/cur_bst.sti",
+      "outline": false
+    },
+    {
+      "name": "C_TARGMODEBURSTRED",
+      "path": "cursors/cur_rbst.sti",
+      "outline": false
+    },
+    {
+      "name": "C_TARGMODEBURSTBLACK",
+      "path": "cursors/burstblk.sti",
+      "outline": false
+    },
+    {
+      "name": "C_TRINGS",
+      "path": "cursors/cur_tr.sti",
+      "outline": false
+    },
+    {
+      "name": "C_TWRINGS",
+      "path": "cursors/cur_trw.sti",
+      "outline": false
+    },
+    {
+      "name": "C_BLACKTARGET",
+      "path": "cursors/cur_tb.sti",
+      "outline": false
+    },
+    {
+      "name": "C_PUNCHGRAY",
+      "path": "cursors/punch.sti",
+      "outline": false
+    },
+    {
+      "name": "C_PUNCHRED",
+      "path": "cursors/punchr.sti",
+      "outline": false
+    },
+    {
+      "name": "C_RUN1",
+      "path": "cursors/cur_run.sti",
+      "outline": false
+    },
+    {
+      "name": "C_WALK1",
+      "path": "cursors/cur_walk.sti",
+      "outline": false
+    },
+    {
+      "name": "C_SWAT1",
+      "path": "cursors/cur_swat.sti",
+      "outline": false
+    },
+    {
+      "name": "C_PRONE1",
+      "path": "cursors/cur_pron.sti",
+      "outline": false
+    },
+    {
+      "name": "C_GRAB1",
+      "path": "cursors/grabsr.sti",
+      "outline": false
+    },
+    {
+      "name": "C_GRAB2",
+      "path": "cursors/grabs.sti",
+      "outline": false
+    },
+    {
+      "name": "C_KNIFE1",
+      "path": "cursors/stab.sti",
+      "outline": false
+    },
+    {
+      "name": "C_KNIFE2",
+      "path": "cursors/stabr.sti",
+      "outline": false
+    },
+    {
+      "name": "C_CROSS1",
+      "path": "cursors/cross1.sti",
+      "outline": false
+    },
+    {
+      "name": "C_CROSS2",
+      "path": "cursors/cross2.sti",
+      "outline": false
+    },
+    {
+      "name": "C_WWW",
+      "path": "laptop/fingercursor.sti",
+      "outline": false
+    },
+    {
+      "name": "C_LAPTOPSCREEN",
+      "path": "laptop/laptopcursor.sti",
+      "outline": false
+    },
+    {
+      "name": "C_IBEAM",
+      "path": "cursors/ibeam.sti",
+      "outline": false
+    },
+    {
+      "name": "C_LOOK",
+      "path": "cursors/cur_look.sti",
+      "outline": false
+    },
+    {
+      "name": "C_TALK",
+      "path": "cursors/cur_talk.sti",
+      "outline": false
+    },
+    {
+      "name": "C_BLACKTALK",
+      "path": "cursors/cur_talkb.sti",
+      "outline": false
+    },
+    {
+      "name": "C_REDTALK",
+      "path": "cursors/cur_talkr.sti",
+      "outline": false
+    },
+    {
+      "name": "C_EXITARROWS",
+      "path": "cursors/cur_exit.sti",
+      "outline": false
+    },
+    {
+      "name": "C_STRATVEH",
+      "path": "cursors/vehiclecursor.sti",
+      "outline": false
+    },
+    {
+      "name": "C_STRATFOOT",
+      "path": "cursors/walkingcursor.sti",
+      "outline": false
+    },
+    {
+      "name": "C_INVALIDACTION",
+      "path": "cursors/que.sti",
+      "outline": false
+    },
+    {
+      "name": "C_CHOPPER",
+      "path": "cursors/chopper.sti",
+      "outline": false
+    },
+    {
+      "name": "C_CHECKMARK",
+      "path": "cursors/check.sti",
+      "outline": false
+    },
+    {
+      "name": "C_YELLOWRINGS",
+      "path": "cursors/cur_try.sti",
+      "outline": false
+    },
+    {
+      "name": "C_WIRECUT",
+      "path": "cursors/wirecut.sti",
+      "outline": false
+    },
+    {
+      "name": "C_WIRECUTR",
+      "path": "cursors/wirecutr.sti",
+      "outline": false
+    },
+    {
+      "name": "C_RELOAD",
+      "path": "cursors/bullet_g.sti",
+      "outline": false
+    },
+    {
+      "name": "C_RELOADR",
+      "path": "cursors/bullet_d.sti",
+      "outline": false
+    },
+    {
+      "name": "C_IBEAM_WHITE",
+      "path": "cursors/ibeamwhite.sti",
+      "outline": false
+    },
+    {
+      "name": "C_THROWG",
+      "path": "cursors/throwg.sti",
+      "outline": false
+    },
+    {
+      "name": "C_THROWB",
+      "path": "cursors/throwb.sti",
+      "outline": false
+    },
+    {
+      "name": "C_THROWR",
+      "path": "cursors/throwr.sti",
+      "outline": false
+    },
+    {
+      "name": "C_ITEMTHROW",
+      "path": null,
+      "outline": true
+    },
+    {
+      "name": "C_BOMB_GREY",
+      "path": "cursors/bombg.sti",
+      "outline": false
+    },
+    {
+      "name": "C_BOMB_RED",
+      "path": "cursors/bombr.sti",
+      "outline": false
+    },
+    {
+      "name": "C_REMOTE_GREY",
+      "path": "cursors/remoteg.sti",
+      "outline": false
+    },
+    {
+      "name": "C_REMOTE_RED",
+      "path": "cursors/remoter.sti",
+      "outline": false
+    },
+    {
+      "name": "C_ENTERV",
+      "path": "cursors/steering.sti",
+      "outline": false
+    },
+    {
+      "name": "C_MOVEV",
+      "path": "cursors/cur_car.sti",
+      "outline": false
+    },
+    {
+      "name": "C_WAIT",
+      "path": "cursors/cur_wait.sti",
+      "outline": false
+    },
+    {
+      "name": "C_PLACEMERC",
+      "path": "cursors/singlecursor.sti",
+      "outline": false
+    },
+    {
+      "name": "C_PLACEGROUP",
+      "path": "cursors/groupcursor.sti",
+      "outline": false
+    },
+    {
+      "name": "C_DPLACEMERC",
+      "path": "cursors/singledcursor.sti",
+      "outline": false
+    },
+    {
+      "name": "C_DPLACEGROUP",
+      "path": "cursors/groupdcursor.sti",
+      "outline": false
+    },
+    {
+      "name": "C_REPAIR",
+      "path": "cursors/repair.sti",
+      "outline": false
+    },
+    {
+      "name": "C_REPAIRR",
+      "path": "cursors/repairr.sti",
+      "outline": false
+    },
+    {
+      "name": "C_JAR",
+      "path": "cursors/jar_cur.sti",
+      "outline": false
+    },
+    {
+      "name": "C_JARRED",
+      "path": "cursors/jar_cur_red.sti",
+      "outline": false
+    },
+    {
+      "name": "C_X",
+      "path": "cursors/cur_x.sti",
+      "outline": false
+    },
+    {
+      "name": "C_CAN",
+      "path": "cursors/can_01.sti",
+      "outline": false
+    },
+    {
+      "name": "C_CANRED",
+      "path": "cursors/can_02.sti",
+      "outline": false
+    },
+    {
+      "name": "C_EXCHANGE",
+      "path": "cursors/cur_swit.sti",
+      "outline": false
+    },
+    {
+      "name": "C_BULLSEYE",
+      "path": "cursors/bullseye.sti",
+      "outline": false
+    },
+    {
+      "name": "C_JUMPOVER",
+      "path": "cursors/deadleap.sti",
+      "outline": false
+    },
+    {
+      "name": "C_FUEL",
+      "path": "cursors/can_01.sti",
+      "outline": false
+    },
+    {
+      "name": "C_FUEL_RED",
+      "path": "cursors/can_02.sti",
+      "outline": false
+    }
+  ],
+  "cursors": [
+    {
+      "name": "CURSOR_NORMAL",
+      "composites": [
+        {
+          "file": 0,
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": 0,
+      "hotY": 0,
+      "flags": 0,
+      "hideOnTouch": true
+    },
+    {
+      "name": "CURSOR_TARGET",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 1,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETON1",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETON2",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 5,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETON3",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 1,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETON4",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETON5",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 2,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETON6",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 3,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETON7",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 7,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETON8",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 8,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETON9",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 4,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETW1",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 8,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETW2",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 8,
+          "frame": 1,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETW3",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 8,
+          "frame": 2,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETW4",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 8,
+          "frame": 3,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETW5",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 8,
+          "frame": 4,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETRED",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETBLACK",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 9,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETDKBLACK",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETBURSTCONFIRM",
+      "composites": [
+        {
+          "file": 5,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 6,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 1,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 2,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 3,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETBURST",
+      "composites": [
+        {
+          "file": 4,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETBURSTRED",
+      "composites": [
+        {
+          "file": 5,
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETBURSTDKBLACK",
+      "composites": [
+        {
+          "file": 6,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_PUNCHGRAY",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 10,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_PUNCHRED",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 11,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_PUNCHRED_ON1",
+      "composites": [
+        {
+          "file": 11,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 1,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_PUNCHRED_ON2",
+      "composites": [
+        {
+          "file": 11,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 2,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_PUNCHYELLOW_ON1",
+      "composites": [
+        {
+          "file": 11,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 35,
+          "frame": 1,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_PUNCHYELLOW_ON2",
+      "composites": [
+        {
+          "file": 11,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 35,
+          "frame": 2,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_PUNCHNOGO_ON1",
+      "composites": [
+        {
+          "file": 11,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 8,
+          "frame": 1,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_PUNCHNOGO_ON2",
+      "composites": [
+        {
+          "file": 11,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 8,
+          "frame": 2,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_RUN1",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 12,
+          "frame": 0,
+          "x": "center",
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": 20,
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_WALK1",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 13,
+          "frame": 0,
+          "x": "center",
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": 20,
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_SWAT1",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 14,
+          "frame": 0,
+          "x": "center",
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": 10,
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_PRONE1",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 15,
+          "frame": 0,
+          "x": "center",
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": 10,
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_HANDGRAB",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 0,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 16,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_NORMGRAB",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 0,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 17,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_KNIFE_REG",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 18,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_KNIFE_HIT",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 19,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_KNIFE_HIT_ON1",
+      "composites": [
+        {
+          "file": 19,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 1,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_KNIFE_HIT_ON2",
+      "composites": [
+        {
+          "file": 19,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 2,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_KNIFE_YELLOW_ON1",
+      "composites": [
+        {
+          "file": 19,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 35,
+          "frame": 1,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_KNIFE_YELLOW_ON2",
+      "composites": [
+        {
+          "file": 19,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 35,
+          "frame": 2,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_KNIFE_NOGO_ON1",
+      "composites": [
+        {
+          "file": 19,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 8,
+          "frame": 1,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_KNIFE_NOGO_ON2",
+      "composites": [
+        {
+          "file": 19,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 8,
+          "frame": 2,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_CROSS_REG",
+      "composites": [
+        {
+          "file": 20,
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_CROSS_ACTIVE",
+      "composites": [
+        {
+          "file": 21,
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_WWW",
+      "composites": [
+        {
+          "file": 22,
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": 4,
+      "hotY": 0,
+      "flags": 0,
+      "hideOnTouch": true
+    },
+    {
+      "name": "CURSOR_LAPTOP_SCREEN",
+      "composites": [
+        {
+          "file": 23,
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": 0,
+      "hotY": 0,
+      "flags": 0,
+      "hideOnTouch": true
+    },
+    {
+      "name": "CURSOR_IBEAM",
+      "composites": [
+        {
+          "file": 24,
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_LOOK",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 25,
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TALK",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 26,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_BLACKTALK",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 27,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_REDTALK",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 28,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_EXIT_NORTH",
+      "composites": [
+        {
+          "file": 29,
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "top",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_EXIT_SOUTH",
+      "composites": [
+        {
+          "file": 29,
+          "frame": 1,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "bottom",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_EXIT_EAST",
+      "composites": [
+        {
+          "file": 29,
+          "frame": 2,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "right",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_EXIT_WEST",
+      "composites": [
+        {
+          "file": 29,
+          "frame": 3,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "left",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_NOEXIT_NORTH",
+      "composites": [
+        {
+          "file": 29,
+          "frame": 4,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "top",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_NOEXIT_SOUTH",
+      "composites": [
+        {
+          "file": 29,
+          "frame": 5,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "bottom",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_NOEXIT_EAST",
+      "composites": [
+        {
+          "file": 29,
+          "frame": 6,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "right",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_NOEXIT_WEST",
+      "composites": [
+        {
+          "file": 29,
+          "frame": 7,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "left",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_CONEXIT_NORTH",
+      "composites": [
+        {
+          "file": 29,
+          "frame": 8,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "top",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_CONEXIT_SOUTH",
+      "composites": [
+        {
+          "file": 29,
+          "frame": 9,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "bottom",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_CONEXIT_EAST",
+      "composites": [
+        {
+          "file": 29,
+          "frame": 10,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "right",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_CONEXIT_WEST",
+      "composites": [
+        {
+          "file": 29,
+          "frame": 11,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "left",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_STRATEGIC_VEHICLE",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 30,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_STRATEGIC_FOOT",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 31,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_INVALID_ACTION",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 32,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_CHOPPER",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 33,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_FLASH_TARGET",
+      "composites": [
+        {
+          "file": 1,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 1,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_FLASH_TARGETBURST",
+      "composites": [
+        {
+          "file": 4,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 6,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 1,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_FLASH_TALK",
+      "composites": [
+        {
+          "file": 26,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 27,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 1,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_FLASH_REDTALK",
+      "composites": [
+        {
+          "file": 28,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 27,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 1,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_CHECKMARK",
+      "composites": [
+        {
+          "file": 34,
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETWR1",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 35,
+          "frame": 5,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETYELLOW1",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 35,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETYELLOW2",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 35,
+          "frame": 1,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETYELLOW3",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 35,
+          "frame": 2,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_TARGETYELLOW4",
+      "composites": [
+        {
+          "file": 2,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 35,
+          "frame": 3,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_EXIT_GRID",
+      "composites": [
+        {
+          "file": 29,
+          "frame": 12,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_NOEXIT_GRID",
+      "composites": [
+        {
+          "file": 29,
+          "frame": 13,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_CONEXIT_GRID",
+      "composites": [
+        {
+          "file": 29,
+          "frame": 14,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_GOOD_WIRECUT",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 37,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_BAD_WIRECUT",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 36,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_GOOD_RELOAD",
+      "composites": [
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 38,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 1,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_BAD_RELOAD",
+      "composites": [
+        {
+          "file": 3,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 39,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 1,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CUROSR_IBEAM_WHITE",
+      "composites": [
+        {
+          "file": 40,
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_GOOD_THROW",
+      "composites": [
+        {
+          "file": 41,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_BAD_THROW",
+      "composites": [
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_RED_THROW",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_FLASH_THROW",
+      "composites": [
+        {
+          "file": 41,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 1,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKON1",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKON2",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 5,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKON3",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 1,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKON4",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKON5",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 2,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKON6",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 3,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKON7",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 7,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKON8",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 8,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKON9",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 4,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKW1",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 8,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKW2",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 8,
+          "frame": 1,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKW3",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 8,
+          "frame": 2,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKW4",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 8,
+          "frame": 3,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKW5",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 8,
+          "frame": 4,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKWR1",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 35,
+          "frame": 5,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKYELLOW1",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 35,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKYELLOW2",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 35,
+          "frame": 1,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKYELLOW3",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 35,
+          "frame": 2,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_THROWKYELLOW4",
+      "composites": [
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 35,
+          "frame": 3,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 4,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_ITEM_GOOD_THROW",
+      "composites": [
+        {
+          "file": 44,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 41,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 0,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_ITEM_BAD_THROW",
+      "composites": [
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_ITEM_RED_THROW",
+      "composites": [
+        {
+          "file": 44,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 43,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_ITEM_FLASH_THROW",
+      "composites": [
+        {
+          "file": 44,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 41,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 42,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 2,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_ITEM_GIVE",
+      "composites": [
+        {
+          "file": 44,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        },
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 2,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_BOMB_GRAY",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 45,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_BOMB_RED",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 46,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_REMOTE_GRAY",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 47,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_REMOTE_RED",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 48,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_ENTERV",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 49,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_DRIVEV",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 50,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_WAIT",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 51,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 8,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_PLACEMERC",
+      "composites": [
+        {
+          "file": 52,
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "bottom",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_PLACEGROUP",
+      "composites": [
+        {
+          "file": 53,
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "bottom",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_DPLACEMERC",
+      "composites": [
+        {
+          "file": 54,
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "bottom",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_DPLACEGROUP",
+      "composites": [
+        {
+          "file": 55,
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "hotX": "center",
+      "hotY": "bottom",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_REPAIR",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 56,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_REPAIRRED",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 57,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_JAR",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 58,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_JARRED",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 59,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_CAN",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 61,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_CANRED",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 62,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_X",
+      "composites": [
+        {
+          "file": 60,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_WAIT_NODELAY",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 51,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_EXCHANGE_PLACES",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 63,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_STRATEGIC_BULLSEYE",
+      "composites": [
+        {
+          "file": 64,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_JUMP_OVER",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 65,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_FUEL",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 66,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    },
+    {
+      "name": "CURSOR_FUEL_RED",
+      "composites": [
+        {
+          "file": 7,
+          "frame": 6,
+          "x": "hide",
+          "y": "hide"
+        },
+        {
+          "file": 67,
+          "frame": 0,
+          "x": "center",
+          "y": "center"
+        }
+      ],
+      "hotX": "center",
+      "hotY": "center",
+      "flags": 0,
+      "hideOnTouch": false
+    }
+  ]
+}

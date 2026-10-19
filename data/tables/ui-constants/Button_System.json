@@ -1,0 +1,33 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/sgp/Button_System.h",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
+  "constants": {
+    "MAX_BUTTONS": 400,
+    "MAX_BUTTON_PICS": 256,
+    "BUTTON_NO_IMAGE": -1,
+    "BUTTON_TYPES": 4192,
+    "BUTTON_TOGGLE": 0,
+    "BUTTON_QUICK": 0,
+    "BUTTON_ENABLED": 1,
+    "BUTTON_CLICKED_ON": 2,
+    "BUTTON_GENERIC": 32,
+    "BUTTON_HOT_SPOT": 64,
+    "BUTTON_SELFDELETE_IMAGE": 128,
+    "BUTTON_DELETION_PENDING": 256,
+    "BUTTON_DIRTY": 1024,
+    "BUTTON_CHECKBOX": 4096,
+    "BUTTON_NEWTOGGLE": 8192,
+    "BUTTON_FORCE_UNDIRTY": 16384,
+    "BUTTON_NO_DUPLICATE": 2147483648,
+    "TEXT_LEFT": -1,
+    "TEXT_CENTER": 0,
+    "TEXT_RIGHT": 1,
+    "DISABLED_STYLE_NONE": 0,
+    "DISABLED_STYLE_DEFAULT": 1,
+    "DISABLED_STYLE_HATCHED": 2,
+    "DISABLED_STYLE_SHADED": 3
+  },
+  "stdScreen": [],
+  "skipped": []
+}
