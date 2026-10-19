@@ -2157,6 +2157,37 @@ profiles. Open: `sectorControlChanged` is still not emitted for an uncontested t
 sector notices without a battle"); refusals finer than the original's menus (`noMedKit`, `noToolKit`,
 `noMilitiaAllowed`) stay folded into `notEligible`/`noMilitiaHere`.
 
+#### U10: laptop, part one (2026-10-19)
+
+§9.1, §9.3 (Email, Finances) and §9.4 as `LaptopScreen` (`src/ui/screens/laptop/`), one layout and controller per page,
+and the server gaps they need.
+
+| Area | As built |
+|---|---|
+| Tables | `ui-constants` gains the shared `Laptop` and `AIM` tables and the `EMail`, `Finances`, `AIMMembers`, `AIMSort`, `AIMFacialIndex`, `AIMLinks` screen tables; `tools/transcribe/c-constants.ts` strips comments with an ordered scanner (a `//***` line opened a block comment and hid every `AIM.cc` define) |
+| Widgets | Layout types `tiles` (a tiled background), `portrait` (`src/ui/widgets/portrait.ts`: a face by index and size, dead faces shaded, unavailable ones under `ShadowRect`) and `itemPicture` (`item-picture.ts`: the inventory graphic centred in a cell, optional shadow); stub frames may be `hollow` |
+| Shell (`laptop-shell.ts`, `laptop-timers.ts`, `laptop-modes.ts`) | Modes, the program queue (`FindLastProgramStillOpen`), minimize, `EnterNewLaptopMode` (maximize first, the web mode, bookmarks on the first browser use), `GoToWebPage` (the broken link while M.E.R.C. is down, the fast revisit), the sub-site waits (none between the A.I.M. members and the mug shots), the World Wide Wait (`DisplayLoadPending` units scaled by the client setting `websiteLoadingTimeScale`, 0 = off), the 2 s bookmark hint, the HD flicker from the client PRNG, the power light and the 100 ms exit, the title-bar slide in 18 steps of 16 ms, the 1 s opening and closing zoom (`capture`/`snapshot`), Esc (bookmarks, the page's popup, then exit), right click, Tab/Shift+Tab, Alt+X and `h` (hooks), the new-mail box (held during a conference), the taskbar mail icon opening the oldest unread mail; message boxes `LAPTOP_DEFAULT` centred on the monitor |
+| Email (`email/`) | The list with the original's insertion sort per column on the client (arrival order underneath: deviation), 18 rows a page, the read view paged by `IanWrappedStringHeight` (the original's page count over the whole record list, so "1 / 2" for a two-page mail), previous/next, delete with the right-click question; `readEmail`, `deleteEmail`, `emailText` |
+| Finances (`finances/`) | The summary (page 0) and the ledger from page 1, 17 rows a page, colours and `SPrintMoney` variants as `Finances.cc`, the transaction text in the balance's colour, first/previous/next/last |
+| A.I.M. (`aim/`) | Home with the ad rotation (`AimAds`: warning box, the ad of the day, Bobby Ray's duck passes, the flower texts), sort (criteria and direction, stable on ties), mug shots (5×8, dead/hired/away overlays), member file (stats, salary, deposit, kit pictures, bio row, previous/next), the video conference (`Conference`: title bar, black and snow, first contact, answering machine, unavailable, contract length and kit, HIRE through `hireCheck`, TRANSFER FUNDS through `aimHire`, the popups, the hang-up after the merc stops talking; a still face with speech and subtitles timed `max(1500, 80 × characters)`), links, the "just hired" box with the arrival time (`pMessageStrings[66]`, the German order) |
+| Server gaps | X1 `visitSite`, X2 `newMail` (snapshot version 5), X4 `emailText` and server subjects, X5 contact modes and `messageLeft`, X7 ledger labels, X8 `financeSummary`, `hireCheck` and quote ids (`docs/04` §6.9, `docs/21`) |
+| App | `src/app/laptop/laptop-boot.ts`: `bootLaptopScreen(ui, {session, memory?, settings?, zoomOnOpen?, zoomOnClose?, backdrop?, onClosed?, onQuitRequest?, onHelp?})`, `SessionLaptopClient`, profiles and items from `/api/sessions/:id/profiles` and `/api/items`; `/src/devtools/laptop/` opens it on a new campaign (`?seed=`, `?pinClock=1`, `?wait=` scale, `?slide=` step ms, `?zoom=1`, `?scale=`) |
+| Stubs | Faces for the stub profiles, `aimhist.edt` and `aimbios.edt` rows, an I.M.P. intro mail that pages in two on the stub fonts |
+| Tests | Unit tests for the shell, timers, mail sort and paging, finances rows, ads, conference and sort; `laptop-screen.test.ts` drives the screen on a stub campaign session (new-mail box, paging the I.M.P. mail, Finances, bookmarks, the A.I.M. path, Esc → `closeLaptop`); `tests/e2e/laptop.spec.ts` with the goldens `laptop-new-mail.png` and `laptop-email.png` and a hire through the conference; the original-data server test `laptop-original.test.ts` |
+
+Decisions and limits: the client sorts mail for display only; the title-bar slides take a fixed time; queries go
+through commands (`emailText`, `hireCheck`, `aimQuote`); the greeting at the end of a snow never plays after the
+connection snow (`gfFirstTimeInContactScreen` cleared by `DisplaySnowBackground`, as the original); pages without a
+layout yet (Bobby Ray's, M.E.R.C., I.M.P., Personnel, History, Files, the flavour sites and the A.I.M. archives,
+policies and history pages) show an empty monitor.
+
+Open: the lead wires `bootLaptopScreen` in place of the placeholder (`onClosed` → map screen, `zoomOnOpen` with the
+map screen's draw list as `backdrop`, `onQuitRequest`, `onHelp`) and keeps one `LaptopMemory` per session so the page
+numbers and the A.I.M. state survive reopening; the conference distortion, the impatience quotes and the animated face
+(U5) wait; the M.E.R.C. slow load (`LONG_UNIT_TIME`) is not wired (no view field says the site is still up after a
+visit); X16 (the saved page numbers in the save's `presentation` block) is not built; the drop-down with 17
+destinations, the paged text template and the generic frame animator arrive with the pages that use them.
+
 ---
 
 ## 18. Decisions and open questions
