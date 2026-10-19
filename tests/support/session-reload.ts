@@ -1,13 +1,17 @@
 import type { TacticalWorld } from '../../src/content/world/tactical-world.ts';
 import type { ReadFile } from '../../src/content/world/tileset-loader.ts';
+import type { CommandEnvelope } from '../../src/protocol/messages.ts';
 import { CampaignSession } from '../../src/server/campaign-session.ts';
 import { TacticalSession } from '../../src/server/sandbox.ts';
 import { Session, type SessionSim } from '../../src/server/session.ts';
 import { restoreSessionFrom, type SessionRestoreInputs, type SessionSnapshot, snapshotSession } from '../../src/server/session-snapshot.ts';
+import type { Slicer } from '../../src/server/slicing.ts';
 import type { FileExists } from '../../src/server/world-cache.ts';
 import type { StopCondition, StopReport } from '../../src/sim/advance.ts';
+import type { CommandResult } from '../../src/sim/command.ts';
 import { defaultRunMode, driven, type ReloadAdapter, type RunMode, reloadPoint, worldContentOnce } from './reload.ts';
 import type { StubSectorKit } from './sectors.ts';
+import { ViewMirror } from './view-mirror.ts';
 
 export interface SessionSources {
   readonly read: ReadFile;
@@ -51,9 +55,24 @@ export function stubSessionSources(kit: StubSectorKit): SessionSources {
 }
 
 export class ReloadingSession extends Session {
+  readonly mirror = new ViewMirror(this);
+
   override advance(until: StopCondition, budget?: number): StopReport {
     const report = super.advance(until, budget);
     reloadPoint(this.sim);
+    this.mirror.expectMatches(this);
     return report;
+  }
+
+  override dispatch(cmd: CommandEnvelope): CommandResult {
+    const result = super.dispatch(cmd);
+    this.mirror.expectMatches(this);
+    return result;
+  }
+
+  override async dispatchSliced(cmd: CommandEnvelope, slicer: Slicer): Promise<CommandResult> {
+    const result = await super.dispatchSliced(cmd, slicer);
+    this.mirror.expectMatches(this);
+    return result;
   }
 }

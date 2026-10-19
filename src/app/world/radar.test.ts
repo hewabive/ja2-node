@@ -22,6 +22,6 @@ describe('the radar logic', () => {
     );
     const rgba = radarPixels(sti);
     expect(rgba).toHaveLength(RADAR_WIDTH * RADAR_HEIGHT * 4);
-    expect([...(rgba ?? []).subarray(0, 8)]).toEqual([10, 20, 30, 255, 0, 0, 0, 255]);
+    expect([...(rgba ?? new Uint8ClampedArray()).subarray(0, 8)]).toEqual([10, 20, 30, 255, 0, 0, 0, 255]);
   });
 });
