@@ -643,6 +643,21 @@ insurance offers, mercs in transit and the landing zone; the strategic view alwa
 `mercArrived`, `arrivalRerouted`, `landingZoneReset`, `emailReceived`, `historyAdded`, `moneyChanged`, `bobbyRayOpen`,
 `shipmentDelivered`, `shipmentLost`, `insurancePaid`, `mercAccountStatus`. Native saves import the laptop sections.
 
+**For the canvas pages (M8, U10).** `visitSite {site: bobbyRay|merc|funeral|florist|insurance}` runs what entering the
+site's page does in the original (Bobby Ray's under-construction visit that gates its "now open" mail, the funeral, florist
+and insurance bookmarks, the M.E.R.C. visit counter and Speck's opening once per laptop session) and answers `{site,
+bookmarks, speck?}` with the opening's ordered Speck quote ids (refusals `badSite`, `noBookmark`, `siteDown`); without
+visits the first M.E.R.C. command of a session still runs the opening. Two more queries: `hireCheck {profile}` (the
+conference's HIRE check before any money: `{profile, contact, accepted, refusal?, quote: {id, name} | null, hated?}`) and
+`emailText {id}` (`{id, subject, paragraphs}` with the substitutions done and the I.M.P. report assembled on the server,
+Ian codes kept; `noSuchMail`, `noText`); the WebSocket query channel will carry them without logging them. `aimHire`
+answers its acceptance and its check refusals with `quote {id, name}`. The laptop view adds `newMail` (the saved
+`fNewMailFlag`: set by every mail, cleared by `closeLaptop`, also in the strategic view), mail `offset`, `length` and the
+rendered `subject`, finance rows' `text` (labels in the session's display language: the session factory loads the UI
+strings of the session's language for its sim), `financeSummary` (`docs/21` §6.3), and per A.I.M. merc `contact`
+(`firstContact|answeringMachine|unavailable`) and `messageLeft`, with `aim[]` in the order of `mercs-AIM-listings.json`.
+Snapshot version 5 adds `newMail` (older snapshots load with it down).
+
 ### 6.10. Doors (M6)
 
 `door {soldier, gridNo, action}` with `action` one of `open`, `close`, `unlock`, `lock`, `pickLock`, `force`, `crowbar`,
