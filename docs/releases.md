@@ -7,7 +7,7 @@ laptop and the first landing to the Queen's death and the ending, with the origi
 default settings as the reference). It can be saved, loaded and replayed, it plays with sound, music and the videos,
 and its UI labels come in every language of Stracciatella's string tables. Agents play it through MCP; people start
 and load games in a DOM launcher and play through the developer pages. The canvas player UI with the original's
-screens is the next milestone (M8, release 1.0). What each milestone built is in `01-architecture.md` §12, M7's spec
+screens is the next milestone (M8, release 0.8.0). What each milestone built is in `01-architecture.md` §12, M7's spec
 is `27-polish.md`.
 
 ### What a player can do (browser)
@@ -102,7 +102,7 @@ strategic days, autoresolve, saves, the server and a campaign.
 - The open findings and decisions of M7 are in `27-polish.md` §14, the full "Left out of M7" list in
   `01-architecture.md` §12.
 
-### Next: M8, the player UI (1.0)
+### Next: M8, the player UI (0.8.0)
 
 The D10 canvas widget set with layouts as data and bitmap fonts from the data or the stub font (Cyrillic through the
 data version's glyph table); the original screens in this order: main menu, options and save/load (on the launcher's

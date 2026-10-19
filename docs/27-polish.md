@@ -2470,7 +2470,7 @@ taken for every one, the decision follows each question):
 13. **Save folder**: `.ja2/saves` in the repository (recommended for a developer server) or a per-user data folder?
     *Decided: `.ja2/saves`, moved with `JA2_SAVE_DIR` (S3).*
 14. **Release naming**: tag the end of M7 as `0.x` "platform release" and keep `1.0` for M8 (recommended)? *Decided:
-    0.7.0, the platform release (`docs/releases.md`); 1.0 is kept for M8.*
+    0.7.0, the platform release (`docs/releases.md`); 1.0 was kept for M8, revised 2026-10-19: M8 is 0.8.0 (`28` §18).*
 
 **Decided while building** (no question was open for them): the game policy is not copied into the session; the policy
 files stay logic content under the save's content hash (§2.2, S5). The worker host has no `auto` mode: a server runs all

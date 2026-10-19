@@ -716,7 +716,7 @@ build tactics without strategy and the laptop.
 | **M5 Campaign** | The full laptop, contracts and relationships, merchants; a new game from the start | A full campaign start as in the original | L |
 | **M6 Narrative** | NPC records and actions, dialogue, quests and facts, schedules, meanwhile, ending | The campaign can be completed | L |
 | **M7 Polish** | Saves in the UX, options, full sound and music, video, Russian localization (Stracciatella strings already exist in 8 languages), stub completeness, performance; a DOM launcher instead of game screens (`27`) | Platform release: a full campaign by an agent or in the devtools pages, on the original data and on stubs. *Done 2026-10-18 as 0.7.0 (§12, `releases.md`)* | M–L |
-| **M8 Player UI** | The D10 canvas widget set, layouts and bitmap fonts; the original screens (menus, options, save/load, tactical HUD and inventory, map screen, PBI, talk, shop, laptop), hotkeys, meanwhile playback (`27` §8); spec `28` (slices U0–U15) | Release for human players (1.0) | XL |
+| **M8 Player UI** | The D10 canvas widget set, layouts and bitmap fonts; the original screens (menus, options, save/load, tactical HUD and inventory, map screen, PBI, talk, shop, laptop), hotkeys, meanwhile playback (`27` §8); spec `28` (slices U0–U15) | Release for human players (0.8.0) | XL |
 
 ---
 

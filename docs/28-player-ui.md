@@ -36,7 +36,7 @@ launcher), `deviations.md`.
 M8 in `01` §10 reads: the D10 canvas widget set, layouts and bitmap fonts; the original screens (menus, options,
 save/load, tactical HUD and inventory, map screen, PBI, talk, shop, laptop), hotkeys, meanwhile playback (`27` §8);
 `docs/releases.md` adds the enemy glow, lip sync, button sounds, the stub art those screens need and 60 FPS at
-1920×1080; result: a human plays the whole campaign in the browser without the developer pages (release 1.0).
+1920×1080; result: a human plays the whole campaign in the browser without the developer pages (release 0.8.0).
 
 **Recommendation in one paragraph.** Build a DOM-free `ui` layer (region dispatcher with the original's `MouseSystem`
 semantics, buttons, bitmap text with the original's wrap and colour model, cursors, popups, message boxes) that emits a
@@ -1882,7 +1882,7 @@ entries of `01` §12 "Left out of M7".
 | **U12** Laptop III | Personnel, History, Files, Insurance, Florist, Funeral; X9, X10, X13, X14 | U11 | every bookmark leads to a finished page |
 | **U13** Story and help | the meanwhile box, the ending wiring, help screens, the brothel screen; rule finding 3 settled | U2, U5, U8, U10 | a stub campaign's meanwhile and ending play through the canvas |
 | **U14** Stub art and e2e | the remaining special-case stubs, the e2e flows of §15 (shadow mode on), goldens for every screen, the original-data structural tests | all screens | §15 complete in CI |
-| **U15** Release | `deviations.md`, `01` §12, README, `releases.md` (1.0.0), the launcher's place | all | maintainer's review |
+| **U15** Release | `deviations.md`, `01` §12, README, `releases.md` (0.8.0), the launcher's place | all | maintainer's review |
 
 U1, U3 and U4 can run in parallel after U0 (they touch different layers); the laptop slices U10–U12 can run beside the
 map and battle slices once U5's faces and item tiles exist. Every slice keeps the M7 gates (`pnpm check`, the data
@@ -1901,28 +1901,29 @@ tests, `JA2_RELOAD=1`, oracle compare-all, e2e) and adds its own.
 
 ## 18. Decisions and open questions
 
-Recommendations first; the maintainer may override any of them.
+The maintainer took every recommendation except the version on 2026-10-19.
 
 1. **UI scale**: auto (1920×1080 → scale 2, logical 960×540 with Stracciatella's wider tactical view) with a "640×480
-   only" option. *Recommended.*
+   only" option. *Decided.*
 2. **Entry page**: the canvas game at `/play` during M8; at the release, `/` becomes the canvas main menu with a link to
-   the launcher, or stays the launcher. *Decide at U15.*
+   the launcher, or stays the launcher. *Decided at U15.*
 3. **Layout files**: JSON with a schema, constants referenced by name from generated tables, `@derived`/`@src`
-   provenance. *Recommended* over TypeScript modules (modern layouts can then be authored without code).
-4. **Message log**: server presentation entries saved with the session. *Recommended* over a client-only table
-   (agents see them, saves keep them, one audit pass).
-5. **Meanwhile scene playback**: deferred (box only). *Recommended.*
-6. **Militia popup**: built in U8 together with `moveMilitia`/`distributeMilitia`. *Recommended*; defer if M8 must
-   shrink.
-7. **Shop placement above 640×480**: centred like the other fixed screens. *Recommended* (a deviation from
-   Stracciatella's top-left placement).
-8. **Attachment AP**: verify with an oracle probe, then charge per command in combat. *Recommended.*
-9. **Brothel time warp and the loading-screen entry draw**: simulate both. *Recommended* (they move the main stream and
-   game time like the original).
-10. **Stracciatella's `gui_extras` stat progress bars**: off. *Recommended* (D16).
-11. **Map path quirks** (column 16, the doubled ETA remainder): verify in the oracle, then keep. *Recommended.*
-12. **Release version**: M8 is 1.0.0, the release for human players. *Recommended* (`docs/27` §14 decision 14).
-13. **Cover and line-of-sight display, 3D cursor, touch input, key remapping UI**: Later.
+   provenance, rather than TypeScript modules (modern layouts can then be authored without code). *Decided.*
+4. **Message log**: server presentation entries saved with the session, rather than a client-only table (agents see
+   them, saves keep them, one audit pass). *Decided.*
+5. **Meanwhile scene playback**: deferred (box only). *Decided.*
+6. **Militia popup**: built in U8 together with `moveMilitia`/`distributeMilitia`; deferred only if M8 must shrink.
+   *Decided.*
+7. **Shop placement above 640×480**: centred like the other fixed screens (a deviation from Stracciatella's top-left
+   placement). *Decided.*
+8. **Attachment AP**: verify with an oracle probe, then charge per command in combat. *Decided.*
+9. **Brothel time warp and the loading-screen entry draw**: simulate both (they move the main stream and game time like
+   the original). *Decided.*
+10. **Stracciatella's `gui_extras` stat progress bars**: off (D16). *Decided.*
+11. **Map path quirks** (column 16, the doubled ETA remainder): verify in the oracle, then keep. *Decided.*
+12. **Release version**: M8 is **0.8.0**; 1.0.0 is not tied to M8 (the recommendation was 1.0.0, `docs/27` §14
+    decision 14; the maintainer chose 0.8.0). *Decided.*
+13. **Cover and line-of-sight display, 3D cursor, touch input, key remapping UI**: Later. *Decided.*
 14. **Data scenarios** (§1.3): M8 builds scenario 2 and the boundaries 3 and 4 need (the rule pack, the replaceable asset
     source, the client's rule content, the schedule and the warp); scenario 1 gets only the CI stub art; scenarios 3
     and 4 follow M8. *Decided (2026-10-19).*
