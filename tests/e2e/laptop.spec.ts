@@ -1,6 +1,12 @@
 import { expect, type Page, test } from '@playwright/test';
 import { capture, clickWidget, expectGolden, nextFrames, openUiPage, widget, widgets, widgetText } from './ui-capture.ts';
 
+declare global {
+  interface Window {
+    __ja2Laptop?: { session: string | null; closed: boolean };
+  }
+}
+
 const LAPTOP = '/src/devtools/laptop/';
 const LAPTOP_TEST_TIMEOUT_MS = 240_000;
 const SEED = 7;
@@ -40,8 +46,19 @@ async function dismissNewMail(page: Page): Promise<void> {
   await waitVisible(page, 'newMailOk', false);
 }
 
+async function closeSession(page: Page): Promise<void> {
+  const session = await page.evaluate(() => window.__ja2Laptop?.session ?? null);
+  if (!session) return;
+  const closed = await page.evaluate(
+    async (id) => (await fetch(`/api/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' })).ok,
+    session,
+  );
+  expect(closed).toBe(true);
+}
+
 test.describe('the canvas laptop on stubs', () => {
   test.use({ viewport: { width: 1280, height: 960 } });
+  test.afterEach(async ({ page }) => closeSession(page));
 
   test('a new campaign greets with the new-mail box, lists the mails, pages a two-page mail and shows the finances', async ({ page }) => {
     await openUiPage(page, `${LAPTOP}?seed=${SEED}&pinClock=1&wait=0&slide=0&scale=2`);
