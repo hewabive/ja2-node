@@ -11,6 +11,7 @@ type Layer =
   | 'server'
   | 'render'
   | 'audio'
+  | 'ui'
   | 'app'
   | 'devtools'
   | 'stubs'
@@ -21,6 +22,7 @@ interface Rule {
   readonly layers: readonly Layer[];
   readonly packages: readonly string[];
   readonly forbid?: readonly RegExp[];
+  readonly typeOnly?: readonly Layer[];
 }
 
 const NONDETERMINISM = [/\bMath\.random\b/, /\bDate\.now\b/, /\bnew Date\b/, /\bperformance\.now\b/, /\bset(Timeout|Interval|Immediate)\b/];
@@ -35,17 +37,18 @@ const RULES: Record<Layer, Rule> = {
     layers: ['core', 'content', 'sim', 'protocol', 'node', 'server'],
     packages: ['node:*', 'hono', 'hono/*', '@hono/node-server', '@hono/node-server/*', 'ws', 'zod', '@modelcontextprotocol/sdk/*'],
   },
-  render: { layers: ['core', 'content', 'protocol', 'render'], packages: [] },
+  ui: { layers: ['core', 'content', 'protocol', 'ui'], packages: [], forbid: NONDETERMINISM },
+  render: { layers: ['core', 'content', 'protocol', 'ui', 'render'], packages: [], typeOnly: ['ui'] },
   audio: { layers: ['content', 'protocol', 'audio'], packages: [] },
-  app: { layers: ['core', 'content', 'protocol', 'render', 'audio', 'app'], packages: [] },
-  devtools: { layers: ['core', 'content', 'protocol', 'render', 'audio', 'app', 'devtools'], packages: [] },
+  app: { layers: ['core', 'content', 'sim', 'protocol', 'ui', 'render', 'audio', 'app'], packages: [] },
+  devtools: { layers: ['core', 'content', 'protocol', 'ui', 'render', 'audio', 'app', 'devtools'], packages: [] },
   stubs: { layers: ['core', 'content', 'node', 'stubs'], packages: ['node:*'] },
   tools: {
     layers: ['core', 'content', 'sim', 'protocol', 'node', 'server', 'stubs', 'tools'],
     packages: ['node:*', '@modelcontextprotocol/sdk/*'],
   },
   test: {
-    layers: ['core', 'content', 'sim', 'protocol', 'node', 'server', 'render', 'audio', 'app', 'devtools', 'stubs', 'tools', 'test'],
+    layers: ['core', 'content', 'sim', 'protocol', 'node', 'server', 'ui', 'render', 'audio', 'app', 'devtools', 'stubs', 'tools', 'test'],
     packages: ['node:*', 'vitest', 'vitest/*', '@playwright/test', 'fflate', 'vite', 'hono', 'hono/*', 'ws', '@modelcontextprotocol/sdk/*'],
   },
 };
@@ -53,14 +56,14 @@ const RULES: Record<Layer, Rule> = {
 function layerOf(file: string): Layer | null {
   const rel = relative(REPO_ROOT, file).split(sep).join('/');
   if (rel.endsWith('.test.ts') || rel.startsWith('tests/') || /^[^/]+\.config\.ts$/.test(rel)) return 'test';
-  const m = /^src\/(core|content|sim|protocol|node|server|render|audio|app|devtools)\//.exec(rel);
+  const m = /^src\/(core|content|sim|protocol|node|server|ui|render|audio|app|devtools)\//.exec(rel);
   if (m) return m[1] as Layer;
   if (rel.startsWith('stubs/')) return 'stubs';
   if (rel.startsWith('tools/')) return 'tools';
   return null;
 }
 
-const IMPORT_RE = /^[ \t]*(?:import|export)\s+(?:type\s+)?(?:[\w*{}\s,$]+\s+from\s+)?['"]([^'"]+)['"]|\bimport\(\s*['"]([^'"]+)['"]\s*\)/gm;
+const IMPORT_RE = /^[ \t]*(?:import|export)\s+(type\s+)?(?:[\w*{}\s,$]+\s+from\s+)?['"]([^'"]+)['"]|\bimport\(\s*['"]([^'"]+)['"]\s*\)/gm;
 
 function stripComments(src: string): string {
   return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1');
@@ -95,12 +98,14 @@ export async function checkImports(roots: readonly string[], extra: readonly str
     const src = stripComments(await readFile(file, 'utf8'));
     const where = relative(REPO_ROOT, file);
     for (const m of src.matchAll(IMPORT_RE)) {
-      const spec = m[1] ?? m[2];
+      const spec = m[2] ?? m[3];
       if (!spec) continue;
       if (spec.startsWith('.')) {
         if (!spec.endsWith('.ts')) problems.push(`${where}: relative import needs an explicit .ts extension: ${spec}`);
         const target = layerOf(resolve(file, '..', spec));
         if (target && !rule.layers.includes(target)) problems.push(`${where}: layer '${layer}' must not import '${target}' (${spec})`);
+        if (target && rule.typeOnly?.includes(target) && !m[1])
+          problems.push(`${where}: layer '${layer}' may import only types from '${target}' (${spec})`);
       } else if (!packageAllowed(spec, rule.packages)) {
         problems.push(`${where}: layer '${layer}' must not import package '${spec}'`);
       }

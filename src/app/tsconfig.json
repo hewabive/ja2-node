@@ -11,7 +11,9 @@
   "references": [
     { "path": "../core" },
     { "path": "../content" },
+    { "path": "../sim" },
     { "path": "../protocol" },
+    { "path": "../ui" },
     { "path": "../render" },
     { "path": "../audio" }
   ]

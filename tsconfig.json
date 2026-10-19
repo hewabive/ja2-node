@@ -20,6 +20,9 @@
       "path": "src/server"
     },
     {
+      "path": "src/ui"
+    },
+    {
       "path": "src/render"
     },
     {
