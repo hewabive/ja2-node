@@ -1714,6 +1714,9 @@ function reads (§2.4): the test that fills unsupplied projection fields with th
    box in combat charges `AP_RELOAD_GUN` once when the attachments changed; `attach`/`detach` charge nothing
    (`docs/12` §5). Verify with an oracle probe, then charge per accepted `attach`/`detach` in combat (the box session
    becomes one command; a player attaching two items in one opening pays twice: deviation) or add a batch form.
+   *Settled in U5 (2026-10-19):* the oracle probe `attachbox` (`tools/oracle/probes/attach.txt`) confirmed the box rule;
+   each accepted `attach`/`detach` that changes the attachments now charges `AP_RELOAD_GUN` in combat (deviation
+   "Attachment AP", `docs/12` §5).
 4. **`aimLeaveMessage`** never refuses with `alreadyLeft` although `docs/21` §10 lists it: fix the code or the doc.
 5. **A.I.M. conference distortion** draws `Random(200)` from the main stream (`AIMMembers.cc:1973`): add to the
    "Cosmetic laptop draws" deviation.

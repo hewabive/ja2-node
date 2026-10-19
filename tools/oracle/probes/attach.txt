@@ -1,0 +1,15 @@
+# Attachment AP through the item description box (docs/28 §12.5 item 3, docs/12 §5): DeleteItemDescriptionBox charges
+# AP_RELOAD_GUN once to gpAttachSoldier when the box closes in combat and the attachments (item, status) changed.
+# A step clickN clicks attachment slot N (attach with an item in the cursor, detach without); ITEM:STATUS puts an item
+# into the cursor. Soldiers 0-2 are the player's mercs of the Drassen save.
+save SaveGame09
+
+attachbox who=0 slot=5 host=GLOCK_17:100 cursor=SILENCER:90 ap=20 incombat=1 steps=click0
+attachbox who=0 slot=5 host=GLOCK_17:100 cursor=SILENCER:90 ap=20 incombat=0 steps=click0
+attachbox who=0 slot=5 host=GLOCK_17:100 hostAttach=SILENCER:90 ap=20 incombat=1 steps=click0
+attachbox who=0 slot=5 host=GLOCK_17:100 hostAttach=SILENCER:90 ap=20 incombat=1 steps=click0,click0
+attachbox who=0 slot=5 host=M14:100 cursor=SNIPERSCOPE:90 ap=20 incombat=1 steps=click0,BIPOD:60,click1
+attachbox who=0 slot=5 host=GLOCK_17:100 cursor=SILENCER:90 cursorWho=1 ap=20 cursorAp=20 incombat=1 steps=click0
+attachbox who=0 slot=5 host=GLOCK_17:100 cursor=SILENCER:90 ap=4 incombat=1 steps=click0
+attachbox who=0 slot=5 host=FIRSTAIDKIT:40 cursor=FIRSTAIDKIT:30 ap=20 incombat=1 steps=click0
+attachbox who=0 slot=5 host=M14:100 hostAttach=SNIPERSCOPE:90 ap=20 incombat=1 steps=click0,SNIPERSCOPE:50,click0

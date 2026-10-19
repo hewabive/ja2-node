@@ -55,6 +55,8 @@ commit them.
 | `patches/0011-doors-oracle.patch` | A wrapper for the static start-of-menu trap check and an accessor for the hostile-quote list (see "Hooks") |
 | `doors-compare.ts` | The door and civilian-group probes of `compare.ts` (`locks`, `door`, `doormenu`, `civgroups`, `makecivhostile`, `pcattack`, `hostilelist`) |
 | `probes/doors.txt` | Door, lock, trap and civilian-group probe script (see "Doors") |
+| `attach-compare.ts` | The `attachbox` probe of `compare.ts`: the description box's attachment AP replayed with `attach`/`detach` |
+| `probes/attach.txt` | Attachment AP probe script (see "Attachment AP") |
 | `patches/0012-facts-oracle.patch` | Wrappers for the static hourly quest update, Slay's hourly check and the sector-exit quest code (see "Hooks") |
 | `facts-compare.ts` | The fact, quest and NPC presence probes of `compare.ts` (`narrative`, `setquest`, `setnpcprofile`, `checkfact`, `quest`, `earlymorning`, `hourlynpc`, `questentry`, `questexit`, `entersector`) |
 | `probes/facts.txt` | Facts, quests and NPC presence probe script (see "Facts and NPC presence") |
@@ -959,6 +961,34 @@ examining, untrapping (success, explosion and silent alarm sprung), keys from th
 key, locking, shaped charges (damaged, destroyed), opening and closing a lockless door, and the civilian-group probes
 (MakeCivHostile keeps the side, the rebels' proximity rule with the 300-minute event, a group already at 2).
 
+### Attachment AP
+
+```sh
+export JA2_DATA_DIR="$HOME/Jagged Alliance 2 Gold/Data" JA2_ORACLE_DIR=~/ja2-oracle-attach
+tools/oracle/run.sh tools/oracle/probes/attach.txt ~/ja2-oracle-attach/out/attach.jsonl
+node tools/oracle/compare.ts ~/ja2-oracle-attach/out/attach.jsonl
+```
+
+One command drives the original item description box (rule finding 3 of `docs/28` §12.5):
+```
+attachbox who=<id> [slot=5] [host=<item>:<status>] [hostAttach=<item>:<status>,...] [cursor=<item>:<status>]
+          [cursorWho=<id>] [ap=] [cursorAp=] [incombat=1] steps=<step>,...
+```
+It writes the host object into the slot, puts the cursor item into `gItemPointer` for `cursorWho` (default `who`), sets
+`FACT_ATTACHED_ITEM_BEFORE` (no help balloon), opens the box with `InitItemDescriptionBox`, then per step either clicks
+attachment slot N (`clickN`: the region's own callback, so `ItemDescAttachmentsCallbackPrimary` attaches with an item in
+the cursor or detaches into the cursor without one) or puts a new item into the cursor (`<item>:<status>`), and closes the
+box with `DeleteItemDescriptionBox`. It prints the AP of both soldiers before, after each step and after closing, the
+attachments before, after each step and after, and the host object. `attach-compare.ts` replays each line on a fresh
+campaign session of the save with the commands a player sends (`attach` from a pocket holding the cursor item, `detach`
+into a pocket), and checks the attachments and the host, the native box rule (one `AP_RELOAD_GUN` for `gpAttachSoldier`
+when the box closes in combat with changed attachments) and ja2-node's rule (one `AP_RELOAD_GUN` per accepted command
+that changes them, deviation "Attachment AP"); a line with a single changing command must give the same AP on both sides.
+On 2026-10-19 all 9 probes matched on SaveGame09: attach and detach in combat and out of combat, a detach and re-attach in
+one opening (no native charge), two attachments in one opening (one native charge), an attachment from another merc's
+cursor (the cursor's merc pays), too few AP, a first aid kit merge, and a scope swapped for one with another status.
+`compare-all.sh` includes `attach/attach.jsonl` when the work dir has it.
+
 ### Facts and NPC presence
 
 ```sh
@@ -1370,6 +1400,7 @@ boxers fought or gone.
 | `probes/contracts.txt` | Contracts and relationships on SaveGame01, 02, 09, 10 and 07 (see "Contracts") |
 | `probes/laptop.txt` | Three seeded new games, the arrival table, and laptop commands on SaveGame01, 07 and 10 (see "Laptop") |
 | `probes/doors.txt` | Doors, locks, traps and civilian groups on SaveGame09 (see "Doors") |
+| `probes/attach.txt` | The item description box's attachment AP on SaveGame09 (see "Attachment AP") |
 | `probes/facts.txt` | Facts, quests and NPC presence on the six saves (see "Facts and NPC presence") |
 | `probes/talk.txt` | NPC records, profiles, desires, record choice and conversation steps for the NPCs present in SaveGame02, 01, 07 and 10 (see "Talk") |
 | `probes/heli.txt` | Skyrider's helicopter on SaveGame01, 02 and 10 (see "Helicopter") |

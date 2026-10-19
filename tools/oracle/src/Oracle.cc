@@ -7614,6 +7614,122 @@ void ProbeBoxingPoints(Command const& c)
 	});
 }
 
+std::string DescribeAttachments(OBJECTTYPE const& o)
+{
+	std::vector<std::string> attachments;
+	for (int i = 0; i < MAX_ATTACHMENTS; ++i)
+	{
+		attachments.push_back(Json{}.num("item", o.usAttachItem[i]).num("status", o.bAttachStatus[i]).text());
+	}
+	return JsonArray(attachments);
+}
+
+std::vector<std::string> SplitList(std::string const& text)
+{
+	std::vector<std::string> parts;
+	std::stringstream stream(text);
+	std::string part;
+	while (std::getline(stream, part, ',')) if (!part.empty()) parts.push_back(part);
+	return parts;
+}
+
+void ClickAttachmentRegion(int position)
+{
+	if (position < 0 || position >= MAX_ATTACHMENTS) throw std::runtime_error("attachment position out of range");
+	MOUSE_REGION& region = gItemDescAttachmentRegions[position];
+	if (!(region.uiFlags & MSYS_REGION_EXISTS)) throw std::runtime_error("the description box has no attachment regions");
+	region.ButtonCallback(&region, MSYS_CALLBACK_REASON_LBUTTON_DWN);
+	if (region.uiFlags & MSYS_REGION_EXISTS) region.ButtonCallback(&region, MSYS_CALLBACK_REASON_LBUTTON_UP);
+}
+
+void ProbeAttachBox(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	UINT8 const slot = static_cast<UINT8>(Integer(c, "slot", HANDPOS));
+	OBJECTTYPE& host = s.inv[slot];
+	if (Has(c, "host"))
+	{
+		auto const pair = SplitPair(Text(c, "host", ""));
+		CreateItem(ItemArgument(pair.first), static_cast<INT8>(pair.second), &host);
+	}
+	std::vector<std::string> const hostAttachments = SplitList(Text(c, "hostAttach", ""));
+	for (size_t i = 0; i < hostAttachments.size() && i < MAX_ATTACHMENTS; ++i)
+	{
+		auto const pair = SplitPair(hostAttachments[i]);
+		host.usAttachItem[i] = ItemArgument(pair.first);
+		host.bAttachStatus[i] = static_cast<INT8>(pair.second);
+	}
+	SOLDIERTYPE& cursorOwner = Has(c, "cursorWho") ? ExistingSoldier(Required(c, "cursorWho")) : s;
+	s.bActionPoints = static_cast<INT8>(Integer(c, "ap", s.bActionPoints));
+	if (&cursorOwner != &s) cursorOwner.bActionPoints = static_cast<INT8>(Integer(c, "cursorAp", cursorOwner.bActionPoints));
+	if (Has(c, "cursor"))
+	{
+		auto const pair = SplitPair(Text(c, "cursor", ""));
+		CreateItem(ItemArgument(pair.first), static_cast<INT8>(pair.second), &gItemPointer);
+		SetItemPointer(&gItemPointer, &cursorOwner);
+	}
+	else
+	{
+		SetItemPointer(NULL, NULL);
+	}
+	UINT32 const savedFlags = gTacticalStatus.uiFlags;
+	if (Integer(c, "incombat", 0) != 0) gTacticalStatus.uiFlags |= INCOMBAT;
+	else gTacticalStatus.uiFlags &= ~INCOMBAT;
+	SetFactTrue(FACT_ATTACHED_ITEM_BEFORE);
+	long long const apBefore = s.bActionPoints;
+	long long const cursorApBefore = cursorOwner.bActionPoints;
+	std::string const attachmentsBefore = DescribeAttachments(host);
+	InitItemDescriptionBox(&s, slot, Integer(c, "x", 214), Integer(c, "y", 341), 0);
+	std::vector<std::string> steps;
+	for (std::string const& step : SplitList(Text(c, "steps", "")))
+	{
+		if (step.find(':') != std::string::npos)
+		{
+			auto const pair = SplitPair(step);
+			CreateItem(ItemArgument(pair.first), static_cast<INT8>(pair.second), &gItemPointer);
+			SetItemPointer(&gItemPointer, &cursorOwner);
+		}
+		else if (step.size() == 6 && step.compare(0, 5, "click") == 0)
+		{
+			ClickAttachmentRegion(step.back() - '0');
+		}
+		else
+		{
+			throw std::runtime_error("a step is click<position> or <item>:<status>: " + step);
+		}
+		steps.push_back(Json{}
+			.str("step", step)
+			.num("ap", s.bActionPoints)
+			.num("cursorAp", cursorOwner.bActionPoints)
+			.num("cursorItem", gpItemPointer ? gpItemPointer->usItem : NOTHING)
+			.flag("boxOpen", gfInItemDescBox)
+			.raw("attachments", DescribeAttachments(host))
+			.text());
+	}
+	if (gfInItemDescBox) DeleteItemDescriptionBox();
+	long long const apAfter = s.bActionPoints;
+	long long const cursorApAfter = cursorOwner.bActionPoints;
+	bool const inCombat = (gTacticalStatus.uiFlags & INCOMBAT) != 0;
+	gTacticalStatus.uiFlags = savedFlags;
+	SetItemPointer(NULL, NULL);
+	Emit(Json{}
+		.str("probe", "attachbox")
+		.num("line", c.line)
+		.raw("args", DescribeArgs(c))
+		.num("who", s.ubID)
+		.num("cursorWho", cursorOwner.ubID)
+		.flag("inCombat", inCombat)
+		.num("apBefore", apBefore)
+		.num("cursorApBefore", cursorApBefore)
+		.raw("attachmentsBefore", attachmentsBefore)
+		.raw("steps", JsonArray(steps))
+		.raw("attachmentsAfter", DescribeAttachments(host))
+		.raw("host", DescribeObject(slot, host))
+		.num("apAfter", apAfter)
+		.num("cursorApAfter", cursorApAfter)
+		.num("breath", s.bBreath));
+}
+
 void Dispatch(Command const& c)
 {
 	if (c.name == "sector")   return LoadSector(c);
@@ -7832,6 +7948,7 @@ void Dispatch(Command const& c)
 	if (c.name == "hostilecheck") return ProbeHostileCheck(c);
 	if (c.name == "surrender") return ProbeSurrender(c);
 	if (c.name == "surrenderanswer") return ProbeSurrenderAnswer(c);
+	if (c.name == "attachbox") return ProbeAttachBox(c);
 	throw std::runtime_error("unknown command " + c.name);
 }
 

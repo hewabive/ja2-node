@@ -384,8 +384,8 @@ loaded rounds back into a magazine object and keeps `usGunAmmoItem` (`:1315-1345
 | Action | AP | Breath | Source |
 |---|---|---|---|
 | Reload (cursor, hotkey, magazine dropped on the gun) | 5 (`AP_RELOAD_GUN`); 10 with a wrong-size magazine; free in real time | – | `Points.cc:1432-1448`; `Items.cc` `ReloadGun` |
-| Attach in the item box | 5 must be left, none spent (merges: §2) | – | `Interface_Items.cc:1987` |
-| Remove an attachment in the item box | 8 (`AP_RELOAD_GUN + AP_PICKUP_ITEM`) must be left, none spent | – | `Interface_Items.cc:2001` |
+| Attach in the item box | 5 must be left (merges: §2); closing the box in combat charges 5 (`AP_RELOAD_GUN`) once to the cursor's merc, or the box owner, when the attachments (item and status) changed; ja2-node charges 5 per accepted `attach` that changes them (deviation "Attachment AP") | – | `Interface_Items.cc:1987`, `:1816-1822`, `:2530-2588` |
+| Remove an attachment in the item box | 8 (`AP_RELOAD_GUN + AP_PICKUP_ITEM`) must be left; the closing charge above; ja2-node charges 5 per accepted `detach` | – | `Interface_Items.cc:2001` |
 | Unload the magazine (item box ammo button) | 0 | – | `Interface_Items.cc` `ItemDescAmmoCallback` |
 | Move inside one inventory | 0 | – | `Interface_Panels.cc` `SMInvClickCallbackPrimary` |
 | Hand to another merc through the panel | 3 each must be left, 2 each spent (conscious mercs only) | – | `Interface_Panels.cc:1549-1561, 1673-1712` |

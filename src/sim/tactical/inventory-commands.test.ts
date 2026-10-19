@@ -5,7 +5,8 @@ import { Direction, gridNo } from '../../content/world/grid.ts';
 import { createItem, createItems } from '../items/object.ts';
 import { animName } from './anim-states.ts';
 import type { TacticalContent } from './content.ts';
-import { InvSlot, itemIn } from './inventory.ts';
+import { AP_RELOAD_GUN, InvSlot, itemIn } from './inventory.ts';
+import { attachmentsChanged } from './inventory-panel.ts';
 import { AP } from './points.ts';
 import { type Soldier, Team } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
@@ -123,6 +124,85 @@ describe('moving items inside one inventory', () => {
     expect(itemAt(merc, InvSlot.HAND)).toBe('GLOCK_17');
     expect(itemAt(merc, InvSlot.SECOND_HAND)).toBe('MP5K');
     expect(['LOWER_RIFLE', 'STANDING']).toContain(animName(t.content, merc.state));
+  });
+});
+
+describe('the AP of an attachment change (DeleteItemDescriptionBox, charged per command)', () => {
+  function gunner(sim: TacticalSim): Soldier {
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    merc.inv[InvSlot.HAND] = createItem(content.items, item('GLOCK_17'), 100);
+    merc.inv[InvSlot.BIGPOCK2] = createItem(content.items, item('SILENCER'), 90);
+    return merc;
+  }
+
+  it('charges AP_RELOAD_GUN in combat for an accepted attach and for an accepted detach', () => {
+    const sim = newCombatSim(content);
+    const merc = gunner(sim);
+    inCombat(sim);
+    const ap = merc.actionPoints;
+    expect(sim.dispatch({ type: 'attach', soldier: 0, item: 'bigPocket2', to: 'hand' })).toMatchObject({
+      ok: true,
+      data: { result: 'attached' },
+    });
+    expect(ap - merc.actionPoints).toBe(AP_RELOAD_GUN);
+    expect(sim.dispatch({ type: 'detach', soldier: 0, slot: 'hand', attachment: 'SILENCER' })).toMatchObject({ ok: true });
+    expect(ap - merc.actionPoints).toBe(2 * AP_RELOAD_GUN);
+  });
+
+  it("charges the merc whose item is attached when it goes onto another merc's gun", () => {
+    const sim = newCombatSim(content);
+    const owner = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    owner.inv[InvSlot.HAND] = createItem(content.items, item('GLOCK_17'), 100);
+    const attacher = spawnSoldier(sim, 1, Team.OUR, gridNo(81, 80), Direction.SOUTH);
+    attacher.inv[InvSlot.BIGPOCK2] = createItem(content.items, item('SILENCER'), 90);
+    inCombat(sim);
+    const [ownerAp, attacherAp] = [owner.actionPoints, attacher.actionPoints];
+    expect(sim.dispatch({ type: 'attach', soldier: 1, item: 'bigPocket2', to: 'hand', toSoldier: 0 })).toMatchObject({ ok: true });
+    expect(owner.inv[InvSlot.HAND]?.attachments[0]?.item).toBe(item('SILENCER'));
+    expect(attacherAp - attacher.actionPoints).toBe(AP_RELOAD_GUN);
+    expect(owner.actionPoints).toBe(ownerAp);
+  });
+
+  it('charges nothing out of combat, for a refused attach or for a merge that leaves the attachments alone', () => {
+    const calm = newCombatSim(content);
+    const relaxed = gunner(calm);
+    const calmAp = relaxed.actionPoints;
+    expect(calm.dispatch({ type: 'attach', soldier: 0, item: 'bigPocket2', to: 'hand' })).toMatchObject({ ok: true });
+    expect(calm.dispatch({ type: 'detach', soldier: 0, slot: 'hand', attachment: 'SILENCER' })).toMatchObject({ ok: true });
+    expect(relaxed.actionPoints).toBe(calmAp);
+
+    const sim = newCombatSim(content);
+    const merc = gunner(sim);
+    merc.inv[InvSlot.VEST] = createItem(content.items, item('KEVLAR_VEST'), 80);
+    merc.inv[InvSlot.SECOND_HAND] = createItem(content.items, item('FIRSTAIDKIT'), 40);
+    merc.inv[InvSlot.BIGPOCK1] = createItem(content.items, item('FIRSTAIDKIT'), 30);
+    inCombat(sim);
+    const ap = merc.actionPoints;
+    expect(sim.dispatch({ type: 'attach', soldier: 0, item: 'bigPocket2', to: 'vest' })).toMatchObject({
+      ok: false,
+      data: { refusal: 'cannotAttach' },
+    });
+    expect(sim.dispatch({ type: 'attach', soldier: 0, item: 'bigPocket1', to: 'secondHand' })).toMatchObject({
+      ok: true,
+      data: { result: 'merged' },
+    });
+    expect(merc.actionPoints).toBe(ap);
+    merc.actionPoints = AP_RELOAD_GUN - 1;
+    expect(sim.dispatch({ type: 'attach', soldier: 0, item: 'bigPocket2', to: 'hand' })).toMatchObject({
+      ok: false,
+      data: { refusal: 'notEnoughAP' },
+    });
+    expect(merc.actionPoints).toBe(AP_RELOAD_GUN - 1);
+  });
+
+  it('compares the attachments as the box does: item and status, in any position', () => {
+    const none = { item: 0, status: 0 };
+    const scope = { item: item('SNIPERSCOPE'), status: 90 };
+    const bipod = { item: item('BIPOD'), status: 60 };
+    expect(attachmentsChanged([scope, bipod, none, none], [bipod, none, scope, none])).toBe(false);
+    expect(attachmentsChanged([scope, none, none, none], [{ ...scope, status: 89 }, none, none, none])).toBe(true);
+    expect(attachmentsChanged([none, none, none, none], [bipod, none, none, none])).toBe(true);
+    expect(attachmentsChanged([scope, bipod, none, none], [scope, none, none, none])).toBe(true);
   });
 });
 

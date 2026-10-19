@@ -15,6 +15,14 @@ PROBES=(
   schedules/schedules.jsonl give/give.jsonl recruit/recruit.jsonl civ/civ.jsonl meanwhile/meanwhile.jsonl
   boxing/boxing.jsonl
 )
+OPTIONAL_PROBES=(attach/attach.jsonl)
+for probe in "${OPTIONAL_PROBES[@]}"; do
+  if [ -f "$O/$probe" ]; then
+    PROBES+=("$probe")
+  else
+    echo "compare-all: $O/$probe not generated yet (tools/oracle/run.sh tools/oracle/probes/${probe%%/*}.txt $O/$probe), skipped" >&2
+  fi
+done
 
 cd "$REPO_DIR"
 node tools/oracle/compare.ts "${PROBES[@]/#/$O/}"
