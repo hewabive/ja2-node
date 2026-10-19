@@ -661,7 +661,7 @@ action, result, trap?}` (`opened`, `closed`, `locked`, `failed`, `noLock`, `lock
 `noTrapFound`, `untrapped`, `trapSprung`, `notTrapped`, `wrongKey`, `trapStopped`, `trapNoticed`, `notEnoughAp`),
 `doorTrap {soldier, gridNo, trap}` (never for the silent alarm), `lockDestroyed {soldier, gridNo}` and `doorChanged`.
 `observe.doors` lists the doors whose lock or trap the player knows (`locked`: `unknown|locked|unlocked|broken`, `trap`:
-`unknown|none|noneFound|<trap>`); our soldiers carry `keys` (key ring: key id, count, sector and day found) and key items
+`unknown|none|noneFound|<trap>`); our soldiers carry `keys` (key ring: key id, count, the key item as `item` and `index` (`LockTable[keyID].usKeyItem`, `getKeyItemForKeyId`), sector and day found) and key items
 show `keyId`. Lock tables, trap levels and lock damage stay hidden.
 
 ### 6.11. Quests and NPC presence (M6)

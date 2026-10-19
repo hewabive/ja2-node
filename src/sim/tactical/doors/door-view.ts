@@ -1,11 +1,14 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Handle_Doors.cc SetDoorString (perceived lock and trap state); Interface_Items.cc key ring popup.
-// @src See docs/25 §13.4.
+// @src src/game/Tactical/Handle_Doors.cc SetDoorString (perceived lock and trap state); Interface_Items.cc key ring popup
+// @src (RenderKeyRingPopup draws the key item of LockTable[keyID].usKeyItem); DefaultContentManager.cc getKeyItemForKeyId.
+// @src See docs/25 §13.4, docs/28 §12.1 G20.
 
+import { NOTHING } from '../../../content/items/items.ts';
 import type { Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { DOOR_TRAP_NAMES, PerceivedLock, PerceivedTrap } from './door-table.ts';
+import { keyItemForKeyId } from './keys.ts';
 
 export type PerceivedLockName = 'unknown' | 'locked' | 'unlocked' | 'broken';
 
@@ -18,6 +21,8 @@ export interface DoorView {
 export interface KeyView {
   readonly keyId: number;
   readonly count: number;
+  readonly item?: string;
+  readonly index?: number;
   readonly sectorFound?: number;
   readonly dayFound?: number;
 }
@@ -49,13 +54,19 @@ export function doorViews(t: TacticalState): DoorView[] {
   return views.sort((a, b) => a.gridNo - b.gridNo);
 }
 
+function keyItemView(t: TacticalState, keyId: number): { item?: string; index?: number } {
+  const index = keyItemForKeyId(t.content, keyId);
+  const name = t.content.items.byIndex.get(index)?.name;
+  return index === NOTHING || name === undefined ? {} : { item: name, index };
+}
+
 export function keyRingView(t: TacticalState, s: Soldier): KeyView[] {
   const keys: KeyView[] = [];
   for (const k of s.keyRing ?? []) {
     if (k.count === 0) continue;
     const found = t.keyTable[k.keyId];
     const known = found && found.dateFound !== 0 ? { sectorFound: found.sectorFound, dayFound: found.dateFound } : {};
-    keys.push({ keyId: k.keyId, count: k.count, ...known });
+    keys.push({ keyId: k.keyId, count: k.count, ...keyItemView(t, k.keyId), ...known });
   }
   return keys;
 }
