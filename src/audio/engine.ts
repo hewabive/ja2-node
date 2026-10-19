@@ -9,6 +9,7 @@ import { decodeWav } from '../content/formats/wav.ts';
 import { LruCache, SOUND_CACHE_ENTRIES } from './buffer-cache.ts';
 
 export const MAX_VOICES = 16;
+const MS_PER_SECOND = 1000;
 const BUSES: readonly Bus[] = ['effects', 'speech', 'music', 'ambient'];
 const STEREO = 2;
 
@@ -63,6 +64,7 @@ export interface VoiceHandle {
   readonly cue: Cue;
   readonly state: VoiceState;
   readonly active: boolean;
+  readonly elapsedMs: number;
   onEnded: (() => void) | null;
   stop(): void;
   remix(volume: number, pan: number): void;
@@ -75,6 +77,8 @@ class Voice implements VoiceHandle {
   source: AudioBufferSourceNode | null = null;
   left: GainNode | null = null;
   right: GainNode | null = null;
+  clock: (() => number) | null = null;
+  startedAt = 0;
   readonly #finish: (v: Voice) => void;
 
   constructor(cue: Cue, finish: (v: Voice) => void) {
@@ -84,6 +88,10 @@ class Voice implements VoiceHandle {
 
   get active(): boolean {
     return this.state === 'loading' || this.state === 'playing';
+  }
+
+  get elapsedMs(): number {
+    return this.clock ? (this.clock() - this.startedAt) * MS_PER_SECOND : 0;
   }
 
   settle(state: VoiceState): void {
@@ -330,6 +338,8 @@ export class AudioEngine {
     source.onended = () => voice.settle('ended');
     const loops = voice.cue.loops;
     if (loops !== 1) source.loop = true;
+    voice.clock = () => graph.currentTime;
+    voice.startedAt = graph.currentTime;
     source.start();
     if (loops > 1 && Number.isFinite(loops)) source.stop(graph.currentTime + buffer.duration * loops);
   }

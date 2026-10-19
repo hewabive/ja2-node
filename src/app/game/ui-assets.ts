@@ -1,6 +1,7 @@
 import { decodePcx } from '../../content/formats/pcx.ts';
 import { rgbToRgb565 } from '../../content/formats/rgb565.ts';
-import { decodeSti, type Sti, type StiRgb } from '../../content/formats/sti.ts';
+import { decodeSti, type Sti, type StiIndexed, type StiRgb } from '../../content/formats/sti.ts';
+import type { IndexedPicture } from '../../content/picture/picture.ts';
 import { type GlyphTable, parseGlyphTable } from '../../content/text/glyph-table.ts';
 import type { UiRenderer } from '../../render/ui-draw/ui-renderer.ts';
 import type { ImageCatalog, ImageInfo } from '../../ui/assets.ts';
@@ -47,6 +48,12 @@ export function imageInfo(sti: Sti): ImageInfo {
     frames: sti.subImages.map((s) => ({ width: s.width, height: s.height, offsetX: s.offsetX, offsetY: s.offsetY })),
     animatedFrames: aux && aux.flags & AUX_ANIMATED_TILE ? aux.numberOfFrames : 0,
   };
+}
+
+export function pictureAsSti(picture: IndexedPicture, palette: Uint8Array): StiIndexed {
+  const width = Math.max(0, ...picture.frames.map((f) => f.width));
+  const height = Math.max(0, ...picture.frames.map((f) => f.height));
+  return { kind: 'indexed', width, height, flags: 0, palette, subImages: picture.frames, appData: null, anomalies: 0 };
 }
 
 export class UiAssets implements ImageCatalog {
@@ -110,6 +117,13 @@ export class UiAssets implements ImageCatalog {
     this.#renderer.addImage(key, sti);
     this.#images.set(key, imageInfo(sti));
     return true;
+  }
+
+  addPicture(key: AssetKey, picture: IndexedPicture, palette: Uint8Array): void {
+    if (this.#images.has(key)) return;
+    const sti = pictureAsSti(picture, palette);
+    this.#renderer.addImage(key, sti);
+    this.#images.set(key, imageInfo(sti));
   }
 
   async font(id: FontId, table: GlyphTable): Promise<BitmapFont | null> {

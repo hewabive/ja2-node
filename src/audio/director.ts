@@ -467,6 +467,17 @@ export class SoundDirector {
     voice.onEnded = () => this.#nextLine();
   }
 
+  get speaking(): { readonly speaker: number; readonly file: string; readonly elapsedMs: number; readonly playing: boolean } | null {
+    const current = this.#speech;
+    if (!current || current.speaker === null || !current.voice.active) return null;
+    return {
+      speaker: current.speaker,
+      file: current.voice.cue.file,
+      elapsedMs: current.voice.elapsedMs,
+      playing: current.voice.state === 'playing',
+    };
+  }
+
   #silenceSpeech(): void {
     this.#speechQueue.length = 0;
     const current = this.#speech;

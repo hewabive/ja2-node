@@ -28,6 +28,10 @@ export class LogicalFramebuffer {
     return this.#height;
   }
 
+  get target(): WebGLFramebuffer {
+    return this.#framebuffer;
+  }
+
   resize(width: number, height: number): void {
     if (width === this.#width && height === this.#height && this.#renderbuffer) return;
     const gl = this.#gl;
@@ -46,11 +50,16 @@ export class LogicalFramebuffer {
 
   begin(): void {
     const gl = this.#gl;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.#framebuffer);
-    gl.viewport(0, 0, this.#width, this.#height);
+    this.bind();
     gl.disable(gl.SCISSOR_TEST);
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+
+  bind(): void {
+    const gl = this.#gl;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.#framebuffer);
+    gl.viewport(0, 0, this.#width, this.#height);
   }
 
   present(resolution: Resolution, canvasWidth: number, canvasHeight: number): void {
