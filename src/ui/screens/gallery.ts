@@ -1,3 +1,4 @@
+import { type Area, type DrawList, rgb } from '../draw-list.ts';
 import type { ControllerContract } from '../layout/controller.ts';
 import { ViewModelController } from '../layout/controller.ts';
 import { LayoutScreen } from '../layout/layout-screen.ts';
@@ -53,6 +54,7 @@ export const GALLERY_CONTRACT: ControllerContract = {
     box: 'number',
     cursorNames: 'list',
     progress: 'number',
+    rows: 'list',
   },
 };
 
@@ -86,6 +88,7 @@ export function galleryController(runtime: UiRuntime): ViewModelController {
     box: NO_BOX,
     cursorNames: ['target', 'wait', 'I-beam', 'flash', 'text'],
     progress: 0,
+    rows: ['a list of rows', 'bound to a list', 'one template'],
   };
   const status = (text: string) => {
     model.status = text;
@@ -164,6 +167,18 @@ export function galleryController(runtime: UiRuntime): ViewModelController {
   return controller;
 }
 
+const SWATCH_STEPS = 9;
+const CHANNEL_MAX = 255;
+
+export function drawSwatch(list: DrawList, rect: Area): void {
+  const step = Math.floor(rect.width / SWATCH_STEPS);
+  for (let i = 0; i < SWATCH_STEPS; i++) {
+    const level = Math.round((i * CHANNEL_MAX) / (SWATCH_STEPS - 1));
+    list.fill(rect.x + i * step, rect.y, rect.x + (i + 1) * step, rect.y + rect.height, rgb(level, CHANNEL_MAX - level, 128));
+  }
+  list.rectangle(rect.x, rect.y, rect.x + step * SWATCH_STEPS - 1, rect.y + rect.height - 1, rgb(CHANNEL_MAX, CHANNEL_MAX, CHANNEL_MAX));
+}
+
 export function galleryScreen(options: GalleryOptions): LayoutScreen {
   const controller = galleryController(options.runtime);
   return new LayoutScreen({
@@ -176,5 +191,6 @@ export function galleryScreen(options: GalleryOptions): LayoutScreen {
     messageBoxStyle: options.messageBoxStyle,
     messageBoxLabels: options.messageBoxLabels,
     soundScreen: UiScreenKind.OPTIONS,
+    custom: { swatch: drawSwatch },
   });
 }

@@ -51,6 +51,8 @@ export class UiRuntime implements UiServices {
   readonly #pauseGame: ((paused: boolean) => void) | undefined;
   #pointerInside = false;
   #lastCursor: ComposedCursor | null = null;
+  readonly #keysDown = new Set<string>();
+  #modifiers = 0;
 
   constructor(options: UiRuntimeOptions) {
     this.fonts = options.fonts;
@@ -80,10 +82,23 @@ export class UiRuntime implements UiServices {
     this.#pointerInside = false;
   }
 
+  get modifiers(): number {
+    return this.#modifiers;
+  }
+
+  isKeyDown(key: string): boolean {
+    return this.#keysDown.has(key);
+  }
+
   input(event: UiInputEvent): boolean {
     if (isPointerEvent(event)) {
       this.#pointerInside = true;
+      this.#modifiers = event.modifiers;
       this.regions.pointer(event, this.clock.now);
+    } else if (event.kind !== 'text') {
+      this.#modifiers = event.modifiers;
+      if (event.kind === 'keyUp') this.#keysDown.delete(event.key);
+      else this.#keysDown.add(event.key);
     }
     return this.host.input(event);
   }

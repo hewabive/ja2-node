@@ -539,6 +539,51 @@
       "mouseText": true
     },
 
+    { "type": "text", "x": 300, "y": 290, "font": "FONT12ARIAL", "color": "FONT_LTGREEN", "text": { "literal": "Primitives" } },
+    { "type": "image", "id": "image", "asset": "stopIcon", "frame": 0, "x": 300, "y": 306 },
+    {
+      "type": "frame",
+      "id": "frame",
+      "x": 330,
+      "y": 306,
+      "width": 80,
+      "height": 40,
+      "border": "popupBorder",
+      "background": "popupBackground"
+    },
+    { "type": "fill", "x": 420, "y": 306, "width": 40, "height": 40, "color": [200, 120, 40] },
+    { "type": "shade", "x": 420, "y": 316, "width": 40, "height": 20, "factor": 0.48 },
+    { "type": "fill", "x": 470, "y": 306, "width": 40, "height": 40, "color": [80, 160, 200] },
+    { "type": "hatch", "x": 470, "y": 306, "width": 40, "height": 20 },
+    { "type": "hatch", "x": 470, "y": 326, "width": 40, "height": 20, "pattern": "loose", "color": [255, 255, 255] },
+    { "type": "line", "x": 520, "y": 306, "x2": 560, "y2": 346, "color": [255, 224, 64] },
+    { "type": "rect", "x": 570, "y": 306, "x2": 610, "y2": 346, "color": [255, 224, 64] },
+    {
+      "type": "list",
+      "count": { "bind": "rows" },
+      "dy": 12,
+      "template": {
+        "type": "text",
+        "id": "row$i",
+        "x": 300,
+        "y": 352,
+        "font": "FONT10ARIAL",
+        "color": "FONT_GRAY2",
+        "text": { "bind": "rows[$i]" }
+      }
+    },
+    { "type": "custom", "id": "swatch", "renderer": "swatch", "x": 420, "y": 352, "width": 90, "height": 28 },
+    {
+      "type": "text",
+      "id": "edtText",
+      "x": 520,
+      "y": 352,
+      "width": 110,
+      "ellipsis": true,
+      "font": "FONT10ARIAL",
+      "color": "FONT_MCOLOR_WHITE",
+      "text": { "edt": ["binarydata/credits.edt", 0] }
+    },
     { "type": "text", "x": 8, "y": 380, "font": "FONT12ARIAL", "color": "FONT_LTGREEN", "text": { "literal": "Progress" } },
     {
       "type": "progressBar",
@@ -572,5 +617,8 @@
       "text": { "source": { "literal": "+10%" }, "font": "FONT12ARIAL", "color": "FONT_MCOLOR_WHITE" }
     }
   ],
-  "hotkeys": [{ "key": "m", "on": "up", "mods": 4, "action": "openMenu" }, { "key": "Escape", "on": "up", "action": "menuClose", "when": "menuOpen" }]
+  "hotkeys": [
+    { "key": "m", "on": "up", "mods": 4, "action": "openMenu" },
+    { "key": "Escape", "on": "up", "action": "menuClose", "when": "menuOpen" }
+  ]
 }

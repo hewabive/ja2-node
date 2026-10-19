@@ -12,7 +12,7 @@ import { LAYOUT_CONTRACTS } from '../screens/contracts.ts';
 import { LayoutLoader } from './loader.ts';
 import type { LayoutModel, ResolvedAsset } from './model.ts';
 import { collectReferences } from './references.ts';
-import { LAYOUTS_DIR } from './types.ts';
+import { LAYOUTS_DIR, type WidgetJson } from './types.ts';
 
 interface LayoutFile {
   readonly skin: string;
@@ -54,6 +54,17 @@ function frameCount(bytes: Uint8Array, asset: ResolvedAsset): { count: number; w
   return { count: sti.subImages.length, width: sti.width, height: sti.height };
 }
 
+function textsWithoutShadow(widgets: readonly WidgetJson[]): string[] {
+  return widgets.flatMap((w) => {
+    const own = w.type === 'text' && w.shadow === undefined ? [w.id ?? 'text'] : [];
+    const buttonText =
+      w.type === 'button' && typeof w.text === 'object' && w.text !== null && !('shadow' in w.text) ? [w.id ?? 'button'] : [];
+    const children =
+      w.template === undefined ? [] : textsWithoutShadow((Array.isArray(w.template) ? w.template : [w.template]) as WidgetJson[]);
+    return [...own, ...buttonText, ...children];
+  });
+}
+
 describe('every layout of every skin', () => {
   let models: LayoutModel[];
   let l10n: Readonly<Record<string, number | null>>;
@@ -89,7 +100,10 @@ describe('every layout of every skin', () => {
     for (const model of models) {
       if (model.json['@src'] !== undefined) expect(model.json['@derived'], model.json.screen).toContain('SFI-SCLA');
       const refs = collectReferences(model);
-      if (!model.debug) expect(refs.literals, model.json.screen).toEqual([]);
+      if (!model.debug) {
+        expect(refs.literals, model.json.screen).toEqual([]);
+        expect(textsWithoutShadow(model.json.widgets ?? []), `${model.json.screen} gives every text its shadow`).toEqual([]);
+      }
       for (const [name, use] of refs.assets) {
         const stub = use.asset.stub;
         expect(stub?.size !== undefined || stub?.sizes !== undefined, `${model.json.screen} asset ${name} has no stub size`).toBe(true);
@@ -125,8 +139,10 @@ describe('every layout of every skin', () => {
       await rm(dir, { recursive: true, force: true });
     });
 
-    it('resolves every asset and frame', async () => {
+    it('resolves every asset, frame and EDT file', async () => {
       for (const model of models) {
+        for (const [file] of collectReferences(model).edts)
+          expect(data.vfs.stat(`${STUBS_PREFIX}/${file}`), `${model.json.screen} ${file}`).toBeDefined();
         for (const [name, use] of collectReferences(model).assets) {
           const path = `${STUBS_PREFIX}/${use.asset.path}`;
           expect(data.vfs.stat(path), `${model.json.screen} asset ${name} (${path})`).toBeDefined();
@@ -153,6 +169,7 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('every original layout on the origina
 
   it('resolves every asset and frame, and the backgrounds cover the boxes the code sizes by constants', async () => {
     for (const model of models) {
+      for (const [file] of collectReferences(model).edts) expect(data.vfs.stat(file), `${model.json.screen} ${file}`).toBeDefined();
       for (const [name, use] of collectReferences(model).assets) {
         const stat = data.vfs.stat(use.asset.path);
         expect(stat, `${model.json.screen} asset ${name} (${use.asset.path})`).toBeDefined();
