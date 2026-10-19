@@ -7,6 +7,7 @@ import {
   type DrawRun,
   DynamicScene,
   type PlacedSoldier,
+  type SceneAniTile,
   type SceneItem,
   type SceneSoldier,
   type WorldUiNode,
@@ -30,6 +31,7 @@ import { pickSoldierAt } from './picking.ts';
 import { changedRevealTiles, computeReveal, type RevealState } from './reveal.ts';
 import type { LightColour } from './soldier-palettes.ts';
 import { STATIC_SEGMENT_STATES, StaticScene, StaticSegment, type StaticState, type StaticWorld } from './static-scene.ts';
+import { applyTileChanges, type TileChange, tileChangesKey } from './tile-changes.ts';
 import { type WorldCapture, WorldFramebuffer } from './world-framebuffer.ts';
 import { InstanceStream, ShadeTexture, WorldProgram } from './world-program.ts';
 import { type TileSurfacePicture, WorldSprites } from './world-sprites.ts';
@@ -44,6 +46,7 @@ export interface RenderWorld {
   readonly restrictedScrollId: number;
   readonly basement: boolean;
   readonly lightColour: LightColour;
+  readonly prepare: (level: Level) => LevelRenderData;
 }
 
 export interface WorldDisplayOptions {
@@ -84,6 +87,8 @@ export interface WorldFrameInput {
   readonly soldiers: readonly SceneSoldier[];
   readonly items: readonly SceneItem[];
   readonly uiNodes: readonly WorldUiNode[];
+  readonly aniTiles?: readonly SceneAniTile[];
+  readonly tileChanges?: readonly TileChange[];
 }
 
 export interface WorldDrawStats {
@@ -97,11 +102,13 @@ export interface WorldDrawStats {
 const NO_STATS: WorldDrawStats = { drawCalls: 0, instances: 0, staticInstances: 0, dynamicInstances: 0, staticRebuildMs: 0 };
 
 interface LoadedScene {
-  readonly world: RenderWorld;
+  readonly original: RenderWorld;
+  world: RenderWorld;
   readonly sprites: WorldSprites;
-  readonly staticWorld: StaticWorld;
-  readonly scene: StaticScene;
-  readonly dynamic: DynamicScene;
+  staticWorld: StaticWorld;
+  scene: StaticScene;
+  dynamic: DynamicScene;
+  tileChanges: string;
   reveal: RevealState;
   revealedRooms: ReadonlySet<number>;
   uploaded: boolean;
@@ -156,23 +163,19 @@ export class WorldRenderer {
   setWorld(world: RenderWorld): WorldSprites {
     this.#scene?.sprites.dispose();
     const sprites = new WorldSprites(this.#gl, world.tiles, world.surfaces, world.lightColour);
-    const staticWorld: StaticWorld = {
-      level: world.level,
-      tiles: world.tiles,
-      prepared: world.prepared,
-      topY: topYOf(world.restrictedScrollId),
-      sprite: (tile) => sprites.tileSprite(tile),
-    };
+    const staticWorld = this.#staticWorld(world, sprites);
     const reveal = computeReveal(this.#revealWorld(world), new Set());
     const started = performance.now();
     const scene = new StaticScene(staticWorld, { reveal, openDoors: new Set(), treeTops: true, wireframes: true, roofLevel: false });
     this.#rebuildMs = performance.now() - started;
     this.#scene = {
+      original: world,
       world,
       sprites,
       staticWorld,
       scene,
       dynamic: new DynamicScene(staticWorld, world.prepared),
+      tileChanges: '',
       reveal,
       revealedRooms: new Set(),
       uploaded: false,
@@ -180,6 +183,32 @@ export class WorldRenderer {
     };
     this.#last = null;
     return sprites;
+  }
+
+  #staticWorld(world: RenderWorld, sprites: WorldSprites): StaticWorld {
+    return {
+      level: world.level,
+      tiles: world.tiles,
+      prepared: world.prepared,
+      topY: topYOf(world.restrictedScrollId),
+      sprite: (tile) => sprites.tileSprite(tile),
+    };
+  }
+
+  #syncTileChanges(s: LoadedScene, changes: readonly TileChange[]): void {
+    const key = tileChangesKey(changes);
+    if (key === s.tileChanges) return;
+    const started = performance.now();
+    const level = applyTileChanges(s.original.level, changes);
+    const world: RenderWorld = level === s.original.level ? s.original : { ...s.original, level, prepared: s.original.prepare(level) };
+    s.world = world;
+    s.tileChanges = key;
+    s.staticWorld = this.#staticWorld(world, s.sprites);
+    s.reveal = computeReveal(this.#revealWorld(world), s.revealedRooms);
+    s.scene = new StaticScene(s.staticWorld, { ...s.scene.state, reveal: s.reveal });
+    s.dynamic = new DynamicScene(s.staticWorld, world.prepared);
+    s.uploaded = false;
+    this.#rebuildMs = performance.now() - started;
   }
 
   #revealWorld(w: RenderWorld) {
@@ -225,6 +254,7 @@ export class WorldRenderer {
       this.#stats = NO_STATS;
       return NO_STATS;
     }
+    this.#syncTileChanges(s, f.tileChanges ?? []);
     this.#syncStatic(s, f);
     const assembled = s.scene.assemble();
     if (!s.uploaded) {
@@ -248,6 +278,7 @@ export class WorldRenderer {
       items: f.items,
       itemOutline: (onRoof) => itemOutlineColour(f.clockMs, onRoof, { glow: f.options.glowItems, red: f.options.redItemGlow }),
       uiNodes: f.uiNodes,
+      aniTiles: f.aniTiles ?? [],
     });
     this.#dynamicStream.upload(s.dynamic.instances.data, s.dynamic.instances.count);
     this.#itemStream.upload(s.dynamic.itemInstances.data, s.dynamic.itemInstances.count);

@@ -284,11 +284,14 @@ function placedOnMap(l: LightSprite): boolean {
 }
 
 export function lightSpriteCreate(t: TacticalState, name: string): LightSprite | null {
+  const template = lightTemplate(name);
+  return template ? lightSpriteFromTemplate(t, template) : null;
+}
+
+export function lightSpriteFromTemplate(t: TacticalState, template: LightTemplate): LightSprite | null {
   const sprites = t.lighting.sprites;
   const slot = sprites.findIndex((l) => !l || !(l.flags & LightSpriteFlags.ACTIVE));
   if (slot < 0) return null;
-  const template = lightTemplate(name);
-  if (!template) return null;
   const sprite: LightSprite = {
     x: UNPLACED_COORD,
     y: UNPLACED_COORD,

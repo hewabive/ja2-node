@@ -24,7 +24,7 @@ import { createItem, type ItemObject } from '../../items/object.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
 import { findDoorInfo } from '../doors/door-table.ts';
 import { damageLock } from '../doors/lock-attempts.ts';
-import { swapStructureForPartner } from '../doors.ts';
+import { swapStructureForPartnerAndRecord } from '../doors.ts';
 import { igniteExplosion, igniteExplosionXY } from '../explosions/explosion.ts';
 import { InvSlot } from '../inventory.ts';
 import { landHeightUnits, resolveHitOnWall } from '../perception/los.ts';
@@ -617,10 +617,10 @@ function shotMiss(t: TacticalState, b: Bullet): void {
 function windowHit(t: TacticalState, g: number, structureId: number): void {
   let window = t.world.structures.findById(g, structureId);
   if (!window || window.def.partnerDelta === 0) return;
-  window = swapStructureForPartner(t, window);
+  window = swapStructureForPartnerAndRecord(t, window);
   if (!window) return;
   if (window.def.partnerDelta !== 0) {
-    const second = swapStructureForPartner(t, window);
+    const second = swapStructureForPartnerAndRecord(t, window);
     if (second) window = second;
   }
   if (window.def.armour === MATERIAL_THICKER_METAL_WITH_SCREEN_WINDOWS) return;

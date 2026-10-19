@@ -5,6 +5,7 @@ import type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 import { type InventoryItemView, sameInventory } from '../sim/tactical/inventory-view.ts';
 import type { FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
 import type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
+import type { CorpseView, SmokeTileView, TileChangeView, WorldLightView } from '../sim/tactical/world-view.ts';
 import type { MessageEntry } from './message-log.ts';
 import { type MusicView, sameMusic } from './music.ts';
 import { sameJson } from './same-json.ts';
@@ -15,6 +16,14 @@ export type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 export type { InventoryItemView } from '../sim/tactical/inventory-view.ts';
 export type { FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
 export type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
+export type {
+  CorpseView,
+  LightSpriteView,
+  SmokeTileView,
+  TileChangeKind,
+  TileChangeView,
+  WorldLightView,
+} from '../sim/tactical/world-view.ts';
 export type { MusicView } from './music.ts';
 
 export interface SoldierView {
@@ -641,6 +650,10 @@ export interface PlayerView {
   readonly combat?: CombatView | null;
   readonly revealedRooms?: readonly number[];
   readonly items?: readonly ItemView[];
+  readonly corpses?: readonly CorpseView[];
+  readonly smoke?: readonly SmokeTileView[];
+  readonly light?: WorldLightView | null;
+  readonly tileChanges?: readonly TileChangeView[];
   readonly music?: MusicView;
 }
 
@@ -669,6 +682,10 @@ export interface ViewFrame {
   readonly combat?: CombatView | null;
   readonly revealedRooms?: readonly number[];
   readonly items?: readonly ItemView[];
+  readonly corpses?: readonly CorpseView[];
+  readonly smoke?: readonly SmokeTileView[];
+  readonly light?: WorldLightView | null;
+  readonly tileChanges?: readonly TileChangeView[];
   readonly music?: MusicView;
 }
 
@@ -687,6 +704,17 @@ function sameItems(a: readonly ItemView[] | undefined, b: readonly ItemView[] | 
       v.money === w.money &&
       sameJson(v.attachments ?? [], w.attachments ?? [])
     );
+  });
+}
+
+function sameSmoke(a: readonly SmokeTileView[] | undefined, b: readonly SmokeTileView[] | undefined): boolean {
+  if (a === b) return true;
+  const x = a ?? [];
+  const y = b ?? [];
+  if (x.length !== y.length) return false;
+  return x.every((v, i) => {
+    const w = y[i];
+    return !!w && v.gridNo === w.gridNo && v.level === w.level && v.effect === w.effect && !!v.dissipating === !!w.dissipating;
   });
 }
 
@@ -718,6 +746,14 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), revealedRooms: next.revealedRooms ?? [] };
   if (!sameItems(previous.items, next.items))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), items: next.items ?? [] };
+  if (!sameJson(previous.corpses ?? [], next.corpses ?? []))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), corpses: next.corpses ?? [] };
+  if (!sameSmoke(previous.smoke, next.smoke))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), smoke: next.smoke ?? [] };
+  if (!sameJson(previous.light ?? null, next.light ?? null))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), light: next.light ?? null };
+  if (!sameJson(previous.tileChanges ?? [], next.tileChanges ?? []))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), tileChanges: next.tileChanges ?? [] };
   if (!sameCombat(previous.combat, next.combat))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), combat: next.combat ?? null };
   if (previous.mapPath !== next.mapPath) frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), mapPath: next.mapPath };

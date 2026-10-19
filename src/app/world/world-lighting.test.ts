@@ -11,6 +11,7 @@ import { PROJECT_DATA_DIR } from '../../node/repo.ts';
 import { initLighting, lightTrueLevel } from '../../sim/tactical/lighting/lighting.ts';
 import { createTacticalState } from '../../sim/tactical/state.ts';
 import { loadItemTiles } from './item-tiles.ts';
+import { LightTemplates, MERC_LIGHT } from './light-templates.ts';
 import { surfaceAmbientAt, WorldLighting } from './world-lighting.ts';
 import { type LoadedWorld, loadWorld } from './world-loader.ts';
 
@@ -82,8 +83,15 @@ describe('client lighting on the stub village', () => {
   it('lights the tile of an own merc at night with the merc light stand-in', () => {
     const lighting = new WorldLighting(world.tactical);
     const g = 80 * 160 + 72;
+    const template = new LightTemplates().resolve(MERC_LIGHT);
+    if (!template) throw new Error('no stand-in');
+    expect(template.origin).toBe('standIn');
     const without = lighting.field({ time: NIGHT, openDoors: NO_DOORS, mercLights: [] }).land[g] ?? 0;
-    const merc = lighting.field({ time: NIGHT, openDoors: NO_DOORS, mercLights: [{ x: 725, y: 805, level: 0 }] });
+    const merc = lighting.field({
+      time: NIGHT,
+      openDoors: NO_DOORS,
+      mercLights: [{ x: 725, y: 805, level: 0, template: template.template }],
+    });
     expect(merc.land[g]).toBeLessThan(without);
     expect(lighting.field({ time: NIGHT, openDoors: NO_DOORS, mercLights: [] }).land[g]).toBe(without);
   });

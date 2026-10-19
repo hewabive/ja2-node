@@ -30,6 +30,7 @@ import { firstFreeSoldierId, Side, type Soldier, SoldierClass, Team } from '../s
 import { teamMembers } from '../sim/tactical/state.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { loadWorldItemsFromMap } from '../sim/tactical/world-items.ts';
+import { corpseViews, smokeViews, tileChangeViews, worldLightView } from '../sim/tactical/world-view.ts';
 import { type MessageFacts, tacticalMessageFacts } from './message-facts.ts';
 import type { SessionSim } from './session.ts';
 import { PROFILE_VOICE, type VoiceOf, withVoices } from './soldier-voice.ts';
@@ -125,6 +126,10 @@ export function tacticalPlayerView(
     combat: sim.combatView(),
     revealedRooms: revealedRooms(sim.state),
     items: sim.visibleItems(),
+    corpses: corpseViews(sim.state),
+    smoke: smokeViews(sim.state),
+    light: worldLightView(sim.state),
+    tileChanges: tileChangeViews(sim.state),
   };
 }
 

@@ -152,6 +152,8 @@ function importWorldItems(t: TacticalState, save: SaveGame, centre: number): num
   return t.worldItems.length;
 }
 
+const ROTTING_CORPSE_USE_CAMO_PALETTE = 0x20;
+
 function importCorpses(t: TacticalState, corpses: readonly SavedCorpse[]): number {
   t.corpses.length = 0;
   for (const c of corpses) {
@@ -165,6 +167,8 @@ function importCorpses(t: TacticalState, corpses: readonly SavedCorpse[]): numbe
       profile: c.profile,
       type: c.type,
       timeOfDeath: c.timeOfDeath,
+      palettes: [c.palettes.head, c.palettes.skin, c.palettes.vest, c.palettes.pants],
+      ...(c.flags & ROTTING_CORPSE_USE_CAMO_PALETTE ? { camo: true } : {}),
     });
     addCorpseStructure(t, c.gridNo, c.level, c.type, c.direction);
   }

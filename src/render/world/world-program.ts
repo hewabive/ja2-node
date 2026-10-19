@@ -102,24 +102,29 @@ const INSTANCE_UNIT = 3;
 const RGBA = 4;
 const SHADE_CHANNELS = 2;
 
+type BlendMode = 'none' | 'shadow' | 'translucent';
+
 interface StateSpec {
   readonly func: number | null;
   readonly write: boolean;
-  readonly shadow: boolean;
+  readonly blend: BlendMode;
 }
+
+const TRANSLUCENT_ALPHA = 0.5;
 
 function stateSpecs(gl: WebGL2RenderingContext): Record<DrawState, StateSpec> {
   return {
-    [DrawState.LAND]: { func: null, write: false, shadow: false },
-    [DrawState.NEARER_OR_EQUAL_WRITE]: { func: gl.GEQUAL, write: true, shadow: false },
-    [DrawState.NEARER_WRITE]: { func: gl.GREATER, write: true, shadow: false },
-    [DrawState.SHADOW_WRITE]: { func: gl.GREATER, write: true, shadow: true },
-    [DrawState.SHADOW_FLAT]: { func: null, write: false, shadow: true },
-    [DrawState.NEARER_OR_EQUAL]: { func: gl.GEQUAL, write: false, shadow: false },
-    [DrawState.NEARER_SHADOW]: { func: gl.GREATER, write: false, shadow: true },
-    [DrawState.FARTHER]: { func: gl.LESS, write: false, shadow: false },
-    [DrawState.FARTHER_OR_EQUAL]: { func: gl.LEQUAL, write: false, shadow: false },
-    [DrawState.ALWAYS_WRITE]: { func: gl.ALWAYS, write: true, shadow: false },
+    [DrawState.LAND]: { func: null, write: false, blend: 'none' },
+    [DrawState.NEARER_OR_EQUAL_WRITE]: { func: gl.GEQUAL, write: true, blend: 'none' },
+    [DrawState.NEARER_WRITE]: { func: gl.GREATER, write: true, blend: 'none' },
+    [DrawState.SHADOW_WRITE]: { func: gl.GREATER, write: true, blend: 'shadow' },
+    [DrawState.SHADOW_FLAT]: { func: null, write: false, blend: 'shadow' },
+    [DrawState.NEARER_OR_EQUAL]: { func: gl.GEQUAL, write: false, blend: 'none' },
+    [DrawState.NEARER_SHADOW]: { func: gl.GREATER, write: false, blend: 'shadow' },
+    [DrawState.FARTHER]: { func: gl.LESS, write: false, blend: 'none' },
+    [DrawState.FARTHER_OR_EQUAL]: { func: gl.LEQUAL, write: false, blend: 'none' },
+    [DrawState.ALWAYS_WRITE]: { func: gl.ALWAYS, write: true, blend: 'none' },
+    [DrawState.TRANSLUCENT]: { func: gl.GEQUAL, write: false, blend: 'translucent' },
   };
 }
 
@@ -186,7 +191,7 @@ export class WorldProgram {
   #bound: InstanceStream | null = null;
   #drawCalls = 0;
   #instances = 0;
-  #shadowOn = false;
+  #blend: BlendMode = 'none';
 
   constructor(gl: WebGL2RenderingContext) {
     this.#gl = gl;
@@ -221,7 +226,7 @@ export class WorldProgram {
     gl.uniform2f(this.#offset, f.offset.x, f.offset.y);
     gl.uniform1i(this.#natural, f.natural);
     gl.uniform1f(this.#shadow, 0);
-    this.#shadowOn = false;
+    this.#blend = 'none';
     gl.activeTexture(gl.TEXTURE0 + ATLAS_UNIT);
     gl.bindTexture(gl.TEXTURE_2D_ARRAY, f.atlas);
     gl.activeTexture(gl.TEXTURE0 + PALETTE_UNIT);
@@ -243,13 +248,22 @@ export class WorldProgram {
       gl.depthFunc(s.func);
     }
     gl.depthMask(s.write);
-    if (s.shadow !== this.#shadowOn) {
-      this.#shadowOn = s.shadow;
-      gl.uniform1f(this.#shadow, s.shadow ? SHADOW_FACTOR : 0);
-      if (s.shadow) {
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.ZERO, gl.SRC_COLOR);
-      } else gl.disable(gl.BLEND);
+    if (s.blend !== this.#blend) this.#setBlend(s.blend);
+  }
+
+  #setBlend(mode: BlendMode): void {
+    const gl = this.#gl;
+    if ((mode === 'shadow') !== (this.#blend === 'shadow')) gl.uniform1f(this.#shadow, mode === 'shadow' ? SHADOW_FACTOR : 0);
+    this.#blend = mode;
+    if (mode === 'none') {
+      gl.disable(gl.BLEND);
+      return;
+    }
+    gl.enable(gl.BLEND);
+    if (mode === 'shadow') gl.blendFunc(gl.ZERO, gl.SRC_COLOR);
+    else {
+      gl.blendColor(0, 0, 0, TRANSLUCENT_ALPHA);
+      gl.blendFunc(gl.CONSTANT_ALPHA, gl.ONE_MINUS_CONSTANT_ALPHA);
     }
   }
 

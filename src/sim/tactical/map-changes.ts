@@ -84,6 +84,24 @@ export function recordStructureDamaged(t: TacticalState, base: StructureInstance
   record(t, MapChangeKind.DAMAGE, base);
 }
 
+const tilesByStructure = new WeakMap<object, Map<object, number>>();
+
+function tileOfStructure(t: TacticalState): Map<object, number> {
+  const tiles = t.world.tiles ?? NO_TILES;
+  let table = tilesByStructure.get(tiles);
+  if (!table) {
+    table = new Map();
+    for (const te of tiles) if (te.structure && !table.has(te.structure)) table.set(te.structure, te.index);
+    tilesByStructure.set(tiles, table);
+  }
+  return table;
+}
+
+export function mapChangeTile(t: TacticalState, c: MapChange): number | null {
+  const def = fileForKey(t, c.fileKey)?.structures[c.number];
+  return def ? (tileOfStructure(t).get(def) ?? null) : null;
+}
+
 function findRecordedBase(t: TacticalState, c: MapChange): StructureInstance | null {
   const file = fileForKey(t, c.fileKey);
   for (const s of t.world.structures.at(c.gridNo)) {

@@ -1,11 +1,20 @@
 import { installSaveControls } from '../../app/net/save-controls.ts';
 import { SessionClient } from '../../app/net/session-client.ts';
 import { SleepWakeStop } from '../../app/net/sleep-wake-stop.ts';
-import { fetchVfsList } from '../../app/net/vfs.ts';
+import { fetchVfsFile, fetchVfsList, type VfsFile } from '../../app/net/vfs.ts';
 import { TacticalSound } from '../../app/sound/tactical-sound.ts';
+import { AiTurnHolder } from '../../app/world/ai-turn.ts';
+import { LightTemplates, MERC_LIGHT } from '../../app/world/light-templates.ts';
 import { SoldierAssets } from '../../app/world/soldier-assets.ts';
+import { loadSoldierFrames, type SoldierFrames } from '../../app/world/soldier-frames.ts';
 import type { SoldierScene } from '../../app/world/soldier-scene.ts';
-import { DEFAULT_TACTICAL_OPTIONS, type TacticalDisplayOptions, TacticalWorldView } from '../../app/world/tactical-world-view.ts';
+import {
+  DEFAULT_TACTICAL_OPTIONS,
+  type TacticalDisplayOptions,
+  type TacticalPresentation,
+  TacticalWorldView,
+} from '../../app/world/tactical-world-view.ts';
+import { WorldEffects } from '../../app/world/world-effects.ts';
 import { WORLD_COLS } from '../../content/world/grid.ts';
 import type { TileTables } from '../../content/world/tile-tables.ts';
 import type { SoldierView } from '../../protocol/view.ts';
@@ -41,6 +50,15 @@ interface TacticalHook {
   zoom: number;
   items: number;
   soldierTeams: number[];
+  framePolicy: string | null;
+  mercLightOrigin: string | null;
+  lightTemplatesFromData: number;
+  corpses: number;
+  smokeTiles: number;
+  tileChanges: number;
+  ambient: number | null;
+  dynamicLights: number;
+  aiTurn: number | null;
   command(cmd: { readonly type: string; readonly [key: string]: unknown }): Promise<unknown>;
   soldierBoxes: { readonly id: number; readonly x: number; readonly y: number; readonly width: number; readonly height: number }[];
 }
@@ -72,6 +90,15 @@ const debug: TacticalHook = {
   zoom: 2,
   items: 0,
   soldierTeams: [],
+  framePolicy: null,
+  mercLightOrigin: null,
+  lightTemplatesFromData: 0,
+  corpses: 0,
+  smokeTiles: 0,
+  tileChanges: 0,
+  ambient: null,
+  dynamicLights: 0,
+  aiTurn: null,
   command: (cmd) => client?.command(cmd) ?? Promise.resolve({ ok: false, reason: 'not connected' }),
   soldierBoxes: [],
 };
@@ -118,6 +145,10 @@ const OPTION_BOXES: readonly [keyof MutableOptions, string][] = [
 let view: TacticalWorldView | null = null;
 let assets: SoldierAssets | null = null;
 let soldierScene: SoldierScene | null = null;
+let soldierFrames: SoldierFrames | null = null;
+let effects: WorldEffects | null = null;
+let lightTemplates = new LightTemplates();
+const aiTurns = new AiTurnHolder();
 let client: SessionClient | null = null;
 let camera: Camera = { centerX: 805, centerY: 805 };
 let limits: ScrollLimits = scrollLimits(0);
@@ -215,15 +246,22 @@ function render(): void {
     roofLevel: false,
     options,
     view: {
+      tick: client?.shownTick ?? 0,
       soldiers: soldiers(),
       items: client?.items ?? [],
       openDoors: client?.openDoors ?? [],
       revealedRooms: client?.revealedRooms ?? [],
       clock: client?.clock ?? null,
       combat: client?.combat ?? null,
+      corpses: client?.view?.corpses ?? [],
+      smoke: client?.view?.smoke ?? [],
+      light: client?.view?.light ?? null,
+      tileChanges: client?.view?.tileChanges ?? [],
     },
     hovered: hoveredSoldier,
+    selected,
     uiNodes: uiNodes(),
+    underAiControl: (id) => aiTurns.holds(id),
   });
   renderer.present(null, canvas.height, 0, 0, zoom);
   debug.renderMs = performance.now() - renderStart;
@@ -235,6 +273,12 @@ function render(): void {
   debug.zoom = zoom;
   debug.items = client?.items.length ?? 0;
   debug.soldierTeams = soldiers().map((s) => s.team);
+  debug.corpses = client?.view?.corpses?.length ?? 0;
+  debug.smokeTiles = client?.view?.smoke?.length ?? 0;
+  debug.tileChanges = client?.view?.tileChanges?.length ?? 0;
+  debug.ambient = client?.view?.light?.ambient ?? null;
+  debug.dynamicLights = client?.view?.light?.sprites.length ?? 0;
+  debug.aiTurn = aiTurns.soldier;
   debug.soldierBoxes = renderer.placedSoldiers.map((p) => ({ id: p.id, x: p.x, y: p.y, width: p.width, height: p.height }));
   debug.drawCalls = stats.drawCalls;
   debug.stats = stats;
@@ -429,13 +473,16 @@ el<HTMLButtonElement>('idle').addEventListener('click', () => {
 });
 
 let available: ReadonlySet<string> = new Set();
+let listing: readonly VfsFile[] = [];
+const pageParams = new URLSearchParams(location.search);
 let loadingMap: string | null = null;
 
 async function loadSector(mapPath: string): Promise<void> {
   loadingMap = mapPath;
   debug.ready = false;
   if (!soldierScene) throw new Error('soldier assets are not loaded');
-  const loaded = await TacticalWorldView.load(renderer, mapPath, available, soldierScene);
+  const presentation: TacticalPresentation = { soldiers: soldierScene, frames: soldierFrames, effects, lightTemplates };
+  const loaded = await TacticalWorldView.load(renderer, mapPath, available, presentation);
   view = loaded;
   limits = scrollLimits(loaded.world.map.info.restrictedScrollId);
   pointerTiles = { hover: pointerTile(loaded.world.tables, HOVER_POINTER), selected: pointerTile(loaded.world.tables, SELECTED_POINTER) };
@@ -464,24 +511,41 @@ function followSectorChange(): void {
 
 async function start(): Promise<void> {
   try {
-    const files = await fetchVfsList();
-    available = new Set(files.map((f) => f.path));
-    client = await SessionClient.connect(new URLSearchParams(location.search).get('session') ?? undefined);
+    listing = await fetchVfsList();
+    available = new Set(listing.map((f) => f.path));
+    client = await SessionClient.connect(pageParams.get('session') ?? undefined);
     client.playbackSpeed = DEFAULT_PLAYBACK;
     const mapPath = client.mapPath;
     if (!mapPath) throw new Error('no sector is loaded in this session');
     assets = await SoldierAssets.load(available);
     soldierScene = TacticalWorldView.soldierScene(assets);
+    soldierFrames = await loadSoldierFrames({
+      available,
+      read: fetchVfsFile,
+      serverScripts: client.rules?.scripts ?? null,
+      preferStubScripts: pageParams.get('scripts') === 'stub',
+    });
+    debug.framePolicy = soldierFrames?.policy ?? null;
+    effects = await WorldEffects.load(fetchVfsFile, available, assets.palettes);
+    lightTemplates = await LightTemplates.load(listing, fetchVfsFile);
+    debug.lightTemplatesFromData = lightTemplates.fromData;
+    debug.mercLightOrigin = lightTemplates.resolve(MERC_LIGHT)?.origin ?? null;
     await sound.load(available, assets.tables, client.session ?? 'local');
     sound.director?.reset(client.soldiers);
     sound.music.reset(client.view?.music);
     client.onFrames = (frames) => {
       sound.frames(frames);
       sleepWake.frames(frames);
+      for (const frame of frames) aiTurns.observe(frame.events ?? []);
+    };
+    client.onReceive = (frames) => {
+      for (const frame of frames) soldierFrames?.observe(frame.events ?? []);
     };
     client.onWelcome = () => {
       sound.director?.reset(client?.soldiers ?? []);
       sound.music.reset(client?.view?.music);
+      soldierFrames?.reset();
+      aiTurns.reset();
     };
     await loadSector(mapPath);
     for (const b of document.querySelectorAll<HTMLButtonElement>('[data-speed]'))

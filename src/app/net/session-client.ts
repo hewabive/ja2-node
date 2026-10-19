@@ -2,6 +2,7 @@ import {
   type ClientMessage,
   type CommandEnvelope,
   type DriverMode,
+  type RulePackIdentityView,
   type ServerMessage,
   type SessionStopReport,
   type StopCondition,
@@ -45,6 +46,8 @@ export class SessionClient {
   onChange: (() => void) | null = null;
   onFrames: ((frames: readonly ViewFrame[]) => void) | null = null;
   onWelcome: (() => void) | null = null;
+  onReceive: ((frames: readonly ViewFrame[]) => void) | null = null;
+  rules: RulePackIdentityView | null = null;
   readonly #socket: WebSocket;
   readonly #pending = new Map<number, Pending>();
   readonly #frames: ViewFrame[] = [];
@@ -188,6 +191,7 @@ export class SessionClient {
       case 'welcome':
         this.#frames.length = 0;
         this.session = m.session;
+        this.rules = m.rules;
         this.driver = m.driver;
         this.#shown = m.view;
         this.#latest = m.view;
@@ -197,6 +201,7 @@ export class SessionClient {
       case 'frames':
         this.#frames.push(...m.frames);
         for (const frame of m.frames) this.#latest = this.#latest && applyViewFrame(this.#latest, frame);
+        this.onReceive?.(m.frames);
         break;
       case 'result':
       case 'stopped': {

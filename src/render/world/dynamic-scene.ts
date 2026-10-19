@@ -5,11 +5,13 @@
 // @src SetUpInterface (UI nodes). See docs/05 §2.5, docs/28 §6.4.
 
 import type { LayerName } from '../../content/formats/map.ts';
-import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
+import { CELL_X_SIZE, CELL_Y_SIZE, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { levelTilesAt } from '../../content/world/level.ts';
 import { type TileElement, TileFlags } from '../../content/world/tile-database.ts';
+import type { ZStripInfo } from '../../content/world/zstrip.ts';
 import {
   type Camera,
+  corpseZ,
   HALF_TILE_X,
   heightAdjusted,
   itemZ,
@@ -21,8 +23,10 @@ import {
   objectZ,
   onRoofZ,
   ROW_COUNT,
+  roofCorpseZ,
   roofMercZ,
   roofZ,
+  STRUCT_Z_LEVEL,
   structZ,
   TOPMOST_Z_LEVEL,
   type Viewport,
@@ -31,6 +35,7 @@ import {
   worldY,
   wrap16,
   Z_STRIP_DELTA,
+  Z_SUBLAYERS,
 } from './geometry.ts';
 import { DrawState, InstanceBuffer, InstanceFlags, ShadeKey, type SpriteSource } from './instances.ts';
 import type { LevelRenderData } from './level-render-data.ts';
@@ -39,6 +44,7 @@ import type { StaticWorld, TileSprite } from './static-scene.ts';
 export const ANIMATED_TILE_FRAME_MS = 200;
 export const MAX_RENDERED_ITEMS = 2;
 const SHADOW_INDEX_FLAGS = InstanceFlags.ONLY_SHADOW_INDEX;
+const CENTRE_OFFSET = 5;
 const BODY_FLAGS = InstanceFlags.EXCEPT_SHADOW_INDEX;
 const OBSCURED_FLAGS = InstanceFlags.EXCEPT_SHADOW_INDEX | InstanceFlags.DITHER;
 
@@ -54,9 +60,12 @@ export interface WorldUiNode {
   readonly shade?: number;
 }
 
-export interface SoldierSprite extends SpriteSource {
+export interface OffsetSprite extends SpriteSource {
   readonly offsetX: number;
   readonly offsetY: number;
+}
+
+export interface SoldierSprite extends OffsetSprite {
   readonly pixels: Uint8Array;
 }
 
@@ -69,6 +78,20 @@ export interface SceneSoldier {
   readonly sprite: SoldierSprite;
   readonly paletteRow: number;
   readonly topmost: boolean;
+}
+
+export type AniTileKind = 'corpse' | 'vehicleCorpse' | 'smoke' | 'staticSmoke';
+
+export interface SceneAniTile {
+  readonly kind: AniTileKind;
+  readonly gridNo: number;
+  readonly level: number;
+  readonly sprite: OffsetSprite;
+  readonly paletteRow: number;
+  readonly shaded: boolean;
+  readonly zStrip: ZStripInfo | null;
+  readonly zTileOffsetX: number;
+  readonly zTileOffsetY: number;
 }
 
 export interface SceneItem {
@@ -94,6 +117,7 @@ export interface DynamicFrame {
   readonly items: readonly SceneItem[];
   readonly itemOutline: (onRoof: boolean) => number;
   readonly uiNodes: readonly WorldUiNode[];
+  readonly aniTiles: readonly SceneAniTile[];
 }
 
 export interface PlacedSoldier {
@@ -167,6 +191,7 @@ export class DynamicScene {
   #soldiersByTile = new Map<number, SceneSoldier[]>();
   #uiByTile = new Map<number, WorldUiNode[]>();
   #itemsByTile = new Map<number, SceneItem[]>();
+  #aniByTile = new Map<number, SceneAniTile[]>();
 
   constructor(world: StaticWorld, prepared: LevelRenderData) {
     this.#world = world;
@@ -185,10 +210,12 @@ export class DynamicScene {
     this.#soldiersByTile = groupBy(frame.soldiers, (s) => s.gridNo);
     this.#uiByTile = groupBy(frame.uiNodes, (n) => n.gridNo);
     this.#itemsByTile = groupBy(frame.items, (i) => i.gridNo * 2 + (i.level > 0 ? 1 : 0));
+    this.#aniByTile = groupBy(frame.aniTiles, (a) => a.gridNo * 2 + (a.level > 0 ? 1 : 0));
     this.#frameRows = rowsOf([
       ...frame.soldiers.map((s) => s.gridNo),
       ...frame.uiNodes.map((n) => n.gridNo),
       ...frame.items.map((i) => i.gridNo),
+      ...frame.aniTiles.map((a) => a.gridNo),
     ]);
     const first = Math.max(0, frame.rows.first);
     const last = Math.min(ROW_COUNT - 1, frame.rows.last);
@@ -245,7 +272,56 @@ export class DynamicScene {
     const ui = (this.#uiByTile.get(g) ?? []).filter((n) => UI_LAYER_OF[n.layer] === layer);
     for (const n of ui) if (n.head) this.#emitUiNode(n, x, y, layer);
     for (const node of this.#mapNodes.get(g) ?? []) if (node.layer === layer) this.#emitMapNode(g, x, y, layer, node.tile);
+    if (layer === 'structs' || layer === 'onRoof')
+      for (const a of this.#aniByTile.get(g * 2 + (layer === 'onRoof' ? 1 : 0)) ?? []) this.#emitAniTile(a, x, y);
     for (const n of ui) if (!n.head) this.#emitUiNode(n, x, y, layer);
+  }
+
+  #centreScreen(g: number, level: number): { readonly x: number; readonly y: number } {
+    const frame = this.#frame as DynamicFrame;
+    const c = mapCenter(frame.viewport);
+    const offX = c.x - 2 * (frame.camera.centerX - frame.camera.centerY);
+    const offY = c.y - (frame.camera.centerX + frame.camera.centerY) + frame.renderHeight;
+    const dx = (g % WORLD_COLS) * CELL_X_SIZE + CENTRE_OFFSET - frame.camera.centerX;
+    const dy = Math.floor(g / WORLD_COLS) * CELL_Y_SIZE + CENTRE_OFFSET - frame.camera.centerY;
+    const height = this.#world.level.heights[g] ?? 0;
+    return {
+      x: c.x + Math.trunc(2 * dx - 2 * dy) - offX,
+      y: c.y + Math.trunc(dx + dy) - height - level * WALL_HEIGHT + frame.renderHeight - offY,
+    };
+  }
+
+  #aniZ(a: SceneAniTile, x: number, y: number): number {
+    const topY = this.#world.topY;
+    if (a.kind === 'smoke' || a.kind === 'staticSmoke') return a.level > 0 ? onRoofZ(worldY(x, y, topY)) : itemZ(worldY(x, y, topY));
+    if (a.level > 0) return roofCorpseZ(worldY(x, y, topY));
+    if (a.kind === 'vehicleCorpse') return wrap16(worldY(x + a.zTileOffsetX, y + a.zTileOffsetY, topY) * Z_SUBLAYERS + STRUCT_Z_LEVEL);
+    return corpseZ(worldY(x - 1, y - 1, topY));
+  }
+
+  #emitAniTile(a: SceneAniTile, x: number, y: number): void {
+    const centre = this.#centreScreen(a.gridNo, a.level);
+    const p = { x: centre.x + a.sprite.offsetX, y: centre.y + a.sprite.offsetY };
+    const z = this.#aniZ(a, x, y);
+    const shadeKey = a.shaded ? (a.level > 0 ? ShadeKey.ROOF_BASE + a.gridNo : a.gridNo) : ShadeKey.FIXED;
+    const out = this.instances;
+    const s = a.sprite;
+    if (a.kind === 'smoke' || a.kind === 'staticSmoke') {
+      const state = a.kind === 'smoke' ? DrawState.TRANSLUCENT : DrawState.NEARER_OR_EQUAL;
+      this.#push(out, this.runs, state, () => out.push(p.x, p.y, s, 0, s.width, a.paletteRow, z, shadeKey, 0, 0));
+      return;
+    }
+    const strip = a.zStrip;
+    this.#push(out, this.runs, DrawState.NEARER_SHADOW, () =>
+      strip
+        ? emitStrips(out, p, strip, s, z, shadeKey, a.paletteRow, SHADOW_INDEX_FLAGS)
+        : out.push(p.x, p.y, s, 0, s.width, a.paletteRow, z, shadeKey, SHADOW_INDEX_FLAGS, 0),
+    );
+    this.#push(out, this.runs, DrawState.NEARER_WRITE, () =>
+      strip
+        ? emitStrips(out, p, strip, s, z, shadeKey, a.paletteRow, BODY_FLAGS)
+        : out.push(p.x, p.y, s, 0, s.width, a.paletteRow, z, shadeKey, BODY_FLAGS, 0),
+    );
   }
 
   #emitTopmost(g: number, x: number, y: number): void {
@@ -303,7 +379,8 @@ export class DynamicScene {
       case 'structs': {
         const z = structZ(wy);
         if (d.te.flags & TileFlags.MULTI_Z && d.te.zStrip) {
-          this.#push(out, this.runs, DrawState.NEARER_WRITE, () => emitStrips(out, p, d.te, s, z, shadeKey, row));
+          const strip = d.te.zStrip;
+          this.#push(out, this.runs, DrawState.NEARER_WRITE, () => emitStrips(out, p, strip, s, z, shadeKey, row, 0));
           return;
         }
         this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL, () => out.push(p.x, p.y, s, 0, s.width, row, wrap16(z), shadeKey, 0, 0));
@@ -396,20 +473,19 @@ const UI_NODE_SHADE = 4;
 function emitStrips(
   out: InstanceBuffer,
   p: { x: number; y: number },
-  te: TileElement,
-  sprite: TileSprite,
+  strip: ZStripInfo,
+  sprite: SpriteSource,
   base: number,
   shadeKey: number,
   row: number,
+  flags: number,
 ): void {
-  const strip = te.zStrip;
-  if (!strip) return;
   let z = base + Z_STRIP_DELTA * strip.initialZChange;
   let srcX = 0;
   let width = Math.min(strip.firstStripWidth, sprite.width);
   let k = 0;
   while (srcX < sprite.width) {
-    out.push(p.x, p.y, sprite, srcX, width, row, wrap16(z), shadeKey, 0, 0);
+    out.push(p.x, p.y, sprite, srcX, width, row, wrap16(z), shadeKey, flags, 0);
     srcX += width;
     width = Math.min(HALF_TILE_X, sprite.width - srcX);
     z += Z_STRIP_DELTA * (strip.zChanges[k++] ?? 0);
