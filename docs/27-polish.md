@@ -205,6 +205,8 @@ warning that a replay may diverge, like Stracciatella's version warning (`SaveLo
 repeats what the save list shows without parsing the body (the original's reason for its header,
 `SaveLoadGame.h:24-60`). As built in M8 (U0b, §1.7) `content.logic` is the hash of the server's rule pack, which
 holds every file the simulation can read rather than the files read so far; text files still count by presence only.
+Since U0c (§1.7) the hash binds a save to the game data only (the user's data on the original data, the stub pack on
+the stubs), not to the tables that ship with the engine, and on the stubs another pack only warns (`stubPackDiffers`).
 
 **Codec** `src/sim/snapshot/` (DOM-free, Node-free, deterministic, SFI header only where it encodes original fields):
 `snapshotSession(sim): SimSnapshot` and `restoreSession(snapshot, deps): SessionSim`, where `deps` holds the shared
@@ -548,9 +550,40 @@ not only those read before the save, and it is known before any session exists (
 - **Fixture.** `src/server/fixtures/` holds a landed campaign and a sandbox saved by the code at 91a4365 on the stub
   pack, with the views they showed; `legacy-save.test.ts` loads them, expects the same views 400 ticks later and
   re-saves them as version 2.
-- The text identity and the warnings are unchanged. Because the pack contains every rule file of every layer, a
-  change of a stub rule file (a regenerated stub map or table) also changes the pack hash on the original data, where
-  0.7.0 counted only the stub files a session had read.
+- The text identity and the warnings are unchanged. Because the pack hash covered every rule file of every layer, a
+  change of a stub rule file or a project table also changed the pack hash on the original data and refused every save
+  made there; U0c scoped it.
+
+**Status after U0c (M8, 2026-10-19): the content identity binds a save to the game data.** Everything that ships in the
+repository is versioned with the engine (its version and commit are in the save header and in `welcome`); a
+difference there only gives `engineDiffers`.
+
+| Source | The identity covers (by the entry's winning VFS layer) | Not covered | Another identity |
+|---|---|---|---|
+| `original` | the data folder and the SLF archives: rule files, graphic facts, text presence, layer counts | the project tables (`ja2-node-data`: `tables/**`, `externalized/**`) and the stub pack (`stubs/…`) | refused (`contentMismatch`) |
+| `stubs` | the stub pack | the project tables | loads with the warning **`stubPackDiffers`**: the repository generates the stub pack and changes it during development |
+
+- **The pack** (`src/content/rules/pack.ts`): every blob and graphic records its winning layer (`isIdentityLayer`
+  decides); the identity text starts with `ja2-node-rules 2` and holds only the entries of the identity layers. The
+  entries of the other layers stay in the pack and answer reads and probes exactly as before. The manifest (version 2)
+  also carries `allLayersHash`, the U0b identity text (`ja2-node-rules 1`) over every entry: it names the cache
+  directory and is verified with the identity when a cached pack is loaded.
+- **Saves of U0b** (version 2, written by 9867f03) carry the all-layers hash: a load accepts either hash, so they load
+  while nothing in the pack has changed; a re-save writes the scoped identity. The save version stays 2.
+- **Saves of 0.7.0** (version 1, `legacyContent`): the 0.7.0 hash over the listed files is first recomputed from the
+  current data (equal: the same data). Otherwise it is recomputed with the entries of the identity layers read from the
+  current data and the entries whose current layer is outside the identity taken as saved: presence lines as listed, and
+  the files of `ja2-node-data` from the repository's history at the save's engine commit
+  (`src/server/repository-history.ts`, `git cat-file`, only for a hexadecimal commit id). A file outside the identity
+  that cannot be recovered (a generated stub file, or no history and no such commit) counts with its current bytes, so
+  a change there still looks like a difference; loading such a save once and saving it again writes the scoped
+  identity. The rules of the table apply; the fixtures of `src/server/fixtures/` warn after a stub file they recorded
+  changes (`legacy-save.test.ts`).
+- **List and launcher.** `listSaves` and `GET /api/saves` give each ja2-node save `warnings` predicted from its header
+  (`stubPackDiffers` for a version 2 save of another stub pack); the launcher adds them to its warning box with a
+  ja2-node line. The MCP load description names the warning.
+- **The client** computes the same identity from the asset manifest (version 2: `layers` and the winning layer's index
+  per entry), so `clientRulePackIdentity` agrees with the server on both sources.
 
 ### 1.8 Browser UI (M7)
 
@@ -1885,7 +1918,8 @@ human plays the campaign in the browser without the devtools pages. Size XL.
   their own. The tooltip lists the difficulty with `SLG_DIFF`, the save mode, the guns, the style, blood and gore and
   the data version (in place of the original's mods). Load asks once, as `SaveLoadSelectedSave` does: the warnings the
   launcher can predict from the header and `/api/health` (`engineDiffers` with `SLG_GAME_VERSION_DIF`,
-  `dataVersionDiffers` with a ja2-node line) go into one box between `SLG_SAVED_GAME_ISSUE` and
+  `dataVersionDiffers` with a ja2-node line; since U0c also the list's `stubPackDiffers` with a ja2-node line) go into
+  one box between `SLG_SAVED_GAME_ISSUE` and
   `SLG_SAVED_GAME_CONTINUE_ANYWAYS`; the load goes into a new session or in place into a running one, and the warnings
   the server returns (the text identity) are shown with the result; a native save imports with `newSession {save}`.
   Save as new (`{description}`, at most 46 characters) or over the selected save (`SLG_CONFIRM_SAVE`; `QuickSave` is
@@ -1968,7 +2002,7 @@ session hosts in §5.9.
 | MCP tool | HTTP | Purpose |
 |---|---|---|
 | `save {session, name?, description?}` | `POST /api/sessions/:id/save` | §1.7; refusals `conversation`, `meanwhileStarting`, `promptOpen`, `shopOpen`, `ironMan`, `deadIsDead`; a won campaign may still be saved (`26` §13 decision 3) |
-| `load {name, session?, reseed?}` | `POST /api/sessions/:id/load`, `POST /api/sessions {load}` | §1.5; refusals `contentMismatch`, `versionTooNew`, `notFound`; warnings `dataVersionDiffers`, `engineDiffers` |
+| `load {name, session?, reseed?}` | `POST /api/sessions/:id/load`, `POST /api/sessions {load}` | §1.5; refusals `contentMismatch`, `versionTooNew`, `notFound`; warnings `dataVersionDiffers`, `engineDiffers`, `stubPackDiffers` (U0c, §1.7) |
 | `listSaves {}` | `GET /api/saves` | headers of ja2-node and native saves |
 | `deleteSave {name}` | `DELETE /api/saves/:name` | |
 | — | `GET`/`PUT /api/saves/:name/file` | download and upload (browser only) |
