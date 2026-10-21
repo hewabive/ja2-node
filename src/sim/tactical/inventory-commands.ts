@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Panels.cc CheckForDisabledForGiveItem, SetNewPanel (no panel for escorts and
 // @src vehicles); Interface_Items.cc HandleItemPointerClick (the drop on the soldier's own tile), CancelItemPointer;
-// @src Handle_Items.cc HandleItem (the medkit branch); Handle_UI.cc the medkit checks of the item cursor.
+// @src Handle_Items.cc HandleItem (the medkit branch); Handle_UI.cc the medkit checks of the item cursor;
+// @src Interface_Items.cc RemoveMoney (a money split dropped into a pocket).
 // @src See docs/04 §6.23, docs/12 §3–§5.
 
 import type { ItemTable } from '../../content/items/items.ts';
@@ -24,6 +25,7 @@ import {
   type PanelOutcome,
   PanelRefusal,
   reloadWeapon,
+  splitMoney,
   swapHands,
   unloadGun,
 } from './inventory-panel.ts';
@@ -48,6 +50,7 @@ export const INVENTORY_COMMANDS: ReadonlySet<string> = new Set([
   'swapHands',
   'applyItem',
   'bandage',
+  'splitMoney',
 ]);
 
 export const SLOT_NAMES: Readonly<Record<string, number>> = {
@@ -81,6 +84,7 @@ export const InventoryRefusal = {
   NO_INVENTORY: 'noInventory',
   TOO_FAR: 'tooFar',
   NO_LINE_OF_SIGHT: 'noLineOfSight',
+  BAD_AMOUNT: 'badAmount',
   ...FirstAidRefusal,
 } as const;
 
@@ -108,6 +112,9 @@ export const INVENTORY_REFUSAL_TEXT: Readonly<Record<InventoryRefusal, string>> 
   unconsciousTarget: 'the target is unconscious',
   cannotApply: 'that item cannot be applied',
   notPorted: 'drugs and alcohol are not simulated yet',
+  notMoney: 'that slot holds no money',
+  notEnoughMoney: 'there is not that much money',
+  badAmount: 'amount must be a positive whole number of dollars',
   badSlot: 'slot must be 0..18 or a slot name such as hand, secondHand, head1, bigPocket1, smallPocket1',
   badCount: 'count must be 1 or "all"',
   badIndex: 'index must point to an object in the stack',
@@ -289,6 +296,21 @@ function applyCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): Comm
   return outcomeResult(applyItem(tacticalPanelEnv(t), s, slot, target));
 }
 
+export function moneyAmount(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function splitMoneyCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): CommandResult {
+  const from = parseSlot(cmd.slot);
+  const to = parseSlot(cmd.to);
+  if (from === null || to === null) return refusal(InventoryRefusal.BAD_SLOT);
+  const amount = moneyAmount(cmd.amount);
+  if (amount === null) return refusal(InventoryRefusal.BAD_AMOUNT);
+  const target = panelTarget(t, s, cmd.toSoldier);
+  if (typeof target === 'string') return refusal(target);
+  return outcomeResult(splitMoney(tacticalPanelEnv(t), { mover: s, from, amount, target, to }));
+}
+
 function bandageCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): CommandResult {
   const patient = typeof cmd.target === 'number' ? (t.soldiers[cmd.target] ?? null) : s;
   const target = patient?.placed && patient.level === s.level ? patient : null;
@@ -316,6 +338,8 @@ export function dispatchInventoryCommand(t: TacticalState, s: Soldier, cmd: Inve
       return outcomeResult(swapHands(tacticalPanelEnv(t), t, s));
     case 'applyItem':
       return applyCommand(t, s, cmd);
+    case 'splitMoney':
+      return splitMoneyCommand(t, s, cmd);
     default:
       return bandageCommand(t, s, cmd);
   }

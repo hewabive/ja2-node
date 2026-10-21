@@ -6,7 +6,9 @@
 // @src DeleteItemDescriptionBox (AP_RELOAD_GUN when the attachments changed, charged per command, see docs/deviations.md),
 // @src ItemPopupRegionCallbackPrimary (one object of a stack), CompatibleItemForApplyingOnMerc; Turn_Based_Input.cc
 // @src HandleUIReloading; Points.cc GetAPsToAutoReload; Items.cc RemoveObjectFromSlot, ApplyCamo, ApplyCanteen,
-// @src ApplyElixir; Strategic/MapScreen.cc MAPInvClickCallbackPrimary (no APs, attachments through the description box).
+// @src ApplyElixir; Strategic/MapScreen.cc MAPInvClickCallbackPrimary (no APs, attachments through the description box);
+// @src Interface_Items.cc RemoveMoney, BtnMoneyButtonCallback* (the money box splits money off a pocket into the cursor,
+// @src then the drop places it: one command).
 // @src See docs/12 §3–§5, docs/04 §6.23.
 
 import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
@@ -68,6 +70,14 @@ export type PanelEvent =
   | { readonly type: 'itemDetached'; readonly soldier: number; readonly item: string; readonly from: string }
   | { readonly type: 'gunUnloaded'; readonly soldier: number; readonly item: string; readonly magazine: string; readonly rounds: number }
   | { readonly type: 'itemApplied'; readonly soldier: number; readonly target: number; readonly item: string }
+  | {
+      readonly type: 'moneySplit';
+      readonly soldier: number;
+      readonly slot: number;
+      readonly to: number;
+      readonly toSoldier?: number;
+      readonly amount: number;
+    }
   | { readonly type: 'handsSwapped'; readonly soldier: number };
 
 export const PanelRefusal = {
@@ -92,6 +102,8 @@ export const PanelRefusal = {
   UNCONSCIOUS_TARGET: 'unconsciousTarget',
   CANNOT_APPLY: 'cannotApply',
   NOT_PORTED: 'notPorted',
+  NOT_MONEY: 'notMoney',
+  NOT_ENOUGH_MONEY: 'notEnoughMoney',
 } as const;
 
 export type PanelRefusal = (typeof PanelRefusal)[keyof typeof PanelRefusal];
@@ -254,6 +266,50 @@ export function moveItem(env: PanelEnv, req: MoveRequest): PanelOutcome {
     ...(target !== mover ? { toSoldier: target.id } : {}),
   });
   return { ok: true, data: { item: name(env.items, cursorItem), count: moved } };
+}
+
+export interface SplitMoneyRequest {
+  readonly mover: Soldier;
+  readonly from: number;
+  readonly amount: number;
+  readonly target: Soldier;
+  readonly to: number;
+}
+
+function takeMoney(o: ItemObject, amount: number): ItemObject {
+  if (amount >= o.money) {
+    const whole = cloneObject(o);
+    deleteObject(o);
+    return whole;
+  }
+  const part = cloneObject(o);
+  part.money = amount;
+  o.money -= amount;
+  return part;
+}
+
+export function splitMoney(env: PanelEnv, req: SplitMoneyRequest): PanelOutcome {
+  const { mover, from, amount, target, to } = req;
+  const source = mover.inv[from] as ItemObject;
+  if (source.item === NOTHING) return refuse(PanelRefusal.EMPTY_SLOT);
+  if (env.items.byIndex.get(source.item)?.itemClass !== ItemClass.MONEY) return refuse(PanelRefusal.NOT_MONEY);
+  if (amount > source.money) return refuse(PanelRefusal.NOT_ENOUGH_MONEY);
+  if (mover === target && from === to) return refuse(PanelRefusal.SAME_SLOT);
+  const transfer = transferCheckRefusal(env, mover, target);
+  if (transfer) return refuse(transfer);
+  const sourceCopy = clonedCarrier(mover);
+  const destination = target === mover ? sourceCopy : clonedCarrier(target);
+  const trial = takeMoney(sourceCopy.inv[from] as ItemObject, amount);
+  if (!placeObject(dryContext(env, target), destination, to, trial) || trial.count > 0) return refuse(PanelRefusal.DOES_NOT_FIT);
+  const money = source.item;
+  const oldTarget = itemIn(target.inv, to);
+  const cursor = takeMoney(source, amount);
+  if (source.item === NOTHING) env.equipmentChanged(mover, from, money, NOTHING);
+  placeObject(env.context(target), target, to, cursor);
+  if (oldTarget === NOTHING) env.equipmentChanged(target, to, NOTHING, money);
+  chargeTransfer(env, mover, target);
+  env.emit({ type: 'moneySplit', soldier: mover.id, slot: from, to, ...(target !== mover ? { toSoldier: target.id } : {}), amount });
+  return { ok: true, data: { amount } };
 }
 
 function mergeIntoSlot(env: PanelEnv, req: MoveRequest, cursor: ItemObject, cursorItem: number): PanelOutcome {

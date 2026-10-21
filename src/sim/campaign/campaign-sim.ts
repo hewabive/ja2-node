@@ -64,6 +64,7 @@ import { mercArrives, teamJackedInAndGearedToGo } from './hiring.ts';
 import { LAPTOP_REFUSAL, LaptopFlow, type LaptopSetup } from './laptop/laptop-flow.ts';
 import { MapInventory } from './map-inventory.ts';
 import { MeanwhileFlow } from './meanwhile-flow.ts';
+import { MoneyFlow } from './money-flow.ts';
 import { NarrativeFlow } from './narrative/narrative-flow.ts';
 import { registerNarrativeEvents } from './narrative-port.ts';
 import { PowFlow } from './pow.ts';
@@ -120,6 +121,7 @@ export class CampaignSim {
   readonly endgame: EndgameFlow;
   readonly pows: PowFlow;
   readonly mapInventory: MapInventory;
+  readonly money: MoneyFlow;
   readonly worldClock: WorldTimeControl;
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
@@ -141,6 +143,7 @@ export class CampaignSim {
     this.endgame = new EndgameFlow(this);
     this.pows = new PowFlow(this);
     this.mapInventory = new MapInventory(this);
+    this.money = new MoneyFlow(this);
     this.#clock = this.#clockContext();
     this.helicopter = new HelicopterFlow(this);
     const ai = hooks.queen
@@ -511,6 +514,7 @@ export class CampaignSim {
     this.#events.push(...this.endgame.drainEvents());
     this.#events.push(...this.pows.drainEvents());
     this.#events.push(...this.mapInventory.drainEvents());
+    this.#events.push(...this.money.drainEvents());
   }
 
   ended(): boolean {
@@ -649,6 +653,7 @@ export class CampaignSim {
         return openTacticalScreen(this);
       default:
         return (
+          this.money.dispatch(cmd) ??
           this.contracts?.dispatch(cmd) ??
           (this.strategic ? this.helicopter.dispatch(cmd) : null) ??
           dispatchSectorCommand(this, cmd) ??

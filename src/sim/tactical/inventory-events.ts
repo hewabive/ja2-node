@@ -47,6 +47,27 @@ export interface ItemMovedEvent extends SimEventBase {
   readonly toSoldier?: number;
 }
 
+export interface MoneySplitEvent extends SimEventBase {
+  readonly type: 'moneySplit';
+  readonly soldier: number;
+  readonly slot: number;
+  readonly to: number;
+  readonly toSoldier?: number;
+  readonly amount: number;
+}
+
+export interface CashWithdrawnEvent extends SimEventBase {
+  readonly type: 'cashWithdrawn';
+  readonly soldier: number;
+  readonly amount: number;
+}
+
+export interface CashDepositedEvent extends SimEventBase {
+  readonly type: 'cashDeposited';
+  readonly soldier: number;
+  readonly amount: number;
+}
+
 export interface ItemAttachedEvent extends SimEventBase {
   readonly type: 'itemAttached';
   readonly soldier: number;
@@ -90,6 +111,9 @@ export type InventoryEvent =
   | FirstAidDoneEvent
   | OutOfBandagesEvent
   | ItemMovedEvent
+  | MoneySplitEvent
+  | CashWithdrawnEvent
+  | CashDepositedEvent
   | ItemAttachedEvent
   | ItemDetachedEvent
   | GunUnloadedEvent

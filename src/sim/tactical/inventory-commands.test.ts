@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { estimateAttack, newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
-import { createItem, createItems } from '../items/object.ts';
+import { createItem, createItems, createMoney } from '../items/object.ts';
 import { animName } from './anim-states.ts';
 import type { TacticalContent } from './content.ts';
 import { AP_RELOAD_GUN, InvSlot, itemIn } from './inventory.ts';
@@ -283,6 +283,70 @@ describe('passing items between mercs', () => {
       ok: false,
       data: { refusal: 'tooFar' },
     });
+  });
+});
+
+describe('splitting money off a pocket (the money box, RemoveMoney, then the drop)', () => {
+  it('splits into an empty pocket, merges into a money pocket and moves the whole pocket', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    merc.inv[InvSlot.SMALLPOCK1] = createMoney(content.items, 1500);
+    merc.inv[InvSlot.SMALLPOCK3] = createMoney(content.items, 200);
+    expect(sim.dispatch({ type: 'splitMoney', soldier: 0, slot: 'smallPocket1', amount: 400, to: 'smallPocket2' })).toEqual({
+      ok: true,
+      data: { amount: 400 },
+    });
+    expect([merc.inv[InvSlot.SMALLPOCK1]?.money, merc.inv[InvSlot.SMALLPOCK2]?.money]).toEqual([1100, 400]);
+    expect(sim.drainEvents().find((e) => e.type === 'moneySplit')).toMatchObject({ soldier: 0, slot: 11, to: 12, amount: 400 });
+    expect(sim.dispatch({ type: 'splitMoney', soldier: 0, slot: 'smallPocket2', amount: 100, to: 'smallPocket3' })).toMatchObject({
+      ok: true,
+    });
+    expect([merc.inv[InvSlot.SMALLPOCK2]?.money, merc.inv[InvSlot.SMALLPOCK3]?.money]).toEqual([300, 300]);
+    expect(sim.dispatch({ type: 'splitMoney', soldier: 0, slot: 'smallPocket2', amount: 300, to: 'smallPocket4' })).toMatchObject({
+      ok: true,
+    });
+    expect(itemAt(merc, InvSlot.SMALLPOCK2)).toBe('NOTHING');
+    expect(merc.inv[InvSlot.SMALLPOCK4]?.money).toBe(300);
+  });
+
+  it('refuses what the money box and the drop would not allow, changing nothing', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    merc.inv[InvSlot.SMALLPOCK1] = createMoney(content.items, 1000);
+    merc.inv[InvSlot.SMALLPOCK2] = createMoney(content.items, 9900);
+    const refusal = (cmd: Record<string, unknown>) =>
+      (sim.dispatch({ type: 'splitMoney', soldier: 0, ...cmd }).data as { refusal?: string })?.refusal;
+    expect(refusal({ slot: 'smallPocket1', amount: 0, to: 'smallPocket5' })).toBe('badAmount');
+    expect(refusal({ slot: 'smallPocket1', amount: 1001, to: 'smallPocket5' })).toBe('notEnoughMoney');
+    expect(refusal({ slot: 'hand', amount: 10, to: 'smallPocket5' })).toBe('notMoney');
+    expect(refusal({ slot: 'smallPocket6', amount: 10, to: 'smallPocket5' })).toBe('emptySlot');
+    expect(refusal({ slot: 'smallPocket1', amount: 10, to: 'smallPocket1' })).toBe('sameSlot');
+    expect(refusal({ slot: 'smallPocket1', amount: 200, to: 'smallPocket2' })).toBe('doesNotFit');
+    expect(refusal({ slot: 'smallPocket1', amount: 10, to: 'hand' })).toBe('doesNotFit');
+    expect(refusal({ slot: 'smallPocket1', amount: 10, to: 'vest' })).toBe('doesNotFit');
+    expect([merc.inv[InvSlot.SMALLPOCK1]?.money, merc.inv[InvSlot.SMALLPOCK2]?.money]).toEqual([1000, 9900]);
+    expect(itemAt(merc, InvSlot.HAND)).toBe('GLOCK_17');
+  });
+
+  it('passes money to another merc in passing range for 2 AP each in combat', () => {
+    const sim = newCombatSim(content);
+    const a = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const b = spawnSoldier(sim, 1, Team.OUR, gridNo(81, 81), Direction.NORTH);
+    spawnSoldier(sim, 2, Team.OUR, gridNo(86, 80), Direction.NORTH);
+    a.inv[InvSlot.SMALLPOCK1] = createMoney(content.items, 500);
+    inCombat(sim);
+    const apA = a.actionPoints;
+    const apB = b.actionPoints;
+    expect(
+      sim.dispatch({ type: 'splitMoney', soldier: 0, slot: 'smallPocket1', amount: 50, toSoldier: 1, to: 'smallPocket1' }),
+    ).toMatchObject({
+      ok: true,
+    });
+    expect([a.inv[InvSlot.SMALLPOCK1]?.money, b.inv[InvSlot.SMALLPOCK1]?.money]).toEqual([450, 50]);
+    expect([apA - a.actionPoints, apB - b.actionPoints]).toEqual([2, 2]);
+    expect(
+      sim.dispatch({ type: 'splitMoney', soldier: 0, slot: 'smallPocket1', amount: 50, toSoldier: 2, to: 'smallPocket1' }),
+    ).toMatchObject({ ok: false, data: { refusal: 'tooFar' } });
   });
 });
 
