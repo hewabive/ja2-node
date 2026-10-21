@@ -8,6 +8,7 @@ const LOAD_TIMEOUT_MS = 60_000;
 const SAVE_TIMEOUT_MS = 180_000;
 const PLOT_REST_MS = 400;
 const FLIGHT_TIMEOUT_MS = 30_000;
+const HINT_POLL_MS = 500;
 const ASSIGNMENT_TRAIN = 5;
 const TRAIN_TOWN_LINE = 1;
 const ASSIGNMENT_VEHICLE = 3;
@@ -112,6 +113,17 @@ test.describe('the map screen on the stub map-screen campaign', () => {
     await clickRow(page, 0, DESTINATION);
     expect((await mapHook(page))?.plotting).toMatchObject({ mode: 'merc' });
     const soldier = (await mapHook(page))?.plotting?.soldier ?? -1;
+    await page.waitForFunction(
+      async (q) => {
+        const hints = window.__ja2Ui.map?.hints;
+        if (!hints) return false;
+        const before = hints.stats.local;
+        await hints.hintNow(q);
+        return hints.stats.local > before;
+      },
+      { type: 'canEnterSector', sector: save.sector },
+      { polling: HINT_POLL_MS, timeout: LOAD_TIMEOUT_MS },
+    );
     for (const request of [
       { type: 'previewRoute', soldier, to: 'B13', extend: true },
       { type: 'previewRoute', soldier, to: 'C13', via: ['C14'], shortest: true, extend: true },

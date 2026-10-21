@@ -93,8 +93,8 @@ export class MapHost implements MapPort {
     const knowledge = await ClientKnowledge.open(this.#o.ui.source, identity);
     if (!knowledge.rules.strategic) throw new Error('the rule pack has no strategic content');
     const mapPath = this.#o.session.latestView?.mapPath;
-    if (mapPath) await knowledge.worlds.ensure(mapPath);
     this.#knowledge = knowledge;
+    if (mapPath) void knowledge.worlds.ensure(mapPath).then(() => this.#hints.warm());
     this.#hints.warm();
     this.#hintHook.usable = knowledge.usable;
     this.#hintHook.ready = true;
