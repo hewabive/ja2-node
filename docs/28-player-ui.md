@@ -2565,6 +2565,20 @@ screen speech", "Militia redistribution", "Move box regrouping", "Update box tim
 can warning for mission items", "Map inventory cursor", "Sector inventory order", "Map item description", "Map
 inventory details".
 
+#### Lead wiring after U6, U7 and U8 (2026-10-21)
+
+The three slices ran in parallel from the same base; their `04` sections are §6.28 (U7, talk, shop and money), §6.29
+(U6, the player-interface orders) and §6.30 (U8, the map screen). On the tactical screen the dialogue layer takes input
+before U6's controls and renders after them. The shop disables the burst, look, stealth and mute buttons with the
+others under its panel (`EnableSMPanelButtons`, `ShopKeeperInterface_SetSMpanelButtonsState`). An item cursor without a
+drop command (a money split) is put back on a viewport click. The talk cursor on a soldier without a profile only
+closes an open civilian quote box (`HandleTalkInit`, `ShutDownQuoteBoxIfActive`). `UiAssets.addRgb` takes an RGB image
+(the overhead map and the map board share it). The map screen's description box shows U7's money buttons at the
+original's offsets, but the money commands are tactical only, so a split there does nothing yet. Open: the map host
+and the tactical host each keep a client knowledge per session (one would save memory); the map screen has no speech
+presenter yet (the U7 presenter lives in `TacticalHost`); the team panel's Exit Vehicle waits for a tactical
+`leaveVehicle`; PBI and autoresolve are a numbered box until U9.
+
 ---
 
 ## 18. Decisions and open questions
