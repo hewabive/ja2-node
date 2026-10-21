@@ -475,7 +475,7 @@ The game data splits into the **rule pack** (everything the simulation reads) an
 
 ## 6. Agent API
 
-§6.1–§6.5 are the v0.1 design with as-built notes; §6.6–§6.25 add the API milestone by milestone as it was built (there
+§6.1–§6.5 are the v0.1 design with as-built notes; §6.6–§6.28 add the API milestone by milestone as it was built (there
 is no §6.15). The MCP tool descriptions in `src/server/mcp.ts` list every command with its fields and refusals and are
 the reference when this text and the code differ.
 
@@ -613,7 +613,8 @@ refused, `advance` returns `refused` with `refusal: 'shopOpen: …'` and the clo
 `shop` field of view frames) shows the kind, the pricing merc, the balance and the boxes with unit prices; the dealer's
 cash is never shown. Merchant NPCs in sight carry `merchant: buySell|buy|sell|repair`. Events: `shopOpened`,
 `shopkeeperQuote`, `itemsBought`, `itemsSold`, `giftGiven`, `repairQueued`, `repairDelayed`, `repairCollected`,
-`itemsDropped`, `moneyChanged`, `shopClosed`.
+`itemsDropped`, `moneyChanged`, `shopClosed`. Since M8 (U7) `setShopPricing` changes the pricing merc, `quoteTrade`
+returns the quote ids and the planned player offer area, and the shop view lists the collected repairs (§6.28).
 
 ### 6.8. Contracts (M5)
 
@@ -1368,6 +1369,54 @@ when it changes.
 - `light` is the one light block of §6.26: every active light sprite with `dynamic: true` on the muzzle flashes,
   explosions and flares; the renderer draws the map's own lights from the map and adds only the dynamic ones, the hints
   read them all.
+
+### 6.28. Talk, shop and money (M8, U7)
+
+What the canvas talk panel, the speech surfaces, the shop screen and the single merc panel's money region read and
+send (`28` §5.8, §5.9, §12.1 G14, G15, §12.4; `23` §13). Nothing here changes a rule of the original; the shop and money
+commands are the original's UI actions made atomic.
+
+**Quote text (G14).** Every quote event carries the line's `textKey {file, row, width}` and `chars` (UTF-32 characters,
+which time the line: 60 ms each on the client, 12 ticks in the simulation), and the session adds `text`: `npcQuote`,
+`mercQuote` (barks from the dialogue queue, the own-merc bark of `talk` on a squad mate, contract quotes; merc quotes
+also name the speaker's `sector` for the comm popup), `civQuote`, `skyriderQuote` (with `profile`), `headMinerQuote`
+and, new, `shopkeeperQuote` (the dealer's lines from his NPC file, `npcdata/NNN.edt` as `CharacterDialogue` reads them
+for `DIALOGUE_SHOPKEEPER_UI`). Conversation lines (`data.lines`, `conversation.lastQuotes`) carry `chars`; the
+conversation carries `faceVariant` (Elliot's beaten big faces, `b135a`–`e`).
+
+**Shop screen fields (G15).**
+
+- `quoteTrade` adds `quotes` (the shopkeeper quote ids the trade would emit, in order: the evaluation quotes 4, 16–20,
+  27, 31 and the transaction quotes 10, 22, 23; the client plays the evaluation quotes when an item is offered, as
+  `EvaluateItemAddedToPlayersOfferArea` does, and leaves the transaction quotes to the `trade` events) and `poa`, the
+  12 slots of the player's offer area as `PerformTransaction` would see them: `null` or `{kind: money|sold|part, item,
+  count, status, money?, owner, source?: {soldier, slot, index?}, value}`, the `part` entries being what a repairman
+  leaves on the table after `SplitComplexObjectIntoSubObjects` (the bullets of a gun, damaged parts he cannot or will
+  not take).
+- `ShopBoxView.ammo {item, shots}` on gun boxes: dealer guns are sold empty but keep their magazine type
+  (`MakeObjectOutOfDealerItems`), which the description box shows.
+- `ShopView.repaired [{item, status, owner, soldier}]`: the repairs collected on this visit (`RepairIsDone`), which the
+  original shows in the player's offer area as "REPAIRED"; ja2-node has already delivered them to `soldier` (the
+  owner, else the pricing merc; `null`: dropped at the feet), so the list is presentation for the whole shop session.
+- `setShopPricing {soldier}`: the single merc panel's previous and next buttons and SPACE inside the shop change
+  `gpSMCurrentMerc`, whose weapon sale modifier prices every box and offered item; the command changes the pricing merc
+  without a trade (any living merc of the current squad, as `trade {soldier}`), `data.shop` is the new view. Refusals
+  `shopNotOpen`, `noSuchPricingMerc`. Only shop commands are accepted while a shop is open, so the money commands below
+  are refused there (deviation "Shop as commands").
+
+**Money** (`SMInvMoneyButtonCallback`, `RemoveMoney`, `ConfirmationToDepositMoneyToPlayersAccount`). The original moves
+money through the item cursor; the commands do the click and the drop at once.
+
+| Command | Original | Rules |
+|---|---|---|
+| `withdrawCash {soldier, amount}` | the money region with an empty cursor opens the money box over the balance; Done puts the money into the cursor and books `TRANSFER_FUNDS_TO_MERC` | campaign, tactical; `amount` a positive whole number ≤ the balance and ≤ `MAX_MONEY_PER_SLOT` (20000, the box's limit for withdrawals); the money tops up the first money pocket below its limit, the rest is auto-placed (`SKITryToAddInvToMercsInventory`), nothing changes when it does not fit (`noRoom`). Events `moneyChanged`, `cashWithdrawn {soldier, amount}`; `data {amount, balance}` |
+| `depositCash {soldier, slot, amount?}` | the money region with money in the cursor asks, Yes books `MERC_DEPOSITED_MONEY_TO_PLAYER_ACCOUNT` | campaign, tactical; the pocket's money or `amount` of it; events `moneyChanged`, `cashDeposited {soldier, amount}` |
+| `splitMoney {soldier, slot, amount, to, toSoldier?}` | the money box on a money pocket ($1000, $100, $10, Done) puts the split into the cursor; the drop places it | tactical (also the sandbox); `amount` ≤ the pocket (the whole amount moves the pocket) into an empty pocket or a money pocket with room (`fillMoneySlot`), of the merc or of a merc in passing range with `moveItem`'s rules and AP (2 each in combat); event `moneySplit {soldier, slot, to, toSoldier?, amount}` |
+
+Refusals in `data.refusal` (reason `<token>: text`): `notInTactical`, `noSuchSoldier`, `noInventory` (escorts and
+non-merc bodies have no single merc panel), `badSlot`, `emptySlot`, `notMoney`, `badAmount`, `notEnoughMoney`,
+`noRoom`, `sameSlot`, `doesNotFit`, the transfer refusals of `moveItem` and the tactical turn refusals (`notYourTurn`,
+`uiLocked`, …). Giving money to another soldier stays `give {money}` (§6.16), money offered to a dealer `trade {cash}`.
 
 ## 7. Cost and limitations
 

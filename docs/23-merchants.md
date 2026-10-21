@@ -748,20 +748,23 @@ accepted.
 | `openShop {dealer, soldier}` | `dealer` = profile id or internal name. Checks (in order, first failure is the reason): tactical flow, our turn and not acting in turn-based (`10`), `notADealer` (§1.2), `dealerAbsent` (no soldier in sector), `outOfBusiness`, `dealerDown` (life < OKLIFE or collapsed), `dealerHidden` (`bVisible == −1`), `dealerHostile` (not neutral), `dealerMoving` (out of combat), §9.1 for `soldier` (`notOnCurrentSquad` — the soldier's squad becomes the current one —, `mercCantTrade`, `noLineOfSight`, `tooFar`), `notEnoughAP` (`EnoughPoints(AP_TALK)`), M6 hooks `npcWantsToTalk` / `shopClosedByScript`. Effects: `DeductPoints(soldier, 6, 0)`, facing events, then §9.1 entry: repair delay (§10.5), last SKI time, finished repairs delivered at once with the §9.5 rules. Result: the shop view (§13.4). |
 | `trade {soldier?, receiver?, buy?, sell?, cash?, repair?, useBalance?}` | One `PerformTransaction`. `soldier` switches the pricing merc (any active, alive merc of the current squad). `buy: [{item, element?, count?}]` — `element` −1/absent = perfect; `count` = units from a stackable box, or the number of perfect gun boxes. `sell` and `repair: [{soldier, slot, index?}]` — whole object, or one member of a stack (`index`); the source merc must pass §9.1. `cash: [{soldier, slot, amount?}]` — a money object, split when `amount` is smaller. `receiver` (default the pricing merc, must pass §9.1) gets purchases and change. `useBalance` (default false) pre-answers the deduction box. Validation before any change: `shopNotOpen`, `noSuchBox`, `notEnoughInBox`, `itemNotFound`, `duplicateSource`, `notMoney`, `dealerOfferAreaFull` (> 12 DOA objects), `playerOfferAreaFull` (> 12 POA objects; repair room of §10.1), `wontBuy` (rejected), `worthless` (value 0), `wontRepair`, `notDamaged`, `tooManyToRepair`, then §9.4 in its order: gift path; `noRoomForPurchases`; `cannotAfford {shortfall}`; `needBalance {amount}` when `useBalance` is false; repairman cash check; `dealerCannotAfford`. Effects on success: §9.4; purchases, change and the parts split off repair items delivered in POA order (purchases, then change) to `receiver` / owner with the §9.5 rules (drops are VISIBLE at the receiver's tile). Result: what moved, paid cash/balance, change, gift accepted, queued repairs with their done times, the new shop view. |
 | `closeShop {}` | Leaves; nothing is left on the table, so no reminder step. |
-| `withdrawCash {soldier, amount}` / `depositCash {soldier, slot}` | SM-panel money (§9.6), ledger codes 23 / 27; `withdrawCash` auto-places the new MONEY object (money pocket first). May move to `docs/21`'s finances commands (§17). |
+| `setShopPricing {soldier}` | *As built in M8 (U7).* The SM panel's previous/next merc (and SPACE) inside the SKI: the pricing merc changes without a trade (§9.2); refusals `shopNotOpen`, `noSuchPricingMerc`; the result is the new shop view. |
+| `withdrawCash {soldier, amount}` / `depositCash {soldier, slot, amount?}` | *As built in M8 (U7), `src/sim/campaign/money-flow.ts`.* SM-panel money (§9.6), ledger codes 23 / 27, tactical only and refused while a shop is open (the original allows them in the SKI: deviation "Shop as commands"); a withdrawal is at most `MAX_MONEY_PER_SLOT` and tops up the first money pocket below its limit before it is auto-placed (`SKITryToAddInvToMercsInventory`), a deposit takes the pocket or `amount` of it. The money box's split dropped into a pocket is `splitMoney {soldier, slot, amount, to, toSoldier?}`, a tactical inventory command. Rules and refusals: `docs/04` §6.28. |
 
 ### 13.2 Queries
 
 - `quoteTrade {…same as trade}`: pure; per entry the price (buy: `CalcShopKeeperItemPrice`, unit and total), the
   evaluation (sell: rejected/worthless/value/"really damaged"; repair: cost, time, would-be done time), totals (cost,
-  value, cash), change, balance needed, and the refusal `trade` would return. `dealerCannotAfford` is reported: the
+  value, cash), change, balance needed, and the refusal `trade` would return. Since M8 (U7) also `quotes` (the
+  shopkeeper quote ids of the evaluation and the transaction, in order) and `poa` (the 12 player offer area slots as
+  planned, with the repairman's leftover parts), which the shop screen draws. `dealerCannotAfford` is reported: the
   player learns it by pressing the button, at no cost.
 - `shopView`: §13.4 (also inside `observe` while a shop is open).
 
 ### 13.3 Events
 
-`shopOpened {dealer, soldier}`, `shopkeeperQuote {dealer, quote}` (the deterministic SKI quotes of §9 and §10: 10, 11,
-16–20, 22–27, 29, 31, 33; for playback only), `repairDelayed {dealer}`, `itemsBought {dealer, items, total}`,
+`shopOpened {dealer, soldier}`, `shopkeeperQuote {dealer, quote, textKey, chars}` (the deterministic SKI quotes of §9 and
+§10: 10, 11, 16–20, 22–27, 29, 31, 33; for playback only; the text key and length name the dealer's NPC file row, M8), `repairDelayed {dealer}`, `itemsBought {dealer, items, total}`,
 `itemsSold {dealer, items, total}`, `giftGiven {dealer, amount, accepted}`, `repairQueued {dealer, item, owner, doneAt}`,
 `repairCollected {dealer, item, owner, to}`, `itemsDropped {gridNo, items}`, `moneyChanged` (exists), `shopClosed`.
 Restocks, customers and dealer cash produce **no** player events (the player cannot see them).
@@ -772,7 +775,9 @@ Only while a shop is open: dealer name and type label; for merchants every box `
 status, unitPrice, attachments, imprinted}` sorted as §2.3 with prices for the current pricing merc; for repairmen every
 box `{key, item, status (the original, unrepaired), owner, eta}` (ETA as shown: rounded up to 15 minutes); the player's
 balance; the pricing merc and his weapon sale modifier (the tooltip shows it); which mercs pass §9.1. Never the dealer's
-cash, list maxima, orders, strays or eligibility. Outside a shop a visible NPC soldier whose profile is a merchant carries
+cash, list maxima, orders, strays or eligibility. Since M8 (U7) gun boxes carry `ammo {item, shots}` (sold empty, the
+magazine type kept) and the view lists `repaired`, the repairs collected on this visit with their receiver (the
+original's "REPAIRED" tiles). Outside a shop a visible NPC soldier whose profile is a merchant carries
 `merchant: <type label>` (the talk menu shows that label to anyone who talks; M6 may restrict it to NPCs met).
 
 ---
@@ -985,7 +990,8 @@ flag is set whenever the quote can play; that the repairmen's maps carry lock/un
 turn-based combat being allowed (talking is, `Handle_UI.cc:4630-4636`).
 
 **Open questions**:
-- Do `withdrawCash`/`depositCash` belong here or with `docs/21`'s finances?
+- ~~Do `withdrawCash`/`depositCash` belong here or with `docs/21`'s finances?~~ Neither: they are the SM panel's money
+  region, built in M8 (U7) with `splitMoney` beside the inventory commands (`docs/04` §6.28).
 - Should M5 port `InitNPCs` (Micky, Gabby) and the dealer parts of the 04:00 handler, or leave them to M6? Porting part
   of the 04:00 handler would shift draws when the rest arrives.
 - How much the view should say about merchants the player has not talked to yet (D16).
