@@ -127,6 +127,8 @@ export interface StrategicSectorView {
   readonly militia: readonly number[];
   readonly items?: number;
   readonly militiaTraining?: number;
+  readonly enemiesKnown?: boolean;
+  readonly facilities?: number;
 }
 
 export interface StrategicUndergroundView {
@@ -152,6 +154,7 @@ export type MercContractView =
       readonly insured: boolean;
       readonly insuranceDays: number;
       readonly minutesLeft?: number;
+      readonly endMinutes?: number;
     }
   | {
       readonly type: 'merc';

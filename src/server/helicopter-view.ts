@@ -1,7 +1,12 @@
+// Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
+// Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
+// @src src/game/Strategic/Map_Screen_Interface_Map.cc DisplayPositionOfHelicopter (the flight ratio, clamped to 0..100),
+// @src DisplayDistancesForHelicopter (safe and unsafe sectors); Strategic/Map_Screen_Helicopter.cc CanHelicopterFly.
+
 import { type Sector, sectorFromStrategicIndex, sectorShortString, strategicIndex } from '../content/strategic/sector-ids.ts';
 import type { DestroyedHelicopterView, StrategicHelicopterView, StrategicVehicleView } from '../protocol/view.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
-import { getGroup, passengersOf, type VehicleRecord } from '../sim/strategic/forces/groups.ts';
+import { type Group, getGroup, passengersOf, type VehicleRecord } from '../sim/strategic/forces/groups.ts';
 import {
   canHelicopterFly,
   helicopterGroup,
@@ -15,7 +20,7 @@ import { REFUEL_SITES } from '../sim/strategic/forces/helicopter-state.ts';
 import { groupBetweenSectorsAndSectorXYIsInDifferentDirection } from '../sim/strategic/forces/movement.ts';
 import type { StrategicContext } from '../sim/strategic/forces/ports.ts';
 import { vehicleSeats } from '../sim/strategic/forces/vehicles.ts';
-import { calculateTravelTimeOfGroup } from '../sim/strategic/map/travel.ts';
+import { calculateTravelTimeOfGroup, TRAVERSE_TIME_IMPOSSIBLE } from '../sim/strategic/map/travel.ts';
 import { worldTotalMinutes } from '../sim/strategic/time/world-clock.ts';
 
 const name = (s: Sector) => sectorShortString(s);
@@ -33,10 +38,25 @@ function kindOf(ctx: StrategicContext, v: VehicleRecord): string {
   return KIND_NAMES[profile] ?? profile;
 }
 
-function vehicleLeg(ctx: StrategicContext, v: VehicleRecord): Pick<StrategicVehicleView, 'next' | 'nextArrivalMinutes'> {
+function vehicleLeg(
+  ctx: StrategicContext,
+  v: VehicleRecord,
+): Pick<StrategicVehicleView, 'next' | 'nextArrivalMinutes' | 'traverseMinutes'> {
   const g = getGroup(ctx, v.movementGroup);
-  if (!g?.betweenSectors) return { next: null, nextArrivalMinutes: null };
-  return { next: name(g.next), nextArrivalMinutes: Math.max(0, g.arrivalTime - worldTotalMinutes(ctx.state.clock)) };
+  if (!g?.betweenSectors) return { next: null, nextArrivalMinutes: null, traverseMinutes: null };
+  return {
+    next: name(g.next),
+    nextArrivalMinutes: Math.max(0, g.arrivalTime - worldTotalMinutes(ctx.state.clock)),
+    traverseMinutes: g.traverseTime,
+  };
+}
+
+const MAX_FLIGHT_RATIO = 100;
+
+function flightProgress(ctx: StrategicContext, g: Group | undefined): number {
+  if (!g || g.traverseTime <= 0 || g.traverseTime === TRAVERSE_TIME_IMPOSSIBLE) return 0;
+  const ratio = Math.fround((g.traverseTime + worldTotalMinutes(ctx.state.clock) - g.arrivalTime) / Math.fround(g.traverseTime));
+  return Math.min(MAX_FLIGHT_RATIO, Math.max(0, ratio));
 }
 
 export function vehicleViews(campaign: CampaignSim): StrategicVehicleView[] | undefined {
@@ -111,5 +131,6 @@ export function helicopterView(campaign: CampaignSim): StrategicHelicopterView |
     unsafeSectors: unsafe,
     routeCost: safe * ctx.content.travel.airspaceCostSafe + unsafe * ctx.content.travel.airspaceCostUnsafe,
     refuelSites: REFUEL_SITES.map((r, i) => ({ sector: name(r.sector), available: heli.refuelSiteAvailable[i] === true })),
+    progress: flightProgress(ctx, g),
   };
 }

@@ -71,6 +71,7 @@ import {
   resetSectorFlag,
   sectorInfo,
   setSectorFlag,
+  setVisibleItemCount,
 } from '../strategic/map/sectors.ts';
 import { Quest } from '../strategic/narrative/fact-ids.ts';
 import { QuestStatus, questStatus } from '../strategic/narrative/facts.ts';
@@ -1076,7 +1077,7 @@ export class SectorFlow {
     handleAllReachableItemsInTheSector(t, teamMembers(t, Team.OUR));
     diff.items = captureWorldItems(t);
     mark(SectorFlag.ITEM_TEMP_FILE_EXISTS, true);
-    if (world.z === 0) sectorInfo(map, world).visibleItems = visibleItemCount(diff.items);
+    setVisibleItemCount(map, world, visibleItemCount(diff.items));
     diff.corpses = [...t.corpses];
     mark(SectorFlag.ROTTING_CORPSE_TEMP_FILE_EXISTS, true);
     diff.mapChanges = t.mapChanges.length > 0 ? [...t.mapChanges] : null;

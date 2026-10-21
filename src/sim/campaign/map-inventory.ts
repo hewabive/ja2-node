@@ -13,7 +13,7 @@ import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import { cloneObject, deleteObject, getObjFrom, type ItemObject, removeObjects, stackObjects, swapObjects } from '../items/object.ts';
 import { Assignment } from '../strategic/forces/constants.ts';
-import { sectorInfo } from '../strategic/map/sectors.ts';
+import { setVisibleItemCount } from '../strategic/map/sectors.ts';
 import { autoReload } from '../tactical/combat/reload.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { handleTacticalEffectsOfEquipmentChange } from '../tactical/hand-item.ts';
@@ -212,7 +212,7 @@ function unloadedStash(campaign: CampaignSim, sector: Sector): Stash {
       .filter(([wi]) => wi.exists && visibleInMapInventory(campaign, wi.object, wi.visible))
       .map(([, k]) => k);
   const recount = () => {
-    if (sector.z === 0) sectorInfo(state.map, sector).visibleItems = visibleItemCount(records());
+    setVisibleItemCount(state.map, sector, visibleItemCount(records()));
   };
   return {
     slots: () => visibleIndices().map((k) => known()[k] as DiffWorldItem),

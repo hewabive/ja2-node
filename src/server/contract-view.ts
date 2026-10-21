@@ -85,6 +85,8 @@ function contractView(campaign: CampaignSim, m: RosterMerc, p: ProfileProgress):
       medicalDeposit: p.medicalDepositAmount,
       insured: c.lifeInsurance !== 0,
       insuranceDays: insuranceDays(campaign, m),
+      minutesLeft: left,
+      endMinutes: c.contractEnd,
     };
   }
   if (m.kind === MercKind.MERC)
@@ -93,6 +95,7 @@ function contractView(campaign: CampaignSim, m: RosterMerc, p: ProfileProgress):
       unpaidDays: p.mercMercContractLength,
       daysHired: Math.trunc(now / NUM_MIN_IN_DAY) - m.contract.contractStartDay,
       owed: p.salary * p.mercMercContractLength,
+      contractLength: p.mercMercContractLength,
     };
   if (m.kind === MercKind.NPC) return { type: 'rpc', dailyRate: p.salary };
   return null;
@@ -111,6 +114,13 @@ export function mercContractFields(campaign: CampaignSim, id: number): Partial<S
     daysServed: p?.totalDaysServed ?? 0,
     totalCost: campaign.state.finances.profileCostToDate.get(m.profile) ?? 0,
   };
+}
+
+export function mercSalary(campaign: CampaignSim, id: number): number | null {
+  const flow = campaign.contracts;
+  const m = flow?.roster.get(id);
+  const p = m ? flow?.profile(m.profile) : undefined;
+  return m && p ? dailyRate(m, p) : null;
 }
 
 export function mercAccountStatusView(campaign: CampaignSim): Record<string, string> {
