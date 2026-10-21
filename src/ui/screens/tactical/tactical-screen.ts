@@ -517,6 +517,7 @@ export class TacticalScreen implements Screen {
     this.#panelView().build();
     this.#defineViewportRegion();
     this.#syncViewport();
+    if (this.#selected !== null) this.#selectedChanged();
   }
 
   exit(): void {

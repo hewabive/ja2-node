@@ -235,4 +235,78 @@ describe('the tactical input on the tactical screen', () => {
     },
     SLOW_MS,
   );
+
+  it(
+    'is back on the move cursor when the screen is entered again',
+    async () => {
+      const f = await tacticalUiTest(kit, ui);
+      const at = f.world.pickPoint(merc(f, 0).gridNo + 3);
+      pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+      await f.settle(4);
+      f.screen.exit();
+      f.screen.enter();
+      await f.settle(4);
+      expect(f.screen.controls.input.mode).toBe(UiMode.MOVE_MODE);
+    },
+    SLOW_MS,
+  );
+
+  it(
+    'runs the exit dialog: the radios follow SingleMoveAction and AllMoveAction and OK hands back who and load',
+    async () => {
+      const f = await tacticalUiTest(kit, ui);
+      const fonts = f.t.runtime.fonts;
+      const boxFonts = { text: fonts.get('FONT12ARIAL'), bold: fonts.get('FONT10ARIALBOLD') };
+      const menu = {
+        loadOffered: true,
+        allMoveDisabled: false,
+        singleMoveDisabled: false,
+        multipleSquads: false,
+        peopleOnSquad: 4,
+        singleMove: false,
+        allMove: true,
+        gotoSector: true,
+        gotoSectorDisabled: true,
+      };
+      const options = {
+        result: 2,
+        minutes: 3,
+        invalidTraversal: false,
+        loneEpc: false,
+        abandonedEpcs: 0,
+        uncontrolledRobot: false,
+        enemyInSector: false,
+        menu,
+      };
+      const choices: unknown[] = [];
+      const dialog = f.screen.controls.exitDialog;
+      const request = {
+        direction: 'north' as const,
+        exitGrid: null,
+        options,
+        selected: merc(f, 0),
+        selectedIsEpc: false,
+        squadEpcs: [],
+        viewportBottom: 340,
+      };
+      dialog.show(request, boxFonts, (c) => choices.push(c));
+      f.t.frame();
+      expect(f.t.runtime.buttons.buttons.find((b) => b.id === 'exitLoadCheck')?.enabled).toBe(false);
+      expect(f.t.runtime.buttons.buttons.find((b) => b.id === 'exitAllRadio')?.clicked).toBe(true);
+      await f.click('exitSingle');
+      expect(dialog.menu).toMatchObject({ singleMove: true, allMove: false, gotoSectorDisabled: false, gotoSector: true });
+      await f.click('exitLoad');
+      expect(dialog.menu?.gotoSector).toBe(false);
+      await f.click('exitOk');
+      expect(dialog.open).toBe(false);
+      expect(choices).toEqual([{ who: 'merc', load: false }]);
+      dialog.show(request, boxFonts, (c) => choices.push(c));
+      f.key('Enter');
+      expect(choices.at(-1)).toEqual({ who: 'squad', load: true });
+      dialog.show(request, boxFonts, (c) => choices.push(c));
+      f.key('Escape');
+      expect(choices.at(-1)).toBeNull();
+    },
+    SLOW_MS,
+  );
 });
