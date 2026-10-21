@@ -110,6 +110,12 @@ export interface ClockView {
   readonly hour: number;
   readonly minute: number;
   readonly compressing: boolean;
+  readonly mode?: number;
+  readonly paused?: boolean;
+  readonly playerPaused?: boolean;
+  readonly pauseLocked?: boolean;
+  readonly canCompress?: boolean;
+  readonly compressRefusal?: string;
 }
 
 export interface StrategicSectorView {
@@ -119,6 +125,13 @@ export interface StrategicSectorView {
   readonly playerControlled: boolean | null;
   readonly enemies: number | '?' | null;
   readonly militia: readonly number[];
+  readonly items?: number;
+  readonly militiaTraining?: number;
+}
+
+export interface StrategicUndergroundView {
+  readonly sector: string;
+  readonly items: number;
 }
 
 export interface ContractTimeView {
@@ -138,8 +151,15 @@ export type MercContractView =
       readonly medicalDeposit: number;
       readonly insured: boolean;
       readonly insuranceDays: number;
+      readonly minutesLeft?: number;
     }
-  | { readonly type: 'merc'; readonly unpaidDays: number; readonly daysHired: number; readonly owed: number }
+  | {
+      readonly type: 'merc';
+      readonly unpaidDays: number;
+      readonly daysHired: number;
+      readonly owed: number;
+      readonly contractLength?: number;
+    }
   | { readonly type: 'rpc'; readonly dailyRate: number };
 
 export interface StrategicMercView {
@@ -167,6 +187,14 @@ export interface StrategicMercView {
   readonly stats?: SoldierStatsView;
   readonly inventory?: readonly InventoryItemView[];
   readonly weight?: number;
+  readonly idle?: boolean;
+  readonly trainStat?: number;
+  readonly repairVehicle?: number;
+  readonly repairRobot?: boolean;
+  readonly canChangeSleep?: boolean;
+  readonly salary?: number;
+  readonly bleeding?: number;
+  readonly collapsed?: boolean;
 }
 
 export interface StrategicVehicleView {
@@ -182,6 +210,10 @@ export interface StrategicVehicleView {
   readonly usable?: boolean;
   readonly next?: string | null;
   readonly nextArrivalMinutes?: number | null;
+  readonly traverseMinutes?: number | null;
+  readonly life?: number;
+  readonly lifeMax?: number;
+  readonly fuel?: number;
 }
 
 export interface RefuelSiteView {
@@ -208,6 +240,7 @@ export interface StrategicHelicopterView {
   readonly unsafeSectors: number;
   readonly routeCost: number;
   readonly refuelSites: readonly RefuelSiteView[];
+  readonly progress?: number;
 }
 
 export interface DestroyedHelicopterView {
@@ -219,6 +252,25 @@ export interface StrategicTownView {
   readonly loyalty: number;
 }
 
+export interface StrategicTownControlView {
+  readonly town: number;
+  readonly control: number;
+}
+
+export type MineStatusView = 'producing' | 'runningOut' | 'shutDown' | 'abandoned';
+
+export interface StrategicMineView {
+  readonly mine: number;
+  readonly sector: string;
+  readonly town: number;
+  readonly status: MineStatusView;
+  readonly ore: 'silver' | 'gold';
+  readonly playerControls: boolean;
+  readonly predictedDailyIncome: number;
+  readonly maxDailyRemoval: number;
+  readonly maxPeriodicRemoval: number;
+}
+
 export interface StrategicGroupView {
   readonly id: number;
   readonly sector: string;
@@ -228,6 +280,7 @@ export interface StrategicGroupView {
   readonly etaMinutes: number;
   readonly path: readonly string[];
   readonly nextArrivalMinutes?: number | null;
+  readonly traverseMinutes?: number | null;
 }
 
 export interface QuestStepView {
@@ -280,6 +333,11 @@ export interface StrategicView {
   readonly helicopter?: StrategicHelicopterView | DestroyedHelicopterView;
   readonly enemyAirspace?: readonly string[];
   readonly towns?: readonly StrategicTownView[];
+  readonly townControl?: readonly StrategicTownControlView[];
+  readonly mines?: readonly StrategicMineView[];
+  readonly projectedDailyIncome?: number;
+  readonly secretsFound?: readonly string[];
+  readonly underground?: readonly StrategicUndergroundView[];
   readonly mercAccountStatus?: string;
   readonly landingZone?: string;
   readonly unreadMail?: number;
@@ -834,8 +892,21 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
   return frame;
 }
 
+const CLOCK_FIELDS = [
+  'day',
+  'hour',
+  'minute',
+  'compressing',
+  'mode',
+  'paused',
+  'playerPaused',
+  'pauseLocked',
+  'canCompress',
+  'compressRefusal',
+] as const satisfies readonly (keyof ClockView)[];
+
 function sameClock(a: ClockView | undefined, b: ClockView): boolean {
-  return !!a && a.day === b.day && a.hour === b.hour && a.minute === b.minute && a.compressing === b.compressing;
+  return !!a && CLOCK_FIELDS.every((key) => a[key] === b[key]);
 }
 
 const SCALAR_SOLDIER_FIELDS = [
