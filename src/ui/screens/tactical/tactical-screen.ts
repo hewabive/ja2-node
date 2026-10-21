@@ -30,7 +30,6 @@ import type { Screen } from '../../screen.ts';
 import { fontHeight } from '../../text/bitmap-font.ts';
 import { FontName } from '../../text/fonts.ts';
 import { hCenterVCenterAlign } from '../../text/measure.ts';
-import { sprintMoney } from '../../text/money.ts';
 import { fontColors, mprint } from '../../text/print.ts';
 import { printf } from '../../text/printf.ts';
 import { UiScreenKind } from '../../widgets/button-sounds.ts';
@@ -54,12 +53,13 @@ import {
 } from './faces.ts';
 import { HudController, hudClockText, pauseHelpText, sectorOfMap } from './hud.ts';
 import { type InventoryArt, InventoryPanel, type SlotRect, slotRects } from './inventory.ts';
-import { cursorFromMoney, depositCommand, dropCommand, giveCommand, type ItemCursor, slotItem } from './item-cursor.ts';
+import { dropCommand, giveCommand, type ItemCursor, slotItem } from './item-cursor.ts';
 import { type DescriptionGeometry, ItemDescriptionBox } from './item-description.ts';
 import { KeyRingPopup, StackPopup } from './item-popups.ts';
 import { drawInventoryItem, type TileDrawContext } from './item-tile.ts';
 import { formatMessageEntry, showsInTacticalLog } from './message-format.ts';
 import { lineHeightOf, TacticalMessageLog } from './message-log.ts';
+import { MoneyActions } from './money-actions.ts';
 import {
   aboveGuyPosition,
   DamageNumber,
@@ -130,8 +130,6 @@ const TEAM_RADAR_COLOURS: readonly number[] = [
   rgb(0, 0, 255),
 ];
 const CIV_TEAM = 4;
-const MONEY_CLASS = 'MONEY';
-const CONFIRMATION_TO_DEPOSIT_MONEY_TO_ACCOUNT = 1;
 
 type PanelKind = 'team' | 'sm';
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
@@ -169,6 +167,7 @@ export class TacticalScreen implements Screen {
   readonly keyRing: KeyRingPopup;
   readonly pickup: ItemPickupMenu;
   readonly dialogue: DialogueLayer;
+  readonly #money: MoneyActions;
   #panel: PanelKind = 'team';
   #pendingPanel: { kind: PanelKind; soldier: number | null } | null = null;
   #smMerc: number | null = null;
@@ -259,7 +258,7 @@ export class TacticalScreen implements Screen {
       metric: () => env.metric(),
       keyItem: (key) => env.media.keyItem(key),
       closed: () => undefined,
-      moneyDone: (object, amount) => this.#moneyDone(object, amount),
+      moneyDone: (object, amount) => this.#money.done(object, amount),
       alert: (text) => env.boxes.alert(text),
     });
     this.pickup = new ItemPickupMenu({
@@ -272,6 +271,17 @@ export class TacticalScreen implements Screen {
       pickUp: (soldier, gridNo, level, items) => void this.#command({ type: 'pickUp', soldier, gridNo, zLevel: level, items }),
       closed: () => undefined,
       hover: () => undefined,
+    });
+    this.#money = new MoneyActions({
+      env,
+      inventory: this.inventory,
+      view: () => this.#view(),
+      smSoldier: () => this.#smSoldier(),
+      disabled: () => this.#disabledForItems(),
+      showBalance: (soldier, amount) => {
+        this.stack.close();
+        this.#showDescription({ kind: 'balance', soldier, amount });
+      },
     });
     this.dialogue = new DialogueLayer(env, {
       drawSoldierFace: (list, s, x, y) => this.#drawPanelFace(list, s, x, y, false),
@@ -1153,7 +1163,7 @@ export class TacticalScreen implements Screen {
         this.#openKeyRing(false);
         return;
       case 'money':
-        void this.#moneyRegion();
+        void this.#money.region();
         return;
       case 'mapScreen':
         this.#env.flow.mapScreen();
@@ -1186,42 +1196,6 @@ export class TacticalScreen implements Screen {
       default:
         return;
     }
-  }
-
-  async #moneyRegion(): Promise<void> {
-    const s = this.#smSoldier();
-    if (!s || this.#disabledForItems()) return;
-    const cursor = this.inventory.cursor;
-    if (cursor) {
-      const deposit = depositCommand(cursor);
-      if (!deposit || this.#env.media.item(cursor.item)?.class !== MONEY_CLASS) return;
-      const amount =
-        cursor.source.kind === 'money'
-          ? cursor.source.amount
-          : (slotItem(soldierById(this.#view(), cursor.source.soldier), cursor.source.slot)?.money ?? 0);
-      const question = printf(this.#env.text.string('gzMoneyWithdrawMessageText', CONFIRMATION_TO_DEPOSIT_MONEY_TO_ACCOUNT) ?? '', [
-        sprintMoney(amount),
-      ]);
-      if (!(await this.#env.boxes.confirm(question))) return;
-      const reply = await this.inventory.send(deposit);
-      if (reply.ok) this.inventory.setCursor(null);
-      return;
-    }
-    const balance = this.#view()?.strategic?.balance;
-    if (balance === undefined) return;
-    this.stack.close();
-    this.#showDescription({ kind: 'balance', soldier: s.id, amount: balance });
-  }
-
-  #moneyDone(object: Parameters<ItemDescriptionBox['show']>[0], amount: number): void {
-    if (object.kind === 'balance') {
-      void this.inventory.send({ type: 'withdrawCash', soldier: object.soldier, amount });
-      return;
-    }
-    if (object.kind !== 'slot') return;
-    const s = soldierById(this.#view(), object.soldier);
-    const cursor = s ? cursorFromMoney(s, object.slot, amount) : null;
-    if (cursor) this.inventory.setCursor(cursor);
   }
 
   #stepMerc(step: 1 | -1): void {

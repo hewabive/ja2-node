@@ -86,7 +86,11 @@ describe('money through the single merc panel in a stub campaign', { timeout: SL
     expect(f.client.commands.at(-1)?.cmd).toEqual({ type: 'splitMoney', soldier: merc, slot: pocket?.slot, amount: 100, to: free });
     expect(f.client.commands.at(-1)?.reply.ok).toBe(true);
     expect(f.screen.inventory.cursor).toBeNull();
-    expect(moneyPockets(f, merc).map((p) => p.money).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([100, 1900]);
+    expect(
+      moneyPockets(f, merc)
+        .map((p) => p.money)
+        .sort((a, b) => (a ?? 0) - (b ?? 0)),
+    ).toEqual([100, 1900]);
 
     await f.click(`slot${free}`);
     expect(f.screen.inventory.cursor?.source).toMatchObject({ kind: 'slot', slot: free });
