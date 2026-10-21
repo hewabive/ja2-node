@@ -150,7 +150,7 @@ export function smPanelModel(
     doneEnabled: !shop && !allOff && inCombat(view) && ourTurn(view),
     talkEnabled: !shop && !allOff,
     talkChecked: state.cursorMode === 'talk',
-    muteEnabled: !allOff,
+    muteEnabled: !shop && !allOff,
     muteChecked: s.muted === true,
     stanceUpEnabled: !shop && !actionsOff && stance !== 'stand',
     levelEnabled: !shop && !actionsOff,
