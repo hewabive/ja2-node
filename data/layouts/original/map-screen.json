@@ -1,0 +1,1749 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Strategic/MapScreen.cc MapScreenHandle (the regions of the map view at MSYS_PRIORITY_HIGH - 3, the character info hand at PLAYER_INFO_HAND_*, the face at PLAYER_INFO_FACE_*, the low screen mask with CURSOR_NORMAL; contractbutton.sti 0/1 at CONTRACT_X + 5, CONTRACT_Y - 1 with pContractButtonString in MAP_SCREEN_FONT, colour CHAR_TEXT_FONT_COLOR, hilite FONT_MCOLOR_WHITE), AddTeamPanelSortButtonsForMapScreen (the MLG goldpiecebuttons.sti images {0, 1, 5, 2, 3, 4} and + 6 at gMapSortButtons, MSYS_PRIORITY_HIGHEST - 5, wMapScreenSortButtonHelpText), RenderCharacterInfoBackground (charinfo.sti at TOWN_INFO_X, TOWN_INFO_Y), RenderTeamRegionBackground (newgoldpiece3.sti at PLAYER_INFO_X, PLAYER_INFO_Y), RenderAttributeStringsForUpperLeftHandCorner, CreateDestroyMapCharacterScrollButtons (map_screen_bottom_arrows.sti 11/4/6 and 12/5/7 at 67, 69 and 67, 87, pMapScreenPrevNextCharButtonHelpText), GetMapKeyboardInput (HandleModNone, HandleModShift, HandleModCtrl, HandleModAlt)",
+    "src/game/Strategic/Map_Screen_Interface_Border.cc RenderMapBorder (mbs.sti at MAP_BORDER_X, MAP_BORDER_Y), CreateButtonsForMapBorder (map_border_buttons.sti g / g + 9 at BTN_*_X, STD_SCREEN_Y + 323, MSYS_PRIORITY_HIGH, pMapScreenBorderButtonHelpText), DisplayCurrentLevelMarker (greenarr.sti at MAP_LEVEL_MARKER_X, MAP_LEVEL_MARKER_Y + MAP_LEVEL_MARKER_DELTA * z), CreateMouseRegionsForLevelMarkers (zMarksMapScreenText[0] and the level), RenderMapBorderEtaPopUp (eta_pop_up.sti at MAP_BORDER_X + 215, STD_SCREEN_Y + 291)",
+    "src/game/Strategic/Map_Screen_Interface_Bottom.cc RenderMapScreenInterfaceBottom (map_screen_bottom.sti at MAP_BOTTOM_X, MAP_BOTTOM_Y), CreateButtonsForMapScreenInterfaceBottom (map_border_buttons.sti 6/15, 7/16 and 18/19 at 456, 410, 496, 410 and 458, 372 with MSYS_PRIORITY_HIGHEST - 1; map_screen_bottom_arrows.sti 10/1/3, 9/0/2, 11/4/6 and 12/5/7 at 528, 456, 466, 456, 331, 371 and 331, 452 with MSYS_PRIORITY_HIGHEST - 2; pMapScreenBottomFastHelp), CreateCompressModePause (487, 456 to 522, 467 at MSYS_PRIORITY_HIGH, pMapScreenBottomFastHelp[7]), CreateMapScreenBottomMessageScrollBarRegion, DisplayCurrentBalanceTitleForMapBottom, DisplayCurrentBalanceForMapBottom, DisplayProjectedDailyMineIncome (COMPFONT, MAP_BOTTOM_FONT_COLOR and 183, centred in 437 - 359 by 10), DrawNameOfLoadedSector (COMPFONT 183 centred in 80 by 16 at 548, 426), CreateDestroyMouseRegionMasksForTimeCompressionButtons",
+    "src/game/Strategic/Game_Clock.cc RenderClock (COMPFONT, FONT_LTGREEN or FONT_FCOLOR_NICERED in combat, centred in CLOCK_WIDTH by CLOCK_HEIGHT), CreateMouseRegionForPauseOfClock; src/game/UILayout.cc get_CLOCK_X (STD_SCREEN_X + 554 on the map), get_CLOCK_Y, get_RADAR_WINDOW_X (STD_SCREEN_X + 543), get_RADAR_WINDOW_TM_Y",
+    "src/game/Strategic/Map_Screen_Interface_Map.cc LoadMapScreenInterfaceMapGraphics (b_map.pcx, mine_1/2/3.sti, boxes.sti, mapcursr.sti, merc_between_sector_icons.sti, merc_mvt_green_arrows.sti, helicop.sti, hilite.sti, sam.sti, mine.sti, militia.sti, bullseye.sti, the secret site icons)",
+    "src/game/Strategic/Map_Screen_Interface.cc CreateDestroyAssignmentPopUpBoxes and the PopUpBox margins of the assignment family (6, 6, 4, 4, line space 2), CreateTownInfoBox (margins 6, 6, 8 + BOX_BUTTON_HEIGHT, 6), CreateDestroyMovementBox (the move box at 450, 100)"
+  ],
+  "screen": "mapScreen",
+  "frame": "std640",
+  "tooltips": true,
+  "constants": [
+    "MapScreen",
+    "Map_Screen_Interface",
+    "Map_Screen_Interface_Map",
+    "Map_Screen_Interface_Bottom",
+    "Map_Screen_Interface_Border",
+    "Map_Screen_Interface_TownMine_Info",
+    "Map_Screen_Helicopter",
+    "PopUpBox",
+    "Game_Clock",
+    "Radar_Screen",
+    "Text"
+  ],
+  "assets": {
+    "charInfo": {
+      "sti": "interface/charinfo.sti",
+      "stub": {
+        "size": [261, 106]
+      }
+    },
+    "charList": {
+      "sti": "interface/newgoldpiece3.sti",
+      "stub": {
+        "size": [261, 252]
+      }
+    },
+    "mercInventoryPanel": {
+      "sti": "interface/mapinv.sti",
+      "stub": {
+        "size": [261, 252]
+      }
+    },
+    "border": {
+      "sti": "interface/mbs.sti",
+      "stub": {
+        "size": ["MAP_BG_WIDTH", 359]
+      }
+    },
+    "sectorInventoryPanel": {
+      "sti": "interface/sector_inventory.sti",
+      "stub": {
+        "size": ["MAP_BG_WIDTH", 360]
+      }
+    },
+    "bottomPanel": {
+      "sti": "interface/map_screen_bottom.sti",
+      "stub": {
+        "size": [640, 121]
+      }
+    },
+    "sortButtons": {
+      "mlg": "MLG_GOLDPIECEBUTTONS",
+      "stub": {
+        "sizes": [[51, 16], [51, 16], [32, 16], [33, 16], [28, 16], [19, 16], [51, 16], [51, 16], [32, 16], [33, 16], [28, 16], [19, 16]],
+        "states": [
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed"
+        ]
+      }
+    },
+    "contractButton": {
+      "sti": "interface/contractbutton.sti",
+      "stub": {
+        "frames": 2,
+        "size": [66, 14],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "bottomArrows": {
+      "sti": "interface/map_screen_bottom_arrows.sti",
+      "stub": {
+        "sizes": [
+          [13, 14],
+          [13, 14],
+          [13, 14],
+          [13, 14],
+          [12, 13],
+          [12, 13],
+          [12, 13],
+          [12, 13],
+          ["SLIDER_WIDTH", "SLIDER_HEIGHT"],
+          [13, 14],
+          [13, 14],
+          [12, 13],
+          [12, 13]
+        ],
+        "states": [
+          "normal",
+          "normal",
+          "pressed",
+          "pressed",
+          "normal",
+          "normal",
+          "pressed",
+          "pressed",
+          "plain",
+          "grayed",
+          "grayed",
+          "grayed",
+          "grayed"
+        ]
+      }
+    },
+    "borderButtons": {
+      "sti": "interface/map_border_buttons.sti",
+      "stub": {
+        "sizes": [
+          [40, 25],
+          [40, 25],
+          [40, 25],
+          [40, 25],
+          [40, 25],
+          [40, 25],
+          [36, 36],
+          [36, 36],
+          [40, 25],
+          [40, 25],
+          [40, 25],
+          [40, 25],
+          [40, 25],
+          [40, 25],
+          [40, 25],
+          [36, 36],
+          [36, 36],
+          [40, 25],
+          [69, 27],
+          [69, 27]
+        ],
+        "states": [
+          "plain",
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "plain",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "normal",
+          "pressed"
+        ]
+      }
+    },
+    "newMail": {
+      "sti": "interface/newemail.sti",
+      "stub": {
+        "frames": 2,
+        "size": [16, 11],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "levelMarker": {
+      "sti": "interface/greenarr.sti",
+      "stub": {
+        "style": "hollow",
+        "size": ["MAP_LEVEL_MARKER_WIDTH", "MAP_LEVEL_MARKER_DELTA"]
+      }
+    },
+    "etaPopup": {
+      "sti": "interface/eta_pop_up.sti",
+      "stub": {
+        "size": [89, 21]
+      }
+    },
+    "heliDistances": {
+      "sti": "interface/pos2.sti",
+      "stub": {
+        "size": [129, 70]
+      }
+    },
+    "sleepIcon": {
+      "sti": "interface/sleepicon.sti",
+      "stub": {
+        "size": [10, 8]
+      }
+    },
+    "selectedArrow": {
+      "sti": "interface/selectedchararrow.sti",
+      "stub": {
+        "size": [6, 9]
+      }
+    },
+    "cornerIcons": {
+      "sti": "interface/top_left_corner_icons.sti",
+      "stub": {
+        "frames": 3,
+        "size": ["CHAR_ICON_WIDTH", "CHAR_ICON_HEIGHT"]
+      }
+    },
+    "bars": {
+      "sti": "interface/bars.sti",
+      "stub": {
+        "frames": 2,
+        "size": [3, 43],
+        "states": ["plain", "hover"]
+      }
+    },
+    "board": {
+      "pcx": "interface/b_map.pcx",
+      "stub": {
+        "size": [714, 612]
+      }
+    },
+    "subLevel1": {
+      "sti": "interface/mine_1.sti",
+      "stub": {
+        "size": [338, 290]
+      }
+    },
+    "subLevel2": {
+      "sti": "interface/mine_2.sti",
+      "stub": {
+        "size": [338, 290]
+      }
+    },
+    "subLevel3": {
+      "sti": "interface/mine_3.sti",
+      "stub": {
+        "size": [338, 290]
+      }
+    },
+    "boxes": {
+      "sti": "interface/boxes.sti",
+      "stub": {
+        "sizes": [[3, 3], [5, 5], [3, 3], [5, 5], [3, 3], [5, 5], [3, 3], [5, 5], [6, 8], [8, 10]],
+        "states": ["hover", "hover", "normal", "normal", "plain", "plain", "pressed", "pressed", "grayed", "grayed"]
+      }
+    },
+    "mapCursors": {
+      "sti": "interface/mapcursr.sti",
+      "stub": {
+        "style": "hollow",
+        "frames": 44,
+        "size": ["MAP_GRID_X", "MAP_GRID_Y"]
+      }
+    },
+    "betweenIcons": {
+      "sti": "interface/merc_between_sector_icons.sti",
+      "stub": {
+        "sizes": [[10, 12], [12, 7], [10, 12], [12, 7]]
+      }
+    },
+    "arrivingIcons": {
+      "sti": "interface/merc_mvt_green_arrows.sti",
+      "stub": {
+        "sizes": [[10, 12], [12, 7], [10, 12], [12, 7]],
+        "states": ["hover", "hover", "hover", "hover"]
+      }
+    },
+    "helicopter": {
+      "sti": "interface/helicop.sti",
+      "stub": {
+        "sizes": [["HELI_ICON_WIDTH", "HELI_ICON_HEIGHT"], ["HELI_SHADOW_ICON_WIDTH", "HELI_SHADOW_ICON_HEIGHT"]]
+      }
+    },
+    "hilite": {
+      "sti": "interface/hilite.sti",
+      "stub": {
+        "style": "hollow",
+        "frames": 26,
+        "size": [22, 19],
+        "states": [
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "hover",
+          "hover",
+          "hover",
+          "hover",
+          "hover",
+          "hover",
+          "hover",
+          "hover",
+          "hover",
+          "hover",
+          "hover",
+          "hover",
+          "hover"
+        ]
+      }
+    },
+    "sam": {
+      "sti": "interface/sam.sti",
+      "stub": {
+        "frames": 2,
+        "size": [12, 12]
+      }
+    },
+    "mine": {
+      "sti": "interface/mine.sti",
+      "stub": {
+        "frames": 2,
+        "size": [12, 12]
+      }
+    },
+    "prison": {
+      "sti": "interface/prison.sti",
+      "stub": {
+        "frames": 2,
+        "size": [12, 12]
+      }
+    },
+    "mapItem": {
+      "sti": "interface/map_item.sti",
+      "stub": {
+        "frames": 2,
+        "size": [12, 12]
+      }
+    },
+    "militia": {
+      "sti": "interface/militia.sti",
+      "stub": {
+        "sizes": [
+          [137, 190],
+          [60, 20],
+          [60, 20],
+          [12, 11],
+          [12, 11],
+          [3, 3],
+          [3, 3],
+          [3, 3],
+          [5, 5],
+          [5, 5],
+          [5, 5],
+          [60, 20],
+          [60, 20],
+          [12, 11]
+        ],
+        "states": [
+          "plain",
+          "normal",
+          "normal",
+          "normal",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "pressed",
+          "pressed",
+          "grayed"
+        ]
+      }
+    },
+    "bullseye": {
+      "sti": "interface/bullseye.sti",
+      "stub": {
+        "style": "hollow",
+        "size": ["MAP_GRID_X", "MAP_GRID_Y"]
+      }
+    },
+    "popupBorder": {
+      "sti": "interface/popup.sti",
+      "stub": {
+        "sizes": [[2, 2], [2, 2], [2, 2], [2, 2], ["BORDER_WIDTH", 2], [2, "BORDER_HEIGHT"]]
+      }
+    },
+    "popupBackground": {
+      "pcx": "interface/popupbackground.pcx",
+      "stub": {
+        "size": [320, 240]
+      }
+    },
+    "townBoxButtons": {
+      "sti": "interface/mapinvbtns.sti",
+      "stub": {
+        "frames": 4,
+        "size": [60, "BOX_BUTTON_HEIGHT"],
+        "states": ["normal", "normal", "pressed", "pressed"]
+      }
+    }
+  },
+  "styles": {
+    "assignmentPopup": {
+      "border": "popupBorder",
+      "background": "popupBackground",
+      "font": "MAP_SCREEN_FONT",
+      "margins": [6, 6, 4, 4],
+      "lineSpace": 2,
+      "center": true,
+      "resize": true,
+      "colors": {
+        "foreground": "FONT_LTGREEN",
+        "background": "FONT_BLACK",
+        "highlight": "FONT_WHITE",
+        "shade": "FONT_GRAY7",
+        "secondaryShade": "FONT_YELLOW"
+      }
+    },
+    "squadPopup": {
+      "border": "popupBorder",
+      "background": "popupBackground",
+      "font": "MAP_SCREEN_FONT",
+      "margins": [6, 6, 4, 4],
+      "lineSpace": 2,
+      "center": false,
+      "resize": true,
+      "colors": {
+        "foreground": "FONT_LTGREEN",
+        "background": "FONT_BLACK",
+        "highlight": "FONT_WHITE",
+        "shade": "FONT_GRAY7",
+        "secondaryShade": "FONT_YELLOW"
+      }
+    },
+    "contractPopup": {
+      "border": "popupBorder",
+      "background": "popupBackground",
+      "font": "MAP_SCREEN_FONT",
+      "margins": [6, 6, 4, 4],
+      "lineSpace": 2,
+      "center": false,
+      "resize": true,
+      "colors": {
+        "foreground": "FONT_LTGREEN",
+        "background": "FONT_BLACK",
+        "highlight": "FONT_WHITE",
+        "shade": "FONT_GRAY7",
+        "secondaryShade": "FONT_YELLOW"
+      }
+    },
+    "townPopup": {
+      "border": "popupBorder",
+      "background": "popupBackground",
+      "font": "MAP_SCREEN_FONT",
+      "margins": [6, 6, "8 + BOX_BUTTON_HEIGHT", 6],
+      "lineSpace": 2,
+      "center": false,
+      "resize": true,
+      "secondColumnOffset": 20,
+      "colors": {
+        "foreground": "FONT_YELLOW",
+        "background": "FONT_BLACK",
+        "highlight": "FONT_WHITE",
+        "shade": "FONT_GRAY7",
+        "secondaryShade": "FONT_YELLOW"
+      },
+      "secondColors": {
+        "foreground": "FONT_WHITE",
+        "background": "FONT_BLACK",
+        "highlight": "FONT_WHITE",
+        "shade": "FONT_GRAY7",
+        "secondaryShade": "FONT_YELLOW"
+      }
+    },
+    "movePopup": {
+      "border": "popupBorder",
+      "background": "popupBackground",
+      "font": "MAP_SCREEN_FONT",
+      "margins": [6, 6, 4, 4],
+      "lineSpace": 2,
+      "center": false,
+      "resize": true,
+      "colors": {
+        "foreground": "FONT_LTGREEN",
+        "background": "FONT_BLACK",
+        "highlight": "FONT_WHITE",
+        "shade": "FONT_GRAY7",
+        "secondaryShade": "FONT_YELLOW"
+      }
+    },
+    "townButtons": {
+      "asset": "townBoxButtons",
+      "inventory": [0, 2],
+      "exit": [1, 3],
+      "font": "MAP_SCREEN_FONT",
+      "color": "FONT_WHITE"
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "id": "charInfoArt",
+      "x": "TOWN_INFO_X",
+      "y": "TOWN_INFO_Y",
+      "asset": "charInfo"
+    },
+    {
+      "type": "image",
+      "id": "charListArt",
+      "x": "PLAYER_INFO_X",
+      "y": "PLAYER_INFO_Y",
+      "asset": "charList",
+      "visible": "!inventoryOpen"
+    },
+    {
+      "type": "image",
+      "id": "mercInventoryArt",
+      "x": "PLAYER_INFO_X",
+      "y": "PLAYER_INFO_Y",
+      "asset": "mercInventoryPanel",
+      "visible": "inventoryOpen"
+    },
+    {
+      "type": "image",
+      "id": "mapBorderArt",
+      "x": "MAP_BORDER_X",
+      "y": "MAP_BORDER_Y",
+      "asset": "border",
+      "visible": "!sectorInventoryOpen"
+    },
+    {
+      "type": "image",
+      "id": "sectorInventoryArt",
+      "x": "MAP_BORDER_X",
+      "y": "MAP_BORDER_Y",
+      "asset": "sectorInventoryPanel",
+      "visible": "sectorInventoryOpen"
+    },
+    {
+      "type": "image",
+      "id": "bottomPanelArt",
+      "x": "MAP_BOTTOM_X",
+      "y": "MAP_BOTTOM_Y",
+      "asset": "bottomPanel"
+    },
+    {
+      "type": "image",
+      "id": "levelMarker",
+      "x": "MAP_LEVEL_MARKER_X",
+      "y": {
+        "bind": "levelMarkerY"
+      },
+      "asset": "levelMarker",
+      "visible": "!sectorInventoryOpen"
+    },
+    {
+      "type": "custom",
+      "id": "mapView",
+      "renderer": "mapView",
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 480,
+      "visible": "!sectorInventoryOpen",
+      "params": {
+        "board": "board",
+        "subLevels": ["subLevel1", "subLevel2", "subLevel3"],
+        "boxes": "boxes",
+        "mapCursors": "mapCursors",
+        "betweenIcons": "betweenIcons",
+        "arrivingIcons": "arrivingIcons",
+        "helicopter": "helicopter",
+        "hilite": "hilite",
+        "sam": "sam",
+        "mine": "mine",
+        "militia": "militia",
+        "bullseye": "bullseye",
+        "secretIcons": {
+          "interface/prison.sti": "prison",
+          "interface/map_item.sti": "mapItem"
+        },
+        "font": "MAP_FONT",
+        "iconFont": "MAP_MVT_ICON_FONT"
+      }
+    },
+    {
+      "type": "custom",
+      "id": "characterList",
+      "renderer": "characterList",
+      "x": 0,
+      "y": "PLAYER_INFO_Y",
+      "width": 261,
+      "height": 252,
+      "visible": "!inventoryOpen",
+      "params": {
+        "font": "MAP_SCREEN_FONT",
+        "top": "Y_START",
+        "firstVehicle": "FIRST_VEHICLE",
+        "vehicleGap": 6,
+        "columns": {
+          "name": ["NAME_X", "NAME_WIDTH"],
+          "assignment": ["ASSIGN_X", "ASSIGN_WIDTH"],
+          "sleep": ["SLEEP_X", "SLEEP_WIDTH"],
+          "location": ["LOC_X", "LOC_WIDTH"],
+          "destination": ["DEST_ETA_X", "DEST_ETA_WIDTH"],
+          "departure": ["TIME_REMAINING_X", "TIME_REMAINING_WIDTH"]
+        },
+        "sleepIcon": "sleepIcon",
+        "sleepIconX": 125,
+        "arrow": "selectedArrow",
+        "arrowX": "SELECTED_CHAR_ARROW_X"
+      }
+    },
+    {
+      "type": "custom",
+      "id": "characterInfo",
+      "renderer": "characterInfo",
+      "x": 0,
+      "y": 0,
+      "width": 261,
+      "height": 107,
+      "params": {
+        "font": "CHAR_FONT",
+        "bars": "bars",
+        "barsAt": ["BAR_INFO_X", "BAR_INFO_Y"],
+        "icons": "cornerIcons",
+        "iconAt": ["CHAR_ICON_X", "CHAR_ICON_CONTRACT_Y"],
+        "iconSpacing": "CHAR_ICON_SPACING",
+        "face": ["SOLDIER_PIC_X", "SOLDIER_PIC_Y"],
+        "hand": ["SOLDIER_HAND_X", "SOLDIER_HAND_Y", 58, 23],
+        "nickname": ["PIC_NAME_X", "PIC_NAME_Y", "PIC_NAME_WID", "PIC_NAME_HEI"],
+        "name": ["CHAR_NAME_X", "CHAR_NAME_Y", "CHAR_NAME_WID", "CHAR_NAME_HEI"],
+        "assignment1": ["CHAR_ASSIGN_X", "CHAR_ASSIGN1_Y", "CHAR_ASSIGN_WID", "CHAR_ASSIGN_HEI"],
+        "assignment2": ["CHAR_ASSIGN_X", "CHAR_ASSIGN2_Y", "CHAR_ASSIGN_WID", "CHAR_ASSIGN_HEI"],
+        "health": ["CHAR_HP_X", "CHAR_HP_Y", "CHAR_HP_WID", "CHAR_HP_HEI"],
+        "morale": ["CHAR_MORALE_X", "CHAR_MORALE_Y", "CHAR_MORALE_WID", "CHAR_MORALE_HEI"],
+        "contract": ["CHAR_TIME_REMAINING_X", "CHAR_TIME_REMAINING_Y", "CHAR_TIME_REMAINING_WID"],
+        "salary": ["CHAR_SALARY_X", "CHAR_SALARY_Y", "CHAR_SALARY_WID"],
+        "medical": ["CHAR_MEDICAL_X", "CHAR_MEDICAL_Y", "CHAR_MEDICAL_WID"],
+        "stats": [
+          ["AGL_X", "AGL_Y"],
+          ["DEX_X", "DEX_Y"],
+          ["STR_X", "STR_Y"],
+          ["LDR_X", "LDR_Y"],
+          ["WIS_X", "WIS_Y"],
+          ["LVL_X", "LVL_Y"],
+          ["MRK_X", "MRK_Y"],
+          ["EXP_X", "EXP_Y"],
+          ["MEC_X", "MEC_Y"],
+          ["MED_X", "MED_Y"]
+        ],
+        "statWidth": "STAT_WID"
+      }
+    },
+    {
+      "type": "text",
+      "id": "assignmentTitle",
+      "x": 0,
+      "y": 6,
+      "width": 440,
+      "align": "center",
+      "alignRule": "font",
+      "font": "CHAR_FONT",
+      "color": "CHAR_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["pUpperLeftMapScreenStrings", 0]
+      }
+    },
+    {
+      "type": "text",
+      "id": "healthLabel",
+      "x": 87,
+      "y": 80,
+      "font": "BLOCKFONT2",
+      "color": "CHAR_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["pUpperLeftMapScreenStrings", 1]
+      },
+      "visible": "!mechanical"
+    },
+    {
+      "type": "text",
+      "id": "conditionLabel",
+      "x": 87,
+      "y": 80,
+      "font": "BLOCKFONT2",
+      "color": "CHAR_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["pUpperLeftMapScreenStrings", 3]
+      },
+      "visible": "mechanical"
+    },
+    {
+      "type": "text",
+      "id": "moraleLabel",
+      "x": 87,
+      "y": 94,
+      "font": "BLOCKFONT2",
+      "color": "CHAR_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["pUpperLeftMapScreenStrings", 2]
+      },
+      "visible": "!mechanical"
+    },
+    {
+      "type": "repeat",
+      "id": "statLabels",
+      "count": 5,
+      "dy": 10,
+      "template": [
+        {
+          "type": "text",
+          "id": "statLabelLeft$i",
+          "x": 88,
+          "y": 22,
+          "font": "BLOCKFONT2",
+          "color": "CHAR_TITLE_FONT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "key": ["pShortAttributeStrings", "$i"]
+          },
+          "visible": "!mechanical"
+        },
+        {
+          "type": "text",
+          "id": "statLabelRight$i",
+          "x": 133,
+          "y": 22,
+          "font": "BLOCKFONT2",
+          "color": "CHAR_TITLE_FONT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "key": ["pShortAttributeStrings", "$i + 5"]
+          },
+          "visible": "!mechanical"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "id": "sort0",
+      "x": 12,
+      "y": 125,
+      "asset": "sortButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 6
+      },
+      "priority": "HIGHEST-5",
+      "visible": "!inventoryOpen",
+      "tooltip": {
+        "key": ["wMapScreenSortButtonHelpText", 0]
+      },
+      "primary": "sort(0)"
+    },
+    {
+      "type": "button",
+      "id": "sort1",
+      "x": 68,
+      "y": 125,
+      "asset": "sortButtons",
+      "frames": {
+        "offNormal": 1,
+        "onNormal": 7
+      },
+      "priority": "HIGHEST-5",
+      "visible": "!inventoryOpen",
+      "tooltip": {
+        "key": ["wMapScreenSortButtonHelpText", 1]
+      },
+      "primary": "sort(1)"
+    },
+    {
+      "type": "button",
+      "id": "sort2",
+      "x": 124,
+      "y": 125,
+      "asset": "sortButtons",
+      "frames": {
+        "offNormal": 5,
+        "onNormal": 11
+      },
+      "priority": "HIGHEST-5",
+      "visible": "!inventoryOpen",
+      "tooltip": {
+        "key": ["wMapScreenSortButtonHelpText", 2]
+      },
+      "primary": "sort(2)"
+    },
+    {
+      "type": "button",
+      "id": "sort3",
+      "x": 148,
+      "y": 125,
+      "asset": "sortButtons",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 8
+      },
+      "priority": "HIGHEST-5",
+      "visible": "!inventoryOpen",
+      "tooltip": {
+        "key": ["wMapScreenSortButtonHelpText", 3]
+      },
+      "primary": "sort(3)"
+    },
+    {
+      "type": "button",
+      "id": "sort4",
+      "x": 185,
+      "y": 125,
+      "asset": "sortButtons",
+      "frames": {
+        "offNormal": 3,
+        "onNormal": 9
+      },
+      "priority": "HIGHEST-5",
+      "visible": "!inventoryOpen",
+      "tooltip": {
+        "key": ["wMapScreenSortButtonHelpText", 4]
+      },
+      "primary": "sort(4)"
+    },
+    {
+      "type": "button",
+      "id": "sort5",
+      "x": 223,
+      "y": 125,
+      "asset": "sortButtons",
+      "frames": {
+        "offNormal": 4,
+        "onNormal": 10
+      },
+      "priority": "HIGHEST-5",
+      "visible": "!inventoryOpen",
+      "tooltip": {
+        "key": ["wMapScreenSortButtonHelpText", 5]
+      },
+      "primary": "sort(5)"
+    },
+    {
+      "type": "button",
+      "id": "contractButton",
+      "x": "CONTRACT_X + 5",
+      "y": "CONTRACT_Y - 1",
+      "asset": "contractButton",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGHEST-5",
+      "enabled": "contractEnabled",
+      "tooltip": {
+        "key": ["pMapScreenMouseRegionHelpText", 3]
+      },
+      "primary": "contract",
+      "text": {
+        "source": {
+          "key": ["pContractButtonString", 0]
+        },
+        "font": "MAP_SCREEN_FONT",
+        "color": "CHAR_TEXT_FONT_COLOR",
+        "shadow": "FONT_BLACK",
+        "hiliteColor": "FONT_MCOLOR_WHITE",
+        "hiliteShadow": "DEFAULT_SHADOW",
+        "subOffsetX": 0,
+        "subOffsetY": 0
+      }
+    },
+    {
+      "type": "button",
+      "id": "prevMerc",
+      "x": 67,
+      "y": 69,
+      "asset": "bottomArrows",
+      "frames": {
+        "grayed": 11,
+        "offNormal": 4,
+        "onNormal": 6
+      },
+      "priority": "HIGHEST-5",
+      "enabled": "prevNextEnabled",
+      "tooltip": {
+        "key": ["pMapScreenPrevNextCharButtonHelpText", 0]
+      },
+      "primary": "prevMerc"
+    },
+    {
+      "type": "button",
+      "id": "nextMerc",
+      "x": 67,
+      "y": 87,
+      "asset": "bottomArrows",
+      "frames": {
+        "grayed": 12,
+        "offNormal": 5,
+        "onNormal": 7
+      },
+      "priority": "HIGHEST-5",
+      "enabled": "prevNextEnabled",
+      "tooltip": {
+        "key": ["pMapScreenPrevNextCharButtonHelpText", 1]
+      },
+      "primary": "nextMerc"
+    },
+    {
+      "type": "button",
+      "id": "filter0",
+      "kind": "quickNoMove",
+      "x": "BTN_TOWN_X",
+      "y": 323,
+      "asset": "borderButtons",
+      "frames": {
+        "offNormal": 5,
+        "onNormal": 14
+      },
+      "priority": "HIGH",
+      "visible": "!sectorInventoryOpen",
+      "checked": "townsOn",
+      "tooltip": {
+        "key": ["pMapScreenBorderButtonHelpText", 0]
+      },
+      "press": "filter(0)"
+    },
+    {
+      "type": "button",
+      "id": "filter1",
+      "kind": "quickNoMove",
+      "x": "BTN_MINE_X",
+      "y": 323,
+      "asset": "borderButtons",
+      "frames": {
+        "offNormal": 4,
+        "onNormal": 13
+      },
+      "priority": "HIGH",
+      "visible": "!sectorInventoryOpen",
+      "checked": "minesOn",
+      "tooltip": {
+        "key": ["pMapScreenBorderButtonHelpText", 1]
+      },
+      "press": "filter(1)"
+    },
+    {
+      "type": "button",
+      "id": "filter2",
+      "kind": "quickNoMove",
+      "x": "BTN_TEAMS_X",
+      "y": 323,
+      "asset": "borderButtons",
+      "frames": {
+        "offNormal": 3,
+        "onNormal": 12
+      },
+      "priority": "HIGH",
+      "visible": "!sectorInventoryOpen",
+      "checked": "teamsOn",
+      "tooltip": {
+        "key": ["pMapScreenBorderButtonHelpText", 2]
+      },
+      "press": "filter(2)"
+    },
+    {
+      "type": "button",
+      "id": "filter3",
+      "kind": "quickNoMove",
+      "x": "BTN_MILITIA_X",
+      "y": 323,
+      "asset": "borderButtons",
+      "frames": {
+        "offNormal": 8,
+        "onNormal": 17
+      },
+      "priority": "HIGH",
+      "visible": "!sectorInventoryOpen",
+      "checked": "militiaOn",
+      "tooltip": {
+        "key": ["pMapScreenBorderButtonHelpText", 5]
+      },
+      "press": "filter(3)"
+    },
+    {
+      "type": "button",
+      "id": "filter4",
+      "kind": "quickNoMove",
+      "x": "BTN_AIR_X",
+      "y": 323,
+      "asset": "borderButtons",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 11
+      },
+      "priority": "HIGH",
+      "visible": "!sectorInventoryOpen",
+      "checked": "airspaceOn",
+      "tooltip": {
+        "key": ["pMapScreenBorderButtonHelpText", 3]
+      },
+      "press": "filter(4)"
+    },
+    {
+      "type": "button",
+      "id": "filter5",
+      "kind": "quickNoMove",
+      "x": "BTN_ITEM_X",
+      "y": 323,
+      "asset": "borderButtons",
+      "frames": {
+        "offNormal": 1,
+        "onNormal": 10
+      },
+      "priority": "HIGH",
+      "visible": "!sectorInventoryOpen",
+      "checked": "itemsOn",
+      "tooltip": {
+        "key": ["pMapScreenBorderButtonHelpText", 4]
+      },
+      "press": "filter(5)"
+    },
+    {
+      "type": "region",
+      "id": "level0",
+      "x": "MAP_LEVEL_MARKER_X",
+      "y": "MAP_LEVEL_MARKER_Y + MAP_LEVEL_MARKER_DELTA * 0",
+      "width": "MAP_LEVEL_MARKER_WIDTH",
+      "height": "MAP_LEVEL_MARKER_DELTA",
+      "priority": "HIGH",
+      "enabled": "!sectorInventoryOpen",
+      "tooltip": {
+        "bind": "levelHelp[0]"
+      },
+      "primary": "level(0)"
+    },
+    {
+      "type": "region",
+      "id": "level1",
+      "x": "MAP_LEVEL_MARKER_X",
+      "y": "MAP_LEVEL_MARKER_Y + MAP_LEVEL_MARKER_DELTA * 1",
+      "width": "MAP_LEVEL_MARKER_WIDTH",
+      "height": "MAP_LEVEL_MARKER_DELTA",
+      "priority": "HIGH",
+      "enabled": "!sectorInventoryOpen",
+      "tooltip": {
+        "bind": "levelHelp[1]"
+      },
+      "primary": "level(1)"
+    },
+    {
+      "type": "region",
+      "id": "level2",
+      "x": "MAP_LEVEL_MARKER_X",
+      "y": "MAP_LEVEL_MARKER_Y + MAP_LEVEL_MARKER_DELTA * 2",
+      "width": "MAP_LEVEL_MARKER_WIDTH",
+      "height": "MAP_LEVEL_MARKER_DELTA",
+      "priority": "HIGH",
+      "enabled": "!sectorInventoryOpen",
+      "tooltip": {
+        "bind": "levelHelp[2]"
+      },
+      "primary": "level(2)"
+    },
+    {
+      "type": "region",
+      "id": "level3",
+      "x": "MAP_LEVEL_MARKER_X",
+      "y": "MAP_LEVEL_MARKER_Y + MAP_LEVEL_MARKER_DELTA * 3",
+      "width": "MAP_LEVEL_MARKER_WIDTH",
+      "height": "MAP_LEVEL_MARKER_DELTA",
+      "priority": "HIGH",
+      "enabled": "!sectorInventoryOpen",
+      "tooltip": {
+        "bind": "levelHelp[3]"
+      },
+      "primary": "level(3)"
+    },
+    {
+      "type": "button",
+      "id": "laptopButton",
+      "x": 456,
+      "y": 410,
+      "asset": "borderButtons",
+      "frames": {
+        "offNormal": 6,
+        "onNormal": 15
+      },
+      "priority": "HIGHEST-1",
+      "enabled": "laptopEnabled",
+      "disabledStyle": "hatched",
+      "tooltip": {
+        "key": ["pMapScreenBottomFastHelp", 0]
+      },
+      "primary": "laptop"
+    },
+    {
+      "type": "image",
+      "id": "newMailIcon",
+      "x": 464,
+      "y": 417,
+      "asset": "newMail",
+      "frame": 0,
+      "visible": "newMailShown"
+    },
+    {
+      "type": "button",
+      "id": "tacticalButton",
+      "x": 496,
+      "y": 410,
+      "asset": "borderButtons",
+      "frames": {
+        "offNormal": 7,
+        "onNormal": 16
+      },
+      "priority": "HIGHEST-1",
+      "enabled": "tacticalEnabled",
+      "disabledStyle": "hatched",
+      "tooltip": {
+        "key": ["pMapScreenBottomFastHelp", 1]
+      },
+      "primary": "tactical"
+    },
+    {
+      "type": "button",
+      "id": "optionsButton",
+      "x": 458,
+      "y": 372,
+      "asset": "borderButtons",
+      "frames": {
+        "offNormal": 18,
+        "onNormal": 19
+      },
+      "priority": "HIGHEST-1",
+      "enabled": "optionsEnabled",
+      "disabledStyle": "hatched",
+      "tooltip": {
+        "key": ["pMapScreenBottomFastHelp", 2]
+      },
+      "primary": "options"
+    },
+    {
+      "type": "button",
+      "id": "compressMore",
+      "x": 528,
+      "y": 456,
+      "asset": "bottomArrows",
+      "frames": {
+        "grayed": 10,
+        "offNormal": 1,
+        "onNormal": 3
+      },
+      "priority": "HIGHEST-2",
+      "enabled": "compressMoreEnabled",
+      "tooltip": {
+        "key": ["pMapScreenBottomFastHelp", 3]
+      },
+      "press": "compressCheck",
+      "primary": "compressMore",
+      "secondary": "compressCheck"
+    },
+    {
+      "type": "button",
+      "id": "compressLess",
+      "x": 466,
+      "y": 456,
+      "asset": "bottomArrows",
+      "frames": {
+        "grayed": 9,
+        "offNormal": 0,
+        "onNormal": 2
+      },
+      "priority": "HIGHEST-2",
+      "enabled": "compressLessEnabled",
+      "tooltip": {
+        "key": ["pMapScreenBottomFastHelp", 4]
+      },
+      "press": "compressCheck",
+      "primary": "compressLess",
+      "secondary": "compressCheck"
+    },
+    {
+      "type": "button",
+      "id": "messageUp",
+      "x": 331,
+      "y": 371,
+      "asset": "bottomArrows",
+      "frames": {
+        "grayed": 11,
+        "offNormal": 4,
+        "onNormal": 6
+      },
+      "priority": "HIGHEST-2",
+      "enabled": "messageUpEnabled",
+      "tooltip": {
+        "key": ["pMapScreenBottomFastHelp", 5]
+      },
+      "primary": "messageUp(1)",
+      "secondary": "messageUp(9)"
+    },
+    {
+      "type": "button",
+      "id": "messageDown",
+      "x": 331,
+      "y": 452,
+      "asset": "bottomArrows",
+      "frames": {
+        "grayed": 12,
+        "offNormal": 5,
+        "onNormal": 7
+      },
+      "priority": "HIGHEST-2",
+      "enabled": "messageDownEnabled",
+      "tooltip": {
+        "key": ["pMapScreenBottomFastHelp", 6]
+      },
+      "primary": "messageDown(1)",
+      "secondary": "messageDown(9)"
+    },
+    {
+      "type": "region",
+      "id": "compressionLabel",
+      "x": 487,
+      "y": 456,
+      "width": 35,
+      "height": 11,
+      "priority": "HIGH",
+      "tooltip": {
+        "key": ["pMapScreenBottomFastHelp", 7]
+      },
+      "primary": "toggleCompression",
+      "secondary": "toggleCompression"
+    },
+    {
+      "type": "region",
+      "id": "compressionMask0",
+      "x": 528,
+      "y": 457,
+      "width": 13,
+      "height": 14,
+      "priority": "HIGHEST-1",
+      "enabled": "compressionMasked",
+      "primary": "explainCompression"
+    },
+    {
+      "type": "region",
+      "id": "compressionMask1",
+      "x": 466,
+      "y": 457,
+      "width": 13,
+      "height": 14,
+      "priority": "HIGHEST-1",
+      "enabled": "compressionMasked",
+      "primary": "explainCompression"
+    },
+    {
+      "type": "region",
+      "id": "compressionMask2",
+      "x": 487,
+      "y": 457,
+      "width": 35,
+      "height": 11,
+      "priority": "HIGHEST-1",
+      "enabled": "compressionMasked",
+      "primary": "explainCompression"
+    },
+    {
+      "type": "region",
+      "id": "clockRegion",
+      "x": 554,
+      "y": 457,
+      "width": "CLOCK_WIDTH",
+      "height": "CLOCK_HEIGHT",
+      "priority": "HIGHEST",
+      "tooltip": {
+        "bind": "pauseHelp"
+      },
+      "primary": "togglePause"
+    },
+    {
+      "type": "custom",
+      "id": "bottomPanel",
+      "renderer": "bottomPanel",
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 480,
+      "params": {
+        "messages": ["MESSAGE_BOX_X", "MESSAGE_BOX_Y", "MESSAGE_BOX_W", "MESSAGE_BOX_H"],
+        "messageFont": "TINYFONT1",
+        "slider": "bottomArrows",
+        "sliderAt": ["MESSAGE_SCROLL_AREA_START_X + 2", "MESSAGE_SCROLL_AREA_START_Y"],
+        "compressionText": [489, 457, 33, 13],
+        "compressionFont": "COMPFONT",
+        "clock": [554, 457, "CLOCK_WIDTH", "CLOCK_HEIGHT"]
+      }
+    },
+    {
+      "type": "text",
+      "id": "balanceTitle",
+      "x": 359,
+      "y": 373,
+      "width": 78,
+      "height": 10,
+      "align": "center",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "COMPFONT",
+      "color": "MAP_BOTTOM_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["pMapScreenBottomText", 0]
+      }
+    },
+    {
+      "type": "text",
+      "id": "incomeTitle",
+      "x": 359,
+      "y": 419,
+      "width": 78,
+      "height": 10,
+      "align": "center",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "COMPFONT",
+      "color": "MAP_BOTTOM_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["zMarksMapScreenText", 2]
+      }
+    },
+    {
+      "type": "text",
+      "id": "balance",
+      "x": 359,
+      "y": 389,
+      "width": 78,
+      "height": 10,
+      "align": "center",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "COMPFONT",
+      "color": 183,
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "money": {
+          "bind": "balance"
+        }
+      }
+    },
+    {
+      "type": "text",
+      "id": "income",
+      "x": 359,
+      "y": 435,
+      "width": 78,
+      "height": 10,
+      "align": "center",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "COMPFONT",
+      "color": 183,
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "money": {
+          "bind": "income"
+        }
+      }
+    },
+    {
+      "type": "text",
+      "id": "sectorName",
+      "x": 548,
+      "y": 426,
+      "width": 80,
+      "height": 16,
+      "align": "center",
+      "alignRule": "font",
+      "valign": "center",
+      "ellipsis": true,
+      "font": "COMPFONT",
+      "color": 183,
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "sectorName"
+      }
+    },
+    {
+      "type": "custom",
+      "id": "radar",
+      "renderer": "radar",
+      "x": 543,
+      "y": 373,
+      "width": "RADAR_WINDOW_WIDTH",
+      "height": "RADAR_WINDOW_HEIGHT"
+    },
+    {
+      "type": "custom",
+      "id": "etaBox",
+      "renderer": "etaBox",
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 480,
+      "params": {
+        "popup": "etaPopup",
+        "popupAt": ["MAP_BORDER_X + 215", 291],
+        "font": "ETA_FONT",
+        "label": ["CLOCK_ETA_X", "CLOCK_Y_START"],
+        "minutes": "CLOCK_MIN_X_START",
+        "hours": "CLOCK_HOUR_X_START",
+        "heliPopup": "heliDistances",
+        "heliAt": ["MAP_HELICOPTER_ETA_POPUP_X", "MAP_HELICOPTER_ETA_POPUP_Y"],
+        "heliUpperY": "MAP_HELICOPTER_UPPER_ETA_POPUP_Y",
+        "heliWidth": "MAP_HELICOPTER_ETA_POPUP_WIDTH",
+        "heliFont": "MAP_FONT"
+      }
+    }
+  ],
+  "hotkeys": [
+    {
+      "key": "Escape",
+      "on": "down",
+      "mods": 0,
+      "action": "escape"
+    },
+    {
+      "key": "Pause",
+      "on": "down",
+      "mods": 0,
+      "action": "togglePause"
+    },
+    {
+      "key": "ArrowLeft",
+      "on": "down",
+      "mods": 0,
+      "action": "prevMerc"
+    },
+    {
+      "key": "ArrowLeft",
+      "on": "repeat",
+      "mods": 0,
+      "action": "prevMerc"
+    },
+    {
+      "key": "ArrowRight",
+      "on": "down",
+      "mods": 0,
+      "action": "nextMerc"
+    },
+    {
+      "key": "ArrowRight",
+      "on": "repeat",
+      "mods": 0,
+      "action": "nextMerc"
+    },
+    {
+      "key": "ArrowUp",
+      "on": "down",
+      "mods": 0,
+      "action": "messageUp(1)"
+    },
+    {
+      "key": "ArrowUp",
+      "on": "repeat",
+      "mods": 0,
+      "action": "messageUp(1)"
+    },
+    {
+      "key": "ArrowDown",
+      "on": "down",
+      "mods": 0,
+      "action": "messageDown(1)"
+    },
+    {
+      "key": "ArrowDown",
+      "on": "repeat",
+      "mods": 0,
+      "action": "messageDown(1)"
+    },
+    {
+      "key": "PageUp",
+      "on": "down",
+      "mods": 0,
+      "action": "messageUp(9)"
+    },
+    {
+      "key": "PageUp",
+      "on": "repeat",
+      "mods": 0,
+      "action": "messageUp(9)"
+    },
+    {
+      "key": "PageDown",
+      "on": "down",
+      "mods": 0,
+      "action": "messageDown(9)"
+    },
+    {
+      "key": "PageDown",
+      "on": "repeat",
+      "mods": 0,
+      "action": "messageDown(9)"
+    },
+    {
+      "key": "Home",
+      "on": "down",
+      "mods": 0,
+      "action": "messageHome"
+    },
+    {
+      "key": "End",
+      "on": "down",
+      "mods": 0,
+      "action": "messageEnd"
+    },
+    {
+      "key": "Insert",
+      "on": "down",
+      "mods": 0,
+      "action": "levelUp"
+    },
+    {
+      "key": "Delete",
+      "on": "down",
+      "mods": 0,
+      "action": "levelDown"
+    },
+    {
+      "key": "Enter",
+      "on": "down",
+      "mods": 0,
+      "action": "toggleInventory"
+    },
+    {
+      "key": "Backspace",
+      "on": "down",
+      "mods": 0,
+      "action": "stopSpeech"
+    },
+    {
+      "key": "F1",
+      "on": "down",
+      "mods": 0,
+      "action": "sort(0)"
+    },
+    {
+      "key": "F2",
+      "on": "down",
+      "mods": 0,
+      "action": "sort(1)"
+    },
+    {
+      "key": "F3",
+      "on": "down",
+      "mods": 0,
+      "action": "sort(2)"
+    },
+    {
+      "key": "F4",
+      "on": "down",
+      "mods": 0,
+      "action": "sort(3)"
+    },
+    {
+      "key": "F5",
+      "on": "down",
+      "mods": 0,
+      "action": "sort(4)"
+    },
+    {
+      "key": "F6",
+      "on": "down",
+      "mods": 0,
+      "action": "sort(5)"
+    },
+    {
+      "key": "+",
+      "on": "down",
+      "mods": 0,
+      "action": "keyCompressMore"
+    },
+    {
+      "key": "=",
+      "on": "down",
+      "mods": 0,
+      "action": "keyCompressMore"
+    },
+    {
+      "key": "-",
+      "on": "down",
+      "mods": 0,
+      "action": "keyCompressLess"
+    },
+    {
+      "key": "_",
+      "on": "down",
+      "mods": 0,
+      "action": "keyCompressLess"
+    },
+    {
+      "key": " ",
+      "on": "down",
+      "mods": 0,
+      "action": "space"
+    },
+    {
+      "key": "a",
+      "on": "down",
+      "mods": 0,
+      "action": "keyA"
+    },
+    {
+      "key": "c",
+      "on": "down",
+      "mods": 0,
+      "action": "contract"
+    },
+    {
+      "key": "e",
+      "on": "down",
+      "mods": 0,
+      "action": "keyE"
+    },
+    {
+      "key": "h",
+      "on": "down",
+      "mods": 0,
+      "action": "help"
+    },
+    {
+      "key": "i",
+      "on": "down",
+      "mods": 0,
+      "action": "filter(5)",
+      "when": "!sectorInventoryOpen"
+    },
+    {
+      "key": "l",
+      "on": "down",
+      "mods": 0,
+      "action": "laptop"
+    },
+    {
+      "key": "m",
+      "on": "down",
+      "mods": 0,
+      "action": "filter(1)",
+      "when": "!sectorInventoryOpen"
+    },
+    {
+      "key": "o",
+      "on": "down",
+      "mods": 0,
+      "action": "options"
+    },
+    {
+      "key": "r",
+      "on": "down",
+      "mods": 0,
+      "action": "keyR"
+    },
+    {
+      "key": "t",
+      "on": "down",
+      "mods": 0,
+      "action": "filter(2)",
+      "when": "!sectorInventoryOpen"
+    },
+    {
+      "key": "v",
+      "on": "down",
+      "mods": 0,
+      "action": "version"
+    },
+    {
+      "key": "w",
+      "on": "down",
+      "mods": 0,
+      "action": "filter(0)",
+      "when": "!sectorInventoryOpen"
+    },
+    {
+      "key": "z",
+      "on": "down",
+      "mods": 0,
+      "action": "filter(3)",
+      "when": "!sectorInventoryOpen"
+    },
+    {
+      "key": "i",
+      "on": "down",
+      "mods": 2,
+      "action": "toggleSectorInventory"
+    },
+    {
+      "key": "l",
+      "on": "down",
+      "mods": 2,
+      "action": "loadGame"
+    },
+    {
+      "key": "s",
+      "on": "down",
+      "mods": 2,
+      "action": "saveGame"
+    },
+    {
+      "key": "a",
+      "on": "down",
+      "mods": 4,
+      "action": "assignmentMenu"
+    },
+    {
+      "key": "l",
+      "on": "down",
+      "mods": 4,
+      "action": "quickLoad"
+    },
+    {
+      "key": "s",
+      "on": "down",
+      "mods": 4,
+      "action": "quickSave"
+    },
+    {
+      "key": "x",
+      "on": "down",
+      "mods": 4,
+      "action": "exitGame"
+    }
+  ]
+}
