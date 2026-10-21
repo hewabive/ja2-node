@@ -9,6 +9,7 @@ import { buildStubFaces, buildStubPortraits } from './ui/faces.ts';
 import { buildStubItemGraphics } from './ui/items.ts';
 import { buildStubRadarMaps } from './ui/radar.ts';
 import { buildStubSkin } from './ui/skin.ts';
+import { buildStubStrategicMap } from './ui/strategic-map.ts';
 import { buildStubTestCard } from './ui-test-card.ts';
 import { buildStubVideo } from './video.ts';
 
@@ -25,6 +26,7 @@ export async function buildStubMedia(out: string, aliases: Map<string, string>):
   const faces = await buildStubFaces(out, aliases);
   const items = await buildStubItemGraphics(out, aliases);
   const radar = await buildStubRadarMaps(out, aliases);
+  const strategicMap = await buildStubStrategicMap(out);
   const before = [
     ...text.written,
     ...sounds,
@@ -38,6 +40,7 @@ export async function buildStubMedia(out: string, aliases: Map<string, string>):
     ...faces,
     ...items,
     ...radar,
+    ...strategicMap,
   ];
   const present = new Set(before);
   const skin = await buildStubSkin(out, (path) => present.has(path) || aliases.has(path), aliases);
