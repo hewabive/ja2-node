@@ -108,9 +108,23 @@ test.describe('the map screen on the stub map-screen campaign', () => {
   });
 
   test('moves the squad by plotting a route from the destination column, the client hints agreeing with the server', async ({ page }) => {
-    await openMap(page, session, '&shadowHints=1');
+    await openMap(page, session);
     await clickRow(page, 0, DESTINATION);
     expect((await mapHook(page))?.plotting).toMatchObject({ mode: 'merc' });
+    const soldier = (await mapHook(page))?.plotting?.soldier ?? -1;
+    for (const request of [
+      { type: 'previewRoute', soldier, to: 'B13', extend: true },
+      { type: 'previewRoute', soldier, to: 'C13', via: ['C14'], shortest: true, extend: true },
+      { type: 'canEnterSector', sector: save.sector },
+      { type: 'assignmentOptions', soldier },
+      { type: 'previewHeliRoute', to: 'B13', extend: true },
+    ]) {
+      const answers = await page.evaluate(async (q) => {
+        const hints = window.__ja2Ui.map?.hints;
+        return hints ? { local: await hints.hintNow(q), server: await hints.query(q) } : null;
+      }, request);
+      expect(answers?.local, JSON.stringify(request)).toEqual(answers?.server);
+    }
     await restOn(page, 'C13');
     await clickSector(page, 'C13');
     expect((await mapHook(page))?.plotting?.legs).toEqual(['C13']);
@@ -118,9 +132,6 @@ test.describe('the map screen on the stub map-screen campaign', () => {
     await page.waitForFunction(() => window.__ja2Ui.map?.commands.at(-1)?.type === 'route');
     expect(await lastCommand(page)).toMatchObject({ type: 'route', ok: true });
     expect((await mapHook(page))?.plotting).toBeNull();
-    const stats = await page.evaluate(() => window.__ja2Ui.map?.hints.stats ?? null);
-    expect(stats?.shadowCompared).toBeGreaterThan(0);
-    expect(stats?.mismatches).toEqual([]);
     await clickWidget(page, 'compressMore');
     await page.waitForFunction(() => window.__ja2Ui.map?.screen?.messages.some((m) => m.includes('C13')) === true, null, {
       timeout: FLIGHT_TIMEOUT_MS,

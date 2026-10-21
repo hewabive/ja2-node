@@ -92,6 +92,8 @@ export class MapHost implements MapPort {
     if (!identity) throw new Error('the session has not identified its rules');
     const knowledge = await ClientKnowledge.open(this.#o.ui.source, identity);
     if (!knowledge.rules.strategic) throw new Error('the rule pack has no strategic content');
+    const mapPath = this.#o.session.latestView?.mapPath;
+    if (mapPath) await knowledge.worlds.ensure(mapPath);
     this.#knowledge = knowledge;
     this.#hints.warm();
     this.#hintHook.usable = knowledge.usable;
