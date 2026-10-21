@@ -652,6 +652,7 @@ export class LayoutView {
         }
         if (reason & SECONDARY_UP) this.invoke(json.secondary, vars);
         if (reason & PRESS_REASONS) this.invoke(json.press, vars);
+        if (reason & MouseReason.LBUTTON_DWN) this.invoke(json.down, vars);
         if (reason & MouseReason.WHEEL_UP) this.invoke(json.wheelUp, vars);
         if (reason & MouseReason.WHEEL_DOWN) this.invoke(json.wheelDown, vars);
       },

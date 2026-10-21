@@ -215,7 +215,7 @@ export class Plotting {
     const to = this.#legs[this.#legs.length - 1] as string;
     const via = this.#legs.slice(0, -1);
     const viaPart = via.length > 0 ? { via } : {};
-    if (this.mode === 'heli') return { type: 'heliRoute', to, ...viaPart, extend: true };
+    if (this.mode === 'heli') return { type: 'heliRoute', to, ...viaPart, extend: true, plotted: true };
     return { type: 'route', soldier: this.soldier, to, ...viaPart, ...(this.#shortest ? { shortest: true } : {}), extend: true };
   }
 

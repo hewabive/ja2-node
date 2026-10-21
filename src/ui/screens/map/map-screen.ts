@@ -104,7 +104,6 @@ const MAP_ERROR = 'pMapErrorString';
 const MAP_PLOT = 'pMapPlotStrings';
 const MARKS = 'zMarksMapScreenText';
 const BULLSEYE = 'pBullseyeStrings';
-const SKYRIDER_TEXT = 'pSkyriderText';
 const LATE = 'gzLateLocalizedString';
 const BETWEEN_SECTORS = 41;
 const UNDERGROUND = 1;
@@ -112,7 +111,6 @@ const OFF_ROAD = 40;
 const NO_MILITIA_TRAINING = 28;
 const NO_MILITIA = 1;
 const LEVEL_HELP = 0;
-const SKYRIDER_EMPTY = 2;
 const SECTOR_INVENTORY_COMPRESS = 54;
 const Plot = { CLICK_AGAIN: 0, CONFIRMED: 1, UNCHANGED: 2, CANCELED: 3, SHORTENED: 4 } as const;
 const Bullseye = { CHOOSE: 0, CHANGED: 1, CANNOT: 2, CANCELED: 3 } as const;
@@ -149,6 +147,8 @@ export interface MapScreenHook {
   readonly clock: string;
   readonly inventoryOpen: boolean;
   readonly changingArrival: boolean;
+  readonly compression: { readonly mode: number; readonly compressing: boolean; readonly paused: boolean } | null;
+  readonly flow: string | null;
 }
 
 type Point = { readonly x: number; readonly y: number };
@@ -182,7 +182,6 @@ export class MapScreen implements Screen {
   #selectedFlashAt = 0;
   #plot: Plotting | null = null;
   #changingArrival = false;
-  #skyriderHintGiven = false;
   #inventoryOpen = false;
   #sectorInventoryOpen = false;
   #boxOpen = 0;
@@ -269,7 +268,14 @@ export class MapScreen implements Screen {
       clock: clockText(this.#env.text, this.#playerView()?.clock ?? null, this.#playerPaused),
       inventoryOpen: this.#inventoryOpen,
       changingArrival: this.#changingArrival,
+      compression: this.#compressionHook(),
+      flow: this.#strategic()?.flow ?? null,
     };
+  }
+
+  #compressionHook(): MapScreenHook['compression'] {
+    const clock = this.#playerView()?.clock;
+    return clock ? { mode: clock.mode ?? 0, compressing: clock.compressing, paused: clock.paused ?? false } : null;
   }
 
   #strategic(): StrategicView | undefined {
@@ -963,7 +969,7 @@ export class MapScreen implements Screen {
     const wasSelected = hover.x === this.#selected.x && hover.y === this.#selected.y;
     if (!wasSelected) this.#changeSelectedSector({ ...hover, z: this.#level });
     if (this.filters.airspace) {
-      if (this.#level === 0 && this.#overHelicopter(hover)) this.#requestHeliPlotting();
+      if (this.#level === 0 && this.#overHelicopter(hover)) void this.#requestHeliPlotting();
       return;
     }
     if (!wasSelected || !this.#movableCharsIn(hover)) return;
@@ -1121,17 +1127,12 @@ export class MapScreen implements Screen {
     if (message) this.#uiMessage(this.#text(MAP_PLOT, Plot.UNCHANGED));
   }
 
-  #requestHeliPlotting(): void {
+  async #requestHeliPlotting(): Promise<void> {
+    const reply = await this.#env.client.command({ type: 'heliPlot' });
     const heli = this.#heli();
-    if (!heli) return;
-    if (!heli.canFly) {
-      if (heli.reason) this.#uiMessage(this.#refusalText(heli.reason) ?? heli.reason);
-      return;
-    }
-    const waiting = this.#strategic()?.mercs.some((m) => m.sector === heli.sector && m.life > 0 && m.assignment !== Assignment.VEHICLE);
-    if (heli.passengers.length === 0 && waiting && !this.#skyriderHintGiven) {
-      this.#skyriderHintGiven = true;
-      void this.#mapBox(this.#text(SKYRIDER_TEXT, SKYRIDER_EMPTY));
+    if (!reply.ok || !heli) {
+      const text = this.#refusalText(this.#refusalOf(reply));
+      if (text) void this.#mapBox(text);
       return;
     }
     this.#plot = new Plotting('heli', heli.vehicle, NO_CHARACTER, heli.sector, heli.path);

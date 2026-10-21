@@ -939,7 +939,7 @@
       "tooltip": {
         "key": ["pMapScreenBorderButtonHelpText", 0]
       },
-      "press": "filter(0)"
+      "down": "filter(0)"
     },
     {
       "type": "button",
@@ -958,7 +958,7 @@
       "tooltip": {
         "key": ["pMapScreenBorderButtonHelpText", 1]
       },
-      "press": "filter(1)"
+      "down": "filter(1)"
     },
     {
       "type": "button",
@@ -977,7 +977,7 @@
       "tooltip": {
         "key": ["pMapScreenBorderButtonHelpText", 2]
       },
-      "press": "filter(2)"
+      "down": "filter(2)"
     },
     {
       "type": "button",
@@ -996,7 +996,7 @@
       "tooltip": {
         "key": ["pMapScreenBorderButtonHelpText", 5]
       },
-      "press": "filter(3)"
+      "down": "filter(3)"
     },
     {
       "type": "button",
@@ -1015,7 +1015,7 @@
       "tooltip": {
         "key": ["pMapScreenBorderButtonHelpText", 3]
       },
-      "press": "filter(4)"
+      "down": "filter(4)"
     },
     {
       "type": "button",
@@ -1034,7 +1034,7 @@
       "tooltip": {
         "key": ["pMapScreenBorderButtonHelpText", 4]
       },
-      "press": "filter(5)"
+      "down": "filter(5)"
     },
     {
       "type": "region",
@@ -1171,7 +1171,7 @@
       "tooltip": {
         "key": ["pMapScreenBottomFastHelp", 3]
       },
-      "press": "compressCheck",
+      "down": "compressCheck",
       "primary": "compressMore",
       "secondary": "compressCheck"
     },
@@ -1191,7 +1191,7 @@
       "tooltip": {
         "key": ["pMapScreenBottomFastHelp", 4]
       },
-      "press": "compressCheck",
+      "down": "compressCheck",
       "primary": "compressLess",
       "secondary": "compressCheck"
     },
