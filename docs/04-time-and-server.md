@@ -589,7 +589,8 @@ world clock runs, compressed on request, the loaded sector, if any, is frozen) a
 `mapScreen` and `tacticalScreen` switch between the first two like the original's screen toggle. `enterSector` on the sector that is already loaded (and the pre-battle `enterSector` answer for it) switches back to the tactical flow at normal speed, like the map screen's button for the current sector. A strategic `advance`
 (`worldTime`, `worldSeconds`, `compressionStopped`, `mode`; `docs/15` §6) is refused in tactical unless it has a time
 target, and compression is refused while the loaded sector holds enemies (`AllowedToTimeCompress`). `route` checks
-`CanEntireMovementGroupMercIsInMove` first, so the squad cannot leave the start sector before it is cleared.
+`CanEntireMovementGroupMercIsInMove` first, so the squad cannot leave the start sector before it is cleared (legs,
+the shortest route, appending, `shortenRoute`, `routeGroup` and the militia commands: §6.28).
 Compression is also refused while a group sits in a creature-infested mine or bloodcats attack. Campaign events beyond the
 battle ones (`docs/19` §5.3): `civiliansEaten {sector, count}`; `preBattle` may carry `encounter: 'creatureAttack'` with
 `autoStart: true`. Complaints about hated teammates are `mercQuote` events and a merc who quits leaves through the
@@ -1164,7 +1165,7 @@ items seen on the ground of the sector (`IsMapScreenWorldItemVisibleInMapInvento
 action items): the loaded sector's items or the sector's saved items, which hold what was left there, dropped on a
 retreat or delivered by Bobby Ray once a merc has seen it. Leaving a sector and the query on the loaded sector recompute
 the reachable flag (`HandleAllReachAbleItemsInTheSector`). `applyItem` and `bandage` are refused on the map screen
-(`tacticalOnly`).
+(`tacticalOnly`); the trash can is `discardItem` (§6.28).
 
 **Turn-based lock of queued orders** (`docs/27` §14 finding 20). A gun attack starts with a queued `beginFireWeapon`
 game event; the original UI locks after the click (`SetUIBusy`), so every order and `endTurn` are refused while a game
@@ -1368,6 +1369,54 @@ when it changes.
 - `light` is the one light block of §6.26: every active light sprite with `dynamic: true` on the muzzle flashes,
   explosions and flares; the renderer draws the map's own lights from the map and adds only the dynamic ones, the hints
   read them all.
+
+### 6.28. The map screen (M8, U8)
+
+What the original's map screen prints and does that the view and the commands lacked (`28` §7, §12.1 G9–G13). The
+values come from the simulation's own functions; nothing is shown that the original screen does not show (D16).
+
+**Clock** (`src/server/map-screen-view.ts`): `mode` (`giTimeCompressMode`: 0 stopped, 1 normal, 2/3/4 = 5/30/60 minutes
+per second), `paused` (`gfGamePaused`, the automatic pause included), `playerPaused`, `pauseLocked`, `canCompress` and
+`compressRefusal`: `AllowedToTimeCompress` on the simulation's state as the map screen asks it, with the token
+`TellPlayerWhyHeCantCompressTime` picks (`noMercsHired`, `meanwhileStarting`, `noUsableMercs`, `inCombat`,
+`enemiesPresent`, `creatureMine`, `bloodcatAmbush`, `contractRenewal`, `pauseLocked`). The client's own reasons (an open
+menu, plotting, a held item, the sector inventory) stay in the client.
+
+**Mercs**: `idle` (`fDoneAssignmentAndNothingToDoFlag`), `trainStat` while training, `repairVehicle` or `repairRobot`
+while repairing (items otherwise), `canChangeSleep` (`CanChangeSleepStatusForSoldier`), `salary` (`DrawCharacterInfo`'s
+daily cost: by `bTypeOfLastContract` for A.I.M. mercs, `sSalary` otherwise), `bleeding` and `collapsed`. A.I.M.
+contracts add `minutesLeft` (the departure column's minutes: to `iEndofContractTime`, capped at the contract length in
+transit) and `endMinutes` (`iEndofContractTime`, the contract sort key); M.E.R.C. contracts `contractLength`
+(`iMercMercContractLength`; `daysHired` is the world day minus the start day). Vehicles are not characters in
+ja2-node (no vehicle soldier), so their condition and fuel are not shown; a vehicle moves through a passenger's
+`route`.
+
+**Sectors and the economy**: sectors add `items` (`uiNumberOfWorldItemsInTempFileThatCanBeSeenByPlayer`, now kept for
+underground sectors too), `militiaTraining` (`ubMilitiaTrainingPercentDone`, where the town box prints it),
+`enemiesKnown` (the player knows what is there: the town box's "0" against "Unknown") and `facilities` (the facility
+flags of town sectors, which change when Tixa's prison or the gun range is found); `playerControlled` is shown for
+town sectors and found SAM sectors as the town box does (`AddCommonInfoToBox`), and those sectors are listed.
+`townControl [{town, control}]` (`GetTownSectorsUnderControl × 100 / GetTownSectorSize`), `mines [{mine, sector, town,
+status, ore, playerControls, predictedDailyIncome, maxDailyRemoval, maxPeriodicRemoval}]` (status in the town box's
+order: abandoned, shut down, running out, producing), `projectedDailyIncome` (`GetProjectedTotalDailyIncome`),
+`secretsFound` (the sectors of found secrets, `IsSecretFoundAt`) and `underground [{sector, items}]` (visited levels
+below ground). Groups and vehicles add `traverseMinutes`; the helicopter adds `progress`, the float ratio
+`DisplayPositionOfHelicopter` places its icon by (0 when it is not moving).
+
+**Commands** (refusals with tokens; `refusal.<token>` names the original's message where the original shows one):
+
+| Command | Original | Rules |
+|---|---|---|
+| `route {soldier, to, via?, shortest?, extend?}` | `PlotPathForCharacter` per leg, `RebuildWayPointsForGroupPath` | Each leg from the last sector of the path so far; `shortest` is the Shift mode of `FindStratPath`; `extend` appends to the current path like the map screen's plotting, otherwise the path is replaced (cancel, then plot). `badSector` for a leg the cursor cannot plot to, `noRoute` for an unreachable one. `data.path` is now a list of sector names. `previewRoute` takes the same `extend` (the map screen always plots with it) |
+| `shortenRoute {soldier, at}` | `ClearPathAfterThisSectorForCharacter` | Keeps the path to the last time it passes `at` and rebuilds the waypoints; `at` the merc's sector cancels it; `noRoute` when the path does not get shorter; `data.edit` `shortened` or `cleared` |
+| `routeGroup {soldiers, squads?, vehicles?, to, via?, shortest?}` | the move box: `SetUpMovingListsForSector`, `HandleMoveoutOfSectorMovementTroops`, `HandleSettingTheSelectedListOfMercs`, `CopyPathToAllSelectedCharacters` | The listed mercs of one sector move; `squads` and `vehicles` are the box's unit lines (default: units whose movable members are all listed). Mercs parting from their unit join a squad of the sector doing the same (`FindSquadThatSoldierCanJoin`) or a new one, a failed join toggles the merc as the original does. The first moving merc plots, the mercs who cannot travel with him are left out (`DeselectSelectedListMercsWhoCantMoveWithThisGuy`), the others get his path. The regrouping happens on this command (the original regroups when Done is pressed). Refusals `badSoldiers`, `notInOneSector`, `notInMoveList`, `nothingSelected`, `reassignOnTheMove` (a merc on the road would change his unit: `pMapErrorString[41]`) and the movement refusals |
+| `heliRoute {to, via?, extend?}`, `shortenHeliRoute {at}` | `PlotPathForHelicopter`, `ClearPathAfterThisSectorForHelicopter` | As `route` and `shortenRoute` for the helicopter; `previewHeliRoute` takes `extend`; `shortenRoute` for a merc aboard shortens the helicopter's path |
+| `moveMilitia {from, to, rank, count}` | `PickUpATownPersonFromSector`, `DropAPersonInASector`, `HandleMilitiaRedistributionClick` | One town (found, training allowed, no fight in its militia map: `militiaInCombat`), both sectors ours and free of hostiles, at most 20 per sector, all or nothing; a change in the loaded sector re-places its militia on the next tactical entry (`gfStrategicMilitiaChangesMade`). Refusals `notATown`, `samSite`, `noMilitiaAllowed`, `militiaInCombat`, `otherTown`, `sectorNotPeaceful`, `notEnoughMilitia`, `sectorFull`, `badRank`, `badCount` |
+| `distributeMilitia {town}` | `HandleEveningOutOfTroopsAmongstSectors`, `CanMilitiaAutoDistribute` | Each rank summed over the town's sectors in the militia map that are not enemy controlled (with hostiles included), divided by the sectors under control and dealt to the town's sectors without hostiles, leftovers one per rank up to 20; militia counted in a sector with hostiles are lost (quirk kept, `18` §1.8). Refusals `badTown`, `notATown`, `noMilitiaAllowed`, `militiaInCombat`, `noMilitia` |
+| `discardItem {soldier, slot, count?, index?}` | `TrashCanBtnCallback` | The map screen's trash can for an accessible inventory (the map-screen `moveItem` refusals, `nailsVest`); event `itemDiscarded {soldier, item, count}`; `mapScreenOnly` elsewhere. The mission-item warning (`ubMission`) has no counterpart: the simulation keeps no such flag |
+
+`groupArrived` (§6.25) is emitted for every player group, vehicles and the helicopter included. The refusal table
+moved to `src/protocol/refusals.ts`, so the client prints the original strings without the server.
 
 ## 7. Cost and limitations
 
