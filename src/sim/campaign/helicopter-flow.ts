@@ -32,7 +32,9 @@ import {
   canHelicopterFly,
   checkAndHandleSkyriderMonologues,
   confirmHelicopterRoute,
+  type DestinationRequest,
   explainWhySkyriderCantFly,
+  HelicopterRefusal,
   handleHeliHoverLong,
   handleHeliHoverTooLong,
   helicopterGroup,
@@ -222,6 +224,8 @@ export class HelicopterFlow {
 
   dispatch(cmd: Command): CommandResult | null {
     switch (cmd.type) {
+      case 'heliPlot':
+        return this.#heliPlot();
       case 'heliRoute':
         return this.#heliRoute(cmd);
       case 'shortenHeliRoute':
@@ -294,6 +298,20 @@ export class HelicopterFlow {
     return this.campaign.state.flow === 'strategic' ? null : refusal('mapScreenOnly');
   }
 
+  #heliPlot(): CommandResult {
+    const notMap = this.#mapScreenRefusal();
+    if (notMap) return notMap;
+    if (!helicopterVehicle(this.ctx)) return refusal('noHelicopter');
+    const request = requestGiveSkyriderNewDestination(this.ctx);
+    return request.ok ? { ok: true } : refusal(request.refusal);
+  }
+
+  #plottedRequest(): DestinationRequest {
+    const ctx = this.ctx;
+    if (canHelicopterFly(ctx)) return { ok: true };
+    return { ok: false, refusal: whyHelicopterCannotFly(ctx) ?? HelicopterRefusal.NO_HELICOPTER };
+  }
+
   #heliRoute(cmd: Command): CommandResult {
     const ctx = this.ctx;
     const notMap = this.#mapScreenRefusal();
@@ -303,7 +321,7 @@ export class HelicopterFlow {
     const via = sectorList(cmd.via);
     if (!via) return { ok: false, reason: 'via must be a list of sectors such as ["B12"]' };
     if (!helicopterVehicle(ctx)) return refusal('noHelicopter');
-    const request = requestGiveSkyriderNewDestination(ctx);
+    const request = cmd.plotted === true ? this.#plottedRequest() : requestGiveSkyriderNewDestination(ctx);
     if (!request.ok) return refusal(request.refusal);
     if (cmd.extend !== true) cancelHelicopterRoute(ctx);
     setUpHelicopterForMovement(ctx);

@@ -271,6 +271,17 @@ describe('map screen view fields and commands in a stub campaign', { timeout: RE
     expect(c.live.dispatch({ type: 'discardItem', soldier: id, slot: 'hand' })).toMatchObject({ data: { refusal: 'mapScreenOnly' } });
   });
 
+  it('asks Skyrider when the helicopter is clicked, hints once at an empty helicopter and flies a plotted route', async () => {
+    const c = await landedCampaign(86, 2, ['A10', 'A11', 'B9', 'B10', 'B11']);
+    withHelicopter(c, 'A9');
+    expect(c.live.dispatch({ type: 'heliPlot' })).toMatchObject({ ok: false, data: { refusal: 'emptyHelicopterHint' } });
+    expect(c.live.dispatch({ type: 'heliPlot' })).toMatchObject({ ok: true });
+    const [pilotless] = mercs(c).map((m) => m.id);
+    expect(c.live.dispatch({ type: 'boardVehicle', soldier: pilotless, vehicle: 'helicopter' })).toMatchObject({ ok: true });
+    const flown = c.live.dispatch({ type: 'heliRoute', to: 'A11', plotted: true });
+    expect(flown).toMatchObject({ ok: true, data: { path: ['A9', 'A10', 'A11'] } });
+  });
+
   it('flies the helicopter through legs, shows its progress and shortens its route', async () => {
     const c = await landedCampaign(85, 2, ['A10', 'A11', 'B9', 'B10', 'B11']);
     withHelicopter(c, 'A9');
