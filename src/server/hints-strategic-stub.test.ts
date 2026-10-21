@@ -71,6 +71,7 @@ describe('strategic cursor hints on a stub campaign, client against server', { t
       const view = serialisedView(c.session);
       const report = await expectHintsAgree(c.session, client, sampleStrategicHints(view));
       expect(report.kinds.get('previewRoute')).toBeGreaterThan(0);
+      expect(report.kinds.get('moveBoxOptions')).toBeGreaterThan(0);
       expect(report.answered).toBeGreaterThan(20);
     },
     SLOW_MS,

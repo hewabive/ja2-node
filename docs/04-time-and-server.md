@@ -1415,6 +1415,12 @@ below ground). Groups and vehicles add `traverseMinutes`; the helicopter adds `p
 | `distributeMilitia {town}` | `HandleEveningOutOfTroopsAmongstSectors`, `CanMilitiaAutoDistribute` | Each rank summed over the town's sectors in the militia map that are not enemy controlled (with hostiles included), divided by the sectors under control and dealt to the town's sectors without hostiles, leftovers one per rank up to 20; militia counted in a sector with hostiles are lost (quirk kept, `18` §1.8). Refusals `badTown`, `notATown`, `noMilitiaAllowed`, `militiaInCombat`, `noMilitia` |
 | `discardItem {soldier, slot, count?, index?}` | `TrashCanBtnCallback` | The map screen's trash can for an accessible inventory (the map-screen `moveItem` refusals, `nailsVest`); event `itemDiscarded {soldier, item, count}`; `mapScreenOnly` elsewhere. The mission-item warning (`ubMission`) has no counterpart: the simulation keeps no such flag |
 
+The move box asks the hint `moveBoxOptions {sector}` (surface sectors only): `{soldiers: [{soldier, listed, refusal?}]}`
+for every living merc of the sector outside transit and captivity, `listed` for the mercs the box lists
+(`SetUpMovingListsForSector`) and `refusal` from `CanCharacterMoveInStrategic`, so the client also knows why a squad
+mate the box does not list keeps the squad from moving. It previews the group's route with `previewRoute {…, alone:
+true}`, which checks only the first mover instead of his whole group (the server regroups before it plots).
+
 `groupArrived` (§6.25) is emitted for every player group, vehicles and the helicopter included. The refusal table
 moved to `src/protocol/refusals.ts`, so the client prints the original strings without the server.
 
