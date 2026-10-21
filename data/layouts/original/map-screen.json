@@ -6,7 +6,8 @@
     "src/game/Strategic/Map_Screen_Interface_Bottom.cc RenderMapScreenInterfaceBottom (map_screen_bottom.sti at MAP_BOTTOM_X, MAP_BOTTOM_Y), CreateButtonsForMapScreenInterfaceBottom (map_border_buttons.sti 6/15, 7/16 and 18/19 at 456, 410, 496, 410 and 458, 372 with MSYS_PRIORITY_HIGHEST - 1; map_screen_bottom_arrows.sti 10/1/3, 9/0/2, 11/4/6 and 12/5/7 at 528, 456, 466, 456, 331, 371 and 331, 452 with MSYS_PRIORITY_HIGHEST - 2; pMapScreenBottomFastHelp), CreateCompressModePause (487, 456 to 522, 467 at MSYS_PRIORITY_HIGH, pMapScreenBottomFastHelp[7]), CreateMapScreenBottomMessageScrollBarRegion, DisplayCurrentBalanceTitleForMapBottom, DisplayCurrentBalanceForMapBottom, DisplayProjectedDailyMineIncome (COMPFONT, MAP_BOTTOM_FONT_COLOR and 183, centred in 437 - 359 by 10), DrawNameOfLoadedSector (COMPFONT 183 centred in 80 by 16 at 548, 426), CreateDestroyMouseRegionMasksForTimeCompressionButtons",
     "src/game/Strategic/Game_Clock.cc RenderClock (COMPFONT, FONT_LTGREEN or FONT_FCOLOR_NICERED in combat, centred in CLOCK_WIDTH by CLOCK_HEIGHT), CreateMouseRegionForPauseOfClock; src/game/UILayout.cc get_CLOCK_X (STD_SCREEN_X + 554 on the map), get_CLOCK_Y, get_RADAR_WINDOW_X (STD_SCREEN_X + 543), get_RADAR_WINDOW_TM_Y",
     "src/game/Strategic/Map_Screen_Interface_Map.cc LoadMapScreenInterfaceMapGraphics (b_map.pcx, mine_1/2/3.sti, boxes.sti, mapcursr.sti, merc_between_sector_icons.sti, merc_mvt_green_arrows.sti, helicop.sti, hilite.sti, sam.sti, mine.sti, militia.sti, bullseye.sti, the secret site icons)",
-    "src/game/Strategic/Map_Screen_Interface.cc CreateDestroyAssignmentPopUpBoxes and the PopUpBox margins of the assignment family (6, 6, 4, 4, line space 2), CreateTownInfoBox (margins 6, 6, 8 + BOX_BUTTON_HEIGHT, 6), CreateDestroyMovementBox (the move box at 450, 100)"
+    "src/game/Strategic/Map_Screen_Interface.cc CreateDestroyAssignmentPopUpBoxes and the PopUpBox margins of the assignment family (6, 6, 4, 4, line space 2), CreateTownInfoBox (margins 6, 6, 8 + BOX_BUTTON_HEIGHT, 6), CreateDestroyMovementBox (the move box at 450, 100)",
+    "src/game/Strategic/MapScreen.cc (guiUpdatePanelTactical: group_confirm_tactical.sti); src/game/Strategic/Map_Screen_Interface.cc AddSoldierToUpdateBox (panels.sti), CreateDestroyUpdatePanelButtons (group_confirm_tactical.sti 7/8)"
   ],
   "screen": "mapScreen",
   "frame": "std640",
@@ -411,6 +412,63 @@
         "frames": 4,
         "size": [60, "BOX_BUTTON_HEIGHT"],
         "states": ["normal", "normal", "pressed", "pressed"]
+      }
+    },
+    "updatePanel": {
+      "sti": "interface/group_confirm_tactical.sti",
+      "stub": {
+        "sizes": [
+          [4, 4],
+          [70, 4],
+          [4, 4],
+          [4, 70],
+          [70, 70],
+          [4, 70],
+          [148, 22],
+          [70, 15],
+          [70, 15],
+          [50, 22],
+          [50, 22],
+          [4, 10],
+          [50, 10],
+          [4, 10],
+          [78, 22],
+          [70, 70],
+          [70, 10],
+          [74, 22],
+          [74, 22],
+          [148, 32],
+          [70, 49]
+        ],
+        "states": [
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "normal",
+          "pressed",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain"
+        ]
+      }
+    },
+    "updateFace": {
+      "sti": "interface/panels.sti",
+      "stub": {
+        "sizes": [[47, 31], [35, 31]]
       }
     }
   },

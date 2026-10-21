@@ -71,6 +71,7 @@ export interface MapEnvironment {
   readonly sounds: MapSounds;
   readonly random: (range: number) => number;
   readonly metric: () => boolean;
+  readonly notifySleepWake: () => boolean;
 }
 
 export interface MapFrames {
