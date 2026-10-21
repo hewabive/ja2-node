@@ -28,6 +28,7 @@ import {
   cursorFromSlot,
   hidesSlot,
   type ItemCursor,
+  moneyTaken,
   placeCommand,
   REFUSAL_MERGE_PROMPT,
   REFUSAL_USE_ATTACH,
@@ -321,6 +322,12 @@ export class InventoryPanel {
     if (cmd) void this.send(cmd);
   }
 
+  #shownItem(view: InventoryItemView, soldier: number): InventoryItemView {
+    const taken = moneyTaken(this.#cursor, soldier, view.slot);
+    const count = shownCount(this.#cursor, view, soldier);
+    return taken > 0 ? { ...view, count, money: (view.money ?? 0) - taken } : { ...view, count };
+  }
+
   cursorSource(): CursorSource | null {
     return this.#cursor?.source ?? null;
   }
@@ -335,8 +342,7 @@ export class InventoryPanel {
       if (slot === SECOND_HAND_SLOT && handItem?.flags.includes(TWO_HANDED))
         list.image(art.secondHandCover, 0, art.secondHandCoverAt.x, art.secondHandCoverAt.y);
       const view = slotItem(soldier, slot);
-      const shown =
-        view && !hidesSlot(this.#cursor, view, soldier.id) ? { ...view, count: shownCount(this.#cursor, view, soldier.id) } : null;
+      const shown = view && !hidesSlot(this.#cursor, view, soldier.id) ? this.#shownItem(view, soldier.id) : null;
       if (shown) {
         drawInventoryItem(ctx, shown, rect, {
           outline: this.outlineOf(soldier, slot),

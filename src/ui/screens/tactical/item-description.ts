@@ -9,7 +9,11 @@
 // @src shadow, the status bar, the attachments with their bars, the hatch when the cursor item does not attach, the ROF
 // @src bullets, the name, the wrapped description in ITEMDESC_FONTSHADOW2, the calibre and type right-aligned, the pros and
 // @src cons, the weapon stats with HighlightIf, the money and other branches, the key's sector and day),
-// @src AttemptToAddSubstring, g_desc_item_box, g_itemdesc_* boxes, gWeaponStats, gMoneyStats, g_attachment_info.
+// @src AttemptToAddSubstring, g_desc_item_box, g_itemdesc_* boxes, gWeaponStats, gMoneyStats, g_attachment_info; the money
+// @src box: the $1000, $100, $10 and Done buttons from info_bil.sti frames 1/2 and 3/4 in BLOCKFONT2 colour 5 at
+// @src gMoneyButtonLoc + gMoneyButtonOffsets, the "Separate" or "Withdraw" label, the amount to split or withdraw,
+// @src ItemDescDoneButtonCallback* (Done removes the money, a right click only closes), RemoveMoney;
+// @src src/game/Tactical/Interface_Panels.cc SMInvMoneyButtonCallback (the box over the account balance).
 // See docs/28 §5.4.
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
@@ -44,6 +48,7 @@ import {
   slotItem,
 } from './item-cursor.ts';
 import { drawInventoryItem, type TileDrawContext } from './item-tile.ts';
+import { MONEY_STEPS, MoneyBox } from './money-box.ts';
 
 export type Box = readonly [number, number, number, number];
 export type Point = readonly [number, number];
@@ -68,6 +73,7 @@ export interface DescriptionGeometry {
   readonly bulletWidth: number;
   readonly ammoText: readonly [number, number, number];
   readonly moneyBox: Point;
+  readonly moneyButtons: readonly Point[];
 }
 
 export interface DescriptionArt {
@@ -84,7 +90,8 @@ export interface DescriptionFonts {
 export type DescribedObject =
   | { readonly kind: 'slot'; readonly soldier: number; readonly slot: number; readonly index: number }
   | { readonly kind: 'attachment'; readonly soldier: number; readonly slot: number; readonly attachment: number }
-  | { readonly kind: 'key'; readonly soldier: number; readonly key: number };
+  | { readonly kind: 'key'; readonly soldier: number; readonly key: number }
+  | { readonly kind: 'balance'; readonly soldier: number; readonly amount: number };
 
 export interface DescriptionHooks {
   readonly services: UiServices;
@@ -100,6 +107,8 @@ export interface DescriptionHooks {
   readonly metric: () => boolean;
   readonly keyItem: (key: KeyView) => string | null;
   readonly closed: () => void;
+  readonly moneyDone?: (object: DescribedObject, amount: number) => void;
+  readonly alert?: (text: string) => Promise<void>;
 }
 
 const OWNER = 'itemDescription';
@@ -138,6 +147,16 @@ const RANGE_LABEL = 3;
 const DAMAGE_LABEL = 4;
 const AP_LABEL = 5;
 const EQUALS_LABEL = 6;
+const MONEY_BUTTON_FRAMES = { offNormal: 1, onNormal: 2 } as const;
+const MONEY_DONE_FRAMES = { offNormal: 3, onNormal: 4 } as const;
+const MONEY_DONE = 3;
+const MONEY_LABEL = 4;
+const MONEY_SEPARATE = 4;
+const MONEY_WITHDRAW = 5;
+const MONEY_BUTTON_COLOR = 5;
+const MONEY_DESC_AMOUNT = 0;
+const MONEY_DESC_PLAYERS = 4;
+const MONEY_TEXT_WITHDRAW_MORE_THEN_MAXIMUM = 0;
 
 function ammoImage(type: number): number {
   if (type === AMMO_AP || type === AMMO_SUPER_AP) return AMMO_IMAGE_AP;
@@ -170,6 +189,8 @@ export class ItemDescriptionBox {
   #fonts: DescriptionFonts | null = null;
   #regions: MouseRegion[] = [];
   #ammo: Button | null = null;
+  #money: MoneyBox | null = null;
+  #moneyButtons: Button[] = [];
 
   constructor(hooks: DescriptionHooks) {
     this.#hooks = hooks;
@@ -194,7 +215,12 @@ export class ItemDescriptionBox {
     this.#fonts = fonts;
   }
 
+  get money(): MoneyBox | null {
+    return this.#money;
+  }
+
   #view(object: DescribedObject): InventoryItemView | null {
+    if (object.kind === 'balance') return { slot: -1, item: MONEY, index: 0, count: 1, status: [100], money: object.amount };
     const soldier = this.#hooks.soldier(object.soldier);
     if (object.kind === 'key') return null;
     const item = slotItem(soldier, object.slot);
@@ -247,6 +273,64 @@ export class ItemDescriptionBox {
     if (object.kind === 'slot') this.#ammoButton(object, item, geometry, art, fonts);
     if (item.weapon && item.class === 'GUN') this.#prosConsRegions(object, geometry, fonts);
     if (item.name !== MONEY) this.#attachmentRegions(object, geometry);
+    else this.#moneyBox(object, geometry, art, fonts);
+  }
+
+  #moneyBox(object: DescribedObject, g: DescriptionGeometry, art: DescriptionArt, fonts: DescriptionFonts): void {
+    const total = this.#view(object)?.money ?? 0;
+    const box = new MoneyBox(total, object.kind === 'balance');
+    this.#money = box;
+    const services = this.#hooks.services;
+    const labels = [...MONEY_STEPS.map((_, i) => i), MONEY_DONE];
+    for (const index of labels) {
+      const done = index === MONEY_DONE;
+      const frames = done ? MONEY_DONE_FRAMES : MONEY_BUTTON_FRAMES;
+      const [ox, oy] = g.moneyButtons[index] ?? [0, 0];
+      const button = services.buttons.create({
+        x: g.moneyBox[0] + ox,
+        y: g.moneyBox[1] + oy,
+        kind: 'quick',
+        image: { asset: art.money, grayed: -1, offNormal: frames.offNormal, offHilite: -1, onNormal: frames.onNormal, onHilite: -1 },
+        priority: Priority.HIGHEST,
+        owner: OWNER,
+        id: done ? 'itemDescriptionMoneyDone' : `itemDescriptionMoney${index}`,
+        onClick: (_b, reason) => {
+          if (reason & MouseReason.LBUTTON_UP) void this.#moneyPrimary(object, index);
+          if (reason & MouseReason.RBUTTON_UP) this.#moneySecondary(index);
+        },
+      });
+      button.text = {
+        text: this.#hooks.text.string('gzMoneyAmounts', index) ?? '',
+        font: fonts.item,
+        color: MONEY_BUTTON_COLOR,
+        shadow: DEFAULT_SHADOW,
+        downColor: MONEY_BUTTON_COLOR,
+        downShadow: DEFAULT_SHADOW,
+        justify: 'center',
+      };
+      if (!done && !box.stepEnabled(index)) button.setEnabled(false);
+      this.#moneyButtons.push(button);
+    }
+  }
+
+  async #moneyPrimary(object: DescribedObject, index: number): Promise<void> {
+    const box = this.#money;
+    if (!box) return;
+    if (index === MONEY_DONE) {
+      if (box.removing !== 0) this.#hooks.moneyDone?.(object, box.removing);
+      this.close(true);
+      return;
+    }
+    if (box.add(index) === 'overMaximum')
+      await this.#hooks.alert?.(this.#hooks.text.string('gzMoneyWithdrawMessageText', MONEY_TEXT_WITHDRAW_MORE_THEN_MAXIMUM) ?? '');
+  }
+
+  #moneySecondary(index: number): void {
+    if (index === MONEY_DONE) {
+      this.close(true);
+      return;
+    }
+    this.#money?.subtract(index);
   }
 
   #ammoButton(
@@ -434,6 +518,9 @@ export class ItemDescriptionBox {
     this.#regions = [];
     this.#ammo?.remove();
     this.#ammo = null;
+    for (const button of this.#moneyButtons) button.remove();
+    this.#moneyButtons = [];
+    this.#money = null;
     if (notify) this.#hooks.closed();
   }
 
@@ -489,6 +576,7 @@ export class ItemDescriptionBox {
     if (item.weapon && item.class === 'GUN') this.#gunTitleAndProsCons(list, object, item, info, g, font);
     const unit = weightUnit(text, this.#hooks.metric());
     if (this.#ammo?.visible) this.#hooks.services.buttons.draw(list, this.#ammo);
+    for (const button of this.#moneyButtons) this.#hooks.services.buttons.draw(list, button);
     if (item.weapon) this.#weaponStats(list, item, info, g, font, unit);
     else if (item.name === MONEY) this.#moneyStats(list, info, g, font);
     else if (item.class === 'MONEY') this.#rightAligned(list, font, g.name, sprintMoney(info?.money ?? view?.money ?? 0), FontColor.WHITE);
@@ -613,25 +701,34 @@ export class ItemDescriptionBox {
     if (stats.burstAp) this.#value(list, font, ids[5], twoDigits(stats.burstAp.value), highlight(stats.burstAp.exceptional));
   }
 
-  #moneyStats(list: DrawList, info: ItemInfo | null, g: DescriptionGeometry, font: BitmapFont): void {
+  #moneyStats(list: DrawList, _info: ItemInfo | null, g: DescriptionGeometry, font: BitmapFont): void {
+    const box = this.#money;
+    if (!box) return;
     const text = this.#hooks.text;
-    const total = info?.money ?? 0;
-    this.#rightAligned(list, font, g.name, sprintMoney(total), FontColor.WHITE);
+    this.#rightAligned(list, font, g.name, sprintMoney(box.total), FontColor.WHITE);
     const origin = g.origin;
+    const [labelX, labelY] = g.moneyButtons[MONEY_LABEL] ?? [0, 0];
     mprint(
       list,
       font,
-      g.moneyBox[0] + 8,
-      g.moneyBox[1] + 22,
-      text.string('gzMoneyAmounts', 4) ?? '',
+      g.moneyBox[0] + labelX,
+      g.moneyBox[1] + labelY,
+      text.string('gzMoneyAmounts', box.withdraw ? MONEY_WITHDRAW : MONEY_SEPARATE) ?? '',
       fontColors(STATS_TITLE, DEFAULT_SHADOW),
     );
-    const desc = (i: number) => text.string('gMoneyStatsDesc', i) ?? '';
+    const first = box.withdraw ? MONEY_DESC_PLAYERS : MONEY_DESC_AMOUNT;
     g.moneyStats.forEach((at, i) => {
-      mprint(list, font, origin.x + at[0], origin.y + at[1], desc(i), fontColors(STATS_TITLE, DEFAULT_SHADOW));
+      mprint(
+        list,
+        font,
+        origin.x + at[0],
+        origin.y + at[1],
+        text.string('gMoneyStatsDesc', first + i) ?? '',
+        fontColors(STATS_TITLE, DEFAULT_SHADOW),
+      );
     });
-    this.#value(list, font, g.moneyStats[1], sprintMoney(total), STATS_TEXT, MONEY_VALUE_WIDTH);
-    this.#value(list, font, g.moneyStats[3], sprintMoney(0), STATS_TEXT, MONEY_VALUE_WIDTH);
+    this.#value(list, font, g.moneyStats[1], sprintMoney(box.remaining), STATS_TEXT, MONEY_VALUE_WIDTH);
+    this.#value(list, font, g.moneyStats[3], sprintMoney(box.removing), STATS_TEXT, MONEY_VALUE_WIDTH);
   }
 
   #otherStats(

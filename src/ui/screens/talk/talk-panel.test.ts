@@ -1,13 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { campaignInA10, STUB_NPC } from '../../../../tests/support/a10-campaign.ts';
+import { campaignInA10, STUB_NPC, STUB_RPC } from '../../../../tests/support/a10-campaign.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
+import type { DrawItem } from '../../draw-list.ts';
 import { FINAL_TALKING_DELAY_MS, textDelay } from '../../speech.ts';
 import { placeTalkPanel, popupOrientation, popupPosition } from './talk-panel.ts';
 
 const SLOW_MS = 120_000;
 const LINE_STEP_MS = 250;
 const MAX_LINE_FRAMES = 400;
+const COLS = 160;
+const NEAR_STUB_RPC = 72 * COLS + 81;
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -20,6 +23,27 @@ beforeAll(async () => {
 afterAll(async () => {
   await kit.dispose();
 });
+
+function line(item: DrawItem): string {
+  switch (item.kind) {
+    case 'image':
+      return `image ${item.asset}#${item.frame} ${item.x},${item.y}`;
+    case 'glyphs':
+      return `glyphs ${item.font} ${item.glyphs[0]?.x ?? '-'},${item.glyphs[0]?.y ?? '-'} n=${item.glyphs.length} fg=${item.foreground}`;
+    case 'shadow':
+      return `shadow ${item.x},${item.y} ${item.width}x${item.height}`;
+    case 'clipPush':
+      return `clip ${item.x},${item.y} ${item.width}x${item.height}`;
+    default:
+      return item.kind;
+  }
+}
+
+function talkSnapshot(f: TacticalUiTest): string {
+  const items = f.draw().items;
+  const start = items.findIndex((i) => i.kind === 'image' && i.asset === 'interface/talkbox1.sti');
+  return `${items.slice(start).map(line).join('\n')}\n`;
+}
 
 function lastCommand(f: TacticalUiTest) {
   return f.client.commands.at(-1)?.cmd ?? null;
@@ -80,6 +104,7 @@ describe('the talk panel on the stub NPC', { timeout: SLOW_MS }, () => {
     expect(first?.line.surface).toBe('panel');
     const shadowed = f.draw().items.some((i) => i.kind === 'shadow');
     expect(shadowed).toBe(true);
+    await expect(talkSnapshot(f)).toMatchFileSnapshot('__snapshots__/talk-panel.txt');
     f.t.frame(textDelay(first?.line.chars ?? 0) + FINAL_TALKING_DELAY_MS + 1);
     expect(dialogue.presenter.current?.line.id).not.toBe(first?.line.id);
     playOut(f);
@@ -119,5 +144,31 @@ describe('the talk panel on the stub NPC', { timeout: SLOW_MS }, () => {
     f.deliver();
     f.t.frame();
     expect(f.screen.dialogue.talk.open).toBe(false);
+  });
+
+  it('recruits the stub R.P.C. with the Recruit approach and the hire box', async () => {
+    const a10 = await campaignInA10(kit, 6, 3);
+    const f = await tacticalUiTest(kit, ui, 6, a10.session);
+    const merc = a10.mercs[0] ?? 0;
+    expect((await f.client.command({ type: 'move', soldier: merc, to: NEAR_STUB_RPC, mode: 'walk' })).ok).toBe(true);
+    a10.session.advance({ idle: true });
+    const talk = await f.client.command({ type: 'talk', soldier: merc, target: { npc: STUB_RPC } });
+    expect(talk.ok, talk.reason).toBe(true);
+    if ((talk.data as { walking?: boolean }).walking) a10.session.advance({ idle: true });
+    f.deliver();
+    expect(f.screen.dialogue.talk.profile).toBe(STUB_RPC);
+    playOut(f);
+    await f.click('talkOption5');
+    expect(lastCommand(f)).toEqual({ type: 'approach', kind: 'recruit' });
+    f.deliver();
+    playOut(f);
+    await f.settle();
+    expect(f.t.runtime.host.modal?.id).toBe('npcRequestBox');
+    expect(f.widget('npcRequestBox').text).toContain('$');
+    await f.click('npcRequestBox.yes');
+    await f.settle();
+    expect(lastCommand(f)).toMatchObject({ type: 'answer', choice: 'yes' });
+    f.deliver();
+    expect(f.client.view.soldiers.find((s) => s.profile === STUB_RPC)).toMatchObject({ team: 0, kind: 'rpc' });
   });
 });

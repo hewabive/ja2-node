@@ -2,7 +2,7 @@
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
   "@src": [
     "src/game/Tactical/Interface_Panels.cc InitializeSMPanel (inventory_bottom_panel.sti, the second blit and the overheadinterface.sti filler of a wider panel at SM_INVINTERFACE_WIDTH, 2, the panel region, the face, enemy indicator, money and bars regions at dx + 62, dy + 2 to dx + 85, dy + 51), CreateSMPanelButtons (inventory_buttons.sti and inventory_buttons_2.sti frames, the burst images 7, 17, 26 per weapon mode, MSYS_PRIORITY_HIGH - 1, the fast help), UpdateSMPanel (the stealth button from invadd-ons.sti: stand 11, crouch 5, prone 17, + 3 without stealth, the grayed frame + 2 and pressed + 1), RenderSMPanel (the plates, the face, the body figure, the stat labels at dx + 92 and dx + 137, dy + 7 + i * 10, the armour label centred at SM_ARMOR_LABEL_X, the weight and camo labels right-aligned at their x, the % signs, PrintStat in a SM_STATS_WIDTH × SM_STATS_HEIGHT box, the armour, weight and camo values in SM_PERCENT boxes, the name, the AP, the bars, the slots, the hatch from dx + 87 to dx + 536), PrintAP, PrintStat, SetStatsHelp",
-    "src/game/UILayout.cc:72-90 m_invSlotPositionTac; src/game/Tactical/Interface_Items.cc gSMInvData (the slot sizes), InitInvSlotInterface (the slot regions at MSYS_PRIORITY_HIGH, the camo region CAMO_REGION_WIDTH × CAMO_REGION_HEIGHT), InitKeyRingInterface (KEYRING_X, KEYRING_Y, KEYRING_HELP_TEXT), RenderInvBodyPanel, INVRenderINVPanelItem (secondary_gun_hidden.sti at 217, 108), HandleRenderInvSlots (gold_key_button.sti)",
+    "src/game/UILayout.cc:72-90 m_invSlotPositionTac; src/game/Tactical/Interface_Items.cc gSMInvData (the slot sizes), InitInvSlotInterface (the slot regions at MSYS_PRIORITY_HIGH, the camo region CAMO_REGION_WIDTH × CAMO_REGION_HEIGHT), InitKeyRingInterface (KEYRING_X, KEYRING_Y, KEYRING_HELP_TEXT), gMoneyButtonOffsets (the money box buttons), RenderInvBodyPanel, INVRenderINVPanelItem (secondary_gun_hidden.sti at 217, 108), HandleRenderInvSlots (gold_key_button.sti)",
     "src/sgp/MouseSystem.h CallbackPrimarySecondary (the face and slot regions fire the primary action on the button down)"
   ],
   "screen": "tacticalSingleMerc",
@@ -864,6 +864,7 @@
         "bulletWidth": "BULLET_WIDTH",
         "ammoText": ["ITEMDESC_AMMO_TEXT_X", "ITEMDESC_AMMO_TEXT_Y", "ITEMDESC_AMMO_TEXT_WIDTH"],
         "moneyBox": [343, 11],
+        "moneyButtons": [[0, 0], [34, 0], [0, 32], [34, 32], [8, 22]],
         "stackArea": ["SM_ITEMDESC_START_X", 0, "SM_ITEMDESC_WIDTH", "INV_INTERFACE_HEIGHT"],
         "cell": "extraInventory",
         "pickup": "itemBox"
@@ -975,6 +976,7 @@
       "height": "MONEY_HEIGHT",
       "priority": "HIGH",
       "enabled": "inventoryEnabled",
+      "down": "money",
       "tooltip": {
         "key": ["TacticalStr", "MONEY_BUTTON_HELP_TEXT"]
       }

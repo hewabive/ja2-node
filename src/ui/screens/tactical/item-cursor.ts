@@ -4,8 +4,9 @@
 // @src ItemDescAmmoCallback (the magazine into the cursor), ItemDescAttachmentsCallbackPrimary (attach with the item in
 // @src the cursor, else the attachment into the cursor), ItemPopupRegionCallbackPrimary (one object of a stack);
 // @src src/game/Tactical/Interface_Panels.cc SMInvClickCallbackPrimary (place, swap, give to the merc of the panel, the
-// @src attach and merge branches), SMInvClickCamoCallback (apply on the merc). See docs/28 §5.3 and the deviation
-// @src "Item cursor".
+// @src attach and merge branches), SMInvClickCamoCallback (apply on the merc), SMInvMoneyButtonCallback (money in the
+// @src cursor is deposited); Interface_Items.cc RemoveMoney (the split amount goes into the cursor). See docs/28 §5.3 and
+// @src the deviation "Item cursor".
 
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView, SoldierView } from '../../../protocol/view.ts';
@@ -15,7 +16,8 @@ export type CursorCount = 'all' | 1;
 export type CursorSource =
   | { readonly kind: 'slot'; readonly soldier: number; readonly slot: number; readonly count: CursorCount; readonly index: number }
   | { readonly kind: 'attachment'; readonly soldier: number; readonly slot: number; readonly attachment: number }
-  | { readonly kind: 'magazine'; readonly soldier: number; readonly slot: number };
+  | { readonly kind: 'magazine'; readonly soldier: number; readonly slot: number }
+  | { readonly kind: 'money'; readonly soldier: number; readonly slot: number; readonly amount: number };
 
 export interface ItemCursor {
   readonly source: CursorSource;
@@ -48,8 +50,23 @@ function countField(count: CursorCount): { count?: CursorCount } {
   return count === 'all' ? {} : { count };
 }
 
+export function cursorFromMoney(soldier: SoldierView, slot: number, amount: number): ItemCursor | null {
+  const item = slotItem(soldier, slot);
+  if (!item || amount <= 0) return null;
+  return { source: { kind: 'money', soldier: soldier.id, slot, amount }, item: item.item };
+}
+
 export function placeCommand(cursor: ItemCursor, target: number, slot: number, merge?: boolean): CommandEnvelope {
   const s = cursor.source;
+  if (s.kind === 'money')
+    return {
+      type: 'splitMoney',
+      soldier: s.soldier,
+      slot: s.slot,
+      amount: s.amount,
+      to: slot,
+      ...(target !== s.soldier ? { toSoldier: target } : {}),
+    };
   if (s.kind === 'attachment') return { type: 'detach', soldier: s.soldier, slot: s.slot, attachment: s.attachment, to: slot };
   if (s.kind === 'magazine') return { type: 'unload', soldier: s.soldier, slot: s.slot, to: slot };
   return {
@@ -91,17 +108,25 @@ export function applyCommand(cursor: ItemCursor, target: number): CommandEnvelop
   return { type: 'applyItem', soldier: s.soldier, slot: s.slot, ...(target !== s.soldier ? { target } : {}) };
 }
 
-export function dropCommand(cursor: ItemCursor): CommandEnvelope {
+export function dropCommand(cursor: ItemCursor): CommandEnvelope | null {
   const s = cursor.source;
   if (s.kind === 'slot')
     return { type: 'drop', soldier: s.soldier, slot: s.slot, ...countField(s.count), ...(s.index !== 0 ? { index: s.index } : {}) };
-  return cancelCommand(cursor) as CommandEnvelope;
+  return cancelCommand(cursor);
 }
 
 export function giveCommand(cursor: ItemCursor, target: number): CommandEnvelope | null {
   const s = cursor.source;
+  if (s.kind === 'money') return { type: 'give', soldier: s.soldier, target, money: s.amount, slot: s.slot };
   if (s.kind !== 'slot') return null;
   return { type: 'give', soldier: s.soldier, target, slot: s.slot, ...countField(s.count) };
+}
+
+export function depositCommand(cursor: ItemCursor): CommandEnvelope | null {
+  const s = cursor.source;
+  if (s.kind === 'money') return { type: 'depositCash', soldier: s.soldier, slot: s.slot, amount: s.amount };
+  if (s.kind === 'slot' && s.count === 'all') return { type: 'depositCash', soldier: s.soldier, slot: s.slot };
+  return null;
 }
 
 export function cancelCommand(cursor: ItemCursor): CommandEnvelope | null {
@@ -117,7 +142,14 @@ export function takenFrom(cursor: ItemCursor | null, soldier: number, slot: numb
   return s.count;
 }
 
+export function moneyTaken(cursor: ItemCursor | null, soldier: number, slot: number): number {
+  const s = cursor?.source;
+  return s?.kind === 'money' && s.soldier === soldier && s.slot === slot ? s.amount : 0;
+}
+
 export function hidesSlot(cursor: ItemCursor | null, view: InventoryItemView, soldier: number): boolean {
+  const money = moneyTaken(cursor, soldier, view.slot);
+  if (money > 0) return money >= (view.money ?? 0);
   const taken = takenFrom(cursor, soldier, view.slot);
   return taken === 'all' || (taken === 1 && view.count <= 1);
 }

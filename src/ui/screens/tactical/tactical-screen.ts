@@ -30,6 +30,7 @@ import type { Screen } from '../../screen.ts';
 import { fontHeight } from '../../text/bitmap-font.ts';
 import { FontName } from '../../text/fonts.ts';
 import { hCenterVCenterAlign } from '../../text/measure.ts';
+import { sprintMoney } from '../../text/money.ts';
 import { fontColors, mprint } from '../../text/print.ts';
 import { printf } from '../../text/printf.ts';
 import { UiScreenKind } from '../../widgets/button-sounds.ts';
@@ -53,7 +54,7 @@ import {
 } from './faces.ts';
 import { HudController, hudClockText, pauseHelpText, sectorOfMap } from './hud.ts';
 import { type InventoryArt, InventoryPanel, type SlotRect, slotRects } from './inventory.ts';
-import { dropCommand, giveCommand, type ItemCursor, slotItem } from './item-cursor.ts';
+import { cursorFromMoney, depositCommand, dropCommand, giveCommand, type ItemCursor, slotItem } from './item-cursor.ts';
 import { type DescriptionGeometry, ItemDescriptionBox } from './item-description.ts';
 import { KeyRingPopup, StackPopup } from './item-popups.ts';
 import { drawInventoryItem, type TileDrawContext } from './item-tile.ts';
@@ -129,6 +130,8 @@ const TEAM_RADAR_COLOURS: readonly number[] = [
   rgb(0, 0, 255),
 ];
 const CIV_TEAM = 4;
+const MONEY_CLASS = 'MONEY';
+const CONFIRMATION_TO_DEPOSIT_MONEY_TO_ACCOUNT = 1;
 
 type PanelKind = 'team' | 'sm';
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
@@ -256,6 +259,8 @@ export class TacticalScreen implements Screen {
       metric: () => env.metric(),
       keyItem: (key) => env.media.keyItem(key),
       closed: () => undefined,
+      moneyDone: (object, amount) => this.#moneyDone(object, amount),
+      alert: (text) => env.boxes.alert(text),
     });
     this.pickup = new ItemPickupMenu({
       services: env.runtime,
@@ -1008,7 +1013,9 @@ export class TacticalScreen implements Screen {
         if (cmd) void this.inventory.send(cmd).then((r) => r.ok && this.inventory.setCursor(null));
         return;
       }
-      void this.inventory.send(dropCommand(cursor)).then((r) => r.ok && this.inventory.setCursor(null));
+      const drop = dropCommand(cursor);
+      if (drop) void this.inventory.send(drop).then((r) => r.ok && this.inventory.setCursor(null));
+      else this.inventory.setCursor(null);
       return;
     }
     if (!(reason & MouseReason.LBUTTON_UP)) return;
@@ -1097,7 +1104,8 @@ export class TacticalScreen implements Screen {
       const index = attachment ? this.#env.media.item(attachment.item)?.index : undefined;
       if (index === undefined) return null;
       request = { type: 'itemInfo', item: index, metric };
-    } else {
+    } else if (object.kind === 'balance') return null;
+    else {
       const s = soldierById(this.#view(), object.soldier);
       const key = s?.keys?.[object.key];
       const name = key ? this.#env.media.keyItem(key) : null;
@@ -1144,6 +1152,9 @@ export class TacticalScreen implements Screen {
       case 'keyRing':
         this.#openKeyRing(false);
         return;
+      case 'money':
+        void this.#moneyRegion();
+        return;
       case 'mapScreen':
         this.#env.flow.mapScreen();
         return;
@@ -1175,6 +1186,42 @@ export class TacticalScreen implements Screen {
       default:
         return;
     }
+  }
+
+  async #moneyRegion(): Promise<void> {
+    const s = this.#smSoldier();
+    if (!s || this.#disabledForItems()) return;
+    const cursor = this.inventory.cursor;
+    if (cursor) {
+      const deposit = depositCommand(cursor);
+      if (!deposit || this.#env.media.item(cursor.item)?.class !== MONEY_CLASS) return;
+      const amount =
+        cursor.source.kind === 'money'
+          ? cursor.source.amount
+          : (slotItem(soldierById(this.#view(), cursor.source.soldier), cursor.source.slot)?.money ?? 0);
+      const question = printf(this.#env.text.string('gzMoneyWithdrawMessageText', CONFIRMATION_TO_DEPOSIT_MONEY_TO_ACCOUNT) ?? '', [
+        sprintMoney(amount),
+      ]);
+      if (!(await this.#env.boxes.confirm(question))) return;
+      const reply = await this.inventory.send(deposit);
+      if (reply.ok) this.inventory.setCursor(null);
+      return;
+    }
+    const balance = this.#view()?.strategic?.balance;
+    if (balance === undefined) return;
+    this.stack.close();
+    this.#showDescription({ kind: 'balance', soldier: s.id, amount: balance });
+  }
+
+  #moneyDone(object: Parameters<ItemDescriptionBox['show']>[0], amount: number): void {
+    if (object.kind === 'balance') {
+      void this.inventory.send({ type: 'withdrawCash', soldier: object.soldier, amount });
+      return;
+    }
+    if (object.kind !== 'slot') return;
+    const s = soldierById(this.#view(), object.soldier);
+    const cursor = s ? cursorFromMoney(s, object.slot, amount) : null;
+    if (cursor) this.inventory.setCursor(cursor);
   }
 
   #stepMerc(step: 1 | -1): void {
@@ -1477,6 +1524,7 @@ export class TacticalScreen implements Screen {
       bulletWidth: n(params.bulletWidth),
       ammoText: (params.ammoText as unknown[]).map(n) as unknown as readonly [number, number, number],
       moneyBox: [panel.x + money[0], panel.y + money[1]],
+      moneyButtons: (params.moneyButtons as unknown[]).map(point),
     };
   }
 

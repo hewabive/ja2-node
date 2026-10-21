@@ -25,12 +25,15 @@ import type { MercTextBoxFonts } from '../../widgets/merc-text-box.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
 import type { BarValues } from '../tactical/bars.ts';
 import { type SpeechPlayback, type TacticalEnvironment, TacticalLayout } from '../tactical/environment.ts';
+import { npcRequestBox, npcRequestChoice } from './npc-requests.ts';
 import { SpeechSurfaces, TACTICAL_SPEECH_CONTRACT, TACTICAL_SPEECH_SCREEN } from './speech-surfaces.ts';
 import { TalkPanel } from './talk-panel.ts';
 
 const SILENT_SETTINGS = { speech: false, subtitles: true, keyAdvance: false } as const;
 const BACKSPACE = 'Backspace';
 const ESCAPE = 'Escape';
+const KEVLAR_VEST = 'LEATHER_JACKET_W_KEVLAR';
+const REQUEST_BOX_ID = 'npcRequestBox';
 
 export interface DialogueHost {
   drawSoldierFace(list: DrawList, soldier: SoldierView, x: number, y: number): void;
@@ -53,6 +56,7 @@ export class DialogueLayer {
   #conversationProfile: number | null = null;
   #now = 0;
   #built = false;
+  #askedRequest: string | null = null;
 
   constructor(env: TacticalEnvironment, host: DialogueHost) {
     this.#env = env;
@@ -176,9 +180,20 @@ export class DialogueLayer {
     this.presenter.update(now);
     if (!this.#built) return;
     this.#syncTalkPanel(now);
+    this.#syncRequest();
     this.talk.update(now);
     this.surfaces.update(now);
     this.#speechView.update();
+  }
+
+  #syncRequest(): void {
+    const request = this.#view()?.npcRequest ?? null;
+    if (!request || request.id === this.#askedRequest || this.presenter.busy) return;
+    this.#askedRequest = request.id;
+    const box = npcRequestBox(request, this.#env.text, this.#env.media.item(KEVLAR_VEST)?.longName ?? '');
+    void this.#env.boxes
+      .ask(box.text, box.buttons, { id: REQUEST_BOX_ID })
+      .then((result) => this.#env.client.command({ type: 'answer', prompt: request.id, choice: npcRequestChoice(result) }));
   }
 
   #panelLinesLeft(): boolean {

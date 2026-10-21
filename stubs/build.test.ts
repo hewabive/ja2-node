@@ -39,7 +39,18 @@ import { loadSectorKinds, sectorMapFile } from './sector-kinds.ts';
 import { npcSpeechSets, type SpeechSet, speechPaths } from './speech.ts';
 import { STUB_TILE_SURFACES } from './tiles.ts';
 import { ANIMATED_STUB_CURSORS, loadCursorTable } from './ui/cursors.ts';
-import { EYES_HEIGHT, EYES_WIDTH, FACE_HEIGHT, FACE_WIDTH, MOUTH_HEIGHT, MOUTH_WIDTH, smallFacePath } from './ui/faces.ts';
+import {
+  bigTalkingFacePath,
+  EYES_HEIGHT,
+  EYES_WIDTH,
+  FACE_HEIGHT,
+  FACE_WIDTH,
+  genericBigFacePath,
+  MOUTH_HEIGHT,
+  MOUTH_WIDTH,
+  smallFacePath,
+  talkingFaceSize,
+} from './ui/faces.ts';
 import { BIG_ITEM_DIR, ITEM_OUTLINE_INDEX, smallSheetPlans, stubItemTable } from './ui/items.ts';
 import { RADAR_MAP_HEIGHT, RADAR_MAP_WIDTH, radarMapPath, STUB_MAPS_DIR } from './ui/radar.ts';
 import { planStubSkin, readOriginalLayouts } from './ui/skin.ts';
@@ -323,6 +334,16 @@ describe('stub media', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
     }
     expect(new Set(faces).size).toBe(GENERIC_FACE_BODY_TYPES);
     expect(GENERIC_FACE.blinkFrequency).toBeGreaterThan(0);
+    const talking = await talkingFaceSize();
+    for (let body = 0; body < GENERIC_FACE_BODY_TYPES; body++) {
+      const sti = decodeSti(await data.vfs.read(stub(genericBigFacePath(body))));
+      if (sti.kind !== 'indexed') throw new Error(`${genericBigFacePath(body)} is not indexed`);
+      expect(sti.subImages.map((f) => [f.width, f.height])).toEqual([
+        [talking.width, talking.height],
+        ...Array.from({ length: EYE_FRAMES }, () => [EYES_WIDTH, EYES_HEIGHT]),
+        ...Array.from({ length: MOUTH_FRAMES }, () => [MOUTH_WIDTH, MOUTH_HEIGHT]),
+      ]);
+    }
     const profiles = await loadStubProfiles(
       (path) => data.vfs.read(stub(path.replace(/^stubs\//, ''))),
       () => 1,
@@ -331,6 +352,8 @@ describe('stub media', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
       if (!p) continue;
       const face = await data.vfs.read(stub(smallFacePath(p.faceIndex)));
       expect(Buffer.from(face).equals(Buffer.from(await data.vfs.read(stub(genericFacePath(p.bodyType))))), p.name).toBe(true);
+      const big = await data.vfs.read(stub(bigTalkingFacePath(p.faceIndex)));
+      expect(Buffer.from(big).equals(Buffer.from(await data.vfs.read(stub(genericBigFacePath(p.bodyType))))), p.name).toBe(true);
       expect([p.eyesX, p.eyesY, p.mouthX, p.mouthY], p.name).toEqual([...GENERIC_FACE.eyes, ...GENERIC_FACE.mouth]);
       expect([p.blinkFrequency, p.expressionFrequency], p.name).toEqual([GENERIC_FACE.blinkFrequency, GENERIC_FACE.expressionFrequency]);
     }

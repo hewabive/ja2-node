@@ -57,6 +57,7 @@ export const SM_PANEL_CONTRACT: ControllerContract = {
     burstMode: {},
     look: {},
     stealth: {},
+    money: {},
   },
   bindings: {
     name: 'string',

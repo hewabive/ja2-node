@@ -18,6 +18,9 @@ export const MOUTH_HEIGHT = 6;
 export const FACE_FRAMES = 8;
 
 const STUB_PROFILES_FILE = 'profiles.json';
+const SHOPKEEPER_TABLE = 'tables/ui-constants/ShopKeeper_Interface.json';
+const BIG_TALKING_FACE_PREFIX = 'b';
+const BIG_SHIRT_TOP = 60;
 const FACES_DIR = 'faces';
 const FACE_INDEX_DIGITS = 2;
 
@@ -153,6 +156,40 @@ function subImage(r: IndexedRaster): StiSubImage {
   return { offsetX: 0, offsetY: 0, width: r.width, height: r.height, pixels: r.pixels };
 }
 
+export function bigFaceRaster(look: BodyLook, width: number, height: number): IndexedRaster {
+  const r = new IndexedRaster(width, height);
+  r.rect(0, 0, width, height, BACKDROP);
+  r.rect(0, BIG_SHIRT_TOP, width, height - BIG_SHIRT_TOP, color(look.shirt, 6));
+  blit(r, faceRaster(look), 0, 0);
+  return r;
+}
+
+export function encodeStubBigFace(bodyType: number, width: number, height: number): Uint8Array {
+  const look = BODY_LOOKS[bodyType] ?? (BODY_LOOKS[0] as BodyLook);
+  const frames = [
+    bigFaceRaster(look, width, height),
+    ...EYE_FRAMES.map((state) => eyesRaster(look, state)),
+    ...MOUTH_FRAMES.map((state) => mouthRaster(state)),
+  ];
+  return encodeStiIndexed({ palette: buildPalette(), subImages: frames.map(subImage) });
+}
+
+export function bigTalkingFacePath(faceIndex: number): string {
+  return `${FACES_DIR}/${BIG_TALKING_FACE_PREFIX}${String(faceIndex).padStart(FACE_INDEX_DIGITS, '0')}.sti`;
+}
+
+export function genericBigFacePath(bodyType: number): string {
+  return genericFacePath(bodyType).replace('/body', '/bigbody');
+}
+
+export async function talkingFaceSize(): Promise<{ width: number; height: number }> {
+  const constants = asObject(
+    asObject(JSON.parse(await readFile(join(PROJECT_DATA_DIR, SHOPKEEPER_TABLE), 'utf8')), 'ShopKeeper_Interface').constants,
+    'constants',
+  );
+  return { width: asInt(constants.SKI_FACE_WIDTH, 'SKI_FACE_WIDTH'), height: asInt(constants.SKI_FACE_HEIGHT, 'SKI_FACE_HEIGHT') };
+}
+
 export function encodeStubFace(bodyType: number): Uint8Array {
   const look = BODY_LOOKS[bodyType] ?? (BODY_LOOKS[0] as BodyLook);
   const frames = [
@@ -186,13 +223,19 @@ export function smallFacePath(faceIndex: number): string {
 
 export async function buildStubFaces(out: string, aliases: Map<string, string>): Promise<string[]> {
   const written: string[] = [];
+  const big = await talkingFaceSize();
   for (let body = 0; body < GENERIC_FACE_BODY_TYPES; body++) {
     const path = genericFacePath(body);
     await mkdir(dirname(join(out, path)), { recursive: true });
     await writeFile(join(out, path), encodeStubFace(body));
-    written.push(path);
+    const bigPath = genericBigFacePath(body);
+    await writeFile(join(out, bigPath), encodeStubBigFace(body, big.width, big.height));
+    written.push(path, bigPath);
   }
-  for (const profile of await stubFaceProfiles()) aliases.set(smallFacePath(profile.faceIndex), genericFacePath(profile.bodyType));
+  for (const profile of await stubFaceProfiles()) {
+    aliases.set(smallFacePath(profile.faceIndex), genericFacePath(profile.bodyType));
+    aliases.set(bigTalkingFacePath(profile.faceIndex), genericBigFacePath(profile.bodyType));
+  }
   return written;
 }
 

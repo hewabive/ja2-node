@@ -1,0 +1,65 @@
+image interface/talkbox1.sti#0 13,52
+glyphs blockfont 50,167 n=5 fg=33
+shadow 110,61 108x103
+glyphs blockfont 132,68 n=11 fg=0
+glyphs blockfont 141,84 n=8 fg=0
+glyphs blockfont 146,100 n=6 fg=0
+glyphs blockfont 139,116 n=8 fg=0
+glyphs blockfont 152,132 n=4 fg=0
+glyphs blockfont 143,148 n=7 fg=0
+image interface/talkbox2.sti#3 125,166
+clip 128,168 68x10
+glyphs blockfont 149,166 n=4 fg=33
+clipPop
+shadow 125,166 75x15
+clip 20,188 200x50
+image interface/tactpopupbackground.pcx#0 20,188
+image interface/tactpopup.sti#1 30,188
+image interface/tactpopup.sti#6 30,234
+image interface/tactpopup.sti#1 40,188
+image interface/tactpopup.sti#6 40,234
+image interface/tactpopup.sti#1 50,188
+image interface/tactpopup.sti#6 50,234
+image interface/tactpopup.sti#1 60,188
+image interface/tactpopup.sti#6 60,234
+image interface/tactpopup.sti#1 70,188
+image interface/tactpopup.sti#6 70,234
+image interface/tactpopup.sti#1 80,188
+image interface/tactpopup.sti#6 80,234
+image interface/tactpopup.sti#1 90,188
+image interface/tactpopup.sti#6 90,234
+image interface/tactpopup.sti#1 100,188
+image interface/tactpopup.sti#6 100,234
+image interface/tactpopup.sti#1 110,188
+image interface/tactpopup.sti#6 110,234
+image interface/tactpopup.sti#1 120,188
+image interface/tactpopup.sti#6 120,234
+image interface/tactpopup.sti#1 130,188
+image interface/tactpopup.sti#6 130,234
+image interface/tactpopup.sti#1 140,188
+image interface/tactpopup.sti#6 140,234
+image interface/tactpopup.sti#1 150,188
+image interface/tactpopup.sti#6 150,234
+image interface/tactpopup.sti#1 160,188
+image interface/tactpopup.sti#6 160,234
+image interface/tactpopup.sti#1 170,188
+image interface/tactpopup.sti#6 170,234
+image interface/tactpopup.sti#1 180,188
+image interface/tactpopup.sti#6 180,234
+image interface/tactpopup.sti#1 190,188
+image interface/tactpopup.sti#6 190,234
+image interface/tactpopup.sti#1 200,188
+image interface/tactpopup.sti#6 200,234
+image interface/tactpopup.sti#3 20,198
+image interface/tactpopup.sti#4 216,198
+image interface/tactpopup.sti#3 20,208
+image interface/tactpopup.sti#4 216,208
+image interface/tactpopup.sti#3 20,218
+image interface/tactpopup.sti#4 216,218
+image interface/tactpopup.sti#0 20,188
+image interface/tactpopup.sti#2 210,188
+image interface/tactpopup.sti#5 20,228
+image interface/tactpopup.sti#7 210,228
+glyphs font12arial 30,198 n=34 fg=208
+glyphs font12arial 30,213 n=24 fg=208
+clipPop
