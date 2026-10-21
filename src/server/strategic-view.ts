@@ -21,6 +21,7 @@ import { EnemyKnowledge, surfaceKnowledgeOfEnemies } from '../sim/strategic/map/
 import { getSectorFlagStatus, sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { calculateTravelTimeOfGroup } from '../sim/strategic/map/travel.ts';
 import { worldTotalMinutes } from '../sim/strategic/time/world-clock.ts';
+import { armourPercent, type MaxArmour, maxArmourPerClass } from '../sim/tactical/combat/armour.ts';
 import { inventoryView } from '../sim/tactical/inventory-view.ts';
 import type { Soldier } from '../sim/tactical/soldier.ts';
 import { statsView } from '../sim/tactical/soldier-view.ts';
@@ -150,6 +151,16 @@ function sectorViews(ctx: StrategicContext, scan: SurfaceScan): readonly Strateg
 
 type ViewedMerc = StrategicMerc & { readonly soldier?: Soldier };
 
+const maxArmourOfItems = new WeakMap<ItemTable, MaxArmour>();
+
+function maxArmourOf(items: ItemTable): MaxArmour {
+  const known = maxArmourOfItems.get(items);
+  if (known) return known;
+  const max = maxArmourPerClass(items);
+  maxArmourOfItems.set(items, max);
+  return max;
+}
+
 function mercInventoryFields(ctx: StrategicContext, items: ItemTable | null, m: ViewedMerc): Partial<StrategicMercView> {
   const s = m.soldier;
   if (!s || !items) return {};
@@ -158,6 +169,8 @@ function mercInventoryFields(ctx: StrategicContext, items: ItemTable | null, m: 
     stats: statsView(s),
     inventory: inventoryView(items, s.inv),
     weight: ctx.mercs.carriedWeightPercent(m.id),
+    armour: armourPercent(items, maxArmourOf(items), s),
+    camo: s.camo,
   };
 }
 

@@ -42,7 +42,7 @@ import {
   takeObjects,
   unloadGun,
 } from '../tactical/inventory-panel.ts';
-import { type InventoryItemView, inventoryView } from '../tactical/inventory-view.ts';
+import { type InventoryItemView, inventoryView, slotView } from '../tactical/inventory-view.ts';
 import { handleAllReachableItemsInTheSector } from '../tactical/item-reachability.ts';
 import { isCreatureOrBloodcat, NOWHERE, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
 import { soldierInventoryContext } from '../tactical/soldier-inventory.ts';
@@ -95,6 +95,7 @@ const MAP_REFUSAL_TEXT: Readonly<Record<MapInventoryRefusal, string>> = {
 };
 
 const MONEY_STATUS = 100;
+const NO_SLOT = -1;
 const DISCARD_ITEM = 'discardItem';
 
 function contentOf(campaign: CampaignSim): TacticalContent {
@@ -115,6 +116,10 @@ export interface StashEntryView {
   readonly count: number;
   readonly status: readonly number[];
   readonly money?: number;
+  readonly ammo?: InventoryItemView['ammo'];
+  readonly attachments?: InventoryItemView['attachments'];
+  readonly jammed?: true;
+  readonly imprint?: number;
   readonly reachable: boolean;
   readonly gridNo: number;
   readonly level: number;
@@ -573,16 +578,23 @@ export class MapInventory {
     const onMap = campaign.state.flow === 'strategic';
     const stash = stashOf(campaign, sector);
     const items = contentOf(campaign).items;
-    const entries: StashEntryView[] = stash.slots().map((slot, index) => ({
-      index,
-      item: items.byIndex.get(slot.object.item)?.name ?? String(slot.object.item),
-      count: slot.object.count,
-      status: slot.object.status.slice(0, Math.max(1, slot.object.count)),
-      ...(items.byIndex.get(slot.object.item)?.itemClass === ItemClass.MONEY ? { money: slot.object.money } : {}),
-      reachable: (slot.flags & WorldItemFlags.REACHABLE) !== 0,
-      gridNo: slot.gridNo,
-      level: slot.level,
-    }));
+    const entries: StashEntryView[] = stash.slots().map((slot, index) => {
+      const view = slotView(items, NO_SLOT, slot.object);
+      return {
+        index,
+        item: items.byIndex.get(slot.object.item)?.name ?? String(slot.object.item),
+        count: slot.object.count,
+        status: slot.object.status.slice(0, Math.max(1, slot.object.count)),
+        ...(items.byIndex.get(slot.object.item)?.itemClass === ItemClass.MONEY ? { money: slot.object.money } : {}),
+        ...(view.ammo ? { ammo: view.ammo } : {}),
+        ...(view.attachments ? { attachments: view.attachments } : {}),
+        ...(view.jammed ? { jammed: view.jammed } : {}),
+        ...(view.imprint !== undefined ? { imprint: view.imprint } : {}),
+        reachable: (slot.flags & WorldItemFlags.REACHABLE) !== 0,
+        gridNo: slot.gridNo,
+        level: slot.level,
+      };
+    });
     const mercs = (campaign.battle?.roster.all() ?? [])
       .filter((m) => sameSector(m.sector, sector) && !m.isVehicle)
       .map((m) => ({

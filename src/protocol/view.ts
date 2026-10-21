@@ -190,6 +190,8 @@ export interface StrategicMercView {
   readonly stats?: SoldierStatsView;
   readonly inventory?: readonly InventoryItemView[];
   readonly weight?: number;
+  readonly armour?: number;
+  readonly camo?: number;
   readonly idle?: boolean;
   readonly trainStat?: number;
   readonly repairVehicle?: number;
