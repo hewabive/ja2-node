@@ -10,6 +10,7 @@ import type { HelicopterEvent } from './strategic/forces/helicopter-events.ts';
 import type { DoorEvent } from './tactical/doors/events.ts';
 import type { InventoryEvent } from './tactical/inventory-events.ts';
 import type { BoxingEvent } from './tactical/narrative/boxing-events.ts';
+import type { OrderEvent } from './tactical/order-events.ts';
 
 export interface SimEventBase {
   readonly tick: number;
@@ -479,5 +480,6 @@ export type SimEvent =
   | QuestEvent
   | StoryEvent
   | BoxingEvent
+  | OrderEvent
   | (EconomyEvent & SimEventBase);
 export type SimEventType = SimEvent['type'];

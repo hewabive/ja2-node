@@ -38,12 +38,25 @@ import {
   NO_SLOT,
 } from './lock-attempts.ts';
 
-export const DOOR_ACTIONS = ['open', 'close', 'unlock', 'lock', 'pickLock', 'force', 'crowbar', 'explode', 'untrap', 'examine'] as const;
+export const DOOR_ACTIONS = [
+  'open',
+  'close',
+  'openManually',
+  'unlock',
+  'lock',
+  'pickLock',
+  'force',
+  'crowbar',
+  'explode',
+  'untrap',
+  'examine',
+] as const;
 export type DoorActionName = (typeof DOOR_ACTIONS)[number];
 
 export const ACTION_HANDLE_CODE: Readonly<Record<DoorActionName, number>> = {
   open: HandleDoor.OPEN,
   close: HandleDoor.OPEN,
+  openManually: HandleDoor.OPEN,
   unlock: HandleDoor.UNLOCK,
   lock: HandleDoor.LOCK,
   pickLock: HandleDoor.LOCKPICK,
@@ -68,7 +81,7 @@ const HANDLE_CODE_ACTION: Readonly<Record<number, DoorActionName>> = {
   [HandleDoor.EXAMINE]: 'examine',
 };
 
-type MenuCostAction = Exclude<DoorActionName, 'open' | 'close'>;
+type MenuCostAction = Exclude<DoorActionName, 'open' | 'close' | 'openManually'>;
 
 const menuCosts = (): Readonly<Record<MenuCostAction, { readonly ap: number; readonly bp: number }>> => ({
   unlock: { ap: AP.UNLOCK_DOOR, bp: BP.UNLOCK_DOOR },
@@ -88,7 +101,7 @@ export function doorApCost(code: number): number {
 }
 
 export function actionCost(s: Soldier, action: DoorActionName): { readonly ap: number; readonly bp: number } {
-  if (action === 'open' || action === 'close') return { ap: doorApCost(s.doorHandleCode), bp: BP.OPEN_DOOR };
+  if (action === 'open' || action === 'close' || action === 'openManually') return { ap: doorApCost(s.doorHandleCode), bp: BP.OPEN_DOOR };
   return menuCosts()[action];
 }
 
@@ -151,8 +164,9 @@ export function doorMenu(t: TacticalState, s: Soldier, gridNo: number): DoorMenu
   const perceived = door?.perceivedTrapped ?? PerceivedTrap.UNKNOWN;
   const examined = perceived === PerceivedTrap.PROVED_TRAPPED || perceived === PerceivedTrap.PROVED_UNTRAPPED;
   const costs = menuCosts();
-  const cost = (a: DoorMenuAction) => costs[a];
+  const cost = (a: MenuCostAction) => costs[a];
   return [
+    menuOption(t, s, 'openManually', doorApCost(s.doorHandleCode), null),
     menuOption(t, s, 'unlock', cost('unlock').ap, escort ?? (soldierHasKey(t, s, ANYKEY) ? null : 'noKey')),
     menuOption(t, s, 'crowbar', cost('crowbar').ap, findCrowbar(t, s) === NO_SLOT ? 'noCrowbar' : null),
     menuOption(t, s, 'pickLock', cost('pickLock').ap, escort ?? (findLocksmithKit(t, s) === NO_SLOT ? 'noLockpickKit' : null)),

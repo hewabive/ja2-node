@@ -75,6 +75,7 @@ describe('the stub village door', () => {
     expect(s.gridNo).toBe(OUTSIDE);
     const menu = events.find((e) => e.type === 'doorMenu');
     expect(menu?.type === 'doorMenu' ? menu.options.map((o) => `${o.action}:${o.enabled ? 'on' : (o.reason ?? 'off')}`) : []).toEqual([
+      'openManually:on',
       'unlock:noKey',
       'crowbar:noCrowbar',
       'pickLock:noLockpickKit',
@@ -118,6 +119,27 @@ describe('the stub village door', () => {
     expect(findDoorInfo(sim.state, DOOR)).toMatchObject({ locked: false, perceivedLocked: PerceivedLock.UNLOCKED });
     expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'close' }).ok).toBe(true);
     expect(runSimUntilIdle(sim).some((e) => e.type === 'doorChanged' && !e.open)).toBe(true);
+  });
+
+  it('tries the handle of the locked door with open manually (HANDLE_DOOR_OPEN from the menu)', () => {
+    const sim = village();
+    const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
+    sim.lookAround();
+    updateDoor(sim.state, DOOR, { trapId: DoorTrap.NONE });
+    sim.state.inCombat = true;
+    const before = s.actionPoints;
+    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'openManually' })).toMatchObject({
+      ok: true,
+      data: { started: 'openManually' },
+    });
+    expect(s.doorHandleCode).toBe(HandleDoor.OPEN);
+    const events = runSimUntilIdle(sim);
+    expect(resultsOf(events)).toEqual(['open:locked']);
+    expect(doorStructure(sim).flags & StructureFlags.OPEN).toBe(0);
+    expect(findDoorInfo(sim.state, DOOR)).toMatchObject({ locked: true, perceivedLocked: PerceivedLock.LOCKED });
+    expect(s.actionPoints).toBe(before);
+    updateDoor(sim.state, DOOR, { locked: false });
+    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'openManually' }).data).toEqual({ refusal: 'notLocked' });
   });
 
   it('names the key item of each lock on the key ring (LockTable[keyID].usKeyItem)', () => {

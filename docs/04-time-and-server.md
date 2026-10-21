@@ -664,8 +664,8 @@ Snapshot version 5 adds `newMail` (older snapshots load with it down).
 
 ### 6.10. Doors (M6)
 
-`door {soldier, gridNo, action}` with `action` one of `open`, `close`, `unlock`, `lock`, `pickLock`, `force`, `crowbar`,
-`explode`, `untrap`, `examine` (`docs/25` §8, §13.1). The soldier walks next to the door (`FindAdjacentGridExAdvanced`) like
+`door {soldier, gridNo, action}` with `action` one of `open`, `close`, `openManually` (§6.28), `unlock`, `lock`,
+`pickLock`, `force`, `crowbar`, `explode`, `untrap`, `examine` (`docs/25` §8, §13.1). The soldier walks next to the door (`FindAdjacentGridExAdvanced`) like
 `pickUp` and then interacts; `data` is `{walking: true, to}` while he walks, `{started: <action>}` when he is already there,
 or, for `open` on a locked door, `{opened: false, locked: true, options}`: the door menu as data, after the start-of-menu
 trap check (`{trapNoticed: true}` when the merc spots the trap instead). Each option is `{action, ap, enabled, reason?}`.
@@ -1368,6 +1368,33 @@ when it changes.
 - `light` is the one light block of §6.26: every active light sprite with `dynamic: true` on the muzzle flashes,
   explosions and flares; the renderer draws the map's own lights from the map and adds only the dynamic ones, the hints
   read them all.
+
+### 6.28. Orders of the player interface (M8, U6)
+
+The tactical orders the original's buttons, keys and cursors give besides `move`, `attack`, `door` and the inventory
+(`28` §12.4), from `src/sim/tactical/player-orders.ts`, `combat/spread-burst.ts` and `stack-cleanup.ts`. Each is refused
+like every tactical order while our side cannot act (`noSuchSoldier`, `cannotAct`, `notYourTurn`, `uiLocked`,
+`attackResolving`, `orderQueued`, `mercUnavailable`, `mercActing`).
+
+| Command | What it does | Refusals |
+|---|---|---|
+| `stealth {soldiers, on?, squad?}` | stealth mode for each listed merc (`bStealthMode`: one more AP per tile, quieter steps and noise); without `on` each one toggles (the SM button and `z`), with `on` all are set (ALT+Z computes it like the original: on unless one of the squad already sneaks); the robot is skipped. Events `stealthChanged {soldier, on}` or, with `squad`, one `squadStealthChanged {soldiers, on}`, logged with the original's lines | `badSoldiers`, `badValue` |
+| `mute {soldier, on?}` | `SOLDIER_MUTE`: the merc's battle sounds stay silent (a presentation flag the server keeps so speech and sound agree, `muted` in the view); event `muteChanged`, logged | `noSuchSoldier` |
+| `weaponMode {soldier, mode?}` | `ChangeWeaponMode`: single → burst (burst-capable gun) → launcher (a loaded under-barrel grenade launcher) → single; `mode` sets one directly. `attack` without `burst` fires in the merc's mode (`EnsureConsistentWeaponMode` first); `burst: true\|false` still sets it. In launcher mode `attack` fires the attached launcher (`HandleItem` with `UNDER_GLAUNCHER`, the trajectory branch) | `noBurst` (the original's "not burst capable" line), `noLauncher`, `badMode`, `firing` |
+| `attack {…, spread: [gridNo…]}` | a spread burst: up to 50 distinct tiles in drag order (`AccumulateBurstLocation`), the shots of the burst spread over them with `PickBurstLocations`' float step; burst mode only. A refused attack clears the spread | `badSpread`, `noBurst` |
+| `move {…, reverse: true}` | `bReverse`: walks backwards facing the way he faced, `AP_REVERSE_MODIFIER` per tile (also counted by the first-step check) | as `move` |
+| `moveGroup {soldiers, to, mode?, reverse?}` | real time only (combat clears the multi-selection, `EnterCombatMode`): every listed merc gets a path with `PATH_THROUGH_PEOPLE`; `mode` `stance` (default: walk, swat or crawl by stance), `fast` (standing mercs run: the selected merc's double click) or `run` (everyone runs: the all-move's right double click); an uncontrolled robot is skipped; `data {moved, noPath}`, `noPathForMerc {soldier, to}` logs the original's line | `realTimeOnly`, `badDestination`, `badMode`, `badSoldiers` |
+| `swapPlaces {soldier, with, cursor?}` | the `x` key: both conscious, the other reachable within one tile (`CanSoldierReachGridNoInGivenTileLimit`), not hostile, `CanExchangePlaces` (APs of both, not moving, valid stances, friendly or a willing neutral); `SwapMercPositions` (both re-inserted at their old tiles when a tile is not free), `AP_EXCHANGE_PLACES` from both. `cursor: true` is the exchange cursor's free swap (`ValidQuickExchangePosition`: an adjacent neutral or friendly militiaman in sight with a one-step path). Event `placesSwapped` | `noSuchTarget`, `notAdjacent`, `hostileTarget`, `invalidExchange`, `cannotExchange` |
+| `jump {soldier, to}` | `UIHandleJumpOver`: over a prone soldier on the side tile between (`IsValidJumpLocation`), after turning; `JUMP_OVER_BLOCKING_PERSON` charges `AP_JUMP_OVER` and walks the two tiles (its path is now set when the animation starts, as `EVENT_InitNewSoldierAnim` does); needs `GetAPsToJumpOver` | `invalidJump`, `notEnoughAP`, `mustStopFirst` |
+| `jump {soldier}` | the climb button's fence jump (`FindFenceJumpDirection`, `BeginSoldierClimbFence`, `HOPFENCE`); needs `GetAPsToJumpFence` | `noFence`, `notEnoughAP` |
+| `climbWindow {soldier}` | Stracciatella's SHIFT+J (`HandleTBClimbWindow`): through the open window the merc faces (`IsFacingClimableWindow`), `AP_JUMPFENCE`/`BP_JUMPFENCE`, then `TeleportSoldier` to the next tile (no animation in Stracciatella either) | `noWindow`, `notEnoughAP` |
+| `combineStack {soldier, slot, from?, index?}` | CTRL+click (`CleanUpStack`): ammo, kits and medkits only; the points of the `from` stack (or its object at `index`), when it holds the same item, are poured into the slot's lower objects, then the slot's own upper objects into its lower ones; emptied objects leave the stack; free; `data.combined` false for other items | `badSlot`, `emptySlot`, `sameSlot`, `badIndex` |
+| `door {…, action: 'openManually'}` | the door menu's open button: `InteractWithClosedDoor(HANDLE_DOOR_OPEN)` on a locked door after the start-of-menu trap check; the merc finds it locked (no AP, as the original) unless a trap goes off. The door menu (`options`, `previewAction` and the `doorMenu` event) lists it first | as the menu actions |
+| `leaveVehicle {soldier, squad?}` | accepted in the tactical flow as on the map screen (§6.13); the team panel's second hand slot of a passenger sends it | §6.13 |
+
+Every refusal the original reports with `MSG_UI_FEEDBACK` (`notEnoughAP`, `noPath`, `mercUnavailable`, `noBurst`,
+`noRoomToFire`, …) now enters the message log as a `uiFeedback` entry (colour `FONT_MCOLOR_LTYELLOW`), so the client opens
+the feedback box as the original does (§6.25).
 
 ## 7. Cost and limitations
 
