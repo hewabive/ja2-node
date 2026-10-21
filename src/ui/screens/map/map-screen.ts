@@ -120,6 +120,7 @@ const START_SECTOR: Sector = { x: 9, y: 1, z: 0 };
 const MINUTES_PER_DAY = 1440;
 const MINUTES_PER_HOUR = 60;
 const DIGIT_CODE = /^Digit(\d)$/;
+const UNDESCRIBED_REGIONS: ReadonlySet<string> = new Set(['mapScreenMask', 'mapMenuMask']);
 const LEVELS = [0, 1, 2, 3];
 const DEEPEST_LEVEL = 3;
 const UPPER_HALF_ROW = 8;
@@ -945,8 +946,12 @@ export class MapScreen implements Screen {
     return (this.#strategic()?.mercs.length ?? 0) === 0;
   }
 
+  #inConfirmMoveMode(): boolean {
+    return this.#plot?.mode === 'merc' && this.#plot.legs.length > 0;
+  }
+
   #mapPrimary(): void {
-    if (this.#message.open) {
+    if (this.#message.open && !this.#inConfirmMoveMode()) {
       this.#message.end();
       if (!this.#changingArrival) return;
     }
@@ -1020,7 +1025,7 @@ export class MapScreen implements Screen {
       this.#uiMessage(this.#text(BULLSEYE, Bullseye.CANCELED));
       return;
     }
-    if (this.#message.open) {
+    if (this.#message.open && !this.#inConfirmMoveMode()) {
       this.#message.end();
       return;
     }
@@ -1151,7 +1156,7 @@ export class MapScreen implements Screen {
   }
 
   #filter(index: number): void {
-    if (this.#message.open && !(this.#plot && this.#plot.legs.length > 0)) this.#message.end();
+    if (this.#message.open && !this.#inConfirmMoveMode()) this.#message.end();
     this.#applyFilterEffects(toggleFilter(this.filters, index));
   }
 
@@ -1202,7 +1207,7 @@ export class MapScreen implements Screen {
     if (this.#changingArrival) {
       this.#changingArrival = false;
       this.#uiMessage(this.#text(BULLSEYE, Bullseye.CANCELED));
-    } else if (this.#message.open && !(this.#plot && this.#plot.legs.length > 0)) this.#message.end();
+    } else if (this.#message.open && !this.#inConfirmMoveMode()) this.#message.end();
     else if (this.#plot) this.#abortPlotting(true);
     else if (this.#menus.open) {
       this.#menus.escape();
@@ -1348,7 +1353,22 @@ export class MapScreen implements Screen {
   }
 
   describe(): readonly WidgetInfo[] {
-    return [...this.#view.describe(), ...this.#menus.describe(), ...this.#contract.describe()];
+    return [...this.#view.describe(), ...this.#describeRegions(), ...this.#menus.describe(), ...this.#contract.describe()];
+  }
+
+  #describeRegions(): WidgetInfo[] {
+    return this.#env.runtime.regions.regions
+      .filter((r) => r.owner === OWNER && r.id !== undefined && !UNDESCRIBED_REGIONS.has(r.id))
+      .map((r) => ({
+        id: r.id ?? '',
+        kind: 'region',
+        rect: { x: r.x1, y: r.y1, width: r.width, height: r.height },
+        visible: true,
+        enabled: r.enabled,
+        state: r.inArea ? 'hover' : 'normal',
+        text: r.tooltip || null,
+        frame: null,
+      }));
   }
 
   #renderers(): Readonly<Record<string, CustomRenderer>> {

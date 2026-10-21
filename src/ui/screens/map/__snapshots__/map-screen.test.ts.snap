@@ -1,0 +1,511 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the map screen over the stub map-screen campaign > lists the squad, shows the info merc and the clock, and draws the same first frame 1`] = `
+"image interface/charinfo.sti#0 0,1
+image interface/newgoldpiece3.sti#0 0,107
+image interface/mbs.sti#0 261,0
+image interface/map_screen_bottom.sti#0 0,359
+image interface/greenarr.sti#0 565,323
+image test-board/normal#0 271,10
+shadow 292,27 21x18
+shadow 292,45 21x18
+shadow 292,63 21x18
+shadow 292,81 21x18
+shadow 292,99 21x18
+shadow 292,117 21x18
+shadow 292,135 21x18
+shadow 292,153 21x18
+shadow 292,171 21x18
+shadow 292,189 21x18
+shadow 292,207 21x18
+shadow 292,225 21x18
+shadow 292,243 21x18
+shadow 292,261 21x18
+shadow 292,279 21x18
+shadow 292,297 21x18
+shadow 313,27 21x18
+shadow 313,45 21x18
+shadow 313,63 21x18
+shadow 313,81 21x18
+shadow 313,99 21x18
+shadow 313,117 21x18
+shadow 313,135 21x18
+shadow 313,153 21x18
+shadow 313,171 21x18
+shadow 313,189 21x18
+shadow 313,207 21x18
+shadow 313,225 21x18
+shadow 313,243 21x18
+shadow 313,261 21x18
+shadow 313,279 21x18
+shadow 313,297 21x18
+shadow 334,27 21x18
+shadow 334,45 21x18
+shadow 334,63 21x18
+shadow 334,81 21x18
+shadow 334,99 21x18
+shadow 334,117 21x18
+shadow 334,135 21x18
+shadow 334,153 21x18
+shadow 334,171 21x18
+shadow 334,189 21x18
+shadow 334,207 21x18
+shadow 334,225 21x18
+shadow 334,243 21x18
+shadow 334,261 21x18
+shadow 334,279 21x18
+shadow 334,297 21x18
+shadow 355,27 21x18
+shadow 355,45 21x18
+shadow 355,63 21x18
+shadow 355,81 21x18
+shadow 355,99 21x18
+shadow 355,117 21x18
+shadow 355,135 21x18
+shadow 355,153 21x18
+shadow 355,171 21x18
+shadow 355,189 21x18
+shadow 355,207 21x18
+shadow 355,225 21x18
+shadow 355,243 21x18
+shadow 355,261 21x18
+shadow 355,279 21x18
+shadow 355,297 21x18
+shadow 376,27 21x18
+shadow 376,45 21x18
+shadow 376,63 21x18
+shadow 376,81 21x18
+shadow 376,99 21x18
+shadow 376,117 21x18
+shadow 376,135 21x18
+shadow 376,153 21x18
+shadow 376,171 21x18
+shadow 376,189 21x18
+shadow 376,207 21x18
+shadow 376,225 21x18
+shadow 376,243 21x18
+shadow 376,261 21x18
+shadow 376,279 21x18
+shadow 376,297 21x18
+shadow 397,27 21x18
+shadow 397,45 21x18
+shadow 397,63 21x18
+shadow 397,81 21x18
+shadow 397,99 21x18
+shadow 397,117 21x18
+shadow 397,135 21x18
+shadow 397,153 21x18
+shadow 397,171 21x18
+shadow 397,189 21x18
+shadow 397,207 21x18
+shadow 397,225 21x18
+shadow 397,243 21x18
+shadow 397,261 21x18
+shadow 397,279 21x18
+shadow 397,297 21x18
+shadow 418,27 21x18
+shadow 418,45 21x18
+shadow 418,63 21x18
+shadow 418,81 21x18
+shadow 418,99 21x18
+shadow 418,117 21x18
+shadow 418,135 21x18
+shadow 418,153 21x18
+shadow 418,171 21x18
+shadow 418,189 21x18
+shadow 418,207 21x18
+shadow 418,225 21x18
+shadow 418,243 21x18
+shadow 418,261 21x18
+shadow 418,279 21x18
+shadow 418,297 21x18
+shadow 439,27 21x18
+shadow 439,45 21x18
+shadow 439,63 21x18
+shadow 439,81 21x18
+shadow 439,99 21x18
+shadow 439,117 21x18
+shadow 439,135 21x18
+shadow 439,153 21x18
+shadow 439,171 21x18
+shadow 439,189 21x18
+shadow 439,207 21x18
+shadow 439,225 21x18
+shadow 439,243 21x18
+shadow 439,261 21x18
+shadow 439,279 21x18
+shadow 439,297 21x18
+shadow 460,45 21x18
+shadow 460,63 21x18
+shadow 460,81 21x18
+shadow 460,99 21x18
+shadow 460,117 21x18
+shadow 460,135 21x18
+shadow 460,153 21x18
+shadow 460,171 21x18
+shadow 460,189 21x18
+shadow 460,207 21x18
+shadow 460,225 21x18
+shadow 460,243 21x18
+shadow 460,261 21x18
+shadow 460,279 21x18
+shadow 460,297 21x18
+shadow 481,27 21x18
+shadow 481,45 21x18
+shadow 481,63 21x18
+shadow 481,81 21x18
+shadow 481,99 21x18
+shadow 481,117 21x18
+shadow 481,135 21x18
+shadow 481,153 21x18
+shadow 481,171 21x18
+shadow 481,189 21x18
+shadow 481,207 21x18
+shadow 481,225 21x18
+shadow 481,243 21x18
+shadow 481,261 21x18
+shadow 481,279 21x18
+shadow 481,297 21x18
+shadow 502,27 21x18
+shadow 502,45 21x18
+shadow 502,63 21x18
+shadow 502,81 21x18
+shadow 502,99 21x18
+shadow 502,117 21x18
+shadow 502,135 21x18
+shadow 502,153 21x18
+shadow 502,171 21x18
+shadow 502,189 21x18
+shadow 502,207 21x18
+shadow 502,225 21x18
+shadow 502,243 21x18
+shadow 502,261 21x18
+shadow 502,279 21x18
+shadow 502,297 21x18
+shadow 523,27 21x18
+shadow 523,45 21x18
+shadow 523,63 21x18
+shadow 523,81 21x18
+shadow 523,99 21x18
+shadow 523,117 21x18
+shadow 523,135 21x18
+shadow 523,153 21x18
+shadow 523,171 21x18
+shadow 523,189 21x18
+shadow 523,207 21x18
+shadow 523,225 21x18
+shadow 523,243 21x18
+shadow 523,261 21x18
+shadow 523,279 21x18
+shadow 523,297 21x18
+shadow 544,27 21x18
+shadow 544,45 21x18
+shadow 544,63 21x18
+shadow 544,99 21x18
+shadow 544,117 21x18
+shadow 544,135 21x18
+shadow 544,153 21x18
+shadow 544,171 21x18
+shadow 544,189 21x18
+shadow 544,207 21x18
+shadow 544,225 21x18
+shadow 544,243 21x18
+shadow 544,261 21x18
+shadow 544,279 21x18
+shadow 544,297 21x18
+shadow 565,27 21x18
+shadow 565,45 21x18
+shadow 565,63 21x18
+shadow 565,81 21x18
+shadow 565,99 21x18
+shadow 565,117 21x18
+shadow 565,135 21x18
+shadow 565,153 21x18
+shadow 565,171 21x18
+shadow 565,189 21x18
+shadow 565,207 21x18
+shadow 565,225 21x18
+shadow 565,243 21x18
+shadow 565,261 21x18
+shadow 565,279 21x18
+shadow 565,297 21x18
+shadow 586,27 21x18
+shadow 586,45 21x18
+shadow 586,63 21x18
+shadow 586,81 21x18
+shadow 586,99 21x18
+shadow 586,117 21x18
+shadow 586,135 21x18
+shadow 586,153 21x18
+shadow 586,171 21x18
+shadow 586,189 21x18
+shadow 586,207 21x18
+shadow 586,225 21x18
+shadow 586,243 21x18
+shadow 586,261 21x18
+shadow 586,279 21x18
+shadow 586,297 21x18
+shadow 607,27 21x18
+shadow 607,45 21x18
+shadow 607,63 21x18
+shadow 607,81 21x18
+shadow 607,99 21x18
+shadow 607,117 21x18
+shadow 607,135 21x18
+shadow 607,153 21x18
+shadow 607,171 21x18
+shadow 607,189 21x18
+shadow 607,207 21x18
+shadow 607,225 21x18
+shadow 607,243 21x18
+shadow 607,261 21x18
+shadow 607,279 21x18
+shadow 607,297 21x18
+image interface/mine.sti#1 359,84
+image interface/mine.sti#1 548,84
+image interface/mine.sti#1 569,174
+image interface/mine.sti#1 443,156
+image interface/mine.sti#1 317,48
+image interface/mine.sti#1 338,156
+clip 288,26 340x291
+line 460,27 480,27 #646464
+line 460,45 480,45 #646464
+line 459,27 459,45 #646464
+line 481,27 501,27 #646464
+line 481,45 501,45 #646464
+line 501,27 501,45 #646464
+line 544,45 564,45 #646464
+line 543,45 543,63 #646464
+line 564,45 564,63 #646464
+line 543,63 543,81 #646464
+line 564,63 564,81 #646464
+line 544,99 564,99 #646464
+line 543,81 543,99 #646464
+line 564,81 564,99 #646464
+line 544,153 564,153 #646464
+line 543,153 543,171 #646464
+line 565,153 585,153 #646464
+line 585,153 585,171 #646464
+line 544,189 564,189 #646464
+line 543,171 543,189 #646464
+line 565,189 585,189 #646464
+line 585,171 585,189 #646464
+line 292,135 312,135 #646464
+line 291,135 291,153 #646464
+line 313,135 333,135 #646464
+line 333,135 333,153 #646464
+line 292,171 312,171 #646464
+line 291,153 291,171 #646464
+line 313,171 333,171 #646464
+line 334,153 354,153 #646464
+line 334,171 354,171 #646464
+line 354,153 354,171 #646464
+line 439,117 459,117 #646464
+line 438,117 438,135 #646464
+line 460,117 480,117 #646464
+line 480,117 480,135 #646464
+line 438,135 438,153 #646464
+line 460,153 480,153 #646464
+line 480,135 480,153 #646464
+line 439,171 459,171 #646464
+line 438,153 438,171 #646464
+line 459,153 459,171 #646464
+line 376,63 396,63 #646464
+line 375,63 375,81 #646464
+line 397,63 417,63 #646464
+line 397,81 417,81 #646464
+line 417,63 417,81 #646464
+line 355,81 375,81 #646464
+line 355,99 375,99 #646464
+line 354,81 354,99 #646464
+line 376,99 396,99 #646464
+line 396,81 396,99 #646464
+line 397,171 417,171 #646464
+line 397,189 417,189 #646464
+line 396,171 396,189 #646464
+line 417,171 417,189 #646464
+line 502,225 522,225 #646464
+line 502,243 522,243 #646464
+line 501,225 501,243 #646464
+line 523,225 543,225 #646464
+line 523,243 543,243 #646464
+line 543,225 543,243 #646464
+line 334,261 354,261 #646464
+line 333,261 333,279 #646464
+line 355,261 375,261 #646464
+line 376,261 396,261 #646464
+line 376,279 396,279 #646464
+line 396,261 396,279 #646464
+line 333,279 333,297 #646464
+line 355,297 375,297 #646464
+line 375,279 375,297 #646464
+line 334,315 354,315 #646464
+line 333,297 333,315 #646464
+line 354,297 354,315 #646464
+line 313,27 333,27 #646464
+line 312,27 312,45 #646464
+line 333,27 333,45 #646464
+line 313,63 333,63 #646464
+line 312,45 312,63 #646464
+line 333,45 333,63 #646464
+clipPop
+clip 291,27 335x289
+glyphs blockfont2 463,47 n=6 fg=184
+glyphs blockfont2 528,114 n=9 fg=184
+glyphs blockfont2 532,101 n=7 fg=184
+glyphs blockfont2 553,191 n=4 fg=184
+glyphs blockfont2 307,173 n=5 fg=184
+glyphs blockfont2 470,155 n=7 fg=184
+glyphs blockfont2 363,101 n=8 fg=184
+glyphs blockfont2 390,191 n=6 fg=184
+glyphs blockfont2 506,245 n=6 fg=184
+glyphs blockfont2 367,299 n=6 fg=184
+glyphs blockfont2 300,65 n=8 fg=184
+clipPop
+clip 289,27 337x289
+image interface/boxes.sti#0 545,83
+image interface/boxes.sti#0 548,83
+image interface/boxes.sti#0 551,83
+image interface/boxes.sti#0 554,83
+clipPop
+clip 288,26 340x291
+rectangle 459,27 480,45 #ffff00
+clipPop
+glyphs blockfont2 301,10 n=1 fg=119
+glyphs blockfont2 277,33 n=1 fg=145
+glyphs blockfont2 321,10 n=1 fg=119
+glyphs blockfont2 277,51 n=1 fg=119
+glyphs blockfont2 342,10 n=1 fg=119
+glyphs blockfont2 277,69 n=1 fg=119
+glyphs blockfont2 363,10 n=1 fg=119
+glyphs blockfont2 277,87 n=1 fg=119
+glyphs blockfont2 384,10 n=1 fg=119
+glyphs blockfont2 277,105 n=1 fg=119
+glyphs blockfont2 405,10 n=1 fg=119
+glyphs blockfont2 277,123 n=1 fg=119
+glyphs blockfont2 426,10 n=1 fg=119
+glyphs blockfont2 277,141 n=1 fg=119
+glyphs blockfont2 447,10 n=1 fg=119
+glyphs blockfont2 277,159 n=1 fg=119
+glyphs blockfont2 468,10 n=1 fg=145
+glyphs blockfont2 278,177 n=1 fg=119
+glyphs blockfont2 487,10 n=2 fg=119
+glyphs blockfont2 277,195 n=1 fg=119
+glyphs blockfont2 509,10 n=2 fg=119
+glyphs blockfont2 277,213 n=1 fg=119
+glyphs blockfont2 529,10 n=2 fg=119
+glyphs blockfont2 277,231 n=1 fg=119
+glyphs blockfont2 550,10 n=2 fg=119
+glyphs blockfont2 277,249 n=1 fg=119
+glyphs blockfont2 571,10 n=2 fg=119
+glyphs blockfont2 277,267 n=1 fg=119
+glyphs blockfont2 592,10 n=2 fg=119
+glyphs blockfont2 277,285 n=1 fg=119
+glyphs blockfont2 613,10 n=2 fg=119
+glyphs blockfont2 277,303 n=1 fg=119
+clip 289,27 337x289
+clipPop
+glyphs blockfont2 23,147 n=6 fg=5
+glyphs blockfont2 156,147 n=3 fg=5
+glyphs blockfont2 75,147 n=7 fg=5
+glyphs blockfont2 231,147 n=2 fg=184
+image interface/selectedchararrow.sti#0 8,145
+glyphs blockfont2 18,162 n=7 fg=5
+glyphs blockfont2 156,162 n=3 fg=5
+glyphs blockfont2 75,162 n=7 fg=5
+glyphs blockfont2 231,162 n=2 fg=184
+glyphs blockfont2 20,177 n=6 fg=5
+glyphs blockfont2 156,177 n=3 fg=5
+glyphs blockfont2 75,177 n=7 fg=5
+glyphs blockfont2 231,177 n=2 fg=184
+glyphs blockfont2 26,192 n=4 fg=5
+glyphs blockfont2 156,192 n=3 fg=5
+glyphs blockfont2 75,192 n=7 fg=5
+glyphs blockfont2 231,192 n=2 fg=184
+image faces/generic/body0.sti#0 9,20 shaded
+glyphs blockfont2 19,66 n=6 fg=5
+glyphs blockfont2 74,2 n=6 fg=5
+glyphs blockfont2 203,17 n=7 fg=5
+glyphs blockfont2 214,30 n=3 fg=5
+glyphs blockfont2 140,80 n=2 fg=5
+glyphs blockfont2 152,80 n=1 fg=5
+glyphs blockfont2 157,80 n=2 fg=5
+glyphs blockfont2 112,21 n=3 fg=5
+glyphs blockfont2 112,31 n=3 fg=5
+glyphs blockfont2 112,41 n=3 fg=5
+glyphs blockfont2 112,51 n=3 fg=5
+glyphs blockfont2 112,61 n=3 fg=5
+glyphs blockfont2 162,21 n=3 fg=5
+glyphs blockfont2 161,31 n=3 fg=5
+glyphs blockfont2 161,41 n=3 fg=5
+glyphs blockfont2 159,51 n=3 fg=5
+glyphs blockfont2 159,61 n=3 fg=5
+glyphs blockfont2 214,64 n=7 fg=5
+glyphs blockfont2 226,78 n=4 fg=5
+glyphs blockfont2 138,91 n=6 fg=5
+image interface/bars.sti#0 72,19
+line 66,61 66,27 #6c0c0c
+line 67,61 67,27 #c80000
+line 68,61 68,27 #6c0c0c
+line 72,61 72,19 #000000
+line 73,61 73,19 #000000
+line 74,61 74,19 #000000
+line 72,61 72,20 #080c76
+line 73,61 73,20 #080ca0
+line 74,61 74,20 #080c76
+line 78,61 78,40 #08700c
+line 79,61 79,40 #08b40c
+line 80,61 80,40 #08700c
+image interface/top_left_corner_icons.sti#0 187,64
+glyphs tinyfont1 7,94 n=2 fg=218
+glyphs blockfont2 192,6 n=10 fg=6
+glyphs blockfont2 87,80 n=6 fg=6
+glyphs blockfont2 87,94 n=6 fg=6
+glyphs blockfont2 88,22 n=3 fg=6
+glyphs blockfont2 133,22 n=3 fg=6
+glyphs blockfont2 88,32 n=3 fg=6
+glyphs blockfont2 133,32 n=3 fg=6
+glyphs blockfont2 88,42 n=3 fg=6
+glyphs blockfont2 133,42 n=3 fg=6
+glyphs blockfont2 88,52 n=3 fg=6
+glyphs blockfont2 133,52 n=3 fg=6
+glyphs blockfont2 88,62 n=3 fg=6
+glyphs blockfont2 133,62 n=3 fg=6
+image interface/goldpiecebuttons.sti#0 12,125
+image interface/goldpiecebuttons.sti#1 68,125
+image interface/goldpiecebuttons.sti#5 124,125
+image interface/goldpiecebuttons.sti#2 148,125
+image interface/goldpiecebuttons.sti#3 185,125
+image interface/goldpiecebuttons.sti#4 223,125
+image interface/contractbutton.sti#0 190,49
+clip 193,51 60x10
+glyphs blockfont2 200,50 n=8 fg=5
+clipPop
+image interface/map_screen_bottom_arrows.sti#4 67,69
+image interface/map_screen_bottom_arrows.sti#5 67,87
+image interface/map_border_buttons.sti#14 299,323
+image interface/map_border_buttons.sti#4 342,323
+image interface/map_border_buttons.sti#12 385,323
+image interface/map_border_buttons.sti#8 428,323
+image interface/map_border_buttons.sti#2 471,323
+image interface/map_border_buttons.sti#1 514,323
+image interface/map_border_buttons.sti#6 456,410
+image interface/newemail.sti#0 464,417
+image interface/map_border_buttons.sti#7 496,410
+hatch
+image interface/map_border_buttons.sti#18 458,372
+image interface/map_screen_bottom_arrows.sti#1 528,456
+image interface/map_screen_bottom_arrows.sti#9 466,456
+image interface/map_screen_bottom_arrows.sti#11 331,371
+image interface/map_screen_bottom_arrows.sti#12 331,452
+clip 17,366 390x95
+clipPop
+glyphs compfont 488,457 n=6 fg=184
+glyphs compfont 559,457 n=12 fg=184
+glyphs compfont 357,372 n=15 fg=119
+glyphs compfont 367,418 n=12 fg=119
+glyphs compfont 380,388 n=7 fg=183
+glyphs compfont 392,434 n=2 fg=183
+glyphs compfont 562,427 n=10 fg=183
+"
+`;

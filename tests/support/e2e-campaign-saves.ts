@@ -5,7 +5,7 @@ import { getGroup, setGroupSectorValue } from '../../src/sim/strategic/forces/gr
 import { SKYRIDER, setUpHelicopterForPlayer } from '../../src/sim/strategic/forces/helicopter.ts';
 import { sectorInfo } from '../../src/sim/strategic/map/sectors.ts';
 import { progressFromProfile } from '../../src/sim/tactical/profiles.ts';
-import { createSaveKit } from './saves.ts';
+import { createSaveKit, type SaveKit } from './saves.ts';
 import { loadStubSectorKit, type StubSectorKit } from './sectors.ts';
 
 export const MAP_SCREEN_SAVE = 'u8-map-screen';
@@ -85,24 +85,35 @@ function bestTrainer(sim: CampaignSession, ids: readonly number[]): number {
   return [...ids].sort((a, b) => (crew?.get(b)?.stats.leadership ?? 0) - (crew?.get(a)?.stats.leadership ?? 0))[0] ?? -1;
 }
 
+export interface MapScreenCampaign {
+  readonly session: Session;
+  readonly mercs: readonly number[];
+  readonly trainer: number;
+}
+
+export async function buildMapScreenCampaign(saves: SaveKit, kit: StubSectorKit): Promise<MapScreenCampaign> {
+  const session = await saves.open({ seed: SEED, campaign: { mercs: MERCS, land: false } });
+  const sim = campaignOf(session);
+  for (const name of QUIET) quietSector(sim, name);
+  const landed = await session.prepareAndDispatch({ type: 'compressTime', mode: 2 });
+  if (!landed.ok) throw new Error(`landing refused: ${landed.reason}`);
+  if (!session.dispatch({ type: 'mapScreen' }).ok) throw new Error('the map screen did not open');
+  teleportSquad(sim, parseSectorString(APPROACH));
+  liberateDrassen(sim);
+  await walkSquadTo(session, TOWN_SECTOR);
+  hireSkyrider(sim, kit, TOWN_SECTOR);
+  const mercs = session.sim.view().strategic?.mercs.map((m) => m.id) ?? [];
+  return { session, mercs, trainer: bestTrainer(sim, mercs) };
+}
+
 export async function writeMapScreenSave(dir: string): Promise<MapScreenSave> {
   const kit = await loadStubSectorKit();
   const saves = await createSaveKit(kit, { dir });
   try {
-    const session = await saves.open({ seed: SEED, campaign: { mercs: MERCS, land: false } });
-    const sim = campaignOf(session);
-    for (const name of QUIET) quietSector(sim, name);
-    const landed = await session.prepareAndDispatch({ type: 'compressTime', mode: 2 });
-    if (!landed.ok) throw new Error(`landing refused: ${landed.reason}`);
-    if (!session.dispatch({ type: 'mapScreen' }).ok) throw new Error('the map screen did not open');
-    teleportSquad(sim, parseSectorString(APPROACH));
-    liberateDrassen(sim);
-    await walkSquadTo(session, TOWN_SECTOR);
-    hireSkyrider(sim, kit, TOWN_SECTOR);
-    const mercs = session.sim.view().strategic?.mercs.map((m) => m.id) ?? [];
+    const { session, mercs, trainer } = await buildMapScreenCampaign(saves, kit);
     const saved = await saves.saves.save(session, { name: MAP_SCREEN_SAVE, description: DESCRIPTION });
     if (!saved.ok) throw new Error(`the save failed: ${JSON.stringify(saved)}`);
-    return { name: saved.name, sector: TOWN_SECTOR, helicopter: TOWN_SECTOR, town: DRASSEN_TOWN, mercs, trainer: bestTrainer(sim, mercs) };
+    return { name: saved.name, sector: TOWN_SECTOR, helicopter: TOWN_SECTOR, town: DRASSEN_TOWN, mercs, trainer };
   } finally {
     await saves.dispose();
     await kit.dispose();
