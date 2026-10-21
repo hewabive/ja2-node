@@ -296,5 +296,12 @@ describe('map screen view fields and commands in a stub campaign', { timeout: RE
     expect(progress).toBeLessThanOrEqual(1);
     const flying = strategic(c).groups.find((g) => g.members.includes(m1 ?? -1));
     expect(flying?.traverseMinutes ?? strategic(c).vehicles?.[0]?.traverseMinutes).toBeGreaterThan(0);
+    const arrivals: unknown[] = [];
+    for (let k = 0; k < STEPS && !arrivals.some((e) => (e as { final?: boolean }).final); k++)
+      arrivals.push(...c.live.advance({ worldSeconds: STEP_SECONDS }).events.filter((e) => e.type === 'groupArrived'));
+    expect(arrivals).toContainEqual(
+      expect.objectContaining({ sector: 'A11', final: true, who: expect.objectContaining({ kind: 'vehicle' }) }),
+    );
+    expect(strategic(c).helicopter).toMatchObject({ next: null, progress: 0 });
   });
 });
