@@ -66,6 +66,7 @@ import { type FilterEffects, initialFilters, MapFilter, toggleFilter, turnOffAir
 import { cornerIcons, infoGeometry, renderCharacterInfo } from './info-panel.ts';
 import { LayoutParams, type Params } from './layout-params.ts';
 import { type MapAction, MapScreenController } from './map-controller.ts';
+import { accessibleInventory, MapInventory } from './map-inventory.ts';
 import { MenuMask } from './map-menu.ts';
 import { departureBox, insuranceBox, type PromptBox, type PromptContext, promptBox } from './map-prompts.ts';
 import {
@@ -174,6 +175,7 @@ export class MapScreen implements Screen {
   readonly #team: TeamListView;
   readonly #menus: AssignmentMenus;
   readonly #contract: ContractMenu;
+  readonly #inventory: MapInventory;
   readonly #mask: MenuMask;
   readonly #townBox: TownInfoBox;
   readonly #militia: MilitiaPopup;
@@ -247,6 +249,23 @@ export class MapScreen implements Screen {
     });
     this.#townBox = this.#createTownBox();
     this.#militia = this.#createMilitiaPopup();
+    this.#inventory = new MapInventory({
+      env,
+      infoMerc: () => this.list.infoMerc(this.#strategic()),
+      location: () => ({ sector: sectorLabel({ ...this.#selected, z: 0 }), z: this.#level }),
+      box: (text, flags) => this.#openBox({ text, flags, answer: () => null }),
+      shift: () => (env.runtime.modifiers & KeyModifier.SHIFT) !== 0,
+      mercClosed: () => {
+        this.#inventoryOpen = false;
+      },
+      poolClosed: () => {
+        this.#sectorInventoryOpen = false;
+      },
+    });
+  }
+
+  get mapInventory(): MapInventory {
+    return this.#inventory;
   }
 
   #createTownBox(): TownInfoBox {
@@ -263,6 +282,10 @@ export class MapScreen implements Screen {
         if (!strategic) return null;
         const found = foundSecrets(strategic.secretsFound);
         return { facts: env.facts, text: env.text, strategic, found, minesShown: this.filters.mines };
+      },
+      inventory: (s) => {
+        this.#changeSelectedSector(s);
+        this.openSectorInventory();
       },
       closed: () => this.#syncMask(false),
     });
@@ -429,6 +452,7 @@ export class MapScreen implements Screen {
     else if (world) this.#changeSelectedSector(world);
     this.list.rebuild(strategic, false);
     this.#defineRegions();
+    this.#inventory.enter();
     this.#env.client.start();
   }
 
@@ -438,6 +462,9 @@ export class MapScreen implements Screen {
     this.#closeMenus();
     this.#militia.close();
     this.#message.end();
+    this.#inventory.exit();
+    this.#inventoryOpen = false;
+    this.#sectorInventoryOpen = false;
     this.#env.client.stop();
     this.#env.runtime.regions.removeOwner(OWNER);
     this.#screenMask = null;
@@ -541,6 +568,7 @@ export class MapScreen implements Screen {
           this.#flashes.set(event.soldier, flashes);
         } else if (event.type === 'groupArrived' && event.final) this.#arrivalSelection(event.sector);
       }
+    this.#inventory.frames(frames);
   }
 
   #mercsIn(s: Sector, z: number): StrategicMercView[] {
@@ -563,6 +591,8 @@ export class MapScreen implements Screen {
 
   update(): void {
     this.#now = this.#env.runtime.clock.ja2Now;
+    this.#inventoryOpen = this.#inventory.merc.open;
+    this.#sectorInventoryOpen = this.#inventory.pool.open;
     const strategic = this.#strategic();
     if (this.list.needsRebuild(strategic)) this.list.rebuild(strategic, true);
     this.#team.update(this.#now);
@@ -573,12 +603,14 @@ export class MapScreen implements Screen {
     this.#syncPrompts();
     this.#message.update(this.#now, false);
     this.#syncCursor();
+    this.#inventory.update(this.#now);
     this.#syncModel();
     if (this.#militia.open && !this.filters.militia) this.#militia.close();
     this.#militia.update();
     this.#env.client.holdTime('townBox', this.#townBox.open);
     this.#env.client.holdTime('militia', this.#militia.open);
     this.#env.client.holdTime('menus', this.#menus.open || this.#contract.open);
+    this.#env.client.holdTime('inventory', this.#inventory.holding || this.#sectorInventoryOpen);
     this.#env.client.holdTime('plotting', this.#plot !== null);
     this.#view.update();
   }
@@ -675,6 +707,7 @@ export class MapScreen implements Screen {
       !this.#townBox.open &&
       !this.#militia.open &&
       !this.#sectorInventoryOpen &&
+      !this.#inventory.holding &&
       this.#boxOpen === 0 &&
       !this.#changingArrival
     );
@@ -1070,6 +1103,10 @@ export class MapScreen implements Screen {
       return;
     }
     if (!allowedToHighlight(this.#env.facts, hover)) return;
+    if (this.#inventory.holding) {
+      this.#openPoolForHeldItem();
+      return;
+    }
     if (this.#changingArrival) {
       void this.#setLandingZone(hover);
       return;
@@ -1081,6 +1118,10 @@ export class MapScreen implements Screen {
     }
     const wasSelected = hover.x === this.#selected.x && hover.y === this.#selected.y;
     if (!wasSelected) this.#changeSelectedSector({ ...hover, z: this.#level });
+    if (this.filters.items && !this.#sectorInventoryOpen) {
+      this.openSectorInventory();
+      return;
+    }
     if (this.filters.airspace) {
       if (this.#level === 0 && this.#overHelicopter(hover)) void this.#requestHeliPlotting();
       return;
@@ -1283,12 +1324,40 @@ export class MapScreen implements Screen {
 
   #toggleInventory(): void {
     if (this.#inventoryOpen) {
+      if (this.#inventory.mercBusy) return;
+      this.#inventory.closeMerc();
       this.#inventoryOpen = false;
       return;
     }
     const m = this.list.infoMerc(this.#strategic());
-    if (!m || m.assignment === Assignment.IN_TRANSIT || isPow(m) || isMechanical(m) || m.kind === 'epc' || m.life < OKLIFE) return;
+    if (!m || !accessibleInventory(m)) return;
+    this.#inventory.openMerc();
     this.#inventoryOpen = true;
+  }
+
+  #toggleSectorInventory(): void {
+    if (this.#sectorInventoryOpen) {
+      if (this.#inventory.holding) return;
+      this.#inventory.closePool();
+      this.#sectorInventoryOpen = false;
+      return;
+    }
+    this.openSectorInventory();
+  }
+
+  #openPoolForHeldItem(): void {
+    if (!this.filters.items) this.#filter(MapFilter.ITEMS);
+    const owner = mercById(this.#strategic(), this.#inventory.merc.panel.cursor?.source.soldier ?? null);
+    const at = owner ? parseSectorLabel(owner.sector) : null;
+    if (at) this.#changeSelectedSector(at);
+    this.openSectorInventory();
+  }
+
+  openSectorInventory(): void {
+    if (this.#sectorInventoryOpen) return;
+    if (this.#plot) this.#abortPlotting(false);
+    this.#inventory.openPool();
+    this.#sectorInventoryOpen = true;
   }
 
   #nextMerc(step: 1 | -1): void {
@@ -1314,6 +1383,7 @@ export class MapScreen implements Screen {
   }
 
   #escape(): void {
+    if (this.#inventory.escape()) return;
     if (this.#changingArrival) {
       this.#changingArrival = false;
       this.#uiMessage(this.#text(BULLSEYE, Bullseye.CANCELED));
@@ -1327,7 +1397,7 @@ export class MapScreen implements Screen {
     else if (this.#townBox.open) {
       this.#townBox.close(false);
       this.#syncMask(false);
-    } else if (this.#inventoryOpen) this.#inventoryOpen = false;
+    } else if (this.#inventoryOpen) this.#toggleInventory();
     else if (this.list.multipleSelected()) this.list.resetSelected();
     else this.#tactical();
   }
@@ -1411,6 +1481,7 @@ export class MapScreen implements Screen {
       messageEnd: () => this.#messages.moveToEnd(),
       escape: () => this.#escape(),
       toggleInventory: () => this.#toggleInventory(),
+      toggleSectorInventory: () => this.#toggleSectorInventory(),
       keyA: () => this.#airspaceKey(),
       saveGame: whenExitAllowed(() => this.#env.flow.saveGame()),
       loadGame: whenExitAllowed(() => this.#env.flow.loadGame()),
@@ -1461,6 +1532,7 @@ export class MapScreen implements Screen {
 
   render(list: DrawList): void {
     this.#view.render(list);
+    this.#inventory.render(list);
     this.#townBox.render(list);
     this.#militia.render(list);
     this.#menus.render(list);
@@ -1472,6 +1544,7 @@ export class MapScreen implements Screen {
     return [
       ...this.#view.describe(),
       ...this.#describeRegions(),
+      ...this.#inventory.describe(),
       ...this.#townBox.describe(),
       ...this.#militia.describe(),
       ...this.#menus.describe(),

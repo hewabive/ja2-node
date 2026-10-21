@@ -14,6 +14,7 @@ import type { MapBoardArt } from './map-view.ts';
 
 export const MapLayout = {
   SCREEN: 'map-screen',
+  INVENTORY: 'map-inventory',
 } as const;
 export type MapLayout = (typeof MapLayout)[keyof typeof MapLayout];
 export const MAP_LAYOUTS: readonly MapLayout[] = Object.values(MapLayout);

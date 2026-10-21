@@ -1160,7 +1160,8 @@ description box (`useAttach`). The sector inventory: `moveItem {from: "ground", 
 taken (`unreachable`); a stash slot takes up to `ubPerPocket` objects and swaps different items
 (`PlaceObjectInInventoryStash`); a new item lies on the merc's tile, flagged reachable. `inventory {sector?, z?,
 soldier?}` is a query (accepted in every flow): `{sector, z, usable, refusal?, stash: [{index, item, count, status,
-money?, reachable, gridNo, level}], mercs: [{id, name, accessible, betweenSectors, inventory}]}`. The stash lists the
+money?, ammo?, attachments?, jammed?, imprint?, reachable, gridNo, level}], mercs: [{id, name, accessible, betweenSectors,
+inventory}]}` (`ammo`, `attachments`, `jammed` and `imprint` as in an inventory slot: the pool draws them). The stash lists the
 items seen on the ground of the sector (`IsMapScreenWorldItemVisibleInMapInventory`: visible, not trapped, no switches or
 action items): the loaded sector's items or the sector's saved items, which hold what was left there, dropped on a
 retreat or delivered by Bobby Ray once a merc has seen it. Leaving a sector and the query on the loaded sector recompute
@@ -1384,10 +1385,11 @@ menu, plotting, a held item, the sector inventory) stay in the client.
 
 **Mercs**: `idle` (`fDoneAssignmentAndNothingToDoFlag`), `trainStat` while training, `repairVehicle` or `repairRobot`
 while repairing (items otherwise), `canChangeSleep` (`CanChangeSleepStatusForSoldier`), `salary` (`DrawCharacterInfo`'s
-daily cost: by `bTypeOfLastContract` for A.I.M. mercs, `sSalary` otherwise), `bleeding` and `collapsed`. A.I.M.
-contracts add `minutesLeft` (the departure column's minutes: to `iEndofContractTime`, capped at the contract length in
-transit) and `endMinutes` (`iEndofContractTime`, the contract sort key); M.E.R.C. contracts `contractLength`
-(`iMercMercContractLength`; `daysHired` is the world day minus the start day). Vehicles are not characters in
+daily cost: by `bTypeOfLastContract` for A.I.M. mercs, `sSalary` otherwise), `bleeding`, `collapsed`, `armour`
+(`ArmourPercent`) and `camo` (the merc inventory panel). A.I.M. contracts add `minutesLeft` (the departure column's
+minutes: to `iEndofContractTime`, capped at the contract length in transit) and `endMinutes` (`iEndofContractTime`,
+the contract sort key); M.E.R.C. contracts `contractLength` (`iMercMercContractLength`; `daysHired` is the world day
+minus the start day). Vehicles are not characters in
 ja2-node (no vehicle soldier), so their condition and fuel are not shown; a vehicle moves through a passenger's
 `route`.
 
