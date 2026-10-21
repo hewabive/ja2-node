@@ -17,6 +17,7 @@ import { SaveController } from '../../saves/save-controller.ts';
 import type { Screen } from '../../screen.ts';
 import { Fade, type FadeDirection } from '../../widgets/fade.ts';
 import type { RowFeed } from '../credit-roll.ts';
+import type { MapFlow } from '../map/environment.ts';
 import type { TacticalFlow } from '../tactical/environment.ts';
 import { CreditsController, creditsScreen } from './credits.ts';
 import { type FrontEndEnvironment, FrontEndLayout, type SettingsStore } from './environment.ts';
@@ -40,6 +41,19 @@ export interface TacticalPort {
   screen(flow: TacticalFlow): Screen;
 }
 
+export interface MapEntry {
+  readonly ok: boolean;
+  readonly reason?: string;
+  readonly refusal?: string;
+}
+
+export interface MapPort {
+  readonly loaded: boolean;
+  load(onProgress: (done: number, total: number) => void): Promise<void>;
+  screen(flow: MapFlow): Screen;
+  enter(abandonFight: boolean): Promise<MapEntry>;
+}
+
 export interface LaptopFlow {
   closed(): void;
   quit(): void;
@@ -52,6 +66,7 @@ export interface LaptopPort {
 export interface FrontEndHost {
   readonly version: string;
   tactical?(): TacticalPort | null;
+  map?(): MapPort | null;
   laptop?(): LaptopPort | null;
   playBeginning(): Promise<void>;
   music(mode: FrontEndMusic): void;
@@ -62,7 +77,9 @@ export interface FrontEndHost {
 }
 
 const SEX_SCENE = 'sexScene';
+const BOXING_IN_PROGRESS = 'boxingInProgress';
 const TACTICAL_SCREEN_ID = 'tactical';
+const MAP_SCREEN_ID = 'map';
 const BLACK_SCREEN = 'black';
 
 class BlackScreen implements Screen {
@@ -347,7 +364,47 @@ export class FrontEndFlow {
       void this.#enterLaptop(laptop, session);
       return;
     }
+    const map = kind === 'map' ? (this.#host.map?.() ?? null) : null;
+    if (map) {
+      void this.#enterMap(map, session);
+      return;
+    }
     this.#show(placeholderScreen(this.#env, kind, session, this.#gameActions(kind)));
+  }
+
+  async #enterMap(port: MapPort, session: string): Promise<void> {
+    if (!port.loaded) {
+      const loading = new LoadingController('save');
+      this.#show(loadingScreen(this.#env, loading));
+      try {
+        await port.load((done, total) => loading.progress(done, total));
+      } catch (err) {
+        this.#show(placeholderScreen(this.#env, 'map', session, this.#gameActions('map')));
+        await this.#env.boxes.alert((err as Error).message);
+        return;
+      }
+    }
+    if (this.#client.session !== session) return;
+    const actions = this.#gameActions('map');
+    this.#show(
+      port.screen({
+        options: actions.options,
+        saveGame: actions.saveGame,
+        loadGame: actions.loadGame,
+        exitGame: actions.exitGame,
+        preBattle: () => undefined,
+      }),
+    );
+  }
+
+  async #openMap(session: string): Promise<void> {
+    const port = this.#host.map?.() ?? null;
+    if (!port) {
+      if (this.#client.view?.strategic) this.#show(placeholderScreen(this.#env, 'map', session, this.#gameActions('map')));
+      return;
+    }
+    const entry = await port.enter(false);
+    if (!entry.ok && entry.refusal === BOXING_IN_PROGRESS && (await this.#env.boxes.confirm(entry.reason ?? ''))) await port.enter(true);
   }
 
   async #enterLaptop(port: LaptopPort, session: string): Promise<void> {
@@ -404,9 +461,7 @@ export class FrontEndFlow {
         saveGame: actions.saveGame,
         loadGame: actions.loadGame,
         exitGame: actions.exitGame,
-        mapScreen: () => {
-          if (this.#client.view?.strategic) this.#show(placeholderScreen(this.#env, 'map', session, this.#gameActions('map')));
-        },
+        mapScreen: () => void this.#openMap(session),
       }),
     );
   }
@@ -424,8 +479,11 @@ export class FrontEndFlow {
 
   frames(frames: readonly ViewFrame[]): void {
     this.#afterLaptop();
+    const showing = this.#screens.screen?.id;
+    const kind = gameScreenOf(this.#client.view);
     if (frames.some((f) => f.events?.some((e) => e.type === SEX_SCENE))) this.sexScene();
-    else if (this.#screens.screen?.id === TACTICAL_SCREEN_ID && this.#host.tactical?.()?.stale) this.enterGame();
+    else if (showing === TACTICAL_SCREEN_ID && (kind === 'map' || this.#host.tactical?.()?.stale)) this.enterGame();
+    else if (showing === MAP_SCREEN_ID && kind !== 'map') this.enterGame();
   }
 
   sexScene(): void {

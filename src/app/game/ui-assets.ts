@@ -126,6 +126,12 @@ export class UiAssets implements ImageCatalog {
     this.#images.set(key, imageInfo(sti));
   }
 
+  addRgb(key: AssetKey, sti: StiRgb): void {
+    if (this.#images.has(key)) return;
+    this.#renderer.addImage(key, sti);
+    this.#images.set(key, imageInfo(sti));
+  }
+
   async font(id: FontId, table: GlyphTable): Promise<BitmapFont | null> {
     const known = this.#fonts.get(id);
     if (known) return known;

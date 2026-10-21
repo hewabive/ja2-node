@@ -1,4 +1,5 @@
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
+import type { ViewFrame } from '../../protocol/view.ts';
 import type { AssetKey } from '../../ui/draw-list.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
 import { collectReferences } from '../../ui/layout/references.ts';
@@ -6,7 +7,7 @@ import { messageBoxStyles, textBoxArt } from '../../ui/layout/styles.ts';
 import { ORIGINAL_SKIN } from '../../ui/layout/types.ts';
 import { CanvasMessageBoxes } from '../../ui/message-boxes.ts';
 import { FRONT_END_LAYOUTS, type FrontEndEnvironment, FrontEndLayout } from '../../ui/screens/front-end/environment.ts';
-import { FrontEndFlow, type FrontEndHost, type FrontEndMusic } from '../../ui/screens/front-end/flow.ts';
+import { FrontEndFlow, type FrontEndHost, type FrontEndMusic, type TacticalPort } from '../../ui/screens/front-end/flow.ts';
 import { LOADINGSCREEN_NOTHING } from '../../ui/screens/front-end/loading.ts';
 import { type LaptopMemory, laptopMemory } from '../../ui/screens/laptop/laptop-client.ts';
 import type { Labels } from '../../ui/text/labels.ts';
@@ -15,6 +16,7 @@ import { CreditRowFeed, fetchCreditRow } from '../credits/rows.ts';
 import { bootLaptopScreen } from '../laptop/laptop-boot.ts';
 import { fetchHealth } from '../launcher/api.ts';
 import { fetchLabels } from '../launcher/labels.ts';
+import { MapHost } from '../map/map-host.ts';
 import type { SessionClient } from '../net/session-client.ts';
 import { fetchVfsFile } from '../net/vfs.ts';
 import { TacticalHost } from '../tactical/tactical-host.ts';
@@ -52,6 +54,13 @@ function assetsOf(model: LayoutModel): AssetKey[] {
 
 async function preloadAll(ui: UiBoot, models: readonly LayoutModel[]): Promise<void> {
   await Promise.all([...new Set(models.flatMap(assetsOf))].map((path) => ui.assets.image(path)));
+}
+
+function loadScreenOf(frames: readonly ViewFrame[]): number | null {
+  let found: number | null = null;
+  for (const frame of frames)
+    for (const event of frame.events ?? []) if (event.type === 'sectorLoaded' && event.loadScreen) found = event.loadScreen.id;
+  return found;
 }
 
 function versionLabel(engine: { readonly version: string; readonly commit: string } | undefined): string {
@@ -110,7 +119,41 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
     });
     return tactical;
   };
-  page.frameListener = (ms) => tactical?.frameTime(ms);
+  let map: MapHost | null = null;
+  const mapFor = (session: SessionClient): MapHost => {
+    if (map?.session === session) return map;
+    map?.dispose();
+    map = new MapHost({
+      page,
+      ui,
+      session,
+      boxes: env.boxes,
+      basicTextBox,
+      messageBoxStyle: env.messageBoxStyle,
+      messageBoxLabels: env.messageBoxLabels,
+      language: () => settings.current().language,
+      gunNut: async () => (await client.status()).options?.gunNut ?? false,
+    });
+    return map;
+  };
+  let lastLoadScreen: number | null = null;
+  const tacticalPort = (host: TacticalHost): TacticalPort => ({
+    get loaded() {
+      return host.loaded;
+    },
+    get stale() {
+      return host.stale;
+    },
+    get loadScreen() {
+      return host.loadScreen ?? lastLoadScreen;
+    },
+    load: (onProgress) => host.load(onProgress),
+    screen: (flow) => host.screen(flow),
+  });
+  page.frameListener = (ms) => {
+    tactical?.frameTime(ms);
+    map?.frameTime();
+  };
   const laptopMemories = new Map<string, LaptopMemory>();
   const laptopMemoryFor = (session: string): LaptopMemory => {
     const known = laptopMemories.get(session);
@@ -142,7 +185,8 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       return () => feed.take();
     },
     random: (range) => random.int(range),
-    tactical: () => (client.client ? tacticalFor(client.client) : null),
+    tactical: () => (client.client ? tacticalPort(tacticalFor(client.client)) : null),
+    map: () => (client.client ? mapFor(client.client) : null),
     laptop: () => {
       const session = client.client;
       const id = session?.session;
@@ -160,10 +204,17 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       tactical.dispose();
       tactical = null;
     }
+    if (map && map.session !== session) {
+      map.dispose();
+      map = null;
+    }
+    lastLoadScreen = null;
     if (!session) return;
     session.onFrames = (frames) => {
       music.frames(frames);
+      lastLoadScreen = loadScreenOf(frames) ?? lastLoadScreen;
       tactical?.frames(frames);
+      map?.frames(frames);
       flow.frames(frames);
     };
     session.onReceive = (frames) => tactical?.received(frames);
