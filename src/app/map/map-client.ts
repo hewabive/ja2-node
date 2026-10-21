@@ -6,7 +6,7 @@ import type { MapClient, MapCommandReply } from '../../ui/screens/map/environmen
 import type { HintProvider } from '../hints/hint-provider.ts';
 import type { SessionClient } from '../net/session-client.ts';
 
-export const UPDATE_BOX_EVENTS: readonly SimEventType[] = ['assignmentDone', 'fellAsleep', 'wokeUp'];
+export const UPDATE_BOX_EVENTS: readonly SimEventType[] = ['assignmentDone', 'fellAsleep', 'wokeUp', 'contractsExpiringSoon'];
 const REAL_TIME: DriverMode = { mode: 'realtime', speed: 1, pauseOn: UPDATE_BOX_EVENTS };
 const MANUAL: DriverMode = { mode: 'manual' };
 const PAUSED_REFUSAL = 'paused';

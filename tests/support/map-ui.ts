@@ -284,6 +284,7 @@ export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit): Promise<MapUi
     },
     random: (range) => (die++ * 7) % Math.max(1, range),
     metric: () => true,
+    notifySleepWake: () => true,
   };
   const screen = new MapScreen(env);
   t.runtime.host.push(screen);

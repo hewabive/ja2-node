@@ -31,6 +31,7 @@ export const STRATEGIC_HINT_KINDS = [
   'assignmentOptions',
   'previewRoute',
   'previewHeliRoute',
+  'moveBoxOptions',
 ] as const;
 
 export const HINT_KINDS = [...TACTICAL_HINT_KINDS, ...STRATEGIC_HINT_KINDS] as const;

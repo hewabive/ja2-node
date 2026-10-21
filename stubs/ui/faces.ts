@@ -4,7 +4,7 @@ import { encodeStiIndexed, type StiSubImage } from '../../src/content/formats/st
 import { asArray, asInt, asObject } from '../../src/content/strategic/json-fields.ts';
 import { PROJECT_DATA_DIR } from '../../src/node/repo.ts';
 import { GENERIC_FACE, GENERIC_FACE_BODY_TYPES, genericFacePath } from '../../src/ui/screens/tactical/generic-face.ts';
-import { portraitPath } from '../../src/ui/widgets/portrait.ts';
+import { type PortraitSize, portraitPath } from '../../src/ui/widgets/portrait.ts';
 import { buildPalette, color, type RampName } from '../palette.ts';
 import { IndexedRaster } from '../raster.ts';
 import { encodeStubAsset } from './skin.ts';
@@ -197,6 +197,7 @@ export async function buildStubFaces(out: string, aliases: Map<string, string>):
 }
 
 const AIM_MEMBERS_TABLE = 'tables/ui-constants/AIMMembers.json';
+const MEDIUM_FACE = { width: 31, height: 27 };
 
 async function bigFaceSize(): Promise<{ width: number; height: number }> {
   const constants = asObject(
@@ -207,23 +208,27 @@ async function bigFaceSize(): Promise<{ width: number; height: number }> {
 }
 
 export async function buildStubPortraits(out: string, exists: (path: string) => boolean): Promise<string[]> {
-  const big = await bigFaceSize();
+  const sizes: readonly (readonly [PortraitSize, { width: number; height: number }])[] = [
+    ['big', await bigFaceSize()],
+    ['medium', MEDIUM_FACE],
+  ];
   const written: string[] = [];
   const faces = [...new Set((await stubFaceProfiles()).map((p) => p.faceIndex))].sort((a, b) => a - b);
-  for (const face of faces) {
-    const path = portraitPath(face, 'big');
-    if (exists(path)) continue;
-    const bytes = await encodeStubAsset({
-      path,
-      kind: 'sti',
-      frames: [{ width: big.width, height: big.height, state: 'plain', hollow: false }],
-      animated: 0,
-      layouts: [],
-      style: 'solid',
-    });
-    await mkdir(dirname(join(out, path)), { recursive: true });
-    await writeFile(join(out, path), bytes);
-    written.push(path);
-  }
+  for (const face of faces)
+    for (const [size, { width, height }] of sizes) {
+      const path = portraitPath(face, size);
+      if (exists(path)) continue;
+      const bytes = await encodeStubAsset({
+        path,
+        kind: 'sti',
+        frames: [{ width, height, state: 'plain', hollow: false }],
+        animated: 0,
+        layouts: [],
+        style: 'solid',
+      });
+      await mkdir(dirname(join(out, path)), { recursive: true });
+      await writeFile(join(out, path), bytes);
+      written.push(path);
+    }
   return written;
 }

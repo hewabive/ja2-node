@@ -23,6 +23,8 @@ export interface MapMenuOptions {
   readonly select: (line: number) => void;
   readonly secondary?: (line: number) => void;
   readonly hover?: (line: number, on: boolean) => void;
+  readonly priority?: number;
+  readonly selectable?: (line: number) => boolean;
 }
 
 export class MapMenu {
@@ -83,7 +85,7 @@ export class MapMenu {
         y1: y,
         x2: this.box.x + this.box.width,
         y2: y + step,
-        priority: MENU_PRIORITY,
+        priority: this.#options.priority ?? MENU_PRIORITY,
         cursor: NO_CURSOR,
         owner,
         id: `${this.id}.line${i}`,
@@ -105,8 +107,12 @@ export class MapMenu {
     return (this.box.lines[line]?.shade ?? 'none') !== 'none';
   }
 
+  #selectable(line: number): boolean {
+    return this.#options.selectable?.(line) ?? true;
+  }
+
   #move(line: number, reason: number): void {
-    if (this.#pinned >= 0) return;
+    if (this.#pinned >= 0 || !this.#selectable(line)) return;
     if (reason & MouseReason.GAIN_MOUSE) {
       if (!this.#shaded(line)) this.box.highlighted = line;
       this.#options.hover?.(line, true);
@@ -117,6 +123,7 @@ export class MapMenu {
   }
 
   #button(line: number, reason: number): void {
+    if (!this.#selectable(line)) return;
     if (reason & MouseReason.LBUTTON_UP) this.#options.select(line);
     else if (reason & MouseReason.RBUTTON_UP) this.#options.secondary?.(line);
   }

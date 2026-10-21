@@ -172,6 +172,7 @@ export class MapHost implements MapPort {
       sounds: loaded.sound,
       random: (range) => this.#random.int(range),
       metric: () => loadSettings().display.useMetricSystem,
+      notifySleepWake: () => loadSettings().sleepWakeNotification,
     };
     this.#screen = new MapScreen(env);
     return this.#screen;

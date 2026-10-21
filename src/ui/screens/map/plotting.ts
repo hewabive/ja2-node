@@ -13,6 +13,7 @@ import type { Sector } from '../../../content/strategic/sector-ids.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { HintAnswer } from '../../game-client.ts';
 import { parseSectorLabel, sectorLabel } from './facts.ts';
+import type { MovePlan } from './move-selection.ts';
 
 export const MIN_WAIT_TIME_FOR_TEMP_PATH = 200;
 
@@ -56,6 +57,7 @@ export class Plotting {
   readonly row: number;
   readonly origin: string;
   readonly hadPath: boolean;
+  readonly group: MovePlan | null;
   #base: readonly string[];
   #legs: string[] = [];
   #shortest = false;
@@ -65,13 +67,18 @@ export class Plotting {
   #pending = new Set<string>();
   #pathAnswer: RouteAnswer | null = null;
 
-  constructor(mode: PlotMode, soldier: number, row: number, origin: string, base: readonly string[]) {
+  constructor(mode: PlotMode, soldier: number, row: number, origin: string, base: readonly string[], group: MovePlan | null = null) {
     this.mode = mode;
     this.soldier = soldier;
     this.row = row;
     this.origin = origin;
-    this.#base = [...base];
-    this.hadPath = base.length > 0;
+    this.group = group;
+    this.#base = group ? [] : [...base];
+    this.hadPath = this.#base.length > 0;
+  }
+
+  static forGroup(plan: MovePlan, row: number, origin: string): Plotting {
+    return new Plotting('merc', plan.soldiers[0] ?? -1, row, origin, [], plan);
   }
 
   get legs(): readonly string[] {
@@ -87,7 +94,7 @@ export class Plotting {
   }
 
   baseChanged(base: readonly string[]): void {
-    if (this.#legs.length > 0) return;
+    if (this.#legs.length > 0 || this.group) return;
     if (base.join(',') === this.#base.join(',')) return;
     this.#base = [...base];
     this.#pathAnswer = null;
@@ -98,6 +105,7 @@ export class Plotting {
     const via = this.#legs.length > 0 ? { via: [...this.#legs] } : {};
     const shortest = this.#shortest ? { shortest: true } : {};
     if (this.mode === 'heli') return { type: 'previewHeliRoute', to, ...via, extend: true };
+    if (this.group) return { type: 'previewRoute', soldier: this.soldier, to, ...via, ...shortest, alone: true };
     return { type: 'previewRoute', soldier: this.soldier, to, ...via, ...shortest, extend: true };
   }
 
@@ -215,13 +223,17 @@ export class Plotting {
     const to = this.#legs[this.#legs.length - 1] as string;
     const via = this.#legs.slice(0, -1);
     const viaPart = via.length > 0 ? { via } : {};
+    const shortest = this.#shortest ? { shortest: true } : {};
     if (this.mode === 'heli') return { type: 'heliRoute', to, ...viaPart, extend: true, plotted: true };
-    return { type: 'route', soldier: this.soldier, to, ...viaPart, ...(this.#shortest ? { shortest: true } : {}), extend: true };
+    const group = this.group;
+    if (group)
+      return { type: 'routeGroup', soldiers: group.soldiers, squads: group.squads, vehicles: group.vehicles, to, ...viaPart, ...shortest };
+    return { type: 'route', soldier: this.soldier, to, ...viaPart, ...shortest, extend: true };
   }
 
   routeFor(soldier: number): CommandEnvelope | null {
     const command = this.confirmCommand();
-    if (!command || this.mode === 'heli') return null;
+    if (!command || this.mode === 'heli' || this.group) return null;
     return { ...command, soldier };
   }
 }

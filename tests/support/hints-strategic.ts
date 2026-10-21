@@ -27,6 +27,7 @@ export function sampleRouteHints(view: PlayerView, step = STRATEGIC_HINT_SAMPLE_
         ...via,
         ...(k % 3 === 2 ? { shortest: true } : {}),
         ...(k % 2 === 0 ? { extend: true } : {}),
+        ...(k % 7 === 3 ? { alone: true } : {}),
       });
     });
   return requests;
@@ -46,6 +47,11 @@ export function sampleHeliHints(view: PlayerView, step = STRATEGIC_HINT_SAMPLE_S
 export function sampleEnterHints(view: PlayerView, step = STRATEGIC_HINT_SAMPLE_STEP): CommandEnvelope[] {
   const own = view.strategic?.mercs.map((m) => m.sector.split('-')[0] ?? m.sector) ?? [];
   return [...new Set([...own, ...sampledSectors(step)])].map((sector) => ({ type: 'canEnterSector', sector }));
+}
+
+export function sampleMoveBoxHints(view: PlayerView): CommandEnvelope[] {
+  const own = view.strategic?.mercs.map((m) => m.sector) ?? [];
+  return [...new Set([...own, 'A9', 'D13', 'A9-1'])].map((sector) => ({ type: 'moveBoxOptions', sector }));
 }
 
 export function sampleAssignmentHints(view: PlayerView): CommandEnvelope[] {
@@ -74,6 +80,7 @@ export function sampleStrategicHints(view: PlayerView, step = STRATEGIC_HINT_SAM
     ...sampleHeliHints(view, step),
     ...sampleEnterHints(view, step),
     ...sampleAssignmentHints(view),
+    ...sampleMoveBoxHints(view),
     ...sampleExitHints(view),
   ];
 }

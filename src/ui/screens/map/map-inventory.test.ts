@@ -216,6 +216,7 @@ async function harness(mercs: StrategicMercView[]): Promise<Harness> {
     sounds: { glowClick: () => undefined, newMessageBeep: () => undefined, confirmRoute: () => undefined },
     random: () => 0,
     metric: () => true,
+    notifySleepWake: () => true,
   };
   const boxes: string[] = [];
   const h: Harness = {

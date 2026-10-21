@@ -11,7 +11,7 @@ import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
 import type { StrategicKnowledge } from '../knowledge/strategic.ts';
 import type { CrewMember } from '../strategic/economy/ports.ts';
 import type { Group } from '../strategic/forces/groups.ts';
-import { canEntireMovementGroupMove } from '../strategic/forces/move-permission.ts';
+import { canCharacterMoveInStrategic, canEntireMovementGroupMove } from '../strategic/forces/move-permission.ts';
 import { type PlotRefusal, type PlottedLegs, plotLegs, soldierGroup, soldierMercPath } from '../strategic/forces/routes.ts';
 import { appendStrategicPath } from '../strategic/map/pathing.ts';
 import { edgeTravelMinutes, plottingEtaMinutes } from '../strategic/map/plotting.ts';
@@ -31,6 +31,7 @@ export interface PreviewRouteRequest extends HintRequestBase {
   readonly via?: unknown;
   readonly shortest?: unknown;
   readonly extend?: unknown;
+  readonly alone?: unknown;
 }
 
 export function viaSectors(via: unknown): Sector[] | null {
@@ -58,13 +59,18 @@ export function plotLegsHint(
   return typeof legs === 'string' ? refuseHint(legs, PLOT_REFUSAL_TEXT[legs]) : legs;
 }
 
+function ownMoveRefusal(sk: StrategicKnowledge, id: number): string | null {
+  const merc = sk.ctx.mercs.get(id);
+  return merc ? canCharacterMoveInStrategic(sk.ctx, merc, sk.loaded) : null;
+}
+
 function routeFor(sk: StrategicKnowledge, m: CrewMember, req: PreviewRouteRequest): HintResult<PreviewRoute> {
   const ctx = sk.ctx;
   const to = sectorParam(req.to);
   if (!to) return refuseHint('badSector', 'to must be a sector such as B9');
   const via = viaSectors(req.via);
   if (!via) return refuseHint('badSector', 'via must be a list of sectors');
-  const refusal = canEntireMovementGroupMove(ctx, m.id, sk.loaded);
+  const refusal = req.alone === true ? ownMoveRefusal(sk, m.id) : canEntireMovementGroupMove(ctx, m.id, sk.loaded);
   if (refusal) return refuseHint(refusal, `the squad cannot move: ${refusal}`);
   const g = soldierGroup(ctx, m);
   if (!g) return refuseHint('noRoute', 'the merc has no movement group');

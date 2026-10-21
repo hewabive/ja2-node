@@ -7,7 +7,8 @@
     "src/game/Strategic/Game_Clock.cc RenderClock (COMPFONT, FONT_LTGREEN or FONT_FCOLOR_NICERED in combat, centred in CLOCK_WIDTH by CLOCK_HEIGHT), CreateMouseRegionForPauseOfClock; src/game/UILayout.cc get_CLOCK_X (STD_SCREEN_X + 554 on the map), get_CLOCK_Y, get_RADAR_WINDOW_X (STD_SCREEN_X + 543), get_RADAR_WINDOW_TM_Y",
     "src/game/Strategic/Map_Screen_Interface_Map.cc LoadMapScreenInterfaceMapGraphics (b_map.pcx, mine_1/2/3.sti, boxes.sti, mapcursr.sti, merc_between_sector_icons.sti, merc_mvt_green_arrows.sti, helicop.sti, hilite.sti, sam.sti, mine.sti, militia.sti, bullseye.sti, the secret site icons)",
     "src/game/Strategic/Map_Screen_Interface.cc CreateDestroyAssignmentPopUpBoxes and the PopUpBox margins of the assignment family (6, 6, 4, 4, line space 2), CreateTownInfoBox (margins 6, 6, 8 + BOX_BUTTON_HEIGHT, 6), CreateDestroyMovementBox (the move box at 450, 100)",
-    "src/game/Strategic/Map_Screen_Interface_TownMine_Info.cc CreateDestroyTownInfoBox (popup.sti, the box margins 6, 6, 8 + BOX_BUTTON_HEIGHT, 6 and line space 2, BLOCKFONT2 yellow with a light green title and a white second column at least 20 to the right), MakeButton (mapinvbtns.sti 0/2 and 1/3, white text); src/game/Strategic/Map_Screen_Interface_Map.cc DrawMilitiaPopUpBox (militia.sti, militiamaps.sti, militiamapsectoroutline.sti and militiamapsectoroutline2.sti, FONT10ARIAL white), CreateDestroyMilitiaSectorButtons (militia.sti 3/4, gsMilitiaSectorButtonColors), CreateMilitiaPanelBottomButton (militia.sti 1/2, black text)"
+    "src/game/Strategic/Map_Screen_Interface_TownMine_Info.cc CreateDestroyTownInfoBox (popup.sti, the box margins 6, 6, 8 + BOX_BUTTON_HEIGHT, 6 and line space 2, BLOCKFONT2 yellow with a light green title and a white second column at least 20 to the right), MakeButton (mapinvbtns.sti 0/2 and 1/3, white text); src/game/Strategic/Map_Screen_Interface_Map.cc DrawMilitiaPopUpBox (militia.sti, militiamaps.sti, militiamapsectoroutline.sti and militiamapsectoroutline2.sti, FONT10ARIAL white), CreateDestroyMilitiaSectorButtons (militia.sti 3/4, gsMilitiaSectorButtonColors), CreateMilitiaPanelBottomButton (militia.sti 1/2, black text)",
+    "src/game/Strategic/MapScreen.cc (guiUpdatePanelTactical: group_confirm_tactical.sti); src/game/Strategic/Map_Screen_Interface.cc AddSoldierToUpdateBox (panels.sti), CreateDestroyUpdatePanelButtons (group_confirm_tactical.sti 7/8)"
   ],
   "screen": "mapScreen",
   "frame": "std640",
@@ -430,6 +431,63 @@
       "sti": "interface/militiamapsectoroutline2.sti",
       "stub": {
         "size": [44, 38]
+      }
+    },
+    "updatePanel": {
+      "sti": "interface/group_confirm_tactical.sti",
+      "stub": {
+        "sizes": [
+          [4, 4],
+          [70, 4],
+          [4, 4],
+          [4, 70],
+          [70, 70],
+          [4, 70],
+          [148, 22],
+          [70, 15],
+          [70, 15],
+          [50, 22],
+          [50, 22],
+          [4, 10],
+          [50, 10],
+          [4, 10],
+          [78, 22],
+          [70, 70],
+          [70, 10],
+          [74, 22],
+          [74, 22],
+          [148, 32],
+          [70, 49]
+        ],
+        "states": [
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "normal",
+          "pressed",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain",
+          "plain"
+        ]
+      }
+    },
+    "updateFace": {
+      "sti": "interface/panels.sti",
+      "stub": {
+        "sizes": [[47, 31], [35, 31]]
       }
     }
   },

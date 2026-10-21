@@ -20,7 +20,7 @@
 
 import { MAP_SIDE, type Sector, sectorId } from '../../../content/strategic/sector-ids.ts';
 import { idiv } from '../../../core/int.ts';
-import type { AssignmentOptions } from '../../../protocol/hints.ts';
+import type { AssignmentOptions, MoveBoxOptions } from '../../../protocol/hints.ts';
 import type { MessageEntry } from '../../../protocol/message-log.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import { refusalMessage } from '../../../protocol/refusals.ts';
@@ -40,6 +40,7 @@ import { printf } from '../../text/printf.ts';
 import { UiScreenKind } from '../../widgets/button-sounds.ts';
 import { MessageBox, MessageBoxFlag } from '../../widgets/message-box.ts';
 import type { PopupBoxStyle } from '../../widgets/popup-box.ts';
+import { portraitPath } from '../../widgets/portrait.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
 import { drawSoldierBars } from '../tactical/bars.ts';
 import { drawFace, FaceAnimator, type FaceArt, faceRecordOf } from '../tactical/faces.ts';
@@ -86,11 +87,14 @@ import {
 import { isMechanical, isPow, mercBars, mercSoldier } from './merc-soldier.ts';
 import { dialogueLine, MapMessageList } from './message-list.ts';
 import { MilitiaPopup, militiaArt, militiaGeometry } from './militia-popup.ts';
+import { MoveBox } from './move-box.ts';
+import { type MoveFeedback, type MovePlan, MoveSelection, moveMembers } from './move-selection.ts';
 import { type PathGeometry, RouteAnimation, tracePathRoute } from './path-trace.ts';
 import { Plotting, pathSectors } from './plotting.ts';
 import { TEAM_COLUMN_KEYS, TeamColumn, TeamListView, teamGeometry } from './team-list-view.ts';
 import { type TownBoxButtonArt, TownInfoBox } from './town-info-box.ts';
 import { MapUiMessage } from './ui-message.ts';
+import { UpdateBox, UpdateQueue } from './update-box.ts';
 
 export const MAP_SCREEN_ID = 'map';
 const OWNER = 'mapScreen';
@@ -115,6 +119,9 @@ const OFF_ROAD = 40;
 const NO_MILITIA_TRAINING = 28;
 const NO_MILITIA = 1;
 const LEVEL_HELP = 0;
+const MAP_SCREEN_FONT = 'MAP_SCREEN_FONT';
+const UPDATE_PANEL = 'updatePanel';
+const UPDATE_FACE = 'updateFace';
 const SECTOR_INVENTORY_COMPRESS = 54;
 const Plot = { CLICK_AGAIN: 0, CONFIRMED: 1, UNCHANGED: 2, CANCELED: 3, SHORTENED: 4 } as const;
 const Bullseye = { CHOOSE: 0, CHANGED: 1, CANNOT: 2, CANCELED: 3 } as const;
@@ -158,6 +165,8 @@ export interface MapScreenHook {
   readonly townBox: string | null;
   readonly militiaTown: number;
   readonly militiaCursor: readonly number[];
+  readonly moveBox: readonly string[] | null;
+  readonly updateBox: { readonly reason: number; readonly soldiers: readonly number[] } | null;
 }
 
 type Point = { readonly x: number; readonly y: number };
@@ -179,6 +188,9 @@ export class MapScreen implements Screen {
   readonly #mask: MenuMask;
   readonly #townBox: TownInfoBox;
   readonly #militia: MilitiaPopup;
+  readonly #moveBox: MoveBox;
+  readonly #updateBox: UpdateBox;
+  readonly #updates = new UpdateQueue();
   readonly #message = new MapUiMessage();
   readonly #messages = new MapMessageList();
   readonly #route = new RouteAnimation();
@@ -261,6 +273,31 @@ export class MapScreen implements Screen {
       poolClosed: () => {
         this.#sectorInventoryOpen = false;
       },
+    });
+    this.#moveBox = new MoveBox({
+      regions: env.runtime.regions,
+      text: env.text,
+      owner: OWNER,
+      style: () => this.#popupStyle('movePopup'),
+      origin: () => this.#origin(),
+      now: () => this.#now,
+      vehicleType: (vehicle) => (this.#strategic()?.vehicles ?? []).find((v) => v.id === vehicle)?.type ?? 0,
+      report: (feedback) => this.#moveFeedback(feedback),
+      done: (plan) => this.#startGroupPlotting(plan),
+      closed: () => undefined,
+    });
+    this.#updateBox = new UpdateBox({
+      services: env.runtime,
+      text: env.text,
+      origin: () => this.#origin(),
+      mapFont: () => this.#font(this.#model.font(MAP_SCREEN_FONT)),
+      panel: this.#model.asset(UPDATE_PANEL).path,
+      faces: this.#model.asset(UPDATE_FACE).path,
+      merc: (id) => mercById(this.#strategic(), id),
+      face: (id) => this.#mediumFace(id),
+      ensure: (path) => env.media.image(path),
+      beep: () => env.sounds.newMessageBeep(),
+      finished: (continueTime) => void this.#updateFinished(continueTime),
     });
   }
 
@@ -382,6 +419,8 @@ export class MapScreen implements Screen {
       townBox: this.#townBox.sector ? sectorLabel(this.#townBox.sector) : null,
       militiaTown: this.#militia.town,
       militiaCursor: this.#militia.cursor,
+      moveBox: this.#moveBox.open ? this.#moveBox.lines.map((l) => l.text) : null,
+      updateBox: this.#updateBox.batch,
     };
   }
 
@@ -461,6 +500,8 @@ export class MapScreen implements Screen {
     this.#abortPlotting(false);
     this.#closeMenus();
     this.#militia.close();
+    this.#moveBox.close(false);
+    this.#updateBox.end(null);
     this.#message.end();
     this.#inventory.exit();
     this.#inventoryOpen = false;
@@ -559,6 +600,8 @@ export class MapScreen implements Screen {
   }
 
   frames(frames: readonly ViewFrame[]): void {
+    const mercs = this.#strategic()?.mercs ?? [];
+    for (const frame of frames) this.#updates.observe(frame.events ?? [], mercs, this.#env.notifySleepWake());
     for (const frame of frames)
       for (const event of frame.events ?? []) {
         if (event.type === 'statChanged') {
@@ -609,6 +652,9 @@ export class MapScreen implements Screen {
     this.#militia.update();
     this.#env.client.holdTime('townBox', this.#townBox.open);
     this.#env.client.holdTime('militia', this.#militia.open);
+    this.#showNextUpdate();
+    this.#env.client.holdTime('updateBox', this.#updateBox.open);
+    this.#env.client.holdTime('moveBox', this.#moveBox.open);
     this.#env.client.holdTime('menus', this.#menus.open || this.#contract.open);
     this.#env.client.holdTime('inventory', this.#inventory.holding || this.#sectorInventoryOpen);
     this.#env.client.holdTime('plotting', this.#plot !== null);
@@ -709,7 +755,9 @@ export class MapScreen implements Screen {
       !this.#sectorInventoryOpen &&
       !this.#inventory.holding &&
       this.#boxOpen === 0 &&
-      !this.#changingArrival
+      !this.#changingArrival &&
+      !this.#moveBox.open &&
+      !this.#updateBox.open
     );
   }
 
@@ -754,7 +802,7 @@ export class MapScreen implements Screen {
 
   #allowedToExit(): boolean {
     const view = this.#playerView();
-    return !view?.prompt && !view?.contractPrompt && this.#plot === null && !this.#leaving;
+    return !view?.prompt && !view?.contractPrompt && this.#plot === null && !this.#leaving && !this.#updateBox.open;
   }
 
   #canEnterSelected(): boolean {
@@ -1154,18 +1202,71 @@ export class MapScreen implements Screen {
   }
 
   #movableCharsIn(s: Sector): boolean {
-    return this.#mercsIn(s, this.#level).some((m) => m.life > 0 && m.assignment !== Assignment.IN_TRANSIT && !isPow(m));
+    return this.#mercsIn(s, this.#level).some(
+      (m) => m.life > 0 && m.assignment !== Assignment.IN_TRANSIT && !isPow(m) && !this.#inHelicopter(m),
+    );
+  }
+
+  #inHelicopter(m: StrategicMercView): boolean {
+    const heli = this.#heli();
+    return heli !== null && m.assignment === Assignment.VEHICLE && m.vehicle === heli.vehicle;
   }
 
   #startMoveFromSector(s: Sector): void {
     turnOnTeams(this.filters);
-    const row = this.list.slots.findIndex((slot) => {
-      const m = this.#mercAt(this.list.slots.indexOf(slot));
-      const at = m ? parseSectorLabel(m.sector) : null;
-      return m !== null && at !== null && at.x === s.x && at.y === s.y && m.life > 0 && m.assignment < Assignment.ON_DUTY;
-    });
-    const m = row >= 0 ? this.#mercAt(row) : null;
-    if (m) void this.#destinationClick(row, m);
+    void this.#openMoveBox(sectorLabel({ ...s, z: 0 }));
+  }
+
+  async #openMoveBox(sector: string): Promise<void> {
+    const answer = await this.#env.client.hintNow({ type: 'moveBoxOptions', sector });
+    const strategic = this.#strategic();
+    if (!answer.ok || !strategic) return;
+    const order = this.list.slots.flatMap((slot) => (slot.merc === null ? [] : [slot.merc]));
+    const members = moveMembers(strategic, order, (answer.data as MoveBoxOptions).soldiers);
+    this.#closeMenus();
+    this.#moveBox.show(sector, new MoveSelection(members));
+  }
+
+  #moveFeedback(feedback: NonNullable<MoveFeedback>): void {
+    const text = 'mapError' in feedback ? this.#text(MAP_ERROR, feedback.mapError) : this.#refusalText(feedback.refusal);
+    if (text) void this.#mapBox(text);
+  }
+
+  #startGroupPlotting(plan: MovePlan): void {
+    const first = plan.soldiers[0];
+    const m = first === undefined ? null : mercById(this.#strategic(), first);
+    if (!m) return;
+    const row = this.list.rowOf(m.id);
+    this.list.resetSelected();
+    if (row >= 0) this.list.changeInfo(row, true);
+    for (const id of plan.soldiers) {
+      const r = this.list.rowOf(id);
+      if (r >= 0) this.list.setSelected(r, true);
+    }
+    this.#plot = Plotting.forGroup(plan, row, m.sector.split('-')[0] ?? m.sector);
+    this.#route.reset();
+    if (row >= 0) this.#team.startGlow(row, TeamColumn.DESTINATION);
+  }
+
+  #mediumFace(id: number): string | null {
+    const profile = mercById(this.#strategic(), id)?.profile;
+    const face = profile === undefined ? null : this.#env.media.profile(profile)?.faceIndex;
+    return face === undefined || face === null ? null : portraitPath(face, 'medium');
+  }
+
+  #showNextUpdate(): void {
+    if (this.#updateBox.open) return;
+    for (let batch = this.#updates.next(); batch; batch = this.#updates.next()) {
+      this.#closeMenus();
+      this.#moveBox.close(false);
+      if (this.#updateBox.show(batch)) return;
+    }
+  }
+
+  async #updateFinished(continueTime: boolean | null): Promise<void> {
+    if (continueTime === null) return;
+    const reply = await this.#env.client.command(continueTime ? { type: 'compressTime' } : { type: 'stopTime' });
+    if (!reply.ok) this.#explainRefusal(this.#refusalOf(reply));
   }
 
   #mapSecondary(): void {
@@ -1388,6 +1489,7 @@ export class MapScreen implements Screen {
       this.#changingArrival = false;
       this.#uiMessage(this.#text(BULLSEYE, Bullseye.CANCELED));
     } else if (this.#message.open && !this.#inConfirmMoveMode()) this.#message.end();
+    else if (this.#updateBox.open) this.#updateBox.end(false);
     else if (this.#plot) this.#abortPlotting(true);
     else if (this.#menus.open) {
       this.#menus.escape();
@@ -1473,7 +1575,7 @@ export class MapScreen implements Screen {
       keyCompressLess: () => this.#compressAction('less'),
       explainCompression: () => this.#explainCompression(),
       toggleCompression: () => this.#compressAction('toggle'),
-      space: () => this.#compressAction('toggle'),
+      space: () => (this.#updateBox.open ? this.#updateBox.end(true) : this.#compressAction('toggle')),
       togglePause: () => this.#setPlayerPaused(!this.#playerPaused),
       messageUp: (arg) => this.#messages.scrollUp(arg),
       messageDown: (arg) => this.#messages.scrollDown(arg),
@@ -1537,6 +1639,8 @@ export class MapScreen implements Screen {
     this.#militia.render(list);
     this.#menus.render(list);
     this.#contract.render(list);
+    this.#moveBox.render(list);
+    this.#updateBox.render(list);
     this.#message.render(list, this.#origin());
   }
 
@@ -1549,6 +1653,8 @@ export class MapScreen implements Screen {
       ...this.#militia.describe(),
       ...this.#menus.describe(),
       ...this.#contract.describe(),
+      ...this.#moveBox.describe(),
+      ...this.#updateBox.describe(),
     ];
   }
 
