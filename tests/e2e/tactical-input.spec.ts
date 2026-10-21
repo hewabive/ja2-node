@@ -62,7 +62,7 @@ async function clickHere(page: Page): Promise<void> {
 async function screenOf(page: Page, gridNo: number): Promise<{ x: number; y: number }> {
   const at = await page.evaluate((g) => window.__ja2Ui.tactical?.gridNoScreen(g) ?? null, gridNo);
   if (!at) throw new Error(`no screen position for ${gridNo}`);
-  return { x: at.x, y: at.y + 10 };
+  return at;
 }
 
 test.describe('the tactical input on the stub sandbox', () => {

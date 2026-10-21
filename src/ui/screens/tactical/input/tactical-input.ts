@@ -863,10 +863,8 @@ export class TacticalInput {
         if (mapPos !== null) this.#startGridNo = mapPos;
         break;
       case UiMode.MOVE_MODE:
-        if (this.#host.env.client.view && this.#exitArrowsInput(false)) {
-          this.#tbClickHold = true;
-          this.#ignoreLeftUp = true;
-        } else if (!this.#host.itemInCursor()) {
+        if (this.#exitArrowsInput(false)) break;
+        if (!this.#host.itemInCursor()) {
           const target = this.#hover.target;
           if (target && this.#targetIs(FindFlag.OWNED)) {
             if (!this.#targetIs(FindFlag.UNCONSCIOUS)) {
@@ -1202,11 +1200,7 @@ export class TacticalInput {
       }
       case UiMode.MOVE_MODE:
         this.#canBeginAllMove = true;
-        if (this.#exitArrowsInput(false)) {
-          this.#rtLeftHold = true;
-          this.#ignoreLeftUp = true;
-          return event;
-        }
+        if (this.#exitArrowsInput(false)) return event;
         if (this.#hover.target && this.#targetIs(FindFlag.OWNED)) {
           if (this.#hover.target.id === sel?.id) this.multiSelected.clear();
           return event;

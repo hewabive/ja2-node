@@ -14,7 +14,9 @@
 // @src step, no scrolling with ALT or while the UI is locked or a menu is up); src/game/Tactical/Interface_Control.cc
 // @src RenderRubberBanding (the twelve gold shades every 60 ms, clipped to the viewport), RenderTopmostTacticalInterface
 // @src (burst locations, arrows on our turn); src/game/Tactical/Spread_Burst.cc RenderAccumulatedBurstLocations
-// @src (burst1.sti frame 1); src/game/TileEngine/RenderWorld.cc RenderTiles (LEVELNODE_DISPLAY_AP: TINYFONT1 white,
+// @src (burst1.sti frame 1); src/game/Tactical/Handle_Items.cc DrawItemPoolList (eight names in SMALLFONT1 dark grey and
+// @src "More...", right of the pointer when there is room, centred on it within the viewport, the other level's pile
+// @src when the merc's level has none); src/game/TileEngine/RenderWorld.cc RenderTiles (LEVELNODE_DISPLAY_AP: TINYFONT1 white,
 // @src black while blinking, centred, clipped to the viewport); src/game/Tactical/Interface_Panels.cc
 // @src BtnStealthModeCallback, BtnBurstModeCallback, BtnMuteCallback, BtnClimbCallback (down, up, else the fence jump).
 // @src See docs/28 §6.
@@ -28,9 +30,9 @@ import { KeyModifier, type UiKeyEvent } from '../../input/events.ts';
 import type { MouseRegion } from '../../input/regions.ts';
 import type { ControllerContract } from '../../layout/controller.ts';
 import { INV_INTERFACE_HEIGHT } from '../../layout/frames.ts';
-import type { BitmapFont } from '../../text/bitmap-font.ts';
+import { type BitmapFont, fontHeight } from '../../text/bitmap-font.ts';
 import { FontName } from '../../text/fonts.ts';
-import { hCenterVCenterAlign } from '../../text/measure.ts';
+import { hCenterVCenterAlign, stringPixLength } from '../../text/measure.ts';
 import { fontColors, mprint } from '../../text/print.ts';
 import { printf } from '../../text/printf.ts';
 import type { CommandReply, TacticalEnvironment } from './environment.ts';
@@ -96,6 +98,9 @@ const RUBBER_BAND_COLOURS: readonly number[] = [
   rgb(185, 150, 0),
 ];
 const GUN_CLASSES: ReadonlySet<string> = new Set(['GUN', 'THROWING_KNIFE']);
+const NUM_ITEMS_LISTED = 8;
+const ITEM_LIST_X = 15;
+const ITEMPOOL_POPUP_MORE_STR = 16;
 
 export type PanelButton = SmButton | 'squad';
 
@@ -757,6 +762,39 @@ export class TacticalControls {
       list.popClip();
     }
     this.#renderRubberBand(list, width, bottom);
+    this.#renderItemPool(list, width, bottom);
+  }
+
+  #renderItemPool(list: DrawList, width: number, bottom: number): void {
+    const gridNo = this.input.overItemsGridNo;
+    const sel = this.#screen.selected();
+    if (gridNo === null || !sel || this.#screen.itemInCursor()) return;
+    const items = this.#view()?.items ?? [];
+    const onLevel = (level: number) => items.filter((i) => i.gridNo === gridNo && i.level === level && !i.notRendered);
+    const shown = onLevel(sel.level).length > 0 ? onLevel(sel.level) : onLevel(sel.level === 0 ? 1 : 0);
+    if (shown.length === 0) return;
+    const env = this.#env();
+    const font = env.runtime.fonts.get(FontName.SMALLFONT1);
+    const lines = shown.slice(0, NUM_ITEMS_LISTED).map((i) => {
+      const name = env.media.item(i.item)?.shortName ?? i.item;
+      return i.count > 1 ? `${name} (${i.count})` : name;
+    });
+    if (shown.length > NUM_ITEMS_LISTED) lines.push(this.#text(TACTICAL, ITEMPOOL_POPUP_MORE_STR));
+    const maxWidth = Math.max(0, ...lines.map((l) => stringPixLength(l, font)));
+    const regions = env.runtime.regions;
+    const x = regions.mouseX + ITEM_LIST_X + maxWidth <= width ? regions.mouseX + ITEM_LIST_X : regions.mouseX - maxWidth;
+    const dy = fontHeight(font) - 2;
+    const h = dy * Math.min(shown.length, NUM_ITEMS_LISTED + 1);
+    let y =
+      regions.mouseY < Math.trunc(h / 2)
+        ? 0
+        : regions.mouseY + Math.trunc(h / 2) >= bottom
+          ? bottom - h
+          : regions.mouseY - Math.trunc(h / 2);
+    for (const line of lines) {
+      mprint(list, font, x, y, line, fontColors(FontColor.MCOLOR_DKGRAY, DEFAULT_SHADOW));
+      y += dy;
+    }
   }
 
   #renderAp(list: DrawList, tiny: BitmapFont, text: string, black: boolean, p: { readonly x: number; readonly y: number }): void {
