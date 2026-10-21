@@ -7,6 +7,7 @@ import type { GameClient } from '../../game-client.ts';
 import type { LayoutModel } from '../../layout/model.ts';
 import type { MessageBoxes } from '../../message-boxes.ts';
 import type { UiRuntime } from '../../runtime.ts';
+import type { SpeechPresenter, SpeechSettings } from '../../speech.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import type { MercTextBoxArt } from '../../widgets/merc-text-box.ts';
 
@@ -14,6 +15,8 @@ export const TacticalLayout = {
   TEAM: 'tactical-team',
   SINGLE_MERC: 'tactical-sm',
   HUD: 'tactical-hud',
+  TALK: 'talk-panel',
+  SPEECH: 'tactical-speech',
 } as const;
 export type TacticalLayout = (typeof TacticalLayout)[keyof typeof TacticalLayout];
 export const TACTICAL_LAYOUTS: readonly TacticalLayout[] = Object.values(TacticalLayout);
@@ -84,6 +87,7 @@ export interface WorldPresenter {
   setSelected(id: number | null): void;
   itemTile(item: CatalogueItem): UiImageRef | null;
   pointerBox(selected: boolean): UiImageRef | null;
+  cellScreenPosition(gridNo: number): ScreenPoint;
 }
 
 export interface SpeechPlayback {
@@ -130,4 +134,7 @@ export interface TacticalEnvironment {
   readonly sounds: TacticalSounds;
   readonly random: (range: number) => number;
   readonly metric: () => boolean;
+  readonly speech?: SpeechPresenter;
+  readonly speechSettings?: () => SpeechSettings;
+  readonly rpcSpeechPrefixed?: boolean;
 }

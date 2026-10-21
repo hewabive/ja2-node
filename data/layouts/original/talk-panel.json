@@ -1,0 +1,160 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Tactical/Interface_Dialogue.cc InternalInitTalkingMenu (talkbox1.sti frame 0, the full-screen region at MSYS_PRIORITY_HIGHEST, the panel, name and six approach regions, the Done button from talkbox2.sti frames 3 and 4 with zDialogActions in MILITARYFONT1 colour 33, hilited white), RenderTalkingMenu (the name in MILITARYFONT1 colour 33, white while the pointer is on it, centred in TALK_PANEL_NAME_WIDTH × TALK_PANEL_NAME_HEIGHT; the face at TALK_PANEL_FACE_X/Y; ShadowRect over the TALK_PANEL_SHADOW_AREA while the face talks or the queue is not empty; the menu texts in FONT_WHITE with DEFAULT_SHADOW when selected, FONT_BLACK with MILITARY_SHADOW otherwise, zDealerStrings for a dealer's fifth entry), TALK_PANEL_* defines"
+  ],
+  "screen": "talkPanel",
+  "frame": "screen",
+  "constants": ["Interface_Dialogue", "Text"],
+  "assets": {
+    "panel": { "sti": "interface/talkbox1.sti", "stub": { "size": [214, 136] } },
+    "buttons": {
+      "sti": "interface/talkbox2.sti",
+      "stub": {
+        "sizes": [[96, 12], [96, 12], [96, 12], [74, 14], [74, 14], [74, 14]],
+        "states": ["plain", "plain", "plain", "normal", "pressed", "grayed"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "region",
+      "id": "talkScreen",
+      "within": "screen",
+      "x": 0,
+      "y": 0,
+      "width": "$screenWidth",
+      "height": "$screenHeight",
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_NORMAL"
+    },
+    {
+      "type": "region",
+      "id": "talkBack",
+      "x": 0,
+      "y": 0,
+      "width": { "bind": "panelWidth" },
+      "height": { "bind": "panelHeight" },
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_NORMAL",
+      "down": "panelDown",
+      "primary": "panelClick"
+    },
+    {
+      "type": "region",
+      "id": "talkName",
+      "x": "TALK_PANEL_NAME_X",
+      "y": "TALK_PANEL_NAME_Y",
+      "width": "TALK_PANEL_NAME_WIDTH",
+      "height": "TALK_PANEL_NAME_HEIGHT",
+      "priority": "HIGHEST",
+      "cursor": "CURSOR_NORMAL",
+      "hover": "nameHover",
+      "primary": "whoAreYou"
+    },
+    {
+      "type": "repeat",
+      "count": 6,
+      "dy": "TALK_PANEL_REGION_SPACEY",
+      "template": [
+        {
+          "type": "region",
+          "id": "talkOption$i",
+          "x": "TALK_PANEL_REGION_STARTX",
+          "y": "TALK_PANEL_REGION_STARTY",
+          "width": "TALK_PANEL_REGION_WIDTH",
+          "height": "TALK_PANEL_REGION_HEIGHT",
+          "priority": "HIGHEST",
+          "cursor": "CURSOR_NORMAL",
+          "enabled": "!busy",
+          "hover": "optionHover($i)",
+          "primary": "option($i)"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "id": "talkPanelArt",
+      "x": 0,
+      "y": 0,
+      "asset": "panel",
+      "frame": 0
+    },
+    {
+      "type": "text",
+      "id": "talkNameText",
+      "x": "TALK_PANEL_NAME_X",
+      "y": "TALK_PANEL_NAME_Y",
+      "width": "TALK_PANEL_NAME_WIDTH",
+      "height": "TALK_PANEL_NAME_HEIGHT",
+      "font": "MILITARYFONT1",
+      "color": { "by": "nameColor", "map": { "normal": 33, "hilite": "FONT_WHITE" } },
+      "shadow": "DEFAULT_SHADOW",
+      "align": "center",
+      "alignRule": "font",
+      "valign": "center",
+      "text": { "bind": "name" }
+    },
+    {
+      "type": "custom",
+      "id": "talkFace",
+      "renderer": "talkFace",
+      "x": "TALK_PANEL_FACE_X",
+      "y": "TALK_PANEL_FACE_Y",
+      "width": 0,
+      "height": 0
+    },
+    {
+      "type": "shade",
+      "id": "talkBusyShade",
+      "x": "TALK_PANEL_SHADOW_AREA_X",
+      "y": "TALK_PANEL_SHADOW_AREA_Y",
+      "width": "TALK_PANEL_SHADOW_AREA_WIDTH + 1",
+      "height": "TALK_PANEL_SHADOW_AREA_HEIGHT + 1",
+      "visible": "busy"
+    },
+    {
+      "type": "repeat",
+      "count": 6,
+      "dy": "TALK_PANEL_MENUTEXT_SPACEY",
+      "template": [
+        {
+          "type": "text",
+          "id": "talkOptionText$i",
+          "x": "TALK_PANEL_MENUTEXT_STARTX",
+          "y": "TALK_PANEL_MENUTEXT_STARTY",
+          "width": "TALK_PANEL_MENUTEXT_WIDTH",
+          "height": "TALK_PANEL_MENUTEXT_HEIGHT",
+          "font": "MILITARYFONT1",
+          "color": { "by": "options[$i].color", "map": { "normal": "FONT_BLACK", "hilite": "FONT_WHITE" } },
+          "shadow": { "by": "options[$i].color", "map": { "normal": "MILITARY_SHADOW", "hilite": "DEFAULT_SHADOW" } },
+          "align": "center",
+          "alignRule": "font",
+          "valign": "center",
+          "text": { "bind": "options[$i].text" }
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "id": "talkDone",
+      "x": "TALK_PANEL_BUTTON_X",
+      "y": "TALK_PANEL_BUTTON_Y",
+      "asset": "buttons",
+      "frames": { "offNormal": 3, "onNormal": 4 },
+      "priority": "HIGHEST",
+      "enabled": "!busy",
+      "primary": "done",
+      "text": {
+        "source": { "key": ["zDialogActions", 0] },
+        "font": "MILITARYFONT1",
+        "color": 33,
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": 33,
+        "downShadow": "DEFAULT_SHADOW",
+        "hiliteColor": "FONT_MCOLOR_WHITE",
+        "hiliteShadow": "DEFAULT_SHADOW"
+      }
+    }
+  ]
+}

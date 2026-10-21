@@ -329,6 +329,7 @@ export class Session {
     this.hooks?.beforeDispatch?.(this, cmd);
     this.log.append(cmd.type === 'answer' ? 'answer' : 'cmd', this.#sim.tick, { cmd });
     const result = this.#sim.dispatch(cmd);
+    this.holdEvents();
     const refusal = refusalEntry(this.#sim.tick, cmd, result, this.#messageFacts());
     if (refusal) this.#recordMessages([refusal]);
     this.hooks?.afterDispatch?.(this, cmd, result);

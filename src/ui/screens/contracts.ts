@@ -24,6 +24,8 @@ import { LAPTOP_SHELL_CONTRACT } from './laptop/laptop-screen.ts';
 import { HUD_CONTRACT } from './tactical/hud.ts';
 import { SM_PANEL_CONTRACT } from './tactical/sm-panel.ts';
 import { TEAM_PANEL_CONTRACT } from './tactical/team-panel.ts';
+import { TACTICAL_SPEECH_CONTRACT } from './talk/speech-surfaces.ts';
+import { TALK_PANEL_CONTRACT } from './talk/talk-panel.ts';
 
 export const MESSAGE_BOX_CONTRACT: ControllerContract = { id: 'messageBox', actions: {}, bindings: {} };
 
@@ -53,5 +55,7 @@ export const LAYOUT_CONTRACTS: Readonly<Record<string, ControllerContract>> = Ob
     TEAM_PANEL_CONTRACT,
     SM_PANEL_CONTRACT,
     HUD_CONTRACT,
+    TALK_PANEL_CONTRACT,
+    TACTICAL_SPEECH_CONTRACT,
   ].map((contract) => [contract.id, contract]),
 );

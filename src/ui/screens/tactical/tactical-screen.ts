@@ -35,6 +35,7 @@ import { printf } from '../../text/printf.ts';
 import { UiScreenKind } from '../../widgets/button-sounds.ts';
 import { MercTextBox } from '../../widgets/merc-text-box.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
+import { DialogueLayer } from '../talk/dialogue-layer.ts';
 import { drawBarsInUiBox, drawSoldierBars } from './bars.ts';
 import { type TacticalEnvironment, TacticalLayout } from './environment.ts';
 import {
@@ -164,6 +165,7 @@ export class TacticalScreen implements Screen {
   readonly stack: StackPopup;
   readonly keyRing: KeyRingPopup;
   readonly pickup: ItemPickupMenu;
+  readonly dialogue: DialogueLayer;
   #panel: PanelKind = 'team';
   #pendingPanel: { kind: PanelKind; soldier: number | null } | null = null;
   #smMerc: number | null = null;
@@ -266,6 +268,15 @@ export class TacticalScreen implements Screen {
       closed: () => undefined,
       hover: () => undefined,
     });
+    this.dialogue = new DialogueLayer(env, {
+      drawSoldierFace: (list, s, x, y) => this.#drawPanelFace(list, s, x, y, false),
+      drawBars: (list, values, x, y) =>
+        drawSoldierBars(list, values, x, y, { asset: this.#asset(TacticalLayout.HUD, 'bars'), gold: false }),
+      barValues: (s) => barValues(s),
+      viewport: () => this.#viewportBounds(),
+      openInventory: (soldier) => this.#requestPanel('sm', soldier),
+      sector: () => sectorOfMap(this.#view()?.mapPath ?? null),
+    });
     const custom = this.#renderers();
     const common = { services: env.runtime, sliders: env.runtime.sliders, text: env.text, custom };
     this.#hudView = new LayoutView({ ...common, model: env.layout(TacticalLayout.HUD), controller: this.#hud, owner: 'tacticalHud' });
@@ -340,10 +351,12 @@ export class TacticalScreen implements Screen {
     this.#panelView().build();
     this.#defineViewportRegion();
     this.#syncViewport();
+    this.dialogue.enter();
   }
 
   exit(): void {
     this.#entered = false;
+    this.dialogue.dispose();
     this.description.close(false);
     this.stack.close();
     this.keyRing.close();
@@ -383,10 +396,14 @@ export class TacticalScreen implements Screen {
     });
   }
 
-  #syncViewport(): void {
+  #viewportBounds(): { top: number; bottom: number } {
     const { height } = this.#env.runtime.geometry();
     const top = this.#view()?.combat?.topMessage ? TOP_BAR_HEIGHT : 0;
-    const bottom = height - (this.#panel === 'team' ? TEAMPANEL_HEIGHT : INV_INTERFACE_HEIGHT);
+    return { top, bottom: height - (this.#panel === 'team' ? TEAMPANEL_HEIGHT : INV_INTERFACE_HEIGHT) };
+  }
+
+  #syncViewport(): void {
+    const { top, bottom } = this.#viewportBounds();
     this.#env.world.setViewport(top, bottom);
   }
 
@@ -512,6 +529,7 @@ export class TacticalScreen implements Screen {
     const view = this.#view();
     this.#chooseInitialSelection();
     this.#applyPanelSwitch();
+    this.dialogue.update(this.#now);
     this.#syncSlots();
     this.#updatePanelAnimations();
     this.#updateFaces();
@@ -537,7 +555,7 @@ export class TacticalScreen implements Screen {
 
   #updateFaces(): void {
     const view = this.#view();
-    const speech = this.#env.media.speech();
+    const speech = this.dialogue.speaking ?? this.#env.media.speech();
     for (const s of ownSoldiers(view)) {
       const profile = s.profile === undefined ? null : this.#env.media.profile(s.profile);
       const record = faceRecordOf(s, profile);
@@ -655,6 +673,7 @@ export class TacticalScreen implements Screen {
 
   input(event: UiInputEvent): boolean {
     if (isPointerEvent(event)) return false;
+    if (this.dialogue.input(event)) return true;
     if (event.kind === 'keyUp' && this.#env.client.paused && event.key !== PAUSE_KEY) {
       this.#togglePause();
       return true;
@@ -692,6 +711,7 @@ export class TacticalScreen implements Screen {
     }
     this.#hudView.render(list);
     this.pickup.render(list, ctx);
+    this.dialogue.render(list);
   }
 
   describe(): readonly WidgetInfo[] {
@@ -721,10 +741,11 @@ export class TacticalScreen implements Screen {
       if (button.owner !== 'itemDescription' && button.owner !== 'itemPickupMenu') continue;
       extra.push(button.describe());
     }
-    return [...this.#hudView.describe(), ...this.#panelView().describe(), ...extra];
+    return [...this.#hudView.describe(), ...this.#panelView().describe(), ...extra, ...this.dialogue.describe()];
   }
 
   frames(frames: readonly ViewFrame[]): void {
+    this.dialogue.frames(frames);
     for (const frame of frames) {
       for (const event of frame.events ?? []) this.#event(event, frame);
       for (const entry of frame.messages ?? []) {

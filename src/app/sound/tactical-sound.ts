@@ -164,6 +164,10 @@ export class TacticalSound {
     }
   }
 
+  get rpcSpeechPrefixed(): boolean {
+    return rpcSpeechPrefixed(this.#version);
+  }
+
   get director(): SoundDirector | null {
     return this.#director;
   }

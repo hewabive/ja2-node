@@ -22,6 +22,27 @@ export interface CommandSample {
   readonly reason: string | null;
 }
 
+export interface SpeechLineSample {
+  readonly surface: string;
+  readonly profile: number;
+  readonly soldier: number | null;
+  readonly text: string;
+  readonly phase: string;
+  readonly subtitles: boolean;
+}
+
+export interface TalkSample {
+  readonly open: boolean;
+  readonly profile: number | null;
+  readonly busy: boolean;
+  readonly line: SpeechLineSample | null;
+  readonly queued: number;
+  readonly spoken: number;
+  readonly textBox: string | null;
+  readonly facePopup: boolean;
+  readonly civQuote: string | null;
+}
+
 export interface TimeSummary {
   readonly count: number;
   readonly p50: number;
@@ -56,6 +77,7 @@ export interface TacticalHook {
   pendingImages: number;
   enemyBar: { readonly counter: number; readonly max: number };
   topMessage: string | null;
+  talk: TalkSample;
   frameMs: TimeSummary;
   worldMs: TimeSummary;
   command(cmd: CommandEnvelope): Promise<unknown>;

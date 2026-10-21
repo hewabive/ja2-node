@@ -166,6 +166,13 @@ export class TacticalWorldPresenter implements WorldPresenter {
     return { x: c.x + 2 * dx - 2 * dy, y: c.y + dx + dy - PICK_LIFT };
   }
 
+  cellScreenPosition(gridNo: number): ScreenPoint {
+    const c = mapCenter(this.#viewport);
+    const dx = (gridNo % WORLD_COLS) * CELL_SIZE - this.#camera.centerX;
+    const dy = Math.floor(gridNo / WORLD_COLS) * CELL_SIZE - this.#camera.centerY;
+    return { x: c.x + 2 * dx - 2 * dy, y: c.y + dx + dy };
+  }
+
   soldierBox(id: number): ScreenBox | null {
     const placed = this.#renderer.placedSoldiers.find((p) => p.id === id);
     return placed ? { x: placed.x, y: placed.y, width: placed.width, height: placed.height } : null;

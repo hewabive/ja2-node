@@ -14,6 +14,7 @@ import {
   type TacticalLayout,
 } from '../../ui/screens/tactical/environment.ts';
 import { TacticalScreen } from '../../ui/screens/tactical/tactical-screen.ts';
+import { SpeechPresenter, type SpeechSettings } from '../../ui/speech.ts';
 import type { MercTextBoxArt } from '../../ui/widgets/merc-text-box.ts';
 import type { GamePage, WorldLayer } from '../game/game-page.ts';
 import { preloadLayout, type UiBoot } from '../game/ui-boot.ts';
@@ -31,8 +32,9 @@ import { SoldierAssets } from '../world/soldier-assets.ts';
 import { loadSoldierFrames, type SoldierFrames } from '../world/soldier-frames.ts';
 import { TacticalWorldView } from '../world/tactical-world-view.ts';
 import { WorldEffects } from '../world/world-effects.ts';
+import { engineSpeechVoices, storedSpeechSettings } from './speech-voices.ts';
 import { SessionTacticalClient } from './tactical-client.ts';
-import { attachTacticalHook, type TacticalHook, TimeSamples } from './tactical-hook.ts';
+import { attachTacticalHook, type TacticalHook, type TalkSample, TimeSamples } from './tactical-hook.ts';
 import { fetchItemCatalogue, fetchProfiles, type SpeechSource, TacticalMediaStore } from './tactical-media.ts';
 import { TacticalWorldPresenter } from './world-presenter.ts';
 
@@ -81,12 +83,20 @@ export class TacticalHost {
   #refreshing = false;
   readonly #keepDriver: boolean;
   readonly #requestedProfiles = new Set<number>();
+  readonly #speechSettings: () => SpeechSettings;
+  readonly #presenter: SpeechPresenter;
+  #spoken = 0;
   #beep: ReturnType<TacticalSound['engine']['play']> | null = null;
 
   constructor(options: TacticalHostOptions) {
     this.#o = options;
     this.#renderer = new WorldRenderer(options.page.gl);
     this.#sound = new TacticalSound({ engine: options.ui.audio.engine, music: false });
+    this.#speechSettings = storedSpeechSettings(() => performance.now());
+    this.#presenter = new SpeechPresenter({ voices: engineSpeechVoices(this.#sound.engine), settings: this.#speechSettings });
+    this.#presenter.onLineStarted(() => {
+      this.#spoken++;
+    });
     const params = new URLSearchParams(location.search);
     const shadow = params.get(SHADOW_HINTS_PARAM) === '1';
     this.#keepDriver = params.get(DRIVE_PARAM) === MANUAL_DRIVE;
@@ -176,6 +186,13 @@ export class TacticalHost {
     step();
     await this.#sound.load(available, assets.tables, session.session ?? 'local');
     this.#sound.director?.reset(session.soldiers);
+    this.#sound.director?.setSpeechOwner({
+      isTalking: (soldier) => {
+        const speaking = this.#presenter.speaking;
+        return speaking !== null && speaking.speaker === soldier && speaking.playing;
+      },
+      cut: (soldier) => this.#presenter.cutSpeaker(soldier),
+    });
     await this.#sound.setWorld(world.world);
     step();
     const layouts = new Map<TacticalLayout, LayoutModel>();
@@ -266,6 +283,9 @@ export class TacticalHost {
       },
       random: (range) => this.#random.int(range),
       metric: () => loadSettings().display.useMetricSystem,
+      speech: this.#presenter,
+      speechSettings: this.#speechSettings,
+      rpcSpeechPrefixed: this.#sound.rpcSpeechPrefixed,
     };
     this.#screen = new TacticalScreen(env);
     this.#screenFor = loaded;
@@ -393,6 +413,7 @@ export class TacticalHost {
       pendingImages: 0,
       enemyBar: { counter: 0, max: 0 },
       topMessage: null,
+      talk: { open: false, profile: null, busy: false, line: null, queued: 0, spoken: 0, textBox: null, facePopup: false, civQuote: null },
       frameMs: this.#frameTimes.summary(),
       worldMs: this.#worldTimes.summary(),
       command: (cmd) => this.#command(cmd),
@@ -409,6 +430,32 @@ export class TacticalHost {
         this.#frameTimes.reset();
         this.#worldTimes.reset();
       },
+    };
+  }
+
+  #talkSample(screen: TacticalScreen): TalkSample {
+    const presenter = this.#presenter;
+    const current = presenter.current;
+    const dialogue = screen.dialogue;
+    return {
+      open: dialogue.talk.open,
+      profile: dialogue.talk.profile,
+      busy: presenter.busy,
+      line: current
+        ? {
+            surface: current.line.surface,
+            profile: current.line.profile,
+            soldier: current.line.soldier,
+            text: current.line.text,
+            phase: current.phase,
+            subtitles: current.subtitles,
+          }
+        : null,
+      queued: presenter.queued.length,
+      spoken: this.#spoken,
+      textBox: dialogue.surfaces.textBoxText,
+      facePopup: dialogue.surfaces.facePopupShown,
+      civQuote: dialogue.surfaces.civQuoteText,
     };
   }
 
@@ -439,6 +486,7 @@ export class TacticalHost {
     hook.feedback = screen.feedbackText;
     hook.enemyBar = screen.enemyBar;
     hook.topMessage = this.#o.session.combat?.topMessage?.kind ?? null;
+    hook.talk = this.#talkSample(screen);
     hook.cursorItem = screen.inventory.cursor?.item ?? null;
     hook.descriptionOpen = screen.description.open;
     hook.descriptionItem = screen.description.item;

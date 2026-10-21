@@ -74,6 +74,10 @@ const SCREEN_TABLES: readonly TableSpec[] = [
   { table: 'Radar_Screen', files: ['game/TileEngine/Radar_Screen.h', 'game/TileEngine/Radar_Screen.cc'] },
   { table: 'Message', files: ['game/Utils/Message.h', 'game/Utils/Message.cc'] },
   { table: 'Game_Clock', files: ['game/Strategic/Game_Clock.h', 'game/Strategic/Game_Clock.cc'] },
+  { table: 'Interface_Dialogue', files: ['game/Tactical/Interface_Dialogue.h', 'game/Tactical/Interface_Dialogue.cc'] },
+  { table: 'Dialogue_Control', files: ['game/Tactical/Dialogue_Control.h', 'game/Tactical/Dialogue_Control.cc'] },
+  { table: 'Civ_Quotes', files: ['game/Tactical/Civ_Quotes.h', 'game/Tactical/Civ_Quotes.cc'] },
+  { table: 'ShopKeeper_Interface', files: ['game/Tactical/ShopKeeper_Interface.h', 'game/Tactical/ShopKeeper_Interface.cc'] },
 ];
 
 const FRAME_ORIGIN_NAMES: ReadonlyMap<string, number> = new Map([

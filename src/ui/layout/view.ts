@@ -55,6 +55,7 @@ export interface LayoutViewOptions {
   readonly messageBoxLabels?: MessageBoxLabels;
   readonly custom?: Readonly<Record<string, CustomRenderer>>;
   readonly owner?: unknown;
+  readonly origin?: () => { readonly x: number; readonly y: number };
 }
 
 interface Live {
@@ -126,7 +127,8 @@ export class LayoutView {
     this.dispose();
     const geometry = this.services.geometry();
     this.#geometryKey = `${geometry.width}x${geometry.height}`;
-    this.#frame = frameRect(this.model.json.frame, geometry);
+    const frame = frameRect(this.model.json.frame, geometry);
+    this.#frame = this.#options.origin ? { ...frame, ...this.#options.origin() } : frame;
     this.#counter = 0;
     const screen = {
       screenWidth: geometry.width,

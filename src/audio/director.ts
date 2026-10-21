@@ -60,6 +60,11 @@ export interface DirectorSettings {
   readonly muteConfirmations: boolean;
 }
 
+export interface SpeechOwner {
+  isTalking(soldier: number): boolean;
+  cut(soldier: number): void;
+}
+
 export interface DirectorContext {
   readonly selected: number | null;
   readonly inCombat: boolean;
@@ -128,6 +133,7 @@ export class SoundDirector {
   readonly #morale = new Map<number, number>();
   readonly #speechQueue: QueuedLine[] = [];
   #speech: { voice: VoiceHandle; speaker: number | null } | null = null;
+  #speechOwner: SpeechOwner | null = null;
   #world: SoundWorld | null = null;
   #ambient: AmbientSlot[] = [];
   #settings: DirectorSettings = { speech: true, muteConfirmations: false };
@@ -158,6 +164,11 @@ export class SoundDirector {
   setSettings(settings: DirectorSettings): void {
     this.#settings = settings;
     if (!settings.speech) this.#silenceSpeech();
+  }
+
+  setSpeechOwner(owner: SpeechOwner | null): void {
+    this.#speechOwner = owner;
+    if (owner) this.#silenceSpeech();
   }
 
   setContext(context: DirectorContext): void {
@@ -297,7 +308,8 @@ export class SoundDirector {
       this.#dead.add(id);
     }
     const playing = this.#battleVoices.get(id);
-    const talking = this.#speech?.speaker === id && this.#speech.voice.active;
+    const owner = this.#speechOwner;
+    const talking = owner ? owner.isTalking(id) : this.#speech?.speaker === id && this.#speech.voice.active;
     const outcome = battleSoundCue(
       this.#o.book,
       { gridNo: s.gridNo, team: s.team, bodyType: s.bodyType, voice: s.voice ?? null, morale: this.#morale.get(id) ?? NORMAL_MORALE },
@@ -315,7 +327,8 @@ export class SoundDirector {
     );
     this.#battle.set(id, outcome.memory);
     if (outcome.stopPrevious) playing?.stop();
-    if (outcome.cutSpeech && this.#speech?.speaker === id) this.#speech.voice.stop();
+    if (outcome.cutSpeech && owner) owner.cut(id);
+    else if (outcome.cutSpeech && this.#speech?.speaker === id) this.#speech.voice.stop();
     for (const cue of outcome.cues) {
       this.stats.battleSounds++;
       const voice = this.#play(cue);
@@ -440,7 +453,7 @@ export class SoundDirector {
   }
 
   #speak(profile: number, soldier: number | null, textKey: TextKey): void {
-    if (!this.#settings.speech) return;
+    if (!this.#settings.speech || this.#speechOwner) return;
     const view = soldier !== null ? this.#soldiers.get(soldier) : undefined;
     const recruitedNpcOrRpc = view?.kind !== undefined && RECRUITED_KINDS.has(view.kind);
     const path = speechPathForLine({ profile, textKey, recruitedNpcOrRpc }, this.#o.rpcSpeechPrefixed);

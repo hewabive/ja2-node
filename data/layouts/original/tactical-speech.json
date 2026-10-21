@@ -1,0 +1,61 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Tactical/Dialogue_Control.cc HandleTacticalSpeechUI and HandleExternNPCSpeechFace (the face popup 99 × 98 at 10, 20 in tactical with its click region at MSYS_PRIORITY_HIGHEST), RenderFaceOverlay (communicationpopup.sti for a soldier, communicationpopup_2.sti for a speaker without one; the name in BLOCKFONT2 FONT_MCOLOR_LTGRAY centred in 12, 55, 73 × 9, at 9, 55 without a soldier; the sector centred in 12, 68, 73 × 9 and shortened to 64 pixels when the speaker is elsewhere; the bars at 69, 47; the face at 14, 6), ExecuteTacticalTextBox and DisplayTextForExternalNPC (the subtitle box at 110, 20 in tactical, DIALOGUE_DEFAULT_SUBTITLE_WIDTH, a click region over it)",
+    "src/game/UILayout.cc getTacticalTextBoxX, getTacticalTextBoxY (110, 20 outside the map screen)",
+    "src/game/Tactical/Civ_Quotes.cc BeginCivQuote (DIALOGUE_DEFAULT_WIDTH, centred on the soldier and clamped to the screen and the viewport)"
+  ],
+  "screen": "tacticalSpeech",
+  "frame": "screen",
+  "constants": ["Dialogue_Control", "Civ_Quotes"],
+  "assets": {
+    "commPanel": { "sti": "interface/communicationpopup.sti", "stub": { "size": [98, 90] } },
+    "commPanelNpc": { "sti": "interface/communicationpopup_2.sti", "stub": { "size": [98, 90] } }
+  },
+  "styles": {
+    "facePopup": {
+      "x": 10,
+      "y": 20,
+      "width": 99,
+      "height": 98,
+      "face": [14, 6],
+      "name": [12, 55, 73, 9],
+      "nameWithoutSoldier": [9, 55, 73, 9],
+      "sector": [12, 68, 73, 9],
+      "sectorWidth": 64,
+      "bars": [69, 47]
+    },
+    "textBox": { "x": 110, "y": 20, "width": "DIALOGUE_DEFAULT_SUBTITLE_WIDTH" },
+    "civBox": { "width": "DIALOGUE_DEFAULT_WIDTH" }
+  },
+  "widgets": [
+    {
+      "type": "custom",
+      "id": "speechFacePopup",
+      "renderer": "speechFacePopup",
+      "x": 10,
+      "y": 20,
+      "width": 99,
+      "height": 98,
+      "params": { "panel": "commPanel", "panelWithoutSoldier": "commPanelNpc" }
+    },
+    {
+      "type": "custom",
+      "id": "speechTextBox",
+      "renderer": "speechTextBox",
+      "x": 110,
+      "y": 20,
+      "width": 0,
+      "height": 0
+    },
+    {
+      "type": "custom",
+      "id": "civQuoteBox",
+      "renderer": "civQuoteBox",
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
+    }
+  ]
+}

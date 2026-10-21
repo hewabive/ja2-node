@@ -56,12 +56,20 @@ export class SessionClient implements TacticalClient {
   paused = false;
   readonly #session: Session;
   readonly #client: ClientSide;
+  readonly #frames: ViewFrame[] = [];
   #view: PlayerView;
 
   constructor(session: Session, client: ClientSide) {
     this.#session = session;
     this.#client = client;
     this.#view = this.#snapshot();
+    session.subscribe((message) => {
+      if (message.t === 'frames') this.#frames.push(...(JSON.parse(JSON.stringify(message.frames)) as ViewFrame[]));
+    });
+  }
+
+  takeFrames(): ViewFrame[] {
+    return this.#frames.splice(0);
   }
 
   #snapshot(): PlayerView {
@@ -150,6 +158,11 @@ export class FakeWorld implements WorldPresenter {
     const dx = cell.x - this.camera.centerX;
     const dy = cell.y - this.camera.centerY;
     return { x: 320 + 2 * dx - 2 * dy, y: 180 + dx + dy - CELL };
+  }
+
+  cellScreenPosition(gridNo: number): ScreenPoint {
+    const p = this.pickPoint(gridNo);
+    return { x: p.x, y: p.y + CELL };
   }
 
   soldierTrueScreenPosition(id: number): ScreenPoint | null {
@@ -246,8 +259,10 @@ export class FakeMedia implements TacticalMedia {
     return true;
   }
 
-  profile(): ProfilePresentation | null {
-    return null;
+  readonly profiles = new Map<number, ProfilePresentation>();
+
+  profile(id: number): ProfilePresentation | null {
+    return this.profiles.get(id) ?? null;
   }
 
   item(name: string): CatalogueItem | null {
@@ -287,6 +302,7 @@ export interface TacticalUiTest {
   clickAt(x: number, y: number, button?: number): Promise<void>;
   key(key: string, modifiers?: number): void;
   frames(frames: readonly ViewFrame[]): void;
+  deliver(): void;
   advance(ticks: number): void;
   settle(frames?: number): Promise<void>;
   draw(): DrawList;
@@ -344,11 +360,11 @@ async function stubImages(t: TestRuntime): Promise<void> {
   }
 }
 
-export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed = 5): Promise<TacticalUiTest> {
+export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed = 5, given?: Session): Promise<TacticalUiTest> {
   const t = await testRuntime();
   await stubImages(t);
   const sources = { read: kit.read, exists: (p: string) => kit.worlds.exists(p), world: (p: string) => kit.worlds.world(p) };
-  const session = withQueries(new Session('tactical-ui', await createSandboxSession(kit.read, false, seed)), sources);
+  const session = given ?? withQueries(new Session('tactical-ui', await createSandboxSession(kit.read, false, seed)), sources);
   const client = new SessionClient(session, ui.client);
   const world = new FakeWorld(() => client.view);
   const media = new FakeMedia(ui.catalogue);
@@ -436,6 +452,11 @@ export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed
     },
     frames(frames) {
       screen.frames(frames);
+      t.frame();
+    },
+    deliver() {
+      client.refresh();
+      screen.frames(client.takeFrames());
       t.frame();
     },
     advance(ticks) {

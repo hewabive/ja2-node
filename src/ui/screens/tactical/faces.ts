@@ -97,6 +97,8 @@ export function faceRecordOf(soldier: SoldierView, profile: ProfilePresentation 
   };
 }
 
+export type FaceSubject = Pick<SoldierView, 'asleep' | 'life'>;
+
 export interface FaceSpeech {
   readonly playing: boolean;
   readonly elapsedMs: number;
@@ -176,7 +178,7 @@ export class FaceAnimator {
     this.#flashSince = now;
   }
 
-  update(now: number, soldier: SoldierView, speech: FaceSpeech | null, images: ImageCatalog): void {
+  update(now: number, soldier: FaceSubject, speech: FaceSpeech | null, images: ImageCatalog): void {
     this.#updateFlash(now);
     this.#updateTalking(now, speech);
     if (this.invalidAnim(images)) return;
@@ -222,7 +224,7 @@ export class FaceAnimator {
     }
   }
 
-  #blink(now: number, s: SoldierView): void {
+  #blink(now: number, s: FaceSubject): void {
     if (s.asleep === true || (s.life ?? 0) < OKLIFE) return;
     if (this.#expression === Expression.NONE) {
       if (now - this.#lastBlink > this.#blinkFrequency) {
