@@ -3,17 +3,21 @@ import type { ProfilePresentation } from '../../../content/narrative/profile-pre
 import type { CatalogueItem } from '../../../protocol/items.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { KeyView, PlayerView } from '../../../protocol/view.ts';
+import type { DrawList } from '../../draw-list.ts';
 import type { GameClient } from '../../game-client.ts';
 import type { LayoutModel } from '../../layout/model.ts';
 import type { MessageBoxes } from '../../message-boxes.ts';
 import type { UiRuntime } from '../../runtime.ts';
+import type { DisplaySettings } from '../../settings.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import type { MercTextBoxArt } from '../../widgets/merc-text-box.ts';
+import type { UiCursorTable } from './input/ui-cursors.ts';
 
 export const TacticalLayout = {
   TEAM: 'tactical-team',
   SINGLE_MERC: 'tactical-sm',
   HUD: 'tactical-hud',
+  INPUT: 'tactical-input',
 } as const;
 export type TacticalLayout = (typeof TacticalLayout)[keyof typeof TacticalLayout];
 export const TACTICAL_LAYOUTS: readonly TacticalLayout[] = Object.values(TacticalLayout);
@@ -63,6 +67,37 @@ export interface SoldierMarker {
   readonly moving: boolean;
 }
 
+export type MarkerLayer = 'object' | 'roof' | 'onRoof' | 'topmost';
+
+export interface WorldMarker {
+  readonly gridNo: number;
+  readonly layer: MarkerLayer;
+  readonly tile: string;
+  readonly head?: boolean;
+  readonly offsetX?: number;
+  readonly offsetY?: number;
+}
+
+export interface InteractiveTile {
+  readonly gridNo: number;
+  readonly door: boolean;
+  readonly switch: boolean;
+  readonly open: boolean;
+}
+
+export interface ScrollEdges {
+  readonly left: boolean;
+  readonly right: boolean;
+  readonly top: boolean;
+  readonly bottom: boolean;
+}
+
+export interface OverheadMapView {
+  render(list: DrawList, x: number, y: number): void;
+  pointOf(gridNo: number): ScreenPoint;
+  gridNoAt(x: number, y: number): number | null;
+}
+
 export interface WorldPresenter {
   readonly ready: boolean;
   readonly radarImage: string | null;
@@ -84,6 +119,15 @@ export interface WorldPresenter {
   setSelected(id: number | null): void;
   itemTile(item: CatalogueItem): UiImageRef | null;
   pointerBox(selected: boolean): UiImageRef | null;
+  setMarkers(markers: readonly WorldMarker[]): void;
+  markerScreenPoint(marker: WorldMarker): ScreenPoint | null;
+  interactiveTileAt(gridNo: number, level: number): InteractiveTile | null;
+  exitGridAt(gridNo: number): boolean;
+  scrollEdges(): ScrollEdges;
+  scrollBy(dx: number, dy: number): boolean;
+  overheadMap(): OverheadMapView | null;
+  tileImage(name: string): UiImageRef | null;
+  tileCentre(gridNo: number): ScreenPoint;
 }
 
 export interface SpeechPlayback {
@@ -130,4 +174,10 @@ export interface TacticalEnvironment {
   readonly sounds: TacticalSounds;
   readonly random: (range: number) => number;
   readonly metric: () => boolean;
+  readonly uiCursors: UiCursorTable;
+  readonly display: () => DisplaySettings;
+  readonly setDisplay: (change: Partial<DisplaySettings>) => void;
+  readonly battleSound: (soldier: number, sound: BattleSound) => void;
 }
+
+export type BattleSound = 'ok' | 'curse' | 'attention' | 'locked';

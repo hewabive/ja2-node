@@ -56,6 +56,15 @@ export interface TacticalHook {
   pendingImages: number;
   enemyBar: { readonly counter: number; readonly max: number };
   topMessage: string | null;
+  uiMode: string | null;
+  uiCursor: string | null;
+  uiLock: string | null;
+  markers: readonly string[];
+  apNumber: number | null;
+  movementMenuOpen: boolean;
+  doorMenuOpen: boolean;
+  exitDialogOpen: boolean;
+  overheadOpen: boolean;
   frameMs: TimeSummary;
   worldMs: TimeSummary;
   command(cmd: CommandEnvelope): Promise<unknown>;

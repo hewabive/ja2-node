@@ -1,0 +1,892 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Tactical/Interface_Cursors.cc gUICursors; src/game/Tactical/Interface_Cursors.h UICursorID, UICURSOR_*",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "cursors: gUICursors by position in UICursorID order (the array is indexed by position; its first field is not read): flags (UICURSOR_*), cursor (usFreeCursorName: a CursorTypeDefines name, VIDEO_DEFAULT_TO_NO_CURSOR or null) and data (usAdditionalData: a FIRSTPOINTERS tile name, or for the out-of-range talk cursors a CursorTypeDefines name, or null)",
+  "flags": {
+    "UICURSOR_FREEFLOWING": 2,
+    "UICURSOR_SNAPPING": 4,
+    "UICURSOR_SHOWTILE": 8,
+    "UICURSOR_FLASHING": 32,
+    "UICURSOR_CENTERAPS": 64,
+    "UICURSOR_SHOWTILEAPDEPENDENT": 128,
+    "UICURSOR_DONTSHOW2NDLEVEL": 256
+  },
+  "cursors": [
+    {
+      "name": "NO_UICURSOR",
+      "flags": 0,
+      "cursor": null,
+      "data": null
+    },
+    {
+      "name": "NORMAL_FREEUICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_NORMAL",
+      "data": null
+    },
+    {
+      "name": "NORMAL_SNAPUICURSOR",
+      "flags": 4,
+      "cursor": null,
+      "data": null
+    },
+    {
+      "name": "MOVE_RUN_UICURSOR",
+      "flags": 386,
+      "cursor": "CURSOR_RUN1",
+      "data": "FIRSTPOINTERS2"
+    },
+    {
+      "name": "MOVE_WALK_UICURSOR",
+      "flags": 450,
+      "cursor": "CURSOR_WALK1",
+      "data": "FIRSTPOINTERS2"
+    },
+    {
+      "name": "MOVE_SWAT_UICURSOR",
+      "flags": 386,
+      "cursor": "CURSOR_SWAT1",
+      "data": "FIRSTPOINTERS2"
+    },
+    {
+      "name": "MOVE_PRONE_UICURSOR",
+      "flags": 386,
+      "cursor": "CURSOR_PRONE1",
+      "data": "FIRSTPOINTERS2"
+    },
+    {
+      "name": "MOVE_VEHICLE_UICURSOR",
+      "flags": 386,
+      "cursor": "CURSOR_DRIVEV",
+      "data": "FIRSTPOINTERS2"
+    },
+    {
+      "name": "CONFIRM_MOVE_RUN_UICURSOR",
+      "flags": 268,
+      "cursor": null,
+      "data": "FIRSTPOINTERS4"
+    },
+    {
+      "name": "CONFIRM_MOVE_WALK_UICURSOR",
+      "flags": 268,
+      "cursor": null,
+      "data": "FIRSTPOINTERS4"
+    },
+    {
+      "name": "CONFIRM_MOVE_SWAT_UICURSOR",
+      "flags": 268,
+      "cursor": null,
+      "data": "FIRSTPOINTERS4"
+    },
+    {
+      "name": "CONFIRM_MOVE_PRONE_UICURSOR",
+      "flags": 268,
+      "cursor": null,
+      "data": "FIRSTPOINTERS4"
+    },
+    {
+      "name": "CONFIRM_MOVE_VEHICLE_UICURSOR",
+      "flags": 268,
+      "cursor": null,
+      "data": "FIRSTPOINTERS4"
+    },
+    {
+      "name": "ALL_MOVE_RUN_UICURSOR",
+      "flags": 268,
+      "cursor": null,
+      "data": "FIRSTPOINTERS5"
+    },
+    {
+      "name": "ALL_MOVE_WALK_UICURSOR",
+      "flags": 268,
+      "cursor": null,
+      "data": "FIRSTPOINTERS5"
+    },
+    {
+      "name": "ALL_MOVE_SWAT_UICURSOR",
+      "flags": 268,
+      "cursor": null,
+      "data": "FIRSTPOINTERS5"
+    },
+    {
+      "name": "ALL_MOVE_PRONE_UICURSOR",
+      "flags": 268,
+      "cursor": null,
+      "data": "FIRSTPOINTERS5"
+    },
+    {
+      "name": "ALL_MOVE_VEHICLE_UICURSOR",
+      "flags": 268,
+      "cursor": null,
+      "data": "FIRSTPOINTERS5"
+    },
+    {
+      "name": "MOVE_REALTIME_UICURSOR",
+      "flags": 386,
+      "cursor": "VIDEO_DEFAULT_TO_NO_CURSOR",
+      "data": "FIRSTPOINTERS2"
+    },
+    {
+      "name": "MOVE_RUN_REALTIME_UICURSOR",
+      "flags": 266,
+      "cursor": "VIDEO_DEFAULT_TO_NO_CURSOR",
+      "data": "FIRSTPOINTERS7"
+    },
+    {
+      "name": "CONFIRM_MOVE_REALTIME_UICURSOR",
+      "flags": 266,
+      "cursor": "VIDEO_DEFAULT_TO_NO_CURSOR",
+      "data": "FIRSTPOINTERS4"
+    },
+    {
+      "name": "ALL_MOVE_REALTIME_UICURSOR",
+      "flags": 266,
+      "cursor": "VIDEO_DEFAULT_TO_NO_CURSOR",
+      "data": "FIRSTPOINTERS5"
+    },
+    {
+      "name": "ON_OWNED_MERC_UICURSOR",
+      "flags": 4,
+      "cursor": null,
+      "data": null
+    },
+    {
+      "name": "ON_OWNED_SELMERC_UICURSOR",
+      "flags": 4,
+      "cursor": null,
+      "data": null
+    },
+    {
+      "name": "ACTION_SHOOT_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGET",
+      "data": null
+    },
+    {
+      "name": "ACTION_NOCHANCE_SHOOT_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETDKBLACK",
+      "data": null
+    },
+    {
+      "name": "ACTION_NOCHANCE_BURST_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETBURSTDKBLACK",
+      "data": null
+    },
+    {
+      "name": "ACTION_FLASH_TOSS_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGET",
+      "data": null
+    },
+    {
+      "name": "ACTION_TOSS_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGET",
+      "data": null
+    },
+    {
+      "name": "ACTION_RED_TOSS_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETRED",
+      "data": null
+    },
+    {
+      "name": "ACTION_FLASH_SHOOT_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_FLASH_TARGET",
+      "data": null
+    },
+    {
+      "name": "ACTION_FLASH_BURST_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_FLASH_TARGETBURST",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIM1_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETON1",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIM2_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETON2",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIM3_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETON3",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIM4_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETON4",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIM5_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETON5",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIM6_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETON6",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIM7_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETON7",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIM8_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETON8",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIM9_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETON9",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIMCANT1_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETW1",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIMCANT2_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETW2",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIMCANT3_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETW3",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIMCANT4_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETW4",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIMCANT5_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETW5",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETRED_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETRED",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETBURST_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETBURST",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETREDBURST_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETBURSTRED",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETCONFIRMBURST_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETBURSTCONFIRM",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIMFULL_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETWR1",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIMYELLOW1_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETYELLOW1",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIMYELLOW2_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETYELLOW2",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIMYELLOW3_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETYELLOW3",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGETAIMYELLOW4_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETYELLOW4",
+      "data": null
+    },
+    {
+      "name": "ACTION_TARGET_RELOADING",
+      "flags": 2,
+      "cursor": "CURSOR_TARGETBLACK",
+      "data": null
+    },
+    {
+      "name": "ACTION_PUNCH_GRAY",
+      "flags": 2,
+      "cursor": "CURSOR_PUNCHGRAY",
+      "data": null
+    },
+    {
+      "name": "ACTION_PUNCH_RED",
+      "flags": 2,
+      "cursor": "CURSOR_PUNCHRED",
+      "data": null
+    },
+    {
+      "name": "ACTION_PUNCH_RED_AIM1_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_PUNCHRED_ON1",
+      "data": null
+    },
+    {
+      "name": "ACTION_PUNCH_RED_AIM2_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_PUNCHRED_ON2",
+      "data": null
+    },
+    {
+      "name": "ACTION_PUNCH_YELLOW_AIM1_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_PUNCHYELLOW_ON1",
+      "data": null
+    },
+    {
+      "name": "ACTION_PUNCH_YELLOW_AIM2_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_PUNCHYELLOW_ON2",
+      "data": null
+    },
+    {
+      "name": "ACTION_PUNCH_NOGO_AIM1_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_PUNCHNOGO_ON1",
+      "data": null
+    },
+    {
+      "name": "ACTION_PUNCH_NOGO_AIM2_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_PUNCHNOGO_ON2",
+      "data": null
+    },
+    {
+      "name": "ACTION_FIRSTAID_GRAY",
+      "flags": 2,
+      "cursor": "CURSOR_CROSS_REG",
+      "data": null
+    },
+    {
+      "name": "ACTION_FIRSTAID_RED",
+      "flags": 2,
+      "cursor": "CURSOR_CROSS_ACTIVE",
+      "data": null
+    },
+    {
+      "name": "ACTION_OPEN",
+      "flags": 2,
+      "cursor": "CURSOR_HANDGRAB",
+      "data": null
+    },
+    {
+      "name": "CANNOT_MOVE_UICURSOR",
+      "flags": 4,
+      "cursor": null,
+      "data": null
+    },
+    {
+      "name": "NORMALHANDCURSOR_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_NORMGRAB",
+      "data": null
+    },
+    {
+      "name": "OKHANDCURSOR_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_HANDGRAB",
+      "data": null
+    },
+    {
+      "name": "KNIFE_REG_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_KNIFE_REG",
+      "data": null
+    },
+    {
+      "name": "KNIFE_HIT_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_KNIFE_HIT",
+      "data": null
+    },
+    {
+      "name": "KNIFE_HIT_AIM1_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_KNIFE_HIT_ON1",
+      "data": null
+    },
+    {
+      "name": "KNIFE_HIT_AIM2_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_KNIFE_HIT_ON2",
+      "data": null
+    },
+    {
+      "name": "KNIFE_YELLOW_AIM1_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_KNIFE_YELLOW_ON1",
+      "data": null
+    },
+    {
+      "name": "KNIFE_YELLOW_AIM2_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_KNIFE_YELLOW_ON2",
+      "data": null
+    },
+    {
+      "name": "KNIFE_NOGO_AIM1_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_KNIFE_NOGO_ON1",
+      "data": null
+    },
+    {
+      "name": "KNIFE_NOGO_AIM2_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_KNIFE_NOGO_ON2",
+      "data": null
+    },
+    {
+      "name": "LOOK_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_LOOK",
+      "data": null
+    },
+    {
+      "name": "TALK_NA_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_TALK",
+      "data": null
+    },
+    {
+      "name": "TALK_A_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_REDTALK",
+      "data": null
+    },
+    {
+      "name": "TALK_OUT_RANGE_NA_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_FLASH_TALK",
+      "data": "CURSOR_BLACKTALK"
+    },
+    {
+      "name": "TALK_OUT_RANGE_A_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_FLASH_REDTALK",
+      "data": "CURSOR_BLACKTALK"
+    },
+    {
+      "name": "EXIT_NORTH_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_EXIT_NORTH",
+      "data": null
+    },
+    {
+      "name": "EXIT_SOUTH_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_EXIT_SOUTH",
+      "data": null
+    },
+    {
+      "name": "EXIT_EAST_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_EXIT_EAST",
+      "data": null
+    },
+    {
+      "name": "EXIT_WEST_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_EXIT_WEST",
+      "data": null
+    },
+    {
+      "name": "EXIT_GRID_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_EXIT_GRID",
+      "data": null
+    },
+    {
+      "name": "NOEXIT_NORTH_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_NOEXIT_NORTH",
+      "data": null
+    },
+    {
+      "name": "NOEXIT_SOUTH_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_NOEXIT_SOUTH",
+      "data": null
+    },
+    {
+      "name": "NOEXIT_EAST_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_NOEXIT_EAST",
+      "data": null
+    },
+    {
+      "name": "NOEXIT_WEST_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_NOEXIT_WEST",
+      "data": null
+    },
+    {
+      "name": "NOEXIT_GRID_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_NOEXIT_GRID",
+      "data": null
+    },
+    {
+      "name": "CONFIRM_EXIT_NORTH_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_CONEXIT_NORTH",
+      "data": null
+    },
+    {
+      "name": "CONFIRM_EXIT_SOUTH_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_CONEXIT_SOUTH",
+      "data": null
+    },
+    {
+      "name": "CONFIRM_EXIT_EAST_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_CONEXIT_EAST",
+      "data": null
+    },
+    {
+      "name": "CONFIRM_EXIT_WEST_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_CONEXIT_WEST",
+      "data": null
+    },
+    {
+      "name": "CONFIRM_EXIT_GRID_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_CONEXIT_GRID",
+      "data": null
+    },
+    {
+      "name": "GOOD_WIRECUTTER_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_GOOD_WIRECUT",
+      "data": null
+    },
+    {
+      "name": "BAD_WIRECUTTER_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_BAD_WIRECUT",
+      "data": null
+    },
+    {
+      "name": "GOOD_REPAIR_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_REPAIR",
+      "data": null
+    },
+    {
+      "name": "BAD_REPAIR_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_REPAIRRED",
+      "data": null
+    },
+    {
+      "name": "GOOD_RELOAD_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_GOOD_RELOAD",
+      "data": null
+    },
+    {
+      "name": "BAD_RELOAD_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_BAD_RELOAD",
+      "data": null
+    },
+    {
+      "name": "GOOD_JAR_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_JARRED",
+      "data": null
+    },
+    {
+      "name": "BAD_JAR_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_JAR",
+      "data": null
+    },
+    {
+      "name": "GOOD_THROW_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_GOOD_THROW",
+      "data": null
+    },
+    {
+      "name": "BAD_THROW_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_BAD_THROW",
+      "data": null
+    },
+    {
+      "name": "RED_THROW_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_RED_THROW",
+      "data": null
+    },
+    {
+      "name": "FLASH_THROW_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_FLASH_THROW",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIM1_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKON1",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIM2_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKON2",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIM3_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKON3",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIM4_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKON4",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIM5_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKON5",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIM6_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKON6",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIM7_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKON7",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIM8_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKON8",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIM9_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKON9",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIMCANT1_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKW1",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIMCANT2_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKW2",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIMCANT3_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKW3",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIMCANT4_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKW4",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIMCANT5_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKW5",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIMFULL_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKWR1",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIMYELLOW1_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKYELLOW1",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIMYELLOW2_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKYELLOW2",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIMYELLOW3_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKYELLOW3",
+      "data": null
+    },
+    {
+      "name": "ACTION_THROWAIMYELLOW4_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_THROWKYELLOW4",
+      "data": null
+    },
+    {
+      "name": "THROW_ITEM_GOOD_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_ITEM_GOOD_THROW",
+      "data": null
+    },
+    {
+      "name": "THROW_ITEM_BAD_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_ITEM_BAD_THROW",
+      "data": null
+    },
+    {
+      "name": "THROW_ITEM_RED_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_ITEM_RED_THROW",
+      "data": null
+    },
+    {
+      "name": "THROW_ITEM_FLASH_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_ITEM_FLASH_THROW",
+      "data": null
+    },
+    {
+      "name": "PLACE_BOMB_GREY_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_BOMB_GRAY",
+      "data": null
+    },
+    {
+      "name": "PLACE_BOMB_RED_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_BOMB_RED",
+      "data": null
+    },
+    {
+      "name": "PLACE_REMOTE_GREY_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_REMOTE_GRAY",
+      "data": null
+    },
+    {
+      "name": "PLACE_REMOTE_RED_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_REMOTE_RED",
+      "data": null
+    },
+    {
+      "name": "PLACE_TINCAN_GREY_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_CAN",
+      "data": null
+    },
+    {
+      "name": "PLACE_TINCAN_RED_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_CANRED",
+      "data": null
+    },
+    {
+      "name": "ENTER_VEHICLE_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_ENTERV",
+      "data": null
+    },
+    {
+      "name": "INVALID_ACTION_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_INVALID_ACTION",
+      "data": null
+    },
+    {
+      "name": "FLOATING_X_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_X",
+      "data": null
+    },
+    {
+      "name": "EXCHANGE_PLACES_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_EXCHANGE_PLACES",
+      "data": null
+    },
+    {
+      "name": "JUMP_OVER_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_JUMP_OVER",
+      "data": null
+    },
+    {
+      "name": "REFUEL_GREY_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_FUEL",
+      "data": null
+    },
+    {
+      "name": "REFUEL_RED_UICURSOR",
+      "flags": 2,
+      "cursor": "CURSOR_FUEL_RED",
+      "data": null
+    }
+  ]
+}

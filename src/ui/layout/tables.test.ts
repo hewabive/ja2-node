@@ -6,6 +6,7 @@ import { buildCursorTable } from '../../../tools/transcribe/cursors.ts';
 import { buildLoadScreenTable } from '../../../tools/transcribe/load-screens.ts';
 import { buildMlgTable } from '../../../tools/transcribe/mlg.ts';
 import { buildUiConstantTables } from '../../../tools/transcribe/ui-constants.ts';
+import { buildUiCursorTable } from '../../../tools/transcribe/ui-cursors.ts';
 import { PROJECT_DATA_DIR, REPO_ROOT } from '../../node/repo.ts';
 import { constantTablePath, parseConstantTable } from './constants.ts';
 import { MLG_TABLE_PATH, mlgPath, parseMlgTable } from './model.ts';
@@ -66,6 +67,7 @@ describe('the transcribed UI tables', () => {
       for (const [name, generated] of buildUiConstantTables()) expect(await table(constantTablePath(name)), name).toEqual(generated);
       expect(await table(MLG_TABLE_PATH)).toEqual(buildMlgTable());
       expect(await table('tables/cursors.json')).toEqual(buildCursorTable());
+      expect(await table('tables/ui-cursors.json')).toEqual(buildUiCursorTable());
       expect(await table('tables/load-screens.json')).toEqual(buildLoadScreenTable());
     },
   );

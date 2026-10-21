@@ -23,6 +23,7 @@ import { FINANCES_CONTRACT } from './laptop/finances/finances-page.ts';
 import { LAPTOP_SHELL_CONTRACT } from './laptop/laptop-screen.ts';
 import { HUD_CONTRACT } from './tactical/hud.ts';
 import { SM_PANEL_CONTRACT } from './tactical/sm-panel.ts';
+import { TACTICAL_INPUT_CONTRACT } from './tactical/tactical-controls.ts';
 import { TEAM_PANEL_CONTRACT } from './tactical/team-panel.ts';
 
 export const MESSAGE_BOX_CONTRACT: ControllerContract = { id: 'messageBox', actions: {}, bindings: {} };
@@ -53,5 +54,6 @@ export const LAYOUT_CONTRACTS: Readonly<Record<string, ControllerContract>> = Ob
     TEAM_PANEL_CONTRACT,
     SM_PANEL_CONTRACT,
     HUD_CONTRACT,
+    TACTICAL_INPUT_CONTRACT,
   ].map((contract) => [contract.id, contract]),
 );

@@ -177,6 +177,14 @@ export class SoundDirector {
     this.#battleSound(soldier, 'ATTN1', true);
   }
 
+  curse(soldier: number): void {
+    this.#battleSound(soldier, 'CURSE1', false);
+  }
+
+  locked(soldier: number): void {
+    this.#battleSound(soldier, 'LOCKED', false);
+  }
+
   applyFrames(frames: readonly ViewFrame[]): void {
     const newest = frames.at(-1)?.tick;
     if (newest === undefined) return;

@@ -6,27 +6,43 @@
 // @src src/game/Tactical/Faces.cc HandleAutoFaces (the moving highlight); src/game/Tactical/Overhead.cc LocateSoldier;
 // @src src/game/TileEngine/Lighting.cc CreateTilePaletteTables (tile pictures at shade 4 over the map's light colour);
 // @src src/game/Tactical/Interface_Items.cc (the pickup menu's tile graphic); src/game/Tactical/Interface.cc
-// @src (THIRDPOINTERS1/2 behind the overhead bars).
+// @src (THIRDPOINTERS1/2 behind the overhead bars); src/game/Tactical/Interface_Control.cc SetUpInterface (the UI
+// @src nodes of the tactical input); src/game/TileEngine/RenderWorld.cc ScrollWorld, HandleScrollDirections (the
+// @src scrolled-to-edge flags, the scroll steps); src/game/TileEngine/Interactive_Tiles.cc
+// @src InternalGetCurInteractiveTile (doors and switches; the tile under the pointer, not the picture's pixels).
 
 import { type AnimationTables, AnimFlags } from '../../content/anim/tables.ts';
 import { WORLD_COLS } from '../../content/world/grid.ts';
 import { NORMAL_SHADE, shadedDisplayPalette } from '../../content/world/shading.ts';
+import { StructureFlags } from '../../content/world/structures.ts';
 import { tileIndexFromTypeSubIndex } from '../../content/world/tile-tables.ts';
 import type { CatalogueItem } from '../../protocol/items.ts';
 import type { PlayerView, SoldierView } from '../../protocol/view.ts';
-import { cameraOnGridNo, type ScrollLimits, scrollLimits, setRenderCenter } from '../../render/world/camera.ts';
+import { cameraOnGridNo, type ScrollLimits, scrollBy, scrollLimits, setRenderCenter } from '../../render/world/camera.ts';
 import type { WorldUiNode } from '../../render/world/dynamic-scene.ts';
-import { type Camera, mapCenter, ROOF_LEVEL_HEIGHT, type Viewport, WALL_HEIGHT } from '../../render/world/geometry.ts';
+import {
+  type Camera,
+  cameraOffset,
+  mapCenter,
+  ROOF_LEVEL_HEIGHT,
+  type Viewport,
+  WALL_HEIGHT,
+  worldOrigin,
+} from '../../render/world/geometry.ts';
 import type { WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
 import { Body } from '../../sim/tactical/soldier.ts';
 import { TEAMPANEL_HEIGHT } from '../../ui/layout/frames.ts';
 import type {
+  InteractiveTile,
+  OverheadMapView,
   RadarBox,
   ScreenBox,
   ScreenPoint,
+  ScrollEdges,
   SoldierHeight,
   SoldierMarker,
   UiImageRef,
+  WorldMarker,
   WorldPresenter,
 } from '../../ui/screens/tactical/environment.ts';
 import type { UiAssets } from '../game/ui-assets.ts';
@@ -36,7 +52,6 @@ import { nightTime } from '../world/soldier-scene.ts';
 import type { TacticalDisplayOptions, TacticalWorldView } from '../world/tactical-world-view.ts';
 import { mapLightColour } from '../world/world-loader.ts';
 
-const SELECTED_GROUND_POINTER = 'FIRSTPOINTERS2';
 const BAR_BOX = 'THIRDPOINTERS1';
 const SELECTED_BAR_BOX = 'THIRDPOINTERS2';
 const TILE_PICTURE_PREFIX = 'tile:';
@@ -50,6 +65,9 @@ const CELL_SIZE = 10;
 const HALF_CELL = 5;
 const PICK_LIFT = 10;
 const NO_MARKER: SoldierMarker = { stanceOffset: 0, hidden: false, moving: false };
+const EDGE_PROBE_PX = 1;
+const INTERACTIVE_MASK = StructureFlags.ANYDOOR | StructureFlags.SWITCH;
+const ROOF_LAYERS: ReadonlySet<WorldMarker['layer']> = new Set(['roof', 'onRoof']);
 
 export interface PresenterSources {
   readonly view: () => PlayerView | null;
@@ -87,6 +105,10 @@ export class TacticalWorldPresenter implements WorldPresenter {
   #hovered: number | null = null;
   #selected: number | null = null;
   #stats: WorldDrawStats | null = null;
+  #markers: readonly WorldMarker[] = [];
+  #overhead: OverheadMapView | null = null;
+  #overheadLoader: (() => Promise<OverheadMapView | null>) | null = null;
+  #overheadLoading = false;
 
   constructor(
     world: TacticalWorldView,
@@ -271,11 +293,113 @@ export class TacticalWorldPresenter implements WorldPresenter {
     return tile === null ? null : this.#tilePicture(tile);
   }
 
-  #uiNodes(view: PlayerView): WorldUiNode[] {
-    const tile = this.#namedTile(SELECTED_GROUND_POINTER);
-    const selected = view.soldiers.find((s) => s.id === this.#selected);
-    if (tile === null || !selected) return [];
-    return [{ gridNo: selected.gridNo, layer: selected.level > 0 ? 'roof' : 'object', tile, head: true }];
+  setMarkers(markers: readonly WorldMarker[]): void {
+    this.#markers = markers;
+  }
+
+  #uiNodes(): WorldUiNode[] {
+    return this.#markers.flatMap((m) => {
+      const tile = this.#namedTile(m.tile);
+      if (tile === null) return [];
+      return [
+        {
+          gridNo: m.gridNo,
+          layer: m.layer,
+          tile,
+          ...(m.head ? { head: true } : {}),
+          ...(m.offsetX ? { offsetX: m.offsetX } : {}),
+          ...(m.offsetY ? { offsetY: m.offsetY } : {}),
+        },
+      ];
+    });
+  }
+
+  markerScreenPoint(marker: WorldMarker): ScreenPoint | null {
+    const tile = this.#namedTile(marker.tile);
+    const world = this.#world.world;
+    const element = tile === null ? undefined : world.tiles[tile];
+    const frame = element ? world.surfaces[element.type]?.frames[element.regionIndex] : undefined;
+    if (!element || !frame) return null;
+    const x = marker.gridNo % WORLD_COLS;
+    const y = Math.floor(marker.gridNo / WORLD_COLS);
+    const origin = worldOrigin(x, y);
+    const offset = cameraOffset(this.#viewport, this.#camera, this.#renderHeight());
+    const lift = (world.level.heights[marker.gridNo] ?? 0) + (ROOF_LAYERS.has(marker.layer) ? WALL_HEIGHT : 0);
+    return {
+      x: origin.x + offset.x + frame.offsetX + (marker.offsetX ?? 0),
+      y: origin.y + offset.y - lift + frame.offsetY + (marker.offsetY ?? 0),
+    };
+  }
+
+  interactiveTileAt(gridNo: number, level: number): InteractiveTile | null {
+    if (level > 0) return null;
+    const found = this.#world.world.structures.find(gridNo, INTERACTIVE_MASK);
+    if (!found) return null;
+    const base = this.#world.world.structures.findBase(found) ?? found;
+    const openDoors = this.#sources.view()?.openDoors ?? [];
+    return {
+      gridNo: base.gridNo,
+      door: (found.flags & StructureFlags.ANYDOOR) !== 0,
+      switch: (found.flags & StructureFlags.SWITCH) !== 0,
+      open: openDoors.includes(base.gridNo),
+    };
+  }
+
+  exitGridAt(gridNo: number): boolean {
+    return this.#world.world.tactical.exitGrids.has(gridNo);
+  }
+
+  #moved(dx: number, dy: number): Camera {
+    return scrollBy(this.#camera, dx, dy, this.#viewport, this.#limits);
+  }
+
+  #stuck(dx: number, dy: number): boolean {
+    const next = this.#moved(dx, dy);
+    return next.centerX === this.#camera.centerX && next.centerY === this.#camera.centerY;
+  }
+
+  scrollEdges(): ScrollEdges {
+    return {
+      left: this.#stuck(-EDGE_PROBE_PX * 40, 0),
+      right: this.#stuck(EDGE_PROBE_PX * 40, 0),
+      top: this.#stuck(0, -EDGE_PROBE_PX * 20),
+      bottom: this.#stuck(0, EDGE_PROBE_PX * 20),
+    };
+  }
+
+  scrollBy(dx: number, dy: number): boolean {
+    const next = this.#moved(dx, dy);
+    if (next.centerX === this.#camera.centerX && next.centerY === this.#camera.centerY) return false;
+    this.#camera = next;
+    return true;
+  }
+
+  setOverheadLoader(loader: () => Promise<OverheadMapView | null>): void {
+    this.#overheadLoader = loader;
+  }
+
+  overheadMap(): OverheadMapView | null {
+    if (this.#overhead || this.#overheadLoading || !this.#overheadLoader) return this.#overhead;
+    this.#overheadLoading = true;
+    void this.#overheadLoader()
+      .then((view) => {
+        this.#overhead = view;
+      })
+      .catch(() => undefined);
+    return null;
+  }
+
+  tileImage(name: string): UiImageRef | null {
+    const tile = this.#namedTile(name);
+    return tile === null ? null : this.#tilePicture(tile);
+  }
+
+  tileCentre(gridNo: number): ScreenPoint {
+    const c = mapCenter(this.#viewport);
+    const dx = (gridNo % WORLD_COLS) * CELL_SIZE + HALF_CELL - this.#camera.centerX;
+    const dy = Math.floor(gridNo / WORLD_COLS) * CELL_SIZE + HALF_CELL - this.#camera.centerY;
+    const land = this.#world.world.level.heights[gridNo] ?? 0;
+    return { x: c.x + 2 * dx - 2 * dy, y: c.y + dx + dy - land + this.#renderHeight() };
   }
 
   draw(target: WebGLFramebuffer, logicalHeight: number): void {
@@ -302,7 +426,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
       },
       hovered: this.#hovered,
       selected: this.#selected,
-      uiNodes: this.#uiNodes(view),
+      uiNodes: this.#uiNodes(),
       underAiControl: (id) => this.aiTurns.holds(id),
     });
     this.#renderer.present(target, logicalHeight, 0, 0, 1);

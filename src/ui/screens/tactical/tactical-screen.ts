@@ -11,11 +11,15 @@
 // @src the soldier under the pointer, the moving highlight); src/game/TileEngine/Radar_Screen.cc RenderRadarScreen (the
 // @src darkened night image, the viewport rectangle, 2 × 2 dots by team with the overrides, the selected merc blinking
 // @src every RADAR_MAP_BLINK), RenderSquadList, CreateDestroyMouseRegionsForSquadList, TacticalSquadList*Callback;
-// @src src/game/Strategic/Game_Clock.cc HandlePlayerPauseUnPauseOfGame. See docs/28 §5, §6.5, §6.8.
+// @src src/game/Strategic/Game_Clock.cc HandlePlayerPauseUnPauseOfGame; Interface_Items.cc HandleItemPointerClick (give
+// @src to the soldier under the pointer, else drop); Handle_UI.cc UIHandleInteractiveTilesAndItemsOnTerrain (one item
+// @src picked up at once, the pickup menu for several); Interface.cc EndUIMessage (a key or click closes the feedback
+// @src box). See docs/28 §5, §6.
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
 import type { ItemInfo } from '../../../protocol/hints.ts';
+import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { InventoryItemView, ItemView, PlayerView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
 import { CursorId, EXTERN_CURSOR } from '../../cursors/cursor-ids.ts';
 import { type Area, type DrawList, rgb } from '../../draw-list.ts';
@@ -24,6 +28,7 @@ import { MouseButtonMask, MouseReason, Priority } from '../../input/mouse.ts';
 import type { MouseRegion } from '../../input/regions.ts';
 import type { Variables } from '../../layout/constants.ts';
 import { frameRect, INV_INTERFACE_HEIGHT, TEAMPANEL_HEIGHT, TEAMPANEL_SLOT_WIDTH, teamPanelSlots } from '../../layout/frames.ts';
+import { textBoxArt } from '../../layout/styles.ts';
 import type { CustomRenderer } from '../../layout/view.ts';
 import { LayoutView } from '../../layout/view.ts';
 import type { Screen } from '../../screen.ts';
@@ -36,7 +41,7 @@ import { UiScreenKind } from '../../widgets/button-sounds.ts';
 import { MercTextBox } from '../../widgets/merc-text-box.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
 import { drawBarsInUiBox, drawSoldierBars } from './bars.ts';
-import { type TacticalEnvironment, TacticalLayout } from './environment.ts';
+import { type CommandReply, type TacticalEnvironment, TacticalLayout } from './environment.ts';
 import {
   drawFace,
   drawFaceHighlights,
@@ -51,6 +56,7 @@ import {
   WHITE_HILIGHT,
 } from './faces.ts';
 import { HudController, hudClockText, pauseHelpText, sectorOfMap } from './hud.ts';
+import { UiEvent, UiMode } from './input/ui-events.ts';
 import { type InventoryArt, InventoryPanel, type SlotRect, slotRects } from './inventory.ts';
 import { dropCommand, giveCommand, type ItemCursor, slotItem } from './item-cursor.ts';
 import { type DescriptionGeometry, ItemDescriptionBox } from './item-description.ts';
@@ -89,6 +95,7 @@ import {
   soldierById,
   squadOf,
 } from './soldiers.ts';
+import { type ControlsArt, type ControlsScreen, type PanelButton, TacticalControls } from './tactical-controls.ts';
 import { TeamPanelController } from './team-panel.ts';
 
 export const TACTICAL_SCREEN = 'tactical';
@@ -128,8 +135,12 @@ const TEAM_RADAR_COLOURS: readonly number[] = [
   rgb(0, 0, 255),
 ];
 const CIV_TEAM = 4;
+const HANDPOS = 5;
+const UNDER_GLAUNCHER = 'UNDER_GLAUNCHER';
+const UI_VERSION = '0.8.0';
 
 type PanelKind = 'team' | 'sm';
+const DESCRIBED_BUTTON_OWNERS: ReadonlySet<string> = new Set(['itemDescription', 'itemPickupMenu', 'tacticalMenus', 'tacticalExitDialog']);
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
 
 interface PanelFaceAnimation {
@@ -164,6 +175,7 @@ export class TacticalScreen implements Screen {
   readonly stack: StackPopup;
   readonly keyRing: KeyRingPopup;
   readonly pickup: ItemPickupMenu;
+  readonly controls: TacticalControls;
   #panel: PanelKind = 'team';
   #pendingPanel: { kind: PanelKind; soldier: number | null } | null = null;
   #smMerc: number | null = null;
@@ -181,7 +193,6 @@ export class TacticalScreen implements Screen {
   #hoveredFace: number | null = null;
   #hoveredSoldier: number | null = null;
   #interfaceLevel = 0;
-  #cursorMode: PanelState['cursorMode'] = 'none';
   #now = 0;
   #radarBlink = false;
   #radarBlinkAt = 0;
@@ -271,6 +282,172 @@ export class TacticalScreen implements Screen {
     this.#hudView = new LayoutView({ ...common, model: env.layout(TacticalLayout.HUD), controller: this.#hud, owner: 'tacticalHud' });
     this.#teamView = new LayoutView({ ...common, model: env.layout(TacticalLayout.TEAM), controller: this.#team, owner: 'tacticalTeam' });
     this.#smView = new LayoutView({ ...common, model: env.layout(TacticalLayout.SINGLE_MERC), controller: this.#sm, owner: 'tacticalSm' });
+    this.controls = new TacticalControls(this.#controlsScreen(), this.#controlsArt());
+  }
+
+  #controlsArt(): ControlsArt {
+    const model = this.#env.layout(TacticalLayout.INPUT);
+    const asset = (name: string) => model.asset(name).path;
+    return {
+      menus: { frame: asset('buttonFrame'), icons: asset('newIcons'), doorIcons: asset('doorIcons') },
+      exit: {
+        box: textBoxArt(model, model.style('dialogTextBox')),
+        radio: asset('popupRadio'),
+        check: asset('popupCheck'),
+        buttons: asset('popupButtons'),
+      },
+      overhead: { border: asset('mapBorder'), persons: asset('persons') },
+      burst: asset('burst'),
+    };
+  }
+
+  #controlsScreen(): ControlsScreen {
+    const env = this.#env;
+    return {
+      env,
+      version: UI_VERSION,
+      selected: () => soldierById(this.#view(), this.#selected),
+      select: (s, acknowledge, fromUi) => this.#selectSoldier(s, acknowledge, fromUi),
+      interfaceLevel: () => this.#interfaceLevel,
+      setInterfaceLevel: (level) => this.#setInterfaceLevel(level),
+      itemInCursor: () => this.inventory.cursor !== null,
+      itemPointerClick: (_gridNo, target) => this.#itemPointerClick(target),
+      pickUp: (s, gridNo, level) => this.#pickUpAt(s, gridNo, level),
+      feedback: (text) => this.#localFeedback(text, FontColor.MCOLOR_LTYELLOW),
+      log: (text) => this.#log.push(text, FontColor.MCOLOR_LTYELLOW, env.runtime.fonts.get(FontName.TINYFONT1)),
+      currentSquad: () => this.#squad,
+      changeSquad: (squad) => this.#changeSquad(squad),
+      squadSoldiers: () => this.#teamMembers(),
+      slotSoldiers: () => this.#slots.map((id) => soldierById(this.#view(), id)),
+      send: (cmd) => this.#send(cmd),
+      panel: () => this.#panel,
+      requestTeamPanel: () => this.#requestPanel('team', null),
+      panelButtonEnabled: (button) => this.#panelButtonEnabled(button),
+      popupsOpen: () => this.pickup.open || this.description.open || this.stack.open || this.keyRing.open,
+      closePopups: () => this.#closePopups(),
+      locate: (s, cycles) => this.#locateSoldier(s, cycles),
+      locateSelect: (s, force) => this.#locateSelect(s, force),
+      clearMessages: (queue) => (queue ? this.#log.clearQueue() : this.#log.clearShown()),
+      swapHands: (id) => this.#swapHands(id),
+      viewportTop: () => (this.#view()?.combat?.topMessage ? TOP_BAR_HEIGHT : 0),
+      viewportBottom: () => this.#viewportBottom(),
+      viewportRegion: () => this.#viewportRegion,
+      dismissFeedback: () => this.#dismissFeedback(),
+      radarBlink: () => this.#radarBlink,
+    };
+  }
+
+  #viewportBottom(): number {
+    return this.#env.runtime.geometry().height - (this.#panel === 'team' ? TEAMPANEL_HEIGHT : INV_INTERFACE_HEIGHT);
+  }
+
+  async #send(cmd: CommandEnvelope): Promise<CommandReply> {
+    return this.inventory.send(cmd as Parameters<InventoryPanel['send']>[0]);
+  }
+
+  #dismissFeedback(): boolean {
+    if (this.#feedback.text === null) return false;
+    this.#feedback.end(this.#now);
+    return true;
+  }
+
+  #closePopups(): void {
+    if (this.pickup.open) this.pickup.close(true);
+    if (this.description.open) this.description.close(true);
+    this.stack.close();
+    this.keyRing.close();
+  }
+
+  #changeSquad(squad: number): boolean {
+    const members = ownSoldiers(this.#view()).filter((s) => squadOf(s) === squad && !isInVehicle(s) && !isDead(s));
+    if (members.length === 0) return false;
+    this.#squad = squad;
+    const selected = soldierById(this.#view(), this.#selected);
+    const first = members[0];
+    if ((!selected || squadOf(selected) !== squad) && first) this.#selectSoldier(first, false, false);
+    return true;
+  }
+
+  #locateSelect(s: SoldierView, force: boolean): void {
+    if (!force) {
+      this.#locateSoldier(s, SHOW_LOCATOR_NORMAL_CYCLES);
+      return;
+    }
+    this.#handleLocateSelect(s);
+  }
+
+  #panelButtonEnabled(button: PanelButton): boolean {
+    if (this.#panel === 'team') {
+      const team = this.#team.model;
+      if (button === 'done') return team.endTurnEnabled;
+      if (button === 'map') return team.mapScreenEnabled;
+      if (button === 'squad') return team.squadEnabled;
+      return true;
+    }
+    const sm = this.#sm.model;
+    switch (button) {
+      case 'updown':
+        return sm.levelEnabled;
+      case 'nextMerc':
+        return sm.nextEnabled;
+      case 'burst':
+        return sm.burstEnabled;
+      case 'look':
+        return sm.lookEnabled;
+      case 'done':
+        return sm.doneEnabled;
+      case 'map':
+        return sm.mapScreenEnabled;
+      case 'options':
+        return sm.optionsEnabled;
+      case 'stealth':
+        return sm.stealthEnabled;
+      default:
+        return true;
+    }
+  }
+
+  #itemPointerClick(target: SoldierView | null): void {
+    const cursor = this.inventory.cursor;
+    if (!cursor) return;
+    const holder = cursor.source.soldier;
+    if (target && target.id !== holder) {
+      const cmd = giveCommand(cursor, target.id);
+      if (cmd) void this.inventory.send(cmd).then((r) => r.ok && this.inventory.setCursor(null));
+      return;
+    }
+    void this.inventory.send(dropCommand(cursor)).then((r) => r.ok && this.inventory.setCursor(null));
+  }
+
+  #pickUpAt(picker: SoldierView, gridNo: number, level: number): void {
+    const items = (this.#view()?.items ?? []).filter((i) => i.gridNo === gridNo && i.level === level && !i.notRendered);
+    if (items.length === 0) return;
+    if (items.length === 1) {
+      void this.#command({ type: 'pickUp', soldier: picker.id, gridNo, zLevel: level });
+      return;
+    }
+    const regions = this.#env.runtime.regions;
+    this.#openPickupMenu(picker, gridNo, items, { x: regions.mouseX, y: regions.mouseY });
+  }
+
+  #burstCapable(s: SoldierView | null): boolean {
+    const hand = s?.inventory?.find((i) => i.slot === HANDPOS);
+    if (!hand) return false;
+    const item = this.#env.media.item(hand.item);
+    return (item?.weapon?.shotsPerBurst ?? 0) > 0 || (hand.attachments ?? []).some((a) => a.item === UNDER_GLAUNCHER);
+  }
+
+  #cursorModeOf(): PanelState['cursorMode'] {
+    switch (this.controls.input.mode) {
+      case UiMode.HANDCURSOR_MODE:
+        return 'hand';
+      case UiMode.TALKCURSOR_MODE:
+        return 'talk';
+      case UiMode.LOOKCURSOR_MODE:
+        return 'look';
+      default:
+        return 'none';
+    }
   }
 
   get panel(): PanelKind {
@@ -344,6 +521,7 @@ export class TacticalScreen implements Screen {
 
   exit(): void {
     this.#entered = false;
+    this.controls.exit();
     this.description.close(false);
     this.stack.close();
     this.keyRing.close();
@@ -362,7 +540,10 @@ export class TacticalScreen implements Screen {
     if (this.#selected === null || !own.some((s) => s.id === this.#selected)) {
       const first = own.find((s) => !isDead(s)) ?? own[0] ?? null;
       this.#selected = first?.id ?? null;
-      if (first) this.#squad = squadOf(first);
+      if (first) {
+        this.#squad = squadOf(first);
+        this.#selectedChanged();
+      }
     }
   }
 
@@ -381,6 +562,7 @@ export class TacticalScreen implements Screen {
       id: 'tacticalViewport',
       onButton: (_r, reason) => this.#viewportButton(reason),
     });
+    this.#viewportRegion.showsMouseText = true;
   }
 
   #syncViewport(): void {
@@ -411,7 +593,12 @@ export class TacticalScreen implements Screen {
     this.#squad = squadOf(s);
     if (this.#panel === 'sm') this.#requestPanel('sm', s.id);
     if (acknowledge) this.#env.sounds.attention(s.id);
+    this.#selectedChanged();
     this.#setInterfaceLevel(s.level);
+  }
+
+  #selectedChanged(): void {
+    if (ourTurn(this.#view()) && this.controls.lockState() === 'none') this.controls.input.override(UiEvent.M_ON_TERRAIN);
   }
 
   #setInterfaceLevel(level: number): void {
@@ -522,6 +709,7 @@ export class TacticalScreen implements Screen {
     this.#env.world.setHovered(this.#hoveredSoldier);
     this.inventory.update(this.#now);
     this.#updateModels(view);
+    this.controls.update(this.#now);
     this.#updateCursor(now);
     this.#updateRadarDrag();
     this.#syncSquadRegions();
@@ -583,7 +771,8 @@ export class TacticalScreen implements Screen {
       descriptionOpen: this.description.open,
       disabledForItems: this.#disabledForItems(),
       interfaceLevel: this.#interfaceLevel,
-      cursorMode: this.#cursorMode,
+      cursorMode: this.#cursorModeOf(),
+      burstCapable: this.#burstCapable(this.#smSoldier()),
       now: this.#now,
     };
   }
@@ -655,6 +844,7 @@ export class TacticalScreen implements Screen {
 
   input(event: UiInputEvent): boolean {
     if (isPointerEvent(event)) return false;
+    if (event.kind !== 'text' && this.controls.keyInput(event)) return true;
     if (event.kind === 'keyUp' && this.#env.client.paused && event.key !== PAUSE_KEY) {
       this.#togglePause();
       return true;
@@ -665,7 +855,7 @@ export class TacticalScreen implements Screen {
       else if (this.stack.open) this.stack.close();
       else if (this.keyRing.open) this.keyRing.close();
       else if (this.inventory.cursor) this.inventory.cancel();
-      else return this.#hudView.input(event) || this.#panelView().input(event);
+      else return this.#viewInput(event);
       return true;
     }
     if (event.kind === 'keyDown' && event.key === PANEL_TOGGLE_KEY && event.modifiers === 0) {
@@ -680,10 +870,18 @@ export class TacticalScreen implements Screen {
       this.#openKeyRing(true);
       return true;
     }
-    return this.#hudView.input(event) || this.#panelView().input(event);
+    return this.#viewInput(event);
+  }
+
+  #viewInput(event: UiInputEvent): boolean {
+    if (this.#hudView.input(event) || this.#panelView().input(event)) return true;
+    if (event.kind === 'text' || isPointerEvent(event)) return false;
+    this.controls.queueKey(event);
+    return true;
   }
 
   render(list: DrawList): void {
+    this.controls.renderWorld(list);
     this.#panelView().render(list);
     const ctx = this.#tileContext(list);
     if (this.#panel === 'sm') {
@@ -692,6 +890,8 @@ export class TacticalScreen implements Screen {
     }
     this.#hudView.render(list);
     this.pickup.render(list, ctx);
+    this.controls.renderMenus(list);
+    this.controls.renderOverhead(list);
   }
 
   describe(): readonly WidgetInfo[] {
@@ -703,7 +903,10 @@ export class TacticalScreen implements Screen {
         owner !== 'itemPopups' &&
         owner !== 'itemPickupMenu' &&
         owner !== 'squadList' &&
-        owner !== 'tacticalViewport'
+        owner !== 'tacticalViewport' &&
+        owner !== 'tacticalMenus' &&
+        owner !== 'tacticalExitDialog' &&
+        owner !== 'tacticalOverhead'
       )
         continue;
       extra.push({
@@ -718,13 +921,14 @@ export class TacticalScreen implements Screen {
       });
     }
     for (const button of this.#env.runtime.buttons.buttons) {
-      if (button.owner !== 'itemDescription' && button.owner !== 'itemPickupMenu') continue;
+      if (!DESCRIBED_BUTTON_OWNERS.has(String(button.owner))) continue;
       extra.push(button.describe());
     }
     return [...this.#hudView.describe(), ...this.#panelView().describe(), ...extra];
   }
 
   frames(frames: readonly ViewFrame[]): void {
+    this.controls.frames(frames);
     for (const frame of frames) {
       for (const event of frame.events ?? []) this.#event(event, frame);
       for (const entry of frame.messages ?? []) {
@@ -969,40 +1173,11 @@ export class TacticalScreen implements Screen {
   }
 
   #viewportButton(reason: number): void {
-    const regions = this.#env.runtime.regions;
-    const x = regions.mouseX;
-    const y = regions.mouseY;
-    const cursor = this.inventory.cursor;
-    if (cursor) {
-      if (reason & MouseReason.RBUTTON_UP) {
-        this.inventory.cancel();
-        return;
-      }
-      if (!(reason & MouseReason.LBUTTON_UP)) return;
-      const target = this.#env.world.soldierAt(x, y);
-      const holder = cursor.source.soldier;
-      const targetSoldier = soldierById(this.#view(), target);
-      if (targetSoldier && targetSoldier.id !== holder) {
-        const cmd = giveCommand(cursor, targetSoldier.id);
-        if (cmd) void this.inventory.send(cmd).then((r) => r.ok && this.inventory.setCursor(null));
-        return;
-      }
-      void this.inventory.send(dropCommand(cursor)).then((r) => r.ok && this.inventory.setCursor(null));
+    if (this.inventory.cursor && reason & MouseReason.RBUTTON_UP) {
+      this.inventory.cancel();
       return;
     }
-    if (!(reason & MouseReason.LBUTTON_UP)) return;
-    const clicked = soldierById(this.#view(), this.#env.world.soldierAt(x, y));
-    if (clicked && clicked.team === OUR_TEAM) {
-      this.#selectSoldier(clicked, true, true);
-      return;
-    }
-    const gridNo = this.#env.world.gridNoAt(x, y);
-    const picker = soldierById(this.#view(), this.#selected);
-    if (gridNo === null || !picker || picker.team !== OUR_TEAM) return;
-    const items = (this.#view()?.items ?? []).filter((i) => i.gridNo === gridNo && i.level === picker.level);
-    if (items.length === 0) return;
-    if (items.length === 1) void this.#command({ type: 'pickUp', soldier: picker.id, gridNo, zLevel: picker.level });
-    else this.#openPickupMenu(picker, gridNo, items, { x, y });
+    this.controls.pointerButton(reason);
   }
 
   #openPickupMenu(picker: SoldierView, gridNo: number, items: readonly ItemView[], pointer: { x: number; y: number }): void {
@@ -1141,15 +1316,28 @@ export class TacticalScreen implements Screen {
         if (s) this.#changeStance(s, action === 'stanceUp');
         return;
       case 'climb':
-        if (s) void this.#command({ type: 'climb', soldier: s.id });
+        if (s) this.controls.climbButton(s);
+        return;
+      case 'stealth':
+        if (s) void this.#command({ type: 'stealth', soldiers: [s.id] });
+        return;
+      case 'mute':
+        if (s) void this.#command({ type: 'mute', soldier: s.id });
+        return;
+      case 'burstMode':
+        if (s) void this.#command({ type: 'weaponMode', soldier: s.id });
         return;
       case 'level':
         this.#setInterfaceLevel(this.#interfaceLevel > 0 ? 0 : 1);
         return;
       case 'hand':
+        this.controls.toggleHandCursor();
+        return;
       case 'talk':
+        this.controls.toggleTalkCursor();
+        return;
       case 'look':
-        this.#cursorMode = this.#cursorMode === action ? 'none' : action;
+        this.controls.toggleLookCursor();
         return;
       default:
         return;
