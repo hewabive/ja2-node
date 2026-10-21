@@ -101,6 +101,8 @@ const OWNER = 'mapScreen';
 const ROW_HELP = [0, 1, 5, 0, 2, 3];
 const ROW_HELP_TABLE = 'pMapScreenMouseRegionHelpText';
 const HAND_HELP_TABLE = 'pMiscMapScreenMouseRegionHelpText';
+const HAND_HELP_ENTER = 0;
+const HAND_HELP_EXIT = 2;
 const SELECTED_FLASH_MS = 300;
 const PAUSE_GAME_TIMER = 500;
 const NEW_MAIL_PERIOD = 1000;
@@ -201,6 +203,7 @@ export class MapScreen implements Screen {
   readonly #promptBoxes = new Map<string, MessageBox>();
   readonly #answeredElsewhere = new Set<string>();
   #screenMask: MouseRegion | null = null;
+  #handRegion: MouseRegion | null = null;
   #selected: Sector = { ...START_SECTOR };
   #level = 0;
   #hover: Sector | null = null;
@@ -511,6 +514,7 @@ export class MapScreen implements Screen {
     this.#env.client.stop();
     this.#env.runtime.regions.removeOwner(OWNER);
     this.#screenMask = null;
+    this.#handRegion = null;
     this.#view.dispose();
   }
 
@@ -598,7 +602,7 @@ export class MapScreen implements Screen {
         if (reason & MouseReason.LBUTTON_UP) this.#toggleInventory();
       },
     });
-    hand.setTooltip(this.#text(HAND_HELP_TABLE, 0));
+    this.#handRegion = hand;
   }
 
   frames(frames: readonly ViewFrame[]): void {
@@ -649,6 +653,7 @@ export class MapScreen implements Screen {
     this.#syncPrompts();
     this.#message.update(this.#now, false);
     this.#syncCursor();
+    this.#syncHandHelp();
     this.#inventory.update(this.#now);
     this.#syncModel();
     if (this.#militia.open && !this.filters.militia) this.#militia.close();
@@ -729,6 +734,11 @@ export class MapScreen implements Screen {
     const strategic = this.#strategic();
     const m = mercById(strategic, plot.soldier);
     return strategic && m ? mercPath(strategic, m) : null;
+  }
+
+  #syncHandHelp(): void {
+    const help = this.#text(HAND_HELP_TABLE, this.#inventoryOpen ? HAND_HELP_EXIT : HAND_HELP_ENTER);
+    if (this.#handRegion && this.#handRegion.tooltip !== help) this.#handRegion.setTooltip(help);
   }
 
   #syncCursor(): void {
