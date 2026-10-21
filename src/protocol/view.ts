@@ -13,7 +13,7 @@ import { sameJson } from './same-json.ts';
 
 export type { KnowledgeLight as LightView, KnowledgeLightSprite as LightSpriteView, OwnHintInputs } from '../sim/knowledge/view.ts';
 export type { FaceVariant } from '../sim/narrative/face-variant.ts';
-export type { ShopBoxView, ShopEta, ShopKind, ShopView } from '../sim/strategic/economy/merchants/view.ts';
+export type { ShopBoxView, ShopEta, ShopKind, ShopRepairedView, ShopView } from '../sim/strategic/economy/merchants/view.ts';
 export type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 export type { InventoryItemView } from '../sim/tactical/inventory-view.ts';
 export type { FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';

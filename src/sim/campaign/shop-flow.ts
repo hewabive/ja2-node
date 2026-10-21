@@ -4,7 +4,9 @@
 // @src CanMercInteractWithSelectedShopkeeper, ExitSKIRequested, DealWithItemsStillOnTheTable, ReturnItemToPlayerSomehow,
 // @src SKITryToReturnInvToOwnerOrCurrentMerc, SKITryToAddInvToMercsInventory, GetInvSlotOfUnfullMoneyInMercInventory,
 // @src ShopkeeperAutoPlaceObject, ShopkeeperAddItemToPool, HandleShopKeeperDialog (opening quote);
-// @src Soldier_Control.cc (talking: AP_TALK, facing); Interface_Panels.cc (SM panel merc). See docs/23 §9, §13.
+// @src RepairIsDone (collected repairs shown as "REPAIRED"), GetShopKeeperInterfaceUserInput (SPACE: the next merc prices);
+// @src Soldier_Control.cc (talking: AP_TALK, facing); Interface_Panels.cc (SM panel merc, the previous and next merc buttons
+// @src change gpSMCurrentMerc inside the shop). See docs/23 §9, §13.
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
@@ -37,12 +39,12 @@ import {
   type TradeInput,
   type TradePlan,
 } from '../strategic/economy/merchants/trade.ts';
-import { type ShopView, shopBoxView, shopKind } from '../strategic/economy/merchants/view.ts';
+import { type ShopRepairedView, type ShopView, shopBoxView, shopKind } from '../strategic/economy/merchants/view.ts';
 import { NUMBER_OF_SQUADS } from '../strategic/forces/constants.ts';
 import { worldTotalMinutes } from '../strategic/time/world-clock.ts';
 import { hasAnimFlag, setDesiredDirection } from '../tactical/animation.ts';
 import { soldierTo3DLocationLos } from '../tactical/combat/positions.ts';
-import { autoPlaceObject, moneySlotLimit, NUM_INV_SLOTS, placeObject } from '../tactical/inventory.ts';
+import { NUM_INV_SLOTS } from '../tactical/inventory.ts';
 import { directionToward, stopMerc } from '../tactical/movement.ts';
 import { distanceVisible } from '../tactical/perception/sight.ts';
 import { deductPoints, enoughPoints } from '../tactical/points.ts';
@@ -52,6 +54,7 @@ import type { TacticalState } from '../tactical/state.ts';
 import { addItemToPool, Visibility } from '../tactical/world-items.ts';
 import type { CampaignCommand, CampaignSim } from './campaign-sim.ts';
 import { addTransaction, FinanceCode } from './finances.ts';
+import { addToMercInventory } from './merc-placement.ts';
 
 export const AP_TALK = 6;
 export const NPC_TALK_RADIUS = 4;
@@ -60,7 +63,7 @@ const DIRECTION_IRRELEVANT = -1;
 const OPPOSITE = 4;
 const DIRECTIONS = 8;
 const NOT_VISIBLE = -1;
-const SHOP_COMMANDS: ReadonlySet<string> = new Set(['openShop', 'quoteTrade', 'trade', 'closeShop']);
+const SHOP_COMMANDS: ReadonlySet<string> = new Set(['openShop', 'quoteTrade', 'trade', 'closeShop', 'setShopPricing']);
 
 export interface ShopSession {
   readonly dealer: number;
@@ -69,6 +72,7 @@ export interface ShopSession {
   pricing: number;
   boxes: DealerBox[];
   businessDone: boolean;
+  collected?: ShopRepairedView[];
 }
 
 type Json = Readonly<Record<string, unknown>>;
@@ -142,6 +146,8 @@ export class ShopFlow {
           return this.#trade(cmd, true);
         case 'trade':
           return this.#trade(cmd, false);
+        case 'setShopPricing':
+          return this.#setPricing(cmd);
         default:
           return this.#close();
       }
@@ -264,7 +270,15 @@ export class ShopFlow {
 
   #begin(def: DealerDef, dealer: Soldier, merc: Soldier): CommandResult {
     const ctx = this.#ctx;
-    this.#session = { dealer: def.id, dealerSoldier: dealer.id, selected: merc.id, pricing: merc.id, boxes: [], businessDone: false };
+    this.#session = {
+      dealer: def.id,
+      dealerSoldier: dealer.id,
+      selected: merc.id,
+      pricing: merc.id,
+      boxes: [],
+      businessDone: false,
+      collected: [],
+    };
     this.#emit({ type: 'shopOpened', dealer: def.profile, soldier: merc.id });
     const delayed = doesDealerDoRepairs(ctx, def.id) && handlePossibleRepairDelays(ctx, def.id);
     if (delayed) {
@@ -303,13 +317,12 @@ export class ShopFlow {
       const current = this.#canInteract(pricing) ? pricing : null;
       const drop = current ?? t?.soldiers[session.selected] ?? null;
       const to = this.#deliver(repaired.object, repaired.owner, current, drop);
-      this.#emit({
-        type: 'repairCollected',
-        dealer: dealerDef(ctx, session.dealer).profile,
-        item: ctx.items.byIndex.get(repaired.object.item)?.name ?? String(repaired.object.item),
-        owner: repaired.owner,
-        to,
-      });
+      const item = ctx.items.byIndex.get(repaired.object.item)?.name ?? String(repaired.object.item);
+      this.#emit({ type: 'repairCollected', dealer: dealerDef(ctx, session.dealer).profile, item, owner: repaired.owner, to });
+      session.collected = [
+        ...(session.collected ?? []),
+        { item, status: repaired.object.status[0] ?? 0, owner: repaired.owner, soldier: to },
+      ];
       return true;
     };
   }
@@ -332,29 +345,7 @@ export class ShopFlow {
   #addToInventory(o: ItemObject, s: Soldier): boolean {
     const t = this.#t;
     if (!t) return false;
-    const ctx = soldierInventoryContext(t, s);
-    const money = this.#ctx.content.itemIds.MONEY;
-    if (this.#ctx.items.byIndex.get(o.item)?.itemClass === ItemClass.MONEY) {
-      for (let pos = 0; pos < NUM_INV_SLOTS; pos++) {
-        const slot = s.inv[pos];
-        if (slot?.item !== money || slot.money >= moneySlotLimit(pos)) continue;
-        placeObject(ctx, s, pos, o);
-        if (o.money === 0) return true;
-        break;
-      }
-    }
-    const copy = cloneObject(o);
-    let left = o.count;
-    while (left > 0) {
-      o.count = Math.min(MAX_OBJECTS_PER_SLOT, left);
-      left -= o.count;
-      if (!autoPlaceObject(ctx, s, o)) {
-        o.count += left;
-        return false;
-      }
-      Object.assign(o, cloneObject(copy));
-    }
-    return true;
+    return addToMercInventory(soldierInventoryContext(t, s), s, o, this.#ctx.content.itemIds.MONEY);
   }
 
   #dropAt(o: ItemObject, s: Soldier): void {
@@ -383,6 +374,13 @@ export class ShopFlow {
     this.#emit({ type: 'shopClosed', dealer: profile });
     this.#session = null;
     return { ok: true };
+  }
+
+  #setPricing(cmd: CampaignCommand): CommandResult {
+    const session = this.#requireSession();
+    if (cmd.soldier === undefined) refuse('noSuchPricingMerc');
+    session.pricing = this.#pricingSoldier(cmd, session).id;
+    return { ok: true, data: { shop: this.view() } };
   }
 
   #pricingSoldier(cmd: CampaignCommand, session: ShopSession): Soldier {
@@ -509,6 +507,24 @@ export class ShopFlow {
       change: plan.change,
       balanceNeeded: plan.balanceNeeded,
       refusal: plan.refusal,
+      quotes: [...plan.quotes],
+      poa: plan.poa.map((e) => (e ? this.#poaEntryView(e) : null)),
+    };
+  }
+
+  #poaEntryView(e: PoaEntry): Json {
+    const ctx = this.#ctx;
+    const o = e.object;
+    const money = ctx.items.byIndex.get(o.item)?.itemClass === ItemClass.MONEY;
+    return {
+      kind: e.kind,
+      item: ctx.items.byIndex.get(o.item)?.name ?? String(o.item),
+      count: o.count,
+      status: o.status[0] ?? 0,
+      ...(money ? { money: o.money } : {}),
+      owner: e.owner,
+      ...(e.source ? { source: this.#sourceRef(e.source) } : {}),
+      value: e.value,
     };
   }
 
@@ -627,6 +643,7 @@ export class ShopFlow {
       balance: this.#campaign.state.finances.balance,
       canTrade,
       boxes: session.boxes.map((b) => shopBoxView(ctx, session.dealer, b, modifier)),
+      repaired: [...(session.collected ?? [])],
     };
   }
 

@@ -578,6 +578,8 @@ export class CampaignSim {
         return e.quote < 0 ? e : { ...e, ...talk.quoteText(e.profile, e.quote) };
       case 'skyriderQuote':
         return { ...e, profile: Npc.SKYRIDER, ...talk.quoteText(Npc.SKYRIDER, e.quote) };
+      case 'shopkeeperQuote':
+        return e.quote < 0 || e.textKey ? e : { ...e, ...talk.quoteText(e.dealer, e.quote) };
       default:
         return e;
     }

@@ -57,6 +57,7 @@ describe('view frames', () => {
       boxes: [
         { key: { item: 258, element: -1 }, item: 'VIDEO_CAMERA', count: 1, status: 100, unitPrice: 450, attachments: [], imprinted: false },
       ],
+      repaired: [],
     };
     const open: PlayerView = { ...base, tick: 20, shop };
     expect(diffPlayerView({ ...base, shop: null }, open)).toMatchObject({ shop });

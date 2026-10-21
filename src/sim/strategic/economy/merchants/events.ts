@@ -1,3 +1,4 @@
+import type { TextKey } from '../../../../content/narrative/dialogue-text.ts';
 import type { SimEventBase } from '../../../events.ts';
 
 export interface ShopItemRef {
@@ -16,6 +17,8 @@ export interface ShopkeeperQuoteEvent extends SimEventBase {
   readonly type: 'shopkeeperQuote';
   readonly dealer: number;
   readonly quote: number;
+  readonly textKey?: TextKey;
+  readonly chars?: number;
 }
 
 export interface RepairDelayedEvent extends SimEventBase {

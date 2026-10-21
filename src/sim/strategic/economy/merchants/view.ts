@@ -1,7 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/ShopKeeper_Interface.cc DisplayInvSlot (unit price), BuildDoneWhenTimeString (ETA);
-// @src Tactical/Interface_Dialogue.cc (dealer type label). See docs/23 §13.4.
+// @src Tactical/Interface_Dialogue.cc (dealer type label); Arms_Dealer_Init.cc MakeObjectOutOfDealerItems (guns sold
+// @src empty, keeping their ammo type); ShopKeeper_Interface.cc RepairIsDone ("REPAIRED" in the player's offer area).
+// @src See docs/23 §13.4.
 
 import { NOTHING } from '../../../../content/items/items.ts';
 import { DealerType } from '../../../../content/strategic/merchant-content.ts';
@@ -29,6 +31,14 @@ export interface ShopBoxView {
   readonly imprinted: boolean;
   readonly owner?: number;
   readonly eta?: ShopEta | null;
+  readonly ammo?: { readonly item: string; readonly shots: number };
+}
+
+export interface ShopRepairedView {
+  readonly item: string;
+  readonly status: number;
+  readonly owner: number;
+  readonly soldier: number | null;
 }
 
 export interface ShopView {
@@ -40,6 +50,7 @@ export interface ShopView {
   readonly balance: number;
   readonly canTrade: readonly number[];
   readonly boxes: readonly ShopBoxView[];
+  readonly repaired: readonly ShopRepairedView[];
 }
 
 const KINDS: Readonly<Record<number, ShopKind>> = {
@@ -72,6 +83,9 @@ export function shopBoxView(ctx: MerchantContext, dealer: number, box: DealerBox
     status: o.status[0] ?? 0,
     attachments: o.attachments.filter((a) => a.item !== NOTHING).map((a) => ({ item: name(a.item), status: a.status })),
     imprinted: o.imprintId !== NO_PROFILE,
+    ...(ctx.items.byIndex.get(o.item)?.weapon && o.gunAmmoItem !== NOTHING
+      ? { ammo: { item: name(o.gunAmmoItem), shots: o.gunShotsLeft } }
+      : {}),
   };
   if (d.type === DealerType.REPAIRS)
     return { ...base, owner: box.owner, eta: repairEta(box.repairDoneTime ?? 0, ctx.world.worldMinutes()) };

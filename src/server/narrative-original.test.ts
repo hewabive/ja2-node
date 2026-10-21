@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { DIALOGUE_SIZE } from '../content/formats/edt.ts';
 import { IRRELEVANT } from '../content/formats/npc.ts';
 import { parseSaveGame } from '../content/formats/savegame.ts';
 import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../content/formats/savegame-header.ts';
@@ -10,6 +11,7 @@ import { CIV_QUOTE_SECTORS, CivQuote, civQuoteEntries, MINERS_CIV_QUOTE_INDEX } 
 import { loadNpcRecordContent } from '../content/narrative/npc-records.ts';
 import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
 import { MercType } from '../content/strategic/economy-content.ts';
+import { loadMerchantContent } from '../content/strategic/merchant-content.ts';
 import { vfsFileReader } from '../content/vfs/vfs.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
@@ -24,6 +26,7 @@ const RECRUITED = 0x01;
 const MEANWHILE_FILES = 34;
 const CIVILIAN_FILES = 17;
 const SURFACE = { x: 13, y: 3, z: 0 };
+const SHOPKEEPER_LINES = [11, 24, 25];
 const CHOSEN_CIV_QUOTES = [
   0, 1, 6, 7, 8, 9, 10, 11, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 39,
 ];
@@ -60,6 +63,18 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('NPC records and dialogue on the orig
       }
     }
     expect(found / lines).toBeGreaterThan(0.8);
+  });
+
+  it('finds the entering and leaving lines of every dealer in its NPC file (shopkeeperQuote text)', async () => {
+    const content = await loadTacticalContent(read);
+    const merchants = await loadMerchantContent(read, content.items);
+    const texts = await DialogueTexts.load(read);
+    for (const dealer of merchants.dealers)
+      for (const quote of SHOPKEEPER_LINES)
+        expect(
+          texts.chars({ file: npcDialogueFile(dealer.profile), row: quote, width: DIALOGUE_SIZE }),
+          `${dealer.profileName} ${quote}`,
+        ).toBeGreaterThan(0);
   });
 
   it('finds the rows of every civilian quote type that can be chosen and the hint lines of every hint sector', async () => {
