@@ -48,6 +48,7 @@ import { deathOpcode, updateSkullReleases } from './combat/death.ts';
 import { soldierCollapse } from './combat/hit.ts';
 import { handlePendingMeleeOnArrival } from './combat/melee.ts';
 import { meleeSpot } from './combat/melee-reach.ts';
+import { parseSpread, pickBurstLocations } from './combat/spread-burst.ts';
 import { AimShot, WeaponMode } from './combat/types.ts';
 import type { TacticalContent } from './content.ts';
 import { DOOR_ACTIONS, type DoorActionName } from './doors/door-actions.ts';
@@ -64,7 +65,7 @@ import { throwOpcode } from './explosions/throwing.ts';
 import { cancelAllServices, firstAidOpcode, givingSoldierCancelServices, handlePendingAidOnArrival } from './first-aid.ts';
 import { dequeueAllGameEvents } from './game-events.ts';
 import { clearPendingGive, handlePendingGiveOnArrival } from './give.ts';
-import { handleTacticalEffectsOfEquipmentChange } from './hand-item.ts';
+import { ensureConsistentWeaponMode, handleTacticalEffectsOfEquipmentChange } from './hand-item.ts';
 import { InvSlot, itemIn } from './inventory.ts';
 import { dispatchInventoryCommand, INVENTORY_COMMANDS, parseCount, parseSlot } from './inventory-commands.ts';
 import { takeObjects } from './inventory-panel.ts';
@@ -101,6 +102,7 @@ import { findBestPath, PathCopy } from './pathfinding.ts';
 import { mostImportantNoiseHeard } from './perception/knowledge.ts';
 import { allTeamsLookForAll } from './perception/sight.ts';
 import { perceptionHooks, sightHooks } from './perception/wiring.ts';
+import { dispatchPlayerOrder, type OrderContext, PLAYER_ORDERS } from './player-orders.ts';
 import { AP, apsToChangeStance, apsToLook, deductPoints, enoughPoints, ptsToMoveDirection } from './points.ts';
 import type { ProfileProgress } from './profiles.ts';
 import { type Refusal, refuse, refused } from './refusal.ts';
@@ -219,6 +221,7 @@ const NOT_ADJACENT =
   'a melee target must stand next to the soldier (a knife reaches the four side tiles, fists all eight); walking up to it is not supported';
 
 const _MELEE_CHANCE_TO_GET_THROUGH = 100;
+const UNDER_GLAUNCHER = 'UNDER_GLAUNCHER';
 const SANDBOX_WORLD_HOUR = 12;
 
 const isMeleeItemClass = (cls: number) => cls === ItemClass.BLADE || (cls & (ItemClass.NONE | ItemClass.PUNCH)) !== 0;
@@ -459,6 +462,10 @@ export class TacticalSim {
     return typeof id === 'number' ? (this.state.soldiers[id] ?? null) : null;
   }
 
+  #orderContext(): OrderContext {
+    return { t: this.state, soldier: (id) => this.soldier(id), actRefusal: (s) => this.actRefusal(s) };
+  }
+
   #setOption(cmd: TacticalCommand): CommandResult {
     const change = parseOptionChange(cmd);
     if (typeof change === 'string') return { ok: false, reason: change, data: { refusal: 'badOption' } };
@@ -473,6 +480,7 @@ export class TacticalSim {
     if (this.state.boxing.uiLocked)
       return { ok: false, reason: 'the interface is locked while the boxers leave the ring', data: { refusal: 'boxingUiLock' } };
     if (INVENTORY_COMMANDS.has(cmd.type)) return this.#inventory(cmd);
+    if (PLAYER_ORDERS.has(cmd.type)) return dispatchPlayerOrder(this.#orderContext(), cmd);
     switch (cmd.type) {
       case 'move':
         return this.#move(cmd);
@@ -661,6 +669,7 @@ export class TacticalSim {
     if (typeof to !== 'number' || !Number.isInteger(to) || !isVisibleTile(to))
       return refuse('badDestination', 'destination must be a visible gridNo');
     s.uiMovementMode = movementModeState(t.content, s, cmd.mode);
+    s.reverse = cmd.reverse === true;
     s.pathStored = false;
     s.pendingDoorAction = null;
     s.pendingTalk = null;
@@ -747,14 +756,19 @@ export class TacticalSim {
     const aimTime = cmd.aimTime ?? 0;
     if (typeof aimTime !== 'number' || !Number.isInteger(aimTime) || aimTime < 0 || aimTime > 4)
       return { error: 'aimTime must be 0..4', token: 'badAim' };
-    const hand = itemIn(s.inv, InvSlot.HAND);
+    const mode = this.#attackWeaponMode(s, cmd.burst);
+    const hand =
+      mode === WeaponMode.ATTACHED ? (t.content.items.byName.get(UNDER_GLAUNCHER)?.index ?? NOTHING) : itemIn(s.inv, InvSlot.HAND);
     const def = t.content.items.byIndex.get(hand);
     const melee = def !== undefined && isMeleeItemClass(def.itemClass);
     const thrown = def !== undefined && isThrowItemClass(def.itemClass);
     if (!def || (def.itemClass !== ItemClass.GUN && !melee && !thrown))
       return { error: 'soldier has no gun, knife, grenade, launcher or free hand', token: 'noWeapon' };
-    if (cmd.burst === true && (melee || thrown || !(def.weapon?.shotsPerBurst ?? 0)))
+    if (mode === WeaponMode.BURST && (melee || thrown || !(def.weapon?.shotsPerBurst ?? 0)))
       return { error: 'this weapon cannot fire bursts', token: 'noBurst' };
+    const spread = parseSpread(cmd.spread);
+    if (typeof spread === 'string') return { error: spread, token: 'badSpread' };
+    if (spread && mode !== WeaponMode.BURST) return { error: 'a spread needs the burst mode', token: 'noBurst' };
     if (thrown && def.cursor === ItemCursor.TOSS && aimTime !== 0) return { error: 'throws cannot be aimed', token: 'throwNoAim' };
     const victim = whoIsThere(t, target, level);
     if (melee && (!victim || level !== s.level))
@@ -763,13 +777,21 @@ export class TacticalSim {
     if (part === undefined) return { error: 'bodyPart must be head, torso, legs or random', token: 'badBodyPart' };
     s.aimTime = aimTime;
     s.aimShotLocation = victim && endHeight(t.content, victim.state) !== AnimHeight.PRONE ? part : AimShot.RANDOM;
-    s.weaponMode = cmd.burst === true ? WeaponMode.BURST : WeaponMode.NORMAL;
-    s.doBurst = cmd.burst === true ? 1 : 0;
+    s.weaponMode = mode;
+    s.doBurst = mode === WeaponMode.BURST ? 1 : 0;
+    if (spread) pickBurstLocations(s, spread, def.weapon?.shotsPerBurst ?? 0);
     s.attackingHand = InvSlot.HAND;
     s.attackingWeapon = hand;
     s.targetLevel = level;
     s.targetCubeLevel = 0;
     return { s, target, level, melee, thrown };
+  }
+
+  #attackWeaponMode(s: Soldier, burst: unknown): number {
+    if (burst === true) return WeaponMode.BURST;
+    if (burst === false) return WeaponMode.NORMAL;
+    ensureConsistentWeaponMode(this.state.content.items, s);
+    return s.weaponMode;
   }
 
   #attack(cmd: TacticalCommand): CommandResult {
@@ -789,8 +811,10 @@ export class TacticalSim {
         return refuse('notEnoughAP', ATTACK_REFUSALS[ItemHandle.NOAPS] ?? 'not enough APs');
     }
     const result = handleItem(t, s, target, level, s.attackingWeapon);
-    if (result !== ItemHandle.OK)
+    if (result !== ItemHandle.OK) {
+      s.doSpread = 0;
       return refuse(ATTACK_REFUSAL_TOKENS[result] ?? 'attackRefused', ATTACK_REFUSALS[result] ?? `attack refused (${result})`);
+    }
     selectSoldier(t, s);
     return { ok: true };
   }

@@ -7,12 +7,14 @@ import { WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
 import { ORIGINAL_SKIN } from '../../ui/layout/types.ts';
 import type { MessageBoxes } from '../../ui/message-boxes.ts';
+import type { BattleSound } from '../../ui/screens/tactical/environment.ts';
 import {
   TACTICAL_LAYOUTS,
   type TacticalEnvironment,
   type TacticalFlow,
   type TacticalLayout,
 } from '../../ui/screens/tactical/environment.ts';
+import { parseUiCursorTable, UI_CURSORS_TABLE_PATH, type UiCursorTable } from '../../ui/screens/tactical/input/ui-cursors.ts';
 import { TacticalScreen } from '../../ui/screens/tactical/tactical-screen.ts';
 import { SpeechPresenter, type SpeechSettings } from '../../ui/speech.ts';
 import type { MercTextBoxArt } from '../../ui/widgets/merc-text-box.ts';
@@ -23,7 +25,7 @@ import { attachHintHook, createHintHook, type HintHook } from '../hints/hint-hoo
 import { HintProvider } from '../hints/hint-provider.ts';
 import type { SessionClient } from '../net/session-client.ts';
 import { fetchVfsFile, fetchVfsList, readVfsFileOrNull } from '../net/vfs.ts';
-import { loadSettings } from '../settings.ts';
+import { loadSettings, saveSettings } from '../settings.ts';
 import { TacticalSound } from '../sound/tactical-sound.ts';
 import { tacticalOptionsOf } from '../world/display-options.ts';
 import { LightTemplates } from '../world/light-templates.ts';
@@ -32,6 +34,7 @@ import { SoldierAssets } from '../world/soldier-assets.ts';
 import { loadSoldierFrames, type SoldierFrames } from '../world/soldier-frames.ts';
 import { TacticalWorldView } from '../world/tactical-world-view.ts';
 import { WorldEffects } from '../world/world-effects.ts';
+import { loadSmallTiles, OverheadPicture } from './overhead-map.ts';
 import { engineSpeechVoices, storedSpeechSettings } from './speech-voices.ts';
 import { SessionTacticalClient } from './tactical-client.ts';
 import { attachTacticalHook, type ShopSample, type TacticalHook, type TalkSample, TimeSamples } from './tactical-hook.ts';
@@ -61,6 +64,7 @@ interface Loaded {
   readonly presenter: TacticalWorldPresenter;
   readonly media: TacticalMediaStore;
   readonly layouts: ReadonlyMap<TacticalLayout, LayoutModel>;
+  readonly uiCursors: UiCursorTable;
 }
 
 export class TacticalHost {
@@ -216,6 +220,7 @@ export class TacticalHost {
       media.preload(this.#inventoryGraphics(session.view, media)),
     ]);
     step();
+    const uiCursors = parseUiCursorTable(JSON.parse(new TextDecoder().decode(await fetchVfsFile(UI_CURSORS_TABLE_PATH))));
     const presenter = new TacticalWorldPresenter(
       world,
       this.#renderer,
@@ -232,7 +237,13 @@ export class TacticalHost {
     presenter.resize(geometry.width, geometry.height);
     const own = session.soldiers.find((s) => s.team === OUR_TEAM);
     presenter.centerOn(own?.gridNo ?? world.world.map.info.centerGridNo);
-    this.#loaded = { presenter, media, layouts };
+    presenter.setOverheadLoader(async () => {
+      const small = await loadSmallTiles(world.world, available, fetchVfsFile);
+      return OverheadPicture.compose(`overhead:${mapPath}`, world.world, small, {
+        addRgb: (key, width, height, pixels) => this.#o.ui.assets.addRgb(key, width, height, pixels),
+      });
+    });
+    this.#loaded = { presenter, media, layouts, uiCursors };
     this.hook.map = mapPath;
     this.hook.error = null;
   }
@@ -287,11 +298,27 @@ export class TacticalHost {
       speechSettings: this.#speechSettings,
       rpcSpeechPrefixed: this.#sound.rpcSpeechPrefixed,
       prepareText: (file) => this.#prepareText(file),
+      uiCursors: loaded.uiCursors,
+      display: () => loadSettings().display,
+      setDisplay: (change) => {
+        const settings = loadSettings();
+        saveSettings({ ...settings, display: { ...settings.display, ...change } });
+      },
+      battleSound: (soldier, sound) => this.#battleSound(soldier, sound),
     };
     this.#screen = new TacticalScreen(env);
     this.#screenFor = loaded;
     if (!this.#keepDriver) this.#client.start();
     return this.#screen;
+  }
+
+  #battleSound(soldier: number, sound: BattleSound): void {
+    const director = this.#sound.director;
+    if (!director) return;
+    if (sound === 'ok') director.confirm(soldier);
+    else if (sound === 'attention') director.attention(soldier);
+    else if (sound === 'curse') director.curse(soldier);
+    else director.locked(soldier);
   }
 
   #newMessageBeep(): void {
@@ -430,6 +457,15 @@ export class TacticalHost {
         subtitle: null,
         held: null,
       },
+      uiMode: null,
+      uiCursor: null,
+      uiLock: null,
+      markers: [],
+      apNumber: null,
+      movementMenuOpen: false,
+      doorMenuOpen: false,
+      exitDialogOpen: false,
+      overheadOpen: false,
       frameMs: this.#frameTimes.summary(),
       worldMs: this.#worldTimes.summary(),
       command: (cmd) => this.#command(cmd),
@@ -541,6 +577,16 @@ export class TacticalHost {
     hook.pickupOpen = screen.pickup.open;
     hook.stackOpen = screen.stack.open;
     hook.keyRingOpen = screen.keyRing.open;
+    const controls = screen.controls;
+    hook.uiMode = controls.input.mode;
+    hook.uiCursor = controls.input.uiCursor;
+    hook.uiLock = controls.input.lock;
+    hook.markers = controls.input.markers().map((m) => `${m.gridNo}:${m.tile}`);
+    hook.apNumber = controls.input.apNumber()?.value ?? null;
+    hook.movementMenuOpen = controls.movementMenu.open;
+    hook.doorMenuOpen = controls.doorMenu.open;
+    hook.exitDialogOpen = controls.exitDialog.open;
+    hook.overheadOpen = controls.overhead.open;
     hook.faces = this.#o.session.soldiers
       .filter((s) => s.team === OUR_TEAM)
       .flatMap((s) => {

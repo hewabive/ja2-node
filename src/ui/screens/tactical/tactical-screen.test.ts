@@ -185,6 +185,8 @@ describe('the tactical screen over a stub sandbox session', () => {
       f.advance(400);
       expect(f.client.view.items?.filter((i) => i.gridNo === tile)).toHaveLength(2);
       const at = f.world.pickPoint(tile);
+      f.screen.controls.toggleHandCursor();
+      f.t.frame();
       await f.clickAt(at.x, at.y);
       expect(f.screen.pickup.open).toBe(true);
       await f.click('pickupAll');

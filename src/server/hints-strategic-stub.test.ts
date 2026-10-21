@@ -109,8 +109,11 @@ describe('strategic cursor hints on a stub campaign, client against server', { t
           west: Direction.WEST,
         })) {
           const options = await c.session.query({ type: 'exitSectorOptions', soldier: m.id, direction: name });
-          const plan = exitCheck(flowExitWorld(flow), m, direction, 0);
-          expect(options.data, `exit ${name} for ${m.id}`).toEqual(JSON.parse(JSON.stringify({ ...plan.check, menu: plan.menu })));
+          const world = flowExitWorld(flow);
+          const plan = exitCheck(world, m, direction, 0);
+          expect(options.data, `exit ${name} for ${m.id}`).toEqual(
+            JSON.parse(JSON.stringify({ ...plan.check, menu: plan.menu, enemyInSector: world.enemyInSector })),
+          );
         }
         expect(DIRECTION_EXITGRID).toBeGreaterThan(Direction.NORTHWEST);
       }

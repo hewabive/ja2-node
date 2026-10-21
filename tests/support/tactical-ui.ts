@@ -19,10 +19,14 @@ import { messageBoxStyles, textBoxArt } from '../../src/ui/layout/styles.ts';
 import { ORIGINAL_SKIN } from '../../src/ui/layout/types.ts';
 import { CanvasMessageBoxes } from '../../src/ui/message-boxes.ts';
 import {
+  type BattleSound,
   type CommandReply,
+  type InteractiveTile,
+  type OverheadMapView,
   type RadarBox,
   type ScreenBox,
   type ScreenPoint,
+  type ScrollEdges,
   type SoldierHeight,
   type SoldierMarker,
   type SpeechPlayback,
@@ -32,10 +36,13 @@ import {
   type TacticalLayout,
   type TacticalMedia,
   type UiImageRef,
+  type WorldMarker,
   type WorldPresenter,
 } from '../../src/ui/screens/tactical/environment.ts';
 import { GENERIC_FACE_BODY_TYPES, genericFacePath } from '../../src/ui/screens/tactical/generic-face.ts';
+import { parseUiCursorTable } from '../../src/ui/screens/tactical/input/ui-cursors.ts';
 import { TacticalScreen } from '../../src/ui/screens/tactical/tactical-screen.ts';
+import { DEFAULT_DISPLAY_SETTINGS, type DisplaySettings } from '../../src/ui/settings.ts';
 import { StringsTextService } from '../../src/ui/text/text-service.ts';
 import { messageBoxLabels } from '../../src/ui/widgets/message-box.ts';
 import type { WidgetInfo } from '../../src/ui/widgets/widget-info.ts';
@@ -143,6 +150,12 @@ export class FakeWorld implements WorldPresenter {
   selected: number | null = null;
   roofLevel = false;
   heights = new Map<number, SoldierHeight>();
+  markers: readonly WorldMarker[] = [];
+  doors = new Map<number, InteractiveTile>();
+  exitGrids = new Set<number>();
+  edges: ScrollEdges = { left: false, right: false, top: false, bottom: false };
+  readonly scrolled: { readonly dx: number; readonly dy: number }[] = [];
+  overhead: OverheadMapView | null = null;
   readonly #view: () => PlayerView;
 
   constructor(view: () => PlayerView) {
@@ -240,6 +253,44 @@ export class FakeWorld implements WorldPresenter {
   pointerBox(): UiImageRef | null {
     return null;
   }
+
+  setMarkers(markers: readonly WorldMarker[]): void {
+    this.markers = markers;
+  }
+
+  markerScreenPoint(marker: WorldMarker): ScreenPoint | null {
+    const p = this.pickPoint(marker.gridNo);
+    return { x: p.x + (marker.offsetX ?? 0), y: p.y + (marker.offsetY ?? 0) };
+  }
+
+  interactiveTileAt(gridNo: number): InteractiveTile | null {
+    return this.doors.get(gridNo) ?? null;
+  }
+
+  exitGridAt(gridNo: number): boolean {
+    return this.exitGrids.has(gridNo);
+  }
+
+  scrollEdges(): ScrollEdges {
+    return this.edges;
+  }
+
+  scrollBy(dx: number, dy: number): boolean {
+    this.scrolled.push({ dx, dy });
+    return true;
+  }
+
+  overheadMap(): OverheadMapView | null {
+    return this.overhead;
+  }
+
+  tileImage(name: string): UiImageRef | null {
+    return { path: `tile:${name}`, frame: 0 };
+  }
+
+  tileCentre(gridNo: number): ScreenPoint {
+    return this.pickPoint(gridNo);
+  }
 }
 
 export class FakeMedia implements TacticalMedia {
@@ -296,6 +347,8 @@ export interface TacticalUiTest {
   readonly attention: number[];
   readonly beeps: number[];
   readonly flow: string[];
+  readonly battleSounds: { readonly soldier: number; readonly sound: BattleSound }[];
+  display: DisplaySettings;
   widget(id: string): WidgetInfo;
   find(id: string): WidgetInfo | undefined;
   click(id: string, button?: number, modifiers?: number): Promise<void>;
@@ -376,6 +429,9 @@ export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed
   const attention: number[] = [];
   const beeps: number[] = [];
   const flow: string[] = [];
+  const battleSounds: { readonly soldier: number; readonly sound: BattleSound }[] = [];
+  const uiCursors = parseUiCursorTable(JSON.parse(await readFile(join(PROJECT_DATA_DIR, 'tables/ui-cursors.json'), 'utf8')));
+  let display: DisplaySettings = DEFAULT_DISPLAY_SETTINGS;
   let die = 0;
   const env: TacticalEnvironment = {
     runtime: t.runtime,
@@ -396,6 +452,12 @@ export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed
     sounds: { attention: (id) => attention.push(id), newMessageBeep: () => beeps.push(t.now) },
     random: (range) => (die++ * 7) % Math.max(1, range),
     metric: () => true,
+    uiCursors,
+    display: () => display,
+    setDisplay: (change) => {
+      display = { ...display, ...change };
+    },
+    battleSound: (soldier, sound) => battleSounds.push({ soldier, sound }),
   };
   const screen = new TacticalScreen(env);
   t.runtime.host.push(screen);
@@ -438,6 +500,13 @@ export async function tacticalUiTest(kit: StubSectorKit, ui: TacticalUiKit, seed
     attention,
     beeps,
     flow,
+    battleSounds,
+    get display() {
+      return display;
+    },
+    set display(next: DisplaySettings) {
+      display = next;
+    },
     widget,
     find,
     click: async (id, button = MouseButton.LEFT, modifiers = 0) => {

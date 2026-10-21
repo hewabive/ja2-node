@@ -1,6 +1,6 @@
 import type { SimEventBase } from '../../events.ts';
 
-export type DoorMenuAction = 'unlock' | 'pickLock' | 'force' | 'crowbar' | 'explode' | 'untrap' | 'examine';
+export type DoorMenuAction = 'openManually' | 'unlock' | 'pickLock' | 'force' | 'crowbar' | 'explode' | 'untrap' | 'examine';
 
 export interface DoorMenuOption {
   readonly action: DoorMenuAction;

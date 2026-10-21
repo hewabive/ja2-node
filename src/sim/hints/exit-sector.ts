@@ -66,6 +66,7 @@ export interface ExitSectorDryRun {
 export interface ExitSectorOptions extends Omit<ExitCheck, 'result'> {
   readonly result: number;
   readonly menu: ExitMenu | null;
+  readonly enemyInSector: boolean;
 }
 
 function unplacedSoldier(id: number, team: number): Soldier {
@@ -169,5 +170,5 @@ export function exitSectorOptions(world: KnowledgeWorld, req: ExitSectorRequest)
   const plan = withMovementModesKept(subject.tactical, subject.world, () =>
     exitCheck(subject.world, subject.selected, direction, exitGridNo),
   );
-  return hintData({ ...plan.check, menu: plan.menu });
+  return hintData({ ...plan.check, menu: plan.menu, enemyInSector: subject.world.enemyInSector });
 }

@@ -150,8 +150,8 @@ describe('message entries from the ScreenMsg sites of the original', () => {
     const refused = (refusal: string) => ({ ok: false, reason: refusal, data: { refusal } });
     expect(refusalEntry(9, { type: 'move', soldier: 0 }, refused('notEnoughAP'), facts)).toEqual({
       tick: 9,
-      kind: 'interface',
-      colour: 145,
+      kind: 'uiFeedback',
+      colour: 144,
       table: 'TacticalStr',
       index: 87,
     });

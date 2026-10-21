@@ -114,7 +114,7 @@ test.describe('the tactical HUD on the stub sandbox', () => {
     await expect.poll(() => page.evaluate(() => window.__ja2Ui.tactical?.descriptionOpen)).toBe(false);
   });
 
-  test('opens the pickup menu on a tile with two items and picks both up with one order', async ({ page }) => {
+  test('opens the pickup menu with the hand cursor on a tile with two items and picks both up with one order', async ({ page }) => {
     await openTactical(page, session);
     const start = await soldierGridNo(page, DROPPER);
     if (start === null) throw new Error('the dropper is not in view');
@@ -131,6 +131,10 @@ test.describe('the tactical HUD on the stub sandbox', () => {
 
     await clickWidget(page, 'teamFaceRegion0');
     await expect.poll(() => page.evaluate(() => window.__ja2Ui.tactical?.selected)).toBe(0);
+    await rightClickWidget(page, 'teamFaceRegion0');
+    await expect.poll(() => page.evaluate(() => window.__ja2Ui.tactical?.panel)).toBe('sm');
+    await clickWidget(page, 'smHand');
+    await expect.poll(() => page.evaluate(() => window.__ja2Ui.tactical?.uiMode)).toBe('HANDCURSOR_MODE');
     const at = await page.evaluate((g) => window.__ja2Ui.tactical?.gridNoScreen(g) ?? null, dropTile);
     if (!at) throw new Error('no screen position for the drop tile');
     await clickAt(page, at.x, at.y);

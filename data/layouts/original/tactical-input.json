@@ -1,0 +1,165 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Tactical/Interface.cc InitializeTacticalInterface (newicons3.sti and door_op2.sti with three frames per button: off, hilite, on; button_frame.sti BUTTON_PANEL_WIDTH x BUTTON_PANEL_HEIGHT), PopupMovementMenu, PopupDoorOpenMenu",
+    "src/game/Tactical/Strategic_Exit_GUI.cc InternalInitSectorExitMenu (the dialog merc popup box, popupcheck.sti, popupradiobuttons.sti, popupbuttons.sti)",
+    "src/game/TileEngine/Overhead_Map.cc uiOVERMAP map_bord.sti, uiPERSONS persons.sti (one frame per team, 7 to 9 for the placement GUI)",
+    "src/game/Tactical/Spread_Burst.cc guiBURSTACCUM burst1.sti"
+  ],
+  "screen": "tacticalInput",
+  "frame": "screen",
+  "constants": ["MessageBoxScreen", "MercTextBox"],
+  "assets": {
+    "buttonFrame": {
+      "sti": "interface/button_frame.sti",
+      "stub": { "style": "hollow", "size": [77, 76] }
+    },
+    "newIcons": {
+      "sti": "interface/newicons3.sti",
+      "stub": {
+        "frames": 45,
+        "size": [20, 20],
+        "states": [
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed"
+        ]
+      }
+    },
+    "doorIcons": {
+      "sti": "interface/door_op2.sti",
+      "stub": {
+        "frames": 28,
+        "size": [20, 20],
+        "states": [
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "normal",
+          "hover",
+          "pressed",
+          "plain",
+          "plain",
+          "plain",
+          "normal",
+          "hover",
+          "pressed",
+          "plain",
+          "normal",
+          "hover",
+          "pressed"
+        ]
+      }
+    },
+    "burst": {
+      "sti": "interface/burst1.sti",
+      "stub": { "style": "hollow", "frames": 2, "size": [7, 7] }
+    },
+    "mapBorder": {
+      "sti": "interface/map_bord.sti",
+      "stub": { "style": "hollow", "size": [640, 360] }
+    },
+    "persons": {
+      "sti": "interface/persons.sti",
+      "stub": {
+        "sizes": [[3, 9], [3, 9], [3, 9], [3, 9], [3, 9], [3, 9], [7, 4], [7, 13], [7, 13], [15, 10]]
+      }
+    },
+    "popupRadio": {
+      "sti": "interface/popupradiobuttons.sti",
+      "stub": { "frames": 4, "size": [12, 12], "states": ["normal", "hover", "pressed", "pressedHover"] }
+    },
+    "popupCheck": {
+      "sti": "interface/popupcheck.sti",
+      "stub": { "frames": 4, "size": [15, 15], "states": ["normal", "hover", "pressed", "pressedHover"] }
+    },
+    "popupButtons": {
+      "sti": "interface/popupbuttons.sti",
+      "stub": {
+        "sizes": [
+          ["MSGBOX_BUTTON_WIDTH", "MSGBOX_BUTTON_HEIGHT"],
+          ["MSGBOX_BUTTON_WIDTH", "MSGBOX_BUTTON_HEIGHT"],
+          ["MSGBOX_SMALL_BUTTON_WIDTH", "MSGBOX_BUTTON_HEIGHT"],
+          ["MSGBOX_SMALL_BUTTON_WIDTH", "MSGBOX_BUTTON_HEIGHT"]
+        ],
+        "states": ["normal", "pressed", "normal", "pressed"]
+      }
+    },
+    "dialogBackground": {
+      "pcx": "interface/tactpopupbackgroundmain.pcx",
+      "stub": { "size": ["MERC_BACKGROUND_WIDTH", "MERC_BACKGROUND_HEIGHT"] }
+    },
+    "tactPopupMain": {
+      "sti": "interface/tactpopupmain.sti",
+      "stub": {
+        "sizes": [
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"]
+        ]
+      }
+    }
+  },
+  "styles": {
+    "dialogTextBox": { "background": "dialogBackground", "border": "tactPopupMain", "backgroundIndex": "DIALOG_MERC_POPUP_BACKGROUND" }
+  }
+}

@@ -9,7 +9,7 @@
 import type { ItemTable } from '../../content/items/items.ts';
 import { pythSpacesAway } from '../../content/world/grid.ts';
 import type { CommandResult } from '../command.ts';
-import type { ItemObject } from '../items/object.ts';
+import { cloneObject, type ItemObject, removeObjectAt } from '../items/object.ts';
 import { soldierTo3DLocationLos } from './combat/positions.ts';
 import { autoReload } from './combat/reload.ts';
 import { beginFirstAid, FirstAidRefusal, firstAidTargetRefusal } from './first-aid.ts';
@@ -33,6 +33,7 @@ import { removePendingAction } from './pending-action.ts';
 import { distanceVisible } from './perception/sight.ts';
 import { Body, OKLIFE, type Soldier, Team } from './soldier.ts';
 import { soldierInventoryContext } from './soldier-inventory.ts';
+import { cleanUpStack } from './stack-cleanup.ts';
 import { type TacticalState, teamMembers } from './state.ts';
 import { addItemToPool, FORCE_ON_GROUND, Visibility } from './world-items.ts';
 
@@ -51,6 +52,7 @@ export const INVENTORY_COMMANDS: ReadonlySet<string> = new Set([
   'applyItem',
   'bandage',
   'splitMoney',
+  'combineStack',
 ]);
 
 export const SLOT_NAMES: Readonly<Record<string, number>> = {
@@ -311,6 +313,41 @@ function splitMoneyCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand):
   return outcomeResult(splitMoney(tacticalPanelEnv(t), { mover: s, from, amount, target, to }));
 }
 
+function cursorStack(o: ItemObject, index: number | null): ItemObject {
+  if (index === null) return o;
+  const one = cloneObject(o);
+  one.count = 1;
+  one.status = [o.status[index] ?? 0];
+  return one;
+}
+
+function returnCursorObject(source: ItemObject, index: number | null, cursor: ItemObject): void {
+  if (index === null || cursor === source) return;
+  if (cursor.count === 0) removeObjectAt(source, index);
+  else source.status[index] = cursor.status[0] ?? 0;
+}
+
+function combineStackCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): CommandResult {
+  const slot = parseSlot(cmd.slot);
+  if (slot === null) return refusal(InventoryRefusal.BAD_SLOT);
+  const target = s.inv[slot] as ItemObject;
+  if (target.count === 0) return refusal(InventoryRefusal.EMPTY_SLOT);
+  const from = optionalSlot(cmd.from);
+  if (typeof from === 'string') return refusal(from);
+  if (from === slot) return refusal(InventoryRefusal.SAME_SLOT);
+  const source = from === null ? null : (s.inv[from] as ItemObject);
+  if (source && source.count === 0) return refusal(InventoryRefusal.EMPTY_SLOT);
+  const index = cmd.index === undefined ? null : stackIndex(cmd.index, source ?? undefined);
+  if (typeof index === 'string') return refusal(index);
+  const sourceItem = source?.item ?? null;
+  const cursor = source ? cursorStack(source, index) : null;
+  const applies = cleanUpStack(t.content.items, target, cursor);
+  if (source && cursor) returnCursorObject(source, index, cursor);
+  if (from !== null && sourceItem !== null && source?.count === 0)
+    handleTacticalEffectsOfEquipmentChange(t, s, from, sourceItem, source.item);
+  return { ok: true, data: { combined: applies } };
+}
+
 function bandageCommand(t: TacticalState, s: Soldier, cmd: InventoryCommand): CommandResult {
   const patient = typeof cmd.target === 'number' ? (t.soldiers[cmd.target] ?? null) : s;
   const target = patient?.placed && patient.level === s.level ? patient : null;
@@ -340,6 +377,8 @@ export function dispatchInventoryCommand(t: TacticalState, s: Soldier, cmd: Inve
       return applyCommand(t, s, cmd);
     case 'splitMoney':
       return splitMoneyCommand(t, s, cmd);
+    case 'combineStack':
+      return combineStackCommand(t, s, cmd);
     default:
       return bandageCommand(t, s, cmd);
   }

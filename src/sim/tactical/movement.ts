@@ -360,7 +360,15 @@ function plottingToExitGrid(t: TacticalState, s: Soldier): boolean {
   return s.waitActionToDo === 1 && t.mercsWaiting?.code === WaitForMercs.WALK_TO_GRIDNO;
 }
 
-export function getNewSoldierPath(t: TacticalState, s: Soldier, dest: number, mode: number, fromUI = 0, forceRestart = true): boolean {
+export function getNewSoldierPath(
+  t: TacticalState,
+  s: Soldier,
+  dest: number,
+  mode: number,
+  fromUI = 0,
+  forceRestart = true,
+  throughPeople = false,
+): boolean {
   let flags = 0;
   const plotToExitGrid = plottingToExitGrid(t, s);
   const ui = fromUI === 3 ? (s.team === Team.OUR ? 1 : 0) : fromUI;
@@ -369,6 +377,7 @@ export function getNewSoldierPath(t: TacticalState, s: Soldier, dest: number, mo
     flags = s.delayedMovementFlags & DELAYED_MOVEMENT_FLAG_PATH_THROUGH_PEOPLE ? PathFlags.THROUGH_PEOPLE : PathFlags.IGNORE_PERSON_AT_DEST;
     s.delayedMovement = 0;
   }
+  if (throughPeople) flags = PathFlags.THROUGH_PEOPLE;
   if ((!t.inCombat && hasAnimFlag(t.content, s.state, AnimFlags.MOVING) && ui === 1) || ui === 2) {
     if (s.collapsed) return false;
     const planner = { ...s, gridNo: s.destination };

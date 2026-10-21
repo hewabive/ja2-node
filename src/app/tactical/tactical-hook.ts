@@ -100,6 +100,15 @@ export interface TacticalHook {
   topMessage: string | null;
   talk: TalkSample;
   shop: ShopSample;
+  uiMode: string | null;
+  uiCursor: string | null;
+  uiLock: string | null;
+  markers: readonly string[];
+  apNumber: number | null;
+  movementMenuOpen: boolean;
+  doorMenuOpen: boolean;
+  exitDialogOpen: boolean;
+  overheadOpen: boolean;
   frameMs: TimeSummary;
   worldMs: TimeSummary;
   command(cmd: CommandEnvelope): Promise<unknown>;

@@ -24,7 +24,14 @@ import { aiDoorActionWithoutInteraction, soldierHandleInteractiveObject } from '
 import { cancelAllServices } from './first-aid.ts';
 import { InvSlot } from './inventory.ts';
 import { countMuzzleFlashFrame } from './lighting/muzzle-flash.ts';
-import { getNewSoldierPath, handleGotoNewGridNo, isJumpableFenceAt, moveMercFacingDirection, setSoldierPosition } from './movement.ts';
+import {
+  getNewSoldierPath,
+  handleGotoNewGridNo,
+  isJumpableFenceAt,
+  moveMercFacingDirection,
+  setSoldierDestination,
+  setSoldierPosition,
+} from './movement.ts';
 import { boxingMovementCheckWhileTracked } from './narrative/boxing.ts';
 import { newOKDestination } from './pathfinding.ts';
 import { addMercStructure, isValidStance, okToAddMercToWorld } from './person-structure.ts';
@@ -615,7 +622,16 @@ function runOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome {
 }
 
 export function beginSoldierClimbFence(t: TacticalState, s: Soldier): void {
-  if (isJumpableFenceAt(t, s.gridNo)) return;
+  const best = findFenceJumpDirection(t, s);
+  if (best < 0) return;
+  s.reverse = false;
+  setDesiredDirection(t, s, best);
+  s.turningUntilDone = true;
+  s.pendingAnimation = states(t.content.animations).HOPFENCE;
+}
+
+export function findFenceJumpDirection(t: TacticalState, s: Soldier): number {
+  if (isJumpableFenceAt(t, s.gridNo)) return -1;
   let best = -1;
   let bestTurns = 100;
   for (let d = 0; d < DIRECTION_COUNT; d += 2) {
@@ -630,11 +646,7 @@ export function beginSoldierClimbFence(t: TacticalState, s: Soldier): void {
       best = d;
     }
   }
-  if (best < 0) return;
-  s.reverse = false;
-  setDesiredDirection(t, s, best);
-  s.turningUntilDone = true;
-  s.pendingAnimation = states(t.content.animations).HOPFENCE;
+  return best;
 }
 
 export function turnSoldier(t: TacticalState, s: Soldier): void {
@@ -800,12 +812,24 @@ function chargeForNewState(t: TacticalState, s: Soldier, next: number): void {
       break;
     case 'JUMP_OVER_BLOCKING_PERSON':
       charge(AP.JUMP_OVER, BP.JUMP_OVER);
+      setJumpOverPath(t, s, next);
       break;
     case 'QUEEN_SWIPE':
       s.pendingActionData1 = 0;
       break;
   }
   if (PENDING_COUNT_RESET_STATES.includes(name) && s.pendingMelee) s.pendingMelee.animCount = 0;
+}
+
+const JUMP_OVER_TILES = 2;
+
+function setJumpOverPath(t: TacticalState, s: Soldier, state: number): void {
+  const step = DIRECTION_INCREMENT[s.direction] ?? 0;
+  s.path = Array.from({ length: JUMP_OVER_TILES }, () => s.direction);
+  s.pathIndex = 0;
+  s.pathSize = JUMP_OVER_TILES;
+  s.finalDestination = newGridNo(newGridNo(s.gridNo, step), step);
+  setSoldierDestination(t, s, s.direction, state);
 }
 
 const PENDING_COUNT_RESET_STATES = ['WALKING', 'SWATTING', 'CRAWLING', 'RUNNING', 'ADULTMONSTER_WALKING', 'ROBOT_WALK'];

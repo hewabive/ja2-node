@@ -1,8 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Panels.cc UpdateTEAMPanel, RenderTEAMPanel (the hands' fast help, the driver and
-// @src passenger texts), UpdateSMPanel, EnableSMPanelButtons, PrintStat, RenderSMPanel, SetStatsHelp. See docs/28 §5.1,
-// @src §5.2.
+// @src passenger texts), UpdateSMPanel (burst for a burst-capable gun or an under-barrel launcher in the hand, mute
+// @src always, stealth with the action buttons), EnableSMPanelButtons, PrintStat, RenderSMPanel, SetStatsHelp. See
+// @src docs/28 §5.1, §5.2.
 
 import type { PlayerView, SoldierView } from '../../../protocol/view.ts';
 import type { UiTextService } from '../../text/text-service.ts';
@@ -41,6 +42,7 @@ export interface PanelState {
   readonly disabledForItems: boolean;
   readonly interfaceLevel: number;
   readonly cursorMode: 'none' | 'hand' | 'talk' | 'look';
+  readonly burstCapable: boolean;
   readonly now: number;
   readonly shopOpen?: boolean;
 }
@@ -148,7 +150,7 @@ export function smPanelModel(
     doneEnabled: !shop && !allOff && inCombat(view) && ourTurn(view),
     talkEnabled: !shop && !allOff,
     talkChecked: state.cursorMode === 'talk',
-    muteEnabled: false,
+    muteEnabled: !allOff,
     muteChecked: s.muted === true,
     stanceUpEnabled: !shop && !actionsOff && stance !== 'stand',
     levelEnabled: !shop && !actionsOff,
@@ -160,9 +162,9 @@ export function smPanelModel(
     prevEnabled: !state.popupOpen && alive > 0,
     nextEnabled: !state.popupOpen && alive > 0,
     optionsEnabled: !shop && !allOff,
-    burstEnabled: false,
+    burstEnabled: !shop && !actionsOff && state.burstCapable,
     lookEnabled: !shop && !actionsOff,
     lookChecked: state.cursorMode === 'look',
-    stealthEnabled: false,
+    stealthEnabled: !shop && !actionsOff,
   };
 }

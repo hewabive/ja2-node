@@ -2435,6 +2435,89 @@ talking, the extern panel position, the locator) belong to U8 and can reuse `Spe
 creates today and the lead may move to the page; U6's talk cursor sends `talk` and should close an open civilian box
 first (`DialogueLayer.closeCivQuoteIfActive`, the original's "a talk click only closes the box").
 
+#### U6: tactical input (2026-10-21)
+
+The world input of the tactical screen: the `Handle_UI.cc` state machine with its cursors and world markers, every
+gameplay key of `Turn_Based_Input.cc`, the movement and door menus, the sector exit dialog, the overhead map, edge and
+key scrolling, and the simulation orders the panel and the keys needed.
+
+| Area | As built |
+|---|---|
+| Orders | `src/sim/tactical/player-orders.ts` (71ca9e8): `stealth`, `mute`, `weaponMode`, `swapPlaces` (the x key and the exchange cursor), `jump` over a prone soldier or a fence, `climbWindow`, `moveGroup` (the all-move, the rubber band and the multi-selection, real time only, paths through people); `attack` gains `spread` (`spread-burst.ts`: up to 50 tiles, `PickBurstLocations`) and fires in the soldier's weapon mode (launcher mode through the attached launcher); `move` gains `reverse`; `combineStack` (`CleanUpStack`); the door menu's `openManually`. Refusal tokens and events in `docs/04` §6.29; command refusals now reach the message log as `MSG_UI_FEEDBACK` (the feedback box) |
+| State machine | `src/ui/screens/tactical/input/`: `ui-events.ts` (the UI events with their single-event flags and modes), `tactical-input.ts` (`HandleTacticalUI`: mouse position, polled CTRL and ALT, one queued button transition per frame (`pointer-queue.ts`), queued keys, the pending override event, single events, the menu modes and the multi-selection reset; the turn-based and real-time button queries with click-hold 300 ms, double clicks, the movement menu on a held right button, the all-move, the rubber band after 10 pixels, ALT multi-selection; the handlers of the move, confirm-move, action, confirm-action, hand, look, talk, jump-over, lock and rubber-band modes; `SetUIMouseCursor` with the exit arrows), `attack-cursors.ts` (aim rings and refinement from `estimateAttack`: the right click and wheel steps, the burst and launcher variants, throw and toss cursors), `targets.ts` (find flags of the soldier under the pointer, the body part), `hints.ts` (the cursor hints through the client's `HintProvider`) |
+| Cursors and markers | `data/tables/ui-cursors.json` (`gUICursors`, transcribed by `tools/transcribe/ui-cursors.ts`); `world-markers.ts`: footsteps from `previewMove` (two per tile, the bands green, purple, blue, orange and red of `PlotPath`), the AP-dependent diamonds (stealth and unaffordable variants, the roof drop marker), the confirm figures (run, walk, swat, prone, vehicle), `BADMARKER1`, the AP number on `MOCKFLOOR1` (TINYFONT1 white, black while blinking), the selection rings under the hovered merc, the show-move-grid marker, the impact marker of throws and launchers; `arrows.ts`: the stance arrows (`SECONDPOINTERS`); the burst spread marks (`burst1.sti` frame 1); the rubber band in the twelve gold shades; the free-flowing cursors with their mouse text (AP, hit location, door and item texts) and the wait cursor while the UI is locked |
+| Locks | The enemy's turn locks the UI (`LU_BEGINUILOCK`), our turn locks while `combat.uiLocked` (an attack resolving, a merc acting) or while the shown frames lag the server by more than 40 ticks in combat (`LA_BEGINUIOURTURNLOCK`); only ESC passes |
+| Keys | The table below; `hotkeys.ts` (`HandleModNone`, `HandleModShift`, `HandleModCtrl`, `HandleModAlt`, `HandleModCtrlShift`, the menu keys) and `tactical-controls.ts` (the actions). The U5 HUD layout keeps o, CTRL+S, CTRL+L and ALT+X; the screen keeps \`, k and Pause |
+| Menus and dialogs | `popup-menus.ts`: the movement menu (`PopupMovementMenu`: anchor, the nine buttons with their help and disabled rules, the action picture by the hand item) and the door menu (`InitDoorOpenMenu`, `PopupDoorOpenMenu`: centred on the merc, the "( AP )" help in combat, disabled without tool, key or points), opened by the server's `doorMenu` event and answered with `door {action}`; `exit-dialog.ts` (`InternalInitSectorExitMenu`, `UpdateSectorExitMenu`, `RenderSectorExitMenu`, `RemoveSectorExitMenu`) over the `exitSectorOptions` hint (which now also answers `enemyInSector`), ending in `exitSector {who, load}`; `overhead-map.ts` (INSERT: the map, the persons by team, the item dots, the merc names, a click centres the view); menus and the dialog pause the game through the modal pause |
+| Panels | The SM panel's stealth, burst and mute buttons send `stealth`, `weaponMode` and `mute` (burst enabled for a burst-capable gun or an under-barrel launcher in the hand); climb tries `climb`, then the fence `jump`; the hand, talk and look buttons toggle the input's modes and show its state |
+| `/play` | `world-presenter.ts`: markers as world UI nodes by tile name, their screen points, interactive tiles (doors and switches) and exit grids, scroll edges and scrolling within the camera limits, tile pictures for the arrows, tile centres; `overhead-map.ts` composes the overhead map once per sector from the tilesets' `t/` small tiles in the three passes of `RenderOverheadMap` into an RGB picture (`UiAssets.addRgb`); `tactical-host.ts` loads the UI cursor table, keeps the display options (tree tops, wireframes, item glow, merc light, 3D cursor, tracking) in the client settings and plays the OK, attention, curse and locked battle sounds. The view follows a walking merc in combat with tracking on and every visible soldier of the others (`HandleLocateToGuyAsHeWalks`) |
+| Hook | `window.__ja2Ui.tactical` adds `uiMode`, `uiCursor`, `uiLock`, `markers` (`gridNo:tile`), `apNumber`, `movementMenuOpen`, `doorMenuOpen`, `exitDialogOpen`, `overheadOpen` |
+
+Keys (Works: as in the original, refusals as the server's tokens in the feedback box; Later: see `deviations.md`;
+Not ported: cheats, debug pages and the editor):
+
+| Key | Action | Status |
+|---|---|---|
+| Tab | Interface level up or down (`UIHandleChangeLevel`) | Works |
+| Space / SHIFT+Space | Next merc of the team panel / first merc of the next squad, with a locator | Works |
+| 0–9 | Change squad (`ChangeCurrentSquad`) | Works |
+| F1–F10 / SHIFT+F1–F10 | Locate and select / only locate the team slot | Works |
+| / | Locate the selected merc | Works |
+| = | Select every merc in the sector (real time) | Works; the cover and sight sizes with END or DELETE held: Later |
+| - | Cover and sight sizes with END or DELETE held | Later (`§18` decision 13) |
+| * and , | Red item glow | Later |
+| a | Auto bandage | Later |
+| b | Weapon mode (`weaponMode`) | Works |
+| c, p, s | Crouch, prone, stand (`stance`, also for the multi-selection) | Works |
+| d | End turn on our turn in combat | Works |
+| e | Next seen enemy, or `NO_ENEMIES_IN_SIGHT_STR` | Works |
+| f | Range to target (and gun range, out-of-range line) | Works |
+| g, i, t, w | Merc light, item glow, tree tops, wireframes (option and message) | Works |
+| h | Help screen | Later |
+| j / SHIFT+J | Climb up or down / through the window faced (`climb`, `climbWindow`) | Works |
+| l, u | Look cursor, action mode | Works |
+| m | Map screen | Works |
+| n | Cycle stacked soldiers or structures under the cursor | Later |
+| r | Run (stands up first) | Works |
+| v | Game settings | Version and gun lines; difficulty, save style and game style: Later |
+| x | Exchange places (`swapPlaces`) | Works |
+| z / ALT+Z | Stealth for the selected / the whole squad (`stealth`) | Works |
+| INSERT | Overhead map | Works |
+| HOME | 3D cursor option and message | Works; the 3D cursor itself: Later (`§18` decision 13) |
+| END | Continue the halted move | Works |
+| PAGE UP / PAGE DOWN | Higher or lower stance, climbing at the ends | Works |
+| F12 / CTRL+F12 | Clear the shown messages / the message queue | Works |
+| ESC | Cancel the spread, close popups and menus, stop the selected and band-selected mercs, back to the move cursor | Works |
+| ENTER | Next known enemy on our turn in combat | Works |
+| CTRL+Q | Swap hands | Works |
+| CTRL+N | Day and night head gear | Later |
+| ALT+F | Tracking mode (option and message; the view follows) | Works |
+| ALT+R / CTRL+SHIFT+R | Reload / reload the squad | Works |
+| ALT+- | Music volume down | Later |
+| ALT+S / ALT+L | Quick save / quick load | Later |
+| Arrows | Scroll (40 pixels across, 20 down per 20 ms, SHIFT doubles) | Works |
+| Wheel | Aim refinement in the confirm-action mode | Works |
+| Backspace | Stop the speech | U7 |
+| y, F11, CTRL+C/E/H/K/O/T/U/W/Z, CTRL+PAGE UP/DOWN, ALT+M/N and the ALT cheats | Debug and cheat keys | Not ported |
+
+Tests: `src/sim/tactical/player-orders.test.ts` (the orders and their refusals); `input/hotkeys.test.ts` (the key
+mapping with a recording host, the lock and the menu keys); `input/world-markers.test.ts` (footstep bands, the move
+cursors' diamonds, the confirm figures, the arrows); `tactical-controls.test.ts` over a stub sandbox session (a move by
+click in real time with the cursor marker, the keys, the option toggles, the movement menu on a held right button, the
+door menu from the `doorMenu` event, the overhead map, edge scrolling, the confirm click and path markers in combat,
+the auto-confirmed aim and the shot at a seen enemy, the exit dialog's radio rules and keys); the `tables.test.ts`
+regeneration check of `ui-cursors.json`; the layout contract test covers `tactical-input.json`;
+`tests/e2e/tactical-input.spec.ts` on stubs through `__ja2Ui` (a move by click, a key, the overhead map, the door
+menu, the aimed shot in a stub battle, the exit dialog in a stub campaign); the U5 pickup e2e now picks up with the
+hand cursor, as the original does.
+
+Decisions and limits: the stub world has no pointer tiles (adding tile types changes the stub tileset database and
+with it the logic hash of the 0.7.0 stub saves), so markers draw only on the original data; the rest is listed in
+`deviations.md` (interactive tiles, south exit arrow, overhead map, movement menu stances, burst marks,
+playback lock, the keys above). The team panel's second hand of a driver or passenger ("Exit Vehicle",
+`TMClickSecondHandInvCallbackPrimary`) waits for a tactical exit-vehicle command. Open for U7: Backspace and the talk
+menu keys; for U8: the map screen the m key and the exit dialog open.
+
 ---
 
 ## 18. Decisions and open questions

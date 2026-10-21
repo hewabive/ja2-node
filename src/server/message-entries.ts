@@ -7,7 +7,10 @@
 // @src Merc_Hiring.cc (arrivals), Laptop/History.cc, Strategic_Merc_Handler.cc (deaths, unpaid RPCs),
 // @src Map_Screen_Interface.cc (equipment left, invasions), Map_Screen_Helicopter.cc (Skyrider's bill), Assignments.cc
 // @src (repairs, aborted assignments), Strategic_Movement.cc (MSG_ARRIVE), SaveLoadGame.cc (game saved), Soldier_Control.cc
-// @src (refused first aid), Dialogue_Control.cc and Civ_Quotes.cc (dialogue lines). See docs/28 §12.2.
+// @src (refused first aid), Dialogue_Control.cc and Civ_Quotes.cc (dialogue lines); Turn_Based_Input.cc ToggleStealthMode
+// @src and the ALT+z squad stealth, Interface_Panels.cc BtnMuteCallback, Handle_UI.cc HandleMultiSelectionMove
+// @src (NO_PATH_FOR_MERC). Refusals the original reports with MSG_UI_FEEDBACK enter the log and open the feedback box.
+// @src See docs/28 §12.2.
 
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
@@ -67,6 +70,13 @@ const ABORT_LINES: Readonly<Record<string, number>> = {
   noToolkits: 41,
   insufficientRepairSkill: 42,
 };
+const SQUAD_ON_STEALTH = 44;
+const SQUAD_OFF_STEALTH = 45;
+const MERC_ON_STEALTH = 46;
+const MERC_OFF_STEALTH = 47;
+const MUTE_OFF = 64;
+const MUTE_ON = 65;
+const NO_PATH_FOR_MERC = 130;
 const NPC_MESSAGES: Readonly<Record<string, { readonly kind: MessageKind; readonly table: string; readonly index: number }>> = {
   teamFull: { kind: 'uiFeedback', table: 'TacticalStr', index: 35 },
   recruited: { kind: 'interface', table: 'TacticalStr', index: 36 },
@@ -249,6 +259,10 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   headMinerQuote: (e) => dialogue(e.profile, e.textKey),
   skyriderQuote: (e) => dialogue(e.profile ?? null, e.textKey),
   civQuote: (e) => (e.hint ? dialogue(null, e.textKey) : []),
+  stealthChanged: (e, facts) => [line('pMessageStrings', e.on ? MERC_ON_STEALTH : MERC_OFF_STEALTH, [text(facts.soldierName(e.soldier))])],
+  squadStealthChanged: (e) => [line('pMessageStrings', e.on ? SQUAD_ON_STEALTH : SQUAD_OFF_STEALTH)],
+  muteChanged: (e, facts) => [line('TacticalStr', e.on ? MUTE_ON : MUTE_OFF, [text(facts.soldierName(e.soldier))])],
+  noPathForMerc: (e, facts) => [line('TacticalStr', NO_PATH_FOR_MERC, [text(facts.soldierName(e.soldier))])],
 };
 
 export function messageEntriesOf(events: readonly SimEvent[], facts: MessageFacts): MessageEntry[] {
@@ -278,5 +292,5 @@ export function refusalEntry(tick: number, cmd: CommandEnvelope, result: Command
   if (typeof token !== 'string') return null;
   const message = refusalMessage(token);
   if (message?.shown !== 'log') return null;
-  return { tick, ...line(message.table, message.index, refusalArgs(token, cmd, facts)) };
+  return { tick, ...line(message.table, message.index, refusalArgs(token, cmd, facts), 'uiFeedback') };
 }

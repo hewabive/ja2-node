@@ -24,6 +24,7 @@ import { LAPTOP_SHELL_CONTRACT } from './laptop/laptop-screen.ts';
 import { SHOP_CONTRACT } from './shop/shop-panel.ts';
 import { HUD_CONTRACT } from './tactical/hud.ts';
 import { SM_PANEL_CONTRACT } from './tactical/sm-panel.ts';
+import { TACTICAL_INPUT_CONTRACT } from './tactical/tactical-controls.ts';
 import { TEAM_PANEL_CONTRACT } from './tactical/team-panel.ts';
 import { TACTICAL_SPEECH_CONTRACT } from './talk/speech-surfaces.ts';
 import { TALK_PANEL_CONTRACT } from './talk/talk-panel.ts';
@@ -59,5 +60,6 @@ export const LAYOUT_CONTRACTS: Readonly<Record<string, ControllerContract>> = Ob
     TALK_PANEL_CONTRACT,
     TACTICAL_SPEECH_CONTRACT,
     SHOP_CONTRACT,
+    TACTICAL_INPUT_CONTRACT,
   ].map((contract) => [contract.id, contract]),
 );

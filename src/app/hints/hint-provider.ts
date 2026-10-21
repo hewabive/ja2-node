@@ -64,6 +64,10 @@ interface Ready {
   readonly source: HintAnswerSource;
 }
 
+function restKindOf(request: CommandEnvelope): string {
+  return typeof request.kind === 'string' ? `${request.type}:${request.kind}` : request.type;
+}
+
 function canonical(answer: HintAnswer): string {
   return JSON.stringify({ ok: answer.ok, reason: answer.reason ?? null, data: answer.data ?? null });
 }
@@ -175,7 +179,7 @@ export class HintProvider implements GameClient {
       return { state: 'ready', ...cached };
     }
     const now = this.#options.now();
-    if (!this.#rested(request.type, key, now)) return PENDING_HINT;
+    if (!this.#rested(restKindOf(request), key, now)) return PENDING_HINT;
     return this.#resolve(request, key, view);
   }
 
