@@ -136,9 +136,13 @@ describe('game options over the agent API', () => {
         expect(session?.dispatch({ type: 'setOption', bloodAndGore: false })).toMatchObject({ ok: false, data: { refusal: 'promptOpen' } });
         expect(sim.campaign.state.options.bloodAndGore).toBe(true);
         sim.campaign.state.battle.prompt = null;
+        const framed: string[] = [];
+        session?.subscribe((message) => {
+          if (message.t === 'frames') framed.push(...message.frames.flatMap((f) => (f.events ?? []).map((e) => e.type)));
+        });
         expect(session?.dispatch({ type: 'setOption', bloodAndGore: false })).toMatchObject({ ok: true });
         expect(sim.campaign.state.options.bloodAndGore).toBe(false);
-        expect(sim.drainEvents().map((e) => e.type)).toContain('optionChanged');
+        expect(framed).toContain('optionChanged');
       } finally {
         await k.dispose();
       }
