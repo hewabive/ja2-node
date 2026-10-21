@@ -22,6 +22,7 @@ import { EMAIL_CONTRACT } from './laptop/email/email-page.ts';
 import { FINANCES_CONTRACT } from './laptop/finances/finances-page.ts';
 import { LAPTOP_SHELL_CONTRACT } from './laptop/laptop-screen.ts';
 import { MAP_SCREEN_CONTRACT } from './map/map-controller.ts';
+import { MAP_INVENTORY_CONTRACT } from './map/map-inventory-controller.ts';
 import { HUD_CONTRACT } from './tactical/hud.ts';
 import { SM_PANEL_CONTRACT } from './tactical/sm-panel.ts';
 import { TEAM_PANEL_CONTRACT } from './tactical/team-panel.ts';
@@ -55,5 +56,6 @@ export const LAYOUT_CONTRACTS: Readonly<Record<string, ControllerContract>> = Ob
     SM_PANEL_CONTRACT,
     HUD_CONTRACT,
     MAP_SCREEN_CONTRACT,
+    MAP_INVENTORY_CONTRACT,
   ].map((contract) => [contract.id, contract]),
 );
