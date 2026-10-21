@@ -50,6 +50,20 @@ export interface PopupArea {
   readonly height: number;
 }
 
+export interface KeyRingGrid {
+  readonly baseX: number;
+  readonly cellX: number;
+  readonly cellY: number;
+  readonly rowWidth: number;
+}
+
+export const TACTICAL_KEY_RING_GRID: KeyRingGrid = {
+  baseX: KEY_RING_GRAPHIC_OFFSET_X,
+  cellX: 0,
+  cellY: KEY_RING_OFFSET_Y,
+  rowWidth: KEY_RING_ROW_WIDTH,
+};
+
 export interface PopupHooks {
   readonly services: UiServices;
   readonly images: ImageCatalog;
@@ -223,6 +237,7 @@ export class KeyRingPopup {
   readonly #hooks: PopupHooks;
   #soldier: number | null = null;
   #area: PopupArea = { x: 0, y: 0, width: 0, height: 0 };
+  #grid: KeyRingGrid = TACTICAL_KEY_RING_GRID;
   #regions: MouseRegion[] = [];
 
   constructor(hooks: PopupHooks) {
@@ -233,16 +248,17 @@ export class KeyRingPopup {
     return this.#soldier !== null;
   }
 
-  show(soldier: SoldierView, area: PopupArea): void {
+  show(soldier: SoldierView, area: PopupArea, grid: KeyRingGrid = TACTICAL_KEY_RING_GRID): void {
     this.close();
     this.#soldier = soldier.id;
     this.#area = area;
+    this.#grid = grid;
     const cell = cellSize(this.#hooks.images, this.#hooks.cellArt);
-    const x0 = area.x + KEY_RING_GRAPHIC_OFFSET_X;
+    const x0 = area.x + grid.baseX + grid.cellX;
     const services = this.#hooks.services;
     for (let i = 0; i < NUMBER_KEYS_ON_KEYRING; i++) {
-      const x = x0 + (i % KEY_RING_ROW_WIDTH) * cell.width;
-      const y = area.y + idiv(i, KEY_RING_ROW_WIDTH) * cell.height + KEY_RING_OFFSET_Y;
+      const x = x0 + (i % grid.rowWidth) * cell.width;
+      const y = area.y + idiv(i, grid.rowWidth) * cell.height + grid.cellY;
       let right = false;
       this.#regions.push(
         services.regions.define({
@@ -306,13 +322,14 @@ export class KeyRingPopup {
     const soldier = this.#soldier === null ? null : this.#hooks.soldier(this.#soldier);
     if (!soldier) return;
     const area = this.#area;
-    const x0 = area.x + KEY_RING_GRAPHIC_OFFSET_X;
-    list.shadow(0, area.y, x0 + area.width, area.y + area.height);
+    const grid = this.#grid;
+    const base = area.x + grid.baseX;
+    list.shadow(0, area.y, base + area.width, area.y + area.height);
     const cell = cellSize(this.#hooks.images, this.#hooks.cellArt);
     const keys = soldier.keys ?? [];
     for (let i = 0; i < NUMBER_KEYS_ON_KEYRING; i++) {
-      const x = x0 + (i % KEY_RING_ROW_WIDTH) * cell.width;
-      const y = area.y + KEY_RING_OFFSET_Y + idiv(i, KEY_RING_ROW_WIDTH) * cell.height;
+      const x = base + grid.cellX + (i % grid.rowWidth) * cell.width;
+      const y = area.y + grid.cellY + idiv(i, grid.rowWidth) * cell.height;
       list.image(this.#hooks.cellArt, 0, x, y);
       const key = keys[i];
       if (!key || key.count <= 0) continue;
