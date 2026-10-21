@@ -43,6 +43,27 @@ export interface TalkSample {
   readonly civQuote: string | null;
 }
 
+export interface ShopSlotSample {
+  readonly item: string;
+  readonly count: number;
+}
+
+export interface ShopSample {
+  readonly open: boolean;
+  readonly dealer: number | null;
+  readonly page: number;
+  readonly pages: number;
+  readonly dealerBoxes: readonly ShopSlotSample[];
+  readonly doa: readonly (ShopSlotSample | null)[];
+  readonly poa: readonly (ShopSlotSample | null)[];
+  readonly totals: { readonly cost: number; readonly value: number; readonly cash: number } | null;
+  readonly transactionEnabled: boolean;
+  readonly doneEnabled: boolean;
+  readonly lastQuote: number | null;
+  readonly subtitle: string | null;
+  readonly held: string | null;
+}
+
 export interface TimeSummary {
   readonly count: number;
   readonly p50: number;
@@ -78,6 +99,7 @@ export interface TacticalHook {
   enemyBar: { readonly counter: number; readonly max: number };
   topMessage: string | null;
   talk: TalkSample;
+  shop: ShopSample;
   frameMs: TimeSummary;
   worldMs: TimeSummary;
   command(cmd: CommandEnvelope): Promise<unknown>;

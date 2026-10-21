@@ -42,6 +42,7 @@ export interface PanelState {
   readonly interfaceLevel: number;
   readonly cursorMode: 'none' | 'hand' | 'talk' | 'look';
   readonly now: number;
+  readonly shopOpen?: boolean;
 }
 
 function emptySlot(): TeamSlotModel {
@@ -123,6 +124,7 @@ export function smPanelModel(
     s.id !== state.selected || life < OKLIFE || !ourTurn(view) || state.disabledForItems || state.itemInCursor || state.popupOpen;
   const allOff = state.itemInCursor || state.popupOpen;
   const alive = mercs.filter((m) => !isDead(m)).length;
+  const shop = state.shopOpen === true;
   return {
     ...model,
     name: s.name,
@@ -138,28 +140,28 @@ export function smPanelModel(
     statsHelp: vitalStatsHelp(text, s),
     descriptionOpen: state.descriptionOpen,
     inventoryEnabled: !state.disabledForItems,
-    keyRingEnabled: !state.disabledForItems && !state.itemInCursor,
+    keyRingEnabled: !shop && !state.disabledForItems && !state.itemInCursor,
     slots: Array.from({ length: NUM_INV_SLOTS }, (_, slot) => ({ tooltip: helpTextForItem(slotItem(s, slot), help) })),
     weaponMode: s.weaponMode ?? 'single',
     stealthButton: stealthButtons(stance, s.stealth === true),
-    mapScreenEnabled: !allOff && !view?.conversation && !state.pickupMenuOpen,
-    doneEnabled: !allOff && inCombat(view) && ourTurn(view),
-    talkEnabled: !allOff,
+    mapScreenEnabled: !shop && !allOff && !view?.conversation && !state.pickupMenuOpen,
+    doneEnabled: !shop && !allOff && inCombat(view) && ourTurn(view),
+    talkEnabled: !shop && !allOff,
     talkChecked: state.cursorMode === 'talk',
     muteEnabled: false,
     muteChecked: s.muted === true,
-    stanceUpEnabled: !actionsOff && stance !== 'stand',
-    levelEnabled: !actionsOff,
+    stanceUpEnabled: !shop && !actionsOff && stance !== 'stand',
+    levelEnabled: !shop && !actionsOff,
     levelChecked: state.interfaceLevel > 0,
-    climbEnabled: !actionsOff,
-    stanceDownEnabled: !actionsOff && stance !== 'prone',
-    handEnabled: !actionsOff,
+    climbEnabled: !shop && !actionsOff,
+    stanceDownEnabled: !shop && !actionsOff && stance !== 'prone',
+    handEnabled: !shop && !actionsOff,
     handChecked: state.cursorMode === 'hand',
     prevEnabled: !state.popupOpen && alive > 0,
     nextEnabled: !state.popupOpen && alive > 0,
-    optionsEnabled: !allOff,
+    optionsEnabled: !shop && !allOff,
     burstEnabled: false,
-    lookEnabled: !actionsOff,
+    lookEnabled: !shop && !actionsOff,
     lookChecked: state.cursorMode === 'look',
     stealthEnabled: false,
   };

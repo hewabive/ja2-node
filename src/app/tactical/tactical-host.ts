@@ -22,7 +22,7 @@ import { ClientKnowledge } from '../hints/client-knowledge.ts';
 import { attachHintHook, createHintHook, type HintHook } from '../hints/hint-hook.ts';
 import { HintProvider } from '../hints/hint-provider.ts';
 import type { SessionClient } from '../net/session-client.ts';
-import { fetchVfsFile, fetchVfsList } from '../net/vfs.ts';
+import { fetchVfsFile, fetchVfsList, readVfsFileOrNull } from '../net/vfs.ts';
 import { loadSettings } from '../settings.ts';
 import { TacticalSound } from '../sound/tactical-sound.ts';
 import { tacticalOptionsOf } from '../world/display-options.ts';
@@ -34,7 +34,7 @@ import { TacticalWorldView } from '../world/tactical-world-view.ts';
 import { WorldEffects } from '../world/world-effects.ts';
 import { engineSpeechVoices, storedSpeechSettings } from './speech-voices.ts';
 import { SessionTacticalClient } from './tactical-client.ts';
-import { attachTacticalHook, type TacticalHook, type TalkSample, TimeSamples } from './tactical-hook.ts';
+import { attachTacticalHook, type ShopSample, type TacticalHook, type TalkSample, TimeSamples } from './tactical-hook.ts';
 import { fetchItemCatalogue, fetchProfiles, type SpeechSource, TacticalMediaStore } from './tactical-media.ts';
 import { TacticalWorldPresenter } from './world-presenter.ts';
 
@@ -286,6 +286,7 @@ export class TacticalHost {
       speech: this.#presenter,
       speechSettings: this.#speechSettings,
       rpcSpeechPrefixed: this.#sound.rpcSpeechPrefixed,
+      prepareText: (file) => this.#prepareText(file),
     };
     this.#screen = new TacticalScreen(env);
     this.#screenFor = loaded;
@@ -414,6 +415,21 @@ export class TacticalHost {
       enemyBar: { counter: 0, max: 0 },
       topMessage: null,
       talk: { open: false, profile: null, busy: false, line: null, queued: 0, spoken: 0, textBox: null, facePopup: false, civQuote: null },
+      shop: {
+        open: false,
+        dealer: null,
+        page: 0,
+        pages: 0,
+        dealerBoxes: [],
+        doa: [],
+        poa: [],
+        totals: null,
+        transactionEnabled: false,
+        doneEnabled: false,
+        lastQuote: null,
+        subtitle: null,
+        held: null,
+      },
       frameMs: this.#frameTimes.summary(),
       worldMs: this.#worldTimes.summary(),
       command: (cmd) => this.#command(cmd),
@@ -430,6 +446,37 @@ export class TacticalHost {
         this.#frameTimes.reset();
         this.#worldTimes.reset();
       },
+    };
+  }
+
+  #prepareText(file: string): void {
+    const edt = this.#o.ui.edt;
+    if (edt.has(file)) return;
+    void readVfsFileOrNull(file).then((bytes) => {
+      if (bytes && !edt.has(file)) edt.add(file, bytes);
+    });
+  }
+
+  #shopSample(screen: TacticalScreen): ShopSample {
+    const panel = screen.dialogue.shop;
+    const model = panel.model;
+    const shop = this.#o.session.view?.shop ?? null;
+    const enable = model.enableState();
+    const held = model.held;
+    return {
+      open: panel.open,
+      dealer: panel.open ? panel.dealer : null,
+      page: model.page,
+      pages: model.pages,
+      dealerBoxes: (shop?.boxes ?? []).map((b, k) => ({ item: b.item, count: model.left(k) })),
+      doa: model.dealerOffer.map((s) => (s ? { item: s.item, count: s.count } : null)),
+      poa: model.playerOffer.map((s) => (s ? { item: s.item, count: 1 } : null)),
+      totals: model.quote?.totals ?? null,
+      transactionEnabled: enable.transaction,
+      doneEnabled: enable.done,
+      lastQuote: model.lastQuote,
+      subtitle: panel.subtitleText,
+      held: held ? (held.kind === 'pocket' ? held.item : held.offer.item) : null,
     };
   }
 
@@ -487,6 +534,7 @@ export class TacticalHost {
     hook.enemyBar = screen.enemyBar;
     hook.topMessage = this.#o.session.combat?.topMessage?.kind ?? null;
     hook.talk = this.#talkSample(screen);
+    hook.shop = this.#shopSample(screen);
     hook.cursorItem = screen.inventory.cursor?.item ?? null;
     hook.descriptionOpen = screen.description.open;
     hook.descriptionItem = screen.description.item;

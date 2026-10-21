@@ -90,6 +90,7 @@ export interface InventoryHooks {
   popupOpen(): boolean;
   disabledForItems(): boolean;
   inCombat(): boolean;
+  extraHatch?(soldier: number, slot: number): boolean;
 }
 
 export class InventoryPanel {
@@ -160,6 +161,7 @@ export class InventoryPanel {
   }
 
   hatched(soldier: SoldierView, slot: number): boolean {
+    if (this.#hooks.extraHatch?.(soldier.id, slot)) return true;
     const s = this.#cursor?.source;
     if (s?.kind !== 'slot' || this.#hooks.disabledForItems()) return false;
     if (s.soldier !== soldier.id) return false;

@@ -4,9 +4,14 @@
 // @src tile), DeleteTalkingMenu (the panel stays until its lines are said), TalkPanelClickCallback (Give opens the
 // @src talker's inventory panel); src/game/Tactical/Turn_Based_Input.cc GetKeyboardInput (Backspace stops any speech on
 // @src key down, a key up advances a waiting line), HandleTalkingMenuKeys (Esc and Backspace on key up in the panel);
-// @src src/game/Tactical/Civ_Quotes.cc ShutDownQuoteBoxIfActive. See docs/28 §5.8.
+// @src src/game/Tactical/Civ_Quotes.cc ShutDownQuoteBoxIfActive; src/game/Tactical/ShopKeeper_Interface.cc
+// @src EnterShopKeeperInterface (the SM panel of the selected merc), ShopKeeperScreenHandle (leaving once the farewell is
+// @src said), InitShopKeeperSubTitledText (only with SUBTITLES). See docs/28 §5.8, §5.9.
 
-import type { PlayerView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
+import { npcDialogueFile, textKey } from '../../../content/narrative/dialogue-text.ts';
+import type { CatalogueItem } from '../../../protocol/items.ts';
+import type { InventoryItemView, PlayerView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
+import { EXTERN_CURSOR } from '../../cursors/cursor-ids.ts';
 import type { DrawList } from '../../draw-list.ts';
 import type { UiInputEvent } from '../../input/events.ts';
 import { ViewModelController } from '../../layout/controller.ts';
@@ -21,10 +26,14 @@ import {
   SpeechSurface,
   speechLineOf,
 } from '../../speech.ts';
+import { FontName } from '../../text/fonts.ts';
 import type { MercTextBoxFonts } from '../../widgets/merc-text-box.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
+import { ShopPanel } from '../shop/shop-panel.ts';
 import type { BarValues } from '../tactical/bars.ts';
 import { type SpeechPlayback, type TacticalEnvironment, TacticalLayout } from '../tactical/environment.ts';
+import { helpTextForItem } from '../tactical/inventory.ts';
+import type { TileDrawContext } from '../tactical/item-tile.ts';
 import { npcRequestBox, npcRequestChoice } from './npc-requests.ts';
 import { SpeechSurfaces, TACTICAL_SPEECH_CONTRACT, TACTICAL_SPEECH_SCREEN } from './speech-surfaces.ts';
 import { TalkPanel } from './talk-panel.ts';
@@ -42,6 +51,10 @@ export interface DialogueHost {
   viewport(): { readonly top: number; readonly bottom: number };
   openInventory(soldier: number): void;
   sector(): string | null;
+  smMerc(): number | null;
+  nextMerc(): void;
+  describeItem(view: InventoryItemView, at: { readonly x: number; readonly y: number }): void;
+  descriptionOpen(): boolean;
 }
 
 type FrameEvent = NonNullable<ViewFrame['events']>[number];
@@ -50,10 +63,13 @@ export class DialogueLayer {
   readonly presenter: SpeechPresenter;
   readonly talk: TalkPanel;
   readonly surfaces: SpeechSurfaces;
+  readonly shop: ShopPanel;
   readonly #env: TacticalEnvironment;
   readonly #host: DialogueHost;
   readonly #speechView: LayoutView;
   #conversationProfile: number | null = null;
+  #pricingRequested: number | null = null;
+  #heldCursor = false;
   #now = 0;
   #built = false;
   #askedRequest: string | null = null;
@@ -99,6 +115,38 @@ export class DialogueLayer {
       drawBars: (list, values, x, y) => host.drawBars(list, values, x, y),
       barValues: (s) => host.barValues(s),
     });
+    this.shop = new ShopPanel({
+      services,
+      sliders: services.sliders,
+      text: env.text,
+      model: env.layout(TacticalLayout.SHOP),
+      presenter: this.presenter,
+      boxes: env.boxes,
+      boxArt: env.basicTextBox,
+      boxFonts,
+      random: env.random,
+      view: () => this.#view(),
+      profile: (id) => media.profile(id),
+      item: (name) => media.item(name),
+      ensureImage: (path) => media.image(path),
+      gaps: (file) => media.gaps(file),
+      tileContext: (list) => this.#tileContext(list),
+      helpText: (view) =>
+        helpTextForItem(view, {
+          item: (name) => media.item(name),
+          text: env.text,
+          gunNut: media.gunNut,
+          nickname: (profile) => media.profile(profile)?.nickname ?? null,
+        }),
+      command: (cmd) => env.client.command(cmd),
+      subtitles: () => env.speechSettings?.().subtitles ?? true,
+      rpcSpeechPrefixed: env.rpcSpeechPrefixed ?? false,
+      modifiers: () => services.modifiers,
+      setHeldCursor: (item) => this.#setHeldCursor(item),
+      describe: (view, at) => host.describeItem(view, at),
+      nextMerc: () => host.nextMerc(),
+      exitGame: () => env.flow.exitGame(),
+    });
     this.#speechView = new LayoutView({
       model: env.layout(TacticalLayout.SPEECH),
       controller: new ViewModelController(TACTICAL_SPEECH_CONTRACT, {}),
@@ -111,7 +159,51 @@ export class DialogueLayer {
   }
 
   get modal(): boolean {
-    return this.talk.open;
+    return this.talk.open || this.shop.open;
+  }
+
+  get shopOpen(): boolean {
+    return this.shop.open;
+  }
+
+  shopHatched(soldier: number, slot: number): boolean {
+    return this.shop.open && this.shop.hatched(soldier, slot);
+  }
+
+  shopDisablesInventory(soldier: number | null): boolean {
+    const shop = this.#view()?.shop;
+    if (!this.shop.open || !shop) return false;
+    return soldier === null || !shop.canTrade.includes(soldier);
+  }
+
+  shopPocketClick(soldier: number, slot: number): boolean {
+    if (!this.shop.open) return false;
+    return this.shop.pocketClick(soldier, slot);
+  }
+
+  #tileContext(list: DrawList): TileDrawContext {
+    const media = this.#env.media;
+    return {
+      list,
+      images: this.#env.runtime.images,
+      items: { item: (name) => media.item(name) },
+      font: this.#env.runtime.fonts.get(FontName.TINYFONT1),
+      text: this.#env.text,
+      ensure: (path) => media.image(path),
+    };
+  }
+
+  #setHeldCursor(item: CatalogueItem | null): void {
+    const cursor = this.#env.runtime.cursor;
+    const graphic = item?.inventoryGraphics.small ?? null;
+    if (!graphic || !this.#env.media.image(graphic.path)) {
+      if (this.#heldCursor) cursor.set(this.#env.runtime.regions.current?.cursor ?? 0, this.#now);
+      this.#heldCursor = false;
+      return;
+    }
+    cursor.setExternCursor(graphic.path, graphic.subImageIndex);
+    cursor.set(EXTERN_CURSOR, this.#now);
+    this.#heldCursor = true;
   }
 
   get speaking(): SpeechPlayback | null {
@@ -137,6 +229,7 @@ export class DialogueLayer {
 
   dispose(): void {
     this.talk.hide();
+    this.shop.hide();
     this.surfaces.dispose();
     this.#speechView.dispose();
     this.#built = false;
@@ -171,8 +264,10 @@ export class DialogueLayer {
       if (civ) this.presenter.showCivQuote(civ, this.#now);
       return;
     }
-    const line = speechLineOf(event, routing);
-    if (line) this.presenter.enqueue(line);
+    const line = speechLineOf(event.type === 'shopkeeperQuote' ? withDealerTextKey(event) : event, routing);
+    if (!line) return;
+    const queued = this.presenter.enqueue(line);
+    if (event.type === 'shopkeeperQuote') this.shop.lineQueued(queued.id, event.quote);
   }
 
   update(now: number): void {
@@ -181,7 +276,9 @@ export class DialogueLayer {
     if (!this.#built) return;
     this.#syncTalkPanel(now);
     this.#syncRequest();
+    this.#syncShop(now);
     this.talk.update(now);
+    this.shop.update(now);
     this.surfaces.update(now);
     this.#speechView.update();
   }
@@ -213,6 +310,30 @@ export class DialogueLayer {
     if (this.talk.open && !this.#panelLinesLeft()) this.talk.hide();
   }
 
+  #syncShop(now: number): void {
+    const shop = this.#view()?.shop ?? null;
+    if (shop) {
+      if (!this.shop.open || this.shop.dealer !== shop.dealer) {
+        this.shop.hide();
+        this.#env.prepareText?.(npcDialogueFile(shop.dealer));
+        this.#host.openInventory(shop.pricing.soldier);
+        this.#pricingRequested = shop.pricing.soldier;
+        this.shop.show(shop, now);
+      } else this.shop.sync(shop);
+      this.#followPricing(shop.pricing.soldier);
+      return;
+    }
+    this.#pricingRequested = null;
+    if (this.shop.open && !this.shop.linesLeft()) this.shop.hide();
+  }
+
+  #followPricing(pricing: number): void {
+    const merc = this.#host.smMerc();
+    if (merc === null || merc === pricing || merc === this.#pricingRequested) return;
+    this.#pricingRequested = merc;
+    void this.shop.model.setPricing(merc);
+  }
+
   #talkBounds() {
     const viewport = this.#host.viewport();
     const geometry = this.#env.runtime.geometry();
@@ -232,6 +353,11 @@ export class DialogueLayer {
   }
 
   render(list: DrawList): void {
+    this.shop.render(list);
+    if (this.shop.open && this.#host.descriptionOpen()) {
+      const geometry = this.#env.runtime.geometry();
+      list.hatch(0, 0, geometry.width - 1, geometry.height - 1);
+    }
     this.talk.render(list);
     this.#speechView.render(list);
   }
@@ -245,6 +371,7 @@ export class DialogueLayer {
       this.presenter.advanceKey(this.#now);
       return true;
     }
+    if (this.shop.input(event)) return true;
     if (!this.talk.open) return false;
     if (this.talk.input(event)) return true;
     return event.kind === 'keyDown' && (event.key === ESCAPE || event.key === BACKSPACE);
@@ -255,7 +382,7 @@ export class DialogueLayer {
   }
 
   describe(): readonly WidgetInfo[] {
-    return [...this.talk.describe(), ...this.surfaces.describe()];
+    return [...this.talk.describe(), ...this.shop.describe(), ...this.surfaces.describe()];
   }
 
   async #approach(kind: string): Promise<void> {
@@ -268,4 +395,11 @@ export class DialogueLayer {
     const reply = await this.#env.client.command({ type: 'closeTalk' });
     return reply.ok;
   }
+}
+
+type ShopkeeperQuote = Extract<FrameEvent, { type: 'shopkeeperQuote' }>;
+
+function withDealerTextKey(event: ShopkeeperQuote): ShopkeeperQuote {
+  if (event.textKey) return event;
+  return { ...event, textKey: textKey(npcDialogueFile(event.dealer), event.quote) };
 }

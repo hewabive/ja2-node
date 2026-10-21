@@ -1,0 +1,156 @@
+image interface/tradescreen.sti#0 0,0 normal
+glyphs blockfont 267,12 n=20 fg=169
+glyphs blockfont 17,162 n=10 fg=169
+glyphs blockfont 14,291 n=11 fg=169
+glyphs blockfont 25,235 n=7 fg=169
+glyphs blockfont 25,250 n=7 fg=169
+glyphs font10arial 26,265 n=7 fg=208
+glyphs blockfont 122,73 n=4 fg=169
+glyphs blockfont 128,89 n=3 fg=169
+image interface/mdguns.sti#1 186,37 outlineShadow
+image interface/mdguns.sti#1 188,35 outline
+line 167,51 167,47 #8c8877
+line 168,51 168,47 #8c8877
+hatch checker 165,30 67x31
+image interface/mdguns.sti#7 260,37 outlineShadow
+image interface/mdguns.sti#7 262,35 outline
+line 241,51 241,32 #8c8877
+line 242,51 242,32 #8c8877
+glyphs smallcompfont 261,54 n=4 fg=208
+image interface/mdguns.sti#5 334,37 outlineShadow
+image interface/mdguns.sti#5 336,35 outline
+line 315,51 315,32 #8c8877
+line 316,51 316,32 #8c8877
+glyphs smallcompfont 336,54 n=4 fg=208
+image interface/mdp1items.sti#28 414,35 outlineShadow
+image interface/mdp1items.sti#28 416,33 outline
+line 389,51 389,32 #8c8877
+line 390,51 390,32 #8c8877
+glyphs smallcompfont 410,54 n=4 fg=208
+glyphs blockfont2 440,45 n=2 fg=208
+image interface/mdp1items.sti#2 488,35 outlineShadow
+image interface/mdp1items.sti#2 490,33 outline
+line 463,51 463,32 #8c8877
+line 464,51 464,32 #8c8877
+glyphs smallcompfont 486,54 n=3 fg=208
+glyphs blockfont2 514,45 n=2 fg=208
+image interface/mdp1items.sti#8 192,71 outlineShadow
+image interface/mdp1items.sti#8 194,69 outline
+line 167,87 167,68 #8c8877
+line 168,87 168,68 #8c8877
+glyphs smallcompfont 188,90 n=4 fg=208
+glyphs blockfont2 218,81 n=2 fg=208
+image interface/mdp1items.sti#13 266,71 outlineShadow
+image interface/mdp1items.sti#13 268,69 outline
+line 241,87 241,68 #8c8877
+line 242,87 242,68 #8c8877
+glyphs smallcompfont 264,90 n=3 fg=208
+image interface/mdp1items.sti#14 340,71 outlineShadow
+image interface/mdp1items.sti#14 342,69 outline
+line 315,87 315,68 #8c8877
+line 316,87 316,68 #8c8877
+glyphs smallcompfont 339,90 n=3 fg=208
+glyphs blockfont2 366,81 n=2 fg=208
+image interface/mdp1items.sti#35 414,71 outlineShadow
+image interface/mdp1items.sti#35 416,69 outline
+line 389,87 389,68 #8c8877
+line 390,87 390,68 #8c8877
+glyphs smallcompfont 412,90 n=3 fg=208
+glyphs blockfont2 440,81 n=2 fg=208
+image interface/mdp1items.sti#32 488,71 outlineShadow
+image interface/mdp1items.sti#32 490,69 outline
+line 463,87 463,68 #8c8877
+line 464,87 464,68 #8c8877
+glyphs smallcompfont 487,90 n=3 fg=208
+glyphs blockfont2 514,81 n=2 fg=208
+image interface/mdp1items.sti#26 192,107 outlineShadow
+image interface/mdp1items.sti#26 194,105 outline
+line 167,123 167,104 #8c8877
+line 168,123 168,104 #8c8877
+glyphs smallcompfont 191,126 n=3 fg=208
+glyphs blockfont2 218,117 n=2 fg=208
+image interface/mdp1items.sti#79 261,111 outlineShadow
+image interface/mdp1items.sti#79 263,109 outline
+line 241,123 241,104 #8c8877
+line 242,123 242,104 #8c8877
+glyphs smallcompfont 262,126 n=4 fg=208
+image interface/mdp1items.sti#102 337,108 outlineShadow
+image interface/mdp1items.sti#102 339,106 outline
+line 315,123 315,104 #8c8877
+line 316,123 316,104 #8c8877
+glyphs smallcompfont 338,126 n=3 fg=208
+image interface/mdguns.sti#1 112,158 outlineShadow
+image interface/mdguns.sti#1 114,156 outline
+line 93,172 93,168 #8c8877
+line 94,172 94,168 #8c8877
+glyphs smallcompfont 114,175 n=4 fg=208
+glyphs blockfont 38,199 n=4 fg=208
+glyphs blockfont 43,315 n=2 fg=208
+clipPush
+image interface/tactpopupbackground.pcx#0 13,140 normal
+image interface/tactpopup.sti#1 23,140 normal
+image interface/tactpopup.sti#6 23,171 normal
+image interface/tactpopup.sti#1 33,140 normal
+image interface/tactpopup.sti#6 33,171 normal
+image interface/tactpopup.sti#1 43,140 normal
+image interface/tactpopup.sti#6 43,171 normal
+image interface/tactpopup.sti#1 53,140 normal
+image interface/tactpopup.sti#6 53,171 normal
+image interface/tactpopup.sti#1 63,140 normal
+image interface/tactpopup.sti#6 63,171 normal
+image interface/tactpopup.sti#1 73,140 normal
+image interface/tactpopup.sti#6 73,171 normal
+image interface/tactpopup.sti#1 83,140 normal
+image interface/tactpopup.sti#6 83,171 normal
+image interface/tactpopup.sti#1 93,140 normal
+image interface/tactpopup.sti#6 93,171 normal
+image interface/tactpopup.sti#1 103,140 normal
+image interface/tactpopup.sti#6 103,171 normal
+image interface/tactpopup.sti#1 113,140 normal
+image interface/tactpopup.sti#6 113,171 normal
+image interface/tactpopup.sti#1 123,140 normal
+image interface/tactpopup.sti#6 123,171 normal
+image interface/tactpopup.sti#1 133,140 normal
+image interface/tactpopup.sti#6 133,171 normal
+image interface/tactpopup.sti#1 143,140 normal
+image interface/tactpopup.sti#6 143,171 normal
+image interface/tactpopup.sti#1 153,140 normal
+image interface/tactpopup.sti#6 153,171 normal
+image interface/tactpopup.sti#1 163,140 normal
+image interface/tactpopup.sti#6 163,171 normal
+image interface/tactpopup.sti#1 173,140 normal
+image interface/tactpopup.sti#6 173,171 normal
+image interface/tactpopup.sti#1 183,140 normal
+image interface/tactpopup.sti#6 183,171 normal
+image interface/tactpopup.sti#1 193,140 normal
+image interface/tactpopup.sti#6 193,171 normal
+image interface/tactpopup.sti#1 203,140 normal
+image interface/tactpopup.sti#6 203,171 normal
+image interface/tactpopup.sti#1 213,140 normal
+image interface/tactpopup.sti#6 213,171 normal
+image interface/tactpopup.sti#1 223,140 normal
+image interface/tactpopup.sti#6 223,171 normal
+image interface/tactpopup.sti#1 233,140 normal
+image interface/tactpopup.sti#6 233,171 normal
+image interface/tactpopup.sti#3 13,150 normal
+image interface/tactpopup.sti#4 240,150 normal
+image interface/tactpopup.sti#3 13,160 normal
+image interface/tactpopup.sti#4 240,160 normal
+image interface/tactpopup.sti#0 13,140 normal
+image interface/tactpopup.sti#2 234,140 normal
+image interface/tactpopup.sti#5 13,165 normal
+image interface/tactpopup.sti#7 234,165 normal
+glyphs font12arial 23,150 n=42 fg=208
+clipPop
+image interface/tradescrollarrows.sti#0 121,35 normal
+hatch checker 121,35 30x22
+image interface/tradescrollarrows.sti#2 121,102 normal
+hatch checker 121,102 30x22
+image interface/tradebuttons.sti#0 147,233 normal
+clipPush
+glyphs blockfont 178,238 n=11 fg=73
+clipPop
+image interface/tradebuttons.sti#0 292,233 normal
+clipPush
+glyphs blockfont 343,238 n=4 fg=73
+clipPop

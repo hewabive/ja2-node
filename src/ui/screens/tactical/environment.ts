@@ -17,6 +17,7 @@ export const TacticalLayout = {
   HUD: 'tactical-hud',
   TALK: 'talk-panel',
   SPEECH: 'tactical-speech',
+  SHOP: 'shop',
 } as const;
 export type TacticalLayout = (typeof TacticalLayout)[keyof typeof TacticalLayout];
 export const TACTICAL_LAYOUTS: readonly TacticalLayout[] = Object.values(TacticalLayout);
@@ -137,4 +138,5 @@ export interface TacticalEnvironment {
   readonly speech?: SpeechPresenter;
   readonly speechSettings?: () => SpeechSettings;
   readonly rpcSpeechPrefixed?: boolean;
+  readonly prepareText?: (file: string) => void;
 }

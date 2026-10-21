@@ -191,6 +191,7 @@ export class TacticalScreen implements Screen {
   #radarBlinkAt = 0;
   #entered = false;
   #lastInventories = new Map<number, readonly InventoryItemView[]>();
+  #descriptionOrigin: { readonly x: number; readonly y: number } | null = null;
 
   constructor(env: TacticalEnvironment) {
     this.#env = env;
@@ -228,6 +229,7 @@ export class TacticalScreen implements Screen {
       popupOpen: () => this.stack.open || this.keyRing.open,
       disabledForItems: () => this.#disabledForItems(),
       inCombat: () => inCombat(this.#view()),
+      extraHatch: (soldier, slot) => this.dialogue?.shopHatched(soldier, slot) === true,
     });
     const popupHooks = {
       services: env.runtime,
@@ -291,6 +293,10 @@ export class TacticalScreen implements Screen {
       viewport: () => this.#viewportBounds(),
       openInventory: (soldier) => this.#requestPanel('sm', soldier),
       sector: () => sectorOfMap(this.#view()?.mapPath ?? null),
+      smMerc: () => this.#pendingPanel?.soldier ?? this.#smMerc,
+      nextMerc: () => this.#stepMerc(1),
+      describeItem: (view, at) => this.#describeAt(view, at),
+      descriptionOpen: () => this.description.open,
     });
     const custom = this.#renderers();
     const common = { services: env.runtime, sliders: env.runtime.sliders, text: env.text, custom };
@@ -352,7 +358,7 @@ export class TacticalScreen implements Screen {
   }
 
   #disabledForItems(): boolean {
-    return this.pickup.open;
+    return this.pickup.open || this.dialogue?.shopDisablesInventory(this.#smMerc) === true;
   }
 
   #panelView(): LayoutView {
@@ -618,6 +624,7 @@ export class TacticalScreen implements Screen {
       interfaceLevel: this.#interfaceLevel,
       cursorMode: this.#cursorMode,
       now: this.#now,
+      shopOpen: this.dialogue.shopOpen,
     };
   }
 
@@ -652,7 +659,7 @@ export class TacticalScreen implements Screen {
     }
     const paused = this.#env.client.paused;
     this.#hud.model = {
-      radarEnabled: !this.inventory.cursor && !this.stack.open && !this.keyRing.open && !this.pickup.open,
+      radarEnabled: !this.inventory.cursor && !this.stack.open && !this.keyRing.open && !this.pickup.open && !this.dialogue.shopOpen,
       radarShown: this.#radarShown,
       sector: sectorOfMap(view?.mapPath ?? null),
       clock: hudClockText(text, view?.clock ?? null, paused),
@@ -1061,8 +1068,19 @@ export class TacticalScreen implements Screen {
   }
 
   #showDescription(object: Parameters<ItemDescriptionBox['show']>[0]): void {
+    this.#descriptionOrigin = null;
     this.#configureDescription();
     this.description.show(object);
+  }
+
+  #describeAt(view: InventoryItemView, at: { readonly x: number; readonly y: number }): void {
+    if (this.description.open) {
+      this.description.close(false);
+      return;
+    }
+    this.#descriptionOrigin = at;
+    this.#configureDescription();
+    this.description.show({ kind: 'object', soldier: this.#smMerc ?? -1, view });
   }
 
   #openStackPopup(soldier: number, slot: number): void {
@@ -1114,6 +1132,10 @@ export class TacticalScreen implements Screen {
       const index = attachment ? this.#env.media.item(attachment.item)?.index : undefined;
       if (index === undefined) return null;
       request = { type: 'itemInfo', item: index, metric };
+    } else if (object.kind === 'object') {
+      const index = this.#env.media.item(object.view.item)?.index;
+      if (index === undefined) return null;
+      request = { type: 'itemInfo', item: index, metric };
     } else if (object.kind === 'balance') return null;
     else {
       const s = soldierById(this.#view(), object.soldier);
@@ -1145,6 +1167,7 @@ export class TacticalScreen implements Screen {
         this.#enemyIndicator(s?.id ?? null);
         return;
       case 'slotPrimary':
+        if (s && this.dialogue.shopPocketClick(s.id, first)) return;
         this.inventory.slotPrimary(first, (this.#env.runtime.modifiers & SHIFT_MASK) !== 0);
         return;
       case 'slotSecondary':
@@ -1202,7 +1225,7 @@ export class TacticalScreen implements Screen {
     const next = nextMerc(ownSoldiers(this.#view()), this.#smMerc, step);
     if (!next) return;
     this.#requestPanel('sm', next.id);
-    if (!this.pickup.open) this.locate(next.id, SHOW_LOCATOR_NORMAL_CYCLES);
+    if (!this.pickup.open && !this.dialogue.shopOpen) this.locate(next.id, SHOW_LOCATOR_NORMAL_CYCLES);
   }
 
   #changeStance(s: SoldierView, up: boolean): void {
@@ -1480,7 +1503,7 @@ export class TacticalScreen implements Screen {
     const panel = view.frame;
     const money = point(params.moneyBox);
     return {
-      origin: { x: rect.x, y: rect.y },
+      origin: this.#descriptionOrigin ?? { x: rect.x, y: rect.y },
       width: rect.width,
       height: rect.height,
       item: box(params.item),
