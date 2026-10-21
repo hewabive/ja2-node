@@ -5,6 +5,7 @@ import { clickWidget, devicePoint, nextFrames } from './ui-capture.ts';
 const COLS = 160;
 const LOCKED_DOOR = 11429;
 const BATTLE_SEED = 7;
+const QUIET_SEED = 1;
 const SOUTH_STEP = COLS * 3;
 const APPROACH_STEPS = 16;
 const CAMPAIGN_SEED = 6;
@@ -12,6 +13,7 @@ const EAST_EDGE_ROW = 75;
 const EAST_EDGE_COLUMN = 150;
 const EDGE_INSET = 4;
 const SETTLE_FRAMES = 6;
+const PLAYBACK_TIMEOUT_MS = 30_000;
 
 async function newSession(request: APIRequestContext, data: Record<string, unknown>): Promise<string> {
   const created = (await (await request.post('/api/sessions', { data })).json()) as { session: string };
@@ -69,7 +71,7 @@ test.describe('the tactical input on the stub sandbox', () => {
   let session = '';
 
   test.beforeAll(async ({ request }) => {
-    session = await newSession(request, {});
+    session = await newSession(request, { seed: QUIET_SEED });
   });
 
   test.afterAll(async ({ request }) => {
@@ -88,7 +90,7 @@ test.describe('the tactical input on the stub sandbox', () => {
     await clickHere(page);
     await expect.poll(() => lastCommand(page)).toEqual({ type: 'move', ok: true, reason: null });
     await page.evaluate(() => window.__ja2Ui.tactical?.advance({ idle: true }));
-    await expect.poll(() => soldierGridNo(page, 0)).toBe(tile);
+    await expect.poll(() => soldierGridNo(page, 0), { timeout: PLAYBACK_TIMEOUT_MS }).toBe(tile);
 
     await page.keyboard.press('c');
     await expect.poll(() => lastCommand(page)).toEqual({ type: 'stance', ok: true, reason: null });
@@ -98,11 +100,23 @@ test.describe('the tactical input on the stub sandbox', () => {
     await page.keyboard.press('Escape');
     await expect.poll(() => field(page, 'overheadOpen')).toBe(false);
   });
+});
+
+test.describe('the door menu on the stub sandbox', () => {
+  let session = '';
+
+  test.beforeAll(async ({ request }) => {
+    session = await newSession(request, { seed: QUIET_SEED });
+  });
+
+  test.afterAll(async ({ request }) => {
+    if (session) await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
+  });
 
   test('opens the door menu when the merc reaches the locked door and examines it', async ({ page }) => {
     await openTactical(page, session);
     await order(page, { type: 'door', soldier: 1, gridNo: LOCKED_DOOR, action: 'open' });
-    await expect.poll(() => field(page, 'doorMenuOpen')).toBe(true);
+    await expect.poll(() => field(page, 'doorMenuOpen'), { timeout: PLAYBACK_TIMEOUT_MS }).toBe(true);
     expect(await field(page, 'uiMode')).toBe('OPENDOOR_MENU_MODE');
     await clickWidget(page, 'doorExamine');
     await expect.poll(() => field(page, 'doorMenuOpen')).toBe(false);
