@@ -190,6 +190,14 @@ describe('the shop screen at the stub dealer', { timeout: SLOW_MS }, () => {
     await settleShop(f);
     expect(shop.model.playerOffer[0]).toBeNull();
     expect(shop.hatched(merc, pocket.slot)).toBe(false);
+    await f.click('shopDealerSlot0', MouseButton.RIGHT);
+    expect(f.screen.description.open).toBe(true);
+    expect(f.screen.description.item).toBe(f.client.view.shop?.boxes[0]?.item);
+    expect(f.widget('itemDescriptionBox').rect).toMatchObject({ x: 160, y: 0 });
+    expect(f.widget('shopDone').enabled).toBe(false);
+    f.key('Escape');
+    expect(f.screen.description.open).toBe(false);
+    expect(f.client.commands.at(-1)?.cmd.type).not.toBe('closeShop');
     f.key('Escape');
     await settleShop(f);
     expect(f.client.commands.at(-1)?.cmd).toEqual({ type: 'closeShop' });

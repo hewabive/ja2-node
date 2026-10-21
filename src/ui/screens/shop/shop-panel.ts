@@ -160,6 +160,7 @@ export interface ShopPanelHooks {
   readonly describe: (view: InventoryItemView, at: { readonly x: number; readonly y: number }) => void;
   readonly nextMerc: () => void;
   readonly exitGame: () => void;
+  readonly descriptionOpen: () => boolean;
 }
 
 interface Subtitle {
@@ -800,6 +801,7 @@ export class ShopPanel {
     const quote = this.model.quote;
     const enable = this.model.enableState();
     const held = this.model.held !== null;
+    const describing = this.#hooks.descriptionOpen();
     return {
       costLabel: this.model.repairs ? 'repair' : 'cost',
       transactionTip:
@@ -810,13 +812,13 @@ export class ShopPanel {
       balance: this.#shop?.balance ?? 0,
       totalCost: quote?.totals.cost ?? 0,
       totalValue: quote?.totals.value ?? 0,
-      pageUpEnabled: this.model.pageUpEnabled(),
-      pageDownEnabled: this.model.pageDownEnabled(),
-      transactionEnabled: enable.transaction,
-      doneEnabled: enable.done && !this.model.leaveRequested,
-      dealerSlotsEnabled: !held,
-      dealerOfferEnabled: !held || this.model.repairs,
-      playerOfferEnabled: true,
+      pageUpEnabled: !describing && this.model.pageUpEnabled(),
+      pageDownEnabled: !describing && this.model.pageDownEnabled(),
+      transactionEnabled: !describing && enable.transaction,
+      doneEnabled: !describing && enable.done && !this.model.leaveRequested,
+      dealerSlotsEnabled: !describing && !held,
+      dealerOfferEnabled: !describing && (!held || this.model.repairs),
+      playerOfferEnabled: !describing,
       dealerTips: this.#tips('dealer', DEALER_SLOTS),
       dealerOfferTips: this.#tips('dealerOffer', OFFER_SLOTS),
       playerOfferTips: this.#tips('playerOffer', OFFER_SLOTS),

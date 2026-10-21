@@ -734,6 +734,7 @@ export class TacticalScreen implements Screen {
     this.#hudView.render(list);
     this.pickup.render(list, ctx);
     this.dialogue.render(list);
+    if (this.dialogue.shopOpen && this.description.open) this.description.render(list, ctx, this.#env.runtime.images);
   }
 
   describe(): readonly WidgetInfo[] {

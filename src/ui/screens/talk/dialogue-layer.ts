@@ -146,6 +146,7 @@ export class DialogueLayer {
       describe: (view, at) => host.describeItem(view, at),
       nextMerc: () => host.nextMerc(),
       exitGame: () => env.flow.exitGame(),
+      descriptionOpen: () => host.descriptionOpen(),
     });
     this.#speechView = new LayoutView({
       model: env.layout(TacticalLayout.SPEECH),
@@ -371,6 +372,7 @@ export class DialogueLayer {
       this.presenter.advanceKey(this.#now);
       return true;
     }
+    if (this.shop.open && this.#host.descriptionOpen() && event.kind !== 'text' && 'key' in event && event.key === ESCAPE) return false;
     if (this.shop.input(event)) return true;
     if (!this.talk.open) return false;
     if (this.talk.input(event)) return true;
