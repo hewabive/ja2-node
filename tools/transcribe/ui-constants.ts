@@ -74,6 +74,31 @@ const SCREEN_TABLES: readonly TableSpec[] = [
   { table: 'Radar_Screen', files: ['game/TileEngine/Radar_Screen.h', 'game/TileEngine/Radar_Screen.cc'] },
   { table: 'Message', files: ['game/Utils/Message.h', 'game/Utils/Message.cc'] },
   { table: 'Game_Clock', files: ['game/Strategic/Game_Clock.h', 'game/Strategic/Game_Clock.cc'] },
+  { table: 'MapScreen', files: ['game/Strategic/MapScreen.h', 'game/Strategic/MapScreen.cc'] },
+  { table: 'Map_Screen_Interface', files: ['game/Strategic/Map_Screen_Interface.h', 'game/Strategic/Map_Screen_Interface.cc'] },
+  {
+    table: 'Map_Screen_Interface_Map',
+    files: ['game/Strategic/Map_Screen_Interface_Map.h', 'game/Strategic/Map_Screen_Interface_Map.cc'],
+  },
+  {
+    table: 'Map_Screen_Interface_Bottom',
+    files: ['game/Strategic/Map_Screen_Interface_Bottom.h', 'game/Strategic/Map_Screen_Interface_Bottom.cc'],
+  },
+  {
+    table: 'Map_Screen_Interface_Border',
+    files: ['game/Strategic/Map_Screen_Interface_Border.h', 'game/Strategic/Map_Screen_Interface_Border.cc'],
+  },
+  {
+    table: 'Map_Screen_Interface_Map_Inventory',
+    files: ['game/Strategic/Map_Screen_Interface_Map_Inventory.h', 'game/Strategic/Map_Screen_Interface_Map_Inventory.cc'],
+  },
+  {
+    table: 'Map_Screen_Interface_TownMine_Info',
+    files: ['game/Strategic/Map_Screen_Interface_TownMine_Info.h', 'game/Strategic/Map_Screen_Interface_TownMine_Info.cc'],
+  },
+  { table: 'Map_Screen_Helicopter', files: ['game/Strategic/Map_Screen_Helicopter.h', 'game/Strategic/Map_Screen_Helicopter.cc'] },
+  { table: 'Assignments', files: ['game/Strategic/Assignments.h', 'game/Strategic/Assignments.cc'] },
+  { table: 'Strategic_Movement', files: ['game/Strategic/Strategic_Movement.h', 'game/Strategic/Strategic_Movement.cc'] },
 ];
 
 const FRAME_ORIGIN_NAMES: ReadonlyMap<string, number> = new Map([

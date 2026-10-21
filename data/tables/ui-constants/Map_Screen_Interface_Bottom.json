@@ -1,0 +1,39 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Strategic/Map_Screen_Interface_Bottom.h, src/game/Strategic/Map_Screen_Interface_Bottom.cc",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
+  "constants": {
+    "MAX_MESSAGES_ON_MAP_BOTTOM": 9,
+    "MAP_BOTTOM_X": 0,
+    "MAP_BOTTOM_Y": 359,
+    "MESSAGE_BOX_X": 17,
+    "MESSAGE_BOX_Y": 377,
+    "MESSAGE_BOX_W": 301,
+    "MESSAGE_BOX_H": 86,
+    "MESSAGE_SCROLL_AREA_START_X": 330,
+    "MESSAGE_SCROLL_AREA_WIDTH": 15,
+    "MESSAGE_SCROLL_AREA_START_Y": 390,
+    "MESSAGE_SCROLL_AREA_HEIGHT": 59,
+    "SLIDER_HEIGHT": 11,
+    "SLIDER_WIDTH": 11,
+    "SLIDER_BAR_RANGE": 48,
+    "MESSAGE_BTN_SCROLL_TIME": 100,
+    "PAUSE_GAME_TIMER": 500,
+    "MAP_BOTTOM_FONT_COLOR": 119,
+    "MAP_EXIT_TO_INVALID": -1,
+    "MAP_EXIT_TO_LAPTOP": 0,
+    "MAP_EXIT_TO_TACTICAL": 1,
+    "MAP_EXIT_TO_OPTIONS": 2,
+    "MAP_EXIT_TO_LOAD": 3,
+    "MAP_EXIT_TO_SAVE": 4
+  },
+  "stdScreen": [
+    "MAP_BOTTOM_X",
+    "MAP_BOTTOM_Y",
+    "MESSAGE_BOX_X",
+    "MESSAGE_BOX_Y",
+    "MESSAGE_SCROLL_AREA_START_X",
+    "MESSAGE_SCROLL_AREA_START_Y"
+  ],
+  "skipped": []
+}

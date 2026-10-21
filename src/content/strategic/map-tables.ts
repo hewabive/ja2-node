@@ -71,6 +71,7 @@ export interface SamSite {
 export interface MapSecret {
   readonly sector: number;
   readonly isSamSite: boolean;
+  readonly mapIcon: string | null;
   readonly secretLandType: number;
   readonly foundLandType: number;
 }
@@ -216,6 +217,7 @@ export function parseMapSecrets(json: unknown, map: TraversabilityMap): MapSecre
     return {
       sector: parseSectorId(asString(o.sector, `${what}.sector`)),
       isSamSite: optionalBool(o, 'isSAMSite', what),
+      mapIcon: o.secretMapIcon === undefined ? null : asString(o.secretMapIcon, `${what}.secretMapIcon`),
       secretLandType: terrain(map, o.secretLandType, `${what}.secretLandType`),
       foundLandType: terrain(map, o.foundLandType, `${what}.foundLandType`),
     };
