@@ -3,6 +3,9 @@ import { campaignInA10 } from '../../../../tests/support/a10-campaign.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
 import { MouseButton } from '../../input/events.ts';
+import type { TacticalEnvironment } from './environment.ts';
+import type { InventoryPanel } from './inventory.ts';
+import { MoneyActions } from './money-actions.ts';
 import { MAX_MONEY_PER_SLOT, MoneyBox } from './money-box.ts';
 
 const SLOW_MS = 120_000;
@@ -48,6 +51,32 @@ describe('the money box rules', () => {
     for (let k = 0; k < MAX_MONEY_PER_SLOT / 1000; k++) expect(withdraw.add(0)).toBe('added');
     expect(withdraw.add(2)).toBe('overMaximum');
     expect(new MoneyBox(90, false).stepEnabled(1)).toBe(false);
+  });
+});
+
+describe('money actions in the shop', () => {
+  it('offers a money box split as cash and keeps the money region off while a shop is open', async () => {
+    const offered: [number, number, number][] = [];
+    let shown = 0;
+    const actions = new MoneyActions({
+      env: {} as TacticalEnvironment,
+      inventory: { cursor: null } as unknown as InventoryPanel,
+      view: () => ({ tick: 0, mapPath: null, soldiers: [], strategic: { balance: 5000 } }) as never,
+      smSoldier: () => ({ id: 3 }) as never,
+      disabled: () => false,
+      shopOpen: () => true,
+      showBalance: () => {
+        shown++;
+      },
+      offerCash: (soldier, slot, amount) => {
+        offered.push([soldier, slot, amount]);
+        return true;
+      },
+    });
+    actions.done({ kind: 'slot', soldier: 3, slot: 12, index: 0 }, 300);
+    expect(offered).toEqual([[3, 12, 300]]);
+    await actions.region();
+    expect(shown).toBe(0);
   });
 });
 

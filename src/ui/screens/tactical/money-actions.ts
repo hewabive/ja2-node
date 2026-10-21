@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Interface_Panels.cc SMInvMoneyButtonCallback (money in the cursor: the
 // @src CONFIRMATION_TO_DEPOSIT_MONEY_TO_ACCOUNT question; no item: the money box over LaptopSaveInfo.iCurrentBalance;
 // @src nothing while gfSMDisableForItems), ConfirmationToDepositMoneyToPlayersAccount; src/game/Tactical/Interface_Items.cc
-// @src RemoveMoney (a withdrawal books TRANSFER_FUNDS_TO_MERC, a split goes into the cursor). See docs/28 §5.1, §5.4.
+// @src RemoveMoney (a withdrawal books TRANSFER_FUNDS_TO_MERC, a split goes into the cursor, in the shop into the shop's
+// @src cursor to be offered). See docs/28 §5.1, §5.4, §5.9.
 
 import type { PlayerView, SoldierView } from '../../../protocol/view.ts';
 import { sprintMoney } from '../../text/money.ts';
@@ -24,7 +25,9 @@ export interface MoneyActionHooks {
   view(): PlayerView | null;
   smSoldier(): SoldierView | null;
   disabled(): boolean;
+  shopOpen(): boolean;
   showBalance(soldier: number, amount: number): void;
+  offerCash(soldier: number, slot: number, amount: number): boolean;
 }
 
 export class MoneyActions {
@@ -37,7 +40,7 @@ export class MoneyActions {
   async region(): Promise<void> {
     const { env, inventory } = this.#hooks;
     const s = this.#hooks.smSoldier();
-    if (!s || this.#hooks.disabled()) return;
+    if (!s || this.#hooks.disabled() || this.#hooks.shopOpen()) return;
     const cursor = inventory.cursor;
     if (!cursor) {
       const balance = this.#hooks.view()?.strategic?.balance;
@@ -62,6 +65,10 @@ export class MoneyActions {
       return;
     }
     if (object.kind !== 'slot') return;
+    if (this.#hooks.shopOpen()) {
+      this.#hooks.offerCash(object.soldier, object.slot, amount);
+      return;
+    }
     const s = soldierById(this.#hooks.view(), object.soldier);
     const cursor = s ? cursorFromMoney(s, object.slot, amount) : null;
     if (cursor) inventory.setCursor(cursor);

@@ -280,6 +280,8 @@ export class TacticalScreen implements Screen {
       view: () => this.#view(),
       smSoldier: () => this.#smSoldier(),
       disabled: () => this.#disabledForItems(),
+      shopOpen: () => this.dialogue.shopOpen,
+      offerCash: (soldier, slot, amount) => this.dialogue.shop.offerCash(soldier, slot, amount),
       showBalance: (soldier, amount) => {
         this.stack.close();
         this.#showDescription({ kind: 'balance', soldier, amount });
