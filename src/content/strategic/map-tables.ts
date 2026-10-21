@@ -42,6 +42,7 @@ export interface Town {
   readonly sectors: readonly number[];
   readonly militiaMapBaseSector: number;
   readonly isMilitiaTrainingAllowed: boolean;
+  readonly townPoint: { readonly x: number; readonly y: number };
 }
 
 export interface SectorDescription {
@@ -128,6 +129,11 @@ export function parseMovementCosts(json: unknown, map: TraversabilityMap): Movem
   return { traversability, travelRatings };
 }
 
+function parseTownPoint(value: unknown, i: number): { readonly x: number; readonly y: number } {
+  const o = asObject(value, `towns[${i}].townPoint`);
+  return { x: asInt(o.x, `towns[${i}].townPoint.x`), y: asInt(o.y, `towns[${i}].townPoint.y`) };
+}
+
 export function parseTowns(json: unknown): Town[] {
   return asArray(json, 'towns')
     .map((v, i) => {
@@ -142,6 +148,7 @@ export function parseTowns(json: unknown): Town[] {
             ? (sectors[0] ?? 0)
             : parseSectorId(asString(o.militiaMapBaseSector, 'militiaMapBaseSector')),
         isMilitiaTrainingAllowed: asBool(o.isMilitiaTrainingAllowed, `towns[${i}].isMilitiaTrainingAllowed`),
+        townPoint: parseTownPoint(o.townPoint, i),
       };
     })
     .sort((a, b) => a.townId - b.townId);
