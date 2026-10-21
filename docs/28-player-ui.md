@@ -1687,7 +1687,7 @@ function reads (§2.4): the test that fills unsupplied projection fields with th
 | `weaponMode {soldier, mode?}` | burst button, `b` | single, burst, attached launcher (`ChangeWeaponMode`); `attack` then fires the attached launcher |
 | `attack {spread: gridNo[]}` | burst spread | the simulation has `doSpread` |
 | `move {reverse}` | Alt+move | `bReverse` |
-| `moveGroup {soldiers, to, mode?}` (tactical) and `moveGroup {soldiers, to, via?, shortest?}` (strategic) | rubber band and all-move; the move box | paths through people; the strategic regrouping is a rule |
+| `moveGroup {soldiers, to, mode?}` (tactical) and `routeGroup {soldiers, squads?, vehicles?, to, via?, shortest?}` (strategic; renamed in U8 so the two do not share a name) | rubber band and all-move; the move box | paths through people; the strategic regrouping is a rule (`docs/04` §6.28) |
 | `swapPlaces {soldier, with}` | exchange cursor, `x` | the movement code has `swapMercPositions` |
 | `jump {soldier, to}` | jump over a prone merc; the climb button's fence jump | the animation exists |
 | `climbWindow {soldier}` | Shift+J (Stracciatella) | |
@@ -1725,6 +1725,14 @@ function reads (§2.4): the test that fills unsupplied projection fields with th
    interrupts (§12.1 G6).
 8. **Map path quirks**: the column-16 node skip in `TracePathRoute` and the doubled remaining time in the plotting ETA;
    verify, then keep (D1) or log.
+   *Settled in U8 (2026-10-21):* both kept. The doubled ETA is confirmed in Stracciatella and vanilla
+   (`GetGroundTravelTimeOfSoldier` adds `GetPathTravelTimeDuringPlotting` for the temporary path and for the merc's
+   path, each starting from arrival − now for a group between sectors and skipping its first node,
+   `MapScreen.cc:939-1045`, `7142-7150`; vanilla `MapScreen.c:2108-2114`, `10110-10123`); the `previewRoute` hint keeps
+   it (`src/sim/strategic/map/plotting.ts`, regression test in `src/server/hints-strategic-stub.test.ts`). The column
+   skip is a screen test (`x < logical width − 2·MAP_GRID_X` in screen coordinates), so the client's path drawing
+   (`src/ui/screens/map/path-trace.ts`) skips the column-16 arrows only at 640 pixels wide, as Stracciatella does. No
+   oracle probe: both are client-side display rules the oracle does not reach.
 
 ---
 
