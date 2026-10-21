@@ -28,6 +28,7 @@ export const TEST_ENGINE: EngineIdentity = { version: '0.0.0-test', commit: 'tes
 export const TEST_SAVED_AT = new Date('2026-10-18T12:00:00Z');
 
 export interface SaveKitOptions {
+  readonly dir?: string;
   readonly entropy?: () => number;
   readonly nativeDir?: string | null;
   readonly dataVersion?: string;
@@ -55,7 +56,7 @@ export interface SaveKit {
 }
 
 export async function createSaveKit(kit: StubSectorKit, options: SaveKitOptions = {}): Promise<SaveKit> {
-  const dir = await mkdtemp(join(tmpdir(), 'ja2-saves-'));
+  const dir = options.dir ?? (await mkdtemp(join(tmpdir(), 'ja2-saves-')));
   const pack = await kit.rulePack();
   const legacy = legacyContentLedger(options.legacyVfs ?? kit.vfs, pack);
   const packIdentity = logicIdentityOf(pack, legacy);
@@ -99,7 +100,7 @@ export async function createSaveKit(kit: StubSectorKit, options: SaveKitOptions 
     replay: (name) => replaySave(name, saves, build),
     dispose: async () => {
       await saves.flush();
-      await rm(dir, { recursive: true, force: true });
+      if (!options.dir) await rm(dir, { recursive: true, force: true });
     },
   };
 }

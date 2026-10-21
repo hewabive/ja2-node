@@ -12,19 +12,23 @@ import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { campaignStatus } from '../sim/campaign/ending-state.ts';
 import { storyFlow } from '../sim/campaign/story-refusals.ts';
 import { meanwhileSceneName } from '../sim/strategic/ai/meanwhile.ts';
+import { militiaTrainingAllowedInSector } from '../sim/strategic/economy/militia-rules.ts';
 import { Assignment, SectorFlag } from '../sim/strategic/forces/constants.ts';
 import { type Group, isSurfaceMapSector, numEnemiesInEverySurfaceSector } from '../sim/strategic/forces/groups.ts';
 import type { StrategicContext, StrategicMerc } from '../sim/strategic/forces/ports.ts';
+import { isSecretFoundAt, isThisSectorASamSector } from '../sim/strategic/map/control.ts';
 import { EnemyKnowledge, surfaceKnowledgeOfEnemies } from '../sim/strategic/map/knowledge.ts';
 import { getSectorFlagStatus, sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { calculateTravelTimeOfGroup } from '../sim/strategic/map/travel.ts';
 import { worldTotalMinutes } from '../sim/strategic/time/world-clock.ts';
+import { armourPercent, type MaxArmour, maxArmourPerClass } from '../sim/tactical/combat/armour.ts';
 import { inventoryView } from '../sim/tactical/inventory-view.ts';
 import type { Soldier } from '../sim/tactical/soldier.ts';
 import { statsView } from '../sim/tactical/soldier-view.ts';
-import { mercAccountStatusView, mercContractFields } from './contract-view.ts';
+import { mercAccountStatusView, mercContractFields, mercSalary } from './contract-view.ts';
 import { helicopterView, vehicleViews } from './helicopter-view.ts';
 import { arrivalTime, laptopSummary } from './laptop-view.ts';
+import { mercMapFields, mineViews, projectedDailyIncome, secretsFound, townControlViews, undergroundViews } from './map-screen-view.ts';
 import { questLog } from './quest-view.ts';
 
 const sectorName = (s: Sector) => (s.z ? `${sectorShortString(s)}-${s.z}` : sectorShortString(s));
@@ -61,28 +65,59 @@ function sameMilitia(a: readonly number[], b: readonly number[]): boolean {
   return true;
 }
 
+function sameSectorView(a: StrategicSectorView, b: StrategicSectorView): boolean {
+  return (
+    a.visited === b.visited &&
+    a.town === b.town &&
+    a.playerControlled === b.playerControlled &&
+    a.enemies === b.enemies &&
+    sameMilitia(a.militia, b.militia) &&
+    a.items === b.items &&
+    a.militiaTraining === b.militiaTraining &&
+    a.enemiesKnown === b.enemiesKnown &&
+    a.facilities === b.facilities
+  );
+}
+
+function showsTownBoxDetails(ctx: StrategicContext, s: Sector, town: number): boolean {
+  if (!militiaTrainingAllowedInSector(ctx, s)) return false;
+  return town !== 0 || (isThisSectorASamSector(ctx, s) && isSecretFoundAt(ctx, sectorId(s)));
+}
+
 function sectorView(ctx: StrategicContext, s: Sector, scan: SurfaceScan, previous: StrategicSectorView | undefined): StrategicSectorView {
   const map = ctx.state.map;
   const info = sectorInfo(map, s);
   const element = map.elements[strategicIndex(s)];
   const visited = getSectorFlagStatus(map, s, SectorFlag.ALREADY_VISITED);
   const town = element?.nameId ?? 0;
-  const playerControlled = visited && element ? !element.enemyControlled : null;
+  const details = showsTownBoxDetails(ctx, s, town);
+  const playerControlled = (visited || details) && element ? !element.enemyControlled : null;
   const enemies = knownEnemies(ctx, s, scan);
-  if (
-    previous &&
-    previous.visited === visited &&
-    previous.town === town &&
-    previous.playerControlled === playerControlled &&
-    previous.enemies === enemies &&
-    sameMilitia(previous.militia, info.militia)
-  )
-    return previous;
-  return { sector: sectorName(s), visited, town, playerControlled, enemies, militia: [...info.militia] };
+  const view: StrategicSectorView = {
+    sector: sectorName(s),
+    visited,
+    town,
+    playerControlled,
+    enemies,
+    militia: [...info.militia],
+    ...(info.visibleItems > 0 ? { items: info.visibleItems } : {}),
+    ...(details ? { militiaTraining: info.militiaTrainingPercentDone } : {}),
+    ...(scan.knowledge(s) !== EnemyKnowledge.NOTHING ? { enemiesKnown: true } : {}),
+    ...(town !== 0 && info.facilities !== 0 ? { facilities: info.facilities } : {}),
+  };
+  return previous && sameSectorView(previous, view) ? previous : view;
 }
 
 function interestingSector(view: StrategicSectorView, s: Sector, scan: SurfaceScan): boolean {
-  return view.visited || view.town !== 0 || view.enemies !== null || scan.mercSectors.has(sectorId(s));
+  return (
+    view.visited ||
+    view.town !== 0 ||
+    view.enemies !== null ||
+    view.playerControlled !== null ||
+    view.enemiesKnown === true ||
+    view.items !== undefined ||
+    scan.mercSectors.has(sectorId(s))
+  );
 }
 
 interface SectorViews {
@@ -116,6 +151,16 @@ function sectorViews(ctx: StrategicContext, scan: SurfaceScan): readonly Strateg
 
 type ViewedMerc = StrategicMerc & { readonly soldier?: Soldier };
 
+const maxArmourOfItems = new WeakMap<ItemTable, MaxArmour>();
+
+function maxArmourOf(items: ItemTable): MaxArmour {
+  const known = maxArmourOfItems.get(items);
+  if (known) return known;
+  const max = maxArmourPerClass(items);
+  maxArmourOfItems.set(items, max);
+  return max;
+}
+
 function mercInventoryFields(ctx: StrategicContext, items: ItemTable | null, m: ViewedMerc): Partial<StrategicMercView> {
   const s = m.soldier;
   if (!s || !items) return {};
@@ -124,6 +169,8 @@ function mercInventoryFields(ctx: StrategicContext, items: ItemTable | null, m: 
     stats: statsView(s),
     inventory: inventoryView(items, s.inv),
     weight: ctx.mercs.carriedWeightPercent(m.id),
+    armour: armourPercent(items, maxArmourOf(items), s),
+    camo: s.camo,
   };
 }
 
@@ -168,6 +215,7 @@ function groupViews(ctx: StrategicContext): StrategicGroupView[] {
         etaMinutes: calculateTravelTimeOfGroup(ctx, g),
         path: (leader?.path ?? []).map((i) => sectorName(sectorFromStrategicIndex(i))),
         nextArrivalMinutes: nextArrivalMinutes(ctx, g),
+        traverseMinutes: g.betweenSectors ? g.traverseTime : null,
       };
     });
 }
@@ -184,6 +232,18 @@ function enemyAirspace(ctx: StrategicContext): string[] {
 
 function townLoyalties(campaign: CampaignSim): StrategicTownView[] {
   return campaign.state.economy.towns.flatMap((t, town) => (t.started ? [{ town, loyalty: t.rating }] : []));
+}
+
+function economyViews(campaign: CampaignSim): Pick<StrategicView, 'townControl' | 'mines' | 'projectedDailyIncome'> {
+  const economy = campaign.economy;
+  const townControl = townControlViews(economy);
+  const mines = mineViews(economy);
+  const income = projectedDailyIncome(economy);
+  return {
+    ...(townControl ? { townControl } : {}),
+    ...(mines ? { mines } : {}),
+    ...(income === null ? {} : { projectedDailyIncome: income }),
+  };
 }
 
 export function strategicView(campaign: CampaignSim): StrategicView | undefined {
@@ -210,6 +270,7 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
         ...robotControl(campaign, m),
         ...(arrival ? { arrival } : {}),
         ...mercInventoryFields(ctx, items, m),
+        ...mercMapFields(campaign.economy, m.id, mercSalary(campaign, m.id)),
       };
     }),
     groups: groupViews(ctx),
@@ -217,6 +278,9 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
     ...(helicopter ? { helicopter } : {}),
     enemyAirspace: enemyAirspace(ctx),
     towns: townLoyalties(campaign),
+    ...economyViews(campaign),
+    secretsFound: secretsFound(ctx),
+    underground: undergroundViews(ctx),
     ...mercAccountStatusView(campaign),
     ...laptopSummary(campaign),
     quests: questLog(campaign),

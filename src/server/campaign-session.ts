@@ -22,7 +22,6 @@ import type { SimEvent } from '../sim/events.ts';
 import type { StrategicRules } from '../sim/knowledge/strategic.ts';
 import { Assignment } from '../sim/strategic/forces/constants.ts';
 import { numHostilesInSector } from '../sim/strategic/forces/groups.ts';
-import { isTimeBeingCompressed, worldDay, worldHour, worldMinute } from '../sim/strategic/time/world-clock.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
 import { BoxingState, boxingStateName } from '../sim/tactical/narrative/boxing-state.ts';
 import type { SaveImportReport } from '../sim/tactical/save-import.ts';
@@ -33,6 +32,7 @@ import type { CampaignParts } from './campaign-factory.ts';
 import { contractPromptView } from './contract-view.ts';
 import { laptopView } from './laptop-view.ts';
 import { emailText } from './mail-text.ts';
+import { clockView } from './map-screen-view.ts';
 import { type MessageFacts, tacticalMessageFacts } from './message-facts.ts';
 import { tacticalPlayerView } from './sandbox.ts';
 import type { SessionSim } from './session.ts';
@@ -279,8 +279,7 @@ export class CampaignSession implements SessionSim {
   }
 
   view(): PlayerView {
-    const c = this.campaign.state.clock;
-    const clock = { day: worldDay(c), hour: worldHour(c), minute: worldMinute(c), compressing: isTimeBeingCompressed(c) };
+    const clock = clockView(this.campaign);
     const strategic = strategicView(this.campaign);
     const battle = this.campaign.battle
       ? {

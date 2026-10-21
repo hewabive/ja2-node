@@ -1157,7 +1157,7 @@ start of M7) is unchanged through every slice.
 - the **M8** gaps: the enemy glow, wireframes and slanted roofs, window and statue graphics, the helicopter's pieces
   on the tactical map, the credits screen with faces and fonts.
 
-### M8: in progress (paused 2026-10-19)
+### M8: in progress
 
 Spec: `docs/28` (slices U0–U15; the maintainer's decisions in §18, M8 is 0.8.0). Landed, each with its part in
 `28` §17.4:
@@ -1185,6 +1185,15 @@ Spec: `docs/28` (slices U0–U15; the maintainer's decisions in §18, M8 is 0.8.
 7. **Laptop, part one** (U10): the shell, Email, Finances and the A.I.M. hiring path with their server gaps, opened
    from `/play`.
 
-Next (`28` §17.2): U6 tactical input (the UI state machine, cursors, paths, hotkeys and the new tactical commands),
-U7 talk and shop, U8 the map screen, U9 PBI and autoresolve, U11–U12 the rest of the laptop, U13 story and help, U14
-the remaining stub art and e2e, U15 the release.
+8. **Tactical input** (U6): the `Handle_UI.cc` state machine with its cursors and world markers, the gameplay keys,
+   the movement and door menus, the sector exit dialog, the overhead map, scrolling, and the orders the panels and
+   keys give (`stealth`, `weaponMode`, burst spread, `swapPlaces`, `jump`, `moveGroup` and the rest of `28` §12.4).
+9. **Talk and shop** (U7): the speech presenter, the talk panel and the speech surfaces, the shop screen with the
+   client shop model, the money box and the money commands.
+10. **Map screen** (U8): the strategic screen on `/play` with the character list, info panel and inventory, plotting,
+    the helicopter, assignments, contracts, the town and mine box, the militia popup, the sector inventory, the bottom
+    panel with compression, the update box and the hotkeys; the front end follows the server's flow between the map,
+    tactical and the laptop.
+
+Next (`28` §17.2): U9 PBI and autoresolve, U11–U12 the rest of the laptop, U13 story and help, U14 the remaining stub
+art and e2e, U15 the release.

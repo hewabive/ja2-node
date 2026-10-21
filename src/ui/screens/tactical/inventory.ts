@@ -19,7 +19,7 @@ import { rgb } from '../../draw-list.ts';
 import { sprintMoney } from '../../text/money.ts';
 import { printf } from '../../text/printf.ts';
 import { drawItemStatusBar } from './bars.ts';
-import type { TacticalEnvironment } from './environment.ts';
+import type { TacticalClient, TacticalEnvironment } from './environment.ts';
 import { CONSCIOUSNESS } from './faces.ts';
 import {
   applyCommand,
@@ -80,8 +80,14 @@ export interface SlotRect {
   readonly height: number;
 }
 
+export interface InventoryEnvironment {
+  readonly client: Pick<TacticalClient, 'command' | 'hint' | 'hintNow'>;
+  readonly boxes: TacticalEnvironment['boxes'];
+  readonly text: TacticalEnvironment['text'];
+}
+
 export interface InventoryHooks {
-  readonly env: TacticalEnvironment;
+  readonly env: InventoryEnvironment;
   smSoldier(): SoldierView | null;
   select(id: number): void;
   openDescription(soldier: number, slot: number, index: number): void;
@@ -131,7 +137,7 @@ export class InventoryPanel {
     this.#highlight = null;
   }
 
-  #env(): TacticalEnvironment {
+  #env(): InventoryEnvironment {
     return this.#hooks.env;
   }
 

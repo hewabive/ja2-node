@@ -5,7 +5,8 @@
 // @src RemoveObjectFromStashSlot, PlaceObjectInInventoryStash, CanPlayerUseSectorInventory, SaveSeenAndUnseenItems,
 // @src CreateDestroyMapInventoryPoolButtons (the reachability of the loaded sector's items); MapScreen.cc
 // @src MAPInvClickCallbackPrimary, MAPBeginItemPointer, MapCharacterHasAccessibleInventory, MAPInvClickCamoCallback (no
-// @src items applied on the map screen); Map_Screen_Interface.cc MapscreenCanPassItemToChar. See docs/04 §6.23.
+// @src items applied on the map screen), TrashCanBtnCallback and TrashItemMessageBoxCallBack (the trash can destroys the
+// @src cursor item); Map_Screen_Interface.cc MapscreenCanPassItemToChar. See docs/04 §6.23.
 
 import { ItemClass, NOTHING } from '../../content/items/items.ts';
 import { parseSectorString, type Sector, sameSector, sectorShortString } from '../../content/strategic/sector-ids.ts';
@@ -13,7 +14,7 @@ import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import { cloneObject, deleteObject, getObjFrom, type ItemObject, removeObjects, stackObjects, swapObjects } from '../items/object.ts';
 import { Assignment } from '../strategic/forces/constants.ts';
-import { sectorInfo } from '../strategic/map/sectors.ts';
+import { setVisibleItemCount } from '../strategic/map/sectors.ts';
 import { autoReload } from '../tactical/combat/reload.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { handleTacticalEffectsOfEquipmentChange } from '../tactical/hand-item.ts';
@@ -41,7 +42,7 @@ import {
   takeObjects,
   unloadGun,
 } from '../tactical/inventory-panel.ts';
-import { type InventoryItemView, inventoryView } from '../tactical/inventory-view.ts';
+import { type InventoryItemView, inventoryView, slotView } from '../tactical/inventory-view.ts';
 import { handleAllReachableItemsInTheSector } from '../tactical/item-reachability.ts';
 import { isCreatureOrBloodcat, NOWHERE, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
 import { soldierInventoryContext } from '../tactical/soldier-inventory.ts';
@@ -59,6 +60,7 @@ export const MAP_INVENTORY_COMMANDS: ReadonlySet<string> = new Set([
   'unload',
   'reload',
   'swapHands',
+  'discardItem',
   'applyItem',
   'bandage',
 ]);
@@ -93,6 +95,8 @@ const MAP_REFUSAL_TEXT: Readonly<Record<MapInventoryRefusal, string>> = {
 };
 
 const MONEY_STATUS = 100;
+const NO_SLOT = -1;
+const DISCARD_ITEM = 'discardItem';
 
 function contentOf(campaign: CampaignSim): TacticalContent {
   const content = campaign.battle?.content;
@@ -112,6 +116,10 @@ export interface StashEntryView {
   readonly count: number;
   readonly status: readonly number[];
   readonly money?: number;
+  readonly ammo?: InventoryItemView['ammo'];
+  readonly attachments?: InventoryItemView['attachments'];
+  readonly jammed?: true;
+  readonly imprint?: number;
   readonly reachable: boolean;
   readonly gridNo: number;
   readonly level: number;
@@ -212,7 +220,7 @@ function unloadedStash(campaign: CampaignSim, sector: Sector): Stash {
       .filter(([wi]) => wi.exists && visibleInMapInventory(campaign, wi.object, wi.visible))
       .map(([, k]) => k);
   const recount = () => {
-    if (sector.z === 0) sectorInfo(state.map, sector).visibleItems = visibleItemCount(records());
+    setVisibleItemCount(state.map, sector, visibleItemCount(records()));
   };
   return {
     slots: () => visibleIndices().map((k) => known()[k] as DiffWorldItem),
@@ -364,6 +372,8 @@ export class MapInventory {
 
   dispatch(cmd: InventoryCommand): CommandResult | null {
     if (cmd.type === 'inventory') return this.#query(cmd);
+    if (cmd.type === DISCARD_ITEM && this.#campaign.state.flow !== 'strategic')
+      return { ok: false, reason: 'the trash can is on the map screen only', data: { refusal: 'mapScreenOnly' } };
     if (this.#campaign.state.flow !== 'strategic' || !MAP_INVENTORY_COMMANDS.has(cmd.type)) return null;
     const merc = this.#merc(cmd.soldier);
     if (!merc) return mapRefusal(MapInventoryRefusal.NO_SUCH_MERC);
@@ -397,6 +407,8 @@ export class MapInventory {
       }
       case 'swapHands':
         return outcomeResult(swapHands(env, this.#campaign.tactical?.state ?? null, s));
+      case 'discardItem':
+        return this.#discard(merc, cmd);
       default:
         return mapRefusal(MapInventoryRefusal.TACTICAL_ONLY);
     }
@@ -442,6 +454,25 @@ export class MapInventory {
     return outcomeResult(
       moveItem(this.#env(merc), { mover: merc.soldier, from, target: target.soldier, to, count, index, merge: undefined }),
     );
+  }
+
+  #discard(merc: RosterMerc, cmd: InventoryCommand): CommandResult {
+    const slot = parseSlot(cmd.slot);
+    if (slot === null) return refusal(InventoryRefusal.BAD_SLOT);
+    const count = parseCount(cmd.count, 'all');
+    if (count === null) return refusal(InventoryRefusal.BAD_COUNT);
+    const s = merc.soldier;
+    const source = s.inv[slot] as ItemObject;
+    if (source.item === NOTHING) return refusal(InventoryRefusal.EMPTY_SLOT);
+    const index = typeof cmd.index === 'number' && Number.isInteger(cmd.index) ? cmd.index : 0;
+    if (index < 0 || index >= Math.max(1, source.count)) return refusal(InventoryRefusal.BAD_INDEX);
+    if (nailsRefuses(contentOf(this.#campaign).items, s, slot, NOTHING)) return refusal(InventoryRefusal.NAILS_VEST);
+    const item = source.item;
+    const discarded = takeObjects(source, count, index) as ItemObject;
+    if (source.item === NOTHING) this.#env(merc).equipmentChanged(s, slot, item, NOTHING);
+    const name = this.#name(item);
+    this.#events.push({ type: 'itemDiscarded', soldier: merc.id, item: name, count: discarded.count, tick: this.#campaign.tick });
+    return { ok: true, data: { item: name, count: discarded.count } };
   }
 
   #stashIndex(stash: Stash, value: unknown): number | null {
@@ -547,16 +578,23 @@ export class MapInventory {
     const onMap = campaign.state.flow === 'strategic';
     const stash = stashOf(campaign, sector);
     const items = contentOf(campaign).items;
-    const entries: StashEntryView[] = stash.slots().map((slot, index) => ({
-      index,
-      item: items.byIndex.get(slot.object.item)?.name ?? String(slot.object.item),
-      count: slot.object.count,
-      status: slot.object.status.slice(0, Math.max(1, slot.object.count)),
-      ...(items.byIndex.get(slot.object.item)?.itemClass === ItemClass.MONEY ? { money: slot.object.money } : {}),
-      reachable: (slot.flags & WorldItemFlags.REACHABLE) !== 0,
-      gridNo: slot.gridNo,
-      level: slot.level,
-    }));
+    const entries: StashEntryView[] = stash.slots().map((slot, index) => {
+      const view = slotView(items, NO_SLOT, slot.object);
+      return {
+        index,
+        item: items.byIndex.get(slot.object.item)?.name ?? String(slot.object.item),
+        count: slot.object.count,
+        status: slot.object.status.slice(0, Math.max(1, slot.object.count)),
+        ...(items.byIndex.get(slot.object.item)?.itemClass === ItemClass.MONEY ? { money: slot.object.money } : {}),
+        ...(view.ammo ? { ammo: view.ammo } : {}),
+        ...(view.attachments ? { attachments: view.attachments } : {}),
+        ...(view.jammed ? { jammed: view.jammed } : {}),
+        ...(view.imprint !== undefined ? { imprint: view.imprint } : {}),
+        reachable: (slot.flags & WorldItemFlags.REACHABLE) !== 0,
+        gridNo: slot.gridNo,
+        level: slot.level,
+      };
+    });
     const mercs = (campaign.battle?.roster.all() ?? [])
       .filter((m) => sameSector(m.sector, sector) && !m.isVehicle)
       .map((m) => ({

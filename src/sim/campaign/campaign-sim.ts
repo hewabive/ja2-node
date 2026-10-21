@@ -377,6 +377,12 @@ export class CampaignSim {
       );
   }
 
+  compressionRefusalToken(): string | null {
+    if (this.state.clock.pauseLocked) return 'pauseLocked';
+    const reason = this.#clock.compressionRefusal();
+    return reason === null ? null : compressionRefusalToken(reason);
+  }
+
   #defaultRefusal(): string | null {
     const token = this.#defaultRefusalToken();
     return token ? COMPRESSION_REFUSALS[token] : null;

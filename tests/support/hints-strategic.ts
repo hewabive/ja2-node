@@ -20,7 +20,15 @@ export function sampleRouteHints(view: PlayerView, step = STRATEGIC_HINT_SAMPLE_
   for (const soldier of mercIds(view))
     sectors.forEach((to, k) => {
       const via = k % 4 === 1 ? { via: [sectors[(k + 3) % sectors.length]] } : {};
-      requests.push({ type: 'previewRoute', soldier, to, ...via, ...(k % 3 === 2 ? { shortest: true } : {}) });
+      requests.push({
+        type: 'previewRoute',
+        soldier,
+        to,
+        ...via,
+        ...(k % 3 === 2 ? { shortest: true } : {}),
+        ...(k % 2 === 0 ? { extend: true } : {}),
+        ...(k % 7 === 3 ? { alone: true } : {}),
+      });
     });
   return requests;
 }
@@ -28,12 +36,22 @@ export function sampleRouteHints(view: PlayerView, step = STRATEGIC_HINT_SAMPLE_
 export function sampleHeliHints(view: PlayerView, step = STRATEGIC_HINT_SAMPLE_STEP): CommandEnvelope[] {
   if (!view.strategic?.helicopter) return [];
   const sectors = sampledSectors(step);
-  return sectors.map((to, k) => ({ type: 'previewHeliRoute', to, ...(k % 5 === 2 ? { via: [sectors[(k + 2) % sectors.length]] } : {}) }));
+  return sectors.map((to, k) => ({
+    type: 'previewHeliRoute',
+    to,
+    ...(k % 5 === 2 ? { via: [sectors[(k + 2) % sectors.length]] } : {}),
+    ...(k % 2 === 1 ? { extend: true } : {}),
+  }));
 }
 
 export function sampleEnterHints(view: PlayerView, step = STRATEGIC_HINT_SAMPLE_STEP): CommandEnvelope[] {
   const own = view.strategic?.mercs.map((m) => m.sector.split('-')[0] ?? m.sector) ?? [];
   return [...new Set([...own, ...sampledSectors(step)])].map((sector) => ({ type: 'canEnterSector', sector }));
+}
+
+export function sampleMoveBoxHints(view: PlayerView): CommandEnvelope[] {
+  const own = view.strategic?.mercs.map((m) => m.sector) ?? [];
+  return [...new Set([...own, 'A9', 'D13', 'A9-1'])].map((sector) => ({ type: 'moveBoxOptions', sector }));
 }
 
 export function sampleAssignmentHints(view: PlayerView): CommandEnvelope[] {
@@ -62,6 +80,7 @@ export function sampleStrategicHints(view: PlayerView, step = STRATEGIC_HINT_SAM
     ...sampleHeliHints(view, step),
     ...sampleEnterHints(view, step),
     ...sampleAssignmentHints(view),
+    ...sampleMoveBoxHints(view),
     ...sampleExitHints(view),
   ];
 }

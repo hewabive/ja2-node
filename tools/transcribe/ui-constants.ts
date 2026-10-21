@@ -78,6 +78,31 @@ const SCREEN_TABLES: readonly TableSpec[] = [
   { table: 'Dialogue_Control', files: ['game/Tactical/Dialogue_Control.h', 'game/Tactical/Dialogue_Control.cc'] },
   { table: 'Civ_Quotes', files: ['game/Tactical/Civ_Quotes.h', 'game/Tactical/Civ_Quotes.cc'] },
   { table: 'ShopKeeper_Interface', files: ['game/Tactical/ShopKeeper_Interface.h', 'game/Tactical/ShopKeeper_Interface.cc'] },
+  { table: 'MapScreen', files: ['game/Strategic/MapScreen.h', 'game/Strategic/MapScreen.cc'] },
+  { table: 'Map_Screen_Interface', files: ['game/Strategic/Map_Screen_Interface.h', 'game/Strategic/Map_Screen_Interface.cc'] },
+  {
+    table: 'Map_Screen_Interface_Map',
+    files: ['game/Strategic/Map_Screen_Interface_Map.h', 'game/Strategic/Map_Screen_Interface_Map.cc'],
+  },
+  {
+    table: 'Map_Screen_Interface_Bottom',
+    files: ['game/Strategic/Map_Screen_Interface_Bottom.h', 'game/Strategic/Map_Screen_Interface_Bottom.cc'],
+  },
+  {
+    table: 'Map_Screen_Interface_Border',
+    files: ['game/Strategic/Map_Screen_Interface_Border.h', 'game/Strategic/Map_Screen_Interface_Border.cc'],
+  },
+  {
+    table: 'Map_Screen_Interface_Map_Inventory',
+    files: ['game/Strategic/Map_Screen_Interface_Map_Inventory.h', 'game/Strategic/Map_Screen_Interface_Map_Inventory.cc'],
+  },
+  {
+    table: 'Map_Screen_Interface_TownMine_Info',
+    files: ['game/Strategic/Map_Screen_Interface_TownMine_Info.h', 'game/Strategic/Map_Screen_Interface_TownMine_Info.cc'],
+  },
+  { table: 'Map_Screen_Helicopter', files: ['game/Strategic/Map_Screen_Helicopter.h', 'game/Strategic/Map_Screen_Helicopter.cc'] },
+  { table: 'Assignments', files: ['game/Strategic/Assignments.h', 'game/Strategic/Assignments.cc'] },
+  { table: 'Strategic_Movement', files: ['game/Strategic/Strategic_Movement.h', 'game/Strategic/Strategic_Movement.cc'] },
 ];
 
 const FRAME_ORIGIN_NAMES: ReadonlyMap<string, number> = new Map([

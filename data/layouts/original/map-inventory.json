@@ -1,0 +1,1656 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Strategic/MapScreen.cc BltCharInvPanel (mapinv.sti, RenderInvBodyPanel at INV_BODY_X, INV_BODY_Y, the slots, pInvPanelTitleStrings 0..2 and the armour, weight and camouflage values in BLOCKFONT2 MAP_INV_STATS_TITLE_FONT_COLOR right-aligned in the MAP_ARMOR, MAP_WEIGHT and MAP_CAMO boxes), CreateDestroyTrashCanRegion (done_button2.sti 0/1 at INV_BTN_X, INV_BTN_Y, MSYS_PRIORITY_HIGHEST - 1, pMiscMapScreenMouseRegionHelpText[2]), MAPInternalInitItemDescriptionBox (MAP_ITEMDESC_START_X, MAP_ITEMDESC_START_Y), MAPInvClickCallbackSecondary (the stack popup in INV_REGION_X, INV_REGION_Y, 261, 248)",
+    "src/game/Tactical/Interface_Items.cc InitMapKeyRingInterface (MAP_KEYRING_X, MAP_KEYRING_Y, KEYRING_HELP_TEXT); src/game/UILayout.cc m_invSlotPositionMap (the map inventory slots), m_MoneyButtonLocMap; src/game/Tactical/Interface_Items.cc INVRenderINVPanelItem (map_inv_2nd_gun_cover.sti at 14, 218 over a covered second hand), HandleRenderInvSlots (the gold key at MAP_KEYRING_X, MAP_KEYRING_Y), InternalInitItemDescriptionBox and RenderItemDescriptionBox in map mode (iteminfoc.sti, g_desc_item_box_map, g_map_itemdesc_item_status_box, gMapDescNameBox, g_map_itemdesc_desc_box, g_map_itemdesc_pros_cons_box, gMapWeaponStats, gMapMoneyStats, g_map_attachment_info, MAP_BULLET_SING_X/Y, MAP_BULLET_BURST_X/Y; the ammo button from infobox.sti)",
+    "src/game/Strategic/Map_Screen_Interface_Map_Inventory.cc g_sector_inv_* boxes, BlitInventoryPoolGraphic, RenderItemInPoolSlot, CreateMapInventoryButtons (map_screen_bottom_arrows.sti 10/1/3 at 559, 336 and 9/0/2 at 487, 336, MSYS_PRIORITY_HIGHEST), CreateMapInventoryPoolDoneButton (done_button.sti 0/1 at 587, 333), DisplayPagesForMapInventoryPool, DrawNumberOfInventoryPoolItems and DisplayCurrentSector (COMPFONT 183 centred in their boxes), DrawTextOnMapInventoryBackground (pMapInventoryStrings in MAP_IVEN_FONT FONT_BEIGE), DrawTextOnSectorInventory (zMarksMapScreenText[11] in FONT14ARIAL FONT_WHITE)"
+  ],
+  "screen": "mapInventory",
+  "frame": "std640",
+  "tooltips": true,
+  "constants": [
+    "Map_Screen_Interface_Map_Inventory",
+    "MapScreen",
+    "Map_Screen_Interface",
+    "Map_Screen_Interface_Bottom",
+    "Interface_Items",
+    "Interface_Panels",
+    "Text"
+  ],
+  "assets": {
+    "poolArrows": {
+      "sti": "interface/map_screen_bottom_arrows.sti",
+      "stub": {
+        "sizes": [
+          [13, 14],
+          [13, 14],
+          [13, 14],
+          [13, 14],
+          [12, 13],
+          [12, 13],
+          [12, 13],
+          [12, 13],
+          ["SLIDER_WIDTH", "SLIDER_HEIGHT"],
+          [13, 14],
+          [13, 14],
+          [12, 13],
+          [12, 13]
+        ],
+        "states": [
+          "normal",
+          "normal",
+          "pressed",
+          "pressed",
+          "normal",
+          "normal",
+          "pressed",
+          "pressed",
+          "plain",
+          "grayed",
+          "grayed",
+          "grayed",
+          "grayed"
+        ]
+      }
+    },
+    "poolDone": {
+      "sti": "interface/done_button.sti",
+      "stub": {
+        "frames": 2,
+        "size": [41, 16],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "mercDone": {
+      "sti": "interface/done_button2.sti",
+      "stub": {
+        "frames": 2,
+        "size": [29, 23],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "regularMale": {
+      "sti": "interface/inventory_normal_male.sti",
+      "stub": {
+        "size": [96, 128]
+      }
+    },
+    "regularMaleHighlight": {
+      "sti": "interface/inventory_normal_male_h.sti",
+      "stub": {
+        "size": [96, 128],
+        "states": ["hover"]
+      }
+    },
+    "bigMale": {
+      "sti": "interface/inventory_figure_large_male.sti",
+      "stub": {
+        "size": [96, 128]
+      }
+    },
+    "bigMaleHighlight": {
+      "sti": "interface/inventory_figure_large_male_h.sti",
+      "stub": {
+        "size": [96, 128],
+        "states": ["hover"]
+      }
+    },
+    "female": {
+      "sti": "interface/inventory_figure_female.sti",
+      "stub": {
+        "size": [96, 128]
+      }
+    },
+    "femaleHighlight": {
+      "sti": "interface/inventory_figure_female_h.sti",
+      "stub": {
+        "size": [96, 128],
+        "states": ["hover"]
+      }
+    },
+    "goldKey": {
+      "sti": "interface/gold_key_button.sti",
+      "stub": {
+        "size": ["KEYRING_WIDTH", "KEYRING_HEIGHT"]
+      }
+    },
+    "secondHandCover": {
+      "sti": "interface/map_inv_2nd_gun_cover.sti",
+      "stub": {
+        "size": [104, 25],
+        "states": ["grayed"]
+      }
+    },
+    "extraInventory": {
+      "sti": "interface/extra_inventory.sti",
+      "stub": {
+        "style": "hollow",
+        "size": [42, 28]
+      }
+    },
+    "itemInfo": {
+      "sti": "interface/iteminfoc.sti",
+      "stub": {
+        "size": [260, 271]
+      }
+    },
+    "infoBox": {
+      "sti": "interface/infobox.sti",
+      "stub": {
+        "sizes": [
+          ["ITEMDESC_WIDTH", "ITEMDESC_HEIGHT"],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14],
+          [36, 14]
+        ],
+        "states": [
+          "plain",
+          "normal",
+          "normal",
+          "pressed",
+          "grayed",
+          "normal",
+          "normal",
+          "pressed",
+          "grayed",
+          "normal",
+          "normal",
+          "pressed",
+          "grayed"
+        ]
+      }
+    },
+    "bullet": {
+      "sti": "interface/bullet.sti",
+      "stub": {
+        "size": ["BULLET_WIDTH", 8]
+      }
+    },
+    "infoBil": {
+      "sti": "interface/info_bil.sti",
+      "stub": {
+        "sizes": [[66, 54], [30, 20], [30, 20], [30, 20], [30, 20]],
+        "states": ["plain", "normal", "pressed", "normal", "pressed"]
+      }
+    }
+  },
+  "styles": {
+    "mercSlots": [
+      [204, 116, "HEAD_INV_SLOT_WIDTH", "HEAD_INV_SLOT_HEIGHT"],
+      [204, 145, "VEST_INV_SLOT_WIDTH", "VEST_INV_SLOT_HEIGHT"],
+      [204, 205, "LEGS_INV_SLOT_WIDTH", "LEGS_INV_SLOT_HEIGHT"],
+      [21, 116, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [21, 140, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [21, 194, "BIG_INV_SLOT_WIDTH", "BIG_INV_SLOT_HEIGHT"],
+      [21, 218, "BIG_INV_SLOT_WIDTH", "BIG_INV_SLOT_HEIGHT"],
+      [98, 251, "BIG_INV_SLOT_WIDTH", "BIG_INV_SLOT_HEIGHT"],
+      [98, 275, "BIG_INV_SLOT_WIDTH", "BIG_INV_SLOT_HEIGHT"],
+      [98, 299, "BIG_INV_SLOT_WIDTH", "BIG_INV_SLOT_HEIGHT"],
+      [98, 323, "BIG_INV_SLOT_WIDTH", "BIG_INV_SLOT_HEIGHT"],
+      [22, 251, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [22, 275, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [22, 299, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [22, 323, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [60, 251, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [60, 275, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [60, 299, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"],
+      [60, 323, "SM_INV_SLOT_WIDTH", "SM_INV_SLOT_HEIGHT"]
+    ]
+  },
+  "widgets": [
+    {
+      "type": "region",
+      "id": "mercMask",
+      "x": "INV_REGION_X",
+      "y": "INV_REGION_Y",
+      "width": "INV_REGION_WIDTH",
+      "height": "INV_REGION_HEIGHT",
+      "priority": "HIGH-1",
+      "enabled": "mercOpen"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot0",
+      "x": 204,
+      "y": 116,
+      "width": "HEAD_INV_SLOT_WIDTH",
+      "height": "HEAD_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[0].tooltip"
+      },
+      "primary": "mercSlotPrimary(0)",
+      "secondary": "mercSlotSecondary(0)",
+      "hover": "mercSlotHover(0)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot1",
+      "x": 204,
+      "y": 145,
+      "width": "VEST_INV_SLOT_WIDTH",
+      "height": "VEST_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[1].tooltip"
+      },
+      "primary": "mercSlotPrimary(1)",
+      "secondary": "mercSlotSecondary(1)",
+      "hover": "mercSlotHover(1)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot2",
+      "x": 204,
+      "y": 205,
+      "width": "LEGS_INV_SLOT_WIDTH",
+      "height": "LEGS_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[2].tooltip"
+      },
+      "primary": "mercSlotPrimary(2)",
+      "secondary": "mercSlotSecondary(2)",
+      "hover": "mercSlotHover(2)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot3",
+      "x": 21,
+      "y": 116,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[3].tooltip"
+      },
+      "primary": "mercSlotPrimary(3)",
+      "secondary": "mercSlotSecondary(3)",
+      "hover": "mercSlotHover(3)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot4",
+      "x": 21,
+      "y": 140,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[4].tooltip"
+      },
+      "primary": "mercSlotPrimary(4)",
+      "secondary": "mercSlotSecondary(4)",
+      "hover": "mercSlotHover(4)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot5",
+      "x": 21,
+      "y": 194,
+      "width": "BIG_INV_SLOT_WIDTH",
+      "height": "BIG_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[5].tooltip"
+      },
+      "primary": "mercSlotPrimary(5)",
+      "secondary": "mercSlotSecondary(5)",
+      "hover": "mercSlotHover(5)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot6",
+      "x": 21,
+      "y": 218,
+      "width": "BIG_INV_SLOT_WIDTH",
+      "height": "BIG_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[6].tooltip"
+      },
+      "primary": "mercSlotPrimary(6)",
+      "secondary": "mercSlotSecondary(6)",
+      "hover": "mercSlotHover(6)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot7",
+      "x": 98,
+      "y": 251,
+      "width": "BIG_INV_SLOT_WIDTH",
+      "height": "BIG_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[7].tooltip"
+      },
+      "primary": "mercSlotPrimary(7)",
+      "secondary": "mercSlotSecondary(7)",
+      "hover": "mercSlotHover(7)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot8",
+      "x": 98,
+      "y": 275,
+      "width": "BIG_INV_SLOT_WIDTH",
+      "height": "BIG_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[8].tooltip"
+      },
+      "primary": "mercSlotPrimary(8)",
+      "secondary": "mercSlotSecondary(8)",
+      "hover": "mercSlotHover(8)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot9",
+      "x": 98,
+      "y": 299,
+      "width": "BIG_INV_SLOT_WIDTH",
+      "height": "BIG_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[9].tooltip"
+      },
+      "primary": "mercSlotPrimary(9)",
+      "secondary": "mercSlotSecondary(9)",
+      "hover": "mercSlotHover(9)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot10",
+      "x": 98,
+      "y": 323,
+      "width": "BIG_INV_SLOT_WIDTH",
+      "height": "BIG_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[10].tooltip"
+      },
+      "primary": "mercSlotPrimary(10)",
+      "secondary": "mercSlotSecondary(10)",
+      "hover": "mercSlotHover(10)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot11",
+      "x": 22,
+      "y": 251,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[11].tooltip"
+      },
+      "primary": "mercSlotPrimary(11)",
+      "secondary": "mercSlotSecondary(11)",
+      "hover": "mercSlotHover(11)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot12",
+      "x": 22,
+      "y": 275,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[12].tooltip"
+      },
+      "primary": "mercSlotPrimary(12)",
+      "secondary": "mercSlotSecondary(12)",
+      "hover": "mercSlotHover(12)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot13",
+      "x": 22,
+      "y": 299,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[13].tooltip"
+      },
+      "primary": "mercSlotPrimary(13)",
+      "secondary": "mercSlotSecondary(13)",
+      "hover": "mercSlotHover(13)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot14",
+      "x": 22,
+      "y": 323,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[14].tooltip"
+      },
+      "primary": "mercSlotPrimary(14)",
+      "secondary": "mercSlotSecondary(14)",
+      "hover": "mercSlotHover(14)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot15",
+      "x": 60,
+      "y": 251,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[15].tooltip"
+      },
+      "primary": "mercSlotPrimary(15)",
+      "secondary": "mercSlotSecondary(15)",
+      "hover": "mercSlotHover(15)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot16",
+      "x": 60,
+      "y": 275,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[16].tooltip"
+      },
+      "primary": "mercSlotPrimary(16)",
+      "secondary": "mercSlotSecondary(16)",
+      "hover": "mercSlotHover(16)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot17",
+      "x": 60,
+      "y": 299,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[17].tooltip"
+      },
+      "primary": "mercSlotPrimary(17)",
+      "secondary": "mercSlotSecondary(17)",
+      "hover": "mercSlotHover(17)"
+    },
+    {
+      "type": "region",
+      "id": "mercSlot18",
+      "x": 60,
+      "y": 323,
+      "width": "SM_INV_SLOT_WIDTH",
+      "height": "SM_INV_SLOT_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "bind": "mercSlots[18].tooltip"
+      },
+      "primary": "mercSlotPrimary(18)",
+      "secondary": "mercSlotSecondary(18)",
+      "hover": "mercSlotHover(18)"
+    },
+    {
+      "type": "region",
+      "id": "trashCan",
+      "x": "TRASH_CAN_X",
+      "y": "TRASH_CAN_Y",
+      "width": "TRASH_CAN_WIDTH",
+      "height": "TRASH_CAN_HEIGHT",
+      "priority": "HIGHEST-4",
+      "enabled": "mercOpen",
+      "tooltip": {
+        "key": ["pMiscMapScreenMouseRegionHelpText", 1]
+      },
+      "primary": "trash"
+    },
+    {
+      "type": "region",
+      "id": "poolMask",
+      "x": 261,
+      "y": 0,
+      "width": 379,
+      "height": 360,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "secondary": "poolDone",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot0",
+      "x": 274,
+      "y": 37,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[0].tooltip"
+      },
+      "primary": "poolSlotPrimary(0)",
+      "secondary": "poolSlotSecondary(0)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot1",
+      "x": 274,
+      "y": 69,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[1].tooltip"
+      },
+      "primary": "poolSlotPrimary(1)",
+      "secondary": "poolSlotSecondary(1)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot2",
+      "x": 274,
+      "y": 101,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[2].tooltip"
+      },
+      "primary": "poolSlotPrimary(2)",
+      "secondary": "poolSlotSecondary(2)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot3",
+      "x": 274,
+      "y": 133,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[3].tooltip"
+      },
+      "primary": "poolSlotPrimary(3)",
+      "secondary": "poolSlotSecondary(3)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot4",
+      "x": 274,
+      "y": 165,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[4].tooltip"
+      },
+      "primary": "poolSlotPrimary(4)",
+      "secondary": "poolSlotSecondary(4)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot5",
+      "x": 274,
+      "y": 197,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[5].tooltip"
+      },
+      "primary": "poolSlotPrimary(5)",
+      "secondary": "poolSlotSecondary(5)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot6",
+      "x": 274,
+      "y": 229,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[6].tooltip"
+      },
+      "primary": "poolSlotPrimary(6)",
+      "secondary": "poolSlotSecondary(6)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot7",
+      "x": 274,
+      "y": 261,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[7].tooltip"
+      },
+      "primary": "poolSlotPrimary(7)",
+      "secondary": "poolSlotSecondary(7)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot8",
+      "x": 274,
+      "y": 293,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[8].tooltip"
+      },
+      "primary": "poolSlotPrimary(8)",
+      "secondary": "poolSlotSecondary(8)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot9",
+      "x": 346,
+      "y": 37,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[9].tooltip"
+      },
+      "primary": "poolSlotPrimary(9)",
+      "secondary": "poolSlotSecondary(9)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot10",
+      "x": 346,
+      "y": 69,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[10].tooltip"
+      },
+      "primary": "poolSlotPrimary(10)",
+      "secondary": "poolSlotSecondary(10)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot11",
+      "x": 346,
+      "y": 101,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[11].tooltip"
+      },
+      "primary": "poolSlotPrimary(11)",
+      "secondary": "poolSlotSecondary(11)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot12",
+      "x": 346,
+      "y": 133,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[12].tooltip"
+      },
+      "primary": "poolSlotPrimary(12)",
+      "secondary": "poolSlotSecondary(12)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot13",
+      "x": 346,
+      "y": 165,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[13].tooltip"
+      },
+      "primary": "poolSlotPrimary(13)",
+      "secondary": "poolSlotSecondary(13)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot14",
+      "x": 346,
+      "y": 197,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[14].tooltip"
+      },
+      "primary": "poolSlotPrimary(14)",
+      "secondary": "poolSlotSecondary(14)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot15",
+      "x": 346,
+      "y": 229,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[15].tooltip"
+      },
+      "primary": "poolSlotPrimary(15)",
+      "secondary": "poolSlotSecondary(15)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot16",
+      "x": 346,
+      "y": 261,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[16].tooltip"
+      },
+      "primary": "poolSlotPrimary(16)",
+      "secondary": "poolSlotSecondary(16)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot17",
+      "x": 346,
+      "y": 293,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[17].tooltip"
+      },
+      "primary": "poolSlotPrimary(17)",
+      "secondary": "poolSlotSecondary(17)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot18",
+      "x": 418,
+      "y": 37,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[18].tooltip"
+      },
+      "primary": "poolSlotPrimary(18)",
+      "secondary": "poolSlotSecondary(18)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot19",
+      "x": 418,
+      "y": 69,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[19].tooltip"
+      },
+      "primary": "poolSlotPrimary(19)",
+      "secondary": "poolSlotSecondary(19)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot20",
+      "x": 418,
+      "y": 101,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[20].tooltip"
+      },
+      "primary": "poolSlotPrimary(20)",
+      "secondary": "poolSlotSecondary(20)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot21",
+      "x": 418,
+      "y": 133,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[21].tooltip"
+      },
+      "primary": "poolSlotPrimary(21)",
+      "secondary": "poolSlotSecondary(21)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot22",
+      "x": 418,
+      "y": 165,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[22].tooltip"
+      },
+      "primary": "poolSlotPrimary(22)",
+      "secondary": "poolSlotSecondary(22)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot23",
+      "x": 418,
+      "y": 197,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[23].tooltip"
+      },
+      "primary": "poolSlotPrimary(23)",
+      "secondary": "poolSlotSecondary(23)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot24",
+      "x": 418,
+      "y": 229,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[24].tooltip"
+      },
+      "primary": "poolSlotPrimary(24)",
+      "secondary": "poolSlotSecondary(24)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot25",
+      "x": 418,
+      "y": 261,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[25].tooltip"
+      },
+      "primary": "poolSlotPrimary(25)",
+      "secondary": "poolSlotSecondary(25)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot26",
+      "x": 418,
+      "y": 293,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[26].tooltip"
+      },
+      "primary": "poolSlotPrimary(26)",
+      "secondary": "poolSlotSecondary(26)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot27",
+      "x": 490,
+      "y": 37,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[27].tooltip"
+      },
+      "primary": "poolSlotPrimary(27)",
+      "secondary": "poolSlotSecondary(27)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot28",
+      "x": 490,
+      "y": 69,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[28].tooltip"
+      },
+      "primary": "poolSlotPrimary(28)",
+      "secondary": "poolSlotSecondary(28)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot29",
+      "x": 490,
+      "y": 101,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[29].tooltip"
+      },
+      "primary": "poolSlotPrimary(29)",
+      "secondary": "poolSlotSecondary(29)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot30",
+      "x": 490,
+      "y": 133,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[30].tooltip"
+      },
+      "primary": "poolSlotPrimary(30)",
+      "secondary": "poolSlotSecondary(30)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot31",
+      "x": 490,
+      "y": 165,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[31].tooltip"
+      },
+      "primary": "poolSlotPrimary(31)",
+      "secondary": "poolSlotSecondary(31)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot32",
+      "x": 490,
+      "y": 197,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[32].tooltip"
+      },
+      "primary": "poolSlotPrimary(32)",
+      "secondary": "poolSlotSecondary(32)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot33",
+      "x": 490,
+      "y": 229,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[33].tooltip"
+      },
+      "primary": "poolSlotPrimary(33)",
+      "secondary": "poolSlotSecondary(33)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot34",
+      "x": 490,
+      "y": 261,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[34].tooltip"
+      },
+      "primary": "poolSlotPrimary(34)",
+      "secondary": "poolSlotSecondary(34)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot35",
+      "x": 490,
+      "y": 293,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[35].tooltip"
+      },
+      "primary": "poolSlotPrimary(35)",
+      "secondary": "poolSlotSecondary(35)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot36",
+      "x": 562,
+      "y": 37,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[36].tooltip"
+      },
+      "primary": "poolSlotPrimary(36)",
+      "secondary": "poolSlotSecondary(36)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot37",
+      "x": 562,
+      "y": 69,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[37].tooltip"
+      },
+      "primary": "poolSlotPrimary(37)",
+      "secondary": "poolSlotSecondary(37)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot38",
+      "x": 562,
+      "y": 101,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[38].tooltip"
+      },
+      "primary": "poolSlotPrimary(38)",
+      "secondary": "poolSlotSecondary(38)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot39",
+      "x": 562,
+      "y": 133,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[39].tooltip"
+      },
+      "primary": "poolSlotPrimary(39)",
+      "secondary": "poolSlotSecondary(39)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot40",
+      "x": 562,
+      "y": 165,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[40].tooltip"
+      },
+      "primary": "poolSlotPrimary(40)",
+      "secondary": "poolSlotSecondary(40)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot41",
+      "x": 562,
+      "y": 197,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[41].tooltip"
+      },
+      "primary": "poolSlotPrimary(41)",
+      "secondary": "poolSlotSecondary(41)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot42",
+      "x": 562,
+      "y": 229,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[42].tooltip"
+      },
+      "primary": "poolSlotPrimary(42)",
+      "secondary": "poolSlotSecondary(42)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot43",
+      "x": 562,
+      "y": 261,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[43].tooltip"
+      },
+      "primary": "poolSlotPrimary(43)",
+      "secondary": "poolSlotSecondary(43)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "region",
+      "id": "poolSlot44",
+      "x": 562,
+      "y": 293,
+      "width": 67,
+      "height": 31,
+      "priority": "HIGH",
+      "enabled": "poolOpen",
+      "tooltip": {
+        "bind": "poolSlots[44].tooltip"
+      },
+      "primary": "poolSlotPrimary(44)",
+      "secondary": "poolSlotSecondary(44)",
+      "wheelUp": "poolPrev",
+      "wheelDown": "poolNext"
+    },
+    {
+      "type": "custom",
+      "id": "mercBody",
+      "renderer": "mercBody",
+      "x": "INV_BODY_X",
+      "y": "INV_BODY_Y",
+      "width": "CAMO_REGION_WIDTH",
+      "height": "CAMO_REGION_HEIGHT",
+      "visible": "mercPanelShown",
+      "params": {
+        "figures": [
+          ["regularMale", "regularMaleHighlight"],
+          ["bigMale", "bigMaleHighlight"],
+          ["regularMale", "regularMale"],
+          ["female", "femaleHighlight"]
+        ]
+      }
+    },
+    {
+      "type": "custom",
+      "id": "mercInventory",
+      "renderer": "mercInventory",
+      "x": "INV_REGION_X",
+      "y": "INV_REGION_Y",
+      "width": "INV_REGION_WIDTH",
+      "height": "INV_REGION_HEIGHT",
+      "visible": "mercOpen",
+      "params": {
+        "secondHandCover": "secondHandCover",
+        "secondHandCoverAt": [14, 218],
+        "keyRing": "goldKey",
+        "keyRingAt": ["MAP_KEYRING_X", "MAP_KEYRING_Y"]
+      }
+    },
+    {
+      "type": "text",
+      "id": "armourLabel",
+      "x": "MAP_ARMOR_LABEL_X",
+      "y": "MAP_ARMOR_LABEL_Y",
+      "font": "BLOCKFONT2",
+      "color": "MAP_INV_STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "mercPanelShown",
+      "text": {
+        "key": ["pInvPanelTitleStrings", 0]
+      }
+    },
+    {
+      "type": "text",
+      "id": "armour",
+      "x": "MAP_ARMOR_X",
+      "y": "MAP_ARMOR_Y",
+      "width": "MAP_ARMOR_W",
+      "height": "MAP_ARMOR_H",
+      "align": "right",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "BLOCKFONT2",
+      "color": "MAP_INV_STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "mercPanelShown",
+      "text": {
+        "bind": "armour"
+      }
+    },
+    {
+      "type": "text",
+      "id": "weightLabel",
+      "x": "MAP_WEIGHT_LABEL_X",
+      "y": "MAP_WEIGHT_LABEL_Y",
+      "font": "BLOCKFONT2",
+      "color": "MAP_INV_STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "mercPanelShown",
+      "text": {
+        "key": ["pInvPanelTitleStrings", 1]
+      }
+    },
+    {
+      "type": "text",
+      "id": "weight",
+      "x": "MAP_WEIGHT_X",
+      "y": "MAP_WEIGHT_Y",
+      "width": "MAP_WEIGHT_W",
+      "height": "MAP_WEIGHT_H",
+      "align": "right",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "BLOCKFONT2",
+      "color": "MAP_INV_STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "mercPanelShown",
+      "text": {
+        "bind": "weight"
+      }
+    },
+    {
+      "type": "text",
+      "id": "camoLabel",
+      "x": "MAP_CAMO_LABEL_X",
+      "y": "MAP_CAMO_LABEL_Y",
+      "font": "BLOCKFONT2",
+      "color": "MAP_INV_STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "mercPanelShown",
+      "text": {
+        "key": ["pInvPanelTitleStrings", 2]
+      }
+    },
+    {
+      "type": "text",
+      "id": "camo",
+      "x": "MAP_CAMO_X",
+      "y": "MAP_CAMO_Y",
+      "width": "MAP_CAMO_W",
+      "height": "MAP_CAMO_H",
+      "align": "right",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "BLOCKFONT2",
+      "color": "MAP_INV_STATS_TITLE_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "mercPanelShown",
+      "text": {
+        "bind": "camo"
+      }
+    },
+    {
+      "type": "button",
+      "id": "mercDone",
+      "x": "INV_BTN_X",
+      "y": "INV_BTN_Y",
+      "asset": "mercDone",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGHEST-1",
+      "visible": "mercOpen",
+      "tooltip": {
+        "key": ["pMiscMapScreenMouseRegionHelpText", 2]
+      },
+      "primary": "mercDone"
+    },
+    {
+      "type": "region",
+      "id": "mercKeyRing",
+      "x": "MAP_KEYRING_X",
+      "y": "MAP_KEYRING_Y",
+      "width": "KEYRING_WIDTH",
+      "height": "KEYRING_HEIGHT",
+      "priority": "HIGH",
+      "enabled": "mercPanelShown",
+      "tooltip": {
+        "key": ["TacticalStr", "KEYRING_HELP_TEXT"]
+      },
+      "primary": "keyRing"
+    },
+    {
+      "type": "custom",
+      "id": "sectorPool",
+      "renderer": "sectorPool",
+      "x": 261,
+      "y": 0,
+      "width": 379,
+      "height": 360,
+      "visible": "poolOpen",
+      "params": {
+        "slot": [274, 37, 72, 32],
+        "item": [6, 0, 61, 24],
+        "bar": [2, 2, 2, 20],
+        "name": [0, 24, 67, 7],
+        "nameFont": "MAP_IVEN_FONT",
+        "labels": [[268, 342, 53], [369, 342, 65]],
+        "labelFont": "MAP_IVEN_FONT"
+      }
+    },
+    {
+      "type": "text",
+      "id": "poolTitle",
+      "x": 266,
+      "y": 5,
+      "width": 370,
+      "height": 29,
+      "align": "center",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "FONT14ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "poolOpen",
+      "text": {
+        "key": ["zMarksMapScreenText", 11]
+      }
+    },
+    {
+      "type": "text",
+      "id": "poolLocation",
+      "x": 326,
+      "y": 337,
+      "width": 39,
+      "height": 10,
+      "align": "center",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "COMPFONT",
+      "color": 183,
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "poolOpen",
+      "text": {
+        "bind": "location"
+      }
+    },
+    {
+      "type": "text",
+      "id": "poolCount",
+      "x": 437,
+      "y": 337,
+      "width": 39,
+      "height": 10,
+      "align": "center",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "COMPFONT",
+      "color": 183,
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "poolOpen",
+      "text": {
+        "bind": "itemCount"
+      }
+    },
+    {
+      "type": "text",
+      "id": "poolPage",
+      "x": 505,
+      "y": 337,
+      "width": 50,
+      "height": 10,
+      "align": "center",
+      "alignRule": "font",
+      "valign": "center",
+      "font": "COMPFONT",
+      "color": 183,
+      "shadow": "DEFAULT_SHADOW",
+      "visible": "poolOpen",
+      "text": {
+        "bind": "page"
+      }
+    },
+    {
+      "type": "button",
+      "id": "poolNext",
+      "x": 559,
+      "y": 336,
+      "asset": "poolArrows",
+      "frames": {
+        "grayed": 10,
+        "offNormal": 1,
+        "onNormal": 3
+      },
+      "priority": "HIGHEST",
+      "visible": "poolOpen",
+      "enabled": "poolNextEnabled",
+      "primary": "poolNext"
+    },
+    {
+      "type": "button",
+      "id": "poolPrev",
+      "x": 487,
+      "y": 336,
+      "asset": "poolArrows",
+      "frames": {
+        "grayed": 9,
+        "offNormal": 0,
+        "onNormal": 2
+      },
+      "priority": "HIGHEST",
+      "visible": "poolOpen",
+      "enabled": "poolPrevEnabled",
+      "primary": "poolPrev"
+    },
+    {
+      "type": "button",
+      "id": "poolDone",
+      "x": 587,
+      "y": 333,
+      "asset": "poolDone",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGHEST",
+      "visible": "poolOpen",
+      "enabled": "poolDoneEnabled",
+      "primary": "poolDone"
+    },
+    {
+      "type": "custom",
+      "id": "mapItemDescription",
+      "renderer": "itemDescription",
+      "x": "MAP_ITEMDESC_START_X",
+      "y": "MAP_ITEMDESC_START_Y",
+      "width": "MAP_ITEMDESC_WIDTH",
+      "height": "MAP_ITEMDESC_HEIGHT",
+      "visible": "descriptionOpen",
+      "params": {
+        "box": "itemInfo",
+        "ammo": "infoBox",
+        "bullet": "bullet",
+        "money": "infoBil",
+        "item": [23, 10, 124, 48],
+        "status": [18, 54, 2, 42],
+        "name": [7, 65, 247, 8],
+        "description": [23, 170, 220, 0],
+        "prosCons": [23, 230, 220, 10],
+        "weaponStats": [
+          [52, 108, 86],
+          [52, 98, 86],
+          [117, 124, 21],
+          [52, 124, 30],
+          [52, 135, 30],
+          [117, 135, 25],
+          [86, 135, 0],
+          [145, 135, 0]
+        ],
+        "moneyStats": [[51, 97, 45], [61, 107, 75], [51, 125, 45], [61, 135, 70]],
+        "attachmentItem": [6, 0, 31, 25],
+        "attachmentBar": [1, 1, 2, 23],
+        "attachmentSlots": [[170, 8], [208, 8], [170, 34], [208, 34]],
+        "bulletSingle": [77, 135],
+        "bulletBurst": [117, 135],
+        "bulletWidth": "BULLET_WIDTH",
+        "ammoText": ["ITEMDESC_AMMO_TEXT_X", "ITEMDESC_AMMO_TEXT_Y", "ITEMDESC_AMMO_TEXT_WIDTH"],
+        "moneyBox": [174, 115],
+        "moneyButtons": [[0, 0], [34, 0], [0, 32], [34, 32], [8, 22]],
+        "stackArea": ["INV_REGION_X", "INV_REGION_Y", 261, 248],
+        "cell": "extraInventory"
+      }
+    }
+  ]
+}

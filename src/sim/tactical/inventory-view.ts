@@ -31,7 +31,7 @@ function itemName(items: ItemTable, index: number): string {
   return items.byIndex.get(index)?.name ?? String(index);
 }
 
-function slotView(items: ItemTable, slot: number, o: ItemObject): InventoryItemView {
+export function slotView(items: ItemTable, slot: number, o: ItemObject): InventoryItemView {
   const def = items.byIndex.get(o.item);
   const imprint = itemImprint(items, o);
   const attachments = o.attachments.filter((a) => a.item !== NOTHING).map((a) => ({ item: itemName(items, a.item), status: a.status }));

@@ -9,23 +9,13 @@
 // @src training checks, MapScreen.cc TellPlayerWhyHeCantCompressTime. See docs/28 §12.2.
 
 import { type UiStrings, uiString } from '../content/text/strings.ts';
+import { MOVE_REFUSAL_INDEX, REFUSAL_MESSAGES, type UiTextKey } from '../protocol/refusals.ts';
 import type { PlayerView, StrategicMercView } from '../protocol/view.ts';
 import { Assignment } from '../sim/strategic/economy/constants.ts';
 import type { ShopKind } from '../sim/strategic/economy/merchants/view.ts';
 import type { MoveRefusal } from '../sim/strategic/forces/move-permission.ts';
 import type { SoldierCondition } from '../sim/tactical/health.ts';
 import type { MoraleText } from './contract-view.ts';
-
-export interface UiTextKey {
-  readonly table: string;
-  readonly index: number;
-}
-
-export type RefusalShown = 'log' | 'box';
-
-export interface RefusalMessage extends UiTextKey {
-  readonly shown: RefusalShown;
-}
 
 const MORALE: Readonly<Record<MoraleText, number>> = { great: 0, good: 1, stable: 2, poor: 3, panic: 4, bad: 5 };
 const CONDITION: Readonly<Record<SoldierCondition, number>> = {
@@ -41,53 +31,7 @@ const CONDITION: Readonly<Record<SoldierCondition, number>> = {
 };
 const TALK_MENU: Readonly<Record<string, number>> = { repeat: 0, friendly: 1, direct: 2, threaten: 3, give: 4, recruit: 5 };
 const SHOP_KIND: Readonly<Record<ShopKind, number>> = { buySell: 0, buy: 1, sell: 2, repair: 3 };
-const MOVE_REFUSAL: Partial<Readonly<Record<MoveRefusal, number>>> = {
-  underground: 1,
-  enemiesPresent: 2,
-  onAssignment: 3,
-  prisoner: 5,
-  inTransit: 8,
-  inCombat: 11,
-  vehicleEmpty: 32,
-  tooInjured: 33,
-  dead: 35,
-  tooTired: 43,
-  vehicleDamaged: 47,
-  robotAlone: 49,
-  cannotLeaveSector: 29,
-};
-const log = (table: string, index: number): RefusalMessage => ({ table, index, shown: 'log' });
-const box = (table: string, index: number): RefusalMessage => ({ table, index, shown: 'box' });
-const NOT_ENOUGH_APS = log('TacticalStr', 87);
-
-export const REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = {
-  notEnoughAP: NOT_ENOUGH_APS,
-  notEnoughAp: NOT_ENOUGH_APS,
-  noPath: log('TacticalStr', 114),
-  mercUnavailable: log('TacticalStr', 82),
-  uncontrolledRobot: log('TacticalStr', 88),
-  outOfBreath: log('gzLateLocalizedString', 3),
-  noBurst: log('Message', 34),
-  noRoomToFire: log('pMessageStrings', 34),
-  ...Object.fromEntries(Object.entries(MOVE_REFUSAL).map(([token, index]) => [token, box('pMapErrorString', index ?? 0)])),
-  notEligible: box('pMapErrorString', 18),
-  squadFull: box('pMapErrorString', 19),
-  squadElsewhere: box('pMapErrorString', 20),
-  squadMoving: box('pMapErrorString', 36),
-  squadHasVehicle: box('pMapErrorString', 37),
-  cannotJoinSquad: box('pMapErrorString', 38),
-  loyaltyTooLow: box('zMarksMapScreenText', 19),
-  militiaFull: box('zMarksMapScreenText', 20),
-  tooManyTrainers: box('gzLateLocalizedString', 46),
-  walking: box('zMarksMapScreenText', 5),
-  driving: box('zMarksMapScreenText', 7),
-  sectorNotCleared: box('Message', 44),
-  notTired: box('zMarksMapScreenText', 4),
-  collapsed: box('zMarksMapScreenText', 6),
-  noMercsHired: box('pMapScreenJustStartedHelpText', 0),
-  noUsableMercs: box('pMapErrorString', 39),
-  creatureMine: box('gzLateLocalizedString', 27),
-};
+const MOVE_REFUSAL: Partial<Readonly<Record<MoveRefusal, number>>> = MOVE_REFUSAL_INDEX;
 
 const TRADE_MENU_PREFIX = 'buySell:';
 const ASSIGNMENT_COUNT = Assignment.ASSIGNMENT_EMPTY + 1;
@@ -109,10 +53,6 @@ export const TEXT_KEYS: Readonly<Record<string, UiTextKey>> = Object.fromEntries
   ...assignments(),
   ...Object.entries(REFUSAL_MESSAGES).map(([token, m]): [string, UiTextKey] => [`refusal.${token}`, { table: m.table, index: m.index }]),
 ]);
-
-export function refusalMessage(token: string): RefusalMessage | null {
-  return REFUSAL_MESSAGES[token] ?? null;
-}
 
 export function textKeyFor(token: string): UiTextKey | null {
   return TEXT_KEYS[token] ?? null;
@@ -146,3 +86,5 @@ export function labelledView(view: PlayerView, strings: UiStrings): Record<strin
   if (shop) labels.shop = { ...shop, kindLabel: uiLabel(strings, textKeyFor(`shopKind.${shop.kind}`)) };
   return { ...view, ...labels };
 }
+
+export { type RefusalMessage, type RefusalShown, refusalMessage, type UiTextKey } from '../protocol/refusals.ts';

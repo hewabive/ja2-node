@@ -1132,8 +1132,8 @@ Rest, fatigue, sleep, natural healing, hospital, militia completion: none. Other
 |---|---|---|
 | `assign {soldiers[], to}` with `to` = `{kind:'squad', squad?}` · `{kind:'doctor'}` · `{kind:'patient'}` · `{kind:'repair', target?: 'items' \| 'robot' \| {vehicle}}` · `{kind:'trainSelf' \| 'trainTeammate' \| 'trainByOther', stat}` · `{kind:'trainMilitia'}` · `{kind:'vehicle', vehicle}` · `{kind:'hospital'}` (M6) | `SetAssignmentForList` per soldier, in the given order, each checked independently; result per soldier `ok` or a reason (`notConscious`, `enemiesHere`, `moving`, `underground`, `inTransit`, `pow`, `epc`, `mechanical`, `noMedkit`, `noToolkit`, `nothingToRepair`, `statAtCap`, `statTooLowToTeach`, `noMilitiaHere`, `loyaltyTooLow`, `militiaFull`, `tooManyTrainers`, `squadFull`, `squadElsewhere`, `squadMoving`) | the original shows one failure box for the batch |
 | `sleep {soldiers[]}` / `wake {soldiers[]}` | `SetMercAsleep` / `SetMercAwake` with their checks; reasons `notTired`, `sectorNotCleared`, `walking`, `driving`, `collapsed` | waking a tired merc sets `forcedToStayAwake` |
-| `moveMilitia {from, to, rank, count}` | repeated pick-up/drop of §1.8 (same town, both our and peaceful, target total < 20) | atomic: all or nothing |
-| `distributeMilitia {town}` | the AUTO button | |
+| `moveMilitia {from, to, rank, count}` | repeated pick-up/drop of §1.8 (same town, both our and peaceful, target total < 20) | atomic: all or nothing; built in M8 (U8, `04` §6.30) with the refusals of `HandleMilitiaRedistributionClick` |
+| `distributeMilitia {town}` | the AUTO button | built in M8 (U8): the box sum over the militia map with the quirk of §1.8 |
 | `startMine {mine}` | **temporary** stand-in for `NPC_ACTION_START_MINE` until M6 dialogue: requires an OUR merc in the entrance sector and the head miner alive; sets `fSpokeToHeadMiner`, restarts a non-permanent shutdown | deviation (§9) |
 
 **Decision prompts** (time stops until answered):

@@ -1,3 +1,4 @@
+import { appendToLog, type MessageEntry } from '../../protocol/message-log.ts';
 import {
   type ClientMessage,
   type CommandEnvelope,
@@ -44,6 +45,8 @@ export interface QueryReply extends CommandReply {
   readonly tick: number;
 }
 
+const DRIVER_STOP_ID = 0;
+
 export class SessionClient {
   driver: DriverMode = { mode: 'manual' };
   playbackSpeed = 1;
@@ -61,6 +64,7 @@ export class SessionClient {
   #shown: PlayerView | null = null;
   #latest: PlayerView | null = null;
   #shownTick = 0;
+  #messages: MessageEntry[] = [];
 
   private constructor(socket: WebSocket) {
     this.#socket = socket;
@@ -87,6 +91,10 @@ export class SessionClient {
 
   get latestView(): PlayerView | null {
     return this.#latest;
+  }
+
+  get messages(): readonly MessageEntry[] {
+    return this.#messages;
   }
 
   get soldiers(): readonly SoldierView[] {
@@ -203,6 +211,7 @@ export class SessionClient {
         this.#shown = m.view;
         this.#latest = m.view;
         this.#shownTick = m.view.tick;
+        this.#messages = appendToLog([], m.messages);
         this.onWelcome?.();
         break;
       case 'frames':
@@ -213,6 +222,7 @@ export class SessionClient {
       case 'result':
       case 'answer':
       case 'stopped': {
+        if (m.t === 'stopped' && m.id === DRIVER_STOP_ID) this.driver = { mode: 'manual' };
         const p = this.#pending.get(m.id);
         this.#pending.delete(m.id);
         p?.resolve(m);
@@ -232,6 +242,7 @@ export class SessionClient {
       const frame = this.#frames.shift() as ViewFrame;
       applied.push(frame);
       this.#shown = this.#shown && applyViewFrame(this.#shown, frame);
+      if (frame.messages) this.#messages = appendToLog(this.#messages, frame.messages);
     }
     const target = Math.min(tick, this.latestTick);
     if (target > this.#shownTick) this.#shownTick = target;

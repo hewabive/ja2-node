@@ -42,6 +42,7 @@ export interface Town {
   readonly sectors: readonly number[];
   readonly militiaMapBaseSector: number;
   readonly isMilitiaTrainingAllowed: boolean;
+  readonly townPoint: { readonly x: number; readonly y: number };
 }
 
 export interface SectorDescription {
@@ -70,6 +71,7 @@ export interface SamSite {
 export interface MapSecret {
   readonly sector: number;
   readonly isSamSite: boolean;
+  readonly mapIcon: string | null;
   readonly secretLandType: number;
   readonly foundLandType: number;
 }
@@ -128,6 +130,11 @@ export function parseMovementCosts(json: unknown, map: TraversabilityMap): Movem
   return { traversability, travelRatings };
 }
 
+function parseTownPoint(value: unknown, i: number): { readonly x: number; readonly y: number } {
+  const o = asObject(value, `towns[${i}].townPoint`);
+  return { x: asInt(o.x, `towns[${i}].townPoint.x`), y: asInt(o.y, `towns[${i}].townPoint.y`) };
+}
+
 export function parseTowns(json: unknown): Town[] {
   return asArray(json, 'towns')
     .map((v, i) => {
@@ -142,6 +149,7 @@ export function parseTowns(json: unknown): Town[] {
             ? (sectors[0] ?? 0)
             : parseSectorId(asString(o.militiaMapBaseSector, 'militiaMapBaseSector')),
         isMilitiaTrainingAllowed: asBool(o.isMilitiaTrainingAllowed, `towns[${i}].isMilitiaTrainingAllowed`),
+        townPoint: parseTownPoint(o.townPoint, i),
       };
     })
     .sort((a, b) => a.townId - b.townId);
@@ -209,6 +217,7 @@ export function parseMapSecrets(json: unknown, map: TraversabilityMap): MapSecre
     return {
       sector: parseSectorId(asString(o.sector, `${what}.sector`)),
       isSamSite: optionalBool(o, 'isSAMSite', what),
+      mapIcon: o.secretMapIcon === undefined ? null : asString(o.secretMapIcon, `${what}.secretMapIcon`),
       secretLandType: terrain(map, o.secretLandType, `${what}.secretLandType`),
       foundLandType: terrain(map, o.foundLandType, `${what}.foundLandType`),
     };

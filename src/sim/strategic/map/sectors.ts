@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Campaign_Types.h SECTORINFO, UNDERGROUND_SECTORINFO; StrategicMap.h StrategicMapElement;
-// @src src/game/Tactical/Tactical_Save.cc SetSectorFlag, ReSetSectorFlag, GetSectorFlagStatus; Queen_Command.cc FindUnderGroundSector;
+// @src src/game/Tactical/Tactical_Save.cc SetSectorFlag, ReSetSectorFlag, GetSectorFlagStatus,
+// @src SetNumberOfVisibleWorldItemsInSectorStructureForSector; Queen_Command.cc FindUnderGroundSector;
 // @src StrategicMap.cc GetMapFileName; Strategic_Movement_Costs.cc GetTraversability, SectorIsPassable;
 // @src Strategic_Status.cc UpdateLastDayOfPlayerActivity. See docs/16 §1.
 
@@ -175,6 +176,15 @@ export function sectorInfo(map: StrategicMapState, s: { readonly x: number; read
 
 export function findUndergroundSector(map: StrategicMapState, s: Sector): UndergroundSector | undefined {
   return map.underground.find((u) => sameSector(u.sector, s));
+}
+
+export function setVisibleItemCount(map: StrategicMapState, s: Sector, count: number): void {
+  if (s.z === 0) {
+    sectorInfo(map, s).visibleItems = count;
+    return;
+  }
+  const u = findUndergroundSector(map, s);
+  if (u) u.visibleItems = count;
 }
 
 export function getSectorFlags(map: StrategicMapState, s: Sector): number {

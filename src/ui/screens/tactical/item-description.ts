@@ -78,6 +78,7 @@ export interface DescriptionGeometry {
 
 export interface DescriptionArt {
   readonly box: string;
+  readonly ammo?: string;
   readonly bullet: string;
   readonly money: string;
 }
@@ -350,7 +351,7 @@ export class ItemDescriptionBox {
     const img = ammoImage(magazine?.ammoType ?? 0);
     const services = this.#hooks.services;
     const image = {
-      asset: art.box,
+      asset: art.ammo ?? art.box,
       grayed: img + AMMO_GRAYED_OFFSET,
       offNormal: img,
       offHilite: -1,

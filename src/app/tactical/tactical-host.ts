@@ -240,7 +240,7 @@ export class TacticalHost {
     presenter.setOverheadLoader(async () => {
       const small = await loadSmallTiles(world.world, available, fetchVfsFile);
       return OverheadPicture.compose(`overhead:${mapPath}`, world.world, small, {
-        addRgb: (key, width, height, pixels) => this.#o.ui.assets.addRgb(key, width, height, pixels),
+        addRgb: (key, width, height, pixels) => this.#o.ui.assets.addRgb(key, { kind: 'rgb', width, height, flags: 0, pixels }),
       });
     });
     this.#loaded = { presenter, media, layouts, uiCursors };

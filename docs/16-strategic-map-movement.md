@@ -1286,9 +1286,10 @@ a read with a side effect); otherwise `KNOWS_NOTHING`. The map shows nothing on 
 
 | Command | Original | Checks and result |
 |---|---|---|
-| `route {soldier, to, via?: Sector[], shortest?: bool}` | `PlotPathForCharacter` legs (start = last path sector), copy to squad/vehicle, `RebuildWayPointsForGroupPath` | `CanEntireMovementGroupMercIsInMove` (§3.3 codes as `reason`), cursor rule, passable "through", `shortest` = the SHIFT mode; returns path, waypoints, ETA. Replaces an existing path: clear to the current sector first (UI: cancel then plot) |
+| `route {soldier, to, via?: Sector[], shortest?: bool}` | `PlotPathForCharacter` legs (start = last path sector), copy to squad/vehicle, `RebuildWayPointsForGroupPath` | `CanEntireMovementGroupMercIsInMove` (§3.3 codes as `reason`), cursor rule, passable "through", `shortest` = the SHIFT mode; returns path, waypoints, ETA. Replaces an existing path: clear to the current sector first (UI: cancel then plot); `extend: true` appends the legs instead, as the map screen's plotting does (built in M8, U8: `via`, `shortest`, `extend`, the path as sector names) |
 | `cancelRoute {soldier}` | `CancelPathForCharacter` | reverses a moving group (§3.4) |
-| `shortenRoute {soldier, at}` | `ClearPathAfterThisSectorForCharacter` + rebuild | |
+| `shortenRoute {soldier, at}` | `ClearPathAfterThisSectorForCharacter` + rebuild | built in M8 (U8, `04` §6.30) |
+| `routeGroup {soldiers, squads?, vehicles?, to, via?, shortest?}` | the move box (`HandleMoveoutOfSectorMovementTroops`) | built in M8 (U8): regroups the mercs parting from their units, then routes every moving group |
 | `assignSquad {soldier, squad: 0..19 \| 'new' \| 'any'}` | `AddCharacterToSquad` / `…UniqueSquad` / `…AnySquad` | reasons: `full`, `onTheMove`, `otherSector`, `vehicleSquad`; leaving assignments is `docs/18` |
 | `enterSector {sector}` | `AllowedToExitFromMapscreenTo(TACTICAL)` + `SetCurrentWorldSector` | §5.1 gates; refuses during prompts |
 | `exitSector {soldier, direction?: 'north'\|'east'\|'south'\|'west', exitGrid?: gridNo, who: 'squad'\|'merc', load?: bool}` | `OKForSectorExit` + exit menu table + `JumpIntoAdjacentSector` | `soldier` plays the selected merc; refusals `tooFar`, `invalidTraversal`, `loneEPC`, `abandonEPC`, `squadNotAllowed`, `mercNotAllowed`, `loadDisabled`; `load` defaults to the menu default |

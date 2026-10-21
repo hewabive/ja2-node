@@ -2,11 +2,13 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Map_Screen_Interface_Map.cc PlotPathForCharacter, ClearPathAfterThisSectorForCharacter,
 // @src CancelPathForCharacter, CopyPathToCharactersSquadIfInOne, IsTheCursorAllowedToHighLightThisSector;
-// @src Strategic_Pathing.cc GetLastSectorIdInCharactersPath, GetSoldierGroup. See docs/16 §3.1, §3.3.
+// @src Strategic_Pathing.cc GetLastSectorIdInCharactersPath, GetSoldierGroup; MapScreen.cc (the plotting legs: each leg built
+// @src from the last sector of the path so far, the temporary path to the cursor, CopyPathToAllSelectedCharacters).
+// @src See docs/16 §3.1, §3.3.
 
 import { StrategicMove } from '../../../content/strategic/map-tables.ts';
 import { isValidSector, type Sector, sameSector, strategicIndex } from '../../../content/strategic/sector-ids.ts';
-import { appendStrategicPath, clearStrategicPathAfterSector } from '../map/pathing.ts';
+import { appendStrategicPath, clearStrategicPathAfterSector, lastSectorOfPath } from '../map/pathing.ts';
 import { sectorInfo, Traversability } from '../map/sectors.ts';
 import { Assignment } from './constants.ts';
 import { type Group, getGroup, removeGroupWaypoints, requireMerc } from './groups.ts';
@@ -90,4 +92,48 @@ export function clearPathAfterThisSectorForCharacter(ctx: StrategicContext, id: 
   if (soldierMercPath(ctx, m).length >= original) return PathEdit.ABORT_PLOTTING;
   copyPathToCharactersSquadIfInOne(ctx, m);
   return PathEdit.PATH_SHORTENED;
+}
+
+export const PlotRefusal = { BAD_SECTOR: 'badSector', NO_ROUTE: 'noRoute' } as const;
+export type PlotRefusal = (typeof PlotRefusal)[keyof typeof PlotRefusal];
+
+export interface PlottedLegs {
+  readonly path: readonly number[];
+  readonly temp: readonly number[] | null;
+}
+
+export function plotLegs(
+  ctx: StrategicContext,
+  g: Group,
+  start: readonly number[],
+  origin: number,
+  via: readonly Sector[],
+  to: Sector,
+  options: GroupPathOptions = {},
+): PlottedLegs | PlotRefusal {
+  let path: readonly number[] = start;
+  for (const leg of via) {
+    if (!isTheCursorAllowedToHighLightThisSector(ctx, leg)) return PlotRefusal.BAD_SECTOR;
+    const section = buildAStrategicPath(ctx, lastSectorOfPath(path, origin), strategicIndex(leg), g, options);
+    if (!section) return PlotRefusal.NO_ROUTE;
+    path = appendStrategicPath(section, path);
+  }
+  const temp = isTheCursorAllowedToHighLightThisSector(ctx, to)
+    ? buildAStrategicPath(ctx, lastSectorOfPath(path, origin), strategicIndex(to), g, options)
+    : null;
+  return { path, temp };
+}
+
+export function plottedRoute(legs: PlottedLegs, origin: number, to: Sector): number[] | null {
+  if (legs.temp) return appendStrategicPath(legs.temp, legs.path);
+  return lastSectorOfPath(legs.path, origin) === strategicIndex(to) ? [...legs.path] : null;
+}
+
+export function setPathForCharacter(ctx: StrategicContext, id: number, path: readonly number[]): void {
+  const m = requireMerc(ctx, id);
+  const vehicle = inOrIsVehicle(m);
+  if (vehicle) setUpMvtGroupForVehicle(ctx, m);
+  m.path = [...path];
+  if (vehicle) moveCharactersPathToVehicle(ctx, m);
+  else copyPathToCharactersSquadIfInOne(ctx, m);
 }
