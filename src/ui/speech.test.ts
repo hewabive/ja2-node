@@ -237,6 +237,12 @@ describe('speechLineOf', () => {
     expect(speechLineOf(bare, routing)).toBeNull();
   });
 
+  it('drops a line that has neither text nor length, as a stub dealer without a dialogue file', () => {
+    const silent = { ...routing, text: () => null };
+    const dealer = { type: 'shopkeeperQuote', tick: 1, dealer: 91, quote: 11, textKey: key, chars: 0 } as unknown as QuoteEvent;
+    expect(speechLineOf(dealer, silent)).toBeNull();
+  });
+
   it('turns a civilian quote into the civilian box', () => {
     const civ = { type: 'civQuote', tick: 1, soldier: 12, quote: 2, entry: 0, hint: false, textKey: key, chars: 5 } as QuoteEvent;
     expect(civQuoteOf(civ, routing)).toEqual({ soldier: 12, text: 'row 3', chars: 5, hint: false });

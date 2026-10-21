@@ -871,7 +871,7 @@ face → overlays → slots → popups.
 | Ten stats, labels colour 6, values colour 5, `"%3d"`; green for 60 s after a rise, red after a fall | **`stats`** (agility … medical, level) | flashes from `statChanged` events |
 | Armour %, weight %, camo % | **`armour`, `weight`, `camo`** computed by the server | `ArmourPercent` (`Weapons.cc:123-147`), `CalculateCarriedWeight` |
 | Body figure (four bodies, `_h` highlight variants), drop target for camo kits, canteens, elixir | body type | `applyItem` |
-| 19 slots (§5.3), key ring icon, money region | `inventory`, `keys` | money: deferred (no command, §12.4) |
+| 19 slots (§5.3), key ring icon, money region | `inventory`, `keys` | money: the money box, `withdrawCash`, `depositCash`, `splitMoney` (§12.4, U7) |
 | Buttons: stance up/down, stealth indicator, climb, burst mode, look, level view, hand, talk, mute, prev/next, options, Done, Map | §5.2 | |
 | Stracciatella's `gui_extras` stat progress bars | hidden profile progress | **deferred, off**: they reveal hidden state (D16), vanilla has them off |
 
@@ -918,8 +918,8 @@ flag would desynchronise sound and noise).
   index) drawn as the mouse cursor and turns the drop into one command: `moveItem`, `attach`, `moveItem {merge}` after
   the merge prompt, `reload`, `drop`, `give`, `applyItem`. A swap shows the displaced item back in its slot; a cursor
   item does not survive a switch to the map screen.
-- Missing commands: CTRL+click stack combine (**`combineStack`**), money split and withdraw/deposit (§12.4), key-ring
-  editing (deferred), tossing and catching (**Later**).
+- Missing commands: CTRL+click stack combine (**`combineStack`**), key-ring editing (deferred), tossing and catching
+  (**Later**); the money split and withdraw/deposit came with U7 (§12.4).
 
 ### 5.4 Popups: stack, key ring, item description, pickup menu
 
@@ -1693,7 +1693,7 @@ function reads (§2.4): the test that fills unsupplied projection fields with th
 | `climbWindow {soldier}` | Shift+J (Stracciatella) | |
 | `mute {soldier, on}` | mute button | presentation flag kept by the server |
 | `combineStack {soldier, slot}` | CTRL+click | `CleanUpStack` |
-| `withdrawCash {soldier, amount}`, `depositCash {soldier, slot}`, `splitMoney {soldier, slot, amount}` | the money region and box | specified in `docs/23` §13.1, not built |
+| `withdrawCash {soldier, amount}`, `depositCash {soldier, slot, amount?}`, `splitMoney {soldier, slot, amount, to, toSoldier?}` | the money region and box | built in U7 (`04` §6.28) |
 | `leaveVehicle` in tactical | team panel second hand slot | documented for the map screen only |
 | `discardItem {soldier, slot}` | map-screen trash can | |
 | `route {via, shortest}`, `shortenRoute {soldier, at}` | plotting | `docs/16` §7.1 |

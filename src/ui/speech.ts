@@ -350,6 +350,7 @@ function request(
 ): SpeechLineRequest | null {
   if (!fields.textKey) return null;
   const text = lineText(fields, routing);
+  if (text.length === 0 && (fields.chars ?? 0) === 0) return null;
   return {
     surface,
     profile,
