@@ -198,6 +198,8 @@ export class MapScreen implements Screen {
   readonly #faces = new Map<number, FaceAnimator>();
   readonly #flashes = new Map<number, Map<string, StatFlash>>();
   readonly #handledPrompts = new Set<string>();
+  readonly #promptBoxes = new Map<string, MessageBox>();
+  readonly #answeredElsewhere = new Set<string>();
   #screenMask: MouseRegion | null = null;
   #selected: Sector = { ...START_SECTOR };
   #level = 0;
@@ -600,6 +602,7 @@ export class MapScreen implements Screen {
   }
 
   frames(frames: readonly ViewFrame[]): void {
+    this.#closeAnsweredPrompts();
     const mercs = this.#strategic()?.mercs ?? [];
     for (const frame of frames) this.#updates.observe(frame.events ?? [], mercs, this.#env.notifySleepWake());
     for (const frame of frames)
@@ -825,7 +828,7 @@ export class MapScreen implements Screen {
     return this.#openBox({ text, flags: MessageBoxFlag.OK, answer: () => null });
   }
 
-  #openBox(spec: PromptBox): Promise<number> {
+  #openBox(spec: PromptBox, prompt: string | null = null): Promise<number> {
     const o = this.#origin();
     this.#boxOpen++;
     return new Promise((resolve) => {
@@ -834,20 +837,36 @@ export class MapScreen implements Screen {
         ...(spec.user1 ? { user1: spec.user1 } : {}),
         ...(spec.user2 ? { user2: spec.user2 } : {}),
       };
-      this.#env.runtime.host.openModal(
-        new MessageBox(this.#env.runtime, {
-          style: this.#env.messageBoxStyle(0),
-          text: spec.text,
-          flags: spec.flags,
-          labels,
-          centeringRect: { x: o.x, y: o.y, width: MAP_BOX_WIDTH, height: MAP_BOX_HEIGHT },
-          onClose: (result) => {
-            this.#boxOpen--;
-            resolve(result);
-          },
-        }),
-      );
+      const box = new MessageBox(this.#env.runtime, {
+        style: this.#env.messageBoxStyle(0),
+        text: spec.text,
+        flags: spec.flags,
+        labels,
+        centeringRect: { x: o.x, y: o.y, width: MAP_BOX_WIDTH, height: MAP_BOX_HEIGHT },
+        onClose: (result) => {
+          this.#boxOpen--;
+          if (prompt !== null) this.#promptBoxes.delete(prompt);
+          resolve(result);
+        },
+      });
+      if (prompt !== null) this.#promptBoxes.set(prompt, box);
+      this.#env.runtime.host.openModal(box);
     });
+  }
+
+  #closeAnsweredPrompts(): void {
+    const view = this.#env.client.latestView;
+    const open = new Set([view?.prompt?.id, view?.contractPrompt?.id]);
+    for (const [id, box] of this.#promptBoxes)
+      if (!open.has(id)) {
+        this.#answeredElsewhere.add(id);
+        this.#env.runtime.host.closeModal(box);
+      }
+    const renewal = this.#contract.renewalId;
+    if (renewal && !open.has(renewal)) {
+      this.#contract.close(false);
+      this.#syncMask(false);
+    }
   }
 
   #uiMessage(text: string, deltaY = 0): void {
@@ -902,8 +921,8 @@ export class MapScreen implements Screen {
   }
 
   async #answerPrompt(id: string, box: PromptBox): Promise<void> {
-    const choice = box.answer(await this.#openBox(box));
-    if (choice) await this.#env.client.command({ type: 'answer', prompt: id, choice });
+    const choice = box.answer(await this.#openBox(box, id));
+    if (choice && !this.#answeredElsewhere.has(id)) await this.#env.client.command({ type: 'answer', prompt: id, choice });
   }
 
   async #withMask(show: () => Promise<void> | void): Promise<void> {

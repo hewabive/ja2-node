@@ -183,6 +183,23 @@ describe('the map screen over the stub map-screen campaign', () => {
   );
 
   it(
+    'closes the prompt box when an agent answers the prompt first, without answering again',
+    () =>
+      withMap(async (f) => {
+        expect((await f.client.command({ type: 'assign', soldiers: [f.trainer], to: { kind: 'trainMilitia' } })).ok).toBe(true);
+        await f.settle();
+        expect(f.t.runtime.host.modal?.id).toBe(MESSAGE_BOX);
+        expect((await f.client.command({ type: 'answer', choice: 'no' })).ok).toBe(true);
+        const sent = f.client.commands.length;
+        f.frames([{ tick: f.client.view.tick, changed: [], removed: [] }]);
+        await f.settle();
+        expect(f.t.runtime.host.modal).toBeNull();
+        expect(f.client.commands.length).toBe(sent);
+      }),
+    SLOW_MS,
+  );
+
+  it(
     'selects the squad with its number key and the next merc with the arrow',
     () =>
       withMap(async (f) => {
