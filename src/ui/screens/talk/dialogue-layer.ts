@@ -266,7 +266,7 @@ export class DialogueLayer {
       return;
     }
     const line = speechLineOf(event.type === 'shopkeeperQuote' ? withDealerTextKey(event) : event, routing);
-    if (!line) return;
+    if (!line || (event.type === 'shopkeeperQuote' && line.text.length === 0)) return;
     const queued = this.presenter.enqueue(line);
     if (event.type === 'shopkeeperQuote') this.shop.lineQueued(queued.id, event.quote);
   }

@@ -356,6 +356,9 @@ export class ShopPanel {
 
   speak(quote: number): boolean {
     if (!this.#open || this.#dealer < 0) return false;
+    const key = textKey(npcDialogueFile(this.#dealer), quote);
+    const text = this.#hooks.text.edt(key.file, key.row) ?? '';
+    if (text.length === 0) return false;
     const current = this.#currentShopLine();
     if (current) {
       const playing = this.#quoteOfLine.get(current.line.id);
@@ -364,8 +367,6 @@ export class ShopPanel {
       }
       this.shutUp();
     }
-    const key = textKey(npcDialogueFile(this.#dealer), quote);
-    const text = this.#hooks.text.edt(key.file, key.row) ?? '';
     const voice = speechPathForLine({ profile: this.#dealer, textKey: key, recruitedNpcOrRpc: false }, this.#hooks.rpcSpeechPrefixed);
     const line = this.#hooks.presenter.enqueue({
       surface: SpeechSurface.SHOPKEEPER,
