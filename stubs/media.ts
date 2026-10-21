@@ -7,6 +7,7 @@ import { buildStubText } from './text.ts';
 import { buildStubCursors } from './ui/cursors.ts';
 import { buildStubFaces, buildStubPortraits } from './ui/faces.ts';
 import { buildStubItemGraphics } from './ui/items.ts';
+import { buildStubOwnerFaces } from './ui/owner-faces.ts';
 import { buildStubRadarMaps } from './ui/radar.ts';
 import { buildStubSkin } from './ui/skin.ts';
 import { buildStubTestCard } from './ui-test-card.ts';
@@ -42,5 +43,6 @@ export async function buildStubMedia(out: string, aliases: Map<string, string>):
   const present = new Set(before);
   const skin = await buildStubSkin(out, (path) => present.has(path) || aliases.has(path), aliases);
   const portraits = await buildStubPortraits(out, (path) => present.has(path) || aliases.has(path));
-  return [...before, ...skin, ...portraits];
+  const ownerFaces = await buildStubOwnerFaces(out, (path) => present.has(path) || aliases.has(path));
+  return [...before, ...skin, ...portraits, ...ownerFaces];
 }
