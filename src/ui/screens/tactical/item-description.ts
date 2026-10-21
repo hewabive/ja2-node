@@ -91,7 +91,8 @@ export type DescribedObject =
   | { readonly kind: 'slot'; readonly soldier: number; readonly slot: number; readonly index: number }
   | { readonly kind: 'attachment'; readonly soldier: number; readonly slot: number; readonly attachment: number }
   | { readonly kind: 'key'; readonly soldier: number; readonly key: number }
-  | { readonly kind: 'balance'; readonly soldier: number; readonly amount: number };
+  | { readonly kind: 'balance'; readonly soldier: number; readonly amount: number }
+  | { readonly kind: 'object'; readonly soldier: number; readonly view: InventoryItemView };
 
 export interface DescriptionHooks {
   readonly services: UiServices;
@@ -221,6 +222,7 @@ export class ItemDescriptionBox {
 
   #view(object: DescribedObject): InventoryItemView | null {
     if (object.kind === 'balance') return { slot: -1, item: MONEY, index: 0, count: 1, status: [100], money: object.amount };
+    if (object.kind === 'object') return object.view;
     const soldier = this.#hooks.soldier(object.soldier);
     if (object.kind === 'key') return null;
     const item = slotItem(soldier, object.slot);
@@ -525,6 +527,7 @@ export class ItemDescriptionBox {
   }
 
   #hatchesAttachments(object: DescribedObject, item: CatalogueItem): boolean {
+    if (object.kind === 'object') return false;
     if (object.kind !== 'slot') return true;
     const cursor = this.#hooks.cursor();
     if (!cursor) return false;
@@ -597,7 +600,7 @@ export class ItemDescriptionBox {
   }
 
   #attachments(list: DrawList, ctx: TileDrawContext, object: DescribedObject, item: CatalogueItem, g: DescriptionGeometry): void {
-    const view = object.kind === 'slot' ? this.#view(object) : null;
+    const view = object.kind === 'slot' || object.kind === 'object' ? this.#view(object) : null;
     const hatch = this.#hatchesAttachments(object, item);
     const cursor = this.#hooks.cursor()?.source;
     const [ix, iy, iw, ih] = g.attachmentItem;
