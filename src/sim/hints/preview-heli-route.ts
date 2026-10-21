@@ -10,7 +10,7 @@ import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
 import { passengersOf } from '../strategic/forces/groups.ts';
 import { canHelicopterFly, helicopterGroup, whyHelicopterCannotFly } from '../strategic/forces/helicopter.ts';
 import { helicopterPathFigures, plottingEtaMinutes } from '../strategic/map/plotting.ts';
-import { plotLegs, viaSectors } from './preview-route.ts';
+import { plotLegsHint, viaSectors } from './preview-route.ts';
 import { sectorNames, sectorParam, strategicOf } from './strategic-check.ts';
 import { type HintRequestBase, type HintResult, hintData, refuseHint } from './types.ts';
 
@@ -29,6 +29,7 @@ export interface PreviewHeliRoute {
 export interface PreviewHeliRouteRequest extends HintRequestBase {
   readonly to?: unknown;
   readonly via?: unknown;
+  readonly extend?: unknown;
 }
 
 export function previewHeliRoute(world: KnowledgeWorld, req: PreviewHeliRouteRequest): HintResult<PreviewHeliRoute> {
@@ -42,7 +43,7 @@ export function previewHeliRoute(world: KnowledgeWorld, req: PreviewHeliRouteReq
   if (!to) return refuseHint('badSector', 'to must be a sector such as B13');
   const via = viaSectors(req.via);
   if (!via) return refuseHint('badSector', 'via must be a list of sectors');
-  const legs = plotLegs(sk, g, v.path, strategicIndex(v.sector), via, to, false);
+  const legs = plotLegsHint(sk, g, req.extend === true ? v.path : [], strategicIndex(v.sector), via, to, false);
   if ('ok' in legs) return legs;
   const canFly = canHelicopterFly(ctx);
   const figures = helicopterPathFigures(ctx, canFly, v, g, legs.path, legs.temp);

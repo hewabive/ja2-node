@@ -118,7 +118,7 @@ describe('strategic cursor hints on a stub campaign, client against server', { t
       const preview = await c.session.query({ type: 'previewRoute', soldier: merc, to: 'B11' });
       const routed = c.sim.dispatch({ type: 'route', soldier: merc, to: 'B11' });
       const data = preview.data as { temp: string[]; etaMinutes: number };
-      const plotted = routed.data as { path: number[]; etaMinutes: number };
+      const plotted = routed.data as { path: string[]; etaMinutes: number };
       expect(data.temp.length).toBe(plotted.path.length);
       expect(data.etaMinutes).toBe(plotted.etaMinutes);
     },
@@ -138,7 +138,7 @@ describe('strategic cursor hints on a stub campaign, client against server', { t
       expect(group?.path).toEqual(['A10', 'A11', 'A12']);
       const remaining = group?.nextArrivalMinutes ?? 0;
       expect(remaining).toBeGreaterThan(0);
-      const preview = (await c.session.query({ type: 'previewRoute', soldier: merc, to: 'A14' })).data as {
+      const preview = (await c.session.query({ type: 'previewRoute', soldier: merc, to: 'A14', extend: true })).data as {
         path: string[];
         temp: string[];
         edgeMinutes: number[];

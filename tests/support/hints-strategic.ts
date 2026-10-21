@@ -20,7 +20,14 @@ export function sampleRouteHints(view: PlayerView, step = STRATEGIC_HINT_SAMPLE_
   for (const soldier of mercIds(view))
     sectors.forEach((to, k) => {
       const via = k % 4 === 1 ? { via: [sectors[(k + 3) % sectors.length]] } : {};
-      requests.push({ type: 'previewRoute', soldier, to, ...via, ...(k % 3 === 2 ? { shortest: true } : {}) });
+      requests.push({
+        type: 'previewRoute',
+        soldier,
+        to,
+        ...via,
+        ...(k % 3 === 2 ? { shortest: true } : {}),
+        ...(k % 2 === 0 ? { extend: true } : {}),
+      });
     });
   return requests;
 }
@@ -28,7 +35,12 @@ export function sampleRouteHints(view: PlayerView, step = STRATEGIC_HINT_SAMPLE_
 export function sampleHeliHints(view: PlayerView, step = STRATEGIC_HINT_SAMPLE_STEP): CommandEnvelope[] {
   if (!view.strategic?.helicopter) return [];
   const sectors = sampledSectors(step);
-  return sectors.map((to, k) => ({ type: 'previewHeliRoute', to, ...(k % 5 === 2 ? { via: [sectors[(k + 2) % sectors.length]] } : {}) }));
+  return sectors.map((to, k) => ({
+    type: 'previewHeliRoute',
+    to,
+    ...(k % 5 === 2 ? { via: [sectors[(k + 2) % sectors.length]] } : {}),
+    ...(k % 2 === 1 ? { extend: true } : {}),
+  }));
 }
 
 export function sampleEnterHints(view: PlayerView, step = STRATEGIC_HINT_SAMPLE_STEP): CommandEnvelope[] {

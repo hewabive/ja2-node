@@ -47,6 +47,13 @@ export interface ItemMovedEvent extends SimEventBase {
   readonly toSoldier?: number;
 }
 
+export interface ItemDiscardedEvent extends SimEventBase {
+  readonly type: 'itemDiscarded';
+  readonly soldier: number;
+  readonly item: string;
+  readonly count: number;
+}
+
 export interface ItemAttachedEvent extends SimEventBase {
   readonly type: 'itemAttached';
   readonly soldier: number;
@@ -90,6 +97,7 @@ export type InventoryEvent =
   | FirstAidDoneEvent
   | OutOfBandagesEvent
   | ItemMovedEvent
+  | ItemDiscardedEvent
   | ItemAttachedEvent
   | ItemDetachedEvent
   | GunUnloadedEvent

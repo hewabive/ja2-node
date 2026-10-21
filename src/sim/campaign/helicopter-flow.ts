@@ -8,7 +8,9 @@
 // @src SoldierTakeDamage (TAKE_DAMAGE_BLOODLOSS for a soldier outside the loaded sector), HandleTakeDamageDeath;
 // @src Strategic/Map_Screen_Helicopter.cc HandleHelicopterOnGround (removing Skyrider's soldier); Strategic/Assignments.cc
 // @src SquadMenuBtnCallback (leaving a vehicle), VehicleMenuBtnCallback; Strategic/Player_Command.cc
-// @src SetThisSectorAsPlayerControlled (the SAM congratulation). See docs/25 §10, §13.
+// @src SetThisSectorAsPlayerControlled (the SAM congratulation); Map_Screen_Interface_Map.cc
+// @src ClearPathAfterThisSectorForHelicopter, PlotPathForHelicopter (legs from the last sector of the helicopter's path).
+// @src See docs/25 §10, §13.
 
 import {
   parseSectorString,
@@ -16,6 +18,7 @@ import {
   sameSector,
   sectorFromStrategicIndex,
   sectorShortString,
+  strategicIndex,
 } from '../../content/strategic/sector-ids.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
@@ -38,15 +41,17 @@ import {
   isHelicopterPilotAvailable,
   okUseVehicle,
   payOffSkyriderDebtIfAny,
-  plotPathForHelicopter,
   requestGiveSkyriderNewDestination,
   SKYRIDER,
+  setUpHelicopterForMovement,
   skyriderCongratulatesOnSamTaken,
   whyHelicopterCannotFly,
 } from '../strategic/forces/helicopter.ts';
 import type { HelicopterEventWithoutTick } from '../strategic/forces/helicopter-events.ts';
 import { canEntireMovementGroupMove } from '../strategic/forces/move-permission.ts';
+import { rebuildWayPointsForGroupPath } from '../strategic/forces/movement.ts';
 import type { HelicopterPort, StrategicContext, TacticalWorldPort } from '../strategic/forces/ports.ts';
+import { PathEdit, plotLegs, plottedRoute } from '../strategic/forces/routes.ts';
 import { addCharacterToSquad, getFirstEmptySquad, removeCharacterFromSquads } from '../strategic/forces/squads.ts';
 import {
   findVehicle,
@@ -57,12 +62,14 @@ import {
   setSoldierExitHelicopterInsertionData,
   takeSoldierOutOfVehicle,
 } from '../strategic/forces/vehicles.ts';
+import { clearStrategicPathAfterSector } from '../strategic/map/pathing.ts';
 import { calculateTravelTimeOfGroup } from '../strategic/map/travel.ts';
 import { Fact } from '../strategic/narrative/fact-ids.ts';
 import { EventKind } from '../strategic/time/constants.ts';
 import { removeSoldierFromTacticalSector } from '../tactical/sector-presence.ts';
 import { Team } from '../tactical/soldier.ts';
 import type { CampaignSim } from './campaign-sim.ts';
+import { sectorList } from './commands.ts';
 
 const BLOODLOSS_DAMAGE = 100;
 
@@ -216,7 +223,9 @@ export class HelicopterFlow {
   dispatch(cmd: Command): CommandResult | null {
     switch (cmd.type) {
       case 'heliRoute':
-        return this.#heliRoute(cmd.to);
+        return this.#heliRoute(cmd);
+      case 'shortenHeliRoute':
+        return this.#shortenHeliRoute(cmd);
       case 'heliCancel':
         return this.#heliCancel();
       case 'boardVehicle':
@@ -227,6 +236,8 @@ export class HelicopterFlow {
         return this.#passengerRoute(cmd);
       case 'cancelRoute':
         return this.#passengerCancel(cmd);
+      case 'shortenRoute':
+        return this.#helicopterPassenger(cmd) ? this.#shortenHeliRoute(cmd) : null;
       case 'assignSquad':
         return this.#passengerSquadGuard(cmd);
       case 'assign':
@@ -248,7 +259,7 @@ export class HelicopterFlow {
     if (!m) return null;
     const moving = canEntireMovementGroupMove(this.ctx, m.id, { inCombat: this.campaign.tactical?.state.inCombat === true });
     if (moving) return { ok: false, reason: `the squad cannot move: ${moving}` };
-    return this.#heliRoute(cmd.to);
+    return this.#heliRoute(cmd);
   }
 
   #passengerCancel(cmd: Command): CommandResult | null {
@@ -283,19 +294,51 @@ export class HelicopterFlow {
     return this.campaign.state.flow === 'strategic' ? null : refusal('mapScreenOnly');
   }
 
-  #heliRoute(target: unknown): CommandResult {
+  #heliRoute(cmd: Command): CommandResult {
     const ctx = this.ctx;
     const notMap = this.#mapScreenRefusal();
     if (notMap) return notMap;
-    const to = parseSector(target);
+    const to = parseSector(cmd.to);
     if (!to) return { ok: false, reason: 'to must be a sector such as B13' };
+    const via = sectorList(cmd.via);
+    if (!via) return { ok: false, reason: 'via must be a list of sectors such as ["B12"]' };
     if (!helicopterVehicle(ctx)) return refusal('noHelicopter');
     const request = requestGiveSkyriderNewDestination(ctx);
     if (!request.ok) return refusal(request.refusal);
-    cancelHelicopterRoute(ctx);
-    if (!plotPathForHelicopter(ctx, to)) return refusal('noRoute');
+    if (cmd.extend !== true) cancelHelicopterRoute(ctx);
+    setUpHelicopterForMovement(ctx);
+    const v = helicopterVehicle(ctx);
+    const g = helicopterGroup(ctx);
+    if (!v || !g) return refusal('noHelicopter');
+    const origin = strategicIndex(v.sector);
+    const legs = plotLegs(ctx, g, v.path, origin, via, to);
+    const path = typeof legs === 'string' ? null : plottedRoute(legs, origin, to);
+    if (!path) return refusal('noRoute');
+    v.path = path;
     confirmHelicopterRoute(ctx, to);
     return { ok: true, data: this.#routeData() };
+  }
+
+  #shortenHeliRoute(cmd: Command): CommandResult {
+    const ctx = this.ctx;
+    const notMap = this.#mapScreenRefusal();
+    if (notMap) return notMap;
+    const at = parseSector(cmd.at);
+    if (!at) return { ok: false, reason: 'at must be a sector such as B13' };
+    const v = helicopterVehicle(ctx);
+    if (!v) return refusal('noHelicopter');
+    if (!canHelicopterFly(ctx)) return refusal(explainWhySkyriderCantFly(ctx) ?? 'noHelicopter');
+    const original = v.path.length;
+    if (!original) return refusal('noRoute');
+    if (sameSector(at, v.sector)) {
+      cancelHelicopterRoute(ctx);
+      return { ok: true, data: { ...this.#routeData(), edit: PathEdit.PATH_CLEARED } };
+    }
+    v.path = clearStrategicPathAfterSector(v.path, strategicIndex(at));
+    if (v.path.length >= original) return refusal('noRoute');
+    const g = helicopterGroup(ctx);
+    if (g) rebuildWayPointsForGroupPath(ctx, v.path, g);
+    return { ok: true, data: { ...this.#routeData(), edit: PathEdit.PATH_SHORTENED } };
   }
 
   #routeData(): { readonly path: readonly string[]; readonly etaMinutes: number } {
