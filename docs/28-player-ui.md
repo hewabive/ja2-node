@@ -2466,8 +2466,9 @@ hand cursor, as the original does.
 Decisions and limits: the stub world has no pointer tiles (adding tile types changes the stub tileset database and
 with it the logic hash of the 0.7.0 stub saves), so markers draw only on the original data; the rest is listed in
 `deviations.md` (interactive tiles, south exit arrow, overhead map, movement menu stances, burst marks,
-playback lock, the keys above). Open for U7: Backspace and the talk menu keys; for U8: the map screen the m key and the
-exit dialog open.
+playback lock, the keys above). The team panel's second hand of a driver or passenger ("Exit Vehicle",
+`TMClickSecondHandInvCallbackPrimary`) waits for a tactical exit-vehicle command. Open for U7: Backspace and the talk
+menu keys; for U8: the map screen the m key and the exit dialog open.
 
 ---
 
