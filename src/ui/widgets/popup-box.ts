@@ -48,6 +48,7 @@ export interface PopupLine {
   readonly text: string;
   readonly second?: string;
   readonly shade?: LineShade;
+  readonly foreground?: number;
 }
 
 export interface PopupBoxStyle {
@@ -157,7 +158,7 @@ export class PopupBox {
     if (index === this.highlighted) return colors.highlight;
     if (line.shade === 'secondary') return colors.secondaryShade;
     if (line.shade === 'shade') return colors.shade;
-    return colors.foreground;
+    return line.foreground ?? colors.foreground;
   }
 
   #drawText(list: DrawList): void {
