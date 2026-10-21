@@ -1384,6 +1384,11 @@ and, new, `shopkeeperQuote` (the dealer's lines from his NPC file, `npcdata/NNN.
 for `DIALOGUE_SHOPKEEPER_UI`). Conversation lines (`data.lines`, `conversation.lastQuotes`) carry `chars`; the
 conversation carries `faceVariant` (Elliot's beaten big faces, `b135a`–`e`).
 
+**Events after a command.** The events a command emits (the lines `talk`, `approach`, `give` and `trade` run through the
+dialogue queue, a shop's quotes, the money events) reach the WebSocket frame captured right after the command instead
+of waiting for the next step of the simulation, which never comes while a conversation or a shop holds the clock;
+the next `advance` report still lists them (`Session` holds them for it), so agents see them as before.
+
 **Shop screen fields (G15).**
 
 - `quoteTrade` adds `quotes` (the shopkeeper quote ids the trade would emit, in order: the evaluation quotes 4, 16–20,

@@ -2387,6 +2387,34 @@ only), so the front-end e2e saves through the API and loads through the canvas s
 unified the stub faces (U5's animated face per body type behind every small face, U10's labelled big portraits) and
 raised the stub media budget to 5 MiB.
 
+#### U7: talk and shop (2026-10-20)
+
+§5.8 and §5.9 on `/play`: the speech presenter, the talk panel, the speech surfaces, the shop screen and the money
+region and box of the single merc panel, with the server additions of §12.1 G14, G15 and §12.4. The details of the
+commands and fields are in `04` §6.28.
+
+| Area | As built |
+|---|---|
+| Tables and layouts | `ui-constants` gains `Interface_Dialogue`, `Dialogue_Control`, `Civ_Quotes` and `ShopKeeper_Interface`. `data/layouts/original/talk-panel.json` (screen `talkPanel`: the full-screen region, the panel, name, six approach regions and texts, the face, the busy `shade`, the Done text button on `talkbox2.sti` 3/4), `tactical-speech.json` (`tacticalSpeech`: the face popup, subtitle box and civilian box renderers and the comm popup geometry as styles), `shop.json` (§5.9, below); `tactical-sm.json` gains the money box button offsets and the `money` action of the money region. `LayoutView` takes an `origin`, so a layout can be placed at run time (the talk panel on the NPC's tile) |
+| Speech presenter | `src/ui/speech.ts`: one queue for every quote event (`npcQuote`, `mercQuote`, `skyriderQuote`, `headMinerQuote`, `shopkeeperQuote`; `civQuote` goes to the civilian box), routed to a surface (`panel` for the open conversation's NPC, `tactical`, `external`, `shopkeeper`); per line the voice (`speechPathForLine` through an injected `SpeechVoices`, only with the speech option), the subtitle when the subtitles option is on or the voice failed, the talking time (the sample, else 60 ms per character), the 300 ms tail, the key wait of the panel face with key-advance, the 500 ms skip rule, Backspace (forced), Esc, `cutSpeaker` for critical battle sounds; the civilian quote with its lifetime `(chars + 2) × 60 + 500` and the 300 ms click rule. `src/app/tactical/speech-voices.ts` plays through the UI audio engine (a missing, dropped or silent sample counts as no voice) and reads the speech, subtitle and key-advance settings; the sound director hands quote speech to the presenter (`SoundDirector.setSpeechOwner`); the faces' lip sync reads the presenter's line |
+| Talk panel | `src/ui/screens/talk/talk-panel.ts`: `InitTalkingMenu` placement on the cell origin of the NPC's tile clamped to the screen width and the viewport, the big face `faces/bNN.sti` (Elliot's variant from `faceVariant`) with blink and lip sync, the approaches (`repeat`, `friendly`, `direct`, `threaten`, Buy/Sell for a dealer from `zDealerStrings` or Give, `recruit`), who are you on the name, Done, the busy shading and disabled regions while a panel line is queued or said, the subtitle popup oriented bottom, left, top, right (the bottom test uses the top of the single merc panel instead of the hard-coded 340), a click on the panel or the popup skips, Esc closes when no line is queued, Give opens the talker's single merc panel |
+| Surfaces | `speech-surfaces.ts`: the comm popup at 10, 20 for merc lines with the speech option (the panel by speaker, name, sector line when the speaker is elsewhere, bars, the merc's face from the team panel's animator; other speakers' small faces with the RPC offsets), the subtitle box at 110, 20, the external NPC popup, the civilian box centred on the soldier's sprite and clamped; click regions skip. `npc-requests.ts`: the `StartDialogueMessageBox` texts and buttons for every request kind, opened once the lines before the prompt are said, answered with `answer` |
+| Seam | `src/ui/screens/talk/dialogue-layer.ts` (`DialogueLayer`): the tactical screen creates one and calls it from `enter`, `exit`, `update`, `input` (first), `render` (last), `frames` and `describe`; it owns the presenter (or the environment's), the talk panel, the surfaces, the request boxes and the shop panel. `TacticalEnvironment` gains `speech`, `speechSettings`, `rpcSpeechPrefixed` (optional) and `TacticalLayout.TALK`, `SPEECH`, `SHOP`; `WorldPresenter` gains `cellScreenPosition` |
+| Money | `money-box.ts` (the `REMOVE_MONEY` rules) and the description box's money mode: the $1000, $100, $10 and Done buttons (`info_bil.sti`), Separate or Withdraw, the amount labels; a money pocket's Done puts the split into the item cursor (`{kind: 'money'}`), which drops into a pocket (`splitMoney`), onto a soldier (`give {money}`) or onto the money region (`depositCash` after the original's question); the money region without an item opens the box over the balance and Done sends `withdrawCash` (the 20000 cap shows `gzMoneyWithdrawMessageText`) |
+| Server | G14 rest: `shopkeeperQuote` carries `textKey`, `chars` and `text`. G15: `quoteTrade.quotes` and `.poa`, `ShopBoxView.ammo`, `ShopView.repaired`; `setShopPricing`; `withdrawCash`, `depositCash` (campaign, `src/sim/campaign/money-flow.ts`) and `splitMoney` (tactical inventory command); `04` §6.28. A command's events now reach the frame captured after it (`Session.#dispatchRun` holds them for the next report too), so lines said while a conversation or a shop holds the clock arrive at once |
+| Stubs | Big talking faces at `SKI_FACE_WIDTH × SKI_FACE_HEIGHT` with the eye and mouth frames for every stub profile (`stubs/ui/faces.ts`); the layout-driven generator draws the talk, speech and shop art |
+| Hook | `window.__ja2Ui.tactical.talk`: `open`, `profile`, `busy`, `line {surface, profile, soldier, text, phase, subtitles}`, `queued`, `spoken`, `textBox`, `facePopup`, `civQuote` |
+
+Tests: `src/ui/speech.test.ts` (timing, voice and no voice, order, skips, key wait, flush, the civilian box, the routing
+of every quote event), `src/ui/screens/talk/talk-panel.test.ts` (geometry; on the stub campaign in A10: the panel on
+the stub NPC with its lines, busy state and subtitle, Direct, Done, the skips and Esc, a recruitment of the stub R.P.C.
+through Recruit and the hire box; a draw-list snapshot), `speech-surfaces.test.ts` (a bark in the subtitle box, the
+civilian box and its click rule, a Skyrider line), `src/ui/screens/tactical/money.test.ts` (the box rules; withdraw,
+split and deposit through the panel), the server tests of `04` §6.28 (`money-stub.test.ts`, `shop-stub.test.ts`,
+`inventory-commands.test.ts`, `narrative-original.test.ts`), `stubs/build.test.ts` (the talking faces),
+`tests/e2e/talk-panel.spec.ts` on stubs (golden `talk-panel.png` with a pinned clock; the lines, Direct and Done; a
+recruitment with the hire box and a withdrawal through the money region).
+
 ---
 
 ## 18. Decisions and open questions

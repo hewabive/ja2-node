@@ -73,4 +73,31 @@ describe('speech surfaces in a stub campaign', { timeout: SLOW_MS }, () => {
     expect(f.find('civQuoteBox')).toBeUndefined();
     expect(civQuoteLifetime(civ?.chars ?? 0)).toBeGreaterThan(500);
   });
+
+  it('routes a Skyrider line to the external surface with the subtitle box', async () => {
+    const f = await tacticalUiTest(kit, ui);
+    f.frames([
+      {
+        tick: f.client.view.tick,
+        changed: [],
+        removed: [],
+        events: [
+          {
+            type: 'skyriderQuote',
+            tick: f.client.view.tick,
+            quote: 3,
+            profile: 97,
+            textKey: { file: 'npcdata/097.edt', row: 3, width: 240 },
+            chars: 12,
+            text: 'Hop in, mate',
+          } as never,
+        ],
+      },
+    ]);
+    expect(f.screen.dialogue.presenter.current?.line).toMatchObject({ surface: 'external', profile: 97, soldier: null });
+    expect(f.widget('speechTextBox').text).toBe('"Hop in, mate"');
+    f.t.frame(textDelay(12) + FINAL_TALKING_DELAY_MS + 1);
+    f.t.frame();
+    expect(f.find('speechTextBox')).toBeUndefined();
+  });
 });

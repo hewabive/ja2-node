@@ -125,7 +125,7 @@ export function giveCommand(cursor: ItemCursor, target: number): CommandEnvelope
 export function depositCommand(cursor: ItemCursor): CommandEnvelope | null {
   const s = cursor.source;
   if (s.kind === 'money') return { type: 'depositCash', soldier: s.soldier, slot: s.slot, amount: s.amount };
-  if (s.kind === 'slot' && s.count === 'all') return { type: 'depositCash', soldier: s.soldier, slot: s.slot };
+  if (s.kind === 'slot') return { type: 'depositCash', soldier: s.soldier, slot: s.slot };
   return null;
 }
 
