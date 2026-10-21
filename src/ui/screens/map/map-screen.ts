@@ -25,6 +25,7 @@ import type { MessageEntry } from '../../../protocol/message-log.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import { refusalMessage } from '../../../protocol/refusals.ts';
 import type { ContractOptionView, PlayerView, StrategicMercView, StrategicView, ViewFrame } from '../../../protocol/view.ts';
+import { frameOf } from '../../assets.ts';
 import type { DrawList } from '../../draw-list.ts';
 import { isPointerEvent, KeyModifier, type UiInputEvent } from '../../input/events.ts';
 import { MouseReason, NO_CURSOR, Priority } from '../../input/mouse.ts';
@@ -83,9 +84,11 @@ import {
 } from './map-view.ts';
 import { isMechanical, isPow, mercBars, mercSoldier } from './merc-soldier.ts';
 import { dialogueLine, MapMessageList } from './message-list.ts';
+import { MilitiaPopup, militiaArt, militiaGeometry } from './militia-popup.ts';
 import { type PathGeometry, RouteAnimation, tracePathRoute } from './path-trace.ts';
 import { Plotting, pathSectors } from './plotting.ts';
 import { TEAM_COLUMN_KEYS, TeamColumn, TeamListView, teamGeometry } from './team-list-view.ts';
+import { type TownBoxButtonArt, TownInfoBox } from './town-info-box.ts';
 import { MapUiMessage } from './ui-message.ts';
 
 export const MAP_SCREEN_ID = 'map';
@@ -149,6 +152,9 @@ export interface MapScreenHook {
   readonly clock: string;
   readonly inventoryOpen: boolean;
   readonly changingArrival: boolean;
+  readonly townBox: string | null;
+  readonly militiaTown: number;
+  readonly militiaCursor: readonly number[];
 }
 
 type Point = { readonly x: number; readonly y: number };
@@ -167,6 +173,8 @@ export class MapScreen implements Screen {
   readonly #menus: AssignmentMenus;
   readonly #contract: ContractMenu;
   readonly #mask: MenuMask;
+  readonly #townBox: TownInfoBox;
+  readonly #militia: MilitiaPopup;
   readonly #message = new MapUiMessage();
   readonly #messages = new MapMessageList();
   readonly #route = new RouteAnimation();
@@ -236,6 +244,80 @@ export class MapScreen implements Screen {
       confirm: (text) => env.boxes.confirm(text),
       closed: () => this.#syncMask(false),
     });
+    this.#townBox = this.#createTownBox();
+    this.#militia = this.#createMilitiaPopup();
+  }
+
+  #createTownBox(): TownInfoBox {
+    const env = this.#env;
+    return new TownInfoBox({
+      buttons: env.runtime.buttons,
+      text: env.text,
+      style: () => this.#popupStyle('townPopup'),
+      art: () => this.#townButtonArt(),
+      origin: () => this.#origin(),
+      frameWidth: (asset, frame) => frameOf(env.runtime.images, asset, frame).width,
+      input: () => {
+        const strategic = this.#strategic();
+        if (!strategic) return null;
+        const found = foundSecrets(strategic.secretsFound);
+        return { facts: env.facts, text: env.text, strategic, found, minesShown: this.filters.mines };
+      },
+      closed: () => this.#syncMask(false),
+    });
+  }
+
+  #townButtonArt(): TownBoxButtonArt {
+    const style = this.#model.style('townButtons') as Readonly<Record<string, unknown>>;
+    const frames = (key: string): readonly [number, number] => {
+      const [off = 0, on = 0] = (style[key] as readonly number[] | undefined) ?? [];
+      return [off, on];
+    };
+    return {
+      asset: this.#model.asset(String(style.asset)).path,
+      inventory: frames('inventory'),
+      exit: frames('exit'),
+      font: this.#font(this.#model.font(String(style.font))),
+      color: this.#model.color(style.color as string, 0),
+      shadow: this.#model.color(style.shadow as string, 0),
+    };
+  }
+
+  #createMilitiaPopup(): MilitiaPopup {
+    const env = this.#env;
+    const geometry = militiaGeometry(this.#model);
+    const art = militiaArt(this.#model, env.runtime.fonts, 'militiaPopup');
+    return new MilitiaPopup({
+      regions: env.runtime.regions,
+      buttons: env.runtime.buttons,
+      text: env.text,
+      facts: env.facts,
+      origin: () => this.#origin(),
+      geometry: () => geometry,
+      art: () => art,
+      strategic: () => this.#strategic(),
+      battleSector: () => this.#battleSector(),
+      send: (cmd) => env.client.command(cmd),
+      box: (text) => void this.#mapBox(text),
+    });
+  }
+
+  #battleSector(): string | null {
+    const view = this.#playerView();
+    const world = view?.strategic?.worldSector ?? null;
+    const hostile = view?.combat != null || (view?.soldiers ?? []).some((s) => s.team !== 0 && s.hostile === true);
+    return world && hostile ? world : null;
+  }
+
+  #sectorInfoClick(s: Sector): void {
+    if (this.filters.militia) {
+      this.#militia.request(s);
+      return;
+    }
+    if (s.z !== 0 && !this.#visitedUnderground(s)) return;
+    if (this.#townBox.open) this.#townBox.close(false);
+    else this.#townBox.show(s);
+    this.#syncMask(false);
   }
 
   get selectedSector(): Sector {
@@ -269,6 +351,9 @@ export class MapScreen implements Screen {
       clock: clockText(this.#env.text, this.#playerView()?.clock ?? null, this.#playerPaused),
       inventoryOpen: this.#inventoryOpen,
       changingArrival: this.#changingArrival,
+      townBox: this.#townBox.sector ? sectorLabel(this.#townBox.sector) : null,
+      militiaTown: this.#militia.town,
+      militiaCursor: this.#militia.cursor,
     };
   }
 
@@ -341,6 +426,7 @@ export class MapScreen implements Screen {
     this.#entered = false;
     this.#abortPlotting(false);
     this.#closeMenus();
+    this.#militia.close();
     this.#message.end();
     this.#env.client.stop();
     this.#env.runtime.regions.removeOwner(OWNER);
@@ -478,6 +564,10 @@ export class MapScreen implements Screen {
     this.#message.update(this.#now, false);
     this.#syncCursor();
     this.#syncModel();
+    if (this.#militia.open && !this.filters.militia) this.#militia.close();
+    this.#militia.update();
+    this.#env.client.holdTime('townBox', this.#townBox.open);
+    this.#env.client.holdTime('militia', this.#militia.open);
     this.#env.client.holdTime('menus', this.#menus.open || this.#contract.open);
     this.#env.client.holdTime('plotting', this.#plot !== null);
     this.#view.update();
@@ -572,6 +662,8 @@ export class MapScreen implements Screen {
       this.#plot === null &&
       !this.#menus.open &&
       !this.#contract.open &&
+      !this.#townBox.open &&
+      !this.#militia.open &&
       !this.#sectorInventoryOpen &&
       this.#boxOpen === 0 &&
       !this.#changingArrival
@@ -720,18 +812,20 @@ export class MapScreen implements Screen {
   }
 
   #syncMask(opening: boolean): void {
-    this.#mask.sync(this.#menus.open || this.#contract.open, opening);
+    this.#mask.sync(this.#menus.open || this.#contract.open || this.#townBox.open, opening);
   }
 
   #closeMenus(): void {
     this.#menus.close(false);
     const renewal = this.#contract.renewalId;
     this.#contract.close(false);
+    this.#townBox.close(false);
     if (renewal) void this.#env.client.command({ type: 'answer', prompt: renewal, choice: 'letGo' });
     this.#mask.sync(false, false);
   }
 
   #resetModes(): void {
+    this.#militia.close();
     if (this.#plot) this.#abortPlotting(true);
     this.#team.stopGlow();
   }
@@ -940,6 +1034,7 @@ export class MapScreen implements Screen {
   }
 
   #mapPrimary(): void {
+    if (this.#militia.open) return;
     if (this.#message.open) {
       this.#message.end();
       if (!this.#changingArrival) return;
@@ -1009,6 +1104,7 @@ export class MapScreen implements Screen {
   }
 
   #mapSecondary(): void {
+    if (this.#militia.open) return;
     if (this.#changingArrival) {
       this.#changingArrival = false;
       this.#uiMessage(this.#text(BULLSEYE, Bullseye.CANCELED));
@@ -1025,6 +1121,7 @@ export class MapScreen implements Screen {
       return;
     }
     if (hover && (hover.x !== this.#selected.x || hover.y !== this.#selected.y)) this.#changeSelectedSector({ ...hover, z: this.#level });
+    if (hover && hover.x === this.#selected.x && hover.y === this.#selected.y) this.#sectorInfoClick({ ...hover, z: this.#level });
   }
 
   #plotClick(s: Sector): void {
@@ -1207,7 +1304,11 @@ export class MapScreen implements Screen {
       this.#menus.escape();
       this.#syncMask(false);
     } else if (this.#contract.open) this.#closeMenus();
-    else if (this.#inventoryOpen) this.#inventoryOpen = false;
+    else if (this.#militia.open && this.#militia.cursorEmpty) this.#militia.close();
+    else if (this.#townBox.open) {
+      this.#townBox.close(false);
+      this.#syncMask(false);
+    } else if (this.#inventoryOpen) this.#inventoryOpen = false;
     else if (this.list.multipleSelected()) this.list.resetSelected();
     else this.#tactical();
   }
@@ -1341,13 +1442,21 @@ export class MapScreen implements Screen {
 
   render(list: DrawList): void {
     this.#view.render(list);
+    this.#townBox.render(list);
+    this.#militia.render(list);
     this.#menus.render(list);
     this.#contract.render(list);
     this.#message.render(list, this.#origin());
   }
 
   describe(): readonly WidgetInfo[] {
-    return [...this.#view.describe(), ...this.#menus.describe(), ...this.#contract.describe()];
+    return [
+      ...this.#view.describe(),
+      ...this.#townBox.describe(),
+      ...this.#militia.describe(),
+      ...this.#menus.describe(),
+      ...this.#contract.describe(),
+    ];
   }
 
   #renderers(): Readonly<Record<string, CustomRenderer>> {
@@ -1426,12 +1535,12 @@ export class MapScreen implements Screen {
         iconFont: p.font('iconFont'),
       },
       {
-        strategic,
+        strategic: this.#militia.overlay(strategic),
         level: this.#level,
         filters: this.filters,
         hover: allowedToHighlight(this.#env.facts, this.#hover) ? this.#hover : null,
         selected: this.#selected,
-        drawCursors: !this.#menus.open && !this.#contract.open && this.#boxOpen === 0,
+        drawCursors: !this.#menus.open && !this.#contract.open && !this.#townBox.open && !this.#militia.open && this.#boxOpen === 0,
         selectedYellow: this.#selectedYellow,
         showSelected: plot === null,
         gameJustStarted: this.#gameJustStarted(),
