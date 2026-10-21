@@ -153,6 +153,7 @@ export interface MapScreenHook {
   readonly changingArrival: boolean;
   readonly compression: { readonly mode: number; readonly compressing: boolean; readonly paused: boolean } | null;
   readonly flow: string | null;
+  readonly prompt: string | null;
   readonly townBox: string | null;
   readonly militiaTown: number;
   readonly militiaCursor: readonly number[];
@@ -315,9 +316,10 @@ export class MapScreen implements Screen {
       return;
     }
     if (s.z !== 0 && !this.#visitedUnderground(s)) return;
-    if (this.#townBox.open) this.#townBox.close(false);
-    else this.#townBox.show(s);
-    this.#syncMask(false);
+    if (this.#townBox.open) {
+      this.#townBox.close(false);
+      this.#syncMask(false);
+    } else void this.#withMask(() => this.#townBox.show(s));
   }
 
   get selectedSector(): Sector {
@@ -353,6 +355,7 @@ export class MapScreen implements Screen {
       changingArrival: this.#changingArrival,
       compression: this.#compressionHook(),
       flow: this.#strategic()?.flow ?? null,
+      prompt: this.#playerView()?.prompt?.kind ?? this.#playerView()?.contractPrompt?.kind ?? null,
       townBox: this.#townBox.sector ? sectorLabel(this.#townBox.sector) : null,
       militiaTown: this.#militia.town,
       militiaCursor: this.#militia.cursor,
@@ -807,8 +810,12 @@ export class MapScreen implements Screen {
       const row = this.list.rowOf(contract.soldier);
       if (row >= 0) this.list.changeInfo(row, true);
       this.#closeMenus();
-      this.#contract.showRenewal(contract.soldier, row >= 0 ? this.#team.rowY(row) : null, { id: contract.id, options: contract.options });
-      this.#syncMask(true);
+      void this.#withMask(() =>
+        this.#contract.showRenewal(contract.soldier, row >= 0 ? this.#team.rowY(row) : null, {
+          id: contract.id,
+          options: contract.options,
+        }),
+      );
     } else if (contract.kind === 'mercDeparture') void this.#answerPrompt(contract.id, departureBox(this.#promptContext(), contract));
     else void this.#answerPrompt(contract.id, insuranceBox(this.#promptContext(), contract));
   }
@@ -816,6 +823,12 @@ export class MapScreen implements Screen {
   async #answerPrompt(id: string, box: PromptBox): Promise<void> {
     const choice = box.answer(await this.#openBox(box));
     if (choice) await this.#env.client.command({ type: 'answer', prompt: id, choice });
+  }
+
+  async #withMask(show: () => Promise<void> | void): Promise<void> {
+    this.#mask.sync(true, true);
+    await show();
+    this.#syncMask(false);
   }
 
   #syncMask(opening: boolean): void {
@@ -931,7 +944,7 @@ export class MapScreen implements Screen {
   }
 
   #showAssignmentMenu(soldier: number, row: number): void {
-    void this.#menus.show(soldier, this.#team.rowY(row)).then(() => this.#syncMask(true));
+    void this.#withMask(() => this.#menus.show(soldier, this.#team.rowY(row)));
   }
 
   async #sleepClick(row: number, m: StrategicMercView): Promise<void> {
@@ -1016,7 +1029,7 @@ export class MapScreen implements Screen {
     this.#menus.close(false);
     this.list.resetSelected();
     if (m.life === 0 || isPow(m)) this.#showAssignmentMenu(m.id, this.list.info);
-    else if (this.#canExtendContract(m)) void this.#contract.show(m.id, boxY).then(() => this.#syncMask(true));
+    else if (this.#canExtendContract(m)) void this.#withMask(() => this.#contract.show(m.id, boxY));
   }
 
   #mapMove(region: MouseRegion, reason: number): void {
