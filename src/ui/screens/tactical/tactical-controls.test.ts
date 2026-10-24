@@ -241,7 +241,7 @@ describe('the tactical input on the tactical screen', () => {
   );
 
   it(
-    'switches to the action cursor over a seen enemy, confirms the aim while the pointer rests and fires on a click',
+    'switches to the action cursor over a seen enemy, confirms the aim while the pointer rests and fires on a click, locked from the click',
     async () => {
       const f = await inCombat();
       const enemy = f.client.view.soldiers.find((v) => v.team !== 0 && v.hostile === true);
@@ -256,8 +256,18 @@ describe('the tactical input on the tactical screen', () => {
       await f.settle(6);
       expect(f.screen.controls.input.mode).toBe(UiMode.CONFIRM_ACTION_MODE);
       expect(f.screen.controls.input.uiCursor).toMatch(/TARGET/);
+      let answer = () => {};
+      f.client.hold = new Promise((resolve) => {
+        answer = resolve;
+      });
       await f.clickAt(aim.x, aim.y);
+      expect(f.screen.controls.lockState()).toBe('ourTurn');
+      expect(f.screen.controls.input.mode).toBe(UiMode.LOCKOURTURN_UI_MODE);
+      expect(f.screen.controls.input.uiCursor).toMatch(/TARGET/);
+      answer();
+      await f.settle();
       expect(commandsOf(f, 'attack').at(-1)).toMatchObject({ soldier: 0, target: enemy.gridNo });
+      expect(f.screen.controls.lockState()).toBe('ourTurn');
     },
     SLOW_MS,
   );

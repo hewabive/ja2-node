@@ -107,6 +107,7 @@ export interface TacticalInputHost {
   currentSquad(): number;
   squadSoldiers(): readonly SoldierView[];
   send(cmd: CommandEnvelope): Promise<CommandReply>;
+  sendBusyOrder(cmd: CommandEnvelope): Promise<CommandReply>;
   locked(): Lock;
   itemPointerClick(gridNo: number, target: SoldierView | null): void;
   pickUp(soldier: SoldierView, gridNo: number, level: number): void;
@@ -1530,7 +1531,7 @@ export class TacticalInput {
     if (isEpc(sel)) this.#feedback(EPC_CANNOT_DO_THAT);
     else if ((sel.morale ?? 100) < MORALE_REFUSE_SEARCH) this.#env().battleSound(sel.id, 'curse');
     else if (this.#currentAp === 0) this.#feedback(NO_PATH_STR);
-    else void this.#host.send({ type: 'pickUp', soldier: sel.id, gridNo: actionGridNo, zLevel: sel.level });
+    else void this.#host.sendBusyOrder({ type: 'pickUp', soldier: sel.id, gridNo: actionGridNo, zLevel: sel.level });
     return UiEvent.A_CHANGE_TO_MOVE;
   }
 
@@ -2299,14 +2300,14 @@ export class TacticalInput {
     const gridNo = target ? target.gridNo : (tile?.gridNo ?? mapPos);
     const level = target ? target.level : this.#host.interfaceLevel();
     if (estimate?.cursor === 'aid') {
-      if (target) void this.#host.send({ type: 'bandage', soldier: sel.id, target: target.id });
+      if (target) void this.#host.sendBusyOrder({ type: 'bandage', soldier: sel.id, target: target.id });
       return;
     }
     const spread = this.#doSpread && this.#burstLocations.length > 0 ? { spread: [...this.#burstLocations] } : {};
     this.#doSpread = false;
     this.#burstLocations = [];
     const part = this.#bodyPart && target ? { bodyPart: this.#bodyPart } : {};
-    const reply = await this.#host.send({
+    const reply = await this.#host.sendBusyOrder({
       type: 'attack',
       soldier: sel.id,
       target: gridNo,
@@ -2357,7 +2358,7 @@ export class TacticalInput {
       return;
     }
     const sel = this.#sel();
-    if (sel) void this.#host.send({ type: 'turn', soldier: sel.id, toward: mapPos });
+    if (sel) void this.#host.sendBusyOrder({ type: 'turn', soldier: sel.id, toward: mapPos });
   }
 
   #tOnTerrain(): void {
@@ -2461,7 +2462,8 @@ export class TacticalInput {
   #jump(): void {
     const sel = this.#sel();
     const mapPos = this.#mapPos();
-    if (sel && mapPos !== null) void this.#host.send({ type: 'jump', soldier: sel.id, to: mapPos, level: this.#host.interfaceLevel() });
+    if (sel && mapPos !== null)
+      void this.#host.sendBusyOrder({ type: 'jump', soldier: sel.id, to: mapPos, level: this.#host.interfaceLevel() });
   }
 
   #movementMenu(): void {
@@ -2549,7 +2551,7 @@ export class TacticalInput {
       const action = tile.open ? 'close' : 'open';
       if (tile.door)
         void this.#host
-          .send({ type: 'door', soldier: sel.id, gridNo: tile.gridNo, action })
+          .sendBusyOrder({ type: 'door', soldier: sel.id, gridNo: tile.gridNo, action })
           .then((r) => this.#host.doorReply(sel.id, tile.gridNo, r));
       return;
     }
@@ -2574,9 +2576,11 @@ export class TacticalInput {
     const mode = this.#fast && this.#env().world.soldierHeight(sel.id) === 'stand' ? RUN : this.moveModeOf(sel);
     this.#fast = false;
     const preview = dataOf(this.#previewMove(mapPos));
-    void this.#host.send({ type: 'move', soldier: sel.id, to: mapPos, mode, ...(this.#reverse ? { reverse: true } : {}) }).then((reply) => {
-      if (reply.ok && (preview?.steps.length ?? 0) + 1 > OK_SOUND_STEPS) this.#env().battleSound(sel.id, 'ok');
-    });
+    void this.#host
+      .sendBusyOrder({ type: 'move', soldier: sel.id, to: mapPos, mode, ...(this.#reverse ? { reverse: true } : {}) })
+      .then((reply) => {
+        if (reply.ok && (preview?.steps.length ?? 0) + 1 > OK_SOUND_STEPS) this.#env().battleSound(sel.id, 'ok');
+      });
   }
 
   #fastMove(sel: SoldierView): void {

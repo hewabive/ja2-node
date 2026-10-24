@@ -175,6 +175,7 @@ export class TacticalControls {
   #scrollPending = false;
   #scrollInertia = false;
   #redItemGlow = false;
+  #busyOrders = 0;
 
   constructor(screen: ControlsScreen, art: ControlsArt) {
     this.#screen = screen;
@@ -228,6 +229,7 @@ export class TacticalControls {
       currentSquad: () => screen.currentSquad(),
       squadSoldiers: () => screen.squadSoldiers(),
       send: (cmd) => screen.send(cmd),
+      sendBusyOrder: (cmd) => this.#sendBusyOrder(cmd),
       locked: () => this.lockState(),
       itemPointerClick: (gridNo, target) => screen.itemPointerClick(gridNo, target),
       pickUp: (s, gridNo, level) => screen.pickUp(s, gridNo, level),
@@ -246,8 +248,17 @@ export class TacticalControls {
     const view = client.view;
     if (!inCombat(view)) return 'none';
     if (!ourTurn(view)) return 'enemyTurn';
-    if (view?.combat?.uiLocked || client.queuedFrames.some(locksOurInput)) return 'ourTurn';
+    if (this.#busyOrders > 0 || view?.combat?.uiLocked || client.queuedFrames.some(locksOurInput)) return 'ourTurn';
     return 'none';
+  }
+
+  async #sendBusyOrder(cmd: CommandEnvelope): Promise<CommandReply> {
+    this.#busyOrders++;
+    try {
+      return await this.#screen.send(cmd);
+    } finally {
+      this.#busyOrders--;
+    }
   }
 
   get menuOpen(): boolean {

@@ -62,6 +62,7 @@ export class SessionClient implements TacticalClient {
   readonly commands: { readonly cmd: CommandEnvelope; readonly reply: CommandReply }[] = [];
   paused = false;
   queued: readonly ViewFrame[] = [];
+  hold: Promise<void> | null = null;
   readonly #session: Session;
   readonly #client: ClientSide;
   readonly #frames: ViewFrame[] = [];
@@ -109,6 +110,7 @@ export class SessionClient implements TacticalClient {
   }
 
   async command(cmd: CommandEnvelope): Promise<CommandReply> {
+    if (this.hold) await this.hold;
     const result = this.#session.dispatch(cmd);
     const reply = {
       ok: result.ok,
