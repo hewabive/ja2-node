@@ -6,7 +6,8 @@
 // @src CreatePlayerSkills, AddAPersonalityToPersonalityList, CreatePlayerPersonality, SelectMercFace,
 // @src HandleMercStatsForChangesInFace; IMP_Personality_Quiz.cc CompileQuestionsInStatsAndWhatNot (table in data/tables);
 // @src IMP_SkillTraits.cc AddSelectedSkillsToSkillsList, DoesPlayerHaveExtraAttibutePointsToDistributeBasedOnSkillSelection,
-// @src ShouldTraitBeSkipped; IMP_Attribute_Selection.cc SetAttributes, IncrementStat, DecrementStat; IMP_Begin_Screen.cc
+// @src ShouldTraitBeSkipped; IMP_Attribute_Selection.cc SetAttributes, IncrementStat, DecrementStat, the attribute enum (the
+// @src page's value order); IMP_Begin_Screen.cc
 // @src BtnIMPBeginScreenDoneCallback (names); IMP_HomePage.cc ProcessPlayerInputActivationString; IMP_MainPage.cc (begin);
 // @src IMP_Confirm.cc AddCharacterToPlayersTeam, BtnIMPConfirmYes, FirstFreeBigEnoughPocket, GiveItemsToPC; CharProfile.h
 // @src COST_OF_PROFILE; externalized/policy/IMPPolicy.h IMPItemCondition. See docs/21 §4.
@@ -32,7 +33,7 @@ import { History } from './records.ts';
 export const COST_OF_PROFILE = 3000;
 const QUIZ_QUESTIONS = 16;
 const LIST_SIZE = 20;
-const START_ATTRIBUTE = 55;
+export const START_ATTRIBUTE = 55;
 const EMPTY_PROFILE_LIFE = 15;
 const EMPTY_PROFILE_STAT = 1;
 const EMPTY_PROFILE_NEED_FOR_SLEEP = 7;
@@ -109,7 +110,20 @@ export const IMP_ATTRIBUTE_KEYS = [
   'explosives',
 ] as const;
 export type ImpAttributeKey = (typeof IMP_ATTRIBUTE_KEYS)[number];
-const ZEROABLE: ReadonlySet<ImpAttributeKey> = new Set(['marksmanship', 'medical', 'mechanical', 'explosives']);
+export const IMP_ZEROABLE_ATTRIBUTES: readonly ImpAttributeKey[] = ['marksmanship', 'medical', 'mechanical', 'explosives'];
+const ZEROABLE: ReadonlySet<ImpAttributeKey> = new Set(IMP_ZEROABLE_ATTRIBUTES);
+export const IMP_ATTRIBUTE_PAGE_ORDER: readonly ImpAttributeKey[] = [
+  'health',
+  'dexterity',
+  'agility',
+  'strength',
+  'wisdom',
+  'leadership',
+  'marksmanship',
+  'explosives',
+  'medical',
+  'mechanical',
+];
 
 export type ImpAttributes = Readonly<Record<ImpAttributeKey, number>>;
 
@@ -174,6 +188,20 @@ export function impSlotInProgress(ctx: LaptopContext): number | null {
 export function canCreateAnotherImpCharacter(ctx: LaptopContext): boolean {
   if (impSlotInProgress(ctx) === null) return false;
   return impCharactersCreated(ctx) < ctx.content.imp.maxCharacters;
+}
+
+export type ImpCodeCheck = 'ok' | 'badCode' | 'noSlot';
+
+export function impCheckCode(ctx: LaptopContext, code: string): ImpCodeCheck {
+  const accepted = ctx.content.imp.codes.includes(code);
+  if (accepted && canCreateAnotherImpCharacter(ctx)) return 'ok';
+  return accepted ? 'noSlot' : 'badCode';
+}
+
+export function impBeginRefusal(ctx: LaptopContext): 'funds' | 'teamFull' | null {
+  if (ctx.state.finances.balance < COST_OF_PROFILE) return 'funds';
+  if (numberOfMercsOnPlayerTeam(ctx) >= MAX_MERCS_ON_TEAM) return 'teamFull';
+  return null;
 }
 
 function addToList(list: number[], value: number): void {

@@ -85,7 +85,7 @@ export interface OrderLineRequest {
 
 export interface OrderRequest {
   readonly lines: readonly OrderLineRequest[];
-  readonly destination: number;
+  readonly destination: number | null;
   readonly speed: number;
 }
 
@@ -97,6 +97,11 @@ export interface OrderQuote {
   readonly weight: number;
   readonly shipping: number;
   readonly total: number;
+}
+
+export interface OrderFormQuote extends OrderQuote {
+  readonly affordable: boolean;
+  readonly confirmDestination: boolean;
 }
 
 export interface BobbyRayTactical {
@@ -235,10 +240,14 @@ export function dailyUpdateOfBobbyRaysInventory(ctx: LaptopContext, merchants: M
   dailyUpdateUsed(ctx, merchants);
 }
 
-export function bobbyRayUnitPrice(ctx: LaptopContext, slot: StoreSlot, used: boolean): number {
-  const price = ctx.tactical.items.byIndex.get(slot.item)?.price ?? 0;
+export function bobbyRayItemPrice(ctx: LaptopContext, item: number, quality: number, used: boolean): number {
+  const price = ctx.tactical.items.byIndex.get(item)?.price ?? 0;
   if (!used) return u16(price);
-  return u16(Math.trunc(price * (0.5 + (0.5 * slot.quality) / PERCENT) + 0.5));
+  return u16(Math.trunc(price * (0.5 + (0.5 * quality) / PERCENT) + 0.5));
+}
+
+export function bobbyRayUnitPrice(ctx: LaptopContext, slot: StoreSlot, used: boolean): number {
+  return bobbyRayItemPrice(ctx, slot.item, slot.quality, used);
 }
 
 export function shippingCost(destination: ShippingDestination | undefined, speed: number, weight: number): number {
@@ -276,12 +285,30 @@ export function quoteOrder(ctx: LaptopContext, r: OrderRequest): OrderQuote | Or
   const lines = orderLines(ctx, r);
   if (typeof lines === 'string') return lines;
   if (!Number.isInteger(r.speed) || r.speed < 0 || r.speed >= ORDER_DELAYS.length) return 'badSpeed';
-  const destination = ctx.content.destinations[r.destination];
-  if (!destination) return 'noDestination';
+  const destination = r.destination === null ? null : ctx.content.destinations[r.destination];
+  if (destination === undefined) return 'noDestination';
   const subtotal = lines.reduce((sum, l) => sum + l.unitPrice * l.count, 0);
   const weight = lines.reduce((sum, l) => sum + (ctx.tactical.items.byIndex.get(l.item)?.weight ?? 0) * l.count, 0);
-  const shipping = shippingCost(destination, r.speed, weight);
+  const shipping = destination ? shippingCost(destination, r.speed, weight) : 0;
   return { lines, subtotal, weight, shipping, total: subtotal + shipping };
+}
+
+export function destinationNeedsConfirmation(ctx: LaptopContext, destination: number | null): boolean {
+  if (destination === null) return false;
+  const primary = ctx.content.destinations.find((d) => d.isPrimary);
+  if (!primary || destination !== primary.locationId || primary.deliverySector === null) return true;
+  const sector = sectorFromId(primary.deliverySector, primary.deliverySectorZ);
+  return ctx.state.map.elements[strategicIndex(sector)]?.enemyControlled === true;
+}
+
+export function quoteOrderForm(ctx: LaptopContext, r: OrderRequest): OrderFormQuote | OrderRefusal {
+  const quote = quoteOrder(ctx, r);
+  if (typeof quote === 'string') return quote;
+  return {
+    ...quote,
+    affordable: ctx.state.finances.balance >= quote.total,
+    confirmDestination: destinationNeedsConfirmation(ctx, r.destination),
+  };
 }
 
 function salIsDead(ctx: LaptopContext): boolean {
@@ -357,10 +384,12 @@ export function placeOrder(ctx: LaptopContext, r: OrderRequest): OrderResult {
 export function purchaseBobbyRayOrder(ctx: LaptopContext, r: OrderRequest): OrderResult {
   const quote = quoteOrder(ctx, r);
   if (typeof quote === 'string') return { ok: false, reason: quote };
+  if (r.destination === null) return { ok: false, reason: 'noDestination' };
   if (ctx.state.finances.balance < quote.total) return { ok: false, reason: 'funds', quote };
-  const destination = ctx.content.destinations[r.destination];
+  const destinationId = r.destination;
+  const destination = ctx.content.destinations[destinationId];
   const weight = quote.weight;
-  const shipment = destination?.canDeliver ? addNewBobbyRShipment(ctx, r.destination, r.speed, quote.lines, weight) : null;
+  const shipment = destination?.canDeliver ? addNewBobbyRShipment(ctx, destinationId, r.speed, quote.lines, weight) : null;
   ctx.emitMoney(addTransaction(ctx.state.finances, FinanceCode.BOBBYR_PURCHASE, 0, ctx.now(), -quote.total));
   for (const l of quote.lines) {
     const slot = storeList(ctx, l.used)[l.slot];

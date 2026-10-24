@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/externalized/ItemModel.cc ItemStrings (itemdesc.edt: short name, name, description; braydesc.edt: Bobby Ray's
 // @src name and description), WeaponModels.cc, ArmourModel.cc, ExplosiveModel.cc (Bobby Ray's texts from braydesc.edt),
-// @src MagazineModel.cc (Bobby Ray's name is the short name), CalibreModel.cc (ammo-calibre, ammo-calibre-bobbyray).
+// @src MagazineModel.cc (Bobby Ray's name is the short name), CalibreModel.cc (ammo-calibre, ammo-calibre-bobbyray),
+// @src WeaponModels.cc getRateOfFire (Bobby Ray's ROF column).
 // @src See docs/28 §12.1 G19.
 
 import { createHash } from 'node:crypto';
@@ -105,6 +106,7 @@ function catalogueItem(
           attackVolume: w.attackVolume,
           hitVolume: w.hitVolume,
           attachments: w.attachments,
+          rateOfFire: w.rateOfFire,
         }
       : null,
     magazine: def.magazine

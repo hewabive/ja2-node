@@ -28,6 +28,7 @@ export interface CatalogueWeapon {
   readonly attackVolume: number;
   readonly hitVolume: number;
   readonly attachments: readonly string[];
+  readonly rateOfFire: number;
 }
 
 export interface CatalogueMagazine {
