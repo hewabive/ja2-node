@@ -366,17 +366,19 @@ export function drawFace(
   const size = faceSize(images, path);
   const eyesX = x + face.record.eyes[0];
   const eyesY = y + face.record.eyes[1];
-  list.image(path, 0, x, y, { shade: shadeOf(face.shade(soldier, ctx.inCombat)) });
+  const faceShade = { shade: shadeOf(face.shade(soldier, ctx.inCombat)) };
+  list.image(path, 0, x, y, faceShade);
   if (!face.invalidAnim(images)) {
-    if (face.eyeFrame > 0) list.image(path, face.eyeFrame, eyesX, eyesY);
-    if (face.mouthFrame > 0) list.image(path, face.mouthFrame + MOUTH_FRAME_OFFSET, x + face.record.mouth[0], y + face.record.mouth[1]);
+    if (face.eyeFrame > 0) list.image(path, face.eyeFrame, eyesX, eyesY, faceShade);
+    if (face.mouthFrame > 0)
+      list.image(path, face.mouthFrame + MOUTH_FRAME_OFFSET, x + face.record.mouth[0], y + face.record.mouth[1], faceShade);
   }
   const life = soldier.life ?? 0;
   if (life < CONSCIOUSNESS || overlays.deadPanelRunning) {
-    list.image(path, EYES_CLOSED_FRAME, eyesX, eyesY);
+    list.image(path, EYES_CLOSED_FRAME, eyesX, eyesY, faceShade);
     list.image(art.hatch, 0, x, y);
   }
-  if (soldier.asleep === true) list.image(path, EYES_CLOSED_FRAME, eyesX, eyesY);
+  if (soldier.asleep === true) list.image(path, EYES_CLOSED_FRAME, eyesX, eyesY, faceShade);
   if (life <= 0 && !overlays.deadPanelRunning) {
     list.image(art.dead, DEAD_FRAME, x, y);
     list.image(art.hatch, 0, x, y);
