@@ -8,6 +8,7 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts', 'stubs/**/*.test.ts', 'tools/**/*.test.ts'],
     environment: 'node',
+    globalSetup: ['tests/support/run-temp-dir.ts'],
     hookTimeout: CONTENT_HOOK_TIMEOUT_MS,
     testTimeout: LOADED_MACHINE_TEST_TIMEOUT_MS,
     ...(process.env.JA2_RELOAD === '1' ? { testTimeout: RELOAD_MODE_TEST_TIMEOUT_MS, hookTimeout: RELOAD_MODE_TEST_TIMEOUT_MS } : {}),
