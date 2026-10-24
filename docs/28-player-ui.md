@@ -2579,6 +2579,47 @@ and the tactical host each keep a client knowledge per session (one would save m
 presenter yet (the U7 presenter lives in `TacticalHost`); the team panel's Exit Vehicle waits for a tactical
 `leaveVehicle`; PBI and autoresolve are a numbered box until U9.
 
+#### U13: story and help (2026-10-24)
+
+§4.7, §10 and the San Mona screen of §4.11 on `/play`: the meanwhile box, the ending through the videos and the
+credits, and the help screens of the tactical, map and laptop screens and the sector inventory. The server additions
+are in `04` §6.34, the presentation of the story in `26` §15.
+
+| Area | As built |
+|---|---|
+| Server | The campaign identity (`src/server/campaign-id.ts`): a random identity per new campaign, `import:` + digest for a native import, kept in the save's `presentation.campaign` and restored on a load (`save:` + digest for an older save), sent in the welcome (`SessionClient.campaign`). The strategic view's `gameJustStarted`. `meanwhileStarted` plays the menu music and then N7's sector entry rule (`TACTICAL_NOTHING`), as `StartMeanwhile` and the load do; the server had left the menu music on because the step's `sectorLoaded` comes before `meanwhileStarted` |
+| Tables and layouts | `ui-constants` gains `HelpScreen` (`HelpScreen.h`, `HelpScreen.cc`, `HelpScreenText.h`: the geometry, the colours and fonts, the `HLP_TXT_*` records, the `HelpScreenID` bits). `data/layouts/original/help-screen.json` (screen `helpScreen`, placed at run time through `LayoutView`'s `origin`): the full-screen mask, the button border and the background of `interface/helpscreen.sti`, the title and the "(press H)" line, the footer and the check box when it came up by itself, the text column and the scroll box as custom renderers, the exit button, the page buttons, the two arrows and the keys of `GetHelpScreenUserInput`. Layout format: a region's or a button's `cursor` may be a choice by a bound state (the laptop's cursor), and an EDT row given by a binding counts as that binding |
+| Help screens | `src/ui/screens/help/`: `help-pages.ts` (the six screens' titles, page buttons and paragraphs: laptop 8 pages, map screen 8, "no one hired yet", "not yet in Arulco", sector inventory, tactical 6, with the loops that add a font height after each paragraph and the laptop's one-paragraph pages that do not; `HelpScreenDetermineWhichMapScreenHelpToShow`), `help-scroll.ts` (lines of a page, the clamps of `ChangeTopLineInTextBufferByAmount`, the FLOAT scroll box of `CalculateHeightAndPositionForHelpScreenScrollBox`, the drag with the grab offset, three wheel lines), `help-overlay.ts` (the modal: 412×292 or 320×292, centred over the viewport end, in the laptop over its monitor; pauses the game; pages through the buttons and Left/Right on release clamped to the pages; Up/Down and PgUp/PgDn on release and repeat; Escape on release; the check box sets the hide flag only when the screen came up by itself), `help-system.ts` (`ShouldTheHelpScreenComeUp`: a forced screen at once, a screen whose bit is unseen and not hidden on its third frame, the count restarting on a new screen; the bit marked seen when the screen comes up, forced or not; never while a modal is up or, in tactical, while a pre-battle prompt is open) |
+| Help on `/play` | `src/app/game/help-host.ts` loads the layout and `binarydata/help.edt` (through the EDT cache that reads the data files, as the laptop pages do), runs the system every frame on the tactical, map and laptop screens (the map's sector inventory open picks its help) and keeps the seen mask in the client settings (`helpScreensSeen[campaign]`, `helpHidden`; `localStorage` behind `try`/`catch`, written fresh so other writers are not overwritten). `h` reaches it from the tactical keys (`HotkeyHost.help`), the map screen's `help` action (which first ends route plotting with the "unchanged" message, as the original) and the laptop's `onHelp`. A session without a campaign identity (a sandbox) never shows a help screen by itself |
+| Meanwhile box | `src/ui/screens/story/meanwhile-box.ts` and `story-layer.ts` (`StoryLayer`, page level, fed with every frame batch before the front-end flow): the BASIC box `"<MSG_MEANWHILE>....."` with OK alone for the interrogation or a scene the setting `meanwhileScenesSeen` does not mark, OK and Skip otherwise; both continue and nothing is marked seen, since no scene plays. The box is a client modal (the driver goes manual while it is up, §1.4) and the frames that follow the event wait for the answer, so the interrogation's switch to N7 comes after OK, through a fade out and in |
+| Ending | The same layer: `squadMovedUpstairs` fades out, lets the flow load P3 (loading screen) and fades in when the tactical screen is up; `campaignWon` fades out, leaves the session (it stays on the server, flow `ended`), plays `endingPlan`'s videos, then the credits with the music off and the main menu with its music (`src/app/game/story-host.ts`). The killer's and witnesses' quotes, Derek's and Oliver's panels and the end-game comments are U7's talk screens. The flows `meanwhile`, `endgame` and `ended` show the tactical screen (`gameScreenOf`); entering it locates the Queen in a meanwhile and gridno 4561 in the endgame (`src/app/tactical/story-camera.ts`); quote frames that arrive while the page has no tactical screen yet reach it when it is built |
+| Brothel | Checked: `sexScene` from the tactical screen shows U2's San Mona screen (black, no cursor, `interface/luckysmile.sti` centred, frame 0 for 24 steps of 100 ms then the step modulo 8, 32 steps and a second, `sounds/sex.wav` at `HIGHVOLUME`), then the fade into tactical; the time warp is the server's (finding 1). Added: the screen holds the real-time driver like a modal (deviation "San Mona screen and time") |
+| Stubs | `stubs/text/help.json` → `binarydata/help.edt` (all 123 records, texts written for ja2-node; the tactical overview and the merc stats are long enough to scroll); the layout-driven art of `interface/helpscreen.sti` with the two large frames hollow, so the media stay under the 5 MiB budget |
+| Hook | `window.__ja2Ui.help` (`open`, `forced`, `page`, `top`, `totalLines`) and `.story` (`step`, `played`, `meanwhileBoxes`, `endings`) |
+
+Rule finding 3 (attachment AP) was settled in U5; the U13 row's reference to it was stale, and no finding about the
+story or the help screens was open (§12.5).
+
+Tests: `src/server/campaign-id.test.ts`; `src/protocol/music.test.ts` (the interrogation's music);
+`src/ui/screens/help/help-scroll.test.ts` and `help-screen.test.ts` (placement, title, pages, keys, arrows, wheel,
+close, the frame count, blocked, hidden, no campaign, forced, the check box); `src/ui/screens/story/story-layer.test.ts`
+(the box's buttons and text, the flow held and released, the interrogation's fades, the move upstairs and the ending
+with the frames after it dropped, reset; `gameScreenOf` of the story flows); `interrogation.test.ts` over the stub
+interrogation session on the tactical screen (the Queen's panel, Escape does not end the scene, `inMeanwhile` for other
+commands, the YES/NO/LIE box after the panel closed, the answer, the music); `src/ui/screens/front-end/san-mona.test.ts`
+(the step timing, the held driver, the fade back); `src/server/e2e-story-saves.test.ts` (the three e2e saves);
+`tests/e2e/story.spec.ts` (golden `story-meanwhile-box.png`: the Drassen scene's box over the map screen with OK alone,
+then the game goes on; OK and Skip for a scene marked seen; the Queen bleeding to death in the stub basement, the move
+upstairs, the ending videos, the credits without music and the main menu; golden `story-help-screen.png`: the map
+screen's help by itself once per campaign, pages, Escape, then forced with `h`). The e2e suite stores `helpHidden` by
+default (`playwright.config.ts`), so the other specs' flows and goldens do not change; the story spec opts back in.
+
+Decisions and limits: the meanwhile box follows §1.4 (a client modal) rather than a `pauseOn` stop; the help mask is
+keyed by the server's campaign identity, which saves carry; the ending leaves the session instead of deleting it.
+Open: the map screen still has no speech presenter (nothing in the story flows needs one: the interrogation and the
+ending run on the tactical screen; the quotes that open a PBI are U9's); the "connection lost / server error" panel
+is not built; the sector inventory's double help call is not reproduced (deviation "Help screens seen").
+
 ---
 
 ## 18. Decisions and open questions
