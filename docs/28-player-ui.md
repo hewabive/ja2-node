@@ -1533,7 +1533,8 @@ personality finish, attributes with sliders, portrait, voice, finish, confirm; t
 client state; **X12** supplies the form rules: `impCheckCode {code}` (`ok | badCode | noSlot`), the begin refusal
 (funds before team size), the attribute budget, bounds, zero bonus and display order (or validation through
 `impPreview`), the portrait and voice lists, quiz answer counts. Open point: the row labels and the value order of the
-last three skill rows disagree in the original; follow the original and log it.
+last three skill rows disagree in the original; follow the original and log it. *Settled in U11:* on the original data the label records
+match the value order; only the comments in `IMP_Text_System.cc` name them wrongly.
 
 ### 9.8 Insurance, florist, funeral
 
@@ -1720,7 +1721,10 @@ function reads (§2.4): the test that fills unsupplied projection fields with th
 4. **`aimLeaveMessage`** never refuses with `alreadyLeft` although `docs/21` §10 lists it: fix the code or the doc.
 5. **A.I.M. conference distortion** draws `Random(200)` from the main stream (`AIMMembers.cc:1973`): add to the
    "Cosmetic laptop draws" deviation.
+   *Settled in U11 (2026-10-24):* the deviation "Cosmetic laptop draws" names it.
 6. **Bobby Ray speed labels** are reversed in the developer panel (`src/devtools/strategic/laptop-panel.ts:25`): fix.
+   *Settled in U11 (2026-10-24):* the panel labels the speeds through `src/protocol/bobby-ray.ts` (0 overnight express,
+   1 two business days, 2 standard service), as the order form and the MCP description do.
 7. **Fairness**: `estimateAttack` sees unseen soldiers (fixed by the projection, §2.4); `combat.team` reveals hidden AI
    interrupts (§12.1 G6).
 8. **Map path quirks**: the column-16 node skip in `TracePathRoute` and the doubled remaining time in the plotting ETA;
@@ -2578,6 +2582,38 @@ original's offsets, but the money commands are tactical only, so a split there d
 and the tactical host each keep a client knowledge per session (one would save memory); the map screen has no speech
 presenter yet (the U7 presenter lives in `TacticalHost`); the team panel's Exit Vehicle waits for a tactical
 `leaveVehicle`; PBI and autoresolve are a numbered box until U9.
+
+#### U11: laptop, part two (2026-10-24)
+
+§9.5–§9.7 on the canvas laptop: Bobby Ray's, M.E.R.C. with the broken link, and I.M.P., the drop-down and the frame
+animator U10 left open, and the server gaps X6, X11, X12 and X15 (`04` §6.32, `21` §10).
+
+| Area | As built |
+|---|---|
+| Tables | `ui-constants` gains `BobbyR`, `BobbyRGuns`, `BobbyRMailOrder`, `BobbyRShipments`, `Mercs`, `Mercs_Account`, `Mercs_Files`, `Mercs_No_Account`, `BrokenLink`, `CharProfile`, `IMP_HomePage`, `IMP_MainPage`, `IMP_Begin_Screen`, `IMP_Personality_Quiz`, `IMP_Personality_Finish`, `IMP_Attribute_Selection`, `IMP_Finish`, `IMP_Text_System` and `IMPVideoObjects`; `tools/transcribe/c-constants.ts` reads `enum{` written without a space (the I.M.P. text records, pages and attribute ids; the other regenerated tables only gain names, and `Squads`' `NO_CURRENT_SQUAD` now resolves to 20) |
+| Widgets and format | `src/ui/widgets/drop-down.ts`: `DropDown` (entries, visible rows, selection on hover, the scroll top with the original's clamp to `entries − visible − 1`) and `DropDownView` (the `tactpopup.sti` border pieces, the gold highlight, the arrows, the 17 scroll regions, the close area); layout type `dropDown` (a `DropDown` bound as `model`, `labels`, `rows` geometry, optional `scroll`, `closeArea`, `change`); `frame-animator.ts`; region keys `repeat` and `secondaryRepeat`; button icons follow their bindings (`frame`, `visible`) and may show a face (`icon.face`) |
+| Shell | A page's `layouts` may change and the screen rebuilds its views (sub pages); `enteredFromBookmark`; `startSubPageLoad(fast)`; message box style per call; per-screen site state (`laptop-sites.ts`: the Bobby Ray's cart, the M.E.R.C. session, the visited I.M.P. pages) |
+| Bobby Ray's (`bobby-ray/`) | Home with the under-construction gate (animator, signs disabled until `open`); one catalogue template for guns, ammo, armour, misc and used (rows, big picture, specs with the rate of fire, the ammo tooltip naming the team's guns, page arrows, subtotal, the 10-line cart as a client draft kept across pages); the order form (quote through `bobbyRayQuote`, the city drop-down of the 17 destinations, the speed lights, clear, accept: the funds box, the destination question, `bobbyRayOrder`, the confirmation picture); the shipments page (`BobbyRShipments.cc`) |
+| M.E.R.C. (`merc/`) | Home with Speck's video window (`SpeckVideo`: black for 1 s, the small face stretched to the video face, the queued quotes of the replies and the opening said one after the other with subtitles in the merc text box, a click skips, the X closes, the black exit), the visit only when entering from outside the site, the arrival box after a hire; no account; account (rows, total, authorize behind the `BLUE_ON_GREY` question, the transfer failure box from an own label); files (overlays for dead, married, P.O.W., hired and away, bio, stats, salary, previous/next, hire); the broken link while the site is down |
+| I.M.P. (`imp/`) | `charProfilePage` hosts the fourteen sub pages with their own sub-page loads (fast once visited in the laptop session, none for the first page), the global cancel button and IMP-style boxes; the draft (`ImpDraft`) lives in `LaptopMemory`. Home with the activation code (Enter on key up, `impCheckCode`), about us, main with the step blockers and the face icon, begin (name, nickname, gender), the quiz (answer buttons on the press, the long, short and short2 indents, the women's questions behind `IMP_CON_3`), the personality finish, the attribute entrance, the attributes (arrows on press and repeat, the slider drag and click of `SliderRegionButtonCallback`, the per-frame drag past the bar ends, the zero warning), the attribute finish, portrait, voice (the sample on entry and on each step), finish (the analysing label and icon while pressed), confirm through `impCreate` |
+| Server gaps | X6, X11, X12, X15 (`04` §6.32) |
+| Stubs | `braydesc.edt`, `mercbios.edt`, `imptext.edt` (239 filler records with the attribute labels); no lines for Speck (a `npcdata/159.edt` would change the stub pack the 0.7.0 saves recorded, as with U7's dealer, so his quotes play without subtitles on the stubs); aliases for Speck's face and the I.M.P. faces and portraits; the media budget raised from 5 to 5.5 MiB (the pack measures 5.22 MiB after U11) |
+| Tests | Unit tests for the drop-down, the Bobby Ray's pages, Speck's video, the draft, the quiz records and indents and the sliders; `laptop-sites.test.ts` drives each site on a stub campaign (Bobby Ray's under construction and an order to Drassen, M.E.R.C. from the opening to the broken link, an I.M.P. character through every page); `src/server/laptop-sites-stub.test.ts` for the server gaps; the original-data test `laptop-sites-original.test.ts` (quiz records, faces, portraits, voice samples, Speck's lines); `tests/e2e/laptop-sites.spec.ts` from a save with Drassen held (`tests/support/e2e-laptop-saves.ts`): an order through the canvas delivered in Drassen, a M.E.R.C. account, hire and payment, an I.M.P. character, goldens `laptop-bobby-ray-guns.png`, `laptop-bobby-ray-order.png`, `laptop-merc-home.png`, `laptop-imp-quiz.png` and `laptop-imp-attributes.png` |
+
+Decisions and limits: the cart and the I.M.P. draft are client state until the one command; the open point of §9.7 is
+settled without a deviation: on the original data the attribute page's label records do match the value order (the
+comments next to the records in `IMP_Text_System.cc` name them wrongly). Deviations added: "Bobby Ray's shipment
+prices", "I.M.P. begin page focus", "I.M.P. voice samples", "I.M.P. skill page and saved profiles"; "Speck's opening"
+now draws the post-hire `CoinToss` at `mercHire`. The video face is the still small face (the animated face of U5 is
+not wired into the laptop, as in the A.I.M. conference).
+
+Open: the florist's destination list (U12's page-local `DestinationList`) maps onto the drop-down: `new DropDown({entries:
+17, visible: 17, selectOnHover: true})` (the list hovers into the selection like `SelectFlowerDropDownMovementCallBack`),
+bound as the `dropDown` widget's `model` with the destination names as `labels`, the `tactpopup.sti` border, the `rows`
+geometry of `Florist_Order_Form.cc`, a height of the rows plus 10, no `scroll`, the laptop screen as `closeArea` and a
+`change` action taking the index; `show()`/`hide()` are `toggle()`/`close()`, `hover(i)` and `pick(i)` are `hover(i)` and
+`choose(i)` (a test in `drop-down.test.ts` covers that configuration). The direct skill pick and the saved I.M.P.
+profiles wait (deviation).
 
 #### U12: laptop, part three (2026-10-24)
 

@@ -1,0 +1,368 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/BobbyR.cc EnterBobbyR (the sign regions from usMouseRegionPosArray, MSYS_PRIORITY_HIGH, CURSOR_WWW, disabled while the site cannot be accessed), RenderBobbyR (the sentences with SetFontShadow(BOBBIES_SENTENCE_BACKGROUNDCOLOR) and TEXT_SHADOWED, the signs with BOBBIES_SIGN_BACKGROUNDCOLOR, the ShadowRect over the web area while closed), DrawBobbyRWoodBackground (4 x 4 tiles), HandleBobbyRUnderConstructionAni (both pictures and the FONT16ARIAL text over the shaded page)"
+  ],
+  "screen": "bobbyRayHome",
+  "frame": "std640",
+  "constants": ["Laptop", "BobbyR"],
+  "assets": {
+    "wood": {
+      "sti": "laptop/bobbywood.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["BOBBY_WOOD_BACKGROUND_WIDTH", "BOBBY_WOOD_BACKGROUND_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "name": {
+      "mlg": "MLG_BOBBYNAME",
+      "stub": {
+        "frames": 1,
+        "size": [340, 42],
+        "hollow": true
+      }
+    },
+    "plaques": {
+      "sti": "laptop/bobbyplaques.sti",
+      "stub": {
+        "frames": 1,
+        "size": [410, 180],
+        "hollow": true
+      }
+    },
+    "topHinge": {
+      "sti": "laptop/bobbytophinge.sti",
+      "stub": {
+        "frames": 1,
+        "size": [496, 24],
+        "hollow": true
+      }
+    },
+    "bottomHinge": {
+      "sti": "laptop/bobbybottomhinge.sti",
+      "stub": {
+        "frames": 1,
+        "size": [496, 24],
+        "hollow": true
+      }
+    },
+    "storePlaque": {
+      "mlg": "MLG_STOREPLAQUE",
+      "stub": {
+        "frames": 1,
+        "size": [205, "BOBBIES_STORE_PLAQUE_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "handle": {
+      "sti": "laptop/bobbyhandle.sti",
+      "stub": {
+        "frames": 1,
+        "size": [36, 60],
+        "hollow": true
+      }
+    },
+    "underConstruction": {
+      "sti": "laptop/underconstruction.sti",
+      "stub": {
+        "frames": "BOBBYR_UNDERCONSTRUCTION_NUM_FRAMES",
+        "size": ["BOBBYR_UNDERCONSTRUCTION_WIDTH", "BOBBYR_UNDERCONSTRUCTION_HEIGHT"],
+        "hollow": true
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "tiles",
+      "asset": "wood",
+      "frame": 0,
+      "x": "BOBBY_WOOD_BACKGROUND_X",
+      "y": "BOBBY_WOOD_BACKGROUND_Y",
+      "columns": 4,
+      "rows": 4,
+      "dx": "BOBBY_WOOD_BACKGROUND_WIDTH",
+      "dy": "BOBBY_WOOD_BACKGROUND_HEIGHT"
+    },
+    {
+      "type": "image",
+      "asset": "name",
+      "frame": 0,
+      "x": "BOBBY_RAYS_NAME_X",
+      "y": "BOBBY_RAYS_NAME_Y"
+    },
+    {
+      "type": "image",
+      "asset": "plaques",
+      "frame": 0,
+      "x": "BOBBYS_PLAQUES_X",
+      "y": "BOBBYS_PLAQUES_Y"
+    },
+    {
+      "type": "image",
+      "asset": "topHinge",
+      "frame": 0,
+      "x": "BOBBIES_TOPHINGE_X",
+      "y": "BOBBIES_TOPHINGE_Y"
+    },
+    {
+      "type": "image",
+      "asset": "bottomHinge",
+      "frame": 0,
+      "x": "BOBBIES_BOTTOMHINGE_X",
+      "y": "BOBBIES_BOTTOMHINGE_Y"
+    },
+    {
+      "type": "image",
+      "asset": "storePlaque",
+      "frame": 0,
+      "x": "BOBBIES_STORE_PLAQUE_X",
+      "y": "BOBBIES_STORE_PLAQUE_Y"
+    },
+    {
+      "type": "image",
+      "asset": "handle",
+      "frame": 0,
+      "x": "BOBBIES_HANDLE_X",
+      "y": "BOBBIES_HANDLE_Y"
+    },
+    {
+      "type": "text",
+      "x": "BOBBIES_FIRST_SENTENCE_X",
+      "y": "BOBBIES_FIRST_SENTENCE_Y",
+      "width": 500,
+      "font": "BOBBIES_SENTENCE_FONT",
+      "color": "BOBBIES_SENTENCE_COLOR",
+      "shadow": "BOBBIES_SENTENCE_BACKGROUNDCOLOR",
+      "background": "BOBBIES_SIGN_BACKCOLOR",
+      "text": {
+        "key": ["BobbyRaysFrontText", "BOBBYR_ADVERTISMENT_1"]
+      },
+      "align": "center",
+      "visible": "open",
+      "shadowed": true,
+      "id": "bobbyRaySentence1"
+    },
+    {
+      "type": "text",
+      "x": "BOBBIES_2ND_SENTENCE_X",
+      "y": "BOBBIES_2ND_SENTENCE_Y",
+      "width": 500,
+      "font": "BOBBIES_SENTENCE_FONT",
+      "color": "BOBBIES_SENTENCE_COLOR",
+      "shadow": "BOBBIES_SENTENCE_BACKGROUNDCOLOR",
+      "background": "BOBBIES_SIGN_BACKCOLOR",
+      "text": {
+        "key": ["BobbyRaysFrontText", "BOBBYR_ADVERTISMENT_2"]
+      },
+      "align": "center",
+      "visible": "open",
+      "shadowed": true
+    },
+    {
+      "type": "text",
+      "x": "BOBBIES_USED_SIGN_X",
+      "y": "BOBBIES_USED_SIGN_TEXT_OFFSET",
+      "width": "BOBBIES_USED_SIGN_WIDTH - 5",
+      "font": "BOBBIES_SIGN_FONT",
+      "color": "BOBBIES_SIGN_COLOR",
+      "shadow": "BOBBIES_SIGN_BACKGROUNDCOLOR",
+      "background": "BOBBIES_SIGN_BACKCOLOR",
+      "text": {
+        "key": ["BobbyRaysFrontText", "BOBBYR_USED"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "BOBBIES_MISC_SIGN_X",
+      "y": "BOBBIES_MISC_SIGN_TEXT_OFFSET",
+      "width": "BOBBIES_MISC_SIGN_WIDTH",
+      "font": "BOBBIES_SIGN_FONT",
+      "color": "BOBBIES_SIGN_COLOR",
+      "shadow": "BOBBIES_SIGN_BACKGROUNDCOLOR",
+      "background": "BOBBIES_SIGN_BACKCOLOR",
+      "text": {
+        "key": ["BobbyRaysFrontText", "BOBBYR_MISC"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "BOBBIES_GUNS_SIGN_X",
+      "y": "BOBBIES_GUNS_SIGN_TEXT_OFFSET",
+      "width": "BOBBIES_GUNS_SIGN_WIDTH",
+      "font": "BOBBIES_SIGN_FONT",
+      "color": "BOBBIES_SIGN_COLOR",
+      "shadow": "BOBBIES_SIGN_BACKGROUNDCOLOR",
+      "background": "BOBBIES_SIGN_BACKCOLOR",
+      "text": {
+        "key": ["BobbyRaysFrontText", "BOBBYR_GUNS"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "BOBBIES_AMMO_SIGN_X",
+      "y": "BOBBIES_AMMO_SIGN_TEXT_OFFSET",
+      "width": "BOBBIES_AMMO_SIGN_WIDTH",
+      "font": "BOBBIES_SIGN_FONT",
+      "color": "BOBBIES_SIGN_COLOR",
+      "shadow": "BOBBIES_SIGN_BACKGROUNDCOLOR",
+      "background": "BOBBIES_SIGN_BACKCOLOR",
+      "text": {
+        "key": ["BobbyRaysFrontText", "BOBBYR_AMMO"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "BOBBIES_ARMOUR_SIGN_X",
+      "y": "BOBBIES_ARMOUR_SIGN_TEXT_OFFSET",
+      "width": "BOBBIES_ARMOUR_SIGN_WIDTH",
+      "font": "BOBBIES_SIGN_FONT",
+      "color": "BOBBIES_SIGN_COLOR",
+      "shadow": "BOBBIES_SIGN_BACKGROUNDCOLOR",
+      "background": "BOBBIES_SIGN_BACKCOLOR",
+      "text": {
+        "key": ["BobbyRaysFrontText", "BOBBYR_ARMOR"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "BOBBIES_3RD_SENTENCE_X",
+      "y": "BOBBIES_3RD_SENTENCE_Y",
+      "width": 500,
+      "font": "BOBBIES_SENTENCE_FONT",
+      "color": "BOBBIES_SENTENCE_COLOR",
+      "shadow": "BOBBIES_SENTENCE_BACKGROUNDCOLOR",
+      "background": "BOBBIES_SIGN_BACKCOLOR",
+      "text": {
+        "key": ["BobbyRaysFrontText", "BOBBYR_ADVERTISMENT_3"]
+      },
+      "align": "center",
+      "visible": "open",
+      "shadowed": true
+    },
+    {
+      "type": "shade",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "width": "LAPTOP_SCREEN_LR_X - LAPTOP_SCREEN_UL_X + 1",
+      "height": "LAPTOP_SCREEN_WEB_LR_Y - LAPTOP_SCREEN_WEB_UL_Y + 1",
+      "visible": "closed"
+    },
+    {
+      "type": "image",
+      "asset": "underConstruction",
+      "frame": {
+        "bind": "constructionFrame"
+      },
+      "x": "BOBBYR_UNDERCONSTRUCTION_X",
+      "y": "BOBBYR_UNDERCONSTRUCTION_Y",
+      "visible": "closed"
+    },
+    {
+      "type": "image",
+      "asset": "underConstruction",
+      "frame": {
+        "bind": "constructionFrame"
+      },
+      "x": "BOBBYR_UNDERCONSTRUCTION_X",
+      "y": "BOBBYR_UNDERCONSTRUCTION1_Y",
+      "visible": "closed"
+    },
+    {
+      "type": "text",
+      "id": "underConstructionText",
+      "x": "BOBBYR_UNDER_CONSTRUCTION_TEXT_X",
+      "y": "BOBBYR_UNDER_CONSTRUCTION_TEXT_Y",
+      "width": "BOBBYR_UNDER_CONSTRUCTION_TEXT_WIDTH",
+      "font": "FONT16ARIAL",
+      "color": "BOBBIES_SENTENCE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "BOBBIES_SIGN_BACKCOLOR",
+      "text": {
+        "key": ["BobbyRaysFrontText", "BOBBYR_UNDER_CONSTRUCTION"]
+      },
+      "align": "center",
+      "visible": "closed"
+    },
+    {
+      "type": "region",
+      "id": "bobbyRaySign0",
+      "x": "BOBBIES_USED_SIGN_X",
+      "y": "BOBBIES_USED_SIGN_Y",
+      "width": "BOBBIES_USED_SIGN_WIDTH",
+      "height": "BOBBIES_USED_SIGN_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "sign(0)",
+      "enabled": "open"
+    },
+    {
+      "type": "region",
+      "id": "bobbyRaySign1",
+      "x": "BOBBIES_MISC_SIGN_X",
+      "y": "BOBBIES_MISC_SIGN_Y",
+      "width": "BOBBIES_MISC_SIGN_WIDTH",
+      "height": "BOBBIES_MISC_SIGN_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "sign(1)",
+      "enabled": "open"
+    },
+    {
+      "type": "region",
+      "id": "bobbyRaySign2",
+      "x": "BOBBIES_GUNS_SIGN_X",
+      "y": "BOBBIES_GUNS_SIGN_Y",
+      "width": "BOBBIES_GUNS_SIGN_WIDTH",
+      "height": "BOBBIES_GUNS_SIGN_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "sign(2)",
+      "enabled": "open"
+    },
+    {
+      "type": "region",
+      "id": "bobbyRaySign3",
+      "x": "BOBBIES_AMMO_SIGN_X",
+      "y": "BOBBIES_AMMO_SIGN_Y",
+      "width": "BOBBIES_AMMO_SIGN_WIDTH",
+      "height": "BOBBIES_AMMO_SIGN_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "sign(3)",
+      "enabled": "open"
+    },
+    {
+      "type": "region",
+      "id": "bobbyRaySign4",
+      "x": "BOBBIES_ARMOUR_SIGN_X",
+      "y": "BOBBIES_ARMOUR_SIGN_Y",
+      "width": "BOBBIES_ARMOUR_SIGN_WIDTH",
+      "height": "BOBBIES_ARMOUR_SIGN_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "sign(4)",
+      "enabled": "open"
+    }
+  ]
+}

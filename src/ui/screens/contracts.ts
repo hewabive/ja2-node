@@ -21,6 +21,10 @@ import {
   AIM_SORT_CONTRACT,
 } from './laptop/aim/aim-pages.ts';
 import { AIM_POLICIES_CONTRACT } from './laptop/aim/aim-policies.ts';
+import { BOBBY_RAY_CATALOGUE_CONTRACT } from './laptop/bobby-ray/bobby-ray-catalogue.ts';
+import { BOBBY_RAY_HOME_CONTRACT } from './laptop/bobby-ray/bobby-ray-home.ts';
+import { BOBBY_RAY_ORDER_CONTRACT } from './laptop/bobby-ray/bobby-ray-order.ts';
+import { BOBBY_RAY_SHIPMENTS_CONTRACT } from './laptop/bobby-ray/bobby-ray-shipments.ts';
 import { EMAIL_CONTRACT } from './laptop/email/email-page.ts';
 import { FILES_CONTRACT } from './laptop/files/files-page.ts';
 import { FINANCES_CONTRACT } from './laptop/finances/finances-page.ts';
@@ -33,6 +37,20 @@ import {
 } from './laptop/florist/florist-pages.ts';
 import { FUNERAL_CONTRACT } from './laptop/funeral/funeral-page.ts';
 import { HISTORY_CONTRACT } from './laptop/history/history-page.ts';
+import { IMP_ATTRIBUTE_FINISH_CONTRACT, IMP_ATTRIBUTES_CONTRACT } from './laptop/imp/imp-attributes.ts';
+import { IMP_PORTRAIT_CONTRACT, IMP_VOICE_CONTRACT } from './laptop/imp/imp-looks.ts';
+import {
+  IMP_ABOUT_US_CONTRACT,
+  IMP_ATTRIBUTE_ENTRANCE_CONTRACT,
+  IMP_BEGIN_CONTRACT,
+  IMP_CONFIRM_CONTRACT,
+  IMP_FINISH_CONTRACT,
+  IMP_HOME_CONTRACT,
+  IMP_MAIN_CONTRACT,
+  IMP_PERSONALITY_CONTRACT,
+} from './laptop/imp/imp-pages.ts';
+import { IMP_FRAME_CONTRACT } from './laptop/imp/imp-profile.ts';
+import { IMP_PERSONALITY_FINISH_CONTRACT, IMP_QUIZ_CONTRACT } from './laptop/imp/imp-quiz.ts';
 import {
   INSURANCE_CHROME_CONTRACT,
   INSURANCE_COMMENTS_CONTRACT,
@@ -41,6 +59,13 @@ import {
   INSURANCE_INFO_CONTRACT,
 } from './laptop/insurance/insurance-pages.ts';
 import { LAPTOP_SHELL_CONTRACT } from './laptop/laptop-screen.ts';
+import {
+  BROKEN_LINK_CONTRACT,
+  MERC_ACCOUNT_CONTRACT,
+  MERC_FILES_CONTRACT,
+  MERC_HOME_CONTRACT,
+  MERC_NO_ACCOUNT_CONTRACT,
+} from './laptop/merc/merc-pages.ts';
 import { PERSONNEL_CONTRACT } from './laptop/personnel/personnel-page.ts';
 import { MAP_SCREEN_CONTRACT } from './map/map-controller.ts';
 import { MAP_INVENTORY_CONTRACT } from './map/map-inventory-controller.ts';
@@ -103,5 +128,29 @@ export const LAYOUT_CONTRACTS: Readonly<Record<string, ControllerContract>> = Ob
     AIM_ARCHIVES_CONTRACT,
     AIM_POLICIES_CONTRACT,
     AIM_HISTORY_CONTRACT,
+    BOBBY_RAY_HOME_CONTRACT,
+    BOBBY_RAY_CATALOGUE_CONTRACT,
+    BOBBY_RAY_ORDER_CONTRACT,
+    BOBBY_RAY_SHIPMENTS_CONTRACT,
+    MERC_HOME_CONTRACT,
+    MERC_NO_ACCOUNT_CONTRACT,
+    MERC_ACCOUNT_CONTRACT,
+    MERC_FILES_CONTRACT,
+    BROKEN_LINK_CONTRACT,
+    IMP_FRAME_CONTRACT,
+    IMP_HOME_CONTRACT,
+    IMP_ABOUT_US_CONTRACT,
+    IMP_MAIN_CONTRACT,
+    IMP_BEGIN_CONTRACT,
+    IMP_PERSONALITY_CONTRACT,
+    IMP_QUIZ_CONTRACT,
+    IMP_PERSONALITY_FINISH_CONTRACT,
+    IMP_ATTRIBUTE_ENTRANCE_CONTRACT,
+    IMP_ATTRIBUTES_CONTRACT,
+    IMP_ATTRIBUTE_FINISH_CONTRACT,
+    IMP_PORTRAIT_CONTRACT,
+    IMP_VOICE_CONTRACT,
+    IMP_FINISH_CONTRACT,
+    IMP_CONFIRM_CONTRACT,
   ].map((contract) => [contract.id, contract]),
 );

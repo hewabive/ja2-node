@@ -16,6 +16,7 @@ import type {
   LaptopSettings,
 } from './laptop-client.ts';
 import type { LaptopShell } from './laptop-shell.ts';
+import type { LaptopSites } from './laptop-sites.ts';
 
 export interface PageLayout {
   readonly name: string;
@@ -44,6 +45,7 @@ export interface LaptopContext {
   readonly shell: LaptopShell;
   readonly aim: AimSession;
   readonly memory: LaptopMemory;
+  readonly sites: LaptopSites;
   readonly dataVersion: string;
   view(): LaptopView | null;
   command(cmd: LaptopCommand): Promise<LaptopCommandReply>;

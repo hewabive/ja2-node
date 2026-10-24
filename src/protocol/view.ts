@@ -602,6 +602,17 @@ export interface MercListingView {
   readonly state: AimFaceView;
   readonly unpaidDays: number;
   readonly owed: number;
+  readonly advertiseQuote: number | null;
+  readonly married: boolean;
+}
+
+export interface MercAccountRowView {
+  readonly profile: number;
+  readonly name: string;
+  readonly days: number;
+  readonly rate: number;
+  readonly charge: number;
+  readonly dead: boolean;
 }
 
 export interface MercSiteView {
@@ -611,6 +622,35 @@ export interface MercSiteView {
   readonly accountNumber: number | null;
   readonly listed: readonly MercListingView[];
   readonly totalOwed: number;
+  readonly account: readonly MercAccountRowView[];
+  readonly slowLoad: boolean;
+}
+
+export type ImpAttributeName =
+  | 'health'
+  | 'agility'
+  | 'dexterity'
+  | 'strength'
+  | 'wisdom'
+  | 'leadership'
+  | 'marksmanship'
+  | 'medical'
+  | 'mechanical'
+  | 'explosives';
+
+export interface ImpAttributeRulesView {
+  readonly start: number;
+  readonly min: number;
+  readonly max: number;
+  readonly bonus: number;
+  readonly zeroBonus: number;
+  readonly order: readonly ImpAttributeName[];
+  readonly zeroable: readonly ImpAttributeName[];
+}
+
+export interface ImpGenderListsView {
+  readonly male: readonly number[];
+  readonly female: readonly number[];
 }
 
 export interface ImpSiteView {
@@ -619,7 +659,14 @@ export interface ImpSiteView {
   readonly canCreate: boolean;
   readonly cost: number;
   readonly pickSkillsDirectly: boolean;
+  readonly beginRefusal: 'funds' | 'teamFull' | null;
+  readonly attributes: ImpAttributeRulesView;
+  readonly portraits: ImpGenderListsView;
+  readonly voices: ImpGenderListsView;
+  readonly quizAnswers: readonly number[];
 }
+
+export type BobbyRayCatalogue = 'guns' | 'ammo' | 'armour' | 'misc' | 'used';
 
 export interface BobbyRayStockView {
   readonly item: number;
@@ -627,15 +674,32 @@ export interface BobbyRayStockView {
   readonly price: number;
   readonly quantity: number;
   readonly quality: number;
+  readonly slot: number;
+  readonly catalogue: BobbyRayCatalogue | null;
+}
+
+export interface BobbyRayShipmentLineView {
+  readonly item: number;
+  readonly name: string;
+  readonly count: number;
+  readonly used: boolean;
+  readonly quality: number;
+  readonly unitPrice: number;
 }
 
 export interface BobbyRayShipmentView {
   readonly index: number;
   readonly active: boolean;
+  readonly displayed: boolean;
   readonly destination: number;
   readonly speed: number;
   readonly orderDay: number;
-  readonly lines: readonly { readonly item: number; readonly name: string; readonly count: number; readonly used: boolean }[];
+  readonly units: number;
+  readonly weight: number;
+  readonly lines: readonly BobbyRayShipmentLineView[];
+  readonly subtotal: number;
+  readonly shipping: number;
+  readonly total: number;
 }
 
 export interface ShippingDestinationView {

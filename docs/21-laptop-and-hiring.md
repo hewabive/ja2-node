@@ -1141,9 +1141,9 @@ landing, underground, `GROUNDBARRIER`, enemy airspace). Laptop flow only (each a
 | `readEmail {id}` / `deleteEmail {id}` | §6.1 (bookmarks on reading) | `noSuchMail` |
 | `aimHire {profile, contract: 1\|7\|14, gear?: boolean}` | contact + `CanMercBeHired` + §2.5; result: charge breakdown, soldier id, arrival `{minute, shownMinute, sector}`, the acceptance quote `{id, name}` or null | `notAimMerc`, `badContract`, `noKit` (gear on a 0-cost kit), `unavailable` (annoyed), `away` (answering machine: dead/hired/away/returning/POW), `hangover`, `hatesTeammate {hated}`, `deathRate`, `reputation` (the four with `quote {id, name}`), `funds {charge}`, `teamFull`, `cannotHire` |
 | `aimLeaveMessage {profile}` | answering machine: `PLAYER_LEFT_MSG` | `notAway`, `alreadyLeft` |
-| `mercOpenAccount` | §3.1; data: the account number | `siteDown`, `noBookmark`, `hasAccount` |
-| `mercHire {profile}` | §3.3 | `noAccount`, `accountSuspended`, `accountInvalid`, `notListed`, `unavailable`, `teamFull`, `cannotHire`, `siteDown`, `noBookmark` |
-| `mercPay` | §3.4; data `{paid, full}` | `nothingOwed`, `funds`, `siteDown`, `noBookmark` |
+| `mercOpenAccount` | §3.1; data `{accountNumber, quotes}` (M8: Speck's thanks, quote 9) | `siteDown`, `noBookmark`, `hasAccount` |
+| `mercHire {profile}` | §3.3; data adds `quotes` (M8: the cross-sell quotes of the hired merc's listing for related mercs still available, then a thank-you, 69 or 70 by a main-stream `CoinToss`); the refusals `accountSuspended` and `unavailable` (a living merc) carry `data.quotes` [14] and [71] | `noAccount`, `accountSuspended`, `accountInvalid`, `notListed`, `unavailable`, `teamFull`, `cannotHire`, `siteDown`, `noBookmark` |
+| `mercPay` | §3.4; data `{paid, full, quotes}` (M8: 45 for a full payment, 46 for a partial one) | `nothingOwed`, `funds`, `siteDown`, `noBookmark` |
 | `impCreate {code, name, nickname?, gender, answers[16] or skills[], attributes{health, agility, dexterity, strength, wisdom, leadership, marksmanship, medical, mechanical, explosives}, portrait, voice}` | §4.4; data: soldier, profile, skills, personality, attitude, arrival | `noBookmark`, `badCode`, `noSlot`, `funds`, `teamFull`, `badName`, `badAnswers`, `badSkills`, `badAttributes`, `badPortrait`, `badVoice`, `cannotHire` |
 | `bobbyRayOrder {lines: [{item, used?, quantity}], destination, speed: 0\|1\|2}` | cart rules + §5.4 (atomic; the order is also a visit of the site); data: the quote and the shipment index | `siteClosed`, `noLines`, `tooManyLines`, `notInStock`, `noDestination`, `badSpeed`, `funds` |
 | `insure {soldier}` | §7.1 with `insuranceLength`; data `{length, cost, insuredDays}` | `notInsurable`, `funds` |
@@ -1170,8 +1170,13 @@ the rendered subject, sender, date, read, data); history and finance records (fi
 `mercs-AIM-listings.json`: nickname, the AIM page stats, salaries for 1/7/14 days, medical deposit when required, kit items
 and cost unless already bought, face state `available | hired | dead | pow | onAssignment`, `contact` (the conference mode
 `firstContact | answeringMachine | unavailable`, `WillMercAcceptCall`) and `messageLeft`); M.E.R.C. (online, account status and number, listed mercs with stats,
-daily fee and state, debt per merc and total); I.M.P. (reachable, characters left, cost); Bobby Ray (open, new and used
-stock with price, quantity, used quality; shipments with destination, speed and order day as on the shipments page);
+daily fee and state, debt per merc and total; M8: `advertiseQuote`, `married`, the account page's rows `account [{profile,
+name, days, rate, charge, dead}]`, `slowLoad`); I.M.P. (reachable, characters left, cost; M8: `canCreate`,
+`pickSkillsDirectly`, `beginRefusal` (`funds` before `teamFull`), the attribute rules `attributes {start, min, max, bonus,
+zeroBonus, order, zeroable}`, the gender lists of `portraits` (faces) and `voices` (profiles), `quizAnswers`); Bobby Ray
+(open, new and used stock with price, quantity, used quality, M8: `slot` and `catalogue`; shipments with destination,
+speed and order day as on the shipments page, M8: every shipment with `displayed`, `units`, `weight`, `subtotal`,
+`shipping`, `total` and lines with `quality` and `unitPrice`, priced as paid);
 insurance (per insurable merc: contract days left, insured days left, offered length and premium; M8 adds the nickname,
 the dead flag and the contract length, and `aimMercsOnTeam`); in-transit mercs with `timeSoldierWillArrive` and the
 landing zone. M8 (U12, `04` §6.33) adds the history rows' rendered `text`, `location` and `questInProgress`, the
@@ -1186,7 +1191,10 @@ check the conference makes at HIRE, before the contract page and the funds: `{pr
 from `Dialogue_Control.h`: 82, 86/87/88, 81, 80, on acceptance 92/93/94 or 113/114); `emailText {id}` (M8: `{id, subject,
 paragraphs}`: the subject and the body records of `email.edt` with `$MERCNAME$`/`$AMOUN$` filled in where the original
 fills them, the I.M.P. report assembled from `impass.edt` for the mail's profile, Ian codes kept; refusals `noSuchMail`,
-`noText`); `bobbyRayQuote {lines, destination, speed}` (subtotal, weight, shipping, total); `insuranceQuote {soldier}`;
+`noText`); `bobbyRayQuote {lines, destination?, speed}` (lines with `unitPrice`, subtotal, weight, shipping, total; M8: the
+order form's quote, so `destination` may be left out or -1 with shipping 0, and `affordable` and `confirmDestination`,
+the accept button's question for any city but a held primary airport, are added); `impCheckCode {code}` (M8: `{result: ok | badCode | noSlot}`,
+the I.M.P. home page's check, the code first); `insuranceQuote {soldier}`;
 `impPreview {answers, gender}` (skill/attitude/personality lists, no draws); `arrivalTime` (`GetMercArrivalTimeOfDay` for
 now).
 

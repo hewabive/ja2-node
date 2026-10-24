@@ -51,6 +51,7 @@ const SPOKEN_SINCE_DOWN = 2;
 export const SpeckQuote = {
   FIRST_TIME_IN: 0,
   LAST_FIRST_TIME_IN: 8,
+  THANK_PLAYER_FOR_OPENING_ACCOUNT: 9,
   TOUGH_START: 10,
   BUSINESS_BAD: 11,
   BUSINESS_GOOD: 12,
@@ -70,7 +71,14 @@ export const SpeckQuote = {
   FLO_MARRIED_A_COUSIN_BIFF_IS_ALIVE: 34,
   LARRY_RELAPSED: 37,
   FIRST_IDLE_TAG: 41,
+  PLAYER_MAKES_FULL_PAYMENT: 45,
+  PLAYER_MAKES_PARTIAL_PAYMENT: 46,
+  GENERIC_THANKS_FOR_HIRING_MERCS_1: 69,
+  GENERIC_THANKS_FOR_HIRING_MERCS_2: 70,
+  PLAYER_TRIES_TO_HIRE_ALREADY_HIRED_MERC: 71,
 } as const;
+
+const COIN_SIDES = 2;
 
 export type MercCommandRefusal = 'noBookmark' | 'siteDown';
 export type MercHireRefusal =
@@ -425,4 +433,52 @@ export function payMercAccounts(ctx: LaptopContext): MercPayResult {
     merc.speckQuoteFlags &= ~SpeckQuoteFlag.SENT_EMAIL_ABOUT_LACK_OF_PAYMENT;
   }
   return { ok: true, paid, full };
+}
+
+export function mercHireQuotes(ctx: LaptopContext, profile: number): number[] {
+  const quotes: number[] = [];
+  const hired = listed(ctx).find((e) => e.profile === profile);
+  for (const quote of hired?.listing.quotes ?? [])
+    if (quote.type === 'CROSS_SELL' && quote.profile !== undefined && isMercMercAvailable(ctx, quote.profile)) quotes.push(quote.quote);
+  const heads = ctx.rng.main.int(COIN_SIDES) !== 0;
+  quotes.push(heads ? SpeckQuote.GENERIC_THANKS_FOR_HIRING_MERCS_1 : SpeckQuote.GENERIC_THANKS_FOR_HIRING_MERCS_2);
+  return quotes;
+}
+
+export function mercHireRefusalQuotes(ctx: LaptopContext, profile: number, refusal: MercHireRefusal): number[] {
+  if (refusal === 'accountSuspended') return [SpeckQuote.ACCOUNT_SUSPENDED];
+  if (refusal !== 'unavailable') return [];
+  const p = ctx.profile(profile);
+  return p && !isMercDead(p) ? [SpeckQuote.PLAYER_TRIES_TO_HIRE_ALREADY_HIRED_MERC] : [];
+}
+
+export function mercPaymentQuotes(full: boolean): number[] {
+  return [full ? SpeckQuote.PLAYER_MAKES_FULL_PAYMENT : SpeckQuote.PLAYER_MAKES_PARTIAL_PAYMENT];
+}
+
+export function advertiseQuote(listing: MercListing): number | null {
+  return listing.quotes.find((q) => q.type === 'ADVERTISE')?.quote ?? null;
+}
+
+export function floMarried(ctx: LaptopContext, profile: number): boolean {
+  return profile === ctx.content.namedProfiles.FLO && fact(ctx.state.narrative, Fact.PC_MARRYING_DARYL_IS_FLO);
+}
+
+export interface MercAccountRow {
+  readonly profile: number;
+  readonly days: number;
+  readonly rate: number;
+  readonly charge: number;
+  readonly dead: boolean;
+}
+
+export function mercAccountRows(ctx: LaptopContext): MercAccountRow[] {
+  return mercDebts(ctx).map((d) => {
+    const p = ctx.profile(d.profile);
+    return { profile: d.profile, days: d.days, rate: d.salary, charge: d.owed, dead: p !== null && isMercDead(p) };
+  });
+}
+
+export function mercSiteSlowLoad(ctx: LaptopContext): boolean {
+  return !ctx.laptop.merc.siteHasGoneDownYet;
 }

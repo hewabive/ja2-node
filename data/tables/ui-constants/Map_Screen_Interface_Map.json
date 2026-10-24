@@ -159,7 +159,12 @@
     "PATH_SHORTENED": 2,
     "KNOWS_NOTHING": 0,
     "KNOWS_THEYRE_THERE": 1,
-    "KNOWS_HOW_MANY": 2
+    "KNOWS_HOW_MANY": 2,
+    "MAP_SHADE_BLACK": 0,
+    "MAP_SHADE_LT_GREEN": 1,
+    "MAP_SHADE_DK_GREEN": 2,
+    "MAP_SHADE_LT_RED": 3,
+    "MAP_SHADE_DK_RED": 4
   },
   "stdScreen": [
     "MAP_HELICOPTER_ETA_POPUP_X",

@@ -76,6 +76,7 @@ export class LaptopShell {
   subPage = 0;
   exiting = false;
   exited = false;
+  enteredFromBookmark: number | null = null;
   readonly programStates: number[] = new Array<number>(LAPTOP_PROGRAMS).fill(MINIMIZED);
   readonly #queue: number[] = new Array<number>(LAPTOP_PROGRAMS).fill(1);
   readonly #visitedBookmarks = new Set<number>();
@@ -154,6 +155,7 @@ export class LaptopShell {
     this.mode = page;
     const fast = this.#visitedBookmarks.has(bookmark);
     this.#visitedBookmarks.add(bookmark);
+    this.enteredFromBookmark = bookmark;
     this.load = new LoadPending(
       { fast, subPage: false, slowSite: page === LaptopMode.MERC && this.#ports.mercSlowLoad() },
       this.#options.loadingTimeScale,
@@ -172,6 +174,10 @@ export class LaptopShell {
 
   setPage(mode: number): void {
     this.mode = mode;
+  }
+
+  startSubPageLoad(fast: boolean): void {
+    this.load = new LoadPending({ fast, subPage: true, slowSite: false }, this.#options.loadingTimeScale);
   }
 
   #lastOpenProgram(): number {
@@ -307,6 +313,7 @@ export class LaptopShell {
     if (isWebMode(this.mode) && isWebMode(this.previousMode)) this.showBookmarks = false;
     this.#lastExitedMode = LaptopMode.NONE;
     this.#ports.enterPage(this.mode);
+    this.enteredFromBookmark = null;
     if (this.#firstTimeInLaptop && isWebMode(this.mode)) {
       this.showBookmarks = true;
       this.#firstTimeInLaptop = false;

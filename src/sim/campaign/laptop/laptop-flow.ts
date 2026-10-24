@@ -63,14 +63,14 @@ import {
   initBobbyRayInventory,
   type OrderRequest,
   placeOrder,
-  quoteOrder,
+  quoteOrderForm,
   visitBobbyRay,
 } from './bobby-ray.ts';
 import type { LaptopContext, LaptopRandom, MailOptions } from './context.ts';
 import type { LaptopEventWithoutTick } from './events.ts';
 import { enterFloristOrderForm, type FlowerOrder, orderFlowers } from './florist.ts';
 import { checkForValidArrivalSector, type HireHooks, handleAirspaceControlUpdated, setLandingZone } from './hire.ts';
-import { canCreateAnotherImpCharacter, emptyProfile, type ImpRequest, impCreate, impPreview } from './imp.ts';
+import { canCreateAnotherImpCharacter, emptyProfile, type ImpRequest, impCheckCode, impCreate, impPreview } from './imp.ts';
 import {
   addLifeInsurancePayout,
   dailyUpdateOfInsuredMercs,
@@ -100,8 +100,12 @@ import {
   makeNewMercsAvailable,
   mercCommandRefusal,
   mercHire,
+  mercHireQuotes,
+  mercHireRefusalQuotes,
+  mercPaymentQuotes,
   mercSiteDailyUpdate,
   openMercAccount,
+  SpeckQuote,
   settleMercAccounts,
   speckOpening,
 } from './merc-site.ts';
@@ -123,7 +127,15 @@ const LAPTOP_COMMANDS: ReadonlySet<string> = new Set([
   'orderFlowers',
   'readFile',
 ]);
-const QUERIES: ReadonlySet<string> = new Set(['aimQuote', 'hireCheck', 'bobbyRayQuote', 'insuranceQuote', 'impPreview', 'arrivalTime']);
+const QUERIES: ReadonlySet<string> = new Set([
+  'aimQuote',
+  'hireCheck',
+  'bobbyRayQuote',
+  'insuranceQuote',
+  'impPreview',
+  'arrivalTime',
+  'impCheckCode',
+]);
 const SITE_BOOKMARKS: Readonly<Record<string, number>> = {
   funeral: Bookmark.FUNERAL,
   florist: Bookmark.FLORIST,
@@ -137,6 +149,7 @@ const MINUTES_PER_HOUR = 60;
 const FIRST_TERRORIST_FILE = 1;
 const LAST_TERRORIST_FILE = 6;
 const REPLY_SENDER_BASE = 'BARRY_MAIL';
+const NO_DESTINATION = -1;
 const STARTING_MAILS = ['OLD_ENRICO_1', 'OLD_ENRICO_2', 'RIS_REPORT', 'OLD_ENRICO_3'] as const;
 const STARTING_SENDERS: Readonly<Record<(typeof STARTING_MAILS)[number], string>> = {
   OLD_ENRICO_1: 'MAIL_ENRICO',
@@ -677,7 +690,7 @@ export class LaptopFlow implements LaptopContext {
     if (refusal) return { ok: false, reason: refusal };
     if (this.laptop.merc.accountStatus !== MercAccountStatus.NO_ACCOUNT) return { ok: false, reason: 'hasAccount' };
     openMercAccount(this);
-    return { ok: true, data: { accountNumber: this.laptop.merc.accountNumber } };
+    return { ok: true, data: { accountNumber: this.laptop.merc.accountNumber, quotes: [SpeckQuote.THANK_PLAYER_FOR_OPENING_ACCOUNT] } };
   }
 
   #mercHire(cmd: Command): CommandResult {
@@ -685,11 +698,19 @@ export class LaptopFlow implements LaptopContext {
     const refusal = this.#mercSession();
     if (refusal) return { ok: false, reason: refusal };
     const result = mercHire(this, cmd.profile, this.hireHooks());
-    if (!result.ok) return { ok: false, reason: result.reason };
+    if (!result.ok) {
+      const quotes = mercHireRefusalQuotes(this, cmd.profile, result.reason);
+      return { ok: false, reason: result.reason, ...(quotes.length > 0 ? { data: { quotes } } : {}) };
+    }
     this.#hired('merc', result.merc, result.arrival);
     return {
       ok: true,
-      data: { soldier: result.merc.id, profile: result.merc.profile, arrival: this.#arrival(result.merc, result.arrival) },
+      data: {
+        soldier: result.merc.id,
+        profile: result.merc.profile,
+        arrival: this.#arrival(result.merc, result.arrival),
+        quotes: mercHireQuotes(this, result.merc.profile),
+      },
     };
   }
 
@@ -697,7 +718,8 @@ export class LaptopFlow implements LaptopContext {
     const refusal = this.#mercSession();
     if (refusal) return { ok: false, reason: refusal };
     const result = settleMercAccounts(this);
-    return result.ok ? { ok: true, data: { paid: result.paid, full: result.full } } : { ok: false, reason: result.reason };
+    if (!result.ok) return { ok: false, reason: result.reason };
+    return { ok: true, data: { paid: result.paid, full: result.full, quotes: mercPaymentQuotes(result.full) } };
   }
 
   #impCreate(cmd: Command): CommandResult {
@@ -717,13 +739,16 @@ export class LaptopFlow implements LaptopContext {
     };
   }
 
-  #orderRequest(cmd: Command): OrderRequest | null {
-    if (!Array.isArray(cmd.lines) || !isInt(cmd.destination) || !isInt(cmd.speed)) return null;
+  #orderRequest(cmd: Command, destinationOptional = false): OrderRequest | null {
+    if (!Array.isArray(cmd.lines) || !isInt(cmd.speed)) return null;
+    const unset = cmd.destination === undefined || cmd.destination === null || cmd.destination === NO_DESTINATION;
+    if (!isInt(cmd.destination) && !(destinationOptional && unset)) return null;
     const lines = cmd.lines.map((l) => {
       const o = (l ?? {}) as Record<string, unknown>;
       return { item: isInt(o.item) ? o.item : -1, used: o.used === true, quantity: isInt(o.quantity) ? o.quantity : 0 };
     });
-    return { lines, destination: cmd.destination, speed: cmd.speed };
+    const destination = unset ? null : (cmd.destination as number);
+    return { lines, destination, speed: cmd.speed };
   }
 
   #bobbyRayOrder(cmd: Command): CommandResult {
@@ -766,11 +791,13 @@ export class LaptopFlow implements LaptopContext {
         return check ? { ok: true, data: check } : { ok: false, reason: 'notAimMerc' };
       }
       case 'bobbyRayQuote': {
-        const request = this.#orderRequest(cmd);
-        if (!request) return { ok: false, reason: 'lines, destination and speed are required' };
-        const quote = quoteOrder(this, request);
+        const request = this.#orderRequest(cmd, true);
+        if (!request) return { ok: false, reason: 'lines and speed are required' };
+        const quote = quoteOrderForm(this, request);
         return typeof quote === 'string' ? { ok: false, reason: quote } : { ok: true, data: quote };
       }
+      case 'impCheckCode':
+        return { ok: true, data: { result: impCheckCode(this, typeof cmd.code === 'string' ? cmd.code : '') } };
       case 'insuranceQuote': {
         const m = isInt(cmd.soldier) ? this.roster.get(cmd.soldier) : undefined;
         const p = m ? this.profile(m.profile) : null;

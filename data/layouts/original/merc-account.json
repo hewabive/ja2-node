@@ -1,0 +1,311 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/Mercs_Account.cc EnterMercsAccount (bigbuttons.sti, the authorize button shaded while disabled), RenderMercsAccount (MLG_ORDERGRID, accountnumber.sti, the titles), DisplayHiredMercs (rows of MERC_AC_ROW_SIZE from MERC_AC_FIRST_ROW_Y + 3)"
+  ],
+  "screen": "mercAccount",
+  "frame": "std640",
+  "constants": ["Laptop", "Mercs", "Mercs_Account"],
+  "assets": {
+    "background": {
+      "sti": "laptop/mercbackground.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["MERC_BACKGROUND_WIDTH", "MERC_BACKGROUND_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "orderGrid": {
+      "mlg": "MLG_ORDERGRID",
+      "stub": {
+        "frames": 1,
+        "size": [462, 280],
+        "hollow": true
+      }
+    },
+    "accountNumber": {
+      "sti": "laptop/accountnumber.sti",
+      "stub": {
+        "frames": 1,
+        "size": [180, 36],
+        "hollow": true
+      }
+    },
+    "bigButtons": {
+      "sti": "laptop/bigbuttons.sti",
+      "stub": {
+        "frames": 2,
+        "size": [100, 24],
+        "states": ["normal", "pressed"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "tiles",
+      "asset": "background",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "columns": 4,
+      "rows": 4,
+      "dx": "MERC_BACKGROUND_WIDTH",
+      "dy": "MERC_BACKGROUND_HEIGHT"
+    },
+    {
+      "type": "image",
+      "asset": "orderGrid",
+      "frame": 0,
+      "x": "MERC_AC_ORDER_GRID_X",
+      "y": "MERC_AC_ORDER_GRID_Y"
+    },
+    {
+      "type": "image",
+      "asset": "accountNumber",
+      "frame": 0,
+      "x": "MERC_AC_ACCOUNT_NUMBER_X",
+      "y": "MERC_AC_ACCOUNT_NUMBER_Y"
+    },
+    {
+      "type": "text",
+      "id": "mercAccountNumber",
+      "x": "MERC_AC_ACCOUNT_NUMBER_TEXT_X",
+      "y": "MERC_AC_ACCOUNT_NUMBER_TEXT_Y",
+      "font": "MERC_ACCOUNT_TEXT_FONT",
+      "color": "MERC_ACCOUNT_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "accountNumber"
+      }
+    },
+    {
+      "type": "text",
+      "x": "MERC_AC_FIRST_COLUMN_X",
+      "y": "MERC_AC_MERC_TITLE_Y",
+      "width": "MERC_AC_FIRST_COLUMN_WIDTH",
+      "font": "MERC_ACCOUNT_TEXT_FONT",
+      "color": "MERC_ACCOUNT_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["MercAccountText", "MERC_ACCOUNT_MERC"]
+      },
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "MERC_AC_SECOND_COLUMN_X",
+      "y": "MERC_AC_MERC_TITLE_Y",
+      "width": "MERC_AC_SECOND_COLUMN_WIDTH",
+      "font": "MERC_ACCOUNT_TEXT_FONT",
+      "color": "MERC_ACCOUNT_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["MercAccountText", "MERC_ACCOUNT_DAYS"]
+      },
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "MERC_AC_THIRD_COLUMN_X",
+      "y": "MERC_AC_MERC_TITLE_Y",
+      "width": "MERC_AC_THIRD_COLUMN_WIDTH",
+      "font": "MERC_ACCOUNT_TEXT_FONT",
+      "color": "MERC_ACCOUNT_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["MercAccountText", "MERC_ACCOUNT_RATE"]
+      },
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "MERC_AC_FOURTH_COLUMN_X",
+      "y": "MERC_AC_MERC_TITLE_Y",
+      "width": "MERC_AC_FOURTH_COLUMN_WIDTH",
+      "font": "MERC_ACCOUNT_TEXT_FONT",
+      "color": "MERC_ACCOUNT_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["MercAccountText", "MERC_ACCOUNT_CHARGE"]
+      },
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "MERC_AC_THIRD_COLUMN_X",
+      "y": "MERC_AC_TOTAL_COST_Y",
+      "width": "MERC_AC_THIRD_COLUMN_WIDTH",
+      "font": "MERC_ACCOUNT_TEXT_FONT",
+      "color": "MERC_ACCOUNT_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["MercAccountText", "MERC_ACCOUNT_TOTAL"]
+      },
+      "align": "center"
+    },
+    {
+      "type": "repeat",
+      "count": {
+        "bind": "rows"
+      },
+      "x": 0,
+      "y": "MERC_AC_FIRST_ROW_Y + 3",
+      "dy": "MERC_AC_ROW_SIZE",
+      "template": [
+        {
+          "type": "text",
+          "id": "accountName$i",
+          "x": "MERC_AC_FIRST_COLUMN_X + 5",
+          "y": 0,
+          "width": "MERC_AC_FIRST_COLUMN_WIDTH",
+          "font": "MERC_ACCOUNT_DYNAMIC_TEXT_FONT",
+          "color": {
+            "by": "rows[$i].dead",
+            "map": {
+              "true": "MERC_ACCOUNT_DEAD_TEXT_COLOR",
+              "false": "MERC_ACCOUNT_DYNAMIC_TEXT_COLOR"
+            }
+          },
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].name"
+          }
+        },
+        {
+          "type": "text",
+          "id": "accountDays$i",
+          "x": "MERC_AC_SECOND_COLUMN_X",
+          "y": 0,
+          "width": "MERC_AC_SECOND_COLUMN_WIDTH",
+          "font": "MERC_ACCOUNT_DYNAMIC_TEXT_FONT",
+          "color": {
+            "by": "rows[$i].dead",
+            "map": {
+              "true": "MERC_ACCOUNT_DEAD_TEXT_COLOR",
+              "false": "MERC_ACCOUNT_DYNAMIC_TEXT_COLOR"
+            }
+          },
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].days"
+          },
+          "align": "center"
+        },
+        {
+          "type": "text",
+          "x": "MERC_AC_THIRD_COLUMN_X",
+          "y": 0,
+          "width": "MERC_AC_THIRD_COLUMN_WIDTH",
+          "font": "MERC_ACCOUNT_DYNAMIC_TEXT_FONT",
+          "color": {
+            "by": "rows[$i].dead",
+            "map": {
+              "true": "MERC_ACCOUNT_DEAD_TEXT_COLOR",
+              "false": "MERC_ACCOUNT_DYNAMIC_TEXT_COLOR"
+            }
+          },
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].rate"
+          },
+          "align": "center"
+        },
+        {
+          "type": "text",
+          "id": "accountCharge$i",
+          "x": "MERC_AC_FOURTH_COLUMN_X",
+          "y": 0,
+          "width": "MERC_AC_FOURTH_COLUMN_WIDTH",
+          "font": "MERC_ACCOUNT_DYNAMIC_TEXT_FONT",
+          "color": {
+            "by": "rows[$i].dead",
+            "map": {
+              "true": "MERC_ACCOUNT_DEAD_TEXT_COLOR",
+              "false": "MERC_ACCOUNT_DYNAMIC_TEXT_COLOR"
+            }
+          },
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].charge"
+          },
+          "align": "center"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "accountTotal",
+      "x": "MERC_AC_FOURTH_COLUMN_X",
+      "y": "MERC_AC_TOTAL_COST_Y",
+      "width": "MERC_AC_FOURTH_COLUMN_WIDTH",
+      "font": "MERC_ACCOUNT_DYNAMIC_TEXT_FONT",
+      "color": "MERC_ACCOUNT_DYNAMIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "total"
+      },
+      "align": "center"
+    },
+    {
+      "type": "button",
+      "id": "mercAuthorize",
+      "x": "MERC_AC_AUTHORIZE_BUTTON_X",
+      "y": "MERC_AC_BUTTON_Y",
+      "asset": "bigButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "authorize",
+      "text": {
+        "source": {
+          "key": ["MercAccountText", "MERC_ACCOUNT_AUTHORIZE"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "MERC_BUTTON_UP_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "MERC_BUTTON_DOWN_COLOR",
+        "downShadow": "DEFAULT_SHADOW"
+      },
+      "enabled": "authorizeEnabled",
+      "disabledStyle": "shaded"
+    },
+    {
+      "type": "button",
+      "id": "mercAccountHome",
+      "x": "MERC_AC_CANCEL_BUTTON_X",
+      "y": "MERC_AC_BUTTON_Y",
+      "asset": "bigButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "home",
+      "text": {
+        "source": {
+          "key": ["MercAccountText", "MERC_ACCOUNT_HOME"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "MERC_BUTTON_UP_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "MERC_BUTTON_DOWN_COLOR",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    }
+  ]
+}

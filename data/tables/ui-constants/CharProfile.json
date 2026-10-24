@@ -1,0 +1,26 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Laptop/CharProfile.h, src/game/Laptop/CharProfile.cc",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
+  "constants": {
+    "COST_OF_PROFILE": 3000,
+    "IMP_HOME_PAGE": 0,
+    "IMP_BEGIN": 1,
+    "IMP_FINISH": 2,
+    "IMP_MAIN_PAGE": 3,
+    "IMP_PERSONALITY": 4,
+    "IMP_PERSONALITY_QUIZ": 5,
+    "IMP_SKILLTRAITS": 6,
+    "IMP_PERSONALITY_FINISH": 7,
+    "IMP_ATTRIBUTE_ENTRANCE": 8,
+    "IMP_ATTRIBUTE_PAGE": 9,
+    "IMP_ATTRIBUTE_FINISH": 10,
+    "IMP_PORTRAIT": 11,
+    "IMP_VOICE": 12,
+    "IMP_ABOUT_US": 13,
+    "IMP_CONFIRM": 14,
+    "IMP_NUM_PAGES": 15
+  },
+  "stdScreen": [],
+  "skipped": []
+}

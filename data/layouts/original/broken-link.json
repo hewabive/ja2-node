@@ -1,0 +1,51 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": ["src/game/Laptop/BrokenLink.cc RenderBrokenLink, DrawBrokenLinkWhiteBackground"],
+  "screen": "brokenLink",
+  "frame": "std640",
+  "constants": ["Laptop", "BrokenLink"],
+  "assets": {},
+  "widgets": [
+    {
+      "type": "fill",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "width": "LAPTOP_SCREEN_LR_X - LAPTOP_SCREEN_UL_X",
+      "height": "LAPTOP_SCREEN_WEB_LR_Y - LAPTOP_SCREEN_WEB_UL_Y",
+      "color": [255, 255, 255]
+    },
+    {
+      "type": "text",
+      "id": "brokenLinkError",
+      "x": "BROKEN_LINK__MESSAGE_X",
+      "y": "BROKEN_LINK__MESSAGE_Y",
+      "width": "BROKEN_LINK__MESSAGE_WIDTH",
+      "font": "BROKEN_LINK__FONT",
+      "color": "BROKEN_LINK__COLOR",
+      "shadow": "NO_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BrokenLinkText", "BROKEN_LINK_TXT_ERROR_404"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "BROKEN_LINK__MESSAGE_X",
+      "y": "BROKEN_LINK__SITE_NOT_FOUND_Y",
+      "width": "BROKEN_LINK__MESSAGE_WIDTH",
+      "font": "BROKEN_LINK__FONT",
+      "color": "BROKEN_LINK__COLOR",
+      "shadow": "NO_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BrokenLinkText", "BROKEN_LINK_TXT_SITE_NOT_FOUND"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    }
+  ]
+}

@@ -1,0 +1,250 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/IMP_AboutUs.cc RenderIMPAboutUs (MLG_IMPSYMBOL, two aboutusindent.sti), CreateIMPAboutUsButtons (button_3.sti, pImpButtonText[6])",
+    "src/game/Laptop/IMP_Text_System.cc PrintImpText IMP_ABOUT_US"
+  ],
+  "screen": "impAboutUs",
+  "frame": "std640",
+  "constants": ["Laptop", "IMPVideoObjects", "IMP_Text_System"],
+  "assets": {
+    "symbol": {
+      "mlg": "MLG_IMPSYMBOL",
+      "stub": {
+        "frames": 1,
+        "size": [287, 135],
+        "hollow": true
+      }
+    },
+    "aboutUsIndent": {
+      "sti": "laptop/aboutusindent.sti",
+      "stub": {
+        "frames": 1,
+        "size": [236, 224],
+        "hollow": true
+      }
+    },
+    "button3": {
+      "sti": "laptop/button_3.sti",
+      "stub": {
+        "frames": 2,
+        "size": [71, 35],
+        "states": ["normal", "pressed"],
+        "hollow": false
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "asset": "symbol",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X + 106",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 1"
+    },
+    {
+      "type": "image",
+      "asset": "aboutUsIndent",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X + 8",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 130"
+    },
+    {
+      "type": "image",
+      "asset": "aboutUsIndent",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X + 258",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 130"
+    },
+    {
+      "type": "text",
+      "id": "impAboutUsTitle",
+      "x": "LAPTOP_SCREEN_UL_X + 17",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 137",
+      "width": 640,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ABOUT_US_1"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 25",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 154",
+      "width": "337 - 124",
+      "font": "FONT10ARIAL",
+      "color": 142,
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ABOUT_US_2"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 25",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 235",
+      "width": "337 - 124",
+      "font": "FONT10ARIAL",
+      "color": 142,
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ABOUT_US_3"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 17",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 260",
+      "width": 640,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ABOUT_US_10"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 25",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 280",
+      "width": "337 - 124",
+      "font": "FONT10ARIAL",
+      "color": 142,
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ABOUT_US_4"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 267",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 137",
+      "width": 640,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ABOUT_US_11"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 275",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 154",
+      "width": "337 - 129",
+      "font": "FONT10ARIAL",
+      "color": 142,
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ABOUT_US_5"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 267",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 227",
+      "width": 640,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ABOUT_US_8"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 275",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 247",
+      "width": "337 - 129",
+      "font": "FONT10ARIAL",
+      "color": 142,
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ABOUT_US_6"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 267",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 277",
+      "width": 640,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ABOUT_US_9"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 275",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 297",
+      "width": "337 - 129",
+      "font": "FONT10ARIAL",
+      "color": 142,
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ABOUT_US_7"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "button",
+      "id": "impAboutUsBack",
+      "x": "LAPTOP_SCREEN_UL_X + 216",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 360",
+      "asset": "button3",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "back",
+      "text": {
+        "source": {
+          "key": ["pImpButtonText", 6]
+        },
+        "font": "FONT12ARIAL",
+        "color": "FONT_WHITE",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "FONT_WHITE",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    }
+  ]
+}

@@ -159,7 +159,7 @@ export interface EnumDefinition {
 
 export function enumDefinitions(src: string): EnumDefinition[] {
   const found: EnumDefinition[] = [];
-  const re = /\benum\s+(?:class\s+)?([A-Za-z_]\w*)?\s*(?::\s*[\w\s]+)?\{/g;
+  const re = /\benum(?:\s+class)?(?:\s+([A-Za-z_]\w*))?\s*(?::\s*[\w\s]+)?\{/g;
   for (const m of src.matchAll(re)) {
     const open = (m.index ?? 0) + m[0].length - 1;
     let depth = 0;

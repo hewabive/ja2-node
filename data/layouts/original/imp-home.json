@@ -1,0 +1,288 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/IMP_HomePage.cc RenderImpHomePage (MLG_IMPSYMBOL, button_2.sti as a picture, activationindent.sti, two frontpageindent.sti), InitImpHomepageTextInputBoxes (FONT14ARIAL, a black field, FONT_LTGREEN on black, the hilite inverted, a green cursor, MSYS_PRIORITY_HIGH + 2), CreateIMPHomePageButtons (button_1.sti, pImpButtonText[0]), GetPlayerKeyBoardInputForIMPHomePage (Enter on key up)",
+    "src/game/Laptop/IMP_Text_System.cc PrintImpText IMP_HOME_PAGE"
+  ],
+  "screen": "impHome",
+  "frame": "std640",
+  "constants": ["Laptop", "IMPVideoObjects", "IMP_Text_System", "IMP_HomePage"],
+  "assets": {
+    "symbol": {
+      "mlg": "MLG_IMPSYMBOL",
+      "stub": {
+        "frames": 1,
+        "size": [287, 135],
+        "hollow": true
+      }
+    },
+    "button2": {
+      "sti": "laptop/button_2.sti",
+      "stub": {
+        "frames": 2,
+        "size": [239, 56],
+        "states": ["normal", "pressed"],
+        "hollow": true
+      }
+    },
+    "activationIndent": {
+      "sti": "laptop/activationindent.sti",
+      "stub": {
+        "frames": 1,
+        "size": [103, 27]
+      }
+    },
+    "frontPageIndent": {
+      "sti": "laptop/frontpageindent.sti",
+      "stub": {
+        "frames": 1,
+        "size": [100, 110],
+        "hollow": true
+      }
+    },
+    "button1": {
+      "sti": "laptop/button_1.sti",
+      "stub": {
+        "frames": 2,
+        "size": [140, 81],
+        "states": ["normal", "pressed"],
+        "hollow": true
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "asset": "symbol",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X + 107",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 45"
+    },
+    {
+      "type": "image",
+      "asset": "button2",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X + 134",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 314"
+    },
+    {
+      "type": "image",
+      "asset": "activationIndent",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X + 257",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 328"
+    },
+    {
+      "type": "image",
+      "asset": "frontPageIndent",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X + 3",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 64"
+    },
+    {
+      "type": "image",
+      "asset": "frontPageIndent",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X + 396",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 64"
+    },
+    {
+      "type": "textField",
+      "id": "impCode",
+      "x": "IMP_PLAYER_ACTIVATION_STRING_X",
+      "y": "IMP_PLAYER_ACTIVATION_STRING_Y",
+      "width": "IMP_PLAYER_ACTIVATION_STRING_WIDTH",
+      "height": "IMP_PLAYER_ACTIVATION_STRING_HEIGHT",
+      "maxLength": "IMP_PLAYER_ACTIVATION_STRING_LENGTH",
+      "priority": "HIGH+2",
+      "value": "code",
+      "change": "setCode",
+      "font": "FONT14ARIAL",
+      "scheme": {
+        "fieldColor": [0, 0, 0],
+        "foreground": "FONT_LTGREEN",
+        "shadow": "FONT_BLACK",
+        "hiForeground": "FONT_BLACK",
+        "hiShadow": "FONT_LTGREEN",
+        "hiBackground": "FONT_LTGREEN",
+        "bevel": null,
+        "cursorColor": [0, 255, 0]
+      }
+    },
+    {
+      "type": "text",
+      "id": "impHomeTitle",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_DELTA_Y + 43",
+      "width": "LAPTOP_SCREEN_LR_X - LAPTOP_SCREEN_UL_X + 1",
+      "font": "FONT14ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_HOME_1"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_DELTA_Y + 60",
+      "width": "LAPTOP_SCREEN_LR_X - LAPTOP_SCREEN_UL_X + 1",
+      "font": "FONT10ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_HOME_2"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_DELTA_Y + 208",
+      "width": "LAPTOP_SCREEN_LR_X - LAPTOP_SCREEN_UL_X + 1",
+      "font": "FONT14ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_HOME_3"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "IMP_LEFT_IDENT_TEXT_X",
+      "y": "LAPTOP_SCREEN_WEB_DELTA_Y + 99",
+      "width": "IMP_IDENT_WIDTH",
+      "font": "FONT10ARIAL",
+      "color": 142,
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_HOME_7"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "IMP_RIGHT_IDENT_TEXT_X",
+      "y": "LAPTOP_SCREEN_WEB_DELTA_Y + 99",
+      "width": "IMP_IDENT_WIDTH",
+      "font": "FONT10ARIAL",
+      "color": 142,
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_HOME_8"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": 258,
+      "y": "LAPTOP_SCREEN_WEB_DELTA_Y + 362",
+      "width": 640,
+      "font": "FONT14ARIAL",
+      "color": "FONT_BLACK",
+      "shadow": "NO_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_HOME_5"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "IMP_LEFT_IDENT_TEXT_X",
+      "y": "LAPTOP_SCREEN_WEB_DELTA_Y + 188",
+      "width": "IMP_IDENT_WIDTH",
+      "font": "FONT10ARIAL",
+      "color": 142,
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_HOME_9"]
+      },
+      "align": "right",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "IMP_RIGHT_IDENT_TEXT_X",
+      "y": "LAPTOP_SCREEN_WEB_DELTA_Y + 188",
+      "width": "IMP_IDENT_WIDTH",
+      "font": "FONT10ARIAL",
+      "color": 142,
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_HOME_10"]
+      },
+      "align": "right",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_DELTA_Y + 402",
+      "width": "LAPTOP_SCREEN_LR_X - LAPTOP_SCREEN_UL_X + 1",
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_HOME_6"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "button",
+      "id": "impAboutUs",
+      "x": "LAPTOP_SCREEN_UL_X + 180",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 200",
+      "asset": "button1",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "aboutUs",
+      "text": {
+        "source": {
+          "key": ["pImpButtonText", 0]
+        },
+        "font": "FONT12ARIAL",
+        "color": "FONT_WHITE",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "FONT_WHITE",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    }
+  ],
+  "hotkeys": [
+    {
+      "key": "Enter",
+      "on": "up",
+      "action": "activate"
+    }
+  ]
+}

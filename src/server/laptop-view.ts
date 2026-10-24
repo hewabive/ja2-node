@@ -1,9 +1,14 @@
+import { ItemClass } from '../content/items/items.ts';
 import { MercType } from '../content/strategic/economy-content.ts';
 import { sectorFromId, sectorShortString } from '../content/strategic/sector-ids.ts';
 import type { UiStrings } from '../content/text/strings.ts';
 import type {
   AimMercView,
+  BobbyRayCatalogue,
+  BobbyRayShipmentView,
   BobbyRayView,
+  ImpGenderListsView,
+  ImpSiteView,
   InsuranceOfferView,
   InTransitView,
   LaptopItemView,
@@ -16,13 +21,30 @@ import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { mercAccountStatusName } from '../sim/campaign/contracts/merc-account.ts';
 import { financeSummary } from '../sim/campaign/finance-summary.ts';
 import { aimContact, aimFace, aimMessageLeft, contractSalary } from '../sim/campaign/laptop/aim.ts';
-import { bobbyRayUnitPrice } from '../sim/campaign/laptop/bobby-ray.ts';
-import { COST_OF_PROFILE, canCreateAnotherImpCharacter, impCharactersCreated } from '../sim/campaign/laptop/imp.ts';
+import { bobbyRayItemPrice, bobbyRayUnitPrice, shippingCost } from '../sim/campaign/laptop/bobby-ray.ts';
+import {
+  COST_OF_PROFILE,
+  canCreateAnotherImpCharacter,
+  IMP_ATTRIBUTE_PAGE_ORDER,
+  IMP_ZEROABLE_ATTRIBUTES,
+  impBeginRefusal,
+  impCharactersCreated,
+  START_ATTRIBUTE,
+} from '../sim/campaign/laptop/imp.ts';
 import { contractDaysLeft, insuranceDaysLeft, insuranceLength, insurancePremium, isInsurable } from '../sim/campaign/laptop/insurance.ts';
 import type { LaptopFlow } from '../sim/campaign/laptop/laptop-flow.ts';
-import { Bookmark, bookmarkNames, type StoreSlot } from '../sim/campaign/laptop/laptop-state.ts';
+import { Bookmark, bookmarkNames, type Shipment, type StoreSlot } from '../sim/campaign/laptop/laptop-state.ts';
 import { mailType } from '../sim/campaign/laptop/mail.ts';
-import { isMercListed, isMercSiteDown, listingProfile, owedToSpeck } from '../sim/campaign/laptop/merc-site.ts';
+import {
+  advertiseQuote,
+  floMarried,
+  isMercListed,
+  isMercSiteDown,
+  listingProfile,
+  mercAccountRows,
+  mercSiteSlowLoad,
+  owedToSpeck,
+} from '../sim/campaign/laptop/merc-site.ts';
 import { isMercDead } from '../sim/campaign/laptop/profile-state.ts';
 import { MercKind } from '../sim/campaign/roster.ts';
 import { Assignment } from '../sim/strategic/economy/constants.ts';
@@ -43,6 +65,17 @@ export interface LaptopViewText {
 const NO_TEXT: LaptopViewText = { texts: null, labels: null };
 const NO_ITEM = 0;
 const AIM_PROFILES = 40;
+const BOBBY_GUNS = ItemClass.GUN | ItemClass.LAUNCHER;
+const BOBBY_MISC =
+  ItemClass.GRENADE |
+  ItemClass.BOMB |
+  ItemClass.MISC |
+  ItemClass.MEDKIT |
+  ItemClass.KIT |
+  ItemClass.BLADE |
+  ItemClass.THROWING_KNIFE |
+  ItemClass.PUNCH |
+  ItemClass.FACE;
 
 function time(minutes: number): LaptopTimeView {
   const day = Math.trunc(minutes / NUM_MIN_IN_DAY);
@@ -132,9 +165,12 @@ function mercView(flow: LaptopFlow): MercSiteView {
         state: aimFace(flow, id, p),
         unpaidDays: p.mercMercContractLength,
         owed: p.salary * p.mercMercContractLength,
+        advertiseQuote: advertiseQuote(listing),
+        married: floMarried(flow, id),
       },
     ];
   });
+  const account = bookmarked ? mercAccountRows(flow).map((row) => ({ ...row, name: flow.profileRecord(row.profile)?.name ?? '' })) : [];
   return {
     bookmarked,
     siteDown: isMercSiteDown(flow),
@@ -142,19 +178,66 @@ function mercView(flow: LaptopFlow): MercSiteView {
     accountNumber: merc.accountStatus === 0 ? null : merc.accountNumber,
     listed,
     totalOwed: owedToSpeck(flow),
+    account,
+    slowLoad: mercSiteSlowLoad(flow),
   };
 }
 
+function catalogueOf(flow: LaptopFlow, item: number, used: boolean): BobbyRayCatalogue | null {
+  if (used) return 'used';
+  const itemClass = flow.tactical.items.byIndex.get(item)?.itemClass ?? 0;
+  if (itemClass & BOBBY_GUNS) return 'guns';
+  if (itemClass & ItemClass.AMMO) return 'ammo';
+  if (itemClass & ItemClass.ARMOUR) return 'armour';
+  if (itemClass & BOBBY_MISC) return 'misc';
+  return null;
+}
+
 function stockView(flow: LaptopFlow, slots: readonly StoreSlot[], used: boolean): BobbyRayView['newStock'] {
-  return slots
-    .filter((s) => s.onHand > 0)
-    .map((s) => ({
-      item: s.item,
-      name: itemName(flow, s.item),
-      price: bobbyRayUnitPrice(flow, s, used),
-      quantity: s.onHand,
-      quality: used ? s.quality : 100,
-    }));
+  return slots.flatMap((s, slot) =>
+    s.onHand > 0
+      ? [
+          {
+            item: s.item,
+            name: itemName(flow, s.item),
+            price: bobbyRayUnitPrice(flow, s, used),
+            quantity: s.onHand,
+            quality: used ? s.quality : 100,
+            slot,
+            catalogue: catalogueOf(flow, s.item, used),
+          },
+        ]
+      : [],
+  );
+}
+
+function shipmentView(flow: LaptopFlow, s: Shipment, index: number): BobbyRayShipmentView {
+  const lines = s.displayedOnShipmentsPage
+    ? s.lines.map((l) => ({
+        item: l.item,
+        name: itemName(flow, l.item),
+        count: l.count,
+        used: l.used,
+        quality: l.quality,
+        unitPrice: bobbyRayItemPrice(flow, l.item, l.quality, l.used),
+      }))
+    : [];
+  const subtotal = lines.reduce((sum, l) => sum + l.unitPrice * l.count, 0);
+  const shipping = s.displayedOnShipmentsPage ? shippingCost(flow.content.destinations[s.destination], s.speed, s.weight) : 0;
+  return {
+    index,
+    active: s.active,
+    displayed: s.displayedOnShipmentsPage,
+    destination: s.destination,
+    speed: s.speed,
+    orderDay: s.orderDay,
+    units: s.lines.reduce((n, l) => n + l.count, 0),
+    weight: s.weight,
+    lines,
+    subtotal,
+    shipping,
+    total: subtotal + shipping,
+  };
 }
 
 function bobbyRayView(flow: LaptopFlow): BobbyRayView {
@@ -163,20 +246,7 @@ function bobbyRayView(flow: LaptopFlow): BobbyRayView {
     open: br.siteCanBeAccessed,
     newStock: br.siteCanBeAccessed ? stockView(flow, br.inventory, false) : [],
     usedStock: br.siteCanBeAccessed ? stockView(flow, br.used, true) : [],
-    shipments: br.shipments.flatMap((s, index) =>
-      s.displayedOnShipmentsPage
-        ? [
-            {
-              index,
-              active: s.active,
-              destination: s.destination,
-              speed: s.speed,
-              orderDay: s.orderDay,
-              lines: s.lines.map((l) => ({ item: l.item, name: itemName(flow, l.item), count: l.count, used: l.used })),
-            },
-          ]
-        : [],
-    ),
+    shipments: br.shipments.map((s, index) => shipmentView(flow, s, index)),
     destinations: flow.content.destinations.map((d, id) => ({
       id,
       name: d.internalName,
@@ -185,6 +255,34 @@ function bobbyRayView(flow: LaptopFlow): BobbyRayView {
       canDeliver: d.canDeliver,
       primary: d.isPrimary,
     })),
+  };
+}
+
+function genderLists<T extends { readonly male: boolean }>(entries: readonly T[], value: (e: T) => number): ImpGenderListsView {
+  return { male: entries.filter((e) => e.male).map(value), female: entries.filter((e) => !e.male).map(value) };
+}
+
+function impView(flow: LaptopFlow): ImpSiteView {
+  const imp = flow.content.imp;
+  return {
+    bookmarked: flow.laptop.bookmarks.includes(Bookmark.IMP),
+    charactersLeft: Math.max(0, imp.maxCharacters - impCharactersCreated(flow)),
+    canCreate: canCreateAnotherImpCharacter(flow),
+    cost: COST_OF_PROFILE,
+    pickSkillsDirectly: imp.pickSkillsDirectly,
+    beginRefusal: impBeginRefusal(flow),
+    attributes: {
+      start: START_ATTRIBUTE,
+      min: imp.minAttributePoints,
+      max: imp.maxAttributePoints,
+      bonus: imp.bonusAttributePoints,
+      zeroBonus: imp.zeroAttributePointsBonus,
+      order: IMP_ATTRIBUTE_PAGE_ORDER,
+      zeroable: IMP_ZEROABLE_ATTRIBUTES,
+    },
+    portraits: genderLists(imp.portraits, (p) => p.face),
+    voices: genderLists(imp.voices, (v) => v.profile),
+    quizAnswers: flow.content.impQuiz.map((question) => question.length),
   };
 }
 
@@ -233,7 +331,6 @@ export function laptopView(campaign: CampaignSim, text: LaptopViewText = NO_TEXT
   if (!flow?.isOpen()) return null;
   const l = flow.laptop;
   const f = campaign.state.finances;
-  const imp = flow.content.imp;
   const projectedIncome = campaign.economy ? predictIncomeFromPlayerMines(campaign.economy) : 0;
   return {
     balance: f.balance,
@@ -271,13 +368,7 @@ export function laptopView(campaign: CampaignSim, text: LaptopViewText = NO_TEXT
     },
     aim: aimView(flow),
     merc: mercView(flow),
-    imp: {
-      bookmarked: l.bookmarks.includes(Bookmark.IMP),
-      charactersLeft: Math.max(0, imp.maxCharacters - impCharactersCreated(flow)),
-      canCreate: canCreateAnotherImpCharacter(flow),
-      cost: COST_OF_PROFILE,
-      pickSkillsDirectly: imp.pickSkillsDirectly,
-    },
+    imp: impView(flow),
     bobbyRay: bobbyRayView(flow),
     insurance: insuranceView(flow),
     inTransit: inTransitView(flow),

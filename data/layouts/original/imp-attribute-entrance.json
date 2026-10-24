@@ -1,0 +1,127 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/IMP_Attribute_Entrance.cc RenderIMPAttributeEntrance, CreateIMPAttributeEntranceButtons (anaveragemercindent.sti, button_2.sti, pImpButtonText[13])",
+    "src/game/Laptop/IMP_Text_System.cc PrintImpText"
+  ],
+  "screen": "impAttributeEntrance",
+  "frame": "std640",
+  "constants": ["Laptop", "IMPVideoObjects", "IMP_Text_System"],
+  "assets": {
+    "avgMercIndent": {
+      "sti": "laptop/anaveragemercindent.sti",
+      "stub": {
+        "frames": 1,
+        "size": [336, 204],
+        "hollow": true
+      }
+    },
+    "button2": {
+      "sti": "laptop/button_2.sti",
+      "stub": {
+        "frames": 2,
+        "size": [239, 56],
+        "states": ["normal", "pressed"],
+        "hollow": true
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "asset": "avgMercIndent",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X + 90",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 40"
+    },
+    {
+      "type": "text",
+      "id": "impAttributeEntranceTitle",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 7",
+      "width": "LAPTOP_SCREEN_LR_X - LAPTOP_SCREEN_UL_X + 1",
+      "font": "FONT14ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_1 - 1"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 110",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 50",
+      "width": 300,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_5"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 110",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 130",
+      "width": 300,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_6"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 110",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 200",
+      "width": 300,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_7"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "button",
+      "id": "impAttributeEntranceBegin",
+      "x": "LAPTOP_SCREEN_UL_X + 136",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 314",
+      "asset": "button2",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "begin",
+      "text": {
+        "source": {
+          "key": ["pImpButtonText", 13]
+        },
+        "font": "FONT12ARIAL",
+        "color": "FONT_WHITE",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "FONT_WHITE",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/Mercs_No_Account.cc EnterMercsNoAccount (bigbuttons.sti, FONT12ARIAL in MERC_BUTTON_UP_COLOR and MERC_BUTTON_DOWN_COLOR), RenderMercsNoAccount"
+  ],
+  "screen": "mercNoAccount",
+  "frame": "std640",
+  "constants": ["Laptop", "Mercs", "Mercs_No_Account"],
+  "assets": {
+    "background": {
+      "sti": "laptop/mercbackground.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["MERC_BACKGROUND_WIDTH", "MERC_BACKGROUND_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "box": {
+      "sti": "laptop/noaccountbox.sti",
+      "stub": {
+        "frames": 1,
+        "size": [460, 160],
+        "hollow": true
+      }
+    },
+    "bigButtons": {
+      "sti": "laptop/bigbuttons.sti",
+      "stub": {
+        "frames": 2,
+        "size": [100, 24],
+        "states": ["normal", "pressed"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "tiles",
+      "asset": "background",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "columns": 4,
+      "rows": 4,
+      "dx": "MERC_BACKGROUND_WIDTH",
+      "dy": "MERC_BACKGROUND_HEIGHT"
+    },
+    {
+      "type": "image",
+      "asset": "box",
+      "frame": 0,
+      "x": "MERC_NO_ACCOUNT_IMAGE_X",
+      "y": "MERC_NO_ACCOUNT_IMAGE_Y"
+    },
+    {
+      "type": "text",
+      "id": "noAccountSentence",
+      "x": "MERC_NA_SENTENCE_X",
+      "y": "MERC_NA_SENTENCE_Y",
+      "width": "MERC_NA_SENTENCE_WIDTH",
+      "font": "MERC_NA_TEXT_FONT",
+      "color": "MERC_NA_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["MercNoAccountText", "MERC_NO_ACC_NO_ACCOUNT_OPEN_ONE"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "button",
+      "id": "mercOpenAccount",
+      "x": "MERC_OPEN_BUTTON_X",
+      "y": "MERC_BUTTON_Y",
+      "asset": "bigButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "open",
+      "text": {
+        "source": {
+          "key": ["MercNoAccountText", "MERC_NO_ACC_OPEN_ACCOUNT"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "MERC_BUTTON_UP_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "MERC_BUTTON_DOWN_COLOR",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    },
+    {
+      "type": "button",
+      "id": "mercNoAccountCancel",
+      "x": "MERC_CANCEL_BUTTON_X",
+      "y": "MERC_BUTTON_Y",
+      "asset": "bigButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "cancel",
+      "text": {
+        "source": {
+          "key": ["MercNoAccountText", "MERC_NO_ACC_CANCEL"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "MERC_BUTTON_UP_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "MERC_BUTTON_DOWN_COLOR",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    }
+  ]
+}

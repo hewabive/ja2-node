@@ -36,6 +36,10 @@ import { aimMemberPage } from './aim/aim-member.ts';
 import { aimHomePage, aimIndexPage, aimLinksPage, aimSortPage } from './aim/aim-pages.ts';
 import { AIM_POLICIES_LAYOUT, aimPoliciesPage } from './aim/aim-policies.ts';
 import { AimSession } from './aim/aim-session.ts';
+import { bobbyRayCataloguePage } from './bobby-ray/bobby-ray-catalogue.ts';
+import { bobbyRayHomePage } from './bobby-ray/bobby-ray-home.ts';
+import { bobbyRayOrderPage } from './bobby-ray/bobby-ray-order.ts';
+import { bobbyRayShipmentsPage } from './bobby-ray/bobby-ray-shipments.ts';
 import { emailPage } from './email/email-page.ts';
 import { FILES_LAYOUT, filesPage } from './files/files-page.ts';
 import { financesPage } from './finances/finances-page.ts';
@@ -52,6 +56,7 @@ import {
 } from './florist/florist-pages.ts';
 import { FUNERAL_LAYOUT, funeralPage } from './funeral/funeral-page.ts';
 import { HISTORY_LAYOUT, historyPage } from './history/history-page.ts';
+import { charProfilePage } from './imp/imp-profile.ts';
 import {
   INSURANCE_CHROME_LAYOUT,
   INSURANCE_COMMENTS_LAYOUT,
@@ -73,9 +78,11 @@ import {
   laptopMemory,
 } from './laptop-client.ts';
 import { BOOKMARK_IDS, Bookmark, LaptopMode, programTitle, VISITED_SITES, webPageTitleIndex } from './laptop-modes.ts';
-import type { LaptopContext, LaptopPage, PageFactory } from './laptop-page.ts';
+import type { LaptopContext, LaptopPage, PageFactory, PageLayout } from './laptop-page.ts';
 import { LaptopShell } from './laptop-shell.ts';
+import { laptopSites } from './laptop-sites.ts';
 import { TITLE_BAR_ITERATIONS, titleBarSlideRect, ZOOM_TIME, zoomPercentage, zoomRect } from './laptop-timers.ts';
+import { brokenLinkPage, mercAccountPage, mercFilesPage, mercHomePage, mercNoAccountPage } from './merc/merc-pages.ts';
 import { PERSONNEL_LAYOUT, personnelPage } from './personnel/personnel-page.ts';
 
 export const LAPTOP_SCREEN = 'laptop';
@@ -108,6 +115,30 @@ export const LAPTOP_LAYOUTS: readonly string[] = [
   AIM_ARCHIVES_LAYOUT,
   AIM_POLICIES_LAYOUT,
   AIM_HISTORY_LAYOUT,
+  'bobby-ray-home',
+  'bobby-ray-catalogue',
+  'bobby-ray-order',
+  'bobby-ray-shipments',
+  'merc-home',
+  'merc-no-account',
+  'merc-account',
+  'merc-files',
+  'broken-link',
+  'imp-frame',
+  'imp-home',
+  'imp-about-us',
+  'imp-main',
+  'imp-begin',
+  'imp-personality',
+  'imp-quiz',
+  'imp-personality-finish',
+  'imp-attribute-entrance',
+  'imp-attributes',
+  'imp-attribute-finish',
+  'imp-portrait',
+  'imp-voice',
+  'imp-finish',
+  'imp-confirm',
 ];
 
 const POWER_UP_SOUND = 'sounds/laptop power up (8-11).wav';
@@ -220,11 +251,24 @@ const PAGES: Readonly<Record<number, PageFactory>> = {
   [LaptopMode.FLORIST_ORDERFORM]: floristOrderPage,
   [LaptopMode.FLORIST_CARD_GALLERY]: floristCardsPage,
   [LaptopMode.FUNERAL]: funeralPage,
+  [LaptopMode.BOBBY_R]: bobbyRayHomePage,
+  [LaptopMode.BOBBY_R_GUNS]: bobbyRayCataloguePage(LaptopMode.BOBBY_R_GUNS),
+  [LaptopMode.BOBBY_R_AMMO]: bobbyRayCataloguePage(LaptopMode.BOBBY_R_AMMO),
+  [LaptopMode.BOBBY_R_ARMOR]: bobbyRayCataloguePage(LaptopMode.BOBBY_R_ARMOR),
+  [LaptopMode.BOBBY_R_MISC]: bobbyRayCataloguePage(LaptopMode.BOBBY_R_MISC),
+  [LaptopMode.BOBBY_R_USED]: bobbyRayCataloguePage(LaptopMode.BOBBY_R_USED),
+  [LaptopMode.BOBBY_R_MAILORDER]: bobbyRayOrderPage,
+  [LaptopMode.BOBBYR_SHIPMENTS]: bobbyRayShipmentsPage,
+  [LaptopMode.MERC]: mercHomePage,
+  [LaptopMode.MERC_NO_ACCOUNT]: mercNoAccountPage,
+  [LaptopMode.MERC_ACCOUNT]: mercAccountPage,
+  [LaptopMode.MERC_FILES]: mercFilesPage,
+  [LaptopMode.BROKEN_LINK]: brokenLinkPage,
+  [LaptopMode.CHAR_PROFILE]: charProfilePage,
 };
 
 const SITE_PAGES: Readonly<Record<number, number>> = {
   [LaptopMode.BOBBY_R]: Bookmark.BOBBYR,
-  [LaptopMode.MERC]: Bookmark.MERC,
   [LaptopMode.FUNERAL]: Bookmark.FUNERAL,
   [LaptopMode.FLORIST]: Bookmark.FLORIST,
   [LaptopMode.INSURANCE]: Bookmark.INSURANCE,
@@ -253,7 +297,8 @@ export interface LaptopScreenOptions {
 interface ActivePage {
   readonly mode: number;
   readonly page: LaptopPage;
-  readonly views: readonly LayoutView[];
+  views: readonly LayoutView[];
+  layouts: readonly PageLayout[];
 }
 
 interface Zoom {
@@ -297,7 +342,7 @@ export class LaptopScreen implements Screen {
         exitPage: (mode) => this.#exitPage(mode),
         random: (range) => options.media.random(range),
         mercSiteDown: () => this.#view()?.merc.siteDown === true,
-        mercSlowLoad: () => false,
+        mercSlowLoad: () => this.#view()?.merc.slowLoad === true,
       },
       {
         loadingTimeScale: this.#settings.loadingTimeScale,
@@ -340,6 +385,7 @@ export class LaptopScreen implements Screen {
       shell: this.shell,
       aim: new AimSession(this.#memory.aim),
       memory: this.#memory,
+      sites: laptopSites(),
       dataVersion: this.#options.dataVersion,
       view: () => this.#view(),
       command: (cmd) => this.#options.client.command(cmd),
@@ -365,7 +411,12 @@ export class LaptopScreen implements Screen {
     };
   }
 
-  #messageBox(text: string, flags: MessageBoxFlag, onClose?: (result: number) => void, style?: number): void {
+  #messageBox(
+    text: string,
+    flags: MessageBoxFlag,
+    onClose?: (result: number) => void,
+    style: number = MessageBoxStyleId.LAPTOP_DEFAULT,
+  ): void {
     const model = this.#layout(LAPTOP_SHELL_LAYOUT);
     const { stdX, stdY } = this.#runtime.geometry();
     const rect = {
@@ -376,7 +427,7 @@ export class LaptopScreen implements Screen {
     };
     this.#runtime.host.openModal(
       new MessageBox(this.#runtime, {
-        style: this.#options.messageBoxStyle(style ?? MessageBoxStyleId.LAPTOP_DEFAULT),
+        style: this.#options.messageBoxStyle(style),
         text,
         flags,
         labels: this.#options.messageBoxLabels,
@@ -398,7 +449,12 @@ export class LaptopScreen implements Screen {
     const visited = site === undefined ? undefined : VISITED_SITES[site];
     if (visited) void this.#options.client.command({ type: 'visitSite', site: visited });
     const page = this.#pageFactory(mode)(this.#context);
-    const views = page.layouts.map(
+    const layouts = page.layouts;
+    this.#page = { mode, page, views: this.#buildViews(page, layouts), layouts };
+  }
+
+  #buildViews(page: LaptopPage, layouts: readonly PageLayout[]): LayoutView[] {
+    const views = layouts.map(
       (layout) =>
         new LayoutView({
           model: this.#layout(layout.name),
@@ -412,7 +468,15 @@ export class LaptopScreen implements Screen {
         }),
     );
     for (const view of views) view.build();
-    this.#page = { mode, page, views };
+    return views;
+  }
+
+  #syncPageLayouts(): void {
+    const active = this.#page;
+    if (!active || active.page.layouts === active.layouts) return;
+    for (const view of active.views) view.dispose();
+    active.layouts = active.page.layouts;
+    active.views = this.#buildViews(active.page, active.layouts);
   }
 
   #exitPage(mode: number): void {
@@ -612,6 +676,7 @@ export class LaptopScreen implements Screen {
     this.shell.update(ja2Now);
     this.#updateClose(now);
     this.#page?.page.update(ja2Now);
+    this.#syncPageLayouts();
     this.#syncNewMail();
     this.#refreshShell();
     this.#shellView?.update();

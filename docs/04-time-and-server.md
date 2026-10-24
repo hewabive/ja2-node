@@ -1508,6 +1508,45 @@ true}`, which checks only the first mover instead of his whole group (the server
 `groupArrived` (§6.25) is emitted for every player group, vehicles and the helicopter included. The refusal table
 moved to `src/protocol/refusals.ts`, so the client prints the original strings without the server.
 
+### 6.32. Laptop II (M8, U11)
+
+What Bobby Ray's, M.E.R.C. and I.M.P. pages print and decide that the laptop view and commands lacked (`28` §9.5–§9.7,
+gaps X6, X11, X12 and X15 of §9.9). Each field is something the original page shows or checks (D16); `21` §10 lists them
+with the commands.
+
+**M.E.R.C.** (`src/sim/campaign/laptop/merc-site.ts`). Speck's lines come in the replies as quote ids, in the order the
+original queues them for the video window: `mercOpenAccount` answers `{accountNumber, quotes: [9]}`
+(`BtnOpenAccountBoxButtonCallback`); `mercHire` adds `quotes`, the cross-sell quotes of the hired merc's listing for
+related mercs still available (`MercFilesHireMerc` through `ShouldSpeckSayAQuote`'s cross-sell list) followed by quote 69
+or 70, picked with `CoinToss` on the main stream at the hire (the toss was not drawn before; deviation "Speck's
+opening"); the refusal `accountSuspended` carries `data.quotes: [14]` and `unavailable` for a living merc `[71]`;
+`mercPay` answers `{paid, full, quotes}` with 45 for a full and 46 for a partial payment
+(`MercAuthorizePaymentMessageBoxCallBack`). The view adds per listed merc `advertiseQuote` (the listing's ADVERTISE
+quote, what Speck says to advertise the merc) and `married` (Flo after `FACT_PC_MARRYING_DARYL_IS_FLO`, the files page's
+overlay), the account page's rows `account [{profile, name, days, rate, charge, dead}]` (`DisplayHiredMercs`: the mercs
+on the team or still owed money) and `slowLoad` (the long first load while the site has not yet gone down,
+`DisplayLoadPending`).
+
+**I.M.P.** (`src/sim/campaign/laptop/imp.ts`). The draft of a character stays in the client until `impCreate`; the
+server gives the rules the pages check. The query `impCheckCode {code}` answers `{result: ok | badCode | noSlot}` as the
+home page's `ProcessPlayerInputActivationString` decides (the code first, then `CanCreateAnotherIMPCharacter`). The view
+adds `canCreate`, `beginRefusal` (`funds` before `teamFull`, the order of `BtnIMPMainPageBeginCallback`), `attributes
+{start, min, max, bonus, zeroBonus, order, zeroable}` (the attribute page's budget from the game policy, the value order of
+`RenderAttributeBoxes` and the four skills that may drop to zero), `portraits` and `voices` (the faces and profiles of each
+gender, in the order the portrait and voice pages step through them) and `quizAnswers` (the answer count of each question,
+which also places the question texts in `imptext.edt`).
+
+**Bobby Ray's** (`src/sim/campaign/laptop/bobby-ray.ts`). `bobbyRayQuote` is the order form's quote: `destination` may be
+left out (or -1), shipping is then 0 as on the form before a city is chosen, and the answer adds `unitPrice` per line,
+`affordable` and `confirmDestination` (the yes/no question the accept button of `BobbyRMailOrder.cc` asks for every
+city but the primary airport, and for that airport while the enemy holds its sector); `bobbyRayOrder` without a destination is refused with `noDestination`. Stock rows add
+`slot` and `catalogue` (`guns`, `ammo`, `armour`, `misc`, `used`: the catalogue page that lists the item). Shipments list
+every order with `displayed` (the shipments page's rows), `units`, `weight`, `subtotal`, `shipping` (from the stored package
+weight and the speed, `DisplayShippingCosts`), `total` and lines with `quality` and `unitPrice`; a shipment not displayed
+carries no lines.
+
+**Items.** `CatalogueWeapon.rateOfFire` (the catalogue's ROF column) joins the static item catalogue (X15).
+
 ### 6.33. Laptop III (M8, U12)
 
 What Personnel, History, Files, the insurance contract page and the florist need from the server (`28` §9.3, §9.8,

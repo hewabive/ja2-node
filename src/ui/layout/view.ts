@@ -15,11 +15,12 @@ import { printf } from '../text/printf.ts';
 import type { UiTextService } from '../text/text-service.ts';
 import { displayWrappedString, drawTextToScreen, ianDisplayWrappedString, lineWrap, reduceStringLength, TextFlag } from '../text/wrap.ts';
 import { type Button, type ButtonImage, type ButtonKind, type DisabledStyle, NO_IMAGE, type TextJustification } from '../widgets/button.ts';
+import { DropDown, type DropDownScroll, DropDownView } from '../widgets/drop-down.ts';
 import { drawItemPicture, isItemGraphic } from '../widgets/item-picture.ts';
 import { type MercIcon, MercTextBox } from '../widgets/merc-text-box.ts';
 import { MessageBox, type MessageBoxFlag, type MessageBoxLabels, type MessageBoxStyle } from '../widgets/message-box.ts';
 import { type LineShade, PopupBox, type PopupLine, PopupMenu } from '../widgets/popup-box.ts';
-import { drawPortrait, portraitState } from '../widgets/portrait.ts';
+import { drawPortrait, portraitPath, portraitState } from '../widgets/portrait.ts';
 import { ProgressBar, type ProgressBarStyle } from '../widgets/progress-bar.ts';
 import type { Slider, SliderSystem } from '../widgets/slider.ts';
 import {
@@ -304,6 +305,8 @@ export class LayoutView {
         return this.#portrait(json, vars, dx, dy);
       case 'itemPicture':
         return this.#itemPicture(json, vars, dx, dy);
+      case 'dropDown':
+        return this.#dropDown(json, vars, dx, dy);
       default:
         throw new Error(`${this.model.json.screen}: unknown widget type ${json.type}`);
     }
@@ -543,6 +546,8 @@ export class LayoutView {
           rightDown = false;
           this.invoke(json.secondary, vars);
         }
+        if (reason & MouseReason.LBUTTON_REPEAT) this.invoke(json.repeat, vars);
+        if (reason & MouseReason.RBUTTON_REPEAT) this.invoke(json.secondaryRepeat, vars);
         if (reason & MouseReason.WHEEL_UP) this.invoke(json.wheelUp, vars);
         if (reason & MouseReason.WHEEL_DOWN) this.invoke(json.wheelDown, vars);
       },
@@ -688,15 +693,28 @@ export class LayoutView {
         ...(textJson.shift === false ? { shift: false } : {}),
       };
     };
-    if (iconJson) {
+    const iconAsset = (json: JsonObject): string =>
+      json.face === undefined
+        ? this.model.asset(String(json.asset)).path
+        : portraitPath(this.number(json.face as NumberExpr, vars, NO_FACE), 'small');
+    const syncIcon = () => {
+      if (!iconJson) return;
+      if (!this.condition(iconJson.visible as Condition | undefined, vars)) {
+        button.icon = null;
+        return;
+      }
+      const asset = iconAsset(iconJson);
+      const frame = this.number(iconJson.frame as NumberExpr | undefined, vars);
+      if (button.icon?.asset === asset && button.icon.frame === frame) return;
       button.icon = {
-        asset: this.model.asset(String(iconJson.asset)).path,
-        frame: this.number(iconJson.frame as NumberExpr | undefined, vars),
+        asset,
+        frame,
         ...(iconJson.offsetX === undefined ? {} : { offsetX: this.number(iconJson.offsetX as NumberExpr, vars) }),
         ...(iconJson.offsetY === undefined ? {} : { offsetY: this.number(iconJson.offsetY as NumberExpr, vars) }),
         ...(iconJson.shift === false ? { shift: false } : {}),
       };
-    }
+    };
+    syncIcon();
     const checked = (): boolean | undefined => {
       if (membership) return this.get(String(membership.group.value), vars) === membership.index;
       if (json.checked === undefined) return undefined;
@@ -710,6 +728,7 @@ export class LayoutView {
       const tooltip = this.text(json.tooltip as TextSourceJson | undefined, vars);
       if (tooltip !== button.region.tooltip) button.setTooltip(tooltip);
       syncText();
+      syncIcon();
     };
     sync();
     return {
@@ -1032,6 +1051,95 @@ export class LayoutView {
         this.condition(json.shadow as Condition | undefined, vars),
       );
     });
+  }
+
+  #dropDownScroll(json: JsonObject, vars: Variables, dy: number): DropDownScroll {
+    const num = (value: unknown) => this.number(value as NumberExpr | undefined, vars);
+    return {
+      width: num(json.width),
+      arrows: this.model.asset(String(json.arrows)).path,
+      arrowWidth: num(json.arrowWidth),
+      arrowHeight: num(json.arrowHeight),
+      upY: this.#frame.y + num(json.upY) + dy,
+      downY: this.#frame.y + num(json.downY) + dy,
+      thumb: this.model.rgbColor(json.thumb as ColorJson | undefined, rgb(0, 0, 0)),
+      thumbLight: this.model.rgbColor(json.thumbLight as ColorJson | undefined, rgb(255, 255, 255)),
+      thumbDark: this.model.rgbColor(json.thumbDark as ColorJson | undefined, rgb(0, 0, 0)),
+    };
+  }
+
+  #dropDown(json: WidgetJson, vars: Variables, dx: number, dy: number): Live {
+    const id = this.#id(json, vars);
+    const { x, y } = this.#position(json, vars, dx, dy);
+    const num = (value: unknown) => this.number(value as NumberExpr | undefined, vars);
+    const rows = asObject(json.rows);
+    const close = Array.isArray(json.closeArea) ? json.closeArea.map(num) : null;
+    let view: DropDownView | null = null;
+    const labels = (): string[] => {
+      const value = this.get(String(json.labels), vars);
+      return Array.isArray(value) ? value.map(String) : [];
+    };
+    const current = (): DropDownView | null => {
+      const model = this.get(String(json.model), vars);
+      if (!(model instanceof DropDown)) return null;
+      if (view?.model === model) return view;
+      view?.dispose();
+      view = new DropDownView({
+        model,
+        geometry: {
+          x,
+          y,
+          width: num(json.width),
+          height: num(json.height),
+          rowGap: num(rows.gap),
+          textX: num(rows.textX),
+          textY: num(rows.textY),
+          rowTop: num(rows.top),
+          rowBottom: num(rows.bottom),
+          rowRightInset: num(rows.rightInset),
+          highlightInset: num(rows.highlightInset),
+          highlightBottom: num(rows.highlightBottom),
+        },
+        look: {
+          font: this.#font(json.font),
+          border: this.model.asset(String(json.border)).path,
+          background: this.model.rgbColor(json.background as ColorJson | undefined, rgb(0, 0, 0)),
+          color: this.color(json.color as ColorJson | undefined, vars, DEFAULT_TEXT_FOREGROUND),
+          selectedColor: this.color(json.selectedColor as ColorJson | undefined, vars, FontColor.MCOLOR_BLACK),
+          selectedFill: this.model.rgbColor(json.selectedFill as ColorJson | undefined, rgb(255, 255, 255)),
+        },
+        scroll: json.scroll === undefined ? null : this.#dropDownScroll(asObject(json.scroll), vars, dy),
+        regions: this.services.regions,
+        priority: json.priority === undefined ? Priority.HIGH : this.model.priority(json.priority as NumberExpr, vars),
+        ...(json.cursor === undefined ? {} : { rowCursor: this.model.cursor(String(json.cursor)) }),
+        ...(json.scrollCursor === undefined ? {} : { scrollCursor: this.model.cursor(String(json.scrollCursor)) }),
+        closeArea: close
+          ? {
+              x1: this.#frame.x + (close[0] ?? 0),
+              y1: this.#frame.y + (close[1] ?? 0),
+              x2: this.#frame.x + (close[2] ?? 0),
+              y2: this.#frame.y + (close[3] ?? 0),
+            }
+          : null,
+        owner: this.owner,
+        id,
+        onChange: (selected) => this.invoke(json.change, vars, [selected]),
+      });
+      return view;
+    };
+    return {
+      id,
+      kind: 'dropDown',
+      sync: () => current()?.sync(),
+      render: (list) => {
+        if (this.#visible(json, vars)) current()?.render(list, labels());
+      },
+      dispose: () => {
+        view?.dispose();
+        view = null;
+      },
+      describe: () => current()?.describe(labels()) ?? [],
+    };
   }
 
   #custom(json: WidgetJson, vars: Variables, dx: number, dy: number): Live {

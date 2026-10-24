@@ -294,7 +294,7 @@ describe('after the landing', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(hired).toMatchObject({ ok: true, data: { profile: 42 } });
     expect(session.campaign.state.profiles.get(42)?.mercMercContractLength).toBe(1);
     const balance = session.campaign.state.finances.balance;
-    expect(session.dispatch({ type: 'mercPay' })).toEqual({ ok: true, data: { paid: 150, full: true } });
+    expect(session.dispatch({ type: 'mercPay' })).toEqual({ ok: true, data: { paid: 150, full: true, quotes: [45] } });
     expect(session.campaign.state.finances.balance).toBe(balance - 150);
     expect(session.dispatch({ type: 'mercPay' })).toEqual({ ok: false, reason: 'nothingOwed' });
   });

@@ -1,0 +1,506 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/BobbyRShipments.cc EnterBobbyRShipments, RenderBobbyRShipments, DisplayShipmentGrid (bobbyray_onorder.sti frames 0 and 1), DisplayShipmentTitles, DisplayPreviousShipments, CreatePreviousShipmentsMouseRegions (the font height of FONT12ARIAL), MakeButton (BOBBYR_SHIPMENT_HOME_BUTTON_X is STD_SCREEN_Y + 515 in the source: 515 in the frame); src/game/Laptop/BobbyRMailOrder.cc CreateBobbyRayOrderTitle (the 160 x 35 title link), DisplayPurchasedItems"
+  ],
+  "screen": "bobbyRayShipments",
+  "frame": "std640",
+  "constants": ["Laptop", "BobbyR", "BobbyRGuns", "BobbyRMailOrder", "BobbyRShipments"],
+  "assets": {
+    "wood": {
+      "sti": "laptop/bobbywood.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["BOBBY_WOOD_BACKGROUND_WIDTH", "BOBBY_WOOD_BACKGROUND_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "title": {
+      "sti": "laptop/bobbyraytitle.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["BOBBYR_BOBBY_RAY_TITLE_WIDTH", "BOBBYR_BOBBY_RAY_TITLE_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "grids": {
+      "sti": "laptop/bobbyray_onorder.sti",
+      "stub": {
+        "sizes": [["BOBBYR_SHIPMENT_DELIVERY_GRID_WIDTH", 300], [268, 300]],
+        "hollow": true
+      }
+    },
+    "catalogueButton": {
+      "sti": "laptop/cataloguebutton.sti",
+      "stub": {
+        "frames": 2,
+        "size": [75, 26],
+        "states": ["normal", "pressed"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "tiles",
+      "asset": "wood",
+      "frame": 0,
+      "x": "BOBBY_WOOD_BACKGROUND_X",
+      "y": "BOBBY_WOOD_BACKGROUND_Y",
+      "columns": 4,
+      "rows": 4,
+      "dx": "BOBBY_WOOD_BACKGROUND_WIDTH",
+      "dy": "BOBBY_WOOD_BACKGROUND_HEIGHT"
+    },
+    {
+      "type": "image",
+      "asset": "title",
+      "frame": 0,
+      "x": "BOBBYR_BOBBY_RAY_TITLE_X",
+      "y": "BOBBYR_BOBBY_RAY_TITLE_Y"
+    },
+    {
+      "type": "text",
+      "id": "shipmentsTitle",
+      "x": "BOBBYR_ORDER_FORM_TITLE_X",
+      "y": "BOBBYR_ORDER_FORM_TITLE_Y",
+      "width": "BOBBYR_ORDER_FORM_TITLE_WIDTH",
+      "font": "BOBBYR_SHIPMENT_TITLE_TEXT_FONT",
+      "color": "BOBBYR_SHIPMENT_TITLE_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["gzBobbyRShipmentText", "BOBBYR_SHIPMENT__TITLE"]
+      },
+      "align": "center"
+    },
+    {
+      "type": "image",
+      "asset": "grids",
+      "frame": 0,
+      "x": "BOBBYR_SHIPMENT_DELIVERY_GRID_X",
+      "y": "BOBBYR_SHIPMENT_DELIVERY_GRID_Y"
+    },
+    {
+      "type": "image",
+      "asset": "grids",
+      "frame": 1,
+      "x": "BOBBYR_SHIPMENT_ORDER_GRID_X",
+      "y": "BOBBYR_SHIPMENT_ORDER_GRID_Y"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPMENT_ORDER_GRID_X + BOBBYR_GRID_FIRST_COLUMN_X",
+      "y": "BOBBYR_SHIPMENT_ORDER_GRID_Y + BOBBYR_GRID_FIRST_COLUMN_Y - BOBBYR_GRID_TITLE_OFFSET",
+      "width": "BOBBYR_GRID_FIRST_COLUMN_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_QTY"]
+      },
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPMENT_ORDER_GRID_X + BOBBYR_GRID_SECOND_COLUMN_X",
+      "y": "BOBBYR_SHIPMENT_ORDER_GRID_Y + BOBBYR_GRID_SECOND_COLUMN_Y - 30",
+      "width": "BOBBYR_GRID_SECOND_COLUMN_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "weightTitle"
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPMENT_ORDER_GRID_X + BOBBYR_GRID_THIRD_COLUMN_X",
+      "y": "BOBBYR_SHIPMENT_ORDER_GRID_Y + BOBBYR_GRID_THIRD_COLUMN_Y - BOBBYR_GRID_TITLE_OFFSET",
+      "width": "BOBBYR_GRID_THIRD_COLUMN_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_NAME"]
+      },
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPMENT_ORDER_GRID_X + BOBBYR_GRID_FOURTH_COLUMN_X",
+      "y": "BOBBYR_SHIPMENT_ORDER_GRID_Y + BOBBYR_GRID_FOURTH_COLUMN_Y - 30",
+      "width": "BOBBYR_GRID_FOURTH_COLUMN_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_UNIT_PRICE"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPMENT_ORDER_GRID_X + BOBBYR_GRID_FIFTH_COLUMN_X",
+      "y": "BOBBYR_SHIPMENT_ORDER_GRID_Y + BOBBYR_GRID_FIFTH_COLUMN_Y - BOBBYR_GRID_TITLE_OFFSET",
+      "width": "BOBBYR_GRID_FIFTH_COLUMN_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_TOTAL"]
+      },
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPMENT_ORDER_GRID_X + BOBBYR_SUBTOTAL_X",
+      "y": "BOBBYR_SHIPMENT_ORDER_GRID_Y + BOBBYR_SUBTOTAL_Y",
+      "width": "BOBBYR_SUBTOTAL_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_SUB_TOTAL"]
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPMENT_ORDER_GRID_X + BOBBYR_SUBTOTAL_X",
+      "y": "BOBBYR_SHIPMENT_ORDER_GRID_Y + BOBBYR_SHIPPING_N_HANDLE_Y",
+      "width": "BOBBYR_SUBTOTAL_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_S_H"]
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPMENT_ORDER_GRID_X + BOBBYR_SUBTOTAL_X",
+      "y": "BOBBYR_SHIPMENT_ORDER_GRID_Y + BOBBYR_GRAND_TOTAL_Y",
+      "width": "BOBBYR_SUBTOTAL_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_GRAND_TOTAL"]
+      },
+      "align": "right"
+    },
+    {
+      "type": "repeat",
+      "count": 10,
+      "x": 0,
+      "y": "BOBBYR_SHIPMENT_ORDER_GRID_Y + BOBBYR_GRID_FIRST_COLUMN_Y + 4",
+      "dy": "BOBBYR_GRID_ROW_OFFSET",
+      "template": [
+        {
+          "type": "text",
+          "id": "orderQuantity$i",
+          "x": "BOBBYR_SHIPMENT_ORDER_GRID_X + BOBBYR_GRID_FIRST_COLUMN_X - 2",
+          "y": 0,
+          "width": "BOBBYR_GRID_FIRST_COLUMN_WIDTH",
+          "font": "BOBBYR_ORDER_DYNAMIC_TEXT_FONT",
+          "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].quantity"
+          },
+          "align": "right",
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_SHIPMENT_ORDER_GRID_X + BOBBYR_GRID_SECOND_COLUMN_X - 2",
+          "y": 0,
+          "width": "BOBBYR_GRID_SECOND_COLUMN_WIDTH",
+          "font": "BOBBYR_ORDER_DYNAMIC_TEXT_FONT",
+          "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].weight"
+          },
+          "align": "right",
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "id": "orderName$i",
+          "x": "BOBBYR_SHIPMENT_ORDER_GRID_X + BOBBYR_GRID_THIRD_COLUMN_X + 2",
+          "y": 0,
+          "width": "BOBBYR_GRID_THIRD_COLUMN_WIDTH",
+          "font": "BOBBYR_ORDER_DYNAMIC_TEXT_FONT",
+          "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].name"
+          },
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_SHIPMENT_ORDER_GRID_X + BOBBYR_GRID_FOURTH_COLUMN_X - 2",
+          "y": 0,
+          "width": "BOBBYR_GRID_FOURTH_COLUMN_WIDTH",
+          "font": "BOBBYR_ORDER_DYNAMIC_TEXT_FONT",
+          "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].unitPrice"
+          },
+          "align": "right",
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_SHIPMENT_ORDER_GRID_X + BOBBYR_GRID_FIFTH_COLUMN_X - 2",
+          "y": 0,
+          "width": "BOBBYR_GRID_FIFTH_COLUMN_WIDTH",
+          "font": "BOBBYR_ORDER_DYNAMIC_TEXT_FONT",
+          "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].total"
+          },
+          "align": "right",
+          "visible": "rows[$i].present"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "orderSubtotal",
+      "x": "BOBBYR_SHIPMENT_ORDER_GRID_X + BOBBYR_GRID_FIFTH_COLUMN_X - 2",
+      "y": "BOBBYR_SHIPMENT_ORDER_GRID_Y + BOBBYR_SUBTOTAL_Y",
+      "width": "BOBBYR_GRID_FIFTH_COLUMN_WIDTH",
+      "font": "BOBBYR_ORDER_DYNAMIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "subtotal"
+      },
+      "align": "right",
+      "visible": "totalsShown"
+    },
+    {
+      "type": "text",
+      "id": "orderShipping",
+      "x": "BOBBYR_SHIPMENT_ORDER_GRID_X + BOBBYR_GRID_FIFTH_COLUMN_X - 2",
+      "y": "BOBBYR_SHIPMENT_ORDER_GRID_Y + BOBBYR_SHIPPING_N_HANDLE_Y",
+      "width": "BOBBYR_GRID_FIFTH_COLUMN_WIDTH",
+      "font": "BOBBYR_ORDER_DYNAMIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "shipping"
+      },
+      "align": "right",
+      "visible": "totalsShown"
+    },
+    {
+      "type": "text",
+      "id": "orderGrandTotal",
+      "x": "BOBBYR_SHIPMENT_ORDER_GRID_X + BOBBYR_GRID_FIFTH_COLUMN_X - 2",
+      "y": "BOBBYR_SHIPMENT_ORDER_GRID_Y + BOBBYR_GRAND_TOTAL_Y",
+      "width": "BOBBYR_GRID_FIFTH_COLUMN_WIDTH",
+      "font": "BOBBYR_ORDER_DYNAMIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "grandTotal"
+      },
+      "align": "right",
+      "visible": "totalsShown"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPMENT_SHIPMENT_ORDER_NUM_X",
+      "y": "BOBBYR_SHIPMENT_SHIPMENT_ORDER_NUM_Y",
+      "width": "BOBBYR_SHIPMENT_ORDER_NUM_WIDTH",
+      "font": "BOBBYR_SHIPMENT_STATIC_TEXT_FONT",
+      "color": "BOBBYR_SHIPMENT_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["gzBobbyRShipmentText", "BOBBYR_SHIPMENT__ORDERED_ON"]
+      },
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPMENT_NUM_ITEMS_X",
+      "y": "BOBBYR_SHIPMENT_NUM_ITEMS_Y",
+      "width": "BOBBYR_SHIPMENT_NUM_ITEMS_WIDTH",
+      "font": "BOBBYR_SHIPMENT_STATIC_TEXT_FONT",
+      "color": "BOBBYR_SHIPMENT_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["gzBobbyRShipmentText", "BOBBYR_SHIPMENT__NUM_ITEMS"]
+      },
+      "align": "center"
+    },
+    {
+      "type": "repeat",
+      "count": "BOBBYR_SHIPMENT_NUM_PREVIOUS_SHIPMENTS",
+      "x": 0,
+      "y": "BOBBYR_SHIPMENT_ORDER_NUM_START_Y",
+      "dy": "BOBBYR_SHIPMENT_GAP_BTN_LINES",
+      "template": [
+        {
+          "type": "text",
+          "id": "shipmentDay$i",
+          "x": "BOBBYR_SHIPMENT_ORDER_NUM_X",
+          "y": 0,
+          "width": "BOBBYR_SHIPMENT_ORDER_NUM_WIDTH",
+          "font": "BOBBYR_SHIPMENT_STATIC_TEXT_FONT",
+          "color": {
+            "by": "shipmentRows[$i].selected",
+            "map": {
+              "true": "FONT_MCOLOR_WHITE",
+              "false": "BOBBYR_SHIPMENT_STATIC_TEXT_COLOR"
+            }
+          },
+          "shadow": "DEFAULT_SHADOW",
+          "background": 0,
+          "text": {
+            "bind": "shipmentRows[$i].day"
+          },
+          "align": "center",
+          "visible": "shipmentRows[$i].present"
+        },
+        {
+          "type": "text",
+          "id": "shipmentUnits$i",
+          "x": "BOBBYR_SHIPMENT_NUM_ITEMS_X",
+          "y": 0,
+          "width": "BOBBYR_SHIPMENT_NUM_ITEMS_WIDTH",
+          "font": "BOBBYR_SHIPMENT_STATIC_TEXT_FONT",
+          "color": {
+            "by": "shipmentRows[$i].selected",
+            "map": {
+              "true": "FONT_MCOLOR_WHITE",
+              "false": "BOBBYR_SHIPMENT_STATIC_TEXT_COLOR"
+            }
+          },
+          "shadow": "DEFAULT_SHADOW",
+          "background": 0,
+          "text": {
+            "bind": "shipmentRows[$i].units"
+          },
+          "align": "center",
+          "visible": "shipmentRows[$i].present"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": {
+        "bind": "shipmentRegions"
+      },
+      "x": 0,
+      "y": "BOBBYR_SHIPMENT_ORDER_NUM_START_Y",
+      "dy": "BOBBYR_SHIPMENT_GAP_BTN_LINES",
+      "template": [
+        {
+          "type": "region",
+          "id": "shipmentRow$i",
+          "x": "BOBBYR_SHIPMENT_ORDER_NUM_X",
+          "y": 0,
+          "width": "BOBBYR_SHIPMENT_DELIVERY_GRID_WIDTH",
+          "height": {
+            "bind": "rowHeight"
+          },
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "primary": "select($i)"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "id": "shipmentsBack",
+      "x": "BOBBYR_SHIPMENT_BACK_BUTTON_X",
+      "y": "BOBBYR_SHIPMENT_BUTTON_Y",
+      "asset": "catalogueButton",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "back",
+      "text": {
+        "source": {
+          "key": ["BobbyROrderFormText", "BOBBYR_BACK"]
+        },
+        "font": "BOBBYR_GUNS_BUTTON_FONT",
+        "color": "BOBBYR_GUNS_TEXT_COLOR_ON",
+        "shadow": "BOBBYR_GUNS_SHADOW_COLOR",
+        "downColor": "BOBBYR_GUNS_TEXT_COLOR_OFF",
+        "downShadow": "BOBBYR_GUNS_SHADOW_COLOR"
+      }
+    },
+    {
+      "type": "button",
+      "id": "shipmentsHome",
+      "x": "BOBBYR_SHIPMENT_HOME_BUTTON_X",
+      "y": "BOBBYR_SHIPMENT_BUTTON_Y",
+      "asset": "catalogueButton",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "home",
+      "text": {
+        "source": {
+          "key": ["BobbyROrderFormText", "BOBBYR_HOME"]
+        },
+        "font": "BOBBYR_GUNS_BUTTON_FONT",
+        "color": "BOBBYR_GUNS_TEXT_COLOR_ON",
+        "shadow": "BOBBYR_GUNS_SHADOW_COLOR",
+        "downColor": "BOBBYR_GUNS_TEXT_COLOR_OFF",
+        "downShadow": "BOBBYR_GUNS_SHADOW_COLOR"
+      }
+    },
+    {
+      "type": "region",
+      "id": "shipmentsTitleLink",
+      "x": "BOBBYR_BOBBY_RAY_TITLE_X",
+      "y": "BOBBYR_BOBBY_RAY_TITLE_Y",
+      "width": 160,
+      "height": 35,
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "home"
+    }
+  ]
+}
