@@ -51,6 +51,7 @@ export interface OwnSoldierFields {
   readonly sees: readonly number[];
   readonly canAct: boolean;
   readonly continueTo: number | null;
+  readonly noApToFinishMove: boolean;
   readonly firstAid: FirstAidRole | null;
   readonly blinded: boolean;
   readonly hint: OwnHintInputs;
@@ -125,6 +126,7 @@ export function ownSoldierFields(t: TacticalState, s: Soldier, visible: Readonly
     sees: seenOpponents(s, visible),
     canAct: canActNow(t, s),
     continueTo: continueLocation(t, s),
+    noApToFinishMove: s.noAPToFinishMove,
     firstAid: firstAidRole(s),
     blinded: s.blindedCounter > 0,
     hint: ownHintInputs(t, s),

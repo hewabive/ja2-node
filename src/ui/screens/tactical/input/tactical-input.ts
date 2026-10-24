@@ -1790,8 +1790,7 @@ export class TacticalInput {
         this.#newCursor = 'NO_UICURSOR';
         if (flags & FindFlag.SELECTED) {
           this.#selection = Selection.SELECTED_GUY;
-          if (!this.#host.itemInCursor() && !this.#env().world.soldierMarker(target.id).moving)
-            this.#arrows = Arrows.SHOW_DOWN_BESIDE | Arrows.SHOW_UP_BESIDE;
+          if (!this.#host.itemInCursor() && this.#standsStill(target)) this.#arrows = Arrows.SHOW_DOWN_BESIDE | Arrows.SHOW_UP_BESIDE;
         } else this.#selection = flags & FindFlag.NOINTERRUPT ? Selection.ENEMY_GUY : Selection.NONSELECTED_GUY;
       }
       if (!(flags & FindFlag.DEAD) && movementMode) {
@@ -1932,7 +1931,7 @@ export class TacticalInput {
 
   #movementCursor(sel: SoldierView, mapPos: number, target: MoveUiTarget): boolean {
     if (!this.#enoughPoints(sel, this.#currentAp, false)) this.#apInvalid = true;
-    const stationary = !this.#combat() || !this.#env().world.soldierMarker(sel.id).moving;
+    const stationary = !this.#combat() || this.#standsStill(sel);
     if (!stationary) {
       this.#erasePath();
       return true;
@@ -1966,6 +1965,10 @@ export class TacticalInput {
       }
     }
     return true;
+  }
+
+  #standsStill(s: SoldierView): boolean {
+    return this.#env().world.soldierMarker(s.id).stationary || s.noApToFinishMove === true;
   }
 
   #plots(): boolean {
@@ -2418,6 +2421,7 @@ export class TacticalInput {
       owner: 'tacticalLock',
       id: 'tacticalLock',
     });
+    this.#lockRegion.animatesCursor = true;
     this.#busy = true;
   }
 

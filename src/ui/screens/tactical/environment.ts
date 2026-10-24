@@ -70,6 +70,7 @@ export interface SoldierMarker {
   readonly stanceOffset: number;
   readonly hidden: boolean;
   readonly moving: boolean;
+  readonly stationary: boolean;
 }
 
 export type MarkerLayer = 'object' | 'roof' | 'onRoof' | 'topmost';

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { approachUntilCombat, BATTLE_SANDBOX_SEED, untilOurTurn } from '../../../../tests/support/save-scenarios.ts';
+import { approachUntilCombat, BATTLE_SANDBOX_SEED, tacticalOf, untilOurTurn } from '../../../../tests/support/save-scenarios.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
 import type { DoorMenuOption } from '../../../protocol/hints.ts';
@@ -236,6 +236,28 @@ describe('the tactical input on the tactical screen', () => {
       expect(f.screen.controls.input.apNumber()?.value).toBeGreaterThan(0);
       await f.clickAt(at.x, at.y);
       expect(commandsOf(f, 'move').at(-1)).toMatchObject({ soldier: 0, to: tile });
+    },
+    SLOW_MS,
+  );
+
+  it(
+    'plots the path of a merc frozen mid-move for want of action points, as fNoAPToFinishMove counts as standing still',
+    async () => {
+      const f = await inCombat();
+      const s = merc(f, 0);
+      f.world.soldierMarkers.set(s.id, { stanceOffset: 0, hidden: false, moving: true, stationary: false });
+      const hover = async (gridNo: number) => {
+        const at = f.world.pickPoint(gridNo);
+        pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+        await f.settle(8);
+        return f.world.markers.some((m) => m.tile.startsWith('FOOTPRINTS'));
+      };
+      expect(await hover(s.gridNo - 2)).toBe(false);
+      const soldier = tacticalOf(f.session).state.soldiers.find((v) => v.id === s.id);
+      if (!soldier) throw new Error('no merc 0 in the simulation');
+      soldier.noAPToFinishMove = true;
+      f.client.refresh();
+      expect(await hover(s.gridNo - 3)).toBe(true);
     },
     SLOW_MS,
   );

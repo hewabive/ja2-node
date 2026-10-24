@@ -71,6 +71,7 @@ export interface SoldierView {
   readonly sees?: readonly number[];
   readonly canAct?: boolean;
   readonly continueTo?: number | null;
+  readonly noApToFinishMove?: boolean;
   readonly vehicle?: VehicleSeatView | null;
   readonly firstAid?: FirstAidRole | null;
   readonly blinded?: boolean;
@@ -1094,6 +1095,7 @@ const SCALAR_SOLDIER_FIELDS = [
   'muted',
   'canAct',
   'continueTo',
+  'noApToFinishMove',
   'firstAid',
   'blinded',
   'hostile',

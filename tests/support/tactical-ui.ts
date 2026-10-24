@@ -157,6 +157,7 @@ export class FakeWorld implements WorldPresenter {
   selected: number | null = null;
   roofLevel = false;
   heights = new Map<number, SoldierHeight>();
+  soldierMarkers = new Map<number, SoldierMarker>();
   markers: readonly WorldMarker[] = [];
   doors = new Map<number, InteractiveTile>();
   exitGrids = new Set<number>();
@@ -201,8 +202,8 @@ export class FakeWorld implements WorldPresenter {
     return this.heights.get(id) ?? 'stand';
   }
 
-  soldierMarker(): SoldierMarker {
-    return { stanceOffset: 0, hidden: false, moving: false };
+  soldierMarker(id: number): SoldierMarker {
+    return this.soldierMarkers.get(id) ?? { stanceOffset: 0, hidden: false, moving: false, stationary: true };
   }
 
   soldierAt(x: number, y: number): number | null {

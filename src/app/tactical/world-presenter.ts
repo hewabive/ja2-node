@@ -64,7 +64,7 @@ const SMALL_BODY_OFFSET = 30;
 const CELL_SIZE = 10;
 const HALF_CELL = 5;
 const PICK_LIFT = 10;
-const NO_MARKER: SoldierMarker = { stanceOffset: 0, hidden: false, moving: false };
+const NO_MARKER: SoldierMarker = { stanceOffset: 0, hidden: false, moving: false, stationary: true };
 const EDGE_PROBE_PX = 1;
 const INTERACTIVE_MASK = StructureFlags.ANYDOOR | StructureFlags.SWITCH;
 const ROOF_LAYERS: ReadonlySet<WorldMarker['layer']> = new Set(['roof', 'onRoof']);
@@ -216,6 +216,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
       stanceOffset: smallBody ? SMALL_BODY_OFFSET : stanceOffsetOf(height),
       hidden: (control.flags & AnimFlags.NOSHOW_MARKER) !== 0,
       moving: (control.flags & AnimFlags.MOVING) !== 0,
+      stationary: (control.flags & AnimFlags.STATIONARY) !== 0,
     };
   }
 

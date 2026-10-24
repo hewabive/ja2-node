@@ -1185,7 +1185,9 @@ mechanical, medical}` (the SM panel values), `armour` (`ArmourPercent`), `weight
 `stealth`, `weaponMode` (`single`, `burst`, `launcher`), `muted` (the flag U6's `mute` will set), `sees` (the ids of the
 enemies in the view this merc sees now), `canAct` (the face hatch rule: our turn and not moved during an interrupt; a
 hidden enemy interrupt keeps it true), `continueTo` (the End key's target: `sContPathLocation` with `bGoodContPath`,
-else the final destination of a halted move), `firstAid` (`medic`, `patient` or null) and `blinded`; in a campaign
+else the final destination of a halted move), `noApToFinishMove` (`fNoAPToFinishMove`: the merc stopped mid-move for
+want of action points and stays in his moving animation, which the cursor counts as standing still), `firstAid`
+(`medic`, `patient` or null) and `blinded`; in a campaign
 `asleep`, `squad` (null outside a squad) and `vehicle {id, driver}` from the roster, in the sandbox squad 0. Inventory
 objects add `jammed` and `imprint` (the profile a rocket rifle answers to, 201 for an unknown owner, `GetObjectImprint`).
 **Other soldiers in sight** carry `hostile` (`!bNeutral && bSide != FRIENDLY`, the glow test) and `healthIndex` (the
