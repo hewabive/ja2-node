@@ -1,7 +1,7 @@
 import { AudioEngine } from '../../audio/engine.ts';
 import { UI_LANGUAGES, type UiLanguage } from '../../content/text/data-version.ts';
 import type { Health, SessionSummary } from '../../ui/client/api-types.ts';
-import { type CampaignProblem, campaignRequest, pageUrl, type StartPage } from '../../ui/client/campaign-form.ts';
+import { type CampaignProblem, campaignRequest, pageUrl, playUrl, type StartPage } from '../../ui/client/campaign-form.ts';
 import { type ClientSettings, effectiveMaster, type SettingsChange, updateSettings } from '../../ui/settings.ts';
 import { LABELS, type LabelId, Labels } from '../../ui/text/labels.ts';
 import { type CreditsMonitor, createCreditsMonitor, playCredits } from '../credits/scroller.ts';
@@ -197,11 +197,15 @@ function renderLanguages(): void {
   );
 }
 
-function pageLink(text: string, page: StartPage, session: string): HTMLAnchorElement {
+function link(text: string, href: string): HTMLAnchorElement {
   const a = document.createElement('a');
   a.textContent = text;
-  a.href = pageUrl(page, session);
+  a.href = href;
   return a;
+}
+
+function pageLink(text: string, page: StartPage, session: string): HTMLAnchorElement {
+  return link(text, pageUrl(page, session));
 }
 
 function renderSessions(): void {
@@ -210,6 +214,7 @@ function renderSessions(): void {
     li.dataset.session = s.session;
     const where = [s.flow, s.sector].filter(Boolean).join(' ');
     li.append(`${s.session}${where ? ` (${where})` : ''}: `);
+    if (s.flow || s.map) li.append(link(labels.text('play'), playUrl(s.session)), ' · ');
     if (s.flow) li.append(pageLink(labels.text('strategicPage'), 'strategic', s.session));
     if (s.flow && s.map) li.append(' · ');
     if (s.map) li.append(pageLink(labels.text('tacticalPage'), 'tactical', s.session));

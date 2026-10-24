@@ -17,7 +17,7 @@ import type { Sha256 } from '../../content/rules/pack.ts';
 import { TICK_MS, UNKNOWN_IDENTITY } from '../../protocol/messages.ts';
 import type { SimEvent } from '../../sim/events.ts';
 import type { ReadVfsFile } from '../net/vfs.ts';
-import { subtleSha256 } from '../rules/client-rules.ts';
+import { browserSha256 } from '../rules/client-rules.ts';
 
 const MANIFEST_HASH_DIGITS = 16;
 const MARKER_EVENTS: ReadonlySet<SimEvent['type']> = new Set(['shotFired', 'meleeStrike']);
@@ -100,7 +100,7 @@ export async function loadSoldierFrames(source: SoldierFramesSource): Promise<So
   const path = scriptsPath(source.available, source.preferStubScripts ?? false);
   if (!path) return null;
   const bytes = await source.read(path);
-  const hash = (await (source.sha256 ?? subtleSha256)(bytes)).slice(0, MANIFEST_HASH_DIGITS);
+  const hash = (await (source.sha256 ?? browserSha256)(bytes)).slice(0, MANIFEST_HASH_DIGITS);
   const timelines = splitAnimationScripts(parseAnimationScripts(bytes));
   return new SoldierFrames(timelines, sameScripts(hash, source), TICK_MS);
 }

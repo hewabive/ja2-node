@@ -115,3 +115,7 @@ export function campaignRequest(form: CampaignForm, language: UiLanguage | null,
 export function pageUrl(page: StartPage, session: string): string {
   return `/src/devtools/${page}/?session=${encodeURIComponent(session)}`;
 }
+
+export function playUrl(session: string): string {
+  return `/play?session=${encodeURIComponent(session)}`;
+}

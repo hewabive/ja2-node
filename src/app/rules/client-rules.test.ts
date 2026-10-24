@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
 import { NotARuleFileError, type RulePack } from '../../content/rules/pack.ts';
 import type { Vfs } from '../../content/vfs/vfs.ts';
@@ -10,7 +10,7 @@ import { nodeSha256, openRulePack } from '../../server/rule-pack.ts';
 import { loadTacticalContent } from '../../sim/tactical/load-content.ts';
 import { HttpAssetSource } from '../assets/asset-source.ts';
 import type { Fetcher } from '../assets/http-vfs-layer.ts';
-import { clientRulePackIdentity, loadClientRules, type RulesCheck, subtleSha256 } from './client-rules.ts';
+import { browserSha256, clientRulePackIdentity, loadClientRules, type RulesCheck } from './client-rules.ts';
 
 const TOKEN = 'rules-test-token-0123456789';
 const SLOW_MS = 120_000;
@@ -40,8 +40,21 @@ describe('the client rule content on the stub data', () => {
   it(
     'has the rule pack hash and scripts hash of the server, from the manifest and three small files',
     async () => {
-      expect(await clientRulePackIdentity(source, subtleSha256)).toEqual({ pack: pack.hash, scripts: pack.scriptsHash });
+      expect(await clientRulePackIdentity(source, browserSha256)).toEqual({ pack: pack.hash, scripts: pack.scriptsHash });
       expect(await clientRulePackIdentity(source, nodeSha256)).toEqual({ pack: pack.hash, scripts: pack.scriptsHash });
+    },
+    SLOW_MS,
+  );
+
+  it(
+    'has the same hashes where WebCrypto is missing, as on a page served over plain HTTP from another machine',
+    async () => {
+      vi.stubGlobal('crypto', {});
+      try {
+        expect(await clientRulePackIdentity(source, browserSha256)).toEqual({ pack: pack.hash, scripts: pack.scriptsHash });
+      } finally {
+        vi.unstubAllGlobals();
+      }
     },
     SLOW_MS,
   );

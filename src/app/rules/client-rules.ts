@@ -7,6 +7,7 @@ import {
   scriptsHashOfListing,
 } from '../../content/rules/pack.ts';
 import { liveRuleReader, type RuleReader } from '../../content/rules/rule-reader.ts';
+import { sha256Hex } from '../../core/sha256.ts';
 import { type AssetManifest, entryLayer, entryLayers } from '../../protocol/assets.ts';
 import type { RulePackIdentityView } from '../../protocol/messages.ts';
 import type { AssetSource } from '../assets/asset-source.ts';
@@ -30,8 +31,10 @@ export interface ClientRulesOptions {
   readonly onMismatch?: (check: RulesCheck) => void;
 }
 
-export const subtleSha256: Sha256 = async (bytes) => {
-  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(bytes)));
+export const browserSha256: Sha256 = async (bytes) => {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) return sha256Hex(bytes);
+  const digest = new Uint8Array(await subtle.digest('SHA-256', new Uint8Array(bytes)));
   return [...digest].map((b) => b.toString(HEX_RADIX).padStart(BYTE_HEX_DIGITS, '0')).join('');
 };
 
@@ -39,7 +42,7 @@ export function manifestRuleListing(manifest: AssetManifest): RuleListingWithHas
   return manifest.files.map((e) => ({ path: e[0], size: e[1], hash: e[2], layers: entryLayers(e), layer: entryLayer(manifest, e) }));
 }
 
-export async function clientRulePackIdentity(source: AssetSource, sha256: Sha256 = subtleSha256): Promise<RulePackIdentityView> {
+export async function clientRulePackIdentity(source: AssetSource, sha256: Sha256 = browserSha256): Promise<RulePackIdentityView> {
   const listing = manifestRuleListing(source.manifest);
   const ruleSource: RuleSource = source.manifest.source;
   const identity = await rulePackIdentityOfListing(ruleSource, listing, (path) => source.read(path));

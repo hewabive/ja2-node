@@ -486,6 +486,7 @@ let available: ReadonlySet<string> = new Set();
 let listing: readonly VfsFile[] = [];
 const pageParams = new URLSearchParams(location.search);
 let loadingMap: string | null = null;
+let started = false;
 
 async function loadSector(mapPath: string): Promise<void> {
   loadingMap = mapPath;
@@ -511,7 +512,7 @@ async function loadSector(mapPath: string): Promise<void> {
 
 function followSectorChange(): void {
   const mapPath = client?.mapPath ?? null;
-  if (!mapPath || mapPath === debug.map || loadingMap !== null || !soldierScene) return;
+  if (!mapPath || mapPath === debug.map || loadingMap !== null || !started) return;
   void loadSector(mapPath).catch((err: Error) => {
     loadingMap = null;
     debug.error = err.message;
@@ -567,6 +568,7 @@ async function start(): Promise<void> {
       aiTurns.reset();
     };
     await loadSector(mapPath);
+    started = true;
     for (const b of document.querySelectorAll<HTMLButtonElement>('[data-speed]'))
       b.classList.toggle('active', Number(b.dataset.speed) === 0);
   } catch (err) {

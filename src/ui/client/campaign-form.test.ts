@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { campaignRequest, DEFAULT_CAMPAIGN_FORM, ORIGINAL_OPTIONS, pageUrl, validDeadIsDeadName } from './campaign-form.ts';
+import { campaignRequest, DEFAULT_CAMPAIGN_FORM, ORIGINAL_OPTIONS, pageUrl, playUrl, validDeadIsDeadName } from './campaign-form.ts';
 
 describe('new campaign form', () => {
   it("preselects the original's options: easy, sci-fi, reduced guns, save anywhere, blood on", () => {
@@ -66,5 +66,10 @@ describe('new campaign form', () => {
   it('opens the devtools page of the session', () => {
     expect(pageUrl('strategic', 'sandbox-3')).toBe('/src/devtools/strategic/?session=sandbox-3');
     expect(pageUrl('tactical', 'a b')).toBe('/src/devtools/tactical/?session=a%20b');
+  });
+
+  it('opens the game page on the session', () => {
+    expect(playUrl('sandbox-3')).toBe('/play?session=sandbox-3');
+    expect(playUrl('a b')).toBe('/play?session=a%20b');
   });
 });
