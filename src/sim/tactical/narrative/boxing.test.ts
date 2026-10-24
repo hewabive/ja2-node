@@ -343,7 +343,7 @@ describe('around a match', () => {
     sim.state.boxing.uiLocked = true;
     expect(sim.isIdle()).toBe(false);
     expect(sim.dispatch({ type: 'move', soldier: merc.id, to: IN_RING })).toMatchObject({ ok: false, data: { refusal: 'boxingUiLock' } });
-    expect(estimateAttack(sim, { soldier: merc.id, target: IN_RING }).reason).not.toMatch(/locked/);
+    expect(estimateAttack(sim, { soldier: merc.id, target: IN_RING })).toMatchObject({ ok: true, data: { cursor: 'punch' } });
   });
 
   it('keeps a hostile boxer from spreading hostility to his group while the boxers are in the ring', () => {

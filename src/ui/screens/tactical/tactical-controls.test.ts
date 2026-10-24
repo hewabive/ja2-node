@@ -3,6 +3,9 @@ import { approachUntilCombat, BATTLE_SANDBOX_SEED, tacticalOf, untilOurTurn } fr
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
 import type { DoorMenuOption } from '../../../protocol/hints.ts';
+import { emptyObject } from '../../../sim/items/object.ts';
+import { WeaponMode } from '../../../sim/tactical/combat/types.ts';
+import { InvSlot } from '../../../sim/tactical/inventory.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { KeyModifier, MouseButton } from '../../input/events.ts';
 import { UiMode } from './input/ui-events.ts';
@@ -290,6 +293,29 @@ describe('the tactical input on the tactical screen', () => {
       await f.settle();
       expect(commandsOf(f, 'attack').at(-1)).toMatchObject({ soldier: 0, target: enemy.gridNo });
       expect(f.screen.controls.lockState()).toBe('ourTurn');
+    },
+    SLOW_MS,
+  );
+
+  it(
+    'shows the fists, not the lost gun, once the gun is gone from the hand of a merc left in burst mode',
+    async () => {
+      const f = await inCombat();
+      const enemy = f.client.view.soldiers.find((v) => v.team !== 0 && v.hostile === true);
+      if (!enemy) throw new Error('no enemy in sight');
+      f.world.camera = { centerX: (enemy.gridNo % 160) * 10 + 5, centerY: Math.floor(enemy.gridNo / 160) * 10 + 5 };
+      const at = f.world.pickPoint(enemy.gridNo);
+      pointer(f, 'pointerMove', at.x, at.y - 5, MouseButton.LEFT);
+      await f.settle(8);
+      expect(f.screen.controls.input.uiCursor).toMatch(/TARGET|SHOOT/);
+      const merc = tacticalOf(f.session).state.soldiers.find((v) => v.id === 0);
+      if (!merc) throw new Error('no merc 0 in the simulation');
+      merc.inv[InvSlot.HAND] = emptyObject();
+      merc.weaponMode = WeaponMode.BURST;
+      f.client.refresh();
+      pointer(f, 'pointerMove', at.x + 1, at.y - 5, MouseButton.LEFT);
+      await f.settle(8);
+      expect(f.screen.controls.input.uiCursor).toMatch(/PUNCH/);
     },
     SLOW_MS,
   );

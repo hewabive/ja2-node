@@ -20,9 +20,11 @@ import { AimShot, WeaponMode } from '../tactical/combat/types.ts';
 import { HEIGHT_UNITS } from '../tactical/explosions/physics.ts';
 import { calcMaxTossRange, calcThrownChanceToHit } from '../tactical/explosions/throwing.ts';
 import { calculateLaunchItemChanceToGetThrough } from '../tactical/explosions/trajectory.ts';
+import { consistentWeaponMode } from '../tactical/hand-item.ts';
 import { InvSlot, NO_SLOT } from '../tactical/inventory.ts';
 import { tacticalPanelEnv } from '../tactical/inventory-commands.ts';
 import { apsToAutoReload } from '../tactical/inventory-panel.ts';
+import { movementModeState } from '../tactical/movement-mode.ts';
 import { uncontrolledRobot } from '../tactical/narrative/robot.ts';
 import { Body, NOWHERE, OKBREATH, type Soldier } from '../tactical/soldier.ts';
 import type { WeaponModeView } from '../tactical/soldier-view.ts';
@@ -68,6 +70,7 @@ export interface EstimateAttackRequest extends HintRequestBase {
   readonly bodyPart?: unknown;
   readonly burst?: unknown;
   readonly weaponMode?: unknown;
+  readonly mode?: unknown;
 }
 
 const AIM_PARTS: Readonly<Record<string, number>> = {
@@ -205,6 +208,7 @@ function estimateStrike(
   const hand = s.inv[InvSlot.HAND] as ItemObject;
   const def = t.content.items.byIndex.get(hand.item);
   const melee = hand.item === NOTHING || (def !== undefined && isMeleeItemClass(def.itemClass));
+  if (melee && (!victim || level !== s.level)) return nobodyToStrike(t, s, cursor, base);
   const aimedAt = victim ? victim.gridNo : target;
   const apCostByAim = aimCosts(t, s, aimedAt);
   const chanceToHit = melee ? null : calcChanceToHitGun(t, s, target, aim, s.aimShotLocation, false);
@@ -225,6 +229,19 @@ function estimateStrike(
   };
 }
 
+function nobodyToStrike(t: TacticalState, s: Soldier, cursor: number, base: EstimateBase): EstimateAttack {
+  return {
+    ...base,
+    apCost: 0,
+    apCostByAim: [],
+    chanceToHit: null,
+    chanceToGetThrough: MELEE_CHANCE_TO_GET_THROUGH,
+    inRange: true,
+    ammo: ammoState(t, s, cursor),
+    inReach: false,
+  };
+}
+
 const ATTACK_CURSORS: ReadonlySet<number> = new Set([
   ItemCursor.TARGET,
   ItemCursor.PUNCH,
@@ -233,19 +250,17 @@ const ATTACK_CURSORS: ReadonlySet<number> = new Set([
   ItemCursor.TRAJECTORY,
 ]);
 
-function attackRefusal(s: Soldier, cursor: number, aim: number, victim: Soldier | null, level: number) {
+function attackRefusal(cursor: number, aim: number) {
   if (!ATTACK_CURSORS.has(cursor)) return refuseHint('noWeapon', 'soldier has no gun, knife, grenade, launcher or free hand');
   if (cursor === ItemCursor.TOSS && aim !== 0) return refuseHint('throwNoAim', 'throws cannot be aimed');
-  if ((cursor === ItemCursor.PUNCH || cursor === ItemCursor.KNIFE) && (!victim || level !== s.level))
-    return refuseHint('needMeleeTarget', 'a melee attack needs a soldier on the target tile at the same level');
   return null;
 }
 
-function weaponModeOf(s: Soldier, req: EstimateAttackRequest): number {
+function weaponModeOf(t: TacticalState, s: Soldier, req: EstimateAttackRequest): number {
   if (req.burst === true || req.weaponMode === 'burst') return WeaponMode.BURST;
   if (req.weaponMode === 'launcher') return WeaponMode.ATTACHED;
   if (req.weaponMode === 'single' || req.burst === false) return WeaponMode.NORMAL;
-  return s.weaponMode;
+  return consistentWeaponMode(t.content.items, s);
 }
 
 export function estimateAttack(world: KnowledgeWorld, req: EstimateAttackRequest): HintResult<EstimateAttack> {
@@ -262,7 +277,7 @@ export function estimateAttack(world: KnowledgeWorld, req: EstimateAttackRequest
   const part = AIM_PARTS[String(req.bodyPart ?? 'random')];
   if (part === undefined) return refuseHint('badBodyPart', 'bodyPart must be head, torso, legs or random');
   const hand = s.inv[InvSlot.HAND] as ItemObject;
-  const mode = weaponModeOf(s, req);
+  const mode = weaponModeOf(t, s, req);
   const def = t.content.items.byIndex.get(hand.item);
   if (mode === WeaponMode.BURST && !(def?.weapon?.shotsPerBurst ?? 0)) return refuseHint('noBurst', 'this weapon cannot fire bursts');
   if (mode === WeaponMode.ATTACHED && findAttachment(hand, itemIndex(t, 'UNDER_GLAUNCHER')) === -1)
@@ -273,6 +288,8 @@ export function estimateAttack(world: KnowledgeWorld, req: EstimateAttackRequest
     s,
     {
       aimTime: aim,
+      uiMovementMode: movementModeState(t.content, s, req.mode),
+      reverse: false,
       aimShotLocation: victim && endHeight(t.content, victim.state) !== AnimHeight.PRONE ? part : AimShot.RANDOM,
       weaponMode: mode,
       doBurst: mode === WeaponMode.BURST ? 1 : 0,
@@ -287,7 +304,7 @@ export function estimateAttack(world: KnowledgeWorld, req: EstimateAttackRequest
     },
     () => {
       const cursor = actionModeCursor(t, s, isEpc);
-      const refusal = attackRefusal(s, cursor, aim, victim, level);
+      const refusal = attackRefusal(cursor, aim);
       if (refusal) return refusal;
       const base: EstimateBase = {
         cursor: CURSOR_NAMES[cursor] ?? 'other',

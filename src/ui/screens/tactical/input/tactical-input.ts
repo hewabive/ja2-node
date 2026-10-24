@@ -1646,7 +1646,7 @@ export class TacticalInput {
       target: gridNo,
       level,
       aimTime: 0,
-      weaponMode: sel.weaponMode ?? 'single',
+      mode: this.moveModeOf(sel),
     };
   }
 
@@ -2152,8 +2152,7 @@ export class TacticalInput {
     if (!sel) return;
     const target = this.#hover.target;
     const answer = this.#estimate(target?.gridNo ?? mapPos, target?.level ?? this.#host.interfaceLevel());
-    if (answer.state === 'ok') this.#lastAttack.cursor = answer.data;
-    const estimate = dataOf(answer) ?? this.#lastAttack.cursor;
+    const estimate = this.#keepEstimate(answer);
     if (estimate?.cursor === 'target') {
       this.#actionDoorText();
       if (!estimate.inRange && target && (this.#outOfRange?.gridNo !== target.gridNo || this.#outOfRange.soldier !== sel.id)) {
@@ -2161,7 +2160,7 @@ export class TacticalInput {
         this.#outOfRange = { gridNo: target.gridNo, soldier: sel.id };
       }
     }
-    this.#properItemCursor(sel, mapPos, false, estimate);
+    this.#properItemCursor(sel, mapPos, false, estimate, answer.state === 'refused');
     this.#onMerc(false);
     if (
       this.#mode === UiMode.ACTION_MODE &&
@@ -2184,9 +2183,15 @@ export class TacticalInput {
     if (tile?.door) this.#doorText(tile.gridNo, tile.open);
   }
 
-  #properItemCursor(sel: SoldierView, mapPos: number, activated: boolean, estimate: EstimateAttack | null): void {
+  #keepEstimate(answer: HintState<EstimateAttack>): EstimateAttack | null {
+    if (answer.state === 'ok') this.#lastAttack.cursor = answer.data;
+    else if (answer.state === 'refused') this.#lastAttack.cursor = null;
+    return this.#lastAttack.cursor;
+  }
+
+  #properItemCursor(sel: SoldierView, mapPos: number, activated: boolean, estimate: EstimateAttack | null, refused: boolean): void {
     if (!estimate) {
-      this.#newCursor = 'ACTION_SHOOT_UICURSOR';
+      this.#newCursor = refused ? 'INVALID_ACTION_UICURSOR' : 'ACTION_SHOOT_UICURSOR';
       return;
     }
     const knife = this.#throwingKnife(sel);
@@ -2291,8 +2296,7 @@ export class TacticalInput {
     if (mapPos === null || !sel) return;
     const target = this.#hover.target;
     const answer = this.#estimate(target?.gridNo ?? mapPos, target?.level ?? this.#host.interfaceLevel());
-    if (answer.state === 'ok') this.#lastAttack.cursor = answer.data;
-    this.#properItemCursor(sel, mapPos, true, dataOf(answer) ?? this.#lastAttack.cursor);
+    this.#properItemCursor(sel, mapPos, true, this.#keepEstimate(answer), answer.state === 'refused');
     this.#onMerc(false);
   }
 

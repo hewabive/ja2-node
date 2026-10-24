@@ -14,7 +14,7 @@ import { effectiveExpLevel, effectiveStrength } from '../skills.ts';
 import { type Soldier, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { calcChanceToStab, hthImpact, useBlade } from './melee.ts';
-import { AiMorale, AimShot } from './types.ts';
+import { AiMorale, AimShot, WeaponMode } from './types.ts';
 
 let content: TacticalContent;
 
@@ -204,5 +204,20 @@ describe('punches', () => {
   it('refuses a punch at someone two tiles away', () => {
     const { sim } = duel(null, gridNo(80, 82), Direction.SOUTH);
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: gridNo(80, 82) }).ok).toBe(false);
+  });
+
+  it('estimates the fists of a merc who lost his gun in burst mode, and an empty tile as out of reach', () => {
+    const { sim, merc, enemy } = duel(null, gridNo(80, 81), Direction.SOUTH);
+    merc.weaponMode = WeaponMode.BURST;
+    expect(estimateAttack(sim, { soldier: 0, target: enemy.gridNo })).toMatchObject({
+      ok: true,
+      data: { cursor: 'punch', weaponMode: 'single', inReach: true },
+    });
+    expect(merc.weaponMode).toBe(WeaponMode.BURST);
+    expect(estimateAttack(sim, { soldier: 0, target: gridNo(81, 80) })).toMatchObject({
+      ok: true,
+      data: { cursor: 'punch', inReach: false },
+    });
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: gridNo(81, 80) })).toMatchObject({ ok: false });
   });
 });

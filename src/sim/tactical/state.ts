@@ -345,6 +345,7 @@ export function createPathEnv(parts: PathEnvParts, settings: PathEnvSettings): P
     autoBandage: settings.autoBandage,
     multiTile: (p, mode) => {
       const s = p as Soldier;
+      if (!s.multiTile) return null;
       return multiTileShape(content, s, mode === null ? s.uiMovementMode : anim(content, mode));
     },
     stats: settings.stats,

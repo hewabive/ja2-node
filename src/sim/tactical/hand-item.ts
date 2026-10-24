@@ -32,9 +32,14 @@ export function hasLauncher(items: ItemTable, s: Soldier): boolean {
   return findAttachment(hand, ugl) !== -1 && hand.attachments.some((a) => a.item !== NOTHING && validLaunchable(items, a.item, ugl));
 }
 
+export function consistentWeaponMode(items: ItemTable, s: Soldier): number {
+  if (s.weaponMode === WeaponMode.BURST && !isGunBurstCapable(items, s, InvSlot.HAND)) return WeaponMode.NORMAL;
+  if (s.weaponMode === WeaponMode.ATTACHED && !hasLauncher(items, s)) return WeaponMode.NORMAL;
+  return s.weaponMode;
+}
+
 export function ensureConsistentWeaponMode(items: ItemTable, s: Soldier): void {
-  if (s.weaponMode === WeaponMode.BURST && !isGunBurstCapable(items, s, InvSlot.HAND)) s.weaponMode = WeaponMode.NORMAL;
-  else if (s.weaponMode === WeaponMode.ATTACHED && !hasLauncher(items, s)) s.weaponMode = WeaponMode.NORMAL;
+  s.weaponMode = consistentWeaponMode(items, s);
   s.doBurst = s.weaponMode === WeaponMode.BURST ? 1 : 0;
 }
 
