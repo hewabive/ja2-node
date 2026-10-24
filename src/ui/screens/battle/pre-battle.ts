@@ -176,7 +176,7 @@ export class PreBattlePanel {
 
   render(list: DrawList, below: readonly DrawItem[]): void {
     this.#view.render(list);
-    this.#renderedBefore = true;
+    if (this.#phase !== 'opening') this.#renderedBefore = true;
     if (this.#phase === 'pressing') {
       this.#phase = 'pressed';
       this.#host.autoStartShown();
