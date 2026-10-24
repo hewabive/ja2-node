@@ -12,7 +12,7 @@
       "stub": {
         "frames": 1,
         "size": ["FUNERAL_MARBLE_WIDTH", "FUNERAL_MARBLE_HEIGHT"],
-        "hollow": true
+        "style": "hollow"
       }
     },
     "leftColumn": {
@@ -20,7 +20,7 @@
       "stub": {
         "frames": 1,
         "size": ["FUNERAL_MORTUARY_SIGN_X - FUNERAL_LEFT_COLUMN_X", "FUNERAL_LINK_1_Y - FUNERAL_LEFT_COLUMN_Y"],
-        "hollow": true
+        "style": "hollow"
       }
     },
     "rightColumn": {
@@ -28,7 +28,7 @@
       "stub": {
         "frames": 1,
         "size": ["LAPTOP_SCREEN_LR_X - FUNERAL_RIGHT_COLUMN_X", "FUNERAL_LINK_1_Y - FUNERAL_RIGHT_COLUMN_Y"],
-        "hollow": true
+        "style": "hollow"
       }
     },
     "mcGillicuttys": {
@@ -36,7 +36,7 @@
       "stub": {
         "frames": 1,
         "size": ["FUNERAL_RIGHT_COLUMN_X - FUNERAL_MCGILICUTTYS_SIGN_X - 26", "FUNERAL_MORTUARY_SIGN_Y - FUNERAL_MCGILICUTTYS_SIGN_Y"],
-        "hollow": true
+        "style": "hollow"
       }
     },
     "mortuary": {
@@ -44,7 +44,7 @@
       "stub": {
         "frames": 1,
         "size": ["FUNERAL_RIGHT_COLUMN_X - FUNERAL_MORTUARY_SIGN_X", "FUNERAL_SENTENCE_1_Y - FUNERAL_MORTUARY_SIGN_Y - 4"],
-        "hollow": true
+        "style": "hollow"
       }
     },
     "linkCarving": {
@@ -52,7 +52,7 @@
       "stub": {
         "frames": 1,
         "size": ["FUNERAL_LINK_1_WIDTH", "FUNERAL_LINK_1_HEIGHT"],
-        "hollow": true
+        "style": "hollow"
       }
     },
     "closed": {
@@ -60,7 +60,7 @@
       "stub": {
         "frames": 1,
         "size": ["FUNERAL_CLOSED_WIDTH", "FUNERAL_CLOSED_HEIGHT"],
-        "hollow": true
+        "style": "hollow"
       }
     }
   },
