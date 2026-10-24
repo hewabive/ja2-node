@@ -4,6 +4,7 @@ import type { MessageBoxButtons, MessageBoxes, MessageBoxRequest } from '../../m
 import { MessageString } from '../../text/string-ids.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import { MessageBoxReturn } from '../../widgets/message-box.ts';
+import { gameScreenOf } from '../front-end/flow.ts';
 import { MEANWHILE_BOX, meanwhileBoxButtons, meanwhileBoxText } from './meanwhile-box.ts';
 import { StoryLayer, type StoryPort } from './story-layer.ts';
 
@@ -198,5 +199,14 @@ describe('the story layer (docs/28 §10)', () => {
     layer.reset();
     await settle();
     expect(layer.holdsFlow).toBe(false);
+  });
+});
+
+describe('the screen of a story flow', () => {
+  it('is the tactical screen for the interrogation, the endgame and a won campaign', () => {
+    const viewOf = (flow: string) => ({ tick: 0, mapPath: null, soldiers: [], strategic: { flow } }) as never;
+    expect(
+      ['meanwhile', 'endgame', 'ended', 'tactical', 'strategic', 'laptop', 'autoresolve'].map((flow) => gameScreenOf(viewOf(flow))),
+    ).toEqual(['tactical', 'tactical', 'tactical', 'tactical', 'map', 'laptop', 'map']);
   });
 });

@@ -25,12 +25,16 @@ function quiet(session: CampaignSession, name: string): void {
   Object.assign(sectorInfo(session.campaign.state.map, parseSectorString(name)), { numAdmins: 0, numTroops: 0, numElites: 0 });
 }
 
-async function landed(kit: StubSectorKit, seed: number, mercs: number, quietSectors: readonly string[]): Promise<CampaignSession> {
-  const session = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs, land: false });
+export async function landSquad(session: CampaignSession, quietSectors: readonly string[]): Promise<void> {
   for (const name of quietSectors) quiet(session, name);
   const land = { type: 'compressTime', mode: 2 };
   await session.prepare(land);
   if (!session.dispatch(land).ok) throw new Error('the squad did not land');
+}
+
+async function landed(kit: StubSectorKit, seed: number, mercs: number, quietSectors: readonly string[]): Promise<CampaignSession> {
+  const session = await createCampaignSession(kit.read, (p) => kit.worlds.exists(p), seed, { mercs, land: false });
+  await landSquad(session, quietSectors);
   return session;
 }
 
@@ -80,12 +84,16 @@ export async function inTheInterrogation(kit: StubSectorKit, seed: number): Prom
 
 export async function inThePalaceBasement(kit: StubSectorKit, seed: number): Promise<CampaignSession> {
   const session = await landed(kit, seed, 2, ['A9']);
+  await moveToThePalaceBasement(session);
+  return session;
+}
+
+export async function moveToThePalaceBasement(session: CampaignSession): Promise<void> {
   await session.worlds?.prepare(PALACE_MAPS);
   moveMercs(session, PALACE_BASEMENT);
   const queen = session.campaign.narrative.profile(Npc.QUEEN);
   if (queen) queen.sectorZ = PALACE_BASEMENT.z;
   if (!session.campaign.sectors?.setCurrentWorldSector(PALACE_BASEMENT)) throw new Error('the palace basement did not load');
-  return session;
 }
 
 export function queenBleedingToDeath(session: CampaignSession): void {

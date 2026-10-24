@@ -17,6 +17,7 @@ import {
 } from '../../ui/screens/front-end/flow.ts';
 import { LOADINGSCREEN_NOTHING } from '../../ui/screens/front-end/loading.ts';
 import { type LaptopMemory, laptopMemory } from '../../ui/screens/laptop/laptop-client.ts';
+import type { StoryLayer } from '../../ui/screens/story/story-layer.ts';
 import type { Labels } from '../../ui/text/labels.ts';
 import { messageBoxLabels } from '../../ui/widgets/message-box.ts';
 import { CreditRowFeed, fetchCreditRow } from '../credits/rows.ts';
@@ -146,6 +147,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
     return map;
   };
   let lastLoadScreen: number | null = null;
+  let stories: { readonly help: HelpHost; readonly story: StoryLayer } | null = null;
   const tacticalPort = (host: TacticalHost): TacticalPort => ({
     get loaded() {
       return host.loaded;
@@ -170,8 +172,8 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
   page.frameListener = (ms) => {
     tactical?.frameTime(ms);
     map?.frameTime();
-    help.frame();
-    story.frame();
+    stories?.help.frame();
+    stories?.story.frame();
   };
   const laptopMemories = new Map<string, LaptopMemory>();
   const laptopMemoryFor = (session: string): LaptopMemory => {
@@ -234,6 +236,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
   const story = createStoryLayer({ page, ui, env, flow, client, settings, music, video, tacticalLoaded: () => tactical?.loaded ?? false });
   page.hook.help = help.hook;
   page.hook.story = story.hook;
+  stories = { help, story };
   client.onConnected = (session: SessionClient | null) => {
     page.client = session;
     page.hook.session = session?.session ?? null;

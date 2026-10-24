@@ -2,13 +2,22 @@ import { defineConfig, devices } from '@playwright/test';
 import { E2E_MAX_SESSIONS, SAVE_DIR, SERVER_PORT, TOKEN, WEB_PORT } from './tests/e2e/env.ts';
 
 const CANVAS_TEST_TIMEOUT_MS = 90_000;
+const SETTINGS_KEY = 'ja2-node:settings';
+const SETTINGS_WITHOUT_HELP = JSON.stringify({ version: 2, helpHidden: true });
 
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: false,
   timeout: CANVAS_TEST_TIMEOUT_MS,
   reporter: [['list']],
-  use: { baseURL: `http://127.0.0.1:${WEB_PORT}`, viewport: { width: 1280, height: 800 } },
+  use: {
+    baseURL: `http://127.0.0.1:${WEB_PORT}`,
+    viewport: { width: 1280, height: 800 },
+    storageState: {
+      cookies: [],
+      origins: [{ origin: `http://127.0.0.1:${WEB_PORT}`, localStorage: [{ name: SETTINGS_KEY, value: SETTINGS_WITHOUT_HELP }] }],
+    },
+  },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } }],
   webServer: {
     command: 'node tools/dev.ts',

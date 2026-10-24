@@ -34,6 +34,7 @@ export type StoryRelease = (frames: readonly ViewFrame[]) => void;
 
 export interface StoryHook {
   step: string | null;
+  played: string[];
   meanwhileBoxes: number;
   endings: number;
 }
@@ -54,7 +55,7 @@ function stepOf(event: FrameEvent): StoryStep | null {
 }
 
 export class StoryLayer {
-  readonly hook: StoryHook = { step: null, meanwhileBoxes: 0, endings: 0 };
+  readonly hook: StoryHook = { step: null, played: [], meanwhileBoxes: 0, endings: 0 };
   readonly #port: StoryPort;
   readonly #steps: StoryStep[] = [];
   readonly #held: { readonly frame: ViewFrame; readonly through: number }[] = [];
@@ -117,6 +118,7 @@ export class StoryLayer {
       for (let step = this.#steps.shift(); step; step = this.#steps.shift()) {
         this.#started++;
         this.hook.step = step.kind;
+        this.hook.played.push(step.kind);
         await this.#play(step);
       }
     } finally {
