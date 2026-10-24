@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   click,
+  dismissModal,
   find,
+  key,
   type LaptopHarness,
   type LaptopUiKit,
   laptopUiKit,
@@ -119,6 +121,76 @@ describe("Bobby Ray's on the canvas laptop", () => {
       expect(h.screen.shell.mode).toBe(LaptopMode.BOBBYR_SHIPMENTS);
       expect(shown(t, 'shipmentUnits0').text).toBe('1');
       expect(shown(t, 'orderQuantity0').text?.trim()).toBe('1');
+    },
+    SLOW_MS,
+  );
+});
+
+async function wait(h: LaptopHarness, ms: number): Promise<void> {
+  h.t.frame(ms);
+  await settle(h.t, 2);
+}
+
+describe('M.E.R.C. on the canvas laptop', () => {
+  it(
+    "plays Speck's opening, opens an account, hires from the files, pays the bill and shows the broken link while the site is down",
+    async () => {
+      const h = await openLaptopHarness(kit, ui, { seed: 23, prepare: bookmark(Bookmark.MERC) });
+      const { t } = h;
+      await toBookmark(h, 1);
+      expect(h.screen.shell.mode).toBe(LaptopMode.MERC);
+      expect(h.commands.filter((c) => c.type === 'visitSite' && c.site === 'merc')).toHaveLength(1);
+      expect(shown(t, 'speckVideoTitle').visible).toBe(true);
+      expect(shown(t, 'mercFilesButton').enabled).toBe(false);
+      await wait(h, 1100);
+      expect(find(t, 'speckSubtitle')?.visible).toBe(true);
+      await click(t, 'speckSubtitle');
+      await click(t, 'speckClose');
+      await wait(h, 600);
+      expect(find(t, 'speckVideoTitle')?.visible).toBe(false);
+
+      await click(t, 'mercAccountButton');
+      expect(h.screen.shell.mode).toBe(LaptopMode.MERC_NO_ACCOUNT);
+      await click(t, 'mercOpenAccount');
+      expect(h.screen.shell.mode).toBe(LaptopMode.MERC);
+      expect(h.commands.filter((c) => c.type === 'visitSite')).toHaveLength(1);
+      expect(shown(t, 'speckVideoTitle').visible).toBe(true);
+      expect(shown(t, 'mercFilesButton').enabled).toBe(true);
+
+      await click(t, 'mercFilesButton');
+      expect(h.screen.shell.mode).toBe(LaptopMode.MERC_FILES);
+      expect(shown(t, 'mercFileName').text).not.toBe('');
+      expect(shown(t, 'mercSalary').text).toMatch(/^150 /);
+      expect(shown(t, 'mercHire').enabled).toBe(true);
+      const before = h.session.view().strategic?.mercs.length ?? 0;
+      await click(t, 'mercHire');
+      expect(h.session.view().strategic?.mercs.length).toBe(before + 1);
+      expect(h.replies.at(-1)?.ok).toBe(true);
+      await settle(t);
+      expect(h.screen.shell.mode).toBe(LaptopMode.MERC);
+      expect(t.runtime.host.modal).not.toBeNull();
+      await dismissModal(t);
+      await settle(t);
+      expect(shown(t, 'speckVideoTitle').visible).toBe(true);
+
+      await click(t, 'mercAccountButton');
+      expect(h.screen.shell.mode).toBe(LaptopMode.MERC_ACCOUNT);
+      expect(shown(t, 'accountCharge0').text).toBe('$   150');
+      expect(shown(t, 'mercAuthorize').enabled).toBe(true);
+      await click(t, 'mercAuthorize');
+      expect(t.runtime.host.modal).not.toBeNull();
+      await key(t, 'y', 'up');
+      await settle(t);
+      expect(h.commands.some((c) => c.type === 'mercPay')).toBe(true);
+      expect(h.screen.shell.mode).toBe(LaptopMode.MERC);
+
+      Object.assign(h.session.campaign.state.laptop.merc, { siteHasGoneDownYet: true, firstVisitSinceServerWentDown: 0 });
+      await click(t, 'webButton');
+      if (!h.screen.shell.showBookmarks) await click(t, 'webButton');
+      await click(t, 'bookmarkRegion1');
+      await settle(t, 10);
+      expect(h.screen.shell.mode).toBe(LaptopMode.BROKEN_LINK);
+      expect(shown(t, 'brokenLinkError').text).not.toBe('');
     },
     SLOW_MS,
   );

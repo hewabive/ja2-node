@@ -25,6 +25,13 @@ import { BOBBY_RAY_SHIPMENTS_CONTRACT } from './laptop/bobby-ray/bobby-ray-shipm
 import { EMAIL_CONTRACT } from './laptop/email/email-page.ts';
 import { FINANCES_CONTRACT } from './laptop/finances/finances-page.ts';
 import { LAPTOP_SHELL_CONTRACT } from './laptop/laptop-screen.ts';
+import {
+  BROKEN_LINK_CONTRACT,
+  MERC_ACCOUNT_CONTRACT,
+  MERC_FILES_CONTRACT,
+  MERC_HOME_CONTRACT,
+  MERC_NO_ACCOUNT_CONTRACT,
+} from './laptop/merc/merc-pages.ts';
 import { MAP_SCREEN_CONTRACT } from './map/map-controller.ts';
 import { MAP_INVENTORY_CONTRACT } from './map/map-inventory-controller.ts';
 import { SHOP_CONTRACT } from './shop/shop-panel.ts';
@@ -73,5 +80,10 @@ export const LAYOUT_CONTRACTS: Readonly<Record<string, ControllerContract>> = Ob
     BOBBY_RAY_CATALOGUE_CONTRACT,
     BOBBY_RAY_ORDER_CONTRACT,
     BOBBY_RAY_SHIPMENTS_CONTRACT,
+    MERC_HOME_CONTRACT,
+    MERC_NO_ACCOUNT_CONTRACT,
+    MERC_ACCOUNT_CONTRACT,
+    MERC_FILES_CONTRACT,
+    BROKEN_LINK_CONTRACT,
   ].map((contract) => [contract.id, contract]),
 );

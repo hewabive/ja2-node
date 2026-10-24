@@ -5,7 +5,7 @@ import { buildStubMusic } from './music.ts';
 import { buildStubSpeech, mercSpeechSets, npcSpeechSets } from './speech.ts';
 import { buildStubText } from './text.ts';
 import { buildStubCursors } from './ui/cursors.ts';
-import { buildStubFaces, buildStubPortraits } from './ui/faces.ts';
+import { addStubLaptopFaceAliases, buildStubFaces, buildStubPortraits } from './ui/faces.ts';
 import { buildStubItemGraphics } from './ui/items.ts';
 import { buildStubOwnerFaces } from './ui/owner-faces.ts';
 import { buildStubRadarMaps } from './ui/radar.ts';
@@ -25,6 +25,7 @@ export async function buildStubMedia(out: string, aliases: Map<string, string>):
   const testCard = await buildStubTestCard(out);
   const cursors = await buildStubCursors(out);
   const faces = await buildStubFaces(out, aliases);
+  await addStubLaptopFaceAliases(aliases);
   const items = await buildStubItemGraphics(out, aliases);
   const radar = await buildStubRadarMaps(out, aliases);
   const strategicMap = await buildStubStrategicMap(out);

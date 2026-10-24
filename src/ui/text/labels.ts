@@ -160,6 +160,7 @@ export const LABELS = {
   quickSave: own('quick save', 'быстрое сохранение'),
   quickLoad: own('quick load', 'быстрая загрузка'),
   noQuickSave: own('There is no quick save.', 'Быстрого сохранения нет.'),
+  mercTransferFailed: own('Transfer failed.  No funds available.', 'Перевод не выполнен. Нет средств.'),
 } as const satisfies Record<string, LabelSource>;
 
 export type LabelId = keyof typeof LABELS;

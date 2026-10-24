@@ -1,0 +1,317 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/Mercs.cc EnterMercs (smallbuttons.sti for both boxes, MSYS_PRIORITY_HIGH, CURSOR_LAPTOP_SCREEN, the files button shaded while disabled), RenderMercs, DrawMecBackGround (4 x 4 mercbackground.sti), DrawMercVideoBackGround (speckcomwindow.sti and its title), InitDestroyXToCloseVideoWindow (closebutton.sti), HandleTalkingSpeck and DisplayMercVideoIntro (the black face rectangle), DisplayTextForSpeckVideoPopUp (BASIC_MERC_POPUP_BACKGROUND and BASIC_MERC_POPUP_BORDER at MERC_TEXT_BOX_POS_Y)"
+  ],
+  "screen": "mercHome",
+  "frame": "std640",
+  "constants": ["Laptop", "Mercs", "MercTextBox"],
+  "assets": {
+    "background": {
+      "sti": "laptop/mercbackground.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["MERC_BACKGROUND_WIDTH", "MERC_BACKGROUND_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "symbol": {
+      "sti": "laptop/mercsymbol.sti",
+      "stub": {
+        "frames": 1,
+        "size": [240, 70],
+        "hollow": true
+      }
+    },
+    "portrait": {
+      "sti": "laptop/specportrait.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["MERC_VIDEO_BACKGROUND_WIDTH", "MERC_VIDEO_BACKGROUND_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "accountBox": {
+      "sti": "laptop/accountbox.sti",
+      "stub": {
+        "frames": 1,
+        "size": [180, 52],
+        "hollow": true
+      }
+    },
+    "filesBox": {
+      "sti": "laptop/filesbox.sti",
+      "stub": {
+        "frames": 1,
+        "size": [180, 52],
+        "hollow": true
+      }
+    },
+    "smallButtons": {
+      "sti": "laptop/smallbuttons.sti",
+      "stub": {
+        "frames": 2,
+        "size": [36, 34],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "videoWindow": {
+      "sti": "laptop/speckcomwindow.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["MERC_VIDEO_BACKGROUND_WIDTH", "MERC_VIDEO_BACKGROUND_HEIGHT"]
+      }
+    },
+    "close": {
+      "sti": "laptop/closebutton.sti",
+      "stub": {
+        "frames": 2,
+        "size": [10, 10],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "tactPopup": {
+      "sti": "interface/tactpopup.sti",
+      "stub": {
+        "sizes": [[10, 10], [10, 4], [10, 10], [4, 10], [4, 10], [10, 10], [10, 4], [10, 10]]
+      }
+    },
+    "basicBackground": {
+      "pcx": "interface/tactpopupbackground.pcx",
+      "stub": {
+        "size": [350, 200]
+      }
+    }
+  },
+  "styles": {
+    "textBoxes": {
+      "basic": {
+        "background": "basicBackground",
+        "border": "tactPopup",
+        "backgroundIndex": "BASIC_MERC_POPUP_BACKGROUND"
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "tiles",
+      "asset": "background",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "columns": 4,
+      "rows": 4,
+      "dx": "MERC_BACKGROUND_WIDTH",
+      "dy": "MERC_BACKGROUND_HEIGHT"
+    },
+    {
+      "type": "image",
+      "asset": "symbol",
+      "frame": 0,
+      "x": "MERC_TITLE_X",
+      "y": "MERC_TITLE_Y"
+    },
+    {
+      "type": "image",
+      "asset": "portrait",
+      "frame": 0,
+      "x": "MERC_PORTRAIT_X",
+      "y": "MERC_PORTRAIT_Y"
+    },
+    {
+      "type": "image",
+      "asset": "accountBox",
+      "frame": 0,
+      "x": "MERC_ACCOUNT_BOX_X",
+      "y": "MERC_ACCOUNT_BOX_Y"
+    },
+    {
+      "type": "image",
+      "asset": "filesBox",
+      "frame": 0,
+      "x": "MERC_FILE_BOX_X",
+      "y": "MERC_FILE_BOX_Y"
+    },
+    {
+      "type": "text",
+      "id": "speckOwner",
+      "x": "MERC_PORTRAIT_TEXT_X",
+      "y": "MERC_PORTRAIT_TEXT_Y",
+      "width": "MERC_PORTRAIT_TEXT_WIDTH",
+      "font": "MERC_TEXT_FONT",
+      "color": "MERC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["MercHomePageText", "MERC_SPECK_OWNER"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "id": "openAccountText",
+      "x": "MERC_ACCOUNT_BOX_TEXT_X",
+      "y": "MERC_ACCOUNT_BOX_TEXT_Y",
+      "width": "MERC_ACCOUNT_BOX_TEXT_WIDTH",
+      "font": "MERC_TEXT_FONT",
+      "color": "MERC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["MercHomePageText", "MERC_OPEN_ACCOUNT"]
+      },
+      "align": "right",
+      "wrap": {
+        "gap": 2
+      },
+      "visible": "noAccount"
+    },
+    {
+      "type": "text",
+      "id": "viewAccountText",
+      "x": "MERC_ACCOUNT_BOX_TEXT_X",
+      "y": "MERC_ACCOUNT_BOX_TEXT_Y",
+      "width": "MERC_ACCOUNT_BOX_TEXT_WIDTH",
+      "font": "MERC_TEXT_FONT",
+      "color": "MERC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["MercHomePageText", "MERC_VIEW_ACCOUNT"]
+      },
+      "align": "right",
+      "wrap": {
+        "gap": 2
+      },
+      "visible": "hasAccount"
+    },
+    {
+      "type": "text",
+      "x": "MERC_FILE_BOX_TEXT_X",
+      "y": "MERC_FILE_BOX_TEXT_Y",
+      "width": "MERC_FILE_BOX_TEXT_WIDTH",
+      "font": "MERC_TEXT_FONT",
+      "color": "MERC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["MercHomePageText", "MERC_VIEW_FILES"]
+      },
+      "align": "right",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "button",
+      "id": "mercAccountButton",
+      "x": "MERC_ACCOUNT_BUTTON_X",
+      "y": "MERC_ACCOUNT_BUTTON_Y",
+      "asset": "smallButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "account"
+    },
+    {
+      "type": "button",
+      "id": "mercFilesButton",
+      "x": "MERC_FILE_BUTTON_X",
+      "y": "MERC_FILE_BUTTON_Y",
+      "asset": "smallButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "files",
+      "enabled": "filesEnabled",
+      "disabledStyle": "shaded"
+    },
+    {
+      "type": "image",
+      "asset": "videoWindow",
+      "frame": 0,
+      "x": "MERC_VIDEO_BACKGROUND_X",
+      "y": "MERC_VIDEO_BACKGROUND_Y",
+      "visible": "video"
+    },
+    {
+      "type": "text",
+      "id": "speckVideoTitle",
+      "x": "MERC_X_VIDEO_TITLE_X",
+      "y": "MERC_X_VIDEO_TITLE_Y",
+      "font": "MERC_VIDEO_TITLE_FONT",
+      "color": "MERC_VIDEO_TITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["MercHomePageText", "MERC_SPECK_COM"]
+      },
+      "visible": "video"
+    },
+    {
+      "type": "fill",
+      "x": "MERC_VIDEO_FACE_X",
+      "y": "MERC_VIDEO_FACE_Y",
+      "width": "MERC_VIDEO_FACE_WIDTH",
+      "height": "MERC_VIDEO_FACE_HEIGHT",
+      "color": [0, 0, 0],
+      "visible": "black"
+    },
+    {
+      "type": "custom",
+      "id": "speckFaceSource",
+      "renderer": "speckFaceSource",
+      "x": "MERC_VIDEO_FACE_X",
+      "y": "MERC_VIDEO_FACE_Y",
+      "width": 48,
+      "height": 43,
+      "visible": "faceShown"
+    },
+    {
+      "type": "custom",
+      "id": "speckFace",
+      "renderer": "speckFace",
+      "x": "MERC_VIDEO_FACE_X",
+      "y": "MERC_VIDEO_FACE_Y",
+      "width": "MERC_VIDEO_FACE_WIDTH",
+      "height": "MERC_VIDEO_FACE_HEIGHT",
+      "visible": "faceShown"
+    },
+    {
+      "type": "button",
+      "id": "speckClose",
+      "x": "MERC_X_TO_CLOSE_VIDEO_X",
+      "y": "MERC_X_TO_CLOSE_VIDEO_Y",
+      "asset": "close",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "closeVideo",
+      "visible": "video"
+    },
+    {
+      "type": "custom",
+      "id": "speckSubtitle",
+      "renderer": "speckSubtitle",
+      "x": 0,
+      "y": "MERC_TEXT_BOX_POS_Y",
+      "width": 300,
+      "height": 0,
+      "params": {
+        "style": "textBoxes.basic"
+      }
+    }
+  ]
+}

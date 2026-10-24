@@ -1,0 +1,603 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/Mercs_Files.cc EnterMercsFiles (bigbuttons.sti, all four shaded while disabled), RenderMercsFiles (portraitbox.sti, MLG_STATSBOX, biobox.sti one pixel right), DisplayMercFace (the overlay in FONT14ARIAL colour 145, the ShadowRect over MERC_FACE_WIDTH x MERC_FACE_HEIGHT), LoadAndDisplayMercBio, DrawStat (DrawNumeralsToScreen with a width of 3), DisplayMercsStats"
+  ],
+  "screen": "mercFiles",
+  "frame": "std640",
+  "constants": ["Laptop", "Mercs", "Mercs_Files"],
+  "assets": {
+    "background": {
+      "sti": "laptop/mercbackground.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["MERC_BACKGROUND_WIDTH", "MERC_BACKGROUND_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "portraitBox": {
+      "sti": "laptop/portraitbox.sti",
+      "stub": {
+        "frames": 1,
+        "size": [110, 126]
+      }
+    },
+    "statsBox": {
+      "mlg": "MLG_STATSBOX",
+      "stub": {
+        "frames": 1,
+        "size": [330, 126],
+        "hollow": true
+      }
+    },
+    "bioBox": {
+      "sti": "laptop/biobox.sti",
+      "stub": {
+        "frames": 1,
+        "size": [470, 210],
+        "hollow": true
+      }
+    },
+    "bigButtons": {
+      "sti": "laptop/bigbuttons.sti",
+      "stub": {
+        "frames": 2,
+        "size": [100, 24],
+        "states": ["normal", "pressed"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "tiles",
+      "asset": "background",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "columns": 4,
+      "rows": 4,
+      "dx": "MERC_BACKGROUND_WIDTH",
+      "dy": "MERC_BACKGROUND_HEIGHT"
+    },
+    {
+      "type": "image",
+      "asset": "portraitBox",
+      "frame": 0,
+      "x": "MERC_FILES_PORTRAIT_BOX_X",
+      "y": "MERC_FILES_PORTRAIT_BOX_Y"
+    },
+    {
+      "type": "image",
+      "asset": "statsBox",
+      "frame": 0,
+      "x": "MERC_FILES_STATS_BOX_X",
+      "y": "MERC_FILES_STATS_BOX_Y"
+    },
+    {
+      "type": "image",
+      "asset": "bioBox",
+      "frame": 0,
+      "x": "MERC_FILES_BIO_BOX_X + 1",
+      "y": "MERC_FILES_BIO_BOX_Y"
+    },
+    {
+      "type": "portrait",
+      "x": "MERC_FACE_X",
+      "y": "MERC_FACE_Y",
+      "face": {
+        "bind": "face"
+      },
+      "size": "big",
+      "state": "faceState",
+      "shadeWidth": "MERC_FACE_WIDTH",
+      "shadeHeight": "MERC_FACE_HEIGHT"
+    },
+    {
+      "type": "text",
+      "id": "mercFaceOverlay",
+      "x": "MERC_FACE_X",
+      "y": "MERC_FACE_Y + MERC_PORTRAIT_TEXT_OFFSET_Y",
+      "width": "MERC_FACE_WIDTH",
+      "font": "FONT14ARIAL",
+      "color": 145,
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "overlay"
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "id": "mercFileName",
+      "x": "MERC_NAME_X",
+      "y": "MERC_NAME_Y",
+      "font": "MERC_NAME_FONT",
+      "color": "MERC_NAME_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "name"
+      }
+    },
+    {
+      "type": "text",
+      "id": "mercBio",
+      "x": "MERC_BIO_TEXT_X",
+      "y": "MERC_BIO_TEXT_Y",
+      "width": "MERC_BIO_WIDTH",
+      "font": "MERC_BIO_FONT",
+      "color": "MERC_BIO_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "bio"
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "MERC_ADD_BIO_TITLE_X",
+      "y": "MERC_ADD_BIO_TITLE_Y",
+      "font": "MERC_TITLE_FONT",
+      "color": "MERC_TITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["MercInfo", "MERC_FILES_ADDITIONAL_INFO"]
+      },
+      "visible": "hasAdditional"
+    },
+    {
+      "type": "text",
+      "x": "MERC_ADD_BIO_TEXT_X",
+      "y": "MERC_ADD_BIO_TEXT_Y",
+      "width": "MERC_BIO_WIDTH",
+      "font": "MERC_BIO_FONT",
+      "color": "MERC_BIO_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "additional"
+      },
+      "wrap": {
+        "gap": 2
+      },
+      "visible": "hasAdditional"
+    },
+    {
+      "type": "text",
+      "x": "MERC_STATS_FIRST_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 0",
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_STATIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["str_stat_health", 0]
+      }
+    },
+    {
+      "type": "text",
+      "id": "mercStat0",
+      "x": "MERC_STATS_FIRST_NUM_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 0",
+      "width": 3,
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_DYNAMIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "stats[0]"
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "MERC_STATS_FIRST_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 1",
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_STATIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["str_stat_agility", 0]
+      }
+    },
+    {
+      "type": "text",
+      "id": "mercStat1",
+      "x": "MERC_STATS_FIRST_NUM_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 1",
+      "width": 3,
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_DYNAMIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "stats[1]"
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "MERC_STATS_FIRST_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 2",
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_STATIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["str_stat_dexterity", 0]
+      }
+    },
+    {
+      "type": "text",
+      "id": "mercStat2",
+      "x": "MERC_STATS_FIRST_NUM_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 2",
+      "width": 3,
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_DYNAMIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "stats[2]"
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "MERC_STATS_FIRST_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 3",
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_STATIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["str_stat_strength", 0]
+      }
+    },
+    {
+      "type": "text",
+      "id": "mercStat3",
+      "x": "MERC_STATS_FIRST_NUM_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 3",
+      "width": 3,
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_DYNAMIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "stats[3]"
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "MERC_STATS_FIRST_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 4",
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_STATIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["str_stat_leadership", 0]
+      }
+    },
+    {
+      "type": "text",
+      "id": "mercStat4",
+      "x": "MERC_STATS_FIRST_NUM_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 4",
+      "width": 3,
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_DYNAMIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "stats[4]"
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "MERC_STATS_FIRST_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 5",
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_STATIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["str_stat_wisdom", 0]
+      }
+    },
+    {
+      "type": "text",
+      "id": "mercStat5",
+      "x": "MERC_STATS_FIRST_NUM_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 5",
+      "width": 3,
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_DYNAMIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "stats[5]"
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "MERC_STATS_SECOND_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 0",
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_STATIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["str_stat_exp_level", 0]
+      }
+    },
+    {
+      "type": "text",
+      "id": "mercStat6",
+      "x": "MERC_STATS_SECOND_NUM_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 0",
+      "width": 3,
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_DYNAMIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "stats[6]"
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "MERC_STATS_SECOND_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 1",
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_STATIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["str_stat_marksmanship", 0]
+      }
+    },
+    {
+      "type": "text",
+      "id": "mercStat7",
+      "x": "MERC_STATS_SECOND_NUM_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 1",
+      "width": 3,
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_DYNAMIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "stats[7]"
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "MERC_STATS_SECOND_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 2",
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_STATIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["str_stat_mechanical", 0]
+      }
+    },
+    {
+      "type": "text",
+      "id": "mercStat8",
+      "x": "MERC_STATS_SECOND_NUM_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 2",
+      "width": 3,
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_DYNAMIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "stats[8]"
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "MERC_STATS_SECOND_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 3",
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_STATIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["str_stat_explosive", 0]
+      }
+    },
+    {
+      "type": "text",
+      "id": "mercStat9",
+      "x": "MERC_STATS_SECOND_NUM_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 3",
+      "width": 3,
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_DYNAMIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "stats[9]"
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "MERC_STATS_SECOND_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 4",
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_STATIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["str_stat_medical", 0]
+      }
+    },
+    {
+      "type": "text",
+      "id": "mercStat10",
+      "x": "MERC_STATS_SECOND_NUM_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 4",
+      "width": 3,
+      "font": "MERC_STATS_FONT",
+      "color": "MERC_DYNAMIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "stats[10]"
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "MERC_STATS_SECOND_COL_X",
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 5",
+      "font": "MERC_NAME_FONT",
+      "color": "MERC_STATIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["MercInfo", "MERC_FILES_SALARY"]
+      }
+    },
+    {
+      "type": "text",
+      "id": "mercSalary",
+      "x": {
+        "bind": "salaryX"
+      },
+      "y": "MERC_HEALTH_Y + MERC_SPACE_BN_LINES * 5",
+      "width": 95,
+      "font": "MERC_NAME_FONT",
+      "color": "MERC_DYNAMIC_STATS_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "salary"
+      },
+      "align": "right"
+    },
+    {
+      "type": "button",
+      "id": "mercFilesPrevious",
+      "x": "MERC_FILES_PREV_BUTTON_X",
+      "y": "MERC_FILES_BUTTON_Y",
+      "asset": "bigButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "previous",
+      "text": {
+        "source": {
+          "key": ["MercInfo", "MERC_FILES_PREVIOUS"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "MERC_BUTTON_UP_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "MERC_BUTTON_DOWN_COLOR",
+        "downShadow": "DEFAULT_SHADOW"
+      },
+      "enabled": "previousEnabled",
+      "disabledStyle": "shaded"
+    },
+    {
+      "type": "button",
+      "id": "mercFilesNext",
+      "x": "MERC_FILES_NEXT_BUTTON_X",
+      "y": "MERC_FILES_BUTTON_Y",
+      "asset": "bigButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "next",
+      "text": {
+        "source": {
+          "key": ["MercInfo", "MERC_FILES_NEXT"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "MERC_BUTTON_UP_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "MERC_BUTTON_DOWN_COLOR",
+        "downShadow": "DEFAULT_SHADOW"
+      },
+      "enabled": "nextEnabled",
+      "disabledStyle": "shaded"
+    },
+    {
+      "type": "button",
+      "id": "mercHire",
+      "x": "MERC_FILES_HIRE_BUTTON_X",
+      "y": "MERC_FILES_BUTTON_Y",
+      "asset": "bigButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "hire",
+      "text": {
+        "source": {
+          "key": ["MercInfo", "MERC_FILES_HIRE"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "MERC_BUTTON_UP_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "MERC_BUTTON_DOWN_COLOR",
+        "downShadow": "DEFAULT_SHADOW"
+      },
+      "enabled": "hireEnabled",
+      "disabledStyle": "shaded"
+    },
+    {
+      "type": "button",
+      "id": "mercFilesHome",
+      "x": "MERC_FILES_BACK_BUTTON_X",
+      "y": "MERC_FILES_BUTTON_Y",
+      "asset": "bigButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "home",
+      "text": {
+        "source": {
+          "key": ["MercInfo", "MERC_FILES_HOME"]
+        },
+        "font": "FONT12ARIAL",
+        "color": "MERC_BUTTON_UP_COLOR",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "MERC_BUTTON_DOWN_COLOR",
+        "downShadow": "DEFAULT_SHADOW"
+      },
+      "disabledStyle": "shaded"
+    }
+  ]
+}

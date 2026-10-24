@@ -53,6 +53,7 @@ import type { LaptopContext, LaptopPage, PageFactory, PageLayout } from './lapto
 import { LaptopShell } from './laptop-shell.ts';
 import { laptopSites } from './laptop-sites.ts';
 import { TITLE_BAR_ITERATIONS, titleBarSlideRect, ZOOM_TIME, zoomPercentage, zoomRect } from './laptop-timers.ts';
+import { brokenLinkPage, mercAccountPage, mercFilesPage, mercHomePage, mercNoAccountPage } from './merc/merc-pages.ts';
 
 export const LAPTOP_SCREEN = 'laptop';
 export const LAPTOP_SHELL_LAYOUT = 'laptop';
@@ -71,6 +72,11 @@ export const LAPTOP_LAYOUTS: readonly string[] = [
   'bobby-ray-catalogue',
   'bobby-ray-order',
   'bobby-ray-shipments',
+  'merc-home',
+  'merc-no-account',
+  'merc-account',
+  'merc-files',
+  'broken-link',
 ];
 
 const POWER_UP_SOUND = 'sounds/laptop power up (8-11).wav';
@@ -179,6 +185,11 @@ const PAGES: Readonly<Record<number, PageFactory>> = {
   [LaptopMode.BOBBY_R_USED]: bobbyRayCataloguePage(LaptopMode.BOBBY_R_USED),
   [LaptopMode.BOBBY_R_MAILORDER]: bobbyRayOrderPage,
   [LaptopMode.BOBBYR_SHIPMENTS]: bobbyRayShipmentsPage,
+  [LaptopMode.MERC]: mercHomePage,
+  [LaptopMode.MERC_NO_ACCOUNT]: mercNoAccountPage,
+  [LaptopMode.MERC_ACCOUNT]: mercAccountPage,
+  [LaptopMode.MERC_FILES]: mercFilesPage,
+  [LaptopMode.BROKEN_LINK]: brokenLinkPage,
 };
 
 const SITE_PAGES: Readonly<Record<number, number>> = {
@@ -303,7 +314,7 @@ export class LaptopScreen implements Screen {
       view: () => this.#view(),
       command: (cmd) => this.#options.client.command(cmd),
       string: (table, index) => this.#string(table, index),
-      messageBox: (text, flags, onClose) => this.#messageBox(text, flags, onClose),
+      messageBox: (text, flags, onClose, style) => this.#messageBox(text, flags, onClose, style),
       playSound: (file, volume) => this.#runtime.sounds.play({ file, volume }),
       openOldestUnreadMail: () => {
         this.#openUnreadMail = true;
@@ -319,7 +330,12 @@ export class LaptopScreen implements Screen {
     };
   }
 
-  #messageBox(text: string, flags: MessageBoxFlag, onClose?: (result: number) => void): void {
+  #messageBox(
+    text: string,
+    flags: MessageBoxFlag,
+    onClose?: (result: number) => void,
+    style: number = MessageBoxStyleId.LAPTOP_DEFAULT,
+  ): void {
     const model = this.#layout(LAPTOP_SHELL_LAYOUT);
     const { stdX, stdY } = this.#runtime.geometry();
     const rect = {
@@ -330,7 +346,7 @@ export class LaptopScreen implements Screen {
     };
     this.#runtime.host.openModal(
       new MessageBox(this.#runtime, {
-        style: this.#options.messageBoxStyle(MessageBoxStyleId.LAPTOP_DEFAULT),
+        style: this.#options.messageBoxStyle(style),
         text,
         flags,
         labels: this.#options.messageBoxLabels,

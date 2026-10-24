@@ -49,7 +49,7 @@ export interface LaptopContext {
   view(): LaptopView | null;
   command(cmd: LaptopCommand): Promise<LaptopCommandReply>;
   string(table: string, index?: number): string;
-  messageBox(text: string, flags: MessageBoxFlag, onClose?: (result: number) => void): void;
+  messageBox(text: string, flags: MessageBoxFlag, onClose?: (result: number) => void, style?: number): void;
   playSound(file: string, volume: number): void;
   openOldestUnreadMail(): void;
   takeOpenUnreadMailRequest(): boolean;
