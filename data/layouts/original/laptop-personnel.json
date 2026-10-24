@@ -1,8 +1,2089 @@
 {
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
-  "@src": ["src/game/Laptop/Personnel.cc"],
+  "@src": [
+    "src/game/Laptop/Personnel.cc RenderPersonnel (personnelwindow.sti at LAPTOP_SCREEN_UL_X, LAPTOP_SCREEN_UL_Y + 22), RenderPersonnelScreenBackground (currentteam.sti or departed.sti at DEPARTED_X, DEPARTED_Y), DisplayPicturesOfCurrentTeam and DisplayPortraitOfPastMerc (the small faces 5 a row, SMALL_PORT_WIDTH x SMALL_PORT_HEIGHT apart, dead faces red, AimPopUpText[AIM_MEMBER_DEAD] in FONT10ARIAL colour 145 over a dead team member at SMALL_PORT_HEIGHT / 2), RenderAtmPanel (atmbuttons.sti frames 0 and 1), DisplayHighLightBox (picborde.sti at -2, -3), RenderPersonnelFace (the big face, the full name in PERS_FONT raised one line when it wraps), DisplayCharName and DisplayDepartedCharName (CHAR_NAME_FONT centred in CHAR_NAME_LOC_WIDTH), DisplayAmountOnChar (ATM_FONT right-aligned in ATM_DISPLAY_*)",
+    "src/game/Laptop/Personnel.cc pers_stat_y (the row y of every stat line: 215, 225, 235, 245, 255, 265, 325, 280, 290, 300, 310 for health to medical, 340 and 350 the skills, 365 kills, 375 assists, 385 hit percentage, 395 battles, 405 wounded), PrintStatWithDelta and PrintStat (labels at pers_stat_x, values right-aligned in TEXT_BOX_WIDTH - 20, deltas right-aligned in 30 at pers_stat_delta_x), DisplayEmploymentinformation (values right-aligned at pers_stat_data_x on rows 0, 1, 3, 5 and 4)",
+    "src/game/Laptop/Personnel.cc DisplayCharInventory (personnel_inventory.sti frame 0 at 397, 200; 8 rows from 200 + 8, 29 apart; the item centred in 57 x 22 at 397 + 3; the name reduced to 171 - 75 at + 65, + 3; the condition right-aligned and the calibre at + 65, + 15; the count right-aligned in 58), RenderSliderBarForPersonnelInventory (frame 5), CreateDestroyPersonnelInventoryScrollButtons (frames 1/2 and 3/4 at 176 + 397, 2 + 200 and 176 + 397, 200 + 223; the slider region and InventoryRegion at MSYS_PRIORITY_HIGHEST - 3), DisplayPersonnelSummary, DisplayCostOfCurrentTeam, DisplayStateOfPastTeamMembers, DisplayTeamStats (the rows GetFontHeight(FONT10ARIAL) + 3 apart, alternating PERS_TEXT_FONT_ALTERNATE_COLOR)",
+    "src/game/Laptop/Personnel.cc CreatePersonnelButtons (personnelbuttons.sti 0/1 and 2/3), CreateDestroyStartATMButton (atmbuttons.sti 2/3 at 519 and y 80, 110, 140, gsAtmStartButtonText 0, 2, 1 in PERS_FONT FONT_BLACK, acting on the press), CreateDestroyButtonsForDepartedTeamList (departuresbuttons.sti 0/2 and 1/3), CreateDestroyMouseRegionsForPersonnelPortraits (MSYS_PRIORITY_HIGHEST, left selects, right cycles the panel), CreateDestroyCurrentDepartedMouseRegions (MSYS_PRIORITY_HIGHEST - 3)"
+  ],
   "screen": "laptopPersonnel",
   "frame": "std640",
-  "constants": ["Laptop", "Personnel"],
-  "widgets": []
+  "constants": ["Laptop", "Personnel", "Assignments"],
+  "assets": {
+    "window": {
+      "sti": "laptop/personnelwindow.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["LAPTOP_SCREEN_WIDTH", "LAPTOP_SCREEN_HEIGHT - 22"],
+        "style": "hollow"
+      }
+    },
+    "currentTeam": {
+      "sti": "laptop/currentteam.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["IMAGE_BOX_X - DEPARTED_X - 5", "LAPTOP_SCREEN_LR_Y - DEPARTED_Y"],
+        "style": "hollow"
+      }
+    },
+    "departedTeam": {
+      "sti": "laptop/departed.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["IMAGE_BOX_X - DEPARTED_X - 5", "LAPTOP_SCREEN_LR_Y - DEPARTED_Y"],
+        "style": "hollow"
+      }
+    },
+    "highlight": {
+      "sti": "laptop/picborde.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["SMALL_PORTRAIT_WIDTH_NO_BORDERS + 4", "SMALL_PORTRAIT_HEIGHT + 6"],
+        "style": "hollow"
+      }
+    },
+    "atm": {
+      "sti": "laptop/atmbuttons.sti",
+      "stub": {
+        "sizes": [[96, 18], [94, 120], [73, 22], [73, 22]],
+        "hollow": [0, 1],
+        "states": ["plain", "plain", "normal", "pressed"]
+      }
+    },
+    "faceButtons": {
+      "sti": "laptop/personnelbuttons.sti",
+      "stub": {
+        "frames": 4,
+        "size": [35, 22],
+        "states": ["normal", "pressed", "normal", "pressed"]
+      }
+    },
+    "departureButtons": {
+      "sti": "laptop/departuresbuttons.sti",
+      "stub": {
+        "frames": 4,
+        "size": [20, 22],
+        "states": ["normal", "normal", "pressed", "pressed"]
+      }
+    },
+    "inventory": {
+      "sti": "laptop/personnel_inventory.sti",
+      "stub": {
+        "sizes": [[192, 240], [16, 16], [16, 16], [16, 16], [16, 16], ["X_SIZE_OF_PERSONNEL_SCROLL_REGION", "SIZE_OF_PERSONNEL_CURSOR"]],
+        "hollow": [0],
+        "states": ["plain", "normal", "pressed", "normal", "pressed", "plain"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "asset": "window",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_UL_Y + 22"
+    },
+    {
+      "type": "image",
+      "asset": "currentTeam",
+      "frame": 0,
+      "x": "DEPARTED_X",
+      "y": "DEPARTED_Y",
+      "visible": "currentMode"
+    },
+    {
+      "type": "image",
+      "asset": "departedTeam",
+      "frame": 0,
+      "x": "DEPARTED_X",
+      "y": "DEPARTED_Y",
+      "visible": "departedMode"
+    },
+    {
+      "type": "repeat",
+      "count": "PERSONNEL_PORTRAIT_NUMBER_WIDTH",
+      "x": "SMALL_PORTRAIT_START_X",
+      "y": "SMALL_PORTRAIT_START_Y + SMALL_PORT_HEIGHT * 0",
+      "dx": "SMALL_PORT_WIDTH",
+      "template": [
+        {
+          "type": "portrait",
+          "id": "personnelFace0_$i",
+          "face": {
+            "bind": "portraitRows[0][$i].face"
+          },
+          "size": "small",
+          "state": "portraitRows[0][$i].state",
+          "x": 0,
+          "y": 0,
+          "visible": "portraitRows[0][$i].present"
+        },
+        {
+          "type": "text",
+          "x": 0,
+          "y": "SMALL_PORT_HEIGHT / 2",
+          "font": "FONT10ARIAL",
+          "color": 145,
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "portraitRows[0][$i].deadLabel"
+          },
+          "width": "SMALL_PORTRAIT_WIDTH_NO_BORDERS",
+          "align": "center",
+          "id": "personnelDeadLabel0_$i"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": "PERSONNEL_PORTRAIT_NUMBER_WIDTH",
+      "x": "SMALL_PORTRAIT_START_X",
+      "y": "SMALL_PORTRAIT_START_Y + SMALL_PORT_HEIGHT * 1",
+      "dx": "SMALL_PORT_WIDTH",
+      "template": [
+        {
+          "type": "portrait",
+          "id": "personnelFace1_$i",
+          "face": {
+            "bind": "portraitRows[1][$i].face"
+          },
+          "size": "small",
+          "state": "portraitRows[1][$i].state",
+          "x": 0,
+          "y": 0,
+          "visible": "portraitRows[1][$i].present"
+        },
+        {
+          "type": "text",
+          "x": 0,
+          "y": "SMALL_PORT_HEIGHT / 2",
+          "font": "FONT10ARIAL",
+          "color": 145,
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "portraitRows[1][$i].deadLabel"
+          },
+          "width": "SMALL_PORTRAIT_WIDTH_NO_BORDERS",
+          "align": "center",
+          "id": "personnelDeadLabel1_$i"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": "PERSONNEL_PORTRAIT_NUMBER_WIDTH",
+      "x": "SMALL_PORTRAIT_START_X",
+      "y": "SMALL_PORTRAIT_START_Y + SMALL_PORT_HEIGHT * 2",
+      "dx": "SMALL_PORT_WIDTH",
+      "template": [
+        {
+          "type": "portrait",
+          "id": "personnelFace2_$i",
+          "face": {
+            "bind": "portraitRows[2][$i].face"
+          },
+          "size": "small",
+          "state": "portraitRows[2][$i].state",
+          "x": 0,
+          "y": 0,
+          "visible": "portraitRows[2][$i].present"
+        },
+        {
+          "type": "text",
+          "x": 0,
+          "y": "SMALL_PORT_HEIGHT / 2",
+          "font": "FONT10ARIAL",
+          "color": 145,
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "portraitRows[2][$i].deadLabel"
+          },
+          "width": "SMALL_PORTRAIT_WIDTH_NO_BORDERS",
+          "align": "center",
+          "id": "personnelDeadLabel2_$i"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": "PERSONNEL_PORTRAIT_NUMBER_WIDTH",
+      "x": "SMALL_PORTRAIT_START_X",
+      "y": "SMALL_PORTRAIT_START_Y + SMALL_PORT_HEIGHT * 3",
+      "dx": "SMALL_PORT_WIDTH",
+      "template": [
+        {
+          "type": "portrait",
+          "id": "personnelFace3_$i",
+          "face": {
+            "bind": "portraitRows[3][$i].face"
+          },
+          "size": "small",
+          "state": "portraitRows[3][$i].state",
+          "x": 0,
+          "y": 0,
+          "visible": "portraitRows[3][$i].present"
+        },
+        {
+          "type": "text",
+          "x": 0,
+          "y": "SMALL_PORT_HEIGHT / 2",
+          "font": "FONT10ARIAL",
+          "color": 145,
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "portraitRows[3][$i].deadLabel"
+          },
+          "width": "SMALL_PORTRAIT_WIDTH_NO_BORDERS",
+          "align": "center",
+          "id": "personnelDeadLabel3_$i"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "asset": "atm",
+      "frame": 0,
+      "x": "ATM_UL_X",
+      "y": "ATM_UL_Y"
+    },
+    {
+      "type": "image",
+      "asset": "atm",
+      "frame": 1,
+      "x": "ATM_UL_X + 1",
+      "y": "ATM_UL_Y + 18"
+    },
+    {
+      "type": "repeat",
+      "count": "PERSONNEL_PORTRAIT_NUMBER_WIDTH",
+      "x": "SMALL_PORTRAIT_START_X - 2",
+      "y": "SMALL_PORTRAIT_START_Y + SMALL_PORT_HEIGHT * 0 - 3",
+      "dx": "SMALL_PORT_WIDTH",
+      "template": [
+        {
+          "type": "image",
+          "asset": "highlight",
+          "frame": 0,
+          "x": 0,
+          "y": 0,
+          "visible": "portraitRows[0][$i].selected"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": "PERSONNEL_PORTRAIT_NUMBER_WIDTH",
+      "x": "SMALL_PORTRAIT_START_X - 2",
+      "y": "SMALL_PORTRAIT_START_Y + SMALL_PORT_HEIGHT * 1 - 3",
+      "dx": "SMALL_PORT_WIDTH",
+      "template": [
+        {
+          "type": "image",
+          "asset": "highlight",
+          "frame": 0,
+          "x": 0,
+          "y": 0,
+          "visible": "portraitRows[1][$i].selected"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": "PERSONNEL_PORTRAIT_NUMBER_WIDTH",
+      "x": "SMALL_PORTRAIT_START_X - 2",
+      "y": "SMALL_PORTRAIT_START_Y + SMALL_PORT_HEIGHT * 2 - 3",
+      "dx": "SMALL_PORT_WIDTH",
+      "template": [
+        {
+          "type": "image",
+          "asset": "highlight",
+          "frame": 0,
+          "x": 0,
+          "y": 0,
+          "visible": "portraitRows[2][$i].selected"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": "PERSONNEL_PORTRAIT_NUMBER_WIDTH",
+      "x": "SMALL_PORTRAIT_START_X - 2",
+      "y": "SMALL_PORTRAIT_START_Y + SMALL_PORT_HEIGHT * 3 - 3",
+      "dx": "SMALL_PORT_WIDTH",
+      "template": [
+        {
+          "type": "image",
+          "asset": "highlight",
+          "frame": 0,
+          "x": 0,
+          "y": 0,
+          "visible": "portraitRows[3][$i].selected"
+        }
+      ]
+    },
+    {
+      "type": "portrait",
+      "id": "personnelBigFace",
+      "face": {
+        "bind": "bigFace"
+      },
+      "size": "big",
+      "state": "bigFaceState",
+      "x": "IMAGE_BOX_X",
+      "y": "IMAGE_BOX_Y",
+      "visible": "selected"
+    },
+    {
+      "type": "text",
+      "x": "IMAGE_BOX_X",
+      "y": "IMAGE_BOX_Y + IMAGE_FULL_NAME_OFFSET_Y",
+      "font": "PERS_FONT",
+      "color": "PERS_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "fullName"
+      },
+      "width": "IMAGE_NAME_WIDTH",
+      "align": "center",
+      "id": "personnelFullName",
+      "visible": "fullNameSingle"
+    },
+    {
+      "type": "text",
+      "x": "IMAGE_BOX_X",
+      "y": {
+        "bind": "fullNameRaisedY"
+      },
+      "font": "PERS_FONT",
+      "color": "PERS_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "fullName"
+      },
+      "width": "IMAGE_NAME_WIDTH",
+      "align": "center",
+      "wrap": {
+        "gap": 1
+      },
+      "id": "personnelFullNameWrapped",
+      "visible": "fullNameWraps"
+    },
+    {
+      "type": "text",
+      "x": "CHAR_NAME_LOC_X",
+      "y": "CHAR_NAME_Y",
+      "font": "CHAR_NAME_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "charName"
+      },
+      "width": "CHAR_NAME_LOC_WIDTH",
+      "align": "center",
+      "alignRule": "font",
+      "id": "personnelName",
+      "visible": "selected"
+    },
+    {
+      "type": "text",
+      "x": "CHAR_NAME_LOC_X",
+      "y": "CHAR_LOC_Y",
+      "font": "CHAR_NAME_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "charLocation"
+      },
+      "width": "CHAR_NAME_LOC_WIDTH",
+      "align": "center",
+      "alignRule": "font",
+      "id": "personnelAssignment",
+      "visible": "selected"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 215,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[0].label"
+      },
+      "id": "personnelStatLabel0"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 215,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[0].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStat0"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_delta_x",
+      "y": 215,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[0].delta"
+      },
+      "width": 30,
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStatDelta0"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 225,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[1].label"
+      },
+      "id": "personnelStatLabel1"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 225,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[1].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStat1"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_delta_x",
+      "y": 225,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[1].delta"
+      },
+      "width": 30,
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStatDelta1"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 235,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[2].label"
+      },
+      "id": "personnelStatLabel2"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 235,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[2].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStat2"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_delta_x",
+      "y": 235,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[2].delta"
+      },
+      "width": 30,
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStatDelta2"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 245,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[3].label"
+      },
+      "id": "personnelStatLabel3"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 245,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[3].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStat3"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_delta_x",
+      "y": 245,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[3].delta"
+      },
+      "width": 30,
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStatDelta3"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 255,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[4].label"
+      },
+      "id": "personnelStatLabel4"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 255,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[4].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStat4"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_delta_x",
+      "y": 255,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[4].delta"
+      },
+      "width": 30,
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStatDelta4"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 265,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[5].label"
+      },
+      "id": "personnelStatLabel5"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 265,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[5].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStat5"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_delta_x",
+      "y": 265,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[5].delta"
+      },
+      "width": 30,
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStatDelta5"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 325,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[6].label"
+      },
+      "id": "personnelStatLabel6"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 325,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[6].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStat6"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_delta_x",
+      "y": 325,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[6].delta"
+      },
+      "width": 30,
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStatDelta6"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 280,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[7].label"
+      },
+      "id": "personnelStatLabel7"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 280,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[7].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStat7"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_delta_x",
+      "y": 280,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[7].delta"
+      },
+      "width": 30,
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStatDelta7"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 290,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[8].label"
+      },
+      "id": "personnelStatLabel8"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 290,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[8].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStat8"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_delta_x",
+      "y": 290,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[8].delta"
+      },
+      "width": 30,
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStatDelta8"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 300,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[9].label"
+      },
+      "id": "personnelStatLabel9"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 300,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[9].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStat9"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_delta_x",
+      "y": 300,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[9].delta"
+      },
+      "width": 30,
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStatDelta9"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 310,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[10].label"
+      },
+      "id": "personnelStatLabel10"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 310,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[10].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStat10"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_delta_x",
+      "y": 310,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[10].delta"
+      },
+      "width": 30,
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStatDelta10"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 365,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[11].label"
+      },
+      "id": "personnelStatLabel11"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 365,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[11].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStat11"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_delta_x",
+      "y": 365,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[11].delta"
+      },
+      "width": 30,
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStatDelta11"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 375,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[12].label"
+      },
+      "id": "personnelStatLabel12"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 375,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[12].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStat12"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_delta_x",
+      "y": 375,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[12].delta"
+      },
+      "width": 30,
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStatDelta12"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 385,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[13].label"
+      },
+      "id": "personnelStatLabel13"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 385,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[13].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStat13"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_delta_x",
+      "y": 385,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[13].delta"
+      },
+      "width": 30,
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStatDelta13"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 395,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[14].label"
+      },
+      "id": "personnelStatLabel14"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 395,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[14].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStat14"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_delta_x",
+      "y": 395,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[14].delta"
+      },
+      "width": 30,
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStatDelta14"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 405,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[15].label"
+      },
+      "id": "personnelStatLabel15"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 405,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[15].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStat15"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_delta_x",
+      "y": 405,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[15].delta"
+      },
+      "width": 30,
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStatDelta15"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 340,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[16].label"
+      },
+      "id": "personnelStatLabel16"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 340,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[16].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStat16"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_delta_x",
+      "y": 340,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "statRows[16].delta"
+      },
+      "width": 30,
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelStatDelta16"
+    },
+    {
+      "type": "text",
+      "x": {
+        "bind": "skillLines[0].x"
+      },
+      "y": 340,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "skillLines[0].text"
+      },
+      "id": "personnelSkill0"
+    },
+    {
+      "type": "text",
+      "x": {
+        "bind": "skillLines[1].x"
+      },
+      "y": 350,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "skillLines[1].text"
+      },
+      "id": "personnelSkill1"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 215,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "employmentRows[0].label"
+      },
+      "id": "personnelEmploymentLabel0"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_data_x",
+      "y": 215,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "employmentRows[0].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelEmployment0"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 225,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "employmentRows[1].label"
+      },
+      "id": "personnelEmploymentLabel1"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_data_x",
+      "y": 225,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "employmentRows[1].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelEmployment1"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 245,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "employmentRows[2].label"
+      },
+      "id": "personnelEmploymentLabel2"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_data_x",
+      "y": 245,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "employmentRows[2].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelEmployment2"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 265,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "employmentRows[3].label"
+      },
+      "id": "personnelEmploymentLabel3"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_data_x",
+      "y": 265,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "employmentRows[3].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelEmployment3"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_x",
+      "y": 255,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "employmentRows[4].label"
+      },
+      "id": "personnelEmploymentLabel4"
+    },
+    {
+      "type": "text",
+      "x": "pers_stat_data_x",
+      "y": 255,
+      "font": "PERS_FONT",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "employmentRows[4].value"
+      },
+      "width": "TEXT_BOX_WIDTH - 20",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelEmployment4"
+    },
+    {
+      "type": "image",
+      "asset": "inventory",
+      "frame": 0,
+      "x": 397,
+      "y": 200,
+      "visible": "inventoryPanel"
+    },
+    {
+      "type": "image",
+      "asset": "inventory",
+      "frame": 5,
+      "x": "X_OF_PERSONNEL_SCROLL_REGION",
+      "y": {
+        "bind": "sliderY"
+      },
+      "visible": "inventoryPanel"
+    },
+    {
+      "type": "repeat",
+      "count": "NUMBER_OF_INVENTORY_PERSONNEL",
+      "x": "397 + 3",
+      "y": "200 + 8",
+      "dy": 29,
+      "template": [
+        {
+          "type": "itemPicture",
+          "id": "personnelItem$i",
+          "graphic": "inventoryRows[$i].graphic",
+          "x": 0,
+          "y": 0,
+          "width": 57,
+          "height": 22,
+          "shadow": false,
+          "visible": "inventoryRows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": 65,
+          "y": 3,
+          "font": "FONT10ARIAL",
+          "color": "PERS_TEXT_FONT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "inventoryRows[$i].name"
+          },
+          "width": "171 - 75",
+          "ellipsis": true,
+          "id": "personnelItemName$i",
+          "visible": "inventoryRows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": 65,
+          "y": 15,
+          "font": "FONT10ARIAL",
+          "color": "PERS_TEXT_FONT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "inventoryRows[$i].condition"
+          },
+          "width": "171 - 75",
+          "align": "right",
+          "alignRule": "font",
+          "id": "personnelItemCondition$i",
+          "visible": "inventoryRows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": 65,
+          "y": 15,
+          "font": "FONT10ARIAL",
+          "color": "PERS_TEXT_FONT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "inventoryRows[$i].calibre"
+          },
+          "width": "171 - 75",
+          "ellipsis": true,
+          "id": "personnelItemCalibre$i",
+          "visible": "inventoryRows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": 0,
+          "y": 15,
+          "font": "FONT10ARIAL",
+          "color": "PERS_TEXT_FONT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "inventoryRows[$i].count"
+          },
+          "width": 58,
+          "align": "right",
+          "alignRule": "font",
+          "id": "personnelItemCount$i",
+          "visible": "inventoryRows[$i].present"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "x": "ATM_DISPLAY_X",
+      "y": "ATM_DISPLAY_Y",
+      "font": "ATM_FONT",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "money"
+      },
+      "width": "ATM_DISPLAY_WIDTH",
+      "height": "ATM_DISPLAY_HEIGHT",
+      "align": "right",
+      "alignRule": "font",
+      "valign": "center",
+      "id": "personnelMoney"
+    },
+    {
+      "type": "text",
+      "x": "PERS_CURR_TEAM_X",
+      "y": "PERS_CURR_TEAM_Y",
+      "font": "FONT10ARIAL",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "teamCountText"
+      },
+      "id": "personnelTeamCount",
+      "visible": "currentMode"
+    },
+    {
+      "type": "text",
+      "x": "PERS_CURR_TEAM_X",
+      "y": "PERS_DEPART_TEAM_Y",
+      "font": "FONT10ARIAL",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["pPersonelTeamStrings", 1]
+      },
+      "width": 65,
+      "align": "center",
+      "alignRule": "font",
+      "visible": "currentMode"
+    },
+    {
+      "type": "text",
+      "x": "PERS_CURR_TEAM_X",
+      "y": "PERS_CURR_TEAM_Y",
+      "font": "FONT10ARIAL",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["pPersonelTeamStrings", 0]
+      },
+      "width": 65,
+      "align": "center",
+      "alignRule": "font",
+      "visible": "departedMode"
+    },
+    {
+      "type": "text",
+      "x": "PERS_CURR_TEAM_X",
+      "y": "PERS_DEPART_TEAM_Y",
+      "font": "FONT10ARIAL",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "departedCountText"
+      },
+      "id": "personnelDepartedCount",
+      "visible": "departedMode"
+    },
+    {
+      "type": "text",
+      "x": "PERS_CURR_TEAM_COST_X",
+      "y": "PERS_CURR_TEAM_COST_Y",
+      "font": "FONT10ARIAL",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "summaryRows[0].label"
+      },
+      "id": "personnelSummaryLabel0"
+    },
+    {
+      "type": "text",
+      "x": "PERS_CURR_TEAM_COST_X",
+      "y": "PERS_CURR_TEAM_COST_Y",
+      "font": "FONT10ARIAL",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "summaryRows[0].value"
+      },
+      "width": "PERS_CURR_TEAM_WIDTH",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelSummary0",
+      "visible": "currentMode"
+    },
+    {
+      "type": "text",
+      "x": "PERS_CURR_TEAM_COST_X",
+      "y": "PERS_CURR_TEAM_COST_Y",
+      "font": "FONT10ARIAL",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "summaryRows[0].value"
+      },
+      "width": "PERS_DEPART_TEAM_WIDTH",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelDepartedSummary0",
+      "visible": "departedMode"
+    },
+    {
+      "type": "text",
+      "x": "PERS_CURR_TEAM_COST_X",
+      "y": "PERS_CURR_TEAM_HIGHEST_Y",
+      "font": "FONT10ARIAL",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "summaryRows[1].label"
+      },
+      "id": "personnelSummaryLabel1"
+    },
+    {
+      "type": "text",
+      "x": "PERS_CURR_TEAM_COST_X",
+      "y": "PERS_CURR_TEAM_HIGHEST_Y",
+      "font": "FONT10ARIAL",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "summaryRows[1].value"
+      },
+      "width": "PERS_CURR_TEAM_WIDTH",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelSummary1",
+      "visible": "currentMode"
+    },
+    {
+      "type": "text",
+      "x": "PERS_CURR_TEAM_COST_X",
+      "y": "PERS_CURR_TEAM_HIGHEST_Y",
+      "font": "FONT10ARIAL",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "summaryRows[1].value"
+      },
+      "width": "PERS_DEPART_TEAM_WIDTH",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelDepartedSummary1",
+      "visible": "departedMode"
+    },
+    {
+      "type": "text",
+      "x": "PERS_CURR_TEAM_COST_X",
+      "y": "PERS_CURR_TEAM_LOWEST_Y",
+      "font": "FONT10ARIAL",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "summaryRows[2].label"
+      },
+      "id": "personnelSummaryLabel2"
+    },
+    {
+      "type": "text",
+      "x": "PERS_CURR_TEAM_COST_X",
+      "y": "PERS_CURR_TEAM_LOWEST_Y",
+      "font": "FONT10ARIAL",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "summaryRows[2].value"
+      },
+      "width": "PERS_CURR_TEAM_WIDTH",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelSummary2",
+      "visible": "currentMode"
+    },
+    {
+      "type": "text",
+      "x": "PERS_CURR_TEAM_COST_X",
+      "y": "PERS_CURR_TEAM_LOWEST_Y",
+      "font": "FONT10ARIAL",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "summaryRows[2].value"
+      },
+      "width": "PERS_DEPART_TEAM_WIDTH",
+      "align": "right",
+      "alignRule": "font",
+      "id": "personnelDepartedSummary2",
+      "visible": "departedMode"
+    },
+    {
+      "type": "text",
+      "x": "PERS_STAT_LOWEST_X",
+      "y": "PERS_STAT_AVG_Y",
+      "font": "FONT10ARIAL",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["pPersonnelCurrentTeamStatsStrings", 0]
+      },
+      "width": "PERS_STAT_LOWEST_WIDTH",
+      "align": "center",
+      "alignRule": "font"
+    },
+    {
+      "type": "text",
+      "x": "PERS_STAT_AVG_X",
+      "y": "PERS_STAT_AVG_Y",
+      "font": "FONT10ARIAL",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["pPersonnelCurrentTeamStatsStrings", 1]
+      },
+      "width": "PERS_STAT_AVG_WIDTH",
+      "align": "center",
+      "alignRule": "font"
+    },
+    {
+      "type": "text",
+      "x": "PERS_STAT_HIGHEST_X",
+      "y": "PERS_STAT_AVG_Y",
+      "font": "FONT10ARIAL",
+      "color": "PERS_TEXT_FONT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["pPersonnelCurrentTeamStatsStrings", 2]
+      },
+      "width": "PERS_STAT_LOWEST_WIDTH",
+      "align": "center",
+      "alignRule": "font"
+    },
+    {
+      "type": "repeat",
+      "count": {
+        "bind": "teamStatRows"
+      },
+      "x": 0,
+      "y": {
+        "bind": "teamStatTop"
+      },
+      "dy": {
+        "bind": "teamStatStep"
+      },
+      "template": [
+        {
+          "type": "text",
+          "x": "PERS_STAT_LIST_X",
+          "y": 0,
+          "font": "FONT10ARIAL",
+          "color": {
+            "by": "teamStatRows[$i].tone",
+            "map": {
+              "alternate": "PERS_TEXT_FONT_ALTERNATE_COLOR",
+              "normal": "PERS_TEXT_FONT_COLOR"
+            }
+          },
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "key": ["pPersonnelTeamStatsStrings", "$i"]
+          }
+        },
+        {
+          "type": "text",
+          "x": "PERS_STAT_LOWEST_X",
+          "y": 0,
+          "font": "FONT10ARIAL",
+          "color": {
+            "by": "teamStatRows[$i].tone",
+            "map": {
+              "alternate": "PERS_TEXT_FONT_ALTERNATE_COLOR",
+              "normal": "PERS_TEXT_FONT_COLOR"
+            }
+          },
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "teamStatRows[$i].minName"
+          },
+          "id": "personnelLowestName$i"
+        },
+        {
+          "type": "text",
+          "x": "PERS_STAT_HIGHEST_X",
+          "y": 0,
+          "font": "FONT10ARIAL",
+          "color": {
+            "by": "teamStatRows[$i].tone",
+            "map": {
+              "alternate": "PERS_TEXT_FONT_ALTERNATE_COLOR",
+              "normal": "PERS_TEXT_FONT_COLOR"
+            }
+          },
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "teamStatRows[$i].maxName"
+          },
+          "id": "personnelHighestName$i"
+        },
+        {
+          "type": "text",
+          "x": "PERS_STAT_LOWEST_X",
+          "y": 0,
+          "font": "FONT10ARIAL",
+          "color": {
+            "by": "teamStatRows[$i].tone",
+            "map": {
+              "alternate": "PERS_TEXT_FONT_ALTERNATE_COLOR",
+              "normal": "PERS_TEXT_FONT_COLOR"
+            }
+          },
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "teamStatRows[$i].minValue"
+          },
+          "width": "PERS_STAT_LOWEST_WIDTH",
+          "align": "right",
+          "alignRule": "font",
+          "id": "personnelLowest$i"
+        },
+        {
+          "type": "text",
+          "x": "PERS_STAT_AVG_X",
+          "y": 0,
+          "font": "FONT10ARIAL",
+          "color": {
+            "by": "teamStatRows[$i].tone",
+            "map": {
+              "alternate": "PERS_TEXT_FONT_ALTERNATE_COLOR",
+              "normal": "PERS_TEXT_FONT_COLOR"
+            }
+          },
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "teamStatRows[$i].average"
+          },
+          "width": "PERS_STAT_AVG_WIDTH",
+          "align": "center",
+          "alignRule": "font",
+          "id": "personnelAverage$i"
+        },
+        {
+          "type": "text",
+          "x": "PERS_STAT_HIGHEST_X",
+          "y": 0,
+          "font": "FONT10ARIAL",
+          "color": {
+            "by": "teamStatRows[$i].tone",
+            "map": {
+              "alternate": "PERS_TEXT_FONT_ALTERNATE_COLOR",
+              "normal": "PERS_TEXT_FONT_COLOR"
+            }
+          },
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "teamStatRows[$i].maxValue"
+          },
+          "width": "PERS_STAT_LOWEST_WIDTH",
+          "align": "right",
+          "alignRule": "font",
+          "id": "personnelHighest$i"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "id": "personnelPrev",
+      "x": "PREV_MERC_FACE_X",
+      "y": "MERC_FACE_SCROLL_Y",
+      "asset": "faceButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "faceButtonsEnabled",
+      "primary": "prevFace"
+    },
+    {
+      "type": "button",
+      "id": "personnelNext",
+      "x": "NEXT_MERC_FACE_X",
+      "y": "MERC_FACE_SCROLL_Y",
+      "asset": "faceButtons",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 3
+      },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "faceButtonsEnabled",
+      "primary": "nextFace"
+    },
+    {
+      "type": "button",
+      "id": "personnelStatsButton",
+      "x": 519,
+      "y": 80,
+      "asset": "atm",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 3
+      },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "statsEnabled",
+      "kind": "quickNoMove",
+      "checked": "statsChecked",
+      "down": "showStats",
+      "text": {
+        "source": {
+          "key": ["gsAtmStartButtonText", 0]
+        },
+        "font": "PERS_FONT",
+        "color": "FONT_BLACK",
+        "shadow": "FONT_BLACK"
+      }
+    },
+    {
+      "type": "button",
+      "id": "personnelEmploymentButton",
+      "x": 519,
+      "y": 110,
+      "asset": "atm",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 3
+      },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "employmentEnabled",
+      "kind": "quickNoMove",
+      "checked": "employmentChecked",
+      "down": "showEmployment",
+      "text": {
+        "source": {
+          "key": ["gsAtmStartButtonText", 2]
+        },
+        "font": "PERS_FONT",
+        "color": "FONT_BLACK",
+        "shadow": "FONT_BLACK"
+      }
+    },
+    {
+      "type": "button",
+      "id": "personnelInventoryButton",
+      "x": 519,
+      "y": 140,
+      "asset": "atm",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 3
+      },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "inventoryEnabled",
+      "kind": "quickNoMove",
+      "checked": "inventoryChecked",
+      "down": "showInventory",
+      "text": {
+        "source": {
+          "key": ["gsAtmStartButtonText", 1]
+        },
+        "font": "PERS_FONT",
+        "color": "FONT_BLACK",
+        "shadow": "FONT_BLACK"
+      }
+    },
+    {
+      "type": "button",
+      "id": "personnelDepartedUp",
+      "x": "PERS_DEPARTED_UP_X",
+      "y": "PERS_DEPARTED_UP_Y",
+      "asset": "departureButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 2
+      },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "departedUpEnabled",
+      "visible": "departedMode",
+      "primary": "departedUp"
+    },
+    {
+      "type": "button",
+      "id": "personnelDepartedDown",
+      "x": "PERS_DEPARTED_UP_X",
+      "y": "PERS_DEPARTED_DOWN_Y",
+      "asset": "departureButtons",
+      "frames": {
+        "offNormal": 1,
+        "onNormal": 3
+      },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "departedDownEnabled",
+      "visible": "departedMode",
+      "primary": "departedDown"
+    },
+    {
+      "type": "button",
+      "id": "personnelInventoryUp",
+      "x": "176 + 397",
+      "y": "2 + 200",
+      "asset": "inventory",
+      "frames": {
+        "offNormal": 1,
+        "onNormal": 2
+      },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "inventoryUpEnabled",
+      "visible": "inventoryPanel",
+      "primary": "inventoryUp"
+    },
+    {
+      "type": "button",
+      "id": "personnelInventoryDown",
+      "x": "176 + 397",
+      "y": "200 + 223",
+      "asset": "inventory",
+      "frames": {
+        "offNormal": 3,
+        "onNormal": 4
+      },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "inventoryDownEnabled",
+      "visible": "inventoryPanel",
+      "primary": "inventoryDown"
+    },
+    {
+      "type": "repeat",
+      "count": "PERSONNEL_PORTRAIT_NUMBER_WIDTH",
+      "x": "SMALL_PORTRAIT_START_X",
+      "y": "SMALL_PORTRAIT_START_Y + SMALL_PORT_HEIGHT * 0",
+      "dx": "SMALL_PORT_WIDTH",
+      "template": [
+        {
+          "type": "region",
+          "id": "personnelPortrait0_$i",
+          "x": 0,
+          "y": 0,
+          "width": "SMALL_PORTRAIT_WIDTH",
+          "height": "SMALL_PORTRAIT_HEIGHT",
+          "priority": "HIGHEST",
+          "cursor": "CURSOR_LAPTOP_SCREEN",
+          "primary": "select(0,$i)",
+          "secondary": "cycle(0,$i)"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": "PERSONNEL_PORTRAIT_NUMBER_WIDTH",
+      "x": "SMALL_PORTRAIT_START_X",
+      "y": "SMALL_PORTRAIT_START_Y + SMALL_PORT_HEIGHT * 1",
+      "dx": "SMALL_PORT_WIDTH",
+      "template": [
+        {
+          "type": "region",
+          "id": "personnelPortrait1_$i",
+          "x": 0,
+          "y": 0,
+          "width": "SMALL_PORTRAIT_WIDTH",
+          "height": "SMALL_PORTRAIT_HEIGHT",
+          "priority": "HIGHEST",
+          "cursor": "CURSOR_LAPTOP_SCREEN",
+          "primary": "select(1,$i)",
+          "secondary": "cycle(1,$i)"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": "PERSONNEL_PORTRAIT_NUMBER_WIDTH",
+      "x": "SMALL_PORTRAIT_START_X",
+      "y": "SMALL_PORTRAIT_START_Y + SMALL_PORT_HEIGHT * 2",
+      "dx": "SMALL_PORT_WIDTH",
+      "template": [
+        {
+          "type": "region",
+          "id": "personnelPortrait2_$i",
+          "x": 0,
+          "y": 0,
+          "width": "SMALL_PORTRAIT_WIDTH",
+          "height": "SMALL_PORTRAIT_HEIGHT",
+          "priority": "HIGHEST",
+          "cursor": "CURSOR_LAPTOP_SCREEN",
+          "primary": "select(2,$i)",
+          "secondary": "cycle(2,$i)"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": "PERSONNEL_PORTRAIT_NUMBER_WIDTH",
+      "x": "SMALL_PORTRAIT_START_X",
+      "y": "SMALL_PORTRAIT_START_Y + SMALL_PORT_HEIGHT * 3",
+      "dx": "SMALL_PORT_WIDTH",
+      "template": [
+        {
+          "type": "region",
+          "id": "personnelPortrait3_$i",
+          "x": 0,
+          "y": 0,
+          "width": "SMALL_PORTRAIT_WIDTH",
+          "height": "SMALL_PORTRAIT_HEIGHT",
+          "priority": "HIGHEST",
+          "cursor": "CURSOR_LAPTOP_SCREEN",
+          "primary": "select(3,$i)",
+          "secondary": "cycle(3,$i)"
+        }
+      ]
+    },
+    {
+      "type": "region",
+      "id": "personnelCurrentToggle",
+      "x": "PERS_TOGGLE_CUR_DEPART_X",
+      "y": "PERS_TOGGLE_CUR_Y",
+      "width": "PERS_TOGGLE_CUR_DEPART_WIDTH",
+      "height": "PERS_TOGGLE_CUR_DEPART_HEIGHT",
+      "priority": "HIGHEST-3",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "currentTeam"
+    },
+    {
+      "type": "region",
+      "id": "personnelDepartedToggle",
+      "x": "PERS_TOGGLE_CUR_DEPART_X",
+      "y": "PERS_TOGGLE_DEPART_Y",
+      "width": "PERS_TOGGLE_CUR_DEPART_WIDTH",
+      "height": "PERS_TOGGLE_CUR_DEPART_HEIGHT",
+      "priority": "HIGHEST-3",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "departedTeam"
+    },
+    {
+      "type": "region",
+      "id": "personnelInventoryScroll",
+      "x": "INVENTORY_BOX_X",
+      "y": "INVENTORY_BOX_Y",
+      "width": "INVENTORY_BOX_W",
+      "height": "INVENTORY_BOX_H",
+      "priority": "HIGHEST-3",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "wheelUp": "inventoryUp",
+      "wheelDown": "inventoryDown",
+      "visible": "inventoryPanel"
+    },
+    {
+      "type": "region",
+      "id": "personnelSlider",
+      "x": "X_OF_PERSONNEL_SCROLL_REGION",
+      "y": "Y_OF_PERSONNEL_SCROLL_REGION",
+      "width": "X_SIZE_OF_PERSONNEL_SCROLL_REGION",
+      "height": "Y_SIZE_OF_PERSONNEL_SCROLL_REGION",
+      "priority": "HIGHEST-3",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "wheelUp": "inventoryUp",
+      "wheelDown": "inventoryDown",
+      "visible": "inventoryPanel"
+    },
+    {
+      "type": "repeat",
+      "count": {
+        "bind": "sliderZones"
+      },
+      "x": "X_OF_PERSONNEL_SCROLL_REGION",
+      "y": "Y_OF_PERSONNEL_SCROLL_REGION",
+      "visible": "inventoryPanel",
+      "template": [
+        {
+          "type": "region",
+          "id": "personnelSliderZone$i",
+          "x": 0,
+          "y": {
+            "bind": "sliderZones[$i].y"
+          },
+          "width": "X_SIZE_OF_PERSONNEL_SCROLL_REGION",
+          "height": {
+            "bind": "sliderZones[$i].height"
+          },
+          "priority": "HIGHEST-3",
+          "cursor": "CURSOR_LAPTOP_SCREEN",
+          "press": "sliderTo($i)",
+          "wheelUp": "inventoryUp",
+          "wheelDown": "inventoryDown",
+          "visible": "inventoryPanel"
+        }
+      ]
+    }
+  ]
 }
