@@ -952,7 +952,7 @@ town and the word "Mine"; the land types of other sectors are not rendered yet).
 
 Records `{ubCode, fRead}`, added idempotently by code (`Files.cc:310-326`); save section 9. `ENRICO_BACKGROUND` (0) at laptop
 init (`GameInitFiles`, `:184-192`); the six terrorist files when Carmen's NPC action runs (`AddFilesAboutTerrorists`,
-`:1009-1015`, all six regardless of which are active; M6). No logic.
+`:1009-1015`, all six regardless of which are active; M6). No logic. Showing a file sets `fRead` (`DisplayFormattedText`): `readFile {code}` (M8, U12).
 
 ---
 
@@ -1034,7 +1034,9 @@ used++
   Meduna: `HandleFlowersMeanwhileScene(nextDay ? 0 : 1)` (`Strategic/Meanwhile.cc:693-716`): once per game (meanwhile flag),
   the FLOWERS meanwhile at `now + 60·(20 + Random(5))` or `now + 60·(24 + Random(48))` — a cutscene with no implications
   (inferred; meanwhiles are M6). `uiFlowerOrderNumber += 1 + Random(5)` on entering the form (`:300`) and `+= 1 + Random(2)`
-  on sending: a displayed order number only (ja2-node: not drawn, deviation). No NPC, loyalty or opinion effect.
+  on sending, both on the main stream: a displayed order number only. ja2-node (M8, U12; `04` §6.33) reads the bouquet
+  prices from the gallery text at content load and charges them, draws the first step on `visitSite {site:
+  floristOrderForm}` and the second at the end of `orderFlowers`. No NPC, loyalty or opinion effect.
 
 ### 7.4 Personnel
 
@@ -1135,7 +1137,7 @@ landing, underground, `GROUNDBARRIER`, enemy airspace). Laptop flow only (each a
 | Command | Semantics | Refusal reasons |
 |---|---|---|
 | `closeLaptop` | §1.3 | — |
-| `visitSite {site: bobbyRay\|merc\|funeral\|florist\|insurance}` (M8) | §1.3; data `{site, bookmarks, speck?}` (`speck`: the opening's quote ids, §3.6) | `badSite`, `noBookmark`, `siteDown` |
+| `visitSite {site: bobbyRay\|merc\|funeral\|florist\|insurance\|floristOrderForm}` (M8) | §1.3; data `{site, bookmarks, speck?, orderNumber?}` (`speck`: the opening's quote ids, §3.6; `floristOrderForm` draws the order number step of §7.3, U12) | `badSite`, `noBookmark`, `siteDown` |
 | `readEmail {id}` / `deleteEmail {id}` | §6.1 (bookmarks on reading) | `noSuchMail` |
 | `aimHire {profile, contract: 1\|7\|14, gear?: boolean}` | contact + `CanMercBeHired` + §2.5; result: charge breakdown, soldier id, arrival `{minute, shownMinute, sector}`, the acceptance quote `{id, name}` or null | `notAimMerc`, `badContract`, `noKit` (gear on a 0-cost kit), `unavailable` (annoyed), `away` (answering machine: dead/hired/away/returning/POW), `hangover`, `hatesTeammate {hated}`, `deathRate`, `reputation` (the four with `quote {id, name}`), `funds {charge}`, `teamFull`, `cannotHire` |
 | `aimLeaveMessage {profile}` | answering machine: `PLAYER_LEFT_MSG` | `notAway`, `alreadyLeft` |
@@ -1145,7 +1147,8 @@ landing, underground, `GROUNDBARRIER`, enemy airspace). Laptop flow only (each a
 | `impCreate {code, name, nickname?, gender, answers[16] or skills[], attributes{health, agility, dexterity, strength, wisdom, leadership, marksmanship, medical, mechanical, explosives}, portrait, voice}` | §4.4; data: soldier, profile, skills, personality, attitude, arrival | `noBookmark`, `badCode`, `noSlot`, `funds`, `teamFull`, `badName`, `badAnswers`, `badSkills`, `badAttributes`, `badPortrait`, `badVoice`, `cannotHire` |
 | `bobbyRayOrder {lines: [{item, used?, quantity}], destination, speed: 0\|1\|2}` | cart rules + §5.4 (atomic; the order is also a visit of the site); data: the quote and the shipment index | `siteClosed`, `noLines`, `tooManyLines`, `notInStock`, `noDestination`, `badSpeed`, `funds` |
 | `insure {soldier}` | §7.1 with `insuranceLength`; data `{length, cost, insuredDays}` | `notInsurable`, `funds` |
-| `orderFlowers {bouquet: 0–9, destination, nextDay, extras: crushed\|blackRoses\|wilted\|fruitCake}` | §7.3 | `noSuchBouquet`, `noDestination`, `badExtra` |
+| `orderFlowers {bouquet: 0–9, destination, nextDay, extras: crushed\|blackRoses\|wilted\|fruitCake}` | §7.3; data `{price, orderNumber}` (M8, U12) | `noSuchBouquet`, `noDestination`, `badExtra` |
+| `readFile {code}` (M8, U12) | §6.4 | `noSuchFile` |
 
 `openLaptop` is refused with `laptopOpen`, `mapScreenOnly`, `promptOpen`, `battlePending` or `renewalSequence`;
 `setLandingZone` with `mapScreenOnly`, `badSector`, `beforeFirstLanding`, `groundBarrier` or `enemyAirspace`. While the
@@ -1169,8 +1172,10 @@ and cost unless already bought, face state `available | hired | dead | pow | onA
 `firstContact | answeringMachine | unavailable`, `WillMercAcceptCall`) and `messageLeft`); M.E.R.C. (online, account status and number, listed mercs with stats,
 daily fee and state, debt per merc and total); I.M.P. (reachable, characters left, cost); Bobby Ray (open, new and used
 stock with price, quantity, used quality; shipments with destination, speed and order day as on the shipments page);
-insurance (per insurable merc: contract days left, insured days left, offered length and premium); in-transit mercs with
-`timeSoldierWillArrive` and the landing zone. **Hidden**: `dayBecomesAvailable`, hangover days, tolerances (`bDeathRate`,
+insurance (per insurable merc: contract days left, insured days left, offered length and premium; M8 adds the nickname,
+the dead flag and the contract length, and `aimMercsOnTeam`); in-transit mercs with `timeSoldierWillArrive` and the
+landing zone. M8 (U12, `04` §6.33) adds the history rows' rendered `text`, `location` and `questInProgress`, the
+personnel blocks (`personnel.current` and `personnel.departed`) and `florist {orderNumber, bouquetPrices}`. **Hidden**: `dayBecomesAvailable`, hangover days, tolerances (`bDeathRate`,
 `bReputationTolerance`), hated/buddy lists and hated times, the current death rate and reputation, unhired deaths and
 improvements before they show, the restock state (`onOrder`, `fPreviouslyEligible`, pending restock events), theft counters
 and Pablo facts, investigation outcomes, the outage roll, every queued event.
@@ -1211,13 +1216,14 @@ Scalar constants stay named constants under the SFI-SCLA header: arrival slots a
 75 big-body strength, salary rounding steps and caps, insurance bases and limits, Bobby Ray chances, delays, weights and
 limits, theft and damage numbers, gridnos 1/2, the flower extras.
 
-**Imported from the user's data, never committed**: the `prof.dat` fields of §0; the bouquet prices (florist gallery text);
+**Imported from the user's data, never committed**: the `prof.dat` fields of §0; the bouquet prices (florist gallery text,
+read at content load since M8);
 mail, file and bio texts (presentation; the client reads them from the VFS).
 
 **Stubs** (CI has no `prof.dat`): the stub pack gains an authored profile table in the canonical model (invented names and
 values): ≥ 4 A.I.M. profiles at ids 0–3 (salaries, deposit flags, inventories, tolerances, one buddy and one hated pair, one
 with `bDeathRate 101`), 2 M.E.R.C. profiles at 40–41, empty I.M.P. slots, and the NPC profile `SAL`/`PABLO` stand-ins only
-if their facts are exercised; authored bouquet prices; no texts. `loadTacticalContent` uses it when `prof.dat` is absent,
+if their facts are exercised; authored bouquet prices (an invented `flowerdesc.edt` since M8); no texts. `loadTacticalContent` uses it when `prof.dat` is absent,
 so `aimHire` runs on stubs. Bobby Ray, I.M.P. gear and the letter use the externalized item tables (available on stubs).
 Delivery needs no map when the airport sector is not loaded (`sector-loot.ts`).
 
