@@ -44,6 +44,7 @@ import {
   aimTimeOf,
   attackCursor,
   confirmsBeforeAttack,
+  ordersAnAttack,
   REFINE_AIM_1,
   rightClickAdjust,
   wheelAdjust,
@@ -2200,6 +2201,7 @@ export class TacticalInput {
       inCombat: this.#combat(),
       burst: this.#selBurst(sel),
       throwingKnife: knife,
+      onTarget: this.#hover.target !== null,
     });
     this.#newCursor = result.cursor;
     if (result.apCost !== null) {
@@ -2325,6 +2327,12 @@ export class TacticalInput {
       if (target) void this.#host.sendBusyOrder({ type: 'bandage', soldier: sel.id, target: target.id });
       return;
     }
+    if (estimate?.cursor === 'remote') {
+      void this.#host.send({ type: 'useRemote', soldier: sel.id });
+      this.#pending = UiEvent.A_CHANGE_TO_MOVE;
+      return;
+    }
+    if (estimate && !ordersAnAttack(estimate)) return;
     const spread = this.#doSpread && this.#burstLocations.length > 0 ? { spread: [...this.#burstLocations] } : {};
     this.#doSpread = false;
     this.#burstLocations = [];

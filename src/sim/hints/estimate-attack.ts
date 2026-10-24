@@ -26,6 +26,7 @@ import { tacticalPanelEnv } from '../tactical/inventory-commands.ts';
 import { apsToAutoReload } from '../tactical/inventory-panel.ts';
 import { movementModeState } from '../tactical/movement-mode.ts';
 import { uncontrolledRobot } from '../tactical/narrative/robot.ts';
+import { AP } from '../tactical/points.ts';
 import { Body, NOWHERE, OKBREATH, type Soldier } from '../tactical/soldier.ts';
 import type { WeaponModeView } from '../tactical/soldier-view.ts';
 import { type TacticalState, whoIsThere } from '../tactical/state.ts';
@@ -37,7 +38,22 @@ const MELEE_CHANCE_TO_GET_THROUGH = 100;
 const AIM_LEVELS = 5;
 const MAX_AIM = AIM_LEVELS - 1;
 
-export type AttackCursor = 'target' | 'punch' | 'knife' | 'toss' | 'trajectory' | 'aid' | 'bomb' | 'remote' | 'invalid' | 'other';
+export type AttackCursor =
+  | 'target'
+  | 'punch'
+  | 'knife'
+  | 'toss'
+  | 'trajectory'
+  | 'aid'
+  | 'bomb'
+  | 'remote'
+  | 'wirecutter'
+  | 'repair'
+  | 'jar'
+  | 'tincan'
+  | 'refuel'
+  | 'invalid'
+  | 'other';
 
 export interface AmmoState {
   readonly empty: boolean;
@@ -96,6 +112,11 @@ const CURSOR_NAMES: Readonly<Record<number, AttackCursor>> = {
   [ItemCursor.REMOTE]: 'remote',
   [ItemCursor.BOMB]: 'bomb',
   [ItemCursor.TRAJECTORY]: 'trajectory',
+  [ItemCursor.WIRECUT]: 'wirecutter',
+  [ItemCursor.REPAIR]: 'repair',
+  [ItemCursor.JAR]: 'jar',
+  [ItemCursor.TINCAN]: 'tincan',
+  [ItemCursor.REFUEL]: 'refuel',
 };
 
 const isMeleeItemClass = (cls: number) => cls === ItemClass.BLADE || (cls & (ItemClass.NONE | ItemClass.PUNCH)) !== 0;
@@ -250,10 +271,16 @@ const ATTACK_CURSORS: ReadonlySet<number> = new Set([
   ItemCursor.TRAJECTORY,
 ]);
 
-function attackRefusal(cursor: number, aim: number) {
-  if (!ATTACK_CURSORS.has(cursor)) return refuseHint('noWeapon', 'soldier has no gun, knife, grenade, launcher or free hand');
-  if (cursor === ItemCursor.TOSS && aim !== 0) return refuseHint('throwNoAim', 'throws cannot be aimed');
-  return null;
+function itemUse(cursor: number, base: EstimateBase): EstimateAttack {
+  return {
+    ...base,
+    apCost: cursor === ItemCursor.REMOTE ? AP.USE_REMOTE : 0,
+    apCostByAim: [],
+    chanceToHit: null,
+    chanceToGetThrough: 0,
+    inRange: true,
+    ammo: NO_AMMO_STATE,
+  };
 }
 
 function weaponModeOf(t: TacticalState, s: Soldier, req: EstimateAttackRequest): number {
@@ -304,13 +331,13 @@ export function estimateAttack(world: KnowledgeWorld, req: EstimateAttackRequest
     },
     () => {
       const cursor = actionModeCursor(t, s, isEpc);
-      const refusal = attackRefusal(cursor, aim);
-      if (refusal) return refusal;
+      if (cursor === ItemCursor.TOSS && aim !== 0) return refuseHint('throwNoAim', 'throws cannot be aimed');
       const base: EstimateBase = {
         cursor: CURSOR_NAMES[cursor] ?? 'other',
         weaponMode: WEAPON_MODE_NAMES[mode] ?? 'single',
         actionPoints: s.actionPoints,
       };
+      if (!ATTACK_CURSORS.has(cursor)) return hintData(itemUse(cursor, base));
       if (cursor === ItemCursor.TOSS || cursor === ItemCursor.TRAJECTORY)
         return hintData(estimateThrow(t, s, target, level, aim, cursor === ItemCursor.TRAJECTORY, base));
       return hintData(estimateStrike(t, s, target, level, aim, cursor, base));

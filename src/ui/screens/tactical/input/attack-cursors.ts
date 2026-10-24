@@ -5,7 +5,8 @@
 // @src black crosshair below OK_CHANCE_TO_GET_THROUGH, the flash and sound out of range, the throwing knife's throw
 // @src cursors), HandleNonActivatedTargetCursor (the reload cursors, the burst cursors), HandleKnifeCursor,
 // @src HandlePunchCursor (REFINE_*_1/2), HandleAidCursor, HandleNonActivatedTossCursor, HandleBombCursor,
-// @src HandleRemoteCursor, HandleRightClickAdjustCursor, HandleWheelAdjustCursor; Overhead_Types.h REFINE_AIM_*,
+// @src HandleRemoteCursor, HandleWirecutterCursor, HandleRepairCursor, HandleRefuelCursor, HandleJarCursor,
+// @src HandleTinCanCursor, HandleRightClickAdjustCursor, HandleWheelAdjustCursor; Overhead_Types.h REFINE_AIM_*,
 // @src REFINE_PUNCH_*, REFINE_KNIFE_*. See docs/28 §6.1, §6.4.
 
 import type { EstimateAttack } from '../../../../protocol/hints.ts';
@@ -39,7 +40,17 @@ export interface AttackContext {
   readonly inCombat: boolean;
   readonly burst: boolean;
   readonly throwingKnife: boolean;
+  readonly onTarget: boolean;
 }
+
+const UNBUILT_ACTION_CURSORS: Readonly<Partial<Record<EstimateAttack['cursor'], string>>> = {
+  bomb: 'PLACE_BOMB_GREY_UICURSOR',
+  wirecutter: 'BAD_WIRECUTTER_UICURSOR',
+  repair: 'BAD_REPAIR_UICURSOR',
+  refuel: 'REFUEL_GREY_UICURSOR',
+  jar: 'BAD_JAR_UICURSOR',
+  tincan: 'PLACE_TINCAN_GREY_UICURSOR',
+};
 
 const RING_CURSOR = ['1', '3', '5', '7', '9'] as const;
 
@@ -72,14 +83,18 @@ export function attackCursor(e: EstimateAttack, aim: AimState, c: AttackContext)
     case 'trajectory':
       return toss(e, c.inCombat);
     case 'aid':
-      return plain(c.activated ? 'ACTION_FIRSTAID_RED' : 'ACTION_FIRSTAID_GRAY');
-    case 'bomb':
-      return withAp(c.activated ? 'PLACE_BOMB_RED_UICURSOR' : 'PLACE_BOMB_GREY_UICURSOR', e, c.inCombat);
+      return plain(c.activated || c.onTarget ? 'ACTION_FIRSTAID_RED' : 'ACTION_FIRSTAID_GRAY');
     case 'remote':
       return withAp(c.activated ? 'PLACE_REMOTE_RED_UICURSOR' : 'PLACE_REMOTE_GREY_UICURSOR', e, c.inCombat);
+    case 'other':
+      return plain('NO_UICURSOR');
     default:
-      return plain('INVALID_ACTION_UICURSOR');
+      return plain(UNBUILT_ACTION_CURSORS[e.cursor] ?? 'INVALID_ACTION_UICURSOR');
   }
+}
+
+export function ordersAnAttack(e: EstimateAttack): boolean {
+  return e.cursor === 'target' || e.cursor === 'punch' || e.cursor === 'knife' || e.cursor === 'toss' || e.cursor === 'trajectory';
 }
 
 function reloadCursor(e: EstimateAttack): AttackCursor | null {
