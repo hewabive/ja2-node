@@ -70,6 +70,7 @@ export const REFUSAL_MESSAGES: Readonly<Record<string, RefusalMessage>> = {
   noMilitiaAllowed: box('pMapErrorString', 31),
   militiaInCombat: box('pMilitiaString', 2),
   emptyHelicopterHint: box('pSkyriderText', 2),
+  onlyHostileCivilians: box('gzLateLocalizedString', 26),
 };
 
 export function refusalMessage(token: string): RefusalMessage | null {

@@ -63,6 +63,10 @@ function loadScreenOf(frames: readonly ViewFrame[]): number | null {
   return found;
 }
 
+function startsAutoresolve(frames: readonly ViewFrame[]): boolean {
+  return frames.some((f) => f.events?.some((e) => e.type === 'preBattle' && e.autoStart));
+}
+
 function versionLabel(engine: { readonly version: string; readonly commit: string } | undefined): string {
   return engine ? `${engine.version} (${engine.commit.slice(0, SHORT_COMMIT)})` : '';
 }
@@ -214,6 +218,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       music.frames(frames);
       lastLoadScreen = loadScreenOf(frames) ?? lastLoadScreen;
       tactical?.frames(frames);
+      if (!map && startsAutoresolve(frames)) mapFor(session);
       map?.frames(frames);
       flow.frames(frames);
     };

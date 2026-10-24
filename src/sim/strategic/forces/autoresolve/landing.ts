@@ -19,6 +19,7 @@ import {
   combatContext,
   emitEvent,
   hasFlag,
+  isCreatureCell,
   isMercCell,
   isMilitiaCell,
   refOf,
@@ -31,6 +32,7 @@ const KILL_EXPERIENCE_PER_LEVEL = 10;
 const ASSIST_EXPERIENCE_PER_LEVEL = 5;
 const KILL_POINTS = 2;
 const ASSIST_POINTS = 1;
+const SPLAT_LIFE = -60;
 
 const CREATURE_REDUCTION: Readonly<Record<number, { readonly add: number; readonly divisor: number }>> = {
   [Body.YAF_MONSTER]: { add: 2, divisor: 4 },
@@ -116,7 +118,14 @@ export function targetHit(env: AutoresolveEnv, ar: AutoresolveState, target: ArC
   }
   if (newLife <= 0) {
     creditKill(env, ar, target, slot);
-    emitEvent(ar, { type: 'arDied', battleMs: ar.elapsedMs, cell: refOf(target), killer: attackerRef });
+    const splat = newLife < SPLAT_LIFE && !isCreatureCell(target);
+    emitEvent(ar, {
+      type: 'arDied',
+      battleMs: ar.elapsedMs,
+      cell: refOf(target),
+      killer: attackerRef,
+      ...(splat ? { splat: true as const } : {}),
+    });
   }
   t.life = i8(Math.max(newLife, 0));
   if (isMercCell(target) && robotCell(ar)) updateRobotController(env, ar);

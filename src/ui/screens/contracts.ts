@@ -1,4 +1,6 @@
 import type { ControllerContract } from '../layout/controller.ts';
+import { AUTORESOLVE_CONTRACT } from './battle/autoresolve-screen.ts';
+import { PRE_BATTLE_CONTRACT } from './battle/pre-battle.ts';
 import { CREDITS_CONTRACT } from './front-end/credits.ts';
 import { EXIT_BOX_CONTRACT } from './front-end/exit-box.ts';
 import { GAME_INIT_CONTRACT } from './front-end/game-init.ts';
@@ -152,5 +154,7 @@ export const LAYOUT_CONTRACTS: Readonly<Record<string, ControllerContract>> = Ob
     IMP_VOICE_CONTRACT,
     IMP_FINISH_CONTRACT,
     IMP_CONFIRM_CONTRACT,
+    PRE_BATTLE_CONTRACT,
+    AUTORESOLVE_CONTRACT,
   ].map((contract) => [contract.id, contract]),
 );

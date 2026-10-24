@@ -4,12 +4,16 @@ import type { ViewFrame } from '../../protocol/view.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
 import { ORIGINAL_SKIN } from '../../ui/layout/types.ts';
 import type { MessageBoxes } from '../../ui/message-boxes.ts';
+import { BATTLE_LAYOUTS, type BattleEnvironment, type BattleLayout } from '../../ui/screens/battle/environment.ts';
 import type { MapEntry, MapPort } from '../../ui/screens/front-end/flow.ts';
 import { MAP_LAYOUTS, type MapEnvironment, type MapFlow, type MapLayout } from '../../ui/screens/map/environment.ts';
 import { mapFacts } from '../../ui/screens/map/facts.ts';
 import { MapScreen } from '../../ui/screens/map/map-screen.ts';
 import type { MercTextBoxArt } from '../../ui/widgets/merc-text-box.ts';
 import type { MessageBoxLabels, MessageBoxStyle } from '../../ui/widgets/message-box.ts';
+import { SessionBattleClient } from '../battle/battle-client.ts';
+import { attachBattleHook, type BattleHook } from '../battle/battle-hook.ts';
+import { BattleSound } from '../battle/battle-sound.ts';
 import type { GamePage } from '../game/game-page.ts';
 import { preloadLayout, type UiBoot } from '../game/ui-boot.ts';
 import { ClientKnowledge } from '../hints/client-knowledge.ts';
@@ -25,6 +29,7 @@ import { MapMediaStore } from './map-media.ts';
 import { MapSound } from './map-sound.ts';
 
 const SHADOW_HINTS_PARAM = 'shadowHints';
+const PIN_CLOCK_PARAM = 'pinClock';
 const KEPT_COMMANDS = 64;
 const LOAD_STEPS = 4;
 
@@ -45,11 +50,24 @@ interface Loaded {
   readonly layouts: ReadonlyMap<MapLayout, LayoutModel>;
   readonly knowledge: ClientKnowledge;
   readonly sound: MapSound;
+  readonly battleLayouts: ReadonlyMap<BattleLayout, LayoutModel>;
+  readonly battleSound: BattleSound;
+}
+
+type PreBattleEvent = Extract<NonNullable<ViewFrame['events']>[number], { readonly type: 'preBattle' }>;
+
+function autoStartOf(frames: readonly ViewFrame[]): PreBattleEvent | null {
+  let found: PreBattleEvent | null = null;
+  for (const frame of frames) for (const e of frame.events ?? []) if (e.type === 'preBattle' && e.autoStart) found = e;
+  return found;
 }
 
 export class MapHost implements MapPort {
   readonly hook: MapHook;
+  readonly battleHook: BattleHook;
   readonly #o: MapHostOptions;
+  readonly #battleClient: SessionBattleClient;
+  #pendingAutoStart: PreBattleEvent | null = null;
   readonly #hints: HintProvider;
   readonly #hintHook: HintHook;
   readonly #client: SessionMapClient;
@@ -70,6 +88,9 @@ export class MapHost implements MapPort {
     this.#random = new ClientRandom(seedFromText(`${options.session.session ?? 'map'}/map`));
     this.hook = this.#createHook();
     attachMapHook(options.page.hook, this.hook);
+    this.#battleClient = new SessionBattleClient(options.session);
+    this.battleHook = this.#createBattleHook();
+    attachBattleHook(options.page.hook, this.battleHook);
   }
 
   get session(): SessionClient {
@@ -137,8 +158,16 @@ export class MapHost implements MapPort {
     });
     const sound = new MapSound(ui.audio.engine, ui.source, () => session.view, session.session ?? 'map');
     await sound.load();
+    const battleLayouts = new Map<BattleLayout, LayoutModel>();
+    for (const name of BATTLE_LAYOUTS) {
+      const model = await ui.layouts.load(ORIGINAL_SKIN, name);
+      await preloadLayout(ui, model);
+      battleLayouts.set(name, model);
+    }
+    const battleSound = new BattleSound(ui.audio.engine, ui.source, session.session ?? 'battle');
+    await battleSound.load();
     step();
-    this.#loaded = { media, layouts, knowledge, sound };
+    this.#loaded = { media, layouts, knowledge, sound, battleLayouts, battleSound };
     this.hook.error = null;
   }
 
@@ -175,9 +204,35 @@ export class MapHost implements MapPort {
       random: (range) => this.#random.int(range),
       metric: () => loadSettings().display.useMetricSystem,
       notifySleepWake: () => loadSettings().sleepWakeNotification,
+      battle: this.#battleEnvironment(loaded, flow),
     };
     this.#screen = new MapScreen(env);
+    if (this.#pendingAutoStart) this.#screen.battle.pendAutoStart(this.#pendingAutoStart);
+    this.#pendingAutoStart = null;
     return this.#screen;
+  }
+
+  #battleEnvironment(loaded: Loaded, flow: MapFlow): BattleEnvironment {
+    const ui = this.#o.ui;
+    return {
+      runtime: ui.runtime,
+      text: ui.text,
+      layout: (name) => {
+        const model = loaded.battleLayouts.get(name);
+        if (!model) throw new Error(`battle layout ${name} is not loaded`);
+        return model;
+      },
+      client: this.#battleClient,
+      sounds: loaded.battleSound,
+      media: {
+        image: (path) => loaded.media.image(path),
+        faceIndex: (profile) => loaded.media.profile(profile)?.faceIndex ?? null,
+      },
+      boxes: this.#o.boxes,
+      flow: { exitGame: () => flow.exitGame() },
+      random: (range) => this.#random.int(range),
+      instantOpenings: new URLSearchParams(location.search).has(PIN_CLOCK_PARAM),
+    };
   }
 
   frameTime(): void {
@@ -187,6 +242,7 @@ export class MapHost implements MapPort {
 
   frames(frames: readonly ViewFrame[]): void {
     if (this.#unknownProfile()) void this.#refreshProfiles();
+    if (!this.#screen) this.#pendingAutoStart = autoStartOf(frames) ?? this.#pendingAutoStart;
     this.#screen?.frames(frames);
   }
 
@@ -235,7 +291,34 @@ export class MapHost implements MapPort {
     };
   }
 
+  #createBattleHook(): BattleHook {
+    return {
+      ready: false,
+      state: null,
+      drives: [],
+      commands: [],
+      sounds: [],
+      buttonPoint: (id) => {
+        const widget = this.#o.ui.runtime.describe().find((w) => w.id === id);
+        return widget
+          ? { x: widget.rect.x + Math.floor(widget.rect.width / 2), y: widget.rect.y + Math.floor(widget.rect.height / 2) }
+          : null;
+      },
+    };
+  }
+
+  #syncBattleHook(): void {
+    const battle = this.#screen?.battle ?? null;
+    const hook = this.battleHook;
+    hook.ready = battle !== null;
+    hook.state = battle?.hook() ?? null;
+    hook.drives = this.#battleClient.drives.slice(-KEPT_COMMANDS).map((d) => (d.mode === 'realtime' ? `realtime:${d.speed}` : d.mode));
+    hook.commands = this.#battleClient.commands.slice(-KEPT_COMMANDS).map((c) => `${c.cmd.type}:${c.reply.ok ? 'ok' : 'refused'}`);
+    hook.sounds = (this.#loaded?.battleSound.played ?? []).slice(-KEPT_COMMANDS);
+  }
+
   #syncHook(): void {
+    this.#syncBattleHook();
     const hook = this.hook;
     const screen = this.#screen;
     hook.ready = screen !== null && this.#o.ui.runtime !== null && this.#o.page.host.screen === screen;

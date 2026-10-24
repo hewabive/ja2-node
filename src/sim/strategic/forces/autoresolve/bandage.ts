@@ -119,6 +119,16 @@ function findMedicalKit(env: AutoresolveEnv, ar: AutoresolveState): ItemObject |
   return null;
 }
 
+export const BandageRefusal = { NOBODY_WOUNDED: 'nobodyWounded', NO_DOCTOR: 'noDoctor', NO_KIT: 'noKit' } as const;
+export type BandageRefusal = (typeof BandageRefusal)[keyof typeof BandageRefusal];
+
+export function bandageRefusal(env: AutoresolveEnv, ar: AutoresolveState): BandageRefusal | null {
+  const soldiers = ar.mercs.map((c) => c.soldier);
+  if (!soldiers.some(isWounded)) return BandageRefusal.NOBODY_WOUNDED;
+  if (!soldiers.some(canBandageOthers)) return BandageRefusal.NO_DOCTOR;
+  return findMedicalKit(env, ar) === null ? BandageRefusal.NO_KIT : null;
+}
+
 export function canBandage(env: AutoresolveEnv, ar: AutoresolveState): boolean {
   if (ar.status !== BattleStatus.VICTORY || ar.aliveMercs === 0) return false;
   const soldiers = ar.mercs.map((c) => c.soldier);

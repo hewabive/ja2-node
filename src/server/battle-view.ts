@@ -1,24 +1,14 @@
 import { type Sector, sectorFromId, sectorShortString } from '../content/strategic/sector-ids.ts';
-import type {
-  AutoresolveCellView,
-  AutoresolveView,
-  InvolvedMercView,
-  NpcRequestPromptView,
-  PromptView,
-  UninvolvedMercView,
-} from '../protocol/view.ts';
+import type { AutoresolveCellView, AutoresolveView, NpcRequestPromptView, PromptView } from '../protocol/view.ts';
 import { battleStatusName } from '../sim/campaign/battle-flow.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
-import type { RosterMerc } from '../sim/campaign/roster.ts';
+import { preBattlePanel } from '../sim/campaign/pre-battle-panel.ts';
 import { type ArCell, CellFlag, hasFlag } from '../sim/strategic/forces/autoresolve/state.ts';
 import { encounterName, PromptKind } from '../sim/strategic/forces/battle-state.ts';
-import { getFinalWaypoint, getGroup, numEnemiesInSector } from '../sim/strategic/forces/groups.ts';
-import { involvedMercs, uninvolvedMercs } from '../sim/strategic/forces/pre-battle.ts';
-import { sectorInfo, totalMilitia } from '../sim/strategic/map/sectors.ts';
-import { healthCategory, soldierCondition } from '../sim/tactical/health.ts';
-import { OKLIFE, type Soldier, SoldierClass } from '../sim/tactical/soldier.ts';
+import { getGroup } from '../sim/strategic/forces/groups.ts';
+import { healthCategory } from '../sim/tactical/health.ts';
+import { Body, NO_PROFILE, OKLIFE, type Soldier, SoldierClass } from '../sim/tactical/soldier.ts';
 
-const PERCENT = 100;
 const MS_PER_SECOND = 1000;
 
 const sectorName = (s: Sector) => (s.z ? `${sectorShortString(s)}-${s.z}` : sectorShortString(s));
@@ -39,50 +29,26 @@ const ENEMY_KINDS: readonly (readonly [number, string])[] = [
   [CellFlag.YM_CREATURE, 'youngMaleCreature'],
 ];
 
-function involvedView(m: RosterMerc): InvolvedMercView {
-  const s = m.soldier;
-  return {
-    soldier: m.id,
-    name: s.name,
-    assignment: m.assignment,
-    condition: soldierCondition(s),
-    hp: s.lifeMax > 0 ? Math.trunc((s.life * PERCENT) / s.lifeMax) : 0,
-    bp: s.breath,
-  };
-}
-
-function uninvolvedView(campaign: CampaignSim, m: RosterMerc): UninvolvedMercView {
-  const g = campaign.strategic ? getGroup(campaign.strategic, m.groupId) : undefined;
-  const wp = g ? getFinalWaypoint(g) : undefined;
-  return {
-    soldier: m.id,
-    name: m.soldier.name,
-    assignment: m.assignment,
-    location: sectorName(m.sector),
-    ...(wp && g?.betweenSectors ? { destination: sectorName({ x: wp.x, y: wp.y, z: wp.z }) } : {}),
-  };
-}
-
 function preBattleView(campaign: CampaignSim, id: string, enemiesKnown: boolean): PromptView | null {
-  const economy = campaign.economy;
   const battle = campaign.state.battle;
-  const flow = campaign.battle;
   const sector = battle.sector;
-  if (!economy || !sector || !flow) return null;
+  if (!sector) return null;
+  const panel = preBattlePanel(campaign, sector, enemiesKnown);
+  if (!panel) return null;
   const prompt = battle.prompt;
-  const roster = (ids: readonly { id: number }[]) => ids.map((m) => flow.roster.get(m.id)).filter((m): m is RosterMerc => m !== undefined);
   const enc = campaign.state.encounter;
   return {
     id,
     kind: 'preBattle',
-    sector: sectorName(sector),
+    sector: panel.sector,
     persistent: battle.persistent,
     encounter: encounterName(battle.persistent ? enc.code : enc.explicitCode),
-    enemies: enemiesKnown ? numEnemiesInSector(economy, sector) : 'unknown',
-    militia: totalMilitia(sectorInfo(campaign.state.map, sector)),
-    involved: roster(involvedMercs(economy, sector)).map(involvedView),
-    uninvolved: roster(uninvolvedMercs(economy, sector)).map((m) => uninvolvedView(campaign, m)),
+    enemies: panel.enemies,
+    militia: panel.militia,
+    involved: panel.involved.map((m) => ({ ...m })),
+    uninvolved: panel.uninvolved.map((m) => ({ ...m })),
     options: prompt?.kind === PromptKind.PRE_BATTLE ? prompt.options.map((o) => ({ ...o })) : [],
+    involvedGroups: panel.involvedGroups,
   };
 }
 
@@ -105,6 +71,7 @@ export function promptView(campaign: CampaignSim): PromptView | null {
         status: battleStatusName(flow.session?.ar.status ?? 0),
         canBandage,
         choices: canBandage ? ['bandage', 'done'] : ['done'],
+        bandageRefusal: flow.bandageRefusal(),
       };
     }
     case PromptKind.SIMULTANEOUS_ARRIVAL: {
@@ -169,6 +136,7 @@ function otherCell(c: ArCell, kind: string): AutoresolveCellView {
     kind,
     state: cellState(c),
     ...(s.life !== 0 ? { health: healthCategory(s.life, s.lifeMax), hurt: s.life !== s.lifeMax } : {}),
+    ...(s.bodyType === Body.REGFEMALE ? { female: true } : {}),
   };
 }
 
@@ -180,6 +148,7 @@ function mercCell(c: ArCell): AutoresolveCellView {
     kind: s.name,
     soldier: s.id,
     name: s.name,
+    ...(s.profile !== NO_PROFILE ? { profile: s.profile } : {}),
     state: cellState(c),
     life: s.life,
     lifeMax: s.lifeMax,
@@ -199,6 +168,7 @@ export function autoresolveView(campaign: CampaignSim): AutoresolveView | null {
   const ar = session.ar;
   return {
     sector: sectorName(session.sector),
+    encounter: encounterName(ar.encounter),
     status: battleStatusName(ar.status),
     battleSeconds: Math.trunc(ar.elapsedMs / MS_PER_SECOND),
     alive: { mercs: ar.aliveMercs, militia: ar.aliveCivs, enemies: ar.aliveEnemies },

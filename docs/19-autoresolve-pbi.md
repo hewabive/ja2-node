@@ -1275,9 +1275,17 @@ type PreBattlePrompt = {
   `ChooseRandomEdgepoints`), then tactical; `retreat` → groups between sectors, militia AR if militia stay, else +300 s;
   `close` → non-persistent only.
 - Auto-start cases (§1.2: no conscious merc, militia-only creature attack, the tactical militia hand-off) open no prompt: the
-  `preBattle` event is emitted with `autoStart: true` and AR begins at once.
-- A non-persistent PBI is not modal in ja2-node: during a tactical battle the agent may issue `autoresolveBattle` (accepted when
-  the explicit code allows it, §1.4) instead of opening a summary; `observe` exposes the same fields as the prompt.
+  `preBattle` event is emitted with `autoStart: true` and AR begins at once. Since U9 (M8) the event carries `panel {sector,
+  enemies, militia, involved, uninvolved, involvedGroups}`, computed before AR starts, for the panel the original shows with
+  Autoresolve pressed (`ActivateAutomaticAutoResolveStart`).
+- The non-persistent PBI: during a tactical battle the agent may issue `autoresolveBattle` (accepted when the explicit code
+  allows it, §1.4) instead of opening a summary. The map screen opens the summary itself with `showBattle {}` (U9, `docs/04`
+  §6.31): where the original calls `InitPreBattleInterface(0, false)` (a click on the battle locator, a refused compression
+  during a battle), with its side effects; the prompt has `persistent: false`, the options of §1.4 and `close`; refusals
+  `noBattle` and `onlyHostileCivilians` (`OnlyHostileCivsInSector`, `STR_LATE_27`).
+- Both kinds add `involvedGroups` (the plural retreat help) and per uninvolved merc `betweenSectors`, `departure` (contract
+  minutes for A.I.M. mercs and Slay, `null` for N/A) and `destination` by `GetMapscreenMercDestinationString` (the arrival
+  sector in transit, the last sector of the path whenever there is one, else the group's next sector between sectors).
 - Saving with an open `preBattle` prompt is safe (plain state); the original forbids it (options button disabled); ja2-node may
   allow it because nothing in the PBI is hidden or random once the code is fixed.
 
@@ -1293,9 +1301,15 @@ type PreBattlePrompt = {
   `autoresolveRetreat {}` (all; refused when there are no merc cells).
 - Prompts inside AR:
   - `{kind: 'surrender', choices: ['accept', 'reject']}` when the offer appears (§2.13).
-  - `{kind: 'autoresolveDone', status, canBandage, choices: ['bandage', 'done'] | ['done']}` after the end; `bandage` runs §2.17 and
-    re-opens the prompt with `canBandage` recomputed; `done` runs §2.18 and returns to the strategic flow. A headless policy
-    may answer `done` automatically (the original waits for a click; nothing changes meanwhile).
+  - `{kind: 'autoresolveDone', status, canBandage, choices: ['bandage', 'done'] | ['done'], bandageRefusal}` after the end
+    (`bandageRefusal`: `nobodyWounded`, `noDoctor`, `noKit` or `null`, the order of `DetermineBandageButtonState`); `bandage` runs
+    §2.17, answers `data.bandaged` (`complete` or `incomplete`: the box of `AutoBandageMercs`) and re-opens the prompt with
+    `canBandage` recomputed; `done` runs §2.18 and returns to the strategic flow. A headless policy may answer `done`
+    automatically (the original waits for a click; nothing changes meanwhile).
+- The screen (U9) paces the battle with the driver: Play `realtime` at `ubTimeModifierPercentage`/100, Fast `realtime` at 4,
+  Finish one `advance {idle}`, Pause `manual`; it plays each slice's events over the slice's real time. The view adds
+  `encounter`, `profile` on merc cells and `female` on militia and enemy cells; the events add `weapon` and `reloaded` on shots
+  (`arAttack`), `melee` on `arHit` and `splat` on `arDied`, all cosmetic (no draw).
 
 ### 5.3 What the agent observes
 
@@ -1429,8 +1443,9 @@ Steps 3–6, the simulation, protocol and server-view half of step 7, and step 8
   `health`), `arMiss`, `arFell`, `arDied {cell, killer}`, `arRetreated`, `arBattleOver {status}`, `arSound`,
   `arSurrenderOffered`, `arSummary`, `battleResult`, `sectorControlChanged`, `mercCaptured`. `server/battle-view.ts`
   projects `PlayerView.prompt` and `PlayerView.autoresolve` (§5.3: no ratings, timers or exact enemy life), also sent in
-  `ViewFrame`s. Differences from §5.1: `assignment` is the assignment number, there is no `explicit` field and no `close`
-  option (the non-persistent PBI never opens a prompt).
+  `ViewFrame`s. Differences from §5.1: `assignment` is the assignment number, there is no `explicit` field (the
+  non-persistent prompt's `encounter` is the explicit code) and, until U9 added `showBattle`, no `close`
+  option (the non-persistent PBI opened no prompt).
 - Oracle (§7.4): level 3 (aftermath) matches on all 50 battles from imported saves (8 of `autoresolve-d13.txt`, 6 of
   `autoresolve-capture.txt`, 31 generated, 5 of `battle.txt`); 8 `pbi` probes match the encounter code and its draws; the
   `enemycounts` probe confirms Q12 (the H1 garrison, id 25, counts as stationary and as mobile); Q14 and Q16 hold; Q22 holds (the
@@ -1445,7 +1460,8 @@ Steps 3–6, the simulation, protocol and server-view half of step 7, and step 8
   tactical creatures or `determineCreatureTownComposition`), the close clears the attack and applies the civilians-eaten
   loyalty. Oracle: six creature battles (`creature-battles.txt`) match at levels 1–3.
 - Not yet: the client (AR screen, PBI panel, slice playback), the MCP tool descriptions and docs/04 entries for the new
-  commands, prompts and `advance` fields.
+  commands, prompts and `advance` fields. *Done in U9 (M8, 2026-10-24):* the PBI panel and the AR screen on `/play`
+  (`src/ui/screens/battle/`, `docs/28` §17.4), `showBattle`, the G16 fields and `docs/04` §6.31.
 
 
 ### 7.1 Modules

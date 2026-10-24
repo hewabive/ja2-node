@@ -152,6 +152,8 @@ const SCREEN_TABLES: readonly TableSpec[] = [
   { table: 'IMP_Finish', files: ['game/Laptop/IMP_Finish.h', 'game/Laptop/IMP_Finish.cc'] },
   { table: 'IMP_Text_System', files: ['game/Laptop/IMP_Text_System.h', 'game/Laptop/IMP_Text_System.cc'] },
   { table: 'IMPVideoObjects', files: ['game/Laptop/IMPVideoObjects.h', 'game/Laptop/IMPVideoObjects.cc'] },
+  { table: 'PreBattle_Interface', files: ['game/Strategic/PreBattle_Interface.h', 'game/Strategic/PreBattle_Interface.cc'] },
+  { table: 'Auto_Resolve', files: ['game/Strategic/Auto_Resolve.h', 'game/Strategic/Auto_Resolve.cc'] },
 ];
 
 const FRAME_ORIGIN_NAMES: ReadonlyMap<string, number> = new Map([

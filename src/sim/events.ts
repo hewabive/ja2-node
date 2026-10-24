@@ -263,6 +263,34 @@ export interface ArCellRef {
   readonly index: number;
 }
 
+export interface PreBattlePanelInvolved {
+  readonly soldier: number;
+  readonly name: string;
+  readonly assignment: number;
+  readonly condition: string;
+  readonly hp: number;
+  readonly bp: number;
+}
+
+export interface PreBattlePanelUninvolved {
+  readonly soldier: number;
+  readonly name: string;
+  readonly assignment: number;
+  readonly location: string;
+  readonly betweenSectors: boolean;
+  readonly destination?: string;
+  readonly departure: number | null;
+}
+
+export interface PreBattlePanel {
+  readonly sector: string;
+  readonly enemies: number | 'unknown';
+  readonly militia: number;
+  readonly involved: readonly PreBattlePanelInvolved[];
+  readonly uninvolved: readonly PreBattlePanelUninvolved[];
+  readonly involvedGroups: number;
+}
+
 export interface PreBattleEvent extends SimEventBase {
   readonly type: 'preBattle';
   readonly sector: string;
@@ -270,6 +298,7 @@ export interface PreBattleEvent extends SimEventBase {
   readonly persistent: boolean;
   readonly autoStart: boolean;
   readonly prompt: string | null;
+  readonly panel?: PreBattlePanel;
 }
 
 export interface RetreatedEvent extends SimEventBase {
@@ -293,6 +322,8 @@ export interface ArAttackEvent extends SimEventBase {
   readonly attacker: ArCellRef;
   readonly target: ArCellRef;
   readonly kind: 'shot' | 'spit' | 'claw' | 'knife' | 'punch';
+  readonly weapon?: number;
+  readonly reloaded?: true;
 }
 
 export interface ArHitEvent extends SimEventBase {
@@ -302,6 +333,7 @@ export interface ArHitEvent extends SimEventBase {
   readonly damage?: number;
   readonly life?: number;
   readonly health?: string;
+  readonly melee?: true;
 }
 
 export interface ArMissEvent extends SimEventBase {
@@ -321,6 +353,7 @@ export interface ArDiedEvent extends SimEventBase {
   readonly battleMs: number;
   readonly cell: ArCellRef;
   readonly killer: ArCellRef | null;
+  readonly splat?: true;
 }
 
 export interface ArRetreatedEvent extends SimEventBase {

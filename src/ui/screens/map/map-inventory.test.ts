@@ -21,6 +21,7 @@ import { ORIGINAL_SKIN } from '../../layout/types.ts';
 import { CanvasMessageBoxes } from '../../message-boxes.ts';
 import { StringsTextService } from '../../text/text-service.ts';
 import { MessageBoxFlag, MessageBoxReturn, messageBoxLabels } from '../../widgets/message-box.ts';
+import type { BattleEnvironment } from '../battle/environment.ts';
 import type { MapClient, MapCommandReply, MapEnvironment, MapLayout } from './environment.ts';
 import type { MapFacts } from './facts.ts';
 import { MapInventory } from './map-inventory.ts';
@@ -217,6 +218,7 @@ async function harness(mercs: StrategicMercView[]): Promise<Harness> {
     random: () => 0,
     metric: () => true,
     notifySleepWake: () => true,
+    battle: {} as BattleEnvironment,
   };
   const boxes: string[] = [];
   const h: Harness = {

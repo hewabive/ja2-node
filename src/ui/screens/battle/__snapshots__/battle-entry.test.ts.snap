@@ -1,0 +1,300 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the pre-battle interface on the stub map-screen campaign > answers Autoresolve with the a key and switches to the autoresolve screen over the shaded map 1`] = `
+"shadow 0,0 641x481
+clip 137,100 366x200
+image interface/autoresolve.sti#4 137,100
+image interface/autoresolve.sti#4 187,100
+image interface/autoresolve.sti#4 237,100
+image interface/autoresolve.sti#4 287,100
+image interface/autoresolve.sti#4 337,100
+image interface/autoresolve.sti#4 387,100
+image interface/autoresolve.sti#4 437,100
+image interface/autoresolve.sti#4 487,100
+image interface/autoresolve.sti#4 137,140
+image interface/autoresolve.sti#4 187,140
+image interface/autoresolve.sti#4 237,140
+image interface/autoresolve.sti#4 287,140
+image interface/autoresolve.sti#4 337,140
+image interface/autoresolve.sti#4 387,140
+image interface/autoresolve.sti#4 437,140
+image interface/autoresolve.sti#4 487,140
+image interface/autoresolve.sti#4 137,180
+image interface/autoresolve.sti#4 187,180
+image interface/autoresolve.sti#4 237,180
+image interface/autoresolve.sti#4 287,180
+image interface/autoresolve.sti#4 337,180
+image interface/autoresolve.sti#4 387,180
+image interface/autoresolve.sti#4 437,180
+image interface/autoresolve.sti#4 487,180
+image interface/autoresolve.sti#4 137,220
+image interface/autoresolve.sti#4 187,220
+image interface/autoresolve.sti#4 237,220
+image interface/autoresolve.sti#4 287,220
+image interface/autoresolve.sti#4 337,220
+image interface/autoresolve.sti#4 387,220
+image interface/autoresolve.sti#4 437,220
+image interface/autoresolve.sti#4 487,220
+image interface/autoresolve.sti#4 137,260
+image interface/autoresolve.sti#4 187,260
+image interface/autoresolve.sti#4 237,260
+image interface/autoresolve.sti#4 287,260
+image interface/autoresolve.sti#4 337,260
+image interface/autoresolve.sti#4 387,260
+image interface/autoresolve.sti#4 437,260
+image interface/autoresolve.sti#4 487,260
+image interface/autoresolve.sti#3 137,100
+image interface/autoresolve.sti#5 500,100
+image interface/autoresolve.sti#3 137,140
+image interface/autoresolve.sti#5 500,140
+image interface/autoresolve.sti#3 137,180
+image interface/autoresolve.sti#5 500,180
+image interface/autoresolve.sti#3 137,220
+image interface/autoresolve.sti#5 500,220
+image interface/autoresolve.sti#3 137,260
+image interface/autoresolve.sti#5 500,260
+image interface/autoresolve.sti#1 137,100
+image interface/autoresolve.sti#7 137,297
+image interface/autoresolve.sti#1 187,100
+image interface/autoresolve.sti#7 187,297
+image interface/autoresolve.sti#1 237,100
+image interface/autoresolve.sti#7 237,297
+image interface/autoresolve.sti#1 287,100
+image interface/autoresolve.sti#7 287,297
+image interface/autoresolve.sti#1 337,100
+image interface/autoresolve.sti#7 337,297
+image interface/autoresolve.sti#1 387,100
+image interface/autoresolve.sti#7 387,297
+image interface/autoresolve.sti#1 437,100
+image interface/autoresolve.sti#7 437,297
+image interface/autoresolve.sti#1 487,100
+image interface/autoresolve.sti#7 487,297
+image interface/autoresolve.sti#0 137,100
+image interface/autoresolve.sti#2 493,100
+image interface/autoresolve.sti#6 137,291
+image interface/autoresolve.sti#8 493,291
+image interface/autoresolve.sti#9 250,100
+image interface/autoresolve.sti#10 250,140
+image interface/autoresolve.sti#10 250,180
+image interface/autoresolve.sti#10 250,220
+image interface/autoresolve.sti#11 250,260
+clipPop
+fill 234,110 8x28 #000000
+image interface/autoresolve.sti#12 198,108
+fill 235,116 1x21 #6b6b39
+fill 236,116 1x21 #deb573
+fill 235,116 1x21 #9c3939
+fill 236,116 1x21 #de8484
+fill 235,116 1x21 #6b0808
+fill 236,116 1x21 #ce0000
+fill 239,112 1x25 #080884
+fill 240,112 1x25 #08086b
+fill 243,125 1x12 #089c08
+fill 244,125 1x12 #086b08
+image faces/65face/00.sti#0 201,111
+clip 200,140 46x10
+image interface/autoresolve.sti#4 187,140
+image interface/autoresolve.sti#4 237,140
+clipPop
+glyphs smallcompfont 205,141 n=6 fg=133
+fill 234,157 8x28 #000000
+image interface/autoresolve.sti#12 198,155
+fill 235,162 1x22 #6b6b39
+fill 236,162 1x22 #deb573
+fill 235,162 1x22 #9c3939
+fill 236,162 1x22 #de8484
+fill 235,162 1x22 #6b0808
+fill 236,162 1x22 #ce0000
+fill 239,159 1x25 #080884
+fill 240,159 1x25 #08086b
+fill 243,172 1x12 #089c08
+fill 244,172 1x12 #086b08
+image faces/65face/01.sti#0 201,158
+clip 200,187 46x10
+image interface/autoresolve.sti#4 187,180
+image interface/autoresolve.sti#4 237,180
+clipPop
+glyphs smallcompfont 196,188 n=9 fg=133
+fill 234,204 8x28 #000000
+image interface/autoresolve.sti#12 198,202
+fill 235,212 1x19 #6b6b39
+fill 236,212 1x19 #deb573
+fill 235,212 1x19 #9c3939
+fill 236,212 1x19 #de8484
+fill 235,212 1x19 #6b0808
+fill 236,212 1x19 #ce0000
+fill 239,206 1x25 #080884
+fill 240,206 1x25 #08086b
+fill 243,219 1x12 #089c08
+fill 244,219 1x12 #086b08
+image faces/65face/02.sti#0 201,205
+clip 200,234 46x10
+image interface/autoresolve.sti#4 187,220
+image interface/autoresolve.sti#4 237,220
+clipPop
+glyphs smallcompfont 205,235 n=6 fg=133
+fill 234,251 8x28 #000000
+image interface/autoresolve.sti#12 198,249
+fill 235,258 1x20 #6b6b39
+fill 236,258 1x20 #deb573
+fill 235,258 1x20 #9c3939
+fill 236,258 1x20 #de8484
+fill 235,258 1x20 #6b0808
+fill 236,258 1x20 #ce0000
+fill 239,253 1x25 #080884
+fill 240,253 1x25 #08086b
+fill 243,266 1x12 #089c08
+fill 244,266 1x12 #086b08
+image faces/65face/03.sti#0 201,252
+clip 200,281 46x10
+image interface/autoresolve.sti#4 187,260
+image interface/autoresolve.sti#4 237,260
+clipPop
+glyphs smallcompfont 205,282 n=6 fg=133
+image interface/autoresolve.sti#13 391,131
+image interface/smfaces.sti#1 400,134
+clip 393,163 46x10
+image interface/autoresolve.sti#4 387,140
+image interface/autoresolve.sti#4 437,140
+image interface/autoresolve.sti#10 250,140
+clipPop
+glyphs smallcompfont 395,164 n=7 fg=133
+image interface/autoresolve.sti#13 446,131
+image interface/smfaces.sti#1 455,134
+clip 448,163 46x10
+image interface/autoresolve.sti#4 437,140
+image interface/autoresolve.sti#4 487,140
+clipPop
+glyphs smallcompfont 450,164 n=7 fg=133
+image interface/autoresolve.sti#13 391,178
+image interface/smfaces.sti#1 400,181
+clip 393,210 46x10
+image interface/autoresolve.sti#4 387,180
+image interface/autoresolve.sti#4 437,180
+image interface/autoresolve.sti#10 250,180
+clipPop
+glyphs smallcompfont 398,211 n=6 fg=133
+image interface/autoresolve.sti#13 446,178
+image interface/smfaces.sti#1 455,181
+clip 448,210 46x10
+image interface/autoresolve.sti#4 437,180
+image interface/autoresolve.sti#4 487,180
+clipPop
+glyphs smallcompfont 450,211 n=7 fg=133
+image interface/autoresolve.sti#13 391,225
+image interface/smfaces.sti#1 400,228
+clip 393,257 46x10
+image interface/autoresolve.sti#4 387,220
+image interface/autoresolve.sti#4 437,220
+image interface/autoresolve.sti#4 387,260
+image interface/autoresolve.sti#4 437,260
+image interface/autoresolve.sti#10 250,220
+image interface/autoresolve.sti#11 250,260
+clipPop
+glyphs smallcompfont 395,258 n=7 fg=133
+image interface/autoresolve.sti#13 446,225
+image interface/smfaces.sti#1 455,228
+clip 448,257 46x10
+image interface/autoresolve.sti#4 437,220
+image interface/autoresolve.sti#4 487,220
+image interface/autoresolve.sti#4 437,260
+image interface/autoresolve.sti#4 487,260
+clipPop
+glyphs smallcompfont 450,258 n=7 fg=133
+glyphs font10arialbold 294,115 n=9 fg=208
+glyphs font10arial 289,126 n=12 fg=134
+glyphs font14arial 299,137 n=7 fg=162
+image interface/autobtns.sti#8 261,200
+image interface/autobtns.sti#2 301,200
+image interface/autobtns.sti#3 341,200
+image interface/autobtns.sti#0 261,234
+image interface/autobtns.sti#14 301,234
+clip 304,236 74x24
+glyphs blockfont2 320,241 n=7 fg=169
+clipPop
+"
+`;
+
+exports[`the pre-battle interface on the stub map-screen campaign > opens the persistent panel over the map with the stretch, then shows the three buttons with their fast help 1`] = `
+"image interface/prebattlepanel.sti#0 0,0
+glyphs font10arialbold 92,4 n=14 fg=130
+image interface/prebattlepanel.sti#1 80,6
+image interface/prebattlepanel.sti#1 70,6
+image interface/prebattlepanel.sti#1 60,6
+image interface/prebattlepanel.sti#1 50,6
+image interface/prebattlepanel.sti#1 40,6
+image interface/prebattlepanel.sti#1 30,6
+image interface/prebattlepanel.sti#1 171,6
+image interface/prebattlepanel.sti#1 181,6
+image interface/prebattlepanel.sti#1 191,6
+image interface/prebattlepanel.sti#1 201,6
+image interface/prebattlepanel.sti#1 211,6
+image interface/prebattlepanel.sti#1 221,6
+image interface/prebattlepanel.sti#4 8,305
+image interface/prebattlepanel.sti#3 161,340
+image interface/prebattlepanel.sti#2 186,113
+image interface/prebattlepanel.sti#2 186,123
+image interface/prebattlepanel.sti#2 186,133
+image interface/prebattlepanel.sti#2 186,143
+image interface/prebattlepanel.sti#2 186,153
+image interface/prebattlepanel.sti#2 186,163
+image interface/prebattlepanel.sti#2 186,173
+image interface/prebattlepanel.sti#2 186,183
+image interface/prebattlepanel.sti#2 186,193
+image interface/prebattlepanel.sti#2 186,203
+image interface/prebattlepanel.sti#2 186,213
+image interface/prebattlepanel.sti#2 186,223
+image interface/prebattlepanel.sti#2 186,233
+image interface/prebattlepanel.sti#2 186,243
+image interface/prebattlepanel.sti#2 186,253
+image interface/prebattlepanel.sti#2 186,263
+image interface/prebattlepanel.sti#2 186,273
+image interface/prebattlepanel.sti#2 186,283
+image interface/prebattlepanel.sti#2 186,293
+image interface/prebattlepanel.sti#2 186,303
+glyphs blockfont 20,17 n=8 fg=130
+glyphs blockfont 14,38 n=7 fg=130
+glyphs blockfont 109,38 n=5 fg=130
+glyphs blockfont 191,38 n=7 fg=130
+glyphs font10arial 70,17 n=19 fg=145
+glyphs font14arial 63,36 n=2 fg=145
+glyphs font14arial 151,36 n=1 fg=145
+glyphs font14arial 236,36 n=1 fg=145
+glyphs blockfont2 23,114 n=7 fg=145
+glyphs blockfont2 76,114 n=7 fg=145
+glyphs blockfont2 133,114 n=9 fg=145
+glyphs blockfont2 190,114 n=4 fg=145
+glyphs blockfont2 220,114 n=3 fg=145
+glyphs blockfont2 31,124 n=4 fg=145
+glyphs blockfont2 76,124 n=7 fg=145
+glyphs blockfont2 133,124 n=9 fg=145
+glyphs blockfont2 190,124 n=4 fg=145
+glyphs blockfont2 220,124 n=3 fg=145
+glyphs blockfont2 25,134 n=6 fg=145
+glyphs blockfont2 76,134 n=7 fg=145
+glyphs blockfont2 133,134 n=9 fg=145
+glyphs blockfont2 190,134 n=4 fg=145
+glyphs blockfont2 220,134 n=3 fg=145
+glyphs blockfont2 28,144 n=6 fg=145
+glyphs blockfont2 76,144 n=7 fg=145
+glyphs blockfont2 133,144 n=9 fg=145
+glyphs blockfont2 190,144 n=4 fg=145
+glyphs blockfont2 220,144 n=3 fg=145
+glyphs blockfont2 31,341 n=4 fg=145
+image interface/prebattlebutton.sti#0 27,54
+clip 30,56 61x28
+glyphs blockfont 48,60 n=4 fg=130
+glyphs blockfont 39,74 n=7 fg=130
+clipPop
+image interface/prebattlebutton.sti#0 98,54
+clip 101,56 61x28
+glyphs blockfont 117,60 n=5 fg=130
+glyphs blockfont 113,74 n=6 fg=130
+clipPop
+image interface/prebattlebutton.sti#0 169,54
+clip 172,56 61x28
+glyphs blockfont 181,60 n=7 fg=130
+glyphs blockfont 186,74 n=5 fg=130
+clipPop
+"
+`;

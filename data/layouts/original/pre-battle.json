@@ -1,0 +1,215 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Strategic/PreBattle_Interface.cc InitPreBattleInterface (PBInterfaceBlanket over 0, 0 \u2013 261, 359 at MSYS_PRIORITY_HIGHEST - 5; MLG_PREBATTLEPANEL; prebattlebutton.sti frames 0 and 1 for the three buttons at 27, 98 and 169, y 54, MSYS_PRIORITY_HIGHEST - 2, BLOCKFONT FONT_BEIGE with shadow 141, hilited FONT_WHITE on FONT_NEARBLACK, text offsets 8, 7 shifted, wrapped at 51, disabled buttons keep their fast help)",
+    "src/game/Strategic/PreBattle_Interface.cc RenderPBHeader (FONT10ARIALBOLD centred on x 130 at y 4), RenderPreBattleInterface (title bars every 10 pixels from the header x - 12 while > 20 and from x + width + 2 while < 231 at y 6, the uninvolved header at 8, the bottom columns at 161 and the top columns at 186, 21 rows in all; the labels confined with BLOCKFONT or BLOCKFONTNARROW at 65/17/64, 54/38/52, 139/38/52, 224/38/52; the location in FONT10ARIAL FONT_YELLOW at 70, 17; the counts in FONT14ARIAL centred in 57/27, 142/27, 227/27 at y 36; the rows in BLOCKFONT2 with FONT_NEARBLACK shadows: name 17/52, assignment 72/45, condition 129/58, HP 189/25, BP 217/25; uninvolved name 17/52, assignment 72/54, location 128/33, destination 164/41, departure 208/34), TOP_Y, BOTTOM_Y, ROW_HEIGHT, ACTUAL_HEIGHT",
+    "src/game/Strategic/MapScreen.cc GetMapKeyboardInput (a, e and r while the panel is up), HandleKeyESC"
+  ],
+  "screen": "preBattle",
+  "frame": "std640",
+  "constants": ["PreBattle_Interface", "Text"],
+  "assets": {
+    "panel": {
+      "mlg": "MLG_PREBATTLEPANEL",
+      "stub": {
+        "sizes": [[261, 359], [10, 3], [2, "ROW_HEIGHT"], [2, "ROW_HEIGHT"], [245, "ACTUAL_HEIGHT"]]
+      }
+    },
+    "button": {
+      "sti": "interface/prebattlebutton.sti",
+      "stub": {
+        "frames": 2,
+        "size": [67, 32],
+        "states": ["normal", "pressed"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "region",
+      "id": "preBattleBlanket",
+      "x": 0,
+      "y": 0,
+      "width": 261,
+      "height": 359,
+      "priority": "HIGHEST-5",
+      "cursor": "CURSOR_NORMAL"
+    },
+    {
+      "type": "custom",
+      "id": "preBattlePanel",
+      "renderer": "preBattlePanel",
+      "x": 0,
+      "y": 0,
+      "width": 261,
+      "height": 359,
+      "params": {
+        "panel": "panel",
+        "headerFont": "FONT10ARIALBOLD",
+        "labelFont": "BLOCKFONT",
+        "labelNarrowFont": "BLOCKFONTNARROW",
+        "locationFont": "FONT10ARIAL",
+        "countFont": "FONT14ARIAL",
+        "rowFont": "BLOCKFONT2",
+        "headerCenter": 130,
+        "headerY": 4,
+        "titleBars": [12, 20, 2, 231, 10, 6],
+        "columns": [8, 161, 186, 21],
+        "labels": {
+          "location": [65, 17, 64],
+          "enemies": [54, 38, 52],
+          "mercs": [139, 38, 52],
+          "militia": [224, 38, 52]
+        },
+        "location": [70, 17],
+        "counts": {
+          "enemies": [57, 36, 27],
+          "mercs": [142, 36, 27],
+          "militia": [227, 36, 27]
+        },
+        "involved": {
+          "name": [17, 52],
+          "assignment": [72, 45],
+          "condition": [129, 58],
+          "hp": [189, 25],
+          "bp": [217, 25]
+        },
+        "uninvolved": {
+          "name": [17, 52],
+          "assignment": [72, 54],
+          "location": [128, 33],
+          "destination": [164, 41],
+          "departure": [208, 34]
+        },
+        "colors": {
+          "beige": "FONT_BEIGE",
+          "white": "FONT_WHITE",
+          "ltRed": "FONT_LTRED",
+          "yellow": "FONT_YELLOW",
+          "shadow": "DEFAULT_SHADOW",
+          "rowShadow": "FONT_NEARBLACK"
+        }
+      }
+    },
+    {
+      "type": "button",
+      "id": "preBattleAutoresolve",
+      "x": 27,
+      "y": 54,
+      "asset": "button",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGHEST-2",
+      "enabled": "buttons[0].enabled",
+      "tooltip": {
+        "bind": "buttons[0].help"
+      },
+      "allowDisabledTooltip": true,
+      "primary": "choose(0)",
+      "checked": "autoPressed",
+      "text": {
+        "source": {
+          "key": ["gpStrategicString", "STR_PB_AUTORESOLVE_BTN"]
+        },
+        "font": "BLOCKFONT",
+        "color": "FONT_BEIGE",
+        "shadow": "FONT_NEARBLACK",
+        "hiliteColor": "FONT_WHITE",
+        "hiliteShadow": "FONT_NEARBLACK",
+        "offsetX": 8,
+        "offsetY": 7,
+        "wrapWidth": 51
+      }
+    },
+    {
+      "type": "button",
+      "id": "preBattleGoToSector",
+      "x": 98,
+      "y": 54,
+      "asset": "button",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGHEST-2",
+      "enabled": "buttons[1].enabled",
+      "tooltip": {
+        "bind": "buttons[1].help"
+      },
+      "allowDisabledTooltip": true,
+      "primary": "choose(1)",
+      "text": {
+        "source": {
+          "key": ["gpStrategicString", "STR_PB_GOTOSECTOR_BTN"]
+        },
+        "font": "BLOCKFONT",
+        "color": "FONT_BEIGE",
+        "shadow": "FONT_NEARBLACK",
+        "hiliteColor": "FONT_WHITE",
+        "hiliteShadow": "FONT_NEARBLACK",
+        "offsetX": 8,
+        "offsetY": 7,
+        "wrapWidth": 51
+      }
+    },
+    {
+      "type": "button",
+      "id": "preBattleRetreat",
+      "x": 169,
+      "y": 54,
+      "asset": "button",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGHEST-2",
+      "enabled": "buttons[2].enabled",
+      "tooltip": {
+        "bind": "buttons[2].help"
+      },
+      "allowDisabledTooltip": true,
+      "primary": "choose(2)",
+      "text": {
+        "source": {
+          "key": ["gpStrategicString", "STR_PB_RETREATMERCS_BTN"]
+        },
+        "font": "BLOCKFONT",
+        "color": "FONT_BEIGE",
+        "shadow": "FONT_NEARBLACK",
+        "hiliteColor": "FONT_WHITE",
+        "hiliteShadow": "FONT_NEARBLACK",
+        "offsetX": 8,
+        "offsetY": 7,
+        "wrapWidth": 51
+      }
+    }
+  ],
+  "hotkeys": [
+    {
+      "key": "a",
+      "on": "down",
+      "mods": 0,
+      "action": "choose(0)"
+    },
+    {
+      "key": "e",
+      "on": "down",
+      "mods": 0,
+      "action": "choose(1)"
+    },
+    {
+      "key": "r",
+      "on": "down",
+      "mods": 0,
+      "action": "choose(2)"
+    },
+    {
+      "key": "Escape",
+      "on": "down",
+      "mods": 0,
+      "action": "close"
+    }
+  ]
+}

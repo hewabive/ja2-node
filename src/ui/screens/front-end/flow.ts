@@ -110,6 +110,7 @@ class BlackScreen implements Screen {
 export function gameScreenOf(view: PlayerView | null): GameScreenKind {
   const flow = view?.strategic?.flow;
   if (flow === 'laptop') return 'laptop';
+  if (view?.prompt?.kind === 'preBattle') return 'map';
   if (!view?.strategic || flow === 'tactical') return 'tactical';
   return 'map';
 }
