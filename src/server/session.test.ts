@@ -84,6 +84,26 @@ describe('session', () => {
     session.close();
   });
 
+  it('keeps real time through a decision: no ticks, no log entries and no catch-up once it is resolved', () => {
+    let deciding = true;
+    const sim = walker();
+    sim.hasPendingDecision = () => deciding;
+    sim.target = 1000;
+    const session = new Session('s2b', sim);
+    let now = 0;
+    session.setDriver({ mode: 'realtime', speed: 1 }, () => now);
+    const logged = session.log.entries().length;
+    for (now = 50; now <= 500; now += 50) session.runRealtime(now);
+    expect(sim.tick).toBe(0);
+    expect(session.driver).toEqual({ mode: 'realtime', speed: 1 });
+    expect(session.log.entries()).toHaveLength(logged);
+    deciding = false;
+    now = 550;
+    session.runRealtime(now);
+    expect(sim.tick).toBe(10);
+    session.close();
+  });
+
   it('runs every accepted command to idle in instant mode and streams the frames', () => {
     const sim = walker();
     const session = new Session('s3', sim);

@@ -1246,6 +1246,11 @@ the WebSocket `welcome` (`messages`, the whole ring) and in frames (`ViewFrame.m
 - `drive {driver: {mode: 'realtime', speed, pauseOn?: EventType[]}}`: the real-time driver stops on the tick of the
   first listed event, becomes `manual` and sends `stopped {id: 0, report}` with reason `event`; the input log records the
   batch as `advance {until: {ticks, events}}`, so a replay stops at the same tick.
+- The real-time driver pauses on a decision (an interrupt in our favour with nobody acting, a prompt, an open
+  conversation or shop) without leaving real time: its batches run no ticks, log nothing and drop the elapsed time while
+  the decision is pending, and time runs on by itself once it is resolved (an order during the interrupt, an answer, the
+  conversation or shop closed). It used to become `manual` without telling the viewers, so the game page froze after
+  its first order in an interrupt.
 - `closeSession` (WebSocket `{t: 'closeSession', id}`) and `DELETE /api/sessions/:id`: run the Dead is Dead save point
   "when the session is closed" (`docs/27` §1.6) and release the session; the default session is refused
   (`defaultSession`, 409), an unknown one is 404.

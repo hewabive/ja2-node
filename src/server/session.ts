@@ -435,9 +435,9 @@ export class Session {
     const ticks = Math.floor(this.#carryMs / TICK_MS);
     if (ticks <= 0) return;
     this.#carryMs -= ticks * TICK_MS;
+    if (this.#sim.hasPendingDecision()) return;
     const pauseOn = this.#driver.pauseOn ?? [];
     const report = finish(this.#input(this.#realtimeRun(ticks, pauseOn)));
-    if (report.reason === 'decision') this.setDriver({ mode: 'manual' });
     if (report.reason === 'event') {
       this.setDriver({ mode: 'manual' });
       this.#broadcast({ t: 'stopped', id: PAUSED_STOP_ID, report });
