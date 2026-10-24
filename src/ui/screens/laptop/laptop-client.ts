@@ -1,7 +1,10 @@
+import type { CatalogueItem } from '../../../protocol/items.ts';
 import type { ClockView, LaptopView, StrategicView } from '../../../protocol/view.ts';
 import type { AssetKey } from '../../draw-list.ts';
 import type { ItemGraphic } from '../../widgets/item-picture.ts';
 import { type AimMemory, aimMemory } from './aim/aim-session.ts';
+import { type BobbyRayMemory, bobbyRayMemory } from './bobby-ray/bobby-ray-session.ts';
+import { ImpDraft } from './imp/imp-draft.ts';
 
 export interface LaptopCommandReply {
   readonly ok: boolean;
@@ -27,12 +30,15 @@ export interface LaptopProfile {
   readonly nickname: string;
   readonly faceIndex: number;
   readonly aimBio: number | null;
+  readonly mercBio?: number | null;
 }
 
 export interface LaptopItem {
   readonly index: number;
   readonly shortName: string;
   readonly graphic: ItemGraphic;
+  readonly bigGraphic?: ItemGraphic;
+  readonly catalogue?: CatalogueItem;
 }
 
 export interface LaptopData {
@@ -45,6 +51,7 @@ export interface LaptopSettings {
   readonly slideStepMs?: number;
   readonly subtitles: boolean;
   readonly speech: boolean;
+  readonly metric?: boolean;
 }
 
 export interface LaptopMedia {
@@ -59,8 +66,10 @@ export interface LaptopMemory {
   emailPage: number;
   financesPage: number;
   readonly aim: AimMemory;
+  readonly bobbyRay: BobbyRayMemory;
+  readonly imp: ImpDraft;
 }
 
 export function laptopMemory(): LaptopMemory {
-  return { emailPage: 0, financesPage: 0, aim: aimMemory() };
+  return { emailPage: 0, financesPage: 0, aim: aimMemory(), bobbyRay: bobbyRayMemory(), imp: new ImpDraft() };
 }

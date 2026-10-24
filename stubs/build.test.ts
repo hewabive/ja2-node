@@ -77,7 +77,7 @@ const TEXT_FILES = [
   STUB_GLYPH_TABLE_PATH,
   'aliases.json',
 ];
-const MEDIA_BUDGET_BYTES = 5 * 1024 * 1024;
+const MEDIA_BUDGET_BYTES = 5.5 * 1024 * 1024;
 const EYE_FRAMES = 4;
 const MOUTH_FRAMES = 3;
 const MIN_LIP_GAPS = 2;

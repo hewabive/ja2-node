@@ -49,6 +49,8 @@ const INPUT: Readonly<Record<string, Kind>> = {
   press: 'action',
   down: 'action',
   doubleClick: 'action',
+  repeat: 'action',
+  secondaryRepeat: 'action',
 };
 
 export const WIDGET_PROPERTIES: Readonly<Record<string, Readonly<Record<string, Kind>>>> = {
@@ -145,6 +147,24 @@ export const WIDGET_PROPERTIES: Readonly<Record<string, Readonly<Record<string, 
   tiles: { asset: 'asset', frame: 'number', columns: 'number', rows: 'number', dx: 'number', dy: 'number' },
   portrait: { face: 'number', size: 'string', state: 'binding', shadeWidth: 'number', shadeHeight: 'number' },
   itemPicture: { ...BOX, graphic: 'binding', shadow: 'condition' },
+  dropDown: {
+    ...BOX,
+    model: 'binding',
+    labels: 'binding',
+    font: 'font',
+    rows: 'object',
+    border: 'asset',
+    background: 'color',
+    color: 'color',
+    selectedColor: 'color',
+    selectedFill: 'color',
+    scroll: 'object',
+    priority: 'number',
+    cursor: 'cursor',
+    scrollCursor: 'cursor',
+    closeArea: 'array',
+    change: 'action',
+  },
 };
 
 const TOP_LEVEL = new Set([

@@ -18,6 +18,10 @@ import {
   AIM_LINKS_CONTRACT,
   AIM_SORT_CONTRACT,
 } from './laptop/aim/aim-pages.ts';
+import { BOBBY_RAY_CATALOGUE_CONTRACT } from './laptop/bobby-ray/bobby-ray-catalogue.ts';
+import { BOBBY_RAY_HOME_CONTRACT } from './laptop/bobby-ray/bobby-ray-home.ts';
+import { BOBBY_RAY_ORDER_CONTRACT } from './laptop/bobby-ray/bobby-ray-order.ts';
+import { BOBBY_RAY_SHIPMENTS_CONTRACT } from './laptop/bobby-ray/bobby-ray-shipments.ts';
 import { EMAIL_CONTRACT } from './laptop/email/email-page.ts';
 import { FINANCES_CONTRACT } from './laptop/finances/finances-page.ts';
 import { LAPTOP_SHELL_CONTRACT } from './laptop/laptop-screen.ts';
@@ -65,5 +69,9 @@ export const LAYOUT_CONTRACTS: Readonly<Record<string, ControllerContract>> = Ob
     TACTICAL_INPUT_CONTRACT,
     MAP_SCREEN_CONTRACT,
     MAP_INVENTORY_CONTRACT,
+    BOBBY_RAY_HOME_CONTRACT,
+    BOBBY_RAY_CATALOGUE_CONTRACT,
+    BOBBY_RAY_ORDER_CONTRACT,
+    BOBBY_RAY_SHIPMENTS_CONTRACT,
   ].map((contract) => [contract.id, contract]),
 );

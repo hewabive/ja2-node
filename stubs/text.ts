@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { encodeEdtRecords } from '../src/content/formats/edt.ts';
 import { loadItemTable } from '../src/content/items/items.ts';
-import { mercDialogueFile } from '../src/content/narrative/dialogue-text.ts';
+import { mercDialogueFile, npcDialogueFile } from '../src/content/narrative/dialogue-text.ts';
 import {
   AIM_BIOS_FILE as AIM_BIOS_PATH,
   PROFILE_PRESENTATION_PATHS,
@@ -29,6 +29,15 @@ const NO_QUOTE = 0xffff;
 const NICKNAME = '{nickname}';
 const MAIL_LENGTH_SUFFIX = '_LENGTH';
 const STUB_PROFILES_FILE = 'profiles.json';
+const BOBBY_RAY_TEXT_PATH = 'binarydata/braydesc.edt';
+const MERC_BIOS_PATH = 'binarydata/mercbios.edt';
+const MERC_BIOS_FILE = 'text/mercbios.json';
+const IMP_TEXT_PATH = 'binarydata/imptext.edt';
+const IMP_TEXT_FILE = 'text/imptext.json';
+const SPECK_TEXT_FILE = 'text/speck.json';
+const SPECK_PROFILE = 159;
+const SPECK_QUOTES = 76;
+const BOBBY_RAY_BLURB = 'Sold by the crate and shipped without questions. Stub catalogue stock.';
 
 export interface StubText {
   readonly written: string[];
@@ -182,6 +191,83 @@ async function buildAimBios(out: string, layouts: EdtLayouts): Promise<string> {
   );
 }
 
+function catalogueName(internal: string): string {
+  return internal
+    .toLowerCase()
+    .split('_')
+    .filter((w) => w.length > 0)
+    .map((w) => `${w[0]?.toUpperCase() ?? ''}${w.slice(1)}`)
+    .join(' ');
+}
+
+async function buildBobbyRayText(out: string, layouts: EdtLayouts): Promise<string> {
+  const items = await loadItemTable(dataJson);
+  const texts = asObject(asObject(await stubJson(ITEM_TEXT_FILE), 'stub item text').items, 'stub item text.items');
+  const records: string[][] = [];
+  for (const def of items.ordered) {
+    if (!def.weapon && !def.armour && !def.explosive) continue;
+    const own = texts[def.name];
+    const name = own === undefined ? catalogueName(def.name) : (strings(own, `stub item text.${def.name}`)[0] ?? catalogueName(def.name));
+    records[def.index] = [name, BOBBY_RAY_BLURB];
+  }
+  return put(
+    out,
+    BOBBY_RAY_TEXT_PATH,
+    encodeEdtRecords(
+      Array.from({ length: records.length }, (_, index) => records[index] ?? []),
+      columnsOf(layouts, BOBBY_RAY_TEXT_PATH),
+    ),
+  );
+}
+
+async function buildMercBios(out: string, layouts: EdtLayouts): Promise<string> {
+  const tables = parseProfilePresentationTables({
+    aimListings: await dataJson(PROFILE_PRESENTATION_PATHS.aimListings),
+    mercListings: await dataJson(PROFILE_PRESENTATION_PATHS.mercListings),
+    smallFaces: await dataJson(PROFILE_PRESENTATION_PATHS.smallFaces),
+    profileInfo: await dataJson(PROFILE_PRESENTATION_PATHS.profileInfo),
+  });
+  const bios = asObject(asObject(await stubJson(MERC_BIOS_FILE), 'stub merc bios').bios, 'stub merc bios.bios');
+  const records: string[][] = [];
+  for (const [profile, value] of Object.entries(bios)) {
+    const row = tables.mercBio.get(Number(profile));
+    if (row === undefined) throw new Error(`stub merc bios: profile ${profile} has no M.E.R.C. bio row`);
+    records[row] = strings(value, `stub merc bios.${profile}`);
+  }
+  return put(
+    out,
+    MERC_BIOS_PATH,
+    encodeEdtRecords(
+      Array.from({ length: records.length }, (_, row) => records[row] ?? []),
+      columnsOf(layouts, MERC_BIOS_PATH),
+    ),
+  );
+}
+
+async function buildImpText(out: string, layouts: EdtLayouts): Promise<string> {
+  const json = asObject(await stubJson(IMP_TEXT_FILE), 'stub imp text');
+  const count = asInt(json.records, 'stub imp text.records');
+  const rows = asObject(json.rows, 'stub imp text.rows');
+  const filler = asString(json.filler, 'stub imp text.filler');
+  const records = Array.from({ length: count }, (_, row) => {
+    const own = rows[String(row)];
+    return [own === undefined ? filler.replaceAll('{row}', String(row)) : asString(own, `stub imp text.rows.${row}`)];
+  });
+  return put(out, IMP_TEXT_PATH, encodeEdtRecords(records, columnsOf(layouts, IMP_TEXT_PATH)));
+}
+
+async function buildSpeckText(out: string, layouts: EdtLayouts): Promise<string> {
+  const json = asObject(await stubJson(SPECK_TEXT_FILE), 'stub speck lines');
+  const lines = asObject(json.lines, 'stub speck lines.lines');
+  const filler = asString(json.filler, 'stub speck lines.filler');
+  const records = Array.from({ length: SPECK_QUOTES }, (_, quote) => {
+    const own = lines[String(quote)];
+    return [own === undefined ? filler.replaceAll('{quote}', String(quote)) : asString(own, `stub speck lines.${quote}`)];
+  });
+  const path = npcDialogueFile(SPECK_PROFILE);
+  return put(out, path, encodeEdtRecords(records, columnsOf(layouts, path)));
+}
+
 export async function buildStubText(out: string): Promise<StubText> {
   const layouts = EdtLayouts.parse(await dataJson(EDT_LAYOUTS_PATH));
   const merc = await buildMercDialogue(out, layouts);
@@ -192,6 +278,10 @@ export async function buildStubText(out: string): Promise<StubText> {
     await buildMail(out, layouts),
     await buildAimHistory(out, layouts),
     await buildAimBios(out, layouts),
+    await buildBobbyRayText(out, layouts),
+    await buildMercBios(out, layouts),
+    await buildImpText(out, layouts),
+    await buildSpeckText(out, layouts),
   ];
   return { written, mercDialogue: merc.rows };
 }

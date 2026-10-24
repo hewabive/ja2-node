@@ -1,3 +1,4 @@
+import { DROP_DOWN_ARROW_FRAMES, DROP_DOWN_BORDER_PIECES } from '../widgets/drop-down.ts';
 import { POPUP_BORDER_PIECES } from '../widgets/popup-box.ts';
 import { bindingRoot, parseAction } from './controller.ts';
 import type { LayoutModel, ResolvedAsset } from './model.ts';
@@ -39,6 +40,8 @@ const ACTION_KEYS = [
   'press',
   'down',
   'doubleClick',
+  'repeat',
+  'secondaryRepeat',
   'select',
   'close',
   'change',
@@ -185,6 +188,14 @@ export function collectReferences(model: LayoutModel): LayoutReferences {
         break;
       case 'slider':
         if (typeof json.thumb === 'string') useAsset(json.thumb, 0, 'plain', 'thumb');
+        break;
+      case 'dropDown':
+        binding(json.model);
+        binding(json.labels);
+        if (typeof json.border === 'string') for (const piece of DROP_DOWN_BORDER_PIECES) useAsset(json.border, piece, 'plain', 'border');
+        if (isRecord(json.scroll) && typeof json.scroll.arrows === 'string')
+          for (const frame of DROP_DOWN_ARROW_FRAMES) useAsset(json.scroll.arrows, frame, 'plain', 'arrows');
+        if (typeof json.scrollCursor === 'string') refs.cursors.add(json.scrollCursor);
         break;
       case 'tiles':
         if (typeof json.asset === 'string') useAsset(json.asset, staticNumber(json.frame, vars), 'plain', 'image');

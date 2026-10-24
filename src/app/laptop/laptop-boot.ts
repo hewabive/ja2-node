@@ -59,7 +59,10 @@ export async function loadLaptopData(session: string, language: string | null): 
     json<{ items: CatalogueItem[] }>(`/api/items${language ? `?lang=${encodeURIComponent(language)}` : ''}`),
   ]);
   const profiles = new Map<number, LaptopProfile>(
-    profileList.profiles.map((p) => [p.id, { id: p.id, name: p.name, nickname: p.nickname, faceIndex: p.faceIndex, aimBio: p.aimBio }]),
+    profileList.profiles.map((p) => [
+      p.id,
+      { id: p.id, name: p.name, nickname: p.nickname, faceIndex: p.faceIndex, aimBio: p.aimBio, mercBio: p.mercBio },
+    ]),
   );
   const items = new Map<number, LaptopItem>(
     itemList.items.map((i) => [
@@ -68,6 +71,8 @@ export async function loadLaptopData(session: string, language: string | null): 
         index: i.index,
         shortName: i.shortName,
         graphic: { path: i.inventoryGraphics.small.path, frame: i.inventoryGraphics.small.subImageIndex },
+        bigGraphic: { path: i.inventoryGraphics.big.path, frame: i.inventoryGraphics.big.subImageIndex },
+        catalogue: i,
       },
     ]),
   );
@@ -96,6 +101,7 @@ export function laptopSettings(overrides: Partial<LaptopSettings> = {}): LaptopS
     loadingTimeScale: settings.websiteLoadingTimeScale,
     subtitles: settings.subtitles,
     speech: settings.speech,
+    metric: settings.display.useMetricSystem,
     ...overrides,
   };
 }

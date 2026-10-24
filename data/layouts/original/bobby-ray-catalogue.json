@@ -1,0 +1,871 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/BobbyRGuns.cc RenderBobbyRGuns, DisplayBobbyRBrTitle (the order title, the ShadowRect behind the wrapped help), InitBobbyBrTitle (the title link), InitBobbyMenuBar (previousbutton.sti, nextbutton.sti, cataloguebutton1.sti spaced by BOBBYR_CATALOGUE_BUTTON_GAP, orderformbutton.sti, cataloguebutton.sti; CreateIconAndTextButton in BOBBYR_GUNS_BUTTON_FONT, the shaded previous and next), DisplayItemInfo, DisplayItemNameAndInfo, DisplayCostAndQty, DisplayCaliber, DisplayMagazine, DisplayRange, DisplayDamage, DisplayRof (one line per font height + 2), CreateMouseRegionForBigImage (the 493 x 290 wheel region under the picture regions)",
+    "src/game/Laptop/BobbyRAmmo.cc, BobbyRArmour.cc, BobbyRMisc.cc, BobbyRUsed.cc (the backgrounds and grids); src/game/Laptop/Laptop.cc WebPageTileBackground"
+  ],
+  "screen": "bobbyRayCatalogue",
+  "frame": "std640",
+  "constants": ["Laptop", "BobbyR", "BobbyRGuns"],
+  "assets": {
+    "gunBackground": {
+      "sti": "laptop/gunbackground.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["BOBBYR_BACKGROUND_WIDTH", "BOBBYR_BACKGROUND_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "ammoBackground": {
+      "sti": "laptop/ammobackground.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["BOBBYR_BACKGROUND_WIDTH", "BOBBYR_BACKGROUND_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "armourBackground": {
+      "sti": "laptop/armourbackground.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["BOBBYR_BACKGROUND_WIDTH", "BOBBYR_BACKGROUND_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "miscBackground": {
+      "sti": "laptop/miscbackground.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["BOBBYR_BACKGROUND_WIDTH", "BOBBYR_BACKGROUND_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "usedBackground": {
+      "sti": "laptop/usedbackground.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["BOBBYR_BACKGROUND_WIDTH", "BOBBYR_BACKGROUND_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "brTitle": {
+      "sti": "laptop/br.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["BOBBYR_BRTITLE_WIDTH", "BOBBYR_BRTITLE_HEIGHT"]
+      }
+    },
+    "gunsGrid": {
+      "sti": "laptop/gunsgrid.sti",
+      "stub": {
+        "frames": 1,
+        "size": [493, 290],
+        "hollow": true
+      }
+    },
+    "ammoGrid": {
+      "sti": "laptop/ammogrid.sti",
+      "stub": {
+        "frames": 1,
+        "size": [493, 290],
+        "hollow": true
+      }
+    },
+    "armourGrid": {
+      "sti": "laptop/armourgrid.sti",
+      "stub": {
+        "frames": 1,
+        "size": [493, 290],
+        "hollow": true
+      }
+    },
+    "miscGrid": {
+      "sti": "laptop/miscgrid.sti",
+      "stub": {
+        "frames": 1,
+        "size": [493, 290],
+        "hollow": true
+      }
+    },
+    "usedGrid": {
+      "sti": "laptop/usedgrid.sti",
+      "stub": {
+        "frames": 1,
+        "size": [493, 290],
+        "hollow": true
+      }
+    },
+    "previous": {
+      "sti": "laptop/previousbutton.sti",
+      "stub": {
+        "frames": 2,
+        "size": [80, 26],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "next": {
+      "sti": "laptop/nextbutton.sti",
+      "stub": {
+        "frames": 2,
+        "size": [80, 26],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "catalogueButton": {
+      "sti": "laptop/cataloguebutton1.sti",
+      "stub": {
+        "frames": 2,
+        "size": ["BOBBYR_CATALOGUE_BUTTON_WIDTH", 26],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "orderForm": {
+      "sti": "laptop/orderformbutton.sti",
+      "stub": {
+        "frames": 2,
+        "size": ["BOBBYR_ORDER_FORM_WIDTH", 26],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "home": {
+      "sti": "laptop/cataloguebutton.sti",
+      "stub": {
+        "frames": 2,
+        "size": [75, 26],
+        "states": ["normal", "pressed"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "tiles",
+      "asset": "gunBackground",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "columns": "BOBBYR_NUM_HORIZONTAL_TILES",
+      "rows": "BOBBYR_NUM_VERTICAL_TILES",
+      "dx": "BOBBYR_BACKGROUND_WIDTH",
+      "dy": "BOBBYR_BACKGROUND_HEIGHT",
+      "visible": {
+        "eq": ["skin", "guns"]
+      }
+    },
+    {
+      "type": "tiles",
+      "asset": "ammoBackground",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "columns": "BOBBYR_NUM_HORIZONTAL_TILES",
+      "rows": "BOBBYR_NUM_VERTICAL_TILES",
+      "dx": "BOBBYR_BACKGROUND_WIDTH",
+      "dy": "BOBBYR_BACKGROUND_HEIGHT",
+      "visible": {
+        "eq": ["skin", "ammo"]
+      }
+    },
+    {
+      "type": "tiles",
+      "asset": "armourBackground",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "columns": "BOBBYR_NUM_HORIZONTAL_TILES",
+      "rows": "BOBBYR_NUM_VERTICAL_TILES",
+      "dx": "BOBBYR_BACKGROUND_WIDTH",
+      "dy": "BOBBYR_BACKGROUND_HEIGHT",
+      "visible": {
+        "eq": ["skin", "armour"]
+      }
+    },
+    {
+      "type": "tiles",
+      "asset": "miscBackground",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "columns": "BOBBYR_NUM_HORIZONTAL_TILES",
+      "rows": "BOBBYR_NUM_VERTICAL_TILES",
+      "dx": "BOBBYR_BACKGROUND_WIDTH",
+      "dy": "BOBBYR_BACKGROUND_HEIGHT",
+      "visible": {
+        "eq": ["skin", "misc"]
+      }
+    },
+    {
+      "type": "tiles",
+      "asset": "usedBackground",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "columns": "BOBBYR_NUM_HORIZONTAL_TILES",
+      "rows": "BOBBYR_NUM_VERTICAL_TILES",
+      "dx": "BOBBYR_BACKGROUND_WIDTH",
+      "dy": "BOBBYR_BACKGROUND_HEIGHT",
+      "visible": {
+        "eq": ["skin", "used"]
+      }
+    },
+    {
+      "type": "image",
+      "asset": "brTitle",
+      "frame": 0,
+      "x": "BOBBYR_BRTITLE_X",
+      "y": "BOBBYR_BRTITLE_Y"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_TO_ORDER_TITLE_X",
+      "y": "BOBBYR_TO_ORDER_TITLE_Y",
+      "font": "BOBBYR_ORDER_TITLE_FONT",
+      "color": "BOBBYR_ORDER_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyRText", "BOBBYR_GUNS_TO_ORDER"]
+      }
+    },
+    {
+      "type": "shade",
+      "x": "BOBBYR_TO_ORDER_TEXT_X - 2",
+      "y": "BOBBYR_TO_ORDER_TEXT_Y - 2",
+      "width": "BOBBYR_TO_ORDER_TEXT_WIDTH + 3",
+      "height": 34
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_TO_ORDER_TEXT_X",
+      "y": "BOBBYR_TO_ORDER_TEXT_Y",
+      "width": "BOBBYR_TO_ORDER_TEXT_WIDTH",
+      "font": "BOBBYR_ORDER_TEXT_FONT",
+      "color": "BOBBYR_ORDER_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyRText", "BOBBYR_GUNS_CLICK_ON_ITEMS"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "image",
+      "asset": "gunsGrid",
+      "frame": 0,
+      "x": "BOBBYR_GRIDLOC_X",
+      "y": "BOBBYR_GRIDLOC_Y",
+      "visible": {
+        "eq": ["skin", "guns"]
+      }
+    },
+    {
+      "type": "image",
+      "asset": "ammoGrid",
+      "frame": 0,
+      "x": "BOBBYR_GRIDLOC_X",
+      "y": "BOBBYR_GRIDLOC_Y",
+      "visible": {
+        "eq": ["skin", "ammo"]
+      }
+    },
+    {
+      "type": "image",
+      "asset": "armourGrid",
+      "frame": 0,
+      "x": "BOBBYR_GRIDLOC_X",
+      "y": "BOBBYR_GRIDLOC_Y",
+      "visible": {
+        "eq": ["skin", "armour"]
+      }
+    },
+    {
+      "type": "image",
+      "asset": "miscGrid",
+      "frame": 0,
+      "x": "BOBBYR_GRIDLOC_X",
+      "y": "BOBBYR_GRIDLOC_Y",
+      "visible": {
+        "eq": ["skin", "misc"]
+      }
+    },
+    {
+      "type": "image",
+      "asset": "usedGrid",
+      "frame": 0,
+      "x": "BOBBYR_GRIDLOC_X",
+      "y": "BOBBYR_GRIDLOC_Y",
+      "visible": {
+        "eq": ["skin", "used"]
+      }
+    },
+    {
+      "type": "repeat",
+      "count": "BOBBYR_NUM_WEAPONS_ON_PAGE",
+      "x": 0,
+      "y": 0,
+      "dy": "BOBBYR_GRID_OFFSET",
+      "template": [
+        {
+          "type": "custom",
+          "id": "bigItem$i",
+          "renderer": "bigItem",
+          "x": "BOBBYR_GRID_PIC_X",
+          "y": "BOBBYR_GRID_PIC_Y",
+          "width": "BOBBYR_GRID_PIC_WIDTH",
+          "height": "BOBBYR_GRID_PIC_HEIGHT",
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "id": "itemName$i",
+          "x": "BOBBYR_ITEM_NAME_X",
+          "y": "BOBBYR_ITEM_DESC_START_Y + BOBBYR_ITEM_NAME_Y_OFFSET",
+          "font": "BOBBYR_ITEM_NAME_TEXT_FONT",
+          "color": "BOBBYR_ITEM_NAME_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].name"
+          },
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ITEM_QTY_TEXT_X",
+          "y": "BOBBYR_ITEM_DESC_START_Y",
+          "width": "BOBBYR_ITEM_QTY_WIDTH",
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_STATIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "key": ["BobbyRText", "BOBBYR_GUNS_QTY_ON_ORDER"]
+          },
+          "align": "right",
+          "visible": "rows[$i].onOrderShown"
+        },
+        {
+          "type": "text",
+          "id": "onOrder$i",
+          "x": "BOBBYR_ITEMS_BOUGHT_X",
+          "y": "BOBBYR_ITEM_DESC_START_Y",
+          "font": "FONT14ARIAL",
+          "color": "BOBBYR_ITEM_DESC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].onOrder"
+          },
+          "visible": "rows[$i].onOrderShown"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ITEM_NAME_X - 2",
+          "y": "BOBBYR_ITEM_DESC_START_Y - BOBBYR_ORDER_NUM_Y_OFFSET",
+          "width": "BOBBYR_ORDER_NUM_WIDTH",
+          "font": "BOBBYR_ITEM_NAME_TEXT_FONT",
+          "color": "BOBBYR_ITEM_NAME_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].quality"
+          },
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ITEM_DESC_START_X",
+          "y": "BOBBYR_ITEM_DESC_START_Y",
+          "width": "BOBBYR_ITEM_DESC_START_WIDTH",
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_ITEM_DESC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].description"
+          },
+          "wrap": {
+            "gap": 2
+          },
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ITEM_STOCK_TEXT_X",
+          "y": {
+            "bind": "lineY[0]"
+          },
+          "width": "BOBBYR_ITEM_COST_TEXT_WIDTH",
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_STATIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "key": ["BobbyRText", "BOBBYR_GUNS_COST"]
+          },
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "id": "cost$i",
+          "x": "BOBBYR_ITEM_STOCK_TEXT_X",
+          "y": {
+            "bind": "lineY[1]"
+          },
+          "width": "BOBBYR_ITEM_COST_TEXT_WIDTH",
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_ITEM_DESC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].cost"
+          },
+          "align": "right",
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ITEM_STOCK_TEXT_X",
+          "y": {
+            "bind": "lineY[2]"
+          },
+          "width": "BOBBYR_ITEM_COST_TEXT_WIDTH",
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_STATIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "key": ["BobbyRText", "BOBBYR_GUNS_WGHT"]
+          },
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ITEM_STOCK_TEXT_X",
+          "y": {
+            "bind": "lineY[3]"
+          },
+          "width": "BOBBYR_ITEM_COST_TEXT_WIDTH",
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_ITEM_DESC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].weight"
+          },
+          "align": "right",
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ITEM_STOCK_TEXT_X",
+          "y": {
+            "bind": "lineY[4]"
+          },
+          "width": "BOBBYR_ITEM_COST_TEXT_WIDTH",
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_STATIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "key": ["BobbyRText", "BOBBYR_GUNS_IN_STOCK"]
+          },
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "id": "inStock$i",
+          "x": "BOBBYR_ITEM_STOCK_TEXT_X",
+          "y": {
+            "bind": "lineY[5]"
+          },
+          "width": "BOBBYR_ITEM_COST_TEXT_WIDTH",
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_ITEM_DESC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].quantity"
+          },
+          "align": "right",
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ITEM_WEIGHT_TEXT_X",
+          "y": {
+            "bind": "lineY[0]"
+          },
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_STATIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].specs[0].label"
+          },
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ITEM_WEIGHT_NUM_X",
+          "y": {
+            "bind": "lineY[0]"
+          },
+          "width": "BOBBYR_ITEM_WEIGHT_NUM_WIDTH",
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_ITEM_DESC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].specs[0].value"
+          },
+          "align": "right",
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ITEM_WEIGHT_TEXT_X",
+          "y": {
+            "bind": "lineY[1]"
+          },
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_STATIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].specs[1].label"
+          },
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ITEM_WEIGHT_NUM_X",
+          "y": {
+            "bind": "lineY[1]"
+          },
+          "width": "BOBBYR_ITEM_WEIGHT_NUM_WIDTH",
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_ITEM_DESC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].specs[1].value"
+          },
+          "align": "right",
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ITEM_WEIGHT_TEXT_X",
+          "y": {
+            "bind": "lineY[2]"
+          },
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_STATIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].specs[2].label"
+          },
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ITEM_WEIGHT_NUM_X",
+          "y": {
+            "bind": "lineY[2]"
+          },
+          "width": "BOBBYR_ITEM_WEIGHT_NUM_WIDTH",
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_ITEM_DESC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].specs[2].value"
+          },
+          "align": "right",
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ITEM_WEIGHT_TEXT_X",
+          "y": {
+            "bind": "lineY[3]"
+          },
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_STATIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].specs[3].label"
+          },
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ITEM_WEIGHT_NUM_X",
+          "y": {
+            "bind": "lineY[3]"
+          },
+          "width": "BOBBYR_ITEM_WEIGHT_NUM_WIDTH",
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_ITEM_DESC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].specs[3].value"
+          },
+          "align": "right",
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ITEM_WEIGHT_TEXT_X",
+          "y": {
+            "bind": "lineY[4]"
+          },
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_STATIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].specs[4].label"
+          },
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ITEM_WEIGHT_NUM_X",
+          "y": {
+            "bind": "lineY[4]"
+          },
+          "width": "BOBBYR_ITEM_WEIGHT_NUM_WIDTH",
+          "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+          "color": "BOBBYR_ITEM_DESC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].specs[4].value"
+          },
+          "align": "right",
+          "visible": "rows[$i].present"
+        }
+      ]
+    },
+    {
+      "type": "region",
+      "id": "itemScroll",
+      "x": "BOBBYR_GRIDLOC_X",
+      "y": "BOBBYR_GRIDLOC_Y",
+      "width": 493,
+      "height": 290,
+      "priority": "HIGH",
+      "cursor": "MSYS_NO_CURSOR",
+      "wheelUp": "previous",
+      "wheelDown": "next"
+    },
+    {
+      "type": "repeat",
+      "count": "BOBBYR_NUM_WEAPONS_ON_PAGE",
+      "x": 0,
+      "y": 0,
+      "dy": "BOBBYR_GRID_OFFSET",
+      "template": [
+        {
+          "type": "region",
+          "id": "bigImage$i",
+          "x": "BOBBYR_GRID_PIC_X",
+          "y": "BOBBYR_GRID_PIC_Y",
+          "width": "BOBBYR_GRID_PIC_WIDTH",
+          "height": "BOBBYR_GRID_PIC_HEIGHT",
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "visible": "rows[$i].present",
+          "primary": "buy($i)",
+          "secondary": "sell($i)",
+          "repeat": "buy($i)",
+          "secondaryRepeat": "sell($i)",
+          "wheelUp": "previous",
+          "wheelDown": "next",
+          "tooltip": {
+            "bind": "rows[$i].tooltip"
+          }
+        }
+      ]
+    },
+    {
+      "type": "region",
+      "id": "brTitleLink",
+      "x": "BOBBYR_BRTITLE_X",
+      "y": "BOBBYR_BRTITLE_Y",
+      "width": "BOBBYR_BRTITLE_WIDTH",
+      "height": "BOBBYR_BRTITLE_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "home"
+    },
+    {
+      "type": "button",
+      "id": "bobbyRayPrevious",
+      "x": "BOBBYR_PREVIOUS_BUTTON_X",
+      "y": "BOBBYR_PREVIOUS_BUTTON_Y",
+      "asset": "previous",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "previous",
+      "text": {
+        "source": {
+          "key": ["BobbyRText", "BOBBYR_GUNS_PREVIOUS_ITEMS"]
+        },
+        "font": "BOBBYR_GUNS_BUTTON_FONT",
+        "color": "BOBBYR_GUNS_TEXT_COLOR_ON",
+        "shadow": "BOBBYR_GUNS_SHADOW_COLOR",
+        "downColor": "BOBBYR_GUNS_TEXT_COLOR_OFF",
+        "downShadow": "BOBBYR_GUNS_SHADOW_COLOR"
+      },
+      "enabled": "previousEnabled",
+      "disabledStyle": "shaded"
+    },
+    {
+      "type": "button",
+      "id": "bobbyRayNext",
+      "x": "BOBBYR_NEXT_BUTTON_X",
+      "y": "BOBBYR_NEXT_BUTTON_Y",
+      "asset": "next",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "next",
+      "text": {
+        "source": {
+          "key": ["BobbyRText", "BOBBYR_GUNS_MORE_ITEMS"]
+        },
+        "font": "BOBBYR_GUNS_BUTTON_FONT",
+        "color": "BOBBYR_GUNS_TEXT_COLOR_ON",
+        "shadow": "BOBBYR_GUNS_SHADOW_COLOR",
+        "downColor": "BOBBYR_GUNS_TEXT_COLOR_OFF",
+        "downShadow": "BOBBYR_GUNS_SHADOW_COLOR"
+      },
+      "enabled": "nextEnabled",
+      "disabledStyle": "shaded"
+    },
+    {
+      "type": "repeat",
+      "count": 5,
+      "x": "BOBBYR_CATALOGUE_BUTTON_START_X",
+      "y": "BOBBYR_CATALOGUE_BUTTON_Y",
+      "dx": "BOBBYR_CATALOGUE_BUTTON_GAP",
+      "template": [
+        {
+          "type": "button",
+          "id": "bobbyRayCatalogue$i",
+          "x": 0,
+          "y": 0,
+          "asset": "catalogueButton",
+          "frames": {
+            "offNormal": 0,
+            "onNormal": 1
+          },
+          "priority": "HIGH",
+          "cursor": "CURSOR_LAPTOP_SCREEN",
+          "primary": "catalogue($i)",
+          "text": {
+            "source": {
+              "key": ["BobbyRText", "BOBBYR_GUNS_GUNS + $i"]
+            },
+            "font": "BOBBYR_GUNS_BUTTON_FONT",
+            "color": "BOBBYR_GUNS_TEXT_COLOR_ON",
+            "shadow": "BOBBYR_GUNS_SHADOW_COLOR",
+            "downColor": "BOBBYR_GUNS_TEXT_COLOR_OFF",
+            "downShadow": "BOBBYR_GUNS_SHADOW_COLOR"
+          },
+          "enabled": "catalogueEnabled[$i]"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "id": "bobbyRayOrderForm",
+      "x": "BOBBYR_ORDER_FORM_X",
+      "y": "BOBBYR_ORDER_FORM_Y",
+      "asset": "orderForm",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "orderForm",
+      "text": {
+        "source": {
+          "key": ["BobbyRText", "BOBBYR_GUNS_ORDER_FORM"]
+        },
+        "font": "BOBBYR_GUNS_BUTTON_FONT",
+        "color": "BOBBYR_GUNS_TEXT_COLOR_ON",
+        "shadow": "BOBBYR_GUNS_SHADOW_COLOR",
+        "downColor": "BOBBYR_GUNS_TEXT_COLOR_OFF",
+        "downShadow": "BOBBYR_GUNS_SHADOW_COLOR"
+      }
+    },
+    {
+      "type": "button",
+      "id": "bobbyRayHome",
+      "x": "BOBBYR_HOME_BUTTON_X",
+      "y": "BOBBYR_HOME_BUTTON_Y",
+      "asset": "home",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "home",
+      "text": {
+        "source": {
+          "key": ["BobbyRText", "BOBBYR_GUNS_HOME"]
+        },
+        "font": "BOBBYR_GUNS_BUTTON_FONT",
+        "color": "BOBBYR_GUNS_TEXT_COLOR_ON",
+        "shadow": "BOBBYR_GUNS_SHADOW_COLOR",
+        "downColor": "BOBBYR_GUNS_TEXT_COLOR_OFF",
+        "downShadow": "BOBBYR_GUNS_SHADOW_COLOR"
+      }
+    },
+    {
+      "type": "text",
+      "id": "catalogueSubtotal",
+      "x": "BOBBYR_ORDER_SUBTOTAL_X",
+      "y": "BOBBYR_ORDER_SUBTOTAL_Y",
+      "font": "BOBBYR_ORDER_TITLE_FONT",
+      "color": "BOBBYR_ORDER_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "subtotal"
+      },
+      "shadowed": true
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_PERCENT_FUNTCIONAL_X",
+      "y": "BOBBYR_PERCENT_FUNTCIONAL_Y",
+      "font": "BOBBYR_ITEM_DESC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyRText", "BOBBYR_GUNS_PERCENT_FUNCTIONAL"]
+      },
+      "visible": "used",
+      "shadowed": true
+    }
+  ]
+}

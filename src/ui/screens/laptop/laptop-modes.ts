@@ -29,6 +29,16 @@ export const LaptopMode = {
   FUNERAL: 41,
   BROKEN_LINK: 42,
   END: 44,
+  MERC_ACCOUNT: 21,
+  MERC_NO_ACCOUNT: 22,
+  MERC_FILES: 23,
+  BOBBY_R_GUNS: 25,
+  BOBBY_R_AMMO: 26,
+  BOBBY_R_ARMOR: 27,
+  BOBBY_R_MISC: 28,
+  BOBBY_R_USED: 29,
+  BOBBY_R_MAILORDER: 30,
+  BOBBYR_SHIPMENTS: 43,
 } as const;
 
 export const LaptopProgram = { MAILER: 0, WEB_BROWSER: 1, FILES: 2, PERSONNEL: 3, FINANCES: 4, HISTORY: 5 } as const;

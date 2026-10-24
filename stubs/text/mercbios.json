@@ -1,0 +1,10 @@
+{
+  "format": "ja2-node stub row text v1",
+  "note": "Invented biographies for the stub M.E.R.C. mercenaries, keyed by stub profile id and compiled by pnpm stubs into binarydata/mercbios.edt at each profile's bio row of externalized/mercs-MERC-listings.json (400 and 160 units: the biography and the additional information). Original writing for ja2-node.",
+  "bios": {
+    "42": [
+      "Brack hauls heavy guns for anyone who pays on time. He keeps his boots polished, his rifle clean and his opinions to himself until the second drink.",
+      "Prefers night work and quiet employers."
+    ]
+  }
+}

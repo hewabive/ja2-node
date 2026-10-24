@@ -1,0 +1,934 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/BobbyRMailOrder.cc EnterBobbyRMailOrder (the buttons: eraseorderbutton.sti with text offsets 39, 10 and no disabled style, acceptorderbutton.sti with frames 2, 0, 1, offsets 43, 24 and the shaded style, cataloguebutton.sti for back, home and the shipments; the speed regions at gShippingSpeedAreas; the confirmation region over the web area at MSYS_PRIORITY_HIGH + 1; the city activation region), RenderBobbyRMailOrder, DisplayPurchasedItems, DisplayShippingCosts (totalsavearea.sti, the totals shown while there is a subtotal), DrawShippingSpeedLights, DisplayShippingLocationCity, CreateDestroyBobbyRDropDown, DrawSelectedCity, DrawGoldRectangle (the colours), DisplayPackageWeight, HandleBobbyRMailOrder (MLG_CONFIRMORDER with its outline shadow at +3, +3), EnterInitBobbyRayOrder (gShippingSpeedAreas: 585, 218 + LAPTOP_SCREEN_WEB_DELTA_Y, 20 apart)"
+  ],
+  "screen": "bobbyRayOrder",
+  "frame": "std640",
+  "constants": ["Laptop", "BobbyR", "BobbyRGuns", "BobbyRMailOrder"],
+  "assets": {
+    "wood": {
+      "sti": "laptop/bobbywood.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["BOBBY_WOOD_BACKGROUND_WIDTH", "BOBBY_WOOD_BACKGROUND_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "title": {
+      "sti": "laptop/bobbyraytitle.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["BOBBYR_BOBBY_RAY_TITLE_WIDTH", "BOBBYR_BOBBY_RAY_TITLE_HEIGHT"],
+        "hollow": true
+      }
+    },
+    "grid": {
+      "sti": "laptop/bobbyordergrid.sti",
+      "stub": {
+        "frames": 1,
+        "size": [268, 300],
+        "hollow": true
+      }
+    },
+    "location": {
+      "sti": "laptop/bobbylocationbox.sti",
+      "stub": {
+        "frames": 1,
+        "size": [215, 64],
+        "hollow": true
+      }
+    },
+    "speedBox": {
+      "sti": "laptop/bobbydeliveryspeed.sti",
+      "stub": {
+        "frames": 1,
+        "size": [215, 100],
+        "hollow": true
+      }
+    },
+    "totalArea": {
+      "sti": "laptop/totalsavearea.sti",
+      "stub": {
+        "frames": 1,
+        "size": [46, 60],
+        "hollow": true
+      }
+    },
+    "dropDownBorder": {
+      "sti": "interface/tactpopup.sti",
+      "stub": {
+        "sizes": [[10, 10], [10, 4], [10, 10], [4, 10], [4, 10], [10, 10], [10, 4], [10, 10]]
+      }
+    },
+    "goldArrows": {
+      "sti": "laptop/goldarrows.sti",
+      "stub": {
+        "frames": 2,
+        "size": ["BOBBYR_SCROLL_ARROW_WIDTH", "BOBBYR_SCROLL_ARROW_HEIGHT"]
+      }
+    },
+    "packageWeight": {
+      "sti": "laptop/packageweight.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["BOBBYR_PACKAXGE_WEIGHT_WIDTH", 22],
+        "hollow": true
+      }
+    },
+    "confirm": {
+      "mlg": "MLG_CONFIRMORDER",
+      "stub": {
+        "frames": 1,
+        "size": [200, 100],
+        "hollow": true
+      }
+    },
+    "clear": {
+      "sti": "laptop/eraseorderbutton.sti",
+      "stub": {
+        "frames": 2,
+        "size": [110, 28],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "accept": {
+      "sti": "laptop/acceptorderbutton.sti",
+      "stub": {
+        "sizes": [[120, 40], [120, 40], [120, 40]],
+        "states": ["normal", "pressed", "grayed"]
+      }
+    },
+    "catalogueButton": {
+      "sti": "laptop/cataloguebutton.sti",
+      "stub": {
+        "frames": 2,
+        "size": [75, 26],
+        "states": ["normal", "pressed"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "tiles",
+      "asset": "wood",
+      "frame": 0,
+      "x": "BOBBY_WOOD_BACKGROUND_X",
+      "y": "BOBBY_WOOD_BACKGROUND_Y",
+      "columns": 4,
+      "rows": 4,
+      "dx": "BOBBY_WOOD_BACKGROUND_WIDTH",
+      "dy": "BOBBY_WOOD_BACKGROUND_HEIGHT"
+    },
+    {
+      "type": "image",
+      "asset": "title",
+      "frame": 0,
+      "x": "BOBBYR_BOBBY_RAY_TITLE_X",
+      "y": "BOBBYR_BOBBY_RAY_TITLE_Y"
+    },
+    {
+      "type": "image",
+      "asset": "grid",
+      "frame": 0,
+      "x": "BOBBYR_ORDERGRID_X",
+      "y": "BOBBYR_ORDERGRID_Y"
+    },
+    {
+      "type": "image",
+      "asset": "location",
+      "frame": 0,
+      "x": "BOBBYR_LOCATION_BOX_X",
+      "y": "BOBBYR_LOCATION_BOX_Y"
+    },
+    {
+      "type": "image",
+      "asset": "speedBox",
+      "frame": 0,
+      "x": "BOBBYR_DELIVERYSPEED_X",
+      "y": "BOBBYR_DELIVERYSPEED_Y"
+    },
+    {
+      "type": "image",
+      "asset": "packageWeight",
+      "frame": 0,
+      "x": "BOBBYR_PACKAXGE_WEIGHT_X",
+      "y": "BOBBYR_PACKAXGE_WEIGHT_Y"
+    },
+    {
+      "type": "text",
+      "id": "orderFormTitle",
+      "x": "BOBBYR_ORDER_FORM_TITLE_X",
+      "y": "BOBBYR_ORDER_FORM_TITLE_Y",
+      "width": "BOBBYR_ORDER_FORM_TITLE_WIDTH",
+      "font": "BOBBYR_ORDER_TITLE_TEXT_FONT",
+      "color": "BOBBYR_ORDER_TITLE_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_ORDER_FORM"]
+      },
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPPING_LOCATION_TEXT_X",
+      "y": "BOBBYR_SHIPPING_LOCATION_TEXT_Y",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_SHIPPING_LOCATION"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPPING_SPEED_X",
+      "y": "BOBBYR_SHIPPING_SPEED_Y",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_SHIPPING_SPEED"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPPING_COST_X",
+      "y": "BOBBYR_SHIPPING_SPEED_Y",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "costTitle"
+      }
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPPING_SPEED_X",
+      "y": "BOBBYR_OVERNIGHT_EXPRESS_Y + BOBBYR_GRID_ROW_OFFSET * 0",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_OVERNIGHT_EXPRESS"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPPING_SPEED_X",
+      "y": "BOBBYR_OVERNIGHT_EXPRESS_Y + BOBBYR_GRID_ROW_OFFSET * 1",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_BUSINESS_DAYS"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPPING_SPEED_X",
+      "y": "BOBBYR_OVERNIGHT_EXPRESS_Y + BOBBYR_GRID_ROW_OFFSET * 2",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_STANDARD_SERVICE"]
+      }
+    },
+    {
+      "type": "image",
+      "asset": "totalArea",
+      "frame": 0,
+      "x": "BOBBYR_TOTAL_SAVED_AREA_X",
+      "y": "BOBBYR_TOTAL_SAVED_AREA_Y"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_ORDERGRID_X + BOBBYR_GRID_FIRST_COLUMN_X",
+      "y": "BOBBYR_ORDERGRID_Y + BOBBYR_GRID_FIRST_COLUMN_Y - BOBBYR_GRID_TITLE_OFFSET",
+      "width": "BOBBYR_GRID_FIRST_COLUMN_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_QTY"]
+      },
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_ORDERGRID_X + BOBBYR_GRID_SECOND_COLUMN_X",
+      "y": "BOBBYR_ORDERGRID_Y + BOBBYR_GRID_SECOND_COLUMN_Y - 30",
+      "width": "BOBBYR_GRID_SECOND_COLUMN_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "weightTitle"
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_ORDERGRID_X + BOBBYR_GRID_THIRD_COLUMN_X",
+      "y": "BOBBYR_ORDERGRID_Y + BOBBYR_GRID_THIRD_COLUMN_Y - BOBBYR_GRID_TITLE_OFFSET",
+      "width": "BOBBYR_GRID_THIRD_COLUMN_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_NAME"]
+      },
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_ORDERGRID_X + BOBBYR_GRID_FOURTH_COLUMN_X",
+      "y": "BOBBYR_ORDERGRID_Y + BOBBYR_GRID_FOURTH_COLUMN_Y - 30",
+      "width": "BOBBYR_GRID_FOURTH_COLUMN_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_UNIT_PRICE"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_ORDERGRID_X + BOBBYR_GRID_FIFTH_COLUMN_X",
+      "y": "BOBBYR_ORDERGRID_Y + BOBBYR_GRID_FIFTH_COLUMN_Y - BOBBYR_GRID_TITLE_OFFSET",
+      "width": "BOBBYR_GRID_FIFTH_COLUMN_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_TOTAL"]
+      },
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_ORDERGRID_X + BOBBYR_SUBTOTAL_X",
+      "y": "BOBBYR_ORDERGRID_Y + BOBBYR_SUBTOTAL_Y",
+      "width": "BOBBYR_SUBTOTAL_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_SUB_TOTAL"]
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_ORDERGRID_X + BOBBYR_SUBTOTAL_X",
+      "y": "BOBBYR_ORDERGRID_Y + BOBBYR_SHIPPING_N_HANDLE_Y",
+      "width": "BOBBYR_SUBTOTAL_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_S_H"]
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_ORDERGRID_X + BOBBYR_SUBTOTAL_X",
+      "y": "BOBBYR_ORDERGRID_Y + BOBBYR_GRAND_TOTAL_Y",
+      "width": "BOBBYR_SUBTOTAL_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_GRAND_TOTAL"]
+      },
+      "align": "right"
+    },
+    {
+      "type": "repeat",
+      "count": 10,
+      "x": 0,
+      "y": "BOBBYR_ORDERGRID_Y + BOBBYR_GRID_FIRST_COLUMN_Y + 4",
+      "dy": "BOBBYR_GRID_ROW_OFFSET",
+      "template": [
+        {
+          "type": "text",
+          "id": "orderQuantity$i",
+          "x": "BOBBYR_ORDERGRID_X + BOBBYR_GRID_FIRST_COLUMN_X - 2",
+          "y": 0,
+          "width": "BOBBYR_GRID_FIRST_COLUMN_WIDTH",
+          "font": "BOBBYR_ORDER_DYNAMIC_TEXT_FONT",
+          "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].quantity"
+          },
+          "align": "right",
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ORDERGRID_X + BOBBYR_GRID_SECOND_COLUMN_X - 2",
+          "y": 0,
+          "width": "BOBBYR_GRID_SECOND_COLUMN_WIDTH",
+          "font": "BOBBYR_ORDER_DYNAMIC_TEXT_FONT",
+          "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].weight"
+          },
+          "align": "right",
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "id": "orderName$i",
+          "x": "BOBBYR_ORDERGRID_X + BOBBYR_GRID_THIRD_COLUMN_X + 2",
+          "y": 0,
+          "width": "BOBBYR_GRID_THIRD_COLUMN_WIDTH",
+          "font": "BOBBYR_ORDER_DYNAMIC_TEXT_FONT",
+          "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].name"
+          },
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ORDERGRID_X + BOBBYR_GRID_FOURTH_COLUMN_X - 2",
+          "y": 0,
+          "width": "BOBBYR_GRID_FOURTH_COLUMN_WIDTH",
+          "font": "BOBBYR_ORDER_DYNAMIC_TEXT_FONT",
+          "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].unitPrice"
+          },
+          "align": "right",
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "BOBBYR_ORDERGRID_X + BOBBYR_GRID_FIFTH_COLUMN_X - 2",
+          "y": 0,
+          "width": "BOBBYR_GRID_FIFTH_COLUMN_WIDTH",
+          "font": "BOBBYR_ORDER_DYNAMIC_TEXT_FONT",
+          "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "rows[$i].total"
+          },
+          "align": "right",
+          "visible": "rows[$i].present"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "orderSubtotal",
+      "x": "BOBBYR_ORDERGRID_X + BOBBYR_GRID_FIFTH_COLUMN_X - 2",
+      "y": "BOBBYR_ORDERGRID_Y + BOBBYR_SUBTOTAL_Y",
+      "width": "BOBBYR_GRID_FIFTH_COLUMN_WIDTH",
+      "font": "BOBBYR_ORDER_DYNAMIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "subtotal"
+      },
+      "align": "right",
+      "visible": "totalsShown"
+    },
+    {
+      "type": "text",
+      "id": "orderShipping",
+      "x": "BOBBYR_ORDERGRID_X + BOBBYR_GRID_FIFTH_COLUMN_X - 2",
+      "y": "BOBBYR_ORDERGRID_Y + BOBBYR_SHIPPING_N_HANDLE_Y",
+      "width": "BOBBYR_GRID_FIFTH_COLUMN_WIDTH",
+      "font": "BOBBYR_ORDER_DYNAMIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "shipping"
+      },
+      "align": "right",
+      "visible": "totalsShown"
+    },
+    {
+      "type": "text",
+      "id": "orderGrandTotal",
+      "x": "BOBBYR_ORDERGRID_X + BOBBYR_GRID_FIFTH_COLUMN_X - 2",
+      "y": "BOBBYR_ORDERGRID_Y + BOBBYR_GRAND_TOTAL_Y",
+      "width": "BOBBYR_GRID_FIFTH_COLUMN_WIDTH",
+      "font": "BOBBYR_ORDER_DYNAMIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "grandTotal"
+      },
+      "align": "right",
+      "visible": "totalsShown"
+    },
+    {
+      "type": "fill",
+      "x": 585,
+      "y": "218 + LAPTOP_SCREEN_WEB_DELTA_Y + BOBBYR_GRID_ROW_OFFSET * 0",
+      "width": "SHIPPING_SPEED_LIGHT_WIDTH",
+      "height": "SHIPPING_SPEED_LIGHT_HEIGHT",
+      "color": [0, 255, 0],
+      "visible": "lights[0].on"
+    },
+    {
+      "type": "fill",
+      "x": 585,
+      "y": "218 + LAPTOP_SCREEN_WEB_DELTA_Y + BOBBYR_GRID_ROW_OFFSET * 0",
+      "width": "SHIPPING_SPEED_LIGHT_WIDTH",
+      "height": "SHIPPING_SPEED_LIGHT_HEIGHT",
+      "color": [0, 0, 0],
+      "visible": "lights[0].off"
+    },
+    {
+      "type": "region",
+      "id": "shippingSpeed0",
+      "x": 585,
+      "y": "218 + LAPTOP_SCREEN_WEB_DELTA_Y + BOBBYR_GRID_ROW_OFFSET * 0",
+      "width": "SHIPPING_SPEED_LIGHT_WIDTH",
+      "height": "SHIPPING_SPEED_LIGHT_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "speed(0)"
+    },
+    {
+      "type": "fill",
+      "x": 585,
+      "y": "218 + LAPTOP_SCREEN_WEB_DELTA_Y + BOBBYR_GRID_ROW_OFFSET * 1",
+      "width": "SHIPPING_SPEED_LIGHT_WIDTH",
+      "height": "SHIPPING_SPEED_LIGHT_HEIGHT",
+      "color": [0, 255, 0],
+      "visible": "lights[1].on"
+    },
+    {
+      "type": "fill",
+      "x": 585,
+      "y": "218 + LAPTOP_SCREEN_WEB_DELTA_Y + BOBBYR_GRID_ROW_OFFSET * 1",
+      "width": "SHIPPING_SPEED_LIGHT_WIDTH",
+      "height": "SHIPPING_SPEED_LIGHT_HEIGHT",
+      "color": [0, 0, 0],
+      "visible": "lights[1].off"
+    },
+    {
+      "type": "region",
+      "id": "shippingSpeed1",
+      "x": 585,
+      "y": "218 + LAPTOP_SCREEN_WEB_DELTA_Y + BOBBYR_GRID_ROW_OFFSET * 1",
+      "width": "SHIPPING_SPEED_LIGHT_WIDTH",
+      "height": "SHIPPING_SPEED_LIGHT_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "speed(1)"
+    },
+    {
+      "type": "fill",
+      "x": 585,
+      "y": "218 + LAPTOP_SCREEN_WEB_DELTA_Y + BOBBYR_GRID_ROW_OFFSET * 2",
+      "width": "SHIPPING_SPEED_LIGHT_WIDTH",
+      "height": "SHIPPING_SPEED_LIGHT_HEIGHT",
+      "color": [0, 255, 0],
+      "visible": "lights[2].on"
+    },
+    {
+      "type": "fill",
+      "x": 585,
+      "y": "218 + LAPTOP_SCREEN_WEB_DELTA_Y + BOBBYR_GRID_ROW_OFFSET * 2",
+      "width": "SHIPPING_SPEED_LIGHT_WIDTH",
+      "height": "SHIPPING_SPEED_LIGHT_HEIGHT",
+      "color": [0, 0, 0],
+      "visible": "lights[2].off"
+    },
+    {
+      "type": "region",
+      "id": "shippingSpeed2",
+      "x": 585,
+      "y": "218 + LAPTOP_SCREEN_WEB_DELTA_Y + BOBBYR_GRID_ROW_OFFSET * 2",
+      "width": "SHIPPING_SPEED_LIGHT_WIDTH",
+      "height": "SHIPPING_SPEED_LIGHT_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "speed(2)"
+    },
+    {
+      "type": "fill",
+      "x": "BOBBYR_SHIPPING_LOC_AREA_L_X",
+      "y": "BOBBYR_SHIPPING_LOC_AREA_T_Y",
+      "width": 175,
+      "height": "BOBBYR_DROP_DOWN_HEIGHT",
+      "color": [0, 0, 0]
+    },
+    {
+      "type": "text",
+      "id": "shippingCity",
+      "x": "BOBBYR_CITY_START_LOCATION_X + BOBBYR_CITY_NAME_OFFSET",
+      "y": "BOBBYR_SHIPPING_LOC_AREA_T_Y + 3",
+      "font": "BOBBYR_DROPDOWN_FONT",
+      "color": "BOBBYR_ORDER_DROP_DOWN_SELEC_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "cityText"
+      }
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPPING_SPEED_NUMBER_X",
+      "y": "BOBBYR_OVERNIGHT_EXPRESS_Y + BOBBYR_GRID_ROW_OFFSET * 0",
+      "width": "BOBBYR_SHIPPING_SPEED_NUMBER_WIDTH",
+      "font": "BOBBYR_DROPDOWN_FONT",
+      "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "rates[0]"
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPPING_SPEED_NUMBER_X",
+      "y": "BOBBYR_OVERNIGHT_EXPRESS_Y + BOBBYR_GRID_ROW_OFFSET * 1",
+      "width": "BOBBYR_SHIPPING_SPEED_NUMBER_WIDTH",
+      "font": "BOBBYR_DROPDOWN_FONT",
+      "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "rates[1]"
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_SHIPPING_SPEED_NUMBER_X",
+      "y": "BOBBYR_OVERNIGHT_EXPRESS_Y + BOBBYR_GRID_ROW_OFFSET * 2",
+      "width": "BOBBYR_SHIPPING_SPEED_NUMBER_WIDTH",
+      "font": "BOBBYR_DROPDOWN_FONT",
+      "color": "BOBBYR_ORDER_DYNAMIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "rates[2]"
+      },
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_USED_WARNING_X",
+      "y": "BOBBYR_USED_WARNING_Y + 1",
+      "font": "BOBBYR_DISCLAIMER_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_USED_TEXT"]
+      },
+      "shadowed": true
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_USED_WARNING_X",
+      "y": {
+        "bind": "minimumWeightY"
+      },
+      "font": "BOBBYR_DISCLAIMER_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "minimumWeight"
+      },
+      "shadowed": true
+    },
+    {
+      "type": "text",
+      "x": "BOBBYR_PACKAXGE_WEIGHT_X + 8",
+      "y": "BOBBYR_PACKAXGE_WEIGHT_Y + 4",
+      "width": "BOBBYR_PACKAXGE_WEIGHT_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["BobbyROrderFormText", "BOBBYR_PACKAGE_WEIGHT"]
+      }
+    },
+    {
+      "type": "text",
+      "id": "packageWeightText",
+      "x": "BOBBYR_PACKAXGE_WEIGHT_X + 3",
+      "y": "BOBBYR_PACKAXGE_WEIGHT_Y + 4",
+      "width": "BOBBYR_PACKAXGE_WEIGHT_WIDTH",
+      "font": "BOBBYR_ORDER_STATIC_TEXT_FONT",
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "bind": "packageWeight"
+      },
+      "align": "right"
+    },
+    {
+      "type": "button",
+      "id": "clearOrder",
+      "x": "BOBBYR_CLEAR_ORDER_X",
+      "y": "BOBBYR_CLEAR_ORDER_Y + 4",
+      "asset": "clear",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "clear",
+      "text": {
+        "source": {
+          "key": ["BobbyROrderFormText", "BOBBYR_CLEAR_ORDER"]
+        },
+        "font": "BOBBYR_ORDER_TITLE_TEXT_FONT",
+        "color": "BOBBYR_GUNS_TEXT_COLOR_ON",
+        "shadow": "BOBBYR_GUNS_SHADOW_COLOR",
+        "downColor": "BOBBYR_GUNS_TEXT_COLOR_OFF",
+        "downShadow": "BOBBYR_GUNS_SHADOW_COLOR",
+        "offsetX": 39,
+        "offsetY": 10
+      },
+      "enabled": "clearEnabled",
+      "disabledStyle": "none"
+    },
+    {
+      "type": "button",
+      "id": "acceptOrder",
+      "x": "BOBBYR_ACCEPT_ORDER_X",
+      "y": "BOBBYR_ACCEPT_ORDER_Y + 4",
+      "asset": "accept",
+      "frames": {
+        "grayed": 2,
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "accept",
+      "text": {
+        "source": {
+          "key": ["BobbyROrderFormText", "BOBBYR_ACCEPT_ORDER"]
+        },
+        "font": "BOBBYR_ORDER_TITLE_TEXT_FONT",
+        "color": "BOBBYR_GUNS_TEXT_COLOR_ON",
+        "shadow": "BOBBYR_GUNS_SHADOW_COLOR",
+        "downColor": "BOBBYR_GUNS_TEXT_COLOR_OFF",
+        "downShadow": "BOBBYR_GUNS_SHADOW_COLOR",
+        "offsetX": 43,
+        "offsetY": 24
+      },
+      "enabled": "acceptEnabled",
+      "disabledStyle": "shaded"
+    },
+    {
+      "type": "button",
+      "id": "orderBack",
+      "x": "BOBBYR_BACK_BUTTON_X",
+      "y": "BOBBYR_BACK_BUTTON_Y",
+      "asset": "catalogueButton",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "back",
+      "text": {
+        "source": {
+          "key": ["BobbyROrderFormText", "BOBBYR_BACK"]
+        },
+        "font": "BOBBYR_ORDER_TITLE_TEXT_FONT",
+        "color": "BOBBYR_GUNS_TEXT_COLOR_ON",
+        "shadow": "BOBBYR_GUNS_SHADOW_COLOR",
+        "downColor": "BOBBYR_GUNS_TEXT_COLOR_OFF",
+        "downShadow": "BOBBYR_GUNS_SHADOW_COLOR"
+      }
+    },
+    {
+      "type": "button",
+      "id": "orderHome",
+      "x": "BOBBYR_HOME_BUTTON_X",
+      "y": "BOBBYR_HOME_BUTTON_Y",
+      "asset": "catalogueButton",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "home",
+      "text": {
+        "source": {
+          "key": ["BobbyROrderFormText", "BOBBYR_HOME"]
+        },
+        "font": "BOBBYR_ORDER_TITLE_TEXT_FONT",
+        "color": "BOBBYR_GUNS_TEXT_COLOR_ON",
+        "shadow": "BOBBYR_GUNS_SHADOW_COLOR",
+        "downColor": "BOBBYR_GUNS_TEXT_COLOR_OFF",
+        "downShadow": "BOBBYR_GUNS_SHADOW_COLOR"
+      }
+    },
+    {
+      "type": "button",
+      "id": "orderShipments",
+      "x": "BOBBYR_SHIPMENT_BUTTON_X",
+      "y": "BOBBYR_SHIPMENT_BUTTON_Y",
+      "asset": "catalogueButton",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "primary": "shipments",
+      "text": {
+        "source": {
+          "key": ["BobbyROrderFormText", "BOBBYR_GOTOSHIPMENT_PAGE"]
+        },
+        "font": "BOBBYR_ORDER_TITLE_TEXT_FONT",
+        "color": "BOBBYR_GUNS_TEXT_COLOR_ON",
+        "shadow": "BOBBYR_GUNS_SHADOW_COLOR",
+        "downColor": "BOBBYR_GUNS_TEXT_COLOR_OFF",
+        "downShadow": "BOBBYR_GUNS_SHADOW_COLOR"
+      }
+    },
+    {
+      "type": "region",
+      "id": "orderTitleLink",
+      "x": "BOBBYR_BOBBY_RAY_TITLE_X",
+      "y": "BOBBYR_BOBBY_RAY_TITLE_Y",
+      "width": "BOBBYR_BOBBY_RAY_TITLE_WIDTH",
+      "height": "BOBBYR_BOBBY_RAY_TITLE_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "home"
+    },
+    {
+      "type": "region",
+      "id": "cityDropDownToggle",
+      "x": "BOBBYR_SHIPPING_LOC_AREA_L_X",
+      "y": "BOBBYR_SHIPPING_LOC_AREA_T_Y",
+      "width": "BOBBYR_SHIPPING_LOC_AREA_R_X - BOBBYR_SHIPPING_LOC_AREA_L_X",
+      "height": "BOBBYR_SHIPPING_LOC_AREA_B_Y - BOBBYR_SHIPPING_LOC_AREA_T_Y",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "toggleCities"
+    },
+    {
+      "type": "dropDown",
+      "id": "cityDropDown",
+      "x": "BOBBYR_CITY_START_LOCATION_X",
+      "y": "BOBBYR_CITY_START_LOCATION_Y",
+      "width": "BOBBYR_DROP_DOWN_WIDTH",
+      "height": "BOBBYR_SCROLL_AREA_HEIGHT",
+      "model": "cities",
+      "labels": "cityNames",
+      "font": "BOBBYR_DROPDOWN_FONT",
+      "rows": {
+        "gap": 2,
+        "textX": "BOBBYR_CITY_NAME_OFFSET",
+        "textY": 5,
+        "top": 4,
+        "bottom": 7,
+        "rightInset": 6,
+        "highlightInset": 4,
+        "highlightBottom": 6
+      },
+      "border": "dropDownBorder",
+      "background": [0, 0, 0],
+      "color": "BOBBYR_ORDER_STATIC_TEXT_COLOR",
+      "selectedColor": "BOBBYR_FONT_BLACK",
+      "selectedFill": [200, 169, 87],
+      "scroll": {
+        "width": "BOBBYR_SCROLL_AREA_WIDTH",
+        "arrows": "goldArrows",
+        "arrowWidth": "BOBBYR_SCROLL_ARROW_WIDTH",
+        "arrowHeight": "BOBBYR_SCROLL_ARROW_HEIGHT",
+        "upY": "BOBBYR_SCROLL_UP_ARROW_Y",
+        "downY": "BOBBYR_SCROLL_DOWN_ARROW_Y",
+        "thumb": [186, 165, 68],
+        "thumbLight": [235, 222, 171],
+        "thumbDark": [65, 49, 6]
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "scrollCursor": "CURSOR_LAPTOP_SCREEN",
+      "closeArea": ["LAPTOP_SCREEN_UL_X", "LAPTOP_SCREEN_WEB_UL_Y", "LAPTOP_SCREEN_LR_X", "LAPTOP_SCREEN_WEB_LR_Y"],
+      "change": "city"
+    },
+    {
+      "type": "image",
+      "asset": "confirm",
+      "frame": 0,
+      "x": "BOBBYR_CONFIRM_ORDER_X + 3",
+      "y": "BOBBYR_CONFIRM_ORDER_Y + 3",
+      "visible": "confirmShown",
+      "effect": "outlineShadow"
+    },
+    {
+      "type": "image",
+      "asset": "confirm",
+      "frame": 0,
+      "x": "BOBBYR_CONFIRM_ORDER_X",
+      "y": "BOBBYR_CONFIRM_ORDER_Y",
+      "visible": "confirmShown",
+      "id": "confirmOrderPicture"
+    },
+    {
+      "type": "region",
+      "id": "confirmOrderArea",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "width": "LAPTOP_SCREEN_LR_X - LAPTOP_SCREEN_UL_X",
+      "height": "LAPTOP_SCREEN_WEB_LR_Y - LAPTOP_SCREEN_WEB_UL_Y",
+      "priority": "HIGH+1",
+      "cursor": "CURSOR_WWW",
+      "primary": "confirmed",
+      "secondary": "confirmedStay",
+      "visible": "confirmShown"
+    }
+  ]
+}
