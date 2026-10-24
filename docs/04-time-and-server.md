@@ -1508,6 +1508,50 @@ true}`, which checks only the first mover instead of his whole group (the server
 `groupArrived` (§6.25) is emitted for every player group, vehicles and the helicopter included. The refusal table
 moved to `src/protocol/refusals.ts`, so the client prints the original strings without the server.
 
+### 6.31. Battle entry (M8, U9)
+
+What the pre-battle interface and the autoresolve screen print and do that the prompts, the view and the events lacked
+(`28` §8.1, §8.2, §12.1 G16; `19` §5). Nothing is shown that the original panels do not show (D16).
+
+**`showBattle {}`**: the non-persistent pre-battle interface ("BATTLE IN PROGRESS"), opened where the original calls
+`InitPreBattleInterface(0, false)`: a click on the battle sector while the battle locator is on, or an attempt to
+compress time during a tactical battle (`INCOMBAT` or `fEnemyInSector`). Accepted on the map screen (flow `strategic`)
+with a loaded sector when the locator is on or a battle runs there; `calculateNonPersistentPbiInfo` then
+`initPreBattleInterface(…, false)` (the wake-up and the other side effects of the original) and a `preBattle` prompt
+with `persistent: false` and the options of `19` §1.4 plus `close` (`data.prompt` names it). Refusals `noBattle`
+(nothing to summarise, or another flow) and `onlyHostileCivilians` (`OnlyHostileCivsInSector` during a battle:
+`gzLateLocalizedString[STR_LATE_27]` with `data.sector`), and the open-prompt refusal. Answers: `close` (Esc: the prompt
+goes and `gpBattleGroup` is cleared, `HandleKeyESC`), `enterSector` (back into the loaded sector, `GoToSectorCallback`
+without the placement), `autoresolve` (`EnterAutoResolveMode`; the explicit codes that forbid it are refused). The
+agent command `autoresolveBattle` (§5.1 of `19`) stays.
+
+**The `preBattle` prompt** (both kinds) now comes from `src/sim/campaign/pre-battle-panel.ts`, shared with the
+automatic start below: `involvedGroups` (more than one group among the involved mercs selects the plural retreat
+help), and per uninvolved merc `betweenSectors` (the location in parentheses), `departure` (minutes to the contract
+end for A.I.M. mercs and Slay, capped at the contract length in transit; `null` prints "N/A") and `destination` by
+`GetMapscreenMercDestinationString`: the arrival sector in transit, the last sector of the merc's path whenever there
+is one, else the group's next sector between sectors. The strategic view adds `battleLocator` (the sector of the red
+locator, `gfBlitBattleSectorLocator` and `gubPBSector`), present only while it is on.
+
+**Automatic starts** open no prompt (`19` §5.1); their `preBattle {autoStart: true}` event now carries `panel {sector,
+enemies, militia, involved, uninvolved, involvedGroups}`, computed before the battle starts, so the client can show
+the panel with Autoresolve pressed as `ActivateAutomaticAutoResolveStart` does.
+
+**Autoresolve view and events**: `observe.autoresolve` adds `encounter` (the code at entry: the screen's header);
+merc cells add `profile` (the face); militia and enemy cells add `female` (the female generic faces of
+`CreateAutoResolveInterface` and `MakeEnemyTroops`). `arAttack` adds `weapon` (the item that fired a shot) and
+`reloaded` (the shot followed an `AutoReload`: the lock'n'load sound); `arHit` adds `melee` (a hand-to-hand hit, whose
+death plays no splat or death cry); `arDied` adds `splat` (a bullet took the target below -60 life, not a creature: the
+client picks `BODY_SPLAT_1` or `HEADSPLAT_1`). The `autoresolveDone` prompt adds `bandageRefusal` (`nobodyWounded`,
+`noDoctor`, `noKit` or `null`: `DetermineBandageButtonState`'s order and fast help); `answer bandage` returns
+`data.bandaged` `complete` or `incomplete` (the `STR_LATE_13` or `STR_LATE_10` box) and is refused with
+`data.refusal` when nobody can bandage. None of these fields draws a number.
+
+**Playback.** The client paces the battle with the driver: Play is `realtime` at the time modifier of big battles
+(`ubTimeModifierPercentage`, 1 slice per second up to 12 soldiers a side), Fast `realtime` at speed 4, Finish one
+`advance {idle}` to the end or the next prompt, Pause `manual`; it spreads the events of each 1000 ms slice over the
+slice's real time. Retreat orders still apply between slices (`19` §2.11).
+
 ## 7. Cost and limitations
 
 - **Amount of work.**

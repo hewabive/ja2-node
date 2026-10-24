@@ -2579,6 +2579,45 @@ and the tactical host each keep a client knowledge per session (one would save m
 presenter yet (the U7 presenter lives in `TacticalHost`); the team panel's Exit Vehicle waits for a tactical
 `leaveVehicle`; PBI and autoresolve are a numbered box until U9.
 
+#### U9: battle entry (2026-10-24)
+
+The pre-battle interface and the autoresolve screen on `/play` replace U8's numbered boxes. The panel is part of the
+map screen (as `gfPreBattleInterfaceActive` is); autoresolve is a screen pushed over it and popped when the battle
+closes.
+
+| Area | As built |
+|---|---|
+| Server (G16, `docs/04` §6.31) | `showBattle {}` opens the non-persistent `preBattle` prompt (`persistent: false`, options with `close`; refusals `noBattle`, `onlyHostileCivilians`); `answer close`. The prompt and the automatic start's `preBattle {autoStart}` event share `src/sim/campaign/pre-battle-panel.ts`: `involvedGroups`, uninvolved `betweenSectors`, `departure` and the original destination rule; the event carries `panel`. `battleLocator` on the strategic view; `encounter`, merc `profile`, militia and enemy `female` on `observe.autoresolve`; `weapon` and `reloaded` on shot `arAttack`, `melee` on `arHit`, `splat` on `arDied`; `bandageRefusal` on `autoresolveDone`, `data.bandaged` from `answer bandage`. No field draws a number; the oracle gate is unchanged. The retreat sector per group is not sent (no retreat preview) |
+| Tables and layouts | `tools/transcribe/ui-constants.ts` gains `PreBattle_Interface` and `Auto_Resolve`. `data/layouts/original/pre-battle.json` (screen `preBattle`: the blanket at HIGHEST-5, `MLG_PREBATTLEPANEL`, the three `prebattlebutton.sti` buttons with their fonts, colours, offsets and wrap, the custom `preBattlePanel` with every position of `RenderPreBattleInterface` as parameters, the hotkeys a, e, r and Esc) and `autoresolve.json` (screen `autoresolve`: the blanket at HIGH-1, the custom `autoresolvePanel`, the ten `autobtns.sti` buttons whose positions are bound to the geometry, `smfaces.sti`, `indent.sti`, Space and Alt+X) |
+| Screens | `src/ui/screens/battle/`: `battle-entry.ts` (follows the prompt, the automatic start and the flow; switches the map screen to the panel and to autoresolve, selects the battle sector and the team filter as `InitPreBattleInterface` does), `pre-battle.ts` and `pre-battle-text.ts` (the stretch with the gravity curve of `DoTransitionFromMapscreenToPreBattleInterface`, the header and its blink, the title bars, the frames, the labels, the counts with "?", the rows by U8's column strings, the fast help per kind and reason, the pressed Autoresolve of an automatic start), `autoresolve-geometry.ts` (`CalculateRowsAndColumns`, `CalculateSoldierCells`, `BuildInterfaceBuffer`, the button and text positions, the time modifier, the opening's cubic easing), `autoresolve-cells.ts` (faces, bars, the hit flash, the unconscious shadow, the status texts), `autoresolve-playback.ts` (the slice queue: each slice's events spread over its real time, then the view), `autoresolve-sounds.ts`, `autoresolve-screen.ts` (Play, Fast, Finish, Pause and Space with the kept-speed quirk, Retreat and the merc cells, the surrender offer with every button hidden after a refusal, Bandage with its box, Done, the result and the elapsed time) |
+| Flow | A `preBattle` prompt shows the map screen (`gameScreenOf`) while the server flow is still tactical; the answer decides the next screen. `MapHost` keeps an automatic start that arrives before the map screen exists; `front-end.ts` creates the map host for it. Esc and a, e, r reach the panel before the map screen's keys |
+| `/play` | `src/app/battle/`: `SessionBattleClient` (commands, the driver, `advance`, the latest view), `BattleSound` (laptop power up, the effects at volume 50 or HIGHVOLUME, the weapon sound with its lock'n'load, the battle voices through `battleSoundCue`). Music stays the server's (`arBattleOver` sets victory or defeat). With `pinClock` the 1 s openings finish at once (the frozen clock cannot time them) |
+| Hook | `window.__ja2Ui.battle`: `ready`, `state` (`screen`, `preBattle {prompt, persistent, encounter, phase, autoStart}`, `autoresolve {opening, status, speed, paused, interface, pending, cells, result, elapsed, ratio}`, `commands`), `drives`, `commands`, `sounds`, `buttonPoint` |
+| Stub art | From the layouts: `prebattlepanel.sti` (261×359 main panel, title bar piece, columns, uninvolved header), `prebattlebutton.sti`, `autoresolve.sti` (the 14 pieces at the sizes `BuildInterfaceBuffer` steps by), `autobtns.sti`, `smfaces.sti`, `indent.sti`; the 65face portraits already existed. The stub media budget in `stubs/build.test.ts` rose from 5 to 5.5 MiB (the panel alone is about 100 KB) |
+
+Tests: unit tests for the geometry against hand-computed original numbers (`autoresolve-geometry.test.ts`), the header,
+fast help, departure and stretch (`pre-battle-text.test.ts`), the faces, statuses, bars, flash, playback and sounds
+(`autoresolve-cells.test.ts`), the screen over a fake client (`autoresolve-screen.test.ts`: speeds and Space, a merc's
+retreat, the surrender with Yes and with No then CAPTURED, bandaging and Done, Finish muting the sounds), the screens
+over the stub map-screen campaign (`battle-entry.test.ts`: the persistent panel with a draw-list snapshot, the a key
+into autoresolve with a snapshot, victory at Fast and Finish back to the map, retreat, defeat, an automatic start, the
+summary from the battle locator closed with Esc); `event-fields.test.ts` for the new event fields and the bandage
+refusal; `src/server/battle-entry-stub.test.ts` for the prompt fields, the view, the auto-start panel, `showBattle` and
+the three stub battles; `battle-art-original.test.ts` (`JA2_DATA_DIR`) for the frames the renderers draw.
+`tests/e2e/battle-entry.spec.ts` on the saves of `tests/support/battle-entry.ts` (the U8 campaign with an enemy group a
+minute from Drassen, loaded with `reseed: false`): goldens `pre-battle.png` and `autoresolve.png` with a pinned clock,
+victory with Bandage and Done back to the map, defeat, retreat, the summary from the locator and from a refused
+compression. Surrender and capture need day 4 and a stalled battle, so they are unit-tested only.
+
+Decisions and limits: `showBattle` (a prompt) was chosen over a `battleSummary` query so the summary keeps the
+original's side effects (the wake-up, the stopped compression) and the panel needs no second code path; the battle runs
+on the server at the chosen pace and the client spreads each slice (deviation "Autoresolve pace"); the retreat preview
+is not drawn (deviation "Pre-battle retreat preview"); militia and enemy battle voices are the client's pick
+(deviation "Autoresolve battle voices"); placement stays deferred ("Tactical placement", §8.3). Open: the robot's
+optimistic retreat display follows the server one slice later; `autoresolveBattle` clears the battle group where the
+original keeps the first involved group (the `showBattle` path keeps it); the media budget will need the lead's eye
+once the laptop slices add their art.
+
 ---
 
 ## 18. Decisions and open questions
