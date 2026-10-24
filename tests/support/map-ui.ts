@@ -34,6 +34,7 @@ import { StringsTextService } from '../../src/ui/text/text-service.ts';
 import { messageBoxLabels } from '../../src/ui/widgets/message-box.ts';
 import type { WidgetInfo } from '../../src/ui/widgets/widget-info.ts';
 import { planStubSkin, readOriginalLayouts } from '../../stubs/ui/skin.ts';
+import { BattleSessionClient, battleLayoutModels, FakeBattleSounds, testBattleEnvironment } from './battle-ui.ts';
 import { buildMapScreenCampaign } from './e2e-campaign-saves.ts';
 import { type ClientSide, clientAnswer, clientSide, withQueries } from './hints.ts';
 import { createSaveKit, type SaveKit } from './saves.ts';
@@ -203,6 +204,7 @@ export async function mapUiKit(kit: StubSectorKit): Promise<MapUiKit> {
   const loader = projectLayoutLoader();
   const models = new Map<string, LayoutModel>();
   for (const name of MAP_LAYOUTS) models.set(name, await loader.load(ORIGINAL_SKIN, name));
+  for (const [name, model] of await battleLayoutModels()) models.set(name, model);
   return { client, catalogue: encoded.catalogue, models, messageBox: await loader.load(ORIGINAL_SKIN, MESSAGE_BOX_LAYOUT) };
 }
 
@@ -221,6 +223,8 @@ export interface MapUiTest {
   readonly t: TestRuntime;
   readonly session: Session;
   readonly client: MapSessionClient;
+  readonly battleClient: BattleSessionClient;
+  readonly battleSounds: FakeBattleSounds;
   readonly media: FakeMapMedia;
   readonly screen: MapScreen;
   readonly mercs: readonly number[];
@@ -235,6 +239,7 @@ export interface MapUiTest {
   hoverSector(sector: string, ms?: number): Promise<void>;
   key(key: string, modifiers?: number, code?: string): void;
   frames(frames: readonly ViewFrame[]): void;
+  deliver(): void;
   settle(frames?: number): Promise<void>;
   draw(): DrawList;
   dispose(): Promise<void>;
@@ -258,12 +263,15 @@ export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit): Promise<MapUi
   if (!strategic) throw new Error('the stub rules have no strategic content');
   const flow: string[] = [];
   const sounds: string[] = [];
+  const battleClient = new BattleSessionClient(session, client);
+  const battleSounds = new FakeBattleSounds();
+  const boxes = new CanvasMessageBoxes({ services: t.runtime, style, labels: () => boxLabels });
   let die = 0;
   const env: MapEnvironment = {
     runtime: t.runtime,
     text,
     layout: (name: MapLayout) => ui.models.get(name) as LayoutModel,
-    boxes: new CanvasMessageBoxes({ services: t.runtime, style, labels: () => boxLabels }),
+    boxes,
     messageBoxStyle: style,
     messageBoxLabels: boxLabels,
     basicTextBox: textBoxArt(ui.messageBox, (ui.messageBox.style('textBoxes') as Record<string, unknown>)[BASIC_TEXT_BOX]),
@@ -285,6 +293,15 @@ export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit): Promise<MapUi
     random: (range) => (die++ * 7) % Math.max(1, range),
     metric: () => true,
     notifySleepWake: () => true,
+    battle: testBattleEnvironment({
+      t,
+      text,
+      models: ui.models,
+      client: battleClient,
+      sounds: battleSounds,
+      boxes,
+      exitGame: () => flow.push('exitGame'),
+    }),
   };
   const screen = new MapScreen(env);
   t.runtime.host.push(screen);
@@ -326,6 +343,8 @@ export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit): Promise<MapUi
     t,
     session,
     client,
+    battleClient,
+    battleSounds,
     media,
     screen,
     mercs: campaign.mercs,
@@ -357,6 +376,10 @@ export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit): Promise<MapUi
     },
     frames(frames) {
       screen.frames(frames);
+      t.frame();
+    },
+    deliver() {
+      screen.frames(battleClient.takeFrames());
       t.frame();
     },
     settle,

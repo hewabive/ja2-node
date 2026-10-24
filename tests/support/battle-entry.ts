@@ -1,13 +1,13 @@
 import { parseSectorString, sectorId } from '../../src/content/strategic/sector-ids.ts';
 import { CampaignSession } from '../../src/server/campaign-session.ts';
 import type { Session } from '../../src/server/session.ts';
+import { emptyObject } from '../../src/sim/items/object.ts';
 import { createNewEnemyGroupDepartingFromSector } from '../../src/sim/strategic/forces/groups.ts';
 import { sectorInfo } from '../../src/sim/strategic/map/sectors.ts';
 import { EventKind } from '../../src/sim/strategic/time/constants.ts';
 import { addStrategicEvent } from '../../src/sim/strategic/time/event-queue.ts';
 import { worldTotalMinutes } from '../../src/sim/strategic/time/world-clock.ts';
 import { InvSlot } from '../../src/sim/tactical/inventory.ts';
-import { emptyObject } from '../../src/sim/items/object.ts';
 import { buildMapScreenCampaign } from './e2e-campaign-saves.ts';
 import { createSaveKit, type SaveKit } from './saves.ts';
 import { loadStubSectorKit } from './sectors.ts';
@@ -47,7 +47,13 @@ export function arrangeEnemyArrival(session: Session, force: EnemyForce, minutes
   const campaign = campaignOf(session).campaign;
   const ctx = campaign.strategic;
   if (!ctx) throw new Error('no strategic layer');
-  const g = createNewEnemyGroupDepartingFromSector(ctx, sectorId(parseSectorString(ENEMY_APPROACH)), force.admins, force.troops, force.elites);
+  const g = createNewEnemyGroupDepartingFromSector(
+    ctx,
+    sectorId(parseSectorString(ENEMY_APPROACH)),
+    force.admins,
+    force.troops,
+    force.elites,
+  );
   g.next = { ...parseSectorString(BATTLE_SECTOR), z: 0 };
   g.betweenSectors = true;
   g.arrivalTime = worldTotalMinutes(campaign.state.clock) + minutes;

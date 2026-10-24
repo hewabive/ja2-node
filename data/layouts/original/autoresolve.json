@@ -1,0 +1,352 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Strategic/Auto_Resolve.cc CreateAutoResolveInterface (the blanket over the screen at MSYS_PRIORITY_HIGH - 1; autoresolve.sti; autobtns.sti frames 0/7 Pause, 1/8 Play, 2/9 Fast, 3/10 Finish, 4/11 Yes, 5/12 No, 6/13 Bandage, 14/15 Retreat and Done after a victory, 16/17 Done otherwise, at MSYS_PRIORITY_HIGH; Retreat and Done in BLOCKFONT2 colour 169 on FONT_NEARBLACK; smfaces.sti; indent.sti), BuildInterfaceBuffer (the panel pieces), RenderSoldierCell (the merc and other cell panels), HandleAutoResolveInput (Space, Alt+X)"
+  ],
+  "screen": "autoresolve",
+  "frame": "screen",
+  "constants": ["Auto_Resolve", "Text"],
+  "assets": {
+    "panel": {
+      "sti": "interface/autoresolve.sti",
+      "stub": {
+        "sizes": [
+          [10, 9],
+          [50, 3],
+          [10, 9],
+          [3, 40],
+          [50, 40],
+          [3, 40],
+          [10, 9],
+          [50, 3],
+          [10, 9],
+          [146, 40],
+          [146, 40],
+          [146, 40],
+          [50, 44],
+          [50, 44]
+        ]
+      }
+    },
+    "buttons": {
+      "sti": "interface/autobtns.sti",
+      "stub": {
+        "sizes": [
+          [36, 28],
+          [36, 28],
+          [36, 28],
+          [36, 28],
+          [36, 28],
+          [36, 28],
+          [36, 28],
+          [36, 28],
+          [36, 28],
+          [36, 28],
+          [36, 28],
+          [36, 28],
+          [36, 28],
+          [36, 28],
+          [80, 28],
+          [80, 28],
+          [92, 28],
+          [92, 28]
+        ],
+        "states": [
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "normal",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "pressed",
+          "normal",
+          "pressed",
+          "normal",
+          "pressed"
+        ]
+      }
+    },
+    "faces": {
+      "sti": "interface/smfaces.sti",
+      "stub": {
+        "frames": 16,
+        "size": [30, 26]
+      }
+    },
+    "indent": {
+      "sti": "interface/indent.sti",
+      "stub": {
+        "size": [116, 32]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "region",
+      "id": "autoresolveBlanket",
+      "x": 0,
+      "y": 0,
+      "width": "$screenWidth",
+      "height": "$screenHeight",
+      "priority": "HIGH-1",
+      "cursor": "CURSOR_NORMAL"
+    },
+    {
+      "type": "custom",
+      "id": "autoresolvePanel",
+      "renderer": "autoresolvePanel",
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
+    },
+    {
+      "type": "button",
+      "id": "arPlay",
+      "x": {
+        "bind": "buttons.play.x"
+      },
+      "y": {
+        "bind": "buttons.play.y"
+      },
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 1,
+        "onNormal": 8
+      },
+      "priority": "HIGH",
+      "visible": "buttons.play.visible",
+      "enabled": "buttons.play.enabled",
+      "primary": "play",
+      "checked": "buttons.play.clicked"
+    },
+    {
+      "type": "button",
+      "id": "arFast",
+      "x": {
+        "bind": "buttons.fast.x"
+      },
+      "y": {
+        "bind": "buttons.fast.y"
+      },
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 2,
+        "onNormal": 9
+      },
+      "priority": "HIGH",
+      "visible": "buttons.fast.visible",
+      "enabled": "buttons.fast.enabled",
+      "primary": "fast",
+      "checked": "buttons.fast.clicked"
+    },
+    {
+      "type": "button",
+      "id": "arFinish",
+      "x": {
+        "bind": "buttons.finish.x"
+      },
+      "y": {
+        "bind": "buttons.finish.y"
+      },
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 3,
+        "onNormal": 10
+      },
+      "priority": "HIGH",
+      "visible": "buttons.finish.visible",
+      "enabled": "buttons.finish.enabled",
+      "primary": "finish",
+      "checked": "buttons.finish.clicked"
+    },
+    {
+      "type": "button",
+      "id": "arPause",
+      "x": {
+        "bind": "buttons.pause.x"
+      },
+      "y": {
+        "bind": "buttons.pause.y"
+      },
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 7
+      },
+      "priority": "HIGH",
+      "visible": "buttons.pause.visible",
+      "enabled": "buttons.pause.enabled",
+      "primary": "pause",
+      "checked": "buttons.pause.clicked"
+    },
+    {
+      "type": "button",
+      "id": "arRetreat",
+      "x": {
+        "bind": "buttons.retreat.x"
+      },
+      "y": {
+        "bind": "buttons.retreat.y"
+      },
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 14,
+        "onNormal": 15
+      },
+      "priority": "HIGH",
+      "visible": "buttons.retreat.visible",
+      "enabled": "buttons.retreat.enabled",
+      "primary": "retreat",
+      "text": {
+        "source": {
+          "key": ["gpStrategicString", "STR_AR_RETREAT_BUTTON"]
+        },
+        "font": "BLOCKFONT2",
+        "color": 169,
+        "shadow": "FONT_NEARBLACK"
+      }
+    },
+    {
+      "type": "button",
+      "id": "arBandage",
+      "x": {
+        "bind": "buttons.bandage.x"
+      },
+      "y": {
+        "bind": "buttons.bandage.y"
+      },
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 6,
+        "onNormal": 13
+      },
+      "priority": "HIGH",
+      "visible": "buttons.bandage.visible",
+      "enabled": "buttons.bandage.enabled",
+      "primary": "bandage",
+      "tooltip": {
+        "bind": "buttons.bandage.help"
+      }
+    },
+    {
+      "type": "button",
+      "id": "arDoneWin",
+      "x": {
+        "bind": "buttons.doneWin.x"
+      },
+      "y": {
+        "bind": "buttons.doneWin.y"
+      },
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 14,
+        "onNormal": 15
+      },
+      "priority": "HIGH",
+      "visible": "buttons.doneWin.visible",
+      "enabled": "buttons.doneWin.enabled",
+      "primary": "done",
+      "text": {
+        "source": {
+          "key": ["gpStrategicString", "STR_AR_DONE_BUTTON"]
+        },
+        "font": "BLOCKFONT2",
+        "color": 169,
+        "shadow": "FONT_NEARBLACK"
+      }
+    },
+    {
+      "type": "button",
+      "id": "arDoneLose",
+      "x": {
+        "bind": "buttons.doneLose.x"
+      },
+      "y": {
+        "bind": "buttons.doneLose.y"
+      },
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 16,
+        "onNormal": 17
+      },
+      "priority": "HIGH",
+      "visible": "buttons.doneLose.visible",
+      "enabled": "buttons.doneLose.enabled",
+      "primary": "done",
+      "text": {
+        "source": {
+          "key": ["gpStrategicString", "STR_AR_DONE_BUTTON"]
+        },
+        "font": "BLOCKFONT2",
+        "color": 169,
+        "shadow": "FONT_NEARBLACK"
+      }
+    },
+    {
+      "type": "button",
+      "id": "arYes",
+      "x": {
+        "bind": "buttons.yes.x"
+      },
+      "y": {
+        "bind": "buttons.yes.y"
+      },
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 4,
+        "onNormal": 11
+      },
+      "priority": "HIGH",
+      "visible": "buttons.yes.visible",
+      "enabled": "buttons.yes.enabled",
+      "primary": "accept"
+    },
+    {
+      "type": "button",
+      "id": "arNo",
+      "x": {
+        "bind": "buttons.no.x"
+      },
+      "y": {
+        "bind": "buttons.no.y"
+      },
+      "asset": "buttons",
+      "frames": {
+        "offNormal": 5,
+        "onNormal": 12
+      },
+      "priority": "HIGH",
+      "visible": "buttons.no.visible",
+      "enabled": "buttons.no.enabled",
+      "primary": "reject"
+    }
+  ],
+  "hotkeys": [
+    {
+      "key": " ",
+      "on": "down",
+      "mods": 0,
+      "action": "space"
+    },
+    {
+      "key": " ",
+      "on": "repeat",
+      "mods": 0,
+      "action": "space"
+    },
+    {
+      "key": "x",
+      "on": "down",
+      "mods": 4,
+      "action": "exitGame"
+    }
+  ]
+}

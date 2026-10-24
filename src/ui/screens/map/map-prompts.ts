@@ -7,8 +7,8 @@
 // @src CONTINUE/STOP); src/game/Strategic/Merc_Contract.cc NotifyPlayerOfMercDepartureAndPromptEquipmentPlacement (the
 // @src GENERIC buttons with the two sectors, REHIRE when the merc may be rehired), HandleNotifyPlayerCanAffordInsurance
 // @src (zMarksMapScreenText[10]); src/game/Strategic/MapScreen.cc DoMapMessageBox (centred in 0, 0, 640, 340). The
-// @src pre-battle interface and the autoresolve screen are U9's: until then they are a numbered box offering the prompt's
-// @src choices. See docs/28 §7.10, §8.
+// @src pre-battle interface and the autoresolve screen are screens of their own (src/ui/screens/battle).
+// @src See docs/28 §7.10, §8.
 
 import type { PromptView, StrategicView } from '../../../protocol/view.ts';
 import { sprintMoney } from '../../text/money.ts';
@@ -23,9 +23,6 @@ const STR_DETECTED_PLURAL = 1;
 const STR_COORDINATE = 2;
 const STR_PB_ENEMIES = 36;
 const STR_ENEMY_SURRENDER_OFFER = 3;
-const STR_PB_AUTORESOLVE_BTN = 25;
-const STR_PB_GOTOSECTOR_BTN = 26;
-const STR_PB_RETREATMERCS_BTN = 27;
 const LANDMARK = 'pLandMarkInSectorString';
 const INSURANCE = 10;
 const MARKS = 'zMarksMapScreenText';
@@ -50,10 +47,6 @@ export interface PromptContext {
 
 function yesNo(text: string): PromptBox {
   return { text, flags: MessageBoxFlag.YESNO, answer: (r) => (r === MessageBoxReturn.YES ? 'yes' : 'no') };
-}
-
-function numbered(text: string, choices: readonly string[]): PromptBox {
-  return { text, flags: MessageBoxFlag.FOUR_NUMBERED_BUTTONS, answer: (r) => choices[r - 1] ?? null };
 }
 
 export function promptBox(ctx: PromptContext, prompt: PromptView): PromptBox | null {
@@ -87,18 +80,9 @@ export function promptBox(ctx: PromptContext, prompt: PromptView): PromptBox | n
     }
     case 'surrender':
       return yesNo(text.string(STRATEGIC, STR_ENEMY_SURRENDER_OFFER) ?? '');
-    case 'preBattle': {
-      const choices = prompt.options.map((o) => o.choice);
-      const label = (choice: string) =>
-        text.string(
-          STRATEGIC,
-          choice === 'autoresolve' ? STR_PB_AUTORESOLVE_BTN : choice === 'enterSector' ? STR_PB_GOTOSECTOR_BTN : STR_PB_RETREATMERCS_BTN,
-        ) ?? choice;
-      const lines = prompt.options.map((o, i) => `${i + 1}: ${label(o.choice)}${o.enabled ? '' : ' (-)'}`);
-      return numbered(`${prompt.sector}\n${lines.join('\n')}`, choices);
-    }
+    case 'preBattle':
     case 'autoresolveDone':
-      return numbered(prompt.choices.map((c, i) => `${i + 1}: ${c}`).join('\n'), prompt.choices);
+      return null;
   }
 }
 

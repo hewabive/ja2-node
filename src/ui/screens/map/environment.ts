@@ -8,6 +8,7 @@ import type { UiRuntime } from '../../runtime.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import type { MercTextBoxArt } from '../../widgets/merc-text-box.ts';
 import type { MessageBoxLabels, MessageBoxStyle } from '../../widgets/message-box.ts';
+import type { BattleEnvironment } from '../battle/environment.ts';
 import type { TacticalMedia } from '../tactical/environment.ts';
 import type { MapFacts } from './facts.ts';
 import type { MapBoardArt } from './map-view.ts';
@@ -73,6 +74,7 @@ export interface MapEnvironment {
   readonly random: (range: number) => number;
   readonly metric: () => boolean;
   readonly notifySleepWake: () => boolean;
+  readonly battle: BattleEnvironment;
 }
 
 export interface MapFrames {

@@ -26,7 +26,7 @@ import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import { refusalMessage } from '../../../protocol/refusals.ts';
 import type { ContractOptionView, PlayerView, StrategicMercView, StrategicView, ViewFrame } from '../../../protocol/view.ts';
 import { frameOf } from '../../assets.ts';
-import type { DrawList } from '../../draw-list.ts';
+import type { DrawItem, DrawList } from '../../draw-list.ts';
 import { isPointerEvent, KeyModifier, type UiInputEvent } from '../../input/events.ts';
 import { MouseReason, NO_CURSOR, Priority } from '../../input/mouse.ts';
 import type { MouseRegion } from '../../input/regions.ts';
@@ -42,6 +42,7 @@ import { MessageBox, MessageBoxFlag } from '../../widgets/message-box.ts';
 import type { PopupBoxStyle } from '../../widgets/popup-box.ts';
 import { portraitPath } from '../../widgets/portrait.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
+import { BattleEntry } from '../battle/battle-entry.ts';
 import { drawSoldierBars } from '../tactical/bars.ts';
 import { drawFace, FaceAnimator, type FaceArt, faceRecordOf } from '../tactical/faces.ts';
 import { drawInventoryItem } from '../tactical/item-tile.ts';
@@ -97,6 +98,11 @@ import { MapUiMessage } from './ui-message.ts';
 import { UpdateBox, UpdateQueue } from './update-box.ts';
 
 export const MAP_SCREEN_ID = 'map';
+const BATTLE_SCREEN_PROMPTS: ReadonlySet<string> = new Set(['preBattle', 'autoresolveDone']);
+
+function battleScreenPrompt(prompt: { readonly kind: string; readonly context?: string }): boolean {
+  return BATTLE_SCREEN_PROMPTS.has(prompt.kind) || (prompt.kind === 'surrender' && prompt.context === 'autoresolve');
+}
 const OWNER = 'mapScreen';
 const ROW_HELP = [0, 1, 5, 0, 2, 3];
 const ROW_HELP_TABLE = 'pMapScreenMouseRegionHelpText';
@@ -202,6 +208,8 @@ export class MapScreen implements Screen {
   readonly #handledPrompts = new Set<string>();
   readonly #promptBoxes = new Map<string, MessageBox>();
   readonly #answeredElsewhere = new Set<string>();
+  readonly #battle: BattleEntry;
+  #lastItems: readonly DrawItem[] = [];
   #screenMask: MouseRegion | null = null;
   #handRegion: MouseRegion | null = null;
   #selected: Sector = { ...START_SECTOR };
@@ -304,10 +312,22 @@ export class MapScreen implements Screen {
       beep: () => env.sounds.newMessageBeep(),
       finished: (continueTime) => void this.#updateFinished(continueTime),
     });
+    this.#battle = new BattleEntry({
+      env: env.battle,
+      view: () => this.#playerView(),
+      origin: () => this.#origin(),
+      sectorPoint: (label) => this.sectorPoint(label),
+      mapItems: () => this.#lastItems,
+      sectorName: (label) => this.#sectorName(label, true),
+    });
   }
 
   get mapInventory(): MapInventory {
     return this.#inventory;
+  }
+
+  get battle(): BattleEntry {
+    return this.#battle;
   }
 
   #createTownBox(): TownInfoBox {
@@ -502,6 +522,7 @@ export class MapScreen implements Screen {
 
   exit(): void {
     this.#entered = false;
+    this.#battle.suspend();
     this.#abortPlotting(false);
     this.#closeMenus();
     this.#militia.close();
@@ -619,6 +640,7 @@ export class MapScreen implements Screen {
         } else if (event.type === 'groupArrived' && event.final) this.#arrivalSelection(event.sector);
       }
     this.#inventory.frames(frames);
+    this.#battle.frames(frames);
   }
 
   #mercsIn(s: Sector, z: number): StrategicMercView[] {
@@ -651,6 +673,7 @@ export class MapScreen implements Screen {
     this.#updateMessages();
     this.#updatePlotting();
     this.#syncPrompts();
+    this.#battle.update(this.#now);
     this.#message.update(this.#now, false);
     this.#syncCursor();
     this.#syncHandHelp();
@@ -910,7 +933,7 @@ export class MapScreen implements Screen {
     if (prompt && !this.#handledPrompts.has(prompt.id)) {
       this.#handledPrompts.add(prompt.id);
       if (prompt.kind === 'preBattle') this.#env.flow.preBattle();
-      const box = promptBox(this.#promptContext(), prompt);
+      const box = battleScreenPrompt(prompt) ? null : promptBox(this.#promptContext(), prompt);
       if (box) void this.#answerPrompt(prompt.id, box);
     }
     const contract = view?.contractPrompt ?? null;
@@ -1199,6 +1222,10 @@ export class MapScreen implements Screen {
       this.openSectorInventory();
       return;
     }
+    if (this.#battleLocatorAt(hover)) {
+      void this.#showBattle();
+      return;
+    }
     if (this.filters.airspace) {
       if (this.#level === 0 && this.#overHelicopter(hover)) void this.#requestHeliPlotting();
       return;
@@ -1206,6 +1233,19 @@ export class MapScreen implements Screen {
     if (!wasSelected || !this.#movableCharsIn(hover)) return;
     if (this.#level !== 0) void this.#mapBox(this.#text(MAP_ERROR, UNDERGROUND));
     else this.#startMoveFromSector(hover);
+  }
+
+  #battleLocatorAt(s: Sector): boolean {
+    const locator = this.#strategic()?.battleLocator;
+    const at = locator ? parseSectorLabel(locator) : null;
+    return at !== null && at.x === s.x && at.y === s.y && at.z === this.#level;
+  }
+
+  async #showBattle(): Promise<void> {
+    const reply = await this.#battle.showBattle();
+    const data = reply.data as { refusal?: string; sector?: string } | undefined;
+    const text = reply.ok ? null : this.#refusalText(data?.refusal, data?.sector ? [this.#sectorName(data.sector, true)] : []);
+    if (text) void this.#mapBox(text);
   }
 
   #overBullseye(s: Sector): boolean {
@@ -1565,7 +1605,7 @@ export class MapScreen implements Screen {
 
   #explainRefusal(token: string | null): void {
     if (token && COMPRESSION_REFUSALS_WITH_BATTLE.has(token)) {
-      this.#env.flow.preBattle();
+      void this.#showBattle();
       return;
     }
     const text = this.#refusalText(token);
@@ -1645,6 +1685,7 @@ export class MapScreen implements Screen {
   }
 
   input(event: UiInputEvent): boolean {
+    if (this.#battle.input(event)) return true;
     if (isPointerEvent(event)) return false;
     if (event.kind === 'keyDown' && this.#playerPaused) {
       this.#setPlayerPaused(false);
@@ -1662,6 +1703,7 @@ export class MapScreen implements Screen {
   }
 
   render(list: DrawList): void {
+    const start = list.items.length;
     this.#view.render(list);
     this.#inventory.render(list);
     this.#townBox.render(list);
@@ -1671,6 +1713,8 @@ export class MapScreen implements Screen {
     this.#moveBox.render(list);
     this.#updateBox.render(list);
     this.#message.render(list, this.#origin());
+    this.#battle.render(list, list.items.slice(start));
+    this.#lastItems = list.items.slice(start);
   }
 
   describe(): readonly WidgetInfo[] {
@@ -1684,6 +1728,7 @@ export class MapScreen implements Screen {
       ...this.#contract.describe(),
       ...this.#moveBox.describe(),
       ...this.#updateBox.describe(),
+      ...this.#battle.describe(),
     ];
   }
 
@@ -1749,7 +1794,8 @@ export class MapScreen implements Screen {
   #locators(): Locator[] {
     const locators: Locator[] = [];
     const prompt = this.#playerView()?.prompt;
-    const battle = prompt?.kind === 'preBattle' ? parseSectorLabel(prompt.sector) : null;
+    const locator = this.#strategic()?.battleLocator ?? (prompt?.kind === 'preBattle' ? prompt.sector : null);
+    const battle = locator ? parseSectorLabel(locator) : null;
     if (battle) locators.push({ sector: battle, colour: 'red' });
     const speech = this.#env.media.speech();
     const speaker = speech?.playing ? mercById(this.#strategic(), speech.speaker) : null;

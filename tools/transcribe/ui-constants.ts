@@ -103,6 +103,8 @@ const SCREEN_TABLES: readonly TableSpec[] = [
   { table: 'Map_Screen_Helicopter', files: ['game/Strategic/Map_Screen_Helicopter.h', 'game/Strategic/Map_Screen_Helicopter.cc'] },
   { table: 'Assignments', files: ['game/Strategic/Assignments.h', 'game/Strategic/Assignments.cc'] },
   { table: 'Strategic_Movement', files: ['game/Strategic/Strategic_Movement.h', 'game/Strategic/Strategic_Movement.cc'] },
+  { table: 'PreBattle_Interface', files: ['game/Strategic/PreBattle_Interface.h', 'game/Strategic/PreBattle_Interface.cc'] },
+  { table: 'Auto_Resolve', files: ['game/Strategic/Auto_Resolve.h', 'game/Strategic/Auto_Resolve.cc'] },
 ];
 
 const FRAME_ORIGIN_NAMES: ReadonlyMap<string, number> = new Map([
