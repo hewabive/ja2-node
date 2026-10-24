@@ -103,6 +103,31 @@ const SCREEN_TABLES: readonly TableSpec[] = [
   { table: 'Map_Screen_Helicopter', files: ['game/Strategic/Map_Screen_Helicopter.h', 'game/Strategic/Map_Screen_Helicopter.cc'] },
   { table: 'Assignments', files: ['game/Strategic/Assignments.h', 'game/Strategic/Assignments.cc'] },
   { table: 'Strategic_Movement', files: ['game/Strategic/Strategic_Movement.h', 'game/Strategic/Strategic_Movement.cc'] },
+  { table: 'BobbyR', files: ['game/Laptop/BobbyR.h', 'game/Laptop/BobbyR.cc'] },
+  { table: 'BobbyRGuns', files: ['game/Laptop/BobbyR.h', 'game/Laptop/BobbyRGuns.h', 'game/Laptop/BobbyRGuns.cc'] },
+  {
+    table: 'BobbyRMailOrder',
+    files: ['game/Laptop/BobbyR.h', 'game/Laptop/BobbyRGuns.h', 'game/Laptop/BobbyRMailOrder.h', 'game/Laptop/BobbyRMailOrder.cc'],
+  },
+  {
+    table: 'BobbyRShipments',
+    files: ['game/Laptop/BobbyRGuns.h', 'game/Laptop/BobbyRShipments.h', 'game/Laptop/BobbyRShipments.cc'],
+  },
+  { table: 'Mercs', files: ['game/Laptop/Mercs.h', 'game/Laptop/Mercs.cc'] },
+  { table: 'Mercs_Account', files: ['game/Laptop/Mercs.h', 'game/Laptop/Mercs_Account.h', 'game/Laptop/Mercs_Account.cc'] },
+  { table: 'Mercs_Files', files: ['game/Laptop/Mercs.h', 'game/Laptop/Mercs_Files.h', 'game/Laptop/Mercs_Files.cc'] },
+  { table: 'Mercs_No_Account', files: ['game/Laptop/Mercs.h', 'game/Laptop/Mercs_No_Account.h', 'game/Laptop/Mercs_No_Account.cc'] },
+  { table: 'BrokenLink', files: ['game/Laptop/BrokenLink.h', 'game/Laptop/BrokenLink.cc'] },
+  { table: 'CharProfile', files: ['game/Laptop/CharProfile.h', 'game/Laptop/CharProfile.cc'] },
+  { table: 'IMP_HomePage', files: ['game/Laptop/IMP_HomePage.h', 'game/Laptop/IMP_HomePage.cc'] },
+  { table: 'IMP_MainPage', files: ['game/Laptop/IMP_MainPage.h', 'game/Laptop/IMP_MainPage.cc'] },
+  { table: 'IMP_Begin_Screen', files: ['game/Laptop/IMP_Begin_Screen.h', 'game/Laptop/IMP_Begin_Screen.cc'] },
+  { table: 'IMP_Personality_Quiz', files: ['game/Laptop/IMP_Personality_Quiz.h', 'game/Laptop/IMP_Personality_Quiz.cc'] },
+  { table: 'IMP_Personality_Finish', files: ['game/Laptop/IMP_Personality_Finish.h', 'game/Laptop/IMP_Personality_Finish.cc'] },
+  { table: 'IMP_Attribute_Selection', files: ['game/Laptop/IMP_Attribute_Selection.h', 'game/Laptop/IMP_Attribute_Selection.cc'] },
+  { table: 'IMP_Finish', files: ['game/Laptop/IMP_Finish.h', 'game/Laptop/IMP_Finish.cc'] },
+  { table: 'IMP_Text_System', files: ['game/Laptop/IMP_Text_System.h', 'game/Laptop/IMP_Text_System.cc'] },
+  { table: 'IMPVideoObjects', files: ['game/Laptop/IMPVideoObjects.h', 'game/Laptop/IMPVideoObjects.cc'] },
 ];
 
 const FRAME_ORIGIN_NAMES: ReadonlyMap<string, number> = new Map([

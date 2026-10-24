@@ -1,0 +1,14 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Laptop/IMP_Text_System.h, src/game/Laptop/IMP_Text_System.cc",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
+  "constants": {
+    "IMP_LEFT_IDENT_TEXT_X": 116,
+    "IMP_RIGHT_IDENT_TEXT_X": 509,
+    "IMP_IDENT_WIDTH": 96,
+    "QTN_FIRST_COLUMN_X": 80,
+    "QTN_SECOND_COLUMN_X": 320
+  },
+  "stdScreen": ["IMP_LEFT_IDENT_TEXT_X", "IMP_RIGHT_IDENT_TEXT_X"],
+  "skipped": []
+}

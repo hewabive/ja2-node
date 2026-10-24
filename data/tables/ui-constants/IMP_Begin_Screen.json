@@ -1,0 +1,27 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Laptop/IMP_Begin_Screen.h, src/game/Laptop/IMP_Begin_Screen.cc",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
+  "constants": {
+    "FULL_NAME_INPUT_X": 307,
+    "FULL_NAME_INPUT_Y": 180,
+    "FULL_NAME_INPUT_WIDTH": 229,
+    "NICK_NAME_INPUT_X": 307,
+    "NICK_NAME_INPUT_Y": 240,
+    "NICK_NAME_INPUT_WIDTH": 110,
+    "NAMES_INPUT_HEIGHT": 23,
+    "MALE_BOX_X": 305,
+    "MALE_BOX_Y": 300,
+    "MALE_BOX_WIDTH": 22,
+    "MALE_BOX_HEIGHT": 22,
+    "FEMALE_BOX_X": 415,
+    "MAX_NICKNAME_LENGTH": 8,
+    "IMP_FEMALE": 0,
+    "IMP_MALE": 1,
+    "OTHER_INPUT": 0,
+    "MALE_GENDER": 1,
+    "FEMALE_GENDER": 2
+  },
+  "stdScreen": [],
+  "skipped": []
+}

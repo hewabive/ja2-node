@@ -1,0 +1,10 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Laptop/IMP_Personality_Finish.h, src/game/Laptop/IMP_Personality_Finish.cc",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
+  "constants": {
+    "PERSONALITY_CONFIRM_FINISH_DELAY": 2500
+  },
+  "stdScreen": [],
+  "skipped": []
+}
