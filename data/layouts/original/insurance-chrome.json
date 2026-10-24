@@ -1,8 +1,101 @@
 {
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
-  "@src": ["src/game/Laptop/Insurance.cc"],
+  "@src": [
+    "src/game/Laptop/Insurance.cc InitInsuranceDefaults (the small-title region to the home page from INSURANCE_SMALL_TITLE_X + 85 on every page but the home page, MSYS_PRIORITY_HIGH, CURSOR_WWW), DisplayInsuranceDefaults (backgroundtile.sti tiled 4 x 4 from the web area, lefttile.sti four times down the left, largebar.sti at INSURANCE_TOP_RED_BAR_Y on the home page only while the info and contract pages only compute INSURANCE_TOP_RED_BAR_Y1, largebar.sti at INSURANCE_BOTTOM_RED_BAR_Y, MLG_SMALLTITLE on the other pages), SelectInsuranceTitleLinkRegionCallBack"
+  ],
   "screen": "insuranceChrome",
   "frame": "std640",
   "constants": ["Laptop", "Insurance"],
-  "widgets": []
+  "assets": {
+    "backgroundTile": {
+      "sti": "laptop/backgroundtile.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["INSURANCE_BACKGROUND_WIDTH", "INSURANCE_BACKGROUND_HEIGHT"],
+        "style": "hollow"
+      }
+    },
+    "leftTile": {
+      "sti": "laptop/lefttile.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["INSURANCE_TOP_RED_BAR_X - INSURANCE_RED_BAR_X - 6", "INSURANCE_BACKGROUND_HEIGHT"],
+        "style": "hollow"
+      }
+    },
+    "largeBar": {
+      "sti": "laptop/largebar.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["LAPTOP_SCREEN_LR_X - INSURANCE_TOP_RED_BAR_X - 10", 8],
+        "style": "hollow"
+      }
+    },
+    "smallTitle": {
+      "mlg": "MLG_SMALLTITLE",
+      "stub": {
+        "frames": 1,
+        "size": ["INSURANCE_SMALL_TITLE_WIDTH", "INSURANCE_SMALL_TITLE_HEIGHT"],
+        "style": "hollow"
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "tiles",
+      "asset": "backgroundTile",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "columns": 4,
+      "rows": 4,
+      "dx": "INSURANCE_BACKGROUND_WIDTH",
+      "dy": "INSURANCE_BACKGROUND_HEIGHT"
+    },
+    {
+      "type": "tiles",
+      "asset": "leftTile",
+      "frame": 0,
+      "x": "INSURANCE_RED_BAR_X",
+      "y": "INSURANCE_RED_BAR_Y",
+      "columns": 1,
+      "rows": 4,
+      "dy": "INSURANCE_BACKGROUND_HEIGHT"
+    },
+    {
+      "type": "image",
+      "asset": "largeBar",
+      "frame": 0,
+      "x": "INSURANCE_TOP_RED_BAR_X",
+      "y": "INSURANCE_TOP_RED_BAR_Y",
+      "visible": "home"
+    },
+    {
+      "type": "image",
+      "asset": "largeBar",
+      "frame": 0,
+      "x": "INSURANCE_TOP_RED_BAR_X",
+      "y": "INSURANCE_BOTTOM_RED_BAR_Y"
+    },
+    {
+      "type": "image",
+      "asset": "smallTitle",
+      "frame": 0,
+      "x": "INSURANCE_SMALL_TITLE_X",
+      "y": "INSURANCE_SMALL_TITLE_Y",
+      "visible": "!home"
+    },
+    {
+      "type": "region",
+      "id": "insuranceTitleLink",
+      "x": "INSURANCE_SMALL_TITLE_X + 85",
+      "y": "INSURANCE_SMALL_TITLE_Y",
+      "width": "INSURANCE_SMALL_TITLE_WIDTH - 85",
+      "height": "INSURANCE_SMALL_TITLE_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "visible": "!home",
+      "primary": "goHome"
+    }
+  ]
 }

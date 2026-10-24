@@ -1,8 +1,176 @@
 {
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
-  "@src": ["src/game/Laptop/Insurance_Comments.cc"],
+  "@src": [
+    "src/game/Laptop/Insurance_Comments.cc EnterInsuranceComments (the three link regions from INS_CMNT_FIRST_BULLET_X - 6, INS_CMNT_LINK_OFFSET_X apart, INS_CMNT_LINK_Y - 1 to INS_CMNT_LINK_Y + INS_CMNT_LINK_HEIGHT + 1, MSYS_PRIORITY_HIGH, CURSOR_WWW), RenderInsuranceComments (the title, the four comments INS_CMNT_NEXT_COMMENT_OFFSET_Y apart, the link texts at +13, +6 and -1 with the red lines under them), DisplayComment, SelectInsuranceCommentLinkRegionCallBack (home, info, contract)"
+  ],
   "screen": "insuranceComments",
   "frame": "std640",
   "constants": ["Laptop", "Insurance", "Insurance_Comments"],
-  "widgets": []
+  "assets": {
+    "bullet": {
+      "sti": "laptop/bullet.sti",
+      "stub": {
+        "frames": 1,
+        "size": [16, 16]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "text",
+      "id": "insuranceCommentsTitle",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "INS_CMNT_TITLE_Y",
+      "width": "LAPTOP_SCREEN_LR_X - LAPTOP_SCREEN_UL_X",
+      "align": "center",
+      "font": "INS_FONT_BIG",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "edt": ["binarydata/insurancesingle.edt", "INS_SNGL_COMMENTSFROM_CLIENTS"]
+      }
+    },
+    {
+      "type": "custom",
+      "id": "insuranceCommentsText",
+      "renderer": "insuranceComments",
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 480
+    },
+    {
+      "type": "text",
+      "x": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 0",
+      "y": "INS_CMNT_LINK_Y + 13",
+      "width": "INS_CMNT_LINK_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "INS_FONT_MED",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["pMessageStrings", "MSG_HOMEPAGE"]
+      }
+    },
+    {
+      "type": "line",
+      "x": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 0",
+      "y": "INS_CMNT_LINK_Y + INS_CMNT_LINK_HEIGHT",
+      "x2": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 0 + INS_CMNT_LINK_WIDTH",
+      "y2": "INS_CMNT_LINK_Y + INS_CMNT_LINK_HEIGHT",
+      "color": [255, 0, 0]
+    },
+    {
+      "type": "line",
+      "x": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 0 + 1",
+      "y": "INS_CMNT_LINK_Y + INS_CMNT_LINK_HEIGHT + 1",
+      "x2": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 0 + INS_CMNT_LINK_WIDTH + 1",
+      "y2": "INS_CMNT_LINK_Y + INS_CMNT_LINK_HEIGHT + 1",
+      "color": [0, 0, 0]
+    },
+    {
+      "type": "text",
+      "x": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 1",
+      "y": "INS_CMNT_LINK_Y + 6",
+      "width": "INS_CMNT_LINK_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "INS_FONT_MED",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "edt": ["binarydata/insurancesingle.edt", "INS_SNGL_HOW_DOES_INS_WORK"]
+      }
+    },
+    {
+      "type": "line",
+      "x": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 1",
+      "y": "INS_CMNT_LINK_Y + INS_CMNT_LINK_HEIGHT",
+      "x2": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 1 + INS_CMNT_LINK_WIDTH",
+      "y2": "INS_CMNT_LINK_Y + INS_CMNT_LINK_HEIGHT",
+      "color": [255, 0, 0]
+    },
+    {
+      "type": "line",
+      "x": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 1 + 1",
+      "y": "INS_CMNT_LINK_Y + INS_CMNT_LINK_HEIGHT + 1",
+      "x2": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 1 + INS_CMNT_LINK_WIDTH + 1",
+      "y2": "INS_CMNT_LINK_Y + INS_CMNT_LINK_HEIGHT + 1",
+      "color": [0, 0, 0]
+    },
+    {
+      "type": "text",
+      "x": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 2",
+      "y": "INS_CMNT_LINK_Y - 1",
+      "width": "INS_CMNT_LINK_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "INS_FONT_MED",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "edt": ["binarydata/insurancesingle.edt", "INS_SNGL_TO_ENTER_REVIEW"]
+      }
+    },
+    {
+      "type": "line",
+      "x": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 2",
+      "y": "INS_CMNT_LINK_Y + INS_CMNT_LINK_HEIGHT",
+      "x2": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 2 + INS_CMNT_LINK_WIDTH",
+      "y2": "INS_CMNT_LINK_Y + INS_CMNT_LINK_HEIGHT",
+      "color": [255, 0, 0]
+    },
+    {
+      "type": "line",
+      "x": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 2 + 1",
+      "y": "INS_CMNT_LINK_Y + INS_CMNT_LINK_HEIGHT + 1",
+      "x2": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 2 + INS_CMNT_LINK_WIDTH + 1",
+      "y2": "INS_CMNT_LINK_Y + INS_CMNT_LINK_HEIGHT + 1",
+      "color": [0, 0, 0]
+    },
+    {
+      "type": "region",
+      "id": "insuranceCommentsHomeLink",
+      "x": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 0",
+      "y": "INS_CMNT_LINK_Y - 1",
+      "width": "INS_CMNT_LINK_WIDTH",
+      "height": "INS_CMNT_LINK_HEIGHT + 2",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "home"
+    },
+    {
+      "type": "region",
+      "id": "insuranceCommentsInfoLink",
+      "x": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 1",
+      "y": "INS_CMNT_LINK_Y - 1",
+      "width": "INS_CMNT_LINK_WIDTH",
+      "height": "INS_CMNT_LINK_HEIGHT + 2",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "info"
+    },
+    {
+      "type": "region",
+      "id": "insuranceCommentsContractLink",
+      "x": "INS_CMNT_FIRST_BULLET_X - 6 + INS_CMNT_LINK_OFFSET_X * 2",
+      "y": "INS_CMNT_LINK_Y - 1",
+      "width": "INS_CMNT_LINK_WIDTH",
+      "height": "INS_CMNT_LINK_HEIGHT + 2",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "contract"
+    }
+  ]
 }

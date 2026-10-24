@@ -1,8 +1,269 @@
 {
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
-  "@src": ["src/game/Laptop/Insurance.cc"],
+  "@src": [
+    "src/game/Laptop/Insurance.cc EnterInsurance (the three link regions from INSURANCE_BOTTOM_LINK_RED_BAR_Y - 37 to INSURANCE_BOTTOM_LINK_RED_BAR_Y + 2, INSURANCE_BOTTOM_LINK_RED_BAR_OFFSET apart, MSYS_PRIORITY_HIGH, CURSOR_WWW), RenderInsurance (MLG_INSURANCETITLE, the slogans, the bulleted texts, the bottom slogan, the red lines and the link texts with INS_FONT_SHADOW), DisplaySmallRedLineWithShadow, SelectInsuranceRegionCallBack (comments, info, contract); Insurance_Text.cc GetInsuranceText"
+  ],
   "screen": "insuranceHome",
   "frame": "std640",
   "constants": ["Laptop", "Insurance"],
-  "widgets": []
+  "assets": {
+    "title": {
+      "mlg": "MLG_INSURANCETITLE",
+      "stub": {
+        "frames": 1,
+        "size": ["LAPTOP_SCREEN_LR_X - INSURANCE_BIG_TITLE_X - 95", "INSURANCE_TOP_RED_BAR_Y - 40 - INSURANCE_BIG_TITLE_Y"],
+        "style": "hollow"
+      }
+    },
+    "bullet": {
+      "sti": "laptop/bullet.sti",
+      "stub": {
+        "frames": 1,
+        "size": [16, 16]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "asset": "title",
+      "frame": 0,
+      "x": "INSURANCE_BIG_TITLE_X",
+      "y": "INSURANCE_BIG_TITLE_Y"
+    },
+    {
+      "type": "text",
+      "id": "insuranceSlogan",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "INSURANCE_TOP_RED_BAR_Y - 35",
+      "width": "LAPTOP_SCREEN_LR_X - LAPTOP_SCREEN_UL_X",
+      "align": "center",
+      "font": "INS_FONT_BIG",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "edt": ["binarydata/insurancesingle.edt", "INS_SNGL_WERE_LISTENING"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "INSURANCE_SUBTITLE_X",
+      "y": "INSURANCE_SUBTITLE_Y",
+      "width": 0,
+      "font": "INS_FONT_BIG",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "edt": ["binarydata/insurancesingle.edt", "INS_SNGL_LIFE_INSURANCE_SPECIALISTS"]
+      }
+    },
+    {
+      "type": "image",
+      "asset": "bullet",
+      "frame": 0,
+      "x": "INSURANCE_SUBTITLE_X",
+      "y": "INSURANCE_BULLET_TEXT_1_Y"
+    },
+    {
+      "type": "text",
+      "x": "INSURANCE_SUBTITLE_X + INSURANCE_BULLET_TEXT_OFFSET_X",
+      "y": "INSURANCE_BULLET_TEXT_1_Y",
+      "width": 0,
+      "font": "INS_FONT_MED",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "edt": ["binarydata/insurancemulti.edt", "INS_MLTI_EMPLOY_HIGH_RISK - INS_MULTI_LINE_BEGINS - 1"]
+      }
+    },
+    {
+      "type": "image",
+      "asset": "bullet",
+      "frame": 0,
+      "x": "INSURANCE_SUBTITLE_X",
+      "y": "INSURANCE_BULLET_TEXT_2_Y"
+    },
+    {
+      "type": "text",
+      "x": "INSURANCE_SUBTITLE_X + INSURANCE_BULLET_TEXT_OFFSET_X",
+      "y": "INSURANCE_BULLET_TEXT_2_Y",
+      "width": 0,
+      "font": "INS_FONT_MED",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "edt": ["binarydata/insurancemulti.edt", "INS_MLTI_HIGH_FATALITY_RATE - INS_MULTI_LINE_BEGINS - 1"]
+      }
+    },
+    {
+      "type": "image",
+      "asset": "bullet",
+      "frame": 0,
+      "x": "INSURANCE_SUBTITLE_X",
+      "y": "INSURANCE_BULLET_TEXT_3_Y"
+    },
+    {
+      "type": "text",
+      "x": "INSURANCE_SUBTITLE_X + INSURANCE_BULLET_TEXT_OFFSET_X",
+      "y": "INSURANCE_BULLET_TEXT_3_Y",
+      "width": 0,
+      "font": "INS_FONT_MED",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "edt": ["binarydata/insurancemulti.edt", "INS_MLTI_DRAIN_SALARY - INS_MULTI_LINE_BEGINS - 1"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "INSURANCE_BOTTOM_SLOGAN_X",
+      "y": "INSURANCE_BOTTOM_SLOGAN_Y",
+      "width": "INSURANCE_BOTTOM_SLOGAN_WIDTH",
+      "align": "center",
+      "font": "INS_FONT_MED",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "edt": ["binarydata/insurancemulti.edt", "INS_MLTI_IF_ANSWERED_YES - INS_MULTI_LINE_BEGINS - 1"]
+      }
+    },
+    {
+      "type": "line",
+      "x": "INSURANCE_BOTTOM_LINK_RED_BAR_X",
+      "y": "INSURANCE_BOTTOM_LINK_RED_BAR_Y",
+      "x2": "INSURANCE_BOTTOM_LINK_RED_BAR_X + INSURANCE_BOTTOM_LINK_RED_BAR_WIDTH",
+      "y2": "INSURANCE_BOTTOM_LINK_RED_BAR_Y",
+      "color": [255, 0, 0]
+    },
+    {
+      "type": "line",
+      "x": "INSURANCE_BOTTOM_LINK_RED_BAR_X + 1",
+      "y": "INSURANCE_BOTTOM_LINK_RED_BAR_Y + 1",
+      "x2": "INSURANCE_BOTTOM_LINK_RED_BAR_X + INSURANCE_BOTTOM_LINK_RED_BAR_WIDTH + 1",
+      "y2": "INSURANCE_BOTTOM_LINK_RED_BAR_Y + 1",
+      "color": [0, 0, 0]
+    },
+    {
+      "type": "text",
+      "x": "INSURANCE_LINK_TEXT_1_X",
+      "y": "INSURANCE_LINK_TEXT_1_Y",
+      "width": "INSURANCE_LINK_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "INS_FONT_MED",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "edt": ["binarydata/insurancesingle.edt", "INS_SNGL_COMMENTSFROM_CLIENTS"]
+      }
+    },
+    {
+      "type": "line",
+      "x": "INSURANCE_BOTTOM_LINK_RED_BAR_X_2",
+      "y": "INSURANCE_BOTTOM_LINK_RED_BAR_Y",
+      "x2": "INSURANCE_BOTTOM_LINK_RED_BAR_X_2 + INSURANCE_BOTTOM_LINK_RED_BAR_WIDTH",
+      "y2": "INSURANCE_BOTTOM_LINK_RED_BAR_Y",
+      "color": [255, 0, 0]
+    },
+    {
+      "type": "line",
+      "x": "INSURANCE_BOTTOM_LINK_RED_BAR_X_2 + 1",
+      "y": "INSURANCE_BOTTOM_LINK_RED_BAR_Y + 1",
+      "x2": "INSURANCE_BOTTOM_LINK_RED_BAR_X_2 + INSURANCE_BOTTOM_LINK_RED_BAR_WIDTH + 1",
+      "y2": "INSURANCE_BOTTOM_LINK_RED_BAR_Y + 1",
+      "color": [0, 0, 0]
+    },
+    {
+      "type": "text",
+      "x": "INSURANCE_LINK_TEXT_2_X",
+      "y": "INSURANCE_LINK_TEXT_2_Y + 7",
+      "width": "INSURANCE_LINK_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "INS_FONT_MED",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "edt": ["binarydata/insurancesingle.edt", "INS_SNGL_HOW_DOES_INS_WORK"]
+      }
+    },
+    {
+      "type": "line",
+      "x": "INSURANCE_BOTTOM_LINK_RED_BAR_X_3",
+      "y": "INSURANCE_BOTTOM_LINK_RED_BAR_Y",
+      "x2": "INSURANCE_BOTTOM_LINK_RED_BAR_X_3 + INSURANCE_BOTTOM_LINK_RED_BAR_WIDTH",
+      "y2": "INSURANCE_BOTTOM_LINK_RED_BAR_Y",
+      "color": [255, 0, 0]
+    },
+    {
+      "type": "line",
+      "x": "INSURANCE_BOTTOM_LINK_RED_BAR_X_3 + 1",
+      "y": "INSURANCE_BOTTOM_LINK_RED_BAR_Y + 1",
+      "x2": "INSURANCE_BOTTOM_LINK_RED_BAR_X_3 + INSURANCE_BOTTOM_LINK_RED_BAR_WIDTH + 1",
+      "y2": "INSURANCE_BOTTOM_LINK_RED_BAR_Y + 1",
+      "color": [0, 0, 0]
+    },
+    {
+      "type": "text",
+      "x": "INSURANCE_LINK_TEXT_3_X",
+      "y": "INSURANCE_LINK_TEXT_3_Y + 7",
+      "width": "INSURANCE_LINK_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "INS_FONT_MED",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "edt": ["binarydata/insurancesingle.edt", "INS_SNGL_TO_ENTER_REVIEW"]
+      }
+    },
+    {
+      "type": "region",
+      "id": "insuranceCommentsLink",
+      "x": "INSURANCE_BOTTOM_LINK_RED_BAR_X + INSURANCE_BOTTOM_LINK_RED_BAR_OFFSET * 0",
+      "y": "INSURANCE_BOTTOM_LINK_RED_BAR_Y - 37",
+      "width": "INSURANCE_BOTTOM_LINK_RED_BAR_WIDTH",
+      "height": 39,
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "comments"
+    },
+    {
+      "type": "region",
+      "id": "insuranceInfoLink",
+      "x": "INSURANCE_BOTTOM_LINK_RED_BAR_X + INSURANCE_BOTTOM_LINK_RED_BAR_OFFSET * 1",
+      "y": "INSURANCE_BOTTOM_LINK_RED_BAR_Y - 37",
+      "width": "INSURANCE_BOTTOM_LINK_RED_BAR_WIDTH",
+      "height": 39,
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "info"
+    },
+    {
+      "type": "region",
+      "id": "insuranceContractLink",
+      "x": "INSURANCE_BOTTOM_LINK_RED_BAR_X + INSURANCE_BOTTOM_LINK_RED_BAR_OFFSET * 2",
+      "y": "INSURANCE_BOTTOM_LINK_RED_BAR_Y - 37",
+      "width": "INSURANCE_BOTTOM_LINK_RED_BAR_WIDTH",
+      "height": 39,
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "contract"
+    }
+  ]
 }
