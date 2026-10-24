@@ -1,0 +1,8 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": ["src/game/Laptop/History.cc"],
+  "screen": "laptopHistory",
+  "frame": "std640",
+  "constants": ["Laptop", "History"],
+  "widgets": []
+}

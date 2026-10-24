@@ -68,6 +68,9 @@ export async function loadLaptopData(session: string, language: string | null): 
         index: i.index,
         shortName: i.shortName,
         graphic: { path: i.inventoryGraphics.small.path, frame: i.inventoryGraphics.small.subImageIndex },
+        name: i.longName,
+        ammoCapacity: i.magazine?.capacity ?? null,
+        gunCalibre: i.weapon?.calibre?.name ?? null,
       },
     ]),
   );

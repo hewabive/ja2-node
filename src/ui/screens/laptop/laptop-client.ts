@@ -2,6 +2,7 @@ import type { ClockView, LaptopView, StrategicView } from '../../../protocol/vie
 import type { AssetKey } from '../../draw-list.ts';
 import type { ItemGraphic } from '../../widgets/item-picture.ts';
 import { type AimMemory, aimMemory } from './aim/aim-session.ts';
+import { type PagesMemory, pagesMemory } from './pages-memory.ts';
 
 export interface LaptopCommandReply {
   readonly ok: boolean;
@@ -33,6 +34,9 @@ export interface LaptopItem {
   readonly index: number;
   readonly shortName: string;
   readonly graphic: ItemGraphic;
+  readonly name?: string;
+  readonly ammoCapacity?: number | null;
+  readonly gunCalibre?: string | null;
 }
 
 export interface LaptopData {
@@ -59,8 +63,9 @@ export interface LaptopMemory {
   emailPage: number;
   financesPage: number;
   readonly aim: AimMemory;
+  readonly pages: PagesMemory;
 }
 
 export function laptopMemory(): LaptopMemory {
-  return { emailPage: 0, financesPage: 0, aim: aimMemory() };
+  return { emailPage: 0, financesPage: 0, aim: aimMemory(), pages: pagesMemory() };
 }

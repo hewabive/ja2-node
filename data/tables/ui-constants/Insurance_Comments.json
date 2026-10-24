@@ -1,0 +1,32 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Laptop/Insurance.h, src/game/Laptop/Insurance_Comments.h, src/game/Laptop/Insurance_Comments.cc",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
+  "constants": {
+    "INS_FONT_COLOR": 2,
+    "INS_FONT_COLOR_RED": 163,
+    "INS_FONT_BIG": "FONT14ARIAL",
+    "INS_FONT_MED": "FONT12ARIAL",
+    "INS_FONT_SMALL": "FONT10ARIAL",
+    "INS_FONT_BTN_COLOR": 208,
+    "INS_FONT_BTN_SHADOW_COLOR": 2,
+    "INS_FONT_SHADOW": 208,
+    "INSURANCE_BULLET_TEXT_OFFSET_X": 21,
+    "INS_INFO_LEFT_ARROW_BUTTON_X": 182,
+    "INS_INFO_RIGHT_ARROW_BUTTON_X": 520,
+    "INS_INFO_ARROW_BUTTON_Y": 400,
+    "INS_CMNT_TITLE_Y": 98,
+    "INS_CMNT_FIRST_BULLET_X": 193,
+    "INS_CMNT_FIRST_BULLET_Y": 121,
+    "INS_CMNT_REDLINE_WIDTH": 384,
+    "INS_CMNT_COMMENT_OFFSET_Y": 20,
+    "INS_CMNT_NEXT_COMMENT_OFFSET_Y": 65,
+    "INS_CMNT_COMMENT_TEXT_WIDTH": 364,
+    "INS_CMNT_LINK_Y": 403,
+    "INS_CMNT_LINK_WIDTH": 90,
+    "INS_CMNT_LINK_HEIGHT": 35,
+    "INS_CMNT_LINK_OFFSET_X": 166
+  },
+  "stdScreen": [],
+  "skipped": []
+}

@@ -1,0 +1,8 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": ["src/game/Laptop/Insurance_Info.cc"],
+  "screen": "insuranceInfo",
+  "frame": "std640",
+  "constants": ["Laptop", "Insurance", "Insurance_Info"],
+  "widgets": []
+}

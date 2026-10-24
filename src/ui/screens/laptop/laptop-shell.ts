@@ -8,7 +8,9 @@
 // @src the wait), UpdateStatusOfDisplayingBookMarks, HandleLapTopESCKey, HandleRightButtonUpEvent, HandleLeftButtonUpEvent,
 // @src LaptopMinimizeProgramButtonCallback, LaptopProgramIconMinimizeCallback, FindLastProgramStillOpen,
 // @src UpdateListToReflectNewProgramOpened, SetCurrentToLastProgramOpened, HandleWebBookMarkNotifyTimer, FlickerHDLight,
-// @src ExitLaptopDone, HandleAltTabKeyInLaptop, HandleShiftAltTabKeyInLaptop. See docs/28 §9.1.
+// @src ExitLaptopDone, HandleAltTabKeyInLaptop, HandleShiftAltTabKeyInLaptop; giCurrentSubPage (reset by EnterLaptop and by
+// @src every move between web pages) and the sub-page loads of ChangingAimHistorySubPage, ChangingAimPoliciesSubPage,
+// @src ChangingAimArchiveSubPage, ChangingFloristGallerySubPage and ChangingInsuranceInfoSubPage. See docs/28 §9.1.
 
 import {
   BOOKMARK_MODES,
@@ -71,6 +73,7 @@ export class LaptopShell {
   hdLight = false;
   load: LoadPending | null = null;
   slide: TitleSlide | null = null;
+  subPage = 0;
   exiting = false;
   exited = false;
   readonly programStates: number[] = new Array<number>(LAPTOP_PROGRAMS).fill(MINIMIZED);
@@ -296,7 +299,10 @@ export class LaptopShell {
     if (this.wwwMode === LaptopMode.NONE && this.mode >= LaptopMode.WWW) this.mode = LaptopMode.WWW;
     else if (this.mode > LaptopMode.WWW) {
       if (this.previousMode < LaptopMode.WWW) this.mode = this.wwwMode;
-      else this.wwwMode = this.mode;
+      else {
+        this.wwwMode = this.mode;
+        this.subPage = 0;
+      }
     }
     if (isWebMode(this.mode) && isWebMode(this.previousMode)) this.showBookmarks = false;
     this.#lastExitedMode = LaptopMode.NONE;
@@ -394,6 +400,10 @@ export class LaptopShell {
       this.exited = true;
       this.#exitPage(this.shownMode);
     }
+  }
+
+  connectToSubPage(fast: boolean): void {
+    this.load = new LoadPending({ fast, subPage: true, slowSite: false }, this.#options.loadingTimeScale);
   }
 
   update(now: number): void {

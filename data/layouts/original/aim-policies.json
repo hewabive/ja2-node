@@ -1,0 +1,8 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": ["src/game/Laptop/AIMPolicies.cc"],
+  "screen": "aimPolicies",
+  "frame": "std640",
+  "constants": ["Laptop", "AIM", "AIMPolicies"],
+  "widgets": []
+}

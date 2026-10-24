@@ -9,6 +9,8 @@ import { PLACEHOLDER_CONTRACT } from './front-end/placeholder.ts';
 import { SAN_MONA_CONTRACT } from './front-end/san-mona.ts';
 import { SAVE_LOAD_CONTRACT } from './front-end/save-load.ts';
 import { GALLERY_CONTRACT } from './gallery.ts';
+import { AIM_ARCHIVES_CONTRACT } from './laptop/aim/aim-archives.ts';
+import { AIM_HISTORY_CONTRACT } from './laptop/aim/aim-history.ts';
 import { AIM_MEMBER_CONTRACT } from './laptop/aim/aim-member.ts';
 import {
   AIM_BAR_CONTRACT,
@@ -18,9 +20,28 @@ import {
   AIM_LINKS_CONTRACT,
   AIM_SORT_CONTRACT,
 } from './laptop/aim/aim-pages.ts';
+import { AIM_POLICIES_CONTRACT } from './laptop/aim/aim-policies.ts';
 import { EMAIL_CONTRACT } from './laptop/email/email-page.ts';
+import { FILES_CONTRACT } from './laptop/files/files-page.ts';
 import { FINANCES_CONTRACT } from './laptop/finances/finances-page.ts';
+import {
+  FLORIST_CARDS_CONTRACT,
+  FLORIST_CHROME_CONTRACT,
+  FLORIST_GALLERY_CONTRACT,
+  FLORIST_HOME_CONTRACT,
+  FLORIST_ORDER_CONTRACT,
+} from './laptop/florist/florist-pages.ts';
+import { FUNERAL_CONTRACT } from './laptop/funeral/funeral-page.ts';
+import { HISTORY_CONTRACT } from './laptop/history/history-page.ts';
+import {
+  INSURANCE_CHROME_CONTRACT,
+  INSURANCE_COMMENTS_CONTRACT,
+  INSURANCE_CONTRACT_CONTRACT,
+  INSURANCE_HOME_CONTRACT,
+  INSURANCE_INFO_CONTRACT,
+} from './laptop/insurance/insurance-pages.ts';
 import { LAPTOP_SHELL_CONTRACT } from './laptop/laptop-screen.ts';
+import { PERSONNEL_CONTRACT } from './laptop/personnel/personnel-page.ts';
 import { MAP_SCREEN_CONTRACT } from './map/map-controller.ts';
 import { MAP_INVENTORY_CONTRACT } from './map/map-inventory-controller.ts';
 import { SHOP_CONTRACT } from './shop/shop-panel.ts';
@@ -65,5 +86,22 @@ export const LAYOUT_CONTRACTS: Readonly<Record<string, ControllerContract>> = Ob
     TACTICAL_INPUT_CONTRACT,
     MAP_SCREEN_CONTRACT,
     MAP_INVENTORY_CONTRACT,
+    PERSONNEL_CONTRACT,
+    HISTORY_CONTRACT,
+    FILES_CONTRACT,
+    INSURANCE_CHROME_CONTRACT,
+    INSURANCE_HOME_CONTRACT,
+    INSURANCE_INFO_CONTRACT,
+    INSURANCE_CONTRACT_CONTRACT,
+    INSURANCE_COMMENTS_CONTRACT,
+    FLORIST_CHROME_CONTRACT,
+    FLORIST_HOME_CONTRACT,
+    FLORIST_GALLERY_CONTRACT,
+    FLORIST_ORDER_CONTRACT,
+    FLORIST_CARDS_CONTRACT,
+    FUNERAL_CONTRACT,
+    AIM_ARCHIVES_CONTRACT,
+    AIM_POLICIES_CONTRACT,
+    AIM_HISTORY_CONTRACT,
   ].map((contract) => [contract.id, contract]),
 );

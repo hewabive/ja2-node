@@ -51,6 +51,7 @@ export interface LaptopContext {
   playSound(file: string, volume: number): void;
   openOldestUnreadMail(): void;
   takeOpenUnreadMailRequest(): boolean;
+  takeOpenUnreadFileRequest(): boolean;
   constant(layout: string, name: string): number;
   leftButtonUp(): void;
   rightButtonUp(): void;

@@ -11,7 +11,9 @@
 // @src HandleUnhiredMercDeaths (the mail); Strategic/PreBattle_Interface.cc LogBattleResults; Laptop/Files.cc
 // @src AddFilesAboutTerrorists; Laptop/BobbyR.cc EnterBobbyR, Laptop/Mercs.cc EnterMercs, Laptop/Funeral.cc EnterFuneral,
 // @src Laptop/Florist.cc EnterFlorist, Laptop/Insurance.cc EnterInsurance (the effects of entering a site: visitSite);
-// @src Laptop/Laptop.cc LeaveLapTopScreen (fNewMailFlag cleared). See docs/21 §1, §6, §8, §10.
+// @src Laptop/Laptop.cc LeaveLapTopScreen (fNewMailFlag cleared); Laptop/Files.cc DisplayFormattedText (fRead set when a
+// @src file is shown: readFile); Laptop/Florist_Order_Form.cc EnterFloristOrderForm (the order number draw on entering the
+// @src form: visitSite floristOrderForm). See docs/21 §1, §6, §8, §10, docs/04 §6.33.
 
 import type { MercProfile } from '../../../content/formats/prof.ts';
 import type { LaptopContent } from '../../../content/strategic/laptop-content.ts';
@@ -66,7 +68,7 @@ import {
 } from './bobby-ray.ts';
 import type { LaptopContext, LaptopRandom, MailOptions } from './context.ts';
 import type { LaptopEventWithoutTick } from './events.ts';
-import { type FlowerOrder, orderFlowers } from './florist.ts';
+import { enterFloristOrderForm, type FlowerOrder, orderFlowers } from './florist.ts';
 import { checkForValidArrivalSector, type HireHooks, handleAirspaceControlUpdated, setLandingZone } from './hire.ts';
 import { canCreateAnotherImpCharacter, emptyProfile, type ImpRequest, impCreate, impPreview } from './imp.ts';
 import {
@@ -119,6 +121,7 @@ const LAPTOP_COMMANDS: ReadonlySet<string> = new Set([
   'bobbyRayOrder',
   'insure',
   'orderFlowers',
+  'readFile',
 ]);
 const QUERIES: ReadonlySet<string> = new Set(['aimQuote', 'hireCheck', 'bobbyRayQuote', 'insuranceQuote', 'impPreview', 'arrivalTime']);
 const SITE_BOOKMARKS: Readonly<Record<string, number>> = {
@@ -126,6 +129,7 @@ const SITE_BOOKMARKS: Readonly<Record<string, number>> = {
   florist: Bookmark.FLORIST,
   insurance: Bookmark.INSURANCE,
 };
+const FLORIST_ORDER_FORM_SITE = 'floristOrderForm';
 export const LAPTOP_REFUSAL = 'laptop: the laptop is open, closeLaptop first';
 const IMP_REMINDER_FIRST_HOUR = 8;
 const IMP_REMINDER_HOURS = 4;
@@ -526,6 +530,8 @@ export class LaptopFlow implements LaptopContext {
         return this.#bobbyRayOrder(cmd);
       case 'insure':
         return this.#insure(cmd);
+      case 'readFile':
+        return this.#readFile(cmd);
       default:
         return this.#orderFlowers(cmd);
     }
@@ -571,6 +577,10 @@ export class LaptopFlow implements LaptopContext {
   #visitSite(cmd: Command): CommandResult {
     const site = typeof cmd.site === 'string' ? cmd.site : '';
     if (site === 'merc') return this.#visitMercSite();
+    if (site === FLORIST_ORDER_FORM_SITE) {
+      const orderNumber = enterFloristOrderForm(this);
+      return { ok: true, data: { site, bookmarks: bookmarkNames(this.laptop), orderNumber } };
+    }
     if (site === 'bobbyRay') visitBobbyRay(this);
     else {
       const bookmark = SITE_BOOKMARKS[site];
@@ -599,6 +609,13 @@ export class LaptopFlow implements LaptopContext {
     if (!mail) return { ok: false, reason: 'noSuchMail' };
     readEmail(this.content, this.laptop, mail);
     return { ok: true, data: { id: mail.id, ...mailType(this.content, mail.offset), bookmarks: [...this.laptop.bookmarks] } };
+  }
+
+  #readFile(cmd: Command): CommandResult {
+    const file = isInt(cmd.code) ? this.laptop.files.find((f) => f.code === cmd.code) : undefined;
+    if (!file) return { ok: false, reason: 'noSuchFile' };
+    file.read = true;
+    return { ok: true, data: { code: file.code } };
   }
 
   #deleteEmail(cmd: Command): CommandResult {

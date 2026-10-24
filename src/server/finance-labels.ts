@@ -1,19 +1,16 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
-// @src src/game/Laptop/Finances.cc ProcessTransactionString (the ledger row labels); Strategic/StrategicMap.cc
-// @src GetSectorIDString (the mine and town part of the detailed sector label). See docs/21 §6.3.
+// @src src/game/Laptop/Finances.cc ProcessTransactionString (the ledger row labels with the detailed GetSectorIDString,
+// @src sector-id-label.ts). See docs/21 §6.3.
 
-import { sectorFromId, sectorShortString, strategicIndex } from '../content/strategic/sector-ids.ts';
+import { sectorFromId } from '../content/strategic/sector-ids.ts';
 import { type UiStrings, uiString } from '../content/text/strings.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { FinanceCode } from '../sim/campaign/finances.ts';
-import { mineIdForSector, townAssociatedWithMine } from '../sim/strategic/economy/mine-status.ts';
+import { sectorIdString } from './sector-id-label.ts';
 
 const TRANSACTION_TABLE = 'pTransactionText';
-const TOWN_NAMES_TABLE = 'strategic-map-town-names';
-const MINE_STRINGS_TABLE = 'pwMineStrings';
-const MINE_WORD = 0;
-const NO_MINE = -1;
+const DETAILED = true;
 const DIRECTIVE = /%s/;
 
 const VERBATIM: ReadonlySet<number> = new Set([
@@ -56,20 +53,8 @@ function nickname(campaign: CampaignSim, profile: number): string {
   return campaign.laptop?.profileRecord(profile)?.nickname ?? campaign.battle?.content.profiles[profile]?.nickname ?? '';
 }
 
-function sectorPlace(campaign: CampaignSim, labels: UiStrings, sectorByte: number): string {
-  const sector = sectorFromId(sectorByte);
-  const economy = campaign.economy;
-  const mine = economy ? mineIdForSector(economy, sector) : NO_MINE;
-  if (economy && mine !== NO_MINE) {
-    const town = uiString(labels, TOWN_NAMES_TABLE, townAssociatedWithMine(economy, mine)) ?? '';
-    return `${town} ${uiString(labels, MINE_STRINGS_TABLE, MINE_WORD) ?? ''}`;
-  }
-  const nameId = campaign.state.map.elements[strategicIndex(sector)]?.nameId ?? 0;
-  return uiString(labels, TOWN_NAMES_TABLE, nameId) ?? '';
-}
-
 export function sectorIdLabel(campaign: CampaignSim, labels: UiStrings, sectorByte: number): string {
-  return `${sectorShortString(sectorFromId(sectorByte))}: ${sectorPlace(campaign, labels, sectorByte)}`;
+  return sectorIdString(campaign, labels, sectorFromId(sectorByte), DETAILED);
 }
 
 export function financeRowText(campaign: CampaignSim, labels: UiStrings | null, code: number, secondCode: number): string {

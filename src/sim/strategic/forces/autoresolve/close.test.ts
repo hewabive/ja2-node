@@ -6,6 +6,7 @@ import {
   enemySoldier,
   itemIndex,
   militiaSoldier,
+  progressFor,
   scripted,
   TestMilitia,
 } from '../../../../../tests/support/autoresolve.ts';
@@ -178,6 +179,19 @@ describe('closeAutoresolve', () => {
     const p = port(new TestMilitia(0, 0, 0));
     expect(closeAutoresolve(arEnv(content), ar, p).mercsCaptured).toHaveLength(2);
     expect(p.calls).toEqual(['mercCaptured', 'mercCaptured', 'endCapture', 'resetMovement']);
+  });
+
+  it('counts the battle in the profile of every merc of it, dead or alive', () => {
+    const profiles = new Map([
+      [3, progressFor(3, { battlesFought: 2 })],
+      [4, progressFor(4)],
+    ]);
+    const ar = arState({
+      mercs: [{ soldier: arSoldier(content, { profile: 3, life: 0 }) }, { soldier: arSoldier(content, { profile: 4, life: 30 }) }],
+    });
+    ar.status = BattleStatus.VICTORY;
+    closeAutoresolve(arEnv(content, { profiles, main: scripted([80, 80, 0]) }), ar, port(new TestMilitia(0, 0, 0)));
+    expect([profiles.get(3)?.battlesFought, profiles.get(4)?.battlesFought]).toEqual([3, 1]);
   });
 
   it('ignores militia soldiers of non-militia classes', () => {

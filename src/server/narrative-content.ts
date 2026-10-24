@@ -12,6 +12,7 @@ import { loadNarrativeScenes, type NarrativeScenes } from '../content/narrative/
 import { type DataDecoding, DEFAULT_DATA_DECODING } from '../content/text/data-version.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import type { NarrativeSetup } from '../sim/campaign/talk-flow.ts';
+import { HISTORY_TEXT_FILES } from './history-labels.ts';
 import { MAIL_TEXT_FILES } from './mail-text.ts';
 
 interface LoadedNarrative {
@@ -33,7 +34,7 @@ async function load(base: ReadFile, items: ItemTable, layers: LayerCount | undef
   const read = await narrativeSource(base);
   const [records, texts, scenes] = await Promise.all([
     loadNpcRecordContent({ read, items, layout: decoding.npcRecords, ...(layers ? { layerCount: layers } : {}) }),
-    DialogueTexts.load(read, decoding.edt, [...dialogueFileCandidates(), ...MAIL_TEXT_FILES]),
+    DialogueTexts.load(read, decoding.edt, [...dialogueFileCandidates(), ...MAIL_TEXT_FILES, ...HISTORY_TEXT_FILES]),
     loadNarrativeScenes(read),
   ]);
   return { records, texts, scenes };

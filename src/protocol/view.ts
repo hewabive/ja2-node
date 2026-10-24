@@ -530,6 +530,9 @@ export interface LaptopHistoryView {
   readonly secondCode: number;
   readonly date: LaptopTimeView;
   readonly sector: string | null;
+  readonly text: string;
+  readonly location: string;
+  readonly questInProgress: boolean;
 }
 
 export interface LaptopFinanceView {
@@ -661,6 +664,89 @@ export interface InsuranceOfferView {
   readonly insured: boolean;
   readonly offeredLength: number;
   readonly premium: number;
+  readonly nickname: string;
+  readonly dead: boolean;
+  readonly contractLength: number;
+}
+
+export interface PersonnelRecordView {
+  readonly kills: number;
+  readonly assists: number;
+  readonly shotsFired: number;
+  readonly shotsHit: number;
+  readonly battlesFought: number;
+  readonly timesWounded: number;
+}
+
+export interface PersonnelItemView {
+  readonly item: number;
+  readonly count: number;
+  readonly status: number;
+  readonly shots: number;
+}
+
+export type PersonnelEmploymentView =
+  | {
+      readonly kind: 'aim';
+      readonly minutesLeft: number;
+      readonly totalDays: number;
+      readonly daysServed: number;
+      readonly totalCost: number;
+      readonly dailyCost: number;
+      readonly medicalDeposit: number;
+    }
+  | {
+      readonly kind: 'merc';
+      readonly daysServed: number;
+      readonly totalCost: number;
+      readonly dailyCost: number;
+      readonly unpaid: number;
+    }
+  | {
+      readonly kind: 'other';
+      readonly daysServed: number;
+      readonly totalCost: number;
+      readonly dailyCost: number;
+      readonly medicalDeposit: number;
+    };
+
+export interface PersonnelMercView {
+  readonly soldier: number;
+  readonly profile: number;
+  readonly name: string;
+  readonly fullName: string;
+  readonly alive: boolean;
+  readonly robot: boolean;
+  readonly assignment: number;
+  readonly town: number;
+  readonly life: number;
+  readonly lifeMax: number;
+  readonly stats: LaptopStatsView;
+  readonly gains: LaptopStatsView;
+  readonly teamStats: readonly number[];
+  readonly record: PersonnelRecordView;
+  readonly skills: readonly [number, number];
+  readonly money: number;
+  readonly inventory: readonly PersonnelItemView[];
+  readonly employment: PersonnelEmploymentView;
+}
+
+export type PersonnelDepartureView = 'dead' | 'fired' | 'married' | 'contractExpired' | 'quit';
+
+export interface PersonnelDepartedView {
+  readonly profile: number;
+  readonly state: PersonnelDepartureView;
+  readonly fullName: string;
+  readonly nickname: string;
+  readonly life: number;
+  readonly stats: LaptopStatsView;
+  readonly teamStats: readonly number[];
+  readonly record: PersonnelRecordView;
+}
+
+export interface FloristView {
+  readonly orderNumber: number;
+  readonly bouquetPrices: readonly number[];
 }
 
 export interface InTransitView {
@@ -684,6 +770,8 @@ export interface LaptopView {
     readonly dead: readonly number[];
     readonly left: readonly number[];
     readonly other: readonly number[];
+    readonly current: readonly PersonnelMercView[];
+    readonly departed: readonly PersonnelDepartedView[];
   };
   readonly aim: readonly AimMercView[];
   readonly merc: MercSiteView;
@@ -692,6 +780,8 @@ export interface LaptopView {
   readonly insurance: readonly InsuranceOfferView[];
   readonly inTransit: readonly InTransitView[];
   readonly landingZone: string;
+  readonly aimMercsOnTeam: boolean;
+  readonly florist: FloristView;
 }
 
 export interface TextKeyView {

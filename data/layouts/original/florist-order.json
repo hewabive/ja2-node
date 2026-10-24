@@ -1,0 +1,8 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": ["src/game/Laptop/Florist_Order_Form.cc"],
+  "screen": "floristOrder",
+  "frame": "std640",
+  "constants": ["Laptop", "Florist", "Florist_Order_Form"],
+  "widgets": []
+}

@@ -121,6 +121,7 @@ export interface ProfileProgress extends NpcProfileFields {
   shotsFired: number;
   shotsHit: number;
   timesWounded: number;
+  battlesFought: number;
   mercStatus: number;
   dayBecomesAvailable: number;
   salary: number;
@@ -175,9 +176,10 @@ export interface SavedProfileCounters {
   readonly shotsFired: number;
   readonly shotsHit: number;
   readonly timesWounded: number;
+  readonly battlesFought: number;
 }
 
-const NO_COUNTERS: SavedProfileCounters = { kills: 0, assists: 0, shotsFired: 0, shotsHit: 0, timesWounded: 0 };
+const NO_COUNTERS: SavedProfileCounters = { kills: 0, assists: 0, shotsFired: 0, shotsHit: 0, timesWounded: 0, battlesFought: 0 };
 
 export function npcFieldsFromProfile(p: MercProfile | SavedMercProfile): NpcProfileFields {
   return {
@@ -264,6 +266,7 @@ export function progressFromProfile(p: MercProfile, counters: SavedProfileCounte
     shotsFired: counters.shotsFired,
     shotsHit: counters.shotsHit,
     timesWounded: counters.timesWounded,
+    battlesFought: counters.battlesFought,
     mercStatus: saved ? p.mercStatus : MercStatus.OK,
     dayBecomesAvailable: p.dayBecomesAvailable,
     salary: p.salary,

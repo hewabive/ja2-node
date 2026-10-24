@@ -3,10 +3,15 @@
 // @src src/externalized/policy/DefaultIMPPolicy.cc (imp.json), IMPPolicy.h IMPItemCondition; policy/DefaultGamePolicy.cc
 // @src (imp.*, pablo_wont_steal); MERCListingModel.cc (mercs-MERC-listings.json with the Speck quotes); AIMListingModel.cc
 // @src (mercs-AIM-listings.json, the listing order); DealerInventory.cc (bobby-ray-inventory-*.json);
-// @src ShippingDestinationModel.cc (shipping-destinations.json); internals/enums.cc (inventory slot names). See docs/21 §11.
+// @src ShippingDestinationModel.cc (shipping-destinations.json); internals/enums.cc (inventory slot names);
+// @src src/game/Laptop/Florist_Gallery.cc FLOR_GALLERY_NUMBER_FLORAL_IMAGES, DisplayFloralDescriptions (the price column of
+// @src flowerdesc.edt read with sscanf "%hu"). See docs/21 §11, docs/04 §6.33.
 
+import { u16 } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
+import { decodeEdtRecord } from '../formats/edt.ts';
 import type { ItemTable } from '../items/items.ts';
+import { readLayered } from '../narrative/npc-records.ts';
 import type { ReadFile } from '../world/tileset-loader.ts';
 import { asArray, asBool, asInt, asObject, asString, type JsonObject } from './json-fields.ts';
 import { parseJsoncBytes } from './jsonc.ts';
@@ -25,6 +30,12 @@ export const LAPTOP_CONTENT_PATHS = {
 } as const;
 
 export type LaptopContentSources = { readonly [K in keyof typeof LAPTOP_CONTENT_PATHS]: unknown };
+
+export const FLORIST_GALLERY_TEXT_PATH = 'binarydata/flowerdesc.edt';
+export const FLORIST_GALLERY_COLUMNS: readonly number[] = [80, 80, 320];
+export const FLORIST_BOUQUETS = 10;
+const BOUQUET_PRICE_COLUMN = 1;
+const SCANF_UNSIGNED = /^\s*([+-]?)(\d+)/;
 
 export type QuizList = 'skill' | 'attitude' | 'personality';
 export type QuizEffect =
@@ -120,6 +131,7 @@ export interface LaptopContent {
   readonly destinations: readonly ShippingDestination[];
   readonly pabloWontSteal: boolean;
   readonly profileIds: ReadonlyMap<string, number>;
+  readonly bouquetPrices: readonly number[];
 }
 
 const INVENTORY_SLOTS: Readonly<Record<string, number>> = {
@@ -324,7 +336,24 @@ function numberRecord(value: unknown, what: string): Record<string, number> {
   return Object.fromEntries(Object.entries(asObject(value, what)).map(([k, v]) => [k, asInt(v, `${what}.${k}`)]));
 }
 
-export function parseLaptopContent(sources: LaptopContentSources, items: ItemTable): LaptopContent {
+export function scanUnsignedShort(text: string): number {
+  const m = SCANF_UNSIGNED.exec(text);
+  if (!m) return 0;
+  const value = Number(m[2]);
+  return u16(m[1] === '-' ? -value : value);
+}
+
+export function parseBouquetPrices(bytes: Uint8Array): number[] {
+  return Array.from({ length: FLORIST_BOUQUETS }, (_, row) =>
+    scanUnsignedShort(decodeEdtRecord(bytes, row, FLORIST_GALLERY_COLUMNS)?.[BOUQUET_PRICE_COLUMN] ?? ''),
+  );
+}
+
+export function parseLaptopContent(
+  sources: LaptopContentSources,
+  items: ItemTable,
+  bouquetPrices: readonly number[] = new Array<number>(FLORIST_BOUQUETS).fill(0),
+): LaptopContent {
   const tables = asObject(sources.tables, 'laptop tables');
   const profileIds = parseProfileIds(sources.profileInfo);
   const policy = asObject(sources.policy, 'game policy');
@@ -352,6 +381,7 @@ export function parseLaptopContent(sources: LaptopContentSources, items: ItemTab
     destinations: parseDestinations(sources.destinations),
     pabloWontSteal: boolOr(policy, 'pablo_wont_steal', false, 'game policy'),
     profileIds,
+    bouquetPrices,
   };
 }
 
@@ -364,7 +394,13 @@ export async function loadLaptopContent(read: ReadFile, items: ItemTable): Promi
       return parseJsoncBytes(bytes);
     }),
   );
-  return parseLaptopContent(Object.fromEntries(keys.map((key, i) => [key, values[i]])) as LaptopContentSources, items);
+  const gallery = await readLayered(read, FLORIST_GALLERY_TEXT_PATH);
+  if (!gallery) throw new FormatError(`missing ${FLORIST_GALLERY_TEXT_PATH}`);
+  return parseLaptopContent(
+    Object.fromEntries(keys.map((key, i) => [key, values[i]])) as LaptopContentSources,
+    items,
+    parseBouquetPrices(gallery),
+  );
 }
 
 export function primaryDestination(content: LaptopContent): ShippingDestination | undefined {

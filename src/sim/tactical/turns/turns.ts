@@ -8,8 +8,9 @@
 // @src Soldier_Control.cc EVENT_BeginMercTurn, CheckForBreathCollapse;
 // @src OppList.cc BetweenTurnsVisibilityAdjustments, NonCombatDecayPublicOpplist; Tactical_Turns.cc HandleTacticalEndTurn;
 // @src Drugs_And_Alcohol.cc HandleEndTurnDrugAdjustments (regeneration only); the boxing gates of BeginTeamTurn,
-// @src CheckForEndOfCombatMode and CheckForEndOfBattle; the first-aid services of EndTurnEvents and HandleTacticalEndTurn.
-// @src See docs/10 §1.4–§2, §4.4–§4.7, §8, docs/25 §7.2.
+// @src CheckForEndOfCombatMode and CheckForEndOfBattle; the first-aid services of EndTurnEvents and HandleTacticalEndTurn;
+// @src the usBattlesFought count of CheckForEndOfBattle (2026-10-24). See docs/10 §1.4–§2, §4.4–§4.7, §8, docs/25 §7.2,
+// @src docs/04 §6.33.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { u8 } from '../../../core/int.ts';
@@ -36,12 +37,14 @@ import {
   ptsToMoveDirection,
   unusedAPsToBreath,
 } from '../points.ts';
+import { profileProgress } from '../profiles.ts';
 import { decayBloodAndSmells, decaySmells, dropBlood } from '../smell.ts';
 import {
   AlertStatus,
   Body,
   isMonster,
   NO_INTERRUPT,
+  NO_PROFILE,
   NOWHERE,
   OKLIFE,
   Orders,
@@ -458,6 +461,13 @@ export function endBattleAfterSurrender(t: TacticalState): void {
   endBattleAsLost(t);
 }
 
+function countBattleFought(t: TacticalState): void {
+  for (const s of teamMembers(t, Team.OUR)) {
+    const p = s.profile === NO_PROFILE ? null : profileProgress(t, s.profile);
+    if (p) p.battlesFought++;
+  }
+}
+
 export function checkForEndOfBattle(t: TacticalState): boolean {
   const turn = t.turn;
   if (boxingFight(t)) return false;
@@ -480,6 +490,7 @@ export function checkForEndOfBattle(t: TacticalState): boolean {
       t.events.push({ type: 'combatEnded', reason: 'boxing' });
       return true;
     }
+    if (battleFought(t)) countBattleFought(t);
     for (const s of teamMembers(t, Team.MILITIA)) {
       s.ai.alertStatus = AlertStatus.GREEN;
       t.turnHooks.checkForChangingOrders(t, s);

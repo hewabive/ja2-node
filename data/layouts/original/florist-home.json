@@ -1,0 +1,8 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": ["src/game/Laptop/Florist.cc"],
+  "screen": "floristHome",
+  "frame": "std640",
+  "constants": ["Laptop", "Florist"],
+  "widgets": []
+}
