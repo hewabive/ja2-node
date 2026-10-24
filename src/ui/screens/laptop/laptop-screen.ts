@@ -344,7 +344,7 @@ export class LaptopScreen implements Screen {
       view: () => this.#view(),
       command: (cmd) => this.#options.client.command(cmd),
       string: (table, index) => this.#string(table, index),
-      messageBox: (text, flags, onClose) => this.#messageBox(text, flags, onClose),
+      messageBox: (text, flags, onClose, style) => this.#messageBox(text, flags, onClose, style),
       playSound: (file, volume) => this.#runtime.sounds.play({ file, volume }),
       openOldestUnreadMail: () => {
         this.#openUnreadMail = true;
@@ -365,7 +365,7 @@ export class LaptopScreen implements Screen {
     };
   }
 
-  #messageBox(text: string, flags: MessageBoxFlag, onClose?: (result: number) => void): void {
+  #messageBox(text: string, flags: MessageBoxFlag, onClose?: (result: number) => void, style?: number): void {
     const model = this.#layout(LAPTOP_SHELL_LAYOUT);
     const { stdX, stdY } = this.#runtime.geometry();
     const rect = {
@@ -376,7 +376,7 @@ export class LaptopScreen implements Screen {
     };
     this.#runtime.host.openModal(
       new MessageBox(this.#runtime, {
-        style: this.#options.messageBoxStyle(MessageBoxStyleId.LAPTOP_DEFAULT),
+        style: this.#options.messageBoxStyle(style ?? MessageBoxStyleId.LAPTOP_DEFAULT),
         text,
         flags,
         labels: this.#options.messageBoxLabels,
@@ -432,6 +432,7 @@ export class LaptopScreen implements Screen {
   }
 
   #escape(): void {
+    if (this.#page?.page.escape?.()) return;
     if (this.#newMailBox) this.#newMailBox = false;
     else if (this.#page?.page.cancelPopup?.()) return;
     else if (this.shell.escape()) return;
