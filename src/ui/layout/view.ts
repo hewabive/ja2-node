@@ -223,6 +223,11 @@ export class LayoutView {
     this.controller.invoke(parsed.name, [...parsed.args, ...extra], payload);
   }
 
+  #cursor(cursor: unknown, vars: Variables): number {
+    const name = typeof cursor === 'object' && cursor !== null ? this.#choice(cursor as ChoiceJson<string>, vars) : cursor;
+    return this.model.cursor(String(name));
+  }
+
   #font(name: unknown): BitmapFont {
     return this.services.fonts.get(this.model.font(String(name)));
   }
@@ -572,7 +577,7 @@ export class LayoutView {
       x2: x + width,
       y2: y + height,
       priority: json.priority === undefined ? Priority.NORMAL : this.model.priority(json.priority as NumberExpr, vars),
-      cursor: json.cursor === undefined ? NO_CURSOR : this.model.cursor(String(json.cursor)),
+      cursor: json.cursor === undefined ? NO_CURSOR : this.#cursor(json.cursor, vars),
       owner: this.owner,
       id,
       ...this.#regionCallbacks(json, vars),
@@ -642,7 +647,7 @@ export class LayoutView {
       ...(json.width !== undefined ? { width } : {}),
       ...(height !== undefined ? { height } : {}),
       priority: json.priority === undefined ? Priority.NORMAL : this.model.priority(json.priority as NumberExpr, vars),
-      cursor: json.cursor === undefined ? 0 : this.model.cursor(String(json.cursor)),
+      cursor: json.cursor === undefined ? 0 : this.#cursor(json.cursor, vars),
       ...(json.disabledStyle ? { disabledStyle: json.disabledStyle as DisabledStyle } : {}),
       ...(json.sound ? { sound: this.model.sound(String(json.sound)) } : {}),
       owner: this.owner,

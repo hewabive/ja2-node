@@ -159,6 +159,7 @@ export interface TacticalFlow {
   loadGame(): void;
   exitGame(): void;
   mapScreen(): void;
+  help?(): void;
 }
 
 export interface TacticalSounds {

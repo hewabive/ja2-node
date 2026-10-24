@@ -1,0 +1,312 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/HelpScreen.cc EnterHelpScreen (the full-screen mask at MSYS_PRIORITY_HIGHEST with the screen's cursor; the exit button from interface/helpscreen.sti -1/0/4/2/6 at HELP_SCREEN_EXIT_BTN_OFFSET_X, moved by HELP_SCREEN_BUTTON_BORDER_WIDTH when the screen has page buttons, and HELP_SCREEN_EXIT_BTN_LOC_Y, its fast help gzHelpScreenText; the 'don't show again' check box from interface/optionscheckboxes.sti at HELP_SCREEN_SHOW_HELP_AGAIN_REGION_OFFSET_X, usScreenHeight − HELP_SCREEN_SHOW_HELP_AGAIN_REGION_OFFSET_Y − 3, only when the screen came up by itself)",
+    "src/game/HelpScreen.cc CreateHelpScreenButtons (the page buttons -1/1/5/3/7 at HELP_SCREEN_BTN_OFFSET_X, HELP_SCREEN_BTN_OFFSET_Y, HELP_SCREEN_BTN_HEIGHT + HELP_SCREEN_GAP_BN_BTNS apart, CreateIconAndTextButton in HELP_SCREEN_BTN_FONT with HELP_SCREEN_BTN_FONT_ON_COLOR and HELP_SCREEN_BTN_FONT_OFF_COLOR when pressed, the labels from help.edt), DrawHelpScreenBackGround (frame HLP_SCRN_BUTTON_BORDER, then HLP_SCRN_DEFAULT_TYPE after the border), DisplayCurrentScreenTitleAndFooter (the title and the HLP_TXT_CONSTANT_SUBTITLE line in HELP_SCREEN_TITLE_BODY_FONT at HELP_SCREEN_TITLE_OFFSET_Y and HELP_SCREEN_HELP_REMINDER_Y from the left margin, usScreenWidth − left margin − HELP_SCREEN_TEXT_RIGHT_MARGIN_SPACE wide, IanDisplayWrappedString without shadow; HLP_TXT_CONSTANT_FOOTER in HELP_SCREEN_TEXT_BODY_FONT at the left margin + HELP_SCREEN_SHOW_HELP_AGAIN_REGION_TEXT_OFFSET_X, usScreenHeight − HELP_SCREEN_SHOW_HELP_AGAIN_REGION_TEXT_OFFSET_Y + 2 when the screen came up by itself)",
+    "src/game/HelpScreen.cc RenderTextBufferToScreen (the text buffer HLP_SCRN__WIDTH_OF_TEXT_BUFFER wide and HLP_SCRN__HEIGHT_OF_TEXT_AREA − 2 * 8 high at the left margin, HELP_SCREEN_TEXT_OFFSET_Y), DisplayHelpScreenTextBufferScrollBox (the box filled with (227, 198, 88), lit with (235, 222, 171) on the top and left, shaded with (65, 49, 6) on the bottom and right, HLP_SCRN__WIDTH_OF_SCROLL_AREA wide), CreateScrollAreaButtons (HLP_SCRN__SCROLL_POSY = usScreenLocY + 63; the arrows 14/10/11/12/13 and 19/15/16/17/18 at HLP_SCRN__SCROLL_UP_ARROW_X, HLP_SCRN__SCROLL_UP_ARROW_Y and HLP_SCRN__SCROLL_DWN_ARROW_Y), GetHelpScreenUserInput (Escape, the arrows and the page keys on KEY_UP, the line and page keys again on KEY_REPEAT)"
+  ],
+  "screen": "helpScreen",
+  "frame": "screen",
+  "constants": ["HelpScreen", "Laptop", "UILayout"],
+  "assets": {
+    "helpScreen": {
+      "sti": "interface/helpscreen.sti",
+      "stub": {
+        "hollow": [8, 9],
+        "sizes": [
+          [20, 20],
+          ["HELP_SCREEN_BUTTON_BORDER_WIDTH - 2 * HELP_SCREEN_BTN_OFFSET_X", "HELP_SCREEN_BTN_HEIGHT"],
+          [20, 20],
+          ["HELP_SCREEN_BUTTON_BORDER_WIDTH - 2 * HELP_SCREEN_BTN_OFFSET_X", "HELP_SCREEN_BTN_HEIGHT"],
+          [20, 20],
+          ["HELP_SCREEN_BUTTON_BORDER_WIDTH - 2 * HELP_SCREEN_BTN_OFFSET_X", "HELP_SCREEN_BTN_HEIGHT"],
+          [20, 20],
+          ["HELP_SCREEN_BUTTON_BORDER_WIDTH - 2 * HELP_SCREEN_BTN_OFFSET_X", "HELP_SCREEN_BTN_HEIGHT"],
+          ["HELP_SCREEN_BUTTON_BORDER_WIDTH", "HELP_SCREEN_DEFUALT_LOC_HEIGHT"],
+          ["HELP_SCREEN_SMALL_LOC_WIDTH", "HELP_SCREEN_DEFUALT_LOC_HEIGHT"],
+          [
+            "HLP_SCRN__WIDTH_OF_SCROLL_AREA",
+            "HLP_SCRN__SCROLL_DWN_ARROW_Y - HLP_SCRN__SCROLL_UP_ARROW_Y - HLP_SCRN__HEIGHT_OF_SCROLL_AREA"
+          ],
+          [
+            "HLP_SCRN__WIDTH_OF_SCROLL_AREA",
+            "HLP_SCRN__SCROLL_DWN_ARROW_Y - HLP_SCRN__SCROLL_UP_ARROW_Y - HLP_SCRN__HEIGHT_OF_SCROLL_AREA"
+          ],
+          [
+            "HLP_SCRN__WIDTH_OF_SCROLL_AREA",
+            "HLP_SCRN__SCROLL_DWN_ARROW_Y - HLP_SCRN__SCROLL_UP_ARROW_Y - HLP_SCRN__HEIGHT_OF_SCROLL_AREA"
+          ],
+          [
+            "HLP_SCRN__WIDTH_OF_SCROLL_AREA",
+            "HLP_SCRN__SCROLL_DWN_ARROW_Y - HLP_SCRN__SCROLL_UP_ARROW_Y - HLP_SCRN__HEIGHT_OF_SCROLL_AREA"
+          ],
+          [
+            "HLP_SCRN__WIDTH_OF_SCROLL_AREA",
+            "HLP_SCRN__SCROLL_DWN_ARROW_Y - HLP_SCRN__SCROLL_UP_ARROW_Y - HLP_SCRN__HEIGHT_OF_SCROLL_AREA"
+          ],
+          [
+            "HLP_SCRN__WIDTH_OF_SCROLL_AREA",
+            "HLP_SCRN__SCROLL_DWN_ARROW_Y - HLP_SCRN__SCROLL_UP_ARROW_Y - HLP_SCRN__HEIGHT_OF_SCROLL_AREA"
+          ],
+          [
+            "HLP_SCRN__WIDTH_OF_SCROLL_AREA",
+            "HLP_SCRN__SCROLL_DWN_ARROW_Y - HLP_SCRN__SCROLL_UP_ARROW_Y - HLP_SCRN__HEIGHT_OF_SCROLL_AREA"
+          ],
+          [
+            "HLP_SCRN__WIDTH_OF_SCROLL_AREA",
+            "HLP_SCRN__SCROLL_DWN_ARROW_Y - HLP_SCRN__SCROLL_UP_ARROW_Y - HLP_SCRN__HEIGHT_OF_SCROLL_AREA"
+          ],
+          [
+            "HLP_SCRN__WIDTH_OF_SCROLL_AREA",
+            "HLP_SCRN__SCROLL_DWN_ARROW_Y - HLP_SCRN__SCROLL_UP_ARROW_Y - HLP_SCRN__HEIGHT_OF_SCROLL_AREA"
+          ],
+          ["HLP_SCRN__WIDTH_OF_SCROLL_AREA", "HLP_SCRN__SCROLL_DWN_ARROW_Y - HLP_SCRN__SCROLL_UP_ARROW_Y - HLP_SCRN__HEIGHT_OF_SCROLL_AREA"]
+        ],
+        "states": [
+          "normal",
+          "normal",
+          "pressed",
+          "pressed",
+          "hover",
+          "hover",
+          "pressedHover",
+          "pressedHover",
+          "plain",
+          "plain",
+          "normal",
+          "hover",
+          "pressed",
+          "pressedHover",
+          "grayed",
+          "normal",
+          "hover",
+          "pressed",
+          "pressedHover",
+          "grayed"
+        ]
+      }
+    },
+    "checkboxes": {
+      "sti": "interface/optionscheckboxes.sti",
+      "stub": { "frames": 4, "size": [16, 16], "states": ["normal", "hover", "pressed", "pressedHover"] }
+    }
+  },
+  "widgets": [
+    {
+      "type": "region",
+      "id": "helpScreenMask",
+      "within": "screen",
+      "x": 0,
+      "y": 0,
+      "width": "$screenWidth",
+      "height": "$screenHeight",
+      "priority": "HIGHEST",
+      "cursor": { "by": "cursor", "map": { "normal": "CURSOR_NORMAL", "laptop": "CURSOR_LAPTOP_SCREEN" } }
+    },
+    { "type": "image", "x": 0, "y": 0, "asset": "helpScreen", "frame": "HLP_SCRN_BUTTON_BORDER", "visible": "hasButtons" },
+    {
+      "type": "image",
+      "x": { "by": "hasButtons", "map": { "true": "HELP_SCREEN_BUTTON_BORDER_WIDTH", "false": 0 } },
+      "y": 0,
+      "asset": "helpScreen",
+      "frame": "HLP_SCRN_DEFAULT_TYPE"
+    },
+    {
+      "type": "text",
+      "id": "helpTitle",
+      "x": { "by": "hasButtons", "map": { "true": "HELP_SCREEN_TEXT_LEFT_MARGIN_WITH_BTN", "false": "HELP_SCREEN_TEXT_LEFT_MARGIN" } },
+      "y": "HELP_SCREEN_TITLE_OFFSET_Y",
+      "width": {
+        "by": "hasButtons",
+        "map": {
+          "true": "HELP_SCREEN_DEFUALT_LOC_WIDTH - HELP_SCREEN_TEXT_LEFT_MARGIN_WITH_BTN - HELP_SCREEN_TEXT_RIGHT_MARGIN_SPACE",
+          "false": "HELP_SCREEN_SMALL_LOC_WIDTH - HELP_SCREEN_TEXT_LEFT_MARGIN - HELP_SCREEN_TEXT_RIGHT_MARGIN_SPACE"
+        }
+      },
+      "ian": true,
+      "wrap": { "gap": "HELP_SCREEN_GAP_BTN_LINES" },
+      "font": "HELP_SCREEN_TITLE_BODY_FONT",
+      "color": "HELP_SCREEN_TITLE_BODY_COLOR",
+      "shadow": "NO_SHADOW",
+      "background": "HELP_SCREEN_TEXT_BACKGROUND",
+      "text": { "edt": ["binarydata/help.edt", { "bind": "titleRecord" }] }
+    },
+    {
+      "type": "text",
+      "id": "helpSubtitle",
+      "x": { "by": "hasButtons", "map": { "true": "HELP_SCREEN_TEXT_LEFT_MARGIN_WITH_BTN", "false": "HELP_SCREEN_TEXT_LEFT_MARGIN" } },
+      "y": "HELP_SCREEN_HELP_REMINDER_Y",
+      "width": {
+        "by": "hasButtons",
+        "map": {
+          "true": "HELP_SCREEN_DEFUALT_LOC_WIDTH - HELP_SCREEN_TEXT_LEFT_MARGIN_WITH_BTN - HELP_SCREEN_TEXT_RIGHT_MARGIN_SPACE",
+          "false": "HELP_SCREEN_SMALL_LOC_WIDTH - HELP_SCREEN_TEXT_LEFT_MARGIN - HELP_SCREEN_TEXT_RIGHT_MARGIN_SPACE"
+        }
+      },
+      "ian": true,
+      "wrap": { "gap": "HELP_SCREEN_GAP_BTN_LINES" },
+      "font": "HELP_SCREEN_TITLE_BODY_FONT",
+      "color": "HELP_SCREEN_TITLE_BODY_COLOR",
+      "shadow": "NO_SHADOW",
+      "background": "HELP_SCREEN_TEXT_BACKGROUND",
+      "text": { "edt": ["binarydata/help.edt", "HLP_TXT_CONSTANT_SUBTITLE"] }
+    },
+    {
+      "type": "text",
+      "id": "helpFooter",
+      "x": {
+        "by": "hasButtons",
+        "map": {
+          "true": "HELP_SCREEN_TEXT_LEFT_MARGIN_WITH_BTN + HELP_SCREEN_SHOW_HELP_AGAIN_REGION_TEXT_OFFSET_X",
+          "false": "HELP_SCREEN_TEXT_LEFT_MARGIN + HELP_SCREEN_SHOW_HELP_AGAIN_REGION_TEXT_OFFSET_X"
+        }
+      },
+      "y": "HELP_SCREEN_DEFUALT_LOC_HEIGHT - HELP_SCREEN_SHOW_HELP_AGAIN_REGION_TEXT_OFFSET_Y + 2",
+      "width": {
+        "by": "hasButtons",
+        "map": {
+          "true": "HELP_SCREEN_DEFUALT_LOC_WIDTH - HELP_SCREEN_TEXT_LEFT_MARGIN_WITH_BTN - HELP_SCREEN_TEXT_RIGHT_MARGIN_SPACE",
+          "false": "HELP_SCREEN_SMALL_LOC_WIDTH - HELP_SCREEN_TEXT_LEFT_MARGIN - HELP_SCREEN_TEXT_RIGHT_MARGIN_SPACE"
+        }
+      },
+      "ian": true,
+      "wrap": { "gap": "HELP_SCREEN_GAP_BTN_LINES" },
+      "font": "HELP_SCREEN_TEXT_BODY_FONT",
+      "color": "HELP_SCREEN_TITLE_BODY_COLOR",
+      "shadow": "NO_SHADOW",
+      "background": "HELP_SCREEN_TEXT_BACKGROUND",
+      "visible": "!forced",
+      "text": { "edt": ["binarydata/help.edt", "HLP_TXT_CONSTANT_FOOTER"] }
+    },
+    {
+      "type": "custom",
+      "id": "helpText",
+      "renderer": "helpText",
+      "x": { "by": "hasButtons", "map": { "true": "HELP_SCREEN_TEXT_LEFT_MARGIN_WITH_BTN", "false": "HELP_SCREEN_TEXT_LEFT_MARGIN" } },
+      "y": "HELP_SCREEN_TEXT_OFFSET_Y",
+      "width": "HLP_SCRN__WIDTH_OF_TEXT_BUFFER",
+      "height": "HLP_SCRN__HEIGHT_OF_TEXT_AREA - 2 * 8",
+      "params": {
+        "textWidth": "HLP_SCRN__WIDTH_OF_TEXT_BUFFER - 1 * HELP_SCREEN_MARGIN_SIZE",
+        "gap": "HELP_SCREEN_GAP_BTN_LINES",
+        "font": "HELP_SCREEN_TEXT_BODY_FONT",
+        "bold": "FONT10ARIALBOLD",
+        "color": "HELP_SCREEN_TEXT_BODY_COLOR",
+        "shadow": "NO_SHADOW",
+        "background": "HELP_SCREEN_TEXT_BACKGROUND"
+      }
+    },
+    {
+      "type": "custom",
+      "id": "helpScrollBox",
+      "renderer": "helpScrollBox",
+      "x": {
+        "by": "hasButtons",
+        "map": { "true": "HLP_SCRN__SCROLL_POSX + HELP_SCREEN_BUTTON_BORDER_WIDTH", "false": "HLP_SCRN__SCROLL_POSX" }
+      },
+      "y": 63,
+      "width": "HLP_SCRN__WIDTH_OF_SCROLL_AREA",
+      "height": "HLP_SCRN__HEIGHT_OF_SCROLL_AREA",
+      "params": { "fill": [227, 198, 88], "light": [235, 222, 171], "dark": [65, 49, 6] }
+    },
+    {
+      "type": "button",
+      "id": "helpExit",
+      "x": {
+        "by": "hasButtons",
+        "map": { "true": "HELP_SCREEN_EXIT_BTN_OFFSET_X + HELP_SCREEN_BUTTON_BORDER_WIDTH", "false": "HELP_SCREEN_EXIT_BTN_OFFSET_X" }
+      },
+      "y": "HELP_SCREEN_EXIT_BTN_LOC_Y",
+      "asset": "helpScreen",
+      "frames": { "offNormal": 0, "offHilite": 4, "onNormal": 2, "onHilite": 6 },
+      "priority": "HIGHEST",
+      "cursor": { "by": "cursor", "map": { "normal": "CURSOR_NORMAL", "laptop": "CURSOR_LAPTOP_SCREEN" } },
+      "tooltip": { "key": ["gzHelpScreenText", 0] },
+      "primary": "close"
+    },
+    {
+      "type": "repeat",
+      "count": { "bind": "pageCount" },
+      "dy": "HELP_SCREEN_BTN_HEIGHT + HELP_SCREEN_GAP_BN_BTNS",
+      "template": {
+        "type": "button",
+        "id": "helpPage$i",
+        "x": "HELP_SCREEN_BTN_OFFSET_X",
+        "y": "HELP_SCREEN_BTN_OFFSET_Y",
+        "asset": "helpScreen",
+        "frames": { "offNormal": 1, "offHilite": 5, "onNormal": 3, "onHilite": 7 },
+        "priority": "HIGHEST",
+        "cursor": { "by": "cursor", "map": { "normal": "CURSOR_NORMAL", "laptop": "CURSOR_LAPTOP_SCREEN" } },
+        "checked": "pages[$i].selected",
+        "primary": "page($i)",
+        "text": {
+          "source": { "edt": ["binarydata/help.edt", { "bind": "pages[$i].label" }] },
+          "font": "HELP_SCREEN_BTN_FONT",
+          "color": "HELP_SCREEN_BTN_FONT_ON_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "downColor": "HELP_SCREEN_BTN_FONT_OFF_COLOR",
+          "downShadow": "DEFAULT_SHADOW"
+        }
+      }
+    },
+    {
+      "type": "button",
+      "id": "helpDontShowAgain",
+      "kind": "checkbox",
+      "x": {
+        "by": "hasButtons",
+        "map": {
+          "true": "HELP_SCREEN_SHOW_HELP_AGAIN_REGION_OFFSET_X + HELP_SCREEN_BUTTON_BORDER_WIDTH",
+          "false": "HELP_SCREEN_SHOW_HELP_AGAIN_REGION_OFFSET_X"
+        }
+      },
+      "y": "HELP_SCREEN_DEFUALT_LOC_HEIGHT - HELP_SCREEN_SHOW_HELP_AGAIN_REGION_OFFSET_Y - 3",
+      "asset": "checkboxes",
+      "frames": { "offNormal": 0, "offHilite": 1, "onNormal": 2, "onHilite": 3 },
+      "priority": "HIGHEST",
+      "cursor": { "by": "cursor", "map": { "normal": "CURSOR_NORMAL", "laptop": "CURSOR_LAPTOP_SCREEN" } },
+      "visible": "!forced",
+      "checked": "dontShowAgain",
+      "primary": "toggleDontShowAgain"
+    },
+    {
+      "type": "button",
+      "id": "helpScrollUp",
+      "x": {
+        "by": "hasButtons",
+        "map": { "true": "HLP_SCRN__SCROLL_UP_ARROW_X + HELP_SCREEN_BUTTON_BORDER_WIDTH", "false": "HLP_SCRN__SCROLL_UP_ARROW_X" }
+      },
+      "y": "HLP_SCRN__SCROLL_UP_ARROW_Y",
+      "asset": "helpScreen",
+      "frames": { "grayed": 14, "offNormal": 10, "offHilite": 11, "onNormal": 12, "onHilite": 13 },
+      "priority": "HIGHEST",
+      "cursor": { "by": "cursor", "map": { "normal": "CURSOR_NORMAL", "laptop": "CURSOR_LAPTOP_SCREEN" } },
+      "enabled": "scrollEnabled",
+      "press": "lineUp"
+    },
+    {
+      "type": "button",
+      "id": "helpScrollDown",
+      "x": {
+        "by": "hasButtons",
+        "map": { "true": "HLP_SCRN__SCROLL_UP_ARROW_X + HELP_SCREEN_BUTTON_BORDER_WIDTH", "false": "HLP_SCRN__SCROLL_UP_ARROW_X" }
+      },
+      "y": "HLP_SCRN__SCROLL_DWN_ARROW_Y",
+      "asset": "helpScreen",
+      "frames": { "grayed": 19, "offNormal": 15, "offHilite": 16, "onNormal": 17, "onHilite": 18 },
+      "priority": "HIGHEST",
+      "cursor": { "by": "cursor", "map": { "normal": "CURSOR_NORMAL", "laptop": "CURSOR_LAPTOP_SCREEN" } },
+      "enabled": "scrollEnabled",
+      "press": "lineDown"
+    }
+  ],
+  "hotkeys": [
+    { "key": "Escape", "on": "up", "mods": "any", "action": "close" },
+    { "key": "ArrowDown", "on": ["up", "repeat"], "mods": "any", "action": "lineDown" },
+    { "key": "ArrowUp", "on": ["up", "repeat"], "mods": "any", "action": "lineUp" },
+    { "key": "PageUp", "on": ["up", "repeat"], "mods": "any", "action": "pageUp" },
+    { "key": "PageDown", "on": ["up", "repeat"], "mods": "any", "action": "pageDown" },
+    { "key": "ArrowLeft", "on": "up", "mods": "any", "action": "prevPage" },
+    { "key": "ArrowRight", "on": "up", "mods": "any", "action": "nextPage" }
+  ]
+}

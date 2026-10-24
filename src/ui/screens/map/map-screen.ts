@@ -1618,7 +1618,13 @@ export class MapScreen implements Screen {
       loadGame: whenExitAllowed(() => this.#env.flow.loadGame()),
       exitGame: () => this.#env.flow.exitGame(),
       assignmentMenu: () => this.#keyAssignmentMenu(),
+      help: () => this.#help(),
     };
+  }
+
+  #help(): void {
+    if (this.#plot) this.#abortPlotting(true);
+    this.#env.flow.help?.();
   }
 
   #sort(mode: number): void {

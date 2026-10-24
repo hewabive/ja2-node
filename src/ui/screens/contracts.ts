@@ -9,6 +9,7 @@ import { PLACEHOLDER_CONTRACT } from './front-end/placeholder.ts';
 import { SAN_MONA_CONTRACT } from './front-end/san-mona.ts';
 import { SAVE_LOAD_CONTRACT } from './front-end/save-load.ts';
 import { GALLERY_CONTRACT } from './gallery.ts';
+import { HELP_SCREEN_CONTRACT } from './help/help-overlay.ts';
 import { AIM_MEMBER_CONTRACT } from './laptop/aim/aim-member.ts';
 import {
   AIM_BAR_CONTRACT,
@@ -65,5 +66,6 @@ export const LAYOUT_CONTRACTS: Readonly<Record<string, ControllerContract>> = Ob
     TACTICAL_INPUT_CONTRACT,
     MAP_SCREEN_CONTRACT,
     MAP_INVENTORY_CONTRACT,
+    HELP_SCREEN_CONTRACT,
   ].map((contract) => [contract.id, contract]),
 );

@@ -21,6 +21,10 @@ const CREDITS_FILE = 'text/credits.json';
 const MAIL_FILE = 'text/email.json';
 const AIM_HISTORY_FILE = 'text/aimhist.json';
 const AIM_BIOS_FILE = 'text/aimbios.json';
+const HELP_FILE = 'text/help.json';
+const HELP_PATH = 'binarydata/help.edt';
+const HELP_CONSTANTS_TABLE = 'tables/ui-constants/HelpScreen.json';
+const HELP_RECORD_PREFIX = 'HLP_TXT_';
 const AIM_HISTORY_PATH = 'binarydata/aimhist.edt';
 const ITEM_TEXT_PATH = 'binarydata/itemdesc.edt';
 const CREDITS_PATH = 'binarydata/credits.edt';
@@ -182,6 +186,28 @@ async function buildAimBios(out: string, layouts: EdtLayouts): Promise<string> {
   );
 }
 
+async function helpRecordNumbers(): Promise<Map<string, number>> {
+  const constants = asObject(asObject(await dataJson(HELP_CONSTANTS_TABLE), 'help constants').constants, 'help constants.constants');
+  return new Map(
+    Object.entries(constants)
+      .filter(([name]) => name.startsWith(HELP_RECORD_PREFIX))
+      .map(([name, value]) => [name, asInt(value, `help constants.${name}`)] as const),
+  );
+}
+
+async function buildHelp(out: string, layouts: EdtLayouts): Promise<string> {
+  const numbers = await helpRecordNumbers();
+  const rows = asObject(asObject(await stubJson(HELP_FILE), 'stub help').rows, 'stub help.rows');
+  const records: string[][] = Array.from({ length: Math.max(...numbers.values()) + 1 }, () => ['']);
+  for (const [name, row] of numbers) {
+    const text = rows[name];
+    if (text === undefined) throw new Error(`stub help: no row for ${name}`);
+    records[row] = [asString(text, `stub help.${name}`)];
+  }
+  for (const name of Object.keys(rows)) if (!numbers.has(name)) throw new Error(`stub help: ${name} is not a help record`);
+  return put(out, HELP_PATH, encodeEdtRecords(records, columnsOf(layouts, HELP_PATH)));
+}
+
 export async function buildStubText(out: string): Promise<StubText> {
   const layouts = EdtLayouts.parse(await dataJson(EDT_LAYOUTS_PATH));
   const merc = await buildMercDialogue(out, layouts);
@@ -192,6 +218,7 @@ export async function buildStubText(out: string): Promise<StubText> {
     await buildMail(out, layouts),
     await buildAimHistory(out, layouts),
     await buildAimBios(out, layouts),
+    await buildHelp(out, layouts),
   ];
   return { written, mercDialogue: merc.rows };
 }
