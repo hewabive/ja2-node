@@ -67,6 +67,7 @@ export interface SaveSessionPart {
 export interface SavePresentation {
   readonly music: { readonly mode: string; readonly previous: string };
   readonly messages?: readonly MessageEntry[];
+  readonly campaign?: string;
 }
 
 export interface LegacyContentBinding {
@@ -91,8 +92,12 @@ export interface SaveFileHead {
 
 export const EMPTY_PRESENTATION: SavePresentation = { music: { mode: MusicMode.NONE, previous: MusicMode.NONE } };
 
-export function presentationOf(music: MusicState, messages: readonly MessageEntry[] = []): SavePresentation {
-  return { music: { mode: music.mode, previous: music.previous }, messages: [...messages] };
+export function presentationOf(
+  music: MusicState,
+  messages: readonly MessageEntry[] = [],
+  campaign: string | null = null,
+): SavePresentation {
+  return { music: { mode: music.mode, previous: music.previous }, messages: [...messages], ...(campaign ? { campaign } : {}) };
 }
 
 export function messagesOfPresentation(presentation: SavePresentation | undefined): readonly MessageEntry[] {

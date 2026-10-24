@@ -260,6 +260,7 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
     flow: storyFlow(campaign) ?? campaign.state.flow,
     campaign: campaignStatus(campaign.state.ending),
     ...(campaign.noUsableMercs() ? { noUsableMercs: true } : {}),
+    ...(campaign.state.didGameJustStart ? { gameJustStarted: true } : {}),
     meanwhiles: campaign.state.meanwhile.log.map((e) => ({ seq: e.seq, scene: meanwhileSceneName(e.id), at: e.at })),
     sectors,
     mercs: ctx.mercs.all().map((m) => {

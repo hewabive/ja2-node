@@ -4,6 +4,7 @@ import type { StopReport } from '../sim/advance.ts';
 import type { CommandResult } from '../sim/command.ts';
 import { type DroppedNativeOption, type GameOptions, importNativeGameOptions, type SaveMode } from '../sim/options.ts';
 import { reseedMain } from '../sim/snapshot/session.ts';
+import { campaignIdOfSave } from './campaign-id.ts';
 import { CampaignSession } from './campaign-session.ts';
 import { type ContentSource, type EngineIdentity, type LogicIdentity, textIdentityOf } from './content-identity.ts';
 import { describeOrigin, encodeInputLog, encodeInputLogAsync, inputLogText, isReplayable, type LogSegment } from './input-log.ts';
@@ -320,7 +321,7 @@ export class SaveService {
       header,
       session: { kind: snapshot.session, origin: describeOrigin(segment.origin), tick: summary.tick, preparedMaps: snapshot.preparedMaps },
       sim: snapshot.sim,
-      presentation: presentationOf(session.music, session.messages),
+      presentation: presentationOf(session.music, session.messages, session.campaign),
     };
     return { kind, name, file, log: isReplayable(segment.origin) ? segment : null };
   }
@@ -458,6 +459,7 @@ export class SaveService {
       { name: opened.name, digest: opened.digest },
       musicOfPresentation(opened.file.presentation),
       messagesOfPresentation(opened.file.presentation),
+      campaignIdOfSave(opened.file.presentation, opened.digest, opened.sim instanceof CampaignSession),
     );
     return this.completeLoad(session, opened, reseed);
   }

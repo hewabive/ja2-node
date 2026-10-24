@@ -330,6 +330,7 @@ export interface StrategicView {
   readonly flow: 'strategic' | 'tactical' | 'autoresolve' | 'laptop' | 'meanwhile' | 'endgame' | 'ended';
   readonly campaign: 'playing' | 'endgame' | 'won';
   readonly noUsableMercs?: boolean;
+  readonly gameJustStarted?: boolean;
   readonly meanwhiles: readonly MeanwhileLogView[];
   readonly sectors: readonly StrategicSectorView[];
   readonly mercs: readonly StrategicMercView[];
