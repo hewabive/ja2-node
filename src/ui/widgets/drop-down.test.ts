@@ -175,6 +175,65 @@ describe('the drop-down view', () => {
   });
 });
 
+describe('the drop-down as the florist list', () => {
+  it('shows every destination without a scroll bar, selects on hover and closes on a pick', async () => {
+    const t = await testRuntime();
+    t.images.set(BORDER, uniformImage(8, 10, 10));
+    const model = new DropDown({ entries: ENTRIES, visible: ENTRIES, selectOnHover: true });
+    const view = new DropDownView({
+      model,
+      geometry: {
+        x: 310,
+        y: 130,
+        width: 150,
+        height: 0,
+        rowGap: 2,
+        textX: 6,
+        textY: 3,
+        rowTop: 4,
+        rowBottom: 0,
+        rowRightInset: 0,
+        highlightInset: 4,
+        highlightBottom: 6,
+      },
+      look: {
+        font: t.fonts.get(FontName.FONT12ARIAL),
+        border: BORDER,
+        background: rgb(0, 0, 0),
+        color: 145,
+        selectedColor: 2,
+        selectedFill: GOLD,
+      },
+      scroll: null,
+      regions: t.runtime.regions,
+      closeArea: { x1: 111, y1: 46, x2: 613, y2: 446 },
+      onChange: () => undefined,
+    });
+    t.runtime.host.push({
+      id: 'floristListTest',
+      enter: () => undefined,
+      exit: () => undefined,
+      update: () => view.sync(),
+      input: () => false,
+      render: (list: DrawList) => view.render(list, LABELS),
+    });
+    model.toggle();
+    t.frame();
+    const rows = view.describe(LABELS);
+    expect(rows).toHaveLength(ENTRIES);
+    expect(t.list.items.some((i) => i.kind === 'image' && i.asset === ARROWS)).toBe(false);
+    const last = rows[ENTRIES - 1];
+    if (!last) throw new Error('no last row');
+    const at = { x: last.rect.x + 5, y: last.rect.y + Math.floor(last.rect.height / 2) };
+    t.move(at.x, at.y);
+    t.frame();
+    expect(model.selected).toBe(ENTRIES - 1);
+    t.click(at.x, at.y);
+    t.frame();
+    expect([model.selected, model.open]).toEqual([ENTRIES - 1, false]);
+  });
+});
+
 describe('the frame animator', () => {
   it('advances one frame per elapsed delay and wraps', () => {
     const a = new FrameAnimator(5, 150, 0, 1);

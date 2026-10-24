@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { encodeEdtRecords } from '../src/content/formats/edt.ts';
 import { loadItemTable } from '../src/content/items/items.ts';
-import { mercDialogueFile, npcDialogueFile } from '../src/content/narrative/dialogue-text.ts';
+import { mercDialogueFile } from '../src/content/narrative/dialogue-text.ts';
 import {
   AIM_BIOS_FILE as AIM_BIOS_PATH,
   PROFILE_PRESENTATION_PATHS,
@@ -34,9 +34,6 @@ const MERC_BIOS_PATH = 'binarydata/mercbios.edt';
 const MERC_BIOS_FILE = 'text/mercbios.json';
 const IMP_TEXT_PATH = 'binarydata/imptext.edt';
 const IMP_TEXT_FILE = 'text/imptext.json';
-const SPECK_TEXT_FILE = 'text/speck.json';
-const SPECK_PROFILE = 159;
-const SPECK_QUOTES = 76;
 const BOBBY_RAY_BLURB = 'Sold by the crate and shipped without questions. Stub catalogue stock.';
 
 export interface StubText {
@@ -256,18 +253,6 @@ async function buildImpText(out: string, layouts: EdtLayouts): Promise<string> {
   return put(out, IMP_TEXT_PATH, encodeEdtRecords(records, columnsOf(layouts, IMP_TEXT_PATH)));
 }
 
-async function buildSpeckText(out: string, layouts: EdtLayouts): Promise<string> {
-  const json = asObject(await stubJson(SPECK_TEXT_FILE), 'stub speck lines');
-  const lines = asObject(json.lines, 'stub speck lines.lines');
-  const filler = asString(json.filler, 'stub speck lines.filler');
-  const records = Array.from({ length: SPECK_QUOTES }, (_, quote) => {
-    const own = lines[String(quote)];
-    return [own === undefined ? filler.replaceAll('{quote}', String(quote)) : asString(own, `stub speck lines.${quote}`)];
-  });
-  const path = npcDialogueFile(SPECK_PROFILE);
-  return put(out, path, encodeEdtRecords(records, columnsOf(layouts, path)));
-}
-
 export async function buildStubText(out: string): Promise<StubText> {
   const layouts = EdtLayouts.parse(await dataJson(EDT_LAYOUTS_PATH));
   const merc = await buildMercDialogue(out, layouts);
@@ -281,7 +266,6 @@ export async function buildStubText(out: string): Promise<StubText> {
     await buildBobbyRayText(out, layouts),
     await buildMercBios(out, layouts),
     await buildImpText(out, layouts),
-    await buildSpeckText(out, layouts),
   ];
   return { written, mercDialogue: merc.rows };
 }

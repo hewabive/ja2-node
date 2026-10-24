@@ -2597,7 +2597,7 @@ animator U10 left open, and the server gaps X6, X11, X12 and X15 (`04` §6.32, `
 | M.E.R.C. (`merc/`) | Home with Speck's video window (`SpeckVideo`: black for 1 s, the small face stretched to the video face, the queued quotes of the replies and the opening said one after the other with subtitles in the merc text box, a click skips, the X closes, the black exit), the visit only when entering from outside the site, the arrival box after a hire; no account; account (rows, total, authorize behind the `BLUE_ON_GREY` question, the transfer failure box from an own label); files (overlays for dead, married, P.O.W., hired and away, bio, stats, salary, previous/next, hire); the broken link while the site is down |
 | I.M.P. (`imp/`) | `charProfilePage` hosts the fourteen sub pages with their own sub-page loads (fast once visited in the laptop session, none for the first page), the global cancel button and IMP-style boxes; the draft (`ImpDraft`) lives in `LaptopMemory`. Home with the activation code (Enter on key up, `impCheckCode`), about us, main with the step blockers and the face icon, begin (name, nickname, gender), the quiz (answer buttons on the press, the long, short and short2 indents, the women's questions behind `IMP_CON_3`), the personality finish, the attribute entrance, the attributes (arrows on press and repeat, the slider drag and click of `SliderRegionButtonCallback`, the per-frame drag past the bar ends, the zero warning), the attribute finish, portrait, voice (the sample on entry and on each step), finish (the analysing label and icon while pressed), confirm through `impCreate` |
 | Server gaps | X6, X11, X12, X15 (`04` §6.32) |
-| Stubs | `braydesc.edt`, `mercbios.edt`, `imptext.edt` (239 filler records with the attribute labels), Speck's `npcdata/159.edt`; aliases for Speck's face and the I.M.P. faces and portraits; the media budget raised from 5 to 5.5 MiB (the pack measures 5.22 MiB after U11) |
+| Stubs | `braydesc.edt`, `mercbios.edt`, `imptext.edt` (239 filler records with the attribute labels); no lines for Speck (a `npcdata/159.edt` would change the stub pack the 0.7.0 saves recorded, as with U7's dealer, so his quotes play without subtitles on the stubs); aliases for Speck's face and the I.M.P. faces and portraits; the media budget raised from 5 to 5.5 MiB (the pack measures 5.22 MiB after U11) |
 | Tests | Unit tests for the drop-down, the Bobby Ray's pages, Speck's video, the draft, the quiz records and indents and the sliders; `laptop-sites.test.ts` drives each site on a stub campaign (Bobby Ray's under construction and an order to Drassen, M.E.R.C. from the opening to the broken link, an I.M.P. character through every page); `src/server/laptop-sites-stub.test.ts` for the server gaps; the original-data test `laptop-sites-original.test.ts` (quiz records, faces, portraits, voice samples, Speck's lines); `tests/e2e/laptop-sites.spec.ts` from a save with Drassen held (`tests/support/e2e-laptop-saves.ts`): an order through the canvas delivered in Drassen, a M.E.R.C. account, hire and payment, an I.M.P. character, goldens `laptop-bobby-ray-guns.png`, `laptop-bobby-ray-order.png`, `laptop-merc-home.png`, `laptop-imp-quiz.png` and `laptop-imp-attributes.png` |
 
 Decisions and limits: the cart and the I.M.P. draft are client state until the one command; the open point of §9.7 is
@@ -2607,10 +2607,13 @@ prices", "I.M.P. begin page focus", "I.M.P. voice samples", "I.M.P. skill page a
 now draws the post-hire `CoinToss` at `mercHire`. The video face is the still small face (the animated face of U5 is
 not wired into the laptop, as in the A.I.M. conference).
 
-Open: the florist's order form (U12) reuses the drop-down by binding its own `DropDown` (17 entries, the visible rows and
-`selectOnHover` of `Florist_Order_Form.cc`) as the `dropDown` widget's `model`, the destination names as `labels`, its
-`rows` geometry and border, no `scroll` if the page has no scroll bar, and a `change` action taking the index; the
-direct skill pick and the saved I.M.P. profiles wait (deviation).
+Open: the florist's destination list (U12's page-local `DestinationList`) maps onto the drop-down: `new DropDown({entries:
+17, visible: 17, selectOnHover: true})` (the list hovers into the selection like `SelectFlowerDropDownMovementCallBack`),
+bound as the `dropDown` widget's `model` with the destination names as `labels`, the `tactpopup.sti` border, the `rows`
+geometry of `Florist_Order_Form.cc`, a height of the rows plus 10, no `scroll`, the laptop screen as `closeArea` and a
+`change` action taking the index; `show()`/`hide()` are `toggle()`/`close()`, `hover(i)` and `pick(i)` are `hover(i)` and
+`choose(i)` (a test in `drop-down.test.ts` covers that configuration). The direct skill pick and the saved I.M.P.
+profiles wait (deviation).
 
 ---
 

@@ -144,8 +144,7 @@ describe('M.E.R.C. on the canvas laptop', () => {
       expect(shown(t, 'speckVideoTitle').visible).toBe(true);
       expect(shown(t, 'mercFilesButton').enabled).toBe(false);
       await wait(h, 1100);
-      expect(find(t, 'speckSubtitle')?.visible).toBe(true);
-      await click(t, 'speckSubtitle');
+      expect(find(t, 'speckFace')?.visible).toBe(true);
       await click(t, 'speckClose');
       await wait(h, 600);
       expect(find(t, 'speckVideoTitle')?.visible).toBe(false);

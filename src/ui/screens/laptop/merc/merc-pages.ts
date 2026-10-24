@@ -130,7 +130,7 @@ export function mercHomePage(context: LaptopContext): LaptopPage {
   const video = new SpeckVideo({
     say: (quote) => {
       const text = context.text.edt(`npcdata/${threeDigits(SPECK)}.edt`, quote) ?? '';
-      subtitle = context.settings.subtitles ? `"${text}"` : null;
+      subtitle = context.settings.subtitles && text !== '' ? `"${text}"` : null;
       if (context.settings.speech) context.playSound(`${NPC_SPEECH_DIR}/${threeDigits(SPECK)}_${threeDigits(quote)}.wav`, SPEECH_VOLUME);
       return talkingTime(text);
     },
