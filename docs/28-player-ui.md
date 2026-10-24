@@ -2606,8 +2606,8 @@ refusal; `src/server/battle-entry-stub.test.ts` for the prompt fields, the view,
 the three stub battles; `battle-art-original.test.ts` (`JA2_DATA_DIR`) for the frames the renderers draw.
 `tests/e2e/battle-entry.spec.ts` on the saves of `tests/support/battle-entry.ts` (the U8 campaign with an enemy group a
 minute from Drassen, loaded with `reseed: false`): goldens `pre-battle.png` and `autoresolve.png` with a pinned clock,
-victory with Bandage and Done back to the map, defeat, retreat, the summary from the locator and from a refused
-compression. Surrender and capture need day 4 and a stalled battle, so they are unit-tested only.
+victory with Bandage and Done back to the map, defeat, Fast and Pause then Retreat to RETREATED, the summary from the
+locator and from a refused compression. Surrender and capture need day 4 and a stalled battle, so they are unit-tested only.
 
 Decisions and limits: `showBattle` (a prompt) was chosen over a `battleSummary` query so the summary keeps the
 original's side effects (the wake-up, the stopped compression) and the panel needs no second code path; the battle runs
