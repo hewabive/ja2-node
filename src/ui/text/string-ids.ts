@@ -71,6 +71,7 @@ export const MessageString = {
   SAVE_SUCCESS: 8,
   DAY: 9,
   MERCS: 10,
+  MEANWHILE: 21,
 } as const;
 
 export const MERC_ACCOUNT_MERC = 3;

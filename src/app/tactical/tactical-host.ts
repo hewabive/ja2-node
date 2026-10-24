@@ -36,6 +36,7 @@ import { TacticalWorldView } from '../world/tactical-world-view.ts';
 import { WorldEffects } from '../world/world-effects.ts';
 import { loadSmallTiles, OverheadPicture } from './overhead-map.ts';
 import { engineSpeechVoices, storedSpeechSettings } from './speech-voices.ts';
+import { storyCameraTarget } from './story-camera.ts';
 import { SessionTacticalClient } from './tactical-client.ts';
 import { attachTacticalHook, type ShopSample, type TacticalHook, type TalkSample, TimeSamples } from './tactical-hook.ts';
 import { fetchItemCatalogue, fetchProfiles, type SpeechSource, TacticalMediaStore } from './tactical-media.ts';
@@ -49,6 +50,7 @@ const MANUAL_DRIVE = 'manual';
 const KEPT_COMMANDS = 64;
 const LOAD_STEPS = 6;
 const OUR_TEAM = 0;
+const KEPT_DIALOGUE_FRAMES = 64;
 
 export interface TacticalHostOptions {
   readonly page: GamePage;
@@ -91,6 +93,7 @@ export class TacticalHost {
   readonly #presenter: SpeechPresenter;
   #spoken = 0;
   #beep: ReturnType<TacticalSound['engine']['play']> | null = null;
+  readonly #dialogueBeforeScreen: ViewFrame[] = [];
 
   constructor(options: TacticalHostOptions) {
     this.#o = options;
@@ -272,6 +275,8 @@ export class TacticalHost {
     const loaded = this.#loaded;
     if (!loaded) throw new Error('the tactical sector is not loaded');
     this.#o.page.world = this.#worldLayer();
+    const target = storyCameraTarget(this.#o.session.view);
+    if (target !== null) loaded.presenter.centerOn(target);
     if (this.#screen && this.#screenFor === loaded) return this.#screen;
     const ui = this.#o.ui;
     const env: TacticalEnvironment = {
@@ -308,6 +313,7 @@ export class TacticalHost {
     };
     this.#screen = new TacticalScreen(env);
     this.#screenFor = loaded;
+    this.#screen.dialogue.frames(this.#dialogueBeforeScreen.splice(0));
     if (!this.#keepDriver) this.#client.start();
     return this.#screen;
   }
@@ -365,7 +371,14 @@ export class TacticalHost {
     if (this.#unknownProfile(frames)) void this.#refreshProfiles();
     for (const frame of frames)
       for (const event of frame.events ?? []) if (event.type === 'sectorLoaded' && event.loadScreen) this.#loadScreen = event.loadScreen.id;
-    this.#screen?.frames(frames);
+    if (this.#screen) this.#screen.frames(frames);
+    else this.#keepDialogue(frames);
+  }
+
+  #keepDialogue(frames: readonly ViewFrame[]): void {
+    this.#dialogueBeforeScreen.push(...frames.filter((f) => f.conversation !== undefined || (f.events?.length ?? 0) > 0));
+    const excess = this.#dialogueBeforeScreen.length - KEPT_DIALOGUE_FRAMES;
+    if (excess > 0) this.#dialogueBeforeScreen.splice(0, excess);
   }
 
   received(frames: readonly ViewFrame[]): void {
