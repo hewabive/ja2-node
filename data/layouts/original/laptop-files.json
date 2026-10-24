@@ -1,8 +1,227 @@
 {
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
-  "@src": ["src/game/Laptop/Files.cc"],
+  "@src": [
+    "src/game/Laptop/Files.cc RenderFilesBackGround (fileviewer.sti at TOP_X, TOP_Y + 22), DisplayFilesList (pFilesSenderList at FILES_SENDER_TEXT_X, row y + 2, rows of FILES_LIST_H from FILES_LIST_Y in FILES_TEXT_FONT, FONT_BLACK, NO_SHADOW; the highlighted row filled with FROMRGB(240, 240, 200) over FILES_LIST_W x FILES_LIST_H), InitializeFilesMouseRegions (MAX_FILES_PAGE regions to x + w - 1, y + h - 1 at MSYS_PRIORITY_NORMAL + 2, MSYS_NO_CURSOR), DisplayFormattedText (the white viewer FILE_VIEWER_W x FILE_VIEWER_H at FILE_VIEWER_X, FILE_VIEWER_Y), HandleSpecialFiles (arucofilesmap.sti at 300, 270 on page 0, enrico_y.sti at 260, 225 on page 4, enrico_w.sti at 260, 85 on page 5), HandleSpecialTerroristFile (the big portrait at FILE_VIEWER_X + 30, FILE_VIEWER_Y + 136, interceptborder.sti at + 25, + 131), CreateButtonsForFilesPage (arrows.sti 0/1 at PREVIOUS_FILE_PAGE_BUTTON_X/Y and 6/7 at NEXT_FILE_PAGE_BUTTON_X/Y, MSYS_PRIORITY_HIGHEST - 1, CURSOR_LAPTOP_SCREEN; the wheel region over the viewer to x + w - 1, y + h - 1 at MSYS_PRIORITY_HIGH)"
+  ],
   "screen": "laptopFiles",
   "frame": "std640",
-  "constants": ["Laptop", "Files"],
-  "widgets": []
+  "constants": ["Laptop", "Files", "AIMMembers"],
+  "assets": {
+    "window": {
+      "sti": "laptop/fileviewer.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["LAPTOP_SCREEN_WIDTH", "LAPTOP_SCREEN_HEIGHT - 22"],
+        "style": "hollow"
+      }
+    },
+    "countryMap": {
+      "sti": "laptop/arucofilesmap.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["FILE_VIEWER_X + FILE_VIEWER_W - 300 - 10", "FILE_VIEWER_Y + FILE_VIEWER_H - 270 - 10"],
+        "style": "hollow"
+      }
+    },
+    "kidPicture": {
+      "sti": "laptop/enrico_y.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["FILE_VIEWER_X + 150 - 260 - 6", 150],
+        "style": "hollow"
+      }
+    },
+    "weddingPicture": {
+      "sti": "laptop/enrico_w.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["FILE_VIEWER_X + 150 - 260 - 6", 150],
+        "style": "hollow"
+      }
+    },
+    "interceptBorder": {
+      "sti": "laptop/interceptborder.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["FACE_WIDTH + 10", "FACE_HEIGHT + 10"],
+        "style": "hollow"
+      }
+    },
+    "arrows": {
+      "sti": "laptop/arrows.sti",
+      "stub": {
+        "frames": 11,
+        "size": [22, 16],
+        "states": ["normal", "pressed", "plain", "normal", "pressed", "plain", "normal", "pressed", "plain", "normal", "pressed"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "asset": "window",
+      "frame": 0,
+      "x": "TOP_X",
+      "y": "TOP_Y + 22"
+    },
+    {
+      "type": "repeat",
+      "count": "MAX_FILES_PAGE",
+      "x": "FILES_LIST_X",
+      "y": "FILES_LIST_Y",
+      "dy": "FILES_LIST_H",
+      "template": [
+        {
+          "type": "fill",
+          "x": 0,
+          "y": 0,
+          "width": "FILES_LIST_W",
+          "height": "FILES_LIST_H",
+          "color": [240, 240, 200],
+          "visible": "rows[$i].highlighted"
+        },
+        {
+          "type": "text",
+          "id": "fileSender$i",
+          "x": "FILES_SENDER_TEXT_X - FILES_LIST_X",
+          "y": 2,
+          "font": "FILES_TEXT_FONT",
+          "color": "FONT_BLACK",
+          "shadow": "NO_SHADOW",
+          "text": {
+            "bind": "rows[$i].sender"
+          },
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "region",
+          "id": "fileRow$i",
+          "x": 0,
+          "y": 0,
+          "width": "FILES_LIST_W - 1",
+          "height": "FILES_LIST_H - 1",
+          "priority": "NORMAL+2",
+          "primary": "selectRow($i)"
+        }
+      ]
+    },
+    {
+      "type": "fill",
+      "x": "FILE_VIEWER_X",
+      "y": "FILE_VIEWER_Y",
+      "width": "FILE_VIEWER_W",
+      "height": "FILE_VIEWER_H",
+      "color": [255, 255, 255],
+      "visible": "viewerOpen"
+    },
+    {
+      "type": "custom",
+      "id": "fileTextHead",
+      "renderer": "fileTextHead",
+      "x": "FILE_VIEWER_X",
+      "y": "FILE_VIEWER_Y",
+      "width": "FILE_VIEWER_W",
+      "height": "FILE_VIEWER_H",
+      "visible": "viewerOpen"
+    },
+    {
+      "type": "portrait",
+      "face": {
+        "bind": "portraitFace"
+      },
+      "size": "big",
+      "x": "FILE_VIEWER_X + 30",
+      "y": "FILE_VIEWER_Y + 136",
+      "visible": "portraitShown"
+    },
+    {
+      "type": "image",
+      "asset": "interceptBorder",
+      "frame": 0,
+      "x": "FILE_VIEWER_X + 25",
+      "y": "FILE_VIEWER_Y + 131",
+      "visible": "portraitShown"
+    },
+    {
+      "type": "custom",
+      "id": "fileText",
+      "renderer": "fileTextTail",
+      "x": "FILE_VIEWER_X",
+      "y": "FILE_VIEWER_Y",
+      "width": "FILE_VIEWER_W",
+      "height": "FILE_VIEWER_H",
+      "visible": "viewerOpen"
+    },
+    {
+      "type": "image",
+      "asset": "countryMap",
+      "frame": 0,
+      "x": 300,
+      "y": 270,
+      "visible": {
+        "eq": ["picture", "map"]
+      }
+    },
+    {
+      "type": "image",
+      "asset": "kidPicture",
+      "frame": 0,
+      "x": 260,
+      "y": 225,
+      "visible": {
+        "eq": ["picture", "kid"]
+      }
+    },
+    {
+      "type": "image",
+      "asset": "weddingPicture",
+      "frame": 0,
+      "x": 260,
+      "y": 85,
+      "visible": {
+        "eq": ["picture", "wedding"]
+      }
+    },
+    {
+      "type": "button",
+      "id": "prevFilePage",
+      "x": "PREVIOUS_FILE_PAGE_BUTTON_X",
+      "y": "PREVIOUS_FILE_PAGE_BUTTON_Y",
+      "asset": "arrows",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "prevEnabled",
+      "primary": "prevPage"
+    },
+    {
+      "type": "button",
+      "id": "nextFilePage",
+      "x": "NEXT_FILE_PAGE_BUTTON_X",
+      "y": "NEXT_FILE_PAGE_BUTTON_Y",
+      "asset": "arrows",
+      "frames": {
+        "offNormal": 6,
+        "onNormal": 7
+      },
+      "priority": "HIGHEST-1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "nextEnabled",
+      "primary": "nextPage"
+    },
+    {
+      "type": "region",
+      "id": "fileScroll",
+      "x": "FILE_VIEWER_X",
+      "y": "FILE_VIEWER_Y",
+      "width": "FILE_VIEWER_W - 1",
+      "height": "FILE_VIEWER_H - 1",
+      "priority": "HIGH",
+      "wheelUp": "prevPage",
+      "wheelDown": "nextPage"
+    }
+  ]
 }
