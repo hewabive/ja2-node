@@ -1,0 +1,13 @@
+# The florist (docs/21 §7.3, docs/04 §6.33): on the user's saves, entering the order form (the order number step), the
+# price (the gallery text's bouquet price, the extras and the destination's delivery cost) and sending the order (the
+# ledger and the second order number step). Destinations outside Meduna, so no meanwhile is posted.
+
+save SaveGame01
+flowers flower=1 dest=2 nextday=1 extras=blackRoses
+flowers flower=7 dest=0 nextday=0 extras=crushed,wilted,fruitCake
+flowers flower=9 dest=5 nextday=1
+flowers flower=0 dest=16 nextday=0 extras=blackRoses,fruitCake
+
+save SaveGame07
+flowers flower=4 dest=3 nextday=0
+flowers flower=6 dest=12 nextday=1 extras=crushed

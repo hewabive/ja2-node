@@ -15,7 +15,7 @@ PROBES=(
   schedules/schedules.jsonl give/give.jsonl recruit/recruit.jsonl civ/civ.jsonl meanwhile/meanwhile.jsonl
   boxing/boxing.jsonl
 )
-OPTIONAL_PROBES=(attach/attach.jsonl)
+OPTIONAL_PROBES=(attach/attach.jsonl florist/florist.jsonl)
 for probe in "${OPTIONAL_PROBES[@]}"; do
   if [ -f "$O/$probe" ]; then
     PROBES+=("$probe")

@@ -1,0 +1,212 @@
+Florist oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-24. See LICENSE (SFI-SCLA).
+The order number step of EnterFloristOrderForm moves into AdvanceFlowerOrderNumberOnEntry, the price computation of
+DisplayFlowerDynamicItems into CalcFlowerOrderPrice and the body of BtnFlowerOrderSendButtonCallback into SendFlowerOrder
+(same code, same call sites). Appends OracleFlowerOrder (the form's selection: flower, destination, the six check boxes;
+opens the gallery text when no florist page did), OracleFlowerOrderFormEntered, OracleFlowerOrderPrice and
+OracleFlowerOrderSend. No behaviour change. Applied by tools/oracle/build.sh after 0024.
+
+--- a/src/game/Laptop/Florist_Order_Form.cc
++++ b/src/game/Laptop/Florist_Order_Form.cc
+@@ -26,7 +26,9 @@
+ #include "ContentManager.h"
+ #include "GameInstance.h"
+ #include "ShippingDestinationModel.h"
++#include "EDT.h"
+ 
++#include <optional>
+ #include <string_theory/format>
+ #include <string_theory/string>
+ 
+@@ -235,6 +237,12 @@
+ 
+ static void InitFlowerOrderTextInputBoxes(void);
+ static void SelectFloristCardGalleryLinkRegionCallBack(MOUSE_REGION* pRegion, UINT32 iReason);
++
++
++static void AdvanceFlowerOrderNumberOnEntry()
++{
++	LaptopSaveInfo.uiFlowerOrderNumber += Random(5) + 1;
++}
+ static void SelectFloristDisableDropDownRegionCallBack(MOUSE_REGION* pRegion, UINT32 iReason);
+ static void SelectFloristDropDownRegionCallBack(MOUSE_REGION* pRegion, UINT32 iReason);
+ static void SelectFloristGalleryLinkRegionCallBack(MOUSE_REGION* pRegion, UINT32 iReason);
+@@ -297,7 +305,7 @@
+ 
+ 	InitFlowerOrderTextInputBoxes();
+ 
+-	LaptopSaveInfo.uiFlowerOrderNumber += Random(5) + 1;
++	AdvanceFlowerOrderNumberOnEntry();
+ 
+ 	RenderFloristOrderForm();
+ }
+@@ -469,32 +477,38 @@
+ }
+ 
+ 
+-static void BtnFlowerOrderSendButtonCallback(GUI_BUTTON *btn, UINT32 reason)
++static void SendFlowerOrder()
+ {
+-	if (reason & MSYS_CALLBACK_REASON_POINTER_UP)
+-	{
+-		//add an entry in the finacial page for the medical deposit
+-		AddTransactionToPlayersBook(PURCHASED_FLOWERS, 0, GetWorldTotalMin(), -(INT32)guiFlowerPrice);
++	//add an entry in the finacial page for the medical deposit
++	AddTransactionToPlayersBook(PURCHASED_FLOWERS, 0, GetWorldTotalMin(), -(INT32)guiFlowerPrice);
+ 
+-		auto destination = GCM->getShippingDestination(gubCurrentlySelectedFlowerLocation);
+-		if (GetTownIdForSector(destination->getDeliverySector()) == MEDUNA)
++	auto destination = GCM->getShippingDestination(gubCurrentlySelectedFlowerLocation);
++	if (GetTownIdForSector(destination->getDeliverySector()) == MEDUNA)
++	{
++		// sent to meduna!
++		if (gfFLoristCheckBox0Down)
+ 		{
+-			// sent to meduna!
+-			if (gfFLoristCheckBox0Down)
+-			{
+-				HandleFlowersMeanwhileScene(0);
+-			}
+-			else
+-			{
+-				HandleFlowersMeanwhileScene(1);
+-			}
++			HandleFlowersMeanwhileScene(0);
++		}
++		else
++		{
++			HandleFlowersMeanwhileScene(1);
+ 		}
++	}
+ 
+-		//increment the order number
+-		LaptopSaveInfo.uiFlowerOrderNumber += 1 + Random(2);
++	//increment the order number
++	LaptopSaveInfo.uiFlowerOrderNumber += 1 + Random(2);
+ 
+-		guiCurrentLaptopMode = LAPTOP_MODE_FLORIST;
+-		InitFloristOrderForm();
++	guiCurrentLaptopMode = LAPTOP_MODE_FLORIST;
++	InitFloristOrderForm();
++}
++
++
++static void BtnFlowerOrderSendButtonCallback(GUI_BUTTON *btn, UINT32 reason)
++{
++	if (reason & MSYS_CALLBACK_REASON_POINTER_UP)
++	{
++		SendFlowerOrder();
+ 	}
+ }
+ 
+@@ -607,47 +621,59 @@
+ }
+ 
+ 
+-//display the things that change on the screen
+-static void DisplayFlowerDynamicItems(void)
++static UINT32 CalcFlowerOrderPrice()
+ {
+-	UINT16	usPosX;
+ 	ST::string sTemp;
+ 	UINT16	usPrice;
+ 
+-	//order number
+-	usPosX = StringPixLength( sOrderFormText[FLORIST_ORDER_ORDER_NUMBER], FLOWER_ORDEER_SMALL_FONT) + 5 + FLOWER_ORDER_ORDER_NUM_NAME_X;
+-	sTemp = ST::format("{}", LaptopSaveInfo.uiFlowerOrderNumber);
+-	DrawTextToScreen(sTemp, usPosX, FLOWER_ORDER_ORDER_NUM_NAME_Y, 0, FLOWER_ORDEER_SMALL_FONT, FLOWER_ORDEER_SMALL_COLOR, FONT_MCOLOR_BLACK, LEFT_JUSTIFIED);
+-
+-	guiFlowerPrice = 0;
++	UINT32 price = 0;
+ 	// the user selected crushed bouquet
+ 	if( gfFLoristCheckBox2Down )
+-		guiFlowerPrice += gubFlowerOrder_AdditioanalServicePrices[0];
++		price += gubFlowerOrder_AdditioanalServicePrices[0];
+ 
+ 	// the user selected blak roses
+ 	if( gfFLoristCheckBox3Down )
+-		guiFlowerPrice += gubFlowerOrder_AdditioanalServicePrices[1];
++		price += gubFlowerOrder_AdditioanalServicePrices[1];
+ 
+ 	// the user selected wilted bouquet
+ 	if( gfFLoristCheckBox4Down )
+-		guiFlowerPrice += gubFlowerOrder_AdditioanalServicePrices[2];
++		price += gubFlowerOrder_AdditioanalServicePrices[2];
+ 
+ 	// the user selected fruit cake
+ 	if( gfFLoristCheckBox5Down )
+-		guiFlowerPrice += gubFlowerOrder_AdditioanalServicePrices[3];
++		price += gubFlowerOrder_AdditioanalServicePrices[3];
+ 
+ 	//price
+-	usPosX = StringPixLength( sOrderFormText[FLORIST_ORDER_PRICE], FLOWER_ORDEER_SMALL_FONT) + 5 + FLOWER_ORDER_BOUQUET_NAME_X;
+ 	sTemp = GetFloristGalleryText(guiCurrentlySelectedFlower, 1);
+ 	sscanf(sTemp.c_str(), "%hu", &usPrice);
+ 
+ 	//if its the next day delivery
+ 	auto destination = GCM->getShippingDestination(gubCurrentlySelectedFlowerLocation);
+ 	if( gfFLoristCheckBox0Down )
+-		guiFlowerPrice += usPrice + destination->flowersNextDayDeliveryCost;
++		price += usPrice + destination->flowersNextDayDeliveryCost;
+ 	//else its the 'when it gets there' delivery
+ 	else
+-		guiFlowerPrice += usPrice + destination->flowersWhenItGetsThereCost;
++		price += usPrice + destination->flowersWhenItGetsThereCost;
++
++	return price;
++}
++
++
++//display the things that change on the screen
++static void DisplayFlowerDynamicItems(void)
++{
++	UINT16	usPosX;
++	ST::string sTemp;
++
++	//order number
++	usPosX = StringPixLength( sOrderFormText[FLORIST_ORDER_ORDER_NUMBER], FLOWER_ORDEER_SMALL_FONT) + 5 + FLOWER_ORDER_ORDER_NUM_NAME_X;
++	sTemp = ST::format("{}", LaptopSaveInfo.uiFlowerOrderNumber);
++	DrawTextToScreen(sTemp, usPosX, FLOWER_ORDER_ORDER_NUM_NAME_Y, 0, FLOWER_ORDEER_SMALL_FONT, FLOWER_ORDEER_SMALL_COLOR, FONT_MCOLOR_BLACK, LEFT_JUSTIFIED);
++
++	guiFlowerPrice = CalcFlowerOrderPrice();
++
++	//price
++	usPosX = StringPixLength( sOrderFormText[FLORIST_ORDER_PRICE], FLOWER_ORDEER_SMALL_FONT) + 5 + FLOWER_ORDER_BOUQUET_NAME_X;
+ 
+ 	sTemp = ST::format("${}.00 {}", guiFlowerPrice, pMessageStrings[MSG_USDOLLAR_ABBREVIATION]);
+ 	DrawTextToScreen(sTemp, usPosX, FLOWER_ORDER_BOUQUET_NAME_Y, 0, FLOWER_ORDEER_SMALL_FONT, FLOWER_ORDEER_SMALL_COLOR, FONT_MCOLOR_BLACK, LEFT_JUSTIFIED);
+@@ -980,3 +1006,35 @@
+ 	gsSentimentTextField.clear();
+ 	gsNameTextField.clear();
+ }
++
++
++extern std::optional<EDTFile> gFloristGalleryTexts;
++
++void OracleFlowerOrder(UINT32 const flower, UINT8 const location, BOOLEAN const next_day, BOOLEAN const crushed, BOOLEAN const black_roses, BOOLEAN const wilted, BOOLEAN const fruit_cake)
++{
++	if (!gFloristGalleryTexts) gFloristGalleryTexts = EDTFile(EDTFile::FLORIST_DESCRIPTIONS);
++	guiCurrentlySelectedFlower         = flower;
++	gubCurrentlySelectedFlowerLocation = location;
++	gfFLoristCheckBox0Down             = next_day;
++	gfFLoristCheckBox1Down             = !next_day;
++	gfFLoristCheckBox2Down             = crushed;
++	gfFLoristCheckBox3Down             = black_roses;
++	gfFLoristCheckBox4Down             = wilted;
++	gfFLoristCheckBox5Down             = fruit_cake;
++}
++
++void OracleFlowerOrderFormEntered()
++{
++	AdvanceFlowerOrderNumberOnEntry();
++}
++
++UINT32 OracleFlowerOrderPrice()
++{
++	return CalcFlowerOrderPrice();
++}
++
++void OracleFlowerOrderSend()
++{
++	guiFlowerPrice = CalcFlowerOrderPrice();
++	SendFlowerOrder();
++}

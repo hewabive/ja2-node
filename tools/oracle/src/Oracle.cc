@@ -10,7 +10,7 @@
 // @src src/game/Strategic/StrategicMap.cc OKForSectorExit, SetupTacticalTraversalInformation; src/game/TileEngine/Map_Edgepoints.cc
 // @src GenerateMapEdgepoints, CalcMapEdgepointClassInsertionCode; src/game/Tactical/Soldier_Init_List.cc AddSoldierInitListEnemyDefenceSoldiers
 // @src src/game/Tactical/Arms_Dealer_Init.cc, ArmsDealerInvInit.cc, ShopKeeper_Interface.cc (merchants)
-// @src src/game/Strategic/Game_Init.cc InitNewGame; src/game/Laptop (A.I.M., M.E.R.C., I.M.P., Bobby Ray, insurance)
+// @src src/game/Strategic/Game_Init.cc InitNewGame; src/game/Laptop (A.I.M., M.E.R.C., I.M.P., Bobby Ray, insurance, the florist)
 // @src src/game/Strategic/Map_Screen_Helicopter.cc, MapScreen.cc, Tactical/Vehicles.cc (the helicopter probes)
 // @src src/game/Strategic/Quests.cc CheckFact, InternalStartQuest, InternalEndQuest; Hourly_Update.cc; StrategicMap.cc
 // @src HandleQuestCodeOnSector (facts probes); src/game/TacticalAI/NPC.cc CalcDesireToTalk, NPCConsiderTalking, ConverseFull
@@ -199,6 +199,10 @@ BOOLEAN OracleMercFilesHireMerc(UINT8 ubMercID);
 INT32 OracleSettleMercAccounts(UINT8 ubCurMercIndex);
 INT32 OracleBobbyRayOrder(UINT8 city, UINT8 speed, UINT32* subtotal, UINT32* shipping);
 INT32 OracleInsuranceContractLength(SOLDIERTYPE const* s);
+void OracleFlowerOrder(UINT32 flower, UINT8 location, BOOLEAN next_day, BOOLEAN crushed, BOOLEAN black_roses, BOOLEAN wilted, BOOLEAN fruit_cake);
+void OracleFlowerOrderFormEntered();
+UINT32 OracleFlowerOrderPrice();
+void OracleFlowerOrderSend();
 void OracleCompileQuiz(INT32 const* answers);
 void OracleIMPConfirmYes();
 extern BOOLEAN gfContractRenewalSquenceOn;
@@ -4473,6 +4477,25 @@ void ProbeInsure(Command const& c)
 	EmitLaptop(c, "", Json{}.num("length", length).num("cost", cost).text(), {s.ubProfile});
 }
 
+void ProbeFlowers(Command const& c)
+{
+	std::vector<std::string> const extras = SplitList(Text(c, "extras", ""), ',');
+	auto const has = [&](char const* name) { return std::find(extras.begin(), extras.end(), name) != extras.end(); };
+	OracleFlowerOrder(static_cast<UINT32>(Required(c, "flower")), static_cast<UINT8>(Required(c, "dest")), Integer(c, "nextday", 0) != 0,
+		has("crushed"), has("blackRoses"), has("wilted"), has("fruitCake"));
+	UINT32 const before = LaptopSaveInfo.uiFlowerOrderNumber;
+	UINT32 entered = 0;
+	UINT32 price = 0;
+	std::string const draws = TracedSaiDraws([&] {
+		OracleFlowerOrderFormEntered();
+		entered = LaptopSaveInfo.uiFlowerOrderNumber;
+		price = OracleFlowerOrderPrice();
+		OracleFlowerOrderSend();
+	});
+	EmitLaptop(c, draws,
+		Json{}.num("before", before).num("entered", entered).num("price", price).num("sent", LaptopSaveInfo.uiFlowerOrderNumber).text(), {});
+}
+
 void ProbeInsuranceDaily(Command const& c)
 {
 	DailyUpdateOfInsuredMercs();
@@ -7852,6 +7875,7 @@ void Dispatch(Command const& c)
 	if (c.name == "setfact") return ProbeFactValue(c);
 	if (c.name == "setbalance") return SetLaptopBalance(c);
 	if (c.name == "insure") return ProbeInsure(c);
+	if (c.name == "flowers") return ProbeFlowers(c);
 	if (c.name == "insuranceday") return ProbeInsuranceDaily(c);
 	if (c.name == "payout") return ProbeInsurancePayout(c);
 	if (c.name == "insurancestep") return ProbeInsuranceStep(c);
