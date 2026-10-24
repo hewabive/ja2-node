@@ -152,7 +152,7 @@ image interface/autoresolve.sti#4 237,260
 clipPop
 glyphs smallcompfont 205,282 n=6 fg=133
 image interface/autoresolve.sti#13 391,178
-image interface/smfaces.sti#0 400,181
+image interface/smfaces.sti#1 400,181
 clip 393,210 46x10
 image interface/autoresolve.sti#4 387,180
 image interface/autoresolve.sti#4 437,180

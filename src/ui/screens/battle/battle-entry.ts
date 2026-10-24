@@ -30,6 +30,7 @@ export interface BattleEntryHost {
   sectorPoint(label: string): { readonly x: number; readonly y: number } | null;
   mapItems(): readonly DrawItem[];
   sectorName(label: string): string;
+  preparePanel(sector: string): void;
 }
 
 export interface BattleEntryHook {
@@ -148,6 +149,7 @@ export class BattleEntry {
 
   #open(data: PreBattleData): void {
     this.#autoStartShown = false;
+    this.#host.preparePanel(data.sector);
     this.#panel = new PreBattlePanel(
       {
         env: this.#host.env,

@@ -1,13 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { ARRIVAL_WAIT_SECONDS, arrangeBattle, BATTLE_SECTOR, BattleVariant } from '../../../../tests/support/battle-entry.ts';
+import { ARRIVAL_WAIT_SECONDS, arrangeBattle, BATTLE_SECTOR, BattleVariant, campaignOf } from '../../../../tests/support/battle-entry.ts';
 import { type MapUiKit, type MapUiTest, mapUiKit, mapUiTest } from '../../../../tests/support/map-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
+import { parseSectorString, sectorId } from '../../../content/strategic/sector-ids.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import type { BattleEntryHook } from './battle-entry.ts';
 
 const SLOW_MS = 180_000;
 const OPENING_MS = 1000;
 const FRAME_MS = 16;
+const CREATURES = 3;
 
 let kit: StubSectorKit;
 let ui: MapUiKit;
@@ -196,6 +198,31 @@ describe('the pre-battle interface on the stub map-screen campaign', () => {
         expect(f.widget('arDoneLose').visible).toBe(true);
         expect(f.widget('arDoneWin').visible).toBe(false);
       }),
+    SLOW_MS,
+  );
+
+  it(
+    'shows an automatic start as the panel with Autoresolve pressed, then the autoresolve screen',
+    async () => {
+      const f = await mapUiTest(kit, ui);
+      try {
+        const campaign = campaignOf(f.session).campaign;
+        campaign.state.creatures.attack.sectorId = sectorId(parseSectorString(BATTLE_SECTOR));
+        campaign.state.creatures.attack.numAttacking = CREATURES;
+        campaign.battle?.openCreatureAttack(true);
+        f.session.advance({ ticks: 1 });
+        f.deliver();
+        await frames(f, FRAME_MS);
+        expect(battle(f).preBattle).toMatchObject({ autoStart: true, encounter: 'creatureAttack', phase: 'opening' });
+        expect(f.widget('preBattleGoToSector').enabled).toBe(false);
+        expect(f.widget('preBattleRetreat').enabled).toBe(false);
+        await frames(f, OPENING_MS + FRAME_MS * 3);
+        expect(screenId(f)).toBe('autoresolve');
+        expect(battle(f).autoresolve?.ratio).toMatch(/4/);
+      } finally {
+        await f.dispose();
+      }
+    },
     SLOW_MS,
   );
 

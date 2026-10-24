@@ -319,6 +319,7 @@ export class MapScreen implements Screen {
       sectorPoint: (label) => this.sectorPoint(label),
       mapItems: () => this.#lastItems,
       sectorName: (label) => this.#sectorName(label, true),
+      preparePanel: (sector) => this.#preparePreBattle(sector),
     });
   }
 
@@ -1233,6 +1234,15 @@ export class MapScreen implements Screen {
     if (!wasSelected || !this.#movableCharsIn(hover)) return;
     if (this.#level !== 0) void this.#mapBox(this.#text(MAP_ERROR, UNDERGROUND));
     else this.#startMoveFromSector(hover);
+  }
+
+  #preparePreBattle(sector: string): void {
+    this.#abortPlotting(false);
+    this.#closeMenus();
+    this.#moveBox.close(false);
+    const s = parseSectorLabel(sector);
+    if (s) this.#changeSelectedSector({ ...s, z: 0 });
+    turnOnTeams(this.filters);
   }
 
   #battleLocatorAt(s: Sector): boolean {

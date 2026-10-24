@@ -5,6 +5,7 @@ export interface BattleHook {
   ready: boolean;
   state: BattleEntryHook | null;
   drives: readonly string[];
+  commands: readonly string[];
   sounds: readonly string[];
   buttonPoint(id: string): { readonly x: number; readonly y: number } | null;
 }

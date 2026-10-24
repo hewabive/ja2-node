@@ -296,6 +296,7 @@ export class MapHost implements MapPort {
       ready: false,
       state: null,
       drives: [],
+      commands: [],
       sounds: [],
       buttonPoint: (id) => {
         const widget = this.#o.ui.runtime.describe().find((w) => w.id === id);
@@ -312,6 +313,7 @@ export class MapHost implements MapPort {
     hook.ready = battle !== null;
     hook.state = battle?.hook() ?? null;
     hook.drives = this.#battleClient.drives.slice(-KEPT_COMMANDS).map((d) => (d.mode === 'realtime' ? `realtime:${d.speed}` : d.mode));
+    hook.commands = this.#battleClient.commands.slice(-KEPT_COMMANDS).map((c) => `${c.cmd.type}:${c.reply.ok ? 'ok' : 'refused'}`);
     hook.sounds = (this.#loaded?.battleSound.played ?? []).slice(-KEPT_COMMANDS);
   }
 
