@@ -1,0 +1,175 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/IMP_Portraits.cc RenderIMPPortraits (voice_portraitframe.sti, the big face, attributescreenindent_1.sti), CreateIMPPortraitButtons (voicearrows.sti frames 1/3 and 0/2, button_5.sti)",
+    "src/game/Laptop/IMP_Text_System.cc PrintImpText IMP_PORTRAIT"
+  ],
+  "screen": "impPortrait",
+  "frame": "std640",
+  "constants": ["Laptop", "IMPVideoObjects", "IMP_Text_System"],
+  "assets": {
+    "portraitFrame": {
+      "sti": "laptop/voice_portraitframe.sti",
+      "stub": {
+        "frames": 1,
+        "size": [126, 142],
+        "hollow": true
+      }
+    },
+    "attrib1Indent": {
+      "sti": "laptop/attributescreenindent_1.sti",
+      "stub": {
+        "frames": 1,
+        "size": [250, 50],
+        "hollow": true
+      }
+    },
+    "voiceArrows": {
+      "sti": "laptop/voicearrows.sti",
+      "stub": {
+        "sizes": [[67, 48], [67, 48], [67, 47], [67, 47]],
+        "states": ["normal", "normal", "pressed", "pressed"]
+      }
+    },
+    "button5": {
+      "sti": "laptop/button_5.sti",
+      "stub": {
+        "frames": 2,
+        "size": [135, 56],
+        "states": ["normal", "pressed"],
+        "hollow": true
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "asset": "portraitFrame",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X + 191",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 167"
+    },
+    {
+      "type": "portrait",
+      "id": "impPortraitFace",
+      "x": "LAPTOP_SCREEN_UL_X + 200",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 176",
+      "face": {
+        "bind": "face"
+      },
+      "size": "big",
+      "visible": "faceShown"
+    },
+    {
+      "type": "image",
+      "asset": "attrib1Indent",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X + 128",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 65"
+    },
+    {
+      "type": "text",
+      "id": "impPortraitTitle",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 7",
+      "width": "LAPTOP_SCREEN_LR_X - LAPTOP_SCREEN_UL_X + 1",
+      "font": "FONT14ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_POR_1 - 1"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 135",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 68",
+      "width": 240,
+      "font": "FONT10ARIAL",
+      "color": 142,
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_POR_2 - 1"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "button",
+      "id": "impPortraitNext",
+      "x": "LAPTOP_SCREEN_UL_X + 343",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 205",
+      "asset": "voiceArrows",
+      "frames": {
+        "offNormal": 1,
+        "onNormal": 3
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "next",
+      "text": {
+        "source": {
+          "key": ["pImpButtonText", 13]
+        },
+        "font": "FONT12ARIAL",
+        "color": "FONT_WHITE",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "FONT_WHITE",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    },
+    {
+      "type": "button",
+      "id": "impPortraitPrevious",
+      "x": "LAPTOP_SCREEN_UL_X + 93",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 205",
+      "asset": "voiceArrows",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 2
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "previous",
+      "text": {
+        "source": {
+          "key": ["pImpButtonText", 12]
+        },
+        "font": "FONT12ARIAL",
+        "color": "FONT_WHITE",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "FONT_WHITE",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    },
+    {
+      "type": "button",
+      "id": "impPortraitDone",
+      "x": "LAPTOP_SCREEN_UL_X + 187",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 330",
+      "asset": "button5",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "done",
+      "text": {
+        "source": {
+          "key": ["pImpButtonText", 11]
+        },
+        "font": "FONT12ARIAL",
+        "color": "FONT_WHITE",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "FONT_WHITE",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    }
+  ]
+}

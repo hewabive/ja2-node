@@ -24,6 +24,20 @@ import { BOBBY_RAY_ORDER_CONTRACT } from './laptop/bobby-ray/bobby-ray-order.ts'
 import { BOBBY_RAY_SHIPMENTS_CONTRACT } from './laptop/bobby-ray/bobby-ray-shipments.ts';
 import { EMAIL_CONTRACT } from './laptop/email/email-page.ts';
 import { FINANCES_CONTRACT } from './laptop/finances/finances-page.ts';
+import { IMP_ATTRIBUTE_FINISH_CONTRACT, IMP_ATTRIBUTES_CONTRACT } from './laptop/imp/imp-attributes.ts';
+import { IMP_PORTRAIT_CONTRACT, IMP_VOICE_CONTRACT } from './laptop/imp/imp-looks.ts';
+import {
+  IMP_ABOUT_US_CONTRACT,
+  IMP_ATTRIBUTE_ENTRANCE_CONTRACT,
+  IMP_BEGIN_CONTRACT,
+  IMP_CONFIRM_CONTRACT,
+  IMP_FINISH_CONTRACT,
+  IMP_HOME_CONTRACT,
+  IMP_MAIN_CONTRACT,
+  IMP_PERSONALITY_CONTRACT,
+} from './laptop/imp/imp-pages.ts';
+import { IMP_FRAME_CONTRACT } from './laptop/imp/imp-profile.ts';
+import { IMP_PERSONALITY_FINISH_CONTRACT, IMP_QUIZ_CONTRACT } from './laptop/imp/imp-quiz.ts';
 import { LAPTOP_SHELL_CONTRACT } from './laptop/laptop-screen.ts';
 import {
   BROKEN_LINK_CONTRACT,
@@ -85,5 +99,20 @@ export const LAYOUT_CONTRACTS: Readonly<Record<string, ControllerContract>> = Ob
     MERC_ACCOUNT_CONTRACT,
     MERC_FILES_CONTRACT,
     BROKEN_LINK_CONTRACT,
+    IMP_FRAME_CONTRACT,
+    IMP_HOME_CONTRACT,
+    IMP_ABOUT_US_CONTRACT,
+    IMP_MAIN_CONTRACT,
+    IMP_BEGIN_CONTRACT,
+    IMP_PERSONALITY_CONTRACT,
+    IMP_QUIZ_CONTRACT,
+    IMP_PERSONALITY_FINISH_CONTRACT,
+    IMP_ATTRIBUTE_ENTRANCE_CONTRACT,
+    IMP_ATTRIBUTES_CONTRACT,
+    IMP_ATTRIBUTE_FINISH_CONTRACT,
+    IMP_PORTRAIT_CONTRACT,
+    IMP_VOICE_CONTRACT,
+    IMP_FINISH_CONTRACT,
+    IMP_CONFIRM_CONTRACT,
   ].map((contract) => [contract.id, contract]),
 );

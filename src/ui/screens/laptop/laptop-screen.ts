@@ -39,6 +39,7 @@ import { bobbyRayOrderPage } from './bobby-ray/bobby-ray-order.ts';
 import { bobbyRayShipmentsPage } from './bobby-ray/bobby-ray-shipments.ts';
 import { emailPage } from './email/email-page.ts';
 import { financesPage } from './finances/finances-page.ts';
+import { charProfilePage } from './imp/imp-profile.ts';
 import {
   DEFAULT_LAPTOP_SETTINGS,
   type LaptopClient,
@@ -77,6 +78,21 @@ export const LAPTOP_LAYOUTS: readonly string[] = [
   'merc-account',
   'merc-files',
   'broken-link',
+  'imp-frame',
+  'imp-home',
+  'imp-about-us',
+  'imp-main',
+  'imp-begin',
+  'imp-personality',
+  'imp-quiz',
+  'imp-personality-finish',
+  'imp-attribute-entrance',
+  'imp-attributes',
+  'imp-attribute-finish',
+  'imp-portrait',
+  'imp-voice',
+  'imp-finish',
+  'imp-confirm',
 ];
 
 const POWER_UP_SOUND = 'sounds/laptop power up (8-11).wav';
@@ -190,6 +206,7 @@ const PAGES: Readonly<Record<number, PageFactory>> = {
   [LaptopMode.MERC_ACCOUNT]: mercAccountPage,
   [LaptopMode.MERC_FILES]: mercFilesPage,
   [LaptopMode.BROKEN_LINK]: brokenLinkPage,
+  [LaptopMode.CHAR_PROFILE]: charProfilePage,
 };
 
 const SITE_PAGES: Readonly<Record<number, number>> = {

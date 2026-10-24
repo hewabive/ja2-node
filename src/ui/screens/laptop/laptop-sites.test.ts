@@ -10,6 +10,7 @@ import {
   openLaptopHarness,
   settle,
   shown,
+  type,
 } from '../../../../tests/support/laptop-ui.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { parseSectorString, strategicIndex } from '../../../content/strategic/sector-ids.ts';
@@ -191,6 +192,118 @@ describe('M.E.R.C. on the canvas laptop', () => {
       await settle(t, 10);
       expect(h.screen.shell.mode).toBe(LaptopMode.BROKEN_LINK);
       expect(shown(t, 'brokenLinkError').text).not.toBe('');
+    },
+    SLOW_MS,
+  );
+});
+
+async function waitFor(h: LaptopHarness, id: string): Promise<void> {
+  for (let i = 0; i < 30 && !find(h.t, id)?.visible; i++) await settle(h.t, 1);
+  expect(find(h.t, id)?.visible, id).toBe(true);
+}
+
+async function clickThrough(h: LaptopHarness, id: string, next: string): Promise<void> {
+  await click(h.t, id);
+  await waitFor(h, next);
+}
+
+describe('I.M.P. on the canvas laptop', () => {
+  it(
+    'refuses a bad code, creates a character through every page and charges the profile',
+    async () => {
+      const h = await openLaptopHarness(kit, ui, { seed: 24, prepare: bookmark(Bookmark.IMP) });
+      const { t } = h;
+      await toBookmark(h, 1);
+      expect(h.screen.shell.mode).toBe(LaptopMode.CHAR_PROFILE);
+      await waitFor(h, 'impHomeTitle');
+      expect(find(t, 'impCancel')?.visible).toBe(false);
+      await clickThrough(h, 'impAboutUs', 'impAboutUsTitle');
+      await clickThrough(h, 'impAboutUsBack', 'impHomeTitle');
+
+      await click(t, 'impCode');
+      await type(t, 'NOPE');
+      await key(t, 'Enter', 'up');
+      expect(t.runtime.host.modal).not.toBeNull();
+      await dismissModal(t);
+      for (let i = 0; i < 4; i++) await key(t, 'Backspace', 'down');
+      await type(t, 'XEP624');
+      await key(t, 'Enter', 'up');
+      await waitFor(h, 'impMainTitle');
+      expect(h.commands.some((c) => c.type === 'impCheckCode' && c.code === 'XEP624')).toBe(true);
+      expect(shown(t, 'impProfile0').enabled).toBe(false);
+      await click(t, 'impBlocker0');
+      expect(t.runtime.host.modal).not.toBeNull();
+      await dismissModal(t);
+
+      await clickThrough(h, 'impBegin', 'impBeginTitle');
+      expect(find(t, 'impCancel')?.visible).toBe(true);
+      await click(t, 'impBeginDone');
+      expect(t.runtime.host.modal).not.toBeNull();
+      await dismissModal(t);
+      await click(t, 'impFullName');
+      await type(t, 'Ivan Testov');
+      await click(t, 'impMaleBox');
+      expect(shown(t, 'impMaleMark').visible).toBe(true);
+      await clickThrough(h, 'impBeginDone', 'impMainTitle');
+      expect(shown(t, 'impProfile0').enabled).toBe(true);
+
+      await clickThrough(h, 'impProfile0', 'impPersonalityTitle');
+      await clickThrough(h, 'impPersonalityBegin', 'impQuizTitle');
+      const answers = h.session.view().laptop?.imp.quizAnswers ?? [];
+      for (let q = 0; q < answers.length; q++) {
+        expect(shown(t, 'impQuestionNumber').text).toBe(String(q + 1));
+        expect(shown(t, 'impQuizConfirm').enabled).toBe(false);
+        expect(find(t, `impAnswer${(answers[q] ?? 1) - 1}`)?.visible).toBe(true);
+        await click(t, 'impAnswer0');
+        expect(shown(t, 'impQuizConfirm').enabled).toBe(true);
+        await click(t, 'impQuizConfirm');
+        if (q === 0) {
+          await click(t, 'impQuizPrevious');
+          expect(shown(t, 'impQuestionNumber').text).toBe('1');
+          expect(shown(t, 'impQuizConfirm').enabled).toBe(true);
+          await click(t, 'impQuizNext');
+        }
+      }
+      await waitFor(h, 'impPersonalityQuestion');
+      await click(t, 'impPersonalityYes');
+      expect(find(t, 'impPersonalityYes')?.visible).toBe(false);
+      await clickThrough(h, 'impPersonalityOk', 'impMainTitle');
+
+      await clickThrough(h, 'impProfile1', 'impAttributeEntranceTitle');
+      await clickThrough(h, 'impAttributeEntranceBegin', 'impAttributesTitle');
+      expect(shown(t, 'impBonusPoints').text).toBe('40');
+      await click(t, 'impIncrease0');
+      expect(shown(t, 'impAttributeValue0').text).toBe('56');
+      expect(shown(t, 'impBonusPoints').text).toBe('39');
+      for (let i = 0; i < 20; i++) await click(t, 'impDecrease6');
+      expect(shown(t, 'impAttributeValue6').text).toBe('35');
+      await click(t, 'impDecrease6');
+      expect(t.runtime.host.modal).not.toBeNull();
+      await key(t, 'n', 'up');
+      await settle(t);
+      expect(shown(t, 'impAttributeValue6').text).toBe('35');
+      await clickThrough(h, 'impAttributesFinish', 'impAttributeFinishTitle');
+      await clickThrough(h, 'impAttributesYes', 'impMainTitle');
+
+      await clickThrough(h, 'impProfile2', 'impPortraitTitle');
+      await click(t, 'impPortraitNext');
+      await clickThrough(h, 'impPortraitDone', 'impMainTitle');
+      await clickThrough(h, 'impProfile3', 'impVoiceTitle');
+      await click(t, 'impVoiceNext');
+      expect(shown(t, 'impVoiceIndex').text).toMatch(/ 2$/);
+      await clickThrough(h, 'impVoiceDone', 'impFinishName');
+      expect(shown(t, 'impFinishName').text).toContain('Ivan Testov');
+
+      const before = h.session.view().strategic?.mercs.length ?? 0;
+      await clickThrough(h, 'impFinishDone', 'impConfirmTitle');
+      await click(t, 'impConfirmYes');
+      await settle(t);
+      const created = h.commands.find((c) => c.type === 'impCreate') as Record<string, unknown> | undefined;
+      expect(created).toMatchObject({ code: 'XEP624', name: 'Ivan Testov', nickname: 'Ivan', gender: 'male', portrait: 1, voice: 1 });
+      expect(created?.attributes).toMatchObject({ health: 56, marksmanship: 35 });
+      expect(h.replies.at(-1)?.ok).toBe(true);
+      expect(h.session.view().strategic?.mercs.length).toBe(before + 1);
+      await waitFor(h, 'impHomeTitle');
     },
     SLOW_MS,
   );

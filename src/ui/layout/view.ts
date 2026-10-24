@@ -20,7 +20,7 @@ import { drawItemPicture, isItemGraphic } from '../widgets/item-picture.ts';
 import { type MercIcon, MercTextBox } from '../widgets/merc-text-box.ts';
 import { MessageBox, type MessageBoxFlag, type MessageBoxLabels, type MessageBoxStyle } from '../widgets/message-box.ts';
 import { type LineShade, PopupBox, type PopupLine, PopupMenu } from '../widgets/popup-box.ts';
-import { drawPortrait, portraitState } from '../widgets/portrait.ts';
+import { drawPortrait, portraitPath, portraitState } from '../widgets/portrait.ts';
 import { ProgressBar, type ProgressBarStyle } from '../widgets/progress-bar.ts';
 import type { Slider, SliderSystem } from '../widgets/slider.ts';
 import {
@@ -693,15 +693,28 @@ export class LayoutView {
         ...(textJson.shift === false ? { shift: false } : {}),
       };
     };
-    if (iconJson) {
+    const iconAsset = (json: JsonObject): string =>
+      json.face === undefined
+        ? this.model.asset(String(json.asset)).path
+        : portraitPath(this.number(json.face as NumberExpr, vars, NO_FACE), 'small');
+    const syncIcon = () => {
+      if (!iconJson) return;
+      if (!this.condition(iconJson.visible as Condition | undefined, vars)) {
+        button.icon = null;
+        return;
+      }
+      const asset = iconAsset(iconJson);
+      const frame = this.number(iconJson.frame as NumberExpr | undefined, vars);
+      if (button.icon?.asset === asset && button.icon.frame === frame) return;
       button.icon = {
-        asset: this.model.asset(String(iconJson.asset)).path,
-        frame: this.number(iconJson.frame as NumberExpr | undefined, vars),
+        asset,
+        frame,
         ...(iconJson.offsetX === undefined ? {} : { offsetX: this.number(iconJson.offsetX as NumberExpr, vars) }),
         ...(iconJson.offsetY === undefined ? {} : { offsetY: this.number(iconJson.offsetY as NumberExpr, vars) }),
         ...(iconJson.shift === false ? { shift: false } : {}),
       };
-    }
+    };
+    syncIcon();
     const checked = (): boolean | undefined => {
       if (membership) return this.get(String(membership.group.value), vars) === membership.index;
       if (json.checked === undefined) return undefined;
@@ -715,6 +728,7 @@ export class LayoutView {
       const tooltip = this.text(json.tooltip as TextSourceJson | undefined, vars);
       if (tooltip !== button.region.tooltip) button.setTooltip(tooltip);
       syncText();
+      syncIcon();
     };
     sync();
     return {

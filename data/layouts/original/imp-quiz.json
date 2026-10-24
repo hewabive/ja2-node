@@ -1,0 +1,480 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/IMP_Personality_Quiz.cc CreateIMPPersonalityQuizButtons (button_7.sti confirm, button_5.sti start over, button_3.sti previous and next with the text one pixel up), AddIMPPersonalityQuizAnswerButtons (button_6.sti at 97 + 50 per row, MSYS_PRIORITY_HIGHEST - 3, the number at 23, 12 in FONT12ARIAL white on black), BltAnswerIndents (questionindent.sti, the long, short and short2 indents and their high variants at INDENT_OFFSET), PrintQuizQuestionNumber",
+    "src/game/Laptop/IMP_Text_System.cc PrintImpText IMP_PERSONALITY_QUIZ, PrintIMPPersonalityQuizQuestionAndAnswers"
+  ],
+  "screen": "impQuiz",
+  "frame": "std640",
+  "constants": ["Laptop", "IMPVideoObjects", "IMP_Text_System", "IMP_Personality_Quiz"],
+  "assets": {
+    "questionIndent": {
+      "sti": "laptop/questionindent.sti",
+      "stub": {
+        "frames": 1,
+        "size": [472, 64],
+        "hollow": true
+      }
+    },
+    "longIndent": {
+      "sti": "laptop/longindent.sti",
+      "stub": {
+        "frames": 1,
+        "size": [416, 43],
+        "hollow": true
+      }
+    },
+    "longIndentHigh": {
+      "sti": "laptop/longindenthigh.sti",
+      "stub": {
+        "frames": 1,
+        "size": [416, 43],
+        "hollow": true
+      }
+    },
+    "shortIndent": {
+      "sti": "laptop/shortindent.sti",
+      "stub": {
+        "frames": 1,
+        "size": [176, 43],
+        "hollow": true
+      }
+    },
+    "shortIndentHigh": {
+      "sti": "laptop/shortindenthigh.sti",
+      "stub": {
+        "frames": 1,
+        "size": [176, 43],
+        "hollow": true
+      }
+    },
+    "short2Indent": {
+      "sti": "laptop/shortindent2.sti",
+      "stub": {
+        "frames": 1,
+        "size": [176, 55],
+        "hollow": true
+      }
+    },
+    "short2IndentHigh": {
+      "sti": "laptop/shortindent2high.sti",
+      "stub": {
+        "frames": 1,
+        "size": [176, 55],
+        "hollow": true
+      }
+    },
+    "button6": {
+      "sti": "laptop/button_6.sti",
+      "stub": {
+        "frames": 2,
+        "size": [52, 35],
+        "states": ["normal", "pressed"],
+        "hollow": false
+      }
+    },
+    "button7": {
+      "sti": "laptop/button_7.sti",
+      "stub": {
+        "frames": 2,
+        "size": [289, 56],
+        "states": ["normal", "pressed"],
+        "hollow": true
+      }
+    },
+    "button5": {
+      "sti": "laptop/button_5.sti",
+      "stub": {
+        "frames": 2,
+        "size": [135, 56],
+        "states": ["normal", "pressed"],
+        "hollow": true
+      }
+    },
+    "button3": {
+      "sti": "laptop/button_3.sti",
+      "stub": {
+        "frames": 2,
+        "size": [71, 35],
+        "states": ["normal", "pressed"],
+        "hollow": false
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "text",
+      "id": "impQuizTitle",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 5",
+      "width": "LAPTOP_SCREEN_LR_X - LAPTOP_SCREEN_UL_X + 1",
+      "font": "FONT14ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_PERS_6"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 293",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 370",
+      "width": "456 - 200",
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_PERS_11"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 363",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 370",
+      "width": "456 - 200",
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_PERS_12"]
+      },
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "image",
+      "asset": "questionIndent",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X + 15",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 20"
+    },
+    {
+      "type": "text",
+      "id": "impQuestion",
+      "x": "LAPTOP_SCREEN_UL_X + 20",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 30",
+      "width": 460,
+      "font": "FONT10ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "question"
+      },
+      "align": "left",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "repeat",
+      "count": {
+        "bind": "firstCount"
+      },
+      "x": 0,
+      "y": 0,
+      "dy": 50,
+      "template": [
+        {
+          "type": "image",
+          "asset": {
+            "by": "answers[$i].indent",
+            "map": {
+              "long": "longIndent",
+              "short": "shortIndent",
+              "short2": "short2Indent"
+            }
+          },
+          "frame": 0,
+          "x": "LAPTOP_SCREEN_UL_X + BTN_FIRST_COLUMN_X + INDENT_OFFSET",
+          "y": "LAPTOP_SCREEN_WEB_UL_Y + 93"
+        },
+        {
+          "type": "image",
+          "asset": {
+            "by": "answers[$i].indent",
+            "map": {
+              "long": "longIndentHigh",
+              "short": "shortIndentHigh",
+              "short2": "short2IndentHigh"
+            }
+          },
+          "frame": 0,
+          "x": "LAPTOP_SCREEN_UL_X + BTN_FIRST_COLUMN_X + INDENT_OFFSET",
+          "y": "LAPTOP_SCREEN_WEB_UL_Y + 93",
+          "visible": "answers[$i].high"
+        },
+        {
+          "type": "text",
+          "id": "impAnswerText$i",
+          "x": "LAPTOP_SCREEN_UL_X + QTN_FIRST_COLUMN_X",
+          "y": "LAPTOP_SCREEN_WEB_UL_Y + 100",
+          "width": {
+            "bind": "answerWidth"
+          },
+          "font": "FONT10ARIAL",
+          "color": 142,
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "answers[$i].text"
+          },
+          "align": "left",
+          "wrap": {
+            "gap": 2
+          }
+        },
+        {
+          "type": "button",
+          "id": "impAnswer$i",
+          "x": "LAPTOP_SCREEN_UL_X + BTN_FIRST_COLUMN_X",
+          "y": "LAPTOP_SCREEN_WEB_UL_Y + 97",
+          "asset": "button6",
+          "frames": {
+            "offNormal": 0,
+            "onNormal": 1
+          },
+          "priority": "HIGHEST-3",
+          "cursor": "CURSOR_WWW",
+          "down": "answer($i)",
+          "text": {
+            "source": {
+              "bind": "answers[$i].number"
+            },
+            "font": "FONT12ARIAL",
+            "color": "FONT_WHITE",
+            "shadow": "FONT_BLACK",
+            "downColor": "FONT_WHITE",
+            "downShadow": "FONT_BLACK",
+            "offsetX": 23,
+            "offsetY": 12,
+            "shift": true
+          },
+          "checked": "answers[$i].checked",
+          "kind": "quickNoMove"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": {
+        "bind": "secondCount"
+      },
+      "x": 0,
+      "y": 0,
+      "dy": 50,
+      "start": 4,
+      "template": [
+        {
+          "type": "image",
+          "asset": {
+            "by": "answers[$i].indent",
+            "map": {
+              "long": "longIndent",
+              "short": "shortIndent",
+              "short2": "short2Indent"
+            }
+          },
+          "frame": 0,
+          "x": "LAPTOP_SCREEN_UL_X + BTN_SECOND_COLUMN_X + INDENT_OFFSET",
+          "y": "LAPTOP_SCREEN_WEB_UL_Y + 93"
+        },
+        {
+          "type": "image",
+          "asset": {
+            "by": "answers[$i].indent",
+            "map": {
+              "long": "longIndentHigh",
+              "short": "shortIndentHigh",
+              "short2": "short2IndentHigh"
+            }
+          },
+          "frame": 0,
+          "x": "LAPTOP_SCREEN_UL_X + BTN_SECOND_COLUMN_X + INDENT_OFFSET",
+          "y": "LAPTOP_SCREEN_WEB_UL_Y + 93",
+          "visible": "answers[$i].high"
+        },
+        {
+          "type": "text",
+          "id": "impAnswerText$i",
+          "x": "LAPTOP_SCREEN_UL_X + QTN_SECOND_COLUMN_X",
+          "y": "LAPTOP_SCREEN_WEB_UL_Y + 100",
+          "width": {
+            "bind": "answerWidth"
+          },
+          "font": "FONT10ARIAL",
+          "color": 142,
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "answers[$i].text"
+          },
+          "align": "left",
+          "wrap": {
+            "gap": 2
+          }
+        },
+        {
+          "type": "button",
+          "id": "impAnswer$i",
+          "x": "LAPTOP_SCREEN_UL_X + BTN_SECOND_COLUMN_X",
+          "y": "LAPTOP_SCREEN_WEB_UL_Y + 97",
+          "asset": "button6",
+          "frames": {
+            "offNormal": 0,
+            "onNormal": 1
+          },
+          "priority": "HIGHEST-3",
+          "cursor": "CURSOR_WWW",
+          "down": "answer($i)",
+          "text": {
+            "source": {
+              "bind": "answers[$i].number"
+            },
+            "font": "FONT12ARIAL",
+            "color": "FONT_WHITE",
+            "shadow": "FONT_BLACK",
+            "downColor": "FONT_WHITE",
+            "downShadow": "FONT_BLACK",
+            "offsetX": 23,
+            "offsetY": 12,
+            "shift": true
+          },
+          "checked": "answers[$i].checked",
+          "kind": "quickNoMove"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "impQuestionNumber",
+      "x": "LAPTOP_SCREEN_UL_X + 345",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 370",
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "questionNumber"
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 383",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 370",
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "questionCount"
+      }
+    },
+    {
+      "type": "button",
+      "id": "impQuizConfirm",
+      "x": "LAPTOP_SCREEN_UL_X + 197",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 302",
+      "asset": "button7",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "confirm",
+      "text": {
+        "source": {
+          "key": ["pImpButtonText", 8]
+        },
+        "font": "FONT12ARIAL",
+        "color": "FONT_WHITE",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "FONT_WHITE",
+        "downShadow": "DEFAULT_SHADOW"
+      },
+      "enabled": "confirmEnabled"
+    },
+    {
+      "type": "button",
+      "id": "impQuizStartOver",
+      "x": "LAPTOP_SCREEN_UL_X + BTN_FIRST_COLUMN_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 302",
+      "asset": "button5",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "startOver",
+      "text": {
+        "source": {
+          "key": ["pImpButtonText", 7]
+        },
+        "font": "FONT12ARIAL",
+        "color": "FONT_WHITE",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "FONT_WHITE",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    },
+    {
+      "type": "button",
+      "id": "impQuizPrevious",
+      "x": "LAPTOP_SCREEN_UL_X + 197",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 361",
+      "asset": "button3",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "previous",
+      "text": {
+        "source": {
+          "key": ["pImpButtonText", 12]
+        },
+        "font": "FONT12ARIAL",
+        "color": "FONT_WHITE",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "FONT_WHITE",
+        "downShadow": "DEFAULT_SHADOW",
+        "subOffsetX": 0,
+        "subOffsetY": -1
+      },
+      "enabled": "previousEnabled"
+    },
+    {
+      "type": "button",
+      "id": "impQuizNext",
+      "x": "LAPTOP_SCREEN_UL_X + 417",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 361",
+      "asset": "button3",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "next",
+      "text": {
+        "source": {
+          "key": ["pImpButtonText", 13]
+        },
+        "font": "FONT12ARIAL",
+        "color": "FONT_WHITE",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "FONT_WHITE",
+        "downShadow": "DEFAULT_SHADOW",
+        "subOffsetX": 0,
+        "subOffsetY": -1
+      },
+      "enabled": "nextEnabled"
+    }
+  ]
+}

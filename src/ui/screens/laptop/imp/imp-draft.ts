@@ -244,6 +244,11 @@ export class ImpDraft {
     }
   }
 
+  showRecordedAnswer(): void {
+    const recorded = this.answers[this.question] ?? NO_ANSWER;
+    if (this.question <= this.maxQuestion && recorded !== NO_ANSWER) this.answer = recorded;
+  }
+
   get canGoForward(): boolean {
     return this.question < this.maxQuestion;
   }

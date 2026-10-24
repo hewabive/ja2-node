@@ -1,0 +1,69 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/IMPVideoObjects.cc RenderProfileBackGround (4 x 4 metalbackground.sti every 125 x 100)",
+    "src/game/Laptop/CharProfile.cc CreateIMPButtons (button_3.sti, pImpButtonText[19], FONT12ARIAL white, the text one pixel up, CURSOR_WWW)"
+  ],
+  "screen": "impFrame",
+  "frame": "std640",
+  "constants": ["Laptop", "IMPVideoObjects"],
+  "assets": {
+    "background": {
+      "sti": "laptop/metalbackground.sti",
+      "stub": {
+        "frames": 1,
+        "size": [126, 100],
+        "hollow": true
+      }
+    },
+    "button3": {
+      "sti": "laptop/button_3.sti",
+      "stub": {
+        "frames": 2,
+        "size": [71, 35],
+        "states": ["normal", "pressed"],
+        "hollow": false
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "tiles",
+      "asset": "background",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "columns": 4,
+      "rows": 4,
+      "dx": "CHAR_PROFILE_BACKGROUND_TILE_WIDTH",
+      "dy": "CHAR_PROFILE_BACKGROUND_TILE_HEIGHT"
+    },
+    {
+      "type": "button",
+      "id": "impCancel",
+      "x": "LAPTOP_SCREEN_UL_X + 15",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 360",
+      "asset": "button3",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "cancel",
+      "text": {
+        "source": {
+          "key": ["pImpButtonText", 19]
+        },
+        "font": "FONT12ARIAL",
+        "color": "FONT_WHITE",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "FONT_WHITE",
+        "downShadow": "DEFAULT_SHADOW",
+        "subOffsetX": 0,
+        "subOffsetY": -1
+      },
+      "visible": "cancelShown"
+    }
+  ]
+}

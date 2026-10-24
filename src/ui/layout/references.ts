@@ -178,6 +178,7 @@ export function collectReferences(model: LayoutModel): LayoutReferences {
         }
         if (isRecord(json.icon) && typeof json.icon.asset === 'string')
           useAsset(json.icon.asset, staticNumber(json.icon.frame, vars), 'plain', 'icon');
+        if (isRecord(json.icon)) condition(json.icon.visible);
         break;
       }
       case 'frame':

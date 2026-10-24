@@ -1,0 +1,477 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/IMP_Attribute_Selection.cc RenderIMPAttributeSelection, RenderAttributeBoxes (attributeslider.sti, the value in FONT10ARIAL white without a shadow), CreateAttributeSliderButtons (attributearrows.sti frames 0/1 and 3/4, MSYS_PRIORITY_HIGHEST - 1), CreateSlideRegionMouseRegions (BAR_WIDTH x 15 at MSYS_PRIORITY_HIGH + 2), CreateIMPAttributeSelectionButtons (button_2.sti, pImpButtonText[11]), DrawBonusPointsRemaining",
+    "src/game/Laptop/IMPVideoObjects.cc RenderAttributeFrame (attributeframe.sti frames 0, 2, 1, 3 and 4)",
+    "src/game/Laptop/IMP_Text_System.cc PrintImpText IMP_ATTRIBUTE_PAGE (the row labels in the original order)"
+  ],
+  "screen": "impAttributes",
+  "frame": "std640",
+  "constants": ["Laptop", "IMPVideoObjects", "IMP_Text_System", "IMP_Attribute_Selection"],
+  "assets": {
+    "attributeFrame": {
+      "sti": "laptop/attributeframe.sti",
+      "stub": {
+        "sizes": [[399, 10], [134, 20], [233, 20], [32, 20], [399, 12]],
+        "hollow": true
+      }
+    },
+    "slider": {
+      "sti": "laptop/attributeslider.sti",
+      "stub": {
+        "frames": 1,
+        "size": [38, 14]
+      }
+    },
+    "attrib1Indent": {
+      "sti": "laptop/attributescreenindent_1.sti",
+      "stub": {
+        "frames": 1,
+        "size": [250, 50],
+        "hollow": true
+      }
+    },
+    "attrib2Indent": {
+      "sti": "laptop/attributescreenindent_2.sti",
+      "stub": {
+        "frames": 1,
+        "size": [100, 30],
+        "hollow": true
+      }
+    },
+    "arrows": {
+      "sti": "laptop/attributearrows.sti",
+      "stub": {
+        "frames": 6,
+        "size": [21, 16],
+        "states": ["normal", "pressed", "normal", "normal", "pressed", "normal"]
+      }
+    },
+    "button2": {
+      "sti": "laptop/button_2.sti",
+      "stub": {
+        "frames": 2,
+        "size": [239, 56],
+        "states": ["normal", "pressed"],
+        "hollow": true
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "asset": "attributeFrame",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X + 51",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 87"
+    },
+    {
+      "type": "repeat",
+      "count": 10,
+      "x": 0,
+      "y": 0,
+      "dy": 20,
+      "template": [
+        {
+          "type": "image",
+          "asset": "attributeFrame",
+          "frame": 2,
+          "x": "LAPTOP_SCREEN_UL_X + 185",
+          "y": "LAPTOP_SCREEN_WEB_UL_Y + 97"
+        },
+        {
+          "type": "image",
+          "asset": "attributeFrame",
+          "frame": 1,
+          "x": "LAPTOP_SCREEN_UL_X + 51",
+          "y": "LAPTOP_SCREEN_WEB_UL_Y + 97"
+        },
+        {
+          "type": "image",
+          "asset": "attributeFrame",
+          "frame": 3,
+          "x": "LAPTOP_SCREEN_UL_X + 419",
+          "y": "LAPTOP_SCREEN_WEB_UL_Y + 97"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "asset": "attributeFrame",
+      "frame": 4,
+      "x": "LAPTOP_SCREEN_UL_X + 51",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 297"
+    },
+    {
+      "type": "repeat",
+      "count": {
+        "bind": "rows"
+      },
+      "x": 0,
+      "y": 0,
+      "dy": "SKILL_SLIDE_HEIGHT",
+      "template": [
+        {
+          "type": "image",
+          "asset": "slider",
+          "frame": 0,
+          "x": {
+            "bind": "rows[$i].x"
+          },
+          "y": "LAPTOP_SCREEN_WEB_UL_Y + SKILL_SLIDE_START_Y"
+        },
+        {
+          "type": "text",
+          "id": "impAttributeValue$i",
+          "x": {
+            "bind": "rows[$i].textX"
+          },
+          "y": "LAPTOP_SCREEN_WEB_UL_Y + SKILL_SLIDE_START_Y + 3",
+          "font": "FONT10ARIAL",
+          "color": "FONT_WHITE",
+          "shadow": "NO_SHADOW",
+          "text": {
+            "bind": "rows[$i].value"
+          }
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "asset": "attrib1Indent",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X + 51",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 30"
+    },
+    {
+      "type": "image",
+      "asset": "attrib2Indent",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X + 350",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 42",
+      "visible": "editing"
+    },
+    {
+      "type": "text",
+      "id": "impAttributesTitle",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 7",
+      "width": "LAPTOP_SCREEN_LR_X - LAPTOP_SCREEN_UL_X + 1",
+      "font": "FONT14ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_1 - 1"]
+      },
+      "align": "center",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 355",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 51",
+      "width": 640,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_SA_2 - 1"]
+      },
+      "wrap": {
+        "gap": 2
+      },
+      "visible": "editing"
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 56",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 33",
+      "width": 240,
+      "font": "FONT10ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_SA_15"]
+      },
+      "wrap": {
+        "gap": 2
+      },
+      "visible": "editing"
+    },
+    {
+      "type": "text",
+      "x": "LAPTOP_SCREEN_UL_X + 56",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 33",
+      "width": 240,
+      "font": "FONT10ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_SA_18"]
+      },
+      "wrap": {
+        "gap": 2
+      },
+      "visible": "review"
+    },
+    {
+      "type": "text",
+      "id": "impAttributeLabel0",
+      "x": "LAPTOP_SCREEN_UL_X + 60",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + SKILL_SLIDE_START_Y + 0 * SKILL_SLIDE_HEIGHT",
+      "width": 100,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_SA_6 - 1"]
+      },
+      "align": "right",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "id": "impAttributeLabel1",
+      "x": "LAPTOP_SCREEN_UL_X + 60",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + SKILL_SLIDE_START_Y + 1 * SKILL_SLIDE_HEIGHT",
+      "width": 100,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_SA_8 - 1"]
+      },
+      "align": "right",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "id": "impAttributeLabel2",
+      "x": "LAPTOP_SCREEN_UL_X + 60",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + SKILL_SLIDE_START_Y + 2 * SKILL_SLIDE_HEIGHT",
+      "width": 100,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_SA_7 - 1"]
+      },
+      "align": "right",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "id": "impAttributeLabel3",
+      "x": "LAPTOP_SCREEN_UL_X + 60",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + SKILL_SLIDE_START_Y + 3 * SKILL_SLIDE_HEIGHT",
+      "width": 100,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_SA_9 - 1"]
+      },
+      "align": "right",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "id": "impAttributeLabel4",
+      "x": "LAPTOP_SCREEN_UL_X + 60",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + SKILL_SLIDE_START_Y + 4 * SKILL_SLIDE_HEIGHT",
+      "width": 100,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_SA_11 - 1"]
+      },
+      "align": "right",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "id": "impAttributeLabel5",
+      "x": "LAPTOP_SCREEN_UL_X + 60",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + SKILL_SLIDE_START_Y + 5 * SKILL_SLIDE_HEIGHT",
+      "width": 100,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_SA_10 - 1"]
+      },
+      "align": "right",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "id": "impAttributeLabel6",
+      "x": "LAPTOP_SCREEN_UL_X + 60",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + SKILL_SLIDE_START_Y + 6 * SKILL_SLIDE_HEIGHT",
+      "width": 100,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_SA_12 - 1"]
+      },
+      "align": "right",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "id": "impAttributeLabel7",
+      "x": "LAPTOP_SCREEN_UL_X + 60",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + SKILL_SLIDE_START_Y + 7 * SKILL_SLIDE_HEIGHT",
+      "width": 100,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_SA_14 - 1"]
+      },
+      "align": "right",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "id": "impAttributeLabel8",
+      "x": "LAPTOP_SCREEN_UL_X + 60",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + SKILL_SLIDE_START_Y + 8 * SKILL_SLIDE_HEIGHT",
+      "width": 100,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_SA_15 - 1"]
+      },
+      "align": "right",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "id": "impAttributeLabel9",
+      "x": "LAPTOP_SCREEN_UL_X + 60",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + SKILL_SLIDE_START_Y + 9 * SKILL_SLIDE_HEIGHT",
+      "width": 100,
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/imptext.edt", "IMP_ATTRIB_SA_13 - 1"]
+      },
+      "align": "right",
+      "wrap": {
+        "gap": 2
+      }
+    },
+    {
+      "type": "text",
+      "id": "impBonusPoints",
+      "x": "LAPTOP_SCREEN_UL_X + 425",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 51",
+      "font": "FONT12ARIAL",
+      "color": "FONT_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "bonus"
+      },
+      "visible": "editing"
+    },
+    {
+      "type": "repeat",
+      "count": 10,
+      "x": 0,
+      "y": 0,
+      "dy": "SKILL_SLIDE_HEIGHT",
+      "template": [
+        {
+          "type": "button",
+          "id": "impDecrease$i",
+          "x": "LAPTOP_SCREEN_UL_X + 163",
+          "y": "LAPTOP_SCREEN_WEB_UL_Y + 99",
+          "asset": "arrows",
+          "frames": {
+            "offNormal": 0,
+            "onNormal": 1
+          },
+          "priority": "HIGHEST-1",
+          "cursor": "CURSOR_WWW",
+          "press": "decrease($i)"
+        },
+        {
+          "type": "button",
+          "id": "impIncrease$i",
+          "x": "LAPTOP_SCREEN_UL_X + 419",
+          "y": "LAPTOP_SCREEN_WEB_UL_Y + 99",
+          "asset": "arrows",
+          "frames": {
+            "offNormal": 3,
+            "onNormal": 4
+          },
+          "priority": "HIGHEST-1",
+          "cursor": "CURSOR_WWW",
+          "press": "increase($i)"
+        },
+        {
+          "type": "region",
+          "id": "impSlider$i",
+          "x": "LAPTOP_SCREEN_UL_X + SKILL_SLIDE_START_X",
+          "y": "LAPTOP_SCREEN_WEB_UL_Y + SKILL_SLIDE_START_Y",
+          "width": "BAR_WIDTH",
+          "height": 15,
+          "priority": "HIGH+2",
+          "cursor": "CURSOR_WWW",
+          "down": "sliderDown($i)",
+          "repeat": "sliderRepeat($i)",
+          "primary": "sliderUp($i)"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "id": "impAttributesFinish",
+      "x": "LAPTOP_SCREEN_UL_X + 136",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y + 314",
+      "asset": "button2",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "finish",
+      "text": {
+        "source": {
+          "key": ["pImpButtonText", 11]
+        },
+        "font": "FONT12ARIAL",
+        "color": "FONT_WHITE",
+        "shadow": "DEFAULT_SHADOW",
+        "downColor": "FONT_WHITE",
+        "downShadow": "DEFAULT_SHADOW"
+      }
+    }
+  ]
+}
