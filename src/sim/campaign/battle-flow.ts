@@ -29,7 +29,7 @@ import type { EconomyContext } from '../strategic/economy/ports.ts';
 import { importantSectorLoss } from '../strategic/economy/sector-loss.ts';
 import { answerPendingMilitiaPrompt } from '../strategic/economy/set-assignment.ts';
 import type { EconomyPrompt } from '../strategic/economy/state.ts';
-import { autoBandageMercs, canBandage } from '../strategic/forces/autoresolve/bandage.ts';
+import { autoBandageMercs, type BandageRefusal, bandageRefusal, canBandage } from '../strategic/forces/autoresolve/bandage.ts';
 import { closeAutoresolve } from '../strategic/forces/autoresolve/close.ts';
 import { answerSurrender, orderRetreat } from '../strategic/forces/autoresolve/end.ts';
 import { runAutoresolve } from '../strategic/forces/autoresolve/loop.ts';
@@ -114,6 +114,7 @@ import {
   strategicHandlePlayerTeamMercDeath,
 } from './merc-fate.ts';
 import { ECONOMY_MORALE_EVENTS, handleMoraleEvent, type MoraleContext, MoraleEvent } from './morale.ts';
+import { preBattlePanel } from './pre-battle-panel.ts';
 import { type Roster, type RosterMerc, registeredInTactical } from './roster.ts';
 import { enterMapScreen } from './screens.ts';
 import { addDeadSoldierToUnloadedSector, removeRandomItemsInSector } from './sector-loot.ts';
@@ -144,6 +145,27 @@ const STATUS_NAMES: Readonly<Record<number, string>> = {
 
 export function battleStatusName(status: number): string {
   return STATUS_NAMES[status] ?? 'inProgress';
+}
+
+export const ShowBattleRefusal = { NO_BATTLE: 'noBattle', ONLY_HOSTILE_CIVILIANS: 'onlyHostileCivilians' } as const;
+type ShowBattleRefusal = (typeof ShowBattleRefusal)[keyof typeof ShowBattleRefusal];
+
+const SHOW_BATTLE_REASONS: Readonly<Record<ShowBattleRefusal, string>> = {
+  noBattle: 'no battle is in progress',
+  onlyHostileCivilians: 'only hostile civilians are left in the sector',
+};
+
+function showBattleRefusal(refusal: ShowBattleRefusal, sector?: string): CommandResult {
+  return { ok: false, reason: SHOW_BATTLE_REASONS[refusal], data: { refusal, ...(sector ? { sector } : {}) } };
+}
+
+function anyNonNeutralOfTeamInSector(t: TacticalState, team: number): boolean {
+  return teamMembers(t, team).some((s) => s.placed && s.life !== 0 && !s.neutral);
+}
+
+export function onlyHostileCiviliansInSector(t: TacticalState): boolean {
+  if (!anyNonNeutralOfTeamInSector(t, Team.CIV)) return false;
+  return ![Team.ENEMY, Team.CREATURE, Team.MILITIA].some((team) => anyNonNeutralOfTeamInSector(t, team));
 }
 
 export interface BattleSetup {
@@ -347,6 +369,7 @@ export class BattleFlow implements FateContext {
   #emitPreBattle(opening: PreBattleOpening, autoStart: boolean, prompt: string | null): void {
     const battle = this.state.battle;
     const code = battle.persistent ? this.state.encounter.code : this.state.encounter.explicitCode;
+    const panel = autoStart ? preBattlePanel(this.campaign, opening.sector, this.#enemiesKnown(opening.sector)) : null;
     this.emit({
       type: 'preBattle',
       sector: sectorShortString(opening.sector),
@@ -354,6 +377,7 @@ export class BattleFlow implements FateContext {
       persistent: battle.persistent,
       autoStart,
       prompt,
+      ...(panel ? { panel } : {}),
     });
   }
 
@@ -565,8 +589,16 @@ export class BattleFlow implements FateContext {
     switch (e.type) {
       case 'arHit': {
         const cell = (e.target.side === 'merc' ? ar.mercs : e.target.side === 'militia' ? ar.militia : ar.enemies)[e.target.index];
-        if (e.target.side === 'merc') return { type: 'arHit', battleMs: e.battleMs, target: e.target, damage: e.damage, life: e.life };
-        return { type: 'arHit', battleMs: e.battleMs, target: e.target, health: healthCategory(e.life, cell?.soldier.lifeMax ?? e.life) };
+        const melee = e.melee ? { melee: true as const } : {};
+        if (e.target.side === 'merc')
+          return { type: 'arHit', battleMs: e.battleMs, target: e.target, damage: e.damage, life: e.life, ...melee };
+        return {
+          type: 'arHit',
+          battleMs: e.battleMs,
+          target: e.target,
+          health: healthCategory(e.life, cell?.soldier.lifeMax ?? e.life),
+          ...melee,
+        };
       }
       case 'arBattleOver':
         return { type: 'arBattleOver', battleMs: e.battleMs, status: battleStatusName(e.status) };
@@ -660,10 +692,16 @@ export class BattleFlow implements FateContext {
     return session !== null && canBandage(this.#arEnv(session), session.ar);
   }
 
-  #bandage(session: AutoresolveSession): void {
-    autoBandageMercs(this.#arEnv(session), session.ar);
+  bandageRefusal(): BandageRefusal | null {
+    const session = this.session;
+    return session === null ? null : bandageRefusal(this.#arEnv(session), session.ar);
+  }
+
+  #bandage(session: AutoresolveSession): boolean {
+    const result = autoBandageMercs(this.#arEnv(session), session.ar);
     this.#drainArEvents(session);
     this.#openPrompt(PromptKind.AUTORESOLVE_DONE);
+    return result.complete;
   }
 
   #closeAutoresolve(session: AutoresolveSession): void {
@@ -754,9 +792,19 @@ export class BattleFlow implements FateContext {
       case Choice.RETREAT:
         this.#retreat();
         return { ok: true };
+      case Choice.CLOSE:
+        return this.#closeSummary();
       default:
         return { ok: false, reason: 'that choice is not offered' };
     }
+  }
+
+  #closeSummary(): CommandResult {
+    const battle = this.state.battle;
+    if (battle.persistent) return { ok: false, reason: 'only the battle summary closes without a choice' };
+    battle.prompt = null;
+    this.state.encounter.battleGroup = null;
+    return { ok: true };
   }
 
   #enterSector(): CommandResult {
@@ -889,9 +937,8 @@ export class BattleFlow implements FateContext {
     const session = this.session;
     if (!session) return { ok: false, reason: 'no autoresolve is open' };
     if (choice === 'bandage') {
-      if (!this.canBandage()) return { ok: false, reason: 'nobody can bandage' };
-      this.#bandage(session);
-      return { ok: true };
+      if (!this.canBandage()) return { ok: false, reason: 'nobody can bandage', data: { refusal: this.bandageRefusal() ?? 'noDoctor' } };
+      return { ok: true, data: { bandaged: this.#bandage(session) ? 'complete' : 'incomplete' } };
     }
     if (choice !== 'done') return { ok: false, reason: "choose 'done' or 'bandage'" };
     this.#closeAutoresolve(session);
@@ -950,6 +997,24 @@ export class BattleFlow implements FateContext {
     return { ok: true };
   }
 
+  #showBattle(): CommandResult {
+    const s = this.state;
+    const world = s.worldSector;
+    const t = this.campaign.tactical?.state;
+    if (s.battle.prompt) return { ok: false, reason: `answer the ${s.battle.prompt.kind} prompt first` };
+    if (s.flow !== 'strategic' || !t || !world) return showBattleRefusal(ShowBattleRefusal.NO_BATTLE);
+    const inBattle = t.inCombat || t.turn.enemyInSector;
+    if (!s.battle.locator && !inBattle) return showBattleRefusal(ShowBattleRefusal.NO_BATTLE);
+    if (inBattle && onlyHostileCiviliansInSector(t))
+      return showBattleRefusal(ShowBattleRefusal.ONLY_HOSTILE_CIVILIANS, sectorShortString(world));
+    calculateNonPersistentPbiInfo(this.economy);
+    const opening = initPreBattleInterface(this.economy, null, false);
+    if (!opening) return showBattleRefusal(ShowBattleRefusal.NO_BATTLE);
+    const prompt = this.#openPrompt(PromptKind.PRE_BATTLE, { options: opening.options, enemiesKnown: this.#enemiesKnown(opening.sector) });
+    this.#emitPreBattle(opening, false, prompt.id);
+    return { ok: true, data: { prompt: prompt.id } };
+  }
+
   dispatch(cmd: { readonly type: string; readonly [key: string]: unknown }): CommandResult | null {
     switch (cmd.type) {
       case 'answer':
@@ -958,6 +1023,8 @@ export class BattleFlow implements FateContext {
         return this.#autoresolveRetreat(cmd);
       case 'autoresolveBattle':
         return this.#autoresolveBattle();
+      case 'showBattle':
+        return this.#showBattle();
       default:
         if (this.state.battle.prompt) return { ok: false, reason: `answer the ${this.state.battle.prompt.kind} prompt first` };
         if (this.state.flow === 'autoresolve') return { ok: false, reason: 'an autoresolve battle is running' };

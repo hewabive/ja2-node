@@ -77,11 +77,20 @@ export type ArEvent =
       readonly attacker: CellRef;
       readonly target: CellRef;
       readonly kind: ArAttackKind;
+      readonly weapon?: number;
+      readonly reloaded?: true;
     }
-  | { readonly type: 'arHit'; readonly battleMs: number; readonly target: CellRef; readonly damage: number; readonly life: number }
+  | {
+      readonly type: 'arHit';
+      readonly battleMs: number;
+      readonly target: CellRef;
+      readonly damage: number;
+      readonly life: number;
+      readonly melee?: true;
+    }
   | { readonly type: 'arMiss'; readonly battleMs: number; readonly target: CellRef }
   | { readonly type: 'arFell'; readonly battleMs: number; readonly cell: CellRef }
-  | { readonly type: 'arDied'; readonly battleMs: number; readonly cell: CellRef; readonly killer: CellRef | null }
+  | { readonly type: 'arDied'; readonly battleMs: number; readonly cell: CellRef; readonly killer: CellRef | null; readonly splat?: true }
   | { readonly type: 'arRetreated'; readonly battleMs: number; readonly cell: CellRef }
   | { readonly type: 'arBattleOver'; readonly battleMs: number; readonly status: number }
   | { readonly type: 'arSound'; readonly battleMs: number; readonly sound: ArSound; readonly variant: number };

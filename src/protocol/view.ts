@@ -348,6 +348,7 @@ export interface StrategicView {
   readonly unreadMail?: number;
   readonly newMail?: boolean;
   readonly quests: readonly QuestLogEntryView[];
+  readonly battleLocator?: string | null;
 }
 
 export interface PromptOptionView {
@@ -371,6 +372,8 @@ export interface UninvolvedMercView {
   readonly assignment: number;
   readonly location: string;
   readonly destination?: string;
+  readonly betweenSectors?: boolean;
+  readonly departure?: number | null;
 }
 
 export type PromptView =
@@ -385,6 +388,7 @@ export type PromptView =
       readonly involved: readonly InvolvedMercView[];
       readonly uninvolved: readonly UninvolvedMercView[];
       readonly options: readonly PromptOptionView[];
+      readonly involvedGroups?: number;
     }
   | {
       readonly id: string;
@@ -399,6 +403,7 @@ export type PromptView =
       readonly status: string;
       readonly canBandage: boolean;
       readonly choices: readonly string[];
+      readonly bandageRefusal?: string | null;
     }
   | {
       readonly id: string;
@@ -495,10 +500,13 @@ export interface AutoresolveCellView {
   readonly morale?: number;
   readonly health?: string;
   readonly hurt?: boolean;
+  readonly profile?: number;
+  readonly female?: boolean;
 }
 
 export interface AutoresolveView {
   readonly sector: string;
+  readonly encounter?: string;
   readonly status: string;
   readonly battleSeconds: number;
   readonly alive: { readonly mercs: number; readonly militia: number; readonly enemies: number };

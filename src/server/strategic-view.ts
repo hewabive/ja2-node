@@ -284,5 +284,11 @@ export function strategicView(campaign: CampaignSim): StrategicView | undefined 
     ...mercAccountStatusView(campaign),
     ...laptopSummary(campaign),
     quests: questLog(campaign),
+    ...battleLocator(campaign),
   };
+}
+
+function battleLocator(campaign: CampaignSim): Pick<StrategicView, 'battleLocator'> {
+  const battle = campaign.state.battle;
+  return battle.locator && battle.sector ? { battleLocator: sectorName(battle.sector) } : {};
 }

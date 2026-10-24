@@ -131,7 +131,7 @@ function inventoryContext(ctx: CombatContext, s: Soldier) {
   };
 }
 
-export function fireAShot(env: AutoresolveEnv, ar: AutoresolveState, attacker: ArCell): boolean {
+export function fireAShot(env: AutoresolveEnv, ar: AutoresolveState, attacker: ArCell, onReload?: () => void): boolean {
   const ctx = combatContext(env, ar);
   if (hasFlag(attacker, CellGroup.MALE_CREATURE)) {
     attacker.weaponSlot = InvSlot.SECOND_HAND;
@@ -142,7 +142,10 @@ export function fireAShot(env: AutoresolveEnv, ar: AutoresolveState, attacker: A
     const o = s.inv[slot];
     if (!o || env.content.items.byIndex.get(o.item)?.itemClass !== ItemClass.GUN) continue;
     attacker.weaponSlot = slot;
-    if (o.gunShotsLeft === 0) autoReload(inventoryContext(ctx, s), s);
+    if (o.gunShotsLeft === 0) {
+      autoReload(inventoryContext(ctx, s), s);
+      if (o.gunShotsLeft > 0) onReload?.();
+    }
     if (o.gunShotsLeft > 0) {
       if (isMercCell(attacker)) {
         const p = mercProfile(ctx, s);
@@ -183,16 +186,24 @@ interface AttackForm {
   readonly melee: boolean;
   readonly knife: boolean;
   readonly claw: boolean;
+  readonly reloaded: boolean;
 }
 
 function attackForm(env: AutoresolveEnv, ar: AutoresolveState, attacker: ArCell): AttackForm {
   if (hasFlag(attacker, CellGroup.FEMALE_CREATURE)) {
     attacker.weaponSlot = InvSlot.HAND;
-    return { melee: true, knife: false, claw: true };
+    return { melee: true, knife: false, claw: true, reloaded: false };
   }
-  if (fireAShot(env, ar, attacker)) return { melee: false, knife: false, claw: false };
+  let reloaded = false;
+  if (fireAShot(env, ar, attacker, () => (reloaded = true))) return { melee: false, knife: false, claw: false, reloaded };
   attacker.weaponSlot = findObjClass(env.content.items, attacker.soldier, ItemClass.BLADE);
-  return { melee: true, knife: attacker.weaponSlot !== NO_SLOT, claw: false };
+  return { melee: true, knife: attacker.weaponSlot !== NO_SLOT, claw: false, reloaded: false };
+}
+
+function shotWeapon(attacker: ArCell, form: AttackForm): { readonly weapon?: number; readonly reloaded?: true } {
+  if (form.melee || hasFlag(attacker, CellGroup.MALE_CREATURE)) return {};
+  const weapon = attacker.soldier.inv[attacker.weaponSlot]?.item;
+  return { ...(weapon !== undefined ? { weapon } : {}), ...(form.reloaded ? { reloaded: true as const } : {}) };
 }
 
 function attackKind(attacker: ArCell, form: AttackForm) {
@@ -265,7 +276,7 @@ function meleeHits(
   const newLife = t.life - damage;
   countShotHit(ctx, attacker);
   countWound(ctx, target, damage);
-  emitEvent(ar, { type: 'arHit', battleMs: ar.elapsedMs, target: refOf(target), damage, life: Math.max(newLife, 0) });
+  emitEvent(ar, { type: 'arHit', battleMs: ar.elapsedMs, target: refOf(target), damage, life: Math.max(newLife, 0), melee: true });
   if (!isCreatureCell(target) && newLife < OKLIFE && t.life >= OKLIFE) {
     target.flags &= ~CellFlag.RETREATING;
     emitEvent(ar, { type: 'arFell', battleMs: ar.elapsedMs, cell: refOf(target) });
@@ -295,6 +306,7 @@ export function attackTarget(env: AutoresolveEnv, ar: AutoresolveState, attacker
     attacker: refOf(attacker),
     target: refOf(target),
     kind: attackKind(attacker, form),
+    ...shotWeapon(attacker, form),
   });
   const slot = form.melee ? NO_BULLET_SLOT : reserveBulletSlot(env, attacker, target);
   if (attack < defence && (target.soldier.life >= OKLIFE || env.rng.pre.int(UNCONSCIOUS_MISS_ONE_IN) === 0)) {
