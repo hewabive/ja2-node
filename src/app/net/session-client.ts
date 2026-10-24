@@ -190,6 +190,10 @@ export class SessionClient {
     return this.#latest?.tick ?? 0;
   }
 
+  get queuedFrames(): readonly ViewFrame[] {
+    return this.#frames;
+  }
+
   #send(message: ClientMessage): void {
     this.#socket.send(JSON.stringify(message));
   }

@@ -2,7 +2,7 @@ import type { AudioGap } from '../../../content/formats/gap.ts';
 import type { ProfilePresentation } from '../../../content/narrative/profile-presentation.ts';
 import type { CatalogueItem } from '../../../protocol/items.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
-import type { KeyView, PlayerView } from '../../../protocol/view.ts';
+import type { KeyView, PlayerView, ViewFrame } from '../../../protocol/view.ts';
 import type { DrawList } from '../../draw-list.ts';
 import type { GameClient } from '../../game-client.ts';
 import type { LayoutModel } from '../../layout/model.ts';
@@ -36,6 +36,7 @@ export interface TacticalClient extends GameClient {
   readonly view: PlayerView | null;
   readonly latestView: PlayerView | null;
   readonly shownTick: number;
+  readonly queuedFrames: readonly ViewFrame[];
   readonly paused: boolean;
   command(cmd: CommandEnvelope): Promise<CommandReply>;
   setPaused(paused: boolean): void;

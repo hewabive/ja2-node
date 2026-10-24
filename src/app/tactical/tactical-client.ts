@@ -1,5 +1,5 @@
 import type { CommandEnvelope, DriverMode } from '../../protocol/messages.ts';
-import type { PlayerView } from '../../protocol/view.ts';
+import type { PlayerView, ViewFrame } from '../../protocol/view.ts';
 import type { HintAnswer, HintReply } from '../../ui/game-client.ts';
 import type { CommandReply, TacticalClient } from '../../ui/screens/tactical/environment.ts';
 import type { HintProvider } from '../hints/hint-provider.ts';
@@ -35,6 +35,10 @@ export class SessionTacticalClient implements TacticalClient {
 
   get shownTick(): number {
     return this.#session.shownTick;
+  }
+
+  get queuedFrames(): readonly ViewFrame[] {
+    return this.#session.queuedFrames;
   }
 
   get paused(): boolean {

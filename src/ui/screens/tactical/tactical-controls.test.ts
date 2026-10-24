@@ -182,6 +182,32 @@ describe('the tactical input on the tactical screen', () => {
   );
 
   it(
+    'locks our turn while a received frame that locks the interface or passes the turn waits for playback',
+    async () => {
+      const f = await inCombat();
+      const tick = f.client.view.tick;
+      const combat = f.client.view.combat;
+      if (!combat) throw new Error('not in combat');
+      const frame = (offset: number, change: Partial<typeof combat> | null) => ({
+        tick: tick + offset,
+        changed: [],
+        removed: [],
+        ...(change ? { combat: { ...combat, ...change } } : {}),
+      });
+      expect(f.screen.controls.lockState()).toBe('none');
+      f.client.queued = [frame(60, null), frame(120, null)];
+      expect(f.screen.controls.lockState()).toBe('none');
+      f.client.queued = [frame(10, { uiLocked: true }), frame(200, { uiLocked: false })];
+      expect(f.screen.controls.lockState()).toBe('ourTurn');
+      f.client.queued = [frame(10, { team: 1 })];
+      expect(f.screen.controls.lockState()).toBe('ourTurn');
+      f.client.queued = [frame(10, { uiLocked: false })];
+      expect(f.screen.controls.lockState()).toBe('none');
+    },
+    SLOW_MS,
+  );
+
+  it(
     'scrolls the view at the screen edge after the pending step',
     async () => {
       const f = await tacticalUiTest(kit, ui);

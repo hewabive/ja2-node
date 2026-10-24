@@ -48,7 +48,6 @@ import { type OverheadArt, OverheadMap } from './overhead-map.ts';
 import { DoorMenu, type MenuArt, MovementMenu, type MovementMenuSubject } from './popup-menus.ts';
 import { inCombat, isDead, isEpc, isInVehicle, isRobot, OUR_TEAM, ourTurn } from './soldiers.ts';
 
-const PLAYBACK_LOCK_TICKS = 40;
 const SCROLL_STEP_MS = 20;
 const SCROLL_SPEED = 40;
 const SHIFT_SCROLL_SPEED = 80;
@@ -147,6 +146,10 @@ export interface ControlsArt {
   readonly burst: string;
 }
 
+function locksOurInput(frame: ViewFrame): boolean {
+  return !!frame.combat && (frame.combat.uiLocked || frame.combat.team !== OUR_TEAM);
+}
+
 function isVehicleBody(s: SoldierView): boolean {
   return s.bodyType >= FIRST_VEHICLE_BODY && s.bodyType <= LAST_VEHICLE_BODY;
 }
@@ -243,9 +246,7 @@ export class TacticalControls {
     const view = client.view;
     if (!inCombat(view)) return 'none';
     if (!ourTurn(view)) return 'enemyTurn';
-    const latest = client.latestView ?? view;
-    if (view?.combat?.uiLocked || latest?.combat?.uiLocked) return 'ourTurn';
-    if (latest && view && latest.tick - view.tick > PLAYBACK_LOCK_TICKS) return 'ourTurn';
+    if (view?.combat?.uiLocked || client.queuedFrames.some(locksOurInput)) return 'ourTurn';
     return 'none';
   }
 
