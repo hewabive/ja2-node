@@ -62,7 +62,7 @@ export class UiRuntime implements UiServices {
     this.#pauseGame = options.pauseGame;
     this.buttons = new ButtonSystem({ regions: this.regions, images: this.images, sounds: this.sounds, screen: () => this.soundScreen });
     this.sliders = new SliderSystem(this.regions);
-    this.cursor = new CursorState(options.cursors, this.images);
+    this.cursor = new CursorState(options.cursors, this.images, { sounds: this.sounds });
     this.regions.onCursor((id) => this.cursor.set(id, this.clock.ja2Now));
   }
 

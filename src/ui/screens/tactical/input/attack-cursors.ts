@@ -25,12 +25,13 @@ export interface AimState {
   fullCountRing: boolean;
 }
 
+export type FreeCursorMark = 'untouched' | 'clear' | 'cannotGetThrough' | 'outOfRange';
+
 export interface AttackCursor {
   readonly cursor: string;
   readonly apCost: number | null;
   readonly apInvalid: boolean;
-  readonly flash: boolean;
-  readonly cannotGetThrough: boolean;
+  readonly freeCursor: FreeCursorMark;
 }
 
 export interface AttackContext {
@@ -51,7 +52,7 @@ function affordable(e: EstimateAttack, cost: number): boolean {
 }
 
 function plain(cursor: string): AttackCursor {
-  return { cursor, apCost: null, apInvalid: false, flash: false, cannotGetThrough: false };
+  return { cursor, apCost: null, apInvalid: false, freeCursor: 'untouched' };
 }
 
 function withAp(cursor: string, e: EstimateAttack, inCombat: boolean): AttackCursor {
@@ -98,21 +99,18 @@ function nonActivatedTarget(e: EstimateAttack, aim: AimState, c: AttackContext):
     return {
       cursor: pick('ACTION_NOCHANCE_BURST_UICURSOR', 'BAD_THROW_UICURSOR', 'ACTION_NOCHANCE_SHOOT_UICURSOR'),
       ...ap,
-      flash: false,
-      cannotGetThrough,
+      freeCursor: 'untouched',
     };
   if (!e.inRange)
     return {
       cursor: pick('ACTION_FLASH_BURST_UICURSOR', 'FLASH_THROW_UICURSOR', 'ACTION_FLASH_SHOOT_UICURSOR'),
       ...ap,
-      flash: true,
-      cannotGetThrough,
+      freeCursor: 'untouched',
     };
   return {
     cursor: pick('ACTION_TARGETBURST_UICURSOR', 'GOOD_THROW_UICURSOR', 'ACTION_SHOOT_UICURSOR'),
     ...ap,
-    flash: false,
-    cannotGetThrough,
+    freeCursor: 'untouched',
   };
 }
 
@@ -137,12 +135,12 @@ function activatedTarget(e: EstimateAttack, aim: AimState, c: AttackContext): At
   const ap = c.inCombat ? { apCost: cost, apInvalid: maxLimitHit } : { apCost: null, apInvalid: false };
   if (maxLimitHit) {
     const cursor = c.burst ? 'ACTION_TARGETREDBURST_UICURSOR' : c.throwingKnife ? 'RED_THROW_UICURSOR' : 'ACTION_TARGETRED_UICURSOR';
-    return { cursor, ...ap, flash: false, cannotGetThrough: false };
+    return { cursor, ...ap, freeCursor: 'untouched' };
   }
-  const cannotGetThrough = e.chanceToGetThrough < OK_CHANCE_TO_GET_THROUGH;
-  const flash = !cannotGetThrough && !e.inRange;
-  if (c.burst) return { cursor: 'ACTION_TARGETCONFIRMBURST_UICURSOR', ...ap, flash, cannotGetThrough };
-  return { cursor: ringCursor(aim, enough, c.throwingKnife), ...ap, flash, cannotGetThrough };
+  const freeCursor: FreeCursorMark =
+    e.chanceToGetThrough < OK_CHANCE_TO_GET_THROUGH ? 'cannotGetThrough' : e.inRange ? 'clear' : 'outOfRange';
+  if (c.burst) return { cursor: 'ACTION_TARGETCONFIRMBURST_UICURSOR', ...ap, freeCursor };
+  return { cursor: ringCursor(aim, enough, c.throwingKnife), ...ap, freeCursor };
 }
 
 function melee(e: EstimateAttack, aim: AimState, c: AttackContext, punch: boolean): AttackCursor {
@@ -157,7 +155,7 @@ function melee(e: EstimateAttack, aim: AimState, c: AttackContext, punch: boolea
   const cost = costAt(e, aim.shownAimTime);
   const ap = counted ? { apCost: cost, apInvalid: !affordable(e, cost) } : { apCost: null, apInvalid: false };
   if (counted && !affordable(e, cost) && aim.shownAimTime === first)
-    return { cursor: punch ? 'ACTION_PUNCH_RED' : 'KNIFE_HIT_UICURSOR', ...ap, flash: false, cannotGetThrough: false };
+    return { cursor: punch ? 'ACTION_PUNCH_RED' : 'KNIFE_HIT_UICURSOR', ...ap, freeCursor: 'untouched' };
   const enough = !counted || affordable(e, costAt(e, second));
   const step = aim.shownAimTime === first ? 1 : 2;
   const hit = punch ? 'RED' : 'HIT';
@@ -166,7 +164,7 @@ function melee(e: EstimateAttack, aim: AimState, c: AttackContext, punch: boolea
     : enough
       ? `${body}_${hit}_AIM${step}_UICURSOR`
       : `${body}_NOGO_AIM${step}_UICURSOR`;
-  return { cursor, ...ap, flash: false, cannotGetThrough: false };
+  return { cursor, ...ap, freeCursor: 'untouched' };
 }
 
 function toss(e: EstimateAttack, inCombat: boolean): AttackCursor {
@@ -175,7 +173,7 @@ function toss(e: EstimateAttack, inCombat: boolean): AttackCursor {
     if (reload) return reload;
   }
   const ap = inCombat ? { apCost: e.apCost, apInvalid: !affordable(e, e.apCost) } : { apCost: null, apInvalid: false };
-  return { cursor: e.pathClear === false ? 'BAD_THROW_UICURSOR' : 'GOOD_THROW_UICURSOR', ...ap, flash: false, cannotGetThrough: false };
+  return { cursor: e.pathClear === false ? 'BAD_THROW_UICURSOR' : 'GOOD_THROW_UICURSOR', ...ap, freeCursor: 'untouched' };
 }
 
 export function aimLimits(e: EstimateAttack): { readonly step: number; readonly min: number; readonly max: number } | null {

@@ -281,7 +281,7 @@ export class TacticalControls {
     if (!region) return;
     region.showsMouseText = true;
     region.animatesCursor = true;
-    region.flashesCursor = this.input.cursorFlags.flash;
+    region.flashesCursor = true;
     if (this.#screen.itemInCursor()) {
       runtime.cursor.mouseText = null;
       return;

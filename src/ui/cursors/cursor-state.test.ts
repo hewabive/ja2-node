@@ -4,9 +4,10 @@ import { cursorTable } from '../../../tests/support/ui-runtime.ts';
 import { StaticImageCatalog, uniformImage } from '../assets.ts';
 import { DrawList } from '../draw-list.ts';
 import { FontName, type FontSet } from '../text/fonts.ts';
+import type { ButtonSoundRequest } from '../widgets/button-sounds.ts';
 import { CursorId, EXTERN_CURSOR, VIDEO_DEFAULT_TO_NO_CURSOR, VIDEO_NO_CURSOR } from './cursor-ids.ts';
 import { CURSOR_ANIMATION_MS, CURSOR_FLASH_MS, CursorState, DELAY_START_MS } from './cursor-state.ts';
-import type { CursorTable } from './cursor-table.ts';
+import { CursorFlag, type CursorTable } from './cursor-table.ts';
 
 describe('the cursor database', () => {
   let table: CursorTable;
@@ -17,7 +18,7 @@ describe('the cursor database', () => {
     fonts = await stubFontSet();
   });
 
-  function state(sizes: Readonly<Record<string, [number, number, number?]>> = {}): CursorState {
+  function state(sizes: Readonly<Record<string, [number, number, number?]>> = {}, played: ButtonSoundRequest[] = []): CursorState {
     const images = new StaticImageCatalog();
     for (const file of table.files) {
       if (!file.path) continue;
@@ -25,7 +26,7 @@ describe('the cursor database', () => {
       images.set(file.path, uniformImage(12, w, h, animated ?? 0));
     }
     images.set('items/gun.sti', { kind: 'indexed', animatedFrames: 0, frames: [{ width: 30, height: 20, offsetX: 2, offsetY: 1 }] });
-    return new CursorState(table, images);
+    return new CursorState(table, images, { sounds: { play: (request) => played.push(request) } });
   }
 
   it('transcribes 68 files and every CursorTypeDefines entry, and the named ids agree with it', () => {
@@ -80,6 +81,30 @@ describe('the cursor database', () => {
     expect(cursors.compose(0)?.images[0]?.asset).toBe(first);
     cursors.tick(2 * CURSOR_FLASH_MS, false, true);
     expect(cursors.compose(0)?.images[0]?.asset).not.toBe(first);
+  });
+
+  it('alternates the red and black crosshair of an aim cursor marked out of range and beeps as it turns black', () => {
+    const played: ButtonSoundRequest[] = [];
+    const cursors = state({}, played);
+    const aim = cursors.idOf('CURSOR_TARGETON1');
+    cursors.set(aim, 0);
+    const red = cursors.compose(0)?.images[0]?.asset;
+    cursors.setFlags(aim, CursorFlag.FLASH | CursorFlag.PLAY_SOUND);
+    cursors.tick(CURSOR_FLASH_MS, false, true);
+    const black = cursors.compose(0)?.images[0]?.asset;
+    expect(black).not.toBe(red);
+    expect(played).toEqual([{ sample: 'TARGET_OUT_OF_RANGE', volume: 65 }]);
+    cursors.tick(2 * CURSOR_FLASH_MS, false, true);
+    expect(cursors.compose(0)?.images[0]?.asset).toBe(red);
+    expect(played).toHaveLength(1);
+    cursors.tick(3 * CURSOR_FLASH_MS, false, true);
+    expect(played).toHaveLength(2);
+    cursors.removeFlags(aim, CursorFlag.FLASH | CursorFlag.PLAY_SOUND);
+    cursors.setSpecialFrame(aim, 0);
+    cursors.tick(4 * CURSOR_FLASH_MS, false, true);
+    cursors.tick(5 * CURSOR_FLASH_MS, false, true);
+    expect(cursors.compose(0)?.images[0]?.asset).toBe(red);
+    expect(played).toHaveLength(2);
   });
 
   it('animates an AUX_ANIMATED_TILE file every 150 ms and delays a DELAY_START cursor by a second', () => {

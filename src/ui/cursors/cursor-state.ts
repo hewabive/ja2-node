@@ -5,7 +5,8 @@
 // @src flashing and conditional composites, animated frames), ModifyCursorIndex, BltToMouseCursorFromVObjectWithOutline;
 // @src src/game/Utils/Cursors.cc HandleAnimatedCursors (every CURSORCOUNTER, flashing every CURSORFLASHUPDATE),
 // @src UpdateAnimatedCursorFrames, UpdateFlashingCursorFrames, DrawMouseText (TINYFONT1 white, the hit location, the tile
-// @src names, the chance to hit, the AP cost that flashes when invalid), SetCursorSpecialFrame, SetCursorFlags;
+// @src names, the chance to hit, the AP cost that flashes when invalid), SetCursorSpecialFrame, SetCursorFlags,
+// @src RemoveCursorFlags (TARGET_OUT_OF_RANGE at MIDVOLUME when a CURSOR_TO_PLAY_SOUND cursor flashes on);
 // @src src/sgp/Video.cc MAX_CURSOR_WIDTH, MAX_CURSOR_HEIGHT, the cursor blit with gsMouseSizeYModifier;
 // @src src/game/Utils/Timer_Control.cc giTimerIntervals. See docs/28 §3.5.
 
@@ -16,6 +17,7 @@ import { type AssetKey, type DrawList, type FontColors, type ImageEffect, rgb } 
 import { type BitmapFont, fontHeight } from '../text/bitmap-font.ts';
 import { hCenterVCenterAlign } from '../text/measure.ts';
 import { mprint } from '../text/print.ts';
+import { SILENT, type UiSoundSink } from '../widgets/button-sounds.ts';
 import { CursorId, EXTERN_CURSOR, VIDEO_DEFAULT_TO_NO_CURSOR, VIDEO_NO_CURSOR } from './cursor-ids.ts';
 import { CursorFlag, type CursorTable } from './cursor-table.ts';
 
@@ -27,6 +29,8 @@ export const AP_FLASH_MS = 150;
 export const INVALID_AP_HOLD_MS = 500;
 export const DELAY_START_MS = 1000;
 const INVALID_AP_COLOR = 141;
+const MIDVOLUME = 65;
+const TARGET_OUT_OF_RANGE = { sample: 'TARGET_OUT_OF_RANGE', volume: MIDVOLUME } as const;
 const ITEM_OUTLINE = rgb(0, 255, 0);
 const SKIP_OUTLINE: ImageEffect = { kind: 'outline', color: null };
 const LOCATION_Y = 12;
@@ -86,12 +90,14 @@ interface Resolved {
 
 export interface CursorStateOptions {
   readonly alwaysShowCursorInTactical?: boolean;
+  readonly sounds?: UiSoundSink;
 }
 
 export class CursorState {
   readonly table: CursorTable;
   readonly #images: ImageCatalog;
   readonly #alwaysShow: boolean;
+  readonly #sounds: UiSoundSink;
   readonly #frames: number[][];
   readonly #flashIndex: number[];
   readonly #extraFlags: number[];
@@ -113,6 +119,7 @@ export class CursorState {
     this.table = table;
     this.#images = images;
     this.#alwaysShow = options.alwaysShowCursorInTactical ?? false;
+    this.#sounds = options.sounds ?? SILENT;
     this.#frames = table.cursors.map((c) => c.composites.map(() => 0));
     this.#flashIndex = table.cursors.map(() => 0);
     this.#extraFlags = table.cursors.map(() => 0);
@@ -159,6 +166,10 @@ export class CursorState {
     if (this.#extraFlags[cursor] !== undefined) this.#extraFlags[cursor] |= flags;
   }
 
+  removeFlags(cursor: number, flags: number): void {
+    if (this.#extraFlags[cursor] !== undefined) this.#extraFlags[cursor] &= ~flags;
+  }
+
   #flags(cursor: number): number {
     return (this.table.cursors[cursor]?.flags ?? 0) | (this.#extraFlags[cursor] ?? 0);
   }
@@ -191,7 +202,11 @@ export class CursorState {
   }
 
   #toggleFlash(cursor: number): void {
-    if (this.#flags(cursor) & (CursorFlag.FLASH | CursorFlag.FLASH2)) this.#flashIndex[cursor] = this.#flashIndex[cursor] ? 0 : 1;
+    const flags = this.#flags(cursor);
+    if (!(flags & (CursorFlag.FLASH | CursorFlag.FLASH2))) return;
+    const index = this.#flashIndex[cursor] ? 0 : 1;
+    this.#flashIndex[cursor] = index;
+    if (flags & CursorFlag.PLAY_SOUND && index) this.#sounds.play(TARGET_OUT_OF_RANGE);
   }
 
   #fileAsset(file: number): { asset: AssetKey; frame: number | null; outline: boolean } | null {

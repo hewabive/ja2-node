@@ -29,6 +29,7 @@ import type { CommandEnvelope } from '../../../../protocol/messages.ts';
 import type { PlayerView, SoldierView } from '../../../../protocol/view.ts';
 import { VIDEO_DEFAULT_TO_NO_CURSOR, VIDEO_NO_CURSOR } from '../../../cursors/cursor-ids.ts';
 import type { MouseText } from '../../../cursors/cursor-state.ts';
+import { CursorFlag } from '../../../cursors/cursor-table.ts';
 import { KeyModifier, type UiKeyEvent } from '../../../input/events.ts';
 import { MouseButtonMask, MouseReason, Priority } from '../../../input/mouse.ts';
 import type { MouseRegion } from '../../../input/regions.ts';
@@ -39,6 +40,7 @@ import { inCombat, isEpc, isRobot, OUR_TEAM, ourTurn, soldierById } from '../sol
 import { Arrows } from './arrows.ts';
 import {
   type AimState,
+  type AttackCursor,
   aimTimeOf,
   attackCursor,
   confirmsBeforeAttack,
@@ -56,6 +58,8 @@ import { apNumberMarker, cursorMarkers, footstepMarkers, impactMarker, selection
 export const PATHFIND_DELAY_MS = 80;
 export const CLICK_HOLD_MS = 300;
 export const DOUBLE_CLICK_MS = 300;
+const CANNOT_GET_THROUGH_FRAME = 1;
+const CLEAR_SPECIAL_FRAME = 0;
 const EXCHANGE_CURSOR_MS = 1000;
 const ITEMS_OVER_MS = 1500;
 const RUBBER_BAND_START_PX = 10;
@@ -2196,7 +2200,7 @@ export class TacticalInput {
       this.#apCenter = true;
       this.#apInvalid = result.apInvalid;
     }
-    this.#cursorFlags = { flash: result.flash, cannotGetThrough: result.cannotGetThrough };
+    this.#markFreeCursor(result);
     if (estimate.cursor === 'target' || estimate.cursor === 'punch' || estimate.cursor === 'knife') this.#bodyLocation(sel);
     if ((estimate.cursor === 'punch' || estimate.cursor === 'knife' || estimate.cursor === 'aid') && this.#combat()) {
       const answer = this.#hint<PreviewAction>({
@@ -2220,7 +2224,18 @@ export class TacticalInput {
       this.#impact = { gridNo: estimate.landsAt, level: estimate.landsOnLevel ?? 0, good: estimate.pathClear !== false };
   }
 
-  #cursorFlags = { flash: false, cannotGetThrough: false };
+  #markFreeCursor(result: AttackCursor): void {
+    if (result.freeCursor === 'untouched') return;
+    const env = this.#env();
+    const name = env.uiCursors.entry(result.cursor).cursor;
+    if (!name) return;
+    const cursors = env.runtime.cursor;
+    const free = cursors.idOf(name);
+    cursors.removeFlags(free, CursorFlag.FLASH | CursorFlag.PLAY_SOUND);
+    if (result.freeCursor === 'cannotGetThrough') cursors.setSpecialFrame(free, CANNOT_GET_THROUGH_FRAME);
+    else if (result.freeCursor === 'outOfRange') cursors.setFlags(free, CursorFlag.FLASH | CursorFlag.PLAY_SOUND);
+    else cursors.setSpecialFrame(free, CLEAR_SPECIAL_FRAME);
+  }
 
   #throwingKnife(sel: SoldierView): boolean {
     return sel.hand === 'THROWING_KNIFE' || sel.hand === 'throwingKnife';
@@ -2718,10 +2733,6 @@ export class TacticalInput {
     if (this.#cursor === 'NO_UICURSOR' || entry.flags & UiCursorFlag.SNAPPING || !entry.cursor) return VIDEO_DEFAULT_TO_NO_CURSOR;
     if (entry.cursor === 'VIDEO_DEFAULT_TO_NO_CURSOR') return VIDEO_DEFAULT_TO_NO_CURSOR;
     return env.runtime.cursor.idOf(entry.cursor);
-  }
-
-  get cursorFlags(): { readonly flash: boolean; readonly cannotGetThrough: boolean } {
-    return this.#cursorFlags;
   }
 
   reset(): void {
