@@ -140,6 +140,7 @@ export function collectReferences(model: LayoutModel): LayoutReferences {
     if ('edt' in s && Array.isArray(s.edt)) {
       const row = staticNumber(s.edt[1], vars);
       if (row !== null) refs.edts.push([String(s.edt[0]), row]);
+      else if (isRecord(s.edt[1])) binding(s.edt[1].bind);
     }
     if ('format' in s) {
       text(s.format, vars);
@@ -159,6 +160,8 @@ export function collectReferences(model: LayoutModel): LayoutReferences {
       if (typeof json.fit.font === 'string') refs.fonts.add(json.fit.font);
     }
     if (typeof json.cursor === 'string') refs.cursors.add(json.cursor);
+    else if (isRecord(json.cursor) && isRecord(json.cursor.map))
+      for (const name of Object.values(json.cursor.map)) if (typeof name === 'string') refs.cursors.add(name);
     if (typeof json.lines === 'string') binding(json.lines);
     else if (Array.isArray(json.lines)) for (const line of json.lines) text(isRecord(line) && 'text' in line ? line.text : line, vars);
     switch (json.type) {

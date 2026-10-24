@@ -43,6 +43,7 @@ export interface MapFlow {
   loadGame(): void;
   exitGame(): void;
   preBattle(): void;
+  help?(): void;
 }
 
 export interface MapSounds {

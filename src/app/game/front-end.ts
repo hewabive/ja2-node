@@ -7,9 +7,17 @@ import { messageBoxStyles, textBoxArt } from '../../ui/layout/styles.ts';
 import { ORIGINAL_SKIN } from '../../ui/layout/types.ts';
 import { CanvasMessageBoxes } from '../../ui/message-boxes.ts';
 import { FRONT_END_LAYOUTS, type FrontEndEnvironment, FrontEndLayout } from '../../ui/screens/front-end/environment.ts';
-import { FrontEndFlow, type FrontEndHost, type FrontEndMusic, type TacticalPort } from '../../ui/screens/front-end/flow.ts';
+import {
+  FrontEndFlow,
+  type FrontEndHost,
+  type FrontEndMusic,
+  gameScreenOf,
+  type MapPort,
+  type TacticalPort,
+} from '../../ui/screens/front-end/flow.ts';
 import { LOADINGSCREEN_NOTHING } from '../../ui/screens/front-end/loading.ts';
 import { type LaptopMemory, laptopMemory } from '../../ui/screens/laptop/laptop-client.ts';
+import type { StoryLayer } from '../../ui/screens/story/story-layer.ts';
 import type { Labels } from '../../ui/text/labels.ts';
 import { messageBoxLabels } from '../../ui/widgets/message-box.ts';
 import { CreditRowFeed, fetchCreditRow } from '../credits/rows.ts';
@@ -26,7 +34,9 @@ import { engineSound } from '../video/sound.ts';
 import { HttpFrontEndClient } from './front-end-client.ts';
 import { FrontEndMusicPlayer } from './front-end-music.ts';
 import type { GamePage } from './game-page.ts';
+import { HelpHost } from './help-host.ts';
 import { BrowserSettingsStore, engineVolumes } from './settings-store.ts';
+import { createStoryLayer } from './story-host.ts';
 import type { UiBoot } from './ui-boot.ts';
 
 const LAUNCHER_PAGE = '/';
@@ -141,6 +151,7 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
     return map;
   };
   let lastLoadScreen: number | null = null;
+  let stories: { readonly help: HelpHost; readonly story: StoryLayer } | null = null;
   const tacticalPort = (host: TacticalHost): TacticalPort => ({
     get loaded() {
       return host.loaded;
@@ -152,11 +163,21 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       return host.loadScreen ?? lastLoadScreen;
     },
     load: (onProgress) => host.load(onProgress),
-    screen: (flow) => host.screen(flow),
+    screen: (flow) => host.screen({ ...flow, help: () => help.force('tactical') }),
+  });
+  const mapPort = (host: MapHost): MapPort => ({
+    get loaded() {
+      return host.loaded;
+    },
+    load: (onProgress) => host.load(onProgress),
+    enter: (abandonFight) => host.enter(abandonFight),
+    screen: (flow) => host.screen({ ...flow, help: () => help.forceMap() }),
   });
   page.frameListener = (ms) => {
     tactical?.frameTime(ms);
     map?.frameTime();
+    stories?.help.frame();
+    stories?.story.frame();
   };
   const laptopMemories = new Map<string, LaptopMemory>();
   const laptopMemoryFor = (session: string): LaptopMemory => {
@@ -190,17 +211,36 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
     },
     random: (range) => random.int(range),
     tactical: () => (client.client ? tacticalPort(tacticalFor(client.client)) : null),
-    map: () => (client.client ? mapFor(client.client) : null),
+    map: () => (client.client ? mapPort(mapFor(client.client)) : null),
     laptop: () => {
       const session = client.client;
       const id = session?.session;
       if (!session || !id) return null;
       return {
-        open: (flow) => bootLaptopScreen(ui, { session, memory: laptopMemoryFor(id), onClosed: flow.closed, onQuitRequest: flow.quit }),
+        open: (flow) =>
+          bootLaptopScreen(ui, {
+            session,
+            memory: laptopMemoryFor(id),
+            onClosed: flow.closed,
+            onQuitRequest: flow.quit,
+            onHelp: () => help.force('laptop'),
+          }),
       };
     },
   };
   const flow = new FrontEndFlow(env, client, settings, host);
+  const help = new HelpHost({
+    page,
+    ui,
+    settings,
+    campaign: () => client.client?.campaign ?? null,
+    view: () => client.client?.view ?? null,
+  });
+  await help.load();
+  const story = createStoryLayer({ page, ui, env, flow, client, settings, music, video, tacticalLoaded: () => tactical?.loaded ?? false });
+  page.hook.help = help.hook;
+  page.hook.story = story.hook;
+  stories = { help, story };
   client.onConnected = (session: SessionClient | null) => {
     page.client = session;
     page.hook.session = session?.session ?? null;
@@ -213,14 +253,16 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       map = null;
     }
     lastLoadScreen = null;
+    story.reset();
     if (!session) return;
     session.onFrames = (frames) => {
       music.frames(frames);
       lastLoadScreen = loadScreenOf(frames) ?? lastLoadScreen;
+      if (!tactical && gameScreenOf(session.view) === 'tactical' && session.view?.mapPath) tacticalFor(session);
       tactical?.frames(frames);
       if (!map && startsAutoresolve(frames)) mapFor(session);
       map?.frames(frames);
-      flow.frames(frames);
+      story.frames(frames, (released) => flow.frames(released));
     };
     session.onReceive = (frames) => tactical?.received(frames);
     session.onWelcome = () => tactical?.welcome();

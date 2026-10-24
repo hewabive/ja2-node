@@ -11,6 +11,7 @@ import { PLACEHOLDER_CONTRACT } from './front-end/placeholder.ts';
 import { SAN_MONA_CONTRACT } from './front-end/san-mona.ts';
 import { SAVE_LOAD_CONTRACT } from './front-end/save-load.ts';
 import { GALLERY_CONTRACT } from './gallery.ts';
+import { HELP_SCREEN_CONTRACT } from './help/help-overlay.ts';
 import { AIM_ARCHIVES_CONTRACT } from './laptop/aim/aim-archives.ts';
 import { AIM_HISTORY_CONTRACT } from './laptop/aim/aim-history.ts';
 import { AIM_MEMBER_CONTRACT } from './laptop/aim/aim-member.ts';
@@ -156,5 +157,6 @@ export const LAYOUT_CONTRACTS: Readonly<Record<string, ControllerContract>> = Ob
     IMP_CONFIRM_CONTRACT,
     PRE_BATTLE_CONTRACT,
     AUTORESOLVE_CONTRACT,
+    HELP_SCREEN_CONTRACT,
   ].map((contract) => [contract.id, contract]),
 );

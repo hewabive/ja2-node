@@ -51,6 +51,7 @@ export class SessionClient {
   driver: DriverMode = { mode: 'manual' };
   playbackSpeed = 1;
   session: string | null = null;
+  campaign: string | null = null;
   identity: WelcomeIdentity | null = null;
   onChange: (() => void) | null = null;
   onFrames: ((frames: readonly ViewFrame[]) => void) | null = null;
@@ -205,6 +206,7 @@ export class SessionClient {
       case 'welcome':
         this.#frames.length = 0;
         this.session = m.session;
+        this.campaign = m.campaign ?? null;
         this.identity = { engine: m.engine, rules: m.rules };
         this.rules = m.rules;
         this.driver = m.driver;

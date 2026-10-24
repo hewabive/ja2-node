@@ -107,11 +107,13 @@ class BlackScreen implements Screen {
   }
 }
 
+const TACTICAL_FLOWS: ReadonlySet<string> = new Set(['tactical', 'meanwhile', 'endgame', 'ended']);
+
 export function gameScreenOf(view: PlayerView | null): GameScreenKind {
   const flow = view?.strategic?.flow;
   if (flow === 'laptop') return 'laptop';
   if (view?.prompt?.kind === 'preBattle') return 'map';
-  if (!view?.strategic || flow === 'tactical') return 'tactical';
+  if (!view?.strategic || (flow !== undefined && TACTICAL_FLOWS.has(flow))) return 'tactical';
   return 'map';
 }
 

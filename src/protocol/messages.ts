@@ -65,6 +65,7 @@ export interface WelcomeMessage extends WelcomeIdentity {
   readonly view: PlayerView;
   readonly driver: DriverMode;
   readonly messages: readonly MessageEntry[];
+  readonly campaign?: string;
 }
 
 export interface AnswerMessage {

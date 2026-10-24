@@ -45,8 +45,17 @@ describe('musicMode follows the setters of docs/27 §3.1', () => {
     expect(following(at(MusicMode.TACTICAL_NOTHING), [{ type: 'meanwhile', scene: 'drassen', seq: 1 }], { sectorLoaded: false }).mode).toBe(
       MusicMode.MAIN_MENU,
     );
-    expect(following(at(MusicMode.TACTICAL_NOTHING), [{ type: 'meanwhileStarted', scene: 'interrogation', seq: 1 }]).mode).toBe(
-      MusicMode.MAIN_MENU,
+    expect(
+      following(at(MusicMode.TACTICAL_NOTHING), [{ type: 'meanwhileStarted', scene: 'interrogation', seq: 1 }], { sectorLoaded: false })
+        .mode,
+    ).toBe(MusicMode.MAIN_MENU);
+  });
+
+  it('TACTICAL_NOTHING: the interrogation’s menu music gives way to the sector entry rule of the loaded N7, enemies or not', () => {
+    const started = [{ type: 'meanwhileStarted', scene: 'interrogation', seq: 1 }];
+    expect(following(at(MusicMode.TACTICAL_NOTHING), started, { sectorLoaded: true, hostiles: 3 }).mode).toBe(MusicMode.TACTICAL_NOTHING);
+    expect(following(at(MusicMode.TACTICAL_ENEMY_PRESENT), started, { sectorLoaded: true, hostiles: 0 }).mode).toBe(
+      MusicMode.TACTICAL_NOTHING,
     );
   });
 

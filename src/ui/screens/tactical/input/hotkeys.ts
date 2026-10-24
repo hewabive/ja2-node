@@ -58,6 +58,7 @@ export interface HotkeyHost {
   overheadMap(): void;
   continueMove(): void;
   mapScreen(): void;
+  help(): void;
   gameSettings(): void;
   cycleStack(): void;
   clearMessages(queue: boolean): void;
@@ -168,6 +169,9 @@ function noModifier(h: HotkeyHost, key: string, event: UiEvent): UiEvent {
       return event;
     case 'g':
       h.toggleMercLight();
+      return event;
+    case 'h':
+      h.help();
       return event;
     case 'i':
       h.toggleItemGlow();

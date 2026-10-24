@@ -154,6 +154,7 @@ const SCREEN_TABLES: readonly TableSpec[] = [
   { table: 'IMPVideoObjects', files: ['game/Laptop/IMPVideoObjects.h', 'game/Laptop/IMPVideoObjects.cc'] },
   { table: 'PreBattle_Interface', files: ['game/Strategic/PreBattle_Interface.h', 'game/Strategic/PreBattle_Interface.cc'] },
   { table: 'Auto_Resolve', files: ['game/Strategic/Auto_Resolve.h', 'game/Strategic/Auto_Resolve.cc'] },
+  { table: 'HelpScreen', files: ['game/HelpScreen.h', 'game/HelpScreen.cc', 'game/HelpScreenText.h'] },
 ];
 
 const FRAME_ORIGIN_NAMES: ReadonlyMap<string, number> = new Map([

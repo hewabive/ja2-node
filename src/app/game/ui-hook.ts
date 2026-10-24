@@ -2,10 +2,12 @@ import type { CapturedFrame } from '../../render/ui-draw/logical-framebuffer.ts'
 import type { UiDrawStats } from '../../render/ui-draw/ui-renderer.ts';
 import type { LogicalPoint } from '../../ui/resolution.ts';
 import type { CursorReport } from '../../ui/runtime.ts';
+import type { StoryHook } from '../../ui/screens/story/story-layer.ts';
 import type { ButtonSoundRequest } from '../../ui/widgets/button-sounds.ts';
 import type { WidgetInfo } from '../../ui/widgets/widget-info.ts';
 import type { MusicHook } from '../net/music.ts';
 import type { SequenceMonitor } from '../video/sequence-player.ts';
+import type { HelpHook } from './help-host.ts';
 
 export interface CapturedPixels {
   readonly width: number;
@@ -32,6 +34,8 @@ export interface UiHook {
   draw: UiDrawStats | null;
   music: MusicHook | null;
   video: SequenceMonitor | null;
+  help: HelpHook | null;
+  story: StoryHook | null;
   capture(): CapturedPixels | null;
 }
 
@@ -69,6 +73,8 @@ export function createUiHook(capture: () => CapturedFrame | null): UiHook {
     draw: null,
     music: null,
     video: null,
+    help: null,
+    story: null,
     capture: () => {
       const frame = capture();
       return frame ? { width: frame.width, height: frame.height, rgba: base64(frame.rgba) } : null;

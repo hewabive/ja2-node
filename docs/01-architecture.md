@@ -1194,6 +1194,12 @@ Spec: `docs/28` (slices U0–U15; the maintainer's decisions in §18, M8 is 0.8.
     the helicopter, assignments, contracts, the town and mine box, the militia popup, the sector inventory, the bottom
     panel with compression, the update box and the hotkeys; the front end follows the server's flow between the map,
     tactical and the laptop.
+11. **Battle entry** (U9): the pre-battle interface (both kinds, `showBattle` for the one opened during a battle) and
+    the autoresolve screen with its playback speeds, sounds and result box.
+12. **Laptop, parts two and three** (U11, U12): Bobby Ray's, M.E.R.C., I.M.P., Personnel, History, Files, the
+    insurance, florist and funeral sites and the A.I.M. archive pages, with their server gaps; every bookmark leads to
+    a finished page.
+13. **Story and help** (U13): the help screens, the meanwhile box, the interrogation and the ending through to the
+    credits on `/play`, a campaign identity for per-campaign client state.
 
-Next (`28` §17.2): U9 PBI and autoresolve, U11–U12 the rest of the laptop, U13 story and help, U14 the remaining stub
-art and e2e, U15 the release.
+Next (`28` §17.2): U14 the remaining stub art and e2e, U15 the release.

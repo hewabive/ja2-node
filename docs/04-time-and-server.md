@@ -7,7 +7,7 @@ Stracciatella code at `ae6bf01`. Paths of the form `Tactical/…` are relative t
 
 *Since M2 the sections that describe what was built carry "Implemented in", "as built" or a milestone in their title; the
 rest is the v0.1 design. As of M7 (2026-10-18): §5.9 describes the session hosts and §6.2 the MCP tools as built, and
-§6.6–§6.30 the agent API per milestone; the tool descriptions in `src/server/mcp.ts` are the reference for every
+§6.6–§6.34 the agent API per milestone; the tool descriptions in `src/server/mcp.ts` are the reference for every
 command.*
 
 ---
@@ -475,7 +475,7 @@ The game data splits into the **rule pack** (everything the simulation reads) an
 
 ## 6. Agent API
 
-§6.1–§6.5 are the v0.1 design with as-built notes; §6.6–§6.30 add the API milestone by milestone as it was built (there
+§6.1–§6.5 are the v0.1 design with as-built notes; §6.6–§6.34 add the API milestone by milestone as it was built (there
 is no §6.15). The MCP tool descriptions in `src/server/mcp.ts` list every command with its fields and refusals and are
 the reference when this text and the code differ.
 
@@ -1643,6 +1643,31 @@ presence, so a data folder whose gallery text carries other prices is not told a
 | `readFile {code}` | `DisplayFormattedText` | Marks the file read; `noSuchFile` |
 | `visitSite {site: floristOrderForm}` | `EnterFloristOrderForm` | One main-stream draw; `data.orderNumber` |
 | `orderFlowers {bouquet, destination, nextDay, extras}` | `DisplayFlowerDynamicItems`, `BtnFlowerOrderSendButtonCallback` | The bouquet price joins the charge; one main-stream draw after it; `data {price, orderNumber}` |
+
+### 6.34. Story and help (M8, U13)
+
+What the game page's meanwhile box, ending and help screens needed from the server (`28` §4.7, §10); the story itself
+is `26` §2 and §7 and unchanged.
+
+**The campaign identity.** The original keeps the help screens' seen mask in the savegame
+(`SaveLoadGame.cc:1916`); the game page keeps it in the browser per campaign, so a session names its campaign. The
+welcome carries `campaign` for a campaign session: a random identity made when the campaign is created
+(`newSession {campaign}`, `POST /api/sessions {campaign}`), `import:<16 hex digits of the file's digest>` for a native
+import, none for a sandbox. The session writes it into the save's `presentation.campaign` and a load restores it, in a
+new session or in place (the fresh `welcome` then names the loaded campaign); a save written before U13 gets
+`save:<16 hex digits of the save's digest>`, so every later save of that line keeps it. It is presentation: the
+snapshot, the input log, the replay and the logic hash do not see it (`src/server/campaign-id.ts`).
+
+**The strategic view** says `gameJustStarted: true` while `fDidGameJustStart` is set (from the new campaign to the
+first arrival of a hired merc), which picks the map screen's "not in Arulco yet" help (`HelpScreenDetermineWhichMapScreenHelpToShow`).
+
+**Music of the interrogation.** `StartMeanwhile` sets the menu music before the scene's sector loads and the load's
+sector entry rule follows (`StrategicMap.cc` `SetCurrentWorldSector`); the session now applies both at
+`meanwhileStarted` (`TACTICAL_NOTHING` in N7, whatever the order the step's events come in), and `meanwhileEnded` of the
+interrogation still sets `TACTICAL_ENEMYPRESENT` (`EndMeanwhile`).
+
+No command, prompt or refusal changes: the meanwhile box and the ending are presentation of the existing events
+(`meanwhile`, `meanwhileStarted`, `squadMovedUpstairs`, `campaignWon`), and the help screens read the view.
 
 ## 7. Cost and limitations
 

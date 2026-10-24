@@ -725,6 +725,7 @@ export class TacticalControls {
       },
       continueMove: () => this.#continueMove(),
       mapScreen: () => env.flow.mapScreen(),
+      help: () => env.flow.help?.(),
       gameSettings: () => this.#gameSettings(),
       cycleStack: () => undefined,
       clearMessages: (queue) => screen.clearMessages(queue),

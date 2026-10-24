@@ -116,6 +116,11 @@ function meanwhileResolved(s: Setter, facts: MusicFacts): void {
   s.sectorEntry(facts.hostiles);
 }
 
+function interrogationStarted(s: Setter, facts: MusicFacts): void {
+  s.set(MusicMode.MAIN_MENU);
+  if (facts.sectorLoaded) s.sectorEntry(facts.hostiles);
+}
+
 function apply(s: Setter, e: SimEvent, facts: MusicFacts): void {
   switch (e.type) {
     case 'sectorLoaded':
@@ -154,7 +159,7 @@ function apply(s: Setter, e: SimEvent, facts: MusicFacts): void {
       meanwhileResolved(s, facts);
       return;
     case 'meanwhileStarted':
-      s.set(MusicMode.MAIN_MENU);
+      interrogationStarted(s, facts);
       return;
     case 'meanwhileEnded':
       if (e.scene === INTERROGATION_SCENE) s.set(MusicMode.TACTICAL_ENEMY_PRESENT);

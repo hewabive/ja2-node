@@ -61,7 +61,11 @@ export function sanMonaScreen(env: FrontEndEnvironment, controller: SanMonaContr
     controller,
     soundScreen: UiScreenKind.OTHER,
     hidesCursor: true,
-    onEnter: () => controller.start(env.runtime.clock.ja2Now, env.runtime.sounds),
+    onEnter: () => {
+      env.runtime.pauseGame(true);
+      controller.start(env.runtime.clock.ja2Now, env.runtime.sounds);
+    },
+    onExit: () => env.runtime.pauseGame(false),
     onUpdate: () => controller.update(env.runtime.clock.ja2Now),
   });
 }

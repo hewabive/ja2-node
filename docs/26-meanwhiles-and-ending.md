@@ -1112,3 +1112,23 @@ surrender prompt (§3.2, owned by the civilian-quote work of `24`). Modules: `sr
 - **Stubs**: QUEEN, JOE, ELLIOT, DEREK, OLIVER with invented names, stub maps for N7, P3 and P3 b1, the stub record files
   for the endgame (136, 137) and a stub interrogation set (`stubs/npc/records.json`, `meanwhiles`).
 
+
+## 15. On the game page (M8, U13, 2026-10-24)
+
+The browser presents the story with the events of §9.3 (`28` §10, `src/ui/screens/story/`, `src/app/game/story-host.ts`):
+
+- **Box**: `meanwhile` and `meanwhileStarted` open `BringupMeanwhileBox`'s BASIC box `"<MSG_MEANWHILE>....."` over
+  whatever screen the event reaches, OK alone for the interrogation or a scene not seen on this installation, OK and Skip
+  otherwise (the client setting `meanwhileScenesSeen`). The box is a client modal: the real-time driver stops while it
+  is up (`28` §1.4) and the screen switch the event brings waits for the answer. OK and Skip both continue (§2.2);
+  since no scene is played (§2.4 is still not built), none is ever marked seen.
+- **Interrogation**: after OK the page fades out, enters N7 (the flow `meanwhile` shows the tactical screen, the view
+  locates the Queen) and fades in. The Queen's talk panel and the YES/NO/LIE request box are the talk screens of `24`;
+  the panel closes before the box (`PROMPT_PLAYER_TO_LIE` calls `DeleteTalkingMenu`), every other command is refused
+  with `inMeanwhile`, Escape does not end the scene. Music: the menu music, then the sector entry rule of N7 at
+  `meanwhileStarted` (`TACTICAL_NOTHING`), `TACTICAL_ENEMYPRESENT` at `meanwhileEnded` (`docs/04` §6.34).
+- **Ending**: the killer's and the witnesses' quotes play under the victory music; `squadMovedUpstairs` fades out, the
+  page loads P3 (the loading screen of `sectorLoaded`), fades in and locates gridno 4561 while the flow is `endgame`;
+  Derek's and Oliver's panels and the end-game comments are the talk screens; `campaignWon` fades out, leaves the
+  session, plays `endingPlan`'s videos (`src/app/video/sequences.ts`), the credits without music and returns to the main
+  menu with its music. `endgameDeferred` needs nothing: the game goes on in tactical.

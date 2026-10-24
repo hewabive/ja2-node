@@ -111,6 +111,7 @@ export class Session {
   #depth = 0;
   #messages: MessageEntry[] = [];
   #labels: UiStrings | null = null;
+  #campaign: string | null = null;
   readonly #framedMessages: MessageEntry[] = [];
   readonly #unreportedMessages: MessageEntry[] = [];
   readonly #held: SimEvent[] = [];
@@ -142,6 +143,14 @@ export class Session {
 
   get messages(): readonly MessageEntry[] {
     return this.#messages;
+  }
+
+  get campaign(): string | null {
+    return this.#campaign;
+  }
+
+  useCampaign(campaign: string | null): void {
+    this.#campaign = campaign;
   }
 
   #messageFacts(): MessageFacts {
@@ -207,7 +216,15 @@ export class Session {
   }
 
   #welcome(): WelcomeMessage {
-    return { t: 'welcome', session: this.id, view: this.#view(), driver: this.#driver, messages: this.#messages, ...this.identity };
+    return {
+      t: 'welcome',
+      session: this.id,
+      view: this.#view(),
+      driver: this.#driver,
+      messages: this.#messages,
+      ...(this.#campaign ? { campaign: this.#campaign } : {}),
+      ...this.identity,
+    };
   }
 
   #broadcast(message: ServerMessage): void {
@@ -440,6 +457,7 @@ export class Session {
     loaded: LoadPayload,
     music: MusicState = sim.initialMusic ?? initialMusic(),
     messages: readonly MessageEntry[] = [],
+    campaign: string | null = this.#campaign,
   ): void {
     const wasRunning = this.#driver.mode === 'realtime';
     this.#stopTimer();
@@ -450,6 +468,7 @@ export class Session {
     this.#sim = sim;
     sim.useLabels?.(this.#labels);
     this.#music = music;
+    this.#campaign = campaign;
     this.#fastFade = false;
     this.restoreMessages(messages);
     const welcome = this.#welcome();

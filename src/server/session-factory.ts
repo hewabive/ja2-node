@@ -6,6 +6,8 @@ import { loadUiStrings } from '../content/text/strings.ts';
 import type { ReadFile } from '../content/world/tileset-loader.ts';
 import type { WelcomeIdentity } from '../protocol/messages.ts';
 import { createCampaignSession } from './campaign-factory.ts';
+import { campaignIdOfOrigin, campaignIdOfSave } from './campaign-id.ts';
+import { CampaignSession } from './campaign-session.ts';
 import type { LogOrigin } from './input-log.ts';
 import { QueryService } from './query.ts';
 import { createSandboxSession } from './sandbox.ts';
@@ -90,6 +92,7 @@ async function createSession(options: SessionFactoryOptions, id: string, request
     const session = new Session(id, opened.sim, text, { kind: 'load', name: opened.name, digest: opened.digest });
     session.restoreMusic(musicOfPresentation(opened.file.presentation));
     session.restoreMessages(messagesOfPresentation(opened.file.presentation));
+    session.useCampaign(campaignIdOfSave(opened.file.presentation, opened.digest, opened.sim instanceof CampaignSession));
     saves?.attach(session);
     saves?.completeLoad(session, opened, request.load.reseed);
     return session;
@@ -107,6 +110,7 @@ async function createSession(options: SessionFactoryOptions, id: string, request
     deadIsDeadName = request.save;
   } else origin = { kind: 'sandbox', seed: request.seed };
   const session = new Session(id, await simFromOrigin(options, origin, saves), text, origin);
+  session.useCampaign(campaignIdOfOrigin(origin));
   saves?.attach(session, { deadIsDeadName, deadIsDeadDescription });
   return session;
 }

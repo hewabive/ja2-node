@@ -210,8 +210,10 @@ function checkKind(kind: Kind, value: unknown, where: string, problems: string[]
     case 'binding':
     case 'asset':
     case 'font':
-    case 'cursor':
       if (typeof value !== 'string' || value.length === 0) bad('a non-empty string');
+      return;
+    case 'cursor':
+      if (!(typeof value === 'string' && value.length > 0) && !isChoice(value)) bad('a cursor name or {by, map}');
       return;
     case 'assetChoice':
       if (!(typeof value === 'string' && value.length > 0) && !isChoice(value)) bad('an asset name or {by, map}');
