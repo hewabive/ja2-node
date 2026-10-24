@@ -2,12 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import {
-  STORY_MAP_SAVE,
-  STORY_MEANWHILE_SAVE,
-  STORY_PALACE_SAVE,
-  writeStorySaves,
-} from '../../tests/support/e2e-story-saves.ts';
+import { STORY_MAP_SAVE, STORY_MEANWHILE_SAVE, STORY_PALACE_SAVE, writeStorySaves } from '../../tests/support/e2e-story-saves.ts';
 import { createSaveKit, type SaveKit } from '../../tests/support/saves.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import type { SimEvent } from '../sim/events.ts';
@@ -48,7 +43,8 @@ describe('the stub saves the story e2e loads (docs/28 §10)', { timeout: TIMEOUT
     const session = await saves.open({ load: STORY_MEANWHILE_SAVE });
     expect(session.dispatch({ type: 'compressTime', mode: 2 })).toMatchObject({ ok: true });
     const seen: string[] = [];
-    for (let k = 0; k < COMPRESS_STEPS && !seen.includes('meanwhile'); k++) seen.push(...types(session.advance({ ticks: COMPRESS_TICKS }).events));
+    for (let k = 0; k < COMPRESS_STEPS && !seen.includes('meanwhile'); k++)
+      seen.push(...types(session.advance({ ticks: COMPRESS_TICKS }).events));
     expect(seen).toContain('meanwhile');
     expect(session.sim.view().strategic?.meanwhiles).toEqual([expect.objectContaining({ seq: 1, scene: 'drassenLiberated' })]);
   });
