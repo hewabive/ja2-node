@@ -1,8 +1,77 @@
 {
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
-  "@src": ["src/game/Laptop/Florist.cc"],
+  "@src": [
+    "src/game/Laptop/Florist.cc InitFloristDefaults (MLG_LARGEFLORISTSYMBOL on the home page, else MLG_SMALLFLORISTSYMBOL with the home-link region FLORIST_SMALL_TITLE_WIDTH x FLORIST_SMALL_TITLE_HEIGHT at MSYS_PRIORITY_HIGH, CURSOR_WWW), DisplayFloristDefaults (leafback.sti tiled 4 x 4 FLORIST_BACKGROUND_WIDTH x FLORIST_BACKGROUND_HEIGHT from the web area), SelectFloristTitleHomeLinkRegionCallBack"
+  ],
   "screen": "floristChrome",
   "frame": "std640",
   "constants": ["Laptop", "Florist"],
-  "widgets": []
+  "assets": {
+    "leafBack": {
+      "sti": "laptop/leafback.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["FLORIST_BACKGROUND_WIDTH", "FLORIST_BACKGROUND_HEIGHT"],
+        "style": "hollow"
+      }
+    },
+    "largeSymbol": {
+      "mlg": "MLG_LARGEFLORISTSYMBOL",
+      "stub": {
+        "frames": 1,
+        "size": ["FLORIST_COMPANY_INFO_TEXT_WIDTH - 15", "FLORIST_COMPANY_INFO_LINE_1_Y - FLORIST_BIG_TITLE_Y - 4"],
+        "style": "hollow"
+      }
+    },
+    "smallSymbol": {
+      "mlg": "MLG_SMALLFLORISTSYMBOL",
+      "stub": {
+        "frames": 1,
+        "size": ["FLORIST_SMALL_TITLE_WIDTH", "FLORIST_SMALL_TITLE_HEIGHT"],
+        "style": "hollow"
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "tiles",
+      "asset": "leafBack",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "columns": 4,
+      "rows": 4,
+      "dx": "FLORIST_BACKGROUND_WIDTH",
+      "dy": "FLORIST_BACKGROUND_HEIGHT"
+    },
+    {
+      "type": "image",
+      "asset": "largeSymbol",
+      "frame": 0,
+      "x": "FLORIST_BIG_TITLE_X",
+      "y": "FLORIST_BIG_TITLE_Y",
+      "visible": "homePage"
+    },
+    {
+      "type": "image",
+      "asset": "smallSymbol",
+      "frame": 0,
+      "x": "FLORIST_SMALL_TITLE_X",
+      "y": "FLORIST_SMALL_TITLE_Y",
+      "visible": "!homePage"
+    },
+    {
+      "type": "region",
+      "id": "floristHomeLink",
+      "x": "FLORIST_SMALL_TITLE_X",
+      "y": "FLORIST_SMALL_TITLE_Y",
+      "width": "FLORIST_SMALL_TITLE_WIDTH",
+      "height": "FLORIST_SMALL_TITLE_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "enabled": "!homePage",
+      "visible": "!homePage",
+      "primary": "home"
+    }
+  ]
 }

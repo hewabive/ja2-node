@@ -1,8 +1,209 @@
 {
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
-  "@src": ["src/game/Laptop/Florist_Cards.cc"],
+  "@src": [
+    "src/game/Laptop/Florist_Cards.cc EnterFloristCards (the nine card regions FLORIST_CARD_CARD_WIDTH x FLORIST_CARD_CARD_HEIGHT, FLORIST_CARD_FIRST_OFFSET_X and FLORIST_CARD_FIRST_OFFSET_Y apart, MSYS_PRIORITY_HIGH, CURSOR_WWW; floristbuttons.sti 0/1 with sFloristCards FLORIST_CARDS_BACK), RenderFloristCards (the title in FONT10ARIAL centred over FLORIST_CARD_TITLE_SENTENCE_WIDTH, cardblank.sti and the saying of flowercard.edt with IanDisplayWrappedString at +7, +10 + the offset in FLORIST_CARD_TEXT_WIDTH, gap 2)",
+    "floristbuttons.sti: the stub size is chosen (the art defines it)"
+  ],
   "screen": "floristCards",
   "frame": "std640",
   "constants": ["Laptop", "Florist", "Florist_Cards"],
-  "widgets": []
+  "assets": {
+    "floristButtons": {
+      "sti": "laptop/floristbuttons.sti",
+      "stub": {
+        "frames": 2,
+        "size": [80, 22],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "cardBlank": {
+      "sti": "laptop/cardblank.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["FLORIST_CARD_CARD_WIDTH", "FLORIST_CARD_CARD_HEIGHT"],
+        "style": "hollow"
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "text",
+      "x": "FLORIST_CARD_TITLE_SENTENCE_X",
+      "y": "FLORIST_CARD_TITLE_SENTENCE_Y",
+      "font": "FONT10ARIAL",
+      "color": "FLORIST_CARDS_SENTENCE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sFloristCards", "FLORIST_CARDS_CLICK_SELECTION"]
+      },
+      "id": "floristCardsTitle",
+      "width": "FLORIST_CARD_TITLE_SENTENCE_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "repeat",
+      "count": 3,
+      "start": 0,
+      "x": "FLORIST_CARD_FIRST_POS_X",
+      "y": "FLORIST_CARD_FIRST_POS_Y + FLORIST_CARD_FIRST_OFFSET_Y * 0",
+      "dx": "FLORIST_CARD_FIRST_OFFSET_X",
+      "template": [
+        {
+          "type": "image",
+          "asset": "cardBlank",
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "type": "text",
+          "x": 7,
+          "y": {
+            "bind": "cardTextY[$i]"
+          },
+          "font": "FLORIST_CARDS_SENTENCE_FONT",
+          "color": "FLORIST_CARDS_SENTENCE_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "edt": ["binarydata/flowercard.edt", "$i"]
+          },
+          "id": "floristCardText$i",
+          "width": "FLORIST_CARD_TEXT_WIDTH",
+          "wrap": {
+            "gap": 2
+          },
+          "ian": true
+        },
+        {
+          "type": "region",
+          "id": "floristCard$i",
+          "x": 0,
+          "y": 0,
+          "width": "FLORIST_CARD_CARD_WIDTH",
+          "height": "FLORIST_CARD_CARD_HEIGHT",
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "primary": "card($i)"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": 3,
+      "start": 3,
+      "x": "FLORIST_CARD_FIRST_POS_X",
+      "y": "FLORIST_CARD_FIRST_POS_Y + FLORIST_CARD_FIRST_OFFSET_Y * 1",
+      "dx": "FLORIST_CARD_FIRST_OFFSET_X",
+      "template": [
+        {
+          "type": "image",
+          "asset": "cardBlank",
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "type": "text",
+          "x": 7,
+          "y": {
+            "bind": "cardTextY[$i]"
+          },
+          "font": "FLORIST_CARDS_SENTENCE_FONT",
+          "color": "FLORIST_CARDS_SENTENCE_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "edt": ["binarydata/flowercard.edt", "$i"]
+          },
+          "id": "floristCardText$i",
+          "width": "FLORIST_CARD_TEXT_WIDTH",
+          "wrap": {
+            "gap": 2
+          },
+          "ian": true
+        },
+        {
+          "type": "region",
+          "id": "floristCard$i",
+          "x": 0,
+          "y": 0,
+          "width": "FLORIST_CARD_CARD_WIDTH",
+          "height": "FLORIST_CARD_CARD_HEIGHT",
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "primary": "card($i)"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": 3,
+      "start": 6,
+      "x": "FLORIST_CARD_FIRST_POS_X",
+      "y": "FLORIST_CARD_FIRST_POS_Y + FLORIST_CARD_FIRST_OFFSET_Y * 2",
+      "dx": "FLORIST_CARD_FIRST_OFFSET_X",
+      "template": [
+        {
+          "type": "image",
+          "asset": "cardBlank",
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "type": "text",
+          "x": 7,
+          "y": {
+            "bind": "cardTextY[$i]"
+          },
+          "font": "FLORIST_CARDS_SENTENCE_FONT",
+          "color": "FLORIST_CARDS_SENTENCE_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "edt": ["binarydata/flowercard.edt", "$i"]
+          },
+          "id": "floristCardText$i",
+          "width": "FLORIST_CARD_TEXT_WIDTH",
+          "wrap": {
+            "gap": 2
+          },
+          "ian": true
+        },
+        {
+          "type": "region",
+          "id": "floristCard$i",
+          "x": 0,
+          "y": 0,
+          "width": "FLORIST_CARD_CARD_WIDTH",
+          "height": "FLORIST_CARD_CARD_HEIGHT",
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "primary": "card($i)"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "id": "floristCardsBack",
+      "x": "FLORIST_CARD_BACK_BUTTON_X",
+      "y": "FLORIST_CARD_BACK_BUTTON_Y",
+      "asset": "floristButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "back",
+      "text": {
+        "source": {
+          "key": ["sFloristCards", "FLORIST_CARDS_BACK"]
+        },
+        "font": "FLORIST_BUTTON_TEXT_FONT",
+        "color": "FLORIST_BUTTON_TEXT_UP_COLOR",
+        "shadow": "FLORIST_BUTTON_TEXT_SHADOW_COLOR",
+        "downColor": "FLORIST_BUTTON_TEXT_DOWN_COLOR",
+        "downShadow": "FLORIST_BUTTON_TEXT_SHADOW_COLOR"
+      }
+    }
+  ]
 }
