@@ -1,8 +1,310 @@
 {
   "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
-  "@src": ["src/game/Laptop/AIMArchives.cc"],
+  "@src": [
+    "src/game/Laptop/AIMArchives.cc EnterAimArchives (the three page buttons of bottombuttons2.sti with AimAlumniText PAGE 1-3 in AIM_ALUMNI_PAGE_FONT, AIM_ALUMNI_PAGE_COLOR_UP up and AIM_ALUMNI_PAGE_COLOR_DOWN down with DEFAULT_SHADOW, AIM_ALUMNI_PAGE_GAP apart at AIM_ALUMNI_PAGE1_X/Y, MSYS_PRIORITY_HIGH, CURSOR_WWW), RenderAimArchives (the title AimAlumniText[AIM_ALUMNI_ALUMNI]; per face old_aim.sti at +4, +4 under alumniframe.sti and the name of alumname.edt centred in AIM_ALUMNI_NAME_WIDTH), InitAlumniFaceRegions (AIM_ALUMNI_ALUMNI_FACE_WIDTH x HEIGHT at the grid, MSYS_PRIORITY_HIGH, CURSOR_WWW), DisplayAlumniOldMercPopUp (ShadowRect x + AIM_POPUP_SHADOW_GAP .. x + AIM_POPUP_WIDTH + AIM_POPUP_SHADOW_GAP under each AIM_POPUP_SECTION_HEIGHT section of alumnipopup.sti frames 0, 1 and 2, donebutton.sti with AimAlumniText[AIM_ALUMNI_DONE] at AIM_ALUMNI_DONE_X + 1, +3, popuppicframe.sti and the face at +1, +1, the name at AIM_ALUMNI_POPUP_NAME_X/Y, the description wrapped in AIM_POPUP_TEXT_WIDTH), CreateDestroyDoneMouseRegion (AIM_ALUMNI_DONE_X - 2, the bottom section - AIM_ALUMNI_DONE_HEIGHT, MSYS_PRIORITY_HIGH, CURSOR_WWW)"
+  ],
   "screen": "aimArchives",
   "frame": "std640",
   "constants": ["Laptop", "AIM", "AIMArchives"],
-  "widgets": []
+  "assets": {
+    "alumniFrame": {
+      "sti": "laptop/alumniframe.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["AIM_ALUMNI_ALUMNI_FRAME_WIDTH", "AIM_ALUMNI_ALUMNI_FRAME_HEIGHT"],
+        "style": "hollow"
+      }
+    },
+    "oldAim": {
+      "sti": "laptop/old_aim.sti",
+      "stub": {
+        "frames": "OLD_MERCS_COUNT",
+        "size": ["AIM_ALUMNI_ALUMNI_FACE_WIDTH", "AIM_ALUMNI_ALUMNI_FACE_HEIGHT"],
+        "style": "hollow"
+      }
+    },
+    "popupPicture": {
+      "sti": "laptop/popuppicframe.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["AIM_ALUMNI_FACE_PANEL_WIDTH", "AIM_ALUMNI_FACE_PANEL_HEIGHT"],
+        "style": "hollow"
+      }
+    },
+    "popup": {
+      "sti": "laptop/alumnipopup.sti",
+      "stub": {
+        "frames": 3,
+        "size": ["AIM_POPUP_WIDTH", "AIM_POPUP_SECTION_HEIGHT"],
+        "style": "hollow"
+      }
+    },
+    "doneButton": {
+      "sti": "laptop/donebutton.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["AIM_ALUMNI_DONE_WIDTH", "AIM_ALUMNI_DONE_HEIGHT"]
+      }
+    },
+    "bottomButtons": {
+      "sti": "laptop/bottombuttons2.sti",
+      "stub": {
+        "frames": 2,
+        "size": ["BOTTOM_BUTTON_START_WIDTH - 2", "BOTTOM_BUTTON_START_HEIGHT"],
+        "states": ["normal", "pressed"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "text",
+      "x": "AIM_ALUMNI_TITLE_X",
+      "y": "AIM_ALUMNI_TITLE_Y",
+      "font": "AIM_ALUMNI_TITLE_FONT",
+      "color": "AIM_ALUMNI_TITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimAlumniText", "AIM_ALUMNI_ALUMNI"]
+      },
+      "id": "aimAlumniTitle",
+      "width": "AIM_ALUMNI_TITLE_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "repeat",
+      "count": "MAX_NUMBER_OLD_MERCS_ON_PAGE",
+      "x": 0,
+      "y": 0,
+      "template": [
+        {
+          "type": "image",
+          "asset": "oldAim",
+          "frame": {
+            "bind": "faces[$i].frame"
+          },
+          "x": "AIM_ALUMNI_START_GRID_X + $i % AIM_ALUMNI_NUM_FACE_COLS * AIM_ALUMNI_GRID_OFFSET_X + 4",
+          "y": "AIM_ALUMNI_START_GRID_Y + $i / AIM_ALUMNI_NUM_FACE_COLS * AIM_ALUMNI_GRID_OFFSET_Y + 4",
+          "visible": "faces[$i].present"
+        },
+        {
+          "type": "image",
+          "asset": "alumniFrame",
+          "frame": 0,
+          "x": "AIM_ALUMNI_START_GRID_X + $i % AIM_ALUMNI_NUM_FACE_COLS * AIM_ALUMNI_GRID_OFFSET_X",
+          "y": "AIM_ALUMNI_START_GRID_Y + $i / AIM_ALUMNI_NUM_FACE_COLS * AIM_ALUMNI_GRID_OFFSET_Y",
+          "visible": "faces[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "AIM_ALUMNI_START_GRID_X + $i % AIM_ALUMNI_NUM_FACE_COLS * AIM_ALUMNI_GRID_OFFSET_X + AIM_ALUMNI_NAME_OFFSET_X",
+          "y": "AIM_ALUMNI_START_GRID_Y + $i / AIM_ALUMNI_NUM_FACE_COLS * AIM_ALUMNI_GRID_OFFSET_Y + AIM_ALUMNI_NAME_OFFSET_Y",
+          "font": "AIM_ALUMNI_NAME_FONT",
+          "color": "AIM_ALUMNI_NAME_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "faces[$i].name"
+          },
+          "id": "aimAlumnusName$i",
+          "width": "AIM_ALUMNI_NAME_WIDTH",
+          "align": "center",
+          "visible": "faces[$i].present"
+        },
+        {
+          "type": "region",
+          "id": "aimAlumnus$i",
+          "x": "AIM_ALUMNI_START_GRID_X + $i % AIM_ALUMNI_NUM_FACE_COLS * AIM_ALUMNI_GRID_OFFSET_X",
+          "y": "AIM_ALUMNI_START_GRID_Y + $i / AIM_ALUMNI_NUM_FACE_COLS * AIM_ALUMNI_GRID_OFFSET_Y",
+          "width": "AIM_ALUMNI_ALUMNI_FACE_WIDTH",
+          "height": "AIM_ALUMNI_ALUMNI_FACE_HEIGHT",
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "visible": "faces[$i].clickable",
+          "primary": "face($i)"
+        }
+      ]
+    },
+    {
+      "type": "shade",
+      "x": "AIM_POPUP_X + AIM_POPUP_SHADOW_GAP",
+      "y": "AIM_POPUP_Y + AIM_POPUP_SHADOW_GAP",
+      "width": "AIM_POPUP_WIDTH + 1",
+      "height": "AIM_POPUP_SECTION_HEIGHT",
+      "visible": "popup"
+    },
+    {
+      "type": "image",
+      "asset": "popup",
+      "frame": 0,
+      "x": "AIM_POPUP_X",
+      "y": "AIM_POPUP_Y",
+      "visible": "popup"
+    },
+    {
+      "type": "repeat",
+      "count": {
+        "bind": "popupSections"
+      },
+      "x": 0,
+      "y": "AIM_POPUP_Y + AIM_POPUP_SECTION_HEIGHT",
+      "dy": "AIM_POPUP_SECTION_HEIGHT",
+      "visible": "popup",
+      "template": [
+        {
+          "type": "shade",
+          "x": "AIM_POPUP_X + AIM_POPUP_SHADOW_GAP",
+          "y": "AIM_POPUP_SHADOW_GAP",
+          "width": "AIM_POPUP_WIDTH + 1",
+          "height": "AIM_POPUP_SECTION_HEIGHT"
+        },
+        {
+          "type": "image",
+          "asset": "popup",
+          "frame": 1,
+          "x": "AIM_POPUP_X",
+          "y": 0
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": {
+        "bind": "popupBottom"
+      },
+      "x": 0,
+      "y": {
+        "bind": "popupDoneY"
+      },
+      "visible": "popup",
+      "template": [
+        {
+          "type": "shade",
+          "x": "AIM_POPUP_X + AIM_POPUP_SHADOW_GAP",
+          "y": "AIM_ALUMNI_DONE_HEIGHT + AIM_POPUP_SHADOW_GAP",
+          "width": "AIM_POPUP_WIDTH + 1",
+          "height": "AIM_POPUP_SECTION_HEIGHT"
+        },
+        {
+          "type": "image",
+          "asset": "popup",
+          "frame": 2,
+          "x": "AIM_POPUP_X",
+          "y": "AIM_ALUMNI_DONE_HEIGHT"
+        },
+        {
+          "type": "image",
+          "asset": "doneButton",
+          "frame": 0,
+          "x": "AIM_ALUMNI_DONE_X",
+          "y": 0
+        },
+        {
+          "type": "text",
+          "x": "AIM_ALUMNI_DONE_X + 1",
+          "y": 3,
+          "font": "AIM_ALUMNI_POPUP_NAME_FONT",
+          "color": "AIM_ALUMNI_POPUP_NAME_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "key": ["AimAlumniText", "AIM_ALUMNI_DONE"]
+          },
+          "id": "aimAlumniDoneText",
+          "width": "AIM_ALUMNI_DONE_WIDTH",
+          "align": "center"
+        },
+        {
+          "type": "region",
+          "id": "aimAlumniDone",
+          "x": "AIM_ALUMNI_DONE_X - 2",
+          "y": 0,
+          "width": "AIM_ALUMNI_DONE_WIDTH",
+          "height": "AIM_ALUMNI_DONE_HEIGHT",
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "primary": "done"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "asset": "popupPicture",
+      "frame": 0,
+      "x": "AIM_ALUMNI_FACE_PANEL_X",
+      "y": "AIM_ALUMNI_FACE_PANEL_Y",
+      "visible": "popup"
+    },
+    {
+      "type": "image",
+      "asset": "oldAim",
+      "frame": {
+        "bind": "popupFace"
+      },
+      "x": "AIM_ALUMNI_FACE_PANEL_X + 1",
+      "y": "AIM_ALUMNI_FACE_PANEL_Y + 1",
+      "visible": "popup"
+    },
+    {
+      "type": "text",
+      "x": "AIM_ALUMNI_POPUP_NAME_X",
+      "y": "AIM_ALUMNI_POPUP_NAME_Y",
+      "font": "AIM_ALUMNI_POPUP_NAME_FONT",
+      "color": "AIM_ALUMNI_POPUP_NAME_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "popupName"
+      },
+      "id": "aimAlumniPopupName",
+      "visible": "popup"
+    },
+    {
+      "type": "text",
+      "x": "AIM_ALUMNI_POPUP_DESC_X",
+      "y": "AIM_ALUMNI_POPUP_DESC_Y",
+      "font": "AIM_ALUMNI_POPUP_FONT",
+      "color": "AIM_ALUMNI_POPUP_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "popupDescription"
+      },
+      "id": "aimAlumniPopupDescription",
+      "width": "AIM_POPUP_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "visible": "popup"
+    },
+    {
+      "type": "repeat",
+      "count": 3,
+      "x": "AIM_ALUMNI_PAGE1_X",
+      "y": "AIM_ALUMNI_PAGE1_Y",
+      "dx": "AIM_ALUMNI_PAGE_GAP",
+      "template": [
+        {
+          "type": "button",
+          "id": "aimAlumniPage$i",
+          "x": 0,
+          "y": 0,
+          "asset": "bottomButtons",
+          "frames": {
+            "offNormal": 0,
+            "onNormal": 1
+          },
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "checked": "pageHeld[$i]",
+          "primary": "page($i)",
+          "text": {
+            "source": {
+              "key": ["AimAlumniText", "$i"]
+            },
+            "font": "AIM_ALUMNI_PAGE_FONT",
+            "color": "AIM_ALUMNI_PAGE_COLOR_UP",
+            "shadow": "DEFAULT_SHADOW",
+            "downColor": "AIM_ALUMNI_PAGE_COLOR_DOWN",
+            "downShadow": "DEFAULT_SHADOW"
+          }
+        }
+      ]
+    }
+  ]
 }
