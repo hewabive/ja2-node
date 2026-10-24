@@ -30,6 +30,7 @@ export interface LaptopPage {
   renderOverlay?(list: DrawList, redraw: (list: DrawList) => void): void;
   cancelPopup?(): boolean;
   closeView?(): boolean;
+  escape?(): boolean;
   blocksNewMail?(): boolean;
 }
 
@@ -47,10 +48,11 @@ export interface LaptopContext {
   view(): LaptopView | null;
   command(cmd: LaptopCommand): Promise<LaptopCommandReply>;
   string(table: string, index?: number): string;
-  messageBox(text: string, flags: MessageBoxFlag, onClose?: (result: number) => void): void;
+  messageBox(text: string, flags: MessageBoxFlag, onClose?: (result: number) => void, style?: number): void;
   playSound(file: string, volume: number): void;
   openOldestUnreadMail(): void;
   takeOpenUnreadMailRequest(): boolean;
+  takeOpenUnreadFileRequest(): boolean;
   constant(layout: string, name: string): number;
   leftButtonUp(): void;
   rightButtonUp(): void;

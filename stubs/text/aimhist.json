@@ -1,12 +1,29 @@
 {
   "format": "ja2-node stub row text v1",
-  "note": "Invented rows for the stub pack's A.I.M. site texts: the slogan, the two warning rows and the three copyright rows the home page reads. Compiled by pnpm stubs into binarydata/aimhist.edt (400-unit rows). Original writing for ja2-node.",
+  "note": "Invented rows for the stub pack's A.I.M. site texts: the slogan, the two warning rows and the three copyright rows the home page reads, then the A.I.M. history page's titles and paragraphs (rows 6-22). Compiled by pnpm stubs into binarydata/aimhist.edt (400-unit rows). Original writing for ja2-node.",
   "rows": [
     "Professional soldiers, vetted and insured, ready when your cause needs them.",
     "Contracts are binding. Payment is due before any soldier leaves for the field.",
     "We cannot guarantee the safety of those you send into harm's way.",
     "Stub association of hired soldiers",
     "All profiles on this site are invented for testing.",
-    "No soldier here exists outside the stub pack."
+    "No soldier here exists outside the stub pack.",
+    "In the beginning",
+    "The stub association began with three friends, a borrowed truck and a list of people who were good in a crisis.",
+    "Word spread quickly, and within a year the list had grown into a small office with a telephone that never stopped ringing.",
+    "The island years",
+    "A long contract on an invented island taught the founders how to move people and supplies across rough country.",
+    "They came home with new friends, new rules and a firm belief that preparation saves lives.",
+    "The first recruit",
+    "The first recruit was a quiet engineer who could fix anything and refused to fix anything twice.",
+    "Her example set the standard for everyone who joined later.",
+    "A word from the founder",
+    "We never promised that the work would be safe. We promised that we would be honest about the risks, and we have kept that promise.",
+    "The founder, stub association",
+    "Incorporation",
+    "The association was incorporated so that clients could sign one contract and trust it.",
+    "Since then it has grown steadily and kept its records in good order.",
+    "An invented auditing firm",
+    "Today the association lists its members openly and publishes its policies for anyone to read."
   ]
 }

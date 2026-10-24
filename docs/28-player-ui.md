@@ -1491,7 +1491,7 @@ or a query (`aimHire`, `aimLeaveMessage`, `mercOpenAccount`, `mercHire`, `mercPa
   balance; needs **X8** `financeSummary`, oracle-tested) and the ledger pages with labels (**X7**).
 - **Personnel** — exact, after Email and Finances: current and departed mercs, stats with deltas, kills, assists,
   shots, wounds, battles, employment, inventory pages (**X10**: a personnel block per merc and per departed entry with
-  its state; the `battlesFought` counter is not simulated yet).
+  its state; the `battlesFought` counter, simulated since U12).
 - **History** — exact, late: pages of rows with labels (**X7**: server-rendered row text in the display language,
   `questInProgress` colouring the quest-start rows).
 - **Files** — exact, last: the list and the two file layouts with pictures; **`readFile {code}`** (X9) sets the saved
@@ -2578,6 +2578,47 @@ original's offsets, but the money commands are tactical only, so a split there d
 and the tactical host each keep a client knowledge per session (one would save memory); the map screen has no speech
 presenter yet (the U7 presenter lives in `TacticalHost`); the team panel's Exit Vehicle waits for a tactical
 `leaveVehicle`; PBI and autoresolve are a numbered box until U9.
+
+#### U12: laptop, part three (2026-10-24)
+
+§9.3 (Personnel, History, Files), §9.8 (insurance, florist, funeral) and the A.I.M. archives, policies and history pages
+as pages of U10's `LaptopScreen`, one layout and controller per page, and the server gaps X7 (history), X9, X10, X13
+and X14 (`docs/04` §6.33). Every bookmark now leads to a finished page; the pages of U11 (Bobby Ray's, M.E.R.C., I.M.P.)
+come from that slice.
+
+| Area | As built |
+|---|---|
+| Tables and layouts | `ui-constants` gains `Personnel`, `History`, `Files`, `Insurance`, `Insurance_Contract`, `Insurance_Info`, `Insurance_Comments`, `Florist`, `Florist_Gallery`, `Florist_Order_Form`, `Florist_Cards`, `Funeral`, `AIMArchives`, `AIMPolicies` and `AIMHistory`. Layouts `laptop-personnel`, `laptop-history`, `laptop-files`, `insurance-chrome`/`-home`/`-info`/`-contract`/`-comments`, `florist-chrome`/`-home`/`-gallery`/`-order`/`-cards`, `funeral`, `aim-archives`, `aim-policies` and `aim-history` in `data/layouts/original/` |
+| Shell | Modes for the florist gallery, order form and card gallery and the insurance info, contract and comments pages (appended to `laptop-modes.ts`); `LaptopShell.subPage` (reset when the browser moves to another site) and `connectToSubPage(fast)` for the paged sites; a page may handle Esc first (`escape?()`, the order form swallows it as the original); message boxes take a style (`RED_ON_WHITE` for insurance); `pages-memory.ts` keeps the history page, the selected file and its page, the first insurance card and the florist's choices for the session; the taskbar's new-file icon opens the newest unread file; the A.I.M. placeholder page is gone |
+| Personnel (`personnel/`) | Current and departed lists (`fCurrentTeamMode`), the 4×5 portrait grid with previous/next, the stats, employment and inventory panels with their enables (`SetPersonnelButtonStates`), the inventory slider by zones, the team summary (lowest, average, highest), the daily, highest and lowest cost; from `observe.laptop.personnel` |
+| History (`history/`) | 22 rows a page, previous/next, the page and day counters, the red quest-start and cheat rows, server-rendered text and location |
+| Files (`files/`) | The list with sender and read state, the plain and the two special layouts (the Arulco report with its pictures and wrap widths, the terrorist files with their mug shots), paging by `IanWrappedStringHeight` with `MAX_FILE_MESSAGE_PAGE_SIZE`; showing a file sends `readFile` |
+| Insurance (`insurance/`) | Home, the five info pages, comments and the contract page: three cards a page with the face, status, contract and insured days, premium and Accept, the "nobody to insure" texts by `aimMercsOnTeam`, the confirmation boxes, `insure` |
+| Florist (`florist/`) | Home, the gallery (three bouquets a page with their prices), the order form (bouquet, the order number, next day, the four extras, the destination list of 17 rows, the message and name fields, the card gallery, Send through `orderFlowers` without checks as the original, Clear) and the card gallery; entering the form sends `visitSite {site: floristOrderForm}`. The destination list is page-local (`florist/destination-list.ts`: `destinationListGeometry(rows, fontHeight, width)` and `DestinationList` with `open`, `selected`, `show`, `hide`, `hover`, `pick`; drawn in the layout with the `tactpopup` pieces) |
+| Funeral and A.I.M. archives | The funeral page with the condolence box; alumni (20 faces a page, three pages, the popup with name and text), policies (the agreement, the contents, the sections with their menu) and history (contents, chapters, menu) |
+| Server | `docs/04` §6.33: history `text`, `location` and `questInProgress` with the full `GetSectorIDString` (shared with the finance rows); `readFile`; personnel blocks `current` and `departed`; `battlesFought` counted after autoresolve and won tactical battles, imported from native saves, snapshot version 6; insurance offers with `nickname`, `dead`, `contractLength` and `aimMercsOnTeam`; the bouquet price from `flowerdesc.edt` charged by `orderFlowers` and the order number drawn on entry and after a send |
+| Oracle | `tools/oracle/patches/0025-florist-oracle.patch` and `probes/florist.txt` (orders on SaveGame01 and 07: the order number before, after entering and after sending, the price and the laptop dump), optional in `compare-all.sh` |
+| Stubs | Invented texts in `stubs/text/laptop-pages.json` (files, the report, quests, the insurance texts, bouquet descriptions with prices, card sayings, alumni, policies); `aimhist.edt` grows to 23 rows; the big pictures of the new pages are label-free hollow frames, and the stub media budget in `stubs/build.test.ts` is 5.5 MiB |
+| App | `/src/devtools/laptop/` takes `?hire=profile:days,…` (A.I.M. hires before the laptop opens) and exposes `window.__ja2Laptop.command` |
+
+Tests: unit tests per page (`personnel-model`, `personnel-page`, `history-page`, `files-page`, `file-pages`,
+`insurance-pages`, `insurance-text`, `florist-pages`, `florist-rules`, `funeral-page`, `aim-archives`, `aim-policies`,
+`aim-history`) through `tests/support/laptop-ui.ts` (the laptop screen over a stub campaign session); server tests
+`src/server/laptop-pages-stub.test.ts` and, with original data, `laptop-pages-original.test.ts`; the autoresolve
+`battlesFought` count in `close.test.ts`. `tests/e2e/laptop-pages.spec.ts` on stubs: twelve hires, Personnel, an
+insurance purchase through the contract page, two history pages and the report file (goldens `laptop-personnel.png`,
+`laptop-insurance-contract.png`, `laptop-history.png`, `laptop-files.png`), every side button and bookmark, the A.I.M.
+archives, policies and history, the insurance info and comments, the funeral page and a flower order (golden
+`laptop-florist-order.png`).
+
+Decisions and limits: X14 takes the first option of §9.8 (the price is read at content load and the number drawn on the
+main stream), so the deviation "Florist prices" and the florist part of "Cosmetic laptop draws" are gone; an agent may
+order without entering the form ("Florist order form entry"); the inventory arrows do not repeat while held, file page
+turns skip the one-frame wait and the florist's text fields stay under the open list ("Laptop III page details").
+
+Open: the florist's destination list is page-local; at the merge with U11 it can move onto U11's drop-down widget (17
+rows, no scrolling, the `tactpopup` frame); snapshot version 6 (migration 5, `battlesFought`) may need renumbering if
+another slice also bumps the version; X16 (the saved page numbers in `presentation.laptop`) is still not built.
 
 ---
 

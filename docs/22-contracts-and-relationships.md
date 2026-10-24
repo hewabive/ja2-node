@@ -845,7 +845,9 @@ amount?}` until `21` stores them; `reputation` and `deathRate` are **not** event
 **Observation** (`PlayerView`; only what §1.3 shows): per merc `kind`; `contract` = A.I.M./Slay `{totalDays, remaining: {days,
 hours}, endsAt: {day, hour}, lastContract, dailyRate, renewalCosts: {day, week, twoWeeks}, medicalDeposit, insured,
 insuranceDays}`, M.E.R.C. `{unpaidDays, daysHired, owed}`, RPC `{dailyRate}`, others `null`; `morale` (0–100, the tactical bar)
-and `moraleText`; personnel figures `daysServed`, `totalCost`. Per campaign: M.E.R.C. account status (as the site shows it),
+and `moraleText`; personnel figures `daysServed`, `totalCost` (the laptop's Personnel page reads its own blocks since M8:
+`observe.laptop.personnel.current` and `.departed`, with the record counters including `battlesFought`, `04` §6.33). Per
+campaign: M.E.R.C. account status (as the site shows it),
 pending equipment deliveries are not shown (only the later message). Never: opinions, buddy/hated slots, tolerances and
 counters, learn-to progress, the precedent bits, `signedAnotherContract`, the renewal list, reputation, death rate.
 

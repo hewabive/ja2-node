@@ -1,0 +1,32 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Laptop/History.h, src/game/Laptop/History.cc",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
+  "constants": {
+    "HISTORY_DATA_FILE": "history.dat",
+    "HISTORY_QUEST_TEXT_SIZE": 80,
+    "TOP_X": 111,
+    "TOP_Y": 27,
+    "BOX_HEIGHT": 14,
+    "TOP_DIVLINE_Y": 101,
+    "TITLE_X": 140,
+    "TITLE_Y": 33,
+    "RECORD_Y": 101,
+    "PAGE_NUMBER_X": 131,
+    "PAGE_NUMBER_Y": 60,
+    "HISTORY_DATE_X": 216,
+    "HISTORY_DATE_Y": 60,
+    "RECORD_LOCATION_WIDTH": 142,
+    "HISTORY_HEADER_FONT": "FONT14ARIAL",
+    "HISTORY_TEXT_FONT": "FONT12ARIAL",
+    "RECORD_DATE_X": 121,
+    "RECORD_DATE_WIDTH": 31,
+    "RECORD_HEADER_Y": 90,
+    "NUM_RECORDS_PER_PAGE": 22,
+    "NEXT_BTN_X": 577,
+    "PREV_BTN_X": 553,
+    "BTN_Y": 53
+  },
+  "stdScreen": ["BTN_Y", "NEXT_BTN_X", "PREV_BTN_X", "RECORD_HEADER_Y", "RECORD_Y", "TITLE_X", "TITLE_Y", "TOP_DIVLINE_Y"],
+  "skipped": ["SIZE_OF_HISTORY_FILE_RECORD"]
+}

@@ -1,0 +1,534 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/Insurance_Contract.cc EnterInsuranceContract (insordergrid.sti, the two bottom link regions from INS_CTRCT_BOTTON_LINK_RED_BAR_Y - 37 to INS_CTRCT_BOTTON_LINK_RED_BAR_Y + 2, INS_CTRCT_BOTTOM_LINK_RED_BAR_OFFSET apart; insleftbutton.sti and insrightbutton.sti with InsContractText PREVIOUS and NEXT, text offsets 17 or 18 and 16), RenderInsuranceContract (the link lines and texts, the title, the two bulleted instructions, the red line, up to three order grids), DisplayOrderGrid (the small portrait at +5, +4 shaded red when dead, the nickname, the status text in INS_FONT_SMALL wrapped in INS_CTRCT_CONTRACT_STATUS_TEXT_WIDTH, the employment and insurance contract rows, the premium right-aligned at +32, +179 over 72 pixels), CreateDestroyInsuranceContractFormButtons (acceptclearbox.sti 0/1 with InsContractText ACCEPT in INS_FONT_MED, INS_FONT_BTN_COLOR, INS_FONT_BTN_SHADOW_COLOR at INS_CTRCT_ACCEPT_BTN_X, INS_CTRCT_ACCEPT_BTN_Y of each grid, MSYS_PRIORITY_HIGH, CURSOR_LAPTOP_SCREEN), EnableDisableInsuranceContractAcceptButtons, DisableInsuranceContractNextPreviousbuttons, SelectInsuranceContractRegionCallBack (home, info)"
+  ],
+  "screen": "insuranceContract",
+  "frame": "std640",
+  "constants": ["Laptop", "Insurance", "Insurance_Contract"],
+  "assets": {
+    "bullet": {
+      "sti": "laptop/bullet.sti",
+      "stub": {
+        "frames": 1,
+        "size": [16, 16]
+      }
+    },
+    "orderGrid": {
+      "sti": "laptop/insordergrid.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["INS_CTRCT_ORDER_GRID_WIDTH", "INS_CTRCT_ORDER_GRID_HEIGHT"],
+        "style": "hollow"
+      }
+    },
+    "acceptClear": {
+      "sti": "laptop/acceptclearbox.sti",
+      "stub": {
+        "frames": 2,
+        "size": [43, 18],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "leftButton": {
+      "sti": "laptop/insleftbutton.sti",
+      "stub": {
+        "frames": 3,
+        "size": [64, 30],
+        "states": ["normal", "pressed", "grayed"]
+      }
+    },
+    "rightButton": {
+      "sti": "laptop/insrightbutton.sti",
+      "stub": {
+        "frames": 3,
+        "size": [64, 30],
+        "states": ["normal", "pressed", "grayed"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "line",
+      "x": "INS_CTRCT_BOTTOM_LINK_RED_BAR_X",
+      "y": "INS_CTRCT_BOTTON_LINK_RED_BAR_Y",
+      "x2": "INS_CTRCT_BOTTOM_LINK_RED_BAR_X + INS_CTRCT_BOTTOM_LINK_RED_WIDTH",
+      "y2": "INS_CTRCT_BOTTON_LINK_RED_BAR_Y",
+      "color": [255, 0, 0]
+    },
+    {
+      "type": "line",
+      "x": "INS_CTRCT_BOTTOM_LINK_RED_BAR_X + 1",
+      "y": "INS_CTRCT_BOTTON_LINK_RED_BAR_Y + 1",
+      "x2": "INS_CTRCT_BOTTOM_LINK_RED_BAR_X + INS_CTRCT_BOTTOM_LINK_RED_WIDTH + 1",
+      "y2": "INS_CTRCT_BOTTON_LINK_RED_BAR_Y + 1",
+      "color": [0, 0, 0]
+    },
+    {
+      "type": "text",
+      "x": "INS_CTRCT_BOTTOM_LINK_RED_BAR_X",
+      "y": "INS_CTRCT_BOTTON_LINK_Y + 18",
+      "width": "INS_CTRCT_BOTTOM_LINK_RED_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "INS_FONT_MED",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "key": ["pMessageStrings", "MSG_HOMEPAGE"]
+      }
+    },
+    {
+      "type": "line",
+      "x": "INS_CTRCT_BOTTOM_LINK_RED_BAR_X + INS_CTRCT_BOTTOM_LINK_RED_BAR_OFFSET",
+      "y": "INS_CTRCT_BOTTON_LINK_RED_BAR_Y",
+      "x2": "INS_CTRCT_BOTTOM_LINK_RED_BAR_X + INS_CTRCT_BOTTOM_LINK_RED_BAR_OFFSET + INS_CTRCT_BOTTOM_LINK_RED_WIDTH",
+      "y2": "INS_CTRCT_BOTTON_LINK_RED_BAR_Y",
+      "color": [255, 0, 0]
+    },
+    {
+      "type": "line",
+      "x": "INS_CTRCT_BOTTOM_LINK_RED_BAR_X + INS_CTRCT_BOTTOM_LINK_RED_BAR_OFFSET + 1",
+      "y": "INS_CTRCT_BOTTON_LINK_RED_BAR_Y + 1",
+      "x2": "INS_CTRCT_BOTTOM_LINK_RED_BAR_X + INS_CTRCT_BOTTOM_LINK_RED_BAR_OFFSET + INS_CTRCT_BOTTOM_LINK_RED_WIDTH + 1",
+      "y2": "INS_CTRCT_BOTTON_LINK_RED_BAR_Y + 1",
+      "color": [0, 0, 0]
+    },
+    {
+      "type": "text",
+      "x": "INS_CTRCT_BOTTOM_LINK_RED_BAR_X + INS_CTRCT_BOTTOM_LINK_RED_BAR_OFFSET",
+      "y": "INS_CTRCT_BOTTON_LINK_Y + 12",
+      "width": "INS_CTRCT_BOTTOM_LINK_RED_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "INS_FONT_MED",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "edt": ["binarydata/insurancesingle.edt", "INS_SNGL_HOW_DOES_INS_WORK"]
+      }
+    },
+    {
+      "type": "text",
+      "id": "insuranceContractTitle",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "INS_CTRCT_TITLE_Y",
+      "width": "LAPTOP_SCREEN_LR_X - LAPTOP_SCREEN_UL_X",
+      "align": "center",
+      "font": "INS_FONT_BIG",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "edt": ["binarydata/insurancesingle.edt", "INS_SNGL_ENTERING_REVIEWING_CLAIM"]
+      }
+    },
+    {
+      "type": "image",
+      "asset": "bullet",
+      "frame": 0,
+      "x": "INS_CTRCT_FIRST_BULLET_TEXT_X",
+      "y": "INS_CTRCT_FIRST_BULLET_TEXT_Y"
+    },
+    {
+      "type": "text",
+      "x": "INS_CTRCT_FIRST_BULLET_TEXT_X + INSURANCE_BULLET_TEXT_OFFSET_X",
+      "y": "INS_CTRCT_FIRST_BULLET_TEXT_Y",
+      "width": "INS_CTRCT_INTSRUCTION_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "font": "INS_FONT_MED",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "edt": ["binarydata/insurancemulti.edt", "INS_MLTI_TO_PURCHASE_INSURANCE - INS_MULTI_LINE_BEGINS - 1"]
+      }
+    },
+    {
+      "type": "image",
+      "asset": "bullet",
+      "frame": 0,
+      "x": "INS_CTRCT_FIRST_BULLET_TEXT_X",
+      "y": "INS_CTRCT_SECOND_BULLET_TEXT_Y"
+    },
+    {
+      "type": "text",
+      "x": "INS_CTRCT_FIRST_BULLET_TEXT_X + INSURANCE_BULLET_TEXT_OFFSET_X",
+      "y": "INS_CTRCT_SECOND_BULLET_TEXT_Y",
+      "width": "INS_CTRCT_INTSRUCTION_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "font": "INS_FONT_MED",
+      "color": "INS_FONT_COLOR",
+      "shadow": "INS_FONT_SHADOW",
+      "background": "FONT_MCOLOR_BLACK",
+      "text": {
+        "edt": ["binarydata/insurancemulti.edt", "INS_MLTI_ONCE_SATISFIED_CLICK_ACCEPT - INS_MULTI_LINE_BEGINS - 1"]
+      }
+    },
+    {
+      "type": "line",
+      "x": "INS_CTRCT_FIRST_BULLET_TEXT_X",
+      "y": "INS_CTRCT_RED_BAR_UNDER_INSTRUCTION_TEXT_Y",
+      "x2": "INS_CTRCT_FIRST_BULLET_TEXT_X + INS_CTRCT_INTSRUCTION_TEXT_WIDTH",
+      "y2": "INS_CTRCT_RED_BAR_UNDER_INSTRUCTION_TEXT_Y",
+      "color": [255, 0, 0]
+    },
+    {
+      "type": "line",
+      "x": "INS_CTRCT_FIRST_BULLET_TEXT_X + 1",
+      "y": "INS_CTRCT_RED_BAR_UNDER_INSTRUCTION_TEXT_Y + 1",
+      "x2": "INS_CTRCT_FIRST_BULLET_TEXT_X + INS_CTRCT_INTSRUCTION_TEXT_WIDTH + 1",
+      "y2": "INS_CTRCT_RED_BAR_UNDER_INSTRUCTION_TEXT_Y + 1",
+      "color": [0, 0, 0]
+    },
+    {
+      "type": "repeat",
+      "count": {
+        "bind": "cards"
+      },
+      "x": "INS_CTRCT_ORDER_GRID_X",
+      "y": "INS_CTRCT_ORDER_GRID_Y",
+      "dx": "INS_CTRCT_ORDER_GRID_OFFSET_X",
+      "template": [
+        {
+          "type": "image",
+          "asset": "orderGrid",
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "type": "portrait",
+          "face": {
+            "bind": "cards[$i].face"
+          },
+          "size": "small",
+          "state": "cards[$i].state",
+          "x": "INS_CTRCT_OG_FACE_OFFSET_X",
+          "y": "INS_CTRCT_OG_FACE_OFFSET_Y"
+        },
+        {
+          "type": "text",
+          "id": "insuranceNickname$i",
+          "x": "INS_CTRCT_OG_NICK_NAME_OFFSET_X",
+          "y": "INS_CTRCT_OG_NICK_NAME_OFFSET_Y",
+          "width": 0,
+          "font": "INS_FONT_MED",
+          "color": "INS_FONT_COLOR",
+          "shadow": "INS_FONT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "cards[$i].nickname"
+          }
+        },
+        {
+          "type": "text",
+          "id": "insuranceStatus$i",
+          "x": "INS_CTRCT_OG_HAS_CONTRACT_OFFSET_X",
+          "y": "INS_CTRCT_OG_HAS_CONTRACT_OFFSET_Y",
+          "width": "INS_CTRCT_CONTRACT_STATUS_TEXT_WIDTH",
+          "wrap": {
+            "gap": 2
+          },
+          "font": "INS_FONT_SMALL",
+          "color": {
+            "by": "cards[$i].statusColor",
+            "map": {
+              "red": "INS_FONT_COLOR_RED",
+              "normal": "INS_FONT_COLOR"
+            }
+          },
+          "shadow": "INS_FONT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "cards[$i].status"
+          }
+        },
+        {
+          "type": "text",
+          "x": "INS_CTRCT_EMPLYMNT_CNTRCT_TEXT_OFFSET_X",
+          "y": "INS_CTRCT_EMPLYMNT_CNTRCT_TEXT_OFFSET_Y",
+          "width": "INS_CTRCT_ORDER_GRID_WIDTH",
+          "align": "center",
+          "font": "INS_FONT_MED",
+          "color": "INS_FONT_COLOR",
+          "shadow": "INS_FONT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "edt": ["binarydata/insurancesingle.edt", "INS_SNGL_EMPLOYMENT_CONTRACT"]
+          }
+        },
+        {
+          "type": "text",
+          "x": "INS_CTRCT_LENGTH_OFFSET_X",
+          "y": "INS_CTRCT_LENGTH_OFFSET_Y",
+          "width": 0,
+          "font": "INS_FONT_MED",
+          "color": "INS_FONT_COLOR",
+          "shadow": "INS_FONT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "edt": ["binarydata/insurancesingle.edt", "INS_SNGL_LENGTH"]
+          }
+        },
+        {
+          "type": "text",
+          "id": "insuranceContractLength$i",
+          "x": "INS_CTRCT_OG_BOX_OFFSET_X",
+          "y": "INS_CTRCT_LENGTH_OFFSET_Y",
+          "width": "INS_CTRCT_OG_BOX_WIDTH",
+          "align": "right",
+          "font": "INS_FONT_MED",
+          "color": "INS_FONT_COLOR",
+          "shadow": "INS_FONT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "cards[$i].contractLength"
+          }
+        },
+        {
+          "type": "text",
+          "x": "INS_CTRCT_LENGTH_OFFSET_X",
+          "y": "INS_CTRCT_DAYS_REMAINING_OFFSET_Y",
+          "width": 0,
+          "font": "INS_FONT_MED",
+          "color": "INS_FONT_COLOR",
+          "shadow": "INS_FONT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "edt": ["binarydata/insurancesingle.edt", "INS_SNGL_DAYS_REMAINING"]
+          }
+        },
+        {
+          "type": "text",
+          "id": "insuranceContractDays$i",
+          "x": "INS_CTRCT_OG_BOX_OFFSET_X",
+          "y": "INS_CTRCT_DAYS_REMAINING_OFFSET_Y",
+          "width": "INS_CTRCT_OG_BOX_WIDTH",
+          "align": "right",
+          "font": "INS_FONT_MED",
+          "color": "INS_FONT_COLOR",
+          "shadow": "INS_FONT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "cards[$i].contractDays"
+          }
+        },
+        {
+          "type": "text",
+          "x": "INS_CTRCT_EMPLYMNT_CNTRCT_TEXT_OFFSET_X",
+          "y": "INS_CTRCT_INSURANCE_CNTRCT_OFFSET_Y",
+          "width": "INS_CTRCT_ORDER_GRID_WIDTH",
+          "align": "center",
+          "font": "INS_FONT_MED",
+          "color": "INS_FONT_COLOR",
+          "shadow": "INS_FONT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "edt": ["binarydata/insurancesingle.edt", "INS_SNGL_INSURANCE_CONTRACT"]
+          }
+        },
+        {
+          "type": "text",
+          "x": "INS_CTRCT_LENGTH_OFFSET_X",
+          "y": "INS_CTRCT_LENGTH_OFFSET_Y + 54",
+          "width": 0,
+          "font": "INS_FONT_MED",
+          "color": "INS_FONT_COLOR",
+          "shadow": "INS_FONT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "edt": ["binarydata/insurancesingle.edt", "INS_SNGL_LENGTH"]
+          }
+        },
+        {
+          "type": "text",
+          "x": "INS_CTRCT_LENGTH_OFFSET_X",
+          "y": "INS_CTRCT_DAYS_REMAINING_OFFSET_Y + 54",
+          "width": 0,
+          "font": "INS_FONT_MED",
+          "color": "INS_FONT_COLOR",
+          "shadow": "INS_FONT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "edt": ["binarydata/insurancesingle.edt", "INS_SNGL_DAYS_REMAINING"]
+          }
+        },
+        {
+          "type": "text",
+          "id": "insuranceInsuredDays$i",
+          "x": "INS_CTRCT_OG_BOX_OFFSET_X",
+          "y": "INS_CTRCT_DAYS_REMAINING_OFFSET_Y + 54",
+          "width": "INS_CTRCT_OG_BOX_WIDTH",
+          "align": "right",
+          "font": "INS_FONT_MED",
+          "color": "INS_FONT_COLOR",
+          "shadow": "INS_FONT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "cards[$i].insuredDays"
+          }
+        },
+        {
+          "type": "text",
+          "x": "INS_CTRCT_EMPLYMNT_CNTRCT_TEXT_OFFSET_X",
+          "y": "INS_CTRCT_PREMIUM_OWING_OFFSET_Y",
+          "width": "INS_CTRCT_ORDER_GRID_WIDTH",
+          "align": "center",
+          "font": "INS_FONT_MED",
+          "color": "INS_FONT_COLOR",
+          "shadow": "INS_FONT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "edt": ["binarydata/insurancesingle.edt", "INS_SNGL_PREMIUM_OWING"]
+          }
+        },
+        {
+          "type": "text",
+          "id": "insurancePremium$i",
+          "x": 32,
+          "y": 179,
+          "width": 72,
+          "align": "right",
+          "font": "INS_FONT_MED",
+          "color": "INS_FONT_COLOR",
+          "shadow": "INS_FONT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "cards[$i].premium"
+          }
+        },
+        {
+          "type": "text",
+          "id": "insuranceOfferedLength$i",
+          "x": "INS_CTRCT_OG_BOX_OFFSET_X",
+          "y": "INS_CTRCT_LENGTH_OFFSET_Y + 52 + 2",
+          "width": "INS_CTRCT_OG_BOX_WIDTH",
+          "align": "right",
+          "font": "INS_FONT_MED",
+          "color": "INS_FONT_COLOR",
+          "shadow": "INS_FONT_SHADOW",
+          "background": "FONT_MCOLOR_BLACK",
+          "text": {
+            "bind": "cards[$i].offeredLength"
+          }
+        },
+        {
+          "type": "button",
+          "id": "insuranceAccept$i",
+          "x": "INS_CTRCT_ACCEPT_BTN_X",
+          "y": "INS_CTRCT_ACCEPT_BTN_Y",
+          "asset": "acceptClear",
+          "frames": {
+            "offNormal": 0,
+            "onNormal": 1
+          },
+          "priority": "HIGH",
+          "cursor": "CURSOR_LAPTOP_SCREEN",
+          "enabled": "cards[$i].canAccept",
+          "primary": "accept($i)",
+          "text": {
+            "source": {
+              "key": ["InsContractText", 2]
+            },
+            "font": "INS_FONT_MED",
+            "color": "INS_FONT_BTN_COLOR",
+            "shadow": "INS_FONT_BTN_SHADOW_COLOR",
+            "downColor": "INS_FONT_BTN_COLOR",
+            "downShadow": "INS_FONT_BTN_SHADOW_COLOR"
+          }
+        }
+      ]
+    },
+    {
+      "type": "region",
+      "id": "insuranceHomeLink",
+      "x": "INS_CTRCT_BOTTOM_LINK_RED_BAR_X",
+      "y": "INS_CTRCT_BOTTON_LINK_RED_BAR_Y - 37",
+      "width": "INS_CTRCT_BOTTOM_LINK_RED_WIDTH",
+      "height": 39,
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "home"
+    },
+    {
+      "type": "region",
+      "id": "insuranceContractInfoLink",
+      "x": "INS_CTRCT_BOTTOM_LINK_RED_BAR_X + INS_CTRCT_BOTTOM_LINK_RED_BAR_OFFSET",
+      "y": "INS_CTRCT_BOTTON_LINK_RED_BAR_Y - 37",
+      "width": "INS_CTRCT_BOTTOM_LINK_RED_WIDTH",
+      "height": 39,
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "info"
+    },
+    {
+      "type": "button",
+      "id": "insurancePrev",
+      "x": "INS_INFO_LEFT_ARROW_BUTTON_X",
+      "y": "INS_INFO_ARROW_BUTTON_Y",
+      "asset": "leftButton",
+      "frames": {
+        "grayed": 2,
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "enabled": "previousEnabled",
+      "primary": "previous",
+      "text": {
+        "source": {
+          "key": ["InsContractText", 0]
+        },
+        "font": "INS_FONT_BIG",
+        "color": "INS_FONT_COLOR",
+        "shadow": "INS_FONT_SHADOW",
+        "downColor": "INS_FONT_COLOR",
+        "downShadow": "INS_FONT_SHADOW",
+        "offsetX": 17,
+        "offsetY": 16,
+        "shift": false
+      }
+    },
+    {
+      "type": "button",
+      "id": "insuranceNext",
+      "x": "INS_INFO_RIGHT_ARROW_BUTTON_X",
+      "y": "INS_INFO_ARROW_BUTTON_Y",
+      "asset": "rightButton",
+      "frames": {
+        "grayed": 2,
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "enabled": "nextEnabled",
+      "primary": "next",
+      "text": {
+        "source": {
+          "key": ["InsContractText", 1]
+        },
+        "font": "INS_FONT_BIG",
+        "color": "INS_FONT_COLOR",
+        "shadow": "INS_FONT_SHADOW",
+        "downColor": "INS_FONT_COLOR",
+        "downShadow": "INS_FONT_SHADOW",
+        "offsetX": 18,
+        "offsetY": 16,
+        "shift": false
+      }
+    }
+  ]
+}

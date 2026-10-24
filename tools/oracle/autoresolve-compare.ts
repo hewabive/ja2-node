@@ -195,6 +195,7 @@ function progressFrom(p: Json): ProfileProgress {
     shotsFired: num(p.shotsFired),
     shotsHit: num(p.shotsHit),
     timesWounded: num(p.timesWounded),
+    battlesFought: num(p.battlesFought),
     ...noCampaignFields(),
   };
 }
@@ -298,8 +299,8 @@ function compareCells(r: Report, built: Built, p: Json): void {
       const t = obj(s.progress);
       r.same(
         `${label} profile counters`,
-        [q?.kills, q?.assists, q?.shotsFired, q?.shotsHit, q?.timesWounded],
-        [t.kills, t.assists, t.shotsFired, t.shotsHit, t.timesWounded],
+        [q?.kills, q?.assists, q?.shotsFired, q?.shotsHit, q?.timesWounded, q?.battlesFought],
+        [t.kills, t.assists, t.shotsFired, t.shotsHit, t.timesWounded, t.battlesFought],
       );
       r.same(
         `${label} profile stats`,

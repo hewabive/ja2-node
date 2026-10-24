@@ -2,8 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Auto_Resolve.cc RemoveAutoResolveInterface, IsAnybodyWounded; Town_Militia.cc
 // @src CheckOneMilitiaForPromotion; Tactical/Tactical_Save.cc AddDeadSoldierToUnLoadedSector;
-// @src Tactical/Rotting_Corpses.cc ReduceAmmoDroppedByNonPlayerSoldiers; TileEngine/Isometric_Utils.cc RandomGridNo.
-// See docs/19 §2.18.
+// @src Tactical/Rotting_Corpses.cc ReduceAmmoDroppedByNonPlayerSoldiers; TileEngine/Isometric_Utils.cc RandomGridNo;
+// @src the usBattlesFought count of every merc of the battle (2026-10-24). See docs/19 §2.18, docs/04 §6.33.
 
 import { ItemClass } from '../../../../content/items/items.ts';
 import { isVisibleTile, WORLD_COLS, WORLD_ROWS } from '../../../../content/world/grid.ts';
@@ -11,7 +11,8 @@ import { idiv, u32 } from '../../../../core/int.ts';
 import { cloneObject, type ItemObject, ObjectFlags } from '../../../items/object.ts';
 import type { RandomStream } from '../../../tactical/combat/context.ts';
 import { Body, OKLIFE, type Soldier, SoldierClass, Team } from '../../../tactical/soldier.ts';
-import { type ArCell, type AutoresolveEnv, type AutoresolveState, BattleStatus, updateRobotController } from './state.ts';
+import { mercProfile } from './attack.ts';
+import { type ArCell, type AutoresolveEnv, type AutoresolveState, BattleStatus, combatContext, updateRobotController } from './state.ts';
 
 export const MilitiaRank = { GREEN: 0, REGULAR: 1, ELITE: 2 } as const;
 
@@ -171,6 +172,7 @@ function closeMercs(env: AutoresolveEnv, ar: AutoresolveState, port: Autoresolve
   const died: Soldier[] = [];
   const captured: Soldier[] = [];
   const atCenter: Soldier[] = [];
+  const ctx = combatContext(env, ar);
   for (const c of ar.mercs) {
     const s = c.soldier;
     if (s.life === 0) {
@@ -181,6 +183,8 @@ function closeMercs(env: AutoresolveEnv, ar: AutoresolveState, port: Autoresolve
       port.mercCaptured?.(s);
       captured.push(s);
     } else if (ar.status === BattleStatus.VICTORY) atCenter.push(s);
+    const p = mercProfile(ctx, s);
+    if (p) p.battlesFought++;
   }
   return { died, captured, atCenter };
 }

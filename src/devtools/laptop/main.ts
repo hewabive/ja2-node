@@ -13,6 +13,10 @@ const PIN_CLOCK_PARAM = 'pinClock';
 const WAIT_PARAM = 'wait';
 const SLIDE_PARAM = 'slide';
 const ZOOM_PARAM = 'zoom';
+const HIRE_PARAM = 'hire';
+const HIRE_SEPARATOR = ',';
+const CONTRACT_SEPARATOR = ':';
+const DEFAULT_CONTRACT_DAYS = 7;
 const PINNED_CLOCK_MS = 0;
 const VIEW_TIMEOUT_MS = 20_000;
 const VIEW_POLL_MS = 50;
@@ -20,6 +24,7 @@ const VIEW_POLL_MS = 50;
 interface LaptopHook {
   session: string | null;
   closed: boolean;
+  command: ((cmd: { readonly type: string; readonly [key: string]: unknown }) => Promise<{ readonly ok: boolean }>) | null;
 }
 
 declare global {
@@ -33,7 +38,7 @@ const canvas = document.getElementById('screen') as HTMLCanvasElement;
 const scale = Number(params.get(SCALE_PARAM) ?? AUTO_UI_SCALE);
 const page = new GamePage(canvas, { scale: Number.isFinite(scale) ? scale : AUTO_UI_SCALE, fixed640: false });
 const clock = params.has(PIN_CLOCK_PARAM) ? () => PINNED_CLOCK_MS : () => performance.now();
-const hook: LaptopHook = { session: null, closed: false };
+const hook: LaptopHook = { session: null, closed: false, command: null };
 window.__ja2Laptop = hook;
 const fail = (error: unknown) => {
   page.hook.error = error instanceof Error ? error.message : String(error);
@@ -74,16 +79,34 @@ function numberParam(name: string): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+function hires(): { readonly profile: number; readonly contract: number }[] {
+  const value = params.get(HIRE_PARAM);
+  if (!value) return [];
+  return value.split(HIRE_SEPARATOR).map((entry) => {
+    const [profile, contract] = entry.split(CONTRACT_SEPARATOR);
+    return { profile: Number(profile), contract: contract === undefined ? DEFAULT_CONTRACT_DAYS : Number(contract) };
+  });
+}
+
+async function hireSquad(client: SessionClient): Promise<void> {
+  for (const h of hires()) {
+    const reply = await client.command({ type: 'aimHire', profile: h.profile, contract: h.contract, gear: false });
+    if (!reply.ok) throw new Error(`cannot hire ${h.profile}: ${reply.reason ?? 'refused'}`);
+  }
+}
+
 async function boot(): Promise<void> {
   const session = params.get(SESSION_PARAM) ?? (await newCampaign());
   hook.session = session;
   const client = await SessionClient.connect(session);
   page.client = client;
   page.hook.session = client.session;
+  hook.command = (cmd) => client.command(cmd);
   const ui = await bootUi(page);
   canvas.addEventListener('pointerdown', () => ui.audio.unlock());
   window.addEventListener('keydown', () => ui.audio.unlock());
   await laptopView(client);
+  await hireSquad(client);
   const wait = numberParam(WAIT_PARAM);
   const slide = numberParam(SLIDE_PARAM);
   const screen = await bootLaptopScreen(ui, {

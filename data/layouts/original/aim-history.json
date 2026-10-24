@@ -1,0 +1,278 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/AIMHistory.cc RenderAimHistory (DisplayAimSlogan and DisplayAimCopyright of AIM.cc, the title AimHistoryText[AIM_HISTORY_TITLE] centred in AIM_HISTORY_TEXT_WIDTH, the signatures of pages 4 and 5 right-justified at 210 and 270 + LAPTOP_SCREEN_WEB_DELTA_Y, INCORPORATION_3 at 290 + LAPTOP_SCREEN_WEB_DELTA_Y), InitTocMenu (contentbutton.sti every AIM_HISTORY_TOC_GAP_Y from AIM_HISTORY_CONTENTBUTTON_Y with the chapter titles IN_THE_BEGINNING + 3 * n centred at +AIM_HISTORY_TOC_Y, the AIM_CONTENTBUTTON_WIDTH x HEIGHT regions, MSYS_PRIORITY_HIGH, CURSOR_WWW), DisplayAimHistoryParagraph (the title at AIM_HISTORY_PARAGRAPH_X, AIM_HISTORY_SUBTITLE_Y, the paragraphs wrapped in AIM_HISTORY_PARAGRAPH_WIDTH from AIM_HISTORY_PARAGRAPH_Y), InitAimHistoryMenuBar (bottombuttons2.sti with AimHistoryText 1-4 in FONT10ARIAL, AIM_BUTTON_ON_COLOR up and AIM_BUTTON_OFF_COLOR down, AIM_HISTORY_GAP_X apart at AIM_HISTORY_MENU_X/Y, MSYS_PRIORITY_HIGH, CURSOR_WWW); src/game/Laptop/AIM.cc DisplayAimSlogan (row 0 wrapped and centred at AIM_LOGO_TEXT_X/Y), DisplayAimCopyright (rows AIM_COPYRIGHT_1-3 AIM_COPYRIGHT_GAP apart)"
+  ],
+  "screen": "aimHistory",
+  "frame": "std640",
+  "constants": ["Laptop", "AIM", "AIMHistory"],
+  "assets": {
+    "contentButton": {
+      "sti": "laptop/contentbutton.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["AIM_CONTENTBUTTON_WIDTH", "AIM_CONTENTBUTTON_HEIGHT"],
+        "style": "hollow"
+      }
+    },
+    "bottomButtons": {
+      "sti": "laptop/bottombuttons2.sti",
+      "stub": {
+        "frames": 2,
+        "size": ["BOTTOM_BUTTON_START_WIDTH - 2", "BOTTOM_BUTTON_START_HEIGHT"],
+        "states": ["normal", "pressed"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "text",
+      "x": "AIM_LOGO_TEXT_X",
+      "y": "AIM_LOGO_TEXT_Y",
+      "font": "AIM_LOGO_FONT",
+      "color": "AIM_FONT_MCOLOR_WHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/aimhist.edt", "AIM_SLOGAN"]
+      },
+      "id": "aimHistorySlogan",
+      "width": "AIM_LOGO_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "AIM_COPYRIGHT_X",
+      "y": "AIM_COPYRIGHT_Y + AIM_COPYRIGHT_GAP * 0",
+      "font": "AIM_COPYRIGHT_FONT",
+      "color": "FONT_MCOLOR_DKWHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/aimhist.edt", "AIM_COPYRIGHT_1"]
+      },
+      "width": "AIM_COPYRIGHT_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "AIM_COPYRIGHT_X",
+      "y": "AIM_COPYRIGHT_Y + AIM_COPYRIGHT_GAP * 1",
+      "font": "AIM_COPYRIGHT_FONT",
+      "color": "FONT_MCOLOR_DKWHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/aimhist.edt", "AIM_COPYRIGHT_2"]
+      },
+      "width": "AIM_COPYRIGHT_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "AIM_COPYRIGHT_X",
+      "y": "AIM_COPYRIGHT_Y + AIM_COPYRIGHT_GAP * 2",
+      "font": "AIM_COPYRIGHT_FONT",
+      "color": "FONT_MCOLOR_DKWHITE",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/aimhist.edt", "AIM_COPYRIGHT_3"]
+      },
+      "width": "AIM_COPYRIGHT_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "AIM_HISTORY_TEXT_X",
+      "y": "AIM_HISTORY_TEXT_Y",
+      "font": "AIM_HISTORY_TITLE_FONT",
+      "color": "AIM_HISTORY_TITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["AimHistoryText", "AIM_HISTORY_TITLE"]
+      },
+      "id": "aimHistoryTitle",
+      "width": "AIM_HISTORY_TEXT_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "repeat",
+      "count": "NUM_AIM_HISTORY_PAGES",
+      "x": "AIM_HISTORY_TOC_X",
+      "y": "AIM_HISTORY_CONTENTBUTTON_Y",
+      "dy": "AIM_HISTORY_TOC_GAP_Y",
+      "visible": "toc",
+      "template": [
+        {
+          "type": "image",
+          "asset": "contentButton",
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "type": "text",
+          "x": 0,
+          "y": "AIM_HISTORY_TOC_Y",
+          "font": "AIM_HISTORY_TOC_TEXT_FONT",
+          "color": "AIM_HISTORY_TOC_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "edt": ["binarydata/aimhist.edt", "IN_THE_BEGINNING + 3 * $i"]
+          },
+          "id": "aimHistoryTocTitle$i",
+          "width": "AIM_CONTENTBUTTON_WIDTH",
+          "align": "center"
+        },
+        {
+          "type": "region",
+          "id": "aimHistoryToc$i",
+          "x": 0,
+          "y": 0,
+          "width": "AIM_CONTENTBUTTON_WIDTH",
+          "height": "AIM_CONTENTBUTTON_HEIGHT",
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "visible": "toc",
+          "primary": "toc($i)"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "x": "AIM_HISTORY_PARAGRAPH_X",
+      "y": "AIM_HISTORY_SUBTITLE_Y",
+      "font": "AIM_HISTORY_PARAGRAPH_TITLE_FONT",
+      "color": "AIM_HISTORY_PARAGRAPH_TITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "chapterTitle"
+      },
+      "id": "aimHistoryChapterTitle",
+      "visible": "chapter"
+    },
+    {
+      "type": "text",
+      "x": "AIM_HISTORY_PARAGRAPH_X",
+      "y": "AIM_HISTORY_PARAGRAPH_Y",
+      "font": "AIM_HISTORY_TEXT_FONT",
+      "color": "AIM_HISTORY_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "firstParagraph"
+      },
+      "id": "aimHistoryParagraph1",
+      "width": "AIM_HISTORY_PARAGRAPH_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "visible": "chapter"
+    },
+    {
+      "type": "text",
+      "x": "AIM_HISTORY_PARAGRAPH_X",
+      "y": {
+        "bind": "secondParagraphY"
+      },
+      "font": "AIM_HISTORY_TEXT_FONT",
+      "color": "AIM_HISTORY_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "secondParagraph"
+      },
+      "id": "aimHistoryParagraph2",
+      "width": "AIM_HISTORY_PARAGRAPH_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "visible": "secondParagraphShown"
+    },
+    {
+      "type": "text",
+      "x": "AIM_HISTORY_PARAGRAPH_X",
+      "y": "210 + LAPTOP_SCREEN_WEB_DELTA_Y",
+      "font": "AIM_HISTORY_TEXT_FONT",
+      "color": "AIM_HISTORY_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/aimhist.edt", "COLONEL_MOHANNED"]
+      },
+      "id": "aimHistoryFounderSignature",
+      "width": "AIM_HISTORY_PARAGRAPH_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "right",
+      "visible": "founderPage"
+    },
+    {
+      "type": "text",
+      "x": "AIM_HISTORY_PARAGRAPH_X",
+      "y": "270 + LAPTOP_SCREEN_WEB_DELTA_Y",
+      "font": "AIM_HISTORY_TEXT_FONT",
+      "color": "AIM_HISTORY_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/aimhist.edt", "DUNN_AND_BRADROAD"]
+      },
+      "id": "aimHistoryAuditSignature",
+      "width": "AIM_HISTORY_PARAGRAPH_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "right",
+      "visible": "incorporationPage"
+    },
+    {
+      "type": "text",
+      "x": "AIM_HISTORY_PARAGRAPH_X",
+      "y": "290 + LAPTOP_SCREEN_WEB_DELTA_Y",
+      "font": "AIM_HISTORY_TEXT_FONT",
+      "color": "AIM_HISTORY_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/aimhist.edt", "INCORPORATION_3"]
+      },
+      "id": "aimHistoryIncorporation3",
+      "width": "AIM_HISTORY_PARAGRAPH_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "visible": "incorporationPage"
+    },
+    {
+      "type": "repeat",
+      "count": "AIM_HISTORY_MENU_BUTTON_AMOUNT",
+      "x": "AIM_HISTORY_MENU_X",
+      "y": "AIM_HISTORY_MENU_Y",
+      "dx": "AIM_HISTORY_GAP_X",
+      "template": [
+        {
+          "type": "button",
+          "id": "aimHistoryMenu$i",
+          "x": 0,
+          "y": 0,
+          "asset": "bottomButtons",
+          "frames": {
+            "offNormal": 0,
+            "onNormal": 1
+          },
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "checked": "menuHeld[$i]",
+          "primary": "menu($i)",
+          "text": {
+            "source": {
+              "key": ["AimHistoryText", "AIM_HISTORY_PREVIOUS + $i"]
+            },
+            "font": "FONT10ARIAL",
+            "color": "AIM_BUTTON_ON_COLOR",
+            "shadow": "DEFAULT_SHADOW",
+            "downColor": "AIM_BUTTON_OFF_COLOR",
+            "downShadow": "DEFAULT_SHADOW"
+          }
+        }
+      ]
+    }
+  ]
+}

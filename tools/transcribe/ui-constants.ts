@@ -103,6 +103,30 @@ const SCREEN_TABLES: readonly TableSpec[] = [
   { table: 'Map_Screen_Helicopter', files: ['game/Strategic/Map_Screen_Helicopter.h', 'game/Strategic/Map_Screen_Helicopter.cc'] },
   { table: 'Assignments', files: ['game/Strategic/Assignments.h', 'game/Strategic/Assignments.cc'] },
   { table: 'Strategic_Movement', files: ['game/Strategic/Strategic_Movement.h', 'game/Strategic/Strategic_Movement.cc'] },
+  { table: 'Personnel', files: ['game/Laptop/Personnel.h', 'game/Laptop/Personnel.cc'] },
+  { table: 'History', files: ['game/Laptop/History.h', 'game/Laptop/History.cc'] },
+  { table: 'Files', files: ['game/Laptop/Files.h', 'game/Laptop/Files.cc'] },
+  { table: 'Insurance', files: ['game/Laptop/Insurance.h', 'game/Laptop/Insurance_Text.h', 'game/Laptop/Insurance.cc'] },
+  {
+    table: 'Insurance_Contract',
+    files: ['game/Laptop/Insurance.h', 'game/Laptop/Insurance_Contract.h', 'game/Laptop/Insurance_Contract.cc'],
+  },
+  { table: 'Insurance_Info', files: ['game/Laptop/Insurance.h', 'game/Laptop/Insurance_Info.h', 'game/Laptop/Insurance_Info.cc'] },
+  {
+    table: 'Insurance_Comments',
+    files: ['game/Laptop/Insurance.h', 'game/Laptop/Insurance_Comments.h', 'game/Laptop/Insurance_Comments.cc'],
+  },
+  { table: 'Florist', files: ['game/Laptop/Florist.h', 'game/Laptop/Florist.cc'] },
+  { table: 'Florist_Gallery', files: ['game/Laptop/Florist.h', 'game/Laptop/Florist_Gallery.h', 'game/Laptop/Florist_Gallery.cc'] },
+  {
+    table: 'Florist_Order_Form',
+    files: ['game/Laptop/Florist.h', 'game/Laptop/Florist_Order_Form.h', 'game/Laptop/Florist_Order_Form.cc'],
+  },
+  { table: 'Florist_Cards', files: ['game/Laptop/Florist.h', 'game/Laptop/Florist_Cards.h', 'game/Laptop/Florist_Cards.cc'] },
+  { table: 'Funeral', files: ['game/Laptop/Funeral.h', 'game/Laptop/Funeral.cc'] },
+  { table: 'AIMArchives', files: ['game/Laptop/AIMArchives.h', 'game/Laptop/AIMArchives.cc'] },
+  { table: 'AIMPolicies', files: ['game/Laptop/AIMPolicies.h', 'game/Laptop/AIMPolicies.cc'] },
+  { table: 'AIMHistory', files: ['game/Laptop/AIMHistory.h', 'game/Laptop/AIMHistory.cc'] },
 ];
 
 const FRAME_ORIGIN_NAMES: ReadonlyMap<string, number> = new Map([

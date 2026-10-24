@@ -111,10 +111,6 @@ export function aimBar(context: LaptopContext, mode: number): PageLayout {
   };
 }
 
-export function aimPlaceholderPage(context: LaptopContext): LaptopPage {
-  return { layouts: [aimChrome(context)], update: () => undefined };
-}
-
 export function aimHomePage(context: LaptopContext): LaptopPage {
   const ads = new AimAds();
   const model: Record<string, unknown> = {};

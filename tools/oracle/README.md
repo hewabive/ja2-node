@@ -80,6 +80,8 @@ commit them.
 | `probes/recruit.txt` | Recruiting, escort and robot probe script (see "Recruiting") |
 | `patches/0020-civ-oracle.patch` | A headless switch in `BeginCivQuote`, wrappers for the static `SurrenderMessageBoxCallBack`, `DetermineCivQuoteEntry` and `DecideActionNamedNPC`, the surrender condition of `DecideActionBlack` as a function, accessors for the AI pause (see "Hooks") |
 | `patches/0022-sighting-quotes-oracle.patch` | Traces of the merc quotes for first seeing Mike and Joey in `ManSeesMan` (see "Hooks") |
+| `patches/0025-florist-oracle.patch` | The florist order form's order number step, price and send as callable functions, and a selection setter (see "Hooks") |
+| `probes/florist.txt` | Florist orders on the user's saves (see "Laptop") |
 | `civ-compare.ts` | The civilian probes of `compare.ts` (`civset`, `civquote`, `namednpc`, `initiating`, `pcsnear`, `firstaid`, `friendhostile`, `hostilecheck`, `surrender`, `surrenderanswer`) |
 | `probes/civ.txt` | Civilian quotes, the surrender offer, the hostility hooks and the named-NPC AI (see "Civilians") |
 | `patches/0019-meanwhile-oracle.patch` | Wrappers for the static meanwhile helpers: the last scheduled scene, the Skip answer and the NPC moves (see "Hooks") |
@@ -914,6 +916,8 @@ bobbydeliver index=<shipment>                             # BobbyRayPurchaseEven
 insure who=<id> [buy=0|1] | insuranceday | payout who=<id> [suspicious=<n>]
 insurancestep slot=<n> step=start|end|pay
 impcreate gender=male|female answers=<16 indices> attrs=<10 values> [portrait=] [voice=] [name=] [nick=]
+flowers flower=<0-9> dest=<id> [nextday=0|1] [extras=crushed,blackRoses,wilted,fruitCake]
+                                                          # entering the order form, its price, sending (florist.txt)
 ```
 `laptop-compare.ts` builds the new game through `buildNewCampaign` with the traced draws in the state's streams (the
 `InitFace` triples of the preloaded NPC faces dropped), or opens a campaign session of the save, applies the same command
@@ -925,6 +929,10 @@ the arrival table, five A.I.M. hires (week, two weeks without kit, Nails for a d
 account, two hires and the payment, five Bobby Ray orders with deliveries to a loaded Drassen (theft draws, hidden crate
 items), to Meduna and to an unloaded Drassen, a restock with 417 draws, insurance purchase, offer, expiry, two payouts
 and an investigation, and a male and a female I.M.P. character on SaveGame01, 07 and 10.
+
+`probes/florist.txt` (needs 0025; output `florist/florist.jsonl`, optional in `compare-all.sh`) orders flowers on
+SaveGame01 and 07: the comparer replays `visitSite floristOrderForm` and `orderFlowers` through the laptop modules with the
+traced draws and compares the order number before, after entering and after sending, the price and the laptop dump.
 
 ### Doors
 
@@ -1584,6 +1592,13 @@ the comparers include them. Regenerate it like 0002 with that path.
 `OracleLastScheduledMeanwhileId` (the static `ubCurrentMeanWhileId`), `OracleSkipMeanwhile` (the static
 `BeginMeanwhileCallBack` with `MSG_BOX_RETURN_NO`), `OracleSetNpcMeanwhile` and `OracleRestoreNpcMeanwhile` (the static NPC
 moves of a played scene) and `OracleClearNpcMeanwhileSaves` (empties their save slots). Regenerate it like 0002 with that path.
+
+`patches/0025-florist-oracle.patch` changes `src/game/Laptop/Florist_Order_Form.cc`: the order number step of
+`EnterFloristOrderForm` moves into the static `AdvanceFlowerOrderNumberOnEntry`, the price computation of
+`DisplayFlowerDynamicItems` into `CalcFlowerOrderPrice` and the body of `BtnFlowerOrderSendButtonCallback` into
+`SendFlowerOrder` (same code at the same call sites); `OracleFlowerOrder` sets the form's selection (and opens the gallery
+text when no florist page did), `OracleFlowerOrderFormEntered`, `OracleFlowerOrderPrice` and `OracleFlowerOrderSend` call
+the three. No behaviour change. Regenerate it like 0002 with that path.
 
 `patches/0021-boxing-oracle.patch` (applied after 0018) changes `src/externalized/DefaultContentManager.cc` only: marks 3001
 and 3000 around the `Random(count)` of `getMusicForMode`, so a comparer can drop the music pick of `SetMusicMode` (ja2-node

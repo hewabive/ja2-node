@@ -1,0 +1,300 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/AIMPolicies.cc RenderAimPolicies (the pages: the statement with the agreement, the index, the sections with their paragraph lists), DisplayAimPolicyTitleText (the AIM_STATEMENT_OF_POLICY row at AIM_POLICY_TITLE_STATEMENT_Y - 25 on the statement page, else at AIM_POLICY_TITLE_Y), DisplayAimPolicyStatement (the two statement paragraphs, the second 15 below the first), InitAgreementRegion (bottombuttons2.sti with AimPolicyText DISAGREE and AGREE in AIM_POLICY_TOC_FONT, AIM_POLICY_AGREE_TOC_COLOR_ON up and _OFF down, 125 apart at AIM_POLICY_AGREEMENT_X/Y), DrawAimPolicyMenu and InitAimPolicyTocMenu (contentbutton.sti and the section titles at +AIM_POLICY_TOC_TEXT_OFFSET_X/Y every AIM_POLICY_TOC_GAP_Y, the AIM_CONTENTBUTTON_WIDTH x HEIGHT regions to pages 2-10, MSYS_PRIORITY_HIGH, CURSOR_WWW), DisplayAimPolicyTitle, DisplayAimPolicyParagraph and DisplayAimPolicySubParagraph (the section number at AIM_POLICY_PARAGRAPH_NUMBER or AIM_POLICY_SUBPARAGRAPH_NUMBER, the text wrapped in AIM_POLICY_PARAGRAPH_WIDTH at AIM_POLICY_PARAGRAPH_X or AIM_POLICY_SUBPARAGRAPH_X), InitAimPolicyMenuBar (bottombuttons2.sti with AimPolicyText 0-3 in FONT10ARIAL, AIM_BUTTON_ON_COLOR up and AIM_BUTTON_OFF_COLOR down, AIM_POLICY_GAP_X apart at AIM_POLICY_MENU_X/Y, MSYS_PRIORITY_HIGH, CURSOR_WWW)"
+  ],
+  "screen": "aimPolicies",
+  "frame": "std640",
+  "constants": ["Laptop", "AIM", "AIMPolicies"],
+  "assets": {
+    "contentButton": {
+      "sti": "laptop/contentbutton.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["AIM_CONTENTBUTTON_WIDTH", "AIM_CONTENTBUTTON_HEIGHT"],
+        "style": "hollow"
+      }
+    },
+    "bottomButtons": {
+      "sti": "laptop/bottombuttons2.sti",
+      "stub": {
+        "frames": 2,
+        "size": ["BOTTOM_BUTTON_START_WIDTH - 2", "BOTTOM_BUTTON_START_HEIGHT"],
+        "states": ["normal", "pressed"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "text",
+      "x": "AIM_POLICY_TITLE_X",
+      "y": "AIM_POLICY_TITLE_STATEMENT_Y - 25",
+      "font": "AIM_POLICY_TITLE_FONT",
+      "color": "AIM_POLICY_TITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/aimpol.edt", "AIM_STATEMENT_OF_POLICY"]
+      },
+      "id": "aimPolicyStatementTitle",
+      "width": "AIM_POLICY_TITLE_WIDTH",
+      "align": "center",
+      "visible": "statementPage"
+    },
+    {
+      "type": "text",
+      "x": "AIM_POLICY_TITLE_X",
+      "y": "AIM_POLICY_TITLE_Y",
+      "font": "AIM_POLICY_TITLE_FONT",
+      "color": "AIM_POLICY_TITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/aimpol.edt", "AIM_STATEMENT_OF_POLICY"]
+      },
+      "id": "aimPolicyTitle",
+      "width": "AIM_POLICY_TITLE_WIDTH",
+      "align": "center",
+      "visible": "!statementPage"
+    },
+    {
+      "type": "text",
+      "x": "AIM_POLICY_TITLE_STATEMENT_X",
+      "y": "AIM_POLICY_TITLE_STATEMENT_Y",
+      "font": "AIM_POLICY_TEXT_FONT",
+      "color": "AIM_POLICY_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/aimpol.edt", "AIM_STATEMENT_OF_POLICY_1"]
+      },
+      "id": "aimPolicyStatement1",
+      "width": "AIM_POLICY_TITLE_STATEMENT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "visible": "statementPage"
+    },
+    {
+      "type": "text",
+      "x": "AIM_POLICY_TITLE_STATEMENT_X",
+      "y": {
+        "bind": "secondStatementY"
+      },
+      "font": "AIM_POLICY_TEXT_FONT",
+      "color": "AIM_POLICY_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "edt": ["binarydata/aimpol.edt", "AIM_STATEMENT_OF_POLICY_2"]
+      },
+      "id": "aimPolicyStatement2",
+      "width": "AIM_POLICY_TITLE_STATEMENT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "visible": "statementPage"
+    },
+    {
+      "type": "repeat",
+      "count": 2,
+      "x": "AIM_POLICY_AGREEMENT_X",
+      "y": "AIM_POLICY_AGREEMENT_Y",
+      "dx": 125,
+      "visible": "statementPage",
+      "template": [
+        {
+          "type": "button",
+          "id": "aimPolicyAgreement$i",
+          "x": 0,
+          "y": 0,
+          "asset": "bottomButtons",
+          "frames": {
+            "offNormal": 0,
+            "onNormal": 1
+          },
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "visible": "statementPage",
+          "primary": "agree($i)",
+          "text": {
+            "source": {
+              "key": ["AimPolicyText", "AIM_POLICIES_DISAGREE + $i"]
+            },
+            "font": "AIM_POLICY_TOC_FONT",
+            "color": "AIM_POLICY_AGREE_TOC_COLOR_ON",
+            "shadow": "DEFAULT_SHADOW",
+            "downColor": "AIM_POLICY_AGREE_TOC_COLOR_OFF",
+            "downShadow": "DEFAULT_SHADOW"
+          }
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": "NUM_AIM_POLICY_TOC_BUTTONS",
+      "x": "AIM_POLICY_TOC_X",
+      "y": "AIM_POLICY_TOC_Y",
+      "dy": "AIM_POLICY_TOC_GAP_Y",
+      "visible": "toc",
+      "template": [
+        {
+          "type": "image",
+          "asset": "contentButton",
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "type": "text",
+          "x": "AIM_POLICY_TOC_TEXT_OFFSET_X",
+          "y": "AIM_POLICY_TOC_TEXT_OFFSET_Y",
+          "font": "AIM_POLICY_TOC_FONT",
+          "color": "AIM_POLICY_TOC_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "tocTitles[$i]"
+          },
+          "id": "aimPolicyTocTitle$i",
+          "width": "AIM_CONTENTBUTTON_WIDTH"
+        },
+        {
+          "type": "region",
+          "id": "aimPolicyToc$i",
+          "x": 0,
+          "y": 0,
+          "width": "AIM_CONTENTBUTTON_WIDTH",
+          "height": "AIM_CONTENTBUTTON_HEIGHT",
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "visible": "toc",
+          "primary": "toc($i)"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "x": "AIM_POLICY_SUBTITLE_NUMBER",
+      "y": "AIM_POLICY_SUBTITLE_Y",
+      "font": "AIM_POLICY_SUBTITLE_FONT",
+      "color": "AIM_POLICY_SUBTITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "sectionTitle"
+      },
+      "id": "aimPolicySectionTitle",
+      "visible": "section"
+    },
+    {
+      "type": "repeat",
+      "count": {
+        "bind": "rows"
+      },
+      "x": 0,
+      "y": 0,
+      "visible": "section",
+      "template": [
+        {
+          "type": "text",
+          "x": "AIM_POLICY_PARAGRAPH_NUMBER",
+          "y": {
+            "bind": "rows[$i].y"
+          },
+          "font": "AIM_POLICY_TEXT_FONT",
+          "color": "AIM_POLICY_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "rows[$i].number"
+          },
+          "id": "aimPolicyNumber$i",
+          "visible": "rows[$i].paragraph"
+        },
+        {
+          "type": "text",
+          "x": "AIM_POLICY_PARAGRAPH_X",
+          "y": {
+            "bind": "rows[$i].y"
+          },
+          "font": "AIM_POLICY_TEXT_FONT",
+          "color": "AIM_POLICY_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "rows[$i].text"
+          },
+          "id": "aimPolicyParagraph$i",
+          "width": "AIM_POLICY_PARAGRAPH_WIDTH",
+          "wrap": {
+            "gap": 2
+          },
+          "visible": "rows[$i].paragraph"
+        },
+        {
+          "type": "text",
+          "x": "AIM_POLICY_SUBPARAGRAPH_NUMBER",
+          "y": {
+            "bind": "rows[$i].y"
+          },
+          "font": "AIM_POLICY_TEXT_FONT",
+          "color": "AIM_POLICY_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "rows[$i].number"
+          },
+          "id": "aimPolicySubNumber$i",
+          "visible": "rows[$i].sub"
+        },
+        {
+          "type": "text",
+          "x": "AIM_POLICY_SUBPARAGRAPH_X",
+          "y": {
+            "bind": "rows[$i].y"
+          },
+          "font": "AIM_POLICY_TEXT_FONT",
+          "color": "AIM_POLICY_TEXT_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "rows[$i].text"
+          },
+          "id": "aimPolicySubParagraph$i",
+          "width": "AIM_POLICY_PARAGRAPH_WIDTH",
+          "wrap": {
+            "gap": 2
+          },
+          "visible": "rows[$i].sub"
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": "AIM_POLICY_MENU_BUTTON_AMOUNT",
+      "x": "AIM_POLICY_MENU_X",
+      "y": "AIM_POLICY_MENU_Y",
+      "dx": "AIM_POLICY_GAP_X",
+      "visible": "menuBar",
+      "template": [
+        {
+          "type": "button",
+          "id": "aimPolicyMenu$i",
+          "x": 0,
+          "y": 0,
+          "asset": "bottomButtons",
+          "frames": {
+            "offNormal": 0,
+            "onNormal": 1
+          },
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "visible": "menuBar",
+          "checked": "menuHeld[$i]",
+          "primary": "menu($i)",
+          "text": {
+            "source": {
+              "key": ["AimPolicyText", "$i"]
+            },
+            "font": "FONT10ARIAL",
+            "color": "AIM_BUTTON_ON_COLOR",
+            "shadow": "DEFAULT_SHADOW",
+            "downColor": "AIM_BUTTON_OFF_COLOR",
+            "downShadow": "DEFAULT_SHADOW"
+          }
+        }
+      ]
+    }
+  ]
+}

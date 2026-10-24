@@ -1,0 +1,275 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/Florist_Gallery.cc EnterFloristGallery (floristbuttons.sti 0/1 with sFloristGalleryText at FLOR_GALLERY_BACK_BUTTON_X and FLOR_GALLERY_NEXT_BUTTON_X, FLOR_GALLERY_BUTTON_Y, MSYS_PRIORITY_HIGH, CURSOR_WWW), InitFlowerButtons (gallerybuttons.sti 0/1 every FLOR_GALLERY_FLOWER_BUTTON_OFFSET_Y with flower_N.sti as the icon at +5, +5 not shifted; the left button reads FLORIST_GALLERY_HOME on the first page), RenderFloristGallery (the two title lines in FLOR_GALLERY_TITLE_FONT centred in FLOR_GALLERY_TITLE_TEXT_WIDTH, the second 11 pixels lower), DisplayFloralDescriptions (name, \"$N.00 USD\" and the description wrapped in FLOR_GALLERY_DESC_WIDTH at FLOR_GALLERY_FLOWER_TITLE_X)",
+    "floristbuttons.sti, gallerybuttons.sti, flower_N.sti: the stub sizes are chosen (the art defines them)"
+  ],
+  "screen": "floristGallery",
+  "frame": "std640",
+  "constants": ["Laptop", "Florist", "Florist_Gallery"],
+  "assets": {
+    "floristButtons": {
+      "sti": "laptop/floristbuttons.sti",
+      "stub": {
+        "frames": 2,
+        "size": [80, 22],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "galleryButtons": {
+      "sti": "laptop/gallerybuttons.sti",
+      "stub": {
+        "frames": 2,
+        "size": [75, 100],
+        "states": ["normal", "pressed"],
+        "style": "hollow"
+      }
+    },
+    "flower0": {
+      "sti": "laptop/flower_0.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower1": {
+      "sti": "laptop/flower_1.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower2": {
+      "sti": "laptop/flower_2.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower3": {
+      "sti": "laptop/flower_3.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower4": {
+      "sti": "laptop/flower_4.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower5": {
+      "sti": "laptop/flower_5.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower6": {
+      "sti": "laptop/flower_6.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower7": {
+      "sti": "laptop/flower_7.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower8": {
+      "sti": "laptop/flower_8.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower9": {
+      "sti": "laptop/flower_9.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "text",
+      "x": "FLOR_GALLERY_TITLE_TEXT_X",
+      "y": "FLOR_GALLERY_TITLE_TEXT_Y",
+      "font": "FLOR_GALLERY_TITLE_FONT",
+      "color": "FLOR_GALLERY_TITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sFloristGalleryText", "FLORIST_GALLERY_CLICK_TO_ORDER"]
+      },
+      "id": "floristGalleryTitle",
+      "width": "FLOR_GALLERY_TITLE_TEXT_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "text",
+      "x": "FLOR_GALLERY_TITLE_TEXT_X",
+      "y": "FLOR_GALLERY_TITLE_TEXT_Y + 11",
+      "font": "FLOR_GALLERY_TITLE_FONT",
+      "color": "FLOR_GALLERY_TITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sFloristGalleryText", "FLORIST_GALLERY_ADDIFTIONAL_FEE"]
+      },
+      "width": "FLOR_GALLERY_TITLE_TEXT_WIDTH",
+      "align": "center"
+    },
+    {
+      "type": "repeat",
+      "count": "FLOR_GALLERY_NUMBER_FLORAL_BUTTONS",
+      "x": "FLOR_GALLERY_FLOWER_BUTTON_X",
+      "y": "FLOR_GALLERY_FLOWER_BUTTON_Y",
+      "dy": "FLOR_GALLERY_FLOWER_BUTTON_OFFSET_Y",
+      "template": [
+        {
+          "type": "button",
+          "id": "floristFlower$i",
+          "x": 0,
+          "y": 0,
+          "asset": "galleryButtons",
+          "frames": {
+            "offNormal": 0,
+            "onNormal": 1
+          },
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "visible": "rows[$i].present",
+          "primary": "flower($i)"
+        },
+        {
+          "type": "image",
+          "asset": {
+            "by": "rows[$i].flower",
+            "map": {
+              "0": "flower0",
+              "1": "flower1",
+              "2": "flower2",
+              "3": "flower3",
+              "4": "flower4",
+              "5": "flower5",
+              "6": "flower6",
+              "7": "flower7",
+              "8": "flower8",
+              "9": "flower9"
+            }
+          },
+          "frame": 0,
+          "x": 5,
+          "y": 5,
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "FLOR_GALLERY_FLOWER_TITLE_X - FLOR_GALLERY_FLOWER_BUTTON_X",
+          "y": "FLOR_GALLERY_FLOWER_TITLE_OFFSET_Y",
+          "font": "FLOR_GALLERY_FLOWER_TITLE_FONT",
+          "color": "FLOR_GALLERY_FLOWER_TITLE_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "rows[$i].name"
+          },
+          "id": "floristFlowerName$i",
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "FLOR_GALLERY_FLOWER_TITLE_X - FLOR_GALLERY_FLOWER_BUTTON_X",
+          "y": "FLOR_GALLERY_FLOWER_PRICE_OFFSET_Y",
+          "font": "FLOR_GALLERY_FLOWER_PRICE_FONT",
+          "color": "FLOR_GALLERY_FLOWER_PRICE_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "rows[$i].price"
+          },
+          "id": "floristFlowerPrice$i",
+          "visible": "rows[$i].present"
+        },
+        {
+          "type": "text",
+          "x": "FLOR_GALLERY_FLOWER_TITLE_X - FLOR_GALLERY_FLOWER_BUTTON_X",
+          "y": "FLOR_GALLERY_FLOWER_DESC_OFFSET_Y",
+          "font": "FLOR_GALLERY_FLOWER_DESC_FONT",
+          "color": "FLOR_GALLERY_FLOWER_DESC_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "rows[$i].description"
+          },
+          "width": "FLOR_GALLERY_DESC_WIDTH",
+          "wrap": {
+            "gap": 2
+          },
+          "visible": "rows[$i].present"
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "id": "floristGalleryBack",
+      "x": "FLOR_GALLERY_BACK_BUTTON_X",
+      "y": "FLOR_GALLERY_BUTTON_Y",
+      "asset": "floristButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "back",
+      "text": {
+        "source": {
+          "bind": "backText"
+        },
+        "font": "FLORIST_BUTTON_TEXT_FONT",
+        "color": "FLORIST_BUTTON_TEXT_UP_COLOR",
+        "shadow": "FLORIST_BUTTON_TEXT_SHADOW_COLOR",
+        "downColor": "FLORIST_BUTTON_TEXT_DOWN_COLOR",
+        "downShadow": "FLORIST_BUTTON_TEXT_SHADOW_COLOR"
+      }
+    },
+    {
+      "type": "button",
+      "id": "floristGalleryNext",
+      "x": "FLOR_GALLERY_NEXT_BUTTON_X",
+      "y": "FLOR_GALLERY_BUTTON_Y",
+      "asset": "floristButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "next",
+      "text": {
+        "source": {
+          "key": ["sFloristGalleryText", "FLORIST_GALLERY_NEXT"]
+        },
+        "font": "FLORIST_BUTTON_TEXT_FONT",
+        "color": "FLORIST_BUTTON_TEXT_UP_COLOR",
+        "shadow": "FLORIST_BUTTON_TEXT_SHADOW_COLOR",
+        "downColor": "FLORIST_BUTTON_TEXT_DOWN_COLOR",
+        "downShadow": "FLORIST_BUTTON_TEXT_SHADOW_COLOR"
+      },
+      "enabled": "nextEnabled"
+    }
+  ]
+}

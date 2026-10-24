@@ -8,6 +8,7 @@ import { addTransaction, FinanceCode } from '../../src/sim/campaign/finances.ts'
 import { aimHire } from '../../src/sim/campaign/laptop/aim.ts';
 import { addFreshBobbyRayInventory, bobbyRayPurchaseEvent, purchaseBobbyRayOrder } from '../../src/sim/campaign/laptop/bobby-ray.ts';
 import type { LaptopRandom } from '../../src/sim/campaign/laptop/context.ts';
+import { enterFloristOrderForm, orderFlowers } from '../../src/sim/campaign/laptop/florist.ts';
 import { type ImpAttributes, impCreate } from '../../src/sim/campaign/laptop/imp.ts';
 import {
   addLifeInsurancePayout,
@@ -56,6 +57,7 @@ export const LAPTOP_PROBES: ReadonlySet<string> = new Set([
   'payout',
   'insurancestep',
   'impcreate',
+  'flowers',
 ]);
 
 const LAPTOP_EVENTS: ReadonlySet<number> = new Set([
@@ -582,6 +584,23 @@ export class LaptopComparer {
     return { ours: { length, cost }, theirs: p.result as Json, replay: null };
   }
 
+  #flowers(flow: LaptopFlow, p: Json): { ours: Json; theirs: Json; replay: string | null } {
+    const a = args(p);
+    const extras = String(a.extras ?? '')
+      .split(',')
+      .filter((e) => e.length > 0);
+    const order = { bouquet: num(a.flower, 0), destination: num(a.dest, 0), nextDay: num(a.nextday, 0) !== 0, extras };
+    const before = flow.laptop.floristOrderNumber;
+    let entered = 0;
+    let price: number | string = 0;
+    const replay = this.#replay(flow, (p.draws as Draw[]) ?? [], () => {
+      entered = enterFloristOrderForm(flow);
+      const result = orderFlowers(flow, order, { flowersMeanwhile: (code) => flow.campaign.scheduleFlowersMeanwhile(code) });
+      price = typeof result === 'string' ? result : result.price;
+    });
+    return { ours: { before, entered, price, sent: flow.laptop.floristOrderNumber }, theirs: p.result as Json, replay };
+  }
+
   #insuranceStep(flow: LaptopFlow, p: Json): string | null {
     const a = args(p);
     const slot = num(a.slot, 0);
@@ -676,6 +695,10 @@ export class LaptopComparer {
         return this.#compareState(label, flow, p, null, this.#insuranceStep(flow, p));
       case 'impcreate': {
         const r = this.#impCreate(flow, p);
+        return this.#compareState(label, flow, p, r, r.replay);
+      }
+      case 'flowers': {
+        const r = this.#flowers(flow, p);
         return this.#compareState(label, flow, p, r, r.replay);
       }
       default:

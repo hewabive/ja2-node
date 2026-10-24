@@ -21,6 +21,7 @@ const CREDITS_FILE = 'text/credits.json';
 const MAIL_FILE = 'text/email.json';
 const AIM_HISTORY_FILE = 'text/aimhist.json';
 const AIM_BIOS_FILE = 'text/aimbios.json';
+const LAPTOP_PAGES_FILE = 'text/laptop-pages.json';
 const AIM_HISTORY_PATH = 'binarydata/aimhist.edt';
 const ITEM_TEXT_PATH = 'binarydata/itemdesc.edt';
 const CREDITS_PATH = 'binarydata/credits.edt';
@@ -182,6 +183,21 @@ async function buildAimBios(out: string, layouts: EdtLayouts): Promise<string> {
   );
 }
 
+function recordsOf(entry: unknown, what: string): string[][] {
+  const o = asObject(entry, what);
+  if (o.rows !== undefined) return strings(o.rows, `${what}.rows`).map((row) => [row]);
+  return asArray(o.records, `${what}.records`).map((record, i) => strings(record, `${what}.records[${i}]`));
+}
+
+async function buildLaptopPages(out: string, layouts: EdtLayouts): Promise<string[]> {
+  const files = asObject(asObject(await stubJson(LAPTOP_PAGES_FILE), 'stub laptop pages').files, 'stub laptop pages.files');
+  const written: string[] = [];
+  for (const [path, entry] of Object.entries(files)) {
+    written.push(await put(out, path, encodeEdtRecords(recordsOf(entry, `stub laptop pages.${path}`), columnsOf(layouts, path))));
+  }
+  return written;
+}
+
 export async function buildStubText(out: string): Promise<StubText> {
   const layouts = EdtLayouts.parse(await dataJson(EDT_LAYOUTS_PATH));
   const merc = await buildMercDialogue(out, layouts);
@@ -192,6 +208,7 @@ export async function buildStubText(out: string): Promise<StubText> {
     await buildMail(out, layouts),
     await buildAimHistory(out, layouts),
     await buildAimBios(out, layouts),
+    ...(await buildLaptopPages(out, layouts)),
   ];
   return { written, mercDialogue: merc.rows };
 }

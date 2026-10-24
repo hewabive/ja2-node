@@ -23,13 +23,17 @@ import type { LaptopFlow } from '../sim/campaign/laptop/laptop-flow.ts';
 import { Bookmark, bookmarkNames, type StoreSlot } from '../sim/campaign/laptop/laptop-state.ts';
 import { mailType } from '../sim/campaign/laptop/mail.ts';
 import { isMercListed, isMercSiteDown, listingProfile, owedToSpeck } from '../sim/campaign/laptop/merc-site.ts';
+import { isMercDead } from '../sim/campaign/laptop/profile-state.ts';
+import { MercKind } from '../sim/campaign/roster.ts';
 import { Assignment } from '../sim/strategic/economy/constants.ts';
 import { predictIncomeFromPlayerMines } from '../sim/strategic/economy/mines.ts';
 import { NUM_MIN_IN_DAY, NUM_MIN_IN_HOUR } from '../sim/strategic/time/constants.ts';
 import type { ProfileProgress } from '../sim/tactical/profiles.ts';
 import type { TextSource } from './campaign-session.ts';
 import { financeRowText } from './finance-labels.ts';
+import { historyRowView } from './history-labels.ts';
 import { mailSubject } from './mail-text.ts';
+import { personnelCurrent, personnelDeparted } from './personnel-view.ts';
 
 export interface LaptopViewText {
   readonly texts: TextSource | null;
@@ -199,9 +203,16 @@ function insuranceView(flow: LaptopFlow): InsuranceOfferView[] {
         insured: m.contract.lifeInsurance !== 0,
         offeredLength: length,
         premium: insurancePremium(flow, length, m, p),
+        nickname: flow.profileRecord(m.profile)?.nickname ?? m.soldier.name,
+        dead: isMercDead(p),
+        contractLength: m.contract.totalContractLength,
       },
     ];
   });
+}
+
+function aimMercsOnTeam(flow: LaptopFlow): boolean {
+  return flow.team().some((m) => m.kind === MercKind.AIM_MERC);
 }
 
 function inTransitView(flow: LaptopFlow): InTransitView[] {
@@ -240,12 +251,7 @@ export function laptopView(campaign: CampaignSim, text: LaptopViewText = NO_TEXT
       firstData: m.firstData,
       secondData: m.secondData,
     })),
-    history: l.history.map((h) => ({
-      code: h.code,
-      secondCode: h.secondCode,
-      date: time(h.date),
-      sector: h.x >= 1 && h.y >= 1 ? sectorShortString(h) : null,
-    })),
+    history: l.history.map((h) => historyRowView(campaign, text, h, time(h.date))),
     finances: f.ledger.map((r) => ({
       code: r.code,
       secondCode: r.secondCode,
@@ -260,6 +266,8 @@ export function laptopView(campaign: CampaignSim, text: LaptopViewText = NO_TEXT
       dead: l.personnel.dead.filter((p) => p >= 0),
       left: l.personnel.left.filter((p) => p >= 0),
       other: l.personnel.other.filter((p) => p >= 0),
+      current: personnelCurrent(flow),
+      departed: personnelDeparted(flow),
     },
     aim: aimView(flow),
     merc: mercView(flow),
@@ -274,6 +282,8 @@ export function laptopView(campaign: CampaignSim, text: LaptopViewText = NO_TEXT
     insurance: insuranceView(flow),
     inTransit: inTransitView(flow),
     landingZone: sectorShortString(sectorFromId(l.mercArriveSector)),
+    aimMercsOnTeam: aimMercsOnTeam(flow),
+    florist: { orderNumber: l.floristOrderNumber, bouquetPrices: flow.content.bouquetPrices },
   };
 }
 

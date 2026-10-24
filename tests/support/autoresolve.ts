@@ -173,6 +173,7 @@ export function progressFor(id: number, overrides: Partial<ProfileProgress> = {}
     shotsFired: 0,
     shotsHit: 0,
     timesWounded: 0,
+    battlesFought: 0,
     ...noCampaignFields(),
     ...overrides,
   };

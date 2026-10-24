@@ -53,7 +53,7 @@ function moraleText(m: RosterMerc): MoraleText {
   return MORALE_TEXTS.find(([above]) => m.soldier.morale > above)?.[1] ?? 'panic';
 }
 
-function dailyRate(m: RosterMerc, p: ProfileProgress): number {
+export function dailyRate(m: RosterMerc, p: ProfileProgress): number {
   if (m.kind !== MercKind.AIM_MERC) return p.salary;
   if (m.contract.typeOfLastContract === ContractLength.EXTEND_2_WEEK) return Math.trunc(p.biWeeklySalary / TWO_WEEK_DAYS);
   if (m.contract.typeOfLastContract === ContractLength.EXTEND_1_WEEK) return Math.trunc(p.weeklySalary / WEEK_DAYS);

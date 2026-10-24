@@ -1,0 +1,948 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/Florist_Order_Form.cc EnterFloristOrderForm (the pictures, floristbuttons.sti 0/1 for Back, Send, Clear and Gallery, the six check box regions FLOWER_ORDER_CHECK_WIDTH x FLOWER_ORDER_CHECK_HEIGHT, the card gallery link sized by the text widths, the flower box link, the delivery box region and the region over the web area at MSYS_PRIORITY_HIGH + 2 that closes the list), RenderFloristOrderForm (every label in FLOWER_ORDER_STATIC_TEXT_COLOR, the check box texts at +FLOWER_ORDER_CHECK_WIDTH + 3, +2), DisplayFloristCheckBox (ordercheckbox.sti 0 up, 1 down), DisplayFlowerDynamicItems (the order number and the price after their labels + 5), FlowerOrderDisplayShippingLocationCity (the black box and the name at +5, +5), CreateDestroyFlowerOrderDestDropDown (the black list with the tactpopup.sti border every 10 pixels, the rows of names, the row regions at MSYS_PRIORITY_HIGH + 3), FlowerOrderDrawSelectedCity (the hovered row white with the name in colour 2 without shadow), InitFlowerOrderTextInputBoxes (FONT12ARIAL, white fields, regular colours 2 and FONT_WHITE, hilited FONT_WHITE, 2 and 141, the bevel and the black caret; 75 and 35 characters)",
+    "floristbuttons.sti, flower_N.sti, ordercheckbox.sti, the boxes: the stub sizes are chosen or follow the box constants (the art defines them)"
+  ],
+  "screen": "floristOrder",
+  "frame": "std640",
+  "constants": ["Laptop", "Florist", "Florist_Order_Form", "MercTextBox"],
+  "assets": {
+    "floristButtons": {
+      "sti": "laptop/floristbuttons.sti",
+      "stub": {
+        "frames": 2,
+        "size": [80, 22],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "flower0": {
+      "sti": "laptop/flower_0.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower1": {
+      "sti": "laptop/flower_1.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower2": {
+      "sti": "laptop/flower_2.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower3": {
+      "sti": "laptop/flower_3.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower4": {
+      "sti": "laptop/flower_4.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower5": {
+      "sti": "laptop/flower_5.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower6": {
+      "sti": "laptop/flower_6.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower7": {
+      "sti": "laptop/flower_7.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower8": {
+      "sti": "laptop/flower_8.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "flower9": {
+      "sti": "laptop/flower_9.sti",
+      "stub": {
+        "frames": 1,
+        "size": [65, 90],
+        "style": "hollow"
+      }
+    },
+    "deliveryLocation": {
+      "sti": "laptop/deliverylocation.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["FLOWER_ORDER_DELIVERY_LOCATION_WIDTH", "FLOWER_ORDER_DELIVERY_LOCATION_HEIGHT"],
+        "style": "hollow"
+      }
+    },
+    "flowerFrame": {
+      "sti": "laptop/flowerframe.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["FLOWER_ORDER_FLOWER_BOX_WIDTH", "FLOWER_ORDER_FLOWER_BOX_HEIGHT"],
+        "style": "hollow"
+      }
+    },
+    "personalSentiments": {
+      "sti": "laptop/personalsentiments.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["FLOWER_ORDER_PERSONAL_SENT_TEXT_WIDTH + 10", "FLOWER_ORDER_PERSONAL_SENT_TEXT_HEIGHT + 10"],
+        "style": "hollow"
+      }
+    },
+    "nameBox": {
+      "sti": "laptop/namebox.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["FLOWER_ORDER_NAME_TEXT_BOX_WIDTH + 6", "FLOWER_ORDER_NAME_TEXT_BOX_HEIGHT + 6"],
+        "style": "hollow"
+      }
+    },
+    "orderCheckBox": {
+      "sti": "laptop/ordercheckbox.sti",
+      "stub": {
+        "frames": 2,
+        "size": ["FLOWER_ORDER_CHECK_WIDTH", "FLOWER_ORDER_CHECK_HEIGHT"],
+        "states": ["normal", "pressed"]
+      }
+    },
+    "tactPopup": {
+      "sti": "interface/tactpopup.sti",
+      "stub": {
+        "sizes": [
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          [4, "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"],
+          ["TEXT_POPUP_GAP_BN_LINES", 4],
+          ["TEXT_POPUP_GAP_BN_LINES", "TEXT_POPUP_GAP_BN_LINES"]
+        ]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "image",
+      "asset": "deliveryLocation",
+      "frame": 0,
+      "x": "FLOWER_ORDER_DELIVERY_LOCATION_X",
+      "y": "FLOWER_ORDER_DELIVERY_LOCATION_Y"
+    },
+    {
+      "type": "image",
+      "asset": "flowerFrame",
+      "frame": 0,
+      "x": "FLOWER_ORDER_FLOWER_BOX_X",
+      "y": "FLOWER_ORDER_FLOWER_BOX_Y"
+    },
+    {
+      "type": "image",
+      "asset": {
+        "by": "flower",
+        "map": {
+          "0": "flower0",
+          "1": "flower1",
+          "2": "flower2",
+          "3": "flower3",
+          "4": "flower4",
+          "5": "flower5",
+          "6": "flower6",
+          "7": "flower7",
+          "8": "flower8",
+          "9": "flower9"
+        }
+      },
+      "frame": 0,
+      "x": "FLOWER_ORDER_FLOWER_BOX_X + 5",
+      "y": "FLOWER_ORDER_FLOWER_BOX_Y + 5"
+    },
+    {
+      "type": "image",
+      "asset": "nameBox",
+      "frame": 0,
+      "x": "FLOWER_ORDER_NAME_BOX_X",
+      "y": "FLOWER_ORDER_NAME_BOX_Y"
+    },
+    {
+      "type": "image",
+      "asset": "personalSentiments",
+      "frame": 0,
+      "x": "FLOWER_ORDER_SENTIMENT_BOX_X",
+      "y": "FLOWER_ORDER_SENTIMENT_BOX_Y"
+    },
+    {
+      "type": "text",
+      "x": "FLOWER_ORDER_FLOWER_NAME_X",
+      "y": "FLOWER_ORDER_FLOWER_NAME_Y",
+      "font": "FLOWER_ORDEER_SMALL_FONT",
+      "color": "FLOWER_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_NAME_BOUQUET"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FLOWER_ORDER_BOUQUET_NAME_X",
+      "y": "FLOWER_ORDER_BOUQUET_NAME_Y",
+      "font": "FLOWER_ORDEER_SMALL_FONT",
+      "color": "FLOWER_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_PRICE"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FLOWER_ORDER_ORDER_NUM_NAME_X",
+      "y": "FLOWER_ORDER_ORDER_NUM_NAME_Y",
+      "font": "FLOWER_ORDEER_SMALL_FONT",
+      "color": "FLOWER_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_ORDER_NUMBER"]
+      }
+    },
+    {
+      "type": "text",
+      "x": {
+        "bind": "flowerNameX"
+      },
+      "y": "FLOWER_ORDER_FLOWER_NAME_Y",
+      "font": "FLOWER_ORDEER_SMALL_FONT",
+      "color": "FLOWER_ORDEER_SMALL_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "flowerName"
+      },
+      "id": "floristFlowerName"
+    },
+    {
+      "type": "text",
+      "x": "FLOWER_ORDER_ORDER_NUM_NAME_X",
+      "y": "FLOWER_ORDER_DATE_Y",
+      "font": "FLOWER_ORDEER_BIG_FONT",
+      "color": "FLOWER_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_DELIVERY_DATE"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FLOWER_ORDER_CHECK_BOX_0_X + FLOWER_ORDER_CHECK_WIDTH + 3",
+      "y": "FLOWER_ORDER_CHECK_BOX_0_Y + 2",
+      "font": "FLOWER_ORDEER_SMALL_FONT",
+      "color": "FLOWER_ORDEER_SMALL_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_NEXT_DAY"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FLOWER_ORDER_CHECK_BOX_1_X + FLOWER_ORDER_CHECK_WIDTH + 3",
+      "y": "FLOWER_ORDER_CHECK_BOX_1_Y + 2",
+      "font": "FLOWER_ORDEER_SMALL_FONT",
+      "color": "FLOWER_ORDEER_SMALL_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_GETS_THERE"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FLOWER_ORDER_ORDER_NUM_NAME_X",
+      "y": "FLOWER_ORDER_LOCATION_Y",
+      "font": "FLOWER_ORDEER_BIG_FONT",
+      "color": "FLOWER_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_DELIVERY_LOCATION"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FLOWER_ORDER_ADDITIONAL_SERVICES_X",
+      "y": "FLOWER_ORDER_ADDITIONAL_SERVICES_Y",
+      "font": "FLOWER_ORDEER_BIG_FONT",
+      "color": "FLOWER_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_ADDITIONAL_CHARGES"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FLOWER_ORDER_CHECK_BOX_2_X + FLOWER_ORDER_CHECK_WIDTH + 3",
+      "y": "FLOWER_ORDER_CHECK_BOX_2_Y + 2",
+      "font": "FLOWER_ORDEER_SMALL_FONT",
+      "color": "FLOWER_ORDEER_SMALL_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_CRUSHED"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FLOWER_ORDER_CHECK_BOX_3_X + FLOWER_ORDER_CHECK_WIDTH + 3",
+      "y": "FLOWER_ORDER_CHECK_BOX_3_Y + 2",
+      "font": "FLOWER_ORDEER_SMALL_FONT",
+      "color": "FLOWER_ORDEER_SMALL_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_BLACK_ROSES"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FLOWER_ORDER_CHECK_BOX_4_X + FLOWER_ORDER_CHECK_WIDTH + 3",
+      "y": "FLOWER_ORDER_CHECK_BOX_4_Y + 2",
+      "font": "FLOWER_ORDEER_SMALL_FONT",
+      "color": "FLOWER_ORDEER_SMALL_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_WILTED"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FLOWER_ORDER_CHECK_BOX_5_X + FLOWER_ORDER_CHECK_WIDTH + 3",
+      "y": "FLOWER_ORDER_CHECK_BOX_5_Y + 2",
+      "font": "FLOWER_ORDEER_SMALL_FONT",
+      "color": "FLOWER_ORDEER_SMALL_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_FRUIT_CAKE"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FLOWER_ORDER_PERSONAL_SENT_TEXT_X",
+      "y": "FLOWER_ORDER_PERSONAL_SENT_TEXT_Y",
+      "font": "FLOWER_ORDEER_BIG_FONT",
+      "color": "FLOWER_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_PERSONAL_SENTIMENTS"]
+      }
+    },
+    {
+      "type": "text",
+      "x": {
+        "bind": "cardLengthX"
+      },
+      "y": "FLOWER_ORDER_PERSONAL_SENT_TEXT_Y + 2",
+      "font": "FLOWER_ORDEER_TINY_FONT",
+      "color": "FLOWER_ORDEER_SMALL_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_CARD_LENGTH"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FLOWER_ORDER_BILLING_INFO_X",
+      "y": "FLOWER_ORDER_BILLING_INFO_Y",
+      "font": "FLOWER_ORDEER_BIG_FONT",
+      "color": "FLOWER_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_BILLING_INFO"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FLOWER_ORDER_NAME_TEXT_X",
+      "y": "FLOWER_ORDER_NAME_TEXT_Y",
+      "font": "FLOWER_ORDEER_BIG_FONT",
+      "color": "FLOWER_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_NAME"]
+      },
+      "width": "FLOWER_ORDER_NAME_TEXT_WIDTH",
+      "align": "right"
+    },
+    {
+      "type": "text",
+      "x": "FLOWER_ORDER_LINK_TO_CARD_GALLERY_X",
+      "y": "FLOWER_ORDER_LINK_TO_CARD_GALLERY_Y",
+      "font": "FLOWER_ORDEER_BIG_FONT",
+      "color": "FLOWER_ORDER_STATIC_TEXT_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_SELECT_FROM_OURS"]
+      }
+    },
+    {
+      "type": "text",
+      "x": {
+        "bind": "standardCardsX"
+      },
+      "y": "FLOWER_ORDER_LINK_TO_CARD_GALLERY_Y",
+      "font": "FLOWER_ORDEER_BIG_FONT",
+      "color": "FLOWER_ORDEER_LINK_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sOrderFormText", "FLORIST_ORDER_STANDARDIZED_CARDS"]
+      }
+    },
+    {
+      "type": "image",
+      "asset": "orderCheckBox",
+      "frame": {
+        "bind": "checks[0]"
+      },
+      "x": "FLOWER_ORDER_CHECK_BOX_0_X",
+      "y": "FLOWER_ORDER_CHECK_BOX_0_Y"
+    },
+    {
+      "type": "region",
+      "id": "floristCheck0",
+      "x": "FLOWER_ORDER_CHECK_BOX_0_X",
+      "y": "FLOWER_ORDER_CHECK_BOX_0_Y",
+      "width": "FLOWER_ORDER_CHECK_WIDTH",
+      "height": "FLOWER_ORDER_CHECK_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "check(0)"
+    },
+    {
+      "type": "image",
+      "asset": "orderCheckBox",
+      "frame": {
+        "bind": "checks[1]"
+      },
+      "x": "FLOWER_ORDER_CHECK_BOX_1_X",
+      "y": "FLOWER_ORDER_CHECK_BOX_1_Y"
+    },
+    {
+      "type": "region",
+      "id": "floristCheck1",
+      "x": "FLOWER_ORDER_CHECK_BOX_1_X",
+      "y": "FLOWER_ORDER_CHECK_BOX_1_Y",
+      "width": "FLOWER_ORDER_CHECK_WIDTH",
+      "height": "FLOWER_ORDER_CHECK_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "check(1)"
+    },
+    {
+      "type": "image",
+      "asset": "orderCheckBox",
+      "frame": {
+        "bind": "checks[2]"
+      },
+      "x": "FLOWER_ORDER_CHECK_BOX_2_X",
+      "y": "FLOWER_ORDER_CHECK_BOX_2_Y"
+    },
+    {
+      "type": "region",
+      "id": "floristCheck2",
+      "x": "FLOWER_ORDER_CHECK_BOX_2_X",
+      "y": "FLOWER_ORDER_CHECK_BOX_2_Y",
+      "width": "FLOWER_ORDER_CHECK_WIDTH",
+      "height": "FLOWER_ORDER_CHECK_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "check(2)"
+    },
+    {
+      "type": "image",
+      "asset": "orderCheckBox",
+      "frame": {
+        "bind": "checks[3]"
+      },
+      "x": "FLOWER_ORDER_CHECK_BOX_3_X",
+      "y": "FLOWER_ORDER_CHECK_BOX_3_Y"
+    },
+    {
+      "type": "region",
+      "id": "floristCheck3",
+      "x": "FLOWER_ORDER_CHECK_BOX_3_X",
+      "y": "FLOWER_ORDER_CHECK_BOX_3_Y",
+      "width": "FLOWER_ORDER_CHECK_WIDTH",
+      "height": "FLOWER_ORDER_CHECK_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "check(3)"
+    },
+    {
+      "type": "image",
+      "asset": "orderCheckBox",
+      "frame": {
+        "bind": "checks[4]"
+      },
+      "x": "FLOWER_ORDER_CHECK_BOX_4_X",
+      "y": "FLOWER_ORDER_CHECK_BOX_4_Y"
+    },
+    {
+      "type": "region",
+      "id": "floristCheck4",
+      "x": "FLOWER_ORDER_CHECK_BOX_4_X",
+      "y": "FLOWER_ORDER_CHECK_BOX_4_Y",
+      "width": "FLOWER_ORDER_CHECK_WIDTH",
+      "height": "FLOWER_ORDER_CHECK_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "check(4)"
+    },
+    {
+      "type": "image",
+      "asset": "orderCheckBox",
+      "frame": {
+        "bind": "checks[5]"
+      },
+      "x": "FLOWER_ORDER_CHECK_BOX_5_X",
+      "y": "FLOWER_ORDER_CHECK_BOX_5_Y"
+    },
+    {
+      "type": "region",
+      "id": "floristCheck5",
+      "x": "FLOWER_ORDER_CHECK_BOX_5_X",
+      "y": "FLOWER_ORDER_CHECK_BOX_5_Y",
+      "width": "FLOWER_ORDER_CHECK_WIDTH",
+      "height": "FLOWER_ORDER_CHECK_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "check(5)"
+    },
+    {
+      "type": "text",
+      "x": {
+        "bind": "orderNumberX"
+      },
+      "y": "FLOWER_ORDER_ORDER_NUM_NAME_Y",
+      "font": "FLOWER_ORDEER_SMALL_FONT",
+      "color": "FLOWER_ORDEER_SMALL_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "orderNumber"
+      },
+      "id": "floristOrderNumber"
+    },
+    {
+      "type": "text",
+      "x": {
+        "bind": "priceX"
+      },
+      "y": "FLOWER_ORDER_BOUQUET_NAME_Y",
+      "font": "FLOWER_ORDEER_SMALL_FONT",
+      "color": "FLOWER_ORDEER_SMALL_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "price"
+      },
+      "id": "floristPrice"
+    },
+    {
+      "type": "fill",
+      "x": "FLOWER_ORDER_DROP_DOWN_LOCATION_X + 3",
+      "y": "FLOWER_ORDER_DELIVERY_LOCATION_Y + 3",
+      "width": "FLOWER_ORDER_DROP_DOWN_LOCATION_WIDTH - 3",
+      "height": "FLOWER_ORDER_DELIVERY_LOCATION_HEIGHT - 5",
+      "color": [0, 0, 0]
+    },
+    {
+      "type": "text",
+      "x": "FLOWER_ORDER_DELIVERY_LOCATION_X + 5",
+      "y": "FLOWER_ORDER_DELIVERY_LOCATION_Y + 5",
+      "font": "FLOWER_ORDEER_SMALL_FONT",
+      "color": "FLOWER_ORDEER_SMALL_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "bind": "destinationName"
+      },
+      "id": "floristDestination"
+    },
+    {
+      "type": "region",
+      "id": "floristCardsLink",
+      "x": {
+        "bind": "cardLinkX"
+      },
+      "y": "FLOWER_ORDER_LINK_TO_CARD_GALLERY_Y",
+      "width": {
+        "bind": "cardLinkWidth"
+      },
+      "height": {
+        "bind": "cardLinkHeight"
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "cards"
+    },
+    {
+      "type": "region",
+      "id": "floristFlowerLink",
+      "x": "FLOWER_ORDER_FLOWER_BOX_X",
+      "y": "FLOWER_ORDER_FLOWER_BOX_Y",
+      "width": "FLOWER_ORDER_FLOWER_BOX_WIDTH",
+      "height": "FLOWER_ORDER_FLOWER_BOX_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "flowerGallery"
+    },
+    {
+      "type": "region",
+      "id": "floristDestinationBox",
+      "x": "FLOWER_ORDER_DELIVERY_LOCATION_X",
+      "y": "FLOWER_ORDER_DELIVERY_LOCATION_Y",
+      "width": "FLOWER_ORDER_DELIVERY_LOCATION_WIDTH",
+      "height": "FLOWER_ORDER_DELIVERY_LOCATION_HEIGHT",
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "openList"
+    },
+    {
+      "type": "textField",
+      "id": "floristSentiment",
+      "x": "FLOWER_ORDER_PERSONAL_SENT_BOX_X",
+      "y": "FLOWER_ORDER_PERSONAL_SENT_BOX_Y",
+      "width": "FLOWER_ORDER_PERSONAL_SENT_TEXT_WIDTH",
+      "height": "FLOWER_ORDER_PERSONAL_SENT_TEXT_HEIGHT",
+      "maxLength": "FLOWER_ORDER_PERSONEL_SENTIMENT_NUM_CHARS",
+      "font": "FONT12ARIAL",
+      "priority": "HIGH+2",
+      "value": "sentiment",
+      "change": "sentiment",
+      "scheme": {
+        "fieldColor": [255, 255, 255],
+        "foreground": 2,
+        "shadow": "FONT_WHITE",
+        "hiForeground": "FONT_WHITE",
+        "hiShadow": 2,
+        "hiBackground": 141,
+        "bevel": [[136, 138, 135], [24, 61, 81]],
+        "cursorColor": [0, 0, 0]
+      }
+    },
+    {
+      "type": "textField",
+      "id": "floristName",
+      "x": "FLOWER_ORDER_NAME_TEXT_BOX_X",
+      "y": "FLOWER_ORDER_NAME_TEXT_BOX_Y",
+      "width": "FLOWER_ORDER_NAME_TEXT_BOX_WIDTH",
+      "height": "FLOWER_ORDER_NAME_TEXT_BOX_HEIGHT",
+      "maxLength": "FLOWER_ORDER_NAME_FIELD_NUM_CHARS",
+      "font": "FONT12ARIAL",
+      "priority": "HIGH+2",
+      "value": "name",
+      "change": "name",
+      "scheme": {
+        "fieldColor": [255, 255, 255],
+        "foreground": 2,
+        "shadow": "FONT_WHITE",
+        "hiForeground": "FONT_WHITE",
+        "hiShadow": 2,
+        "hiBackground": 141,
+        "bevel": [[136, 138, 135], [24, 61, 81]],
+        "cursorColor": [0, 0, 0]
+      }
+    },
+    {
+      "type": "button",
+      "id": "floristBack",
+      "x": "FLOWER_ORDER_BACK_BUTTON_X",
+      "y": "FLOWER_ORDER_BACK_BUTTON_Y",
+      "asset": "floristButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "back",
+      "text": {
+        "source": {
+          "key": ["sOrderFormText", "FLORIST_ORDER_BACK"]
+        },
+        "font": "FLORIST_BUTTON_TEXT_FONT",
+        "color": "FLORIST_BUTTON_TEXT_UP_COLOR",
+        "shadow": "FLORIST_BUTTON_TEXT_SHADOW_COLOR",
+        "downColor": "FLORIST_BUTTON_TEXT_DOWN_COLOR",
+        "downShadow": "FLORIST_BUTTON_TEXT_SHADOW_COLOR"
+      }
+    },
+    {
+      "type": "button",
+      "id": "floristSend",
+      "x": "FLOWER_ORDER_SEND_BUTTON_X",
+      "y": "FLOWER_ORDER_SEND_BUTTON_Y",
+      "asset": "floristButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "send",
+      "text": {
+        "source": {
+          "key": ["sOrderFormText", "FLORIST_ORDER_SEND"]
+        },
+        "font": "FLORIST_BUTTON_TEXT_FONT",
+        "color": "FLORIST_BUTTON_TEXT_UP_COLOR",
+        "shadow": "FLORIST_BUTTON_TEXT_SHADOW_COLOR",
+        "downColor": "FLORIST_BUTTON_TEXT_DOWN_COLOR",
+        "downShadow": "FLORIST_BUTTON_TEXT_SHADOW_COLOR"
+      }
+    },
+    {
+      "type": "button",
+      "id": "floristClear",
+      "x": "FLOWER_ORDER_CLEAR_BUTTON_X",
+      "y": "FLOWER_ORDER_CLEAR_BUTTON_Y",
+      "asset": "floristButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "clear",
+      "text": {
+        "source": {
+          "key": ["sOrderFormText", "FLORIST_ORDER_CLEAR"]
+        },
+        "font": "FLORIST_BUTTON_TEXT_FONT",
+        "color": "FLORIST_BUTTON_TEXT_UP_COLOR",
+        "shadow": "FLORIST_BUTTON_TEXT_SHADOW_COLOR",
+        "downColor": "FLORIST_BUTTON_TEXT_DOWN_COLOR",
+        "downShadow": "FLORIST_BUTTON_TEXT_SHADOW_COLOR"
+      }
+    },
+    {
+      "type": "button",
+      "id": "floristOrderGallery",
+      "x": "FLOWER_ORDER_GALLERY_BUTTON_X",
+      "y": "FLOWER_ORDER_GALLERY_BUTTON_Y",
+      "asset": "floristButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "gallery",
+      "text": {
+        "source": {
+          "key": ["sOrderFormText", "FLORIST_ORDER_GALLERY"]
+        },
+        "font": "FLORIST_BUTTON_TEXT_FONT",
+        "color": "FLORIST_BUTTON_TEXT_UP_COLOR",
+        "shadow": "FLORIST_BUTTON_TEXT_SHADOW_COLOR",
+        "downColor": "FLORIST_BUTTON_TEXT_DOWN_COLOR",
+        "downShadow": "FLORIST_BUTTON_TEXT_SHADOW_COLOR"
+      }
+    },
+    {
+      "type": "fill",
+      "x": "FLOWER_ORDER_DROP_DOWN_LOCATION_X",
+      "y": "FLOWER_ORDER_DROP_DOWN_LOCATION_Y",
+      "width": "FLOWER_ORDER_DROP_DOWN_LOCATION_WIDTH",
+      "height": {
+        "bind": "listHeight"
+      },
+      "color": [0, 0, 0],
+      "visible": "listOpen"
+    },
+    {
+      "type": "repeat",
+      "count": {
+        "bind": "listTopPieces"
+      },
+      "x": "FLOWER_ORDER_DROP_DOWN_LOCATION_X + 10",
+      "y": "FLOWER_ORDER_DROP_DOWN_LOCATION_Y",
+      "dx": 10,
+      "template": [
+        {
+          "type": "image",
+          "asset": "tactPopup",
+          "frame": 1,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "type": "image",
+          "asset": "tactPopup",
+          "frame": 6,
+          "x": 0,
+          "y": {
+            "bind": "listBottomEdgeY"
+          }
+        }
+      ]
+    },
+    {
+      "type": "repeat",
+      "count": {
+        "bind": "listSidePieces"
+      },
+      "x": "FLOWER_ORDER_DROP_DOWN_LOCATION_X",
+      "y": "FLOWER_ORDER_DROP_DOWN_LOCATION_Y + 10",
+      "dy": 10,
+      "template": [
+        {
+          "type": "image",
+          "asset": "tactPopup",
+          "frame": 3,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "type": "image",
+          "asset": "tactPopup",
+          "frame": 4,
+          "x": "FLOWER_ORDER_DROP_DOWN_LOCATION_WIDTH - 4",
+          "y": 0
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "asset": "tactPopup",
+      "frame": 0,
+      "x": "FLOWER_ORDER_DROP_DOWN_LOCATION_X",
+      "y": "FLOWER_ORDER_DROP_DOWN_LOCATION_Y",
+      "visible": "listOpen"
+    },
+    {
+      "type": "image",
+      "asset": "tactPopup",
+      "frame": 2,
+      "x": "FLOWER_ORDER_DROP_DOWN_LOCATION_X + FLOWER_ORDER_DROP_DOWN_LOCATION_WIDTH - 10",
+      "y": "FLOWER_ORDER_DROP_DOWN_LOCATION_Y",
+      "visible": "listOpen"
+    },
+    {
+      "type": "image",
+      "asset": "tactPopup",
+      "frame": 5,
+      "x": "FLOWER_ORDER_DROP_DOWN_LOCATION_X",
+      "y": {
+        "bind": "listBottomCornerY"
+      },
+      "visible": "listOpen"
+    },
+    {
+      "type": "image",
+      "asset": "tactPopup",
+      "frame": 7,
+      "x": "FLOWER_ORDER_DROP_DOWN_LOCATION_X + FLOWER_ORDER_DROP_DOWN_LOCATION_WIDTH - 10",
+      "y": {
+        "bind": "listBottomCornerY"
+      },
+      "visible": "listOpen"
+    },
+    {
+      "type": "region",
+      "id": "floristListClose",
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "width": "LAPTOP_SCREEN_LR_X - LAPTOP_SCREEN_UL_X",
+      "height": "LAPTOP_SCREEN_WEB_LR_Y - LAPTOP_SCREEN_WEB_UL_Y",
+      "priority": "HIGH+2",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "listOpen",
+      "visible": "listOpen",
+      "primary": "closeList"
+    },
+    {
+      "type": "repeat",
+      "count": {
+        "bind": "listRows"
+      },
+      "x": "FLOWER_ORDER_DROP_DOWN_CITY_START_X",
+      "y": "FLOWER_ORDER_DROP_DOWN_CITY_START_Y",
+      "dy": {
+        "bind": "listRowStep"
+      },
+      "template": [
+        {
+          "type": "fill",
+          "x": 0,
+          "y": 2,
+          "width": "FLOWER_ORDER_DROP_DOWN_LOCATION_WIDTH - 9",
+          "height": {
+            "bind": "listRowStep"
+          },
+          "color": [255, 255, 255],
+          "visible": "listRows[$i].selected"
+        },
+        {
+          "type": "text",
+          "x": 6,
+          "y": 3,
+          "font": "FLOWER_ORDEER_DROP_DOWN_FONT",
+          "color": "FLOWER_ORDEER_DROP_DOWN_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "bind": "listRows[$i].name"
+          },
+          "id": "floristDestinationName$i",
+          "visible": "!listRows[$i].selected"
+        },
+        {
+          "type": "text",
+          "x": 6,
+          "y": 3,
+          "font": "FLOWER_ORDEER_DROP_DOWN_FONT",
+          "color": 2,
+          "shadow": "NO_SHADOW",
+          "text": {
+            "bind": "listRows[$i].name"
+          },
+          "visible": "listRows[$i].selected"
+        },
+        {
+          "type": "region",
+          "id": "floristDestinationRow$i",
+          "x": 0,
+          "y": 4,
+          "width": "FLOWER_ORDER_DROP_DOWN_LOCATION_WIDTH",
+          "height": {
+            "bind": "listRegionHeight"
+          },
+          "priority": "HIGH+3",
+          "cursor": "CURSOR_WWW",
+          "hover": "hoverDestination($i)",
+          "primary": "pickDestination($i)"
+        }
+      ]
+    }
+  ]
+}

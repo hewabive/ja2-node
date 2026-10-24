@@ -33,6 +33,7 @@ export function testProfile(id: number, overrides: Partial<ProfileProgress> = {}
     shotsFired: 0,
     shotsHit: 0,
     timesWounded: 0,
+    battlesFought: 0,
     ...noCampaignFields(),
     inventory: new Array<number>(19).fill(0),
     inventoryStatus: new Array<number>(19).fill(0),

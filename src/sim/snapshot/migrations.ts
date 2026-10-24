@@ -183,11 +183,33 @@ function addNewMailFlag(snapshot: Readonly<Record<string, unknown>>): Record<str
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const PROFILE_PROGRESS_KEYS = ['shotsHit', 'timesWounded', 'mercMercContractLength'];
+const BATTLES_FOUGHT_KEY = 'battlesFought';
+
+function isProfileProgress(o: JsonObject): boolean {
+  return PROFILE_PROGRESS_KEYS.every((key) => typeof o[key] === 'number');
+}
+
+function withBattlesFought(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withBattlesFought(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withBattlesFought(v);
+  return isProfileProgress(mapped) ? { ...mapped, ...withDefault(mapped, BATTLES_FOUGHT_KEY, 0) } : mapped;
+}
+
+function addBattlesFought(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withBattlesFought(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
     2: (snapshot) => spriteFramesToFrameSlots(snapshot, context),
     3: addPresentationState,
     4: addNewMailFlag,
+    5: addBattlesFought,
   };
 }

@@ -1,0 +1,618 @@
+{
+  "format": "ja2-node stub row text v1",
+  "note": "Invented texts for the laptop pages of the stub pack (files, the background report, quest strings for the history log, the insurance site, the florist, the A.I.M. alumni and policies), compiled by pnpm stubs into the EDT files named by the keys, with the record layouts of data/tables/edt-layouts.json. Original writing for ja2-node.",
+  "files": {
+    "binarydata/files.edt": {
+      "rows": [
+        "CASE FILE 1: GREY FOX",
+        "Grey Fox paragraph 1. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Grey Fox paragraph 2. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Grey Fox paragraph 3. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Grey Fox narrow note 1. Written beside the portrait in a column of 170 pixels.",
+        "Grey Fox narrow note 2. Written beside the portrait in a column of 170 pixels.",
+        "Grey Fox narrow note 3. Written beside the portrait in a column of 170 pixels.",
+        "Grey Fox paragraph 4. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Grey Fox paragraph 5. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Grey Fox paragraph 6. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Grey Fox paragraph 7. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Grey Fox paragraph 8. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "CASE FILE 2: MATRON ASH",
+        "Matron Ash paragraph 1. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Matron Ash paragraph 2. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Matron Ash paragraph 3. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Matron Ash narrow note 1. Written beside the portrait in a column of 170 pixels.",
+        "Matron Ash narrow note 2. Written beside the portrait in a column of 170 pixels.",
+        "Matron Ash narrow note 3. Written beside the portrait in a column of 170 pixels.",
+        "Matron Ash paragraph 4. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Matron Ash paragraph 5. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Matron Ash paragraph 6. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Matron Ash paragraph 7. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Matron Ash paragraph 8. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "CASE FILE 3: FALSE CAPTAIN",
+        "False Captain paragraph 1. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "False Captain paragraph 2. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "False Captain paragraph 3. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "False Captain narrow note 1. Written beside the portrait in a column of 170 pixels.",
+        "False Captain narrow note 2. Written beside the portrait in a column of 170 pixels.",
+        "False Captain narrow note 3. Written beside the portrait in a column of 170 pixels.",
+        "False Captain paragraph 4. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "False Captain paragraph 5. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "False Captain paragraph 6. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "False Captain paragraph 7. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "False Captain paragraph 8. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "CASE FILE 4: SILVER BELL",
+        "Silver Bell paragraph 1. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Silver Bell paragraph 2. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Silver Bell paragraph 3. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Silver Bell narrow note 1. Written beside the portrait in a column of 170 pixels.",
+        "Silver Bell narrow note 2. Written beside the portrait in a column of 170 pixels.",
+        "Silver Bell narrow note 3. Written beside the portrait in a column of 170 pixels.",
+        "Silver Bell paragraph 4. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Silver Bell paragraph 5. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Silver Bell paragraph 6. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Silver Bell paragraph 7. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Silver Bell paragraph 8. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "CASE FILE 5: OLD LANTERN",
+        "Old Lantern paragraph 1. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Old Lantern paragraph 2. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Old Lantern paragraph 3. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Old Lantern narrow note 1. Written beside the portrait in a column of 170 pixels.",
+        "Old Lantern narrow note 2. Written beside the portrait in a column of 170 pixels.",
+        "Old Lantern narrow note 3. Written beside the portrait in a column of 170 pixels.",
+        "Old Lantern paragraph 4. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Old Lantern paragraph 5. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Old Lantern paragraph 6. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Old Lantern paragraph 7. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Old Lantern paragraph 8. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "CASE FILE 6: QUIET CHEMIST",
+        "Quiet Chemist paragraph 1. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Quiet Chemist paragraph 2. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Quiet Chemist paragraph 3. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Quiet Chemist narrow note 1. Written beside the portrait in a column of 170 pixels.",
+        "Quiet Chemist narrow note 2. Written beside the portrait in a column of 170 pixels.",
+        "Quiet Chemist narrow note 3. Written beside the portrait in a column of 170 pixels.",
+        "Quiet Chemist paragraph 4. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Quiet Chemist paragraph 5. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Quiet Chemist paragraph 6. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Quiet Chemist paragraph 7. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full.",
+        "Quiet Chemist paragraph 8. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event, and the stub reader keeps going until the page is full."
+      ]
+    },
+    "binarydata/ris.edt": {
+      "rows": [
+        "STUB INTELLIGENCE SERVICE: BACKGROUND REPORT ON AN INVENTED ISLAND",
+        "Report paragraph 1. A short invented line above the map.",
+        "Report paragraph 2. A short invented line above the map.",
+        "Report paragraph 3. A short invented line above the map.",
+        "Report paragraph 4. A short invented line above the map.",
+        "Report paragraph 5. A short invented line above the map.",
+        "Report paragraph 6. A short invented line above the map.",
+        "Report paragraph 7. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 8. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "SECTION 1",
+        "Report paragraph 10. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 11. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 12. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 13. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 14. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 15. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 16. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 17. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "SECTION 2",
+        "Report paragraph 19. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 20. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 21. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 22. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 23. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 24. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 25. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 26. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "SECTION 3",
+        "Report paragraph 28. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 29. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 30. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 31. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 32. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 33. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 34. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 35. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "SECTION 4",
+        "Report paragraph 37. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 38. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 39. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 40. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 41. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 42. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report note 43. A short column printed beside a picture, 200 pixels wide.",
+        "Report paragraph 44. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report note 45. A short column printed beside a picture, 200 pixels wide.",
+        "Report paragraph 46. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 47. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 48. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 49. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 50. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 51. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 52. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 53. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "SECTION 6",
+        "Report paragraph 55. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 56. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 57. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 58. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 59. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 60. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 61. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 62. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "SECTION 7",
+        "Report paragraph 64. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 65. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 66. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event.",
+        "Report paragraph 67. This invented passage exists only so that the stub pack has text to wrap, measure and page through. Nothing in it describes a real place, person or event."
+      ]
+    },
+    "binarydata/quests.edt": {
+      "rows": [
+        "Started: deliver the letter",
+        "Finished: deliver the letter",
+        "Started: find the food",
+        "Finished: find the food",
+        "Started: kill the leader",
+        "Finished: kill the leader",
+        "Started: clear the mine",
+        "Finished: clear the mine",
+        "Started: free the prisoner",
+        "Finished: free the prisoner",
+        "Started: escort the visitors",
+        "Finished: escort the visitors",
+        "Started: repair the radio",
+        "Finished: repair the radio",
+        "Started: recover the painting",
+        "Finished: recover the painting",
+        "Started: calm the farmers",
+        "Finished: calm the farmers",
+        "Started: open the vault",
+        "Finished: open the vault",
+        "Started: chase the smugglers",
+        "Finished: chase the smugglers",
+        "Started: guard the well",
+        "Finished: guard the well",
+        "Started: carry the medicine",
+        "Finished: carry the medicine",
+        "Started: find the missing brother",
+        "Finished: find the missing brother",
+        "Started: settle the debt",
+        "Finished: settle the debt",
+        "Started: win the fight",
+        "Finished: win the fight",
+        "Started: rescue the pilot",
+        "Finished: rescue the pilot",
+        "Started: fetch the parts",
+        "Finished: fetch the parts",
+        "Started: warn the village",
+        "Finished: warn the village",
+        "Started: end the feud",
+        "Finished: end the feud",
+        "Started: catch the thief",
+        "Finished: catch the thief",
+        "Started: map the caves",
+        "Finished: map the caves",
+        "Started: close the lab",
+        "Finished: close the lab"
+      ]
+    },
+    "binarydata/insurancesingle.edt": {
+      "rows": [
+        "Stub Mutual Assurance",
+        "We are listening, so you need not worry.",
+        "Life cover for risky trades",
+        "Comments from our clients",
+        "How does the cover work?",
+        "Enter or review a contract",
+        "A. Client, field engineer",
+        "B. Client, convoy guard",
+        "C. Client, bush pilot",
+        "D. Client, salvage diver",
+        "What we can offer you",
+        "Premiums",
+        "Renewal premiums",
+        "Renew early and pay less!",
+        "Cancelling a policy",
+        "Submitting a claim",
+        "FRAUD",
+        "Entering and reviewing contracts",
+        "Employment contract",
+        "Length:",
+        "Days left:",
+        "Insurance contract",
+        "Premium owing",
+        "Premium refund",
+        "Change length",
+        "Insured",
+        "Not insured",
+        "Deceased, insured",
+        "Deceased, not insured",
+        "Partly insured"
+      ]
+    },
+    "binarydata/insurancemulti.edt": {
+      "rows": [
+        "Do you send people into dangerous work?",
+        "Is the chance of losing them higher than you would like?",
+        "Would a loss leave you paying wages for nobody?",
+        "If you answered yes to any of these, talk to us about cover for the people you hire.",
+        "They paid my family the day after the accident. I did not even have to ask twice.",
+        "Cheap, fast and polite. I sleep better knowing my crew is covered.",
+        "My partner was insured with them and they kept every promise they made.",
+        "They asked sensible questions and gave me a fair price for a dangerous job.",
+        "When you hire people for short and risky contracts you take on a cost that most insurers will not touch.",
+        "We specialise in exactly that cost. Our cover follows the contract and ends with it.",
+        "Reasonable and flexible premiums that follow the length of the employment contract.",
+        "Fair renewal premiums for people who come back to us.",
+        "You may cancel a policy whenever the contract ends early.",
+        "Claims are settled quickly and without a mountain of forms.",
+        "Each time you come to us we look at three things before we set a premium.",
+        "The length of the employment contract.",
+        "The age and health of the person you hired.",
+        "Their training and experience in the field.",
+        "When the time comes to renew, we look at the record of the contract so far.",
+        "If the work is going well, the renewal premium reflects it.",
+        "If you extend the employment contract, the cover can be extended with it.",
+        "We accept cancellations once the employment contract has ended.",
+        "You can rest assured that a valid claim is paid in full.",
+        "Had you hired someone with a clean record, the claim is simple and the money arrives within days.",
+        "to investigate any claim made shortly after a policy was bought.",
+        "Should there be grounds for doubt, an investigation may take several days.",
+        "Should such a situation arise, we will tell you by mail how the investigation went.",
+        "To buy cover, pick a person below and check the contract details.",
+        "Once you are satisfied, click Accept and the premium is charged to your account.",
+        "Sorry, this policy cannot be cancelled now.",
+        "Are you sure you want to cancel this policy?",
+        "None of your people can be insured right now.",
+        "You do not have enough money for this premium.",
+        "Every hired person on your team has less than two days left on the contract.",
+        "Cover bought within one hour of a death is not paid.",
+        "This exclusion protects the honest clients who pay for everyone else."
+      ]
+    },
+    "binarydata/flowerdesc.edt": {
+      "records": [
+        ["Morning Field", "30", "A loose handful of white and yellow field flowers. Cheerful and modest."],
+        ["Red Promise", "45", "A dozen red buds in green paper. For apologies and anniversaries."],
+        ["Blue Harbour", "38", "Blue and white blossoms with silver leaves. Calm and cool."],
+        ["Sunset Basket", "52", "Orange and red flowers in a woven basket that the recipient may keep."],
+        ["Quiet Garden", "27", "Small purple flowers in a clay pot. They last for weeks."],
+        ["Grand Gesture", "65", "A tall arrangement of lilies for the moments that need a statement."],
+        ["Lemon Bright", "33", "Yellow tulips tied with a ribbon. Sunshine in a vase."],
+        ["Midnight Velvet", "58", "Deep red and dark purple blooms. Dramatic and memorable."],
+        ["Country Lane", "29", "Mixed wild flowers with long grass, as if picked on a walk."],
+        ["Snow Crown", "47", "White roses and baby's breath for weddings and farewells."]
+      ]
+    },
+    "binarydata/flowercard.edt": {
+      "rows": [
+        "Thinking of you. Wish you were here.",
+        "With love, from far away.",
+        "Get well soon!",
+        "Sorry about everything. Let us start again.",
+        "Congratulations on the big day!",
+        "Happy birthday, from all of us.",
+        "Thank you for everything you did.",
+        "Our deepest sympathy.",
+        "Just because."
+      ]
+    },
+    "binarydata/alumname.edt": {
+      "rows": [
+        "Alumnus 01",
+        "Alumnus 02",
+        "Alumnus 03",
+        "Alumnus 04",
+        "Alumnus 05",
+        "Alumnus 06",
+        "Alumnus 07",
+        "Alumnus 08",
+        "Alumnus 09",
+        "Alumnus 10",
+        "Alumnus 11",
+        "Alumnus 12",
+        "Alumnus 13",
+        "Alumnus 14",
+        "Alumnus 15",
+        "Alumnus 16",
+        "Alumnus 17",
+        "Alumnus 18",
+        "Alumnus 19",
+        "Alumnus 20",
+        "Alumnus 21",
+        "Alumnus 22",
+        "Alumnus 23",
+        "Alumnus 24",
+        "Alumnus 25",
+        "Alumnus 26",
+        "Alumnus 27",
+        "Alumnus 28",
+        "Alumnus 29",
+        "Alumnus 30",
+        "Alumnus 31",
+        "Alumnus 32",
+        "Alumnus 33",
+        "Alumnus 34",
+        "Alumnus 35",
+        "Alumnus 36",
+        "Alumnus 37",
+        "Alumnus 38",
+        "Alumnus 39",
+        "Alumnus 40",
+        "Alumnus 41",
+        "Alumnus 42",
+        "Alumnus 43",
+        "Alumnus 44",
+        "Alumnus 45",
+        "Alumnus 46",
+        "Alumnus 47",
+        "Alumnus 48",
+        "Alumnus 49",
+        "Alumnus 50",
+        "Alumnus 51"
+      ]
+    },
+    "binarydata/alumni.edt": {
+      "records": [
+        [
+          "Alumnus 01",
+          "Alumnus 01 worked for the stub association for 3 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 02",
+          "Alumnus 02 worked for the stub association for 4 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 03",
+          "Alumnus 03 worked for the stub association for 5 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 04",
+          "Alumnus 04 worked for the stub association for 6 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 05",
+          "Alumnus 05 worked for the stub association for 7 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 06",
+          "Alumnus 06 worked for the stub association for 8 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 07",
+          "Alumnus 07 worked for the stub association for 2 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 08",
+          "Alumnus 08 worked for the stub association for 3 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 09",
+          "Alumnus 09 worked for the stub association for 4 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 10",
+          "Alumnus 10 worked for the stub association for 5 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 11",
+          "Alumnus 11 worked for the stub association for 6 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 12",
+          "Alumnus 12 worked for the stub association for 7 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 13",
+          "Alumnus 13 worked for the stub association for 8 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 14",
+          "Alumnus 14 worked for the stub association for 2 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 15",
+          "Alumnus 15 worked for the stub association for 3 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 16",
+          "Alumnus 16 worked for the stub association for 4 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 17",
+          "Alumnus 17 worked for the stub association for 5 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 18",
+          "Alumnus 18 worked for the stub association for 6 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 19",
+          "Alumnus 19 worked for the stub association for 7 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 20",
+          "Alumnus 20 worked for the stub association for 8 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 21",
+          "Alumnus 21 worked for the stub association for 2 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 22",
+          "Alumnus 22 worked for the stub association for 3 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 23",
+          "Alumnus 23 worked for the stub association for 4 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 24",
+          "Alumnus 24 worked for the stub association for 5 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 25",
+          "Alumnus 25 worked for the stub association for 6 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 26",
+          "Alumnus 26 worked for the stub association for 7 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 27",
+          "Alumnus 27 worked for the stub association for 8 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 28",
+          "Alumnus 28 worked for the stub association for 2 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 29",
+          "Alumnus 29 worked for the stub association for 3 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 30",
+          "Alumnus 30 worked for the stub association for 4 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 31",
+          "Alumnus 31 worked for the stub association for 5 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 32",
+          "Alumnus 32 worked for the stub association for 6 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 33",
+          "Alumnus 33 worked for the stub association for 7 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 34",
+          "Alumnus 34 worked for the stub association for 8 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 35",
+          "Alumnus 35 worked for the stub association for 2 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 36",
+          "Alumnus 36 worked for the stub association for 3 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 37",
+          "Alumnus 37 worked for the stub association for 4 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 38",
+          "Alumnus 38 worked for the stub association for 5 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 39",
+          "Alumnus 39 worked for the stub association for 6 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 40",
+          "Alumnus 40 worked for the stub association for 7 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 41",
+          "Alumnus 41 worked for the stub association for 8 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 42",
+          "Alumnus 42 worked for the stub association for 2 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 43",
+          "Alumnus 43 worked for the stub association for 3 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 44",
+          "Alumnus 44 worked for the stub association for 4 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 45",
+          "Alumnus 45 worked for the stub association for 5 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 46",
+          "Alumnus 46 worked for the stub association for 6 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 47",
+          "Alumnus 47 worked for the stub association for 7 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 48",
+          "Alumnus 48 worked for the stub association for 8 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 49",
+          "Alumnus 49 worked for the stub association for 2 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 50",
+          "Alumnus 50 worked for the stub association for 3 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ],
+        [
+          "Alumnus 51",
+          "Alumnus 51 worked for the stub association for 4 years. The record ends with an invented retirement on a farm, a beach or a mountain, and a promise never to carry a rifle again."
+        ]
+      ]
+    },
+    "binarydata/aimpol.edt": {
+      "rows": [
+        "Statement of policy",
+        "Policy clause 1. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 2. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "1. Definitions",
+        "Policy clause 4. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 5. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 6. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 7. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "2. Length of engagement",
+        "Policy clause 9. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 10. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 11. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 12. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 13. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "3. Location of engagement",
+        "Policy clause 15. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 16. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 17. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 18. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 19. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 20. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 21. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "4. Contract extensions",
+        "Policy clause 23. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 24. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 25. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "5. Terms of payment",
+        "Policy clause 27. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "6. Terms of engagement",
+        "Policy clause 29. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 30. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 31. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "7. Engagement termination",
+        "Policy clause 33. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 34. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 35. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 36. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "8. Equipment and inventory",
+        "Policy clause 38. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 39. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "9. Medical",
+        "Policy clause 41. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 42. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 43. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 44. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page.",
+        "Policy clause 45. The client and the soldier agree to this invented clause, which exists so that the stub pack can show a paragraph of policy text on every page."
+      ]
+    }
+  }
+}

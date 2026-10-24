@@ -1508,6 +1508,59 @@ true}`, which checks only the first mover instead of his whole group (the server
 `groupArrived` (§6.25) is emitted for every player group, vehicles and the helicopter included. The refusal table
 moved to `src/protocol/refusals.ts`, so the client prints the original strings without the server.
 
+### 6.33. Laptop III (M8, U12)
+
+What Personnel, History, Files, the insurance contract page and the florist need from the server (`28` §9.3, §9.8,
+§9.9 X7, X9, X10, X13, X14; `21` §6.2, §6.4, §7). As everywhere in the laptop view, nothing is shown that the original
+page does not show (D16).
+
+**History rows** (`src/server/history-labels.ts`): every row adds `text` (`ProcessHistoryTransactionString` in the
+session's display language: `pHistoryStrings` with the town's locative name, the profile's full name or nickname by code;
+the quest rows are rows 2q and 2q + 1 of `binarydata/quests.edt`, preloaded with the narrative texts; codes without text,
+and a merc killed without a profile, give an empty string), `location` (`pHistoryLocations` for a row without a sector,
+otherwise the detailed `GetSectorIDString`) and `questInProgress` (a quest-start row whose quest is in progress; the page
+paints it, and the cheat row, red). The detailed sector label (`src/server/sector-id-label.ts`) is now the original's
+in full: the mine's town and "Mine", secrets and SAM sites, the special facilities, the town, the creature lair
+underground and the traversability's land type, nothing for an unvisited underground sector; the finance rows' militia
+label (§6.9) uses it too.
+
+**Files**: `readFile {code}` sets the saved read flag of a file of the files program (`DisplayFormattedText` sets `fRead`
+whenever a file is shown) and answers `{code}`; refusal `noSuchFile`. Reading has no other effect.
+
+**Personnel** (`src/server/personnel-view.ts`): `personnel` keeps the three departed lists and adds `current`, one block
+per team member without vehicles in team order, dead ones included (`CFOR_EACH_PERSONNEL`): `soldier`, `profile`, `name`
+and `fullName`, `alive`, `robot`, `assignment`, `town` (the town of the merc's sector, 0 while a prisoner or in transit),
+`life`, `lifeMax`, the profile's `stats` and `gains` (the deltas the page prints), `teamStats` (the soldier's eleven values
+in the order of the team statistics: `Attribute(…, true)`), `record {kills, assists, shotsFired, shotsHit, battlesFought,
+timesWounded}`, `skills`, `money` (the money items carried), `inventory [{item, count, status, shots}]` (the slots in
+order, `shots` the rounds of a magazine stack) and `employment` (`aim` for A.I.M. mercs and Slay: `minutesLeft` capped at
+the contract length in transit, `totalDays`; `merc`: `unpaid`; `other`; all with `daysServed`, `totalCost`, the
+`dailyCost` by the last contract and, but for `merc`, `medicalDeposit`), and `departed` in the page's order (dead, fired,
+the other list) with the state (`dead`, `fired`, `married` to Hicks, `contractExpired` for an A.I.M. merc, `quit`), the
+names, the profile's life, stats and team row and the record. Profiles now count `battlesFought` (`usBattlesFought`):
+every merc of an autoresolve battle when it closes, dead, captured or not, and every merc in the sector when a tactical
+battle with enemies, creatures or civilians in it is won (not in a boxing match); native saves import the counter and
+snapshot version 6 adds it with 0 to older snapshots.
+
+**Insurance cards**: the offers add `nickname`, `dead` (`IsMercDead`) and `contractLength` (`iTotalContractLength`); the
+view adds `aimMercsOnTeam` (which of the two "nobody to insure" texts the contract page shows). The card's face is the
+profile's small portrait from the profile endpoint (§6.25).
+
+**Florist**: the bouquet price is the price column of `binarydata/flowerdesc.edt` read with `sscanf("%hu")` at content
+load (`LaptopContent.bouquetPrices`, `florist.bouquetPrices` in the view) and `orderFlowers` now charges it with the extras
+and the delivery cost (no balance check, as the original). `visitSite {site: floristOrderForm}` is entering the order form:
+it adds `Random(5) + 1` to the saved order number (`uiFlowerOrderNumber`) on the main stream and answers `{site, bookmarks,
+orderNumber}`; `orderFlowers` answers `{price, orderNumber}` and then adds `1 + Random(2)`, after the charge and the Meduna
+meanwhile, as `BtnFlowerOrderSendButtonCallback` does. The view shows `florist.orderNumber`. An agent that orders without
+entering the form skips the first draw, which a player cannot do. The content identity hashes text files by their
+presence, so a data folder whose gallery text carries other prices is not told apart from the one a save was made with.
+
+| Command | Original | Rules |
+|---|---|---|
+| `readFile {code}` | `DisplayFormattedText` | Marks the file read; `noSuchFile` |
+| `visitSite {site: floristOrderForm}` | `EnterFloristOrderForm` | One main-stream draw; `data.orderNumber` |
+| `orderFlowers {bouquet, destination, nextDay, extras}` | `DisplayFlowerDynamicItems`, `BtnFlowerOrderSendButtonCallback` | The bouquet price joins the charge; one main-stream draw after it; `data {price, orderNumber}` |
+
 ## 7. Cost and limitations
 
 - **Amount of work.**

@@ -1,0 +1,28 @@
+{
+  "source": "JA2 Stracciatella ae6bf01: src/game/Laptop/Florist.h, src/game/Laptop/Florist_Cards.h, src/game/Laptop/Florist_Cards.cc",
+  "license": "Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.",
+  "format": "constants: the #define, static const, constexpr and enum values of the files; numbers are evaluated with STD_SCREEN_X = STD_SCREEN_Y = 0 (positions inside the std640 frame) and the names of the shared tables; a string is a symbol (a font macro or another identifier) or a VFS path; stdScreen: the names whose value contains STD_SCREEN_X or STD_SCREEN_Y; skipped: names whose value is not a constant (runtime values, function calls)",
+  "constants": {
+    "FLORIST_BUTTON_TEXT_FONT": "FONT14ARIAL",
+    "FLORIST_BUTTON_TEXT_UP_COLOR": 2,
+    "FLORIST_BUTTON_TEXT_DOWN_COLOR": 2,
+    "FLORIST_BUTTON_TEXT_SHADOW_COLOR": 128,
+    "FLORIST_CARDS_SENTENCE_FONT": "FONT12ARIAL",
+    "FLORIST_CARDS_SENTENCE_COLOR": 208,
+    "FLORIST_CARD_FIRST_POS_X": 118,
+    "FLORIST_CARD_FIRST_POS_Y": 118,
+    "FLORIST_CARD_FIRST_OFFSET_X": 174,
+    "FLORIST_CARD_FIRST_OFFSET_Y": 109,
+    "FLORIST_CARD_CARD_WIDTH": 135,
+    "FLORIST_CARD_CARD_HEIGHT": 100,
+    "FLORIST_CARD_TEXT_WIDTH": 121,
+    "FLORIST_CARD_TEXT_HEIGHT": 90,
+    "FLORIST_CARD_TITLE_SENTENCE_X": 111,
+    "FLORIST_CARD_TITLE_SENTENCE_Y": 99,
+    "FLORIST_CARD_TITLE_SENTENCE_WIDTH": 502,
+    "FLORIST_CARD_BACK_BUTTON_X": 119,
+    "FLORIST_CARD_BACK_BUTTON_Y": 58
+  },
+  "stdScreen": [],
+  "skipped": []
+}

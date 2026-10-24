@@ -30,11 +30,39 @@ import {
   MessageBoxStyleId,
 } from '../../widgets/message-box.ts';
 import type { WidgetInfo } from '../../widgets/widget-info.ts';
+import { AIM_ARCHIVES_LAYOUT, aimArchivesPage } from './aim/aim-archives.ts';
+import { AIM_HISTORY_LAYOUT, aimHistoryPage } from './aim/aim-history.ts';
 import { aimMemberPage } from './aim/aim-member.ts';
-import { aimHomePage, aimIndexPage, aimLinksPage, aimPlaceholderPage, aimSortPage } from './aim/aim-pages.ts';
+import { aimHomePage, aimIndexPage, aimLinksPage, aimSortPage } from './aim/aim-pages.ts';
+import { AIM_POLICIES_LAYOUT, aimPoliciesPage } from './aim/aim-policies.ts';
 import { AimSession } from './aim/aim-session.ts';
 import { emailPage } from './email/email-page.ts';
+import { FILES_LAYOUT, filesPage } from './files/files-page.ts';
 import { financesPage } from './finances/finances-page.ts';
+import {
+  FLORIST_CARDS_LAYOUT,
+  FLORIST_CHROME_LAYOUT,
+  FLORIST_GALLERY_LAYOUT,
+  FLORIST_HOME_LAYOUT,
+  FLORIST_ORDER_LAYOUT,
+  floristCardsPage,
+  floristGalleryPage,
+  floristHomePage,
+  floristOrderPage,
+} from './florist/florist-pages.ts';
+import { FUNERAL_LAYOUT, funeralPage } from './funeral/funeral-page.ts';
+import { HISTORY_LAYOUT, historyPage } from './history/history-page.ts';
+import {
+  INSURANCE_CHROME_LAYOUT,
+  INSURANCE_COMMENTS_LAYOUT,
+  INSURANCE_CONTRACT_LAYOUT,
+  INSURANCE_HOME_LAYOUT,
+  INSURANCE_INFO_LAYOUT,
+  insuranceCommentsPage,
+  insuranceContractPage,
+  insuranceHomePage,
+  insuranceInfoPage,
+} from './insurance/insurance-pages.ts';
 import {
   DEFAULT_LAPTOP_SETTINGS,
   type LaptopClient,
@@ -48,6 +76,7 @@ import { BOOKMARK_IDS, Bookmark, LaptopMode, programTitle, VISITED_SITES, webPag
 import type { LaptopContext, LaptopPage, PageFactory } from './laptop-page.ts';
 import { LaptopShell } from './laptop-shell.ts';
 import { TITLE_BAR_ITERATIONS, titleBarSlideRect, ZOOM_TIME, zoomPercentage, zoomRect } from './laptop-timers.ts';
+import { PERSONNEL_LAYOUT, personnelPage } from './personnel/personnel-page.ts';
 
 export const LAPTOP_SCREEN = 'laptop';
 export const LAPTOP_SHELL_LAYOUT = 'laptop';
@@ -62,6 +91,23 @@ export const LAPTOP_LAYOUTS: readonly string[] = [
   'aim-index',
   'aim-member',
   'aim-links',
+  PERSONNEL_LAYOUT,
+  HISTORY_LAYOUT,
+  FILES_LAYOUT,
+  INSURANCE_CHROME_LAYOUT,
+  INSURANCE_HOME_LAYOUT,
+  INSURANCE_INFO_LAYOUT,
+  INSURANCE_CONTRACT_LAYOUT,
+  INSURANCE_COMMENTS_LAYOUT,
+  FLORIST_CHROME_LAYOUT,
+  FLORIST_HOME_LAYOUT,
+  FLORIST_GALLERY_LAYOUT,
+  FLORIST_ORDER_LAYOUT,
+  FLORIST_CARDS_LAYOUT,
+  FUNERAL_LAYOUT,
+  AIM_ARCHIVES_LAYOUT,
+  AIM_POLICIES_LAYOUT,
+  AIM_HISTORY_LAYOUT,
 ];
 
 const POWER_UP_SOUND = 'sounds/laptop power up (8-11).wav';
@@ -159,9 +205,21 @@ const PAGES: Readonly<Record<number, PageFactory>> = {
   [LaptopMode.AIM_MEMBERS_FACIAL_INDEX]: aimIndexPage,
   [LaptopMode.AIM_MEMBERS]: aimMemberPage,
   [LaptopMode.AIM_LINKS]: aimLinksPage,
-  [LaptopMode.AIM_MEMBERS_ARCHIVES]: aimPlaceholderPage,
-  [LaptopMode.AIM_POLICIES]: aimPlaceholderPage,
-  [LaptopMode.AIM_HISTORY]: aimPlaceholderPage,
+  [LaptopMode.AIM_MEMBERS_ARCHIVES]: aimArchivesPage,
+  [LaptopMode.AIM_POLICIES]: aimPoliciesPage,
+  [LaptopMode.AIM_HISTORY]: aimHistoryPage,
+  [LaptopMode.PERSONNEL]: personnelPage,
+  [LaptopMode.HISTORY]: historyPage,
+  [LaptopMode.FILES]: filesPage,
+  [LaptopMode.INSURANCE]: insuranceHomePage,
+  [LaptopMode.INSURANCE_INFO]: insuranceInfoPage,
+  [LaptopMode.INSURANCE_CONTRACT]: insuranceContractPage,
+  [LaptopMode.INSURANCE_COMMENTS]: insuranceCommentsPage,
+  [LaptopMode.FLORIST]: floristHomePage,
+  [LaptopMode.FLORIST_FLOWER_GALLERY]: floristGalleryPage,
+  [LaptopMode.FLORIST_ORDERFORM]: floristOrderPage,
+  [LaptopMode.FLORIST_CARD_GALLERY]: floristCardsPage,
+  [LaptopMode.FUNERAL]: funeralPage,
 };
 
 const SITE_PAGES: Readonly<Record<number, number>> = {
@@ -220,6 +278,7 @@ export class LaptopScreen implements Screen {
   #newMailHeld = false;
   #lastNewMail: boolean | null = null;
   #openUnreadMail = false;
+  #openUnreadFile = false;
   #highlighted = -1;
   #zoom: Zoom | null = null;
   #closing = false;
@@ -285,7 +344,7 @@ export class LaptopScreen implements Screen {
       view: () => this.#view(),
       command: (cmd) => this.#options.client.command(cmd),
       string: (table, index) => this.#string(table, index),
-      messageBox: (text, flags, onClose) => this.#messageBox(text, flags, onClose),
+      messageBox: (text, flags, onClose, style) => this.#messageBox(text, flags, onClose, style),
       playSound: (file, volume) => this.#runtime.sounds.play({ file, volume }),
       openOldestUnreadMail: () => {
         this.#openUnreadMail = true;
@@ -295,13 +354,18 @@ export class LaptopScreen implements Screen {
         this.#openUnreadMail = false;
         return requested;
       },
+      takeOpenUnreadFileRequest: () => {
+        const requested = this.#openUnreadFile;
+        this.#openUnreadFile = false;
+        return requested;
+      },
       constant: (layout, name) => this.#layout(layout).number(name),
       leftButtonUp: () => this.shell.leftButtonUp(),
       rightButtonUp: () => this.#rightButtonUp(),
     };
   }
 
-  #messageBox(text: string, flags: MessageBoxFlag, onClose?: (result: number) => void): void {
+  #messageBox(text: string, flags: MessageBoxFlag, onClose?: (result: number) => void, style?: number): void {
     const model = this.#layout(LAPTOP_SHELL_LAYOUT);
     const { stdX, stdY } = this.#runtime.geometry();
     const rect = {
@@ -312,7 +376,7 @@ export class LaptopScreen implements Screen {
     };
     this.#runtime.host.openModal(
       new MessageBox(this.#runtime, {
-        style: this.#options.messageBoxStyle(MessageBoxStyleId.LAPTOP_DEFAULT),
+        style: this.#options.messageBoxStyle(style ?? MessageBoxStyleId.LAPTOP_DEFAULT),
         text,
         flags,
         labels: this.#options.messageBoxLabels,
@@ -368,6 +432,7 @@ export class LaptopScreen implements Screen {
   }
 
   #escape(): void {
+    if (this.#page?.page.escape?.()) return;
     if (this.#newMailBox) this.#newMailBox = false;
     else if (this.#page?.page.cancelPopup?.()) return;
     else if (this.shell.escape()) return;
@@ -397,7 +462,9 @@ export class LaptopScreen implements Screen {
         }
       },
       openNewFile: () => {
-        if ((this.#view()?.files ?? []).some((f) => !f.read)) this.shell.setPage(LaptopMode.FILES);
+        if (!(this.#view()?.files ?? []).some((f) => !f.read)) return;
+        this.#openUnreadFile = true;
+        this.shell.setPage(LaptopMode.FILES);
       },
       minimize: () => this.shell.minimize(this.#runtime.clock.ja2Now),
       bookmarkHover: ([row, on]) => {

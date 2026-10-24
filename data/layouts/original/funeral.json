@@ -1,0 +1,300 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/Funeral.cc EnterFuneral (the five link regions FUNERAL_LINK_1_WIDTH x FUNERAL_LINK_1_HEIGHT, FUNERAL_LINK_OFFSET_X apart, MSYS_PRIORITY_HIGH, CURSOR_WWW; the sign region at MSYS_PRIORITY_HIGH + 1, CURSOR_LAPTOP_SCREEN, disabled until the sign shows), RenderFuneral (marble.sti tiled 4 x 4, the columns and signs, the link carvings with sFuneralString 5-9 in FUNERAL_SENTENCE_FONT, FUNERAL_TITLE_COLOR, centred over IanWrappedStringHeight; sentence 1 in FUNERAL_TITLE_FONT, sentences 2-5 in FUNERAL_SENTENCE_FONT with FUNERAL_SENTENCE_SHADOW_COLOR), DisplayFuneralRipTombStone (MLG_CLOSED with its outline shadow at +5, +5, sFuneralString 10 and 11 in FUNERAL_SMALL_FONT with FUNERAL_RIP_SHADOW_COLOR), SelectFuneralLinkRegionCallBack, SelectRipSignRegionCallBack"
+  ],
+  "screen": "funeral",
+  "frame": "std640",
+  "constants": ["Laptop", "Funeral"],
+  "assets": {
+    "marble": {
+      "sti": "laptop/marble.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["FUNERAL_MARBLE_WIDTH", "FUNERAL_MARBLE_HEIGHT"],
+        "style": "hollow"
+      }
+    },
+    "leftColumn": {
+      "sti": "laptop/leftcolumn.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["FUNERAL_MORTUARY_SIGN_X - FUNERAL_LEFT_COLUMN_X", "FUNERAL_LINK_1_Y - FUNERAL_LEFT_COLUMN_Y"],
+        "style": "hollow"
+      }
+    },
+    "rightColumn": {
+      "sti": "laptop/rightcolumn.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["LAPTOP_SCREEN_LR_X - FUNERAL_RIGHT_COLUMN_X", "FUNERAL_LINK_1_Y - FUNERAL_RIGHT_COLUMN_Y"],
+        "style": "hollow"
+      }
+    },
+    "mcGillicuttys": {
+      "mlg": "MLG_MCGILLICUTTYS",
+      "stub": {
+        "frames": 1,
+        "size": ["FUNERAL_RIGHT_COLUMN_X - FUNERAL_MCGILICUTTYS_SIGN_X - 26", "FUNERAL_MORTUARY_SIGN_Y - FUNERAL_MCGILICUTTYS_SIGN_Y"],
+        "style": "hollow"
+      }
+    },
+    "mortuary": {
+      "mlg": "MLG_MORTUARY",
+      "stub": {
+        "frames": 1,
+        "size": ["FUNERAL_RIGHT_COLUMN_X - FUNERAL_MORTUARY_SIGN_X", "FUNERAL_SENTENCE_1_Y - FUNERAL_MORTUARY_SIGN_Y - 4"],
+        "style": "hollow"
+      }
+    },
+    "linkCarving": {
+      "sti": "laptop/linkcarving.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["FUNERAL_LINK_1_WIDTH", "FUNERAL_LINK_1_HEIGHT"],
+        "style": "hollow"
+      }
+    },
+    "closed": {
+      "mlg": "MLG_CLOSED",
+      "stub": {
+        "frames": 1,
+        "size": ["FUNERAL_CLOSED_WIDTH", "FUNERAL_CLOSED_HEIGHT"],
+        "style": "hollow"
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "tiles",
+      "asset": "marble",
+      "frame": 0,
+      "x": "LAPTOP_SCREEN_UL_X",
+      "y": "LAPTOP_SCREEN_WEB_UL_Y",
+      "columns": 4,
+      "rows": 4,
+      "dx": "FUNERAL_MARBLE_WIDTH",
+      "dy": "FUNERAL_MARBLE_HEIGHT"
+    },
+    {
+      "type": "image",
+      "asset": "leftColumn",
+      "frame": 0,
+      "x": "FUNERAL_LEFT_COLUMN_X",
+      "y": "FUNERAL_LEFT_COLUMN_Y"
+    },
+    {
+      "type": "image",
+      "asset": "mcGillicuttys",
+      "frame": 0,
+      "x": "FUNERAL_MCGILICUTTYS_SIGN_X",
+      "y": "FUNERAL_MCGILICUTTYS_SIGN_Y"
+    },
+    {
+      "type": "image",
+      "asset": "mortuary",
+      "frame": 0,
+      "x": "FUNERAL_MORTUARY_SIGN_X",
+      "y": "FUNERAL_MORTUARY_SIGN_Y"
+    },
+    {
+      "type": "image",
+      "asset": "rightColumn",
+      "frame": 0,
+      "x": "FUNERAL_RIGHT_COLUMN_X",
+      "y": "FUNERAL_RIGHT_COLUMN_Y"
+    },
+    {
+      "type": "repeat",
+      "count": "FUNERAL_NUMBER_OF_LINKS",
+      "x": "FUNERAL_LINK_1_X",
+      "y": "FUNERAL_LINK_1_Y",
+      "dx": "FUNERAL_LINK_OFFSET_X",
+      "template": [
+        {
+          "type": "image",
+          "asset": "linkCarving",
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "type": "text",
+          "id": "funeralLinkText$i",
+          "x": "FUNERAL_LINK_TEXT_OFFSET_X",
+          "y": {
+            "bind": "linkTextY[$i]"
+          },
+          "width": "FUNERAL_LINK_TEXT_WIDTH",
+          "wrap": {
+            "gap": 2
+          },
+          "align": "center",
+          "font": "FUNERAL_SENTENCE_FONT",
+          "color": "FUNERAL_TITLE_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "key": ["sFuneralString", "5 + $i"]
+          }
+        },
+        {
+          "type": "region",
+          "id": "funeralLink$i",
+          "x": 0,
+          "y": 0,
+          "width": "FUNERAL_LINK_1_WIDTH",
+          "height": "FUNERAL_LINK_1_HEIGHT",
+          "priority": "HIGH",
+          "cursor": "CURSOR_WWW",
+          "primary": "link($i)"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "funeralSentence1",
+      "x": "FUNERAL_SENTENCE_1_X",
+      "y": "FUNERAL_SENTENCE_1_Y",
+      "width": "FUNERAL_SENTENCE_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "FUNERAL_TITLE_FONT",
+      "color": "FUNERAL_TITLE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sFuneralString", 0]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FUNERAL_SENTENCE_2_X",
+      "y": "FUNERAL_SENTENCE_2_Y",
+      "width": "FUNERAL_SENTENCE_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "FUNERAL_SENTENCE_FONT",
+      "color": "FUNERAL_SENTENCE_COLOR",
+      "shadow": "FUNERAL_SENTENCE_SHADOW_COLOR",
+      "text": {
+        "key": ["sFuneralString", 1]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FUNERAL_SENTENCE_3_X",
+      "y": "FUNERAL_SENTENCE_3_Y",
+      "width": "FUNERAL_SENTENCE_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "FUNERAL_SENTENCE_FONT",
+      "color": "FUNERAL_SENTENCE_COLOR",
+      "shadow": "FUNERAL_SENTENCE_SHADOW_COLOR",
+      "text": {
+        "key": ["sFuneralString", 2]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FUNERAL_SENTENCE_4_X",
+      "y": "FUNERAL_SENTENCE_4_Y",
+      "width": "FUNERAL_SENTENCE_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "FUNERAL_SENTENCE_FONT",
+      "color": "FUNERAL_SENTENCE_COLOR",
+      "shadow": "FUNERAL_SENTENCE_SHADOW_COLOR",
+      "text": {
+        "key": ["sFuneralString", 3]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FUNERAL_SENTENCE_5_X",
+      "y": "FUNERAL_SENTENCE_5_Y",
+      "width": "FUNERAL_SENTENCE_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "FUNERAL_SENTENCE_FONT",
+      "color": "FUNERAL_SENTENCE_COLOR",
+      "shadow": "FUNERAL_SENTENCE_SHADOW_COLOR",
+      "text": {
+        "key": ["sFuneralString", 4]
+      }
+    },
+    {
+      "type": "image",
+      "asset": "closed",
+      "frame": 0,
+      "x": "FUNERAL_CLOSED_RIP_SIGN_X + 5",
+      "y": "FUNERAL_CLOSED_RIP_SIGN_Y + 5",
+      "effect": "outlineShadow",
+      "visible": "ripSign"
+    },
+    {
+      "type": "image",
+      "asset": "closed",
+      "frame": 0,
+      "x": "FUNERAL_CLOSED_RIP_SIGN_X",
+      "y": "FUNERAL_CLOSED_RIP_SIGN_Y",
+      "visible": "ripSign"
+    },
+    {
+      "type": "text",
+      "id": "funeralCondolences",
+      "x": "FUNERAL_RIP_SENTENCE_1_X",
+      "y": "FUNERAL_RIP_SENTENCE_1_Y",
+      "width": "FUNERAL_RIP_SENTENCE_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "FUNERAL_SMALL_FONT",
+      "color": "FUNERAL_SENTENCE_COLOR",
+      "shadow": "FUNERAL_RIP_SHADOW_COLOR",
+      "text": {
+        "key": ["sFuneralString", 10]
+      },
+      "visible": "ripSign"
+    },
+    {
+      "type": "text",
+      "x": "FUNERAL_RIP_SENTENCE_2_X",
+      "y": "FUNERAL_RIP_SENTENCE_2_Y",
+      "width": "FUNERAL_RIP_SENTENCE_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "FUNERAL_SMALL_FONT",
+      "color": "FUNERAL_SENTENCE_COLOR",
+      "shadow": "FUNERAL_RIP_SHADOW_COLOR",
+      "text": {
+        "key": ["sFuneralString", 11]
+      },
+      "visible": "ripSign"
+    },
+    {
+      "type": "region",
+      "id": "funeralRipRegion",
+      "x": "FUNERAL_CLOSED_RIP_SIGN_X",
+      "y": "FUNERAL_CLOSED_RIP_SIGN_Y",
+      "width": "FUNERAL_CLOSED_WIDTH",
+      "height": "FUNERAL_CLOSED_HEIGHT",
+      "priority": "HIGH+1",
+      "cursor": "CURSOR_LAPTOP_SCREEN",
+      "enabled": "ripSign",
+      "visible": "ripSign",
+      "primary": "closeSign"
+    }
+  ]
+}

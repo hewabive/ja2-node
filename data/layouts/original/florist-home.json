@@ -1,0 +1,166 @@
+{
+  "@derived": "Jagged Alliance 2 source code (SFI-SCLA) via JA2 Stracciatella",
+  "@src": [
+    "src/game/Laptop/Florist.cc EnterFlorist (floristbuttons.sti 0/1 with sFloristText FLORIST_GALLERY in FLORIST_BUTTON_TEXT_FONT, FLORIST_BUTTON_TEXT_UP_COLOR, FLORIST_BUTTON_TEXT_DOWN_COLOR and FLORIST_BUTTON_TEXT_SHADOW_COLOR at FLORIST_GALLERY_BUTTON_X/Y, MSYS_PRIORITY_HIGH, CURSOR_WWW), RenderFlorist (the four company lines centred in FLORIST_COMPANY_INFO_TEXT_WIDTH, the four handbullet.sti bullets FLORIST_BULLET_OFFSET_Y apart with the two sentence columns at +20 and +15 in FLORIST_SENTENCE_FONT, FLORIST_SENTENCE_COLOR), BtnGalleryButtonCallback",
+    "floristbuttons.sti, handbullet.sti: the stub sizes are chosen (the art defines them)"
+  ],
+  "screen": "floristHome",
+  "frame": "std640",
+  "constants": ["Laptop", "Florist"],
+  "assets": {
+    "handBullet": {
+      "sti": "laptop/handbullet.sti",
+      "stub": {
+        "frames": 1,
+        "size": ["FLORIST_FIRST_SENTENCE_COLUMN_TEXT_X - FLORIST_FIRST_BULLET_X - 4", 40],
+        "style": "hollow"
+      }
+    },
+    "floristButtons": {
+      "sti": "laptop/floristbuttons.sti",
+      "stub": {
+        "frames": 2,
+        "size": [80, 22],
+        "states": ["normal", "pressed"]
+      }
+    }
+  },
+  "widgets": [
+    {
+      "type": "text",
+      "id": "floristDropAnywhere",
+      "x": "FLORIST_COMPANY_INFO_TEXT_X",
+      "y": "FLORIST_COMPANY_INFO_LINE_1_Y",
+      "width": "FLORIST_COMPANY_INFO_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "FLORIST_SENTENCE_FONT",
+      "color": "FLORIST_SENTENCE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sFloristText", "FLORIST_DROP_ANYWHERE"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FLORIST_COMPANY_INFO_TEXT_X",
+      "y": "FLORIST_COMPANY_INFO_LINE_2_Y",
+      "width": "FLORIST_COMPANY_INFO_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "FLORIST_SENTENCE_FONT",
+      "color": "FLORIST_SENTENCE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sFloristText", "FLORIST_PHONE_NUMBER"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FLORIST_COMPANY_INFO_TEXT_X",
+      "y": "FLORIST_COMPANY_INFO_LINE_3_Y",
+      "width": "FLORIST_COMPANY_INFO_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "FLORIST_SENTENCE_FONT",
+      "color": "FLORIST_SENTENCE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sFloristText", "FLORIST_STREET_ADDRESS"]
+      }
+    },
+    {
+      "type": "text",
+      "x": "FLORIST_COMPANY_INFO_TEXT_X",
+      "y": "FLORIST_COMPANY_INFO_LINE_4_Y",
+      "width": "FLORIST_COMPANY_INFO_TEXT_WIDTH",
+      "wrap": {
+        "gap": 2
+      },
+      "align": "center",
+      "font": "FLORIST_SENTENCE_FONT",
+      "color": "FLORIST_SENTENCE_COLOR",
+      "shadow": "DEFAULT_SHADOW",
+      "text": {
+        "key": ["sFloristText", "FLORIST_WWW_ADDRESS"]
+      }
+    },
+    {
+      "type": "repeat",
+      "count": "FLORIST_NUMBER_OF_BULLETS",
+      "x": "FLORIST_FIRST_BULLET_X",
+      "y": "FLORIST_FIRST_BULLET_Y",
+      "dy": "FLORIST_BULLET_OFFSET_Y",
+      "template": [
+        {
+          "type": "image",
+          "asset": "handBullet",
+          "frame": 0,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "type": "text",
+          "id": "floristAdvert$i",
+          "x": "FLORIST_FIRST_SENTENCE_COLUMN_TEXT_X - FLORIST_FIRST_BULLET_X",
+          "y": 20,
+          "width": "FLORIST_FIRST_SENTENCE_COLUMN_TEXT_WIDTH",
+          "wrap": {
+            "gap": 2
+          },
+          "font": "FLORIST_SENTENCE_FONT",
+          "color": "FLORIST_SENTENCE_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "key": ["sFloristText", "FLORIST_ADVERTISEMENT_1 + $i * 2"]
+          }
+        },
+        {
+          "type": "text",
+          "x": "FLORIST_SECOND_SENTENCE_COLUMN_TEXT_X - FLORIST_FIRST_BULLET_X",
+          "y": 15,
+          "width": "FLORIST_SECOND_SENTENCE_COLUMN_TEXT_WIDTH",
+          "wrap": {
+            "gap": 2
+          },
+          "font": "FLORIST_SENTENCE_FONT",
+          "color": "FLORIST_SENTENCE_COLOR",
+          "shadow": "DEFAULT_SHADOW",
+          "text": {
+            "key": ["sFloristText", "FLORIST_ADVERTISEMENT_2 + $i * 2"]
+          }
+        }
+      ]
+    },
+    {
+      "type": "button",
+      "id": "floristGallery",
+      "x": "FLORIST_GALLERY_BUTTON_X",
+      "y": "FLORIST_GALLERY_BUTTON_Y",
+      "asset": "floristButtons",
+      "frames": {
+        "offNormal": 0,
+        "onNormal": 1
+      },
+      "priority": "HIGH",
+      "cursor": "CURSOR_WWW",
+      "primary": "gallery",
+      "text": {
+        "source": {
+          "key": ["sFloristText", "FLORIST_GALLERY"]
+        },
+        "font": "FLORIST_BUTTON_TEXT_FONT",
+        "color": "FLORIST_BUTTON_TEXT_UP_COLOR",
+        "shadow": "FLORIST_BUTTON_TEXT_SHADOW_COLOR",
+        "downColor": "FLORIST_BUTTON_TEXT_DOWN_COLOR",
+        "downShadow": "FLORIST_BUTTON_TEXT_SHADOW_COLOR"
+      }
+    }
+  ]
+}

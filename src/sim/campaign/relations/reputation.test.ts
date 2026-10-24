@@ -39,6 +39,7 @@ function profile(deathRate: number, reputationTolerance: number): ProfileProgres
     shotsFired: 0,
     shotsHit: 0,
     timesWounded: 0,
+    battlesFought: 0,
     ...noCampaignFields(),
     deathRate,
     reputationTolerance,
