@@ -102,8 +102,6 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     await openMap(page, session);
     await arrive(page);
     await autoresolve(page);
-    await clickWidget(page, 'arFast');
-    expect(await page.evaluate(() => window.__ja2Ui.battle?.drives.at(-1))).toBe('realtime:4');
     await finish(page, 'victory');
     expect(await visible(page, 'arDoneWin')).toBe(true);
     expect(await visible(page, 'arBandage')).toBe(true);
@@ -127,11 +125,16 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     await page.waitForFunction(() => window.__ja2Ui.screen === 'map', null, { timeout: LOAD_TIMEOUT_MS });
   });
 
-  test('retreats with the Retreat button and ends RETREATED', async ({ page, request }) => {
+  test('plays at Fast, pauses, retreats with the Retreat button and ends RETREATED', async ({ page, request }) => {
     session = await loadSession(request, saves.names.retreat);
     await openMap(page, session);
     await arrive(page);
     await autoresolve(page);
+    await clickWidget(page, 'arFast');
+    expect(await page.evaluate(() => window.__ja2Ui.battle?.drives.at(-1))).toBe('realtime:4');
+    await clickWidget(page, 'arPause');
+    expect(await page.evaluate(() => window.__ja2Ui.battle?.drives.at(-1))).toBe('manual');
+    expect((await battle(page))?.autoresolve).toMatchObject({ status: 'inProgress', paused: true, speed: 'fast' });
     await clickWidget(page, 'arRetreat');
     await page.waitForFunction(() => window.__ja2Ui.battle?.commands.includes('autoresolveRetreat:ok') === true, null, {
       timeout: BATTLE_TIMEOUT_MS,
