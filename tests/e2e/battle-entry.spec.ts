@@ -4,9 +4,10 @@ import { ARRIVAL_WAIT_SECONDS, BATTLE_SECTOR, type BattleEntrySaves, writeBattle
 import { SAVE_DIR } from './env.ts';
 import { capture, clickWidget, devicePoint, expectGolden, nextFrames } from './ui-capture.ts';
 
-const LOAD_TIMEOUT_MS = 60_000;
+const LOAD_TIMEOUT_MS = 120_000;
 const SAVE_TIMEOUT_MS = 180_000;
 const BATTLE_TIMEOUT_MS = 60_000;
+const BATTLE_TEST_TIMEOUT_MS = 240_000;
 const OPENING_MS = 1000;
 const LAPTOP_POWER_UP = 'sounds/laptop power up (8-11).wav';
 
@@ -63,6 +64,7 @@ async function visible(page: Page, id: string): Promise<boolean> {
 }
 
 test.describe('battle entry on the stub map-screen campaign', () => {
+  test.describe.configure({ timeout: BATTLE_TEST_TIMEOUT_MS });
   let session = '';
 
   test.beforeAll(async () => {
@@ -130,8 +132,11 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     await openMap(page, session);
     await arrive(page);
     await autoresolve(page);
+    await clickWidget(page, 'arPause');
+    expect((await battle(page))?.autoresolve).toMatchObject({ status: 'inProgress', paused: true, speed: 'play' });
     await clickWidget(page, 'arFast');
     expect(await page.evaluate(() => window.__ja2Ui.battle?.drives.at(-1))).toBe('realtime:4');
+    expect((await battle(page))?.autoresolve).toMatchObject({ paused: false, speed: 'fast' });
     await clickWidget(page, 'arPause');
     expect(await page.evaluate(() => window.__ja2Ui.battle?.drives.at(-1))).toBe('manual');
     expect((await battle(page))?.autoresolve).toMatchObject({ status: 'inProgress', paused: true, speed: 'fast' });

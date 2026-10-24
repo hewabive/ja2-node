@@ -151,6 +151,21 @@ image interface/autoresolve.sti#4 187,260
 image interface/autoresolve.sti#4 237,260
 clipPop
 glyphs smallcompfont 205,282 n=6 fg=133
+image interface/autoresolve.sti#13 391,131
+image interface/smfaces.sti#1 400,134
+clip 393,163 46x10
+image interface/autoresolve.sti#4 387,140
+image interface/autoresolve.sti#4 437,140
+image interface/autoresolve.sti#10 250,140
+clipPop
+glyphs smallcompfont 395,164 n=7 fg=133
+image interface/autoresolve.sti#13 446,131
+image interface/smfaces.sti#1 455,134
+clip 448,163 46x10
+image interface/autoresolve.sti#4 437,140
+image interface/autoresolve.sti#4 487,140
+clipPop
+glyphs smallcompfont 450,164 n=7 fg=133
 image interface/autoresolve.sti#13 391,178
 image interface/smfaces.sti#1 400,181
 clip 393,210 46x10
@@ -158,10 +173,37 @@ image interface/autoresolve.sti#4 387,180
 image interface/autoresolve.sti#4 437,180
 image interface/autoresolve.sti#10 250,180
 clipPop
-glyphs smallcompfont 395,211 n=7 fg=133
+glyphs smallcompfont 398,211 n=6 fg=133
+image interface/autoresolve.sti#13 446,178
+image interface/smfaces.sti#1 455,181
+clip 448,210 46x10
+image interface/autoresolve.sti#4 437,180
+image interface/autoresolve.sti#4 487,180
+clipPop
+glyphs smallcompfont 450,211 n=7 fg=133
+image interface/autoresolve.sti#13 391,225
+image interface/smfaces.sti#1 400,228
+clip 393,257 46x10
+image interface/autoresolve.sti#4 387,220
+image interface/autoresolve.sti#4 437,220
+image interface/autoresolve.sti#4 387,260
+image interface/autoresolve.sti#4 437,260
+image interface/autoresolve.sti#10 250,220
+image interface/autoresolve.sti#11 250,260
+clipPop
+glyphs smallcompfont 395,258 n=7 fg=133
+image interface/autoresolve.sti#13 446,225
+image interface/smfaces.sti#1 455,228
+clip 448,257 46x10
+image interface/autoresolve.sti#4 437,220
+image interface/autoresolve.sti#4 487,220
+image interface/autoresolve.sti#4 437,260
+image interface/autoresolve.sti#4 487,260
+clipPop
+glyphs smallcompfont 450,258 n=7 fg=133
 glyphs font10arialbold 294,115 n=9 fg=208
 glyphs font10arial 289,126 n=12 fg=134
-glyphs font14arial 299,137 n=7 fg=184
+glyphs font14arial 299,137 n=7 fg=162
 image interface/autobtns.sti#8 261,200
 image interface/autobtns.sti#2 301,200
 image interface/autobtns.sti#3 341,200
@@ -215,7 +257,7 @@ glyphs blockfont 14,38 n=7 fg=130
 glyphs blockfont 109,38 n=5 fg=130
 glyphs blockfont 191,38 n=7 fg=130
 glyphs font10arial 70,17 n=19 fg=145
-glyphs font14arial 66,36 n=1 fg=145
+glyphs font14arial 63,36 n=2 fg=145
 glyphs font14arial 151,36 n=1 fg=145
 glyphs font14arial 236,36 n=1 fg=145
 glyphs blockfont2 23,114 n=7 fg=145

@@ -21,6 +21,9 @@ import type { Session } from './session.ts';
 const SETUP_TIMEOUT_MS = 240_000;
 const TEST_TIMEOUT_MS = 120_000;
 const CREATURES = 3;
+const PLAY_CLICK_WINDOW_SECONDS = 60;
+const FAST_CLICK_WINDOW_SECONDS = 30;
+const FAST_PACE = 4;
 
 let kit: StubSectorKit;
 let saves: SaveKit;
@@ -185,6 +188,23 @@ describe('the stub battles the end-to-end spec plays', () => {
       expect(await outcome(BattleVariant.VICTORY, false)).toBe('victory');
       expect(await outcome(BattleVariant.DEFEAT, false)).toBe('defeat');
       expect(await outcome(BattleVariant.RETREAT, true)).toBe('retreat');
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  async function battleSeconds(variant: BattleVariant): Promise<number | undefined> {
+    const { session } = await battle(variant);
+    const pbi = prompt(session, 'preBattle');
+    expect(session.dispatch({ type: 'answer', prompt: pbi.id, choice: 'autoresolve' }).ok).toBe(true);
+    session.advance({ idle: true });
+    return view(session).autoresolve?.battleSeconds;
+  }
+
+  it(
+    'lasts the victory battle through the Finish click at Play and the retreat battle through Pause after Fast on a loaded machine',
+    async () => {
+      expect(await battleSeconds(BattleVariant.VICTORY)).toBeGreaterThan(PLAY_CLICK_WINDOW_SECONDS);
+      expect(await battleSeconds(BattleVariant.RETREAT)).toBeGreaterThan(FAST_CLICK_WINDOW_SECONDS * FAST_PACE);
     },
     TEST_TIMEOUT_MS,
   );
