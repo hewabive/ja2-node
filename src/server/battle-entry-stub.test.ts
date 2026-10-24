@@ -107,7 +107,8 @@ describe('the pre-battle prompt on the stub map-screen campaign', () => {
       const p = prompt(session, 'preBattle');
       const row = p.uninvolved.find((u) => u.soldier === away.id);
       expect(row).toMatchObject({ location: 'C13', destination: 'B13', betweenSectors: false });
-      expect(row?.departure).toBe(merc(session, away.id).contract?.minutesLeft ?? null);
+      const contract = merc(session, away.id).contract;
+      expect(row?.departure).toBe(contract && 'minutesLeft' in contract ? (contract.minutesLeft ?? null) : null);
     },
     TEST_TIMEOUT_MS,
   );
