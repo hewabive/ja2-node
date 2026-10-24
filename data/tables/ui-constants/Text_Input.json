@@ -8,7 +8,8 @@
     "INPUTTYPE_FULL_TEXT": 1,
     "INPUTTYPE_DOSFILENAME": 2,
     "INPUTTYPE_COORDINATE": 3,
-    "INPUTTYPE_24HOURCLOCK": 4
+    "INPUTTYPE_24HOURCLOCK": 4,
+    "DEFAULT_SCHEME": 0
   },
   "stdScreen": [],
   "skipped": []
