@@ -21,9 +21,11 @@ orientation filters), every sprite of a visible row is drawn (no horizontal swee
 is not used (§2.4: it changes nothing visible).
 
 **Status (2026-10-19, M8 slice U4b).** The dynamic pass also draws the animation tiles of the world view
-(`docs/28` §17.4 "U4b"): corpses in the structure layer (z of the tile to the north-west plus 20, vehicles at the
-structure z of their structure's z offset, on roofs the doubled on-roof offset) with their z strips, shadow pixels and
-the tile's shade; smoke and gas translucent (§4) at the object z, on roofs at the on-roof z. Multi-tile soldiers
+(`docs/28` §17.4 "U4b"): corpses (z of the tile to the north-west plus 20, vehicles at the structure z of their
+structure's z offset, on roofs the doubled on-roof offset) with their z strips, shadow pixels and the tile's shade, ahead
+of every merc, because `AddRottingCorpse` makes them paused animation tiles (`ANITILE_PAUSED`) that the original draws
+with the static world (a corpse in a merc's own row otherwise covered him); smoke and gas translucent (§4) at the object
+z, on roofs at the on-roof z, in the structure (or on-roof) layer of the dynamic pass. Multi-tile soldiers
 (prone mercs, vehicles, the tank, large creatures) go to the struct-merc pass with the z-strip info of their animation
 structure; items lying on a structure are raised by their height at the structure z. Structure graphics changed in the
 simulation (`tileChanges`) patch the struct and on-roof layers and rebuild the static scene.

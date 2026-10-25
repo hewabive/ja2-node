@@ -208,6 +208,35 @@ describe('dynamic scene', () => {
     expect(scene.runs.slice(0, 2).map((r) => r.state)).toEqual([DrawState.NEARER_SHADOW, DrawState.NEARER_WRITE]);
   });
 
+  it('draws corpses before every merc, even one in the same row, as the original draws them with the static world', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    scene.build(
+      frame({
+        soldiers: [soldier(1, g(80, 80), 0), soldier(2, g(82, 80), 1)],
+        aniTiles: [
+          aniTile('corpse', g(81, 79), 0, 1),
+          aniTile('corpse', g(79, 81), 0, 2),
+          aniTile('corpse', g(83, 79), 1, 3),
+          aniTile('smoke', g(81, 79), 0, 4),
+        ],
+      }),
+    );
+    const order = decode(scene).map((p) => p.tile);
+    const firstMerc = order.findIndex((t) => t >= 9000);
+    for (const corpse of [7001, 7002, 7003]) expect(order.lastIndexOf(corpse)).toBeLessThan(firstMerc);
+    expect(order.indexOf(7004)).toBeGreaterThan(order.lastIndexOf(9001));
+  });
+
+  it('leaves out corpses on roofs when the roofs are hidden', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    scene.build(frame({ showRoofs: false, aniTiles: [aniTile('corpse', g(80, 80), 0, 1), aniTile('corpse', g(84, 80), 1, 3)] }));
+    const drawn = new Set(decode(scene).map((p) => p.tile));
+    expect(drawn.has(7001)).toBe(true);
+    expect(drawn.has(7003)).toBe(false);
+  });
+
   it('draws animated smoke translucent at the object z, static smoke opaque, smoke on roofs at the on-roof z', () => {
     const { staticWorld, prepared } = world({}, tiles);
     const scene = new DynamicScene(staticWorld, prepared);

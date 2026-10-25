@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/RenderWorld.cc RenderDynamicWorld, RenderTiles (dynamic layers, animated tiles, mercs,
 // @src items, LEVELNODE_USERELPOS); src/game/TileEngine/Tile_Animation.cc; src/game/Tactical/Interface_Control.cc
-// @src SetUpInterface (UI nodes). See docs/05 §2.5, docs/28 §6.4.
+// @src SetUpInterface (UI nodes); src/game/Tactical/Rotting_Corpses.cc AddRottingCorpse (ANITILE_PAUSED: a corpse
+// @src is drawn with the static world, before every merc). See docs/05 §2.5, docs/28 §6.4.
 
 import type { LayerName } from '../../content/formats/map.ts';
 import { CELL_X_SIZE, CELL_Y_SIZE, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
@@ -97,6 +98,12 @@ function inPass(m: SceneSoldier, pass: MercPass): boolean {
 }
 
 export type AniTileKind = 'corpse' | 'vehicleCorpse' | 'smoke' | 'staticSmoke';
+
+const PAUSED_ANI_KINDS: ReadonlySet<AniTileKind> = new Set(['corpse', 'vehicleCorpse']);
+
+function isPaused(a: SceneAniTile): boolean {
+  return PAUSED_ANI_KINDS.has(a.kind);
+}
 
 export interface SceneAniTile {
   readonly kind: AniTileKind;
@@ -244,6 +251,8 @@ export class DynamicScene {
     for (let s = first; s <= last; s++) rows.push(this.#rowTiles(s));
     for (const tiles of rows) this.#forRow(tiles, (g, x, y) => this.#emitItems(g, x, y, true));
     for (const tiles of rows) this.#forRow(tiles, (g, x, y) => this.#emitItems(g, x, y, false));
+    for (const tiles of rows) this.#forRow(tiles, (g, x, y) => this.#emitPausedAniTiles(g, x, y, 0));
+    if (frame.showRoofs) for (const tiles of rows) this.#forRow(tiles, (g, x, y) => this.#emitPausedAniTiles(g, x, y, 1));
     for (const tiles of rows) {
       this.#forRow(tiles, (g, x, y) => this.#emitLayer(g, x, y, 'objects'));
       this.#forRow(tiles, (g, x, y) => this.#emitLayer(g, x, y, 'shadows'));
@@ -294,8 +303,12 @@ export class DynamicScene {
     for (const n of ui) if (n.head) this.#emitUiNode(n, x, y, layer);
     for (const node of this.#mapNodes.get(g) ?? []) if (node.layer === layer) this.#emitMapNode(g, x, y, layer, node.tile);
     if (layer === 'structs' || layer === 'onRoof')
-      for (const a of this.#aniByTile.get(g * 2 + (layer === 'onRoof' ? 1 : 0)) ?? []) this.#emitAniTile(a, x, y);
+      for (const a of this.#aniByTile.get(g * 2 + (layer === 'onRoof' ? 1 : 0)) ?? []) if (!isPaused(a)) this.#emitAniTile(a, x, y);
     for (const n of ui) if (!n.head) this.#emitUiNode(n, x, y, layer);
+  }
+
+  #emitPausedAniTiles(g: number, x: number, y: number, level: number): void {
+    for (const a of this.#aniByTile.get(g * 2 + level) ?? []) if (isPaused(a)) this.#emitAniTile(a, x, y);
   }
 
   #centreScreen(g: number, level: number): { readonly x: number; readonly y: number } {
