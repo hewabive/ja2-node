@@ -1,6 +1,7 @@
 import { type APIRequestContext, expect, type Page, test } from '@playwright/test';
 import type { TacticalHook } from '../../src/app/tactical/tactical-hook.ts';
 import type { InventoryItemView } from '../../src/protocol/view.ts';
+import { showLatest } from './play-flow.ts';
 import { capture, clickWidget, devicePoint, expectGolden, nextFrames } from './ui-capture.ts';
 
 const SQUAD_SIZE = 4;
@@ -120,14 +121,12 @@ test.describe('the tactical HUD on the stub sandbox', () => {
     if (start === null) throw new Error('the dropper is not in view');
     const dropTile = start + STEPS_EAST;
     await order(page, { type: 'move', soldier: DROPPER, to: dropTile });
-    await expect.poll(() => soldierGridNo(page, DROPPER)).toBe(dropTile);
     await order(page, { type: 'drop', soldier: DROPPER, slot: HAND });
     await order(page, { type: 'drop', soldier: DROPPER, slot: BIG_POCKET });
     await order(page, { type: 'move', soldier: DROPPER, to: dropTile + STEPS_EAST });
-    await expect.poll(() => soldierGridNo(page, DROPPER)).toBe(dropTile + STEPS_EAST);
-    await expect
-      .poll(async () => (await page.evaluate(() => window.__ja2Ui.tactical?.items() ?? [])).filter((i) => i.gridNo === dropTile).length)
-      .toBe(2);
+    await showLatest(page);
+    expect(await soldierGridNo(page, DROPPER)).toBe(dropTile + STEPS_EAST);
+    expect((await page.evaluate(() => window.__ja2Ui.tactical?.items() ?? [])).filter((i) => i.gridNo === dropTile)).toHaveLength(2);
 
     await clickWidget(page, 'teamFaceRegion0');
     await expect.poll(() => page.evaluate(() => window.__ja2Ui.tactical?.selected)).toBe(0);
@@ -144,7 +143,8 @@ test.describe('the tactical HUD on the stub sandbox', () => {
     await expect.poll(() => lastCommand(page)).toEqual({ type: 'pickUp', ok: true, reason: null });
     expect(await page.evaluate(() => window.__ja2Ui.tactical?.pickupOpen)).toBe(false);
     await page.evaluate(() => window.__ja2Ui.tactical?.advance({ idle: true }));
-    await expect.poll(async () => (await inventory(page, 0)).filter((i) => i.item === 'GLOCK_17').length).toBe(2);
+    await showLatest(page);
+    expect((await inventory(page, 0)).filter((i) => i.item === 'GLOCK_17')).toHaveLength(2);
   });
 });
 

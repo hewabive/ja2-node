@@ -2,6 +2,7 @@ import { type APIRequestContext, expect, type Page, test } from '@playwright/tes
 import type { BattleHook } from '../../src/app/battle/battle-hook.ts';
 import { ARRIVAL_WAIT_SECONDS, BATTLE_SECTOR, type BattleEntrySaves, writeBattleEntrySaves } from '../support/battle-entry.ts';
 import { SAVE_DIR } from './env.ts';
+import { expectShadowClean, waitWhileLoading, watchLoading } from './play-flow.ts';
 import { capture, clickWidget, devicePoint, expectGolden, nextFrames } from './ui-capture.ts';
 
 const LOAD_TIMEOUT_MS = 120_000;
@@ -20,8 +21,9 @@ async function loadSession(request: APIRequestContext, name: string): Promise<st
 }
 
 async function openMap(page: Page, session: string, extra = ''): Promise<void> {
-  await page.goto(`/play?session=${encodeURIComponent(session)}${extra}`);
-  await page.waitForFunction(() => window.__ja2Ui?.map?.ready === true || window.__ja2Ui?.error, null, { timeout: LOAD_TIMEOUT_MS });
+  watchLoading(page);
+  await page.goto(`/play?session=${encodeURIComponent(session)}&shadowHints=1${extra}`);
+  await waitWhileLoading(page, () => window.__ja2Ui?.map?.ready === true || window.__ja2Ui?.error);
   expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
   await page.waitForFunction(() => window.__ja2Ui.screen === 'map' && window.__ja2Ui.modal === null);
   await nextFrames(page, 4);
@@ -72,7 +74,8 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     saves = await writeBattleEntrySaves(SAVE_DIR);
   });
 
-  test.afterEach(async ({ request }) => {
+  test.afterEach(async ({ page, request }) => {
+    await expectShadowClean(page);
     if (session) await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
     session = '';
   });
@@ -153,13 +156,9 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     await openMap(page, session);
     await arrive(page);
     await clickWidget(page, 'preBattleGoToSector');
-    await page.waitForFunction(() => window.__ja2Ui.tactical?.ready === true && window.__ja2Ui.screen === 'tactical', null, {
-      timeout: LOAD_TIMEOUT_MS,
-    });
+    await waitWhileLoading(page, () => window.__ja2Ui.tactical?.ready === true && window.__ja2Ui.screen === 'tactical');
     await page.evaluate(() => window.__ja2Ui.map?.command({ type: 'mapScreen' }));
-    await page.waitForFunction(() => window.__ja2Ui.screen === 'map' && window.__ja2Ui.map?.ready === true, null, {
-      timeout: LOAD_TIMEOUT_MS,
-    });
+    await waitWhileLoading(page, () => window.__ja2Ui.screen === 'map' && window.__ja2Ui.map?.ready === true);
     await nextFrames(page, 4);
     const point = await page.evaluate((s) => window.__ja2Ui.map?.sectorPoint(s) ?? null, BATTLE_SECTOR);
     if (!point) throw new Error('no battle sector');

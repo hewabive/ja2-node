@@ -2,6 +2,7 @@ import { type APIRequestContext, expect, type Page, test } from '@playwright/tes
 import type { MapHook } from '../../src/app/map/map-hook.ts';
 import { MAP_SCREEN_SAVE, type MapScreenSave, writeMapScreenSave } from '../support/e2e-campaign-saves.ts';
 import { SAVE_DIR } from './env.ts';
+import { waitWhileLoading, watchLoading } from './play-flow.ts';
 import { capture, clickWidget, devicePoint, expectGolden, nextFrames } from './ui-capture.ts';
 
 const LOAD_TIMEOUT_MS = 60_000;
@@ -26,8 +27,9 @@ async function loadSession(request: APIRequestContext): Promise<string> {
 }
 
 async function openMap(page: Page, session: string, extra = ''): Promise<void> {
+  watchLoading(page);
   await page.goto(`/play?session=${encodeURIComponent(session)}${extra}`);
-  await page.waitForFunction(() => window.__ja2Ui?.map?.ready === true || window.__ja2Ui?.error, null, { timeout: LOAD_TIMEOUT_MS });
+  await waitWhileLoading(page, () => window.__ja2Ui?.map?.ready === true || window.__ja2Ui?.error);
   expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
   await page.waitForFunction(() => window.__ja2Ui.screen === 'map' && window.__ja2Ui.modal === null);
   await nextFrames(page, 4);
@@ -209,7 +211,7 @@ test.describe('the map screen on the stub map-screen campaign', () => {
   test('opens the laptop from the map and comes back to it', async ({ page }) => {
     await openMap(page, session);
     await clickWidget(page, 'laptopButton');
-    await page.waitForFunction(() => window.__ja2Ui.screen === 'laptop', null, { timeout: LOAD_TIMEOUT_MS });
+    await waitWhileLoading(page, () => window.__ja2Ui.screen === 'laptop');
     await nextFrames(page, 4);
     if (await page.evaluate(() => window.__ja2Ui.widgets.some((w) => w.id === 'newMailOk' && w.visible)))
       await clickWidget(page, 'newMailOk');
@@ -223,9 +225,7 @@ test.describe('the map screen on the stub map-screen campaign', () => {
     await clickSector(page, save.sector);
     expect((await mapHook(page))?.selectedSector).toBe(save.sector);
     await clickWidget(page, 'tacticalButton');
-    await page.waitForFunction(() => window.__ja2Ui.tactical?.ready === true && window.__ja2Ui.screen === 'tactical', null, {
-      timeout: LOAD_TIMEOUT_MS,
-    });
+    await waitWhileLoading(page, () => window.__ja2Ui.tactical?.ready === true && window.__ja2Ui.screen === 'tactical');
     expect(await page.evaluate(() => window.__ja2Ui.tactical?.map ?? null)).toContain('d13');
     await clickWidget(page, 'teamMapScreen');
     await page.waitForFunction(() => window.__ja2Ui.screen === 'map', null, { timeout: LOAD_TIMEOUT_MS });

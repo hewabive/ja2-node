@@ -3,6 +3,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { type APIRequestContext, expect, type Page, test } from '@playwright/test';
 import type { TacticalHook } from '../../src/app/tactical/tactical-hook.ts';
 import { SERVER, TOKEN } from './env.ts';
+import { expectShadowClean } from './play-flow.ts';
 import { capture, clickWidget, devicePoint, expectGolden, nextFrames } from './ui-capture.ts';
 
 const COLS = 160;
@@ -68,7 +69,7 @@ async function squadInA10(seed: number, mercs: number, near: number): Promise<{ 
 }
 
 async function openTactical(page: Page, session: string, extra = ''): Promise<void> {
-  await page.goto(`/play?session=${encodeURIComponent(session)}&drive=manual${extra}`);
+  await page.goto(`/play?session=${encodeURIComponent(session)}&drive=manual&shadowHints=1${extra}`);
   await page.waitForFunction(() => window.__ja2Ui?.tactical?.ready === true || window.__ja2Ui?.error, null, { timeout: LOAD_TIMEOUT_MS });
   expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
   await page.waitForFunction(() => window.__ja2Ui.tactical?.pendingImages === 0 && window.__ja2Ui.screen === 'tactical');
@@ -90,7 +91,8 @@ async function talkOpenAndQuiet(page: Page): Promise<void> {
   await nextFrames(page, 2);
 }
 
-async function freeSession(request: APIRequestContext, session: string): Promise<void> {
+async function freeSession(page: Page, request: APIRequestContext, session: string): Promise<void> {
+  await expectShadowClean(page);
   await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
 }
 
@@ -118,7 +120,7 @@ test.describe('talking through the canvas talk panel on stubs', () => {
     expect(await page.evaluate(() => window.__ja2Ui.draw?.missingImages ?? [])).toEqual([]);
     await expectGolden('talk-panel', await capture(page));
     await order(page, { type: 'closeTalk' });
-    await freeSession(request, session);
+    await freeSession(page, request, session);
   });
 
   test('plays the lines out, sends Direct and closes with Done', async ({ page, request }) => {
@@ -134,7 +136,7 @@ test.describe('talking through the canvas talk panel on stubs', () => {
     await clickWidget(page, 'talkDone');
     await expect.poll(() => lastCommand(page)).toEqual({ type: 'closeTalk', ok: true, reason: null });
     await page.waitForFunction(() => window.__ja2Ui.tactical?.talk.open === false);
-    await freeSession(request, session);
+    await freeSession(page, request, session);
   });
 
   test('recruits the stub R.P.C. with Recruit and the hire box, then withdraws money through the money region', async ({
@@ -181,6 +183,6 @@ test.describe('talking through the canvas talk panel on stubs', () => {
         async () => (await page.evaluate((id) => window.__ja2Ui.tactical?.inventory(id) ?? [], merc)).find((i) => i.item === MONEY)?.money,
       )
       .toBe(1000);
-    await freeSession(request, session);
+    await freeSession(page, request, session);
   });
 });
