@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import type { CommandEnvelope } from '../../src/protocol/messages.ts';
-import { type BattleResult, fightHere, ourTurn } from '../../tools/campaign-bot/battle.ts';
+import { type BattleResult, fightHere, hostilesInSight, ourTurn } from '../../tools/campaign-bot/battle.ts';
 import { HIRE_PREFERENCE } from '../../tools/campaign-bot/campaign.ts';
 import { loadItems } from '../../tools/campaign-bot/items.ts';
 import type { McpGame, Observation } from '../../tools/campaign-bot/mcp-game.ts';
@@ -265,7 +265,8 @@ export class MainFlow {
   }
 
   async approach(): Promise<BattleResult> {
-    const result = await fightHere(await this.player(), { done: (view: Observation) => ourTurn(view) });
+    const player = await this.player();
+    const result = await fightHere(player, { done: (view: Observation) => ourTurn(view) && hostilesInSight(player, view).length > 0 });
     await showLatest(this.page);
     return result;
   }
