@@ -103,6 +103,7 @@ export class Conference {
   #hangUp = false;
   #delayed: { quote: number; at: number; hangUpAfter: boolean } | null = null;
   #busy = false;
+  #waitingForMercToStop = false;
   #now = 0;
 
   constructor(ports: ConferencePorts, stepMs: number) {
@@ -136,6 +137,7 @@ export class Conference {
     this.mode = VideoMode.NOT_DISPLAYED;
     this.previousMode = VideoMode.NOT_DISPLAYED;
     this.face = 'none';
+    this.#waitingForMercToStop = false;
   }
 
   #setMode(mode: number): void {
@@ -162,6 +164,7 @@ export class Conference {
       case VideoMode.NOT_DISPLAYED:
         this.face = 'none';
         this.talk = null;
+        this.#waitingForMercToStop = false;
         break;
       case VideoMode.POPUP:
         this.#titleStart = this.#now;
@@ -179,6 +182,8 @@ export class Conference {
         break;
       case VideoMode.FIRST_CONTACT:
         this.face = 'face';
+        this.hireDisabled = this.#waitingForMercToStop;
+        this.#waitingForMercToStop = false;
         break;
       case VideoMode.HIRE:
         this.hireButtonsDisabled = false;
@@ -201,9 +206,9 @@ export class Conference {
   }
 
   #waitForMercToFinishTalking(): void {
+    this.#waitingForMercToStop = true;
     this.mode = this.mode === VideoMode.ANSWERING_MACHINE ? VideoMode.ANSWERING_MACHINE : VideoMode.FIRST_CONTACT;
     if (this.previousMode !== this.mode) this.#enterMode();
-    this.hireDisabled = true;
     this.#hangUp = true;
   }
 

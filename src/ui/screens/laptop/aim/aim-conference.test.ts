@@ -132,12 +132,16 @@ describe('the A.I.M. video conference', () => {
     expect(conference.hireDisabled).toBe(true);
     now = advance(conference, now, QUOTE_MS + STEP_MS);
     expect(conference.mode).toBe(VideoMode.POPDOWN);
-    advance(conference, now, TITLE_ITERATIONS * STEP_MS);
+    now = advance(conference, now, TITLE_ITERATIONS * STEP_MS);
     expect(conference.mode).toBe(VideoMode.NOT_DISPLAYED);
     expect(p.popdowns).toBe(1);
+    conference.open(now);
+    advance(conference, now, TITLE_ITERATIONS * STEP_MS + (BLACK_LOOPS + 2 * SNOW_FRAMES + 2) * (STATIC_TIME + STEP_MS));
+    expect(conference.mode).toBe(VideoMode.FIRST_CONTACT);
+    expect(conference.hireDisabled).toBe(false);
   });
 
-  it('says the refusal when the server declines and re-enables the buttons after a lack of funds', async () => {
+  it('says the refusal when the server declines, leaving the hire button as it was, and re-enables the buttons after a lack of funds', async () => {
     const declined = ports();
     declined.accepted = false;
     const refusing = new Conference(declined, STEP_MS);
@@ -145,7 +149,7 @@ describe('the A.I.M. video conference', () => {
     refusing.hire();
     await flush();
     expect(refusing.mode).toBe(VideoMode.FIRST_CONTACT);
-    expect(refusing.hireDisabled).toBe(true);
+    expect(refusing.hireDisabled).toBe(false);
     expect(declined.said).toEqual([13]);
 
     const poor = ports();
