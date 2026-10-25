@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
+import { waitWhileLoading } from './play-flow.ts';
 import { capture, clickWidget, expectGolden, nextFrames, openUiPage, widget, widgets } from './ui-capture.ts';
 
 const PLAY = '/play';
@@ -79,7 +80,7 @@ async function newGame(page: Page): Promise<string> {
   await clickWidget(page, 'start');
   await modalIs(page, 'messageBox');
   await clickWidget(page, 'messageBox.yes');
-  await screenIs(page, 'laptop');
+  await waitWhileLoading(page, () => window.__ja2Ui.screen === 'laptop');
   const session = await page.evaluate(() => window.__ja2Ui.session);
   if (!session) throw new Error('no session after a new game');
   return session;
@@ -143,7 +144,7 @@ test.describe('the canvas front end on stubs', () => {
     expect(row).toBeDefined();
     await clickWidget(page, `row${row?.id.replace('description', '')}`);
     await clickWidget(page, 'loadButton');
-    await screenIs(page, 'laptop');
+    await waitWhileLoading(page, () => window.__ja2Ui.screen === 'laptop');
     await modalIs(page, null);
     const loaded = await page.evaluate(() => window.__ja2Ui.session);
     expect(loaded).not.toBeNull();
