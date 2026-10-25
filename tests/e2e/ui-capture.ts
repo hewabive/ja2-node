@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { expect, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import type { CapturedPixels } from '../../src/app/game/ui-hook.ts';
 import { decodePng, encodePngRgba, PngColorType } from '../../src/content/formats/png.ts';
 import type { WidgetInfo } from '../../src/ui/widgets/widget-info.ts';
@@ -86,7 +86,10 @@ export async function expectGolden(name: string, actual: Capture): Promise<void>
   const golden = decodePng(await readFile(path));
   expect(golden.colorType).toBe(PngColorType.RGBA);
   expect([golden.width, golden.height]).toEqual([actual.width, actual.height]);
-  expect(differences(actual, golden.data)).toEqual([]);
+  const problems = differences(actual, golden.data);
+  if (problems.length > 0)
+    await writeFile(test.info().outputPath(`${name}-actual.png`), encodePngRgba(actual.width, actual.height, actual.rgba));
+  expect(problems).toEqual([]);
 }
 
 export async function widgets(page: Page): Promise<WidgetInfo[]> {

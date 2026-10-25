@@ -12,9 +12,10 @@ const SMALL_POCKET = 11;
 const DROPPER = 3;
 const STEPS_EAST = 4;
 const BLINK_TIMEOUT_MS = 15_000;
+const QUIET_SEED = 1;
 
 async function newSandbox(request: APIRequestContext): Promise<string> {
-  const created = (await (await request.post('/api/sessions', { data: {} })).json()) as { session: string };
+  const created = (await (await request.post('/api/sessions', { data: { seed: QUIET_SEED } })).json()) as { session: string };
   return created.session;
 }
 

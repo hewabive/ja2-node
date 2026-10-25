@@ -8,6 +8,7 @@ const BIG_POCKET = 7;
 const DROPPER = 3;
 const STEPS_EAST = 4;
 const CAMPAIGN_SEED = 6;
+const QUIET_SEED = 1;
 const EAST_EDGE_ROW = 75;
 const EAST_EDGE_COLUMN = 150;
 const EDGE_INSET = 4;
@@ -35,7 +36,7 @@ test.describe('goldens of the tactical screen on stubs', () => {
   });
 
   test('the single merc panel, the item description box and the overhead map of the sandbox', async ({ page, request }) => {
-    const session = await newSession(request, {});
+    const session = await newSession(request, { seed: QUIET_SEED });
     try {
       await openTacticalSession(page, session, PINNED);
       await clickWidget(page, 'teamFaceRegion0');
@@ -66,7 +67,7 @@ test.describe('goldens of the tactical screen on stubs', () => {
   });
 
   test('the pickup menu of a tile with two items', async ({ page, request }) => {
-    const session = await newSession(request, {});
+    const session = await newSession(request, { seed: QUIET_SEED });
     try {
       await openTacticalSession(page, session, PINNED);
       const start = await soldierGridNo(page, DROPPER);

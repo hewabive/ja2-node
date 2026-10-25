@@ -6,12 +6,13 @@ import { expect, test } from './fixture.ts';
 const SAMPLED_FRAMES = 300;
 const SAMPLE_TIMEOUT_MS = 300_000;
 const FULL_HD = { width: 1920, height: 1080 };
+const SANDBOX_SEED = 1;
 
 test.use({ viewport: FULL_HD });
 
 test('measures the frame time of the A9 sandbox on /play at 1920×1080 in real time (logged, docs/28 §16)', async ({ page, request }) => {
   test.setTimeout(SAMPLE_TIMEOUT_MS * 2);
-  const session = ((await (await request.post('/api/sessions', { data: {} })).json()) as { session: string }).session;
+  const session = ((await (await request.post('/api/sessions', { data: { seed: SANDBOX_SEED } })).json()) as { session: string }).session;
   try {
     watchLoading(page);
     await page.goto(`/play?session=${encodeURIComponent(session)}`);

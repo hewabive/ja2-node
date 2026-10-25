@@ -7,9 +7,10 @@ const SAMPLED_FRAMES = 120;
 const SAMPLE_TIMEOUT_MS = 120_000;
 const LOOSE_P95_MS = 250;
 const LOOSE_MAX_MS = 2_000;
+const QUIET_SEED = 1;
 
 async function newSandbox(request: APIRequestContext): Promise<string> {
-  return ((await (await request.post('/api/sessions', { data: {} })).json()) as { session: string }).session;
+  return ((await (await request.post('/api/sessions', { data: { seed: QUIET_SEED } })).json()) as { session: string }).session;
 }
 
 async function sampleFrames(page: Page): Promise<TimeSummary> {

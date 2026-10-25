@@ -9,9 +9,10 @@ const OPTION_TOGGLES = 23;
 const MUG_SHOTS = 'mugRegion0_0';
 const HAND = 5;
 const STEP_TIMEOUT_MS = 120_000;
+const SANDBOX_SEED = 1;
 
 async function newSandbox(request: APIRequestContext): Promise<string> {
-  return ((await (await request.post('/api/sessions', { data: {} })).json()) as { session: string }).session;
+  return ((await (await request.post('/api/sessions', { data: { seed: SANDBOX_SEED } })).json()) as { session: string }).session;
 }
 
 async function failedVfsReads(page: Page): Promise<string[]> {
