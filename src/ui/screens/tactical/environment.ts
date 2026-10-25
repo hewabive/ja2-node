@@ -39,6 +39,7 @@ export interface TacticalClient extends GameClient {
   readonly queuedFrames: readonly ViewFrame[];
   readonly paused: boolean;
   command(cmd: CommandEnvelope): Promise<CommandReply>;
+  start(): void;
   setPaused(paused: boolean): void;
 }
 

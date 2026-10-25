@@ -18,11 +18,13 @@ export class SessionTacticalClient implements TacticalClient {
   readonly commands: CommandRecord[] = [];
   readonly #session: SessionClient;
   readonly #hints: HintProvider;
+  readonly #keepDriver: boolean;
   #paused = false;
 
-  constructor(session: SessionClient, hints: HintProvider) {
+  constructor(session: SessionClient, hints: HintProvider, keepDriver: boolean) {
     this.#session = session;
     this.#hints = hints;
+    this.#keepDriver = keepDriver;
   }
 
   get view(): PlayerView | null {
@@ -45,8 +47,13 @@ export class SessionTacticalClient implements TacticalClient {
     return this.#paused;
   }
 
+  get driver(): DriverMode['mode'] {
+    return this.#session.driver.mode;
+  }
+
   start(): void {
-    if (this.#session.driver.mode === 'manual') void this.#session.drive(REAL_TIME);
+    if (this.#keepDriver || this.#paused || this.#session.driver.mode !== 'manual') return;
+    void this.#session.drive(REAL_TIME);
   }
 
   setPaused(paused: boolean): void {

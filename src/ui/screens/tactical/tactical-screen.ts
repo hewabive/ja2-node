@@ -567,6 +567,7 @@ export class TacticalScreen implements Screen {
     this.#syncViewport();
     this.dialogue.enter();
     if (this.#selected !== null) this.#selectedChanged();
+    this.#env.client.start();
   }
 
   exit(): void {

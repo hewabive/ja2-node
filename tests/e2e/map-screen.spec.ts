@@ -230,5 +230,10 @@ test.describe('the map screen on the stub map-screen campaign', () => {
     await clickWidget(page, 'teamMapScreen');
     await page.waitForFunction(() => window.__ja2Ui.screen === 'map', null, { timeout: LOAD_TIMEOUT_MS });
     expect((await mapHook(page))?.flow).toBe('strategic');
+    await clickWidget(page, 'tacticalButton');
+    await page.waitForFunction(() => window.__ja2Ui.tactical?.ready === true && window.__ja2Ui.screen === 'tactical', null, {
+      timeout: LOAD_TIMEOUT_MS,
+    });
+    await page.waitForFunction(() => window.__ja2Ui.tactical?.driver === 'realtime', null, { timeout: LOAD_TIMEOUT_MS });
   });
 });

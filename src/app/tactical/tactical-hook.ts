@@ -1,4 +1,4 @@
-import type { CommandEnvelope, StopCondition } from '../../protocol/messages.ts';
+import type { CommandEnvelope, DriverMode, StopCondition } from '../../protocol/messages.ts';
 import type { InventoryItemView, ItemView } from '../../protocol/view.ts';
 import type { UiHook } from '../game/ui-hook.ts';
 
@@ -82,6 +82,7 @@ export interface TacticalHook {
   slots: readonly (number | null)[];
   radarShown: boolean;
   paused: boolean;
+  driver: DriverMode['mode'];
   faces: readonly FaceSample[];
   messages: readonly string[];
   feedback: string | null;

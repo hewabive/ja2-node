@@ -61,6 +61,7 @@ const BASIC_TEXT_BOX = 'basic';
 export class SessionClient implements TacticalClient {
   readonly commands: { readonly cmd: CommandEnvelope; readonly reply: CommandReply }[] = [];
   paused = false;
+  starts = 0;
   queued: readonly ViewFrame[] = [];
   hold: Promise<void> | null = null;
   readonly #session: Session;
@@ -103,6 +104,10 @@ export class SessionClient implements TacticalClient {
 
   get queuedFrames(): readonly ViewFrame[] {
     return this.queued;
+  }
+
+  start(): void {
+    this.starts++;
   }
 
   setPaused(paused: boolean): void {

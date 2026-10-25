@@ -87,7 +87,6 @@ export class TacticalHost {
   #screenFor: Loaded | null = null;
   #loadScreen: number | null = null;
   #refreshing = false;
-  readonly #keepDriver: boolean;
   readonly #requestedProfiles = new Set<number>();
   readonly #speechSettings: () => SpeechSettings;
   readonly #presenter: SpeechPresenter;
@@ -106,12 +105,11 @@ export class TacticalHost {
     });
     const params = new URLSearchParams(location.search);
     const shadow = params.get(SHADOW_HINTS_PARAM) === '1';
-    this.#keepDriver = params.get(DRIVE_PARAM) === MANUAL_DRIVE;
     let knowledge: ClientKnowledge | null = null;
     this.#hints = new HintProvider({ channel: options.session, knowledge: () => knowledge, now: () => performance.now(), shadow });
     this.#hintHook = createHintHook(this.#hints);
     attachHintHook(this.#hintHook);
-    this.#client = new SessionTacticalClient(options.session, this.#hints);
+    this.#client = new SessionTacticalClient(options.session, this.#hints, params.get(DRIVE_PARAM) === MANUAL_DRIVE);
     this.#random = new ClientRandom(seedFromText(options.session.session ?? 'tactical'));
     void this.#openKnowledge().then((k) => {
       knowledge = k;
@@ -314,7 +312,6 @@ export class TacticalHost {
     this.#screen = new TacticalScreen(env);
     this.#screenFor = loaded;
     this.#screen.dialogue.frames(this.#dialogueBeforeScreen.splice(0));
-    if (!this.#keepDriver) this.#client.start();
     return this.#screen;
   }
 
@@ -441,6 +438,7 @@ export class TacticalHost {
       slots: [],
       radarShown: true,
       paused: false,
+      driver: 'manual',
       faces: [],
       messages: [],
       feedback: null,
@@ -566,6 +564,7 @@ export class TacticalHost {
     hook.frameMs = this.#frameTimes.summary();
     hook.worldMs = this.#worldTimes.summary();
     hook.paused = this.#client.paused;
+    hook.driver = this.#client.driver;
     hook.commands = this.#client.commands
       .slice(-KEPT_COMMANDS)
       .map((c) => ({ type: c.cmd.type, ok: c.reply.ok, reason: c.reply.reason ?? null }));

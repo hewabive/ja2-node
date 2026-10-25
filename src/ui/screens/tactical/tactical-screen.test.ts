@@ -162,6 +162,19 @@ describe('the tactical screen over a stub sandbox session', () => {
   );
 
   it(
+    'asks for real time every time the screen is entered, as the map screen hands the driver back in manual',
+    async () => {
+      const f = await tacticalUiTest(kit, ui);
+      const first = f.client.starts;
+      expect(first).toBeGreaterThan(0);
+      f.screen.exit();
+      f.screen.enter();
+      expect(f.client.starts).toBe(first + 1);
+    },
+    SLOW_MS,
+  );
+
+  it(
     'takes one magazine with a click and the stack with Shift, and moves it with one moveItem',
     async () => {
       const f = await tacticalUiTest(kit, ui);
