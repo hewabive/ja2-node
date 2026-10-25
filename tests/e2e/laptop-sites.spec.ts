@@ -109,6 +109,10 @@ test.describe('the laptop sites on stubs', () => {
     await clickWidget(page, 'acceptOrder');
     await page.waitForFunction(() => window.__ja2Ui.widgets.some((w) => w.id === 'confirmOrderArea' && w.enabled));
     await through(page, 'confirmOrderArea', 'bobbyRaySign2');
+    await through(page, 'bobbyRaySign2', 'itemName0');
+    await through(page, 'bobbyRayOrderForm', 'orderShipments');
+    await through(page, 'orderShipments', 'shipmentRow0');
+    await expectGolden('laptop-bobby-ray-shipments', await capture(page));
 
     const game = await mcp();
     try {
@@ -133,6 +137,7 @@ test.describe('the laptop sites on stubs', () => {
     await page.waitForFunction(() => window.__ja2Ui.widgets.some((w) => w.id === 'mercFilesButton' && w.visible && w.enabled));
     await through(page, 'mercFilesButton', 'mercFileName');
     expect(await widgetText(page, 'mercSalary')).toMatch(/^\d+ /);
+    await expectGolden('laptop-merc-files', await capture(page));
     await clickWidget(page, 'mercHire');
     await dismissModal(page);
     await through(page, 'mercAccountButton', 'accountCharge0');
@@ -148,6 +153,7 @@ test.describe('the laptop sites on stubs', () => {
     test.setTimeout(IMP_TEST_TIMEOUT_MS);
     const session = await loadSession(request);
     await openSite(page, session, IMP_ROW, 'impHomeTitle');
+    await expectGolden('laptop-imp-home', await capture(page));
     await clickWidget(page, 'impCode');
     await page.keyboard.type(IMP_CODE);
     await page.keyboard.press('Enter');
@@ -181,6 +187,7 @@ test.describe('the laptop sites on stubs', () => {
     await through(page, 'impProfile3', 'impVoiceTitle');
     await through(page, 'impVoiceDone', 'impFinishName');
     expect(await widgetText(page, 'impFinishName')).toContain('Ivana Testova');
+    await expectGolden('laptop-imp-finish', await capture(page));
     await through(page, 'impFinishDone', 'impConfirmTitle');
     await clickWidget(page, 'impConfirmYes');
     await shown(page, 'impHomeTitle');

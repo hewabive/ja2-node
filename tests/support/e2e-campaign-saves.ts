@@ -1,6 +1,7 @@
 import { parseSectorString, type Sector, strategicIndex } from '../../src/content/strategic/sector-ids.ts';
 import { CampaignSession } from '../../src/server/campaign-session.ts';
 import type { Session } from '../../src/server/session.ts';
+import { TrainStat } from '../../src/sim/strategic/economy/constants.ts';
 import { getGroup, setGroupSectorValue } from '../../src/sim/strategic/forces/groups.ts';
 import { SKYRIDER, setUpHelicopterForPlayer } from '../../src/sim/strategic/forces/helicopter.ts';
 import { sectorInfo } from '../../src/sim/strategic/map/sectors.ts';
@@ -21,6 +22,12 @@ const QUIET = [START, 'A10', 'B9', 'B10', ...DRASSEN];
 const ROUTE_STEP_SECONDS = 2 * 3600;
 const ROUTE_STEPS = 20;
 const DESCRIPTION = 'U8 map screen: Drassen and the helicopter';
+const PRETTY_TIRED_BREATH_MAX = 40;
+
+export interface MapScreenSaveOptions {
+  readonly name?: string;
+  readonly tired?: boolean;
+}
 
 export interface MapScreenSave {
   readonly name: string;
@@ -29,6 +36,7 @@ export interface MapScreenSave {
   readonly town: number;
   readonly mercs: readonly number[];
   readonly trainer: number;
+  readonly tired: number | null;
 }
 
 function campaignOf(session: Session): CampaignSession {
@@ -106,14 +114,26 @@ export async function buildMapScreenCampaign(saves: SaveKit, kit: StubSectorKit)
   return { session, mercs, trainer: bestTrainer(sim, mercs) };
 }
 
-export async function writeMapScreenSave(dir: string): Promise<MapScreenSave> {
+function tireOneMercOffSquad(session: Session, mercs: readonly number[], trainer: number): number {
+  const id = mercs.find((m) => m !== trainer) ?? trainer;
+  const trains = (stat: number) => session.dispatch({ type: 'assign', soldiers: [id], to: { kind: 'trainSelf', stat } }).ok;
+  if (!Object.values(TrainStat).some(trains)) throw new Error(`merc ${id} can train no stat`);
+  const merc = campaignOf(session).campaign.economy?.crew.get(id);
+  if (!merc) throw new Error('no merc to tire');
+  merc.breathMax = PRETTY_TIRED_BREATH_MAX;
+  return id;
+}
+
+export async function writeMapScreenSave(dir: string, options: MapScreenSaveOptions = {}): Promise<MapScreenSave> {
+  const name = options.name ?? MAP_SCREEN_SAVE;
   const kit = await loadStubSectorKit();
   const saves = await createSaveKit(kit, { dir });
   try {
     const { session, mercs, trainer } = await buildMapScreenCampaign(saves, kit);
-    const saved = await saves.saves.save(session, { name: MAP_SCREEN_SAVE, description: DESCRIPTION });
+    const tired = options.tired ? tireOneMercOffSquad(session, mercs, trainer) : null;
+    const saved = await saves.saves.save(session, { name, description: DESCRIPTION });
     if (!saved.ok) throw new Error(`the save failed: ${JSON.stringify(saved)}`);
-    return { name: saved.name, sector: TOWN_SECTOR, helicopter: TOWN_SECTOR, town: DRASSEN_TOWN, mercs, trainer };
+    return { name: saved.name, sector: TOWN_SECTOR, helicopter: TOWN_SECTOR, town: DRASSEN_TOWN, mercs, trainer, tired };
   } finally {
     await saves.dispose();
     await kit.dispose();

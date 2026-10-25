@@ -89,6 +89,7 @@ test.describe('the canvas laptop on stubs', () => {
     await clickWidget(page, 'financesButton');
     await waitText(page, 'financePage', '1 / 2$');
     expect(await waitText(page, 'amount7', '^\\$')).toMatch(/^\$[\d,]+$/);
+    await expectGolden('laptop-finances', await capture(page));
     await clickWidget(page, 'nextFinancePage');
     await waitText(page, 'financePage', '2 / 2$');
     expect(await waitText(page, 'ledgerText0', '.+')).not.toBe('');
