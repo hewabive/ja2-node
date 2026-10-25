@@ -1634,8 +1634,8 @@ Everything below keeps the rules on the server (D15) and reveals only what an or
 | G1 | own soldier `bleeding` (finding 30 of `27`) | every bar, PBI, autoresolve | U3 |
 | G2 | own soldier `stats` (ten values and level), `armour`, `weight`, `camo` computed by the server | SM panel, map info panel, personnel | U3 |
 | G3 | own soldier `profile` always (face index, full name and voice through the profile endpoint below) | faces everywhere, lip sync | U3 |
-| G4 | own soldier `breathMax`, `morale`, `asleep`, `squad`, `stealth`, `weaponMode`, `muted`, `sees: id[]`, `canAct` (or `combat.actors`), `continueTo`, `vehicle {id, driver}`, `firstAid`, `blinded` | panels, glow, the `e` key, hatches, End | U3 |
-| G5 | other soldiers: `hostile`, `healthIndex` (the original names a visible soldier's condition) | hover text, glow, radar colours, cursor auto-mode | U3 |
+| G4 | own soldier `breathMax`, `morale`, `asleep`, `squad`, `stealth`, `weaponMode`, `muted`, `sees: id[]`, `opponents` (`bOppCnt`, the face's enemy count), `canAct` (or `combat.actors`), `continueTo`, `vehicle {id, driver}`, `firstAid`, `blinded` | panels, glow, the `e` key, hatches, End | U3 |
+| G5 | other soldiers: `hostile`, `healthIndex` (the original names a visible soldier's condition; −1 at `bLife` 0, during the death animation) | hover text, glow, radar colours, cursor auto-mode | U3 |
 | G6 | `combat.uiLocked`, `combat.topMessage {kind, team, bloodcats}` (hidden AI interrupts stay hidden; today `combat.team` reveals them), `combat.ai {current, total}` | input lock, top bar | U3 |
 | G7 | items: `jammed`, `imprint`; `ItemView.money`, `ItemView.attachments` | slots, pickup menu | U3 |
 | G8 | world: corpses, smoke/gas/fire clouds, ambient light level and light sprites, tile changes (destroyed structures, window states, the O3 statue, the helicopter on the map, added exit grids), known mines and bombs | world rendering | U4 |

@@ -10,6 +10,7 @@ import { checkBleeding } from './combat/bleeding.ts';
 import { soldierTakeDamage } from './combat/hit.ts';
 import { DamageReason, WeaponMode } from './combat/types.ts';
 import type { TacticalContent } from './content.ts';
+import { LIFELESS_HEALTH_INDEX } from './health.ts';
 import { InvSlot } from './inventory.ts';
 import { Team } from './soldier.ts';
 import type { OwnSoldierSnapshot, TacticalSim } from './tactical-sim.ts';
@@ -118,6 +119,15 @@ describe('other soldiers in the view (G5)', () => {
     expect(enemy.life).toBeUndefined();
     expect(enemy.stats).toBeUndefined();
     expect(shown(sim, 116).hostile).toBe(false);
+  });
+
+  it('mark a soldier whose life is gone while his death animation plays', () => {
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.WEST);
+    sim.lookAround();
+    enemy.life = 0;
+    expect(shown(sim, 20).healthIndex).toBe(LIFELESS_HEALTH_INDEX);
   });
 });
 

@@ -90,6 +90,7 @@ import {
   isEpc,
   isInVehicle,
   isMercBodyType,
+  isUnconscious,
   nextActiveAndAliveMerc,
   nextMerc,
   OUR_TEAM,
@@ -1853,7 +1854,7 @@ export class TacticalScreen implements Screen {
       const at = aboveGuyPosition(pos, offset, false, top, false);
       list.image(s.hostile === true ? hostileRadio : radio, locator.frame, at.x + LOCATOR_OFFSET, at.y + LOCATOR_OFFSET);
     }
-    if (marker.hidden || isDead(s)) return;
+    if (marker.hidden) return;
     const selected = s.id === this.#selected;
     const shown = selected || (locator?.shown ?? false) || s.id === this.#hoveredSoldier;
     if (!shown) return;
@@ -1905,7 +1906,6 @@ export class TacticalScreen implements Screen {
     const box = this.#env.world.radarViewport();
     if (box) list.rectangle(rect.x + box.x1, rect.y + box.y1, rect.x + box.x2, rect.y + box.y2, RADAR_VIEW_COLOUR);
     for (const s of this.#view()?.soldiers ?? []) {
-      if (isDead(s)) continue;
       const dot = this.#env.world.radarDot(s.gridNo);
       if (!dot) continue;
       const x = rect.x + dot.x;
@@ -1918,7 +1918,7 @@ export class TacticalScreen implements Screen {
   #radarColour(s: SoldierView): number {
     if (s.id === this.#selected && this.#radarBlink) return 0;
     if (s.team === OUR_TEAM && s.level > 0) return ON_ROOF_COLOUR;
-    if (s.team !== OUR_TEAM && (s.healthIndex ?? 4) <= 0) return UNCONSCIOUS_COLOUR;
+    if (s.team !== OUR_TEAM && isUnconscious(s)) return UNCONSCIOUS_COLOUR;
     if (s.team === CIV_TEAM && s.hostile === true) return HOSTILE_CIVILIAN_COLOUR;
     if (s.team === CIV_TEAM && s.profile !== undefined) return NAMED_CIVILIAN_COLOUR;
     return TEAM_RADAR_COLOURS[s.team] ?? TEAM_RADAR_COLOURS[0] ?? 0;

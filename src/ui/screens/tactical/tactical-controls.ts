@@ -563,7 +563,10 @@ export class TacticalControls {
     const enemies = (view?.soldiers ?? [])
       .filter((s) => s.team !== OUR_TEAM && !isDead(s) && s.hostile === true)
       .sort((a, b) => a.id - b.id);
-    if (enemies.length === 0) return;
+    if (enemies.length === 0) {
+      this.#screen.feedback(this.#text(TACTICAL, NO_ENEMIES_IN_SIGHT_STR));
+      return;
+    }
     const next = enemies.find((e) => e.id > this.#lastKnownEnemy) ?? (enemies[0] as SoldierView);
     this.#lastKnownEnemy = next.id;
     this.#screen.locate(next, SHOW_LOCATOR_NORMAL_CYCLES);

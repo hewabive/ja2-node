@@ -15,7 +15,7 @@
 
 import { DEFAULT_SHADOW, FontColor, NO_SHADOW } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
-import type { CombatView, TopMessageView } from '../../../protocol/view.ts';
+import { type CombatView, LIFELESS_HEALTH_INDEX, type TopMessageView } from '../../../protocol/view.ts';
 import type { ImageCatalog } from '../../assets.ts';
 import type { DrawList } from '../../draw-list.ts';
 import type { BitmapFont } from '../../text/bitmap-font.ts';
@@ -221,9 +221,10 @@ export function showsDamage(oldLife: number, amount: number): boolean {
 
 const HEALTH_THRESHOLDS = [15, 30, 45, 60, 75, 90, 101] as const;
 const FULL_HEALTH_START = 4;
+const DYING_HEALTH_INDEX = 0;
 
 export function healthString(text: UiTextService, healthIndex: number): string {
-  return text.string('zHealthStr', healthIndex) ?? '';
+  return text.string('zHealthStr', healthIndex === LIFELESS_HEALTH_INDEX ? DYING_HEALTH_INDEX : healthIndex) ?? '';
 }
 
 export function healthIndexOf(life: number, lifeMax: number): number {

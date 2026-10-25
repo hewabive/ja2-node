@@ -3,10 +3,11 @@
 // @src src/game/Tactical/Interface_Panels.cc CheckForAndAddMercToTeamPanel (the mercs of the current squad), PrintAP
 // @src (the AP colour), SetStatsHelp (MERC_VITAL_STATS_POPUPTEXT, the robot's STR_LATE_16), FindNextActiveAndAliveMerc;
 // @src src/game/Tactical/Soldier_Macros.h IS_MERC_BODY_TYPE, AM_AN_EPC; src/game/Strategic/Morale.cc GetMoraleString;
-// @src src/game/Tactical/Overhead.cc CycleVisibleEnemies (the enemies a merc cycles through).
+// @src src/game/Tactical/Overhead.cc CycleVisibleEnemies (the enemies a merc cycles through); Soldier_Find.cc
+// @src GetSoldierFindFlags (bLife < OKLIFE unconscious, bLife == 0 dead).
 // See docs/28 §5.1, §5.2.
 
-import type { PlayerView, SoldierView } from '../../../protocol/view.ts';
+import { LIFELESS_HEALTH_INDEX, type PlayerView, type SoldierView } from '../../../protocol/view.ts';
 import { printf } from '../../text/printf.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import type { BarValues } from './bars.ts';
@@ -14,6 +15,7 @@ import { OKLIFE } from './faces.ts';
 
 export const OUR_TEAM = 0;
 const REGFEMALE = 3;
+const DYING_HEALTH_INDEX = 0;
 const MERC_VITAL_STATS_POPUPTEXT = 61;
 const STR_LATE_16 = 15;
 const MORALE_STRINGS = 'pMoralStrings';
@@ -61,7 +63,13 @@ export function isInVehicle(s: SoldierView): boolean {
 }
 
 export function isDead(s: SoldierView): boolean {
-  return (s.life ?? 0) <= 0;
+  if (s.team === OUR_TEAM) return (s.life ?? 0) <= 0;
+  return s.healthIndex === LIFELESS_HEALTH_INDEX;
+}
+
+export function isUnconscious(s: SoldierView): boolean {
+  if (s.team === OUR_TEAM) return (s.life ?? 0) < OKLIFE;
+  return s.healthIndex === DYING_HEALTH_INDEX || s.healthIndex === LIFELESS_HEALTH_INDEX;
 }
 
 export function inCombat(view: PlayerView | null): boolean {

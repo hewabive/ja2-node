@@ -6,8 +6,7 @@
 
 import type { PlayerView, SoldierView } from '../../../../protocol/view.ts';
 import type { ScreenBox, SoldierHeight } from '../environment.ts';
-import { OKLIFE } from '../faces.ts';
-import { OUR_TEAM, okInterrupt } from '../soldiers.ts';
+import { isDead, isUnconscious, OUR_TEAM, okInterrupt } from '../soldiers.ts';
 
 export const FindFlag = {
   OWNED: 0x1,
@@ -27,9 +26,8 @@ export function soldierFindFlags(s: SoldierView, selected: number | null, view: 
   else if (s.hostile === true) flags |= FindFlag.ENEMY;
   else flags |= FindFlag.NEUTRAL;
   if (view?.combat && s.team === OUR_TEAM && !okInterrupt(s)) flags |= FindFlag.NOINTERRUPT;
-  const unconscious = s.team === OUR_TEAM ? (s.life ?? 0) < OKLIFE : s.healthIndex === 0;
-  if (unconscious) flags |= FindFlag.UNCONSCIOUS;
-  if (s.team === OUR_TEAM && (s.life ?? 0) === 0) flags |= FindFlag.DEAD;
+  if (isUnconscious(s)) flags |= FindFlag.UNCONSCIOUS;
+  if (isDead(s)) flags |= FindFlag.DEAD;
   flags |= FindFlag.VISIBLE;
   return flags;
 }

@@ -1191,7 +1191,8 @@ want of action points and stays in his moving animation, which the cursor counts
 `asleep`, `squad` (null outside a squad) and `vehicle {id, driver}` from the roster, in the sandbox squad 0. Inventory
 objects add `jammed` and `imprint` (the profile a rocket rifle answers to, 201 for an unknown owner, `GetObjectImprint`).
 **Other soldiers in sight** carry `hostile` (`!bNeutral && bSide != FRIENDLY`, the glow test) and `healthIndex` (the
-index of `zHealthStr`, `GetSoldierHealthString`), never life. **Ground items** add `money` and `attachments`.
+index of `zHealthStr`, `GetSoldierHealthString`; −1 once `bLife` is 0, while the death animation plays until
+`soldierDied`, which the radar greys, the health word names dying and the enemy cycling skips), never life. **Ground items** add `money` and `attachments`.
 
 **The animation schedule.** Every soldier entry carries `frameSlot` (the timeline slot of the frame it shows, `28`
 §2.3), `stateTick` (the tick its animation state started) and `frameDelay` (`sAniDelay` in ms); `frame` (the sprite

@@ -3,6 +3,7 @@ import { createItem } from '../items/object.ts';
 import { WeaponMode } from '../tactical/combat/types.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { newKeyRing } from '../tactical/doors/key-ring.ts';
+import { LIFELESS_HEALTH_INDEX } from '../tactical/health.ts';
 import { emptyInventory, InvSlot } from '../tactical/inventory.ts';
 import { Opp } from '../tactical/perception/opp.ts';
 import {
@@ -137,11 +138,16 @@ function sideFromHostile(s: Soldier, v: KnowledgeSoldier): void {
   s.side = hostile ? (s.team === Team.CREATURE ? Side.NONE : Side.ENEMY) : Side.FRIENDLY;
 }
 
+function appearanceLife(healthIndex: number | undefined): number {
+  if (healthIndex === LIFELESS_HEALTH_INDEX) return 0;
+  return APPEARANCE_LIFE_BY_HEALTH[healthIndex ?? APPEARANCE_LIFE_BY_HEALTH.length - 1] ?? FULL_APPEARANCE_LIFE;
+}
+
 function applyAppearanceStandIns(content: TacticalContent, s: Soldier, v: KnowledgeSoldier, ownIds: readonly number[]): void {
   sideFromHostile(s, v);
   const item = representativeHandItem(content.items, v.hand);
   if (item !== NOTHING) s.inv[InvSlot.HAND] = createItem(content.items, item, FULL_APPEARANCE_LIFE);
-  s.life = APPEARANCE_LIFE_BY_HEALTH[v.healthIndex ?? APPEARANCE_LIFE_BY_HEALTH.length - 1] ?? FULL_APPEARANCE_LIFE;
+  s.life = appearanceLife(v.healthIndex);
   for (const id of ownIds) s.oppList[id] = Opp.SEEN_CURRENTLY;
 }
 

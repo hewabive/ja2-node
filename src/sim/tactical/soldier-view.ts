@@ -10,7 +10,7 @@ import type { OwnHintInputs } from '../knowledge/view.ts';
 import { armourPercent, maxArmourPerClass } from './combat/armour.ts';
 import { WeaponMode } from './combat/types.ts';
 import { isGassed } from './explosions/smoke.ts';
-import { HEALTH_CATEGORIES, healthCategory } from './health.ts';
+import { HEALTH_CATEGORIES, healthCategory, LIFELESS_HEALTH_INDEX } from './health.ts';
 import { Opp } from './perception/opp.ts';
 import { carriedWeightPercentOf } from './points.ts';
 import { NOBODY, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
@@ -149,9 +149,14 @@ export function ownHintInputs(t: TacticalState, s: Soldier): OwnHintInputs {
   };
 }
 
+function seenHealthIndex(s: Soldier): number {
+  if (s.life === 0) return LIFELESS_HEALTH_INDEX;
+  return HEALTH_CATEGORIES.indexOf(healthCategory(s.life, s.lifeMax));
+}
+
 export function otherSoldierFields(s: Soldier): OtherSoldierFields {
   return {
     hostile: !s.neutral && s.side !== Side.FRIENDLY,
-    healthIndex: HEALTH_CATEGORIES.indexOf(healthCategory(s.life, s.lifeMax)),
+    healthIndex: seenHealthIndex(s),
   };
 }

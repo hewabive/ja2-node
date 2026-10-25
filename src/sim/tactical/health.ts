@@ -6,6 +6,7 @@
 
 export const HEALTH_CATEGORIES = ['dying', 'critical', 'wounded', 'poor', 'fair', 'good', 'excellent'] as const;
 export type HealthCategory = (typeof HEALTH_CATEGORIES)[number];
+export const LIFELESS_HEALTH_INDEX = -1;
 
 const HEALTH_RANGES = [15, 30, 45, 60, 75, 90, 101] as const;
 const FULL_LIFE_FIRST_CATEGORY = 4;

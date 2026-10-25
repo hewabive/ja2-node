@@ -334,6 +334,33 @@ describe('the tactical input on the tactical screen', () => {
   );
 
   it(
+    'locates the seen enemies with e and Enter and skips the ones whose life is gone while they fall',
+    async () => {
+      const f = await inCombat();
+      const selected = merc(f, f.screen.selected ?? 0);
+      const enemies = (selected.sees ?? [])
+        .map((id) => merc(f, id))
+        .filter((v) => v.hostile === true)
+        .sort((a, b) => a.id - b.id);
+      const first = enemies[0];
+      if (!first) throw new Error('no enemy in sight');
+      f.key('e');
+      expect(f.world.located.at(-1)).toBe(first.gridNo);
+      f.key('Enter');
+      expect(f.world.located.at(-1)).toBe(first.gridNo);
+      const t = tacticalOf(f.session).state;
+      for (const s of t.soldiers) if (s && s.team !== 0 && !s.neutral) s.life = 0;
+      f.deliver();
+      expect(f.screen.feedbackText).toBeNull();
+      const located = f.world.located.length;
+      f.key('Enter');
+      expect(f.world.located).toHaveLength(located);
+      expect(f.screen.feedbackText).toBeTruthy();
+    },
+    SLOW_MS,
+  );
+
+  it(
     'shows the fists, not the lost gun, once the gun is gone from the hand of a merc left in burst mode',
     async () => {
       const f = await inCombat();
