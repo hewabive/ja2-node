@@ -5,13 +5,14 @@ import { emptyTileLayer, LAYER_NAMES, type MapDef, tileLayerFromLists } from '..
 import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { buildLevel } from '../../content/world/level.ts';
 import { placeWorldStructures } from '../../content/world/placement.ts';
+import { StructureFlags } from '../../content/world/structures.ts';
 import { buildTileDatabase, type TileElement, TileFlags, type TileSurface } from '../../content/world/tile-database.ts';
 import { parseTileTables, typeIndex } from '../../content/world/tile-tables.ts';
 import { type Camera, screenToGridNo, tileOrigin, type Viewport, worldOrigin } from './geometry.ts';
 import { FLOATS_PER_INSTANCE, InstanceFlags, ShadeKey } from './instances.ts';
 import { prepareLevelRenderData } from './level-render-data.ts';
 import { computeReveal, NO_REVEAL } from './reveal.ts';
-import { StaticScene, StaticSegment, type StaticState, type StaticWorld } from './static-scene.ts';
+import { doorTileInState, StaticScene, StaticSegment, type StaticState, type StaticWorld } from './static-scene.ts';
 
 const tables = parseTileTables(JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/tiles.json'), 'utf8')));
 const surfaces: TileSurface[] = tables.types.map((t) => ({
@@ -201,5 +202,25 @@ describe('static scene order and depth', () => {
     scene.setState(DEFAULT_STATE, [160]);
     expect(scene.assemble().count).toBe(before.count);
     expect(segment(scene, StaticSegment.OBSCURED_DITHER).every((i) => i.flags === InstanceFlags.DITHER)).toBe(true);
+  });
+});
+
+describe('door tiles', () => {
+  const DOOR_FRAMES = 4;
+  const CLOSED = 10;
+  const OPEN = CLOSED + DOOR_FRAMES;
+  const AT = g(80, 80);
+  const doorTile = (flags: number, partnerDelta: number) => ({ structure: { flags, partnerDelta } }) as unknown as TileElement;
+  const tiles: TileElement[] = [];
+  tiles[CLOSED] = doorTile(StructureFlags.DOOR, DOOR_FRAMES);
+  tiles[OPEN] = doorTile(StructureFlags.DOOR | StructureFlags.OPEN, -DOOR_FRAMES);
+
+  it('draws a door in the state of the view, whichever state the map holds it in', () => {
+    const open = new Set([AT]);
+    const closed = new Set<number>();
+    expect(doorTileInState(tiles, open, AT, CLOSED)).toBe(OPEN);
+    expect(doorTileInState(tiles, open, AT, OPEN)).toBe(OPEN);
+    expect(doorTileInState(tiles, closed, AT, OPEN)).toBe(CLOSED);
+    expect(doorTileInState(tiles, closed, AT, CLOSED)).toBe(CLOSED);
   });
 });

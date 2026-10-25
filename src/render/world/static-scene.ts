@@ -98,10 +98,10 @@ function isDynamic(te: TileElement): boolean {
   return (te.flags & (TileFlags.DYNAMIC | TileFlags.ANIMATED)) !== 0;
 }
 
-export function substituteOpenDoor(tiles: readonly TileElement[], openDoors: ReadonlySet<number>, g: number, tile: number): number {
-  if (!openDoors.has(g)) return tile;
+export function doorTileInState(tiles: readonly TileElement[], openDoors: ReadonlySet<number>, g: number, tile: number): number {
   const def = tiles[tile]?.structure;
-  return def && has(def.flags, StructureFlags.ANYDOOR) && !has(def.flags, StructureFlags.OPEN) ? tile + def.partnerDelta : tile;
+  if (!def || !has(def.flags, StructureFlags.ANYDOOR)) return tile;
+  return has(def.flags, StructureFlags.OPEN) === openDoors.has(g) ? tile : tile + def.partnerDelta;
 }
 
 export class StaticScene {
@@ -250,7 +250,7 @@ export class StaticScene {
 
   #emitStruct(at: TileAt, mapTile: number, index: number): void {
     const w = this.#world;
-    let tile = substituteOpenDoor(w.tiles, this.#state.openDoors, at.g, mapTile);
+    let tile = doorTileInState(w.tiles, this.#state.openDoors, at.g, mapTile);
     if (!this.#state.treeTops && (w.tiles[tile]?.flags ?? 0) & TileFlags.FULL3D) tile += TREE_TOP_SKIP;
     const d = this.#drawable(tile);
     if (!d) return;

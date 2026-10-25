@@ -206,7 +206,8 @@ driver) to `idle` or a decision prompt and streams the frames at once; the tacti
 or 16× (`SessionClient.playFor`) or applies them all with "skip".
 
 The player view lists our soldiers (with AP, life, life max and breath), the militia and only those
-others the squad currently sees (`bVisible ≥ 0`, `docs/08` §2.7), plus the gridnos of open doors and,
+others the squad currently sees (`bVisible ≥ 0`, `docs/08` §2.7), plus the gridnos of every open door (the
+map holds many doors open, A9 70 of its 73) and,
 in turn-based combat, `combat {team, round, interrupt}`, and the items the squad has seen on the ground
 (`items [{gridNo, level, item, count, status}]`); frames carry the changed soldiers and, when they change,
 the full door list, the item list and the combat block. Simulation events (`arrived`, `stopped` with a

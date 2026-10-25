@@ -6,6 +6,7 @@ import { StructureFlags } from '../../../content/world/structures.ts';
 import type { SimEvent } from '../../events.ts';
 import { createItem } from '../../items/object.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
+import { swapStructureForPartner, toggleDoorAt } from '../doors.ts';
 import { InvSlot } from '../inventory.ts';
 import { NO_NARRATIVE_PORT } from '../narrative/port.ts';
 import { Team } from '../soldier.ts';
@@ -56,6 +57,17 @@ function doorStructure(sim: TacticalSim) {
   if (!structure) throw new Error('no stub door');
   return structure;
 }
+
+describe('a door the map holds open', () => {
+  it('is open in the view before anybody touches it, and leaves it once closed', () => {
+    const sim = village();
+    expect(swapStructureForPartner(sim.state, doorStructure(sim))).not.toBeNull();
+    expect(sim.state.doorStatus.has(DOOR)).toBe(false);
+    expect(sim.openDoors()).toEqual([DOOR]);
+    expect(toggleDoorAt(sim.state, DOOR)).toBe(true);
+    expect(sim.openDoors()).toEqual([]);
+  });
+});
 
 describe('the stub village door', () => {
   it('is a locked, electrically trapped door with lock 1', () => {

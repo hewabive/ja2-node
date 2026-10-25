@@ -6,11 +6,13 @@ import { buildStubs } from '../../../stubs/build.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { levelTilesAt } from '../../content/world/level.ts';
+import { has, StructureFlags } from '../../content/world/structures.ts';
 import { Rng } from '../../core/rng.ts';
 import { type DataVfs, openDataVfs } from '../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
 import { prepareLevelRenderData, updateLevelRenderData } from '../../render/world/level-render-data.ts';
 import { applyTileChanges } from '../../render/world/tile-changes.ts';
+import { doorGridNos } from '../../sim/tactical/doors.ts';
 import { initLighting, lightTrueLevel } from '../../sim/tactical/lighting/lighting.ts';
 import { createTacticalState } from '../../sim/tactical/state.ts';
 import { loadItemTiles } from './item-tiles.ts';
@@ -34,9 +36,16 @@ async function gameplayLevels(world: LoadedWorld, hour: number, ambient: number)
   return Uint8Array.from({ length: WORLD_MAX }, (_, g) => lightTrueLevel(t, g, 0));
 }
 
+function doorsTheMapHoldsOpen(world: LoadedWorld): Set<number> {
+  const structures = world.tactical.structures;
+  return new Set(
+    doorGridNos(world.tactical).filter((g) => has(structures.find(g, StructureFlags.ANYDOOR)?.flags ?? 0, StructureFlags.OPEN)),
+  );
+}
+
 async function expectStrongestLightRule(world: LoadedWorld): Promise<void> {
   const lighting = new WorldLighting(world.tactical);
-  const night = lighting.field({ time: NIGHT, openDoors: NO_DOORS, mercLights: [] });
+  const night = lighting.field({ time: NIGHT, openDoors: doorsTheMapHoldsOpen(world), mercLights: [] });
   const gameplay = await gameplayLevels(world, NIGHT.hour, lighting.ambientAt(NIGHT));
   let lit = 0;
   for (let g = 0; g < WORLD_MAX; g++) {

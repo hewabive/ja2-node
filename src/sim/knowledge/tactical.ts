@@ -1,5 +1,4 @@
 import type { MapDoor } from '../../content/formats/map.ts';
-import { WORLD_MAX } from '../../content/world/grid.ts';
 import { recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
@@ -7,7 +6,7 @@ import { Rng } from '../../core/rng.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { PerceivedLock, PerceivedTrap } from '../tactical/doors/door-table.ts';
 import type { DoorView } from '../tactical/doors/door-view.ts';
-import { isDoorOpenAt, swapStructureForPartner } from '../tactical/doors.ts';
+import { doorGridNos, isDoorOpenAt, swapStructureForPartner } from '../tactical/doors.ts';
 import {
   initLighting,
   LightSpriteFlags,
@@ -80,15 +79,6 @@ function projectedDoor(door: MapDoor, view: DoorView | undefined, guard: GuardOp
     perceivedTrapped: view ? perceivedTrap(view.trap) : PerceivedTrap.UNKNOWN,
   };
   return guardFields(perceived, DOOR_FIELDS, `door ${door.gridNo}`, guard);
-}
-
-function doorGridNos(world: TacticalWorld): number[] {
-  const doors: number[] = [];
-  for (let g = 0; g < WORLD_MAX; g++) {
-    const door = world.structures.find(g, StructureFlags.ANYDOOR);
-    if (door && door.gridNo === g) doors.push(g);
-  }
-  return doors;
 }
 
 function lightKey(light: KnowledgeLight | null | undefined, hour: number): string {

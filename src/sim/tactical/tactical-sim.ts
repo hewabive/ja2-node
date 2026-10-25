@@ -55,7 +55,7 @@ import { DOOR_ACTIONS, type DoorActionName } from './doors/door-actions.ts';
 import { doorCommand, handlePendingDoorOnArrival } from './doors/door-command.ts';
 import { type DoorView, doorViews, type KeyView, keyRingView } from './doors/door-view.ts';
 import type { KeyTable } from './doors/keys.ts';
-import { isDoorOpenAt } from './doors.ts';
+import { openDoorGridNos } from './doors.ts';
 import { stepExplosions } from './explosions/explosion.ts';
 import { stepThrownObjects } from './explosions/physics.ts';
 import { checkForRunningIntoGas, updateGassedOnNewGridNo } from './explosions/smoke.ts';
@@ -836,10 +836,7 @@ export class TacticalSim {
   }
 
   openDoors(): number[] {
-    return [...this.state.doorStatus.entries()]
-      .filter(([g]) => isDoorOpenAt(this.state, g))
-      .map(([g]) => g)
-      .sort((a, b) => a - b);
+    return openDoorGridNos(this.state);
   }
 
   snapshot(presentation: PresentationTimeline, filter: (s: Soldier) => boolean = () => true): OwnSoldierSnapshot[] {

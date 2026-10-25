@@ -13,6 +13,7 @@ import { EventKind } from '../../sim/strategic/time/constants.ts';
 import { buildDayLightLevels, NORMAL_LIGHTLEVEL_NIGHT } from '../../sim/strategic/time/environment.ts';
 import { createEventQueue } from '../../sim/strategic/time/event-queue.ts';
 import { createWorldClock } from '../../sim/strategic/time/world-clock.ts';
+import { doorGridNos } from '../../sim/tactical/doors.ts';
 import {
   createLightingState,
   initLighting,
@@ -94,6 +95,7 @@ export class WorldLighting {
   readonly #map: MapDef;
   readonly #host: LightingHost;
   readonly #doorStatus = new Map<number, DoorStatus>();
+  readonly #doors: readonly number[];
   #version = 0;
   #staticKey = '';
   #mercKey = '';
@@ -102,6 +104,7 @@ export class WorldLighting {
 
   constructor(world: TacticalWorld) {
     this.#map = world.map;
+    this.#doors = doorGridNos(world);
     const mapDoors = new Map(world.map.doors.map((d) => [d.gridNo, d] as const));
     const pathWorld: PathWorld = {
       costs: world.costs,
@@ -142,7 +145,7 @@ export class WorldLighting {
     const t = this.#host as TacticalState;
     if (!this.#static || staticKey !== this.#staticKey) {
       this.#doorStatus.clear();
-      for (const g of input.openDoors) this.#doorStatus.set(g, { perceivedOpen: true });
+      for (const g of this.#doors) this.#doorStatus.set(g, { perceivedOpen: input.openDoors.has(g) });
       initLighting(t, this.#map, input.time.hour, ambient);
       this.#static = this.#mapLightMaxima(t);
       this.#staticKey = staticKey;

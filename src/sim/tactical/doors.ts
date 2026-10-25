@@ -3,8 +3,9 @@
 // @src src/game/Tactical/Handle_Doors.cc HandleDoorChangeFromGridNo;
 // @src TileEngine/Structure.cc SwapStructureForPartner, SwapStructureForPartnerAndStoreChangeInMap; Structure_Wrap.cc SetOpenableStructureToClosed. See docs/07 §1.5.
 
+import { WORLD_MAX } from '../../content/world/grid.ts';
 import { recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
-import { has, PROFILE_Z_SIZE, StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
+import { has, PROFILE_Z_SIZE, StructureFlags, type StructureInstance, type WorldStructures } from '../../content/world/structures.ts';
 import type { DoorSoundKind } from '../events.ts';
 import { recordStructureAdded, recordStructureRemoved } from './map-changes.ts';
 import type { TacticalState } from './state.ts';
@@ -64,6 +65,25 @@ export function setOpenableStructureToClosed(t: TacticalState, gridNo: number): 
   if (has(openable.flags, StructureFlags.OPEN) && swapStructureForPartner(t, openable))
     recompileLocalMovementCosts(t.world.costs, t.world, gridNo);
   return true;
+}
+
+const doorsOfWorld = new WeakMap<WorldStructures, readonly number[]>();
+
+export function doorGridNos(world: { readonly structures: WorldStructures }): readonly number[] {
+  const known = doorsOfWorld.get(world.structures);
+  if (known) return known;
+  const doors: number[] = [];
+  for (let g = 0; g < WORLD_MAX; g++) {
+    const door = world.structures.find(g, StructureFlags.ANYDOOR);
+    if (door && door.gridNo === g) doors.push(g);
+  }
+  doorsOfWorld.set(world.structures, doors);
+  return doors;
+}
+
+export function openDoorGridNos(t: TacticalState): number[] {
+  const candidates = new Set([...doorGridNos(t.world), ...t.doorStatus.keys()]);
+  return [...candidates].filter((g) => isDoorOpenAt(t, g)).sort((a, b) => a - b);
 }
 
 export function isDoorOpenAt(t: TacticalState, gridNo: number): boolean {
