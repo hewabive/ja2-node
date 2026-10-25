@@ -479,6 +479,10 @@ The game data splits into the **rule pack** (everything the simulation reads) an
   compressed, under the ETag `"<hash>-gzip"` (`Vary: Accept-Encoding`); ranges stay uncompressed. The compressed files
   are kept in memory by content hash, 64 MB least recently used (`src/server/vfs-gzip.ts`). The files of the A9 tactical
   screen shrink from 10.9 MB to 4.2 MB (2026-10-25).
+- **The built client** (`dist/client`, `pnpm build`), when present, is served gzipped: the hashed files under `/assets/`
+  with `cache-control: private, max-age=31536000, immutable`, the pages with `private, no-cache`. Over a remote link the
+  built client is the cheaper way to play: the Vite dev server sends some 700 modules and revalidates each on every
+  opening (16 MB the first time), the built client 28 files (1.3 MB, then nothing).
 
 ---
 

@@ -87,6 +87,8 @@ const IMMUTABLE_CACHE_CONTROL = 'private, max-age=31536000, immutable';
 const REVALIDATE_CACHE_CONTROL = 'private, no-cache';
 const PROFILES_ETAG_DIGITS = 16;
 const GZIP_ETAG_SUFFIX = '-gzip';
+const HASHED_CLIENT_FILES = '/assets/';
+const HTTP_ERROR_FROM = 400;
 
 interface VfsRequest {
   readonly path: string;
@@ -99,6 +101,12 @@ function vfsRequestOf(raw: string): VfsRequest | 'malformed' {
   const hash = slash < 0 ? '' : raw.slice(PINNED_PREFIX.length, slash);
   return isAssetHash(hash) ? { path: raw.slice(slash + 1), pinned: hash } : 'malformed';
 }
+
+const clientCaching = createMiddleware(async (c, next) => {
+  await next();
+  if (c.res.status >= HTTP_ERROR_FROM) return;
+  c.header('cache-control', c.req.path.startsWith(HASHED_CLIENT_FILES) ? IMMUTABLE_CACHE_CONTROL : REVALIDATE_CACHE_CONTROL);
+});
 
 function acceptsGzip(header: string | undefined): boolean {
   return header?.split(',').some((part) => part.trim().split(';')[0]?.trim().toLowerCase() === 'gzip') ?? false;
@@ -476,7 +484,8 @@ export function createApp(options: AppOptions): Hono {
     }
   });
 
-  if (options.clientDir) app.use('*', serveStatic({ root: options.clientDir, rewriteRequestPath: clientPagePath }));
+  if (options.clientDir)
+    app.use('*', clientCaching, compress(), serveStatic({ root: options.clientDir, rewriteRequestPath: clientPagePath }));
 
   return app;
 }
