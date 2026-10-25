@@ -37,6 +37,8 @@ const COMBAT_STEPS = [2, -3 * COLS, 3 * COLS - 1];
 const AIM_ABOVE_FEET = 15;
 const DESTINATION_COLUMN = 4;
 const FIRST_ROW = 0;
+const MAX_BEGINNING_VIDEOS = 8;
+const HIRE_TIMEOUT_MS = 120_000;
 const SAVE_DESCRIPTION_FIELD = 'description.0';
 const STEP_TIMEOUT_MS = 120_000;
 const MARKER_TIMEOUT_MS = 5_000;
@@ -128,7 +130,7 @@ export class MainFlow {
     await clickWidget(page, 'start');
     await modalIs(page, 'messageBox');
     await clickWidget(page, 'messageBox.yes');
-    await waitWhileLoading(page, () => window.__ja2Ui.screen === 'laptop');
+    await this.#skipBeginningVideos();
     const session = await page.evaluate(() => window.__ja2Ui.session);
     if (!session) throw new Error('no session after a new game');
     this.session = session;
@@ -136,8 +138,29 @@ export class MainFlow {
     return session;
   }
 
-  async hireThroughAim(nickname: string | null): Promise<string> {
+  async #skipBeginningVideos(): Promise<void> {
     const page = this.page;
+    for (let video = 0; video < MAX_BEGINNING_VIDEOS; video++) {
+      await waitWhileLoading(page, () => window.__ja2Ui.screen === 'laptop' || (window.__ja2Ui.video?.progress.framesShown ?? 0) > 0);
+      if (await page.evaluate(() => window.__ja2Ui.screen === 'laptop')) return;
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(() => window.__ja2Ui.screen === 'laptop' || (window.__ja2Ui.video?.progress.framesShown ?? 0) === 0);
+    }
+    await screenIs(page, 'laptop');
+  }
+
+  async cheapestAnsweringMerc(): Promise<string> {
+    const aim = (await this.game.observe(this.session)).laptop?.aim ?? [];
+    const cost = (m: (typeof aim)[number]) => m.salary.week + (m.kit?.cost ?? 0) + (m.medicalDeposit ?? 0);
+    const answering = aim.filter((m) => m.face === 'available' && m.contact === 'firstContact').sort((a, b) => cost(a) - cost(b));
+    const [cheapest] = answering;
+    if (!cheapest) throw new Error('no A.I.M. merc answers');
+    return cheapest.nickname;
+  }
+
+  async hireThroughAim(wanted: string | null): Promise<string> {
+    const page = this.page;
+    const nickname = wanted ?? (await this.cheapestAnsweringMerc());
     await clickVisible(page, 'newMailOk');
     await waitVisible(page, 'newMailOk', false);
     await clickVisible(page, 'webButton');
@@ -152,19 +175,25 @@ export class MainFlow {
           for (let column = 0; column < columns; column++) {
             const name = find(`mugName${row}_${column}`)?.text ?? '';
             const away = find(`mugOverlay${row}_${column}`)?.text ?? '';
-            if (name && !away && (wanted === null || name === wanted)) return { region: `mugRegion${row}_${column}`, name };
+            if (name && !away && name === wanted) return { region: `mugRegion${row}_${column}`, name };
           }
         return null;
       },
       [nickname, MUG_ROWS, MUG_COLUMNS] as const,
     );
-    if (!mug) throw new Error(`no available mug shot ${nickname ?? ''}`);
+    if (!mug) throw new Error(`no available mug shot of ${nickname}`);
     await clickWidget(page, mug.region);
     await clickVisible(page, 'aimContact');
     await clickVisible(page, 'hire');
     await clickVisible(page, 'transferFunds');
-    await clickVisible(page, 'popupOk');
-    await modalIs(page, 'messageBox');
+    await waitVisible(page, 'popupOk');
+    const popup = (await widgets(page)).find((w) => w.id === 'popupTexts')?.text ?? '';
+    await clickWidget(page, 'popupOk');
+    await page
+      .waitForFunction(() => window.__ja2Ui.modal === 'messageBox', null, { timeout: HIRE_TIMEOUT_MS })
+      .catch(() => {
+        throw new Error(`no arrival box after the hire; the popup said "${popup}"`);
+      });
     await clickWidget(page, 'messageBox.ok');
     await modalIs(page, null);
     const team = (await this.game.observe(this.session)).laptop?.aim.filter((m) => m.face === 'hired') ?? [];

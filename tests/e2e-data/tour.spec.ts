@@ -74,7 +74,7 @@ test.describe('a structural tour of the screens on the original data (no picture
       await waitVisible(page, shown);
       await expectNoMissingArt(page);
     }
-    await expectWidgets(page, [{ id: 'fileRow0', text: true }]);
+    await expectWidgets(page, [{ id: 'fileSender0', text: true }]);
     await clickWidget(page, 'webButton');
     await clickVisible(page, 'bookmarkRegion0');
     await waitVisible(page, 'memberCardLink');

@@ -19,13 +19,15 @@ export async function expectWidgets(page: Page, expected: readonly (string | Wid
   }
 }
 
+const ART_TIMEOUT_MS = 60_000;
+
 export async function expectNoMissingArt(page: Page): Promise<void> {
-  expect(
-    await page.evaluate(() => ({ images: window.__ja2Ui.draw?.missingImages ?? [], fonts: window.__ja2Ui.draw?.missingFonts ?? [] })),
-  ).toEqual({
-    images: [],
-    fonts: [],
-  });
+  await expect
+    .poll(
+      () => page.evaluate(() => ({ images: window.__ja2Ui.draw?.missingImages ?? [], fonts: window.__ja2Ui.draw?.missingFonts ?? [] })),
+      { timeout: ART_TIMEOUT_MS },
+    )
+    .toEqual({ images: [], fonts: [] });
 }
 
 export async function expectTextsPresent(page: Page, prefix: string, minimum: number): Promise<void> {
