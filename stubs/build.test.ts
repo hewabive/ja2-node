@@ -52,8 +52,10 @@ import {
   talkingFaceSize,
 } from './ui/faces.ts';
 import { BIG_ITEM_DIR, ITEM_OUTLINE_INDEX, smallSheetPlans, stubItemTable } from './ui/items.ts';
+import { LOAD_SCREEN_HEIGHT, LOAD_SCREEN_PATH, LOAD_SCREEN_WIDTH, loadScreenPaths } from './ui/load-screens.ts';
 import { RADAR_MAP_HEIGHT, RADAR_MAP_WIDTH, radarMapPath, STUB_MAPS_DIR } from './ui/radar.ts';
 import { planStubSkin, readOriginalLayouts } from './ui/skin.ts';
+import { BOARD_HEIGHT, BOARD_WIDTH, STRATEGIC_MAP_PATH } from './ui/strategic-map.ts';
 import { OUTLINE_INDEX, TEST_CARD_PATH, TEST_CARD_RGB_PATH } from './ui-test-card.ts';
 import {
   STUB_SPLASH_FRAMES,
@@ -65,7 +67,7 @@ import {
   stubSplashFrames,
 } from './video.ts';
 
-const MEDIA_DIRS = ['synth', 'music', 'mercedt', 'intro', 'fonts', 'cursors', 'interface', 'laptop'];
+const MEDIA_DIRS = ['synth', 'music', 'mercedt', 'intro', 'fonts', 'cursors', 'interface', 'laptop', 'loadscreens'];
 const SPLASH_BUDGET_BYTES = 64 * 1024;
 const CONTENT_DIRS = ['world', 'npcdata', 'binarydata'];
 const STUB_PROFILE_FILE = 'profiles.json';
@@ -77,7 +79,13 @@ const TEXT_FILES = [
   STUB_GLYPH_TABLE_PATH,
   'aliases.json',
 ];
-const MEDIA_BUDGET_BYTES = 6 * 1024 * 1024;
+const MEDIA_BUDGET_BYTES = 7 * 1024 * 1024;
+const HELP_TEXT_FILE = 'text/help.json';
+const LAPTOP_PAGES_FILE = 'text/laptop-pages.json';
+const HELP_CONSTANTS_TABLE = 'tables/ui-constants/HelpScreen.json';
+const HELP_RECORD_PREFIX = 'HLP_TXT_';
+const MIN_LOAD_SCREEN_NAMES = 40;
+const MIN_BOARD_COLOURS = 5;
 const EYE_FRAMES = 4;
 const MOUTH_FRAMES = 3;
 const MIN_LIP_GAPS = 2;
@@ -475,11 +483,8 @@ describe('stub media', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
         continue;
       }
       const sti = decodeSti(bytes);
-      if (sti.kind !== 'indexed') throw new Error(`${plan.path} is not indexed`);
-      expect(
-        sti.subImages.map((f) => [f.width, f.height]),
-        plan.path,
-      ).toEqual(plan.frames.map((f) => [f.width, f.height]));
+      const sizes = sti.kind === 'indexed' ? sti.subImages.map((f) => [f.width, f.height]) : [[sti.width, sti.height]];
+      expect(sizes, plan.path).toEqual(plan.frames.map((f) => [f.width, f.height]));
     }
     const buttons = plans.get('interface/popupbuttons.sti');
     expect(buttons?.frames.map((f) => f.state)).toEqual(['normal', 'pressed', 'normal', 'pressed']);
@@ -490,6 +495,44 @@ describe('stub media', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
       return f ? f.pixels[(f.height - 3) * f.width + f.width - 3] : -1;
     };
     expect(centre(0)).not.toBe(centre(1));
+  });
+
+  it('decodes one RGB565 load screen behind every load screen name of the loading layout', async () => {
+    const paths = await loadScreenPaths();
+    expect(paths.length).toBeGreaterThan(MIN_LOAD_SCREEN_NAMES);
+    const bytes = await data.vfs.read(stub(LOAD_SCREEN_PATH));
+    const sti = decodeSti(bytes);
+    if (sti.kind !== 'rgb') throw new Error('the stub load screen is not an RGB565 picture');
+    expect([sti.width, sti.height]).toEqual([LOAD_SCREEN_WIDTH, LOAD_SCREEN_HEIGHT]);
+    expect(new Set(sti.pixels).size).toBeGreaterThan(2);
+    for (const path of paths) expect(Buffer.from(await data.vfs.read(stub(path))).equals(Buffer.from(bytes)), path).toBe(true);
+  });
+
+  it('decodes the map board at the size of the original board', async () => {
+    const board = decodePcx(await data.vfs.read(stub(STRATEGIC_MAP_PATH)));
+    expect([board.width, board.height]).toEqual([BOARD_WIDTH, BOARD_HEIGHT]);
+    expect(new Set(board.pixels).size).toBeGreaterThanOrEqual(MIN_BOARD_COLOURS);
+  });
+
+  it('serves the authored help rows and laptop page texts through the text service', async () => {
+    const texts = new TextService({ vfs: data.vfs, dataVersion: STUB_DATA_VERSION });
+    const column = async (file: string, row: number, index = 0) => {
+      const record = await texts.edtRecord(file, row);
+      return record.ok ? record.record.columns[index] : null;
+    };
+    const help = JSON.parse(await readFile(join(import.meta.dirname, HELP_TEXT_FILE), 'utf8')).rows as Record<string, string>;
+    const constants = JSON.parse(await readFile(join(PROJECT_DATA_DIR, HELP_CONSTANTS_TABLE), 'utf8')).constants as Record<string, number>;
+    const records = Object.entries(constants).filter(([name]) => name.startsWith(HELP_RECORD_PREFIX));
+    expect(records.length).toBeGreaterThan(0);
+    for (const [name, row] of records) expect(await column('binarydata/help.edt', row), name).toBe(help[name]);
+    const pages = JSON.parse(await readFile(join(import.meta.dirname, LAPTOP_PAGES_FILE), 'utf8')).files as Record<
+      string,
+      { readonly rows?: readonly string[]; readonly records?: readonly (readonly string[])[] }
+    >;
+    for (const [file, entry] of Object.entries(pages)) {
+      const first = entry.rows ? [entry.rows[0]] : (entry.records?.[0] ?? []);
+      for (const [index, text] of first.entries()) expect(await column(file, 0, index), `${file} column ${index}`).toBe(text);
+    }
   });
 
   it('keeps the media small', async () => {
