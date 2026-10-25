@@ -9,7 +9,7 @@ const SETTINGS_WITHOUT_HELP = JSON.stringify({ version: 2, helpHidden: true });
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: false,
-  workers: process.env.CI ? undefined : LOCAL_WORKERS,
+  ...(process.env.CI ? {} : { workers: LOCAL_WORKERS }),
   timeout: CANVAS_TEST_TIMEOUT_MS,
   reporter: [['list']],
   use: {
