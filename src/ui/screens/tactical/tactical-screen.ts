@@ -94,10 +94,12 @@ import {
   nextMerc,
   OUR_TEAM,
   okInterrupt,
+  opponentCount,
   ourTurn,
   ownSoldiers,
   soldierById,
   squadOf,
+  visibleEnemies,
 } from './soldiers.ts';
 import { type ControlsArt, type ControlsScreen, type PanelButton, TacticalControls } from './tactical-controls.ts';
 import { TeamPanelController } from './team-panel.ts';
@@ -748,7 +750,7 @@ export class TacticalScreen implements Screen {
   #soldierDied(id: number): void {
     const s = soldierById(this.#view(), id) ?? this.#lastSeen.get(id) ?? null;
     if (s?.team !== OUR_TEAM) return;
-    this.#fallen.set(id, { ...s, life: 0, sees: [], continueTo: null });
+    this.#fallen.set(id, { ...s, life: 0, sees: [], opponents: 0, continueTo: null });
     this.#startDeathAnimation(id);
   }
 
@@ -1169,14 +1171,11 @@ export class TacticalScreen implements Screen {
   #enemyIndicator(id: number | null): void {
     const s = this.#slotSoldier(id);
     if (!s || isInVehicle(s)) return;
-    const enemies = (s.sees ?? [])
-      .map((e) => soldierById(this.#view(), e))
-      .filter((e): e is SoldierView => e !== null && !isDead(e))
-      .sort((a, b) => a.id - b.id);
-    if (enemies.length === 0) {
+    if (opponentCount(s) === 0) {
       this.#selectFace(this.#slots.indexOf(s.id));
       return;
     }
+    const enemies = visibleEnemies(this.#view(), s);
     const last = this.#lastEnemyCycled.get(s.id) ?? 0;
     const next = enemies.find((e) => e.id > last) ?? enemies.find((e) => e.id > 0);
     if (!next) {

@@ -46,7 +46,7 @@ import { UiEvent, UiMode } from './input/ui-events.ts';
 import { slotItem } from './item-cursor.ts';
 import { type OverheadArt, OverheadMap } from './overhead-map.ts';
 import { DoorMenu, type MenuArt, MovementMenu, type MovementMenuSubject } from './popup-menus.ts';
-import { inCombat, isDead, isEpc, isInVehicle, isRobot, OUR_TEAM, ourTurn } from './soldiers.ts';
+import { inCombat, isDead, isEpc, isInVehicle, isRobot, OUR_TEAM, opponentCount, ourTurn, visibleEnemies } from './soldiers.ts';
 
 const SCROLL_STEP_MS = 20;
 const SCROLL_SPEED = 40;
@@ -542,17 +542,17 @@ export class TacticalControls {
   #cycleVisibleEnemies(): void {
     const sel = this.#screen.selected();
     if (!sel) return;
-    const view = this.#view();
-    const enemies = (sel.sees ?? [])
-      .map((id) => view?.soldiers.find((s) => s.id === id))
-      .filter((s): s is SoldierView => s !== undefined && !isDead(s))
-      .sort((a, b) => a.id - b.id);
-    if (enemies.length === 0) {
+    if (opponentCount(sel) === 0) {
       this.#screen.feedback(this.#text(TACTICAL, NO_ENEMIES_IN_SIGHT_STR));
       return;
     }
+    const enemies = visibleEnemies(this.#view(), sel);
     const last = this.#lastVisibleEnemy.get(sel.id) ?? -1;
-    const next = enemies.find((e) => e.id > last) ?? (enemies[0] as SoldierView);
+    const next = enemies.find((e) => e.id > last) ?? enemies[0];
+    if (!next) {
+      this.#lastVisibleEnemy.delete(sel.id);
+      return;
+    }
     this.#lastVisibleEnemy.set(sel.id, next.id);
     this.#screen.locate(next, SHOW_LOCATOR_NORMAL_CYCLES);
     this.#screen.setInterfaceLevel(next.level);

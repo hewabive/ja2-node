@@ -383,7 +383,7 @@ export function drawFace(
     list.image(art.dead, DEAD_FRAME, x, y);
     list.image(art.hatch, 0, x, y);
   }
-  const opponents = soldier.sees?.length ?? 0;
+  const opponents = soldier.opponents ?? 0;
   if (opponents > 0) drawEnemyCount(list, ctx.fonts.tiny, x, y, opponents);
   if (overlays.hatched) list.image(art.hatch, 0, x, y);
   if (overlays.textOver !== null && !face.invalidAnim(images)) {

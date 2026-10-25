@@ -69,6 +69,7 @@ export interface SoldierView {
   readonly weaponMode?: WeaponModeView;
   readonly muted?: boolean;
   readonly sees?: readonly number[];
+  readonly opponents?: number;
   readonly canAct?: boolean;
   readonly continueTo?: number | null;
   readonly noApToFinishMove?: boolean;
@@ -1093,6 +1094,7 @@ const SCALAR_SOLDIER_FIELDS = [
   'stealth',
   'weaponMode',
   'muted',
+  'opponents',
   'canAct',
   'continueTo',
   'noApToFinishMove',

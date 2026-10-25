@@ -49,6 +49,7 @@ export interface OwnSoldierFields {
   readonly weaponMode: WeaponModeView;
   readonly muted: boolean;
   readonly sees: readonly number[];
+  readonly opponents: number;
   readonly canAct: boolean;
   readonly continueTo: number | null;
   readonly noApToFinishMove: boolean;
@@ -124,6 +125,7 @@ export function ownSoldierFields(t: TacticalState, s: Soldier, visible: Readonly
     weaponMode: WEAPON_MODES[s.weaponMode] ?? 'single',
     muted: s.muted,
     sees: seenOpponents(s, visible),
+    opponents: s.ai.oppCount,
     canAct: canActNow(t, s),
     continueTo: continueLocation(t, s),
     noApToFinishMove: s.noAPToFinishMove,

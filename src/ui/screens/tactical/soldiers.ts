@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Interface_Panels.cc CheckForAndAddMercToTeamPanel (the mercs of the current squad), PrintAP
 // @src (the AP colour), SetStatsHelp (MERC_VITAL_STATS_POPUPTEXT, the robot's STR_LATE_16), FindNextActiveAndAliveMerc;
-// @src src/game/Tactical/Soldier_Macros.h IS_MERC_BODY_TYPE, AM_AN_EPC; src/game/Strategic/Morale.cc GetMoraleString.
+// @src src/game/Tactical/Soldier_Macros.h IS_MERC_BODY_TYPE, AM_AN_EPC; src/game/Strategic/Morale.cc GetMoraleString;
+// @src src/game/Tactical/Overhead.cc CycleVisibleEnemies (the enemies a merc cycles through).
 // See docs/28 §5.1, §5.2.
 
 import type { PlayerView, SoldierView } from '../../../protocol/view.ts';
@@ -26,6 +27,17 @@ export function ownSoldiers(view: PlayerView | null): SoldierView[] {
 export function soldierById(view: PlayerView | null, id: number | null): SoldierView | null {
   if (id === null) return null;
   return view?.soldiers.find((s) => s.id === id) ?? null;
+}
+
+export function opponentCount(s: SoldierView): number {
+  return s.opponents ?? 0;
+}
+
+export function visibleEnemies(view: PlayerView | null, s: SoldierView): SoldierView[] {
+  return (s.sees ?? [])
+    .map((id) => soldierById(view, id))
+    .filter((e): e is SoldierView => e !== null && e.hostile === true && !isDead(e))
+    .sort((a, b) => a.id - b.id);
 }
 
 export function squadOf(s: SoldierView): number {

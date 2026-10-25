@@ -78,6 +78,17 @@ describe('own soldiers in the view (docs/28 §12.1 G1-G4, G7)', () => {
     expect(view.sees).toEqual([20]);
   });
 
+  it('count only the hostile soldiers they see as opponents, not the neutral civilians', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.WEST);
+    spawnSoldier(sim, 116, Team.CIV, gridNo(78, 88), Direction.WEST);
+    sim.lookAround();
+    const view = shown(sim, merc.id);
+    expect(view.sees).toEqual([20, 116]);
+    expect(view.opponents).toBe(1);
+  });
+
   it('flags a jammed gun and names the imprint of a rocket rifle', () => {
     const sim = newCombatSim(content);
     const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
