@@ -62,6 +62,13 @@ describe('websocket transport', () => {
     await expect(open('')).rejects.toThrow(/401/);
   });
 
+  it('compresses the stream with permessage-deflate, keeping the context between messages', async () => {
+    const { ws } = await open(`?token=${token}`);
+    expect(ws.extensions).toContain('permessage-deflate');
+    expect(ws.extensions).not.toContain('server_no_context_takeover');
+    ws.close();
+  });
+
   it('subscribes to a session, dispatches commands and advances time', async () => {
     const { ws, inbox } = await open(`?token=${token}`);
     ws.send(JSON.stringify({ t: 'hello' }));

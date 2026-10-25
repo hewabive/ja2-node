@@ -335,6 +335,10 @@ and message entries of their tick, §4.4), `result {id, ok, reason?, data?}`, `a
 `inventory`, …); since M8 they are answered outside the input queue and the input log, also when they arrive as
 commands (§6.26).
 
+The WebSocket endpoint negotiates `permessage-deflate` with the context kept between messages (messages from 128 bytes
+on). A frame resends every field of a changed soldier, so an idle A9 sandbox in real time streams about 25 frames a second
+for the breathing animation alone: 40 KB/s uncompressed, about 1 KB/s compressed (measured 2026-10-25).
+
 ### 5.3. Player-view projection (D16)
 
 - `view(side)` is a single function for both the browser and agents.

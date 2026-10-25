@@ -10,6 +10,8 @@ import type { SessionHost } from './session-host.ts';
 import { closeRegisteredSession } from './session-registry.ts';
 
 const MAX_MESSAGE_BYTES = 1 << 20;
+const COMPRESS_FROM_BYTES = 128;
+const PER_MESSAGE_DEFLATE = { threshold: COMPRESS_FROM_BYTES };
 const DEFAULT_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
 
 export interface UpgradeServer {
@@ -148,7 +150,7 @@ function serve(ws: WebSocket, options: WebSocketOptions): void {
 }
 
 export function attachWebSocket(server: UpgradeServer, options: WebSocketOptions): WebSocketServer {
-  const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE_BYTES });
+  const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE_BYTES, perMessageDeflate: PER_MESSAGE_DEFLATE });
   const hosts = new Set(options.allowedHosts ?? DEFAULT_HOSTS);
   server.on('upgrade', (req, socket, head) => {
     const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'invalid'}`);
