@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { tacticalOf } from '../../../../tests/support/save-scenarios.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
+import { FontColor } from '../../../content/text/font-colors.ts';
 import type { ViewFrame } from '../../../protocol/view.ts';
 import { handleSoldierDeath } from '../../../sim/tactical/combat/death.ts';
 import type { DrawItem } from '../../draw-list.ts';
@@ -21,6 +22,10 @@ const FONT_RED = 162;
 const FONT_MCOLOR_LTYELLOW = 144;
 const MARKSMANSHIP = 'smStat6';
 const AGILITY = 'smStat0';
+const TINY_FONT = 'tinyfont1';
+const ABOVE_GUY_HEIGHT = 62;
+const ABOVE_GUY_HALF_WIDTH = 40;
+const ABOVE_GUY_LINE = 10;
 
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
@@ -66,6 +71,21 @@ function snapshot(f: TacticalUiTest): string {
 
 function images(f: TacticalUiTest, asset: string): DrawItem[] {
   return f.draw().items.filter((i) => i.kind === 'image' && i.asset === asset);
+}
+
+function namedAboveHead(f: TacticalUiTest): number[] {
+  const runs = f.draw().items.filter((i) => i.kind === 'glyphs' && i.font === TINY_FONT && i.foreground === FontColor.MCOLOR_WHITE);
+  return f.client.view.soldiers
+    .filter((s) => {
+      const pos = f.world.soldierTrueScreenPosition(s.id);
+      const nameTop = (pos?.y ?? 0) - ABOVE_GUY_HEIGHT;
+      return runs.some((run) => {
+        const first = run.kind === 'glyphs' ? run.glyphs[0] : undefined;
+        if (!pos || !first) return false;
+        return Math.abs(first.x - pos.x) < ABOVE_GUY_HALF_WIDTH && first.y <= nameTop && first.y > nameTop - ABOVE_GUY_LINE;
+      });
+    })
+    .map((s) => s.id);
 }
 
 function statColour(f: TacticalUiTest, id: string): number | null {
@@ -324,6 +344,19 @@ describe('the tactical screen over a stub sandbox session', () => {
       expect(f.screen.teamSlots.filter((s) => s !== null)).toEqual([0, 1, 2, 3]);
       await f.settle();
       expect(f.screen.selected).toBeNull();
+    },
+    SLOW_MS,
+  );
+
+  it(
+    'names every multi-selected merc above his head, not only the selected one',
+    async () => {
+      const f = await tacticalUiTest(kit, ui);
+      expect(namedAboveHead(f)).toEqual([0]);
+      f.key('=');
+      await f.settle();
+      expect([...f.screen.controls.input.multiSelected].sort()).toEqual([0, 1, 2, 3]);
+      expect(namedAboveHead(f)).toEqual([0, 1, 2, 3]);
     },
     SLOW_MS,
   );

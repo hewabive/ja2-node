@@ -6,8 +6,10 @@
 // @src turn strings and STR_BLOODCATS_TURN), HandleTopMessages (TEAMTURNUPDATE: the counter rises every 100 ms up to the
 // @src current soldier's share), InitEnemyUIBar, UpdateEnemyUIBar, PLAYER_TEAM_TIMER_TICKS_PER_ENEMY,
 // @src GetSoldierAboveGuyPositions (the 80-pixel column at the true position - 62 + the stance offset, below the soldier
-// @src when showing damage or above the viewport), DrawSelectedUIAboveGuy (the radio locator every 80 ms, the action line,
-// @src the name, the bar box of THIRDPOINTERS2 or 1 at + 28, + 5 or + 30, + 7, the health word, "(roof)"),
+// @src when showing damage or above the viewport), DrawSelectedUIAboveGuy (the radio locator every 80 ms, the selected,
+// @src located, multi-selected or pointed soldier, THIRDPOINTERS1 for the selected one during the rubber band, no squad
+// @src line when multi-selected, the action line, the name, the bar box of THIRDPOINTERS2 or 1 at + 28, + 5 or + 30, + 7,
+// @src the health word, "(roof)"),
 // @src GetSoldierHealthString, BeginUIMessage, RenderUIMessage, CalcUIMessageDuration; src/game/Tactical/Interface_Control.cc
 // @src RenderTopmostTacticalInterface (the damage number at the true position + the bounding box offset + 20, - 5);
 // @src src/game/Tactical/Overhead.cc (the damage drift every DAMAGE_DISPLAY_DELAY for 8 steps); src/game/Tactical/

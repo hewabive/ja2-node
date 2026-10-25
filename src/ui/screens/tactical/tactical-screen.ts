@@ -1856,7 +1856,9 @@ export class TacticalScreen implements Screen {
     }
     if (marker.hidden) return;
     const selected = s.id === this.#selected;
-    const shown = selected || (locator?.shown ?? false) || s.id === this.#hoveredSoldier;
+    const multiSelected = this.controls.input.multiSelected.has(s.id);
+    const selectedBox = selected && this.controls.input.rubberBand === null;
+    const shown = selectedBox || (locator?.shown ?? false) || multiSelected || s.id === this.#hoveredSoldier;
     if (!shown) return;
     const profiled = s.profile !== undefined;
     const at = aboveGuyPosition(pos, offset, this.#damage.has(s.id), top, profiled);
@@ -1864,14 +1866,14 @@ export class TacticalScreen implements Screen {
     let y = at.y;
     if (s.team === OUR_TEAM || s.kind === 'rpc' || s.kind === 'epc' || profiled) {
       let action = '';
-      if (s.team === OUR_TEAM && squadOf(s) !== this.#squad)
+      if (s.team === OUR_TEAM && squadOf(s) !== this.#squad && !multiSelected)
         action = (this.#env.text.string('gzLateLocalizedString', STR_LATE_34) ?? '').replace('%d', String(squadOf(s) + 1));
       if (action) printAboveGuy(list, font, x, y, action, FontColor.MCOLOR_WHITE);
       printAboveGuy(list, font, x, action ? y - 10 : y, s.name, FontColor.MCOLOR_WHITE);
       if (s.team === OUR_TEAM || s.kind === 'rpc' || s.kind === 'epc') {
         x += selected ? 28 : 30;
         y += selected ? 5 : 7;
-        const box = this.#env.world.pointerBox(selected);
+        const box = this.#env.world.pointerBox(selectedBox);
         if (box && this.#env.media.image(box.path)) list.image(box.path, box.frame, x, y);
         if (selected) {
           x += 1;
