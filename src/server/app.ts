@@ -36,6 +36,7 @@ import type { HostFactory, SessionHost } from './session-host.ts';
 import { closeRegisteredSession, newSessionRequest, openSession } from './session-registry.ts';
 import { textKeyFor } from './text-keys.ts';
 import { STUB_TEXT_PREFIX, TextService } from './text-service.ts';
+import { VfsGzipCache, worthCompressing } from './vfs-gzip.ts';
 
 export interface AppInfo {
   readonly originalData: boolean;
@@ -85,6 +86,7 @@ const SNAPSHOT_DESCRIPTION = 'developer snapshot';
 const IMMUTABLE_CACHE_CONTROL = 'private, max-age=31536000, immutable';
 const REVALIDATE_CACHE_CONTROL = 'private, no-cache';
 const PROFILES_ETAG_DIGITS = 16;
+const GZIP_ETAG_SUFFIX = '-gzip';
 
 interface VfsRequest {
   readonly path: string;
@@ -166,6 +168,7 @@ export function createApp(options: AppOptions): Hono {
   const hosts = new Set(options.allowedHosts ?? DEFAULT_HOSTS);
   const hashes = options.hashes ?? VfsHashes.memory(vfs);
   const stubFallback = texts.dataVersion === STUB_DATA_VERSION;
+  const gzipCache = new VfsGzipCache();
   let manifest: Promise<EncodedAssetManifest> | null = null;
   const assetManifest = (): Promise<EncodedAssetManifest> => {
     manifest ??= hashes.manifest(info.originalData ? 'original' : 'stubs', stubFallback).then(encodeAssetManifest);
@@ -441,14 +444,22 @@ export function createApp(options: AppOptions): Hono {
     const hash = await hashes.contentHash(info.path);
     if (pinned !== null && pinned !== hash) return c.json({ error: `stale: ${path} has changed, fetch the manifest again` }, 404);
     const etag = `"${hash}"`;
+    const gzipEtag = `"${hash}${GZIP_ETAG_SUFFIX}"`;
+    const extension = vfsExtension(info.path);
     const headers: Record<string, string> = {
-      'content-type': MIME[vfsExtension(info.path)] ?? 'application/octet-stream',
+      'content-type': MIME[extension] ?? 'application/octet-stream',
       'accept-ranges': 'bytes',
       'cache-control': pinned !== null ? IMMUTABLE_CACHE_CONTROL : REVALIDATE_CACHE_CONTROL,
       etag,
+      vary: 'Accept-Encoding',
       'x-vfs-layer': info.layer,
     };
-    if (c.req.header('if-none-match') === etag) return c.body(null, 304, headers);
+    const ifNoneMatch = c.req.header('if-none-match');
+    if (ifNoneMatch === etag || ifNoneMatch === gzipEtag) return c.body(null, 304, { ...headers, etag: ifNoneMatch });
+    if (!c.req.header('range') && acceptsGzip(c.req.header('accept-encoding')) && worthCompressing(extension, info.size)) {
+      const packed = await gzipCache.compressed(hash, () => vfs.read(info.path));
+      if (packed) return c.body(new Uint8Array(packed), 200, { ...headers, etag: gzipEtag, 'content-encoding': 'gzip' });
+    }
     const range = parseRange(c.req.header('range'), info.size);
     if (range === 'unsatisfiable') {
       return c.body(null, 416, { ...headers, 'content-range': `bytes */${info.size}` });

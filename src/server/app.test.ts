@@ -13,6 +13,16 @@ import { Session, type SessionSim } from './session.ts';
 import { InProcessHost, type SessionHost } from './session-host.ts';
 import type { SessionRequest } from './session-registry.ts';
 
+function incompressible(length: number): Uint8Array {
+  let x = 2463534242;
+  return Uint8Array.from({ length }, () => {
+    x ^= x << 13;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    return x & 0xff;
+  });
+}
+
 const token = 'test-token-0123456789';
 const data = new TextEncoder().encode('0123456789');
 const DATA_HASH = createHash('sha256').update(data).digest('hex').slice(0, 16);
@@ -97,6 +107,41 @@ describe('server', () => {
     expect((await app.request('http://localhost/vfs/@0000000000000000/interface/panel.sti', { headers: auth })).status).toBe(404);
     expect((await app.request('http://localhost/vfs/@xyz/interface/panel.sti', { headers: auth })).status).toBe(400);
     expect((await app.request(`http://localhost/vfs/@${DATA_HASH}/interface/panel.sti`)).status).toBe(401);
+  });
+
+  it('gzips compressible files for clients that accept it, under their own ETag', async () => {
+    const table = new TextEncoder().encode(JSON.stringify(Array.from({ length: 400 }, (_, i) => ({ index: i, name: 'ITEM' }))));
+    const noise = incompressible(4096);
+    const zipping = createApp({
+      vfs: new Vfs([
+        new MemoryLayer('mem', [
+          ['tables/items.json', table],
+          ['noise.bin', noise],
+          ['music/song.ogg', table],
+        ]),
+      ]),
+      token,
+      info: { originalData: false, slfCount: 0, stubs: true },
+    });
+    const gzip = { ...auth, 'accept-encoding': 'gzip, deflate, br' };
+    const zipped = await zipping.request('http://localhost/vfs/tables/items.json', { headers: gzip });
+    expect(zipped.headers.get('content-encoding')).toBe('gzip');
+    expect(zipped.headers.get('vary')).toBe('Accept-Encoding');
+    const etag = zipped.headers.get('etag') ?? '';
+    expect(etag).toMatch(/^"[0-9a-f]{16}-gzip"$/);
+    const body = new Uint8Array(await zipped.arrayBuffer());
+    expect(body.length).toBeLessThan(table.length / 2);
+    expect(new Uint8Array(gunzipSync(body))).toEqual(table);
+    expect((await zipping.request('http://localhost/vfs/tables/items.json', { headers: { ...gzip, 'if-none-match': etag } })).status).toBe(
+      304,
+    );
+    const identity = await zipping.request('http://localhost/vfs/tables/items.json', { headers: auth });
+    expect(identity.headers.get('content-encoding')).toBeNull();
+    expect(new Uint8Array(await identity.arrayBuffer())).toEqual(table);
+    const part = await zipping.request('http://localhost/vfs/tables/items.json', { headers: { ...gzip, range: 'bytes=0-1' } });
+    expect([part.status, part.headers.get('content-encoding'), await part.text()]).toEqual([206, null, '[{']);
+    for (const path of ['noise.bin', 'music/song.ogg'])
+      expect((await zipping.request(`http://localhost/vfs/${path}`, { headers: gzip })).headers.get('content-encoding')).toBeNull();
   });
 
   it('keeps the content hashes in the cache folder, so a restart reads no file again', async () => {

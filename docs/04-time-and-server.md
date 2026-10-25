@@ -474,7 +474,11 @@ The game data splits into the **rule pack** (everything the simulation reads) an
   file's current content hash, 404 when it is not (the client fetches the manifest again), 400 for a malformed hash;
   ranges work as on `/vfs/<path>`. Plain **`/vfs/<path>`** stays for tools and agents: `cache-control: private,
   no-cache` with the content hash as a strong ETag (before M8 the ETag changed at every server start). Both take the
-  token like every `/vfs` route.
+  token like every `/vfs` route. A whole-file read from a client that accepts gzip gets the file gzipped when it is at
+  least 1 KB, not in an already compressed format (ogg, mp3, smk, bik, png, jpg, gz, zip) and at least 10% smaller
+  compressed, under the ETag `"<hash>-gzip"` (`Vary: Accept-Encoding`); ranges stay uncompressed. The compressed files
+  are kept in memory by content hash, 64 MB least recently used (`src/server/vfs-gzip.ts`). The files of the A9 tactical
+  screen shrink from 10.9 MB to 4.2 MB (2026-10-25).
 
 ---
 
