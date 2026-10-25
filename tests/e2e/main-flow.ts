@@ -325,9 +325,28 @@ export class MainFlow {
     this.shadow.map = Math.max(this.shadow.map, expectNoShadowDifference((await shadowStats(this.page)).map, 'map'));
   }
 
+  async closeConversation(): Promise<void> {
+    const page = this.page;
+    await this.game.advance(this.session, { idle: true });
+    await showLatest(page);
+    if (!(await this.game.observe(this.session)).conversation) return;
+    await page.waitForFunction(() => window.__ja2Ui.tactical?.talk.open === true && window.__ja2Ui.tactical.talk.busy === false);
+    await clickWidget(page, 'talkDone');
+    await page.waitForFunction(() => window.__ja2Ui.tactical?.talk.open === false);
+  }
+
   async mapScreen(): Promise<void> {
-    await clickWidget(this.page, 'teamMapScreen');
-    await mapReady(this.page);
+    const page = this.page;
+    await this.closeConversation();
+    await page.waitForFunction(() => {
+      const talk = window.__ja2Ui.tactical?.talk;
+      return talk !== undefined && !talk.busy && talk.line === null && talk.queued === 0;
+    });
+    await page.waitForFunction(() => window.__ja2Ui.widgets.some((w) => w.id === 'teamMapScreen' && w.visible && w.enabled));
+    await clickWidget(page, 'teamMapScreen');
+    await page.waitForFunction(() => window.__ja2Ui.lastCommand === 'mapScreen');
+    expect(await page.evaluate(() => window.__ja2Ui.lastResult)).toMatchObject({ ok: true });
+    await mapReady(page);
     expect(await this.page.evaluate(() => window.__ja2Ui.map?.screen?.flow)).toBe('strategic');
   }
 
@@ -401,6 +420,9 @@ export class MainFlow {
               talk: t.talk,
               commands: t.commands.slice(-5),
               feedback: t.feedback,
+              cursorItem: t.cursorItem,
+              pickupOpen: t.pickupOpen,
+              mapButton: ui.widgets.find((w) => w.id === 'teamMapScreen') ?? null,
             }
           : null,
         map: ui.map
