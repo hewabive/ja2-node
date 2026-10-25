@@ -106,6 +106,7 @@ export class Session {
   #lastRealtime = 0;
   #carryMs = 0;
   #lastView: PlayerView;
+  #shownTick: number;
   #music: MusicState;
   #fastFade = false;
   #depth = 0;
@@ -130,6 +131,7 @@ export class Session {
     this.#followMusic(created);
     this.#followMessages(created);
     this.#lastView = this.#view();
+    this.#shownTick = this.#lastView.tick;
   }
 
   useLabels(labels: UiStrings | null): void {
@@ -210,6 +212,7 @@ export class Session {
   subscribe(listener: Listener): () => void {
     const welcome = this.#welcome();
     if (!this.listening) this.#lastView = welcome.view;
+    this.#shownTick = welcome.view.tick;
     this.#listeners.add(listener);
     listener(welcome);
     return () => this.#listeners.delete(listener);
@@ -302,7 +305,9 @@ export class Session {
     this.#lastView = view;
     const extra = { ...(events.length > 0 ? { events } : {}), ...messages };
     const frame = Object.keys(extra).length > 0 ? { ...(diff ?? { tick: view.tick, changed: [], removed: [] }), ...extra } : diff;
-    if (frame) frames.push(frame);
+    if (!frame) return;
+    frames.push(frame);
+    this.#shownTick = frame.tick;
   }
 
   *#input<T>(work: Run<T>): Run<T> {
@@ -395,7 +400,13 @@ export class Session {
     const queries = this.queries;
     if (!queries) return { ok: false, reason: 'queries are not available', data: { refusal: 'noQueries' }, tick: this.#sim.tick };
     await queries.prepare(this.#sim);
-    return queries.answer(this.#sim, q);
+    const answer = queries.answer(this.#sim, q);
+    return { ...answer, tick: this.#answerTick(answer.tick) };
+  }
+
+  #answerTick(current: number): number {
+    if (!this.listening || diffPlayerView(this.#lastView, this.#view()) !== null) return current;
+    return this.#shownTick;
   }
 
   reseed(seed: number, apply: () => void): void {
@@ -473,6 +484,7 @@ export class Session {
     this.restoreMessages(messages);
     const welcome = this.#welcome();
     this.#lastView = welcome.view;
+    this.#shownTick = welcome.view.tick;
     if (wasRunning) this.#broadcast({ t: 'stopped', id: LOADED_STOP_ID, report: this.#loadedStop() });
     this.#broadcast(welcome);
   }
