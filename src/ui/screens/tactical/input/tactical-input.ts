@@ -4,7 +4,7 @@
 // @src mouse buttons, queued keys, the pending override event, the single events, the menu modes, the multi-selection
 // @src reset), SetUIMouseCursor (the exit arrows at the scrolled map edges and exit grids), the event handlers
 // @src UIHandleIDoNothing, UIHandleSelectMerc, UIHandleMOnTerrain (the 1.5 s over items, the exit grid flag, the height
-// @src check, CANNOT_MOVE_UICURSOR, the exchange cursor), UIHandleAOnTerrain (the out-of-range line once per target),
+// @src check, the next merc for a dying one, CANNOT_MOVE_UICURSOR, the exchange cursor), UIHandleAOnTerrain (the out-of-range line once per target),
 // @src UIHandleCWait, UIHandleCMoveMerc (the all-move and the multi-selection through people, bReverse, the OK battle sound
 // @src past 5 steps, interactive tiles), UIHandleMCycleMovement, UIHandleMAdjustStanceMode and UIHandlePADJAdjustStance
 // @src (GO_MOVE_ONE/TWO/THREE), UIHandleCAOnTerrain, UIHandleMercAttack, UIHandleCAMercShoot (the own-man prompt),
@@ -36,7 +36,7 @@ import type { MouseRegion } from '../../../input/regions.ts';
 import { printf } from '../../../text/printf.ts';
 import type { CommandReply, ScrollEdges, TacticalEnvironment, WorldMarker } from '../environment.ts';
 import { OKLIFE } from '../faces.ts';
-import { inCombat, isEpc, isRobot, OUR_TEAM, ourTurn, soldierById } from '../soldiers.ts';
+import { inCombat, isEpc, isRobot, nextActiveAndAliveMerc, OUR_TEAM, ourTurn, ownSoldiers, soldierById } from '../soldiers.ts';
 import { Arrows } from './arrows.ts';
 import {
   type AimState,
@@ -102,6 +102,7 @@ export type Lock = 'none' | 'enemyTurn' | 'ourTurn';
 export interface TacticalInputHost {
   readonly env: TacticalEnvironment;
   selected(): SoldierView | null;
+  select(s: SoldierView): void;
   selectFromUi(s: SoldierView): void;
   interfaceLevel(): number;
   setInterfaceLevel(level: number): void;
@@ -1836,6 +1837,7 @@ export class TacticalInput {
         }
         const tile = this.#interactiveTile();
         if ((sel.life ?? 0) < OKLIFE) {
+          this.#selectNextActiveAndAliveMerc(sel);
           return;
         }
         if (move.state === 'ok' && move.data.destination !== 'ok' && !tile) {
@@ -1847,6 +1849,11 @@ export class TacticalInput {
       } else this.#newCursor = 'NORMAL_SNAPUICURSOR';
     } else if (this.#validQuickExchange()) this.#newCursor = 'EXCHANGE_PLACES_UICURSOR';
     if (setCursor && sel) this.#setMovementModeCursor(sel);
+  }
+
+  #selectNextActiveAndAliveMerc(sel: SoldierView): void {
+    const next = nextActiveAndAliveMerc(ownSoldiers(this.#view()), sel);
+    if (next) this.#host.select(next);
   }
 
   #trackItemsOver(mapPos: number): void {

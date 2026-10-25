@@ -219,6 +219,7 @@ export class TacticalControls {
     return {
       env: screen.env,
       selected: () => screen.selected(),
+      select: (s) => screen.select(s, false, false),
       selectFromUi: (s) => screen.select(s, true, true),
       interfaceLevel: () => screen.interfaceLevel(),
       setInterfaceLevel: (level) => screen.setInterfaceLevel(level),

@@ -90,8 +90,8 @@ import {
   isEpc,
   isInVehicle,
   isMercBodyType,
+  nextActiveAndAliveMerc,
   nextMerc,
-  nextSquadMateAfterDeath,
   OUR_TEAM,
   okInterrupt,
   ourTurn,
@@ -761,7 +761,7 @@ export class TacticalScreen implements Screen {
   #afterSkullAnimation(id: number): void {
     const dead = this.#fallen.get(id);
     if (!dead || this.#selected !== id) return;
-    const next = nextSquadMateAfterDeath(ownSoldiers(this.#view()), dead);
+    const next = nextActiveAndAliveMerc(ownSoldiers(this.#view()), dead);
     if (next) {
       this.#selectSoldier(next, false, false);
       return;

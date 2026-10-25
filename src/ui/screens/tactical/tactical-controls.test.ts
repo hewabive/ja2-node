@@ -4,6 +4,7 @@ import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
 import type { DoorMenuOption } from '../../../protocol/hints.ts';
 import { emptyObject } from '../../../sim/items/object.ts';
+import { soldierCollapse } from '../../../sim/tactical/combat/hit.ts';
 import { WeaponMode } from '../../../sim/tactical/combat/types.ts';
 import { InvSlot } from '../../../sim/tactical/inventory.ts';
 import type { DrawItem } from '../../draw-list.ts';
@@ -12,6 +13,7 @@ import { UiMode } from './input/ui-events.ts';
 
 const SLOW_MS = 120_000;
 const HOLD_MS = 400;
+const COMA_LIFE = 5;
 const OPEN_DOOR_OPTIONS: readonly DoorMenuOption[] = [
   { action: 'openManually', ap: 0, enabled: true },
   { action: 'unlock', ap: 0, enabled: false, reason: 'noKey' },
@@ -49,6 +51,22 @@ function pointer(f: TacticalUiTest, kind: 'pointerMove' | 'pointerDown' | 'point
   f.t.runtime.input({ kind, x, y, button, buttons: 0, wheel: 0, modifiers: 0 });
 }
 
+function hover(f: TacticalUiTest, gridNo: number) {
+  const at = f.world.pickPoint(gridNo);
+  pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+}
+
+function fallIntoComa(f: TacticalUiTest, id: number) {
+  const t = tacticalOf(f.session).state;
+  const s = t.soldiers.find((v) => v?.id === id);
+  if (!s) throw new Error(`no soldier ${id}`);
+  s.life = COMA_LIFE;
+  soldierCollapse(t, s);
+  f.session.advance({ ticks: 1 });
+  f.client.refresh();
+  f.frames(f.client.takeFrames());
+}
+
 function imagesOf(f: TacticalUiTest, asset: string): DrawItem[] {
   return f.draw().items.filter((i) => i.kind === 'image' && i.asset === asset);
 }
@@ -76,6 +94,24 @@ describe('the tactical input on the tactical screen', () => {
       expect(f.world.markers.some((m) => m.gridNo === tile)).toBe(true);
       await f.clickAt(at.x, at.y);
       expect(commandsOf(f, 'move').at(-1)).toMatchObject({ soldier: 0, to: tile });
+    },
+    SLOW_MS,
+  );
+
+  it(
+    'selects the next squad mate when the selected merc falls into a coma under the cursor',
+    async () => {
+      const f = await tacticalUiTest(kit, ui);
+      const s = merc(f, 0);
+      hover(f, s.gridNo);
+      await f.settle(4);
+      expect(f.screen.controls.input.uiCursor).toBe('NO_UICURSOR');
+      fallIntoComa(f, 0);
+      const tile = s.gridNo + 3;
+      hover(f, tile);
+      await f.settle(4);
+      expect(f.screen.selected).toBe(1);
+      expect(f.world.markers.some((m) => m.gridNo === tile)).toBe(true);
     },
     SLOW_MS,
   );
