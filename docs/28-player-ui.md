@@ -2760,6 +2760,125 @@ slowly under load because the client knowledge loads the rule pack one file afte
 still has no speech presenter; the "connection lost" panel and X16 are not built; surrender and capture in autoresolve
 are covered by unit tests only.
 
+#### U14: stub art and e2e (2026-10-25)
+
+§15 complete on the stubs in CI, an opt-in structural run on the original data, the remaining special-case stubs of §13
+and the frame-time probe. The server change is `04` §6.35; no rule, command or deviation changed.
+
+**§15, item by item** (before U14 → what U14 added):
+
+| §15 item | Covered before U14 | U14 |
+|---|---|---|
+| Foundation units | `src/ui/input/regions.test.ts`, `events.test.ts`, `src/ui/widgets/button.test.ts`, `widgets.test.ts`, `drop-down.test.ts`, `src/ui/text/text.test.ts` (stub fonts; original fonts with `JA2_DATA_DIR`), `labels.test.ts`, `src/ui/cursors/cursor-state.test.ts`, the hotkey tables in `src/ui/screens/tactical/input/hotkeys.test.ts` and the map and help screen tests | — |
+| Layouts | `src/ui/layout/layouts-contract.test.ts` (every layout of every skin on the stub pack; with `JA2_DATA_DIR` every asset and frame on the original data), `layout.test.ts`, `tables.test.ts` | the load screens now resolve to the RGB565 stub |
+| Controllers and draw-list snapshots | 39 controller test files under `src/ui/screens/*/` over the builders of `tests/support` (fake `GameClient`s over recorded or live stub sessions), draw-list snapshots in `front-end/draw-lists.test.ts`, `tactical-screen.test.ts`, `map-screen.test.ts`, `battle-entry.test.ts` and the laptop page tests | — |
+| Server | query purity (`query-purity.test.ts`), fairness (`hints-fairness.test.ts`), the view fields and events in the stub scenario suites (also with `JA2_RELOAD=1`), every command with its refusals, the oracle probes of compare-all, the rule pack (`pack.test.ts`, `rule-pack.test.ts`: no STI read, a stable hash, the cache; `legacy-save.test.ts` and `save-service.test.ts`: saves record it) | the answer tick (`session.test.ts`) |
+| Hints, client against server | `hints-stub`, `hints-actions-stub`, `hints-strategic-stub` and their `-original` twins with the strict projection built from the serialised view; the shadow mode only in `hints.spec.ts` on the devtools page (`map-screen.spec.ts` compares `hintNow` with `query` by hand) | the shadow mode on `/play`: the main flow requires compared answers on the tactical and the map screen and no difference; the talk, shop and battle-entry specs run with it and allow no difference. Comparisons after frameless steps were all counted stale; fixed on the server (`04` §6.35) |
+| Animation schedule | `src/app/world/soldier-frames.test.ts` (also against the original rules with `JA2_DATA_DIR`), `battle.spec.ts` | — |
+| The hook | `ready`, `screen`, `scale`, `widgets`, `modal`, `cursor`, `frameCount`, `capture()`; commands only per screen (`tactical.commands`, `map.commands`, `battle.commands`) | `lastCommand` and `lastResult` (`{ok, reason, refusal}` of the session's last command), `frameStats`, `lagTicks` and `skipPlayback()` (`04` §6.35) |
+| Main flow | in pieces on separate sessions: `front-end.spec.ts` (new game to the laptop, save and load), `laptop.spec.ts` (the hire on the devtools laptop page), `map-screen.spec.ts`, `tactical-hud.spec.ts`, `tactical-input.spec.ts` | `main-flow.spec.ts` (below) |
+| Options; PBI and autoresolve; a shop; a conversation | `front-end.spec.ts` (the options kept across a reload), `battle-entry.spec.ts`, `shop-screen.spec.ts`, `talk-panel.spec.ts` | the last three with the shadow mode |
+| Goldens on stubs | 28 | 56 (below) |
+| Original data, structure only | none | `playwright.data.config.ts`, `tests/e2e-data/` (below) |
+| Performance | `tactical.frameMs` on the tactical screen only | `frameStats` on every screen, `performance.spec.ts`, the measurement below |
+
+**The main flow** (`tests/e2e/main-flow.spec.ts`, helpers in `main-flow.ts` and `play-flow.ts`) runs on
+`/play?shadowHints=1&drive=manual` with seed 1414 (the test adds `seed` to the canvas's `POST /api/sessions`) and the
+client setting `websiteLoadingTimeScale: 0`: the main menu, game init (Novice) and its message box, the laptop's new-mail
+box, A.I.M. (bookmark, sort page, mug shots, Marlow's page, the conference: Hire, Transfer Funds, the arrival box), three
+more hires through MCP so the bot can win, the power button, the map screen, `compressMore` until the squad lands in A9,
+the HUD (team panel, faces, radar, Map, End Turn and Squad buttons, no missing art), the move cursor over four tiles in
+real time, the campaign bot (`tools/campaign-bot`) walking the squad until combat starts and it is our turn, the face
+click, the move cursor over three tiles in combat, the single merc panel and back, the confirm-action cursor over an
+enemy and the aimed shot by click, the bot winning the battle, the team panel's Map button, a route plotted from the
+destination column to B9 (the preview hint locally, two clicks), Options → Save Game → a new row with a typed
+description, Options → Load Game → that row → the in-place load, and the route still in the group's path. Clicks go to
+widget centres through `page.mouse`, keys by code; every wait is on hook state (`lagTicks`, `pendingImages`, screens,
+modals, widgets), screen loads wait while the page keeps loading (`waitWhileLoading`: finished requests, the progress
+bar and the screen change) and fail only after 90 s without progress. It takes about a minute on an idle machine and
+six on a loaded one; the steps log their time.
+
+**Goldens added** (stubs, `capture()`, pinned clock; 28 → 56): tactical `tactical-sm-panel`, `tactical-item-description`,
+`tactical-pickup-menu`, `tactical-overhead-map`, `tactical-exit-dialog` (`goldens-tactical.spec.ts`); map screen
+`map-assignment-popup`, `map-route`, `map-town-box`, `map-militia-popup`, `map-sector-inventory`, `map-helicopter`,
+`map-update-box` and `front-end-loading` (`goldens-map.spec.ts`, on its own copy of the U8 save with a tired merc off
+his squad, `holdTime=1` so game time stands still, the loading screen held by delaying the first rule read); laptop
+`laptop-aim-sort`, `laptop-aim-mugshots`, `laptop-aim-member` (`goldens-laptop.spec.ts`), `laptop-finances`
+(`laptop.spec.ts`), `laptop-aim-home`, `laptop-aim-policies`, `laptop-aim-alumni`, `laptop-insurance-home`,
+`laptop-funeral`, `laptop-florist-home`, `laptop-florist-gallery` (`laptop-pages.spec.ts`), `laptop-bobby-ray-shipments`,
+`laptop-merc-files`, `laptop-imp-home`, `laptop-imp-finish` (`laptop-sites.spec.ts`). No existing golden changed.
+
+**The original-data structural run** is opt-in and never part of CI (`JA2_DATA_DIR: ''` stays the default of
+`playwright.config.ts`):
+
+```
+JA2_E2E_DATA_DIR="/home/daniel/Jagged Alliance 2 Gold/Data" JA2_E2E_PORT=7500 JA2_E2E_WEB_PORT=5500 pnpm e2e:data
+```
+
+`playwright.data.config.ts` starts the server on that folder, runs only `tests/e2e-data/` (the stub suite's test folder
+does not include it) with screenshots, video and traces off, and refuses to start without the variable. Its specs:
+`main-flow.spec.ts` (the same flow; the canvas hires the cheapest A.I.M. merc who answers), `tour.spec.ts` (the main menu, game
+init, the 23 options and their labels, credits; the laptop programs, A.I.M. pages, funeral and insurance; the A9
+sandbox's team panel, single merc panel, description box and overhead map) and `performance.spec.ts` (A9 at 1920×1080,
+logged). They assert structure only: screen names, widget ids, visibility, enabled states, texts present, no missing
+image or font, no refused command, no failed `/vfs` read. No picture of the original data can be taken: `capture()` and
+`expectGolden()` of `tests/e2e/ui-capture.ts` throw when `JA2_E2E_DATA_DIR` is set, the data fixture
+(`tests/e2e-data/fixture.ts`) replaces `window.__ja2Ui.capture` by a function that throws before any page script runs and
+makes `page.screenshot` reject, and the data specs import neither.
+
+**Stubs** (§13, every family with a decoder round trip in `stubs/build.test.ts`):
+
+| Family | Before U14 | U14 |
+|---|---|---|
+| Cursors | `stubs/ui/cursors.ts`, round trip | — |
+| Faces, eye and mouth frames, `.gap` files | `stubs/ui/faces.ts`, `stubs/speech.ts`, round trips | — |
+| Item sheets, big item pictures | `stubs/ui/items.ts`, round trip | — |
+| Map board | `stubs/ui/strategic-map.ts` with its own test | a round trip through the built pack |
+| Radar maps | `stubs/ui/radar.ts`, round trip | — |
+| Load screens | the skin's shared indexed 640×480 picture | `stubs/ui/load-screens.ts`: one RGB565 picture (a gradient with its name) behind the 43 load screen names of the loading layout, so the loading screen draws an RGB565 STI as on the original data |
+| Help and laptop EDTs | written by `stubs/text.ts`; only merc dialogue, item text, credits and mails had a round trip | every help record and the first record of every laptop page file through the text service |
+
+The media budget rose from 6 to 7 MiB: the load screen is 600 KB at the 640×480 the layout declares (RGB565 STIs are
+not compressed) and `loadscreens/` now counts; the media measure 6.26 MiB.
+
+**Flaky specs.** The pickup test of `tactical-hud.spec.ts` had two causes: it polled the dropper's tile for five
+seconds while the walk played back (it now shows the latest view with `skipPlayback` and checks at once), and its
+sandbox had no seed, so it took the server's session counter and in a parallel run sometimes started with an enemy in
+sight, which put the squad into combat during the walk (every sandbox spec now asks for seed 1, the quiet sandbox of
+`tactical-input.spec.ts`; the team panel golden is unchanged). The map-ready waits of `battle-entry.spec.ts` and
+`map-screen.spec.ts`, the laptop waits of `front-end.spec.ts` after a new game and a load, and the loads of the new
+specs wait while the page loads instead of a fixed 30–120 s.
+
+**Measured** (`frameStats`: the page's JavaScript time per frame; headless Chromium on SwiftShader on this machine,
+shared with other agents' test runs):
+
+| Where | JS per frame p50 / p95 / max | Other |
+|---|---|---|
+| Stubs, main menu, 1280×960, scale 2 (`performance.spec.ts`) | 0.3 / 0.5 / 1.3 ms | — |
+| Stubs, the sandbox on the tactical screen, 1280×960, scale 2 | 1.2 / 1.7 / 3.1 ms | — |
+| Original data, the A9 sandbox on `/play`, 1920×1080, scale 2, real time, six mercs in view (`tests/e2e-data/performance.spec.ts`) | 1.3 / 2.0 / 42.2 ms (one long frame among 300) | world render 0.3 / 0.4 ms; 25 world draw calls; 223 UI instances in 48 batches; mean frame interval 40.6 ms (SwiftShader) |
+
+The main flow takes about a minute on an idle machine (new game 6 s, the A.I.M. hire 11 s, the landing 8 s, the
+battle's cursors 11 s, route, save and load 3 s each) and up to six minutes while other agents run test suites (the
+landing, which loads the map screen's and then the tactical screen's rules, up to 50 s). On the original data the
+structural run takes about three minutes: the main flow 1.2 minutes (the bot wins the A9 landing), the tour 36 s, the
+measurement 23 s. The 60 FPS target of §16 still needs the maintainer's GPU.
+
+**Bugs found.** Fixed: the shadow mode counted every comparison after a frameless step as stale (`04` §6.35). Not
+fixed, none in the simulation: the stub pack has no small tiles (`tilesets/<n>/t/`) for the overhead map, so on the stubs
+`loadSmallTiles` falls back to a missing grass tile and the overhead map is black under the persons (the golden keeps the
+frame, the persons and the names). Observed and left alone (not checked against the original): the militia filter's
+message takes the first right click on the map; a merc put to sleep by command is not listed by the update box
+(`fellAsleep` is the hourly rest's); with `pinClock=1` the map screen's plotting rest never ends, so the map goldens plot
+through the hook instead.
+
+Open: the San Mona screen has no golden (a stub brothel scenario does not exist; `san-mona.test.ts` covers it), nor the
+A.I.M. conference (its snow and video run on the UI clock); the main flow hires three mercs through MCP and lets the
+campaign bot fight, so the canvas covers one hire, the cursors and one shot; the client knowledge still loads the rule
+pack one file after another and the map and tactical hosts each load it (the tests now wait while the page loads); the
+Lead-wiring points stay open (the map screen's speech presenter, the "connection lost" panel, X16, surrender and
+capture in autoresolve on unit tests only, the team panel's Exit Vehicle).
+
 ## 18. Decisions and open questions
 
 The maintainer took every recommendation except the version on 2026-10-19.

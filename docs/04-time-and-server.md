@@ -1331,7 +1331,7 @@ soon as it is ready, outside the ordered reply chain of commands. `isQueryComman
 `dryRun: true`, and the server-only kinds) also routes a query that arrives as a command (MCP `act`, WebSocket `cmd`)
 to the same path, so agents keep queries as `act` commands and get the projection's answer; replaying an old input log
 that holds a query still dispatches it to the simulation (`estimateAttack` is gone from `TacticalSim` and is refused
-there). The answer's `tick` is the tick of the view it was computed on. `Session.queries` is a `QueryService`
+there). The answer's `tick` names the view it was computed on (§6.35). `Session.queries` is a `QueryService`
 (`src/server/query.ts`, attached by the session factory) that keeps a fresh copy of the loaded map's world inputs for
 the projection (two maps) and the knowledge rules per content; the server builds the projection per query.
 
@@ -1676,6 +1676,26 @@ interrogation still sets `TACTICAL_ENEMYPRESENT` (`EndMeanwhile`).
 
 No command, prompt or refusal changes: the meanwhile box and the ending are presentation of the existing events
 (`meanwhile`, `meanwhileStarted`, `squadMovedUpstairs`, `campaignWon`), and the help screens read the view.
+
+### 6.35. Stub art and e2e (M8, U14)
+
+What the e2e suite of `28` §15 needed from the server and the game page; no rule and no command changed.
+
+**The answer's tick.** A session sends a frame only when the player's view changed, so after an advance that ends on
+frameless steps (an idle stop, a turn-based round waiting for input, a manual driver) the client's latest view keeps
+the tick of the last frame while the simulation's tick has moved on. The shadow mode (§6.26) counted every comparison
+made then as stale, so in combat and on a held map screen almost nothing was compared. `Session.query` now answers with
+the tick of the view its viewers hold (the last frame sent, or the welcome) whenever the current view equals the last
+view it captured for them (`diffPlayerView` finds nothing), and with the current tick otherwise: the answer is computed
+on the current view either way, and equal views give equal answers. Without viewers, or after a change not yet captured
+into a frame, nothing changes. `session.test.ts` covers the three cases.
+
+**Test switches of the game page** (URL parameters, like `pinClock`): `holdTime=1` keeps the map screen from starting
+game time by itself (`SessionMapClient` never drives; explicit `advance` still works), so a map golden does not depend on
+how long the page took to open. The `__ja2Ui` hook gains `frameStats` (`count`, `p50`, `p95`, `max` of the page's own
+JavaScript time per frame, `resetFrameStats()`), `lagTicks` (the latest received tick minus the shown tick) with
+`skipPlayback()` (show the latest view at once), and `lastCommand`/`lastResult` (the type of the session's last command and
+its `{ok, reason, refusal}`).
 
 ## 7. Cost and limitations
 
