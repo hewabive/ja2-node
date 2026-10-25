@@ -2788,9 +2788,11 @@ client setting `websiteLoadingTimeScale: 0`: the main menu, game init (Novice) a
 box, A.I.M. (bookmark, sort page, mug shots, Marlow's page, the conference: Hire, Transfer Funds, the arrival box), three
 more hires through MCP so the bot can win, the power button, the map screen, `compressMore` until the squad lands in A9,
 the HUD (team panel, faces, radar, Map, End Turn and Squad buttons, no missing art), the move cursor over four tiles in
-real time, the campaign bot (`tools/campaign-bot`) walking the squad until combat starts and it is our turn, the face
+real time, the campaign bot (`tools/campaign-bot`) walking the squad until it is our turn in combat with an enemy in
+sight, the face
 click, the move cursor over three tiles in combat, the single merc panel and back, the confirm-action cursor over an
-enemy and the aimed shot by click, the bot winning the battle, the team panel's Map button, a route plotted from the
+enemy and the aimed shot by click, the bot winning the battle, an NPC's conversation closed with Done if one opened,
+the team panel's Map button once no merc line is shown, a route plotted from the
 destination column to B9 (the preview hint locally, two clicks), Options → Save Game → a new row with a typed
 description, Options → Load Game → that row → the in-place load, and the route still in the group's path. Clicks go to
 widget centres through `page.mouse`, keys by code; every wait is on hook state (`lagTicks`, `pendingImages`, screens,
@@ -2847,7 +2849,10 @@ sandbox had no seed, so it took the server's session counter and in a parallel r
 sight, which put the squad into combat during the walk (every sandbox spec now asks for seed 1, the quiet sandbox of
 `tactical-input.spec.ts`; the team panel golden is unchanged). The map-ready waits of `battle-entry.spec.ts` and
 `map-screen.spec.ts`, the laptop waits of `front-end.spec.ts` after a new game and a load, and the loads of the new
-specs wait while the page loads instead of a fixed 30–120 s.
+specs wait while the page loads instead of a fixed 30–120 s. With the main flow and the goldens the suite renders more
+SwiftShader pages at once, and four workers on this eight-core machine starved each other's pages past the 90 s
+budget of unrelated specs; local runs now use three workers (`playwright.config.ts`, CI keeps the default). The suite
+is 85 tests in 8.6–9.7 minutes locally.
 
 **Measured** (`frameStats`: the page's JavaScript time per frame; headless Chromium on SwiftShader on this machine,
 shared with other agents' test runs):
@@ -2861,8 +2866,8 @@ shared with other agents' test runs):
 The main flow takes about a minute on an idle machine (new game 6 s, the A.I.M. hire 11 s, the landing 8 s, the
 battle's cursors 11 s, route, save and load 3 s each) and up to six minutes while other agents run test suites (the
 landing, which loads the map screen's and then the tactical screen's rules, up to 50 s). On the original data the
-structural run takes about three minutes: the main flow 1.2 minutes (the bot wins the A9 landing), the tour 36 s, the
-measurement 23 s. The 60 FPS target of §16 still needs the maintainer's GPU.
+structural run (five tests) takes about two minutes: the main flow 1.1 minutes (the bot wins the A9 landing), the tour
+30 s, the measurement 22 s. The 60 FPS target of §16 still needs the maintainer's GPU.
 
 **Bugs found.** Fixed: the shadow mode counted every comparison after a frameless step as stale (`04` §6.35). Not
 fixed, none in the simulation: the stub pack has no small tiles (`tilesets/<n>/t/`) for the overhead map, so on the stubs
