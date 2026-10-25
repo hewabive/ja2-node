@@ -15,6 +15,7 @@ import { type GlowContext, PERSONAL_LIGHT_SHADE, soldierLook } from '../../rende
 import { SoldierFades } from '../../render/world/soldier-fade.ts';
 import type { ShadeField } from '../../render/world/world-renderer.ts';
 import type { WorldSprites } from '../../render/world/world-sprites.ts';
+import type { SimEvent } from '../../sim/events.ts';
 import { LightSpriteFlags, lightTimeAt } from '../../sim/tactical/lighting/lighting.ts';
 import type { LightTemplate } from '../../sim/tactical/lighting/templates.ts';
 import type { SoldierAssets, SoldierSheet } from './soldier-assets.ts';
@@ -88,6 +89,10 @@ export class SoldierScene {
     this.#sprites = sprites;
     this.#lastDrawn.clear();
     this.#fades.reset();
+  }
+
+  observe(events: readonly SimEvent[]): void {
+    for (const e of events) if (e.type === 'soldierDied') this.#fades.removeWithoutFade(e.soldier);
   }
 
   ungreyed(s: SoldierView): boolean {

@@ -367,7 +367,10 @@ export class TacticalHost {
 
   frames(frames: readonly ViewFrame[]): void {
     this.#sound.frames(frames);
-    for (const frame of frames) this.#loaded?.presenter.aiTurns.observe(frame.events ?? []);
+    for (const frame of frames) {
+      this.#loaded?.presenter.aiTurns.observe(frame.events ?? []);
+      this.#loaded?.presenter.observe(frame.events ?? []);
+    }
     if (this.#unknownProfile(frames)) void this.#refreshProfiles();
     for (const frame of frames)
       for (const event of frame.events ?? []) if (event.type === 'sectorLoaded' && event.loadScreen) this.#loadScreen = event.loadScreen.id;

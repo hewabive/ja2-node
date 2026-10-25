@@ -30,6 +30,7 @@ import {
   worldOrigin,
 } from '../../render/world/geometry.ts';
 import type { WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
+import type { SimEvent } from '../../sim/events.ts';
 import { Body } from '../../sim/tactical/soldier.ts';
 import { TEAMPANEL_HEIGHT } from '../../ui/layout/frames.ts';
 import type {
@@ -126,6 +127,10 @@ export class TacticalWorldPresenter implements WorldPresenter {
     this.radarImage = radarImage;
     this.#limits = scrollLimits(world.world.map.info.restrictedScrollId);
     this.#camera = cameraOnGridNo(world.world.map.info.centerGridNo);
+  }
+
+  observe(events: readonly SimEvent[]): void {
+    this.#world.observe(events);
   }
 
   get mapPath(): string {

@@ -12,6 +12,7 @@ import type {
 import type { SceneItem, WorldUiNode } from '../../render/world/dynamic-scene.ts';
 import type { Camera, Viewport } from '../../render/world/geometry.ts';
 import type { WorldDisplayOptions, WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
+import type { SimEvent } from '../../sim/events.ts';
 import type { ReadVfsFile } from '../net/vfs.ts';
 import { glowContext } from './glow-context.ts';
 import { type ItemTileLookup, loadItemTiles } from './item-tiles.ts';
@@ -159,6 +160,10 @@ export class TacticalWorldView {
   #frameOf(tick: number): (s: SoldierView) => number {
     const frames = this.#frames;
     return frames ? (s) => frames.frameOf(s.id, s, tick) : (s) => s.frame;
+  }
+
+  observe(events: readonly SimEvent[]): void {
+    this.#soldiers.observe(events);
   }
 
   render(f: TacticalFrame): WorldDrawStats {

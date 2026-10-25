@@ -105,7 +105,7 @@ describe('soldier picking', () => {
 
 describe('soldier fades', () => {
   const shade = () => 3;
-  it('fades newcomers in from 12 and leavers out to 12 in 60 ms steps', () => {
+  it('fades newcomers in from 12 and leavers out to 12 in 60 ms steps, never our own mercs', () => {
     const fades = new SoldierFades<{ id: number; team: number; gridNo: number }>();
     fades.update([{ id: 1, team: 1, gridNo: 5 }], 0, shade);
     expect(fades.shade(1, 0, shade)).toBeNull();
@@ -122,9 +122,36 @@ describe('soldier fades', () => {
     expect(fades.shade(2, 1130, shade)).toBe(10);
     expect(fades.shade(3, 1000, shade)).toBeNull();
     fades.update([{ id: 2, team: 1, gridNo: 6 }], 2000, shade);
-    expect(fades.fadingOut().map((s) => s.id)).toEqual([1, 3]);
+    expect(fades.fadingOut().map((s) => s.id)).toEqual([1]);
     expect(fades.shade(1, 2060, shade)).toBe(4);
     fades.update([{ id: 2, team: 1, gridNo: 6 }], 2600, shade);
     expect(fades.fadingOut()).toEqual([]);
+  });
+
+  it('takes a dead soldier off at once, whether his death is told before or after he leaves the view', () => {
+    const fades = new SoldierFades<{ id: number; team: number; gridNo: number }>();
+    const enemies = [
+      { id: 1, team: 1, gridNo: 5 },
+      { id: 2, team: 1, gridNo: 6 },
+    ];
+    fades.update(enemies, 0, shade);
+    fades.removeWithoutFade(1);
+    fades.update([enemies[1] as (typeof enemies)[number]], 100, shade);
+    expect(fades.fadingOut()).toEqual([]);
+    fades.update([], 200, shade);
+    expect(fades.fadingOut().map((s) => s.id)).toEqual([2]);
+    fades.removeWithoutFade(2);
+    expect(fades.fadingOut()).toEqual([]);
+  });
+
+  it('forgets a death told for a soldier out of view, so a later soldier in his slot still fades out', () => {
+    const fades = new SoldierFades<{ id: number; team: number; gridNo: number }>();
+    fades.update([], 0, shade);
+    fades.removeWithoutFade(4);
+    fades.update([], 100, shade);
+    fades.update([{ id: 4, team: 1, gridNo: 9 }], 200, shade);
+    fades.update([{ id: 4, team: 1, gridNo: 9 }], 900, shade);
+    fades.update([], 1000, shade);
+    expect(fades.fadingOut().map((s) => s.id)).toEqual([4]);
   });
 });
