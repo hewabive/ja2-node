@@ -100,6 +100,38 @@ describe('the stub village door', () => {
     expect(again).toMatchObject({ ok: true, data: { opened: false, locked: true } });
   });
 
+  it('asks with the closing menu before our merc closes an open door, as vanilla does', () => {
+    const sim = village();
+    updateDoor(sim.state, DOOR, { locked: false, trapId: DoorTrap.NONE });
+    expect(toggleDoorAt(sim.state, DOOR)).toBe(true);
+    const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
+    sim.lookAround();
+    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'close' })).toMatchObject({
+      ok: true,
+      data: { closed: false },
+    });
+    const menu = sim.drainEvents().find((e) => e.type === 'doorMenu');
+    expect(menu).toMatchObject({ closing: true });
+    expect(menu?.type === 'doorMenu' ? menu.options.map((o) => `${o.action}:${o.enabled ? 'on' : (o.reason ?? 'off')}`) : []).toEqual([
+      'closeManually:on',
+      'unlock:doorOpen',
+      'crowbar:doorOpen',
+      'pickLock:doorOpen',
+      'explode:doorOpen',
+      'examine:doorOpen',
+      'force:doorOpen',
+      'untrap:doorOpen',
+    ]);
+    expect(doorStructure(sim).flags & StructureFlags.OPEN).not.toBe(0);
+    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'closeManually' })).toMatchObject({
+      ok: true,
+      data: { started: 'closeManually' },
+    });
+    expect(runSimUntilIdle(sim).some((e) => e.type === 'doorChanged' && !e.open)).toBe(true);
+    expect(doorStructure(sim).flags & StructureFlags.OPEN).toBe(0);
+    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'closeManually' }).data).toEqual({ refusal: 'alreadyClosed' });
+  });
+
   it('examines the trap, untraps it and unlocks the door with the stub key', () => {
     const sim = village();
     const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
@@ -129,7 +161,7 @@ describe('the stub village door', () => {
     expect(resultsOf(unlocked)).toEqual(['unlock:opened']);
     expect(unlocked.some((e) => e.type === 'doorChanged' && e.open)).toBe(true);
     expect(findDoorInfo(sim.state, DOOR)).toMatchObject({ locked: false, perceivedLocked: PerceivedLock.UNLOCKED });
-    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'close' }).ok).toBe(true);
+    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'closeManually' }).ok).toBe(true);
     expect(runSimUntilIdle(sim).some((e) => e.type === 'doorChanged' && !e.open)).toBe(true);
   });
 

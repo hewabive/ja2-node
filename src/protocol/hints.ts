@@ -10,5 +10,5 @@ export type { ActionKind, PreviewAction } from '../sim/hints/preview-action.ts';
 export type { PreviewHeliRoute } from '../sim/hints/preview-heli-route.ts';
 export type { MoveDestination, PreviewMove } from '../sim/hints/preview-move.ts';
 export type { PreviewRoute } from '../sim/hints/preview-route.ts';
-export type { DoorMenuAction, DoorMenuOption } from '../sim/tactical/doors/events.ts';
+export type { DoorMenuAction, DoorMenuEvent, DoorMenuOption } from '../sim/tactical/doors/events.ts';
 export type { Footstep } from '../sim/tactical/plot-path.ts';

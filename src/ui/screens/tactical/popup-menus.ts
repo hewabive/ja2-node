@@ -301,10 +301,25 @@ const DOOR_BUTTONS: readonly DoorButton[] = [
   { action: 'cancel', id: 'doorCancel', column: 1, row: 1, icon: 'new', first: NEW_ICONS.cancel, help: Icon.CANCEL },
 ];
 
+const CLOSE_BUTTON: DoorButton = {
+  action: 'closeManually',
+  id: 'doorClose',
+  column: 0,
+  row: 0,
+  icon: 'door',
+  first: DOOR_ICONS.open,
+  help: Icon.CLOSE,
+};
+
+function doorButtons(closing: boolean): readonly DoorButton[] {
+  return closing ? DOOR_BUTTONS.map((b) => (b.action === 'openManually' ? CLOSE_BUTTON : b)) : DOOR_BUTTONS;
+}
+
 export interface DoorMenuRequest {
   readonly soldier: number;
   readonly gridNo: number;
   readonly options: readonly DoorMenuOption[];
+  readonly closing: boolean;
   readonly box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number } | null;
   readonly inCombat: boolean;
   readonly viewportBottom: number;
@@ -331,7 +346,7 @@ export class DoorMenu extends PopupMenu {
     this.#request = request;
     this.#done = done;
     this.popup(x, y, () => this.close(null));
-    for (const spec of DOOR_BUTTONS) {
+    for (const spec of doorButtons(request.closing)) {
       const option = request.options.find((o) => o.action === spec.action);
       const ap = option?.ap ?? 0;
       const help = this.popupText(spec.help);

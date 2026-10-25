@@ -25,6 +25,16 @@ const OPEN_DOOR_OPTIONS: readonly DoorMenuOption[] = [
   { action: 'untrap', ap: 0, enabled: true },
 ];
 
+const CLOSING_DOOR_OPTIONS: readonly DoorMenuOption[] = [
+  { action: 'closeManually', ap: 0, enabled: true },
+  ...(['unlock', 'crowbar', 'pickLock', 'explode', 'examine', 'force', 'untrap'] as const).map((action) => ({
+    action,
+    ap: 0,
+    enabled: false,
+    reason: 'doorOpen',
+  })),
+];
+
 let kit: StubSectorKit;
 let ui: TacticalUiKit;
 
@@ -191,6 +201,29 @@ describe('the tactical input on the tactical screen', () => {
       await f.click('doorOpen');
       expect(f.screen.controls.doorMenu.open).toBe(false);
       expect(commandsOf(f, 'door').at(-1)).toMatchObject({ soldier: 0, gridNo: s.gridNo + 1, action: 'openManually' });
+    },
+    SLOW_MS,
+  );
+
+  it(
+    'turns the open button into the close button in the closing menu of an open door',
+    async () => {
+      const f = await tacticalUiTest(kit, ui);
+      const s = merc(f, 0);
+      const options = CLOSING_DOOR_OPTIONS;
+      f.frames([
+        {
+          tick: f.client.view.tick,
+          changed: [],
+          removed: [],
+          events: [{ type: 'doorMenu', tick: f.client.view.tick, soldier: 0, gridNo: s.gridNo + 1, options, closing: true }],
+        },
+      ]);
+      const buttons = f.t.runtime.buttons.buttons;
+      expect(buttons.some((b) => b.id === 'doorOpen')).toBe(false);
+      expect(buttons.find((b) => b.id === 'doorExamine')?.enabled).toBe(false);
+      await f.click('doorClose');
+      expect(commandsOf(f, 'door').at(-1)).toMatchObject({ soldier: 0, gridNo: s.gridNo + 1, action: 'closeManually' });
     },
     SLOW_MS,
   );

@@ -22,7 +22,7 @@
 // @src See docs/28 §6.
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
-import type { DoorMenuAction, ExitSectorOptions } from '../../../protocol/hints.ts';
+import type { DoorMenuAction, DoorMenuEvent, ExitSectorOptions } from '../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
 import type { PlayerView, SoldierView, ViewFrame } from '../../../protocol/view.ts';
 import { type DrawList, rgb } from '../../draw-list.ts';
@@ -338,7 +338,7 @@ export class TacticalControls {
   frames(frames: readonly ViewFrame[]): void {
     const env = this.#env();
     for (const frame of frames) {
-      for (const event of frame.events ?? []) if (event.type === 'doorMenu') this.#openDoorMenu(event.soldier, event.gridNo, event.options);
+      for (const event of frame.events ?? []) if (event.type === 'doorMenu') this.#openDoorMenu(event);
       for (const s of frame.changed) {
         const before = this.#gridNos.get(s.id);
         this.#gridNos.set(s.id, s.gridNo);
@@ -398,7 +398,7 @@ export class TacticalControls {
     this.movementMenu.show(subject, { x, y }, this.#screen.viewportBottom(), done);
   }
 
-  #openDoorMenu(soldier: number, gridNo: number, options: Parameters<DoorMenu['show']>[0]['options']): void {
+  #openDoorMenu({ soldier, gridNo, options, closing }: DoorMenuEvent): void {
     const s = this.#view()?.soldiers.find((v) => v.id === soldier);
     if (!s || s.team !== OUR_TEAM) return;
     this.#screen.locate(s, null);
@@ -408,6 +408,7 @@ export class TacticalControls {
       soldier,
       gridNo,
       options,
+      closing: closing === true,
       box: this.#env().world.soldierBox(soldier),
       inCombat: inCombat(this.#view()),
       viewportBottom: this.#screen.viewportBottom(),

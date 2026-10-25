@@ -3,6 +3,8 @@
 // @src src/game/Tactical/Handle_Doors.cc GetAnimStateForInteraction, InteractWithClosedDoor, InteractWithOpenableStruct,
 // @src HandleOpenableStruct; Interface.cc PopupDoorOpenMenu, MakeButtonDoor, BtnDoorMenuCallback, DoorAction;
 // @src Interactive_Tiles.cc StartInteractiveObject, SoldierHandleInteractiveObject; Soldier_Ani.cc code 495. See docs/25 §8.2–§8.3.
+// @src vanilla Build/Tactical/HandleDoors.c InteractWithOpenableStruct and Interface.c PopupDoorOpenMenu, BtnDoorMenuCallback (the
+// @src closing menu Stracciatella dropped).
 
 import { ANYKEY } from '../../../content/formats/locks.ts';
 import { has, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
@@ -42,6 +44,7 @@ export const DOOR_ACTIONS = [
   'open',
   'close',
   'openManually',
+  'closeManually',
   'unlock',
   'lock',
   'pickLock',
@@ -57,6 +60,7 @@ export const ACTION_HANDLE_CODE: Readonly<Record<DoorActionName, number>> = {
   open: HandleDoor.OPEN,
   close: HandleDoor.OPEN,
   openManually: HandleDoor.OPEN,
+  closeManually: HandleDoor.OPEN,
   unlock: HandleDoor.UNLOCK,
   lock: HandleDoor.LOCK,
   pickLock: HandleDoor.LOCKPICK,
@@ -81,7 +85,9 @@ const HANDLE_CODE_ACTION: Readonly<Record<number, DoorActionName>> = {
   [HandleDoor.EXAMINE]: 'examine',
 };
 
-type MenuCostAction = Exclude<DoorActionName, 'open' | 'close' | 'openManually'>;
+const BY_HAND: ReadonlySet<DoorActionName> = new Set(['open', 'close', 'openManually', 'closeManually']);
+
+type MenuCostAction = Exclude<DoorActionName, 'open' | 'close' | 'openManually' | 'closeManually'>;
 
 const menuCosts = (): Readonly<Record<MenuCostAction, { readonly ap: number; readonly bp: number }>> => ({
   unlock: { ap: AP.UNLOCK_DOOR, bp: BP.UNLOCK_DOOR },
@@ -101,8 +107,8 @@ export function doorApCost(code: number): number {
 }
 
 export function actionCost(s: Soldier, action: DoorActionName): { readonly ap: number; readonly bp: number } {
-  if (action === 'open' || action === 'close' || action === 'openManually') return { ap: doorApCost(s.doorHandleCode), bp: BP.OPEN_DOOR };
-  return menuCosts()[action];
+  if (BY_HAND.has(action)) return { ap: doorApCost(s.doorHandleCode), bp: BP.OPEN_DOOR };
+  return menuCosts()[action as MenuCostAction];
 }
 
 type Interaction = 'OPEN_DOOR' | 'CLOSE_DOOR' | 'END_OPEN_DOOR' | 'END_OPEN_LOCKED_DOOR' | 'PICK_LOCK';
@@ -143,6 +149,10 @@ function playInteraction(t: TacticalState, s: Soldier, isDoor: boolean, interact
   changeState(t, s, interactionState(t, s, isDoor, interaction));
 }
 
+export function closeDoorByHand(t: TacticalState, s: Soldier): void {
+  playInteraction(t, s, true, 'CLOSE_DOOR');
+}
+
 export function interactWithClosedDoor(t: TacticalState, s: Soldier, code: number): void {
   s.doorHandleCode = code;
   if (code === HandleDoor.FORCE) changeState(t, s, 'KICK_DOOR');
@@ -177,7 +187,37 @@ export function doorMenu(t: TacticalState, s: Soldier, gridNo: number): DoorMenu
   ];
 }
 
-export type InteractionOutcome = 'busy' | 'closing' | 'opening' | 'menu' | 'trapNoticed';
+const CLOSING_DISABLED = [
+  'unlock',
+  'crowbar',
+  'pickLock',
+  'explode',
+  'examine',
+  'force',
+  'untrap',
+] as const satisfies readonly MenuCostAction[];
+
+export function closingDoorMenu(t: TacticalState, s: Soldier): DoorMenuOption[] {
+  const ap = doorApCost(s.doorHandleCode);
+  const shown = t.inCombat ? ap : 0;
+  const close: DoorMenuOption = enoughPoints(t.inCombat, s, ap)
+    ? { action: 'closeManually', ap: shown, enabled: true }
+    : { action: 'closeManually', ap: shown, enabled: false, reason: 'notEnoughAp' };
+  const costs = menuCosts();
+  return [
+    close,
+    ...CLOSING_DISABLED.map((action) => ({ action, ap: t.inCombat ? costs[action].ap : 0, enabled: false, reason: 'doorOpen' })),
+  ];
+}
+
+export type InteractionOutcome = 'busy' | 'closing' | 'opening' | 'menu' | 'closeMenu' | 'trapNoticed';
+
+function offerToClose(t: TacticalState, s: Soldier, gridNo: number): InteractionOutcome {
+  if (!s.collapsed) soldierGotoStationaryStance(t, s);
+  if (doTrapCheckOnStartingMenu(t, s, gridNo)) return 'trapNoticed';
+  t.events.push({ type: 'doorMenu', soldier: s.id, gridNo, options: closingDoorMenu(t, s), closing: true });
+  return 'closeMenu';
+}
 
 export function interactWithOpenableStruct(
   t: TacticalState,
@@ -190,6 +230,7 @@ export function interactWithOpenableStruct(
   const isSwitch = has(structure.flags, StructureFlags.SWITCH);
   if (!s.collapsed) setDesiredDirection(t, s, direction);
   if (has(structure.flags, StructureFlags.OPEN)) {
+    if (s.team === Team.OUR && isDoor) return offerToClose(t, s, base.gridNo);
     if (s.team === Team.OUR && !isSwitch && !s.collapsed) soldierGotoStationaryStance(t, s);
     playInteraction(t, s, isDoor, 'CLOSE_DOOR');
     return 'closing';

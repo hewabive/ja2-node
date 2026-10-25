@@ -14,7 +14,7 @@ import type { KnowledgeWorld } from '../knowledge/knowledge-world.ts';
 import { isRobotSoldier } from '../narrative/talkable.ts';
 import { AnimHeight } from '../tactical/animation.ts';
 import { findAdjacentGridEx } from '../tactical/combat/melee-reach.ts';
-import { doorApCost, doorMenu } from '../tactical/doors/door-actions.ts';
+import { closingDoorMenu, doorApCost, doorMenu } from '../tactical/doors/door-actions.ts';
 import { findAdjacentGridExAdvanced } from '../tactical/doors/door-approach.ts';
 import { findDoorInfo, PerceivedLock } from '../tactical/doors/door-table.ts';
 import type { DoorMenuOption } from '../tactical/doors/events.ts';
@@ -88,21 +88,29 @@ function walkTo(c: ActionContext, to: number) {
   return to === c.s.gridNo ? { cost: 0, steps: NO_STEPS } : plotWalk(c.t, c.s, to, c.mode, c.level);
 }
 
+type Arrival = Pick<Soldier, 'desiredDirection' | 'doorHandleCode'>;
+
+function menuOnArrival(c: ActionContext, base: number, arrival: Arrival, open: boolean, locked: boolean): DoorMenuOption[] | null {
+  if (!open && !locked) return null;
+  return withTemporaryFields(c.s, arrival, () => (open ? closingDoorMenu(c.t, c.s) : doorMenu(c.t, c.s, base)));
+}
+
 function doorAction(c: ActionContext): ActionPart {
   const { t, s } = c;
   const found = t.world.structures.find(c.g, StructureFlags.ANYDOOR);
   const door = found ? (t.world.structures.findBase(found) ?? found) : null;
   if (!door) return refused(c, 'noDoor');
   const base = door.gridNo;
-  const { approach, handleCost } = preservingFields(s, ['doorHandleCode'], () => {
+  const { approach, handleCode } = preservingFields(s, ['doorHandleCode'], () => {
     const nearest = findAdjacentGridExAdvanced(t, s, door, base);
-    return { approach: nearest, handleCost: doorApCost(s.doorHandleCode) };
+    return { approach: nearest, handleCode: s.doorHandleCode };
   });
+  const handleCost = doorApCost(handleCode);
   const actionGridNo = approach?.gridNo ?? base;
   const walk = walkTo(c, actionGridNo);
   const open = has(door.flags, StructureFlags.OPEN);
   const locked = !open && findDoorInfo(t, base)?.perceivedLocked === PerceivedLock.LOCKED;
-  const menu = locked && approach ? withTemporaryFields(s, { desiredDirection: approach.direction }, () => doorMenu(t, s, base)) : null;
+  const menu = approach ? menuOnArrival(c, base, { desiredDirection: approach.direction, doorHandleCode: handleCode }, open, locked) : null;
   return {
     ok: approach !== null,
     ...(approach ? {} : { refusal: 'noPath' }),

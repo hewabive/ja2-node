@@ -13,6 +13,8 @@ import type { TacticalState } from '../state.ts';
 import {
   ACTION_HANDLE_CODE,
   actionCost,
+  closeDoorByHand,
+  closingDoorMenu,
   type DoorActionName,
   doorMenu,
   interactWithClosedDoor,
@@ -38,7 +40,7 @@ function refuse(refusal: string): DoorCommandOutcome {
 
 function doorStateRefusal(t: TacticalState, gridNo: number, open: boolean, action: DoorActionName): string | null {
   if (action === 'open') return open ? 'alreadyOpen' : null;
-  if (action === 'close') return open ? null : 'alreadyClosed';
+  if (action === 'close' || action === 'closeManually') return open ? null : 'alreadyClosed';
   if (open) return 'doorOpen';
   const door = findDoorInfo(t, gridNo);
   if (action === 'lock') return !door ? 'noLock' : door.locked ? 'alreadyLocked' : null;
@@ -85,9 +87,18 @@ function doorAt(t: TacticalState, gridNo: number): StructureInstance | null {
 
 function openOrClose(t: TacticalState, s: Soldier, gridNo: number, direction: number): Record<string, unknown> {
   const outcome = interactWithDoorAt(t, s, gridNo, direction);
+  if (outcome === 'closeMenu') return { closed: false, options: closingDoorMenu(t, s) };
   if (outcome === 'menu') return { opened: false, locked: true, options: doorMenu(t, s, gridNo) };
   if (outcome === 'trapNoticed') return { opened: false, locked: true, trapNoticed: true };
   return { started: outcome };
+}
+
+function closeManually(t: TacticalState, s: Soldier, gridNo: number, direction: number): Record<string, unknown> {
+  startInteractiveObject(t, s, gridNo);
+  s.reverse = false;
+  if (!s.collapsed) setDesiredDirection(t, s, direction);
+  closeDoorByHand(t, s);
+  return { started: 'closeManually' };
 }
 
 function menuAction(t: TacticalState, s: Soldier, gridNo: number, direction: number, action: DoorActionName): Record<string, unknown> {
@@ -120,6 +131,7 @@ export function performDoorAction(
     t.events.push({ type: 'doorResult', soldier: s.id, gridNo, action, result: 'notEnoughAp' });
     return { started: false, refusal: 'notEnoughAp' };
   }
+  if (action === 'closeManually') return closeManually(t, s, gridNo, direction);
   return action === 'open' || action === 'close' ? openOrClose(t, s, gridNo, direction) : menuAction(t, s, gridNo, direction, action);
 }
 

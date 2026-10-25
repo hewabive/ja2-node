@@ -1,6 +1,15 @@
 import type { SimEventBase } from '../../events.ts';
 
-export type DoorMenuAction = 'openManually' | 'unlock' | 'pickLock' | 'force' | 'crowbar' | 'explode' | 'untrap' | 'examine';
+export type DoorMenuAction =
+  | 'openManually'
+  | 'closeManually'
+  | 'unlock'
+  | 'pickLock'
+  | 'force'
+  | 'crowbar'
+  | 'explode'
+  | 'untrap'
+  | 'examine';
 
 export interface DoorMenuOption {
   readonly action: DoorMenuAction;
@@ -14,6 +23,7 @@ export interface DoorMenuEvent extends SimEventBase {
   readonly soldier: number;
   readonly gridNo: number;
   readonly options: readonly DoorMenuOption[];
+  readonly closing?: true;
 }
 
 export interface DoorResultEvent extends SimEventBase {

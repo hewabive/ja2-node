@@ -667,14 +667,17 @@ Snapshot version 5 adds `newMail` (older snapshots load with it down).
 
 ### 6.10. Doors (M6)
 
-`door {soldier, gridNo, action}` with `action` one of `open`, `close`, `openManually` (§6.29), `unlock`, `lock`,
+`door {soldier, gridNo, action}` with `action` one of `open`, `close`, `openManually` (§6.29), `closeManually`, `unlock`, `lock`,
 `pickLock`, `force`, `crowbar`, `explode`, `untrap`, `examine` (`docs/25` §8, §13.1). The soldier walks next to the door (`FindAdjacentGridExAdvanced`) like
 `pickUp` and then interacts; `data` is `{walking: true, to}` while he walks, `{started: <action>}` when he is already there,
 or, for `open` on a locked door, `{opened: false, locked: true, options}`: the door menu as data, after the start-of-menu
 trap check (`{trapNoticed: true}` when the merc spots the trap instead). Each option is `{action, ap, enabled, reason?}`.
+`close` by one of our mercs answers `{closed: false, options}` and the `doorMenu` event with `closing: true`: vanilla's
+closing menu, where only `closeManually` is enabled (the other options carry `reason: 'doorOpen'`); `closeManually` closes
+the door without asking (`docs/deviations.md`, "Closing an open door"). Other soldiers close at once.
 Refusals (`data.refusal`): `noDoor`, `alreadyOpen`, `alreadyClosed`, `doorOpen`, `notLocked` (menu actions need a closed
 locked door), `noLock`, `alreadyLocked`, `noKey`, `noCrowbar`, `noLockpickKit`, `noShapedCharge`, `escortCannot`,
-`alreadyKnown`, `notEnoughAp`, `noPath`. Events: `doorMenu {soldier, gridNo, options}`, `doorResult {soldier, gridNo,
+`alreadyKnown`, `notEnoughAp`, `noPath`. Events: `doorMenu {soldier, gridNo, options, closing?}`, `doorResult {soldier, gridNo,
 action, result, trap?}` (`opened`, `closed`, `locked`, `failed`, `noLock`, `lockDamaged`, `chargeExploded`, `trapFound`,
 `noTrapFound`, `untrapped`, `trapSprung`, `notTrapped`, `wrongKey`, `trapStopped`, `trapNoticed`, `notEnoughAp`),
 `doorTrap {soldier, gridNo, trap}` (never for the silent alarm), `lockDestroyed {soldier, gridNo}` and `doorChanged`.
@@ -1455,6 +1458,7 @@ like every tactical order while our side cannot act (`noSuchSoldier`, `cannotAct
 | `climbWindow {soldier}` | Stracciatella's SHIFT+J (`HandleTBClimbWindow`): through the open window the merc faces (`IsFacingClimableWindow`), `AP_JUMPFENCE`/`BP_JUMPFENCE`, then `TeleportSoldier` to the next tile (no animation in Stracciatella either) | `noWindow`, `notEnoughAP` |
 | `combineStack {soldier, slot, from?, index?}` | CTRL+click (`CleanUpStack`): ammo, kits and medkits only; the points of the `from` stack (or its object at `index`), when it holds the same item, are poured into the slot's lower objects, then the slot's own upper objects into its lower ones; emptied objects leave the stack; free; `data.combined` false for other items | `badSlot`, `emptySlot`, `sameSlot`, `badIndex` |
 | `door {…, action: 'openManually'}` | the door menu's open button: `InteractWithClosedDoor(HANDLE_DOOR_OPEN)` on a locked door after the start-of-menu trap check; the merc finds it locked (no AP, as the original) unless a trap goes off. The door menu (`options`, `previewAction` and the `doorMenu` event) lists it first | as the menu actions |
+| `door {…, action: 'closeManually'}` | the closing menu's close button (vanilla `BtnDoorMenuCallback` with `fClosingDoor`): the close door animation at once, no trap check; refused with `alreadyClosed` on a closed door | `alreadyClosed`, `notEnoughAp`, `noPath` |
 | `leaveVehicle {soldier, squad?}` | accepted in the tactical flow as on the map screen (§6.13); the team panel's second hand slot of a passenger sends it | §6.13 |
 
 Every refusal the original reports with `MSG_UI_FEEDBACK` (`notEnoughAP`, `noPath`, `mercUnavailable`, `noBurst`,
