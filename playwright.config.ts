@@ -2,12 +2,14 @@ import { defineConfig, devices } from '@playwright/test';
 import { E2E_MAX_SESSIONS, SAVE_DIR, SERVER_PORT, TOKEN, WEB_PORT } from './tests/e2e/env.ts';
 
 const CANVAS_TEST_TIMEOUT_MS = 90_000;
+const LOCAL_WORKERS = 3;
 const SETTINGS_KEY = 'ja2-node:settings';
 const SETTINGS_WITHOUT_HELP = JSON.stringify({ version: 2, helpHidden: true });
 
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: false,
+  workers: process.env.CI ? undefined : LOCAL_WORKERS,
   timeout: CANVAS_TEST_TIMEOUT_MS,
   reporter: [['list']],
   use: {
