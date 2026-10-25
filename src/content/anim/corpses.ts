@@ -66,12 +66,15 @@ export async function loadCorpseContent(read: ReadFile, tableJson: unknown): Pro
     names.add(corpseFileBase(table, type, true));
     names.add(corpseFileBase(table, type, false));
   }
+  const loaded = await Promise.all(
+    [...names]
+      .filter((name) => name !== '')
+      .map(
+        async (name) => [name, (await read(`${TILE_CACHE_DIR}${name}.jsd`)) ?? (await read(`${STUB_TILE_CACHE_DIR}${name}.jsd`))] as const,
+      ),
+  );
   const structures = new Map<string, StructureFile>();
-  for (const name of names) {
-    if (!name) continue;
-    const bytes = (await read(`${TILE_CACHE_DIR}${name}.jsd`)) ?? (await read(`${STUB_TILE_CACHE_DIR}${name}.jsd`));
-    if (bytes) structures.set(name, parseStructureFile(bytes));
-  }
+  for (const [name, bytes] of loaded) if (bytes) structures.set(name, parseStructureFile(bytes));
   return { table, structures };
 }
 

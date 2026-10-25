@@ -16,7 +16,7 @@ import type {
 } from '../../ui/screens/laptop/laptop-client.ts';
 import { LAPTOP_LAYOUTS, LaptopScreen } from '../../ui/screens/laptop/laptop-screen.ts';
 import { messageBoxLabels } from '../../ui/widgets/message-box.ts';
-import { preloadLayout, type UiBoot } from '../game/ui-boot.ts';
+import { loadLayouts, type UiBoot } from '../game/ui-boot.ts';
 import type { SessionClient } from '../net/session-client.ts';
 import { loadSettings } from '../settings.ts';
 
@@ -88,11 +88,9 @@ export function laptopMedia(ui: UiBoot, random: ClientRandom): LaptopMedia {
       await Promise.all(paths.map((path) => ui.assets.image(path.toLowerCase())));
     },
     loadTexts: async (files) => {
-      for (const file of files) {
-        if (ui.edt.has(file)) continue;
-        const bytes = await ui.source.readOptional(file);
-        if (bytes) ui.edt.add(file, bytes);
-      }
+      const missing = files.filter((file) => !ui.edt.has(file));
+      const loaded = await Promise.all(missing.map(async (file) => [file, await ui.source.readOptional(file)] as const));
+      for (const [file, bytes] of loaded) if (bytes) ui.edt.add(file, bytes);
     },
     random: (range) => random.int(range),
   };
@@ -109,14 +107,8 @@ export function laptopSettings(overrides: Partial<LaptopSettings> = {}): LaptopS
   };
 }
 
-export async function loadLaptopLayouts(ui: UiBoot, skin = ORIGINAL_SKIN): Promise<Map<string, LayoutModel>> {
-  const layouts = new Map<string, LayoutModel>();
-  for (const name of [...LAPTOP_LAYOUTS, MESSAGE_BOX_LAYOUT]) {
-    const model = await ui.layouts.load(skin, name);
-    await preloadLayout(ui, model);
-    layouts.set(name, model);
-  }
-  return layouts;
+export function loadLaptopLayouts(ui: UiBoot, skin = ORIGINAL_SKIN): Promise<Map<string, LayoutModel>> {
+  return loadLayouts<string>(ui, [...LAPTOP_LAYOUTS, MESSAGE_BOX_LAYOUT], skin);
 }
 
 export interface LaptopBootOptions {

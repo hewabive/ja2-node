@@ -66,6 +66,14 @@ async function preloadAll(ui: UiBoot, models: readonly LayoutModel[]): Promise<v
   await Promise.all([...new Set(models.flatMap(assetsOf))].map((path) => ui.assets.image(path)));
 }
 
+async function loadFrontEndLayouts(ui: UiBoot): Promise<Map<string, LayoutModel>> {
+  const models = new Map(
+    await Promise.all(FRONT_END_LAYOUTS.map(async (name) => [name, await ui.layouts.load(ORIGINAL_SKIN, name)] as const)),
+  );
+  await preloadAll(ui, [...models.values()]);
+  return models;
+}
+
 function loadScreenOf(frames: readonly ViewFrame[]): number | null {
   let found: number | null = null;
   for (const frame of frames)
@@ -83,11 +91,12 @@ function versionLabel(engine: { readonly version: string; readonly commit: strin
 
 export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEnd> {
   const settings = new BrowserSettingsStore();
-  const models = new Map<string, LayoutModel>();
-  for (const name of FRONT_END_LAYOUTS) models.set(name, await ui.layouts.load(ORIGINAL_SKIN, name));
-  await preloadAll(ui, [...models.values()]);
-  const health = await fetchHealth().catch(() => null);
-  const labels: Labels = await fetchLabels(settings.current().language ?? health?.language ?? null);
+  const healthCheck = fetchHealth().catch(() => null);
+  const [models, health, labels] = await Promise.all([
+    loadFrontEndLayouts(ui),
+    healthCheck,
+    healthCheck.then((h): Promise<Labels> => fetchLabels(settings.current().language ?? h?.language ?? null)),
+  ]);
   const styles = messageBoxStyles(models.get(FrontEndLayout.MESSAGE_BOX) as LayoutModel);
   const fallback = styles[0];
   if (!fallback) throw new Error('the message box layout has no styles');
@@ -200,10 +209,12 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
       const paths = assetsOf(env.layout(layout));
       let done = 0;
       onProgress(done, paths.length);
-      for (const path of paths) {
-        await ui.assets.image(path);
-        onProgress(++done, paths.length);
-      }
+      await Promise.all(
+        paths.map(async (path) => {
+          await ui.assets.image(path);
+          onProgress(++done, paths.length);
+        }),
+      );
     },
     rowFeed: () => {
       const feed = new CreditRowFeed(fetchCreditRow);

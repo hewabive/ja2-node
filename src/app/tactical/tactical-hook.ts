@@ -65,8 +65,18 @@ export interface ShopSample {
   readonly held: string | null;
 }
 
+export const LOAD_PHASES = ['assets', 'presentation', 'world', 'sound', 'layouts', 'media'] as const;
+export type LoadPhase = (typeof LOAD_PHASES)[number];
+
+export interface LoadTimes {
+  readonly total: number;
+  readonly sincePageStart: number;
+  readonly phases: Readonly<Partial<Record<LoadPhase, number>>>;
+}
+
 export interface TacticalHook {
   ready: boolean;
+  loadMs: LoadTimes | null;
   error: string | null;
   map: string | null;
   panel: string | null;

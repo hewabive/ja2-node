@@ -1864,6 +1864,20 @@ entries of `01` §12 "Left out of M7".
 | A cursor hint computed in the browser | ≤ 2 ms p95 (path search included) | hook timing |
 | Server query round trip (local; agents and fallback) | ≤ 10 ms p95 while no enemy turn runs; never queued behind an advance | WebSocket timing |
 
+**Load timing** (2026-10-25). `__ja2Ui.tactical.loadMs` holds `{total, sincePageStart, phases}` of the last tactical
+load: milliseconds from the load's start to the end of each branch (`assets`, `presentation`, `world`, `sound`,
+`layouts`, `media`) and from the page's navigation start. The loaders run their independent branches at once
+(`tactical-host.ts`, `map-host.ts`, `bootUi`, the front end, the layout loader, the strings, the anim and corpse
+structures, the light templates), so a remote browser pays the HTTP/1.1 limit of six requests at a time instead of one
+round trip per file. The built client, A9 on the original data, headless Chromium on this VM (no GPU: the software
+compositor reads every WebGL frame back, about 3 s of a load, so these numbers are not the maintainer's):
+
+| Opening of the tactical screen | Before | After |
+|---|---|---|
+| Cold cache, local | 4.8 s | 3.3 s |
+| Cold cache, 50 ms latency, 50 Mbit/s | 12.9 s | 6.7 s |
+| Warm cache (no request) | 4.0 s | 3.1 s |
+
 ---
 
 ## 17. Minimal M8 implementation
@@ -2372,7 +2386,7 @@ for U8 and U10). World input is U6: the viewport only selects own mercs, ends an
 | Hints and sound | The `/play` page wires U3b's `HintProvider` with `ClientKnowledge` (`?shadowHints=1` for the shadow mode, `window.__ja2Ui.hints`). `TacticalSound` shares the UI audio engine without its own music (the front end keeps playing the session's music); `VoiceHandle.elapsedMs` and `SoundDirector.speaking` give the faces the speaker, file and position for lip sync |
 | Server and data | The item catalogue carries `calibre.showInHelpText` (from `calibres.json`, for the hand slots' help texts); rule finding 3 is settled (e173dea, deviation "Attachment AP"); key ring entries name their key item (G20, 4df5656); `protocol/hints.ts` re-exports the hint data types for the `ui` layer |
 | Stub art | 04dc3f1: a generic face per body type with blink and mouth frames and `.gap` files, item silhouettes per shape for every small and big item graphic, radar maps for the stub maps; the layout-driven generator draws the panel art (hollow slots, checkered hatches). The stub sandbox mercs now carry a silencer in a small pocket, so the canvas can attach on stubs |
-| Hook | `window.__ja2Ui.tactical`: `ready`, `map`, `panel`, `selected`, `smMerc`, `squad`, `slots`, `radarShown`, `paused`, `faces` (eye and mouth frames), `messages`, `feedback`, `cursorItem`, `descriptionOpen`, `descriptionItem`, `pickupOpen`, `stackOpen`, `keyRingOpen`, `commands`, `camera`, `drawCalls`, `drawnSoldiers`, `pendingImages`, `enemyBar`, `topMessage`, `frameMs`, `worldMs`, and `command`, `advance`, `inventory`, `soldiers`, `items`, `soldierScreen`, `gridNoScreen`, `gridNoAt`, `soldierAt`, `centerOn`, `resetTimes` |
+| Hook | `window.__ja2Ui.tactical`: `ready`, `loadMs`, `map`, `panel`, `selected`, `smMerc`, `squad`, `slots`, `radarShown`, `paused`, `faces` (eye and mouth frames), `messages`, `feedback`, `cursorItem`, `descriptionOpen`, `descriptionItem`, `pickupOpen`, `stackOpen`, `keyRingOpen`, `commands`, `camera`, `drawCalls`, `drawnSoldiers`, `pendingImages`, `enemyBar`, `topMessage`, `frameMs`, `worldMs`, and `command`, `advance`, `inventory`, `soldiers`, `items`, `soldierScreen`, `gridNoScreen`, `gridNoAt`, `soldierAt`, `centerOn`, `resetTimes` |
 
 **Measured** with original data on `/play`, 1920×1080, UI scale 2 (logical 960×540, six slots), headless Chromium on
 SwiftShader, real time, 15 s after the load: the A9 sandbox (six mercs in view, 224 UI instances in 47 batches, 26 world

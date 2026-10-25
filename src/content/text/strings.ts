@@ -92,15 +92,17 @@ export async function loadTranslationLayout(read: ReadFile): Promise<Translation
 
 export async function loadUiStrings(read: ReadFile, language: UiLanguage, layout?: TranslationLayout): Promise<UiStrings> {
   const translationFile = translationPath(language);
-  const translation = checkTranslation(await readJson(read, translationFile), layout ?? (await loadTranslationLayout(read)));
-  const files = [translationFile];
-  const tables: Record<string, UiStringValue> = { ...translation };
-  for (const file of LANGUAGE_FILES) {
-    const path = languageFilePath(file, language);
-    tables[file] = stringArray(await readJson(read, path), path);
-    files.push(path);
-  }
-  return { language, files, tables };
+  const paths = LANGUAGE_FILES.map((file) => languageFilePath(file, language));
+  const [translationJson, translationLayout, languageJson] = await Promise.all([
+    readJson(read, translationFile),
+    layout ?? loadTranslationLayout(read),
+    Promise.all(paths.map((path) => readJson(read, path))),
+  ]);
+  const tables: Record<string, UiStringValue> = { ...checkTranslation(translationJson, translationLayout) };
+  LANGUAGE_FILES.forEach((file, i) => {
+    tables[file] = stringArray(languageJson[i], paths[i] as string);
+  });
+  return { language, files: [translationFile, ...paths], tables };
 }
 
 export function uiString(strings: UiStrings, table: string, index?: number): string | null {

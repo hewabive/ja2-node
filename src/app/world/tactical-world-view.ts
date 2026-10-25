@@ -85,6 +85,11 @@ export interface TacticalPresentation {
   readonly lightTemplates?: LightTemplates;
 }
 
+export interface PreparedWorld {
+  readonly world: LoadedWorld;
+  readonly itemTiles: ItemTileLookup;
+}
+
 export class TacticalWorldView {
   readonly world: LoadedWorld;
   readonly lighting: WorldLighting;
@@ -121,9 +126,16 @@ export class TacticalWorldView {
     presentation: TacticalPresentation,
     read?: ReadVfsFile,
   ): Promise<TacticalWorldView> {
+    return TacticalWorldView.create(renderer, await TacticalWorldView.prepare(mapPath, available, read), presentation);
+  }
+
+  static async prepare(mapPath: string, available: ReadonlySet<string>, read?: ReadVfsFile): Promise<PreparedWorld> {
     const world = await loadWorld(mapPath, available, read);
-    const itemTiles = await loadItemTiles(world.tables, read);
-    return new TacticalWorldView(world, renderer, presentation, itemTiles);
+    return { world, itemTiles: await loadItemTiles(world.tables, read) };
+  }
+
+  static create(renderer: WorldRenderer, prepared: PreparedWorld, presentation: TacticalPresentation): TacticalWorldView {
+    return new TacticalWorldView(prepared.world, renderer, presentation, prepared.itemTiles);
   }
 
   static soldierScene(assets: SoldierAssets): SoldierScene {

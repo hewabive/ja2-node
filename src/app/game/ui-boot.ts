@@ -6,6 +6,7 @@ import type { AssetKey } from '../../ui/draw-list.ts';
 import { LayoutLoader } from '../../ui/layout/loader.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
 import { collectReferences } from '../../ui/layout/references.ts';
+import { ORIGINAL_SKIN } from '../../ui/layout/types.ts';
 import { UiRuntime } from '../../ui/runtime.ts';
 import { fontIdOfPath } from '../../ui/text/bitmap-font.ts';
 import { EdtTextCache } from '../../ui/text/edt-text.ts';
@@ -49,18 +50,25 @@ async function textService(source: HttpAssetSource, version: DataVersion, edt: E
 }
 
 export async function bootUi(page: GamePage, options: BootOptions = {}): Promise<UiBoot> {
-  const health = await fetchHealth();
+  const [health, source] = await Promise.all([fetchHealth(), pageAssetSource()]);
   const dataVersion = (health.dataVersion as DataVersion | undefined) ?? STUB_DATA_VERSION;
   page.hook.dataVersion = dataVersion;
-  const source = await pageAssetSource();
   const assets = new UiAssets(page.renderer, source, new AssetCache());
-  const fontFiles = parseFontFiles(await assets.json(FONTS_TABLE_PATH));
-  const cursors = parseCursorTable(await assets.json(CURSORS_TABLE_PATH));
+  const [fontFiles, cursors, audioTable, edtLayouts] = await Promise.all([
+    assets.json(FONTS_TABLE_PATH).then((json) => parseFontFiles(json)),
+    assets.json(CURSORS_TABLE_PATH).then((json) => parseCursorTable(json)),
+    assets.json(UiAudio.tablePath()),
+    assets.json(EDT_LAYOUTS_PATH).then((json) => EdtLayouts.parse(json)),
+  ]);
+  const edt = new EdtTextCache(edtLayouts, edtEncodingOf(dataVersion));
   const fontIds = [...new Set(Object.values(fontFiles).map(fontIdOfPath))];
-  await assets.preload([...(options.images ?? []), ...cursorFilePaths(cursors)], fontIds, glyphTablePath(dataVersion));
+  const [text] = await Promise.all([
+    textService(source, dataVersion, edt),
+    assets.preload([...(options.images ?? []), ...cursorFilePaths(cursors)], fontIds, glyphTablePath(dataVersion)),
+  ]);
   const fonts = assets.fontSet(fontFiles);
   const audio = new UiAudio(source);
-  audio.useTable(await assets.json(UiAudio.tablePath()));
+  audio.useTable(audioTable);
   const runtime = new UiRuntime({
     fonts,
     images: assets,
@@ -72,8 +80,6 @@ export async function bootUi(page: GamePage, options: BootOptions = {}): Promise
   page.attach(runtime);
   page.hook.sounds = audio.requests;
   const layouts = new LayoutLoader((path) => assets.text(path), dataVersion);
-  const edt = new EdtTextCache(EdtLayouts.parse(await assets.json(EDT_LAYOUTS_PATH)), edtEncodingOf(dataVersion));
-  const text = await textService(source, dataVersion, edt);
   return { dataVersion, source, assets, fonts, fontFiles, cursors, runtime, audio, layouts, text, edt };
 }
 
@@ -87,4 +93,15 @@ export async function preloadLayout(boot: UiBoot, model: LayoutModel): Promise<v
       if (bytes) boot.edt.add(file, bytes);
     }),
   ]);
+}
+
+export async function loadLayouts<N extends string>(boot: UiBoot, names: readonly N[], skin = ORIGINAL_SKIN): Promise<Map<N, LayoutModel>> {
+  const models = await Promise.all(
+    names.map(async (name) => {
+      const model = await boot.layouts.load(skin, name);
+      await preloadLayout(boot, model);
+      return [name, model] as const;
+    }),
+  );
+  return new Map(models);
 }

@@ -67,31 +67,21 @@ function withPassableNonBaseTiles(file: StructureFile): StructureFile {
   };
 }
 
+async function readAnimStructure(read: ReadFile, name: string): Promise<Uint8Array | null> {
+  return (await read(`${ANIM_STRUCTURE_DIR}${name}.jsd`)) ?? (await read(`${STUB_ANIM_STRUCTURE_DIR}${name}.jsd`));
+}
+
 export async function loadAnimStructures(read: ReadFile): Promise<AnimStructures> {
-  const bytesByName = new Map<string, Uint8Array | null>();
-  const fetch = async (name: string): Promise<Uint8Array | null> => {
-    if (!bytesByName.has(name)) {
-      const bytes = (await read(`${ANIM_STRUCTURE_DIR}${name}.jsd`)) ?? (await read(`${STUB_ANIM_STRUCTURE_DIR}${name}.jsd`));
-      bytesByName.set(name, bytes);
-    }
-    return bytesByName.get(name) ?? null;
-  };
-  const result: (StructureFile | null)[][] = [];
-  for (let body = 0; body < ANIM_STRUCTURE_FILES.length; body++) {
-    const row: (StructureFile | null)[] = [];
-    const names = ANIM_STRUCTURE_FILES[body] ?? [];
-    for (let type = 0; type < NUM_ANIM_STRUCTS; type++) {
-      const bytes = await fetch(names[type] ?? '');
-      if (!bytes) {
-        row.push(null);
-        continue;
-      }
+  const names = [...new Set(ANIM_STRUCTURE_FILES.flat())].filter((name) => name !== '');
+  const bytesByName = new Map(await Promise.all(names.map(async (name) => [name, await readAnimStructure(read, name)] as const)));
+  return ANIM_STRUCTURE_FILES.map((files, body) =>
+    Array.from({ length: NUM_ANIM_STRUCTS }, (_, type) => {
+      const bytes = bytesByName.get(files[type] ?? '');
+      if (!bytes) return null;
       const file = parseStructureFile(bytes);
-      row.push(body <= LAST_MERC_BODY && type === AnimStruct.P ? withPassableNonBaseTiles(file) : file);
-    }
-    result.push(row);
-  }
-  return result;
+      return body <= LAST_MERC_BODY && type === AnimStruct.P ? withPassableNonBaseTiles(file) : file;
+    }),
+  );
 }
 
 const STATES_USING_STANDING_STRUCT = ['FALLFORWARD_FROMHIT_STAND', 'GENERIC_HIT_STAND', 'FALLFORWARD_FROMHIT_CROUCH', 'STANDING_BURST_HIT'];

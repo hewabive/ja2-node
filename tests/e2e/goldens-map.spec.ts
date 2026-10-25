@@ -27,6 +27,7 @@ async function loadSession(request: APIRequestContext): Promise<string> {
 
 const PINNED = 'pinClock=1&holdTime=1';
 const FIRST_RULE_READ = '**/ja2set.dat';
+const STEPS_WITHOUT_RULES = 50;
 
 async function openMap(page: Page, session: string): Promise<void> {
   watchLoading(page);
@@ -100,6 +101,13 @@ test.describe('goldens of the map screen on the stub map-screen campaign', () =>
     });
     await page.goto(`/play?session=${encodeURIComponent(session)}&${PINNED}`);
     await page.waitForFunction(() => window.__ja2Ui?.screen === 'loading', null, { timeout: LOAD_TIMEOUT_MS });
+    await page.waitForFunction(
+      (percent) => window.__ja2Ui.widgets.some((w) => w.kind === 'progressBar' && w.state === percent),
+      STEPS_WITHOUT_RULES,
+      {
+        timeout: LOAD_TIMEOUT_MS,
+      },
+    );
     await nextFrames(page, 4);
     await golden(page, 'front-end-loading');
     release();

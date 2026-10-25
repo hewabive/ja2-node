@@ -72,11 +72,9 @@ export class DialogueTexts implements QuoteLengths {
   }
 
   static async load(read: ReadFile, encoding: EdtEncoding = 'english', paths = dialogueFileCandidates()): Promise<DialogueTexts> {
+    const loaded = await Promise.all(paths.map(async (path) => [path, await readLayered(read, path)] as const));
     const files = new Map<string, Uint8Array>();
-    for (const path of paths) {
-      const bytes = await readLayered(read, path);
-      if (bytes) files.set(path, bytes);
-    }
+    for (const [path, bytes] of loaded) if (bytes) files.set(path, bytes);
     return new DialogueTexts(files, encoding);
   }
 

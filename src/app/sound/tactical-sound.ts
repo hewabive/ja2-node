@@ -8,7 +8,6 @@ import { type CueBook, loadCueBook } from '../../content/audio/cue-book.ts';
 import { type AmbientEntry, ambientTablePath, parseAmbientTable } from '../../content/formats/ambient.ts';
 import { ANIMATION_SCRIPTS_PATH, type AnimationScripts, parseAnimationScripts } from '../../content/formats/ja2bin.ts';
 import { type DataVersion, rpcSpeechPrefixed, STUB_DATA_VERSION } from '../../content/text/data-version.ts';
-import { compileWorldTerrainIds } from '../../content/world/movement-costs.ts';
 import type { ViewFrame } from '../../protocol/view.ts';
 import { type ClientSettings, effectiveMaster, updateSettings } from '../../ui/settings.ts';
 import { type MusicHook, musicLevel, PageMusic } from '../net/music.ts';
@@ -136,11 +135,13 @@ export class TacticalSound {
   async load(available: ReadonlySet<string>, animations: AnimationTables, session: string): Promise<void> {
     try {
       this.#available = available;
-      const health = await fetchHealth();
+      const [health, book, scripts] = await Promise.all([
+        fetchHealth(),
+        loadCueBook(fetchVfsFile),
+        readVfsFileOrNull(ANIMATION_SCRIPTS_PATH).then((bytes) => bytes ?? readVfsFileOrNull(`${STUB_PREFIX}${ANIMATION_SCRIPTS_PATH}`)),
+      ]);
       this.#version = (health.dataVersion as DataVersion | undefined) ?? STUB_DATA_VERSION;
-      this.#book = await loadCueBook(fetchVfsFile);
-      const scripts =
-        (await readVfsFileOrNull(ANIMATION_SCRIPTS_PATH)) ?? (await readVfsFileOrNull(`${STUB_PREFIX}${ANIMATION_SCRIPTS_PATH}`));
+      this.#book = book;
       this.#scripts = scripts ? parseAnimationScripts(scripts) : null;
       this.#director = new SoundDirector({
         engine: this.engine,
@@ -175,7 +176,7 @@ export class TacticalSound {
   async setWorld(world: LoadedWorld): Promise<void> {
     const director = this.#director;
     if (!director) return;
-    const terrain = compileWorldTerrainIds(world.level, world.tiles, world.tables);
+    const terrain = world.tactical.terrain;
     const ambient = ambientSilenced(world.map.ambient) ? [] : await this.#ambientTable(world.ambientId);
     const sound: SoundWorld = { terrainAt: (g) => terrain[g] ?? 0, ambient };
     director.setWorld(sound);

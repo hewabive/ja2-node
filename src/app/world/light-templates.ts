@@ -64,11 +64,12 @@ export class LightTemplates {
   }
 
   static async load(files: readonly VfsFile[], read: ReadVfsFile): Promise<LightTemplates> {
-    const found: LightTemplateData[] = [];
     const json = anyFile(files, SHIPPED_LIGHT_TEMPLATES_PATH);
-    if (json) found.push(...parseLightTemplatesJson(JSON.parse(new TextDecoder().decode(await read(json.path)))));
-    for (const f of lhtFiles(files)) found.push(asShippedTemplate(f.path, parseLightTemplateFile(f.path, await read(f.path))));
-    return new LightTemplates(found);
+    const [shipped, lht] = await Promise.all([
+      json ? read(json.path).then((bytes) => parseLightTemplatesJson(JSON.parse(new TextDecoder().decode(bytes)))) : [],
+      Promise.all(lhtFiles(files).map(async (f) => asShippedTemplate(f.path, parseLightTemplateFile(f.path, await read(f.path))))),
+    ]);
+    return new LightTemplates([...shipped, ...lht]);
   }
 
   get fromData(): number {

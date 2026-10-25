@@ -5,7 +5,6 @@ import type { CommandEnvelope } from '../../protocol/messages.ts';
 import type { PlayerView, ViewFrame } from '../../protocol/view.ts';
 import { WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
-import { ORIGINAL_SKIN } from '../../ui/layout/types.ts';
 import type { MessageBoxes } from '../../ui/message-boxes.ts';
 import type { BattleSound } from '../../ui/screens/tactical/environment.ts';
 import {
@@ -20,7 +19,7 @@ import { SpeechPresenter, type SpeechSettings } from '../../ui/speech.ts';
 import type { MercTextBoxArt } from '../../ui/widgets/merc-text-box.ts';
 import type { GamePage, WorldLayer } from '../game/game-page.ts';
 import { TimeSamples } from '../game/time-samples.ts';
-import { preloadLayout, type UiBoot } from '../game/ui-boot.ts';
+import { loadLayouts, type UiBoot } from '../game/ui-boot.ts';
 import { ClientKnowledge } from '../hints/client-knowledge.ts';
 import { attachHintHook, createHintHook, type HintHook } from '../hints/hint-hook.ts';
 import { HintProvider } from '../hints/hint-provider.ts';
@@ -39,7 +38,7 @@ import { loadSmallTiles, OverheadPicture } from './overhead-map.ts';
 import { engineSpeechVoices, storedSpeechSettings } from './speech-voices.ts';
 import { storyCameraTarget } from './story-camera.ts';
 import { SessionTacticalClient } from './tactical-client.ts';
-import { attachTacticalHook, type ShopSample, type TacticalHook, type TalkSample } from './tactical-hook.ts';
+import { attachTacticalHook, LOAD_PHASES, type LoadPhase, type ShopSample, type TacticalHook, type TalkSample } from './tactical-hook.ts';
 import { fetchItemCatalogue, fetchProfiles, type SpeechSource, TacticalMediaStore } from './tactical-media.ts';
 import { TacticalWorldPresenter } from './world-presenter.ts';
 
@@ -49,7 +48,6 @@ const SHADOW_HINTS_PARAM = 'shadowHints';
 const DRIVE_PARAM = 'drive';
 const MANUAL_DRIVE = 'manual';
 const KEPT_COMMANDS = 64;
-const LOAD_STEPS = 6;
 const OUR_TEAM = 0;
 const KEPT_DIALOGUE_FRAMES = 64;
 
@@ -167,73 +165,58 @@ export class TacticalHost {
     const session = this.#o.session;
     const mapPath = session.view?.mapPath;
     if (!mapPath) throw new Error('no sector is loaded in this session');
+    const started = performance.now();
+    const phases: Partial<Record<LoadPhase, number>> = {};
     let done = 0;
-    const step = () => onProgress(++done, LOAD_STEPS);
-    onProgress(done, LOAD_STEPS);
+    const reached =
+      (phase: LoadPhase) =>
+      <T>(value: T): T => {
+        phases[phase] = Math.round(performance.now() - started);
+        onProgress(++done, LOAD_PHASES.length);
+        return value;
+      };
+    onProgress(done, LOAD_PHASES.length);
     const listing = await fetchVfsList();
     const available = new Set(listing.map((f) => f.path));
-    const assets = await SoldierAssets.load(available);
-    step();
-    this.#frames = await loadSoldierFrames({
-      available,
-      read: fetchVfsFile,
-      serverScripts: session.rules?.scripts ?? null,
-      preferStubScripts: false,
-    });
-    const effects = await WorldEffects.load(fetchVfsFile, available, assets.palettes);
-    const lightTemplates = await LightTemplates.load(listing, fetchVfsFile);
-    step();
-    const world = await TacticalWorldView.load(this.#renderer, mapPath, available, {
-      soldiers: TacticalWorldView.soldierScene(assets),
-      frames: this.#frames,
-      effects,
-      lightTemplates,
-    });
-    step();
-    await this.#sound.load(available, assets.tables, session.session ?? 'local');
-    this.#sound.director?.reset(session.soldiers);
-    this.#sound.director?.setSpeechOwner({
-      isTalking: (soldier) => {
-        const speaking = this.#presenter.speaking;
-        return speaking !== null && speaking.speaker === soldier && speaking.playing;
+    const assets = SoldierAssets.load(available).then(reached('assets'));
+    const presentation = Promise.all([
+      assets,
+      loadSoldierFrames({ available, read: fetchVfsFile, serverScripts: session.rules?.scripts ?? null, preferStubScripts: false }),
+      assets.then((a) => WorldEffects.load(fetchVfsFile, available, a.palettes)),
+      LightTemplates.load(listing, fetchVfsFile),
+    ]).then(reached('presentation'));
+    const worldView = Promise.all([presentation, TacticalWorldView.prepare(mapPath, available)]).then(
+      ([[soldierAssets, frames, effects, lightTemplates], prepared]) => {
+        this.#frames = frames;
+        const presented = { soldiers: TacticalWorldView.soldierScene(soldierAssets), frames, effects, lightTemplates };
+        return reached('world')(TacticalWorldView.create(this.#renderer, prepared, presented));
       },
-      cut: (soldier) => this.#presenter.cutSpeaker(soldier),
-    });
-    await this.#sound.setWorld(world.world);
-    step();
-    const layouts = new Map<TacticalLayout, LayoutModel>();
-    for (const name of TACTICAL_LAYOUTS) {
-      const model = await this.#o.ui.layouts.load(ORIGINAL_SKIN, name);
-      await preloadLayout(this.#o.ui, model);
-      layouts.set(name, model);
-    }
-    step();
-    const [catalogue, profiles, gunNut] = await Promise.all([
-      fetchItemCatalogue(this.#o.language()),
-      fetchProfiles(session.session ?? ''),
-      this.#o.gunNut().catch(() => false),
+    );
+    const sound = Promise.all([assets.then((a) => this.#loadSound(available, a)), worldView]).then(([, world]) =>
+      this.#sound.setWorld(world.world).then(reached('sound')),
+    );
+    const media = Promise.all([assets, this.#mediaStore()])
+      .then(([a, store]) => this.#preloadMedia(store, a, mapPath, available))
+      .then(reached('media'));
+    const [soldierAssets, world, , layouts, loadedMedia, uiCursors] = await Promise.all([
+      assets,
+      worldView,
+      sound,
+      loadLayouts(this.#o.ui, TACTICAL_LAYOUTS).then(reached('layouts')),
+      media,
+      this.#loadUiCursors(),
     ]);
-    const media = new TacticalMediaStore(this.#o.ui.assets, catalogue, profiles, () => this.#speech(), gunNut);
-    const radarPath = radarPathForMap(mapPath);
-    const radarImage = available.has(radarPath) ? radarPath : null;
-    await Promise.all([
-      ...(radarImage ? [media.preload([radarImage])] : []),
-      ...session.soldiers.flatMap((s) => assets.preload(s)),
-      media.preload(this.#inventoryGraphics(session.view, media)),
-    ]);
-    step();
-    const uiCursors = parseUiCursorTable(JSON.parse(new TextDecoder().decode(await fetchVfsFile(UI_CURSORS_TABLE_PATH))));
     const presenter = new TacticalWorldPresenter(
       world,
       this.#renderer,
       this.#o.ui.assets,
-      assets.tables,
+      soldierAssets.tables,
       {
         view: () => session.view,
         clockMs: () => this.#o.ui.runtime.clock.ja2Now,
         options: () => tacticalOptionsOf(loadSettings()),
       },
-      radarImage,
+      loadedMedia.radarImage,
     );
     const geometry = this.#o.page.geometry();
     presenter.resize(geometry.width, geometry.height);
@@ -245,9 +228,53 @@ export class TacticalHost {
         addRgb: (key, width, height, pixels) => this.#o.ui.assets.addRgb(key, { kind: 'rgb', width, height, flags: 0, pixels }),
       });
     });
-    this.#loaded = { presenter, media, layouts, uiCursors };
+    this.#loaded = { presenter, media: loadedMedia.store, layouts, uiCursors };
     this.hook.map = mapPath;
     this.hook.error = null;
+    this.hook.loadMs = { total: Math.round(performance.now() - started), sincePageStart: Math.round(performance.now()), phases };
+  }
+
+  async #loadSound(available: ReadonlySet<string>, assets: SoldierAssets): Promise<void> {
+    const session = this.#o.session;
+    await this.#sound.load(available, assets.tables, session.session ?? 'local');
+    this.#sound.director?.reset(session.soldiers);
+    this.#sound.director?.setSpeechOwner({
+      isTalking: (soldier) => {
+        const speaking = this.#presenter.speaking;
+        return speaking !== null && speaking.speaker === soldier && speaking.playing;
+      },
+      cut: (soldier) => this.#presenter.cutSpeaker(soldier),
+    });
+  }
+
+  async #mediaStore(): Promise<TacticalMediaStore> {
+    const [catalogue, profiles, gunNut] = await Promise.all([
+      fetchItemCatalogue(this.#o.language()),
+      fetchProfiles(this.#o.session.session ?? ''),
+      this.#o.gunNut().catch(() => false),
+    ]);
+    return new TacticalMediaStore(this.#o.ui.assets, catalogue, profiles, () => this.#speech(), gunNut);
+  }
+
+  async #preloadMedia(
+    store: TacticalMediaStore,
+    assets: SoldierAssets,
+    mapPath: string,
+    available: ReadonlySet<string>,
+  ): Promise<{ readonly store: TacticalMediaStore; readonly radarImage: string | null }> {
+    const session = this.#o.session;
+    const radarPath = radarPathForMap(mapPath);
+    const radarImage = available.has(radarPath) ? radarPath : null;
+    await Promise.all([
+      ...(radarImage ? [store.preload([radarImage])] : []),
+      ...session.soldiers.flatMap((s) => assets.preload(s)),
+      store.preload(this.#inventoryGraphics(session.view, store)),
+    ]);
+    return { store, radarImage };
+  }
+
+  async #loadUiCursors(): Promise<ReturnType<typeof parseUiCursorTable>> {
+    return parseUiCursorTable(JSON.parse(new TextDecoder().decode(await fetchVfsFile(UI_CURSORS_TABLE_PATH))));
   }
 
   #inventoryGraphics(view: PlayerView | null, media: TacticalMediaStore): string[] {
@@ -430,6 +457,7 @@ export class TacticalHost {
   #createHook(): TacticalHook {
     return {
       ready: false,
+      loadMs: null,
       error: null,
       map: null,
       panel: null,

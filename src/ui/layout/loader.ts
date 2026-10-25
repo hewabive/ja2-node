@@ -20,24 +20,38 @@ export class LayoutLoader {
   readonly #read: ReadText;
   readonly #dataVersion: DataVersion;
   readonly #tables = new Map<string, ConstantTable>();
-  #mlg: LayoutEnvironment['mlg'] | null = null;
+  readonly #loading = new Map<string, Promise<void>>();
+  #mlg: Promise<LayoutEnvironment['mlg']> | null = null;
 
   constructor(read: ReadText, dataVersion: DataVersion) {
     this.#read = read;
     this.#dataVersion = dataVersion;
   }
 
-  async #ensureTables(names: readonly string[]): Promise<void> {
-    for (const name of [...SHARED_CONSTANT_TABLES, ...names]) {
-      if (this.#tables.has(name)) continue;
-      this.#tables.set(name, parseConstantTable(await readJson(this.#read, constantTablePath(name)), name));
+  #ensureTable(name: string): Promise<void> {
+    let loading = this.#loading.get(name);
+    if (!loading) {
+      loading = readJson(this.#read, constantTablePath(name)).then(
+        (json) => {
+          this.#tables.set(name, parseConstantTable(json, name));
+        },
+        (err: unknown) => {
+          this.#loading.delete(name);
+          throw err;
+        },
+      );
+      this.#loading.set(name, loading);
     }
+    return loading;
   }
 
   async environment(names: readonly string[] = []): Promise<LayoutEnvironment> {
-    await this.#ensureTables(names);
-    this.#mlg ??= parseMlgTable(await readJson(this.#read, MLG_TABLE_PATH));
-    return { tables: this.#tables, mlg: this.#mlg, dataVersion: this.#dataVersion };
+    this.#mlg ??= readJson(this.#read, MLG_TABLE_PATH).then(parseMlgTable, (err: unknown) => {
+      this.#mlg = null;
+      throw err;
+    });
+    const [mlg] = await Promise.all([this.#mlg, ...[...SHARED_CONSTANT_TABLES, ...names].map((name) => this.#ensureTable(name))]);
+    return { tables: this.#tables, mlg, dataVersion: this.#dataVersion };
   }
 
   async fromJson(json: unknown, where: string): Promise<LayoutModel> {

@@ -2,7 +2,6 @@ import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import type { UiLanguage } from '../../content/text/data-version.ts';
 import type { ViewFrame } from '../../protocol/view.ts';
 import type { LayoutModel } from '../../ui/layout/model.ts';
-import { ORIGINAL_SKIN } from '../../ui/layout/types.ts';
 import type { MessageBoxes } from '../../ui/message-boxes.ts';
 import { BATTLE_LAYOUTS, type BattleEnvironment, type BattleLayout } from '../../ui/screens/battle/environment.ts';
 import type { MapEntry, MapPort } from '../../ui/screens/front-end/flow.ts';
@@ -15,7 +14,7 @@ import { SessionBattleClient } from '../battle/battle-client.ts';
 import { attachBattleHook, type BattleHook } from '../battle/battle-hook.ts';
 import { BattleSound } from '../battle/battle-sound.ts';
 import type { GamePage } from '../game/game-page.ts';
-import { preloadLayout, type UiBoot } from '../game/ui-boot.ts';
+import { loadLayouts, type UiBoot } from '../game/ui-boot.ts';
 import { ClientKnowledge } from '../hints/client-knowledge.ts';
 import { createHintHook, type HintHook } from '../hints/hint-hook.ts';
 import { HintProvider } from '../hints/hint-provider.ts';
@@ -128,27 +127,42 @@ export class MapHost implements MapPort {
     const ui = this.#o.ui;
     const session = this.#o.session;
     let done = 0;
-    const step = () => onProgress(++done, LOAD_STEPS);
+    const step = <T>(value: T): T => {
+      onProgress(++done, LOAD_STEPS);
+      return value;
+    };
     onProgress(done, LOAD_STEPS);
-    const knowledge = this.#knowledge ?? (await this.#openKnowledge());
-    step();
-    const layouts = new Map<MapLayout, LayoutModel>();
-    for (const name of MAP_LAYOUTS) {
-      const model = await ui.layouts.load(ORIGINAL_SKIN, name);
-      await preloadLayout(ui, model);
-      layouts.set(name, model);
-    }
-    step();
-    const board = await ui.source.read(BOARD_PCX);
-    const images = boardImages(board);
+    const battleSound = new BattleSound(ui.audio.engine, ui.source, session.session ?? 'battle');
+    const sound = new MapSound(ui.audio.engine, ui.source, () => session.view, session.session ?? 'map');
+    const [knowledge, layouts, , media, battleLayouts] = await Promise.all([
+      (this.#knowledge ? Promise.resolve(this.#knowledge) : this.#openKnowledge()).then(step),
+      loadLayouts(ui, MAP_LAYOUTS).then(step),
+      this.#loadBoard().then(step),
+      this.#mediaStore(),
+      loadLayouts(ui, BATTLE_LAYOUTS),
+      sound.load(),
+      battleSound.load(),
+    ]);
+    onProgress(LOAD_STEPS, LOAD_STEPS);
+    this.#loaded = { media, layouts, knowledge, sound, battleLayouts, battleSound };
+    this.hook.error = null;
+  }
+
+  async #loadBoard(): Promise<void> {
+    const ui = this.#o.ui;
+    const images = boardImages(await ui.source.read(BOARD_PCX));
     for (const key of Object.keys(BOARD_KEYS) as (keyof typeof BOARD_KEYS)[]) ui.assets.addRgb(BOARD_KEYS[key], images[key]);
-    step();
+  }
+
+  async #mediaStore(): Promise<MapMediaStore> {
+    const ui = this.#o.ui;
+    const session = this.#o.session;
     const [catalogue, profiles, gunNut] = await Promise.all([
       fetchItemCatalogue(this.#o.language()),
       fetchProfiles(session.session ?? ''),
       this.#o.gunNut().catch(() => false),
     ]);
-    const media = new MapMediaStore({
+    return new MapMediaStore({
       assets: ui.assets,
       source: ui.source,
       edt: ui.edt,
@@ -158,19 +172,6 @@ export class MapHost implements MapPort {
       gunNut,
       messages: () => session.messages,
     });
-    const sound = new MapSound(ui.audio.engine, ui.source, () => session.view, session.session ?? 'map');
-    await sound.load();
-    const battleLayouts = new Map<BattleLayout, LayoutModel>();
-    for (const name of BATTLE_LAYOUTS) {
-      const model = await ui.layouts.load(ORIGINAL_SKIN, name);
-      await preloadLayout(ui, model);
-      battleLayouts.set(name, model);
-    }
-    const battleSound = new BattleSound(ui.audio.engine, ui.source, session.session ?? 'battle');
-    await battleSound.load();
-    step();
-    this.#loaded = { media, layouts, knowledge, sound, battleLayouts, battleSound };
-    this.hook.error = null;
   }
 
   async enter(abandonFight: boolean): Promise<MapEntry> {
