@@ -122,3 +122,10 @@ export function nextMerc(mercs: readonly SoldierView[], current: number | null, 
   if (at < 0) return alive[0] ?? null;
   return alive[(at + step + alive.length) % alive.length] ?? null;
 }
+
+export function nextSquadMateAfterDeath(mercs: readonly SoldierView[], dead: SoldierView): SoldierView | null {
+  const mates = mercs.filter(
+    (s) => s.id !== dead.id && !isInVehicle(s) && squadOf(s) === squadOf(dead) && okInterrupt(s) && (s.life ?? 0) >= OKLIFE,
+  );
+  return mates.find((s) => s.id > dead.id) ?? mates[0] ?? null;
+}

@@ -14,7 +14,8 @@
 // @src src/game/Strategic/Game_Clock.cc HandlePlayerPauseUnPauseOfGame; Interface_Items.cc HandleItemPointerClick (give
 // @src to the soldier under the pointer, else drop); Handle_UI.cc UIHandleInteractiveTilesAndItemsOnTerrain (one item
 // @src picked up at once, the pickup menu for several); Interface.cc EndUIMessage (a key or click closes the feedback
-// @src box). See docs/28 §5, §6.
+// @src box); src/game/Tactical/Squads.cc SetCurrentSquad, RebuildCurrentSquad (only a rebuilt panel drops a dead merc's
+// @src slot), UpdateCurrentlySelectedMerc (the next able merc of the squad after the skull, else nobody). See docs/28 §5, §6.
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
 import { idiv } from '../../../core/int.ts';
@@ -90,6 +91,7 @@ import {
   isInVehicle,
   isMercBodyType,
   nextMerc,
+  nextSquadMateAfterDeath,
   OUR_TEAM,
   okInterrupt,
   ourTurn,
@@ -184,8 +186,12 @@ export class TacticalScreen implements Screen {
   #pendingPanel: { kind: PanelKind; soldier: number | null } | null = null;
   #smMerc: number | null = null;
   #selected: number | null = null;
+  #nobodySelected = false;
   #squad = 0;
+  #slotsSquad: number | null = null;
   #slots: (number | null)[] = [];
+  readonly #fallen = new Map<number, SoldierView>();
+  readonly #lastSeen = new Map<number, SoldierView>();
   readonly #panelAnimations = new Map<number, PanelFaceAnimation>();
   readonly #lastEnemyCycled = new Map<number, number>();
   #externCursor = false;
@@ -352,7 +358,7 @@ export class TacticalScreen implements Screen {
       currentSquad: () => this.#squad,
       changeSquad: (squad) => this.#changeSquad(squad),
       squadSoldiers: () => this.#teamMembers(),
-      slotSoldiers: () => this.#slots.map((id) => soldierById(this.#view(), id)),
+      slotSoldiers: () => this.#slots.map((id) => this.#slotSoldier(id)),
       send: (cmd) => this.#send(cmd),
       panel: () => this.#panel,
       requestTeamPanel: () => this.#requestPanel('team', null),
@@ -549,6 +555,8 @@ export class TacticalScreen implements Screen {
 
   enter(): void {
     this.#entered = true;
+    this.#nobodySelected = false;
+    this.#rebuildSlots();
     this.#chooseInitialSelection();
     this.#hudView.build();
     this.#panelView().build();
@@ -577,14 +585,18 @@ export class TacticalScreen implements Screen {
 
   #chooseInitialSelection(): void {
     const own = ownSoldiers(this.#view());
-    if (this.#selected === null || !own.some((s) => s.id === this.#selected)) {
-      const first = own.find((s) => !isDead(s)) ?? own[0] ?? null;
-      this.#selected = first?.id ?? null;
-      if (first) {
-        this.#squad = squadOf(first);
-        this.#selectedChanged();
-      }
+    if (this.#selectionStands(own)) return;
+    const first = own.find((s) => !isDead(s)) ?? own[0] ?? null;
+    this.#selected = first?.id ?? null;
+    if (first) {
+      this.#squad = squadOf(first);
+      this.#selectedChanged();
     }
+  }
+
+  #selectionStands(own: readonly SoldierView[]): boolean {
+    if (this.#selected === null) return this.#nobodySelected;
+    return this.#fallen.has(this.#selected) || own.some((s) => s.id === this.#selected);
   }
 
   #defineViewportRegion(): void {
@@ -634,6 +646,7 @@ export class TacticalScreen implements Screen {
     if (s.id === this.#selected) return;
     if (this.#selected !== null) this.#locators.delete(this.#selected);
     this.#selected = s.id;
+    this.#nobodySelected = false;
     this.#squad = squadOf(s);
     if (this.#panel === 'sm') this.#requestPanel('sm', s.id);
     if (acknowledge) this.#env.sounds.attention(s.id);
@@ -690,13 +703,14 @@ export class TacticalScreen implements Screen {
   }
 
   #syncSlots(): void {
+    if (this.#slotsSquad !== this.#squad) this.#rebuildSlots();
     const count = this.#slotCount();
     const members = this.#teamMembers().map((s) => s.id);
     const next: (number | null)[] = this.#slots.slice(0, count);
     while (next.length < count) next.push(null);
     for (let i = 0; i < next.length; i++) {
       const id = next[i] ?? null;
-      if (id !== null && !members.includes(id) && !this.#animationRunning(id)) next[i] = null;
+      if (id !== null && !members.includes(id) && !this.#fallen.has(id)) next[i] = null;
     }
     for (const id of members) {
       if (next.includes(id)) continue;
@@ -704,6 +718,17 @@ export class TacticalScreen implements Screen {
       if (free >= 0) next[free] = id;
     }
     this.#slots = next;
+  }
+
+  #rebuildSlots(): void {
+    this.#slotsSquad = this.#squad;
+    this.#slots = [];
+    this.#fallen.clear();
+  }
+
+  #slotSoldier(id: number | null): SoldierView | null {
+    if (id === null) return null;
+    return soldierById(this.#view(), id) ?? this.#fallen.get(id) ?? null;
   }
 
   #slotCount(): number {
@@ -720,8 +745,35 @@ export class TacticalScreen implements Screen {
     this.#panelAnimations.set(id, { closeFrame: 0, deadFrame: 0, dead: false, finished: false, since: this.#now });
   }
 
+  #soldierDied(id: number): void {
+    const s = soldierById(this.#view(), id) ?? this.#lastSeen.get(id) ?? null;
+    if (s?.team !== OUR_TEAM) return;
+    this.#fallen.set(id, { ...s, life: 0, sees: [], continueTo: null });
+    this.#startDeathAnimation(id);
+  }
+
+  #observeOwn(s: SoldierView): void {
+    const before = this.#lastSeen.get(s.id);
+    this.#lastSeen.set(s.id, s);
+    if (before && !isDead(before) && isDead(s)) this.#soldierDied(s.id);
+  }
+
+  #afterSkullAnimation(id: number): void {
+    const dead = this.#fallen.get(id);
+    if (!dead || this.#selected !== id) return;
+    const next = nextSquadMateAfterDeath(ownSoldiers(this.#view()), dead);
+    if (next) {
+      this.#selectSoldier(next, false, false);
+      return;
+    }
+    this.#selected = null;
+    this.#nobodySelected = true;
+    this.#requestPanel('team', null);
+  }
+
   #updatePanelAnimations(): void {
     for (const [id, a] of this.#panelAnimations) {
+      const wasFinished = a.finished;
       while (!a.finished && this.#now - a.since >= PANEL_FACE_FRAME_MS) {
         a.since += PANEL_FACE_FRAME_MS;
         if (!a.dead) {
@@ -734,6 +786,7 @@ export class TacticalScreen implements Screen {
           a.finished = true;
         }
       }
+      if (a.finished && !wasFinished) this.#afterSkullAnimation(id);
       if (a.finished && !this.#slots.includes(id)) this.#panelAnimations.delete(id);
     }
   }
@@ -744,6 +797,7 @@ export class TacticalScreen implements Screen {
     this.#chooseInitialSelection();
     this.#applyPanelSwitch();
     this.dialogue.update(this.#now);
+    for (const s of ownSoldiers(view)) this.#lastSeen.set(s.id, s);
     this.#syncSlots();
     this.#updatePanelAnimations();
     this.#updateFaces();
@@ -837,7 +891,7 @@ export class TacticalScreen implements Screen {
     const state = this.#panelState(view);
     const text = this.#env.text;
     if (this.#panel === 'team') {
-      const members = this.#slots.map((id) => soldierById(view, id));
+      const members = this.#slots.map((id) => this.#slotSoldier(id));
       this.#team.model = teamPanelModel(state, members, text, this.#helpSources());
     } else {
       const s = this.#smSoldier();
@@ -980,6 +1034,7 @@ export class TacticalScreen implements Screen {
     this.dialogue.frames(frames);
     this.controls.frames(frames);
     for (const frame of frames) {
+      for (const s of frame.changed) if (s.team === OUR_TEAM) this.#observeOwn(s);
       for (const event of frame.events ?? []) this.#event(event, frame);
       for (const entry of frame.messages ?? []) {
         if (!showsInTacticalLog(entry)) continue;
@@ -1054,11 +1109,9 @@ export class TacticalScreen implements Screen {
       case 'enemyTurnProgress':
         this.#topBar.observeProgress(event.done);
         return;
-      case 'soldierDied': {
-        const s = soldierById(view, event.soldier);
-        if (s?.team === OUR_TEAM) this.#startDeathAnimation(s.id);
+      case 'soldierDied':
+        this.#soldierDied(event.soldier);
         return;
-      }
       case 'interrupt':
         if (event.selected !== undefined) this.select(event.selected, false);
         return;
@@ -1098,7 +1151,7 @@ export class TacticalScreen implements Screen {
   }
 
   #selectFace(slot: number): void {
-    const s = soldierById(this.#view(), this.#slots[slot] ?? null);
+    const s = this.#slotSoldier(this.#slots[slot] ?? null);
     if (!s || this.pickup.open || this.inventory.cursor) return;
     if (s.continueTo !== undefined && s.continueTo !== null) {
       void this.#command({ type: 'move', soldier: s.id, to: s.continueTo });
@@ -1114,7 +1167,7 @@ export class TacticalScreen implements Screen {
   }
 
   #enemyIndicator(id: number | null): void {
-    const s = soldierById(this.#view(), id);
+    const s = this.#slotSoldier(id);
     if (!s || isInVehicle(s)) return;
     const enemies = (s.sees ?? [])
       .map((e) => soldierById(this.#view(), e))
@@ -1533,15 +1586,16 @@ export class TacticalScreen implements Screen {
   #teamFace(list: DrawList, rect: Area, params: Readonly<Record<string, unknown>>, view: LayoutView, vars: Variables): void {
     const slot = vars.i ?? 0;
     const id = this.#slots[slot] ?? null;
-    const s = soldierById(this.#view(), id);
+    const s = this.#slotSoldier(id);
     const close = this.#asset(TacticalLayout.HUD, 'close');
     const animation = id === null ? undefined : this.#panelAnimations.get(id);
     const running = animation !== undefined && !animation.finished;
+    if (s) this.#drawPanelFace(list, s, rect.x, rect.y, false);
+    else list.image(close, CLOSE_PANEL_LAST_FRAME, rect.x, rect.y);
     if (animation && running) {
       if (!animation.dead) list.image(close, animation.closeFrame, rect.x, rect.y);
       else list.image(this.#asset(TacticalLayout.HUD, 'dead'), animation.deadFrame, rect.x, rect.y);
-    } else if (s) this.#drawPanelFace(list, s, rect.x, rect.y, false);
-    else list.image(close, CLOSE_PANEL_LAST_FRAME, rect.x, rect.y);
+    }
     const borderAsset = view.model.asset(String(params.border)).path;
     const panel = view.frame;
     const slotX = panel.x + slot * TEAMPANEL_SLOT_WIDTH;

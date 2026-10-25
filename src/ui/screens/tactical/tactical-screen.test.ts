@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { tacticalOf } from '../../../../tests/support/save-scenarios.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
 import type { ViewFrame } from '../../../protocol/view.ts';
+import { handleSoldierDeath } from '../../../sim/tactical/combat/death.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { MouseButton } from '../../input/events.ts';
 
@@ -13,6 +15,8 @@ const SMALL_POCKET = 11;
 const STAT_FLASH_MS = 60_000;
 const FRAME_MS = 16;
 const PANEL_FRAME_MS = 160;
+const SKULL_ANIMATION_FRAMES = 13;
+const DEAD_FACE_FRAME = 5;
 const FONT_RED = 162;
 const FONT_MCOLOR_LTYELLOW = 144;
 const MARKSMANSHIP = 'smStat6';
@@ -86,6 +90,25 @@ function frame(tick: number, events: NonNullable<ViewFrame['events']>, messages:
 async function smPanelOf(f: TacticalUiTest, slot: number): Promise<void> {
   await f.click(`teamFaceRegion${slot}`, MouseButton.RIGHT);
   await f.settle();
+}
+
+function kill(f: TacticalUiTest, ...ids: number[]): ViewFrame[] {
+  const t = tacticalOf(f.session).state;
+  for (const id of ids) {
+    const s = t.soldiers.find((v) => v?.id === id);
+    if (!s) throw new Error(`no soldier ${id}`);
+    s.life = 0;
+    handleSoldierDeath(t, s);
+  }
+  f.session.advance({ ticks: 1 });
+  f.client.refresh();
+  const frames = f.client.takeFrames();
+  f.frames(frames);
+  return frames;
+}
+
+function playSkullAnimation(f: TacticalUiTest): void {
+  for (let i = 0; i < SKULL_ANIMATION_FRAMES; i++) f.t.frame(PANEL_FRAME_MS);
 }
 
 function inventory(f: TacticalUiTest, soldier: number) {
@@ -232,6 +255,75 @@ describe('the tactical screen over a stub sandbox session', () => {
       expect(images(f, 'interface/p_close.sti').length).toBeGreaterThan(0);
       for (let i = 0; i < 8; i++) f.t.frame(PANEL_FRAME_MS);
       expect(images(f, 'interface/p_dead.sti').length).toBeGreaterThan(0);
+    },
+    SLOW_MS,
+  );
+
+  it(
+    'keeps the skull of a merc who died off the view in his slot until the panel is rebuilt',
+    async () => {
+      const f = await tacticalUiTest(kit, ui);
+      const frames = kill(f, 2);
+      expect(frames.flatMap((fr) => fr.events ?? []).some((e) => e.type === 'soldierDied' && e.soldier === 2)).toBe(true);
+      expect(f.client.view.soldiers.some((s) => s.id === 2)).toBe(false);
+      const slot = f.screen.teamSlots.indexOf(2);
+      expect(slot).toBeGreaterThanOrEqual(0);
+      f.t.frame(PANEL_FRAME_MS);
+      expect(images(f, 'interface/p_close.sti').length).toBeGreaterThan(0);
+      playSkullAnimation(f);
+      expect(f.screen.teamSlots[slot]).toBe(2);
+      const face = f.widget(`teamFace${slot}`).rect;
+      const skull = images(f, 'interface/p_dead.sti').filter((i) => i.kind === 'image' && i.x === face.x && i.y === face.y);
+      expect(skull.map((i) => (i.kind === 'image' ? i.frame : -1))).toEqual([DEAD_FACE_FRAME]);
+      expect(f.widget(`teamName${slot}`).text).toBe('Merc 3');
+      expect(f.screen.selected).toBe(0);
+      f.screen.exit();
+      f.screen.enter();
+      f.t.frame();
+      expect(f.screen.teamSlots).not.toContain(2);
+    },
+    SLOW_MS,
+  );
+
+  it(
+    'darkens the face, then plays the close and skull frames, and only then shows the skull of a merc whose life ran out before his death',
+    async () => {
+      const f = await tacticalUiTest(kit, ui);
+      const t = tacticalOf(f.session).state;
+      const s = t.soldiers.find((v) => v?.id === 2);
+      if (!s) throw new Error('no soldier 2');
+      s.life = 0;
+      f.session.advance({ ticks: 1 });
+      f.client.refresh();
+      f.frames(f.client.takeFrames());
+      const slot = f.screen.teamSlots.indexOf(2);
+      const face = f.widget(`teamFace${slot}`).rect;
+      const skullAt = () => images(f, 'interface/p_dead.sti').filter((i) => i.kind === 'image' && i.x === face.x && i.y === face.y);
+      f.t.frame();
+      expect(images(f, 'interface/p_close.sti').filter((i) => i.kind === 'image' && i.x === face.x && i.y === face.y)).toHaveLength(1);
+      expect(skullAt()).toHaveLength(0);
+      playSkullAnimation(f);
+      expect(skullAt().map((i) => (i.kind === 'image' ? i.frame : -1))).toEqual([DEAD_FACE_FRAME]);
+    },
+    SLOW_MS,
+  );
+
+  it(
+    'selects the next able merc of the squad after the skull of the selected merc, and nobody once the squad is gone',
+    async () => {
+      const f = await tacticalUiTest(kit, ui);
+      expect(f.screen.selected).toBe(0);
+      kill(f, 0);
+      expect(f.screen.selected).toBe(0);
+      playSkullAnimation(f);
+      expect(f.screen.selected).toBe(1);
+      expect(f.screen.teamSlots).toContain(0);
+      kill(f, 1, 2, 3);
+      playSkullAnimation(f);
+      expect(f.screen.selected).toBeNull();
+      expect(f.screen.teamSlots.filter((s) => s !== null)).toEqual([0, 1, 2, 3]);
+      await f.settle();
+      expect(f.screen.selected).toBeNull();
     },
     SLOW_MS,
   );
