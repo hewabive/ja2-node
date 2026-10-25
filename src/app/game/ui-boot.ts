@@ -12,7 +12,8 @@ import { EdtTextCache } from '../../ui/text/edt-text.ts';
 import { FONTS_TABLE_PATH, type FontFiles, type FontSet, parseFontFiles } from '../../ui/text/fonts.ts';
 import { NO_TEXT, StringsTextService, type UiTextService } from '../../ui/text/text-service.ts';
 import { AssetCache } from '../assets/asset-cache.ts';
-import { HttpAssetSource } from '../assets/asset-source.ts';
+import type { HttpAssetSource } from '../assets/asset-source.ts';
+import { pageAssetSource } from '../assets/page-assets.ts';
 import { fetchHealth } from '../net/vfs.ts';
 import { loadSettings } from '../settings.ts';
 import type { GamePage } from './game-page.ts';
@@ -51,7 +52,7 @@ export async function bootUi(page: GamePage, options: BootOptions = {}): Promise
   const health = await fetchHealth();
   const dataVersion = (health.dataVersion as DataVersion | undefined) ?? STUB_DATA_VERSION;
   page.hook.dataVersion = dataVersion;
-  const source = await HttpAssetSource.open();
+  const source = await pageAssetSource();
   const assets = new UiAssets(page.renderer, source, new AssetCache());
   const fontFiles = parseFontFiles(await assets.json(FONTS_TABLE_PATH));
   const cursors = parseCursorTable(await assets.json(CURSORS_TABLE_PATH));

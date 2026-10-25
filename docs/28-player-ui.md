@@ -349,7 +349,11 @@ revalidates everything. M8 (scenario 2 of §1.3):
    the content hash as a strong ETag instead of the start generation.
 3. **`HttpVfsLayer implements VfsLayer`** (`src/content/vfs/vfs.ts:8-12`) built from the manifest, so path
    normalisation, layering and the stub fallback are the same `Vfs` class as on the server; reads are fetched with a
-   concurrency limit (8–16), in-flight dedupe and abort. Every loader already takes a `ReadFile`
+   concurrency limit (8–16), in-flight dedupe and abort. A page has one (`src/app/assets/page-assets.ts`, one manifest
+   request), and the `src/app/net/vfs.ts` helpers read through it too: the tactical world, sounds, music and video come
+   from immutable URLs, a file missing from the manifest answers without a request, a stale hash falls back to the
+   plain URL, and the file list is the manifest's instead of `/api/vfs` (before: 330 revalidations and 168 KB on every
+   opening of the A9 tactical screen, 2026-10-25). Every loader already takes a `ReadFile`
    (`src/content/world/tileset-loader.ts:11`) and the audio engine a `load(path)` (`src/audio/engine.ts:33`). A later
    `LocalFolderLayer` (the user's `Data` folder through `showDirectoryPicker()` and the DOM-free SLF parser over
    `Blob.slice`, `01` §4.2) plugs in at the same seam.
