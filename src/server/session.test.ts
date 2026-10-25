@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ServerMessage } from '../protocol/messages.ts';
 import { applyFrame, type SoldierView } from '../protocol/view.ts';
 import type { SimEvent } from '../sim/events.ts';
+import type { QueryService } from './query.ts';
 import { FRAME_TICKS, Session, type SessionSim } from './session.ts';
 
 function walker(): SessionSim & { target: number } {
@@ -52,6 +53,20 @@ function walker(): SessionSim & { target: number } {
   return sim;
 }
 
+const ANSWER_AT_SIM_TICK = {
+  prepare: async () => {},
+  answer: (subject: SessionSim) => ({ ok: true, tick: subject.view().tick }),
+} as unknown as QueryService;
+
+function lastShownTick(messages: readonly ServerMessage[]): number {
+  let tick = -1;
+  for (const m of messages) {
+    if (m.t === 'welcome') tick = m.view.tick;
+    if (m.t === 'frames') tick = m.frames.at(-1)?.tick ?? tick;
+  }
+  return tick;
+}
+
 describe('session', () => {
   it('advances to idle and streams delta frames that replay to the final view', () => {
     const sim = walker();
@@ -67,6 +82,24 @@ describe('session', () => {
     const replayed = frames.reduce((soldiers, f) => applyFrame(soldiers, f), [] as SoldierView[]);
     expect(replayed[0]?.x).toBe(35);
     expect(session.dispatch({ type: 'fly' })).toMatchObject({ ok: false });
+  });
+
+  it('answers a query with the tick of the view its viewers hold while the view has not changed since', async () => {
+    const sim = walker();
+    const session = new Session('s1q', sim);
+    session.queries = ANSWER_AT_SIM_TICK;
+    expect((await session.query({ type: 'previewMove' })).tick).toBe(0);
+    const messages: ServerMessage[] = [];
+    session.subscribe((m) => messages.push(m));
+    session.dispatch({ type: 'walk', to: 13 });
+    session.advance({ idle: true });
+    session.advance({ ticks: 25 });
+    expect(sim.tick).toBe(38);
+    expect(lastShownTick(messages)).toBe(13);
+    expect((await session.query({ type: 'previewMove' })).tick).toBe(13);
+    session.dispatch({ type: 'walk', to: 14 });
+    sim.step();
+    expect((await session.query({ type: 'previewMove' })).tick).toBe(39);
   });
 
   it('runs real time at the chosen speed', () => {

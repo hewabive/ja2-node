@@ -21,14 +21,16 @@ export class SessionMapClient implements MapClient {
   readonly #session: SessionClient;
   readonly #hints: HintProvider;
   readonly #holds = new Set<string>();
+  readonly #timeHeld: boolean;
   #paused = false;
   #enabled = false;
   #driving = false;
   #serverStopped = false;
 
-  constructor(session: SessionClient, hints: HintProvider) {
+  constructor(session: SessionClient, hints: HintProvider, timeHeld = false) {
     this.#session = session;
     this.#hints = hints;
+    this.#timeHeld = timeHeld;
   }
 
   get view(): PlayerView | null {
@@ -79,6 +81,7 @@ export class SessionMapClient implements MapClient {
   }
 
   sync(): void {
+    if (this.#timeHeld) return;
     const realtime = this.#session.driver.mode === 'realtime';
     if (this.#driving && !realtime) this.#serverStopped = true;
     if (this.#serverStopped && this.caughtUp) this.#serverStopped = false;

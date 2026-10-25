@@ -1,9 +1,10 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { expect, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import type { CapturedPixels } from '../../src/app/game/ui-hook.ts';
 import { decodePng, encodePngRgba, PngColorType } from '../../src/content/formats/png.ts';
 import type { WidgetInfo } from '../../src/ui/widgets/widget-info.ts';
+import { ORIGINAL_DATA_MODE } from './env.ts';
 
 const GOLDEN_DIR = join(import.meta.dirname, 'golden');
 const UPDATE_GOLDENS = process.env.JA2_UPDATE_GOLDENS === '1';
@@ -35,7 +36,14 @@ export async function nextFrames(page: Page, count = 2): Promise<void> {
   await page.waitForFunction((n) => window.__ja2Ui.frameCount > n, frames + count - 1);
 }
 
+export const NO_ORIGINAL_DATA_PICTURES = 'pictures of the original data are never captured, compared or written (docs/28 §15)';
+
+function refuseOriginalData(): void {
+  if (ORIGINAL_DATA_MODE) throw new Error(NO_ORIGINAL_DATA_PICTURES);
+}
+
 export async function capture(page: Page): Promise<Capture> {
+  refuseOriginalData();
   await nextFrames(page);
   const shot: { pixels: CapturedPixels | null; areas: readonly Area[] } = await page.evaluate(() => ({
     pixels: window.__ja2Ui.capture(),
@@ -68,6 +76,7 @@ function differences(actual: Capture, golden: Uint8Array): string[] {
 }
 
 export async function expectGolden(name: string, actual: Capture): Promise<void> {
+  refuseOriginalData();
   const path = join(GOLDEN_DIR, `${name}.png`);
   if (UPDATE_GOLDENS) {
     await mkdir(dirname(path), { recursive: true });
@@ -77,7 +86,10 @@ export async function expectGolden(name: string, actual: Capture): Promise<void>
   const golden = decodePng(await readFile(path));
   expect(golden.colorType).toBe(PngColorType.RGBA);
   expect([golden.width, golden.height]).toEqual([actual.width, actual.height]);
-  expect(differences(actual, golden.data)).toEqual([]);
+  const problems = differences(actual, golden.data);
+  if (problems.length > 0)
+    await writeFile(test.info().outputPath(`${name}-actual.png`), encodePngRgba(actual.width, actual.height, actual.rgba));
+  expect(problems).toEqual([]);
 }
 
 export async function widgets(page: Page): Promise<WidgetInfo[]> {

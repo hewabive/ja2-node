@@ -19,6 +19,7 @@ import { TacticalScreen } from '../../ui/screens/tactical/tactical-screen.ts';
 import { SpeechPresenter, type SpeechSettings } from '../../ui/speech.ts';
 import type { MercTextBoxArt } from '../../ui/widgets/merc-text-box.ts';
 import type { GamePage, WorldLayer } from '../game/game-page.ts';
+import { TimeSamples } from '../game/time-samples.ts';
 import { preloadLayout, type UiBoot } from '../game/ui-boot.ts';
 import { ClientKnowledge } from '../hints/client-knowledge.ts';
 import { attachHintHook, createHintHook, type HintHook } from '../hints/hint-hook.ts';
@@ -38,7 +39,7 @@ import { loadSmallTiles, OverheadPicture } from './overhead-map.ts';
 import { engineSpeechVoices, storedSpeechSettings } from './speech-voices.ts';
 import { storyCameraTarget } from './story-camera.ts';
 import { SessionTacticalClient } from './tactical-client.ts';
-import { attachTacticalHook, type ShopSample, type TacticalHook, type TalkSample, TimeSamples } from './tactical-hook.ts';
+import { attachTacticalHook, type ShopSample, type TacticalHook, type TalkSample } from './tactical-hook.ts';
 import { fetchItemCatalogue, fetchProfiles, type SpeechSource, TacticalMediaStore } from './tactical-media.ts';
 import { TacticalWorldPresenter } from './world-presenter.ts';
 

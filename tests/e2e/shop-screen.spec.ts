@@ -2,6 +2,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { expect, test } from '@playwright/test';
 import { SERVER, TOKEN } from './env.ts';
+import { expectShadowClean } from './play-flow.ts';
 import { capture, clickWidget, expectGolden, nextFrames } from './ui-capture.ts';
 
 const COLS = 160;
@@ -63,7 +64,7 @@ test('talks to the stub dealer, opens the canvas shop from Buy/Sell, buys one bo
     const dealer = (await observe()).soldiers.find((s) => s.profile === DEALER);
     if (!dealer) throw new Error('no stub dealer in sight');
 
-    await page.goto(`/play?session=${encodeURIComponent(session)}&drive=manual&pinClock=1&fixed640=1&scale=1`);
+    await page.goto(`/play?session=${encodeURIComponent(session)}&drive=manual&shadowHints=1&pinClock=1&fixed640=1&scale=1`);
     await page.waitForFunction(() => window.__ja2Ui?.tactical?.ready === true || window.__ja2Ui?.error, null, { timeout: 60_000 });
     expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
     await page.waitForFunction(() => window.__ja2Ui.tactical?.pendingImages === 0 && window.__ja2Ui.screen === 'tactical');
@@ -108,6 +109,7 @@ test('talks to the stub dealer, opens the canvas shop from Buy/Sell, buys one bo
     }
     await page.waitForFunction(() => window.__ja2Ui.tactical?.shop.open === false);
     expect((await observe()).shop ?? null).toBeNull();
+    await expectShadowClean(page);
   } finally {
     await client.close();
     await request.delete(`/api/sessions/${encodeURIComponent(session)}`);

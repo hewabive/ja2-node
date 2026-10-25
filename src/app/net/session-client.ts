@@ -58,6 +58,8 @@ export class SessionClient {
   onWelcome: (() => void) | null = null;
   onReceive: ((frames: readonly ViewFrame[]) => void) | null = null;
   rules: RulePackIdentityView | null = null;
+  lastCommand: CommandEnvelope | null = null;
+  lastReply: CommandReply | null = null;
   readonly #socket: WebSocket;
   readonly #pending = new Map<number, Pending>();
   readonly #frames: ViewFrame[] = [];
@@ -265,7 +267,10 @@ export class SessionClient {
   }
 
   async command(cmd: CommandEnvelope): Promise<CommandReply> {
-    return this.#reply(await this.#request({ t: 'cmd', id: this.#nextId++, cmd }));
+    const reply = this.#reply(await this.#request({ t: 'cmd', id: this.#nextId++, cmd }));
+    this.lastCommand = cmd;
+    this.lastReply = reply;
+    return reply;
   }
 
   async query(q: CommandEnvelope): Promise<QueryReply> {

@@ -182,12 +182,14 @@ test.describe('the laptop pages of U12 on stubs', () => {
     }
 
     await openAim(page);
+    await expectGolden('laptop-aim-home', await capture(page));
     await clickWidget(page, 'policiesLink');
     await waitVisible(page, 'aimPolicyAgreement1');
     await clickWidget(page, 'aimPolicyAgreement1');
     await waitVisible(page, 'aimPolicyToc0');
     await clickWidget(page, 'aimPolicyToc0');
     await waitText(page, 'aimPolicySectionTitle', '.+');
+    await expectGolden('laptop-aim-policies', await capture(page));
     await clickWidget(page, 'aimPolicyMenu3');
     await waitText(page, 'aimPolicySectionTitle', '.+');
     await clickWidget(page, 'aimPolicyMenu1');
@@ -198,6 +200,7 @@ test.describe('the laptop pages of U12 on stubs', () => {
     await waitText(page, 'aimHistoryChapterTitle', '.+');
     await clickWidget(page, 'aimHistoryMenu2');
     await waitVisible(page, 'aimAlumnus0');
+    await expectGolden('laptop-aim-alumni', await capture(page));
     await clickWidget(page, 'aimAlumnus0');
     await waitText(page, 'aimAlumniPopupName', '.+');
     await clickWidget(page, `aimAlumniDone${REPEATED}`);
@@ -207,6 +210,7 @@ test.describe('the laptop pages of U12 on stubs', () => {
 
     await aimLink(page, 2);
     await waitVisible(page, 'insuranceInfoLink');
+    await expectGolden('laptop-insurance-home', await capture(page));
     await clickWidget(page, 'insuranceInfoLink');
     await waitVisible(page, 'insuranceInfoNext');
     await clickWidget(page, 'insuranceInfoNext');
@@ -219,14 +223,17 @@ test.describe('the laptop pages of U12 on stubs', () => {
     await openAim(page);
     await aimLink(page, 1);
     await waitText(page, 'funeralSentence1', '.+');
+    await expectGolden('laptop-funeral', await capture(page));
     await clickWidget(page, 'funeralLink3');
     await waitVisible(page, 'funeralCondolences');
     await clickWidget(page, 'funeralRipRegion');
     await waitVisible(page, 'funeralCondolences', false);
     await clickWidget(page, 'funeralLink0');
     await waitVisible(page, 'floristGallery');
+    await expectGolden('laptop-florist-home', await capture(page));
     await clickWidget(page, 'floristGallery');
     await waitText(page, 'floristFlowerPrice0', '^\\$');
+    await expectGolden('laptop-florist-gallery', await capture(page));
     await clickWidget(page, `floristFlower${FLOWER}`);
     await waitText(page, 'floristOrderNumber', '^[1-9]');
     await clickWidget(page, 'floristDestinationBox');
