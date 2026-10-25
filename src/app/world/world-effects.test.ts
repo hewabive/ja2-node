@@ -8,6 +8,7 @@ import { type DataVfs, openDataVfs } from '../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
 import type { CorpseView, SmokeTileView } from '../../protocol/view.ts';
 import type { LoadedSoldierSheet } from '../../render/world/world-sprites.ts';
+import type { ReadVfsFile } from '../net/vfs.ts';
 import { type EffectSprites, WorldEffects } from './world-effects.ts';
 
 class FakeSprites implements EffectSprites {
@@ -47,16 +48,20 @@ describe('corpses and smoke on the stub pack', () => {
   let data: DataVfs;
   let effects: WorldEffects;
   let corpseType = 0;
+  let backCorpseType = 0;
+  let available: ReadonlySet<string> = new Set();
+  let read: ReadVfsFile = async () => new Uint8Array();
 
   beforeAll(async () => {
     dir = await mkdtemp(join(tmpdir(), 'ja2-world-effects-'));
     await buildStubs(dir);
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: dir });
-    const available = new Set(data.vfs.list().map((f) => f.path));
-    const read = async (path: string) => new Uint8Array(await data.vfs.read(path));
+    available = new Set(data.vfs.list().map((f) => f.path));
+    read = async (path: string) => new Uint8Array(await data.vfs.read(path));
     effects = await WorldEffects.load(read, available, null);
     const table = parseCorpseTable(JSON.parse(new TextDecoder().decode(await data.vfs.read(CORPSES_TABLE_PATH))));
     corpseType = table.types.indexOf('SMERC_JFK');
+    backCorpseType = table.types.indexOf('SMERC_BCK');
   }, 60_000);
 
   afterAll(async () => {
@@ -88,6 +93,17 @@ describe('corpses and smoke on the stub pack', () => {
     expect(body?.shaded).toBe(true);
     expect(tiles[1]?.shaded).toBe(false);
     expect([...sprites.sheets.keys()]).toEqual(['anims/corpses/s_d_jfk.sti', 'tilecache/smoke.sti', 'tilecache/smaltear.sti']);
+  });
+
+  it('draws the corpse of a soldier seen alive in the first frame after his death, z strips included', async () => {
+    const prepared = await WorldEffects.load(read, available, null);
+    prepared.setSprites(new FakeSprites());
+    prepared.prepareCorpses([{ bodyType: 0 }], true);
+    await prepared.loaded();
+    const corpse: CorpseView = { gridNo: 12880, level: 0, type: backCorpseType, direction: 5, bodyType: 0 };
+    const tiles = prepared.build({ corpses: [corpse], smoke: [], clockMs: 0, bloodAndGore: true, animateSmoke: true });
+    expect(tiles.map((t) => [t.kind, t.gridNo])).toEqual([['corpse', 12880]]);
+    expect(tiles[0]?.zStrip).not.toBeNull();
   });
 
   it('draws the static smoke graphic, opaque, when smoke is not animated', async () => {

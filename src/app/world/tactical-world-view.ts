@@ -200,6 +200,7 @@ export class TacticalWorldView {
       lights: f.options,
       frameOf: this.#frameOf(view.tick),
     });
+    this.#effects?.prepareCorpses(view.soldiers, f.options.bloodAndGore);
     const aniTiles =
       this.#effects?.build({
         corpses: view.corpses ?? NO_CORPSES,

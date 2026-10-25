@@ -58,7 +58,7 @@ interface SmokeGraphics {
 
 class AsyncCache<T> {
   readonly #values = new Map<string, T | null>();
-  readonly #pending = new Set<string>();
+  readonly #pending = new Map<string, Promise<void>>();
 
   get(path: string, available: ReadonlySet<string>, read: ReadVfsFile, decode: (bytes: Uint8Array) => T): T | null | undefined {
     if (this.#values.has(path)) return this.#values.get(path);
@@ -67,13 +67,21 @@ class AsyncCache<T> {
       return null;
     }
     if (!this.#pending.has(path)) {
-      this.#pending.add(path);
-      void read(path)
-        .then((bytes) => this.#values.set(path, decode(bytes)))
-        .catch(() => this.#values.set(path, null))
+      const loading = read(path)
+        .then((bytes) => {
+          this.#values.set(path, decode(bytes));
+        })
+        .catch(() => {
+          this.#values.set(path, null);
+        })
         .finally(() => this.#pending.delete(path));
+      this.#pending.set(path, loading);
     }
     return undefined;
+  }
+
+  async settled(): Promise<void> {
+    await Promise.all(this.#pending.values());
   }
 }
 
@@ -128,6 +136,7 @@ export class WorldEffects {
   readonly #palettes = new AsyncCache<Uint8Array>();
   readonly #structures = new AsyncCache<StructureFile>();
   readonly #smokeSince = new Map<string, number>();
+  readonly #preparedBodies = new Set<number>();
   #sprites: EffectSprites | null = null;
 
   private constructor(
@@ -153,6 +162,30 @@ export class WorldEffects {
   setSprites(sprites: EffectSprites | null): void {
     this.#sprites = sprites;
     this.#smokeSince.clear();
+  }
+
+  prepareCorpses(soldiers: readonly { readonly bodyType: number }[], bloodAndGore: boolean): void {
+    for (const s of soldiers) {
+      const key = s.bodyType * 2 + (bloodAndGore ? 1 : 0);
+      if (this.#preparedBodies.has(key)) continue;
+      this.#preparedBodies.add(key);
+      this.#colPalette(CAMO_PALETTE);
+      const monster = MONSTER_PALETTES[s.bodyType];
+      if (monster) this.#colPalette(monster);
+      const types = new Set(Object.values(this.#corpses.animationCorpse[String(s.bodyType)] ?? {}));
+      for (const type of types) this.#prepareCorpseGraphic(type, bloodAndGore);
+    }
+  }
+
+  async loaded(): Promise<void> {
+    await Promise.all([this.#pictures.settled(), this.#palettes.settled(), this.#structures.settled()]);
+  }
+
+  #prepareCorpseGraphic(type: number, bloodAndGore: boolean): void {
+    const path = (bloodAndGore ? this.#corpses.files : this.#corpses.noBloodFiles)[type];
+    if (!path) return;
+    this.#picture(path);
+    this.#structureFile(fileBase(path));
   }
 
   #resolve(path: string): string {
