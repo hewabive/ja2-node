@@ -30,6 +30,7 @@ import { MapSound } from './map-sound.ts';
 
 const SHADOW_HINTS_PARAM = 'shadowHints';
 const PIN_CLOCK_PARAM = 'pinClock';
+const HOLD_TIME_PARAM = 'holdTime';
 const KEPT_COMMANDS = 64;
 const LOAD_STEPS = 4;
 
@@ -81,10 +82,11 @@ export class MapHost implements MapPort {
 
   constructor(options: MapHostOptions) {
     this.#o = options;
-    const shadow = new URLSearchParams(location.search).get(SHADOW_HINTS_PARAM) === '1';
+    const params = new URLSearchParams(location.search);
+    const shadow = params.get(SHADOW_HINTS_PARAM) === '1';
     this.#hints = new HintProvider({ channel: options.session, knowledge: () => this.#knowledge, now: () => performance.now(), shadow });
     this.#hintHook = createHintHook(this.#hints);
-    this.#client = new SessionMapClient(options.session, this.#hints);
+    this.#client = new SessionMapClient(options.session, this.#hints, params.get(HOLD_TIME_PARAM) === '1');
     this.#random = new ClientRandom(seedFromText(`${options.session.session ?? 'map'}/map`));
     this.hook = this.#createHook();
     attachMapHook(options.page.hook, this.hook);

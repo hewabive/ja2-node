@@ -6,8 +6,10 @@ import type { UiInputEvent } from '../../ui/input/events.ts';
 import { type Resolution, resolveResolution, type ScaleSetting } from '../../ui/resolution.ts';
 import type { UiRuntime } from '../../ui/runtime.ts';
 import { ScreenHost } from '../../ui/screen.ts';
+import { refusalOf } from '../../ui/screens/tactical/item-cursor.ts';
 import type { ScreenGeometry } from '../../ui/services.ts';
 import type { SessionClient } from '../net/session-client.ts';
+import { TimeSamples } from './time-samples.ts';
 import { createUiHook, type UiHook } from './ui-hook.ts';
 
 const CONTEXT_OPTIONS: WebGLContextAttributes = {
@@ -34,6 +36,7 @@ export class GamePage {
   readonly #fallbackHost = new ScreenHost();
   readonly #framebuffer: LogicalFramebuffer;
   readonly #list = new DrawList();
+  readonly #frameTimes = new TimeSamples();
   readonly #setting: ScaleSetting;
   #resolution: Resolution;
   #lastNow: number | null = null;
@@ -47,7 +50,12 @@ export class GamePage {
     this.renderer = new UiRenderer(gl);
     this.#framebuffer = new LogicalFramebuffer(gl);
     this.#resolution = this.#resize();
-    this.hook = createUiHook(() => (this.#framebuffer.width > 0 ? this.#framebuffer.capture() : null));
+    this.hook = createUiHook({
+      capture: () => (this.#framebuffer.width > 0 ? this.#framebuffer.capture() : null),
+      frameStats: () => this.#frameTimes.summary(),
+      resetFrameStats: () => this.#frameTimes.reset(),
+      skipPlayback: () => this.client?.skipToLatest(),
+    });
   }
 
   get resolution(): Resolution {
@@ -111,8 +119,18 @@ export class GamePage {
     }
     const stats = this.renderer.draw(this.#list.items, logicalWidth, logicalHeight);
     this.#framebuffer.present(this.#resolution, this.canvas.width, this.canvas.height);
+    const ms = performance.now() - started;
+    this.#frameTimes.add(ms);
     this.#report(stats);
-    this.frameListener?.(performance.now() - started);
+    this.frameListener?.(ms);
+  }
+
+  #reportSession(hook: UiHook): void {
+    const client = this.client;
+    hook.lagTicks = client ? Math.max(0, client.latestTick - client.shownTick) : 0;
+    hook.lastCommand = client?.lastCommand?.type ?? null;
+    const reply = client?.lastReply ?? null;
+    hook.lastResult = reply ? { ok: reply.ok, reason: reply.reason ?? null, refusal: refusalOf(reply.data) } : null;
   }
 
   #report(stats: UiHook['draw']): void {
@@ -126,6 +144,7 @@ export class GamePage {
     hook.widgets = this.#runtime?.describe() ?? [];
     hook.cursor = this.#runtime?.cursorReport() ?? null;
     hook.draw = stats;
+    this.#reportSession(hook);
     hook.frameCount++;
   }
 }

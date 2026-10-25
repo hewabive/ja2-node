@@ -8,11 +8,18 @@ import type { WidgetInfo } from '../../ui/widgets/widget-info.ts';
 import type { MusicHook } from '../net/music.ts';
 import type { SequenceMonitor } from '../video/sequence-player.ts';
 import type { HelpHook } from './help-host.ts';
+import type { TimeSummary } from './time-samples.ts';
 
 export interface CapturedPixels {
   readonly width: number;
   readonly height: number;
   readonly rgba: string;
+}
+
+export interface CommandOutcome {
+  readonly ok: boolean;
+  readonly reason: string | null;
+  readonly refusal: string | null;
 }
 
 export interface UiHook {
@@ -25,8 +32,12 @@ export interface UiHook {
   logical: { width: number; height: number };
   widgets: readonly WidgetInfo[];
   cursor: CursorReport | null;
+  lastCommand: string | null;
+  lastResult: CommandOutcome | null;
   sounds: readonly ButtonSoundRequest[];
   frameCount: number;
+  readonly frameStats: TimeSummary;
+  lagTicks: number;
   session: string | null;
   dataVersion: string | null;
   pointer: LogicalPoint | null;
@@ -37,6 +48,15 @@ export interface UiHook {
   help: HelpHook | null;
   story: StoryHook | null;
   capture(): CapturedPixels | null;
+  resetFrameStats(): void;
+  skipPlayback(): void;
+}
+
+export interface UiHookControls {
+  readonly capture: () => CapturedFrame | null;
+  readonly frameStats: () => TimeSummary;
+  readonly resetFrameStats: () => void;
+  readonly skipPlayback: () => void;
 }
 
 declare global {
@@ -53,7 +73,7 @@ export function base64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-export function createUiHook(capture: () => CapturedFrame | null): UiHook {
+export function createUiHook(controls: UiHookControls): UiHook {
   const hook: UiHook = {
     ready: false,
     error: null,
@@ -64,8 +84,14 @@ export function createUiHook(capture: () => CapturedFrame | null): UiHook {
     logical: { width: 0, height: 0 },
     widgets: [],
     cursor: null,
+    lastCommand: null,
+    lastResult: null,
     sounds: [],
     frameCount: 0,
+    get frameStats() {
+      return controls.frameStats();
+    },
+    lagTicks: 0,
     session: null,
     dataVersion: null,
     pointer: null,
@@ -76,9 +102,11 @@ export function createUiHook(capture: () => CapturedFrame | null): UiHook {
     help: null,
     story: null,
     capture: () => {
-      const frame = capture();
+      const frame = controls.capture();
       return frame ? { width: frame.width, height: frame.height, rgba: base64(frame.rgba) } : null;
     },
+    resetFrameStats: controls.resetFrameStats,
+    skipPlayback: controls.skipPlayback,
   };
   window.__ja2Ui = hook;
   return hook;
