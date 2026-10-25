@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Campaign.h StatKind; Soldier_Profile_Type.h MERCPROFILESTRUCT (mutable campaign fields, the NPC
 // @src presence fields of docs/25 §0), bMercStatus
-// @src values; Soldier_Profile.cc InitProfileFromContent (the relation counters)
+// @src values; Soldier_Profile.cc InitProfileFromContent (the relation counters; fUseProfileInsertionInfo and sGridNo,
+// @src which prof.dat holds as leftovers, cleared)
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import type { SavedMercProfile } from '../../content/formats/savegame-profile.ts';
@@ -293,12 +294,12 @@ export function progressFromProfile(p: MercProfile, counters: SavedProfileCounte
     npcData: p.npcData,
     npcData2: p.npcData2,
     money: p.money,
-    useProfileInsertion: p.useProfileInsertion,
+    useProfileInsertion: saved && p.useProfileInsertion,
     insertionCode: p.insertionCode,
     insertionData: p.insertionData,
     quoteRecord: p.quoteRecord,
     quoteActionId: p.quoteActionId,
-    gridNo: p.gridNo,
+    gridNo: saved ? p.gridNo : 0,
     lastDateSpokenTo: p.lastDateSpokenTo,
     inventory: [...p.inventory],
     inventoryStatus: [...p.inventoryStatus],
