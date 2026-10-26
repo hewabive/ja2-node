@@ -67,9 +67,9 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: E2E (Playwright, stubs only, one shard of three; the dev server builds the stub pack)
+      - name: E2E (Playwright, stubs only, one shard of three; the runner image has Chrome's system libraries, the dev server builds the stub pack)
         run: |
-          pnpm exec playwright install --with-deps chromium
+          pnpm exec playwright install chromium
           pnpm e2e --shard=${{ matrix.shard }}/3
       - if: failure()
         uses: actions/upload-artifact@v7

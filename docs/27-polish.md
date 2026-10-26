@@ -1827,7 +1827,8 @@ import takes 40–70 ms).
 
 CI (`.github/workflows/ci.yml`) runs four jobs side by side: `check` (`pnpm check`), `build` (the stub pack, the bench
 smoke runs below and `pnpm build`), `e2e` (`pnpm e2e --shard=N/3` in three jobs; the dev server builds the stub
-pack) and `browsers`
+pack; Chromium installs without `--with-deps`, since the runner image carries Chrome's system libraries and the apt
+step of `--with-deps` twice took more than 10 minutes on a slow mirror) and `browsers`
 (`pnpm e2e:browsers` under `xvfb-run`, 20 minutes at most). `browsers` asks `node tools/gates.ts --since <the previous
 push or the pull request base> --plan` first and installs and runs the three browsers only when the plan has
 `e2e:browsers` (or when the base is unknown: a new branch, a manual run). A push or pull request that touches only
