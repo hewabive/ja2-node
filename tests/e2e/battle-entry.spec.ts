@@ -2,7 +2,7 @@ import { type APIRequestContext, expect, type Page, test } from '@playwright/tes
 import type { BattleHook } from '../../src/app/battle/battle-hook.ts';
 import { ARRIVAL_WAIT_SECONDS, BATTLE_SECTOR, type BattleEntrySaves, writeBattleEntrySaves } from '../support/battle-entry.ts';
 import { SAVE_DIR } from './env.ts';
-import { expectShadowClean, waitWhileLoading, watchLoading } from './play-flow.ts';
+import { expectShadowClean, imagesLoaded, waitWhileLoading, watchLoading } from './play-flow.ts';
 import { capture, clickWidget, devicePoint, expectGolden, nextFrames } from './ui-capture.ts';
 
 const LOAD_TIMEOUT_MS = 120_000;
@@ -88,6 +88,7 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     for (const id of ['preBattleAutoresolve', 'preBattleGoToSector', 'preBattleRetreat'])
       expect(await page.evaluate((wanted) => window.__ja2Ui.widgets.find((w) => w.id === wanted)?.enabled, id)).toBe(true);
     expect(await page.evaluate(() => window.__ja2Ui.battle?.sounds ?? [])).toContain(LAPTOP_POWER_UP);
+    await imagesLoaded(page);
     expect(await page.evaluate(() => window.__ja2Ui.draw?.missingImages ?? [])).toEqual([]);
     await expectGolden('pre-battle', await capture(page));
   });

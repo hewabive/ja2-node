@@ -135,7 +135,11 @@ export async function showLatest(page: Page): Promise<void> {
 }
 
 export async function imagesLoaded(page: Page): Promise<void> {
-  await page.waitForFunction(() => (window.__ja2Ui.tactical?.pendingImages ?? 0) === 0, null, { timeout: LOAD_TIMEOUT_MS });
+  await page.waitForFunction(
+    () => (window.__ja2Ui.tactical?.pendingImages ?? 0) === 0 && (window.__ja2Ui.map?.pendingImages ?? 0) === 0,
+    null,
+    { timeout: LOAD_TIMEOUT_MS },
+  );
   await nextFrames(page, 2);
 }
 

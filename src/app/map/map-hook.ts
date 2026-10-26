@@ -10,6 +10,7 @@ export interface MapHook {
   screen: MapScreenHook | null;
   holds: readonly string[];
   lagTicks: number;
+  pendingImages: number;
   commands: readonly CommandSample[];
   readonly hints: HintHook;
   command(cmd: CommandEnvelope): Promise<unknown>;

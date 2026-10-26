@@ -284,6 +284,7 @@ export class MapHost implements MapPort {
       screen: null,
       holds: [],
       lagTicks: 0,
+      pendingImages: 0,
       commands: [],
       hints: this.#hintHook,
       command: (cmd) => this.#o.session.command(cmd),
@@ -327,6 +328,7 @@ export class MapHost implements MapPort {
     hook.ready = screen !== null && this.#o.ui.runtime !== null && this.#o.page.host.screen === screen;
     hook.holds = this.#client.holds;
     hook.lagTicks = this.#o.session.latestTick - this.#o.session.shownTick;
+    hook.pendingImages = this.#loaded?.media.loading ?? 0;
     hook.commands = this.#client.commands
       .slice(-KEPT_COMMANDS)
       .map((c) => ({ type: c.cmd.type, ok: c.reply.ok, reason: c.reply.reason ?? null }));
