@@ -161,6 +161,18 @@ export const LABELS = {
   quickLoad: own('quick load', 'быстрая загрузка'),
   noQuickSave: own('There is no quick save.', 'Быстрого сохранения нет.'),
   mercTransferFailed: own('Transfer failed.  No funds available.', 'Перевод не выполнен. Нет средств.'),
+  gameUnavailable: own('The game could not start.', 'Не удалось запустить игру.'),
+  laptopUnavailable: own('The laptop could not be opened.', 'Не удалось открыть ноутбук.'),
+  mapUnavailable: own('The map screen could not be opened.', 'Не удалось открыть экран карты.'),
+  tacticalUnavailable: own('The tactical screen could not be opened.', 'Не удалось открыть тактический экран.'),
+  connectionLost: own('The connection to the server was lost (%s).', 'Связь с сервером потеряна (%s).'),
+  notConnected: own('Not connected to a game session.', 'Нет связи с игровой сессией.'),
+  retry: own('Retry', 'Повторить'),
+  mainMenu: own('Main menu', 'Главное меню'),
+  gameKeys: own(
+    'o: options    Ctrl+S: save    Ctrl+L: load    Alt+X: exit',
+    'o: настройки    Ctrl+S: сохранить    Ctrl+L: загрузить    Alt+X: выход',
+  ),
 } as const satisfies Record<string, LabelSource>;
 
 export type LabelId = keyof typeof LABELS;

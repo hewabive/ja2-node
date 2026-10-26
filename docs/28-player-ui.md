@@ -813,6 +813,14 @@ end cinematic and the main menu after the splash. A multiplier over fixed steps 
   the player chose Main Menu in the options, which closes it, §12.3). The main menu's Quit goes to the launcher; a bare
   Esc on the main menu does nothing (an accidental key in a browser; deviation).
 - The original's error screen is a debug screen; ja2-node shows a "connection lost / server error" panel with a retry.
+  A laptop, map or tactical screen that cannot open (its load throws, or the host has no session client for it) shows
+  the debug layout `screen-unavailable` (`front-end/screen-unavailable.ts`): which screen could not open, the reason
+  (`ui/client/failure-text.ts` names the browsers' network failures, "Failed to fetch" and its Firefox and Safari
+  wordings, a lost connection and keeps their words; any other error stays as it is), the session, the in-game keys,
+  Retry (Enter; reconnects to the session, then enters the game again, and shows the panel again with the new reason
+  if that fails) and Main menu (leaves the session running). A `/play` page that fails to boot shows the same heading,
+  reason and Retry (a reload) as plain HTML, since the game's fonts may not have arrived. A WebSocket that drops during
+  play is not handled yet.
 - The San Mona brothel screen (`JAScreens.cc:416-499`): black, no cursor, `interface/luckysmile.sti` centred (frame 0
   for 24 ticks, then frames `n % 8`, 32 ticks of 100 ms, then 1 s) with `sounds/sex.wav`, then a fade into tactical.
   **The original then warps game time by `5 + Random(20)` minutes without processing events** (`:478-483`); ja2-node
@@ -2904,8 +2912,9 @@ Open: the San Mona screen has no golden (a stub brothel scenario does not exist;
 A.I.M. conference (its snow and video run on the UI clock); the main flow hires three mercs through MCP and lets the
 campaign bot fight, so the canvas covers one hire, the cursors and one shot; the client knowledge still loads the rule
 pack one file after another and the map and tactical hosts each load it (the tests now wait while the page loads); the
-Lead-wiring points stay open (the map screen's speech presenter, the "connection lost" panel, X16, surrender and
-capture in autoresolve on unit tests only, the team panel's Exit Vehicle).
+Lead-wiring points stay open (the map screen's speech presenter, the "connection lost" panel for a WebSocket dropped
+during play (the screens that cannot open and a page that cannot boot have their panel since 2026-10-26, §4.11), X16,
+surrender and capture in autoresolve on unit tests only, the team panel's Exit Vehicle).
 
 ## 18. Decisions and open questions
 

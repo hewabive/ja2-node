@@ -14,3 +14,34 @@ body {
   user-select: none;
   cursor: none;
 }
+
+#bootFailure {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  color: #e8e8f0;
+  font: 16px sans-serif;
+  text-align: center;
+  cursor: auto;
+}
+
+#bootFailure[hidden] {
+  display: none;
+}
+
+#bootFailureReason {
+  color: #f0d070;
+  max-width: 560px;
+  overflow-wrap: anywhere;
+}
+
+#bootFailureRetry {
+  margin-top: 8px;
+  padding: 6px 20px;
+  font: inherit;
+}

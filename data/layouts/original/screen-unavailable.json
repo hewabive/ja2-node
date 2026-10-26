@@ -1,5 +1,5 @@
 {
-  "screen": "placeholder",
+  "screen": "screenUnavailable",
   "frame": "std640",
   "debug": true,
   "widgets": [
@@ -9,61 +9,49 @@
       "type": "text",
       "id": "heading",
       "x": 40,
-      "y": 150,
+      "y": 145,
       "width": 560,
       "align": "center",
       "font": "FONT14ARIAL",
       "color": "FONT_MCOLOR_WHITE",
       "shadow": "DEFAULT_SHADOW",
-      "visible": { "eq": ["kind", "laptop"] },
-      "text": { "literal": "The laptop is not built yet (M8 slice U10)." }
+      "text": { "bind": "heading" }
     },
     {
       "type": "text",
-      "x": 40,
-      "y": 150,
-      "width": 560,
+      "id": "reason",
+      "x": 60,
+      "y": 175,
+      "width": 520,
       "align": "center",
-      "font": "FONT14ARIAL",
-      "color": "FONT_MCOLOR_WHITE",
+      "font": "FONT12ARIAL",
+      "color": "FONT_MCOLOR_LTYELLOW",
       "shadow": "DEFAULT_SHADOW",
-      "visible": { "eq": ["kind", "map"] },
-      "text": { "literal": "The map screen is not built yet (M8 slice U8)." }
-    },
-    {
-      "type": "text",
-      "x": 40,
-      "y": 150,
-      "width": 560,
-      "align": "center",
-      "font": "FONT14ARIAL",
-      "color": "FONT_MCOLOR_WHITE",
-      "shadow": "DEFAULT_SHADOW",
-      "visible": { "eq": ["kind", "tactical"] },
-      "text": { "literal": "The tactical screen is not built yet (M8 slices U5 and U6)." }
+      "wrap": { "gap": 2 },
+      "text": { "bind": "reason" }
     },
     {
       "type": "text",
       "id": "session",
       "x": 40,
-      "y": 185,
+      "y": 235,
       "width": 560,
       "align": "center",
       "font": "FONT12ARIAL",
       "color": "FONT_GRAY2",
       "shadow": "DEFAULT_SHADOW",
-      "text": { "format": { "literal": "Session %s" }, "args": [{ "bind": "session" }] }
+      "text": { "bind": "session" }
     },
     {
       "type": "text",
       "x": 40,
-      "y": 215,
+      "y": 255,
       "width": 560,
       "align": "center",
       "font": "FONT10ARIAL",
       "color": "FONT_GRAY2",
       "shadow": "DEFAULT_SHADOW",
-      "text": { "literal": "o: options    Ctrl+S: save    Ctrl+L: load    Alt+X: exit" }
+      "text": { "bind": "keys" }
     },
     { "type": "fill", "x": 200, "y": 290, "width": 110, "height": 26, "color": [56, 64, 88] },
     { "type": "rect", "x": 200, "y": 290, "x2": 309, "y2": 315, "color": [140, 146, 170] },
@@ -78,18 +66,18 @@
       "font": "FONT12ARIAL",
       "color": "FONT_MCOLOR_WHITE",
       "shadow": "DEFAULT_SHADOW",
-      "text": { "literal": "Options" }
+      "text": { "bind": "retryLabel" }
     },
     {
       "type": "button",
-      "id": "options",
+      "id": "retry",
       "kind": "hotspot",
       "x": 200,
       "y": 290,
       "width": 110,
       "height": 26,
       "priority": "HIGH",
-      "primary": "options"
+      "primary": "retry"
     },
     { "type": "fill", "x": 330, "y": 290, "width": 110, "height": 26, "color": [56, 64, 88] },
     { "type": "rect", "x": 330, "y": 290, "x2": 439, "y2": 315, "color": [140, 146, 170] },
@@ -104,7 +92,7 @@
       "font": "FONT12ARIAL",
       "color": "FONT_MCOLOR_WHITE",
       "shadow": "DEFAULT_SHADOW",
-      "text": { "literal": "Main menu" }
+      "text": { "bind": "mainMenuLabel" }
     },
     {
       "type": "button",
@@ -119,6 +107,7 @@
     }
   ],
   "hotkeys": [
+    { "key": "Enter", "on": "down", "mods": 0, "action": "retry" },
     { "key": "o", "on": "down", "mods": 0, "action": "options" },
     { "key": "s", "on": "down", "mods": 2, "action": "saveGame" },
     { "key": "l", "on": "down", "mods": 2, "action": "loadGame" },

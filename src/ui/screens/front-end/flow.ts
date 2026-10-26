@@ -11,6 +11,7 @@
 
 import type { PlayerView, ViewFrame } from '../../../protocol/view.ts';
 import type { GameOptions, SaveListing } from '../../client/api-types.ts';
+import { failureText } from '../../client/failure-text.ts';
 import type { DeadIsDeadSlot, FrontEndClient } from '../../client/front-end-client.ts';
 import type { DrawList } from '../../draw-list.ts';
 import { SaveController } from '../../saves/save-controller.ts';
@@ -20,15 +21,15 @@ import type { RowFeed } from '../credit-roll.ts';
 import type { MapFlow } from '../map/environment.ts';
 import type { TacticalFlow } from '../tactical/environment.ts';
 import { CreditsController, creditsScreen } from './credits.ts';
-import { type FrontEndEnvironment, FrontEndLayout, type SettingsStore } from './environment.ts';
+import type { FrontEndEnvironment, SettingsStore } from './environment.ts';
 import { type ExitBoxStyle, openExitBox } from './exit-box.ts';
 import { type GameInitChoice, GameInitController, gameInitScreen, INITIAL_GAME_CHOICE } from './game-init.ts';
 import { LoadingController, loadingScreen } from './loading.ts';
 import { type MainMenuModel, mainMenuScreen } from './main-menu.ts';
 import { OptionsController, type OptionsOrigin, optionsScreen } from './options.ts';
-import { type GameScreenKind, type PlaceholderActions, placeholderScreen } from './placeholder.ts';
 import { SanMonaController, sanMonaScreen } from './san-mona.ts';
 import { SaveLoadController, type SaveLoadMode, saveLoadScreen } from './save-load.ts';
+import { type GameScreenActions, type GameScreenKind, unavailableScreen } from './screen-unavailable.ts';
 
 export type FrontEndMusic = 'mainMenu' | 'none' | 'session';
 export type SaveLoadOrigin = 'mainMenu' | 'options' | 'game' | 'gameInit';
@@ -71,7 +72,6 @@ export interface FrontEndHost {
   playBeginning(): Promise<void>;
   music(mode: FrontEndMusic): void;
   quit(): void;
-  preload(layout: FrontEndLayout, onProgress: (done: number, total: number) => void): Promise<void>;
   rowFeed(): RowFeed;
   random(range: number): number;
 }
@@ -223,7 +223,7 @@ export class FrontEndFlow {
       await this.#client.newCampaign({ options, ...(deadIsDead ? { deadIsDead } : {}) });
     } catch (err) {
       this.gameInit();
-      await this.#env.boxes.alert((err as Error).message);
+      await this.#env.boxes.alert(failureText(this.#env.labels(), err));
       return;
     }
     await this.#host.playBeginning();
@@ -334,7 +334,6 @@ export class FrontEndFlow {
       return;
     }
     if (outcome.session !== this.#client.session) await this.#client.connect(outcome.session);
-    await this.#host.preload(FrontEndLayout.PLACEHOLDER, (done, total) => loading.progress(done, total));
     loading.progress(1, 1);
     this.enterGame();
     await this.#fade('in');
@@ -372,7 +371,23 @@ export class FrontEndFlow {
       void this.#enterMap(map, session);
       return;
     }
-    this.#show(placeholderScreen(this.#env, kind, session, this.#gameActions(kind)));
+    this.#unavailable(kind, session, null);
+  }
+
+  #unavailable(kind: GameScreenKind, session: string, failure: unknown): void {
+    this.#show(
+      unavailableScreen(this.#env, kind, session, failure, { ...this.#gameActions(kind), retry: () => void this.#retry(kind, session) }),
+    );
+  }
+
+  async #retry(kind: GameScreenKind, session: string): Promise<void> {
+    try {
+      await this.#client.connect(session);
+    } catch (err) {
+      this.#unavailable(kind, session, err);
+      return;
+    }
+    this.enterGame();
   }
 
   async #enterMap(port: MapPort, session: string): Promise<void> {
@@ -382,8 +397,7 @@ export class FrontEndFlow {
       try {
         await port.load((done, total) => loading.progress(done, total));
       } catch (err) {
-        this.#show(placeholderScreen(this.#env, 'map', session, this.#gameActions('map')));
-        await this.#env.boxes.alert((err as Error).message);
+        this.#unavailable('map', session, err);
         return;
       }
     }
@@ -403,7 +417,7 @@ export class FrontEndFlow {
   async #openMap(session: string): Promise<void> {
     const port = this.#host.map?.() ?? null;
     if (!port) {
-      if (this.#client.view?.strategic) this.#show(placeholderScreen(this.#env, 'map', session, this.#gameActions('map')));
+      if (this.#client.view?.strategic) this.#unavailable('map', session, null);
       return;
     }
     const entry = await port.enter(false);
@@ -415,8 +429,7 @@ export class FrontEndFlow {
     try {
       screen = await port.open({ closed: () => this.#laptopClosed(session), quit: () => this.exitBox('laptop') });
     } catch (err) {
-      this.#show(placeholderScreen(this.#env, 'laptop', session, this.#gameActions('laptop')));
-      await this.#env.boxes.alert((err as Error).message);
+      this.#unavailable('laptop', session, err);
       return;
     }
     if (this.#client.session === session) this.#show(screen);
@@ -434,7 +447,7 @@ export class FrontEndFlow {
     if (this.#client.session === session) this.enterGame();
   }
 
-  #gameActions(kind: GameScreenKind): PlaceholderActions {
+  #gameActions(kind: GameScreenKind): GameScreenActions {
     return {
       options: () => void this.options('game'),
       saveGame: () => void this.saveLoad('save', 'game'),
@@ -451,8 +464,7 @@ export class FrontEndFlow {
       try {
         await port.load((done, total) => loading.progress(done, total));
       } catch (err) {
-        this.#show(placeholderScreen(this.#env, 'tactical', session, this.#gameActions('tactical')));
-        await this.#env.boxes.alert((err as Error).message);
+        this.#unavailable('tactical', session, err);
         return;
       }
     }

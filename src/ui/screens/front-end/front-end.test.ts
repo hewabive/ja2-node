@@ -41,7 +41,7 @@ describe('the main menu', () => {
     await f.settle();
     expect(f.widget('loadGame').enabled).toBe(true);
     f.click('loadGame', KeyModifier.ALT);
-    await until(() => f.screen() === 'mapPlaceholder');
+    await until(() => f.screen() === 'mapUnavailable');
     expect(f.client.loads).toEqual([{ session: null, name: 'newest' }]);
     expect(f.client.calls).toContain('connect loaded-1');
   });
@@ -96,7 +96,7 @@ describe('the game init screen', () => {
     await until(() => f.modal() === 'messageBox');
     expect(f.widget('messageBox').text).toContain('EXPERIENCED');
     await answer('messageBox', 'yes');
-    await until(() => f.screen() === 'laptopPlaceholder');
+    await until(() => f.screen() === 'laptopUnavailable');
     expect(f.client.campaigns).toEqual([
       { options: { difficulty: 2, sciFi: true, gunNut: true, saveMode: 'anywhere', bloodAndGore: true } },
     ]);
@@ -137,7 +137,7 @@ describe('the game init screen', () => {
     await f.settle();
     f.type('Last stand');
     f.key('Enter', 'up');
-    await until(() => f.screen() === 'laptopPlaceholder');
+    await until(() => f.screen() === 'laptopUnavailable');
     expect(f.client.campaigns[0]).toMatchObject({
       options: { saveMode: 'deadIsDead' },
       deadIsDead: { name: null, description: 'Last stand' },
@@ -226,7 +226,7 @@ describe('the save/load screen', () => {
     expect(f.widget('date1').text).toBe('Day 2, 09:05');
     f.click('row1');
     f.click('loadButton');
-    await until(() => f.screen() === 'mapPlaceholder');
+    await until(() => f.screen() === 'mapUnavailable');
     expect(f.client.loads).toEqual([{ session: null, name: 'newer' }]);
   });
 
@@ -240,7 +240,7 @@ describe('the save/load screen', () => {
     f.click('row1');
     f.click('saveButton');
     await answer('messageBox', 'yes');
-    await until(() => f.screen() === 'laptopPlaceholder');
+    await until(() => f.screen() === 'laptopUnavailable');
     expect(f.client.saved).toEqual([{ session: 'session-1', request: { name: 'newer', description: 'newer' } }]);
   });
 
@@ -332,7 +332,7 @@ describe('in the game', () => {
     f.key('l', 'down', KeyModifier.CTRL);
     await until(() => f.screen() === 'saveLoad');
     f.click('loadButton');
-    await until(() => f.screen() === 'tacticalPlaceholder');
+    await until(() => f.screen() === 'tacticalUnavailable');
     expect(f.client.loads).toEqual([{ session: 'session-1', name: 'newer' }]);
     expect(MessageBoxReturn.YES).toBe(2);
   });
@@ -344,7 +344,7 @@ describe('in the game', () => {
     expect(f.t.sounds.played).toContainEqual({ file: 'sounds/sex.wav', volume: 127 });
     expect(f.draw().items.some((i) => i.kind === 'image' && i.asset === 'interface/luckysmile.sti')).toBe(true);
     for (let i = 0; i < 300 && f.screen() === 'sanMona'; i++) f.t.frame(16);
-    expect(f.screen()).toBe('laptopPlaceholder');
+    expect(f.screen()).toBe('laptopUnavailable');
   });
 });
 
@@ -381,6 +381,84 @@ describe('the laptop port', () => {
     f.client.view = { ...view, strategic: { ...view.strategic, flow: 'strategic' } };
     f.flow.frames([{ tick: 1, changed: [], removed: [] }]);
     await f.settle();
-    expect(f.screen()).toBe('mapPlaceholder');
+    expect(f.screen()).toBe('mapUnavailable');
+  });
+});
+
+describe('a game screen that cannot be opened', () => {
+  beforeEach(async () => {
+    f.flow.mainMenu();
+    await f.settle();
+    f.click('newGame');
+    await f.settle();
+  });
+
+  const laptopScreen: Screen = {
+    id: 'laptop',
+    enter: () => undefined,
+    exit: () => undefined,
+    update: () => undefined,
+    input: () => false,
+    render: () => undefined,
+  };
+
+  it('names the screen and the lost connection without a box, and Retry opens it once the server answers', async () => {
+    let online = false;
+    f.host.laptopPort = {
+      open: async () => {
+        if (!online) throw new TypeError('Failed to fetch');
+        return laptopScreen;
+      },
+    };
+    f.click('start');
+    await answer('messageBox', 'yes');
+    await until(() => f.screen() === 'laptopUnavailable');
+    expect(f.widget('heading').text).toBe('The laptop could not be opened.');
+    expect(f.widget('reason').text).toBe('The connection to the server was lost (Failed to fetch).');
+    expect(f.widget('session').text).toBe('Session session-1');
+    expect(f.modal()).toBeNull();
+    online = true;
+    f.click('retry');
+    await until(() => f.screen() === 'laptop');
+    expect(f.client.calls).toContain('connect session-1');
+  });
+
+  it('stays on the panel with the new reason when reconnecting fails', async () => {
+    f.host.laptopPort = {
+      open: async () => {
+        throw new TypeError('Failed to fetch');
+      },
+    };
+    f.click('start');
+    await answer('messageBox', 'yes');
+    await until(() => f.screen() === 'laptopUnavailable');
+    f.client.connect = async () => {
+      throw new Error('cannot connect to the game server');
+    };
+    f.click('retry');
+    await until(() => f.widget('reason').text === 'cannot connect to the game server');
+    expect(f.screen()).toBe('laptopUnavailable');
+  });
+
+  it('shows any other failure as it is and leaves for the main menu', async () => {
+    f.host.laptopPort = {
+      open: async () => {
+        throw new Error('/vfs/laptop/laptop3.sti: HTTP 500');
+      },
+    };
+    f.click('start');
+    await answer('messageBox', 'yes');
+    await until(() => f.screen() === 'laptopUnavailable');
+    expect(f.widget('reason').text).toBe('/vfs/laptop/laptop3.sti: HTTP 500');
+    f.click('mainMenu');
+    await until(() => f.screen() === 'mainMenu');
+    expect(f.client.calls).toContain('leaveSession');
+  });
+
+  it('says it is not connected when the host has no port for the screen', async () => {
+    f.click('start');
+    await answer('messageBox', 'yes');
+    await until(() => f.screen() === 'laptopUnavailable');
+    expect(f.widget('reason').text).toBe('Not connected to a game session.');
   });
 });

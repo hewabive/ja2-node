@@ -205,17 +205,6 @@ export async function startFrontEnd(page: GamePage, ui: UiBoot): Promise<FrontEn
     },
     music: (mode: FrontEndMusic) => music.show(mode, client.client?.music ?? null),
     quit: () => location.assign(LAUNCHER_PAGE),
-    preload: async (layout, onProgress) => {
-      const paths = assetsOf(env.layout(layout));
-      let done = 0;
-      onProgress(done, paths.length);
-      await Promise.all(
-        paths.map(async (path) => {
-          await ui.assets.image(path);
-          onProgress(++done, paths.length);
-        }),
-      );
-    },
     rowFeed: () => {
       const feed = new CreditRowFeed(fetchCreditRow);
       return () => feed.take();

@@ -192,11 +192,6 @@ export class FakeHost implements FrontEndHost {
     this.quits++;
   }
 
-  async preload(_layout: FrontEndLayout, onProgress: (done: number, total: number) => void): Promise<void> {
-    onProgress(0, 2);
-    onProgress(2, 2);
-  }
-
   rowFeed() {
     const queue = [...this.rows];
     return () => queue.shift() ?? null;
@@ -270,7 +265,6 @@ export async function frontEndTest(): Promise<FrontEndTest> {
     playBeginning: () => host.playBeginning(),
     music: (mode) => host.music(mode),
     quit: () => host.quit(),
-    preload: (layout, progress) => host.preload(layout, progress),
     rowFeed: () => host.rowFeed(),
     random: (range) => host.random(range),
     laptop: () => host.laptop(),

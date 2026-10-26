@@ -20,7 +20,7 @@ export const FrontEndLayout = {
   LOADING: 'loading',
   EXIT_BOX: 'exit-box',
   SAN_MONA: 'san-mona',
-  PLACEHOLDER: 'placeholder',
+  SCREEN_UNAVAILABLE: 'screen-unavailable',
   MESSAGE_BOX: 'message-box',
 } as const;
 export type FrontEndLayout = (typeof FrontEndLayout)[keyof typeof FrontEndLayout];

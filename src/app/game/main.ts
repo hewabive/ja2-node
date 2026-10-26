@@ -1,6 +1,8 @@
+import { failureText } from '../../ui/client/failure-text.ts';
 import { AUTO_UI_SCALE, type ScaleSetting } from '../../ui/resolution.ts';
 import { TEST_PATTERN_IMAGES, TestPatternScreen } from '../../ui/screens/test-pattern.ts';
 import type { ClientSettings } from '../../ui/settings.ts';
+import { Labels } from '../../ui/text/labels.ts';
 import { loadSettings } from '../settings.ts';
 import { installDomInput } from './dom-input.ts';
 import { startFrameLoop } from './frame-loop.ts';
@@ -17,6 +19,7 @@ const FIXED_640_PARAM = 'fixed640';
 const PIN_CLOCK_PARAM = 'pinClock';
 const PINNED_CLOCK_MS = 0;
 const OFF = '0';
+const FALLBACK_LANGUAGE = 'eng';
 
 function element<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -36,6 +39,17 @@ const clock = params.has(PIN_CLOCK_PARAM) ? () => PINNED_CLOCK_MS : () => perfor
 const fail = (error: unknown) => {
   page.hook.error = error instanceof Error ? error.message : String(error);
 };
+
+function failBoot(error: unknown): void {
+  fail(error);
+  const labels = new Labels(loadSettings().language ?? FALLBACK_LANGUAGE, null);
+  element('bootFailureHeading').textContent = labels.text('gameUnavailable');
+  element('bootFailureReason').textContent = failureText(labels, error);
+  const retry = element<HTMLButtonElement>('bootFailureRetry');
+  retry.textContent = labels.text('retry');
+  retry.addEventListener('click', () => location.reload(), { once: true });
+  element('bootFailure').hidden = false;
+}
 
 let testScreen: TestPatternScreen | null = null;
 let frontEnd: FrontEnd | null = null;
@@ -88,4 +102,4 @@ async function bootFrontEnd(): Promise<void> {
   markReady();
 }
 
-(params.get(SCREEN_PARAM) === TEST_PATTERN ? bootTestPattern() : bootFrontEnd()).catch(fail);
+(params.get(SCREEN_PARAM) === TEST_PATTERN ? bootTestPattern() : bootFrontEnd()).catch(failBoot);
