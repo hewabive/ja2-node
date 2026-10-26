@@ -28,7 +28,7 @@ async function openTactical(page: Page, session: string): Promise<void> {
   await nextFrames(page, 4);
 }
 
-type HookField = 'uiMode' | 'uiCursor' | 'markers' | 'overheadOpen' | 'doorMenuOpen' | 'exitDialogOpen' | 'topMessage';
+type HookField = 'uiMode' | 'uiCursor' | 'markers' | 'overheadOpen' | 'doorMenuOpen' | 'exitDialogOpen' | 'topMessage' | 'feedback';
 
 async function field<K extends HookField>(page: Page, key: K): Promise<TacticalHook[K] | undefined> {
   return page.evaluate((k) => window.__ja2Ui.tactical?.[k] as TacticalHook[K] | undefined, key);
@@ -160,6 +160,7 @@ test.describe('the tactical input in a stub battle', () => {
     if (!at) throw new Error('no screen position for the enemy');
     await pointAt(page, at.x, at.y - 15);
     await expect.poll(() => field(page, 'uiMode'), { timeout: 10_000 }).toBe('CONFIRM_ACTION_MODE');
+    await expect.poll(() => field(page, 'feedback')).toBeNull();
     await clickHere(page);
     await expect.poll(() => lastCommand(page)).toEqual({ type: 'attack', ok: true, reason: null });
   });
