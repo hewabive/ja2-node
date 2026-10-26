@@ -66,7 +66,7 @@ export interface ShopSample {
 }
 
 export const LOAD_PHASES = ['assets', 'presentation', 'world', 'layouts', 'media'] as const;
-export type LoadPhase = (typeof LOAD_PHASES)[number] | 'sound';
+export type LoadPhase = (typeof LOAD_PHASES)[number] | 'map' | 'sound';
 
 export interface LoadTimes {
   readonly total: number;

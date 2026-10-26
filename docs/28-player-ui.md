@@ -1874,7 +1874,8 @@ entries of `01` §12 "Left out of M7".
 
 **Load timing** (2026-10-25). `__ja2Ui.tactical.loadMs` holds `{total, sincePageStart, phases}` of the last tactical
 load: milliseconds from the load's start to the end of each branch (`assets`, `presentation`, `world`, `layouts`,
-`media`, and `sound`, filled in when it arrives) and from the page's navigation start. The screen does not wait for
+`media`, and `sound`, filled in when it arrives; `map` marks the map data ready for the world, which is then built on
+the GPU) and from the page's navigation start. The screen does not wait for
 `sound`: it starts with the load (the data version comes from the page, the animation tables when `assets` has them,
 the ambient table from the prepared world) and the director and the world's ambient join the running screen, which
 drops sound events until then. The loaders run their independent branches at once

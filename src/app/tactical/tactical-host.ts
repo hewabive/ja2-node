@@ -194,7 +194,7 @@ export class TacticalHost {
       assets.then((a) => WorldEffects.load(fetchVfsFile, available, a.palettes)),
       LightTemplates.load(listing, fetchVfsFile),
     ]).then(reached('presentation'));
-    const preparing = TacticalWorldView.prepare(mapPath, available);
+    const preparing = TacticalWorldView.prepare(mapPath, available).then(timed('map'));
     const worldView = Promise.all([presentation, preparing]).then(([[soldierAssets, frames, effects, lightTemplates], prepared]) => {
       this.#frames = frames;
       const presented = { soldiers: TacticalWorldView.soldierScene(soldierAssets), frames, effects, lightTemplates };
