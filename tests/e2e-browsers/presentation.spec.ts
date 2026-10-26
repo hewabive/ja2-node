@@ -54,11 +54,11 @@ function mismatch(shot: PngImage, shown: Shown, fixed640: boolean): string | nul
   return pixels === 0 ? null : `${pixels} device pixels differ, first ${first}`;
 }
 
-async function presentationMismatch(browser: Browser, ratio: number, size: (typeof WINDOWS)[number], fixed640: boolean, query: string) {
+async function presentationMismatch(browser: Browser, ratio: number, size: (typeof WINDOWS)[number], fixed640: boolean) {
   const context = await browser.newContext({ viewport: size, deviceScaleFactor: ratio, baseURL: ORIGIN, storageState: STORAGE });
   try {
     const page = await context.newPage();
-    await page.goto(`/play?${[query, fixed640 ? 'fixed640=1' : ''].filter(Boolean).join('&')}`);
+    await page.goto(fixed640 ? '/play?fixed640=1' : '/play');
     await page.waitForFunction(() => {
       const ui = window.__ja2Ui;
       return ui?.screen === 'mainMenu' && ui.draw !== null && ui.draw.missingImages.length === 0 && ui.draw.missingFonts.length === 0;
@@ -80,12 +80,11 @@ test('shows every logical pixel as a whole block of device pixels at each pixel 
   browser,
 }, info) => {
   const ratios = info.project.metadata.pixelRatios as readonly number[];
-  const query = (info.project.metadata.query as string | undefined) ?? '';
   const failures: string[] = [];
   for (const ratio of ratios) {
     for (const size of WINDOWS) {
       for (const fixed640 of [false, true]) {
-        const found = await presentationMismatch(browser, ratio, size, fixed640, query);
+        const found = await presentationMismatch(browser, ratio, size, fixed640);
         if (found) failures.push(`ratio ${ratio}, ${size.width}×${size.height}${fixed640 ? ', 640×480 only' : ''}: ${found}`);
       }
     }

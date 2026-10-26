@@ -1970,15 +1970,14 @@ the GPU process instead of 93 at a 1280×960 window and 66 instead of about 170 
 of 110. The old canvas was also not exact: sized `100vw × 100vh`, it held `round(CSS × ratio)` pixels where the window
 has a fractional number (1301 CSS px at 1.25 is 1626.25), and Chrome and WebKit filtered the whole picture to fit.
 `tests/e2e-browsers/presentation.spec.ts` (`pnpm e2e:browsers`, its own CI job when `pnpm gates` selects it) opens the main menu on stubs in
-Chromium and Firefox at pixel ratios 1, 1.25, 1.5 and 2 and in WebKit at 1 and 2 (Safari's ratios), at 1301×977 and
-1366×768, with and without the 640×480-only option, and compares a device-pixel screenshot with the logical capture
-scaled by whole blocks: every device pixel must match. Firefox runs with a display (`xvfb-run`; headless Firefox has no
-WebGL without a GPU) and `webgl.force-enabled`; WebKit's screenshot repaints the canvas from its drawing buffer, which
-is gone after compositing, so its run asks for `?keepDrawingBuffer=1` (Safari's own display keeps the last frame). Not
-covered: WebKit at a fractional ratio with the 640×480-only option blends the last column with the black border (its
-right edge falls inside a CSS pixel); Safari does not use fractional ratios. Locally Firefox needs an X display
-(`DISPLAY=:99` with Xvfb) and WebKit the libraries `playwright install-deps webkit` lists. The video overlay keeps its
-own canvas sized in CSS pixels.
+Chromium and Firefox at pixel ratios 1, 1.25, 1.5 and 2, at 1301×977 and 1366×768, with and without the 640×480-only
+option, and compares a device-pixel screenshot with the logical capture scaled by whole blocks: every device pixel must
+match. Firefox runs with a display (`xvfb-run`; headless Firefox has no WebGL without a GPU) and `webgl.force-enabled`;
+locally it needs an X display (`DISPLAY=:99` with Xvfb). Playwright's WebKit ran here too at first and was dropped
+(2026-10-26): it is a Linux build, not Safari, it places the canvas like Chrome, its screenshot repaints the canvas
+from the drawing buffer, so it needed a test-only `?keepDrawingBuffer=1`, and it needed the most system libraries; at a
+fractional ratio with the 640×480-only option it blended the last column with the border, which Safari, with whole
+ratios only, does not meet. The video overlay keeps its own canvas sized in CSS pixels.
 
 ---
 

@@ -304,6 +304,7 @@ export class MainFlow {
     expect(await page.evaluate(() => window.__ja2Ui.tactical?.uiCursor)).toMatch(/^ACTION_/);
     expect(await page.evaluate(() => window.__ja2Ui.cursor?.visible)).toBe(true);
     await this.settleTacticalShadow();
+    await page.waitForFunction(() => window.__ja2Ui.tactical?.feedback === null, null, { timeout: CURSOR_TIMEOUT_MS });
     await clickAt(page, at.x, at.y - AIM_ABOVE_FEET);
     await page.waitForFunction(() => window.__ja2Ui.tactical?.commands.at(-1)?.type === 'attack', null, { timeout: CURSOR_TIMEOUT_MS });
     expect(await page.evaluate(() => window.__ja2Ui.tactical?.commands.at(-1))).toEqual({ type: 'attack', ok: true, reason: null });

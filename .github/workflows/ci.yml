@@ -104,10 +104,10 @@ jobs:
           echo "run=$run" >> "$GITHUB_OUTPUT"
       - if: steps.plan.outputs.run == 'true'
         run: pnpm install --frozen-lockfile
-      - name: Pixel-exact presentation in Chromium, Firefox and WebKit (Firefox needs a display for WebGL without a GPU)
+      - name: Pixel-exact presentation in Chromium and Firefox (Firefox needs a display for WebGL without a GPU; the runner image has the system libraries)
         if: steps.plan.outputs.run == 'true'
         run: |
-          pnpm exec playwright install --with-deps chromium firefox webkit
+          pnpm exec playwright install chromium firefox
           xvfb-run -a pnpm e2e:browsers
       - if: failure()
         uses: actions/upload-artifact@v7

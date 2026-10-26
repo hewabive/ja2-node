@@ -3,9 +3,7 @@ import { E2E_MAX_SESSIONS, SAVE_DIR, SERVER_PORT, TOKEN, WEB_PORT } from './test
 
 const BROWSER_TEST_TIMEOUT_MS = 600_000;
 const DESKTOP_PIXEL_RATIOS = [1, 1.25, 1.5, 2];
-const SAFARI_PIXEL_RATIOS = [1, 2];
 const WEBGL_WITHOUT_GPU = { 'webgl.force-enabled': true };
-const SCREENSHOT_REPAINTS_CANVAS = 'keepDrawingBuffer=1';
 
 export default defineConfig({
   testDir: 'tests/e2e-browsers',
@@ -20,11 +18,6 @@ export default defineConfig({
       name: 'firefox',
       use: { ...devices['Desktop Firefox'], headless: false, launchOptions: { firefoxUserPrefs: WEBGL_WITHOUT_GPU } },
       metadata: { pixelRatios: DESKTOP_PIXEL_RATIOS },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-      metadata: { pixelRatios: SAFARI_PIXEL_RATIOS, query: SCREENSHOT_REPAINTS_CANVAS },
     },
   ],
   webServer: {

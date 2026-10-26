@@ -17,9 +17,11 @@ describe('the gates a change selects', () => {
     expect(gates('src/render/world/dirty-rects.ts', 'src/ui/screens/map/map-screen.ts')).toEqual(['check', 'data', 'e2e', 'e2e:data']);
   });
 
-  it('adds the three browsers for the canvas presentation', () => {
+  it('adds the browser suite for the files of the canvas presentation alone', () => {
     expect(gates('src/app/game/game-page.ts')).toEqual(['check', 'data', 'e2e', 'e2e:data', 'e2e:browsers']);
     expect(gates('src/ui/resolution.ts')).toContain('e2e:browsers');
+    expect(gates('src/app/game/front-end.ts')).toEqual(['check', 'data', 'e2e', 'e2e:data']);
+    expect(gates('index.html')).toEqual(['check', 'e2e']);
   });
 
   it('runs a test suite for its own specs', () => {
@@ -28,8 +30,10 @@ describe('the gates a change selects', () => {
     expect(gates('tools/oracle/compare.ts')).toEqual(['check', 'oracle']);
   });
 
-  it('runs all three browser suites for the helpers they share', () => {
-    expect(gates('tests/e2e/ui-capture.ts')).toEqual(['check', 'e2e', 'e2e:data', 'e2e:browsers']);
+  it('runs the browser suites that import a shared e2e helper, and the e2e suite alone for a golden', () => {
+    expect(gates('tests/e2e/ui-capture.ts')).toEqual(['check', 'e2e', 'e2e:data']);
+    expect(gates('tests/e2e/env.ts')).toEqual(['check', 'e2e', 'e2e:data', 'e2e:browsers']);
+    expect(gates('tests/e2e/golden/laptop-aim-alumni.png')).toEqual(['e2e']);
   });
 
   it('runs the unit gates alone for a unit test', () => {

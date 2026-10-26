@@ -17,7 +17,6 @@ const TEST_PATTERN = 'testPattern';
 const SCALE_PARAM = 'scale';
 const FIXED_640_PARAM = 'fixed640';
 const PIN_CLOCK_PARAM = 'pinClock';
-const KEEP_DRAWING_BUFFER_PARAM = 'keepDrawingBuffer';
 const PINNED_CLOCK_MS = 0;
 const OFF = '0';
 const FALLBACK_LANGUAGE = 'eng';
@@ -35,12 +34,7 @@ function scaleSetting(settings: ClientSettings, params: URLSearchParams): ScaleS
 }
 
 const params = new URLSearchParams(location.search);
-const page = new GamePage(
-  element('stage'),
-  element<HTMLCanvasElement>('screen'),
-  scaleSetting(loadSettings(), params),
-  params.has(KEEP_DRAWING_BUFFER_PARAM),
-);
+const page = new GamePage(element('stage'), element<HTMLCanvasElement>('screen'), scaleSetting(loadSettings(), params));
 const clock = params.has(PIN_CLOCK_PARAM) ? () => PINNED_CLOCK_MS : () => performance.now();
 const fail = (error: unknown) => {
   page.hook.error = error instanceof Error ? error.message : String(error);

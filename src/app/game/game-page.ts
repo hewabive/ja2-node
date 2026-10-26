@@ -61,11 +61,11 @@ export class GamePage {
   #drawn: DrawnFrame | null = null;
   #placement = '';
 
-  constructor(stage: HTMLElement, canvas: HTMLCanvasElement, setting: ScaleSetting, keepDrawingBuffer = false) {
+  constructor(stage: HTMLElement, canvas: HTMLCanvasElement, setting: ScaleSetting) {
     this.stage = stage;
     this.canvas = canvas;
     this.#setting = setting;
-    const gl = createContext(canvas, { ...CONTEXT_OPTIONS, preserveDrawingBuffer: keepDrawingBuffer });
+    const gl = createContext(canvas, CONTEXT_OPTIONS);
     this.gl = gl;
     this.renderer = new UiRenderer(gl);
     this.#framebuffer = new LogicalFramebuffer(gl);

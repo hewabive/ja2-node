@@ -1826,13 +1826,13 @@ import takes 40–70 ms).
 ### 7.6 CI
 
 CI (`.github/workflows/ci.yml`) runs four jobs side by side: `check` (`pnpm check`), `build` (the stub pack, the bench
-smoke runs below and `pnpm build`), `e2e` (`pnpm e2e --shard=N/3` in three jobs; the dev server builds the stub
-pack; Chromium installs without `--with-deps`, since the runner image carries Chrome's system libraries and the apt
-step of `--with-deps` twice took more than 10 minutes on a slow mirror) and `browsers`
-(`pnpm e2e:browsers` under `xvfb-run`, 20 minutes at most). `browsers` asks `node tools/gates.ts --since <the previous
-push or the pull request base> --plan` first and installs and runs the three browsers only when the plan has
-`e2e:browsers` (or when the base is unknown: a new branch, a manual run). A push or pull request that touches only
-`docs/`, Markdown files or `LICENSE` starts no CI.
+smoke runs below and `pnpm build`), `e2e` (`pnpm e2e --shard=N/3` in three jobs; the dev server builds the stub pack;
+Chromium installs without `--with-deps`, since the runner image carries Chrome's system libraries and the apt step of
+`--with-deps` twice took more than 10 minutes on a slow mirror) and `browsers` (`pnpm e2e:browsers` under `xvfb-run`,
+Chromium and Firefox installed without `--with-deps` as well, 20 minutes at most). `browsers` asks `node
+tools/gates.ts --since <the previous push or the pull request base> --plan` first and installs and runs the two
+browsers only when the plan has `e2e:browsers` (or when the base is unknown: a new branch, a manual run). A push or
+pull request that touches only `docs/`, Markdown files or `LICENSE` starts no CI.
 
 CI runs every bench scenario on stubs with `--runs 1` as a smoke test (`pnpm cli bench all --runs 1 --data '' --out
 bench.jsonl`, about 40 s on the development VM) plus one `--calls` run (`autoresolve --variant side-10`) for the
@@ -1873,9 +1873,13 @@ the unit suite again with `JA2_DATA_DIR` 4.3, again with `JA2_RELOAD=1` 4.5, ora
   base with the upstream branch (plus the working tree and untracked files) and runs the gates their area can affect,
   in order: `check`, `data`, `reload`, `oracle`, `e2e`, `e2e:data`, `e2e:browsers`. The simulation, content, node and
   server layers and `data/` select all but the browsers; protocol and stubs drop the oracle; the client layers (`ui`,
-  `render`, `audio`, `app`) select `check`, `data`, `e2e` and `e2e:data`; the canvas presentation (`src/app/game/`,
-  the logical framebuffer, `resolution.ts`, `index.html`, `vite.config.ts`, `tools/dev.ts`) adds `e2e:browsers`; a unit
-  test file selects the three unit gates; documentation selects nothing; a path no area names selects everything.
+  `render`, `audio`, `app`) select `check`, `data`, `e2e` and `e2e:data`; the files of the canvas presentation
+  (`game-page.ts`, `dom-input.ts`, `main.ts`, `index.html` and `style.css` of `src/app/game/`, the logical framebuffer,
+  `resolution.ts`, `vite.config.ts`, `tools/dev.ts`) add `e2e:browsers`; a unit test file selects the three unit gates,
+  a spec its own suite, a golden the e2e suite, a shared helper of `tests/e2e` the suites that import it (the browser
+  suite imports only `env.ts`); documentation selects nothing; a path no area names selects everything. Over the 332
+  commits since 2026-10-18 this table would have run the browser suite 14 times, all for the presentation, its config
+  or the dependencies.
   `check` and `reload` run without `JA2_DATA_DIR`, the data gates are skipped without it, `e2e:browsers` needs `DISPLAY`
   or `xvfb-run`, and each gate writes `.cache/gates/<gate>.log`. CI (§7.6) uses the same table for its browsers job.
 
