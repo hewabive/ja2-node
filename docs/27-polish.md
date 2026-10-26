@@ -1892,6 +1892,15 @@ depend on the order.
 the game in real time: `main-flow` 25 s for the player's turn while the server plays the enemy turn at speed 1, the
 story test 22 s from the load to the credits (the Queen's death, the upstairs scene, three ending videos), the talk
 panel about 34 s for lines spoken at the original pace; `main-flow` (54 s) is the longest test and bounds any split.
+Measured again on 2026-10-26 (198 s, 501 s of test time), about 60 s waits on the game: the story test 22 s at the
+real-time driver's speed 1 (7 s while the Queen bleeds out, 13 s for four lines of the dialogue queue; the stub videos
+take no time), the talk panel 35 s on the client (a conversation command drains its lines on the server, the page
+plays the drained ticks, about 6 s, before the panel opens and then the lines at the original pace), and `main-flow`
+(34 s) no longer waits for a turn, since its tactical page runs with `drive=manual` and the battle takes 3 s. A test
+pace (the client clock and the real-time speed scaled together) would save about 40 s but test a pace nobody plays at,
+with every timed window 8 times shorter, so it was left out. The talk panel file (47 s) ended the run on one worker;
+its three tests share nothing and now run in parallel (`mode: 'parallel'`): the workers end within 5 s and the run
+takes 168 s.
 Page loads take about 45 s of waiting for ready screens plus 88 navigations of 0.47 s each; `nextFrames` 60 s in 1208
 calls, which is the frames themselves (one in-page wait instead of a read and a poll measured no faster); the workers
 end about 35 s apart, since files are not split. Against the built client (`vite preview`) a navigation takes 0.12 s

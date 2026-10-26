@@ -97,6 +97,8 @@ async function freeSession(page: Page, request: APIRequestContext, session: stri
 }
 
 test.describe('talking through the canvas talk panel on stubs', () => {
+  test.describe.configure({ mode: 'parallel' });
+
   test('shows the panel of a conversation opened before the page, idle with Done enabled (golden with a pinned clock)', async ({
     page,
     request,
