@@ -27,6 +27,7 @@ export const NOBURN_Z_BONUS = 2;
 export const ROW_COUNT = WORLD_COLS + WORLD_ROWS - 1;
 export const SWEEP_MARGIN_X = 120;
 export const SWEEP_MARGIN_Y = 200;
+export const ROW_SCREEN_STEP = 10;
 
 const SCREEN_CENTER_Y = 1625;
 const RESTRICTED_TOP_Y = [860, 1330] as const;
@@ -89,10 +90,22 @@ export function rowOf(g: number): number {
   return (g % WORLD_COLS) + Math.floor(g / WORLD_COLS);
 }
 
-export function visibleRows(v: Viewport, camera: Camera, renderHeight: number): { readonly first: number; readonly last: number } {
+export interface RowReach {
+  readonly above: number;
+  readonly below: number;
+}
+
+export const NO_ROW_REACH: RowReach = { above: 0, below: 0 };
+
+export function visibleRows(
+  v: Viewport,
+  camera: Camera,
+  renderHeight: number,
+  reach: RowReach = NO_ROW_REACH,
+): { readonly first: number; readonly last: number } {
   const off = cameraOffset(v, camera, renderHeight);
-  const first = Math.ceil((-SWEEP_MARGIN_Y - 20 - off.y + 10) / 10);
-  const last = Math.floor((v.height + SWEEP_MARGIN_Y - off.y + 10) / 10);
+  const first = Math.ceil((-Math.max(SWEEP_MARGIN_Y, reach.below) - 20 - off.y + 10) / 10);
+  const last = Math.floor((v.height + Math.max(SWEEP_MARGIN_Y, reach.above) - off.y + 10) / 10);
   return { first: Math.max(0, first), last: Math.min(ROW_COUNT - 1, last) };
 }
 

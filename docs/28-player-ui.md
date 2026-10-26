@@ -1937,6 +1937,28 @@ A9 on the dev server, headless Chromium on this VM, idle in real time, 10 s: the
 about 5.2 s per second at 34-37 animation frames per second before; after, 0.75 s with no soldier on screen (9 frames
 drawn per second, the faces and the radar) and 2.1 s with the squad on screen (18), at 60 animation frames per second.
 
+**Partial redraws of the world** (2026-10-26). A frame that changed is not drawn whole either. `PictureMemo.update`
+returns `same`, `full`, or `partial` with a shift and at most eight rectangles (`dirty-rects.ts`): the camera's move
+since the last frame shifts the picture (`WorldFramebuffer.copyShifted` into the second framebuffer, as the original's
+`ScrollJA2Background` does) and uncovers a strip; every visible instance that appeared, disappeared, changed or moved in
+the drawing order adds its rectangle at the new camera, old ones included (the instances are compared as multisets of
+their values, then for order). The rectangles are merged greedily (overlapping ones, else the least added area), and the
+frame is drawn whole when they cover 60 % of the view, when the global inputs changed (natural shade, shade field
+version, static uploads, render height, shadows, roofs, viewport), when the shift is a view or more, or when it is odd
+(the dither pattern alternates per pixel; a tile-centred camera always moves by an even amount). A partial frame clears
+colour and depth inside the rectangles and runs the same draw calls with the scissor on their bounding box, the vertex
+shader dropping instances that touch no rectangle and the fragment shader discarding pixels outside them, so the pixels
+inside equal a whole redraw's. The shifted part is right only if no sprite that shows depends on the rows chosen:
+`StaticScene.assemble` measures how far its sprites rise above and hang below their row (`RowReach`) and `visibleRows`
+takes at least that margin (deviation "Sweep window"); dynamic instances need no margin, since the diff redraws one
+that enters or leaves the rows. `?worldCheck=1` draws every partial frame a second time whole and compares the pixels
+(`__ja2Ui.tactical.worldChecks`); the stub e2e (`world-redraw.spec.ts`: breathing, a walk, scrolls in six directions)
+and the original-data tour (scrolls over A9) expect no difference, and a strip cut short by two pixels on purpose was
+caught at once. A scroll step redraws about 6 % of the view, a breathing soldier his own sprite; on this VM, where the
+vertex work and the compositor's readback are done in software and dominate, a presented frame of the idle squad costs
+93 ms of the GPU process instead of 114 and a scroll frame 110 instead of 134 (canvas 1280×960; at 640×480, 63 instead
+of 81).
+
 ---
 
 ## 17. Minimal M8 implementation

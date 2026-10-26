@@ -10,6 +10,19 @@ const MUG_SHOTS = 'mugRegion0_0';
 const HAND = 5;
 const STEP_TIMEOUT_MS = 120_000;
 const SANDBOX_SEED = 1;
+const SCROLL_MS = 500;
+const SCROLL_KEYS = ['ArrowDown', 'ArrowLeft', 'ArrowUp', 'ArrowRight'];
+
+async function expectExactPartialRedraws(page: Page): Promise<void> {
+  for (const key of SCROLL_KEYS) {
+    await page.keyboard.down(key);
+    await page.waitForTimeout(SCROLL_MS);
+    await page.keyboard.up(key);
+  }
+  const checks = await page.evaluate(() => window.__ja2Ui.tactical?.worldChecks ?? null);
+  expect(checks?.frames ?? 0).toBeGreaterThan(SCROLL_KEYS.length);
+  expect(checks?.mismatchedFrames, JSON.stringify(checks?.lastMismatch)).toBe(0);
+}
 
 async function newSandbox(request: APIRequestContext): Promise<string> {
   return ((await (await request.post('/api/sessions', { data: { seed: SANDBOX_SEED } })).json()) as { session: string }).session;
@@ -104,10 +117,13 @@ test.describe('a structural tour of the screens on the original data (no picture
     }
   });
 
-  test('the tactical screen of the A9 sandbox: panels, inventory, the description box and the overhead map', async ({ page, request }) => {
+  test('the tactical screen of the A9 sandbox: panels, inventory, the description box, the overhead map and the scrolled world', async ({
+    page,
+    request,
+  }) => {
     const session = await newSandbox(request);
     try {
-      await openTacticalSession(page, session);
+      await openTacticalSession(page, session, '&worldCheck=1');
       const hook = await page.evaluate(() => window.__ja2Ui.tactical);
       expect(hook?.map).toMatch(/a9\.dat$/i);
       expect(hook?.panel).toBe('team');
@@ -134,6 +150,7 @@ test.describe('a structural tour of the screens on the original data (no picture
       await page.keyboard.press('Escape');
       await page.waitForFunction(() => window.__ja2Ui.tactical?.overheadOpen === false);
       await modalIs(page, null);
+      await expectExactPartialRedraws(page);
       const refused = await page.evaluate(() => window.__ja2Ui.tactical?.commands.filter((c) => !c.ok) ?? []);
       expect(refused).toEqual([]);
     } finally {

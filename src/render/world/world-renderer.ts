@@ -2,6 +2,7 @@ import type { Level } from '../../content/world/level.ts';
 import type { WorldStructures } from '../../content/world/structures.ts';
 import type { TileElement } from '../../content/world/tile-database.ts';
 import type { TileTables } from '../../content/world/tile-tables.ts';
+import { type ScreenRect, type ScreenShift, wholeViewport } from './dirty-rects.ts';
 import {
   ANIMATED_TILE_FRAME_MS,
   type DrawRun,
@@ -28,11 +29,19 @@ import {
 import { itemOutlineColour } from './glow.ts';
 import { DrawState } from './instances.ts';
 import { type LevelRenderData, updateLevelRenderData } from './level-render-data.ts';
+import { PartialRedrawCheck, type PartialRedrawChecks } from './partial-redraw-check.ts';
 import { pickSoldierAt } from './picking.ts';
-import { PictureMemo } from './picture-memo.ts';
+import { PictureMemo, type PictureUpdate } from './picture-memo.ts';
 import { changedRevealTiles, computeReveal, type RevealState } from './reveal.ts';
 import type { LightColour } from './soldier-palettes.ts';
-import { STATIC_SEGMENT_STATES, StaticScene, StaticSegment, type StaticState, type StaticWorld } from './static-scene.ts';
+import {
+  type AssembledScene,
+  STATIC_SEGMENT_STATES,
+  StaticScene,
+  StaticSegment,
+  type StaticState,
+  type StaticWorld,
+} from './static-scene.ts';
 import { applyTileChanges, type TileChange, tileChangesKey } from './tile-changes.ts';
 import { type WorldCapture, WorldFramebuffer } from './world-framebuffer.ts';
 import { InstanceStream, ShadeTexture, WorldProgram } from './world-program.ts';
@@ -105,6 +114,19 @@ const NO_STATS: WorldDrawStats = { drawCalls: 0, instances: 0, staticInstances: 
 
 let lastPicture = 0;
 
+export interface WorldRendererOptions {
+  readonly checkPartialRedraws?: boolean;
+}
+
+interface ScenePass {
+  readonly scene: LoadedScene;
+  readonly frame: WorldFrameInput;
+  readonly assembled: AssembledScene;
+  readonly rows: { readonly first: number; readonly last: number };
+  readonly offset: { readonly x: number; readonly y: number };
+  readonly showShadows: boolean;
+}
+
 interface LoadedScene {
   readonly original: RenderWorld;
   world: RenderWorld;
@@ -135,8 +157,10 @@ function changedDoorRows(a: ReadonlySet<number>, b: ReadonlySet<number>): number
 }
 
 export class WorldRenderer {
-  readonly framebuffer: WorldFramebuffer;
   readonly #gl: WebGL2RenderingContext;
+  #front: WorldFramebuffer;
+  #back: WorldFramebuffer;
+  readonly #check: PartialRedrawCheck | null;
   readonly #program: WorldProgram;
   readonly #staticStream: InstanceStream;
   readonly #dynamicStream: InstanceStream;
@@ -150,9 +174,11 @@ export class WorldRenderer {
   #stats: WorldDrawStats = NO_STATS;
   #rebuildMs = 0;
 
-  constructor(gl: WebGL2RenderingContext) {
+  constructor(gl: WebGL2RenderingContext, options: WorldRendererOptions = {}) {
     this.#gl = gl;
-    this.framebuffer = new WorldFramebuffer(gl);
+    this.#front = new WorldFramebuffer(gl);
+    this.#back = new WorldFramebuffer(gl);
+    this.#check = options.checkPartialRedraws ? new PartialRedrawCheck(new WorldFramebuffer(gl)) : null;
     this.#program = new WorldProgram(gl);
     this.#staticStream = new InstanceStream(gl);
     this.#dynamicStream = new InstanceStream(gl);
@@ -267,12 +293,12 @@ export class WorldRenderer {
 
   render(f: WorldFrameInput): WorldDrawStats {
     const gl = this.#gl;
-    const resized = this.framebuffer.width !== f.viewport.width || this.framebuffer.height !== f.viewport.height;
-    this.framebuffer.resize(f.viewport.width, f.viewport.height);
+    const resized = this.#front.width !== f.viewport.width || this.#front.height !== f.viewport.height;
+    for (const fb of this.#framebuffers()) fb.resize(f.viewport.width, f.viewport.height);
     this.#last = f;
     const s = this.#scene;
     if (!s) {
-      this.framebuffer.begin();
+      this.#front.begin();
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       this.#memo.forget();
       this.#picture = ++lastPicture;
@@ -292,7 +318,7 @@ export class WorldRenderer {
       s.shadeVersion = f.shade.version;
     }
     const renderHeight = s.world.prepared.renderHeight + (f.roofLevel ? ROOF_LEVEL_HEIGHT : 0);
-    const rows = visibleRows(f.viewport, f.camera, renderHeight);
+    const rows = visibleRows(f.viewport, f.camera, renderHeight, assembled.reach);
     s.dynamic.build({
       viewport: f.viewport,
       camera: f.camera,
@@ -306,27 +332,67 @@ export class WorldRenderer {
       uiNodes: f.uiNodes,
       aniTiles: f.aniTiles ?? [],
     });
-    const offset = cameraOffset(f.viewport, f.camera, renderHeight);
-    const showShadows = f.options.shadows && f.shade.ambient < LIGHT_DUSK_CUTOFF;
-    const memo = this.#memo;
-    memo.begin();
-    memo.add(f.viewport.width, f.viewport.height, offset.x, offset.y, f.shade.natural, f.shade.version, this.#staticUploads);
-    memo.add(rows.first, rows.last, showShadows ? 1 : 0, f.options.roofs ? 1 : 0);
-    memo.addVisible(s.dynamic.itemRuns, s.dynamic.itemInstances, f.viewport, offset);
-    memo.addVisible(s.dynamic.runs, s.dynamic.instances, f.viewport, offset);
-    if (!memo.changed() && !resized) return this.#stats;
+    const pass: ScenePass = {
+      scene: s,
+      frame: f,
+      assembled,
+      rows,
+      offset: cameraOffset(f.viewport, f.camera, renderHeight),
+      showShadows: f.options.shadows && f.shade.ambient < LIGHT_DUSK_CUTOFF,
+    };
+    const update = this.#plan(pass, renderHeight);
+    if (update.kind === 'same' && !resized) return this.#stats;
+    const partial = update.kind === 'partial' && !resized ? update : null;
+    if (partial && (partial.shift.x !== 0 || partial.shift.y !== 0)) this.#shiftPicture(partial.shift);
     this.#picture = ++lastPicture;
-    this.framebuffer.begin();
     this.#dynamicStream.upload(s.dynamic.instances.data, s.dynamic.instances.count);
     this.#itemStream.upload(s.dynamic.itemInstances.data, s.dynamic.itemInstances.count);
+    this.#drawPass(this.#front, pass, partial ? partial.rects : [wholeViewport(f.viewport)]);
+    const p = this.#program;
+    this.#stats = {
+      drawCalls: p.drawCalls,
+      instances: p.instances,
+      staticInstances: assembled.count,
+      dynamicInstances: s.dynamic.instances.count + s.dynamic.itemInstances.count,
+      staticRebuildMs: this.#rebuildMs,
+    };
+    if (partial) this.#checkPartial(pass);
+    return this.#stats;
+  }
+
+  #plan(pass: ScenePass, renderHeight: number): PictureUpdate {
+    const { frame: f, scene: s } = pass;
+    const memo = this.#memo;
+    memo.begin(f.viewport, pass.offset);
+    memo.add(f.shade.natural, f.shade.version, this.#staticUploads, renderHeight, pass.showShadows ? 1 : 0, f.options.roofs ? 1 : 0);
+    memo.addVisible(s.dynamic.itemRuns, s.dynamic.itemInstances);
+    memo.addVisible(s.dynamic.runs, s.dynamic.instances);
+    return memo.update();
+  }
+
+  #framebuffers(): WorldFramebuffer[] {
+    return this.#check ? [this.#front, this.#back, this.#check.framebuffer] : [this.#front, this.#back];
+  }
+
+  #shiftPicture(shift: ScreenShift): void {
+    const shifted = this.#back;
+    shifted.copyShifted(this.#front, shift);
+    this.#back = this.#front;
+    this.#front = shifted;
+  }
+
+  #drawPass(target: WorldFramebuffer, pass: ScenePass, rects: readonly ScreenRect[]): void {
+    const { scene: s, frame: f, assembled, rows } = pass;
+    target.clearRects(rects);
     const p = this.#program;
     p.begin({
       viewport: f.viewport,
-      offset,
+      offset: pass.offset,
       natural: f.shade.natural,
       atlas: s.sprites.atlas.texture(),
       palette: s.sprites.palettes.texture(),
       shade: this.#shade.texture,
+      rects,
     });
     const segment = (seg: StaticSegment) => {
       const base = seg * (ROW_COUNT + 1);
@@ -336,7 +402,7 @@ export class WorldRenderer {
     };
     segment(StaticSegment.LAND);
     segment(StaticSegment.OBJECTS);
-    if (showShadows) segment(StaticSegment.SHADOWS);
+    if (pass.showShadows) segment(StaticSegment.SHADOWS);
     segment(StaticSegment.STRUCTS);
     segment(StaticSegment.STRICT_STRIPS);
     if (f.options.roofs) {
@@ -358,15 +424,14 @@ export class WorldRenderer {
     );
     this.#drawRuns(s.dynamic.runs, this.#dynamicStream);
     p.end();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    this.#stats = {
-      drawCalls: p.drawCalls,
-      instances: p.instances,
-      staticInstances: assembled.count,
-      dynamicInstances: s.dynamic.instances.count + s.dynamic.itemInstances.count,
-      staticRebuildMs: this.#rebuildMs,
-    };
-    return this.#stats;
+    this.#gl.bindFramebuffer(this.#gl.FRAMEBUFFER, null);
+  }
+
+  #checkPartial(pass: ScenePass): void {
+    const check = this.#check;
+    if (!check) return;
+    this.#drawPass(check.framebuffer, pass, [wholeViewport(pass.frame.viewport)]);
+    check.compare(this.#front.capture(), check.framebuffer.capture());
   }
 
   #drawRuns(runs: readonly DrawRun[], stream: InstanceStream): void {
@@ -374,11 +439,15 @@ export class WorldRenderer {
   }
 
   present(target: WebGLFramebuffer | null, targetHeight: number, x: number, y: number, scale: number): void {
-    this.framebuffer.present(target, targetHeight, x, y, scale);
+    this.#front.present(target, targetHeight, x, y, scale);
   }
 
   capture(): WorldCapture {
-    return this.framebuffer.capture();
+    return this.#front.capture();
+  }
+
+  get checks(): PartialRedrawChecks | null {
+    return this.#check?.results ?? null;
   }
 
   gridNoAt(sx: number, sy: number): number | null {
@@ -402,6 +471,6 @@ export class WorldRenderer {
     this.#dynamicStream.dispose();
     this.#itemStream.dispose();
     this.#shade.dispose();
-    this.framebuffer.dispose();
+    for (const fb of this.#framebuffers()) fb.dispose();
   }
 }

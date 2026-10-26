@@ -45,6 +45,7 @@ import { TacticalWorldPresenter } from './world-presenter.ts';
 const NEW_MESSAGE_SOUND = 'sounds/newbeep.wav';
 const MIDVOLUME = 65;
 const SHADOW_HINTS_PARAM = 'shadowHints';
+const WORLD_CHECK_PARAM = 'worldCheck';
 const DRIVE_PARAM = 'drive';
 const MANUAL_DRIVE = 'manual';
 const KEPT_COMMANDS = 64;
@@ -97,14 +98,14 @@ export class TacticalHost {
 
   constructor(options: TacticalHostOptions) {
     this.#o = options;
-    this.#renderer = new WorldRenderer(options.page.gl);
+    const params = new URLSearchParams(location.search);
+    this.#renderer = new WorldRenderer(options.page.gl, { checkPartialRedraws: params.get(WORLD_CHECK_PARAM) === '1' });
     this.#sound = new TacticalSound({ engine: options.ui.audio.engine, music: false, dataVersion: options.ui.dataVersion });
     this.#speechSettings = storedSpeechSettings(() => performance.now());
     this.#presenter = new SpeechPresenter({ voices: engineSpeechVoices(this.#sound.engine), settings: this.#speechSettings });
     this.#presenter.onLineStarted(() => {
       this.#spoken++;
     });
-    const params = new URLSearchParams(location.search);
     const shadow = params.get(SHADOW_HINTS_PARAM) === '1';
     this.#hints = new HintProvider({ channel: options.session, knowledge: () => this.#knowledge, now: () => performance.now(), shadow });
     this.#hintHook = createHintHook(this.#hints);
@@ -475,6 +476,7 @@ export class TacticalHost {
   #createHook(): TacticalHook {
     const frameTimes = this.#frameTimes;
     const worldTimes = this.#worldTimes;
+    const renderer = this.#renderer;
     return {
       ready: false,
       loadMs: null,
@@ -534,6 +536,9 @@ export class TacticalHost {
       },
       get worldMs() {
         return worldTimes.summary();
+      },
+      get worldChecks() {
+        return renderer.checks;
       },
       command: (cmd) => this.#command(cmd),
       advance: (until) => this.#o.session.advance(until),

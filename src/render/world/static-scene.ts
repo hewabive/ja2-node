@@ -15,6 +15,8 @@ import {
   objectZ,
   onRoofZ,
   ROW_COUNT,
+  ROW_SCREEN_STEP,
+  type RowReach,
   roofZ,
   shadowZ,
   structZ,
@@ -87,6 +89,7 @@ export interface AssembledScene {
   readonly count: number;
   readonly segmentStart: Int32Array;
   readonly rowStart: Int32Array;
+  readonly reach: RowReach;
 }
 
 const EMPTY_ROW = new Float32Array(0);
@@ -96,6 +99,24 @@ const NO_OUTLINE = 0;
 
 function isDynamic(te: TileElement): boolean {
   return (te.flags & (TileFlags.DYNAMIC | TileFlags.ANIMATED)) !== 0;
+}
+
+function rowReach(data: Float32Array, rowStart: Int32Array): RowReach {
+  let above = 0;
+  let below = 0;
+  for (let seg = 0; seg < STATIC_SEGMENT_COUNT; seg++) {
+    for (let s = 0; s < ROW_COUNT; s++) {
+      const line = s * ROW_SCREEN_STEP;
+      const at = seg * (ROW_COUNT + 1) + s;
+      for (let i = rowStart[at] as number; i < (rowStart[at + 1] as number); i++) {
+        const o = i * FLOATS_PER_INSTANCE;
+        const y = data[o + 1] as number;
+        above = Math.max(above, line - y);
+        below = Math.max(below, y + (data[o + 3] as number) - line);
+      }
+    }
+  }
+  return { above, below };
 }
 
 export function doorTileInState(tiles: readonly TileElement[], openDoors: ReadonlySet<number>, g: number, tile: number): number {
@@ -161,7 +182,7 @@ export class StaticScene {
         at += row.length;
       }
     }
-    this.#assembled = { data, count, segmentStart, rowStart };
+    this.#assembled = { data, count, segmentStart, rowStart, reach: rowReach(data, rowStart) };
     return this.#assembled;
   }
 

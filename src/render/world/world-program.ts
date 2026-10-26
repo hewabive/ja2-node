@@ -1,10 +1,15 @@
 import { WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
 import { SHADOW_FACTOR } from '../../content/world/shading.ts';
 import { createProgram, uniform } from '../gl.ts';
+import { boundingRect, MAX_DIRTY_RECTS, type ScreenRect } from './dirty-rects.ts';
 import { DrawState, FLOATS_PER_INSTANCE, InstanceFlags, ShadeKey } from './instances.ts';
 
 const INSTANCE_TEXTURE_WIDTH = 1024;
 const TEXELS_PER_INSTANCE = FLOATS_PER_INSTANCE / 4;
+const RECT_COMPONENTS = 4;
+
+const DIRTY_RECTS = `uniform ivec4 u_rects[${MAX_DIRTY_RECTS}];
+uniform int u_rectCount;`;
 
 const VERTEX = `#version 300 es
 precision highp float;
@@ -16,6 +21,7 @@ uniform vec2 u_viewport;
 uniform vec2 u_offset;
 uniform usampler2D u_shade;
 uniform int u_natural;
+${DIRTY_RECTS}
 out vec2 v_src;
 out vec2 v_screen;
 flat out int v_layer;
@@ -25,6 +31,14 @@ flat out vec3 v_outline;
 const vec2 CORNERS[6] = vec2[6](vec2(0, 0), vec2(1, 0), vec2(0, 1), vec2(0, 1), vec2(1, 0), vec2(1, 1));
 vec4 instanceTexel(int t) {
   return texelFetch(u_instances, ivec2(t % ${INSTANCE_TEXTURE_WIDTH}, t / ${INSTANCE_TEXTURE_WIDTH}), 0);
+}
+bool touchesDirty(vec2 lo, vec2 hi) {
+  for (int i = 0; i < ${MAX_DIRTY_RECTS}; i++) {
+    if (i >= u_rectCount) return false;
+    vec4 r = vec4(u_rects[i]);
+    if (hi.x > r.x && hi.y > r.y && lo.x < r.z && lo.y < r.w) return true;
+  }
+  return false;
 }
 void main() {
   int quad = gl_VertexID / 6;
@@ -52,7 +66,7 @@ void main() {
   v_outline = vec3(float((rgb >> 16) & 255), float((rgb >> 8) & 255), float(rgb & 255)) / 255.0;
   vec2 lo = a_dst.xy + u_offset;
   vec2 hi = lo + a_dst.zw;
-  if (hi.x <= 0.0 || hi.y <= 0.0 || lo.x >= u_viewport.x || lo.y >= u_viewport.y) {
+  if (!touchesDirty(lo, hi)) {
     gl_Position = vec4(0.0, 0.0, 0.0, 0.0);
     return;
   }
@@ -66,6 +80,7 @@ precision highp usampler2DArray;
 uniform usampler2DArray u_atlas;
 uniform sampler2D u_palette;
 uniform float u_shadow;
+${DIRTY_RECTS}
 in vec2 v_src;
 in vec2 v_screen;
 flat in int v_layer;
@@ -73,16 +88,23 @@ flat in int v_row;
 flat in int v_flags;
 flat in vec3 v_outline;
 out vec4 o_color;
+bool insideDirty(ivec2 px) {
+  for (int i = 0; i < ${MAX_DIRTY_RECTS}; i++) {
+    if (i >= u_rectCount) return false;
+    ivec4 r = u_rects[i];
+    if (px.x >= r.x && px.y >= r.y && px.x < r.z && px.y < r.w) return true;
+  }
+  return false;
+}
 void main() {
+  ivec2 px = ivec2(floor(v_screen));
+  if (!insideDirty(px)) discard;
   uint index = texelFetch(u_atlas, ivec3(ivec2(floor(v_src)), v_layer), 0).r;
   if (index == 0u) discard;
   bool outlinePixel = index == 254u;
   if ((v_flags & ${InstanceFlags.ONLY_SHADOW_INDEX}) != 0 && !outlinePixel) discard;
   if ((v_flags & ${InstanceFlags.EXCEPT_SHADOW_INDEX}) != 0 && outlinePixel) discard;
-  if ((v_flags & ${InstanceFlags.DITHER}) != 0) {
-    ivec2 px = ivec2(floor(v_screen));
-    if (((px.x + px.y) & 1) != 0) discard;
-  }
+  if ((v_flags & ${InstanceFlags.DITHER}) != 0 && ((px.x + px.y) & 1) != 0) discard;
   if (u_shadow > 0.0) {
     o_color = vec4(vec3(u_shadow), 1.0);
     return;
@@ -177,6 +199,7 @@ export interface ProgramFrame {
   readonly atlas: WebGLTexture;
   readonly palette: WebGLTexture;
   readonly shade: WebGLTexture;
+  readonly rects: readonly ScreenRect[];
 }
 
 export class WorldProgram {
@@ -187,6 +210,9 @@ export class WorldProgram {
   readonly #offset: WebGLUniformLocation;
   readonly #natural: WebGLUniformLocation;
   readonly #shadow: WebGLUniformLocation;
+  readonly #rects: WebGLUniformLocation;
+  readonly #rectCount: WebGLUniformLocation;
+  readonly #rectData = new Int32Array(MAX_DIRTY_RECTS * RECT_COMPONENTS);
   readonly #vao: WebGLVertexArrayObject;
   #bound: InstanceStream | null = null;
   #drawCalls = 0;
@@ -201,6 +227,8 @@ export class WorldProgram {
     this.#offset = uniform(gl, this.#program, 'u_offset');
     this.#natural = uniform(gl, this.#program, 'u_natural');
     this.#shadow = uniform(gl, this.#program, 'u_shadow');
+    this.#rects = uniform(gl, this.#program, 'u_rects');
+    this.#rectCount = uniform(gl, this.#program, 'u_rectCount');
     gl.useProgram(this.#program);
     gl.uniform1i(uniform(gl, this.#program, 'u_atlas'), ATLAS_UNIT);
     gl.uniform1i(uniform(gl, this.#program, 'u_palette'), PALETTE_UNIT);
@@ -234,9 +262,23 @@ export class WorldProgram {
     gl.activeTexture(gl.TEXTURE0 + SHADE_UNIT);
     gl.bindTexture(gl.TEXTURE_2D, f.shade);
     gl.disable(gl.BLEND);
-    gl.disable(gl.SCISSOR_TEST);
+    this.#limitTo(f.rects, f.viewport.height);
     gl.bindVertexArray(this.#vao);
     this.#bound = null;
+  }
+
+  #limitTo(rects: readonly ScreenRect[], height: number): void {
+    const gl = this.#gl;
+    const data = this.#rectData;
+    data.fill(0);
+    rects.forEach((r, i) => {
+      data.set([r.x0, r.y0, r.x1, r.y1], i * RECT_COMPONENTS);
+    });
+    gl.uniform4iv(this.#rects, data);
+    gl.uniform1i(this.#rectCount, rects.length);
+    const box = boundingRect(rects);
+    gl.enable(gl.SCISSOR_TEST);
+    gl.scissor(box.x0, height - box.y1, box.x1 - box.x0, box.y1 - box.y0);
   }
 
   #apply(state: DrawState): void {
@@ -286,6 +328,7 @@ export class WorldProgram {
     gl.bindVertexArray(null);
     gl.disable(gl.DEPTH_TEST);
     gl.disable(gl.BLEND);
+    gl.disable(gl.SCISSOR_TEST);
     gl.depthMask(true);
   }
 }

@@ -1,5 +1,6 @@
 import type { CommandEnvelope, DriverMode, StopCondition } from '../../protocol/messages.ts';
 import type { InventoryItemView, ItemView } from '../../protocol/view.ts';
+import type { PartialRedrawChecks } from '../../render/world/partial-redraw-check.ts';
 import type { TimeSummary } from '../game/time-samples.ts';
 import type { UiHook } from '../game/ui-hook.ts';
 
@@ -116,6 +117,7 @@ export interface TacticalHook {
   overheadOpen: boolean;
   readonly frameMs: TimeSummary;
   readonly worldMs: TimeSummary;
+  readonly worldChecks: PartialRedrawChecks | null;
   command(cmd: CommandEnvelope): Promise<unknown>;
   advance(until: StopCondition): Promise<unknown>;
   inventory(soldier: number): readonly InventoryItemView[];

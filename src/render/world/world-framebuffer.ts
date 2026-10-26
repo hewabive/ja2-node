@@ -1,3 +1,5 @@
+import type { ScreenRect, ScreenShift } from './dirty-rects.ts';
+
 const RGBA_CHANNELS = 4;
 
 export interface WorldCapture {
@@ -56,14 +58,49 @@ export class WorldFramebuffer {
   }
 
   begin(): void {
+    this.clearRects([{ x0: 0, y0: 0, x1: this.#width, y1: this.#height }]);
+  }
+
+  clearRects(rects: readonly ScreenRect[]): void {
     const gl = this.#gl;
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.#framebuffer);
     gl.viewport(0, 0, this.#width, this.#height);
-    gl.disable(gl.SCISSOR_TEST);
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(0);
     gl.depthMask(true);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.SCISSOR_TEST);
+    for (const r of rects) {
+      gl.scissor(r.x0, this.#height - r.y1, r.x1 - r.x0, r.y1 - r.y0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    }
+    gl.disable(gl.SCISSOR_TEST);
+  }
+
+  copyShifted(from: WorldFramebuffer, shift: ScreenShift): void {
+    const gl = this.#gl;
+    const w = this.#width;
+    const h = this.#height;
+    const x0 = Math.max(0, -shift.x);
+    const x1 = Math.min(w, w - shift.x);
+    const y0 = Math.max(0, -shift.y);
+    const y1 = Math.min(h, h - shift.y);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, from.framebuffer);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, this.#framebuffer);
+    gl.disable(gl.SCISSOR_TEST);
+    gl.blitFramebuffer(
+      x0,
+      h - y1,
+      x1,
+      h - y0,
+      x0 + shift.x,
+      h - y1 - shift.y,
+      x1 + shift.x,
+      h - y0 - shift.y,
+      gl.COLOR_BUFFER_BIT,
+      gl.NEAREST,
+    );
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
   }
 
   present(target: WebGLFramebuffer | null, targetHeight: number, x: number, y: number, scale: number): void {
