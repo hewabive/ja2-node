@@ -69,11 +69,14 @@ export class SoldierAssets {
 
   static async load(available: ReadonlySet<string>, read: ReadVfsFile = fetchVfsFile): Promise<SoldierAssets> {
     const json = async (path: string) => JSON.parse(new TextDecoder().decode(await read(path)));
-    const tables = parseAnimationTables(await json(ANIM_CONTROL_PATH), await json(ANIM_SURFACES_PATH));
     const palettePath = [SOLDIER_PALETTES_PATH, `${STUB_PREFIX}${SOLDIER_PALETTES_PATH}`].find((p) => available.has(p));
-    const palettes = palettePath ? parseSoldierPalettes(await read(palettePath)) : null;
-    const structures = await loadAnimStructures(async (path) => (available.has(path) ? read(path) : null));
-    return new SoldierAssets(tables, palettes, structures, available, read);
+    const [controls, surfaces, palettes, structures] = await Promise.all([
+      json(ANIM_CONTROL_PATH),
+      json(ANIM_SURFACES_PATH),
+      palettePath ? read(palettePath).then(parseSoldierPalettes) : null,
+      loadAnimStructures(async (path) => (available.has(path) ? read(path) : null)),
+    ]);
+    return new SoldierAssets(parseAnimationTables(controls, surfaces), palettes, structures, available, read);
   }
 
   #surfaceFor(view: SoldierView, state: number): number {

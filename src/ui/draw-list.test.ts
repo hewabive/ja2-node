@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DrawList, LOW_PERCENT_SHADOW_FACTOR, rgb, SHADOW_FACTOR } from './draw-list.ts';
+import { DrawList, LOW_PERCENT_SHADOW_FACTOR, rgb, SHADOW_FACTOR, sameDrawItems } from './draw-list.ts';
 
 describe('the draw list', () => {
   it('keeps the original fill as right/bottom exclusive and shadows, hatches as inclusive rectangles', () => {
@@ -67,5 +67,28 @@ describe('the draw list', () => {
       { kind: 'rectangle', x1: 1, y1: 2, x2: 3, y2: 4, color: 7 },
       { kind: 'line', x1: 5, y1: 6, x2: 9, y2: 6, color: 8 },
     ]);
+  });
+});
+
+describe('comparing two frames of draw items', () => {
+  const frame = (shift = 0, foreground = 208): DrawList => {
+    const list = new DrawList();
+    list.fill(0, 0, 640, 480, rgb(16, 18, 24));
+    list.image('interface/a.sti', 3, 10 + shift, 20, { shade: { red: 1, green: 1, blue: 1, mono: false } });
+    list.glyphs('font10arial', [{ index: 33, x: 4, y: 5 }], { foreground, shadow: 2, background: 0 });
+    return list;
+  };
+
+  it('finds two frames built the same way equal, though every item is a new object', () => {
+    expect(sameDrawItems(frame().items, frame().items)).toBe(true);
+  });
+
+  it('tells frames apart by a moved image, a glyph colour, an added item or a different order', () => {
+    expect(sameDrawItems(frame().items, frame(1).items)).toBe(false);
+    expect(sameDrawItems(frame().items, frame(0, 209).items)).toBe(false);
+    const longer = frame();
+    longer.fill(1, 1, 2, 2, 0);
+    expect(sameDrawItems(frame().items, longer.items)).toBe(false);
+    expect(sameDrawItems(frame().items, [...frame().items].reverse())).toBe(false);
   });
 });

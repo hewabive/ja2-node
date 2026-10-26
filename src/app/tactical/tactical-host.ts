@@ -80,6 +80,8 @@ export class TacticalHost {
   readonly #frameTimes = new TimeSamples();
   readonly #worldTimes = new TimeSamples();
   #frames: SoldierFrames | null = null;
+  #knowledge: ClientKnowledge | null = null;
+  #knowledgeOpening: Promise<void> | null = null;
   #loaded: Loaded | null = null;
   #loading: Promise<void> | null = null;
   #screen: TacticalScreen | null = null;
@@ -104,15 +106,11 @@ export class TacticalHost {
     });
     const params = new URLSearchParams(location.search);
     const shadow = params.get(SHADOW_HINTS_PARAM) === '1';
-    let knowledge: ClientKnowledge | null = null;
-    this.#hints = new HintProvider({ channel: options.session, knowledge: () => knowledge, now: () => performance.now(), shadow });
+    this.#hints = new HintProvider({ channel: options.session, knowledge: () => this.#knowledge, now: () => performance.now(), shadow });
     this.#hintHook = createHintHook(this.#hints);
     attachHintHook(this.#hintHook);
     this.#client = new SessionTacticalClient(options.session, this.#hints, params.get(DRIVE_PARAM) === MANUAL_DRIVE);
     this.#random = new ClientRandom(seedFromText(options.session.session ?? 'tactical'));
-    void this.#openKnowledge().then((k) => {
-      knowledge = k;
-    });
     this.hook = this.#createHook();
     attachTacticalHook(options.page.hook, this.hook);
   }
@@ -133,6 +131,12 @@ export class TacticalHost {
   get stale(): boolean {
     const mapPath = this.#o.session.view?.mapPath ?? null;
     return this.#loaded !== null && mapPath !== null && this.#loaded.presenter.mapPath !== mapPath;
+  }
+
+  #openKnowledgeOnce(): void {
+    this.#knowledgeOpening ??= this.#openKnowledge().then((knowledge) => {
+      this.#knowledge = knowledge;
+    });
   }
 
   async #openKnowledge(): Promise<ClientKnowledge | null> {
@@ -232,6 +236,7 @@ export class TacticalHost {
       });
     });
     this.#loaded = { presenter, media: loadedMedia.store, layouts, uiCursors };
+    this.#openKnowledgeOnce();
     this.hook.map = mapPath;
     this.hook.error = null;
     this.hook.loadMs = { total: Math.round(performance.now() - started), sincePageStart: Math.round(performance.now()), phases };

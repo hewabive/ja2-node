@@ -201,3 +201,19 @@ export class DrawList {
     return this.#clipDepth;
   }
 }
+
+function samePlainData(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((value, i) => samePlainData(value, b[i]));
+  }
+  const left = a as Readonly<Record<string, unknown>>;
+  const right = b as Readonly<Record<string, unknown>>;
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length && keys.every((key) => samePlainData(left[key], right[key]));
+}
+
+export function sameDrawItems(a: readonly DrawItem[], b: readonly DrawItem[]): boolean {
+  return a.length === b.length && a.every((item, i) => samePlainData(item, b[i]));
+}

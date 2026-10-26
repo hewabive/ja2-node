@@ -1,7 +1,7 @@
 import { createContext } from '../../render/gl.ts';
 import { LogicalFramebuffer } from '../../render/ui-draw/logical-framebuffer.ts';
-import { UiRenderer } from '../../render/ui-draw/ui-renderer.ts';
-import { DrawList } from '../../ui/draw-list.ts';
+import { type UiDrawStats, UiRenderer } from '../../render/ui-draw/ui-renderer.ts';
+import { type DrawItem, DrawList, sameDrawItems } from '../../ui/draw-list.ts';
 import type { UiInputEvent } from '../../ui/input/events.ts';
 import { type Resolution, resolveResolution, type ScaleSetting } from '../../ui/resolution.ts';
 import type { UiRuntime } from '../../ui/runtime.ts';
@@ -20,6 +20,20 @@ const CONTEXT_OPTIONS: WebGLContextAttributes = {
   premultipliedAlpha: false,
   preserveDrawingBuffer: false,
 };
+const LONGEST_UNDRAWN_MS = 500;
+
+interface DrawnFrame {
+  readonly items: readonly DrawItem[];
+  readonly resolution: Resolution;
+  readonly canvasWidth: number;
+  readonly canvasHeight: number;
+  readonly stats: UiDrawStats;
+  readonly at: number;
+}
+
+function sameResolution(a: Resolution, b: Resolution): boolean {
+  return (Object.keys(a) as (keyof Resolution)[]).every((key) => a[key] === b[key]);
+}
 
 export interface WorldLayer {
   draw(target: WebGLFramebuffer, width: number, height: number): void;
@@ -41,6 +55,7 @@ export class GamePage {
   #resolution: Resolution;
   #lastNow: number | null = null;
   #runtime: UiRuntime | null = null;
+  #drawn: DrawnFrame | null = null;
 
   constructor(canvas: HTMLCanvasElement, setting: ScaleSetting) {
     this.canvas = canvas;
@@ -111,6 +126,24 @@ export class GamePage {
       this.#fallbackHost.update(now);
       this.#fallbackHost.render(this.#list);
     }
+    const stats = this.#stillShown(started) ?? this.#draw(started);
+    const ms = performance.now() - started;
+    this.#frameTimes.add(ms);
+    this.#report(stats);
+    this.frameListener?.(ms);
+  }
+
+  #stillShown(now: number): UiDrawStats | null {
+    const drawn = this.#drawn;
+    if (!drawn || now - drawn.at > LONGEST_UNDRAWN_MS) return null;
+    if (this.world && this.host.screen?.drawsWorld) return null;
+    if (drawn.stats.missingImages.length > 0 || drawn.stats.missingFonts.length > 0) return null;
+    if (drawn.canvasWidth !== this.canvas.width || drawn.canvasHeight !== this.canvas.height) return null;
+    if (!sameResolution(drawn.resolution, this.#resolution)) return null;
+    return sameDrawItems(drawn.items, this.#list.items) ? drawn.stats : null;
+  }
+
+  #draw(now: number): UiDrawStats {
     const { logicalWidth, logicalHeight } = this.#resolution;
     this.#framebuffer.begin();
     if (this.world && this.host.screen?.drawsWorld) {
@@ -119,10 +152,15 @@ export class GamePage {
     }
     const stats = this.renderer.draw(this.#list.items, logicalWidth, logicalHeight);
     this.#framebuffer.present(this.#resolution, this.canvas.width, this.canvas.height);
-    const ms = performance.now() - started;
-    this.#frameTimes.add(ms);
-    this.#report(stats);
-    this.frameListener?.(ms);
+    this.#drawn = {
+      items: [...this.#list.items],
+      resolution: this.#resolution,
+      canvasWidth: this.canvas.width,
+      canvasHeight: this.canvas.height,
+      stats,
+      at: now,
+    };
+    return stats;
   }
 
   #reportSession(hook: UiHook): void {
