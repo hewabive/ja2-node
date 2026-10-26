@@ -411,7 +411,7 @@ export class TacticalSim {
     const t = this.state;
     if (t.turn.attackBusyCount > 0 || t.bullets.length > 0 || t.gameEvents.length > 0 || explosivesBusy(t.explosives)) return false;
     if (t.actionItems.active) return false;
-    if (t.mercsWaiting || t.boxing.uiLocked) return false;
+    if (t.mercsWaiting || t.boxing.uiLocked || t.turn.enemySightingOnTheirTurn) return false;
     if (t.inCombat && t.turn.currentTeam !== Team.OUR) return false;
     return !teamMembers(t, Team.OUR).some((s) => this.isBusy(s));
   }

@@ -832,7 +832,10 @@ When an OUR radioer reveals an enemy while `currentTeam != OUR` (`OppList.cc:258
 `pauseAllAnimation` (all his frames stop, `Overhead.cc:685`). While set: every `HandleSoldierAI` returns, and any
 soldier reaching a tile centre is halted with NoAP (`Overhead.cc:1853-1858`). After 3000 ms (`GameScreen.cc:310-326`):
 if `currentTeam != OUR` clear that enemy's NoAP; clear `pauseAllAnimation` and the flag. An interrupt at that enemy's
-tile ends the pause early (§4.10). Our merc is halted too (`OurTeamSeesSomeone` → `HaultSoldierFromSighting`, which in
+tile ends the pause early (§4.10). The original's clock keeps running while the player decides, so the pause also
+ends during our interrupt; here the simulation is not idle while the flag is set, so an `advance` to idle and the
+real-time driver run the 3000 ms out before they stop for the interrupt decision (otherwise every step of a merc
+ordered during that interrupt would halt at the next tile centre). Our merc is halted too (`OurTeamSeesSomeone` → `HaultSoldierFromSighting`, which in
 combat sets NoAP with `STOPPED_SIGHT`, cancels turn-to-shoot and pending actions, `Soldier_Control.cc:7271-7368`).
 
 ### 6.10 RNG consumers in the TB loop

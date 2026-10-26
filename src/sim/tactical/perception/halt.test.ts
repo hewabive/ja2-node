@@ -12,6 +12,7 @@ import { AimShot, Special } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { NO_PENDING_ANIMATION, type Soldier, Team } from '../soldier.ts';
+import { ENEMY_SIGHTING_PAUSE_MS } from '../turns/turns.ts';
 import { Opp } from './opp.ts';
 import { haltFromSighting } from './wiring.ts';
 
@@ -119,5 +120,29 @@ describe('the enemy sighting pause on their turn', () => {
     expect(merc.noAPToFinishMove).toBe(false);
     expect(animName(content, merc.state)).not.toBe('FALLBACK_HIT_STAND');
     expect(t.turn.attackBusyCount).toBe(0);
+  });
+
+  it('keeps time running until the pause is over, so a merc it halted on our turn goes on when continued', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 88), Direction.NORTH);
+    sim.lookAround();
+    expect(t.turn.currentTeam).toBe(Team.OUR);
+    const since = t.clockMs;
+    t.turn.enemySightingOnTheirTurn = { enemy, since };
+    enemy.pauseAllAnimation = true;
+    expect(sim.isIdle()).toBe(false);
+    const to = gridNo(84, 80);
+    expect(sim.dispatch({ type: 'move', soldier: merc.id, to, mode: 'run' }).ok).toBe(true);
+    runUntilIdle(sim);
+    expect(t.turn.enemySightingOnTheirTurn).toBeNull();
+    expect(t.clockMs - since).toBeGreaterThan(ENEMY_SIGHTING_PAUSE_MS);
+    expect(enemy.pauseAllAnimation).toBe(false);
+    expect(merc.noAPToFinishMove).toBe(true);
+    expect(merc.gridNo).not.toBe(to);
+    expect(sim.dispatch({ type: 'move', soldier: merc.id, to, mode: 'run' }).ok).toBe(true);
+    runUntilIdle(sim);
+    expect(merc.gridNo).toBe(to);
   });
 });
