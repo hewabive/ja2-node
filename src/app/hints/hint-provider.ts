@@ -216,18 +216,18 @@ export class HintProvider implements GameClient {
       this.#cache.set(key, { answer, source: 'local' });
       return { state: 'ready', answer, source: 'local' };
     }
-    this.#askServer(request, key, view);
+    this.#askServer(request, key);
     return PENDING_HINT;
   }
 
-  #askServer(request: CommandEnvelope, key: string, view: PlayerView): void {
+  #askServer(request: CommandEnvelope, key: string): void {
     if (this.#inflight.has(key)) return;
     this.#inflight.add(key);
     this.#server++;
     this.#options.channel.query(request).then(
       (reply) => {
         this.#inflight.delete(key);
-        if (this.#cachedFor === view) this.#cache.set(key, { answer: plain(reply), source: 'server' });
+        if (this.#view()) this.#cache.set(key, { answer: plain(reply), source: 'server' });
       },
       () => this.#inflight.delete(key),
     );
@@ -243,6 +243,11 @@ export class HintProvider implements GameClient {
     return answer;
   }
 
+  #localAnswerAt(request: CommandEnvelope, view: PlayerView): HintAnswer | null {
+    const knowledge = this.#knowledgeFor(view);
+    return knowledge ? plain(answerHint(this.#worldOf(view, knowledge.rules), request)) : null;
+  }
+
   #worldOf(view: PlayerView, rules: KnowledgeRules): KnowledgeWorld {
     const cached = this.#world;
     if (cached && cached.view === view && cached.rules === rules) return cached.world;
@@ -253,10 +258,12 @@ export class HintProvider implements GameClient {
     return world;
   }
 
-  #compareWithServer(request: CommandEnvelope, view: PlayerView, local: HintAnswer): void {
+  #compareWithServer(request: CommandEnvelope, asked: PlayerView, askedAnswer: HintAnswer): void {
     this.#options.channel.query(request).then(
       (server) => {
-        if (server.tick !== view.tick) {
+        const view = this.#options.channel.latestView;
+        const local = view === asked ? askedAnswer : view ? this.#localAnswerAt(request, view) : null;
+        if (!view || !local) {
           this.#shadowStale++;
           return;
         }

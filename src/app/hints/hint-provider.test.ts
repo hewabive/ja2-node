@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { type ClientSide, clientSide, type HintSources, serialisedView, withQueries } from '../../../tests/support/hints.ts';
+import { type ClientSide, clientAnswer, clientSide, type HintSources, serialisedView, withQueries } from '../../../tests/support/hints.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
 import type { CommandEnvelope } from '../../protocol/messages.ts';
 import type { PlayerView } from '../../protocol/view.ts';
@@ -100,17 +100,48 @@ describe('local hint provider', () => {
   );
 
   it(
-    'reports a difference and skips answers computed on another tick',
+    'reports a difference',
     async () => {
       const tampered = channel(async (q) => ({ ...(await session.query(q)), ok: false }));
       const provider = new HintProvider({ channel: tampered, knowledge: () => knowledge(), now: () => 0, shadow: true });
       await provider.hintNow(moveRequest());
       await vi.waitFor(() => expect(provider.stats.mismatchCount).toBe(1));
       expect(provider.stats.mismatches[0]?.request).toEqual(moveRequest());
-      const stale = channel(async (q) => ({ ...(await session.query(q)), tick: view.tick + 10 }));
-      const later = new HintProvider({ channel: stale, knowledge: () => knowledge(), now: () => 0, shadow: true });
-      await later.hintNow(moveRequest());
-      await vi.waitFor(() => expect(later.stats).toMatchObject({ shadowStale: 1, shadowCompared: 0, mismatchCount: 0 }));
+    },
+    SLOW_MS,
+  );
+
+  it(
+    'compares a reply with the view held when it arrives, and counts it stale when that view cannot be answered locally',
+    async () => {
+      const q = moveRequest();
+      const moved: PlayerView = {
+        ...view,
+        soldiers: view.soldiers.map((s) => (s.id === q.soldier ? { ...s, gridNo: s.gridNo + 1 } : s)),
+      };
+      expect(JSON.stringify(clientAnswer(client, moved, q))).not.toBe(JSON.stringify(clientAnswer(client, view, q)));
+      const arriving = (held: PlayerView, heldAnswerable: boolean) => {
+        const ch = {
+          latestView: view,
+          query: async (r: CommandEnvelope): Promise<QueryReply> => {
+            ch.latestView = held;
+            return { ...clientAnswer(client, held, r), tick: held.tick };
+          },
+        };
+        const has = () => ch.latestView !== held || heldAnswerable;
+        return new HintProvider({
+          channel: ch,
+          knowledge: () => ({ ...knowledge(), worlds: { has, ensure: async () => {} } }),
+          now: () => 0,
+          shadow: true,
+        });
+      };
+      const fresh = arriving(moved, true);
+      await fresh.hintNow(q);
+      await vi.waitFor(() => expect(fresh.stats).toMatchObject({ shadowCompared: 1, mismatchCount: 0, shadowStale: 0 }));
+      const unanswerable = arriving(moved, false);
+      await unanswerable.hintNow(q);
+      await vi.waitFor(() => expect(unanswerable.stats).toMatchObject({ shadowStale: 1, shadowCompared: 0, mismatchCount: 0 }));
     },
     SLOW_MS,
   );

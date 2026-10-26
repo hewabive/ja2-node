@@ -319,7 +319,9 @@ server-only answers above, for the client's fallback and for verification:
 the serialised view alone) and on the server side over thousands of sampled points and compare; (2) in tests the
 projection fills every field the view does not supply with a value that throws when read, so a hint function that reads
 hidden state fails at once; (3) a **shadow mode** (developer setting, on in e2e) sends every local hint to the server
-as well and reports any difference; (4) the view must carry every input a hint reads (§12.1).
+as well and reports any difference, comparing the reply with the local answer over the view the client holds when the
+reply arrives, the very view the server answered over (`docs/04` §6.35); (4) the view must carry every input a hint
+reads (§12.1).
 
 Hint kinds (the screen sections name them; "query" there means the same kind, wherever it is computed):
 

@@ -14,7 +14,7 @@ import {
   type WelcomeMessage,
 } from '../protocol/messages.ts';
 import { initialMusic, type MusicFacts, type MusicState, musicMode, musicView } from '../protocol/music.ts';
-import { diffPlayerView, type PlayerView, type ViewFrame } from '../protocol/view.ts';
+import { applyViewFrame, diffPlayerView, type PlayerView, type ViewFrame } from '../protocol/view.ts';
 import { AdvanceRun, type PauseCheck, type Steppable, type StopCondition, type StopReport } from '../sim/advance.ts';
 import { TICK_MS } from '../sim/clock.ts';
 import type { CommandResult } from '../sim/command.ts';
@@ -24,7 +24,7 @@ import type { TacticalContent } from '../sim/tactical/content.ts';
 import { type AnchoredView, keepPredictableFrames } from './frame-anchors.ts';
 import { type InputEntry, InputLog, type LoadPayload, type LogOrigin, UNKNOWN_ORIGIN } from './input-log.ts';
 import { gameSavedEntry, type MessageFacts, messageEntriesOf, NO_MESSAGE_FACTS, refusalEntry } from './message-entries.ts';
-import type { QueryAnswer, QueryService } from './query.ts';
+import type { QueryAnswer, QueryService, QuerySubject } from './query.ts';
 import { NEVER_DUE, type Slicer, UNSLICED } from './slicing.ts';
 
 export const FRAME_TICKS = 10;
@@ -109,6 +109,7 @@ export class Session {
   #lastRealtime = 0;
   #carryMs = 0;
   #lastView: PlayerView;
+  #sentView: PlayerView;
   #shownTick: number;
   #music: MusicState;
   #fastFade = false;
@@ -134,6 +135,7 @@ export class Session {
     this.#followMusic(created);
     this.#followMessages(created);
     this.#lastView = this.#view();
+    this.#sentView = this.#lastView;
     this.#shownTick = this.#lastView.tick;
   }
 
@@ -213,19 +215,20 @@ export class Session {
   }
 
   subscribe(listener: Listener): () => void {
-    const welcome = this.#welcome();
+    const welcome = this.#welcome(this.listening ? this.#sentView : this.#view());
     if (!this.listening) this.#lastView = welcome.view;
+    this.#sentView = welcome.view;
     this.#shownTick = welcome.view.tick;
     this.#listeners.add(listener);
     listener(welcome);
     return () => this.#listeners.delete(listener);
   }
 
-  #welcome(): WelcomeMessage {
+  #welcome(view: PlayerView): WelcomeMessage {
     return {
       t: 'welcome',
       session: this.id,
-      view: this.#view(),
+      view,
       driver: this.#driver,
       messages: this.#messages,
       ...(this.#campaign ? { campaign: this.#campaign } : {}),
@@ -239,6 +242,7 @@ export class Session {
 
   #publish(frames: ViewFrame[]): void {
     if (!this.listening) return;
+    for (const frame of frames) this.#sentView = applyViewFrame(this.#sentView, frame);
     for (let i = 0; i < frames.length; i += MAX_FRAMES_PER_MESSAGE)
       this.#broadcast({ t: 'frames', frames: frames.slice(i, i + MAX_FRAMES_PER_MESSAGE) });
   }
@@ -411,14 +415,22 @@ export class Session {
   async query(q: CommandEnvelope): Promise<QueryAnswer> {
     const queries = this.queries;
     if (!queries) return { ok: false, reason: 'queries are not available', data: { refusal: 'noQueries' }, tick: this.#sim.tick };
-    await queries.prepare(this.#sim);
-    const answer = queries.answer(this.#sim, q);
-    return { ...answer, tick: this.#answerTick(answer.tick) };
+    await queries.prepare(this.#querySubject());
+    return queries.answer(this.#querySubject(), q);
   }
 
-  #answerTick(current: number): number {
-    if (!this.listening || diffPlayerView(this.#lastView, this.#anchored(this.#view()).view) !== null) return current;
-    return this.#shownTick;
+  #querySubject(): QuerySubject {
+    if (!this.listening) return this.#sim;
+    const held = (): PlayerView => this.#sentView;
+    return {
+      get tick() {
+        return held().tick;
+      },
+      view: held,
+      dispatch: (cmd) => this.#sim.dispatch(cmd),
+      tacticalContent: () => this.#sim.tacticalContent?.() ?? null,
+      strategicRules: () => this.#sim.strategicRules?.() ?? null,
+    };
   }
 
   reseed(seed: number, apply: () => void): void {
@@ -494,8 +506,9 @@ export class Session {
     this.#campaign = campaign;
     this.#fastFade = false;
     this.restoreMessages(messages);
-    const welcome = this.#welcome();
+    const welcome = this.#welcome(this.#view());
     this.#lastView = welcome.view;
+    this.#sentView = welcome.view;
     this.#shownTick = welcome.view.tick;
     if (wasRunning) this.#broadcast({ t: 'stopped', id: LOADED_STOP_ID, report: this.#loadedStop() });
     this.#broadcast(welcome);

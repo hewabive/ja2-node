@@ -1349,7 +1349,7 @@ soon as it is ready, outside the ordered reply chain of commands. `isQueryComman
 `dryRun: true`, and the server-only kinds) also routes a query that arrives as a command (MCP `act`, WebSocket `cmd`)
 to the same path, so agents keep queries as `act` commands and get the projection's answer; replaying an old input log
 that holds a query still dispatches it to the simulation (`estimateAttack` is gone from `TacticalSim` and is refused
-there). The answer's `tick` names the view it was computed on (§6.35). `Session.queries` is a `QueryService`
+there). The answer's `tick` names the view it was computed on (§6.35): with viewers, the view they hold. `Session.queries` is a `QueryService`
 (`src/server/query.ts`, attached by the session factory) that keeps a fresh copy of the loaded map's world inputs for
 the projection (two maps) and the knowledge rules per content; the server builds the projection per query.
 
@@ -1367,7 +1367,7 @@ pack and scripts hashes equal `welcome`'s. `HintProvider` (implementing `GameCli
 once the request has rested 80 ms (`PATHFIND_REST_MS`, per hint kind), caches them per view, builds the projection once
 per view, and falls back to the query channel when the knowledge is unusable or the map is not loaded yet. In **shadow
 mode** (`?shadowHints=1` on the devtools tactical page, on in e2e) it sends every local hint to the server as well and
-counts compared, stale (another tick) and differing answers; `window.__ja2Ui.hints` exposes the statistics, including
+counts compared, stale (the view held when the reply arrives cannot be answered locally; before 2026-10-26: another tick) and differing answers; `window.__ja2Ui.hints` exposes the statistics, including
 the latency of hints and of projection builds.
 
 ### 6.27. The world view (M8, U4b)
@@ -1708,6 +1708,21 @@ the tick of the view its viewers hold (the last frame sent, or the welcome) when
 view it captured for them (`diffPlayerView` finds nothing), and with the current tick otherwise: the answer is computed
 on the current view either way, and equal views give equal answers. Without viewers, or after a change not yet captured
 into a frame, nothing changes. `session.test.ts` covers the three cases.
+
+**Answers over the view the viewers hold (2026-10-26).** A tick does not name a view: while time stands (a pre-battle
+prompt, a conversation, a decision) commands change the view without a step, so several frames can share a tick, and
+an answer tagged with that tick could describe another of them (the shadow mode reported `decisionPending` against a
+prompt the client had not yet received). The session now keeps `sentView`, the welcome with every published frame
+applied (`applyViewFrame`, the client's own function), and while it has viewers it answers every query over that view
+rather than the simulation's current one; the welcome of a later viewer is `sentView` too. Frames and answers reach a
+client over one ordered socket, and the client applies a frame to its latest view on receipt, so when an answer arrives
+the client holds exactly the view it was computed on. The shadow mode therefore compares a reply with the local answer
+on the latest view at the moment the reply arrives (recomputed when the view changed since it asked), and a server
+answer used while the local knowledge is not ready is cached under that view. An answer can thus be at most one capture
+(50 ms) behind the simulation; queries without viewers (MCP-only sessions) keep the current view. The answer's `tick` is
+the held view's, for information. `session.test.ts` checks that an answer equals the view rebuilt from the messages
+before it, also after a change not yet framed and for two commands at one tick, and that a later viewer is welcomed with
+the same view.
 
 **Test switches of the game page** (URL parameters, like `pinClock`): `holdTime=1` keeps the map screen from starting
 game time by itself (`SessionMapClient` never drives; explicit `advance` still works), so a map golden does not depend on

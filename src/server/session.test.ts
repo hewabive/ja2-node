@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ServerMessage } from '../protocol/messages.ts';
-import { applyFrame, type SoldierView } from '../protocol/view.ts';
+import { applyFrame, applyViewFrame, type PlayerView, type SoldierView } from '../protocol/view.ts';
 import type { SimEvent } from '../sim/events.ts';
 import type { QueryService } from './query.ts';
 import { FRAME_TICKS, Session, type SessionSim } from './session.ts';
@@ -53,10 +53,19 @@ function walker(): SessionSim & { target: number } {
   return sim;
 }
 
-const ANSWER_AT_SIM_TICK = {
+const ANSWER_WITH_ITS_VIEW = {
   prepare: async () => {},
-  answer: (subject: SessionSim) => ({ ok: true, tick: subject.view().tick }),
+  answer: (subject: SessionSim) => ({ ok: true, data: JSON.parse(JSON.stringify(subject.view())), tick: subject.view().tick }),
 } as unknown as QueryService;
+
+function heldView(messages: readonly ServerMessage[]): PlayerView | null {
+  let view: PlayerView | null = null;
+  for (const m of messages) {
+    if (m.t === 'welcome') view = m.view;
+    if (m.t === 'frames' && view) for (const frame of m.frames) view = applyViewFrame(view, frame);
+  }
+  return view ? JSON.parse(JSON.stringify(view)) : null;
+}
 
 function lastShownTick(messages: readonly ServerMessage[]): number {
   let tick = -1;
@@ -84,22 +93,34 @@ describe('session', () => {
     expect(session.dispatch({ type: 'fly' })).toMatchObject({ ok: false });
   });
 
-  it('answers a query with the tick of the view its viewers hold while the view has not changed since', async () => {
+  it('answers a query over the view its viewers hold: the welcome and every frame sent before the answer', async () => {
     const sim = walker();
     const session = new Session('s1q', sim);
-    session.queries = ANSWER_AT_SIM_TICK;
+    session.queries = ANSWER_WITH_ITS_VIEW;
     expect((await session.query({ type: 'previewMove' })).tick).toBe(0);
     const messages: ServerMessage[] = [];
     session.subscribe((m) => messages.push(m));
+    const answeredOver = async () => {
+      const answer = await session.query({ type: 'previewMove' });
+      expect(answer.data).toEqual(heldView(messages));
+      return answer;
+    };
     session.dispatch({ type: 'walk', to: 13 });
     session.advance({ idle: true });
     session.advance({ ticks: 25 });
     expect(sim.tick).toBe(38);
     expect(lastShownTick(messages)).toBe(13);
-    expect((await session.query({ type: 'previewMove' })).tick).toBe(13);
+    expect((await answeredOver()).tick).toBe(13);
     session.dispatch({ type: 'walk', to: 14 });
     sim.step();
-    expect((await session.query({ type: 'previewMove' })).tick).toBe(39);
+    expect((await answeredOver()).tick).toBe(13);
+    const pending = answeredOver();
+    session.dispatch({ type: 'walk', to: 20 });
+    session.dispatch({ type: 'walk', to: 21 });
+    await pending;
+    const late: ServerMessage[] = [];
+    session.subscribe((m) => late.push(m));
+    expect(heldView(late)).toEqual(heldView(messages));
   });
 
   it('runs real time at the chosen speed', () => {
