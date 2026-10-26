@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { SYNTHETIC_SAVE_SECTOR, SYNTHETIC_SAVE_VERSION, writeSyntheticSaveHeader } from '../../../tests/support/native-save.ts';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { FormatError } from '../binary/errors.ts';
 import { BinaryWriter } from '../binary/writer.ts';
 import { PROFILE_RECORD_BYTES } from './prof.ts';
@@ -368,11 +369,11 @@ describe('parseSaveGame on a synthetic save', () => {
   });
 });
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const savesDir = join(dirname(dataDir), 'SavedGames');
 const saveFiles = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter((f) => f.toLowerCase().endsWith('.sav')) : [];
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('native savegames next to the original data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('native savegames next to the original data', () => {
   it('finds saves', () => {
     expect(saveFiles.length).toBeGreaterThan(0);
   });

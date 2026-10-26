@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
 import { loadUiStrings } from '../content/text/strings.ts';
 import { vfsFileReader } from '../content/vfs/vfs.ts';
@@ -9,7 +10,7 @@ import { mailSpec, sender } from '../sim/campaign/laptop/mail.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const SEED = 7;
 
 describe.skipIf(!dataDir)('the laptop texts on the original data', () => {

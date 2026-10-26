@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { openDataVfs } from '../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
@@ -123,11 +124,11 @@ describe('graphic facts', () => {
   );
 });
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('graphic facts on the original data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('graphic facts on the original data', () => {
   it(
     'give the original tilesets the geometry their pictures have',
     async () => {
-      const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: process.env.JA2_DATA_DIR });
+      const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
       try {
         expect(await expectSameGeometry(vfsFileReader(data.vfs), [''], 3)).toBeGreaterThan(100);
       } finally {

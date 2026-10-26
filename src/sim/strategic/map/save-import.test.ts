@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../../tests/support/original-data.ts';
 import { loadStrategicTestContent, testContext } from '../../../../tests/support/strategic.ts';
 import { parseSaveGame, type SaveGame } from '../../../content/formats/savegame.ts';
 import { parseSaveEncryptionTable } from '../../../content/formats/savegame-header.ts';
@@ -158,11 +159,11 @@ describe('importStrategicMap on a synthetic save', () => {
   });
 });
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const savesDir = join(dirname(dataDir), 'SavedGames');
 const saveFiles = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter((f) => f.toLowerCase().endsWith('.sav')) : [];
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('importStrategicMap on the native saves', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('importStrategicMap on the native saves', () => {
   const encryption = parseSaveEncryptionTable(
     JSON.parse(readFileSync(join(import.meta.dirname, '../../../../data/tables/save-encryption.json'), 'utf8')),
   );

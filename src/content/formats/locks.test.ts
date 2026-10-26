@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { openDataVfs } from '../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
 import { decodeLockTable, encodeLockTable, LOCK_RECORD_BYTES, LOCKS_PATH, LockType, NUM_LOCKS, parseStubLockTable } from './locks.ts';
@@ -22,9 +23,9 @@ describe('lock table', () => {
   });
 });
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('original Locks.bin', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('original Locks.bin', () => {
   it('loads 64 locks', async () => {
-    const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: process.env.JA2_DATA_DIR });
+    const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
     try {
       const bytes = await data.vfs.read(LOCKS_PATH);
       expect(decodeLockTable(bytes)).toHaveLength(NUM_LOCKS);

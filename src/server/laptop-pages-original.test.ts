@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
 import { FLORIST_BOUQUETS } from '../content/strategic/laptop-content.ts';
 import { loadUiStrings } from '../content/text/strings.ts';
@@ -10,7 +11,7 @@ import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
 import { HistoryCode } from './history-labels.ts';
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const SEED = 7;
 const ORIGINAL_TEST_TIMEOUT_MS = 120_000;
 const OMERTA = { x: 9, y: 1, z: 0 };

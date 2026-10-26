@@ -1,11 +1,8 @@
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MapFlags, parseMap } from '../../src/content/formats/map.ts';
 import { WORLD_COLS } from '../../src/content/world/grid.ts';
 import { Team } from '../../src/sim/tactical/soldier.ts';
-import { buildStubs } from '../../stubs/build.ts';
+import { sharedStubPackDir } from '../../tests/support/stub-pack.ts';
 import { ARENA_HEIGHT, ARENA_ORIGIN, ARENA_WIDTH, ArenaLayout, type ArenaSpec, generateArena } from './arena.ts';
 import { type BenchData, openBenchData } from './data.ts';
 import { createTacticalBench } from './tactical.ts';
@@ -31,18 +28,14 @@ const PATROL: ArenaSpec = {
   seed: 3,
 };
 
-let dir = '';
 let data: BenchData;
 
 beforeAll(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'ja2-bench-stubs-'));
-  await buildStubs(dir);
-  data = await openBenchData({ stubsDir: dir });
+  data = await openBenchData({ stubsDir: sharedStubPackDir() });
 });
 
 afterAll(async () => {
   await data.close();
-  await rm(dir, { recursive: true, force: true });
 });
 
 function insideArena(gridNo: number): boolean {

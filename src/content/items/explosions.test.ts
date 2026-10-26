@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { readDataJson } from '../../../tests/support/tactical.ts';
 import { openDataVfs } from '../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
@@ -39,9 +40,9 @@ describe('explosion content', () => {
   });
 });
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('explosion graphics from the original data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('explosion graphics from the original data', () => {
   it('reach the damage frame on land and never in water', async () => {
-    const d = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: process.env.JA2_DATA_DIR });
+    const d = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
     try {
       const loaded = await loadExplosionContent(withGraphicFacts(vfsFileReader(d.vfs)));
       for (const a of loaded.animations.values()) {

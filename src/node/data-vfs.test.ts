@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { writeSlf } from '../content/formats/slf.ts';
 import { decodeSti } from '../content/formats/sti.ts';
 import { encodeVfsAliases, VFS_ALIASES_FILE } from '../content/vfs/aliases.ts';
@@ -95,9 +96,9 @@ describe('stub layer aliases', () => {
   });
 });
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('original game data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('original game data', () => {
   it('contains ja2bin.dat and decodes a merc sprite', async () => {
-    const d = await openDataVfs({ dataDir: process.env.JA2_DATA_DIR });
+    const d = await openDataVfs({ dataDir: ORIGINAL_DATA_DIR });
     try {
       expect(d.slfCount).toBeGreaterThanOrEqual(20);
       expect(d.vfs.stat('binarydata/ja2bin.dat')?.size).toBe(320 * 100 * 2);

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
 import { vfsFileReader } from '../content/vfs/vfs.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
@@ -17,7 +18,7 @@ import { profileSoldierCreate } from '../sim/tactical/narrative/profile-insertio
 import { firstFreeSoldierId, Team } from '../sim/tactical/soldier.ts';
 import { createSaveSession } from './save-session.ts';
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const gameRoot = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
 const save = join(gameRoot, 'SavedGames', 'SaveGame01.sav');
 const NEAR_SQUAD = 9037;
@@ -36,7 +37,7 @@ function addProfiledCivilian(c: CampaignSim, profile: number, at: number): numbe
   return s.id;
 }
 
-describe.skipIf(!process.env.JA2_DATA_DIR || !existsSync(save))('escorting the tourists on the original data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR || !existsSync(save))('escorting the tourists on the original data', () => {
   let data: DataVfs;
   const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
 

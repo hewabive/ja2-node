@@ -1,8 +1,8 @@
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { buildStubs } from '../../../stubs/build.ts';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
+import { sharedStubPackDir } from '../../../tests/support/stub-pack.ts';
 import { decodePcx } from '../../content/formats/pcx.ts';
 import { decodeSti } from '../../content/formats/sti.ts';
 import { type DataVersion, DEFAULT_VANILLA_VERSION, STUB_DATA_VERSION } from '../../content/text/data-version.ts';
@@ -125,18 +125,14 @@ describe('every layout of every skin', () => {
   });
 
   describe('on the stub pack', () => {
-    let dir: string;
     let data: DataVfs;
 
     beforeAll(async () => {
-      dir = await mkdtemp(join(tmpdir(), 'ja2-layout-stubs-'));
-      await buildStubs(dir);
-      data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: dir });
+      data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: sharedStubPackDir() });
     });
 
     afterAll(async () => {
       await data.close();
-      await rm(dir, { recursive: true, force: true });
     });
 
     it('resolves every asset, frame and EDT file', async () => {
@@ -154,12 +150,12 @@ describe('every layout of every skin', () => {
   });
 });
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('every original layout on the original data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('every original layout on the original data', () => {
   let data: DataVfs;
   let models: LayoutModel[];
 
   beforeAll(async () => {
-    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: process.env.JA2_DATA_DIR });
+    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
     models = (await loadAll(DEFAULT_VANILLA_VERSION)).filter((m) => m.json['@derived'] !== undefined);
   });
 

@@ -1,5 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type MapDef, parseMap } from '../src/content/formats/map.ts';
@@ -11,7 +10,7 @@ import { STUB_FALLBACK_MAP, STUB_MAPS_DIR, sectorMapPath, withSectorExitGrids } 
 import { WORLD_COLS } from '../src/content/world/grid.ts';
 import { type DataVfs, openDataVfs } from '../src/node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
-import { buildStubs } from './build.ts';
+import { sharedStubPackDir } from '../tests/support/stub-pack.ts';
 import { kindOfSector, loadSectorKinds, parseSectorName, type SectorKindTable, sectorMapFile } from './sector-kinds.ts';
 
 const BUILD_TIMEOUT_MS = 60_000;
@@ -35,19 +34,15 @@ function field(entry: unknown, key: string, what: string): unknown {
 }
 
 let table: SectorKindTable;
-let dir: string;
 let data: DataVfs;
 
 beforeAll(async () => {
   table = await loadSectorKinds();
-  dir = await mkdtemp(join(tmpdir(), 'ja2-kinds-'));
-  await buildStubs(dir);
-  data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: dir });
+  data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: sharedStubPackDir() });
 }, BUILD_TIMEOUT_MS);
 
 afterAll(async () => {
   await data.close();
-  await rm(dir, { recursive: true, force: true });
 });
 
 const exists = (path: string) => data.vfs.stat(path) !== undefined;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../../tests/support/original-data.ts';
 import { MapFlags, parseMap } from '../../../content/formats/map.ts';
 import { parseDetailedPlacement } from '../../../content/formats/placement.ts';
 import { openDataVfs } from '../../../node/data-vfs.ts';
@@ -8,9 +9,9 @@ import { loadMapSchedules, MAX_SCHEDULE_ACTIONS, ScheduleAction, UNSET_SCHEDULE_
 const LAST_ACTION = ScheduleAction.WAKE;
 const MINUTES_PER_DAY = 1440;
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('schedules of the original maps (docs/25 §5.1)', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('schedules of the original maps (docs/25 §5.1)', () => {
   it('load with ids 1..n and valid entries, and most scheduled placements link a schedule of their map', async () => {
-    const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: process.env.JA2_DATA_DIR });
+    const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
     try {
       const maps = data.vfs.list().filter((f) => f.path.startsWith('maps/') && f.path.endsWith('.dat'));
       expect(maps.length).toBeGreaterThan(0);

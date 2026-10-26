@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { fixedFont, originalFontSet, stubFontSet, uniformFont } from '../../../tests/support/ui-fonts.ts';
 import { DEFAULT_SHADOW, FontColor, NO_SHADOW } from '../../content/text/font-colors.ts';
 import { DrawList, type GlyphRunItem } from '../draw-list.ts';
@@ -256,10 +257,10 @@ describe('the stub fonts', () => {
   });
 });
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('the original fonts', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('the original fonts', () => {
   let fonts: FontSet;
   beforeAll(async () => {
-    fonts = await originalFontSet(process.env.JA2_DATA_DIR as string);
+    fonts = await originalFontSet(ORIGINAL_DATA_DIR);
   });
 
   it('load all sixteen and guard the glyph index against fonts with one glyph fewer', () => {

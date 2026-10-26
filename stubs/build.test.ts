@@ -30,6 +30,7 @@ import { PROJECT_DATA_DIR } from '../src/node/repo.ts';
 import { TextService } from '../src/server/text-service.ts';
 import { cursorFilePaths, cursorFramesUsed } from '../src/ui/cursors/cursor-table.ts';
 import { GENERIC_FACE, GENERIC_FACE_BODY_TYPES, genericFacePath } from '../src/ui/screens/tactical/generic-face.ts';
+import { sharedStubPackDir } from '../tests/support/stub-pack.ts';
 import { STUB_AMBIENT_ENTRIES, STUB_AMBIENT_ID } from './ambient.ts';
 import { stubSoundPaths } from './audio.ts';
 import { buildStubs } from './build.ts';
@@ -135,7 +136,7 @@ async function mediaFiles(root: string): Promise<string[]> {
 
 describe('stub pack', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
   it('builds deterministically', async () => {
-    const [a, b] = await Promise.all([build(), build()]);
+    const [a, b] = [sharedStubPackDir(), await build()];
     const content = (await Promise.all(CONTENT_DIRS.map((d) => filesUnder(a, d)))).flat();
     for (const f of [
       'soldier/capsule.png',
@@ -150,8 +151,7 @@ describe('stub pack', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
   });
 
   it('loads through the VFS into pictures', async () => {
-    const dir = await build();
-    const data = await openDataVfs({ stubsDir: dir });
+    const data = await openDataVfs({ stubsDir: sharedStubPackDir() });
     try {
       const manifests = data.vfs.list().filter((f) => f.path.endsWith(STUB_SPRITE_SUFFIX));
       expect(manifests.map((f) => f.path)).toContain(`${STUBS_PREFIX}/soldier/capsule${STUB_SPRITE_SUFFIX}`);
@@ -176,7 +176,7 @@ describe('stub media', { timeout: STUB_BUILD_TIMEOUT_MS }, () => {
   const stub = (path: string) => `${STUBS_PREFIX}/${path}`;
 
   beforeAll(async () => {
-    dir = await build();
+    dir = sharedStubPackDir();
     data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: dir });
   }, STUB_BUILD_TIMEOUT_MS);
   afterAll(async () => {

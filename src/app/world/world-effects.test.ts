@@ -1,8 +1,5 @@
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { buildStubs } from '../../../stubs/build.ts';
+import { sharedStubPackDir } from '../../../tests/support/stub-pack.ts';
 import { CORPSES_TABLE_PATH, parseCorpseTable } from '../../content/anim/corpses.ts';
 import { type DataVfs, openDataVfs } from '../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
@@ -44,7 +41,6 @@ class FakeSprites implements EffectSprites {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
 
 describe('corpses and smoke on the stub pack', () => {
-  let dir = '';
   let data: DataVfs;
   let effects: WorldEffects;
   let corpseType = 0;
@@ -53,9 +49,7 @@ describe('corpses and smoke on the stub pack', () => {
   let read: ReadVfsFile = async () => new Uint8Array();
 
   beforeAll(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'ja2-world-effects-'));
-    await buildStubs(dir);
-    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: dir });
+    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: sharedStubPackDir() });
     available = new Set(data.vfs.list().map((f) => f.path));
     read = async (path: string) => new Uint8Array(await data.vfs.read(path));
     effects = await WorldEffects.load(read, available, null);
@@ -66,7 +60,6 @@ describe('corpses and smoke on the stub pack', () => {
 
   afterAll(async () => {
     await data?.close();
-    if (dir) await rm(dir, { recursive: true, force: true });
   });
 
   it('draws a corpse at the start frame of its direction block and smoke with its own palette once the art has loaded', async () => {

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { NEVER_NEXT_FRAME, predictedFrameSlot } from '../content/anim/schedule-track.ts';
 import { type AnimationTimelines, requireAnimationTimelines, spriteFrameAt } from '../content/anim/timelines.ts';
@@ -143,12 +144,12 @@ describe('soldier frames the client predicts from the last sent frame', () => {
   });
 });
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('soldier frames the client predicts, on the original data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('soldier frames the client predicts, on the original data', () => {
   let data: DataVfs;
   const read: ReadFile = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
 
   beforeAll(async () => {
-    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: process.env.JA2_DATA_DIR ?? '' });
+    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
   }, SLOW_MS);
 
   afterAll(async () => {

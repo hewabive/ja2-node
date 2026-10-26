@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
 import { loadTestTimelines } from '../../../tests/support/tactical.ts';
 import { FIRE_WEAPON_OPCODE, stateTrack } from '../../content/anim/schedule-track.ts';
@@ -112,13 +113,13 @@ function shootAndFollow(
   return { checks, mismatches };
 }
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('soldier frames between the original and the stub scripts', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('soldier frames between the original and the stub scripts', () => {
   let data: DataVfs;
   let kit: StubSectorKit;
   const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
 
   beforeAll(async () => {
-    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: process.env.JA2_DATA_DIR });
+    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
     kit = await loadStubSectorKit();
   });
 

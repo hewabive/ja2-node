@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { PROFILES_PATH, parseProfiles } from '../content/formats/prof.ts';
 import { loadItemTable } from '../content/items/items.ts';
 import {
@@ -20,12 +21,12 @@ const HERVE = 151;
 const CARLO = 154;
 const GLOCK_17 = 1;
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('the profile and item catalogues on the original data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('the profile and item catalogues on the original data', () => {
   let data: DataVfs;
   let tables: ProfilePresentationTables;
 
   beforeAll(async () => {
-    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: process.env.JA2_DATA_DIR });
+    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
     tables = await loadProfilePresentationTables(vfsFileReader(data.vfs));
   });
   afterAll(async () => {

@@ -410,10 +410,11 @@ was stepped since the last reload, after every command, and after every `advance
 `ReloadingSession`; it records the raw JSON of every command result and drained event batch, and
 `expectReloadsInvisible(scenario)` runs a scenario plain and reloaded and compares the event log and the final snapshot
 byte for byte. The battle, shop, helicopter, meanwhile, creature, schedule, sector, talk, civilian quote, give,
-recruit, surrender, boxing, interrogation, endgame and shop-stub scenarios run that way; `JA2_RELOAD=1 pnpm test` reloads every test campaign
-and driven session after every input, and the whole suite passes. A test must look state up again after an input
-instead of holding objects across it, and `reloadPoint` belongs at input boundaries, not right after a direct flow call
-whose events still sit in a flow buffer.
+recruit, surrender, boxing, interrogation, endgame and shop-stub scenarios run that way; `pnpm test:reload`
+(`JA2_RELOAD=1` over the test files that import `tests/support/reload.ts`) reloads every test campaign and driven
+session after every input, and they all pass. A test must look state up again after an input instead of holding objects
+across it, and `reloadPoint` belongs at input boundaries, not right after a direct flow call whose events still sit in
+a flow buffer.
 
 *Measured* (2026-10-18, Node 24 on an 8-core desktop shared with other jobs; gzip is fflate's default level):
 
@@ -1831,6 +1832,44 @@ uploads `bench.jsonl` as the `bench` artifact. With one run there is no warm-up 
 are cold and only a smoke signal. Local runs compare against `.cache/bench/baseline.json` (written by
 `--save-baseline`, merged per scenario, variant and source) and print the change per metric (p50, p95, max, mean and
 the call counts).
+
+### 7.7 Test runs (2026-10-26)
+
+Measured on the development VM (8 cores) before this change, one full round took about 18.5 minutes: `pnpm check` 2.3,
+the unit suite again with `JA2_DATA_DIR` 4.3, again with `JA2_RELOAD=1` 4.5, oracle compare-all 1, `pnpm e2e` 3.4,
+`pnpm e2e:data` 1 and `pnpm e2e:browsers` 2. Three findings shaped the change:
+
+- **The stub pack was built about 110 times per unit run.** `loadStubSectorKit` and seven test files ran `buildStubs`
+  into their own temporary folder (1165 files, 17 MB, 1.5 s alone and 3.5 to 4 s under the parallel load); half of the
+  unit suite's time was spent in `beforeAll`. `tests/support/build-stub-pack.ts` (a `globalSetup`) now builds it once
+  per run, read-only (files 0444, folders 0555, so a test that writes into it fails at once), and
+  `sharedStubPackDir()` (`tests/support/stub-pack.ts`) hands the folder to the tests; the one test that changes a stub
+  file (`rule-pack.test.ts`, the cache) builds its own, and outside vitest (the e2e helpers that write saves through
+  `loadStubSectorKit`) `openStubPack()` builds a private one as before. The unit suite went from 133 to 104 s and from 800 to 544 s of
+  CPU; in CI it was 269 s on four cores.
+- **The two mode runs repeated the stub suite.** Of the 2746 tests a `JA2_DATA_DIR` run counts, 2447 are the stub
+  tests again; `JA2_RELOAD` changes only the files that import `tests/support/reload.ts`. Data tests read the folder
+  through `ORIGINAL_DATA_DIR` (`tests/support/original-data.ts`), so `pnpm test:data` is
+  `vitest related tests/support/original-data.ts` (49 files, 299 tests, 21 s instead of 258) and `pnpm test:reload` is
+  `JA2_RELOAD=1 vitest related tests/support/reload.ts` (48 files, 94 s instead of 273). `pnpm imports` refuses a
+  test-side file that names either variable outside its module, since `vitest related` would then miss it.
+  `sector-scenario.test.ts` is the long pole of the reload run (89 s, most of it encoding the campaign twice per
+  input).
+- **Not every gate concerns every change.** `pnpm gates` (`tools/gates.ts`) takes the files changed since the merge
+  base with the upstream branch (plus the working tree and untracked files) and runs the gates their area can affect,
+  in order: `check`, `data`, `reload`, `oracle`, `e2e`, `e2e:data`, `e2e:browsers`. The simulation, content, node and
+  server layers and `data/` select all but the browsers; protocol and stubs drop the oracle; the client layers (`ui`,
+  `render`, `audio`, `app`) select `check`, `data`, `e2e` and `e2e:data`; the canvas presentation (`src/app/game/`,
+  the logical framebuffer, `resolution.ts`, `index.html`, `vite.config.ts`, `tools/dev.ts`) adds `e2e:browsers`; a unit
+  test file selects the three unit gates; documentation selects nothing; a path no area names selects everything.
+  `check` and `reload` run without `JA2_DATA_DIR`, the data gates are skipped without it, `e2e:browsers` needs `DISPLAY`
+  or `xvfb-run`, and each gate writes `.cache/gates/<gate>.log`. CI still runs `pnpm check`, the e2e suite and the
+  browsers job on every push.
+
+In the e2e run the browser is the cost: of 953 s of CPU the Chrome GPU process (SwiftShader) takes 48 %, the renderer
+15 %, Playwright 9 %, the server 8 % and Vite 4 %. `--pool=threads` gained nothing (130 s); `--no-isolate` ran the unit
+suite in 95 s with every test passing but was left out, since state shared between files would make the results
+depend on the order.
 
 ---
 

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
 import { vfsFileReader } from '../content/vfs/vfs.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
@@ -9,7 +10,7 @@ import type { StrategicView } from '../protocol/view.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import { createSaveSession } from './save-session.ts';
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const gameRoot = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
 const SAVE = join(gameRoot, 'SavedGames', 'SaveGame01.sav');
 const TIMEOUT_MS = 300_000;
@@ -30,7 +31,7 @@ function expectConsistentEconomy(s: StrategicView): void {
   for (const sector of s.secretsFound ?? []) expect(SECRETS.has(sector)).toBe(true);
 }
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('map-screen view fields on the original data', { timeout: TIMEOUT_MS }, () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('map-screen view fields on the original data', { timeout: TIMEOUT_MS }, () => {
   let data: DataVfs;
   const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
   const exists = (path: string) => data.vfs.stat(path) !== undefined;

@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../../tests/support/original-data.ts';
 import { parseSaveGame } from '../../../content/formats/savegame.ts';
 import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../../../content/formats/savegame-header.ts';
 import { withGraphicFacts } from '../../../content/rules/graphic-facts.ts';
@@ -14,12 +15,12 @@ import { NUM_FACTS } from './facts.ts';
 import { Npc } from './npc-ids.ts';
 import { QuestHistory } from './quests.ts';
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const gameRoot = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
 const savesDir = join(gameRoot, 'SavedGames');
 const saveFiles = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter((f) => f.toLowerCase().endsWith('.sav')) : [];
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('facts, quests and NPC profiles of the native savegames', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('facts, quests and NPC profiles of the native savegames', () => {
   let data: DataVfs;
   const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
 

@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { type DataVfs, openDataVfs } from '../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
 import { BinaryWriter } from '../binary/writer.ts';
@@ -175,12 +176,12 @@ describe('the laptop section of a savegame', () => {
   });
 });
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const gameRoot = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
 const savesDir = join(gameRoot, 'SavedGames');
 const saveFiles = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter((f) => f.toLowerCase().endsWith('.sav')) : [];
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('the laptop sections of the native savegames', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('the laptop sections of the native savegames', () => {
   let data: DataVfs;
 
   beforeAll(async () => {

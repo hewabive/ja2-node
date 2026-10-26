@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { type DataVfs, openDataVfs } from '../../node/data-vfs.ts';
 import { createFrameReader, decodeAudio, openSmk } from './smk.ts';
 
@@ -22,11 +23,11 @@ const THIRTY_FPS_MICROS = 33_330;
 const FIRST_FRAMES = 12;
 const MICROS_PER_SECOND = 1_000_000;
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('Smacker videos of the original data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('Smacker videos of the original data', () => {
   let data: DataVfs;
 
   beforeAll(async () => {
-    data = await openDataVfs({ dataDir: process.env.JA2_DATA_DIR });
+    data = await openDataVfs({ dataDir: ORIGINAL_DATA_DIR });
   });
   afterAll(async () => {
     await data.close();

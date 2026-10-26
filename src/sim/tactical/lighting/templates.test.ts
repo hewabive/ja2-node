@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../../tests/support/original-data.ts';
 import { BinaryReader } from '../../../content/binary/reader.ts';
 import { type DataVfs, openDataVfs } from '../../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../../node/repo.ts';
@@ -76,11 +77,11 @@ function parseLightFile(name: string, bytes: Uint8Array): LightTemplate {
   return { name, lights, rays };
 }
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('light templates against the original files', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('light templates against the original files', () => {
   let data: DataVfs;
 
   beforeAll(async () => {
-    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: process.env.JA2_DATA_DIR });
+    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
   });
   afterAll(async () => {
     await data.close();

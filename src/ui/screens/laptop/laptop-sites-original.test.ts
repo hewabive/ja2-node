@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../../tests/support/original-data.ts';
 import { withGraphicFacts } from '../../../content/rules/graphic-facts.ts';
 import { vfsFileReader } from '../../../content/vfs/vfs.ts';
 import { type DataVfs, openDataVfs } from '../../../node/data-vfs.ts';
@@ -14,7 +15,7 @@ import { questionRecord } from './imp/imp-quiz.ts';
 import { IMP_TEXT_FILE } from './imp/imp-site.ts';
 import { SPECK } from './merc/merc-pages.ts';
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const SEED = 11;
 const IMP_QUESTION_1 = 54;
 const IMP_PERS_F1 = 144;

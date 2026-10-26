@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { openDataVfs } from '../../node/data-vfs.ts';
 import { FormatError } from '../binary/errors.ts';
 import { BinaryWriter } from '../binary/writer.ts';
@@ -64,11 +65,11 @@ describe('contract sections of a savegame', () => {
   });
 });
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const savesDir = join(dirname(dataDir), 'SavedGames');
 const saveFiles = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter((f) => f.toLowerCase().endsWith('.sav')) : [];
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('contract fields of the original data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('contract fields of the original data', () => {
   const encryption = parseSaveEncryptionTable(
     JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/save-encryption.json'), 'utf8')),
   );

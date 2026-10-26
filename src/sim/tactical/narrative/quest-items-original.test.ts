@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../../tests/support/original-data.ts';
 import { parseMap } from '../../../content/formats/map.ts';
 import { decodeObject } from '../../../content/formats/object.ts';
 import { withGraphicFacts } from '../../../content/rules/graphic-facts.ts';
@@ -10,7 +11,7 @@ import { loadTacticalContent } from '../load-content.ts';
 import { WorldItemFlags } from '../world-items.ts';
 import { type BombFields, bombFieldsOf, Detonator, ItemAction } from './quest-items.ts';
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const WORLD_ITEM_OBJECT_OFFSET = 8;
 const SEX_TILES = [11174, 12290, 13414];
 
@@ -20,7 +21,7 @@ interface ArmedItem extends BombFields {
   readonly isSwitch: boolean;
 }
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('quest action items in the original maps', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('quest action items in the original maps', () => {
   let data: DataVfs;
   const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
 

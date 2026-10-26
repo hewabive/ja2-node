@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../../tests/support/original-data.ts';
 import { loadArmyTestContent, queenTestContext } from '../../../../tests/support/queen.ts';
 import { loadStrategicTestContent } from '../../../../tests/support/strategic.ts';
 import { parseSaveGame } from '../../../content/formats/savegame.ts';
@@ -24,11 +25,11 @@ beforeAll(async () => {
   army = await loadArmyTestContent();
 });
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const savesDir = join(dirname(dataDir), 'SavedGames');
 const saveFiles = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter((f) => f.toLowerCase().endsWith('.sav')) : [];
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('importStrategicAi on the native saves', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('importStrategicAi on the native saves', () => {
   const encryption = parseSaveEncryptionTable(
     JSON.parse(readFileSync(join(import.meta.dirname, '../../../../data/tables/save-encryption.json'), 'utf8')),
   );

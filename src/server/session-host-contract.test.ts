@@ -1,9 +1,9 @@
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { buildStubs } from '../../stubs/build.ts';
+import { describe, expect, it } from 'vitest';
 import { TEST_ENGINE } from '../../tests/support/saves.ts';
+import { sharedStubPackDir } from '../../tests/support/stub-pack.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import type { ServerMessage } from '../protocol/messages.ts';
 import type { ViewFrame } from '../protocol/view.ts';
@@ -33,16 +33,7 @@ interface Rig {
   close(): Promise<void>;
 }
 
-let stubsDir: string;
-
-beforeAll(async () => {
-  stubsDir = await mkdtemp(join(tmpdir(), 'ja2-host-stubs-'));
-  await buildStubs(stubsDir);
-}, TEST_TIMEOUT_MS);
-
-afterAll(async () => {
-  await rm(stubsDir, { recursive: true, force: true });
-});
+const stubsDir = sharedStubPackDir();
 
 async function rig(kind: HostKindUnderTest): Promise<Rig> {
   const dir = await mkdtemp(join(tmpdir(), `ja2-host-saves-${kind}-`));

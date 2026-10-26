@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '../../tests/support/reload.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
@@ -123,13 +124,13 @@ describe('session snapshots on the stub pack', () => {
   });
 });
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const gameRoot = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
 const savesDir = join(gameRoot, 'SavedGames');
 const saveFiles = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter((f) => f.toLowerCase().endsWith('.sav')) : [];
 const CONTINUE_TICKS = 300;
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('snapshots of native save imports', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('snapshots of native save imports', () => {
   let data: DataVfs;
   const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
   const exists = (p: string) => data.vfs.stat(p) !== undefined;

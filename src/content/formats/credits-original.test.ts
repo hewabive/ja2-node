@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { type DataVfs, openDataVfs } from '../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
 import { TextService } from '../../server/text-service.ts';
@@ -6,11 +7,11 @@ import { CREDITS_FILE, FIRST_CREDIT_ROW, INITIAL_CREDIT_STYLE, readCreditRow } f
 
 const CREDIT_ROWS = 248;
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('credits of the original data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('credits of the original data', () => {
   let data: DataVfs;
 
   beforeAll(async () => {
-    data = await openDataVfs({ dataDir: process.env.JA2_DATA_DIR, projectDataDir: PROJECT_DATA_DIR });
+    data = await openDataVfs({ dataDir: ORIGINAL_DATA_DIR, projectDataDir: PROJECT_DATA_DIR });
   });
   afterAll(async () => {
     await data.close();

@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { parseSaveGame } from '../content/formats/savegame.ts';
 import { parseSaveEncryptionTable, SAVE_ENCRYPTION_PATH } from '../content/formats/savegame-header.ts';
 import { readStrategicAiSections } from '../content/formats/savegame-strategic-ai.ts';
@@ -15,14 +16,14 @@ import { loadTacticalContent } from '../sim/tactical/load-content.ts';
 import { NpcActionCode } from '../sim/tactical/narrative/npc-actions/codes.ts';
 import { createSaveSession } from './save-session.ts';
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const gameRoot = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
 const savesDir = join(gameRoot, 'SavedGames');
 const saveFiles = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter((f) => f.toLowerCase().endsWith('.sav')) : [];
 const ENDGAME_FLAGS = 0x80000008;
 const ELLIOT_MAX_SLAPS = 17;
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('meanwhile scenes and the ending on the original data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('meanwhile scenes and the ending on the original data', () => {
   let data: DataVfs;
   const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
 

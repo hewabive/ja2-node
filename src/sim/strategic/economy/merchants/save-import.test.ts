@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { loadMerchantTestContent, type MerchantTestContent, merchantFixture } from '../../../../../tests/support/merchants.ts';
+import { ORIGINAL_DATA_DIR } from '../../../../../tests/support/original-data.ts';
 import { parseSaveGame } from '../../../../content/formats/savegame.ts';
 import { parseSaveEncryptionTable } from '../../../../content/formats/savegame-header.ts';
 import { readSavedMerchants, SAVED_ARMS_DEALERS } from '../../../../content/formats/savegame-merchants.ts';
@@ -9,7 +10,7 @@ import { DealerType } from '../../../../content/strategic/merchant-content.ts';
 import { importMerchants } from './save-import.ts';
 import { activeSpecials } from './state.ts';
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const savesDir = join(dirname(dataDir), 'SavedGames');
 const saveFiles = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter((f) => f.toLowerCase().endsWith('.sav')) : [];
 const TONY = 0;
@@ -21,7 +22,7 @@ beforeAll(async () => {
   t = await loadMerchantTestContent();
 });
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('arms dealers imported from the native saves (section 23)', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('arms dealers imported from the native saves (section 23)', () => {
   const encryption = parseSaveEncryptionTable(
     JSON.parse(readFileSync(join(import.meta.dirname, '../../../../../data/tables/save-encryption.json'), 'utf8')),
   );

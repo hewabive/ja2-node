@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../../tests/support/original-data.ts';
 import { decodeSti } from '../../../content/formats/sti.ts';
 import { DEFAULT_VANILLA_VERSION } from '../../../content/text/data-version.ts';
 import { type DataVfs, openDataVfs } from '../../../node/data-vfs.ts';
@@ -18,11 +19,11 @@ const FRAMES_DRAWN: readonly (readonly [BattleLayout, string, number])[] = [
   [BattleLayout.AUTORESOLVE, 'indent', 1],
 ];
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('the battle art on the original data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('the battle art on the original data', () => {
   let data: DataVfs;
 
   beforeAll(async () => {
-    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: process.env.JA2_DATA_DIR });
+    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
   });
 
   afterAll(async () => {

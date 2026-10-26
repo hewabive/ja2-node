@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { parseSaveGame, type SaveGame } from './savegame.ts';
 import { parseSaveEncryptionTable } from './savegame-header.ts';
 import { layoutBytes, layoutOffsets } from './savegame-layout.ts';
@@ -92,11 +93,11 @@ describe('strategic AI save sections (docs/14 §4, docs/17 §1.4)', () => {
   });
 });
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const savesDir = join(dirname(dataDir), 'SavedGames');
 const saveFiles = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter((f) => f.toLowerCase().endsWith('.sav')) : [];
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('strategic AI sections of the native saves', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('strategic AI sections of the native saves', () => {
   const encryption = parseSaveEncryptionTable(
     JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/save-encryption.json'), 'utf8')),
   );

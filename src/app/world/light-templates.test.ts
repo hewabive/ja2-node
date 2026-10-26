@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { SHIPPED_LIGHT_TEMPLATES_PATH } from '../../content/formats/lht.ts';
 import { PROJECT_DATA_LAYER } from '../../content/vfs/layers.ts';
 import { type DataVfs, openDataVfs } from '../../node/data-vfs.ts';
@@ -88,11 +89,11 @@ describe('the AI turn holder', () => {
   });
 });
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('merc light templates on the original data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('merc light templates on the original data', () => {
   let data: DataVfs;
 
   beforeAll(async () => {
-    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: process.env.JA2_DATA_DIR });
+    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
   });
 
   afterAll(async () => {

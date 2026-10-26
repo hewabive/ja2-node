@@ -3,6 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { dataDecoding } from '../content/text/data-version.ts';
 import { type DataVfs, openDataVfs } from '../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
@@ -15,14 +16,14 @@ import { DEFAULT_SESSION_TEXT, type Session } from './session.ts';
 import { createSessionFactory } from './session-factory.ts';
 import type { SessionFactory } from './session-registry.ts';
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const gameRoot = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
 const savesDir = process.env.JA2_SAVES_DIR || join(gameRoot, 'SavedGames');
 const nativeSaves = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter((f) => f.toLowerCase().endsWith('.sav')) : [];
 const SCENARIO_TIMEOUT_MS = 180_000;
 const CONTINUE_TICKS = 300;
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('ja2-node saves with the original data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('ja2-node saves with the original data', () => {
   let data: DataVfs;
   let saveDir: string;
   let environment: SaveEnvironment;

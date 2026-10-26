@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { openDataVfs } from '../../node/data-vfs.ts';
 import { decodeSti } from '../formats/sti.ts';
 import { displayRgbFrom565, rgbTo565, shadedDisplayPalette, shadedPalette565 } from './shading.ts';
@@ -30,9 +31,9 @@ describe('shade palettes', () => {
   });
 });
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('vanilla shade tables', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('vanilla shade tables', () => {
   it('match shades 1–15 of the original Data/ShadeTables', async () => {
-    const dataDir = process.env.JA2_DATA_DIR ?? '';
+    const dataDir = ORIGINAL_DATA_DIR;
     const d = await openDataVfs({ dataDir });
     try {
       const dir = join(d.dataDir ?? dataDir, 'ShadeTables');

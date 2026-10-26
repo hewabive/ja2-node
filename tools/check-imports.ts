@@ -25,6 +25,19 @@ interface Rule {
   readonly typeOnly?: readonly Layer[];
 }
 
+interface TestMode {
+  readonly variable: string;
+  readonly reader: string;
+  readonly script: string;
+}
+
+const TEST_MODES: readonly TestMode[] = [
+  { variable: 'JA2_DATA_DIR', reader: 'tests/support/original-data.ts', script: 'pnpm test:data' },
+  { variable: 'JA2_RELOAD', reader: 'tests/support/reload.ts', script: 'pnpm test:reload' },
+];
+
+const ROOT_CONFIG = /^[^/]+\.config\.ts$/;
+
 const NONDETERMINISM = [/\bMath\.random\b/, /\bDate\.now\b/, /\bnew Date\b/, /\bperformance\.now\b/, /\bset(Timeout|Interval|Immediate)\b/];
 
 const RULES: Record<Layer, Rule> = {
@@ -55,7 +68,7 @@ const RULES: Record<Layer, Rule> = {
 
 function layerOf(file: string): Layer | null {
   const rel = relative(REPO_ROOT, file).split(sep).join('/');
-  if (rel.endsWith('.test.ts') || rel.startsWith('tests/') || /^[^/]+\.config\.ts$/.test(rel)) return 'test';
+  if (rel.endsWith('.test.ts') || rel.startsWith('tests/') || ROOT_CONFIG.test(rel)) return 'test';
   const m = /^src\/(core|content|sim|protocol|node|server|ui|render|audio|app|devtools)\//.exec(rel);
   if (m) return m[1] as Layer;
   if (rel.startsWith('stubs/')) return 'stubs';
@@ -76,6 +89,13 @@ async function* walk(dir: string): AsyncGenerator<string> {
     if (e.isDirectory()) yield* walk(p);
     else if (e.name.endsWith('.ts') && !e.name.endsWith('.d.ts')) yield p;
   }
+}
+
+function testModeProblems(rel: string, src: string): string[] {
+  if (ROOT_CONFIG.test(rel)) return [];
+  return TEST_MODES.filter((m) => rel !== m.reader && new RegExp(`\\b${m.variable}\\b`).test(src)).map(
+    (m) => `${rel}: read ${m.variable} through ${m.reader}, so that ${m.script} selects this file`,
+  );
 }
 
 function packageAllowed(spec: string, allowed: readonly string[]): boolean {
@@ -113,6 +133,7 @@ export async function checkImports(roots: readonly string[], extra: readonly str
     for (const re of rule.forbid ?? []) {
       if (re.test(src)) problems.push(`${where}: '${re.source}' is not allowed in layer '${layer}' (determinism)`);
     }
+    if (layer === 'test') problems.push(...testModeProblems(relative(REPO_ROOT, file).split(sep).join('/'), src));
   }
   return problems;
 }

@@ -2,6 +2,8 @@ import { appendFile, mkdir, mkdtemp, readdir, readFile, rm, utimes, writeFile } 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { buildStubs } from '../../stubs/build.ts';
+import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { isMapFile } from '../content/rules/families.ts';
 import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
@@ -151,6 +153,7 @@ describe('the rule pack on the stub data', () => {
     'is cached on disk, reused while the data stays, rebuilt when it changes, and old packs are pruned',
     async () => {
       const cacheDir = await mkdtemp(join(tmpdir(), 'ja2-rules-cache-'));
+      const ownStubs = await mkdtemp(join(tmpdir(), 'ja2-rules-stubs-'));
       try {
         for (let i = 0; i < OLD_PACKS; i++) {
           const dir = join(cacheDir, `rules-old${i}`);
@@ -172,8 +175,9 @@ describe('the rule pack on the stub data', () => {
         );
         const npc = kit.vfs.list().find((f) => f.path.startsWith('stubs/npcdata/') && f.path.endsWith('.npc'));
         if (!npc) throw new Error('no stub NPC records');
-        await appendFile(join(kit.stubsDir, npc.path.slice('stubs/'.length)), Uint8Array.of(0));
-        const changed = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: kit.stubsDir });
+        await buildStubs(ownStubs);
+        await appendFile(join(ownStubs, npc.path.slice('stubs/'.length)), Uint8Array.of(0));
+        const changed = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: ownStubs });
         try {
           expect(ruleSourceKey(changed.vfs, 'stubs')).not.toBe(ruleSourceKey(kit.vfs, 'stubs'));
           const rebuilt = await openRulePack({ vfs: changed.vfs, source: 'stubs', cacheDir });
@@ -184,18 +188,19 @@ describe('the rule pack on the stub data', () => {
         }
       } finally {
         await rm(cacheDir, { recursive: true, force: true });
+        await rm(ownStubs, { recursive: true, force: true });
       }
     },
     SLOW_MS,
   );
 });
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('the rule pack on the original data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('the rule pack on the original data', () => {
   let data: Awaited<ReturnType<typeof openDataVfs>>;
   let pack: RulePack;
 
   beforeAll(async () => {
-    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: process.env.JA2_DATA_DIR });
+    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
     pack = (await openRulePack({ vfs: data.vfs, source: 'original', cacheDir: null })).pack;
   }, SLOW_MS);
 

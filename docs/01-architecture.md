@@ -1060,7 +1060,7 @@ canvas player UI with the original's screens is M8.
    streams moved into `StrategicState` and `TacticalState`, with a restore path that skips the creation side effects;
    a graph codec writes the whole session, keeping insertion order, pointers as references to the object's home and
    content as keys. Restore is exact: every campaign scenario also runs reloaded at every input and must produce the
-   same event log and final snapshot byte for byte (`JA2_RELOAD=1 pnpm test` reloads every test campaign). The largest
+   same event log and final snapshot byte for byte (`pnpm test:reload` reloads every test campaign). The largest
    stub state is 2.3 MiB raw and 41 KiB gzipped, the largest native import 4.1 MiB and 144 KiB.
 2. **Saves** (S3; `server/save-*.ts`, `input-log.ts`, `replay.ts`): `.j2s` files whose header the save list reads from
    the first gzip member, a content identity over every file the simulation read (about 1,300 on the original data),

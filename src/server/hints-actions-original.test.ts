@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type ClientSide, clientSide, expectHintsAgree, type HintSources, serialisedView, withQueries } from '../../tests/support/hints.ts';
 import { doorTiles, kitForHints, sampleActionHints, sampleInventoryHints } from '../../tests/support/hints-actions.ts';
+import { ORIGINAL_DATA_DIR } from '../../tests/support/original-data.ts';
 import { approachUntilCombat, BATTLE_SANDBOX_SEED, tacticalOf, untilOurTurn } from '../../tests/support/save-scenarios.ts';
 import { withGraphicFacts } from '../content/rules/graphic-facts.ts';
 import { vfsFileReader } from '../content/vfs/vfs.ts';
@@ -16,7 +17,7 @@ const SLOW_MS = 240_000;
 const ITEM_SPREAD_STEP = 5;
 const NEAREST_DOORS = 10;
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('action and inventory hints on the original data, client against server', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('action and inventory hints on the original data, client against server', () => {
   let data: DataVfs;
   let sources: HintSources;
   let client: ClientSide;
@@ -24,7 +25,7 @@ describe.skipIf(!process.env.JA2_DATA_DIR)('action and inventory hints on the or
   const read = withGraphicFacts((path) => vfsFileReader(data.vfs)(path));
 
   beforeAll(async () => {
-    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: process.env.JA2_DATA_DIR ?? '' });
+    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
     const a9 = await loadTacticalWorldInputs(read, ORIGINAL_SANDBOX_MAP);
     sources = {
       read,

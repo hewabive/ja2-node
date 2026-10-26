@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { type EconomyTestContent, economyTestContext, loadEconomyTestContent } from '../../../../tests/support/economy.ts';
+import { ORIGINAL_DATA_DIR } from '../../../../tests/support/original-data.ts';
 import { parseSaveGame } from '../../../content/formats/savegame.ts';
 import { readSavedEconomy, readSoldierAssignments } from '../../../content/formats/savegame-economy.ts';
 import { parseSaveEncryptionTable } from '../../../content/formats/savegame-header.ts';
@@ -11,7 +12,7 @@ import { Town } from './constants.ts';
 import { predictIncomeFromPlayerMines } from './mines.ts';
 import { importEconomy } from './save-import.ts';
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const savesDir = join(dirname(dataDir), 'SavedGames');
 const saveFiles = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter((f) => f.toLowerCase().endsWith('.sav')) : [];
 
@@ -20,7 +21,7 @@ beforeAll(async () => {
   content = await loadEconomyTestContent();
 });
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('economy import from the native saves', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('economy import from the native saves', () => {
   const encryption = parseSaveEncryptionTable(
     JSON.parse(readFileSync(join(import.meta.dirname, '../../../../data/tables/save-encryption.json'), 'utf8')),
   );

@@ -22,10 +22,13 @@
     "imports": "node tools/check-imports.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:data": "vitest related tests/support/original-data.ts --run",
+    "test:reload": "JA2_RELOAD=1 vitest related tests/support/reload.ts --run",
     "e2e": "playwright test",
     "e2e:data": "playwright test -c playwright.data.config.ts",
     "e2e:browsers": "playwright test -c playwright.browsers.config.ts",
-    "check": "pnpm lint && pnpm typecheck && pnpm imports && pnpm test"
+    "check": "pnpm lint && pnpm typecheck && pnpm imports && pnpm test",
+    "gates": "node tools/gates.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

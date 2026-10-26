@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../../tests/support/original-data.ts';
 import { parseSaveGame } from '../../../content/formats/savegame.ts';
 import { parseSaveEncryptionTable } from '../../../content/formats/savegame-header.ts';
 import { CampaignSim } from '../../campaign/campaign-sim.ts';
@@ -9,14 +10,14 @@ import { CompressMode, EventKind, NUM_SEC_IN_HOUR } from './constants.ts';
 import { importStrategicTime } from './save-import.ts';
 import { worldDay, worldHour, worldMinute } from './world-clock.ts';
 
-const dataDir = process.env.JA2_DATA_DIR ?? '';
+const dataDir = ORIGINAL_DATA_DIR;
 const root = basename(dataDir).toLowerCase() === 'data' ? dirname(dataDir) : dataDir;
 const savesDir = join(root, 'SavedGames');
 const saves = dataDir && existsSync(savesDir) ? readdirSync(savesDir).filter((f) => f.toLowerCase().endsWith('.sav')) : [];
 const encryption = () =>
   parseSaveEncryptionTable(JSON.parse(readFileSync(join(import.meta.dirname, '../../../../data/tables/save-encryption.json'), 'utf8')));
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('strategic time from native saves', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('strategic time from native saves', () => {
   for (const file of saves) {
     it(`continues the clock and the event queue of ${file}`, () => {
       const save = parseSaveGame(new Uint8Array(readFileSync(join(savesDir, file))), encryption());

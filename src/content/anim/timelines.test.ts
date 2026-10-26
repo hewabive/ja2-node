@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildStubAnimationScripts } from '../../../stubs/anim-scripts.ts';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { openDataVfs } from '../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
 import { type AnimationScripts, MAX_ANIMATIONS, MAX_FRAMES_PER_ANIM, parseAnimationScripts, scriptCode } from '../formats/ja2bin.ts';
@@ -136,9 +137,9 @@ describe('animation timelines', () => {
   });
 });
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('animation timelines of the original scripts', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('animation timelines of the original scripts', () => {
   it('split the original scripts faithfully', async () => {
-    const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: process.env.JA2_DATA_DIR });
+    const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
     try {
       const bytes = await readAnimationScripts(vfsFileReader(data.vfs));
       if (!bytes) throw new Error('no animation scripts');

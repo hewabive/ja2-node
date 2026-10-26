@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
 import { NotARuleFileError, type RulePack } from '../../content/rules/pack.ts';
 import type { Vfs } from '../../content/vfs/vfs.ts';
@@ -86,11 +87,11 @@ describe('the client rule content on the stub data', () => {
   );
 });
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('the client rule content on the original data', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('the client rule content on the original data', () => {
   it(
     'has the rule pack hash of the server',
     async () => {
-      const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: process.env.JA2_DATA_DIR });
+      const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
       try {
         const { pack } = await openRulePack({ vfs: data.vfs, source: 'original', cacheDir: null });
         const source = await assetSourceOver(data.vfs, true);

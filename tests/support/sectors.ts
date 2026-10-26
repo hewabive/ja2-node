@@ -1,5 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { type AnimationTimelines, requireAnimationTimelines } from '../../src/content/anim/timelines.ts';
 import { withGraphicFacts } from '../../src/content/rules/graphic-facts.ts';
@@ -20,7 +19,7 @@ import { nodeSha256, vfsRuleListing } from '../../src/server/rule-pack.ts';
 import type { SectorWorlds } from '../../src/sim/campaign/sector-flow.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
 import { loadTacticalContent } from '../../src/sim/tactical/load-content.ts';
-import { buildStubs } from '../../stubs/build.ts';
+import { openStubPack } from './stub-pack.ts';
 
 export const STUB_MAPS = [
   'stubs/world/maps/a9.dat',
@@ -52,8 +51,8 @@ export interface StubSectorKit {
 }
 
 export async function loadStubSectorKit(): Promise<StubSectorKit> {
-  const dir = await mkdtemp(join(tmpdir(), 'ja2-sector-stubs-'));
-  await buildStubs(dir);
+  const stubs = await openStubPack();
+  const dir = stubs.dir;
   const data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: dir });
   const read: ReadFile = withGraphicFacts(vfsFileReader(data.vfs));
   const content = await loadTacticalContent(read);
@@ -94,7 +93,7 @@ export async function loadStubSectorKit(): Promise<StubSectorKit> {
     },
     dispose: async () => {
       await data.close();
-      await rm(dir, { recursive: true, force: true });
+      await stubs.release();
     },
   };
 }

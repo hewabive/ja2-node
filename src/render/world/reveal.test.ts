@@ -1,8 +1,6 @@
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { buildStubs } from '../../../stubs/build.ts';
+import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
+import { sharedStubPackDir } from '../../../tests/support/stub-pack.ts';
 import { type LoadedWorld, loadWorld } from '../../app/world/world-loader.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { levelTilesAt } from '../../content/world/level.ts';
@@ -16,21 +14,17 @@ import { StaticScene, StaticSegment, type StaticWorld } from './static-scene.ts'
 const ROOM = 1;
 
 describe('revealed rooms on the stub village', () => {
-  let dir = '';
   let data: DataVfs;
   let world: LoadedWorld;
 
   beforeAll(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'ja2-reveal-'));
-    await buildStubs(dir);
-    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: dir });
+    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, stubsDir: sharedStubPackDir() });
     const available = new Set(data.vfs.list().map((f) => f.path));
     world = await loadWorld('stubs/world/maps/village.dat', available, (path) => data.vfs.read(path));
   }, 60_000);
 
   afterAll(async () => {
     await data?.close();
-    if (dir) await rm(dir, { recursive: true, force: true });
   });
 
   const revealWorld = () => ({
@@ -72,11 +66,11 @@ describe('revealed rooms on the stub village', () => {
   });
 });
 
-describe.skipIf(!process.env.JA2_DATA_DIR)('wireframes on A9', () => {
+describe.skipIf(!ORIGINAL_DATA_DIR)('wireframes on A9', () => {
   let data: DataVfs;
 
   beforeAll(async () => {
-    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: process.env.JA2_DATA_DIR });
+    data = await openDataVfs({ projectDataDir: PROJECT_DATA_DIR, dataDir: ORIGINAL_DATA_DIR });
   }, 60_000);
 
   afterAll(async () => {
