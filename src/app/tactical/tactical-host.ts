@@ -133,6 +133,10 @@ export class TacticalHost {
     return this.#loaded !== null && mapPath !== null && this.#loaded.presenter.mapPath !== mapPath;
   }
 
+  #openKnowledgeAfterNextFrame(): void {
+    requestAnimationFrame(() => setTimeout(() => this.#openKnowledgeOnce(), 0));
+  }
+
   #openKnowledgeOnce(): void {
     this.#knowledgeOpening ??= this.#openKnowledge().then((knowledge) => {
       this.#knowledge = knowledge;
@@ -236,7 +240,7 @@ export class TacticalHost {
       });
     });
     this.#loaded = { presenter, media: loadedMedia.store, layouts, uiCursors };
-    this.#openKnowledgeOnce();
+    this.#openKnowledgeAfterNextFrame();
     this.hook.map = mapPath;
     this.hook.error = null;
     this.hook.loadMs = { total: Math.round(performance.now() - started), sincePageStart: Math.round(performance.now()), phases };

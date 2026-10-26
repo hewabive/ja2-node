@@ -15,7 +15,7 @@ import type { WorldDisplayOptions, WorldDrawStats, WorldRenderer } from '../../r
 import type { SimEvent } from '../../sim/events.ts';
 import type { ReadVfsFile } from '../net/vfs.ts';
 import { glowContext } from './glow-context.ts';
-import { type ItemTileLookup, loadItemTiles } from './item-tiles.ts';
+import { type ItemTileLookup, itemTileLookup, readItemGraphicTables } from './item-tiles.ts';
 import { LightTemplates, mercLightTemplateName } from './light-templates.ts';
 import type { SoldierAssets } from './soldier-assets.ts';
 import type { SoldierFrames } from './soldier-frames.ts';
@@ -130,8 +130,8 @@ export class TacticalWorldView {
   }
 
   static async prepare(mapPath: string, available: ReadonlySet<string>, read?: ReadVfsFile): Promise<PreparedWorld> {
-    const world = await loadWorld(mapPath, available, read);
-    return { world, itemTiles: await loadItemTiles(world.tables, read) };
+    const [world, itemGraphics] = await Promise.all([loadWorld(mapPath, available, read), readItemGraphicTables(read)]);
+    return { world, itemTiles: itemTileLookup(world.tables, itemGraphics) };
   }
 
   static create(renderer: WorldRenderer, prepared: PreparedWorld, presentation: TacticalPresentation): TacticalWorldView {

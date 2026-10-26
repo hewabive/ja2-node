@@ -17,9 +17,18 @@ interface ItemGraphicRecord {
 
 export type ItemTileLookup = (item: string) => number | null;
 
+export type ItemGraphicTables = readonly unknown[];
+
+export function readItemGraphicTables(read: ReadVfsFile = fetchVfsFile): Promise<ItemGraphicTables> {
+  return Promise.all(GRAPHIC_TABLES.map(async (path) => JSON.parse(new TextDecoder().decode(await read(path))) as unknown));
+}
+
 export async function loadItemTiles(tables: TileTables, read: ReadVfsFile = fetchVfsFile): Promise<ItemTileLookup> {
+  return itemTileLookup(tables, await readItemGraphicTables(read));
+}
+
+export function itemTileLookup(tables: TileTables, lists: ItemGraphicTables): ItemTileLookup {
   const byName = new Map<string, number>();
-  const lists = await Promise.all(GRAPHIC_TABLES.map(async (path) => JSON.parse(new TextDecoder().decode(await read(path))) as unknown));
   for (const list of lists) {
     if (!Array.isArray(list)) continue;
     for (const record of list as ItemGraphicRecord[]) {
