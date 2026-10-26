@@ -45,6 +45,7 @@ export interface SoldierView {
   readonly frameSlot: number;
   readonly stateTick: number;
   readonly frameDelay: number;
+  readonly nextFrameTick?: number;
   readonly ap?: number;
   readonly life?: number;
   readonly lifeMax?: number;
@@ -1121,6 +1122,7 @@ function sameSoldier(a: SoldierView, b: SoldierView): boolean {
     a.direction === b.direction &&
     a.animation === b.animation &&
     a.frame === b.frame &&
+    a.nextFrameTick === b.nextFrameTick &&
     a.team === b.team &&
     a.bodyType === b.bodyType &&
     a.hand === b.hand &&

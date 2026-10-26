@@ -173,7 +173,11 @@ test.describe('battle entry on the stub map-screen campaign', () => {
     expect(await page.evaluate(() => window.__ja2Ui.widgets.find((w) => w.id === 'preBattleRetreat')?.enabled)).toBe(false);
     await page.waitForTimeout(OPENING_MS / 4);
     await page.keyboard.press('Escape');
-    await page.waitForFunction(() => window.__ja2Ui.battle?.state?.preBattle === null, null, { timeout: BATTLE_TIMEOUT_MS });
+    await page.waitForFunction(
+      () => window.__ja2Ui.battle?.state?.preBattle === null && window.__ja2Ui.battle.state.commands.at(-1)?.type === 'answer',
+      null,
+      { timeout: BATTLE_TIMEOUT_MS },
+    );
     expect((await battle(page))?.commands.at(-1)).toMatchObject({ type: 'answer', choice: 'close', ok: true });
     await clickWidget(page, 'compressMore');
     await page.waitForFunction(() => window.__ja2Ui.battle?.state?.preBattle?.phase === 'shown', null, { timeout: BATTLE_TIMEOUT_MS });

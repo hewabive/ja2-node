@@ -1,3 +1,4 @@
+import type { AnimationTimelines } from '../content/anim/timelines.ts';
 import type { ProfileFaceRecord } from '../content/narrative/profile-presentation.ts';
 import { type DataVersion, STUB_DATA_VERSION, type UiLanguage } from '../content/text/data-version.ts';
 import type { UiStrings } from '../content/text/strings.ts';
@@ -20,6 +21,7 @@ import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent, SimEventType } from '../sim/events.ts';
 import type { StrategicRules } from '../sim/knowledge/strategic.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
+import { type AnchoredView, keepPredictableFrames } from './frame-anchors.ts';
 import { type InputEntry, InputLog, type LoadPayload, type LogOrigin, UNKNOWN_ORIGIN } from './input-log.ts';
 import { gameSavedEntry, type MessageFacts, messageEntriesOf, NO_MESSAGE_FACTS, refusalEntry } from './message-entries.ts';
 import type { QueryAnswer, QueryService } from './query.ts';
@@ -38,6 +40,7 @@ export interface SessionSim extends Steppable {
   dispatch(cmd: CommandEnvelope): CommandResult;
   view(): PlayerView;
   tacticalContent?(): TacticalContent | null;
+  animationTimelines?(): AnimationTimelines | null;
   strategicRules?(): StrategicRules | null;
   musicFacts?(): MusicFacts;
   messageFacts?(): MessageFacts;
@@ -294,17 +297,26 @@ export class Session {
     };
   }
 
+  #anchored(view: PlayerView): AnchoredView {
+    const timelines = this.#sim.animationTimelines?.() ?? null;
+    return timelines ? keepPredictableFrames(timelines, this.#lastView, view) : { view, predicting: false };
+  }
+
   #capture(frames: ViewFrame[]): void {
     const events = this.#pendingEvents.splice(0);
     this.#followMusic(events);
     this.#followMessages(events);
     const messages = this.#takeFramedMessages();
     if (!this.listening) return;
-    const view = this.#view();
+    const { view, predicting } = this.#anchored(this.#view());
     const diff = diffPlayerView(this.#lastView, view);
     this.#lastView = view;
     const extra = { ...(events.length > 0 ? { events } : {}), ...messages };
-    const frame = Object.keys(extra).length > 0 ? { ...(diff ?? { tick: view.tick, changed: [], removed: [] }), ...extra } : diff;
+    const heartbeat = predicting && view.tick % FRAME_TICKS === 0 && view.tick !== this.#shownTick;
+    const frame =
+      Object.keys(extra).length > 0 || (heartbeat && !diff)
+        ? { ...(diff ?? { tick: view.tick, changed: [], removed: [] }), ...extra }
+        : diff;
     if (!frame) return;
     frames.push(frame);
     this.#shownTick = frame.tick;
@@ -405,7 +417,7 @@ export class Session {
   }
 
   #answerTick(current: number): number {
-    if (!this.listening || diffPlayerView(this.#lastView, this.#view()) !== null) return current;
+    if (!this.listening || diffPlayerView(this.#lastView, this.#anchored(this.#view()).view) !== null) return current;
     return this.#shownTick;
   }
 

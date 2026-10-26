@@ -1,13 +1,27 @@
 import { expect } from 'vitest';
-import type { ServerMessage } from '../../src/protocol/messages.ts';
-import { applyViewFrame, type PlayerView } from '../../src/protocol/view.ts';
+import { predictedFrameSlot } from '../../src/content/anim/schedule-track.ts';
+import { type AnimationTimelines, spriteFrameAt } from '../../src/content/anim/timelines.ts';
+import { type ServerMessage, TICK_MS } from '../../src/protocol/messages.ts';
+import { applyViewFrame, type PlayerView, type SoldierView } from '../../src/protocol/view.ts';
 import type { Session } from '../../src/server/session.ts';
 
-export function canonicalView(view: PlayerView): Omit<PlayerView, 'tick' | 'music'> & { readonly music: unknown } {
+type ShownSoldier = Omit<SoldierView, 'frameSlot' | 'nextFrameTick'>;
+
+function shownSoldier(s: SoldierView, timelines: AnimationTimelines | null, tick: number): ShownSoldier {
+  const { frameSlot, nextFrameTick: _next, ...rest } = s;
+  if (!timelines) return rest;
+  return { ...rest, frame: spriteFrameAt(timelines.presentation, predictedFrameSlot(timelines, s, tick, TICK_MS) ?? frameSlot) };
+}
+
+export function canonicalView(
+  view: PlayerView,
+  timelines: AnimationTimelines | null = null,
+  tick = view.tick,
+): Omit<PlayerView, 'tick' | 'music' | 'soldiers'> & { readonly music: unknown; readonly soldiers: readonly ShownSoldier[] } {
   const { tick: _tick, ...rest } = view;
   return {
     ...rest,
-    soldiers: [...view.soldiers].sort((a, b) => a.id - b.id),
+    soldiers: [...view.soldiers].sort((a, b) => a.id - b.id).map((s) => shownSoldier(s, timelines, tick)),
     prompt: view.prompt ?? null,
     contractPrompt: view.contractPrompt ?? null,
     autoresolve: view.autoresolve ?? null,
@@ -66,6 +80,9 @@ export class ViewMirror {
     if (!mirrored) throw new Error('the mirror saw no welcome');
     const view = currentView(session);
     expect(mirrored.tick).toBeLessThanOrEqual(view.tick);
-    expect(canonicalView(mirrored), 'the view rebuilt from frames').toEqual(canonicalView(JSON.parse(JSON.stringify(view))));
+    const timelines = session.sim.animationTimelines?.() ?? null;
+    expect(canonicalView(mirrored, timelines, view.tick), 'the view rebuilt from frames').toEqual(
+      canonicalView(JSON.parse(JSON.stringify(view)), timelines),
+    );
   }
 }

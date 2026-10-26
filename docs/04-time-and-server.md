@@ -198,7 +198,9 @@ Rewind and replay come for free: the log is deterministic.
 records *view frames*: every 10 ticks (50 ms) it diffs the player view and keeps only soldiers that
 changed (`src/protocol/view.ts` `diffView`/`applyFrame`, `src/server/session.ts`). An instant
 `advance` therefore produces a compact frame stream that the browser plays back at any speed. Fine
-animation between frames is reconstructed by the client from the same animation scripts. The richer
+animation between frames is reconstructed by the client from the same animation scripts. Since 2026-10-26 a soldier
+whose silent animation the client can predict from its last sent frame slot and `nextFrameTick` is not resent for the
+frame alone, and a capture without changes sends an empty frame while such a prediction is running (`docs/28` §2.3). The richer
 event log above stays the target once combat effects (bullets, explosions) appear.
 
 **Implemented in M3.** Under the instant driver the session runs every accepted command (and the switch to the

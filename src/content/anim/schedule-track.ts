@@ -7,8 +7,8 @@
 import { MAX_FRAMES_PER_ANIM } from '../formats/ja2bin.ts';
 import {
   type AnimationTimelines,
+  type LogicTimeline,
   OUTSIDE_SCRIPT_SLOT,
-  type PresentationTimeline,
   SlotKind,
   slotArgument,
   slotKind,
@@ -26,6 +26,7 @@ export interface SoldierSchedule {
   readonly frameSlot: number;
   readonly stateTick: number;
   readonly frameDelay: number;
+  readonly nextFrameTick?: number;
 }
 
 export interface StateTrack {
@@ -112,6 +113,84 @@ export function trackFrame(track: StateTrack, index: number): number {
   return track.frames[track.loopStart + ((index - track.loopStart) % period)] as number;
 }
 
-export function scheduledSpriteFrame(presentation: PresentationTimeline, schedule: SoldierSchedule): number {
-  return spriteFrameAt(presentation, schedule.frameSlot);
+export const NEVER_NEXT_FRAME = -1;
+
+export interface FrameAnchor {
+  readonly animation: number;
+  readonly frameSlot: number;
+  readonly frameDelay: number;
+  readonly nextFrameTick?: number;
+}
+
+interface SlotTrack {
+  readonly slots: readonly number[];
+  readonly loopStart: number | null;
+  readonly silent: boolean;
+}
+
+const slotTracks = new WeakMap<LogicTimeline, Map<number, SlotTrack>>();
+
+function walkSlots(timelines: AnimationTimelines, state: number): SlotTrack {
+  const { logic, presentation } = timelines;
+  const slots: number[] = [];
+  const reachedAt = new Map<number, number>();
+  let silent = true;
+  let pc = 0;
+  for (let guard = 0; guard < WALK_GUARD; guard++) {
+    const slot = timelineSlot(state, pc);
+    if (slot === OUTSIDE_SCRIPT_SLOT) break;
+    const seen = reachedAt.get(pc);
+    if (seen !== undefined && seen < slots.length) return { slots, loopStart: seen, silent };
+    reachedAt.set(pc, slots.length);
+    if ((presentation.sounds[slot] ?? 0) !== 0) silent = false;
+    const kind = slotKind(logic, slot);
+    const arg = slotArgument(logic, slot);
+    if (kind === SlotKind.EMPTY) break;
+    if (kind === SlotKind.FRAME) {
+      slots.push(slot);
+      pc++;
+    } else if (kind === SlotKind.JUMP) pc = arg;
+    else if (kind === SlotKind.STATE) {
+      if (arg === state && slots.length > 0) return { slots, loopStart: 0, silent };
+      break;
+    } else if (kind === SlotKind.OP && arg === END_OF_ANIMATION) break;
+    else pc++;
+  }
+  return { slots, loopStart: null, silent };
+}
+
+function slotTrack(timelines: AnimationTimelines, state: number): SlotTrack {
+  let byState = slotTracks.get(timelines.logic);
+  if (!byState) {
+    byState = new Map();
+    slotTracks.set(timelines.logic, byState);
+  }
+  let track = byState.get(state);
+  if (!track) {
+    track = walkSlots(timelines, state);
+    byState.set(state, track);
+  }
+  return track;
+}
+
+export function silentAnimation(timelines: AnimationTimelines, state: number): boolean {
+  return slotTrack(timelines, state).silent;
+}
+
+export function ticksPerFrame(frameDelay: number, msPerTick: number): number {
+  return frameDelay <= 0 ? 1 : Math.ceil(frameDelay / msPerTick);
+}
+
+export function predictedFrameSlot(timelines: AnimationTimelines, anchor: FrameAnchor, tick: number, msPerTick: number): number | null {
+  const next = anchor.nextFrameTick;
+  if (next === undefined) return null;
+  if (next === NEVER_NEXT_FRAME || tick < next) return anchor.frameSlot;
+  const track = slotTrack(timelines, anchor.animation);
+  const at = track.slots.indexOf(anchor.frameSlot);
+  if (at < 0) return null;
+  const index = at + 1 + Math.floor((tick - next) / ticksPerFrame(anchor.frameDelay, msPerTick));
+  if (index < track.slots.length) return track.slots[index] ?? null;
+  if (track.loopStart === null) return null;
+  const period = track.slots.length - track.loopStart;
+  return track.slots[track.loopStart + ((index - track.loopStart) % period)] ?? null;
 }

@@ -1,4 +1,4 @@
-import type { PresentationTimeline } from '../content/anim/timelines.ts';
+import type { AnimationTimelines, PresentationTimeline } from '../content/anim/timelines.ts';
 import type { TextKey } from '../content/narrative/dialogue-text.ts';
 import { type ProfileFaceRecord, profileFaceRecord } from '../content/narrative/profile-presentation.ts';
 import type { UiStrings } from '../content/text/strings.ts';
@@ -160,6 +160,11 @@ export class CampaignSession implements SessionSim {
     return this.campaign.tactical?.state.content ?? null;
   }
 
+  animationTimelines(): AnimationTimelines | null {
+    const content = this.tacticalContent();
+    return content ? { logic: content.timeline, presentation: this.presentation } : null;
+  }
+
   strategicRules(): StrategicRules | null {
     if (this.#strategicRules) return this.#strategicRules;
     const content = this.campaign.strategic?.content;
@@ -298,7 +303,8 @@ export class CampaignSession implements SessionSim {
     const tactical = this.campaign.tactical;
     if (!tactical) return { tick: this.tick, mapPath: null, soldiers: [], ...extra };
     const imp = this.campaign.state.laptop.imp.voices;
-    const view = tacticalPlayerView(tactical, this.tick, this.presentation, (profile) => imp.get(profile) ?? profile);
+    const stepping = this.campaign.state.flow === 'tactical';
+    const view = tacticalPlayerView(tactical, this.tick, this.presentation, (profile) => imp.get(profile) ?? profile, stepping);
     return { ...view, soldiers: withMerchantLabels(this.campaign, view.soldiers), ...extra };
   }
 }

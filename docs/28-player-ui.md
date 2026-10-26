@@ -256,6 +256,21 @@ this into sprite frames with its own presentation timeline:
 
 Fine animation between the 50 ms frames comes from this schedule; no smaller `FRAME_TICKS`.
 
+**Predicted frames (2026-10-26).** A soldier view also carries `nextFrameTick`, the view tick at which its frame slot
+next advances (`NEVER_NEXT_FRAME` while its updates are paused, and in a campaign off the tactical screen, where the tactical sim
+does not step while the campaign's ticks run; `nextFrameTick` in `animation.ts` reads the frame timer,
+`tacticalPlayerView` moves it from the tactical sim's ticks to the view's). Within a state and at a constant delay the
+slot advances every `ceil(frameDelay / 5)` ticks along the state's walk of frame slots (jumps and opcodes take no time),
+so `predictedFrameSlot` (`schedule-track.ts`) finds the slot at any later tick from the last sent slot and its next
+tick. The session keeps the last sent anchor of a soldier (`keepPredictableFrames`, `src/server/frame-anchors.ts`)
+while the animation, its start and its delay are unchanged, the animation's script plays no sound (the sound director
+still walks the scripts from the frames it receives) and the prediction gives the slot the simulation shows; otherwise
+the soldier goes out as before. While a kept anchor is still to advance, a capture without changes sends an empty
+frame, so the client's view tick keeps moving. The client, with the same scripts, draws the predicted slot. A breathing
+squad thus sends nothing but those empty frames; `frame-anchors.test.ts` replays the stub sandbox and A9 for 2600 ticks
+(idle, then a walk) and checks the predicted sprite frame against the simulation at every frame tick, with no soldier
+resent for its frame alone.
+
 ### 2.4 Cursor hints and queries
 
 Cursor feedback needs answers several times a second (path and AP cost under the pointer, chance to hit, valid drop

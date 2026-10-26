@@ -1,4 +1,5 @@
-import { type PresentationTimeline, requireAnimationTimelines } from '../content/anim/timelines.ts';
+import { NEVER_NEXT_FRAME } from '../content/anim/schedule-track.ts';
+import { type AnimationTimelines, type PresentationTimeline, requireAnimationTimelines } from '../content/anim/timelines.ts';
 import { type ProfileFaceRecord, profileFaceRecord } from '../content/narrative/profile-presentation.ts';
 import { type DataDecoding, DEFAULT_DATA_DECODING } from '../content/text/data-version.ts';
 import { isVisibleTile } from '../content/world/grid.ts';
@@ -75,6 +76,10 @@ export class TacticalSession implements SessionSim {
     return this.sim.dispatch(cmd);
   }
 
+  animationTimelines(): AnimationTimelines {
+    return { logic: this.sim.state.content.timeline, presentation: this.presentation };
+  }
+
   view(): PlayerView {
     return tacticalPlayerView(this.sim, this.sim.tick, this.presentation);
   }
@@ -109,14 +114,31 @@ function withSandboxCrew(views: readonly SoldierView[]): SoldierView[] {
   return views.map((v) => (v.team === Team.OUR ? { ...v, ...SANDBOX_CREW } : v));
 }
 
+function nextFramesInViewTicks(
+  views: readonly SoldierView[],
+  simTick: number,
+  viewTick: number,
+  stepping: boolean,
+): readonly SoldierView[] {
+  if (!stepping) return views.map((v) => ({ ...v, nextFrameTick: NEVER_NEXT_FRAME }));
+  if (simTick === viewTick) return views;
+  return views.map((v) =>
+    v.nextFrameTick === undefined || v.nextFrameTick === NEVER_NEXT_FRAME
+      ? v
+      : { ...v, nextFrameTick: v.nextFrameTick - simTick + viewTick },
+  );
+}
+
 export function tacticalPlayerView(
   sim: TacticalSim,
   tick: number,
   presentation: PresentationTimeline,
   voiceOf: VoiceOf = PROFILE_VOICE,
+  stepping = true,
 ): PlayerView {
   const parts = tacticalViewParts(sim, presentation);
-  return { tick, ...parts, soldiers: withSandboxCrew(withVoices(parts.soldiers, sim.state.soldiers, voiceOf)) };
+  const soldiers = nextFramesInViewTicks(parts.soldiers, sim.tick, tick, stepping);
+  return { tick, ...parts, soldiers: withSandboxCrew(withVoices(soldiers, sim.state.soldiers, voiceOf)) };
 }
 
 function sectorOf(mapPath: string): { x: number; y: number } | null {

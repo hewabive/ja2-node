@@ -36,6 +36,7 @@ import {
   endHeight,
   hasAnimFlag,
   height,
+  nextFrameTick,
   setDesiredDirection,
   soldierGotoStationaryStance,
   states,
@@ -140,6 +141,7 @@ export interface SoldierSnapshot {
   readonly frameSlot: number;
   readonly stateTick: number;
   readonly frameDelay: number;
+  readonly nextFrameTick: number;
   readonly ap?: number;
   readonly life?: number;
   readonly lifeMax?: number;
@@ -859,6 +861,7 @@ export class TacticalSim {
       frameSlot: s.frameSlot,
       stateTick: s.stateTick,
       frameDelay: s.aniDelay,
+      nextFrameTick: nextFrameTick(this.state, s),
       ...(s.team === Team.OUR
         ? {
             ap: s.actionPoints,

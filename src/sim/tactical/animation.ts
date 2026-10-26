@@ -6,12 +6,14 @@
 // @src its BoxingMovementCheck).
 // See docs/03, docs/06 §5, docs/07 §4.
 
+import { NEVER_NEXT_FRAME } from '../../content/anim/schedule-track.ts';
 import type { OpOutcome } from '../../content/anim/script.ts';
 import { type AnimationTables, AnimFlags, stateId } from '../../content/anim/tables.ts';
 import { NO_FRAME_SLOT, SlotKind, slotArgument, slotKind, timelineSlot } from '../../content/anim/timelines.ts';
 import { MAX_FRAMES_PER_ANIM } from '../../content/formats/ja2bin.ts';
 import { ItemClass, ItemFlags } from '../../content/items/items.ts';
 import { newGridNo } from '../../content/world/grid.ts';
+import { TICK_MS } from '../clock.ts';
 import { anim } from './anim-states.ts';
 import { isAnimationValidForBodyType, substituteBodyTypeAnimation } from './anim-substitution.ts';
 import { turnToShoot } from './combat/attack.ts';
@@ -179,6 +181,11 @@ export function setSoldierAniSpeed(t: TacticalState, s: Soldier): void {
   s.aniDelay = t.content.animations.controls[s.state]?.speed ?? 0;
   if (s.aniDelay === 0) s.aniDelay = computedAnimationDelay(t, s);
   resetFrameTimer(t, s);
+}
+
+export function nextFrameTick(t: TacticalState, s: Soldier): number {
+  if (s.aniDelay === PAUSE_ALL_UPDATES_DELAY) return NEVER_NEXT_FRAME;
+  return t.tick + 1 + Math.max(0, Math.ceil((s.nextFrameAt - t.clockMs) / TICK_MS));
 }
 
 export function frameTimerDone(t: TacticalState, s: Soldier): boolean {
