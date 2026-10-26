@@ -1826,7 +1826,8 @@ import takes 40–70 ms).
 ### 7.6 CI
 
 CI (`.github/workflows/ci.yml`) runs four jobs side by side: `check` (`pnpm check`), `build` (the stub pack, the bench
-smoke runs below and `pnpm build`), `e2e` (`pnpm e2e`; the dev server builds the stub pack) and `browsers`
+smoke runs below and `pnpm build`), `e2e` (`pnpm e2e --shard=N/3` in three jobs; the dev server builds the stub
+pack) and `browsers`
 (`pnpm e2e:browsers` under `xvfb-run`, 20 minutes at most). `browsers` asks `node tools/gates.ts --since <the previous
 push or the pull request base> --plan` first and installs and runs the three browsers only when the plan has
 `e2e:browsers` (or when the base is unknown: a new branch, a manual run). A push or pull request that touches only
@@ -1849,12 +1850,12 @@ the unit suite again with `JA2_DATA_DIR` 4.3, again with `JA2_RELOAD=1` 4.5, ora
 - **The stub pack was built about 110 times per unit run.** `loadStubSectorKit` and seven test files ran `buildStubs`
   into their own temporary folder (1165 files, 17 MB, 1.5 s alone and 3.5 to 4 s under the parallel load); half of the
   unit suite's time was spent in `beforeAll`. `tests/support/build-stub-pack.ts` (a `globalSetup`) now builds it once
-  per run, read-only (files 0444, folders 0555, so a test that writes into it fails at once), and
-  `sharedStubPackDir()` (`tests/support/stub-pack.ts`) hands the folder to the tests; the one test that changes a stub
-  file (`rule-pack.test.ts`, the cache) builds its own, and outside vitest (the e2e helpers that write saves through
-  `loadStubSectorKit`) `openStubPack()` builds a private one as before. The unit suite went from 133 to 104 s and from 800 to 544 s of
-  CPU. In CI (four cores) the same suite took between 269 and 416 s that day, and 271 s on the first run after the
-  change, so the runners' spread hides the gain there.
+  per run, read-only (files 0444, folders 0555, so a test that writes into it fails at once), and passes the folder in
+  `JA2_TEST_STUB_PACK`, which `sharedStubPackDir()` and `openStubPack()` (`tests/support/stub-pack.ts`) read; the one
+  test that changes a stub file (`rule-pack.test.ts`, the cache) builds its own, and `openStubPack()` builds a private
+  pack only when no global setup set the variable. The unit suite went from 133 to 104 s and from 800 to 544 s of CPU.
+  In CI (four cores) the same suite took between 269 and 416 s that day, and 271 s on the first run after the change,
+  so the runners' spread hides the gain there.
 - **The two mode runs repeated the stub suite.** Of the 2746 tests a `JA2_DATA_DIR` run counts, 2447 are the stub
   tests again; `JA2_RELOAD` changes only the files that import `tests/support/reload.ts`. Data tests read the folder
   through `ORIGINAL_DATA_DIR` (`tests/support/original-data.ts`), so `pnpm test:data` is
@@ -1881,6 +1882,27 @@ In the e2e run the browser is the cost: of 953 s of CPU the Chrome GPU process (
 15 %, Playwright 9 %, the server 8 % and Vite 4 %. `--pool=threads` gained nothing (130 s); `--no-isolate` ran the unit
 suite in 95 s with every test passing but was left out, since state shared between files would make the results
 depend on the order.
+
+**The e2e suite** (measured with a step reporter, 3 workers, 195 s, 466 s of test time). About 120 s of it waits on
+the game in real time: `main-flow` 25 s for the player's turn while the server plays the enemy turn at speed 1, the
+story test 22 s from the load to the credits (the Queen's death, the upstairs scene, three ending videos), the talk
+panel about 34 s for lines spoken at the original pace; `main-flow` (54 s) is the longest test and bounds any split.
+Page loads take about 45 s of waiting for ready screens plus 88 navigations of 0.47 s each; `nextFrames` 60 s in 1208
+calls, which is the frames themselves (one in-page wait instead of a read and a poll measured no faster); the workers
+end about 35 s apart, since files are not split. Against the built client (`vite preview`) a navigation takes 0.12 s
+and the run 182 s; four workers take 165 s at a load of 10 on 8 cores. In CI one e2e job took 6.7 minutes (5:45 of
+it the tests on two workers), so the suite runs in three shards (`--shard`, split by test count: about 100, 195 and
+175 s of local test time).
+
+Two more changes: the e2e helpers that write saves in `beforeAll` (story, battle entry, two map-screen sets, laptop
+sites) built a stub pack each; a Playwright `globalSetup` (`tests/e2e/dev-server-stub-pack.ts`) now points them at the
+pack the dev server built before the run (`dist/stubs`, the one the server under test reads; Playwright starts the web
+server before the global setup), through the same `JA2_TEST_STUB_PACK` variable the vitest setup sets, and the hooks
+went from 22 to 10 s. And two laptop goldens failed under load: the alumni names and the florist gallery's flower
+names come from `.edt` files the page loads after it opens, and the capture could come first. The hook now has
+`reads.pendingReads` (the `/vfs` reads in flight, `HttpVfsLayer`), and `capture()` waits for none before it takes the
+frame; the loading-screen golden, which holds a rule read on purpose, captures `'whileReading'`. The laptop specs then
+passed 20 runs out of 20 at a load of 15.
 
 ---
 

@@ -42,8 +42,11 @@ function refuseOriginalData(): void {
   if (ORIGINAL_DATA_MODE) throw new Error(NO_ORIGINAL_DATA_PICTURES);
 }
 
-export async function capture(page: Page): Promise<Capture> {
+export type CaptureMoment = 'afterReads' | 'whileReading';
+
+export async function capture(page: Page, moment: CaptureMoment = 'afterReads'): Promise<Capture> {
   refuseOriginalData();
+  if (moment === 'afterReads') await page.waitForFunction(() => (window.__ja2Ui.reads?.pendingReads ?? 0) === 0);
   await nextFrames(page);
   const shot: { pixels: CapturedPixels | null; areas: readonly Area[] } = await page.evaluate(() => ({
     pixels: window.__ja2Ui.capture(),

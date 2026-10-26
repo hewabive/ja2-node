@@ -38,7 +38,8 @@ const AREAS: readonly Area[] = [
   { paths: ['src/devtools/', 'tools/campaign-bot/'], gates: ['check', 'e2e'] },
   { paths: ['tests/support/'], gates: ['check', 'data', 'reload', 'e2e'] },
   { paths: ['vitest.config.ts'], gates: ['check', 'data', 'reload'] },
-  { paths: ['tests/e2e/', 'playwright.config.ts'], gates: ['check', 'e2e'] },
+  { paths: ['tests/e2e/'], gates: ['check', 'e2e', 'e2e:data', 'e2e:browsers'] },
+  { paths: ['playwright.config.ts'], gates: ['check', 'e2e'] },
   { paths: ['tests/e2e-data/', 'playwright.data.config.ts'], gates: ['check', 'e2e:data'] },
   { paths: ['tests/e2e-browsers/', 'playwright.browsers.config.ts'], gates: ['check', 'e2e:browsers'] },
   { paths: ['tools/oracle/'], gates: ['check', 'oracle'] },
@@ -48,6 +49,12 @@ const AREAS: readonly Area[] = [
 
 const UNIT_TEST = /\.test\.ts$/;
 const UNIT_GATES: readonly Gate[] = ['check', 'data', 'reload'];
+const BROWSER_SPEC = /\.spec\.ts$/;
+const SUITES: readonly (readonly [string, Gate])[] = [
+  ['tests/e2e/', 'e2e'],
+  ['tests/e2e-data/', 'e2e:data'],
+  ['tests/e2e-browsers/', 'e2e:browsers'],
+];
 
 function inArea(path: string, area: Area): boolean {
   return area.paths.some((p) => (p.endsWith('/') ? path.startsWith(p) : path === p));
@@ -55,6 +62,8 @@ function inArea(path: string, area: Area): boolean {
 
 function gatesOfPath(path: string): readonly Gate[] {
   if (UNIT_TEST.test(path)) return UNIT_GATES;
+  const suite = SUITES.find(([dir]) => path.startsWith(dir));
+  if (suite && BROWSER_SPEC.test(path)) return ['check', suite[1]];
   const areas = AREAS.filter((a) => inArea(path, a));
   return areas.length === 0 ? GATES : areas.flatMap((a) => a.gates);
 }

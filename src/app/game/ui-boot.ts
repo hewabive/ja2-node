@@ -53,6 +53,7 @@ export async function bootUi(page: GamePage, options: BootOptions = {}): Promise
   const [health, source] = await Promise.all([fetchHealth(), pageAssetSource()]);
   const dataVersion = (health.dataVersion as DataVersion | undefined) ?? STUB_DATA_VERSION;
   page.hook.dataVersion = dataVersion;
+  page.hook.reads = source.layer;
   const assets = new UiAssets(page.renderer, source, new AssetCache());
   const [fontFiles, cursors, audioTable, edtLayouts] = await Promise.all([
     assets.json(FONTS_TABLE_PATH).then((json) => parseFontFiles(json)),

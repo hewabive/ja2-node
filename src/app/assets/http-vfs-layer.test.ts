@@ -88,7 +88,7 @@ describe('the HTTP asset source', () => {
     await expect(layer.read('maps/a9.dat', 0, 7)).rejects.toBeInstanceOf(StaleAssetError);
   });
 
-  it('fetches a file once while it is in flight and limits the parallel requests', async () => {
+  it('fetches a file once while it is in flight, counts the reads not finished and limits the parallel requests', async () => {
     const { fetcher, started } = blockingFetcher();
     const paths = files(30).map(([p]) => p);
     const layer = new HttpVfsLayer(manifestOf(paths), { fetch: fetcher });
@@ -98,6 +98,7 @@ describe('the HTTP asset source', () => {
     await flush();
     expect(started).toHaveLength(12);
     expect(layer.activeRequests).toBe(12);
+    expect(layer.pendingReads).toBe(30);
     for (let i = 0; i < 40 && started.some((d) => !d.signal?.aborted); i++) {
       for (const d of started.splice(0)) d.release('data');
       await flush();
@@ -105,6 +106,7 @@ describe('the HTTP asset source', () => {
     expect(decoded(await first)).toBe('data');
     expect(await again).toBe(await first);
     expect((await Promise.all(rest)).length).toBe(29);
+    expect(layer.pendingReads).toBe(0);
   });
 
   it('keeps the parallel requests between 8 and 16', async () => {

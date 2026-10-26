@@ -133,6 +133,10 @@ export class HttpVfsLayer implements VfsLayer {
     return this.#slots.running;
   }
 
+  get pendingReads(): number {
+    return this.#inFlight.size;
+  }
+
   *entries(): Iterable<VfsLayerEntry> {
     for (const [path, e] of this.#entries) yield { path, size: e[1] };
   }

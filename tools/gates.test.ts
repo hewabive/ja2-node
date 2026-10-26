@@ -28,6 +28,10 @@ describe('the gates a change selects', () => {
     expect(gates('tools/oracle/compare.ts')).toEqual(['check', 'oracle']);
   });
 
+  it('runs all three browser suites for the helpers they share', () => {
+    expect(gates('tests/e2e/ui-capture.ts')).toEqual(['check', 'e2e', 'e2e:data', 'e2e:browsers']);
+  });
+
   it('runs the unit gates alone for a unit test', () => {
     expect(gates('src/ui/screens/map/map-screen.test.ts')).toEqual(['check', 'data', 'reload']);
     expect(gates('src/sim/tactical/perception/los.test.ts')).toEqual(['check', 'data', 'reload']);

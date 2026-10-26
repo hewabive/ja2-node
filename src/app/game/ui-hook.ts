@@ -48,9 +48,14 @@ export interface UiHook {
   video: SequenceMonitor | null;
   help: HelpHook | null;
   story: StoryHook | null;
+  reads: AssetReads | null;
   capture(): CapturedPixels | null;
   resetFrameStats(): void;
   skipPlayback(): void;
+}
+
+export interface AssetReads {
+  readonly pendingReads: number;
 }
 
 export interface UiHookControls {
@@ -106,6 +111,7 @@ export function createUiHook(controls: UiHookControls): UiHook {
     video: null,
     help: null,
     story: null,
+    reads: null,
     capture: () => {
       const frame = controls.capture();
       return frame ? { width: frame.width, height: frame.height, rgba: base64(frame.rgba) } : null;

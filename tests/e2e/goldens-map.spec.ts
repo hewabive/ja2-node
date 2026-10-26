@@ -2,7 +2,7 @@ import { type APIRequestContext, expect, type Page, test } from '@playwright/tes
 import { type MapScreenSave, writeMapScreenSave } from '../support/e2e-campaign-saves.ts';
 import { SAVE_DIR } from './env.ts';
 import { clickAt, pointAt, waitVisible, waitWhileLoading, watchLoading } from './play-flow.ts';
-import { capture, clickWidget, expectGolden, nextFrames } from './ui-capture.ts';
+import { type CaptureMoment, capture, clickWidget, expectGolden, nextFrames } from './ui-capture.ts';
 
 const GOLDEN_SAVE = 'u14-map-goldens';
 const LOAD_TIMEOUT_MS = 120_000;
@@ -61,10 +61,10 @@ async function restPointer(page: Page): Promise<void> {
   await pointAt(page, logical.width - 1, logical.height - 1);
 }
 
-async function golden(page: Page, name: string): Promise<void> {
+async function golden(page: Page, name: string, moment: CaptureMoment = 'afterReads'): Promise<void> {
   await nextFrames(page, 2);
   expect(await page.evaluate(() => window.__ja2Ui.draw?.missingImages ?? [])).toEqual([]);
-  await expectGolden(name, await capture(page));
+  await expectGolden(name, await capture(page, moment));
 }
 
 test.describe('goldens of the map screen on the stub map-screen campaign', () => {
@@ -109,7 +109,7 @@ test.describe('goldens of the map screen on the stub map-screen campaign', () =>
       },
     );
     await nextFrames(page, 4);
-    await golden(page, 'front-end-loading');
+    await golden(page, 'front-end-loading', 'whileReading');
     release();
     await waitWhileLoading(page, () => window.__ja2Ui.screen === 'map' && window.__ja2Ui.map?.ready === true);
   });

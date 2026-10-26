@@ -1,14 +1,9 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { inject } from 'vitest';
 import { buildStubs } from '../../stubs/build.ts';
 
-declare module 'vitest' {
-  export interface ProvidedContext {
-    readonly stubPackDir: string;
-  }
-}
+export const STUB_PACK_ENV = 'JA2_TEST_STUB_PACK';
 
 export interface StubPack {
   readonly dir: string;
@@ -16,11 +11,14 @@ export interface StubPack {
 }
 
 export function sharedStubPackDir(): string {
-  return inject('stubPackDir');
+  const dir = process.env[STUB_PACK_ENV];
+  if (!dir) throw new Error(`no shared stub pack: the vitest and Playwright global setups set ${STUB_PACK_ENV}`);
+  return dir;
 }
 
 export async function openStubPack(): Promise<StubPack> {
-  if (process.env.VITEST) return { dir: sharedStubPackDir(), release: async () => {} };
+  const shared = process.env[STUB_PACK_ENV];
+  if (shared) return { dir: shared, release: async () => {} };
   const dir = await mkdtemp(join(tmpdir(), 'ja2-stub-pack-'));
   await buildStubs(dir);
   return { dir, release: () => rm(dir, { recursive: true, force: true }) };
