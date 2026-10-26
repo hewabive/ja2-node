@@ -136,12 +136,13 @@ function tail(log: string): string {
   return readFileSync(log, 'utf8').trimEnd().split('\n').slice(-FAILURE_TAIL_LINES).join('\n');
 }
 
-const USAGE = `usage: pnpm gates [gate ...] [--all] [--since REV] [--list] [--keep-going]
+const USAGE = `usage: pnpm gates [gate ...] [--all] [--since REV] [--list | --plan] [--keep-going]
 
 Runs the gates that the files changed since REV can affect (default: the merge base with the upstream branch,
 so commits not pushed yet count, plus the working tree and untracked files). Named gates or --all run regardless.
 Gates: ${GATES.join(', ')}. data, oracle and e2e:data need JA2_DATA_DIR; e2e:browsers needs DISPLAY or xvfb-run.
-Each gate writes its output to ${relative(REPO_ROOT, LOG_DIR)}/<gate>.log.`;
+Each gate writes its output to ${relative(REPO_ROOT, LOG_DIR)}/<gate>.log. --list shows the plan with the file that
+selected each gate, --plan prints only the gate names (for CI), and neither runs anything.`;
 
 async function main(): Promise<number> {
   const { values, positionals } = parseArgs({
@@ -150,6 +151,7 @@ async function main(): Promise<number> {
       all: { type: 'boolean', default: false },
       since: { type: 'string' },
       list: { type: 'boolean', default: false },
+      plan: { type: 'boolean', default: false },
       'keep-going': { type: 'boolean', default: false },
       help: { type: 'boolean', default: false },
     },
@@ -164,15 +166,22 @@ async function main(): Promise<number> {
     return 2;
   }
   let plan: Map<Gate, string>;
+  let origin: string;
   if (values.all || positionals.length > 0) {
     const wanted = values.all ? GATES : GATES.filter((g) => positionals.includes(g));
     plan = new Map(wanted.map((g) => [g, values.all ? '--all' : 'named']));
+    origin = values.all ? 'every gate' : 'the named gates';
   } else {
     const base = values.since ?? defaultBase();
     const changed = changedSince(base);
     plan = gatesFor(changed);
-    console.log(`${changed.length} file(s) changed since ${base.slice(0, 12)}`);
+    origin = `${changed.length} file(s) changed since ${base.slice(0, 12)}`;
   }
+  if (values.plan) {
+    for (const gate of plan.keys()) console.log(gate);
+    return 0;
+  }
+  console.log(origin);
   if (plan.size === 0) {
     console.log('no gate to run');
     return 0;

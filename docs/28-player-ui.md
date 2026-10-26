@@ -1969,7 +1969,7 @@ anyway (§2.6), so the GPU writes 4–16 times fewer pixels. On this VM a presen
 the GPU process instead of 93 at a 1280×960 window and 66 instead of about 170 at 1920×1440; a scroll frame 76 instead
 of 110. The old canvas was also not exact: sized `100vw × 100vh`, it held `round(CSS × ratio)` pixels where the window
 has a fractional number (1301 CSS px at 1.25 is 1626.25), and Chrome and WebKit filtered the whole picture to fit.
-`tests/e2e-browsers/presentation.spec.ts` (`pnpm e2e:browsers`, its own CI job) opens the main menu on stubs in
+`tests/e2e-browsers/presentation.spec.ts` (`pnpm e2e:browsers`, its own CI job when `pnpm gates` selects it) opens the main menu on stubs in
 Chromium and Firefox at pixel ratios 1, 1.25, 1.5 and 2 and in WebKit at 1 and 2 (Safari's ratios), at 1301×977 and
 1366×768, with and without the 640×480-only option, and compares a device-pixel screenshot with the logical capture
 scaled by whole blocks: every device pixel must match. Firefox runs with a display (`xvfb-run`; headless Firefox has no

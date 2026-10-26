@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type CampaignKit, createTestCampaign, landFirstSquad, ourSoldiers } from '../../../tests/support/campaign.ts';
 import { loadEconomyTestContent } from '../../../tests/support/economy.ts';
 import { loadArmyTestContent } from '../../../tests/support/queen.ts';
-import { defaultRunMode, expectReloadsInvisible, type RunMode } from '../../../tests/support/reload.ts';
+import { expectReloadsInvisible, type RunMode } from '../../../tests/support/reload.ts';
 import { loadStubSectorKit } from '../../../tests/support/sectors.ts';
 import { sectorInfo } from '../strategic/map/sectors.ts';
 import { CompressMode } from '../strategic/time/constants.ts';
@@ -26,7 +26,7 @@ const B9 = { x: 9, y: 2, z: 0 };
 const COLS = 160;
 const MAX_ROUNDS = 150;
 const RELOAD_SCENARIO_TIMEOUT_MS = 240_000;
-const SCENARIO_TIMEOUT_MS = defaultRunMode() === 'reload' ? RELOAD_SCENARIO_TIMEOUT_MS : 60_000;
+const SCENARIO_TIMEOUT_MS = 60_000;
 
 type Driver = (c: CampaignSim, until: () => boolean, budget?: number) => void;
 
@@ -118,11 +118,11 @@ interface ScenarioResult {
   readonly itemsAfter: number;
 }
 
-function scenario(drive: Driver, mode?: RunMode): ScenarioResult {
+function scenario(drive: Driver, mode: RunMode): ScenarioResult {
   const { campaign: c, roster } = createTestCampaign(kit, {
     seed: 25,
     garrison: { admins: 0, troops: 0, elites: 0 },
-    ...(mode ? { mode } : {}),
+    mode,
   });
   const b9 = sectorInfo(c.state.map, B9);
   b9.numAdmins = 0;
@@ -179,13 +179,13 @@ describe('the stub scenario', () => {
   it(
     'routes A9 to B9, wins the battle, leaves and finds B9 as it was, the same under both drivers',
     () => {
-      const a = scenario(instant);
+      const a = scenario(instant, 'plain');
       expect(a.enemiesLeft).toBe(0);
       expect(a.corpsesAfter).toBe(a.corpsesBefore);
       expect(a.corpsesBefore).toBeGreaterThan(0);
       expect(a.itemsAfter).toBe(a.itemsBefore);
       expect(c9Key()).toBe('9,2,0');
-      const b = scenario(manual);
+      const b = scenario(manual, 'plain');
       expect(b.digest).toBe(a.digest);
     },
     SCENARIO_TIMEOUT_MS,

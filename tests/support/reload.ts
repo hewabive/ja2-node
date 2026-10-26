@@ -87,7 +87,7 @@ export function driven<T extends Drivable>(sim: T, adapter: ReloadAdapter<T>, mo
     if (d.stepped) reload(d);
     const result = d.current.dispatch(cmd);
     d.log.push(JSON.stringify({ dispatch: cmd, result }));
-    reload(d);
+    if (result.ok) reload(d);
     return result;
   };
   const step = (): void => {
