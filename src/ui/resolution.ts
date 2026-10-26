@@ -7,6 +7,8 @@ export const STD_SCREEN_WIDTH = 640;
 export const STD_SCREEN_HEIGHT = 480;
 export const AUTO_UI_SCALE = 0;
 export const MAX_UI_SCALE = 8;
+const ALIGNMENT_TOLERANCE = 1e-6;
+const ALIGNMENT_SEARCH = 16;
 
 export interface ScaleSetting {
   readonly scale: number;
@@ -52,7 +54,21 @@ function displaySize(deviceWidth: number, deviceHeight: number, width: number, h
   return [Math.max(1, Math.floor(width * fit)), Math.max(1, Math.floor(height * fit))];
 }
 
-export function resolveResolution(deviceWidth: number, deviceHeight: number, setting: ScaleSetting = DEFAULT_SCALE_SETTING): Resolution {
+export function alignedOffset(device: number, pixelRatio: number): number {
+  const widest = Math.floor(device / pixelRatio);
+  for (let css = widest; css > 0 && css > widest - ALIGNMENT_SEARCH; css--) {
+    const aligned = css * pixelRatio;
+    if (Math.abs(aligned - Math.round(aligned)) < ALIGNMENT_TOLERANCE) return Math.round(aligned);
+  }
+  return 0;
+}
+
+export function resolveResolution(
+  deviceWidth: number,
+  deviceHeight: number,
+  setting: ScaleSetting = DEFAULT_SCALE_SETTING,
+  pixelRatio = 1,
+): Resolution {
   const width = Math.max(1, Math.floor(deviceWidth));
   const height = Math.max(1, Math.floor(deviceHeight));
   const scale = requestedScale(width, height, setting);
@@ -62,8 +78,8 @@ export function resolveResolution(deviceWidth: number, deviceHeight: number, set
     scale,
     logicalWidth,
     logicalHeight,
-    viewX: Math.floor((width - viewWidth) / 2),
-    viewY: Math.floor((height - viewHeight) / 2),
+    viewX: alignedOffset(Math.floor((width - viewWidth) / 2), pixelRatio),
+    viewY: alignedOffset(Math.floor((height - viewHeight) / 2), pixelRatio),
     viewWidth,
     viewHeight,
     stdScreenX: Math.floor((logicalWidth - STD_SCREEN_WIDTH) / 2),

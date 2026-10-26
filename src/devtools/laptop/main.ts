@@ -34,9 +34,10 @@ declare global {
 }
 
 const params = new URLSearchParams(location.search);
+const stage = document.getElementById('stage') as HTMLElement;
 const canvas = document.getElementById('screen') as HTMLCanvasElement;
 const scale = Number(params.get(SCALE_PARAM) ?? AUTO_UI_SCALE);
-const page = new GamePage(canvas, { scale: Number.isFinite(scale) ? scale : AUTO_UI_SCALE, fixed640: false });
+const page = new GamePage(stage, canvas, { scale: Number.isFinite(scale) ? scale : AUTO_UI_SCALE, fixed640: false });
 const clock = params.has(PIN_CLOCK_PARAM) ? () => PINNED_CLOCK_MS : () => performance.now();
 const hook: LaptopHook = { session: null, closed: false, command: null };
 window.__ja2Laptop = hook;
@@ -45,7 +46,7 @@ const fail = (error: unknown) => {
 };
 
 installDomInput(
-  canvas,
+  stage,
   (event) => page.input(event),
   () => page.resolution,
   { pointerLeft: () => page.pointerLeft() },
@@ -103,7 +104,7 @@ async function boot(): Promise<void> {
   page.hook.session = client.session;
   hook.command = (cmd) => client.command(cmd);
   const ui = await bootUi(page);
-  canvas.addEventListener('pointerdown', () => ui.audio.unlock());
+  stage.addEventListener('pointerdown', () => ui.audio.unlock());
   window.addEventListener('keydown', () => ui.audio.unlock());
   await laptopView(client);
   await hireSquad(client);

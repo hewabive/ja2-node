@@ -42,6 +42,7 @@ export interface WorldLayer {
 }
 
 export class GamePage {
+  readonly stage: HTMLElement;
   readonly canvas: HTMLCanvasElement;
   readonly gl: WebGL2RenderingContext;
   readonly renderer: UiRenderer;
@@ -58,11 +59,13 @@ export class GamePage {
   #lastNow: number | null = null;
   #runtime: UiRuntime | null = null;
   #drawn: DrawnFrame | null = null;
+  #placement = '';
 
-  constructor(canvas: HTMLCanvasElement, setting: ScaleSetting) {
+  constructor(stage: HTMLElement, canvas: HTMLCanvasElement, setting: ScaleSetting, keepDrawingBuffer = false) {
+    this.stage = stage;
     this.canvas = canvas;
     this.#setting = setting;
-    const gl = createContext(canvas, CONTEXT_OPTIONS);
+    const gl = createContext(canvas, { ...CONTEXT_OPTIONS, preserveDrawingBuffer: keepDrawingBuffer });
     this.gl = gl;
     this.renderer = new UiRenderer(gl);
     this.#framebuffer = new LogicalFramebuffer(gl);
@@ -108,13 +111,25 @@ export class GamePage {
 
   #resize(): Resolution {
     const ratio = globalThis.devicePixelRatio || 1;
-    const width = Math.max(1, Math.round(this.canvas.clientWidth * ratio));
-    const height = Math.max(1, Math.round(this.canvas.clientHeight * ratio));
-    if (this.canvas.width !== width) this.canvas.width = width;
-    if (this.canvas.height !== height) this.canvas.height = height;
-    const resolution = resolveResolution(width, height, this.#setting);
+    const box = this.stage.getBoundingClientRect();
+    const width = Math.max(1, Math.floor(box.width * ratio));
+    const height = Math.max(1, Math.floor(box.height * ratio));
+    const resolution = resolveResolution(width, height, this.#setting, ratio);
+    this.#place(resolution, ratio);
     this.#framebuffer.resize(resolution.logicalWidth, resolution.logicalHeight);
     return resolution;
+  }
+
+  #place(r: Resolution, ratio: number): void {
+    const canvas = this.canvas;
+    if (canvas.width !== r.logicalWidth) canvas.width = r.logicalWidth;
+    if (canvas.height !== r.logicalHeight) canvas.height = r.logicalHeight;
+    const placement = [r.viewX, r.viewY, r.viewWidth, r.viewHeight].map((device) => `${device / ratio}px`);
+    const key = placement.join(' ');
+    if (key === this.#placement) return;
+    this.#placement = key;
+    const [left, top, width, height] = placement as [string, string, string, string];
+    Object.assign(canvas.style, { left, top, width, height });
   }
 
   frame(now: number): void {
@@ -160,7 +175,7 @@ export class GamePage {
       this.#framebuffer.bind();
     }
     const stats = this.renderer.draw(this.#list.items, logicalWidth, logicalHeight);
-    this.#framebuffer.present(this.#resolution, this.canvas.width, this.canvas.height);
+    this.#framebuffer.present();
     this.hook.presentedFrames++;
     this.#drawn = {
       items: [...this.#list.items],

@@ -15,7 +15,8 @@
     "../vite.config.ts",
     "../vitest.config.ts",
     "../playwright.config.ts",
-    "../playwright.data.config.ts"
+    "../playwright.data.config.ts",
+    "../playwright.browsers.config.ts"
   ],
   "references": [
     {

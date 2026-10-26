@@ -17,6 +17,7 @@ const TEST_PATTERN = 'testPattern';
 const SCALE_PARAM = 'scale';
 const FIXED_640_PARAM = 'fixed640';
 const PIN_CLOCK_PARAM = 'pinClock';
+const KEEP_DRAWING_BUFFER_PARAM = 'keepDrawingBuffer';
 const PINNED_CLOCK_MS = 0;
 const OFF = '0';
 const FALLBACK_LANGUAGE = 'eng';
@@ -34,7 +35,12 @@ function scaleSetting(settings: ClientSettings, params: URLSearchParams): ScaleS
 }
 
 const params = new URLSearchParams(location.search);
-const page = new GamePage(element<HTMLCanvasElement>('screen'), scaleSetting(loadSettings(), params));
+const page = new GamePage(
+  element('stage'),
+  element<HTMLCanvasElement>('screen'),
+  scaleSetting(loadSettings(), params),
+  params.has(KEEP_DRAWING_BUFFER_PARAM),
+);
 const clock = params.has(PIN_CLOCK_PARAM) ? () => PINNED_CLOCK_MS : () => performance.now();
 const fail = (error: unknown) => {
   page.hook.error = error instanceof Error ? error.message : String(error);
@@ -56,7 +62,7 @@ let frontEnd: FrontEnd | null = null;
 const pause = new ModalPause(() => frontEnd?.client.client ?? null);
 
 installDomInput(
-  page.canvas,
+  page.stage,
   (event) => {
     page.input(event);
     page.hook.pointer = testScreen?.pointer ?? null;
@@ -92,7 +98,7 @@ async function bootFrontEnd(): Promise<void> {
     ui.audio.unlock();
     started.music.page.unlocked();
   };
-  page.canvas.addEventListener('pointerdown', unlock);
+  page.stage.addEventListener('pointerdown', unlock);
   window.addEventListener('keydown', unlock);
   const session = params.get(SESSION_PARAM);
   if (session) {

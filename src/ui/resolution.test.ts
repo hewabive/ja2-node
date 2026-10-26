@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { autoUiScale, resolveResolution, toLogical } from './resolution.ts';
+import { alignedOffset, autoUiScale, DEFAULT_SCALE_SETTING, resolveResolution, toLogical } from './resolution.ts';
 
 describe('the UI scale and the logical resolution (docs/28 §2.6)', () => {
   it('picks the largest integer scale that keeps 640×480', () => {
@@ -54,6 +54,16 @@ describe('the UI scale and the logical resolution (docs/28 §2.6)', () => {
       viewHeight: 240,
       viewY: 120,
     });
+  });
+
+  it('moves the letterbox to an offset that is whole in both CSS and device pixels, as browsers place a canvas there', () => {
+    expect(resolveResolution(2602, 1954, DEFAULT_SCALE_SETTING, 2)).toMatchObject({ scale: 4, viewX: 0, viewY: 0, viewWidth: 2600 });
+    expect(resolveResolution(2398, 1348, { scale: 0, fixed640: true }, 1.25)).toMatchObject({ scale: 2, viewX: 555, viewY: 190 });
+    expect(alignedOffset(320, 1.25)).toBe(320);
+    expect(alignedOffset(323, 1.25)).toBe(320);
+    expect(alignedOffset(61, 1.5)).toBe(60);
+    expect(alignedOffset(7, 1)).toBe(7);
+    expect(alignedOffset(5, Math.PI)).toBe(0);
   });
 
   it('maps device pixels to logical pixels through the letterbox', () => {

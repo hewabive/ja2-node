@@ -37,19 +37,19 @@ function keyboardLock(): KeyboardLock | undefined {
   return (navigator as Navigator & { keyboard?: KeyboardLock }).keyboard;
 }
 
-function toggleFullscreen(canvas: HTMLCanvasElement): void {
+function toggleFullscreen(stage: HTMLElement): void {
   if (document.fullscreenElement) {
     void document.exitFullscreen().catch(() => undefined);
     return;
   }
-  void canvas
+  void stage
     .requestFullscreen()
     .then(() => keyboardLock()?.lock(LOCKED_KEYS))
     .catch(() => undefined);
 }
 
 export function installDomInput(
-  canvas: HTMLCanvasElement,
+  stage: HTMLElement,
   sink: InputSink,
   resolution: () => Resolution,
   domOptions: DomInputOptions = {},
@@ -57,36 +57,35 @@ export function installDomInput(
   const controller = new AbortController();
   const options = { signal: controller.signal };
   const logical = (event: MouseEvent) => {
-    const rect = canvas.getBoundingClientRect();
-    const deviceX = ((event.clientX - rect.left) * canvas.width) / Math.max(1, rect.width);
-    const deviceY = ((event.clientY - rect.top) * canvas.height) / Math.max(1, rect.height);
-    return toLogical(resolution(), deviceX, deviceY);
+    const rect = stage.getBoundingClientRect();
+    const ratio = globalThis.devicePixelRatio || 1;
+    return toLogical(resolution(), (event.clientX - rect.left) * ratio, (event.clientY - rect.top) * ratio);
   };
   const pointer = (kind: 'pointerDown' | 'pointerUp' | 'pointerMove', event: PointerEvent) => {
     const { x, y } = logical(event);
     sink({ kind, x, y, button: event.button, buttons: event.buttons, wheel: 0, modifiers: modifierMask(eventModifiers(event)) });
   };
-  canvas.addEventListener(
+  stage.addEventListener(
     'pointerdown',
     (event) => {
-      canvas.setPointerCapture(event.pointerId);
+      stage.setPointerCapture(event.pointerId);
       if (SUPPRESSED_BUTTONS.has(event.button)) event.preventDefault();
       pointer('pointerDown', event);
     },
     options,
   );
-  canvas.addEventListener(
+  stage.addEventListener(
     'pointerup',
     (event) => {
-      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+      if (stage.hasPointerCapture(event.pointerId)) stage.releasePointerCapture(event.pointerId);
       if (SUPPRESSED_BUTTONS.has(event.button)) event.preventDefault();
       pointer('pointerUp', event);
     },
     options,
   );
-  canvas.addEventListener('pointermove', (event) => pointer('pointerMove', event), options);
-  canvas.addEventListener('pointerleave', () => domOptions.pointerLeft?.(), options);
-  canvas.addEventListener(
+  stage.addEventListener('pointermove', (event) => pointer('pointerMove', event), options);
+  stage.addEventListener('pointerleave', () => domOptions.pointerLeft?.(), options);
+  stage.addEventListener(
     'wheel',
     (event) => {
       event.preventDefault();
@@ -103,9 +102,9 @@ export function installDomInput(
     },
     { ...options, passive: false },
   );
-  canvas.addEventListener('contextmenu', (event) => event.preventDefault(), options);
+  stage.addEventListener('contextmenu', (event) => event.preventDefault(), options);
   for (const type of ['mousedown', 'mouseup', 'auxclick'] as const) {
-    canvas.addEventListener(
+    stage.addEventListener(
       type,
       (event) => {
         if (SUPPRESSED_BUTTONS.has(event.button)) event.preventDefault();
@@ -128,7 +127,7 @@ export function installDomInput(
       if (event.metaKey) return;
       event.preventDefault();
       if (event.altKey && event.key === FULLSCREEN_KEY) {
-        toggleFullscreen(canvas);
+        toggleFullscreen(stage);
         return;
       }
       sink(keyUpEvent(rawKey(event)));

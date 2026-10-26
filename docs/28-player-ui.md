@@ -404,10 +404,13 @@ parameter, the **UI scale**:
   3 → 853×480; 1280×720 → 1.
 - Fixed screens are laid out in a `std640` frame anchored at `STD_SCREEN_X/Y`; the few full-screen elements (main
   menu buttons and copyright, message box centring, tooltips, the splash) use logical screen coordinates.
-- Rendering goes to a framebuffer at the logical size and is blitted with `NEAREST` at the integer scale; a
-  sharp-bilinear option covers non-integer fits; a "640×480 only" option pillarboxes the tactical screen too.
-- Pointer coordinates go through the inverse letterbox transform; `setPointerCapture` keeps a release outside the
-  canvas.
+- Rendering goes to a framebuffer at the logical size and is copied 1:1 into a canvas of the same size; the browser
+  scales the canvas (`image-rendering: pixelated`) to exactly `logical × scale` device pixels inside a full-window
+  `#stage`, at an offset that is whole in both CSS and device pixels (`alignedOffset`: Chrome and WebKit place a
+  canvas at whole CSS pixels); a sharp-bilinear option covers non-integer fits; a "640×480 only" option pillarboxes the
+  tactical screen too.
+- The stage takes the pointer events and fullscreen; pointer coordinates go through the inverse letterbox transform;
+  `setPointerCapture` keeps a release outside the stage.
 
 This changes nothing in the rules: the viewport size never reaches the simulation. If the wide tactical view follows
 Stracciatella, no deviation row is needed.
@@ -1958,6 +1961,24 @@ caught at once. A scroll step redraws about 6 % of the view, a breathing soldier
 vertex work and the compositor's readback are done in software and dominate, a presented frame of the idle squad costs
 93 ms of the GPU process instead of 114 and a scroll frame 110 instead of 134 (canvas 1280×960; at 640×480, 63 instead
 of 81).
+
+**The canvas at the logical size** (2026-10-26). Every presented frame used to clear the whole device-sized canvas and
+blit the logical picture up into it, and the compositor then read that canvas again: on a 4K screen about 8 Mpx per
+pass against the world's 1–2 Mpx. The canvas now has the logical size and the compositor scales it in the pass it makes
+anyway (§2.6), so the GPU writes 4–16 times fewer pixels. On this VM a presented frame of the idle squad costs 63 ms of
+the GPU process instead of 93 at a 1280×960 window and 66 instead of about 170 at 1920×1440; a scroll frame 76 instead
+of 110. The old canvas was also not exact: sized `100vw × 100vh`, it held `round(CSS × ratio)` pixels where the window
+has a fractional number (1301 CSS px at 1.25 is 1626.25), and Chrome and WebKit filtered the whole picture to fit.
+`tests/e2e-browsers/presentation.spec.ts` (`pnpm e2e:browsers`, its own CI job) opens the main menu on stubs in
+Chromium and Firefox at pixel ratios 1, 1.25, 1.5 and 2 and in WebKit at 1 and 2 (Safari's ratios), at 1301×977 and
+1366×768, with and without the 640×480-only option, and compares a device-pixel screenshot with the logical capture
+scaled by whole blocks: every device pixel must match. Firefox runs with a display (`xvfb-run`; headless Firefox has no
+WebGL without a GPU) and `webgl.force-enabled`; WebKit's screenshot repaints the canvas from its drawing buffer, which
+is gone after compositing, so its run asks for `?keepDrawingBuffer=1` (Safari's own display keeps the last frame). Not
+covered: WebKit at a fractional ratio with the 640×480-only option blends the last column with the black border (its
+right edge falls inside a CSS pixel); Safari does not use fractional ratios. Locally Firefox needs an X display
+(`DISPLAY=:99` with Xvfb) and WebKit the libraries `playwright install-deps webkit` lists. The video overlay keeps its
+own canvas sized in CSS pixels.
 
 ---
 

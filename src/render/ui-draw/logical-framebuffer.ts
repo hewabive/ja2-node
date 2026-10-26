@@ -1,5 +1,3 @@
-import type { Resolution } from '../../ui/resolution.ts';
-
 const RGBA_CHANNELS = 4;
 
 export interface CapturedFrame {
@@ -62,28 +60,12 @@ export class LogicalFramebuffer {
     gl.viewport(0, 0, this.#width, this.#height);
   }
 
-  present(resolution: Resolution, canvasWidth: number, canvasHeight: number): void {
+  present(): void {
     const gl = this.#gl;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.viewport(0, 0, canvasWidth, canvasHeight);
-    gl.disable(gl.SCISSOR_TEST);
-    gl.clearColor(0, 0, 0, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this.#framebuffer);
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
-    const bottom = canvasHeight - resolution.viewY - resolution.viewHeight;
-    gl.blitFramebuffer(
-      0,
-      0,
-      this.#width,
-      this.#height,
-      resolution.viewX,
-      bottom,
-      resolution.viewX + resolution.viewWidth,
-      bottom + resolution.viewHeight,
-      gl.COLOR_BUFFER_BIT,
-      gl.NEAREST,
-    );
+    gl.disable(gl.SCISSOR_TEST);
+    gl.blitFramebuffer(0, 0, this.#width, this.#height, 0, 0, this.#width, this.#height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
   }
 
