@@ -30,12 +30,13 @@ export interface UiHook {
   scale: number;
   origin: LogicalPoint;
   logical: { width: number; height: number };
-  widgets: readonly WidgetInfo[];
+  readonly widgets: readonly WidgetInfo[];
   cursor: CursorReport | null;
   lastCommand: string | null;
   lastResult: CommandOutcome | null;
   sounds: readonly ButtonSoundRequest[];
   frameCount: number;
+  presentedFrames: number;
   readonly frameStats: TimeSummary;
   lagTicks: number;
   session: string | null;
@@ -53,6 +54,7 @@ export interface UiHook {
 }
 
 export interface UiHookControls {
+  readonly widgets: () => readonly WidgetInfo[];
   readonly capture: () => CapturedFrame | null;
   readonly frameStats: () => TimeSummary;
   readonly resetFrameStats: () => void;
@@ -82,12 +84,15 @@ export function createUiHook(controls: UiHookControls): UiHook {
     scale: 1,
     origin: { x: 0, y: 0 },
     logical: { width: 0, height: 0 },
-    widgets: [],
+    get widgets() {
+      return controls.widgets();
+    },
     cursor: null,
     lastCommand: null,
     lastResult: null,
     sounds: [],
     frameCount: 0,
+    presentedFrames: 0,
     get frameStats() {
       return controls.frameStats();
     },

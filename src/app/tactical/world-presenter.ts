@@ -415,9 +415,9 @@ export class TacticalWorldPresenter implements WorldPresenter {
     return { x: c.x + 2 * dx - 2 * dy, y: c.y + dx + dy - land + this.#renderHeight() };
   }
 
-  draw(target: WebGLFramebuffer, logicalHeight: number): void {
+  render(): number | null {
     const view = this.#sources.view();
-    if (!view) return;
+    if (!view) return null;
     this.#stats = this.#world.render({
       viewport: this.#viewport,
       camera: this.#camera,
@@ -442,6 +442,10 @@ export class TacticalWorldPresenter implements WorldPresenter {
       uiNodes: this.#uiNodes(),
       underAiControl: (id) => this.aiTurns.holds(id),
     });
+    return this.#renderer.picture;
+  }
+
+  present(target: WebGLFramebuffer, logicalHeight: number): void {
     this.#renderer.present(target, logicalHeight, 0, 0, 1);
   }
 }

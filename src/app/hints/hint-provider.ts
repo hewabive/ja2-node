@@ -82,6 +82,11 @@ function plain(answer: HintAnswer): HintAnswer {
   );
 }
 
+function sameButTick(a: PlayerView, b: PlayerView): boolean {
+  const keys = Object.keys(a) as (keyof PlayerView)[];
+  return keys.length === Object.keys(b).length && keys.every((key) => key === 'tick' || a[key] === b[key]);
+}
+
 function keepSample(samples: number[], value: number): void {
   samples.push(value);
   if (samples.length > MAX_KEPT_LATENCIES) samples.shift();
@@ -152,10 +157,9 @@ export class HintProvider implements GameClient {
 
   #view(): PlayerView | null {
     const view = this.#options.channel.latestView;
-    if (view !== this.#cachedFor) {
-      this.#cache.clear();
-      this.#cachedFor = view;
-    }
+    const cachedFor = this.#cachedFor;
+    if (view !== cachedFor && !(view && cachedFor && sameButTick(view, cachedFor))) this.#cache.clear();
+    this.#cachedFor = view;
     return view;
   }
 
@@ -250,7 +254,7 @@ export class HintProvider implements GameClient {
 
   #worldOf(view: PlayerView, rules: KnowledgeRules): KnowledgeWorld {
     const cached = this.#world;
-    if (cached && cached.view === view && cached.rules === rules) return cached.world;
+    if (cached && cached.rules === rules && (cached.view === view || sameButTick(cached.view, view))) return cached.world;
     const started = performance.now();
     const world = knowledgeWorld(view, rules);
     keepSample(this.#projections, performance.now() - started);

@@ -31,8 +31,13 @@ function knowledge(usable = true): LocalKnowledge {
   return { usable, rules: client.rules, worlds: { has: () => true, ensure: async () => {} } };
 }
 
-function channel(answer: (q: CommandEnvelope) => Promise<QueryReply> = (q) => session.query(q)): HintChannel & { asked: number } {
-  const c = {
+interface TestChannel extends HintChannel {
+  asked: number;
+  latestView: PlayerView;
+}
+
+function channel(answer: (q: CommandEnvelope) => Promise<QueryReply> = (q) => session.query(q)): TestChannel {
+  const c: TestChannel = {
     asked: 0,
     latestView: view,
     query: (q: CommandEnvelope) => {
@@ -68,6 +73,28 @@ describe('local hint provider', () => {
       expect(provider.hint({ ...q, mode: 'run' }).state).toBe('pending');
       expect(ch.asked).toBe(0);
       expect(provider.stats.latency.count).toBe(1);
+    },
+    SLOW_MS,
+  );
+
+  it(
+    'keeps its answers and its projection over a view where only the tick moved, and drops them on any other change',
+    () => {
+      let now = 1000;
+      const ch = channel();
+      const provider = new HintProvider({ channel: ch, knowledge: () => knowledge(), now: () => now });
+      const q = moveRequest();
+      provider.hint(q);
+      now += PATHFIND_REST_MS;
+      provider.hint(q);
+      ch.latestView = { ...view, tick: view.tick + 10 };
+      expect(provider.hint(q).state).toBe('ready');
+      expect(provider.stats).toMatchObject({ local: 1, cacheHits: 1 });
+      expect(provider.stats.projection.count).toBe(1);
+      ch.latestView = { ...ch.latestView, soldiers: [...view.soldiers] };
+      expect(provider.hint(q).state).toBe('ready');
+      expect(provider.stats).toMatchObject({ local: 2, cacheHits: 1 });
+      expect(provider.stats.projection.count).toBe(2);
     },
     SLOW_MS,
   );

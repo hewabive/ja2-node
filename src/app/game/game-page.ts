@@ -24,6 +24,7 @@ const LONGEST_UNDRAWN_MS = 500;
 
 interface DrawnFrame {
   readonly items: readonly DrawItem[];
+  readonly world: number | null;
   readonly resolution: Resolution;
   readonly canvasWidth: number;
   readonly canvasHeight: number;
@@ -36,7 +37,8 @@ function sameResolution(a: Resolution, b: Resolution): boolean {
 }
 
 export interface WorldLayer {
-  draw(target: WebGLFramebuffer, width: number, height: number): void;
+  render(width: number, height: number): number | null;
+  present(target: WebGLFramebuffer, height: number): void;
 }
 
 export class GamePage {
@@ -66,6 +68,7 @@ export class GamePage {
     this.#framebuffer = new LogicalFramebuffer(gl);
     this.#resolution = this.#resize();
     this.hook = createUiHook({
+      widgets: () => this.#runtime?.describe() ?? [],
       capture: () => (this.#framebuffer.width > 0 ? this.#framebuffer.capture() : null),
       frameStats: () => this.#frameTimes.summary(),
       resetFrameStats: () => this.#frameTimes.reset(),
@@ -126,34 +129,42 @@ export class GamePage {
       this.#fallbackHost.update(now);
       this.#fallbackHost.render(this.#list);
     }
-    const stats = this.#stillShown(started) ?? this.#draw(started);
+    const world = this.#renderWorld();
+    const stats = this.#stillShown(started, world) ?? this.#draw(started, world);
     const ms = performance.now() - started;
     this.#frameTimes.add(ms);
     this.#report(stats);
     this.frameListener?.(ms);
   }
 
-  #stillShown(now: number): UiDrawStats | null {
+  #renderWorld(): number | null {
+    if (!this.world || !this.host.screen?.drawsWorld) return null;
+    return this.world.render(this.#resolution.logicalWidth, this.#resolution.logicalHeight);
+  }
+
+  #stillShown(now: number, world: number | null): UiDrawStats | null {
     const drawn = this.#drawn;
     if (!drawn || now - drawn.at > LONGEST_UNDRAWN_MS) return null;
-    if (this.world && this.host.screen?.drawsWorld) return null;
+    if (drawn.world !== world) return null;
     if (drawn.stats.missingImages.length > 0 || drawn.stats.missingFonts.length > 0) return null;
     if (drawn.canvasWidth !== this.canvas.width || drawn.canvasHeight !== this.canvas.height) return null;
     if (!sameResolution(drawn.resolution, this.#resolution)) return null;
     return sameDrawItems(drawn.items, this.#list.items) ? drawn.stats : null;
   }
 
-  #draw(now: number): UiDrawStats {
+  #draw(now: number, world: number | null): UiDrawStats {
     const { logicalWidth, logicalHeight } = this.#resolution;
     this.#framebuffer.begin();
-    if (this.world && this.host.screen?.drawsWorld) {
-      this.world.draw(this.#framebuffer.target, logicalWidth, logicalHeight);
+    if (world !== null && this.world) {
+      this.world.present(this.#framebuffer.target, logicalHeight);
       this.#framebuffer.bind();
     }
     const stats = this.renderer.draw(this.#list.items, logicalWidth, logicalHeight);
     this.#framebuffer.present(this.#resolution, this.canvas.width, this.canvas.height);
+    this.hook.presentedFrames++;
     this.#drawn = {
       items: [...this.#list.items],
+      world,
       resolution: this.#resolution,
       canvasWidth: this.canvas.width,
       canvasHeight: this.canvas.height,
@@ -179,7 +190,6 @@ export class GamePage {
     hook.logical = { width: r.logicalWidth, height: r.logicalHeight };
     hook.screen = this.host.screen?.id ?? null;
     hook.modal = this.host.modal?.id ?? null;
-    hook.widgets = this.#runtime?.describe() ?? [];
     hook.cursor = this.#runtime?.cursorReport() ?? null;
     hook.draw = stats;
     this.#reportSession(hook);

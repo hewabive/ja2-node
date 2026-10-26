@@ -375,15 +375,17 @@ export class TacticalHost {
 
   #worldLayer(): WorldLayer {
     return {
-      draw: (target, width, height) => {
+      render: (width, height) => {
         const loaded = this.#loaded;
-        if (!loaded || !this.loaded) return;
+        if (!loaded || !this.loaded) return null;
         const started = performance.now();
         loaded.presenter.resize(width, height);
-        loaded.presenter.draw(target, height);
+        const picture = loaded.presenter.render();
         this.#worldTimes.add(performance.now() - started);
         this.#updateSound(loaded.presenter);
+        return picture;
       },
+      present: (target, height) => this.#loaded?.presenter.present(target, height),
     };
   }
 
@@ -471,6 +473,8 @@ export class TacticalHost {
   }
 
   #createHook(): TacticalHook {
+    const frameTimes = this.#frameTimes;
+    const worldTimes = this.#worldTimes;
     return {
       ready: false,
       loadMs: null,
@@ -525,8 +529,12 @@ export class TacticalHost {
       doorMenuOpen: false,
       exitDialogOpen: false,
       overheadOpen: false,
-      frameMs: this.#frameTimes.summary(),
-      worldMs: this.#worldTimes.summary(),
+      get frameMs() {
+        return frameTimes.summary();
+      },
+      get worldMs() {
+        return worldTimes.summary();
+      },
       command: (cmd) => this.#command(cmd),
       advance: (until) => this.#o.session.advance(until),
       inventory: (soldier) => this.#o.session.soldiers.find((s) => s.id === soldier)?.inventory ?? [],
@@ -606,8 +614,6 @@ export class TacticalHost {
     const screen = this.#screen;
     const presenter = this.#loaded?.presenter ?? null;
     hook.ready = screen !== null && this.loaded;
-    hook.frameMs = this.#frameTimes.summary();
-    hook.worldMs = this.#worldTimes.summary();
     hook.paused = this.#client.paused;
     hook.driver = this.#client.driver;
     hook.commands = this.#client.commands

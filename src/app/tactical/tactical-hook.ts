@@ -114,8 +114,8 @@ export interface TacticalHook {
   doorMenuOpen: boolean;
   exitDialogOpen: boolean;
   overheadOpen: boolean;
-  frameMs: TimeSummary;
-  worldMs: TimeSummary;
+  readonly frameMs: TimeSummary;
+  readonly worldMs: TimeSummary;
   command(cmd: CommandEnvelope): Promise<unknown>;
   advance(until: StopCondition): Promise<unknown>;
   inventory(soldier: number): readonly InventoryItemView[];

@@ -29,6 +29,7 @@ import { itemOutlineColour } from './glow.ts';
 import { DrawState } from './instances.ts';
 import { type LevelRenderData, updateLevelRenderData } from './level-render-data.ts';
 import { pickSoldierAt } from './picking.ts';
+import { PictureMemo } from './picture-memo.ts';
 import { changedRevealTiles, computeReveal, type RevealState } from './reveal.ts';
 import type { LightColour } from './soldier-palettes.ts';
 import { STATIC_SEGMENT_STATES, StaticScene, StaticSegment, type StaticState, type StaticWorld } from './static-scene.ts';
@@ -102,6 +103,8 @@ export interface WorldDrawStats {
 
 const NO_STATS: WorldDrawStats = { drawCalls: 0, instances: 0, staticInstances: 0, dynamicInstances: 0, staticRebuildMs: 0 };
 
+let lastPicture = 0;
+
 interface LoadedScene {
   readonly original: RenderWorld;
   world: RenderWorld;
@@ -139,7 +142,10 @@ export class WorldRenderer {
   readonly #dynamicStream: InstanceStream;
   readonly #itemStream: InstanceStream;
   readonly #shade: ShadeTexture;
+  readonly #memo = new PictureMemo();
   #scene: LoadedScene | null = null;
+  #staticUploads = 0;
+  #picture = 0;
   #last: WorldFrameInput | null = null;
   #stats: WorldDrawStats = NO_STATS;
   #rebuildMs = 0;
@@ -156,6 +162,10 @@ export class WorldRenderer {
 
   get stats(): WorldDrawStats {
     return this.#stats;
+  }
+
+  get picture(): number {
+    return this.#picture;
   }
 
   get sprites(): WorldSprites | null {
@@ -185,6 +195,7 @@ export class WorldRenderer {
       shadeVersion: -1,
     };
     this.#last = null;
+    this.#memo.forget();
     return sprites;
   }
 
@@ -256,12 +267,15 @@ export class WorldRenderer {
 
   render(f: WorldFrameInput): WorldDrawStats {
     const gl = this.#gl;
+    const resized = this.framebuffer.width !== f.viewport.width || this.framebuffer.height !== f.viewport.height;
     this.framebuffer.resize(f.viewport.width, f.viewport.height);
-    this.framebuffer.begin();
     this.#last = f;
     const s = this.#scene;
     if (!s) {
+      this.framebuffer.begin();
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      this.#memo.forget();
+      this.#picture = ++lastPicture;
       this.#stats = NO_STATS;
       return NO_STATS;
     }
@@ -271,6 +285,7 @@ export class WorldRenderer {
     if (!s.uploaded) {
       this.#staticStream.upload(assembled.data, assembled.count);
       s.uploaded = true;
+      this.#staticUploads++;
     }
     if (s.shadeVersion !== f.shade.version) {
       this.#shade.upload(f.shade.land, f.shade.roof);
@@ -291,12 +306,23 @@ export class WorldRenderer {
       uiNodes: f.uiNodes,
       aniTiles: f.aniTiles ?? [],
     });
+    const offset = cameraOffset(f.viewport, f.camera, renderHeight);
+    const showShadows = f.options.shadows && f.shade.ambient < LIGHT_DUSK_CUTOFF;
+    const memo = this.#memo;
+    memo.begin();
+    memo.add(f.viewport.width, f.viewport.height, offset.x, offset.y, f.shade.natural, f.shade.version, this.#staticUploads);
+    memo.add(rows.first, rows.last, showShadows ? 1 : 0, f.options.roofs ? 1 : 0);
+    memo.addVisible(s.dynamic.itemRuns, s.dynamic.itemInstances, f.viewport, offset);
+    memo.addVisible(s.dynamic.runs, s.dynamic.instances, f.viewport, offset);
+    if (!memo.changed() && !resized) return this.#stats;
+    this.#picture = ++lastPicture;
+    this.framebuffer.begin();
     this.#dynamicStream.upload(s.dynamic.instances.data, s.dynamic.instances.count);
     this.#itemStream.upload(s.dynamic.itemInstances.data, s.dynamic.itemInstances.count);
     const p = this.#program;
     p.begin({
       viewport: f.viewport,
-      offset: cameraOffset(f.viewport, f.camera, renderHeight),
+      offset,
       natural: f.shade.natural,
       atlas: s.sprites.atlas.texture(),
       palette: s.sprites.palettes.texture(),
@@ -308,7 +334,6 @@ export class WorldRenderer {
       const end = assembled.rowStart[base + rows.last + 1] ?? first;
       p.draw(this.#staticStream, STATIC_SEGMENT_STATES[seg] ?? DrawState.LAND, first, end - first);
     };
-    const showShadows = f.options.shadows && f.shade.ambient < LIGHT_DUSK_CUTOFF;
     segment(StaticSegment.LAND);
     segment(StaticSegment.OBJECTS);
     if (showShadows) segment(StaticSegment.SHADOWS);

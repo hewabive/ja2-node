@@ -8,31 +8,45 @@ const SAMPLE_TIMEOUT_MS = 120_000;
 const LOOSE_P95_MS = 250;
 const LOOSE_MAX_MS = 2_000;
 const QUIET_SEED = 1;
+const MOST_FRAMES_LEFT = 0.5;
+const MAP_MIDDLE = { x: 640, y: 300 };
 
 async function newSandbox(request: APIRequestContext): Promise<string> {
   return ((await (await request.post('/api/sessions', { data: { seed: QUIET_SEED } })).json()) as { session: string }).session;
 }
 
-async function sampleFrames(page: Page): Promise<TimeSummary> {
-  await page.evaluate(() => window.__ja2Ui.resetFrameStats());
-  await page.waitForFunction((n) => window.__ja2Ui.frameStats.count >= n, SAMPLED_FRAMES, { timeout: SAMPLE_TIMEOUT_MS });
-  return page.evaluate(() => window.__ja2Ui.frameStats);
+interface FrameSample {
+  readonly stats: TimeSummary;
+  readonly presented: number;
 }
 
-function expectSane(stats: TimeSummary, what: string): void {
-  console.log(`frame time (${what}, stubs, SwiftShader): ${JSON.stringify(stats)}`);
+async function sampleFrames(page: Page): Promise<FrameSample> {
+  const presented = await page.evaluate(() => {
+    window.__ja2Ui.resetFrameStats();
+    return window.__ja2Ui.presentedFrames;
+  });
+  await page.waitForFunction((n) => window.__ja2Ui.frameStats.count >= n, SAMPLED_FRAMES, { timeout: SAMPLE_TIMEOUT_MS });
+  return page.evaluate((before) => ({ stats: window.__ja2Ui.frameStats, presented: window.__ja2Ui.presentedFrames - before }), presented);
+}
+
+function expectSane({ stats, presented }: FrameSample, what: string): void {
+  console.log(`frame time (${what}, stubs, SwiftShader): ${JSON.stringify(stats)}, ${presented} frames drawn`);
   expect(stats.count).toBeGreaterThanOrEqual(SAMPLED_FRAMES);
   expect(stats.p50).toBeGreaterThan(0);
   expect(stats.p50).toBeLessThanOrEqual(stats.p95);
   expect(stats.p95).toBeLessThanOrEqual(stats.max);
   expect(stats.p95, `${what}: p95 frame time`).toBeLessThan(LOOSE_P95_MS);
   expect(stats.max, `${what}: longest frame`).toBeLessThan(LOOSE_MAX_MS);
+  expect(presented, `${what}: a still screen is left as shown on most frames`).toBeLessThan(stats.count * MOST_FRAMES_LEFT);
 }
 
 test.describe('the frame-time probe on stubs (docs/28 §15, §16)', () => {
   test.use({ viewport: { width: 1280, height: 960 } });
 
-  test('reports sane frame times for the main menu and the tactical screen at UI scale 2', async ({ page, request }) => {
+  test('reports sane frame times for the main menu and the tactical screen at UI scale 2 and draws few frames of a still screen', async ({
+    page,
+    request,
+  }) => {
     await openUiPage(page, '/play');
     await page.waitForFunction(() => window.__ja2Ui.screen === 'mainMenu');
     expectSane(await sampleFrames(page), 'main menu');
@@ -40,6 +54,7 @@ test.describe('the frame-time probe on stubs (docs/28 §15, §16)', () => {
     try {
       await openTacticalSession(page, session);
       expect(await page.evaluate(() => window.__ja2Ui.scale)).toBe(2);
+      await page.mouse.move(MAP_MIDDLE.x, MAP_MIDDLE.y);
       expectSane(await sampleFrames(page), 'tactical');
     } finally {
       await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
