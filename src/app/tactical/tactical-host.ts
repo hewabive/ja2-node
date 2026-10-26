@@ -96,7 +96,7 @@ export class TacticalHost {
   constructor(options: TacticalHostOptions) {
     this.#o = options;
     this.#renderer = new WorldRenderer(options.page.gl);
-    this.#sound = new TacticalSound({ engine: options.ui.audio.engine, music: false });
+    this.#sound = new TacticalSound({ engine: options.ui.audio.engine, music: false, dataVersion: options.ui.dataVersion });
     this.#speechSettings = storedSpeechSettings(() => performance.now());
     this.#presenter = new SpeechPresenter({ voices: engineSpeechVoices(this.#sound.engine), settings: this.#speechSettings });
     this.#presenter.onLineStarted(() => {
@@ -168,12 +168,17 @@ export class TacticalHost {
     const started = performance.now();
     const phases: Partial<Record<LoadPhase, number>> = {};
     let done = 0;
-    const reached =
+    const timed =
       (phase: LoadPhase) =>
       <T>(value: T): T => {
         phases[phase] = Math.round(performance.now() - started);
-        onProgress(++done, LOAD_PHASES.length);
         return value;
+      };
+    const reached =
+      (phase: LoadPhase) =>
+      <T>(value: T): T => {
+        onProgress(++done, LOAD_PHASES.length);
+        return timed(phase)(value);
       };
     onProgress(done, LOAD_PHASES.length);
     const listing = await fetchVfsList();
@@ -185,23 +190,21 @@ export class TacticalHost {
       assets.then((a) => WorldEffects.load(fetchVfsFile, available, a.palettes)),
       LightTemplates.load(listing, fetchVfsFile),
     ]).then(reached('presentation'));
-    const worldView = Promise.all([presentation, TacticalWorldView.prepare(mapPath, available)]).then(
-      ([[soldierAssets, frames, effects, lightTemplates], prepared]) => {
-        this.#frames = frames;
-        const presented = { soldiers: TacticalWorldView.soldierScene(soldierAssets), frames, effects, lightTemplates };
-        return reached('world')(TacticalWorldView.create(this.#renderer, prepared, presented));
-      },
-    );
-    const sound = Promise.all([assets.then((a) => this.#loadSound(available, a)), worldView]).then(([, world]) =>
-      this.#sound.setWorld(world.world).then(reached('sound')),
-    );
+    const preparing = TacticalWorldView.prepare(mapPath, available);
+    const worldView = Promise.all([presentation, preparing]).then(([[soldierAssets, frames, effects, lightTemplates], prepared]) => {
+      this.#frames = frames;
+      const presented = { soldiers: TacticalWorldView.soldierScene(soldierAssets), frames, effects, lightTemplates };
+      return reached('world')(TacticalWorldView.create(this.#renderer, prepared, presented));
+    });
+    void Promise.all([this.#loadSound(available, assets), preparing])
+      .then(([, p]) => this.#sound.setWorld(p.world))
+      .then(timed('sound'), () => undefined);
     const media = Promise.all([assets, this.#mediaStore()])
       .then(([a, store]) => this.#preloadMedia(store, a, mapPath, available))
       .then(reached('media'));
-    const [soldierAssets, world, , layouts, loadedMedia, uiCursors] = await Promise.all([
+    const [soldierAssets, world, layouts, loadedMedia, uiCursors] = await Promise.all([
       assets,
       worldView,
-      sound,
       loadLayouts(this.#o.ui, TACTICAL_LAYOUTS).then(reached('layouts')),
       media,
       this.#loadUiCursors(),
@@ -234,9 +237,13 @@ export class TacticalHost {
     this.hook.loadMs = { total: Math.round(performance.now() - started), sincePageStart: Math.round(performance.now()), phases };
   }
 
-  async #loadSound(available: ReadonlySet<string>, assets: SoldierAssets): Promise<void> {
+  async #loadSound(available: ReadonlySet<string>, assets: Promise<SoldierAssets>): Promise<void> {
     const session = this.#o.session;
-    await this.#sound.load(available, assets.tables, session.session ?? 'local');
+    await this.#sound.load(
+      available,
+      assets.then((a) => a.tables),
+      session.session ?? 'local',
+    );
     this.#sound.director?.reset(session.soldiers);
     this.#sound.director?.setSpeechOwner({
       isTalking: (soldier) => {

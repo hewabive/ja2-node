@@ -1865,8 +1865,11 @@ entries of `01` §12 "Left out of M7".
 | Server query round trip (local; agents and fallback) | ≤ 10 ms p95 while no enemy turn runs; never queued behind an advance | WebSocket timing |
 
 **Load timing** (2026-10-25). `__ja2Ui.tactical.loadMs` holds `{total, sincePageStart, phases}` of the last tactical
-load: milliseconds from the load's start to the end of each branch (`assets`, `presentation`, `world`, `sound`,
-`layouts`, `media`) and from the page's navigation start. The loaders run their independent branches at once
+load: milliseconds from the load's start to the end of each branch (`assets`, `presentation`, `world`, `layouts`,
+`media`, and `sound`, filled in when it arrives) and from the page's navigation start. The screen does not wait for
+`sound`: it starts with the load (the data version comes from the page, the animation tables when `assets` has them,
+the ambient table from the prepared world) and the director and the world's ambient join the running screen, which
+drops sound events until then. The loaders run their independent branches at once
 (`tactical-host.ts`, `map-host.ts`, `bootUi`, the front end, the layout loader, the strings, the anim and corpse
 structures, the light templates), so a remote browser pays the HTTP/1.1 limit of six requests at a time instead of one
 round trip per file. The built client, A9 on the original data, headless Chromium on this VM (no GPU: the software
@@ -1877,6 +1880,8 @@ compositor reads every WebGL frame back, about 3 s of a load, so these numbers a
 | Cold cache, local | 4.8 s | 3.3 s |
 | Cold cache, 50 ms latency, 50 Mbit/s | 12.9 s | 6.7 s |
 | Warm cache (no request) | 4.0 s | 3.1 s |
+
+Not holding the screen for the sound took the warm opening on the dev server from 2.2 s to 1.6 s.
 
 ---
 

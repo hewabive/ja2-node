@@ -65,8 +65,8 @@ export interface ShopSample {
   readonly held: string | null;
 }
 
-export const LOAD_PHASES = ['assets', 'presentation', 'world', 'sound', 'layouts', 'media'] as const;
-export type LoadPhase = (typeof LOAD_PHASES)[number];
+export const LOAD_PHASES = ['assets', 'presentation', 'world', 'layouts', 'media'] as const;
+export type LoadPhase = (typeof LOAD_PHASES)[number] | 'sound';
 
 export interface LoadTimes {
   readonly total: number;

@@ -52,6 +52,7 @@ export interface SoundContext {
 export interface TacticalSoundOptions {
   readonly engine?: AudioEngine;
   readonly music?: boolean;
+  readonly dataVersion?: DataVersion;
 }
 
 export class TacticalSound {
@@ -62,13 +63,16 @@ export class TacticalSound {
   #director: SoundDirector | null = null;
   #book: CueBook | null = null;
   #scripts: AnimationScripts | null = null;
-  #version: DataVersion = STUB_DATA_VERSION;
+  #version: DataVersion;
   #available: ReadonlySet<string> = new Set();
   readonly #withMusic: boolean;
+  readonly #versionKnown: boolean;
 
   constructor(options: TacticalSoundOptions = {}) {
     this.#settings = loadSettings();
     this.#withMusic = options.music ?? true;
+    this.#version = options.dataVersion ?? STUB_DATA_VERSION;
+    this.#versionKnown = options.dataVersion !== undefined;
     this.engine =
       options.engine ??
       new AudioEngine({
@@ -132,15 +136,21 @@ export class TacticalSound {
     return this.#version === STUB_DATA_VERSION && this.#available.has(`${STUB_PREFIX}${path}`);
   };
 
-  async load(available: ReadonlySet<string>, animations: AnimationTables, session: string): Promise<void> {
+  async #dataVersion(): Promise<DataVersion> {
+    if (this.#versionKnown) return this.#version;
+    return ((await fetchHealth()).dataVersion as DataVersion | undefined) ?? STUB_DATA_VERSION;
+  }
+
+  async load(available: ReadonlySet<string>, animationTables: AnimationTables | Promise<AnimationTables>, session: string): Promise<void> {
     try {
       this.#available = available;
-      const [health, book, scripts] = await Promise.all([
-        fetchHealth(),
+      const [version, book, scripts, animations] = await Promise.all([
+        this.#dataVersion(),
         loadCueBook(fetchVfsFile),
         readVfsFileOrNull(ANIMATION_SCRIPTS_PATH).then((bytes) => bytes ?? readVfsFileOrNull(`${STUB_PREFIX}${ANIMATION_SCRIPTS_PATH}`)),
+        animationTables,
       ]);
-      this.#version = (health.dataVersion as DataVersion | undefined) ?? STUB_DATA_VERSION;
+      this.#version = version;
       this.#book = book;
       this.#scripts = scripts ? parseAnimationScripts(scripts) : null;
       this.#director = new SoundDirector({
