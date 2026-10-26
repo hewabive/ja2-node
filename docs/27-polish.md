@@ -1134,7 +1134,10 @@ file generated in the decoder's tests and no stub video at all (open question 9)
   every frame up to it and posts only that one, so late frames are decoded but never shown, as in `SmkSkipFrames`; the
   video ends when the frame after the last one is due (`pacing.ts`). `sequence-player.ts` covers the screen with a
   black, cursorless overlay and handles the keys of `Intro.cc`: Escape (key up) ends the sequence, Space (key up) or
-  any mouse button (down) ends the current video.
+  any mouse button (down) ends the current video. It downloads the sequence's files one after another from its start
+  (`download-queue.ts`), so the next video arrives while the current one plays instead of after it; a key or click
+  during a download skips at once while the download runs on into the browser cache, and an ended sequence starts no
+  further download.
 - **Sequences** `src/app/video/sequences.ts`: the eleven names, `splashPlan` (the splash only, then the main menu; the
   TalonSoft logo is never played), `beginningPlan` (the four beginning videos, then the new game) and `endingPlan
   ({miguelAlive, skyriderAlive})` from `observe.ended.ending` (throne video by Miguel's death, the fly-by, the helicopter

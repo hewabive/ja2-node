@@ -1,4 +1,5 @@
 import type { IndexedFrameRenderer } from '../../render/indexed-frame.ts';
+import { unlessAborted } from './download-queue.ts';
 import { type ClockSource, frameToRequest, type VideoClock, videoFinished, wallClock } from './pacing.ts';
 import type { VideoSound } from './sound.ts';
 import type { DecoderReply, DecoderRequest, FrameReply, OpenedReply } from './worker-protocol.ts';
@@ -126,14 +127,15 @@ export async function playVideo(path: string, options: PlayVideoOptions): Promis
     maxDecodeMs: progress.maxDecodeMs,
     error,
   });
-  let bytes: Uint8Array | null;
+  let downloaded: { readonly value: Uint8Array | null } | null;
   try {
-    bytes = await options.fetchVideo(path);
+    downloaded = await unlessAborted(options.fetchVideo(path), options.signal);
   } catch (err) {
     return result('failed', (err as Error).message);
   }
+  if (!downloaded) return result('skipped');
+  const bytes = downloaded.value;
   if (!bytes) return result('missing');
-  if (options.signal.aborted) return result('skipped');
   const decoder = new DecoderChannel(options.createWorker());
   let clock: VideoClock | null = null;
   try {

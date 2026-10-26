@@ -6,6 +6,7 @@
 
 import { IndexedFrameRenderer } from '../../render/indexed-frame.ts';
 import { fetchOptionalVfsFile } from '../net/vfs.ts';
+import { downloadInOrder } from './download-queue.ts';
 import { createDecoderWorker, emptyProgress, type FetchVideo, playVideo, type VideoProgress, type VideoResult } from './player.ts';
 import { introVideoPath, type SequencePlan } from './sequences.ts';
 import type { VideoSound } from './sound.ts';
@@ -96,6 +97,7 @@ export async function playSequence(plan: SequencePlan, options: SequenceOptions 
   overlay.addEventListener('mousedown', endVideo);
   options.signal?.addEventListener('abort', endSequence, { once: true });
   const videos: VideoResult[] = [];
+  const downloads = downloadInOrder(plan.videos.map(introVideoPath), options.fetchVideo ?? fetchOptionalVfsFile);
   try {
     for (const video of plan.videos) {
       if (escaped) break;
@@ -105,7 +107,7 @@ export async function playSequence(plan: SequencePlan, options: SequenceOptions 
         sound: options.sound ?? null,
         signal: current.signal,
         createWorker: options.createWorker ?? createDecoderWorker,
-        fetchVideo: options.fetchVideo ?? fetchOptionalVfsFile,
+        fetchVideo: downloads.fetch,
         progress: monitor.progress,
       });
       videos.push(result);
@@ -113,6 +115,7 @@ export async function playSequence(plan: SequencePlan, options: SequenceOptions 
       renderer.clear();
     }
   } finally {
+    downloads.stop();
     window.removeEventListener('keydown', onKeyDown, { capture: true });
     window.removeEventListener('keyup', onKeyUp, { capture: true });
     options.signal?.removeEventListener('abort', endSequence);
