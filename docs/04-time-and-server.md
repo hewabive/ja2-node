@@ -300,7 +300,10 @@ reports as `stealthyFootstep {soldier}` on each new tile where our merc in steal
 confirmations use the view's `morale`. A creature's call reports its kind as `creatureCall {soldier, call:
 onePrey|multiplePrey|attacked|crippled}` (`CreatureCall`, the AI's `usActionData`), and the browser cries it at code 717
 of the call animation (`ACR_SMELL_PREY`, `ACR_SMELL_THREAT`, `ACR_CRIPPLED`; the queen's `LQ_SMELLS_THREAT`,
-`LQ_ENRAGED_ATTACK`, `LQ_CRIPPLED`).
+`LQ_ENRAGED_ATTACK`, `LQ_CRIPPLED`). The idle sounds of cows and crows (`RANDOM_ANIM_SOUND`) need no event: the browser
+runs code 491 for each pass of a loop that holds it (counted from the frame delay on the view clock, as a predictable
+loop sends no frames), every third pass rolls `Random(100)` on the browser's generator against the body's entries, and
+an injured (health `critical` or worse), wet or not standing animal stays silent.
 
 ### 4.5. CPU cost
 

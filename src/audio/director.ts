@@ -8,8 +8,10 @@
 // @src StructureHit and ShotMiss (the miss sounds and the Random(40) curse of our mercs, drawn here, not in the simulation),
 // @src DoSpecialEffectAmmoMiss, WindowHit; TileEngine/Structure.cc DamageStructure (the material a bullet strikes);
 // @src TileEngine/Physics.cc (a thrown object landing, the mortar whistle); Tactical/Handle_UI.cc and Real_Time_Input.cc
-// @src (OK and ATTN on orders and selection). See docs/27 §3.1, §3.3.
+// @src (OK and ATTN on orders and selection); Tactical/Soldier_Ani.cc code 491 (idle sounds, counted from the passes of
+// @src the loop that holds it, since the server sends no frames of a predictable loop). See docs/27 §3.1, §3.3.
 
+import { ticksPerFrame } from '../content/anim/schedule-track.ts';
 import { type AnimationTables, AnimFlags } from '../content/anim/tables.ts';
 import { DEFAULT_TAIL_FRAMES, followTimeline, type TimelinePosition } from '../content/anim/timeline-follower.ts';
 import { ambientActive, ambientCue, ambientGapMs } from '../content/audio/ambient-schedule.ts';
@@ -39,11 +41,13 @@ import {
   smallExplosionCue,
   TerrainKind,
 } from '../content/audio/cues.ts';
+import { hasIdleSounds, idleCheck, idleCheckLoopFrames } from '../content/audio/idle-sounds.ts';
 import { NOWHERE, onScreen } from '../content/audio/sound-position.ts';
 import { speechCue, speechPathForLine } from '../content/audio/speech.ts';
 import type { AmbientEntry } from '../content/formats/ambient.ts';
 import type { AnimationScripts } from '../content/formats/ja2bin.ts';
 import type { TextKey } from '../content/narrative/dialogue-text.ts';
+import { TICK_MS } from '../protocol/messages.ts';
 import type { SoldierView, ViewFrame } from '../protocol/view.ts';
 import { ClientRandom } from './client-random.ts';
 import type { AudioEngine, VoiceHandle } from './engine.ts';
@@ -61,6 +65,9 @@ const NO_VARIANT = 0;
 const FAR_VOLUME_MOD = 25;
 const DEFAULT_MINUTE_OF_DAY = 12 * 60;
 const RECRUITED_KINDS = new Set(['rpc', 'epc']);
+const ANIM_STAND = 6;
+const DYING_HEALTH_INDEX = 0;
+const CRITICAL_HEALTH_INDEX = 1;
 
 export interface SoundWorld {
   terrainAt(gridNo: number): number;
@@ -113,6 +120,12 @@ interface AmbientSlot {
   voice: VoiceHandle | null;
 }
 
+interface IdleLoop {
+  readonly state: number;
+  readonly since: number;
+  passes: number;
+}
+
 interface QueuedLine {
   readonly cue: Cue;
   readonly speaker: number | null;
@@ -143,6 +156,9 @@ export class SoundDirector {
   readonly #weapons = new Map<number, number>();
   readonly #bursts = new Map<number, boolean>();
   readonly #calls = new Map<number, CreatureCall>();
+  readonly #idleLoops = new Map<number, IdleLoop>();
+  readonly #idleCounters = new Map<number, number>();
+  readonly #idleLoopFrames = new Map<number, number | null>();
   #whistle: VoiceHandle | null = null;
   readonly #attacks = new Map<number, AttackKind>();
   readonly #speechQueue: QueuedLine[] = [];
@@ -219,6 +235,7 @@ export class SoundDirector {
         this.stats.events++;
         if (audible) this.#event(e);
       }
+      this.#idleChecks(frame.tick, audible);
     }
     this.#loops.update([...this.#soldiers.values()]);
   }
@@ -268,6 +285,50 @@ export class SoundDirector {
     const stateChanged = prev.animation !== s.animation;
     if (stateChanged && this.#has(prev.animation, AnimFlags.MOVING) && this.#has(s.animation, AnimFlags.STATIONARY)) this.#footstep(s);
     if (!stateChanged && prev.direction !== s.direction && this.#turningStep(s)) this.#footstep(s);
+  }
+
+  #loopFrames(state: number): number | null {
+    const scripts = this.#o.scripts;
+    if (!scripts) return null;
+    if (!this.#idleLoopFrames.has(state)) this.#idleLoopFrames.set(state, idleCheckLoopFrames(scripts, state));
+    return this.#idleLoopFrames.get(state) ?? null;
+  }
+
+  #idleChecks(tick: number, audible: boolean): void {
+    for (const s of this.#soldiers.values()) {
+      const frames = hasIdleSounds(s.bodyType) ? this.#loopFrames(s.animation) : null;
+      if (frames === null) {
+        this.#idleLoops.delete(s.id);
+        continue;
+      }
+      let loop = this.#idleLoops.get(s.id);
+      if (loop?.state !== s.animation) {
+        loop = { state: s.animation, since: tick, passes: 0 };
+        this.#idleLoops.set(s.id, loop);
+      }
+      const passes = Math.floor((tick - loop.since) / (frames * ticksPerFrame(s.frameDelay, TICK_MS)));
+      if (!audible) loop.passes = passes;
+      for (; loop.passes < passes; loop.passes++) this.#idleCheck(s);
+    }
+  }
+
+  #idleCheck(s: SoldierView): void {
+    const health = s.healthIndex ?? Number.MAX_SAFE_INTEGER;
+    const terrain = this.#world?.terrainAt(s.gridNo) ?? 0;
+    const check = idleCheck(
+      this.#idleCounters.get(s.id) ?? 0,
+      {
+        bodyType: s.bodyType,
+        gridNo: s.gridNo,
+        dying: health <= DYING_HEALTH_INDEX,
+        injured: health <= CRITICAL_HEALTH_INDEX,
+        inWater: terrain >= TerrainKind.LOW_WATER && terrain <= TerrainKind.DEEP_WATER,
+        standing: this.#o.animations?.controls[s.animation]?.endHeight === ANIM_STAND,
+      },
+      this.#rng.rand,
+    );
+    this.#idleCounters.set(s.id, check.counter);
+    this.#play(check.cue);
   }
 
   #turningStep(s: SoldierView): boolean {

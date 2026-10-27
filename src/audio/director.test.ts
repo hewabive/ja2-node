@@ -181,6 +181,22 @@ describe('the sound director', () => {
     expect(cries(10, 'crippled')).toEqual([path('CREATURE_BATTLECRY_1'), path('LQ_CRIPPLED')]);
   });
 
+  it('lets a standing crow caw now and then from the passes of its loop, a crow in water never', () => {
+    const STANDING_LOOP = [1, 2, 3, 4, 5, 6, 7, 8, 7, 6, 5, 4, 3, 2, 1, 491, 501, 999];
+    const caws = (terrain: number) => {
+      const r = rig({ terrainAt: () => terrain, ambient: [] }, withScript('STANDING', STANDING_LOOP));
+      const crow = soldier(1, 'STANDING', 0, { bodyType: 19, team: 4, frameDelay: 100, healthIndex: 5 });
+      r.director.reset([crow]);
+      for (let tick = 10; tick <= 30_000; tick += 10) r.director.applyFrames([frame(tick, [])]);
+      return files(r);
+    };
+    const heard = caws(1);
+    expect(heard.length).toBeGreaterThan(5);
+    expect(new Set(heard)).toEqual(new Set(['sounds/crow2.wav', 'sounds/crow3.wav']));
+    expect(heard.length).toBeLessThan(30_000 / (15 * 20 * 3));
+    expect(caws(9)).toEqual([]);
+  });
+
   it('plays the stance codes of the stub scripts', () => {
     const r = rig();
     r.director.reset([soldier(1, 'STANDING', 0)]);
