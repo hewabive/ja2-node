@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc EVENT_InitNewSoldierAnim (the final footstep), TurnSoldier (turning footsteps),
-// @src EVENT_SoldierGotHit (impact and hit sounds); Tactical/Soldier_Ani.cc (death sounds); Tactical/Handle_Doors.cc
+// @src PlaySoldierFootstepSound (silent in stealth mode), PlayStealthySoldierFootstepSound (Overhead.cc HandleAtNewGridNo),
+// @src InternalDoMercBattleSound (nothing from a muted soldier), EVENT_SoldierGotHit (impact and hit sounds); Tactical/Soldier_Ani.cc (death sounds); Tactical/Handle_Doors.cc
 // @src HandleDoorChangeFromGridNo (the close sound on the door's key frame); Tactical/Weapons.cc UseGun, BulletHitStructure,
 // @src StructureHit and ShotMiss (the miss sounds and the Random(40) curse of our mercs, drawn here, not in the simulation),
 // @src DoSpecialEffectAmmoMiss, WindowHit; TileEngine/Structure.cc DamageStructure (the material
@@ -141,7 +142,6 @@ export class SoundDirector {
   readonly #bursts = new Map<number, boolean>();
   #whistle: VoiceHandle | null = null;
   readonly #attacks = new Map<number, AttackKind>();
-  readonly #morale = new Map<number, number>();
   readonly #speechQueue: QueuedLine[] = [];
   #speech: { voice: VoiceHandle; speaker: number | null } | null = null;
   #speechOwner: SpeechOwner | null = null;
@@ -184,11 +184,6 @@ export class SoundDirector {
 
   setContext(context: DirectorContext): void {
     this.#context = context;
-  }
-
-  setMorale(morale: ReadonlyMap<number, number>): void {
-    this.#morale.clear();
-    for (const [id, value] of morale) this.#morale.set(id, value);
   }
 
   confirm(soldier: number): void {
@@ -278,7 +273,8 @@ export class SoundDirector {
     return !water && terrain !== TerrainKind.DIRT_ROAD && terrain !== TerrainKind.PAVED_ROAD;
   }
 
-  #footstep(s: SoldierView): void {
+  #footstep(s: SoldierView, evenStealthy = false): void {
+    if (s.stealth && !evenStealthy) return;
     const name = this.#stateName(s.animation);
     const step = footstepCue(
       this.#o.book,
@@ -308,7 +304,7 @@ export class SoundDirector {
     const ctx = {
       gridNo: s.gridNo,
       bodyType: s.bodyType,
-      stealth: false,
+      stealth: s.stealth ?? false,
       onScreen: onScreen(s.gridNo, this.#o.engine.listener),
       handItem: this.#handItem(s),
     };
@@ -321,7 +317,7 @@ export class SoundDirector {
 
   #battleSound(id: number, sound: BattleSoundName, lowerVolume: boolean): void {
     const s = this.#soldiers.get(id);
-    if (!s) return;
+    if (!s || s.muted) return;
     if (sound === 'DIE1') {
       if (this.#dead.has(id)) return;
       this.#dead.add(id);
@@ -331,7 +327,7 @@ export class SoundDirector {
     const talking = owner ? owner.isTalking(id) : this.#speech?.speaker === id && this.#speech.voice.active;
     const outcome = battleSoundCue(
       this.#o.book,
-      { gridNo: s.gridNo, team: s.team, bodyType: s.bodyType, voice: s.voice ?? null, morale: this.#morale.get(id) ?? NORMAL_MORALE },
+      { gridNo: s.gridNo, team: s.team, bodyType: s.bodyType, voice: s.voice ?? null, morale: s.morale ?? NORMAL_MORALE },
       this.#battle.get(id) ?? NO_BATTLE_MEMORY,
       {
         sound,
@@ -416,6 +412,9 @@ export class SoundDirector {
       case 'mortarWhistle':
         this.#mortarWhistle(e.sounding);
         return;
+      case 'stealthyFootstep':
+        this.#stealthyFootstep(e.soldier);
+        return;
       case 'soldierHit':
         this.#soldierHit(e);
         return;
@@ -481,6 +480,11 @@ export class SoundDirector {
   #mortarWhistle(sounding: boolean): void {
     this.#whistle?.stop();
     this.#whistle = sounding ? this.#play(effectCue(this.#o.book, 'MORTAR_WHISTLE', 'fixed', VolumeLevel.HIGH)) : null;
+  }
+
+  #stealthyFootstep(soldier: number): void {
+    const s = this.#soldiers.get(soldier);
+    if (s) this.#footstep(s, true);
   }
 
   #soldierHit(e: EventOf<'soldierHit'>): void {

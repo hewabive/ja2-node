@@ -269,17 +269,7 @@ their fixed 100 ms) and behind a mortar shell (with its `PreRandom` delay), `wat
 `explosion` the presentation fields `x, y, z` (where the blast is drawn) and `delay` (the animation's blast speed). Agents
 get them like any event.
 
-**Sounds of the shooting.** The sounds come from the same events where the original plays them: a gun's miss sound
-from `bulletImpact` (`MISS_G2` at height 0, else one of `MISS_1..8`; the HE miniboom plays `SMALL_EXPLODE_1`), the
-material a bullet strikes from `structureStruck {soldier, gridNo, material, caveWall?}` (`DamageStructure`, also for
-bullets that pass through), a bullet leaving the map from `bulletStopped {reason: offMap, explosiveAmmo?}`, the glass
-from `windowShattered`, a merc cursing a miss (`Random(40) == 0` for our single shots that hit a structure, and for our
-shots that leave the map; the browser draws it on `bulletImpact` and the off-map `bulletStopped`), creature spit gas from `creatureGas {gridNo}`, a thrown
-object landing from `thrownImpact {gridNo}` (the first time it hits the ground or a roof, and where it comes to rest on
-either) and the mortar whistle from `mortarWhistle {sounding}` (on at the top of an armed shell's arc, off when it
-ends). A knife thrown at a structure keeps its knife miss sound on `bulletStopped`.
- Because a
-tactical event's `tick` is the tactical simulation's and a campaign's view ticks run on, the session also copies these
+Because a tactical event's `tick` is the tactical simulation's and a campaign's view ticks run on, the session also copies these
 events into the frame of the tick it stepped them in (`ViewFrame.effects`, stamped with the session tick). The client
 plays each one from that tick on its own clock of view ticks (`EffectAnimations`), and while bullets fly or effects
 started in the last two seconds, the session sends a frame every 10 ticks even when nothing else changed, so the
@@ -292,6 +282,22 @@ one more every 100 ms). The session's simulation adapter keeps that tick per bul
 state. A thrown object in flight (a grenade, a rock, anything thrown or launched except an armed mortar shell, which
 only leaves its trail) is there with `item` (its internal name), at its position and height above the zero plane; the
 same visibility rule applies to its thrower.
+
+**Sounds of the shooting.** The sounds come from the same events where the original plays them: a gun's miss sound
+from `bulletImpact` (`MISS_G2` at height 0, else one of `MISS_1..8`; the HE miniboom plays `SMALL_EXPLODE_1`), the
+material a bullet strikes from `structureStruck {soldier, gridNo, material, caveWall?}` (`DamageStructure`, also for
+bullets that pass through), a bullet leaving the map from `bulletStopped {reason: offMap, explosiveAmmo?}`, the glass
+from `windowShattered`, a merc cursing a miss (`Random(40) == 0` for our single shots that hit a structure, and for our
+shots that leave the map; the browser draws it on `bulletImpact` and the off-map `bulletStopped`), creature spit gas from `creatureGas {gridNo}`, a thrown
+object landing from `thrownImpact {gridNo}` (the first time it hits the ground or a roof, and where it comes to rest on
+either) and the mortar whistle from `mortarWhistle {sounding}` (on at the top of an armed shell's arc, off when it
+ends). A knife thrown at a structure keeps its knife miss sound on `bulletStopped`.
+
+**Soldier sounds.** Footsteps, stance sounds and battle sounds follow the soldier view: a merc in stealth mode
+(`stealth`) plays no footstep or stance sound (`PlaySoldierFootstepSound`), except the stealthy footstep the simulation
+reports as `stealthyFootstep {soldier}` on each new tile where our merc in stealth mode makes movement noise
+(`HandleAtNewGridNo`, `PlayStealthySoldierFootstepSound`); a `muted` merc plays no battle sound at all; the low-morale
+confirmations use the view's `morale`.
 
 ### 4.5. CPU cost
 

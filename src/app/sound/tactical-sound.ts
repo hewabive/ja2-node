@@ -46,7 +46,6 @@ export interface SoundContext {
   readonly selected: number | null;
   readonly inCombat: boolean;
   readonly clock: { readonly hour: number; readonly minute: number } | null;
-  readonly morale: ReadonlyMap<number, number>;
 }
 
 export interface TacticalSoundOptions {
@@ -218,7 +217,6 @@ export class TacticalSound {
       inCombat: ctx.inCombat,
       minuteOfDay: ctx.clock ? ctx.clock.hour * MINUTES_PER_HOUR + ctx.clock.minute : null,
     });
-    director.setMorale(ctx.morale);
     director.update();
   }
 }

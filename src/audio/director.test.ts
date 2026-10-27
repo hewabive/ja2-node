@@ -137,6 +137,27 @@ describe('the sound director', () => {
     expect(r.cues[0]?.baseVolume).toBe(65);
   });
 
+  it('keeps a stealthy soldier quiet except for the stealthy footstep of a new tile', () => {
+    const r = rig({ terrainAt: () => 2, ambient: [] });
+    r.director.reset([soldier(1, 'WALKING', 1, { stealth: true })]);
+    r.director.applyFrames([frame(10, [soldier(1, 'STANDING', 0, { stealth: true })])]);
+    r.director.applyFrames([frame(20, [soldier(1, 'KNEEL_DOWN', 1, { stealth: true })])]);
+    expect(r.cues).toEqual([]);
+    r.director.applyFrames([frame(30, [], [{ type: 'stealthyFootstep', tick: 30, soldier: 1 }])]);
+    expect(r.director.stats.footsteps).toBe(1);
+  });
+
+  it('plays nothing from a muted merc and picks the low-morale confirmation from the view', () => {
+    const r = rig();
+    r.director.reset([soldier(1, 'STANDING', 0, { muted: true }), soldier(2, 'STANDING', 0, { morale: 20 })]);
+    r.director.confirm(1);
+    r.director.applyFrames([frame(10, [], [{ type: 'soldierDied', tick: 10, soldier: 1, killer: null, gridNo: G }])]);
+    expect(r.cues).toEqual([]);
+    r.director.confirm(2);
+    expect(files(r)).toHaveLength(1);
+    expect(files(r)[0]).toMatch(/^battlesnds\/007_lmok\d\.wav$/);
+  });
+
   it('plays the stance codes of the stub scripts', () => {
     const r = rig();
     r.director.reset([soldier(1, 'STANDING', 0)]);

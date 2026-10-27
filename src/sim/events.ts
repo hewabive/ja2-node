@@ -165,6 +165,11 @@ export interface MortarWhistleEvent extends SimEventBase {
   readonly sounding: boolean;
 }
 
+export interface StealthyFootstepEvent extends SimEventBase {
+  readonly type: 'stealthyFootstep';
+  readonly soldier: number;
+}
+
 export type BulletImpactEffect = 'dust' | 'splash' | 'miniboom';
 
 export interface BulletImpactEvent extends SimEventBase {
@@ -559,6 +564,7 @@ export type SimEvent =
   | CreatureGasEvent
   | ThrownImpactEvent
   | MortarWhistleEvent
+  | StealthyFootstepEvent
   | SoldierHitEvent
   | LifeLostEvent
   | SoldierDiedEvent

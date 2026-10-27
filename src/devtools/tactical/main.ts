@@ -177,11 +177,6 @@ function viewport(): Viewport {
   return { width: Math.max(1, Math.floor(canvas.width / zoom)), height: Math.max(1, Math.floor(canvas.height / zoom)) };
 }
 
-function moraleById(): Map<number, number> {
-  const mercs = client?.strategic?.mercs ?? [];
-  return new Map(mercs.flatMap((m) => (m.morale === undefined ? [] : [[m.id, m.morale] as const])));
-}
-
 function updateSound(v: Viewport): void {
   sound.update({
     camera,
@@ -190,7 +185,6 @@ function updateSound(v: Viewport): void {
     selected,
     inCombat: !!client?.combat,
     clock: client?.clock ?? null,
-    morale: moraleById(),
   });
 }
 

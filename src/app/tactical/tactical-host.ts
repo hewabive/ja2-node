@@ -394,7 +394,6 @@ export class TacticalHost {
 
   #updateSound(presenter: TacticalWorldPresenter): void {
     const session = this.#o.session;
-    const mercs = session.strategic?.mercs ?? [];
     this.#sound.update({
       camera: presenter.camera,
       width: presenter.viewport.width,
@@ -402,7 +401,6 @@ export class TacticalHost {
       selected: this.#screen?.selected ?? null,
       inCombat: session.combat !== null,
       clock: session.clock,
-      morale: new Map(mercs.flatMap((m) => (m.morale === undefined ? [] : [[m.id, m.morale] as const]))),
     });
   }
 
