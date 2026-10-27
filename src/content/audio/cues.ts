@@ -3,9 +3,9 @@
 // @src src/game/Tactical/Soldier_Control.cc InternalPlaySoldierFootstepSound, SoldierGotHit (impact sounds);
 // @src Tactical/Weapons.cc GetBurstSoundName, UseGun, BulletHitStructure, StructureHit and ShotMiss (miss sounds),
 // @src DoSpecialEffectAmmoMiss (the HE blast), WindowHit (the glass); Tactical/Items.cc ReloadGun;
-// @src Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame (codes 700-791); TileEngine/Structure.cc guiMaterialHitSound,
-// @src DamageStructure; TileEngine/Explosion_Control.cc GenerateExplosionFromExplosionPointer; Tactical/Handle_Doors.cc
-// @src HandleDoorChangeFromGridNo; Tactical/Keys.cc DoUnlockDoor, AttemptToUnlockDoor, AttemptToCrowbarLock, AttemptToSmashDoor,
+// @src Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame (codes 700-791, the battle cry of 717);
+// @src TileEngine/Structure.cc guiMaterialHitSound, DamageStructure; TileEngine/Explosion_Control.cc
+// @src GenerateExplosionFromExplosionPointer; Tactical/Handle_Doors.cc HandleDoorChangeFromGridNo; Tactical/Keys.cc DoUnlockDoor, AttemptToUnlockDoor, AttemptToCrowbarLock, AttemptToSmashDoor,
 // @src HandleDoorTrap; Tactical/Handle_Items.cc (the drop impact); Laptop/Laptop.cc (power up and down). See docs/27 §3.1.
 
 import { type Cue, cueOf, effectCue, type FileExists, type Rand, soundRange, VolumeLevel } from './cue.ts';
@@ -280,12 +280,15 @@ export function dropCue(book: CueBook, gridNo: number): Cue | null {
   return effectCue(book, 'THROW_IMPACT_2', 'location', VolumeLevel.MID, gridNo);
 }
 
+export type CreatureCall = 'onePrey' | 'multiplePrey' | 'attacked' | 'crippled';
+
 export interface OpContext {
   readonly gridNo: number;
   readonly bodyType: number;
   readonly stealth: boolean;
   readonly onScreen: boolean;
   readonly handItem: number | null;
+  readonly creatureCall: CreatureCall | null;
 }
 
 export type OpSound =
@@ -365,10 +368,30 @@ const OP_FOOTSTEP_RIGHT = 704;
 const OP_LOCK_N_LOAD = 708;
 const OP_KNIFE_THROW = 709;
 const OP_DIE_SOUND = 732;
+const OP_BATTLE_CRY = 717;
 const OP_COOL_QUOTE = 766;
 
 export function isSoundOpcode(code: number): boolean {
   return code >= FIRST_SOUND_OPCODE && code <= LAST_SOUND_OPCODE;
+}
+
+const QUEEN_CRIES: Readonly<Record<CreatureCall, string>> = {
+  onePrey: 'LQ_SMELLS_THREAT',
+  multiplePrey: 'LQ_SMELLS_THREAT',
+  attacked: 'LQ_ENRAGED_ATTACK',
+  crippled: 'LQ_CRIPPLED',
+};
+const CREATURE_CRIES: Readonly<Record<CreatureCall, string>> = {
+  onePrey: 'ACR_SMELL_PREY',
+  multiplePrey: 'ACR_SMELL_THREAT',
+  attacked: 'ACR_SMELL_THREAT',
+  crippled: 'ACR_CRIPPLED',
+};
+
+function battleCryCue(book: CueBook, ctx: OpContext): Cue | null {
+  if (ctx.creatureCall === null) return null;
+  const cries = ctx.bodyType === SoundBody.QUEENMONSTER ? QUEEN_CRIES : CREATURE_CRIES;
+  return effectCue(book, cries[ctx.creatureCall], 'location', VolumeLevel.HIGH, ctx.gridNo);
 }
 
 function simpleOpCue(book: CueBook, op: SimpleOp, ctx: OpContext, rand: Rand): Cue | null {
@@ -383,6 +406,7 @@ export function opcodeSound(book: CueBook, code: number, ctx: OpContext, rand: R
   if (code === OP_COOL_QUOTE) return { kind: 'battle', sound: 'COOL1' };
   let cue: Cue | null = null;
   if (code === OP_LOCK_N_LOAD) cue = ctx.handItem !== null ? lockAndLoadCue(book, ctx.handItem, ctx.gridNo) : null;
+  else if (code === OP_BATTLE_CRY) cue = battleCryCue(book, ctx);
   else if (code === OP_KNIFE_THROW) {
     const knife = weaponByName(book, 'THROWING_KNIFE');
     cue = knife && knife.sound !== '' ? cueOf(knife.sound, 'location', VolumeLevel.HIGH, ctx.gridNo) : null;

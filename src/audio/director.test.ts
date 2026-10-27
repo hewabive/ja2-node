@@ -7,7 +7,7 @@ import { ANIM_CONTROL_PATH, ANIM_SURFACES_PATH, type AnimationTables, parseAnima
 import type { Cue } from '../content/audio/cue.ts';
 import { type CueBook, loadCueBook } from '../content/audio/cue-book.ts';
 import { AmbientTime } from '../content/formats/ambient.ts';
-import { type AnimationScripts, parseAnimationScripts } from '../content/formats/ja2bin.ts';
+import { type AnimationScripts, MAX_FRAMES_PER_ANIM, parseAnimationScripts } from '../content/formats/ja2bin.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import type { SoldierView, ViewFrame } from '../protocol/view.ts';
 import { CATCH_UP_TICKS, SoundDirector, type SoundWorld } from './director.ts';
@@ -34,7 +34,7 @@ interface Rig {
   clock: number;
 }
 
-function rig(world: SoundWorld | null = null): Rig {
+function rig(world: SoundWorld | null = null, animationScripts = scripts): Rig {
   const graph = new FakeGraph();
   const engine = new AudioEngine({ createGraph: () => graph.asGraph(), load: async () => pcmWav(200) });
   engine.unlock();
@@ -56,7 +56,7 @@ function rig(world: SoundWorld | null = null): Rig {
   const director = new SoundDirector({
     engine,
     book,
-    scripts,
+    scripts: animationScripts,
     animations: tables,
     exists: () => true,
     seed: 1,
@@ -109,6 +109,13 @@ const frame = (tick: number, changed: SoldierView[], events: ViewFrame['events']
 });
 const files = (r: Rig) => r.cues.map((c) => c.file);
 
+function withScript(state: string, codes: readonly number[]): AnimationScripts {
+  const patched = new Uint16Array(scripts.codes);
+  patched.fill(0, stateId(tables, state) * MAX_FRAMES_PER_ANIM, (stateId(tables, state) + 1) * MAX_FRAMES_PER_ANIM);
+  patched.set(codes, stateId(tables, state) * MAX_FRAMES_PER_ANIM);
+  return { codes: patched };
+}
+
 describe('the sound director', () => {
   it('plays footsteps from the codes of the walking script, never the same variant twice in a row', () => {
     const r = rig({ terrainAt: () => 1, ambient: [] });
@@ -156,6 +163,22 @@ describe('the sound director', () => {
     r.director.confirm(2);
     expect(files(r)).toHaveLength(1);
     expect(files(r)[0]).toMatch(/^battlesnds\/007_lmok\d\.wav$/);
+  });
+
+  it('cries the call kind of a creature at code 717 of its call animation', () => {
+    const MONSTER_UP = [707, 1, 2, 3, 4, 717, 5, 6, 7, 8, 7, 6, 5, 4, 3, 2, 1, 442, 499];
+    const cries = (bodyType: number, call: 'onePrey' | 'attacked' | 'crippled') => {
+      const r = rig(null, withScript('MONSTER_UP', MONSTER_UP));
+      r.director.reset([soldier(1, 'STANDING', 0, { bodyType, team: 2 })]);
+      r.director.applyFrames([
+        frame(10, [soldier(1, 'MONSTER_UP', 5, { bodyType, team: 2 })], [{ type: 'creatureCall', tick: 10, soldier: 1, call }]),
+      ]);
+      return files(r).slice(0, 2);
+    };
+    const path = (name: string) => book.paths.get(name);
+    expect(cries(5, 'onePrey')).toEqual([path('CREATURE_BATTLECRY_1'), path('ACR_SMELL_PREY')]);
+    expect(cries(5, 'attacked')).toEqual([path('CREATURE_BATTLECRY_1'), path('ACR_SMELL_THREAT')]);
+    expect(cries(10, 'crippled')).toEqual([path('CREATURE_BATTLECRY_1'), path('LQ_CRIPPLED')]);
   });
 
   it('plays the stance codes of the stub scripts', () => {

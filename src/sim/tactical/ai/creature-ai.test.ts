@@ -69,6 +69,7 @@ describe('CreatureCall', () => {
     creatureCall(t, queen);
     expect(t.perception.awareOfOpposition[Team.CREATURE]).toBe(true);
     expect(animName(content, queen.state)).toBe('QUEEN_CALL');
+    expect(t.events.filter((e) => e.type === 'creatureCall')).toMatchObject([{ soldier: queen.id, call: 'attacked' }]);
     expect(near).toMatchObject({ ai: { callPriority: 12, alertStatus: AlertStatus.RED, caller: queen.id, frenzied: true } });
     expect(near.ai.callerGridNo).toBe(queen.gridNo);
     expect(far.ai).toMatchObject({ callPriority: 10, alertStatus: AlertStatus.RED, frenzied: false });

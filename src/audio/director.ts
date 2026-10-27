@@ -2,12 +2,13 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc EVENT_InitNewSoldierAnim (the final footstep), TurnSoldier (turning footsteps),
 // @src PlaySoldierFootstepSound (silent in stealth mode), PlayStealthySoldierFootstepSound (Overhead.cc HandleAtNewGridNo),
-// @src InternalDoMercBattleSound (nothing from a muted soldier), EVENT_SoldierGotHit (impact and hit sounds); Tactical/Soldier_Ani.cc (death sounds); Tactical/Handle_Doors.cc
+// @src InternalDoMercBattleSound (nothing from a muted soldier), EVENT_SoldierGotHit (impact and hit sounds);
+// @src Tactical/Soldier_Ani.cc (death sounds, the creature battle cry of code 717 by the call kind); Tactical/Handle_Doors.cc
 // @src HandleDoorChangeFromGridNo (the close sound on the door's key frame); Tactical/Weapons.cc UseGun, BulletHitStructure,
 // @src StructureHit and ShotMiss (the miss sounds and the Random(40) curse of our mercs, drawn here, not in the simulation),
-// @src DoSpecialEffectAmmoMiss, WindowHit; TileEngine/Structure.cc DamageStructure (the material
-// @src a bullet strikes); TileEngine/Physics.cc (a thrown object landing, the mortar whistle);
-// @src Tactical/Handle_UI.cc and Real_Time_Input.cc (OK and ATTN on orders and selection). See docs/27 §3.1, §3.3.
+// @src DoSpecialEffectAmmoMiss, WindowHit; TileEngine/Structure.cc DamageStructure (the material a bullet strikes);
+// @src TileEngine/Physics.cc (a thrown object landing, the mortar whistle); Tactical/Handle_UI.cc and Real_Time_Input.cc
+// @src (OK and ATTN on orders and selection). See docs/27 §3.1, §3.3.
 
 import { type AnimationTables, AnimFlags } from '../content/anim/tables.ts';
 import { DEFAULT_TAIL_FRAMES, followTimeline, type TimelinePosition } from '../content/anim/timeline-follower.ts';
@@ -16,6 +17,7 @@ import { type BattleMemory, type BattleSoundName, battleSoundCue, NO_BATTLE_MEMO
 import { type Cue, effectCue, type FileExists, VolumeLevel } from '../content/audio/cue.ts';
 import type { CueBook } from '../content/audio/cue-book.ts';
 import {
+  type CreatureCall,
   type DoorKind,
   doorCue,
   doorTrapCue,
@@ -140,6 +142,7 @@ export class SoundDirector {
   readonly #dead = new Set<number>();
   readonly #weapons = new Map<number, number>();
   readonly #bursts = new Map<number, boolean>();
+  readonly #calls = new Map<number, CreatureCall>();
   #whistle: VoiceHandle | null = null;
   readonly #attacks = new Map<number, AttackKind>();
   readonly #speechQueue: QueuedLine[] = [];
@@ -208,11 +211,12 @@ export class SoundDirector {
     for (const frame of frames) {
       this.stats.frames++;
       const audible = newest - frame.tick <= CATCH_UP_TICKS;
+      const events = frame.events ?? [];
+      for (const e of events) this.#remember(e);
       for (const id of frame.removed) this.#soldiers.delete(id);
       for (const s of frame.changed) this.#soldierChanged(s, audible);
-      for (const e of frame.events ?? []) {
+      for (const e of events) {
         this.stats.events++;
-        this.#remember(e);
         if (audible) this.#event(e);
       }
     }
@@ -307,6 +311,7 @@ export class SoundDirector {
       stealth: s.stealth ?? false,
       onScreen: onScreen(s.gridNo, this.#o.engine.listener),
       handItem: this.#handItem(s),
+      creatureCall: this.#calls.get(s.id) ?? null,
     };
     const sound = opcodeSound(this.#o.book, code, ctx, this.#rng.rand);
     if (!sound) return;
@@ -364,6 +369,7 @@ export class SoundDirector {
       this.#bursts.set(e.soldier, e.burst ?? false);
       this.#attacks.set(e.soldier, 'gun');
     } else if (e.type === 'meleeStrike') this.#attacks.set(e.soldier, e.weapon === 'blade' ? 'blade' : 'punch');
+    else if (e.type === 'creatureCall') this.#calls.set(e.soldier, e.call);
   }
 
   #event(e: NonNullable<ViewFrame['events']>[number]): void {

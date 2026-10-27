@@ -119,7 +119,9 @@ describe('gunfire', () => {
   it('leaves the throwing knife to its animation code, plays the dry fire on a jam', () => {
     expect(gunshotCue(book, G, { item: weaponItem('THROWING_KNIFE'), silenced: false, burst: false, rounds: 1 }, everything)).toBeNull();
     expect(dryFireCue(book, G)?.file).toBe(book.paths.get('S_DRYFIRE1'));
-    expect(opcodeSound(book, 709, { gridNo: G, bodyType: 0, stealth: false, onScreen: true, handItem: null }, first)).toMatchObject({
+    expect(
+      opcodeSound(book, 709, { gridNo: G, bodyType: 0, stealth: false, onScreen: true, handItem: null, creatureCall: null }, first),
+    ).toMatchObject({
       cue: { file: 'sounds/weapons/knife throw swoosh.wav' },
     });
   });
@@ -203,7 +205,7 @@ describe('doors and locks', () => {
 });
 
 describe('animation codes 700-798', () => {
-  const ctx = { gridNo: G, bodyType: 0, stealth: false, onScreen: true, handItem: null };
+  const ctx = { gridNo: G, bodyType: 0, stealth: false, onScreen: true, handItem: null, creatureCall: null };
 
   it('map codes to cues, footsteps and battle sounds', () => {
     expect(opcodeSound(book, 703, ctx, first)).toEqual({ kind: 'footstep' });
@@ -223,6 +225,20 @@ describe('animation codes 700-798', () => {
     expect(opcodeSound(book, 770, ctx, first)).toMatchObject({ cue: { mix: 'fixed' } });
     expect(opcodeSound(book, 708, { ...ctx, handItem: weaponItem('GLOCK_17') }, first)).toMatchObject({
       cue: { file: book.paths.get('S_LNL_PISTOL') },
+    });
+  });
+
+  it('cries the call kind at 717, the queen with her own cries', () => {
+    const QUEEN = 10;
+    expect(opcodeSound(book, 717, ctx, first)).toBeNull();
+    expect(opcodeSound(book, 717, { ...ctx, creatureCall: 'multiplePrey' }, first)).toMatchObject({
+      cue: { file: book.paths.get('ACR_SMELL_THREAT'), mix: 'location', baseVolume: 127 },
+    });
+    expect(opcodeSound(book, 717, { ...ctx, bodyType: QUEEN, creatureCall: 'multiplePrey' }, first)).toMatchObject({
+      cue: { file: book.paths.get('LQ_SMELLS_THREAT') },
+    });
+    expect(opcodeSound(book, 717, { ...ctx, bodyType: QUEEN, creatureCall: 'attacked' }, first)).toMatchObject({
+      cue: { file: book.paths.get('LQ_ENRAGED_ATTACK') },
     });
   });
 });

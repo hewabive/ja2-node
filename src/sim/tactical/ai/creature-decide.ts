@@ -1,13 +1,14 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/TacticalAI/CreatureDecideAction.cc CreatureCall, CreatureDecideActionGreen/Yellow/Red/Black, CreatureDecideAction,
-// @src CreatureDecideAlertStatus, CrowDecideActionGreen/Red, CrowDecideAction; Movement.cc TrackScent;
-// @src AIUtils.cc ValidCreatureTurn; Attacks.cc AdvanceToFiringRange; Rotting_Corpses.cc FindNearestRottingCorpse;
-// @src Realtime.cc REALTIME_CREATURE_AI_DELAY. See docs/13 §14.
+// @src src/game/TacticalAI/CreatureDecideAction.cc CreatureCall (with the call kind code 717 of Soldier_Ani.cc cries),
+// @src CreatureDecideActionGreen/Yellow/Red/Black, CreatureDecideAction, CreatureDecideAlertStatus, CrowDecideActionGreen/Red,
+// @src CrowDecideAction; Movement.cc TrackScent; AIUtils.cc ValidCreatureTurn; Attacks.cc AdvanceToFiringRange;
+// @src Rotting_Corpses.cc FindNearestRottingCorpse; Realtime.cc REALTIME_CREATURE_AI_DELAY. See docs/13 §14.
 
 import { ItemClass, NOTHING, WEAPON_CLASSES } from '../../../content/items/items.ts';
 import { pythSpacesAway, spacesAway, WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
 import { i8, u8 } from '../../../core/int.ts';
+import type { CreatureCallName } from '../../events.ts';
 import { ObjectFlags, USABLE_STATUS } from '../../items/object.ts';
 import { anim } from '../anim-states.ts';
 import { AnimHeight, initNewSoldierAnim } from '../animation.ts';
@@ -148,9 +149,18 @@ function hearsCall(caller: Soldier, r: Soldier): boolean {
   return r.bodyType !== Body.LARVAE_MONSTER && r.bodyType !== Body.INFANT_MONSTER && r.bodyType !== Body.QUEENMONSTER;
 }
 
+const CALL_NAMES: Readonly<Record<number, CreatureCallName>> = {
+  [CreatureCallKind.ONE_PREY]: 'onePrey',
+  [CreatureCallKind.MULTIPLE_PREY]: 'multiplePrey',
+  [CreatureCallKind.ATTACKED]: 'attacked',
+  [CreatureCallKind.CRIPPLED]: 'crippled',
+};
+
 export function creatureCall(t: TacticalState, caller: Soldier): void {
   t.perception.awareOfOpposition[caller.team] = true;
   const full = fullCallPriority(caller);
+  const call = CALL_NAMES[caller.ai.actionData];
+  if (call) t.events.push({ type: 'creatureCall', soldier: caller.id, call });
   playCallAnimation(t, caller);
   for (const r of teamMembers(t, caller.team)) {
     if (!hearsCall(caller, r)) continue;

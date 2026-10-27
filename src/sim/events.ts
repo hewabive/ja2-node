@@ -165,6 +165,14 @@ export interface MortarWhistleEvent extends SimEventBase {
   readonly sounding: boolean;
 }
 
+export type CreatureCallName = 'onePrey' | 'multiplePrey' | 'attacked' | 'crippled';
+
+export interface CreatureCallEvent extends SimEventBase {
+  readonly type: 'creatureCall';
+  readonly soldier: number;
+  readonly call: CreatureCallName;
+}
+
 export interface StealthyFootstepEvent extends SimEventBase {
   readonly type: 'stealthyFootstep';
   readonly soldier: number;
@@ -565,6 +573,7 @@ export type SimEvent =
   | ThrownImpactEvent
   | MortarWhistleEvent
   | StealthyFootstepEvent
+  | CreatureCallEvent
   | SoldierHitEvent
   | LifeLostEvent
   | SoldierDiedEvent

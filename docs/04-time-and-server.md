@@ -297,7 +297,10 @@ ends). A knife thrown at a structure keeps its knife miss sound on `bulletStoppe
 (`stealth`) plays no footstep or stance sound (`PlaySoldierFootstepSound`), except the stealthy footstep the simulation
 reports as `stealthyFootstep {soldier}` on each new tile where our merc in stealth mode makes movement noise
 (`HandleAtNewGridNo`, `PlayStealthySoldierFootstepSound`); a `muted` merc plays no battle sound at all; the low-morale
-confirmations use the view's `morale`.
+confirmations use the view's `morale`. A creature's call reports its kind as `creatureCall {soldier, call:
+onePrey|multiplePrey|attacked|crippled}` (`CreatureCall`, the AI's `usActionData`), and the browser cries it at code 717
+of the call animation (`ACR_SMELL_PREY`, `ACR_SMELL_THREAT`, `ACR_CRIPPLED`; the queen's `LQ_SMELLS_THREAT`,
+`LQ_ENRAGED_ATTACK`, `LQ_CRIPPLED`).
 
 ### 4.5. CPU cost
 
