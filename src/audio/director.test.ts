@@ -256,7 +256,7 @@ describe('the sound director', () => {
     expect(r.cues.at(-1)).toMatchObject({ mix: 'voiceOther', bus: 'speech' });
   });
 
-  it('plays the ground miss, the HE blast, a bullet leaving the map, glass, spit gas, a landing grenade and the mortar whistle', () => {
+  it('plays the ground miss, the HE blast, a bullet leaving the map, glass, spit gas, a landing grenade, a catch and the mortar whistle', () => {
     const r = rig();
     const glock = [...book.weapons.values()].find((w) => w.name === 'GLOCK_17')?.item ?? -1;
     const spit = [...book.weapons.values()].find((w) => w.name === 'CREATURE_QUEEN_SPIT')?.item ?? -1;
@@ -296,6 +296,7 @@ describe('the sound director', () => {
           { type: 'windowShattered', tick: 9, gridNo: G + 3, tile: 'WINDOWSHATTER6' },
           { type: 'creatureGas', tick: 9, gridNo: G + 6 },
           { type: 'thrownImpact', tick: 9, gridNo: G + 4 },
+          { type: 'catchEnded', tick: 9, soldier: 1, gridNo: G },
           { type: 'mortarWhistle', tick: 9, sounding: true },
         ],
       ),
@@ -311,6 +312,7 @@ describe('the sound director', () => {
       expect.stringMatching(/glass/i),
       book.paths.get('CREATURE_GAS_NOISE'),
       book.paths.get('THROW_IMPACT_2'),
+      book.paths.get('CATCH_OBJECT'),
       book.paths.get('MORTAR_WHISTLE'),
     ]);
     expect(whistle?.active).toBe(true);

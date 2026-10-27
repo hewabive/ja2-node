@@ -173,6 +173,18 @@ export interface CreatureCallEvent extends SimEventBase {
   readonly call: CreatureCallName;
 }
 
+export interface CatchEndedEvent extends SimEventBase {
+  readonly type: 'catchEnded';
+  readonly soldier: number;
+  readonly gridNo: number;
+}
+
+export interface ItemCaughtEvent extends SimEventBase {
+  readonly type: 'itemCaught';
+  readonly soldier: number;
+  readonly item: number;
+}
+
 export interface StealthyFootstepEvent extends SimEventBase {
   readonly type: 'stealthyFootstep';
   readonly soldier: number;
@@ -573,6 +585,8 @@ export type SimEvent =
   | ThrownImpactEvent
   | MortarWhistleEvent
   | StealthyFootstepEvent
+  | CatchEndedEvent
+  | ItemCaughtEvent
   | CreatureCallEvent
   | SoldierHitEvent
   | LifeLostEvent

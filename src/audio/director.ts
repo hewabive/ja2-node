@@ -8,7 +8,7 @@
 // @src HandleStructChangeFromGridNo (an openable's sound, the opener's battle sound 500 ms later); Tactical/Weapons.cc
 // @src UseGun, BulletHitStructure, StructureHit and ShotMiss (the miss sounds and the Random(40) curse of our mercs, drawn here, not in the simulation),
 // @src DoSpecialEffectAmmoMiss, WindowHit; TileEngine/Structure.cc DamageStructure (the material a bullet strikes);
-// @src TileEngine/Physics.cc (a thrown object landing, the mortar whistle); Tactical/Handle_UI.cc and Real_Time_Input.cc
+// @src TileEngine/Physics.cc (a thrown object landing, the mortar whistle, CATCH_OBJECT as a catch ends); Tactical/Handle_UI.cc and Real_Time_Input.cc
 // @src (OK and ATTN on orders and selection); Tactical/Soldier_Ani.cc code 491 (idle sounds, counted from the passes of
 // @src the loop that holds it, since the server sends no frames of a predictable loop). See docs/27 §3.1, §3.3.
 
@@ -477,6 +477,9 @@ export class SoundDirector {
         return;
       case 'thrownImpact':
         this.#play(effectCue(book, 'THROW_IMPACT_2', 'location', VolumeLevel.MID, e.gridNo));
+        return;
+      case 'catchEnded':
+        this.#play(effectCue(book, 'CATCH_OBJECT', 'location', VolumeLevel.MID, e.gridNo));
         return;
       case 'mortarWhistle':
         this.#mortarWhistle(e.sounding);

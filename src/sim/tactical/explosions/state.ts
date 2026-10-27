@@ -65,6 +65,11 @@ export interface RealObject {
   endedWithCollisionPosition: Vec3;
   haveHitGround: boolean;
   lastTargetTakenDamage: number;
+  levelNode: boolean;
+  attemptedCatch: boolean;
+  catchAnimOn: boolean;
+  catchCheckDone: boolean;
+  catchGood: boolean;
 }
 
 export interface ExplosionTile {

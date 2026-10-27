@@ -9,7 +9,7 @@
 // @src (repairs, aborted assignments), Strategic_Movement.cc (MSG_ARRIVE), SaveLoadGame.cc (game saved), Soldier_Control.cc
 // @src (refused first aid), Dialogue_Control.cc and Civ_Quotes.cc (dialogue lines); Turn_Based_Input.cc ToggleStealthMode
 // @src and the ALT+z squad stealth, Interface_Panels.cc BtnMuteCallback, Handle_UI.cc HandleMultiSelectionMove
-// @src (NO_PATH_FOR_MERC). Refusals the original reports with MSG_UI_FEEDBACK enter the log and open the feedback box.
+// @src (NO_PATH_FOR_MERC), TileEngine/Physics.cc DoCatchObject (MSG_MERC_CAUGHT_ITEM). Refusals the original reports with MSG_UI_FEEDBACK enter the log and open the feedback box.
 // @src See docs/28 §12.2.
 
 import { GAME_SAVED_MESSAGE, type MessageArg, type MessageEntry, type MessageKind } from '../protocol/message-log.ts';
@@ -72,6 +72,7 @@ const ABORT_LINES: Readonly<Record<string, number>> = {
 };
 const SQUAD_ON_STEALTH = 44;
 const SQUAD_OFF_STEALTH = 45;
+const MERC_CAUGHT_ITEM = 29;
 const MERC_ON_STEALTH = 46;
 const MERC_OFF_STEALTH = 47;
 const MUTE_OFF = 64;
@@ -263,6 +264,9 @@ const BUILDERS: { readonly [T in SimEvent['type']]?: (e: EventOf<T>, facts: Mess
   squadStealthChanged: (e) => [line('pMessageStrings', e.on ? SQUAD_ON_STEALTH : SQUAD_OFF_STEALTH)],
   muteChanged: (e, facts) => [line('TacticalStr', e.on ? MUTE_ON : MUTE_OFF, [text(facts.soldierName(e.soldier))])],
   noPathForMerc: (e, facts) => [line('TacticalStr', NO_PATH_FOR_MERC, [text(facts.soldierName(e.soldier))])],
+  itemCaught: (e, facts) => [
+    line('pMessageStrings', MERC_CAUGHT_ITEM, [text(facts.soldierName(e.soldier)), { item: e.item, name: 'short' }]),
+  ],
 };
 
 export function messageEntriesOf(events: readonly SimEvent[], facts: MessageFacts): MessageEntry[] {

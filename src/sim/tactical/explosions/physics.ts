@@ -2,8 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Physics.cc CreatePhysicalObject, SimulateWorld, SimulateObject, PhysicsComputeForces,
 // @src PhysicsUpdateLife, PhysicsIntegrate, PhysicsHandleCollisions, PhysicsCheckForCollisions, PhysicsResolveCollision,
-// @src PhysicsMoveObject, PhysicsDeleteObject, CheckForObjectHittingMerc, HandleArmedObjectImpact, CheckForCollision,
-// @src vector_3ToGridNo. See docs/11 §7.9.
+// @src PhysicsMoveObject (the level node that decides when the catch is looked at), PhysicsDeleteObject,
+// @src CheckForObjectHittingMerc, CheckForCatcher (before it), HandleArmedObjectImpact, CheckForCollision, vector_3ToGridNo. See docs/11 §7.9.
 
 import { ItemClass, ItemFlags } from '../../../content/items/items.ts';
 import { isVisibleTile, WORLD_COLS, WORLD_ROWS } from '../../../content/world/grid.ts';
@@ -19,6 +19,7 @@ import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import type { Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { addItemToPool, FORCE_ON_GROUND, Visibility, WorldItemFlags } from '../world-items.ts';
+import { checkForCatcher, checkForCatchObject, endCatchAnimation } from './catching.ts';
 import { igniteExplosionXY } from './explosion.ts';
 import { newLightEffect } from './light.ts';
 import { type RealObject, TestObject, ThrowAction } from './state.ts';
@@ -110,6 +111,15 @@ const TEST_KEEPS_GOING: ReadonlySet<number> = new Set([
   ...BREAKABLE_WINDOWS,
 ]);
 
+const SURFACE_HITS: ReadonlySet<number> = new Set([
+  Collision.GROUND,
+  Collision.WATER,
+  Collision.ROOF,
+  Collision.INTERIOR_ROOF,
+  ...WALL_CODES,
+]);
+const hitsStructureOrPerson = (code: number) => !SURFACE_HITS.has(code);
+
 const itemIndex = (t: TacticalState, name: string) => t.content.items.byName.get(name)?.index ?? -2;
 
 export function toGridNo(v: Vec3): number {
@@ -176,6 +186,11 @@ export function createRealObject(
     endedWithCollisionPosition: vec3(),
     haveHitGround: false,
     lastTargetTakenDamage: NOBODY,
+    levelNode: false,
+    attemptedCatch: false,
+    catchAnimOn: false,
+    catchCheckDone: false,
+    catchGood: false,
   };
 }
 
@@ -279,6 +294,7 @@ function endOfLife(t: TacticalState, o: RealObject): void {
   if (o.oldCollisionCode === Collision.GROUND || o.oldCollisionCode === Collision.ROOF)
     t.events.push({ type: 'thrownImpact', gridNo: o.gridNo });
   reduceAttackBusyCount(t, o.owner, false);
+  endCatchAnimation(t, o);
 }
 
 function goesOff(t: TacticalState, status: number): boolean {
@@ -437,6 +453,7 @@ function checkForCollisions(t: TacticalState, o: RealObject): Checked {
     o.alive = false;
     return { collided: true, code };
   }
+  if (hitsStructureOrPerson(code) && checkForCatcher(t, o, hit.structureId)) return { collided: false, code };
   const response = collisionResponse(t, o, code, hit, dx, dy);
   if (!response) {
     o.consecutiveCollisions = 0;
@@ -538,9 +555,13 @@ function physicsMoveObject(t: TacticalState, o: RealObject): boolean {
     deletePhysicalObject(t, o);
     return false;
   }
-  if (g !== o.gridNo) {
-    if (o.visible && smokeTrail(t, o)) leaveMortarTrail(t, o, g);
-    o.numTilesMoved++;
+  if (g !== o.gridNo || !o.levelNode) {
+    if (o.visible && checkForCatchObject(t, o)) o.visible = false;
+    if (!o.visible) o.levelNode = false;
+    else if (smokeTrail(t, o)) {
+      if (g !== o.gridNo) leaveMortarTrail(t, o, g);
+    } else if (o.numTilesMoved > 0 && g !== o.gridNo) o.levelNode = true;
+    if (g !== o.gridNo) o.numTilesMoved++;
     o.gridNo = g;
   }
   return true;

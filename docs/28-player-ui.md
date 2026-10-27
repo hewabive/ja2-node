@@ -950,8 +950,10 @@ flag would desynchronise sound and noise).
   index) drawn as the mouse cursor and turns the drop into one command: `moveItem`, `attach`, `moveItem {merge}` after
   the merge prompt, `reload`, `drop`, `give`, `applyItem`. A swap shows the displaced item back in its slot; a cursor
   item does not survive a switch to the map screen.
-- Missing commands: CTRL+click stack combine (**`combineStack`**), key-ring editing (deferred), tossing and catching
-  (**Later**); the money split and withdraw/deposit came with U7 (§12.4).
+- Missing commands: CTRL+click stack combine (**`combineStack`**), key-ring editing (deferred); the money split and
+  withdraw/deposit came with U7 (§12.4). A click on the map with the cursor gives to a talkable soldier or a merc of
+  ours within passing range, tosses (`toss`, with the catch of a merc of ours further away) beyond the next tile or at
+  anybody else, and drops otherwise; the throw arc is not drawn (deviation "Tossing from the item cursor").
 
 ### 5.4 Popups: stack, key ring, item description, pickup menu
 

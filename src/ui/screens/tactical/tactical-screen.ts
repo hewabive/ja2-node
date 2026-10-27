@@ -12,12 +12,14 @@
 // @src darkened night image, the viewport rectangle, 2 × 2 dots by team with the overrides, the selected merc blinking
 // @src every RADAR_MAP_BLINK), RenderSquadList, CreateDestroyMouseRegionsForSquadList, TacticalSquadList*Callback;
 // @src src/game/Strategic/Game_Clock.cc HandlePlayerPauseUnPauseOfGame; Interface_Items.cc HandleItemPointerClick (give
-// @src to the soldier under the pointer, else drop); Handle_UI.cc UIHandleInteractiveTilesAndItemsOnTerrain (one item
-// @src picked up at once, the pickup menu for several); Interface.cc EndUIMessage (a key or click closes the feedback
-// @src box); src/game/Tactical/Squads.cc SetCurrentSquad, RebuildCurrentSquad (only a rebuilt panel drops a dead merc's
+// @src to a talkable soldier or a merc within passing range, toss beyond a tile or at anybody else, else drop);
+// @src Handle_UI.cc UIHandleInteractiveTilesAndItemsOnTerrain (one item picked up at once, the pickup menu for
+// @src several); Interface.cc EndUIMessage (a key or click closes the feedback box); src/game/Tactical/Squads.cc
+// @src SetCurrentSquad, RebuildCurrentSquad (only a rebuilt panel drops a dead merc's
 // @src slot), UpdateCurrentlySelectedMerc (the next able merc of the squad after the skull, else nobody). See docs/28 §5, §6.
 
 import { DEFAULT_SHADOW, FontColor } from '../../../content/text/font-colors.ts';
+import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { idiv } from '../../../core/int.ts';
 import type { ItemInfo } from '../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../protocol/messages.ts';
@@ -60,7 +62,7 @@ import {
 import { HudController, hudClockText, pauseHelpText, sectorOfMap } from './hud.ts';
 import { UiEvent, UiMode } from './input/ui-events.ts';
 import { type InventoryArt, InventoryPanel, type SlotRect, slotRects } from './inventory.ts';
-import { dropCommand, giveCommand, type ItemCursor, slotItem } from './item-cursor.ts';
+import { dropCommand, giveCommand, type ItemCursor, slotItem, tossCommand } from './item-cursor.ts';
 import { type DescriptionGeometry, ItemDescriptionBox } from './item-description.ts';
 import { KeyRingPopup, StackPopup } from './item-popups.ts';
 import { drawInventoryItem, type TileDrawContext } from './item-tile.ts';
@@ -107,6 +109,8 @@ import { TeamPanelController } from './team-panel.ts';
 
 export const TACTICAL_SCREEN = 'tactical';
 const PANEL_FACE_FRAME_MS = 160;
+const PASSING_ITEM_DISTANCE_OKLIFE = 3;
+const DROPPING_DISTANCE = 1;
 const CLOSE_PANEL_LAST_FRAME = 5;
 const ALT_MASK = 4;
 const SHIFT_MASK = 1;
@@ -354,7 +358,7 @@ export class TacticalScreen implements Screen {
       interfaceLevel: () => this.#interfaceLevel,
       setInterfaceLevel: (level) => this.#setInterfaceLevel(level),
       itemInCursor: () => this.inventory.cursor !== null,
-      itemPointerClick: (_gridNo, target) => this.#itemPointerClick(target),
+      itemPointerClick: (gridNo, target) => this.#itemPointerClick(gridNo, target),
       pickUp: (s, gridNo, level) => this.#pickUpAt(s, gridNo, level),
       feedback: (text) => this.#localFeedback(text, FontColor.MCOLOR_LTYELLOW),
       log: (text) => this.#log.push(text, FontColor.MCOLOR_LTYELLOW, env.runtime.fonts.get(FontName.TINYFONT1)),
@@ -451,17 +455,26 @@ export class TacticalScreen implements Screen {
     }
   }
 
-  #itemPointerClick(target: SoldierView | null): void {
+  #itemPointerClick(gridNo: number, target: SoldierView | null): void {
     const cursor = this.inventory.cursor;
     if (!cursor) return;
-    const holder = cursor.source.soldier;
-    if (target && target.id !== holder) {
-      const cmd = giveCommand(cursor, target.id);
-      if (cmd) void this.inventory.send(cmd).then((r) => r.ok && this.inventory.setCursor(null));
+    const holder = this.#view()?.soldiers.find((s) => s.id === cursor.source.soldier) ?? null;
+    const at = target?.gridNo ?? gridNo;
+    const distance = holder ? pythSpacesAway(holder.gridNo, at) : 0;
+    const other = target !== null && target.id !== cursor.source.soldier;
+    const send = (cmd: CommandEnvelope) => void this.inventory.send(cmd).then((r) => r.ok && this.inventory.setCursor(null));
+    if (other && (target.team === OUR_TEAM ? distance <= PASSING_ITEM_DISTANCE_OKLIFE : target.talkable !== undefined)) {
+      const give = giveCommand(cursor, target.id);
+      if (give) send(give);
+      return;
+    }
+    const toss = other || distance > DROPPING_DISTANCE ? tossCommand(cursor, at, target?.level ?? this.#interfaceLevel) : null;
+    if (toss) {
+      send(toss);
       return;
     }
     const drop = dropCommand(cursor);
-    if (drop) void this.inventory.send(drop).then((r) => r.ok && this.inventory.setCursor(null));
+    if (drop) send(drop);
     else this.inventory.setCursor(null);
   }
 

@@ -122,6 +122,7 @@ import { checkMercsWaiting } from './sector-exit.ts';
 import { Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, Team } from './soldier.ts';
 import { type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, ownSoldierFields } from './soldier-view.ts';
 import { createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
+import { TOSS_REFUSALS, tossItem } from './toss.ts';
 import { showsAiProgress, type TopMessageName, topMessageName } from './turns/top-message.ts';
 import { endTurn, handleEnemySightingPause, handleRealtimeTurns, selectSoldier } from './turns/turns.ts';
 import { type ItemSnapshot, Visibility, WorldItemFlags } from './world-items.ts';
@@ -504,6 +505,8 @@ export class TacticalSim {
         return this.#pickUp(cmd);
       case 'drop':
         return this.#drop(cmd);
+      case 'toss':
+        return this.#toss(cmd);
       case 'climb':
         return this.#climb(cmd);
       case 'useRemote':
@@ -631,6 +634,31 @@ export class TacticalSim {
     handleTacticalEffectsOfEquipmentChange(t, s, slot, item, NOTHING);
     deductPoints(t.inCombat, s, AP.PICKUP_ITEM, 0);
     soldierDropObject(t, s, dropped);
+    return { ok: true };
+  }
+
+  #toss(cmd: TacticalCommand): CommandResult {
+    const t = this.state;
+    const s = this.soldier(cmd.soldier);
+    if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
+    const refusal = this.actRefusal(s);
+    if (refusal) return refused(refusal);
+    const slot = cmd.slot === undefined ? InvSlot.HAND : parseSlot(cmd.slot);
+    if (slot === null) return refuse('badSlot', 'slot must be 0..18 or a slot name such as "hand"');
+    if (itemIn(s.inv, slot) === NOTHING) return refuse('emptySlot', 'that slot is empty');
+    const count = parseCount(cmd.count, 'all');
+    if (count === null) return refuse('badCount', 'count must be 1 or "all"');
+    const index = cmd.index ?? 0;
+    if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index >= Math.max(1, s.inv[slot]?.count ?? 0))
+      return refuse('badIndex', 'index must point to an object in the stack');
+    const g = cmd.gridNo;
+    if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuse('badGridNo', 'gridNo must be a visible tile');
+    const level = cmd.level ?? 0;
+    if (level !== 0 && level !== 1) return refuse('badLevel', 'level must be 0 or 1');
+    if (!hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) return refuse('mustStopFirst', 'stop the soldier first');
+    selectSoldier(t, s);
+    const tossRefusal = tossItem(t, s, { slot, count, index, gridNo: g, level });
+    if (tossRefusal) return refuse(tossRefusal, TOSS_REFUSALS[tossRefusal]);
     return { ok: true };
   }
 
