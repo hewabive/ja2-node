@@ -14,6 +14,7 @@ interface WorldHook {
   readonly mercLightOrigin: string | null;
   readonly ambient: number | null;
   readonly corpses: number;
+  readonly bloodPools: number;
   readonly drawnEffects: number;
 }
 
@@ -39,7 +40,7 @@ interface Report {
 
 const distance = (a: number, b: number) => Math.hypot((a % COLS) - (b % COLS), Math.trunc(a / COLS) - Math.trunc(b / COLS));
 
-test('an MCP agent fights the stub garrison through the API in its own session, and the renderer draws the corpses', async ({ page }) => {
+test('an MCP agent fights the stub garrison through its own session; the renderer gets the corpses and the blood', async ({ page }) => {
   test.setTimeout(120_000);
   const transport = new StreamableHTTPClientTransport(new URL(`${SERVER}/mcp`), {
     requestInit: { headers: { authorization: `Bearer ${TOKEN}` } },
@@ -88,8 +89,11 @@ test('an MCP agent fights the stub garrison through the API in its own session, 
 
   expect(events.some((e) => e.type === 'shotFired' && (e.soldier ?? 99) < 20)).toBe(true);
   expect(events.some((e) => e.type === 'soldierHit')).toBe(true);
-  const corpses = ((await observe()) as View & { readonly corpses?: readonly unknown[] }).corpses ?? [];
+  const after = (await observe()) as View & { readonly corpses?: readonly unknown[]; readonly blood?: readonly unknown[] };
+  const corpses = after.corpses ?? [];
+  const blood = after.blood ?? [];
   expect(corpses.length).toBeGreaterThan(0);
+  expect(blood.length).toBeGreaterThan(0);
   await client.close();
 
   await page.goto(`/src/devtools/tactical/?session=${session}`);
@@ -103,5 +107,6 @@ test('an MCP agent fights the stub garrison through the API in its own session, 
   expect(world.mercLightOrigin).toBe('data');
   expect(world.ambient).toBe(STUB_SANDBOX_AMBIENT);
   expect(world.corpses).toBe(corpses.length);
+  expect(world.bloodPools).toBe(blood.length);
   await expect.poll(async () => (await page.evaluate(worldHook))?.drawnEffects).toBe(corpses.length);
 });

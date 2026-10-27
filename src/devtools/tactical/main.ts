@@ -54,6 +54,7 @@ interface TacticalHook {
   corpses: number;
   smokeTiles: number;
   tileChanges: number;
+  bloodPools: number;
   ambient: number | null;
   dynamicLights: number;
   aiTurn: number | null;
@@ -97,6 +98,7 @@ const debug: TacticalHook = {
   corpses: 0,
   smokeTiles: 0,
   tileChanges: 0,
+  bloodPools: 0,
   ambient: null,
   dynamicLights: 0,
   aiTurn: null,
@@ -278,6 +280,7 @@ function render(): void {
   debug.corpses = client?.view?.corpses?.length ?? 0;
   debug.smokeTiles = client?.view?.smoke?.length ?? 0;
   debug.tileChanges = client?.view?.tileChanges?.length ?? 0;
+  debug.bloodPools = client?.view?.blood?.length ?? 0;
   debug.ambient = client?.view?.light?.ambient ?? null;
   debug.dynamicLights = client?.view?.light?.sprites.length ?? 0;
   debug.aiTurn = aiTurns.soldier;
