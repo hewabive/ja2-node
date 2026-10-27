@@ -49,10 +49,15 @@ interface ActResult {
   readonly reason?: string;
   readonly data?: {
     readonly walking?: boolean;
-    readonly lines?: readonly LineView[];
+    readonly pending?: boolean;
     readonly refusal?: string;
     readonly civQuote?: CivQuoteView | null;
   };
+}
+
+interface AdvanceReport {
+  readonly reason: string;
+  readonly events: readonly { readonly type: string; readonly text?: string }[];
 }
 
 test('an MCP agent walks a stub squad to A10, hears a villager and talks to the stub NPC, then the browser talks again', async ({
@@ -103,7 +108,7 @@ test('an MCP agent walks a stub squad to A10, hears a villager and talks to the 
 
   const talk = await act({ type: 'talk', soldier: leader.id, target: { npc: STUB_NPC } });
   expect(talk.ok, talk.reason).toBe(true);
-  if (talk.data?.walking) expect((await call('advance', { session, idle: true })).reason).toBe('decision');
+  expect((await call('advance', { session, idle: true })).reason).toBe('decision');
   const opened = (await observe()).conversation;
   expect(opened).toMatchObject({ profile: STUB_NPC, initiatedBy: 'player' });
   expect(opened?.menu).toContain('direct');
@@ -112,9 +117,12 @@ test('an MCP agent walks a stub squad to A10, hears a villager and talks to the 
   expect((await call('advance', { session, ticks: 10 })).reason).toBe('refused');
 
   const direct = await act({ type: 'approach', kind: 'direct' });
-  expect(direct.ok, direct.reason).toBe(true);
-  expect(direct.data?.lines?.length).toBeGreaterThan(0);
-  expect(direct.data?.lines?.every((l) => typeof l.text === 'string')).toBe(true);
+  expect(direct).toMatchObject({ ok: true, data: { pending: true } });
+  const heard = (await call('advance', { session, idle: true })) as AdvanceReport;
+  expect(heard.reason).toBe('decision');
+  const lines = heard.events.filter((e) => e.type === 'npcQuote');
+  expect(lines.length).toBeGreaterThan(0);
+  expect(lines.every((l) => typeof l.text === 'string')).toBe(true);
   expect(await act({ type: 'move', soldier: leader.id, to: 0 })).toMatchObject({ ok: false, data: { refusal: 'conversationOpen' } });
   expect(await act({ type: 'closeTalk' })).toMatchObject({ ok: true });
   expect((await observe()).conversation).toBeNull();
@@ -123,6 +131,7 @@ test('an MCP agent walks a stub squad to A10, hears a villager and talks to the 
   await page.goto(`/src/devtools/tactical/?session=${session}`);
   await page.waitForFunction(() => window.__ja2Tactical?.ready || window.__ja2Tactical?.error !== null);
   expect(await page.evaluate(() => window.__ja2Tactical.selected)).toBe(leader.id);
+  await page.click('[data-speed="instant"]');
   await expect(page.locator('#talkButton')).toBeEnabled();
   await page.click('#talkButton');
   await expect(page.locator('#talk')).toBeVisible();
@@ -138,7 +147,7 @@ test('an MCP agent walks a stub squad to A10, hears a villager and talks to the 
   await expect(page.locator('#talkResult')).toHaveText('answered lie');
   await expect(page.locator('#talkRequest')).toBeHidden();
   await page.locator('#talkGive button', { hasText: 'CLIP9_15' }).first().click();
-  await expect(page.locator('#talkResult')).toHaveText('gave CLIP9_15: taken');
+  await expect(page.locator('#talkResult')).toHaveText('gave CLIP9_15');
   await page.click('#closeTalk');
   await expect(page.locator('#talk')).toBeHidden();
 });

@@ -10,7 +10,7 @@ import { SaveFileError } from './save-file.ts';
 import { type LoadOutcome, type LoadProblem, SaveLoadError, type SaveOutcome, type SaveRequest } from './save-service.ts';
 import type { Listener } from './session.ts';
 import type { SessionEnvironmentConfig } from './session-environment.ts';
-import type { CreationReport, HostFactory, SessionDescription, SessionHost, SessionObservation } from './session-host.ts';
+import type { AdvanceOptions, CreationReport, HostFactory, SessionDescription, SessionHost, SessionObservation } from './session-host.ts';
 import type { SessionRequest } from './session-registry.ts';
 
 const WORKER_ENTRY = new URL('./session-worker.ts', import.meta.url);
@@ -192,8 +192,8 @@ export class WorkerHost implements SessionHost {
     return this.#call('query', q);
   }
 
-  advance(until: StopCondition, budget?: number): Promise<SessionAdvanceReport> {
-    return this.#call('advance', until, budget);
+  advance(until: StopCondition, budget?: number, options?: AdvanceOptions): Promise<SessionAdvanceReport> {
+    return this.#call('advance', until, budget, options);
   }
 
   setDriver(driver: DriverMode): Promise<void> {

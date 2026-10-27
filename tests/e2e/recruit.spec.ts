@@ -45,7 +45,6 @@ interface ActResult {
     readonly refusal?: string;
     readonly triggered?: boolean;
     readonly released?: readonly { readonly profile: number; readonly quote: number | null }[];
-    readonly lines?: readonly { readonly quote: number; readonly text?: string }[];
   };
 }
 
@@ -66,17 +65,20 @@ test('an MCP agent hires the stub R.P.C., escorts the stub E.P.C. and releases h
   const observe = async () => (await call('observe', { session })) as View;
   const act = async (command: Record<string, unknown>) => (await call('act', { session, command })) as ActResult;
   const squad = async () => (await observe()).soldiers.filter((s) => s.team === 0);
+  const say = async (command: Record<string, unknown>) => {
+    const result = await act(command);
+    expect(result.ok, result.reason).toBe(true);
+    await call('advance', { session, idle: true });
+    return result;
+  };
   const talkTo = async (soldier: number, npc: number) => {
-    const talk = await act({ type: 'talk', soldier, target: { npc } });
-    expect(talk.ok, talk.reason).toBe(true);
-    if (talk.data?.walking) expect((await call('advance', { session, idle: true })).reason).toBe('decision');
+    await say({ type: 'talk', soldier, target: { npc } });
+    expect((await observe()).conversation).toMatchObject({ profile: npc });
   };
   const answerYes = async () => {
     const request = (await observe()).npcRequest;
     expect(request).toBeTruthy();
-    const answered = await act({ type: 'answer', prompt: request?.id, choice: 'yes' });
-    expect(answered.ok, answered.reason).toBe(true);
-    return answered;
+    return await say({ type: 'answer', prompt: request?.id, choice: 'yes' });
   };
 
   for (const [k, s] of (await squad()).entries())
@@ -93,7 +95,7 @@ test('an MCP agent hires the stub R.P.C., escorts the stub E.P.C. and releases h
   await call('advance', { session, idle: true });
 
   await talkTo(leader.id, STUB_RPC);
-  expect(await act({ type: 'approach', kind: 'recruit' })).toMatchObject({ ok: true });
+  await say({ type: 'approach', kind: 'recruit' });
   expect((await observe()).npcRequest).toMatchObject({ request: 'hire', amount: 120 });
   await answerYes();
   const rpc = (await observe()).soldiers.find((s) => s.profile === STUB_RPC);
@@ -101,19 +103,19 @@ test('an MCP agent hires the stub R.P.C., escorts the stub E.P.C. and releases h
   expect((await observe()).strategic?.mercs.find((m) => m.id === rpc?.id)?.kind).toBe('rpc');
 
   await talkTo(leader.id, STUB_ESCORT);
-  expect(await act({ type: 'approach', kind: 'recruit' })).toMatchObject({ ok: true });
+  await say({ type: 'approach', kind: 'recruit' });
   expect((await observe()).npcRequest).toMatchObject({ request: 'escort' });
   await answerYes();
   if ((await observe()).conversation) await act({ type: 'closeTalk' });
   const escort = (await observe()).soldiers.find((s) => s.profile === STUB_ESCORT && s.team === 0);
   expect(escort).toMatchObject({ kind: 'epc' });
   expect(await act({ type: 'unescort', soldier: leader.id })).toMatchObject({ ok: false, data: { refusal: 'notAnEpc' } });
-  const released = await act({ type: 'unescort', soldier: escort?.id });
+  const released = await say({ type: 'unescort', soldier: escort?.id });
   expect(released).toMatchObject({ ok: true, data: { triggered: true } });
   expect((await observe()).soldiers.find((s) => s.profile === STUB_ESCORT)).toMatchObject({ team: 4, talkable: 'npc' });
 
   await talkTo(leader.id, STUB_ESCORT);
-  expect(await act({ type: 'approach', kind: 'recruit' })).toMatchObject({ ok: true });
+  await say({ type: 'approach', kind: 'recruit' });
   await answerYes();
   if ((await observe()).conversation) await act({ type: 'closeTalk' });
   const again = (await observe()).soldiers.find((s) => s.profile === STUB_ESCORT && s.team === 0);

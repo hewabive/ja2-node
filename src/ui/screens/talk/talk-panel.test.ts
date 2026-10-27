@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { campaignInA10, STUB_NPC, STUB_RPC } from '../../../../tests/support/a10-campaign.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../../tests/support/sectors.ts';
 import { type TacticalUiKit, type TacticalUiTest, tacticalUiKit, tacticalUiTest } from '../../../../tests/support/tactical-ui.ts';
+import type { Session } from '../../../server/session.ts';
 import type { DrawItem } from '../../draw-list.ts';
 import { FINAL_TALKING_DELAY_MS, textDelay } from '../../speech.ts';
 import { placeTalkPanel, popupOrientation, popupPosition } from './talk-panel.ts';
@@ -55,15 +56,19 @@ function playOut(f: TacticalUiTest): number {
   return frames;
 }
 
-async function talkToTheStubNpc(seed: number): Promise<{ f: TacticalUiTest; merc: number }> {
+function runTheLines(f: TacticalUiTest, session: Session): void {
+  session.advance({ idle: true });
+  f.deliver();
+}
+
+async function talkToTheStubNpc(seed: number): Promise<{ f: TacticalUiTest; merc: number; session: Session }> {
   const a10 = await campaignInA10(kit, seed);
   const f = await tacticalUiTest(kit, ui, seed, a10.session);
   const merc = a10.mercs[0] ?? 0;
   const reply = await f.client.command({ type: 'talk', soldier: merc, target: { npc: STUB_NPC } });
   expect(reply.ok, reply.reason).toBe(true);
-  if ((reply.data as { walking?: boolean }).walking) a10.session.advance({ idle: true });
-  f.deliver();
-  return { f, merc };
+  runTheLines(f, a10.session);
+  return { f, merc, session: a10.session };
 }
 
 describe('talk panel geometry', () => {
@@ -92,7 +97,7 @@ describe('talk panel geometry', () => {
 
 describe('the talk panel on the stub NPC', { timeout: SLOW_MS }, () => {
   it('opens on the conversation, says its lines with subtitles while busy, sends an approach and closes with Done', async () => {
-    const { f } = await talkToTheStubNpc(5);
+    const { f, session } = await talkToTheStubNpc(5);
     const dialogue = f.screen.dialogue;
     expect(dialogue.talk.open).toBe(true);
     expect(dialogue.talk.profile).toBe(STUB_NPC);
@@ -116,7 +121,7 @@ describe('the talk panel on the stub NPC', { timeout: SLOW_MS }, () => {
     await f.click('talkOption2');
     expect(lastCommand(f)).toEqual({ type: 'approach', kind: 'direct' });
     expect(f.client.commands.at(-1)?.reply.ok).toBe(true);
-    f.deliver();
+    runTheLines(f, session);
     expect(dialogue.presenter.busy).toBe(true);
     playOut(f);
 
@@ -129,10 +134,11 @@ describe('the talk panel on the stub NPC', { timeout: SLOW_MS }, () => {
   });
 
   it('stays busy after a line while the next one waits in a frame not yet played, as the original does while its queue is not empty', async () => {
-    const { f } = await talkToTheStubNpc(5);
+    const { f, session } = await talkToTheStubNpc(5);
     const dialogue = f.screen.dialogue;
     playOut(f);
     await f.click('talkOption2');
+    session.advance({ idle: true });
     const frames = f.client.takeFrames();
     const spoken = frames.flatMap((frame, k) => (frame.events?.some((e) => e.type === 'npcQuote') ? [k] : []));
     expect(spoken).toHaveLength(2);
@@ -180,13 +186,12 @@ describe('the talk panel on the stub NPC', { timeout: SLOW_MS }, () => {
     a10.session.advance({ idle: true });
     const talk = await f.client.command({ type: 'talk', soldier: merc, target: { npc: STUB_RPC } });
     expect(talk.ok, talk.reason).toBe(true);
-    if ((talk.data as { walking?: boolean }).walking) a10.session.advance({ idle: true });
-    f.deliver();
+    runTheLines(f, a10.session);
     expect(f.screen.dialogue.talk.profile).toBe(STUB_RPC);
     playOut(f);
     await f.click('talkOption5');
     expect(lastCommand(f)).toEqual({ type: 'approach', kind: 'recruit' });
-    f.deliver();
+    runTheLines(f, a10.session);
     playOut(f);
     await f.settle();
     expect(f.t.runtime.host.modal?.id).toBe('npcRequestBox');
@@ -194,7 +199,7 @@ describe('the talk panel on the stub NPC', { timeout: SLOW_MS }, () => {
     await f.click('npcRequestBox.yes');
     await f.settle();
     expect(lastCommand(f)).toMatchObject({ type: 'answer', choice: 'yes' });
-    f.deliver();
+    runTheLines(f, a10.session);
     expect(f.client.view.soldiers.find((s) => s.profile === STUB_RPC)).toMatchObject({ team: 0, kind: 'rpc' });
   });
 });

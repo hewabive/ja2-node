@@ -41,7 +41,7 @@ export interface SessionHost {
   dispatch(cmd: CommandEnvelope): Promise<CommandResult>;
   prepareAndDispatch(cmd: CommandEnvelope): Promise<CommandResult>;
   query(q: CommandEnvelope): Promise<QueryAnswer>;
-  advance(until: StopCondition, budget?: number): Promise<SessionAdvanceReport>;
+  advance(until: StopCondition, budget?: number, options?: AdvanceOptions): Promise<SessionAdvanceReport>;
   setDriver(driver: DriverMode): Promise<void>;
   subscribe(listener: Listener): () => void;
   save(request: SaveRequest): Promise<SaveOutcome>;
@@ -58,6 +58,10 @@ export interface SessionHost {
 }
 
 export type HostFactory = (id: string, request: SessionRequest) => Promise<SessionHost>;
+
+export interface AdvanceOptions {
+  readonly waitInRealtime?: boolean;
+}
 
 export function sessionHostKind(env: NodeJS.ProcessEnv = process.env): SessionHostKind {
   const wanted = env[SESSION_HOST_ENV]?.trim() || 'inprocess';
@@ -153,8 +157,15 @@ export class InProcessHost implements SessionHost {
     return Promise.resolve().then(() => this.session.query(q));
   }
 
-  advance(until: StopCondition, budget?: number): Promise<SessionAdvanceReport> {
-    return this.#queued('advance', () => this.session.advanceSliced(until, budget, this.#slicer));
+  advance(until: StopCondition, budget?: number, options: AdvanceOptions = {}): Promise<SessionAdvanceReport> {
+    if (!options.waitInRealtime) return this.#queued('advance', () => this.session.advanceSliced(until, budget, this.#slicer));
+    return this.#queued('advance', () => this.#advanceOrWait(until, budget)).then((started) => started.report);
+  }
+
+  async #advanceOrWait(until: StopCondition, budget: number | undefined): Promise<{ readonly report: Promise<SessionAdvanceReport> }> {
+    const waiting = this.session.waitInRealtime(until, budget);
+    if (waiting) return { report: waiting };
+    return { report: Promise.resolve(await this.session.advanceSliced(until, budget, this.#slicer)) };
   }
 
   setDriver(driver: DriverMode): Promise<void> {

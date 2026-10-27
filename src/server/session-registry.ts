@@ -6,7 +6,7 @@ import type { CampaignRequest } from './campaign-factory.ts';
 import { CampaignSession } from './campaign-session.ts';
 import { saveStatus, sessionOptions } from './save-rules.ts';
 import { SAVE_FILE_NAME } from './save-store.ts';
-import type { Session } from './session.ts';
+import { type Session, SPEECH_MODES, type SpeechMode } from './session.ts';
 
 export interface LoadRequest {
   readonly name: string;
@@ -16,6 +16,7 @@ export interface LoadRequest {
 export interface SessionRequest {
   readonly seed: number;
   readonly language?: UiLanguage;
+  readonly speech?: SpeechMode;
   readonly save?: string;
   readonly campaign?: CampaignRequest;
   readonly load?: LoadRequest;
@@ -51,6 +52,12 @@ export const NEW_SESSION_SHAPE = {
     .boolean()
     .optional()
     .describe('with load: false restores the random streams exactly (reproducible); default true reseeds the main stream'),
+  speech: z
+    .enum(SPEECH_MODES)
+    .optional()
+    .describe(
+      'listen (default): lines take their time; skip: every line is cut short as it starts, as if the player pressed Backspace at once (act setSpeech changes it later)',
+    ),
   campaign: z
     .object({
       options: z
@@ -200,6 +207,7 @@ export async function openSession<T>(
     const created = await createSession(id, {
       seed: request.seed ?? n,
       ...(request.language ? { language: request.language } : {}),
+      ...(request.speech ? { speech: request.speech } : {}),
       ...(request.save ? { save: request.save } : {}),
       ...(request.campaign ? { campaign: request.campaign } : {}),
       ...(request.load ? { load: { name: request.load, reseed: request.reseed ?? true } } : {}),

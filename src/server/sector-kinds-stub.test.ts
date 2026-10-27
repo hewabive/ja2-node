@@ -101,10 +101,14 @@ function soldierOfProfile(session: CampaignSession, profile: number): number {
   return s.id;
 }
 
+function talkThrough(c: Campaign, cmd: Record<string, unknown>): void {
+  const result = c.session.dispatch({ type: String(cmd.type), ...cmd });
+  expect(result.ok, result.reason).toBe(true);
+  c.live.advance({ idle: true });
+}
+
 function talk(c: Campaign, merc: number, npc: number): number[] {
-  const started = c.session.dispatch({ type: 'talk', soldier: merc, target: { npc } });
-  expect(started.ok, started.reason).toBe(true);
-  if ((started.data as { walking?: boolean }).walking) expect(c.live.advance({ idle: true }).reason).toBe('decision');
+  talkThrough(c, { type: 'talk', soldier: merc, target: { npc } });
   return c.session.view().conversation?.lastQuotes.map((q) => q.quote) ?? [];
 }
 
@@ -205,10 +209,10 @@ describe('stub sector kinds in a campaign', { timeout: RELOAD_TEST_TIMEOUT_MS },
     expect(c.session.view().mapPath).toBe(`stubs/world/maps/${sectorShortString(farm).toLowerCase()}_a.dat`);
     const merc = firstMerc(c.session);
     expect(talk(c, merc, SKYRIDER)).toEqual([0]);
-    const asked = c.session.dispatch({ type: 'approach', kind: 'recruit' });
-    const prompt = (asked.data as { npcRequest?: NpcRequestPromptView } | undefined)?.npcRequest;
+    talkThrough(c, { type: 'approach', kind: 'recruit' });
+    const prompt = c.session.view().npcRequest as NpcRequestPromptView | null | undefined;
     expect(prompt).toMatchObject({ request: 'escort', npc: SKYRIDER });
-    expect(c.session.dispatch({ type: 'answer', prompt: prompt?.id, choice: 'yes' })).toMatchObject({ ok: true });
+    talkThrough(c, { type: 'answer', prompt: prompt?.id, choice: 'yes' });
     if (c.session.view().conversation) c.session.dispatch({ type: 'closeTalk' });
     expect(c.session.campaign.battle?.roster.byProfile(SKYRIDER)).toBeDefined();
     expect(c.session.dispatch({ type: 'mapScreen' })).toEqual({ ok: true });

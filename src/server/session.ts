@@ -15,9 +15,17 @@ import {
 } from '../protocol/messages.ts';
 import { initialMusic, type MusicFacts, type MusicState, musicMode, musicView } from '../protocol/music.ts';
 import { applyViewFrame, type BulletAtTick, type BulletView, diffPlayerView, type PlayerView, type ViewFrame } from '../protocol/view.ts';
-import { AdvanceRun, type PauseCheck, type Steppable, type StopCondition, type StopReport } from '../sim/advance.ts';
+import {
+  AdvanceRun,
+  isStrategicCondition,
+  type PauseCheck,
+  type Steppable,
+  type StopCondition,
+  type StopReason,
+  type StopReport,
+} from '../sim/advance.ts';
 import { TICK_MS } from '../sim/clock.ts';
-import type { CommandResult, StepObserver } from '../sim/command.ts';
+import type { CommandResult } from '../sim/command.ts';
 import { type EffectEvent, isEffectEvent, type SimEvent, type SimEventType } from '../sim/events.ts';
 import type { StrategicRules } from '../sim/knowledge/strategic.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
@@ -33,12 +41,20 @@ const MAX_FRAMES_PER_MESSAGE = 500;
 const PRESENTATION_HEARTBEAT_TICKS = 2000 / TICK_MS;
 const LOADED_STOP_ID = 0;
 const PAUSED_STOP_ID = 0;
+export const REALTIME_WAIT_MS = 30_000;
+export const SET_SPEECH = 'setSpeech';
+export const SPEECH_MODES = ['listen', 'skip'] as const;
+const REALTIME_COMPRESSION = 'the session runs in real time: time compression belongs to the viewer on the map screen';
+const REALTIME_LEFT = 'the session no longer runs in real time';
 const NO_MUSIC_FACTS: MusicFacts = { creature: false, inCombat: false, sectorLoaded: false, hostiles: 0, gameJustStarted: false };
 
 export type { CommandResult };
 
+export type SpeechMode = (typeof SPEECH_MODES)[number];
+
 export interface SessionSim extends Steppable {
-  dispatch(cmd: CommandEnvelope, steps?: StepObserver): CommandResult;
+  dispatch(cmd: CommandEnvelope): CommandResult;
+  skipSpeech?(skip: boolean): void;
   view(): PlayerView;
   tacticalContent?(): TacticalContent | null;
   animationTimelines?(): AnimationTimelines | null;
@@ -79,6 +95,16 @@ export const DEFAULT_SESSION_TEXT: SessionText = { language: 'eng', dataVersion:
 
 type Yield = 'claim' | 'pause';
 
+interface RealtimeWait {
+  readonly run: AdvanceRun;
+  readonly timer: ReturnType<typeof setTimeout>;
+  readonly resolve: (report: SessionAdvanceReport) => void;
+}
+
+function isSpeechMode(value: unknown): value is SpeechMode {
+  return SPEECH_MODES.includes(value as SpeechMode);
+}
+
 type Run<T> = Generator<Yield, T, void>;
 
 function finish<T>(run: Run<T>): T {
@@ -110,6 +136,8 @@ export class Session {
   #timer: ReturnType<typeof setInterval> | null = null;
   #lastRealtime = 0;
   #carryMs = 0;
+  #speech: SpeechMode = 'listen';
+  readonly #waits = new Set<RealtimeWait>();
   #lastView: PlayerView;
   #sentView: PlayerView;
   #shownTick: number;
@@ -324,11 +352,6 @@ export class Session {
     };
   }
 
-  #recordCommandStep(frames: ViewFrame[]): void {
-    this.#recordPresentation(this.holdEvents());
-    this.#captureOnFrameTick(frames);
-  }
-
   #captureOnFrameTick(frames: ViewFrame[]): void {
     if (this.#sim.tick % FRAME_TICKS === 0) this.#capture(frames);
   }
@@ -398,18 +421,68 @@ export class Session {
   }
 
   *#dispatchRun(cmd: CommandEnvelope, due: PauseCheck): Run<CommandResult> {
+    if (cmd.type === SET_SPEECH) return this.#setSpeech(cmd.mode);
     this.hooks?.beforeDispatch?.(this, cmd);
     this.log.append(cmd.type === 'answer' ? 'answer' : 'cmd', this.#sim.tick, { cmd });
-    const frames: ViewFrame[] = [];
-    const result = this.#sim.dispatch(cmd, () => this.#recordCommandStep(frames));
+    const result = this.#sim.dispatch(cmd);
     this.holdEvents();
     const refusal = refusalEntry(this.#sim.tick, cmd, result, this.#messageFacts());
     if (refusal) this.#recordMessages([refusal]);
     this.hooks?.afterDispatch?.(this, cmd, result);
+    const frames: ViewFrame[] = [];
     this.#capture(frames);
     this.#publish(frames);
     if (result.ok && this.#driver.mode === 'instant') yield* this.#loggedAdvance({ idle: true }, undefined, due);
     return result;
+  }
+
+  #setSpeech(mode: unknown): CommandResult {
+    if (!isSpeechMode(mode))
+      return { ok: false, reason: `speech is one of ${SPEECH_MODES.join(', ')}`, data: { refusal: 'unknownSpeech' } };
+    this.setSpeech(mode);
+    return { ok: true, data: { speech: mode } };
+  }
+
+  get speech(): SpeechMode {
+    return this.#speech;
+  }
+
+  setSpeech(mode: SpeechMode): void {
+    this.log.append('speech', this.#sim.tick, { mode });
+    this.#speech = mode;
+    this.#sim.skipSpeech?.(mode === 'skip');
+  }
+
+  waitInRealtime(until: StopCondition, budget?: number, waitMs = REALTIME_WAIT_MS): Promise<SessionAdvanceReport> | null {
+    if (this.#driver.mode !== 'realtime') return null;
+    const run = new AdvanceRun(this.#sim, until, budget);
+    const stop = isStrategicCondition(until) ? run.stopped('refused', REALTIME_COMPRESSION) : run.observe([]);
+    if (stop) return Promise.resolve(this.#reported(stop));
+    return new Promise((resolve) => {
+      const wait: RealtimeWait = { run, resolve, timer: setTimeout(() => this.#settle(wait, run.stopped('timeout')), waitMs) };
+      this.#waits.add(wait);
+    });
+  }
+
+  #reported(report: StopReport): SessionAdvanceReport {
+    return { ...report, messages: this.#unreportedMessages.splice(0) };
+  }
+
+  #serveWaits(events: readonly SimEvent[]): void {
+    for (const wait of this.#waits) {
+      const stop = wait.run.observe(events);
+      if (stop) this.#settle(wait, stop);
+    }
+  }
+
+  #settle(wait: RealtimeWait, report: StopReport): void {
+    clearTimeout(wait.timer);
+    this.#waits.delete(wait);
+    wait.resolve(this.#reported(report));
+  }
+
+  #settleWaits(reason: StopReason, refusal: string): void {
+    for (const wait of this.#waits) this.#settle(wait, wait.run.stopped(reason, refusal));
   }
 
   advance(until: StopCondition, budget?: number): SessionAdvanceReport {
@@ -484,6 +557,7 @@ export class Session {
     this.log.append('drive', this.#sim.tick, { driver });
     this.#driver = driver;
     this.#stopTimer();
+    if (driver.mode !== 'realtime') this.#settleWaits('refused', REALTIME_LEFT);
     if (driver.mode === 'realtime') {
       this.#lastRealtime = now();
       this.#carryMs = 0;
@@ -501,13 +575,12 @@ export class Session {
     if (this.#driver.mode !== 'realtime' || this.busy) return;
     this.#carryMs += (at - this.#lastRealtime) * this.#driver.speed;
     this.#lastRealtime = at;
-    const ticks = Math.floor(this.#carryMs / TICK_MS);
-    if (ticks <= 0) return;
+    const ticks = Math.max(0, Math.floor(this.#carryMs / TICK_MS));
     this.#carryMs -= ticks * TICK_MS;
-    if (this.#sim.hasPendingDecision()) return;
-    const pauseOn = this.#driver.pauseOn ?? [];
-    const report = finish(this.#input(this.#realtimeRun(ticks, pauseOn)));
-    if (report.reason === 'event') {
+    const runs = ticks > 0 && !this.#sim.hasPendingDecision();
+    const report = runs ? finish(this.#input(this.#realtimeRun(ticks, this.#driver.pauseOn ?? []))) : null;
+    this.#serveWaits(report?.events ?? []);
+    if (report?.reason === 'event') {
       this.setDriver({ mode: 'manual' });
       this.#broadcast({ t: 'stopped', id: PAUSED_STOP_ID, report });
     }
@@ -531,6 +604,7 @@ export class Session {
     const wasRunning = this.#driver.mode === 'realtime';
     this.#stopTimer();
     this.#driver = { mode: 'manual' };
+    this.#settleWaits('refused', REALTIME_LEFT);
     this.log.append('load', this.#sim.tick, { ...loaded });
     this.#held.length = 0;
     this.#pendingEvents.length = 0;
@@ -539,6 +613,7 @@ export class Session {
     this.#presentationUntil = -1;
     this.#sim = sim;
     sim.useLabels?.(this.#labels);
+    if (this.#speech !== 'listen') this.setSpeech(this.#speech);
     this.#music = music;
     this.#campaign = campaign;
     this.#fastFade = false;
@@ -557,6 +632,7 @@ export class Session {
 
   close(): void {
     this.#stopTimer();
+    this.#settleWaits('refused', REALTIME_LEFT);
     this.#listeners.clear();
   }
 }

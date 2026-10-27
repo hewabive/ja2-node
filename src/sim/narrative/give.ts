@@ -29,7 +29,6 @@ import {
 } from './converse.ts';
 import { soldierByProfile } from './dialogue-queue.ts';
 import type { NarrativeHost } from './host.ts';
-import type { GiveOutcome } from './talk-state.ts';
 
 const NO_FLAGS = 0;
 const GROUND_LEVEL = 0;
@@ -147,10 +146,6 @@ export function placeObjectInSoldierProfile(host: NarrativeHost, t: TacticalStat
   return true;
 }
 
-function setOutcome(host: NarrativeHost, outcome: GiveOutcome): void {
-  host.talk.giveOutcome = outcome;
-}
-
 export function takeGivenObject(host: NarrativeHost, npc: number, object: ItemObject, giver: number): void {
   const t = host.tactical();
   if (!t) return;
@@ -159,7 +154,6 @@ export function takeGivenObject(host: NarrativeHost, npc: number, object: ItemOb
   const from = giver === NO_PROFILE ? null : soldierByProfile(host, giver);
   if (giver !== NO_PROFILE && from?.team !== Team.OUR) removeObjectFromSoldierProfile(host, giver, object.item);
   host.emit({ type: 'npcTookItem', npc: soldierByProfile(host, npc)?.id ?? null, profile: npc, from: from?.id ?? null, ...ref });
-  setOutcome(host, 'taken');
 }
 
 export function returnItemToPlayer(host: NarrativeHost, merc: number, object: ItemObject): void {
@@ -171,7 +165,6 @@ export function returnItemToPlayer(host: NarrativeHost, merc: number, object: It
   const placed = autoPlaceObject(soldierInventoryContext(t, s), s, copy);
   if (!placed) addItemToPool(t, s.gridNo, copy, Visibility.VISIBLE, s.level, NO_FLAGS, FORCE_ON_GROUND);
   host.emit({ type: 'itemReturned', to: s.id, ...ref, dropped: !placed });
-  setOutcome(host, 'returned');
 }
 
 export function handleNpcItemGiven(host: NarrativeHost, npc: number, slot: number): void {
@@ -203,18 +196,15 @@ export function dealerTakesGive(
 ): boolean {
   if (npcHasUnusedRecordWithGivenApproach(host, dealer.profile, Approach.BUYSELL)) {
     triggerNpcWithGivenApproach(host, dealer.profile, Approach.BUYSELL);
-    setOutcome(host, 'kept');
     return true;
   }
   if (npcWillingToAcceptItem(host, dealer.profile, giver.profile, object)) return false;
   openShop(dealer.profile, giver);
   const t = host.tactical();
   if (t && slot === NO_SLOT) autoPlaceObject(soldierInventoryContext(t, giver), giver, cloneObject(object));
-  setOutcome(host, 'shop');
   return true;
 }
 
 export function giveToNpc(host: NarrativeHost, giver: Soldier, target: Soldier, object: ItemObject): void {
-  setOutcome(host, 'pending');
   initiateConversationFull(host, target, giver, Approach.GIVINGITEM, 0, cloneObject(object), 'player');
 }

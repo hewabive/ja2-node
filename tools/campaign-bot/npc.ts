@@ -53,8 +53,14 @@ export async function talk(p: Player, merc: SoldierView, npc: number): Promise<A
     p.log(`  talk to ${npc} refused: ${started.reason ?? ''}`);
     return started;
   }
-  if ((started.data as { walking?: boolean } | undefined)?.walking) await p.advance({ idle: true, ticks: TALK_ADVANCE_TICKS });
+  await p.advance({ idle: true, ticks: TALK_ADVANCE_TICKS });
   return started;
+}
+
+export async function say(p: Player, command: Parameters<Player['act']>[0]): Promise<ActResult> {
+  const result = await p.act(command);
+  if (result.ok) await p.advance({ idle: true, ticks: TALK_ADVANCE_TICKS });
+  return result;
 }
 
 export async function closeConversation(p: Player): Promise<void> {
@@ -80,6 +86,7 @@ function affordable(shop: ShopView, box: ShopBoxView): boolean {
 
 export async function buy(p: Player, merc: SoldierView, dealer: number, wanted: readonly Purchase[], reserve: number): Promise<string[]> {
   const opened = await p.act({ type: 'openShop', dealer, soldier: merc.id });
+  if (opened.ok) await p.advance({ idle: true, ticks: TALK_ADVANCE_TICKS });
   const view = await p.observe();
   const shop = view.shop;
   if (!opened.ok || !shop) {

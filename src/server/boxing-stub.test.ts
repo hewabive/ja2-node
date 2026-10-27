@@ -72,12 +72,8 @@ async function inTheClub(seed: number, mode?: RunMode): Promise<Club> {
   return { session, live, mercs };
 }
 
-function request(r: { readonly data?: unknown }): NpcRequestPromptView | null {
-  return (r.data as { npcRequest?: NpcRequestPromptView } | undefined)?.npcRequest ?? null;
-}
-
-function lines(r: { readonly data?: unknown }): number[] {
-  return ((r.data as { lines?: { quote: number }[] } | undefined)?.lines ?? []).map((l) => l.quote);
+function request(session: CampaignSession): NpcRequestPromptView | null {
+  return (session.view().npcRequest as NpcRequestPromptView | null | undefined) ?? null;
 }
 
 function boxing(club: Club): BoxingView | null {
@@ -95,21 +91,23 @@ function aiBoxer(club: Club): Soldier | null {
   return t?.soldiers.find((s) => s?.placed && s.team === Team.CIV && s.boxer) ?? null;
 }
 
+function talkThrough(club: Club, cmd: Record<string, unknown>): { events: SimEvent[]; quotes: number[] } {
+  const result = club.session.dispatch({ type: String(cmd.type), ...cmd });
+  expect(result.ok, result.reason).toBe(true);
+  const events = [...club.session.drainEvents(), ...club.live.advance({ idle: true }).events];
+  return { events, quotes: events.flatMap((e) => (e.type === 'npcQuote' ? [e.quote] : [])) };
+}
+
 function betAndStart(club: Club, merc: number): SimEvent[] {
-  const { session, live } = club;
-  const talk = session.dispatch({ type: 'talk', soldier: merc, target: { npc: CLUB_OWNER } });
-  expect(talk.ok, talk.reason).toBe(true);
-  if ((talk.data as { walking?: boolean }).walking) expect(live.advance({ idle: true }).reason).toBe('decision');
+  const { session } = club;
+  talkThrough(club, { type: 'talk', soldier: merc, target: { npc: CLUB_OWNER } });
   expect(session.view().conversation?.lastQuotes.map((q) => q.quote)).toEqual([0]);
-  const asked = session.dispatch({ type: 'approach', kind: 'direct' });
-  expect(lines(asked)).toEqual([1]);
-  const prompt = request(asked);
+  expect(talkThrough(club, { type: 'approach', kind: 'direct' }).quotes).toEqual([1]);
+  const prompt = request(session);
   expect(prompt).toMatchObject({ request: 'boxingBet', npc: CLUB_OWNER, choices: ['yes', 'no'] });
-  session.drainEvents();
-  const answered = session.dispatch({ type: 'answer', prompt: prompt?.id, choice: 'yes' });
-  expect(answered.ok, answered.reason).toBe(true);
-  expect(lines(answered)).toEqual([4]);
-  return session.drainEvents();
+  const answered = talkThrough(club, { type: 'answer', prompt: prompt?.id, choice: 'yes' });
+  expect(answered.quotes).toEqual([4]);
+  return answered.events;
 }
 
 function freeHands(club: Club, merc: number): void {
@@ -165,7 +163,7 @@ async function boxingMatch(mode?: RunMode): Promise<CampaignSession> {
   expect(boxing(club)).toEqual({ state: 'waitingForPlayer', boxers: [], uiLocked: false });
   expect(session.dispatch({ type: 'mapScreen' })).toMatchObject({ ok: false, data: { refusal: 'boxingInProgress' } });
   expect(session.dispatch({ type: 'move', soldier: merc, to: RING_TILE, mode: 'walk' }).ok).toBe(true);
-  const events: SimEvent[] = [];
+  const events: SimEvent[] = [...started];
   for (let k = 0; k < SETTLE_BUDGET && boxing(club)?.state !== 'boxing'; k++) events.push(...live.advance({ idle: true }).events);
   expect(events).toContainEqual(expect.objectContaining({ type: 'boxingState', state: 'waitingForPlayer', previous: 'notBoxing' }));
   expect(events).toContainEqual(expect.objectContaining({ type: 'boxingState', state: 'preBoxing' }));

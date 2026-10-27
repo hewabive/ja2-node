@@ -102,7 +102,6 @@ describe('taking an item into the NPC profile (PlaceObjectInSoldierProfile, docs
     takeGivenObject(host, NPC, createItem(content.items, item('CANTEEN'), 100), MERC);
     expect(merc.inv[InvSlot.BIGPOCK2]?.item).toBe(item('CANTEEN'));
     expect(host.emitted).toContainEqual(expect.objectContaining({ type: 'npcTookItem', npc: NPC_ID, profile: NPC, from: MERC_ID }));
-    expect(host.talk.giveOutcome).toBe('taken');
   });
 });
 

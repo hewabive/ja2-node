@@ -32,7 +32,7 @@ function refuse(code: string): CommandResult {
 
 export function storyRefusal(campaign: CampaignSim, cmd: CampaignCommand): CommandResult | null {
   if (campaign.ended()) return refuse(StoryRefusal.CAMPAIGN_OVER);
-  if (QUERY_COMMANDS.has(cmd.type) || cmd.type === 'answer') return null;
+  if (QUERY_COMMANDS.has(cmd.type) || cmd.type === 'answer' || cmd.type === 'skipLine') return null;
   if (campaign.state.meanwhile.inScene) return refuse(StoryRefusal.IN_MEANWHILE);
   if (campaignStatus(campaign.state.ending) === 'endgame') return refuse(StoryRefusal.ENDGAME);
   return null;

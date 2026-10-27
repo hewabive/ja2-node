@@ -1900,8 +1900,8 @@ plays the drained ticks, about 6 s, before the panel opens and then the lines at
 pace (the client clock and the real-time speed scaled together) would save about 40 s but test a pace nobody plays at,
 with every timed window 8 times shorter, so it was left out. The talk panel file (47 s) ended the run on one worker;
 its three tests share nothing and now run in parallel (`mode: 'parallel'`): the workers end within 5 s and the run
-takes 168 s. Since 2026-10-27 the session records frames while a conversation command drains (`04` §6.28), so the
-panel opens with its first line instead of after the drained ticks: the talk panel file takes 24 s instead of 32 s
+takes 168 s. Since 2026-10-27 the lines of a conversation command take the ticks after it (`04` §6.37), so the
+panel opens with its first line instead of after the lines' ticks: the talk panel file takes 24 s instead of 32 s
 (its tests 6, 17 and 18 s instead of 6, 22 and 26 s), the rest being the lines at the original pace.
 Page loads take about 45 s of waiting for ready screens plus 88 navigations of 0.47 s each; `nextFrames` 60 s in 1208
 calls, which is the frames themselves (one in-page wait instead of a read and a poll measured no faster); the workers

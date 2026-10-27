@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { CommandEnvelope, ServerMessage } from '../protocol/messages.ts';
+import type { ServerMessage } from '../protocol/messages.ts';
 import { applyFrame, applyViewFrame, type PlayerView, type SoldierView } from '../protocol/view.ts';
 import { TICK_MS } from '../sim/clock.ts';
-import { type StepObserver, UNOBSERVED_STEPS } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
 import type { QueryService } from './query.ts';
 import { FRAME_TICKS, Session, type SessionSim } from './session.ts';
@@ -220,6 +219,56 @@ describe('session', () => {
     session.close();
   });
 
+  it('lets advance wait for real time to reach its stop instead of running ticks or logging an advance', async () => {
+    const sim = alarmedAt(walker(), 7);
+    const session = new Session('s13', sim);
+    let now = 0;
+    session.setDriver({ mode: 'realtime', speed: 1 }, () => now);
+    expect(session.dispatch({ type: 'walk', to: 30 })).toEqual({ ok: true });
+    const alarmed = session.waitInRealtime({ idle: true, events: ['enemySighted'] });
+    expect(sim.tick).toBe(0);
+    now = 25;
+    session.runRealtime(now);
+    now = 50;
+    session.runRealtime(now);
+    const report = await alarmed;
+    expect(report).toMatchObject({ reason: 'event', tick: 10 });
+    expect(report?.events).toContainEqual(expect.objectContaining({ type: 'enemySighted', tick: 7 }));
+    const idle = session.waitInRealtime({ idle: true });
+    now = 200;
+    session.runRealtime(now);
+    expect(await idle).toMatchObject({ reason: 'idle', tick: 40 });
+    expect(session.log.entries().filter((e) => e.kind === 'advance' && e.payload.realtime !== true)).toEqual([]);
+    session.close();
+  });
+
+  it('ends a wait for real time on its timeout or when real time stops, refuses compression and waits only in real time', async () => {
+    const sim = walker();
+    const session = new Session('s14', sim);
+    expect(session.waitInRealtime({ idle: true })).toBeNull();
+    session.setDriver({ mode: 'realtime', speed: 1 }, () => 0);
+    sim.target = 100;
+    expect(await session.waitInRealtime({ idle: true }, undefined, 5)).toMatchObject({ reason: 'timeout', tick: 0 });
+    expect(await session.waitInRealtime({ worldSeconds: 60 })).toMatchObject({ reason: 'refused' });
+    const stopped = session.waitInRealtime({ idle: true });
+    session.setDriver({ mode: 'manual' });
+    expect(await stopped).toMatchObject({ reason: 'refused', refusal: expect.stringContaining('real time') });
+    session.close();
+  });
+
+  it('keeps the speech mode as a logged session setting and hands it to every simulation it runs', () => {
+    const skips: boolean[] = [];
+    const speaking = <T extends SessionSim>(sim: T): T => Object.assign(sim, { skipSpeech: (skip: boolean) => skips.push(skip) });
+    const session = new Session('s15', speaking(walker()));
+    expect(session.dispatch({ type: 'setSpeech', mode: 'mute' })).toMatchObject({ ok: false, data: { refusal: 'unknownSpeech' } });
+    expect(session.dispatch({ type: 'setSpeech', mode: 'skip' })).toEqual({ ok: true, data: { speech: 'skip' } });
+    expect(session.speech).toBe('skip');
+    session.replace(speaking(walker()), { name: 'QuickSave', digest: 'abc' });
+    expect(skips).toEqual([true, true]);
+    expect(session.log.entries().map((e) => e.kind)).toEqual(['speech', 'load', 'speech']);
+    session.close();
+  });
+
   it('stops real time on the tick of the first pauseOn event, tells the viewers and logs the batch with its events', () => {
     const sim = alarmedAt(walker(), 7);
     const session = new Session('s6', sim, undefined, { kind: 'sandbox', seed: 1 });
@@ -254,21 +303,6 @@ describe('session', () => {
     expect(later[0]).toMatchObject({ t: 'welcome', messages: [saved] });
     session.restoreMessages([]);
     expect(session.messages).toEqual([]);
-    session.close();
-  });
-
-  it('records a frame every FRAME_TICKS while a command runs ticks itself, each event in the frame of its tick', () => {
-    const sim = alarmedAt(walkingWithinCommands(walker()), 23);
-    const session = new Session('s8', sim);
-    const messages: ServerMessage[] = [];
-    session.subscribe((m) => messages.push(m));
-    expect(session.dispatch({ type: 'walkThere', to: 35 })).toEqual({ ok: true });
-    expect(sim.tick).toBe(35);
-    const frames = messages.flatMap((m) => (m.t === 'frames' ? m.frames : []));
-    expect(frames.map((f) => f.tick)).toEqual([10, 20, 30, 35]);
-    expect(frames.map((f) => f.changed[0]?.x)).toEqual([10, 20, 30, 35]);
-    expect(frames.filter((f) => f.events).map((f) => [f.tick, f.events?.map((e) => e.tick)])).toEqual([[30, [23]]]);
-    expect(session.advance({ ticks: 1 }).events).toEqual([expect.objectContaining({ type: 'enemySighted', tick: 23 })]);
     session.close();
   });
 
@@ -317,17 +351,6 @@ describe('session', () => {
     expect(ticks.filter((t) => t > 10)).toEqual(Array.from({ length: lastHeartbeat / FRAME_TICKS - 1 }, (_, k) => (k + 2) * FRAME_TICKS));
     session.close();
   });
-
-  it('sends the bullets of the ticks a command runs itself', () => {
-    const sim = shooting(walkingWithinCommands(walker()), 33, 34);
-    const session = new Session('s10', sim);
-    const messages: ServerMessage[] = [];
-    session.subscribe((m) => messages.push(m));
-    session.dispatch({ type: 'walkThere', to: 35 });
-    const frames = messages.flatMap((m) => (m.t === 'frames' ? m.frames : []));
-    expect(frames.filter((f) => f.bullets).map((f) => [f.tick, f.bullets?.map((b) => b.tick)])).toEqual([[35, [33, 34]]]);
-    session.close();
-  });
 });
 
 const TACTICAL_TICK_BEHIND = 1000;
@@ -349,21 +372,6 @@ function impactingAt<T extends SessionSim>(sim: T, impactTick: number): T {
 function shooting<T extends SessionSim>(sim: T, from: number, to: number): T {
   return Object.assign(sim, {
     bulletViews: () => (sim.tick >= from && sim.tick <= to ? [{ x: sim.tick * 10, y: 5, z: 30 }] : []),
-  });
-}
-
-function walkingWithinCommands<T extends SessionSim & { target: number }>(sim: T): T {
-  const dispatch = sim.dispatch.bind(sim);
-  return Object.assign(sim, {
-    dispatch: (cmd: CommandEnvelope, steps: StepObserver = UNOBSERVED_STEPS) => {
-      if (cmd.type !== 'walkThere') return dispatch(cmd);
-      const result = dispatch({ ...cmd, type: 'walk' });
-      while (!sim.isIdle()) {
-        sim.step();
-        steps();
-      }
-      return result;
-    },
   });
 }
 

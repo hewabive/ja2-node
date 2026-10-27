@@ -1011,7 +1011,7 @@ absent black); choosing a squad sets the client's current squad. Blank during me
 - **Speech presenter** (client, DOM-free in `ui`): the simulation finishes lines in ticks (60 ms per character,
   deviation "Speech") and never waits; the client queues the lines as playback reaches the frames that carry them
   (`npcQuote`, `mercQuote`, `civQuote`, `skyriderQuote`, `headMinerQuote`, conversation lines; a conversation
-  command's ticks arrive as frames like an advance, `04` §6.28), plays the speech sample, shows the subtitle box for
+  command's lines take the ticks after it and arrive as frames like any others, `04` §6.37), plays the speech sample, shows the subtitle box for
   the sample's length (`chars × 60 ms` without a voice) + 300 ms, honours Backspace (stop), click and key-advance, and
   routes a line to its surface (talk panel, comm popup, external NPC popup, civilian box, message log `Nick: "text"`).
   Lines need `chars` and `textKey`: `ConversationLineView` lacks `chars`, own-merc barks and contract quotes,

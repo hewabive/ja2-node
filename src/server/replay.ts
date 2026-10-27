@@ -43,6 +43,9 @@ async function applyEntry(session: Session, entry: InputEntry, saves: SaveServic
       session.replace(opened.sim, { name: opened.name, digest: opened.digest });
       return;
     }
+    case 'speech':
+      session.setSpeech(p.mode === 'skip' ? 'skip' : 'listen');
+      return;
     case 'drive':
       return;
   }

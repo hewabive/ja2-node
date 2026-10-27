@@ -39,11 +39,14 @@ interface ActResult {
   readonly ok: boolean;
   readonly reason?: string;
   readonly data?: {
-    readonly outcome?: string;
-    readonly lines?: readonly LineView[];
-    readonly conversation?: { readonly profile: number } | null;
+    readonly walking?: boolean;
     readonly refusal?: string;
   };
+}
+
+interface AdvanceReport {
+  readonly reason: string;
+  readonly events: readonly ({ readonly type: string } & Partial<LineView>)[];
 }
 
 test('an MCP agent gives the stub NPC a magazine he keeps and a pistol he hands back', async () => {
@@ -86,18 +89,22 @@ test('an MCP agent gives the stub NPC a magazine he keeps and a pistol he hands 
     ok: false,
     data: { refusal: 'needItemOrMoney' },
   });
-  const rounds = await act({ type: 'give', soldier: leader.id, target: { npc: STUB_NPC }, slot: clips.slot, count: 1 });
-  expect(rounds.ok, rounds.reason).toBe(true);
-  expect(rounds.data?.outcome).toBe('taken');
-  expect(rounds.data?.lines?.at(-1)?.quote).toBe(ROUNDS_LINE);
-  expect(rounds.data?.lines?.every((l) => typeof l.text === 'string')).toBe(true);
+  const giveThrough = async (command: Record<string, unknown>) => {
+    const given = await act({ type: 'give', soldier: leader.id, target: { npc: STUB_NPC }, ...command });
+    expect(given.ok, given.reason).toBe(true);
+    const report = (await call('advance', { session, idle: true })) as AdvanceReport;
+    return { types: report.events.map((e) => e.type), lines: report.events.filter((e) => e.type === 'npcQuote') };
+  };
+  const rounds = await giveThrough({ slot: clips.slot, count: 1 });
+  expect(rounds.types).toContain('npcTookItem');
+  expect(rounds.lines.at(-1)?.quote).toBe(ROUNDS_LINE);
+  expect(rounds.lines.every((l) => typeof l.text === 'string')).toBe(true);
   expect((await observe()).conversation).toMatchObject({ profile: STUB_NPC, talker: leader.id });
   expect(await act({ type: 'closeTalk' })).toMatchObject({ ok: true });
 
-  const pistol = await act({ type: 'give', soldier: leader.id, target: { npc: STUB_NPC }, slot: 'hand' });
-  expect(pistol.ok, pistol.reason).toBe(true);
-  expect(pistol.data?.outcome).toBe('returned');
-  expect(pistol.data?.lines?.map((l) => l.quote)).toEqual([NO_GUNS_LINE]);
+  const pistol = await giveThrough({ slot: 'hand' });
+  expect(pistol.types).toContain('itemReturned');
+  expect(pistol.lines.map((l) => l.quote)).toEqual([NO_GUNS_LINE]);
   expect(await act({ type: 'closeTalk' })).toMatchObject({ ok: true });
   const after = (await squad()).find((s) => s.id === leader.id);
   expect(after?.inventory?.find((o) => o.slot === 5)?.item).toBe('GLOCK_17');

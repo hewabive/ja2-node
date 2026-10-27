@@ -119,8 +119,7 @@ export class TalkPanel {
         b.dataset.giveSlot = String(item.slot);
         b.addEventListener('click', () => {
           void this.#send({ type: 'give', soldier: talker.id, target: npc, slot: item.slot }).then((r) => {
-            const outcome = (r.data as { outcome?: string } | undefined)?.outcome;
-            this.#report(r, `gave ${item.item}${outcome ? `: ${outcome}` : ''}`);
+            this.#report(r, `gave ${item.item}`);
           });
         });
         return b;

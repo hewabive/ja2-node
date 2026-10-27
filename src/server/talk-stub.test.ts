@@ -4,6 +4,7 @@ import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/secto
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
 import type { ConversationView, ViewFrame } from '../protocol/view.ts';
+import type { StopCondition } from '../sim/advance.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { TICKS_PER_CHARACTER } from '../sim/narrative/dialogue-queue.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
@@ -62,8 +63,15 @@ function conversation(r: { readonly data?: unknown }): ConversationView | null {
   return (r.data as { conversation?: ConversationView | null } | undefined)?.conversation ?? null;
 }
 
-function lines(r: { readonly data?: unknown }): { quote: number; text?: string }[] {
-  return (r.data as { lines?: { quote: number; text?: string }[] } | undefined)?.lines ?? [];
+function quotesOf(events: readonly SimEvent[]): number[] {
+  return events.flatMap((e) => (e.type === 'npcQuote' ? [e.quote] : []));
+}
+
+function talkThrough(session: CampaignSession, live: Session, cmd: Record<string, unknown>, until: StopCondition = { idle: true }) {
+  const result = session.dispatch({ type: String(cmd.type), ...cmd });
+  expect(result.ok, result.reason).toBe(true);
+  const report = live.advance(until);
+  return { result, report, quotes: quotesOf(report.events) };
 }
 
 interface LineShown {
@@ -81,12 +89,8 @@ function linesShown(frames: readonly ViewFrame[]): LineShown[] {
 }
 
 function walkUpAndTalk(session: CampaignSession, live: Session, merc: number) {
-  const started = session.dispatch({ type: 'talk', soldier: merc, target: { npc: VASKO } });
-  expect(started.ok, started.reason).toBe(true);
-  if ((started.data as { walking?: boolean }).walking) {
-    const report = live.advance({ idle: true });
-    expect(report.reason).toBe('decision');
-  }
+  const { report } = talkThrough(session, live, { type: 'talk', soldier: merc, target: { npc: VASKO } });
+  expect(report.reason).toBe('decision');
   return session.view().conversation ?? null;
 }
 
@@ -103,21 +107,24 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(live.advance({ ticks: 10 })).toMatchObject({ reason: 'refused' });
     expect(session.dispatch({ type: 'move', soldier: merc, to: 0 })).toMatchObject({ ok: false, data: { refusal: 'conversationOpen' } });
 
-    const direct = session.dispatch({ type: 'approach', kind: 'direct' });
-    expect(lines(direct).map((l) => l.quote)).toEqual([14, 15]);
+    const direct = talkThrough(session, live, { type: 'approach', kind: 'direct' });
+    expect(direct.result.data).toMatchObject({ pending: true });
+    expect(direct.quotes).toEqual([14, 15]);
+    expect(direct.report.reason).toBe('decision');
     const n = () => session.campaign.state.narrative;
     expect(questStatus(n(), HERMIT_QUEST)).toBe(QUEST_IN_PROGRESS);
     expect(n().facts[HERMIT_FACT]).toBe(1);
-    expect(lines(session.dispatch({ type: 'approach', kind: 'direct' })).map((l) => l.quote)).toEqual([5]);
-    expect(lines(session.dispatch({ type: 'approach', kind: 'repeat' })).map((l) => l.quote)).toEqual([5]);
+    expect(talkThrough(session, live, { type: 'approach', kind: 'direct' }).quotes).toEqual([5]);
+    expect(talkThrough(session, live, { type: 'approach', kind: 'repeat' }).quotes).toEqual([5]);
 
-    let walk = session.dispatch({ type: 'approach', kind: 'friendly' });
-    if (lines(walk).some((l) => l.quote === 13)) walk = session.dispatch({ type: 'approach', kind: 'friendly' });
-    const said = lines(walk).map((l) => l.quote);
-    expect(said).toContain(16);
-    expect(said).toContain(17);
-    expect(conversation(walk)).toBeNull();
-    expect((walk.data as { scriptedSequence?: boolean }).scriptedSequence).toBe(true);
+    const untilTheWalk: StopCondition = { idle: true, events: ['scriptedSequence'] };
+    let walk = talkThrough(session, live, { type: 'approach', kind: 'friendly' }, untilTheWalk);
+    if (walk.quotes.includes(13)) walk = talkThrough(session, live, { type: 'approach', kind: 'friendly' }, untilTheWalk);
+    expect(walk.quotes).toContain(16);
+    expect(walk.quotes).toContain(17);
+    expect(walk.report.reason).toBe('event');
+    expect(session.view().conversation ?? null).toBeNull();
+    expect(session.view().scriptedSequence).toBe(true);
     expect(session.dispatch({ type: 'move', soldier: merc, to: 0 })).toMatchObject({ ok: false, data: { refusal: 'scriptedSequence' } });
 
     const report = live.advance({ idle: true });
@@ -137,7 +144,7 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(live.advance({ ticks: 10 }).reason).toBe('ticks');
   });
 
-  it('shows viewers a conversation command as it runs: a frame every FRAME_TICKS, each line at the tick it is said', async () => {
+  it('returns a conversation command at once and says its lines in the ticks after it, each in the frame of its tick', async () => {
     const { session, live } = await inA10(5);
     const merc = session.view().strategic?.mercs[0]?.id ?? 0;
     walkUpAndTalk(session, live, merc);
@@ -146,35 +153,67 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
       if (m.t === 'frames') frames.push(...m.frames);
     });
     const start = session.tick;
-    const direct = live.dispatch({ type: 'approach', kind: 'direct' });
-    const said = (direct.data as { lines: { quote: number; chars: number }[] }).lines;
-    expect(said.map((l) => l.quote)).toEqual([14, 15]);
-    const end = session.tick;
+    expect(live.dispatch({ type: 'approach', kind: 'direct' })).toMatchObject({ ok: true, data: { pending: true } });
+    expect(session.tick).toBe(start);
+    expect(live.advance({ idle: true }).reason).toBe('decision');
     const shown = linesShown(frames);
     expect(shown.map((l) => l.quote)).toEqual([14, 15]);
     expect(shown.every((l) => l.shown >= l.said && l.shown - l.said < FRAME_TICKS)).toBe(true);
     const [first, second] = shown;
-    expect(first?.shown ?? end).toBeLessThanOrEqual(start + FRAME_TICKS);
-    expect((second?.said ?? start) - (first?.said ?? start)).toBeGreaterThanOrEqual((said[0]?.chars ?? 0) * TICKS_PER_CHARACTER);
-    const firstFrame = Math.floor(start / FRAME_TICKS) + 1;
-    const lastFrame = Math.floor(end / FRAME_TICKS);
-    const frameTicks = Array.from({ length: lastFrame - firstFrame + 1 }, (_, k) => (firstFrame + k) * FRAME_TICKS);
-    expect(frames.map((f) => f.tick)).toEqual(frameTicks);
+    expect(first?.said).toBe(start + 1);
+    const chars = session.view().conversation?.lastQuotes[0]?.chars ?? 0;
+    expect((second?.said ?? start) - (first?.said ?? start)).toBeGreaterThanOrEqual(chars * TICKS_PER_CHARACTER);
+  });
+
+  it('cuts a line short on skipLine, so the next one follows on the next tick, and ignores a skip of a line already over', async () => {
+    const { session, live } = await inA10(5);
+    const merc = session.view().strategic?.mercs[0]?.id ?? 0;
+    walkUpAndTalk(session, live, merc);
+    expect(session.dispatch({ type: 'approach', kind: 'direct' }).ok).toBe(true);
+    const first = live.advance({ events: ['npcQuote'] }).events.find((e) => e.type === 'npcQuote');
+    expect(first).toMatchObject({ quote: 14, tick: session.tick });
+    const skip = { type: 'skipLine', profile: VASKO, tick: first?.tick };
+    expect(session.dispatch(skip)).toEqual({ ok: true, data: { skipped: true } });
+    const second = live.advance({ events: ['npcQuote'] }).events.find((e) => e.type === 'npcQuote');
+    expect(second).toMatchObject({ quote: 15, tick: (first?.tick ?? 0) + 1 });
+    expect(session.dispatch(skip)).toEqual({ ok: true, data: { skipped: false } });
+    expect(session.dispatch({ type: 'skipLine', profile: DEALER })).toEqual({ ok: true, data: { skipped: false } });
+    expect(session.dispatch({ type: 'skipLine' })).toEqual({ ok: true, data: { skipped: true } });
+    expect(session.campaign.talk?.frozen()).toBe(true);
+  });
+
+  it('says every line for one tick under setSpeech skip, kept across a load of the session', async () => {
+    const { session, live } = await inA10(5);
+    const merc = session.view().strategic?.mercs[0]?.id ?? 0;
+    expect(live.dispatch({ type: 'setSpeech', mode: 'loud' })).toMatchObject({ ok: false, data: { refusal: 'unknownSpeech' } });
+    expect(live.dispatch({ type: 'setSpeech', mode: 'skip' })).toEqual({ ok: true, data: { speech: 'skip' } });
+    walkUpAndTalk(session, live, merc);
+    const start = session.tick;
+    const direct = talkThrough(session, live, { type: 'approach', kind: 'direct' });
+    expect(direct.quotes).toEqual([14, 15]);
+    expect(direct.report.tick - start).toBeLessThanOrEqual(3);
+    expect(
+      live.log
+        .full()
+        .entries.filter((e) => e.kind === 'speech')
+        .map((e) => e.payload),
+    ).toEqual([{ mode: 'skip' }]);
+    expect(live.dispatch({ type: 'setSpeech', mode: 'listen' }).ok).toBe(true);
+    expect(talkThrough(session, live, { type: 'approach', kind: 'direct' }).report.tick - start).toBeGreaterThan(TICKS_PER_CHARACTER);
   });
 
   it('gives defaults once and then sends the squad away, the same day opens silently', async () => {
     const { session, live } = await inA10(6);
     const merc = session.view().strategic?.mercs[0]?.id ?? 0;
     walkUpAndTalk(session, live, merc);
-    expect(lines(session.dispatch({ type: 'approach', kind: 'threaten' })).map((l) => l.quote)).toEqual([19]);
-    expect(session.view().conversation).toBeNull();
-    const again = session.dispatch({ type: 'talk', soldier: merc, target: { npc: VASKO } });
-    expect(again.ok, again.reason).toBe(true);
-    expect(lines(again)).toEqual([]);
-    expect(lines(session.dispatch({ type: 'approach', kind: 'recruit' })).map((l) => l.quote)).toEqual([7]);
-    const lost = session.dispatch({ type: 'approach', kind: 'recruit' });
-    expect(lines(lost).map((l) => l.quote)).toEqual([9]);
-    expect(conversation(lost)).toBeNull();
+    expect(talkThrough(session, live, { type: 'approach', kind: 'threaten' }).quotes).toEqual([19]);
+    expect(session.view().conversation ?? null).toBeNull();
+    const again = talkThrough(session, live, { type: 'talk', soldier: merc, target: { npc: VASKO } });
+    expect(again.quotes).toEqual([]);
+    expect(conversation(again.result)).toMatchObject({ profile: VASKO });
+    expect(talkThrough(session, live, { type: 'approach', kind: 'recruit' }).quotes).toEqual([7]);
+    expect(talkThrough(session, live, { type: 'approach', kind: 'recruit' }).quotes).toEqual([9]);
+    expect(session.view().conversation ?? null).toBeNull();
   });
 
   it('ends in the same state under the instant and the manual driver', async () => {
@@ -212,22 +251,23 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     const { session, live } = await inA10(9);
     const merc = session.view().strategic?.mercs[0]?.id ?? 0;
     walkUpAndTalk(session, live, merc);
-    session.dispatch({ type: 'approach', kind: 'direct' });
-    const asked = session.dispatch({ type: 'approach', kind: 'recruit' });
-    expect(lines(asked).map((l) => l.quote)).toEqual([20]);
+    talkThrough(session, live, { type: 'approach', kind: 'direct' });
+    const asked = talkThrough(session, live, { type: 'approach', kind: 'recruit' });
+    expect(asked.quotes).toEqual([20]);
+    expect(asked.report.reason).toBe('decision');
     const request = session.view().npcRequest;
     expect(request).toMatchObject({ kind: 'npcRequest', request: 'lie', npc: VASKO, choices: ['yes', 'no', 'lie'] });
-    expect(conversation(asked)).toBeNull();
+    expect(session.view().conversation ?? null).toBeNull();
     const tick = session.campaign.tick;
     expect(live.advance({ ticks: 10 }).reason).toBe('decision');
     expect(session.campaign.tick).toBe(tick);
     expect(session.dispatch({ type: 'move', soldier: merc, to: 0 }).ok).toBe(false);
     expect(session.dispatch({ type: 'answer', choice: 'maybe' })).toMatchObject({ ok: false });
-    const answered = session.dispatch({ type: 'answer', prompt: request?.id, choice: 'no' });
-    expect(answered.ok, answered.reason).toBe(true);
-    expect(session.view().npcRequest).toBeNull();
-    expect(conversation(answered)).toMatchObject({ profile: VASKO, initiatedBy: 'npc' });
-    expect(conversation(answered)?.lastQuotes.map((q) => q.quote)).toEqual([22]);
+    const answered = talkThrough(session, live, { type: 'answer', prompt: request?.id, choice: 'no' });
+    expect(session.view().npcRequest ?? null).toBeNull();
+    expect(answered.quotes).toEqual([22]);
+    expect(session.view().conversation).toMatchObject({ profile: VASKO, initiatedBy: 'npc' });
+    expect(session.view().conversation?.lastQuotes.map((q) => q.quote)).toEqual([22]);
   });
 
   it(
@@ -237,11 +277,11 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
         const { session, live } = await inA10(9, mode);
         const merc = session.view().strategic?.mercs[0]?.id ?? 0;
         walkUpAndTalk(session, live, merc);
-        session.dispatch({ type: 'approach', kind: 'direct' });
-        session.dispatch({ type: 'approach', kind: 'recruit' });
+        talkThrough(session, live, { type: 'approach', kind: 'direct' });
+        talkThrough(session, live, { type: 'approach', kind: 'recruit' });
         live.advance({ ticks: 10 });
-        session.dispatch({ type: 'answer', prompt: session.view().npcRequest?.id, choice: 'no' });
-        session.dispatch({ type: 'approach', kind: 'friendly' });
+        talkThrough(session, live, { type: 'answer', prompt: session.view().npcRequest?.id, choice: 'no' });
+        talkThrough(session, live, { type: 'approach', kind: 'friendly' });
         session.dispatch({ type: 'approach', kind: 'friendly' });
         live.advance({ idle: true });
         session.dispatch({ type: 'closeTalk' });
@@ -268,8 +308,9 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     const moved = session.dispatch({ type: 'move', soldier: merc, to: dealer.gridNo + 2, mode: 'walk' });
     expect(moved.ok).toBe(true);
     live.advance({ idle: true });
-    const opened = session.dispatch({ type: 'talk', soldier: merc, target: dealer.id });
-    expect(conversation(opened)?.menu).toContain('buySell:buySell');
+    const opened = talkThrough(session, live, { type: 'talk', soldier: merc, target: dealer.id });
+    expect(session.view().conversation?.menu).toContain('buySell:buySell');
+    expect(conversation(opened.result)?.menu).toContain('buySell:buySell');
     const shop = session.dispatch({ type: 'approach', kind: 'buySell' });
     expect(shop).toMatchObject({ ok: true, data: { conversation: null, shop: { kind: 'buySell' } } });
     expect(session.dispatch({ type: 'closeShop' })).toEqual({ ok: true });

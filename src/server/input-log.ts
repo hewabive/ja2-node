@@ -7,7 +7,7 @@ export const INPUT_LOG_VERSION = 1;
 export const MAX_MERGED_REALTIME_TICKS = 100_000;
 const MAX_LOG_BYTES = 512 * 1024 * 1024;
 
-export type InputKind = 'cmd' | 'answer' | 'advance' | 'drive' | 'reseed' | 'load' | 'prepare';
+export type InputKind = 'cmd' | 'answer' | 'advance' | 'drive' | 'reseed' | 'load' | 'prepare' | 'speech';
 
 export interface InputEntry {
   readonly seq: number;

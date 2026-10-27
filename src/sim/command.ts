@@ -3,7 +3,3 @@ export interface CommandResult {
   readonly reason?: string;
   readonly data?: unknown;
 }
-
-export type StepObserver = () => void;
-
-export const UNOBSERVED_STEPS: StepObserver = () => {};

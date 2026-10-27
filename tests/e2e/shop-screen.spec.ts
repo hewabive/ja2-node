@@ -45,7 +45,8 @@ test('talks to the stub dealer, opens the canvas shop from Buy/Sell, buys one bo
   const { session } = (await call('newSession', { seed: 3, campaign: { difficulty: 1, mercs: 4 } })) as { session: string };
   try {
     const observe = async () => (await call('observe', { session })) as View;
-    const act = async (command: Record<string, unknown>) => (await call('act', { session, command })) as { ok: boolean };
+    const act = async (command: Record<string, unknown>) =>
+      (await call('act', { session, command })) as { ok: boolean; data?: { walking?: boolean; pending?: boolean } };
     const squad = async () => (await observe()).soldiers.filter((s) => s.team === 0);
     for (const [k, s] of (await squad()).entries())
       expect(await act({ type: 'move', soldier: s.id, to: (EAST_EDGE_ROW + k) * COLS + EAST_EDGE_COLUMN + k, mode: 'run' })).toMatchObject({
@@ -64,15 +65,15 @@ test('talks to the stub dealer, opens the canvas shop from Buy/Sell, buys one bo
     const dealer = (await observe()).soldiers.find((s) => s.profile === DEALER);
     if (!dealer) throw new Error('no stub dealer in sight');
 
+    const talk = await act({ type: 'talk', soldier: leader.id, target: dealer.id });
+    expect(talk.ok).toBe(true);
+    if (talk.data?.walking || talk.data?.pending)
+      expect(((await call('advance', { session, idle: true })) as { reason: string }).reason).toBe('decision');
+
     await page.goto(`/play?session=${encodeURIComponent(session)}&drive=manual&shadowHints=1&pinClock=1&fixed640=1&scale=1`);
     await page.waitForFunction(() => window.__ja2Ui?.tactical?.ready === true || window.__ja2Ui?.error, null, { timeout: 60_000 });
     expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
     await page.waitForFunction(() => window.__ja2Ui.tactical?.pendingImages === 0 && window.__ja2Ui.screen === 'tactical');
-    const talk = (await page.evaluate(([soldier, target]) => window.__ja2Ui.tactical?.command({ type: 'talk', soldier, target }), [
-      leader.id,
-      dealer.id,
-    ] as const)) as { ok: boolean; reason?: string };
-    expect(talk.ok, talk.reason).toBe(true);
     await page.waitForFunction(() => window.__ja2Ui.tactical?.talk.open === true);
     await clickWidget(page, 'talkOption4');
     await page.waitForFunction(() => window.__ja2Ui.tactical?.shop.open === true && window.__ja2Ui.tactical.shop.totals !== null);

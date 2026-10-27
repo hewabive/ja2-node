@@ -80,6 +80,7 @@ export function createSessionFactory(options: SessionFactoryOptions): SessionFac
     session.queries = new QueryService(options.read, options.exists);
     if (options.identity) session.identity = options.identity;
     if (request.language) session.language = request.language;
+    if (request.speech) session.setSpeech(request.speech);
     session.useLabels(await loadUiStrings(options.read, session.language).catch(() => null));
     return session;
   };

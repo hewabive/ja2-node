@@ -186,6 +186,30 @@ describe('SpeechPresenter', () => {
     expect(voices).toHaveLength(1);
   });
 
+  it('reports a line stopped by a skip or a flush while talking, or by its voice ending, but not by its text timer or in its tail', () => {
+    const { p, voices } = presenter();
+    const stopped: number[] = [];
+    p.onLineStopped((l) => stopped.push(l.profile));
+    p.update(0);
+    p.enqueue(line({ profile: 1 }));
+    p.skip(600, false);
+    p.enqueue(line({ profile: 2 }));
+    p.flush();
+    p.enqueue(line({ profile: 3 }));
+    voices.at(-1)?.end();
+    p.update(700);
+    expect(p.current?.phase).toBe('tail');
+    p.skip(800, true);
+    expect(stopped).toEqual([1, 2, 3]);
+    const silent = presenter({ speech: false });
+    silent.p.onLineStopped((l) => stopped.push(l.profile));
+    silent.p.update(0);
+    silent.p.enqueue(line({ profile: 4, chars: 1 }));
+    silent.p.update(textDelay(1) + FINAL_TALKING_DELAY_MS);
+    expect(silent.p.busy).toBe(false);
+    expect(stopped).toEqual([1, 2, 3]);
+  });
+
   it('keeps a civilian quote for its lifetime, replaces it, and closes it on a click after 300 ms', () => {
     const { p } = presenter();
     p.showCivQuote({ soldier: 3, text: 'Go away', chars: 7, hint: false }, 0);
@@ -206,7 +230,7 @@ describe('speechLineOf', () => {
   it('routes the conversation NPC to the panel with a key wait and its voice', () => {
     const event = { type: 'npcQuote', tick: 1, profile: 94, soldier: 7, quote: 3, textKey: key, chars: 5 } as QuoteEvent;
     const req = speechLineOf(event, routing);
-    expect(req).toMatchObject({ surface: 'panel', profile: 94, soldier: 7, text: 'row 3', chars: 5, keyWait: true });
+    expect(req).toMatchObject({ surface: 'panel', profile: 94, soldier: 7, text: 'row 3', chars: 5, keyWait: true, saidAt: 1 });
     expect(req?.voice).toMatch(/094/);
   });
 

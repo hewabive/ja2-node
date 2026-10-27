@@ -443,7 +443,6 @@ export class GiveComparer {
     talk.referenceCount = 0;
     talk.face = null;
     talk.pending = null;
-    talk.giveOutcome = null;
     if (t) t.engagedInConv = false;
   }
 }

@@ -3,7 +3,7 @@ import type { CommandEnvelope, DriverMode } from '../protocol/messages.ts';
 import type { StopCondition } from '../sim/advance.ts';
 import type { SaveRequest } from './save-service.ts';
 import { openSessionEnvironment } from './session-environment.ts';
-import type { SessionHost } from './session-host.ts';
+import type { AdvanceOptions, SessionHost } from './session-host.ts';
 import { type FromWorker, type HostCall, type ToWorker, type WorkerStart, wireError } from './worker-host.ts';
 
 type CallHandler = (host: SessionHost, args: readonly unknown[]) => Promise<unknown>;
@@ -12,7 +12,7 @@ const CALLS: Readonly<Record<Exclude<HostCall, 'close'>, CallHandler>> = {
   dispatch: (h, [cmd]) => h.dispatch(cmd as CommandEnvelope),
   prepareAndDispatch: (h, [cmd]) => h.prepareAndDispatch(cmd as CommandEnvelope),
   query: (h, [q]) => h.query(q as CommandEnvelope),
-  advance: (h, [until, budget]) => h.advance(until as StopCondition, budget as number | undefined),
+  advance: (h, [until, budget, options]) => h.advance(until as StopCondition, budget as number | undefined, options as AdvanceOptions),
   setDriver: (h, [driver]) => h.setDriver(driver as DriverMode),
   save: (h, [request]) => h.save(request as SaveRequest),
   saveSnapshot: (h, [name, description]) => h.saveSnapshot(name as string, description as string | undefined),

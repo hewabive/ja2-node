@@ -3,7 +3,7 @@ import { fightHere } from './battle.ts';
 import { rearm } from './first-aid.ts';
 import { rejoinSquad, restAndHeal } from './heal.ts';
 import type { Game, GameEvent, Observation } from './mcp-game.ts';
-import { buy, closeConversation, leadMerc, openDoor, talk, walkTo } from './npc.ts';
+import { buy, closeConversation, leadMerc, openDoor, say, talk, walkTo } from './npc.ts';
 import { Quartermaster } from './outfit.ts';
 import { descend, killTheQueen, playEnding, storm } from './palace.ts';
 import { Player } from './player.ts';
@@ -272,9 +272,9 @@ export class CampaignBot {
     }
     this.p.log(`  Skyrider is in ${farm}`);
     await talk(this.p, await this.lead(), Npc.SKYRIDER);
-    const asked = await this.p.act({ type: 'approach', kind: 'recruit' });
-    const request = (asked.data as { npcRequest?: { id: string } } | undefined)?.npcRequest;
-    if (request) await this.p.act({ type: 'answer', prompt: request.id, choice: 'yes' });
+    await say(this.p, { type: 'approach', kind: 'recruit' });
+    const request = (await this.p.observe()).npcRequest;
+    if (request) await say(this.p, { type: 'answer', prompt: request.id, choice: 'yes' });
     await closeConversation(this.p);
     await this.guardEscorts();
     await this.visit(DRASSEN.airport);

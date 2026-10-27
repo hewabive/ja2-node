@@ -597,7 +597,7 @@ There are few of them, and they are coarse-grained. As built (M7) the MCP server
 | `status` | Tick, map, driver, display language and data version, soldier count, whether the simulation is idle, the game options, `saveMode` and `canSave`; in a campaign also the clock, the flow (`strategic`, `tactical`, `autoresolve`, `laptop`, `meanwhile`, `endgame`, `ended`), the sector, the campaign state and `noUsableMercs` |
 | `observe` | The player view (D16) as JSON: own soldiers (tile, level, direction, animation, AP, life, breath, inventory, keys), the others the squad sees, open doors and the doors with a known lock or trap, items seen on the ground, the combat block; in a campaign the clock, the strategic view, the open prompt and the modal views (autoresolve, shop, laptop, conversation, NPC request, boxing, meanwhile, ended); UI labels in the session's language beside the machine tokens (§6.21). Noises arrive as `noiseHeard` events, never as positions |
 | `act` | One command `{"type": …}`: tactical orders (`move`, `turn`, `stance`, `stop`, `attack`, `pickUp`, `drop`, `climb`, `door`, `endTurn`, `useRemote`), inventory and first aid (§6.24), strategic commands (`route`, `assign`, `exitSector`, `mapScreen`, `compressTime`, …), contracts, shops, the laptop, conversations, `give`, `unescort`, the helicopter and vehicles, `setOption`, and `answer` for every decision prompt; queries are commands that change nothing (`estimateAttack`, `contractOptions`, `quoteTrade`, `inventory`, `aimQuote`, `bobbyRayQuote`, `insuranceQuote`, `impPreview`, `arrivalTime`). The answer is `{ok, reason?, data?}`. Under the default manual driver time moves only in `advance` (under the instant driver, which a browser page may set, every accepted command runs to idle) |
-| `advance` | Runs time: tactical until idle, a listed event or a tick count; on the strategic map to a world time (`worldTime`, `worldSeconds`, `compressionStopped`, `mode`); a decision prompt always stops it. The report carries the reason, the world time and the events |
+| `advance` | Runs time: tactical until idle, a listed event or a tick count; on the strategic map to a world time (`worldTime`, `worldSeconds`, `compressionStopped`, `mode`); a decision prompt always stops it. The report carries the reason, the world time and the events. While a viewer runs the session in real time it runs no ticks itself and waits for real time to reach the stop (§6.37) |
 | `newSession` | Starts another session and returns its id: the sandbox (optional seed), with `campaign {options?, profiles?, hire?, mercs?, imp?, land?, deadIsDeadName?}` a new campaign (§6.6, options §6.23), with `save` a native savegame from the game's `SavedGames` folder (`docs/14` §10), or with `load` (and `reseed`) a ja2-node save (§6.22); `language` sets the session's display language (§6.21) |
 | `save`, `load`, `listSaves`, `deleteSave` | Saves on the server (§6.22) |
 
@@ -822,18 +822,26 @@ NPC record arrays (`state.npcRecords`, imported from native saves) and the dialo
   (Dimitri), `noPath`, `notEnoughAP` (6 AP). An unnamed civilian or an enemy soldier answers with a civilian quote
   (§6.19). Talking to an own merc barks
   (`data.bark`, a `mercQuote` event, no AP). Beyond 4 tiles the soldier walks up (`data {walking: true, to}`) and the talk
-  starts on arrival during `advance`; a target that became invalid gives `talkAborted`. Otherwise the opening runs at once.
+  starts on arrival during `advance`; a target that became invalid gives `talkAborted`. Otherwise the opening starts at once.
 - `approach {kind}`: `repeat`, `friendly`, `direct`, `threaten`, `recruit`, `whoAreYou`, `buySell` (dealers: an unused
   BUYSELL record, else the panel closes and the shop opens) or `give` (others: the panel closes, the NPC waits 10 s).
   Refusals `noConversation`, `busy`, `unknownApproach`, `notADealer`, `isADealer`.
-- `closeTalk {}`: Done, with the once-per-conversation reset. Refusal `noConversation`, `busy`.
-- `openShop {dealer, soldier}` (campaigns with narrative): the shop's checks, then `talk` + `approach buySell`; when the
-  opening leaves no idle session or a BUYSELL record plays, the talk result is returned instead of the shop.
+- `closeTalk {}`: Done or Esc, with the once-per-conversation reset. Once nothing is queued it closes even while the NPC
+  still speaks and cuts his line short, as `HandleTalkingMenuEscape` and `DeleteTalkingMenu` do. Refusals
+  `noConversation`, `busy` (lines still queued, a trigger wait or a pending conversation).
+- `skipLine {profile?, tick?}`: cuts the line being said short, as Backspace (`StopAnyCurrentlyTalkingSpeech`) or a click
+  on the talking face does; with `profile` and `tick` (those of its quote event) only that line, so a skip that arrives
+  after the line ended does not cut the next one (`data.skipped` false). Accepted in every state, a meanwhile, the
+  endgame and a boxing lock included.
+- `openShop {dealer, soldier}` (campaigns with narrative): the shop's checks, then `talk` + `approach buySell`: `data` is
+  the shop when it opens at once (a dealer without opening lines), otherwise the talk reply, and the shop opens in the
+  tick the opening lines end (`state.talk.shopAfterOpening`) unless the opening closed the panel or a BUYSELL record plays.
 
-`talk` and `approach` run their step and then the dialogue queue until it is empty, nobody talks and no trigger waits
-(tactical ticks with the world clock paused by the `ENGAGED_IN_CONV` lock and AI decisions frozen). Their `data` is
-`{conversation, lines, scriptedSequence?, shop?}`: `lines` are the quotes said during the command (`{profile, quote,
-record?, textKey, text?}`). While a session is open and idle every other command is refused with `conversationOpen`,
+`talk`, `approach` and `answer` on an NPC request run their step and return (§6.37). Their `data` is the talk reply
+`{conversation, pending?, scriptedSequence?, shop?, npcRequest?}`, `pending: true` while the dialogue queue still has
+lines to say. The lines are said in the ticks that follow (tactical ticks with the world clock paused by the
+`ENGAGED_IN_CONV` lock and AI decisions frozen), as `npcQuote` and `mercQuote` events, and `conversation.lastQuotes`
+collects them (`{profile, quote, record?, textKey, chars, text?}`). While a session is open and idle every other command is refused with `conversationOpen`,
 `advance` returns `refused` with that refusal, and the campaign reports a pending decision (an `advance` that runs into a
 conversation opened by an NPC stops with `decision`). A **scripted sequence** (`ENGAGED_IN_CONV` without a panel, a
 pending conversation, the 500 ms trigger wait) refuses player commands with `scriptedSequence`; `advance` runs it until it
@@ -933,15 +941,14 @@ checks with giving allowed (`notTalkable`, `targetHidden`, `targetMoving`, `targ
 escorts may be given to), `robotReload` (reloading the robot is not ported), `noPath`, `notEnoughAP` (the walk plus 1; the
 hand-over charges 3).
 
-The soldier walks next to the target and plays the give animation. To an NPC the game is paused and locked meanwhile, so the
-command runs to the end: the item is taken off the pocket, the NPC's conversation (`GIVINGITEM`: an introduction on a first
-meeting or a new day, then the record that wants the item) opens and drains, and `data` is `{outcome, conversation, lines,
-scriptedSequence?, shop?}` with `outcome` `taken` (the NPC keeps it in its profile inventory), `returned` (refused: back in
-the pockets, or on the floor when they are full), `kept` (a dealer's BUYSELL record plays instead; the merc keeps it), `shop`
-(the dealer does not want it as a gift: the shop opens, the item stays in the pockets), `pending` (the queue was busy; the
-conversation opens during `advance`) or `aborted` (the target left its tile). To a squad mate or recruited RPC the command
-returns `{walking: true, to}` or `{giving: true}` at once and the hand-over happens during `advance` (the whole source pocket
-is emptied even when one item was given, as in the original). Events: `itemGiven {soldier, target, item, count, status,
+The command returns `{walking: true, to}` or `{giving: true}` at once (§6.37); the soldier walks next to the target and
+plays the give animation during `advance`. To an NPC the game is paused and locked meanwhile (a scripted sequence): the item
+is taken off the pocket and the NPC's conversation (`GIVINGITEM`: an introduction on a first meeting or a new day, then the
+record that wants the item) opens and says its lines. The NPC keeps the item in its profile inventory (`npcTookItem`),
+refuses it (`itemReturned`: back in the pockets, or on the floor when they are full), plays a dealer's BUYSELL record
+instead (the merc keeps it) or opens the shop (the dealer does not want it as a gift; the item stays in the pockets);
+`giveAborted` when the target left its tile. To a squad mate or recruited RPC the hand-over happens the same way (the whole
+source pocket is emptied even when one item was given, as in the original). Events: `itemGiven {soldier, target, item, count, status,
 money?, dropped}`, `npcTookItem {npc, profile, from, item, count, status, money?}`, `itemReturned {to, item, …, dropped}`,
 `npcGaveItem {npc, profile, to, item, …, dropped}` (an NPC's gift, dropped at its feet when the talker is out of reach),
 `giveAborted {soldier, target, reason, dropped}`, `npcMessage` (`itemPlacedOnGround`, `paidInFull`, `stillOwed`,
@@ -1518,7 +1525,7 @@ which time the line: 60 ms each on the client, 12 ticks in the simulation), and 
 `mercQuote` (barks from the dialogue queue, the own-merc bark of `talk` on a squad mate, contract quotes; merc quotes
 also name the speaker's `sector` for the comm popup), `civQuote`, `skyriderQuote` (with `profile`), `headMinerQuote`
 and, new, `shopkeeperQuote` (the dealer's lines from his NPC file, `npcdata/NNN.edt` as `CharacterDialogue` reads them
-for `DIALOGUE_SHOPKEEPER_UI`). Conversation lines (`data.lines`, `conversation.lastQuotes`) carry `chars`; the
+for `DIALOGUE_SHOPKEEPER_UI`). Conversation lines (`conversation.lastQuotes`) carry `chars`; the
 conversation carries `faceVariant` (Elliot's beaten big faces, `b135a`–`e`).
 
 **Events after a command.** The events a command emits (the lines `talk`, `approach`, `give` and `trade` run through the
@@ -1526,21 +1533,11 @@ dialogue queue, a shop's quotes, the money events) reach the WebSocket frame cap
 of waiting for the next step of the simulation, which never comes while a conversation or a shop holds the clock;
 the next `advance` report still lists them (`Session` holds them for it), so agents see them as before.
 
-**Frames while a command runs ticks (2026-10-27).** The conversation commands run tactical ticks before they return
-(`24` §11.6): `talk`, `approach`, `answer` on an NPC request, `unescort` in tactical and `openShop` drain the dialogue
-queue, and `give` to an NPC walks, hands over and drains the conversation it opens; two lines take about 1200 ticks.
-Those ticks went through `CampaignSim.step` without the session's recording stepper, so a viewer got a single frame
-at the end of the command and the page played about 6 s of game time with nothing shown before the talk panel
-opened, then the lines. Now `SessionSim.dispatch(cmd, steps)` takes a step observer: `CampaignSim.dispatch` keeps it
-for the duration of the command and `stepWithinCommand` (the drains of `TalkFlow`) calls it after every tick, and the
-session's observer holds the tick's events and captures a frame every `FRAME_TICKS`, as the recording stepper of an
-advance does. The command's frames go out together before its result, the client plays them at its playback speed,
-so the panel opens with the first line, each line reaches the speech presenter at the tick the simulation says it and
-a walk to the NPC stays animated. Nothing the simulation does changes: without viewers nothing is captured, the input
-log and replays dispatch without an observer, the result and the events of the next report are the same. A drain of
-two lines costs about 80 ms with a viewer (115 captures in A10 on stubs) instead of 5 ms. `session.test.ts` checks the
-seam with a fake simulation, `talk-stub.test.ts` the frames of an `approach` (one every 10 ticks, each line in the
-frame of its tick) and `give-stub.test.ts` the walk of a `give`.
+**Frames while a command runs ticks (2026-10-27, withdrawn).** Since M6 the conversation commands ran their lines inside
+themselves, so a viewer got one frame at the end of the command and the page played about 6 s of game time with nothing
+shown before the talk panel opened. On 2026-10-27 the session first recorded frames for those ticks through a step
+observer (`SessionSim.dispatch(cmd, steps)`, `stepWithinCommand`); the same day the lines left the commands altogether
+(§6.37), and the step observer went with them.
 
 **Shop screen fields (G15).**
 
@@ -1891,11 +1888,48 @@ of its worker's and the main thread's). Several viewers share that window, so ea
 asked. A failed health answers `pong {id}` without it. Nothing enters the input log; the session-host contract test checks
 both hosts give the same health apart from the times.
 
-**What it showed first.** Conversation commands run their lines inside the command (`docs/24` §11.6), so the
-simulation's tick jumps by the length of the lines, while the real-time driver keeps adding ticks by the wall clock and the
-client plays frames at 1× without catching up. Each line spoken in a command thus leaves the client that much further
-behind for good: after a few conversations the maintainer measured `__ja2Ui.lagTicks × 5` at 8000 ms, and every later
-order showed that late. The overlay names it as `game time +G ms` on the conversation command and as the playback lag.
+**What it showed first.** Conversation commands ran their lines inside the command, so the simulation's tick jumped by
+the length of the lines, while the real-time driver kept adding ticks by the wall clock and the client played frames at
+1× without catching up. Each line spoken in a command thus left the client that much further behind for good: after a
+few conversations the maintainer measured `__ja2Ui.lagTicks × 5` at 8000 ms, and every later order showed that late. The
+overlay named it as `game time +G ms` on the conversation command and as the playback lag. §6.37 removes the cause.
+
+### 6.37. Conversations in game time (2026-10-27)
+
+In the original a conversation stops the world clock (`HandleDialogue`: `PauseGame` and
+`LockPauseState(LOCK_PAUSE_ENGAGED_IN_CONV)` while `ENGAGED_IN_CONV` is set) and freezes AI decisions, but the tactical
+frame goes on: walks already ordered, animations and the dialogue queue itself, which says the next line when the face
+stops talking, at the end of its voice or text, or at once on a click or Backspace. ja2-node keeps those rules, and the
+lines now take the same ticks as any other time instead of running inside the command that started them.
+
+- **Commands return at once.** `talk`, `approach`, `answer` on an NPC request, `unescort` in tactical, `give` and
+  `openShop` do their step and return (`pending: true` while lines are queued). The lines are said by the ticks that
+  follow: the real-time driver's while a player watches, so the simulation stays on the tick the screen shows and an
+  NPC that walks off after its last line (Fatima with Enrico's letter) starts when the player sees the line end, early
+  enough for a merc to follow her; `advance` for an agent, which stops with `decision` once the panel waits for a choice.
+- **A skipped line ends in the simulation.** The client sends `skipLine {profile, tick}` when the player cuts a line
+  short (a click after 500 ms, Backspace, Esc with nothing queued) and when a voiced line's voice ends: the original
+  times a voiced line by its voice, and a voice shorter than 60 ms per character would otherwise leave the simulation
+  still talking while the menu is already lit. A voice longer than that is not waited for: the simulation's line ends
+  after 12 ticks per character and the client plays the next line once the voice is over (`Speech` in
+  `docs/deviations.md`). `TacticalHost` listens to `SpeechPresenter.onLineStopped` and sends the command, which goes into
+  the input log like any other.
+- **An agent's `advance` waits in real time.** While a viewer runs the session in real time (the browser's default),
+  the MCP `advance` runs no ticks (`SessionHost.advance(until, budget, {waitInRealtime: true})`):
+  `Session.waitInRealtime` observes the real-time batches with the same stop conditions (`AdvanceRun.observe`) and
+  answers when one holds, after at most 30 s (`timeout`), or `refused` when real time stops or for time compression (the
+  viewer compresses on the map screen). The wait sits outside the host's input queue, so the player's commands, a
+  skipped line among them, go through while the agent waits, and nothing enters the input log. The browser's own
+  `advance` requests (a compression to a world time, the autoresolve slices) still run their ticks.
+- **`speech: skip` for agents playing alone.** `newSession {speech: 'skip'}` or the command `setSpeech {mode:
+  'skip'|'listen'}` makes every line end on the tick after it is said, as if the player pressed Backspace at once. It is
+  a session setting: logged (`speech` entries, replayed), kept across loads and passed to a reloaded simulation, never
+  saved, so a player loading the agent's save hears the lines. Under the manual driver lines cost milliseconds anyway;
+  the setting matters when the session runs in real time with nobody watching.
+
+The catch-up of the client's playback tried first (playing received frames faster than 1× while they piled up) was
+dropped: it hid the lead instead of removing it, and played visible actions such as an NPC's walk at the wrong speed.
+
 
 ## 7. Cost and limitations
 

@@ -37,7 +37,9 @@ import { AlertStatus, NOWHERE, OKBREATH, OKLIFE, Side, type Soldier, Team } from
 import { teamMembers, whoIsThere } from '../tactical/state.ts';
 import {
   addDialogueEvent,
+  cutTalkingFace,
   type DialogueHandlers,
+  faceFinished,
   handleDialogue,
   soldierByProfile,
   tacticalCharacterDialogue,
@@ -902,4 +904,10 @@ export function dialogueHandlers(host: NarrativeHost): DialogueHandlers {
 
 export function stepDialogue(host: NarrativeHost): void {
   handleDialogue(host, dialogueHandlers(host));
+}
+
+export function shutUpTalkingFace(host: NarrativeHost): boolean {
+  if (!cutTalkingFace(host.talk, host.tick())) return false;
+  faceFinished(host, dialogueHandlers(host));
+  return true;
 }

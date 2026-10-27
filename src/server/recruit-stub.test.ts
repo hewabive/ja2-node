@@ -61,14 +61,19 @@ function lines(r: { readonly data?: unknown }): number[] {
   return ((r.data as { lines?: { quote: number }[] } | undefined)?.lines ?? []).map((l) => l.quote);
 }
 
-function request(r: { readonly data?: unknown }): NpcRequestPromptView | null {
-  return (r.data as { npcRequest?: NpcRequestPromptView } | undefined)?.npcRequest ?? null;
+function talkThrough(session: CampaignSession, live: Session, cmd: Record<string, unknown>) {
+  const result = session.dispatch({ type: String(cmd.type), ...cmd });
+  expect(result.ok, result.reason).toBe(true);
+  const events = [...session.drainEvents(), ...live.advance({ idle: true }).events];
+  return { result, events, quotes: events.flatMap((e) => (e.type === 'npcQuote' ? [e.quote] : [])) };
+}
+
+function request(session: CampaignSession): NpcRequestPromptView | null {
+  return (session.view().npcRequest as NpcRequestPromptView | null | undefined) ?? null;
 }
 
 function talkTo(session: CampaignSession, live: Session, merc: number, npc: number): ConversationView | null {
-  const started = session.dispatch({ type: 'talk', soldier: merc, target: { npc } });
-  expect(started.ok, started.reason).toBe(true);
-  if ((started.data as { walking?: boolean }).walking) expect(live.advance({ idle: true }).reason).toBe('decision');
+  talkThrough(session, live, { type: 'talk', soldier: merc, target: { npc } });
   return session.view().conversation ?? null;
 }
 
@@ -78,14 +83,10 @@ function eventsOf(session: CampaignSession, type: string): SimEvent[] {
 
 function escortMirela(session: CampaignSession, live: Session, merc: number): number {
   expect(talkTo(session, live, merc, MIRELA)?.lastQuotes.map((q) => q.quote)).toEqual([10]);
-  const asked = session.dispatch({ type: 'approach', kind: 'recruit' });
-  expect(lines(asked)).toEqual([11]);
-  const prompt = request(asked);
+  expect(talkThrough(session, live, { type: 'approach', kind: 'recruit' }).quotes).toEqual([11]);
+  const prompt = request(session);
   expect(prompt).toMatchObject({ request: 'escort', npc: MIRELA, choices: ['yes', 'no'] });
-  session.drainEvents();
-  const answered = session.dispatch({ type: 'answer', prompt: prompt?.id, choice: 'yes' });
-  expect(answered.ok, answered.reason).toBe(true);
-  const events = session.drainEvents();
+  const { events } = talkThrough(session, live, { type: 'answer', prompt: prompt?.id, choice: 'yes' });
   expect(events).toContainEqual(expect.objectContaining({ type: 'npcRecruited', profile: MIRELA, kind: 'epc' }));
   expect(events).toContainEqual(expect.objectContaining({ type: 'npcMessage', kind: 'nowEscorted', profile: MIRELA }));
   const escort = session.campaign.battle?.roster.byProfile(MIRELA);
@@ -105,10 +106,8 @@ describe('recruiting the stub RPC and escorting the stub EPC in A10', () => {
   it('keeps the RPC when the pay request is refused', async () => {
     const { session, live, merc } = await inA10(22);
     talkTo(session, live, merc, MARSH);
-    const asked = session.dispatch({ type: 'approach', kind: 'recruit' });
-    const answered = session.dispatch({ type: 'answer', prompt: request(asked)?.id, choice: 'no' });
-    expect(answered.ok, answered.reason).toBe(true);
-    expect(lines(answered)).toContain(13);
+    talkThrough(session, live, { type: 'approach', kind: 'recruit' });
+    expect(talkThrough(session, live, { type: 'answer', prompt: request(session)?.id, choice: 'no' }).quotes).toContain(13);
     expect(session.campaign.battle?.roster.byProfile(MARSH)).toBeUndefined();
   });
 
@@ -124,15 +123,12 @@ describe('recruiting the stub RPC and escorting the stub EPC in A10', () => {
 async function hireTheRpc(mode: RunMode): Promise<CampaignSession> {
   const { session, live, merc } = await inA10(21, mode);
   expect(talkTo(session, live, merc, MARSH)?.lastQuotes.map((q) => q.quote)).toEqual([10]);
-  const asked = session.dispatch({ type: 'approach', kind: 'recruit' });
-  expect(lines(asked)).toEqual([11]);
-  const prompt = request(asked);
+  expect(talkThrough(session, live, { type: 'approach', kind: 'recruit' }).quotes).toEqual([11]);
+  const prompt = request(session);
   expect(prompt).toMatchObject({ request: 'hire', npc: MARSH, amount: MARSH_SALARY });
-  session.drainEvents();
-  const answered = session.dispatch({ type: 'answer', prompt: prompt?.id, choice: 'yes' });
-  expect(answered.ok, answered.reason).toBe(true);
-  expect(lines(answered)).toContain(14);
-  const events = session.drainEvents();
+  const answered = talkThrough(session, live, { type: 'answer', prompt: prompt?.id, choice: 'yes' });
+  expect(answered.quotes).toContain(14);
+  const events = answered.events;
   expect(events).toContainEqual(expect.objectContaining({ type: 'npcRecruited', profile: MARSH, kind: 'rpc', salary: MARSH_SALARY }));
   expect(events).toContainEqual(expect.objectContaining({ type: 'npcMessage', kind: 'recruited', profile: MARSH }));
   const c = session.campaign;
@@ -145,7 +141,7 @@ async function hireTheRpc(mode: RunMode): Promise<CampaignSession> {
   expect((c.state.profiles.get(MARSH)?.miscFlags ?? 0) & RECRUITED).toBe(RECRUITED);
   expect(c.state.laptop.history.at(-1)).toMatchObject({ code: RPC_JOINED_TEAM, secondCode: MARSH });
   expect(c.tactical?.state.soldiers.some((s) => s?.placed && s.team === Team.CIV && s.profile === MARSH)).toBe(false);
-  expect(session.view().conversation).toBeNull();
+  expect(session.view().conversation ?? null).toBeNull();
   expect(session.view().strategic?.mercs.find((x) => x.id === m?.id)).toMatchObject({ kind: 'rpc' });
   expect(session.view().soldiers.find((x) => x.id === m?.id)).toMatchObject({ kind: 'rpc' });
   return session;
@@ -163,12 +159,11 @@ async function escortAndRelease(mode: RunMode): Promise<CampaignSession> {
   expect(session.dispatch({ type: 'closeTalk' })).toEqual({ ok: true });
   expect(session.dispatch({ type: 'unescort', soldier: merc })).toMatchObject({ ok: false, data: { refusal: 'notAnEpc' } });
   expect(session.dispatch({ type: 'unescort', soldier: 77 })).toMatchObject({ ok: false, data: { refusal: 'noSuchSoldier' } });
-  session.drainEvents();
-  const released = session.dispatch({ type: 'unescort', soldier: id });
-  expect(released).toMatchObject({ ok: true, data: { triggered: true } });
-  expect(lines(released)).toContain(13);
-  expect(session.view().conversation).toBeNull();
-  expect(eventsOf(session, 'epcReleased')).toEqual([expect.objectContaining({ profile: MIRELA })]);
+  const released = talkThrough(session, live, { type: 'unescort', soldier: id });
+  expect(released.result).toMatchObject({ ok: true, data: { triggered: true } });
+  expect(released.quotes).toContain(13);
+  expect(session.view().conversation ?? null).toBeNull();
+  expect(released.events.filter((e) => (e.type as string) === 'epcReleased')).toEqual([expect.objectContaining({ profile: MIRELA })]);
   const c = session.campaign;
   expect(c.battle?.roster.byProfile(MIRELA)).toBeUndefined();
   const civilian = c.tactical?.state.soldiers.find((s) => s?.placed && s.profile === MIRELA);

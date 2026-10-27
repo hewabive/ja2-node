@@ -1,12 +1,14 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_UI.cc HandleTalkInit, GetRangeFromGridNoDiff; Soldier_Control.cc PlayerSoldierStartTalking;
-// @src Interface_Dialogue.cc TalkPanelClickCallback, TalkPanelNameRegionClickCallback, HandleTalkingMenuEscape (the talk
+// @src Interface_Dialogue.cc TalkPanelClickCallback, TalkPanelNameRegionClickCallback, HandleTalkingMenuEscape and
+// @src DeleteTalkingMenu (Esc closes once the queue is empty and cuts the NPC's line short; the talk
 // @src panel as a modal session); Dialogue_Control.cc HandleDialogue (ENGAGED_IN_CONV pause lock, LOCK_PAUSE_ENGAGED_IN_CONV);
 // @src GameScreen.cc (HandleWaitTimerForNPCTrigger before, HandleDialogue after ExecuteOverhead); Soldier_Tile.cc
 // @src TeleportSoldier; Scheduling.cc BumpAnyExistingMerc; Interface_Items.cc HandleItemPointerClick (the give branch,
 // @src SetEngagedInConvFromPCAction for a profiled target that is no team member); Strategic/Assignments.cc UnEscortEPC
-// @src (the assignment menu's "remove escort"). See docs/24 §4, §6, §9.4, §11, docs/04 §6.12, §6.16, §6.17.
+// @src (the assignment menu's "remove escort"); Dialogue_Control.cc StopAnyCurrentlyTalkingSpeech (Backspace cuts the
+// @src line short). See docs/24 §4, §6, §9.4, §11, docs/04 §6.12, §6.16, §6.17.
 
 import type { MercProfile } from '../../content/formats/prof.ts';
 import { ItemClass, type ItemTable, WEAPON_CLASSES, WeaponClass } from '../../content/items/items.ts';
@@ -34,6 +36,7 @@ import {
   pcDoesFirstAidOnNpc,
   pcsNearNpc,
   selectEnv,
+  shutUpTalkingFace,
   stepDialogue,
   talkerSoldier,
   talkMenuBuySell,
@@ -43,6 +46,7 @@ import {
   triggerNpcWithIHateYouQuote,
 } from '../narrative/converse.ts';
 import {
+  cutTalkingFace,
   delayedTacticalCharacterDialogue,
   dialogueTextKey,
   soldierByProfile,
@@ -116,7 +120,6 @@ const LOCK_PAUSE_ENGAGED_IN_CONV = 14;
 const OPPOSITE = 4;
 const DIRECTIONS = 8;
 const VALIDATED_TALK_RANGE = NPC_TALK_RADIUS * 2;
-const DRAIN_BUDGET_TICKS = 200_000;
 const QUEST_ARRAY_LENGTH = 30;
 const OVERRUN_QUEST_VALUE = 0;
 const BUMP_RADIUS = 5;
@@ -130,7 +133,7 @@ const PLAYER_CHARACTER_MAX_PROFILE = 56;
 const OwnMercBark = { NEGATIVE_COMPANY: 41, SOCIAL_TRAIT: 44, PASSING_DISLIKE: 45 } as const;
 const MercQuote = { AIM_SEEN_MIKE: 55, SPOTTED_JOEY: 63 } as const;
 const QUOTE_SAID_EXT_MIKE = 0x0010;
-const TALK_COMMANDS: ReadonlySet<string> = new Set(['talk', 'approach', 'closeTalk', 'give', 'unescort']);
+const TALK_COMMANDS: ReadonlySet<string> = new Set(['talk', 'approach', 'closeTalk', 'give', 'unescort', 'skipLine']);
 const QUEUE_AT_ONCE_BUDGET = 1000;
 const NEEDED_ITEMS = ['HEAD_2', 'HEAD_3', 'HEAD_5', 'HEAD_6', 'HEAD_7', 'MONEY', 'SILVER', 'GOLD', 'WINE', 'BEER', 'ALCOHOL'] as const;
 
@@ -244,6 +247,7 @@ export class TalkFlow {
   readonly #campaign: CampaignSim;
   readonly #setup: NarrativeSetup;
   readonly #events: SimEvent[] = [];
+  #skipsSpeech = false;
 
   constructor(campaign: CampaignSim, setup: NarrativeSetup) {
     this.#campaign = campaign;
@@ -486,6 +490,7 @@ export class TalkFlow {
         return merc && !merc.soldier.placed ? merc.soldier : null;
       },
       dialogueCallback: (name) => campaign.endgame.dialogueCallback(name),
+      skipsSpeech: () => this.#skipsSpeech,
     };
     return host;
   }
@@ -534,6 +539,7 @@ export class TalkFlow {
 
   afterTacticalStep(): void {
     stepDialogue(this.host);
+    this.#openShopAfterOpening();
     this.npcActions.afterTacticalStep();
     this.#syncScripted();
   }
@@ -688,6 +694,8 @@ export class TalkFlow {
           return this.#give(cmd);
         case 'unescort':
           return this.#unescort(cmd);
+        case 'skipLine':
+          return this.#skipLine(cmd);
         default:
           return this.#openShop(cmd);
       }
@@ -760,7 +768,7 @@ export class TalkFlow {
     if (rangeBetween(merc.gridNo, target.gridNo) > NPC_TALK_RADIUS) return this.#walkUp(t, merc, target);
     if (!enoughPoints(t.inCombat, merc, AP_TALK)) refuse('notEnoughAP');
     if (getCivType(t, target) !== CivType.NA) return this.#civilianTalk(merc, target);
-    return this.#runAndReport(() => this.#playerSoldierStartTalking(merc, target, false));
+    return this.#runAndReply(() => this.#playerSoldierStartTalking(merc, target, false));
   }
 
   #civilianTalk(merc: Soldier, target: Soldier): CommandResult {
@@ -835,35 +843,37 @@ export class TalkFlow {
     return initiateConversationFull(this.host, target, merc, Approach.NPC_INITIAL_QUOTE, 0, null, 'player');
   }
 
-  #drain(): void {
-    const campaign = this.#campaign;
-    for (let budget = DRAIN_BUDGET_TICKS; budget > 0 && !dialogueIdle(this.talk); budget--) {
-      const before = campaign.tick;
-      campaign.stepWithinCommand();
-      if (campaign.tick === before) break;
-    }
+  #runAndReply(action: () => unknown): CommandResult {
+    action();
     this.#syncScripted();
+    return { ok: true, data: this.#reply() };
   }
 
-  #runAndReport(action: () => unknown, extra: Json = {}): CommandResult {
-    this.talk.said.length = 0;
-    action();
-    this.#drain();
-    const lines = this.talk.said.splice(0).map((l) => this.#lineView(l));
+  #reply(): Json {
     const shop = this.#campaign.shop?.isOpen() ? { shop: this.#campaign.shop.view() } : {};
     const request = this.npcActions.requestView();
-    const prompt = request ? { npcRequest: request } : {};
     return {
-      ok: true,
-      data: {
-        conversation: this.view(),
-        lines,
-        ...(this.scriptedSequence() ? { scriptedSequence: true } : {}),
-        ...shop,
-        ...prompt,
-        ...extra,
-      },
+      conversation: this.view(),
+      ...(dialogueIdle(this.talk) ? {} : { pending: true }),
+      ...(this.scriptedSequence() ? { scriptedSequence: true } : {}),
+      ...shop,
+      ...(request ? { npcRequest: request } : {}),
     };
+  }
+
+  #skipLine(cmd: CampaignCommand): CommandResult {
+    const face = this.talk.face;
+    const differs = (wanted: unknown, actual: number) => isInt(wanted) && wanted !== actual;
+    if (!face || differs(cmd.profile, face.speaker) || differs(cmd.tick, face.saidAt)) return { ok: true, data: { skipped: false } };
+    return { ok: true, data: { skipped: shutUpTalkingFace(this.host) } };
+  }
+
+  get skipsSpeech(): boolean {
+    return this.#skipsSpeech;
+  }
+
+  skipSpeech(skip: boolean): void {
+    this.#skipsSpeech = skip;
   }
 
   #answerRequest(cmd: CampaignCommand): CommandResult {
@@ -872,7 +882,7 @@ export class TalkFlow {
     if (cmd.prompt !== undefined && cmd.prompt !== prompt.id) return { ok: false, reason: `the open prompt is ${prompt.id}` };
     const choice = String(cmd.choice ?? '');
     let answered: CommandResult = { ok: true };
-    const result = this.#runAndReport(() => {
+    const result = this.#runAndReply(() => {
       answered = this.npcActions.answer(prompt, choice);
     });
     return answered.ok ? result : answered;
@@ -913,42 +923,13 @@ export class TalkFlow {
     if (!approach) return refuse('noPath');
     if (this.talk.inPanel) talkMenuGive(this.host);
     const object = request.take();
-    this.talk.giveOutcome = null;
     this.talk.lines.length = 0;
     selectSoldier(t, merc);
     soldierGiveItem(t, merc, target, object, request.slot);
-    const toNpc = target.profile !== NO_PROFILE && !this.#receivesAsTeamMember(target);
-    if (toNpc) setEngagedInConvFromPcAction(t, merc);
-    const walking = merc.pendingGive !== null && !merc.pendingGive.begun;
-    if (!toNpc) return { ok: true, data: walking ? { walking: true, to: approach.actionGridNo } : { giving: true } };
-    return this.#giveAndReport(merc);
-  }
-
-  #giveResolved(merc: Soldier): boolean {
-    return merc.tempObject === null && merc.pendingGive === null && dialogueIdle(this.talk) && !this.scriptedSequence();
-  }
-
-  #giveAndReport(merc: Soldier): CommandResult {
-    const campaign = this.#campaign;
-    for (let budget = DRAIN_BUDGET_TICKS; budget > 0 && !this.#giveResolved(merc) && !this.frozen(); budget--) {
-      if (campaign.shop?.isOpen()) break;
-      const tick = campaign.tick;
-      campaign.stepWithinCommand();
-      if (campaign.tick === tick) break;
-    }
+    if (target.profile !== NO_PROFILE && !this.#receivesAsTeamMember(target)) setEngagedInConvFromPcAction(t, merc);
     this.#syncScripted();
-    const lines = this.talk.lines.map((l) => this.#lineView(l));
-    const shop = campaign.shop?.isOpen() ? { shop: campaign.shop.view() } : {};
-    return {
-      ok: true,
-      data: {
-        outcome: this.talk.giveOutcome ?? (merc.tempObject === null ? 'aborted' : 'pending'),
-        conversation: this.view(),
-        lines,
-        ...(this.scriptedSequence() ? { scriptedSequence: true } : {}),
-        ...shop,
-      },
-    };
+    const walking = merc.pendingGive !== null && !merc.pendingGive.begun;
+    return { ok: true, data: walking ? { walking: true, to: approach.actionGridNo } : { giving: true } };
   }
 
   #requireOpenAndIdle(): void {
@@ -961,19 +942,22 @@ export class TalkFlow {
     const kind = cmd.kind;
     if (kind === 'buySell') {
       if (!this.host.isDealer(this.talk.charNum)) refuse('notADealer');
-      return this.#runAndReport(() => talkMenuBuySell(this.host));
+      return this.#runAndReply(() => talkMenuBuySell(this.host));
     }
     if (kind === 'give') {
       if (this.host.isDealer(this.talk.charNum)) refuse('isADealer');
-      return this.#runAndReport(() => talkMenuGive(this.host));
+      return this.#runAndReply(() => talkMenuGive(this.host));
     }
     const approach = typeof kind === 'string' ? MENU_APPROACHES[kind] : undefined;
     if (approach === undefined) return refuse('unknownApproach');
-    return this.#runAndReport(() => converse(this.host, this.talk.charNum, this.host.context.srcProfile, approach));
+    return this.#runAndReply(() => converse(this.host, this.talk.charNum, this.host.context.srcProfile, approach));
   }
 
   #closeTalk(): CommandResult {
-    this.#requireOpenAndIdle();
+    const talk = this.talk;
+    if (!talk.inPanel) refuse('noConversation');
+    if (talk.queue.length > 0 || talk.waitingForTrigger || talk.pending !== null) refuse('busy');
+    if (talk.face?.speaker === talk.charNum) shutUpTalkingFace(this.host);
     handleTalkingMenuEscape(this.host);
     this.#syncScripted();
     return { ok: true };
@@ -987,11 +971,19 @@ export class TalkFlow {
     const checked = shop.checkOpen(cmd);
     if ('ok' in checked) return checked;
     const { merc, dealer } = checked;
-    const opened = this.#runAndReport(() => this.#playerSoldierStartTalking(merc, dealer, false));
-    if (!this.frozen() || this.host.context.dest !== dealer.id) return opened;
-    const route = talkMenuBuySell(this.host);
-    if (route === 'record') return this.#runAndReport(() => {});
-    return shop.isOpen() ? { ok: true, data: shop.view() } : opened;
+    this.#playerSoldierStartTalking(merc, dealer, false);
+    this.#campaign.state.talk.shopAfterOpening = dealer.id;
+    this.#openShopAfterOpening();
+    this.#syncScripted();
+    return shop.isOpen() ? { ok: true, data: shop.view() } : { ok: true, data: this.#reply() };
+  }
+
+  #openShopAfterOpening(): void {
+    const state = this.#campaign.state.talk;
+    const dealer = state.shopAfterOpening ?? null;
+    if (dealer === null || !dialogueIdle(this.talk)) return;
+    state.shopAfterOpening = null;
+    if (this.frozen() && this.host.context.dest === dealer) talkMenuBuySell(this.host);
   }
 
   #unescort(cmd: CampaignCommand): CommandResult {
@@ -1008,7 +1000,7 @@ export class TalkFlow {
     if (campaign.state.flow !== 'tactical' || !this.#t) return refuse('notAvailable');
     if (!merc.soldier.placed) refuse('notInSector');
     let triggered = false;
-    const result = this.#runAndReport(() => {
+    const result = this.#runAndReply(() => {
       triggered = this.npcActions.recruitFlow.triggerWrongSectorRecord(merc);
     });
     return { ...result, data: { ...(result.data as Json), triggered } };
@@ -1017,19 +1009,18 @@ export class TalkFlow {
   #unescortOnMap(merc: RosterMerc): CommandResult {
     const recruit = this.npcActions.recruitFlow;
     const partner = recruit.partnerOf(merc);
-    this.talk.said.length = 0;
+    const before = this.talk.lines.length;
     const released = [recruit.internalUnescortEpc(merc)];
     if (partner) released.push(recruit.internalUnescortEpc(partner));
     this.#runQueueAtOnce();
-    const lines = this.talk.said.splice(0).map((l) => this.#lineView(l));
+    const lines = this.talk.lines.slice(before).map((l) => this.#lineView(l));
     return { ok: true, data: { released, lines } };
   }
 
   #runQueueAtOnce(): void {
     const talk = this.talk;
     for (let budget = QUEUE_AT_ONCE_BUDGET; budget > 0 && !dialogueQueueIsEmptyAndNobodyIsTalking(talk); budget--) {
-      const face = talk.face;
-      if (face) talk.face = { ...face, busyUntil: this.#campaign.tick };
+      cutTalkingFace(talk, this.#campaign.tick);
       stepDialogue(this.host);
     }
   }

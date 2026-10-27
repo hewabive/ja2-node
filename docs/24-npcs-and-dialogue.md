@@ -1038,7 +1038,8 @@ are never restored (§1.4) — he does not come back.
 | Original | ja2-node |
 |---|---|
 | one queue event per frame | one per 5 ms tick, after the tactical step |
-| speech: audio length, or 60 ms per character | always 12 ticks per character of the decoded quote (existing deviation "Speech") |
+| speech: audio length, or 60 ms per character | 12 ticks per character of the decoded quote; a voice that ends earlier ends it through `skipLine` (existing deviation "Speech") |
+| a click or Backspace stops the face (`ShutupaYoFace`, `StopAnyCurrentlyTalkingSpeech`), the queue moves on | `skipLine`: the face finishes in the command, the next event runs on the next tick |
 | quote waits while the speaker's battle sound plays | never waits |
 | trigger wait 500 ms (`GetJA2Clock`) | 100 ticks of tactical time |
 | `uiTimeSinceLastSpoke` + 60 000 ms | tactical game milliseconds (12 000 ticks) |
@@ -1061,12 +1062,13 @@ queries and `observe` are accepted and nothing advances unless the queue is busy
 | Command | Semantics |
 |---|---|
 | `talk {soldier, target}` | `target` = a soldier id, or `{npc: profile id or name}`. Checks, first failure is the reason: tactical flow; no prompt, shop or session open (`sessionOpen`), not in a scripted sequence (`scriptedSequence`); the soldier can act (`canAct`, `10`); `noSuchTarget`; §6.1 (`notTalkable`, `targetHidden`, `targetMoving`, `talkerIsRobot`); `noLineOfSight`; `targetCollapsed`; our own merc → a bark, no AP (`refusesToTalk` for DIMITRI); beyond 4 tiles `noPath`, `notEnoughAP` (6 only) → a walk-up order, the talk starts on arrival (§6.2 step 6; failing → event `talkAborted`); within 4 `notEnoughAP`. Effects: §6.2. Result: a civilian or merc bark (`data.civQuote {soldier, quote, entry, hint, textKey} | null` and the `civQuote` event, or
-`data.bark` and `mercQuote`), or the session view after the opening step has drained (§11.6), or `pending: true` while the queue is busy |
-| `approach {kind}` | `repeat`, `friendly`, `direct`, `threaten`, `recruit`, `whoAreYou`; `buySell` (dealers: BUYSELL record or the shop session) or `give` (others: closes the session, the NPC waits 10 s). Refusals: `noConversation`, `notADealer`, `isADealer`. Runs `Converse` and drains |
-| `give {soldier, target, slot, count?}` or `{soldier, target, money, slot?}` | §4: inside a non-dealer session it closes first (the "Give" entry, `isADealer` otherwise); `slot` hands over the whole pocket or, with `count: 1`, one item of a stack; `money` splits that amount (steps of 10) off a money pocket. Checks: tactical, prompt, shop, scripted sequence, `busy`, `canAct`, `noSuchTarget`, the giver (`giverCannotGive`, `giverBusy`), the object (`needItemOrMoney`, `noSlot`, `emptySlot`, `badCount`, `badMoney`, `notEnoughMoney`), §6.1 with `give` and own mercs allowed (the alternative cursor), `robotReload`, `noPath`, `notEnoughAP` (path + 1). Walk, opcode 486, then §4.1's branches; an NPC target runs to the end of the conversation it opens (`data.outcome`), a team member is handed the item during `advance` (*implemented*, `docs/04` §6.16) |
-| `closeTalk {}` | Done (§6.5) including the once-per-conversation reset. `noConversation` |
+`data.bark` and `mercQuote`), or the talk reply `{conversation, pending?, scriptedSequence?, shop?, npcRequest?}` at once, `pending: true` while lines are queued (§11.6) |
+| `approach {kind}` | `repeat`, `friendly`, `direct`, `threaten`, `recruit`, `whoAreYou`; `buySell` (dealers: BUYSELL record or the shop session) or `give` (others: closes the session, the NPC waits 10 s). Refusals: `noConversation`, `busy`, `notADealer`, `isADealer`. Runs `Converse` and returns the talk reply; the lines follow in the next ticks |
+| `give {soldier, target, slot, count?}` or `{soldier, target, money, slot?}` | §4: inside a non-dealer session it closes first (the "Give" entry, `isADealer` otherwise); `slot` hands over the whole pocket or, with `count: 1`, one item of a stack; `money` splits that amount (steps of 10) off a money pocket. Checks: tactical, prompt, shop, scripted sequence, `busy`, `canAct`, `noSuchTarget`, the giver (`giverCannotGive`, `giverBusy`), the object (`needItemOrMoney`, `noSlot`, `emptySlot`, `badCount`, `badMoney`, `notEnoughMoney`), §6.1 with `give` and own mercs allowed (the alternative cursor), `robotReload`, `noPath`, `notEnoughAP` (path + 1). Returns `{walking, to}` or `{giving}` at once; the walk, opcode 486 and §4.1's branches run during `advance`, with an NPC target the conversation it opens (*implemented*, `docs/04` §6.16) |
+| `closeTalk {}` | Done or Esc (§6.5) including the once-per-conversation reset; with nothing queued it cuts the NPC's line short (`DeleteTalkingMenu`). `noConversation`, `busy` |
+| `skipLine {profile?, tick?}` | Cuts the line being said short (Backspace, a click on the face); with `profile` and `tick` only that line. `data.skipped`. Accepted in every state |
 | `unescort {soldier}` | §9.4 by the player: map screen → the abandoning quote and the release at once, `{released: [{profile, quote}], lines}`; tactical → the wrong-sector record, the talk result plus `triggered`. Refusals `noSuchSoldier`, `notAnEpc`, `notInSector`, `notAvailable` and the modal ones (`docs/04` §6.17). *Implemented* |
-| `openShop {dealer, soldier}` | from M6 = `talk` + `approach buySell` in one command; if the opening leaves no idle session (script closed it, a prompt, a BUYSELL record) the talk result is returned instead (§16) |
+| `openShop {dealer, soldier}` | from M6 = `talk` + `approach buySell` in one command: the shop at once when the opening says nothing, otherwise the talk reply and the shop opens when the opening lines end, unless the script closed the panel, a prompt opened or a BUYSELL record plays (§16) |
 | `answer {prompt, choice}` | `npcRequest`: `yes`/`no` (`lie` too for the lie prompt); `surrender` (`context: 'tactical'`): `accept`/`reject` |
 
 ### 11.2 Prompts
@@ -1117,13 +1119,14 @@ a message printed, the last date spoken to, the hostile list.
 
 ### 11.6 Time
 
-- A talk command runs its step and then the queue to idle: tactical ticks run (speech, one event per tick, walks already
-  ordered) with the world clock paused and AI decisions frozen (§6.6). It returns when the queue is empty, nobody talks
-  and no trigger waits, or a prompt opened, or the session closed.
-- Viewers watch those ticks as they would watch an advance: the session records a view frame every 10 ticks while the
-  command runs (`docs/04` §6.28), so the panel opens with the first line, each line reaches the client at the tick it
-  is said and a walk inside the command (`give`) stays animated. The result is unchanged: an agent still gets it once
-  the lines are said, with the same `lines`.
+- A talk command runs its step and returns at once (`docs/04` §6.37). The queue runs in the ticks that follow, like the
+  original's frames: tactical ticks (speech, one event per tick, walks already ordered) with the world clock paused and
+  AI decisions frozen (§6.6). In real time those are the ticks the player watches, so an NPC that acts after its lines
+  acts when the player sees them end; an agent runs them with `advance`, which stops with `decision` once the panel
+  waits for a choice (or waits for real time when a viewer drives it).
+- `skipLine` ends the current line in the simulation: the client sends it when the player cuts a line short and when a
+  voiced line's voice ends. `setSpeech skip` (a session setting for agents) ends every line on the tick after it is
+  said.
 - An idle open session stops time: `advance` returns `refused` with `conversationOpen`.
 - A scripted sequence (`ENGAGED_IN_CONV` without a panel, a pending conversation, a trigger wait): player commands are
   refused with `scriptedSequence`; `advance` runs ticks until it ends, a panel opens (`conversation` decision) or a

@@ -149,6 +149,29 @@ async function concurrentScript(r: Rig): Promise<{ order: string[]; results: unk
   return { order: order.filter((name) => name !== 'describe'), results: results.filter((_, i) => i !== soldiers.length + 1), log };
 }
 
+async function realtimeWaitScript(r: Rig): Promise<{ order: string[]; reason: string; ticks: boolean; logged: unknown[] }> {
+  const host = await r.create('waiting', { seed: BATTLE_SEED });
+  const [merc, other] = await ownSoldiers(host);
+  if (!merc || !other) throw new Error('no squad');
+  await host.setDriver({ mode: 'realtime', speed: 1 });
+  const start = (await host.health()).tick;
+  const order: string[] = [];
+  const noted = <T>(name: string, p: Promise<T>) =>
+    p.then((v) => {
+      order.push(name);
+      return v;
+    });
+  const moved = noted('move', host.dispatch({ type: 'move', soldier: merc.id, to: merc.gridNo + SOUTH_STEP, mode: 'walk' }));
+  const waiting = noted('advance', host.advance({ idle: true }, undefined, { waitInRealtime: true }));
+  await moved;
+  await noted('stance', host.dispatch({ type: 'stance', soldier: other.id, stance: 'crouch' }));
+  const report = await waiting;
+  await host.setDriver({ mode: 'manual' });
+  const logged = (await host.inputLog()).entries.filter((e) => e.kind === 'advance' && e.payload.realtime !== true).map(stable);
+  await host.close();
+  return { order, reason: report.reason, ticks: report.tick > start, logged };
+}
+
 async function deadIsDeadScript(r: Rig): Promise<{ results: unknown[]; written: string | null }> {
   const host = await r.create('dead', { seed: 8, campaign: { saveMode: 'deadIsDead', deadIsDeadName: DEAD_IS_DEAD_NAME } });
   const results = [
@@ -272,6 +295,21 @@ describe('the session host contract, in process and in a worker thread', () => {
         { tick: start + QUERY_ADVANCE_TICKS, pending: 0, last: { label: 'advance', ticks: QUERY_ADVANCE_TICKS }, loopDelayMs: 'number' },
       ]);
       expect(worker).toEqual(inProcess);
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  it(
+    'waits for real time in advance while the commands sent meanwhile go through, without logging an advance',
+    async () => {
+      for (const kind of ['inprocess', 'worker'] as const) {
+        const r = await rig(kind);
+        try {
+          expect(await realtimeWaitScript(r)).toEqual({ order: ['move', 'stance', 'advance'], reason: 'idle', ticks: true, logged: [] });
+        } finally {
+          await r.close();
+        }
+      }
     },
     TEST_TIMEOUT_MS,
   );

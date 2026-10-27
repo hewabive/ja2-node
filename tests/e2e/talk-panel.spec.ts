@@ -69,7 +69,7 @@ async function squadInA10(seed: number, mercs: number, near: number): Promise<{ 
 }
 
 async function openTactical(page: Page, session: string, extra = ''): Promise<void> {
-  await page.goto(`/play?session=${encodeURIComponent(session)}&drive=manual&shadowHints=1${extra}`);
+  await page.goto(`/play?session=${encodeURIComponent(session)}&shadowHints=1${extra}`);
   await page.waitForFunction(() => window.__ja2Ui?.tactical?.ready === true || window.__ja2Ui?.error, null, { timeout: LOAD_TIMEOUT_MS });
   expect(await page.evaluate(() => window.__ja2Ui.error)).toBeNull();
   await page.waitForFunction(() => window.__ja2Ui.tactical?.pendingImages === 0 && window.__ja2Ui.screen === 'tactical');
@@ -115,9 +115,9 @@ test.describe('talking through the canvas talk panel on stubs', () => {
       data?: { walking?: boolean };
     };
     expect(talk.ok).toBe(true);
-    if (talk.data?.walking) await agent.call('advance', { session, idle: true });
+    expect(((await agent.call('advance', { session, idle: true })) as { reason: string }).reason).toBe('decision');
     await agent.close();
-    await openTactical(page, session, '&pinClock=1');
+    await openTactical(page, session, '&drive=manual&pinClock=1');
     await page.waitForFunction(() => window.__ja2Ui.tactical?.talk.open === true && window.__ja2Ui.tactical.pendingImages === 0);
     await nextFrames(page, 4);
     expect(await page.evaluate(() => window.__ja2Ui.tactical?.talk)).toMatchObject({ profile: STUB_NPC, busy: false, line: null });
@@ -159,11 +159,11 @@ test.describe('talking through the canvas talk panel on stubs', () => {
     await page.waitForFunction(() => window.__ja2Ui.modal === 'npcRequestBox', null, { timeout: LINES_TIMEOUT_MS });
     await clickWidget(page, 'npcRequestBox.yes');
     await expect.poll(() => lastCommand(page)).toEqual({ type: 'answer', ok: true, reason: null });
-    await playedBack(page);
     const agent = await mcp();
-    const recruited = ((await agent.call('observe', { session })) as View).soldiers.find((s) => s.profile === STUB_RPC);
+    const recruited = async () => ((await agent.call('observe', { session })) as View).soldiers.find((s) => s.profile === STUB_RPC);
+    await expect.poll(recruited, { timeout: LINES_TIMEOUT_MS }).toMatchObject({ team: 0, kind: 'rpc' });
     await agent.close();
-    expect(recruited).toMatchObject({ team: 0, kind: 'rpc' });
+    await playedBack(page);
     if (await page.evaluate(() => window.__ja2Ui.tactical?.talk.open)) {
       await talkOpenAndQuiet(page);
       await clickWidget(page, 'talkDone');

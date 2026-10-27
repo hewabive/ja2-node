@@ -18,7 +18,7 @@ import type { WorldTimeControl } from '../sim/advance.ts';
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { findEmail } from '../sim/campaign/laptop/mail.ts';
 import { MercKind, type Roster, type RosterMerc } from '../sim/campaign/roster.ts';
-import type { CommandResult, StepObserver } from '../sim/command.ts';
+import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
 import type { StrategicRules } from '../sim/knowledge/strategic.ts';
 import { Assignment } from '../sim/strategic/forces/constants.ts';
@@ -204,9 +204,17 @@ export class CampaignSession implements SessionSim {
     return withText(this.campaign.drainEvents(), this.texts);
   }
 
-  dispatch(cmd: CommandEnvelope, steps?: StepObserver): CommandResult {
+  dispatch(cmd: CommandEnvelope): CommandResult {
     if (cmd.type === EMAIL_TEXT) return this.#emailText(cmd);
-    return withText(this.campaign.dispatch(cmd, steps), this.texts);
+    return withText(this.campaign.dispatch(cmd), this.texts);
+  }
+
+  get skipsSpeech(): boolean {
+    return this.campaign.talk?.skipsSpeech ?? false;
+  }
+
+  skipSpeech(skip: boolean): void {
+    this.campaign.talk?.skipSpeech(skip);
   }
 
   #emailText(cmd: CommandEnvelope): CommandResult {

@@ -4,7 +4,7 @@ import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '..
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
-import type { ConversationView, ViewFrame } from '../protocol/view.ts';
+import type { ViewFrame } from '../protocol/view.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { createItem, createMoney } from '../sim/items/object.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
@@ -68,20 +68,19 @@ function item(session: CampaignSession, name: string): number {
   return index;
 }
 
-interface GiveData {
-  readonly outcome?: string;
-  readonly conversation?: ConversationView | null;
-  readonly lines?: { quote: number; text?: string }[];
-  readonly refusal?: string;
-  readonly walking?: boolean;
-}
-
-function data(r: { readonly data?: unknown }): GiveData {
-  return (r.data ?? {}) as GiveData;
-}
-
-function quotes(r: { readonly data?: unknown }): number[] {
-  return (data(r).lines ?? []).map((l) => l.quote);
+function giveThrough(session: CampaignSession, live: Session, cmd: Record<string, unknown>) {
+  const result = session.dispatch({ type: 'give', ...cmd });
+  expect(result.ok, result.reason).toBe(true);
+  const report = live.advance({ idle: true });
+  const types = report.events.map((e) => e.type);
+  const lines = report.events.flatMap((e) => (e.type === 'npcQuote' ? [e] : []));
+  return {
+    report,
+    quotes: lines.map((l) => l.quote),
+    texts: lines.map((l) => (l as { text?: string }).text ?? ''),
+    took: types.includes('npcTookItem'),
+    returned: types.includes('itemReturned'),
+  };
 }
 
 async function nearVasko(seed: number, mode?: RunMode) {
@@ -95,7 +94,7 @@ async function nearVasko(seed: number, mode?: RunMode) {
 const SLOW_SCENARIO_MS = 30_000;
 
 describe('giving items and money to the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
-  it('shows viewers the walk and the lines of a give that runs to the end of the conversation it opens', async () => {
+  it('returns a give at once and shows viewers its walk and the lines of the conversation it opens as advance runs them', async () => {
     const { session, live } = await inA10(21);
     const merc = session.view().strategic?.mercs[0]?.id ?? 0;
     const clip = item(session, 'CLIP9_15');
@@ -105,8 +104,11 @@ describe('giving items and money to the stub NPC in A10', { timeout: SLOW_SCENAR
       if (m.t === 'frames') frames.push(...m.frames);
     });
     const from = soldier(session, merc).gridNo;
+    const start = session.tick;
     const rounds = live.dispatch({ type: 'give', soldier: merc, target: { npc: VASKO }, slot: pocket, count: 1 });
-    expect(data(rounds).outcome).toBe('taken');
+    expect(rounds).toMatchObject({ ok: true, data: { walking: true } });
+    expect(session.tick).toBe(start);
+    expect(live.advance({ idle: true }).events.some((e) => e.type === 'npcTookItem')).toBe(true);
     const walked = frames.flatMap((f) => f.changed.filter((s) => s.id === merc).map((s) => s.gridNo));
     expect(new Set(walked).size).toBeGreaterThan(2);
     expect(walked.at(-1)).toBe(soldier(session, merc).gridNo);
@@ -116,18 +118,18 @@ describe('giving items and money to the stub NPC in A10', { timeout: SLOW_SCENAR
   });
 
   it('takes a magazine after his first-meeting lines, refuses the pistol and returns it, takes money', async () => {
-    const { session, merc } = await nearVasko(21);
+    const { session, live, merc } = await nearVasko(21);
     const inv = () => soldier(session, merc).inv;
     const clip = item(session, 'CLIP9_15');
     const pocket = inv().findIndex((o) => o.item === clip);
     expect(inv()[pocket]).toMatchObject({ item: clip, count: 2 });
 
-    const rounds = session.dispatch({ type: 'give', soldier: merc, target: { npc: VASKO }, slot: pocket, count: 1 });
-    expect(rounds.ok, rounds.reason).toBe(true);
-    expect(data(rounds).outcome).toBe('taken');
-    expect(quotes(rounds)).toEqual([Quote.FIRST_MEETING, Quote.FIRST_MEETING_2, Quote.ROUNDS]);
-    expect(data(rounds).lines?.at(-1)?.text).toContain('rounds');
-    expect(data(rounds).conversation).toMatchObject({ profile: VASKO, initiatedBy: 'player', talker: merc });
+    const rounds = giveThrough(session, live, { soldier: merc, target: { npc: VASKO }, slot: pocket, count: 1 });
+    expect(rounds.took).toBe(true);
+    expect(rounds.quotes).toEqual([Quote.FIRST_MEETING, Quote.FIRST_MEETING_2, Quote.ROUNDS]);
+    expect(rounds.texts.at(-1)).toContain('rounds');
+    expect(rounds.report.reason).toBe('decision');
+    expect(session.view().conversation).toMatchObject({ profile: VASKO, initiatedBy: 'player', talker: merc });
     expect(inv()[pocket]).toMatchObject({ item: clip, count: 1 });
     const profile = () => session.campaign.state.profiles.get(VASKO);
     expect(profile()?.inventory).toContain(clip);
@@ -136,10 +138,9 @@ describe('giving items and money to the stub NPC in A10', { timeout: SLOW_SCENAR
     expect(session.dispatch({ type: 'closeTalk' })).toEqual({ ok: true });
 
     const glock = item(session, 'GLOCK_17');
-    const pistol = session.dispatch({ type: 'give', soldier: merc, target: { npc: VASKO }, slot: 'hand' });
-    expect(pistol.ok, pistol.reason).toBe(true);
-    expect(data(pistol).outcome).toBe('returned');
-    expect(quotes(pistol)).toEqual([Quote.NO_GUNS]);
+    const pistol = giveThrough(session, live, { soldier: merc, target: { npc: VASKO }, slot: 'hand' });
+    expect(pistol.returned).toBe(true);
+    expect(pistol.quotes).toEqual([Quote.NO_GUNS]);
     expect(inv()[InvSlot.HAND]?.item).toBe(glock);
     expect(session.dispatch({ type: 'closeTalk' })).toEqual({ ok: true });
 
@@ -148,14 +149,11 @@ describe('giving items and money to the stub NPC in A10', { timeout: SLOW_SCENAR
       ok: false,
       data: { refusal: 'badMoney' },
     });
-    session.drainEvents();
-    const cash = session.dispatch({ type: 'give', soldier: merc, target: { npc: VASKO }, money: 100 });
-    expect(cash.ok, cash.reason).toBe(true);
-    expect(data(cash).outcome).toBe('taken');
-    expect(quotes(cash)).toEqual([Quote.MONEY]);
+    const cash = giveThrough(session, live, { soldier: merc, target: { npc: VASKO }, money: 100 });
+    expect(cash.quotes).toEqual([Quote.MONEY]);
     expect(inv()[InvSlot.SMALLPOCK1]?.money).toBe(400);
     expect(profile()?.money).toBe(100);
-    expect(session.drainEvents()).toContainEqual(
+    expect(cash.report.events).toContainEqual(
       expect.objectContaining({ type: 'npcTookItem', profile: VASKO, from: merc, item: 'MONEY', money: 100 }),
     );
   });
@@ -169,13 +167,12 @@ describe('giving items and money to the stub NPC in A10', { timeout: SLOW_SCENAR
     Object.assign(m.inv[InvSlot.SMALLPOCK2] as object, createItem(items, kit, 100));
     const talk = session.dispatch({ type: 'talk', soldier: merc, target: { npc: VASKO } });
     expect(talk.ok, talk.reason).toBe(true);
-    if (data(talk).walking) live.advance({ idle: true });
+    expect(live.advance({ idle: true }).reason).toBe('decision');
     expect(session.view().conversation?.menu).toContain('give');
-    const refused = session.dispatch({ type: 'give', soldier: merc, target: { npc: VASKO }, slot: InvSlot.SMALLPOCK2 });
-    expect(refused.ok, refused.reason).toBe(true);
-    expect(data(refused).outcome).toBe('returned');
-    expect(quotes(refused)).toEqual([Quote.NO_USE]);
-    expect(data(refused).conversation).toBeNull();
+    const refused = giveThrough(session, live, { soldier: merc, target: { npc: VASKO }, slot: InvSlot.SMALLPOCK2 });
+    expect(refused.returned).toBe(true);
+    expect(refused.quotes).toEqual([Quote.NO_USE]);
+    expect(session.view().conversation ?? null).toBeNull();
     expect(m.inv.some((o) => o.item === kit)).toBe(true);
     expect(session.view().scriptedSequence).toBeUndefined();
   });

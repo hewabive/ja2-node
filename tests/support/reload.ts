@@ -2,7 +2,7 @@ import { expect } from 'vitest';
 import type { TacticalWorld } from '../../src/content/world/tactical-world.ts';
 import type { CommandEnvelope } from '../../src/protocol/messages.ts';
 import { advance as advanceSim, type Steppable, type StopCondition, type StopReport } from '../../src/sim/advance.ts';
-import type { CommandResult, StepObserver } from '../../src/sim/command.ts';
+import type { CommandResult } from '../../src/sim/command.ts';
 import type { SimEvent } from '../../src/sim/events.ts';
 
 export type RunMode = 'plain' | 'reload';
@@ -31,7 +31,7 @@ export function worldContentOnce(build: (mapPath: string) => TacticalWorld): (ma
 }
 
 export interface Drivable extends Steppable {
-  dispatch(cmd: CommandEnvelope, steps?: StepObserver): CommandResult;
+  dispatch(cmd: CommandEnvelope): CommandResult;
 }
 
 export interface ReloadAdapter<T> {
@@ -83,9 +83,9 @@ function driverOf(sim: object): Driver<Drivable> {
 
 export function driven<T extends Drivable>(sim: T, adapter: ReloadAdapter<T>, mode: RunMode): T {
   const d: Driver<T> = { current: sim, mode, adapter, pending: [], log: [], stepped: false, reloads: 0 };
-  const dispatch = (cmd: CommandEnvelope, steps?: StepObserver): CommandResult => {
+  const dispatch = (cmd: CommandEnvelope): CommandResult => {
     if (d.stepped) reload(d);
-    const result = d.current.dispatch(cmd, steps);
+    const result = d.current.dispatch(cmd);
     d.log.push(JSON.stringify({ dispatch: cmd, result }));
     if (result.ok) reload(d);
     return result;

@@ -20,7 +20,7 @@ export interface StopCondition {
   readonly mode?: number;
 }
 
-export type StopReason = 'idle' | 'decision' | 'event' | 'ticks' | 'budget' | 'worldTime' | 'refused' | 'ended';
+export type StopReason = 'idle' | 'decision' | 'event' | 'ticks' | 'budget' | 'worldTime' | 'refused' | 'ended' | 'timeout';
 
 const ALWAYS_STOP_EVENTS: readonly SimEventType[] = ['meanwhileEnded', 'endgameDeferred'];
 
@@ -118,11 +118,8 @@ export class AdvanceRun {
   }
 
   resume(pause: PauseCheck = NEVER_PAUSE): StopReport | null {
-    if (!this.#started) {
-      this.#started = true;
-      const refused = this.#opening();
-      if (refused) return refused;
-    }
+    const refused = this.#begin();
+    if (refused) return refused;
     let stepped = false;
     for (;;) {
       if (!this.#checked) {
@@ -136,6 +133,20 @@ export class AdvanceRun {
       const stop = this.#step();
       if (stop) return stop;
     }
+  }
+
+  observe(events: readonly SimEvent[]): StopReport | null {
+    return this.#begin() ?? this.#afterStep(events) ?? this.#beforeStep();
+  }
+
+  stopped(reason: StopReason, refusal?: string): StopReport {
+    return this.#report(reason, refusal);
+  }
+
+  #begin(): StopReport | null {
+    if (this.#started) return null;
+    this.#started = true;
+    return this.#opening();
   }
 
   #report(reason: StopReason, refusal?: string): StopReport {
@@ -196,9 +207,12 @@ export class AdvanceRun {
   }
 
   #step(): StopReport | null {
+    this.#sim.step();
+    return this.#afterStep(this.#sim.drainEvents());
+  }
+
+  #afterStep(events: readonly SimEvent[]): StopReport | null {
     const sim = this.#sim;
-    sim.step();
-    const events = sim.drainEvents();
     this.#collected.push(...events);
     if (sim.ended?.()) return this.#report('ended');
     if (sim.hasPendingDecision()) return this.#report('decision');

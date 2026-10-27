@@ -24,8 +24,6 @@ export function createTalkContext(): TalkContext {
 
 export type GiftObject = ItemObject;
 
-export type GiveOutcome = 'pending' | 'taken' | 'returned' | 'kept' | 'shop';
-
 export type DialogueEvent =
   | {
       readonly kind: 'quote';
@@ -48,6 +46,7 @@ export type DialogueEvent =
 
 export interface TalkingFace {
   readonly speaker: number;
+  readonly saidAt: number;
   readonly busyUntil: number;
   pcTrigger: { readonly npc: number; readonly record: number } | null;
 }
@@ -94,9 +93,7 @@ export interface TalkState {
   niceNpc: number;
   nastyNpc: number;
   readonly lines: SpokenLine[];
-  readonly said: SpokenLine[];
   readonly fx: Rng;
-  giveOutcome: GiveOutcome | null;
 }
 
 const COSMETIC_SEED = 0x7a1c;
@@ -120,9 +117,7 @@ export function createTalkState(seed = 0): TalkState {
     niceNpc: NO_PROFILE,
     nastyNpc: NO_PROFILE,
     lines: [],
-    said: [],
     fx: Rng.fromSeed(seed ^ COSMETIC_SEED),
-    giveOutcome: null,
   };
 }
 

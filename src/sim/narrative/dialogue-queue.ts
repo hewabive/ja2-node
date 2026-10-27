@@ -5,8 +5,9 @@
 // @src CharacterDialogueUsingAlternateFile,
 // @src ExecuteCharacterDialogue, GetDialogue, FindDelayForString, TEXT_DELAY_MODIFIER; Tactical/Interface_Dialogue.cc
 // @src TalkingMenuDialogue, ProfileCurrentlyTalkingInDialoguePanel; src/externalized/content/Dialogs.cc
-// @src GetDialogueTextFilename; Tactical/Faces.cc SetFaceTalking (talking duration without speech); Strategic/Assignments.cc
-// @src DialogueEventRemoveEPC. See docs/24 §1.5, §7, §9.4.
+// @src GetDialogueTextFilename; Tactical/Faces.cc SetFaceTalking (talking duration without speech), InternalShutupaYoFace
+// @src (a line cut short by StopAnyCurrentlyTalkingSpeech or DialogueAdvanceSpeech); Strategic/Assignments.cc
+// @src DialogueEventRemoveEPC. See docs/24 §1.5, §7, §9.4, §11.6.
 
 import { alternateDialogueFile, mercDialogueFile, npcDialogueFile, type TextKey, textKey } from '../../content/narrative/dialogue-text.ts';
 import { NO_PROFILE } from '../../content/narrative/npc-constants.ts';
@@ -15,7 +16,7 @@ import { Body, OKLIFE, type Soldier, Team } from '../tactical/soldier.ts';
 import type { NarrativeHost } from './host.ts';
 import { ProfileFlag } from './narrative-ids.ts';
 import { isNpcOrRpc } from './records.ts';
-import type { DialogueEvent } from './talk-state.ts';
+import type { DialogueEvent, TalkState } from './talk-state.ts';
 
 export const TEXT_DELAY_MODIFIER_MS = 60;
 export const TICKS_PER_CHARACTER = TEXT_DELAY_MODIFIER_MS / TICK_MS;
@@ -133,21 +134,28 @@ export function executeCharacterDialogue(
   alternate = false,
 ): boolean {
   const tick = host.tick();
-  host.talk.face = { speaker, busyUntil: tick, pcTrigger: null };
+  host.talk.face = { speaker, saidAt: tick, busyUntil: tick, pcTrigger: null };
   const s = soldierOnPlayerTeam(host, speaker) ?? host.offSectorPlayerSoldier?.(speaker) ?? null;
   if (!s && fromSoldier) return false;
   if (s && speakerSilenced(s, quote)) return false;
   const key = dialogueTextKey(host, speaker, quote, alternate);
   const chars = host.quoteLengths.chars(key);
   if (chars === 0) return false;
-  host.talk.face = { speaker, busyUntil: tick + chars * TICKS_PER_CHARACTER + 1, pcTrigger: null };
+  const busyUntil = host.skipsSpeech?.() ? tick : tick + chars * TICKS_PER_CHARACTER + 1;
+  host.talk.face = { speaker, saidAt: tick, busyUntil, pcTrigger: null };
   const soldier = (s ?? soldierByProfile(host, speaker))?.id ?? null;
   const withRecord = record !== null ? { record } : {};
   const line = { profile: speaker, quote, ...withRecord, textKey: key, chars };
   host.talk.lines.push(line);
-  host.talk.said.push(line);
   if (npcUi) host.emit({ type: 'npcQuote', profile: speaker, soldier, quote, ...withRecord, textKey: key, chars });
   else host.emit({ type: 'mercQuote', soldier: soldier ?? -1, profile: speaker, quote: `quote${quote}`, id: quote, textKey: key, chars });
+  return true;
+}
+
+export function cutTalkingFace(talk: TalkState, tick: number): boolean {
+  const face = talk.face;
+  if (!face || face.busyUntil <= tick) return false;
+  talk.face = { ...face, busyUntil: tick };
   return true;
 }
 
@@ -213,7 +221,7 @@ function engagedTransition(host: NarrativeHost): void {
   }
 }
 
-function faceFinished(host: NarrativeHost, h: DialogueHandlers): boolean {
+export function faceFinished(host: NarrativeHost, h: DialogueHandlers): boolean {
   const talk = host.talk;
   const face = talk.face;
   if (!face) return true;

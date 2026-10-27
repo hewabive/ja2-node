@@ -43,6 +43,7 @@ export interface TalkFlowState {
   scripted: boolean;
   civQuote: CivQuoteSaid | null;
   carmenTimerAtMs: number | null;
+  shopAfterOpening: number | null;
 }
 
 export interface CosmeticStreams {
@@ -74,6 +75,7 @@ export function createTalkFlowState(seed: number): TalkFlowState {
     scripted: false,
     civQuote: null,
     carmenTimerAtMs: null,
+    shopAfterOpening: null,
   };
 }
 

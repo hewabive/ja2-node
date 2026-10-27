@@ -4,7 +4,8 @@
 // @src when SUBTITLES is on or the line has no voice, the speech surfaces when SPEECH is on, HandleDialogueEnd,
 // @src DialogueAdvanceSpeech, StopAnyCurrentlyTalkingSpeech, FindDelayForString with TEXT_DELAY_MODIFIER 60);
 // @src src/game/Tactical/Faces.cc SetFaceTalking (the voice only with TOPTION_SPEECH, the text duration otherwise),
-// @src InternalShutupaYoFace (a click is ignored during the first 500 ms, Backspace forces), SetupFinalTalkingDelay
+// @src InternalShutupaYoFace (a click is ignored during the first 500 ms, Backspace forces; a voiced line lasts as long
+// @src as its voice), SetupFinalTalkingDelay
 // @src (300 ms with the mouth closed, the key wait of a FACE_POTENTIAL_KEYWAIT face with KEY_ADVANCE_SPEECH when the
 // @src line had no voice or subtitles are on); src/game/Tactical/Civ_Quotes.cc BeginCivQuote (a new quote replaces
 // @src the old one, the lifetime of the quoted text plus 500 ms), ShutDownQuoteBox (a click closes after 300 ms).
@@ -43,6 +44,7 @@ export interface SpeechLineRequest {
   readonly voice: string | null;
   readonly sector: string | null;
   readonly keyWait: boolean;
+  readonly saidAt?: number;
 }
 
 export interface SpeechLine extends SpeechLineRequest {
@@ -135,6 +137,7 @@ export class SpeechPresenter {
   #now = 0;
   readonly #started: ((line: SpeechLine) => void)[] = [];
   readonly #ended: ((line: SpeechLine) => void)[] = [];
+  readonly #stopped: ((line: SpeechLine) => void)[] = [];
 
   constructor(options: SpeechPresenterOptions) {
     this.#o = options;
@@ -146,6 +149,10 @@ export class SpeechPresenter {
 
   onLineEnded(listener: (line: SpeechLine) => void): void {
     this.#ended.push(listener);
+  }
+
+  onLineStopped(listener: (line: SpeechLine) => void): void {
+    this.#stopped.push(listener);
   }
 
   get busy(): boolean {
@@ -218,7 +225,7 @@ export class SpeechPresenter {
     const r = this.#running;
     if (!r) return false;
     if (!force && now - r.startedAt < MIN_TALK_BEFORE_SKIP_MS) return false;
-    this.#finish(r);
+    this.#cutShort(r);
     return true;
   }
 
@@ -234,7 +241,7 @@ export class SpeechPresenter {
   flush(): void {
     this.#queue.length = 0;
     const r = this.#running;
-    if (r) this.#finish(r);
+    if (r) this.#cutShort(r);
     this.#queue.length = 0;
   }
 
@@ -268,6 +275,7 @@ export class SpeechPresenter {
       if (r.voice?.failed && r.talkingUntil === null) r.talkingUntil = r.startedAt + textDelay(r.line.chars);
       const done = r.talkingUntil !== null ? now >= r.talkingUntil : !(r.voice?.active ?? false);
       if (!done) return false;
+      if (r.talkingUntil === null) this.#stop(r.line);
       this.#finalDelay(r, r.talkingUntil !== null ? Math.min(now, r.talkingUntil) : now);
       return true;
     }
@@ -285,6 +293,15 @@ export class SpeechPresenter {
     }
     r.phase = 'tail';
     r.tailFrom = at;
+  }
+
+  #cutShort(r: Running): void {
+    if (r.phase === 'talking') this.#stop(r.line);
+    this.#finish(r);
+  }
+
+  #stop(line: SpeechLine): void {
+    for (const listener of this.#stopped) listener(line);
   }
 
   #finish(r: Running): void {
@@ -368,6 +385,11 @@ function request(
 }
 
 export function speechLineOf(event: QuoteEvent, routing: SpeechRouting): SpeechLineRequest | null {
+  const line = speechRequestOf(event, routing);
+  return line && { ...line, saidAt: event.tick };
+}
+
+function speechRequestOf(event: QuoteEvent, routing: SpeechRouting): SpeechLineRequest | null {
   const fields = event as QuoteFields;
   switch (event.type) {
     case 'npcQuote': {
