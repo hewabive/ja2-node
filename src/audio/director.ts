@@ -21,6 +21,7 @@ import { type AnimationTables, AnimFlags } from '../content/anim/tables.ts';
 import { DEFAULT_TAIL_FRAMES, followTimeline, type TimelinePosition } from '../content/anim/timeline-follower.ts';
 import { ambientActive, ambientCue, ambientGapMs } from '../content/audio/ambient-schedule.ts';
 import { type BattleMemory, type BattleSoundName, battleSoundCue, NO_BATTLE_MEMORY } from '../content/audio/battle-sound.ts';
+import { CALL_CRY_CODES, callAnimationState, codesInScript } from '../content/audio/creature-call.ts';
 import { type Cue, effectCue, type FileExists, VolumeLevel } from '../content/audio/cue.ts';
 import type { CueBook } from '../content/audio/cue-book.ts';
 import {
@@ -47,6 +48,7 @@ import {
   smallExplosionCue,
   TerrainKind,
 } from '../content/audio/cues.ts';
+import { type Heard, heardSoundTile } from '../content/audio/heard-place.ts';
 import { hasIdleSounds, idleCheck, idleCheckLoopFrames } from '../content/audio/idle-sounds.ts';
 import { NOWHERE, onScreen } from '../content/audio/sound-position.ts';
 import { speechCue, speechPathForLine } from '../content/audio/speech.ts';
@@ -61,7 +63,6 @@ import { PositionalLoops } from './positional.ts';
 
 export const CATCH_UP_TICKS = 100;
 const DOOR_CLOSE_DELAY_MS = 2 * 70;
-const CONSCIOUSNESS = 10;
 const NORMAL_MORALE = 50;
 const OUR_TEAM = 0;
 const MISS_CURSE_CHANCE = 40;
@@ -72,6 +73,7 @@ const FAR_VOLUME_MOD = 25;
 const DEFAULT_MINUTE_OF_DAY = 12 * 60;
 const RECRUITED_KINDS = new Set(['rpc', 'epc']);
 const CONTENTS_EXCLAMATION_DELAY_MS = 500;
+const UNSEEN_VICTIM_TEAM = 1;
 const NO_MATERIAL = 0;
 const isVehicleBody = (bodyType: number) => bodyType >= SoundBody.FIRST_VEHICLE && bodyType <= SoundBody.LAST_VEHICLE;
 const ANIM_STAND = 6;
@@ -141,7 +143,15 @@ interface QueuedLine {
   readonly speaker: number | null;
 }
 
+type Voiced = Pick<SoldierView, 'id' | 'gridNo' | 'team' | 'bodyType' | 'voice' | 'morale' | 'muted'> & { readonly far?: boolean };
+
 type EventOf<T extends string> = Extract<NonNullable<ViewFrame['events']>[number], { type: T }>;
+type UnseenVictim = NonNullable<EventOf<'soldierHit'>['unseen']>;
+
+interface Place {
+  readonly gridNo: number;
+  readonly far: boolean;
+}
 
 export class SoundDirector {
   readonly stats: DirectorStats = {
@@ -395,8 +405,36 @@ export class SoundDirector {
   }
 
   #battleSound(id: number, sound: BattleSoundName, lowerVolume: boolean): void {
-    const s = this.#soldiers.get(id);
+    this.#voiceSound(this.#soldiers.get(id), sound, lowerVolume);
+  }
+
+  #victim(id: number, place: Place, unseen: UnseenVictim | undefined): Voiced | undefined {
+    const known = this.#soldiers.get(id);
+    if (known || !unseen) return known;
+    return { id, gridNo: place.gridNo, team: UNSEEN_VICTIM_TEAM, bodyType: unseen.bodyType, voice: unseen.voice, far: place.far };
+  }
+
+  #placeOf(gridNo: number | undefined, heard: Heard | undefined): Place {
+    if (gridNo !== undefined) return { gridNo, far: false };
+    const by = heard ? this.#soldiers.get(heard.by) : undefined;
+    if (heard && by) return { gridNo: heardSoundTile(by.gridNo, heard.direction, heard.volumeClass), far: false };
+    return { gridNo: NOWHERE, far: true };
+  }
+
+  #sourcePlace(soldier: number, gridNo?: number, heard?: Heard): Place {
+    const known = this.#soldiers.get(soldier);
+    return known ? { gridNo: known.gridNo, far: false } : this.#placeOf(gridNo, heard);
+  }
+
+  #placed(cue: Cue | null, place: Place): Cue | null {
+    if (!cue) return null;
+    if (!place.far) return { ...cue, gridNo: place.gridNo };
+    return { ...cue, gridNo: NOWHERE, baseVolume: Math.max(VolumeLevel.LOW, cue.baseVolume - FAR_VOLUME_MOD) };
+  }
+
+  #voiceSound(s: Voiced | undefined, sound: BattleSoundName, lowerVolume: boolean): void {
     if (!s || s.muted || isVehicleBody(s.bodyType)) return;
+    const id = s.id;
     if (sound === 'DIE1') {
       if (this.#dead.has(id)) return;
       this.#dead.add(id);
@@ -425,16 +463,9 @@ export class SoundDirector {
     else if (outcome.cutSpeech && this.#speech?.speaker === id) this.#speech.voice.stop();
     for (const cue of outcome.cues) {
       this.stats.battleSounds++;
-      const voice = this.#play(cue);
+      const voice = this.#play(s.far ? this.#placed(cue, { gridNo: NOWHERE, far: true }) : cue);
       if (voice && cue.bus === 'speech') this.#battleVoices.set(id, voice);
     }
-  }
-
-  #located(soldier: number, cue: Cue | null): Cue | null {
-    if (!cue) return null;
-    const s = this.#soldiers.get(soldier);
-    if (s) return { ...cue, gridNo: s.gridNo };
-    return { ...cue, gridNo: NOWHERE, baseVolume: Math.max(VolumeLevel.LOW, cue.baseVolume - FAR_VOLUME_MOD) };
   }
 
   #remember(e: NonNullable<ViewFrame['events']>[number]): void {
@@ -453,20 +484,20 @@ export class SoundDirector {
       case 'shotFired':
         if (e.item !== undefined)
           this.#play(
-            this.#located(
-              e.soldier,
+            this.#placed(
               gunshotCue(
                 book,
                 NOWHERE,
                 { item: e.item, silenced: e.silenced ?? false, burst: e.burst ?? false, rounds: e.rounds ?? 1 },
                 this.#o.exists,
               ),
+              this.#sourcePlace(e.soldier, undefined, e.heard),
             ),
           );
         return;
       case 'gunJammed':
         if (!e.unjammed && this.#soldiers.get(e.soldier)?.team === OUR_TEAM)
-          this.#play(this.#located(e.soldier, dryFireCue(book, NOWHERE)));
+          this.#play(this.#placed(dryFireCue(book, NOWHERE), this.#sourcePlace(e.soldier)));
         return;
       case 'reloaded':
         if (this.#soldiers.has(e.soldier)) this.#play(reloadCue(book, e.item));
@@ -490,7 +521,7 @@ export class SoundDirector {
         this.#play(effectCue(book, 'THROW_IMPACT_2', 'location', VolumeLevel.MID, e.gridNo));
         return;
       case 'catchEnded':
-        this.#play(this.#located(e.soldier, effectCue(book, 'CATCH_OBJECT', 'location', VolumeLevel.MID)));
+        this.#play(this.#placed(effectCue(book, 'CATCH_OBJECT', 'location', VolumeLevel.MID), this.#sourcePlace(e.soldier)));
         return;
       case 'mortarWhistle':
         this.#mortarWhistle(e.sounding);
@@ -502,7 +533,10 @@ export class SoundDirector {
         this.#soldierHit(e);
         return;
       case 'soldierDied':
-        this.#battleSound(e.soldier, 'DIE1', false);
+        this.#voiceSound(this.#victim(e.soldier, this.#sourcePlace(e.soldier, e.gridNo, e.heard), e.unseen), 'DIE1', false);
+        return;
+      case 'creatureCall':
+        if (e.unseen) this.#unseenCall(e.call, e.unseen.bodyType, this.#placeOf(undefined, e.heard));
         return;
       case 'explosion':
         this.#play(explosionCue(book, e.animation ?? '', e.gridNo, rand));
@@ -589,24 +623,42 @@ export class SoundDirector {
   }
 
   #soldierHit(e: EventOf<'soldierHit'>): void {
-    const s = this.#soldiers.get(e.soldier);
+    const place = this.#sourcePlace(e.soldier, e.gridNo, e.heard);
+    const s = this.#victim(e.soldier, place, e.unseen);
     if (!s) return;
+    const book = this.#o.book;
     if (isVehicleBody(s.bodyType)) {
-      this.#play(effectCue(this.#o.book, 'S_METAL_IMPACT3', 'location', VolumeLevel.MID, s.gridNo));
+      this.#play(this.#placed(effectCue(book, 'S_METAL_IMPACT3', 'location', VolumeLevel.MID), place));
       return;
     }
     const blade = e.attacker !== null && this.#attacks.get(e.attacker) === 'blade';
-    this.#play(impactCue(this.#o.book, s.gridNo, blade, this.#rng.rand));
+    this.#play(this.#placed(impactCue(book, place.gridNo, blade, this.#rng.rand), place));
     if (e.life === 0) {
-      this.#battleSound(s.id, 'DIE1', false);
+      this.#voiceSound(s, 'DIE1', false);
       return;
     }
-    if (e.life < CONSCIOUSNESS) return;
+    if (!e.conscious) return;
     if (s.bodyType === SoundBody.CROW) {
-      this.#play(effectCue(this.#o.book, 'CROW_EXPLODE_1', 'location', VolumeLevel.HIGH, s.gridNo));
+      this.#play(this.#placed(effectCue(book, 'CROW_EXPLODE_1', 'location', VolumeLevel.HIGH), place));
       return;
     }
-    this.#battleSound(s.id, 'HIT1', false);
+    this.#voiceSound(s, 'HIT1', false);
+  }
+
+  #unseenCall(call: CreatureCall, bodyType: number, place: Place): void {
+    const scripts = this.#o.scripts;
+    const state = callAnimationState(this.#o.animations, bodyType);
+    if (!scripts || state === null) return;
+    const book = this.#o.book;
+    const ctx = { gridNo: place.gridNo, bodyType, stealth: false, onScreen: true, handItem: null, creatureCall: call };
+    for (const at of codesInScript(scripts, state, CALL_CRY_CODES)) {
+      const sound = opcodeSound(book, at.code, ctx, this.#rng.rand);
+      if (sound?.kind !== 'cue') continue;
+      const cue = this.#placed(sound.cue, place);
+      const delayMs = at.framesBefore * (this.#o.animations?.controls[state]?.speed ?? 0);
+      if (delayMs === 0) this.#play(cue);
+      else this.#o.later(delayMs, () => this.#play(cue));
+    }
   }
 
   #door(gridNo: number, kind: DoorKind, open: boolean, noisy: boolean): void {

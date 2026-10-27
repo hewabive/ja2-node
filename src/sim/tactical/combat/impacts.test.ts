@@ -10,6 +10,8 @@ import { InvSlot } from '../inventory.ts';
 import { Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { bulletViews } from '../world-view.ts';
+import { eventSoldierGotHit } from './hit.ts';
+import { AimShot } from './types.ts';
 
 let content: TacticalContent;
 
@@ -113,6 +115,25 @@ describe('the sounds of a miss (Weapons.cc StructureHit, ShotMiss; Structure.cc 
     const struck = events.findIndex((e) => e.type === 'structureStruck');
     expect(events[struck]).toMatchObject({ soldier: 0, material: 12 });
     expect(events.findIndex((e) => e.type === 'bulletImpact')).toBeGreaterThan(struck);
+  });
+});
+
+describe('what a hit tells the player (Soldier_Control.cc EVENT_SoldierGotHit, InternalDoMercBattleSound)', () => {
+  it('gives the life of a soldier the squad sees, and only the voice and body of one out of sight', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 70), Direction.SOUTH);
+    const seen = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 80), Direction.NORTH);
+    const hidden = spawnSoldier(sim, 21, Team.ENEMY, gridNo(90, 90), Direction.NORTH);
+    seen.visible = 1;
+    hidden.visible = -1;
+    hidden.battleSoundId = 2;
+    for (const victim of [seen, hidden]) eventSoldierGotHit(sim.state, victim, 0, 5, 0, victim.direction, 0, merc, 0, AimShot.TORSO);
+    const hits = sim.drainEvents().filter((e) => e.type === 'soldierHit');
+    expect(hits[0]).toMatchObject({ soldier: seen.id, gridNo: seen.gridNo, conscious: true, life: seen.life, damage: expect.any(Number) });
+    expect(hits[0]).not.toHaveProperty('unseen');
+    expect(hits[1]).toMatchObject({ soldier: hidden.id, gridNo: hidden.gridNo, conscious: true, unseen: { voice: 'bad2', bodyType: 0 } });
+    expect(hits[1]).not.toHaveProperty('life');
+    expect(hits[1]).not.toHaveProperty('damage');
   });
 });
 

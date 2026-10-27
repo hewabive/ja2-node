@@ -128,6 +128,10 @@ export const NOBODY = TOTAL_SOLDIERS;
 export const TEAM_SIZES = [20, 32, 32, 32, 32, 8] as const;
 export const TEAM_FIRST_ID = [0, 20, 52, 84, 116, 148] as const;
 
+export function shownToPlayer(s: { readonly team: number; readonly visible: number }): boolean {
+  return s.team === Team.OUR || s.visible >= 0;
+}
+
 export function isMonster(s: { readonly bodyType: number }): boolean {
   return s.bodyType >= Body.ADULTFEMALEMONSTER && s.bodyType <= Body.QUEENMONSTER;
 }
@@ -368,6 +372,7 @@ export interface Soldier {
   newOppCnt: number;
   interruptDuelPts: number;
   movementNoiseHeard: number;
+  turnsUntilCanSayHeardNoise: number;
 
   moved: boolean;
   movedPriorToInterrupt: boolean;
@@ -703,6 +708,7 @@ export function createSoldier(init: SoldierInit): Soldier {
     newOppCnt: 0,
     interruptDuelPts: NO_INTERRUPT,
     movementNoiseHeard: 0,
+    turnsUntilCanSayHeardNoise: 0,
     moved: false,
     movedPriorToInterrupt: false,
     passedLastInterrupt: false,

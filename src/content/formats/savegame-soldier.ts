@@ -591,6 +591,7 @@ export interface SoldierMotion {
   readonly weightCarriedAtTurnStart: number;
   readonly newOppCount: number;
   readonly movementNoiseHeard: number;
+  readonly turnsUntilCanSayHeardNoise: number;
   readonly oldLife: number;
   readonly targetCubeLevel: number;
   readonly dontChargeReadyAPs: boolean;
@@ -943,6 +944,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       weightCarriedAtTurnStart: n('sWeightCarriedAtTurnStart'),
       newOppCount: n('bNewOppCnt'),
       movementNoiseHeard: n('ubMovementNoiseHeard'),
+      turnsUntilCanSayHeardNoise: n('ubTurnsUntilCanSayHeardNoise'),
       oldLife: n('bOldLife'),
       targetCubeLevel: n('bTargetCubeLevel'),
       dontChargeReadyAPs: r.bool('fDontChargeReadyAPs'),

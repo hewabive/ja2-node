@@ -215,8 +215,8 @@ in turn-based combat, `combat {team, round, interrupt}`, and the items the squad
 the full door list, the item list and the combat block. Simulation events (`arrived`, `stopped` with a
 reason such as `outOfAPs`, `noPath`, `doorChanged`, `noiseHeard` with a direction but never a grid,
 `enemySighted`, `combatStarted`, `turnStarted`, `interrupt` (only once it is visible), `interruptEnded`,
-`combatEnded {reason: lull|won|lost}`, `shotFired {soldier, target, chance, hit}`, `bulletStopped {reason}`,
-`soldierHit {soldier, attacker, damage, breathLoss, location, special, life}`, `soldierDied {soldier, killer}`,
+`combatEnded {reason: lull|won|lost}`, `shotFired {soldier, target?, chance?, hit?, heard?}`, `bulletStopped {reason}`,
+`soldierHit {soldier, attacker, gridNo?, location, special, conscious, damage?, breathLoss?, life?, unseen?, heard?}`, `soldierDied {soldier, killer, gridNo?, unseen?, heard?}`,
 `gunJammed`, `statChanged`, `attackResolved`, `meleeStrike`, `explosion`, `structureDamaged`, `itemsPickedUp`,
 `itemDropped`) are returned by `advance`. In combat `advance … idle` returns
 when it is our turn again and none of our soldiers is acting; an interrupt in our favour stops it with
@@ -298,15 +298,32 @@ ends). A knife thrown at a structure keeps its knife miss sound on `bulletStoppe
 reports as `stealthyFootstep {soldier}` on each new tile where our merc in stealth mode makes movement noise
 (`HandleAtNewGridNo`, `PlayStealthySoldierFootstepSound`); a `muted` merc plays no battle sound at all; the low-morale
 confirmations use the view's `morale`. A creature's call reports its kind as `creatureCall {soldier, call:
-onePrey|multiplePrey|attacked|crippled}` (`CreatureCall`, the AI's `usActionData`) when the squad sees the caller, and
-the browser cries it at code 717 of the call animation (`ACR_SMELL_PREY`, `ACR_SMELL_THREAT`, `ACR_CRIPPLED`; the
-queen's `LQ_SMELLS_THREAT`, `LQ_ENRAGED_ATTACK`, `LQ_CRIPPLED`). The idle sounds of cows and crows (`RANDOM_ANIM_SOUND`)
-need no event: the browser runs code 491 for each pass of a loop that holds it (counted from the frame delay on the view
-clock, as a predictable loop sends no frames), every third pass rolls `Random(100)` on the browser's generator against
-the body's entries, and an injured (health `critical` or worse), wet or not standing animal stays silent. A struck
-vehicle (`soldierHit` on a vehicle body: all its damage but gas comes through `EVENT_SoldierGotHit`) rings its metal
-(`VehicleTakeDamage`, `S_METAL_IMPACT3`) and plays no bullet impact and no battle sound of its own; boarding a ground
-vehicle on the map screen (`vehicleBoarded`) plays its enter sound, the helicopter none.
+onePrey|multiplePrey|attacked|crippled}` (`CreatureCall`, the AI's `usActionData`), and the browser cries it at code 717
+of the call animation (`ACR_SMELL_PREY`, `ACR_SMELL_THREAT`, `ACR_CRIPPLED`; the queen's `LQ_SMELLS_THREAT`,
+`LQ_ENRAGED_ATTACK`, `LQ_CRIPPLED`). The idle sounds of cows and crows (`RANDOM_ANIM_SOUND`) need no event: the browser
+runs code 491 for each pass of a loop that holds it (counted from the frame delay on the view clock, as a predictable
+loop sends no frames), every third pass rolls `Random(100)` on the browser's generator against the body's entries, and
+an injured (health `critical` or worse), wet or not standing animal stays silent. A struck vehicle (`soldierHit` on a
+vehicle body: all its damage but gas comes through `EVENT_SoldierGotHit`) rings its metal (`VehicleTakeDamage`,
+`S_METAL_IMPACT3`) and plays no bullet impact and no battle sound of its own; boarding a ground vehicle on the map
+screen (`vehicleBoarded`) plays its enter sound, the helicopter none.
+
+**Sounds out of sight.** A sound whose source the squad does not see reaches the player as the squad hears it, never as
+a tile (`08` §3.6): the event carries `heard {by, direction, volumeClass}` (the merc of ours who hears it loudest by
+`CalcEffVolume`, the side it comes from as `TellPlayerAboutNoise` names it, `pDirectionStr` or above or below, and the
+loudness class of `pNoiseVolStr`) instead of the source's grid, and the browser plays it from that merc's tile, 4, 10,
+18 or 30 tiles off in that direction for very loud, loud, definite and faint (`heardSoundTile`), so volume and pan fall
+off as the original's do. A sound nobody of ours hears (our mercs are deaf on our own turn, as `CalcEffVolume` makes
+them) plays in the middle at the off-screen volume (`max(25, v - 25)`). A source the squad sees, or one whose tile the
+player already sees (the victim of our soldier's bullet, whose track ends there), plays at its tile. This covers the
+shot of an unseen shooter (`shotFired` drops `target`, `chance` and `hit` and carries `heard` from the gunfire noise),
+the impact and cries of an unseen victim (`soldierHit` and `soldierDied` carry `unseen {voice, bodyType}` and `gridNo`
+only when the attacker is seen or ours, else `heard` from the scream; `life`, `damage` and `breathLoss` only come for
+soldiers the squad sees, `conscious` tells whether he still cries out) and the call of an unseen creature
+(`creatureCall` with `unseen {bodyType}` and `heard`; the browser roars and cries it on the frames of `MONSTER_UP` or
+`QUEEN_CALL`). A death cry and a creature's call make no noise in the original; they are heard as loud as the crier's
+loudest scream (`CalcScreamVolume`'s cap of 10 − experience level). The sounds of an unseen soldier's animations stay
+silent, as `PlaySoldierJA2Sample` skips soldiers out of sight.
 
 ### 4.5. CPU cost
 
@@ -1739,7 +1756,8 @@ the other list) with the state (`dead`, `fired`, `married` to Hicks, `contractEx
 names, the profile's life, stats and team row and the record. Profiles now count `battlesFought` (`usBattlesFought`):
 every merc of an autoresolve battle when it closes, dead, captured or not, and every merc in the sector when a tactical
 battle with enemies, creatures or civilians in it is won (not in a boxing match); native saves import the counter and
-snapshot version 6 adds it with 0 to older snapshots.
+snapshot version 6 adds it with 0 to older snapshots. Snapshot version 7 adds `turnsUntilCanSayHeardNoise` (`ubTurnsUntilCanSayHeardNoise`, the pause before a merc says
+again that he heard something) with 0 to older snapshots.
 
 **Insurance cards**: the offers add `nickname`, `dead` (`IsMercDead`) and `contractLength` (`iTotalContractLength`); the
 view adds `aimMercsOnTeam` (which of the two "nobody to insure" texts the contract page shows). The card's face is the

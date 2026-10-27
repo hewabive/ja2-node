@@ -6,8 +6,10 @@ import { FakeGraph, pcmWav, settle } from '../../tests/support/fake-audio.ts';
 import { ANIM_CONTROL_PATH, ANIM_SURFACES_PATH, type AnimationTables, parseAnimationTables, stateId } from '../content/anim/tables.ts';
 import type { Cue } from '../content/audio/cue.ts';
 import { type CueBook, loadCueBook } from '../content/audio/cue-book.ts';
+import { heardSoundTile } from '../content/audio/heard-place.ts';
 import { type AmbientEntry, AmbientTime } from '../content/formats/ambient.ts';
 import { type AnimationScripts, MAX_FRAMES_PER_ANIM, parseAnimationScripts } from '../content/formats/ja2bin.ts';
+import { Direction } from '../content/world/grid.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import type { SoldierView, ViewFrame } from '../protocol/view.ts';
 import { CATCH_UP_TICKS, SoundDirector, type SoundWorld } from './director.ts';
@@ -245,7 +247,19 @@ describe('the sound director', () => {
             burst: false,
             rounds: 1,
           },
-          { type: 'soldierHit', tick: 9, soldier: 30, attacker: 1, damage: 10, breathLoss: 0, location: 'torso', special: 0, life: 20 },
+          {
+            type: 'soldierHit',
+            tick: 9,
+            soldier: 30,
+            attacker: 1,
+            gridNo: G + 2,
+            location: 'torso',
+            special: 0,
+            conscious: true,
+            damage: 10,
+            breathLoss: 0,
+            life: 20,
+          },
         ],
       ),
     ]);
@@ -395,13 +409,73 @@ describe('the sound director', () => {
             burst: false,
             rounds: 1,
           },
-          { type: 'soldierHit', tick: 9, soldier: 1, attacker: 99, damage: 60, breathLoss: 0, location: 'head', special: 0, life: 0 },
+          {
+            type: 'soldierHit',
+            tick: 9,
+            soldier: 1,
+            attacker: 99,
+            gridNo: G,
+            location: 'head',
+            special: 0,
+            conscious: false,
+            damage: 60,
+            breathLoss: 0,
+            life: 0,
+          },
           { type: 'soldierDied', tick: 9, soldier: 1, killer: 99, gridNo: G },
         ],
       ),
     ]);
     expect(r.cues[0]).toMatchObject({ gridNo: -1, baseVolume: 102 });
     expect(files(r).filter((f) => f.includes('_die'))).toEqual(['battlesnds/007_die.wav']);
+  });
+
+  it('sounds the hit, the cry and the death of a victim out of sight at his tile, with the voice the event names', () => {
+    const r = rig();
+    r.director.reset([soldier(1, 'STANDING', 0)]);
+    const unseen = { voice: 'bad2', bodyType: 0 };
+    const hit = { type: 'soldierHit', tick: 9, soldier: 70, attacker: 1, gridNo: G + 4, location: 'torso', special: 0 } as const;
+    r.director.applyFrames([frame(10, [], [{ ...hit, conscious: true, unseen }])]);
+    expect(files(r)).toEqual([expect.stringMatching(/impact/), expect.stringMatching(/^battlesnds\/bad2_hit[12]\.wav$/)]);
+    expect(r.cues[0]?.gridNo).toBe(G + 4);
+    expect(r.cues[1]).toMatchObject({ gridNo: G + 4, mix: 'voiceOther' });
+    r.clock += 5_000;
+    r.director.applyFrames([
+      frame(
+        20,
+        [],
+        [
+          { ...hit, tick: 19, conscious: false, unseen },
+          { type: 'soldierDied', tick: 19, soldier: 70, killer: 1, gridNo: G + 4, unseen },
+        ],
+      ),
+    ]);
+    expect(files(r).slice(2)).toEqual([expect.stringMatching(/impact/), 'battlesnds/bad2_die.wav']);
+  });
+
+  it('places an unseen shooter on the side the squad hears him from, and a shot nobody hears far off', () => {
+    const r = rig();
+    const glock = [...book.weapons.values()].find((w) => w.name === 'GLOCK_17')?.item ?? -1;
+    r.director.reset([soldier(1, 'STANDING', 0)]);
+    const shot = { type: 'shotFired', tick: 9, soldier: 80, item: glock, silenced: false, burst: false, rounds: 1 } as const;
+    r.director.applyFrames([frame(10, [], [{ ...shot, heard: { by: 1, direction: Direction.NORTH, volumeClass: 3 } }, shot])]);
+    expect(r.cues[0]).toMatchObject({ gridNo: heardSoundTile(G, Direction.NORTH, 3), baseVolume: 127 });
+    expect(r.cues[1]).toMatchObject({ gridNo: -1, baseVolume: 102 });
+  });
+
+  it('roars and cries the call of an unseen creature from where the squad hears it, on the frames of its call animation', () => {
+    const MONSTER_UP = [707, 1, 2, 3, 4, 717, 5, 6, 7, 8, 7, 6, 5, 4, 3, 2, 1, 442, 499];
+    const r = rig(null, withScript('MONSTER_UP', MONSTER_UP));
+    r.director.reset([soldier(1, 'STANDING', 0)]);
+    const heard = { by: 1, direction: Direction.WEST, volumeClass: 1 } as const;
+    r.director.applyFrames([
+      frame(10, [], [{ type: 'creatureCall', tick: 10, soldier: 90, call: 'attacked', unseen: { bodyType: 5 }, heard }]),
+    ]);
+    expect(files(r)).toEqual([book.paths.get('CREATURE_BATTLECRY_1')]);
+    expect(r.cues[0]?.gridNo).toBe(heardSoundTile(G, Direction.WEST, 1));
+    expect(r.later).toHaveLength(1);
+    for (const run of r.later) run();
+    expect(files(r)[1]).toBe(book.paths.get('ACR_SMELL_THREAT'));
   });
 
   it('stays silent for frames older than the catch-up window', () => {
@@ -463,7 +537,21 @@ describe('the sound director', () => {
       frame(
         10,
         [],
-        [{ type: 'soldierHit', tick: 10, soldier: 5, attacker: null, damage: 10, breathLoss: 0, location: 'torso', special: 0, life: 40 }],
+        [
+          {
+            type: 'soldierHit',
+            tick: 10,
+            soldier: 5,
+            attacker: null,
+            gridNo: G,
+            location: 'torso',
+            special: 0,
+            conscious: true,
+            damage: 10,
+            breathLoss: 0,
+            life: 40,
+          },
+        ],
       ),
     ]);
     expect(files(r)).toEqual([book.paths.get('S_METAL_IMPACT3')]);

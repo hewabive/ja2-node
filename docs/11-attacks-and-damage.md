@@ -2656,7 +2656,7 @@ Everything here consumes RNG on every shot, so it has to be exact from the first
    salary effects come later: the draws shift every later `pre` roll.
 9. **Agent API.** `attack({ soldier, grid, level, aimTime: 0..4, bodyPart: head|torso|legs|random })` returning the
    `ITEM_HANDLE_*` result; `chanceToHit` and `chanceToGetThrough` queries (the `fModify = FALSE` and fake-bullet
-   paths, no RNG); events `shotFired`, `bulletStopped`, `soldierHit {damage, location, special}`, `soldierDied`,
+   paths, no RNG); events `shotFired`, `bulletStopped`, `soldierHit {gridNo, location, special, conscious, damage?}`, `soldierDied`,
    `attackResolved` (barrier at 0).
 10. **Tests.** CTH and damage golden tables computed by hand from §2/§4; RNG-count tests per scenario (how many `pre`
     and `main` draws a shot consumes); bullet paths on stub worlds (wall, window, bush density, intended tile,

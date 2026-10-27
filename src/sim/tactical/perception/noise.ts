@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/OppList.cc MovementNoise, DoorOpeningNoise, MakeNoise, ProcessNoise, CalcEffVolume, DecideHearing,
-// @src HearNoise, TellPlayerAboutNoise; SkillCheck.cc EffectiveExpLevel, EffectiveDexterity. See docs/08 §3.
+// @src HearNoise, TellPlayerAboutNoise (with QUOTE_HEARD_SOMETHING); Overhead.cc TeamMemberNear; SkillCheck.cc
+// @src EffectiveExpLevel, EffectiveDexterity. See docs/08 §3.
 
 import { pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
@@ -222,6 +223,77 @@ function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: numb
   return seen;
 }
 
+const STRAIGHT = 13;
+const FAINT = 0;
+const HEARD_SOMETHING_QUOTE = 6;
+const HEARD_NOISE_PAUSE_TURNS_IN_COMBAT = 2;
+const HEARD_NOISE_PAUSE_TURNS = 5;
+const DIRECTION_AT_ANY_LEVEL: ReadonlySet<number> = new Set([
+  NoiseKind.EXPLOSION,
+  NoiseKind.SCREAM,
+  NoiseKind.ROCK_IMPACT,
+  NoiseKind.GRENADE_IMPACT,
+]);
+
+const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
+const gassed = (t: TacticalState, s: Soldier) => (t.explosives.gassed[s.id] ?? 0) !== 0;
+
+function listens(l: Soldier): boolean {
+  return validForSightings(l) && l.life >= OKLIFE && l.bodyType !== Body.LARVAE_MONSTER && !(l.team === Team.OUR && isVehicle(l));
+}
+
+function teamMemberNear(t: TacticalState, team: number, g: number, range: number): boolean {
+  return t.soldiers.some((s) => s?.placed && s.team === team && s.life >= OKLIFE && !gassed(t, s) && pythSpacesAway(s.gridNo, g) <= range);
+}
+
+export type HeardDirection = number | 'above' | 'below';
+
+function heardDirection(kind: number, level: number, listener: Soldier, direction: number): HeardDirection {
+  if (level === listener.level || DIRECTION_AT_ANY_LEVEL.has(kind)) return direction;
+  return level > listener.level ? 'above' : 'below';
+}
+
+function tellPlayerAboutNoise(t: TacticalState, by: Soldier, level: number, eff: number, kind: number, direction: number): void {
+  const loudness = volumeClass(eff);
+  t.events.push({
+    type: 'noiseHeard',
+    listener: by.id,
+    kind,
+    volumeClass: loudness,
+    direction: heardDirection(kind, level, by, direction),
+  });
+  if (loudness !== FAINT || t.narrative.inMeanwhile() || t.engagedInConv || by.turnsUntilCanSayHeardNoise !== 0) return;
+  t.narrative.sayQuote(by, HEARD_SOMETHING_QUOTE);
+  by.turnsUntilCanSayHeardNoise = t.inCombat ? HEARD_NOISE_PAUSE_TURNS_IN_COMBAT : HEARD_NOISE_PAUSE_TURNS;
+}
+
+export interface Heard {
+  readonly by: number;
+  readonly direction: HeardDirection;
+  readonly volumeClass: number;
+}
+
+export function squadHears(t: TacticalState, g: number, level: number, base: number, kind: number): Heard | null {
+  if (base === 0) return null;
+  const sourceTerrain = t.world.terrain[g] ?? 0;
+  let loudest = 0;
+  let by: Soldier | null = null;
+  for (const l of teamMembersById(t, Team.OUR)) {
+    if (!l.placed || !listens(l)) continue;
+    const eff = calcEffVolume(t, l, g, level, base, sourceTerrain);
+    if (eff > loudest) {
+      loudest = eff;
+      by = l;
+    }
+  }
+  if (!by) return null;
+  return { by: by.id, direction: heardDirection(kind, level, by, directionToward(by.gridNo, g)), volumeClass: volumeClass(loudest) };
+}
+
+function teamMembersById(t: TacticalState, team: number): Soldier[] {
+  return t.soldiers.filter((s): s is Soldier => s?.team === team).sort((a, b) => a.id - b.id);
+}
+
 function volumeClass(eff: number): number {
   if (eff >= 12) return 3;
   if (eff >= 8) return 2;
@@ -258,8 +330,9 @@ function processNoise(t: TacticalState, maker: Soldier | null, g: number, level:
     const members = placed.filter((s) => s.team === team);
     if (members.length === 0) continue;
     if (maker && (team === maker.team || (team === Team.OUR && publicOpp(t, team, maker) === Opp.SEEN_CURRENTLY))) continue;
-    let tell = enemyInSector && !t.inCombat;
+    let tell = enemyInSector && (!t.inCombat || t.turn.currentTeam !== Team.OUR);
     if (UNTOLD_KINDS.has(kind)) tell = false;
+    if (kind === NoiseKind.EXPLOSION && teamMemberNear(t, team, g, STRAIGHT)) tell = false;
     if (maker) {
       const known = publicOpp(t, team, maker);
       if (known === Opp.SEEN_CURRENTLY || known === Opp.SEEN_THIS_TURN || known === Opp.HEARD_THIS_TURN || maker.life === 0) tell = false;
@@ -271,7 +344,7 @@ function processNoise(t: TacticalState, maker: Soldier | null, g: number, level:
     let loudestDir = 0;
     let lastDir = 0;
     for (const l of members.sort((a, b) => a.id - b.id)) {
-      if (l.life < OKLIFE || l.bodyType === Body.LARVAE_MONSTER) continue;
+      if (!listens(l)) continue;
       if (maker) {
         if (l.oppList[maker.id] === Opp.SEEN_CURRENTLY && !(l.neutral && kind === NoiseKind.GUNFIRE)) continue;
         if (l.team === Team.MILITIA && maker.team === Team.OUR) continue;
@@ -284,7 +357,7 @@ function processNoise(t: TacticalState, maker: Soldier | null, g: number, level:
       heard = true;
       const dir = directionToward(l.gridNo, g);
       lastDir = dir;
-      if (kind !== NoiseKind.MOVEMENT || team !== Team.OUR || !(l.movementNoiseHeard & (1 << dir))) {
+      if (kind !== NoiseKind.MOVEMENT || team !== Team.OUR || l.interruptDuelPts !== NO_INTERRUPT || !(l.movementNoiseHeard & (1 << dir))) {
         if (eff > loudest) {
           loudest = eff;
           by = l;
@@ -293,18 +366,7 @@ function processNoise(t: TacticalState, maker: Soldier | null, g: number, level:
       }
     }
     if (heard && team === Team.OUR && tell && by) {
-      t.events.push({
-        type: 'noiseHeard',
-        listener: by.id,
-        kind,
-        volumeClass: volumeClass(loudest),
-        direction:
-          level === by.level || kind === NoiseKind.EXPLOSION || kind === NoiseKind.SCREAM
-            ? loudestDir
-            : level > by.level
-              ? 'above'
-              : 'below',
-      });
+      tellPlayerAboutNoise(t, by, level, loudest, kind, loudestDir);
       if (kind === NoiseKind.MOVEMENT) by.movementNoiseHeard |= 1 << lastDir;
     }
     if (source && team === Team.OUR) {

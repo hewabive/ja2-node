@@ -659,6 +659,8 @@ which the countdown is set to 5 turns (2 in combat). The player never learns the
 is not rendered (no renderer reads it). So our `PlayerView` noise event is
 `{listener, kind, volumeClass, dir8 | above | below}`. A UI marker drawn from the listener's position in that direction is
 a presentation choice. A marker at the true grid would leak hidden state (D16).
+The same hearing (the loudest listener, his direction and the loudness class) is what the browser gets for the sounds of
+sources out of sight (`heard`, `04` §4.4 "Sounds out of sight"), whether or not the noise is told.
 
 ---
 

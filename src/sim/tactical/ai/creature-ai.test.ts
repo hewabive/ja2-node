@@ -78,7 +78,9 @@ describe('CreatureCall', () => {
     near.ai.actionData = CreatureCallKind.ONE_PREY;
     near.visible = UNSEEN;
     creatureCall(t, near);
-    expect(t.events.filter((e) => e.type === 'creatureCall')).toEqual([]);
+    const unseen = t.events.filter((e) => e.type === 'creatureCall');
+    expect(unseen).toMatchObject([{ soldier: near.id, call: 'onePrey', unseen: { bodyType: Body.ADULTFEMALEMONSTER } }]);
+    expect(unseen[0]).not.toHaveProperty('heard');
     expect(near).toMatchObject({ ai: { callPriority: 12, alertStatus: AlertStatus.RED, caller: queen.id, frenzied: true } });
     expect(near.ai.callerGridNo).toBe(queen.gridNo);
     expect(far.ai).toMatchObject({ callPriority: 10, alertStatus: AlertStatus.RED, frenzied: false });

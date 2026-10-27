@@ -395,6 +395,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.dontChargeReadyAPs = m.dontChargeReadyAPs;
   s.dontChargeAPsForStanceChange = m.dontChargeAPsForStanceChange;
   s.dontChargeTurningAPs = m.dontChargeTurningAPs;
+  s.turnsUntilCanSayHeardNoise = m.turnsUntilCanSayHeardNoise;
   s.dontUnsetLastTargetFromTurn = m.dontUnsetLastTargetFromTurn;
   s.tilesMovedPerRTBreathUpdate = m.tilesMovedPerRTBreathUpdate;
   s.lastMovementAnimPerRTBreathUpdate = m.lastMovementAnimPerRTBreathUpdate;

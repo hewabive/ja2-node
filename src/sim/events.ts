@@ -111,12 +111,19 @@ export interface RoomRevealedEvent extends SimEventBase {
   readonly room: number;
 }
 
+export interface HeardFrom {
+  readonly by: number;
+  readonly direction: number | 'above' | 'below';
+  readonly volumeClass: number;
+}
+
 export interface ShotFiredEvent extends SimEventBase {
   readonly type: 'shotFired';
   readonly soldier: number;
-  readonly target: number;
-  readonly chance: number;
-  readonly hit: boolean;
+  readonly target?: number;
+  readonly chance?: number;
+  readonly hit?: boolean;
+  readonly heard?: HeardFrom;
   readonly item?: number;
   readonly silenced?: boolean;
   readonly burst?: boolean;
@@ -171,6 +178,8 @@ export interface CreatureCallEvent extends SimEventBase {
   readonly type: 'creatureCall';
   readonly soldier: number;
   readonly call: CreatureCallName;
+  readonly unseen?: { readonly bodyType: number };
+  readonly heard?: HeardFrom;
 }
 
 export interface CatchEndedEvent extends SimEventBase {
@@ -235,15 +244,24 @@ export function isEffectEvent(e: SimEvent): e is EffectEvent {
   return EFFECT_EVENT_TYPES.has(e.type);
 }
 
+export interface UnseenVictim {
+  readonly voice: string;
+  readonly bodyType: number;
+}
+
 export interface SoldierHitEvent extends SimEventBase {
   readonly type: 'soldierHit';
   readonly soldier: number;
   readonly attacker: number | null;
-  readonly damage: number;
-  readonly breathLoss: number;
+  readonly gridNo?: number;
   readonly location: 'random' | 'head' | 'torso' | 'legs' | 'gland';
   readonly special: number;
-  readonly life: number;
+  readonly conscious: boolean;
+  readonly damage?: number;
+  readonly breathLoss?: number;
+  readonly life?: number;
+  readonly unseen?: UnseenVictim;
+  readonly heard?: HeardFrom;
 }
 
 export interface LifeLostEvent extends SimEventBase {
@@ -256,7 +274,9 @@ export interface SoldierDiedEvent extends SimEventBase {
   readonly type: 'soldierDied';
   readonly soldier: number;
   readonly killer: number | null;
-  readonly gridNo: number;
+  readonly gridNo?: number;
+  readonly unseen?: UnseenVictim;
+  readonly heard?: HeardFrom;
 }
 
 export interface AttackResolvedEvent extends SimEventBase {

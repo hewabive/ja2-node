@@ -36,8 +36,9 @@ import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import { isValidStance } from '../person-structure.ts';
 import { deductPoints, enoughPoints } from '../points.ts';
 import { StatKind } from '../profiles.ts';
-import { Body, NO_PROFILE, OKLIFE, Personality, type Soldier, Team } from '../soldier.ts';
+import { Body, NO_PROFILE, OKLIFE, Personality, type Soldier, shownToPlayer, Team } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
+import { heardOnly } from '../unseen-sources.ts';
 import { apChargeForShootOrStab, calcTotalAPsToAttack, enoughAmmo, minAPsToAttack } from './ap.ts';
 import { freeUpAttacker, reduceAttackBusyCount } from './barrier.ts';
 import { fireBulletGivenTarget, soldierToSoldierBodyPartChanceToGetThrough } from './bullets.ts';
@@ -403,6 +404,17 @@ function shotSound(t: TacticalState, s: Soldier, item: number): { item: number; 
   return { item, silenced, burst: s.doBurst > 0, rounds: s.doBurst ? (firstOfBurst ? s.bulletsLeft : 0) : 1 };
 }
 
+const SILENCER_FULL_STATUS = 85;
+
+function gunfireVolume(t: TacticalState, s: Soldier, attackVolume: number, unsilenceable: boolean): number {
+  const gun = s.inv[s.attackingHand] as ItemObject;
+  const silencer = findAttachment(gun, itemIndex(t, 'SILENCER'));
+  if (unsilenceable || silencer === -1) return attackVolume;
+  const status = gun.attachments[silencer]?.status ?? 0;
+  const wsm = status >= SILENCER_FULL_STATUS ? 100 : Math.trunc((status * 100) / SILENCER_FULL_STATUS);
+  return 1 + Math.trunc((100 - wsm) / Math.trunc(100 / (attackVolume - 1)));
+}
+
 function useGun(t: TacticalState, s: Soldier, target: number): void {
   const items = t.content.items;
   const ap = calcTotalAPsToAttack(t, s, target, false, s.aimTime);
@@ -460,19 +472,15 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
     igniteExplosion(t, s, 0, s.gridNo, itemIndex(t, 'C1'), s.level);
     reduceAttackBusyCount(t, s, false);
   }
-  t.events.push({ type: 'shotFired', soldier: s.id, target, chance, hit, ...shotSound(t, s, item) });
+  const volume = gunfireVolume(t, s, d?.weapon?.attackVolume ?? 0, knife || law);
+  const shot = shownToPlayer(s) ? { target, chance, hit } : heardOnly(t, s, volume, NoiseKind.GUNFIRE);
+  t.events.push({ type: 'shotFired', soldier: s.id, ...shot, ...shotSound(t, s, item) });
   fireBulletGivenTarget(t, s, pos.x, pos.y, pos.z, item, ((chance - roll) << 16) >> 16, buckshot, false);
-  let volume = d?.weapon?.attackVolume ?? 0;
   if (knife) takeThrownKnife(t, s);
   const gun = s.inv[s.attackingHand] as ItemObject;
-  const silencer = findAttachment(gun, itemIndex(t, 'SILENCER'));
   if (law) {
     discardLaw(t, s);
     lawBackblast(t, s);
-  } else if (!knife && silencer !== -1) {
-    const status = gun.attachments[silencer]?.status ?? 0;
-    const wsm = status >= 85 ? 100 : Math.trunc((status * 100) / 85);
-    volume = 1 + Math.trunc((100 - wsm) / Math.trunc(100 / (volume - 1)));
   }
   makeNoise(t, s, s.gridNo, s.level, volume, NoiseKind.GUNFIRE);
   if (s.doBurst) s.doBurst++;

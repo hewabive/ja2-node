@@ -11,7 +11,8 @@
 // @src Strategic/Meanwhile.cc AreInMeanwhile, GetMeanwhileID; Tactical/Overhead.cc HandleNPCTeamMemberDeath
 // @src (BeginHandleDeidrannaDeath, BeginHandleQueenBitchDeath), DoPOWPathChecks.
 // @src Tactical/Boxing.cc (PauseGame, UnPauseGame, AddHistoryToPlayersLog, DeleteTalkingMenu); Tactical/Overhead.cc
-// @src SetSoldierNeutral; TileEngine/Interactive_Tiles.cc HandleStructChangeFromGridNo (the Drassen shipment check).
+// @src SetSoldierNeutral; TileEngine/Interactive_Tiles.cc HandleStructChangeFromGridNo (the Drassen shipment check);
+// @src Dialogue_Control.cc TacticalCharacterDialogue (sayQuote).
 // @src See docs/25 §1, §2.1, §3, §6, §7, §9.4, §11.5, docs/24 §4, §5.4, §8, docs/26 §1.6, §3.4, §6.1.
 
 import type { ItemObject } from '../../items/object.ts';
@@ -80,6 +81,7 @@ export interface NarrativePort {
   deleteTalkingMenu(): void;
   setSoldierNeutral(s: Soldier): void;
   stuffMissingFromShipment(gridNo: number): boolean;
+  sayQuote(s: Soldier, quote: number): void;
 }
 
 export const NO_NARRATIVE_PORT: NarrativePort = {
@@ -143,4 +145,5 @@ export const NO_NARRATIVE_PORT: NarrativePort = {
     s.neutral = true;
   },
   stuffMissingFromShipment: () => false,
+  sayQuote: () => {},
 };

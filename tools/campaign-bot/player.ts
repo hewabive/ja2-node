@@ -175,9 +175,9 @@ export class Player {
         this.#hear(e.listener as number, e.direction);
       } else if (e.type === 'soldierHit') {
         const id = e.soldier as number;
-        this.memory.life.set(id, e.life as number);
+        if (typeof e.life === 'number') this.memory.life.set(id, e.life);
         this.memory.hits.set(id, (this.memory.hits.get(id) ?? 0) + 1);
-        if (id < OUR_TEAM_SIZE && (e.damage as number) > 0) this.memory.bleeding.add(id);
+        if (id < OUR_TEAM_SIZE && typeof e.damage === 'number' && e.damage > 0) this.memory.bleeding.add(id);
       } else if (e.type === 'firstAidStarted') {
         this.memory.bandaging.add(e.soldier as number);
       } else if (e.type === 'bandaged' && e.bleeding === 0) {

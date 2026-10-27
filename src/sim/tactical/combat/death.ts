@@ -32,14 +32,16 @@ import { boxingFight } from '../narrative/boxing-state.ts';
 import { TERRORISTS } from '../narrative/constants.ts';
 import { civilianDeathRules, playerTeamDeathRules } from '../narrative/death-rules.ts';
 import { inMeanwhile, slapCheckWhenIncapacitated } from '../narrative/meanwhile-rules.ts';
+import { NoiseKind } from '../perception/noise.ts';
 import { atan8Of, SightFlags } from '../perception/opp.ts';
 import { distanceVisible, handleSight, removeManAsTarget, verifyPublicOpplistDueToDeath } from '../perception/sight.ts';
 import { removeMercStructure } from '../person-structure.ts';
 import { MercStatus, profileProgress, StatKind } from '../profiles.ts';
 import { checkSoldierHitRoof } from '../roofs.ts';
-import { AlertStatus, Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { AlertStatus, Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, shownToPlayer, Team } from '../soldier.ts';
 import { removeOccupant, type TacticalState, unregisterSoldier } from '../state.ts';
 import { betweenTurnsVisibilityAdjustments, checkForEndOfBattle } from '../turns/turns.ts';
+import { loudestScream, soundPlace, unseenVictim } from '../unseen-sources.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
 import { internalSoldierReadyWeapon } from './attack.ts';
 import { StatCause, statChange } from './experience.ts';
@@ -353,7 +355,15 @@ export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDea
       } else if (assister?.placed && assister !== attacker && assister.team === Team.MILITIA)
         assister.militiaKills += MILITIA_ASSIST_POINTS;
     }
-    t.events.push({ type: 'soldierDied', soldier: s.id, killer: s.attacker?.id ?? null, gridNo: s.gridNo });
+    const killerShown = s.attacker !== null && shownToPlayer(s.attacker);
+    t.events.push({
+      type: 'soldierDied',
+      soldier: s.id,
+      killer: s.attacker?.id ?? null,
+      ...(shownToPlayer(s)
+        ? { gridNo: s.gridNo }
+        : { unseen: unseenVictim(s), ...soundPlace(t, s, killerShown, loudestScream(s), NoiseKind.SCREAM) }),
+    });
     madeCorpse = turnSoldierIntoCorpse(t, s);
     removeManAsTarget(t, s);
     betweenTurnsVisibilityAdjustments(t);

@@ -37,8 +37,9 @@ import { deductPoints } from '../points.ts';
 import { profileProgress, StatKind } from '../profiles.ts';
 import { effectiveExpLevel, effectiveLife, effectiveStrength } from '../skills.ts';
 import { BLOOD_DIVISOR, dropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
-import { Body, CivilianGroup, NO_PROFILE, OKLIFE, Side, type Soldier, Team } from '../soldier.ts';
+import { Body, CivilianGroup, NO_PROFILE, OKLIFE, Side, type Soldier, shownToPlayer, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
+import { screamVolume, soundPlace, unseenVictim } from '../unseen-sources.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
 import { calcBodyImpactReduction, totalArmourProtection } from './armour.ts';
 import { freeUpAttackerGivenTarget, reduceAttackBusyCount, reduceAttackBusyGivenTarget } from './barrier.ts';
@@ -51,6 +52,7 @@ import {
   AimShot,
   BP_GET_HIT,
   BP_GET_WOUNDED,
+  CONSCIOUSNESS,
   DamageReason,
   i8,
   i16,
@@ -330,19 +332,20 @@ export function eventSoldierGotHit(
     if (changed) s = changed;
   }
   const combined = soldierTakeDamage(t, s, damage, breath, reason, att);
+  const volume = screamVolume(s, combined);
+  const attackerShown = att !== null && shownToPlayer(att);
   t.events.push({
     type: 'soldierHit',
     soldier: s.id,
     attacker: att?.id ?? null,
-    damage,
-    breathLoss: breath,
     location: LOCATION_NAMES[location] ?? 'random',
     special,
-    life: s.life,
+    conscious: s.life >= CONSCIOUSNESS,
+    ...(shownToPlayer(s)
+      ? { gridNo: s.gridNo, damage, breathLoss: breath, life: s.life }
+      : { unseen: unseenVictim(s), ...soundPlace(t, s, attackerShown, volume, NoiseKind.SCREAM) }),
   });
   if (isVehicle(s)) return;
-  let volume = combined < 1 ? 1 : combined;
-  if (volume > 10 - effectiveExpLevel(s)) volume = u8(10 - effectiveExpLevel(s));
   if (!hasAnimFlag(t.content, s.state, AnimFlags.HITSTOP) || animName(t.content, s.state) !== 'JFK_HITDEATH_STOP')
     makeNoise(t, s, s.gridNo, s.level, volume, NoiseKind.SCREAM);
   const before = s.state;

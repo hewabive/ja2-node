@@ -23,13 +23,15 @@ import { findObjWithin, InvSlot, NO_SLOT, NUM_INV_SLOTS } from '../inventory.ts'
 import { directionToward } from '../movement.ts';
 import { isWater } from '../pathfinding.ts';
 import { closestKnownOpponent, noiseHeard } from '../perception/knowledge.ts';
+import { NoiseKind } from '../perception/noise.ts';
 import { atan8 } from '../perception/opp.ts';
 import { distanceVisible } from '../perception/sight.ts';
 import { internalIsValidStance } from '../person-structure.ts';
 import { apsToLook, minPtsToMove } from '../points.ts';
 import { SmellKind, smellStrength, smellType } from '../smell.ts';
-import { AlertStatus, Attitude, Body, isMonster, NOBODY, NOWHERE, OKLIFE, Orders, type Soldier } from '../soldier.ts';
+import { AlertStatus, Attitude, Body, isMonster, NOBODY, NOWHERE, OKLIFE, Orders, type Soldier, shownToPlayer } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
+import { heardOnly, loudestScream } from '../unseen-sources.ts';
 import { AiAction } from './actions.ts';
 import {
   type AttackChoice,
@@ -160,7 +162,12 @@ export function creatureCall(t: TacticalState, caller: Soldier): void {
   t.perception.awareOfOpposition[caller.team] = true;
   const full = fullCallPriority(caller);
   const call = CALL_NAMES[caller.ai.actionData];
-  if (call && caller.visible >= 0) t.events.push({ type: 'creatureCall', soldier: caller.id, call });
+  if (call) {
+    const where = shownToPlayer(caller)
+      ? {}
+      : { unseen: { bodyType: caller.bodyType }, ...heardOnly(t, caller, loudestScream(caller), NoiseKind.SCREAM) };
+    t.events.push({ type: 'creatureCall', soldier: caller.id, call, ...where });
+  }
   playCallAnimation(t, caller);
   for (const r of teamMembers(t, caller.team)) {
     if (!hearsCall(caller, r)) continue;
