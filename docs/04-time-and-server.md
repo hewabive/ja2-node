@@ -258,6 +258,17 @@ not only its own. Like `messages`, the field is never applied to the view and ne
 client keeps the positions it has received (`BulletTrack`) and draws those of the tick it shows, rounded down
 (`docs/05` §2.6). The simulation's pacing does not change; the hide-bullets option only stops the drawing.
 
+**Impact animations.** Where the original starts a cosmetic animation tile, the simulation emits an event with
+presentation fields: `bulletImpact {soldier, gridNo, x, y, z, effect}` wherever `StructureHit` plays a miss (`dust`,
+`splash` in low or deep water, `miniboom` for a stopping HE or HEAT round, which also frees the shooter at once) and
+where `WeaponHit` plays the HE miniboom on a soldier, and `windowShattered {gridNo, tile}` (the `WINDOWSHATTER` tile the
+glass falls from) when a bullet, a blast or a thrown object shatters a window. Agents get them like any event. Because a
+tactical event's `tick` is the tactical simulation's and a campaign's view ticks run on, the session also copies these
+events into the frame of the tick it stepped them in (`ViewFrame.effects`, stamped with the session tick). The client
+plays each one from that tick on its own clock of view ticks (`EffectAnimations`), and while bullets fly or effects
+started in the last two seconds, the session sends a frame every 10 ticks even when nothing else changed, so the
+client's time keeps running until they end.
+
 ### 4.5. CPU cost
 
 **Estimate for a turn of 15 enemies.** Each moves ~6 tiles (≈0.7 s), shoots (0.35–1.15 s),

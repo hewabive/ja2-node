@@ -141,6 +141,34 @@ export interface BulletStoppedEvent extends SimEventBase {
   readonly caveWall?: boolean;
 }
 
+export type BulletImpactEffect = 'dust' | 'splash' | 'miniboom';
+
+export interface BulletImpactEvent extends SimEventBase {
+  readonly type: 'bulletImpact';
+  readonly soldier: number;
+  readonly gridNo: number;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly effect: BulletImpactEffect;
+}
+
+export type WindowShatterTile = 'WINDOWSHATTER1' | 'WINDOWSHATTER6' | 'WINDOWSHATTER11' | 'WINDOWSHATTER16';
+
+export interface WindowShatteredEvent extends SimEventBase {
+  readonly type: 'windowShattered';
+  readonly gridNo: number;
+  readonly tile: WindowShatterTile;
+}
+
+export type EffectEvent = BulletImpactEvent | WindowShatteredEvent;
+
+const EFFECT_EVENT_TYPES: ReadonlySet<SimEvent['type']> = new Set(['bulletImpact', 'windowShattered']);
+
+export function isEffectEvent(e: SimEvent): e is EffectEvent {
+  return EFFECT_EVENT_TYPES.has(e.type);
+}
+
 export interface SoldierHitEvent extends SimEventBase {
   readonly type: 'soldierHit';
   readonly soldier: number;
@@ -469,6 +497,8 @@ export type SimEvent =
   | ShotFiredEvent
   | MeleeStrikeEvent
   | BulletStoppedEvent
+  | BulletImpactEvent
+  | WindowShatteredEvent
   | SoldierHitEvent
   | LifeLostEvent
   | SoldierDiedEvent

@@ -16,6 +16,9 @@ const PINNED = '&pinClock=1';
 const SHOT_ROWS_SOUTH = 10;
 const SHOT_COLUMNS_EAST = 4;
 const TICKS_INTO_FLIGHT = 1;
+const MISS_ROWS_SOUTH = 6;
+const MISS_COLUMNS_EAST = 2;
+const TICKS_INTO_DUST = 40;
 const STEP_TIMEOUT_MS = 60_000;
 
 interface CommandReply {
@@ -123,6 +126,27 @@ test.describe('goldens of the tactical screen on stubs', () => {
       await restPointer(page);
       await imagesLoaded(page);
       await expectGolden('tactical-bullet-in-flight', await capture(page));
+    } finally {
+      await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
+    }
+  });
+
+  test('the dust of a miss on the ground', async ({ page, request }) => {
+    const session = await newSession(request, { seed: QUIET_SEED });
+    try {
+      await openTacticalSession(page, session, PINNED);
+      const merc = await page.evaluate(() => window.__ja2Ui.tactical?.soldiers().find((s) => s.team === 0) ?? null);
+      if (!merc) throw new Error('no merc in the sandbox');
+      const attack = { type: 'attack', soldier: merc.id, target: merc.gridNo + MISS_ROWS_SOUTH * COLS + MISS_COLUMNS_EAST };
+      const reply = (await page.evaluate((c) => window.__ja2Ui.tactical?.command(c), attack)) as CommandReply | undefined;
+      expect(reply?.ok, reply?.reason).toBe(true);
+      await page.evaluate(() => window.__ja2Ui.tactical?.advance({ events: ['bulletImpact'] }));
+      await page.evaluate((ticks) => window.__ja2Ui.tactical?.advance({ ticks }), TICKS_INTO_DUST);
+      await showLatest(page);
+      expect(await page.evaluate(() => window.__ja2Ui.tactical?.drawnImpacts)).toBe(1);
+      await restPointer(page);
+      await imagesLoaded(page);
+      await expectGolden('tactical-miss-dust', await capture(page));
     } finally {
       await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
     }

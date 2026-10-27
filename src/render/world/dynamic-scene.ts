@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/RenderWorld.cc RenderDynamicWorld, RenderTiles (dynamic layers, animated tiles, mercs,
-// @src items, LEVELNODE_USERELPOS, LEVELNODE_USEABSOLUTEPOS); src/game/TileEngine/Tile_Animation.cc;
+// @src items, LEVELNODE_USERELPOS, LEVELNODE_USEABSOLUTEPOS, LEVELNODE_USEZ, LEVELNODE_CACHEDANITILE);
+// @src src/game/TileEngine/Tile_Animation.cc CreateAnimationTile (every animation tile has LEVELNODE_USEZ);
 // @src src/game/Tactical/Interface_Control.cc SetUpInterface (UI nodes); src/game/Tactical/Rotting_Corpses.cc
 // @src AddRottingCorpse (ANITILE_PAUSED: a corpse is drawn with the static world, before every merc). See docs/05 §2.5,
 // @src docs/28 §6.4.
@@ -12,6 +13,7 @@ import { levelTilesAt } from '../../content/world/level.ts';
 import { type TileElement, TileFlags } from '../../content/world/tile-database.ts';
 import type { ZStripInfo } from '../../content/world/zstrip.ts';
 import {
+  animationTileZ,
   type Camera,
   corpseZ,
   HALF_TILE_X,
@@ -98,7 +100,7 @@ function inPass(m: SceneSoldier, pass: MercPass): boolean {
   return m.level > 0;
 }
 
-export type AniTileKind = 'corpse' | 'vehicleCorpse' | 'smoke' | 'staticSmoke';
+export type AniTileKind = 'corpse' | 'vehicleCorpse' | 'smoke' | 'staticSmoke' | 'miniboom';
 
 const PAUSED_ANI_KINDS: ReadonlySet<AniTileKind> = new Set(['corpse', 'vehicleCorpse']);
 
@@ -106,10 +108,20 @@ function isPaused(a: SceneAniTile): boolean {
   return PAUSED_ANI_KINDS.has(a.kind);
 }
 
+function isTopmost(a: SceneAniTile): boolean {
+  return a.kind === 'miniboom';
+}
+
+export interface WorldPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
 export interface SceneAniTile {
   readonly kind: AniTileKind;
   readonly gridNo: number;
   readonly level: number;
+  readonly at?: WorldPoint & { readonly z: number };
   readonly sprite: OffsetSprite;
   readonly paletteRow: number;
   readonly shaded: boolean;
@@ -118,12 +130,12 @@ export interface SceneAniTile {
   readonly zTileOffsetY: number;
 }
 
-export interface AbsoluteNode {
+export interface StructNode {
   readonly gridNo: number;
   readonly tile: number;
-  readonly x: number;
-  readonly y: number;
-  readonly z: number;
+  readonly absolute: WorldPoint | null;
+  readonly relativeZ: number;
+  readonly animation: boolean;
 }
 
 export interface SceneItem {
@@ -151,7 +163,7 @@ export interface DynamicFrame {
   readonly itemOutline: (onRoof: boolean) => number;
   readonly uiNodes: readonly WorldUiNode[];
   readonly aniTiles: readonly SceneAniTile[];
-  readonly absoluteNodes: readonly AbsoluteNode[];
+  readonly structNodes: readonly StructNode[];
 }
 
 export interface PlacedSoldier {
@@ -226,7 +238,7 @@ export class DynamicScene {
   #uiByTile = new Map<number, WorldUiNode[]>();
   #itemsByTile = new Map<number, SceneItem[]>();
   #aniByTile = new Map<number, SceneAniTile[]>();
-  #absoluteByTile = new Map<number, AbsoluteNode[]>();
+  #structNodesByTile = new Map<number, StructNode[]>();
 
   constructor(world: StaticWorld, prepared: LevelRenderData, mapNodes?: Map<number, DynamicNode[]>) {
     this.#world = world;
@@ -250,13 +262,13 @@ export class DynamicScene {
     this.#uiByTile = groupBy(frame.uiNodes, (n) => n.gridNo);
     this.#itemsByTile = groupBy(frame.items, (i) => i.gridNo * 2 + (i.level > 0 ? 1 : 0));
     this.#aniByTile = groupBy(frame.aniTiles, (a) => a.gridNo * 2 + (a.level > 0 ? 1 : 0));
-    this.#absoluteByTile = groupBy(frame.absoluteNodes, (n) => n.gridNo);
+    this.#structNodesByTile = groupBy(frame.structNodes, (n) => n.gridNo);
     this.#frameRows = rowsOf([
       ...frame.soldiers.map((s) => s.gridNo),
       ...frame.uiNodes.map((n) => n.gridNo),
       ...frame.items.map((i) => i.gridNo),
       ...frame.aniTiles.map((a) => a.gridNo),
-      ...frame.absoluteNodes.map((n) => n.gridNo),
+      ...frame.structNodes.map((n) => n.gridNo),
     ]);
     const first = Math.max(0, frame.rows.first);
     const last = Math.min(ROW_COUNT - 1, frame.rows.last);
@@ -316,24 +328,57 @@ export class DynamicScene {
     for (const n of ui) if (n.head) this.#emitUiNode(n, x, y, layer);
     for (const node of this.#mapNodes.get(g) ?? []) if (node.layer === layer) this.#emitMapNode(g, x, y, layer, node.tile);
     if (layer === 'structs' || layer === 'onRoof')
-      for (const a of this.#aniByTile.get(g * 2 + (layer === 'onRoof' ? 1 : 0)) ?? []) if (!isPaused(a)) this.#emitAniTile(a, x, y);
-    if (layer === 'structs') for (const n of this.#absoluteByTile.get(g) ?? []) this.#emitAbsoluteNode(n, x, y);
+      for (const a of this.#aniByTile.get(g * 2 + (layer === 'onRoof' ? 1 : 0)) ?? [])
+        if (!isPaused(a) && !isTopmost(a)) this.#emitAniTile(a, x, y);
+    if (layer === 'structs') for (const n of this.#structNodesByTile.get(g) ?? []) this.#emitStructNode(n, x, y);
     for (const n of ui) if (!n.head) this.#emitUiNode(n, x, y, layer);
   }
 
-  #emitAbsoluteNode(n: AbsoluteNode, x: number, y: number): void {
+  #emitStructNode(n: StructNode, x: number, y: number): void {
     const d = this.#sprite(n.tile);
     if (!d) return;
+    const p = n.absolute
+      ? this.#absolutePosition(n.absolute, n.relativeZ, d.sprite)
+      : this.#liftedPosition(this.#position(n.gridNo, x, y, d.te, d.sprite, 'structs'), n.animation ? n.relativeZ : 0);
+    const row = d.sprite.paletteBase + DEFAULT_SHADE_LEVEL;
+    if (!n.animation) {
+      this.#emitNode(p, d, x, y, 'structs', ShadeKey.FIXED, row);
+      return;
+    }
+    const z = animationTileZ(worldY(x, y, this.#world.topY), n.relativeZ);
+    const out = this.instances;
+    this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL, () =>
+      out.push(p.x, p.y, d.sprite, 0, d.sprite.width, row, z, ShadeKey.FIXED, 0, 0),
+    );
+  }
+
+  #liftedPosition(p: { x: number; y: number }, lift: number): { x: number; y: number } {
+    return { x: p.x, y: p.y - lift };
+  }
+
+  #absolutePosition(at: WorldPoint, relativeZ: number, sprite: OffsetSprite): { x: number; y: number } {
     const frame = this.#frame as DynamicFrame;
     const c = mapCenter(frame.viewport);
     const offX = c.x - 2 * (frame.camera.centerX - frame.camera.centerY);
     const offY = c.y - (frame.camera.centerX + frame.camera.centerY) + frame.renderHeight;
-    const dx = Math.fround(n.x - CELL_Y_SIZE - frame.camera.centerX);
-    const dy = Math.fround(n.y - frame.camera.centerY);
+    const dx = Math.fround(at.x - CELL_Y_SIZE - frame.camera.centerX);
+    const dy = Math.fround(at.y - frame.camera.centerY);
     const screenX = c.x + Math.trunc(Math.fround(2 * dx - 2 * dy));
-    const screenY = c.y + Math.trunc(Math.fround(dx + dy)) - MERC_SCREEN_OFFSET_Y - n.z + frame.renderHeight;
-    const p = { x: screenX + d.sprite.offsetX - offX, y: screenY + d.sprite.offsetY - offY };
-    this.#emitNode(p, d, x, y, 'structs', ShadeKey.FIXED, d.sprite.paletteBase + DEFAULT_SHADE_LEVEL);
+    const screenY = c.y + Math.trunc(Math.fround(dx + dy)) - MERC_SCREEN_OFFSET_Y - relativeZ + frame.renderHeight;
+    return { x: screenX + sprite.offsetX - offX, y: screenY + sprite.offsetY - offY };
+  }
+
+  #cachedAniPosition(a: SceneAniTile, at: WorldPoint & { readonly z: number }): { x: number; y: number } {
+    const frame = this.#frame as DynamicFrame;
+    const c = mapCenter(frame.viewport);
+    const offX = c.x - 2 * (frame.camera.centerX - frame.camera.centerY);
+    const offY = c.y - (frame.camera.centerX + frame.camera.centerY) + frame.renderHeight;
+    const dx = Math.fround(at.x - frame.camera.centerX);
+    const dy = Math.fround(at.y - frame.camera.centerY);
+    const height = this.#world.level.heights[a.gridNo] ?? 0;
+    const screenX = c.x + Math.trunc(Math.fround(2 * dx - 2 * dy));
+    const screenY = c.y + Math.trunc(Math.fround(dx + dy)) - height - MERC_SCREEN_OFFSET_Y - at.z + frame.renderHeight;
+    return { x: screenX + a.sprite.offsetX - offX, y: screenY + a.sprite.offsetY - offY };
   }
 
   #emitPausedAniTiles(g: number, x: number, y: number, level: number): void {
@@ -390,7 +435,17 @@ export class DynamicScene {
   #emitTopmost(g: number, x: number, y: number): void {
     const ui = (this.#uiByTile.get(g) ?? []).filter((n) => n.layer === 'topmost');
     for (const n of ui) if (n.head) this.#emitUiNode(n, x, y, 'topmost');
+    for (const a of this.#aniByTile.get(g * 2) ?? []) if (isTopmost(a)) this.#emitTopmostAniTile(a);
     for (const n of ui) if (!n.head) this.#emitUiNode(n, x, y, 'topmost');
+  }
+
+  #emitTopmostAniTile(a: SceneAniTile): void {
+    const p = a.at ? this.#cachedAniPosition(a, a.at) : this.#centreScreen(a.gridNo, a.level);
+    const out = this.instances;
+    const s = a.sprite;
+    this.#push(out, this.runs, DrawState.TRANSLUCENT, () =>
+      out.push(p.x, p.y, s, 0, s.width, a.paletteRow, TOPMOST_Z_LEVEL, ShadeKey.FIXED, 0, 0),
+    );
   }
 
   #position(g: number, x: number, y: number, te: TileElement, sprite: TileSprite, layer: ListLayer | 'topmost') {

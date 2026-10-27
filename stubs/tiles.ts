@@ -1,4 +1,5 @@
 import { Orientation, type StructureDef } from '../src/content/formats/jsd.ts';
+import type { StiAppData } from '../src/content/formats/sti.ts';
 import { StructureFlags } from '../src/content/world/structures.ts';
 import { syntheticStructure } from '../src/content/world/synthetic.ts';
 import { Rng } from '../src/core/rng.ts';
@@ -10,6 +11,7 @@ export interface StubSurface {
   readonly type: string;
   readonly sprite: StubSprite;
   readonly structures?: readonly StructureDef[];
+  readonly auxData?: readonly StiAppData[];
 }
 
 export const StubMaterial = {
@@ -55,6 +57,13 @@ const BULLET_OFFSET_X = 19;
 const BULLET_OFFSET_Y = 10;
 const BULLET_SHADE = 15;
 const BULLET_SHADOW_SHADE = 1;
+const MISS_FRAMES = 5;
+const RIPPLE_FRAMES = 14;
+const SHATTER_SETS = 4;
+const SHATTER_FRAMES = 5;
+const SHATTER_SHARDS = 9;
+const SHATTER_TOP = -38;
+const AUX_ANIMATED_TILE = 0x02;
 
 type Side = 'left' | 'right';
 type WallFace = 'solid' | 'window' | 'shattered';
@@ -165,6 +174,61 @@ function bulletDot(c: number): StubFrame {
   const r = new IndexedRaster(1, 1);
   r.set(0, 0, c);
   return { raster: r, ox: BULLET_OFFSET_X, oy: BULLET_OFFSET_Y };
+}
+
+function dustPuff(k: number): StubFrame {
+  const rx = 2 + k * 2;
+  const ry = 1.5 + k;
+  const r = new IndexedRaster(Math.ceil(rx * 2) + 1, Math.ceil(ry * 2) + 1);
+  r.ellipse(rx, ry, rx, ry, (nx, ny) => color('khaki', 11 - k - nx - ny));
+  return { raster: r, ox: HALF_W - Math.round(rx), oy: TILE_H / 2 - Math.round(ry) - k };
+}
+
+function splash(k: number): StubFrame {
+  const height = 3 + k * 3;
+  const width = 4 + k * 3;
+  const r = new IndexedRaster(width, height);
+  for (let x = 0; x < width; x += 2) {
+    const top = Math.round(Math.abs(x - width / 2) * 0.8);
+    for (let y = top; y < height; y++) r.set(x, y, color('water', 13 - Math.floor((y * 3) / height)));
+  }
+  return { raster: r, ox: HALF_W - Math.floor(width / 2), oy: TILE_H / 2 - height };
+}
+
+function ripple(k: number): StubFrame {
+  const rx = 3 + k;
+  const ry = 1.5 + k / 2;
+  const r = new IndexedRaster(Math.ceil(rx * 2) + 1, Math.ceil(ry * 2) + 1);
+  for (let a = 0; a < 64; a++) {
+    const t = (a / 64) * Math.PI * 2;
+    r.set(Math.round(rx + Math.cos(t) * rx), Math.round(ry + Math.sin(t) * ry), color('water', 12 - Math.floor(k / 2)));
+  }
+  return { raster: r, ox: HALF_W - Math.round(rx), oy: TILE_H / 2 - Math.round(ry) };
+}
+
+function shatter(set: number, k: number): StubFrame {
+  const spread = 6 + k * 4;
+  const fall = k * 5;
+  const r = new IndexedRaster(spread * 2 + 2, spread + fall + 2);
+  for (let i = 0; i < SHATTER_SHARDS; i++) {
+    const x = Math.round(spread + (Math.cos(i * 2.4) * spread * ((i % 3) + 1)) / 3);
+    const y = Math.round(fall + ((i * 7) % spread) / 2);
+    r.set(x, y, color('water', 14 - (i % 3)));
+    r.set(x + 1, y, color('gray', 13));
+  }
+  const ox = (set % 2 === 0 ? HALF_W : 0) - spread;
+  return { raster: r, ox, oy: SHATTER_TOP };
+}
+
+function animatedOnFirstFrame(frames: number): StiAppData[] {
+  return Array.from({ length: frames }, (_, i) => ({
+    wallOrientation: 0,
+    numberOfTiles: 0,
+    tileLocationIndex: 0,
+    currentFrame: 0,
+    numberOfFrames: i === 0 ? frames : 0,
+    flags: i === 0 ? AUX_ANIMATED_TILE : 0,
+  }));
 }
 
 function cliffFace(): StubFrame {
@@ -341,6 +405,24 @@ export const STUB_TILE_SURFACES: readonly StubSurface[] = [
   },
   { type: 'FIRSTCLIFFHANG', sprite: { path: 'cliffhang', frames: [cliffLip()] } },
   { type: 'DEBRISROCKS', sprite: { path: 'rocks', frames: [rocks(43), rocks(44)] } },
+  { type: 'FIRSTMISS', sprite: { path: 'miss', frames: Array.from({ length: MISS_FRAMES }, (_, k) => dustPuff(k)) } },
+  {
+    type: 'SECONDMISS',
+    sprite: { path: 'watermiss', frames: Array.from({ length: MISS_FRAMES }, (_, k) => splash(k)) },
+    auxData: animatedOnFirstFrame(MISS_FRAMES),
+  },
+  {
+    type: 'THIRDMISS',
+    sprite: { path: 'ripple', frames: Array.from({ length: RIPPLE_FRAMES }, (_, k) => ripple(k)) },
+    auxData: animatedOnFirstFrame(RIPPLE_FRAMES),
+  },
+  {
+    type: 'WINDOWSHATTER',
+    sprite: {
+      path: 'glassshatter',
+      frames: Array.from({ length: SHATTER_SETS * SHATTER_FRAMES }, (_, i) => shatter(Math.floor(i / SHATTER_FRAMES), i % SHATTER_FRAMES)),
+    },
+  },
   {
     type: 'BULLETTILE',
     sprite: { path: 'bullet', frames: [bulletDot(color('gray', BULLET_SHADE)), bulletDot(color('gray', BULLET_SHADOW_SHADE))] },

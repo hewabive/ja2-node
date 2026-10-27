@@ -13,6 +13,9 @@ const SMOKE_FRAMES = 12;
 const BODY_WIDTH = 30;
 const BODY_HEIGHT = 18;
 const PUFF_SIZE = 32;
+const MINIBOOM_PATH = 'tilecache/miniboom.sti';
+const MINIBOOM_FRAMES = 13;
+const MINIBOOM_PEAK_FRAME = 5;
 const SMOKE_RAMPS: Readonly<Record<string, RampName>> = { SMOKE: 'gray', TEARGAS: 'sand', MUSTARDGAS: 'olive', CREATUREGAS: 'teal' };
 const SCREEN_VECTOR_BY_DIRECTION: readonly (readonly [number, number])[] = [
   [0.7, -0.35],
@@ -63,6 +66,16 @@ function puff(frame: number, ramp: RampName, scale: number): StiSubImage {
   return { offsetX: -size / 2, offsetY: -size + 4, width: size, height: size, pixels: r.pixels };
 }
 
+function miniboom(frame: number): StiSubImage {
+  const growth = frame <= MINIBOOM_PEAK_FRAME ? frame : MINIBOOM_PEAK_FRAME;
+  const radius = 1.5 + growth * 2;
+  const size = Math.ceil(radius * 2) + 1;
+  const r = new IndexedRaster(size, size);
+  const fade = Math.max(0, frame - MINIBOOM_PEAK_FRAME);
+  r.ellipse(radius, radius, radius, radius, (nx, ny) => color(fade > 3 ? 'gray' : 'orange', 13 - fade - (nx + ny) * 3));
+  return { offsetX: -Math.round(radius), offsetY: -Math.round(radius), width: size, height: size, pixels: r.pixels };
+}
+
 async function writeSti(
   out: string,
   path: string,
@@ -101,5 +114,7 @@ export async function buildStubEffects(out: string, palette: Uint8Array): Promis
     const frames = Array.from({ length: SMOKE_FRAMES }, (_, f) => puff(f, look.ramp, look.scale));
     written.push(await writeSti(out, path, palette, frames, SMOKE_FRAMES));
   }
+  const boom = Array.from({ length: MINIBOOM_FRAMES }, (_, f) => miniboom(f));
+  written.push(await writeSti(out, MINIBOOM_PATH, palette, boom, MINIBOOM_FRAMES));
   return written;
 }

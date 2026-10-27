@@ -426,7 +426,7 @@ function checkForCollisions(t: TacticalState, o: RealObject): Checked {
   if (code <= Collision.NONE) return { collided: false, code };
   o.consecutiveCollisions = o.oldCollisionCode === code ? o.consecutiveCollisions + 1 : 1;
   if (BREAKABLE_WINDOWS.has(code)) {
-    if (!o.testObject) windowHit(t, toGridNo(o.position), hit.structureId);
+    if (!o.testObject) windowHit(t, toGridNo(o.position), hit.structureId, false);
     return { collided: false, code: Collision.NONE };
   }
   if (o.object.item === itemIndex(t, 'MORTAR_SHELL')) {

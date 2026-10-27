@@ -114,8 +114,12 @@ export async function buildStubWorld(outDir: string, writer: StubWorldWriter, al
   for (const s of SURFACES) {
     await writer.writeSprite(tilesetDir, s.sprite);
     surfaceFiles[typeIndex(tables, s.type)] = `${s.sprite.path}${STUB_SPRITE_SUFFIX}`;
-    if (s.structures) {
-      const jsd = writeStructureFile({ structureCount: s.sprite.frames.length, structures: s.structures });
+    if (s.structures || s.auxData) {
+      const jsd = writeStructureFile({
+        structureCount: s.sprite.frames.length,
+        ...(s.structures ? { structures: s.structures } : {}),
+        ...(s.auxData ? { auxData: s.auxData } : {}),
+      });
       await writeFile(join(tilesetDir, `${s.sprite.path}.jsd`), jsd);
     }
   }

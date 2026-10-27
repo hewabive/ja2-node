@@ -133,6 +133,10 @@ export function roofZ(wy: number): number {
   return wrap16((wy + WALL_HEIGHT) * Z_SUBLAYERS + ROOF_Z_LEVEL);
 }
 
+export function animationTileZ(wy: number, relativeZ: number): number {
+  return wrap16((wy + relativeZ) * Z_SUBLAYERS + ONROOF_Z_LEVEL);
+}
+
 export function onRoofZ(wy: number): number {
   return wrap16((wy + WALL_HEIGHT) * Z_SUBLAYERS + ONROOF_Z_LEVEL);
 }

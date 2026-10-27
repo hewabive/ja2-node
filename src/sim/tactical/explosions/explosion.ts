@@ -81,6 +81,7 @@ const DEBRIS_THRESHOLD = 20;
 const EXPLOSION_LIGHT_TEMPLATE = 'L-R04.LHT';
 const OPEN_WINDOWS: ReadonlySet<number> = new Set([Blocking.TOPLEFT_OPEN_WINDOW, Blocking.TOPRIGHT_OPEN_WINDOW]);
 const CLOSED_WINDOWS: ReadonlySet<number> = new Set([Blocking.TOPLEFT_WINDOW, Blocking.TOPRIGHT_WINDOW]);
+const BLOWN_SOUTH: ReadonlySet<number> = new Set([Direction.SOUTH, Direction.SOUTHEAST, Direction.SOUTHWEST]);
 
 const itemDef = (t: TacticalState, item: number) => t.content.items.byIndex.get(item);
 const inc = (dir: number) => DIRECTION_INCREMENT[dir] ?? 0;
@@ -323,7 +324,7 @@ export function getRayStopInfo(
       }
     }
   } else if (obstacle) {
-    if (CLOSED_WINDOWS.has(first.blocking) && first.structure) windowHit(t, g, first.structure.id);
+    if (CLOSED_WINDOWS.has(first.blocking) && first.structure) windowHit(t, g, first.structure.id, BLOWN_SOUTH.has(dir));
     for (const side of [Direction.WEST, Direction.NORTH]) {
       const neighbour = newGridNo(g, inc(side));
       const info = blockingStructureInfo(t, neighbour, dir, level);
@@ -332,7 +333,7 @@ export function getRayStopInfo(
         obstacle = false;
         reduce = false;
       }
-      if (CLOSED_WINDOWS.has(info.blocking) && info.structure) windowHit(t, neighbour, info.structure.id);
+      if (CLOSED_WINDOWS.has(info.blocking) && info.structure) windowHit(t, neighbour, info.structure.id, false);
     }
   }
   let keepGoing: boolean;

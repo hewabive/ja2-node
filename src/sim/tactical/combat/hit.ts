@@ -4,7 +4,8 @@
 // @src CalcScreamVolume, DoGenericHit, SoldierGotHitGunFire, SoldierGotHitExplosion, SoldierGotHitBlade, SoldierGotHitPunch,
 // @src SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest), HandleTakeDamageDeath, CalcSoldierNextBleed, ReleaseSoldiersAttacker, CheckForFreeupFromHit,
 // @src SoldierCollapse, ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
-// @src Soldier_Ani.cc OKFallDirection; Weapons.cc DoSpecialEffectAmmoMiss (creature spit gas). See docs/11 §4–§5.
+// @src Soldier_Ani.cc OKFallDirection; Weapons.cc DoSpecialEffectAmmoMiss (the miniboom of HE and HEAT rounds, creature spit
+// @src gas). See docs/11 §4–§5.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AmmoType, ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
@@ -208,11 +209,26 @@ function isExplosiveGun(t: TacticalState, item: number): boolean {
   return item === itemIndex(t, 'ROCKET_LAUNCHER') || item === itemIndex(t, 'TANK_CANNON');
 }
 
-export function doSpecialEffectAmmoMiss(t: TacticalState, attacker: Soldier, g: number): void {
+export interface ImpactPoint {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+}
+
+const EXPLOSIVE_AMMO: ReadonlySet<number> = new Set([AmmoType.HE, AmmoType.HEAT]);
+const WEAPON_HIT_Z = 20;
+
+export function doSpecialEffectAmmoMiss(t: TacticalState, attacker: Soldier, g: number, at: ImpactPoint): boolean {
   const hand = attacker.inv[attacker.attackingHand];
-  if (hand?.gunAmmoType !== AmmoType.MONSTER) return;
+  const ammo = hand?.gunAmmoType;
+  if (ammo !== undefined && EXPLOSIVE_AMMO.has(ammo)) {
+    t.events.push({ type: 'bulletImpact', soldier: attacker.id, gridNo: g, ...at, effect: 'miniboom' });
+    return true;
+  }
+  if (ammo !== AmmoType.MONSTER || !hand) return false;
   const gas = t.content.items.byIndex.get(hand.item)?.weapon?.smokeEffect ?? NOTHING;
   if (gas !== NOTHING) newSmokeEffect(t, g, gas, 0, attacker);
+  return false;
 }
 
 export function weaponHit(
@@ -235,7 +251,7 @@ export function weaponHit(
     freeUpAttackerGivenTarget(t, tgt);
     return;
   }
-  doSpecialEffectAmmoMiss(t, attacker, tgt.gridNo);
+  doSpecialEffectAmmoMiss(t, attacker, tgt.gridNo, { x: Math.trunc(tgt.x), y: Math.trunc(tgt.y), z: WEAPON_HIT_Z });
   if (tgt.doingExternalDeath) {
     reduceAttackBusyCount(t, tgt.attacker, false);
     return;

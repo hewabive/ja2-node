@@ -15,9 +15,10 @@ describe('bullet nodes', () => {
     const heights = new Uint8Array(WORLD_MAX);
     const under = gridNo(80, 71);
     heights[under] = 12;
+    const absolute = { x: 809, y: 710 };
     expect(bulletNodes([{ x: 809, y: 710, z: 45 }], tiles, heights)).toEqual([
-      { gridNo: under, tile: tiles.bullet, x: 809, y: 710, z: 45 },
-      { gridNo: under, tile: tiles.shadow, x: 809, y: 710, z: 12 },
+      { gridNo: under, tile: tiles.bullet, absolute, relativeZ: 45, animation: false },
+      { gridNo: under, tile: tiles.shadow, absolute, relativeZ: 12, animation: false },
     ]);
   });
 });

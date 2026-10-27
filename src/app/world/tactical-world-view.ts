@@ -13,9 +13,10 @@ import type {
 import type { SceneItem, WorldUiNode } from '../../render/world/dynamic-scene.ts';
 import type { Camera, Viewport } from '../../render/world/geometry.ts';
 import type { WorldDisplayOptions, WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
-import type { SimEvent } from '../../sim/events.ts';
+import type { EffectEvent, SimEvent } from '../../sim/events.ts';
 import type { ReadVfsFile } from '../net/vfs.ts';
 import { type BulletTiles, bulletNodes, bulletTiles } from './bullet-nodes.ts';
+import { EffectAnimations, type EffectFrame, type EffectKind, effectStructNodes, effectTileFrames } from './effect-animations.ts';
 import { glowContext } from './glow-context.ts';
 import { type ItemTileLookup, itemTileLookup, readItemGraphicTables } from './item-tiles.ts';
 import { LightTemplates, mercLightTemplateName } from './light-templates.ts';
@@ -79,6 +80,7 @@ export interface TacticalFrame {
   readonly selected?: number | null;
   readonly uiNodes: readonly WorldUiNode[];
   readonly bullets?: readonly BulletView[];
+  readonly shownTick?: number;
   readonly time?: LightingTime;
   readonly hostile?: (s: SoldierView) => boolean;
   readonly underAiControl?: (id: number) => boolean;
@@ -107,8 +109,10 @@ export class TacticalWorldView {
   readonly #itemTiles: ItemTileLookup;
   readonly #roofed: Uint8Array;
   readonly #bulletTiles: BulletTiles | null;
+  readonly #effectAnimations = new EffectAnimations();
   #drawnEffects = 0;
   #drawnBullets = 0;
+  #drawnImpacts = 0;
 
   private constructor(world: LoadedWorld, renderer: WorldRenderer, presentation: TacticalPresentation, itemTiles: ItemTileLookup) {
     this.world = world;
@@ -163,6 +167,10 @@ export class TacticalWorldView {
     return this.#drawnBullets;
   }
 
+  get drawnImpacts(): number {
+    return this.#drawnImpacts;
+  }
+
   get lightTemplates(): LightTemplates {
     return this.#templates;
   }
@@ -196,6 +204,27 @@ export class TacticalWorldView {
 
   observe(events: readonly SimEvent[]): void {
     this.#soldiers.observe(events);
+  }
+
+  observeEffects(effects: readonly EffectEvent[]): void {
+    this.#effectAnimations.observe(effects);
+  }
+
+  resetEffects(): void {
+    this.#effectAnimations.reset();
+  }
+
+  #effectFrameCount(kind: EffectKind, tile: string | null): number | null {
+    if (kind === 'miniboom') return this.#effects?.miniboomFrames() ?? null;
+    return effectTileFrames(kind, tile, this.world.tables, this.world.tiles)?.length ?? null;
+  }
+
+  #shownEffects(tick: number): EffectFrame[] {
+    return this.#effectAnimations.at(Math.floor(tick), (kind, tile) => this.#effectFrameCount(kind, tile));
+  }
+
+  #miniboomTiles(shown: readonly EffectFrame[]) {
+    return shown.flatMap((e) => (e.kind === 'miniboom' ? [this.#effects?.miniboom(e) ?? null] : [])).filter((a) => a !== null);
   }
 
   render(f: TacticalFrame): WorldDrawStats {
@@ -241,7 +270,10 @@ export class TacticalWorldView {
         bloodAndGore: f.options.bloodAndGore,
         animateSmoke: f.options.animateSmoke,
       }) ?? [];
-    this.#drawnEffects = aniTiles.length;
+    const effects = this.#shownEffects(f.shownTick ?? view.tick);
+    this.#drawnImpacts = effects.length;
+    const animatedTiles = [...aniTiles, ...this.#miniboomTiles(effects)];
+    this.#drawnEffects = animatedTiles.length;
     return this.#renderer.render({
       viewport: f.viewport,
       camera: f.camera,
@@ -254,8 +286,11 @@ export class TacticalWorldView {
       soldiers,
       items: this.#items(view.items),
       uiNodes: f.uiNodes,
-      aniTiles,
-      absoluteNodes: this.#bulletNodes(f.bullets ?? NO_BULLETS, f.options.hideBullets),
+      aniTiles: animatedTiles,
+      structNodes: [
+        ...effectStructNodes(effects, this.world.tables, this.world.tiles),
+        ...this.#bulletNodes(f.bullets ?? NO_BULLETS, f.options.hideBullets),
+      ],
       tileChanges: view.tileChanges ?? NO_TILE_CHANGES,
     });
   }

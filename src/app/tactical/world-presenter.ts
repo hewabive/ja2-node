@@ -30,7 +30,7 @@ import {
   worldOrigin,
 } from '../../render/world/geometry.ts';
 import type { WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
-import type { SimEvent } from '../../sim/events.ts';
+import type { EffectEvent, SimEvent } from '../../sim/events.ts';
 import { Body } from '../../sim/tactical/soldier.ts';
 import { TEAMPANEL_HEIGHT } from '../../ui/layout/frames.ts';
 import type {
@@ -72,6 +72,7 @@ const ROOF_LAYERS: ReadonlySet<WorldMarker['layer']> = new Set(['roof', 'onRoof'
 
 export interface PresenterSources {
   readonly view: () => PlayerView | null;
+  readonly shownTick: () => number;
   readonly bullets: () => readonly BulletView[];
   readonly clockMs: () => number;
   readonly options: () => TacticalDisplayOptions;
@@ -156,6 +157,18 @@ export class TacticalWorldPresenter implements WorldPresenter {
 
   get drawnBullets(): number {
     return this.#world.drawnBullets;
+  }
+
+  get drawnImpacts(): number {
+    return this.#world.drawnImpacts;
+  }
+
+  observeEffects(effects: readonly EffectEvent[]): void {
+    this.#world.observeEffects(effects);
+  }
+
+  resetEffects(): void {
+    this.#world.resetEffects();
   }
 
   get night(): boolean {
@@ -446,6 +459,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
       selected: this.#selected,
       uiNodes: this.#uiNodes(),
       bullets: this.#sources.bullets(),
+      shownTick: this.#sources.shownTick(),
       underAiControl: (id) => this.aiTurns.holds(id),
     });
     return this.#renderer.picture;

@@ -7,8 +7,9 @@
 
 import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_COLS } from '../../../content/world/grid.ts';
 import { recompileLocalMovementCosts } from '../../../content/world/movement-costs.ts';
-import { has, ORIENT_LEFT, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
+import { has, ORIENT_LEFT, ORIENT_RIGHT, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
 import { u8 } from '../../../core/int.ts';
+import type { WindowShatterTile } from '../../events.ts';
 import { swapStructureForPartnerAndRecord } from '../doors.ts';
 import { recordStructureAdded, recordStructureDamaged, recordStructureRemoved } from '../map-changes.ts';
 import { statueTakesExplosion } from '../narrative/statue.ts';
@@ -54,14 +55,30 @@ export function damageStructureByExplosion(t: TacticalState, s: StructureInstanc
   return StructureDamage.DAMAGED;
 }
 
-export function windowHit(t: TacticalState, g: number, structureId: number): void {
+export function windowHit(t: TacticalState, g: number, structureId: number, blowSouth: boolean): void {
   let window = t.world.structures.findById(g, structureId);
   if (!window) return;
   window = swapStructureForPartnerAndRecord(t, window);
   if (!window) return;
   if (window.def.partnerDelta !== 0) window = swapStructureForPartnerAndRecord(t, window) ?? window;
   if (window.def.armour === MATERIAL_THICKER_METAL_WITH_SCREEN_WINDOWS) return;
-  makeNoise(t, null, g, 0, window.def.partnerDelta !== 0 ? WINDOW_CRACK_VOLUME : WINDOW_SMASH_VOLUME, NoiseKind.BULLET_IMPACT);
+  if (window.def.partnerDelta !== 0) {
+    makeNoise(t, null, g, 0, WINDOW_CRACK_VOLUME, NoiseKind.BULLET_IMPACT);
+    return;
+  }
+  makeNoise(t, null, g, 0, WINDOW_SMASH_VOLUME, NoiseKind.BULLET_IMPACT);
+  shatterWindow(t, g, window, blowSouth);
+}
+
+function shatterWindow(t: TacticalState, g: number, window: StructureInstance, blowSouth: boolean): void {
+  const right = (window.wallOrientation & ORIENT_RIGHT) !== 0;
+  const gridNo = blowSouth ? g + (right ? 1 : WORLD_COLS) : g;
+  t.events.push({ type: 'windowShattered', gridNo, tile: shatterTile(right, blowSouth) });
+}
+
+function shatterTile(right: boolean, blowSouth: boolean): WindowShatterTile {
+  if (right) return blowSouth ? 'WINDOWSHATTER1' : 'WINDOWSHATTER11';
+  return blowSouth ? 'WINDOWSHATTER6' : 'WINDOWSHATTER16';
 }
 
 function removeAllUnburiedItems(t: TacticalState, g: number, level: number): void {

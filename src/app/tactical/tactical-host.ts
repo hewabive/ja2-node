@@ -225,6 +225,7 @@ export class TacticalHost {
       soldierAssets.tables,
       {
         view: () => session.view,
+        shownTick: () => session.shownTick,
         bullets: () => session.bullets,
         clockMs: () => this.#o.ui.runtime.clock.ja2Now,
         options: () => tacticalOptionsOf(loadSettings()),
@@ -431,12 +432,14 @@ export class TacticalHost {
 
   received(frames: readonly ViewFrame[]): void {
     for (const frame of frames) this.#frames?.observe(frame.events ?? []);
+    this.#loaded?.presenter.observeEffects(frames.flatMap((f) => f.effects ?? []));
   }
 
   welcome(): void {
     this.#sound.director?.reset(this.#o.session.soldiers);
     this.#frames?.reset();
     this.#loaded?.presenter.aiTurns.reset();
+    this.#loaded?.presenter.resetEffects();
   }
 
   #unknownProfile(frames: readonly ViewFrame[]): boolean {
@@ -505,6 +508,7 @@ export class TacticalHost {
       drawCalls: 0,
       drawnSoldiers: 0,
       drawnBullets: 0,
+      drawnImpacts: 0,
       pendingImages: 0,
       enemyBar: { counter: 0, max: 0 },
       topMessage: null,
@@ -631,6 +635,7 @@ export class TacticalHost {
     hook.drawCalls = presenter?.stats?.drawCalls ?? 0;
     hook.drawnSoldiers = presenter?.drawnSoldiers ?? 0;
     hook.drawnBullets = presenter?.drawnBullets ?? 0;
+    hook.drawnImpacts = presenter?.drawnImpacts ?? 0;
     hook.pendingImages = this.#loaded?.media.loading ?? 0;
     if (!screen) return;
     hook.panel = screen.panel;

@@ -4,7 +4,6 @@ import type { TileElement } from '../../content/world/tile-database.ts';
 import type { TileTables } from '../../content/world/tile-tables.ts';
 import { type ScreenRect, type ScreenShift, wholeViewport } from './dirty-rects.ts';
 import {
-  type AbsoluteNode,
   ANIMATED_TILE_FRAME_MS,
   type DrawRun,
   DynamicScene,
@@ -13,6 +12,7 @@ import {
   type SceneAniTile,
   type SceneItem,
   type SceneSoldier,
+  type StructNode,
   type WorldUiNode,
 } from './dynamic-scene.ts';
 import {
@@ -100,7 +100,7 @@ export interface WorldFrameInput {
   readonly items: readonly SceneItem[];
   readonly uiNodes: readonly WorldUiNode[];
   readonly aniTiles?: readonly SceneAniTile[];
-  readonly absoluteNodes?: readonly AbsoluteNode[];
+  readonly structNodes?: readonly StructNode[];
   readonly tileChanges?: readonly TileChange[];
 }
 
@@ -333,7 +333,7 @@ export class WorldRenderer {
       itemOutline: (onRoof) => itemOutlineColour(f.clockMs, onRoof, { glow: f.options.glowItems, red: f.options.redItemGlow }),
       uiNodes: f.uiNodes,
       aniTiles: f.aniTiles ?? [],
-      absoluteNodes: f.absoluteNodes ?? [],
+      structNodes: f.structNodes ?? [],
     });
     const pass: ScenePass = {
       scene: s,

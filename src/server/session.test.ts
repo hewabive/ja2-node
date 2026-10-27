@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CommandEnvelope, ServerMessage } from '../protocol/messages.ts';
 import { applyFrame, applyViewFrame, type PlayerView, type SoldierView } from '../protocol/view.ts';
+import { TICK_MS } from '../sim/clock.ts';
 import { type StepObserver, UNOBSERVED_STEPS } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
 import type { QueryService } from './query.ts';
@@ -290,6 +291,33 @@ describe('session', () => {
     session.close();
   });
 
+  it('sends an effect in the frame that ends with its tick, stamped with the session tick', () => {
+    const sim = impactingAt(walker(), 17);
+    const session = new Session('s11', sim);
+    const messages: ServerMessage[] = [];
+    session.subscribe((m) => messages.push(m));
+    session.dispatch({ type: 'walk', to: 35 });
+    session.advance({ ticks: 25 });
+    const frames = messages.flatMap((m) => (m.t === 'frames' ? m.frames : []));
+    expect(frames.filter((f) => f.effects).map((f) => [f.tick, f.effects?.map((e) => e.tick)])).toEqual([[20, [17]]]);
+    expect(frames.flatMap((f) => f.events ?? []).map((e) => e.tick)).toEqual([17 - TACTICAL_TICK_BEHIND]);
+    expect(heldView(messages)).not.toHaveProperty('effects');
+    session.close();
+  });
+
+  it('keeps the frames coming for two seconds after an effect starts, so the client plays it out', () => {
+    const sim = impactingAt(walker(), 17);
+    const session = new Session('s12', sim);
+    const messages: ServerMessage[] = [];
+    session.subscribe((m) => messages.push(m));
+    session.dispatch({ type: 'walk', to: 5 });
+    session.advance({ ticks: 600 });
+    const ticks = messages.flatMap((m) => (m.t === 'frames' ? m.frames : [])).map((f) => f.tick);
+    const lastHeartbeat = Math.floor((17 + 2000 / TICK_MS) / FRAME_TICKS) * FRAME_TICKS;
+    expect(ticks.filter((t) => t > 10)).toEqual(Array.from({ length: lastHeartbeat / FRAME_TICKS - 1 }, (_, k) => (k + 2) * FRAME_TICKS));
+    session.close();
+  });
+
   it('sends the bullets of the ticks a command runs itself', () => {
     const sim = shooting(walkingWithinCommands(walker()), 33, 34);
     const session = new Session('s10', sim);
@@ -301,6 +329,22 @@ describe('session', () => {
     session.close();
   });
 });
+
+const TACTICAL_TICK_BEHIND = 1000;
+
+function impactingAt<T extends SessionSim>(sim: T, impactTick: number): T {
+  const step = sim.step.bind(sim);
+  const pending: SimEvent[] = [];
+  return Object.assign(sim, {
+    step: () => {
+      step();
+      if (sim.tick !== impactTick) return;
+      const tick = impactTick - TACTICAL_TICK_BEHIND;
+      pending.push({ type: 'bulletImpact', soldier: 1, gridNo: 5, x: 55, y: 5, z: 12, effect: 'dust', tick });
+    },
+    drainEvents: () => pending.splice(0),
+  });
+}
 
 function shooting<T extends SessionSim>(sim: T, from: number, to: number): T {
   return Object.assign(sim, {

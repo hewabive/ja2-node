@@ -19,7 +19,13 @@ const RECORDED_STUB_FILE = 'stubs/npcdata/000.npc';
 const STUB_PROFILES_FILE = 'stubs/profiles.json';
 const FACE_OFFSETS_ADDED_AFTER_070 = /\n {6}"face": \{\n[^}]*\n {6}\},/g;
 const STUB_TILESETS_FILE = 'stubs/world/binarydata/ja2set.dat';
-const SURFACES_ADDED_AFTER_070 = new Set(['bullet.sprite.json']);
+const SURFACES_ADDED_AFTER_070 = new Set([
+  'bullet.sprite.json',
+  'miss.sprite.json',
+  'watermiss.sprite.json',
+  'ripple.sprite.json',
+  'glassshatter.sprite.json',
+]);
 const SAVE_NAMES = ['campaign', 'sandbox'];
 
 interface SoldierSummary {

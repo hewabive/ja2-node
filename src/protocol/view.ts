@@ -1,4 +1,4 @@
-import type { SimEvent } from '../sim/events.ts';
+import type { EffectEvent, SimEvent } from '../sim/events.ts';
 import type { OwnHintInputs } from '../sim/knowledge/view.ts';
 import type { FaceVariant } from '../sim/narrative/face-variant.ts';
 import type { ShopView } from '../sim/strategic/economy/merchants/view.ts';
@@ -946,6 +946,7 @@ export interface ViewFrame {
   readonly events?: readonly SimEvent[];
   readonly messages?: readonly MessageEntry[];
   readonly bullets?: readonly BulletAtTick[];
+  readonly effects?: readonly EffectEvent[];
   readonly mapPath?: string | null;
   readonly clock?: ClockView;
   readonly strategic?: StrategicView;
@@ -1169,7 +1170,7 @@ export function applyFrame(soldiers: readonly SoldierView[], frame: ViewFrame): 
   return [...byId.values()].sort((a, b) => a.id - b.id);
 }
 
-const FRAME_ONLY_KEYS = ['tick', 'changed', 'removed', 'events', 'messages', 'bullets'] as const;
+const FRAME_ONLY_KEYS = ['tick', 'changed', 'removed', 'events', 'messages', 'bullets', 'effects'] as const;
 type FrameFields = Omit<ViewFrame, (typeof FRAME_ONLY_KEYS)[number]>;
 
 function frameFields(frame: ViewFrame): FrameFields {

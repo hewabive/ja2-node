@@ -8,6 +8,7 @@ import { buildTileDatabase, type TileElement, TileFlags, type TileSurface } from
 import { parseTileTables, tileIndex, tileIndexFromTypeSubIndex, typeIndex } from '../../content/world/tile-tables.ts';
 import { animatedTile, type DynamicFrame, DynamicScene, type SceneAniTile, type SceneSoldier } from './dynamic-scene.ts';
 import {
+  animationTileZ,
   corpseZ,
   itemZ,
   mercZ,
@@ -92,7 +93,7 @@ function frame(overrides: Partial<DynamicFrame>): DynamicFrame {
     itemOutline: () => 0xffffff,
     uiNodes: [],
     aniTiles: [],
-    absoluteNodes: [],
+    structNodes: [],
     ...overrides,
   };
 }
@@ -161,11 +162,44 @@ describe('dynamic scene', () => {
     const { staticWorld, prepared } = world({ structs: [[g(80, 80), [T('FIRSTFULLSTRUCT', 2)]]] }, tiles);
     const scene = new DynamicScene(staticWorld, prepared);
     const height = 20;
-    scene.build(frame({ absoluteNodes: [{ gridNo: g(80, 80), tile: bullet, x: 805, y: 805, z: height }] }));
+    const node = { gridNo: g(80, 80), tile: bullet, absolute: { x: 805, y: 805 }, relativeZ: height, animation: false };
+    scene.build(frame({ structNodes: [node] }));
     const parts = decode(scene);
     expect(parts.map((p) => tables.tileNames[p.tile])).toEqual(['FIRSTFULLSHADOW2', 'FIRSTFULLSTRUCT2', 'BULLETTILE1']);
     const origin = worldOrigin(80, 80);
     expect(parts.at(-1)).toMatchObject({ x: origin.x, y: origin.y - height, z: structZ(worldY(80, 80, 860)) });
+  });
+
+  it('places animation tiles at the on-roof z raised by their height, absolute or on their own tile', () => {
+    const miss = tileIndex(tables, 'FIRSTMISS1');
+    const shatter = tileIndex(tables, 'WINDOWSHATTER1');
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    const height = 12;
+    scene.build(
+      frame({
+        structNodes: [
+          { gridNo: g(80, 80), tile: miss, absolute: { x: 805, y: 805 }, relativeZ: height, animation: true },
+          { gridNo: g(81, 80), tile: shatter, absolute: null, relativeZ: 0, animation: true },
+        ],
+      }),
+    );
+    const [dust, glass] = decode(scene);
+    expect(dust).toMatchObject({
+      x: worldOrigin(80, 80).x,
+      y: worldOrigin(80, 80).y - height,
+      z: animationTileZ(worldY(80, 80, 860), height),
+    });
+    expect(glass).toMatchObject({ x: worldOrigin(81, 80).x, y: worldOrigin(81, 80).y, z: animationTileZ(worldY(81, 80, 860), 0) });
+  });
+
+  it('draws a miniboom translucent on top of everything at its impact, raised by its height', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    const boom: SceneAniTile = { ...aniTileOf('miniboom', g(80, 80), 0, 4), at: { x: 805, y: 805, z: 20 } };
+    scene.build(frame({ aniTiles: [boom] }));
+    expect(decode(scene)).toEqual([expect.objectContaining({ x: -20, y: 1570, z: TOPMOST_Z_LEVEL })]);
+    expect(scene.runs.map((r) => r.state)).toEqual([DrawState.TRANSLUCENT]);
   });
 
   it('steps animated tiles every frame of the 200 ms clock', () => {
@@ -196,17 +230,22 @@ describe('dynamic scene', () => {
     ]);
   });
 
-  const aniTile = (kind: SceneAniTile['kind'], gridNo: number, level: number, id: number): SceneAniTile => ({
-    kind,
-    gridNo,
-    level,
-    sprite: { layer: 0, x: 0, y: 7000 + id, width: 40, height: 20, offsetX: -20, offsetY: -10 },
-    paletteRow: 50 + id,
-    shaded: kind !== 'smoke',
-    zStrip: null,
-    zTileOffsetX: 1,
-    zTileOffsetY: 0,
-  });
+  const aniTile = (kind: SceneAniTile['kind'], gridNo: number, level: number, id: number): SceneAniTile =>
+    aniTileOf(kind, gridNo, level, id);
+
+  function aniTileOf(kind: SceneAniTile['kind'], gridNo: number, level: number, id: number): SceneAniTile {
+    return {
+      kind,
+      gridNo,
+      level,
+      sprite: { layer: 0, x: 0, y: 7000 + id, width: 40, height: 20, offsetX: -20, offsetY: -10 },
+      paletteRow: 50 + id,
+      shaded: kind !== 'smoke',
+      zStrip: null,
+      zTileOffsetX: 1,
+      zTileOffsetY: 0,
+    };
+  }
 
   it('draws corpses with their shadow pixels and a depth write at the corpse z of the tile to the north-west', () => {
     const { staticWorld, prepared } = world({}, tiles);

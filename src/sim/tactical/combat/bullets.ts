@@ -19,13 +19,14 @@ import {
   type StructureInstance,
   structureHeight,
 } from '../../../content/world/structures.ts';
+import { Terrain } from '../../../content/world/terrain.ts';
 import { i16 } from '../../../core/int.ts';
 import { createItem, type ItemObject } from '../../items/object.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
 import { findDoorInfo } from '../doors/door-table.ts';
 import { damageLock } from '../doors/lock-attempts.ts';
-import { swapStructureForPartnerAndRecord } from '../doors.ts';
 import { igniteExplosion, igniteExplosionXY } from '../explosions/explosion.ts';
+import { windowHit } from '../explosions/structure-damage.ts';
 import { InvSlot } from '../inventory.ts';
 import { landHeightUnits, resolveHitOnWall } from '../perception/los.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
@@ -36,7 +37,7 @@ import { addItemToPool, Visibility } from '../world-items.ts';
 import { freeUpAttacker } from './barrier.ts';
 import { gunRange } from './chance.ts';
 import { agilityForEnemyMissingPlayer, StatCause, statChange } from './experience.ts';
-import { bulletHitMerc, doSpecialEffectAmmoMiss } from './hit.ts';
+import { bulletHitMerc, doSpecialEffectAmmoMiss, type ImpactPoint } from './hit.ts';
 import { aimPosType, calculateSoldierZPos, losWorldOf, targetZFromStructureHeight, ZPos } from './positions.ts';
 import { NUM_BUCKSHOT_PELLETS } from './types.ts';
 
@@ -76,11 +77,8 @@ const MAX_DIST_FOR_LESS_THAN_MAX_CHANCE = 25;
 const MAX_CHANCE_OF_HITTING_STRUCTURE = 90;
 const PERCENT_BULLET_SLOWED_BY_RANGE = 25;
 const MATERIAL_LIGHT_VEGETATION = 4;
-const MATERIAL_THICKER_METAL_WITH_SCREEN_WINDOWS = 26;
 const MATERIAL_INDESTRUCTABLE_STONE = 24;
 const MATERIAL_INDESTRUCTABLE_METAL = 25;
-const WINDOW_CRACK_VOLUME = 3;
-const WINDOW_SMASH_VOLUME = 7;
 const MISS_ANIM_MS = 425;
 const PI = 3.1415926;
 const RADIANS_IN_CIRCLE = 6.283;
@@ -510,7 +508,7 @@ function structureHit(
       doMissForGun = true;
       break;
     case WeaponClass.MONSTER:
-      doSpecialEffectAmmoMiss(t, attacker, adjusted);
+      doSpecialEffectAmmoMiss(t, attacker, adjusted, impactPoint(b));
       removeBullet(t, b);
       freeUpAttacker(t, attacker);
       break;
@@ -531,8 +529,21 @@ function structureHit(
     }
     return;
   }
-  if (stopped) t.missAnimations.push({ bullet: b, releaseAt: t.clockMs + MISS_ANIM_MS });
+  if (stopped && doSpecialEffectAmmoMiss(t, attacker, g, impactPoint(b))) {
+    removeBullet(t, b);
+    freeUpAttacker(t, attacker);
+  } else {
+    const effect = SPLASHING_TERRAIN.has(t.world.terrain[g] ?? Terrain.NONE) ? 'splash' : 'dust';
+    t.events.push({ type: 'bulletImpact', soldier: attacker.id, gridNo: g, ...impactPoint(b), effect });
+    if (stopped) t.missAnimations.push({ bullet: b, releaseAt: t.clockMs + MISS_ANIM_MS });
+  }
   b.lastStructureHit = structureId;
+}
+
+const SPLASHING_TERRAIN: ReadonlySet<number> = new Set([Terrain.LOW_WATER, Terrain.DEEP_WATER]);
+
+function impactPoint(b: Bullet): ImpactPoint {
+  return { ...bulletWorldXY(b), z: bulletHeightPixels(b) };
 }
 
 function damageStructureByGunfire(t: TacticalState, s: StructureInstance, owner: Soldier, x: number, y: number, g: number): void {
@@ -622,19 +633,6 @@ function shotMiss(t: TacticalState, b: Bullet): void {
   if (opp) agilityForEnemyMissingPlayer(t, attacker, opp, 5);
   t.events.push({ type: 'bulletStopped', soldier: attacker.id, gridNo: b.gridNo, reason: 'offMap' });
   freeUpAttacker(t, attacker);
-}
-
-function windowHit(t: TacticalState, g: number, structureId: number): void {
-  let window = t.world.structures.findById(g, structureId);
-  if (!window || window.def.partnerDelta === 0) return;
-  window = swapStructureForPartnerAndRecord(t, window);
-  if (!window) return;
-  if (window.def.partnerDelta !== 0) {
-    const second = swapStructureForPartnerAndRecord(t, window);
-    if (second) window = second;
-  }
-  if (window.def.armour === MATERIAL_THICKER_METAL_WITH_SCREEN_WINDOWS) return;
-  makeNoise(t, null, g, 0, window.def.partnerDelta !== 0 ? WINDOW_CRACK_VOLUME : WINDOW_SMASH_VOLUME, NoiseKind.BULLET_IMPACT);
 }
 
 function adjacentSuppression(t: TacticalState, b: Bullet, p: Soldier): void {
@@ -797,7 +795,8 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
                     return;
                   }
                 } else {
-                  windowHit(t, b.tileX + b.tileY * WORLD_COLS, s.id);
+                  const blowSouth = s.wallOrientation & ORIENT_RIGHT ? b.incX > 0 : b.incY > 0;
+                  windowHit(t, b.tileX + b.tileY * WORLD_COLS, s.id, blowSouth);
                   entry.s = null;
                 }
               }

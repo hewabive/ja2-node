@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../../tests/support/sectors.ts';
-import { Direction, gridNo, WORLD_CLIFF_HEIGHT } from '../../content/world/grid.ts';
+import { Direction, gridNo, WORLD_CLIFF_HEIGHT, WORLD_COLS } from '../../content/world/grid.ts';
 import { levelTilesAt } from '../../content/world/level.ts';
 import { recompileLocalMovementCosts, TravelCost } from '../../content/world/movement-costs.ts';
-import { StructureFlags } from '../../content/world/structures.ts';
+import { ORIENT_RIGHT, StructureFlags } from '../../content/world/structures.ts';
 import { buildTacticalWorldFromInputs, loadTacticalWorldInputs } from '../../content/world/tactical-world.ts';
 import { TileFlags } from '../../content/world/tile-database.ts';
 import { typeIndex } from '../../content/world/tile-tables.ts';
@@ -151,9 +151,14 @@ describe('the stub tile yard in the village', { timeout: SLOW_SCENARIO_MS }, () 
     expect(structureAt(sim, window, StructureFlags.WALLNWINDOW).def.partnerDelta).toBe(1);
     sim.lookAround();
     sim.drainEvents();
+    const orientation = structureAt(sim, window, StructureFlags.WALLNWINDOW).wallOrientation;
     expect(sim.dispatch({ type: 'attack', soldier: shooter.id, target: target.gridNo }).ok).toBe(true);
-    runUntilIdle(sim);
+    const events = runUntilIdle(sim);
     expect(structureAt(sim, window, StructureFlags.WALLNWINDOW).def.flags & StructureFlags.OPEN).not.toBe(0);
+    expect(orientation & ORIENT_RIGHT).toBe(0);
+    expect(events.filter((e) => e.type === 'windowShattered')).toEqual([
+      expect.objectContaining({ gridNo: window + WORLD_COLS, tile: 'WINDOWSHATTER6' }),
+    ]);
   });
 
   it('climbs onto the flat roof but finds no climb point at the slanted and the high roof', () => {

@@ -10,10 +10,12 @@ import type { DoorSoundKind } from '../events.ts';
 import { recordStructureAdded, recordStructureRemoved } from './map-changes.ts';
 import type { TacticalState } from './state.ts';
 
+const NO_PARTNER_STRUCTURE = 0;
+
 export function swapStructureForPartner(t: TacticalState, s: StructureInstance): StructureInstance | null {
   const structures = t.world.structures;
   const base = structures.findBase(s);
-  if (!base?.file) return null;
+  if (!base?.file || base.def.partnerDelta === NO_PARTNER_STRUCTURE) return null;
   const partner = base.file.structures[base.def.number + base.def.partnerDelta];
   if (!partner) return null;
   const hitPoints = base.hitPoints;

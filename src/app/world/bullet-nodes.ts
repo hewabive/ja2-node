@@ -6,7 +6,7 @@
 import { CELL_X_SIZE, CELL_Y_SIZE, WORLD_COLS } from '../../content/world/grid.ts';
 import type { TileTables } from '../../content/world/tile-tables.ts';
 import type { BulletView } from '../../protocol/view.ts';
-import type { AbsoluteNode } from '../../render/world/dynamic-scene.ts';
+import type { StructNode } from '../../render/world/dynamic-scene.ts';
 
 export interface BulletTiles {
   readonly bullet: number;
@@ -23,12 +23,13 @@ export function bulletGridNo(b: BulletView): number {
   return Math.trunc(b.y / CELL_Y_SIZE) * WORLD_COLS + Math.trunc(b.x / CELL_X_SIZE);
 }
 
-export function bulletNodes(bullets: readonly BulletView[], tiles: BulletTiles, landHeights: Uint8Array): AbsoluteNode[] {
+export function bulletNodes(bullets: readonly BulletView[], tiles: BulletTiles, landHeights: Uint8Array): StructNode[] {
   return bullets.flatMap((b) => {
     const gridNo = bulletGridNo(b);
+    const absolute = { x: b.x, y: b.y };
     return [
-      { gridNo, tile: tiles.bullet, x: b.x, y: b.y, z: b.z },
-      { gridNo, tile: tiles.shadow, x: b.x, y: b.y, z: landHeights[gridNo] ?? 0 },
+      { gridNo, tile: tiles.bullet, absolute, relativeZ: b.z, animation: false },
+      { gridNo, tile: tiles.shadow, absolute, relativeZ: landHeights[gridNo] ?? 0, animation: false },
     ];
   });
 }

@@ -18,7 +18,7 @@ import { applyViewFrame, type BulletAtTick, type BulletView, diffPlayerView, typ
 import { AdvanceRun, type PauseCheck, type Steppable, type StopCondition, type StopReport } from '../sim/advance.ts';
 import { TICK_MS } from '../sim/clock.ts';
 import type { CommandResult, StepObserver } from '../sim/command.ts';
-import type { SimEvent, SimEventType } from '../sim/events.ts';
+import { type EffectEvent, isEffectEvent, type SimEvent, type SimEventType } from '../sim/events.ts';
 import type { StrategicRules } from '../sim/knowledge/strategic.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
 import { type AnchoredView, keepPredictableFrames } from './frame-anchors.ts';
@@ -30,6 +30,7 @@ import { NEVER_DUE, type Slicer, UNSLICED } from './slicing.ts';
 export const FRAME_TICKS = 10;
 const REALTIME_INTERVAL_MS = 16;
 const MAX_FRAMES_PER_MESSAGE = 500;
+const PRESENTATION_HEARTBEAT_TICKS = 2000 / TICK_MS;
 const LOADED_STOP_ID = 0;
 const PAUSED_STOP_ID = 0;
 const NO_MUSIC_FACTS: MusicFacts = { creature: false, inCombat: false, sectorLoaded: false, hostiles: 0, gameJustStarted: false };
@@ -120,6 +121,8 @@ export class Session {
   #campaign: string | null = null;
   readonly #framedMessages: MessageEntry[] = [];
   readonly #framedBullets: BulletAtTick[] = [];
+  readonly #framedEffects: EffectEvent[] = [];
+  #presentationUntil = -1;
   readonly #unreportedMessages: MessageEntry[] = [];
   readonly #held: SimEvent[] = [];
   readonly #pendingEvents: SimEvent[] = [];
@@ -184,15 +187,20 @@ export class Session {
     return { messages: this.#framedMessages.splice(0) };
   }
 
-  #recordBullets(): void {
+  #recordPresentation(events: readonly SimEvent[]): void {
     if (!this.listening) return;
     const tick = this.#sim.tick;
+    const before = this.#framedBullets.length + this.#framedEffects.length;
     for (const bullet of this.#sim.bulletViews?.() ?? []) this.#framedBullets.push({ tick, ...bullet });
+    for (const e of events) if (isEffectEvent(e)) this.#framedEffects.push({ ...e, tick });
+    if (this.#framedBullets.length + this.#framedEffects.length > before) this.#presentationUntil = tick + PRESENTATION_HEARTBEAT_TICKS;
   }
 
-  #takeFramedBullets(): { readonly bullets?: readonly BulletAtTick[] } {
-    if (this.#framedBullets.length === 0) return {};
-    return { bullets: this.#framedBullets.splice(0) };
+  #takeFramedPresentation(): { readonly bullets?: readonly BulletAtTick[]; readonly effects?: readonly EffectEvent[] } {
+    return {
+      ...(this.#framedBullets.length > 0 ? { bullets: this.#framedBullets.splice(0) } : {}),
+      ...(this.#framedEffects.length > 0 ? { effects: this.#framedEffects.splice(0) } : {}),
+    };
   }
 
   #facts(): MusicFacts {
@@ -272,10 +280,11 @@ export class Session {
     this.#unreportedMessages.length = 0;
   }
 
-  holdEvents(): void {
+  holdEvents(): SimEvent[] {
     const events = this.#sim.drainEvents();
     this.#held.push(...events);
     this.#pendingEvents.push(...events);
+    return events;
   }
 
   notify(event: SessionEvent): void {
@@ -291,6 +300,7 @@ export class Session {
       const events = sim.drainEvents();
       drained.push(...events);
       this.#pendingEvents.push(...events);
+      return events;
     };
     return {
       get tick() {
@@ -308,16 +318,14 @@ export class Session {
       },
       step: () => {
         sim.step();
-        drain();
-        this.#recordBullets();
+        this.#recordPresentation(drain());
         this.#captureOnFrameTick(frames);
       },
     };
   }
 
   #recordCommandStep(frames: ViewFrame[]): void {
-    this.holdEvents();
-    this.#recordBullets();
+    this.#recordPresentation(this.holdEvents());
     this.#captureOnFrameTick(frames);
   }
 
@@ -335,13 +343,14 @@ export class Session {
     this.#followMusic(events);
     this.#followMessages(events);
     const messages = this.#takeFramedMessages();
-    const bullets = this.#takeFramedBullets();
+    const presentation = this.#takeFramedPresentation();
     if (!this.listening) return;
     const { view, predicting } = this.#anchored(this.#view());
     const diff = diffPlayerView(this.#lastView, view);
     this.#lastView = view;
-    const extra = { ...(events.length > 0 ? { events } : {}), ...messages, ...bullets };
-    const heartbeat = predicting && view.tick % FRAME_TICKS === 0 && view.tick !== this.#shownTick;
+    const extra = { ...(events.length > 0 ? { events } : {}), ...messages, ...presentation };
+    const animating = predicting || view.tick <= this.#presentationUntil;
+    const heartbeat = animating && view.tick % FRAME_TICKS === 0 && view.tick !== this.#shownTick;
     const frame =
       Object.keys(extra).length > 0 || (heartbeat && !diff)
         ? { ...(diff ?? { tick: view.tick, changed: [], removed: [] }), ...extra }
@@ -526,6 +535,8 @@ export class Session {
     this.#held.length = 0;
     this.#pendingEvents.length = 0;
     this.#framedBullets.length = 0;
+    this.#framedEffects.length = 0;
+    this.#presentationUntil = -1;
     this.#sim = sim;
     sim.useLabels?.(this.#labels);
     this.#music = music;

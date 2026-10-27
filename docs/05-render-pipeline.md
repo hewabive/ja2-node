@@ -37,7 +37,18 @@ at the bullet's height and `BULLETTILE2`, the shadow, at the land height of the 
 world position minus `CELL_Y_SIZE` in x (`RenderWorld.cc:657-679`), so a bullet over a tile centre sits on that tile's
 box and is raised by its `sRelativeZ`. Its z is the structure z of its tile (`:781-840`), so walls and soldiers in
 front of it hide it. In the original data both frames of `tilesets/0/bull.sti` are a single pixel at offset (19, 10)
-**(data)**. In ja2-node they are the `absoluteNodes` of `DynamicScene` (`src/app/world/bullet-nodes.ts`).
+**(data)**. In ja2-node they are struct nodes of `DynamicScene` (`structNodes`, `src/app/world/bullet-nodes.ts`).
+
+**Status (2026-10-27, impact animations).** The miss animations of `StructureHit` are struct-layer animation tiles at the
+tail of the impact tile's list (`ForceStructToTail`), placed at the bullet's absolute position and raised by its height:
+`FIRSTMISS1` (5 frames, `miss1.sti`), in low or deep water `THIRDMISS1` (the ripple, 14 frames) and then `SECONDMISS1`
+(the splash, 5 frames), both animated through their aux data **(data)**. `WindowHit` adds the `WINDOWSHATTER` tile on
+the window's own tile or the next one the glass falls to. Every animation tile has `LEVELNODE_USEZ`
+(`Tile_Animation.cc:120`), so in the struct layer its z is `ONROOF_Z_LEVEL + (world_y + sRelativeZ) · Z_SUBLAYERS`
+(`RenderWorld.cc:826-838`), not the structure z. The HE miniboom (`tilecache/miniboom.sti`, 13 frames, 100 ms) is a
+cached animation tile on the topmost layer, always translucent, placed like a merc at its world position minus the
+tile's land height and its `sRelativeZ` (`RenderWorld.cc:583-622`). All of them take `DEFAULT_SHADE_LEVEL`. A frame
+lasts until more than its delay has passed, so 85, 55 or 105 ms on 5 ms ticks.
 
 **Notation.**
 - Unmarked statements were read in the code (fact) and carry a `file:line` reference.
