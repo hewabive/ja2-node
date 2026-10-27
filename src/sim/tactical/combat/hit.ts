@@ -1,11 +1,12 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/LOS.cc BulletHitMerc; Weapons.cc WeaponHit; Soldier_Control.cc EVENT_SoldierGotHit,
-// @src CalcScreamVolume, DoGenericHit, SoldierGotHitGunFire, SoldierGotHitExplosion, SoldierGotHitBlade, SoldierGotHitPunch,
-// @src SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest), HandleTakeDamageDeath, CalcSoldierNextBleed,
-// @src ReleaseSoldiersAttacker, CheckForFreeupFromHit, SoldierCollapse, ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
-// @src Soldier_Ani.cc OKFallDirection; Weapons.cc DoSpecialEffectAmmoMiss (the miniboom of HE and HEAT rounds, creature spit
-// @src gas). See docs/11 §4–§5.
+// @src CalcScreamVolume, DoGenericHit, SoldierGotHitGunFire, SoldierGotHitExplosion, SoldierGotHitBlade,
+// @src SoldierGotHitPunch, SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest and
+// @src QUOTE_TAKEN_A_BREATING), HandleTakeDamageDeath, CalcSoldierNextBleed, ReleaseSoldiersAttacker,
+// @src CheckForFreeupFromHit, SoldierCollapse, ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
+// @src Soldier_Ani.cc OKFallDirection; Weapons.cc DoSpecialEffectAmmoMiss (the miniboom of HE and HEAT rounds, creature
+// @src spit gas). See docs/11 §4–§5.
 
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AmmoType, ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
@@ -724,11 +725,25 @@ export function soldierTakeDamage(
     statChange(t, attacker, StatKind.EXPLOSIVES, 10 * combined, StatCause.SUCCESS);
   if (s.team === Team.OUR) {
     statChange(t, s, StatKind.EXPERIENCE, 5 * combined, StatCause.FAILURE);
-    if (attacker && attacker !== s) s.numHitsThisTurn++;
+    if (!s.pummeledQuoteSaid && attacker && attacker !== s) countHitForBeatingQuote(t, s);
   }
   handleTakeDamageDeath(t, s, reason);
   if (s.life < OKLIFE) decayIndividualOpplist(t, s);
   return combined;
+}
+
+const TAKEN_A_BEATING_QUOTE = 21;
+const BEATING_HITS = 3;
+const BEATING_LIFE_GAIN = 20;
+const BEATING_CHANCE_PER_HIT = 40;
+
+function countHitForBeatingQuote(t: TacticalState, s: Soldier): void {
+  s.numHitsThisTurn++;
+  if (s.numHitsThisTurn < BEATING_HITS || s.life - s.oldLife <= BEATING_LIFE_GAIN) return;
+  if (t.rng.int(100) >= BEATING_CHANCE_PER_HIT * (s.numHitsThisTurn - 2)) return;
+  t.narrative.sayQuote(s, TAKEN_A_BEATING_QUOTE, true);
+  s.pummeledQuoteSaid = true;
+  s.numHitsThisTurn = 0;
 }
 
 function handleTakeDamageDeath(t: TacticalState, s: Soldier, reason: number): void {

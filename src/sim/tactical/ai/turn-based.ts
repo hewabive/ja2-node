@@ -1,6 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/TacticalAI/AIMain.cc EndAIGuysTurn (with the civilian-group proximity rule and its boxer exception),
+// @src src/game/TacticalAI/AIMain.cc EndAIGuysTurn (the close call quotes unless somebody was hit, the civilian-group
+// @src proximity rule and its boxer exception),
 // @src StartNPCAI (the locator and UpdateEnemyUIBar as events), TurnBasedHandleNPCAI, RefreshAI, ManChecksOnFriends, NPCDoesNothing; AIUtils.cc IsActionAffordable;
 // @src Soldier_Control.cc SetSoldierAsUnderAiControl. See docs/10 §6.
 
@@ -16,7 +17,7 @@ import { AlertStatus, CivilianGroup, isMonster, NO_PROFILE, NOWHERE, OKLIFE, Sid
 import { mercs, type TacticalState } from '../state.ts';
 import { removeFirstAIListEntry } from '../turns/ai-list.ts';
 import { updateEnemyUIBar } from '../turns/top-message.ts';
-import { endAITurn } from '../turns/turns.ts';
+import { endAITurn, sayCloseCallQuotes } from '../turns/turns.ts';
 import { AiAction, Situation } from './actions.ts';
 import type { AiControl } from './control.ts';
 import { checkForChangingOrders, decideAlertStatus, setNewSituation } from './decide.ts';
@@ -165,6 +166,8 @@ function hostileGroupMemberSpreadsHostility(t: TacticalState, s: Soldier): void 
 
 export function endAIGuysTurn(t: TacticalState, s: Soldier, control: AiControl): void {
   if (!t.inCombat) return;
+  if (t.turn.someoneHit) t.turn.someoneHit = false;
+  else sayCloseCallQuotes(t);
   hostileGroupMemberSpreadsHostility(t, s);
   s.aiTurnControl = false;
   s.turnInProgress = false;

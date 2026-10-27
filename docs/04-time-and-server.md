@@ -1757,7 +1757,9 @@ names, the profile's life, stats and team row and the record. Profiles now count
 every merc of an autoresolve battle when it closes, dead, captured or not, and every merc in the sector when a tactical
 battle with enemies, creatures or civilians in it is won (not in a boxing match); native saves import the counter and
 snapshot version 6 adds it with 0 to older snapshots. Snapshot version 7 adds `turnsUntilCanSayHeardNoise` (`ubTurnsUntilCanSayHeardNoise`, the pause before a merc says
-again that he heard something) with 0 to older snapshots.
+again that he heard something) with 0 to older snapshots. Snapshot version 8 adds `pummeledQuoteSaid` and `closeCallQuoteSaid`
+(`SOLDIER_QUOTE_SAID_BEING_PUMMELED`, `SOLDIER_QUOTE_SAID_EXT_CLOSE_CALL`: the heavy-fire or beating quote and the close
+call quote said this turn) with false to older snapshots.
 
 **Insurance cards**: the offers add `nickname`, `dead` (`IsMercDead`) and `contractLength` (`iTotalContractLength`); the
 view adds `aimMercsOnTeam` (which of the two "nobody to insure" texts the contract page shows). The card's face is the

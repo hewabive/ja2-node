@@ -104,6 +104,12 @@ export function canSayQuote(s: Soldier, quote: number): boolean {
   return s.life >= minLife && !isRobot(s);
 }
 
+export function delayedTacticalCharacterDialogue(host: NarrativeHost, s: Soldier, quote: number): boolean {
+  if (!canSayQuote(s, quote)) return false;
+  characterDialogue(host, s.profile, quote, false, true, true);
+  return true;
+}
+
 export function tacticalCharacterDialogue(host: NarrativeHost, s: Soldier, quote: number): boolean {
   if (!canSayQuote(s, quote) || host.inMeanwhile()) return false;
   if (s.profile === host.talk.lastQuoteProfile && quote === host.talk.lastQuoteSaid) return false;

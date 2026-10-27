@@ -1,16 +1,17 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/TeamTurns.cc ClearIntList, StartPlayerTeamTurn, EndTurn, EndAITurn, EndAllAITurns,
-// @src EndTurnEvents, BeginTeamTurn, DisplayHiddenInterrupt, EveryoneInInterruptListOnSameTeam, StartInterrupt,
-// @src EndInterrupt, DeleteFromIntList, AddToIntList, VerifyOutOfTurnOrderArray, DoneAddingToIntList, ResolveInterruptsVs;
-// @src Overhead.cc CommonEnterCombatModeCode, EnterCombatMode, ExitCombatMode, CheckForEndOfCombatMode,
-// @src SoldierHasSeenEnemiesLastFewTurns, CheckForEndOfBattle, NumCapableEnemyInSector, CheckForLosingEndOfBattle;
-// @src Soldier_Control.cc EVENT_BeginMercTurn, CheckForBreathCollapse;
-// @src OppList.cc BetweenTurnsVisibilityAdjustments, NonCombatDecayPublicOpplist; Tactical_Turns.cc HandleTacticalEndTurn;
+// @src src/game/Tactical/TeamTurns.cc SayCloseCallQuotes (Random(3) from the gameplay stream), ClearIntList,
+// @src StartPlayerTeamTurn, EndTurn, EndAITurn, EndAllAITurns, EndTurnEvents, BeginTeamTurn, DisplayHiddenInterrupt,
+// @src EveryoneInInterruptListOnSameTeam, StartInterrupt, EndInterrupt, DeleteFromIntList, AddToIntList,
+// @src VerifyOutOfTurnOrderArray, DoneAddingToIntList, ResolveInterruptsVs; Overhead.cc CommonEnterCombatModeCode,
+// @src EnterCombatMode, ExitCombatMode, CheckForEndOfCombatMode, SoldierHasSeenEnemiesLastFewTurns,
+// @src CheckForEndOfBattle, NumCapableEnemyInSector, CheckForLosingEndOfBattle; Soldier_Control.cc EVENT_BeginMercTurn
+// @src (the heard-noise pause and the per-turn quote flags), CheckForBreathCollapse; OppList.cc
+// @src BetweenTurnsVisibilityAdjustments, NonCombatDecayPublicOpplist; Tactical_Turns.cc HandleTacticalEndTurn;
 // @src Drugs_And_Alcohol.cc HandleEndTurnDrugAdjustments (regeneration only); the boxing gates of BeginTeamTurn,
-// @src CheckForEndOfCombatMode and CheckForEndOfBattle; the first-aid services of EndTurnEvents and HandleTacticalEndTurn;
-// @src the usBattlesFought count of CheckForEndOfBattle (2026-10-24). See docs/10 §1.4–§2, §4.4–§4.7, §8, docs/25 §7.2,
-// @src docs/04 §6.33.
+// @src CheckForEndOfCombatMode and CheckForEndOfBattle; the first-aid services of EndTurnEvents and
+// @src HandleTacticalEndTurn; the usBattlesFought count of CheckForEndOfBattle (2026-10-24). See docs/10 §1.4–§2,
+// @src §4.4–§4.7, §8, docs/25 §7.2, docs/04 §6.33.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { u8 } from '../../../core/int.ts';
@@ -109,6 +110,26 @@ function regenerateAtTurnStart(s: Soldier): void {
   s.regenerationCounter--;
 }
 
+const CLOSE_CALL_QUOTE = 22;
+const CLOSE_CALL_ODDS = 3;
+
+export function sayCloseCallQuotes(t: TacticalState): void {
+  for (const s of teamMembers(t, Team.OUR)) {
+    if (
+      s.placed &&
+      s.life >= OKLIFE &&
+      s.closeCall &&
+      s.numHitsThisTurn === 0 &&
+      !s.closeCallQuoteSaid &&
+      t.rng.int(CLOSE_CALL_ODDS) === 0
+    ) {
+      t.narrative.sayQuote(s, CLOSE_CALL_QUOTE);
+      s.closeCallQuoteSaid = true;
+    }
+    s.closeCall = false;
+  }
+}
+
 export function beginMercTurn(t: TacticalState, s: Soldier): void {
   if (s.ai.underFire !== 0) s.ai.underFire--;
   regenerateAtTurnStart(s);
@@ -134,6 +155,8 @@ export function beginMercTurn(t: TacticalState, s: Soldier): void {
     beginSoldierGetup(t, s);
     if (t.inCombat) verifyAndDecayOpplist(t, s);
   }
+  s.pummeledQuoteSaid = false;
+  s.closeCallQuoteSaid = false;
   s.numHitsThisTurn = 0;
   s.suppressionPoints = 0;
   s.apsLostToSuppression = 0;
@@ -629,6 +652,7 @@ function startInterrupt(t: TacticalState): void {
     const soldiers = teamMembers(t, Team.OUR).filter((s) => !s.moved);
     t.events.push({ type: 'interrupt', team, soldiers: soldiers.map((s) => s.id), selected: first.id });
     initPlayerUIBar(t, true);
+    sayCloseCallQuotes(t);
   } else {
     if (!buildAIListForTeam(t, team)) {
       endInterrupt(t, false);

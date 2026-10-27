@@ -373,6 +373,8 @@ export interface Soldier {
   interruptDuelPts: number;
   movementNoiseHeard: number;
   turnsUntilCanSayHeardNoise: number;
+  pummeledQuoteSaid: boolean;
+  closeCallQuoteSaid: boolean;
 
   moved: boolean;
   movedPriorToInterrupt: boolean;
@@ -709,6 +711,8 @@ export function createSoldier(init: SoldierInit): Soldier {
     interruptDuelPts: NO_INTERRUPT,
     movementNoiseHeard: 0,
     turnsUntilCanSayHeardNoise: 0,
+    pummeledQuoteSaid: false,
+    closeCallQuoteSaid: false,
     moved: false,
     movedPriorToInterrupt: false,
     passedLastInterrupt: false,

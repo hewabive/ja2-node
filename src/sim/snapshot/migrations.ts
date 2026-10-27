@@ -220,6 +220,23 @@ function addHeardNoisePause(snapshot: Readonly<Record<string, unknown>>): Record
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const TURN_QUOTE_FLAG_KEYS = ['pummeledQuoteSaid', 'closeCallQuoteSaid'];
+
+function withTurnQuoteFlags(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withTurnQuoteFlags(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withTurnQuoteFlags(v);
+  if (!isSoldierRecord(mapped)) return mapped;
+  return Object.assign(mapped, ...TURN_QUOTE_FLAG_KEYS.map((key) => withDefault(mapped, key, false)));
+}
+
+function addTurnQuoteFlags(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withTurnQuoteFlags(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -228,5 +245,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     4: addNewMailFlag,
     5: addBattlesFought,
     6: addHeardNoisePause,
+    7: addTurnQuoteFlags,
   };
 }

@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Overhead.cc InternalReduceAttackBusyCount, ReduceAttackBusyCount, FreeUpAttacker,
-// @src FreeUpAttackerGivenTarget, ReduceAttackBusyGivenTarget, CalcSuppressionTolerance, HandleSuppressionFire,
+// @src FreeUpAttackerGivenTarget, ReduceAttackBusyGivenTarget, CalcSuppressionTolerance, HandleSuppressionFire (with
+// @src QUOTE_UNDER_HEAVY_FIRE for the targeted merc),
 // @src OppList.cc NoticeUnseenAttacker (with ReevaluateEnemyStance); the EndBoxingMatch of InternalReduceAttackBusyCount. See docs/11 §8, docs/25 §7.2.
 
 import { ItemClass } from '../../../content/items/items.ts';
@@ -68,7 +69,16 @@ function closestKnownOpponentFar(t: TacticalState, s: Soldier): boolean {
   return g === NOWHERE || spacesAway(s.gridNo, g) > 8;
 }
 
-export function handleSuppressionFire(t: TacticalState, caused: Soldier | null): void {
+const UNDER_HEAVY_FIRE_QUOTE = 20;
+const UNDER_HEAVY_FIRE_SUPPRESSION = 8;
+
+function sayUnderHeavyFire(t: TacticalState, s: Soldier, targeted: Soldier | null): void {
+  if (s.team !== Team.OUR || s.suppressionPoints <= UNDER_HEAVY_FIRE_SUPPRESSION || s !== targeted || s.pummeledQuoteSaid) return;
+  s.pummeledQuoteSaid = true;
+  t.narrative.sayQuote(s, UNDER_HEAVY_FIRE_QUOTE);
+}
+
+export function handleSuppressionFire(t: TacticalState, targeted: Soldier | null, caused: Soldier | null): void {
   for (const s of t.mercSlots) {
     if (!s?.placed || !isMercBody(s) || s.life < OKLIFE || s.suppressionPoints === 0) continue;
     const tol = calcSuppressionTolerance(t, s);
@@ -93,6 +103,7 @@ export function handleSuppressionFire(t: TacticalState, caused: Soldier | null):
     }
     s.actionPoints = ((s.actionPoints - lost) << 24) >> 24;
     s.apsLostToSuppression = total;
+    sayUnderHeavyFire(t, s, targeted);
     if (stance) {
       if (t.inCombat) {
         t.turn.attackBusyCount++;
@@ -162,7 +173,7 @@ export function internalReduceAttackBusyCount(
   if (t.turn.attackBusyCount > 0) t.turn.attackBusyCount--;
   if (t.turn.attackBusyCount > 0) return target;
   if (t.inCombat) {
-    handleSuppressionFire(t, soldier);
+    handleSuppressionFire(t, soldier?.target ?? null, soldier);
     if (t.turn.attackBusyCount > 0) return target;
   }
   if (meanwhileKeepsAttacker(t, soldier)) return target;

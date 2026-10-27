@@ -42,7 +42,12 @@ import {
   triggerNpcWithGivenApproach,
   triggerNpcWithIHateYouQuote,
 } from '../narrative/converse.ts';
-import { dialogueTextKey, soldierByProfile, tacticalCharacterDialogue } from '../narrative/dialogue-queue.ts';
+import {
+  delayedTacticalCharacterDialogue,
+  dialogueTextKey,
+  soldierByProfile,
+  tacticalCharacterDialogue,
+} from '../narrative/dialogue-queue.ts';
 import { elliotFaceVariant, type FaceVariant } from '../narrative/face-variant.ts';
 import { dealerTakesGive, giveToNpc, handleNpcItemGiven, returnItemToPlayer, takeGivenObject } from '../narrative/give.ts';
 import type { FactSource, NarrativeHost, NpcActionPort, QuestPort } from '../narrative/host.ts';
@@ -585,8 +590,9 @@ export class TalkFlow {
       npcConsiderInitiatingConv: (s) => npcConsiderInitiatingConv(host, s),
       triggerFriendWithHostileQuote: (profile) => triggerFriendWithHostileQuote(this.npcActions.env, profile),
       stuffMissingFromShipment: (gridNo) => stuffMissingFromShipment(host, gridNo, this.#shipmentDelivery()),
-      sayQuote: (s, quote) => {
-        tacticalCharacterDialogue(host, s, quote);
+      sayQuote: (s, quote, delayed) => {
+        if (delayed) delayedTacticalCharacterDialogue(host, s, quote);
+        else tacticalCharacterDialogue(host, s, quote);
       },
     };
   }
