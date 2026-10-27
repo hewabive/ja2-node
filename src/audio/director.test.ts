@@ -450,6 +450,23 @@ describe('the sound director', () => {
     expect(files(r)).toEqual([book.paths.get('METAL_DOOR_CLOSE')]);
   });
 
+  it('rings the metal of a struck vehicle and lets it neither cry out nor ring with bullet impacts', () => {
+    const ICE_CREAM_TRUCK = 23;
+    const r = rig();
+    r.director.reset([soldier(5, 'STANDING', 0, { bodyType: ICE_CREAM_TRUCK, team: 4, voice: 'bad1' })]);
+    r.director.applyFrames([
+      frame(
+        10,
+        [],
+        [
+          { type: 'vehicleStruck', tick: 10, soldier: 5, gridNo: G },
+          { type: 'soldierHit', tick: 10, soldier: 5, attacker: null, damage: 10, breathLoss: 0, location: 'torso', special: 0, life: 40 },
+        ],
+      ),
+    ]);
+    expect(files(r)).toEqual([book.paths.get('S_METAL_IMPACT3')]);
+  });
+
   it('opens a locker with its sound and lets the opener cheer half a second later', () => {
     const r = rig();
     r.director.reset([soldier(1, 'STANDING', 0)]);

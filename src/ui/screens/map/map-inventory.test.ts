@@ -214,7 +214,7 @@ async function harness(mercs: StrategicMercView[]): Promise<Harness> {
       exitGame: () => undefined,
       preBattle: () => undefined,
     },
-    sounds: { glowClick: () => undefined, newMessageBeep: () => undefined, confirmRoute: () => undefined },
+    sounds: { glowClick: () => undefined, newMessageBeep: () => undefined, confirmRoute: () => undefined, vehicleEntered: () => undefined },
     random: () => 0,
     metric: () => true,
     notifySleepWake: () => true,

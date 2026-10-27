@@ -2,12 +2,14 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-21. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Map_Screen_Interface.cc PlayGlowRegionSound (glowclick.wav at MIDVOLUME, one at a time);
 // @src src/game/Strategic/MapScreen.cc RandomAwakeSelectedMercConfirmsStrategicMove (DoMercBattleSound BATTLE_SOUND_OK1);
-// @src src/game/Utils/Message.cc PlayNewMessageSound (newbeep.wav, one at a time).
+// @src src/game/Utils/Message.cc PlayNewMessageSound (newbeep.wav, one at a time); src/game/Tactical/Vehicles.cc
+// @src AddSoldierToVehicle (the enter sound of a ground vehicle, vehicles.json enterSound, at HIGHVOLUME; the helicopter
+// @src has no vehicle soldier and stays silent).
 
 import { ClientRandom, seedFromText } from '../../audio/client-random.ts';
 import type { AudioEngine } from '../../audio/engine.ts';
 import { type BattleMemory, battleSoundCue, NO_BATTLE_MEMORY } from '../../content/audio/battle-sound.ts';
-import { cueOf } from '../../content/audio/cue.ts';
+import { cueOf, effectCue } from '../../content/audio/cue.ts';
 import { type CueBook, loadCueBook } from '../../content/audio/cue-book.ts';
 import type { PlayerView } from '../../protocol/view.ts';
 import type { MapSounds } from '../../ui/screens/map/environment.ts';
@@ -16,6 +18,8 @@ import { loadSettings } from '../settings.ts';
 
 const GLOW_CLICK = 'sounds/glowclick.wav';
 const NEW_BEEP = 'sounds/newbeep.wav';
+const INTO_VEHICLE = 'S_VECH1_INTO';
+const HIGHVOLUME = 127;
 const MIDVOLUME = 65;
 const OUR_TEAM = 0;
 const REGULAR_MALE = 0;
@@ -58,6 +62,12 @@ export class MapSound implements MapSounds {
   newMessageBeep(): void {
     if (this.#beep?.active) return;
     this.#beep = this.#engine.play(cueOf(NEW_BEEP, 'fixed', MIDVOLUME));
+  }
+
+  vehicleEntered(): void {
+    const book = this.#book;
+    const cue = book ? effectCue(book, INTO_VEHICLE, 'fixed', HIGHVOLUME) : null;
+    if (cue) this.#engine.play(cue);
   }
 
   confirmRoute(soldier: number): void {

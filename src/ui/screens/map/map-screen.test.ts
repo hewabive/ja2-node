@@ -124,6 +124,8 @@ describe('the map screen over the stub map-screen campaign', () => {
       withMap(async (f) => {
         const passenger = f.mercs[1] ?? -1;
         expect((await f.client.command({ type: 'boardVehicle', soldier: passenger, vehicle: 'helicopter' })).ok).toBe(true);
+        await f.settle();
+        expect(f.sounds).not.toContain('vehicleEntered');
         await f.click('filter4');
         expect(f.screen.hook().filters).toMatchObject({ airspace: true, towns: false });
         await f.clickSector('D13');

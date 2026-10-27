@@ -303,7 +303,10 @@ of the call animation (`ACR_SMELL_PREY`, `ACR_SMELL_THREAT`, `ACR_CRIPPLED`; the
 `LQ_ENRAGED_ATTACK`, `LQ_CRIPPLED`). The idle sounds of cows and crows (`RANDOM_ANIM_SOUND`) need no event: the browser
 runs code 491 for each pass of a loop that holds it (counted from the frame delay on the view clock, as a predictable
 loop sends no frames), every third pass rolls `Random(100)` on the browser's generator against the body's entries, and
-an injured (health `critical` or worse), wet or not standing animal stays silent.
+an injured (health `critical` or worse), wet or not standing animal stays silent. A vehicle struck by anything but gas
+reports `vehicleStruck {soldier, gridNo}` (`VehicleTakeDamage`, `S_METAL_IMPACT3`) and plays no bullet impact and no
+battle sound of its own; boarding a ground vehicle on the map screen (`vehicleBoarded`) plays its enter sound, the
+helicopter none.
 
 ### 4.5. CPU cost
 

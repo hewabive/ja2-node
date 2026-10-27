@@ -50,6 +50,7 @@ export interface MapSounds {
   glowClick(): void;
   newMessageBeep(): void;
   confirmRoute(soldier: number): void;
+  vehicleEntered(): void;
 }
 
 export interface MapMedia extends TacticalMedia {

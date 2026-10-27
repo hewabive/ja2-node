@@ -2,8 +2,9 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/LOS.cc BulletHitMerc; Weapons.cc WeaponHit; Soldier_Control.cc EVENT_SoldierGotHit,
 // @src CalcScreamVolume, DoGenericHit, SoldierGotHitGunFire, SoldierGotHitExplosion, SoldierGotHitBlade, SoldierGotHitPunch,
-// @src SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest), HandleTakeDamageDeath, CalcSoldierNextBleed, ReleaseSoldiersAttacker, CheckForFreeupFromHit,
-// @src SoldierCollapse, ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
+// @src SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest; a vehicle only sounds the hit,
+// @src Vehicles.cc VehicleTakeDamage's S_METAL_IMPACT3), HandleTakeDamageDeath, CalcSoldierNextBleed,
+// @src ReleaseSoldiersAttacker, CheckForFreeupFromHit, SoldierCollapse, ChangeToFlybackAnimation, ChangeToFallbackAnimation, BeginTyingToFall;
 // @src Soldier_Ani.cc OKFallDirection; Weapons.cc DoSpecialEffectAmmoMiss (the miniboom of HE and HEAT rounds, creature spit
 // @src gas). See docs/11 §4–§5.
 
@@ -657,7 +658,10 @@ export function soldierTakeDamage(
   s.lastDamageReason = reason;
   noticeMariaEscapeWhenKingpinsManIsHurt(t, s);
   const oldLife = s.life;
-  if (isVehicle(s)) return 0;
+  if (isVehicle(s)) {
+    if (reason !== DamageReason.GAS) t.events.push({ type: 'vehicleStruck', soldier: s.id, gridNo: s.gridNo });
+    return 0;
+  }
   if (s.npcShooting) {
     life = i16(s.life - 1);
     s.npcShooting = false;

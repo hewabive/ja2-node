@@ -289,6 +289,7 @@ export async function mapUiTest(kit: StubSectorKit, ui: MapUiKit): Promise<MapUi
       glowClick: () => sounds.push('glowClick'),
       newMessageBeep: () => sounds.push('newMessageBeep'),
       confirmRoute: (soldier) => sounds.push(`confirmRoute ${soldier}`),
+      vehicleEntered: () => sounds.push('vehicleEntered'),
     },
     random: (range) => (die++ * 7) % Math.max(1, range),
     metric: () => true,

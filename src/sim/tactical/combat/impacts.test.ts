@@ -7,9 +7,11 @@ import { Terrain } from '../../../content/world/terrain.ts';
 import type { SimEvent } from '../../events.ts';
 import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
-import { Team } from '../soldier.ts';
+import { Body, Team } from '../soldier.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { bulletViews } from '../world-view.ts';
+import { soldierTakeDamage } from './hit.ts';
+import { DamageReason } from './types.ts';
 
 let content: TacticalContent;
 
@@ -113,6 +115,15 @@ describe('the sounds of a miss (Weapons.cc StructureHit, ShotMiss; Structure.cc 
     const struck = events.findIndex((e) => e.type === 'structureStruck');
     expect(events[struck]).toMatchObject({ soldier: 0, material: 12 });
     expect(events.findIndex((e) => e.type === 'bulletImpact')).toBeGreaterThan(struck);
+  });
+
+  it('rings the metal of a vehicle struck by anything but gas (Vehicles.cc VehicleTakeDamage)', () => {
+    const sim = newCombatSim(content);
+    const truck = spawnSoldier(sim, 60, Team.CIV, gridNo(80, 80), Direction.SOUTH);
+    truck.bodyType = Body.ICECREAMTRUCK;
+    soldierTakeDamage(sim.state, truck, 10, 0, DamageReason.GUNFIRE, null);
+    soldierTakeDamage(sim.state, truck, 10, 0, DamageReason.GAS, null);
+    expect(sim.drainEvents().filter((e) => e.type === 'vehicleStruck')).toMatchObject([{ soldier: truck.id, gridNo: truck.gridNo }]);
   });
 });
 

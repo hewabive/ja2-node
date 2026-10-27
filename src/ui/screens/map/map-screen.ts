@@ -639,9 +639,15 @@ export class MapScreen implements Screen {
           flashes.set(key, { at: this.#now, up: event.change > 0 });
           this.#flashes.set(event.soldier, flashes);
         } else if (event.type === 'groupArrived' && event.final) this.#arrivalSelection(event.sector);
+        else if (event.type === 'vehicleBoarded' && !this.#isHelicopter(event.vehicle)) this.#env.sounds.vehicleEntered();
       }
     this.#inventory.frames(frames);
     this.#battle.frames(frames);
+  }
+
+  #isHelicopter(vehicle: number): boolean {
+    const heli = this.#strategic()?.helicopter;
+    return heli !== undefined && 'vehicle' in heli && heli.vehicle === vehicle;
   }
 
   #mercsIn(s: Sector, z: number): StrategicMercView[] {

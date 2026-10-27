@@ -2,7 +2,9 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc EVENT_InitNewSoldierAnim (the final footstep), TurnSoldier (turning footsteps),
 // @src PlaySoldierFootstepSound (silent in stealth mode), PlayStealthySoldierFootstepSound (Overhead.cc HandleAtNewGridNo),
-// @src InternalDoMercBattleSound (nothing from a muted soldier), EVENT_SoldierGotHit (impact and hit sounds);
+// @src InternalDoMercBattleSound (nothing from a muted soldier; a vehicle's goes to a random passenger, and none is on the
+// @src map), EVENT_SoldierGotHit (impact and hit sounds, none for a vehicle, which only rings its metal in Vehicles.cc
+// @src VehicleTakeDamage);
 // @src Tactical/Soldier_Ani.cc (death sounds, the creature battle cry of code 717 by the call kind); Tactical/Handle_Doors.cc
 // @src HandleDoorChangeFromGridNo (the close sound on the door's key frame); TileEngine/Interactive_Tiles.cc
 // @src HandleStructChangeFromGridNo (an openable's sound, the opener's battle sound 500 ms later); Tactical/Weapons.cc
@@ -67,6 +69,7 @@ const NO_VARIANT = 0;
 const FAR_VOLUME_MOD = 25;
 const DEFAULT_MINUTE_OF_DAY = 12 * 60;
 const RECRUITED_KINDS = new Set(['rpc', 'epc']);
+const isVehicleBody = (bodyType: number) => bodyType >= SoundBody.FIRST_VEHICLE && bodyType <= SoundBody.LAST_VEHICLE;
 const ANIM_STAND = 6;
 const DYING_HEALTH_INDEX = 0;
 const CRITICAL_HEALTH_INDEX = 1;
@@ -385,7 +388,7 @@ export class SoundDirector {
 
   #battleSound(id: number, sound: BattleSoundName, lowerVolume: boolean): void {
     const s = this.#soldiers.get(id);
-    if (!s || s.muted) return;
+    if (!s || s.muted || isVehicleBody(s.bodyType)) return;
     if (sound === 'DIE1') {
       if (this.#dead.has(id)) return;
       this.#dead.add(id);
@@ -481,6 +484,9 @@ export class SoundDirector {
       case 'catchEnded':
         this.#play(effectCue(book, 'CATCH_OBJECT', 'location', VolumeLevel.MID, e.gridNo));
         return;
+      case 'vehicleStruck':
+        this.#play(effectCue(book, 'S_METAL_IMPACT3', 'location', VolumeLevel.MID, e.gridNo));
+        return;
       case 'mortarWhistle':
         this.#mortarWhistle(e.sounding);
         return;
@@ -567,7 +573,7 @@ export class SoundDirector {
 
   #soldierHit(e: EventOf<'soldierHit'>): void {
     const s = this.#soldiers.get(e.soldier);
-    if (!s) return;
+    if (!s || isVehicleBody(s.bodyType)) return;
     const blade = e.attacker !== null && this.#attacks.get(e.attacker) === 'blade';
     this.#play(impactCue(this.#o.book, s.gridNo, blade, this.#rng.rand));
     if (e.life === 0) {
