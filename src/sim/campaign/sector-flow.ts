@@ -136,6 +136,7 @@ import { campaignNarrativePort, campaignScheduleClock } from './narrative-port.t
 import { type Roster, type RosterMerc, registeredInTactical } from './roster.ts';
 import {
   applyPreservedEnemyRecord,
+  captureBloodAndSmell,
   captureDoorStatus,
   captureLights,
   captureRevealed,
@@ -144,6 +145,7 @@ import {
   emptySectorDiff,
   loadPreservedCivilians,
   preserveSoldiers,
+  restoreBloodAndSmell,
   restoreCorpses,
   restoreDoorStatus,
   restoreLights,
@@ -599,7 +601,10 @@ export class SectorFlow {
         const inTown = sector.z === 0 && townIdOfSector(this.ctx, sector) !== NO_DIFFICULTY_TOWN;
         restoreCorpses(t, diff.corpses, { nowMinute: now, inTown, loadingSave: false });
       }
-      if (diff.mapChanges && this.#flagged(sector, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS)) restoreMapChanges(t, diff.mapChanges);
+      if (this.#flagged(sector, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS)) {
+        if (diff.mapChanges) restoreMapChanges(t, diff.mapChanges);
+        if (diff.bloodSmell) restoreBloodAndSmell(t, diff.bloodSmell);
+      }
       if (diff.openables) restoreOpenables(t, diff.openables);
       if (diff.revealed && this.#flagged(sector, SectorFlag.REVEALED_STATUS_TEMP_FILE_EXISTS)) restoreRevealed(t, diff.revealed);
       if (diff.doorStatus && this.#flagged(sector, SectorFlag.DOOR_STATUS_TEMP_FILE_EXISTS)) restoreDoorStatus(t, diff.doorStatus);
@@ -1084,7 +1089,8 @@ export class SectorFlow {
     diff.corpses = [...t.corpses];
     mark(SectorFlag.ROTTING_CORPSE_TEMP_FILE_EXISTS, true);
     diff.mapChanges = t.mapChanges.length > 0 ? [...t.mapChanges] : null;
-    mark(SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS, diff.mapChanges !== null);
+    diff.bloodSmell = captureBloodAndSmell(t);
+    mark(SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS, diff.mapChanges !== null || diff.bloodSmell.length > 0);
     diff.doorTable = [...t.world.mapDoors.values()];
     mark(SectorFlag.DOOR_TABLE_TEMP_FILES_EXISTS, true);
     diff.revealed = captureRevealed(t);

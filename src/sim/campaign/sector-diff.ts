@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Tactical_Save.cc SaveCurrentSectorsInformationToTempItemFile, LoadCurrentSectorsInformationFromTempItemsFile,
 // @src LoadAndAddWorldItemsFromTempFile, LoadRottingCorpsesFromTempCorpseFile; Rotting_Corpses.cc AddRottingCorpse (aging);
 // @src Enemy_Soldier_Save.cc NewWayOfSavingEnemyAndCivliansToTempFile, NewWayOfLoadingCiviliansFromTempFile;
-// @src TileEngine/SaveLoadMap.cc revealed status, the openable statuses (SaveBloodSmellAndRevealedStatesFromMapToTempFile,
+// @src TileEngine/SaveLoadMap.cc revealed status, blood and smell, the openable statuses
+// @src (SaveBloodSmellAndRevealedStatesFromMapToTempFile, AddBloodOrSmellFromMapTempFileToMap,
 // @src ChangeStatusOfOpenableStructInUnloadedSector); SmokeEffects.cc, LightEffects.cc temp files. See docs/16 §5.11, §5.12, §5.14.
 
 import type { MapDoor } from '../../content/formats/map.ts';
@@ -19,6 +20,7 @@ import { restoreSmokeCloud } from '../tactical/explosions/smoke.ts';
 import { findSoldierInitNodeBySoldier, type SoldierInitNode } from '../tactical/init-list.ts';
 import { sweetSpotForUnloadedDrop } from '../tactical/item-placement.ts';
 import { applyMapChanges, type MapChange } from '../tactical/map-changes.ts';
+import { restoreBloodAndSmellAt } from '../tactical/smell.ts';
 import { NO_PROFILE, type Soldier, TEAM_FIRST_ID, TEAM_SIZES, Team } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import { addItemToPool, Visibility, WorldItemFlags } from '../tactical/world-items.ts';
@@ -58,6 +60,12 @@ export interface DiffLight {
   readonly lastUpdate: number;
 }
 
+export interface DiffBloodSmell {
+  readonly gridNo: number;
+  readonly blood: number;
+  readonly smell: number;
+}
+
 export interface PreservedSoldiers {
   readonly savedMinute: number;
   readonly links: readonly (readonly [number, number])[];
@@ -77,6 +85,7 @@ export interface SectorDiff {
   revealed: RevealedState | null;
   doorStatus: DiffDoorStatus[] | null;
   openables?: OpenableStatus[];
+  bloodSmell?: DiffBloodSmell[];
   enemies: PreservedSoldiers | null;
   civilians: PreservedSoldiers | null;
   smoke: DiffSmoke[] | null;
@@ -143,6 +152,13 @@ export function captureDoorStatus(t: TacticalState): DiffDoorStatus[] {
 
 export function captureRevealed(t: TacticalState): RevealedState {
   return { revealed: Uint8Array.from(t.fog.revealed), roomHidden: Uint8Array.from(t.fog.roomHidden) };
+}
+
+export function captureBloodAndSmell(t: TacticalState): DiffBloodSmell[] {
+  const { blood, smell } = t.smell;
+  const out: DiffBloodSmell[] = [];
+  for (let g = 0; g < WORLD_MAX; g++) if (blood[g] || smell[g]) out.push({ gridNo: g, blood: blood[g] ?? 0, smell: smell[g] ?? 0 });
+  return out;
 }
 
 export function captureSmoke(t: TacticalState): DiffSmoke[] {
@@ -292,6 +308,10 @@ export function restoreCorpses(t: TacticalState, corpses: readonly Corpse[], agi
 export function restoreRevealed(t: TacticalState, revealed: RevealedState): void {
   t.fog.revealed.set(revealed.revealed);
   t.fog.roomHidden.set(revealed.roomHidden);
+}
+
+export function restoreBloodAndSmell(t: TacticalState, records: readonly DiffBloodSmell[]): void {
+  for (const r of records) restoreBloodAndSmellAt(t, r.gridNo, r.blood, r.smell);
 }
 
 export function restoreDoorStatus(t: TacticalState, statuses: readonly DiffDoorStatus[]): void {

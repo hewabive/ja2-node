@@ -20,8 +20,10 @@ import { Warp } from '../strategic/time/constants.ts';
 import { warpGameTime } from '../strategic/time/world-clock.ts';
 import { Situation } from '../tactical/ai/actions.ts';
 import { InvSlot } from '../tactical/inventory.ts';
+import { BloodKind, bloodFloorStrength, dropSmell, internalDropBlood, MAX_BLOOD_QUANTITY, smellStrength } from '../tactical/smell.ts';
 import { Body, NO_PROFILE, SoldierClass, Team } from '../tactical/soldier.ts';
 import { teamMembers, WaitForMercs } from '../tactical/state.ts';
+import { bloodViews } from '../tactical/world-view.ts';
 import { ROTTING_STAGE2, sectorKey } from './sector-diff.ts';
 
 let kit: CampaignKit;
@@ -36,6 +38,9 @@ afterAll(async () => {
 });
 
 const A9 = { x: 9, y: 1, z: 0 };
+const POOL_ROWS_SOUTH = 3;
+const STRONG_SMELL = 40;
+const UNSEEN = -1;
 const A10 = { x: 10, y: 1, z: 0 };
 const NO_GARRISON = { admins: 0, troops: 0, elites: 0 };
 
@@ -159,6 +164,33 @@ describe('leaving a sector', () => {
     expect(back.worldItems.map((wi) => [wi.gridNo, wi.object.item])).toEqual(dropped);
     expect(back.corpses.map((c) => c.type)).toEqual([ROTTING_STAGE2]);
     for (let g = 0; g < revealed.length; g++) if (revealed[g]) expect(back.fog.revealed[g]).toBeTruthy();
+  });
+
+  it('keeps the blood and smell of A9 and draws its pools again at once (SaveLoadMap.cc SLM_BLOOD_SMELL)', () => {
+    const { campaign } = createTestCampaign(kit, { seed: 8, garrison: NO_GARRISON });
+    landFirstSquad(campaign);
+    const merc = ourSoldiers(campaign)[0];
+    if (!merc) throw new Error('no merc');
+    const t = campaign.tactical?.state;
+    if (!t) throw new Error('no sector');
+    const pool = merc.gridNo + POOL_ROWS_SOUTH * 160;
+    const trail = pool + 1;
+    internalDropBlood(t, pool, 0, BloodKind.HUMAN, MAX_BLOOD_QUANTITY, UNSEEN);
+    dropSmell(t.smell, { level: 0, gridNo: trail, normalSmell: STRONG_SMELL, monsterSmell: 0 });
+    expect(bloodViews(t).some((p) => p.gridNo === pool)).toBe(false);
+    walkSquadToEastEdge(campaign);
+    campaign.dispatch({ type: 'exitSector', soldier: merc.id, direction: 'east', who: 'squad' });
+    runTicks(campaign, 2000, () => campaign.state.worldSector?.x === 10);
+    expect(campaign.state.sectorDiffs.get(sectorKey(A9))?.bloodSmell?.map((r) => r.gridNo)).toEqual([pool, trail]);
+    runUntilIdle(campaign);
+    walkWest(campaign);
+    expect(campaign.dispatch({ type: 'exitSector', soldier: merc.id, direction: 'west', who: 'squad' }).ok).toBe(true);
+    runTicks(campaign, 2000, () => campaign.state.worldSector?.x === 9);
+    const back = campaign.tactical?.state;
+    if (!back) throw new Error('no sector');
+    expect(bloodFloorStrength(back.smell.blood[pool] ?? 0)).toBeGreaterThan(0);
+    expect(bloodViews(back).find((p) => p.gridNo === pool)?.strength ?? 0).toBeGreaterThan(0);
+    expect(smellStrength(back.smell.smell[trail] ?? 0)).toBeGreaterThan(0);
   });
 });
 

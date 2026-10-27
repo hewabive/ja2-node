@@ -1103,6 +1103,7 @@ civilians `c_`, smoke `sm_`, lights `l_`, NPC data into profiles (only while sav
 | items | `i_`, `u32 n` × 52-byte `WORLDITEM` | all world items incl. non-existing slots | `SF_ALREADY_LOADED` → map items trashed first; else added to the map's; `GRIDNO_NOT_SET_USE_ENTRY_POINT` → centre gridno; `FIND_SWEETSPOT_FROM_GRIDNO` → nearest free within 5, then 15 (`:556-594`) |
 | corpses | `r_`, `u32 n` × 160 | `ROTTING_CORPSE_DEFINITION` incl. time of death | `RemoveCorpses`; sweet spot / entry-point flags; skip invalid gridno; in a town, not loading a save, indoors and dead ≥ 30 min → dropped; `AddRottingCorpse` rots and drops by age (§5.14); `HandleRottingCorpses` (`:624-693`) |
 | map changes | `m_`, 8-byte `MODIFY_MAP` (`TileEngine/SaveLoadMap.h`) | `SLM_LAND…ONROOF` add/remove graphics, `BLOOD_SMELL`, `DAMAGED_STRUCT`, `EXIT_GRIDS`, `OPENABLE_STRUCT`, `WINDOW_HIT` | `LoadAllMapChangesFromMapTempFileAndApplyThem` |
+| blood and smell | `m_`, `SLM_BLOOD_SMELL` records: every tile with `ubBloodInfo` or `ubSmellInfo` | the tile's blood and smell bytes (`bloodSmell [{gridNo, blood, smell}]`, ja2-node 2026-10-27) | `AddBloodOrSmellFromMapTempFileToMap`: the blood byte, then with blood and gore on the tile's pool redrawn at its present strength (the type is read before the smell byte, `docs/14` §10), then the smell byte; the records are consumed and written again when the sector is left, with `SF_MAP_MODIFICATIONS_TEMP_FILE_EXISTS` |
 | door table | `d_`, `u8 n` × 14 | locks, traps, lock damage, perceived state | replaces the map's |
 | revealed | `v_`, 3200 bytes (bit per gridno) | `MAPELEMENT_REVEALED` | `SetMapRevealedStatus` (`TileEngine/SaveLoadMap.cc:411-467`) |
 | door status | `ds_`, `u8 n` × 4 | open/closed, perceived | then `UpdateDoorGraphicsFromStatus` |
@@ -1407,7 +1408,7 @@ in `TrashWorld`. The `TacticalSim` becomes a child of a `CampaignSim` that owns 
 (`docs/15`) and the loaded sector.
 
 **`SectorDiff`** keyed by `x,y,z`: `items: WorldItem[]` (exact `WORLDITEM` fields incl. non-existing slots and flags),
-`corpses: CorpseDef[]`, `mapChanges: ModifyMap[]` (in order), `doorTable`, `doorStatus`, `revealed: Uint8Array(3200)`,
+`corpses: CorpseDef[]`, `mapChanges: ModifyMap[]` (in order), `bloodSmell`, `doorTable`, `doorStatus`, `revealed: Uint8Array(3200)`,
 `enemies` / `civilians: {links: [node, soldier][], savedMinute, records: SoldierCreate[]}`, `smoke`, `lights`. The
 `SF_*_TEMP_FILE_EXISTS` flags mirror which members exist. Save import (`docs/14`) converts every native temp file into
 diffs; the reader already keeps them as raw bytes.
@@ -1669,7 +1670,7 @@ soldiers keep the traversal quote action of `FindFleeSpot` and leave the map (`h
 
 | Module | Public API |
 |---|---|
-| `sector-diff.ts` | `SectorDiff` (items incl. non-existing slots, corpses with time of death, map changes, door table and status, revealed and room-hidden bits, preserved enemies and civilians with their init-list links, smoke and light records), `sectorKey`, the `capture*`/`restore*` pairs, `preserveSoldiers`, `agedCorpse`, `loadPreservedCivilians` |
+| `sector-diff.ts` | `SectorDiff` (items incl. non-existing slots, corpses with time of death, map changes, blood and smell, door table and status, revealed and room-hidden bits, preserved enemies and civilians with their init-list links, smoke and light records), `sectorKey`, the `capture*`/`restore*` pairs, `preserveSoldiers`, `agedCorpse`, `loadPreservedCivilians` |
 | `sector-flow.ts` | `SectorFlow`: `setCurrentWorldSector(sector, {autoPlacement, battleLocatorShown})` (§5.2–§5.5 with the diff, flags, enemies from the strategic counts or the preserved records, militia, civilians, the ambush call, guide flag, cosmetic draws), `adoptLoadedSector(links)` for save sessions, `checkAndHandleUnloadingOfCurrentWorld`, `handleDefiniteUnloadingOfWorld`, `saveCurrentSectorsInformation`, `trashWorld`, `prepareEnemyForSectorBattle`, `addPossiblePendingEnemiesToBattle`, `prepareMilitiaForTactical`, `resetMilitia`, `difficultyModifier`, `populationEnv`, `mapsNeededSoon(target)`, `enterSectorRefusal`; free functions `sectorWorldPort`, `dispatchSectorCommand`, `loadStartSector` |
 | `sector-exits.ts` | `okForSectorExit`, `exitMenu` (the dialog's checkbox table), `singleMoveAction`, `allMoveAction`, `jumpCodeOf`, `jumpIntoAdjacentSector`, `allMercsHaveWalkedOffSector` (warp to the start of minute + 5 or + 1, `WARPTIME_PROCESS_TARGET_TIME_FIRST`, 300 s retreat warp), `allMercsWalkedToExitGrid`, `exitCheck`, `exitSectorCommand` |
 

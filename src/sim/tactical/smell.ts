@@ -148,12 +148,18 @@ export function removeBlood(w: SmellWorld, g: number, level: number): void {
   updateBloodGraphics(w, g, level);
 }
 
-export function restoreBloodGraphics(w: SmellWorld, g: number): void {
+function redrawLoadedBlood(w: SmellWorld, g: number): void {
   if (!w.options.bloodAndGore) return;
   for (const level of [0, 1]) {
     w.smell.reevaluateBlood[g] = 1;
     updateBloodGraphics(w, g, level);
   }
+}
+
+export function restoreBloodAndSmellAt(w: SmellWorld, g: number, blood: number, smell: number): void {
+  w.smell.blood[g] = u8(blood);
+  redrawLoadedBlood(w, g);
+  w.smell.smell[g] = u8(smell);
 }
 
 export function decaySmells(m: SmellMap): void {
