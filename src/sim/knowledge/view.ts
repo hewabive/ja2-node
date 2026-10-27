@@ -103,6 +103,7 @@ export interface KnowledgeView {
   readonly mapPath: string | null;
   readonly soldiers: readonly KnowledgeSoldier[];
   readonly openDoors?: readonly number[];
+  readonly openContainers?: readonly number[];
   readonly doors?: readonly DoorView[];
   readonly combat?: KnowledgeCombat | null;
   readonly items?: readonly KnowledgeItem[];

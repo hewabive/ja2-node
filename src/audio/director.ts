@@ -1,18 +1,20 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Control.cc EVENT_InitNewSoldierAnim (the final footstep), TurnSoldier (turning footsteps),
-// @src PlaySoldierFootstepSound (silent in stealth mode), PlayStealthySoldierFootstepSound (Overhead.cc HandleAtNewGridNo),
-// @src InternalDoMercBattleSound (nothing from a muted soldier; a vehicle's goes to a random passenger, and none is on the
-// @src map), EVENT_SoldierGotHit (impact and hit sounds, none for a vehicle, which only rings its metal in Vehicles.cc
-// @src VehicleTakeDamage);
-// @src Tactical/Soldier_Ani.cc (death sounds, the creature battle cry of code 717 by the call kind); Tactical/Handle_Doors.cc
-// @src HandleDoorChangeFromGridNo (the close sound on the door's key frame); TileEngine/Interactive_Tiles.cc
-// @src HandleStructChangeFromGridNo (an openable's sound, the opener's battle sound 500 ms later); Tactical/Weapons.cc
-// @src UseGun, BulletHitStructure, StructureHit and ShotMiss (the miss sounds and the Random(40) curse of our mercs, drawn here, not in the simulation),
-// @src DoSpecialEffectAmmoMiss, WindowHit; TileEngine/Structure.cc DamageStructure (the material a bullet strikes);
-// @src TileEngine/Physics.cc (a thrown object landing, the mortar whistle, CATCH_OBJECT as a catch ends); Tactical/Handle_UI.cc and Real_Time_Input.cc
-// @src (OK and ATTN on orders and selection); Tactical/Soldier_Ani.cc code 491 (idle sounds, counted from the passes of
-// @src the loop that holds it, since the server sends no frames of a predictable loop). See docs/27 §3.1, §3.3.
+// @src src/game/Tactical/Soldier_Control.cc EVENT_InitNewSoldierAnim (the final footstep), TurnSoldier (turning
+// @src footsteps), PlaySoldierFootstepSound (silent in stealth mode), PlayStealthySoldierFootstepSound (Overhead.cc
+// @src HandleAtNewGridNo), InternalDoMercBattleSound (nothing from a muted soldier; a vehicle's goes to a random
+// @src passenger, and none is on the map), EVENT_SoldierGotHit (impact and hit sounds, none for a vehicle, which only
+// @src rings its metal in Vehicles.cc VehicleTakeDamage); Tactical/Soldier_Ani.cc (death sounds, the creature battle
+// @src cry of code 717 by the call kind); Tactical/Handle_Doors.cc HandleDoorChangeFromGridNo (the close sound on the
+// @src door's key frame); TileEngine/Interactive_Tiles.cc HandleStructChangeFromGridNo (an openable's sound from the
+// @src view's open containers, silent when Bobby Ray's delivery closes the crate as Strategic_Event_Handler.cc
+// @src CloseCrate does, the opener's battle sound 500 ms later); Tactical/Weapons.cc UseGun, BulletHitStructure,
+// @src StructureHit and ShotMiss (the miss sounds and the Random(40) curse of our mercs, drawn here, not in the
+// @src simulation), DoSpecialEffectAmmoMiss, WindowHit; TileEngine/Structure.cc DamageStructure (the material a bullet
+// @src strikes); TileEngine/Physics.cc (a thrown object landing, the mortar whistle, CATCH_OBJECT as a catch ends);
+// @src Tactical/Handle_UI.cc and Real_Time_Input.cc (OK and ATTN on orders and selection); Tactical/Soldier_Ani.cc code
+// @src 491 (idle sounds, counted from the passes of the loop that holds it, since the server sends no frames of a
+// @src predictable loop). See docs/27 §3.1, §3.3.
 
 import { ticksPerFrame } from '../content/anim/schedule-track.ts';
 import { type AnimationTables, AnimFlags } from '../content/anim/tables.ts';
@@ -69,6 +71,8 @@ const NO_VARIANT = 0;
 const FAR_VOLUME_MOD = 25;
 const DEFAULT_MINUTE_OF_DAY = 12 * 60;
 const RECRUITED_KINDS = new Set(['rpc', 'epc']);
+const CONTENTS_EXCLAMATION_DELAY_MS = 500;
+const NO_MATERIAL = 0;
 const isVehicleBody = (bodyType: number) => bodyType >= SoundBody.FIRST_VEHICLE && bodyType <= SoundBody.LAST_VEHICLE;
 const ANIM_STAND = 6;
 const DYING_HEALTH_INDEX = 0;
@@ -76,6 +80,7 @@ const CRITICAL_HEALTH_INDEX = 1;
 
 export interface SoundWorld {
   terrainAt(gridNo: number): number;
+  openableMaterialAt(gridNo: number): number | null;
   readonly ambient: readonly AmbientEntry[];
 }
 
@@ -164,6 +169,7 @@ export class SoundDirector {
   readonly #idleLoops = new Map<number, IdleLoop>();
   readonly #idleCounters = new Map<number, number>();
   readonly #idleLoopFrames = new Map<number, number | null>();
+  #openContainers = new Set<number>();
   #whistle: VoiceHandle | null = null;
   readonly #attacks = new Map<number, AttackKind>();
   readonly #speechQueue: QueuedLine[] = [];
@@ -184,10 +190,11 @@ export class SoundDirector {
     return this.#rng.rand;
   }
 
-  reset(soldiers: readonly SoldierView[]): void {
+  reset(soldiers: readonly SoldierView[], openContainers: readonly number[] = []): void {
     this.#soldiers.clear();
     this.#timelines.clear();
     for (const s of soldiers) this.#soldierChanged(s, false);
+    this.#openContainers = new Set(openContainers);
   }
 
   setWorld(world: SoundWorld | null): void {
@@ -236,6 +243,7 @@ export class SoundDirector {
       for (const e of events) this.#remember(e);
       for (const id of frame.removed) this.#soldiers.delete(id);
       for (const s of frame.changed) this.#soldierChanged(s, audible);
+      if (frame.openContainers) this.#containersChanged(frame.openContainers, audible, events);
       for (const e of events) {
         this.stats.events++;
         if (audible) this.#event(e);
@@ -482,10 +490,7 @@ export class SoundDirector {
         this.#play(effectCue(book, 'THROW_IMPACT_2', 'location', VolumeLevel.MID, e.gridNo));
         return;
       case 'catchEnded':
-        this.#play(effectCue(book, 'CATCH_OBJECT', 'location', VolumeLevel.MID, e.gridNo));
-        return;
-      case 'vehicleStruck':
-        this.#play(effectCue(book, 'S_METAL_IMPACT3', 'location', VolumeLevel.MID, e.gridNo));
+        this.#play(this.#located(e.soldier, effectCue(book, 'CATCH_OBJECT', 'location', VolumeLevel.MID)));
         return;
       case 'mortarWhistle':
         this.#mortarWhistle(e.sounding);
@@ -511,11 +516,8 @@ export class SoundDirector {
       case 'doorTrap':
         this.#play(doorTrapCue(book, e.trap, e.gridNo));
         return;
-      case 'openableChanged':
-        this.#play(openableCue(book, e.gridNo, e.material, e.open));
-        return;
       case 'contentsExclaimed':
-        this.#o.later(e.delayMs, () => this.#battleSound(e.soldier, e.sound, false));
+        this.#o.later(CONTENTS_EXCLAMATION_DELAY_MS, () => this.#battleSound(e.soldier, e.sound, false));
         return;
       case 'itemDropped':
         if (this.#soldiers.has(e.soldier)) this.#play(dropCue(book, e.gridNo));
@@ -566,6 +568,21 @@ export class SoundDirector {
     this.#whistle = sounding ? this.#play(effectCue(this.#o.book, 'MORTAR_WHISTLE', 'fixed', VolumeLevel.HIGH)) : null;
   }
 
+  #containersChanged(open: readonly number[], audible: boolean, events: NonNullable<ViewFrame['events']>): void {
+    const now = new Set(open);
+    const quietClose = events.some((e) => e.type === 'shipmentDelivered');
+    if (audible) {
+      for (const g of now) if (!this.#openContainers.has(g)) this.#openableSound(g, true);
+      if (!quietClose) for (const g of this.#openContainers) if (!now.has(g)) this.#openableSound(g, false);
+    }
+    this.#openContainers = now;
+  }
+
+  #openableSound(gridNo: number, open: boolean): void {
+    const material = this.#world?.openableMaterialAt(gridNo) ?? NO_MATERIAL;
+    this.#play(openableCue(this.#o.book, gridNo, material, open));
+  }
+
   #stealthyFootstep(soldier: number): void {
     const s = this.#soldiers.get(soldier);
     if (s) this.#footstep(s, true);
@@ -573,7 +590,11 @@ export class SoundDirector {
 
   #soldierHit(e: EventOf<'soldierHit'>): void {
     const s = this.#soldiers.get(e.soldier);
-    if (!s || isVehicleBody(s.bodyType)) return;
+    if (!s) return;
+    if (isVehicleBody(s.bodyType)) {
+      this.#play(effectCue(this.#o.book, 'S_METAL_IMPACT3', 'location', VolumeLevel.MID, s.gridNo));
+      return;
+    }
     const blade = e.attacker !== null && this.#attacks.get(e.attacker) === 'blade';
     this.#play(impactCue(this.#o.book, s.gridNo, blade, this.#rng.rand));
     if (e.life === 0) {

@@ -60,7 +60,7 @@ function lowerHands(t: TacticalState, catcher: Soldier): void {
 
 function doCatchObject(t: TacticalState, catcher: Soldier, o: RealObject): boolean {
   lowerHands(t, catcher);
-  t.events.push({ type: 'catchEnded', soldier: catcher.id, gridNo: catcher.gridNo });
+  t.events.push({ type: 'catchEnded', soldier: catcher.id });
   o.catchAnimOn = false;
   if (!o.catchGood) return false;
   const item = o.object.item;
@@ -84,5 +84,5 @@ export function endCatchAnimation(t: TacticalState, o: RealObject): void {
   if (!o.catchAnimOn || !catcher) return;
   o.catchAnimOn = false;
   lowerHands(t, catcher);
-  t.events.push({ type: 'catchEnded', soldier: catcher.id, gridNo: catcher.gridNo });
+  t.events.push({ type: 'catchEnded', soldier: catcher.id });
 }

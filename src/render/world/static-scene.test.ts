@@ -27,7 +27,7 @@ const viewport: Viewport = { width: 640, height: 360 };
 const camera: Camera = { centerX: 805, centerY: 805 };
 const T = (name: string, sub = 1) => ({ type: typeIndex(tables, name), subIndex: sub });
 const g = (x: number, y: number) => y * WORLD_COLS + x;
-const DEFAULT_STATE: StaticState = { reveal: NO_REVEAL, openDoors: new Set(), treeTops: true, wireframes: true, roofLevel: false };
+const DEFAULT_STATE: StaticState = { reveal: NO_REVEAL, openStructures: new Set(), treeTops: true, wireframes: true, roofLevel: false };
 
 type Cells = Partial<Record<(typeof LAYER_NAMES)[number], [number, { type: number; subIndex: number }[]][]>>;
 

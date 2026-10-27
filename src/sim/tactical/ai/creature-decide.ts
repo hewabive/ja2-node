@@ -160,7 +160,7 @@ export function creatureCall(t: TacticalState, caller: Soldier): void {
   t.perception.awareOfOpposition[caller.team] = true;
   const full = fullCallPriority(caller);
   const call = CALL_NAMES[caller.ai.actionData];
-  if (call) t.events.push({ type: 'creatureCall', soldier: caller.id, call });
+  if (call && caller.visible >= 0) t.events.push({ type: 'creatureCall', soldier: caller.id, call });
   playCallAnimation(t, caller);
   for (const r of teamMembers(t, caller.team)) {
     if (!hearsCall(caller, r)) continue;

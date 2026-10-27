@@ -298,15 +298,15 @@ ends). A knife thrown at a structure keeps its knife miss sound on `bulletStoppe
 reports as `stealthyFootstep {soldier}` on each new tile where our merc in stealth mode makes movement noise
 (`HandleAtNewGridNo`, `PlayStealthySoldierFootstepSound`); a `muted` merc plays no battle sound at all; the low-morale
 confirmations use the view's `morale`. A creature's call reports its kind as `creatureCall {soldier, call:
-onePrey|multiplePrey|attacked|crippled}` (`CreatureCall`, the AI's `usActionData`), and the browser cries it at code 717
-of the call animation (`ACR_SMELL_PREY`, `ACR_SMELL_THREAT`, `ACR_CRIPPLED`; the queen's `LQ_SMELLS_THREAT`,
-`LQ_ENRAGED_ATTACK`, `LQ_CRIPPLED`). The idle sounds of cows and crows (`RANDOM_ANIM_SOUND`) need no event: the browser
-runs code 491 for each pass of a loop that holds it (counted from the frame delay on the view clock, as a predictable
-loop sends no frames), every third pass rolls `Random(100)` on the browser's generator against the body's entries, and
-an injured (health `critical` or worse), wet or not standing animal stays silent. A vehicle struck by anything but gas
-reports `vehicleStruck {soldier, gridNo}` (`VehicleTakeDamage`, `S_METAL_IMPACT3`) and plays no bullet impact and no
-battle sound of its own; boarding a ground vehicle on the map screen (`vehicleBoarded`) plays its enter sound, the
-helicopter none.
+onePrey|multiplePrey|attacked|crippled}` (`CreatureCall`, the AI's `usActionData`) when the squad sees the caller, and
+the browser cries it at code 717 of the call animation (`ACR_SMELL_PREY`, `ACR_SMELL_THREAT`, `ACR_CRIPPLED`; the
+queen's `LQ_SMELLS_THREAT`, `LQ_ENRAGED_ATTACK`, `LQ_CRIPPLED`). The idle sounds of cows and crows (`RANDOM_ANIM_SOUND`)
+need no event: the browser runs code 491 for each pass of a loop that holds it (counted from the frame delay on the view
+clock, as a predictable loop sends no frames), every third pass rolls `Random(100)` on the browser's generator against
+the body's entries, and an injured (health `critical` or worse), wet or not standing animal stays silent. A struck
+vehicle (`soldierHit` on a vehicle body: all its damage but gas comes through `EVENT_SoldierGotHit`) rings its metal
+(`VehicleTakeDamage`, `S_METAL_IMPACT3`) and plays no bullet impact and no battle sound of its own; boarding a ground
+vehicle on the map screen (`vehicleBoarded`) plays its enter sound, the helicopter none.
 
 ### 4.5. CPU cost
 
@@ -757,13 +757,15 @@ action, result, trap?}` (`opened`, `closed`, `locked`, `failed`, `noLock`, `lock
 `doorTrap {soldier, gridNo, trap}` (never for the silent alarm), `lockDestroyed {soldier, gridNo}` and `doorChanged`.
 Crates, lockers, cabinets and switches (an openable structure without a door) take `open` and `close` too: the soldier
 walks next to them (`FindAdjacentGridEx` with its door rule, `FindAdjacentGridExAdvanced` for a switch) and opens or
-closes them as `HandleStructChangeFromGridNo` does: the event `openableChanged {soldier, gridNo, open, material}` (the
-structure's armour picks the locker, wooden box or default sound), the contents shown (or hidden again when closed, a
-switch fires the action items of its frequency), the Drassen shipment check (a merc nearby may notice Pablo's theft,
-`QUOTE_STUFF_MISSING_DRASSEN`) and `contentsExclaimed {soldier, sound: NOTHING|HUMM|COOL1, delayMs: 500}` for the
-opener's battle sound; other actions refuse with `noDoor`. The view's `openDoors` lists the base tiles of open
-containers and switches as well as open doors, and a sector remembers which ones were open when it is left
-(`SaveBloodSmellAndRevealedStatesFromMapToTempFile`).
+closes them as `HandleStructChangeFromGridNo` does: the contents shown (or hidden again when closed, a switch fires the
+action items of its frequency), the Drassen shipment check (a merc nearby may notice Pablo's theft,
+`QUOTE_STUFF_MISSING_DRASSEN`) and `contentsExclaimed {soldier, sound: NOTHING|HUMM|COOL1}` for the opener's battle
+sound, which the browser plays 500 ms later; other actions refuse with `noDoor`. The view's `openContainers` lists the
+base tiles of the open containers and switches (`openDoors` keeps the doors), and a sector remembers which ones were
+open when it is left (`SaveBloodSmellAndRevealedStatesFromMapToTempFile`). The browser plays the open and close sounds
+from the changes of `openContainers` (the structure's armour on its own map picks the locker, wooden box or default
+sound, `GetStructureOpenSound`), except the close of a Bobby Ray crate in the frame of its `shipmentDelivered`, which
+`CloseCrate` makes silently.
 `observe.doors` lists the doors whose lock or trap the player knows (`locked`: `unknown|locked|unlocked|broken`, `trap`:
 `unknown|none|noneFound|<trap>`); our soldiers carry `keys` (key ring: key id, count, the key item as `item` and `index` (`LockTable[keyID].usKeyItem`, `getKeyItemForKeyId`), sector and day found) and key items
 show `keyId`. Lock tables, trap levels and lock damage stay hidden.
@@ -1225,7 +1227,7 @@ stack popup) or `"all"` (the shift-click, the default of `moveItem` and `drop`).
 |---|---|---|
 | `moveItem {soldier, from, to, toSoldier?, count?, index?, merge?}` | `SMInvClickCallbackPrimary`, `UIHandleItemPlacement`, `PlaceObject` | Free inside one inventory (also in combat). To another merc of ours (`CheckForDisabledForGiveItem`): he must be in sight within 3 tiles (2 when he is unconscious; for a merc below OK life, any merc of ours within 2 tiles who sees him enables it); both conscious mercs need 3 AP and pay 2 each in combat; a swapped-out item then stays with the receiving merc (the cancel puts it into his slot with the source slot's number, a free pocket or his feet). Onto a hand or armour slot whose item the moved item attaches to: `useAttach`; onto one it merges with (`ValidMerge`): `mergePrompt`, then `merge: true` runs `AttachObject` (no transfer AP, `AP_MERGE` for real merges) and `merge: false` swaps. `to: "ground"` is `drop`. Nails keeps his jacket (`nailsVest`). Other refusals: `badSlot`, `badCount`, `badIndex`, `emptySlot`, `sameSlot`, `noSuchTarget`, `noInventory` (escorts, vehicles), `tooFar`, `noLineOfSight`, `notEnoughAP`, `doesNotFit` (`CanItemFitInPosition`, face items that clash, a two-handed item into a full pair of hands). Ammunition dropped on a gun reloads it (`ReloadGun`, 5/10 AP in combat). Event `itemMoved`; a hand change plays `LOWER_RIFLE`/`RAISE_RIFLE` and resets burst mode (`ReLoadSoldierAnimationDueToHandItemChange`), a face item re-runs sight (`PlaceObject`) |
 | `drop {soldier, slot?, count?, index?}` | `HandleItemPointerClick` on the soldier's tile, `SoldierDropItem` | 3 AP (`AP_PICKUP_ITEM`), the `DROP_ITEM` animation when standing; event `itemDropped` |
-| `toss {soldier, slot?, count?, index?, gridNo, level?}` | `HandleItemPointerClick`'s toss: the object leaves the slot and flies with `THROW_ITEM` or `LOB_ITEM` (`CalculateLaunchItemParamsForThrow` without a miss); a merc of ours on the tile beyond passing range turns to the thrower and tries to catch it (`PreRandom(100)` against 50 + dexterity / 2 within one tile, `AutoPlaceObject`, else he is struck for one point and it falls); escorts, the unconscious and swimmers cannot toss | `AP_TOSS_ITEM` (8) at the release, no turning cost; refusals `tooClose` (drop instead), `passInstead` (`give` instead), `targetMoving`, `badThrow` (`CalculateLaunchItemChanceToGetThrough` fails), `cannotToss`, `notEnoughAP`; events `catchEnded {soldier, gridNo}` (`CATCH_OBJECT`) and `itemCaught {soldier, item}` (`MSG_MERC_CAUGHT_ITEM`) |
+| `toss {soldier, slot?, count?, index?, gridNo, level?}` | `HandleItemPointerClick`'s toss: the object leaves the slot and flies with `THROW_ITEM` or `LOB_ITEM` (`CalculateLaunchItemParamsForThrow` without a miss); a merc of ours on the tile beyond passing range turns to the thrower and tries to catch it (`PreRandom(100)` against 50 + dexterity / 2 within one tile, `AutoPlaceObject`, else he is struck for one point and it falls); escorts, the unconscious and swimmers cannot toss | `AP_TOSS_ITEM` (8) at the release, no turning cost; refusals `tooClose` (drop instead), `passInstead` (`give` instead), `targetMoving`, `badThrow` (`CalculateLaunchItemChanceToGetThrough` fails), `cannotToss`, `notEnoughAP`; events `catchEnded {soldier}` (`CATCH_OBJECT`) and `itemCaught {soldier, item}` (`MSG_MERC_CAUGHT_ITEM`) |
 | `attach {soldier, item, to, toSoldier?, index?, count?, permanent?}` | `ItemDescAttachmentsCallbackPrimary`, `DoAttachment`, `AttachObject` | The item description box of the item in `to` (also another merc's in passing range, without transfer AP): needs `AP_RELOAD_GUN` (5) left in combat and, when the host's attachments (item or status) change, spends `AP_RELOAD_GUN` from the attaching merc (the original's charge when the description box closes, made per command: deviation "Attachment AP"); merges other than kit or ammo points cost `AP_MERGE` (8). The `ATTACHING_*` skill checks (`AttachmentInfo`; merges −30) draw `PreRandom` and damage both items on failure; combo merges (`SPRING_AND_BOLT_UPGRADE`, …) grant mechanical experience; `index` is the stack object that kit points pour into. Inseparable attachments ask first (`permanentAttachment`, repeat with `permanent: true`); `cannotAttach`. `data.result`: `attached`, `merged`, `destroyed` (a bad compound merge), `failedCheck`; event `itemAttached` |
 | `detach {soldier, slot, attachment, to?}` | `ItemDescAttachmentsCallbackPrimary`, `RemoveAttachment` | Needs 8 AP left in combat (`AP_RELOAD_GUN + AP_PICKUP_ITEM`) and spends `AP_RELOAD_GUN` (deviation "Attachment AP"); `inseparable`, `noAttachment`; into `to` or a free pocket (`noRoom`, `doesNotFit`); an under-barrel launcher takes its grenade along; event `itemDetached` |
 | `unload {soldier, slot?, to?}` | `ItemDescAmmoCallback`, `EmptyWeaponMagazine` | Free; the magazine keeps the rounds, the gun remembers the magazine type; `notAGun`, `gunEmpty`, `noRoom`; event `gunUnloaded` |
@@ -1373,7 +1375,7 @@ functions over the **player-knowledge projection** (`28` §2.4).
 
 **The projection** (`src/sim/knowledge/`). `knowledgeWorld(view, rules, {strict?})` builds from a player view and the
 rule content the minimal world the hint functions read: for tactical hints a `TacticalState` over a fresh copy of the
-sector's world (`TacticalProjection`, cached per map and synced per view), with the doors set to the view's `openDoors`
+sector's world (`TacticalProjection`, cached per map and synced per view), with the doors set to the view's `openDoors` and the containers to its `openContainers`
 and their perceived lock and trap from `doors`, the ground items of `items`, the light of `light` (the base level and the
 powered light sprites, drawn by the simulation's lighting over the projected doors), the player's soldiers in full
 (the view's own fields, the inventory rebuilt as objects, and the own soldiers' `hint` inputs: skill traits,

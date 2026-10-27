@@ -118,7 +118,7 @@ function render(): void {
       wireframes: wireframes.checked,
     },
     shade: lighting.field({ time, openDoors: new Set(), mercLights: [] }),
-    openDoors: new Set(),
+    openStructures: new Set(),
     revealedRooms: new Set(),
     soldiers: [],
     items: [],

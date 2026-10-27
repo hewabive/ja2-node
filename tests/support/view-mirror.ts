@@ -34,6 +34,7 @@ export function canonicalView(
     ended: view.ended ?? null,
     boxing: view.boxing ?? null,
     openDoors: view.openDoors ?? [],
+    openContainers: view.openContainers ?? [],
     doors: view.doors ?? [],
     combat: view.combat ?? null,
     revealedRooms: view.revealedRooms ?? [],

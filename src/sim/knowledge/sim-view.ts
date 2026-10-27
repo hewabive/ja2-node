@@ -21,6 +21,7 @@ export function tacticalViewParts(sim: TacticalSim, presentation: PresentationTi
     mapPath: sim.mapPath,
     soldiers: sim.snapshot(presentation, shownToPlayer),
     openDoors: sim.openDoors(),
+    openContainers: sim.openContainers(),
     doors: sim.doors(),
     combat: sim.combatView(),
     revealedRooms: revealedRooms(sim.state),

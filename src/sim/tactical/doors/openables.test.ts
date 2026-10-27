@@ -7,7 +7,7 @@ import { has, StructureFlags } from '../../../content/world/structures.ts';
 import { syntheticStructure } from '../../../content/world/synthetic.ts';
 import { createItem } from '../../items/object.ts';
 import type { TacticalContent } from '../content.ts';
-import { openableStatuses, setOpenableStructStatus } from '../doors.ts';
+import { openableStatuses, openContainerGridNos, setOpenableStructStatus } from '../doors.ts';
 import { type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
@@ -54,19 +54,19 @@ const visibility = (t: TacticalState) => t.worldItems.filter((wi) => wi.gridNo =
 const exclamations = (t: TacticalState) => t.events.flatMap((e) => (e.type === 'contentsExclaimed' ? [e.sound] : []));
 
 describe('HandleStructChangeFromGridNo', () => {
-  it('opens a crate with its sound, shows what it holds with a HUMM and hides it again when closed', () => {
+  it('opens a crate, shows what it holds with a HUMM and hides it again when closed', () => {
     const { t, opener } = crateBeside(['FIRSTAIDKIT']);
     handleStructChangeFromGridNo(t, opener, CRATE);
     expect(crateOpen(t)).toBe(true);
     expect(visibility(t)).toEqual([Visibility.VISIBLE]);
-    expect(t.events.find((e) => e.type === 'openableChanged')).toMatchObject({ soldier: 0, gridNo: CRATE, open: true, material: 22 });
-    expect(t.events.find((e) => e.type === 'contentsExclaimed')).toMatchObject({ soldier: 0, sound: 'HUMM', delayMs: 500 });
+    expect(openContainerGridNos(t)).toEqual([CRATE]);
+    expect(t.events.find((e) => e.type === 'contentsExclaimed')).toMatchObject({ soldier: 0, sound: 'HUMM' });
     expect(t.events.some((e) => e.type === 'itemsRevealed')).toBe(true);
     t.events.length = 0;
     handleStructChangeFromGridNo(t, opener, CRATE);
     expect(crateOpen(t)).toBe(false);
     expect(visibility(t)).toEqual([Visibility.HIDDEN_IN_OBJECT]);
-    expect(t.events.find((e) => e.type === 'openableChanged')).toMatchObject({ open: false });
+    expect(openContainerGridNos(t)).toEqual([]);
     expect(exclamations(t)).toEqual([]);
   });
 
@@ -111,10 +111,11 @@ describe('HandleStructChangeFromGridNo', () => {
       ok: true,
       data: { walking: true },
     });
-    const events = runUntilIdle(sim);
+    runUntilIdle(sim);
     expect(crateOpen(t)).toBe(true);
     expect(visibility(t)).toEqual([Visibility.VISIBLE]);
-    expect(events.filter((e) => e.type === 'openableChanged')).toMatchObject([{ soldier: merc.id, open: true }]);
+    expect(sim.openContainers()).toEqual([CRATE]);
+    expect(sim.openDoors()).toEqual([]);
     expect(sim.dispatch({ type: 'door', soldier: merc.id, gridNo: CRATE, action: 'open' })).toMatchObject({
       ok: false,
       data: { refusal: 'alreadyOpen' },
@@ -126,7 +127,7 @@ describe('HandleStructChangeFromGridNo', () => {
     expect(sim.dispatch({ type: 'door', soldier: merc.id, gridNo: CRATE, action: 'close' })).toMatchObject({ ok: true });
     runUntilIdle(sim);
     expect(crateOpen(t)).toBe(false);
-    expect(sim.openDoors()).toEqual([]);
+    expect(sim.openContainers()).toEqual([]);
   });
 
   it('records the status of every openable tile and puts a reloaded crate back as it was, contents included', () => {

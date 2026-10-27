@@ -130,10 +130,12 @@ export function isOpenableOpenAt(t: Pick<TacticalState, 'world'>, gridNo: number
 }
 
 export function openDoorGridNos(t: TacticalState): number[] {
-  const doors = new Set([...doorGridNos(t.world), ...t.doorStatus.keys()]);
-  const open = [...doors].filter((g) => isDoorOpenAt(t, g));
-  const containers = containerGridNos(t.world).filter((g) => isOpenableOpenAt(t, g));
-  return [...open, ...containers].sort((a, b) => a - b);
+  const candidates = new Set([...doorGridNos(t.world), ...t.doorStatus.keys()]);
+  return [...candidates].filter((g) => isDoorOpenAt(t, g)).sort((a, b) => a - b);
+}
+
+export function openContainerGridNos(t: TacticalState): number[] {
+  return containerGridNos(t.world).filter((g) => isOpenableOpenAt(t, g));
 }
 
 export function isDoorOpenAt(t: TacticalState, gridNo: number): boolean {

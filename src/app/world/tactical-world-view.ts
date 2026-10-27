@@ -38,6 +38,7 @@ export interface TacticalViewState {
   readonly soldiers: readonly SoldierView[];
   readonly items: readonly ItemView[];
   readonly openDoors: readonly number[];
+  readonly openContainers?: readonly number[];
   readonly revealedRooms: readonly number[];
   readonly clock: ClockView | null;
   readonly combat: CombatView | null;
@@ -300,7 +301,7 @@ export class TacticalWorldView {
       clockMs: f.clockMs,
       options: f.options,
       shade,
-      openDoors,
+      openStructures: new Set([...view.openDoors, ...(view.openContainers ?? [])]),
       revealedRooms: new Set(view.revealedRooms),
       soldiers,
       items: this.#items(view.items),

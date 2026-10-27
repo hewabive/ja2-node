@@ -250,6 +250,7 @@ function render(): void {
       soldiers: soldiers(),
       items: client?.items ?? [],
       openDoors: client?.openDoors ?? [],
+      openContainers: client?.openContainers ?? [],
       revealedRooms: client?.revealedRooms ?? [],
       clock: client?.clock ?? null,
       combat: client?.combat ?? null,
@@ -545,7 +546,7 @@ async function start(): Promise<void> {
     debug.lightTemplatesFromData = lightTemplates.fromData;
     debug.mercLightOrigin = lightTemplates.resolve(MERC_LIGHT)?.origin ?? null;
     await sound.load(available, assets.tables, client.session ?? 'local');
-    sound.director?.reset(client.soldiers);
+    sound.director?.reset(client.soldiers, client.openContainers);
     sound.music.reset(client.view?.music);
     client.onFrames = (frames) => {
       sound.frames(frames);

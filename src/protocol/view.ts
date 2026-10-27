@@ -925,6 +925,7 @@ export interface PlayerView {
   readonly boxing?: BoxingView | null;
   readonly soldiers: readonly SoldierView[];
   readonly openDoors?: readonly number[];
+  readonly openContainers?: readonly number[];
   readonly doors?: readonly DoorView[];
   readonly combat?: CombatView | null;
   readonly revealedRooms?: readonly number[];
@@ -963,6 +964,7 @@ export interface ViewFrame {
   readonly ended?: CampaignEndedView | null;
   readonly boxing?: BoxingView | null;
   readonly openDoors?: readonly number[];
+  readonly openContainers?: readonly number[];
   readonly doors?: readonly DoorView[];
   readonly combat?: CombatView | null;
   readonly revealedRooms?: readonly number[];
@@ -1027,6 +1029,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
   let frame = diffView(previous.soldiers, next.soldiers, next.tick);
   if (!sameList(previous.openDoors, next.openDoors))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), openDoors: next.openDoors ?? [] };
+  if (!sameList(previous.openContainers, next.openContainers))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), openContainers: next.openContainers ?? [] };
   if (!sameJson(previous.doors ?? [], next.doors ?? []))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), doors: next.doors ?? [] };
   if (!sameList(previous.revealedRooms, next.revealedRooms))

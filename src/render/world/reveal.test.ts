@@ -57,7 +57,7 @@ describe('revealed rooms on the stub village', () => {
       topY: 860,
       sprite: (tile) => ({ layer: 0, x: 0, y: tile, width: 40, height: 20, offsetX: 0, offsetY: 0, paletteBase: 0 }),
     };
-    const state = { reveal: NO_REVEAL, openDoors: new Set<number>(), treeTops: true, wireframes: true, roofLevel: false };
+    const state = { reveal: NO_REVEAL, openStructures: new Set<number>(), treeTops: true, wireframes: true, roofLevel: false };
     const scene = new StaticScene(staticWorld, state);
     const roofsBefore = roofCount(scene);
     scene.setState({ ...state, reveal: revealed }, changed.map(rowOf));

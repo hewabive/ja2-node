@@ -173,16 +173,9 @@ export interface CreatureCallEvent extends SimEventBase {
   readonly call: CreatureCallName;
 }
 
-export interface VehicleStruckEvent extends SimEventBase {
-  readonly type: 'vehicleStruck';
-  readonly soldier: number;
-  readonly gridNo: number;
-}
-
 export interface CatchEndedEvent extends SimEventBase {
   readonly type: 'catchEnded';
   readonly soldier: number;
-  readonly gridNo: number;
 }
 
 export interface ItemCaughtEvent extends SimEventBase {
@@ -592,7 +585,6 @@ export type SimEvent =
   | MortarWhistleEvent
   | StealthyFootstepEvent
   | CatchEndedEvent
-  | VehicleStruckEvent
   | ItemCaughtEvent
   | CreatureCallEvent
   | SoldierHitEvent

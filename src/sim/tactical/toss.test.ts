@@ -70,7 +70,7 @@ describe('tossing an item from the item cursor', () => {
     expect(carries(catcher)).toBe(true);
     expect(kitsOnGround(sim)).toEqual([]);
     expect(events.filter((e) => e.type === 'itemCaught')).toMatchObject([{ soldier: catcher.id, item: kitIndex() }]);
-    expect(events.filter((e) => e.type === 'catchEnded')).toMatchObject([{ soldier: catcher.id, gridNo: FAR_TILE }]);
+    expect(events.filter((e) => e.type === 'catchEnded')).toMatchObject([{ soldier: catcher.id }]);
     expect(catcher.direction).toBe(Direction.WEST);
   });
 

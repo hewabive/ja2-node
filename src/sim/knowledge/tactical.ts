@@ -157,8 +157,9 @@ export class TacticalProjection {
       const swapped = door ? swapStructureForPartner(t, door) : null;
       if (swapped) recompileLocalMovementCosts(t.world.costs, t.world, g);
     }
+    const openContainers = new Set(view.openContainers ?? []);
     for (const g of this.#containers) {
-      if (open.has(g) === isOpenableOpenAt(t, g)) continue;
+      if (openContainers.has(g) === isOpenableOpenAt(t, g)) continue;
       const container = t.world.structures.find(g, StructureFlags.OPENABLE);
       const swapped = container ? swapStructureForPartner(t, container) : null;
       if (swapped) recompileLocalMovementCosts(t.world.costs, t.world, g);

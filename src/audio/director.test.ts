@@ -6,7 +6,7 @@ import { FakeGraph, pcmWav, settle } from '../../tests/support/fake-audio.ts';
 import { ANIM_CONTROL_PATH, ANIM_SURFACES_PATH, type AnimationTables, parseAnimationTables, stateId } from '../content/anim/tables.ts';
 import type { Cue } from '../content/audio/cue.ts';
 import { type CueBook, loadCueBook } from '../content/audio/cue-book.ts';
-import { AmbientTime } from '../content/formats/ambient.ts';
+import { type AmbientEntry, AmbientTime } from '../content/formats/ambient.ts';
 import { type AnimationScripts, MAX_FRAMES_PER_ANIM, parseAnimationScripts } from '../content/formats/ja2bin.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
 import type { SoldierView, ViewFrame } from '../protocol/view.ts';
@@ -108,6 +108,11 @@ const frame = (tick: number, changed: SoldierView[], events: ViewFrame['events']
   events,
 });
 const files = (r: Rig) => r.cues.map((c) => c.file);
+const world = (terrain: number, ambient: readonly AmbientEntry[] = [], material: number | null = null): SoundWorld => ({
+  terrainAt: () => terrain,
+  openableMaterialAt: () => material,
+  ambient,
+});
 
 function withScript(state: string, codes: readonly number[]): AnimationScripts {
   const patched = new Uint16Array(scripts.codes);
@@ -118,7 +123,7 @@ function withScript(state: string, codes: readonly number[]): AnimationScripts {
 
 describe('the sound director', () => {
   it('plays footsteps from the codes of the walking script, never the same variant twice in a row', () => {
-    const r = rig({ terrainAt: () => 1, ambient: [] });
+    const r = rig(world(1));
     r.director.reset([soldier(1, 'WALKING', 0)]);
     let tick = 10;
     for (let lap = 0; lap < 3; lap++)
@@ -134,7 +139,7 @@ describe('the sound director', () => {
   });
 
   it('plays the final footstep when a moving state gives way to a stationary one, louder in combat', () => {
-    const r = rig({ terrainAt: () => 2, ambient: [] });
+    const r = rig(world(2));
     r.director.setContext({ selected: null, inCombat: true, minuteOfDay: null });
     r.director.reset([soldier(1, 'WALKING', 1)]);
     r.director.applyFrames([frame(10, [soldier(1, 'STANDING', 0)])]);
@@ -145,7 +150,7 @@ describe('the sound director', () => {
   });
 
   it('keeps a stealthy soldier quiet except for the stealthy footstep of a new tile', () => {
-    const r = rig({ terrainAt: () => 2, ambient: [] });
+    const r = rig(world(2));
     r.director.reset([soldier(1, 'WALKING', 1, { stealth: true })]);
     r.director.applyFrames([frame(10, [soldier(1, 'STANDING', 0, { stealth: true })])]);
     r.director.applyFrames([frame(20, [soldier(1, 'KNEEL_DOWN', 1, { stealth: true })])]);
@@ -184,7 +189,7 @@ describe('the sound director', () => {
   it('lets a standing crow caw now and then from the passes of its loop, a crow in water never', () => {
     const STANDING_LOOP = [1, 2, 3, 4, 5, 6, 7, 8, 7, 6, 5, 4, 3, 2, 1, 491, 501, 999];
     const caws = (terrain: number) => {
-      const r = rig({ terrainAt: () => terrain, ambient: [] }, withScript('STANDING', STANDING_LOOP));
+      const r = rig(world(terrain), withScript('STANDING', STANDING_LOOP));
       const crow = soldier(1, 'STANDING', 0, { bodyType: 19, team: 4, frameDelay: 100, healthIndex: 5 });
       r.director.reset([crow]);
       for (let tick = 10; tick <= 30_000; tick += 10) r.director.applyFrames([frame(tick, [])]);
@@ -296,7 +301,7 @@ describe('the sound director', () => {
           { type: 'windowShattered', tick: 9, gridNo: G + 3, tile: 'WINDOWSHATTER6' },
           { type: 'creatureGas', tick: 9, gridNo: G + 6 },
           { type: 'thrownImpact', tick: 9, gridNo: G + 4 },
-          { type: 'catchEnded', tick: 9, soldier: 1, gridNo: G },
+          { type: 'catchEnded', tick: 9, soldier: 1 },
           { type: 'mortarWhistle', tick: 9, sounding: true },
         ],
       ),
@@ -458,37 +463,37 @@ describe('the sound director', () => {
       frame(
         10,
         [],
-        [
-          { type: 'vehicleStruck', tick: 10, soldier: 5, gridNo: G },
-          { type: 'soldierHit', tick: 10, soldier: 5, attacker: null, damage: 10, breathLoss: 0, location: 'torso', special: 0, life: 40 },
-        ],
+        [{ type: 'soldierHit', tick: 10, soldier: 5, attacker: null, damage: 10, breathLoss: 0, location: 'torso', special: 0, life: 40 }],
       ),
     ]);
     expect(files(r)).toEqual([book.paths.get('S_METAL_IMPACT3')]);
   });
 
-  it('opens a locker with its sound and lets the opener cheer half a second later', () => {
-    const r = rig();
-    r.director.reset([soldier(1, 'STANDING', 0)]);
-    r.director.applyFrames([
-      frame(
-        10,
-        [],
-        [
-          { type: 'openableChanged', tick: 10, soldier: 1, gridNo: G, open: true, material: 22 },
-          { type: 'contentsExclaimed', tick: 10, soldier: 1, sound: 'COOL1', delayMs: 500 },
-        ],
-      ),
-    ]);
+  it('sounds a locker opening and closing from the open containers of the view and lets the opener cheer later', () => {
+    const LOCKER_METAL = 22;
+    const r = rig(world(1, [], LOCKER_METAL));
+    r.director.reset([soldier(1, 'STANDING', 0)], []);
+    const cheer = { type: 'contentsExclaimed', tick: 10, soldier: 1, sound: 'COOL1' } as const;
+    r.director.applyFrames([{ ...frame(10, [], [cheer]), openContainers: [G] }]);
     expect(files(r)).toEqual([book.paths.get('OPEN_LOCKER')]);
     for (const run of r.later) run();
     expect(files(r)[1]).toMatch(/^battlesnds\/007_cool/);
+    r.director.applyFrames([{ ...frame(20, []), openContainers: [] }]);
+    expect(files(r)[2]).toBe(book.paths.get('CLOSE_LOCKER'));
+  });
+
+  it('closes the crate of a Bobby Ray delivery silently and keeps quiet about containers open when the sector loads', () => {
+    const r = rig(world(1, [], 5));
+    r.director.reset([], [G]);
+    const delivered = { type: 'shipmentDelivered', tick: 10, shipment: 0, sector: 'B13', items: 2, stolen: 0 } as const;
+    r.director.applyFrames([{ ...frame(10, [], [delivered]), openContainers: [] }]);
+    expect(r.cues).toEqual([]);
   });
 
   it('schedules ambient sounds of the active time window with gaps from the table', () => {
     const owl = { minTimeMs: 1000, maxTimeMs: 1000, timeCategory: AmbientTime.NIGHT, file: 'owl.wav', volume: 30 };
     const bird = { ...owl, timeCategory: AmbientTime.DAY, file: 'bird.wav' };
-    const r = rig({ terrainAt: () => 1, ambient: [owl, bird] });
+    const r = rig(world(1, [owl, bird]));
     r.director.setContext({ selected: null, inCombat: false, minuteOfDay: 23 * 60 });
     r.director.update();
     expect(r.cues).toEqual([]);

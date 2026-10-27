@@ -78,7 +78,7 @@ export interface StaticWorld {
 
 export interface StaticState {
   readonly reveal: RevealState;
-  readonly openDoors: ReadonlySet<number>;
+  readonly openStructures: ReadonlySet<number>;
   readonly treeTops: boolean;
   readonly wireframes: boolean;
   readonly roofLevel: boolean;
@@ -121,10 +121,10 @@ function rowReach(data: Float32Array, rowStart: Int32Array): RowReach {
 
 const OPENABLE_TILE = StructureFlags.ANYDOOR | StructureFlags.OPENABLE;
 
-export function openableTileInState(tiles: readonly TileElement[], openDoors: ReadonlySet<number>, g: number, tile: number): number {
+export function openableTileInState(tiles: readonly TileElement[], openStructures: ReadonlySet<number>, g: number, tile: number): number {
   const def = tiles[tile]?.structure;
   if (!def || !has(def.flags, OPENABLE_TILE)) return tile;
-  return has(def.flags, StructureFlags.OPEN) === openDoors.has(g) ? tile : tile + def.partnerDelta;
+  return has(def.flags, StructureFlags.OPEN) === openStructures.has(g) ? tile : tile + def.partnerDelta;
 }
 
 export class StaticScene {
@@ -273,7 +273,7 @@ export class StaticScene {
 
   #emitStruct(at: TileAt, mapTile: number, index: number): void {
     const w = this.#world;
-    let tile = openableTileInState(w.tiles, this.#state.openDoors, at.g, mapTile);
+    let tile = openableTileInState(w.tiles, this.#state.openStructures, at.g, mapTile);
     if (!this.#state.treeTops && (w.tiles[tile]?.flags ?? 0) & TileFlags.FULL3D) tile += TREE_TOP_SKIP;
     const d = this.#drawable(tile);
     if (!d) return;

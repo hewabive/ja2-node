@@ -59,7 +59,7 @@ import { DOOR_ACTIONS, type DoorActionName } from './doors/door-actions.ts';
 import { doorCommand, handlePendingDoorOnArrival } from './doors/door-command.ts';
 import { type DoorView, doorViews, type KeyView, keyRingView } from './doors/door-view.ts';
 import type { KeyTable } from './doors/keys.ts';
-import { openDoorGridNos } from './doors.ts';
+import { openContainerGridNos, openDoorGridNos } from './doors.ts';
 import { stepExplosions } from './explosions/explosion.ts';
 import { stepThrownObjects } from './explosions/physics.ts';
 import { checkForRunningIntoGas, updateGassedOnNewGridNo } from './explosions/smoke.ts';
@@ -902,6 +902,10 @@ export class TacticalSim {
 
   openDoors(): number[] {
     return openDoorGridNos(this.state);
+  }
+
+  openContainers(): number[] {
+    return openContainerGridNos(this.state);
   }
 
   snapshot(presentation: PresentationTimeline, filter: (s: Soldier) => boolean = () => true): OwnSoldierSnapshot[] {

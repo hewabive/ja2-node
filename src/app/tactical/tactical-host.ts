@@ -256,7 +256,7 @@ export class TacticalHost {
       assets.then((a) => a.tables),
       session.session ?? 'local',
     );
-    this.#sound.director?.reset(session.soldiers);
+    this.#sound.director?.reset(session.soldiers, session.openContainers);
     this.#sound.director?.setSpeechOwner({
       isTalking: (soldier) => {
         const speaking = this.#presenter.speaking;
@@ -434,7 +434,7 @@ export class TacticalHost {
   }
 
   welcome(): void {
-    this.#sound.director?.reset(this.#o.session.soldiers);
+    this.#sound.director?.reset(this.#o.session.soldiers, this.#o.session.openContainers);
     this.#frames?.reset();
     this.#loaded?.presenter.aiTurns.reset();
     this.#loaded?.presenter.resetEffects();

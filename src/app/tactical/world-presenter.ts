@@ -367,12 +367,13 @@ export class TacticalWorldPresenter implements WorldPresenter {
     const found = this.#world.world.structures.find(gridNo, INTERACTIVE_MASK);
     if (!found) return null;
     const base = this.#world.world.structures.findBase(found) ?? found;
-    const openDoors = this.#sources.view()?.openDoors ?? [];
+    const view = this.#sources.view();
+    const door = (found.flags & StructureFlags.ANYDOOR) !== 0;
     return {
       gridNo: base.gridNo,
-      door: (found.flags & StructureFlags.ANYDOOR) !== 0,
+      door,
       switch: (found.flags & StructureFlags.SWITCH) !== 0,
-      open: openDoors.includes(base.gridNo),
+      open: ((door ? view?.openDoors : view?.openContainers) ?? []).includes(base.gridNo),
     };
   }
 
@@ -447,6 +448,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
         soldiers: view.soldiers,
         items: view.items ?? [],
         openDoors: view.openDoors ?? [],
+        openContainers: view.openContainers ?? [],
         revealedRooms: view.revealedRooms ?? [],
         clock: view.clock ?? null,
         combat: view.combat ?? null,

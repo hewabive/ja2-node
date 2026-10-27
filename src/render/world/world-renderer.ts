@@ -94,7 +94,7 @@ export interface WorldFrameInput {
   readonly clockMs: number;
   readonly options: WorldDisplayOptions;
   readonly shade: ShadeField;
-  readonly openDoors: ReadonlySet<number>;
+  readonly openStructures: ReadonlySet<number>;
   readonly revealedRooms: ReadonlySet<number>;
   readonly soldiers: readonly SceneSoldier[];
   readonly items: readonly SceneItem[];
@@ -151,7 +151,7 @@ function sameSet(a: ReadonlySet<number>, b: ReadonlySet<number>): boolean {
   return true;
 }
 
-function changedDoorRows(a: ReadonlySet<number>, b: ReadonlySet<number>): number[] {
+function changedOpenableRows(a: ReadonlySet<number>, b: ReadonlySet<number>): number[] {
   const rows = new Set<number>();
   for (const g of a) if (!b.has(g)) rows.add(rowOf(g));
   for (const g of b) if (!a.has(g)) rows.add(rowOf(g));
@@ -206,7 +206,7 @@ export class WorldRenderer {
     const staticWorld = this.#staticWorld(world, sprites);
     const reveal = computeReveal(this.#revealWorld(world), new Set());
     const started = performance.now();
-    const scene = new StaticScene(staticWorld, { reveal, openDoors: new Set(), treeTops: true, wireframes: true, roofLevel: false });
+    const scene = new StaticScene(staticWorld, { reveal, openStructures: new Set(), treeTops: true, wireframes: true, roofLevel: false });
     this.#rebuildMs = performance.now() - started;
     this.#scene = {
       original: world,
@@ -276,12 +276,12 @@ export class WorldRenderer {
     }
     const next: StaticState = {
       reveal: s.reveal,
-      openDoors: sameSet(old.openDoors, f.openDoors) ? old.openDoors : new Set(f.openDoors),
+      openStructures: sameSet(old.openStructures, f.openStructures) ? old.openStructures : new Set(f.openStructures),
       treeTops: f.options.treeTops,
       wireframes: f.options.wireframes,
       roofLevel: f.roofLevel,
     };
-    for (const row of changedDoorRows(old.openDoors, next.openDoors)) rows.add(row);
+    for (const row of changedOpenableRows(old.openStructures, next.openStructures)) rows.add(row);
     const full = next.treeTops !== old.treeTops || next.wireframes !== old.wireframes || next.roofLevel !== old.roofLevel;
     if (!full && rows.size === 0) {
       if (next.reveal !== old.reveal) s.scene.setState(next, []);

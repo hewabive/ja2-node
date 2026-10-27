@@ -57,6 +57,9 @@ describe('creature alert status', () => {
   });
 });
 
+const SEEN = 1;
+const UNSEEN = -1;
+
 describe('CreatureCall', () => {
   it('raises hearing creatures to RED with a priority that falls with distance and frenzies close females', () => {
     const sim = newCombatSim(content);
@@ -66,10 +69,16 @@ describe('CreatureCall', () => {
     const far = spawnCreature(sim, 54, Body.YAM_MONSTER, gridNo(80, 140), Direction.NORTH);
     const infant = spawnCreature(sim, 55, Body.INFANT_MONSTER, gridNo(82, 82), Direction.NORTH);
     queen.ai.actionData = CreatureCallKind.ATTACKED;
+    queen.visible = SEEN;
     creatureCall(t, queen);
     expect(t.perception.awareOfOpposition[Team.CREATURE]).toBe(true);
     expect(animName(content, queen.state)).toBe('QUEEN_CALL');
     expect(t.events.filter((e) => e.type === 'creatureCall')).toMatchObject([{ soldier: queen.id, call: 'attacked' }]);
+    t.events.length = 0;
+    near.ai.actionData = CreatureCallKind.ONE_PREY;
+    near.visible = UNSEEN;
+    creatureCall(t, near);
+    expect(t.events.filter((e) => e.type === 'creatureCall')).toEqual([]);
     expect(near).toMatchObject({ ai: { callPriority: 12, alertStatus: AlertStatus.RED, caller: queen.id, frenzied: true } });
     expect(near.ai.callerGridNo).toBe(queen.gridNo);
     expect(far.ai).toMatchObject({ callPriority: 10, alertStatus: AlertStatus.RED, frenzied: false });
