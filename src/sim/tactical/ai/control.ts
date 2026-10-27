@@ -31,7 +31,7 @@ import { directionToward, getNewSoldierPath, stopMerc } from '../movement.ts';
 import { boxingIdlesNonBoxers } from '../narrative/boxing-state.ts';
 import { isMercBody, NOWHERE, newOKDestination, PathFlags } from '../pathfinding.ts';
 import { mostImportantNoiseHeard } from '../perception/knowledge.ts';
-import { radioSightings, removeManAsTarget } from '../perception/sight.ts';
+import { endMuzzleFlash, radioSightings, removeManAsTarget } from '../perception/sight.ts';
 import { deductPoints, enoughPoints, estimateActionPointCost } from '../points.ts';
 import { beginSoldierClimbDownRoof, beginSoldierClimbUpRoof } from '../roofs.ts';
 import { adjustSoldierPathToGoOffEdge } from '../sector-exit.ts';
@@ -611,7 +611,9 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
     endAIGuysTurn(t, s, control);
     return;
   }
-  if (s.life < OKLIFE || !(s.placed || s.offMap || s.away)) {
+  const active = s.placed || s.offMap || s.away;
+  if (s.life < OKLIFE || !active) {
+    if (active && s.muzzleFlash) endMuzzleFlash(t, s);
     endAIGuysTurn(t, s, control);
     return;
   }
@@ -627,6 +629,7 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
     return;
   }
   if (s.collapsed) {
+    if (s.muzzleFlash) endMuzzleFlash(t, s);
     cancelAIAction(t, s);
     endAIGuysTurn(t, s, control);
     return;
@@ -642,6 +645,7 @@ export function handleSoldierAI(t: TacticalState, s: Soldier, control: AiControl
     ai.newSituation = Situation.NOT_NEW;
   }
   if (ai.action === AiAction.NONE) {
+    if (s.muzzleFlash) endMuzzleFlash(t, s);
     if (turnBased)
       turnBasedHandleNPCAI(t, s, control, { npcDoesAct, executeAction, decide: (state, x) => decideNpcAction(state, x, control) });
     else rtHandleAI(t, s, control);

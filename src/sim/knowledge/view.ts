@@ -26,6 +26,7 @@ export interface KnowledgeSoldier {
   readonly direction: number;
   readonly animation: number;
   readonly hand?: string;
+  readonly muzzleFlash?: boolean;
   readonly profile?: number;
   readonly ap?: number;
   readonly life?: number;

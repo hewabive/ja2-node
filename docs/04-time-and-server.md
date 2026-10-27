@@ -256,7 +256,9 @@ bullet tile (not knives, missiles, flames or spit), but only for our soldiers an
 `sRelativeZ`). A whole flight takes a few ticks and usually falls between two frames, so a frame carries every tick,
 not only its own. Like `messages`, the field is never applied to the view and never reaches an agent's view or a save. The
 client keeps the positions it has received (`BulletTrack`) and draws those of the tick it shows, rounded down
-(`docs/05` §2.6). The simulation's pacing does not change; the hide-bullets option only stops the drawing.
+(`docs/05` §2.6). The simulation's pacing does not change; the hide-bullets option only stops the drawing. A shooter
+in the dark whom the squad sees only in his muzzle flash shows once his attack is over: his gunshot is heard only then
+(`MakeNoise` holds noises while an attack is busy), so his bullets are not drawn.
 
 **Impact animations.** Where the original starts a cosmetic animation tile, the simulation emits an event with
 presentation fields: `bulletImpact {soldier, gridNo, x, y, z, effect}` wherever `StructureHit` plays a miss (`dust`,
@@ -1301,6 +1303,11 @@ objects add `jammed` and `imprint` (the profile a rocket rifle answers to, 201 f
 index of `zHealthStr`, `GetSoldierHealthString`; −1 once `bLife` is 0, while the death animation plays until
 `soldierDied`, which the radar greys, the health word names dying and the enemy cycling skips), never life. **Ground items** add `money` and `attachments`.
 
+**The muzzle flash.** Every soldier entry carries `muzzleFlash: true` from his shot (`UseGun` sets `fMuzzleFlash`) until
+the flash goes out (`EndMuzzleFlash`: the end of his attack in real time, his next A.I. decision, his team's A.I. list,
+the end of our merc's attack on our turn, the end of combat), absent otherwise: whoever looks at him sees him as far as
+in daylight (`DistanceVisible`), and the chance to hit him reads that, so the hints need it.
+
 **The animation schedule.** Every soldier entry carries `frameSlot` (the timeline slot of the frame it shows, `28`
 §2.3), `stateTick` (the tick its animation state started) and `frameDelay` (`sAniDelay` in ms); `frame` (the sprite
 frame) stays for the devtools pages and the sound director (U4b's renderer follows the schedule, §6.27).
@@ -1759,7 +1766,8 @@ battle with enemies, creatures or civilians in it is won (not in a boxing match)
 snapshot version 6 adds it with 0 to older snapshots. Snapshot version 7 adds `turnsUntilCanSayHeardNoise` (`ubTurnsUntilCanSayHeardNoise`, the pause before a merc says
 again that he heard something) with 0 to older snapshots. Snapshot version 8 adds `pummeledQuoteSaid` and `closeCallQuoteSaid`
 (`SOLDIER_QUOTE_SAID_BEING_PUMMELED`, `SOLDIER_QUOTE_SAID_EXT_CLOSE_CALL`: the heavy-fire or beating quote and the close
-call quote said this turn) with false to older snapshots.
+call quote said this turn) with false to older snapshots. Snapshot version 9 puts out every `muzzleFlash` of older
+snapshots: they never ended a flash in turn-based combat, and the flag now counts in `DistanceVisible`.
 
 **Insurance cards**: the offers add `nickname`, `dead` (`IsMercDead`) and `contractLength` (`iTotalContractLength`); the
 view adds `aimMercsOnTeam` (which of the two "nobody to insure" texts the contract page shows). The card's face is the

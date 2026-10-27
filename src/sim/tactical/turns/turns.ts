@@ -29,7 +29,13 @@ import { getNewSoldierPath, stopMerc } from '../movement.ts';
 import { boxingActive, boxingFight, boxingHalvesPoints, boxingRoundDecided } from '../narrative/boxing-state.ts';
 import { calcInterruptDuelPts, interruptDuel } from '../perception/duel.ts';
 import { Opp, SightFlags } from '../perception/opp.ts';
-import { decayPublicOpplist, handleSight, teamNoLongerSeesMan, verifyAndDecayOpplist } from '../perception/sight.ts';
+import {
+  decayPublicOpplist,
+  handleSight,
+  teamNoLongerSeesMan,
+  turnOffEveryonesMuzzleFlashes,
+  verifyAndDecayOpplist,
+} from '../perception/sight.ts';
 import {
   calcNewActionPoints,
   carriedWeightPercentOf,
@@ -394,6 +400,7 @@ export function exitCombatMode(t: TacticalState): void {
   }
   betweenTurnsVisibilityAdjustments(t);
   pauseAiTemporarily(t);
+  turnOffEveryonesMuzzleFlashes(t);
   t.turn.intList.length = 0;
   t.turn.forceRealtimeTurn = true;
   endTopMessage(t);

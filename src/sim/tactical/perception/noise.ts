@@ -25,6 +25,7 @@ import {
   ourTeamRadiosRandomlyAbout,
   publicOpp,
   resolveBestSightingAfterNoise,
+  seesMuzzleFlashWithoutTurning,
   updatePersonal,
   updatePublic,
   validForSightings,
@@ -147,7 +148,9 @@ function rememberNoise(t: TacticalState, l: Soldier, g: number, level: number, v
 }
 
 function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: number, level: number, volume: number, kind: number): boolean {
-  const d = distanceVisible(t, l, IRRELEVANT, IRRELEVANT, g, level);
+  const noiseDirection = atan8(Math.trunc(l.x), Math.trunc(l.y), (g % WORLD_COLS) * 10 + 5, Math.trunc(g / WORLD_COLS) * 10 + 5);
+  const flashInView = kind !== NoiseKind.GUNFIRE || !source?.muzzleFlash || seesMuzzleFlashWithoutTurning(l, noiseDirection);
+  const d = distanceVisible(t, l, IRRELEVANT, IRRELEVANT, g, level, flashInView);
   const losWorld = { structures: t.world.structures, heights: t.world.level.heights };
   const eye = {
     gridNo: l.gridNo,
@@ -156,7 +159,7 @@ function hearNoise(t: TacticalState, l: Soldier, source: Soldier | null, g: numb
   };
   const occupant = t.occupant[level > 0 ? 1 : 0][g] ?? -1;
   const target = occupant >= 0 ? t.soldiers[occupant] : undefined;
-  const hadToTurn = l.direction !== atan8(Math.trunc(l.x), Math.trunc(l.y), (g % WORLD_COLS) * 10 + 5, Math.trunc(g / WORLD_COLS) * 10 + 5);
+  const hadToTurn = l.direction !== noiseDirection;
   let sourceSeen = false;
   if (pythSpacesAway(l.gridNo, g) <= d) {
     const los = target

@@ -5,12 +5,14 @@
 // @src HandleManNoLongerSeen, TeamNoLongerSeesMan,
 // @src UpdatePersonal, UpdatePublic, RadioSightings, OurTeamRadiosRandomlyAbout, HandleSight, ManLooksForOtherTeams,
 // @src OtherTeamsLookForMan, AllTeamsLookForAll, ReevaluateBestSightingPosition, HandleBestSightingPositionInRealtime,
-// @src DecayOppListValue, VerifyAndDecayOpplist, DecayPublicOpplist (ManSeesMan's first-battle fact through the narrative
+// @src DecayOppListValue, VerifyAndDecayOpplist, DecayPublicOpplist, EndMuzzleFlash, TurnOffEveryonesMuzzleFlashes,
+// @src TurnOffTeamsMuzzleFlashes, DecideTrueVisibility (ManSeesMan's first-battle fact through the narrative
 // @src port, no best sighting while boxing, ReevaluateEnemyStance at its end); Soldier_Macros.h AM_A_ROBOT. See docs/08 §2, docs/20, docs/25 §1.2, §7.2.
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { endHeight, setSoldierAniSpeed, states } from '../animation.ts';
+import { withinOneOctant } from '../directions.ts';
 import { wearsHeadGear } from '../inventory.ts';
 import { adjustMaxSightRangeForEnvEffects, lightTrueLevel, NORMAL_LIGHTLEVEL_DAY, NORMAL_LIGHTLEVEL_NIGHT } from '../lighting/lighting.ts';
 import { boxingActive } from '../narrative/boxing-state.ts';
@@ -23,6 +25,7 @@ import {
   NO_INTERRUPT,
   NO_PROFILE,
   NOBODY,
+  NOWHERE,
   numSkillTraits,
   OKLIFE,
   SkillTrait,
@@ -132,14 +135,21 @@ function distanceSmellable(subject: Soldier): number {
   return Math.max(Math.trunc((d * (subject.normalSmell - subject.monsterSmell)) / NORMAL_HUMAN_SMELL_STRENGTH), 0);
 }
 
-export function distanceVisible(t: TacticalState, viewer: Soldier, facing: number, subjectDir: number, g: number, level: number): number {
-  if (isMonster(viewer)) {
-    const subject = whoIsThere(t, g, level);
-    return subject ? distanceSmellable(subject) : 0;
-  }
+export function distanceVisible(
+  t: TacticalState,
+  viewer: Soldier,
+  facing: number,
+  subjectDir: number,
+  g: number,
+  level: number,
+  muzzleFlashInView = true,
+): number {
+  const subject = whoIsThere(t, g, level);
+  if (isMonster(viewer)) return subject ? distanceSmellable(subject) : 0;
   if (viewer.blindedCounter > 0) return 0;
+  const flash = muzzleFlashInView && subject?.muzzleFlash === true;
   let d: number;
-  if (facing === IRRELEVANT || viewer.gridNo === g) d = MAX_DISTANCE_VISIBLE;
+  if (facing === IRRELEVANT || flash || viewer.gridNo === g) d = MAX_DISTANCE_VISIBLE;
   else {
     const diff = Math.abs(facing - subjectDir);
     const look = LOOK_BY_OCTANT_DIFFERENCE[diff > 4 ? 8 - diff : diff] ?? 0;
@@ -148,8 +158,12 @@ export function distanceVisible(t: TacticalState, viewer: Soldier, facing: numbe
     if (viewer.state === states(t.content.animations).RUNNING && look !== STRAIGHT) d = Math.trunc((d * 8) / 10);
   }
   if (viewer.level !== level) d += 2;
-  const light = lightTrueLevel(t, g, level);
+  const light = flash ? Math.min(lightTrueLevel(t, g, level), NORMAL_LIGHTLEVEL_DAY) : lightTrueLevel(t, g, level);
   return adjustMaxSightRangeForEnvEffects(light, d) + lightGearBonus(t, viewer, light);
+}
+
+export function seesMuzzleFlashWithoutTurning(viewer: Soldier, towards: number): boolean {
+  return withinOneOctant(viewer.direction, towards);
 }
 
 function amARobot(t: TacticalState, s: Soldier): boolean {
@@ -275,8 +289,36 @@ function handleManNoLongerSeen(t: TacticalState, me: Soldier, opp: Soldier): voi
   const table = t.perception.publicOpp[me.team];
   if (table && table[opp.id] === Opp.SEEN_CURRENTLY && teamNoLongerSeesMan(t, me.team, opp, me, 0)) {
     table[opp.id] = Opp.SEEN_THIS_TURN;
-    if ((me.team === Team.OUR || me.team === Team.MILITIA) && opp.team !== Team.OUR && opp.team !== Team.MILITIA) opp.visible = 0;
+    if (onOurOrMilitiaTeam(me) && !onOurOrMilitiaTeam(opp)) opp.visible = 0;
   }
+}
+
+function onOurOrMilitiaTeam(s: Soldier): boolean {
+  return s.team === Team.OUR || s.team === Team.MILITIA;
+}
+
+function decideTrueVisibility(s: Soldier): void {
+  if (s.visible === 0) s.visible = -1;
+}
+
+export function endMuzzleFlash(t: TacticalState, s: Soldier): void {
+  s.muzzleFlash = false;
+  if (!onOurOrMilitiaTeam(s)) s.visible = 0;
+  for (const other of mercs(t)) {
+    if (other.oppList[s.id] !== Opp.SEEN_CURRENTLY || other.gridNo === NOWHERE) continue;
+    if (pythSpacesAway(other.gridNo, s.gridNo) > distanceVisible(t, other, IRRELEVANT, IRRELEVANT, s.gridNo, s.level)) {
+      handleManNoLongerSeen(t, other, s);
+    } else if (onOurOrMilitiaTeam(other)) s.visible = 1;
+  }
+  decideTrueVisibility(s);
+}
+
+export function turnOffTeamsMuzzleFlashes(t: TacticalState, team: number): void {
+  for (const s of teamMembers(t, team)) if (s.muzzleFlash) endMuzzleFlash(t, s);
+}
+
+export function turnOffEveryonesMuzzleFlashes(t: TacticalState): void {
+  for (const s of mercs(t)) if (s.muzzleFlash) endMuzzleFlash(t, s);
 }
 
 const SEEK_ACTIONS = new Set([1, 3, 2, 6, 7, 8]);

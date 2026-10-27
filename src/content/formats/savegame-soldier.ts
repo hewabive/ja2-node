@@ -696,6 +696,7 @@ export interface SavedSoldier {
   readonly stealthMode: number;
   readonly mercAsleep: boolean;
   readonly blindedCounter: number;
+  readonly muzzleFlash: boolean;
   readonly sleepDrugCounter: number;
   readonly drugEffect: readonly number[];
   readonly drugSideEffect: readonly number[];
@@ -842,6 +843,7 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
     stealthMode: n('bStealthMode'),
     mercAsleep: r.bool('fMercAsleep'),
     blindedCounter: n('bBlindedCounter'),
+    muzzleFlash: r.bool('fMuzzleFlash'),
     sleepDrugCounter: n('bSleepDrugCounter'),
     drugEffect: r.nums('bDrugEffect'),
     drugSideEffect: r.nums('bDrugSideEffect'),

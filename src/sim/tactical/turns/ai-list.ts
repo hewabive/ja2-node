@@ -4,6 +4,7 @@
 // @src MoveToFrontOfAIList, BuildAIListForTeam (and its InitEnemyUIBar). See docs/10 §6.3, docs/25 §7.2.
 
 import { boxingFight } from '../narrative/boxing-state.ts';
+import { turnOffTeamsMuzzleFlashes } from '../perception/sight.ts';
 import { AlertStatus, Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { mercs, type TacticalState } from '../state.ts';
 import { initEnemyUIBar } from './top-message.ts';
@@ -45,6 +46,7 @@ function insertIntoAIList(t: TacticalState, s: Soldier, priority: number): void 
 }
 
 export function buildAIListForTeam(t: TacticalState, team: number): boolean {
+  turnOffTeamsMuzzleFlashes(t, team);
   t.turn.aiList = [];
   const done = { n: 0 };
   let n = 0;

@@ -146,6 +146,7 @@ export interface SoldierSnapshot {
   readonly stateTick: number;
   readonly frameDelay: number;
   readonly nextFrameTick: number;
+  readonly muzzleFlash?: boolean;
   readonly ap?: number;
   readonly life?: number;
   readonly lifeMax?: number;
@@ -929,6 +930,7 @@ export class TacticalSim {
       stateTick: s.stateTick,
       frameDelay: s.aniDelay,
       nextFrameTick: nextFrameTick(this.state, s),
+      ...(s.muzzleFlash ? { muzzleFlash: true } : {}),
       ...(s.team === Team.OUR
         ? {
             ap: s.actionPoints,

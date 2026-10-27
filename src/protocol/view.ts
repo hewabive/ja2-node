@@ -50,6 +50,7 @@ export interface SoldierView {
   readonly stateTick: number;
   readonly frameDelay: number;
   readonly nextFrameTick?: number;
+  readonly muzzleFlash?: boolean;
   readonly ap?: number;
   readonly life?: number;
   readonly lifeMax?: number;
@@ -1120,6 +1121,7 @@ const SCALAR_SOLDIER_FIELDS = [
   'blinded',
   'hostile',
   'healthIndex',
+  'muzzleFlash',
 ] as const satisfies readonly (keyof SoldierView)[];
 
 const STRUCTURED_SOLDIER_FIELDS = ['stats', 'sees', 'vehicle', 'hint'] as const satisfies readonly (keyof SoldierView)[];

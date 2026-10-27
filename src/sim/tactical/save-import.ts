@@ -363,6 +363,7 @@ function copyScalars(s: Soldier, r: SavedSoldier): void {
   s.strategicMoraleMod = r.moraleMods.strategic;
   s.delayedStrategicMoraleMod = r.moraleMods.delayedStrategic;
   s.blindedCounter = r.blindedCounter;
+  s.muzzleFlash = r.muzzleFlash;
   s.sleepDrugCounter = r.sleepDrugCounter;
   s.heightAdjustment = r.heightAdjustment;
   s.uiMovementMode = m.uiMovementMode;

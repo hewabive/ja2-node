@@ -331,7 +331,6 @@ export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDea
   if (s.life === 0 && !s.dead) {
     cancelAllServices(t, s);
     putOutMuzzleFlash(t, s);
-    s.muzzleFlash = false;
     s.gettingHit = 0;
     if (s.team === Team.OUR) s.dead = true;
     else {

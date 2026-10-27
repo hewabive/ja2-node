@@ -40,6 +40,7 @@ const SHOWN_FIELDS = [
   'multiTile',
   'overTerrain',
   'monsterOrAnimal',
+  'muzzleFlash',
 ] as const;
 
 const DERIVED_FROM_HOSTILE = ['side', 'neutral'] as const;
@@ -250,6 +251,7 @@ export function soldierFromView(
   s.y = v.y;
   s.placed = true;
   s.visible = SEEN_BY_OUR_TEAM;
+  s.muzzleFlash = v.muzzleFlash === true;
   s.servicePartner = NOBODY;
   s.monsterOrAnimal = isCreatureOrBloodcat(s) || s.bodyType === Body.COW || s.bodyType === Body.CROW;
   if (own) applyOwnFields(content, s, v, guard);

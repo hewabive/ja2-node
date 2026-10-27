@@ -237,6 +237,22 @@ function addTurnQuoteFlags(snapshot: Readonly<Record<string, unknown>>): Record<
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const MUZZLE_FLASH_KEY = 'muzzleFlash';
+
+function withoutStaleMuzzleFlash(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutStaleMuzzleFlash(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withoutStaleMuzzleFlash(v);
+  return isSoldierRecord(mapped) ? { ...mapped, [MUZZLE_FLASH_KEY]: false } : mapped;
+}
+
+function putOutStaleMuzzleFlashes(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withoutStaleMuzzleFlash(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -246,5 +262,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     5: addBattlesFought,
     6: addHeardNoisePause,
     7: addTurnQuoteFlags,
+    8: putOutStaleMuzzleFlashes,
   };
 }

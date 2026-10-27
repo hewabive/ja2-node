@@ -620,7 +620,6 @@ function burstController(t: TacticalState, s: Soldier): OpOutcome {
   if (stop) {
     putOutMuzzleFlash(t, s);
     s.muzzleFlashCount = 0;
-    s.muzzleFlash = false;
     s.doSpread = 0;
     s.doBurst = 1;
     reduceAttackBusyCount(t, s, false);

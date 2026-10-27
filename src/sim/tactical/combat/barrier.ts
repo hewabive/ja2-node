@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Overhead.cc InternalReduceAttackBusyCount, ReduceAttackBusyCount, FreeUpAttacker,
 // @src FreeUpAttackerGivenTarget, ReduceAttackBusyGivenTarget, CalcSuppressionTolerance, HandleSuppressionFire (with
 // @src QUOTE_UNDER_HEAVY_FIRE for the targeted merc),
-// @src OppList.cc NoticeUnseenAttacker (with ReevaluateEnemyStance); the EndBoxingMatch of InternalReduceAttackBusyCount. See docs/11 §8, docs/25 §7.2.
+// @src OppList.cc NoticeUnseenAttacker (with ReevaluateEnemyStance); the EndBoxingMatch of InternalReduceAttackBusyCount; Handle_UI.cc
+// @src UnSetUIBusy and UIHandleLAEndLockOurTurn (only the muzzle flashes of our team). See docs/11 §8, docs/25 §7.2.
 
 import { ItemClass } from '../../../content/items/items.ts';
 import { pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
@@ -20,13 +21,24 @@ import { reevaluateEnemyStance } from '../perception/enemy-stance.ts';
 import { closestKnownOpponent } from '../perception/knowledge.ts';
 import { dequeueDeferredNoises } from '../perception/noise.ts';
 import { Caller, Opp } from '../perception/opp.ts';
-import { allTeamsLookForAll, distanceVisible, manSeesMan, radioSightings, updatePersonal, updatePublic } from '../perception/sight.ts';
+import {
+  allTeamsLookForAll,
+  atan8,
+  distanceVisible,
+  endMuzzleFlash,
+  manSeesMan,
+  radioSightings,
+  seesMuzzleFlashWithoutTurning,
+  turnOffTeamsMuzzleFlashes,
+  updatePersonal,
+  updatePublic,
+} from '../perception/sight.ts';
 import { isValidStance } from '../person-structure.ts';
 import { AP } from '../points.ts';
 import { profileProgress, StatKind } from '../profiles.ts';
 import { AlertStatus, Body, NO_INTERRUPT, NO_PROFILE, NOWHERE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
-import { addToIntList, checkForEndOfBattle, doneAddingToIntList, enterCombatMode } from '../turns/turns.ts';
+import { addToIntList, checkForEndOfBattle, doneAddingToIntList, enterCombatMode, selectedSoldier } from '../turns/turns.ts';
 import { handleAnyStatChangesAfterAttack, StatCause, statChange } from './experience.ts';
 import { handleMoraleEvent, MoraleEvent } from './morale.ts';
 import { soldierToSoldierLos } from './positions.ts';
@@ -130,7 +142,11 @@ export function noticeUnseenAttacker(t: TacticalState, att: Soldier, def: Soldie
   const oldOpp = def.oppList[att.id] ?? 0;
   let sees = false;
   if (pythSpacesAway(att.gridNo, def.gridNo) <= MAX_DISTANCE_VISIBLE) {
-    const limit = distanceVisible(t, def, IRRELEVANT, 0, att.gridNo, att.level);
+    const flashInView = seesMuzzleFlashWithoutTurning(
+      def,
+      atan8(Math.trunc(def.x), Math.trunc(def.y), Math.trunc(att.x), Math.trunc(att.y)),
+    );
+    const limit = distanceVisible(t, def, IRRELEVANT, 0, att.gridNo, att.level, flashInView);
     sees = soldierToSoldierLos(t, def, att, limit, true) !== 0;
   }
   if (sees) {
@@ -192,6 +208,7 @@ export function internalReduceAttackBusyCount(
     }
     soldier.sayAmmoQuotePending = false;
     if (soldier.team !== Team.OUR) t.turnHooks.freeUpFromAttacking(t, soldier);
+    else unSetUIBusy(t, soldier);
     if (enterCombat && !t.inCombat && !inMeanwhile(t)) enterCombatMode(t, soldier.team);
     soldier.attackNoticed = false;
   }
@@ -203,11 +220,16 @@ export function internalReduceAttackBusyCount(
   }
   dequeueDeferredNoises(t);
   checkForEndOfBattle(t);
-  if (!t.inCombat && soldier) soldier.muzzleFlash = false;
+  if (!t.inCombat && soldier) endMuzzleFlash(t, soldier);
   if (soldier && soldier.weaponMode === WeaponMode.ATTACHED) soldier.weaponMode = WeaponMode.NORMAL;
   if (soldier) soldier.lastTarget = soldier.targetGridNo;
   t.events.push({ type: 'attackResolved', soldier: soldier?.id ?? null });
   return target;
+}
+
+function unSetUIBusy(t: TacticalState, s: Soldier): void {
+  if (!t.inCombat || t.turn.currentTeam !== Team.OUR || t.turn.unlockUIAfterHiddenInterrupt) return;
+  if (s === selectedSoldier(t)) turnOffTeamsMuzzleFlashes(t, Team.OUR);
 }
 
 export function reduceAttackBusyCount(t: TacticalState, attacker: Soldier | null, byAttacker: boolean): Soldier | null {
