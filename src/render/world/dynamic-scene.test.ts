@@ -202,6 +202,19 @@ describe('dynamic scene', () => {
     expect(scene.runs.map((r) => r.state)).toEqual([DrawState.TRANSLUCENT]);
   });
 
+  it('hangs a flying knife on its anchor tile at the on-roof z and draws its shadow flat in the shadow layer', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    const anchor = g(80, 80);
+    const knife: SceneAniTile = { ...aniTileOf('knife', anchor, 0, 5), at: { x: 805, y: 845, z: 30 } };
+    const shadow: SceneAniTile = { ...aniTileOf('knifeShadow', anchor, 0, 5), at: { x: 805, y: 845, z: 0 } };
+    scene.build(frame({ aniTiles: [knife, shadow] }));
+    const [drawnShadow, drawnKnife] = decode(scene);
+    expect(drawnShadow).toMatchObject({ x: -100, y: 1630, z: 0 });
+    expect(drawnKnife).toMatchObject({ x: -100, y: 1600, z: animationTileZ(worldY(80, 80, 860), 30) });
+    expect(scene.runs.map((r) => r.state)).toEqual([DrawState.SHADOW_FLAT, DrawState.NEARER_OR_EQUAL]);
+  });
+
   it('steps animated tiles every frame of the 200 ms clock', () => {
     const animated = tiles.map((t, i) =>
       i === 10 ? { ...t, flags: t.flags | TileFlags.ANIMATED, animationFrames: [10, 11, 12] } : t,

@@ -27,6 +27,7 @@ interface Watched {
 function watched(sandbox: SessionSim, timelines: AnimationTimelines): Watched {
   const shown = new Map<number, Map<number, number>>();
   const sim: SessionSim = Object.create(sandbox);
+  sim.bulletViews = () => sandbox.bulletViews?.() ?? [];
   sim.view = () => {
     const view = sandbox.view();
     shown.set(view.tick, new Map(view.soldiers.map((s) => [s.id, spriteFrameAt(timelines.presentation, s.frameSlot)])));

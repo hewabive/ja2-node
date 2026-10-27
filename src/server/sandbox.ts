@@ -11,7 +11,7 @@ import { MusicMode } from '../protocol/music-modes.ts';
 import type { BulletView, PlayerView, SoldierView } from '../protocol/view.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
-import { bulletsShownToPlayer, tacticalViewParts } from '../sim/knowledge/sim-view.ts';
+import { tacticalViewParts } from '../sim/knowledge/sim-view.ts';
 import { calcDifficultyModifier } from '../sim/strategic/ai/difficulty.ts';
 import { Difficulty } from '../sim/strategic/forces/constants.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
@@ -32,6 +32,7 @@ import { firstFreeSoldierId, Side, type Soldier, SoldierClass, Team } from '../s
 import { teamMembers } from '../sim/tactical/state.ts';
 import { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { loadWorldItemsFromMap } from '../sim/tactical/world-items.ts';
+import { BulletFlights } from './bullet-flights.ts';
 import { type MessageFacts, tacticalMessageFacts } from './message-facts.ts';
 import type { SessionSim } from './session.ts';
 import { PROFILE_VOICE, type VoiceOf, withVoices } from './soldier-voice.ts';
@@ -46,6 +47,7 @@ const DEFAULT_SEED = 1;
 export class TacticalSession implements SessionSim {
   readonly sim: TacticalSim;
   readonly presentation: PresentationTimeline;
+  readonly #flights = new BulletFlights();
 
   constructor(sim: TacticalSim, presentation: PresentationTimeline) {
     this.sim = sim;
@@ -81,7 +83,7 @@ export class TacticalSession implements SessionSim {
   }
 
   bulletViews(): BulletView[] {
-    return bulletsShownToPlayer(this.sim);
+    return this.#flights.views(this.sim.state, this.tick);
   }
 
   view(): PlayerView {

@@ -3,10 +3,11 @@
 // @src src/game/Tactical/Rotting_Corpses.cc ROTTING_CORPSE_DEFINITION (what a corpse is drawn from);
 // @src src/game/TileEngine/SmokeEffects.cc AddSmokeEffectToTile (graphic per tile); Lighting.cc LightSpriteRenderAll
 // @src (dynamic sprites); Structure.cc InternalSwapStructureForPartner, SaveLoadMap.cc (tile changes); Bullets.cc
-// @src UpdateBullets (where a bullet tile is drawn). See docs/28 §12.1 G8.
+// @src UpdateBullets (where a bullet tile is drawn), HandleBulletSpecialFlags (the knife's tile, its direction and the
+// @src tile it hangs on). See docs/28 §12.1 G8.
 
 import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
-import { bulletHeightPixels, bulletWorldXY, drawnAsBulletTile } from './combat/bullets.ts';
+import { type Bullet, bulletHeightPixels, bulletWorldXY, drawnInFlight, isKnife, knifeDirection } from './combat/bullets.ts';
 import { ANY_SMOKE, SmokeTile, smokeEffectIdFromFlags } from './explosions/smoke.ts';
 import { type LightSprite, LightSpriteFlags } from './lighting/lighting.ts';
 import { type MapChange, MapChangeKind, mapChangeTile } from './map-changes.ts';
@@ -43,10 +44,17 @@ export interface TileChangeView {
   readonly tile: number;
 }
 
+export interface KnifeFlight {
+  readonly anchor: number;
+  readonly direction: number;
+  readonly since: number;
+}
+
 export interface BulletView {
   readonly x: number;
   readonly y: number;
   readonly z: number;
+  readonly knife?: KnifeFlight;
 }
 
 const LEVELS = [0, 1] as const;
@@ -119,6 +127,11 @@ export function tileChangeViews(t: TacticalState): TileChangeView[] {
   return out;
 }
 
-export function bulletViews(t: TacticalState, shown: (firer: Soldier) => boolean): BulletView[] {
-  return t.bullets.filter((b) => drawnAsBulletTile(b) && shown(b.firer)).map((b) => ({ ...bulletWorldXY(b), z: bulletHeightPixels(b) }));
+export function bulletViews(t: TacticalState, shown: (firer: Soldier) => boolean, since: (b: Bullet) => number): BulletView[] {
+  return t.bullets.filter((b) => drawnInFlight(b) && shown(b.firer)).map((b) => bulletView(b, since));
+}
+
+function bulletView(b: Bullet, since: (b: Bullet) => number): BulletView {
+  const at = { ...bulletWorldXY(b), z: bulletHeightPixels(b) };
+  return isKnife(b) ? { ...at, knife: { anchor: b.firer.gridNo, direction: knifeDirection(b), since: since(b) } } : at;
 }

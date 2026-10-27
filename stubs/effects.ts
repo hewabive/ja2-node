@@ -16,6 +16,9 @@ const PUFF_SIZE = 32;
 const MINIBOOM_PATH = 'tilecache/miniboom.sti';
 const MINIBOOM_FRAMES = 13;
 const MINIBOOM_PEAK_FRAME = 5;
+const KNIFE_PATH = 'tilecache/knifing.sti';
+const KNIFE_SPIN_FRAMES = 4;
+const KNIFE_LENGTH = 7;
 const SMOKE_RAMPS: Readonly<Record<string, RampName>> = { SMOKE: 'gray', TEARGAS: 'sand', MUSTARDGAS: 'olive', CREATUREGAS: 'teal' };
 const SCREEN_VECTOR_BY_DIRECTION: readonly (readonly [number, number])[] = [
   [0.7, -0.35],
@@ -76,6 +79,19 @@ function miniboom(frame: number): StiSubImage {
   return { offsetX: -Math.round(radius), offsetY: -Math.round(radius), width: size, height: size, pixels: r.pixels };
 }
 
+function knifeFrame(block: number, spin: number): StiSubImage {
+  const [vx, vy] = SCREEN_VECTOR_BY_DIRECTION[block] ?? [1, 0];
+  const angle = Math.atan2(vy, vx) + (spin * Math.PI) / 2;
+  const size = KNIFE_LENGTH + 1;
+  const r = new IndexedRaster(size, size);
+  const half = KNIFE_LENGTH / 2;
+  const dx = Math.cos(angle) * half;
+  const dy = Math.sin(angle) * half;
+  r.line(half - dx, half - dy, half + dx, half + dy, color('steel', 13));
+  r.set(Math.round(half - dx), Math.round(half - dy), color('brown', 5));
+  return { offsetX: -Math.round(half), offsetY: -Math.round(half), width: size, height: size, pixels: r.pixels };
+}
+
 async function writeSti(
   out: string,
   path: string,
@@ -116,5 +132,9 @@ export async function buildStubEffects(out: string, palette: Uint8Array): Promis
   }
   const boom = Array.from({ length: MINIBOOM_FRAMES }, (_, f) => miniboom(f));
   written.push(await writeSti(out, MINIBOOM_PATH, palette, boom, MINIBOOM_FRAMES));
+  const knife = Array.from({ length: DIRECTIONS * KNIFE_SPIN_FRAMES }, (_, f) =>
+    knifeFrame(Math.floor(f / KNIFE_SPIN_FRAMES), f % KNIFE_SPIN_FRAMES),
+  );
+  written.push(await writeSti(out, KNIFE_PATH, palette, knife, KNIFE_SPIN_FRAMES));
   return written;
 }

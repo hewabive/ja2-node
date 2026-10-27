@@ -114,6 +114,8 @@ describe('the world view', () => {
   });
 
   const anyFirer = () => true;
+  const FIRED_AT = 7;
+  const firedAt = () => FIRED_AT;
   const tileOf = (b: BulletView) => ({ x: Math.trunc(b.x / 10), y: Math.trunc(b.y / 10) });
   const neighbours = (a: { x: number; y: number }, b: { x: number; y: number }) =>
     (a.x !== b.x || a.y !== b.y) && Math.abs(a.x - b.x) <= 1 && Math.abs(a.y - b.y) <= 1;
@@ -132,7 +134,7 @@ describe('the world view', () => {
     const positions: BulletView[][] = [];
     for (let tick = 0; tick < 2000 && (positions.length === 0 || sim.state.bullets.length > 0); tick++) {
       sim.step();
-      const now = bulletViews(sim.state, shown);
+      const now = bulletViews(sim.state, shown, firedAt);
       if (now.length > 0 || positions.length > 0) positions.push(now);
     }
     return positions;
@@ -152,12 +154,39 @@ describe('the world view', () => {
     expect(positions.at(-1)).toEqual([]);
   });
 
-  it('lists the bullets of the shooters it is told to show, and only bullets drawn as a bullet tile', () => {
+  it('lists the bullets of the shooters it is told to show, knives with the tile and direction they fly from, and no missiles', () => {
     expect(flight(shotAtTheSouth().sim, (firer) => firer.team !== Team.OUR).flat()).toEqual([]);
-    const { sim } = shotAtTheSouth();
-    while (bulletViews(sim.state, anyFirer).length === 0) sim.step();
-    expect(bulletViews(sim.state, anyFirer)).toHaveLength(1);
+    const { sim, merc } = shotAtTheSouth();
+    while (bulletViews(sim.state, anyFirer, firedAt).length === 0) sim.step();
+    expect(bulletViews(sim.state, anyFirer, firedAt)).toEqual([expect.not.objectContaining({ knife: expect.anything() })]);
     for (const b of sim.state.bullets) b.flags |= BulletFlag.KNIFE;
-    expect(bulletViews(sim.state, anyFirer)).toEqual([]);
+    expect(bulletViews(sim.state, anyFirer, firedAt)).toEqual([
+      expect.objectContaining({ knife: { anchor: merc.gridNo, direction: Direction.SOUTH, since: FIRED_AT } }),
+    ]);
+    for (const b of sim.state.bullets) b.flags = BulletFlag.MISSILE;
+    expect(bulletViews(sim.state, anyFirer, firedAt)).toEqual([]);
+  });
+});
+
+describe('a thrown knife in the world view', () => {
+  it('flies as a knife from the thrower toward the target', () => {
+    const sim = newCombatSim(content);
+    const thrower = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 70), Direction.EAST, { gun: 'THROWING_KNIFE', marksmanship: 90 });
+    const target = spawnSoldier(sim, 20, Team.ENEMY, gridNo(86, 70), Direction.WEST);
+    sim.lookAround();
+    sim.drainEvents();
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: target.gridNo })).toEqual({ ok: true });
+    const seen = [];
+    for (let tick = 0; tick < 2000 && seen.length < 3; tick++) {
+      sim.step();
+      const [view] = bulletViews(
+        sim.state,
+        () => true,
+        () => tick,
+      );
+      if (view) seen.push(view);
+    }
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((v) => v.knife?.anchor === thrower.gridNo && v.knife.direction === Direction.EAST)).toBe(true);
   });
 });

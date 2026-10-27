@@ -1,6 +1,8 @@
 import type { PresentationTimeline } from '../../content/anim/timelines.ts';
+import type { Bullet } from '../tactical/combat/bullets.ts';
 import { revealedRooms } from '../tactical/perception/fov.ts';
 import { Team } from '../tactical/soldier.ts';
+import type { TacticalState } from '../tactical/state.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
 import { type BulletView, bulletViews, corpseViews, smokeViews, tileChangeViews } from '../tactical/world-view.ts';
 
@@ -10,8 +12,8 @@ export function shownToPlayer(s: { readonly team: number; readonly visible: numb
   return s.team === Team.OUR || s.visible >= 0;
 }
 
-export function bulletsShownToPlayer(sim: TacticalSim): BulletView[] {
-  return bulletViews(sim.state, shownToPlayer);
+export function bulletsShownToPlayer(t: TacticalState, since: (b: Bullet) => number): BulletView[] {
+  return bulletViews(t, shownToPlayer, since);
 }
 
 export function tacticalViewParts(sim: TacticalSim, presentation: PresentationTimeline = NO_PRESENTATION) {

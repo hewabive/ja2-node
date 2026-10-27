@@ -2,8 +2,10 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-27. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Weapons.cc StructureHit (FIRSTMISS1 every 80 ms where the bullet is; in low or deep water
 // @src THIRDMISS1 every 50 ms, then SECONDMISS1 every 80 ms), WindowHit (the shatter tile every 50 ms),
-// @src DoSpecialEffectAmmoMiss (miniboom.sti every 100 ms); src/game/TileEngine/Tile_Animation.cc UpdateAniTiles (a frame
-// @src lasts until more than its delay has passed, and the tile goes once its last frame has).
+// @src DoSpecialEffectAmmoMiss (miniboom.sti every 100 ms); src/game/Tactical/Bullets.cc HandleBulletSpecialFlags (a
+// @src thrown knife starts at the fourth frame of its direction and steps every 100 ms); src/game/TileEngine/Tile_Animation.cc
+// @src UpdateAniTiles (a frame lasts until more than its delay has passed, a looping tile restarts at its direction's first
+// @src frame, any other goes once its last frame has).
 
 import type { TileElement } from '../../content/world/tile-database.ts';
 import type { TileTables } from '../../content/world/tile-tables.ts';
@@ -38,8 +40,20 @@ export type FrameCount = (kind: EffectKind, tile: string | null) => number | nul
 const FRAME_DELAY_MS: Readonly<Record<EffectKind, number>> = { dust: 80, splash: 80, ripple: 50, shatter: 50, miniboom: 100 };
 const LONGEST_EFFECT_TICKS = 2000 / TICK_MS;
 
+export function framePeriodTicks(delayMs: number): number {
+  return Math.floor(delayMs / TICK_MS) + 1;
+}
+
 export function ticksPerFrame(kind: EffectKind): number {
-  return Math.floor(FRAME_DELAY_MS[kind] / TICK_MS) + 1;
+  return framePeriodTicks(FRAME_DELAY_MS[kind]);
+}
+
+const KNIFE_START_FRAME = 3;
+const KNIFE_FRAME_DELAY_MS = 100;
+
+export function knifeFrame(direction: number, framesPerDirection: number, since: number, tick: number): number {
+  const steps = Math.floor(Math.max(0, tick - since) / framePeriodTicks(KNIFE_FRAME_DELAY_MS));
+  return direction * framesPerDirection + ((KNIFE_START_FRAME + steps) % framesPerDirection);
 }
 
 function started(e: EffectEvent): RunningEffect[] {

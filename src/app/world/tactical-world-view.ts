@@ -10,7 +10,7 @@ import type {
   TileChangeView,
   WorldLightView,
 } from '../../protocol/view.ts';
-import type { SceneItem, WorldUiNode } from '../../render/world/dynamic-scene.ts';
+import type { SceneAniTile, SceneItem, WorldUiNode } from '../../render/world/dynamic-scene.ts';
 import type { Camera, Viewport } from '../../render/world/geometry.ts';
 import type { WorldDisplayOptions, WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { EffectEvent, SimEvent } from '../../sim/events.ts';
@@ -190,11 +190,9 @@ export class TacticalWorldView {
     });
   }
 
-  #bulletNodes(bullets: readonly BulletView[], hidden: boolean) {
+  #bulletNodes(bullets: readonly BulletView[]) {
     const tiles = this.#bulletTiles;
-    const drawn = tiles && !hidden ? bullets : NO_BULLETS;
-    this.#drawnBullets = drawn.length;
-    return tiles ? bulletNodes(drawn, tiles, this.world.level.heights) : [];
+    return tiles ? bulletNodes(bullets, tiles, this.world.level.heights) : [];
   }
 
   #frameOf(tick: number): (s: SoldierView) => number {
@@ -221,6 +219,12 @@ export class TacticalWorldView {
 
   #shownEffects(tick: number): EffectFrame[] {
     return this.#effectAnimations.at(Math.floor(tick), (kind, tile) => this.#effectFrameCount(kind, tile));
+  }
+
+  #knifeTiles(bullets: readonly BulletView[], tick: number): SceneAniTile[] {
+    const effects = this.#effects;
+    if (!effects) return [];
+    return bullets.flatMap((b) => (b.knife ? effects.knife({ ...b, knife: b.knife }, tick, this.world.level.heights) : []));
   }
 
   #miniboomTiles(shown: readonly EffectFrame[]) {
@@ -270,9 +274,12 @@ export class TacticalWorldView {
         bloodAndGore: f.options.bloodAndGore,
         animateSmoke: f.options.animateSmoke,
       }) ?? [];
-    const effects = this.#shownEffects(f.shownTick ?? view.tick);
+    const shownTick = f.shownTick ?? view.tick;
+    const effects = this.#shownEffects(shownTick);
     this.#drawnImpacts = effects.length;
-    const animatedTiles = [...aniTiles, ...this.#miniboomTiles(effects)];
+    const bullets = f.options.hideBullets ? NO_BULLETS : (f.bullets ?? NO_BULLETS);
+    this.#drawnBullets = bullets.length;
+    const animatedTiles = [...aniTiles, ...this.#miniboomTiles(effects), ...this.#knifeTiles(bullets, Math.floor(shownTick))];
     this.#drawnEffects = animatedTiles.length;
     return this.#renderer.render({
       viewport: f.viewport,
@@ -289,7 +296,7 @@ export class TacticalWorldView {
       aniTiles: animatedTiles,
       structNodes: [
         ...effectStructNodes(effects, this.world.tables, this.world.tiles),
-        ...this.#bulletNodes(f.bullets ?? NO_BULLETS, f.options.hideBullets),
+        ...this.#bulletNodes(bullets.filter((b) => !b.knife)),
       ],
       tileChanges: view.tileChanges ?? NO_TILE_CHANGES,
     });

@@ -5,7 +5,7 @@ import { gridNo } from '../../content/world/grid.ts';
 import { buildTileDatabase, type TileSurface } from '../../content/world/tile-database.ts';
 import { parseTileTables, tileIndex } from '../../content/world/tile-tables.ts';
 import type { EffectEvent } from '../../sim/events.ts';
-import { EffectAnimations, effectStructNodes, ticksPerFrame } from './effect-animations.ts';
+import { EffectAnimations, effectStructNodes, knifeFrame, ticksPerFrame } from './effect-animations.ts';
 
 const tables = parseTileTables(JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/tiles.json'), 'utf8')));
 const surfaces: TileSurface[] = tables.types.map((t) => ({
@@ -69,5 +69,13 @@ describe('effect animations', () => {
     effects.observe([impact(0, 'miniboom')]);
     effects.reset();
     expect(effects.at(1, FIVE_FRAMES)).toEqual([]);
+  });
+});
+
+describe('a thrown knife', () => {
+  it('starts at the last frame of its direction and spins through the block every 100 ms', () => {
+    const period = Math.floor(100 / 5) + 1;
+    const frames = [0, period - 1, period, 2 * period, 3 * period, 4 * period].map((t) => knifeFrame(4, 4, 50, 50 + t));
+    expect(frames).toEqual([19, 19, 16, 17, 18, 19]);
   });
 });

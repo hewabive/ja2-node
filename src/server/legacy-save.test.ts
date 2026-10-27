@@ -3,6 +3,9 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createSaveKit, type SaveKit } from '../../tests/support/saves.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
+import { type AnimationTables, AnimFlags, stateId } from '../content/anim/tables.ts';
+import { STUB_ANIMATION_SCRIPTS_PATH } from '../content/anim/timelines.ts';
+import { MAX_FRAMES_PER_ANIM, parseAnimationScripts, writeAnimationScripts } from '../content/formats/ja2bin.ts';
 import { parseTilesetDatabase, writeTilesetDatabase } from '../content/formats/ja2set.ts';
 import { STUBS_LAYER } from '../content/vfs/layers.ts';
 import { MemoryLayer, Vfs } from '../content/vfs/vfs.ts';
@@ -26,6 +29,11 @@ const SURFACES_ADDED_AFTER_070 = new Set([
   'ripple.sprite.json',
   'glassshatter.sprite.json',
 ]);
+const SCRIPTS_ADDED_AFTER_070 = ['THROW_KNIFE'];
+const RECORDED_ONE_SHOT_FRAMES = 8;
+const NONINTERRUPTIBLE_DONE = 442;
+const RT_NONINTERRUPTIBLE_DONE = 772;
+const END_OF_ANIMATION = 499;
 const SAVE_NAMES = ['campaign', 'sandbox'];
 
 interface SoldierSummary {
@@ -86,10 +94,33 @@ async function recordedStubTilesets(vfs: Vfs): Promise<Uint8Array> {
   return writeTilesetDatabase({ ...current, tilesets });
 }
 
-async function withStubsAsRecorded(vfs: Vfs): Promise<Vfs> {
+function recordedOneShotScript(flags: number): number[] {
+  return [
+    ...Array.from({ length: RECORDED_ONE_SHOT_FRAMES }, (_, k) => k + 1),
+    ...(flags & AnimFlags.NONINTERRUPT ? [NONINTERRUPTIBLE_DONE] : []),
+    ...(flags & AnimFlags.RT_NONINTERRUPT ? [RT_NONINTERRUPTIBLE_DONE] : []),
+    END_OF_ANIMATION,
+  ];
+}
+
+async function recordedStubScripts(vfs: Vfs, tables: AnimationTables): Promise<Uint8Array> {
+  const { codes } = parseAnimationScripts(await vfs.read(STUB_ANIMATION_SCRIPTS_PATH));
+  for (const name of SCRIPTS_ADDED_AFTER_070) {
+    const state = stateId(tables, name);
+    const base = state * MAX_FRAMES_PER_ANIM;
+    codes.fill(0, base, base + MAX_FRAMES_PER_ANIM);
+    recordedOneShotScript(tables.controls[state]?.flags ?? 0).forEach((code, pc) => {
+      codes[base + pc] = code;
+    });
+  }
+  return writeAnimationScripts({ codes });
+}
+
+async function withStubsAsRecorded(vfs: Vfs, tables: AnimationTables): Promise<Vfs> {
   const recorded = new MemoryLayer(STUBS_LAYER, [
     [STUB_PROFILES_FILE, await recordedStubProfiles(vfs)],
     [STUB_TILESETS_FILE, await recordedStubTilesets(vfs)],
+    [STUB_ANIMATION_SCRIPTS_PATH, await recordedStubScripts(vfs, tables)],
   ]);
   return new Vfs([recorded, ...vfs.layers]);
 }
@@ -100,7 +131,7 @@ async function copyFixtures(k: SaveKit): Promise<void> {
 
 beforeAll(async () => {
   kit = await loadStubSectorKit();
-  const recorded = await withStubsAsRecorded(kit.vfs);
+  const recorded = await withStubsAsRecorded(kit.vfs, kit.content.animations);
   saves = await createSaveKit(kit, { legacyVfs: recorded });
   changedStubs = await createSaveKit(kit, { legacyVfs: await withChangedStubFile(recorded) });
   expected = JSON.parse(await readFile(join(FIXTURES, `expected-${LEGACY_VERSION}.json`), 'utf8')) as Record<string, ExpectedRun>;

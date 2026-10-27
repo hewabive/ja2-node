@@ -50,6 +50,12 @@ cached animation tile on the topmost layer, always translucent, placed like a me
 tile's land height and its `sRelativeZ` (`RenderWorld.cc:583-622`). All of them take `DEFAULT_SHADE_LEVEL`. A frame
 lasts until more than its delay has passed, so 85, 55 or 105 ms on 5 ms ticks.
 
+A thrown knife is a cached animation tile too (`HandleBulletSpecialFlags`, `Bullets.cc:72-123`): `knifing.sti` in the
+struct layer and the same frame in the shadow layer with `sRelativeZ` 0, both hanging on the tile the knife left from.
+`UpdateBullets` moves only their world position and sets the knife's `sRelativeZ` to its height minus the land height
+under it, so the knife sorts at the on-roof z of the thrower's tile raised by that height and the tile's own land height
+is taken off its position. The shadow layer draws it flat without a depth test (§2.6).
+
 **Notation.**
 - Unmarked statements were read in the code (fact) and carry a `file:line` reference.
 - **(inferred)** marks my derivations and assumptions.

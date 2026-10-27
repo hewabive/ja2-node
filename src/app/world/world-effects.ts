@@ -4,8 +4,11 @@
 // @src CreateCorpsePalette, GetCorpseStructIndex; Tactical/Animation_Control.cc GetBodyTypePaletteSubstitution;
 // @src src/game/TileEngine/SmokeEffects.cc AddSmokeEffectToTile (graphics by density, Random(5) start frame,
 // @src 300 + Random(300) ms per frame, translucent; the static graphic when smoke is not animated);
-// @src Tile_Animation.cc CreateAnimationTile, UpdateAniTiles; src/game/Tactical/Weapons.cc DoSpecialEffectAmmoMiss (the
-// @src translucent miniboom of HE and HEAT rounds on the topmost layer, at the impact). See docs/28 §12.1 G8.
+// @src Tile_Animation.cc CreateAnimationTile, UpdateAniTiles (looping tiles restart at their direction's first frame);
+// @src src/game/Tactical/Weapons.cc DoSpecialEffectAmmoMiss (the translucent miniboom of HE and HEAT rounds on the topmost
+// @src layer, at the impact); src/game/Tactical/Bullets.cc HandleBulletSpecialFlags, UpdateBullets (a thrown knife: the
+// @src knifing.sti frames of its direction from the fourth, every 100 ms, and its shadow on the ground, both hanging on the
+// @src thrower's tile). See docs/28 §12.1 G8.
 
 import {
   CORPSES_TABLE_PATH,
@@ -23,10 +26,11 @@ import { SMOKE_EFFECTS_PATH } from '../../content/items/explosions.ts';
 import { pictureFromSti } from '../../content/picture/from-sti.ts';
 import type { IndexedPicture } from '../../content/picture/picture.ts';
 import { zStripInfo } from '../../content/world/zstrip.ts';
-import type { CorpseView, SmokeTileView } from '../../protocol/view.ts';
+import type { BulletView, CorpseView, KnifeFlight, SmokeTileView } from '../../protocol/view.ts';
 import type { SceneAniTile } from '../../render/world/dynamic-scene.ts';
 import type { LoadedSoldierSheet, WorldSprites } from '../../render/world/world-sprites.ts';
-import type { EffectFrame } from './effect-animations.ts';
+import { bulletGridNo } from './bullet-nodes.ts';
+import { type EffectFrame, knifeFrame } from './effect-animations.ts';
 
 export type EffectSprites = Pick<WorldSprites, 'addSheet' | 'soldierFrame' | 'shadedPaletteBase' | 'plainPaletteRow'>;
 
@@ -34,6 +38,7 @@ import type { ReadVfsFile } from '../net/vfs.ts';
 
 const TILE_CACHE_DIR = 'tilecache/';
 const MINIBOOM_PATH = 'tilecache/miniboom.sti';
+const KNIFE_PATH = 'tilecache/knifing.sti';
 const STUB_PREFIX = 'stubs/';
 const CAMO_PALETTE = 'anims/camo.col';
 const ROTTING_STAGE2 = 'ROTTING_STAGE2';
@@ -330,6 +335,31 @@ export class WorldEffects {
       zTileOffsetX: 0,
       zTileOffsetY: 0,
     };
+  }
+
+  knife(b: BulletView & { readonly knife: KnifeFlight }, tick: number, landHeights: Uint8Array): SceneAniTile[] {
+    const sprites = this.#sprites;
+    const loaded = this.#picture(KNIFE_PATH);
+    if (!sprites || !loaded) return [];
+    const sheet = this.#sheet(KNIFE_PATH, loaded.picture);
+    const frame = knifeFrame(b.knife.direction, Math.max(1, loaded.framesPerDirection), b.knife.since, tick);
+    const sprite = sheet ? sprites.soldierFrame(sheet, frame) : null;
+    if (!sprite) return [];
+    const flying = {
+      gridNo: b.knife.anchor,
+      level: 0,
+      sprite,
+      paletteRow: sprites.plainPaletteRow(`effect|${KNIFE_PATH}`, () => loaded.picture.palette),
+      shaded: false,
+      zStrip: null,
+      zTileOffsetX: 0,
+      zTileOffsetY: 0,
+    };
+    const raised = b.z - (landHeights[bulletGridNo(b)] ?? 0);
+    return [
+      { ...flying, kind: 'knife', at: { x: b.x, y: b.y, z: raised } },
+      { ...flying, kind: 'knifeShadow', at: { x: b.x, y: b.y, z: 0 } },
+    ];
   }
 
   #forgetClearedSmoke(smoke: readonly SmokeTileView[]): void {

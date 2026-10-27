@@ -231,6 +231,7 @@ const SANDBOX_WORLD_HOUR = 12;
 
 const isMeleeItemClass = (cls: number) => cls === ItemClass.BLADE || (cls & (ItemClass.NONE | ItemClass.PUNCH)) !== 0;
 const isThrowItemClass = (cls: number) => cls === ItemClass.GRENADE || cls === ItemClass.THROWN || cls === ItemClass.LAUNCHER;
+const RANGED_ITEM_CLASSES: ReadonlySet<number> = new Set([ItemClass.GUN, ItemClass.THROWING_KNIFE]);
 const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
 const inWater = (s: Soldier) => s.overTerrain >= Terrain.LOW_WATER && s.overTerrain <= Terrain.DEEP_WATER;
 
@@ -798,7 +799,7 @@ export class TacticalSim {
     const def = t.content.items.byIndex.get(hand);
     const melee = def !== undefined && isMeleeItemClass(def.itemClass);
     const thrown = def !== undefined && isThrowItemClass(def.itemClass);
-    if (!def || (def.itemClass !== ItemClass.GUN && !melee && !thrown))
+    if (!def || (!RANGED_ITEM_CLASSES.has(def.itemClass) && !melee && !thrown))
       return { error: 'soldier has no gun, knife, grenade, launcher or free hand', token: 'noWeapon' };
     if (mode === WeaponMode.BURST && (melee || thrown || !(def.weapon?.shotsPerBurst ?? 0)))
       return { error: 'this weapon cannot fire bursts', token: 'noBurst' };

@@ -30,6 +30,7 @@ import { windowHit } from '../explosions/structure-damage.ts';
 import { InvSlot } from '../inventory.ts';
 import { landHeightUnits, resolveHitOnWall } from '../perception/los.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
+import { atan8 } from '../perception/opp.ts';
 import { StatKind } from '../profiles.ts';
 import { Body, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
@@ -176,10 +177,19 @@ export function bulletWorldXY(b: Bullet): { readonly x: number; readonly y: numb
   return { x: fixInt(b.x), y: fixInt(b.y) };
 }
 
-const DRAWN_WITHOUT_BULLET_TILE = BulletFlag.KNIFE | SPECIAL_BULLETS;
+export function drawnInFlight(b: Bullet): boolean {
+  return b.real && !b.toDelete && (b.flags & (BulletFlag.STOPPED | SPECIAL_BULLETS)) === 0;
+}
 
-export function drawnAsBulletTile(b: Bullet): boolean {
-  return b.real && !b.toDelete && (b.flags & (BulletFlag.STOPPED | DRAWN_WITHOUT_BULLET_TILE)) === 0;
+export function isKnife(b: Bullet): boolean {
+  return (b.flags & BulletFlag.KNIFE) !== 0;
+}
+
+const DIRECTION_SCALE = 100;
+
+export function knifeDirection(b: Bullet): number {
+  const toward = (inc: number) => Math.trunc(f32(f32(inc / FIX) * DIRECTION_SCALE));
+  return atan8(0, 0, toward(b.incX), toward(b.incY));
 }
 
 export function bulletHeightPixels(b: Bullet): number {

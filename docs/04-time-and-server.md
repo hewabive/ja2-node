@@ -227,7 +227,7 @@ moves in his stance, a mode is for this move only and he ends it in that mode's 
 first step plus any stance change is affordable), `turn {soldier, direction | toward}`,
 `stance {soldier, stance: run|stand|crouch|prone}` (§6.29), `stop {soldier}`,
 `endTurn`, `attack {soldier, target, level?, aimTime?: 0..4, bodyPart?: head|torso|legs|random, burst?}`
-(`HandleItem` with what is in hand: gun, grenade launcher, thrown grenade or rock, knife or fists; refusals: no APs,
+(`HandleItem` with what is in hand: gun, throwing knife, grenade launcher, thrown grenade or rock, knife or fists; refusals: no APs,
 no ammo, broken weapon, out of melee reach, an aimed throw) and `estimateAttack` with the same
 fields, a query that changes nothing and answers `data {apCost, actionPoints, chanceToHit, chanceToGetThrough}`.
 `pickUp {soldier, gridNo?, zLevel?, items?}` picks up the visible items on the soldier's tile (or on an adjacent
@@ -268,6 +268,12 @@ events into the frame of the tick it stepped them in (`ViewFrame.effects`, stamp
 plays each one from that tick on its own clock of view ticks (`EffectAnimations`), and while bullets fly or effects
 started in the last two seconds, the session sends a frame every 10 ticks even when nothing else changed, so the
 client's time keeps running until they end.
+
+**Thrown knives.** A knife in flight is in `ViewFrame.bullets` too, with `knife {anchor, direction, since}`: the tile the
+original hangs its `knifing.sti` animation tile and shadow on (the thrower's), the direction block of the sprite and the
+session tick the knife was first seen at, from which the client takes the frame (the fourth of the block first, then
+one more every 100 ms). The session's simulation adapter keeps that tick per bullet object; nothing is stored in the
+state.
 
 ### 4.5. CPU cost
 

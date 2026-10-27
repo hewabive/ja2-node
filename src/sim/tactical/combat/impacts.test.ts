@@ -24,10 +24,18 @@ function shotAtTheGround(prepare: (sim: TacticalSim) => void = () => {}) {
   const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 70), Direction.SOUTH);
   prepare(sim);
   expect(sim.dispatch({ type: 'attack', soldier: 0, target: EMPTY_GROUND }).ok).toBe(true);
-  let last = bulletViews(sim.state, () => true);
+  let last = bulletViews(
+    sim.state,
+    () => true,
+    () => 0,
+  );
   const events: SimEvent[] = [];
   for (let tick = 0; tick < 2000 && !events.some((e) => e.type === 'bulletImpact'); tick++) {
-    const flying = bulletViews(sim.state, () => true);
+    const flying = bulletViews(
+      sim.state,
+      () => true,
+      () => 0,
+    );
     if (flying.length > 0) last = flying;
     sim.step();
     events.push(...sim.drainEvents());

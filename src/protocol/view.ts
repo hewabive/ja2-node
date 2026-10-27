@@ -24,6 +24,7 @@ export type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
 export type {
   BulletView,
   CorpseView,
+  KnifeFlight,
   SmokeTileView,
   TileChangeKind,
   TileChangeView,

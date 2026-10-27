@@ -100,16 +100,17 @@ function inPass(m: SceneSoldier, pass: MercPass): boolean {
   return m.level > 0;
 }
 
-export type AniTileKind = 'corpse' | 'vehicleCorpse' | 'smoke' | 'staticSmoke' | 'miniboom';
+export type AniTileKind = 'corpse' | 'vehicleCorpse' | 'smoke' | 'staticSmoke' | 'miniboom' | 'knife' | 'knifeShadow';
 
 const PAUSED_ANI_KINDS: ReadonlySet<AniTileKind> = new Set(['corpse', 'vehicleCorpse']);
 
-function isPaused(a: SceneAniTile): boolean {
-  return PAUSED_ANI_KINDS.has(a.kind);
-}
+type AniLayer = 'paused' | 'shadows' | 'structs' | 'onRoof' | 'topmost';
 
-function isTopmost(a: SceneAniTile): boolean {
-  return a.kind === 'miniboom';
+function aniLayerOf(a: SceneAniTile): AniLayer {
+  if (PAUSED_ANI_KINDS.has(a.kind)) return 'paused';
+  if (a.kind === 'miniboom') return 'topmost';
+  if (a.kind === 'knifeShadow') return 'shadows';
+  return a.level > 0 ? 'onRoof' : 'structs';
 }
 
 export interface WorldPoint {
@@ -326,10 +327,11 @@ export class DynamicScene {
   #emitLayer(g: number, x: number, y: number, layer: ListLayer): void {
     const ui = (this.#uiByTile.get(g) ?? []).filter((n) => UI_LAYER_OF[n.layer] === layer);
     for (const n of ui) if (n.head) this.#emitUiNode(n, x, y, layer);
+    if (layer === 'shadows') for (const a of this.#aniByTile.get(g * 2) ?? []) if (aniLayerOf(a) === 'shadows') this.#emitAniTile(a, x, y);
     for (const node of this.#mapNodes.get(g) ?? []) if (node.layer === layer) this.#emitMapNode(g, x, y, layer, node.tile);
     if (layer === 'structs' || layer === 'onRoof')
       for (const a of this.#aniByTile.get(g * 2 + (layer === 'onRoof' ? 1 : 0)) ?? [])
-        if (!isPaused(a) && !isTopmost(a)) this.#emitAniTile(a, x, y);
+        if (aniLayerOf(a) === layer) this.#emitAniTile(a, x, y);
     if (layer === 'structs') for (const n of this.#structNodesByTile.get(g) ?? []) this.#emitStructNode(n, x, y);
     for (const n of ui) if (!n.head) this.#emitUiNode(n, x, y, layer);
   }
@@ -382,7 +384,7 @@ export class DynamicScene {
   }
 
   #emitPausedAniTiles(g: number, x: number, y: number, level: number): void {
-    for (const a of this.#aniByTile.get(g * 2 + level) ?? []) if (isPaused(a)) this.#emitAniTile(a, x, y);
+    for (const a of this.#aniByTile.get(g * 2 + level) ?? []) if (aniLayerOf(a) === 'paused') this.#emitAniTile(a, x, y);
   }
 
   #centreScreen(g: number, level: number): { readonly x: number; readonly y: number } {
@@ -408,6 +410,10 @@ export class DynamicScene {
   }
 
   #emitAniTile(a: SceneAniTile, x: number, y: number): void {
+    if (a.at) {
+      this.#emitFlyingAniTile(a, a.at, x, y);
+      return;
+    }
     const centre = this.#centreScreen(a.gridNo, a.level);
     const p = { x: centre.x + a.sprite.offsetX, y: centre.y + a.sprite.offsetY };
     const z = this.#aniZ(a, x, y);
@@ -432,10 +438,22 @@ export class DynamicScene {
     );
   }
 
+  #emitFlyingAniTile(a: SceneAniTile, at: WorldPoint & { readonly z: number }, x: number, y: number): void {
+    const p = this.#cachedAniPosition(a, at);
+    const out = this.instances;
+    const s = a.sprite;
+    if (a.kind === 'knifeShadow') {
+      this.#push(out, this.runs, DrawState.SHADOW_FLAT, () => out.push(p.x, p.y, s, 0, s.width, a.paletteRow, 0, ShadeKey.FIXED, 0, 0));
+      return;
+    }
+    const z = animationTileZ(worldY(x, y, this.#world.topY), at.z);
+    this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL, () => out.push(p.x, p.y, s, 0, s.width, a.paletteRow, z, ShadeKey.FIXED, 0, 0));
+  }
+
   #emitTopmost(g: number, x: number, y: number): void {
     const ui = (this.#uiByTile.get(g) ?? []).filter((n) => n.layer === 'topmost');
     for (const n of ui) if (n.head) this.#emitUiNode(n, x, y, 'topmost');
-    for (const a of this.#aniByTile.get(g * 2) ?? []) if (isTopmost(a)) this.#emitTopmostAniTile(a);
+    for (const a of this.#aniByTile.get(g * 2) ?? []) if (aniLayerOf(a) === 'topmost') this.#emitTopmostAniTile(a);
     for (const n of ui) if (!n.head) this.#emitUiNode(n, x, y, 'topmost');
   }
 

@@ -4,14 +4,15 @@
 // @src SelectFireAnimation, SoldierReadyWeapon, InternalSoldierReadyWeapon, PickSoldierReadyAnimation, SendBeginFireWeaponEvent;
 // @src Weapons.cc CheckForGunJam, OKFireWeapon, FireWeapon, UseGun, GetTargetWorldPositions;
 // @src Soldier_Ani.cc opcodes 430, 441, 448, 449, 458, 459, 470, 473, 476, 753, 757, CheckForImproperFireGunEnd,
-// @src HandleUnjamAnimation; Handle_Items.cc HandleItem dispatch to the punch and blade paths. See docs/11 §1, §6.
+// @src HandleUnjamAnimation; Handle_Items.cc HandleItem dispatch to the punch and blade paths; Soldier_Control.cc
+// @src EVENT_SoldierBeginKnifeThrowAttack (the throwing-knife branch of HandleItem and UseGun). See docs/11 §1, §6.
 
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { AmmoType, ItemClass, ItemCursor, ItemFlags, NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway, WORLD_COLS } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
-import { createItem, findAttachment, type ItemObject, USABLE_STATUS } from '../../items/object.ts';
+import { createItem, findAttachment, type ItemObject, removeObjects, USABLE_STATUS } from '../../items/object.ts';
 import { anim, animName } from '../anim-states.ts';
 import {
   AnimHeight,
@@ -25,7 +26,7 @@ import {
   setSoldierDirection,
 } from '../animation.ts';
 import { igniteExplosion } from '../explosions/explosion.ts';
-import { useLauncher, useThrown, willExplosiveWeaponFail } from '../explosions/throwing.ts';
+import { calcThrownChanceToHit, useLauncher, useThrown, willExplosiveWeaponFail } from '../explosions/throwing.ts';
 import { InvSlot, isValidSecondHandShot } from '../inventory.ts';
 import { putOutMuzzleFlash, showMuzzleFlash } from '../lighting/muzzle-flash.ts';
 import { directionToward } from '../movement.ts';
@@ -171,9 +172,23 @@ function handleGunAttack(t: TacticalState, s: Soldier, g: number, tgt: Soldier |
       s.weaponMode = WeaponMode.BURST;
     }
   }
-  if (d.itemClass === ItemClass.THROWING_KNIFE) return ItemHandle.BROKEN;
+  if (d.itemClass === ItemClass.THROWING_KNIFE) {
+    beginKnifeThrowAttack(t, s, targetGrid, directionToward(s.gridNo, targetGrid));
+    return ItemHandle.OK;
+  }
   sendBeginFireWeaponEvent(t, s, !s.doSpread || !s.spreadLocations[0] ? targetGrid : s.spreadLocations[0]);
   return ItemHandle.OK;
+}
+
+function beginKnifeThrowAttack(t: TacticalState, s: Soldier, g: number, direction: number): void {
+  t.turn.attackBusyCount++;
+  s.bulletsLeft = 1;
+  initNewSoldierAnim(t, s, anim(t.content, 'THROW_KNIFE'), 0, false);
+  setDesiredDirection(t, s, direction);
+  setSoldierDirection(t, s, direction);
+  s.targetGridNo = g;
+  s.turningFromPronePosition = TurningFromProne.OFF;
+  s.target = whoIsThere(t, g, s.targetLevel);
 }
 
 export function pickSoldierReadyAnimation(t: TacticalState, s: Soldier, endReady: boolean): number {
@@ -401,7 +416,11 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
   } else deductPoints(t.inCombat, s, ap, 0);
   const pos = getTargetWorldPositions(t, s, target);
   const knife = d?.itemClass === ItemClass.THROWING_KNIFE;
-  const chance = inMeanwhile(t) ? MEANWHILE_HIT_CHANCE : knife ? 0 : calcChanceToHitGun(t, s, target, s.aimTime, s.aimShotLocation, true);
+  const chance = inMeanwhile(t)
+    ? MEANWHILE_HIT_CHANCE
+    : knife
+      ? calcThrownChanceToHit(t, s, target, s.aimTime)
+      : calcChanceToHitGun(t, s, target, s.aimTime, s.aimShotLocation, true);
   const roll = t.pre.int(100);
   const hit = roll <= chance;
   let buckshot = false;
@@ -431,6 +450,9 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
       if (ammo === AmmoType.BUCKSHOT) buckshot = true;
       else if (ammo === AmmoType.SLEEP_DART) s.muzzleFlash = false;
     }
+  } else {
+    s.muzzleFlash = false;
+    knifeThrowExperience(t, s, chance, hit);
   }
   const law = item === itemIndex(t, 'ROCKET_LAUNCHER');
   if (law && willExplosiveWeaponFail(t, s, hand)) {
@@ -441,12 +463,13 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
   t.events.push({ type: 'shotFired', soldier: s.id, target, chance, hit, ...shotSound(t, s, item) });
   fireBulletGivenTarget(t, s, pos.x, pos.y, pos.z, item, ((chance - roll) << 16) >> 16, buckshot, false);
   let volume = d?.weapon?.attackVolume ?? 0;
+  if (knife) takeThrownKnife(t, s);
   const gun = s.inv[s.attackingHand] as ItemObject;
   const silencer = findAttachment(gun, itemIndex(t, 'SILENCER'));
   if (law) {
     discardLaw(t, s);
     lawBackblast(t, s);
-  } else if (silencer !== -1) {
+  } else if (!knife && silencer !== -1) {
     const status = gun.attachments[silencer]?.status ?? 0;
     const wsm = status >= 85 ? 100 : Math.trunc((status * 100) / 85);
     volume = 1 + Math.trunc((100 - wsm) / Math.trunc(100 / (volume - 1)));
@@ -455,6 +478,39 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
   if (s.doBurst) s.doBurst++;
   if (!t.pre.int(BASIC_DEPRECIATE_CHANCE + 3 * (d?.reliability ?? 0)) && (gun.status[0] ?? 0) > 1) gun.status[0] = (gun.status[0] ?? 0) - 1;
   if (s.monsterSmell > 0 && t.rng.int(2) === 0) s.monsterSmell--;
+}
+
+const KNIFE_HIT_DIFFICULTY_DIVISOR = 10;
+const KNIFE_AIM_EXPERIENCE_FACTOR = 2;
+const KNIFE_HIT_EXPERIENCE = 10;
+const KNIFE_THROW_EXPERIENCE = 10;
+
+function knifeThrowExperience(t: TacticalState, s: Soldier, chance: number, hit: boolean): void {
+  if (s.team !== Team.OUR || !s.target) return;
+  let xp = 0;
+  if (hit) {
+    xp += Math.trunc(((100 - chance) & 0xff) / KNIFE_HIT_DIFFICULTY_DIVISOR);
+    if (s.aimTime) xp += KNIFE_AIM_EXPERIENCE_FACTOR * Math.min(s.aimTime, xp);
+    xp += KNIFE_HIT_EXPERIENCE;
+  }
+  xp += KNIFE_THROW_EXPERIENCE;
+  xp = modifyExpGainByTarget(xp, s.target);
+  const cause = hit ? StatCause.SUCCESS : StatCause.FAILURE;
+  statChange(t, s, StatKind.MARKSMANSHIP, Math.trunc(xp / 2), cause);
+  statChange(t, s, StatKind.DEXTERITY, Math.trunc(xp / 2), cause);
+}
+
+function takeThrownKnife(t: TacticalState, s: Soldier): void {
+  const hand = s.inv[InvSlot.HAND] as ItemObject;
+  removeObjects(hand, 1);
+  if (hand.item !== NOTHING) return;
+  const spare = [itemIndex(t, 'BLOODY_THROWING_KNIFE'), itemIndex(t, 'THROWING_KNIFE')]
+    .map((knife) => s.inv.findIndex((o) => o?.item === knife))
+    .find((slot) => slot >= 0);
+  const from = spare === undefined ? null : s.inv[spare];
+  if (!from) return;
+  Object.assign(hand, createItem(t.content.items, from.item, from.status[0] ?? 0));
+  removeObjects(from, 1);
 }
 
 const LAW_BACKBLAST_DAMAGE = 10;

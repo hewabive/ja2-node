@@ -20,7 +20,6 @@ import { findEmail } from '../sim/campaign/laptop/mail.ts';
 import { MercKind, type Roster, type RosterMerc } from '../sim/campaign/roster.ts';
 import type { CommandResult, StepObserver } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
-import { bulletsShownToPlayer } from '../sim/knowledge/sim-view.ts';
 import type { StrategicRules } from '../sim/knowledge/strategic.ts';
 import { Assignment } from '../sim/strategic/forces/constants.ts';
 import { numHostilesInSector } from '../sim/strategic/forces/groups.ts';
@@ -30,6 +29,7 @@ import type { SaveImportReport } from '../sim/tactical/save-import.ts';
 import { SoldierStatusFlags, Team } from '../sim/tactical/soldier.ts';
 import type { TacticalSim } from '../sim/tactical/tactical-sim.ts';
 import { autoresolveView, npcRequestView, promptView } from './battle-view.ts';
+import { BulletFlights } from './bullet-flights.ts';
 import type { CampaignParts } from './campaign-factory.ts';
 import { contractPromptView } from './contract-view.ts';
 import { laptopView } from './laptop-view.ts';
@@ -116,6 +116,7 @@ export class CampaignSession implements SessionSim {
   readonly origin: CampaignOrigin | null;
   initialMusic: MusicState = initialMusic();
   #strategicRules: StrategicRules | null = null;
+  readonly #flights = new BulletFlights();
   #labels: UiStrings | null = null;
 
   constructor(
@@ -169,7 +170,7 @@ export class CampaignSession implements SessionSim {
 
   bulletViews(): BulletView[] {
     const tactical = this.campaign.tactical;
-    return tactical ? bulletsShownToPlayer(tactical) : [];
+    return tactical ? this.#flights.views(tactical.state, this.tick) : [];
   }
 
   strategicRules(): StrategicRules | null {

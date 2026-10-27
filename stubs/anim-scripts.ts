@@ -142,6 +142,17 @@ const ITEM_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
   FALLOFF: () => [...fallScript(ClimbOp.BACKWARD_FALL, 19, 25), ClimbOp.GROUND_HEIGHT, NONINTERRUPTIBLE_DONE, DEATH_OR_RELEASE],
   FALLFORWARD_ROOF: () => [...fallScript(ClimbOp.FORWARD_FALL, 23, 26), ClimbOp.GROUND_HEIGHT, NONINTERRUPTIBLE_DONE, DEATH_OR_RELEASE],
   SHOOT_ROCKET: () => [Op.BUSY_UP, ...frames(8), Op.OK_FIRE, Op.FIRE, ...frames(6, 9), Op.BUSY_DOWN, END_OF_ANIMATION],
+  THROW_KNIFE: () => [
+    Op.BUSY_UP,
+    ...frames(6),
+    Op.KNIFE_THROW_SOUND,
+    ...frames(3, 7),
+    Op.FIRE,
+    ...frames(5, 10),
+    Op.BUSY_DOWN,
+    NONINTERRUPTIBLE_DONE,
+    END_OF_ANIMATION,
+  ],
   SHOOT_MORTAR: () => [Op.BUSY_UP, ...frames(16), Op.OK_FIRE, Op.FIRE, ...frames(16, 17), Op.BUSY_DOWN, END_OF_ANIMATION],
   CHARIOTS_OF_FIRE: () => [...frames(12), LIFE_ZERO, DEATH_COMMIT, DEATH_OR_RELEASE, NONINTERRUPTIBLE_DONE],
   BODYEXPLODING: () => [...frames(10), LIFE_ZERO, DEATH_COMMIT, DEATH_OR_RELEASE, NONINTERRUPTIBLE_DONE],
@@ -198,6 +209,7 @@ const Op = {
   PREVIOUS: 496,
   LIFE_ZERO: 465,
   LOCK_N_LOAD: 708,
+  KNIFE_THROW_SOUND: 709,
   RESUME_FIRE: 476,
 } as const;
 

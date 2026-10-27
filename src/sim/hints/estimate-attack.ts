@@ -232,7 +232,12 @@ function estimateStrike(
   if (melee && (!victim || level !== s.level)) return nobodyToStrike(t, s, cursor, base);
   const aimedAt = victim ? victim.gridNo : target;
   const apCostByAim = aimCosts(t, s, aimedAt);
-  const chanceToHit = melee ? null : calcChanceToHitGun(t, s, target, aim, s.aimShotLocation, false);
+  const thrownKnife = def?.itemClass === ItemClass.THROWING_KNIFE;
+  const chanceToHit = melee
+    ? null
+    : thrownKnife
+      ? calcThrownChanceToHit(t, s, target, aim)
+      : calcChanceToHitGun(t, s, target, aim, s.aimShotLocation, false);
   const chanceToGetThrough = melee
     ? MELEE_CHANCE_TO_GET_THROUGH
     : victim
