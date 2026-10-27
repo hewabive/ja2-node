@@ -173,9 +173,15 @@ export interface MissileTrailEvent extends SimEventBase {
   readonly delay: number;
 }
 
-export type EffectEvent = BulletImpactEvent | WindowShatteredEvent | MissileTrailEvent;
+export type EffectEvent = BulletImpactEvent | WindowShatteredEvent | MissileTrailEvent | WaterRippleEvent | ExplosionEvent;
 
-const EFFECT_EVENT_TYPES: ReadonlySet<SimEvent['type']> = new Set(['bulletImpact', 'windowShattered', 'missileTrail']);
+const EFFECT_EVENT_TYPES: ReadonlySet<SimEvent['type']> = new Set([
+  'bulletImpact',
+  'windowShattered',
+  'missileTrail',
+  'waterRipple',
+  'explosion',
+]);
 
 export function isEffectEvent(e: SimEvent): e is EffectEvent {
   return EFFECT_EVENT_TYPES.has(e.type);
@@ -248,6 +254,18 @@ export interface ExplosionEvent extends SimEventBase {
   readonly level: number;
   readonly owner: number | null;
   readonly animation?: string;
+  readonly x?: number;
+  readonly y?: number;
+  readonly z?: number;
+  readonly delay?: number;
+}
+
+export interface WaterRippleEvent extends SimEventBase {
+  readonly type: 'waterRipple';
+  readonly gridNo: number;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
 }
 
 export interface ReloadedEvent extends SimEventBase {
@@ -512,6 +530,7 @@ export type SimEvent =
   | BulletImpactEvent
   | WindowShatteredEvent
   | MissileTrailEvent
+  | WaterRippleEvent
   | SoldierHitEvent
   | LifeLostEvent
   | SoldierDiedEvent

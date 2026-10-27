@@ -7,7 +7,8 @@
 // @src Tile_Animation.cc CreateAnimationTile, UpdateAniTiles (looping tiles restart at their direction's first frame);
 // @src src/game/Tactical/Weapons.cc DoSpecialEffectAmmoMiss (the translucent miniboom of HE and HEAT rounds on the topmost
 // @src layer, at the impact); src/game/Tactical/Bullets.cc AddMissileTrail (msle_smk, msle_sma or msle_spt, translucent, in
-// @src the struct layer); src/game/Tactical/Bullets.cc HandleBulletSpecialFlags, UpdateBullets (a thrown knife: the
+// @src the struct layer); src/game/TileEngine/Explosion_Control.cc GenerateExplosionFromExplosionPointer (the explosion's
+// @src cached tile on the topmost layer, translucent in water and from its transparent key frame on); src/game/Tactical/Bullets.cc HandleBulletSpecialFlags, UpdateBullets (a thrown knife: the
 // @src knifing.sti frames of its direction from the fourth, every 100 ms, and its shadow on the ground, both hanging on the
 // @src thrower's tile). See docs/28 §12.1 G8.
 
@@ -23,7 +24,12 @@ import { parseColPalette } from '../../content/formats/col.ts';
 import type { SoldierPalettes } from '../../content/formats/ja2pal.ts';
 import { parseStructureFile, type StructureFile } from '../../content/formats/jsd.ts';
 import { decodeSti } from '../../content/formats/sti.ts';
-import { SMOKE_EFFECTS_PATH } from '../../content/items/explosions.ts';
+import {
+  EXPLOSION_ANIMATIONS_PATH,
+  type ExplosionAnimation,
+  parseExplosionContent,
+  SMOKE_EFFECTS_PATH,
+} from '../../content/items/explosions.ts';
 import { pictureFromSti } from '../../content/picture/from-sti.ts';
 import type { IndexedPicture } from '../../content/picture/picture.ts';
 import { zStripInfo } from '../../content/world/zstrip.ts';
@@ -146,6 +152,8 @@ export class WorldEffects {
   readonly #corpses: CorpseTable;
   readonly #smoke: ReadonlyMap<string, SmokeGraphics>;
   readonly #soldierPalettes: SoldierPalettes | null;
+  readonly #explosions: ReadonlyMap<string, ExplosionAnimation>;
+  readonly #waterExplosions: ReadonlySet<string>;
   readonly #pictures = new AsyncCache<EffectPicture>();
   readonly #palettes = new AsyncCache<Uint8Array>();
   readonly #structures = new AsyncCache<StructureFile>();
@@ -159,18 +167,26 @@ export class WorldEffects {
     corpses: CorpseTable,
     smoke: readonly SmokeGraphics[],
     soldierPalettes: SoldierPalettes | null,
+    explosions: ReadonlyMap<string, ExplosionAnimation>,
   ) {
     this.#read = read;
     this.#available = available;
     this.#corpses = corpses;
     this.#smoke = new Map(smoke.map((s) => [s.name, s]));
     this.#soldierPalettes = soldierPalettes;
+    this.#explosions = explosions;
+    this.#waterExplosions = new Set([...explosions.values()].flatMap((a) => (a.waterAnimation ? [a.waterAnimation] : [])));
   }
 
   static async load(read: ReadVfsFile, available: ReadonlySet<string>, soldierPalettes: SoldierPalettes | null): Promise<WorldEffects> {
     const json = async (path: string) => JSON.parse(new TextDecoder().decode(await read(path)));
-    const [corpses, smoke] = await Promise.all([json(CORPSES_TABLE_PATH), json(SMOKE_EFFECTS_PATH)]);
-    return new WorldEffects(read, available, parseCorpseTable(corpses), parseSmokeGraphics(smoke), soldierPalettes);
+    const [corpses, smoke, explosions] = await Promise.all([
+      json(CORPSES_TABLE_PATH),
+      json(SMOKE_EFFECTS_PATH),
+      json(EXPLOSION_ANIMATIONS_PATH),
+    ]);
+    const animations = parseExplosionContent(explosions, smoke).animations;
+    return new WorldEffects(read, available, parseCorpseTable(corpses), parseSmokeGraphics(smoke), soldierPalettes, animations);
   }
 
   setSprites(sprites: EffectSprites | null): void {
@@ -320,7 +336,15 @@ export class WorldEffects {
 
   #cachedEffectPath(e: Pick<EffectFrame, 'kind' | 'tile'>): string | null {
     if (e.kind === 'miniboom') return MINIBOOM_PATH;
+    if (e.kind === 'explosion') return this.#explosions.get(e.tile ?? '')?.graphics || null;
     return e.kind === 'trail' ? (TRAIL_PATHS[e.tile ?? ''] ?? null) : null;
+  }
+
+  #translucent(e: EffectFrame): boolean {
+    if (e.kind !== 'explosion') return e.kind === 'miniboom' || e.kind === 'trail';
+    const name = e.tile ?? '';
+    const keyframe = this.#explosions.get(name)?.transparentKeyframe ?? 0;
+    return this.#waterExplosions.has(name) || (keyframe > 0 && e.frame >= keyframe);
   }
 
   cachedEffectFrames(e: Pick<EffectFrame, 'kind' | 'tile'>): number | null {
@@ -332,7 +356,7 @@ export class WorldEffects {
     const sprites = this.#sprites;
     const path = this.#cachedEffectPath(e);
     const loaded = path ? this.#picture(path) : null;
-    if (!sprites || !path || !loaded || (e.kind !== 'miniboom' && e.kind !== 'trail')) return null;
+    if (!sprites || !path || !loaded || (e.kind !== 'miniboom' && e.kind !== 'trail' && e.kind !== 'explosion')) return null;
     const sheet = this.#sheet(path, loaded.picture);
     const sprite = sheet ? sprites.soldierFrame(sheet, e.frame) : null;
     if (!sprite) return null;
@@ -341,6 +365,7 @@ export class WorldEffects {
       gridNo: e.gridNo,
       level: 0,
       at: { x: e.x, y: e.y, z: e.z },
+      translucent: this.#translucent(e),
       sprite,
       paletteRow: sprites.plainPaletteRow(`effect|${path}`, () => loaded.picture.palette),
       shaded: false,

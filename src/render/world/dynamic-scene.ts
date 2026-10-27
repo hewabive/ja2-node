@@ -100,7 +100,16 @@ function inPass(m: SceneSoldier, pass: MercPass): boolean {
   return m.level > 0;
 }
 
-export type AniTileKind = 'corpse' | 'vehicleCorpse' | 'smoke' | 'staticSmoke' | 'miniboom' | 'knife' | 'knifeShadow' | 'trail';
+export type AniTileKind =
+  | 'corpse'
+  | 'vehicleCorpse'
+  | 'smoke'
+  | 'staticSmoke'
+  | 'miniboom'
+  | 'explosion'
+  | 'knife'
+  | 'knifeShadow'
+  | 'trail';
 
 const PAUSED_ANI_KINDS: ReadonlySet<AniTileKind> = new Set(['corpse', 'vehicleCorpse']);
 
@@ -108,7 +117,7 @@ type AniLayer = 'paused' | 'shadows' | 'structs' | 'onRoof' | 'topmost';
 
 function aniLayerOf(a: SceneAniTile): AniLayer {
   if (PAUSED_ANI_KINDS.has(a.kind)) return 'paused';
-  if (a.kind === 'miniboom') return 'topmost';
+  if (a.kind === 'miniboom' || a.kind === 'explosion') return 'topmost';
   if (a.kind === 'knifeShadow') return 'shadows';
   return a.level > 0 ? 'onRoof' : 'structs';
 }
@@ -123,6 +132,7 @@ export interface SceneAniTile {
   readonly gridNo: number;
   readonly level: number;
   readonly at?: WorldPoint & { readonly z: number };
+  readonly translucent?: boolean;
   readonly sprite: OffsetSprite;
   readonly paletteRow: number;
   readonly shaded: boolean;
@@ -447,7 +457,7 @@ export class DynamicScene {
       return;
     }
     const z = animationTileZ(worldY(x, y, this.#world.topY), at.z);
-    const state = a.kind === 'trail' ? DrawState.TRANSLUCENT : DrawState.NEARER_OR_EQUAL;
+    const state = a.translucent ? DrawState.TRANSLUCENT : DrawState.NEARER_OR_EQUAL;
     this.#push(out, this.runs, state, () => out.push(p.x, p.y, s, 0, s.width, a.paletteRow, z, ShadeKey.FIXED, 0, 0));
   }
 
@@ -462,7 +472,7 @@ export class DynamicScene {
     const p = a.at ? this.#cachedAniPosition(a, a.at) : this.#centreScreen(a.gridNo, a.level);
     const out = this.instances;
     const s = a.sprite;
-    this.#push(out, this.runs, DrawState.TRANSLUCENT, () =>
+    this.#push(out, this.runs, a.translucent ? DrawState.TRANSLUCENT : DrawState.NEARER_OR_EQUAL, () =>
       out.push(p.x, p.y, s, 0, s.width, a.paletteRow, TOPMOST_Z_LEVEL, ShadeKey.FIXED, 0, 0),
     );
   }

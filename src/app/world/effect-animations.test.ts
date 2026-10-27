@@ -73,6 +73,29 @@ describe('effect animations', () => {
     expect(frameAt(31)).toEqual([['trail', 'smoke', 1]]);
   });
 
+  it('plays an explosion at its blast speed from the frame of its ignition, and a ripple where a thrown object falls in water', () => {
+    const effects = new EffectAnimations();
+    const blast: EffectEvent = {
+      type: 'explosion',
+      item: 1,
+      gridNo: WHERE,
+      level: 0,
+      owner: null,
+      animation: 'BLAST_1',
+      x: 805,
+      y: 805,
+      z: 0,
+      delay: 80,
+      tick: 0,
+    };
+    effects.observe([blast, { type: 'waterRipple', gridNo: WHERE, x: 805, y: 805, z: 3, tick: 0 }]);
+    expect(effects.at(17, () => 20).map((e) => [e.kind, e.tile, e.frame])).toEqual([
+      ['explosion', 'BLAST_1', 1],
+      ['ripple', null, 1],
+    ]);
+    expect(effects.at(0, () => 20).map((e) => e.kind)).toEqual(['explosion', 'ripple']);
+  });
+
   it('forgets everything on reset', () => {
     const effects = new EffectAnimations();
     effects.observe([impact(0, 'miniboom')]);

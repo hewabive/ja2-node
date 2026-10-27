@@ -7,6 +7,7 @@ import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { StructureFlags } from '../../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
+import { Terrain } from '../../../content/world/terrain.ts';
 import type { SimEvent } from '../../events.ts';
 import { minAPsToThrow } from '../combat/ap.ts';
 import type { TacticalContent } from '../content.ts';
@@ -111,6 +112,19 @@ describe('thrown object physics', () => {
       expect(landing.gridNo).toBe(target);
       expect(landing.events.find((e) => e.type === 'explosion')).toMatchObject({ gridNo: target, level: 0, owner: 0 });
     }
+  });
+
+  it('tells where the blast is drawn and at what pace, and ripples where a grenade falls in water', () => {
+    const target = gridNo(80, 88);
+    const dry = throwAndLand(newCombatSim(content), grenadier(newCombatSim(content)), target);
+    const blast = dry.events.find((e) => e.type === 'explosion');
+    if (blast?.type !== 'explosion') throw new Error('no explosion');
+    expect(blast).toMatchObject({ z: 0, animation: 'BLAST_1', delay: content.explosions.animations.get('BLAST_1')?.blastSpeed });
+    expect([Math.trunc((blast.x ?? 0) / 10), Math.trunc((blast.y ?? 0) / 10)]).toEqual([80, 88]);
+    const sim = newCombatSim(content);
+    sim.state.world.terrain[target] = Terrain.DEEP_WATER;
+    const wet = throwAndLand(sim, grenadier(sim), target);
+    expect(wet.events.find((e) => e.type === 'waterRipple')).toMatchObject({ gridNo: target });
   });
 
   it('falls short of a target beyond the toss range', () => {

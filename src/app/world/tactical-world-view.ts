@@ -213,7 +213,7 @@ export class TacticalWorldView {
   }
 
   #effectFrameCount(kind: EffectKind, tile: string | null): number | null {
-    if (kind === 'miniboom' || kind === 'trail') return this.#effects?.cachedEffectFrames({ kind, tile }) ?? null;
+    if (kind === 'miniboom' || kind === 'trail' || kind === 'explosion') return this.#effects?.cachedEffectFrames({ kind, tile }) ?? null;
     return effectTileFrames(kind, tile, this.world.tables, this.world.tiles)?.length ?? null;
   }
 
@@ -231,7 +231,7 @@ export class TacticalWorldView {
     const effects = this.#effects;
     if (!effects) return [];
     return shown.flatMap((e) => {
-      const tile = e.kind === 'miniboom' || e.kind === 'trail' ? effects.cachedEffect(e) : null;
+      const tile = e.kind === 'miniboom' || e.kind === 'trail' || e.kind === 'explosion' ? effects.cachedEffect(e) : null;
       return tile ? [tile] : [];
     });
   }

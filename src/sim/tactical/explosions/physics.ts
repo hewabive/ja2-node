@@ -495,6 +495,8 @@ function enterWater(t: TacticalState, o: RealObject): void {
   if (!o.visible || o.testObject !== TestObject.NONE) return;
   o.visible = false;
   o.inWater = true;
+  const at = { x: i16(Math.trunc(o.position.x)), y: i16(Math.trunc(o.position.y)), z: heightUnitsToPixels(o.position.z) };
+  t.events.push({ type: 'waterRipple', gridNo: g, ...at });
   if (o.action !== ThrowAction.ARM_ITEM) return;
   t.explosives.aniTiles.unshift({
     kind: 'ripple',
@@ -528,11 +530,21 @@ function physicsMoveObject(t: TacticalState, o: RealObject): boolean {
     return false;
   }
   if (g !== o.gridNo) {
-    if (o.visible && smokeTrail(t, o)) t.pre.int(100);
+    if (o.visible && smokeTrail(t, o)) leaveMortarTrail(t, o, g);
     o.numTilesMoved++;
     o.gridNo = g;
   }
   return true;
+}
+
+const MORTAR_TRAIL_DELAY_MS = 100;
+const MORTAR_TRAIL_DELAY_RANGE_MS = 100;
+
+function leaveMortarTrail(t: TacticalState, o: RealObject, g: number): void {
+  const delay = MORTAR_TRAIL_DELAY_MS + t.pre.int(MORTAR_TRAIL_DELAY_RANGE_MS);
+  const x = i16(Math.trunc(o.position.x));
+  const y = i16(Math.trunc(o.position.y));
+  t.events.push({ type: 'missileTrail', gridNo: g, x, y, z: heightUnitsToPixels(o.position.z), trail: 'smoke', delay });
 }
 
 function smokeTrail(t: TacticalState, o: RealObject): boolean {

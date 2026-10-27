@@ -12,9 +12,9 @@ import type { TileElement } from '../../content/world/tile-database.ts';
 import type { TileTables } from '../../content/world/tile-tables.ts';
 import { TICK_MS } from '../../protocol/messages.ts';
 import type { StructNode } from '../../render/world/dynamic-scene.ts';
-import type { EffectEvent } from '../../sim/events.ts';
+import type { EffectEvent, ExplosionEvent } from '../../sim/events.ts';
 
-export type EffectKind = 'dust' | 'splash' | 'ripple' | 'shatter' | 'miniboom' | 'trail';
+export type EffectKind = 'dust' | 'splash' | 'ripple' | 'shatter' | 'miniboom' | 'trail' | 'explosion';
 
 export interface EffectFrame {
   readonly kind: EffectKind;
@@ -39,7 +39,9 @@ interface RunningEffect {
 
 export type FrameCount = (kind: EffectKind, tile: string | null) => number | null;
 
-const FRAME_DELAY_MS: Readonly<Record<Exclude<EffectKind, 'trail'>, number>> = {
+type FixedPaceKind = Exclude<EffectKind, 'trail' | 'explosion'>;
+
+const FRAME_DELAY_MS: Readonly<Record<FixedPaceKind, number>> = {
   dust: 80,
   splash: 80,
   ripple: 50,
@@ -52,7 +54,7 @@ export function framePeriodTicks(delayMs: number): number {
   return Math.floor(delayMs / TICK_MS) + 1;
 }
 
-export function ticksPerFrame(kind: Exclude<EffectKind, 'trail'>): number {
+export function ticksPerFrame(kind: FixedPaceKind): number {
   return framePeriodTicks(FRAME_DELAY_MS[kind]);
 }
 
@@ -64,14 +66,22 @@ export function knifeFrame(direction: number, framesPerDirection: number, since:
   return direction * framesPerDirection + ((KNIFE_START_FRAME + steps) % framesPerDirection);
 }
 
-function startedAs(kind: Exclude<EffectKind, 'trail'>): { kind: EffectKind; period: number } {
+function startedAs(kind: FixedPaceKind): { kind: EffectKind; period: number } {
   return { kind, period: ticksPerFrame(kind) };
+}
+
+function startedExplosion(e: ExplosionEvent): RunningEffect[] {
+  if (e.animation === undefined || e.x === undefined || e.y === undefined || e.delay === undefined) return [];
+  const at = { start: e.tick, gridNo: e.gridNo, x: e.x, y: e.y, z: e.z ?? 0 };
+  return [{ kind: 'explosion', period: framePeriodTicks(e.delay), ...at, tile: e.animation }];
 }
 
 function started(e: EffectEvent): RunningEffect[] {
   if (e.type === 'windowShattered') return [{ ...startedAs('shatter'), start: e.tick, gridNo: e.gridNo, x: 0, y: 0, z: 0, tile: e.tile }];
+  if (e.type === 'explosion') return startedExplosion(e);
   const at = { start: e.tick, gridNo: e.gridNo, x: e.x, y: e.y, z: e.z };
   if (e.type === 'missileTrail') return [{ kind: 'trail', period: framePeriodTicks(e.delay), ...at, tile: e.trail }];
+  if (e.type === 'waterRipple') return [{ ...startedAs('ripple'), ...at, tile: null }];
   if (e.effect === 'splash')
     return [
       { ...startedAs('ripple'), ...at, tile: null },
@@ -104,14 +114,14 @@ export class EffectAnimations {
   }
 }
 
-const FIRST_TILE: Readonly<Record<Exclude<EffectKind, 'shatter' | 'miniboom' | 'trail'>, string>> = {
+const FIRST_TILE: Readonly<Record<Exclude<FixedPaceKind, 'shatter' | 'miniboom'>, string>> = {
   dust: 'FIRSTMISS1',
   splash: 'SECONDMISS1',
   ripple: 'THIRDMISS1',
 };
 
 export function firstEffectTile(kind: EffectKind, tile: string | null, tables: TileTables): number | null {
-  if (kind === 'miniboom' || kind === 'trail') return null;
+  if (kind === 'miniboom' || kind === 'trail' || kind === 'explosion') return null;
   const name = kind === 'shatter' ? tile : FIRST_TILE[kind];
   return name === null ? null : (tables.tileIndexByName.get(name) ?? null);
 }

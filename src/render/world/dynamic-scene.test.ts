@@ -196,7 +196,7 @@ describe('dynamic scene', () => {
   it('draws a miniboom translucent on top of everything at its impact, raised by its height', () => {
     const { staticWorld, prepared } = world({}, tiles);
     const scene = new DynamicScene(staticWorld, prepared);
-    const boom: SceneAniTile = { ...aniTileOf('miniboom', g(80, 80), 0, 4), at: { x: 805, y: 805, z: 20 } };
+    const boom: SceneAniTile = { ...aniTileOf('miniboom', g(80, 80), 0, 4), at: { x: 805, y: 805, z: 20 }, translucent: true };
     scene.build(frame({ aniTiles: [boom] }));
     expect(decode(scene)).toEqual([expect.objectContaining({ x: -20, y: 1570, z: TOPMOST_Z_LEVEL })]);
     expect(scene.runs.map((r) => r.state)).toEqual([DrawState.TRANSLUCENT]);
@@ -218,10 +218,22 @@ describe('dynamic scene', () => {
   it('draws a missile trail translucent at the on-roof z of its tile raised by its height', () => {
     const { staticWorld, prepared } = world({}, tiles);
     const scene = new DynamicScene(staticWorld, prepared);
-    const trail: SceneAniTile = { ...aniTileOf('trail', g(80, 80), 0, 6), at: { x: 805, y: 805, z: 25 } };
+    const trail: SceneAniTile = { ...aniTileOf('trail', g(80, 80), 0, 6), at: { x: 805, y: 805, z: 25 }, translucent: true };
     scene.build(frame({ aniTiles: [trail] }));
     expect(decode(scene)).toEqual([expect.objectContaining({ x: -20, y: 1565, z: animationTileZ(worldY(80, 80, 860), 25) })]);
     expect(scene.runs.map((r) => r.state)).toEqual([DrawState.TRANSLUCENT]);
+  });
+
+  it('draws an explosion on top at its height, solid until it turns translucent', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    const blast: SceneAniTile = { ...aniTileOf('explosion', g(80, 80), 0, 7), at: { x: 805, y: 805, z: 0 } };
+    scene.build(frame({ aniTiles: [blast, { ...blast, translucent: true }] }));
+    expect(decode(scene).map((p) => [p.y, p.z])).toEqual([
+      [1590, TOPMOST_Z_LEVEL],
+      [1590, TOPMOST_Z_LEVEL],
+    ]);
+    expect(scene.runs.map((r) => r.state)).toEqual([DrawState.NEARER_OR_EQUAL, DrawState.TRANSLUCENT]);
   });
 
   it('steps animated tiles every frame of the 200 ms clock', () => {

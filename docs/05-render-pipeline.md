@@ -61,6 +61,13 @@ bullet's tile, always translucent: `msle_smk.sti` behind rockets, tank shells an
 missiles, `msle_spt.sti` behind creature spit, 9 frames each at 100 + `Random(100)` ms (flames 100 ms), raised by the
 height minus the shooter's land height.
 
+An explosion (`GenerateExplosionFromExplosionPointer`, `Explosion_Control.cc:159-213`) is a cached animation tile on the
+topmost layer at the blast point raised by its z: the graphics of its animation (the water animation in water), one
+frame per blast speed, translucent in water and from the animation's transparent key frame on (`ANI_KEYFRAME_BEGIN_
+TRANSLUCENCY`, checked as a frame is entered, so key frame 0 never applies). The stub pack has no explosion graphics,
+because the simulation takes an explosion's frame count from them and the stubs keep the fallback count; on the stubs
+only the explosion's light shows.
+
 **Notation.**
 - Unmarked statements were read in the code (fact) and carry a `file:line` reference.
 - **(inferred)** marks my derivations and assumptions.
