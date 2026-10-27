@@ -70,9 +70,8 @@ describe('blood pools (Smell.cc UpdateBloodGraphics)', () => {
     expect(poolSize(creaturePool ?? -1)).toBe(POOLS_PER_VARIANT - 1);
   });
 
-  it('takes away the blood object of a tile whose pool is gone and leaves the level alone without pools', () => {
+  it('leaves the level alone without pools', () => {
     const l = level();
-    expect([...levelTilesAt(applyBloodPools(l, tables, [{ gridNo: AT, strength: 0 }]).layers.objects, AT)]).toEqual([DEBRIS]);
     expect(applyBloodPools(l, tables, [])).toBe(l);
   });
 });

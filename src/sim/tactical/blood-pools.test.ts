@@ -70,7 +70,7 @@ describe('blood pools on the ground (Smell.cc InternalDropBlood, UpdateBloodGrap
     expect(bloodViews(t)).toEqual([{ gridNo: AHEAD, strength: 1 }]);
     decayUntil(sim, () => t.smell.blood[AHEAD] === 0);
     revealRoofsAndItems(t, merc, false);
-    expect(bloodViews(t)).toEqual([{ gridNo: AHEAD, strength: 0 }]);
+    expect(bloodViews(t)).toEqual([]);
   });
 
   it('draws no pool with blood and gore off, though the blood is there', () => {
@@ -91,7 +91,7 @@ describe('where blood falls', () => {
     internalDropBlood(t, AHEAD, 0, BloodKind.HUMAN, 5, DROPPED_IN_SIGHT);
     addCorpseStructure(t, AHEAD, 0, someCorpseType(sim), Direction.NORTH);
     expect(t.smell.blood[AHEAD]).toBe(0);
-    expect(bloodViews(t)).toEqual([{ gridNo: AHEAD, strength: 0 }]);
+    expect(bloodViews(t)).toEqual([]);
   });
 
   it('splashes a full pool on the tile of a man flying back and the tile behind him (Soldier_Ani.cc 765)', () => {

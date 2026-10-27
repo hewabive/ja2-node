@@ -147,7 +147,7 @@ export function applyBloodPools(level: Level, tables: TileTables, pools: readonl
     const list = objects.at(pool.gridNo);
     const old = list.findIndex(isPool);
     if (old >= 0) list.splice(old, 1);
-    if (pool.strength > 0) list.unshift(poolTile(tables, pool));
+    list.unshift(poolTile(tables, pool));
   }
   return { ...level, layers: { ...level.layers, objects: objects.build() } };
 }

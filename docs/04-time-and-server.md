@@ -1495,8 +1495,9 @@ when it changes.
   was changed (`MAPELEMENT_REEVALUATEBLOOD`: a drop, a decay step, a corpse wiping it) and then either dropped by a
   visible soldier or seen by a merc of ours (`RevealRoofsAndItems` on every tile it reveals); the simulation keeps
   those two per-tile states (`reevaluateBlood`, `shownPools` of the smell map). `strength` is the floor strength 1–7
-  (the graphic is one of four sizes, `3 − strength/2`), `creature` the creature blood type, and `strength: 0` a tile
-  whose pool the squad saw go, where the browser takes away the blood object the map itself placed. Roofs show none
+  (the graphic is one of four sizes, `3 − strength/2`) and `creature` the creature blood type; a pool the squad saw go
+  leaves the list. The browser replaces the tile's first blood object with the pool, as `UpdateBloodGraphics` does
+  (none of the 261 original maps places blood objects of its own, so that only matters for other maps). Roofs show none
   (the original draws no roof blood, and a roof merc's look clears the tile's flag without redrawing the ground).
   Nothing shows with blood and gore off. The browser puts the pool graphic at the head of the tile's objects and picks
   one of the four variants from the tile and the strength (deviation "Cosmetic draws in attacks").

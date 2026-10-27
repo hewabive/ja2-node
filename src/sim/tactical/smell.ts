@@ -29,7 +29,6 @@ const BLOOD_STRENGTH_MASK = 0xfc;
 const SMELL_MUDDY_DIVISOR = 3;
 const SMELL_COMBINE_DIVISOR = 5;
 const REALTIME_DECAY_SECONDS = 100;
-const SHOWN_POOL_PLACED = 0x80;
 const SHOWN_POOL_CREATURE = 0x08;
 const SHOWN_POOL_STRENGTH = 0x07;
 const UNSEEN = -1;
@@ -127,7 +126,7 @@ export function updateBloodGraphics(w: SmellWorld, g: number, level: number): vo
   if (level !== 0) return;
   const strength = bloodFloorStrength(m.blood[g] ?? 0);
   const creature = strength > 0 && bloodType(m, g, 0) !== BloodKind.HUMAN;
-  m.shownPools[g] = SHOWN_POOL_PLACED | (creature ? SHOWN_POOL_CREATURE : 0) | strength;
+  m.shownPools[g] = (creature ? SHOWN_POOL_CREATURE : 0) | strength;
 }
 
 export function shownBloodPools(m: SmellMap): ShownBloodPool[] {
@@ -135,8 +134,8 @@ export function shownBloodPools(m: SmellMap): ShownBloodPool[] {
   const shown = m.shownPools;
   for (let g = 0; g < WORLD_MAX; g++) {
     const pool = shown[g] ?? 0;
-    if (pool & SHOWN_POOL_PLACED)
-      pools.push({ gridNo: g, strength: pool & SHOWN_POOL_STRENGTH, creature: (pool & SHOWN_POOL_CREATURE) !== 0 });
+    const strength = pool & SHOWN_POOL_STRENGTH;
+    if (strength > 0) pools.push({ gridNo: g, strength, creature: (pool & SHOWN_POOL_CREATURE) !== 0 });
   }
   return pools;
 }
