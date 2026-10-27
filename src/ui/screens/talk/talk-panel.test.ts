@@ -128,6 +128,32 @@ describe('the talk panel on the stub NPC', { timeout: SLOW_MS }, () => {
     expect(f.find('talkDone')).toBeUndefined();
   });
 
+  it('stays busy after a line while the next one waits in a frame not yet played, as the original does while its queue is not empty', async () => {
+    const { f } = await talkToTheStubNpc(5);
+    const dialogue = f.screen.dialogue;
+    playOut(f);
+    await f.click('talkOption2');
+    const frames = f.client.takeFrames();
+    const spoken = frames.flatMap((frame, k) => (frame.events?.some((e) => e.type === 'npcQuote') ? [k] : []));
+    expect(spoken).toHaveLength(2);
+    const second = spoken[1] ?? frames.length;
+    f.client.queued = frames.slice(second);
+    f.frames(frames.slice(0, second));
+    playOut(f);
+    expect(dialogue.presenter.busy).toBe(false);
+    expect(dialogue.talk.busy).toBe(true);
+    expect(f.widget('talkDone').enabled).toBe(false);
+    expect(f.widget('talkOption1').enabled).toBe(false);
+    f.key('Escape');
+    expect(lastCommand(f)).toEqual({ type: 'approach', kind: 'direct' });
+    f.client.queued = [];
+    f.frames(frames.slice(second));
+    expect(dialogue.presenter.current?.line.surface).toBe('panel');
+    playOut(f);
+    expect(dialogue.talk.busy).toBe(false);
+    expect(f.widget('talkDone').enabled).toBe(true);
+  });
+
   it('skips a line on a click after 500 ms, stops it at once with Backspace and closes with Esc', async () => {
     const { f } = await talkToTheStubNpc(7);
     const presenter = f.screen.dialogue.presenter;

@@ -14,7 +14,7 @@ const NEAR_NPC = 74 * COLS + 75;
 const STUB_RPC = 65;
 const NEAR_STUB_RPC = 72 * COLS + 81;
 const LOAD_TIMEOUT_MS = 60_000;
-const LINES_TIMEOUT_MS = 45_000;
+const LINES_TIMEOUT_MS = 20_000;
 const MONEY = 'MONEY';
 
 interface SoldierView {
@@ -83,6 +83,10 @@ async function order(page: Page, cmd: Parameters<TacticalHook['command']>[0]): P
 
 async function lastCommand(page: Page): Promise<{ type: string; ok: boolean; reason: string | null } | null> {
   return page.evaluate(() => window.__ja2Ui.tactical?.commands.at(-1) ?? null);
+}
+
+async function playedBack(page: Page): Promise<void> {
+  await page.waitForFunction(() => window.__ja2Ui.lagTicks === 0, null, { timeout: LINES_TIMEOUT_MS });
 }
 
 async function talkOpenAndQuiet(page: Page): Promise<void> {
@@ -155,6 +159,7 @@ test.describe('talking through the canvas talk panel on stubs', () => {
     await page.waitForFunction(() => window.__ja2Ui.modal === 'npcRequestBox', null, { timeout: LINES_TIMEOUT_MS });
     await clickWidget(page, 'npcRequestBox.yes');
     await expect.poll(() => lastCommand(page)).toEqual({ type: 'answer', ok: true, reason: null });
+    await playedBack(page);
     const agent = await mcp();
     const recruited = ((await agent.call('observe', { session })) as View).soldiers.find((s) => s.profile === STUB_RPC);
     await agent.close();

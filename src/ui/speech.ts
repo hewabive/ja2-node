@@ -320,6 +320,10 @@ export function isQuoteEvent(event: { readonly type: string }): event is QuoteEv
   return QUOTE_EVENTS.has(event.type);
 }
 
+export function isQueuedQuoteEvent(event: { readonly type: string }): boolean {
+  return isQuoteEvent(event) && event.type !== 'civQuote';
+}
+
 interface QuoteFields {
   readonly textKey?: TextKeyRef;
   readonly chars?: number;

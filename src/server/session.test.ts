@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { ServerMessage } from '../protocol/messages.ts';
+import type { CommandEnvelope, ServerMessage } from '../protocol/messages.ts';
 import { applyFrame, applyViewFrame, type PlayerView, type SoldierView } from '../protocol/view.ts';
+import { type StepObserver, UNOBSERVED_STEPS } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
 import type { QueryService } from './query.ts';
 import { FRAME_TICKS, Session, type SessionSim } from './session.ts';
@@ -254,7 +255,37 @@ describe('session', () => {
     expect(session.messages).toEqual([]);
     session.close();
   });
+
+  it('records a frame every FRAME_TICKS while a command runs ticks itself, each event in the frame of its tick', () => {
+    const sim = alarmedAt(walkingWithinCommands(walker()), 23);
+    const session = new Session('s8', sim);
+    const messages: ServerMessage[] = [];
+    session.subscribe((m) => messages.push(m));
+    expect(session.dispatch({ type: 'walkThere', to: 35 })).toEqual({ ok: true });
+    expect(sim.tick).toBe(35);
+    const frames = messages.flatMap((m) => (m.t === 'frames' ? m.frames : []));
+    expect(frames.map((f) => f.tick)).toEqual([10, 20, 30, 35]);
+    expect(frames.map((f) => f.changed[0]?.x)).toEqual([10, 20, 30, 35]);
+    expect(frames.filter((f) => f.events).map((f) => [f.tick, f.events?.map((e) => e.tick)])).toEqual([[30, [23]]]);
+    expect(session.advance({ ticks: 1 }).events).toEqual([expect.objectContaining({ type: 'enemySighted', tick: 23 })]);
+    session.close();
+  });
 });
+
+function walkingWithinCommands<T extends SessionSim & { target: number }>(sim: T): T {
+  const dispatch = sim.dispatch.bind(sim);
+  return Object.assign(sim, {
+    dispatch: (cmd: CommandEnvelope, steps: StepObserver = UNOBSERVED_STEPS) => {
+      if (cmd.type !== 'walkThere') return dispatch(cmd);
+      const result = dispatch({ ...cmd, type: 'walk' });
+      while (!sim.isIdle()) {
+        sim.step();
+        steps();
+      }
+      return result;
+    },
+  });
+}
 
 function alarmedAt<T extends SessionSim>(sim: T, alarmTick: number): T {
   const step = sim.step.bind(sim);

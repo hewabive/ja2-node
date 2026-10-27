@@ -157,6 +157,7 @@ export interface TalkPanelHooks {
   readonly gaps: (file: string) => readonly { readonly start: number; readonly end: number }[] | null;
   approach(kind: string): void;
   close(): Promise<boolean>;
+  linesComing(): boolean;
 }
 
 interface PopupState {
@@ -228,7 +229,7 @@ export class TalkPanel {
   }
 
   get busy(): boolean {
-    return this.#hooks.presenter.busy;
+    return this.#hooks.presenter.busy || this.#hooks.linesComing();
   }
 
   get face(): FaceAnimator | null {
@@ -352,19 +353,21 @@ export class TalkPanel {
     this.#hooks.approach(kind);
   }
 
+  #queueEmpty(): boolean {
+    return this.#hooks.presenter.queued.length === 0 && !this.#hooks.linesComing();
+  }
+
   #done(): void {
-    const presenter = this.#hooks.presenter;
     if (this.#facesTalking()) {
-      presenter.skip(this.#now, true);
+      this.#hooks.presenter.skip(this.#now, true);
       return;
     }
-    if (presenter.queued.length === 0) this.#requestClose();
+    if (this.#queueEmpty()) this.#requestClose();
   }
 
   #escape(): void {
-    const presenter = this.#hooks.presenter;
-    if (presenter.queued.length > 0) return;
-    presenter.flush();
+    if (!this.#queueEmpty()) return;
+    this.#hooks.presenter.flush();
     this.#requestClose();
   }
 

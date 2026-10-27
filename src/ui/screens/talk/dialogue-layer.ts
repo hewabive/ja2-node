@@ -19,6 +19,7 @@ import { INV_INTERFACE_HEIGHT } from '../../layout/frames.ts';
 import { LayoutView } from '../../layout/view.ts';
 import {
   civQuoteOf,
+  isQueuedQuoteEvent,
   isQuoteEvent,
   type SpeakingFace,
   SpeechPresenter,
@@ -95,6 +96,7 @@ export class DialogueLayer {
       gaps: (file) => media.gaps(file),
       approach: (kind) => void this.#approach(kind),
       close: () => this.#closeTalk(),
+      linesComing: () => this.#linesComing(),
     });
     this.surfaces = new SpeechSurfaces({
       services,
@@ -292,6 +294,10 @@ export class DialogueLayer {
     void this.#env.boxes
       .ask(box.text, box.buttons, { id: REQUEST_BOX_ID })
       .then((result) => this.#env.client.command({ type: 'answer', prompt: request.id, choice: npcRequestChoice(result) }));
+  }
+
+  #linesComing(): boolean {
+    return this.#env.client.queuedFrames.some((frame) => (frame.events ?? []).some(isQueuedQuoteEvent));
   }
 
   #panelLinesLeft(): boolean {

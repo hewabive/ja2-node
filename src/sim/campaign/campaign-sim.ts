@@ -1,7 +1,7 @@
 import { sectorShortString } from '../../content/strategic/sector-ids.ts';
 import { type WorldTimeControl, type WorldTimeReading, worldTimeReading } from '../advance.ts';
 import { TICK_MS } from '../clock.ts';
-import type { CommandResult } from '../command.ts';
+import { type CommandResult, type StepObserver, UNOBSERVED_STEPS } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import { applyOptionChange, parseOptionChange } from '../options.ts';
 import type { QueenContext, QueenContextOptions } from '../strategic/ai/context.ts';
@@ -126,6 +126,7 @@ export class CampaignSim {
   readonly #events: SimEvent[] = [];
   readonly #hooks: CampaignHooks;
   readonly #clock: ClockContext;
+  #commandSteps: StepObserver = UNOBSERVED_STEPS;
 
   constructor(
     state: StrategicState = createStrategicState(),
@@ -557,6 +558,11 @@ export class CampaignSim {
     this.#syncClockEvents();
   }
 
+  stepWithinCommand(): void {
+    this.step();
+    this.#commandSteps();
+  }
+
   isIdle(): boolean {
     const s = this.state;
     if (this.ended()) return true;
@@ -602,8 +608,16 @@ export class CampaignSim {
     return s.z ? `${sectorShortString(s)}-${s.z}` : sectorShortString(s);
   }
 
-  dispatch(cmd: CampaignCommand): CommandResult {
-    const result = this.#dispatch(cmd);
+  dispatch(cmd: CampaignCommand, steps: StepObserver = UNOBSERVED_STEPS): CommandResult {
+    this.#commandSteps = steps;
+    try {
+      return this.#settled(this.#dispatch(cmd));
+    } finally {
+      this.#commandSteps = UNOBSERVED_STEPS;
+    }
+  }
+
+  #settled(result: CommandResult): CommandResult {
     if (this.state.flow === 'strategic') this.talk?.afterStrategicStep();
     this.#collectEvents();
     this.battle?.settle();

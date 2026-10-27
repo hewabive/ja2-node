@@ -1120,6 +1120,10 @@ a message printed, the last date spoken to, the hostile list.
 - A talk command runs its step and then the queue to idle: tactical ticks run (speech, one event per tick, walks already
   ordered) with the world clock paused and AI decisions frozen (§6.6). It returns when the queue is empty, nobody talks
   and no trigger waits, or a prompt opened, or the session closed.
+- Viewers watch those ticks as they would watch an advance: the session records a view frame every 10 ticks while the
+  command runs (`docs/04` §6.28), so the panel opens with the first line, each line reaches the client at the tick it
+  is said and a walk inside the command (`give`) stays animated. The result is unchanged: an agent still gets it once
+  the lines are said, with the same `lines`.
 - An idle open session stops time: `advance` returns `refused` with `conversationOpen`.
 - A scripted sequence (`ENGAGED_IN_CONV` without a panel, a pending conversation, a trigger wait): player commands are
   refused with `scriptedSequence`; `advance` runs ticks until it ends, a panel opens (`conversation` decision) or a

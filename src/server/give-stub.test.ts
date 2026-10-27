@@ -4,7 +4,7 @@ import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '..
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
-import type { ConversationView } from '../protocol/view.ts';
+import type { ConversationView, ViewFrame } from '../protocol/view.ts';
 import type { SimEvent } from '../sim/events.ts';
 import { createItem, createMoney } from '../sim/items/object.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
@@ -95,6 +95,26 @@ async function nearVasko(seed: number, mode?: RunMode) {
 const SLOW_SCENARIO_MS = 30_000;
 
 describe('giving items and money to the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
+  it('shows viewers the walk and the lines of a give that runs to the end of the conversation it opens', async () => {
+    const { session, live } = await inA10(21);
+    const merc = session.view().strategic?.mercs[0]?.id ?? 0;
+    const clip = item(session, 'CLIP9_15');
+    const pocket = soldier(session, merc).inv.findIndex((o) => o.item === clip);
+    const frames: ViewFrame[] = [];
+    live.subscribe((m) => {
+      if (m.t === 'frames') frames.push(...m.frames);
+    });
+    const from = soldier(session, merc).gridNo;
+    const rounds = live.dispatch({ type: 'give', soldier: merc, target: { npc: VASKO }, slot: pocket, count: 1 });
+    expect(data(rounds).outcome).toBe('taken');
+    const walked = frames.flatMap((f) => f.changed.filter((s) => s.id === merc).map((s) => s.gridNo));
+    expect(new Set(walked).size).toBeGreaterThan(2);
+    expect(walked.at(-1)).toBe(soldier(session, merc).gridNo);
+    expect(walked.at(-1)).not.toBe(from);
+    const said = frames.flatMap((f) => (f.events ?? []).flatMap((e) => (e.type === 'npcQuote' ? [e.quote] : [])));
+    expect(said).toEqual([Quote.FIRST_MEETING, Quote.FIRST_MEETING_2, Quote.ROUNDS]);
+  });
+
   it('takes a magazine after his first-meeting lines, refuses the pistol and returns it, takes money', async () => {
     const { session, merc } = await nearVasko(21);
     const inv = () => soldier(session, merc).inv;

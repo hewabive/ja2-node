@@ -17,7 +17,7 @@ import { initialMusic, type MusicFacts, type MusicState, musicMode, musicView } 
 import { applyViewFrame, diffPlayerView, type PlayerView, type ViewFrame } from '../protocol/view.ts';
 import { AdvanceRun, type PauseCheck, type Steppable, type StopCondition, type StopReport } from '../sim/advance.ts';
 import { TICK_MS } from '../sim/clock.ts';
-import type { CommandResult } from '../sim/command.ts';
+import type { CommandResult, StepObserver } from '../sim/command.ts';
 import type { SimEvent, SimEventType } from '../sim/events.ts';
 import type { StrategicRules } from '../sim/knowledge/strategic.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
@@ -37,7 +37,7 @@ const NO_MUSIC_FACTS: MusicFacts = { creature: false, inCombat: false, sectorLoa
 export type { CommandResult };
 
 export interface SessionSim extends Steppable {
-  dispatch(cmd: CommandEnvelope): CommandResult;
+  dispatch(cmd: CommandEnvelope, steps?: StepObserver): CommandResult;
   view(): PlayerView;
   tacticalContent?(): TacticalContent | null;
   animationTimelines?(): AnimationTimelines | null;
@@ -296,9 +296,18 @@ export class Session {
       step: () => {
         sim.step();
         drain();
-        if (sim.tick % FRAME_TICKS === 0) this.#capture(frames);
+        this.#captureOnFrameTick(frames);
       },
     };
+  }
+
+  #recordCommandStep(frames: ViewFrame[]): void {
+    this.holdEvents();
+    this.#captureOnFrameTick(frames);
+  }
+
+  #captureOnFrameTick(frames: ViewFrame[]): void {
+    if (this.#sim.tick % FRAME_TICKS === 0) this.#capture(frames);
   }
 
   #anchored(view: PlayerView): AnchoredView {
@@ -366,12 +375,12 @@ export class Session {
   *#dispatchRun(cmd: CommandEnvelope, due: PauseCheck): Run<CommandResult> {
     this.hooks?.beforeDispatch?.(this, cmd);
     this.log.append(cmd.type === 'answer' ? 'answer' : 'cmd', this.#sim.tick, { cmd });
-    const result = this.#sim.dispatch(cmd);
+    const frames: ViewFrame[] = [];
+    const result = this.#sim.dispatch(cmd, () => this.#recordCommandStep(frames));
     this.holdEvents();
     const refusal = refusalEntry(this.#sim.tick, cmd, result, this.#messageFacts());
     if (refusal) this.#recordMessages([refusal]);
     this.hooks?.afterDispatch?.(this, cmd, result);
-    const frames: ViewFrame[] = [];
     this.#capture(frames);
     this.#publish(frames);
     if (result.ok && this.#driver.mode === 'instant') yield* this.#loggedAdvance({ idle: true }, undefined, due);

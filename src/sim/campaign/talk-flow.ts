@@ -819,7 +819,7 @@ export class TalkFlow {
     const campaign = this.#campaign;
     for (let budget = DRAIN_BUDGET_TICKS; budget > 0 && !dialogueIdle(this.talk); budget--) {
       const before = campaign.tick;
-      campaign.step();
+      campaign.stepWithinCommand();
       if (campaign.tick === before) break;
     }
     this.#syncScripted();
@@ -913,7 +913,7 @@ export class TalkFlow {
     for (let budget = DRAIN_BUDGET_TICKS; budget > 0 && !this.#giveResolved(merc) && !this.frozen(); budget--) {
       if (campaign.shop?.isOpen()) break;
       const tick = campaign.tick;
-      campaign.step();
+      campaign.stepWithinCommand();
       if (campaign.tick === tick) break;
     }
     this.#syncScripted();

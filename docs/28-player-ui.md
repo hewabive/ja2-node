@@ -1007,17 +1007,19 @@ absent black); choosing a squad sets the client's current squad. Blank during me
 ### 5.8 Talk panel and speech (`Tactical/Interface_Dialogue.cc`, `Dialogue_Control.cc`, `Utils/MercTextBox.cc`)
 
 - **Speech presenter** (client, DOM-free in `ui`): the simulation finishes lines in ticks (60 ms per character,
-  deviation "Speech") and never waits; the client queues the lines it receives (`npcQuote`, `mercQuote`, `civQuote`,
-  `skyriderQuote`, `headMinerQuote`, conversation lines), plays the speech sample, shows the subtitle box for
-  `max(audio length, chars × 60 ms) + 300 ms`, honours Backspace (stop), click and key-advance, and routes a line to its
-  surface (talk panel, comm popup, external NPC popup, civilian box, message log `Nick: "text"`). Lines need `chars` and
-  `textKey`: `ConversationLineView` lacks `chars`, own-merc barks and contract quotes, `skyriderQuote` and
-  `headMinerQuote` lack `textKey` (§12.1).
+  deviation "Speech") and never waits; the client queues the lines as playback reaches the frames that carry them
+  (`npcQuote`, `mercQuote`, `civQuote`, `skyriderQuote`, `headMinerQuote`, conversation lines; a conversation
+  command's ticks arrive as frames like an advance, `04` §6.28), plays the speech sample, shows the subtitle box for
+  the sample's length (`chars × 60 ms` without a voice) + 300 ms, honours Backspace (stop), click and key-advance, and
+  routes a line to its surface (talk panel, comm popup, external NPC popup, civilian box, message log `Nick: "text"`).
+  Lines need `chars` and `textKey`: `ConversationLineView` lacks `chars`, own-merc barks and contract quotes,
+  `skyriderQuote` and `headMinerQuote` lack `textKey` (§12.1).
 - **NPC talk panel** — exact (constants `Interface_Dialogue.cc:100-133`): the NPC's big face, the menu (friendly,
-  direct, threaten, recruit, repeat, buy/sell, give where applicable, Done), the busy shading while the NPC speaks, the
-  subtitle popup oriented by the panel position (parameterise the original's hard-coded 340 and the viewport bounds).
-  Commands: `talk`, `answer` on the conversation menu, `closeTalk` (`docs/04` §6.12). Elliot's face variant needs a
-  `faceVariant` in `ConversationView`.
+  direct, threaten, recruit, repeat, buy/sell, give where applicable, Done), the busy shading while the NPC speaks or a
+  line waits in the presenter's queue or in a received frame not yet played (the original shades while the face talks
+  or the dialogue queue is not empty), the subtitle popup oriented by the panel position (parameterise the original's
+  hard-coded 340 and the viewport bounds). Commands: `talk`, `answer` on the conversation menu, `closeTalk`
+  (`docs/04` §6.12). Elliot's face variant needs a `faceVariant` in `ConversationView`.
 - **Comm popup** (merc lines in tactical: face, bars, sector line) and the **external NPC popup** (Skyrider, head miners)
   — exact; the map-screen locator during speech comes with the map screen.
 - **Civilian quote box** — exact (placement, lifetime, a click only closes).

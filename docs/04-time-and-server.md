@@ -1417,6 +1417,22 @@ dialogue queue, a shop's quotes, the money events) reach the WebSocket frame cap
 of waiting for the next step of the simulation, which never comes while a conversation or a shop holds the clock;
 the next `advance` report still lists them (`Session` holds them for it), so agents see them as before.
 
+**Frames while a command runs ticks (2026-10-27).** The conversation commands run tactical ticks before they return
+(`24` §11.6): `talk`, `approach`, `answer` on an NPC request, `unescort` in tactical and `openShop` drain the dialogue
+queue, and `give` to an NPC walks, hands over and drains the conversation it opens; two lines take about 1200 ticks.
+Those ticks went through `CampaignSim.step` without the session's recording stepper, so a viewer got a single frame
+at the end of the command and the page played about 6 s of game time with nothing shown before the talk panel
+opened, then the lines. Now `SessionSim.dispatch(cmd, steps)` takes a step observer: `CampaignSim.dispatch` keeps it
+for the duration of the command and `stepWithinCommand` (the drains of `TalkFlow`) calls it after every tick, and the
+session's observer holds the tick's events and captures a frame every `FRAME_TICKS`, as the recording stepper of an
+advance does. The command's frames go out together before its result, the client plays them at its playback speed,
+so the panel opens with the first line, each line reaches the speech presenter at the tick the simulation says it and
+a walk to the NPC stays animated. Nothing the simulation does changes: without viewers nothing is captured, the input
+log and replays dispatch without an observer, the result and the events of the next report are the same. A drain of
+two lines costs about 80 ms with a viewer (115 captures in A10 on stubs) instead of 5 ms. `session.test.ts` checks the
+seam with a fake simulation, `talk-stub.test.ts` the frames of an `approach` (one every 10 ticks, each line in the
+frame of its tick) and `give-stub.test.ts` the walk of a `give`.
+
 **Shop screen fields (G15).**
 
 - `quoteTrade` adds `quotes` (the shopkeeper quote ids the trade would emit, in order: the evaluation quotes 4, 16–20,

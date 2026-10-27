@@ -3,14 +3,15 @@ import { expectReloadsInvisible, RELOAD_TEST_TIMEOUT_MS, type RunMode } from '..
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
 import { drivenSession, ReloadingSession, stubSessionSources } from '../../tests/support/session-reload.ts';
 import { parseSectorString } from '../content/strategic/sector-ids.ts';
-import type { ConversationView } from '../protocol/view.ts';
+import type { ConversationView, ViewFrame } from '../protocol/view.ts';
 import type { SimEvent } from '../sim/events.ts';
+import { TICKS_PER_CHARACTER } from '../sim/narrative/dialogue-queue.ts';
 import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { questStatus } from '../sim/strategic/narrative/facts.ts';
 import { Body, NO_PROFILE, Team } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import type { CampaignSession } from './campaign-session.ts';
-import type { Session } from './session.ts';
+import { FRAME_TICKS, type Session } from './session.ts';
 
 let kit: StubSectorKit;
 
@@ -63,6 +64,20 @@ function conversation(r: { readonly data?: unknown }): ConversationView | null {
 
 function lines(r: { readonly data?: unknown }): { quote: number; text?: string }[] {
   return (r.data as { lines?: { quote: number; text?: string }[] } | undefined)?.lines ?? [];
+}
+
+interface LineShown {
+  readonly quote: number;
+  readonly said: number;
+  readonly shown: number;
+}
+
+function linesShownIn(frame: ViewFrame): LineShown[] {
+  return (frame.events ?? []).flatMap((e) => (e.type === 'npcQuote' ? [{ quote: e.quote, said: e.tick, shown: frame.tick }] : []));
+}
+
+function linesShown(frames: readonly ViewFrame[]): LineShown[] {
+  return frames.flatMap(linesShownIn);
 }
 
 function walkUpAndTalk(session: CampaignSession, live: Session, merc: number) {
@@ -120,6 +135,31 @@ describe('the stub NPC in A10', { timeout: SLOW_SCENARIO_MS }, () => {
     expect(session.view().conversation).toBeNull();
     expect(session.view().scriptedSequence).toBeUndefined();
     expect(live.advance({ ticks: 10 }).reason).toBe('ticks');
+  });
+
+  it('shows viewers a conversation command as it runs: a frame every FRAME_TICKS, each line at the tick it is said', async () => {
+    const { session, live } = await inA10(5);
+    const merc = session.view().strategic?.mercs[0]?.id ?? 0;
+    walkUpAndTalk(session, live, merc);
+    const frames: ViewFrame[] = [];
+    live.subscribe((m) => {
+      if (m.t === 'frames') frames.push(...m.frames);
+    });
+    const start = session.tick;
+    const direct = live.dispatch({ type: 'approach', kind: 'direct' });
+    const said = (direct.data as { lines: { quote: number; chars: number }[] }).lines;
+    expect(said.map((l) => l.quote)).toEqual([14, 15]);
+    const end = session.tick;
+    const shown = linesShown(frames);
+    expect(shown.map((l) => l.quote)).toEqual([14, 15]);
+    expect(shown.every((l) => l.shown >= l.said && l.shown - l.said < FRAME_TICKS)).toBe(true);
+    const [first, second] = shown;
+    expect(first?.shown ?? end).toBeLessThanOrEqual(start + FRAME_TICKS);
+    expect((second?.said ?? start) - (first?.said ?? start)).toBeGreaterThanOrEqual((said[0]?.chars ?? 0) * TICKS_PER_CHARACTER);
+    const firstFrame = Math.floor(start / FRAME_TICKS) + 1;
+    const lastFrame = Math.floor(end / FRAME_TICKS);
+    const frameTicks = Array.from({ length: lastFrame - firstFrame + 1 }, (_, k) => (firstFrame + k) * FRAME_TICKS);
+    expect(frames.map((f) => f.tick)).toEqual(frameTicks);
   });
 
   it('gives defaults once and then sends the squad away, the same day opens silently', async () => {

@@ -595,7 +595,7 @@ export class TacticalHost {
     return {
       open: dialogue.talk.open,
       profile: dialogue.talk.profile,
-      busy: presenter.busy,
+      busy: dialogue.talk.busy,
       line: current
         ? {
             surface: current.line.surface,
