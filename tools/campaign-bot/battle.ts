@@ -155,7 +155,7 @@ async function moveTowards(p: Player, merc: SoldierView, goal: number, steps: re
 }
 
 async function lower(p: Player, merc: SoldierView, turn: TurnState, stance: 'crouch' | 'prone'): Promise<boolean> {
-  if (turn.lowered.has(merc.id)) return false;
+  if (turn.lowered.has(merc.id) || merc.stance === stance) return false;
   turn.lowered.add(merc.id);
   return (await p.act({ type: 'stance', soldier: merc.id, stance })).ok;
 }

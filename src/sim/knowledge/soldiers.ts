@@ -1,10 +1,12 @@
 import { handClass, type ItemTable, NOTHING } from '../../content/items/items.ts';
 import { createItem } from '../items/object.ts';
+import { endHeight, states } from '../tactical/animation.ts';
 import { WeaponMode } from '../tactical/combat/types.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { newKeyRing } from '../tactical/doors/key-ring.ts';
 import { LIFELESS_HEALTH_INDEX } from '../tactical/health.ts';
 import { emptyInventory, InvSlot } from '../tactical/inventory.ts';
+import { movementForStanceChange, type Stance, stanceHeight } from '../tactical/movement-mode.ts';
 import { Opp } from '../tactical/perception/opp.ts';
 import {
   Body,
@@ -81,6 +83,8 @@ const OWN_FIELDS = [
   'weightCarriedAtTurnStart',
   'collapsed',
   'underAiControl',
+  'uiMovementMode',
+  'uiMovementFast',
 ] as const;
 
 const WEAPON_MODES: Readonly<Record<WeaponModeView, number>> = {
@@ -179,6 +183,14 @@ function keyRingOf(v: KnowledgeSoldier) {
   return ring;
 }
 
+function applyStance(content: TacticalContent, s: Soldier, stance: Stance | undefined): void {
+  const running = stance === 'run';
+  s.uiMovementFast = running;
+  s.uiMovementMode = running
+    ? states(content.animations).RUNNING
+    : movementForStanceChange(content, stanceHeight(stance) ?? endHeight(content, s.state));
+}
+
 function applyOwnFields(content: TacticalContent, s: Soldier, v: KnowledgeSoldier, guard: GuardOptions): void {
   const hint = v.hint ?? NO_HINT_INPUTS;
   s.life = v.life ?? 0;
@@ -204,6 +216,7 @@ function applyOwnFields(content: TacticalContent, s: Soldier, v: KnowledgeSoldie
   s.weightCarriedAtTurnStart = hint.weightAtTurnStart;
   s.collapsed = hint.collapsed;
   s.underAiControl = hint.underAiControl;
+  applyStance(content, s, v.stance);
   for (const id of v.sees ?? []) s.oppList[id] = Opp.SEEN_CURRENTLY;
   const inv = inventoryFromView(content.items, v.inventory ?? [], `soldier ${v.id}`, guard);
   inv.forEach((o, slot) => {

@@ -4,6 +4,7 @@ import { MapFlags } from '../../content/formats/map.ts';
 import { handClass, ItemClass, ItemCursor, NOTHING } from '../../content/items/items.ts';
 import { isVisibleTile, WORLD_COLS, WORLD_ROWS } from '../../content/world/grid.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
+import { Terrain } from '../../content/world/terrain.ts';
 import { type PreRandom, Rng } from '../../core/rng.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
@@ -33,9 +34,11 @@ import { endAIGuysTurn, startNPCAI } from './ai/turn-based.ts';
 import {
   AnimHeight,
   changeSoldierStance,
+  changeSoldierState,
   endHeight,
   hasAnimFlag,
   height,
+  LOCKED_NO_NEWGRIDNO,
   nextFrameTick,
   setDesiredDirection,
   soldierGotoStationaryStance,
@@ -90,10 +93,10 @@ import {
   turnOnPrimeLights,
 } from './lighting/lighting.ts';
 import { directionToward, getNewSoldierPath, stopMerc } from './movement.ts';
-import { movementModeState } from './movement-mode.ts';
+import { movementForStanceChange, movementModeState, moveStateBasedOnStance, stanceHeight } from './movement-mode.ts';
 import { checkHostileOrSayQuoteList } from './narrative/civ-hostility.ts';
 import { handleActionItemQueue } from './narrative/quest-items.ts';
-import { uncontrolledRobot } from './narrative/robot.ts';
+import { isRobot, uncontrolledRobot } from './narrative/robot.ts';
 import { createScheduleList, loadMapSchedules } from './narrative/schedule-state.ts';
 import { useStatueRemote } from './narrative/statue.ts';
 import { handlePendingTalkOnArrival } from './narrative/talk-arrival.ts';
@@ -116,7 +119,7 @@ import {
   roofOpcode,
 } from './roofs.ts';
 import { checkMercsWaiting } from './sector-exit.ts';
-import { NO_PROFILE, OKBREATH, OKLIFE, type Soldier, Team } from './soldier.ts';
+import { Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, Team } from './soldier.ts';
 import { type OtherSoldierFields, type OwnSoldierFields, otherSoldierFields, ownSoldierFields } from './soldier-view.ts';
 import { createTacticalState, type RealtimeClock, type TacticalState, teamMembers, whoIsThere } from './state.ts';
 import { showsAiProgress, type TopMessageName, topMessageName } from './turns/top-message.ts';
@@ -228,6 +231,8 @@ const SANDBOX_WORLD_HOUR = 12;
 
 const isMeleeItemClass = (cls: number) => cls === ItemClass.BLADE || (cls & (ItemClass.NONE | ItemClass.PUNCH)) !== 0;
 const isThrowItemClass = (cls: number) => cls === ItemClass.GRENADE || cls === ItemClass.THROWN || cls === ItemClass.LAUNCHER;
+const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;
+const inWater = (s: Soldier) => s.overTerrain >= Terrain.LOW_WATER && s.overTerrain <= Terrain.DEEP_WATER;
 
 export interface TacticalCommand {
   readonly type: string;
@@ -670,7 +675,7 @@ export class TacticalSim {
     const to = cmd.to;
     if (typeof to !== 'number' || !Number.isInteger(to) || !isVisibleTile(to))
       return refuse('badDestination', 'destination must be a visible gridNo');
-    s.uiMovementMode = movementModeState(t.content, s, cmd.mode);
+    const mode = movementModeState(t, s, cmd.mode);
     s.reverse = cmd.reverse === true;
     s.pathStored = false;
     s.pendingDoorAction = null;
@@ -680,9 +685,7 @@ export class TacticalSim {
       const route = findBestPath(t.pathEnv, s, to, s.level, { copy: PathCopy.ROUTE });
       if (route.length === 0) return refuse('noPath', 'no path');
       const ctx = { env: t.pathEnv, content: t.content, inCombat: t.inCombat };
-      const first =
-        ptsToMoveDirection(ctx, s, route.steps[0] ?? 0, s.uiMovementMode) +
-        apsToChangeStance(t.content, s, height(t.content, s.uiMovementMode));
+      const first = ptsToMoveDirection(ctx, s, route.steps[0] ?? 0, mode) + apsToChangeStance(t.content, s, height(t.content, mode));
       if (!enoughPoints(t.inCombat, s, first)) {
         s.contPathLocation = to;
         s.goodContPath = true;
@@ -691,8 +694,21 @@ export class TacticalSim {
     }
     selectSoldier(t, s);
     if (s.noAPToFinishMove) s.noAPToFinishMove = false;
-    if (!getNewSoldierPath(t, s, to, s.uiMovementMode, 1, s.noAPToFinishMove)) return refuse('noPath', 'no path');
+    const kept = { mode: s.uiMovementMode, fast: s.uiMovementFast };
+    this.#takeMoveMode(s, mode);
+    if (!getNewSoldierPath(t, s, to, mode, 1, s.noAPToFinishMove)) {
+      s.uiMovementMode = kept.mode;
+      s.uiMovementFast = kept.fast;
+      return refuse('noPath', 'no path');
+    }
     return { ok: true };
+  }
+
+  #takeMoveMode(s: Soldier, mode: number): void {
+    const t = this.state;
+    s.uiMovementMode = mode;
+    if (!t.inCombat) s.uiMovementFast = false;
+    else if (mode === states(t.content.animations).RUNNING) s.uiMovementFast = true;
   }
 
   #turn(cmd: TacticalCommand): CommandResult {
@@ -714,21 +730,31 @@ export class TacticalSim {
   }
 
   #stance(cmd: TacticalCommand): CommandResult {
-    const t = this.state;
     const s = this.soldier(cmd.soldier);
     if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
     const refusal = this.actRefusal(s);
     if (refusal) return refused(refusal);
-    const wanted =
-      cmd.stance === 'stand'
-        ? AnimHeight.STAND
-        : cmd.stance === 'crouch'
-          ? AnimHeight.CROUCH
-          : cmd.stance === 'prone'
-            ? AnimHeight.PRONE
-            : -1;
-    if (wanted < 0) return refuse('badStance', 'stance must be stand, crouch or prone');
-    if (endHeight(t.content, s.state) === wanted) return refuse('alreadyInStance', 'already in that stance');
+    const wanted = stanceHeight(cmd.stance);
+    if (wanted === null) return refuse('badStance', 'stance must be run, stand, crouch or prone');
+    const result = cmd.stance === 'run' ? this.#run(s) : this.#changeStance(s, wanted);
+    if (result.ok) selectSoldier(this.state, s);
+    return result;
+  }
+
+  #run(s: Soldier): CommandResult {
+    const t = this.state;
+    if (isRobot(s) || isVehicle(s) || inWater(s)) return refuse('cannotRun', 'the soldier cannot run here');
+    if (endHeight(t.content, s.state) === AnimHeight.STAND) s.uiMovementMode = states(t.content.animations).RUNNING;
+    else {
+      const stood = this.#changeStance(s, AnimHeight.STAND);
+      if (!stood.ok) return stood;
+    }
+    s.uiMovementFast = true;
+    return { ok: true };
+  }
+
+  #changeStance(s: Soldier, wanted: number): CommandResult {
+    const t = this.state;
     if (t.inCombat) {
       const ap = apsToChangeStance(t.content, s, wanted);
       if (!enoughPoints(t.inCombat, s, ap)) return refuse('notEnoughAP', `not enough APs: ${ap} needed`);
@@ -736,12 +762,20 @@ export class TacticalSim {
       s.finalDestination = s.gridNo;
       s.goodContPath = false;
     } else if (hasAnimFlag(t.content, s.state, AnimFlags.STATIONARY)) changeSoldierStance(t, s, wanted);
-    else return refuse('mustStopFirst', 'stop the soldier before changing stance in real time');
+    else this.#changeMovingStance(s, wanted);
+    s.uiMovementMode = movementForStanceChange(t.content, wanted);
+    s.uiMovementFast = false;
     givingSoldierCancelServices(t, s, false);
-    const st = states(t.content.animations);
-    s.uiMovementMode = wanted === AnimHeight.STAND ? st.WALKING : wanted === AnimHeight.CROUCH ? st.SWATTING : st.CRAWLING;
-    selectSoldier(t, s);
     return { ok: true };
+  }
+
+  #changeMovingStance(s: Soldier, wanted: number): void {
+    const t = this.state;
+    s.uiMovementMode = moveStateBasedOnStance(t.content, s, wanted);
+    const downToCrawl = s.uiMovementMode === states(t.content.animations).CRAWLING && endHeight(t.content, s.state) !== AnimHeight.PRONE;
+    s.dontUpdateNewGridNoOnMoveAnimChange = downToCrawl ? LOCKED_NO_NEWGRIDNO : 1;
+    if (downToCrawl) s.pathStored = false;
+    changeSoldierState(t, s, s.uiMovementMode, 0, false);
   }
 
   #attackSetup(

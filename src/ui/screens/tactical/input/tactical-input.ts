@@ -26,7 +26,7 @@
 
 import type { EstimateAttack, PreviewAction, PreviewMove } from '../../../../protocol/hints.ts';
 import type { CommandEnvelope } from '../../../../protocol/messages.ts';
-import type { PlayerView, SoldierView } from '../../../../protocol/view.ts';
+import type { PlayerView, SoldierView, Stance } from '../../../../protocol/view.ts';
 import { VIDEO_DEFAULT_TO_NO_CURSOR, VIDEO_NO_CURSOR } from '../../../cursors/cursor-ids.ts';
 import type { MouseText } from '../../../cursors/cursor-state.ts';
 import { CursorFlag } from '../../../cursors/cursor-table.ts';
@@ -94,6 +94,7 @@ const RUN = 'run';
 const SWAT = 'swat';
 const CRAWL = 'crawl';
 const MODE_CYCLE: Readonly<Record<string, string>> = { run: WALK, walk: SWAT, swat: CRAWL, crawl: RUN };
+const STANCE_MOVE_MODES: Readonly<Record<Stance, MoveModeName>> = { run: RUN, stand: WALK, crouch: SWAT, prone: CRAWL };
 const TALKABLE = new Set(['npc', 'epc', 'civilian']);
 
 export type MoveModeName = 'walk' | 'run' | 'swat' | 'crawl';
@@ -149,7 +150,7 @@ export class TacticalInput {
   readonly #pointer = new PointerQueue();
   readonly #events = new Map<UiEvent, EventState>();
   readonly #keys: UiKeyEvent[] = [];
-  readonly #moveModes = new Map<number, MoveModeName>();
+  readonly #cycledModes = new Map<number, MoveModeName>();
   readonly #aims = new Map<number, AimState>();
   readonly multiSelected = new Set<number>();
   #now = 0;
@@ -283,10 +284,7 @@ export class TacticalInput {
   }
 
   runMode(sel: SoldierView): void {
-    const mode = this.moveModeOf(sel);
-    if (mode !== WALK && mode !== RUN) void this.#host.send({ type: 'stance', soldier: sel.id, stance: 'stand' });
-    else this.setMoveMode(sel.id, RUN);
-    this.#fast = true;
+    this.#orderStance(sel.id, 'run');
   }
 
   get spreadTracking(): boolean {
@@ -335,22 +333,21 @@ export class TacticalInput {
   }
 
   moveModeOf(s: SoldierView): MoveModeName {
+    const cycled = this.#cycledModes.get(s.id);
+    if (cycled) return cycled;
+    if (s.stance) return STANCE_MOVE_MODES[s.stance];
     const height = this.#env().world.soldierHeight(s.id);
-    const byStance: MoveModeName = height === 'prone' ? CRAWL : height === 'crouch' ? SWAT : WALK;
-    const chosen = this.#moveModes.get(s.id);
-    if (!chosen) return byStance;
-    if (chosen === RUN && height !== 'stand') return byStance;
-    return chosen;
+    return height === 'prone' ? CRAWL : height === 'crouch' ? SWAT : WALK;
   }
 
-  setMoveMode(id: number, mode: MoveModeName): void {
-    this.#moveModes.set(id, mode);
+  forgetCycledMode(id: number): void {
+    this.#cycledModes.delete(id);
     this.#plotNew = true;
   }
 
-  clearMoveMode(id: number): void {
-    this.#moveModes.delete(id);
-    this.#plotNew = true;
+  #orderStance(id: number, stance: Stance): void {
+    this.forgetCycledMode(id);
+    void this.#host.send({ type: 'stance', soldier: id, stance });
   }
 
   queueKey(event: UiKeyEvent): void {
@@ -1095,7 +1092,7 @@ export class TacticalInput {
       else {
         if (!this.#firstCycleStarted) {
           this.#firstCycleStarted = true;
-          if (this.moveModeOf(sel) !== RUN) this.#moveModes.set(sel.id, CRAWL);
+          if (this.moveModeOf(sel) !== RUN) this.#cycledModes.set(sel.id, CRAWL);
         }
         return UiEvent.M_CYCLE_MOVEMENT;
       }
@@ -2042,7 +2039,7 @@ export class TacticalInput {
     if (!sel) return;
     this.#allMoveOn = 0;
     if (isRobot(sel)) {
-      this.#moveModes.set(sel.id, WALK);
+      this.#cycledModes.set(sel.id, WALK);
       this.#plotNew = true;
       return;
     }
@@ -2051,8 +2048,7 @@ export class TacticalInput {
       mode = (MODE_CYCLE[mode] ?? WALK) as MoveModeName;
       if (this.#validMovementMode(sel, mode)) break;
     }
-    if (mode === RUN) this.#fast = true;
-    this.#moveModes.set(sel.id, mode);
+    this.#cycledModes.set(sel.id, mode);
     this.#plotNew = true;
   }
 
@@ -2150,7 +2146,7 @@ export class TacticalInput {
     }
     const height = this.#env().world.soldierHeight(sel.id);
     const stance = adjustedStance(height, this.#stanceDiff);
-    if (stance) void this.#host.send({ type: 'stance', soldier: sel.id, stance });
+    if (stance) this.#orderStance(sel.id, stance);
   }
 
   #aOnTerrain(): void {
@@ -2531,21 +2527,7 @@ export class TacticalInput {
   }
 
   #menuStance(sel: SoldierView, choice: MovementChoice): void {
-    const height = this.#env().world.soldierHeight(sel.id);
-    if (choice === 'run') {
-      const mode = this.moveModeOf(sel);
-      if (mode !== WALK && mode !== RUN) void this.#host.send({ type: 'stance', soldier: sel.id, stance: 'stand' });
-      this.#fast = true;
-      this.setMoveMode(sel.id, RUN);
-      return;
-    }
-    const stance = choice === 'walk' ? 'stand' : choice === 'swat' ? 'crouch' : 'prone';
-    const sameHeight =
-      (stance === 'stand' && height === 'stand') ||
-      (stance === 'crouch' && height === 'crouch') ||
-      (stance === 'prone' && height === 'prone');
-    this.clearMoveMode(sel.id);
-    if (!sameHeight) void this.#host.send({ type: 'stance', soldier: sel.id, stance });
+    this.#orderStance(sel.id, choice === 'run' ? 'run' : choice === 'walk' ? 'stand' : choice === 'swat' ? 'crouch' : 'prone');
   }
 
   #cWait(): void {
@@ -2583,7 +2565,7 @@ export class TacticalInput {
       this.#setConfirmMovementModeCursor(sel, true);
       return;
     }
-    if (!this.#combat()) this.clearMoveMode(sel.id);
+    if (!this.#combat()) this.#cycledModes.delete(sel.id);
     const tile = this.#interactiveTile();
     if (tile) {
       const action = tile.open ? 'close' : 'open';
@@ -2595,7 +2577,6 @@ export class TacticalInput {
     }
     if (!this.#combat()) {
       this.#setConfirmMovementModeCursor(sel, true);
-      if (this.multiSelected.size === 0) this.#fastMove(sel);
     }
     if (this.multiSelected.size > 0) {
       const soldiers = [...this.multiSelected];
@@ -2611,18 +2592,21 @@ export class TacticalInput {
       this.#fast = false;
       return;
     }
-    const mode = this.#fast && this.#env().world.soldierHeight(sel.id) === 'stand' ? RUN : this.moveModeOf(sel);
+    const mode = this.#orderMode(sel);
     this.#fast = false;
     const preview = dataOf(this.#previewMove(mapPos));
     void this.#host
-      .sendBusyOrder({ type: 'move', soldier: sel.id, to: mapPos, mode, ...(this.#reverse ? { reverse: true } : {}) })
+      .sendBusyOrder({ type: 'move', soldier: sel.id, to: mapPos, ...(mode ? { mode } : {}), ...(this.#reverse ? { reverse: true } : {}) })
       .then((reply) => {
+        if (reply.ok) this.#cycledModes.delete(sel.id);
         if (reply.ok && (preview?.steps.length ?? 0) + 1 > OK_SOUND_STEPS) this.#env().battleSound(sel.id, 'ok');
       });
   }
 
-  #fastMove(sel: SoldierView): void {
-    if (this.#fast) this.setMoveMode(sel.id, RUN);
+  #orderMode(sel: SoldierView): MoveModeName | null {
+    const cycled = this.#cycledModes.get(sel.id);
+    if (cycled) return cycled;
+    return this.#fast && this.#env().world.soldierHeight(sel.id) === 'stand' ? RUN : null;
   }
 
   #groupSounds(reply: CommandReply): void {

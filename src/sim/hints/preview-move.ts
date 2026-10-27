@@ -53,7 +53,7 @@ export function previewMove(world: KnowledgeWorld, req: PreviewMoveRequest): Hin
   if (typeof to !== 'number' || !Number.isInteger(to) || !isVisibleTile(to))
     return refuseHint('badDestination', 'destination must be a visible gridNo');
   const { state: t, soldier: s } = acting;
-  const mode = movementModeState(t.content, s, req.mode);
+  const mode = movementModeState(t, s, req.mode);
   return withTemporaryFields(s, { uiMovementMode: mode, reverse: req.reverse === true }, () => plotMove(acting, to, mode, req.level));
 }
 

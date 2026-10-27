@@ -34,6 +34,7 @@ import {
   setSoldierDestination,
   setSoldierPosition,
 } from './movement.ts';
+import { moveStateBasedOnStance } from './movement-mode.ts';
 import { boxingMovementCheckWhileTracked } from './narrative/boxing.ts';
 import { newOKDestination } from './pathfinding.ts';
 import { addMercStructure, isValidStance, okToAddMercToWorld } from './person-structure.ts';
@@ -463,12 +464,21 @@ function isRifle(t: TacticalState, item: number): boolean {
   return d?.itemClass === ItemClass.GUN && (d.flags & ItemFlags.TWO_HANDED) !== 0;
 }
 
+function adjustMovementModeToStance(t: TacticalState, s: Soldier, stance: number): void {
+  if (s.team !== Team.OUR || s.continueMoveAfterStanceChange) return;
+  const st = states(t.content.animations);
+  const byStance = moveStateBasedOnStance(t.content, s, stance);
+  if (s.uiMovementMode === st.RUNNING && byStance === st.WALKING) return;
+  s.uiMovementMode = byStance;
+}
+
 function handleEndOfAnimation(t: TacticalState, s: Soldier): void {
   const content = t.content;
   const st = states(content.animations);
   if (s.team !== Team.OUR) t.turnHooks.freeUpFromPendingAction(t, s);
   const currentEnd = endHeight(content, s.state);
   if (s.desiredHeight === currentEnd || s.desiredHeight === NO_DESIRED_HEIGHT) {
+    adjustMovementModeToStance(t, s, currentEnd);
     s.desiredHeight = NO_DESIRED_HEIGHT;
     if (s.changingStanceDueToSuppression) {
       s.changingStanceDueToSuppression = false;

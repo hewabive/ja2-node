@@ -11,6 +11,7 @@ import { armourPercent, maxArmourPerClass } from './combat/armour.ts';
 import { WeaponMode } from './combat/types.ts';
 import { isGassed } from './explosions/smoke.ts';
 import { HEALTH_CATEGORIES, healthCategory, LIFELESS_HEALTH_INDEX } from './health.ts';
+import { type Stance, soldierStance } from './movement-mode.ts';
 import { Opp } from './perception/opp.ts';
 import { carriedWeightPercentOf } from './points.ts';
 import { NOBODY, OKLIFE, Side, type Soldier, Team } from './soldier.ts';
@@ -51,6 +52,7 @@ export interface OwnSoldierFields {
   readonly sees: readonly number[];
   readonly opponents: number;
   readonly canAct: boolean;
+  readonly stance: Stance;
   readonly continueTo: number | null;
   readonly noApToFinishMove: boolean;
   readonly firstAid: FirstAidRole | null;
@@ -127,6 +129,7 @@ export function ownSoldierFields(t: TacticalState, s: Soldier, visible: Readonly
     sees: seenOpponents(s, visible),
     opponents: s.ai.oppCount,
     canAct: canActNow(t, s),
+    stance: soldierStance(t, s),
     continueTo: continueLocation(t, s),
     noApToFinishMove: s.noAPToFinishMove,
     firstAid: firstAidRole(s),

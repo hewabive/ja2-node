@@ -1062,7 +1062,7 @@ Flows (each with its ja2-node command):
 | Move, turn-based: click → confirm marker (if the first step and stance change are affordable) → second click on the same tile | `QueryTBLeftButton`, `UIHandleCMoveMerc`; moving off the tile or a right click cancels | `previewMove`, then `move {soldier, to, mode}`; the "OK" battle sound when the path is longer than 5 steps (from `previewMove.steps`) |
 | Move, real time: one click (real-time confirm off by default); double click within 300 ms runs; Alt reverses | `QueryRTLeftButton` | `move {mode: 'run'}`; **`move {reverse}`** (new) |
 | All move (hold left, click right) and rubber-band multi-selection (drag > 10 px; tile centres inside; Alt adds) | `Real_Time_Input.cc:826-852`, `Handle_UI.cc:4215-4390` | **`moveGroup {soldiers, to, mode?}`** (new, paths through people) |
-| Turn-based left+right cycles the movement mode run → walk → swat → crawl | `Handle_UI.cc:1799-1844` | client per-merc UI mode |
+| Turn-based left+right cycles the movement mode run → walk → swat → crawl | `Handle_UI.cc:1799-1844` | the client keeps the choice for the next `move {mode}` only; the merc's own mode is his `stance` (deviation "Stance") |
 | Attack, turn-based guns: right click or `u` → action mode; hovering a visible enemy enters action mode and, after 80 ms with ammo, confirm mode by itself; right clicks add aim (yellow full ring at the limit, then wrap), the wheel steps aim without wrapping (Stracciatella default); left click shoots; own or militia target → "attack your own man?" | `UI_Cursors.cc:129-139`, `:978-1309`, `Handle_UI.cc:2115-2295` | `estimateAttack` (extended) → `attack {soldier, target, level, aimTime, bodyPart, burst}`; the body part from the cursor's position on the target sprite (needs sprite picking) |
 | Attack, real time: click shoots with aim 0; a red target cursor for 500 ms; right click lowers the weapon | `Real_Time_Input.cc:154-184` | `attack` |
 | Burst spread: drag with the button held over up to 50 tiles, release after 300 ms | `Spread_Burst.cc`, `Turn_Based_Input.cc:339-368` | **`attack {spread: gridNo[]}`** (new; the simulation has `doSpread`) |
@@ -1122,7 +1122,7 @@ shipped `game.json` (D1), so its additions belong in.
 | `` ` `` | SM / team panel | client |
 | a | auto-bandage | deviation "Auto-bandage" (**Later**) |
 | b | next weapon mode | **`weaponMode`** |
-| c, p, s, PgUp, PgDn | crouch, prone, stand, stance up/down (climb at the ends) | `stance`, `climb` |
+| c, p, s, PgUp, PgDn | crouch, prone, stand, stance up/down (climb at the ends); also in the stance the merc has, which ends a halted move and a run | `stance`, `climb` |
 | d | end turn | `endTurn` |
 | e | cycle the enemies the selected merc sees | view **`sees`** |
 | f | range to target and gun range in the message log | `estimateAttack.inRange` |
@@ -1131,7 +1131,8 @@ shipped `game.json` (D1), so its additions belong in.
 | i, `*` or `,` | item glow, red item glow | client |
 | j / Shift+J | climb / climb through a window (Stracciatella) | `climb` / **`climbWindow`** |
 | k | key ring popup | client |
-| l, u, r | look cursor, action mode, run mode | client UI modes |
+| l, u | look cursor, action mode | client UI modes |
+| r | run (a crouched or prone merc stands up first) | **`stance {stance: 'run'}`** |
 | n | cycle the soldier stack or interactive tiles under the cursor | client |
 | t, w, Home | tree tops, wireframes, 3D cursor | client (3D cursor deferred) |
 | x | swap places with the merc under the cursor | **`swapPlaces`** |

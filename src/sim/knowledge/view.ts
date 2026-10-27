@@ -1,5 +1,6 @@
 import type { DoorView, KeyView } from '../tactical/doors/door-view.ts';
 import type { InventoryItemView } from '../tactical/inventory-view.ts';
+import type { Stance } from '../tactical/movement-mode.ts';
 import type { FirstAidRole, SoldierStatsView, WeaponModeView } from '../tactical/soldier-view.ts';
 
 export interface OwnHintInputs {
@@ -45,6 +46,7 @@ export interface KnowledgeSoldier {
   readonly weaponMode?: WeaponModeView;
   readonly sees?: readonly number[];
   readonly canAct?: boolean;
+  readonly stance?: Stance;
   readonly firstAid?: FirstAidRole | null;
   readonly blinded?: boolean;
   readonly hostile?: boolean;

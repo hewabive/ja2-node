@@ -457,7 +457,10 @@ export class TacticalControls {
   }
 
   #stance(stance: 'stand' | 'crouch' | 'prone'): void {
-    for (const s of this.#targets()) void this.#screen.send({ type: 'stance', soldier: s.id, stance });
+    for (const s of this.#targets()) {
+      this.input.forgetCycledMode(s.id);
+      void this.#screen.send({ type: 'stance', soldier: s.id, stance });
+    }
   }
 
   #higherStance(): void {

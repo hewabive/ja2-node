@@ -12,6 +12,7 @@ import { KeyModifier, MouseButton } from '../../input/events.ts';
 import { UiMode } from './input/ui-events.ts';
 
 const SLOW_MS = 120_000;
+const STANCE_MODES = { run: 'run', stand: 'walk', crouch: 'swat', prone: 'crawl' } as const;
 const HOLD_MS = 400;
 const COMA_LIFE = 5;
 const OPEN_DOOR_OPTIONS: readonly DoorMenuOption[] = [
@@ -75,6 +76,13 @@ function fallIntoComa(f: TacticalUiTest, id: number) {
   f.session.advance({ ticks: 1 });
   f.client.refresh();
   f.frames(f.client.takeFrames());
+}
+
+async function playOut(f: TacticalUiTest): Promise<void> {
+  f.session.advance({ idle: true });
+  f.client.refresh();
+  f.frames(f.client.takeFrames());
+  await f.settle();
 }
 
 function imagesOf(f: TacticalUiTest, asset: string): DrawItem[] {
@@ -308,6 +316,87 @@ describe('the tactical input on the tactical screen', () => {
       expect(f.screen.controls.input.apNumber()?.value).toBeGreaterThan(0);
       await f.clickAt(at.x, at.y);
       expect(commandsOf(f, 'move').at(-1)).toMatchObject({ soldier: 0, to: tile });
+    },
+    SLOW_MS,
+  );
+
+  it(
+    'runs after R in combat: the stance comes from the server and the confirming click sends no mode',
+    async () => {
+      const f = await inCombat();
+      expect(merc(f, 0).stance).toBe('crouch');
+      f.key('r');
+      await f.settle();
+      expect(commandsOf(f, 'stance').at(-1)).toMatchObject({ soldier: 0, stance: 'run' });
+      await playOut(f);
+      const s = merc(f, 0);
+      expect(s.stance).toBe('run');
+      expect(f.screen.controls.input.moveModeOf(s)).toBe('run');
+      const at = f.world.pickPoint(s.gridNo - 2);
+      pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+      await f.settle(8);
+      await f.clickAt(at.x, at.y);
+      await f.settle(8);
+      await f.clickAt(at.x, at.y);
+      const move = commandsOf(f, 'move').at(-1);
+      expect(move).toMatchObject({ soldier: 0, to: s.gridNo - 2 });
+      expect(move).not.toHaveProperty('mode');
+    },
+    SLOW_MS,
+  );
+
+  it(
+    'sends the mode cycled with a right click under the held left button with the next move only',
+    async () => {
+      const f = await inCombat();
+      const s = merc(f, 0);
+      const at = f.world.pickPoint(s.gridNo - 2);
+      pointer(f, 'pointerMove', at.x, at.y, MouseButton.LEFT);
+      await f.settle(8);
+      pointer(f, 'pointerDown', at.x, at.y, MouseButton.LEFT);
+      f.t.frame();
+      for (const expected of ['run', 'walk', 'swat', 'crawl']) {
+        pointer(f, 'pointerDown', at.x, at.y, MouseButton.RIGHT);
+        f.t.frame();
+        pointer(f, 'pointerUp', at.x, at.y, MouseButton.RIGHT);
+        f.t.frame();
+        expect(f.screen.controls.input.moveModeOf(merc(f, 0))).toBe(expected);
+      }
+      pointer(f, 'pointerUp', at.x, at.y, MouseButton.LEFT);
+      f.t.frame();
+      expect(commandsOf(f, 'move')).toHaveLength(0);
+      expect(merc(f, 0).stance).toBe('crouch');
+      await f.clickAt(at.x, at.y);
+      await f.settle(8);
+      await f.clickAt(at.x, at.y);
+      await f.settle();
+      expect(commandsOf(f, 'move').at(-1)).toMatchObject({ soldier: 0, to: s.gridNo - 2, mode: 'crawl' });
+      expect(f.screen.controls.input.moveModeOf(merc(f, 0))).toBe(STANCE_MODES[merc(f, 0).stance ?? 'stand']);
+    },
+    SLOW_MS,
+  );
+
+  it(
+    'orders the walk of the movement menu on a merc who already stands, which drops his run',
+    async () => {
+      const f = await tacticalUiTest(kit, ui);
+      f.key('r');
+      await f.settle();
+      expect(merc(f, 0).stance).toBe('run');
+      const s = merc(f, 0);
+      const at = f.world.pickPoint(s.gridNo + 2);
+      pointer(f, 'pointerMove', at.x, at.y, MouseButton.RIGHT);
+      f.t.frame();
+      pointer(f, 'pointerDown', at.x, at.y, MouseButton.RIGHT);
+      f.t.frame();
+      f.t.frame(HOLD_MS);
+      f.t.frame();
+      pointer(f, 'pointerUp', at.x, at.y, MouseButton.RIGHT);
+      f.t.frame();
+      await f.click('menuWalk');
+      await f.settle();
+      expect(commandsOf(f, 'stance').at(-1)).toMatchObject({ soldier: 0, stance: 'stand' });
+      expect(merc(f, 0).stance).toBe('stand');
     },
     SLOW_MS,
   );

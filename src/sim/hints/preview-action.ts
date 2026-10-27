@@ -260,7 +260,7 @@ export function previewAction(world: KnowledgeWorld, req: PreviewActionRequest):
   if (typeof g !== 'number' || !Number.isInteger(g) || !isVisibleTile(g)) return refuseHint('badGridNo', 'gridNo must be a visible tile');
   const { state: t, soldier: s } = acting;
   const level = interfaceLevelOf(s, req.level);
-  const mode = movementModeState(t.content, s, req.mode);
+  const mode = movementModeState(t, s, req.mode);
   const zLevel = req.zLevel === 1 ? 1 : 0;
   return withTemporaryFields(s, { uiMovementMode: mode, reverse: false }, () => {
     const c: ActionContext = { world, t, s, g, level, mode, target: targetOf(world, t, req, g, level) };

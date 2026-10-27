@@ -1478,6 +1478,7 @@ export class TacticalScreen implements Screen {
   #changeStance(s: SoldierView, up: boolean): void {
     const height = this.#env.world.soldierHeight(s.id);
     const next = up ? (height === 'prone' ? 'crouch' : 'stand') : height === 'stand' ? 'crouch' : 'prone';
+    this.controls.input.forgetCycledMode(s.id);
     void this.#command({ type: 'stance', soldier: s.id, stance: next });
   }
 

@@ -9,8 +9,9 @@
 import { DIRECTION_INCREMENT, Direction, newGridNo, outOfBounds, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { i16, u8 } from '../../core/int.ts';
 import { plotPathCost } from './ai/utils.ts';
-import { AnimHeight, endHeight, soldierGotoStationaryStance, states } from './animation.ts';
+import { soldierGotoStationaryStance } from './animation.ts';
 import { rangeInCellCoords } from './insertion.ts';
+import { moveStateBasedOnStance } from './movement-mode.ts';
 import { findBestPath, MAX_PATH_LIST_SIZE, NOWHERE, newOKDestination, PathCopy, PathFlags } from './pathfinding.ts';
 import { enoughPoints } from './points.ts';
 import { removeSoldierFromTacticalSector } from './sector-presence.ts';
@@ -149,12 +150,6 @@ export function findGridNoFromSweetSpotCloseToExitGrid(t: TacticalState, s: Sold
   return lowest;
 }
 
-function movementModeForStance(t: TacticalState, s: Soldier): number {
-  const st = states(t.content.animations);
-  const stance = endHeight(t.content, s.state);
-  return stance === AnimHeight.PRONE ? st.CRAWLING : stance === AnimHeight.CROUCH ? st.SWATTING : st.WALKING;
-}
-
 export function soldierOKForSectorExit(t: TacticalState, s: Soldier, exitDirection: number, exitGridNo: number): boolean {
   if (!s.placed || s.gridNo === NOWHERE) return false;
   if (s.level > 0) return false;
@@ -170,7 +165,7 @@ export function soldierOKForSectorExit(t: TacticalState, s: Soldier, exitDirecti
     case ExitDirection.NORTH:
       return y <= CHECK_DIR_Y_DELTA;
     default: {
-      if (!t.inCombat) s.uiMovementMode = movementModeForStance(t, s);
+      if (!t.inCombat) s.uiMovementMode = moveStateBasedOnStance(t.content, s);
       const g = findGridNoFromSweetSpotCloseToExitGrid(t, s, exitGridNo, EXIT_SWEET_SPOT_RADIUS);
       if (g === NOWHERE) return false;
       if (t.inCombat && !enoughPoints(t.inCombat, s, plotPathCost(t, s, g, s.uiMovementMode))) return false;

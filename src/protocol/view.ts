@@ -4,6 +4,7 @@ import type { FaceVariant } from '../sim/narrative/face-variant.ts';
 import type { ShopView } from '../sim/strategic/economy/merchants/view.ts';
 import type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 import { type InventoryItemView, sameInventory } from '../sim/tactical/inventory-view.ts';
+import type { Stance } from '../sim/tactical/movement-mode.ts';
 import type { FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
 import type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
 import type { CorpseView, SmokeTileView, TileChangeView, WorldLightView } from '../sim/tactical/world-view.ts';
@@ -17,6 +18,7 @@ export type { ShopBoxView, ShopEta, ShopKind, ShopRepairedView, ShopView } from 
 export type { DoorView, KeyView } from '../sim/tactical/doors/door-view.ts';
 export { LIFELESS_HEALTH_INDEX } from '../sim/tactical/health.ts';
 export type { InventoryItemView } from '../sim/tactical/inventory-view.ts';
+export type { Stance } from '../sim/tactical/movement-mode.ts';
 export type { FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
 export type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
 export type {
@@ -73,6 +75,7 @@ export interface SoldierView {
   readonly sees?: readonly number[];
   readonly opponents?: number;
   readonly canAct?: boolean;
+  readonly stance?: Stance;
   readonly continueTo?: number | null;
   readonly noApToFinishMove?: boolean;
   readonly vehicle?: VehicleSeatView | null;
@@ -1098,6 +1101,7 @@ const SCALAR_SOLDIER_FIELDS = [
   'muted',
   'opponents',
   'canAct',
+  'stance',
   'continueTo',
   'noApToFinishMove',
   'firstAid',

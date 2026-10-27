@@ -8,10 +8,11 @@ import { AnimFlags } from '../../content/anim/tables.ts';
 import { isVisibleTile, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
 import { anim } from './anim-states.ts';
-import { AnimHeight, endHeight, hasAnimFlag, initNewSoldierAnim, setSoldierDirection, states } from './animation.ts';
+import { hasAnimFlag, initNewSoldierAnim, setSoldierDirection, states } from './animation.ts';
 import { findGridNoFromSweetSpot } from './creation.ts';
 import { searchForClosestPrimaryMapEdgepoint, searchForClosestSecondaryMapEdgepoint } from './edgepoints.ts';
 import { getNewSoldierPath, setSoldierPosition, stopMerc } from './movement.ts';
+import { moveStateBasedOnStance } from './movement-mode.ts';
 import { boxingHalvesPoints } from './narrative/boxing-state.ts';
 import { keepElliotAliveInMeanwhile } from './narrative/meanwhile-rules.ts';
 import { revealRoofsAndItems } from './perception/fov.ts';
@@ -210,12 +211,6 @@ function setEnemyPresence(t: TacticalState): void {
   t.turn.enemyInSector = true;
 }
 
-function movementModeForStance(t: TacticalState, s: Soldier): number {
-  const st = states(t.content.animations);
-  const stance = endHeight(t.content, s.state);
-  return stance === AnimHeight.PRONE ? st.CRAWLING : stance === AnimHeight.CROUCH ? st.SWATTING : st.WALKING;
-}
-
 function placementAnimation(t: TacticalState, s: Soldier, ctx: Pick<InsertionContext, 'assignment' | 'asleep' | 'isEpc'>): number | null {
   if (s.life < OKLIFE) return anim(t.content, 'STAND_FALLFORWARD_STOP');
   if (ctx.asleep) return ctx.isEpc ? states(t.content.animations).STANDING : anim(t.content, 'SLEEPING');
@@ -267,5 +262,5 @@ function addSoldierToSectorGridNo(
   else if (s.bodyType !== Body.CROW) initNewSoldierAnim(t, s, states(t.content.animations).STANDING, PLACEMENT_ANIM_CODE, true);
   const special = placementAnimation(t, s, ctx);
   if (special !== null) initNewSoldierAnim(t, s, special, PLACEMENT_ANIM_CODE, true);
-  s.uiMovementMode = movementModeForStance(t, s);
+  s.uiMovementMode = moveStateBasedOnStance(t.content, s);
 }

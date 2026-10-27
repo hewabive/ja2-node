@@ -315,7 +315,7 @@ export function estimateAttack(world: KnowledgeWorld, req: EstimateAttackRequest
     s,
     {
       aimTime: aim,
-      uiMovementMode: movementModeState(t.content, s, req.mode),
+      uiMovementMode: movementModeState(t, s, req.mode),
       reverse: false,
       aimShotLocation: victim && endHeight(t.content, victim.state) !== AnimHeight.PRONE ? part : AimShot.RANDOM,
       weaponMode: mode,
