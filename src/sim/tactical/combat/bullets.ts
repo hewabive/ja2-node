@@ -3,8 +3,8 @@
 // @src src/game/Tactical/LOS.cc FireBulletGivenTarget, CalculateFiringIncrements, FireBullet, MoveBullet,
 // @src ChanceOfBulletHittingStructure, StructureResistanceIncreasedByRange, HandleBulletStructureInteraction,
 // @src CTGTHandleBulletStructureInteraction, CalcChanceToGetThrough, *ChanceToGetThrough; Bullets.cc CreateBullet,
-// @src RemoveBullet, StopBullet, UpdateBullets, AddMissileTrail (its Random(100) delay; fGoingOver is never reset within one
-// @src MoveBullet); Weapons.cc StructureHit, ShotMiss, WindowHit;
+// @src RemoveBullet, StopBullet, UpdateBullets, AddMissileTrail (fGoingOver is never reset within one MoveBullet);
+// @src Weapons.cc StructureHit, ShotMiss, WindowHit;
 // @src TileEngine/Tile_Animation.cc ANITILE_RELEASE_ATTACKER_WHEN_DONE. See docs/11 §3.
 
 import { lockAt } from '../../../content/formats/locks.ts';
@@ -565,7 +565,10 @@ function damageStructureByGunfire(t: TacticalState, s: StructureInstance, owner:
     const base = t.world.structures.findBase(s);
     if (base) base.hitPoints = 0;
     igniteExplosionXY(t, owner, x, y, 0, g, itemIndex(t, 'STRUCTURE_IGNITE'), 0);
+    return;
   }
+  const caveWall = has(s.flags, StructureFlags.CAVEWALL);
+  t.events.push({ type: 'structureStruck', soldier: owner.id, gridNo: g, material: s.def.armour, ...(caveWall ? { caveWall } : {}) });
 }
 
 function oppositeSideGridNo(s: StructureInstance, g: number): number {
@@ -643,9 +646,28 @@ function shotMiss(t: TacticalState, b: Bullet): void {
   const attacker = b.firer;
   const opp = attacker.opponent;
   if (opp) agilityForEnemyMissingPlayer(t, attacker, opp, 5);
-  t.events.push({ type: 'bulletStopped', soldier: attacker.id, gridNo: b.gridNo, reason: 'offMap' });
+  const gun = isGunClass(t.content.items.byIndex.get(attacker.attackingWeapon)?.weapon?.weaponClass);
+  const explosiveAmmo = gun && isExplosiveAmmo(ammoTypeOf(b));
+  t.events.push({
+    type: 'bulletStopped',
+    soldier: attacker.id,
+    gridNo: b.gridNo,
+    reason: 'offMap',
+    ...(explosiveAmmo ? { explosiveAmmo } : {}),
+  });
   freeUpAttacker(t, attacker);
 }
+
+const GUN_CLASSES: ReadonlySet<number> = new Set([
+  WeaponClass.HANDGUN,
+  WeaponClass.RIFLE,
+  WeaponClass.SHOTGUN,
+  WeaponClass.SMG,
+  WeaponClass.MG,
+]);
+
+const isGunClass = (weaponClass: number | undefined) => weaponClass !== undefined && GUN_CLASSES.has(weaponClass);
+const isExplosiveAmmo = (ammo: number) => ammo === AmmoType.HE || ammo === AmmoType.HEAT;
 
 function adjacentSuppression(t: TacticalState, b: Bullet, p: Soldier): void {
   if (b.flags & BulletFlag.BUCKSHOT && t.rng.int(2) === 0) return;
@@ -881,8 +903,7 @@ const STEPS_FOR_BULLET_MOVE_TRAILS = 10;
 const STEPS_FOR_BULLET_MOVE_SMALL_TRAILS = 5;
 const STEPS_FOR_BULLET_MOVE_FIRE_TRAILS = 5;
 const TRAIL_LOOPS_HIDDEN = 5;
-const TRAIL_DELAY_MS = 100;
-const TRAIL_DELAY_RANGE_MS = 100;
+const FLAME_TRAIL_DELAY_MS = 100;
 const SHORT_TRAILS_HIDDEN_AT_FIRST = BulletFlag.SMALL_MISSILE | BulletFlag.FLAME | BulletFlag.CREATURE_SPIT;
 
 function trailSteps(b: Bullet): number {
@@ -908,10 +929,9 @@ function trailKind(b: Bullet): MissileTrail {
 function addMissileTrail(t: TacticalState, b: Bullet, x: number, y: number, z: number): void {
   if (b.flags & SHORT_TRAILS_HIDDEN_AT_FIRST && b.loop < TRAIL_LOOPS_HIDDEN) return;
   if (b.flags & BulletFlag.TANK_CANNON) return;
-  const randomDelay = TRAIL_DELAY_MS + t.rng.int(TRAIL_DELAY_RANGE_MS);
-  const delay = b.flags & BulletFlag.FLAME ? TRAIL_DELAY_MS : randomDelay;
   const height = Math.trunc((fixInt(z) * WALL_HEIGHT_PIXELS) / WALL_HEIGHT_UNITS) - tileHeightPixels(t, b.firer.gridNo);
-  t.events.push({ type: 'missileTrail', gridNo: b.gridNo, x: fixInt(x), y: fixInt(y), z: height, trail: trailKind(b), delay });
+  const delay = b.flags & BulletFlag.FLAME ? { delay: FLAME_TRAIL_DELAY_MS } : {};
+  t.events.push({ type: 'missileTrail', gridNo: b.gridNo, x: fixInt(x), y: fixInt(y), z: height, trail: trailKind(b), ...delay });
 }
 
 const isMonster = (s: Soldier) => s.bodyType >= Body.ADULTFEMALEMONSTER && s.bodyType <= Body.QUEENMONSTER;

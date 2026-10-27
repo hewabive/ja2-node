@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc InternalPlaySoldierFootstepSound, SoldierGotHit (impact sounds);
-// @src Tactical/Weapons.cc GetBurstSoundName, UseGun, BulletHitStructure (miss sounds); Tactical/Items.cc ReloadGun;
+// @src Tactical/Weapons.cc GetBurstSoundName, UseGun, BulletHitStructure, StructureHit and ShotMiss (miss sounds),
+// @src DoSpecialEffectAmmoMiss (the HE blast), WindowHit (the glass); Tactical/Items.cc ReloadGun;
 // @src Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame (codes 700-791); TileEngine/Structure.cc guiMaterialHitSound,
 // @src DamageStructure; TileEngine/Explosion_Control.cc GenerateExplosionFromExplosionPointer; Tactical/Handle_Doors.cc
 // @src HandleDoorChangeFromGridNo; Tactical/Keys.cc DoUnlockDoor, AttemptToUnlockDoor, AttemptToCrowbarLock, AttemptToSmashDoor,
@@ -206,6 +207,21 @@ export function missCue(book: CueBook, gridNo: number, weapon: WeaponSounds | nu
   const volume = weapon?.kind === 'shotgun' ? VolumeLevel.LOW : VolumeLevel.MID;
   const name = surface === 'ground' ? 'MISS_G2' : soundRange(book, 'MISS_1', 'MISS_8', rand);
   return effectCue(book, name, 'panned', volume, gridNo);
+}
+
+export function offMapMissCue(book: CueBook, weapon: WeaponSounds | null, explosiveAmmo: boolean, rand: Rand): Cue | null {
+  if (weapon?.kind === 'monster') return effectCue(book, 'SPIT_RICOCHET', 'fixed', VolumeLevel.HIGH);
+  if (!weapon || !['handgun', 'smg', 'rifle', 'shotgun', 'lmg'].includes(weapon.kind)) return null;
+  if (explosiveAmmo) return effectCue(book, 'SMALL_EXPLODE_1', 'fixed', VolumeLevel.MID);
+  return effectCue(book, soundRange(book, 'MISS_1', 'MISS_8', rand), 'fixed', VolumeLevel.HIGH);
+}
+
+export function smallExplosionCue(book: CueBook, gridNo: number): Cue | null {
+  return effectCue(book, 'SMALL_EXPLODE_1', 'location', VolumeLevel.HIGH, gridNo);
+}
+
+export function glassShatterCue(book: CueBook, gridNo: number, rand: Rand): Cue | null {
+  return effectCue(book, soundRange(book, 'GLASS_SHATTER1', 'GLASS_SHATTER2', rand), 'panned', VolumeLevel.MID, gridNo);
 }
 
 export function explosionCue(book: CueBook, animation: string, gridNo: number, rand: Rand): Cue | null {

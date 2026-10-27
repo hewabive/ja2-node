@@ -225,6 +225,7 @@ export function simulateObject(t: TacticalState, o: RealObject): void {
   computeForces(o);
   for (let time = 0; time < DELTA_T; time = f32(time + SUB_STEP)) {
     integrate(o);
+    if (whistles(t, o) && o.oldVelocity.z >= 0 && o.velocity.z < 0) t.events.push({ type: 'mortarWhistle', sounding: true });
     const r = handleCollisions(t, o);
     if (!r.ok) return;
     if (r.code !== Collision.NONE) break;
@@ -255,6 +256,7 @@ function physicsUpdateLife(t: TacticalState, o: RealObject): boolean {
   if (o.lifeLength !== -1 && o.lifeSpan > o.lifeLength) o.alive = false;
   if (!isVisibleTile(o.gridNo)) o.alive = false;
   if (o.alive) return true;
+  if (!o.testObject && whistles(t, o)) t.events.push({ type: 'mortarWhistle', sounding: false });
   if (!o.testObject) endOfLife(t, o);
   deletePhysicalObject(t, o);
   return false;
@@ -274,6 +276,8 @@ function endOfLife(t: TacticalState, o: RealObject): void {
     const volume = IMPACT_NOISE_BASE + t.pre.int(IMPACT_NOISE_SPREAD);
     makeNoise(t, o.owner, o.gridNo, 0, volume, rock ? NoiseKind.ROCK_IMPACT : NoiseKind.GRENADE_IMPACT);
   }
+  if (o.oldCollisionCode === Collision.GROUND || o.oldCollisionCode === Collision.ROOF)
+    t.events.push({ type: 'thrownImpact', gridNo: o.gridNo });
   reduceAttackBusyCount(t, o.owner, false);
 }
 
@@ -452,6 +456,11 @@ interface Response {
   readonly elasticity: number;
 }
 
+function landOnce(t: TacticalState, o: RealObject): void {
+  if (!o.testObject && !o.haveHitGround) t.events.push({ type: 'thrownImpact', gridNo: o.gridNo });
+  o.haveHitGround = true;
+}
+
 const DOWN = (): Vec3 => vec3(0, 0, -1);
 
 function collisionResponse(t: TacticalState, o: RealObject, code: number, hit: Hit, dx: number, dy: number): Response | null {
@@ -459,7 +468,7 @@ function collisionResponse(t: TacticalState, o: RealObject, code: number, hit: H
     case Collision.GROUND:
       o.applyFriction = true;
       o.appliedMu = MU_GROUND;
-      o.haveHitGround = true;
+      landOnce(t, o);
       return { normal: DOWN(), elasticity: E_GROUND };
     case Collision.WATER:
       enterWater(t, o);
@@ -468,7 +477,7 @@ function collisionResponse(t: TacticalState, o: RealObject, code: number, hit: H
     case Collision.INTERIOR_ROOF:
       o.applyFriction = true;
       o.appliedMu = MU_ROOF;
-      o.haveHitGround = true;
+      landOnce(t, o);
       return { normal: DOWN(), elasticity: E_ROOF };
     case Collision.STRUCTURE_Z:
       checkForObjectHittingMerc(t, o, hit.structureId);
@@ -550,6 +559,10 @@ function leaveMortarTrail(t: TacticalState, o: RealObject, g: number): void {
 export function objectDrawnInFlight(t: TacticalState, o: RealObject): boolean {
   if (!o.visible || o.testObject !== TestObject.NONE) return false;
   return o.object.item !== itemIndex(t, 'MORTAR_SHELL') || o.action !== ThrowAction.ARM_ITEM;
+}
+
+function whistles(t: TacticalState, o: RealObject): boolean {
+  return o.object.item === itemIndex(t, 'MORTAR_SHELL') && o.testObject === TestObject.NONE && o.action === ThrowAction.ARM_ITEM;
 }
 
 function smokeTrail(t: TacticalState, o: RealObject): boolean {

@@ -30,6 +30,7 @@ export type WeaponKind =
   | 'throwingBlade'
   | 'punch'
   | 'thrown'
+  | 'monster'
   | 'other';
 
 const KIND_BY_TYPE: Readonly<Record<string, WeaponKind>> = {
@@ -46,6 +47,7 @@ const KIND_BY_TYPE: Readonly<Record<string, WeaponKind>> = {
   THROWINGBLADE: 'throwingBlade',
   PUNCHWEAPON: 'punch',
   THROWN: 'thrown',
+  MONSTSPIT: 'monster',
 };
 
 const RELOAD_SOUNDS: Readonly<Partial<Record<WeaponKind, { readonly reload: string; readonly lockAndLoad: string }>>> = {

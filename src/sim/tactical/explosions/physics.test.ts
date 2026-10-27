@@ -126,6 +126,12 @@ describe('thrown object physics', () => {
     if (blast?.type !== 'explosion') throw new Error('no explosion');
     expect(blast).toMatchObject({ z: 0, animation: 'BLAST_1', delay: content.explosions.animations.get('BLAST_1')?.blastSpeed });
     expect([Math.trunc((blast.x ?? 0) / 10), Math.trunc((blast.y ?? 0) / 10)]).toEqual([80, 88]);
+    expect(dry.events.filter((e) => e.type === 'thrownImpact').length).toBeGreaterThan(0);
+    const mortarSim = newCombatSim(content);
+    const mortarMan = grenadier(mortarSim);
+    mortarMan.inv[InvSlot.HAND] = objectOf(mortarSim.state, 'MORTAR_SHELL');
+    const whistles = throwAndLand(mortarSim, mortarMan, target).events.flatMap((e) => (e.type === 'mortarWhistle' ? [e.sounding] : []));
+    expect(whistles).toEqual([true, false]);
     const sim = newCombatSim(content);
     sim.state.world.terrain[target] = Terrain.DEEP_WATER;
     const wet = throwAndLand(sim, grenadier(sim), target);

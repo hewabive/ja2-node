@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
 import { AmmoType } from '../../../content/items/items.ts';
@@ -87,8 +87,37 @@ describe('bullet impacts (Weapons.cc StructureHit)', () => {
   });
 });
 
+describe('the sounds of a miss (Weapons.cc StructureHit, ShotMiss; Structure.cc DamageStructure)', () => {
+  it('draws nothing from the gameplay generator for the curse of a miss, which the browser draws', () => {
+    const draws: number[] = [];
+    shotAtTheGround((sim) => {
+      const draw = sim.state.rng.int.bind(sim.state.rng);
+      vi.spyOn(sim.state.rng, 'int').mockImplementation((n: number) => {
+        draws.push(n);
+        return draw(n);
+      });
+    });
+    expect(draws).not.toContain(40);
+  });
+
+  it('names the material a bullet strikes, before the miss it plays', () => {
+    const wall = Array.from({ length: 9 }, (_, k) => gridNo(77 + k, 80));
+    const sim = newCombatSim(content, wall);
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 70), Direction.SOUTH);
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: EMPTY_GROUND }).ok).toBe(true);
+    const events: SimEvent[] = [];
+    for (let tick = 0; tick < 2000 && !events.some((e) => e.type === 'bulletImpact'); tick++) {
+      sim.step();
+      events.push(...sim.drainEvents());
+    }
+    const struck = events.findIndex((e) => e.type === 'structureStruck');
+    expect(events[struck]).toMatchObject({ soldier: 0, material: 12 });
+    expect(events.findIndex((e) => e.type === 'bulletImpact')).toBeGreaterThan(struck);
+  });
+});
+
 describe('missile trails (Bullets.cc AddMissileTrail)', () => {
-  it('leaves a smoke trail every ten steps of a LAW rocket, each drawing its delay from Random', () => {
+  it('leaves a smoke trail every ten steps of a LAW rocket, leaving its random delay to the browser', () => {
     const sim = newCombatSim(content);
     spawnSoldier(sim, 0, Team.OUR, gridNo(80, 60), Direction.SOUTH, { gun: 'ROCKET_LAUNCHER' });
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: gridNo(80, 90) }).ok).toBe(true);
@@ -99,8 +128,7 @@ describe('missile trails (Bullets.cc AddMissileTrail)', () => {
     }
     const trails = events.flatMap((e) => (e.type === 'missileTrail' ? [e] : []));
     expect(trails.length).toBeGreaterThan(5);
-    expect(trails.every((e) => e.trail === 'smoke' && e.delay >= 100 && e.delay < 200)).toBe(true);
-    expect(new Set(trails.map((e) => e.delay)).size).toBeGreaterThan(1);
+    expect(trails.every((e) => e.trail === 'smoke' && e.delay === undefined)).toBe(true);
     const rows = trails.map((e) => Math.trunc(e.y / 10));
     expect(rows.slice(1).every((row, k) => row >= (rows[k] ?? row))).toBe(true);
   });

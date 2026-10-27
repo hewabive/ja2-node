@@ -2,8 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-27. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Weapons.cc StructureHit (FIRSTMISS1 every 80 ms where the bullet is; in low or deep water
 // @src THIRDMISS1 every 50 ms, then SECONDMISS1 every 80 ms), WindowHit (the shatter tile every 50 ms),
-// @src DoSpecialEffectAmmoMiss (miniboom.sti every 100 ms); src/game/Tactical/Bullets.cc AddMissileTrail (the trail's own
-// @src delay), HandleBulletSpecialFlags (a
+// @src DoSpecialEffectAmmoMiss (miniboom.sti every 100 ms); src/game/Tactical/Bullets.cc AddMissileTrail (100 + Random(100)
+// @src ms per frame, 100 for flames; the browser picks the random part itself), HandleBulletSpecialFlags (a
 // @src thrown knife starts at the fourth frame of its direction and steps every 100 ms); src/game/TileEngine/Tile_Animation.cc
 // @src UpdateAniTiles (a frame lasts until more than its delay has passed, a looping tile restarts at its direction's first
 // @src frame, any other goes once its last frame has).
@@ -66,6 +66,19 @@ export function knifeFrame(direction: number, framesPerDirection: number, since:
   return direction * framesPerDirection + ((KNIFE_START_FRAME + steps) % framesPerDirection);
 }
 
+const TRAIL_DELAY_MS = 100;
+const TRAIL_DELAY_RANGE_MS = 100;
+
+function spread(a: number, b: number, c: number): number {
+  let h = Math.imul(a, 73856093) ^ Math.imul(b, 19349663) ^ Math.imul(c, 83492791);
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+export function cosmeticTrailDelay(e: { readonly tick: number; readonly x: number; readonly y: number }): number {
+  return TRAIL_DELAY_MS + (spread(e.tick, e.x, e.y) % TRAIL_DELAY_RANGE_MS);
+}
+
 function startedAs(kind: FixedPaceKind): { kind: EffectKind; period: number } {
   return { kind, period: ticksPerFrame(kind) };
 }
@@ -80,7 +93,8 @@ function started(e: EffectEvent): RunningEffect[] {
   if (e.type === 'windowShattered') return [{ ...startedAs('shatter'), start: e.tick, gridNo: e.gridNo, x: 0, y: 0, z: 0, tile: e.tile }];
   if (e.type === 'explosion') return startedExplosion(e);
   const at = { start: e.tick, gridNo: e.gridNo, x: e.x, y: e.y, z: e.z };
-  if (e.type === 'missileTrail') return [{ kind: 'trail', period: framePeriodTicks(e.delay), ...at, tile: e.trail }];
+  if (e.type === 'missileTrail')
+    return [{ kind: 'trail', period: framePeriodTicks(e.delay ?? cosmeticTrailDelay(e)), ...at, tile: e.trail }];
   if (e.type === 'waterRipple') return [{ ...startedAs('ripple'), ...at, tile: null }];
   if (e.effect === 'splash')
     return [

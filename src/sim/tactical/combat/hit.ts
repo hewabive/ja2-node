@@ -227,7 +227,9 @@ export function doSpecialEffectAmmoMiss(t: TacticalState, attacker: Soldier, g: 
   }
   if (ammo !== AmmoType.MONSTER || !hand) return false;
   const gas = t.content.items.byIndex.get(hand.item)?.weapon?.smokeEffect ?? NOTHING;
-  if (gas !== NOTHING) newSmokeEffect(t, g, gas, 0, attacker);
+  if (gas === NOTHING) return false;
+  t.events.push({ type: 'creatureGas', gridNo: g });
+  newSmokeEffect(t, g, gas, 0, attacker);
   return false;
 }
 

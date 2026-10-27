@@ -632,10 +632,11 @@ loop and the neighbour loop can both count the same soldier.
 - **Ground:** `fixInt(b.z − land) < 0` → `StopBullet`, `StructureHit(NONE, 0, stopped)`.
 - **Empty tile** (`local` empty and no roof): fast-forward to the next tile edge exactly as LOS does (docs/08 §1.4);
   if that would go below the ground, advance `min(steps, |(z − land)/incZ|)` and stop on the ground. Missile/flame/spit
-  trails every 10/5/5 steps (`AddMissileTrail`, `Bullets.cc:296-353`) are drawn for show, but each draws its frame delay
-  from `Random(100)` (not for tank shells, nor for small missiles, flames and spit before step 5), and the fast-forward's
-  `fGoingOver` stays set for the rest of the `MoveBullet` call once a trail falls in a stretch, so every later stretch of
-  that call leaves one too. The simulation makes the same draws and emits `missileTrail` (`04` §4.4).
+  trails every 10/5/5 steps (`AddMissileTrail`, `Bullets.cc:296-353`) are drawn for show: none for tank shells, nor for
+  small missiles, flames and spit before step 5, and the fast-forward's `fGoingOver` stays set for the rest of the
+  `MoveBullet` call once a trail falls in a stretch, so every later stretch of that call leaves one too. Each trail's
+  frame delay is `100 + Random(100)` (100 for flames), a cosmetic draw the simulation leaves to the browser
+  (`deviations.md` "Cosmetic draws in attacks"); it emits `missileTrail` (`04` §4.4).
 - **Otherwise**, at each LOS cell / cube: cube ≥ 8 skips tests; cube 4–7 tests roof-level (`sCubeOffset` 4) structures
   with `cube − 4`. For each `local` structure of that level whose shape has the bit:
   - **person** → `BulletHitMerc(b, s, intended)` (§4.1). Stopped → return. Passed through → remove it from `local`.

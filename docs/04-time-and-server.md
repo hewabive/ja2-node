@@ -264,10 +264,21 @@ presentation fields: `bulletImpact {soldier, gridNo, x, y, z, effect}` wherever 
 where `WeaponHit` plays the HE miniboom on a soldier, and `windowShattered {gridNo, tile}` (the `WINDOWSHATTER` tile the
 glass falls from) when a bullet, a blast or a thrown object shatters a window, and `missileTrail {gridNo, x, y, z,
 trail: smoke|small|spit, delay}` wherever `MoveBullet` leaves a trail behind a rocket, a rocket-rifle round, a flame or
-creature spit (`AddMissileTrail`, which draws the frame delay from `Random`, so the simulation draws it too) and behind a
-mortar shell (its `PreRandom` delay), `waterRipple {gridNo, x, y, z}` where a thrown object falls into water, and on
+creature spit (`AddMissileTrail`; the browser picks the `Random(100)` part of the frame delay itself, flames carry
+their fixed 100 ms) and behind a mortar shell (with its `PreRandom` delay), `waterRipple {gridNo, x, y, z}` where a thrown object falls into water, and on
 `explosion` the presentation fields `x, y, z` (where the blast is drawn) and `delay` (the animation's blast speed). Agents
-get them like any event. Because a
+get them like any event.
+
+**Sounds of the shooting.** The sounds come from the same events where the original plays them: a gun's miss sound
+from `bulletImpact` (`MISS_G2` at height 0, else one of `MISS_1..8`; the HE miniboom plays `SMALL_EXPLODE_1`), the
+material a bullet strikes from `structureStruck {soldier, gridNo, material, caveWall?}` (`DamageStructure`, also for
+bullets that pass through), a bullet leaving the map from `bulletStopped {reason: offMap, explosiveAmmo?}`, the glass
+from `windowShattered`, a merc cursing a miss (`Random(40) == 0` for our single shots that hit a structure, and for our
+shots that leave the map; the browser draws it on `bulletImpact` and the off-map `bulletStopped`), creature spit gas from `creatureGas {gridNo}`, a thrown
+object landing from `thrownImpact {gridNo}` (the first time it hits the ground or a roof, and where it comes to rest on
+either) and the mortar whistle from `mortarWhistle {sounding}` (on at the top of an armed shell's arc, off when it
+ends). A knife thrown at a structure keeps its knife miss sound on `bulletStopped`.
+ Because a
 tactical event's `tick` is the tactical simulation's and a campaign's view ticks run on, the session also copies these
 events into the frame of the tick it stepped them in (`ViewFrame.effects`, stamped with the session tick). The client
 plays each one from that tick on its own clock of view ticks (`EffectAnimations`), and while bullets fly or effects

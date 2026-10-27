@@ -165,6 +165,8 @@ describe('the sound director', () => {
             burst: false,
             rounds: 1,
           },
+          { type: 'structureStruck', tick: 9, soldier: 1, gridNo: G + 5, material: 11 },
+          { type: 'bulletImpact', tick: 9, soldier: 1, gridNo: G + 5, x: 800, y: 805, z: 12, effect: 'dust' },
           { type: 'bulletStopped', tick: 9, soldier: 1, gridNo: G + 5, reason: 'structure', material: 11 },
           {
             type: 'shotFired',
@@ -192,6 +194,117 @@ describe('the sound director', () => {
     ]);
     expect(r.cues[0]?.gridNo).toBe(G);
     expect(r.cues.at(-1)).toMatchObject({ mix: 'voiceOther', bus: 'speech' });
+  });
+
+  it('plays the ground miss, the HE blast, a bullet leaving the map, glass, spit gas, a landing grenade and the mortar whistle', () => {
+    const r = rig();
+    const glock = [...book.weapons.values()].find((w) => w.name === 'GLOCK_17')?.item ?? -1;
+    const spit = [...book.weapons.values()].find((w) => w.name === 'CREATURE_QUEEN_SPIT')?.item ?? -1;
+    r.director.reset([soldier(1, 'STANDING', 0), soldier(40, 'STANDING', 0, { team: 2, gridNo: G + 9 })]);
+    const shot = (soldier: number, item: number) =>
+      ({
+        type: 'shotFired',
+        tick: 9,
+        soldier,
+        target: G + 2,
+        chance: 50,
+        hit: false,
+        item,
+        silenced: false,
+        burst: false,
+        rounds: 1,
+      }) as const;
+    const voices: { readonly active: boolean }[] = [];
+    const play = r.engine.play.bind(r.engine);
+    r.engine.play = (cue) => {
+      const voice = play(cue);
+      if (voice) voices.push(voice);
+      return voice;
+    };
+    r.director.applyFrames([
+      frame(
+        10,
+        [],
+        [
+          shot(1, glock),
+          { type: 'bulletImpact', tick: 9, soldier: 1, gridNo: G + 5, x: 800, y: 805, z: 0, effect: 'dust' },
+          { type: 'bulletImpact', tick: 9, soldier: 1, gridNo: G + 5, x: 800, y: 805, z: 7, effect: 'miniboom' },
+          { type: 'bulletStopped', tick: 9, soldier: 1, gridNo: G + 5, reason: 'offMap' },
+          { type: 'bulletStopped', tick: 9, soldier: 1, gridNo: G + 5, reason: 'offMap', explosiveAmmo: true },
+          shot(40, spit),
+          { type: 'bulletStopped', tick: 9, soldier: 40, gridNo: G + 5, reason: 'offMap' },
+          { type: 'windowShattered', tick: 9, gridNo: G + 3, tile: 'WINDOWSHATTER6' },
+          { type: 'creatureGas', tick: 9, gridNo: G + 6 },
+          { type: 'thrownImpact', tick: 9, gridNo: G + 4 },
+          { type: 'mortarWhistle', tick: 9, sounding: true },
+        ],
+      ),
+    ]);
+    const whistle = voices.at(-1);
+    const gunfire = new Set([glock, spit].map((item) => book.weapons.get(item)?.sound));
+    expect(files(r).filter((f) => !gunfire.has(f))).toEqual([
+      book.paths.get('MISS_G2'),
+      book.paths.get('SMALL_EXPLODE_1'),
+      expect.stringMatching(/ricochet/),
+      book.paths.get('SMALL_EXPLODE_1'),
+      book.paths.get('SPIT_RICOCHET'),
+      expect.stringMatching(/glass/i),
+      book.paths.get('CREATURE_GAS_NOISE'),
+      book.paths.get('THROW_IMPACT_2'),
+      book.paths.get('MORTAR_WHISTLE'),
+    ]);
+    expect(whistle?.active).toBe(true);
+    r.director.applyFrames([frame(20, [], [{ type: 'mortarWhistle', tick: 19, sounding: false }])]);
+    expect(whistle?.active).toBe(false);
+  });
+
+  it('curses about one in forty single-shot misses of our mercs, never a burst or another team', () => {
+    const r = rig();
+    const glock = [...book.weapons.values()].find((w) => w.name === 'GLOCK_17')?.item ?? -1;
+    r.director.reset([soldier(1, 'STANDING', 0), soldier(30, 'STANDING', 0, { team: 1, voice: 'bad1' })]);
+    const voices: { stop(): void }[] = [];
+    const play = r.engine.play.bind(r.engine);
+    r.engine.play = (cue) => {
+      const voice = play(cue);
+      if (voice) voices.push(voice);
+      return voice;
+    };
+    const SHOTS = 400;
+    const SILENCE_MS = 10_000;
+    const curses = (soldier: number, burst: boolean) => {
+      const before = r.cues.length;
+      for (let k = 0; k < SHOTS; k++) {
+        r.director.applyFrames([
+          frame(
+            10 + k,
+            [],
+            [
+              {
+                type: 'shotFired',
+                tick: k,
+                soldier,
+                target: G + 2,
+                chance: 50,
+                hit: false,
+                item: glock,
+                silenced: false,
+                burst,
+                rounds: 1,
+              },
+              { type: 'bulletImpact', tick: k, soldier, gridNo: G + 5, x: 800, y: 805, z: 3, effect: 'dust' },
+            ],
+          ),
+        ]);
+        for (const v of voices.splice(0)) v.stop();
+        r.clock += SILENCE_MS;
+      }
+      return r.cues.slice(before).filter((c) => /curse/.test(c.file)).length;
+    };
+    const ours = curses(1, false);
+    expect(ours).toBeGreaterThan(SHOTS / 40 / 3);
+    expect(ours).toBeLessThan((SHOTS / 40) * 3);
+    expect(curses(1, true)).toBe(0);
+    expect(curses(30, false)).toBe(0);
   });
 
   it('plays a death cry once and the gunfire of unseen shooters as an off-screen sound', () => {

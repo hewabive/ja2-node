@@ -139,6 +139,30 @@ export interface BulletStoppedEvent extends SimEventBase {
   readonly reason: 'structure' | 'ground' | 'roof' | 'offMap' | 'soldier';
   readonly material?: number;
   readonly caveWall?: boolean;
+  readonly explosiveAmmo?: boolean;
+}
+
+export interface StructureStruckEvent extends SimEventBase {
+  readonly type: 'structureStruck';
+  readonly soldier: number;
+  readonly gridNo: number;
+  readonly material: number;
+  readonly caveWall?: boolean;
+}
+
+export interface CreatureGasEvent extends SimEventBase {
+  readonly type: 'creatureGas';
+  readonly gridNo: number;
+}
+
+export interface ThrownImpactEvent extends SimEventBase {
+  readonly type: 'thrownImpact';
+  readonly gridNo: number;
+}
+
+export interface MortarWhistleEvent extends SimEventBase {
+  readonly type: 'mortarWhistle';
+  readonly sounding: boolean;
 }
 
 export type BulletImpactEffect = 'dust' | 'splash' | 'miniboom';
@@ -170,7 +194,7 @@ export interface MissileTrailEvent extends SimEventBase {
   readonly y: number;
   readonly z: number;
   readonly trail: MissileTrail;
-  readonly delay: number;
+  readonly delay?: number;
 }
 
 export type EffectEvent = BulletImpactEvent | WindowShatteredEvent | MissileTrailEvent | WaterRippleEvent | ExplosionEvent;
@@ -531,6 +555,10 @@ export type SimEvent =
   | WindowShatteredEvent
   | MissileTrailEvent
   | WaterRippleEvent
+  | StructureStruckEvent
+  | CreatureGasEvent
+  | ThrownImpactEvent
+  | MortarWhistleEvent
   | SoldierHitEvent
   | LifeLostEvent
   | SoldierDiedEvent

@@ -2,7 +2,10 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-18. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc EVENT_InitNewSoldierAnim (the final footstep), TurnSoldier (turning footsteps),
 // @src EVENT_SoldierGotHit (impact and hit sounds); Tactical/Soldier_Ani.cc (death sounds); Tactical/Handle_Doors.cc
-// @src HandleDoorChangeFromGridNo (the close sound on the door's key frame); Tactical/Weapons.cc UseGun, BulletHitStructure;
+// @src HandleDoorChangeFromGridNo (the close sound on the door's key frame); Tactical/Weapons.cc UseGun, BulletHitStructure,
+// @src StructureHit and ShotMiss (the miss sounds and the Random(40) curse of our mercs, drawn here, not in the simulation),
+// @src DoSpecialEffectAmmoMiss, WindowHit; TileEngine/Structure.cc DamageStructure (the material
+// @src a bullet strikes); TileEngine/Physics.cc (a thrown object landing, the mortar whistle);
 // @src Tactical/Handle_UI.cc and Real_Time_Input.cc (OK and ATTN on orders and selection). See docs/27 §3.1, §3.3.
 
 import { type AnimationTables, AnimFlags } from '../content/anim/tables.ts';
@@ -19,15 +22,18 @@ import {
   dryFireCue,
   explosionCue,
   footstepCue,
+  glassShatterCue,
   gunshotCue,
   impactCue,
   isSoundOpcode,
   lockOutcomeCue,
   materialHitCue,
   missCue,
+  offMapMissCue,
   opcodeSound,
   reloadCue,
   SoundBody,
+  smallExplosionCue,
   TerrainKind,
 } from '../content/audio/cues.ts';
 import { NOWHERE, onScreen } from '../content/audio/sound-position.ts';
@@ -45,6 +51,9 @@ const DOOR_CLOSE_DELAY_MS = 2 * 70;
 const CONSCIOUSNESS = 10;
 const NORMAL_MORALE = 50;
 const OUR_TEAM = 0;
+const MISS_CURSE_CHANCE = 40;
+const GUN_KINDS: ReadonlySet<string> = new Set(['handgun', 'smg', 'rifle', 'shotgun', 'lmg']);
+const isGunKind = (kind: string | undefined) => kind !== undefined && GUN_KINDS.has(kind);
 const NO_VARIANT = 0;
 const FAR_VOLUME_MOD = 25;
 const DEFAULT_MINUTE_OF_DAY = 12 * 60;
@@ -129,6 +138,8 @@ export class SoundDirector {
   readonly #battleVoices = new Map<number, VoiceHandle>();
   readonly #dead = new Set<number>();
   readonly #weapons = new Map<number, number>();
+  readonly #bursts = new Map<number, boolean>();
+  #whistle: VoiceHandle | null = null;
   readonly #attacks = new Map<number, AttackKind>();
   readonly #morale = new Map<number, number>();
   readonly #speechQueue: QueuedLine[] = [];
@@ -354,6 +365,7 @@ export class SoundDirector {
   #remember(e: NonNullable<ViewFrame['events']>[number]): void {
     if (e.type === 'shotFired') {
       if (e.item !== undefined) this.#weapons.set(e.soldier, e.item);
+      this.#bursts.set(e.soldier, e.burst ?? false);
       this.#attacks.set(e.soldier, 'gun');
     } else if (e.type === 'meleeStrike') this.#attacks.set(e.soldier, e.weapon === 'blade' ? 'blade' : 'punch');
   }
@@ -385,6 +397,24 @@ export class SoundDirector {
         return;
       case 'bulletStopped':
         this.#bulletStopped(e);
+        return;
+      case 'bulletImpact':
+        this.#bulletImpact(e);
+        return;
+      case 'structureStruck':
+        this.#play(materialHitCue(book, e.gridNo, e.material, e.caveWall ?? false));
+        return;
+      case 'windowShattered':
+        this.#play(glassShatterCue(book, e.gridNo, rand));
+        return;
+      case 'creatureGas':
+        this.#play(effectCue(book, 'CREATURE_GAS_NOISE', 'location', VolumeLevel.HIGH, e.gridNo));
+        return;
+      case 'thrownImpact':
+        this.#play(effectCue(book, 'THROW_IMPACT_2', 'location', VolumeLevel.MID, e.gridNo));
+        return;
+      case 'mortarWhistle':
+        this.#mortarWhistle(e.sounding);
         return;
       case 'soldierHit':
         this.#soldierHit(e);
@@ -418,14 +448,39 @@ export class SoundDirector {
     }
   }
 
+  #weaponOf(soldier: number) {
+    return this.#o.book.weapons.get(this.#weapons.get(soldier) ?? -1) ?? null;
+  }
+
   #bulletStopped(e: EventOf<'bulletStopped'>): void {
     const book = this.#o.book;
-    const weapon = book.weapons.get(this.#weapons.get(e.soldier) ?? -1) ?? null;
-    if (e.reason === 'structure') {
-      if (e.material !== undefined) this.#play(materialHitCue(book, e.gridNo, e.material, e.caveWall ?? false));
-      this.#play(missCue(book, e.gridNo, weapon, 'air', this.#rng.rand));
-    } else if (e.reason === 'ground') this.#play(missCue(book, e.gridNo, weapon, 'ground', this.#rng.rand));
-    else if (e.reason === 'roof') this.#play(missCue(book, e.gridNo, weapon, 'air', this.#rng.rand));
+    const weapon = this.#weaponOf(e.soldier);
+    if (e.reason === 'offMap') {
+      this.#play(offMapMissCue(book, weapon, e.explosiveAmmo ?? false, this.#rng.rand));
+      this.#maybeCurse(e.soldier, false);
+    } else if (e.reason !== 'soldier' && (weapon?.kind === 'blade' || weapon?.kind === 'throwingBlade'))
+      this.#play(missCue(book, e.gridNo, weapon, 'ground', this.#rng.rand));
+  }
+
+  #maybeCurse(soldier: number, singleShotsOnly: boolean): void {
+    if (this.#soldiers.get(soldier)?.team !== OUR_TEAM || !isGunKind(this.#weaponOf(soldier)?.kind)) return;
+    if (singleShotsOnly && this.#bursts.get(soldier)) return;
+    if (this.#rng.rand(MISS_CURSE_CHANCE) === 0) this.#battleSound(soldier, 'CURSE1', false);
+  }
+
+  #bulletImpact(e: EventOf<'bulletImpact'>): void {
+    const book = this.#o.book;
+    this.#maybeCurse(e.soldier, true);
+    if (e.effect === 'miniboom') {
+      this.#play(smallExplosionCue(book, e.gridNo));
+      return;
+    }
+    this.#play(missCue(book, e.gridNo, this.#weaponOf(e.soldier), e.z === 0 ? 'ground' : 'air', this.#rng.rand));
+  }
+
+  #mortarWhistle(sounding: boolean): void {
+    this.#whistle?.stop();
+    this.#whistle = sounding ? this.#play(effectCue(this.#o.book, 'MORTAR_WHISTLE', 'fixed', VolumeLevel.HIGH)) : null;
   }
 
   #soldierHit(e: EventOf<'soldierHit'>): void {
