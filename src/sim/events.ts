@@ -230,7 +230,13 @@ export interface MissileTrailEvent extends SimEventBase {
   readonly delay?: number;
 }
 
-export type EffectEvent = BulletImpactEvent | WindowShatteredEvent | MissileTrailEvent | WaterRippleEvent | ExplosionEvent;
+export type EffectEvent =
+  | BulletImpactEvent
+  | WindowShatteredEvent
+  | MissileTrailEvent
+  | WaterRippleEvent
+  | ExplosionEvent
+  | CorpseVaporizedEvent;
 
 const EFFECT_EVENT_TYPES: ReadonlySet<SimEvent['type']> = new Set([
   'bulletImpact',
@@ -238,6 +244,7 @@ const EFFECT_EVENT_TYPES: ReadonlySet<SimEvent['type']> = new Set([
   'missileTrail',
   'waterRipple',
   'explosion',
+  'corpseVaporized',
 ]);
 
 export function isEffectEvent(e: SimEvent): e is EffectEvent {
@@ -326,6 +333,14 @@ export interface ExplosionEvent extends SimEventBase {
   readonly y?: number;
   readonly z?: number;
   readonly delay?: number;
+}
+
+export interface CorpseVaporizedEvent extends SimEventBase {
+  readonly type: 'corpseVaporized';
+  readonly gridNo: number;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
 }
 
 export interface WaterRippleEvent extends SimEventBase {
@@ -599,6 +614,7 @@ export type SimEvent =
   | WindowShatteredEvent
   | MissileTrailEvent
   | WaterRippleEvent
+  | CorpseVaporizedEvent
   | StructureStruckEvent
   | CreatureGasEvent
   | ThrownImpactEvent

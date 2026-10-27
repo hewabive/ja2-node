@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Explosion_Control.cc InternalIgniteExplosion, IgniteExplosion, IgniteExplosionXY,
-// @src GenerateExplosionFromExplosionPointer, RemoveExplosionData, ExpAffect, GetRayStopInfo, SpreadEffect, SpreadEffectSmoke;
+// @src GenerateExplosionFromExplosionPointer, RemoveExplosionData, ExpAffect (with the blood of BLOOD_SPREAD_EFFECT),
+// @src GetRayStopInfo, SpreadEffect, SpreadEffectSmoke;
 // @src TileEngine/Tile_Animation.cc UpdateAniTiles, DeleteAniTile (explosion and water ripple key frames);
 // @src TileEngine/Structure.cc GetBlockingStructureInfo; Tactical/PathAI.cc InternalDoorTravelCost (no soldier).
 // @src See docs/12 §10.2–§10.4.
@@ -42,6 +43,7 @@ import {
 import { checkPowPathsInAlmaPrison } from '../narrative/pow-rules.ts';
 import { doorObstacleIfClosed, doorState, terrainCost } from '../pathfinding.ts';
 import { makeNoise, NoiseKind } from '../perception/noise.ts';
+import { BloodKind, DROPPED_IN_SIGHT, internalDropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
 import type { Soldier } from '../soldier.ts';
 import { type TacticalState, whoIsThere } from '../state.ts';
 import { itemsAt, removeWorldItem } from '../world-items.ts';
@@ -78,6 +80,7 @@ const THIN_DENSITY = 15;
 const TALL_STRUCTURE = 4;
 const BLAST_RANGE_REDUCTION = 2;
 const DEBRIS_THRESHOLD = 20;
+const BLOOD_LOST_PER_TILE = 2;
 const EXPLOSION_LIGHT_TEMPLATE = 'L-R04.LHT';
 const OPEN_WINDOWS: ReadonlySet<number> = new Set([Blocking.TOPLEFT_OPEN_WINDOW, Blocking.TOPRIGHT_OPEN_WINDOW]);
 const CLOSED_WINDOWS: ReadonlySet<number> = new Set([Blocking.TOPLEFT_WINDOW, Blocking.TOPRIGHT_WINDOW]);
@@ -403,6 +406,11 @@ function hurtSoldiers(t: TacticalState, ctx: SpreadContext, g: number, distance:
   damageSoldierFromBlast(t, below, ctx.owner, ctx.bombGridNo, debrisWound, debrisBreath, distance, ctx.item);
 }
 
+function sprayedBlood(distance: number): number {
+  const lost = distance * BLOOD_LOST_PER_TILE;
+  return lost > MAX_BLOOD_QUANTITY ? 0 : MAX_BLOOD_QUANTITY - lost;
+}
+
 function expAffect(t: TacticalState, ctx: SpreadContext, g: number, distance: number): void {
   const explosive = ctx.item !== NOTHING ? itemDef(t, ctx.item)?.explosive : null;
   if (ctx.item !== NOTHING && !explosive) return;
@@ -428,6 +436,7 @@ function expAffect(t: TacticalState, ctx: SpreadContext, g: number, distance: nu
     if (ctx.sub === Spread.ERASE) removeSmokeEffectFromTile(t, g, ctx.level);
     else if (ctx.sub !== Spread.REDO && ctx.smoke) addSmokeEffectToTile(t, ctx.smoke, gasType, g, ctx.level);
   }
+  if (ctx.sub === Spread.BLOOD) internalDropBlood(t, g, 0, BloodKind.HUMAN, sprayedBlood(distance), DROPPED_IN_SIGHT);
   if (ctx.sub === Spread.ERASE || ctx.sub === Spread.BLOOD) return;
   if (wound || breath) hurtSoldiers(t, ctx, g, distance, wound, breath);
   if (gasType) {

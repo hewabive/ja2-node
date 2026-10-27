@@ -17,6 +17,10 @@ const MINIBOOM_PATH = 'tilecache/miniboom.sti';
 const MINIBOOM_FRAMES = 13;
 const MINIBOOM_PEAK_FRAME = 5;
 const KNIFE_PATH = 'tilecache/knifing.sti';
+const VAPORIZE_PATH = 'tilecache/gen_blow.sti';
+const VAPORIZE_FRAMES = 10;
+const VAPORIZE_PEAK_FRAME = 3;
+const VAPORIZE_DROPS = 9;
 const TRAIL_FRAMES = 9;
 const TRAILS: readonly { readonly path: string; readonly ramp: RampName; readonly size: number }[] = [
   { path: 'tilecache/msle_smk.sti', ramp: 'gray', size: 14 },
@@ -85,6 +89,20 @@ function miniboom(frame: number): StiSubImage {
   return { offsetX: -Math.round(radius), offsetY: -Math.round(radius), width: size, height: size, pixels: r.pixels };
 }
 
+function bodyBlow(frame: number): StiSubImage {
+  const growth = Math.min(frame, VAPORIZE_PEAK_FRAME) + 1;
+  const size = 8 + growth * 6;
+  const r = new IndexedRaster(size, size);
+  const fade = Math.max(0, frame - VAPORIZE_PEAK_FRAME);
+  for (let k = 0; k < VAPORIZE_DROPS; k++) {
+    const a = (k * Math.PI * 2) / VAPORIZE_DROPS + frame * 0.3;
+    const reach = (size / 2 - 2) * Math.min(1, (frame + 1) / (VAPORIZE_PEAK_FRAME + 1));
+    r.ellipse(size / 2 + Math.cos(a) * reach, size / 2 + Math.sin(a) * reach * 0.6, 1.5, 1.2, () => color('red', 8 - Math.min(fade, 4)));
+  }
+  if (frame <= VAPORIZE_PEAK_FRAME) r.ellipse(size / 2, size / 2, growth * 2, growth * 1.5, (nx, ny) => color('red', 10 - nx - ny));
+  return { offsetX: -size / 2, offsetY: -size + 4, width: size, height: size, pixels: r.pixels };
+}
+
 function trailPuff(frame: number, ramp: RampName, largest: number): StiSubImage {
   const radius = 1 + ((largest / 2 - 1) * (frame + 1)) / TRAIL_FRAMES;
   const size = Math.ceil(radius * 2) + 1;
@@ -146,6 +164,8 @@ export async function buildStubEffects(out: string, palette: Uint8Array): Promis
   }
   const boom = Array.from({ length: MINIBOOM_FRAMES }, (_, f) => miniboom(f));
   written.push(await writeSti(out, MINIBOOM_PATH, palette, boom, MINIBOOM_FRAMES));
+  const blow = Array.from({ length: VAPORIZE_FRAMES }, (_, f) => bodyBlow(f));
+  written.push(await writeSti(out, VAPORIZE_PATH, palette, blow, VAPORIZE_FRAMES));
   const knife = Array.from({ length: DIRECTIONS * KNIFE_SPIN_FRAMES }, (_, f) =>
     knifeFrame(Math.floor(f / KNIFE_SPIN_FRAMES), f % KNIFE_SPIN_FRAMES),
   );

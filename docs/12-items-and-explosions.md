@@ -872,7 +872,7 @@ if blast:
     if dmg > 10 && 2·dist ≤ blast.r: for each pool item in order: DamageItemOnGround(o, wound·2) → remove if destroyed (§10.7)
 if stun: breath = Reduce(bd·100 + (bd/2)·100·roll/100, stun.r, dist)
 if gas: sub == ERASE → remove tile smoke; sub != REDO && smoke → AddSmokeEffectToTile (§11.1)
-if sub == BLOOD: drop blood (corpse rot)
+if sub == BLOOD: InternalDropBlood(grid, 0, HUMAN, 2·dist > 7 ? 0 : 7 − 2·dist, visible)   // a vaporized corpse
 if sub ∉ {ERASE, BLOOD}:
   if wound || breath:
     t = WhoIsThere2(grid, level) → DamageSoldierFromBlast(t, wound, breath, dist)
@@ -907,7 +907,12 @@ These hit animations belong to the combat spec.
 `ExplosiveDamageGridNo(grid, dmg, dist, …, onlyWalls)` walks the tile's structures:
 - An explosive base structure (barrel) gets HP 0. Only `sCubeOffset == 0` structures are damaged, and nothing on level 1
   (roof explosions never hurt structures).
-- Per structure `ExplosiveDamageStructureAtGridNo`: corpses with the blood option, wound > 10, dist ≤ 1 are vaporised;
+- Per structure `ExplosiveDamageStructureAtGridNo`: corpses with the blood option, wound > 10, dist ≤ 1 are vaporised
+  (`VaporizeCorpse`, `Tactical/Rotting_Corpses.cc:1000-1052`; ja2-node 2026-10-27): a vehicle's corpse stays; otherwise
+  the corpse and its structure go and, on the ground, `SpreadEffect(base, 2, NOTHING, NULL, BLOOD_SPREAD_EFFECT)` sprays
+  blood 7, 5 and 3 (`Random(3)` decay draws for new pools) along the rays of a radius-2 spread; `BODY_EXPLODE_1` plays.
+  The original does all but the sound only while the corpse's base tile is on screen (deviation "Vaporized corpses");
+  corpses that wound ≤ 10 or a farther blast reaches, or with blood and gore off, are not damaged;
   persons skipped; `DamageStructure(s, dmg, EXPLOSION)`: indestructible metal/stone immune; `armour =
   materialArmour/3` (explosion) or `/2`; `dmg < armour` → nothing; else HP −= dmg − armour, destroyed at ≤ 0.
 - **Destruction partner** `bDestructionPartner`: negative partner → swap to the damaged graphic `−partner` instead of

@@ -5,13 +5,14 @@
 // @src CheckForAndHandleSoldierDeath, HandleCheckForDeathCommonCode; Soldier_Control.cc BeginSoldierGetup (with the boxer's
 // @src knock-out); Overhead.cc HandleNPCTeamMemberDeath (with BeginHandleQueenBitchDeath); OppList.cc CheckForAlertWhenEnemyDies;
 // @src Rotting_Corpses.cc TurnSoldierIntoCorpse, ReduceAmmoDroppedByNonPlayerSoldiers, AddRottingCorpse (blood under the
-// @src corpse). See docs/11 §5.
+// @src corpse), RemoveCorpse, FindCorpseBasedOnStructure. See docs/11 §5.
 
 import { corpseFileBase, corpseStructIndex, corpseTypeFor, NO_CORPSE } from '../../../content/anim/corpses.ts';
 import type { OpOutcome } from '../../../content/anim/script.ts';
 import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, ItemFlags, NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, newGridNo, pythSpacesAway } from '../../../content/world/grid.ts';
+import { STRUCTURE_ON_ROOF, type StructureInstance } from '../../../content/world/structures.ts';
 import { ObjectFlags } from '../../items/object.ts';
 import { anim, animName } from '../anim-states.ts';
 import {
@@ -327,6 +328,20 @@ export function addCorpseStructure(t: TacticalState, g: number, level: number, t
   if (!def) return;
   t.world.structures.add(g, level, def);
   for (const tile of def.tiles) removeBlood(t, g + tile.posRelToBase, level);
+}
+
+export function isVehicleCorpse(c: Corpse): boolean {
+  return c.bodyType >= Body.HUMVEE && c.bodyType <= Body.JEEP;
+}
+
+export function corpseOfStructure(t: TacticalState, base: StructureInstance): Corpse | null {
+  const level = base.cubeOffset >= STRUCTURE_ON_ROOF ? 1 : 0;
+  return t.corpses.find((c) => c.gridNo === base.gridNo && c.level === level) ?? null;
+}
+
+export function removeCorpse(t: TacticalState, corpse: Corpse, base: StructureInstance): void {
+  t.corpses.splice(t.corpses.indexOf(corpse), 1);
+  t.world.structures.remove(base);
 }
 
 export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDead: boolean; madeCorpse: boolean } {

@@ -267,7 +267,9 @@ where `WeaponHit` plays the HE miniboom on a soldier, and `windowShattered {grid
 glass falls from) when a bullet, a blast or a thrown object shatters a window, and `missileTrail {gridNo, x, y, z,
 trail: smoke|small|spit, delay}` wherever `MoveBullet` leaves a trail behind a rocket, a rocket-rifle round, a flame or
 creature spit (`AddMissileTrail`; the browser picks the `Random(100)` part of the frame delay itself, flames carry
-their fixed 100 ms) and behind a mortar shell (with its `PreRandom` delay), `waterRipple {gridNo, x, y, z}` where a thrown object falls into water, and on
+their fixed 100 ms) and behind a mortar shell (with its `PreRandom` delay), `waterRipple {gridNo, x, y, z}` where a thrown object falls into water,
+`corpseVaporized {gridNo, x, y, z}` where a blast blows a corpse apart (`VaporizeCorpse`: `gen_blow.sti` every 80 ms on
+the corpse's base tile and `BODY_EXPLODE_1` there; the original plays the sound at the struck tile of the corpse), and on
 `explosion` the presentation fields `x, y, z` (where the blast is drawn) and `delay` (the animation's blast speed). Agents
 get them like any event.
 

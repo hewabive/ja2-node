@@ -96,6 +96,20 @@ describe('effect animations', () => {
     expect(effects.at(0, () => 20).map((e) => e.kind)).toEqual(['explosion', 'ripple']);
   });
 
+  it('blows a vaporized corpse apart on its tile every 80 ms, drawn from the tile cache', () => {
+    const effects = new EffectAnimations();
+    effects.observe([{ type: 'corpseVaporized', gridNo: WHERE, x: 805, y: 805, z: 0, tick: 0 }]);
+    const period = ticksPerFrame('vaporize');
+    expect(effects.at(period, () => 10).map((e) => [e.kind, e.gridNo, e.frame])).toEqual([['vaporize', WHERE, 1]]);
+    expect(
+      effectStructNodes(
+        effects.at(period, () => 10),
+        tables,
+        tiles,
+      ),
+    ).toEqual([]);
+  });
+
   it('forgets everything on reset', () => {
     const effects = new EffectAnimations();
     effects.observe([impact(0, 'miniboom')]);

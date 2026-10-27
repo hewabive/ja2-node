@@ -109,7 +109,8 @@ export type AniTileKind =
   | 'explosion'
   | 'knife'
   | 'knifeShadow'
-  | 'trail';
+  | 'trail'
+  | 'vaporize';
 
 const PAUSED_ANI_KINDS: ReadonlySet<AniTileKind> = new Set(['corpse', 'vehicleCorpse']);
 

@@ -3,13 +3,15 @@
 // @src src/game/TileEngine/Explosion_Control.cc ExplosiveDamageStructureAtGridNo, ExplosiveDamageGridNo, RemoveOnWall;
 // @src TileEngine/Structure.cc DamageStructure (explosion branch); Tactical/Weapons.cc WindowHit;
 // @src Tactical/Handle_Items.cc RemoveAllUnburiedItems, PutItemPoolOnGround; Tactical/End_Game.cc HandleStatueDamaged (the
-// @src BeforeStructureDamaged listener). See docs/12 §10.6, docs/26 §5.3.
+// @src BeforeStructureDamaged listener); Tactical/Rotting_Corpses.cc VaporizeCorpse. See docs/12 §10.6, docs/26 §5.3.
 
+import { NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_INCREMENT, Direction, newGridNo, WORLD_COLS } from '../../../content/world/grid.ts';
 import { recompileLocalMovementCosts } from '../../../content/world/movement-costs.ts';
 import { has, ORIENT_LEFT, ORIENT_RIGHT, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
 import { u8 } from '../../../core/int.ts';
 import type { WindowShatterTile } from '../../events.ts';
+import { corpseOfStructure, isVehicleCorpse, removeCorpse } from '../combat/death.ts';
 import { swapStructureForPartnerAndRecord } from '../doors.ts';
 import { recordStructureAdded, recordStructureDamaged, recordStructureRemoved } from '../map-changes.ts';
 import { statueTakesExplosion } from '../narrative/statue.ts';
@@ -17,7 +19,7 @@ import { makeNoise, NoiseKind } from '../perception/noise.ts';
 import type { Soldier } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { itemsAt, removeWorldItem, Visibility } from '../world-items.ts';
-import { internalIgniteExplosion } from './explosion.ts';
+import { internalIgniteExplosion, Spread, spreadEffect } from './explosion.ts';
 
 export const StructureDamage = { NOT_DAMAGED: 0, DAMAGED: 1, DESTROYED: 2 } as const;
 
@@ -29,6 +31,9 @@ const WINDOW_SMASH_VOLUME = 7;
 const EXPLOSIVE_ARMOUR_DIVISOR = 3;
 const ARMOUR_DIVISOR = 2;
 const NO_MULTI_FLAG = -1;
+const CORPSE_SPRAYING_WOUND = 10;
+const VAPORIZING_DISTANCE = 1;
+const CORPSE_BLOOD_RADIUS = 2;
 
 export interface StructureChanges {
   readonly gridNos: Set<number>;
@@ -114,6 +119,16 @@ function addDamagedGraphic(t: TacticalState, base: StructureInstance, partner: n
   if (added) recordStructureAdded(t, added);
 }
 
+function vaporizeCorpse(t: TacticalState, current: StructureInstance): void {
+  const base = t.world.structures.findBase(current) ?? current;
+  const corpse = corpseOfStructure(t, base);
+  if (!corpse || isVehicleCorpse(corpse)) return;
+  const g = base.gridNo;
+  t.events.push({ type: 'corpseVaporized', gridNo: g, x: centreX(g), y: centreY(g), z: 0 });
+  removeCorpse(t, corpse, base);
+  if (corpse.level === 0) spreadEffect(t, g, CORPSE_BLOOD_RADIUS, NOTHING, null, Spread.BLOOD, 0, null);
+}
+
 function explosiveDamageStructureAtGridNo(
   t: TacticalState,
   current: StructureInstance,
@@ -128,7 +143,10 @@ function explosiveDamageStructureAtGridNo(
   if (statueTakesExplosion(t, g, distance)) return true;
   if (onlyWalls && !has(current.flags, StructureFlags.WALLSTUFF)) return true;
   if (level > 0) return true;
-  if (has(current.flags, StructureFlags.CORPSE) && t.options.bloodAndGore && wound > 10) return true;
+  if (has(current.flags, StructureFlags.CORPSE) && t.options.bloodAndGore && wound > CORPSE_SPRAYING_WOUND) {
+    if (distance <= VAPORIZING_DISTANCE) vaporizeCorpse(t, current);
+    return true;
+  }
   if (has(current.flags, StructureFlags.PERSON)) return true;
   let result = damageStructureByExplosion(t, current, wound);
   if (result === StructureDamage.NOT_DAMAGED) return true;

@@ -17,7 +17,14 @@ import type { WorldDisplayOptions, WorldDrawStats, WorldRenderer } from '../../r
 import type { EffectEvent, SimEvent } from '../../sim/events.ts';
 import type { ReadVfsFile } from '../net/vfs.ts';
 import { type BulletTiles, bulletNodes, bulletTiles, thrownNodes } from './bullet-nodes.ts';
-import { EffectAnimations, type EffectFrame, type EffectKind, effectStructNodes, effectTileFrames } from './effect-animations.ts';
+import {
+  EffectAnimations,
+  type EffectFrame,
+  type EffectKind,
+  effectStructNodes,
+  effectTileFrames,
+  isCachedEffect,
+} from './effect-animations.ts';
 import { glowContext } from './glow-context.ts';
 import { type ItemTileLookup, itemTileLookup, readItemGraphicTables } from './item-tiles.ts';
 import { LightTemplates, mercLightTemplateName } from './light-templates.ts';
@@ -224,7 +231,7 @@ export class TacticalWorldView {
   }
 
   #effectFrameCount(kind: EffectKind, tile: string | null): number | null {
-    if (kind === 'miniboom' || kind === 'trail' || kind === 'explosion') return this.#effects?.cachedEffectFrames({ kind, tile }) ?? null;
+    if (isCachedEffect(kind)) return this.#effects?.cachedEffectFrames({ kind, tile }) ?? null;
     return effectTileFrames(kind, tile, this.world.tables, this.world.tiles)?.length ?? null;
   }
 
@@ -242,7 +249,7 @@ export class TacticalWorldView {
     const effects = this.#effects;
     if (!effects) return [];
     return shown.flatMap((e) => {
-      const tile = e.kind === 'miniboom' || e.kind === 'trail' || e.kind === 'explosion' ? effects.cachedEffect(e) : null;
+      const tile = isCachedEffect(e.kind) ? effects.cachedEffect(e) : null;
       return tile ? [tile] : [];
     });
   }

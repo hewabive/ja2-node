@@ -1346,8 +1346,9 @@ Our merc after the skull UI: `ReleaseSoldiersAttacker` (unless external death), 
   wounds and bleeding (`DropBlood`, drawn at once while the soldier is visible), on the tile behind a man a bullet
   passes through (`BulletHitMerc`: on the ground unless the move into it is blocked, on a roof only where a roof is,
   else on the ground) and on the tile of a man flying back and the tile behind him (opcode 765 of
-  `FLYBACK_HIT_BLOOD_STAND`); these two always drop a full pool (7) and draw it at once. A new corpse wipes the blood
-  under every tile of its structure (`AddRottingCorpse`). Gameplay-relevant only through creature smell and the decay
+  `FLYBACK_HIT_BLOOD_STAND`); these two always drop a full pool (7) and draw it at once. A corpse a blast blows apart
+  sprays 7, 5 and 3 around its tile (`12` §10.6). A new corpse wipes the blood under every tile of its structure
+  (`AddRottingCorpse`). Gameplay-relevant only through creature smell and the decay
   draws; the pools the player sees are `04` §6.27.
 - **Fragile items** on falls: 721 in `FALLFORWARD_FROMHIT_STAND` → `CheckEquipmentForFragileItemDamage(20)` (jars;
   `pre` per item). The 722 branch for `FALLFORWARD_FROMHIT_CROUCH` is dead (that script has no 722).

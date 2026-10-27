@@ -1,13 +1,17 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
+import { itemId, runExplosivesUntilIdle } from '../../../tests/support/explosives.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { corpseFileBase } from '../../content/anim/corpses.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
+import { StructureFlags } from '../../content/world/structures.ts';
+import type { SimEvent } from '../events.ts';
 import { addCorpseStructure, deathOpcode } from './combat/death.ts';
 import type { TacticalContent } from './content.ts';
+import { igniteExplosion } from './explosions/explosion.ts';
 import { revealRoofsAndItems } from './perception/fov.ts';
 import { BloodKind, bloodFloorStrength, DROPPED_IN_SIGHT, decayBloodAndSmells, internalDropBlood } from './smell.ts';
-import { type Soldier, Team } from './soldier.ts';
+import { Body, NO_PROFILE, type Soldier, Team } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 import { bloodViews } from './world-view.ts';
 
@@ -81,6 +85,60 @@ describe('blood pools on the ground (Smell.cc InternalDropBlood, UpdateBloodGrap
     revealRoofsAndItems(t, merc, false);
     expect(bloodViews(t)).toEqual([]);
     expect(bloodFloorStrength(t.smell.blood[AHEAD] ?? 0)).toBe(5);
+  });
+});
+
+function corpseAt(sim: TacticalSim, g: number): void {
+  const t = sim.state;
+  const type = someCorpseType(sim);
+  t.corpses.push({
+    gridNo: g,
+    level: 0,
+    bodyType: Body.REGMALE,
+    direction: Direction.NORTH,
+    state: 0,
+    profile: NO_PROFILE,
+    type,
+    timeOfDeath: 0,
+  });
+  addCorpseStructure(t, g, 0, type, Direction.NORTH);
+}
+
+function grenadeAt(sim: TacticalSim, g: number): SimEvent[] {
+  igniteExplosion(sim.state, null, 0, g, itemId(sim.state, 'HAND_GRENADE'), 0);
+  return runExplosivesUntilIdle(sim);
+}
+
+const hasCorpseStructure = (sim: TacticalSim, g: number) => sim.state.world.structures.find(g, StructureFlags.CORPSE) !== null;
+
+describe('a corpse in a blast (Explosion_Control.cc ExplosiveDamageStructureAtGridNo, Rotting_Corpses.cc VaporizeCorpse)', () => {
+  it('blows a corpse next to a grenade apart and sprays its blood two tiles around, fainter with every tile', () => {
+    const { sim } = squad();
+    const t = sim.state;
+    corpseAt(sim, AHEAD);
+    const events = grenadeAt(sim, AHEAD);
+    expect(events.filter((e) => e.type === 'corpseVaporized').map((e) => e.gridNo)).toEqual([AHEAD]);
+    expect(t.corpses).toEqual([]);
+    expect(hasCorpseStructure(sim, AHEAD)).toBe(false);
+    const pools = new Map(bloodViews(t).map((p) => [p.gridNo, p.strength]));
+    expect(pools.get(AHEAD)).toBe(FULL_POOL);
+    expect(pools.get(AHEAD + 1)).toBe(FULL_POOL - 2);
+    expect(pools.get(AHEAD - 160 + 1)).toBe(FULL_POOL - 2);
+    expect(pools.get(AHEAD + 2)).toBe(FULL_POOL - 4);
+    expect(pools.has(AHEAD + 3)).toBe(false);
+  });
+
+  it('leaves the corpse lying with blood and gore off or two tiles from the grenade', () => {
+    const clean = squad();
+    expect(clean.sim.dispatch({ type: 'setOption', bloodAndGore: false }).ok).toBe(true);
+    corpseAt(clean.sim, AHEAD);
+    grenadeAt(clean.sim, AHEAD);
+    expect(clean.sim.state.corpses).toHaveLength(1);
+    const far = squad();
+    corpseAt(far.sim, AHEAD);
+    grenadeAt(far.sim, AHEAD + 2);
+    expect(far.sim.state.corpses).toHaveLength(1);
+    expect(hasCorpseStructure(far.sim, AHEAD)).toBe(true);
   });
 });
 

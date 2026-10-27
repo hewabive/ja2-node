@@ -8,7 +8,8 @@
 // @src src/game/Tactical/Weapons.cc DoSpecialEffectAmmoMiss (the translucent miniboom of HE and HEAT rounds on the topmost
 // @src layer, at the impact); src/game/Tactical/Bullets.cc AddMissileTrail (msle_smk, msle_sma or msle_spt, translucent, in
 // @src the struct layer); src/game/TileEngine/Explosion_Control.cc GenerateExplosionFromExplosionPointer (the explosion's
-// @src cached tile on the topmost layer, translucent in water and from its transparent key frame on); src/game/Tactical/Bullets.cc HandleBulletSpecialFlags, UpdateBullets (a thrown knife: the
+// @src cached tile on the topmost layer, translucent in water and from its transparent key frame on); Rotting_Corpses.cc
+// @src VaporizeCorpse (gen_blow.sti in the struct layer, opaque); src/game/Tactical/Bullets.cc HandleBulletSpecialFlags, UpdateBullets (a thrown knife: the
 // @src knifing.sti frames of its direction from the fourth, every 100 ms, and its shadow on the ground, both hanging on the
 // @src thrower's tile). See docs/28 §12.1 G8.
 
@@ -37,7 +38,7 @@ import type { BulletView, CorpseView, KnifeFlight, SmokeTileView } from '../../p
 import type { SceneAniTile } from '../../render/world/dynamic-scene.ts';
 import type { LoadedSoldierSheet, WorldSprites } from '../../render/world/world-sprites.ts';
 import { bulletGridNo } from './bullet-nodes.ts';
-import { type EffectFrame, knifeFrame } from './effect-animations.ts';
+import { type EffectFrame, isCachedEffect, knifeFrame } from './effect-animations.ts';
 
 export type EffectSprites = Pick<WorldSprites, 'addSheet' | 'soldierFrame' | 'shadedPaletteBase' | 'plainPaletteRow'>;
 
@@ -45,6 +46,7 @@ import type { ReadVfsFile } from '../net/vfs.ts';
 
 const TILE_CACHE_DIR = 'tilecache/';
 const MINIBOOM_PATH = 'tilecache/miniboom.sti';
+const VAPORIZE_PATH = 'tilecache/gen_blow.sti';
 const TRAIL_PATHS: Readonly<Record<string, string>> = {
   smoke: 'tilecache/msle_smk.sti',
   small: 'tilecache/msle_sma.sti',
@@ -336,6 +338,7 @@ export class WorldEffects {
 
   #cachedEffectPath(e: Pick<EffectFrame, 'kind' | 'tile'>): string | null {
     if (e.kind === 'miniboom') return MINIBOOM_PATH;
+    if (e.kind === 'vaporize') return VAPORIZE_PATH;
     if (e.kind === 'explosion') return this.#explosions.get(e.tile ?? '')?.graphics || null;
     return e.kind === 'trail' ? (TRAIL_PATHS[e.tile ?? ''] ?? null) : null;
   }
@@ -356,7 +359,7 @@ export class WorldEffects {
     const sprites = this.#sprites;
     const path = this.#cachedEffectPath(e);
     const loaded = path ? this.#picture(path) : null;
-    if (!sprites || !path || !loaded || (e.kind !== 'miniboom' && e.kind !== 'trail' && e.kind !== 'explosion')) return null;
+    if (!sprites || !path || !loaded || !isCachedEffect(e.kind)) return null;
     const sheet = this.#sheet(path, loaded.picture);
     const sprite = sheet ? sprites.soldierFrame(sheet, e.frame) : null;
     if (!sprite) return null;

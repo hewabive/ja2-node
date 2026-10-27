@@ -6,7 +6,8 @@
 // @src ms per frame, 100 for flames; the browser picks the random part itself), HandleBulletSpecialFlags (a
 // @src thrown knife starts at the fourth frame of its direction and steps every 100 ms); src/game/TileEngine/Tile_Animation.cc
 // @src UpdateAniTiles (a frame lasts until more than its delay has passed, a looping tile restarts at its direction's first
-// @src frame, any other goes once its last frame has).
+// @src frame, any other goes once its last frame has); src/game/Tactical/Rotting_Corpses.cc VaporizeCorpse (gen_blow.sti every
+// @src 80 ms on the corpse's base tile).
 
 import type { TileElement } from '../../content/world/tile-database.ts';
 import type { TileTables } from '../../content/world/tile-tables.ts';
@@ -14,7 +15,7 @@ import { TICK_MS } from '../../protocol/messages.ts';
 import type { StructNode } from '../../render/world/dynamic-scene.ts';
 import type { EffectEvent, ExplosionEvent } from '../../sim/events.ts';
 
-export type EffectKind = 'dust' | 'splash' | 'ripple' | 'shatter' | 'miniboom' | 'trail' | 'explosion';
+export type EffectKind = 'dust' | 'splash' | 'ripple' | 'shatter' | 'miniboom' | 'trail' | 'explosion' | 'vaporize';
 
 export interface EffectFrame {
   readonly kind: EffectKind;
@@ -47,6 +48,7 @@ const FRAME_DELAY_MS: Readonly<Record<FixedPaceKind, number>> = {
   ripple: 50,
   shatter: 50,
   miniboom: 100,
+  vaporize: 80,
 };
 const LONGEST_EFFECT_TICKS = 2000 / TICK_MS;
 
@@ -96,6 +98,7 @@ function started(e: EffectEvent): RunningEffect[] {
   if (e.type === 'missileTrail')
     return [{ kind: 'trail', period: framePeriodTicks(e.delay ?? cosmeticTrailDelay(e)), ...at, tile: e.trail }];
   if (e.type === 'waterRipple') return [{ ...startedAs('ripple'), ...at, tile: null }];
+  if (e.type === 'corpseVaporized') return [{ ...startedAs('vaporize'), ...at, tile: null }];
   if (e.effect === 'splash')
     return [
       { ...startedAs('ripple'), ...at, tile: null },
@@ -128,14 +131,20 @@ export class EffectAnimations {
   }
 }
 
-const FIRST_TILE: Readonly<Record<Exclude<FixedPaceKind, 'shatter' | 'miniboom'>, string>> = {
+const FIRST_TILE: Readonly<Record<Exclude<FixedPaceKind, 'shatter' | 'miniboom' | 'vaporize'>, string>> = {
   dust: 'FIRSTMISS1',
   splash: 'SECONDMISS1',
   ripple: 'THIRDMISS1',
 };
 
+type CachedEffectKind = Extract<EffectKind, 'miniboom' | 'trail' | 'explosion' | 'vaporize'>;
+
+export function isCachedEffect(kind: EffectKind): kind is CachedEffectKind {
+  return kind === 'miniboom' || kind === 'trail' || kind === 'explosion' || kind === 'vaporize';
+}
+
 export function firstEffectTile(kind: EffectKind, tile: string | null, tables: TileTables): number | null {
-  if (kind === 'miniboom' || kind === 'trail' || kind === 'explosion') return null;
+  if (isCachedEffect(kind)) return null;
   const name = kind === 'shatter' ? tile : FIRST_TILE[kind];
   return name === null ? null : (tables.tileIndexByName.get(name) ?? null);
 }
