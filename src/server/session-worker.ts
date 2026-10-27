@@ -23,6 +23,7 @@ const CALLS: Readonly<Record<Exclude<HostCall, 'close'>, CallHandler>> = {
   snapshot: (h) => h.snapshot(),
   inputLog: (h) => h.inputLog(),
   profiles: (h) => h.profiles(),
+  health: (h) => h.health(),
 };
 
 interface Booted {

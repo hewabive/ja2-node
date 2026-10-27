@@ -1,11 +1,12 @@
 import type { ProfileFaceRecord } from '../content/narrative/profile-presentation.ts';
 import type { DataVersion, UiLanguage } from '../content/text/data-version.ts';
-import type { CommandEnvelope, DriverMode, SessionAdvanceReport } from '../protocol/messages.ts';
+import type { CommandEnvelope, DriverMode, InputTimingView, SessionAdvanceReport, SessionHealthView } from '../protocol/messages.ts';
 import type { PlayerView } from '../protocol/view.ts';
 import type { StopCondition } from '../sim/advance.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SaveImportReport } from '../sim/tactical/save-import.ts';
 import type { LogSegment } from './input-log.ts';
+import { threadLoopDelay } from './loop-delay.ts';
 import { isQueryCommand, type QueryAnswer } from './query.ts';
 import { snapshotText } from './save-file.ts';
 import { saveStatus } from './save-rules.ts';
@@ -52,6 +53,7 @@ export interface SessionHost {
   snapshot(): Promise<string>;
   inputLog(): Promise<LogSegment>;
   profiles(): Promise<readonly ProfileFaceRecord[]>;
+  health(): Promise<SessionHealthView>;
   close(): Promise<void>;
 }
 
@@ -87,6 +89,8 @@ export class InProcessHost implements SessionHost {
   readonly #slicer: Slicer;
   #tail: Promise<unknown> = Promise.resolve();
   #closing: Promise<void> | null = null;
+  #pending = 0;
+  #last: InputTimingView | null = null;
 
   constructor(session: Session, options: InProcessHostOptions = {}) {
     this.session = session;
@@ -102,15 +106,33 @@ export class InProcessHost implements SessionHost {
     return this.#saves !== null;
   }
 
-  #queued<T>(work: () => T | Promise<T>): Promise<T> {
+  #queued<T>(label: string, work: () => T | Promise<T>): Promise<T> {
     if (this.#closing) return Promise.reject(new Error(`session ${this.id} is closed`));
-    const run = this.#tail.then(work);
+    const queuedAt = performance.now();
+    this.#pending++;
+    const run = this.#tail.then(() => this.#timed(label, queuedAt, work));
     this.#tail = run.catch(() => undefined);
     return run;
   }
 
-  #withSaves<T>(work: (saves: SaveService) => T | Promise<T>): Promise<T> {
-    return this.#queued(() => {
+  async #timed<T>(label: string, queuedAt: number, work: () => T | Promise<T>): Promise<T> {
+    const startedAt = performance.now();
+    const tick = this.session.sim.tick;
+    try {
+      return await work();
+    } finally {
+      this.#pending--;
+      this.#last = {
+        label,
+        waitedMs: Math.round(startedAt - queuedAt),
+        ranMs: Math.round(performance.now() - startedAt),
+        ticks: this.session.sim.tick - tick,
+      };
+    }
+  }
+
+  #withSaves<T>(label: string, work: (saves: SaveService) => T | Promise<T>): Promise<T> {
+    return this.#queued(label, () => {
       if (!this.#saves) throw new SaveLoadError('notFound', NO_SAVES);
       return work(this.#saves);
     });
@@ -118,12 +140,12 @@ export class InProcessHost implements SessionHost {
 
   dispatch(cmd: CommandEnvelope): Promise<CommandResult> {
     if (isQueryCommand(cmd)) return this.query(cmd);
-    return this.#queued(() => this.session.dispatchSliced(cmd, this.#slicer));
+    return this.#queued(cmd.type, () => this.session.dispatchSliced(cmd, this.#slicer));
   }
 
   prepareAndDispatch(cmd: CommandEnvelope): Promise<CommandResult> {
     if (isQueryCommand(cmd)) return this.query(cmd);
-    return this.#queued(() => this.session.prepareAndDispatch(cmd, this.#slicer));
+    return this.#queued(cmd.type, () => this.session.prepareAndDispatch(cmd, this.#slicer));
   }
 
   query(q: CommandEnvelope): Promise<QueryAnswer> {
@@ -132,11 +154,11 @@ export class InProcessHost implements SessionHost {
   }
 
   advance(until: StopCondition, budget?: number): Promise<SessionAdvanceReport> {
-    return this.#queued(() => this.session.advanceSliced(until, budget, this.#slicer));
+    return this.#queued('advance', () => this.session.advanceSliced(until, budget, this.#slicer));
   }
 
   setDriver(driver: DriverMode): Promise<void> {
-    return this.#queued(() => this.session.setDriverSliced(driver, this.#slicer));
+    return this.#queued('drive', () => this.session.setDriverSliced(driver, this.#slicer));
   }
 
   subscribe(listener: Listener): () => void {
@@ -144,15 +166,15 @@ export class InProcessHost implements SessionHost {
   }
 
   save(request: SaveRequest): Promise<SaveOutcome> {
-    return this.#withSaves((saves) => saves.save(this.session, request));
+    return this.#withSaves('save', (saves) => saves.save(this.session, request));
   }
 
   saveSnapshot(name: string, description?: string): Promise<SaveOutcome> {
-    return this.#withSaves((saves) => saves.snapshot(this.session, name, description));
+    return this.#withSaves('saveSnapshot', (saves) => saves.snapshot(this.session, name, description));
   }
 
   load(name: string, reseed: boolean): Promise<LoadOutcome> {
-    return this.#withSaves((saves) => saves.loadInto(this.session, name, reseed));
+    return this.#withSaves('load', (saves) => saves.loadInto(this.session, name, reseed));
   }
 
   describe(): Promise<SessionDescription> {
@@ -171,19 +193,28 @@ export class InProcessHost implements SessionHost {
   }
 
   snapshot(): Promise<string> {
-    return this.#queued(() => snapshotText(sessionSnapshot(this.session)));
+    return this.#queued('snapshot', () => snapshotText(sessionSnapshot(this.session)));
   }
 
   inputLog(): Promise<LogSegment> {
-    return this.#queued(() => this.session.log.full());
+    return this.#queued('inputLog', () => this.session.log.full());
   }
 
   profiles(): Promise<readonly ProfileFaceRecord[]> {
     return Promise.resolve().then(() => this.session.sim.profileFaceRecords?.() ?? []);
   }
 
+  health(): Promise<SessionHealthView> {
+    return Promise.resolve().then(() => ({
+      tick: this.session.sim.tick,
+      pending: this.#pending,
+      last: this.#last,
+      loopDelayMs: threadLoopDelay().takeMaxMs(),
+    }));
+  }
+
   close(): Promise<void> {
-    this.#closing ??= this.#queued(async () => {
+    this.#closing ??= this.#queued('close', async () => {
       if (this.#saves) await this.#saves.closeSession(this.session);
       this.session.close();
     });

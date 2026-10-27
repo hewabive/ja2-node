@@ -9,6 +9,7 @@ import { ScreenHost } from '../../ui/screen.ts';
 import { refusalOf } from '../../ui/screens/tactical/item-cursor.ts';
 import type { ScreenGeometry } from '../../ui/services.ts';
 import type { SessionClient } from '../net/session-client.ts';
+import { DiagnosticsSampler } from './diagnostics.ts';
 import { TimeSamples } from './time-samples.ts';
 import { createUiHook, type UiHook } from './ui-hook.ts';
 
@@ -54,6 +55,12 @@ export class GamePage {
   readonly #framebuffer: LogicalFramebuffer;
   readonly #list = new DrawList();
   readonly #frameTimes = new TimeSamples();
+  readonly #diagnostics = new DiagnosticsSampler({
+    overlay: () => this.#runtime?.diagnostics ?? null,
+    client: () => this.client,
+    reads: () => this.hook.reads,
+    drawnFrames: () => this.hook.presentedFrames,
+  });
   readonly #setting: ScaleSetting;
   #resolution: Resolution;
   #lastNow: number | null = null;
@@ -148,6 +155,7 @@ export class GamePage {
     const stats = this.#stillShown(started, world) ?? this.#draw(started, world);
     const ms = performance.now() - started;
     this.#frameTimes.add(ms);
+    this.#diagnostics.frame(started, ms);
     this.#report(stats);
     this.frameListener?.(ms);
   }

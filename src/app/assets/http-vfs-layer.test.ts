@@ -109,6 +109,26 @@ describe('the HTTP asset source', () => {
     expect(layer.pendingReads).toBe(0);
   });
 
+  it('names the oldest read not finished and its age, counting the queued ones', async () => {
+    const { fetcher, started } = blockingFetcher();
+    let now = 1000;
+    const paths = files(20).map(([p]) => p);
+    const layer = new HttpVfsLayer(manifestOf(paths), { fetch: fetcher, now: () => now });
+    expect(layer.oldestRead()).toBeNull();
+    const first = layer.read(paths[0] as string, 0, 4);
+    now += 300;
+    const rest = paths.slice(1).map((p) => layer.read(p, 0, 4));
+    now += 200;
+    await flush();
+    expect(layer.oldestRead()).toEqual({ path: paths[0], ageMs: 500 });
+    started[0]?.release('data');
+    await first;
+    expect(layer.oldestRead()).toEqual({ path: paths[1], ageMs: 200 });
+    layer.abortAll();
+    await Promise.allSettled(rest);
+    expect(layer.oldestRead()).toBeNull();
+  });
+
   it('keeps the parallel requests between 8 and 16', async () => {
     const paths = files(30).map(([p]) => p);
     for (const [asked, allowed] of [

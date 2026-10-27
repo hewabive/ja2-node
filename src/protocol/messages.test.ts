@@ -10,6 +10,7 @@ describe('client messages', () => {
     expect(parseClientMessage('{"t":"save","id":4,"description":"before the bridge"}')).toMatchObject({ t: 'save', id: 4 });
     expect(parseClientMessage('{"t":"load","id":5,"name":"QuickSave","reseed":false}')).toMatchObject({ t: 'load', reseed: false });
     expect(parseClientMessage('{"t":"query","id":6,"q":{"type":"previewMove","soldier":0,"to":12}}')).toMatchObject({ t: 'query', id: 6 });
+    expect(parseClientMessage('{"t":"ping","id":7}')).toEqual({ t: 'ping', id: 7 });
   });
 
   it('rejects garbage and out-of-range values', () => {
@@ -22,5 +23,6 @@ describe('client messages', () => {
     expect(parseClientMessage('{"t":"load","id":5,"name":"QuickSave","reseed":"yes"}')).toBeNull();
     expect(parseClientMessage('{"t":"query","id":6,"q":{}}')).toBeNull();
     expect(parseClientMessage('{"t":"query","q":{"type":"previewMove"}}')).toBeNull();
+    expect(parseClientMessage('{"t":"ping"}')).toBeNull();
   });
 });

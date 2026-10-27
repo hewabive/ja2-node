@@ -3,6 +3,7 @@ import { UiClock } from './clock.ts';
 import { CursorId } from './cursors/cursor-ids.ts';
 import { type ComposedCursor, CursorState } from './cursors/cursor-state.ts';
 import type { CursorTable } from './cursors/cursor-table.ts';
+import { DiagnosticsOverlay } from './diagnostics-overlay.ts';
 import type { DrawList } from './draw-list.ts';
 import { isPointerEvent, type UiInputEvent } from './input/events.ts';
 import { RegionDispatcher } from './input/regions.ts';
@@ -40,6 +41,7 @@ export class UiRuntime implements UiServices {
   readonly regions = new RegionDispatcher(CursorId.NORMAL);
   readonly clock = new UiClock();
   readonly host = new ScreenHost();
+  readonly diagnostics = new DiagnosticsOverlay();
   readonly fonts: FontSet;
   readonly images: ImageCatalog;
   readonly sounds: UiSoundSink;
@@ -100,6 +102,10 @@ export class UiRuntime implements UiServices {
       if (event.kind === 'keyUp') this.#keysDown.delete(event.key);
       else this.#keysDown.add(event.key);
     }
+    if (this.diagnostics.togglesOn(event)) {
+      this.diagnostics.toggle();
+      return true;
+    }
     return this.host.input(event);
   }
 
@@ -112,6 +118,7 @@ export class UiRuntime implements UiServices {
     this.cursor.tick(this.clock.ja2Now, region?.animatesCursor ?? false, region?.flashesCursor ?? false);
     this.host.render(list);
     this.#renderTooltips(list, now);
+    this.diagnostics.render(list, this.fonts);
     this.#renderCursor(list);
   }
 

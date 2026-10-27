@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { TEST_ENGINE } from '../../tests/support/saves.ts';
 import { sharedStubPackDir } from '../../tests/support/stub-pack.ts';
 import { PROJECT_DATA_DIR } from '../node/repo.ts';
-import type { ServerMessage } from '../protocol/messages.ts';
+import type { ServerMessage, SessionHealthView } from '../protocol/messages.ts';
 import type { ViewFrame } from '../protocol/view.ts';
 import { Team } from '../sim/tactical/soldier.ts';
 import { inflateSave, parseSaveText, SAVE_EXTENSION, snapshotOf, snapshotText } from './save-file.ts';
@@ -181,6 +181,27 @@ async function queryScript(r: Rig): Promise<{ order: string[]; during: unknown; 
   return { order, during, answers: answers.map(stable), logged };
 }
 
+function untimed(health: SessionHealthView): unknown {
+  const last = health.last ? { label: health.last.label, ticks: health.last.ticks } : null;
+  return { tick: health.tick, pending: health.pending, last, loopDelayMs: typeof health.loopDelayMs };
+}
+
+async function healthScript(r: Rig): Promise<{ start: number; reports: unknown[] }> {
+  const host = await r.create('health', { seed: BATTLE_SEED });
+  const [merc] = await ownSoldiers(host);
+  if (!merc) throw new Error('no merc');
+  const start = (await host.health()).tick;
+  const reports = [untimed(await host.health())];
+  await host.dispatch({ type: 'move', soldier: merc.id, to: merc.gridNo + SOUTH_STEP });
+  reports.push(untimed(await host.health()));
+  const running = host.advance({ ticks: QUERY_ADVANCE_TICKS });
+  const during = await host.health();
+  await running;
+  reports.push({ pending: during.pending }, untimed(await host.health()));
+  await host.close();
+  return { start, reports };
+}
+
 async function both<T>(script: (r: Rig) => Promise<T>): Promise<[T, T]> {
   const results: T[] = [];
   for (const kind of ['inprocess', 'worker'] as const) {
@@ -234,6 +255,22 @@ describe('the session host contract, in process and in a worker thread', () => {
       expect(inProcess.answers[0]).toMatchObject({ ok: true, data: { destination: 'ok' } });
       expect(inProcess.answers[1]).toHaveProperty('tick');
       expect(inProcess.logged).toEqual(['advance']);
+      expect(worker).toEqual(inProcess);
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  it(
+    'reports its health outside the input queue: the tick, the inputs in the queue and the last input with its ticks',
+    async () => {
+      const [inProcess, worker] = await both(healthScript);
+      const { start } = inProcess;
+      expect(inProcess.reports).toEqual([
+        { tick: start, pending: 0, last: null, loopDelayMs: 'number' },
+        { tick: start, pending: 0, last: { label: 'move', ticks: 0 }, loopDelayMs: 'number' },
+        { pending: 1 },
+        { tick: start + QUERY_ADVANCE_TICKS, pending: 0, last: { label: 'advance', ticks: QUERY_ADVANCE_TICKS }, loopDelayMs: 'number' },
+      ]);
       expect(worker).toEqual(inProcess);
     },
     TEST_TIMEOUT_MS,

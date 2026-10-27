@@ -37,7 +37,22 @@ export type ClientMessage =
   | { readonly t: 'drive'; readonly id: number; readonly driver: DriverMode }
   | { readonly t: 'save'; readonly id: number; readonly name?: string; readonly description?: string }
   | { readonly t: 'load'; readonly id: number; readonly name: string; readonly reseed?: boolean }
-  | { readonly t: 'closeSession'; readonly id: number };
+  | { readonly t: 'closeSession'; readonly id: number }
+  | { readonly t: 'ping'; readonly id: number };
+
+export interface InputTimingView {
+  readonly label: string;
+  readonly waitedMs: number;
+  readonly ranMs: number;
+  readonly ticks: number;
+}
+
+export interface SessionHealthView {
+  readonly tick: number;
+  readonly pending: number;
+  readonly last: InputTimingView | null;
+  readonly loopDelayMs: number;
+}
 
 export interface EngineIdentityView {
   readonly version: string;
@@ -83,6 +98,7 @@ export type ServerMessage =
   | { readonly t: 'result'; readonly id: number; readonly ok: boolean; readonly reason?: string; readonly data?: unknown }
   | AnswerMessage
   | { readonly t: 'stopped'; readonly id: number; readonly report: SessionStopReport }
+  | { readonly t: 'pong'; readonly id: number; readonly health?: SessionHealthView }
   | { readonly t: 'error'; readonly message: string };
 
 export function parseClientMessage(text: string): ClientMessage | null {
@@ -125,6 +141,7 @@ export function parseClientMessage(text: string): ClientMessage | null {
         ? (m as ClientMessage)
         : null;
     case 'closeSession':
+    case 'ping':
       return typeof m.id === 'number' ? (m as ClientMessage) : null;
     default:
       return null;

@@ -5,6 +5,7 @@ import type { CursorReport } from '../../ui/runtime.ts';
 import type { StoryHook } from '../../ui/screens/story/story-layer.ts';
 import type { ButtonSoundRequest } from '../../ui/widgets/button-sounds.ts';
 import type { WidgetInfo } from '../../ui/widgets/widget-info.ts';
+import type { OpenRead } from '../assets/http-vfs-layer.ts';
 import type { MusicHook } from '../net/music.ts';
 import type { SequenceMonitor } from '../video/sequence-player.ts';
 import type { HelpHook } from './help-host.ts';
@@ -56,6 +57,7 @@ export interface UiHook {
 
 export interface AssetReads {
   readonly pendingReads: number;
+  oldestRead(): OpenRead | null;
 }
 
 export interface UiHookControls {

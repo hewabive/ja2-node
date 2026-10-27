@@ -410,11 +410,11 @@ type ServerMsg =
 
 As built (`src/protocol/messages.ts`, M2–M8): the client sends `hello {session?}`, `cmd {id, cmd}` (prompt answers are
 commands of type `answer`), `advance {id, until}`, `drive {id, driver}` (a real-time driver may carry `pauseOn`, §6.25),
-`save` and `load` (§6.22), `closeSession {id}` (§6.25) and `query {id, q}` (§6.26); the server answers
+`save` and `load` (§6.22), `closeSession {id}` (§6.25), `query {id, q}` (§6.26) and `ping {id}` (§6.36); the server answers
 with `welcome {session, view, driver, messages, engine: {version, commit}, rules: {pack, scripts}}` (also after a load in place;
 `engine` and `rules` since M8, §5.10, `messages` since U3a, §6.25), `frames` (view diffs every 10 ticks with the events
 and message entries of their tick, §4.4), `result {id, ok, reason?, data?}`, `answer {id, ok, tick, reason?, data?}` (§6.26),
-`stopped {id, report}` and `error`. Queries change nothing (`estimateAttack`, the cursor hints, `quoteTrade`,
+`stopped {id, report}`, `pong {id, health?}` (§6.36) and `error`. Queries change nothing (`estimateAttack`, the cursor hints, `quoteTrade`,
 `inventory`, …); since M8 they are answered outside the input queue and the input log, also when they arrive as
 commands (§6.26).
 
@@ -1861,6 +1861,41 @@ how long the page took to open. The `__ja2Ui` hook gains `frameStats` (`count`, 
 JavaScript time per frame, `resetFrameStats()`), `lagTicks` (the latest received tick minus the shown tick) with
 `skipPlayback()` (show the latest view at once), and `lastCommand`/`lastResult` (the type of the session's last command and
 its `{ok, reason, refusal}`).
+
+### 6.36. Diagnostics overlay (2026-10-27)
+
+Occasional lags in play (a merc starting a move seconds after the order, a conversation answering seconds after a
+click) could come from the network, the server's input queue, its event loop, asset reads or the client's playback.
+The game page now shows where the time goes, in Stracciatella's FPS overlay (`src/sgp/FPS.cc`): Ctrl+F on any screen,
+white `SMALLFONT1` text at 11,23 refreshed once a second, a line light red when it is slow (vanilla `DisplayFrameRate`
+turns the frame rate light red below 20 FPS). The key reaches no screen, as in `SGP.cc`, where the toggle is taken before
+the game's key handling. `src/ui/diagnostics-overlay.ts` draws the lines; `src/app/game/diagnostics.ts` samples them
+while the overlay is on:
+
+| Line | Source | Light red when |
+|---|---|---|
+| `N FPS, N drawn, frame A ms (max M)` | animation frames and drawn frames per second, the page's own JavaScript time per frame | below 20 FPS |
+| `ping R ms, server loop L ms` | the round trip of a `ping`, the server's event-loop delay | R > 250 ms or L > 100 ms |
+| `playback lag P ms, behind server B ms` | the latest received tick minus the shown tick; the simulation's tick in the last `pong` minus the shown tick | either > 250 ms |
+| `waiting X A ms (N open), slowest reply Y S ms` | the oldest request without a reply (a command type, `type?` for a query, `advance`, `drive`, …) and the slowest reply of the second | A or S > 1000 ms |
+| `server queue N, last X: waited W ms, ran R ms, game time +G ms` | the session's health | N > 1, W + R > 250 ms or G > 250 ms |
+| `reads N open, oldest A ms: path` | the page's `/vfs` reads not finished | A > 1000 ms |
+
+**`ping` and the session health.** The client sends `ping {id}` once a second while the overlay is on; the WebSocket
+answers it outside the command order, like a query, with `pong {id, health}`. `SessionHost.health()` (both hosts; the
+worker host calls into its worker) returns `{tick, pending, last, loopDelayMs}`: the simulation's tick, the inputs in the
+host's queue (the running one included), the last finished input with its label (the command type, `advance`, `drive`,
+`save`, …), the milliseconds it waited in the queue and ran, and the ticks it advanced the simulation by, and the largest
+event-loop delay since the previous `health` (`monitorEventLoopDelay`, 10 ms resolution; the worker host takes the larger
+of its worker's and the main thread's). Several viewers share that window, so each sees the delays since anyone last
+asked. A failed health answers `pong {id}` without it. Nothing enters the input log; the session-host contract test checks
+both hosts give the same health apart from the times.
+
+**What it showed first.** Conversation commands run their lines inside the command (`docs/24` §11.6), so the
+simulation's tick jumps by the length of the lines, while the real-time driver keeps adding ticks by the wall clock and the
+client plays frames at 1× without catching up. Each line spoken in a command thus leaves the client that much further
+behind for good: after a few conversations the maintainer measured `__ja2Ui.lagTicks × 5` at 8000 ms, and every later
+order showed that late. The overlay names it as `game time +G ms` on the conversation command and as the playback lag.
 
 ## 7. Cost and limitations
 

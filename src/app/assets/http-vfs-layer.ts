@@ -23,6 +23,12 @@ export interface HttpAssetOptions {
   readonly baseUrl?: string;
   readonly headers?: Readonly<Record<string, string>>;
   readonly concurrency?: number;
+  readonly now?: () => number;
+}
+
+export interface OpenRead {
+  readonly path: string;
+  readonly ageMs: number;
 }
 
 export class StaleAssetError extends Error {
@@ -106,6 +112,7 @@ class Slots {
 interface SharedRead {
   readonly controller: AbortController;
   readonly result: Promise<Uint8Array<ArrayBuffer>>;
+  readonly startedAt: number;
   waiters: number;
 }
 
@@ -117,6 +124,7 @@ export class HttpVfsLayer implements VfsLayer {
   readonly #baseUrl: string;
   readonly #headers: Readonly<Record<string, string>>;
   readonly #slots: Slots;
+  readonly #now: () => number;
   readonly #inFlight = new Map<string, SharedRead>();
   #lifetime = new AbortController();
 
@@ -127,6 +135,7 @@ export class HttpVfsLayer implements VfsLayer {
     this.#baseUrl = options.baseUrl ?? '';
     this.#headers = options.headers ?? {};
     this.#slots = new Slots(clampConcurrency(options.concurrency));
+    this.#now = options.now ?? (() => performance.now());
   }
 
   get activeRequests(): number {
@@ -135,6 +144,11 @@ export class HttpVfsLayer implements VfsLayer {
 
   get pendingReads(): number {
     return this.#inFlight.size;
+  }
+
+  oldestRead(): OpenRead | null {
+    const first = this.#inFlight.entries().next().value;
+    return first ? { path: first[0], ageMs: this.#now() - first[1].startedAt } : null;
   }
 
   *entries(): Iterable<VfsLayerEntry> {
@@ -185,7 +199,7 @@ export class HttpVfsLayer implements VfsLayer {
     const result = this.#slots
       .run(() => this.#download(entry, range, controller.signal), controller.signal)
       .finally(() => lifetime.removeEventListener('abort', abortOnLifetime));
-    return { controller, result, waiters: 0 };
+    return { controller, result, startedAt: this.#now(), waiters: 0 };
   }
 
   async #download(

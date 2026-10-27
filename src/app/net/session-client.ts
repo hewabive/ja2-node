@@ -5,6 +5,7 @@ import {
   type DriverMode,
   type RulePackIdentityView,
   type ServerMessage,
+  type SessionHealthView,
   type SessionStopReport,
   type StopCondition,
   TICK_MS,
@@ -35,7 +36,12 @@ import {
 } from '../../protocol/view.ts';
 import { BulletTrack } from './bullet-track.ts';
 
-type Pending = { resolve: (m: ServerMessage) => void; reject: (e: Error) => void };
+interface Pending {
+  readonly resolve: (m: ServerMessage) => void;
+  readonly reject: (e: Error) => void;
+  readonly label: string;
+  readonly sentAt: number;
+}
 
 export interface CommandReply {
   readonly ok: boolean;
@@ -45,6 +51,17 @@ export interface CommandReply {
 
 export interface QueryReply extends CommandReply {
   readonly tick: number;
+}
+
+export interface OpenRequests {
+  readonly oldest: string;
+  readonly ageMs: number;
+  readonly count: number;
+}
+
+export interface PingReply {
+  readonly rttMs: number;
+  readonly health: SessionHealthView | null;
 }
 
 const DRIVER_STOP_ID = 0;
@@ -59,6 +76,7 @@ export class SessionClient {
   onFrames: ((frames: readonly ViewFrame[]) => void) | null = null;
   onWelcome: (() => void) | null = null;
   onReceive: ((frames: readonly ViewFrame[]) => void) | null = null;
+  onReply: ((label: string, ms: number) => void) | null = null;
   rules: RulePackIdentityView | null = null;
   lastCommand: CommandEnvelope | null = null;
   lastReply: CommandReply | null = null;
@@ -211,11 +229,16 @@ export class SessionClient {
     this.#socket.send(JSON.stringify(message));
   }
 
-  #request(message: ClientMessage & { id: number }): Promise<ServerMessage> {
+  #request(message: ClientMessage & { id: number }, label: string): Promise<ServerMessage> {
     return new Promise((resolve, reject) => {
-      this.#pending.set(message.id, { resolve, reject });
+      this.#pending.set(message.id, { resolve, reject, label, sentAt: performance.now() });
       this.#send(message);
     });
+  }
+
+  openRequests(now = performance.now()): OpenRequests | null {
+    const oldest = this.#pending.values().next().value;
+    return oldest ? { oldest: oldest.label, ageMs: now - oldest.sentAt, count: this.#pending.size } : null;
   }
 
   #receive(m: ServerMessage): void {
@@ -242,10 +265,12 @@ export class SessionClient {
         break;
       case 'result':
       case 'answer':
+      case 'pong':
       case 'stopped': {
         if (m.t === 'stopped' && m.id === DRIVER_STOP_ID) this.driver = { mode: 'manual' };
         const p = this.#pending.get(m.id);
         this.#pending.delete(m.id);
+        if (p) this.onReply?.(p.label, performance.now() - p.sentAt);
         p?.resolve(m);
         break;
       }
@@ -281,33 +306,33 @@ export class SessionClient {
   }
 
   async command(cmd: CommandEnvelope): Promise<CommandReply> {
-    const reply = this.#reply(await this.#request({ t: 'cmd', id: this.#nextId++, cmd }));
+    const reply = this.#reply(await this.#request({ t: 'cmd', id: this.#nextId++, cmd }, cmd.type));
     this.lastCommand = cmd;
     this.lastReply = reply;
     return reply;
   }
 
   async query(q: CommandEnvelope): Promise<QueryReply> {
-    const m = await this.#request({ t: 'query', id: this.#nextId++, q });
+    const m = await this.#request({ t: 'query', id: this.#nextId++, q }, `${q.type}?`);
     if (m.t !== 'answer') return { ok: false, reason: 'unexpected reply', tick: -1 };
     return { ok: m.ok, tick: m.tick, ...(m.reason ? { reason: m.reason } : {}), ...(m.data !== undefined ? { data: m.data } : {}) };
   }
 
   async advance(until: StopCondition): Promise<SessionStopReport | null> {
-    const m = await this.#request({ t: 'advance', id: this.#nextId++, until });
+    const m = await this.#request({ t: 'advance', id: this.#nextId++, until }, 'advance');
     return m.t === 'stopped' ? m.report : null;
   }
 
   async save(request: { readonly name?: string; readonly description?: string } = {}): Promise<CommandReply> {
-    return this.#reply(await this.#request({ t: 'save', id: this.#nextId++, ...request }));
+    return this.#reply(await this.#request({ t: 'save', id: this.#nextId++, ...request }, 'save'));
   }
 
   async load(name: string, reseed?: boolean): Promise<CommandReply> {
-    return this.#reply(await this.#request({ t: 'load', id: this.#nextId++, name, ...(reseed !== undefined ? { reseed } : {}) }));
+    return this.#reply(await this.#request({ t: 'load', id: this.#nextId++, name, ...(reseed !== undefined ? { reseed } : {}) }, 'load'));
   }
 
   async closeSession(): Promise<CommandReply> {
-    return this.#reply(await this.#request({ t: 'closeSession', id: this.#nextId++ }));
+    return this.#reply(await this.#request({ t: 'closeSession', id: this.#nextId++ }, 'closeSession'));
   }
 
   #reply(m: ServerMessage): CommandReply {
@@ -317,7 +342,13 @@ export class SessionClient {
 
   async drive(driver: DriverMode): Promise<void> {
     this.driver = driver;
-    await this.#request({ t: 'drive', id: this.#nextId++, driver });
+    await this.#request({ t: 'drive', id: this.#nextId++, driver }, 'drive');
+  }
+
+  async ping(): Promise<PingReply> {
+    const sentAt = performance.now();
+    const m = await this.#request({ t: 'ping', id: this.#nextId++ }, 'ping');
+    return { rttMs: performance.now() - sentAt, health: m.t === 'pong' ? (m.health ?? null) : null };
   }
 
   close(): void {

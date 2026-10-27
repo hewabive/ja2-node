@@ -65,6 +65,38 @@ describe('the ui runtime', () => {
     expect(t.runtime.cursorReport().visible).toBe(false);
   });
 
+  it('toggles the diagnostics overlay with Ctrl+F before the screens see the key and draws it under the cursor', () => {
+    const keys: string[] = [];
+    t.runtime.host.push({
+      ...contentScreen(false),
+      input: (event) => {
+        if (event.kind === 'keyDown') keys.push(event.key);
+        return true;
+      },
+    });
+    t.move(300, 300);
+    const ctrlF = { kind: 'keyDown', key: 'f', code: 'KeyF', modifiers: KeyModifier.CTRL } as const;
+    expect(t.runtime.input(ctrlF)).toBe(true);
+    expect(t.runtime.diagnostics.enabled).toBe(true);
+    t.runtime.diagnostics.show([
+      { text: '60 FPS', alarm: false },
+      { text: 'playback lag 8000 ms', alarm: true },
+    ]);
+    t.frame();
+    const runs = t.list.items.filter((i) => i.kind === 'glyphs');
+    expect(runs.map((r) => ({ x: r.glyphs[0]?.x, y: r.glyphs[0]?.y, foreground: r.foreground }))).toEqual([
+      { x: 11, y: 23, foreground: 208 },
+      { x: 11, y: 35, foreground: 162 },
+    ]);
+    expect(t.list.items.at(-2)).toMatchObject({ kind: 'image', asset: 'cursors/cursor.sti' });
+    t.runtime.input({ kind: 'keyDown', key: 'f', code: 'KeyF', modifiers: 0 });
+    t.runtime.input(ctrlF);
+    expect(t.runtime.diagnostics.enabled).toBe(false);
+    t.frame();
+    expect(t.list.items.some((i) => i.kind === 'glyphs')).toBe(false);
+    expect(keys).toEqual(['f']);
+  });
+
   it('keeps the held keys and modifiers for polling', () => {
     t.runtime.input({ kind: 'keyDown', key: 'Shift', code: 'ShiftLeft', modifiers: KeyModifier.SHIFT });
     t.runtime.input({ kind: 'keyDown', key: 'a', code: 'KeyA', modifiers: KeyModifier.SHIFT });

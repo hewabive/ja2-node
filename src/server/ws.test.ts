@@ -100,4 +100,27 @@ describe('websocket transport', () => {
     expect(await until(inbox, (m) => m.t === 'error')).toMatchObject({ message: 'malformed message' });
     ws.close();
   });
+
+  it('answers a ping with the session health outside the command order, without a log entry', async () => {
+    const host = sessions.get('sandbox') as InProcessHost;
+    const { ws, inbox } = await open(`?token=${token}`);
+    ws.send(JSON.stringify({ t: 'hello' }));
+    await until(inbox, (m) => m.t === 'welcome');
+    ws.send(JSON.stringify({ t: 'cmd', id: 9, cmd: { type: 'run', until: 40 } }));
+    await until(inbox, (m) => m.t === 'result');
+    const logged = host.session.log.full().entries.length;
+    ws.send(JSON.stringify({ t: 'ping', id: 10 }));
+    expect(await until(inbox, (m) => m.t === 'pong')).toEqual({
+      t: 'pong',
+      id: 10,
+      health: {
+        tick: host.session.sim.tick,
+        pending: 0,
+        last: { label: 'run', waitedMs: expect.any(Number), ranMs: expect.any(Number), ticks: 0 },
+        loopDelayMs: expect.any(Number),
+      },
+    });
+    expect(host.session.log.full().entries.length).toBe(logged);
+    ws.close();
+  });
 });

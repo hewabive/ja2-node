@@ -89,7 +89,7 @@ function answerOf(id: number, a: QueryAnswer): ServerMessage {
 function reply(
   options: WebSocketOptions,
   host: SessionHost,
-  message: Exclude<ClientMessage, { t: 'hello' } | { t: 'query' }>,
+  message: Exclude<ClientMessage, { t: 'hello' } | { t: 'query' } | { t: 'ping' }>,
 ): Promise<Reply> {
   switch (message.t) {
     case 'closeSession':
@@ -136,6 +136,14 @@ function serve(ws: WebSocket, options: WebSocketOptions): void {
       return;
     }
     if (!host) return send({ t: 'error', message: 'say hello first' });
+    if (message.t === 'ping') {
+      const id = message.id;
+      host.health().then(
+        (health) => send({ t: 'pong', id, health }),
+        () => send({ t: 'pong', id }),
+      );
+      return;
+    }
     if (message.t === 'query') {
       const id = message.id;
       host.query(message.q).then(

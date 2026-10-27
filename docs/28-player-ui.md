@@ -1147,6 +1147,7 @@ shipped `game.json` (D1), so its additions belong in.
 | Alt+F, Alt+R, Alt+- | tracking mode, reload, music volume −20 | client, `reload`, client |
 | Alt+S, Alt+L, Ctrl+S, Ctrl+L, Alt+X | quick save, quick load, save screen, load screen, exit prompt | §4 |
 | Ctrl+Q, Ctrl+Shift+R, Ctrl+N | swap hands, squad reload, squad head gear day/night (Stracciatella) | `swapHands`, `reload` per merc, **`swapHeadGear`** or deferred |
+| Ctrl+F (every screen) | Stracciatella's FPS overlay (`FPS.cc`) | client; adds network, playback, server and read lines (`docs/04` §6.36) |
 
 Menu modes swallow keys (Esc closes the exit, pickup, movement, door and talk menus); the first key press dismisses a
 feedback popup; any key up unpauses a player pause and advances key-advance speech.

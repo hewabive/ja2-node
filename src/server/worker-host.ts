@@ -1,9 +1,10 @@
 import { Worker } from 'node:worker_threads';
 import type { ProfileFaceRecord } from '../content/narrative/profile-presentation.ts';
-import type { CommandEnvelope, DriverMode, ServerMessage, SessionAdvanceReport } from '../protocol/messages.ts';
+import type { CommandEnvelope, DriverMode, ServerMessage, SessionAdvanceReport, SessionHealthView } from '../protocol/messages.ts';
 import type { StopCondition } from '../sim/advance.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { LogSegment } from './input-log.ts';
+import { threadLoopDelay } from './loop-delay.ts';
 import type { QueryAnswer } from './query.ts';
 import { SaveFileError } from './save-file.ts';
 import { type LoadOutcome, type LoadProblem, SaveLoadError, type SaveOutcome, type SaveRequest } from './save-service.ts';
@@ -40,6 +41,7 @@ export const HOST_CALLS = [
   'snapshot',
   'inputLog',
   'profiles',
+  'health',
   'close',
 ] as const;
 
@@ -242,6 +244,11 @@ export class WorkerHost implements SessionHost {
 
   profiles(): Promise<readonly ProfileFaceRecord[]> {
     return this.#call('profiles');
+  }
+
+  async health(): Promise<SessionHealthView> {
+    const worker = await this.#call<SessionHealthView>('health');
+    return { ...worker, loopDelayMs: Math.max(worker.loopDelayMs, threadLoopDelay().takeMaxMs()) };
   }
 
   close(): Promise<void> {
