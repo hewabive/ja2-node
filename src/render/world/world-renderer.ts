@@ -43,7 +43,7 @@ import {
   type StaticState,
   type StaticWorld,
 } from './static-scene.ts';
-import { applyTileChanges, type TileChange, tileChangesKey } from './tile-changes.ts';
+import { applyBloodPools, applyTileChanges, type BloodPool, bloodPoolsKey, type TileChange, tileChangesKey } from './tile-changes.ts';
 import { type WorldCapture, WorldFramebuffer } from './world-framebuffer.ts';
 import { InstanceStream, ShadeTexture, WorldProgram } from './world-program.ts';
 import { type TileSurfacePicture, WorldSprites } from './world-sprites.ts';
@@ -102,6 +102,7 @@ export interface WorldFrameInput {
   readonly aniTiles?: readonly SceneAniTile[];
   readonly structNodes?: readonly StructNode[];
   readonly tileChanges?: readonly TileChange[];
+  readonly bloodPools?: readonly BloodPool[];
 }
 
 export interface WorldDrawStats {
@@ -138,6 +139,7 @@ interface LoadedScene {
   dynamic: DynamicScene;
   tileChanges: string;
   changes: readonly TileChange[];
+  pools: readonly BloodPool[];
   reveal: RevealState;
   revealedRooms: ReadonlySet<number>;
   uploaded: boolean;
@@ -217,6 +219,7 @@ export class WorldRenderer {
       dynamic: new DynamicScene(staticWorld, world.prepared),
       tileChanges: '',
       changes: [],
+      pools: [],
       reveal,
       revealedRooms: new Set(),
       uploaded: false,
@@ -237,19 +240,20 @@ export class WorldRenderer {
     };
   }
 
-  #syncTileChanges(s: LoadedScene, changes: readonly TileChange[]): void {
-    const key = tileChangesKey(changes);
+  #syncTileChanges(s: LoadedScene, changes: readonly TileChange[], pools: readonly BloodPool[]): void {
+    const key = pools.length > 0 ? `${tileChangesKey(changes)}|${bloodPoolsKey(pools)}` : tileChangesKey(changes);
     if (key === s.tileChanges) return;
     const started = performance.now();
     const both = [...s.changes, ...changes];
-    const touched = new Set(both.map((c) => c.gridNo));
-    const level = applyTileChanges(s.original.level, changes);
+    const touched = new Set([...both, ...s.pools, ...pools].map((c) => c.gridNo));
+    const level = applyBloodPools(applyTileChanges(s.original.level, changes), s.original.tables, pools);
     const prepared = updateLevelRenderData(s.world.prepared, level, s.original.tiles, s.original.tables, touched);
     const world: RenderWorld = { ...s.original, level, prepared };
     const previousReveal = s.reveal;
     s.world = world;
     s.tileChanges = key;
     s.changes = changes;
+    s.pools = pools;
     s.staticWorld = this.#staticWorld(world, s.sprites);
     s.reveal = computeReveal(this.#revealWorld(world), s.revealedRooms);
     const rows = new Set([...touched].map(rowOf));
@@ -307,7 +311,7 @@ export class WorldRenderer {
       this.#stats = NO_STATS;
       return NO_STATS;
     }
-    this.#syncTileChanges(s, f.tileChanges ?? []);
+    this.#syncTileChanges(s, f.tileChanges ?? [], f.bloodPools ?? []);
     this.#syncStatic(s, f);
     const assembled = s.scene.assemble();
     if (!s.uploaded) {

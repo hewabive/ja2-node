@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/SaveLoadGame.cc LoadSavedGame (tactical part), LoadOppListInfoFromSavedGame; Tactical/Tactical_Save.cc
 // @src LoadCurrentSectorsInformationFromTempItemsFile, LoadAndAddWorldItemsFromTempFile, LoadRottingCorpsesFromTempCorpseFile;
-// @src TileEngine/SaveLoadMap.cc LoadAllMapChangesFromMapTempFileAndApplyThem, SetOpenableStructStatusFromMapTempFile;
+// @src TileEngine/SaveLoadMap.cc LoadAllMapChangesFromMapTempFileAndApplyThem, SetOpenableStructStatusFromMapTempFile,
+// @src AddBloodOrSmellFromMapTempFileToMap;
 // @src Tactical/Keys.cc LoadDoorStatusArrayFromDoorStatusTempFile, SynchronizeDoorStatusToStructureData;
 // @src Tactical/Soldier_Add.cc AddSoldierToSectorGridNo (loading branch); TileEngine/WorldDef.cc LoadMapLights (light time
 // @src from the saved clock); Strategic/Scheduling.cc LoadSchedulesFromSave; Tactical/Soldier_Add.cc InternalAddSoldierToSector
@@ -28,6 +29,7 @@ import { lightSetBaseLevel, loadMapLights } from './lighting/lighting.ts';
 import { setSoldierPosition } from './movement.ts';
 import { loadSavedSchedules } from './narrative/schedule-state.ts';
 import { progressFromProfile } from './profiles.ts';
+import { restoreBloodGraphics } from './smell.ts';
 import {
   createSoldier,
   NO_PENDING_ANIMATION,
@@ -189,6 +191,7 @@ function applyMapModifications(t: TacticalState, save: SaveGame): number {
 function restoreBloodAndSmell(t: TacticalState, gridNo: number, blood: number, smell: number): void {
   if (gridNo < 0 || gridNo >= WORLD_MAX) return;
   t.smell.blood[gridNo] = u8(blood);
+  restoreBloodGraphics(t, gridNo);
   t.smell.smell[gridNo] = u8(smell);
 }
 

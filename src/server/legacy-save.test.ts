@@ -28,6 +28,8 @@ const SURFACES_ADDED_AFTER_070 = new Set([
   'watermiss.sprite.json',
   'ripple.sprite.json',
   'glassshatter.sprite.json',
+  'blood.sprite.json',
+  'creatureblood.sprite.json',
 ]);
 const SCRIPTS_ADDED_AFTER_070 = [
   'THROW_KNIFE',

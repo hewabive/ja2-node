@@ -2,11 +2,13 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Structure.cc InternalSwapStructureForPartner (the node keeps its place, its index moves by
 // @src the partner delta); SaveLoadMap.cc LoadAllMapChangesFromMapTempFileAndApplyThem (RemoveStruct, AddStructToHead,
-// @src AddOnRoofToHead); End_Game.cc ChangeO3SectorStatue. See docs/28 §12.1 G8.
+// @src AddOnRoofToHead); End_Game.cc ChangeO3SectorStatue; Smell.cc UpdateBloodGraphics (the pool graphic replacing the
+// @src tile's first blood object at the head of its object layer). See docs/28 §12.1 G8.
 
 import type { LayerName } from '../../content/formats/map.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { type Level, type LevelLayer, levelTilesAt } from '../../content/world/level.ts';
+import { type TileTables, tileIndexFromTypeSubIndex, tileTypeOf, typeIndex } from '../../content/world/tile-tables.ts';
 
 export interface TileChange {
   readonly kind: 'remove' | 'add';
@@ -15,7 +17,20 @@ export interface TileChange {
   readonly tile: number;
 }
 
+export interface BloodPool {
+  readonly gridNo: number;
+  readonly strength: number;
+  readonly creature?: boolean;
+}
+
 type StructureLayer = Extract<LayerName, 'structs' | 'onRoof'>;
+
+const POOL_VARIANTS = 4;
+const POOL_SIZES = 4;
+const SMALLEST_POOL_FRAME = POOL_SIZES - 1;
+const STRENGTH_PER_POOL_SIZE = 2;
+const VARIANT_HASH = 0x9e3779b1;
+const VARIANT_SHIFT = 32 - Math.log2(POOL_VARIANTS);
 
 const LAYER_OF_LEVEL: readonly StructureLayer[] = ['structs', 'onRoof'];
 
@@ -107,4 +122,36 @@ export function applyTileChanges(level: Level, changes: readonly TileChange[]): 
 
 export function tileChangesKey(changes: readonly TileChange[]): string {
   return changes.map((c) => `${c.kind[0]}${c.gridNo}.${c.level}.${c.tile}`).join(',');
+}
+
+function poolVariant(pool: BloodPool): number {
+  return Math.imul(pool.gridNo * POOL_SIZES * STRENGTH_PER_POOL_SIZE + pool.strength, VARIANT_HASH) >>> VARIANT_SHIFT;
+}
+
+function poolTile(tables: TileTables, pool: BloodPool): number {
+  const type = typeIndex(tables, pool.creature ? 'CREATUREBLOOD' : 'HUMANBLOOD');
+  const frame = poolVariant(pool) * POOL_SIZES + SMALLEST_POOL_FRAME - Math.trunc(pool.strength / STRENGTH_PER_POOL_SIZE);
+  return tileIndexFromTypeSubIndex(tables, type, frame + 1);
+}
+
+export function applyBloodPools(level: Level, tables: TileTables, pools: readonly BloodPool[]): Level {
+  if (pools.length === 0) return level;
+  const human = typeIndex(tables, 'HUMANBLOOD');
+  const creature = typeIndex(tables, 'CREATUREBLOOD');
+  const isPool = (tile: number) => {
+    const type = tileTypeOf(tables, tile);
+    return type >= human && type <= creature;
+  };
+  const objects = new LayerEdit(level.layers.objects);
+  for (const pool of pools) {
+    const list = objects.at(pool.gridNo);
+    const old = list.findIndex(isPool);
+    if (old >= 0) list.splice(old, 1);
+    if (pool.strength > 0) list.unshift(poolTile(tables, pool));
+  }
+  return { ...level, layers: { ...level.layers, objects: objects.build() } };
+}
+
+export function bloodPoolsKey(pools: readonly BloodPool[]): string {
+  return pools.map((p) => `${p.gridNo}.${p.strength}${p.creature ? 'c' : ''}`).join(',');
 }

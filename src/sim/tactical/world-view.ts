@@ -5,7 +5,8 @@
 // @src (dynamic sprites); Structure.cc InternalSwapStructureForPartner, SaveLoadMap.cc (tile changes); Bullets.cc
 // @src UpdateBullets (where a bullet tile is drawn), HandleBulletSpecialFlags (the knife's tile, its direction and the
 // @src tile it hangs on); Physics.cc PhysicsMoveObject (a thrown object's tile at its position, raised by the land
-// @src height under it; none for an armed mortar shell). See docs/28 §12.1 G8.
+// @src height under it; none for an armed mortar shell); Smell.cc UpdateBloodGraphics (the pool a tile shows). See
+// @src docs/28 §12.1 G8.
 
 import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
 import { i16 } from '../../core/int.ts';
@@ -15,6 +16,7 @@ import { ANY_SMOKE, SmokeTile, smokeEffectIdFromFlags } from './explosions/smoke
 import type { RealObject } from './explosions/state.ts';
 import { type LightSprite, LightSpriteFlags } from './lighting/lighting.ts';
 import { type MapChange, MapChangeKind, mapChangeTile } from './map-changes.ts';
+import { shownBloodPools } from './smell.ts';
 import type { Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
@@ -38,6 +40,12 @@ export interface SmokeTileView {
 }
 
 export type { KnowledgeLight as WorldLightView, KnowledgeLightSprite as LightSpriteView } from '../knowledge/view.ts';
+
+export interface BloodPoolView {
+  readonly gridNo: number;
+  readonly strength: number;
+  readonly creature?: boolean;
+}
 
 export type TileChangeKind = 'remove' | 'add';
 
@@ -120,6 +128,10 @@ function tileChangeKind(c: MapChange): TileChangeKind | null {
   if (c.kind === MapChangeKind.REMOVE) return 'remove';
   if (c.kind === MapChangeKind.ADD) return 'add';
   return null;
+}
+
+export function bloodViews(t: TacticalState): BloodPoolView[] {
+  return shownBloodPools(t.smell).map((p) => ({ gridNo: p.gridNo, strength: p.strength, ...(p.creature ? { creature: true } : {}) }));
 }
 
 export function tileChangeViews(t: TacticalState): TileChangeView[] {

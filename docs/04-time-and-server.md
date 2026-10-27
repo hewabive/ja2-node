@@ -1490,6 +1490,16 @@ when it changes.
   explosion's (`AddWindowHitToMapTempFile`), so a broken window stays broken when the sector loads again.
 - Ground items add `height` (`bRenderZHeightAboveLevel`, when lying on a structure) and `notRendered`
   (`WORLD_ITEM_DONTRENDER`, items inside an open container).
+- `blood [{gridNo, strength, creature?}]`: the blood pools on the ground as the squad last saw them (2026-10-27).
+  `UpdateBloodGraphics` keeps one pool graphic per tile in the object layer and replaces it only when the tile's blood
+  was changed (`MAPELEMENT_REEVALUATEBLOOD`: a drop, a decay step, a corpse wiping it) and then either dropped by a
+  visible soldier or seen by a merc of ours (`RevealRoofsAndItems` on every tile it reveals); the simulation keeps
+  those two per-tile states (`reevaluateBlood`, `shownPools` of the smell map). `strength` is the floor strength 1–7
+  (the graphic is one of four sizes, `3 − strength/2`), `creature` the creature blood type, and `strength: 0` a tile
+  whose pool the squad saw go, where the browser takes away the blood object the map itself placed. Roofs show none
+  (the original draws no roof blood, and a roof merc's look clears the tile's flag without redrawing the ground).
+  Nothing shows with blood and gore off. The browser puts the pool graphic at the head of the tile's objects and picks
+  one of the four variants from the tile and the strength (deviation "Cosmetic draws in attacks").
 - `light` is the one light block of §6.26: every active light sprite with `dynamic: true` on the muzzle flashes,
   explosions and flares; the renderer draws the map's own lights from the map and adds only the dynamic ones, the hints
   read them all.
@@ -1767,7 +1777,8 @@ snapshot version 6 adds it with 0 to older snapshots. Snapshot version 7 adds `t
 again that he heard something) with 0 to older snapshots. Snapshot version 8 adds `pummeledQuoteSaid` and `closeCallQuoteSaid`
 (`SOLDIER_QUOTE_SAID_BEING_PUMMELED`, `SOLDIER_QUOTE_SAID_EXT_CLOSE_CALL`: the heavy-fire or beating quote and the close
 call quote said this turn) with false to older snapshots. Snapshot version 9 puts out every `muzzleFlash` of older
-snapshots: they never ended a flash in turn-based combat, and the flag now counts in `DistanceVisible`.
+snapshots: they never ended a flash in turn-based combat, and the flag now counts in `DistanceVisible`. Snapshot version 10
+adds the blood graphics of the smell map: no pool shown yet and every tile with blood waiting to be seen.
 
 **Insurance cards**: the offers add `nickname`, `dead` (`IsMercDead`) and `contractLength` (`iTotalContractLength`); the
 view adds `aimMercsOnTeam` (which of the two "nobody to insure" texts the contract page shows). The card's face is the

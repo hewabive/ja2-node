@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/FOV.cc RevealRoofsAndItems, BuildSightDir, ViewPath, ViewPath2; TileEngine/Structure.cc
+// @src src/game/Tactical/FOV.cc RevealRoofsAndItems (with UpdateBloodGraphics), BuildSightDir, ViewPath, ViewPath2; TileEngine/Structure.cc
 // @src GetBlockingStructureInfo, GetTallestStructureHeight; TileEngine/Render_Fun.cc InAHiddenRoom, RemoveRoomRoof.
 // See docs/08 §5.
 
@@ -16,6 +16,7 @@ import {
 } from '../../../content/world/structures.ts';
 import { adjustMaxSightRangeForEnvEffects, lightTrueLevel } from '../lighting/lighting.ts';
 import { doorTravelCost } from '../points.ts';
+import { updateBloodGraphics } from '../smell.ts';
 import { OKLIFE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { setItemsVisibilityOn, Visibility } from '../world-items.ts';
@@ -266,6 +267,7 @@ export function revealRoofsAndItems(t: TacticalState, s: Soldier, showLocators: 
           const room = t.world.level.rooms[marker] ?? NO_ROOM;
           if (room !== NO_ROOM && fog.roomHidden[room]) removeRoomRoof(t, room);
         } else fog.revealed[marker] = (fog.revealed[marker] ?? 0) | RevealedFlags.ROOF;
+        updateBloodGraphics(t, marker, level);
         if (!PASS_THROUGH_BLOCKING.has(blocking)) break;
       } else if (travelCostObstacle) break;
     }

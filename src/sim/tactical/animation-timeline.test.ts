@@ -11,6 +11,7 @@ const VILLAGE = 'stubs/world/maps/village.dat';
 const FIRST_SOUND_RANGE_CODE = 700;
 const LAST_SOUND_RANGE_CODE = 799;
 const SLOW_MS = 60_000;
+const SIMULATION_CODES_IN_SOUND_RANGE = 7;
 
 let kit: StubSectorKit;
 
@@ -37,7 +38,7 @@ describe('the opcodes the logic timeline leaves out', () => {
         expect(state()).toBe(before);
         dropped.push(code);
       }
-      expect(dropped).toHaveLength(LAST_SOUND_RANGE_CODE - FIRST_SOUND_RANGE_CODE + 1 - 6);
+      expect(dropped).toHaveLength(LAST_SOUND_RANGE_CODE - FIRST_SOUND_RANGE_CODE + 1 - SIMULATION_CODES_IN_SOUND_RANGE);
     },
     SLOW_MS,
   );

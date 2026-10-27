@@ -189,7 +189,9 @@ Order, as in `LoadCurrentSectorsInformationFromTempItemsFile` and `LoadSavedGame
    `WORLD_ITEM_GRIDNO_NOT_SET_USE_ENTRY_POINT` goes to the centre entry point).
 3. Rotting corpses add their corpse structures.
 4. Map modifications: `SLM_OPENABLE_STRUCT` swaps openable structures to the saved state and shows or hides the items
-   inside; blood and smell records are cosmetic and ignored; any other record type is counted in
+   inside; blood and smell records fill the smell map and, with blood and gore on, redraw the tile's pool at once
+   (`AddBloodOrSmellFromMapTempFileToMap` reads the blood type before the record's smell byte is set, so a creature
+   pool comes back as human blood, as in the original); any other record type is counted in
    `skippedMapModifications` (none occur in the tested saves).
 5. Door status: perceived open state, then `SynchronizeDoorStatusToStructureData` swaps door structures whose
    `DOOR_OPEN` bit disagrees. Then the whole movement cost table is recompiled (`InitLoadedWorld`).

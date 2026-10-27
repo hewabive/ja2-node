@@ -1,10 +1,11 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Soldier_Ani.cc opcodes 433, 437, 440, 447, 465, 472, 478, 480, 496, 497,
+// @src src/game/Tactical/Soldier_Ani.cc opcodes 433, 437, 440, 447, 465, 472, 478, 480, 496, 497, 765,
 // @src CheckForAndHandleSoldierIncompacitated, CheckForAndHandleSoldierDyingNotFromHit, HandleSoldierDeath,
 // @src CheckForAndHandleSoldierDeath, HandleCheckForDeathCommonCode; Soldier_Control.cc BeginSoldierGetup (with the boxer's
 // @src knock-out); Overhead.cc HandleNPCTeamMemberDeath (with BeginHandleQueenBitchDeath); OppList.cc CheckForAlertWhenEnemyDies;
-// @src Rotting_Corpses.cc TurnSoldierIntoCorpse, ReduceAmmoDroppedByNonPlayerSoldiers. See docs/11 §5.
+// @src Rotting_Corpses.cc TurnSoldierIntoCorpse, ReduceAmmoDroppedByNonPlayerSoldiers, AddRottingCorpse (blood under the
+// @src corpse). See docs/11 §5.
 
 import { corpseFileBase, corpseStructIndex, corpseTypeFor, NO_CORPSE } from '../../../content/anim/corpses.ts';
 import type { OpOutcome } from '../../../content/anim/script.ts';
@@ -38,6 +39,7 @@ import { distanceVisible, handleSight, removeManAsTarget, verifyPublicOpplistDue
 import { removeMercStructure } from '../person-structure.ts';
 import { MercStatus, profileProgress, StatKind } from '../profiles.ts';
 import { checkSoldierHitRoof } from '../roofs.ts';
+import { BloodKind, DROPPED_IN_SIGHT, internalDropBlood, MAX_BLOOD_QUANTITY, removeBlood } from '../smell.ts';
 import { AlertStatus, Body, NO_PROFILE, OKBREATH, OKLIFE, type Soldier, shownToPlayer, Team } from '../soldier.ts';
 import { removeOccupant, type TacticalState, unregisterSoldier } from '../state.ts';
 import { betweenTurnsVisibilityAdjustments, checkForEndOfBattle } from '../turns/turns.ts';
@@ -322,7 +324,9 @@ export function addCorpseStructure(t: TacticalState, g: number, level: number, t
   const corpses = t.content.corpses;
   const file = corpses.structures.get(corpseFileBase(corpses.table, type, t.options.bloodAndGore));
   const def = file?.structures[corpseStructIndex(corpses.table, type, direction)];
-  if (def) t.world.structures.add(g, level, def);
+  if (!def) return;
+  t.world.structures.add(g, level, def);
+  for (const tile of def.tiles) removeBlood(t, g + tile.posRelToBase, level);
 }
 
 export function handleSoldierDeath(t: TacticalState, s: Soldier): { buddyJustDead: boolean; madeCorpse: boolean } {
@@ -501,6 +505,12 @@ function deathOrRelease(t: TacticalState, s: Soldier): OpOutcome {
   return 'stop';
 }
 
+function dropFlybackBlood(t: TacticalState, s: Soldier): void {
+  internalDropBlood(t, s.gridNo, s.level, BloodKind.HUMAN, MAX_BLOOD_QUANTITY, DROPPED_IN_SIGHT);
+  const behind = newGridNo(s.gridNo, DIRECTION_INCREMENT[(s.direction + 4) % 8] ?? 0);
+  internalDropBlood(t, behind, s.level, BloodKind.HUMAN, MAX_BLOOD_QUANTITY, DROPPED_IN_SIGHT);
+}
+
 export function deathOpcode(t: TacticalState, s: Soldier, code: number): OpOutcome | null {
   switch (code) {
     case 433:
@@ -523,6 +533,9 @@ export function deathOpcode(t: TacticalState, s: Soldier, code: number): OpOutco
       return backToAim(t, s);
     case 478:
       decideTurnFromHit(t, s);
+      return 'continue';
+    case 765:
+      dropFlybackBlood(t, s);
       return 'continue';
     case 480:
       releaseSoldiersAttacker(t, s);

@@ -3,6 +3,7 @@ import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/secto
 import { type PresentationTimeline, spriteFrameAt } from '../content/anim/timelines.ts';
 import type { EncodedGraph, Json } from '../sim/snapshot/codec.ts';
 import { migrateSnapshot, type SimSnapshot, snapshotJson } from '../sim/snapshot/session.ts';
+import { BloodKind, internalDropBlood } from '../sim/tactical/smell.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import { createSandboxSession } from './sandbox.ts';
 import type { SessionSim } from './session.ts';
@@ -206,6 +207,51 @@ describe('snapshot version 4 (no new-mail flag) migrates with the flag down', ()
       const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
       expect(restored.view().laptop?.newMail).toBe(false);
       expect(restored.view()).toEqual(campaign.view());
+    },
+    SCENARIO_TIMEOUT_MS,
+  );
+});
+
+function versionNine(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => {
+    if (name !== 'tactical') return [name, value];
+    const tactical = object(value);
+    const { reevaluateBlood, shownPools, ...smell } = object(tactical.smell);
+    expect(reevaluateBlood).toBeDefined();
+    expect(shownPools).toBeDefined();
+    return [name, { ...tactical, smell }];
+  });
+  return { ...snapshot, version: 9, graph: { ...snapshot.graph, sections } };
+}
+
+describe('snapshot version 9 (no blood graphics) migrates with every pool waiting to be seen', () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+  const POOL_AT = 12_000;
+  const POOL_STRENGTH = 5;
+  const UNSEEN = -1;
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it(
+    'a sandbox with blood nobody saw restores the same blood map and shows no pool yet',
+    async () => {
+      const sandbox = await createSandboxSession(kit.read, false, 5);
+      const t = sandbox.sim.state;
+      internalDropBlood(t, POOL_AT, 0, BloodKind.HUMAN, POOL_STRENGTH, UNSEEN);
+      const current = snapshotSession(sandbox);
+      const legacy = versionNine(current.sim);
+      expect(JSON.stringify(legacy)).not.toContain('"shownPools"');
+      expect(migrateSnapshot(JSON.parse(JSON.stringify(legacy)))).toEqual(JSON.parse(JSON.stringify(current.sim)));
+      const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
+      expect(restored.view().blood).toEqual([]);
+      expect(restored.view()).toEqual(sandbox.view());
     },
     SCENARIO_TIMEOUT_MS,
   );

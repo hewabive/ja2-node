@@ -1,4 +1,5 @@
 import { gameOptions, ORIGINAL_GAME_OPTIONS } from '../options.ts';
+import { decodeBase64, encodeBase64 } from './base64.ts';
 import { type EncodedGraph, type Json, SnapshotError } from './codec.ts';
 
 type JsonObject = { readonly [key: string]: Json };
@@ -253,6 +254,40 @@ function putOutStaleMuzzleFlashes(snapshot: Readonly<Record<string, unknown>>): 
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const SMELL_MAP_KEYS = ['smell', 'blood', 'lastDecaySeconds'];
+const BYTES_TAG = '$u8';
+
+function isSmellMapRecord(o: JsonObject): boolean {
+  return Object.keys(o).length === SMELL_MAP_KEYS.length && SMELL_MAP_KEYS.every((key) => o[key] !== undefined);
+}
+
+function bytesOf(value: Json | undefined): Uint8Array {
+  const body = isObject(value) ? value[BYTES_TAG] : undefined;
+  return typeof body === 'string' ? decodeBase64(body) : new Uint8Array(0);
+}
+
+function withBloodGraphics(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withBloodGraphics(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withBloodGraphics(v);
+  if (!isSmellMapRecord(mapped)) return mapped;
+  const blood = bytesOf(mapped.blood);
+  return {
+    smell: mapped.smell as Json,
+    blood: mapped.blood as Json,
+    reevaluateBlood: { [BYTES_TAG]: encodeBase64(blood.map((b) => (b === 0 ? 0 : 1))) },
+    shownPools: { [BYTES_TAG]: encodeBase64(new Uint8Array(blood.length)) },
+    lastDecaySeconds: mapped.lastDecaySeconds as Json,
+  };
+}
+
+function addBloodGraphics(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withBloodGraphics(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -263,5 +298,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     6: addHeardNoisePause,
     7: addTurnQuoteFlags,
     8: putOutStaleMuzzleFlashes,
+    9: addBloodGraphics,
   };
 }

@@ -4,7 +4,7 @@ import { revealedRooms } from '../tactical/perception/fov.ts';
 import { shownToPlayer } from '../tactical/soldier.ts';
 import type { TacticalState } from '../tactical/state.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
-import { type BulletView, bulletViews, corpseViews, smokeViews, tileChangeViews } from '../tactical/world-view.ts';
+import { type BulletView, bloodViews, bulletViews, corpseViews, smokeViews, tileChangeViews } from '../tactical/world-view.ts';
 
 const NO_PRESENTATION: PresentationTimeline = { frames: new Int16Array(0), sounds: new Uint16Array(0) };
 
@@ -26,6 +26,7 @@ export function tacticalViewParts(sim: TacticalSim, presentation: PresentationTi
     corpses: corpseViews(sim.state),
     smoke: smokeViews(sim.state),
     tileChanges: tileChangeViews(sim.state),
+    blood: bloodViews(sim.state),
   };
 }
 

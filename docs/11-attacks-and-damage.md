@@ -1342,7 +1342,13 @@ Our merc after the skull UI: `ReleaseSoldiersAttacker` (unless external death), 
   path. `bLifeMax` only drops through dying bleeds (above).
 - **`sDamage` window**: a presentation timer with a gameplay effect, see §4.2.
 - **Blood** (`TileEngine/Smell.cc:339-470`): a new pool draws `main.int(3)` for its decay time; drawing it (visible,
-  gore on) draws `main.int(4)`. Gameplay-relevant only through creature smell.
+  gore on) draws `main.int(4)` (the browser picks the graphic, deviation "Cosmetic draws in attacks"). Blood falls from
+  wounds and bleeding (`DropBlood`, drawn at once while the soldier is visible), on the tile behind a man a bullet
+  passes through (`BulletHitMerc`: on the ground unless the move into it is blocked, on a roof only where a roof is,
+  else on the ground) and on the tile of a man flying back and the tile behind him (opcode 765 of
+  `FLYBACK_HIT_BLOOD_STAND`); these two always drop a full pool (7) and draw it at once. A new corpse wipes the blood
+  under every tile of its structure (`AddRottingCorpse`). Gameplay-relevant only through creature smell and the decay
+  draws; the pools the player sees are `04` §6.27.
 - **Fragile items** on falls: 721 in `FALLFORWARD_FROMHIT_STAND` → `CheckEquipmentForFragileItemDamage(20)` (jars;
   `pre` per item). The 722 branch for `FALLFORWARD_FROMHIT_CROUCH` is dead (that script has no 722).
 

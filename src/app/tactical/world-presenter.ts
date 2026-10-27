@@ -456,6 +456,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
         smoke: view.smoke ?? [],
         light: view.light ?? null,
         tileChanges: view.tileChanges ?? [],
+        blood: view.blood ?? [],
       },
       hovered: this.#hovered,
       selected: this.#selected,

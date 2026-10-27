@@ -1548,7 +1548,8 @@ impact, calls, smell, scent) matches draw for draw (`tools/oracle/README.md`, "C
   −10; larvae neither see nor hear. Spit in the face blinds (`bBlindedCounter`, sight 0, opplist decays).
 - `DropSmell` on every new grid (blood blocks it), `DropBlood` from wounds (`min(life/10, 7)`) and bleeding, the
   `Random(3)` decay delay; `DecaySmells` at each TB end of round, `DecayBloodAndSmells` after more than 100 game
-  seconds in RT (compression periods: deviation "Blood and smell decay period"). Savegames restore both maps.
+  seconds in RT (compression periods: deviation "Blood and smell decay period"). Savegames restore both maps. The
+  other drops (a pass-through, the flyback, corpses wiping blood) are `11` §5.11.
 - Movement noise: bloodcats +50, `STEALTHY` +25 per trait.
 
 ### 14.5 Data quirks

@@ -7,7 +7,7 @@ import { type InventoryItemView, sameInventory } from '../sim/tactical/inventory
 import type { Stance } from '../sim/tactical/movement-mode.ts';
 import type { FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
 import type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
-import type { BulletView, CorpseView, SmokeTileView, TileChangeView, WorldLightView } from '../sim/tactical/world-view.ts';
+import type { BloodPoolView, BulletView, CorpseView, SmokeTileView, TileChangeView, WorldLightView } from '../sim/tactical/world-view.ts';
 import type { MessageEntry } from './message-log.ts';
 import { type MusicView, sameMusic } from './music.ts';
 import { sameJson } from './same-json.ts';
@@ -22,6 +22,7 @@ export type { Stance } from '../sim/tactical/movement-mode.ts';
 export type { FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
 export type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
 export type {
+  BloodPoolView,
   BulletView,
   CorpseView,
   KnifeFlight,
@@ -935,6 +936,7 @@ export interface PlayerView {
   readonly smoke?: readonly SmokeTileView[];
   readonly light?: WorldLightView | null;
   readonly tileChanges?: readonly TileChangeView[];
+  readonly blood?: readonly BloodPoolView[];
   readonly music?: MusicView;
 }
 
@@ -974,6 +976,7 @@ export interface ViewFrame {
   readonly smoke?: readonly SmokeTileView[];
   readonly light?: WorldLightView | null;
   readonly tileChanges?: readonly TileChangeView[];
+  readonly blood?: readonly BloodPoolView[];
   readonly music?: MusicView;
 }
 
@@ -1046,6 +1049,8 @@ export function diffPlayerView(previous: PlayerView, next: PlayerView): ViewFram
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), light: next.light ?? null };
   if (!sameJson(previous.tileChanges ?? [], next.tileChanges ?? []))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), tileChanges: next.tileChanges ?? [] };
+  if (!sameJson(previous.blood ?? [], next.blood ?? []))
+    frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), blood: next.blood ?? [] };
   if (!sameCombat(previous.combat, next.combat))
     frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), combat: next.combat ?? null };
   if (previous.mapPath !== next.mapPath) frame = { ...(frame ?? { tick: next.tick, changed: [], removed: [] }), mapPath: next.mapPath };

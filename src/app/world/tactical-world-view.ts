@@ -1,5 +1,6 @@
 import { levelTilesAt } from '../../content/world/level.ts';
 import type {
+  BloodPoolView,
   BulletView,
   ClockView,
   CombatView,
@@ -31,6 +32,7 @@ const SANDBOX_TIME: LightingTime = { hour: 12, minute: 0 };
 const NO_CORPSES: readonly CorpseView[] = [];
 const NO_SMOKE: readonly SmokeTileView[] = [];
 const NO_TILE_CHANGES: readonly TileChangeView[] = [];
+const NO_BLOOD: readonly BloodPoolView[] = [];
 const NO_BULLETS: readonly BulletView[] = [];
 
 export interface TacticalViewState {
@@ -46,6 +48,7 @@ export interface TacticalViewState {
   readonly smoke?: readonly SmokeTileView[];
   readonly light?: WorldLightView | null;
   readonly tileChanges?: readonly TileChangeView[];
+  readonly blood?: readonly BloodPoolView[];
 }
 
 export interface EffectOptions {
@@ -313,6 +316,7 @@ export class TacticalWorldView {
         ...this.#thrownNodes(bullets),
       ],
       tileChanges: view.tileChanges ?? NO_TILE_CHANGES,
+      bloodPools: view.blood ?? NO_BLOOD,
     });
   }
 }

@@ -258,6 +258,7 @@ function render(): void {
       smoke: client?.view?.smoke ?? [],
       light: client?.view?.light ?? null,
       tileChanges: client?.view?.tileChanges ?? [],
+      blood: client?.view?.blood ?? [],
     },
     hovered: hoveredSoldier,
     selected,

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Smell.cc DecaySmells, DecayBlood, DecayBloodAndSmells, DropSmell, InternalDropBlood, DropBlood,
-// @src RemoveBlood, SetRandomBloodDecayTime, GetBloodType, SetBloodType. See docs/13 §14.
+// @src RemoveBlood, SetRandomBloodDecayTime, GetBloodType, SetBloodType, UpdateBloodGraphics. See docs/13 §14, docs/11 §5.11.
 
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { u8 } from '../../core/int.ts';
@@ -12,6 +12,7 @@ export const BloodKind = { HUMAN: 0, CREATURE_ON_FLOOR: 1, CREATURE_ON_ROOF: 2 }
 export const SmellKind = { HUMAN: 0, CREATURE: 1 } as const;
 export const MAX_BLOOD_QUANTITY = 7;
 export const BLOOD_DIVISOR = 10;
+export const DROPPED_IN_SIGHT = 1;
 
 const SMELL_TYPE_NUM_BITS = 2;
 const SMELL_STRENGTH_MAX = 63;
@@ -28,10 +29,16 @@ const BLOOD_STRENGTH_MASK = 0xfc;
 const SMELL_MUDDY_DIVISOR = 3;
 const SMELL_COMBINE_DIVISOR = 5;
 const REALTIME_DECAY_SECONDS = 100;
+const SHOWN_POOL_PLACED = 0x80;
+const SHOWN_POOL_CREATURE = 0x08;
+const SHOWN_POOL_STRENGTH = 0x07;
+const UNSEEN = -1;
 
 export interface SmellMap {
   readonly smell: Uint8Array;
   readonly blood: Uint8Array;
+  readonly reevaluateBlood: Uint8Array;
+  readonly shownPools: Uint8Array;
   lastDecaySeconds: number;
 }
 
@@ -39,10 +46,23 @@ export interface SmellWorld {
   readonly smell: SmellMap;
   readonly rng: { int(n: number): number };
   readonly pathWorld: Parameters<typeof isWater>[0];
+  readonly options: { readonly bloodAndGore: boolean };
+}
+
+export interface ShownBloodPool {
+  readonly gridNo: number;
+  readonly strength: number;
+  readonly creature: boolean;
 }
 
 export function createSmellMap(): SmellMap {
-  return { smell: new Uint8Array(WORLD_MAX), blood: new Uint8Array(WORLD_MAX), lastDecaySeconds: 0 };
+  return {
+    smell: new Uint8Array(WORLD_MAX),
+    blood: new Uint8Array(WORLD_MAX),
+    reevaluateBlood: new Uint8Array(WORLD_MAX),
+    shownPools: new Uint8Array(WORLD_MAX),
+    lastDecaySeconds: 0,
+  };
 }
 
 export function smellType(info: number): number {
@@ -99,8 +119,41 @@ function setBloodType(m: SmellMap, g: number, level: number, kind: number): void
   m.smell[g] = u8(info);
 }
 
-export function removeBlood(m: SmellMap, g: number): void {
+export function updateBloodGraphics(w: SmellWorld, g: number, level: number): void {
+  if (!w.options.bloodAndGore) return;
+  const m = w.smell;
+  if (!m.reevaluateBlood[g]) return;
+  m.reevaluateBlood[g] = 0;
+  if (level !== 0) return;
+  const strength = bloodFloorStrength(m.blood[g] ?? 0);
+  const creature = strength > 0 && bloodType(m, g, 0) !== BloodKind.HUMAN;
+  m.shownPools[g] = SHOWN_POOL_PLACED | (creature ? SHOWN_POOL_CREATURE : 0) | strength;
+}
+
+export function shownBloodPools(m: SmellMap): ShownBloodPool[] {
+  const pools: ShownBloodPool[] = [];
+  const shown = m.shownPools;
+  for (let g = 0; g < WORLD_MAX; g++) {
+    const pool = shown[g] ?? 0;
+    if (pool & SHOWN_POOL_PLACED)
+      pools.push({ gridNo: g, strength: pool & SHOWN_POOL_STRENGTH, creature: (pool & SHOWN_POOL_CREATURE) !== 0 });
+  }
+  return pools;
+}
+
+export function removeBlood(w: SmellWorld, g: number, level: number): void {
+  const m = w.smell;
   m.blood[g] = 0;
+  m.reevaluateBlood[g] = 1;
+  updateBloodGraphics(w, g, level);
+}
+
+export function restoreBloodGraphics(w: SmellWorld, g: number): void {
+  if (!w.options.bloodAndGore) return;
+  for (const level of [0, 1]) {
+    w.smell.reevaluateBlood[g] = 1;
+    updateBloodGraphics(w, g, level);
+  }
 }
 
 export function decaySmells(m: SmellMap): void {
@@ -121,6 +174,7 @@ function decayBloodAt(w: SmellWorld, g: number): void {
     blood[g] = info;
     return;
   }
+  w.smell.reevaluateBlood[g] = 1;
   info = withFloorStrength(info, Math.max(bloodFloorStrength(info) - 1, 0));
   if (bloodFloorStrength(info) === 0 && noBloodStrength(info)) info = 0;
   info = withRoofStrength(info, Math.max(bloodRoofStrength(info) - 1, 0));
@@ -180,23 +234,32 @@ export function dropSmell(m: SmellMap, s: Pick<Soldier, 'level' | 'gridNo' | 'no
   m.smell[g] = strength > 0 ? withSmell(info, strength, kind) : 0;
 }
 
-export function internalDropBlood(w: SmellWorld, g: number, level: number, kind: number, amount: number): void {
+export function internalDropBlood(w: SmellWorld, g: number, level: number, kind: number, amount: number, visible: number): void {
   if (g === NOWHERE || isWater(w.pathWorld, g)) return;
-  const m = w.smell;
   const strength = Math.min(amount, MAX_BLOOD_QUANTITY);
+  if (level === 0) dropBloodOnFloor(w, g, kind, strength);
+  else dropBloodOnRoof(w, g, kind, strength);
+  w.smell.reevaluateBlood[g] = 1;
+  if (visible !== UNSEEN) updateBloodGraphics(w, g, level);
+}
+
+function dropBloodOnFloor(w: SmellWorld, g: number, kind: number, strength: number): void {
+  const m = w.smell;
   const info = m.blood[g] ?? 0;
-  if (level === 0) {
-    const old = bloodFloorStrength(info);
-    if (old > 0) {
-      if (bloodType(m, g, 0) === kind) m.blood[g] = withFloorStrength(info, Math.min(old + strength, MAX_BLOOD_QUANTITY));
-      else if (strength > old) m.blood[g] = withFloorStrength(info, strength);
-      return;
-    }
-    setRandomBloodDecayTime(w, g);
-    m.blood[g] = withFloorStrength(m.blood[g] ?? 0, strength);
-    setBloodType(m, g, 0, kind);
+  const old = bloodFloorStrength(info);
+  if (old > 0) {
+    if (bloodType(m, g, 0) === kind) m.blood[g] = withFloorStrength(info, Math.min(old + strength, MAX_BLOOD_QUANTITY));
+    else if (strength > old) m.blood[g] = withFloorStrength(info, strength);
     return;
   }
+  setRandomBloodDecayTime(w, g);
+  m.blood[g] = withFloorStrength(m.blood[g] ?? 0, strength);
+  setBloodType(m, g, 0, kind);
+}
+
+function dropBloodOnRoof(w: SmellWorld, g: number, kind: number, strength: number): void {
+  const m = w.smell;
+  const info = m.blood[g] ?? 0;
   const old = bloodRoofStrength(info);
   if (old > 0) {
     if (bloodType(m, g, 1) === kind) m.blood[g] = withRoofStrength(info, Math.min(Math.max(old, strength) + 1, MAX_BLOOD_QUANTITY));
@@ -210,7 +273,7 @@ export function internalDropBlood(w: SmellWorld, g: number, level: number, kind:
 
 const isMonster = (s: Pick<Soldier, 'bodyType'>) => s.bodyType >= Body.ADULTFEMALEMONSTER && s.bodyType <= Body.QUEENMONSTER;
 
-export function dropBlood(w: SmellWorld, s: Pick<Soldier, 'bodyType' | 'level' | 'gridNo'>, amount: number): void {
+export function dropBlood(w: SmellWorld, s: Pick<Soldier, 'bodyType' | 'level' | 'gridNo' | 'visible'>, amount: number): void {
   const kind = !isMonster(s) ? BloodKind.HUMAN : s.level === 0 ? BloodKind.CREATURE_ON_FLOOR : BloodKind.CREATURE_ON_ROOF;
-  internalDropBlood(w, s.gridNo, s.level, kind, amount);
+  internalDropBlood(w, s.gridNo, s.level, kind, amount, s.visible);
 }

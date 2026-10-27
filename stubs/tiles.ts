@@ -58,6 +58,9 @@ const BULLET_OFFSET_Y = 10;
 const BULLET_SHADE = 15;
 const BULLET_SHADOW_SHADE = 1;
 const MISS_FRAMES = 5;
+const BLOOD_POOL_VARIANTS = 4;
+const BLOOD_POOL_SIZES = 4;
+const BLOOD_POOL_SPLASHES = 3;
 const RIPPLE_FRAMES = 14;
 const SHATTER_SETS = 4;
 const SHATTER_FRAMES = 5;
@@ -262,6 +265,21 @@ function rocks(seed: number): StubFrame {
   return { raster: r, ox: 0, oy: 0 };
 }
 
+function bloodPool(ramp: RampName, frame: number): StubFrame {
+  const variant = Math.floor(frame / BLOOD_POOL_SIZES);
+  const growth = BLOOD_POOL_SIZES - (frame % BLOOD_POOL_SIZES);
+  const rng = Rng.fromSeed(71 + variant);
+  const r = new IndexedRaster(TILE_W, TILE_H);
+  r.ellipse(HALF_W, TILE_H / 2, 2 + growth * 3, 1 + growth * 1.5, (nx, ny) => color(ramp, 5 - Math.round(nx + ny)));
+  for (let k = 0; k < BLOOD_POOL_SPLASHES; k++)
+    r.ellipse(HALF_W - 8 + rng.int(16), 4 + rng.int(12), 1 + rng.int(growth), 1, () => color(ramp, 4));
+  return { raster: r, ox: 0, oy: 0 };
+}
+
+function bloodPools(path: string, ramp: RampName): StubSprite {
+  return { path, frames: Array.from({ length: BLOOD_POOL_VARIANTS * BLOOD_POOL_SIZES }, (_, k) => bloodPool(ramp, k)) };
+}
+
 const ITEM_RAMPS: readonly RampName[] = ['olive', 'khaki', 'red', 'blue', 'teal', 'sand', 'violet', 'orange'];
 const ITEM_RASTER_W = 18;
 const ITEM_RASTER_H = 10;
@@ -405,6 +423,8 @@ export const STUB_TILE_SURFACES: readonly StubSurface[] = [
   },
   { type: 'FIRSTCLIFFHANG', sprite: { path: 'cliffhang', frames: [cliffLip()] } },
   { type: 'DEBRISROCKS', sprite: { path: 'rocks', frames: [rocks(43), rocks(44)] } },
+  { type: 'HUMANBLOOD', sprite: bloodPools('blood', 'red') },
+  { type: 'CREATUREBLOOD', sprite: bloodPools('creatureblood', 'olive') },
   { type: 'FIRSTMISS', sprite: { path: 'miss', frames: Array.from({ length: MISS_FRAMES }, (_, k) => dustPuff(k)) } },
   {
     type: 'SECONDMISS',

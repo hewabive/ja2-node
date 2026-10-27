@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/LOS.cc BulletHitMerc; Weapons.cc WeaponHit; Soldier_Control.cc EVENT_SoldierGotHit,
+// @src src/game/Tactical/LOS.cc BulletHitMerc (with the blood spewed behind a pass-through); Weapons.cc WeaponHit; Soldier_Control.cc EVENT_SoldierGotHit,
 // @src CalcScreamVolume, DoGenericHit, SoldierGotHitGunFire, SoldierGotHitExplosion, SoldierGotHitBlade,
 // @src SoldierGotHitPunch, SoldierTakeDamage (with the Kingpin civilian rule of the Maria quest and
 // @src QUOTE_TAKEN_A_BREATING), HandleTakeDamageDeath, CalcSoldierNextBleed, ReleaseSoldiersAttacker,
@@ -23,6 +23,7 @@ import { AnimHeight, endHeight, hasAnimFlag, initNewSoldierAnim, setDesiredDirec
 import { igniteExplosionXY } from '../explosions/explosion.ts';
 import { checkEquipmentForDamage } from '../explosions/item-damage.ts';
 import { newSmokeEffect } from '../explosions/smoke.ts';
+import { isRoofPresentAt } from '../explosions/trajectory.ts';
 import { cancelAllServices, receivingSoldierCancelServices } from '../first-aid.ts';
 import { cancelGiveOnCollapse } from '../give.ts';
 import { InvSlot } from '../inventory.ts';
@@ -37,7 +38,7 @@ import { animStructureDef, isValidStance } from '../person-structure.ts';
 import { deductPoints } from '../points.ts';
 import { profileProgress, StatKind } from '../profiles.ts';
 import { effectiveExpLevel, effectiveLife, effectiveStrength } from '../skills.ts';
-import { BLOOD_DIVISOR, dropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
+import { BLOOD_DIVISOR, BloodKind, DROPPED_IN_SIGHT, dropBlood, internalDropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
 import { Body, CivilianGroup, NO_PROFILE, OKLIFE, Side, type Soldier, shownToPlayer, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { screamVolume, soundPlace, unseenVictim } from '../unseen-sources.ts';
@@ -203,9 +204,20 @@ export function bulletHitMerc(t: TacticalState, b: Bullet, structure: StructureI
     }
   }
   if (stopped) removeBullet(t, b);
+  else spewBloodBehind(t, b, tgt, hitDirection);
   if (t.turn.currentTeam !== Team.OUR && tgt.team === Team.OUR) t.turn.someoneHit = true;
   weaponHit(t, tgt, firer.attackingWeapon, damage, breathLoss, hitDirection, range, firer, special, location, bulletWorldXY(b));
   return stopped;
+}
+
+function spewBloodBehind(t: TacticalState, b: Bullet, tgt: Soldier, hitDirection: number): void {
+  const away = opposite(hitDirection);
+  const behind = newGridNo(b.gridNo, DIRECTION_INCREMENT[away] ?? 0);
+  let level = tgt.level;
+  if (level === 0) {
+    if (t.world.costs.get(behind, away, 0) >= TravelCost.BLOCKED) return;
+  } else if (!isRoofPresentAt(t, behind)) level = 0;
+  internalDropBlood(t, behind, level, BloodKind.HUMAN, MAX_BLOOD_QUANTITY, DROPPED_IN_SIGHT);
 }
 
 function isExplosiveGun(t: TacticalState, item: number): boolean {

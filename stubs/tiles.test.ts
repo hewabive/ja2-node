@@ -85,8 +85,14 @@ describe('stub tile families', () => {
     expect(flagsOf('FIRSTHIGHROOF')).toEqual([StructureFlags.TALL_ROOF]);
     expect(flagsOf('FIRSTCLIFF')).toEqual([StructureFlags.GENERIC]);
     expect(surface('FIRSTCLIFF').structures?.[0]?.armour).toBe(StubMaterial.INDESTRUCTABLE_STONE);
-    for (const type of ['FIRSTCLIFFHANG', 'DEBRISROCKS', 'GUNS', 'P1ITEMS', 'P2ITEMS', 'P3ITEMS'])
+    for (const type of ['FIRSTCLIFFHANG', 'DEBRISROCKS', 'HUMANBLOOD', 'CREATUREBLOOD', 'GUNS', 'P1ITEMS', 'P2ITEMS', 'P3ITEMS'])
       expect(surface(type).structures, type).toBeUndefined();
+  });
+
+  it('draw every blood pool graphic, four sizes in four variants', async () => {
+    const t = await tables();
+    for (const type of ['HUMANBLOOD', 'CREATUREBLOOD'])
+      expect(surface(type).sprite.frames, type).toHaveLength(t.types[typeIndex(t, type)]?.count ?? 0);
   });
 
   it('draw a ground tile for every item graphic the item tables name', async () => {
