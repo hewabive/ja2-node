@@ -68,6 +68,11 @@ TRANSLUCENCY`, checked as a frame is entered, so key frame 0 never applies). The
 because the simulation takes an explosion's frame count from them and the stubs keep the fallback count; on the stubs
 only the explosion's light shows.
 
+A thrown object (`PhysicsMoveObject`, `Physics.cc:1097-1220`) is its item's tile as a struct node at the tail of its
+current tile's list with `LEVELNODE_USEABSOLUTEPOS | LEVELNODE_IGNOREHEIGHT | LEVELNODE_PHYSICSOBJECT`, raised by its
+height plus the land height, at the on-roof z of the tile raised by the same (`RenderWorld.cc:805-808`), and the same tile
+at the head of the tile's shadow list at the land height, drawn flat.
+
 **Notation.**
 - Unmarked statements were read in the code (fact) and carry a `file:line` reference.
 - **(inferred)** marks my derivations and assumptions.

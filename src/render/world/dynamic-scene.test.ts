@@ -236,6 +236,23 @@ describe('dynamic scene', () => {
     expect(scene.runs.map((r) => r.state)).toEqual([DrawState.NEARER_OR_EQUAL, DrawState.TRANSLUCENT]);
   });
 
+  it('draws a node of the shadow layer flat before the map shadows of its tile', () => {
+    const grenade = tileIndexFromTypeSubIndex(tables, typeIndex(tables, 'GUNS'), 1);
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    const absolute = { x: 805, y: 805 };
+    scene.build(
+      frame({
+        structNodes: [
+          { gridNo: g(80, 80), tile: grenade, absolute, relativeZ: 30, animation: true },
+          { gridNo: g(80, 80), tile: grenade, absolute, relativeZ: 0, animation: false, inShadowLayer: true },
+        ],
+      }),
+    );
+    expect(decode(scene).map((p) => p.y)).toEqual([worldOrigin(80, 80).y, worldOrigin(80, 80).y - 30]);
+    expect(scene.runs.map((r) => r.state)).toEqual([DrawState.SHADOW_FLAT, DrawState.NEARER_OR_EQUAL]);
+  });
+
   it('steps animated tiles every frame of the 200 ms clock', () => {
     const animated = tiles.map((t, i) =>
       i === 10 ? { ...t, flags: t.flags | TileFlags.ANIMATED, animationFrames: [10, 11, 12] } : t,

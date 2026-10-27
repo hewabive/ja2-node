@@ -15,7 +15,7 @@ import type { Camera, Viewport } from '../../render/world/geometry.ts';
 import type { WorldDisplayOptions, WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { EffectEvent, SimEvent } from '../../sim/events.ts';
 import type { ReadVfsFile } from '../net/vfs.ts';
-import { type BulletTiles, bulletNodes, bulletTiles } from './bullet-nodes.ts';
+import { type BulletTiles, bulletNodes, bulletTiles, thrownNodes } from './bullet-nodes.ts';
 import { EffectAnimations, type EffectFrame, type EffectKind, effectStructNodes, effectTileFrames } from './effect-animations.ts';
 import { glowContext } from './glow-context.ts';
 import { type ItemTileLookup, itemTileLookup, readItemGraphicTables } from './item-tiles.ts';
@@ -195,6 +195,13 @@ export class TacticalWorldView {
     return tiles ? bulletNodes(bullets, tiles, this.world.level.heights) : [];
   }
 
+  #thrownNodes(bullets: readonly BulletView[]) {
+    return bullets.flatMap((b) => {
+      const tile = b.item === undefined ? null : this.#itemTiles(b.item);
+      return tile === null ? [] : thrownNodes(b, tile, this.world.level.heights);
+    });
+  }
+
   #frameOf(tick: number): (s: SoldierView) => number {
     const frames = this.#frames;
     return frames ? (s) => frames.frameOf(s.id, s, tick) : (s) => s.frame;
@@ -301,7 +308,8 @@ export class TacticalWorldView {
       aniTiles: animatedTiles,
       structNodes: [
         ...effectStructNodes(effects, this.world.tables, this.world.tiles),
-        ...this.#bulletNodes(bullets.filter((b) => !b.knife)),
+        ...this.#bulletNodes(bullets.filter((b) => !b.knife && b.item === undefined)),
+        ...this.#thrownNodes(bullets),
       ],
       tileChanges: view.tileChanges ?? NO_TILE_CHANGES,
     });

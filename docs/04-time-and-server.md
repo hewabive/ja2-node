@@ -278,7 +278,9 @@ client's time keeps running until they end.
 original hangs its `knifing.sti` animation tile and shadow on (the thrower's), the direction block of the sprite and the
 session tick the knife was first seen at, from which the client takes the frame (the fourth of the block first, then
 one more every 100 ms). The session's simulation adapter keeps that tick per bullet object; nothing is stored in the
-state.
+state. A thrown object in flight (a grenade, a rock, anything thrown or launched except an armed mortar shell, which
+only leaves its trail) is there with `item` (its internal name), at its position and height above the zero plane; the
+same visibility rule applies to its thrower.
 
 ### 4.5. CPU cost
 

@@ -547,6 +547,11 @@ function leaveMortarTrail(t: TacticalState, o: RealObject, g: number): void {
   t.events.push({ type: 'missileTrail', gridNo: g, x, y, z: heightUnitsToPixels(o.position.z), trail: 'smoke', delay });
 }
 
+export function objectDrawnInFlight(t: TacticalState, o: RealObject): boolean {
+  if (!o.visible || o.testObject !== TestObject.NONE) return false;
+  return o.object.item !== itemIndex(t, 'MORTAR_SHELL') || o.action !== ThrowAction.ARM_ITEM;
+}
+
 function smokeTrail(t: TacticalState, o: RealObject): boolean {
   return o.object.item === itemIndex(t, 'MORTAR_SHELL') && o.numTilesMoved > 2 && o.action === ThrowAction.ARM_ITEM;
 }

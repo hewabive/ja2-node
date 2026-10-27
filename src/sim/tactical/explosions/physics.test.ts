@@ -14,6 +14,7 @@ import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { SkillTrait, type Soldier, Team } from '../soldier.ts';
 import { TacticalSim } from '../tactical-sim.ts';
+import { bulletViews } from '../world-view.ts';
 import { HEIGHT_UNITS, stepThrownObjects, toGridNo } from './physics.ts';
 import { ThrowAction } from './state.ts';
 import { calcMaxTossRange, calcThrownChanceToHit, releaseThrow } from './throwing.ts';
@@ -41,6 +42,10 @@ interface Landing {
   readonly gridNo: number;
   readonly events: SimEvent[];
 }
+
+const everyoneShown = () => true;
+const nobodyShown = () => false;
+const firstSeenAtZero = () => 0;
 
 function grenadier(sim: TacticalSim, strength = 70): Soldier {
   const s = spawnSoldier(sim, 0, Team.OUR, THROWER, Direction.SOUTH);
@@ -125,6 +130,29 @@ describe('thrown object physics', () => {
     sim.state.world.terrain[target] = Terrain.DEEP_WATER;
     const wet = throwAndLand(sim, grenadier(sim), target);
     expect(wet.events.find((e) => e.type === 'waterRipple')).toMatchObject({ gridNo: target });
+  });
+
+  it('shows a thrown grenade in flight by its item, high on the way and on the ground at the end', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const s = grenadier(sim);
+    const grenade = s.inv[InvSlot.HAND];
+    if (!grenade) throw new Error('no grenade');
+    calculateLaunchItemParamsForThrow(t, s, gridNo(80, 90), 0, 0, grenade, 0, ThrowAction.ARM_ITEM, null);
+    t.turn.attackBusyCount++;
+    const o = releaseThrow(t, s);
+    const heights: number[] = [];
+    while (o && t.explosives.objects.includes(o)) {
+      stepWithExplosives(sim);
+      const [flying] = bulletViews(t, everyoneShown, firstSeenAtZero);
+      if (flying) {
+        expect(flying.item).toBe('HAND_GRENADE');
+        expect(bulletViews(t, nobodyShown, firstSeenAtZero)).toEqual([]);
+        heights.push(flying.z);
+      }
+    }
+    expect(heights.length).toBeGreaterThan(5);
+    expect(Math.max(...heights)).toBeGreaterThan(heights.at(-1) ?? 0);
   });
 
   it('falls short of a target beyond the toss range', () => {

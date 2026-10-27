@@ -147,6 +147,7 @@ export interface StructNode {
   readonly absolute: WorldPoint | null;
   readonly relativeZ: number;
   readonly animation: boolean;
+  readonly inShadowLayer?: boolean;
 }
 
 export interface SceneItem {
@@ -337,12 +338,15 @@ export class DynamicScene {
   #emitLayer(g: number, x: number, y: number, layer: ListLayer): void {
     const ui = (this.#uiByTile.get(g) ?? []).filter((n) => UI_LAYER_OF[n.layer] === layer);
     for (const n of ui) if (n.head) this.#emitUiNode(n, x, y, layer);
-    if (layer === 'shadows') for (const a of this.#aniByTile.get(g * 2) ?? []) if (aniLayerOf(a) === 'shadows') this.#emitAniTile(a, x, y);
+    if (layer === 'shadows') {
+      for (const n of this.#structNodesByTile.get(g) ?? []) if (n.inShadowLayer) this.#emitShadowNode(n);
+      for (const a of this.#aniByTile.get(g * 2) ?? []) if (aniLayerOf(a) === 'shadows') this.#emitAniTile(a, x, y);
+    }
     for (const node of this.#mapNodes.get(g) ?? []) if (node.layer === layer) this.#emitMapNode(g, x, y, layer, node.tile);
     if (layer === 'structs' || layer === 'onRoof')
       for (const a of this.#aniByTile.get(g * 2 + (layer === 'onRoof' ? 1 : 0)) ?? [])
         if (aniLayerOf(a) === layer) this.#emitAniTile(a, x, y);
-    if (layer === 'structs') for (const n of this.#structNodesByTile.get(g) ?? []) this.#emitStructNode(n, x, y);
+    if (layer === 'structs') for (const n of this.#structNodesByTile.get(g) ?? []) if (!n.inShadowLayer) this.#emitStructNode(n, x, y);
     for (const n of ui) if (!n.head) this.#emitUiNode(n, x, y, layer);
   }
 
@@ -362,6 +366,15 @@ export class DynamicScene {
     this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL, () =>
       out.push(p.x, p.y, d.sprite, 0, d.sprite.width, row, z, ShadeKey.FIXED, 0, 0),
     );
+  }
+
+  #emitShadowNode(n: StructNode): void {
+    const d = this.#sprite(n.tile);
+    if (!d || !n.absolute) return;
+    const p = this.#absolutePosition(n.absolute, n.relativeZ, d.sprite);
+    const out = this.instances;
+    const s = d.sprite;
+    this.#push(out, this.runs, DrawState.SHADOW_FLAT, () => out.push(p.x, p.y, s, 0, s.width, s.paletteBase, 0, ShadeKey.FIXED, 0, 0));
   }
 
   #liftedPosition(p: { x: number; y: number }, lift: number): { x: number; y: number } {

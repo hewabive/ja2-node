@@ -4,11 +4,15 @@
 // @src src/game/TileEngine/SmokeEffects.cc AddSmokeEffectToTile (graphic per tile); Lighting.cc LightSpriteRenderAll
 // @src (dynamic sprites); Structure.cc InternalSwapStructureForPartner, SaveLoadMap.cc (tile changes); Bullets.cc
 // @src UpdateBullets (where a bullet tile is drawn), HandleBulletSpecialFlags (the knife's tile, its direction and the
-// @src tile it hangs on). See docs/28 §12.1 G8.
+// @src tile it hangs on); Physics.cc PhysicsMoveObject (a thrown object's tile at its position, raised by the land
+// @src height under it; none for an armed mortar shell). See docs/28 §12.1 G8.
 
 import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
+import { i16 } from '../../core/int.ts';
 import { type Bullet, bulletHeightPixels, bulletWorldXY, drawnInFlight, isKnife, knifeDirection } from './combat/bullets.ts';
+import { heightUnitsToPixels, objectDrawnInFlight, toGridNo } from './explosions/physics.ts';
 import { ANY_SMOKE, SmokeTile, smokeEffectIdFromFlags } from './explosions/smoke.ts';
+import type { RealObject } from './explosions/state.ts';
 import { type LightSprite, LightSpriteFlags } from './lighting/lighting.ts';
 import { type MapChange, MapChangeKind, mapChangeTile } from './map-changes.ts';
 import type { Soldier } from './soldier.ts';
@@ -55,6 +59,7 @@ export interface BulletView {
   readonly y: number;
   readonly z: number;
   readonly knife?: KnifeFlight;
+  readonly item?: string;
 }
 
 const LEVELS = [0, 1] as const;
@@ -128,7 +133,19 @@ export function tileChangeViews(t: TacticalState): TileChangeView[] {
 }
 
 export function bulletViews(t: TacticalState, shown: (firer: Soldier) => boolean, since: (b: Bullet) => number): BulletView[] {
-  return t.bullets.filter((b) => drawnInFlight(b) && shown(b.firer)).map((b) => bulletView(b, since));
+  const bullets = t.bullets.filter((b) => drawnInFlight(b) && shown(b.firer)).map((b) => bulletView(b, since));
+  return [...bullets, ...thrownViews(t, shown)];
+}
+
+function thrownViews(t: TacticalState, shown: (thrower: Soldier) => boolean): BulletView[] {
+  return t.explosives.objects.flatMap((o) => (o && objectDrawnInFlight(t, o) && (!o.owner || shown(o.owner)) ? [thrownView(t, o)] : []));
+}
+
+function thrownView(t: TacticalState, o: RealObject): BulletView {
+  const land = t.world.level.heights[toGridNo(o.position)] ?? 0;
+  const at = { x: i16(Math.trunc(o.position.x)), y: i16(Math.trunc(o.position.y)) };
+  const item = t.content.items.byIndex.get(o.object.item)?.name ?? String(o.object.item);
+  return { ...at, z: heightUnitsToPixels(o.position.z) + land, item };
 }
 
 function bulletView(b: Bullet, since: (b: Bullet) => number): BulletView {
