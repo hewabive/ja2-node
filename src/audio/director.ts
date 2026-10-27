@@ -4,8 +4,9 @@
 // @src PlaySoldierFootstepSound (silent in stealth mode), PlayStealthySoldierFootstepSound (Overhead.cc HandleAtNewGridNo),
 // @src InternalDoMercBattleSound (nothing from a muted soldier), EVENT_SoldierGotHit (impact and hit sounds);
 // @src Tactical/Soldier_Ani.cc (death sounds, the creature battle cry of code 717 by the call kind); Tactical/Handle_Doors.cc
-// @src HandleDoorChangeFromGridNo (the close sound on the door's key frame); Tactical/Weapons.cc UseGun, BulletHitStructure,
-// @src StructureHit and ShotMiss (the miss sounds and the Random(40) curse of our mercs, drawn here, not in the simulation),
+// @src HandleDoorChangeFromGridNo (the close sound on the door's key frame); TileEngine/Interactive_Tiles.cc
+// @src HandleStructChangeFromGridNo (an openable's sound, the opener's battle sound 500 ms later); Tactical/Weapons.cc
+// @src UseGun, BulletHitStructure, StructureHit and ShotMiss (the miss sounds and the Random(40) curse of our mercs, drawn here, not in the simulation),
 // @src DoSpecialEffectAmmoMiss, WindowHit; TileEngine/Structure.cc DamageStructure (the material a bullet strikes);
 // @src TileEngine/Physics.cc (a thrown object landing, the mortar whistle); Tactical/Handle_UI.cc and Real_Time_Input.cc
 // @src (OK and ATTN on orders and selection); Tactical/Soldier_Ani.cc code 491 (idle sounds, counted from the passes of
@@ -36,6 +37,7 @@ import {
   missCue,
   offMapMissCue,
   opcodeSound,
+  openableCue,
   reloadCue,
   SoundBody,
   smallExplosionCue,
@@ -499,6 +501,12 @@ export class SoundDirector {
         return;
       case 'doorTrap':
         this.#play(doorTrapCue(book, e.trap, e.gridNo));
+        return;
+      case 'openableChanged':
+        this.#play(openableCue(book, e.gridNo, e.material, e.open));
+        return;
+      case 'contentsExclaimed':
+        this.#o.later(e.delayMs, () => this.#battleSound(e.soldier, e.sound, false));
         return;
       case 'itemDropped':
         if (this.#soldiers.has(e.soldier)) this.#play(dropCue(book, e.gridNo));

@@ -41,7 +41,7 @@ import { mailSpec, sender } from '../laptop/mail.ts';
 import { sectorKey } from '../sector-diff.ts';
 import { addItemsToUnloadedSector } from '../sector-loot.ts';
 
-interface Delivery {
+export interface Delivery {
   readonly sector: SectorPosition;
   readonly gridNo: number;
 }
@@ -136,7 +136,7 @@ function mail(campaign: CampaignSim, name: string, from: string): void {
   if (laptop) laptop.mail(mailSpec(laptop.content, name), sender(laptop.content, from));
 }
 
-function primaryDelivery(campaign: CampaignSim): Delivery | null {
+export function primaryDelivery(campaign: CampaignSim): Delivery | null {
   const primary = campaign.laptop?.content.destinations.find((d) => d.isPrimary);
   if (primary?.deliverySector === null || primary?.deliverySector === undefined) return null;
   return { sector: sectorFromId(primary.deliverySector, primary.deliverySectorZ), gridNo: primary.gridNo };

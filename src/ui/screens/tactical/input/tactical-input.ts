@@ -2569,10 +2569,9 @@ export class TacticalInput {
     const tile = this.#interactiveTile();
     if (tile) {
       const action = tile.open ? 'close' : 'open';
-      if (tile.door)
-        void this.#host
-          .sendBusyOrder({ type: 'door', soldier: sel.id, gridNo: tile.gridNo, action })
-          .then((r) => this.#host.doorReply(sel.id, tile.gridNo, r));
+      void this.#host
+        .sendBusyOrder({ type: 'door', soldier: sel.id, gridNo: tile.gridNo, action })
+        .then((r) => this.#host.doorReply(sel.id, tile.gridNo, r));
       return;
     }
     if (!this.#combat()) {

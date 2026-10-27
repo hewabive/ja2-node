@@ -39,6 +39,7 @@ import {
   findShapedCharge,
   NO_SLOT,
 } from './lock-attempts.ts';
+import { handleStructChangeFromGridNo } from './openables.ts';
 
 export const DOOR_ACTIONS = [
   'open',
@@ -455,7 +456,7 @@ export function handleOpenableStruct(t: TacticalState, s: Soldier, gridNo: numbe
   if (r.handle && isDoor) {
     toggleDoorAt(t, gridNo, noisy);
     if (!has(structure.flags, StructureFlags.OPEN)) checkPowPathsInAlmaPrison(t);
-  }
+  } else if (r.handle) handleStructChangeFromGridNo(t, s, gridNo);
   deductPoints(t.inCombat, s, r.ap, r.bp);
   if (s.team === Team.OUR) doorResult(t, s, gridNo, code, r);
   return r.handle;

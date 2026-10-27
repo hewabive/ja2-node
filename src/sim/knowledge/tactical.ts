@@ -6,7 +6,7 @@ import { Rng } from '../../core/rng.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { PerceivedLock, PerceivedTrap } from '../tactical/doors/door-table.ts';
 import type { DoorView } from '../tactical/doors/door-view.ts';
-import { doorGridNos, isDoorOpenAt, swapStructureForPartner } from '../tactical/doors.ts';
+import { containerGridNos, doorGridNos, isDoorOpenAt, isOpenableOpenAt, swapStructureForPartner } from '../tactical/doors.ts';
 import {
   initLighting,
   LightSpriteFlags,
@@ -110,6 +110,7 @@ export class TacticalProjection {
   readonly state: TacticalState;
   readonly #world: TacticalWorld;
   readonly #doors: readonly number[];
+  readonly #containers: readonly number[];
   readonly #mapDoors: ReadonlyMap<number, MapDoor>;
   readonly #projectedMapDoors: Map<number, MapDoor>;
   #placed: Soldier[] = [];
@@ -122,6 +123,7 @@ export class TacticalProjection {
     this.#projectedMapDoors = new Map(this.#mapDoors);
     this.state = createTacticalState({ ...world, mapDoors: this.#projectedMapDoors }, content, Rng.fromSeed(PROJECTION_SEED));
     this.#doors = doorGridNos(world);
+    this.#containers = containerGridNos(world);
   }
 
   sync(view: KnowledgeView, guard: GuardOptions): TacticalState {
@@ -153,6 +155,12 @@ export class TacticalProjection {
       if (open.has(g) === isDoorOpenAt(t, g)) continue;
       const door = t.world.structures.find(g, StructureFlags.ANYDOOR);
       const swapped = door ? swapStructureForPartner(t, door) : null;
+      if (swapped) recompileLocalMovementCosts(t.world.costs, t.world, g);
+    }
+    for (const g of this.#containers) {
+      if (open.has(g) === isOpenableOpenAt(t, g)) continue;
+      const container = t.world.structures.find(g, StructureFlags.OPENABLE);
+      const swapped = container ? swapStructureForPartner(t, container) : null;
       if (swapped) recompileLocalMovementCosts(t.world.costs, t.world, g);
     }
     const known = new Map((view.doors ?? []).map((d) => [d.gridNo, d]));

@@ -448,6 +448,24 @@ describe('the sound director', () => {
     expect(files(r)).toEqual([book.paths.get('METAL_DOOR_CLOSE')]);
   });
 
+  it('opens a locker with its sound and lets the opener cheer half a second later', () => {
+    const r = rig();
+    r.director.reset([soldier(1, 'STANDING', 0)]);
+    r.director.applyFrames([
+      frame(
+        10,
+        [],
+        [
+          { type: 'openableChanged', tick: 10, soldier: 1, gridNo: G, open: true, material: 22 },
+          { type: 'contentsExclaimed', tick: 10, soldier: 1, sound: 'COOL1', delayMs: 500 },
+        ],
+      ),
+    ]);
+    expect(files(r)).toEqual([book.paths.get('OPEN_LOCKER')]);
+    for (const run of r.later) run();
+    expect(files(r)[1]).toMatch(/^battlesnds\/007_cool/);
+  });
+
   it('schedules ambient sounds of the active time window with gaps from the table', () => {
     const owl = { minTimeMs: 1000, maxTimeMs: 1000, timeCategory: AmbientTime.NIGHT, file: 'owl.wav', volume: 30 };
     const bird = { ...owl, timeCategory: AmbientTime.DAY, file: 'bird.wav' };

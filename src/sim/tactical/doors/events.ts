@@ -48,4 +48,27 @@ export interface LockDestroyedEvent extends SimEventBase {
   readonly gridNo: number;
 }
 
-export type DoorEvent = DoorMenuEvent | DoorResultEvent | DoorTrapEvent | LockDestroyedEvent;
+export interface OpenableChangedEvent extends SimEventBase {
+  readonly type: 'openableChanged';
+  readonly soldier: number;
+  readonly gridNo: number;
+  readonly open: boolean;
+  readonly material: number;
+}
+
+export type ContentsExclamation = 'NOTHING' | 'HUMM' | 'COOL1';
+
+export interface ContentsExclaimedEvent extends SimEventBase {
+  readonly type: 'contentsExclaimed';
+  readonly soldier: number;
+  readonly sound: ContentsExclamation;
+  readonly delayMs: number;
+}
+
+export type DoorEvent =
+  | DoorMenuEvent
+  | DoorResultEvent
+  | DoorTrapEvent
+  | LockDestroyedEvent
+  | OpenableChangedEvent
+  | ContentsExclaimedEvent;

@@ -20,6 +20,7 @@ import { isWater } from './pathfinding.ts';
 import type { TacticalState } from './state.ts';
 
 export const Visibility = { HIDDEN_ITEM: -4, BURIED: -3, HIDDEN_IN_OBJECT: -2, INVISIBLE: -1, VISIBLE: 1 } as const;
+export const ANY_VISIBILITY_VALUE = -10;
 
 export const WorldItemFlags = {
   DONTRENDER: 0x0001,
@@ -175,6 +176,10 @@ export function setItemsVisibilityOn(t: TacticalState, g: number, level: number,
   }
   if (modified && setLocator) t.events.push({ type: 'itemsRevealed', gridNo: g, level });
   return modified;
+}
+
+export function setItemsVisibilityHidden(t: TacticalState, g: number, level: number): void {
+  for (const wi of itemsAt(t, g, level)) wi.visible = Visibility.HIDDEN_IN_OBJECT;
 }
 
 export function lookForHiddenItems(t: TacticalState, g: number, level: number): boolean {

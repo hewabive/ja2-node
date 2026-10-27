@@ -82,6 +82,7 @@ import { CompressMode } from '../strategic/time/constants.ts';
 import { timeOfDayAmbientLightLevel } from '../strategic/time/environment.ts';
 import { setGameTimeCompressionLevel, unPauseGame, worldDay, worldHour } from '../strategic/time/world-clock.ts';
 import type { TacticalContent } from '../tactical/content.ts';
+import { openableStatuses } from '../tactical/doors.ts';
 import { beginMapEdgepointSearch, chooseMapEdgepoint, endMapEdgepointSearch, loadMapEdgepoints } from '../tactical/edgepoints.ts';
 import { sharedWeaponsDropped } from '../tactical/equipment.ts';
 import {
@@ -147,6 +148,7 @@ import {
   restoreDoorStatus,
   restoreLights,
   restoreMapChanges,
+  restoreOpenables,
   restoreRevealed,
   restoreSmoke,
   restoreWorldItems,
@@ -598,6 +600,7 @@ export class SectorFlow {
         restoreCorpses(t, diff.corpses, { nowMinute: now, inTown, loadingSave: false });
       }
       if (diff.mapChanges && this.#flagged(sector, SectorFlag.MAP_MODIFICATIONS_TEMP_FILE_EXISTS)) restoreMapChanges(t, diff.mapChanges);
+      if (diff.openables) restoreOpenables(t, diff.openables);
       if (diff.revealed && this.#flagged(sector, SectorFlag.REVEALED_STATUS_TEMP_FILE_EXISTS)) restoreRevealed(t, diff.revealed);
       if (diff.doorStatus && this.#flagged(sector, SectorFlag.DOOR_STATUS_TEMP_FILE_EXISTS)) restoreDoorStatus(t, diff.doorStatus);
       if (diff.enemies && this.#flagged(sector, SectorFlag.ENEMY_PRESERVED_TEMP_FILE_EXISTS)) this.#loadPreservedEnemies(sector, diff);
@@ -1087,6 +1090,7 @@ export class SectorFlow {
     diff.revealed = captureRevealed(t);
     mark(SectorFlag.REVEALED_STATUS_TEMP_FILE_EXISTS, true);
     diff.doorStatus = captureDoorStatus(t);
+    diff.openables = openableStatuses(t);
     mark(SectorFlag.DOOR_STATUS_TEMP_FILE_EXISTS, true);
     diff.enemies = preserveSoldiers(t, true, now);
     mark(SectorFlag.ENEMY_PRESERVED_TEMP_FILE_EXISTS, diff.enemies !== null);

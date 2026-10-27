@@ -22,7 +22,7 @@ import { objectFromRecord } from '../items/object.ts';
 import type { DroppedNativeOption } from '../options.ts';
 import { importCivGroupHostility } from '../strategic/narrative/civ-groups.ts';
 import { addCorpseStructure } from './combat/death.ts';
-import { swapStructureForPartner } from './doors.ts';
+import { setOpenableStructStatus, swapStructureForPartner } from './doors.ts';
 import { NUM_INV_SLOTS } from './inventory.ts';
 import { lightSetBaseLevel, loadMapLights } from './lighting/lighting.ts';
 import { setSoldierPosition } from './movement.ts';
@@ -39,10 +39,9 @@ import {
 } from './soldier.ts';
 import { registerSoldier, type TacticalState } from './state.ts';
 import type { TacticalSim } from './tactical-sim.ts';
-import { addItemToPool, setItemsVisibilityOn, Visibility, WorldItemFlags } from './world-items.ts';
+import { addItemToPool, WorldItemFlags } from './world-items.ts';
 
 const SECTOR_ROW_LETTERS = 'abcdefghijklmnop';
-const ANY_VISIBILITY_VALUE = -10;
 const DOOR_OPEN = 0x01;
 const DOOR_PERCEIVED_OPEN = 0x02;
 const NOBODY = TOTAL_SOLDIERS;
@@ -189,15 +188,6 @@ function restoreBloodAndSmell(t: TacticalState, gridNo: number, blood: number, s
   if (gridNo < 0 || gridNo >= WORLD_MAX) return;
   t.smell.blood[gridNo] = u8(blood);
   t.smell.smell[gridNo] = u8(smell);
-}
-
-function setOpenableStructStatus(t: TacticalState, gridNo: number, open: boolean): void {
-  const structure = t.world.structures.find(gridNo, StructureFlags.OPENABLE);
-  if (!structure || has(structure.flags, StructureFlags.OPEN) === open) return;
-  const baseGridNo = t.world.structures.findBase(structure)?.gridNo ?? gridNo;
-  swapStructureForPartner(t, structure);
-  if (open) setItemsVisibilityOn(t, baseGridNo, 0, ANY_VISIBILITY_VALUE, false);
-  else for (const item of t.worldItems) if (item.gridNo === baseGridNo && item.level === 0) item.visible = Visibility.HIDDEN_IN_OBJECT;
 }
 
 function applyDoorStatus(t: TacticalState, statuses: readonly SavedDoorStatus[]): void {

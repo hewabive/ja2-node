@@ -71,6 +71,7 @@ export interface NarrativeHost extends RecordsEnv {
   worldSector(): SectorRef | null;
   isEpc(s: Soldier): boolean;
   onSquad(s: Soldier): boolean;
+  mercAsleep?(s: Soldier): boolean;
   inMeanwhile(): boolean;
   emit(e: NarrativeEventWithoutTick): void;
   setEngaged(on: boolean): void;

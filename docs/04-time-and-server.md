@@ -752,6 +752,15 @@ locked door), `noLock`, `alreadyLocked`, `noKey`, `noCrowbar`, `noLockpickKit`, 
 action, result, trap?}` (`opened`, `closed`, `locked`, `failed`, `noLock`, `lockDamaged`, `chargeExploded`, `trapFound`,
 `noTrapFound`, `untrapped`, `trapSprung`, `notTrapped`, `wrongKey`, `trapStopped`, `trapNoticed`, `notEnoughAp`),
 `doorTrap {soldier, gridNo, trap}` (never for the silent alarm), `lockDestroyed {soldier, gridNo}` and `doorChanged`.
+Crates, lockers, cabinets and switches (an openable structure without a door) take `open` and `close` too: the soldier
+walks next to them (`FindAdjacentGridEx` with its door rule, `FindAdjacentGridExAdvanced` for a switch) and opens or
+closes them as `HandleStructChangeFromGridNo` does: the event `openableChanged {soldier, gridNo, open, material}` (the
+structure's armour picks the locker, wooden box or default sound), the contents shown (or hidden again when closed, a
+switch fires the action items of its frequency), the Drassen shipment check (a merc nearby may notice Pablo's theft,
+`QUOTE_STUFF_MISSING_DRASSEN`) and `contentsExclaimed {soldier, sound: NOTHING|HUMM|COOL1, delayMs: 500}` for the
+opener's battle sound; other actions refuse with `noDoor`. The view's `openDoors` lists the base tiles of open
+containers and switches as well as open doors, and a sector remembers which ones were open when it is left
+(`SaveBloodSmellAndRevealedStatesFromMapToTempFile`).
 `observe.doors` lists the doors whose lock or trap the player knows (`locked`: `unknown|locked|unlocked|broken`, `trap`:
 `unknown|none|noneFound|<trap>`); our soldiers carry `keys` (key ring: key id, count, the key item as `item` and `index` (`LockTable[keyID].usKeyItem`, `getKeyItemForKeyId`), sector and day found) and key items
 show `keyId`. Lock tables, trap levels and lock damage stay hidden.

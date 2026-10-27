@@ -8,7 +8,7 @@
 // @src Laptop/BobbyRMailOrder.cc CalcCostFromWeightOfPackage, CalcPackageTotalWeight, CalculateOrderDelay,
 // @src PurchaseBobbyOrder, AddNewBobbyRShipment, AddJohnsGunShipment, RemovePurchasedItemsFromBobbyRayInventory, BtnBobbyRAcceptOrderCallback;
 // @src Strategic/Strategic_Event_Handler.cc BobbyRayPurchaseEventCallback, DropOffItemsInDestination
-// @src (the shipment facts); Strategic/Player_Command.cc SetThisSectorAsPlayerControlled (site access). See docs/21 §5.
+// @src (the shipment facts), CloseCrate; Strategic/Player_Command.cc SetThisSectorAsPlayerControlled (site access). See docs/21 §5.
 
 import { ItemClass, ItemFlags } from '../../../content/items/items.ts';
 import type { ShippingDestination } from '../../../content/strategic/laptop-content.ts';
@@ -37,6 +37,7 @@ import { setOpenableStructureToClosed } from '../../tactical/doors.ts';
 import type { TacticalState } from '../../tactical/state.ts';
 import { addItemToPool, Visibility } from '../../tactical/world-items.ts';
 import { addTransaction, FinanceCode } from '../finances.ts';
+import { changeOpenableInUnloadedSector, sectorKey } from '../sector-diff.ts';
 import { addItemsToUnloadedSector } from '../sector-loot.ts';
 import type { LaptopContext } from './context.ts';
 import { BobbyRaySiteVisit, Bookmark, type Shipment, type ShipmentLine, type StoreSlot, setBookmark } from './laptop-state.ts';
@@ -419,6 +420,7 @@ function loadedTactical(ctx: LaptopContext, sector: Sector, tactical: BobbyRayTa
 function closeCrate(ctx: LaptopContext, sector: Sector, gridNo: number, tactical: BobbyRayTactical | null): BobbyRayTactical | null {
   const loaded = loadedTactical(ctx, sector, tactical);
   if (loaded) setOpenableStructureToClosed(loaded.state, gridNo);
+  else changeOpenableInUnloadedSector(ctx.state.sectorDiffs.get(sectorKey(sector)), gridNo, false);
   return loaded;
 }
 

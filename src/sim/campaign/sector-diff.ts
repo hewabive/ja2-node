@@ -3,7 +3,8 @@
 // @src src/game/Tactical/Tactical_Save.cc SaveCurrentSectorsInformationToTempItemFile, LoadCurrentSectorsInformationFromTempItemsFile,
 // @src LoadAndAddWorldItemsFromTempFile, LoadRottingCorpsesFromTempCorpseFile; Rotting_Corpses.cc AddRottingCorpse (aging);
 // @src Enemy_Soldier_Save.cc NewWayOfSavingEnemyAndCivliansToTempFile, NewWayOfLoadingCiviliansFromTempFile;
-// @src TileEngine/SaveLoadMap.cc revealed status; SmokeEffects.cc, LightEffects.cc temp files. See docs/16 §5.11, §5.12, §5.14.
+// @src TileEngine/SaveLoadMap.cc revealed status, the openable statuses (SaveBloodSmellAndRevealedStatesFromMapToTempFile,
+// @src ChangeStatusOfOpenableStructInUnloadedSector); SmokeEffects.cc, LightEffects.cc temp files. See docs/16 §5.11, §5.12, §5.14.
 
 import type { MapDoor } from '../../content/formats/map.ts';
 import type { DetailedPlacement } from '../../content/formats/placement.ts';
@@ -12,7 +13,7 @@ import { has, StructureFlags } from '../../content/world/structures.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { cloneObject, type ItemObject, objectToRecord } from '../items/object.ts';
 import { addCorpseStructure, type Corpse } from '../tactical/combat/death.ts';
-import { isDoorOpenAt, swapStructureForPartner } from '../tactical/doors.ts';
+import { isDoorOpenAt, type OpenableStatus, setOpenableStructStatus, swapStructureForPartner } from '../tactical/doors.ts';
 import { restoreLightEffect } from '../tactical/explosions/light.ts';
 import { restoreSmokeCloud } from '../tactical/explosions/smoke.ts';
 import { findSoldierInitNodeBySoldier, type SoldierInitNode } from '../tactical/init-list.ts';
@@ -75,6 +76,7 @@ export interface SectorDiff {
   doorTable: MapDoor[] | null;
   revealed: RevealedState | null;
   doorStatus: DiffDoorStatus[] | null;
+  openables?: OpenableStatus[];
   enemies: PreservedSoldiers | null;
   civilians: PreservedSoldiers | null;
   smoke: DiffSmoke[] | null;
@@ -301,6 +303,15 @@ export function restoreDoorStatus(t: TacticalState, statuses: readonly DiffDoorS
     const base = t.world.structures.findBase(door);
     if (base) swapStructureForPartner(t, base);
   }
+}
+
+export function restoreOpenables(t: TacticalState, openables: readonly OpenableStatus[]): void {
+  for (const o of openables) setOpenableStructStatus(t, o.gridNo, o.open);
+}
+
+export function changeOpenableInUnloadedSector(diff: SectorDiff | undefined, gridNo: number, open: boolean): void {
+  const status = diff?.openables?.find((o) => o.gridNo === gridNo);
+  if (status) status.open = open;
 }
 
 export function restoreSmoke(t: TacticalState, smoke: readonly DiffSmoke[]): void {

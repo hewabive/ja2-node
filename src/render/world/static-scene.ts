@@ -119,9 +119,11 @@ function rowReach(data: Float32Array, rowStart: Int32Array): RowReach {
   return { above, below };
 }
 
-export function doorTileInState(tiles: readonly TileElement[], openDoors: ReadonlySet<number>, g: number, tile: number): number {
+const OPENABLE_TILE = StructureFlags.ANYDOOR | StructureFlags.OPENABLE;
+
+export function openableTileInState(tiles: readonly TileElement[], openDoors: ReadonlySet<number>, g: number, tile: number): number {
   const def = tiles[tile]?.structure;
-  if (!def || !has(def.flags, StructureFlags.ANYDOOR)) return tile;
+  if (!def || !has(def.flags, OPENABLE_TILE)) return tile;
   return has(def.flags, StructureFlags.OPEN) === openDoors.has(g) ? tile : tile + def.partnerDelta;
 }
 
@@ -271,7 +273,7 @@ export class StaticScene {
 
   #emitStruct(at: TileAt, mapTile: number, index: number): void {
     const w = this.#world;
-    let tile = doorTileInState(w.tiles, this.#state.openDoors, at.g, mapTile);
+    let tile = openableTileInState(w.tiles, this.#state.openDoors, at.g, mapTile);
     if (!this.#state.treeTops && (w.tiles[tile]?.flags ?? 0) & TileFlags.FULL3D) tile += TREE_TOP_SKIP;
     const d = this.#drawable(tile);
     if (!d) return;

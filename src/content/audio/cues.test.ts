@@ -23,6 +23,7 @@ import {
   missCue,
   nextFootstepVariant,
   opcodeSound,
+  openableCue,
   reloadCue,
   SoundBody,
   type StepContext,
@@ -181,6 +182,19 @@ describe('doors and locks', () => {
     expect(doorCue(book, G, 'cloth', true, first)?.file).toBe(book.paths.get('CURTAINS_OPEN'));
     expect(doorCue(book, G, 'garage', false, first)?.file).toBe(book.paths.get('GARAGE_DOOR_CLOSE'));
     expect(doorCue(book, G, 'metal', true, first)).toMatchObject({ file: book.paths.get('METAL_DOOR_OPEN'), baseVolume: 65 });
+  });
+
+  it('open and close a crate, a locker or another openable by its material', () => {
+    expect(openableCue(book, G, 22, true)).toMatchObject({
+      file: book.paths.get('OPEN_LOCKER'),
+      mix: 'location',
+      baseVolume: 127,
+      gridNo: G,
+    });
+    expect(openableCue(book, G, 21, false)?.file).toBe(book.paths.get('CLOSE_LOCKER'));
+    expect(openableCue(book, G, 5, true)?.file).toBe(book.paths.get('OPEN_WOODEN_BOX'));
+    expect(openableCue(book, G, 1, false)?.file).toBe(book.paths.get('CLOSE_WOODEN_BOX'));
+    expect(openableCue(book, G, 11, true)?.file).toBe(book.paths.get('OPEN_DEFAULT_OPENABLE'));
   });
 
   it('sound lock outcomes and traps', () => {

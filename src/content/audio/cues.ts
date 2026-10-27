@@ -4,7 +4,7 @@
 // @src Tactical/Weapons.cc GetBurstSoundName, UseGun, BulletHitStructure, StructureHit and ShotMiss (miss sounds),
 // @src DoSpecialEffectAmmoMiss (the HE blast), WindowHit (the glass); Tactical/Items.cc ReloadGun;
 // @src Tactical/Soldier_Ani.cc AdjustToNextAnimationFrame (codes 700-791, the battle cry of 717);
-// @src TileEngine/Structure.cc guiMaterialHitSound, DamageStructure; TileEngine/Explosion_Control.cc
+// @src TileEngine/Structure.cc guiMaterialHitSound, DamageStructure, GetStructureOpenSound; TileEngine/Explosion_Control.cc
 // @src GenerateExplosionFromExplosionPointer; Tactical/Handle_Doors.cc HandleDoorChangeFromGridNo; Tactical/Keys.cc DoUnlockDoor, AttemptToUnlockDoor, AttemptToCrowbarLock, AttemptToSmashDoor,
 // @src HandleDoorTrap; Tactical/Handle_Items.cc (the drop impact); Laptop/Laptop.cc (power up and down). See docs/27 §3.1.
 
@@ -250,6 +250,24 @@ export function doorCue(book: CueBook, gridNo: number, kind: DoorKind, open: boo
             ? soundRange(book, 'DROPEN_1', 'DROPEN_3', rand)
             : soundRange(book, 'DRCLOSE_1', 'DRCLOSE_2', rand);
   return effectCue(book, name, 'location', VolumeLevel.MID, gridNo);
+}
+
+const MATERIAL_WOOD_WALL = 1;
+const MATERIAL_PLYWOOD_WALL = 2;
+const MATERIAL_FURNITURE = 5;
+const MATERIAL_LIGHT_METAL = 21;
+const MATERIAL_THICKER_METAL = 22;
+const OPENABLE_SOUND_KINDS: ReadonlyMap<number, string> = new Map([
+  [MATERIAL_LIGHT_METAL, 'LOCKER'],
+  [MATERIAL_THICKER_METAL, 'LOCKER'],
+  [MATERIAL_WOOD_WALL, 'WOODEN_BOX'],
+  [MATERIAL_PLYWOOD_WALL, 'WOODEN_BOX'],
+  [MATERIAL_FURNITURE, 'WOODEN_BOX'],
+]);
+
+export function openableCue(book: CueBook, gridNo: number, material: number, open: boolean): Cue | null {
+  const kind = OPENABLE_SOUND_KINDS.get(material) ?? 'DEFAULT_OPENABLE';
+  return effectCue(book, `${open ? 'OPEN' : 'CLOSE'}_${kind}`, 'location', VolumeLevel.HIGH, gridNo);
 }
 
 export interface LockOutcome {

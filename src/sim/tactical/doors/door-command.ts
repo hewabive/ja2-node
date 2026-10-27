@@ -1,11 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Handle_UI.cc UIHandleMOVE (interactive tiles); Overhead.cc pending MERC_OPENDOOR/MERC_OPENSTRUCT on arrival;
+// @src src/game/Tactical/Handle_UI.cc UIHandleMOVE (interactive tiles: FindAdjacentGridExAdvanced for doors and switches,
+// @src FindAdjacentGridEx for other openables); Overhead.cc pending MERC_OPENDOOR/MERC_OPENSTRUCT on arrival;
 // @src Interface.cc PopupDoorOpenMenu, DoorAction, BtnDoorMenuCallback. See docs/25 §8.2, §13.1.
 
 import { ANYKEY } from '../../../content/formats/locks.ts';
 import { has, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
 import { setDesiredDirection, soldierGotoStationaryStance } from '../animation.ts';
+import { findAdjacentGridExForDoor } from '../combat/melee-reach.ts';
 import { getNewSoldierPath } from '../movement.ts';
 import { enoughPoints } from '../points.ts';
 import type { Soldier } from '../soldier.ts';
@@ -22,7 +24,7 @@ import {
   interactWithOpenableStruct,
   startInteractiveObject,
 } from './door-actions.ts';
-import { findAdjacentGridExAdvanced } from './door-approach.ts';
+import { type DoorApproach, findAdjacentGridExAdvanced } from './door-approach.ts';
 import { findDoorInfo, PerceivedTrap } from './door-table.ts';
 import { doTrapCheckOnStartingMenu } from './door-traps.ts';
 import { soldierHasKey } from './keys.ts';
@@ -135,9 +137,51 @@ export function performDoorAction(
   return action === 'open' || action === 'close' ? openOrClose(t, s, gridNo, direction) : menuAction(t, s, gridNo, direction, action);
 }
 
+export const OPEN_STRUCT_ACTION = 'openStruct';
+
+function containerAt(t: TacticalState, gridNo: number): StructureInstance | null {
+  const openable = t.world.structures.find(gridNo, StructureFlags.OPENABLE);
+  if (!openable || has(openable.flags, StructureFlags.ANYDOOR)) return null;
+  return t.world.structures.findBase(openable) ?? openable;
+}
+
+function containerApproach(t: TacticalState, s: Soldier, container: StructureInstance): DoorApproach | null {
+  if (has(container.flags, StructureFlags.SWITCH)) return findAdjacentGridExAdvanced(t, s, container, container.gridNo);
+  const approach = findAdjacentGridExForDoor(t, s, container.gridNo);
+  return approach ? { gridNo: approach.actionGridNo, direction: approach.direction } : null;
+}
+
+function containerCommand(t: TacticalState, s: Soldier, container: StructureInstance, action: DoorActionName): DoorCommandOutcome {
+  if (action !== 'open' && action !== 'close') return refuse('noDoor');
+  const open = has(container.flags, StructureFlags.OPEN);
+  if (action === 'open' && open) return refuse('alreadyOpen');
+  if (action === 'close' && !open) return refuse('alreadyClosed');
+  const approach = containerApproach(t, s, container);
+  if (!approach) return refuse('noPath');
+  if (!enoughPoints(t.inCombat, s, actionCost(s, action).ap)) return refuse('notEnoughAp');
+  const base = container.gridNo;
+  s.pendingDoorAction = null;
+  s.reverse = false;
+  startInteractiveObject(t, s, base);
+  if (approach.gridNo === s.gridNo) {
+    interactWithOpenableStruct(t, s, container, approach.direction);
+    return { ok: true, data: { started: action } };
+  }
+  s.pendingDoorAction = { gridNo: base, actionGridNo: approach.gridNo, direction: approach.direction, action: OPEN_STRUCT_ACTION };
+  if (!getNewSoldierPath(t, s, approach.gridNo, s.uiMovementMode, 1, s.noAPToFinishMove)) {
+    s.pendingDoorAction = null;
+    s.pendingDoorGridNo = -1;
+    return refuse('noPath');
+  }
+  return { ok: true, data: { walking: true, to: approach.gridNo } };
+}
+
 export function doorCommand(t: TacticalState, s: Soldier, gridNo: number, action: DoorActionName): DoorCommandOutcome {
   const door = doorAt(t, gridNo);
-  if (!door) return refuse('noDoor');
+  if (!door) {
+    const container = containerAt(t, gridNo);
+    return container ? containerCommand(t, s, container, action) : refuse('noDoor');
+  }
   const base = door.gridNo;
   const open = has(door.flags, StructureFlags.OPEN);
   const refusal = doorActionRefusal(t, s, base, open, action);
@@ -154,8 +198,6 @@ export function doorCommand(t: TacticalState, s: Soldier, gridNo: number, action
   }
   return { ok: true, data: { walking: true, to: approach.gridNo } };
 }
-
-export const OPEN_STRUCT_ACTION = 'openStruct';
 
 function interactWithPendingStruct(t: TacticalState, s: Soldier, gridNo: number, direction: number): void {
   const structure = t.world.structures.find(gridNo, StructureFlags.OPENABLE);

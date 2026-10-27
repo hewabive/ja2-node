@@ -55,7 +55,7 @@ import { atan8, Caller, Opp, SightFlags } from './opp.ts';
 export { atan8, atan8Of, Caller, Opp, SightFlags } from './opp.ts';
 
 const IRRELEVANT = -1;
-const MAX_DISTANCE_VISIBLE = 26;
+export const MAX_DISTANCE_VISIBLE = 26;
 const STRAIGHT = 13;
 const ANGLE = 11;
 const LOOK_BY_OCTANT_DIFFERENCE = [STRAIGHT, ANGLE, 7, 0, 0];

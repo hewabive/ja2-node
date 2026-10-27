@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Explosion_Control.cc SetOffBombsInGridNo (pressure-triggered action items and switches),
-// @src SetOffBombsByFrequency (remote action items), AddBombToQueue,
+// @src SetOffBombsByFrequency (remote action items), ActivateSwitchInGridNo, AddBombToQueue,
 // @src HandleExplosionQueue (the action item branch and the queue end), PerformItemAction (ACTION_ITEM_CLOSE_DOOR,
 // @src ACTION_ITEM_KINGPIN_ALARM, ACTION_ITEM_SEX, ACTION_ITEM_MUSEUM_ALARM), HookerInRoom; TacticalAI/Knowledge.cc
 // @src CallEldinTo; Tactical/Soldier_Tile.cc TeleportSoldier; Soldier_Add.cc FindGridNoFromSweetSpotWithStructData;
@@ -16,7 +16,6 @@ import { setCivGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { AiAction } from '../ai/actions.ts';
-import { cancelAIAction } from '../ai/control.ts';
 import { changeSoldierState, states } from '../animation.ts';
 import { soldierTo3DLocationLos } from '../combat/positions.ts';
 import { callAvailableKingpinMenTo } from '../doors/door-traps.ts';
@@ -106,6 +105,16 @@ export function setOffActionItemsInGridNo(t: TacticalState, s: Soldier): void {
     if (fields.detonator !== Detonator.PRESSURE || fields.owner > PLAYER_BOMB_OWNER_THRESHOLD) continue;
     if (isSwitch) setOffActionItemsByFrequency(t, s, fields.frequency);
     else queueActionItem(t, wi, s);
+  }
+}
+
+export function activateSwitchInGridNo(t: TacticalState, s: Soldier, g: number): void {
+  for (const wi of [...t.worldItems]) {
+    if (wi.gridNo !== g || !armedItem(t, wi, 'SWITCH') || isDisabled(wi)) continue;
+    const fields = bombFieldsOf(wi.object);
+    if (fields.detonator !== Detonator.SWITCH) continue;
+    t.turn.attackBusyCount = 0;
+    setOffActionItemsByFrequency(t, s, fields.frequency);
   }
 }
 
@@ -257,7 +266,7 @@ function callEldinTo(t: TacticalState, gridNo: number): void {
     eldin.ai.noiseVolume = MAX_MISC_NOISE_DURATION;
     eldin.ai.alertStatus = AlertStatus.RED;
     if (eldin.ai.action !== AiAction.GET_CLOSER || !t.narrative.fact(Fact.MUSEUM_ALARM_WENT_OFF, 0)) {
-      cancelAIAction(t, eldin);
+      t.turnHooks.cancelAIAction(t, eldin);
       eldin.ai.nextAction = AiAction.GET_CLOSER;
       eldin.ai.nextActionData = gridNo;
       eldin.ai.counter = t.clockMs + ELDIN_GET_CLOSER_DELAY_MS;

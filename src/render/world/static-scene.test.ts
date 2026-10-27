@@ -12,7 +12,7 @@ import { type Camera, screenToGridNo, tileOrigin, type Viewport, worldOrigin } f
 import { FLOATS_PER_INSTANCE, InstanceFlags, ShadeKey } from './instances.ts';
 import { prepareLevelRenderData } from './level-render-data.ts';
 import { computeReveal, NO_REVEAL } from './reveal.ts';
-import { doorTileInState, StaticScene, StaticSegment, type StaticState, type StaticWorld } from './static-scene.ts';
+import { openableTileInState, StaticScene, StaticSegment, type StaticState, type StaticWorld } from './static-scene.ts';
 
 const tables = parseTileTables(JSON.parse(readFileSync(join(import.meta.dirname, '../../../data/tables/tiles.json'), 'utf8')));
 const surfaces: TileSurface[] = tables.types.map((t) => ({
@@ -205,7 +205,7 @@ describe('static scene order and depth', () => {
   });
 });
 
-describe('door tiles', () => {
+describe('openable tiles', () => {
   const DOOR_FRAMES = 4;
   const CLOSED = 10;
   const OPEN = CLOSED + DOOR_FRAMES;
@@ -218,9 +218,20 @@ describe('door tiles', () => {
   it('draws a door in the state of the view, whichever state the map holds it in', () => {
     const open = new Set([AT]);
     const closed = new Set<number>();
-    expect(doorTileInState(tiles, open, AT, CLOSED)).toBe(OPEN);
-    expect(doorTileInState(tiles, open, AT, OPEN)).toBe(OPEN);
-    expect(doorTileInState(tiles, closed, AT, OPEN)).toBe(CLOSED);
-    expect(doorTileInState(tiles, closed, AT, CLOSED)).toBe(CLOSED);
+    expect(openableTileInState(tiles, open, AT, CLOSED)).toBe(OPEN);
+    expect(openableTileInState(tiles, open, AT, OPEN)).toBe(OPEN);
+    expect(openableTileInState(tiles, closed, AT, OPEN)).toBe(CLOSED);
+    expect(openableTileInState(tiles, closed, AT, CLOSED)).toBe(CLOSED);
+  });
+
+  it('draws a crate or a switch the same way, and leaves other structures alone', () => {
+    const CRATE = 30;
+    const WALL = 40;
+    tiles[CRATE] = doorTile(StructureFlags.OPENABLE, 1);
+    tiles[CRATE + 1] = doorTile(StructureFlags.OPENABLE | StructureFlags.OPEN, -1);
+    tiles[WALL] = doorTile(StructureFlags.WALL, 1);
+    expect(openableTileInState(tiles, new Set([AT]), AT, CRATE)).toBe(CRATE + 1);
+    expect(openableTileInState(tiles, new Set(), AT, CRATE + 1)).toBe(CRATE);
+    expect(openableTileInState(tiles, new Set([AT]), AT, WALL)).toBe(WALL);
   });
 });

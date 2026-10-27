@@ -28,6 +28,10 @@ function stateJump(state: number): number {
 }
 
 const OPEN_DOOR = 495;
+const OPEN_STRUCT = 494;
+const REACH_OUT = [1, 2, 3, 4, 5, 6, 6, 6, 6, 5, NONINTERRUPTIBLE_DONE];
+const PULL_BACK = [5, 4, 3, 2, 1, NONINTERRUPTIBLE_DONE, END_OF_ANIMATION];
+const SWING_SHUT = (code: number) => [1, 2, 3, 4, 5, 6, code, 5, 4, 3, 2, 1, NONINTERRUPTIBLE_DONE, END_OF_ANIMATION];
 type ScriptBuilder = (tables: Parameters<typeof stateId>[0]) => number[];
 const DOOR_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
   OPEN_DOOR: (t) => [1, 2, 3, 4, 5, 6, 6, 6, 6, 5, NONINTERRUPTIBLE_DONE, OPEN_DOOR, stateJump(stateId(t, 'END_OPEN_DOOR'))],
@@ -55,6 +59,14 @@ const DOOR_SCRIPTS: Readonly<Record<string, ScriptBuilder>> = {
   KICK_DOOR: () => [1, 2, 3, 4, 5, 6, 6, NONINTERRUPTIBLE_DONE, OPEN_DOOR, 5, 4, 3, 2, 1, END_OF_ANIMATION],
   PICK_LOCK: () => [1, 2, 3, 4, 5, 6, 6, 6, 6, NONINTERRUPTIBLE_DONE, OPEN_DOOR, 5, 4, 3, 2, 1, END_OF_ANIMATION],
   LOCKPICK_CROUCHED: () => [1, 2, 3, 4, 5, 6, 6, 6, 6, NONINTERRUPTIBLE_DONE, OPEN_DOOR, 5, 4, 3, 2, 1, END_OF_ANIMATION],
+  BEGIN_OPENSTRUCT: (t) => [...REACH_OUT, OPEN_DOOR, stateJump(stateId(t, 'END_OPENSTRUCT'))],
+  BEGIN_OPENSTRUCT_CROUCHED: (t) => [...REACH_OUT, OPEN_DOOR, stateJump(stateId(t, 'END_OPENSTRUCT_CROUCHED'))],
+  END_OPENSTRUCT: () => PULL_BACK,
+  END_OPENSTRUCT_CROUCHED: () => PULL_BACK,
+  END_OPENSTRUCT_LOCKED: () => PULL_BACK,
+  END_OPENSTRUCT_LOCKED_CROUCHED: () => PULL_BACK,
+  OPEN_STRUCT: () => SWING_SHUT(OPEN_STRUCT),
+  OPEN_STRUCT_CROUCHED: () => SWING_SHUT(OPEN_STRUCT),
 };
 
 const THROW_RELEASE = 460;

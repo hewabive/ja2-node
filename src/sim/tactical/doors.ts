@@ -1,7 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Handle_Doors.cc HandleDoorChangeFromGridNo;
-// @src TileEngine/Structure.cc SwapStructureForPartner, SwapStructureForPartnerAndStoreChangeInMap; Structure_Wrap.cc SetOpenableStructureToClosed. See docs/07 §1.5.
+// @src TileEngine/Structure.cc SwapStructureForPartner, SwapStructureForPartnerAndStoreChangeInMap; Structure_Wrap.cc
+// @src SetOpenableStructureToClosed; SaveLoadMap.cc SaveBloodSmellAndRevealedStatesFromMapToTempFile (the openable
+// @src statuses), SetOpenableStructStatusFromMapTempFile. See docs/07 §1.5.
 
 import { WORLD_MAX } from '../../content/world/grid.ts';
 import { recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
@@ -9,6 +11,7 @@ import { has, PROFILE_Z_SIZE, StructureFlags, type StructureInstance, type World
 import type { DoorSoundKind } from '../events.ts';
 import { recordStructureAdded, recordStructureRemoved } from './map-changes.ts';
 import type { TacticalState } from './state.ts';
+import { ANY_VISIBILITY_VALUE, setItemsVisibilityHidden, setItemsVisibilityOn } from './world-items.ts';
 
 const NO_PARTNER_STRUCTURE = 0;
 
@@ -69,6 +72,30 @@ export function setOpenableStructureToClosed(t: TacticalState, gridNo: number): 
   return true;
 }
 
+export function setOpenableStructStatus(t: TacticalState, gridNo: number, open: boolean): void {
+  const structure = t.world.structures.find(gridNo, StructureFlags.OPENABLE);
+  if (!structure || has(structure.flags, StructureFlags.OPEN) === open) return;
+  const baseGridNo = t.world.structures.findBase(structure)?.gridNo ?? gridNo;
+  swapStructureForPartner(t, structure);
+  if (open) setItemsVisibilityOn(t, baseGridNo, 0, ANY_VISIBILITY_VALUE, false);
+  else setItemsVisibilityHidden(t, baseGridNo, 0);
+}
+
+export interface OpenableStatus {
+  readonly gridNo: number;
+  open: boolean;
+}
+
+export function openableStatuses(t: TacticalState): OpenableStatus[] {
+  const statuses: OpenableStatus[] = [];
+  for (let g = 0; g < WORLD_MAX; g++) {
+    const openable = t.world.structures.find(g, StructureFlags.OPENABLE);
+    if (openable && !has(openable.flags, StructureFlags.ANYDOOR))
+      statuses.push({ gridNo: g, open: has(openable.flags, StructureFlags.OPEN) });
+  }
+  return statuses;
+}
+
 const doorsOfWorld = new WeakMap<WorldStructures, readonly number[]>();
 
 export function doorGridNos(world: { readonly structures: WorldStructures }): readonly number[] {
@@ -83,9 +110,30 @@ export function doorGridNos(world: { readonly structures: WorldStructures }): re
   return doors;
 }
 
+const containersOfWorld = new WeakMap<WorldStructures, readonly number[]>();
+
+export function containerGridNos(world: { readonly structures: WorldStructures }): readonly number[] {
+  const known = containersOfWorld.get(world.structures);
+  if (known) return known;
+  const containers: number[] = [];
+  for (let g = 0; g < WORLD_MAX; g++) {
+    const openable = world.structures.find(g, StructureFlags.OPENABLE);
+    if (openable && openable.gridNo === g && !has(openable.flags, StructureFlags.ANYDOOR)) containers.push(g);
+  }
+  containersOfWorld.set(world.structures, containers);
+  return containers;
+}
+
+export function isOpenableOpenAt(t: Pick<TacticalState, 'world'>, gridNo: number): boolean {
+  const openable = t.world.structures.find(gridNo, StructureFlags.OPENABLE);
+  return openable !== null && has(openable.flags, StructureFlags.OPEN);
+}
+
 export function openDoorGridNos(t: TacticalState): number[] {
-  const candidates = new Set([...doorGridNos(t.world), ...t.doorStatus.keys()]);
-  return [...candidates].filter((g) => isDoorOpenAt(t, g)).sort((a, b) => a - b);
+  const doors = new Set([...doorGridNos(t.world), ...t.doorStatus.keys()]);
+  const open = [...doors].filter((g) => isDoorOpenAt(t, g));
+  const containers = containerGridNos(t.world).filter((g) => isOpenableOpenAt(t, g));
+  return [...open, ...containers].sort((a, b) => a - b);
 }
 
 export function isDoorOpenAt(t: TacticalState, gridNo: number): boolean {

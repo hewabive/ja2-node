@@ -15,6 +15,7 @@ import { Approach, NPC_TALK_RADIUS } from '../../content/narrative/npc-constants
 import type { NpcRecordContent } from '../../content/narrative/npc-records.ts';
 import { type NarrativeScenes, NO_NARRATIVE_SCENES } from '../../content/narrative/scenes.ts';
 import { MercType } from '../../content/strategic/economy-content.ts';
+import { sameSector } from '../../content/strategic/sector-ids.ts';
 import type { CommandResult } from '../command.ts';
 import type { SimEvent } from '../events.ts';
 import { beginCivQuote, type CivQuoteSaid, startCivQuote } from '../narrative/civ-quotes.ts';
@@ -46,6 +47,7 @@ import { elliotFaceVariant, type FaceVariant } from '../narrative/face-variant.t
 import { dealerTakesGive, giveToNpc, handleNpcItemGiven, returnItemToPlayer, takeGivenObject } from '../narrative/give.ts';
 import type { FactSource, NarrativeHost, NpcActionPort, QuestPort } from '../narrative/host.ts';
 import { ASSASSIN_PROFILES, NarrativeProfile, ProfileFlag, ProfileFlag2 } from '../narrative/narrative-ids.ts';
+import { type ShipmentDelivery, stuffMissingFromShipment } from '../narrative/nearby-quotes.ts';
 import {
   isNpcOrRpc,
   isPlayerMerc,
@@ -101,7 +103,7 @@ import { MoraleEvent } from './morale.ts';
 import { campaignMeanwhileActions } from './narrative/meanwhile-actions.ts';
 import type { NarrativeSlots } from './narrative/narrative-flow.ts';
 import { NpcActionFlow, type NpcActionPorts } from './narrative/npc-action-flow.ts';
-import { medicalCostAt } from './narrative/quest-world.ts';
+import { medicalCostAt, primaryDelivery } from './narrative/quest-world.ts';
 import { MercKind, type RosterMerc } from './roster.ts';
 
 export const AP_TALK = 6;
@@ -443,6 +445,7 @@ export class TalkFlow {
       worldSector: () => state.worldSector,
       isEpc: (s) => this.#isEpc(s),
       onSquad: (s) => this.#onSquad(s),
+      mercAsleep: (s) => campaign.strategic?.mercs.get(s.id)?.asleep ?? false,
       inMeanwhile: () => campaign.strategic?.world.inMeanwhile() ?? false,
       emit: (e) => this.#emit(e),
       setEngaged: (on) => {
@@ -581,7 +584,15 @@ export class TalkFlow {
       pcDoesFirstAidOnNpc: (profile) => pcDoesFirstAidOnNpc(host, profile),
       npcConsiderInitiatingConv: (s) => npcConsiderInitiatingConv(host, s),
       triggerFriendWithHostileQuote: (profile) => triggerFriendWithHostileQuote(this.npcActions.env, profile),
+      stuffMissingFromShipment: (gridNo) => stuffMissingFromShipment(host, gridNo, this.#shipmentDelivery()),
     };
+  }
+
+  #shipmentDelivery(): ShipmentDelivery | null {
+    const delivery = primaryDelivery(this.#campaign);
+    const world = this.#campaign.state.worldSector;
+    if (!delivery) return null;
+    return { gridNo: delivery.gridNo, loadedHere: world !== null && sameSector(world, delivery.sector) };
   }
 
   #firstSightingRecord(profile: number, record: number): boolean {

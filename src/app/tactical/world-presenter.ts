@@ -67,7 +67,7 @@ const HALF_CELL = 5;
 const PICK_LIFT = 10;
 const NO_MARKER: SoldierMarker = { stanceOffset: 0, hidden: false, moving: false, stationary: true };
 const EDGE_PROBE_PX = 1;
-const INTERACTIVE_MASK = StructureFlags.ANYDOOR | StructureFlags.SWITCH;
+const INTERACTIVE_MASK = StructureFlags.ANYDOOR | StructureFlags.SWITCH | StructureFlags.OPENABLE;
 const ROOF_LAYERS: ReadonlySet<WorldMarker['layer']> = new Set(['roof', 'onRoof']);
 
 export interface PresenterSources {
