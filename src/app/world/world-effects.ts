@@ -6,7 +6,8 @@
 // @src 300 + Random(300) ms per frame, translucent; the static graphic when smoke is not animated);
 // @src Tile_Animation.cc CreateAnimationTile, UpdateAniTiles (looping tiles restart at their direction's first frame);
 // @src src/game/Tactical/Weapons.cc DoSpecialEffectAmmoMiss (the translucent miniboom of HE and HEAT rounds on the topmost
-// @src layer, at the impact); src/game/Tactical/Bullets.cc HandleBulletSpecialFlags, UpdateBullets (a thrown knife: the
+// @src layer, at the impact); src/game/Tactical/Bullets.cc AddMissileTrail (msle_smk, msle_sma or msle_spt, translucent, in
+// @src the struct layer); src/game/Tactical/Bullets.cc HandleBulletSpecialFlags, UpdateBullets (a thrown knife: the
 // @src knifing.sti frames of its direction from the fourth, every 100 ms, and its shadow on the ground, both hanging on the
 // @src thrower's tile). See docs/28 §12.1 G8.
 
@@ -38,6 +39,11 @@ import type { ReadVfsFile } from '../net/vfs.ts';
 
 const TILE_CACHE_DIR = 'tilecache/';
 const MINIBOOM_PATH = 'tilecache/miniboom.sti';
+const TRAIL_PATHS: Readonly<Record<string, string>> = {
+  smoke: 'tilecache/msle_smk.sti',
+  small: 'tilecache/msle_sma.sti',
+  spit: 'tilecache/msle_spt.sti',
+};
 const KNIFE_PATH = 'tilecache/knifing.sti';
 const STUB_PREFIX = 'stubs/';
 const CAMO_PALETTE = 'anims/camo.col';
@@ -312,24 +318,31 @@ export class WorldEffects {
     };
   }
 
-  miniboomFrames(): number | null {
-    return this.#picture(MINIBOOM_PATH)?.picture.frames.length ?? null;
+  #cachedEffectPath(e: Pick<EffectFrame, 'kind' | 'tile'>): string | null {
+    if (e.kind === 'miniboom') return MINIBOOM_PATH;
+    return e.kind === 'trail' ? (TRAIL_PATHS[e.tile ?? ''] ?? null) : null;
   }
 
-  miniboom(e: EffectFrame): SceneAniTile | null {
+  cachedEffectFrames(e: Pick<EffectFrame, 'kind' | 'tile'>): number | null {
+    const path = this.#cachedEffectPath(e);
+    return path ? (this.#picture(path)?.picture.frames.length ?? null) : null;
+  }
+
+  cachedEffect(e: EffectFrame): SceneAniTile | null {
     const sprites = this.#sprites;
-    const loaded = this.#picture(MINIBOOM_PATH);
-    if (!sprites || !loaded) return null;
-    const sheet = this.#sheet(MINIBOOM_PATH, loaded.picture);
+    const path = this.#cachedEffectPath(e);
+    const loaded = path ? this.#picture(path) : null;
+    if (!sprites || !path || !loaded || (e.kind !== 'miniboom' && e.kind !== 'trail')) return null;
+    const sheet = this.#sheet(path, loaded.picture);
     const sprite = sheet ? sprites.soldierFrame(sheet, e.frame) : null;
     if (!sprite) return null;
     return {
-      kind: 'miniboom',
+      kind: e.kind,
       gridNo: e.gridNo,
       level: 0,
       at: { x: e.x, y: e.y, z: e.z },
       sprite,
-      paletteRow: sprites.plainPaletteRow(`effect|${MINIBOOM_PATH}`, () => loaded.picture.palette),
+      paletteRow: sprites.plainPaletteRow(`effect|${path}`, () => loaded.picture.palette),
       shaded: false,
       zStrip: null,
       zTileOffsetX: 0,

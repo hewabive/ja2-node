@@ -86,3 +86,22 @@ describe('bullet impacts (Weapons.cc StructureHit)', () => {
     expect(sim.state.bullets.filter((b) => !b.toDelete)).toHaveLength(0);
   });
 });
+
+describe('missile trails (Bullets.cc AddMissileTrail)', () => {
+  it('leaves a smoke trail every ten steps of a LAW rocket, each drawing its delay from Random', () => {
+    const sim = newCombatSim(content);
+    spawnSoldier(sim, 0, Team.OUR, gridNo(80, 60), Direction.SOUTH, { gun: 'ROCKET_LAUNCHER' });
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: gridNo(80, 90) }).ok).toBe(true);
+    const events: SimEvent[] = [];
+    for (let tick = 0; tick < 3000 && !events.some((e) => e.type === 'explosion'); tick++) {
+      sim.step();
+      events.push(...sim.drainEvents());
+    }
+    const trails = events.flatMap((e) => (e.type === 'missileTrail' ? [e] : []));
+    expect(trails.length).toBeGreaterThan(5);
+    expect(trails.every((e) => e.trail === 'smoke' && e.delay >= 100 && e.delay < 200)).toBe(true);
+    expect(new Set(trails.map((e) => e.delay)).size).toBeGreaterThan(1);
+    const rows = trails.map((e) => Math.trunc(e.y / 10));
+    expect(rows.slice(1).every((row, k) => row >= (rows[k] ?? row))).toBe(true);
+  });
+});

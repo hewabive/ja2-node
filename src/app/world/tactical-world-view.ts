@@ -213,7 +213,7 @@ export class TacticalWorldView {
   }
 
   #effectFrameCount(kind: EffectKind, tile: string | null): number | null {
-    if (kind === 'miniboom') return this.#effects?.miniboomFrames() ?? null;
+    if (kind === 'miniboom' || kind === 'trail') return this.#effects?.cachedEffectFrames({ kind, tile }) ?? null;
     return effectTileFrames(kind, tile, this.world.tables, this.world.tiles)?.length ?? null;
   }
 
@@ -227,8 +227,13 @@ export class TacticalWorldView {
     return bullets.flatMap((b) => (b.knife ? effects.knife({ ...b, knife: b.knife }, tick, this.world.level.heights) : []));
   }
 
-  #miniboomTiles(shown: readonly EffectFrame[]) {
-    return shown.flatMap((e) => (e.kind === 'miniboom' ? [this.#effects?.miniboom(e) ?? null] : [])).filter((a) => a !== null);
+  #cachedEffectTiles(shown: readonly EffectFrame[]): SceneAniTile[] {
+    const effects = this.#effects;
+    if (!effects) return [];
+    return shown.flatMap((e) => {
+      const tile = e.kind === 'miniboom' || e.kind === 'trail' ? effects.cachedEffect(e) : null;
+      return tile ? [tile] : [];
+    });
   }
 
   render(f: TacticalFrame): WorldDrawStats {
@@ -279,7 +284,7 @@ export class TacticalWorldView {
     this.#drawnImpacts = effects.length;
     const bullets = f.options.hideBullets ? NO_BULLETS : (f.bullets ?? NO_BULLETS);
     this.#drawnBullets = bullets.length;
-    const animatedTiles = [...aniTiles, ...this.#miniboomTiles(effects), ...this.#knifeTiles(bullets, Math.floor(shownTick))];
+    const animatedTiles = [...aniTiles, ...this.#cachedEffectTiles(effects), ...this.#knifeTiles(bullets, Math.floor(shownTick))];
     this.#drawnEffects = animatedTiles.length;
     return this.#renderer.render({
       viewport: f.viewport,

@@ -3,7 +3,8 @@
 // @src src/game/Tactical/LOS.cc FireBulletGivenTarget, CalculateFiringIncrements, FireBullet, MoveBullet,
 // @src ChanceOfBulletHittingStructure, StructureResistanceIncreasedByRange, HandleBulletStructureInteraction,
 // @src CTGTHandleBulletStructureInteraction, CalcChanceToGetThrough, *ChanceToGetThrough; Bullets.cc CreateBullet,
-// @src RemoveBullet, StopBullet, UpdateBullets; Weapons.cc StructureHit, ShotMiss, WindowHit;
+// @src RemoveBullet, StopBullet, UpdateBullets, AddMissileTrail (its Random(100) delay; fGoingOver is never reset within one
+// @src MoveBullet); Weapons.cc StructureHit, ShotMiss, WindowHit;
 // @src TileEngine/Tile_Animation.cc ANITILE_RELEASE_ATTACKER_WHEN_DONE. See docs/11 §3.
 
 import { lockAt } from '../../../content/formats/locks.ts';
@@ -21,6 +22,7 @@ import {
 } from '../../../content/world/structures.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { i16 } from '../../../core/int.ts';
+import type { MissileTrail } from '../../events.ts';
 import { createItem, type ItemObject } from '../../items/object.ts';
 import { AnimHeight, endHeight } from '../animation.ts';
 import { findDoorInfo } from '../doors/door-table.ts';
@@ -670,6 +672,7 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
   b.lastUpdate = t.clockMs;
   const elevation = tileHeightPixels(t, b.firer.gridNo) === 0 ? 2 : 4;
   let tiles = 0;
+  let goingOver = false;
   do {
     const g = b.tileX + b.tileY * WORLD_COLS;
     if (outOfWorld(b, elevation)) {
@@ -762,6 +765,7 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
           structureHit(t, b, INVALID_STRUCTURE_ID, 0, true, 'ground');
           return;
         }
+        if (b.flags & SPECIAL_BULLETS) goingOver = trailOnTheWay(t, b, steps, goingOver);
         b.x = (b.x + Math.imul(b.incX, steps)) | 0;
         b.y = (b.y + Math.imul(b.incY, steps)) | 0;
         b.z = (b.z + Math.imul(b.incZ, steps)) | 0;
@@ -854,6 +858,7 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
           b.losY = cellOf(b.y);
           b.cubesZ = cubeOf(fixInt(b.z));
           b.loop++;
+          if (b.flags & SPECIAL_BULLETS && b.loop % trailSteps(b) === 0) addMissileTrail(t, b, b.x, b.y, b.z);
         } while (b.losX === oldX && b.losY === oldY && b.cubesZ === oldCubes);
         b.tileX = Math.trunc(fixInt(b.x) / 10);
         b.tileY = Math.trunc(fixInt(b.y) / 10);
@@ -870,6 +875,43 @@ export function moveBullet(t: TacticalState, b: Bullet): void {
     else if (b.flags & BulletFlag.FLAME && b.loop > b.range) b.incZ -= Math.trunc((100 * FIX) / (b.range * 2));
     if (b.firer.target && !b.firer.attackNoticed && pythSpacesAway(b.gridNo, b.targetGrid) <= 3) b.firer.attackNoticed = true;
   } while (tiles < b.tilesPerUpdate);
+}
+
+const STEPS_FOR_BULLET_MOVE_TRAILS = 10;
+const STEPS_FOR_BULLET_MOVE_SMALL_TRAILS = 5;
+const STEPS_FOR_BULLET_MOVE_FIRE_TRAILS = 5;
+const TRAIL_LOOPS_HIDDEN = 5;
+const TRAIL_DELAY_MS = 100;
+const TRAIL_DELAY_RANGE_MS = 100;
+const SHORT_TRAILS_HIDDEN_AT_FIRST = BulletFlag.SMALL_MISSILE | BulletFlag.FLAME | BulletFlag.CREATURE_SPIT;
+
+function trailSteps(b: Bullet): number {
+  if (b.flags & BulletFlag.SMALL_MISSILE) return STEPS_FOR_BULLET_MOVE_SMALL_TRAILS;
+  return b.flags & BulletFlag.FLAME ? STEPS_FOR_BULLET_MOVE_FIRE_TRAILS : STEPS_FOR_BULLET_MOVE_TRAILS;
+}
+
+function trailOnTheWay(t: TacticalState, b: Bullet, steps: number, goingOver: boolean): boolean {
+  const every = trailSteps(b);
+  let i = 0;
+  while (i < steps && (b.loop + i) % every !== 0) i++;
+  const over = goingOver || i < steps;
+  if (over) addMissileTrail(t, b, (b.x + Math.imul(b.incX, i)) | 0, (b.y + Math.imul(b.incY, i)) | 0, (b.z + Math.imul(b.incZ, i)) | 0);
+  return over;
+}
+
+function trailKind(b: Bullet): MissileTrail {
+  if (b.flags & (BulletFlag.MISSILE | BulletFlag.TANK_CANNON)) return 'smoke';
+  if (b.flags & BulletFlag.SMALL_MISSILE) return 'small';
+  return b.flags & BulletFlag.CREATURE_SPIT ? 'spit' : 'smoke';
+}
+
+function addMissileTrail(t: TacticalState, b: Bullet, x: number, y: number, z: number): void {
+  if (b.flags & SHORT_TRAILS_HIDDEN_AT_FIRST && b.loop < TRAIL_LOOPS_HIDDEN) return;
+  if (b.flags & BulletFlag.TANK_CANNON) return;
+  const randomDelay = TRAIL_DELAY_MS + t.rng.int(TRAIL_DELAY_RANGE_MS);
+  const delay = b.flags & BulletFlag.FLAME ? TRAIL_DELAY_MS : randomDelay;
+  const height = Math.trunc((fixInt(z) * WALL_HEIGHT_PIXELS) / WALL_HEIGHT_UNITS) - tileHeightPixels(t, b.firer.gridNo);
+  t.events.push({ type: 'missileTrail', gridNo: b.gridNo, x: fixInt(x), y: fixInt(y), z: height, trail: trailKind(b), delay });
 }
 
 const isMonster = (s: Soldier) => s.bodyType >= Body.ADULTFEMALEMONSTER && s.bodyType <= Body.QUEENMONSTER;

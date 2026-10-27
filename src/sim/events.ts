@@ -161,9 +161,21 @@ export interface WindowShatteredEvent extends SimEventBase {
   readonly tile: WindowShatterTile;
 }
 
-export type EffectEvent = BulletImpactEvent | WindowShatteredEvent;
+export type MissileTrail = 'smoke' | 'small' | 'spit';
 
-const EFFECT_EVENT_TYPES: ReadonlySet<SimEvent['type']> = new Set(['bulletImpact', 'windowShattered']);
+export interface MissileTrailEvent extends SimEventBase {
+  readonly type: 'missileTrail';
+  readonly gridNo: number;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly trail: MissileTrail;
+  readonly delay: number;
+}
+
+export type EffectEvent = BulletImpactEvent | WindowShatteredEvent | MissileTrailEvent;
+
+const EFFECT_EVENT_TYPES: ReadonlySet<SimEvent['type']> = new Set(['bulletImpact', 'windowShattered', 'missileTrail']);
 
 export function isEffectEvent(e: SimEvent): e is EffectEvent {
   return EFFECT_EVENT_TYPES.has(e.type);
@@ -499,6 +511,7 @@ export type SimEvent =
   | BulletStoppedEvent
   | BulletImpactEvent
   | WindowShatteredEvent
+  | MissileTrailEvent
   | SoldierHitEvent
   | LifeLostEvent
   | SoldierDiedEvent

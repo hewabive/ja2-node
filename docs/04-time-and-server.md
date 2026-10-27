@@ -262,7 +262,10 @@ client keeps the positions it has received (`BulletTrack`) and draws those of th
 presentation fields: `bulletImpact {soldier, gridNo, x, y, z, effect}` wherever `StructureHit` plays a miss (`dust`,
 `splash` in low or deep water, `miniboom` for a stopping HE or HEAT round, which also frees the shooter at once) and
 where `WeaponHit` plays the HE miniboom on a soldier, and `windowShattered {gridNo, tile}` (the `WINDOWSHATTER` tile the
-glass falls from) when a bullet, a blast or a thrown object shatters a window. Agents get them like any event. Because a
+glass falls from) when a bullet, a blast or a thrown object shatters a window, and `missileTrail {gridNo, x, y, z,
+trail: smoke|small|spit, delay}` wherever `MoveBullet` leaves a trail behind a rocket, a rocket-rifle round, a flame or
+creature spit (`AddMissileTrail`, which draws the frame delay from `Random`, so the simulation draws it too). Agents get
+them like any event. Because a
 tactical event's `tick` is the tactical simulation's and a campaign's view ticks run on, the session also copies these
 events into the frame of the tick it stepped them in (`ViewFrame.effects`, stamped with the session tick). The client
 plays each one from that tick on its own clock of view ticks (`EffectAnimations`), and while bullets fly or effects

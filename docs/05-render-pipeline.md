@@ -56,6 +56,11 @@ struct layer and the same frame in the shadow layer with `sRelativeZ` 0, both ha
 under it, so the knife sorts at the on-roof z of the thrower's tile raised by that height and the tile's own land height
 is taken off its position. The shadow layer draws it flat without a depth test (§2.6).
 
+A missile trail (`AddMissileTrail`, `Bullets.cc:296-353`) is a cached animation tile in the struct layer of the
+bullet's tile, always translucent: `msle_smk.sti` behind rockets, tank shells and flames, `msle_sma.sti` behind small
+missiles, `msle_spt.sti` behind creature spit, 9 frames each at 100 + `Random(100)` ms (flames 100 ms), raised by the
+height minus the shooter's land height.
+
 **Notation.**
 - Unmarked statements were read in the code (fact) and carry a `file:line` reference.
 - **(inferred)** marks my derivations and assumptions.

@@ -17,6 +17,12 @@ const MINIBOOM_PATH = 'tilecache/miniboom.sti';
 const MINIBOOM_FRAMES = 13;
 const MINIBOOM_PEAK_FRAME = 5;
 const KNIFE_PATH = 'tilecache/knifing.sti';
+const TRAIL_FRAMES = 9;
+const TRAILS: readonly { readonly path: string; readonly ramp: RampName; readonly size: number }[] = [
+  { path: 'tilecache/msle_smk.sti', ramp: 'gray', size: 14 },
+  { path: 'tilecache/msle_sma.sti', ramp: 'gray', size: 7 },
+  { path: 'tilecache/msle_spt.sti', ramp: 'olive', size: 14 },
+];
 const KNIFE_SPIN_FRAMES = 4;
 const KNIFE_LENGTH = 7;
 const SMOKE_RAMPS: Readonly<Record<string, RampName>> = { SMOKE: 'gray', TEARGAS: 'sand', MUSTARDGAS: 'olive', CREATUREGAS: 'teal' };
@@ -79,6 +85,14 @@ function miniboom(frame: number): StiSubImage {
   return { offsetX: -Math.round(radius), offsetY: -Math.round(radius), width: size, height: size, pixels: r.pixels };
 }
 
+function trailPuff(frame: number, ramp: RampName, largest: number): StiSubImage {
+  const radius = 1 + ((largest / 2 - 1) * (frame + 1)) / TRAIL_FRAMES;
+  const size = Math.ceil(radius * 2) + 1;
+  const r = new IndexedRaster(size, size);
+  r.ellipse(radius, radius, radius, radius, (nx, ny) => color(ramp, 12 - frame / 2 - nx - ny));
+  return { offsetX: -Math.round(radius), offsetY: -Math.round(radius), width: size, height: size, pixels: r.pixels };
+}
+
 function knifeFrame(block: number, spin: number): StiSubImage {
   const [vx, vy] = SCREEN_VECTOR_BY_DIRECTION[block] ?? [1, 0];
   const angle = Math.atan2(vy, vx) + (spin * Math.PI) / 2;
@@ -136,5 +150,9 @@ export async function buildStubEffects(out: string, palette: Uint8Array): Promis
     knifeFrame(Math.floor(f / KNIFE_SPIN_FRAMES), f % KNIFE_SPIN_FRAMES),
   );
   written.push(await writeSti(out, KNIFE_PATH, palette, knife, KNIFE_SPIN_FRAMES));
+  for (const trail of TRAILS) {
+    const puffs = Array.from({ length: TRAIL_FRAMES }, (_, f) => trailPuff(f, trail.ramp, trail.size));
+    written.push(await writeSti(out, trail.path, palette, puffs, TRAIL_FRAMES));
+  }
   return written;
 }

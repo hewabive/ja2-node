@@ -100,7 +100,7 @@ function inPass(m: SceneSoldier, pass: MercPass): boolean {
   return m.level > 0;
 }
 
-export type AniTileKind = 'corpse' | 'vehicleCorpse' | 'smoke' | 'staticSmoke' | 'miniboom' | 'knife' | 'knifeShadow';
+export type AniTileKind = 'corpse' | 'vehicleCorpse' | 'smoke' | 'staticSmoke' | 'miniboom' | 'knife' | 'knifeShadow' | 'trail';
 
 const PAUSED_ANI_KINDS: ReadonlySet<AniTileKind> = new Set(['corpse', 'vehicleCorpse']);
 
@@ -447,7 +447,8 @@ export class DynamicScene {
       return;
     }
     const z = animationTileZ(worldY(x, y, this.#world.topY), at.z);
-    this.#push(out, this.runs, DrawState.NEARER_OR_EQUAL, () => out.push(p.x, p.y, s, 0, s.width, a.paletteRow, z, ShadeKey.FIXED, 0, 0));
+    const state = a.kind === 'trail' ? DrawState.TRANSLUCENT : DrawState.NEARER_OR_EQUAL;
+    this.#push(out, this.runs, state, () => out.push(p.x, p.y, s, 0, s.width, a.paletteRow, z, ShadeKey.FIXED, 0, 0));
   }
 
   #emitTopmost(g: number, x: number, y: number): void {

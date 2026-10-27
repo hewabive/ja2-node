@@ -64,6 +64,15 @@ describe('effect animations', () => {
     ]);
   });
 
+  it('plays a missile trail at its own delay', () => {
+    const effects = new EffectAnimations();
+    const trail: EffectEvent = { type: 'missileTrail', gridNo: WHERE, x: 805, y: 803, z: 30, trail: 'smoke', delay: 150, tick: 0 };
+    effects.observe([trail]);
+    const frameAt = (tick: number) => effects.at(tick, () => 9).map((e) => [e.kind, e.tile, e.frame]);
+    expect(frameAt(30)).toEqual([['trail', 'smoke', 0]]);
+    expect(frameAt(31)).toEqual([['trail', 'smoke', 1]]);
+  });
+
   it('forgets everything on reset', () => {
     const effects = new EffectAnimations();
     effects.observe([impact(0, 'miniboom')]);

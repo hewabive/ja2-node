@@ -215,6 +215,15 @@ describe('dynamic scene', () => {
     expect(scene.runs.map((r) => r.state)).toEqual([DrawState.SHADOW_FLAT, DrawState.NEARER_OR_EQUAL]);
   });
 
+  it('draws a missile trail translucent at the on-roof z of its tile raised by its height', () => {
+    const { staticWorld, prepared } = world({}, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    const trail: SceneAniTile = { ...aniTileOf('trail', g(80, 80), 0, 6), at: { x: 805, y: 805, z: 25 } };
+    scene.build(frame({ aniTiles: [trail] }));
+    expect(decode(scene)).toEqual([expect.objectContaining({ x: -20, y: 1565, z: animationTileZ(worldY(80, 80, 860), 25) })]);
+    expect(scene.runs.map((r) => r.state)).toEqual([DrawState.TRANSLUCENT]);
+  });
+
   it('steps animated tiles every frame of the 200 ms clock', () => {
     const animated = tiles.map((t, i) =>
       i === 10 ? { ...t, flags: t.flags | TileFlags.ANIMATED, animationFrames: [10, 11, 12] } : t,
