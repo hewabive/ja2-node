@@ -2,12 +2,16 @@ import type { PresentationTimeline } from '../../content/anim/timelines.ts';
 import { revealedRooms } from '../tactical/perception/fov.ts';
 import { Team } from '../tactical/soldier.ts';
 import type { TacticalSim } from '../tactical/tactical-sim.ts';
-import { corpseViews, smokeViews, tileChangeViews } from '../tactical/world-view.ts';
+import { type BulletView, bulletViews, corpseViews, smokeViews, tileChangeViews } from '../tactical/world-view.ts';
 
 const NO_PRESENTATION: PresentationTimeline = { frames: new Int16Array(0), sounds: new Uint16Array(0) };
 
 export function shownToPlayer(s: { readonly team: number; readonly visible: number }): boolean {
   return s.team === Team.OUR || s.visible >= 0;
+}
+
+export function bulletsShownToPlayer(sim: TacticalSim): BulletView[] {
+  return bulletViews(sim.state, shownToPlayer);
 }
 
 export function tacticalViewParts(sim: TacticalSim, presentation: PresentationTimeline = NO_PRESENTATION) {

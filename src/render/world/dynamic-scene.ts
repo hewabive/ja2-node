@@ -1,9 +1,10 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/RenderWorld.cc RenderDynamicWorld, RenderTiles (dynamic layers, animated tiles, mercs,
-// @src items, LEVELNODE_USERELPOS); src/game/TileEngine/Tile_Animation.cc; src/game/Tactical/Interface_Control.cc
-// @src SetUpInterface (UI nodes); src/game/Tactical/Rotting_Corpses.cc AddRottingCorpse (ANITILE_PAUSED: a corpse
-// @src is drawn with the static world, before every merc). See docs/05 §2.5, docs/28 §6.4.
+// @src items, LEVELNODE_USERELPOS, LEVELNODE_USEABSOLUTEPOS); src/game/TileEngine/Tile_Animation.cc;
+// @src src/game/Tactical/Interface_Control.cc SetUpInterface (UI nodes); src/game/Tactical/Rotting_Corpses.cc
+// @src AddRottingCorpse (ANITILE_PAUSED: a corpse is drawn with the static world, before every merc). See docs/05 §2.5,
+// @src docs/28 §6.4.
 
 import type { LayerName } from '../../content/formats/map.ts';
 import { CELL_X_SIZE, CELL_Y_SIZE, WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
@@ -117,6 +118,14 @@ export interface SceneAniTile {
   readonly zTileOffsetY: number;
 }
 
+export interface AbsoluteNode {
+  readonly gridNo: number;
+  readonly tile: number;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+}
+
 export interface SceneItem {
   readonly gridNo: number;
   readonly level: number;
@@ -142,6 +151,7 @@ export interface DynamicFrame {
   readonly itemOutline: (onRoof: boolean) => number;
   readonly uiNodes: readonly WorldUiNode[];
   readonly aniTiles: readonly SceneAniTile[];
+  readonly absoluteNodes: readonly AbsoluteNode[];
 }
 
 export interface PlacedSoldier {
@@ -216,6 +226,7 @@ export class DynamicScene {
   #uiByTile = new Map<number, WorldUiNode[]>();
   #itemsByTile = new Map<number, SceneItem[]>();
   #aniByTile = new Map<number, SceneAniTile[]>();
+  #absoluteByTile = new Map<number, AbsoluteNode[]>();
 
   constructor(world: StaticWorld, prepared: LevelRenderData, mapNodes?: Map<number, DynamicNode[]>) {
     this.#world = world;
@@ -239,11 +250,13 @@ export class DynamicScene {
     this.#uiByTile = groupBy(frame.uiNodes, (n) => n.gridNo);
     this.#itemsByTile = groupBy(frame.items, (i) => i.gridNo * 2 + (i.level > 0 ? 1 : 0));
     this.#aniByTile = groupBy(frame.aniTiles, (a) => a.gridNo * 2 + (a.level > 0 ? 1 : 0));
+    this.#absoluteByTile = groupBy(frame.absoluteNodes, (n) => n.gridNo);
     this.#frameRows = rowsOf([
       ...frame.soldiers.map((s) => s.gridNo),
       ...frame.uiNodes.map((n) => n.gridNo),
       ...frame.items.map((i) => i.gridNo),
       ...frame.aniTiles.map((a) => a.gridNo),
+      ...frame.absoluteNodes.map((n) => n.gridNo),
     ]);
     const first = Math.max(0, frame.rows.first);
     const last = Math.min(ROW_COUNT - 1, frame.rows.last);
@@ -304,7 +317,23 @@ export class DynamicScene {
     for (const node of this.#mapNodes.get(g) ?? []) if (node.layer === layer) this.#emitMapNode(g, x, y, layer, node.tile);
     if (layer === 'structs' || layer === 'onRoof')
       for (const a of this.#aniByTile.get(g * 2 + (layer === 'onRoof' ? 1 : 0)) ?? []) if (!isPaused(a)) this.#emitAniTile(a, x, y);
+    if (layer === 'structs') for (const n of this.#absoluteByTile.get(g) ?? []) this.#emitAbsoluteNode(n, x, y);
     for (const n of ui) if (!n.head) this.#emitUiNode(n, x, y, layer);
+  }
+
+  #emitAbsoluteNode(n: AbsoluteNode, x: number, y: number): void {
+    const d = this.#sprite(n.tile);
+    if (!d) return;
+    const frame = this.#frame as DynamicFrame;
+    const c = mapCenter(frame.viewport);
+    const offX = c.x - 2 * (frame.camera.centerX - frame.camera.centerY);
+    const offY = c.y - (frame.camera.centerX + frame.camera.centerY) + frame.renderHeight;
+    const dx = Math.fround(n.x - CELL_Y_SIZE - frame.camera.centerX);
+    const dy = Math.fround(n.y - frame.camera.centerY);
+    const screenX = c.x + Math.trunc(Math.fround(2 * dx - 2 * dy));
+    const screenY = c.y + Math.trunc(Math.fround(dx + dy)) - MERC_SCREEN_OFFSET_Y - n.z + frame.renderHeight;
+    const p = { x: screenX + d.sprite.offsetX - offX, y: screenY + d.sprite.offsetY - offY };
+    this.#emitNode(p, d, x, y, 'structs', ShadeKey.FIXED, d.sprite.paletteBase + DEFAULT_SHADE_LEVEL);
   }
 
   #emitPausedAniTiles(g: number, x: number, y: number, level: number): void {
@@ -385,7 +414,7 @@ export class DynamicScene {
     if (!d) return;
     const p = this.#position(n.gridNo, x, y, d.te, d.sprite, layer);
     const at = { x: p.x + (n.offsetX ?? 0), y: p.y + (n.offsetY ?? 0) };
-    const shade = n.shade ?? UI_NODE_SHADE;
+    const shade = n.shade ?? DEFAULT_SHADE_LEVEL;
     this.#emitNode(at, d, x, y, layer, ShadeKey.FIXED, d.sprite.paletteBase + shade);
   }
 
@@ -512,7 +541,7 @@ export class DynamicScene {
   }
 }
 
-const UI_NODE_SHADE = 4;
+const DEFAULT_SHADE_LEVEL = 4;
 
 function emitStrips(
   out: InstanceBuffer,

@@ -15,7 +15,9 @@ import {
   roofCorpseZ,
   roofMercZ,
   STRUCT_Z_LEVEL,
+  structZ,
   TOPMOST_Z_LEVEL,
+  worldOrigin,
   worldY,
   Z_SUBLAYERS,
 } from './geometry.ts';
@@ -90,6 +92,7 @@ function frame(overrides: Partial<DynamicFrame>): DynamicFrame {
     itemOutline: () => 0xffffff,
     uiNodes: [],
     aniTiles: [],
+    absoluteNodes: [],
     ...overrides,
   };
 }
@@ -97,6 +100,8 @@ function frame(overrides: Partial<DynamicFrame>): DynamicFrame {
 function decode(scene: DynamicScene) {
   const d = scene.instances.data;
   return Array.from({ length: scene.instances.count }, (_, i) => ({
+    x: d[i * FLOATS_PER_INSTANCE] as number,
+    y: d[i * FLOATS_PER_INSTANCE + 1] as number,
     tile: d[i * FLOATS_PER_INSTANCE + 5] as number,
     z: d[i * FLOATS_PER_INSTANCE + 8] as number,
     flags: d[i * FLOATS_PER_INSTANCE + 10] as number,
@@ -149,6 +154,18 @@ describe('dynamic scene', () => {
     const order = decode(scene).map((p) => tables.tileNames[p.tile]);
     expect(order).toEqual(['FIRSTPOINTERS1', 'FIRSTFULLSHADOW2', 'FIRSTFULLSTRUCT2', 'FIRSTPOINTERS1']);
     expect(decode(scene).at(-1)?.z).toBe(TOPMOST_Z_LEVEL);
+  });
+
+  it('draws an absolute node after the struct nodes of its tile, on the box of its cell and raised by its height', () => {
+    const bullet = tileIndex(tables, 'BULLETTILE1');
+    const { staticWorld, prepared } = world({ structs: [[g(80, 80), [T('FIRSTFULLSTRUCT', 2)]]] }, tiles);
+    const scene = new DynamicScene(staticWorld, prepared);
+    const height = 20;
+    scene.build(frame({ absoluteNodes: [{ gridNo: g(80, 80), tile: bullet, x: 805, y: 805, z: height }] }));
+    const parts = decode(scene);
+    expect(parts.map((p) => tables.tileNames[p.tile])).toEqual(['FIRSTFULLSHADOW2', 'FIRSTFULLSTRUCT2', 'BULLETTILE1']);
+    const origin = worldOrigin(80, 80);
+    expect(parts.at(-1)).toMatchObject({ x: origin.x, y: origin.y - height, z: structZ(worldY(80, 80, 860)) });
   });
 
   it('steps animated tiles every frame of the 200 ms clock', () => {

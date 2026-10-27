@@ -2,12 +2,15 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Rotting_Corpses.cc ROTTING_CORPSE_DEFINITION (what a corpse is drawn from);
 // @src src/game/TileEngine/SmokeEffects.cc AddSmokeEffectToTile (graphic per tile); Lighting.cc LightSpriteRenderAll
-// @src (dynamic sprites); Structure.cc InternalSwapStructureForPartner, SaveLoadMap.cc (tile changes). See docs/28 §12.1 G8.
+// @src (dynamic sprites); Structure.cc InternalSwapStructureForPartner, SaveLoadMap.cc (tile changes); Bullets.cc
+// @src UpdateBullets (where a bullet tile is drawn). See docs/28 §12.1 G8.
 
 import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
+import { bulletHeightPixels, bulletWorldXY, drawnAsBulletTile } from './combat/bullets.ts';
 import { ANY_SMOKE, SmokeTile, smokeEffectIdFromFlags } from './explosions/smoke.ts';
 import { type LightSprite, LightSpriteFlags } from './lighting/lighting.ts';
 import { type MapChange, MapChangeKind, mapChangeTile } from './map-changes.ts';
+import type { Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
 export type SoldierPaletteNames = readonly [hair: string, skin: string, vest: string, pants: string];
@@ -38,6 +41,12 @@ export interface TileChangeView {
   readonly gridNo: number;
   readonly level: number;
   readonly tile: number;
+}
+
+export interface BulletView {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
 }
 
 const LEVELS = [0, 1] as const;
@@ -108,4 +117,8 @@ export function tileChangeViews(t: TacticalState): TileChangeView[] {
     if (kind !== null && tile !== null) out.push({ kind, gridNo: c.gridNo, level: c.level, tile });
   }
   return out;
+}
+
+export function bulletViews(t: TacticalState, shown: (firer: Soldier) => boolean): BulletView[] {
+  return t.bullets.filter((b) => drawnAsBulletTile(b) && shown(b.firer)).map((b) => ({ ...bulletWorldXY(b), z: bulletHeightPixels(b) }));
 }

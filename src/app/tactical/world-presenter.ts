@@ -17,7 +17,7 @@ import { NORMAL_SHADE, shadedDisplayPalette } from '../../content/world/shading.
 import { StructureFlags } from '../../content/world/structures.ts';
 import { tileIndexFromTypeSubIndex } from '../../content/world/tile-tables.ts';
 import type { CatalogueItem } from '../../protocol/items.ts';
-import type { PlayerView, SoldierView } from '../../protocol/view.ts';
+import type { BulletView, PlayerView, SoldierView } from '../../protocol/view.ts';
 import { cameraOnGridNo, type ScrollLimits, scrollBy, scrollLimits, setRenderCenter } from '../../render/world/camera.ts';
 import type { WorldUiNode } from '../../render/world/dynamic-scene.ts';
 import {
@@ -72,6 +72,7 @@ const ROOF_LAYERS: ReadonlySet<WorldMarker['layer']> = new Set(['roof', 'onRoof'
 
 export interface PresenterSources {
   readonly view: () => PlayerView | null;
+  readonly bullets: () => readonly BulletView[];
   readonly clockMs: () => number;
   readonly options: () => TacticalDisplayOptions;
 }
@@ -151,6 +152,10 @@ export class TacticalWorldPresenter implements WorldPresenter {
 
   get drawnSoldiers(): number {
     return this.#world.drawnSoldiers;
+  }
+
+  get drawnBullets(): number {
+    return this.#world.drawnBullets;
   }
 
   get night(): boolean {
@@ -440,6 +445,7 @@ export class TacticalWorldPresenter implements WorldPresenter {
       hovered: this.#hovered,
       selected: this.#selected,
       uiNodes: this.#uiNodes(),
+      bullets: this.#sources.bullets(),
       underAiControl: (id) => this.aiTurns.holds(id),
     });
     return this.#renderer.picture;

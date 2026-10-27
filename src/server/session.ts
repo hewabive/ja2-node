@@ -14,7 +14,7 @@ import {
   type WelcomeMessage,
 } from '../protocol/messages.ts';
 import { initialMusic, type MusicFacts, type MusicState, musicMode, musicView } from '../protocol/music.ts';
-import { applyViewFrame, diffPlayerView, type PlayerView, type ViewFrame } from '../protocol/view.ts';
+import { applyViewFrame, type BulletAtTick, type BulletView, diffPlayerView, type PlayerView, type ViewFrame } from '../protocol/view.ts';
 import { AdvanceRun, type PauseCheck, type Steppable, type StopCondition, type StopReport } from '../sim/advance.ts';
 import { TICK_MS } from '../sim/clock.ts';
 import type { CommandResult, StepObserver } from '../sim/command.ts';
@@ -41,6 +41,7 @@ export interface SessionSim extends Steppable {
   view(): PlayerView;
   tacticalContent?(): TacticalContent | null;
   animationTimelines?(): AnimationTimelines | null;
+  bulletViews?(): readonly BulletView[];
   strategicRules?(): StrategicRules | null;
   musicFacts?(): MusicFacts;
   messageFacts?(): MessageFacts;
@@ -118,6 +119,7 @@ export class Session {
   #labels: UiStrings | null = null;
   #campaign: string | null = null;
   readonly #framedMessages: MessageEntry[] = [];
+  readonly #framedBullets: BulletAtTick[] = [];
   readonly #unreportedMessages: MessageEntry[] = [];
   readonly #held: SimEvent[] = [];
   readonly #pendingEvents: SimEvent[] = [];
@@ -180,6 +182,17 @@ export class Session {
   #takeFramedMessages(): { readonly messages?: readonly MessageEntry[] } {
     if (this.#framedMessages.length === 0) return {};
     return { messages: this.#framedMessages.splice(0) };
+  }
+
+  #recordBullets(): void {
+    if (!this.listening) return;
+    const tick = this.#sim.tick;
+    for (const bullet of this.#sim.bulletViews?.() ?? []) this.#framedBullets.push({ tick, ...bullet });
+  }
+
+  #takeFramedBullets(): { readonly bullets?: readonly BulletAtTick[] } {
+    if (this.#framedBullets.length === 0) return {};
+    return { bullets: this.#framedBullets.splice(0) };
   }
 
   #facts(): MusicFacts {
@@ -296,6 +309,7 @@ export class Session {
       step: () => {
         sim.step();
         drain();
+        this.#recordBullets();
         this.#captureOnFrameTick(frames);
       },
     };
@@ -303,6 +317,7 @@ export class Session {
 
   #recordCommandStep(frames: ViewFrame[]): void {
     this.holdEvents();
+    this.#recordBullets();
     this.#captureOnFrameTick(frames);
   }
 
@@ -320,11 +335,12 @@ export class Session {
     this.#followMusic(events);
     this.#followMessages(events);
     const messages = this.#takeFramedMessages();
+    const bullets = this.#takeFramedBullets();
     if (!this.listening) return;
     const { view, predicting } = this.#anchored(this.#view());
     const diff = diffPlayerView(this.#lastView, view);
     this.#lastView = view;
-    const extra = { ...(events.length > 0 ? { events } : {}), ...messages };
+    const extra = { ...(events.length > 0 ? { events } : {}), ...messages, ...bullets };
     const heartbeat = predicting && view.tick % FRAME_TICKS === 0 && view.tick !== this.#shownTick;
     const frame =
       Object.keys(extra).length > 0 || (heartbeat && !diff)
@@ -509,6 +525,7 @@ export class Session {
     this.log.append('load', this.#sim.tick, { ...loaded });
     this.#held.length = 0;
     this.#pendingEvents.length = 0;
+    this.#framedBullets.length = 0;
     this.#sim = sim;
     sim.useLabels?.(this.#labels);
     this.#music = music;

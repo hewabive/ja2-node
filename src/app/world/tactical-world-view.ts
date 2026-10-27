@@ -1,5 +1,6 @@
 import { levelTilesAt } from '../../content/world/level.ts';
 import type {
+  BulletView,
   ClockView,
   CombatView,
   CorpseView,
@@ -14,6 +15,7 @@ import type { Camera, Viewport } from '../../render/world/geometry.ts';
 import type { WorldDisplayOptions, WorldDrawStats, WorldRenderer } from '../../render/world/world-renderer.ts';
 import type { SimEvent } from '../../sim/events.ts';
 import type { ReadVfsFile } from '../net/vfs.ts';
+import { type BulletTiles, bulletNodes, bulletTiles } from './bullet-nodes.ts';
 import { glowContext } from './glow-context.ts';
 import { type ItemTileLookup, itemTileLookup, readItemGraphicTables } from './item-tiles.ts';
 import { LightTemplates, mercLightTemplateName } from './light-templates.ts';
@@ -28,6 +30,7 @@ const SANDBOX_TIME: LightingTime = { hour: 12, minute: 0 };
 const NO_CORPSES: readonly CorpseView[] = [];
 const NO_SMOKE: readonly SmokeTileView[] = [];
 const NO_TILE_CHANGES: readonly TileChangeView[] = [];
+const NO_BULLETS: readonly BulletView[] = [];
 
 export interface TacticalViewState {
   readonly tick: number;
@@ -46,6 +49,7 @@ export interface TacticalViewState {
 export interface EffectOptions {
   readonly bloodAndGore: boolean;
   readonly animateSmoke: boolean;
+  readonly hideBullets: boolean;
 }
 
 export type TacticalDisplayOptions = WorldDisplayOptions & SoldierLightOptions & EffectOptions;
@@ -61,6 +65,7 @@ export const DEFAULT_TACTICAL_OPTIONS: TacticalDisplayOptions = {
   mercAlwaysLit: false,
   bloodAndGore: true,
   animateSmoke: true,
+  hideBullets: false,
 };
 
 export interface TacticalFrame {
@@ -73,6 +78,7 @@ export interface TacticalFrame {
   readonly hovered: number | null;
   readonly selected?: number | null;
   readonly uiNodes: readonly WorldUiNode[];
+  readonly bullets?: readonly BulletView[];
   readonly time?: LightingTime;
   readonly hostile?: (s: SoldierView) => boolean;
   readonly underAiControl?: (id: number) => boolean;
@@ -100,7 +106,9 @@ export class TacticalWorldView {
   readonly #templates: LightTemplates;
   readonly #itemTiles: ItemTileLookup;
   readonly #roofed: Uint8Array;
+  readonly #bulletTiles: BulletTiles | null;
   #drawnEffects = 0;
+  #drawnBullets = 0;
 
   private constructor(world: LoadedWorld, renderer: WorldRenderer, presentation: TacticalPresentation, itemTiles: ItemTileLookup) {
     this.world = world;
@@ -114,6 +122,7 @@ export class TacticalWorldView {
     this.#roofed = Uint8Array.from({ length: world.level.heights.length }, (_, g) =>
       levelTilesAt(world.level.layers.roofs, g).length > 0 ? 1 : 0,
     );
+    this.#bulletTiles = bulletTiles(world.tables);
     const sprites = renderer.setWorld(renderWorldOf(world));
     this.#soldiers.setSprites(sprites);
     this.#effects?.setSprites(sprites);
@@ -150,6 +159,10 @@ export class TacticalWorldView {
     return this.#drawnEffects;
   }
 
+  get drawnBullets(): number {
+    return this.#drawnBullets;
+  }
+
   get lightTemplates(): LightTemplates {
     return this.#templates;
   }
@@ -167,6 +180,13 @@ export class TacticalWorldView {
       const resolved = this.#templates.resolve(sprite.template);
       return resolved ? [{ x: sprite.x, y: sprite.y, template: resolved.template }] : [];
     });
+  }
+
+  #bulletNodes(bullets: readonly BulletView[], hidden: boolean) {
+    const tiles = this.#bulletTiles;
+    const drawn = tiles && !hidden ? bullets : NO_BULLETS;
+    this.#drawnBullets = drawn.length;
+    return tiles ? bulletNodes(drawn, tiles, this.world.level.heights) : [];
   }
 
   #frameOf(tick: number): (s: SoldierView) => number {
@@ -235,6 +255,7 @@ export class TacticalWorldView {
       items: this.#items(view.items),
       uiNodes: f.uiNodes,
       aniTiles,
+      absoluteNodes: this.#bulletNodes(f.bullets ?? NO_BULLETS, f.options.hideBullets),
       tileChanges: view.tileChanges ?? NO_TILE_CHANGES,
     });
   }

@@ -6,6 +6,7 @@ import type { CommandEnvelope } from '../protocol/messages.ts';
 import { initialMusic, type MusicFacts, type MusicState } from '../protocol/music.ts';
 import type {
   BoxingView,
+  BulletView,
   CampaignEndedView,
   ConversationView,
   MeanwhileSceneView,
@@ -19,6 +20,7 @@ import { findEmail } from '../sim/campaign/laptop/mail.ts';
 import { MercKind, type Roster, type RosterMerc } from '../sim/campaign/roster.ts';
 import type { CommandResult, StepObserver } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
+import { bulletsShownToPlayer } from '../sim/knowledge/sim-view.ts';
 import type { StrategicRules } from '../sim/knowledge/strategic.ts';
 import { Assignment } from '../sim/strategic/forces/constants.ts';
 import { numHostilesInSector } from '../sim/strategic/forces/groups.ts';
@@ -163,6 +165,11 @@ export class CampaignSession implements SessionSim {
   animationTimelines(): AnimationTimelines | null {
     const content = this.tacticalContent();
     return content ? { logic: content.timeline, presentation: this.presentation } : null;
+  }
+
+  bulletViews(): BulletView[] {
+    const tactical = this.campaign.tactical;
+    return tactical ? bulletsShownToPlayer(tactical) : [];
   }
 
   strategicRules(): StrategicRules | null {

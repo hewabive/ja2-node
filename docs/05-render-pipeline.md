@@ -30,6 +30,15 @@ z, on roofs at the on-roof z, in the structure (or on-roof) layer of the dynamic
 structure; items lying on a structure are raised by their height at the structure z. Structure graphics changed in the
 simulation (`tileChanges`) patch the struct and on-roof layers and rebuild the static scene.
 
+**Status (2026-10-27, bullets).** Bullets in flight (`docs/04` §4.4 "Bullets in flight") are drawn as `UpdateBullets`
+adds them (`Tactical/Bullets.cc:187-290`): two struct nodes at the tail of the bullet tile's struct list, `BULLETTILE1`
+at the bullet's height and `BULLETTILE2`, the shadow, at the land height of the tile. Both have
+`LEVELNODE_USEABSOLUTEPOS | LEVELNODE_IGNOREHEIGHT` and `DEFAULT_SHADE_LEVEL` (4). An absolute node is placed from its
+world position minus `CELL_Y_SIZE` in x (`RenderWorld.cc:657-679`), so a bullet over a tile centre sits on that tile's
+box and is raised by its `sRelativeZ`. Its z is the structure z of its tile (`:781-840`), so walls and soldiers in
+front of it hide it. In the original data both frames of `tilesets/0/bull.sti` are a single pixel at offset (19, 10)
+**(data)**. In ja2-node they are the `absoluteNodes` of `DynamicScene` (`src/app/world/bullet-nodes.ts`).
+
 **Notation.**
 - Unmarked statements were read in the code (fact) and carry a `file:line` reference.
 - **(inferred)** marks my derivations and assumptions.

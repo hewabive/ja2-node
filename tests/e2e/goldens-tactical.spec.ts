@@ -13,7 +13,15 @@ const EAST_EDGE_ROW = 75;
 const EAST_EDGE_COLUMN = 150;
 const EDGE_INSET = 4;
 const PINNED = '&pinClock=1';
+const SHOT_ROWS_SOUTH = 10;
+const SHOT_COLUMNS_EAST = 4;
+const TICKS_INTO_FLIGHT = 1;
 const STEP_TIMEOUT_MS = 60_000;
+
+interface CommandReply {
+  readonly ok: boolean;
+  readonly reason?: string;
+}
 
 async function newSession(request: APIRequestContext, data: Record<string, unknown>): Promise<string> {
   const created = (await (await request.post('/api/sessions', { data })).json()) as { session: string };
@@ -93,6 +101,28 @@ test.describe('goldens of the tactical screen on stubs', () => {
       await expectGolden('tactical-pickup-menu', await capture(page));
       await page.keyboard.press('Escape');
       await page.waitForFunction(() => window.__ja2Ui.tactical?.pickupOpen === false);
+    } finally {
+      await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
+    }
+  });
+
+  test('a bullet in flight above its shadow', async ({ page, request }) => {
+    const session = await newSession(request, { seed: QUIET_SEED });
+    try {
+      await openTacticalSession(page, session, PINNED);
+      const merc = await page.evaluate(() => window.__ja2Ui.tactical?.soldiers().find((s) => s.team === 0) ?? null);
+      if (!merc) throw new Error('no merc in the sandbox');
+      const target = merc.gridNo + SHOT_ROWS_SOUTH * COLS + SHOT_COLUMNS_EAST;
+      const attack = { type: 'attack', soldier: merc.id, target };
+      const reply = (await page.evaluate((c) => window.__ja2Ui.tactical?.command(c), attack)) as CommandReply | undefined;
+      expect(reply?.ok, reply?.reason).toBe(true);
+      await page.evaluate(() => window.__ja2Ui.tactical?.advance({ events: ['shotFired'] }));
+      await page.evaluate((ticks) => window.__ja2Ui.tactical?.advance({ ticks }), TICKS_INTO_FLIGHT);
+      await showLatest(page);
+      expect(await page.evaluate(() => window.__ja2Ui.tactical?.drawnBullets)).toBe(1);
+      await restPointer(page);
+      await imagesLoaded(page);
+      await expectGolden('tactical-bullet-in-flight', await capture(page));
     } finally {
       await request.delete(`/api/sessions/${encodeURIComponent(session)}`);
     }

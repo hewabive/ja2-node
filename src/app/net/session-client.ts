@@ -14,6 +14,7 @@ import {
   type AutoresolveView,
   applyViewFrame,
   type BoxingView,
+  type BulletView,
   type CampaignEndedView,
   type ClockView,
   type CombatView,
@@ -32,6 +33,7 @@ import {
   type StrategicView,
   type ViewFrame,
 } from '../../protocol/view.ts';
+import { BulletTrack } from './bullet-track.ts';
 
 type Pending = { resolve: (m: ServerMessage) => void; reject: (e: Error) => void };
 
@@ -63,6 +65,7 @@ export class SessionClient {
   readonly #socket: WebSocket;
   readonly #pending = new Map<number, Pending>();
   readonly #frames: ViewFrame[] = [];
+  readonly #bullets = new BulletTrack();
   #nextId = 1;
   #shown: PlayerView | null = null;
   #latest: PlayerView | null = null;
@@ -188,6 +191,10 @@ export class SessionClient {
     return this.#shownTick;
   }
 
+  get bullets(): readonly BulletView[] {
+    return this.#bullets.at(Math.floor(this.#shownTick));
+  }
+
   get latestTick(): number {
     return this.#latest?.tick ?? 0;
   }
@@ -211,6 +218,7 @@ export class SessionClient {
     switch (m.t) {
       case 'welcome':
         this.#frames.length = 0;
+        this.#bullets.clear();
         this.session = m.session;
         this.campaign = m.campaign ?? null;
         this.identity = { engine: m.engine, rules: m.rules };
@@ -224,6 +232,7 @@ export class SessionClient {
         break;
       case 'frames':
         this.#frames.push(...m.frames);
+        this.#bullets.add(m.frames);
         for (const frame of m.frames) this.#latest = this.#latest && applyViewFrame(this.#latest, frame);
         this.onReceive?.(m.frames);
         break;
@@ -254,6 +263,7 @@ export class SessionClient {
     }
     const target = Math.min(tick, this.latestTick);
     if (target > this.#shownTick) this.#shownTick = target;
+    this.#bullets.forgetBefore(Math.floor(this.#shownTick));
     if (applied.length > 0) this.onFrames?.(applied);
     return applied.length > 0;
   }

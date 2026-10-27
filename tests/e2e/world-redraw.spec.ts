@@ -6,6 +6,8 @@ const MAP_MIDDLE = { x: 640, y: 300 };
 const SCROLL_MS = 600;
 const PLAYBACK_MS = 2_000;
 const STEPS_EAST = 3;
+const SHOT_ROWS_SOUTH = 10;
+const COLS = 160;
 const SCROLLS: readonly (readonly string[])[] = [
   ['ArrowDown'],
   ['ArrowLeft'],
@@ -24,7 +26,7 @@ async function hold(page: Page, keys: readonly string[]): Promise<void> {
 test.describe('partial redraws of the tactical world (docs/28 §16)', () => {
   test.use({ viewport: { width: 1280, height: 960 } });
 
-  test('match a whole redraw while the squad breathes and walks and the camera scrolls', async ({ page, request }) => {
+  test('match a whole redraw while the squad breathes, walks and shoots and the camera scrolls', async ({ page, request }) => {
     const { session } = (await (await request.post('/api/sessions', { data: { seed: QUIET_SEED } })).json()) as { session: string };
     try {
       await openTacticalSession(page, session, '&worldCheck=1');
@@ -33,6 +35,8 @@ test.describe('partial redraws of the tactical world (docs/28 §16)', () => {
       await page.evaluate((gridNo) => window.__ja2Ui.tactical?.centerOn(gridNo), merc.gridNo);
       await page.mouse.move(MAP_MIDDLE.x, MAP_MIDDLE.y);
       await tacticalOrder(page, { type: 'move', soldier: merc.id, to: merc.gridNo + STEPS_EAST, mode: 'walk' });
+      await page.waitForTimeout(PLAYBACK_MS);
+      await tacticalOrder(page, { type: 'attack', soldier: merc.id, target: merc.gridNo + STEPS_EAST + SHOT_ROWS_SOUTH * COLS });
       await page.waitForTimeout(PLAYBACK_MS);
       for (const keys of SCROLLS) await hold(page, keys);
       const checks = await page.evaluate(() => window.__ja2Ui.tactical?.worldChecks ?? null);

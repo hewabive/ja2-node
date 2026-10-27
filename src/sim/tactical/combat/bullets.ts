@@ -177,6 +177,16 @@ const fixInt = (q: number) => Math.trunc(q / FIX);
 export function bulletWorldXY(b: Bullet): { readonly x: number; readonly y: number } {
   return { x: fixInt(b.x), y: fixInt(b.y) };
 }
+
+const DRAWN_WITHOUT_BULLET_TILE = BulletFlag.KNIFE | SPECIAL_BULLETS;
+
+export function drawnAsBulletTile(b: Bullet): boolean {
+  return b.real && !b.toDelete && (b.flags & (BulletFlag.STOPPED | DRAWN_WITHOUT_BULLET_TILE)) === 0;
+}
+
+export function bulletHeightPixels(b: Bullet): number {
+  return Math.trunc((fixInt(b.z) * WALL_HEIGHT_PIXELS) / WALL_HEIGHT_UNITS);
+}
 const tileOf = (q: number) => Math.trunc(fixInt(q) / 10);
 const cellOf = (q: number) => (fixInt(q) % 10) >> 1;
 const cubeOf = (heightUnits: number) => Math.trunc(heightUnits / 64);

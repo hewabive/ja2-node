@@ -7,7 +7,7 @@ import { type InventoryItemView, sameInventory } from '../sim/tactical/inventory
 import type { Stance } from '../sim/tactical/movement-mode.ts';
 import type { FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
 import type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
-import type { CorpseView, SmokeTileView, TileChangeView, WorldLightView } from '../sim/tactical/world-view.ts';
+import type { BulletView, CorpseView, SmokeTileView, TileChangeView, WorldLightView } from '../sim/tactical/world-view.ts';
 import type { MessageEntry } from './message-log.ts';
 import { type MusicView, sameMusic } from './music.ts';
 import { sameJson } from './same-json.ts';
@@ -22,6 +22,7 @@ export type { Stance } from '../sim/tactical/movement-mode.ts';
 export type { FirstAidRole, SoldierStatsView, VehicleSeatView, WeaponModeView } from '../sim/tactical/soldier-view.ts';
 export type { TopMessageView } from '../sim/tactical/tactical-sim.ts';
 export type {
+  BulletView,
   CorpseView,
   SmokeTileView,
   TileChangeKind,
@@ -934,12 +935,17 @@ export interface PlayerView {
   readonly music?: MusicView;
 }
 
+export interface BulletAtTick extends BulletView {
+  readonly tick: number;
+}
+
 export interface ViewFrame {
   readonly tick: number;
   readonly changed: readonly SoldierView[];
   readonly removed: readonly number[];
   readonly events?: readonly SimEvent[];
   readonly messages?: readonly MessageEntry[];
+  readonly bullets?: readonly BulletAtTick[];
   readonly mapPath?: string | null;
   readonly clock?: ClockView;
   readonly strategic?: StrategicView;
@@ -1163,7 +1169,7 @@ export function applyFrame(soldiers: readonly SoldierView[], frame: ViewFrame): 
   return [...byId.values()].sort((a, b) => a.id - b.id);
 }
 
-const FRAME_ONLY_KEYS = ['tick', 'changed', 'removed', 'events', 'messages'] as const;
+const FRAME_ONLY_KEYS = ['tick', 'changed', 'removed', 'events', 'messages', 'bullets'] as const;
 type FrameFields = Omit<ViewFrame, (typeof FRAME_ONLY_KEYS)[number]>;
 
 function frameFields(frame: ViewFrame): FrameFields {

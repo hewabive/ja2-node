@@ -51,6 +51,10 @@ const SLANTED_ROOF_CUBES = 2;
 const TALL_ROOF_CUBES = 4;
 const NORMAL_ROOF_CUBES = 1;
 const CLIFF_CUBES = 4;
+const BULLET_OFFSET_X = 19;
+const BULLET_OFFSET_Y = 10;
+const BULLET_SHADE = 15;
+const BULLET_SHADOW_SHADE = 1;
 
 type Side = 'left' | 'right';
 type WallFace = 'solid' | 'window' | 'shattered';
@@ -155,6 +159,12 @@ function slantedRoof(ramp: RampName, rise: number): StubFrame {
   const r = frame.raster;
   for (let k = 0; k <= ROOF_RIDGE_HEIGHT + rise; k++) r.set(HALF_W, TILE_H / 2 + rise - k, color(ramp, 12));
   return frame;
+}
+
+function bulletDot(c: number): StubFrame {
+  const r = new IndexedRaster(1, 1);
+  r.set(0, 0, c);
+  return { raster: r, ox: BULLET_OFFSET_X, oy: BULLET_OFFSET_Y };
 }
 
 function cliffFace(): StubFrame {
@@ -331,6 +341,10 @@ export const STUB_TILE_SURFACES: readonly StubSurface[] = [
   },
   { type: 'FIRSTCLIFFHANG', sprite: { path: 'cliffhang', frames: [cliffLip()] } },
   { type: 'DEBRISROCKS', sprite: { path: 'rocks', frames: [rocks(43), rocks(44)] } },
+  {
+    type: 'BULLETTILE',
+    sprite: { path: 'bullet', frames: [bulletDot(color('gray', BULLET_SHADE)), bulletDot(color('gray', BULLET_SHADOW_SHADE))] },
+  },
   { type: 'GUNS', sprite: itemSprite('guns', STUB_ITEM_TILE_COUNTS.GUNS ?? 0, gunTile) },
   { type: 'P1ITEMS', sprite: itemSprite('items1', STUB_ITEM_TILE_COUNTS.P1ITEMS ?? 0, itemTile) },
   { type: 'P2ITEMS', sprite: itemSprite('items2', STUB_ITEM_TILE_COUNTS.P2ITEMS ?? 0, (k) => itemTile(k + 2)) },

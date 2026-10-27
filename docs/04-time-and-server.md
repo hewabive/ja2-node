@@ -249,6 +249,15 @@ item}`. Soldier entries in the view carry `voice`: the battle-sound voice, the p
 `m_`/`f_` fallback. The client derives all sound from these events, the frames and the animation codes it replays
 between snapshots (`docs/27` §3.6); agents get the same events and never audio.
 
+**Bullets in flight.** After every tick the session records where each bullet is that the original draws as a
+bullet tile (not knives, missiles, flames or spit), but only for our soldiers and the soldiers the squad sees
+(`shownToPlayer`, `deviations.md` "Bullets of unseen shooters"), and sends those positions in the next frame
+(`ViewFrame.bullets [{tick, x, y, z}]`: world x and y in cell units, `z` the height in pixels as the original's
+`sRelativeZ`). A whole flight takes a few ticks and usually falls between two frames, so a frame carries every tick,
+not only its own. Like `messages`, the field is never applied to the view and never reaches an agent's view or a save. The
+client keeps the positions it has received (`BulletTrack`) and draws those of the tick it shows, rounded down
+(`docs/05` §2.6). The simulation's pacing does not change; the hide-bullets option only stops the drawing.
+
 ### 4.5. CPU cost
 
 **Estimate for a turn of 15 enemies.** Each moves ~6 tiles (≈0.7 s), shoots (0.35–1.15 s),

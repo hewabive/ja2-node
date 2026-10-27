@@ -8,10 +8,10 @@ import type { ReadFile } from '../content/world/tileset-loader.ts';
 import type { CommandEnvelope } from '../protocol/messages.ts';
 import { initialMusic, type MusicFacts, type MusicState } from '../protocol/music.ts';
 import { MusicMode } from '../protocol/music-modes.ts';
-import type { PlayerView, SoldierView } from '../protocol/view.ts';
+import type { BulletView, PlayerView, SoldierView } from '../protocol/view.ts';
 import type { CommandResult } from '../sim/command.ts';
 import type { SimEvent } from '../sim/events.ts';
-import { tacticalViewParts } from '../sim/knowledge/sim-view.ts';
+import { bulletsShownToPlayer, tacticalViewParts } from '../sim/knowledge/sim-view.ts';
 import { calcDifficultyModifier } from '../sim/strategic/ai/difficulty.ts';
 import { Difficulty } from '../sim/strategic/forces/constants.ts';
 import type { TacticalContent } from '../sim/tactical/content.ts';
@@ -78,6 +78,10 @@ export class TacticalSession implements SessionSim {
 
   animationTimelines(): AnimationTimelines {
     return { logic: this.sim.state.content.timeline, presentation: this.presentation };
+  }
+
+  bulletViews(): BulletView[] {
+    return bulletsShownToPlayer(this.sim);
   }
 
   view(): PlayerView {

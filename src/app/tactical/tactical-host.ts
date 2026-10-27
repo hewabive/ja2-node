@@ -225,6 +225,7 @@ export class TacticalHost {
       soldierAssets.tables,
       {
         view: () => session.view,
+        bullets: () => session.bullets,
         clockMs: () => this.#o.ui.runtime.clock.ja2Now,
         options: () => tacticalOptionsOf(loadSettings()),
       },
@@ -503,6 +504,7 @@ export class TacticalHost {
       camera: null,
       drawCalls: 0,
       drawnSoldiers: 0,
+      drawnBullets: 0,
       pendingImages: 0,
       enemyBar: { counter: 0, max: 0 },
       topMessage: null,
@@ -628,6 +630,7 @@ export class TacticalHost {
     hook.camera = presenter?.camera ?? null;
     hook.drawCalls = presenter?.stats?.drawCalls ?? 0;
     hook.drawnSoldiers = presenter?.drawnSoldiers ?? 0;
+    hook.drawnBullets = presenter?.drawnBullets ?? 0;
     hook.pendingImages = this.#loaded?.media.loading ?? 0;
     if (!screen) return;
     hook.panel = screen.panel;

@@ -101,6 +101,7 @@ export interface TacticalHook {
   camera: { readonly centerX: number; readonly centerY: number } | null;
   drawCalls: number;
   drawnSoldiers: number;
+  drawnBullets: number;
   pendingImages: number;
   enemyBar: { readonly counter: number; readonly max: number };
   topMessage: string | null;

@@ -270,7 +270,43 @@ describe('session', () => {
     expect(session.advance({ ticks: 1 }).events).toEqual([expect.objectContaining({ type: 'enemySighted', tick: 23 })]);
     session.close();
   });
+
+  it('sends the bullets of every tick in the frame that ends with it, kept out of the view', () => {
+    const sim = shooting(walker(), 8, 22);
+    const session = new Session('s9', sim);
+    const messages: ServerMessage[] = [];
+    session.subscribe((m) => messages.push(m));
+    session.dispatch({ type: 'walk', to: 35 });
+    session.advance({ ticks: 25 });
+    const frames = messages.flatMap((m) => (m.t === 'frames' ? m.frames : []));
+    const ticksPerFrame = frames.filter((f) => f.bullets).map((f) => [f.tick, f.bullets?.map((b) => b.tick)]);
+    expect(ticksPerFrame).toEqual([
+      [10, [8, 9, 10]],
+      [20, [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]],
+      [25, [21, 22]],
+    ]);
+    expect(frames.flatMap((f) => f.bullets ?? []).every((b) => b.x === b.tick * 10 && b.y === 5 && b.z === 30)).toBe(true);
+    expect(heldView(messages)).not.toHaveProperty('bullets');
+    session.close();
+  });
+
+  it('sends the bullets of the ticks a command runs itself', () => {
+    const sim = shooting(walkingWithinCommands(walker()), 33, 34);
+    const session = new Session('s10', sim);
+    const messages: ServerMessage[] = [];
+    session.subscribe((m) => messages.push(m));
+    session.dispatch({ type: 'walkThere', to: 35 });
+    const frames = messages.flatMap((m) => (m.t === 'frames' ? m.frames : []));
+    expect(frames.filter((f) => f.bullets).map((f) => [f.tick, f.bullets?.map((b) => b.tick)])).toEqual([[35, [33, 34]]]);
+    session.close();
+  });
 });
+
+function shooting<T extends SessionSim>(sim: T, from: number, to: number): T {
+  return Object.assign(sim, {
+    bulletViews: () => (sim.tick >= from && sim.tick <= to ? [{ x: sim.tick * 10, y: 5, z: 30 }] : []),
+  });
+}
 
 function walkingWithinCommands<T extends SessionSim & { target: number }>(sim: T): T {
   const dispatch = sim.dispatch.bind(sim);

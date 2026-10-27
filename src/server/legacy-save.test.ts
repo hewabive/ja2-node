@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createSaveKit, type SaveKit } from '../../tests/support/saves.ts';
 import { loadStubSectorKit, type StubSectorKit } from '../../tests/support/sectors.ts';
+import { parseTilesetDatabase, writeTilesetDatabase } from '../content/formats/ja2set.ts';
 import { STUBS_LAYER } from '../content/vfs/layers.ts';
 import { MemoryLayer, Vfs } from '../content/vfs/vfs.ts';
 import { Team } from '../sim/tactical/soldier.ts';
@@ -17,6 +18,8 @@ const TEST_TIMEOUT_MS = 120_000;
 const RECORDED_STUB_FILE = 'stubs/npcdata/000.npc';
 const STUB_PROFILES_FILE = 'stubs/profiles.json';
 const FACE_OFFSETS_ADDED_AFTER_070 = /\n {6}"face": \{\n[^}]*\n {6}\},/g;
+const STUB_TILESETS_FILE = 'stubs/world/binarydata/ja2set.dat';
+const SURFACES_ADDED_AFTER_070 = new Set(['bullet.sprite.json']);
 const SAVE_NAMES = ['campaign', 'sandbox'];
 
 interface SoldierSummary {
@@ -63,10 +66,26 @@ async function withChangedStubFile(vfs: Vfs): Promise<Vfs> {
   return new Vfs([new MemoryLayer(STUBS_LAYER, [[RECORDED_STUB_FILE, changed]]), ...vfs.layers]);
 }
 
-async function withStubProfilesAsRecorded(vfs: Vfs): Promise<Vfs> {
+async function recordedStubProfiles(vfs: Vfs): Promise<Uint8Array> {
   const current = new TextDecoder().decode(await vfs.read(STUB_PROFILES_FILE));
-  const recorded = new TextEncoder().encode(current.replace(FACE_OFFSETS_ADDED_AFTER_070, ''));
-  return new Vfs([new MemoryLayer(STUBS_LAYER, [[STUB_PROFILES_FILE, recorded]]), ...vfs.layers]);
+  return new TextEncoder().encode(current.replace(FACE_OFFSETS_ADDED_AFTER_070, ''));
+}
+
+async function recordedStubTilesets(vfs: Vfs): Promise<Uint8Array> {
+  const current = parseTilesetDatabase(await vfs.read(STUB_TILESETS_FILE));
+  const tilesets = current.tilesets.map((t) => ({
+    ...t,
+    surfaceFiles: t.surfaceFiles.map((file) => (SURFACES_ADDED_AFTER_070.has(file) ? '' : file)),
+  }));
+  return writeTilesetDatabase({ ...current, tilesets });
+}
+
+async function withStubsAsRecorded(vfs: Vfs): Promise<Vfs> {
+  const recorded = new MemoryLayer(STUBS_LAYER, [
+    [STUB_PROFILES_FILE, await recordedStubProfiles(vfs)],
+    [STUB_TILESETS_FILE, await recordedStubTilesets(vfs)],
+  ]);
+  return new Vfs([recorded, ...vfs.layers]);
 }
 
 async function copyFixtures(k: SaveKit): Promise<void> {
@@ -75,7 +94,7 @@ async function copyFixtures(k: SaveKit): Promise<void> {
 
 beforeAll(async () => {
   kit = await loadStubSectorKit();
-  const recorded = await withStubProfilesAsRecorded(kit.vfs);
+  const recorded = await withStubsAsRecorded(kit.vfs);
   saves = await createSaveKit(kit, { legacyVfs: recorded });
   changedStubs = await createSaveKit(kit, { legacyVfs: await withChangedStubFile(recorded) });
   expected = JSON.parse(await readFile(join(FIXTURES, `expected-${LEGACY_VERSION}.json`), 'utf8')) as Record<string, ExpectedRun>;
